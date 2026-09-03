@@ -1,0 +1,32 @@
+﻿# VN Office .gitignore
+*.zip
+*.7z
+*.tar.gz
+
+# Build outputs
+/bin/
+/obj/
+/dist/
+/out/
+/build/
+*.exe
+*.dll
+*.so
+*.dylib
+*.pdb
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# IDE & OS
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# LibreOffice build artifacts inside core-master
+/core-master/core-master/workdir/
+/core-master/core-master/instdir/
