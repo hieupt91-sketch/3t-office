@@ -69,7 +69,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] Data Validation (danh sách dropdown thật + số trong khoảng, cảnh báo không chặn cứng, độc lập theo sheet)
 - [x] Mở/Lưu file XLSX/ODS thật qua LibreOffice headless (round-trip đã test thật)
 - [x] Sort & Filter thật trên vùng dữ liệu (Sort A-Z, Z-A, Undo sort, AutoFilter popover lọc theo giá trị)
-- [ ] Charts thật (đã có SVG chart — mở rộng loại: cột/đường/tròn/miền)
+- [x] Charts thật — lấy dữ liệu từ vùng ô đang chọn; 4 loại SVG cột/đường/tròn/miền; lưu và hiển thị độc lập theo sheet; tự vẽ lại khi dữ liệu nguồn đổi; hỗ trợ xóa chart; đã có behavioral test state/DOM/cross-sheet.
 - [ ] Undo/Redo sâu hơn (đã có stack cơ bản — cần test edge case)
 
 ### Tier 2
