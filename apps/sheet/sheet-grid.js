@@ -16,19 +16,32 @@ export class SheetGridController {
     this.rowCount = 200;
     this.rowHeight = 26;
 
-    /** @type {Map<string, {val: string|number, formula: string, style: Object}>} */
-    this.cellsData = new Map();
-    this.formulaEngine = new FormulaEngine(this.cellsData);
+    this.sheets = ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"];
+    this.activeSheet = "Dự toán chi phí";
+
+    /** @type {Record<string, Map<string, {val: string|number, formula: string, style: Object}>>} */
+    this.sheetsData = {
+      "Dự toán chi phí": new Map(),
+      "Kế hoạch Q3": new Map(),
+      "Nhân sự": new Map()
+    };
+
+    /** @type {Record<string, {hiddenRows: Set<number>, activeFilters: Map<string, Set<string>>, isFilterActive: boolean, selectedCoord: {r: number, c: string}}>} */
+    this.sheetStates = {
+      "Dự toán chi phí": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, selectedCoord: { r: 1, c: "A" } },
+      "Kế hoạch Q3": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, selectedCoord: { r: 1, c: "A" } },
+      "Nhân sự": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, selectedCoord: { r: 1, c: "A" } }
+    };
+
+    this.formulaEngine = new FormulaEngine(() => this.cellsData);
     this.autocomplete = new FormulaAutocompleteController(this);
 
     this.undoStack = [];
     this.redoStack = [];
 
     this.selectedCoord = { r: 1, c: "A" };
-    this.sheets = ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"];
-    this.activeSheet = "Dự toán chi phí";
 
-    // Freeze Panes & Sort/Filter state
+    // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
     this.isFrozenPanes = false;
     this.isFilterActive = false;
     this.hiddenRows = new Set();
@@ -41,6 +54,24 @@ export class SheetGridController {
     this.bottomSpacer = null;
     this.viewport = null;
     this.tbody = null;
+    this.tabBar = null;
+  }
+
+  get cellsData() {
+    if (!this.sheetsData) {
+      this.sheetsData = {};
+    }
+    if (!this.sheetsData[this.activeSheet]) {
+      this.sheetsData[this.activeSheet] = new Map();
+    }
+    return this.sheetsData[this.activeSheet];
+  }
+
+  set cellsData(val) {
+    if (!this.sheetsData) {
+      this.sheetsData = {};
+    }
+    this.sheetsData[this.activeSheet] = val;
   }
 
   mount() {
@@ -171,19 +202,26 @@ export class SheetGridController {
       <div id="vno-sheet-tabs-list" style="display:flex;gap:3px;"></div>
       <button class="vno-sheet-add-btn" title="Thêm trang tính mới">+</button>
     `;
+    this.tabBar = tabBar;
 
     const tabsListEl = tabBar.querySelector("#vno-sheet-tabs-list");
     this.sheets.forEach(s => {
       const tab = document.createElement("div");
       tab.className = `vno-sheet-tab-item ${s === this.activeSheet ? "is-active" : ""}`;
+      tab.dataset.sheet = s;
       tab.textContent = s;
       tab.addEventListener("click", () => {
-        this.activeSheet = s;
-        tabBar.querySelectorAll(".vno-sheet-tab-item").forEach(t => t.classList.remove("is-active"));
-        tab.classList.add("is-active");
+        this.switchSheet(s);
       });
       tabsListEl.appendChild(tab);
     });
+
+    const addBtn = tabBar.querySelector(".vno-sheet-add-btn");
+    if (addBtn) {
+      addBtn.addEventListener("click", () => {
+        this.addSheet();
+      });
+    }
 
     this.container.appendChild(tabBar);
 
@@ -191,6 +229,129 @@ export class SheetGridController {
     this._renderVirtualRows(1, 40);
     this.selectCell("A", 1);
     this._bindGridKeyboardNavigation();
+  }
+
+  switchSheet(sheetName) {
+    if (!sheetName) return false;
+    if (!this.sheets.includes(sheetName)) {
+      this.sheets.push(sheetName);
+    }
+    if (!this.sheetsData) {
+      this.sheetsData = {};
+    }
+    if (!this.sheetsData[sheetName]) {
+      this.sheetsData[sheetName] = new Map();
+    }
+
+    // 1. Lưu trạng thái sheet hiện tại
+    if (this.activeSheet && this.sheetStates) {
+      this.sheetStates[this.activeSheet] = {
+        hiddenRows: new Set(this.hiddenRows || []),
+        activeFilters: new Map(this.activeFilters || []),
+        isFilterActive: !!this.isFilterActive,
+        selectedCoord: { ...(this.selectedCoord || { r: 1, c: "A" }) }
+      };
+    }
+
+    // 2. Chuyển sang sheet mới
+    this.activeSheet = sheetName;
+
+    // 3. Khôi phục trạng thái cho sheet mới
+    if (!this.sheetStates) {
+      this.sheetStates = {};
+    }
+    if (!this.sheetStates[sheetName]) {
+      this.sheetStates[sheetName] = {
+        hiddenRows: new Set(),
+        activeFilters: new Map(),
+        isFilterActive: false,
+        selectedCoord: { r: 1, c: "A" }
+      };
+    }
+    const nextState = this.sheetStates[sheetName];
+    this.hiddenRows = new Set(nextState.hiddenRows);
+    this.activeFilters = new Map(nextState.activeFilters);
+    this.isFilterActive = nextState.isFilterActive;
+    this.selectedCoord = { ...nextState.selectedCoord };
+
+    if (this.container && this.container.classList) {
+      if (this.isFilterActive) {
+        this.container.classList.add("vno-filter-mode");
+      } else {
+        this.container.classList.remove("vno-filter-mode");
+      }
+    }
+    if (typeof this._updateFilterButtons === "function") {
+      this._updateFilterButtons();
+    }
+
+    // 4. Đồng bộ FormulaEngine với dữ liệu sheet active
+    if (this.formulaEngine) {
+      if (typeof this.formulaEngine.setCellsData === "function") {
+        this.formulaEngine.setCellsData(this.cellsData);
+      } else {
+        this.formulaEngine.cellsData = this.cellsData;
+      }
+    }
+
+    // 5. Cập nhật trạng thái visual của tab bar
+    if (this.tabBar && typeof this.tabBar.querySelectorAll === "function") {
+      const tabs = this.tabBar.querySelectorAll(".vno-sheet-tab-item");
+      tabs.forEach(t => {
+        if (t.dataset?.sheet === sheetName || t.textContent === sheetName) {
+          t.classList.add("is-active");
+        } else {
+          t.classList.remove("is-active");
+        }
+      });
+    }
+
+    // 6. Re-render lưới hiển thị ảo
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+
+    // 7. Cập nhật ô chọn và thanh công thức
+    this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+
+    return true;
+  }
+
+  addSheet(name) {
+    const sheetName = name || `Trang tính ${this.sheets.length + 1}`;
+    if (!this.sheets.includes(sheetName)) {
+      this.sheets.push(sheetName);
+    }
+    if (!this.sheetsData) {
+      this.sheetsData = {};
+    }
+    if (!this.sheetsData[sheetName]) {
+      this.sheetsData[sheetName] = new Map();
+    }
+    if (!this.sheetStates) {
+      this.sheetStates = {};
+    }
+    if (!this.sheetStates[sheetName]) {
+      this.sheetStates[sheetName] = {
+        hiddenRows: new Set(),
+        activeFilters: new Map(),
+        isFilterActive: false,
+        selectedCoord: { r: 1, c: "A" }
+      };
+    }
+
+    if (this.tabBar && typeof this.tabBar.querySelector === "function") {
+      const tabsListEl = this.tabBar.querySelector("#vno-sheet-tabs-list");
+      if (tabsListEl && typeof document !== "undefined" && typeof document.createElement === "function") {
+        const tab = document.createElement("div");
+        tab.className = "vno-sheet-tab-item";
+        tab.dataset.sheet = sheetName;
+        tab.textContent = sheetName;
+        tab.addEventListener("click", () => this.switchSheet(sheetName));
+        tabsListEl.appendChild(tab);
+      }
+    }
+
+    this.switchSheet(sheetName);
+    return sheetName;
   }
 
   _renderVirtualRows(startRow, endRow) {
@@ -408,6 +569,7 @@ export class SheetGridController {
     if (recordUndo) {
       this.undoStack.push({
         type: "cell",
+        sheet: this.activeSheet,
         col,
         row,
         prevVal: item.formula || item.val || "",
@@ -637,6 +799,7 @@ export class SheetGridController {
     if (recordUndo) {
       this.undoStack.push({
         type: "style",
+        sheet: this.activeSheet,
         col: this.selectedCoord.c,
         row: this.selectedCoord.r,
         prop,
@@ -665,6 +828,9 @@ export class SheetGridController {
   undo() {
     if (this.undoStack.length === 0) return false;
     const action = this.undoStack.pop();
+    if (action.sheet && action.sheet !== this.activeSheet) {
+      this.switchSheet(action.sheet);
+    }
     if (action.type === "cell") {
       this.redoStack.push({ ...action });
       this.setCellValue(action.col, action.row, action.prevVal, false);
@@ -698,6 +864,9 @@ export class SheetGridController {
   redo() {
     if (this.redoStack.length === 0) return false;
     const action = this.redoStack.pop();
+    if (action.sheet && action.sheet !== this.activeSheet) {
+      this.switchSheet(action.sheet);
+    }
     if (action.type === "cell") {
       this.undoStack.push({ ...action });
       this.setCellValue(action.col, action.row, action.nextVal, false);
@@ -769,6 +938,7 @@ export class SheetGridController {
 
     this.undoStack.push({
       type: "sort",
+      sheet: this.activeSheet,
       minRow,
       maxRow,
       snapshots: JSON.parse(JSON.stringify(rowSnapshots))

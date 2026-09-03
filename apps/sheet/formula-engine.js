@@ -44,17 +44,26 @@ export const FUNCTION_CATALOG = [
 
 export class FormulaEngine {
   /**
-   * @param {Map<string, {val: string, formula: string, style: Object}>} cellsData
+   * @param {Map<string, {val: string, formula: string, style: Object}> | (() => Map<string, any>)} cellsData
    */
   constructor(cellsData) {
     this.cellsData = cellsData;
+  }
+
+  setCellsData(cellsData) {
+    this.cellsData = cellsData;
+  }
+
+  get cellsMap() {
+    return typeof this.cellsData === "function" ? this.cellsData() : this.cellsData;
   }
 
   /**
    * Trích xuất giá trị số hoặc chuỗi từ một ô
    */
   getCellValue(coord) {
-    const item = this.cellsData.get(coord.toUpperCase());
+    const map = this.cellsMap;
+    const item = map ? map.get(coord.toUpperCase()) : null;
     if (!item) return 0;
     const raw = item.val || "";
 

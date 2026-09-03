@@ -14,6 +14,7 @@ import { runHtmlSmokeTests } from "./smoke/html-smoke.test.js";
 import { runAiServiceTests } from "./unit/ai-service.test.js";
 import { runSheetFileIoTests } from "./unit/sheet-file-io.test.js";
 import { runSlidesFileIoTests } from "./unit/slides-file-io.test.js";
+import { runMultiSheetTests } from "./unit/sheet-multi-sheet.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -35,7 +36,8 @@ async function runAll() {
     { title: "8. Smoke Tests — Application Entrypoints & index.html Runtime", runner: runHtmlSmokeTests },
     { title: "9. Unit Tests — AI Service Provider Orchestration", runner: runAiServiceTests },
     { title: "10. Unit Tests — VN Sheet Real File I/O & CSV Adapter", runner: runSheetFileIoTests },
-    { title: "11. Unit Tests — VN Slides Real File I/O & FODP Adapter", runner: runSlidesFileIoTests }
+    { title: "11. Unit Tests — VN Slides Real File I/O & FODP Adapter", runner: runSlidesFileIoTests },
+    { title: "12. Unit Tests — VN Sheet Multi-Sheet Data Isolation", runner: runMultiSheetTests }
   ];
 
   for (const suite of suites) {
