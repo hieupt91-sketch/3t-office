@@ -402,6 +402,95 @@ export async function runHtmlSmokeTests() {
           try { fs.unlinkSync(tempSlidesHtmlPath); } catch (_) {}
         }
       }
+
+      // ==========================================
+      // 4c. Smoke test mở Print Preview VN Writer thật qua Browser Headless
+      // ==========================================
+      const tempPreviewHtmlPath = path.join(ROOT_DIR, "tests", "smoke", "temp-writer-preview-browser.html");
+      const previewHtmlContent = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="../../platform/theme/tokens.css">
+  <link rel="stylesheet" href="../../platform/ui-kit/ui-kit.css">
+  <link rel="stylesheet" href="../../platform/ribbon/ribbon.css">
+  <link rel="stylesheet" href="../../platform/shell/shell.css">
+  <link rel="stylesheet" href="../../apps/writer/writer.css">
+</head>
+<body>
+  <div id="vno-app-root"></div>
+  <script type="module">
+    import { WriterApp } from "../../apps/writer/writer-app.js";
+    import { themeManager } from "../../platform/theme/theme-manager.js";
+    import { bootstrapPlatform } from "../../platform/bootstrap.js";
+
+    await bootstrapPlatform();
+    themeManager.setApp("writer");
+    const app = new WriterApp(document.getElementById("vno-app-root"));
+    await app.init();
+
+    // Chuyển sang Letter Landscape và mở Print Preview
+    app.adapter.pageSetup = {
+      size: "letter",
+      orientation: "landscape",
+      margins: { top: 15, bottom: 15, left: 20, right: 20 }
+    };
+    app.adapter.openPrintPreview();
+  </script>
+</body>
+</html>`;
+
+      try {
+        fs.writeFileSync(tempPreviewHtmlPath, previewHtmlContent, "utf8");
+        const previewUrl = "file:///" + tempPreviewHtmlPath.replace(/\\/g, "/");
+
+        const previewProc = spawnSync(browserBinary, [
+          "--headless=new",
+          "--allow-file-access-from-files",
+          "--virtual-time-budget=3000",
+          "--dump-dom",
+          previewUrl
+        ], {
+          encoding: "utf8",
+          timeout: 15000,
+          windowsHide: true
+        });
+
+        const previewDom = previewProc.stdout || "";
+        const hasOverlay = previewDom.includes("vno-print-preview-overlay");
+        const hasLetter = previewDom.includes('data-paper-size="letter"');
+        const hasLandscape = previewDom.includes('data-paper-orientation="landscape"');
+        const hasToolbar = previewDom.includes("vno-print-preview-toolbar");
+        const hasSheet = previewDom.includes("vno-print-preview-sheet");
+        const hasPrintBtn = previewDom.includes("vno-print-preview-btn-print");
+        const hasPageInput = previewDom.includes("vno-print-preview-page-input");
+
+        if (previewProc.status === 0 && hasOverlay && hasLetter && hasLandscape && hasToolbar && hasSheet && hasPrintBtn && hasPageInput) {
+          results.push({
+            name: `Browser Headless (${browserName}): Mở Print Preview VN Writer, render chính xác khổ Letter Landscape thật thành công`,
+            pass: true
+          });
+        } else {
+          const missing = [
+            !hasOverlay && "thiếu .vno-print-preview-overlay",
+            !hasLetter && "thiếu data-paper-size='letter'",
+            !hasLandscape && "thiếu data-paper-orientation='landscape'",
+            !hasToolbar && "thiếu .vno-print-preview-toolbar",
+            !hasSheet && "thiếu .vno-print-preview-sheet",
+            !hasPrintBtn && "thiếu nút in .vno-print-preview-btn-print",
+            !hasPageInput && "thiếu input số trang .vno-print-preview-page-input"
+          ].filter(Boolean).join(", ");
+
+          results.push({
+            name: `Browser Headless (${browserName}): Lỗi render Print Preview VN Writer (${missing || "exit code " + previewProc.status})`,
+            pass: false
+          });
+        }
+      } finally {
+        if (fs.existsSync(tempPreviewHtmlPath)) {
+          try { fs.unlinkSync(tempPreviewHtmlPath); } catch (_) {}
+        }
+      }
     } catch (browserErr) {
       results.push({
         name: `Browser Headless (${browserName}): Ngoại lệ khi thực thi: ${browserErr.message}`,

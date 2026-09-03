@@ -41,6 +41,11 @@ export class WriterAdapter {
     this._commentPanelKeyHandler = null;
     this.trackChangesEnabled = false;
     this._trackChangesBeforeInputHandler = null;
+    this.printPreviewOverlay = null;
+    this.currentPreviewPage = 1;
+    this.previewTotalPages = 1;
+    this.previewZoom = 1.0;
+    this._previewKeyHandler = null;
     this._initZones();
   }
 
@@ -64,6 +69,7 @@ export class WriterAdapter {
     this._bindTrackChanges();
     this._renderCommentsPanel();
     this._updateTrackChangesCommandState();
+    globalCommandBus.bindHandler("writer.file.printPreview", () => this.openPrintPreview());
   }
 
   _bindTrackChanges() {
@@ -573,6 +579,9 @@ export class WriterAdapter {
 
       case "common.file.print":
         return this.print();
+
+      case "writer.file.printPreview":
+        return Boolean(this.openPrintPreview());
 
       case "writer.page.margins":
         return await this._openPageSetup("margins");
@@ -1130,7 +1139,440 @@ export class WriterAdapter {
   }
 
   print() {
-    window.print();
+    if (typeof window !== "undefined" && typeof window.print === "function") {
+      window.print();
+    }
+    return true;
+  }
+
+  /**
+   * Tính toán kích thước, lề trang và kích thước vùng in thực tế (px & mm)
+   * dựa trên cấu hình Page Setup hiện tại của tài liệu.
+   */
+  getPageDimensions() {
+    const base = PAGE_SIZES_MM[this.pageSetup?.size] || PAGE_SIZES_MM.a4;
+    const isLandscape = this.pageSetup?.orientation === "landscape";
+    const widthMm = isLandscape ? base.h : base.w;
+    const heightMm = isLandscape ? base.w : base.h;
+    const margins = this.pageSetup?.margins || DEFAULT_MARGINS_MM;
+    const { top, right, bottom, left } = margins;
+
+    const widthPx = Math.round(widthMm * MM_TO_PX);
+    const heightPx = Math.round(heightMm * MM_TO_PX);
+    const topPx = Math.round(top * MM_TO_PX);
+    const rightPx = Math.round(right * MM_TO_PX);
+    const bottomPx = Math.round(bottom * MM_TO_PX);
+    const leftPx = Math.round(left * MM_TO_PX);
+
+    const printableWidthPx = Math.max(100, widthPx - leftPx - rightPx);
+    const printableHeightPx = Math.max(100, heightPx - topPx - bottomPx);
+
+    return {
+      base,
+      sizeKey: this.pageSetup?.size || "a4",
+      sizeLabel: base.label,
+      isLandscape,
+      orientation: this.pageSetup?.orientation || "portrait",
+      orientationLabel: isLandscape ? "Ngang (Landscape)" : "Dọc (Portrait)",
+      widthMm,
+      heightMm,
+      widthPx,
+      heightPx,
+      margins,
+      topPx,
+      rightPx,
+      bottomPx,
+      leftPx,
+      printableWidthPx,
+      printableHeightPx
+    };
+  }
+
+  /**
+   * Phân trang nội dung tài liệu dựa trên chiều cao trang in khả dụng và ngắt trang thủ công.
+   * @param {string} bodyHtml Nội dung HTML của phần thân tài liệu
+   * @param {number} availableHeightPx Chiều cao vùng thân trang (đã trừ lề, header, footer)
+   * @param {number} printableWidthPx Chiều rộng vùng in khả dụng
+   * @returns {string[]} Danh sách chuỗi HTML tương ứng với từng trang
+   */
+  paginateContent(bodyHtml, availableHeightPx, printableWidthPx) {
+    if (!bodyHtml || !bodyHtml.trim()) {
+      return ["<p><br></p>"];
+    }
+
+    let blocks = [];
+    if (typeof document !== "undefined" && typeof document.createElement === "function") {
+      const temp = document.createElement("div");
+      temp.innerHTML = bodyHtml;
+      if (temp.children && temp.children.length > 0) {
+        blocks = Array.from(temp.children);
+      } else if (temp.childNodes && temp.childNodes.length > 0) {
+        blocks = Array.from(temp.childNodes).map(node => {
+          if (node.nodeType === 1) return node;
+          const p = document.createElement("p");
+          p.textContent = node.textContent || "";
+          return p;
+        });
+      }
+    }
+
+    // Fallback cho môi trường không có DOM đầy đủ (test hoặc headless string)
+    if (blocks.length === 0) {
+      const rawParts = bodyHtml.split(/(?=<p\b|<div\b|<table\b|<h[1-6]\b|<ul\b|<ol\b|<blockquote\b)/gi).filter(Boolean);
+      blocks = rawParts.map(part => {
+        const div = typeof document !== "undefined" && document.createElement ? document.createElement("div") : {
+          innerHTML: part,
+          textContent: part.replace(/<[^>]+>/g, ""),
+          getAttribute: (attr) => (attr === "style" ? (part.match(/style="([^"]*)"/i)?.[1] || "") : "")
+        };
+        if (div.innerHTML !== undefined) div.innerHTML = part;
+        return div;
+      });
+    }
+
+    const pages = [];
+    let currentPageHtmls = [];
+    let currentHeight = 0;
+
+    const estimateHeight = (el) => {
+      if (el.offsetHeight && el.offsetHeight > 0) {
+        return el.offsetHeight;
+      }
+      const tagName = (el.tagName || "").toUpperCase();
+      const text = (el.textContent || el.innerText || "").trim();
+
+      if (tagName === "TABLE") {
+        let rows = 1;
+        if (el.querySelectorAll) {
+          rows = el.querySelectorAll("tr").length || 1;
+        } else if (el.innerHTML) {
+          rows = (el.innerHTML.match(/<tr\b/gi) || []).length || 1;
+        }
+        return rows * 36 + 24;
+      }
+      if (tagName === "H1") return 60;
+      if (tagName === "H2") return 48;
+      if (tagName === "H3") return 40;
+      if (tagName === "UL" || tagName === "OL") {
+        let items = 3;
+        if (el.querySelectorAll) items = el.querySelectorAll("li").length || 3;
+        return items * 26 + 16;
+      }
+      if (tagName === "IMG") return 250;
+
+      // Đoạn văn mặc định
+      const charsPerLine = Math.max(25, Math.floor(printableWidthPx / 8.5));
+      const lines = text ? Math.max(1, Math.ceil(text.length / charsPerLine)) : 1;
+      return lines * 26 + 10;
+    };
+
+    for (const el of blocks) {
+      const styleStr = (typeof el.getAttribute === "function" ? el.getAttribute("style") : (el.style ? JSON.stringify(el.style) : "")) || "";
+      const textContent = el.textContent || el.innerText || "";
+      const isExplicitBreak = styleStr.includes("page-break-before") ||
+                              styleStr.includes("break-before") ||
+                              textContent.includes("Phân tách trang");
+
+      if (isExplicitBreak) {
+        if (currentPageHtmls.length > 0) {
+          pages.push(currentPageHtmls.join("\n"));
+          currentPageHtmls = [];
+          currentHeight = 0;
+        }
+        // Bỏ qua đường kẻ dashed phân tách trang khi preview
+        continue;
+      }
+
+      const h = estimateHeight(el);
+      const elHtml = el.outerHTML || el.innerHTML || `<p>${textContent}</p>`;
+
+      if (currentHeight + h > availableHeightPx && currentPageHtmls.length > 0) {
+        pages.push(currentPageHtmls.join("\n"));
+        currentPageHtmls = [elHtml];
+        currentHeight = h;
+      } else {
+        currentPageHtmls.push(elHtml);
+        currentHeight += h;
+      }
+    }
+
+    if (currentPageHtmls.length > 0 || pages.length === 0) {
+      pages.push(currentPageHtmls.length > 0 ? currentPageHtmls.join("\n") : "<p><br></p>");
+    }
+
+    return pages;
+  }
+
+  /**
+   * Mở Overlay Print Preview hiển thị bản xem trước THẬT của tài liệu.
+   * Dựa trên _getPageSetupCss() và _contentForExport() chuẩn xác.
+   */
+  openPrintPreview() {
+    if (typeof document === "undefined") return null;
+
+    if (this.printPreviewOverlay) {
+      this.closePrintPreview();
+    }
+
+    this._initZones();
+    const dim = this.getPageDimensions();
+
+    let headerHtml = "";
+    if (this.headerDom && this.headerDom.innerText?.trim()) {
+      headerHtml = this.headerDom.innerHTML;
+    }
+
+    let footerHtml = "";
+    if (this.footerDom && this.footerDom.innerText?.trim()) {
+      footerHtml = this.footerDom.innerHTML;
+    }
+
+    let rawBody = "";
+    if (this.bodyDom) {
+      rawBody = this._stripCommentMarkup(this.bodyDom.innerHTML);
+    } else if (this.editorDom) {
+      rawBody = this._stripCommentMarkup(this.editorDom.innerHTML);
+    }
+
+    const hasHeader = Boolean(headerHtml && headerHtml.trim());
+    const hasFooter = Boolean(footerHtml && footerHtml.trim());
+    const headerReservedPx = hasHeader ? 46 : 0;
+    const footerReservedPx = hasFooter ? 48 : 0;
+    const availableBodyHeightPx = Math.max(150, dim.printableHeightPx - headerReservedPx - footerReservedPx);
+
+    const pageBodies = this.paginateContent(rawBody, availableBodyHeightPx, dim.printableWidthPx);
+    const totalPages = Math.max(1, pageBodies.length);
+    this.previewTotalPages = totalPages;
+    this.currentPreviewPage = 1;
+    this.previewZoom = 1.0;
+
+    const overlay = document.createElement("div");
+    overlay.className = "vno-print-preview-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "Xem trước khi in");
+    overlay.dataset.paperSize = dim.sizeKey;
+    overlay.dataset.paperOrientation = dim.orientation;
+    overlay.dataset.pageCount = String(totalPages);
+    overlay.dataset.activePage = "1";
+    overlay.dataset.widthMm = String(dim.widthMm);
+    overlay.dataset.heightMm = String(dim.heightMm);
+
+    // Toolbar
+    const toolbar = document.createElement("header");
+    toolbar.className = "vno-print-preview-toolbar";
+    toolbar.innerHTML = `
+      <div class="vno-print-preview-toolbar-left">
+        <button class="vno-btn vno-btn-primary vno-print-preview-btn-print" title="In tài liệu (Ctrl+P)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" style="margin-right:6px;"><rect x="6" y="2" width="12" height="6" rx="1" fill="#E2E8F0" stroke="#475569" stroke-width="1.2"/><rect x="3" y="7" width="18" height="10" rx="2" fill="#0F4C81"/><rect x="6" y="13" width="12" height="8" rx="1" fill="#FFFFFF" stroke="#475569" stroke-width="1.2"/><line x1="8" y1="16" x2="16" y2="16" stroke="#94A3B8" stroke-width="1.2"/><line x1="8" y1="18" x2="14" y2="18" stroke="#94A3B8" stroke-width="1.2"/><circle cx="18" cy="10" r="1" fill="#10B981"/></svg>
+          <span>In tài liệu</span>
+        </button>
+        <div class="vno-print-preview-divider"></div>
+        <div class="vno-print-preview-badge">
+          <span class="vno-print-preview-paper-info">
+            Khổ: <strong>${dim.sizeLabel}</strong> · <strong>${dim.orientationLabel}</strong> · Lề: T${dim.margins.top} D${dim.margins.bottom} T${dim.margins.left} P${dim.margins.right} mm
+          </span>
+        </div>
+      </div>
+
+      <div class="vno-print-preview-toolbar-center">
+        <button class="vno-btn vno-print-preview-nav-prev" title="Trang trước (Mũi tên trái / PageUp)" ${totalPages <= 1 ? "disabled" : ""}>
+          ◀ Trang trước
+        </button>
+        <div class="vno-print-preview-page-indicator">
+          <span>Trang </span>
+          <input type="number" min="1" max="${totalPages}" value="1" class="vno-print-preview-page-input" aria-label="Số trang" />
+          <span> / <span class="vno-print-preview-total-pages">${totalPages}</span></span>
+        </div>
+        <button class="vno-btn vno-print-preview-nav-next" title="Trang sau (Mũi tên phải / PageDown)" ${totalPages <= 1 ? "disabled" : ""}>
+          Trang sau ▶
+        </button>
+      </div>
+
+      <div class="vno-print-preview-toolbar-right">
+        <button class="vno-btn vno-print-preview-zoom-out" title="Thu nhỏ">−</button>
+        <span class="vno-print-preview-zoom-level">100%</span>
+        <button class="vno-btn vno-print-preview-zoom-in" title="Phóng to">+</button>
+        <button class="vno-btn vno-print-preview-zoom-fit" title="Vừa chiều cao">Vừa trang</button>
+        <div class="vno-print-preview-divider"></div>
+        <button class="vno-btn vno-btn-icon-only vno-print-preview-close-btn" title="Đóng xem trước (Esc)">&times;</button>
+      </div>
+    `;
+
+    // Viewport
+    const viewport = document.createElement("main");
+    viewport.className = "vno-print-preview-viewport";
+
+    const pagesContainer = document.createElement("div");
+    pagesContainer.className = "vno-print-preview-pages-container";
+
+    for (let i = 0; i < totalPages; i++) {
+      const pageIndex = i + 1;
+      const sheet = document.createElement("div");
+      sheet.className = `vno-print-preview-sheet ${pageIndex === 1 ? "is-active" : ""}`;
+      sheet.dataset.pageIndex = String(pageIndex);
+      sheet.dataset.paperSize = dim.sizeKey;
+      sheet.dataset.paperOrientation = dim.orientation;
+      sheet.dataset.pageWidthMm = String(dim.widthMm);
+      sheet.dataset.pageHeightMm = String(dim.heightMm);
+      sheet.style.width = `${dim.widthPx}px`;
+      sheet.style.minHeight = `${dim.heightPx}px`;
+      sheet.style.height = `${dim.heightPx}px`;
+      sheet.style.padding = `${dim.topPx}px ${dim.rightPx}px ${dim.bottomPx}px ${dim.leftPx}px`;
+
+      let pageFooterHtml = footerHtml;
+      if (hasFooter) {
+        pageFooterHtml = footerHtml.replace(/Trang\s+\d+(\s*\/\s*\d+)?/gi, `Trang ${pageIndex} / ${totalPages}`);
+      }
+
+      sheet.innerHTML = `
+        <div class="vno-print-preview-page-number-tag">Trang ${pageIndex} / ${totalPages}</div>
+        ${hasHeader ? `<div class="vno-print-preview-header">${headerHtml}</div>` : ""}
+        <div class="vno-print-preview-body">${pageBodies[i] || "<p><br></p>"}</div>
+        ${hasFooter ? `<div class="vno-print-preview-footer">${pageFooterHtml}</div>` : ""}
+      `;
+
+      pagesContainer.appendChild(sheet);
+    }
+
+    viewport.appendChild(pagesContainer);
+    overlay.appendChild(toolbar);
+    overlay.appendChild(viewport);
+
+    const mountTarget = document.body || (this.editorDom?.parentNode || this.editorDom);
+    mountTarget.appendChild(overlay);
+    this.printPreviewOverlay = overlay;
+
+    // Gắn sự kiện tương tác
+    const btnPrint = overlay.querySelector(".vno-print-preview-btn-print");
+    if (btnPrint) {
+      btnPrint.addEventListener("click", () => this.print());
+    }
+
+    const btnClose = overlay.querySelector(".vno-print-preview-close-btn");
+    if (btnClose) {
+      btnClose.addEventListener("click", () => this.closePrintPreview());
+    }
+
+    const btnPrev = overlay.querySelector(".vno-print-preview-nav-prev");
+    if (btnPrev) {
+      btnPrev.addEventListener("click", () => this.goToPreviewPage(this.currentPreviewPage - 1));
+    }
+
+    const btnNext = overlay.querySelector(".vno-print-preview-nav-next");
+    if (btnNext) {
+      btnNext.addEventListener("click", () => this.goToPreviewPage(this.currentPreviewPage + 1));
+    }
+
+    const pageInput = overlay.querySelector(".vno-print-preview-page-input");
+    if (pageInput) {
+      pageInput.addEventListener("change", () => {
+        const val = parseInt(pageInput.value, 10);
+        if (!isNaN(val)) this.goToPreviewPage(val);
+      });
+      pageInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          const val = parseInt(pageInput.value, 10);
+          if (!isNaN(val)) this.goToPreviewPage(val);
+        }
+      });
+    }
+
+    const btnZoomIn = overlay.querySelector(".vno-print-preview-zoom-in");
+    if (btnZoomIn) {
+      btnZoomIn.addEventListener("click", () => this.setPreviewZoom(this.previewZoom + 0.15));
+    }
+
+    const btnZoomOut = overlay.querySelector(".vno-print-preview-zoom-out");
+    if (btnZoomOut) {
+      btnZoomOut.addEventListener("click", () => this.setPreviewZoom(this.previewZoom - 0.15));
+    }
+
+    const btnZoomFit = overlay.querySelector(".vno-print-preview-zoom-fit");
+    if (btnZoomFit) {
+      btnZoomFit.addEventListener("click", () => {
+        const viewH = viewport.clientHeight || 700;
+        const scale = Math.min(1.2, Math.max(0.35, (viewH - 80) / dim.heightPx));
+        this.setPreviewZoom(scale);
+      });
+    }
+
+    this._previewKeyHandler = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault?.();
+        e.stopPropagation?.();
+        this.closePrintPreview();
+      } else if ((e.key === "ArrowLeft" || e.key === "PageUp") && !e.target?.matches?.("input")) {
+        e.preventDefault?.();
+        this.goToPreviewPage(this.currentPreviewPage - 1);
+      } else if ((e.key === "ArrowRight" || e.key === "PageDown") && !e.target?.matches?.("input")) {
+        e.preventDefault?.();
+        this.goToPreviewPage(this.currentPreviewPage + 1);
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "p") {
+        e.preventDefault?.();
+        this.print();
+      }
+    };
+    document.addEventListener("keydown", this._previewKeyHandler, true);
+
+    return overlay;
+  }
+
+  goToPreviewPage(pageIndex) {
+    if (!this.printPreviewOverlay) return;
+    const clamped = Math.max(1, Math.min(this.previewTotalPages, pageIndex));
+    this.currentPreviewPage = clamped;
+    this.printPreviewOverlay.dataset.activePage = String(clamped);
+
+    const input = this.printPreviewOverlay.querySelector(".vno-print-preview-page-input");
+    if (input) input.value = String(clamped);
+
+    const btnPrev = this.printPreviewOverlay.querySelector(".vno-print-preview-nav-prev");
+    const btnNext = this.printPreviewOverlay.querySelector(".vno-print-preview-nav-next");
+    if (btnPrev) btnPrev.disabled = clamped <= 1;
+    if (btnNext) btnNext.disabled = clamped >= this.previewTotalPages;
+
+    const sheets = this.printPreviewOverlay.querySelectorAll(".vno-print-preview-sheet");
+    sheets.forEach((sheet, idx) => {
+      if (idx + 1 === clamped) {
+        sheet.classList.add("is-active");
+        sheet.scrollIntoView?.({ behavior: "smooth", block: "center" });
+      } else {
+        sheet.classList.remove("is-active");
+      }
+    });
+  }
+
+  setPreviewZoom(zoom) {
+    if (!this.printPreviewOverlay) return;
+    const clamped = Math.max(0.3, Math.min(2.0, Math.round(zoom * 100) / 100));
+    this.previewZoom = clamped;
+    const container = this.printPreviewOverlay.querySelector(".vno-print-preview-pages-container");
+    if (container) {
+      container.style.transform = `scale(${clamped})`;
+      container.style.transformOrigin = "top center";
+    }
+    const label = this.printPreviewOverlay.querySelector(".vno-print-preview-zoom-level");
+    if (label) {
+      label.textContent = `${Math.round(clamped * 100)}%`;
+    }
+  }
+
+  closePrintPreview() {
+    if (this._previewKeyHandler && typeof document !== "undefined") {
+      document.removeEventListener("keydown", this._previewKeyHandler, true);
+      this._previewKeyHandler = null;
+    }
+    if (this.printPreviewOverlay) {
+      if (this.printPreviewOverlay.parentNode) {
+        this.printPreviewOverlay.parentNode.removeChild(this.printPreviewOverlay);
+      }
+      this.printPreviewOverlay = null;
+    }
+    if (this.editorDom?.focus) {
+      this.editorDom.focus();
+    }
     return true;
   }
 }
+

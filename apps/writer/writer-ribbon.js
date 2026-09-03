@@ -170,6 +170,13 @@ export const WRITER_RIBBON_TABS = [
           { type: "button", commandId: "writer.page.orientation", isLarge: true },
           { type: "button", commandId: "writer.page.size", isLarge: true }
         ]
+      },
+      {
+        label: "In ấn",
+        items: [
+          { type: "button", commandId: "common.file.print", isLarge: true },
+          { type: "button", commandId: "writer.file.printPreview", isLarge: true }
+        ]
       }
     ]
   },
