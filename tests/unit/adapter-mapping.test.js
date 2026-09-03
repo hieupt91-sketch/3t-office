@@ -310,6 +310,11 @@ export async function runAdapterMappingTests() {
     showTransitionDialog() {
       this.transitionDialogCalled = true;
       return true;
+    },
+    layoutDialogCalled: false,
+    showLayoutDialog() {
+      this.layoutDialogCalled = true;
+      return true;
     }
   };
 
@@ -356,6 +361,14 @@ export async function runAdapterMappingTests() {
     results.push({ name: "SlidesAdapter Dispatch: Lệnh slides.transition.apply kích hoạt showTransitionDialog() thật", pass: true });
   } else {
     results.push({ name: "SlidesAdapter Dispatch: slides.transition.apply thất bại", pass: false });
+  }
+
+  // Test Slide Layout Dispatch
+  const layoutRes = await slidesAdapter.handleDispatch(".uno:AssignLayout", null, "slides.layout.apply");
+  if (layoutRes && mockCanvas.layoutDialogCalled) {
+    results.push({ name: "SlidesAdapter Dispatch: Lệnh slides.layout.apply kích hoạt showLayoutDialog() thật", pass: true });
+  } else {
+    results.push({ name: "SlidesAdapter Dispatch: slides.layout.apply thất bại", pass: false });
   }
 
   // Test Slides undo/redo

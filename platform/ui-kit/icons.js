@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office UI Kit — Precision Multi-Tone Vector Icons (SVG)
  * Thiết kế đồ họa sắc nét, trực quan, đa sắc màu đẳng cấp Office Suite
  */
@@ -195,6 +195,17 @@ export const ICONS = {
     <rect x="3" y="5" width="26" height="5" fill="#FAEEE8"/>
     <circle cx="21" cy="21" r="7" fill="#10B981"/>
     <path d="M21 17V25M17 21H25" stroke="#FFF" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  slideLayout: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="4" width="26" height="24" rx="3" fill="#F8FAFC" stroke="#B53818" stroke-width="1.5"/>
+    <rect x="6" y="7" width="20" height="5" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1"/>
+    <rect x="6" y="15" width="9.5" height="10.5" rx="1.5" fill="#EFF6FF" stroke="#2563EB" stroke-width="1"/>
+    <rect x="16.5" y="15" width="9.5" height="10.5" rx="1.5" fill="#EFF6FF" stroke="#2563EB" stroke-width="1"/>
+    <line x1="8" y1="18" x2="13.5" y2="18" stroke="#3B82F6" stroke-width="1" stroke-linecap="round"/>
+    <line x1="8" y1="21" x2="12" y2="21" stroke="#94A3B8" stroke-width="1" stroke-linecap="round"/>
+    <line x1="18.5" y1="18" x2="24" y2="18" stroke="#3B82F6" stroke-width="1" stroke-linecap="round"/>
+    <line x1="18.5" y1="21" x2="22.5" y2="21" stroke="#94A3B8" stroke-width="1" stroke-linecap="round"/>
   </svg>`,
 
   slidePlay: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">

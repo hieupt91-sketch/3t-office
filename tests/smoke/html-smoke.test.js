@@ -491,6 +491,129 @@ export async function runHtmlSmokeTests() {
           try { fs.unlinkSync(tempPreviewHtmlPath); } catch (_) {}
         }
       }
+
+      // ==========================================
+      // 4d. Smoke test VN Slides Layout switching & DOM mutation qua Browser Headless
+      // ==========================================
+      const tempLayoutHtmlPath = path.join(ROOT_DIR, "tests", "smoke", "temp-slides-layout-browser.html");
+      const layoutHtmlContent = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="../../platform/theme/tokens.css">
+  <link rel="stylesheet" href="../../platform/ui-kit/ui-kit.css">
+  <link rel="stylesheet" href="../../platform/ribbon/ribbon.css">
+  <link rel="stylesheet" href="../../platform/shell/shell.css">
+  <link rel="stylesheet" href="../../apps/slides/slides.css">
+</head>
+<body>
+  <div id="vno-app-root"></div>
+  <output id="layout-result"></output>
+  <script type="module">
+    import { SlidesApp } from "../../apps/slides/slides-app.js";
+    import { themeManager } from "../../platform/theme/theme-manager.js";
+    import { bootstrapPlatform } from "../../platform/bootstrap.js";
+
+    await bootstrapPlatform();
+    themeManager.setApp("slides");
+    const app = new SlidesApp(document.getElementById("vno-app-root"));
+    await app.init();
+
+    const canvas = app.canvasController;
+    const resEl = document.getElementById("layout-result");
+
+    try {
+      // 1. Verify default layout
+      const defaultLayout = canvas.getSlideLayout();
+
+      // 2. Switch to two-content & type into body2
+      canvas.applySlideLayout("two-content");
+      const twoColPassed = canvas.getSlideLayout() === "two-content" &&
+        canvas.canvasEl.getAttribute("data-layout") === "two-content" &&
+        Boolean(canvas.body2El && canvas.body2El.style.display !== "none");
+
+      if (twoColPassed) {
+        canvas.body2El.textContent = "Nội dung cột 2 headless test";
+        canvas.body2El.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+
+      // 3. Add slide 2 and set to title-only
+      canvas.addNewSlide();
+      canvas.applySlideLayout("title-only");
+      const titleOnlyPassed = canvas.getSlideLayout() === "title-only" &&
+        canvas.titleEl.classList.contains("is-title-only") &&
+        canvas.bodyRowEl.style.display === "none";
+
+      // 4. Add slide 3 and set to blank
+      canvas.addNewSlide();
+      canvas.applySlideLayout("blank");
+      const blankPassed = canvas.getSlideLayout() === "blank" &&
+        canvas.titleEl.style.display === "none" &&
+        canvas.bodyRowEl.style.display === "none";
+
+      // 5. Switch back to slide 1 and verify data isolation
+      canvas.selectSlide(0);
+      const isolationPassed = canvas.getSlideLayout() === "two-content" &&
+        canvas.body2El.textContent.includes("Nội dung cột 2 headless test") &&
+        canvas.titleEl.style.display !== "none" &&
+        canvas.bodyRowEl.style.display !== "none";
+
+      const allPassed = defaultLayout === "title-content" && twoColPassed && titleOnlyPassed && blankPassed && isolationPassed;
+      resEl.dataset.pass = String(allPassed);
+      resEl.dataset.details = JSON.stringify({ defaultLayout, twoColPassed, titleOnlyPassed, blankPassed, isolationPassed });
+    } catch (err) {
+      resEl.dataset.pass = "false";
+      resEl.dataset.error = err.message;
+    }
+  </script>
+</body>
+</html>`;
+
+      try {
+        fs.writeFileSync(tempLayoutHtmlPath, layoutHtmlContent, "utf8");
+        const layoutFileUrl = "file:///" + tempLayoutHtmlPath.replace(/\\/g, "/");
+
+        const layoutProc = spawnSync(browserBinary, [
+          "--headless=new",
+          "--allow-file-access-from-files",
+          "--virtual-time-budget=3000",
+          "--dump-dom",
+          layoutFileUrl
+        ], {
+          encoding: "utf8",
+          timeout: 15000,
+          windowsHide: true
+        });
+
+        const layoutDom = layoutProc.stdout || "";
+        const hasPassedAttr = layoutDom.includes('data-pass="true"');
+        const hasLayoutBtn = layoutDom.includes("slides.layout.apply");
+        const hasTwoColDom = layoutDom.includes("vno-slide-body-col2") || layoutDom.includes("vno-slide-body-col-2");
+        const hasLayoutAttr = layoutDom.includes('data-layout="two-content"');
+
+        if (layoutProc.status === 0 && hasPassedAttr && hasLayoutBtn && hasTwoColDom && hasLayoutAttr) {
+          results.push({
+            name: `Browser Headless (${browserName}): Chuyển đổi 4 Slide Layouts, cột đôi body2 & cô lập dữ liệu DOM thật thành công`,
+            pass: true
+          });
+        } else {
+          const missing = [
+            !hasPassedAttr && "kiểm tra logic nội bộ DOM data-pass=false",
+            !hasLayoutBtn && "thiếu command slides.layout.apply trên Ribbon",
+            !hasTwoColDom && "thiếu DOM element .vno-slide-body-col-2",
+            !hasLayoutAttr && "thiếu data-layout='two-content'"
+          ].filter(Boolean).join(", ");
+
+          results.push({
+            name: `Browser Headless (${browserName}): Lỗi kiểm thử Slide Layouts (${missing || "exit code " + layoutProc.status})`,
+            pass: false
+          });
+        }
+      } finally {
+        if (fs.existsSync(tempLayoutHtmlPath)) {
+          try { fs.unlinkSync(tempLayoutHtmlPath); } catch (_) {}
+        }
+      }
     } catch (browserErr) {
       results.push({
         name: `Browser Headless (${browserName}): Ngoại lệ khi thực thi: ${browserErr.message}`,

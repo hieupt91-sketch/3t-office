@@ -114,6 +114,7 @@ export const VN_TO_UNO_MAP = {
   "slides.slide.duplicate": ".uno:DuplicatePage",
   "slides.slide.delete": ".uno:DeletePage",
   "slides.layout.apply": ".uno:AssignLayout",
+  "slides.layout.select": ".uno:AssignLayout",
   "slides.text.insert": ".uno:Text",
   "slides.shape.insert": ".uno:BasicShapes",
   "slides.image.insert": ".uno:InsertGraphic",

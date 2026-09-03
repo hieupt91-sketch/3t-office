@@ -48,10 +48,7 @@ export class SlidesAdapter {
     slides.forEach((slide, idx) => {
       const pageName = `page${idx + 1}`;
       const titleEscaped = this._escapeXml(slide.title || `Trang chiếu ${idx + 1}`);
-      const bodyLines = (slide.body || "").split("\n");
-      const bodyParasXml = bodyLines
-        .map((line) => `<text:p>${this._escapeXml(line)}</text:p>`)
-        .join("");
+      const layoutType = slide.layoutType || "title-content";
 
       const notesXml = slide.notes ? `
         <presentation:notes>
@@ -62,8 +59,50 @@ export class SlidesAdapter {
           </draw:frame>
         </presentation:notes>` : "";
 
-      pagesXml += `
-      <draw:page draw:name="${pageName}">
+      let framesXml = "";
+      if (layoutType === "blank") {
+        framesXml = "";
+      } else if (layoutType === "title-only") {
+        framesXml = `
+        <draw:frame svg:x="2cm" svg:y="6cm" svg:width="24cm" svg:height="6cm">
+          <draw:text-box>
+            <text:p>${titleEscaped}</text:p>
+          </draw:text-box>
+        </draw:frame>`;
+      } else if (layoutType === "two-content") {
+        const bodyLines = (slide.body || "").split("\n");
+        const bodyParasXml = bodyLines
+          .map((line) => `<text:p>${this._escapeXml(line)}</text:p>`)
+          .join("");
+        const body2Lines = (slide.body2 || "").split("\n");
+        const body2ParasXml = body2Lines
+          .map((line) => `<text:p>${this._escapeXml(line)}</text:p>`)
+          .join("");
+
+        framesXml = `
+        <draw:frame svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
+          <draw:text-box>
+            <text:p>${titleEscaped}</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame svg:x="2cm" svg:y="5.5cm" svg:width="11.5cm" svg:height="11cm">
+          <draw:text-box>
+            ${bodyParasXml}
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame svg:x="14.5cm" svg:y="5.5cm" svg:width="11.5cm" svg:height="11cm">
+          <draw:text-box>
+            ${body2ParasXml}
+          </draw:text-box>
+        </draw:frame>`;
+      } else {
+        // title-content (default)
+        const bodyLines = (slide.body || "").split("\n");
+        const bodyParasXml = bodyLines
+          .map((line) => `<text:p>${this._escapeXml(line)}</text:p>`)
+          .join("");
+
+        framesXml = `
         <draw:frame svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
           <draw:text-box>
             <text:p>${titleEscaped}</text:p>
@@ -73,7 +112,12 @@ export class SlidesAdapter {
           <draw:text-box>
             ${bodyParasXml}
           </draw:text-box>
-        </draw:frame>${notesXml}
+        </draw:frame>`;
+      }
+
+      pagesXml += `
+      <draw:page draw:name="${pageName}" presentation:layout="${layoutType}">
+        ${framesXml}${notesXml}
       </draw:page>`;
     });
 
@@ -107,6 +151,7 @@ export class SlidesAdapter {
         const pages = doc.querySelectorAll("page, draw\\:page");
         if (pages && pages.length > 0) {
           pages.forEach((page, idx) => {
+            const pageLayout = page.getAttribute("presentation:layout") || "title-content";
             let notesText = "";
             const notesEl = page.querySelector("presentation\\:notes, notes");
             if (notesEl) {
@@ -119,21 +164,49 @@ export class SlidesAdapter {
               notesEl.parentNode?.removeChild(notesEl);
             }
 
-            const paragraphs = [];
-            const pEls = page.querySelectorAll("p, text\\:p");
-            pEls.forEach((p) => {
-              const txt = (p.textContent || "").trim();
-              if (txt && !txt.startsWith("<")) {
-                paragraphs.push(txt);
-              }
-            });
+            const frames = page.querySelectorAll("draw\\:frame, frame");
+            let title = `Trang chiếu ${idx + 1}`;
+            let body = "";
+            let body2 = undefined;
 
-            const title = paragraphs.length > 0 ? paragraphs[0] : `Trang chiếu ${idx + 1}`;
-            const body = paragraphs.length > 1 ? paragraphs.slice(1).join("\n") : "";
+            if (pageLayout === "blank") {
+              title = "";
+              body = "";
+            } else if (pageLayout === "title-only") {
+              const pEls = page.querySelectorAll("p, text\\:p");
+              if (pEls.length > 0) title = (pEls[0].textContent || "").trim();
+              body = "";
+            } else if (pageLayout === "two-content" && frames.length >= 3) {
+              const f0Paras = [];
+              frames[0].querySelectorAll("p, text\\:p").forEach(p => f0Paras.push((p.textContent || "").trim()));
+              title = f0Paras.filter(Boolean).join(" ") || `Trang chiếu ${idx + 1}`;
+
+              const f1Paras = [];
+              frames[1].querySelectorAll("p, text\\:p").forEach(p => f1Paras.push((p.textContent || "").trim()));
+              body = f1Paras.filter(Boolean).join("\n");
+
+              const f2Paras = [];
+              frames[2].querySelectorAll("p, text\\:p").forEach(p => f2Paras.push((p.textContent || "").trim()));
+              body2 = f2Paras.filter(Boolean).join("\n");
+            } else {
+              const paragraphs = [];
+              const pEls = page.querySelectorAll("p, text\\:p");
+              pEls.forEach((p) => {
+                const txt = (p.textContent || "").trim();
+                if (txt && !txt.startsWith("<")) {
+                  paragraphs.push(txt);
+                }
+              });
+              title = paragraphs.length > 0 ? paragraphs[0] : `Trang chiếu ${idx + 1}`;
+              body = paragraphs.length > 1 ? paragraphs.slice(1).join("\n") : "";
+            }
+
             parsedSlides.push({
               id: Date.now() + idx,
               title,
               body,
+              body2,
+              layoutType: pageLayout,
               shapes: [],
               notes: notesText
             });
@@ -151,6 +224,9 @@ export class SlidesAdapter {
     let idx = 0;
     while ((pageMatch = pageRegex.exec(xmlText)) !== null) {
       idx++;
+      const fullPageTag = pageMatch[0].match(/<draw:page[^>]*>/i)?.[0] || "";
+      const layoutMatch = fullPageTag.match(/presentation:layout=["']([^"']+)["']/i);
+      const pageLayout = layoutMatch ? layoutMatch[1] : "title-content";
       let pageContent = pageMatch[1];
 
       let notesText = "";
@@ -171,21 +247,64 @@ export class SlidesAdapter {
         pageContent = pageContent.replace(notesRegex, "");
       }
 
-      const pRegex = /<text:p[^>]*>([\s\S]*?)<\/text:p>/gi;
-      const paragraphs = [];
-      let pMatch;
-      while ((pMatch = pRegex.exec(pageContent)) !== null) {
-        const cleanText = pMatch[1].replace(/<[^>]+>/g, "").trim();
-        if (cleanText && !cleanText.startsWith("<")) {
-          paragraphs.push(this._unescapeXml(cleanText));
+      let title = `Trang chiếu ${idx}`;
+      let body = "";
+      let body2 = undefined;
+
+      if (pageLayout === "blank") {
+        title = "";
+        body = "";
+      } else if (pageLayout === "two-content") {
+        const frameRegex = /<draw:frame[^>]*>([\s\S]*?)<\/draw:frame>/gi;
+        const frames = [];
+        let fm;
+        while ((fm = frameRegex.exec(pageContent)) !== null) {
+          const fParas = [];
+          const fpRegex = /<text:p[^>]*>([\s\S]*?)<\/text:p>/gi;
+          let fpm;
+          while ((fpm = fpRegex.exec(fm[1])) !== null) {
+            const clean = fpm[1].replace(/<[^>]+>/g, "").trim();
+            if (clean && !clean.startsWith("<")) fParas.push(this._unescapeXml(clean));
+          }
+          frames.push(fParas.join("\n"));
         }
+        if (frames.length >= 3) {
+          title = frames[0] || `Trang chiếu ${idx}`;
+          body = frames[1] || "";
+          body2 = frames[2] || "";
+        } else {
+          const pRegex = /<text:p[^>]*>([\s\S]*?)<\/text:p>/gi;
+          const paragraphs = [];
+          let pMatch;
+          while ((pMatch = pRegex.exec(pageContent)) !== null) {
+            const cleanText = pMatch[1].replace(/<[^>]+>/g, "").trim();
+            if (cleanText && !cleanText.startsWith("<")) {
+              paragraphs.push(this._unescapeXml(cleanText));
+            }
+          }
+          title = paragraphs.length > 0 ? paragraphs[0] : `Trang chiếu ${idx}`;
+          body = paragraphs.length > 1 ? paragraphs.slice(1).join("\n") : "";
+        }
+      } else {
+        const pRegex = /<text:p[^>]*>([\s\S]*?)<\/text:p>/gi;
+        const paragraphs = [];
+        let pMatch;
+        while ((pMatch = pRegex.exec(pageContent)) !== null) {
+          const cleanText = pMatch[1].replace(/<[^>]+>/g, "").trim();
+          if (cleanText && !cleanText.startsWith("<")) {
+            paragraphs.push(this._unescapeXml(cleanText));
+          }
+        }
+        title = paragraphs.length > 0 ? paragraphs[0] : `Trang chiếu ${idx}`;
+        body = pageLayout === "title-only" ? "" : (paragraphs.length > 1 ? paragraphs.slice(1).join("\n") : "");
       }
-      const title = paragraphs.length > 0 ? paragraphs[0] : `Trang chiếu ${idx}`;
-      const body = paragraphs.length > 1 ? paragraphs.slice(1).join("\n") : "";
+
       parsedSlides.push({
         id: Date.now() + idx,
         title,
         body,
+        body2,
+        layoutType: pageLayout,
         shapes: [],
         notes: notesText
       });
@@ -294,8 +413,9 @@ export class SlidesAdapter {
 
   async handleDispatch(unoUrl, args, vnCmdId) {
     if (!this.canvas) return false;
+    const cmd = vnCmdId || (unoUrl === ".uno:AssignLayout" ? "slides.layout.apply" : vnCmdId);
 
-    switch (vnCmdId) {
+    switch (cmd) {
       case "slides.slide.new":
         return this.canvas.addNewSlide();
 
@@ -304,6 +424,10 @@ export class SlidesAdapter {
 
       case "slides.slide.delete":
         return this.canvas.deleteCurrentSlide();
+
+      case "slides.layout.apply":
+      case "slides.layout.select":
+        return this.canvas.showLayoutDialog ? this.canvas.showLayoutDialog() : false;
 
       case "slides.show.startFromBegin":
         return this.canvas.startSlideShow(0);

@@ -41,7 +41,7 @@ export class SlidesApp {
 
     if (isBlank) {
       this.canvasController.slides = [
-        { id: 1, title: "Tiêu đề trang chiếu", body: "• Nhập nội dung chính tại đây", shapes: [] }
+        { id: 1, title: "Tiêu đề trang chiếu", body: "• Nhập nội dung chính tại đây", layoutType: "title-content", shapes: [] }
       ];
       this.canvasController.selectSlide(0);
       const tabEl = this.shell.rootEl.querySelector(".vno-doc-tab span");

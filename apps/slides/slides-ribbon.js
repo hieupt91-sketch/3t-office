@@ -12,6 +12,7 @@ export const SLIDES_RIBBON_TABS = [
         label: "Trang chiếu",
         items: [
           { type: "button", commandId: "slides.slide.new", isLarge: true },
+          { type: "button", commandId: "slides.layout.apply", isLarge: true },
           {
             type: "column",
             items: [
@@ -73,6 +74,12 @@ export const SLIDES_RIBBON_TABS = [
         label: "Mẫu chủ đạo",
         items: [
           { type: "button", commandId: "slides.master.apply", isLarge: true }
+        ]
+      },
+      {
+        label: "Bố cục trang",
+        items: [
+          { type: "button", commandId: "slides.layout.apply", isLarge: true }
         ]
       }
     ]
