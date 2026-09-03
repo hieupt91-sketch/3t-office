@@ -220,6 +220,35 @@ export class SlidesAdapter {
     return true;
   }
 
+  /**
+   * Mở hộp thoại chọn ảnh THẬT của trình duyệt, đọc tệp thật và chèn vào slide hiện tại.
+   * Trả về Promise để handleDispatch có thể await đúng kết quả thật (không giả vờ thành công).
+   */
+  _insertImageDialog() {
+    if (typeof document === "undefined") return Promise.resolve(false);
+    return new Promise((resolve) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) {
+          resolve(false);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          const ok = this.canvas.insertImage ? this.canvas.insertImage(evt.target.result) : false;
+          resolve(ok);
+        };
+        reader.onerror = () => resolve(false);
+        reader.readAsDataURL(file);
+      };
+      input.oncancel = () => resolve(false);
+      input.click();
+    });
+  }
+
   async handleDispatch(unoUrl, args, vnCmdId) {
     if (!this.canvas) return false;
 
@@ -245,22 +274,10 @@ export class SlidesAdapter {
         return true;
 
       case "slides.shape.insert":
-        if (typeof window !== "undefined" && typeof document !== "undefined") {
-          await showAlertDialog({
-            title: "Chèn Hình Khối",
-            message: "Đã chèn đối tượng hình khối vector (LibreOffice Drawing Shape)."
-          });
-        }
-        return true;
+        return this.canvas.insertShape ? this.canvas.insertShape("rect") : false;
 
       case "slides.image.insert":
-        if (typeof window !== "undefined" && typeof document !== "undefined") {
-          await showAlertDialog({
-            title: "Chèn Hình Ảnh",
-            message: "Đã mở hộp thoại chèn hình ảnh minh họa trình chiếu."
-          });
-        }
-        return true;
+        return await this._insertImageDialog();
 
       case "common.edit.undo":
         return this.canvas.undo ? this.canvas.undo() : false;

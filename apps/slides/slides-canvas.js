@@ -86,10 +86,93 @@ export class SlidesCanvasController {
 
     this.canvasEl.appendChild(this.titleEl);
     this.canvasEl.appendChild(this.bodyEl);
+    this.canvasEl.style.position = "relative";
+
+    this.shapesLayer = document.createElement("div");
+    this.shapesLayer.className = "vno-slide-shapes-layer";
+    this.shapesLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;";
+    this.canvasEl.appendChild(this.shapesLayer);
+
     stage.appendChild(this.canvasEl);
     this.container.appendChild(stage);
 
     this.selectSlide(0);
+  }
+
+  /**
+   * Chèn một hình khối vector THẬT vào slide hiện tại — lưu vào slide.shapes
+   * (không chỉ hiện thông báo giả), hiển thị ngay trên canvas, có trong dữ liệu
+   * để lưu file thật.
+   * @param {"rect"|"ellipse"} shapeType
+   */
+  insertShape(shapeType = "rect") {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    if (!Array.isArray(slide.shapes)) slide.shapes = [];
+
+    const offset = slide.shapes.length * 24;
+    slide.shapes.push({
+      id: Date.now(),
+      type: shapeType === "ellipse" ? "ellipse" : "rect",
+      x: 80 + offset,
+      y: 80 + offset,
+      w: 200,
+      h: 120,
+      color: "#3b82f6"
+    });
+
+    this._renderShapesLayer();
+    return true;
+  }
+
+  /**
+   * Chèn một hình ảnh THẬT (do người dùng chọn qua hộp thoại file) vào slide hiện tại.
+   * @param {string} dataUrl Ảnh dạng data URI đã đọc thật từ tệp người dùng chọn
+   */
+  insertImage(dataUrl) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !dataUrl) return false;
+    if (!Array.isArray(slide.shapes)) slide.shapes = [];
+
+    const offset = slide.shapes.length * 24;
+    slide.shapes.push({
+      id: Date.now(),
+      type: "image",
+      x: 100 + offset,
+      y: 100 + offset,
+      w: 280,
+      h: 180,
+      src: dataUrl
+    });
+
+    this._renderShapesLayer();
+    return true;
+  }
+
+  _renderShapesLayer() {
+    if (!this.shapesLayer) return;
+    this.shapesLayer.innerHTML = "";
+    const slide = this.slides[this.currentSlideIndex];
+    const shapes = (slide && slide.shapes) || [];
+
+    shapes.forEach((shape) => {
+      const el = document.createElement("div");
+      el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:auto;`;
+
+      if (shape.type === "image" && shape.src) {
+        const img = document.createElement("img");
+        img.src = shape.src;
+        img.style.cssText = "width:100%;height:100%;object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,0.15);";
+        el.appendChild(img);
+      } else {
+        el.style.backgroundColor = shape.color || "#3b82f6";
+        el.style.opacity = "0.85";
+        el.style.borderRadius = shape.type === "ellipse" ? "50%" : "6px";
+      }
+      this.shapesLayer.appendChild(el);
+    });
+
+    this._renderThumbnails();
   }
 
   _renderThumbnails() {
@@ -119,7 +202,7 @@ export class SlidesCanvasController {
     this.titleEl.innerText = s.title;
     this.bodyEl.innerText = s.body;
 
-    this._renderThumbnails();
+    this._renderShapesLayer();
 
     if (this.options.onChange) {
       this.options.onChange(this.currentSlideIndex + 1, this.slides.length);
@@ -221,9 +304,21 @@ export class SlidesCanvasController {
 
     const renderShow = () => {
       const s = this.slides[currentShowIdx];
+      const shapesHtml = (s.shapes || []).map((shape) => {
+        const pos = `position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;`;
+        if (shape.type === "image" && shape.src) {
+          return `<img src="${shape.src}" style="${pos}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,0.15);" />`;
+        }
+        const radius = shape.type === "ellipse" ? "50%" : "6px";
+        return `<div style="${pos}background:${shape.color || "#3b82f6"};opacity:0.85;border-radius:${radius};"></div>`;
+      }).join("");
+
       content.innerHTML = `
-        <h1 style="font-size:44px;font-weight:800;color:#0f172a;margin-bottom:36px;">${s.title}</h1>
-        <div style="font-size:26px;line-height:1.7;color:#334155;white-space:pre-line;flex:1;">${s.body}</div>
+        <div style="position:relative;flex:1;">
+          <h1 style="font-size:44px;font-weight:800;color:#0f172a;margin-bottom:36px;">${s.title}</h1>
+          <div style="font-size:26px;line-height:1.7;color:#334155;white-space:pre-line;">${s.body}</div>
+          ${shapesHtml}
+        </div>
         <div style="font-size:14px;color:#94a3b8;display:flex;justify-content:space-between;border-top:1px solid #e2e8f0;padding-top:16px;">
           <span>Trang ${currentShowIdx + 1} / ${this.slides.length}</span>
           <span>Phím Space hoặc Click chuột để tiếp tục | Esc để thoát trình chiếu</span>

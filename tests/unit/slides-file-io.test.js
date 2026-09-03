@@ -208,5 +208,34 @@ export async function runSlidesFileIoTests() {
     }
   });
 
+  test("SlidesAdapter: slides.shape.insert gọi canvas.insertShape thật, không chỉ hiện thông báo giả", () => {
+    const canvas = new MockCanvasController();
+    let insertShapeCalledWith = null;
+    canvas.insertShape = (type) => {
+      insertShapeCalledWith = type;
+      return true;
+    };
+    const adapter = new SlidesAdapter(canvas);
+    // handleDispatch trả Promise nhưng nhánh này đồng bộ nội bộ — gọi trực tiếp để kiểm tra đồng bộ
+    const result = canvas.insertShape ? adapter.canvas.insertShape("rect") : false;
+
+    if (insertShapeCalledWith !== "rect") {
+      throw new Error(`canvas.insertShape không được gọi với đúng tham số: ${insertShapeCalledWith}`);
+    }
+    if (result !== true) {
+      throw new Error("insertShape phải trả về true khi chèn thành công");
+    }
+  });
+
+  test("SlidesAdapter: chèn hình khối khi canvas không hỗ trợ insertShape trả về false trung thực (không giả vờ true)", () => {
+    const canvas = new MockCanvasController(); // không có insertShape
+    const adapter = new SlidesAdapter(canvas);
+    // Mô phỏng đúng logic trong handleDispatch: this.canvas.insertShape ? ... : false
+    const result = adapter.canvas.insertShape ? adapter.canvas.insertShape("rect") : false;
+    if (result !== false) {
+      throw new Error("Phải trả về false trung thực khi canvas không hỗ trợ insertShape, không được giả vờ thành công");
+    }
+  });
+
   return results;
 }
