@@ -1,0 +1,43 @@
+﻿/**
+ * VN Writer — Dedicated Stylesheet
+ * Chuẩn trang giấy văn bản hành chính Việt Nam (A4)
+ */
+
+.vno-writer-canvas {
+  width: 794px; /* A4 width tại 96 DPI */
+  min-height: 1123px; /* A4 height */
+  background-color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 2px;
+  padding: 75px 56px 75px 113px; /* Lề chuẩn NĐ 30: Trái 30mm, Phải 15mm, Trên 20mm, Dưới 20mm */
+  font-family: "Times New Roman", "Be Vietnam Pro", serif;
+  font-size: 14pt;
+  line-height: 1.4;
+  color: #111827;
+  outline: none;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+.vno-writer-canvas:focus {
+  outline: none;
+}
+
+.vno-writer-canvas p {
+  margin: 0 0 6pt 0;
+  text-align: justify;
+}
+
+.vno-writer-canvas h1 {
+  font-size: 16pt;
+  font-weight: bold;
+  text-align: center;
+  margin: 12pt 0;
+  text-transform: uppercase;
+}
+
+.vno-writer-canvas h2 {
+  font-size: 14pt;
+  font-weight: bold;
+  margin: 8pt 0;
+}
