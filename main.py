@@ -275,11 +275,12 @@ def main():
     )
     api.window = window
 
-    def on_closed():
-        # Thoát tiến trình sạch sẽ, tránh lỗi giải phóng COM WebView2 trên thread phụ
+    def on_closing():
+        # Thoát tiến trình ngay lập tức khi người dùng bấm nút đóng (X), tránh lỗi COM teardown
         os._exit(0)
 
-    window.events.closed += on_closed
+    window.events.closing += on_closing
+    window.events.closed += on_closing
 
     try:
         webview.start(debug=False)
