@@ -1,6 +1,6 @@
 ﻿/**
- * VN Slides — Ribbon Structure Definition
- * Tuân thủ quy định 04-apps/slides/STANDARD.md & 03-ui-ux/UI-UX-STANDARD.md
+ * VN Slides — Enterprise Ribbon Structure
+ * Cấu hình đầy đủ Icon Vector chuẩn Office Suite
  */
 
 export const SLIDES_RIBBON_TABS = [
@@ -43,7 +43,7 @@ export const SLIDES_RIBBON_TABS = [
         ]
       },
       {
-        label: "Trình chiếu nhanh",
+        label: "Trình chiếu",
         items: [
           { type: "button", commandId: "slides.show.startFromBegin", isLarge: true }
         ]
@@ -55,7 +55,7 @@ export const SLIDES_RIBBON_TABS = [
     label: "Chèn",
     groups: [
       {
-        label: "Hình ảnh & Đồ họa",
+        label: "Hình ảnh & Đối tượng",
         items: [
           { type: "button", commandId: "slides.image.insert", isLarge: true },
           { type: "button", commandId: "slides.shape.insert", isLarge: true },
@@ -81,7 +81,7 @@ export const SLIDES_RIBBON_TABS = [
     label: "Trình chiếu",
     groups: [
       {
-        label: "Bắt đầu trình chiếu",
+        label: "Khởi động chiếu",
         items: [
           { type: "button", commandId: "slides.show.startFromBegin", isLarge: true },
           { type: "button", commandId: "slides.show.startFromCurrent", isLarge: true }

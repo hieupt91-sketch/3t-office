@@ -1,52 +1,111 @@
 ﻿/**
- * VN Office UI Kit — Component Factory
- * Tự động đồng bộ 2 chiều với Command Bus
+ * VN Office UI Kit — Precision Component Factory
+ * Đảm bảo 100% nút Ribbon đều có Icon Vector sắc nét
  */
 
 import { ICONS } from "./icons.js";
 import { globalCommandBus } from "../commands/command-bus.js";
 
 /**
- * Tạo một Ribbon Button tự động gắn với Command Bus
- * @param {Object} options
- * @param {string} options.commandId
- * @param {boolean} [options.isLarge=false]
- * @param {string} [options.customIcon]
- * @param {string} [options.customLabel]
- * @returns {HTMLButtonElement}
+ * Tự động tìm kiếm Icon phù hợp theo Command ID
  */
-export function createCommandButton({ commandId, isLarge = false, customIcon, customLabel }) {
+function resolveIcon(commandId, iconName) {
+  if (iconName && ICONS[iconName]) return ICONS[iconName];
+
+  // Auto fallback theo từ khóa trong commandId
+  const idLower = commandId.toLowerCase();
+  if (idLower.includes("bold")) return ICONS.bold;
+  if (idLower.includes("italic")) return ICONS.italic;
+  if (idLower.includes("underline")) return ICONS.underline;
+  if (idLower.includes("strike")) return ICONS.strike;
+  if (idLower.includes("clearformat")) return ICONS.clearFormat;
+  if (idLower.includes("cut")) return ICONS.cut;
+  if (idLower.includes("copy")) return ICONS.copy;
+  if (idLower.includes("paste")) return ICONS.paste;
+  if (idLower.includes("formatpainter")) return ICONS.formatPainter;
+  if (idLower.includes("alignleft")) return ICONS.alignLeft;
+  if (idLower.includes("aligncenter")) return ICONS.alignCenter;
+  if (idLower.includes("alignright")) return ICONS.alignRight;
+  if (idLower.includes("justify")) return ICONS.alignJustify;
+  if (idLower.includes("bullet")) return ICONS.listBullet;
+  if (idLower.includes("numbered") || idLower.includes("number")) return ICONS.listNumber;
+  if (idLower.includes("indentinc")) return ICONS.indentInc;
+  if (idLower.includes("indentdec")) return ICONS.indentDec;
+  if (idLower.includes("table")) return ICONS.table;
+  if (idLower.includes("image")) return ICONS.image;
+  if (idLower.includes("page.break")) return ICONS.pageBreak;
+  if (idLower.includes("header") || idLower.includes("footer")) return ICONS.headerFooter;
+  if (idLower.includes("margins")) return ICONS.margins;
+  if (idLower.includes("orientation")) return ICONS.orientation;
+  if (idLower.includes("merge")) return ICONS.mergeCells;
+  if (idLower.includes("currency")) return ICONS.currencyVND;
+  if (idLower.includes("sum")) return ICONS.autoSum;
+  if (idLower.includes("average")) return ICONS.autoSum;
+  if (idLower.includes("sortasc")) return ICONS.sortAsc;
+  if (idLower.includes("sortdesc")) return ICONS.sortDesc;
+  if (idLower.includes("filter")) return ICONS.filter;
+  if (idLower.includes("slidenew") || idLower.includes("slide.new")) return ICONS.slideNew;
+  if (idLower.includes("slideshow") || idLower.includes("show.start")) return ICONS.slidePlay;
+  if (idLower.includes("shape")) return ICONS.shape;
+  if (idLower.includes("text.insert")) return ICONS.textBox;
+  if (idLower.includes("color.text")) return ICONS.colorText;
+  if (idLower.includes("color.highlight") || idLower.includes("fillcolor")) return ICONS.colorHighlight;
+  if (idLower.includes("save")) return ICONS.fileSave;
+  if (idLower.includes("open")) return ICONS.fileOpen;
+  if (idLower.includes("new")) return ICONS.fileNew;
+  if (idLower.includes("print")) return ICONS.filePrint;
+  if (idLower.includes("ai")) return ICONS.aiSparkle;
+
+  return `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>`;
+}
+
+/**
+ * Tạo nút Ribbon Button với Icon chuẩn hóa
+ */
+export function createCommandButton({ commandId, isLarge = false, iconOnly = false, customIcon, customLabel }) {
   const btn = document.createElement("button");
-  btn.className = `vno-btn ${isLarge ? "vno-ribbon-btn-large" : "vno-ribbon-btn-small"}`;
   btn.setAttribute("type", "button");
 
   const def = globalCommandBus.getDefinition(commandId);
   const state = globalCommandBus.getState(commandId);
 
   const label = customLabel || (state ? state.label : (def ? def.label : commandId));
-  const iconHtml = customIcon || (state && state.icon ? ICONS[state.icon] : (def && def.icon ? ICONS[def.icon] : ""));
+  const iconKey = customIcon || (state && state.icon ? state.icon : (def && def.icon ? def.icon : ""));
+  const iconSvg = resolveIcon(commandId, iconKey);
   const shortcut = state ? state.shortcut : (def ? def.shortcut : "");
 
-  btn.innerHTML = `${iconHtml ? `<span class="vno-btn-icon">${iconHtml}</span>` : ""}
-                   <span class="vno-btn-label">${label}</span>`;
-
-  if (shortcut) {
-    btn.title = `${label} (${shortcut})`;
+  // Thiết lập class & nội dung theo kích cỡ
+  if (isLarge) {
+    btn.className = "vno-btn vno-ribbon-btn-large";
+    btn.innerHTML = `
+      <span class="vno-btn-icon">${iconSvg}</span>
+      <span class="vno-btn-label">${label}</span>
+    `;
+  } else if (iconOnly) {
+    btn.className = "vno-btn vno-ribbon-btn-small vno-btn-icon-only";
+    btn.innerHTML = `<span class="vno-btn-icon">${iconSvg}</span>`;
   } else {
-    btn.title = label;
+    btn.className = "vno-btn vno-ribbon-btn-small";
+    btn.innerHTML = `
+      <span class="vno-btn-icon">${iconSvg}</span>
+      <span class="vno-btn-label">${label}</span>
+    `;
   }
+
+  // Tooltip phong phú
+  btn.title = shortcut ? `${label} (${shortcut})` : label;
 
   if (state) {
     if (!state.enabled) btn.disabled = true;
     if (state.checked) btn.classList.add("is-checked");
   }
 
-  // Click handler: thực thi lệnh qua Command Bus
+  // Click handler
   btn.addEventListener("click", () => {
     globalCommandBus.execute(commandId);
   });
 
-  // Tự động lắng nghe thay đổi trạng thái từ Command Bus
+  // Lắng nghe thay đổi trạng thái
   globalCommandBus.subscribe((updatedId, newState) => {
     if (updatedId === commandId) {
       btn.disabled = !newState.enabled;
@@ -55,7 +114,7 @@ export function createCommandButton({ commandId, isLarge = false, customIcon, cu
       } else {
         btn.classList.remove("is-checked");
       }
-      if (newState.label) {
+      if (newState.label && !iconOnly) {
         const labelSpan = btn.querySelector(".vno-btn-label");
         if (labelSpan) labelSpan.textContent = newState.label;
       }
@@ -65,9 +124,6 @@ export function createCommandButton({ commandId, isLarge = false, customIcon, cu
   return btn;
 }
 
-/**
- * Tạo một Dropdown Select gắn với Command Bus
- */
 export function createSelect({ commandId, options, defaultValue, onChange }) {
   const select = document.createElement("select");
   select.className = "vno-select";
@@ -82,50 +138,9 @@ export function createSelect({ commandId, options, defaultValue, onChange }) {
 
   select.addEventListener("change", (e) => {
     const val = e.target.value;
-    if (commandId) {
-      globalCommandBus.execute(commandId, val);
-    }
+    if (commandId) globalCommandBus.execute(commandId, val);
     if (onChange) onChange(val);
   });
 
   return select;
-}
-
-/**
- * Hiển thị Hộp thoại chuẩn hóa VN Office Dialog
- */
-export function showDialog({ title, content, onConfirm, confirmText = "Đồng ý", cancelText = "Hủy bỏ" }) {
-  const overlay = document.createElement("div");
-  overlay.className = "vno-dialog-overlay";
-
-  overlay.innerHTML = `
-    <div class="vno-dialog-box" role="dialog" aria-modal="true">
-      <div class="vno-dialog-header">
-        <span>${title}</span>
-        <button class="vno-btn vno-dialog-close" aria-label="Đóng">&times;</button>
-      </div>
-      <div class="vno-dialog-body">${content}</div>
-      <div class="vno-dialog-footer">
-        <button class="vno-btn vno-dialog-cancel">${cancelText}</button>
-        <button class="vno-btn vno-btn-primary vno-dialog-confirm">${confirmText}</button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(overlay);
-
-  const close = () => {
-    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-  };
-
-  overlay.querySelector(".vno-dialog-close").addEventListener("click", close);
-  overlay.querySelector(".vno-dialog-cancel").addEventListener("click", close);
-  overlay.querySelector(".vno-dialog-confirm").addEventListener("click", () => {
-    if (onConfirm) onConfirm();
-    close();
-  });
-
-  overlay.addEventListener("click", (e) => {
-    if (e.target === overlay) close();
-  });
 }

@@ -1,6 +1,6 @@
 ﻿/**
- * VN Sheet — Ribbon Structure Definition
- * Tuân thủ quy định 04-apps/sheet/STANDARD.md & 03-ui-ux/UI-UX-STANDARD.md
+ * VN Sheet — Enterprise Ribbon Structure
+ * Cấu hình đầy đủ Icon Vector chuẩn Office Suite
  */
 
 export const SHEET_RIBBON_TABS = [
@@ -30,9 +30,12 @@ export const SHEET_RIBBON_TABS = [
               {
                 type: "row",
                 items: [
-                  { type: "button", commandId: "sheet.cell.bold" },
-                  { type: "button", commandId: "sheet.cell.italic" },
-                  { type: "button", commandId: "sheet.cell.underline" }
+                  { type: "button", commandId: "sheet.cell.bold", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.italic", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.underline", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.borders", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.fillColor", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.textColor", iconOnly: true }
                 ]
               }
             ]
@@ -40,7 +43,7 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
-        label: "Căn chỉnh",
+        label: "Căn chỉnh & Trộn ô",
         items: [
           {
             type: "column",
@@ -48,16 +51,15 @@ export const SHEET_RIBBON_TABS = [
               {
                 type: "row",
                 items: [
-                  { type: "button", commandId: "sheet.cell.alignLeft" },
-                  { type: "button", commandId: "sheet.cell.alignCenter" },
-                  { type: "button", commandId: "sheet.cell.alignRight" }
+                  { type: "button", commandId: "sheet.cell.alignLeft", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.alignCenter", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.alignRight", iconOnly: true }
                 ]
               },
               {
                 type: "row",
                 items: [
-                  { type: "button", commandId: "sheet.cell.merge" },
-                  { type: "button", commandId: "sheet.cell.wrapText" }
+                  { type: "button", commandId: "sheet.cell.merge" }
                 ]
               }
             ]
@@ -65,22 +67,29 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
-        label: "Số & Tiền tệ",
+        label: "Định dạng số",
         items: [
           { type: "button", commandId: "sheet.format.currencyVND", isLarge: true },
           {
             type: "column",
             items: [
-              { type: "button", commandId: "sheet.format.percent" },
-              { type: "button", commandId: "sheet.format.comma" }
+              { type: "button", commandId: "sheet.format.percent" }
             ]
           }
         ]
       },
       {
-        label: "Tính toán nhanh",
+        label: "Tính toán & Dữ liệu",
         items: [
-          { type: "button", commandId: "sheet.formula.sum", isLarge: true }
+          { type: "button", commandId: "sheet.formula.sum", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.data.sortAsc" },
+              { type: "button", commandId: "sheet.data.sortDesc" },
+              { type: "button", commandId: "sheet.data.filter" }
+            ]
+          }
         ]
       }
     ]
@@ -90,7 +99,7 @@ export const SHEET_RIBBON_TABS = [
     label: "Công thức",
     groups: [
       {
-        label: "Hàm thường dùng",
+        label: "Hàm tính toán",
         items: [
           { type: "button", commandId: "sheet.formula.sum", isLarge: true },
           { type: "button", commandId: "sheet.formula.average", isLarge: true }
@@ -117,15 +126,10 @@ export const SHEET_RIBBON_TABS = [
     label: "Chèn",
     groups: [
       {
-        label: "Hàng & Cột",
+        label: "Hàng, Cột & Đồ thị",
         items: [
           { type: "button", commandId: "sheet.row.insert", isLarge: true },
-          { type: "button", commandId: "sheet.col.insert", isLarge: true }
-        ]
-      },
-      {
-        label: "Đồ thị",
-        items: [
+          { type: "button", commandId: "sheet.col.insert", isLarge: true },
           { type: "button", commandId: "sheet.chart.insert", isLarge: true }
         ]
       }

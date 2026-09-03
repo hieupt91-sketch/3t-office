@@ -1,6 +1,6 @@
 ﻿/**
- * VN Writer — Ribbon Structure Definition
- * Tuân thủ quy định 04-apps/writer/STANDARD.md & 03-ui-ux/UI-UX-STANDARD.md
+ * VN Writer — Enterprise Ribbon Structure
+ * Cấu hình đầy đủ Icon Vector chuẩn Office Suite
  */
 
 export const WRITER_RIBBON_TABS = [
@@ -16,7 +16,8 @@ export const WRITER_RIBBON_TABS = [
             type: "column",
             items: [
               { type: "button", commandId: "common.edit.cut" },
-              { type: "button", commandId: "common.edit.copy" }
+              { type: "button", commandId: "common.edit.copy" },
+              { type: "button", commandId: "common.edit.formatPainter" }
             ]
           }
         ]
@@ -47,12 +48,12 @@ export const WRITER_RIBBON_TABS = [
                     commandId: "writer.font.size",
                     defaultValue: "3",
                     options: [
-                      { value: "1", label: "10" },
-                      { value: "2", label: "12" },
-                      { value: "3", label: "14 (Chuẩn NĐ 30)" },
-                      { value: "4", label: "16" },
-                      { value: "5", label: "18" },
-                      { value: "6", label: "24" }
+                      { value: "1", label: "10 pt" },
+                      { value: "2", label: "12 pt" },
+                      { value: "3", label: "14 pt (NĐ 30)" },
+                      { value: "4", label: "16 pt" },
+                      { value: "5", label: "18 pt" },
+                      { value: "6", label: "24 pt" }
                     ]
                   }
                 ]
@@ -60,11 +61,13 @@ export const WRITER_RIBBON_TABS = [
               {
                 type: "row",
                 items: [
-                  { type: "button", commandId: "writer.text.bold" },
-                  { type: "button", commandId: "writer.text.italic" },
-                  { type: "button", commandId: "writer.text.underline" },
-                  { type: "button", commandId: "writer.text.strike" },
-                  { type: "button", commandId: "writer.text.clearFormat" }
+                  { type: "button", commandId: "writer.text.bold", iconOnly: true },
+                  { type: "button", commandId: "writer.text.italic", iconOnly: true },
+                  { type: "button", commandId: "writer.text.underline", iconOnly: true },
+                  { type: "button", commandId: "writer.text.strike", iconOnly: true },
+                  { type: "button", commandId: "writer.text.clearFormat", iconOnly: true },
+                  { type: "button", commandId: "writer.color.text", iconOnly: true },
+                  { type: "button", commandId: "writer.color.highlight", iconOnly: true }
                 ]
               }
             ]
@@ -80,19 +83,19 @@ export const WRITER_RIBBON_TABS = [
               {
                 type: "row",
                 items: [
-                  { type: "button", commandId: "writer.list.bullet" },
-                  { type: "button", commandId: "writer.list.numbered" },
-                  { type: "button", commandId: "writer.para.indentDec" },
-                  { type: "button", commandId: "writer.para.indentInc" }
+                  { type: "button", commandId: "writer.list.bullet", iconOnly: true },
+                  { type: "button", commandId: "writer.list.numbered", iconOnly: true },
+                  { type: "button", commandId: "writer.para.indentDec", iconOnly: true },
+                  { type: "button", commandId: "writer.para.indentInc", iconOnly: true }
                 ]
               },
               {
                 type: "row",
                 items: [
-                  { type: "button", commandId: "writer.para.alignLeft" },
-                  { type: "button", commandId: "writer.para.alignCenter" },
-                  { type: "button", commandId: "writer.para.alignRight" },
-                  { type: "button", commandId: "writer.para.justify" }
+                  { type: "button", commandId: "writer.para.alignLeft", iconOnly: true },
+                  { type: "button", commandId: "writer.para.alignCenter", iconOnly: true },
+                  { type: "button", commandId: "writer.para.alignRight", iconOnly: true },
+                  { type: "button", commandId: "writer.para.justify", iconOnly: true }
                 ]
               }
             ]
@@ -103,7 +106,8 @@ export const WRITER_RIBBON_TABS = [
         label: "Chèn nhanh",
         items: [
           { type: "button", commandId: "writer.table.insert", isLarge: true },
-          { type: "button", commandId: "writer.image.insert", isLarge: true }
+          { type: "button", commandId: "writer.image.insert", isLarge: true },
+          { type: "button", commandId: "writer.page.break", isLarge: true }
         ]
       }
     ]
@@ -113,13 +117,13 @@ export const WRITER_RIBBON_TABS = [
     label: "Chèn",
     groups: [
       {
-        label: "Trang",
+        label: "Trang văn bản",
         items: [
           { type: "button", commandId: "writer.page.break", isLarge: true }
         ]
       },
       {
-        label: "Bảng & Hình",
+        label: "Bảng biểu & Hình",
         items: [
           { type: "button", commandId: "writer.table.insert", isLarge: true },
           { type: "button", commandId: "writer.image.insert", isLarge: true }
@@ -136,7 +140,7 @@ export const WRITER_RIBBON_TABS = [
   },
   {
     id: "layout",
-    label: "Bố trí",
+    label: "Bố cục",
     groups: [
       {
         label: "Thiết lập trang",
@@ -153,7 +157,7 @@ export const WRITER_RIBBON_TABS = [
     label: "Đánh giá",
     groups: [
       {
-        label: "Tiếng Việt & Ngữ pháp",
+        label: "Chính tả & Ngữ pháp",
         items: [
           { type: "button", commandId: "ai.assistant.grammarCheck", isLarge: true }
         ]
@@ -165,7 +169,7 @@ export const WRITER_RIBBON_TABS = [
     label: "Trợ lý VN AI",
     groups: [
       {
-        label: "Tính năng AI",
+        label: "Tính năng AI thuần Việt",
         items: [
           { type: "button", commandId: "ai.assistant.toggle", isLarge: true },
           { type: "button", commandId: "ai.assistant.summarize", isLarge: true },

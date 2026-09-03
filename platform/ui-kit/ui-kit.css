@@ -9,7 +9,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   font-family: var(--vno-font-ui);
   color: var(--vno-text-primary);
   background: transparent;
@@ -19,7 +19,7 @@
   user-select: none;
   transition: all 0.12s ease-in-out;
   outline: none;
-  line-height: 1.2;
+  line-height: 1;
   white-space: nowrap;
 }
 
@@ -37,7 +37,7 @@
 }
 
 .vno-btn:disabled {
-  opacity: 0.38;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
@@ -53,19 +53,24 @@
 .vno-ribbon-btn-large {
   flex-direction: column;
   padding: 4px 6px;
-  min-width: 52px;
+  min-width: 54px;
   height: 68px;
   font-size: 11px;
   text-align: center;
   gap: 4px;
+  justify-content: center;
 }
 .vno-ribbon-btn-large .vno-btn-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   color: var(--vno-app-current);
+}
+.vno-ribbon-btn-large .vno-btn-icon svg {
+  width: 24px;
+  height: 24px;
 }
 .vno-ribbon-btn-large .vno-btn-label {
   display: -webkit-box;
@@ -74,38 +79,50 @@
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.15;
+  color: var(--vno-text-secondary);
+  font-weight: 500;
 }
 
-/* Ribbon Small Button (Ví dụ: Đậm, Nghiêng, Căn lề) */
+/* Ribbon Small Button (Ví dụ: Cắt, Sao chép) */
 .vno-ribbon-btn-small {
-  padding: 3px 6px;
+  padding: 2px 6px;
   height: 24px;
-  min-width: 26px;
   font-size: var(--vno-text-xs);
 }
 .vno-ribbon-btn-small .vno-btn-icon {
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--vno-text-secondary);
+}
+.vno-ribbon-btn-small .vno-btn-icon svg {
+  width: 15px;
+  height: 15px;
 }
 
-/* Button Variants */
-.vno-btn-primary {
-  background-color: var(--vno-app-current);
-  color: #ffffff;
-  font-weight: 600;
-  padding: 6px 16px;
-  border-radius: var(--vno-radius-md);
+/* Ribbon Small Icon-Only Button (Ví dụ: B, I, U, Căn lề, Bullets) */
+.vno-btn-icon-only {
+  width: 26px !important;
+  min-width: 26px !important;
+  height: 24px !important;
+  padding: 2px !important;
 }
-.vno-btn-primary:hover:not(:disabled) {
-  background-color: var(--vno-app-current-hover);
-  color: #ffffff;
+.vno-btn-icon-only .vno-btn-icon {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vno-btn-icon-only .vno-btn-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* Select / Dropdown Inputs */
 .vno-select {
   height: 24px;
-  padding: 2px 8px;
+  padding: 2px 6px;
   font-family: var(--vno-font-ui);
   font-size: var(--vno-text-xs);
   color: var(--vno-text-primary);
@@ -124,7 +141,7 @@
   box-shadow: 0 0 0 2px var(--vno-app-current-light);
 }
 
-/* Dialog & Modal Overlay */
+/* Dialog & Modal */
 .vno-dialog-overlay {
   position: fixed;
   inset: 0;
@@ -134,9 +151,7 @@
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  animation: vnoFadeIn 0.15s ease-out;
 }
-
 .vno-dialog-box {
   background-color: #ffffff;
   border: 1px solid var(--vno-border-default);
@@ -148,7 +163,6 @@
   display: flex;
   flex-direction: column;
 }
-
 .vno-dialog-header {
   padding: 14px 20px;
   border-bottom: 1px solid var(--vno-border-default);
@@ -158,14 +172,12 @@
   font-weight: 700;
   font-size: var(--vno-text-md);
 }
-
 .vno-dialog-body {
   padding: 20px;
   font-size: var(--vno-text-base);
   line-height: 1.5;
   color: var(--vno-text-secondary);
 }
-
 .vno-dialog-footer {
   padding: 12px 20px;
   background-color: var(--vno-bg-subtle);

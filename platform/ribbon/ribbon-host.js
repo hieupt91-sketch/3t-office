@@ -19,11 +19,6 @@ export class RibbonHost {
     this.isCollapsed = false;
   }
 
-  /**
-   * Thiết lập cấu trúc các tab cho Ribbon
-   * @param {Array<{id: string, label: string, groups: Array}>} tabs 
-   * @param {string} [defaultActiveId] 
-   */
   setStructure(tabs, defaultActiveId) {
     this.tabs = tabs;
     this.activeTabId = defaultActiveId || (tabs[0] ? tabs[0].id : null);
@@ -86,6 +81,7 @@ export class RibbonHost {
           itemsEl.appendChild(createCommandButton({
             commandId: item.commandId,
             isLarge: item.isLarge,
+            iconOnly: item.iconOnly,
             customLabel: item.label,
             customIcon: item.icon
           }));
@@ -100,14 +96,26 @@ export class RibbonHost {
                 if (rowItem.type === "select") {
                   rowEl.appendChild(createSelect(rowItem));
                 } else {
-                  rowEl.appendChild(createCommandButton(rowItem));
+                  rowEl.appendChild(createCommandButton({
+                    commandId: rowItem.commandId,
+                    isLarge: rowItem.isLarge,
+                    iconOnly: rowItem.iconOnly,
+                    customLabel: rowItem.label,
+                    customIcon: rowItem.icon
+                  }));
                 }
               });
               colEl.appendChild(rowEl);
             } else if (subItem.type === "select") {
               colEl.appendChild(createSelect(subItem));
             } else {
-              colEl.appendChild(createCommandButton(subItem));
+              colEl.appendChild(createCommandButton({
+                commandId: subItem.commandId,
+                isLarge: subItem.isLarge,
+                iconOnly: subItem.iconOnly,
+                customLabel: subItem.label,
+                customIcon: subItem.icon
+              }));
             }
           });
           itemsEl.appendChild(colEl);
