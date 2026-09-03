@@ -39,13 +39,13 @@ export class WriterAdapter {
     this._commentPanelClickHandler = null;
     this._commentAnchorKeyHandler = null;
     this._commentPanelKeyHandler = null;
+    this.trackChangesEnabled = false;
+    this._trackChangesBeforeInputHandler = null;
     this.printPreviewOverlay = null;
     this.currentPreviewPage = 1;
     this.previewTotalPages = 1;
     this.previewZoom = 1.0;
     this._previewKeyHandler = null;
-    this.trackChangesEnabled = false;
-    this._trackChangesBeforeInputHandler = null;
     this._initZones();
   }
 
@@ -68,8 +68,8 @@ export class WriterAdapter {
     this._bindCommentInteractions();
     this._bindTrackChanges();
     this._renderCommentsPanel();
-    globalCommandBus.bindHandler("writer.file.printPreview", () => this.openPrintPreview());
     this._updateTrackChangesCommandState();
+    globalCommandBus.bindHandler("writer.file.printPreview", () => this.openPrintPreview());
   }
 
   _bindTrackChanges() {
