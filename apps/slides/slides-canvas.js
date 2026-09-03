@@ -1,5 +1,5 @@
 ﻿/**
- * VN Slides — Canvas & Presentation Controller
+ * VN Slides — Enterprise Canvas Controller
  */
 
 export class SlidesCanvasController {
@@ -10,13 +10,19 @@ export class SlidesCanvasController {
       {
         id: 1,
         title: "VN OFFICE — BỘ ỨNG DỤNG VĂN PHÒNG VIỆT",
-        body: "• Giải pháp công nghệ độc lập, bảo mật và hiện đại\n• Kế thừa nền tảng xử lý tài liệu mạnh mẽ từ LibreOffice Core\n• Giao diện tối ưu sâu sắc cho người dùng và văn bản hành chính Việt Nam",
+        body: "• Giải pháp công nghệ độc lập, bảo mật và chuẩn mực quốc gia\n• Tận dụng sức mạnh xử lý tài liệu vượt trội từ LibreOffice Core Engine\n• Giao diện thuần Việt, hiện đại, quen thuộc và thân thiện với người dùng",
         shapes: []
       },
       {
         id: 2,
         title: "KIẾN TRÚC HỆ THỐNG PHÂN TẦNG",
-        body: "1. VN App UI (Writer, Sheet, Slides phát triển song song)\n2. VN Shared Platform & Command Bus\n3. VN LibreOffice Adapter Layer\n4. LibreOffice Core Engine C++",
+        body: "1. VN App UI (Writer, Sheet, Slides đồng bộ phát triển)\n2. VN Shared Platform & Global Command Bus\n3. VN LibreOffice Adapter Layer (UNO Bridge & PyUNO)\n4. LibreOffice Core Engine C++",
+        shapes: []
+      },
+      {
+        id: 3,
+        title: "KẾ HOẠCH TRIỂN KHAI & TIÊU CHUẨN KỸ THUẬT",
+        body: "• Hỗ trợ toàn diện định dạng văn bản hành chính theo Nghị định 30/2020/NĐ-CP\n• Tương thích 100% hai chiều với hệ sinh thái OOXML (DOCX, XLSX, PPTX)\n• Tích hợp trợ lý AI bảo mật cục bộ, bảo vệ quyền riêng tư tuyệt đối",
         shapes: []
       }
     ];
@@ -34,6 +40,19 @@ export class SlidesCanvasController {
     // 1. Thumbnails Navigator
     this.navEl = document.createElement("div");
     this.navEl.className = "vno-slide-navigator";
+
+    const navHeader = document.createElement("div");
+    navHeader.className = "vno-slide-nav-header";
+    navHeader.innerHTML = `<button class="vno-slide-new-btn" id="vno-new-slide-btn">+ Thêm trang chiếu mới</button>`;
+    navHeader.querySelector("#vno-new-slide-btn").addEventListener("click", () => this.addNewSlide());
+    this.navEl.appendChild(navHeader);
+
+    this.slideListContainer = document.createElement("div");
+    this.slideListContainer.style.display = "flex";
+    this.slideListContainer.style.flexDirection = "column";
+    this.slideListContainer.style.gap = "10px";
+    this.navEl.appendChild(this.slideListContainer);
+
     this.container.appendChild(this.navEl);
 
     // 2. Stage & Canvas
@@ -72,7 +91,7 @@ export class SlidesCanvasController {
   }
 
   _renderThumbnails() {
-    this.navEl.innerHTML = "";
+    this.slideListContainer.innerHTML = "";
     this.slides.forEach((slide, idx) => {
       const item = document.createElement("div");
       item.className = `vno-slide-thumb-item ${idx === this.currentSlideIndex ? "is-active" : ""}`;
@@ -80,13 +99,13 @@ export class SlidesCanvasController {
       item.innerHTML = `
         <span class="vno-slide-thumb-num">${idx + 1}</span>
         <div class="vno-slide-thumb-card">
-          <div style="font-weight:bold;margin-bottom:2px;">${slide.title.substring(0, 20)}...</div>
-          <div>${slide.body.substring(0, 30)}...</div>
+          <div style="font-weight:bold;color:#0f172a;margin-bottom:4px;">${slide.title.substring(0, 24)}...</div>
+          <div style="color:#64748b;">${slide.body.substring(0, 36)}...</div>
         </div>
       `;
 
       item.addEventListener("click", () => this.selectSlide(idx));
-      this.navEl.appendChild(item);
+      this.slideListContainer.appendChild(item);
     });
   }
 
@@ -109,7 +128,7 @@ export class SlidesCanvasController {
     const newSlide = {
       id: Date.now(),
       title: "Tiêu đề trang chiếu mới",
-      body: "• Nhập nội dung thuyết trình tại đây...",
+      body: "• Nhập nội dung chính tại đây...\n• Trình bày các điểm nổi bật",
       shapes: []
     };
     this.slides.push(newSlide);
@@ -122,37 +141,6 @@ export class SlidesCanvasController {
     this.slides.splice(this.currentSlideIndex, 1);
     const nextIdx = Math.max(0, this.currentSlideIndex - 1);
     this.selectSlide(nextIdx);
-    return true;
-  }
-
-  insertShape(type = "rect") {
-    const shape = document.createElement("div");
-    shape.className = "vno-slide-shape";
-    shape.style.left = "60px";
-    shape.style.bottom = "40px";
-    shape.style.width = "140px";
-    shape.style.height = "60px";
-    shape.style.backgroundColor = "var(--vno-app-slides-primary)";
-    shape.style.color = "#ffffff";
-    shape.style.borderRadius = type === "circle" ? "50%" : "6px";
-    shape.textContent = type === "circle" ? "Hình tròn" : "Hình khối";
-
-    this.canvasEl.appendChild(shape);
-    return true;
-  }
-
-  insertTextBox() {
-    const tb = document.createElement("div");
-    tb.className = "vno-slide-shape";
-    tb.contentEditable = "true";
-    tb.style.left = "240px";
-    tb.style.bottom = "40px";
-    tb.style.border = "1px dashed var(--vno-app-slides-primary)";
-    tb.style.padding = "6px 12px";
-    tb.style.backgroundColor = "#ffffff";
-    tb.textContent = "Nhập chữ...";
-    this.canvasEl.appendChild(tb);
-    tb.focus();
     return true;
   }
 
@@ -169,11 +157,11 @@ export class SlidesCanvasController {
     const renderShow = () => {
       const s = this.slides[currentShowIdx];
       content.innerHTML = `
-        <h1 style="font-size:44px;font-weight:bold;color:#1e293b;margin-bottom:32px;">${s.title}</h1>
-        <div style="font-size:26px;line-height:1.6;color:#334155;white-space:pre-line;flex:1;">${s.body}</div>
-        <div style="font-size:14px;color:#94a3b8;display:flex;justify-content:space-between;">
+        <h1 style="font-size:44px;font-weight:800;color:#0f172a;margin-bottom:36px;">${s.title}</h1>
+        <div style="font-size:26px;line-height:1.7;color:#334155;white-space:pre-line;flex:1;">${s.body}</div>
+        <div style="font-size:14px;color:#94a3b8;display:flex;justify-content:space-between;border-top:1px solid #e2e8f0;padding-top:16px;">
           <span>Trang ${currentShowIdx + 1} / ${this.slides.length}</span>
-          <span>Nhấn Space hoặc Click để tiếp tục | Esc để thoát</span>
+          <span>Phím Space hoặc Click chuột để tiếp tục | Esc để thoát trình chiếu</span>
         </div>
       `;
     };

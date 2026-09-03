@@ -1,43 +1,143 @@
 ﻿/**
- * VN Writer — Dedicated Stylesheet
- * Chuẩn trang giấy văn bản hành chính Việt Nam (A4)
+ * VN Writer — Enterprise Stylesheet
+ * Tiêu chuẩn văn bản hành chính Việt Nam (Nghị định 30/2020/NĐ-CP)
  */
 
-.vno-writer-canvas {
-  width: 794px; /* A4 width tại 96 DPI */
+.vno-writer-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: var(--vno-bg-app);
+  overflow: hidden;
+}
+
+/* Thước đo ngang (Horizontal Ruler) */
+.vno-writer-ruler {
+  height: 22px;
+  background-color: #f1f5f9;
+  border-bottom: 1px solid var(--vno-border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  position: relative;
+  z-index: 10;
+}
+.vno-ruler-track {
+  width: 794px;
+  height: 100%;
+  background-color: #ffffff;
+  border-left: 1px solid #94a3b8;
+  border-right: 1px solid #94a3b8;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+}
+.vno-ruler-scale {
+  width: 100%;
+  height: 8px;
+  background-image: repeating-linear-gradient(to right, #94a3b8 0, #94a3b8 1px, transparent 1px, transparent 10px);
+}
+.vno-ruler-marker-left {
+  position: absolute;
+  left: 113px; /* Lề trái 30mm (~113px) */
+  top: 0;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid var(--vno-writer-primary);
+}
+.vno-ruler-marker-right {
+  position: absolute;
+  right: 56px; /* Lề phải 15mm (~56px) */
+  top: 0;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 7px solid var(--vno-writer-primary);
+}
+
+/* Viewport cuộn trang */
+.vno-writer-viewport {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 30px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+}
+
+/* Trang giấy A4 chuẩn mực */
+.vno-writer-page {
+  width: 794px; /* A4 width */
   min-height: 1123px; /* A4 height */
   background-color: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border-radius: 2px;
-  padding: 75px 56px 75px 113px; /* Lề chuẩn NĐ 30: Trái 30mm, Phải 15mm, Trên 20mm, Dưới 20mm */
-  font-family: "Times New Roman", "Be Vietnam Pro", serif;
+  box-shadow: var(--vno-shadow-paper);
+  border-radius: 1px;
+  position: relative;
+  padding: 75px 56px 75px 113px; /* Lề chuẩn NĐ 30: Trên 20mm, Dưới 20mm, Trái 30mm, Phải 15mm */
+  font-family: var(--vno-font-doc);
   font-size: 14pt;
   line-height: 1.4;
   color: #111827;
   outline: none;
   box-sizing: border-box;
-  margin: 0 auto;
 }
 
-.vno-writer-canvas:focus {
-  outline: none;
+/* 4 Dấu góc căn lề (Crop Marks / Margin Corners) */
+.vno-writer-page::before {
+  content: "";
+  position: absolute;
+  top: 75px;
+  left: 113px;
+  width: 12px;
+  height: 12px;
+  border-top: 1px solid #cbd5e1;
+  border-left: 1px solid #cbd5e1;
+  pointer-events: none;
+}
+.vno-writer-page::after {
+  content: "";
+  position: absolute;
+  top: 75px;
+  right: 56px;
+  width: 12px;
+  height: 12px;
+  border-top: 1px solid #cbd5e1;
+  border-right: 1px solid #cbd5e1;
+  pointer-events: none;
 }
 
-.vno-writer-canvas p {
+.vno-writer-page p {
   margin: 0 0 6pt 0;
   text-align: justify;
 }
 
-.vno-writer-canvas h1 {
+.vno-writer-page h1 {
   font-size: 16pt;
   font-weight: bold;
   text-align: center;
-  margin: 12pt 0;
+  margin: 14pt 0 10pt 0;
   text-transform: uppercase;
 }
 
-.vno-writer-canvas h2 {
+.vno-writer-page h2 {
   font-size: 14pt;
   font-weight: bold;
-  margin: 8pt 0;
+  margin: 10pt 0 4pt 0;
+}
+
+.vno-writer-page table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14pt 0;
+}
+.vno-writer-page td, .vno-writer-page th {
+  border: 1px solid #94a3b8;
+  padding: 6pt 10pt;
 }

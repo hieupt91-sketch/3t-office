@@ -1,5 +1,6 @@
 ﻿/**
- * VN Sheet — Stylesheet
+ * VN Sheet — Enterprise Stylesheet
+ * Tiêu chuẩn bảng tính bảng biểu doanh nghiệp chuẩn mực
  */
 
 .vno-sheet-container {
@@ -7,114 +8,241 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background-color: var(--vno-bg-surface);
+  background-color: #ffffff;
   overflow: hidden;
 }
 
-/* Formula Bar */
+/* Formula Bar cao cấp */
 .vno-formula-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 8px;
-  background-color: var(--vno-bg-subtle);
-  border-bottom: 1px solid var(--vno-border-subtle);
+  gap: 4px;
+  height: 30px;
+  padding: 0 10px;
+  background-color: #f8fafc;
+  border-bottom: 1px solid var(--vno-border-default);
   user-select: none;
 }
 
 .vno-name-box {
-  width: 60px;
+  width: 70px;
   height: 22px;
-  background-color: var(--vno-bg-surface);
-  border: 1px solid var(--vno-border-default);
-  border-radius: var(--vno-radius-xs);
+  background-color: #ffffff;
+  border: 1px solid var(--vno-border-strong);
+  border-radius: var(--vno-radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--vno-font-size-xs);
-  font-weight: 600;
-  color: var(--vno-app-sheet-primary);
+  font-size: var(--vno-text-xs);
+  font-weight: 700;
+  color: var(--vno-sheet-primary);
 }
 
-.vno-fx-symbol {
+.vno-formula-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.vno-formula-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--vno-radius-sm);
+  font-size: 11px;
+  color: var(--vno-text-muted);
+}
+.vno-formula-btn:hover {
+  background-color: var(--vno-bg-hover);
+  color: var(--vno-text-primary);
+}
+.vno-formula-btn-fx {
+  font-weight: bold;
   font-style: italic;
   font-family: serif;
-  font-size: 14px;
-  color: var(--vno-text-muted);
-  width: 20px;
-  text-align: center;
+  color: var(--vno-sheet-primary);
+  font-size: 13px;
 }
 
 .vno-formula-input {
   flex: 1;
   height: 22px;
-  padding: 2px 6px;
-  border: 1px solid var(--vno-border-default);
-  border-radius: var(--vno-radius-xs);
-  font-family: var(--vno-font-family-ui);
-  font-size: var(--vno-font-size-sm);
+  padding: 2px 8px;
+  border: 1px solid var(--vno-border-strong);
+  border-radius: var(--vno-radius-sm);
+  font-family: var(--vno-font-mono);
+  font-size: var(--vno-text-xs);
   outline: none;
+  background-color: #ffffff;
 }
 .vno-formula-input:focus {
-  border-color: var(--vno-app-sheet-primary);
+  border-color: var(--vno-sheet-primary);
+  box-shadow: 0 0 0 2px var(--vno-sheet-light);
 }
 
-/* Grid View */
+/* Grid Viewport */
 .vno-grid-viewport {
   flex: 1;
   overflow: auto;
   position: relative;
+  background-color: #ffffff;
 }
 
 .vno-grid-table {
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: var(--vno-font-size-sm);
-  font-family: var(--vno-font-family-ui);
+  font-size: var(--vno-text-xs);
+  font-family: var(--vno-font-ui);
 }
 
-.vno-grid-table th, .vno-grid-table td {
-  border: 1px solid #e2e8f0;
-  box-sizing: border-box;
-}
-
-/* Row & Column Headers */
-.vno-col-header, .vno-row-header {
-  background-color: #f8fafc;
-  color: #64748b;
-  font-weight: 600;
-  text-align: center;
-  user-select: none;
+/* Headers */
+.vno-grid-corner-header {
+  width: 44px;
+  height: 24px;
+  background-color: #f1f5f9;
+  border-right: 1px solid #cbd5e1;
+  border-bottom: 1px solid #cbd5e1;
+  cursor: pointer;
 }
 
 .vno-col-header {
   height: 24px;
-  min-width: 90px;
+  min-width: 100px;
+  background-color: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  text-align: center;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #cbd5e1;
+  user-select: none;
+}
+.vno-col-header:hover {
+  background-color: var(--vno-sheet-light);
+  color: var(--vno-sheet-primary);
 }
 
 .vno-row-header {
   width: 44px;
   height: 22px;
+  background-color: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  text-align: center;
+  border-right: 1px solid #cbd5e1;
+  border-bottom: 1px solid #e2e8f0;
+  user-select: none;
+}
+.vno-row-header:hover {
+  background-color: var(--vno-sheet-light);
+  color: var(--vno-sheet-primary);
 }
 
 /* Data Cells */
 .vno-grid-cell {
-  padding: 2px 6px;
+  padding: 3px 8px;
   height: 22px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: cell;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  position: relative;
 }
 
 .vno-grid-cell.is-selected {
-  outline: 2px solid var(--vno-app-sheet-primary);
+  outline: 2px solid var(--vno-sheet-primary);
   outline-offset: -2px;
-  background-color: rgba(16, 124, 65, 0.08) !important;
+  background-color: rgba(15, 109, 56, 0.08) !important;
+  z-index: 5;
 }
 
-.vno-grid-cell.is-editing {
-  outline: 2px solid var(--vno-app-sheet-primary);
-  background-color: #ffffff !important;
+/* Nút AutoFill chốt kéo */
+.vno-cell-autofill-handle {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 6px;
+  height: 6px;
+  background-color: var(--vno-sheet-primary);
+  cursor: crosshair;
+  z-index: 10;
+}
+
+/* Thanh Sheet Tabs ở dưới */
+.vno-sheet-tab-bar {
+  height: 30px;
+  background-color: #f1f5f9;
+  border-top: 1px solid var(--vno-border-default);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 4px;
+  user-select: none;
+}
+
+.vno-sheet-tab-scroll {
+  display: flex;
+  gap: 2px;
+}
+.vno-sheet-scroll-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--vno-text-muted);
+}
+.vno-sheet-scroll-btn:hover {
+  background-color: var(--vno-bg-hover);
+}
+
+.vno-sheet-tab-item {
+  padding: 4px 14px;
+  background-color: #e2e8f0;
+  border-top-left-radius: var(--vno-radius-sm);
+  border-top-right-radius: var(--vno-radius-sm);
+  font-size: var(--vno-text-xs);
+  font-weight: 500;
+  color: var(--vno-text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.vno-sheet-tab-item:hover {
+  background-color: #f1f5f9;
+  color: var(--vno-text-primary);
+}
+.vno-sheet-tab-item.is-active {
+  background-color: #ffffff;
+  color: var(--vno-sheet-primary);
+  font-weight: 700;
+  border-bottom-color: var(--vno-sheet-primary);
+  box-shadow: var(--vno-shadow-xs);
+}
+
+.vno-sheet-add-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--vno-text-muted);
+  cursor: pointer;
+  border-radius: var(--vno-radius-sm);
+}
+.vno-sheet-add-btn:hover {
+  background-color: var(--vno-bg-hover);
+  color: var(--vno-sheet-primary);
 }

@@ -1,5 +1,5 @@
 ﻿/**
- * VN Sheet Application Entrypoint
+ * VN Sheet Application Entrypoint — Refined Enterprise Edition
  */
 
 import { AppShell } from "../../platform/shell/app-shell.js";
@@ -25,10 +25,9 @@ export class SheetApp {
     this.shell = new AppShell({
       appName: "sheet",
       appTitle: "VN Sheet",
-      documentName: "Bảng tính tài chính 1.xlsx"
+      documentName: "Dự toán kinh phí VN Office 2026.xlsx"
     });
     this.shell.mount(this.mountElement);
-
     this.shell.ribbonHost.setStructure(SHEET_RIBBON_TABS, "home");
 
     const gridWrap = document.createElement("div");
@@ -36,8 +35,8 @@ export class SheetApp {
     gridWrap.style.height = "100%";
 
     this.grid = new SheetGridController(gridWrap, {
-      onSelect: (coord, data) => {
-        this.shell.setStatus(`Ô: ${coord}  |  Dữ liệu: ${data?.val || "Trống"}  |  Sheet 1`);
+      onSelect: (coord, data, stats) => {
+        this.shell.setStatus(`SẴN SÀNG  |  Ô: ${coord}  |  ĐẾM: ${stats.count}  |  TRUNG BÌNH: ${stats.avg}  |  TỔNG CỘNG: ${stats.sum}`);
       }
     });
     this.grid.mount();
@@ -47,7 +46,7 @@ export class SheetApp {
     this.adapter = new SheetAdapter(this.grid);
     this.adapter.attach();
 
-    this.shell.setStatus("Ô: A1  |  Sheet 1 / 1  |  Sẵn sàng");
-    console.log("[SheetApp] Khởi tạo VN Sheet hoàn tất thành công.");
+    this.shell.setStatus("SẴN SÀNG  |  Ô: A1  |  ĐẾM: 28  |  TỔNG CỘNG: 120.000.000 ₫");
+    console.log("[SheetApp] Đã khởi tạo VN Sheet chuẩn hóa cao cấp.");
   }
 }
