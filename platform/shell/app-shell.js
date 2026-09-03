@@ -11,6 +11,7 @@ import { RecentFilesManager } from "../recent/recent-manager.js";
 import { createEmptyState } from "../ui-kit/components.js";
 import { LocalAiService } from "../ai/ai-service.js";
 import { showAlertDialog } from "../ui-kit/dialogs.js";
+import { t } from "../i18n/i18n.js";
 
 export class AppShell {
   /**
@@ -350,10 +351,10 @@ export class AppShell {
       recentSectionHtml = `
         <div style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);overflow:hidden;background:#ffffff;">
           <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--vno-border-default);background:#fafafa;font-size:12px;font-weight:bold;color:var(--vno-text-muted);">
-            <span>TÊN TÀI LIỆU</span>
+            <span>${t("backstage.recentColName")}</span>
             <div style="display:flex;align-items:center;gap:12px;">
-              <span>VỊ TRÍ / ĐỊNH DẠNG</span>
-              <button class="vno-btn" id="vno-clear-recent" style="font-size:11px;padding:2px 8px;">Xóa lịch sử</button>
+              <span>${t("backstage.recentColFormat")}</span>
+              <button class="vno-btn" id="vno-clear-recent" style="font-size:11px;padding:2px 8px;">${t("backstage.clearRecent")}</button>
             </div>
           </div>
           ${rowsHtml}
@@ -366,26 +367,26 @@ export class AppShell {
         <button class="vno-backstage-back-btn" id="vno-backstage-back">
           <span>←</span> <span>Quay lại</span>
         </button>
-        <button class="vno-backstage-nav-btn is-active">Trang chủ</button>
-        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.new">Tạo mới (Ctrl+N)</button>
-        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.open">Mở tệp (Ctrl+O)</button>
-        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.save">Lưu tài liệu (Ctrl+S)</button>
-        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.saveAs">Lưu bản sao (F12)</button>
-        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.print">In ấn (Ctrl+P)</button>
-        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.exportPdf">Xuất tệp PDF</button>
+        <button class="vno-backstage-nav-btn is-active">${t("backstage.home")}</button>
+        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.new">${t("backstage.new")}</button>
+        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.open">${t("backstage.open")}</button>
+        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.save">${t("backstage.save")}</button>
+        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.saveAs">${t("backstage.saveAs")}</button>
+        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.print">${t("backstage.print")}</button>
+        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.exportPdf">${t("backstage.exportPdf")}</button>
         <div style="flex:1;"></div>
-        <button class="vno-backstage-nav-btn" id="vno-backstage-about">Giới thiệu VN Office</button>
+        <button class="vno-backstage-nav-btn" id="vno-backstage-about">${t("backstage.about")}</button>
       </div>
 
       <div class="vno-backstage-content">
-        <h1 style="font-size:24px;font-weight:700;margin-bottom:8px;color:var(--vno-text-primary);">Mẫu văn bản tiêu chuẩn Việt Nam</h1>
-        <p style="color:var(--vno-text-muted);font-size:13px;margin-bottom:24px;">Khởi tạo tài liệu mới nhanh chóng theo mẫu quy chuẩn hành chính và doanh nghiệp</p>
+        <h1 style="font-size:24px;font-weight:700;margin-bottom:8px;color:var(--vno-text-primary);">${t("backstage.templateTitle")}</h1>
+        <p style="color:var(--vno-text-muted);font-size:13px;margin-bottom:24px;">${t("backstage.templateSubtitle")}</p>
 
         <div class="vno-template-grid">
           ${templateCardsHtml}
         </div>
 
-        <h2 style="font-size:18px;font-weight:700;margin-top:36px;margin-bottom:16px;color:var(--vno-text-primary);">Tài liệu mở gần đây</h2>
+        <h2 style="font-size:18px;font-weight:700;margin-top:36px;margin-bottom:16px;color:var(--vno-text-primary);">${t("backstage.recentTitle")}</h2>
         ${recentSectionHtml}
       </div>
     `;
@@ -401,9 +402,9 @@ export class AppShell {
     if (emptyContainer) {
       const emptyStateEl = createEmptyState({
         icon: "📁",
-        title: "Chưa có tài liệu gần đây",
-        description: "Các tài liệu bạn vừa khởi tạo hoặc chỉnh sửa sẽ tự động xuất hiện tại đây để truy cập nhanh.",
-        actionText: "Khởi tạo tài liệu mới (Ctrl+N)",
+        title: t("backstage.emptyRecentTitle"),
+        description: t("backstage.emptyRecentDesc"),
+        actionText: t("backstage.new"),
         onAction: () => {
           closeModal();
           globalCommandBus.execute("common.file.new");

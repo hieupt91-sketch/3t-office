@@ -1,0 +1,47 @@
+/**
+ * VN Office Platform — Vietnamese Strings Catalog (ESM)
+ */
+
+export const viStrings = {
+  app: {
+    suiteName: "VN Office",
+    writer: "VN Writer (Soạn thảo)",
+    sheet: "VN Sheet (Bảng tính)",
+    slides: "VN Slides (Trình chiếu)"
+  },
+  common: {
+    save: "Lưu tài liệu",
+    undo: "Hoàn tác",
+    redo: "Làm lại",
+    print: "In tài liệu",
+    exportPdf: "Xuất tệp PDF",
+    ready: "Sẵn sàng",
+    ok: "Đồng ý",
+    cancel: "Hủy bỏ",
+    close: "Đóng"
+  },
+  backstage: {
+    home: "Trang chủ",
+    new: "Tạo mới (Ctrl+N)",
+    open: "Mở tệp (Ctrl+O)",
+    save: "Lưu tài liệu (Ctrl+S)",
+    saveAs: "Lưu bản sao (F12)",
+    print: "In ấn (Ctrl+P)",
+    exportPdf: "Xuất tệp PDF",
+    about: "Giới thiệu VN Office",
+    templateTitle: "Mẫu văn bản tiêu chuẩn Việt Nam",
+    templateSubtitle: "Khởi tạo tài liệu mới nhanh chóng theo mẫu quy chuẩn hành chính và doanh nghiệp",
+    recentTitle: "Tài liệu mở gần đây",
+    recentColName: "TÊN TÀI LIỆU",
+    recentColFormat: "VỊ TRÍ / ĐỊNH DẠNG",
+    clearRecent: "Xóa lịch sử",
+    emptyRecentTitle: "Chưa có tài liệu gần đây",
+    emptyRecentDesc: "Các tài liệu bạn vừa khởi tạo hoặc chỉnh sửa sẽ tự động xuất hiện tại đây để truy cập nhanh."
+  },
+  dialog: {
+    notice: "Thông báo",
+    confirm: "Xác nhận",
+    input: "Nhập dữ liệu",
+    findReplace: "Tìm kiếm và Thay thế"
+  }
+};

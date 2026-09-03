@@ -7,6 +7,7 @@ import { runCommandBusTests } from "./unit/command-bus.test.js";
 import { runAdapterMappingTests } from "./unit/adapter-mapping.test.js";
 import { runSuiteSmokeTests } from "./smoke/suite-smoke.test.js";
 import { runFormulaEngineTests } from "./unit/formula-engine.test.js";
+import { runI18nTests } from "./unit/i18n.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -21,7 +22,8 @@ async function runAll() {
     { title: "1. Unit Tests — Command Bus", runner: runCommandBusTests },
     { title: "2. Unit Tests — LibreOffice Adapter Mapping", runner: runAdapterMappingTests },
     { title: "3. Unit Tests — Excel Spreadsheet Formula Engine", runner: runFormulaEngineTests },
-    { title: "4. Smoke Tests — Suite & Vietnamese Unicode", runner: runSuiteSmokeTests }
+    { title: "4. Unit Tests — Vietnamese i18n Localization Layer", runner: runI18nTests },
+    { title: "5. Smoke Tests — Suite & Vietnamese Unicode", runner: runSuiteSmokeTests }
   ];
 
   for (const suite of suites) {
