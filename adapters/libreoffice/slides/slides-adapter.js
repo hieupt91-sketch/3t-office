@@ -458,6 +458,9 @@ export class SlidesAdapter {
       case "slides.notes.toggle":
         return this.canvas.toggleNotes ? this.canvas.toggleNotes() : false;
 
+      case "slides.view.slideSorter":
+        return this.canvas.openSlideSorter ? this.canvas.openSlideSorter() : false;
+
       case "slides.show.presenterMode":
         return this.canvas.startPresenterMode ? this.canvas.startPresenterMode() : false;
 

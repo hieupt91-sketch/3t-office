@@ -151,6 +151,8 @@ export class SlidesCanvasController {
     this.currentSlideIndex = 0;
     this.undoStack = [];
     this.redoStack = [];
+    this.slideSorterOverlay = null;
+    this._slideSorterKeyHandler = null;
     this.navEl = null;
     this.canvasEl = null;
     this.titleEl = null;
@@ -789,6 +791,132 @@ export class SlidesCanvasController {
     return true;
   }
 
+  /**
+   * Di chuyển một slide trong mảng dữ liệu thật và ghi lịch sử hoàn tác.
+   */
+  moveSlide(fromIndex, toIndex, recordUndo = true) {
+    if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex) ||
+        fromIndex < 0 || fromIndex >= this.slides.length ||
+        toIndex < 0 || toIndex >= this.slides.length || fromIndex === toIndex) return false;
+
+    const selectedSlide = this.slides[this.currentSlideIndex];
+    const [movedSlide] = this.slides.splice(fromIndex, 1);
+    this.slides.splice(toIndex, 0, movedSlide);
+    if (recordUndo) {
+      this.undoStack.push({ type: "move", fromIndex, toIndex });
+      this.redoStack = [];
+    }
+    this.currentSlideIndex = Math.max(0, this.slides.indexOf(selectedSlide));
+    this.selectSlide(this.currentSlideIndex);
+    this._renderSlideSorterGrid();
+    return true;
+  }
+
+  openSlideSorter() {
+    if (this.slideSorterOverlay || typeof document === "undefined") return false;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-slide-sorter-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", "Bộ sắp xếp trang chiếu");
+    overlay.innerHTML = `
+      <header class="vno-slide-sorter-header">
+        <div><strong>Bộ sắp xếp trang chiếu</strong><span>Kéo và thả để thay đổi thứ tự</span></div>
+        <button type="button" class="vno-slide-sorter-close" aria-label="Đóng bộ sắp xếp" title="Đóng (Esc)">×</button>
+      </header>
+      <main class="vno-slide-sorter-grid" aria-live="polite"></main>
+    `;
+    overlay.querySelector(".vno-slide-sorter-close")?.addEventListener("click", () => this.closeSlideSorter());
+    this._slideSorterKeyHandler = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.closeSlideSorter();
+      }
+    };
+    document.addEventListener("keydown", this._slideSorterKeyHandler);
+    document.body.appendChild(overlay);
+    this.slideSorterOverlay = overlay;
+    this._renderSlideSorterGrid();
+    overlay.querySelector(".vno-slide-sorter-close")?.focus();
+    return true;
+  }
+
+  closeSlideSorter() {
+    if (!this.slideSorterOverlay) return false;
+    if (this._slideSorterKeyHandler && typeof document !== "undefined") {
+      document.removeEventListener("keydown", this._slideSorterKeyHandler);
+    }
+    this.slideSorterOverlay.remove();
+    this.slideSorterOverlay = null;
+    this._slideSorterKeyHandler = null;
+    return true;
+  }
+
+  _renderSlideSorterGrid() {
+    const grid = this.slideSorterOverlay?.querySelector(".vno-slide-sorter-grid");
+    if (!grid) return;
+    grid.innerHTML = "";
+    const theme = this.masterTheme || {};
+    const escapeHtml = (value) => String(value || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+    this.slides.forEach((slide, index) => {
+      const item = document.createElement("article");
+      item.className = `vno-slide-sorter-item ${index === this.currentSlideIndex ? "is-current" : ""}`;
+      item.draggable = true;
+      item.dataset.slideIndex = String(index);
+      item.tabIndex = 0;
+      item.setAttribute("aria-label", `Trang chiếu ${index + 1}: ${slide.title || "Không có tiêu đề"}`);
+      item.innerHTML = `
+        <div class="vno-slide-sorter-number">${index + 1}</div>
+        <div class="vno-slide-sorter-preview" style="background:${theme.bgColor || "#fff"};font-family:${theme.fontFamily || "sans-serif"}">
+          <div class="vno-slide-sorter-accent" style="background:${theme.accentColor || "#b53818"}"></div>
+          <div class="vno-slide-sorter-title" style="color:${theme.titleColor || "#0f172a"}">${escapeHtml(slide.title || "Trang chiếu trống")}</div>
+          <div class="vno-slide-sorter-body" style="color:${theme.bodyColor || "#475569"}">${escapeHtml(slide.body)}</div>
+        </div>
+        <div class="vno-slide-sorter-actions">
+          <button type="button" data-action="duplicate" title="Nhân đôi trang chiếu ${index + 1}">Nhân đôi</button>
+          <button type="button" data-action="delete" title="Xóa trang chiếu ${index + 1}" ${this.slides.length <= 1 ? "disabled" : ""}>Xóa</button>
+        </div>`;
+
+      item.addEventListener("dragstart", (event) => {
+        event.dataTransfer?.setData("text/plain", String(index));
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+        item.classList.add("is-dragging");
+      });
+      item.addEventListener("dragend", () => item.classList.remove("is-dragging"));
+      item.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      });
+      item.addEventListener("drop", (event) => {
+        event.preventDefault();
+        const fromIndex = Number(event.dataTransfer?.getData("text/plain"));
+        this.moveSlide(fromIndex, index);
+      });
+      item.addEventListener("dblclick", () => {
+        this.selectSlide(index);
+        this.closeSlideSorter();
+      });
+      item.querySelector('[data-action="duplicate"]')?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        this.selectSlide(index);
+        this.duplicateCurrentSlide();
+        this._renderSlideSorterGrid();
+      });
+      item.querySelector('[data-action="delete"]')?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        this.selectSlide(index);
+        this.deleteCurrentSlide();
+        this._renderSlideSorterGrid();
+      });
+      grid.appendChild(item);
+    });
+  }
+
   undo() {
     if (this.undoStack.length === 0) return false;
     const action = this.undoStack.pop();
@@ -815,6 +943,10 @@ export class SlidesCanvasController {
         this.selectSlide(action.index);
         return true;
       }
+    } else if (action.type === "move") {
+      this.moveSlide(action.toIndex, action.fromIndex, false);
+      this.redoStack.push(action);
+      return true;
     }
     return false;
   }
@@ -845,6 +977,10 @@ export class SlidesCanvasController {
         this.selectSlide(action.index);
         return true;
       }
+    } else if (action.type === "move") {
+      this.moveSlide(action.fromIndex, action.toIndex, false);
+      this.undoStack.push(action);
+      return true;
     }
     return false;
   }

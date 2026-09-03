@@ -129,6 +129,19 @@ export const SLIDES_RIBBON_TABS = [
     ]
   },
   {
+    id: "view",
+    label: "Chế độ xem",
+    groups: [
+      {
+        label: "Dạng xem bản trình chiếu",
+        items: [
+          { type: "button", commandId: "slides.view.slideSorter", isLarge: true },
+          { type: "button", commandId: "slides.notes.toggle", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
     id: "ai",
     label: "Trợ lý VN AI",
     groups: [

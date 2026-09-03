@@ -122,6 +122,7 @@ export const VN_TO_UNO_MAP = {
   "slides.transition.apply": ".uno:SlideTransition",
   "slides.animation.apply": ".uno:CustomAnimation",
   "slides.notes.toggle": ".uno:InsertAnnotation",
+  "slides.view.slideSorter": ".uno:DiaMode",
   "slides.show.startFromBegin": ".uno:StartPresentation",
   "slides.show.startFromCurrent": ".uno:StartPresentation",
   "slides.show.presenterMode": ".uno:PresenterConsole",

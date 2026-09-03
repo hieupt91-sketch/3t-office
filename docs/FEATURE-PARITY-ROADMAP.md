@@ -99,7 +99,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] Layout chọn sẵn (Title Slide, Title+Content, Two Content, Blank; hộp thoại trực quan 4 bố cục có xem trước; thay đổi DOM thật, độc lập và cô lập 100% giữa các slide; hỗ trợ soạn thảo 2 cột nội dung độc lập với undo/redo; đồng bộ Filmstrip thumbnails, F5 SlideShow và Presenter Mode; ánh xạ .uno:AssignLayout; lưu/đọc chuẩn xác qua FODP)
 
 ### Tier 2
-- [ ] Slide Sorter view (xem lưới toàn bộ slide, kéo thả sắp xếp)
+- [x] Slide Sorter view — tab "Chế độ xem" mở overlay lưới responsive toàn màn hình; hiển thị đủ slide và số thứ tự; kéo-thả cập nhật trực tiếp mảng slide, filmstrip và canvas; double-click quay về Normal view đúng slide; Nhân đôi/Xóa tái dùng logic slide hiện hữu; Esc đóng overlay. Reorder tham gia undo/redo Slides bằng action `move` đối xứng. Giới hạn: chưa hỗ trợ kéo-thả trực tiếp trong filmstrip nhỏ bên trái (bonus ngoài phạm vi bắt buộc).
 - [ ] Rehearse Timings
 - [ ] Embed video/audio
 - [ ] SmartArt-like diagram cơ bản

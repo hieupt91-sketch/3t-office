@@ -211,6 +211,14 @@ export const ICONS = {
     <line x1="18.5" y1="21" x2="22.5" y2="21" stroke="#94A3B8" stroke-width="1" stroke-linecap="round"/>
   </svg>`,
 
+  slideSorter: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="4" width="11" height="8" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
+    <rect x="18" y="4" width="11" height="8" rx="1.5" fill="#F8FAFC" stroke="#B53818" stroke-width="1.5"/>
+    <rect x="3" y="19" width="11" height="8" rx="1.5" fill="#F8FAFC" stroke="#B53818" stroke-width="1.5"/>
+    <rect x="18" y="19" width="11" height="8" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
+    <path d="M8 15.5H24" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2 2"/>
+  </svg>`,
+
   slidePlay: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="3" y="4" width="26" height="18" rx="2" fill="#1E293B" stroke="#0F172A" stroke-width="1.2"/>
     <polygon points="12,8 21,13 12,18" fill="#F59E0B"/>

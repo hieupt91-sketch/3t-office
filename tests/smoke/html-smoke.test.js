@@ -347,7 +347,7 @@ export async function runHtmlSmokeTests() {
       try {
         fs.writeFileSync(tempSlidesHtmlPath, slidesHtmlContent.replace(
           "await app.init();",
-          "await app.init(); app.shell.ribbonHost.selectTab('slideshow');"
+          "await app.init(); app.shell.ribbonHost.selectTab('view'); await app.adapter.handleDispatch('.uno:DiaMode', null, 'slides.view.slideSorter'); app.shell.ribbonHost.selectTab('slideshow');"
         ), "utf8");
         const slidesFileUrl = "file:///" + tempSlidesHtmlPath.replace(/\\/g, "/");
 
@@ -373,10 +373,13 @@ export async function runHtmlSmokeTests() {
         const hasShowTab = slidesDom.includes("Trình chiếu");
         const hasPresenterBtn = slidesDom.includes("slides.show.presenterMode");
         const hasNotesToggleBtn = slidesDom.includes("slides.notes.toggle");
+        const hasViewTab = slidesDom.includes("Chế độ xem");
+        const hasSorter = slidesDom.includes("vno-slide-sorter-overlay");
+        const sorterThumbCount = (slidesDom.match(/class="vno-slide-sorter-item/g) || []).length;
 
-        if (slidesProc.status === 0 && hasStudio && hasNav && hasCanvas && hasNotes && hasNotesBar && hasAnimTab && hasShowTab && hasPresenterBtn && hasNotesToggleBtn) {
+        if (slidesProc.status === 0 && hasStudio && hasNav && hasCanvas && hasNotes && hasNotesBar && hasAnimTab && hasShowTab && hasPresenterBtn && hasNotesToggleBtn && hasViewTab && hasSorter && sorterThumbCount === 3) {
           results.push({
-            name: `Browser Headless (${browserName}): Nạp VN Slides, render đầy đủ Studio, Canvas, Speaker Notes & Animations thành công`,
+            name: `Browser Headless (${browserName}): Nạp VN Slides và Slide Sorter với đủ thumbnail DOM thật thành công`,
             pass: true
           });
         } else {
@@ -389,7 +392,10 @@ export async function runHtmlSmokeTests() {
             !hasAnimTab && "thiếu tab Hoạt hình",
             !hasShowTab && "thiếu tab Trình chiếu",
             !hasPresenterBtn && "thiếu command slides.show.presenterMode",
-            !hasNotesToggleBtn && "thiếu command slides.notes.toggle"
+            !hasNotesToggleBtn && "thiếu command slides.notes.toggle",
+            !hasViewTab && "thiếu tab Chế độ xem",
+            !hasSorter && "thiếu .vno-slide-sorter-overlay",
+            sorterThumbCount !== 3 && `Slide Sorter có ${sorterThumbCount}/3 thumbnail`
           ].filter(Boolean).join(", ");
 
           results.push({
