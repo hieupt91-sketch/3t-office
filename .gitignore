@@ -27,6 +27,5 @@ Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 
-# LibreOffice build artifacts inside core-master
-/core-master/core-master/workdir/
-/core-master/core-master/instdir/
+# LibreOffice upstream baseline source (vendored zip-extract, no git history yet)
+/core-master/
