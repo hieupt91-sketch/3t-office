@@ -1,0 +1,162 @@
+﻿/**
+ * VN Office UI Kit Styles
+ */
+
+/* Base Button */
+.vno-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-family: var(--vno-font-family-ui);
+  font-size: var(--vno-font-size-base);
+  color: var(--vno-text-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--vno-radius-sm);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  outline: none;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.vno-btn:hover:not(:disabled) {
+  background-color: var(--vno-bg-hover);
+  border-color: var(--vno-border-subtle);
+}
+
+.vno-btn:active:not(:disabled) {
+  background-color: var(--vno-bg-active);
+}
+
+.vno-btn:focus-visible {
+  box-shadow: var(--vno-focus-ring);
+  border-color: var(--vno-border-focused);
+}
+
+.vno-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Checked / Selected Toggle State */
+.vno-btn.is-checked {
+  background-color: var(--vno-bg-selected);
+  border-color: var(--vno-border-focused);
+  color: var(--vno-app-writer-primary);
+  font-weight: 500;
+}
+
+[data-app="sheet"] .vno-btn.is-checked {
+  color: var(--vno-app-sheet-primary);
+}
+
+[data-app="slides"] .vno-btn.is-checked {
+  color: var(--vno-app-slides-primary);
+}
+
+/* Button Variants */
+.vno-btn-primary {
+  background-color: var(--vno-app-writer-primary);
+  color: #ffffff;
+}
+.vno-btn-primary:hover:not(:disabled) {
+  background-color: var(--vno-app-writer-hover);
+  color: #ffffff;
+}
+
+/* Ribbon Specific Button Styles */
+.vno-ribbon-btn-large {
+  flex-direction: column;
+  padding: 6px 8px;
+  min-width: 48px;
+  height: 68px;
+  font-size: var(--vno-font-size-xs);
+  text-align: center;
+}
+.vno-ribbon-btn-large svg {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 4px;
+}
+
+.vno-ribbon-btn-small {
+  padding: 3px 6px;
+  height: 24px;
+  font-size: var(--vno-font-size-sm);
+}
+
+/* Dropdown / Select */
+.vno-select {
+  padding: 3px 6px;
+  font-family: var(--vno-font-family-ui);
+  font-size: var(--vno-font-size-sm);
+  color: var(--vno-text-primary);
+  background-color: var(--vno-bg-surface);
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-sm);
+  outline: none;
+  cursor: pointer;
+  height: 24px;
+}
+.vno-select:focus {
+  border-color: var(--vno-border-focused);
+  box-shadow: var(--vno-focus-ring);
+}
+
+/* Dialog & Modal */
+.vno-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: vno-fade-in 0.15s ease-out;
+}
+
+.vno-dialog-box {
+  background-color: var(--vno-bg-surface);
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-md);
+  box-shadow: var(--vno-shadow-lg);
+  min-width: 360px;
+  max-width: 90vw;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.vno-dialog-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vno-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: var(--vno-font-size-md);
+}
+
+.vno-dialog-body {
+  padding: 16px;
+  font-size: var(--vno-font-size-base);
+  line-height: 1.5;
+}
+
+.vno-dialog-footer {
+  padding: 12px 16px;
+  background-color: var(--vno-bg-subtle);
+  border-top: 1px solid var(--vno-border-subtle);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@keyframes vno-fade-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}

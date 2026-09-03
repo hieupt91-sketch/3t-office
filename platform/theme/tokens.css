@@ -1,0 +1,97 @@
+﻿/**
+ * VN Office Design System — Tokens & Variables
+ * Tuân thủ chuẩn 03-ui-ux/UI-UX-STANDARD.md
+ */
+
+:root {
+  /* Brand Identifiers */
+  --vno-brand-vietnam-red: #da251d;
+  --vno-brand-vietnam-gold: #ffcd00;
+
+  /* App Specific Primary Accents */
+  --vno-app-writer-primary: #105494;
+  --vno-app-writer-hover: #0c4377;
+  --vno-app-writer-light: #e6f0fa;
+
+  --vno-app-sheet-primary: #107c41;
+  --vno-app-sheet-hover: #0c6133;
+  --vno-app-sheet-light: #e7f5ed;
+
+  --vno-app-slides-primary: #c43e1c;
+  --vno-app-slides-hover: #9c3216;
+  --vno-app-slides-light: #fbeee9;
+
+  /* Neutral Surface & Backgrounds (Light Mode) */
+  --vno-bg-canvas: #f3f4f6;
+  --vno-bg-surface: #ffffff;
+  --vno-bg-subtle: #f8fafc;
+  --vno-bg-hover: #f1f5f9;
+  --vno-bg-active: #e2e8f0;
+  --vno-bg-selected: #e0e7ff;
+
+  /* Text & Icons */
+  --vno-text-primary: #0f172a;
+  --vno-text-secondary: #475569;
+  --vno-text-muted: #94a3b8;
+  --vno-text-disabled: #cbd5e1;
+  --vno-text-inverse: #ffffff;
+
+  /* Borders & Dividers */
+  --vno-border-subtle: #e2e8f0;
+  --vno-border-default: #cbd5e1;
+  --vno-border-focused: #3b82f6;
+
+  /* Focus Ring */
+  --vno-focus-ring: 0 0 0 2px rgba(59, 130, 246, 0.4);
+
+  /* Typography - Vietnamese First */
+  --vno-font-family-ui: "Be Vietnam Pro", "Segoe UI", -apple-system, BlinkMacSystemFont, "Roboto", sans-serif;
+  --vno-font-family-doc: "Times New Roman", "Be Vietnam Pro", "Segoe UI", serif;
+  --vno-font-size-xs: 11px;
+  --vno-font-size-sm: 12px;
+  --vno-font-size-base: 13px;
+  --vno-font-size-md: 14px;
+  --vno-font-size-lg: 16px;
+  --vno-font-size-xl: 18px;
+
+  /* Geometry */
+  --vno-radius-xs: 3px;
+  --vno-radius-sm: 4px;
+  --vno-radius-md: 6px;
+  --vno-radius-lg: 8px;
+
+  /* Elevation Shadows */
+  --vno-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --vno-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --vno-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+  /* Heights & Dimensions */
+  --vno-titlebar-height: 38px;
+  --vno-ribbon-tab-height: 32px;
+  --vno-ribbon-content-height: 94px;
+  --vno-statusbar-height: 26px;
+}
+
+/* Dark Mode Tokens */
+[data-theme="dark"] {
+  --vno-bg-canvas: #1e1e1e;
+  --vno-bg-surface: #252526;
+  --vno-bg-subtle: #2d2d30;
+  --vno-bg-hover: #37373d;
+  --vno-bg-active: #404047;
+  --vno-bg-selected: #1e293b;
+
+  --vno-text-primary: #f8fafc;
+  --vno-text-secondary: #cbd5e1;
+  --vno-text-muted: #64748b;
+  --vno-text-disabled: #475569;
+  --vno-text-inverse: #0f172a;
+
+  --vno-border-subtle: #333333;
+  --vno-border-default: #474747;
+  --vno-border-focused: #60a5fa;
+
+  --vno-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --vno-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --vno-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
+}
