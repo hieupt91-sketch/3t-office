@@ -1,10 +1,11 @@
-﻿{
+{
   "name": "vn-office",
   "version": "1.0.0",
   "description": "Bộ ứng dụng văn phòng Việt Nam: VN Writer, VN Sheet, VN Slides",
   "type": "module",
   "scripts": {
     "test": "node tests/run-tests.js",
+    "check-syntax": "node scripts/check-syntax.js",
     "start": "node -e \"console.log('Mở file index.html trong trình duyệt hoặc WebView2 để trải nghiệm VN Office Suite.')\""
   },
   "keywords": ["office", "libreoffice", "vietnam", "writer", "calc", "impress"],

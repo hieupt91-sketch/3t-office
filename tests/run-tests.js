@@ -9,6 +9,8 @@ import { runSuiteSmokeTests } from "./smoke/suite-smoke.test.js";
 import { runFormulaEngineTests } from "./unit/formula-engine.test.js";
 import { runFormulaAutocompleteTests } from "./unit/formula-autocomplete.test.js";
 import { runI18nTests } from "./unit/i18n.test.js";
+import { runSyntaxCheckTests } from "./unit/syntax-check.test.js";
+import { runHtmlSmokeTests } from "./smoke/html-smoke.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -25,7 +27,9 @@ async function runAll() {
     { title: "3. Unit Tests — Excel Spreadsheet Formula Engine", runner: runFormulaEngineTests },
     { title: "4. Unit Tests — Formula Autocomplete & Parameter IntelliSense", runner: runFormulaAutocompleteTests },
     { title: "5. Unit Tests — Vietnamese i18n Localization Layer", runner: runI18nTests },
-    { title: "6. Smoke Tests — Suite & Vietnamese Unicode", runner: runSuiteSmokeTests }
+    { title: "6. Smoke Tests — Suite & Vietnamese Unicode", runner: runSuiteSmokeTests },
+    { title: "7. Syntax & Codebase Integrity — node --check", runner: runSyntaxCheckTests },
+    { title: "8. Smoke Tests — Application Entrypoints & index.html Runtime", runner: runHtmlSmokeTests }
   ];
 
   for (const suite of suites) {
@@ -40,6 +44,9 @@ async function runAll() {
         } else {
           failed++;
           console.log(`  [FAIL] ${res.name}`);
+          if (res.error) {
+            console.error(`    ↳ Chi tiết: ${res.error}`);
+          }
         }
       }
     } catch (err) {
