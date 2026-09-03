@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office LibreOffice Adapter — Command & Dispatch Mapper
  * Ánh xạ chuẩn hóa giữa VN Command IDs và LibreOffice .uno: URLs
  * Tuân thủ chuẩn 01-architecture/COMMAND-ARCHITECTURE.md
@@ -20,11 +20,15 @@ export const VN_TO_UNO_MAP = {
   "common.edit.cut": ".uno:Cut",
   "common.edit.copy": ".uno:Copy",
   "common.edit.paste": ".uno:Paste",
+  "common.edit.pastePlain": ".uno:PasteUnformatted",
+  "common.edit.formatPainter": ".uno:FormatPainter",
   "common.edit.selectAll": ".uno:SelectAll",
   "common.edit.find": ".uno:SearchDialog",
   "common.edit.replace": ".uno:SearchDialog",
+  "common.edit.hyperlink": ".uno:HyperlinkDialog",
 
   // Common / View
+  "common.view.ribbonToggle": ".uno:ToggleRibbon",
   "common.view.zoomIn": ".uno:ZoomPlus",
   "common.view.zoomOut": ".uno:ZoomMinus",
   "common.view.zoomReset": ".uno:Zoom100Percent",
@@ -35,6 +39,10 @@ export const VN_TO_UNO_MAP = {
   "writer.text.italic": ".uno:Italic",
   "writer.text.underline": ".uno:Underline",
   "writer.text.strike": ".uno:Strikeout",
+  "writer.font.grow": ".uno:Grow",
+  "writer.font.shrink": ".uno:Shrink",
+  "writer.text.subscript": ".uno:SubScript",
+  "writer.text.superscript": ".uno:SuperScript",
   "writer.text.clearFormat": ".uno:ResetAttributes",
   "writer.font.family": ".uno:FontName",
   "writer.font.size": ".uno:FontHeight",
@@ -46,7 +54,9 @@ export const VN_TO_UNO_MAP = {
   "writer.para.alignCenter": ".uno:CenterPara",
   "writer.para.alignRight": ".uno:RightPara",
   "writer.para.justify": ".uno:JustifyPara",
-  "writer.para.lineSpacing": ".uno:LineSpacing",
+  "writer.para.spacing1": ".uno:SpacePara1",
+  "writer.para.spacing15": ".uno:SpacePara15",
+  "writer.para.spacing2": ".uno:SpacePara2",
   "writer.list.bullet": ".uno:DefaultBullet",
   "writer.list.numbered": ".uno:DefaultNumbering",
   "writer.para.indentInc": ".uno:IncrementIndent",
@@ -60,6 +70,7 @@ export const VN_TO_UNO_MAP = {
   "writer.footer.insert": ".uno:InsertPageFooter",
 
   // Sheet / Calc
+  "sheet.cell.edit": ".uno:SetInputMode",
   "sheet.cell.bold": ".uno:Bold",
   "sheet.cell.italic": ".uno:Italic",
   "sheet.cell.underline": ".uno:Underline",
@@ -73,7 +84,8 @@ export const VN_TO_UNO_MAP = {
   "sheet.cell.textColor": ".uno:Color",
   "sheet.format.currencyVND": ".uno:NumberFormatCurrency",
   "sheet.format.percent": ".uno:NumberFormatPercent",
-  "sheet.format.comma": ".uno:NumberFormatStandard",
+  "sheet.format.standard": ".uno:NumberFormatStandard",
+  "sheet.insert.date": ".uno:InsertCurrentDate",
   "sheet.formula.sum": ".uno:AutoSum",
   "sheet.data.sortAsc": ".uno:Sortup",
   "sheet.data.sortDesc": ".uno:Sortdown",
@@ -91,14 +103,23 @@ export const VN_TO_UNO_MAP = {
   "slides.shape.insert": ".uno:BasicShapes",
   "slides.image.insert": ".uno:InsertGraphic",
   "slides.show.startFromBegin": ".uno:StartPresentation",
-  "slides.show.startFromCurrent": ".uno:StartPresentation"
+  "slides.show.startFromCurrent": ".uno:StartPresentation",
+
+  // AI
+  "ai.assistant.grammarCheck": ".uno:SpellDialog"
 };
 
-/**
- * Lấy LibreOffice .uno: URL tương ứng với VN Command ID
- * @param {string} vnCommandId 
- * @returns {string|null}
- */
-export function mapVnCommandToUno(vnCommandId) {
+export function getUnoCommand(vnCommandId) {
   return VN_TO_UNO_MAP[vnCommandId] || null;
+}
+export const mapVnCommandToUno = getUnoCommand;
+
+const REVERSE_MAP = new Map();
+for (const [vnId, unoCmd] of Object.entries(VN_TO_UNO_MAP)) {
+  REVERSE_MAP.set(unoCmd.toLowerCase(), vnId);
+}
+
+export function getVnCommand(unoUrl) {
+  const normalized = unoUrl.toLowerCase().trim();
+  return REVERSE_MAP.get(normalized) || null;
 }

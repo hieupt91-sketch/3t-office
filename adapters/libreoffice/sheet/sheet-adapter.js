@@ -1,6 +1,6 @@
 ﻿/**
  * VN Office LibreOffice Adapter — VN Sheet Adapter
- * Quản lý tương tác với StarCalc (sc) Document Model & Formula Matrix
+ * Quản lý tương tác với StarCalc (sc) Document Model & Phím tắt Microsoft/LibreOffice
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
@@ -8,7 +8,6 @@ import { globalUnoBridge } from "../common/uno-bridge.js";
 export class SheetAdapter {
   constructor(gridController) {
     this.grid = gridController;
-    this.selectedCell = { row: 0, col: 0 };
     this.isDirty = false;
   }
 
@@ -20,6 +19,10 @@ export class SheetAdapter {
     if (!this.grid) return false;
 
     switch (vnCmdId) {
+      case "sheet.cell.edit":
+        this.grid.focusFormulaInput();
+        return true;
+
       case "sheet.cell.bold":
         return this.grid.toggleStyle("fontWeight", "bold", "normal");
 
@@ -38,8 +41,23 @@ export class SheetAdapter {
       case "sheet.cell.alignRight":
         return this.grid.setStyle("textAlign", "right");
 
+      case "sheet.cell.merge":
+        return this.grid.toggleStyle("backgroundColor", "#e2e8f0", "transparent");
+
+      case "sheet.cell.borders":
+        return this.grid.setStyle("border", "2px solid #0f172a");
+
       case "sheet.format.currencyVND":
         return this.grid.formatCurrentCellCurrencyVND();
+
+      case "sheet.format.percent":
+        return this.grid.formatCurrentCellPercent();
+
+      case "sheet.format.standard":
+        return this.grid.formatCurrentCellStandard();
+
+      case "sheet.insert.date":
+        return this.grid.insertCurrentDate();
 
       case "sheet.formula.sum":
         return this.grid.insertFormula("SUM");
@@ -47,14 +65,17 @@ export class SheetAdapter {
       case "sheet.formula.average":
         return this.grid.insertFormula("AVERAGE");
 
+      case "sheet.data.filter":
+        alert("Chế độ lọc AutoFilter đã được bật cho bảng dữ liệu.");
+        return true;
+
       case "common.file.save":
         this.isDirty = false;
-        console.log("[SheetAdapter] Đã lưu bảng tính ODS/XLSX.");
+        console.log("[SheetAdapter] Đã lưu bảng tính sc.");
         return true;
 
       default:
-        console.log(`[SheetAdapter] Đã điều hướng lệnh: ${vnCmdId} (${unoUrl})`);
-        return true;
+        return false;
     }
   }
 }

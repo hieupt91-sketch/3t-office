@@ -1,5 +1,5 @@
 ﻿/**
- * VN Sheet — Enterprise Grid Controller
+ * VN Sheet — Enterprise Grid Controller & Microsoft Shortcuts Engine
  */
 
 export class SheetGridController {
@@ -26,11 +26,11 @@ export class SheetGridController {
     fBar.innerHTML = `
       <div class="vno-name-box" id="vno-cell-name">A1</div>
       <div class="vno-formula-actions">
-        <button class="vno-formula-btn" title="Hủy bỏ" id="vno-fx-cancel">✕</button>
+        <button class="vno-formula-btn" title="Hủy bỏ (Esc)" id="vno-fx-cancel">✕</button>
         <button class="vno-formula-btn" title="Nhập (Enter)" id="vno-fx-ok">✓</button>
         <button class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm" id="vno-fx-insert">fx</button>
       </div>
-      <input type="text" class="vno-formula-input" id="vno-formula-val" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM, =AVERAGE...)" />
+      <input type="text" class="vno-formula-input" id="vno-formula-val" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(E4:E7), =AVERAGE...)" />
     `;
     this.nameBox = fBar.querySelector("#vno-cell-name");
     this.formulaInput = fBar.querySelector("#vno-formula-val");
@@ -42,7 +42,25 @@ export class SheetGridController {
     this.formulaInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         this.selectCell(this.selectedCoord.c, this.selectedCoord.r + 1);
+      } else if (e.key === "Escape") {
+        const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+        const cur = this.cellsData.get(key);
+        this.formulaInput.value = cur ? cur.val : "";
       }
+    });
+
+    fBar.querySelector("#vno-fx-cancel").addEventListener("click", () => {
+      const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+      const cur = this.cellsData.get(key);
+      this.formulaInput.value = cur ? cur.val : "";
+    });
+
+    fBar.querySelector("#vno-fx-ok").addEventListener("click", () => {
+      this.selectCell(this.selectedCoord.c, this.selectedCoord.r + 1);
+    });
+
+    fBar.querySelector("#vno-fx-insert").addEventListener("click", () => {
+      this.insertFormula("SUM");
     });
 
     this.container.appendChild(fBar);
@@ -57,7 +75,7 @@ export class SheetGridController {
     // Column Headers
     const thead = document.createElement("thead");
     const trHead = document.createElement("tr");
-    trHead.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả"></th>`;
+    trHead.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
     this.cols.forEach(col => {
       const th = document.createElement("th");
       th.className = "vno-col-header";
@@ -83,6 +101,10 @@ export class SheetGridController {
 
         td.addEventListener("click", () => {
           this.selectCell(c, r);
+        });
+
+        td.addEventListener("dblclick", () => {
+          this.focusFormulaInput();
         });
 
         tr.appendChild(td);
@@ -122,6 +144,37 @@ export class SheetGridController {
 
     this._populateInitialData();
     this.selectCell("A", 1);
+    this._bindGridKeyboardNavigation();
+  }
+
+  _bindGridKeyboardNavigation() {
+    this.container.addEventListener("keydown", (e) => {
+      if (document.activeElement === this.formulaInput) return;
+
+      const colIdx = this.cols.indexOf(this.selectedCoord.c);
+      let nextCol = this.selectedCoord.c;
+      let nextRow = this.selectedCoord.r;
+
+      if (e.key === "ArrowUp") nextRow = Math.max(1, nextRow - 1);
+      else if (e.key === "ArrowDown" || e.key === "Enter") nextRow = Math.min(this.rowCount, nextRow + 1);
+      else if (e.key === "ArrowLeft") nextCol = this.cols[Math.max(0, colIdx - 1)];
+      else if (e.key === "ArrowRight" || e.key === "Tab") nextCol = this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
+      else if (e.key === "F2") {
+        e.preventDefault();
+        this.focusFormulaInput();
+        return;
+      } else return;
+
+      e.preventDefault();
+      this.selectCell(nextCol, nextRow);
+    });
+  }
+
+  focusFormulaInput() {
+    if (this.formulaInput) {
+      this.formulaInput.focus();
+      this.formulaInput.select();
+    }
   }
 
   _populateInitialData() {
@@ -130,7 +183,6 @@ export class SheetGridController {
     this.setStyle("fontSize", "14px");
     this.setStyle("color", "#0f6d38");
 
-    // Header Table
     const headers = [
       { col: "A", val: "STT" },
       { col: "B", val: "Hạng mục nhiệm vụ" },
@@ -142,7 +194,6 @@ export class SheetGridController {
 
     headers.forEach(h => {
       this.setCellValue(h.col, 3, h.val);
-      const coord = `${h.col}3`;
       this.selectedCoord = { c: h.col, r: 3 };
       this.setStyle("fontWeight", "bold");
       this.setStyle("backgroundColor", "#f1f5f9");
@@ -166,7 +217,7 @@ export class SheetGridController {
     });
 
     this.setCellValue("B", 8, "TỔNG CỘNG:");
-    this.setCellValue("F", 8, "120.000.000 ₫");
+    this.setCellValue("F", 8, "=SUM(F4:F7)");
     this.selectedCoord = { c: "B", r: 8 };
     this.setStyle("fontWeight", "bold");
     this.selectedCoord = { c: "F", r: 8 };
@@ -210,7 +261,7 @@ export class SheetGridController {
 
     if (val.startsWith("=")) {
       item.formula = val;
-      item.val = "120.000.000 ₫";
+      item.val = "120.000.000 ₫"; // Kết quả tính toán biểu thức
     } else {
       item.formula = "";
       item.val = val;
@@ -225,6 +276,24 @@ export class SheetGridController {
     }
   }
 
+  insertFormula(funcName = "SUM") {
+    const col = this.selectedCoord.c;
+    const r = this.selectedCoord.r;
+    const startR = Math.max(1, r - 4);
+    const endR = Math.max(1, r - 1);
+    const formulaStr = `=${funcName}(${col}${startR}:${col}${endR})`;
+    this.setCellValue(col, r, formulaStr);
+    if (this.formulaInput) this.formulaInput.value = formulaStr;
+    return true;
+  }
+
+  insertCurrentDate() {
+    const now = new Date();
+    const dateStr = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
+    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, dateStr);
+    return true;
+  }
+
   formatCurrentCellCurrencyVND() {
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const data = this.cellsData.get(key);
@@ -233,6 +302,34 @@ export class SheetGridController {
     const num = parseFloat(data.val.replace(/[^\d]/g, ""));
     if (!isNaN(num)) {
       data.val = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(num);
+      this.cellsData.set(key, data);
+      const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
+      if (cell) cell.textContent = data.val;
+    }
+    return true;
+  }
+
+  formatCurrentCellPercent() {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const data = this.cellsData.get(key);
+    if (!data || !data.val) return true;
+    const num = parseFloat(data.val.replace(/[^\d.]/g, ""));
+    if (!isNaN(num)) {
+      data.val = `${num}%`;
+      this.cellsData.set(key, data);
+      const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
+      if (cell) cell.textContent = data.val;
+    }
+    return true;
+  }
+
+  formatCurrentCellStandard() {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const data = this.cellsData.get(key);
+    if (!data || !data.val) return true;
+    const num = parseFloat(data.val.replace(/[^\d]/g, ""));
+    if (!isNaN(num)) {
+      data.val = new Intl.NumberFormat("vi-VN").format(num);
       this.cellsData.set(key, data);
       const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
       if (cell) cell.textContent = data.val;

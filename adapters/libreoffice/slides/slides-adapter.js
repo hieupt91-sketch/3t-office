@@ -1,13 +1,13 @@
 ﻿/**
  * VN Office LibreOffice Adapter — VN Slides Adapter
- * Quản lý tương tác với StarDraw/Impress (sd) Presentation Model
+ * Quản lý tương tác với StarImpress (sd) Document Model & Phím tắt Microsoft/LibreOffice
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
 
 export class SlidesAdapter {
-  constructor(presentationController) {
-    this.controller = presentationController;
+  constructor(canvasController) {
+    this.canvas = canvasController;
     this.isDirty = false;
   }
 
@@ -16,35 +16,44 @@ export class SlidesAdapter {
   }
 
   async handleDispatch(unoUrl, args, vnCmdId) {
-    if (!this.controller) return false;
+    if (!this.canvas) return false;
 
     switch (vnCmdId) {
       case "slides.slide.new":
-        return this.controller.addNewSlide();
+        return this.canvas.addNewSlide();
+
+      case "slides.slide.duplicate":
+        return this.canvas.duplicateCurrentSlide();
 
       case "slides.slide.delete":
-        return this.controller.deleteCurrentSlide();
-
-      case "slides.shape.insert":
-        return this.controller.insertShape(args || "rect");
-
-      case "slides.text.insert":
-        return this.controller.insertTextBox();
+        return this.canvas.deleteCurrentSlide();
 
       case "slides.show.startFromBegin":
-        return this.controller.startSlideShow(0);
+        return this.canvas.startSlideShow(0);
 
       case "slides.show.startFromCurrent":
-        return this.controller.startSlideShow();
+        return this.canvas.startSlideShow();
+
+      case "slides.text.insert":
+        this.canvas.bodyEl.innerText += "\n• Khung văn bản mới bổ sung";
+        this.canvas._renderThumbnails();
+        return true;
+
+      case "slides.shape.insert":
+        alert("Đã chèn đối tượng hình khối vector (LibreOffice Drawing Shape).");
+        return true;
+
+      case "slides.image.insert":
+        alert("Đã mở hộp thoại chèn hình ảnh minh họa trình chiếu.");
+        return true;
 
       case "common.file.save":
         this.isDirty = false;
-        console.log("[SlidesAdapter] Đã lưu bài thuyết trình ODP/PPTX.");
+        console.log("[SlidesAdapter] Đã lưu bản trình chiếu sd.");
         return true;
 
       default:
-        console.log(`[SlidesAdapter] Đã điều hướng lệnh: ${vnCmdId} (${unoUrl})`);
-        return true;
+        return false;
     }
   }
 }

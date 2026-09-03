@@ -1,9 +1,10 @@
-﻿/**
+/**
  * VN Office Platform — Enterprise Application Shell
  */
 
 import { ICONS } from "../ui-kit/icons.js";
 import { globalCommandBus } from "../commands/command-bus.js";
+import { globalShortcutManager } from "../commands/shortcut-manager.js";
 import { RibbonHost } from "../ribbon/ribbon-host.js";
 
 export class AppShell {
@@ -337,24 +338,23 @@ export class AppShell {
   }
 
   _setupGlobalShortcuts() {
-    window.addEventListener("keydown", (e) => {
-      if (e.ctrlKey || e.metaKey) {
-        const key = e.key.toLowerCase();
-        let cmd = null;
+    globalShortcutManager.attach(window);
 
-        if (key === "s") cmd = "common.file.save";
-        else if (key === "o") cmd = "common.file.open";
-        else if (key === "n") cmd = "common.file.new";
-        else if (key === "p") cmd = "common.file.print";
-        else if (key === "z") cmd = e.shiftKey ? "common.edit.redo" : "common.edit.undo";
-        else if (key === "y") cmd = "common.edit.redo";
-
-        if (cmd) {
-          e.preventDefault();
-          globalCommandBus.execute(cmd);
+    // Thu gọn / mở rộng Ribbon (Ctrl+F1)
+    globalCommandBus.register({
+      id: "common.view.ribbonToggle",
+      handler: () => {
+        if (this.ribbonHost) {
+          this.ribbonHost.isCollapsed = !this.ribbonHost.isCollapsed;
+          this.ribbonHost.render();
         }
-      } else if (e.altKey && e.key.toLowerCase() === "j") {
-        e.preventDefault();
+      }
+    });
+
+    // Lắng nghe lệnh AI
+    globalCommandBus.register({
+      id: "ai.assistant.toggle",
+      handler: () => {
         this.toggleAiSidebar();
       }
     });
