@@ -454,6 +454,19 @@ export async function runAdapterMappingTests() {
     results.push({ name: "WriterAdapter Dispatch: common.file.save thất bại", pass: false });
   }
 
+  // Test Undo / Redo Dispatch trên WriterAdapter
+  const hadPageBreak = mockWriterDom.innerHTML.includes("page-break-before");
+  const writerUndoRes = await writerAdapter.handleDispatch(".uno:Undo", null, "common.edit.undo");
+  const undonePageBreak = !mockWriterDom.innerHTML.includes("page-break-before");
+  const writerRedoRes = await writerAdapter.handleDispatch(".uno:Redo", null, "common.edit.redo");
+  const redonePageBreak = mockWriterDom.innerHTML.includes("page-break-before");
+
+  if (writerUndoRes && undonePageBreak && writerRedoRes && redonePageBreak) {
+    results.push({ name: "WriterAdapter Dispatch: Lệnh common.edit.undo và redo kích hoạt đúng lịch sử soạn thảo Writer", pass: true });
+  } else {
+    results.push({ name: "WriterAdapter Dispatch: Undo/Redo soạn thảo Writer thất bại", pass: false });
+  }
+
     globalUnoBridge.desktopApi = origDesktop;
     globalUnoBridge.hasRealEngine = origHasEngine;
 

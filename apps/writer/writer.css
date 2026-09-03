@@ -666,3 +666,17 @@
   }
 }
 
+/* Quick Access Toolbar / Action buttons disabled state (Word Parity) */
+.vno-quick-btn:disabled,
+.vno-quick-btn.is-disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+.vno-quick-btn:disabled svg,
+.vno-quick-btn.is-disabled svg {
+  stroke: var(--vno-text-muted, #94a3b8) !important;
+}
+
+

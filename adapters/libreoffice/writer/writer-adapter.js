@@ -46,7 +46,23 @@ export class WriterAdapter {
     this.previewTotalPages = 1;
     this.previewZoom = 1.0;
     this._previewKeyHandler = null;
+
+    // Undo / Redo Deep History Stack
+    this.undoStack = [];
+    this.redoStack = [];
+    this.maxUndoStack = 100;
+    this._isUndoingRedoing = false;
+    this._typingDebounceTimer = null;
+    this._typingDebounceMs = 600;
+    this._inputHandler = null;
+    this._undoKeyHandler = null;
+    this._lastSnapshot = null;
+
     this._initZones();
+    if (this.editorDom) {
+      this._lastSnapshot = this._createSnapshot("Initial State");
+      this._updateUndoRedoUI();
+    }
   }
 
   _initZones() {
@@ -70,6 +86,16 @@ export class WriterAdapter {
     this._renderCommentsPanel();
     this._updateTrackChangesCommandState();
     globalCommandBus.bindHandler("writer.file.printPreview", () => this.openPrintPreview());
+
+    // Bind undo/redo listeners & command handlers
+    this._bindUndoRedo();
+    globalCommandBus.bindHandler("common.edit.undo", () => this.undo());
+    globalCommandBus.bindHandler("common.edit.redo", () => this.redo());
+
+    if (!this._lastSnapshot) {
+      this._lastSnapshot = this._createSnapshot("Initial State");
+    }
+    this._updateUndoRedoUI();
   }
 
   _bindTrackChanges() {
@@ -192,6 +218,7 @@ export class WriterAdapter {
   }
 
   _resolveAllTrackChanges(accept) {
+    this.flushTyping();
     this._initZones();
     const insertions = [...(this.bodyDom?.querySelectorAll?.('ins[data-vno-change="insert"]') || [])];
     const deletions = [...(this.bodyDom?.querySelectorAll?.('del[data-vno-change="delete"]') || [])];
@@ -205,6 +232,7 @@ export class WriterAdapter {
     }
     if (insertions.length || deletions.length) this.isDirty = true;
     this._updateTrackChangesCommandState();
+    this.recordSnapshot(accept ? "writer.trackChanges.acceptAll" : "writer.trackChanges.rejectAll");
     return { insertions: insertions.length, deletions: deletions.length };
   }
 
@@ -272,7 +300,7 @@ export class WriterAdapter {
 
   /** Áp dụng kích thước/lề trang hiện tại lên canvas thật (không chỉ lưu state suông). */
   _applyPageSetup() {
-    if (!this.editorDom) return;
+    if (!this.editorDom || !this.editorDom.style) return;
     const base = PAGE_SIZES_MM[this.pageSetup.size] || PAGE_SIZES_MM.a4;
     const isLandscape = this.pageSetup.orientation === "landscape";
     const widthMm = isLandscape ? base.h : base.w;
@@ -380,13 +408,24 @@ export class WriterAdapter {
     });
   }
 
+  setPageSetup(newSetup) {
+    if (!newSetup) return false;
+    this.flushTyping();
+    this.pageSetup = {
+      size: newSetup.size || this.pageSetup.size,
+      orientation: newSetup.orientation || this.pageSetup.orientation,
+      margins: { ...this.pageSetup.margins, ...(newSetup.margins || {}) }
+    };
+    this._applyPageSetup();
+    this.isDirty = true;
+    this.recordSnapshot("writer.page.setup");
+    return true;
+  }
+
   async _openPageSetup(focusField) {
     const result = await this._showPageSetupDialog(focusField);
     if (!result) return false;
-    this.pageSetup = result;
-    this._applyPageSetup();
-    this.isDirty = true;
-    return true;
+    return this.setPageSetup(result);
   }
 
   /**
@@ -404,104 +443,134 @@ export class WriterAdapter {
     if (vnCmdId === "writer.trackChanges.acceptAll") return this.acceptAllTrackChanges();
     if (vnCmdId === "writer.trackChanges.rejectAll") return this.rejectAllTrackChanges();
 
-    this.editorDom.focus();
+    if (vnCmdId !== "common.edit.undo" && vnCmdId !== "common.edit.redo") {
+      this.flushTyping();
+    }
+
+    this.editorDom.focus?.();
+
+    let dispatchResult = false;
 
     switch (vnCmdId) {
       case "writer.text.bold":
         document.execCommand("bold", false, null);
-        return document.queryCommandState("bold");
+        dispatchResult = document.queryCommandState("bold");
+        break;
 
       case "writer.text.italic":
         document.execCommand("italic", false, null);
-        return document.queryCommandState("italic");
+        dispatchResult = document.queryCommandState("italic");
+        break;
 
       case "writer.text.underline":
         document.execCommand("underline", false, null);
-        return document.queryCommandState("underline");
+        dispatchResult = document.queryCommandState("underline");
+        break;
 
       case "writer.text.strike":
         document.execCommand("strikeThrough", false, null);
-        return document.queryCommandState("strikeThrough");
+        dispatchResult = document.queryCommandState("strikeThrough");
+        break;
 
       case "writer.text.subscript":
         document.execCommand("subscript", false, null);
-        return document.queryCommandState("subscript");
+        dispatchResult = document.queryCommandState("subscript");
+        break;
 
       case "writer.text.superscript":
         document.execCommand("superscript", false, null);
-        return document.queryCommandState("superscript");
+        dispatchResult = document.queryCommandState("superscript");
+        break;
 
       case "writer.font.grow":
         this._adjustFontSize(1);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.font.shrink":
         this._adjustFontSize(-1);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.text.clearFormat":
         document.execCommand("removeFormat", false, null);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.para.alignLeft":
         document.execCommand("justifyLeft", false, null);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.para.alignCenter":
         document.execCommand("justifyCenter", false, null);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.para.alignRight":
         document.execCommand("justifyRight", false, null);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.para.justify":
         document.execCommand("justifyFull", false, null);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.para.spacing1":
         this._setLineHeight("1.0");
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.para.spacing15":
         this._setLineHeight("1.5");
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.para.spacing2":
         this._setLineHeight("2.0");
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.list.bullet":
         document.execCommand("insertUnorderedList", false, null);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.list.numbered":
         document.execCommand("insertOrderedList", false, null);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.para.indentInc":
         document.execCommand("indent", false, null);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.para.indentDec":
         document.execCommand("outdent", false, null);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.font.family":
         if (args) document.execCommand("fontName", false, args);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.font.size":
         if (args) document.execCommand("fontSize", false, args);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.color.text":
         if (args) document.execCommand("foreColor", false, args);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.color.highlight":
         document.execCommand("hiliteColor", false, args || "#ffcd00");
-        return true;
+        dispatchResult = true;
+        break;
 
       case "writer.table.insert":
         this.insertTable(3, 4);
@@ -516,16 +585,15 @@ export class WriterAdapter {
         return true;
 
       case "common.edit.undo":
-        document.execCommand("undo", false, null);
-        return true;
+        return this.undo();
 
       case "common.edit.redo":
-        document.execCommand("redo", false, null);
-        return true;
+        return this.redo();
 
       case "common.edit.cut":
         document.execCommand("cut", false, null);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "common.edit.copy":
         document.execCommand("copy", false, null);
@@ -533,11 +601,13 @@ export class WriterAdapter {
 
       case "common.edit.paste":
         document.execCommand("paste", false, null);
-        return true;
+        dispatchResult = true;
+        break;
 
       case "common.edit.pastePlain":
-        this._pastePlainText();
-        return true;
+        await this._pastePlainText();
+        dispatchResult = true;
+        break;
 
       case "common.edit.selectAll":
         document.execCommand("selectAll", false, null);
@@ -550,7 +620,8 @@ export class WriterAdapter {
 
       case "common.edit.hyperlink":
         await this._insertHyperlink();
-        return true;
+        dispatchResult = true;
+        break;
 
       case "common.edit.formatPainter":
         return this._toggleFormatPainter();
@@ -562,8 +633,7 @@ export class WriterAdapter {
         return this.activateFooter();
 
       case "writer.style.apply":
-        this._applyParagraphStyle(args);
-        return true;
+        return this._applyParagraphStyle(args);
 
       case "common.file.save":
         return await this.save();
@@ -595,6 +665,9 @@ export class WriterAdapter {
       default:
         return false;
     }
+
+    this.recordSnapshot(vnCmdId);
+    return dispatchResult;
   }
 
   async insertComment(args = null) {
@@ -662,6 +735,7 @@ export class WriterAdapter {
     selection?.removeAllRanges?.();
     this._renderCommentsPanel();
     this.focusComment(id);
+    this.recordSnapshot("writer.comment.insert");
     return id;
   }
 
@@ -695,6 +769,7 @@ export class WriterAdapter {
     if (this.activeCommentId === commentId) this.activeCommentId = null;
     this.isDirty = true;
     this._renderCommentsPanel();
+    this.recordSnapshot("writer.comment.delete");
     return true;
   }
 
@@ -739,6 +814,7 @@ export class WriterAdapter {
   }
 
   insertTable(rows = 3, cols = 4) {
+    this.flushTyping();
     this._initZones();
     let html = `<table style="width:100%; border-collapse:collapse; margin:14pt 0;"><tbody>`;
     for (let r = 0; r < rows; r++) {
@@ -752,7 +828,10 @@ export class WriterAdapter {
     let inserted = false;
     if (typeof document !== "undefined" && typeof document.execCommand === "function") {
       try {
-        inserted = document.execCommand("insertHTML", false, html);
+        const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (sel && sel.rangeCount > 0 && this.bodyDom?.contains?.(sel.anchorNode)) {
+          inserted = document.execCommand("insertHTML", false, html);
+        }
       } catch {
         inserted = false;
       }
@@ -762,15 +841,21 @@ export class WriterAdapter {
       targetDom.innerHTML = (targetDom.innerHTML || "") + html;
     }
     this.isDirty = true;
+    this.recordSnapshot("writer.table.insert");
+    return true;
   }
 
   _insertPageBreak() {
+    this.flushTyping();
     this._initZones();
     const html = `<div style="page-break-before:always; border-top:2px dashed #94a3b8; margin:24px 0; text-align:center; color:#94a3b8; font-size:11px; user-select:none;">--- Phân tách trang (Page Break) ---</div><p><br></p>`;
     let inserted = false;
     if (typeof document !== "undefined" && typeof document.execCommand === "function") {
       try {
-        inserted = document.execCommand("insertHTML", false, html);
+        const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (sel && sel.rangeCount > 0 && this.bodyDom?.contains?.(sel.anchorNode)) {
+          inserted = document.execCommand("insertHTML", false, html);
+        }
       } catch {
         inserted = false;
       }
@@ -780,13 +865,18 @@ export class WriterAdapter {
       targetDom.innerHTML = (targetDom.innerHTML || "") + html;
     }
     this.isDirty = true;
+    this.recordSnapshot("writer.page.break");
+    return true;
   }
 
   activateHeader() {
+    this.flushTyping();
     this._initZones();
     if (!this.headerDom) return false;
+    let modified = false;
     if (!this.headerDom.innerText?.trim()) {
       this.headerDom.innerHTML = "<p style='text-align: center; font-size: 10pt; margin: 0;'>Tiêu đề đầu trang</p>";
+      modified = true;
     }
     this.headerDom.focus();
     if (typeof window !== "undefined" && typeof document !== "undefined" && document.createRange) {
@@ -799,14 +889,20 @@ export class WriterAdapter {
       } catch {}
     }
     this.isDirty = true;
+    if (modified) {
+      this.recordSnapshot("writer.header.insert");
+    }
     return true;
   }
 
   activateFooter() {
+    this.flushTyping();
     this._initZones();
     if (!this.footerDom) return false;
+    let modified = false;
     if (!this.footerDom.innerText?.trim()) {
       this.footerDom.innerHTML = "<p style='text-align: center; font-size: 10pt; margin: 0;'>Trang 1 / 1</p>";
+      modified = true;
     }
     this.footerDom.focus();
     if (typeof window !== "undefined" && typeof document !== "undefined" && document.createRange) {
@@ -819,10 +915,14 @@ export class WriterAdapter {
       } catch {}
     }
     this.isDirty = true;
+    if (modified) {
+      this.recordSnapshot("writer.footer.insert");
+    }
     return true;
   }
 
   _applyParagraphStyle(tag = "p") {
+    this.flushTyping();
     const targetTag = (tag || "p").toLowerCase();
     if (typeof document !== "undefined" && typeof document.execCommand === "function") {
       try {
@@ -834,6 +934,7 @@ export class WriterAdapter {
       }
     }
     this.isDirty = true;
+    this.recordSnapshot("writer.style.apply");
     return true;
   }
 
@@ -882,6 +983,7 @@ export class WriterAdapter {
   }
 
   _applyCopiedFormat() {
+    this.flushTyping();
     if (!this.copiedFormat || typeof document === "undefined") return;
     const fmt = this.copiedFormat;
     const isBold = fmt.fontWeight === "bold" || parseInt(fmt.fontWeight, 10) >= 600;
@@ -905,6 +1007,7 @@ export class WriterAdapter {
 
     this._clearFormatPainter();
     this.isDirty = true;
+    this.recordSnapshot("common.edit.formatPainter");
   }
 
   _clearFormatPainter() {
@@ -977,8 +1080,11 @@ export class WriterAdapter {
       if (file) {
         const reader = new FileReader();
         reader.onload = (evt) => {
+          this.flushTyping();
           const imgHtml = `<img src="${evt.target.result}" style="max-width:100%; height:auto; margin:10pt 0; box-shadow:0 2px 8px rgba(0,0,0,0.15);" /><p><br></p>`;
           document.execCommand("insertHTML", false, imgHtml);
+          this.isDirty = true;
+          this.recordSnapshot("writer.image.insert");
         };
         reader.readAsDataURL(file);
       }
@@ -997,16 +1103,22 @@ export class WriterAdapter {
       },
       onReplace: (findText, repText) => {
         if (findText && repText !== null) {
+          this.flushTyping();
           const content = this.editorDom.innerHTML;
           const idx = content.indexOf(findText);
           if (idx !== -1) {
             this.editorDom.innerHTML = content.substring(0, idx) + repText + content.substring(idx + findText.length);
+            this.isDirty = true;
+            this.recordSnapshot("common.edit.replace");
           }
         }
       },
       onReplaceAll: (findText, repText) => {
         if (findText && repText !== null) {
+          this.flushTyping();
           this.editorDom.innerHTML = this.editorDom.innerHTML.split(findText).join(repText);
+          this.isDirty = true;
+          this.recordSnapshot("common.edit.replaceAll");
         }
       }
     });
@@ -1119,6 +1231,7 @@ export class WriterAdapter {
       this.sourceFileName = (result.fileName || "TaiLieu").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
       this._updateTrackChangesCommandState();
+      this.clearUndoRedo();
       return true;
     }
     if (result.status === "cancelled") return false;
@@ -1573,6 +1686,336 @@ export class WriterAdapter {
       this.editorDom.focus();
     }
     return true;
+  }
+
+  // =========================================================================
+  // HE THONG HOAN TAC & LAM LAI (DEEP UNDO / REDO HISTORY ENGINE)
+  // =========================================================================
+
+  /**
+   * Kiểm tra có thể hoàn tác hay không
+   * @returns {boolean}
+   */
+  canUndo() {
+    if (this._typingDebounceTimer) return true;
+    if (this._lastSnapshot) {
+      const current = this._createSnapshot("Check Can Undo");
+      if (!this._isSnapshotEqual(current, this._lastSnapshot)) {
+        return true;
+      }
+    }
+    return this.undoStack.length > 0;
+  }
+
+  /**
+   * Kiểm tra có thể làm lại hay không
+   * @returns {boolean}
+   */
+  canRedo() {
+    return this.redoStack.length > 0;
+  }
+
+  /**
+   * Cam kết các ký tự đang gõ dở dang vào snapshot trước khi thực hiện thao tác rời rạc hoặc Undo
+   */
+  flushTyping() {
+    if (this._typingDebounceTimer) {
+      clearTimeout(this._typingDebounceTimer);
+      this._typingDebounceTimer = null;
+    }
+    if (!this._lastSnapshot) {
+      this._lastSnapshot = this._createSnapshot("Initial State");
+      return;
+    }
+    const current = this._createSnapshot("Typing Commit");
+    if (!this._isSnapshotEqual(current, this._lastSnapshot)) {
+      this.recordSnapshot("Typing Commit");
+    }
+  }
+
+  /**
+   * Ghi lại một snapshot vào undo stack
+   * @param {string} [description]
+   * @returns {boolean}
+   */
+  recordSnapshot(description = "") {
+    if (this._isUndoingRedoing) return false;
+
+    if (this._typingDebounceTimer) {
+      clearTimeout(this._typingDebounceTimer);
+      this._typingDebounceTimer = null;
+    }
+
+    const currentSnapshot = this._createSnapshot(description);
+
+    if (!this._lastSnapshot) {
+      this._lastSnapshot = currentSnapshot;
+      this._updateUndoRedoUI();
+      return false;
+    }
+
+    if (this._isSnapshotEqual(currentSnapshot, this._lastSnapshot)) {
+      return false;
+    }
+
+    this.undoStack.push(this._lastSnapshot);
+    if (this.undoStack.length > this.maxUndoStack) {
+      this.undoStack.shift();
+    }
+
+    // Một hành động mới làm xóa nhánh redo tương lai (chuẩn Office)
+    this.redoStack = [];
+    this._lastSnapshot = currentSnapshot;
+    this.isDirty = true;
+    this._updateUndoRedoUI();
+    return true;
+  }
+
+  /**
+   * Thực hiện hoàn tác (Undo - Ctrl+Z)
+   * @returns {boolean}
+   */
+  undo() {
+    this.flushTyping();
+
+    if (this.undoStack.length === 0) {
+      this._updateUndoRedoUI();
+      return false;
+    }
+
+    const currentSnapshot = this._createSnapshot("Current for Redo");
+    this.redoStack.push(currentSnapshot);
+    if (this.redoStack.length > this.maxUndoStack) {
+      this.redoStack.shift();
+    }
+
+    const prevSnapshot = this.undoStack.pop();
+    this._isUndoingRedoing = true;
+    try {
+      this._restoreSnapshot(prevSnapshot);
+      this._lastSnapshot = prevSnapshot;
+    } finally {
+      this._isUndoingRedoing = false;
+    }
+
+    this._updateUndoRedoUI();
+    return true;
+  }
+
+  /**
+   * Thực hiện làm lại (Redo - Ctrl+Y)
+   * @returns {boolean}
+   */
+  redo() {
+    this.flushTyping();
+
+    if (this.redoStack.length === 0) {
+      this._updateUndoRedoUI();
+      return false;
+    }
+
+    const currentSnapshot = this._createSnapshot("Current for Undo");
+    this.undoStack.push(currentSnapshot);
+    if (this.undoStack.length > this.maxUndoStack) {
+      this.undoStack.shift();
+    }
+
+    const nextSnapshot = this.redoStack.pop();
+    this._isUndoingRedoing = true;
+    try {
+      this._restoreSnapshot(nextSnapshot);
+      this._lastSnapshot = nextSnapshot;
+    } finally {
+      this._isUndoingRedoing = false;
+    }
+
+    this._updateUndoRedoUI();
+    return true;
+  }
+
+  /**
+   * Làm sạch toàn bộ lịch sử hoàn tác (dùng khi mở tài liệu mới)
+   */
+  clearUndoRedo() {
+    if (this._typingDebounceTimer) {
+      clearTimeout(this._typingDebounceTimer);
+      this._typingDebounceTimer = null;
+    }
+    this.undoStack = [];
+    this.redoStack = [];
+    this._lastSnapshot = this._createSnapshot("Reset State");
+    this._updateUndoRedoUI();
+  }
+
+  /**
+   * Tạo bản sao lưu trạng thái hiện tại của tài liệu
+   * @param {string} [description]
+   * @private
+   */
+  _createSnapshot(description = "") {
+    this._initZones();
+    return {
+      bodyHtml: this.bodyDom ? this.bodyDom.innerHTML : (this.editorDom ? this.editorDom.innerHTML : ""),
+      headerHtml: this.headerDom ? this.headerDom.innerHTML : null,
+      footerHtml: this.footerDom ? this.footerDom.innerHTML : null,
+      pageSetup: this.pageSetup ? JSON.parse(JSON.stringify(this.pageSetup)) : null,
+      comments: this.comments ? JSON.parse(JSON.stringify(this.comments)) : [],
+      description,
+      timestamp: Date.now()
+    };
+  }
+
+  /**
+   * So sánh hai snapshot xem có sự thay đổi thực chất hay không
+   * @private
+   */
+  _isSnapshotEqual(a, b) {
+    if (!a || !b) return false;
+    if (a.bodyHtml !== b.bodyHtml) return false;
+    if (a.headerHtml !== b.headerHtml) return false;
+    if (a.footerHtml !== b.footerHtml) return false;
+    if (JSON.stringify(a.pageSetup) !== JSON.stringify(b.pageSetup)) return false;
+    if (JSON.stringify(a.comments) !== JSON.stringify(b.comments)) return false;
+    return true;
+  }
+
+  /**
+   * Khôi phục tài liệu từ một snapshot
+   * @private
+   */
+  _restoreSnapshot(snapshot) {
+    if (!snapshot) return;
+    this._initZones();
+
+    if (snapshot.headerHtml !== null && this.headerDom) {
+      this.headerDom.innerHTML = snapshot.headerHtml;
+    }
+    if (snapshot.bodyHtml !== null) {
+      if (this.bodyDom) {
+        this.bodyDom.innerHTML = snapshot.bodyHtml;
+      } else if (this.editorDom) {
+        this.editorDom.innerHTML = snapshot.bodyHtml;
+      }
+    }
+    if (snapshot.footerHtml !== null && this.footerDom) {
+      this.footerDom.innerHTML = snapshot.footerHtml;
+    }
+
+    if (snapshot.pageSetup) {
+      this.pageSetup = JSON.parse(JSON.stringify(snapshot.pageSetup));
+      this._applyPageSetup();
+    }
+
+    if (snapshot.comments) {
+      this.comments = JSON.parse(JSON.stringify(snapshot.comments));
+      this._renderCommentsPanel();
+    }
+
+    this.isDirty = true;
+    this._updateTrackChangesCommandState?.();
+
+    // Phát sự kiện input để các thành phần quan sát (đếm từ, đếm trang) cập nhật lại
+    if (this.bodyDom?.dispatchEvent) {
+      try {
+        this.bodyDom.dispatchEvent(new Event("input", { bubbles: true }));
+      } catch {}
+    }
+  }
+
+  /**
+   * Lắng nghe sự kiện bàn phím & gõ chữ để lưu lịch sử
+   * @private
+   */
+  _bindUndoRedo() {
+    if (this._inputHandler) return;
+    const target = this.editorDom;
+    if (!target || typeof target.addEventListener !== "function") return;
+
+    this._inputHandler = (event) => {
+      if (this._isUndoingRedoing) return;
+      if (event && event._vnoHandled) return;
+      if (event) event._vnoHandled = true;
+      this.isDirty = true;
+      if (event?.inputType === "insertParagraph") {
+        this.flushTyping();
+        this.recordSnapshot("writer.text.newParagraph");
+      } else {
+        this._scheduleTypingSnapshot();
+      }
+    };
+
+    target.addEventListener("input", this._inputHandler);
+    if (this.bodyDom && this.bodyDom !== target && typeof this.bodyDom.addEventListener === "function") {
+      this.bodyDom.addEventListener("input", this._inputHandler);
+    }
+
+    if (!this._undoKeyHandler && typeof target.addEventListener === "function") {
+      this._undoKeyHandler = (event) => {
+        if (!event.ctrlKey && !event.metaKey) return;
+        const key = (event.key || "").toLowerCase();
+        if (key === "z" && !event.shiftKey) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.undo();
+        } else if (key === "y" || (key === "z" && event.shiftKey)) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.redo();
+        }
+      };
+      target.addEventListener("keydown", this._undoKeyHandler, true);
+    }
+  }
+
+  /**
+   * Gom cụm thao tác gõ chữ liên tục với debounce (500ms - 1s, mặc định 600ms)
+   * @private
+   */
+  _scheduleTypingSnapshot() {
+    if (this._typingDebounceTimer) {
+      clearTimeout(this._typingDebounceTimer);
+    }
+    this._updateUndoRedoUI();
+    this._typingDebounceTimer = setTimeout(() => {
+      this._typingDebounceTimer = null;
+      this.recordSnapshot("Typing");
+    }, this._typingDebounceMs);
+  }
+
+  /**
+   * Cập nhật trạng thái nút Undo/Redo trên Command Bus và Quick Access Toolbar
+   * @private
+   */
+  _updateUndoRedoUI() {
+    const canUndo = this.canUndo();
+    const canRedo = this.canRedo();
+
+    globalCommandBus.updateState("common.edit.undo", { enabled: canUndo });
+    globalCommandBus.updateState("common.edit.redo", { enabled: canRedo });
+
+    if (typeof document !== "undefined") {
+      const undoButtons = document.querySelectorAll?.('[data-cmd="common.edit.undo"], [data-command-id="common.edit.undo"]');
+      undoButtons?.forEach?.((btn) => {
+        btn.disabled = !canUndo;
+        btn.classList?.toggle?.("is-disabled", !canUndo);
+        if (!canUndo) {
+          btn.setAttribute?.("disabled", "true");
+        } else {
+          btn.removeAttribute?.("disabled");
+        }
+      });
+
+      const redoButtons = document.querySelectorAll?.('[data-cmd="common.edit.redo"], [data-command-id="common.edit.redo"]');
+      redoButtons?.forEach?.((btn) => {
+        btn.disabled = !canRedo;
+        btn.classList?.toggle?.("is-disabled", !canRedo);
+        if (!canRedo) {
+          btn.setAttribute?.("disabled", "true");
+        } else {
+          btn.removeAttribute?.("disabled");
+        }
+      });
+    }
   }
 }
 
