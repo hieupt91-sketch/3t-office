@@ -1,0 +1,122 @@
+﻿/**
+ * VN Office Ribbon Host Styles
+ */
+
+.vno-ribbon {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--vno-bg-surface);
+  border-bottom: 1px solid var(--vno-border-subtle);
+  user-select: none;
+}
+
+/* Tabs Bar */
+.vno-ribbon-tabs {
+  display: flex;
+  align-items: center;
+  height: var(--vno-ribbon-tab-height);
+  padding: 0 4px;
+  background-color: var(--vno-bg-subtle);
+  border-bottom: 1px solid var(--vno-border-subtle);
+  gap: 2px;
+}
+
+.vno-ribbon-tab-file {
+  background-color: var(--vno-app-writer-primary) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  padding: 0 14px;
+  height: 28px;
+  border-radius: var(--vno-radius-xs);
+}
+[data-app="sheet"] .vno-ribbon-tab-file {
+  background-color: var(--vno-app-sheet-primary) !important;
+}
+[data-app="slides"] .vno-ribbon-tab-file {
+  background-color: var(--vno-app-slides-primary) !important;
+}
+
+.vno-ribbon-tab {
+  padding: 0 12px;
+  height: 28px;
+  font-family: var(--vno-font-family-ui);
+  font-size: var(--vno-font-size-base);
+  color: var(--vno-text-secondary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.vno-ribbon-tab:hover {
+  color: var(--vno-text-primary);
+  background-color: var(--vno-bg-hover);
+}
+
+.vno-ribbon-tab.is-active {
+  color: var(--vno-app-writer-primary);
+  font-weight: 600;
+  border-bottom-color: var(--vno-app-writer-primary);
+  background-color: var(--vno-bg-surface);
+}
+
+[data-app="sheet"] .vno-ribbon-tab.is-active {
+  color: var(--vno-app-sheet-primary);
+  border-bottom-color: var(--vno-app-sheet-primary);
+}
+
+[data-app="slides"] .vno-ribbon-tab.is-active {
+  color: var(--vno-app-slides-primary);
+  border-bottom-color: var(--vno-app-slides-primary);
+}
+
+/* Ribbon Tab Content Panel */
+.vno-ribbon-content {
+  display: flex;
+  align-items: stretch;
+  height: var(--vno-ribbon-content-height);
+  padding: 4px 8px;
+  background-color: var(--vno-bg-surface);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Ribbon Group */
+.vno-ribbon-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0 8px;
+  border-right: 1px solid var(--vno-border-subtle);
+  flex-shrink: 0;
+}
+
+.vno-ribbon-group-items {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.vno-ribbon-group-column {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  justify-content: center;
+}
+
+.vno-ribbon-group-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.vno-ribbon-group-label {
+  font-size: var(--vno-font-size-xs);
+  color: var(--vno-text-muted);
+  text-align: center;
+  padding-top: 2px;
+  letter-spacing: 0.2px;
+}

@@ -1,0 +1,193 @@
+﻿/**
+ * VN Office Application Shell Styles
+ */
+
+.vno-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: var(--vno-bg-canvas);
+  font-family: var(--vno-font-family-ui);
+  color: var(--vno-text-primary);
+}
+
+/* Title Bar */
+.vno-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--vno-titlebar-height);
+  padding: 0 12px;
+  background-color: var(--vno-bg-subtle);
+  border-bottom: 1px solid var(--vno-border-subtle);
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.vno-titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.vno-app-badge {
+  font-weight: 700;
+  font-size: var(--vno-font-size-sm);
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: var(--vno-radius-xs);
+  letter-spacing: 0.5px;
+}
+
+.vno-app-badge-writer { background-color: var(--vno-app-writer-primary); }
+.vno-app-badge-sheet { background-color: var(--vno-app-sheet-primary); }
+.vno-app-badge-slides { background-color: var(--vno-app-slides-primary); }
+
+.vno-doc-title {
+  font-weight: 500;
+  font-size: var(--vno-font-size-base);
+  color: var(--vno-text-primary);
+  border: 1px solid transparent;
+  padding: 2px 6px;
+  border-radius: var(--vno-radius-xs);
+  outline: none;
+}
+.vno-doc-title:hover {
+  border-color: var(--vno-border-default);
+}
+.vno-doc-title:focus {
+  background-color: var(--vno-bg-surface);
+  border-color: var(--vno-border-focused);
+}
+
+.vno-titlebar-center {
+  flex: 1;
+  max-width: 400px;
+  margin: 0 16px;
+  -webkit-app-region: no-drag;
+}
+
+.vno-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--vno-bg-surface);
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-md);
+  padding: 3px 10px;
+  width: 100%;
+}
+.vno-search-box input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  outline: none;
+  font-size: var(--vno-font-size-sm);
+  font-family: var(--vno-font-family-ui);
+  color: var(--vno-text-primary);
+}
+
+.vno-titlebar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+/* Main Workspace */
+.vno-workspace {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.vno-editor-container {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+  background-color: var(--vno-bg-canvas);
+}
+
+/* AI Sidebar */
+.vno-ai-sidebar {
+  width: 340px;
+  background-color: var(--vno-bg-surface);
+  border-left: 1px solid var(--vno-border-default);
+  box-shadow: var(--vno-shadow-md);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease-in-out;
+}
+.vno-ai-sidebar.is-hidden {
+  display: none;
+}
+
+.vno-ai-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vno-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: var(--vno-font-size-md);
+  color: var(--vno-app-writer-primary);
+}
+
+.vno-ai-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vno-ai-input-box {
+  padding: 12px;
+  border-top: 1px solid var(--vno-border-subtle);
+  display: flex;
+  gap: 8px;
+}
+.vno-ai-input-box input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-sm);
+  outline: none;
+}
+
+/* Status Bar */
+.vno-statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--vno-statusbar-height);
+  padding: 0 12px;
+  background-color: var(--vno-bg-subtle);
+  border-top: 1px solid var(--vno-border-subtle);
+  font-size: var(--vno-font-size-xs);
+  color: var(--vno-text-secondary);
+  user-select: none;
+}
+
+.vno-statusbar-left, .vno-statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vno-zoom-slider {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.vno-zoom-slider input[type="range"] {
+  width: 90px;
+  cursor: pointer;
+}
