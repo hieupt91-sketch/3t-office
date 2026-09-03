@@ -115,6 +115,16 @@ export const ICONS = {
     <line x1="20" y1="11" x2="20" y2="28" stroke="#CBD5E1" stroke-width="1.2"/>
   </svg>`,
 
+  template: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="4" width="26" height="24" rx="3" fill="#F8FAFC" stroke="#B53818" stroke-width="1.5"/>
+    <rect x="3" y="4" width="8" height="24" rx="0" fill="#F5B800"/>
+    <rect x="3" y="4" width="26" height="24" rx="3" fill="none" stroke="#B53818" stroke-width="1.5"/>
+    <line x1="15" y1="10" x2="26" y2="10" stroke="#B53818" stroke-width="2" stroke-linecap="round"/>
+    <line x1="15" y1="15" x2="26" y2="15" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="15" y1="19" x2="22" y2="19" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="7" cy="10" r="2" fill="#FFFFFF" opacity="0.85"/>
+  </svg>`,
+
   image: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="3" y="5" width="26" height="22" rx="3" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.5"/>
     <circle cx="10" cy="11" r="3" fill="#F59E0B"/>
