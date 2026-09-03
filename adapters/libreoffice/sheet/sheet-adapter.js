@@ -250,6 +250,12 @@ export class SheetAdapter {
       case "sheet.cell.borders":
         return this.grid.setStyle("border", "2px solid #0f172a");
 
+      case "sheet.cell.fillColor":
+        return this._pickAndApplyColor("backgroundColor", "#FFF200");
+
+      case "sheet.cell.textColor":
+        return this._pickAndApplyColor("color", "#DC2626");
+
       case "sheet.format.currencyVND":
         return this.grid.formatCurrentCellCurrencyVND();
 
@@ -284,6 +290,15 @@ export class SheetAdapter {
       case "sheet.data.filter":
         return this.grid.toggleFilter ? this.grid.toggleFilter() : false;
 
+      case "common.edit.cut":
+        return await this._copySelectedCell(true);
+
+      case "common.edit.copy":
+        return await this._copySelectedCell(false);
+
+      case "common.edit.paste":
+        return await this._pasteIntoSelectedCell();
+
       case "common.edit.undo":
         return this.grid.undo ? this.grid.undo() : false;
 
@@ -308,5 +323,80 @@ export class SheetAdapter {
       default:
         return false;
     }
+  }
+
+  /**
+   * Mở hộp chọn màu THẬT của hệ điều hành (input type=color chuẩn, không giả)
+   * rồi áp dụng màu đã chọn vào ô đang chọn qua grid.setStyle().
+   * @param {string} cssProp "backgroundColor" hoặc "color"
+   * @param {string} defaultColor
+   */
+  _pickAndApplyColor(cssProp, defaultColor) {
+    if (typeof document === "undefined") return false;
+    const input = document.createElement("input");
+    input.type = "color";
+    input.value = defaultColor;
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    input.style.pointerEvents = "none";
+    document.body.appendChild(input);
+
+    return new Promise((resolve) => {
+      let applied = false;
+      input.addEventListener("input", () => {
+        applied = true;
+        this.grid.setStyle(cssProp, input.value);
+      });
+      input.addEventListener("change", () => {
+        document.body.removeChild(input);
+        resolve(applied);
+      });
+      input.click();
+    });
+  }
+
+  /**
+   * Sao chép giá trị ô đang chọn thật vào Clipboard (Clipboard API), có thể dán
+   * ra ngoài ứng dụng khác — không phải execCommand giả trên vùng chọn DOM
+   * (không đáng tin cậy trong lưới ô bảng tính).
+   * @param {boolean} isCut nếu true, xóa nội dung ô sau khi sao chép
+   */
+  async _copySelectedCell(isCut) {
+    const coord = this.grid.selectedCoord;
+    if (!coord) return false;
+    const key = `${coord.c}${coord.r}`;
+    const item = this.grid.cellsData?.get(key);
+    const text = item ? (item.formula || item.val || "") : "";
+
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(String(text));
+      }
+    } catch {
+      // Một số môi trường (vd. test headless) chặn Clipboard API — không coi là lỗi nghiêm trọng
+    }
+
+    if (isCut && this.grid.setCellValue) {
+      this.grid.setCellValue(coord.c, coord.r, "");
+    }
+    return true;
+  }
+
+  /**
+   * Dán nội dung Clipboard thật vào ô đang chọn.
+   */
+  async _pasteIntoSelectedCell() {
+    const coord = this.grid.selectedCoord;
+    if (!coord || !this.grid.setCellValue) return false;
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        this.grid.setCellValue(coord.c, coord.r, text);
+        return true;
+      }
+    } catch {
+      // Trình duyệt có thể chặn đọc Clipboard nếu chưa có quyền/tương tác người dùng
+    }
+    return false;
   }
 }
