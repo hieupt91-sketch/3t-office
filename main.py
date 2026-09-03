@@ -104,7 +104,7 @@ def _profile_uri() -> str:
     return profile_dir.as_uri()
 
 
-def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str) -> str:
+def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind: str | None = None) -> str:
     """Chạy LibreOffice headless để chuyển đổi thật một tệp. Trả về đường dẫn tệp kết quả."""
     if not SOFFICE_PATH:
         raise DocumentEngineError(
@@ -112,7 +112,16 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str) -> str:
             "hoặc đặt biến môi trường VNOFFICE_SOFFICE_PATH trỏ tới soffice."
         )
 
-    filter_name = FORMAT_FILTERS.get(target_ext)
+    if target_ext == "pdf" and app_kind:
+        if app_kind == "sheet":
+            filter_name = "calc_pdf_Export"
+        elif app_kind == "slides":
+            filter_name = "impress_pdf_Export"
+        else:
+            filter_name = "writer_pdf_Export"
+    else:
+        filter_name = FORMAT_FILTERS.get(target_ext)
+
     convert_to = f"{target_ext}:{filter_name}" if filter_name else target_ext
 
     cmd = [
@@ -188,12 +197,13 @@ class VnOfficeApi:
     def open_document_dialog(self, app_kind="writer"):
         """Mở hộp thoại chọn tệp NATIVE thật của hệ điều hành, chuyển đổi tệp thật sang
         định dạng trung gian mà UI có thể hiển thị."""
-        if not self.window:
+        window = _active_window()
+        if not window:
             return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
 
         file_types = OPEN_FILE_TYPES.get(app_kind, ("Tất cả tệp (*.*)",))
         try:
-            result = self.window.create_file_dialog(webview.OPEN_DIALOG, file_types=file_types)
+            result = window.create_file_dialog(webview.OPEN_DIALOG, file_types=file_types)
         except Exception as exc:  # lỗi hệ thống khi mở hộp thoại
             return {"status": "error", "message": f"Không mở được hộp thoại: {exc}"}
 
@@ -201,16 +211,18 @@ class VnOfficeApi:
             return {"status": "cancelled"}
         src_path = result[0]
 
-        if app_kind == "slides":
-            return {
-                "status": "error",
-                "message": "Mở tệp PowerPoint/ODP chưa được hỗ trợ ở phiên bản này.",
-            }
+        if app_kind == "writer":
+            target_ext = "html"
+        elif app_kind == "sheet":
+            target_ext = "csv"
+        elif app_kind == "slides":
+            target_ext = "fodp"
+        else:
+            return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
 
-        target_ext = "html" if app_kind == "writer" else "csv"
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_open_") as tmp:
-                out_path = _run_soffice_convert(src_path, target_ext, tmp)
+                out_path = _run_soffice_convert(src_path, target_ext, tmp, app_kind=app_kind)
                 with open(out_path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
         except DocumentEngineError as exc:
@@ -227,15 +239,14 @@ class VnOfficeApi:
     def save_document_dialog(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu"):
         """Mở hộp thoại lưu tệp NATIVE thật, chuyển đổi nội dung soạn thảo hiện tại
         sang định dạng Office/ODF thật và ghi ra đĩa thật."""
-        if not self.window:
+        window = _active_window()
+        if not window:
             return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
-        if app_kind == "slides":
-            return {"status": "error", "message": "Lưu tệp cho Slides chưa được hỗ trợ ở phiên bản này."}
 
         target_format = target_format or DEFAULT_SAVE_FORMAT.get(app_kind, "pdf")
 
         try:
-            save_result = self.window.create_file_dialog(
+            save_result = window.create_file_dialog(
                 webview.SAVE_DIALOG, save_filename=f"{suggested_name}.{target_format}"
             )
         except Exception as exc:
@@ -251,12 +262,18 @@ class VnOfficeApi:
                     src_path = os.path.join(tmp, "draft.html")
                     with open(src_path, "w", encoding="utf-8") as f:
                         f.write(f"<html><head><meta charset='utf-8'></head><body>{content}</body></html>")
-                else:  # sheet
+                elif app_kind == "sheet":
                     src_path = os.path.join(tmp, "draft.csv")
+                    with open(src_path, "w", encoding="utf-8-sig") as f:
+                        f.write(content)
+                elif app_kind == "slides":
+                    src_path = os.path.join(tmp, "draft.fodp")
                     with open(src_path, "w", encoding="utf-8") as f:
                         f.write(content)
+                else:
+                    return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
 
-                out_path = _run_soffice_convert(src_path, target_format, tmp)
+                out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
                 shutil.copyfile(out_path, dest_path)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
@@ -281,7 +298,6 @@ def main():
         js_api=api,
         text_select=True,
     )
-    api.window = window
 
     def on_closing():
         # Thoát tiến trình ngay lập tức khi người dùng bấm nút đóng (X), tránh lỗi COM teardown
