@@ -23,6 +23,8 @@ import { runWriterPrintPreviewTests } from "./unit/writer-print-preview.test.js"
 import { runSlidesLayoutsTests } from "./unit/slides-layouts.test.js";
 import { runSheetChartTests } from "./unit/sheet-charts.test.js";
 import { runSheetUndoRedoTests } from "./unit/sheet-undo-redo.test.js";
+import { runSheetLookupConditionalFunctionTests } from "./unit/sheet-lookup-conditional-functions.test.js";
+import { runSheetPivotTableTests } from "./unit/sheet-pivot-table.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -53,7 +55,9 @@ async function runAll() {
     { title: "17. Behavioral Tests — VN Writer Print Preview", runner: runWriterPrintPreviewTests },
     { title: "18. Behavioral Tests — VN Slides Slide Layouts", runner: runSlidesLayoutsTests },
     { title: "19. Behavioral Tests — VN Sheet Live Charts", runner: runSheetChartTests },
-    { title: "20. Behavioral Tests — VN Sheet Deep Undo/Redo", runner: runSheetUndoRedoTests }
+    { title: "20. Behavioral Tests — VN Sheet Deep Undo/Redo", runner: runSheetUndoRedoTests },
+    { title: "21. Unit Tests — VN Sheet Lookup & Conditional Functions", runner: runSheetLookupConditionalFunctionTests },
+    { title: "22. Behavioral Tests — VN Sheet Pivot Table", runner: runSheetPivotTableTests }
   ];
 
   for (const suite of suites) {

@@ -177,6 +177,9 @@ export const ICONS = {
     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" fill="#67E8F9" stroke="#0891B2" stroke-width="1.5"/>
   </svg>`,
 
+  pivotTable: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none"><rect x="3" y="4" width="26" height="24" rx="3" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.5"/><path d="M3 11h26M11 4v24" stroke="#0F6D38" stroke-width="1.5"/><rect x="4" y="5" width="24" height="5" fill="#BBF7D0"/><rect x="4" y="12" width="6" height="15" fill="#DCFCE7"/><path d="M15 15h10M15 20h7M15 25h9" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/></svg>`,
+  refreshTable: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" fill="#ECFDF5" stroke="#0F6D38"/><path d="M8 8h8M8 12h4M8 16h7" stroke="#64748B"/><path d="M18 9a5 5 0 1 1-1.2-3.2M17 3v4h4" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+
   sortAsc: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
     <text x="3" y="9" font-size="9" font-weight="bold" fill="#0F172A" font-family="sans-serif">A</text>
     <text x="3" y="19" font-size="9" font-weight="bold" fill="#0F172A" font-family="sans-serif">Z</text>

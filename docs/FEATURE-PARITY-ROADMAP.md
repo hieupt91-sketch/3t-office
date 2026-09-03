@@ -73,9 +73,10 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] Undo/Redo sâu và cô lập theo sheet — history tối đa 100 bước; gộp chuỗi gõ liên tục trong formula bar; hoàn tác/làm lại đối xứng cho giá trị/định dạng ô, sort/filter, freeze panes, Conditional Formatting, Data Validation, chart và thêm/xóa sheet; nút Undo/Redo phản ánh đúng stack rỗng; đã có behavioral tests cho add/delete, redo sort giảm dần và chống rò chéo sheet.
 
 ### Tier 2
-- [ ] Pivot Table (Bảng tổng hợp)
+- [x] Pivot Table (Bảng tổng hợp) — chọn vùng nguồn có header; cấu hình nhiều trường Rows/Columns/Values; tổng hợp Sum/Count/Average/Min/Max; tạo kết quả thật trên sheet mới; state `pivotTablesBySheet` cô lập; nút Refresh đọc lại dữ liệu nguồn; tạo/xóa/refresh hỗ trợ undo/redo.
 - [ ] Named Ranges (đặt tên vùng)
-- [ ] Thêm hàm: VLOOKUP/HLOOKUP/INDEX/MATCH/COUNTIF/SUMIF/TEXT/DATE functions
+- [x] Nhóm hàm tra cứu/điều kiện: VLOOKUP/HLOOKUP (exact + approximate), INDEX, MATCH (0/1/-1), COUNTIF/SUMIF/COUNTIFS/SUMIFS (so sánh số + wildcard), có behavioral tests với kết quả chính xác và #N/A.
+- [ ] Thêm hàm TEXT/DATE nâng cao
 - [ ] Cell comments/notes
 - [ ] Print area, page breaks cho bảng tính
 
