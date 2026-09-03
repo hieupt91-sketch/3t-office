@@ -239,6 +239,9 @@ export class AppShell {
       messagesEl.scrollTop = messagesEl.scrollHeight;
     };
 
+    this._handleAiSend = handleAiSend;
+    this._aiInputEl = inputEl;
+
     sendBtn.addEventListener("click", handleAiSend);
     inputEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
@@ -294,6 +297,18 @@ export class AppShell {
     sb.querySelector("#vno-zoom-in").addEventListener("click", () => updateZoom(this.zoomLevel + 10));
 
     this.rootEl.appendChild(sb);
+  }
+
+  /**
+   * Kích hoạt Trợ lý AI với một yêu cầu định sẵn (dùng cho nút "Tóm tắt nhanh",
+   * "Viết lại trau chuốt", "Soát lỗi chính tả" trên ribbon) — mở sidebar thật và
+   * gửi yêu cầu thật qua LocalAiService, không chỉ hiện nút suông.
+   * @param {string} presetQuery
+   */
+  triggerAiQuickAction(presetQuery) {
+    this.toggleAiSidebar(true);
+    if (this._aiInputEl) this._aiInputEl.value = presetQuery;
+    if (this._handleAiSend) this._handleAiSend();
   }
 
   toggleAiSidebar(forceState) {
@@ -517,6 +532,18 @@ export class AppShell {
     // Lắng nghe lệnh AI
     globalCommandBus.bindHandler("ai.assistant.toggle", () => {
       this.toggleAiSidebar();
+    });
+    globalCommandBus.bindHandler("ai.assistant.summarize", () => {
+      this.triggerAiQuickAction("tóm tắt nội dung tài liệu hiện tại");
+      return true;
+    });
+    globalCommandBus.bindHandler("ai.assistant.rewrite", () => {
+      this.triggerAiQuickAction("trau chuốt văn phong đoạn văn hiện tại");
+      return true;
+    });
+    globalCommandBus.bindHandler("ai.assistant.grammarCheck", () => {
+      this.triggerAiQuickAction("soát lỗi chính tả tài liệu hiện tại");
+      return true;
     });
   }
 

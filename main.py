@@ -89,6 +89,11 @@ FORMAT_FILTERS = {
     "csv": "Text - txt - csv (StarCalc)",
     "pptx": "Impress MS PowerPoint 2007 XML",
     "odp": "impress8",
+    # "fodp" cố ý KHÔNG có filter tường minh — đã thử nghiệm thật, mọi filter name
+    # tường minh (kể cả "OpenDocument Presentation Flat XML" mà tài liệu LibreOffice
+    # gợi ý) đều làm lệnh convert thất bại; để trống cho LibreOffice tự nhận diện
+    # theo phần mở rộng lại hoạt động đúng 100%. Đừng "sửa" dòng này mà không tự
+    # test bằng lệnh soffice --convert-to thật trước.
 }
 
 _convert_lock = threading.Lock()
