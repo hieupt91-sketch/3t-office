@@ -502,22 +502,21 @@ export class AppShell {
     globalShortcutManager.attach(window);
 
     // Thu gọn / mở rộng Ribbon (Ctrl+F1)
-    globalCommandBus.register({
-      id: "common.view.ribbonToggle",
-      handler: () => {
-        if (this.ribbonHost) {
-          this.ribbonHost.isCollapsed = !this.ribbonHost.isCollapsed;
-          this.ribbonHost.render();
-        }
+    // Lưu ý: dùng bindHandler() chứ không phải register() — các lệnh này đã được
+    // đăng ký đầy đủ định nghĩa (label/icon/tooltip) qua registerAllStandardCommands()
+    // trong platform/commands/command-definitions.js. Gọi lại register() ở đây sẽ
+    // ghi đè state đã có bằng một def cụt (chỉ {id, handler}), khiến label thành
+    // undefined trên mọi nút ribbon dùng lệnh này.
+    globalCommandBus.bindHandler("common.view.ribbonToggle", () => {
+      if (this.ribbonHost) {
+        this.ribbonHost.isCollapsed = !this.ribbonHost.isCollapsed;
+        this.ribbonHost.render();
       }
     });
 
     // Lắng nghe lệnh AI
-    globalCommandBus.register({
-      id: "ai.assistant.toggle",
-      handler: () => {
-        this.toggleAiSidebar();
-      }
+    globalCommandBus.bindHandler("ai.assistant.toggle", () => {
+      this.toggleAiSidebar();
     });
   }
 
