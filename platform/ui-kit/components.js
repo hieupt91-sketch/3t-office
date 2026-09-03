@@ -183,3 +183,217 @@ export function createEmptyState({
   return container;
 }
 
+/**
+ * Tạo Popup Gợi ý Tự động Hoàn thành Công thức (Formula Autocomplete Popup)
+ * @param {Object} [options]
+ * @param {Function} [options.onSelect] (item) => void
+ */
+export function createAutocompletePopup({ onSelect } = {}) {
+  if (typeof document === "undefined" || typeof document.createElement !== "function" || !document.body) {
+    return {
+      element: null,
+      show: () => {},
+      hide: () => {},
+      reposition: () => {},
+      setActiveIndex: () => {},
+      getActiveIndex: () => -1,
+      getActiveItem: () => null,
+      isVisible: () => false,
+      destroy: () => {}
+    };
+  }
+
+  const el = document.createElement("div");
+  el.className = "vno-autocomplete-popup";
+  el.style.display = "none";
+  document.body.appendChild(el);
+
+  let currentItems = [];
+  let currentIndex = 0;
+  let visible = false;
+
+  const updateActiveHighlight = () => {
+    const rows = el.querySelectorAll(".vno-autocomplete-item");
+    rows.forEach((row, idx) => {
+      if (idx === currentIndex) {
+        row.classList.add("is-active");
+        if (typeof row.scrollIntoView === "function") {
+          row.scrollIntoView({ block: "nearest" });
+        }
+      } else {
+        row.classList.remove("is-active");
+      }
+    });
+  };
+
+  const render = () => {
+    el.innerHTML = "";
+    if (currentItems.length === 0) {
+      el.style.display = "none";
+      visible = false;
+      return;
+    }
+
+    currentItems.forEach((item, idx) => {
+      const row = document.createElement("div");
+      row.className = `vno-autocomplete-item ${idx === currentIndex ? "is-active" : ""}`;
+      row.innerHTML = `
+        <div class="vno-ac-left">
+          <span class="vno-ac-fx">fx</span>
+          <span class="vno-ac-name">${item.name}</span>
+        </div>
+        <span class="vno-ac-cat">${item.category || ""}</span>
+      `;
+      row.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        currentIndex = idx;
+        if (onSelect) onSelect(item);
+      });
+      row.addEventListener("mouseenter", () => {
+        currentIndex = idx;
+        updateActiveHighlight();
+      });
+      el.appendChild(row);
+    });
+  };
+
+  const positionAt = (targetEl) => {
+    if (!targetEl || typeof targetEl.getBoundingClientRect !== "function") return;
+    const rect = targetEl.getBoundingClientRect();
+    const popupHeight = el.offsetHeight || 180;
+    const spaceBelow = window.innerHeight - rect.bottom;
+
+    let top = rect.bottom + 2;
+    if (spaceBelow < popupHeight && rect.top > popupHeight) {
+      top = rect.top - popupHeight - 2;
+    }
+
+    let left = rect.left;
+    if (left + 260 > window.innerWidth) {
+      left = Math.max(10, window.innerWidth - 270);
+    }
+
+    el.style.top = `${top}px`;
+    el.style.left = `${left}px`;
+    el.style.minWidth = `${Math.max(220, rect.width)}px`;
+  };
+
+  return {
+    element: el,
+    show({ items, targetEl, activeIndex = 0 }) {
+      currentItems = items || [];
+      currentIndex = Math.max(0, Math.min(activeIndex, currentItems.length - 1));
+      if (currentItems.length === 0) {
+        this.hide();
+        return;
+      }
+      el.style.display = "block";
+      visible = true;
+      render();
+      positionAt(targetEl);
+    },
+    hide() {
+      el.style.display = "none";
+      visible = false;
+    },
+    reposition(targetEl) {
+      if (visible && targetEl) positionAt(targetEl);
+    },
+    setActiveIndex(idx) {
+      if (currentItems.length === 0) return;
+      if (idx < 0) currentIndex = currentItems.length - 1;
+      else if (idx >= currentItems.length) currentIndex = 0;
+      else currentIndex = idx;
+      updateActiveHighlight();
+    },
+    getActiveIndex() {
+      return currentIndex;
+    },
+    getActiveItem() {
+      return currentItems[currentIndex] || null;
+    },
+    isVisible() {
+      return visible;
+    },
+    destroy() {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }
+  };
+}
+
+/**
+ * Tạo Tooltip Hướng dẫn Cú pháp Tham số Hàm (Formula Syntax Tooltip)
+ */
+export function createSyntaxTooltip() {
+  if (typeof document === "undefined" || typeof document.createElement !== "function" || !document.body) {
+    return {
+      element: null,
+      show: () => {},
+      hide: () => {},
+      update: () => {},
+      reposition: () => {},
+      isVisible: () => false,
+      destroy: () => {}
+    };
+  }
+
+  const el = document.createElement("div");
+  el.className = "vno-syntax-tooltip";
+  el.style.display = "none";
+  document.body.appendChild(el);
+
+  let visible = false;
+
+  const positionAt = (targetEl) => {
+    if (!targetEl || typeof targetEl.getBoundingClientRect !== "function") return;
+    const rect = targetEl.getBoundingClientRect();
+    const tooltipHeight = el.offsetHeight || 40;
+    const spaceBelow = window.innerHeight - rect.bottom;
+
+    let top = rect.bottom + 2;
+    if (spaceBelow < tooltipHeight && rect.top > tooltipHeight) {
+      top = rect.top - tooltipHeight - 2;
+    }
+
+    let left = rect.left;
+    if (left + 360 > window.innerWidth) {
+      left = Math.max(10, window.innerWidth - 370);
+    }
+
+    el.style.top = `${top}px`;
+    el.style.left = `${left}px`;
+  };
+
+  return {
+    element: el,
+    show({ html, desc, targetEl }) {
+      this.update({ html, desc });
+      el.style.display = "block";
+      visible = true;
+      positionAt(targetEl);
+    },
+    update({ html, desc, targetEl }) {
+      let content = `<div class="vno-syntax-content">${html}</div>`;
+      if (desc) {
+        content += `<div class="vno-syntax-desc">${desc}</div>`;
+      }
+      el.innerHTML = content;
+      if (targetEl) positionAt(targetEl);
+    },
+    hide() {
+      el.style.display = "none";
+      visible = false;
+    },
+    reposition(targetEl) {
+      if (visible && targetEl) positionAt(targetEl);
+    },
+    isVisible() {
+      return visible;
+    },
+    destroy() {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }
+  };
+}
+
+

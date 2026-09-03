@@ -5,6 +5,7 @@
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { SheetChartBuilder } from "./sheet-chart.js";
 import { showAlertDialog } from "../../platform/ui-kit/dialogs.js";
+import { FormulaAutocompleteController } from "./formula-autocomplete.js";
 
 export class SheetGridController {
   constructor(container, options = {}) {
@@ -16,6 +17,7 @@ export class SheetGridController {
     /** @type {Map<string, {val: string|number, formula: string, style: Object}>} */
     this.cellsData = new Map();
     this.formulaEngine = new FormulaEngine(this.cellsData);
+    this.autocomplete = new FormulaAutocompleteController(this);
 
     this.undoStack = [];
     this.redoStack = [];
@@ -44,14 +46,22 @@ export class SheetGridController {
     this.nameBox = fBar.querySelector("#vno-cell-name");
     this.formulaInput = fBar.querySelector("#vno-formula-val");
 
+    this.autocomplete.mount();
+
     this.formulaInput.addEventListener("input", (e) => {
       this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.target.value);
+      this.autocomplete.handleInput(e.target.value, this.formulaInput.selectionStart);
     });
 
     this.formulaInput.addEventListener("keydown", (e) => {
+      if (this.autocomplete.handleKeyDown(e)) {
+        return;
+      }
       if (e.key === "Enter") {
+        this.autocomplete.closeAll();
         this.selectCell(this.selectedCoord.c, this.selectedCoord.r + 1);
       } else if (e.key === "Escape") {
+        this.autocomplete.closeAll();
         const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
         const cur = this.cellsData.get(key);
         this.formulaInput.value = cur ? cur.val : "";
@@ -59,16 +69,19 @@ export class SheetGridController {
     });
 
     fBar.querySelector("#vno-fx-cancel").addEventListener("click", () => {
+      this.autocomplete.closeAll();
       const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
       const cur = this.cellsData.get(key);
       this.formulaInput.value = cur ? cur.val : "";
     });
 
     fBar.querySelector("#vno-fx-ok").addEventListener("click", () => {
+      this.autocomplete.closeAll();
       this.selectCell(this.selectedCoord.c, this.selectedCoord.r + 1);
     });
 
     fBar.querySelector("#vno-fx-insert").addEventListener("click", () => {
+      this.autocomplete.closeAll();
       this.showFunctionDialog();
     });
 
@@ -77,6 +90,9 @@ export class SheetGridController {
     // 2. Grid Table Viewport
     const vp = document.createElement("div");
     vp.className = "vno-grid-viewport";
+    vp.addEventListener("scroll", () => {
+      this.autocomplete.updatePosition();
+    });
 
     const table = document.createElement("table");
     table.className = "vno-grid-table";
@@ -172,6 +188,15 @@ export class SheetGridController {
         e.preventDefault();
         this.focusFormulaInput();
         return;
+      } else if (e.key === "=" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        this.formulaInput.value = "=";
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, "=");
+        this.focusFormulaInput();
+        if (this.autocomplete) {
+          this.autocomplete.handleInput("=", 1);
+        }
+        return;
       } else return;
 
       e.preventDefault();
@@ -236,6 +261,9 @@ export class SheetGridController {
 
   selectCell(col, row) {
     if (row < 1 || row > this.rowCount) return;
+    if (this.autocomplete) {
+      this.autocomplete.closeAll();
+    }
     const old = this.container.querySelector(`.vno-grid-cell.is-selected`);
     if (old) {
       old.classList.remove("is-selected");

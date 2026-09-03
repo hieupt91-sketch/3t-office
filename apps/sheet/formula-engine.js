@@ -383,3 +383,238 @@ export class FormulaEngine {
     return "#VALUE!";
   }
 }
+
+/**
+ * Lọc và xếp hạng gợi ý hàm tính toán dựa trên tiền tố người dùng nhập
+ * @param {string} query Chuỗi tiền tố (ví dụ "SU", "AV", "count")
+ * @param {Array<Object>} [catalog=FUNCTION_CATALOG] Danh mục hàm
+ * @returns {Array<Object>} Danh sách các hàm khớp tiền tố, sắp xếp theo độ liên quan
+ */
+export function getFunctionSuggestions(query, catalog = FUNCTION_CATALOG) {
+  if (!query || typeof query !== "string") return [];
+  const q = query.trim().toUpperCase();
+  if (!q) return [];
+
+  const matches = [];
+  for (const item of catalog) {
+    const nameUpper = item.name.toUpperCase();
+    if (nameUpper === q) {
+      matches.push({ item, score: 1000 });
+    } else if (nameUpper.startsWith(q)) {
+      // Khớp tiền tố: ưu tiên tên ngắn hơn hoặc độ chênh lệch độ dài ít hơn
+      matches.push({ item, score: 500 - (nameUpper.length - q.length) });
+    }
+  }
+
+  matches.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.item.name.localeCompare(b.item.name);
+  });
+
+  return matches.map(m => m.item);
+}
+
+/**
+ * Định dạng chuỗi cú pháp hàm thành HTML với tham số hiện tại được làm đậm (strong)
+ * @param {string} syntax Cú pháp chuẩn (ví dụ "SUM(number1, [number2], ...)")
+ * @param {number} [activeParamIndex=0] Vị trí tham số hiện tại (0-indexed)
+ * @returns {string} Chuỗi HTML với <strong class="vno-syntax-param-active">...</strong>
+ */
+export function formatSyntaxHtml(syntax, activeParamIndex = 0) {
+  if (!syntax) return "";
+  const openParen = syntax.indexOf("(");
+  const closeParen = syntax.lastIndexOf(")");
+  if (openParen === -1 || closeParen === -1) {
+    return syntax;
+  }
+
+  const funcName = syntax.substring(0, openParen);
+  const innerParams = syntax.substring(openParen + 1, closeParen).trim();
+  if (!innerParams) {
+    return `${funcName}()`;
+  }
+
+  const rawParams = innerParams.split(",").map(p => p.trim());
+  const hasVariadic = rawParams.some(p => p === "..." || p.includes("..."));
+
+  const formattedParams = rawParams.map((param, idx) => {
+    let isActive = false;
+    if (idx === activeParamIndex) {
+      isActive = true;
+    } else if (hasVariadic && idx === rawParams.length - 1 && activeParamIndex >= rawParams.length - 1) {
+      isActive = true;
+    }
+
+    if (isActive) {
+      return `<strong class="vno-syntax-param-active">${param}</strong>`;
+    }
+    return param;
+  });
+
+  return `${funcName}(${formattedParams.join(", ")})`;
+}
+
+/**
+ * Tìm hàm đang mở bao quanh vị trí con trỏ (hỗ trợ hàm lồng nhau và chuỗi trong dấu nháy)
+ * @param {string} formulaStr Chuỗi công thức (ví dụ "=IF(A1 > 0, SUM(B1, B2), ")
+ * @param {number} [cursorPos] Vị trí con trỏ
+ * @param {Array<Object>} [catalog=FUNCTION_CATALOG]
+ * @returns {Object|null} { funcName, funcDef, activeParamIndex, openParenIndex }
+ */
+export function findEnclosingFunction(formulaStr, cursorPos, catalog = FUNCTION_CATALOG) {
+  if (!formulaStr || !formulaStr.startsWith("=")) return null;
+  const pos = (cursorPos !== undefined && cursorPos !== null) ? cursorPos : formulaStr.length;
+  const text = formulaStr.slice(0, pos);
+
+  const parenStack = [];
+  let inQuotes = false;
+  let currentWord = "";
+
+  for (let i = 1; i < text.length; i++) {
+    const char = text[i];
+    const prevChar = text[i - 1];
+
+    if (char === '"' && prevChar !== "\\") {
+      inQuotes = !inQuotes;
+      currentWord = "";
+      continue;
+    }
+
+    if (inQuotes) continue;
+
+    if (/[A-Za-z0-9_]/.test(char)) {
+      currentWord += char;
+    } else {
+      if (char === "(") {
+        parenStack.push({
+          funcName: currentWord.toUpperCase(),
+          commaCount: 0,
+          openParenIndex: i
+        });
+        currentWord = "";
+      } else if (char === ")") {
+        if (parenStack.length > 0) {
+          parenStack.pop();
+        }
+        currentWord = "";
+      } else if (char === "," || char === ";") {
+        if (parenStack.length > 0) {
+          parenStack[parenStack.length - 1].commaCount++;
+        }
+        currentWord = "";
+      } else {
+        currentWord = "";
+      }
+    }
+  }
+
+  if (parenStack.length > 0) {
+    const active = parenStack[parenStack.length - 1];
+    const funcDef = catalog.find(f => f.name.toUpperCase() === active.funcName);
+    if (funcDef) {
+      return {
+        funcName: active.funcName,
+        funcDef: funcDef,
+        activeParamIndex: active.commaCount,
+        openParenIndex: active.openParenIndex
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Phân tích ngữ cảnh nhập liệu công thức tại vị trí con trỏ
+ * Xác định xem đang gõ tên hàm (autocomplete) hay đang nhập tham số hàm (syntax_tooltip)
+ * @param {string} formulaStr Chuỗi công thức
+ * @param {number} [cursorPos] Vị trí con trỏ hiện tại
+ * @param {Array<Object>} [catalog=FUNCTION_CATALOG]
+ * @returns {Object} { mode: "autocomplete"|"syntax_tooltip"|null, ... }
+ */
+export function parseFormulaContext(formulaStr, cursorPos, catalog = FUNCTION_CATALOG) {
+  if (!formulaStr || !formulaStr.startsWith("=")) {
+    return { mode: null };
+  }
+
+  const pos = (cursorPos !== undefined && cursorPos !== null) ? cursorPos : formulaStr.length;
+  const text = formulaStr.slice(0, pos);
+
+  const parenStack = [];
+  let inQuotes = false;
+  let currentWord = "";
+  let currentWordStart = 1;
+
+  for (let i = 1; i < text.length; i++) {
+    const char = text[i];
+    const prevChar = text[i - 1];
+
+    if (char === '"' && prevChar !== "\\") {
+      inQuotes = !inQuotes;
+      currentWord = "";
+      continue;
+    }
+
+    if (inQuotes) continue;
+
+    if (/[A-Za-z0-9_]/.test(char)) {
+      if (currentWord === "") {
+        currentWordStart = i;
+      }
+      currentWord += char;
+    } else {
+      if (char === "(") {
+        parenStack.push({
+          funcName: currentWord.toUpperCase(),
+          commaCount: 0,
+          openParenIndex: i
+        });
+        currentWord = "";
+      } else if (char === ")") {
+        if (parenStack.length > 0) {
+          parenStack.pop();
+        }
+        currentWord = "";
+      } else if (char === "," || char === ";") {
+        if (parenStack.length > 0) {
+          parenStack[parenStack.length - 1].commaCount++;
+        }
+        currentWord = "";
+      } else {
+        currentWord = "";
+      }
+    }
+  }
+
+  // 1. Kiểm tra nếu đang gõ tiền tố tên hàm
+  if (!inQuotes && currentWord.length > 0) {
+    const suggestions = getFunctionSuggestions(currentWord, catalog);
+    if (suggestions.length > 0) {
+      return {
+        mode: "autocomplete",
+        prefix: currentWord,
+        tokenStartIndex: currentWordStart,
+        tokenEndIndex: currentWordStart + currentWord.length,
+        suggestions
+      };
+    }
+  }
+
+  // 2. Nếu không phải gõ tiền tố hàm, kiểm tra xem có đang nằm trong tham số hàm nào không
+  if (parenStack.length > 0) {
+    const active = parenStack[parenStack.length - 1];
+    const funcDef = catalog.find(f => f.name.toUpperCase() === active.funcName);
+    if (funcDef) {
+      return {
+        mode: "syntax_tooltip",
+        funcName: active.funcName,
+        funcDef: funcDef,
+        activeParamIndex: active.commaCount,
+        openParenIndex: active.openParenIndex
+      };
+    }
+  }
+
+  return { mode: null };
+}
+
