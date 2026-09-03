@@ -5,6 +5,7 @@
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { SheetChartBuilder } from "./sheet-chart.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
+import { PivotTableEngine } from "./pivot-table.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 
 export class SheetGridController {
@@ -48,6 +49,7 @@ export class SheetGridController {
     this.conditionalFormattingBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.dataValidationsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.chartsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
 
     // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
     this.isFrozenPanes = false;
@@ -263,6 +265,7 @@ export class SheetGridController {
     if (!this.conditionalFormattingBySheet[sheetName]) this.conditionalFormattingBySheet[sheetName] = [];
     if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
     if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
+    if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
 
     // 1. Lưu trạng thái sheet hiện tại
     if (this.activeSheet && this.sheetStates) {
@@ -359,6 +362,7 @@ export class SheetGridController {
     if (!this.conditionalFormattingBySheet[sheetName]) this.conditionalFormattingBySheet[sheetName] = [];
     if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
     if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
+    if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
     if (!this.sheetStates) {
       this.sheetStates = {};
     }
@@ -400,6 +404,7 @@ export class SheetGridController {
     delete this.conditionalFormattingBySheet[sheetName];
     delete this.dataValidationsBySheet[sheetName];
     delete this.chartsBySheet[sheetName];
+    delete this.pivotTablesBySheet[sheetName];
     this.tabBar?.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)?.remove?.();
     if (this.activeSheet === sheetName) {
       this.activeSheet = "";
@@ -1035,6 +1040,8 @@ export class SheetGridController {
       this.setStyle(action.prop, action[value], false);
     } else if (action.type === "sort") {
       this._restoreCells(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "pivot-refresh") {
+      this._restoreCells(direction === "undo" ? action.before : action.after);
     } else if (action.type === "collection") {
       const collection = this[action.collection][action.sheet] ||= [];
       const shouldInsert = (action.operation === "insert") === (direction === "redo");
@@ -1338,7 +1345,8 @@ export class SheetGridController {
       },
       conditionalFormatting: structuredClone(this.conditionalFormattingBySheet[sheetName] || []),
       dataValidations: structuredClone(this.dataValidationsBySheet[sheetName] || []),
-      charts: structuredClone(this.chartsBySheet[sheetName] || [])
+      charts: structuredClone(this.chartsBySheet[sheetName] || []),
+      pivotTables: structuredClone(this.pivotTablesBySheet[sheetName] || [])
     };
   }
 
@@ -1355,6 +1363,7 @@ export class SheetGridController {
     this.conditionalFormattingBySheet[sheetName] = structuredClone(snapshot.conditionalFormatting);
     this.dataValidationsBySheet[sheetName] = structuredClone(snapshot.dataValidations);
     this.chartsBySheet[sheetName] = structuredClone(snapshot.charts);
+    this.pivotTablesBySheet[sheetName] = structuredClone(snapshot.pivotTables || []);
     const tabs = this.tabBar?.querySelector?.("#vno-sheet-tabs-list");
     if (tabs && typeof document !== "undefined" && !this.tabBar.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)) {
       const tab = document.createElement("div");
@@ -1622,6 +1631,90 @@ export class SheetGridController {
       if (!result) overlay.querySelector(".vno-rule-error").textContent = "Thông tin kiểm tra dữ liệu chưa hợp lệ.";
       else overlay.remove();
     });
+    return true;
+  }
+
+  createPivotTable(config, recordUndo = true) {
+    const sourceSheet = config.sourceSheet || this.activeSheet;
+    const sourceCells = this.sheetsData[sourceSheet];
+    if (!sourceCells) throw new Error("Không tìm thấy sheet dữ liệu nguồn.");
+    const table = PivotTableEngine.aggregate(sourceCells, config);
+    const baseName = `${sourceSheet} (2)`;
+    let targetSheet = config.targetSheet || baseName;
+    let suffix = 3;
+    while (this.sheets.includes(targetSheet)) targetSheet = `${sourceSheet} (${suffix++})`;
+    const previousSheet = this.activeSheet;
+    this.addSheet(targetSheet, false);
+    this.sheetsData[targetSheet] = PivotTableEngine.toCells(table);
+    const pivot = { ...structuredClone(config), id: config.id || `pivot-${Date.now()}`, sourceSheet, targetSheet };
+    this.pivotTablesBySheet[targetSheet] = [pivot];
+    this._renderVirtualRows(1, Math.min(40, this.rowCount));
+    this.selectCell("A", 1);
+    if (recordUndo) this._recordHistory({ type: "sheet-add", sheet: previousSheet, sheetName: targetSheet, previousSheet, snapshot: this._snapshotSheet(targetSheet) });
+    return pivot;
+  }
+
+  refreshPivotTable(sheetName = this.activeSheet, recordUndo = true) {
+    const pivot = this.pivotTablesBySheet[sheetName]?.[0];
+    if (!pivot) return false;
+    const sourceCells = this.sheetsData[pivot.sourceSheet];
+    if (!sourceCells) return false;
+    const before = this._snapshotCells(sheetName);
+    const table = PivotTableEngine.aggregate(sourceCells, pivot);
+    this.sheetsData[sheetName] = PivotTableEngine.toCells(table);
+    if (sheetName === this.activeSheet) {
+      this._renderVirtualRows(1, Math.min(40, this.rowCount));
+      this.selectCell("A", 1);
+    }
+    if (recordUndo) this._recordHistory({ type: "pivot-refresh", sheet: sheetName, before, after: this._snapshotCells(sheetName) });
+    return true;
+  }
+
+  showPivotTableDialog() {
+    const sourceSheet = this.activeSheet;
+    const defaultRange = this.getSelectedRangeLabel();
+    const overlay = this._createSheetDialog("Tạo Bảng tổng hợp", `
+      <div class="vno-pivot-dialog">
+        <label>Vùng dữ liệu nguồn (hàng đầu là tiêu đề)<input id="vno-pivot-range" value="${this._escapeHtml(defaultRange)}" aria-label="Vùng dữ liệu nguồn"></label>
+        <button class="vno-btn" id="vno-pivot-load-fields" type="button">Đọc tên cột</button>
+        <div class="vno-pivot-fields" aria-live="polite"></div>
+        <div class="vno-rule-error" role="alert"></div>
+      </div>`);
+    if (!overlay) return false;
+    const fieldsHost = overlay.querySelector(".vno-pivot-fields");
+    const error = overlay.querySelector(".vno-rule-error");
+    const loadFields = () => {
+      try {
+        const { headers } = PivotTableEngine.readSource(this.sheetsData[sourceSheet], overlay.querySelector("#vno-pivot-range").value);
+        fieldsHost.innerHTML = `<p>Chọn trường cho từng vùng:</p>${headers.map((header, index) => `
+          <div class="vno-pivot-field" data-field="${this._escapeHtml(header)}">
+            <strong>${this._escapeHtml(header)}</strong>
+            <label><input type="checkbox" data-zone="rows" data-index="${index}"> Rows</label>
+            <label><input type="checkbox" data-zone="columns" data-index="${index}"> Columns</label>
+            <label><input type="checkbox" data-zone="values" data-index="${index}"> Values</label>
+            <select data-aggregate="${index}" aria-label="Phép tổng hợp cho ${this._escapeHtml(header)}"><option>SUM</option><option>COUNT</option><option>AVERAGE</option><option>MIN</option><option>MAX</option></select>
+          </div>`).join("")}`;
+        fieldsHost.dataset.headers = JSON.stringify(headers);
+        error.textContent = "";
+      } catch (err) {
+        fieldsHost.innerHTML = "";
+        error.textContent = err.message;
+      }
+    };
+    overlay.querySelector("#vno-pivot-load-fields").addEventListener("click", loadFields);
+    overlay.querySelector(".vno-rule-apply").textContent = "Tạo Pivot Table";
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      try {
+        const headers = JSON.parse(fieldsHost.dataset.headers || "[]");
+        const selected = zone => [...fieldsHost.querySelectorAll(`input[data-zone="${zone}"]:checked`)].map(input => headers[+input.dataset.index]);
+        const valueFields = [...fieldsHost.querySelectorAll('input[data-zone="values"]:checked')].map(input => ({ field: headers[+input.dataset.index], aggregate: fieldsHost.querySelector(`select[data-aggregate="${input.dataset.index}"]`).value }));
+        this.createPivotTable({ sourceSheet, sourceRange: overlay.querySelector("#vno-pivot-range").value, rows: selected("rows"), columns: selected("columns"), values: valueFields });
+        overlay.remove();
+      } catch (err) {
+        error.textContent = err.message;
+      }
+    });
+    loadFields();
     return true;
   }
 

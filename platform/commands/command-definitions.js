@@ -121,6 +121,8 @@ export const SHEET_COMMANDS = [
   { id: "sheet.data.filter", category: "data", label: "Bộ lọc", shortcut: "Ctrl+Shift+L", icon: "filter", tooltip: "Bật/tắt chế độ lọc AutoFilter (Ctrl+Shift+L)", isToggle: true },
   { id: "sheet.format.conditional", category: "format", label: "Định dạng có điều kiện", icon: "colorHighlight", tooltip: "Tô nổi bật các ô theo giá trị hoặc trạng thái trống" },
   { id: "sheet.data.validation", category: "data", label: "Kiểm tra dữ liệu", icon: "table", tooltip: "Tạo danh sách lựa chọn hoặc giới hạn số trong khoảng" },
+  { id: "sheet.data.pivotTable", category: "data", label: "Bảng tổng hợp", icon: "pivotTable", tooltip: "Tạo Pivot Table từ vùng dữ liệu đang chọn" },
+  { id: "sheet.data.pivotRefresh", category: "data", label: "Làm mới Pivot", icon: "refreshTable", tooltip: "Tính lại Pivot Table từ dữ liệu nguồn" },
   { id: "sheet.view.freezePanes", category: "view", label: "Cố định hàng/cột", icon: "table", tooltip: "Cố định hàng 1 và cột A khi cuộn (Freeze Panes)", isToggle: true },
 
   // Chèn hàng/cột & Biểu đồ

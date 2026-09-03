@@ -1,0 +1,62 @@
+import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { PivotTableEngine } from "../../apps/sheet/pivot-table.js";
+import { ICONS } from "../../platform/ui-kit/icons.js";
+import { SHEET_COMMANDS } from "../../platform/commands/command-definitions.js";
+
+function container() { return { querySelector(){ return null; }, querySelectorAll(){ return []; }, addEventListener(){}, classList:{ add(){}, remove(){}, toggle(){} } }; }
+function assert(condition, message) { if (!condition) throw new Error(message); }
+function seed(grid) {
+  const data = [["A1","Vùng"],["B1","Sản phẩm"],["C1","Doanh số"],["A2","Bắc"],["B2","Bút"],["C2",10],["A3","Bắc"],["B3","Vở"],["C3",20],["A4","Nam"],["B4","Bút"],["C4",15],["A5","Nam"],["B5","Bút"],["C5",5]];
+  data.forEach(([coord,val]) => { const [, col, row] = coord.match(/^([A-Z]+)(\d+)$/); grid.setCellValue(col, +row, val, false); });
+}
+
+export async function runSheetPivotTableTests() {
+  const results = [];
+  const test = (name, fn) => { try { fn(); results.push({ name, pass:true }); } catch(error) { results.push({ name, pass:false, error:error.message }); } };
+
+  test("Pivot engine tạo bảng Rows/Columns/Sum thật từ vùng nguồn", () => {
+    const grid = new SheetGridController(container()); seed(grid);
+    const table = PivotTableEngine.aggregate(grid.cellsData, { sourceRange:"A1:C5", rows:["Vùng"], columns:["Sản phẩm"], values:[{field:"Doanh số",aggregate:"SUM"}] });
+    assert(table[0].join("|") === "Vùng|Bút — SUM Doanh số|Vở — SUM Doanh số", `Header sai: ${table[0]}`);
+    assert(table[1].join("|") === "Bắc|10|20" && table[2].join("|") === "Nam|20|0", "Kết quả Sum theo trục sai");
+  });
+
+  test("Pivot Count/Average cho kết quả số chính xác", () => {
+    const grid = new SheetGridController(container()); seed(grid);
+    const table = PivotTableEngine.aggregate(grid.cellsData, { sourceRange:"A1:C5", rows:["Vùng"], columns:[], values:[{field:"Doanh số",aggregate:"COUNT"},{field:"Doanh số",aggregate:"AVERAGE"}] });
+    assert(table[1][1] === 2 && table[1][2] === 15 && table[2][1] === 2 && table[2][2] === 10, "Count/Average sai");
+  });
+
+  test("Tạo Pivot sinh sheet thật, state cô lập và undo/redo phục hồi snapshot", () => {
+    const grid = new SheetGridController(container()); seed(grid); grid.undoStack=[];
+    const source = grid.activeSheet;
+    const pivot = grid.createPivotTable({ sourceRange:"A1:C5", rows:["Vùng"], columns:[], values:[{field:"Doanh số",aggregate:"SUM"}] });
+    assert(grid.activeSheet === pivot.targetSheet && grid.cellsData.get("B2")?.val === 30, "Sheet Pivot chưa render dữ liệu thật");
+    assert(grid.pivotTablesBySheet[source].length === 0 && grid.pivotTablesBySheet[pivot.targetSheet][0].sourceSheet === source, "Pivot state bị rò sheet");
+    grid.undo(); assert(!grid.sheets.includes(pivot.targetSheet), "Undo create phải xóa sheet Pivot");
+    grid.redo(); assert(grid.cellsData.get("B2")?.val === 30 && grid.pivotTablesBySheet[pivot.targetSheet].length === 1, "Redo phải phục hồi data/config Pivot");
+  });
+
+  test("Refresh đọc lại source và có undo/redo riêng", () => {
+    const grid = new SheetGridController(container()); seed(grid);
+    const pivot = grid.createPivotTable({ sourceRange:"A1:C5", rows:["Vùng"], columns:[], values:[{field:"Doanh số",aggregate:"SUM"}] });
+    grid.sheetsData[pivot.sourceSheet].get("C2").val = 100;
+    grid.refreshPivotTable(); assert(grid.cellsData.get("B2")?.val === 120, "Refresh chưa lấy dữ liệu nguồn mới");
+    grid.undo(); assert(grid.cellsData.get("B2")?.val === 30, "Undo refresh chưa về kết quả cũ");
+    grid.redo(); assert(grid.cellsData.get("B2")?.val === 120, "Redo refresh chưa áp dụng kết quả mới");
+  });
+
+  test("Xóa sheet Pivot rồi undo phục hồi cả config và bảng", () => {
+    const grid = new SheetGridController(container()); seed(grid);
+    const pivot = grid.createPivotTable({ sourceRange:"A1:C5", rows:["Vùng"], columns:[], values:[{field:"Doanh số",aggregate:"COUNT"}] });
+    grid.deleteSheet(pivot.targetSheet); grid.undo();
+    assert(grid.activeSheet === pivot.targetSheet && grid.pivotTablesBySheet[pivot.targetSheet][0].id === pivot.id && grid.cellsData.get("B2")?.val === 2, "Undo delete phải phục hồi toàn bộ Pivot sheet");
+  });
+
+  test("Command Pivot dùng icon bảng SVG thật và Refresh có command riêng", () => {
+    const pivotCommand = SHEET_COMMANDS.find(command => command.id === "sheet.data.pivotTable");
+    assert(pivotCommand?.icon === "pivotTable" && ICONS.pivotTable?.includes("<rect"), "Pivot command thiếu icon bảng thật");
+    assert(SHEET_COMMANDS.some(command => command.id === "sheet.data.pivotRefresh") && ICONS.refreshTable?.includes("<path"), "Thiếu command/icon Refresh");
+  });
+  return results;
+}

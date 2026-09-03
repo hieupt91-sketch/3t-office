@@ -18,6 +18,16 @@ export const FUNCTION_CATALOG = [
   { name: "COUNTA", category: "Thống kê", syntax: "COUNTA(value1, [value2], ...)", desc: "Đếm số lượng ô không rỗng (chứa bất kỳ dữ liệu nào)." },
   { name: "MIN", category: "Thống kê", syntax: "MIN(number1, [number2], ...)", desc: "Trả về số nhỏ nhất trong một tập hợp các giá trị." },
   { name: "MAX", category: "Thống kê", syntax: "MAX(number1, [number2], ...)", desc: "Trả về số lớn nhất trong một tập hợp các giá trị." },
+  { name: "COUNTIF", category: "Thống kê", syntax: "COUNTIF(range, criteria)", desc: "Đếm các ô thỏa một điều kiện." },
+  { name: "SUMIF", category: "Thống kê", syntax: "SUMIF(range, criteria, [sum_range])", desc: "Tính tổng các ô tương ứng thỏa một điều kiện." },
+  { name: "COUNTIFS", category: "Thống kê", syntax: "COUNTIFS(range1, criteria1, [range2, criteria2], ...)", desc: "Đếm các hàng thỏa đồng thời nhiều điều kiện." },
+  { name: "SUMIFS", category: "Thống kê", syntax: "SUMIFS(sum_range, range1, criteria1, [range2, criteria2], ...)", desc: "Tính tổng các hàng thỏa đồng thời nhiều điều kiện." },
+
+  // Tra cứu & tham chiếu
+  { name: "VLOOKUP", category: "Tra cứu", syntax: "VLOOKUP(lookup_value, table_array, col_index, [range_lookup])", desc: "Tra theo cột đầu của bảng và trả về giá trị ở cột chỉ định." },
+  { name: "HLOOKUP", category: "Tra cứu", syntax: "HLOOKUP(lookup_value, table_array, row_index, [range_lookup])", desc: "Tra theo hàng đầu của bảng và trả về giá trị ở hàng chỉ định." },
+  { name: "INDEX", category: "Tra cứu", syntax: "INDEX(array, row_num, [col_num])", desc: "Trả về giá trị tại hàng và cột trong vùng." },
+  { name: "MATCH", category: "Tra cứu", syntax: "MATCH(lookup_value, lookup_array, [match_type])", desc: "Trả về vị trí tương đối của giá trị trong vùng." },
 
   // Logic
   { name: "IF", category: "Logic", syntax: "IF(logical_test, value_if_true, [value_if_false])", desc: "Kiểm tra điều kiện và trả về giá trị thứ nhất nếu đúng, thứ hai nếu sai." },
@@ -131,6 +141,80 @@ export class FormulaEngine {
       .filter(v => !isNaN(v));
   }
 
+  _rangeValues(range) {
+    return this.expandRange(String(range)).map(coord => this.getCellValue(coord));
+  }
+
+  _rangeMatrix(range) {
+    const match = String(range).trim().toUpperCase().match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+    if (!match) return [[this._resolveSingleValue(range)]];
+    const [, startCol, startRowText, endCol, endRowText] = match;
+    const startColIndex = this._columnIndex(startCol);
+    const endColIndex = this._columnIndex(endCol);
+    const rows = [];
+    for (let row = Math.min(+startRowText, +endRowText); row <= Math.max(+startRowText, +endRowText); row++) {
+      const values = [];
+      for (let col = Math.min(startColIndex, endColIndex); col <= Math.max(startColIndex, endColIndex); col++) {
+        values.push(this.getCellValue(`${this._columnName(col)}${row}`));
+      }
+      rows.push(values);
+    }
+    return rows;
+  }
+
+  _columnIndex(name) {
+    return [...name].reduce((value, char) => value * 26 + char.charCodeAt(0) - 64, 0) - 1;
+  }
+
+  _columnName(index) {
+    let value = index + 1;
+    let name = "";
+    while (value > 0) {
+      value--;
+      name = String.fromCharCode(65 + value % 26) + name;
+      value = Math.floor(value / 26);
+    }
+    return name;
+  }
+
+  _compareValues(left, right) {
+    if (typeof left === "number" && typeof right === "number") return left - right;
+    return String(left).localeCompare(String(right), undefined, { sensitivity: "accent", numeric: true });
+  }
+
+  _equals(left, right) {
+    if (typeof left === "number" || typeof right === "number") {
+      const a = Number(left);
+      const b = Number(right);
+      if (!Number.isNaN(a) && !Number.isNaN(b)) return a === b;
+    }
+    return String(left).toLocaleLowerCase() === String(right).toLocaleLowerCase();
+  }
+
+  _matchesCriteria(value, rawCriteria) {
+    const criteria = this._resolveSingleValue(rawCriteria);
+    if (typeof criteria === "number" || typeof criteria === "boolean") return this._equals(value, criteria);
+    const text = String(criteria);
+    const match = text.match(/^(<=|>=|<>|!=|=|<|>)(.*)$/);
+    if (match) {
+      const rightText = match[2];
+      const numericRight = Number(rightText);
+      const right = rightText.trim() !== "" && !Number.isNaN(numericRight) ? numericRight : rightText;
+      const comparison = this._compareValues(value, right);
+      if (match[1] === "<") return comparison < 0;
+      if (match[1] === ">") return comparison > 0;
+      if (match[1] === "<=") return comparison <= 0;
+      if (match[1] === ">=") return comparison >= 0;
+      if (match[1] === "<>" || match[1] === "!=") return !this._equals(value, right);
+      return this._equals(value, right);
+    }
+    if (text.includes("*") || text.includes("?")) {
+      const escaped = text.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
+      return new RegExp(`^${escaped}$`, "i").test(String(value));
+    }
+    return this._equals(value, text);
+  }
+
   /**
    * Tính toán biểu thức công thức (bắt đầu bằng dấu =)
    * @param {string} formula
@@ -219,6 +303,72 @@ export class FormulaEngine {
       case "COUNTA": {
         const vals = this.collectValues(args).filter(v => v !== "" && v !== null && v !== undefined);
         return vals.length;
+      }
+
+      case "VLOOKUP":
+      case "HLOOKUP": {
+        const lookup = this._resolveSingleValue(args[0]);
+        const matrix = this._rangeMatrix(args[1]);
+        const requestedIndex = Number(this._resolveSingleValue(args[2]));
+        const exact = args[3] !== undefined && !Boolean(this._resolveSingleValue(args[3]));
+        const candidates = funcName === "VLOOKUP" ? matrix.map((row, index) => ({ key: row[0], index })) : matrix[0].map((key, index) => ({ key, index }));
+        let found = exact ? candidates.find(item => this._equals(item.key, lookup)) : null;
+        if (!exact) {
+          for (const candidate of candidates) {
+            if (this._compareValues(candidate.key, lookup) <= 0) found = candidate;
+            else break;
+          }
+        }
+        if (!found || requestedIndex < 1) return "#N/A";
+        const result = funcName === "VLOOKUP" ? matrix[found.index]?.[requestedIndex - 1] : matrix[requestedIndex - 1]?.[found.index];
+        return result === undefined ? "#REF!" : result;
+      }
+
+      case "INDEX": {
+        const matrix = this._rangeMatrix(args[0]);
+        const row = Number(this._resolveSingleValue(args[1]));
+        const col = args[2] === undefined ? 1 : Number(this._resolveSingleValue(args[2]));
+        return row >= 1 && col >= 1 && matrix[row - 1]?.[col - 1] !== undefined ? matrix[row - 1][col - 1] : "#REF!";
+      }
+
+      case "MATCH": {
+        const lookup = this._resolveSingleValue(args[0]);
+        const values = this._rangeMatrix(args[1]).flat();
+        const matchType = args[2] === undefined ? 1 : Number(this._resolveSingleValue(args[2]));
+        if (matchType === 0) {
+          const index = values.findIndex(value => this._equals(value, lookup));
+          return index < 0 ? "#N/A" : index + 1;
+        }
+        let found = -1;
+        for (let index = 0; index < values.length; index++) {
+          const comparison = this._compareValues(values[index], lookup);
+          if ((matchType === 1 && comparison <= 0) || (matchType === -1 && comparison >= 0)) found = index;
+          else break;
+        }
+        return found < 0 ? "#N/A" : found + 1;
+      }
+
+      case "COUNTIF":
+        return this._rangeValues(args[0]).filter(value => this._matchesCriteria(value, args[1])).length;
+
+      case "SUMIF": {
+        const criteriaValues = this._rangeValues(args[0]);
+        const sumValues = this._rangeValues(args[2] || args[0]);
+        return criteriaValues.reduce((sum, value, index) => sum + (this._matchesCriteria(value, args[1]) ? Number(sumValues[index]) || 0 : 0), 0);
+      }
+
+      case "COUNTIFS":
+      case "SUMIFS": {
+        const offset = funcName === "SUMIFS" ? 1 : 0;
+        const sumValues = funcName === "SUMIFS" ? this._rangeValues(args[0]) : null;
+        const pairs = [];
+        for (let index = offset; index < args.length; index += 2) pairs.push([this._rangeValues(args[index]), args[index + 1]]);
+        if (!pairs.length || pairs.some(([values]) => values.length !== pairs[0][0].length)) return "#VALUE!";
+        let result = 0;
+        for (let index = 0; index < pairs[0][0].length; index++) {
+          if (pairs.every(([values, criteria]) => this._matchesCriteria(values[index], criteria))) result += sumValues ? Number(sumValues[index]) || 0 : 1;
+        }
+        return result;
       }
 
       case "ROUND": {

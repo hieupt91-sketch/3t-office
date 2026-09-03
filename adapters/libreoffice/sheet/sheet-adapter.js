@@ -18,6 +18,8 @@ export class SheetAdapter {
     globalUnoBridge.attachDocument(this);
     globalCommandBus.bindHandler("sheet.format.conditional", () => this.grid.showConditionalFormattingDialog());
     globalCommandBus.bindHandler("sheet.data.validation", () => this.grid.showDataValidationDialog());
+    globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
+    globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this.grid.refreshPivotTable());
   }
 
   /**

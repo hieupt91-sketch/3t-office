@@ -121,6 +121,8 @@ export const SHEET_RIBBON_TABS = [
           { type: "button", commandId: "sheet.data.sortDesc", isLarge: true },
           { type: "button", commandId: "sheet.data.filter", isLarge: true },
           { type: "button", commandId: "sheet.data.validation", isLarge: true },
+          { type: "button", commandId: "sheet.data.pivotTable", isLarge: true },
+          { type: "button", commandId: "sheet.data.pivotRefresh", isLarge: true },
           { type: "button", commandId: "sheet.format.conditional", isLarge: true },
           { type: "button", commandId: "sheet.view.freezePanes", isLarge: true }
         ]
