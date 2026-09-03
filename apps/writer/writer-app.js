@@ -134,10 +134,22 @@ export class WriterApp {
     this.canvas.appendChild(footer);
 
     viewport.appendChild(this.canvas);
-    container.appendChild(viewport);
+
+    const workspace = document.createElement("div");
+    workspace.className = "vno-writer-workspace";
+    workspace.appendChild(viewport);
+
+    const commentsPanel = document.createElement("aside");
+    commentsPanel.className = "vno-writer-comments-panel";
+    commentsPanel.setAttribute("aria-label", "Ghi chú tài liệu");
+    commentsPanel.hidden = true;
+    workspace.appendChild(commentsPanel);
+
+    container.appendChild(workspace);
     this.shell.setEditorCanvas(container);
 
     this.adapter = new WriterAdapter(this.canvas);
+    this.adapter.setCommentsPanel(commentsPanel);
     this.adapter.attach();
 
     this._setupContentObserver();

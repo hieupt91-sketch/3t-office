@@ -30,6 +30,15 @@ export class WriterAdapter {
       margins: { ...DEFAULT_MARGINS_MM }
     };
     this.copiedFormat = null;
+    /** @type {Array<{id:string, anchorText:string, content:string, createdAt:string}>} */
+    this.comments = [];
+    this.commentsPanel = null;
+    this.activeCommentId = null;
+    this._commentSequence = 0;
+    this._commentAnchorClickHandler = null;
+    this._commentPanelClickHandler = null;
+    this._commentAnchorKeyHandler = null;
+    this._commentPanelKeyHandler = null;
     this._initZones();
   }
 
@@ -49,6 +58,63 @@ export class WriterAdapter {
     this._initZones();
     globalUnoBridge.attachDocument(this);
     this._applyPageSetup();
+    this._bindCommentInteractions();
+    this._renderCommentsPanel();
+  }
+
+  setCommentsPanel(panelDom) {
+    if (this.commentsPanel && this._commentPanelClickHandler) {
+      this.commentsPanel.removeEventListener?.("click", this._commentPanelClickHandler);
+      this.commentsPanel.removeEventListener?.("keydown", this._commentPanelKeyHandler);
+    }
+    this.commentsPanel = panelDom;
+    this._commentPanelClickHandler = null;
+    this._bindCommentInteractions();
+    this._renderCommentsPanel();
+  }
+
+  _bindCommentInteractions() {
+    if (this.bodyDom?.addEventListener && !this._commentAnchorClickHandler) {
+      this._commentAnchorClickHandler = (event) => {
+        const anchor = event.target?.closest?.("[data-comment-id]");
+        if (anchor && this.bodyDom.contains(anchor)) {
+          this.focusComment(anchor.dataset.commentId);
+        }
+      };
+      this.bodyDom.addEventListener("click", this._commentAnchorClickHandler);
+      this._commentAnchorKeyHandler = (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        const anchor = event.target?.closest?.("[data-comment-id]");
+        if (anchor) {
+          event.preventDefault?.();
+          this.focusComment(anchor.dataset.commentId);
+        }
+      };
+      this.bodyDom.addEventListener("keydown", this._commentAnchorKeyHandler);
+    }
+
+    if (this.commentsPanel?.addEventListener && !this._commentPanelClickHandler) {
+      this._commentPanelClickHandler = (event) => {
+        const deleteButton = event.target?.closest?.("[data-comment-delete]");
+        if (deleteButton) {
+          event.stopPropagation?.();
+          this.deleteComment(deleteButton.dataset.commentDelete);
+          return;
+        }
+        const card = event.target?.closest?.("[data-comment-card]");
+        if (card) this.focusComment(card.dataset.commentCard);
+      };
+      this.commentsPanel.addEventListener("click", this._commentPanelClickHandler);
+      this._commentPanelKeyHandler = (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        const card = event.target?.closest?.("[data-comment-card]");
+        if (card && !event.target?.closest?.("button")) {
+          event.preventDefault?.();
+          this.focusComment(card.dataset.commentCard);
+        }
+      };
+      this.commentsPanel.addEventListener("keydown", this._commentPanelKeyHandler);
+    }
   }
 
   /** Áp dụng kích thước/lề trang hiện tại lên canvas thật (không chỉ lưu state suông). */
@@ -175,6 +241,12 @@ export class WriterAdapter {
    */
   async handleDispatch(unoUrl, args, vnCmdId) {
     if (!this.editorDom) return false;
+
+    // Clone vùng chọn trước khi nút ribbon/dialog lấy focus khỏi trình soạn thảo.
+    if (vnCmdId === "writer.comment.insert") {
+      return await this.insertComment(args);
+    }
+
     this.editorDom.focus();
 
     switch (vnCmdId) {
@@ -362,6 +434,147 @@ export class WriterAdapter {
 
       default:
         return false;
+    }
+  }
+
+  async insertComment(args = null) {
+    this._initZones();
+    const selection = args?.selection || (typeof window !== "undefined" ? window.getSelection?.() : null);
+    const sourceRange = args?.range || (selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null);
+    const range = sourceRange?.cloneRange ? sourceRange.cloneRange() : sourceRange;
+    const anchorText = (args?.anchorText || range?.toString?.() || "").trim();
+    const commonNode = range?.commonAncestorContainer;
+    const insideBody = !!(
+      range &&
+      !range.collapsed &&
+      anchorText &&
+      this.bodyDom &&
+      (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode))
+    );
+
+    if (!insideBody) {
+      if (!args?.silent) {
+        await showAlertDialog({
+          title: "Chưa chọn văn bản",
+          message: "Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm ghi chú.",
+          type: "warning"
+        });
+      }
+      return false;
+    }
+
+    const content = args && Object.prototype.hasOwnProperty.call(args, "content")
+      ? args.content
+      : await showPromptDialog({
+          title: "Thêm ghi chú",
+          message: `Ghi chú cho “${anchorText.slice(0, 80)}${anchorText.length > 80 ? "…" : ""}”`,
+          placeholder: "Nhập nội dung ghi chú...",
+          confirmText: "Thêm ghi chú"
+        });
+
+    if (content === null || !String(content).trim()) return false;
+
+    const id = `writer-comment-${Date.now()}-${++this._commentSequence}`;
+    const mark = document.createElement("mark");
+    mark.className = "vno-comment-anchor";
+    mark.dataset.commentId = id;
+    mark.setAttribute("tabindex", "0");
+    mark.setAttribute("role", "button");
+    mark.setAttribute("aria-label", `Mở ghi chú cho: ${anchorText.slice(0, 80)}`);
+
+    try {
+      const fragment = range.extractContents();
+      mark.appendChild(fragment);
+      range.insertNode(mark);
+    } catch (error) {
+      console.warn("[WriterAdapter] Không thể tạo anchor ghi chú từ vùng chọn:", error);
+      return false;
+    }
+
+    this.comments.push({
+      id,
+      anchorText,
+      content: String(content).trim(),
+      createdAt: new Date().toISOString()
+    });
+    this.activeCommentId = id;
+    this.isDirty = true;
+    selection?.removeAllRanges?.();
+    this._renderCommentsPanel();
+    this.focusComment(id);
+    return id;
+  }
+
+  focusComment(commentId) {
+    const comment = this.comments.find((item) => item.id === commentId);
+    if (!comment) return false;
+    this.activeCommentId = commentId;
+    const anchor = this.bodyDom?.querySelector?.(`[data-comment-id="${commentId}"]`);
+    const card = this.commentsPanel?.querySelector?.(`[data-comment-card="${commentId}"]`);
+
+    this.bodyDom?.querySelectorAll?.(".vno-comment-anchor.is-active").forEach((node) => node.classList.remove("is-active"));
+    this.commentsPanel?.querySelectorAll?.(".vno-comment-card.is-active").forEach((node) => node.classList.remove("is-active"));
+    anchor?.classList?.add("is-active");
+    card?.classList?.add("is-active");
+    anchor?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    card?.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+    return true;
+  }
+
+  deleteComment(commentId) {
+    const index = this.comments.findIndex((item) => item.id === commentId);
+    if (index < 0) return false;
+    const anchor = this.bodyDom?.querySelector?.(`[data-comment-id="${commentId}"]`);
+    if (anchor?.parentNode) {
+      const parent = anchor.parentNode;
+      while (anchor.firstChild) parent.insertBefore(anchor.firstChild, anchor);
+      parent.removeChild(anchor);
+      parent.normalize?.();
+    }
+    this.comments.splice(index, 1);
+    if (this.activeCommentId === commentId) this.activeCommentId = null;
+    this.isDirty = true;
+    this._renderCommentsPanel();
+    return true;
+  }
+
+  _renderCommentsPanel() {
+    if (!this.commentsPanel || typeof document === "undefined") return;
+    this.commentsPanel.replaceChildren?.();
+    this.commentsPanel.hidden = this.comments.length === 0;
+    if (this.comments.length === 0) return;
+
+    const title = document.createElement("h2");
+    title.className = "vno-comments-title";
+    title.textContent = `Ghi chú (${this.comments.length})`;
+    this.commentsPanel.appendChild(title);
+
+    for (const comment of this.comments) {
+      const card = document.createElement("article");
+      card.className = `vno-comment-card${comment.id === this.activeCommentId ? " is-active" : ""}`;
+      card.dataset.commentCard = comment.id;
+      card.tabIndex = 0;
+
+      const preview = document.createElement("div");
+      preview.className = "vno-comment-anchor-preview";
+      preview.textContent = `“${comment.anchorText}”`;
+      const content = document.createElement("div");
+      content.className = "vno-comment-content";
+      content.textContent = comment.content;
+      const meta = document.createElement("div");
+      meta.className = "vno-comment-meta";
+      const time = document.createElement("time");
+      time.dateTime = comment.createdAt;
+      time.textContent = new Date(comment.createdAt).toLocaleString("vi-VN");
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "vno-comment-delete";
+      remove.dataset.commentDelete = comment.id;
+      remove.setAttribute("aria-label", `Xóa ghi chú cho ${comment.anchorText}`);
+      remove.textContent = "Xóa";
+      meta.append(time, remove);
+      card.append(preview, content, meta);
+      this.commentsPanel.appendChild(card);
     }
   }
 
@@ -657,9 +870,9 @@ export class WriterAdapter {
     }
 
     if (this.bodyDom) {
-      bodyHtml = this.bodyDom.innerHTML;
+      bodyHtml = this._stripCommentMarkup(this.bodyDom.innerHTML);
     } else if (this.editorDom) {
-      bodyHtml = this.editorDom.innerHTML;
+      bodyHtml = this._stripCommentMarkup(this.editorDom.innerHTML);
     }
 
     if (this.footerDom && this.footerDom.innerText?.trim()) {
@@ -668,6 +881,13 @@ export class WriterAdapter {
 
     const fullHtml = `${headerHtml}${bodyHtml}${footerHtml}`;
     return `<style>${this._getPageSetupCss()}</style>${fullHtml}`;
+  }
+
+  _stripCommentMarkup(html) {
+    return String(html || "").replace(
+      /<mark\b(?=[^>]*\bdata-comment-id=(?:"[^"]*"|'[^']*'))[^>]*>([\s\S]*?)<\/mark>/gi,
+      "$1"
+    );
   }
 
   /**
@@ -698,6 +918,10 @@ export class WriterAdapter {
     const result = await globalUnoBridge.openRealFile("writer");
     if (result.status === "ok") {
       this._initZones();
+      // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
+      this.comments = [];
+      this.activeCommentId = null;
+      this._renderCommentsPanel();
       const raw = result.content || "";
       const headerMatch = raw.match(/<div\s+title=["']header["'][^>]*>([\s\S]*?)<\/div>/i);
       const footerMatch = raw.match(/<div\s+title=["']footer["'][^>]*>([\s\S]*?)<\/div>/i);
