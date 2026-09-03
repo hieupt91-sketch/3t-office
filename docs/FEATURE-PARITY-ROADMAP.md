@@ -93,8 +93,8 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] Trình chiếu F5 toàn màn hình
 - [x] Slide Master (mẫu slide chủ đạo áp dụng toàn bài với 4 theme chuẩn, đồng bộ màu/font/logo/footer)
 - [x] Transitions thật giữa các slide (Fade, Slide, Zoom, Flip, cấu hình thời gian 0.3s-1.0s, áp dụng khi chiếu F5)
-- [ ] Animations cho object trong slide (entrance/exit/emphasis)
-- [ ] Speaker Notes (ghi chú cho người thuyết trình, hiện khi trình chiếu chế độ Presenter)
+- [x] Animations cho object trong slide (entrance: Fade In, Fly In, Zoom In, Bounce In, Slide Left; cấu hình thời gian duration, độ trễ delay; lưu trực tiếp vào từng đối tượng shape/title/body; kích hoạt animation CSS đúng thời điểm slide hiện lên khi trình chiếu F5)
+- [x] Speaker Notes (ghi chú riêng biệt từng slide, cô lập 100% không rò rỉ chéo; panel dưới canvas bật/tắt linh hoạt; lưu/đọc tròn vẹn qua thẻ FODP presentation:notes; ẩn hoàn toàn trên màn hình F5 của khán giả; chế độ Presenter Console riêng xem slide + ghi chú + xem trước slide kế tiếp + đồng hồ thuyết trình)
 - [x] Mở/Lưu file PPTX/ODP thật (qua định dạng trung gian FODP, round-trip đã test thật kể cả Open)
 - [ ] Layout chọn sẵn (Title Slide, Title+Content, Two Content...)
 

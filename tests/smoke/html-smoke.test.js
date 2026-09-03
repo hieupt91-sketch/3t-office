@@ -255,6 +255,94 @@ export async function runHtmlSmokeTests() {
           pass: false
         });
       }
+
+      // ==========================================
+      // 4b. Smoke test render VN Slides thật qua Browser Headless
+      // ==========================================
+      const tempSlidesHtmlPath = path.join(ROOT_DIR, "tests", "smoke", "temp-slides-browser.html");
+      const slidesHtmlContent = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="../../platform/theme/tokens.css">
+  <link rel="stylesheet" href="../../platform/ui-kit/ui-kit.css">
+  <link rel="stylesheet" href="../../platform/ribbon/ribbon.css">
+  <link rel="stylesheet" href="../../platform/shell/shell.css">
+  <link rel="stylesheet" href="../../apps/slides/slides.css">
+</head>
+<body>
+  <div id="vno-app-root"></div>
+  <script type="module">
+    import { SlidesApp } from "../../apps/slides/slides-app.js";
+    import { themeManager } from "../../platform/theme/theme-manager.js";
+    import { bootstrapPlatform } from "../../platform/bootstrap.js";
+
+    await bootstrapPlatform();
+    themeManager.setApp("slides");
+    const app = new SlidesApp(document.getElementById("vno-app-root"));
+    await app.init();
+  </script>
+</body>
+</html>`;
+
+      try {
+        fs.writeFileSync(tempSlidesHtmlPath, slidesHtmlContent.replace(
+          "await app.init();",
+          "await app.init(); app.shell.ribbonHost.selectTab('slideshow');"
+        ), "utf8");
+        const slidesFileUrl = "file:///" + tempSlidesHtmlPath.replace(/\\/g, "/");
+
+        const slidesProc = spawnSync(browserBinary, [
+          "--headless=new",
+          "--allow-file-access-from-files",
+          "--virtual-time-budget=3000",
+          "--dump-dom",
+          slidesFileUrl
+        ], {
+          encoding: "utf8",
+          timeout: 15000,
+          windowsHide: true
+        });
+
+        const slidesDom = slidesProc.stdout || "";
+        const hasStudio = slidesDom.includes("vno-slides-studio");
+        const hasNav = slidesDom.includes("vno-slide-navigator");
+        const hasCanvas = slidesDom.includes("vno-slide-canvas");
+        const hasNotes = slidesDom.includes("vno-slide-notes-panel");
+        const hasNotesBar = slidesDom.includes("vno-slide-notes-bar");
+        const hasAnimTab = slidesDom.includes("Hoạt hình");
+        const hasShowTab = slidesDom.includes("Trình chiếu");
+        const hasPresenterBtn = slidesDom.includes("slides.show.presenterMode");
+        const hasNotesToggleBtn = slidesDom.includes("slides.notes.toggle");
+
+        if (slidesProc.status === 0 && hasStudio && hasNav && hasCanvas && hasNotes && hasNotesBar && hasAnimTab && hasShowTab && hasPresenterBtn && hasNotesToggleBtn) {
+          results.push({
+            name: `Browser Headless (${browserName}): Nạp VN Slides, render đầy đủ Studio, Canvas, Speaker Notes & Animations thành công`,
+            pass: true
+          });
+        } else {
+          const missing = [
+            !hasStudio && "thiếu .vno-slides-studio",
+            !hasNav && "thiếu .vno-slide-navigator",
+            !hasCanvas && "thiếu .vno-slide-canvas",
+            !hasNotes && "thiếu .vno-slide-notes-panel",
+            !hasNotesBar && "thiếu .vno-slide-notes-bar",
+            !hasAnimTab && "thiếu tab Hoạt hình",
+            !hasShowTab && "thiếu tab Trình chiếu",
+            !hasPresenterBtn && "thiếu command slides.show.presenterMode",
+            !hasNotesToggleBtn && "thiếu command slides.notes.toggle"
+          ].filter(Boolean).join(", ");
+
+          results.push({
+            name: `Browser Headless (${browserName}): Lỗi render DOM VN Slides (${missing || "exit code " + slidesProc.status})`,
+            pass: false
+          });
+        }
+      } finally {
+        if (fs.existsSync(tempSlidesHtmlPath)) {
+          try { fs.unlinkSync(tempSlidesHtmlPath); } catch (_) {}
+        }
+      }
     } catch (browserErr) {
       results.push({
         name: `Browser Headless (${browserName}): Ngoại lệ khi thực thi: ${browserErr.message}`,

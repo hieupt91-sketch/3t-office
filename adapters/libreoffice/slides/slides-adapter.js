@@ -53,6 +53,15 @@ export class SlidesAdapter {
         .map((line) => `<text:p>${this._escapeXml(line)}</text:p>`)
         .join("");
 
+      const notesXml = slide.notes ? `
+        <presentation:notes>
+          <draw:frame svg:x="2cm" svg:y="2cm" svg:width="20cm" svg:height="15cm">
+            <draw:text-box>
+              ${slide.notes.split("\n").map((line) => `<text:p>${this._escapeXml(line)}</text:p>`).join("")}
+            </draw:text-box>
+          </draw:frame>
+        </presentation:notes>` : "";
+
       pagesXml += `
       <draw:page draw:name="${pageName}">
         <draw:frame svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
@@ -64,7 +73,7 @@ export class SlidesAdapter {
           <draw:text-box>
             ${bodyParasXml}
           </draw:text-box>
-        </draw:frame>
+        </draw:frame>${notesXml}
       </draw:page>`;
     });
 
@@ -73,6 +82,7 @@ export class SlidesAdapter {
                  xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
                  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
                  xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+                 xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.presentation">
   <office:body>
     <office:presentation>${pagesXml}
@@ -97,6 +107,18 @@ export class SlidesAdapter {
         const pages = doc.querySelectorAll("page, draw\\:page");
         if (pages && pages.length > 0) {
           pages.forEach((page, idx) => {
+            let notesText = "";
+            const notesEl = page.querySelector("presentation\\:notes, notes");
+            if (notesEl) {
+              const notesParas = [];
+              notesEl.querySelectorAll("p, text\\:p").forEach((p) => {
+                const txt = (p.textContent || "").trim();
+                if (txt && !txt.startsWith("<")) notesParas.push(txt);
+              });
+              notesText = notesParas.join("\n");
+              notesEl.parentNode?.removeChild(notesEl);
+            }
+
             const paragraphs = [];
             const pEls = page.querySelectorAll("p, text\\:p");
             pEls.forEach((p) => {
@@ -112,7 +134,8 @@ export class SlidesAdapter {
               id: Date.now() + idx,
               title,
               body,
-              shapes: []
+              shapes: [],
+              notes: notesText
             });
           });
           if (parsedSlides.length > 0) return parsedSlides;
@@ -128,7 +151,26 @@ export class SlidesAdapter {
     let idx = 0;
     while ((pageMatch = pageRegex.exec(xmlText)) !== null) {
       idx++;
-      const pageContent = pageMatch[1];
+      let pageContent = pageMatch[1];
+
+      let notesText = "";
+      const notesRegex = /<presentation:notes[^>]*>([\s\S]*?)<\/presentation:notes>/i;
+      const notesMatch = notesRegex.exec(pageContent);
+      if (notesMatch) {
+        const notesContent = notesMatch[1];
+        const npRegex = /<text:p[^>]*>([\s\S]*?)<\/text:p>/gi;
+        const nParas = [];
+        let npm;
+        while ((npm = npRegex.exec(notesContent)) !== null) {
+          const cleanText = npm[1].replace(/<[^>]+>/g, "").trim();
+          if (cleanText && !cleanText.startsWith("<")) {
+            nParas.push(this._unescapeXml(cleanText));
+          }
+        }
+        notesText = nParas.join("\n");
+        pageContent = pageContent.replace(notesRegex, "");
+      }
+
       const pRegex = /<text:p[^>]*>([\s\S]*?)<\/text:p>/gi;
       const paragraphs = [];
       let pMatch;
@@ -144,7 +186,8 @@ export class SlidesAdapter {
         id: Date.now() + idx,
         title,
         body,
-        shapes: []
+        shapes: [],
+        notes: notesText
       });
     }
 
@@ -284,6 +327,15 @@ export class SlidesAdapter {
 
       case "slides.transition.apply":
         return this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false;
+
+      case "slides.animation.apply":
+        return this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false;
+
+      case "slides.notes.toggle":
+        return this.canvas.toggleNotes ? this.canvas.toggleNotes() : false;
+
+      case "slides.show.presenterMode":
+        return this.canvas.startPresenterMode ? this.canvas.startPresenterMode() : false;
 
       case "common.edit.undo":
         return this.canvas.undo ? this.canvas.undo() : false;

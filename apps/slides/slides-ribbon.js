@@ -39,7 +39,8 @@ export const SLIDES_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "slides.text.insert", isLarge: true },
           { type: "button", commandId: "slides.shape.insert", isLarge: true },
-          { type: "button", commandId: "slides.image.insert", isLarge: true }
+          { type: "button", commandId: "slides.image.insert", isLarge: true },
+          { type: "button", commandId: "slides.animation.apply", isLarge: true }
         ]
       },
       {
@@ -89,6 +90,18 @@ export const SLIDES_RIBBON_TABS = [
     ]
   },
   {
+    id: "animations",
+    label: "Hoạt hình",
+    groups: [
+      {
+        label: "Hiệu ứng đối tượng",
+        items: [
+          { type: "button", commandId: "slides.animation.apply", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
     id: "slideshow",
     label: "Trình chiếu",
     groups: [
@@ -96,7 +109,14 @@ export const SLIDES_RIBBON_TABS = [
         label: "Khởi động chiếu",
         items: [
           { type: "button", commandId: "slides.show.startFromBegin", isLarge: true },
-          { type: "button", commandId: "slides.show.startFromCurrent", isLarge: true }
+          { type: "button", commandId: "slides.show.startFromCurrent", isLarge: true },
+          { type: "button", commandId: "slides.show.presenterMode", isLarge: true }
+        ]
+      },
+      {
+        label: "Người thuyết trình",
+        items: [
+          { type: "button", commandId: "slides.notes.toggle", isLarge: true }
         ]
       }
     ]

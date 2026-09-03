@@ -15,6 +15,7 @@ import { runAiServiceTests } from "./unit/ai-service.test.js";
 import { runSheetFileIoTests } from "./unit/sheet-file-io.test.js";
 import { runSlidesFileIoTests } from "./unit/slides-file-io.test.js";
 import { runMultiSheetTests } from "./unit/sheet-multi-sheet.test.js";
+import { runSlidesAnimationsNotesTests } from "./unit/slides-animations-notes.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -37,7 +38,8 @@ async function runAll() {
     { title: "9. Unit Tests — AI Service Provider Orchestration", runner: runAiServiceTests },
     { title: "10. Unit Tests — VN Sheet Real File I/O & CSV Adapter", runner: runSheetFileIoTests },
     { title: "11. Unit Tests — VN Slides Real File I/O & FODP Adapter", runner: runSlidesFileIoTests },
-    { title: "12. Unit Tests — VN Sheet Multi-Sheet Data Isolation", runner: runMultiSheetTests }
+    { title: "12. Unit Tests — VN Sheet Multi-Sheet Data Isolation", runner: runMultiSheetTests },
+    { title: "13. Unit Tests — VN Slides Object Animations & Speaker Notes", runner: runSlidesAnimationsNotesTests }
   ];
 
   for (const suite of suites) {

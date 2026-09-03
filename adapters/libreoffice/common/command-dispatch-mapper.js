@@ -112,8 +112,11 @@ export const VN_TO_UNO_MAP = {
   "slides.image.insert": ".uno:InsertGraphic",
   "slides.master.apply": ".uno:MasterLayouts",
   "slides.transition.apply": ".uno:SlideTransition",
+  "slides.animation.apply": ".uno:CustomAnimation",
+  "slides.notes.toggle": ".uno:InsertAnnotation",
   "slides.show.startFromBegin": ".uno:StartPresentation",
   "slides.show.startFromCurrent": ".uno:StartPresentation",
+  "slides.show.presenterMode": ".uno:PresenterConsole",
 
   // AI
   "ai.assistant.grammarCheck": ".uno:SpellDialog"
