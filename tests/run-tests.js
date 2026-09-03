@@ -22,6 +22,7 @@ import { runWriterTrackChangesTests } from "./unit/writer-track-changes.test.js"
 import { runWriterPrintPreviewTests } from "./unit/writer-print-preview.test.js";
 import { runSlidesLayoutsTests } from "./unit/slides-layouts.test.js";
 import { runSheetChartTests } from "./unit/sheet-charts.test.js";
+import { runSheetUndoRedoTests } from "./unit/sheet-undo-redo.test.js";
 import { runWriterUndoRedoTests } from "./unit/writer-undo-redo.test.js";
 
 async function runAll() {
@@ -53,7 +54,8 @@ async function runAll() {
     { title: "17. Behavioral Tests — VN Writer Print Preview", runner: runWriterPrintPreviewTests },
     { title: "18. Behavioral Tests — VN Slides Slide Layouts", runner: runSlidesLayoutsTests },
     { title: "19. Behavioral Tests — VN Sheet Live Charts", runner: runSheetChartTests },
-    { title: "20. Behavioral Tests — VN Writer Deep Undo/Redo History", runner: runWriterUndoRedoTests }
+    { title: "20. Behavioral Tests — VN Sheet Deep Undo/Redo", runner: runSheetUndoRedoTests },
+    { title: "21. Behavioral Tests — VN Writer Deep Undo/Redo History", runner: runWriterUndoRedoTests }
   ];
 
   for (const suite of suites) {

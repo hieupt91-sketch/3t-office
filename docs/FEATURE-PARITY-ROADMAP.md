@@ -69,7 +69,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] Mở/Lưu file XLSX/ODS thật qua LibreOffice headless (round-trip đã test thật)
 - [x] Sort & Filter thật trên vùng dữ liệu (Sort A-Z, Z-A, Undo sort, AutoFilter popover lọc theo giá trị)
 - [x] Charts thật — lấy dữ liệu từ vùng ô đang chọn; 4 loại SVG cột/đường/tròn/miền; lưu và hiển thị độc lập theo sheet; tự vẽ lại khi dữ liệu nguồn đổi; hỗ trợ xóa chart; đã có behavioral test state/DOM/cross-sheet.
-- [ ] Undo/Redo sâu hơn (đã có stack cơ bản — cần test edge case)
+- [x] Undo/Redo sâu và cô lập theo sheet — history tối đa 100 bước; gộp chuỗi gõ liên tục trong formula bar; hoàn tác/làm lại đối xứng cho giá trị/định dạng ô, sort/filter, freeze panes, Conditional Formatting, Data Validation, chart và thêm/xóa sheet; nút Undo/Redo phản ánh đúng stack rỗng; đã có behavioral tests cho add/delete, redo sort giảm dần và chống rò chéo sheet.
 
 ### Tier 2
 - [ ] Pivot Table (Bảng tổng hợp)
