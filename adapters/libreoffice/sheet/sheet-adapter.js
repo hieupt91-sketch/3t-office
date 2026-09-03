@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office LibreOffice Adapter — VN Sheet Adapter
  * Quản lý tương tác với StarCalc (sc) Document Model & Phím tắt Microsoft/LibreOffice
  */
@@ -64,6 +64,10 @@ export class SheetAdapter {
 
       case "sheet.formula.average":
         return this.grid.insertFormula("AVERAGE");
+
+      case "sheet.chart.insert":
+        this.grid.openChartBuilder();
+        return true;
 
       case "sheet.data.filter":
         alert("Chế độ lọc AutoFilter đã được bật cho bảng dữ liệu.");

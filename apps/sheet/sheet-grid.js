@@ -1,6 +1,9 @@
 ﻿/**
- * VN Sheet — Enterprise Grid Controller & Microsoft Shortcuts Engine
+ * VN Sheet — Enterprise Grid Controller & Microsoft Formula Calculation Engine
  */
+
+import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
+import { SheetChartBuilder } from "./sheet-chart.js";
 
 export class SheetGridController {
   constructor(container, options = {}) {
@@ -9,8 +12,10 @@ export class SheetGridController {
     this.cols = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
     this.rowCount = 35;
 
-    /** @type {Map<string, {val: string, formula: string, style: Object}>} */
+    /** @type {Map<string, {val: string|number, formula: string, style: Object}>} */
     this.cellsData = new Map();
+    this.formulaEngine = new FormulaEngine(this.cellsData);
+
     this.selectedCoord = { r: 1, c: "A" };
     this.sheets = ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"];
     this.activeSheet = "Dự toán chi phí";
@@ -28,9 +33,9 @@ export class SheetGridController {
       <div class="vno-formula-actions">
         <button class="vno-formula-btn" title="Hủy bỏ (Esc)" id="vno-fx-cancel">✕</button>
         <button class="vno-formula-btn" title="Nhập (Enter)" id="vno-fx-ok">✓</button>
-        <button class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm" id="vno-fx-insert">fx</button>
+        <button class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm tính toán (fx)" id="vno-fx-insert">fx</button>
       </div>
-      <input type="text" class="vno-formula-input" id="vno-formula-val" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(E4:E7), =AVERAGE...)" />
+      <input type="text" class="vno-formula-input" id="vno-formula-val" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)" />
     `;
     this.nameBox = fBar.querySelector("#vno-cell-name");
     this.formulaInput = fBar.querySelector("#vno-formula-val");
@@ -60,7 +65,7 @@ export class SheetGridController {
     });
 
     fBar.querySelector("#vno-fx-insert").addEventListener("click", () => {
-      this.insertFormula("SUM");
+      this.showFunctionDialog();
     });
 
     this.container.appendChild(fBar);
@@ -259,9 +264,14 @@ export class SheetGridController {
     const key = `${col}${row}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
 
-    if (val.startsWith("=")) {
+    if (typeof val === "string" && val.startsWith("=")) {
       item.formula = val;
-      item.val = "120.000.000 ₫"; // Kết quả tính toán biểu thức
+      const calculated = this.formulaEngine.evaluate(val);
+      if (typeof calculated === "number" && !val.toLowerCase().includes("count") && !val.toLowerCase().includes("len")) {
+        item.val = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(calculated);
+      } else {
+        item.val = calculated;
+      }
     } else {
       item.formula = "";
       item.val = val;
@@ -273,6 +283,24 @@ export class SheetGridController {
     if (cell) {
       cell.textContent = item.val;
       this._applyStylesToDom(cell, item.style);
+    }
+
+    // Tự động tính toán lại các ô có công thức khác
+    this._recalculateAllFormulas(key);
+  }
+
+  _recalculateAllFormulas(excludeKey) {
+    for (const [k, itm] of this.cellsData.entries()) {
+      if (k !== excludeKey && itm.formula) {
+        const res = this.formulaEngine.evaluate(itm.formula);
+        if (typeof res === "number" && !itm.formula.toLowerCase().includes("count")) {
+          itm.val = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(res);
+        } else {
+          itm.val = res;
+        }
+        const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`);
+        if (dom) dom.textContent = itm.val;
+      }
     }
   }
 
@@ -287,6 +315,114 @@ export class SheetGridController {
     return true;
   }
 
+  showFunctionDialog() {
+    const modal = document.createElement("div");
+    modal.className = "vno-dialog-overlay";
+
+    let selectedCat = "Tất cả";
+    let selectedFunc = FUNCTION_CATALOG[0];
+
+    const renderFuncList = () => {
+      const listEl = modal.querySelector("#vno-func-list");
+      listEl.innerHTML = "";
+
+      const filtered = selectedCat === "Tất cả" 
+        ? FUNCTION_CATALOG 
+        : FUNCTION_CATALOG.filter(f => f.category === selectedCat);
+
+      filtered.forEach((f, idx) => {
+        const item = document.createElement("div");
+        item.className = `vno-func-item ${f.name === selectedFunc.name ? "is-selected" : ""}`;
+        item.style.cssText = `padding:6px 12px; cursor:pointer; font-size:12px; font-weight:600; font-family:monospace; border-radius:3px; background:${f.name === selectedFunc.name ? "#e7f4ec" : "transparent"}; color:${f.name === selectedFunc.name ? "#0f6d38" : "#0f172a"};`;
+        item.textContent = f.name;
+
+        item.addEventListener("click", () => {
+          selectedFunc = f;
+          renderFuncList();
+          renderDesc();
+        });
+        listEl.appendChild(item);
+      });
+    };
+
+    const renderDesc = () => {
+      modal.querySelector("#vno-func-syntax").textContent = `=${selectedFunc.syntax}`;
+      modal.querySelector("#vno-func-desc").textContent = selectedFunc.desc;
+    };
+
+    modal.innerHTML = `
+      <div class="vno-dialog-box" style="width:580px;">
+        <div class="vno-dialog-header">
+          <span>Chèn Hàm (Insert Function fx)</span>
+          <button class="vno-btn" id="vno-fx-close" style="font-size:16px;">&times;</button>
+        </div>
+        <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:12px;font-weight:600;">Danh mục hàm:</span>
+            <select class="vno-select" id="vno-func-cat-select" style="flex:1;">
+              <option value="Tất cả">Tất cả các hàm</option>
+              <option value="Toán học">Toán học & Lượng giác</option>
+              <option value="Thống kê">Thống kê (AVERAGE, COUNT...)</option>
+              <option value="Logic">Logic (IF, AND, OR...)</option>
+              <option value="Văn bản">Văn bản (CONCAT, LEN...)</option>
+              <option value="Ngày tháng">Ngày & Giờ (TODAY, NOW...)</option>
+            </select>
+          </div>
+
+          <div style="display:flex;gap:12px;height:180px;">
+            <div id="vno-func-list" style="width:180px;border:1px solid #cbd5e1;border-radius:4px;overflow-y:auto;padding:4px;"></div>
+            <div style="flex:1;background:#f8fafc;border:1px solid #cbd5e1;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:8px;">
+              <strong id="vno-func-syntax" style="font-family:monospace;color:#0f6d38;font-size:13px;"></strong>
+              <p id="vno-func-desc" style="font-size:12px;color:#334155;line-height:1.5;"></p>
+            </div>
+          </div>
+        </div>
+        <div class="vno-dialog-footer">
+          <button class="vno-btn" id="vno-fx-cancel-btn">Hủy bỏ</button>
+          <button class="vno-btn vno-btn-primary" id="vno-fx-insert-btn">Chèn hàm vào ô</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+    renderFuncList();
+    renderDesc();
+
+    const close = () => { if (modal.parentNode) modal.parentNode.removeChild(modal); };
+    modal.querySelector("#vno-fx-close").addEventListener("click", close);
+    modal.querySelector("#vno-fx-cancel-btn").addEventListener("click", close);
+
+    modal.querySelector("#vno-func-cat-select").addEventListener("change", (e) => {
+      selectedCat = e.target.value;
+      const filtered = selectedCat === "Tất cả" 
+        ? FUNCTION_CATALOG 
+        : FUNCTION_CATALOG.filter(f => f.category === selectedCat);
+      if (filtered[0]) selectedFunc = filtered[0];
+      renderFuncList();
+      renderDesc();
+    });
+
+    modal.querySelector("#vno-fx-insert-btn").addEventListener("click", () => {
+      close();
+      const template = `=${selectedFunc.syntax.replace(/\s*\[.*?\]/g, "")}`;
+      this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, template);
+      this.focusFormulaInput();
+    });
+  }
+
+  openChartBuilder() {
+    const dataItems = [
+      { label: "Giao diện UI Kit", value: 25000000 },
+      { label: "LibreOffice Core", value: 45000000 },
+      { label: "UNO Bridge Bus", value: 30000000 },
+      { label: "OOXML Test Suite", value: 20000000 }
+    ];
+
+    SheetChartBuilder.showChartModal(dataItems, (chartType) => {
+      alert(`Đã tạo thành công ${chartType === "bar" ? "Biểu đồ Cột" : "Biểu đồ Tròn"} cho bảng tính!`);
+    });
+  }
+
   insertCurrentDate() {
     const now = new Date();
     const dateStr = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
@@ -299,7 +435,7 @@ export class SheetGridController {
     const data = this.cellsData.get(key);
     if (!data || !data.val) return true;
 
-    const num = parseFloat(data.val.replace(/[^\d]/g, ""));
+    const num = parseFloat(data.val.toString().replace(/\./g, "").replace(/[^\d-]/g, ""));
     if (!isNaN(num)) {
       data.val = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(num);
       this.cellsData.set(key, data);
@@ -313,7 +449,7 @@ export class SheetGridController {
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const data = this.cellsData.get(key);
     if (!data || !data.val) return true;
-    const num = parseFloat(data.val.replace(/[^\d.]/g, ""));
+    const num = parseFloat(data.val.toString().replace(/[^\d.]/g, ""));
     if (!isNaN(num)) {
       data.val = `${num}%`;
       this.cellsData.set(key, data);
@@ -327,7 +463,7 @@ export class SheetGridController {
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const data = this.cellsData.get(key);
     if (!data || !data.val) return true;
-    const num = parseFloat(data.val.replace(/[^\d]/g, ""));
+    const num = parseFloat(data.val.toString().replace(/\./g, "").replace(/[^\d-]/g, ""));
     if (!isNaN(num)) {
       data.val = new Intl.NumberFormat("vi-VN").format(num);
       this.cellsData.set(key, data);
@@ -357,10 +493,20 @@ export class SheetGridController {
   }
 
   _calculateStats() {
+    let total = 0;
+    let count = 0;
+    for (const [k, itm] of this.cellsData.entries()) {
+      if (itm.val && !itm.formula) {
+        count++;
+        const num = parseFloat(itm.val.toString().replace(/\./g, "").replace(/[^\d-]/g, ""));
+        if (!isNaN(num)) total += num;
+      }
+    }
+    const avg = count > 0 ? Math.round(total / count) : 0;
     return {
-      count: this.cellsData.size,
-      sum: "120.000.000 ₫",
-      avg: "30.000.000 ₫"
+      count: count,
+      sum: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(total),
+      avg: new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(avg)
     };
   }
 
