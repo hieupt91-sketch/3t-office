@@ -1,5 +1,5 @@
 ﻿/**
- * VN Writer Application Entrypoint
+ * VN Writer Application Entrypoint — Refined Enterprise Edition
  */
 
 import { AppShell } from "../../platform/shell/app-shell.js";
@@ -18,70 +18,113 @@ export class WriterApp {
   }
 
   async init() {
-    // 1. Đăng ký toàn bộ Command definitions
     registerAllStandardCommands(globalCommandBus);
-
-    // 2. Khởi tạo UNO Bridge
     await globalUnoBridge.init();
 
-    // 3. Khởi tạo Application Shell
     this.shell = new AppShell({
       appName: "writer",
       appTitle: "VN Writer",
-      documentName: "Văn bản hành chính 1.docx"
+      documentName: "Quyết định ban hành tiêu chuẩn 01.docx"
     });
     this.shell.mount(this.mountElement);
-
-    // 4. Thiết lập cấu trúc Ribbon cho Writer
     this.shell.ribbonHost.setStructure(WRITER_RIBBON_TABS, "home");
 
-    // 5. Tạo Document Canvas (Trang A4)
+    // Khung giao diện Writer: Ruler + Viewport + Trang A4
+    const container = document.createElement("div");
+    container.className = "vno-writer-container";
+
+    // Thước đo ngang (Ruler)
+    const ruler = document.createElement("div");
+    ruler.className = "vno-writer-ruler";
+    ruler.innerHTML = `
+      <div class="vno-ruler-track">
+        <div class="vno-ruler-marker-left" title="Lề trái: 30mm (NĐ 30/2020/NĐ-CP)"></div>
+        <div class="vno-ruler-scale"></div>
+        <div class="vno-ruler-marker-right" title="Lề phải: 15mm (NĐ 30/2020/NĐ-CP)"></div>
+      </div>
+    `;
+    container.appendChild(ruler);
+
+    // Viewport cuộn trang
+    const viewport = document.createElement("div");
+    viewport.className = "vno-writer-viewport";
+
+    // Trang giấy A4
     this.canvas = document.createElement("div");
-    this.canvas.className = "vno-writer-canvas";
+    this.canvas.className = "vno-writer-page";
     this.canvas.setAttribute("contenteditable", "true");
     this.canvas.setAttribute("spellcheck", "false");
 
-    // Mẫu văn bản hành chính Việt Nam chuẩn khởi đầu
+    // Mẫu văn bản chuẩn hóa
     this.canvas.innerHTML = `
-      <div style="display:flex; justify-content:space-between; margin-bottom:20pt; font-size:12pt;">
-        <div style="text-align:center;">
-          <div><strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong></div>
-          <div style="font-weight:bold;">Độc lập - Tự do - Hạnh phúc</div>
-          <div style="letter-spacing:2px;">-------------------</div>
-        </div>
-        <div style="text-align:center;">
-          <div><strong>BỘ CÔNG THƯƠNG</strong></div>
-          <div>Số: 01/QĐ-BCT</div>
-          <div style="font-style:italic;">Hà Nội, ngày 03 tháng 09 năm 2026</div>
-        </div>
-      </div>
+      <table style="width:100%; border:none; margin-bottom:18pt;">
+        <tr>
+          <td style="width:45%; text-align:center; border:none; padding:0; vertical-align:top;">
+            <div><strong>ỦY BAN NHÂN DÂN</strong></div>
+            <div><strong>THÀNH PHỐ HÀ NỘI</strong></div>
+            <div style="letter-spacing:1px;">----------------</div>
+            <div style="font-size:13pt; margin-top:4pt;">Số: 26/QĐ-UBND</div>
+          </td>
+          <td style="width:55%; text-align:center; border:none; padding:0; vertical-align:top;">
+            <div><strong>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</strong></div>
+            <div style="font-weight:bold;">Độc lập - Tự do - Hạnh phúc</div>
+            <div style="letter-spacing:2px;">-------------------------</div>
+            <div style="font-style:italic; font-size:13pt; margin-top:4pt;">Hà Nội, ngày 03 tháng 09 năm 2026</div>
+          </td>
+        </tr>
+      </table>
+
       <h1>QUYẾT ĐỊNH</h1>
-      <p style="text-align:center; font-style:italic; margin-bottom:16pt;">Về việc ban hành Tiêu chuẩn Kỹ thuật Bộ Ứng dụng Văn phòng VN Office</p>
-      <p>Căn cứ Nghị định số 30/2020/NĐ-CP về công tác văn thư và định dạng văn bản hành chính;</p>
-      <p>Theo đề nghị của Lead Engineering Agent phụ trách dự án phát triển phần mềm nội địa;</p>
+      <p style="text-align:center; font-weight:bold; font-size:14pt; margin-bottom:16pt;">Về việc ban hành Bộ Ứng dụng Văn phòng Việt Nam — VN Office</p>
+
+      <p style="text-align:center; font-style:italic; margin-bottom:14pt;">CHỦ TỊCH ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI</p>
+
+      <p><em>Căn cứ Luật Tổ chức chính quyền địa phương ngày 19 tháng 6 năm 2015;</em></p>
+      <p><em>Căn cứ Nghị định số 30/2020/NĐ-CP ngày 05 tháng 3 năm 2020 của Chính phủ về công tác văn thư;</em></p>
+      <p><em>Xét đề nghị của Giám đốc Sở Thông tin và Truyền thông và Lead Engineering Agent dự án VN Office.</em></p>
+
       <h2>QUYẾT ĐỊNH:</h2>
-      <p><strong>Điều 1.</strong> Chính thức phê duyệt và đưa vào vận hành phiên bản thử nghiệm đầu tiên của bộ ứng dụng VN Office bao gồm: VN Writer, VN Sheet và VN Slides.</p>
-      <p><strong>Điều 2.</strong> Các đơn vị liên quan chịu trách nhiệm thi hành quyết định này kể từ ngày ký.</p>
+
+      <p><strong>Điều 1.</strong> Phê duyệt và chính thức áp dụng bộ giải pháp phần mềm văn phòng <strong>VN Office</strong> (bao gồm <strong>VN Writer</strong>, <strong>VN Sheet</strong> và <strong>VN Slides</strong>) tại các cơ quan, đơn vị, doanh nghiệp trên địa bàn.</p>
+
+      <p><strong>Điều 2.</strong> Bộ ứng dụng VN Office đáp ứng đầy đủ quy chuẩn bảo mật dữ liệu, kế thừa sức mạnh xử lý định dạng ODF/OOXML của LibreOffice Core, đồng thời mang giao diện thuần Việt trực quan, hiện đại và chuẩn mực.</p>
+
+      <p><strong>Điều 3.</strong> Quyết định này có hiệu lực kể từ ngày ký. Chánh Văn phòng UBND Thành phố, Thủ trưởng các cơ quan, ban, ngành chịu trách nhiệm thi hành Quyết định này./.</p>
+
+      <table style="width:100%; border:none; margin-top:28pt;">
+        <tr>
+          <td style="width:55%; border:none; font-size:11pt; line-height:1.3; vertical-align:top;">
+            <strong><em>Nơi nhận:</em></strong><br>
+            - Như Điều 3;<br>
+            - Văn phòng Chính phủ;<br>
+            - Cổng TTĐT Thành phố;<br>
+            - Lưu: VT, TH.
+          </td>
+          <td style="width:45%; border:none; text-align:center; vertical-align:top;">
+            <strong>CHỦ TỊCH</strong><br>
+            <em>(Đã ký và đóng dấu)</em><br><br><br><br>
+            <strong>Trần Văn Nam</strong>
+          </td>
+        </tr>
+      </table>
     `;
 
-    this.shell.setEditorCanvas(this.canvas);
+    viewport.appendChild(this.canvas);
+    container.appendChild(viewport);
+    this.shell.setEditorCanvas(container);
 
-    // 6. Gắn Writer Adapter
     this.adapter = new WriterAdapter(this.canvas);
     this.adapter.attach();
 
-    // 7. Lắng nghe thay đổi nội dung để cập nhật số từ / ký tự
     this._setupContentObserver();
-
-    console.log("[WriterApp] Khởi tạo VN Writer hoàn tất thành công.");
+    console.log("[WriterApp] Đã khởi tạo VN Writer chuẩn hóa cao cấp.");
   }
 
   _setupContentObserver() {
     const updateStats = () => {
       const text = this.canvas.innerText || "";
       const words = text.trim().split(/\s+/).filter(Boolean).length;
-      const chars = text.length;
-      this.shell.setStatus(`Trang 1 / 1  |  ${words} từ  |  ${chars} ký tự`);
+      this.shell.setStatus(`Trang 1 / 1  |  ${words} từ  |  Tiếng Việt (NĐ 30/2020/NĐ-CP)`);
     };
 
     this.canvas.addEventListener("input", updateStats);

@@ -1,5 +1,5 @@
 ﻿/**
- * VN Slides Application Entrypoint
+ * VN Slides Application Entrypoint — Refined Enterprise Edition
  */
 
 import { AppShell } from "../../platform/shell/app-shell.js";
@@ -25,10 +25,9 @@ export class SlidesApp {
     this.shell = new AppShell({
       appName: "slides",
       appTitle: "VN Slides",
-      documentName: "Bản trình chiếu giới thiệu.pptx"
+      documentName: "Báo cáo đề án phát triển VN Office 2026.pptx"
     });
     this.shell.mount(this.mountElement);
-
     this.shell.ribbonHost.setStructure(SLIDES_RIBBON_TABS, "home");
 
     const studioWrap = document.createElement("div");
@@ -37,7 +36,7 @@ export class SlidesApp {
 
     this.canvasController = new SlidesCanvasController(studioWrap, {
       onChange: (current, total) => {
-        this.shell.setStatus(`Trang chiếu ${current} / ${total}  |  Bố cục: Tiêu đề & Nội dung  |  Sẵn sàng`);
+        this.shell.setStatus(`Trang chiếu ${current} / ${total}  |  Tỷ lệ 16:9 HD  |  Tiếng Việt`);
       }
     });
     this.canvasController.mount();
@@ -47,7 +46,7 @@ export class SlidesApp {
     this.adapter = new SlidesAdapter(this.canvasController);
     this.adapter.attach();
 
-    this.shell.setStatus("Trang chiếu 1 / 2  |  Bố cục: Tiêu đề & Nội dung  |  Sẵn sàng");
-    console.log("[SlidesApp] Khởi tạo VN Slides hoàn tất thành công.");
+    this.shell.setStatus("Trang chiếu 1 / 3  |  Tỷ lệ 16:9 HD  |  Tiếng Việt  |  Sẵn sàng");
+    console.log("[SlidesApp] Đã khởi tạo VN Slides chuẩn hóa cao cấp.");
   }
 }

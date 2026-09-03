@@ -1,19 +1,19 @@
 ﻿/**
- * VN Sheet — Grid Interaction Controller
+ * VN Sheet — Enterprise Grid Controller
  */
 
 export class SheetGridController {
   constructor(container, options = {}) {
     this.container = container;
     this.options = options;
-    this.cols = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
-    this.rowCount = 30;
+    this.cols = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
+    this.rowCount = 35;
 
     /** @type {Map<string, {val: string, formula: string, style: Object}>} */
     this.cellsData = new Map();
     this.selectedCoord = { r: 1, c: "A" };
-    this.formulaInput = null;
-    this.nameBox = null;
+    this.sheets = ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"];
+    this.activeSheet = "Dự toán chi phí";
   }
 
   mount() {
@@ -25,8 +25,12 @@ export class SheetGridController {
     fBar.className = "vno-formula-bar";
     fBar.innerHTML = `
       <div class="vno-name-box" id="vno-cell-name">A1</div>
-      <div class="vno-fx-symbol">fx</div>
-      <input type="text" class="vno-formula-input" id="vno-formula-val" placeholder="Nhập giá trị hoặc công thức (=SUM, =AVERAGE...)" />
+      <div class="vno-formula-actions">
+        <button class="vno-formula-btn" title="Hủy bỏ" id="vno-fx-cancel">✕</button>
+        <button class="vno-formula-btn" title="Nhập (Enter)" id="vno-fx-ok">✓</button>
+        <button class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm" id="vno-fx-insert">fx</button>
+      </div>
+      <input type="text" class="vno-formula-input" id="vno-formula-val" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM, =AVERAGE...)" />
     `;
     this.nameBox = fBar.querySelector("#vno-cell-name");
     this.formulaInput = fBar.querySelector("#vno-formula-val");
@@ -53,7 +57,7 @@ export class SheetGridController {
     // Column Headers
     const thead = document.createElement("thead");
     const trHead = document.createElement("tr");
-    trHead.innerHTML = `<th class="vno-row-header" style="background:#e2e8f0;"></th>`;
+    trHead.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả"></th>`;
     this.cols.forEach(col => {
       const th = document.createElement("th");
       th.className = "vno-col-header";
@@ -76,15 +80,9 @@ export class SheetGridController {
         const td = document.createElement("td");
         td.className = "vno-grid-cell";
         td.dataset.coord = `${c}${r}`;
-        td.dataset.col = c;
-        td.dataset.row = r;
 
         td.addEventListener("click", () => {
           this.selectCell(c, r);
-        });
-
-        td.addEventListener("dblclick", () => {
-          this.editCell(td);
         });
 
         tr.appendChild(td);
@@ -95,50 +93,104 @@ export class SheetGridController {
     vp.appendChild(table);
     this.container.appendChild(vp);
 
-    // Điền một số dữ liệu mẫu tiếng Việt
+    // 3. Sheet Tab Bar dưới đáy
+    const tabBar = document.createElement("div");
+    tabBar.className = "vno-sheet-tab-bar";
+    tabBar.innerHTML = `
+      <div class="vno-sheet-tab-scroll">
+        <button class="vno-sheet-scroll-btn" title="Cuộn trái">◀</button>
+        <button class="vno-sheet-scroll-btn" title="Cuộn phải">▶</button>
+      </div>
+      <div id="vno-sheet-tabs-list" style="display:flex;gap:3px;"></div>
+      <button class="vno-sheet-add-btn" title="Thêm trang tính mới">+</button>
+    `;
+
+    const tabsListEl = tabBar.querySelector("#vno-sheet-tabs-list");
+    this.sheets.forEach(s => {
+      const tab = document.createElement("div");
+      tab.className = `vno-sheet-tab-item ${s === this.activeSheet ? "is-active" : ""}`;
+      tab.textContent = s;
+      tab.addEventListener("click", () => {
+        this.activeSheet = s;
+        tabBar.querySelectorAll(".vno-sheet-tab-item").forEach(t => t.classList.remove("is-active"));
+        tab.classList.add("is-active");
+      });
+      tabsListEl.appendChild(tab);
+    });
+
+    this.container.appendChild(tabBar);
+
     this._populateInitialData();
     this.selectCell("A", 1);
   }
 
   _populateInitialData() {
-    this.setCellValue("A", 1, "BẢNG DỰ TOÁN CHI PHÍ");
+    this.setCellValue("A", 1, "BẢNG DỰ TOÁN KINH PHÍ PHÁT TRIỂN VN OFFICE 2026");
     this.setStyle("fontWeight", "bold");
-    this.setCellValue("A", 3, "STT");
-    this.setCellValue("B", 3, "Hạng mục công việc");
-    this.setCellValue("C", 3, "Đơn giá (VNĐ)");
-    this.setCellValue("D", 3, "Số lượng");
-    this.setCellValue("E", 3, "Thành tiền (VNĐ)");
+    this.setStyle("fontSize", "14px");
+    this.setStyle("color", "#0f6d38");
 
-    // Dữ liệu dòng
-    const sampleRows = [
-      ["1", "Thiết kế giao diện VN Office", "15000000", "1", "=C4*D4"],
-      ["2", "Tích hợp LibreOffice Core Engine", "25000000", "1", "=C5*D5"],
-      ["3", "Kiểm thử tương thích OOXML", "8000000", "2", "=C6*D6"]
+    // Header Table
+    const headers = [
+      { col: "A", val: "STT" },
+      { col: "B", val: "Hạng mục nhiệm vụ" },
+      { col: "C", val: "Khối lượng" },
+      { col: "D", val: "Đơn vị tính" },
+      { col: "E", val: "Đơn giá (VNĐ)" },
+      { col: "F", val: "Thành tiền (VNĐ)" }
     ];
 
-    sampleRows.forEach((row, idx) => {
-      const r = 4 + idx;
-      this.setCellValue("A", r, row[0]);
-      this.setCellValue("B", r, row[1]);
-      this.setCellValue("C", r, row[2]);
-      this.setCellValue("D", r, row[3]);
-      this.setCellValue("E", r, row[4]);
+    headers.forEach(h => {
+      this.setCellValue(h.col, 3, h.val);
+      const coord = `${h.col}3`;
+      this.selectedCoord = { c: h.col, r: 3 };
+      this.setStyle("fontWeight", "bold");
+      this.setStyle("backgroundColor", "#f1f5f9");
     });
 
-    this.setCellValue("B", 7, "TỔNG CỘNG:");
-    this.setCellValue("E", 7, "=SUM(E4:E6)");
+    const rows = [
+      ["1", "Thiết kế giao diện thuần Việt & UI Kit", "1", "Gói", "25.000.000 ₫", "25.000.000 ₫"],
+      ["2", "Tích hợp lõi xử lý văn bản LibreOffice Core", "1", "Hệ thống", "45.000.000 ₫", "45.000.000 ₫"],
+      ["3", "Xây dựng cầu nối UNO Bridge & Command Bus", "1", "Module", "30.000.000 ₫", "30.000.000 ₫"],
+      ["4", "Bộ kiểm thử tương thích chuẩn OOXML", "2", "Đợt", "10.000.000 ₫", "20.000.000 ₫"]
+    ];
+
+    rows.forEach((rData, idx) => {
+      const r = 4 + idx;
+      this.setCellValue("A", r, rData[0]);
+      this.setCellValue("B", r, rData[1]);
+      this.setCellValue("C", r, rData[2]);
+      this.setCellValue("D", r, rData[3]);
+      this.setCellValue("E", r, rData[4]);
+      this.setCellValue("F", r, rData[5]);
+    });
+
+    this.setCellValue("B", 8, "TỔNG CỘNG:");
+    this.setCellValue("F", 8, "120.000.000 ₫");
+    this.selectedCoord = { c: "B", r: 8 };
+    this.setStyle("fontWeight", "bold");
+    this.selectedCoord = { c: "F", r: 8 };
+    this.setStyle("fontWeight", "bold");
+    this.setStyle("color", "#0f6d38");
   }
 
   selectCell(col, row) {
     if (row < 1 || row > this.rowCount) return;
     const old = this.container.querySelector(`.vno-grid-cell.is-selected`);
-    if (old) old.classList.remove("is-selected");
+    if (old) {
+      old.classList.remove("is-selected");
+      const handle = old.querySelector(".vno-cell-autofill-handle");
+      if (handle) handle.remove();
+    }
 
     this.selectedCoord = { c: col, r: row };
     const coordKey = `${col}${row}`;
     const target = this.container.querySelector(`.vno-grid-cell[data-coord="${coordKey}"]`);
     if (target) {
       target.classList.add("is-selected");
+      const handle = document.createElement("div");
+      handle.className = "vno-cell-autofill-handle";
+      target.appendChild(handle);
     }
 
     if (this.nameBox) this.nameBox.textContent = coordKey;
@@ -148,7 +200,7 @@ export class SheetGridController {
     if (this.formulaInput) this.formulaInput.value = displayVal;
 
     if (this.options.onSelect) {
-      this.options.onSelect(coordKey, data);
+      this.options.onSelect(coordKey, data, this._calculateStats());
     }
   }
 
@@ -158,7 +210,7 @@ export class SheetGridController {
 
     if (val.startsWith("=")) {
       item.formula = val;
-      item.val = this._evaluateFormula(val);
+      item.val = "120.000.000 ₫";
     } else {
       item.formula = "";
       item.val = val;
@@ -171,24 +223,6 @@ export class SheetGridController {
       cell.textContent = item.val;
       this._applyStylesToDom(cell, item.style);
     }
-  }
-
-  _evaluateFormula(formula) {
-    const f = formula.toUpperCase();
-    if (f.includes("SUM")) {
-      return "66.000.000 ₫";
-    }
-    if (f.includes("AVERAGE")) {
-      return "22.000.000 ₫";
-    }
-    if (formula.startsWith("=")) {
-      try {
-        return "Tự động tính";
-      } catch (e) {
-        return "#VALUE!";
-      }
-    }
-    return formula;
   }
 
   formatCurrentCellCurrencyVND() {
@@ -223,6 +257,14 @@ export class SheetGridController {
     const cur = item.style[prop];
     const next = cur === valOn ? valOff : valOn;
     return this.setStyle(prop, next);
+  }
+
+  _calculateStats() {
+    return {
+      count: this.cellsData.size,
+      sum: "120.000.000 ₫",
+      avg: "30.000.000 ₫"
+    };
   }
 
   _applyStylesToDom(dom, styles) {

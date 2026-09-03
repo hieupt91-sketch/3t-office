@@ -1,6 +1,5 @@
 ﻿/**
- * VN Office Platform — Application Shell
- * Khung điều phối toàn bộ các thành phần của một ứng dụng trong VN Office
+ * VN Office Platform — Enterprise Application Shell
  */
 
 import { ICONS } from "../ui-kit/icons.js";
@@ -13,11 +12,13 @@ export class AppShell {
    * @param {"writer"|"sheet"|"slides"} options.appName
    * @param {string} options.appTitle
    * @param {string} [options.documentName="Tài liệu chưa đặt tên"]
+   * @param {Function} [options.onSwitchApp]
    */
   constructor(options) {
     this.appName = options.appName;
     this.appTitle = options.appTitle;
-    this.documentName = options.documentName || "Tài liệu chưa đặt tên";
+    this.documentName = options.documentName || "Tài liệu 1";
+    this.onSwitchApp = options.onSwitchApp || null;
     this.zoomLevel = 100;
     this.isAiOpen = false;
 
@@ -32,52 +33,106 @@ export class AppShell {
     this.rootEl.className = "vno-shell";
     this.rootEl.setAttribute("data-app", this.appName);
 
-    this._renderTitleBar();
+    this._renderTopBar();
     this._renderRibbon();
     this._renderWorkspace();
     this._renderStatusBar();
     this._setupGlobalShortcuts();
   }
 
-  _renderTitleBar() {
+  _renderTopBar() {
     const bar = document.createElement("header");
-    bar.className = "vno-titlebar";
+    bar.className = "vno-topbar";
 
     bar.innerHTML = `
-      <div class="vno-titlebar-left">
-        <span class="vno-app-badge vno-app-badge-${this.appName}">${this.appTitle}</span>
-        <button class="vno-btn vno-ribbon-btn-small" data-cmd="common.file.save" title="Lưu (Ctrl+S)">${ICONS.fileSave}</button>
-        <button class="vno-btn vno-ribbon-btn-small" data-cmd="common.edit.undo" title="Hoàn tác (Ctrl+Z)">${ICONS.undo}</button>
-        <button class="vno-btn vno-ribbon-btn-small" data-cmd="common.edit.redo" title="Làm lại (Ctrl+Y)">${ICONS.redo}</button>
-        <span class="vno-doc-title" contenteditable="true" spellcheck="false">${this.documentName}</span>
-      </div>
+      <div class="vno-topbar-left">
+        <!-- Brand & App Switcher Dropdown -->
+        <div style="position:relative;">
+          <button class="vno-app-switcher-btn" id="vno-switcher-toggle" title="Chuyển đổi ứng dụng trong bộ VN Office">
+            ${ICONS.brandLogo}
+            <span>${this.appTitle}</span>
+            <span style="display:flex;margin-left:2px;">${ICONS.chevronDown}</span>
+          </button>
+          
+          <div id="vno-switcher-menu" style="display:none; position:absolute; top:36px; left:0; background:#ffffff; border:1px solid var(--vno-border-default); border-radius:var(--vno-radius-md); box-shadow:var(--vno-shadow-lg); width:230px; z-index:200; padding:6px 0;">
+            <div style="padding:6px 14px; font-size:11px; font-weight:bold; color:var(--vno-text-muted); text-transform:uppercase;">Bộ ứng dụng VN Office</div>
+            <div class="vno-switcher-item" data-switch="writer" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">
+              ${ICONS.appWriter} <span>VN Writer (Soạn thảo)</span>
+            </div>
+            <div class="vno-switcher-item" data-switch="sheet" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">
+              ${ICONS.appSheet} <span>VN Sheet (Bảng tính)</span>
+            </div>
+            <div class="vno-switcher-item" data-switch="slides" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">
+              ${ICONS.appSlides} <span>VN Slides (Trình chiếu)</span>
+            </div>
+          </div>
+        </div>
 
-      <div class="vno-titlebar-center">
-        <div class="vno-search-box">
-          <span style="display:flex;align-items:center;color:var(--vno-text-muted)">${ICONS.search}</span>
-          <input type="text" placeholder="Tìm kiếm tính năng hoặc văn bản... (Ctrl+F)" id="vno-cmd-search" />
+        <!-- Quick Access Toolbar -->
+        <div class="vno-quick-tools">
+          <button class="vno-quick-btn" data-cmd="common.file.save" title="Lưu tài liệu (Ctrl+S)">${ICONS.fileSave}</button>
+          <button class="vno-quick-btn" data-cmd="common.edit.undo" title="Hoàn tác (Ctrl+Z)">${ICONS.undo}</button>
+          <button class="vno-quick-btn" data-cmd="common.edit.redo" title="Làm lại (Ctrl+Y)">${ICONS.redo}</button>
+          <button class="vno-quick-btn" data-cmd="common.file.print" title="In tài liệu (Ctrl+P)">${ICONS.filePrint}</button>
+        </div>
+
+        <!-- Document Tabs Bar (MDI / Multi-Document) -->
+        <div class="vno-doc-tabs">
+          <div class="vno-doc-tab is-active">
+            <span>${this.documentName}</span>
+            <span class="vno-tab-close" title="Đóng">&times;</span>
+          </div>
         </div>
       </div>
 
-      <div class="vno-titlebar-right">
-        <button class="vno-btn vno-ribbon-btn-small" data-cmd="ai.assistant.toggle" title="Trợ lý VN AI (Ctrl+J)">
-          <span style="color:var(--vno-brand-vietnam-gold);display:flex;">${ICONS.aiSparkle}</span>
-          <span>VN AI</span>
+      <!-- Universal Command Search -->
+      <div class="vno-topbar-center">
+        <div class="vno-search-input-wrap">
+          <span style="color:var(--vno-text-muted);display:flex;">${ICONS.search}</span>
+          <input type="text" placeholder="Tìm kiếm tính năng, phím tắt hoặc văn bản... (Alt+Q)" id="vno-universal-search" />
+        </div>
+      </div>
+
+      <!-- Right Actions: AI Assistant & Controls -->
+      <div class="vno-topbar-right">
+        <button class="vno-ai-trigger-btn" id="vno-toggle-ai-btn" title="Trợ lý VN AI (Alt+J)">
+          <span style="color:#d97706;display:flex;">${ICONS.aiSparkle}</span>
+          <span>Trợ lý VN AI</span>
         </button>
       </div>
     `;
 
-    // Gắn handlers cho quick buttons
-    bar.querySelectorAll("[data-cmd]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const cmd = btn.getAttribute("data-cmd");
-        if (cmd === "ai.assistant.toggle") {
-          this.toggleAiSidebar();
-        } else {
-          globalCommandBus.execute(cmd);
-        }
+    // Logic dropdown app switcher
+    const switcherToggle = bar.querySelector("#vno-switcher-toggle");
+    const switcherMenu = bar.querySelector("#vno-switcher-menu");
+
+    switcherToggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      switcherMenu.style.display = switcherMenu.style.display === "none" ? "block" : "none";
+    });
+
+    document.addEventListener("click", () => {
+      switcherMenu.style.display = "none";
+    });
+
+    bar.querySelectorAll(".vno-switcher-item").forEach(item => {
+      item.addEventListener("mouseenter", () => item.style.backgroundColor = "var(--vno-bg-hover)");
+      item.addEventListener("mouseleave", () => item.style.backgroundColor = "transparent");
+      item.addEventListener("click", () => {
+        const appType = item.getAttribute("data-switch");
+        switcherMenu.style.display = "none";
+        if (this.onSwitchApp) this.onSwitchApp(appType);
       });
     });
+
+    // Quick tools execution
+    bar.querySelectorAll("[data-cmd]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        globalCommandBus.execute(btn.getAttribute("data-cmd"));
+      });
+    });
+
+    bar.querySelector("#vno-toggle-ai-btn").addEventListener("click", () => this.toggleAiSidebar());
 
     this.rootEl.appendChild(bar);
   }
@@ -103,16 +158,22 @@ export class AppShell {
     this.aiSidebar.className = "vno-ai-sidebar is-hidden";
     this.aiSidebar.innerHTML = `
       <div class="vno-ai-header">
-        <span>Trợ lý VN AI</span>
-        <button class="vno-btn vno-dialog-close" id="vno-ai-close">&times;</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="color:#d97706;display:flex;">${ICONS.aiSparkle}</span>
+          <span>Trợ lý VN AI</span>
+        </div>
+        <button class="vno-btn" id="vno-ai-close" style="font-size:16px;">&times;</button>
       </div>
       <div class="vno-ai-messages" id="vno-ai-messages">
-        <div style="background:var(--vno-bg-subtle);padding:10px;border-radius:var(--vno-radius-sm);font-size:12px;line-height:1.4;">
-          <strong>Xin chào!</strong> Tôi là trợ lý AI tích hợp trong VN Office. Dữ liệu tài liệu của bạn được bảo mật tuyệt đối trên thiết bị theo tiêu chuẩn bảo mật.
+        <div style="background:var(--vno-bg-subtle);border:1px solid var(--vno-border-default);padding:14px;border-radius:var(--vno-radius-md);font-size:12px;line-height:1.5;">
+          <strong>Xin chào!</strong> Tôi là Trợ lý VN AI tích hợp trong VN Office.<br>
+          • Bảo mật trên thiết bị (Privacy-first)<br>
+          • Trau chuốt văn phong tiếng Việt<br>
+          • Tóm tắt & soát lỗi văn bản hành chính
         </div>
       </div>
       <div class="vno-ai-input-box">
-        <input type="text" placeholder="Yêu cầu viết lại, tóm tắt, soát lỗi..." id="vno-ai-input" />
+        <input type="text" placeholder="Nhập yêu cầu trau chuốt, tóm tắt..." id="vno-ai-input" />
         <button class="vno-btn vno-btn-primary" id="vno-ai-send">Gửi</button>
       </div>
     `;
@@ -134,15 +195,15 @@ export class AppShell {
         <span>|</span>
         <span>Tiếng Việt (Việt Nam)</span>
         <span>|</span>
-        <span>Bộ gõ: Unicode sẵn sàng</span>
+        <span>Bảng mã: Unicode dựng sẵn (NFC)</span>
       </div>
 
       <div class="vno-statusbar-right">
         <div class="vno-zoom-slider">
-          <button class="vno-btn vno-ribbon-btn-small" id="vno-zoom-out">-</button>
+          <button id="vno-zoom-out" title="Thu nhỏ">-</button>
           <input type="range" id="vno-zoom-range" min="50" max="200" value="100" />
-          <button class="vno-btn vno-ribbon-btn-small" id="vno-zoom-in">+</button>
-          <span id="vno-zoom-text" style="min-width:36px;text-align:right;">100%</span>
+          <button id="vno-zoom-in" title="Phóng to">+</button>
+          <span id="vno-zoom-text" style="min-width:38px;text-align:right;">100%</span>
         </div>
       </div>
     `;
@@ -154,7 +215,7 @@ export class AppShell {
       this.zoomLevel = Math.max(50, Math.min(200, val));
       zoomRange.value = this.zoomLevel;
       zoomText.textContent = `${this.zoomLevel}%`;
-      const canvas = this.editorContainer.firstElementChild;
+      const canvas = this.editorContainer.querySelector(".vno-writer-page, .vno-slide-canvas");
       if (canvas) {
         canvas.style.transform = `scale(${this.zoomLevel / 100})`;
         canvas.style.transformOrigin = "top center";
@@ -179,32 +240,82 @@ export class AppShell {
 
   showBackstageMenu() {
     const modal = document.createElement("div");
-    modal.className = "vno-dialog-overlay";
-    modal.style.zIndex = "2000";
+    modal.className = "vno-backstage-overlay";
 
     modal.innerHTML = `
-      <div style="background:var(--vno-bg-surface);width:600px;max-width:95vw;border-radius:var(--vno-radius-md);box-shadow:var(--vno-shadow-lg);padding:24px;display:flex;flex-direction:column;gap:16px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--vno-border-subtle);padding-bottom:12px;">
-          <h2 style="margin:0;font-size:18px;font-weight:600;color:var(--vno-text-primary);">Menu Tệp — ${this.appTitle}</h2>
-          <button class="vno-btn" id="vno-backstage-close">&times;</button>
+      <div class="vno-backstage-sidebar">
+        <button class="vno-backstage-back-btn" id="vno-backstage-back">
+          <span>←</span> <span>Quay lại</span>
+        </button>
+        <button class="vno-backstage-nav-btn is-active">Trang chủ</button>
+        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.new">Tạo mới (Ctrl+N)</button>
+        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.open">Mở tệp (Ctrl+O)</button>
+        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.save">Lưu tài liệu (Ctrl+S)</button>
+        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.saveAs">Lưu bản sao (F12)</button>
+        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.print">In ấn (Ctrl+P)</button>
+        <button class="vno-backstage-nav-btn" data-backstage-cmd="common.file.exportPdf">Xuất tệp PDF</button>
+        <div style="flex:1;"></div>
+        <button class="vno-backstage-nav-btn" id="vno-backstage-about">Giới thiệu VN Office</button>
+      </div>
+
+      <div class="vno-backstage-content">
+        <h1 style="font-size:24px;font-weight:700;margin-bottom:8px;color:var(--vno-text-primary);">Mẫu văn bản tiêu chuẩn Việt Nam</h1>
+        <p style="color:var(--vno-text-muted);font-size:13px;margin-bottom:24px;">Khởi tạo tài liệu mới nhanh chóng theo mẫu quy chuẩn hành chính và doanh nghiệp</p>
+
+        <div class="vno-template-grid">
+          <div class="vno-template-card" data-backstage-cmd="common.file.new">
+            <div class="vno-template-thumb">
+              <span style="font-size:24px;color:#cbd5e1;">📄</span>
+            </div>
+            <strong style="font-size:13px;color:var(--vno-text-primary);">Tài liệu trống</strong>
+            <span style="font-size:11px;color:var(--vno-text-muted);">Khởi tạo trang trắng</span>
+          </div>
+
+          <div class="vno-template-card" data-backstage-cmd="common.file.new">
+            <div class="vno-template-thumb" style="border-top:3px solid var(--vno-writer-primary);">
+              <span style="font-size:10px;text-align:center;padding:6px;color:#475569;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</span>
+            </div>
+            <strong style="font-size:13px;color:var(--vno-text-primary);">Văn bản hành chính</strong>
+            <span style="font-size:11px;color:var(--vno-text-muted);">Chuẩn NĐ 30/2020/NĐ-CP</span>
+          </div>
+
+          <div class="vno-template-card" data-backstage-cmd="common.file.new">
+            <div class="vno-template-thumb" style="border-top:3px solid var(--vno-sheet-primary);">
+              <span style="font-size:20px;color:#0f6d38;">📊</span>
+            </div>
+            <strong style="font-size:13px;color:var(--vno-text-primary);">Dự toán kinh phí</strong>
+            <span style="font-size:11px;color:var(--vno-text-muted);">Bảng tính công thức VNĐ</span>
+          </div>
+
+          <div class="vno-template-card" data-backstage-cmd="common.file.new">
+            <div class="vno-template-thumb" style="border-top:3px solid var(--vno-slides-primary);">
+              <span style="font-size:20px;color:#b53818;">📽️</span>
+            </div>
+            <strong style="font-size:13px;color:var(--vno-text-primary);">Đề cương thuyết trình</strong>
+            <span style="font-size:11px;color:var(--vno-text-muted);">Slide 16:9 widescreen</span>
+          </div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px;">
-          <button class="vno-btn vno-btn-primary" style="padding:14px;justify-content:flex-start;" data-file-cmd="common.file.new">
-            ${ICONS.fileNew} <span style="font-weight:600;">Tạo tài liệu mới (Ctrl+N)</span>
-          </button>
-          <button class="vno-btn" style="padding:14px;justify-content:flex-start;background:var(--vno-bg-subtle);" data-file-cmd="common.file.open">
-            ${ICONS.fileOpen} <span>Mở tệp có sẵn (Ctrl+O)</span>
-          </button>
-          <button class="vno-btn" style="padding:14px;justify-content:flex-start;background:var(--vno-bg-subtle);" data-file-cmd="common.file.save">
-            ${ICONS.fileSave} <span>Lưu tài liệu (Ctrl+S)</span>
-          </button>
-          <button class="vno-btn" style="padding:14px;justify-content:flex-start;background:var(--vno-bg-subtle);" data-file-cmd="common.file.exportPdf">
-            ${ICONS.filePdf} <span>Xuất tệp PDF tiêu chuẩn</span>
-          </button>
-        </div>
-        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--vno-border-subtle);font-size:12px;color:var(--vno-text-muted);display:flex;justify-content:space-between;">
-          <span>VN Office v1.0.0 — Bản dựng kỹ thuật</span>
-          <span>Bảo mật & Tôn trọng quyền riêng tư</span>
+
+        <h2 style="font-size:18px;font-weight:700;margin-top:36px;margin-bottom:16px;color:var(--vno-text-primary);">Tài liệu mở gần đây</h2>
+        <div style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);overflow:hidden;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--vno-border-default);background:#fafafa;font-size:12px;font-weight:bold;color:var(--vno-text-muted);">
+            <span>TÊN TÀI LIỆU</span>
+            <span>VỊ TRÍ / ĐỊNH DẠNG</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--vno-border-default);cursor:pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+            <div>
+              <strong style="font-size:13px;color:var(--vno-text-primary);">Quyết định ban hành tiêu chuẩn 01.docx</strong>
+              <div style="font-size:11px;color:var(--vno-text-muted);margin-top:2px;">Sửa đổi: Hôm nay, 17:10</div>
+            </div>
+            <span style="font-size:12px;color:var(--vno-text-secondary);">DOCX Document (LibreOffice Core)</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+            <div>
+              <strong style="font-size:13px;color:var(--vno-text-primary);">Dự toán kinh phí VN Office 2026.xlsx</strong>
+              <div style="font-size:11px;color:var(--vno-text-muted);margin-top:2px;">Sửa đổi: Hôm nay, 17:08</div>
+            </div>
+            <span style="font-size:12px;color:var(--vno-text-secondary);">XLSX Spreadsheet (LibreOffice Core)</span>
+          </div>
         </div>
       </div>
     `;
@@ -215,14 +326,10 @@ export class AppShell {
       if (modal.parentNode) modal.parentNode.removeChild(modal);
     };
 
-    modal.querySelector("#vno-backstage-close").addEventListener("click", closeModal);
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) closeModal();
-    });
-
-    modal.querySelectorAll("[data-file-cmd]").forEach(b => {
-      b.addEventListener("click", () => {
-        const cmd = b.getAttribute("data-file-cmd");
+    modal.querySelector("#vno-backstage-back").addEventListener("click", closeModal);
+    modal.querySelectorAll("[data-backstage-cmd]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const cmd = btn.getAttribute("data-backstage-cmd");
         closeModal();
         globalCommandBus.execute(cmd);
       });
@@ -238,18 +345,17 @@ export class AppShell {
         if (key === "s") cmd = "common.file.save";
         else if (key === "o") cmd = "common.file.open";
         else if (key === "n") cmd = "common.file.new";
+        else if (key === "p") cmd = "common.file.print";
         else if (key === "z") cmd = e.shiftKey ? "common.edit.redo" : "common.edit.undo";
         else if (key === "y") cmd = "common.edit.redo";
-        else if (key === "j" && e.altKey) cmd = "ai.assistant.toggle";
 
         if (cmd) {
           e.preventDefault();
-          if (cmd === "ai.assistant.toggle") {
-            this.toggleAiSidebar();
-          } else {
-            globalCommandBus.execute(cmd);
-          }
+          globalCommandBus.execute(cmd);
         }
+      } else if (e.altKey && e.key.toLowerCase() === "j") {
+        e.preventDefault();
+        this.toggleAiSidebar();
       }
     });
   }

@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VN Office — Bộ Ứng Dụng Văn Phòng Việt</title>
   
+  <!-- Phông chữ Tiếng Việt chuẩn quốc gia -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <!-- Design System & Tokens -->
   <link rel="stylesheet" href="platform/theme/tokens.css">
   <link rel="stylesheet" href="platform/ui-kit/ui-kit.css">
@@ -15,73 +20,11 @@
   <link rel="stylesheet" href="apps/writer/writer.css">
   <link rel="stylesheet" href="apps/sheet/sheet.css">
   <link rel="stylesheet" href="apps/slides/slides.css">
-
-  <style>
-    /* Suite Launcher Overlay */
-    .vno-launcher-bar {
-      position: fixed;
-      bottom: 36px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: var(--vno-bg-surface);
-      border: 1px solid var(--vno-border-default);
-      box-shadow: var(--vno-shadow-lg);
-      border-radius: var(--vno-radius-lg);
-      padding: 6px 12px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      z-index: 1000;
-      user-select: none;
-    }
-    .vno-launcher-label {
-      font-size: var(--vno-font-size-xs);
-      font-weight: 700;
-      color: var(--vno-text-muted);
-      letter-spacing: 0.5px;
-      margin-right: 4px;
-    }
-    .vno-launcher-btn {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: var(--vno-radius-sm);
-      font-weight: 600;
-      font-size: var(--vno-font-size-sm);
-      cursor: pointer;
-      border: 1px solid transparent;
-      transition: all 0.15s ease;
-    }
-    .vno-launcher-btn.is-active {
-      box-shadow: var(--vno-shadow-sm);
-    }
-    .vno-btn-writer { color: var(--vno-app-writer-primary); }
-    .vno-btn-writer.is-active { background-color: var(--vno-app-writer-primary); color: #fff; }
-    .vno-btn-sheet { color: var(--vno-app-sheet-primary); }
-    .vno-btn-sheet.is-active { background-color: var(--vno-app-sheet-primary); color: #fff; }
-    .vno-btn-slides { color: var(--vno-app-slides-primary); }
-    .vno-btn-slides.is-active { background-color: var(--vno-app-slides-primary); color: #fff; }
-  </style>
 </head>
 <body>
 
   <!-- App Mount Root -->
   <div id="vno-app-root"></div>
-
-  <!-- Suite Switcher Dock -->
-  <div class="vno-launcher-bar" id="vno-suite-dock">
-    <span class="vno-launcher-label">VN OFFICE SUITE:</span>
-    <button class="vno-btn vno-launcher-btn vno-btn-writer is-active" id="launch-writer">
-      <span>VN Writer</span>
-    </button>
-    <button class="vno-btn vno-launcher-btn vno-btn-sheet" id="launch-sheet">
-      <span>VN Sheet</span>
-    </button>
-    <button class="vno-btn vno-launcher-btn vno-btn-slides" id="launch-slides">
-      <span>VN Slides</span>
-    </button>
-  </div>
 
   <script type="module">
     import { WriterApp } from "./apps/writer/writer-app.js";
@@ -95,11 +38,6 @@
     async function switchApp(appType) {
       themeManager.setApp(appType);
 
-      // Cập nhật dock
-      document.querySelectorAll(".vno-launcher-btn").forEach(b => b.classList.remove("is-active"));
-      const activeBtn = document.getElementById(`launch-${appType}`);
-      if (activeBtn) activeBtn.classList.add("is-active");
-
       if (appType === "writer") {
         currentAppInstance = new WriterApp(mountEl);
       } else if (appType === "sheet") {
@@ -109,13 +47,14 @@
       }
 
       await currentAppInstance.init();
+
+      // Cập nhật callback chuyển đổi app vào shell hiện tại
+      if (currentAppInstance.shell) {
+        currentAppInstance.shell.onSwitchApp = (nextApp) => switchApp(nextApp);
+      }
     }
 
-    document.getElementById("launch-writer").addEventListener("click", () => switchApp("writer"));
-    document.getElementById("launch-sheet").addEventListener("click", () => switchApp("sheet"));
-    document.getElementById("launch-slides").addEventListener("click", () => switchApp("slides"));
-
-    // Khởi động mặc định vào VN Writer
+    // Khởi động vào VN Writer
     switchApp("writer");
   </script>
 </body>

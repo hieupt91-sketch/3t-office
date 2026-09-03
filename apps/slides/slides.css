@@ -1,38 +1,63 @@
 ﻿/**
- * VN Slides — Stylesheet
+ * VN Slides — Enterprise Stylesheet
+ * Tiêu chuẩn trình chiếu hội thảo và thuyết trình chuyên nghiệp
  */
 
 .vno-slides-studio {
   display: flex;
   width: 100%;
   height: 100%;
-  background-color: var(--vno-bg-canvas);
+  background-color: #cbd5e1;
   overflow: hidden;
 }
 
-/* Thumbnails Navigator (Bên trái) */
+/* Slide Filmstrip Navigator (Cột trái) */
 .vno-slide-navigator {
-  width: 180px;
-  background-color: var(--vno-bg-subtle);
-  border-right: 1px solid var(--vno-border-subtle);
+  width: 220px;
+  background-color: #f1f5f9;
+  border-right: 1px solid var(--vno-border-strong);
   display: flex;
   flex-direction: column;
-  padding: 12px 8px;
+  padding: 12px 10px;
   gap: 12px;
   overflow-y: auto;
   user-select: none;
 }
 
+.vno-slide-nav-header {
+  display: flex;
+  margin-bottom: 4px;
+}
+.vno-slide-new-btn {
+  width: 100%;
+  padding: 8px;
+  background-color: #ffffff;
+  border: 1px dashed var(--vno-slides-primary);
+  color: var(--vno-slides-primary);
+  border-radius: var(--vno-radius-md);
+  font-weight: 700;
+  font-size: var(--vno-text-xs);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+.vno-slide-new-btn:hover {
+  background-color: var(--vno-slides-light);
+}
+
 .vno-slide-thumb-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
 }
 
 .vno-slide-thumb-num {
-  font-size: var(--vno-font-size-xs);
-  font-weight: 600;
+  font-size: var(--vno-text-xs);
+  font-weight: 700;
   color: var(--vno-text-muted);
   width: 16px;
   text-align: right;
@@ -42,80 +67,77 @@
   flex: 1;
   aspect-ratio: 16 / 9;
   background-color: #ffffff;
-  border: 1px solid var(--vno-border-default);
-  border-radius: var(--vno-radius-xs);
+  border: 1px solid #cbd5e1;
+  border-radius: var(--vno-radius-sm);
   box-shadow: var(--vno-shadow-sm);
-  padding: 6px;
+  padding: 8px;
   overflow: hidden;
-  font-size: 6px;
+  font-size: 7px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
+  justify-content: flex-start;
   transition: all 0.15s ease;
+  line-height: 1.2;
 }
 
 .vno-slide-thumb-item.is-active .vno-slide-thumb-card {
-  outline: 2px solid var(--vno-app-slides-primary);
+  outline: 2px solid var(--vno-slides-primary);
   border-color: transparent;
+  box-shadow: 0 0 0 2px rgba(181, 56, 24, 0.25);
 }
 
-/* Stage Canvas (Trung tâm) */
+/* Stage Canvas (Sân khấu trung tâm) */
 .vno-slide-stage {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 24px;
   overflow: auto;
+  position: relative;
 }
 
 .vno-slide-canvas {
-  width: 960px; /* Tỉ lệ 16:9 */
+  width: 960px; /* Tỉ lệ 16:9 chuẩn HD */
   height: 540px;
   background-color: #ffffff;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
   border-radius: 4px;
   position: relative;
   overflow: hidden;
-  box-sizing: border-box;
-  padding: 48px;
+  padding: 48px 56px;
   display: flex;
   flex-direction: column;
 }
 
 .vno-slide-title {
   font-size: 32px;
-  font-weight: bold;
-  color: var(--vno-text-primary);
+  font-weight: 800;
+  color: #0f172a;
   margin-bottom: 24px;
   outline: none;
+  border: 1px dashed transparent;
+  padding: 4px;
 }
 .vno-slide-title:focus {
-  outline: 1px dashed var(--vno-app-slides-primary);
+  border-color: var(--vno-slides-primary);
+  background-color: rgba(254, 242, 242, 0.5);
 }
 
 .vno-slide-body {
   flex: 1;
   font-size: 20px;
-  color: var(--vno-text-secondary);
-  line-height: 1.5;
+  color: #334155;
+  line-height: 1.6;
   outline: none;
+  border: 1px dashed transparent;
+  padding: 4px;
+  white-space: pre-line;
 }
 .vno-slide-body:focus {
-  outline: 1px dashed var(--vno-app-slides-primary);
-}
-
-/* Shapes trong Canvas */
-.vno-slide-shape {
-  position: absolute;
-  cursor: move;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 500;
-  user-select: none;
+  border-color: var(--vno-slides-primary);
+  background-color: rgba(254, 242, 242, 0.5);
 }
 
 /* Fullscreen Presentation Mode */
@@ -130,11 +152,11 @@
 }
 .vno-slideshow-content {
   width: 100vw;
-  height: 56.25vw; /* 16:9 */
+  height: 56.25vw;
   max-height: 100vh;
   max-width: 177.78vh;
   background-color: #ffffff;
-  padding: 64px;
+  padding: 64px 80px;
   display: flex;
   flex-direction: column;
 }
