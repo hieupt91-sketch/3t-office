@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office Platform — Danh mục định nghĩa toàn bộ Command IDs & Microsoft Shortcuts
  * Tiếng Việt chuẩn hóa, tích hợp 100% phím tắt Microsoft Office & LibreOffice
  */
@@ -54,6 +54,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.text.clearFormat", category: "format", label: "Xóa định dạng", shortcut: "Ctrl+Space", icon: "clearFormat", tooltip: "Xóa toàn bộ định dạng về mặc định (Ctrl+Space)" },
   { id: "writer.font.family", category: "format", label: "Phông chữ", tooltip: "Chọn phông chữ" },
   { id: "writer.font.size", category: "format", label: "Cỡ chữ", tooltip: "Chọn cỡ chữ" },
+  { id: "writer.style.apply", category: "format", label: "Kiểu dáng", tooltip: "Áp dụng kiểu đoạn văn (Normal, Heading 1, 2, 3)" },
   { id: "writer.color.text", category: "format", label: "Màu chữ", icon: "colorText", tooltip: "Đổi màu phông chữ" },
   { id: "writer.color.highlight", category: "format", label: "Màu nền chữ", icon: "colorHighlight", tooltip: "Tô màu nền văn bản" },
 
@@ -109,6 +110,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.data.sortAsc", category: "data", label: "Sắp xếp A-Z", icon: "sortAsc", tooltip: "Sắp xếp dữ liệu tăng dần" },
   { id: "sheet.data.sortDesc", category: "data", label: "Sắp xếp Z-A", icon: "sortDesc", tooltip: "Sắp xếp dữ liệu giảm dần" },
   { id: "sheet.data.filter", category: "data", label: "Bộ lọc", shortcut: "Ctrl+Shift+L", icon: "filter", tooltip: "Bật/tắt chế độ lọc AutoFilter (Ctrl+Shift+L)", isToggle: true },
+  { id: "sheet.view.freezePanes", category: "view", label: "Cố định hàng/cột", icon: "table", tooltip: "Cố định hàng 1 và cột A khi cuộn (Freeze Panes)", isToggle: true },
 
   // Chèn hàng/cột & Biểu đồ
   { id: "sheet.row.insert", category: "insert", label: "Chèn hàng", icon: "table", tooltip: "Chèn thêm hàng mới" },
@@ -127,8 +129,9 @@ export const SLIDES_COMMANDS = [
   { id: "slides.shape.insert", category: "insert", label: "Hình khối", icon: "shape", tooltip: "Chèn hình chữ nhật, tròn, mũi tên" },
   { id: "slides.image.insert", category: "insert", label: "Hình ảnh", icon: "image", tooltip: "Chèn ảnh minh họa từ máy tính" },
 
-  // Trình chiếu
-  { id: "slides.transition.apply", category: "transition", label: "Chuyển tiếp", icon: "slidePlay", tooltip: "Hiệu ứng chuyển trang chiếu" },
+  // Trình chiếu & Thiết kế
+  { id: "slides.master.apply", category: "design", label: "Mẫu Slide Master", icon: "template", tooltip: "Áp dụng mẫu Slide Master đồng bộ font, màu, logo cho toàn bộ trang chiếu" },
+  { id: "slides.transition.apply", category: "transition", label: "Chuyển tiếp", icon: "slidePlay", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" },
   { id: "slides.show.startFromBegin", category: "show", label: "Từ đầu", shortcut: "F5", icon: "slidePlay", tooltip: "Bắt đầu trình chiếu từ trang đầu tiên (F5)" },
   { id: "slides.show.startFromCurrent", category: "show", label: "Từ trang này", shortcut: "Shift+F5", icon: "slidePlay", tooltip: "Trình chiếu từ trang hiện tại (Shift+F5)" }
 ];

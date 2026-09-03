@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Writer — Enterprise Ribbon Structure
  * Cấu hình đầy đủ Icon Vector chuẩn Office Suite
  */
@@ -68,6 +68,27 @@ export const WRITER_RIBBON_TABS = [
                   { type: "button", commandId: "writer.text.clearFormat", iconOnly: true },
                   { type: "button", commandId: "writer.color.text", iconOnly: true },
                   { type: "button", commandId: "writer.color.highlight", iconOnly: true }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        label: "Kiểu dáng",
+        items: [
+          {
+            type: "column",
+            items: [
+              {
+                type: "select",
+                commandId: "writer.style.apply",
+                defaultValue: "p",
+                options: [
+                  { value: "p", label: "Văn bản thường (Normal)" },
+                  { value: "h1", label: "Tiêu đề 1 (Heading 1)" },
+                  { value: "h2", label: "Tiêu đề 2 (Heading 2)" },
+                  { value: "h3", label: "Tiêu đề 3 (Heading 3)" }
                 ]
               }
             ]

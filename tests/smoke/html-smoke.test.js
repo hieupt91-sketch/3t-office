@@ -227,10 +227,14 @@ export async function runHtmlSmokeTests() {
       const hasRibbon = renderedDom.includes('vno-ribbon');
       const hasTopbar = renderedDom.includes('vno-topbar');
       const hasPage = renderedDom.includes('vno-writer-page');
+      const hasHeader = renderedDom.includes('vno-writer-header');
+      const hasFooter = renderedDom.includes('vno-writer-footer');
+      const hasBody = renderedDom.includes('vno-writer-body');
+      const hasStyles = renderedDom.includes('writer.style.apply');
 
-      if (proc.status === 0 && hasRoot && hasShell && hasWriterApp && hasRibbon && hasTopbar && hasPage) {
+      if (proc.status === 0 && hasRoot && hasShell && hasWriterApp && hasRibbon && hasTopbar && hasPage && hasHeader && hasFooter && hasBody && hasStyles) {
         results.push({
-          name: `Browser Headless (${browserName}): Nạp index.html, chạy ES modules và mount đầy đủ DOM VN Writer thành công`,
+          name: `Browser Headless (${browserName}): Nạp index.html, mount đầy đủ DOM VN Writer kèm Header/Footer/Styles thành công`,
           pass: true
         });
       } else {
@@ -239,7 +243,11 @@ export async function runHtmlSmokeTests() {
           !hasWriterApp && "thiếu data-app='writer'",
           !hasRibbon && "thiếu .vno-ribbon",
           !hasTopbar && "thiếu .vno-topbar",
-          !hasPage && "thiếu .vno-writer-page"
+          !hasPage && "thiếu .vno-writer-page",
+          !hasHeader && "thiếu .vno-writer-header",
+          !hasFooter && "thiếu .vno-writer-footer",
+          !hasBody && "thiếu .vno-writer-body",
+          !hasStyles && "thiếu select writer.style.apply"
         ].filter(Boolean).join(", ");
 
         results.push({

@@ -6,13 +6,15 @@ import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { SheetChartBuilder } from "./sheet-chart.js";
 import { showAlertDialog } from "../../platform/ui-kit/dialogs.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
+import { globalCommandBus } from "../../platform/commands/command-bus.js";
 
 export class SheetGridController {
   constructor(container, options = {}) {
     this.container = container;
     this.options = options;
-    this.cols = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
-    this.rowCount = 35;
+    this.cols = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
+    this.rowCount = 200;
+    this.rowHeight = 26;
 
     /** @type {Map<string, {val: string|number, formula: string, style: Object}>} */
     this.cellsData = new Map();
@@ -25,6 +27,20 @@ export class SheetGridController {
     this.selectedCoord = { r: 1, c: "A" };
     this.sheets = ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"];
     this.activeSheet = "Dự toán chi phí";
+
+    // Freeze Panes & Sort/Filter state
+    this.isFrozenPanes = false;
+    this.isFilterActive = false;
+    this.hiddenRows = new Set();
+    this.activeFilters = new Map();
+
+    // Virtual scroll state
+    this.currentStartRow = 1;
+    this.currentEndRow = 35;
+    this.topSpacer = null;
+    this.bottomSpacer = null;
+    this.viewport = null;
+    this.tbody = null;
   }
 
   mount() {
@@ -90,12 +106,15 @@ export class SheetGridController {
     // 2. Grid Table Viewport
     const vp = document.createElement("div");
     vp.className = "vno-grid-viewport";
+    this.viewport = vp;
     vp.addEventListener("scroll", () => {
       this.autocomplete.updatePosition();
+      this._onViewportScroll();
     });
 
     const table = document.createElement("table");
     table.className = "vno-grid-table";
+    this.table = table;
 
     // Column Headers
     const thead = document.createElement("thead");
@@ -104,38 +123,39 @@ export class SheetGridController {
     this.cols.forEach(col => {
       const th = document.createElement("th");
       th.className = "vno-col-header";
-      th.textContent = col;
+      th.dataset.col = col;
+      th.innerHTML = `
+        <span class="vno-col-title">${col}</span>
+        <button class="vno-filter-btn" data-col="${col}" title="Lọc và sắp xếp cột ${col}" style="display:none;">▼</button>
+      `;
       trHead.appendChild(th);
     });
     thead.appendChild(trHead);
     table.appendChild(thead);
 
-    // Rows
+    // Filter button click listener via delegation
+    thead.addEventListener("click", (e) => {
+      const btn = e.target.closest(".vno-filter-btn");
+      if (btn) {
+        e.stopPropagation();
+        this.openFilterMenu(btn.dataset.col, btn);
+      }
+    });
+
+    // Virtualization Rows
     const tbody = document.createElement("tbody");
-    for (let r = 1; r <= this.rowCount; r++) {
-      const tr = document.createElement("tr");
-      const thRow = document.createElement("th");
-      thRow.className = "vno-row-header";
-      thRow.textContent = r;
-      tr.appendChild(thRow);
+    this.tbody = tbody;
 
-      this.cols.forEach(c => {
-        const td = document.createElement("td");
-        td.className = "vno-grid-cell";
-        td.dataset.coord = `${c}${r}`;
+    this.topSpacer = document.createElement("tr");
+    this.topSpacer.className = "vno-grid-spacer-top";
+    this.topSpacer.innerHTML = `<td colspan="${this.cols.length + 1}" style="height:0px;padding:0;border:none;"></td>`;
+    tbody.appendChild(this.topSpacer);
 
-        td.addEventListener("click", () => {
-          this.selectCell(c, r);
-        });
+    this.bottomSpacer = document.createElement("tr");
+    this.bottomSpacer.className = "vno-grid-spacer-bottom";
+    this.bottomSpacer.innerHTML = `<td colspan="${this.cols.length + 1}" style="height:0px;padding:0;border:none;"></td>`;
+    tbody.appendChild(this.bottomSpacer);
 
-        td.addEventListener("dblclick", () => {
-          this.focusFormulaInput();
-        });
-
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    }
     table.appendChild(tbody);
     vp.appendChild(table);
     this.container.appendChild(vp);
@@ -168,8 +188,89 @@ export class SheetGridController {
     this.container.appendChild(tabBar);
 
     this._populateInitialData();
+    this._renderVirtualRows(1, 40);
     this.selectCell("A", 1);
     this._bindGridKeyboardNavigation();
+  }
+
+  _renderVirtualRows(startRow, endRow) {
+    if (!this.tbody || !this.topSpacer || !this.bottomSpacer) return;
+
+    startRow = Math.max(1, startRow);
+    endRow = Math.min(this.rowCount, endRow);
+    this.currentStartRow = startRow;
+    this.currentEndRow = endRow;
+
+    // Cập nhật khoảng cách cuộn ảo
+    const topHeight = (startRow - 1) * this.rowHeight;
+    const bottomHeight = Math.max(0, this.rowCount - endRow) * this.rowHeight;
+    const topTd = this.topSpacer.querySelector("td");
+    if (topTd) topTd.style.height = `${topHeight}px`;
+    const bottomTd = this.bottomSpacer.querySelector("td");
+    if (bottomTd) bottomTd.style.height = `${bottomHeight}px`;
+
+    // Xóa các hàng cũ nằm giữa topSpacer và bottomSpacer
+    while (this.topSpacer.nextSibling && this.topSpacer.nextSibling !== this.bottomSpacer) {
+      this.tbody.removeChild(this.topSpacer.nextSibling);
+    }
+
+    const frag = document.createDocumentFragment();
+    for (let r = startRow; r <= endRow; r++) {
+      if (this.hiddenRows.has(r)) continue;
+
+      const tr = document.createElement("tr");
+      tr.dataset.row = r;
+
+      const thRow = document.createElement("th");
+      thRow.className = "vno-row-header";
+      thRow.textContent = r;
+      tr.appendChild(thRow);
+
+      this.cols.forEach(c => {
+        const td = document.createElement("td");
+        td.className = "vno-grid-cell";
+        const coordKey = `${c}${r}`;
+        td.dataset.coord = coordKey;
+        td.dataset.col = c;
+        td.dataset.row = r;
+
+        const itm = this.cellsData.get(coordKey);
+        if (itm) {
+          td.textContent = itm.val ?? "";
+          if (itm.style) this._applyStylesToDom(td, itm.style);
+        }
+
+        if (this.selectedCoord.c === c && this.selectedCoord.r === r) {
+          td.classList.add("is-selected");
+          const handle = document.createElement("div");
+          handle.className = "vno-cell-autofill-handle";
+          td.appendChild(handle);
+        }
+
+        td.addEventListener("click", () => this.selectCell(c, r));
+        td.addEventListener("dblclick", () => this.focusFormulaInput());
+
+        tr.appendChild(td);
+      });
+
+      frag.appendChild(tr);
+    }
+
+    this.tbody.insertBefore(frag, this.bottomSpacer);
+  }
+
+  _onViewportScroll() {
+    if (!this.viewport) return;
+    const scrollTop = this.viewport.scrollTop;
+    const viewportHeight = this.viewport.clientHeight || 500;
+    const visibleCount = Math.ceil(viewportHeight / this.rowHeight);
+    const buffer = 8;
+    const startRow = Math.max(1, Math.floor(scrollTop / this.rowHeight) - buffer);
+    const endRow = Math.min(this.rowCount, startRow + visibleCount + buffer * 2);
+
+    if (Math.abs(startRow - this.currentStartRow) >= 3 || Math.abs(endRow - this.currentEndRow) >= 3) {
+      this._renderVirtualRows(startRow, endRow);
+    }
   }
 
   _bindGridKeyboardNavigation() {
@@ -264,6 +365,15 @@ export class SheetGridController {
     if (this.autocomplete) {
       this.autocomplete.closeAll();
     }
+
+    this.selectedCoord = { c: col, r: row };
+
+    // Tự động cuộn viewport nếu ô nằm ngoài phạm vi hiển thị ảo
+    if (this.viewport && (row < this.currentStartRow || row > this.currentEndRow)) {
+      this.viewport.scrollTop = Math.max(0, (row - 5) * this.rowHeight);
+      this._onViewportScroll();
+    }
+
     const old = this.container.querySelector(`.vno-grid-cell.is-selected`);
     if (old) {
       old.classList.remove("is-selected");
@@ -271,7 +381,6 @@ export class SheetGridController {
       if (handle) handle.remove();
     }
 
-    this.selectedCoord = { c: col, r: row };
     const coordKey = `${col}${row}`;
     const target = this.container.querySelector(`.vno-grid-cell[data-coord="${coordKey}"]`);
     if (target) {
@@ -566,6 +675,22 @@ export class SheetGridController {
       this.selectedCoord = { c: action.col, r: action.row };
       this.setStyle(action.prop, action.prevVal, false);
       return true;
+    } else if (action.type === "sort") {
+      this.redoStack.push({ ...action });
+      action.snapshots.forEach(snap => {
+        const r = snap.originalRow;
+        this.cols.forEach(c => {
+          const k = `${c}${r}`;
+          if (snap.data[c]) {
+            this.cellsData.set(k, { ...snap.data[c] });
+          } else {
+            this.cellsData.delete(k);
+          }
+        });
+      });
+      this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+      this._recalculateAllFormulas();
+      return true;
     }
     return false;
   }
@@ -583,8 +708,247 @@ export class SheetGridController {
       this.selectedCoord = { c: action.col, r: action.row };
       this.setStyle(action.prop, action.nextVal, false);
       return true;
+    } else if (action.type === "sort") {
+      this.undoStack.push({ ...action });
+      this.sort(this.selectedCoord.c, true);
+      return true;
     }
     return false;
+  }
+
+  toggleFreezePanes() {
+    this.isFrozenPanes = !this.isFrozenPanes;
+    if (this.container) {
+      if (this.isFrozenPanes) {
+        this.container.classList.add("vno-freeze-panes");
+      } else {
+        this.container.classList.remove("vno-freeze-panes");
+      }
+    }
+    if (globalCommandBus && typeof globalCommandBus.updateState === "function") {
+      globalCommandBus.updateState("sheet.view.freezePanes", { checked: this.isFrozenPanes });
+    }
+    return this.isFrozenPanes;
+  }
+
+  sort(col = this.selectedCoord.c, ascending = true) {
+    // Thu thập các hàng dữ liệu cần sắp xếp
+    const rowsWithData = [];
+    for (const [key, item] of this.cellsData.entries()) {
+      if ((item.val !== "" && item.val !== undefined) || item.formula) {
+        const m = key.match(/^([A-Z]+)(\d+)$/);
+        if (m) {
+          const r = parseInt(m[2], 10);
+          const isTotalRow = (item.formula && item.formula.toLowerCase().includes("sum")) || String(item.val).toLowerCase().includes("tổng");
+          if (r >= 4 && !isTotalRow && !rowsWithData.includes(r)) {
+            rowsWithData.push(r);
+          }
+        }
+      }
+    }
+
+    if (rowsWithData.length < 2) {
+      rowsWithData.push(4, 5, 6, 7);
+    }
+
+    rowsWithData.sort((a, b) => a - b);
+    const minRow = rowsWithData[0];
+    const maxRow = rowsWithData[rowsWithData.length - 1];
+
+    const rowSnapshots = [];
+    for (let r = minRow; r <= maxRow; r++) {
+      const rowData = {};
+      this.cols.forEach(c => {
+        const k = `${c}${r}`;
+        const itm = this.cellsData.get(k);
+        if (itm) rowData[c] = { ...itm, style: { ...itm.style } };
+      });
+      const sortVal = rowData[col]?.val ?? "";
+      rowSnapshots.push({ originalRow: r, data: rowData, sortVal });
+    }
+
+    this.undoStack.push({
+      type: "sort",
+      minRow,
+      maxRow,
+      snapshots: JSON.parse(JSON.stringify(rowSnapshots))
+    });
+    this.redoStack = [];
+
+    rowSnapshots.sort((a, b) => {
+      const vA = a.sortVal;
+      const vB = b.sortVal;
+      const numA = typeof vA === "number" ? vA : parseFloat(String(vA).replace(/\./g, "").replace(/[^\d-]/g, ""));
+      const numB = typeof vB === "number" ? vB : parseFloat(String(vB).replace(/\./g, "").replace(/[^\d-]/g, ""));
+
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return ascending ? numA - numB : numB - numA;
+      }
+      return ascending 
+        ? String(vA).localeCompare(String(vB), "vi-VN") 
+        : String(vB).localeCompare(String(vA), "vi-VN");
+    });
+
+    rowSnapshots.forEach((snap, idx) => {
+      const targetRow = minRow + idx;
+      this.cols.forEach(c => {
+        const k = `${c}${targetRow}`;
+        if (snap.data[c]) {
+          this.cellsData.set(k, { ...snap.data[c] });
+        } else {
+          this.cellsData.delete(k);
+        }
+      });
+    });
+
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    this._recalculateAllFormulas();
+    return true;
+  }
+
+  toggleFilter() {
+    this.isFilterActive = !this.isFilterActive;
+    if (this.container) {
+      if (this.isFilterActive) {
+        this.container.classList.add("vno-filter-mode");
+      } else {
+        this.container.classList.remove("vno-filter-mode");
+        this.hiddenRows.clear();
+        this.activeFilters.clear();
+      }
+    }
+    this._updateFilterButtons();
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    if (globalCommandBus && typeof globalCommandBus.updateState === "function") {
+      globalCommandBus.updateState("sheet.data.filter", { checked: this.isFilterActive });
+    }
+    return this.isFilterActive;
+  }
+
+  _updateFilterButtons() {
+    if (!this.container) return;
+    const btns = this.container.querySelectorAll(".vno-filter-btn");
+    btns.forEach(btn => {
+      btn.style.display = this.isFilterActive ? "inline-flex" : "none";
+      const col = btn.dataset.col;
+      if (this.activeFilters.has(col)) {
+        btn.classList.add("is-active");
+      } else {
+        btn.classList.remove("is-active");
+      }
+    });
+  }
+
+  openFilterMenu(col, anchorBtn) {
+    if (typeof document === "undefined") return;
+    const old = document.querySelector(".vno-filter-popover");
+    if (old) old.remove();
+
+    const popover = document.createElement("div");
+    popover.className = "vno-filter-popover";
+
+    const valuesSet = new Set();
+    for (const [k, itm] of this.cellsData.entries()) {
+      const m = k.match(/^([A-Z]+)(\d+)$/);
+      if (m && m[1] === col) {
+        const r = parseInt(m[2], 10);
+        if (r >= 4 && itm.val !== undefined && itm.val !== "") {
+          valuesSet.add(String(itm.val));
+        }
+      }
+    }
+    const uniqueVals = Array.from(valuesSet);
+    const currentAllowed = this.activeFilters.get(col) || new Set(uniqueVals);
+
+    popover.innerHTML = `
+      <div class="vno-filter-popover-item" id="vno-filter-sort-asc">
+        <span>▲ Sắp xếp tăng dần (A-Z)</span>
+      </div>
+      <div class="vno-filter-popover-item" id="vno-filter-sort-desc">
+        <span>▼ Sắp xếp giảm dần (Z-A)</span>
+      </div>
+      <div style="height:1px;background:#e2e8f0;margin:2px 0;"></div>
+      <div style="font-weight:600;font-size:11px;color:#475569;">Lọc theo giá trị:</div>
+      <div class="vno-filter-values-list">
+        ${uniqueVals.map(val => `
+          <label class="vno-filter-value-row">
+            <input type="checkbox" value="${val}" ${currentAllowed.has(val) ? "checked" : ""} />
+            <span>${val}</span>
+          </label>
+        `).join("")}
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;">
+        <button class="vno-btn" id="vno-filter-select-all" style="font-size:10px;padding:2px 6px;">Tất cả</button>
+        <button class="vno-btn" id="vno-filter-clear-all" style="font-size:10px;padding:2px 6px;">Bỏ chọn</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end;">
+        <button class="vno-btn" id="vno-filter-cancel" style="padding:4px 8px;font-size:11px;">Hủy</button>
+        <button class="vno-btn vno-btn-primary" id="vno-filter-apply" style="padding:4px 8px;font-size:11px;">Áp dụng</button>
+      </div>
+    `;
+
+    document.body.appendChild(popover);
+
+    if (anchorBtn && anchorBtn.getBoundingClientRect) {
+      const rect = anchorBtn.getBoundingClientRect();
+      popover.style.top = `${rect.bottom + (window.scrollY || 0) + 2}px`;
+      popover.style.left = `${Math.min((window.innerWidth || 800) - 220, Math.max(10, rect.left + (window.scrollX || 0) - 80))}px`;
+    }
+
+    popover.querySelector("#vno-filter-sort-asc")?.addEventListener("click", () => {
+      this.sort(col, true);
+      popover.remove();
+    });
+    popover.querySelector("#vno-filter-sort-desc")?.addEventListener("click", () => {
+      this.sort(col, false);
+      popover.remove();
+    });
+
+    popover.querySelector("#vno-filter-select-all")?.addEventListener("click", () => {
+      popover.querySelectorAll(".vno-filter-value-row input").forEach(cb => cb.checked = true);
+    });
+    popover.querySelector("#vno-filter-clear-all")?.addEventListener("click", () => {
+      popover.querySelectorAll(".vno-filter-value-row input").forEach(cb => cb.checked = false);
+    });
+
+    popover.querySelector("#vno-filter-cancel")?.addEventListener("click", () => popover.remove());
+
+    popover.querySelector("#vno-filter-apply")?.addEventListener("click", () => {
+      const allowed = new Set();
+      popover.querySelectorAll(".vno-filter-value-row input:checked").forEach(cb => allowed.add(cb.value));
+      this.applyFilter(col, allowed);
+      popover.remove();
+    });
+
+    const onDocClick = (e) => {
+      if (!popover.contains(e.target) && e.target !== anchorBtn) {
+        popover.remove();
+        document.removeEventListener("click", onDocClick);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", onDocClick), 10);
+  }
+
+  applyFilter(col, allowedSet) {
+    this.activeFilters.set(col, allowedSet);
+    this.hiddenRows.clear();
+
+    for (let r = 4; r <= this.rowCount; r++) {
+      let shouldHide = false;
+      for (const [filterCol, allowed] of this.activeFilters.entries()) {
+        const key = `${filterCol}${r}`;
+        const itm = this.cellsData.get(key);
+        const val = itm ? String(itm.val ?? "") : "";
+        if (val && !allowed.has(val)) {
+          shouldHide = true;
+          break;
+        }
+      }
+      if (shouldHide) this.hiddenRows.add(r);
+    }
+
+    this._updateFilterButtons();
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
   }
 
   updateStatus() {

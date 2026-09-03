@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Writer — Enterprise Stylesheet
  * Tiêu chuẩn văn bản hành chính Việt Nam (Nghị định 30/2020/NĐ-CP)
  */
@@ -132,6 +132,13 @@
   margin: 10pt 0 4pt 0;
 }
 
+.vno-writer-page h3 {
+  font-size: 13pt;
+  font-weight: bold;
+  font-style: italic;
+  margin: 8pt 0 3pt 0;
+}
+
 .vno-writer-page table {
   width: 100%;
   border-collapse: collapse;
@@ -141,3 +148,97 @@
   border: 1px solid #94a3b8;
   padding: 6pt 10pt;
 }
+
+/* Vùng Đầu trang (Header) và Chân trang (Footer) tách biệt chuẩn Word */
+.vno-writer-header,
+.vno-writer-footer {
+  min-height: 26px;
+  font-size: 10pt;
+  color: #64748b;
+  outline: none;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.vno-writer-header {
+  border-bottom: 1px dashed #cbd5e1;
+  margin-bottom: 12px;
+  padding-bottom: 4px;
+}
+
+.vno-writer-header:focus,
+.vno-writer-header:hover {
+  border-bottom-color: var(--vno-writer-primary, #0284c7);
+}
+
+.vno-writer-header::after {
+  content: "ĐẦU TRANG (HEADER)";
+  position: absolute;
+  right: 0;
+  top: -14px;
+  font-size: 8.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.vno-writer-header:focus::after,
+.vno-writer-header:hover::after {
+  opacity: 1;
+  color: var(--vno-writer-primary, #0284c7);
+}
+
+.vno-writer-footer {
+  border-top: 1px dashed #cbd5e1;
+  margin-top: 20px;
+  padding-top: 4px;
+}
+
+.vno-writer-footer:focus,
+.vno-writer-footer:hover {
+  border-top-color: var(--vno-writer-primary, #0284c7);
+}
+
+.vno-writer-footer::after {
+  content: "CHÂN TRANG (FOOTER)";
+  position: absolute;
+  right: 0;
+  bottom: -14px;
+  font-size: 8.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.vno-writer-footer:focus::after,
+.vno-writer-footer:hover::after {
+  opacity: 1;
+  color: var(--vno-writer-primary, #0284c7);
+}
+
+.vno-writer-header:empty::before,
+.vno-writer-footer:empty::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  font-style: italic;
+  pointer-events: none;
+}
+
+/* Vùng nội dung chính (Body) */
+.vno-writer-body {
+  min-height: 800px;
+  outline: none;
+}
+
+/* Format Painter Active Cursor */
+.vno-format-painter-active,
+.vno-format-painter-active * {
+  cursor: copy !important;
+}
+

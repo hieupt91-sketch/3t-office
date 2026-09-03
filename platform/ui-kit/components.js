@@ -65,6 +65,7 @@ function resolveIcon(commandId, iconName) {
 export function createCommandButton({ commandId, isLarge = false, iconOnly = false, customIcon, customLabel }) {
   const btn = document.createElement("button");
   btn.setAttribute("type", "button");
+  if (commandId) btn.setAttribute("data-command-id", commandId);
 
   const def = globalCommandBus.getDefinition(commandId);
   const state = globalCommandBus.getState(commandId);
@@ -127,6 +128,7 @@ export function createCommandButton({ commandId, isLarge = false, iconOnly = fal
 export function createSelect({ commandId, options, defaultValue, onChange }) {
   const select = document.createElement("select");
   select.className = "vno-select";
+  if (commandId) select.setAttribute("data-command-id", commandId);
 
   options.forEach(opt => {
     const el = document.createElement("option");

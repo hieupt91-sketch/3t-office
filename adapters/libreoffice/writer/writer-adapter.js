@@ -5,6 +5,7 @@
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
+import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
 const PAGE_SIZES_MM = {
@@ -28,9 +29,24 @@ export class WriterAdapter {
       orientation: "portrait",
       margins: { ...DEFAULT_MARGINS_MM }
     };
+    this.copiedFormat = null;
+    this._initZones();
+  }
+
+  _initZones() {
+    if (!this.editorDom || typeof this.editorDom.querySelector !== "function") {
+      this.headerDom = null;
+      this.bodyDom = this.editorDom;
+      this.footerDom = null;
+      return;
+    }
+    this.headerDom = this.editorDom.querySelector(".vno-writer-header");
+    this.bodyDom = this.editorDom.querySelector(".vno-writer-body") || this.editorDom;
+    this.footerDom = this.editorDom.querySelector(".vno-writer-footer");
   }
 
   attach() {
+    this._initZones();
     globalUnoBridge.attachDocument(this);
     this._applyPageSetup();
   }
@@ -307,6 +323,19 @@ export class WriterAdapter {
         await this._insertHyperlink();
         return true;
 
+      case "common.edit.formatPainter":
+        return this._toggleFormatPainter();
+
+      case "writer.header.insert":
+        return this.activateHeader();
+
+      case "writer.footer.insert":
+        return this.activateFooter();
+
+      case "writer.style.apply":
+        this._applyParagraphStyle(args);
+        return true;
+
       case "common.file.save":
         return await this.save();
 
@@ -337,6 +366,7 @@ export class WriterAdapter {
   }
 
   insertTable(rows = 3, cols = 4) {
+    this._initZones();
     let html = `<table style="width:100%; border-collapse:collapse; margin:14pt 0;"><tbody>`;
     for (let r = 0; r < rows; r++) {
       html += `<tr>`;
@@ -354,13 +384,15 @@ export class WriterAdapter {
         inserted = false;
       }
     }
-    if (!inserted && this.editorDom) {
-      this.editorDom.innerHTML = (this.editorDom.innerHTML || "") + html;
+    const targetDom = this.bodyDom || this.editorDom;
+    if (!inserted && targetDom) {
+      targetDom.innerHTML = (targetDom.innerHTML || "") + html;
     }
     this.isDirty = true;
   }
 
   _insertPageBreak() {
+    this._initZones();
     const html = `<div style="page-break-before:always; border-top:2px dashed #94a3b8; margin:24px 0; text-align:center; color:#94a3b8; font-size:11px; user-select:none;">--- Phân tách trang (Page Break) ---</div><p><br></p>`;
     let inserted = false;
     if (typeof document !== "undefined" && typeof document.execCommand === "function") {
@@ -370,10 +402,142 @@ export class WriterAdapter {
         inserted = false;
       }
     }
-    if (!inserted && this.editorDom) {
-      this.editorDom.innerHTML = (this.editorDom.innerHTML || "") + html;
+    const targetDom = this.bodyDom || this.editorDom;
+    if (!inserted && targetDom) {
+      targetDom.innerHTML = (targetDom.innerHTML || "") + html;
     }
     this.isDirty = true;
+  }
+
+  activateHeader() {
+    this._initZones();
+    if (!this.headerDom) return false;
+    if (!this.headerDom.innerText?.trim()) {
+      this.headerDom.innerHTML = "<p style='text-align: center; font-size: 10pt; margin: 0;'>Tiêu đề đầu trang</p>";
+    }
+    this.headerDom.focus();
+    if (typeof window !== "undefined" && typeof document !== "undefined" && document.createRange) {
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(this.headerDom);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch {}
+    }
+    this.isDirty = true;
+    return true;
+  }
+
+  activateFooter() {
+    this._initZones();
+    if (!this.footerDom) return false;
+    if (!this.footerDom.innerText?.trim()) {
+      this.footerDom.innerHTML = "<p style='text-align: center; font-size: 10pt; margin: 0;'>Trang 1 / 1</p>";
+    }
+    this.footerDom.focus();
+    if (typeof window !== "undefined" && typeof document !== "undefined" && document.createRange) {
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(this.footerDom);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch {}
+    }
+    this.isDirty = true;
+    return true;
+  }
+
+  _applyParagraphStyle(tag = "p") {
+    const targetTag = (tag || "p").toLowerCase();
+    if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+      try {
+        document.execCommand("formatBlock", false, `<${targetTag}>`);
+      } catch {
+        try {
+          document.execCommand("formatBlock", false, targetTag);
+        } catch {}
+      }
+    }
+    this.isDirty = true;
+    return true;
+  }
+
+  _toggleFormatPainter() {
+    if (typeof window === "undefined") return false;
+    if (!this.copiedFormat) {
+      const sel = window.getSelection?.();
+      if (!sel || sel.rangeCount === 0) return false;
+      let node = sel.anchorNode;
+      if (node && node.nodeType === 3) node = node.parentNode;
+      if (!node) return false;
+
+      const style = window.getComputedStyle(node);
+      this.copiedFormat = {
+        fontWeight: style.fontWeight,
+        fontStyle: style.fontStyle,
+        textDecoration: style.textDecorationLine || style.textDecoration,
+        color: style.color,
+        backgroundColor: style.backgroundColor,
+        fontFamily: style.fontFamily,
+        fontSize: style.fontSize
+      };
+
+      globalCommandBus.setState("common.edit.formatPainter", { checked: true });
+      this.editorDom?.classList?.add("vno-format-painter-active");
+
+      const onMouseUp = () => {
+        setTimeout(() => {
+          const activeSel = window.getSelection?.();
+          if (activeSel && !activeSel.isCollapsed && this.copiedFormat) {
+            this._applyCopiedFormat();
+          }
+        }, 20);
+      };
+      document.addEventListener("mouseup", onMouseUp, { once: true });
+      return true;
+    } else {
+      const sel = window.getSelection?.();
+      if (sel && !sel.isCollapsed) {
+        this._applyCopiedFormat();
+      } else {
+        this._clearFormatPainter();
+      }
+      return true;
+    }
+  }
+
+  _applyCopiedFormat() {
+    if (!this.copiedFormat || typeof document === "undefined") return;
+    const fmt = this.copiedFormat;
+    const isBold = fmt.fontWeight === "bold" || parseInt(fmt.fontWeight, 10) >= 600;
+    const isItalic = fmt.fontStyle === "italic";
+    const isUnderline = (fmt.textDecoration || "").includes("underline");
+
+    if (isBold && !document.queryCommandState("bold")) document.execCommand("bold");
+    if (!isBold && document.queryCommandState("bold")) document.execCommand("bold");
+
+    if (isItalic && !document.queryCommandState("italic")) document.execCommand("italic");
+    if (!isItalic && document.queryCommandState("italic")) document.execCommand("italic");
+
+    if (isUnderline && !document.queryCommandState("underline")) document.execCommand("underline");
+    if (!isUnderline && document.queryCommandState("underline")) document.execCommand("underline");
+
+    if (fmt.color) document.execCommand("foreColor", false, fmt.color);
+    if (fmt.backgroundColor && fmt.backgroundColor !== "transparent" && fmt.backgroundColor !== "rgba(0, 0, 0, 0)") {
+      document.execCommand("hiliteColor", false, fmt.backgroundColor);
+    }
+    if (fmt.fontFamily) document.execCommand("fontName", false, fmt.fontFamily);
+
+    this._clearFormatPainter();
+    this.isDirty = true;
+  }
+
+  _clearFormatPainter() {
+    this.copiedFormat = null;
+    globalCommandBus.setState("common.edit.formatPainter", { checked: false });
+    this.editorDom?.classList?.remove("vno-format-painter-active");
   }
 
   _setLineHeight(val) {
@@ -483,8 +647,27 @@ export class WriterAdapter {
    * trình phân tích HTML của LibreOffice vẫn áp dụng đúng CSS ở vị trí này.
    */
   _contentForExport() {
-    const html = this.editorDom.innerHTML;
-    return `<style>${this._getPageSetupCss()}</style>${html}`;
+    this._initZones();
+    let bodyHtml = "";
+    let headerHtml = "";
+    let footerHtml = "";
+
+    if (this.headerDom && this.headerDom.innerText?.trim()) {
+      headerHtml = `<div title="header">\n${this.headerDom.innerHTML}\n</div>\n`;
+    }
+
+    if (this.bodyDom) {
+      bodyHtml = this.bodyDom.innerHTML;
+    } else if (this.editorDom) {
+      bodyHtml = this.editorDom.innerHTML;
+    }
+
+    if (this.footerDom && this.footerDom.innerText?.trim()) {
+      footerHtml = `\n<div title="footer">\n${this.footerDom.innerHTML}\n</div>`;
+    }
+
+    const fullHtml = `${headerHtml}${bodyHtml}${footerHtml}`;
+    return `<style>${this._getPageSetupCss()}</style>${fullHtml}`;
   }
 
   /**
@@ -492,7 +675,7 @@ export class WriterAdapter {
    * V1: luôn mở hộp thoại chọn nơi lưu (chưa lưu ngầm vào đường dẫn cũ) — sẽ tối ưu ở bản sau.
    */
   async save() {
-    this.documentContent = this.editorDom.innerHTML;
+    this.documentContent = this.editorDom ? this.editorDom.innerHTML : "";
     const result = await globalUnoBridge.saveRealFile("writer", this._contentForExport(), "docx", this.sourceFileName);
     if (result.status === "ok") {
       this.isDirty = false;
@@ -514,8 +697,33 @@ export class WriterAdapter {
   async open() {
     const result = await globalUnoBridge.openRealFile("writer");
     if (result.status === "ok") {
-      this.editorDom.innerHTML = result.content;
-      this.documentContent = result.content;
+      this._initZones();
+      const raw = result.content || "";
+      const headerMatch = raw.match(/<div\s+title=["']header["'][^>]*>([\s\S]*?)<\/div>/i);
+      const footerMatch = raw.match(/<div\s+title=["']footer["'][^>]*>([\s\S]*?)<\/div>/i);
+
+      let bodyContent = raw;
+      let headerContent = "";
+      let footerContent = "";
+
+      if (headerMatch) {
+        headerContent = headerMatch[1].trim();
+        bodyContent = bodyContent.replace(headerMatch[0], "");
+      }
+      if (footerMatch) {
+        footerContent = footerMatch[1].trim();
+        bodyContent = bodyContent.replace(footerMatch[0], "");
+      }
+
+      if (this.headerDom && this.bodyDom && this.footerDom) {
+        this.headerDom.innerHTML = headerContent;
+        this.bodyDom.innerHTML = bodyContent;
+        this.footerDom.innerHTML = footerContent;
+      } else if (this.editorDom) {
+        this.editorDom.innerHTML = raw;
+      }
+
+      this.documentContent = this.editorDom ? this.editorDom.innerHTML : raw;
       this.sourceFileName = (result.fileName || "TaiLieu").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
       return true;

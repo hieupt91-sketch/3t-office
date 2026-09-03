@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Slides — Enterprise Ribbon Structure
  * Cấu hình đầy đủ Icon Vector chuẩn Office Suite
  */
@@ -60,6 +60,18 @@ export const SLIDES_RIBBON_TABS = [
           { type: "button", commandId: "slides.image.insert", isLarge: true },
           { type: "button", commandId: "slides.shape.insert", isLarge: true },
           { type: "button", commandId: "slides.text.insert", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
+    id: "design",
+    label: "Thiết kế",
+    groups: [
+      {
+        label: "Mẫu chủ đạo",
+        items: [
+          { type: "button", commandId: "slides.master.apply", isLarge: true }
         ]
       }
     ]

@@ -50,14 +50,32 @@ export class WriterApp {
     // Trang giấy A4
     this.canvas = document.createElement("div");
     this.canvas.className = "vno-writer-page";
-    this.canvas.setAttribute("contenteditable", "true");
     this.canvas.setAttribute("spellcheck", "false");
 
+    const header = document.createElement("div");
+    header.className = "vno-writer-header";
+    header.setAttribute("contenteditable", "true");
+    header.setAttribute("spellcheck", "false");
+    header.setAttribute("data-placeholder", "Nhấp để nhập tiêu đề đầu trang (Header)...");
+
+    const body = document.createElement("div");
+    body.className = "vno-writer-body";
+    body.setAttribute("contenteditable", "true");
+    body.setAttribute("spellcheck", "false");
+
+    const footer = document.createElement("div");
+    footer.className = "vno-writer-footer";
+    footer.setAttribute("contenteditable", "true");
+    footer.setAttribute("spellcheck", "false");
+    footer.setAttribute("data-placeholder", "Nhấp để nhập tiêu đề chân trang (Footer)...");
+
     if (isBlank) {
-      this.canvas.innerHTML = `<p><br></p>`;
+      body.innerHTML = `<p><br></p>`;
     } else {
+      header.innerHTML = `<p style="text-align:right; font-size:9.5pt; color:#64748b; margin:0;">VN Office — Mẫu văn bản hành chính</p>`;
+      footer.innerHTML = `<p style="text-align:center; font-size:9.5pt; color:#64748b; margin:0;">Trang 1 / 1</p>`;
       // Mẫu văn bản chuẩn hóa
-      this.canvas.innerHTML = `
+      body.innerHTML = `
       <table style="width:100%; border:none; margin-bottom:18pt;">
         <tr>
           <td style="width:45%; text-align:center; border:none; padding:0; vertical-align:top;">
@@ -111,6 +129,10 @@ export class WriterApp {
     `;
     }
 
+    this.canvas.appendChild(header);
+    this.canvas.appendChild(body);
+    this.canvas.appendChild(footer);
+
     viewport.appendChild(this.canvas);
     container.appendChild(viewport);
     this.shell.setEditorCanvas(container);
@@ -124,9 +146,16 @@ export class WriterApp {
 
   _setupContentObserver() {
     const updateStats = () => {
-      const text = this.canvas.innerText || "";
-      const words = text.trim().split(/\s+/).filter(Boolean).length;
-      this.shell.setStatus(`Trang 1 / 1  |  ${words} từ  |  Tiếng Việt (NĐ 30/2020/NĐ-CP)`);
+      const text = (this.canvas.innerText || "").trim();
+      const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+      const chars = text.replace(/[\r\n]/g, "").length;
+      const paragraphs = text ? text.split(/\n+/).filter(p => p.trim().length > 0).length : 0;
+      const pageBreaks = this.canvas.querySelectorAll ? this.canvas.querySelectorAll("[style*='page-break-before']").length : 0;
+      const totalPages = Math.max(1, pageBreaks + 1);
+
+      this.shell.setStatus(
+        `Trang 1 / ${totalPages}  |  ${words} từ  |  ${chars} ký tự  |  ${paragraphs} đoạn  |  Tiếng Việt (NĐ 30/2020/NĐ-CP)`
+      );
     };
 
     this.canvas.addEventListener("input", updateStats);

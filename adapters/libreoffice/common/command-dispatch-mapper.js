@@ -46,6 +46,7 @@ export const VN_TO_UNO_MAP = {
   "writer.text.clearFormat": ".uno:ResetAttributes",
   "writer.font.family": ".uno:FontName",
   "writer.font.size": ".uno:FontHeight",
+  "writer.style.apply": ".uno:StyleApply",
   "writer.color.text": ".uno:Color",
   "writer.color.highlight": ".uno:CharBackground",
 
@@ -96,6 +97,7 @@ export const VN_TO_UNO_MAP = {
   "sheet.data.sortAsc": ".uno:Sortup",
   "sheet.data.sortDesc": ".uno:Sortdown",
   "sheet.data.filter": ".uno:DataFilterAutoFilter",
+  "sheet.view.freezePanes": ".uno:FreezePanes",
   "sheet.row.insert": ".uno:InsertRowsBefore",
   "sheet.col.insert": ".uno:InsertColumnsBefore",
   "sheet.chart.insert": ".uno:InsertObjectChart",
@@ -108,6 +110,8 @@ export const VN_TO_UNO_MAP = {
   "slides.text.insert": ".uno:Text",
   "slides.shape.insert": ".uno:BasicShapes",
   "slides.image.insert": ".uno:InsertGraphic",
+  "slides.master.apply": ".uno:MasterLayouts",
+  "slides.transition.apply": ".uno:SlideTransition",
   "slides.show.startFromBegin": ".uno:StartPresentation",
   "slides.show.startFromCurrent": ".uno:StartPresentation",
 

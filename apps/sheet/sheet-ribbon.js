@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Sheet — Enterprise Ribbon Structure
  * Cấu hình đầy đủ Icon Vector chuẩn Office Suite
  */
@@ -87,7 +87,8 @@ export const SHEET_RIBBON_TABS = [
             items: [
               { type: "button", commandId: "sheet.data.sortAsc" },
               { type: "button", commandId: "sheet.data.sortDesc" },
-              { type: "button", commandId: "sheet.data.filter" }
+              { type: "button", commandId: "sheet.data.filter" },
+              { type: "button", commandId: "sheet.view.freezePanes" }
             ]
           }
         ]
@@ -116,7 +117,8 @@ export const SHEET_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "sheet.data.sortAsc", isLarge: true },
           { type: "button", commandId: "sheet.data.sortDesc", isLarge: true },
-          { type: "button", commandId: "sheet.data.filter", isLarge: true }
+          { type: "button", commandId: "sheet.data.filter", isLarge: true },
+          { type: "button", commandId: "sheet.view.freezePanes", isLarge: true }
         ]
       }
     ]

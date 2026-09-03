@@ -269,14 +269,17 @@ export class SheetAdapter {
         this.grid.openChartBuilder();
         return true;
 
+      case "sheet.view.freezePanes":
+        return this.grid.toggleFreezePanes ? this.grid.toggleFreezePanes() : false;
+
+      case "sheet.data.sortAsc":
+        return this.grid.sort ? this.grid.sort(this.grid.selectedCoord?.c || "A", true) : false;
+
+      case "sheet.data.sortDesc":
+        return this.grid.sort ? this.grid.sort(this.grid.selectedCoord?.c || "A", false) : false;
+
       case "sheet.data.filter":
-        if (typeof window !== "undefined" && typeof document !== "undefined") {
-          await showAlertDialog({
-            title: "Bộ Lọc Dữ Liệu (AutoFilter)",
-            message: "Chế độ lọc AutoFilter đã được kích hoạt cho bảng dữ liệu hiện tại."
-          });
-        }
-        return true;
+        return this.grid.toggleFilter ? this.grid.toggleFilter() : false;
 
       case "common.edit.undo":
         return this.grid.undo ? this.grid.undo() : false;

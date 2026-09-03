@@ -279,6 +279,12 @@ export class SlidesAdapter {
       case "slides.image.insert":
         return await this._insertImageDialog();
 
+      case "slides.master.apply":
+        return this.canvas.showSlideMasterDialog ? this.canvas.showSlideMasterDialog() : false;
+
+      case "slides.transition.apply":
+        return this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false;
+
       case "common.edit.undo":
         return this.canvas.undo ? this.canvas.undo() : false;
 

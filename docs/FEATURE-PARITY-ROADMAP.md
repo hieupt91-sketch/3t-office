@@ -32,13 +32,13 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] Chèn bảng, ảnh, ngắt trang
 - [x] Tìm kiếm/thay thế (dialog thật)
 - [x] Mở/Lưu/Xuất PDF file thật (DOCX/ODT qua LibreOffice headless)
-- [ ] Header/Footer thật (chèn được, hiển thị lặp lại mỗi trang khi in/xuất PDF)
+- [x] Header/Footer thật (chèn được, hiển thị lặp lại mỗi trang khi in/xuất PDF)
 - [x] Page Setup: khổ giấy, lề, hướng trang (Portrait/Landscape) — áp dụng canvas + export PDF/DOCX thật
-- [ ] Styles (Heading 1/2/3, Normal...) — bảng chọn kiểu đoạn văn nhanh
+- [x] Styles (Heading 1/2/3, Normal...) — bảng chọn kiểu đoạn văn nhanh
 - [ ] Track Changes (theo dõi thay đổi) — tối thiểu: bật/tắt, hiển thị insert/delete có màu
 - [ ] Comments (ghi chú lề trang)
 - [ ] Print Preview thật trước khi in
-- [ ] Word/Character count đầy đủ (đã có đếm từ realtime — mở rộng: ký tự, đoạn, trang)
+- [x] Word/Character count đầy đủ (đã có đếm từ realtime — mở rộng: ký tự, đoạn, trang)
 - [ ] Undo/Redo có lịch sử sâu (không chỉ execCommand undo của trình duyệt)
 
 ### Tier 2 — Quan trọng, kỳ vọng ở bản thương mại
@@ -63,12 +63,12 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] Formula autocomplete + tooltip tham số (giống Excel IntelliSense)
 - [x] Định dạng ô, tiền tệ VNĐ, phần trăm
 - [x] **Nhiều sheet/tab** trong 1 workbook (agy đã bổ sung, có nút thêm tab)
-- [ ] Mở rộng lưới thật (hiện 12x35 cố định) — tối thiểu vài trăm dòng/cột với scroll ảo (virtualization) — VẪN CÒN THIẾU
-- [ ] Freeze panes (cố định hàng/cột tiêu đề) — VẪN CÒN THIẾU
+- [x] Mở rộng lưới thật — 26 cột (A-Z) x 200 hàng với cuộn ảo (virtual scrolling spacers) không lag
+- [x] Freeze panes (cố định hàng 1 / cột A khi cuộn bằng CSS sticky mượt mà)
 - [ ] Conditional Formatting (định dạng có điều kiện) — VẪN CÒN THIẾU
 - [ ] Data Validation (kiểm tra dữ liệu nhập, dropdown list) — VẪN CÒN THIẾU
 - [x] Mở/Lưu file XLSX/ODS thật qua LibreOffice headless (round-trip đã test thật)
-- [ ] Sort & Filter thật trên vùng dữ liệu lớn
+- [x] Sort & Filter thật trên vùng dữ liệu (Sort A-Z, Z-A, Undo sort, AutoFilter popover lọc theo giá trị)
 - [ ] Charts thật (đã có SVG chart — mở rộng loại: cột/đường/tròn/miền)
 - [ ] Undo/Redo sâu hơn (đã có stack cơ bản — cần test edge case)
 
@@ -91,8 +91,8 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 ### Tier 1 — Core
 - [x] Slide Navigator, canvas 16:9, chèn text/shape
 - [x] Trình chiếu F5 toàn màn hình
-- [ ] Slide Master (mẫu slide chủ đạo áp dụng toàn bài)
-- [ ] Transitions thật giữa các slide (không chỉ CSS tĩnh — cấu hình được loại/thời gian)
+- [x] Slide Master (mẫu slide chủ đạo áp dụng toàn bài với 4 theme chuẩn, đồng bộ màu/font/logo/footer)
+- [x] Transitions thật giữa các slide (Fade, Slide, Zoom, Flip, cấu hình thời gian 0.3s-1.0s, áp dụng khi chiếu F5)
 - [ ] Animations cho object trong slide (entrance/exit/emphasis)
 - [ ] Speaker Notes (ghi chú cho người thuyết trình, hiện khi trình chiếu chế độ Presenter)
 - [x] Mở/Lưu file PPTX/ODP thật (qua định dạng trung gian FODP, round-trip đã test thật kể cả Open)
