@@ -233,5 +233,48 @@ export const ICONS = {
 
   search: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
   chevronDown: `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`,
-  close: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
+  close: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+
+  // Tham chiếu (References / TOC / Footnotes / Endnotes)
+  tocInsert: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="2" width="18" height="20" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.5"/>
+    <line x1="6" y1="6" x2="14" y2="6" stroke="#0F4C81" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="17" y1="6" x2="18" y2="6" stroke="#0F4C81" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="8" y1="10" x2="14" y2="10" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="17" y1="10" x2="18" y2="10" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="8" y1="14" x2="14" y2="14" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="17" y1="14" x2="18" y2="14" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="6" y1="18" x2="14" y2="18" stroke="#0F4C81" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="17" y1="18" x2="18" y2="18" stroke="#0F4C81" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`,
+
+  tocUpdate: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="2" width="18" height="20" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.5"/>
+    <line x1="6" y1="6" x2="13" y2="6" stroke="#0F4C81" stroke-width="1.6" stroke-linecap="round"/>
+    <line x1="6" y1="10" x2="12" y2="10" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="6" y1="14" x2="11" y2="14" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"/>
+    <circle cx="16" cy="16" r="5" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.2"/>
+    <path d="M14 16A2 2 0 1 1 16 18M16 18L15 19.5M16 18L14.5 17" stroke="#2563EB" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  footnoteInsert: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="4" y="2" width="16" height="20" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.5"/>
+    <line x1="7" y1="6" x2="13" y2="6" stroke="#334155" stroke-width="1.4" stroke-linecap="round"/>
+    <text x="14" y="6" font-size="5" font-weight="900" fill="#2563EB" font-family="sans-serif">1</text>
+    <line x1="7" y1="10" x2="17" y2="10" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="7" y1="15" x2="12" y2="15" stroke="#0F4C81" stroke-width="1.2"/>
+    <text x="7" y="19.5" font-size="5" font-weight="900" fill="#2563EB" font-family="sans-serif">1</text>
+    <line x1="10" y1="19" x2="17" y2="19" stroke="#64748B" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`,
+
+  endnoteInsert: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <path d="M6 3H18C19.1 3 20 3.9 20 5V19C20 20.1 19.1 21 18 21H6C4.9 21 4 20.1 4 19V5C4 3.9 4.9 3 6 3Z" fill="#F8FAFC" stroke="#B53818" stroke-width="1.5"/>
+    <line x1="7" y1="6" x2="13" y2="6" stroke="#334155" stroke-width="1.4" stroke-linecap="round"/>
+    <text x="14" y="6" font-size="5" font-weight="900" fill="#DC2626" font-family="sans-serif">i</text>
+    <line x1="7" y1="10" x2="17" y2="10" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="7" y1="14" x2="17" y2="14" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="7" y1="17" x2="11" y2="17" stroke="#B53818" stroke-width="1.2"/>
+    <text x="7" y="20.5" font-size="5" font-weight="900" fill="#DC2626" font-family="sans-serif">i</text>
+    <line x1="9.5" y1="20" x2="17" y2="20" stroke="#64748B" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`
 };
