@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office — Master Test Runner
  * Tuân thủ quy định 06-testing/TESTING-STANDARD.md
  */
@@ -6,6 +6,7 @@
 import { runCommandBusTests } from "./unit/command-bus.test.js";
 import { runAdapterMappingTests } from "./unit/adapter-mapping.test.js";
 import { runSuiteSmokeTests } from "./smoke/suite-smoke.test.js";
+import { runFormulaEngineTests } from "./unit/formula-engine.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -19,7 +20,8 @@ async function runAll() {
   const suites = [
     { title: "1. Unit Tests — Command Bus", runner: runCommandBusTests },
     { title: "2. Unit Tests — LibreOffice Adapter Mapping", runner: runAdapterMappingTests },
-    { title: "3. Smoke Tests — Suite & Vietnamese Unicode", runner: runSuiteSmokeTests }
+    { title: "3. Unit Tests — Excel Spreadsheet Formula Engine", runner: runFormulaEngineTests },
+    { title: "4. Smoke Tests — Suite & Vietnamese Unicode", runner: runSuiteSmokeTests }
   ];
 
   for (const suite of suites) {

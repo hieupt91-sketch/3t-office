@@ -1,5 +1,5 @@
 ﻿/**
- * VN Office UI Kit — Enterprise Component Styles
+ * VN Office UI Kit — Enterprise Component Styles & Rich Visuals
  */
 
 /* ==========================================================================
@@ -9,7 +9,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 6px;
   font-family: var(--vno-font-ui);
   color: var(--vno-text-primary);
   background: transparent;
@@ -41,20 +41,21 @@
   cursor: not-allowed;
 }
 
-/* Checked / Active State (Toggle buttons như Bold, Italic, Merge) */
+/* Checked / Active State */
 .vno-btn.is-checked {
   background-color: var(--vno-app-current-light) !important;
   border-color: var(--vno-app-current) !important;
   color: var(--vno-app-current) !important;
   font-weight: 700;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
-/* Ribbon Large Button (Ví dụ: Dán, Bảng biểu, Thêm trang) */
+/* Ribbon Large Button */
 .vno-ribbon-btn-large {
   flex-direction: column;
-  padding: 4px 6px;
-  min-width: 54px;
-  height: 68px;
+  padding: 6px 8px;
+  min-width: 56px;
+  height: 72px;
   font-size: 11px;
   text-align: center;
   gap: 4px;
@@ -64,13 +65,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  color: var(--vno-app-current);
+  width: 34px;
+  height: 34px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.06));
 }
 .vno-ribbon-btn-large .vno-btn-icon svg {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
 }
 .vno-ribbon-btn-large .vno-btn-label {
   display: -webkit-box;
@@ -80,27 +81,27 @@
   text-overflow: ellipsis;
   line-height: 1.15;
   color: var(--vno-text-secondary);
-  font-weight: 500;
+  font-weight: 600;
 }
 
-/* Ribbon Small Button (Ví dụ: Cắt, Sao chép) */
+/* Ribbon Small Button */
 .vno-ribbon-btn-small {
-  padding: 2px 6px;
+  padding: 3px 6px;
   height: 24px;
   font-size: var(--vno-text-xs);
+  gap: 4px;
 }
 .vno-ribbon-btn-small .vno-btn-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--vno-text-secondary);
 }
 .vno-ribbon-btn-small .vno-btn-icon svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
 }
 
-/* Ribbon Small Icon-Only Button (Ví dụ: B, I, U, Căn lề, Bullets) */
+/* Ribbon Small Icon-Only Button */
 .vno-btn-icon-only {
   width: 26px !important;
   min-width: 26px !important;
@@ -145,8 +146,8 @@
 .vno-dialog-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(2px);
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -157,7 +158,7 @@
   border: 1px solid var(--vno-border-default);
   border-radius: var(--vno-radius-lg);
   box-shadow: var(--vno-shadow-lg);
-  min-width: 400px;
+  min-width: 440px;
   max-width: 90vw;
   overflow: hidden;
   display: flex;
@@ -171,6 +172,7 @@
   justify-content: space-between;
   font-weight: 700;
   font-size: var(--vno-text-md);
+  background-color: #fafafa;
 }
 .vno-dialog-body {
   padding: 20px;
