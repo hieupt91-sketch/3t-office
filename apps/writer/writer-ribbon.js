@@ -195,6 +195,19 @@ export const WRITER_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "writer.comment.insert", isLarge: true }
         ]
+      },
+      {
+        label: "Theo dõi thay đổi",
+        items: [
+          { type: "button", commandId: "writer.trackChanges.toggle", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.trackChanges.acceptAll" },
+              { type: "button", commandId: "writer.trackChanges.rejectAll" }
+            ]
+          }
+        ]
       }
     ]
   },

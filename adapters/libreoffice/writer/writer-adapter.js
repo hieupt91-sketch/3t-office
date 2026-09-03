@@ -44,6 +44,8 @@ export class WriterAdapter {
     this.previewTotalPages = 1;
     this.previewZoom = 1.0;
     this._previewKeyHandler = null;
+    this.trackChangesEnabled = false;
+    this._trackChangesBeforeInputHandler = null;
     this._initZones();
   }
 
@@ -64,8 +66,153 @@ export class WriterAdapter {
     globalUnoBridge.attachDocument(this);
     this._applyPageSetup();
     this._bindCommentInteractions();
+    this._bindTrackChanges();
     this._renderCommentsPanel();
     globalCommandBus.bindHandler("writer.file.printPreview", () => this.openPrintPreview());
+    this._updateTrackChangesCommandState();
+  }
+
+  _bindTrackChanges() {
+    if (!this.bodyDom?.addEventListener || this._trackChangesBeforeInputHandler) return;
+    this._trackChangesBeforeInputHandler = (event) => this._handleTrackChangesBeforeInput(event);
+    this.bodyDom.addEventListener("beforeinput", this._trackChangesBeforeInputHandler);
+  }
+
+  _handleTrackChangesBeforeInput(event) {
+    if (!this.trackChangesEnabled || event.defaultPrevented) return false;
+    const inputType = event.inputType || "";
+    const isInsert = inputType === "insertText" || inputType === "insertCompositionText" || inputType === "insertFromPaste";
+    const isDelete = inputType === "deleteContentBackward" || inputType === "deleteContentForward" || inputType === "deleteByCut";
+    if (!isInsert && !isDelete) return false;
+
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    if (!selection || selection.rangeCount === 0) return false;
+    const range = selection.getRangeAt(0);
+    const commonNode = range.commonAncestorContainer;
+    if (!(commonNode === this.bodyDom || this.bodyDom?.contains?.(commonNode))) return false;
+
+    const hadSelection = !range.collapsed;
+    event.preventDefault?.();
+    if (hadSelection) this._markRangeDeleted(range, selection);
+
+    if (isInsert) {
+      const text = inputType === "insertFromPaste"
+        ? (event.dataTransfer?.getData?.("text/plain") || event.clipboardData?.getData?.("text/plain") || event.data || "")
+        : (event.data || "");
+      if (text) this._insertTrackedText(range, text, selection);
+    } else if (!hadSelection) {
+      const characterRange = this._adjacentCharacterRange(range, inputType === "deleteContentBackward");
+      if (characterRange) this._markRangeDeleted(characterRange, selection);
+    }
+
+    this.isDirty = true;
+    this._updateTrackChangesCommandState();
+    this.bodyDom.dispatchEvent?.(new Event("input", { bubbles: true }));
+    return true;
+  }
+
+  _insertTrackedText(range, text, selection) {
+    const insertion = document.createElement("ins");
+    insertion.dataset.vnoChange = "insert";
+    insertion.appendChild(document.createTextNode(text));
+    range.insertNode(insertion);
+    range.setStartAfter(insertion);
+    range.collapse(true);
+    selection?.removeAllRanges?.();
+    selection?.addRange?.(range);
+    return insertion;
+  }
+
+  _markRangeDeleted(range, selection) {
+    const parentElement = range.commonAncestorContainer?.nodeType === 1
+      ? range.commonAncestorContainer
+      : range.commonAncestorContainer?.parentElement;
+    const trackedInsertion = parentElement?.closest?.('ins[data-vno-change="insert"]');
+    if (trackedInsertion && this.bodyDom?.contains?.(trackedInsertion)) {
+      range.deleteContents();
+      if (!trackedInsertion.textContent) trackedInsertion.remove();
+    } else {
+      const deletion = document.createElement("del");
+      deletion.dataset.vnoChange = "delete";
+      deletion.setAttribute("contenteditable", "false");
+      deletion.appendChild(range.extractContents());
+      range.insertNode(deletion);
+      range.setStartAfter(deletion);
+    }
+    range.collapse(true);
+    selection?.removeAllRanges?.();
+    selection?.addRange?.(range);
+    return true;
+  }
+
+  _adjacentCharacterRange(caretRange, backward) {
+    let node = caretRange.startContainer;
+    let offset = caretRange.startOffset;
+    const range = document.createRange();
+    if (node?.nodeType === 3 && ((backward && offset > 0) || (!backward && offset < node.data.length))) {
+      range.setStart(node, backward ? offset - 1 : offset);
+      range.setEnd(node, backward ? offset : offset + 1);
+      return range;
+    }
+
+    const walker = document.createTreeWalker(this.bodyDom, NodeFilter.SHOW_TEXT, {
+      acceptNode: (textNode) => textNode.parentElement?.closest?.('del[data-vno-change="delete"]')
+        ? NodeFilter.FILTER_REJECT
+        : NodeFilter.FILTER_ACCEPT
+    });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    let index = nodes.indexOf(node);
+    if (index < 0 && node?.nodeType === 1) {
+      index = nodes.findIndex((textNode) => node.contains?.(textNode));
+      if (!backward && index >= 0) index--;
+    }
+    const adjacent = nodes[index + (backward ? -1 : 1)];
+    if (!adjacent?.data?.length) return null;
+    const adjacentOffset = backward ? adjacent.data.length : 0;
+    range.setStart(adjacent, backward ? adjacentOffset - 1 : adjacentOffset);
+    range.setEnd(adjacent, backward ? adjacentOffset : adjacentOffset + 1);
+    return range;
+  }
+
+  toggleTrackChanges(force) {
+    this.trackChangesEnabled = typeof force === "boolean" ? force : !this.trackChangesEnabled;
+    this._updateTrackChangesCommandState();
+    return this.trackChangesEnabled;
+  }
+
+  acceptAllTrackChanges() {
+    this._resolveAllTrackChanges(true);
+    return true;
+  }
+
+  rejectAllTrackChanges() {
+    this._resolveAllTrackChanges(false);
+    return true;
+  }
+
+  _resolveAllTrackChanges(accept) {
+    this._initZones();
+    const insertions = [...(this.bodyDom?.querySelectorAll?.('ins[data-vno-change="insert"]') || [])];
+    const deletions = [...(this.bodyDom?.querySelectorAll?.('del[data-vno-change="delete"]') || [])];
+    const unwrap = (node) => node.replaceWith(...node.childNodes);
+    if (accept) {
+      insertions.forEach(unwrap);
+      deletions.forEach((node) => node.remove());
+    } else {
+      insertions.forEach((node) => node.remove());
+      deletions.forEach(unwrap);
+    }
+    if (insertions.length || deletions.length) this.isDirty = true;
+    this._updateTrackChangesCommandState();
+    return { insertions: insertions.length, deletions: deletions.length };
+  }
+
+  _updateTrackChangesCommandState() {
+    const hasChanges = !!this.bodyDom?.querySelector?.('[data-vno-change]');
+    globalCommandBus.updateState("writer.trackChanges.toggle", { checked: this.trackChangesEnabled });
+    globalCommandBus.updateState("writer.trackChanges.acceptAll", { enabled: hasChanges });
+    globalCommandBus.updateState("writer.trackChanges.rejectAll", { enabled: hasChanges });
   }
 
   setCommentsPanel(panelDom) {
@@ -252,6 +399,10 @@ export class WriterAdapter {
     if (vnCmdId === "writer.comment.insert") {
       return await this.insertComment(args);
     }
+
+    if (vnCmdId === "writer.trackChanges.toggle") return this.toggleTrackChanges(args?.enabled);
+    if (vnCmdId === "writer.trackChanges.acceptAll") return this.acceptAllTrackChanges();
+    if (vnCmdId === "writer.trackChanges.rejectAll") return this.rejectAllTrackChanges();
 
     this.editorDom.focus();
 
@@ -879,9 +1030,9 @@ export class WriterAdapter {
     }
 
     if (this.bodyDom) {
-      bodyHtml = this._stripCommentMarkup(this.bodyDom.innerHTML);
+      bodyHtml = this._stripSessionMarkup(this.bodyDom.innerHTML);
     } else if (this.editorDom) {
-      bodyHtml = this._stripCommentMarkup(this.editorDom.innerHTML);
+      bodyHtml = this._stripSessionMarkup(this.editorDom.innerHTML);
     }
 
     if (this.footerDom && this.footerDom.innerText?.trim()) {
@@ -897,6 +1048,13 @@ export class WriterAdapter {
       /<mark\b(?=[^>]*\bdata-comment-id=(?:"[^"]*"|'[^']*'))[^>]*>([\s\S]*?)<\/mark>/gi,
       "$1"
     );
+  }
+
+  _stripSessionMarkup(html) {
+    const withoutComments = this._stripCommentMarkup(html);
+    return withoutComments
+      .replace(/<del\b(?=[^>]*\bdata-vno-change=(?:"delete"|'delete'))[^>]*>[\s\S]*?<\/del>/gi, "")
+      .replace(/<ins\b(?=[^>]*\bdata-vno-change=(?:"insert"|'insert'))[^>]*>([\s\S]*?)<\/ins>/gi, "$1");
   }
 
   /**
@@ -929,6 +1087,7 @@ export class WriterAdapter {
       this._initZones();
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
       this.comments = [];
+      this.trackChangesEnabled = false;
       this.activeCommentId = null;
       this._renderCommentsPanel();
       const raw = result.content || "";
@@ -959,6 +1118,7 @@ export class WriterAdapter {
       this.documentContent = this.editorDom ? this.editorDom.innerHTML : raw;
       this.sourceFileName = (result.fileName || "TaiLieu").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
+      this._updateTrackChangesCommandState();
       return true;
     }
     if (result.status === "cancelled") return false;

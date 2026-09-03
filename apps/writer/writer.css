@@ -169,6 +169,23 @@
   box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.28);
 }
 
+/* Dấu sửa đổi chỉ tồn tại trên canvas; serializer Writer loại bỏ trước khi lưu/xuất. */
+.vno-writer-body ins[data-vno-change="insert"] {
+  color: #15803d;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.vno-writer-body del[data-vno-change="delete"] {
+  color: #dc2626;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+  background: rgba(239, 68, 68, 0.08);
+  user-select: text;
+}
+
 /* Trang giấy A4 chuẩn mực */
 .vno-writer-page {
   width: 794px; /* A4 width */

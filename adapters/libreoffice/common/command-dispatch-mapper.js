@@ -72,6 +72,9 @@ export const VN_TO_UNO_MAP = {
 
   // Writer / Review
   "writer.comment.insert": ".uno:InsertAnnotation",
+  "writer.trackChanges.toggle": ".uno:TrackChanges",
+  "writer.trackChanges.acceptAll": ".uno:AcceptAllTrackedChanges",
+  "writer.trackChanges.rejectAll": ".uno:RejectAllTrackedChanges",
 
   // Writer / Page Setup & Print
   "writer.page.margins": ".uno:PageDialog",

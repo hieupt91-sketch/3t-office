@@ -18,6 +18,7 @@ import { runMultiSheetTests } from "./unit/sheet-multi-sheet.test.js";
 import { runWriterCommentsTests } from "./unit/writer-comments.test.js";
 import { runSlidesAnimationsNotesTests } from "./unit/slides-animations-notes.test.js";
 import { runSheetRulesValidationTests } from "./unit/sheet-rules-validation.test.js";
+import { runWriterTrackChangesTests } from "./unit/writer-track-changes.test.js";
 import { runWriterPrintPreviewTests } from "./unit/writer-print-preview.test.js";
 
 async function runAll() {
@@ -45,7 +46,8 @@ async function runAll() {
     { title: "13. Behavioral Tests — VN Writer Comments", runner: runWriterCommentsTests },
     { title: "14. Unit Tests — VN Slides Object Animations & Speaker Notes", runner: runSlidesAnimationsNotesTests },
     { title: "15. Behavioral Tests — Sheet Conditional Formatting & Data Validation", runner: runSheetRulesValidationTests },
-    { title: "16. Behavioral Tests — VN Writer Print Preview", runner: runWriterPrintPreviewTests }
+    { title: "16. Behavioral Tests — VN Writer Track Changes", runner: runWriterTrackChangesTests },
+    { title: "17. Behavioral Tests — VN Writer Print Preview", runner: runWriterPrintPreviewTests }
   ];
 
   for (const suite of suites) {
