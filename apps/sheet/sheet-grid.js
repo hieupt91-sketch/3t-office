@@ -25,11 +25,11 @@ export class SheetGridController {
       "Nhân sự": new Map()
     };
 
-    /** @type {Record<string, {hiddenRows: Set<number>, activeFilters: Map<string, Set<string>>, isFilterActive: boolean, selectedCoord: {r: number, c: string}}>} */
+    /** @type {Record<string, {hiddenRows: Set<number>, activeFilters: Map<string, Set<string>>, isFilterActive: boolean, isFrozenPanes: boolean, selectedCoord: {r: number, c: string}}>} */
     this.sheetStates = {
-      "Dự toán chi phí": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, selectedCoord: { r: 1, c: "A" } },
-      "Kế hoạch Q3": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, selectedCoord: { r: 1, c: "A" } },
-      "Nhân sự": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, selectedCoord: { r: 1, c: "A" } }
+      "Dự toán chi phí": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, selectedCoord: { r: 1, c: "A" } },
+      "Kế hoạch Q3": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, selectedCoord: { r: 1, c: "A" } },
+      "Nhân sự": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, selectedCoord: { r: 1, c: "A" } }
     };
 
     this.formulaEngine = new FormulaEngine(() => this.cellsData);
@@ -37,6 +37,8 @@ export class SheetGridController {
 
     this.undoStack = [];
     this.redoStack = [];
+    this.maxHistorySteps = 100;
+    this.historyMergeWindowMs = 750;
 
     this.selectedCoord = { r: 1, c: "A" };
     this.selectionRange = { start: { r: 1, c: "A" }, end: { r: 1, c: "A" } };
@@ -102,7 +104,7 @@ export class SheetGridController {
     this.autocomplete.mount();
 
     this.formulaInput.addEventListener("input", (e) => {
-      this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.target.value);
+      this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.target.value, true, { coalesce: true });
       this.autocomplete.handleInput(e.target.value, this.formulaInput.selectionStart);
     });
 
@@ -238,6 +240,9 @@ export class SheetGridController {
     this.container.appendChild(tabBar);
 
     this._populateInitialData();
+    this.undoStack = [];
+    this.redoStack = [];
+    this._syncCommandStates();
     this._renderVirtualRows(1, 40);
     this.renderCharts();
     this.selectCell("A", 1);
@@ -265,6 +270,7 @@ export class SheetGridController {
         hiddenRows: new Set(this.hiddenRows || []),
         activeFilters: new Map(this.activeFilters || []),
         isFilterActive: !!this.isFilterActive,
+        isFrozenPanes: !!this.isFrozenPanes,
         selectedCoord: { ...(this.selectedCoord || { r: 1, c: "A" }) }
       };
     }
@@ -281,6 +287,7 @@ export class SheetGridController {
         hiddenRows: new Set(),
         activeFilters: new Map(),
         isFilterActive: false,
+        isFrozenPanes: false,
         selectedCoord: { r: 1, c: "A" }
       };
     }
@@ -288,6 +295,7 @@ export class SheetGridController {
     this.hiddenRows = new Set(nextState.hiddenRows);
     this.activeFilters = new Map(nextState.activeFilters);
     this.isFilterActive = nextState.isFilterActive;
+    this.isFrozenPanes = !!nextState.isFrozenPanes;
     this.selectedCoord = { ...nextState.selectedCoord };
     this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
 
@@ -297,6 +305,7 @@ export class SheetGridController {
       } else {
         this.container.classList.remove("vno-filter-mode");
       }
+      this.container.classList.toggle?.("vno-freeze-panes", this.isFrozenPanes);
     }
     if (typeof this._updateFilterButtons === "function") {
       this._updateFilterButtons();
@@ -329,13 +338,16 @@ export class SheetGridController {
 
     // 7. Cập nhật ô chọn và thanh công thức
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+    this._syncCommandStates();
 
     return true;
   }
 
-  addSheet(name) {
+  addSheet(name, recordUndo = true) {
+    const previousSheet = this.activeSheet;
     const sheetName = name || `Trang tính ${this.sheets.length + 1}`;
-    if (!this.sheets.includes(sheetName)) {
+    const isNewSheet = !this.sheets.includes(sheetName);
+    if (isNewSheet) {
       this.sheets.push(sheetName);
     }
     if (!this.sheetsData) {
@@ -355,6 +367,7 @@ export class SheetGridController {
         hiddenRows: new Set(),
         activeFilters: new Map(),
         isFilterActive: false,
+        isFrozenPanes: false,
         selectedCoord: { r: 1, c: "A" }
       };
     }
@@ -372,7 +385,28 @@ export class SheetGridController {
     }
 
     this.switchSheet(sheetName);
+    if (recordUndo && isNewSheet) this._recordHistory({ type: "sheet-add", sheet: previousSheet, sheetName, previousSheet, snapshot: this._snapshotSheet(sheetName) });
     return sheetName;
+  }
+
+  deleteSheet(sheetName = this.activeSheet, recordUndo = true) {
+    const index = this.sheets.indexOf(sheetName);
+    if (index < 0 || this.sheets.length <= 1) return false;
+    const snapshot = this._snapshotSheet(sheetName);
+    const nextSheet = this.sheets[index === 0 ? 1 : index - 1];
+    this.sheets.splice(index, 1);
+    delete this.sheetsData[sheetName];
+    delete this.sheetStates[sheetName];
+    delete this.conditionalFormattingBySheet[sheetName];
+    delete this.dataValidationsBySheet[sheetName];
+    delete this.chartsBySheet[sheetName];
+    this.tabBar?.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)?.remove?.();
+    if (this.activeSheet === sheetName) {
+      this.activeSheet = "";
+      this.switchSheet(nextSheet);
+    }
+    if (recordUndo) this._recordHistory({ type: "sheet-delete", sheet: sheetName, index, snapshot, nextSheet });
+    return true;
   }
 
   _renderVirtualRows(startRow, endRow) {
@@ -597,20 +631,20 @@ export class SheetGridController {
     }
   }
 
-  setCellValue(col, row, val, recordUndo = true) {
+  setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
     const key = `${col}${row}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
 
     if (recordUndo) {
-      this.undoStack.push({
+      this._recordHistory({
         type: "cell",
         sheet: this.activeSheet,
         col,
         row,
         prevVal: item.formula || item.val || "",
-        nextVal: val
-      });
-      this.redoStack = [];
+        nextVal: val,
+        timestamp: Date.now()
+      }, historyOptions);
     }
 
     if (typeof val === "string" && val.startsWith("=")) {
@@ -776,7 +810,7 @@ export class SheetGridController {
     });
   }
 
-  insertChart(type, range = this.selectionRange) {
+  insertChart(type, range = this.selectionRange, recordUndo = true) {
     if (!SheetChartBuilder.supportedTypes.includes(type)) return false;
     const normalizedRange = this._normalizeRange(range);
     const chart = {
@@ -791,6 +825,7 @@ export class SheetGridController {
     this.chartsBySheet[this.activeSheet].push(chart);
     this._updateChartData(chart);
     this.renderCharts();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "chartsBySheet", operation: "insert", index: this.chartsBySheet[this.activeSheet].length - 1, item: structuredClone(chart) });
     return chart;
   }
 
@@ -798,12 +833,13 @@ export class SheetGridController {
     return [...(this.chartsBySheet[sheetName] || [])];
   }
 
-  deleteChart(chartId, sheetName = this.activeSheet) {
+  deleteChart(chartId, sheetName = this.activeSheet, recordUndo = true) {
     const charts = this.chartsBySheet[sheetName] || [];
     const index = charts.findIndex(chart => chart.id === chartId);
     if (index < 0) return false;
-    charts.splice(index, 1);
+    const [chart] = charts.splice(index, 1);
     if (sheetName === this.activeSheet) this.renderCharts();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: sheetName, collection: "chartsBySheet", operation: "delete", index, item: structuredClone(chart) });
     return true;
   }
 
@@ -898,7 +934,7 @@ export class SheetGridController {
     const prevVal = item.style[prop] || "";
 
     if (recordUndo) {
-      this.undoStack.push({
+      this._recordHistory({
         type: "style",
         sheet: this.activeSheet,
         col: this.selectedCoord.c,
@@ -907,7 +943,6 @@ export class SheetGridController {
         prevVal,
         nextVal: val
       });
-      this.redoStack = [];
     }
 
     item.style[prop] = val;
@@ -926,68 +961,104 @@ export class SheetGridController {
     return this.setStyle(prop, next);
   }
 
+  _recordHistory(action, { coalesce = false } = {}) {
+    const previous = this.undoStack[this.undoStack.length - 1];
+    const mergeCellEdit = coalesce && previous?.type === "cell" && action.type === "cell" &&
+      previous.sheet === action.sheet && previous.col === action.col && previous.row === action.row &&
+      action.timestamp - previous.timestamp <= this.historyMergeWindowMs;
+    if (mergeCellEdit) {
+      previous.nextVal = action.nextVal;
+      previous.timestamp = action.timestamp;
+    } else {
+      this.undoStack.push(action);
+      if (this.undoStack.length > this.maxHistorySteps) this.undoStack.shift();
+    }
+    this.redoStack = [];
+    this._syncCommandStates();
+  }
+
+  _syncCommandStates() {
+    globalCommandBus?.updateState?.("common.edit.undo", { enabled: this.undoStack.length > 0 });
+    globalCommandBus?.updateState?.("common.edit.redo", { enabled: this.redoStack.length > 0 });
+    globalCommandBus?.updateState?.("sheet.view.freezePanes", { checked: !!this.isFrozenPanes });
+    globalCommandBus?.updateState?.("sheet.data.filter", { checked: !!this.isFilterActive });
+  }
+
   undo() {
-    if (this.undoStack.length === 0) return false;
     const action = this.undoStack.pop();
-    if (action.sheet && action.sheet !== this.activeSheet) {
-      this.switchSheet(action.sheet);
-    }
-    if (action.type === "cell") {
-      this.redoStack.push({ ...action });
-      this.setCellValue(action.col, action.row, action.prevVal, false);
-      this.selectCell(action.col, action.row);
-      return true;
-    } else if (action.type === "style") {
-      this.redoStack.push({ ...action });
-      this.selectedCoord = { c: action.col, r: action.row };
-      this.setStyle(action.prop, action.prevVal, false);
-      return true;
-    } else if (action.type === "sort") {
-      this.redoStack.push({ ...action });
-      action.snapshots.forEach(snap => {
-        const r = snap.originalRow;
-        this.cols.forEach(c => {
-          const k = `${c}${r}`;
-          if (snap.data[c]) {
-            this.cellsData.set(k, { ...snap.data[c] });
-          } else {
-            this.cellsData.delete(k);
-          }
-        });
-      });
-      this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
-      this._recalculateAllFormulas();
-      return true;
-    }
-    return false;
+    if (!action) { this._syncCommandStates(); return false; }
+    const applied = this._applyHistoryAction(action, "undo");
+    if (applied) this.redoStack.push(action);
+    else this.undoStack.push(action);
+    this._syncCommandStates();
+    return applied;
   }
 
   redo() {
-    if (this.redoStack.length === 0) return false;
     const action = this.redoStack.pop();
-    if (action.sheet && action.sheet !== this.activeSheet) {
-      this.switchSheet(action.sheet);
+    if (!action) { this._syncCommandStates(); return false; }
+    const applied = this._applyHistoryAction(action, "redo");
+    if (applied) {
+      this.undoStack.push(action);
+      if (this.undoStack.length > this.maxHistorySteps) this.undoStack.shift();
+    } else this.redoStack.push(action);
+    this._syncCommandStates();
+    return applied;
+  }
+
+  _applyHistoryAction(action, direction) {
+    if (action.type === "sheet-add") {
+      if (direction === "undo") {
+        const removed = this.deleteSheet(action.sheetName, false);
+        if (removed && this.sheets.includes(action.previousSheet)) this.switchSheet(action.previousSheet);
+        return removed;
+      }
+      this._restoreSheet(action.sheetName, action.snapshot, this.sheets.length);
+      this.switchSheet(action.sheetName);
+      return true;
     }
+    if (action.type === "sheet-delete") {
+      if (direction === "undo") {
+        this._restoreSheet(action.sheet, action.snapshot, action.index);
+        this.switchSheet(action.sheet);
+        return true;
+      }
+      return this.deleteSheet(action.sheet, false);
+    }
+    if (action.sheet && action.sheet !== this.activeSheet) this.switchSheet(action.sheet);
+    const value = direction === "undo" ? "prevVal" : "nextVal";
     if (action.type === "cell") {
-      this.undoStack.push({ ...action });
-      this.setCellValue(action.col, action.row, action.nextVal, false);
+      this.setCellValue(action.col, action.row, action[value], false);
       this.selectCell(action.col, action.row);
-      return true;
     } else if (action.type === "style") {
-      this.undoStack.push({ ...action });
       this.selectedCoord = { c: action.col, r: action.row };
-      this.setStyle(action.prop, action.nextVal, false);
-      return true;
+      this.setStyle(action.prop, action[value], false);
     } else if (action.type === "sort") {
-      this.undoStack.push({ ...action });
-      this.sort(this.selectedCoord.c, true);
-      return true;
-    }
-    return false;
+      this._restoreCells(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "collection") {
+      const collection = this[action.collection][action.sheet] ||= [];
+      const shouldInsert = (action.operation === "insert") === (direction === "redo");
+      if (shouldInsert) collection.splice(action.index, 0, structuredClone(action.item));
+      else {
+        const index = collection.findIndex(item => item.id === action.item.id);
+        if (index >= 0) collection.splice(index, 1);
+      }
+      action.collection === "chartsBySheet" ? this.renderCharts() : this._refreshVisibleRuleVisuals();
+    } else if (action.type === "freeze") {
+      this._setFreezePanes(action[value], false);
+    } else if (action.type === "filter") {
+      this._restoreFilterState(action[value]);
+    } else return false;
+    return true;
   }
 
   toggleFreezePanes() {
-    this.isFrozenPanes = !this.isFrozenPanes;
+    return this._setFreezePanes(!this.isFrozenPanes, true);
+  }
+
+  _setFreezePanes(value, recordUndo = false) {
+    const previous = !!this.isFrozenPanes;
+    this.isFrozenPanes = !!value;
     if (this.container) {
       if (this.isFrozenPanes) {
         this.container.classList.add("vno-freeze-panes");
@@ -995,13 +1066,14 @@ export class SheetGridController {
         this.container.classList.remove("vno-freeze-panes");
       }
     }
-    if (globalCommandBus && typeof globalCommandBus.updateState === "function") {
-      globalCommandBus.updateState("sheet.view.freezePanes", { checked: this.isFrozenPanes });
-    }
+    if (this.sheetStates[this.activeSheet]) this.sheetStates[this.activeSheet].isFrozenPanes = this.isFrozenPanes;
+    if (recordUndo && previous !== this.isFrozenPanes) this._recordHistory({ type: "freeze", sheet: this.activeSheet, prevVal: previous, nextVal: this.isFrozenPanes });
+    this._syncCommandStates();
     return this.isFrozenPanes;
   }
 
   sort(col = this.selectedCoord.c, ascending = true) {
+    const before = this._snapshotCells();
     // Thu thập các hàng dữ liệu cần sắp xếp
     const rowsWithData = [];
     for (const [key, item] of this.cellsData.entries()) {
@@ -1037,15 +1109,6 @@ export class SheetGridController {
       rowSnapshots.push({ originalRow: r, data: rowData, sortVal });
     }
 
-    this.undoStack.push({
-      type: "sort",
-      sheet: this.activeSheet,
-      minRow,
-      maxRow,
-      snapshots: JSON.parse(JSON.stringify(rowSnapshots))
-    });
-    this.redoStack = [];
-
     rowSnapshots.sort((a, b) => {
       const vA = a.sortVal;
       const vB = b.sortVal;
@@ -1074,10 +1137,12 @@ export class SheetGridController {
 
     this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
     this._recalculateAllFormulas();
+    this._recordHistory({ type: "sort", sheet: this.activeSheet, col, ascending, before, after: this._snapshotCells() });
     return true;
   }
 
   toggleFilter() {
+    const previous = this._snapshotFilterState();
     this.isFilterActive = !this.isFilterActive;
     if (this.container) {
       if (this.isFilterActive) {
@@ -1090,9 +1155,8 @@ export class SheetGridController {
     }
     this._updateFilterButtons();
     this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
-    if (globalCommandBus && typeof globalCommandBus.updateState === "function") {
-      globalCommandBus.updateState("sheet.data.filter", { checked: this.isFilterActive });
-    }
+    this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
+    this._syncCommandStates();
     return this.isFilterActive;
   }
 
@@ -1200,7 +1264,8 @@ export class SheetGridController {
     setTimeout(() => document.addEventListener("click", onDocClick), 10);
   }
 
-  applyFilter(col, allowedSet) {
+  applyFilter(col, allowedSet, recordUndo = true) {
+    const previous = this._snapshotFilterState();
     this.activeFilters.set(col, allowedSet);
     this.hiddenRows.clear();
 
@@ -1220,6 +1285,95 @@ export class SheetGridController {
 
     this._updateFilterButtons();
     this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    if (recordUndo) this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
+  }
+
+  _snapshotCells(sheetName = this.activeSheet) {
+    return Array.from((this.sheetsData[sheetName] || new Map()).entries(), ([key, value]) => [key, structuredClone(value)]);
+  }
+
+  _restoreCells(entries) {
+    this.sheetsData[this.activeSheet] = new Map(entries.map(([key, value]) => [key, structuredClone(value)]));
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+  }
+
+  _snapshotFilterState() {
+    return {
+      isFilterActive: !!this.isFilterActive,
+      hiddenRows: [...this.hiddenRows],
+      activeFilters: Array.from(this.activeFilters, ([col, values]) => [col, [...values]])
+    };
+  }
+
+  _restoreFilterState(snapshot) {
+    this.isFilterActive = !!snapshot.isFilterActive;
+    this.hiddenRows = new Set(snapshot.hiddenRows);
+    this.activeFilters = new Map(snapshot.activeFilters.map(([col, values]) => [col, new Set(values)]));
+    const state = this.sheetStates[this.activeSheet];
+    if (state) Object.assign(state, { isFilterActive: this.isFilterActive, hiddenRows: new Set(this.hiddenRows), activeFilters: new Map(this.activeFilters) });
+    this.container?.classList?.toggle?.("vno-filter-mode", this.isFilterActive);
+    this._updateFilterButtons();
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+  }
+
+  _snapshotSheet(sheetName) {
+    const savedState = this.sheetStates[sheetName] || {};
+    const state = sheetName === this.activeSheet ? {
+      hiddenRows: this.hiddenRows,
+      activeFilters: this.activeFilters,
+      isFilterActive: this.isFilterActive,
+      isFrozenPanes: this.isFrozenPanes,
+      selectedCoord: this.selectedCoord
+    } : savedState;
+    return {
+      cells: this._snapshotCells(sheetName),
+      state: {
+        hiddenRows: [...(state.hiddenRows || [])],
+        activeFilters: Array.from(state.activeFilters || [], ([col, values]) => [col, [...values]]),
+        isFilterActive: !!state.isFilterActive,
+        isFrozenPanes: !!state.isFrozenPanes,
+        selectedCoord: { ...(state.selectedCoord || { r: 1, c: "A" }) }
+      },
+      conditionalFormatting: structuredClone(this.conditionalFormattingBySheet[sheetName] || []),
+      dataValidations: structuredClone(this.dataValidationsBySheet[sheetName] || []),
+      charts: structuredClone(this.chartsBySheet[sheetName] || [])
+    };
+  }
+
+  _restoreSheet(sheetName, snapshot, index) {
+    if (!this.sheets.includes(sheetName)) this.sheets.splice(Math.min(index, this.sheets.length), 0, sheetName);
+    this.sheetsData[sheetName] = new Map(snapshot.cells.map(([key, value]) => [key, structuredClone(value)]));
+    this.sheetStates[sheetName] = {
+      hiddenRows: new Set(snapshot.state.hiddenRows),
+      activeFilters: new Map(snapshot.state.activeFilters.map(([col, values]) => [col, new Set(values)])),
+      isFilterActive: snapshot.state.isFilterActive,
+      isFrozenPanes: snapshot.state.isFrozenPanes,
+      selectedCoord: { ...snapshot.state.selectedCoord }
+    };
+    this.conditionalFormattingBySheet[sheetName] = structuredClone(snapshot.conditionalFormatting);
+    this.dataValidationsBySheet[sheetName] = structuredClone(snapshot.dataValidations);
+    this.chartsBySheet[sheetName] = structuredClone(snapshot.charts);
+    const tabs = this.tabBar?.querySelector?.("#vno-sheet-tabs-list");
+    if (tabs && typeof document !== "undefined" && !this.tabBar.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)) {
+      const tab = document.createElement("div");
+      tab.className = "vno-sheet-tab-item";
+      tab.dataset.sheet = sheetName;
+      tab.textContent = sheetName;
+      tab.addEventListener("click", () => this.switchSheet(sheetName));
+      tabs.appendChild(tab);
+    }
+  }
+
+  _deleteCollectionItem(collectionName, itemId, sheetName, recordUndo) {
+    const collection = this[collectionName][sheetName] || [];
+    const index = collection.findIndex(item => item.id === itemId);
+    if (index < 0) return false;
+    const [item] = collection.splice(index, 1);
+    if (sheetName === this.activeSheet) this._refreshVisibleRuleVisuals();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: sheetName, collection: collectionName, operation: "delete", index, item: structuredClone(item) });
+    return true;
   }
 
   updateStatus() {
@@ -1261,7 +1415,7 @@ export class SheetGridController {
       row >= normalized.start.r && row <= normalized.end.r;
   }
 
-  addConditionalFormattingRule(range, config) {
+  addConditionalFormattingRule(range, config, recordUndo = true) {
     const validTypes = ["greaterThan", "lessThan", "blank"];
     if (!config || !validTypes.includes(config.type)) return false;
     const numericThreshold = config.type === "blank" ? null : Number(config.value);
@@ -1275,7 +1429,12 @@ export class SheetGridController {
     };
     this.conditionalFormattingBySheet[this.activeSheet].push(rule);
     this._refreshVisibleRuleVisuals();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "conditionalFormattingBySheet", operation: "insert", index: this.conditionalFormattingBySheet[this.activeSheet].length - 1, item: structuredClone(rule) });
     return rule;
+  }
+
+  deleteConditionalFormattingRule(ruleId, sheetName = this.activeSheet, recordUndo = true) {
+    return this._deleteCollectionItem("conditionalFormattingBySheet", ruleId, sheetName, recordUndo);
   }
 
   getConditionalFormattingRules(sheetName = this.activeSheet) {
@@ -1301,7 +1460,7 @@ export class SheetGridController {
     }) || null;
   }
 
-  addDataValidation(range, config) {
+  addDataValidation(range, config, recordUndo = true) {
     if (!config || !["list", "numberRange"].includes(config.type)) return false;
     let normalizedConfig;
     if (config.type === "list") {
@@ -1323,7 +1482,12 @@ export class SheetGridController {
     };
     this.dataValidationsBySheet[this.activeSheet].push(validation);
     this._refreshVisibleRuleVisuals();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "dataValidationsBySheet", operation: "insert", index: this.dataValidationsBySheet[this.activeSheet].length - 1, item: structuredClone(validation) });
     return validation;
+  }
+
+  deleteDataValidation(validationId, sheetName = this.activeSheet, recordUndo = true) {
+    return this._deleteCollectionItem("dataValidationsBySheet", validationId, sheetName, recordUndo);
   }
 
   getDataValidations(sheetName = this.activeSheet) {
