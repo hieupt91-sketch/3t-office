@@ -69,6 +69,11 @@ export const VN_TO_UNO_MAP = {
   "writer.header.insert": ".uno:InsertPageHeader",
   "writer.footer.insert": ".uno:InsertPageFooter",
 
+  // Writer / Page Setup (Bố cục)
+  "writer.page.margins": ".uno:PageDialog",
+  "writer.page.orientation": ".uno:PageDialog",
+  "writer.page.size": ".uno:PageDialog",
+
   // Sheet / Calc
   "sheet.cell.edit": ".uno:SetInputMode",
   "sheet.cell.bold": ".uno:Bold",
