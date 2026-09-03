@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
@@ -31,11 +31,12 @@
     import { SheetApp } from "./apps/sheet/sheet-app.js";
     import { SlidesApp } from "./apps/slides/slides-app.js";
     import { themeManager } from "./platform/theme/theme-manager.js";
+    import { bootstrapPlatform } from "./platform/bootstrap.js";
 
     const mountEl = document.getElementById("vno-app-root");
     let currentAppInstance = null;
 
-    async function switchApp(appType) {
+    async function switchApp(appType, options) {
       themeManager.setApp(appType);
 
       if (appType === "writer") {
@@ -46,15 +47,16 @@
         currentAppInstance = new SlidesApp(mountEl);
       }
 
-      await currentAppInstance.init();
+      await currentAppInstance.init(options);
 
       // Cập nhật callback chuyển đổi app vào shell hiện tại
       if (currentAppInstance.shell) {
-        currentAppInstance.shell.onSwitchApp = (nextApp) => switchApp(nextApp);
+        currentAppInstance.shell.onSwitchApp = (nextApp, opt) => switchApp(nextApp, opt);
       }
     }
 
-    // Khởi động vào VN Writer
+    // Bootstrap suite tập trung một lần duy nhất rồi khởi động VN Writer
+    await bootstrapPlatform();
     switchApp("writer");
   </script>
 </body>

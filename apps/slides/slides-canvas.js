@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Slides — Enterprise Canvas Controller & Presentation Engine
  */
 
@@ -27,6 +27,8 @@ export class SlidesCanvasController {
       }
     ];
     this.currentSlideIndex = 0;
+    this.undoStack = [];
+    this.redoStack = [];
     this.navEl = null;
     this.canvasEl = null;
     this.titleEl = null;
@@ -124,7 +126,7 @@ export class SlidesCanvasController {
     }
   }
 
-  addNewSlide() {
+  addNewSlide(recordUndo = true) {
     const newSlide = {
       id: Date.now(),
       title: "Tiêu đề trang chiếu mới",
@@ -132,11 +134,16 @@ export class SlidesCanvasController {
       shapes: []
     };
     this.slides.push(newSlide);
-    this.selectSlide(this.slides.length - 1);
+    const newIdx = this.slides.length - 1;
+    if (recordUndo) {
+      this.undoStack.push({ type: "add", index: newIdx, slide: newSlide });
+      this.redoStack = [];
+    }
+    this.selectSlide(newIdx);
     return true;
   }
 
-  duplicateCurrentSlide() {
+  duplicateCurrentSlide(recordUndo = true) {
     const cur = this.slides[this.currentSlideIndex];
     if (!cur) return false;
     const dup = {
@@ -145,17 +152,61 @@ export class SlidesCanvasController {
       body: cur.body,
       shapes: [...cur.shapes]
     };
-    this.slides.splice(this.currentSlideIndex + 1, 0, dup);
-    this.selectSlide(this.currentSlideIndex + 1);
+    const targetIdx = this.currentSlideIndex + 1;
+    this.slides.splice(targetIdx, 0, dup);
+    if (recordUndo) {
+      this.undoStack.push({ type: "add", index: targetIdx, slide: dup });
+      this.redoStack = [];
+    }
+    this.selectSlide(targetIdx);
     return true;
   }
 
-  deleteCurrentSlide() {
+  deleteCurrentSlide(recordUndo = true) {
     if (this.slides.length <= 1) return false;
-    this.slides.splice(this.currentSlideIndex, 1);
-    const nextIdx = Math.max(0, this.currentSlideIndex - 1);
+    const delIdx = this.currentSlideIndex;
+    const [deleted] = this.slides.splice(delIdx, 1);
+    if (recordUndo) {
+      this.undoStack.push({ type: "delete", index: delIdx, slide: deleted });
+      this.redoStack = [];
+    }
+    const nextIdx = Math.max(0, delIdx - 1);
     this.selectSlide(nextIdx);
     return true;
+  }
+
+  undo() {
+    if (this.undoStack.length === 0) return false;
+    const action = this.undoStack.pop();
+    if (action.type === "add") {
+      const [removed] = this.slides.splice(action.index, 1);
+      this.redoStack.push({ type: "delete", index: action.index, slide: removed });
+      this.selectSlide(Math.max(0, action.index - 1));
+      return true;
+    } else if (action.type === "delete") {
+      this.slides.splice(action.index, 0, action.slide);
+      this.redoStack.push({ type: "add", index: action.index, slide: action.slide });
+      this.selectSlide(action.index);
+      return true;
+    }
+    return false;
+  }
+
+  redo() {
+    if (this.redoStack.length === 0) return false;
+    const action = this.redoStack.pop();
+    if (action.type === "delete") {
+      this.slides.splice(action.index, 0, action.slide);
+      this.undoStack.push({ type: "add", index: action.index, slide: action.slide });
+      this.selectSlide(action.index);
+      return true;
+    } else if (action.type === "add") {
+      const [removed] = this.slides.splice(action.index, 1);
+      this.undoStack.push({ type: "delete", index: action.index, slide: removed });
+      this.selectSlide(Math.max(0, action.index - 1));
+      return true;
+    }
+    return false;
   }
 
   startSlideShow(startIndex) {

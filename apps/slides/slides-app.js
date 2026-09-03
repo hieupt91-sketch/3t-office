@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Slides Application Entrypoint — Refined Enterprise Edition
  */
 
@@ -6,9 +6,7 @@ import { AppShell } from "../../platform/shell/app-shell.js";
 import { SLIDES_RIBBON_TABS } from "./slides-ribbon.js";
 import { SlidesCanvasController } from "./slides-canvas.js";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
-import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
-import { registerAllStandardCommands } from "../../platform/commands/command-definitions.js";
-import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { bootstrapPlatform } from "../../platform/bootstrap.js";
 
 export class SlidesApp {
   constructor(mountElement) {
@@ -18,14 +16,14 @@ export class SlidesApp {
     this.adapter = null;
   }
 
-  async init() {
-    registerAllStandardCommands(globalCommandBus);
-    await globalUnoBridge.init();
+  async init(options = {}) {
+    await bootstrapPlatform();
 
+    const isBlank = options.templateId === "blank";
     this.shell = new AppShell({
       appName: "slides",
       appTitle: "VN Slides",
-      documentName: "Báo cáo đề án phát triển VN Office 2026.pptx"
+      documentName: options.documentName || (isBlank ? "Bản trình chiếu 1.pptx" : "Báo cáo đề án phát triển VN Office 2026.pptx")
     });
     this.shell.mount(this.mountElement);
     this.shell.ribbonHost.setStructure(SLIDES_RIBBON_TABS, "home");
@@ -40,6 +38,15 @@ export class SlidesApp {
       }
     });
     this.canvasController.mount();
+
+    if (isBlank) {
+      this.canvasController.slides = [
+        { id: 1, title: "Tiêu đề trang chiếu", body: "• Nhập nội dung chính tại đây", shapes: [] }
+      ];
+      this.canvasController.selectSlide(0);
+      const tabEl = this.shell.rootEl.querySelector(".vno-doc-tab span");
+      if (tabEl) tabEl.textContent = "Bản trình chiếu 1.pptx";
+    }
 
     this.shell.setEditorCanvas(studioWrap);
 

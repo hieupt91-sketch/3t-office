@@ -1,9 +1,10 @@
-﻿/**
+/**
  * VN Office LibreOffice Adapter — VN Slides Adapter
  * Quản lý tương tác với StarImpress (sd) Document Model & Phím tắt Microsoft/LibreOffice
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
+import { showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
 
 export class SlidesAdapter {
   constructor(canvasController) {
@@ -40,12 +41,28 @@ export class SlidesAdapter {
         return true;
 
       case "slides.shape.insert":
-        alert("Đã chèn đối tượng hình khối vector (LibreOffice Drawing Shape).");
+        if (typeof window !== "undefined" && typeof document !== "undefined") {
+          await showAlertDialog({
+            title: "Chèn Hình Khối",
+            message: "Đã chèn đối tượng hình khối vector (LibreOffice Drawing Shape)."
+          });
+        }
         return true;
 
       case "slides.image.insert":
-        alert("Đã mở hộp thoại chèn hình ảnh minh họa trình chiếu.");
+        if (typeof window !== "undefined" && typeof document !== "undefined") {
+          await showAlertDialog({
+            title: "Chèn Hình Ảnh",
+            message: "Đã mở hộp thoại chèn hình ảnh minh họa trình chiếu."
+          });
+        }
         return true;
+
+      case "common.edit.undo":
+        return this.canvas.undo ? this.canvas.undo() : false;
+
+      case "common.edit.redo":
+        return this.canvas.redo ? this.canvas.redo() : false;
 
       case "common.file.save":
         this.isDirty = false;

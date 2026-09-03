@@ -1,9 +1,10 @@
-﻿/**
+/**
  * VN Sheet — Enterprise Grid Controller & Microsoft Formula Calculation Engine
  */
 
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { SheetChartBuilder } from "./sheet-chart.js";
+import { showAlertDialog } from "../../platform/ui-kit/dialogs.js";
 
 export class SheetGridController {
   constructor(container, options = {}) {
@@ -15,6 +16,9 @@ export class SheetGridController {
     /** @type {Map<string, {val: string|number, formula: string, style: Object}>} */
     this.cellsData = new Map();
     this.formulaEngine = new FormulaEngine(this.cellsData);
+
+    this.undoStack = [];
+    this.redoStack = [];
 
     this.selectedCoord = { r: 1, c: "A" };
     this.sheets = ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"];
@@ -260,9 +264,20 @@ export class SheetGridController {
     }
   }
 
-  setCellValue(col, row, val) {
+  setCellValue(col, row, val, recordUndo = true) {
     const key = `${col}${row}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
+
+    if (recordUndo) {
+      this.undoStack.push({
+        type: "cell",
+        col,
+        row,
+        prevVal: item.formula || item.val || "",
+        nextVal: val
+      });
+      this.redoStack = [];
+    }
 
     if (typeof val === "string" && val.startsWith("=")) {
       item.formula = val;
@@ -418,8 +433,12 @@ export class SheetGridController {
       { label: "OOXML Test Suite", value: 20000000 }
     ];
 
-    SheetChartBuilder.showChartModal(dataItems, (chartType) => {
-      alert(`Đã tạo thành công ${chartType === "bar" ? "Biểu đồ Cột" : "Biểu đồ Tròn"} cho bảng tính!`);
+    SheetChartBuilder.showChartModal(dataItems, async (chartType) => {
+      await showAlertDialog({
+        title: "Biểu Đồ Bảng Tính",
+        message: `Đã tạo thành công ${chartType === "bar" ? "Biểu đồ Cột" : "Biểu đồ Tròn"} cho bảng tính!`,
+        type: "success"
+      });
     });
   }
 
@@ -473,9 +492,23 @@ export class SheetGridController {
     return true;
   }
 
-  setStyle(prop, val) {
+  setStyle(prop, val, recordUndo = true) {
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
+    const prevVal = item.style[prop] || "";
+
+    if (recordUndo) {
+      this.undoStack.push({
+        type: "style",
+        col: this.selectedCoord.c,
+        row: this.selectedCoord.r,
+        prop,
+        prevVal,
+        nextVal: val
+      });
+      this.redoStack = [];
+    }
+
     item.style[prop] = val;
     this.cellsData.set(key, item);
 
@@ -490,6 +523,48 @@ export class SheetGridController {
     const cur = item.style[prop];
     const next = cur === valOn ? valOff : valOn;
     return this.setStyle(prop, next);
+  }
+
+  undo() {
+    if (this.undoStack.length === 0) return false;
+    const action = this.undoStack.pop();
+    if (action.type === "cell") {
+      this.redoStack.push({ ...action });
+      this.setCellValue(action.col, action.row, action.prevVal, false);
+      this.selectCell(action.col, action.row);
+      return true;
+    } else if (action.type === "style") {
+      this.redoStack.push({ ...action });
+      this.selectedCoord = { c: action.col, r: action.row };
+      this.setStyle(action.prop, action.prevVal, false);
+      return true;
+    }
+    return false;
+  }
+
+  redo() {
+    if (this.redoStack.length === 0) return false;
+    const action = this.redoStack.pop();
+    if (action.type === "cell") {
+      this.undoStack.push({ ...action });
+      this.setCellValue(action.col, action.row, action.nextVal, false);
+      this.selectCell(action.col, action.row);
+      return true;
+    } else if (action.type === "style") {
+      this.undoStack.push({ ...action });
+      this.selectedCoord = { c: action.col, r: action.row };
+      this.setStyle(action.prop, action.nextVal, false);
+      return true;
+    }
+    return false;
+  }
+
+  updateStatus() {
+    const coordKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const data = this.cellsData.get(coordKey);
+    if (this.options.onSelect) {
+      this.options.onSelect(coordKey, data, this._calculateStats());
+    }
   }
 
   _calculateStats() {

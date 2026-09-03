@@ -6,6 +6,11 @@ import { ICONS } from "../ui-kit/icons.js";
 import { globalCommandBus } from "../commands/command-bus.js";
 import { globalShortcutManager } from "../commands/shortcut-manager.js";
 import { RibbonHost } from "../ribbon/ribbon-host.js";
+import { OFFICE_TEMPLATES } from "../templates/template-registry.js";
+import { RecentFilesManager } from "../recent/recent-manager.js";
+import { createEmptyState } from "../ui-kit/components.js";
+import { LocalAiService } from "../ai/ai-service.js";
+import { showAlertDialog } from "../ui-kit/dialogs.js";
 
 export class AppShell {
   /**
@@ -33,6 +38,8 @@ export class AppShell {
     this.rootEl.innerHTML = "";
     this.rootEl.className = "vno-shell";
     this.rootEl.setAttribute("data-app", this.appName);
+
+    RecentFilesManager.recordFile({ name: this.documentName, app: this.appName });
 
     this._renderTopBar();
     this._renderRibbon();
@@ -181,6 +188,64 @@ export class AppShell {
 
     this.aiSidebar.querySelector("#vno-ai-close").addEventListener("click", () => this.toggleAiSidebar(false));
 
+    // Xử lý gửi yêu cầu tới Trợ lý VN AI
+    const sendBtn = this.aiSidebar.querySelector("#vno-ai-send");
+    const inputEl = this.aiSidebar.querySelector("#vno-ai-input");
+    const messagesEl = this.aiSidebar.querySelector("#vno-ai-messages");
+
+    const handleAiSend = async () => {
+      const query = inputEl.value.trim();
+      if (!query) return;
+      inputEl.value = "";
+
+      // 1. Thêm tin nhắn người dùng
+      const userMsg = document.createElement("div");
+      userMsg.style.cssText = "background:var(--vno-bg-hover);border:1px solid var(--vno-border-default);padding:8px 12px;border-radius:var(--vno-radius-md);font-size:12px;margin-top:10px;line-height:1.5;";
+      userMsg.innerHTML = `<strong>Bạn:</strong> ${query.replace(/</g, "&lt;").replace(/>/g, "&gt;")}`;
+      messagesEl.appendChild(userMsg);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+
+      // 2. Lấy nội dung tài liệu hiện thời phục vụ phân tích cục bộ
+      const docText = this.editorContainer.innerText || "";
+
+      // 3. Trạng thái phản hồi
+      const botMsg = document.createElement("div");
+      botMsg.style.cssText = "background:#f0fdf4;border:1px solid #bbf7d0;padding:10px 12px;border-radius:var(--vno-radius-md);font-size:12px;line-height:1.5;margin-top:8px;";
+      botMsg.innerHTML = `<span style="color:#16a34a;">Đang phân tích cục bộ...</span>`;
+      messagesEl.appendChild(botMsg);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+
+      const res = await LocalAiService.query(query, { documentText: docText, appName: this.appName });
+      botMsg.innerHTML = `
+        <div style="font-weight:bold;color:#16a34a;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+          <span>✨</span> <span>Trợ lý VN AI</span>
+        </div>
+        <div style="white-space:pre-line;color:var(--vno-text-primary);">${res.reply.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")}</div>
+      `;
+
+      if (res.suggestion) {
+        const applyBtn = document.createElement("button");
+        applyBtn.className = "vno-btn vno-btn-primary";
+        applyBtn.style.cssText = "font-size:11px;padding:4px 10px;margin-top:8px;display:inline-block;";
+        applyBtn.textContent = "Áp dụng vào tài liệu";
+        applyBtn.addEventListener("click", () => {
+          document.execCommand("insertText", false, res.suggestion);
+          applyBtn.textContent = "✓ Đã áp dụng";
+          applyBtn.disabled = true;
+        });
+        botMsg.appendChild(applyBtn);
+      }
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    };
+
+    sendBtn.addEventListener("click", handleAiSend);
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleAiSend();
+      }
+    });
+
     ws.appendChild(this.editorContainer);
     ws.appendChild(this.aiSidebar);
     this.rootEl.appendChild(ws);
@@ -243,6 +308,59 @@ export class AppShell {
     const modal = document.createElement("div");
     modal.className = "vno-backstage-overlay";
 
+    // 1. Render Template Cards dynamically
+    const templateCardsHtml = OFFICE_TEMPLATES.map(t => {
+      const badgeHtml = t.badge ? `<span style="font-size:10px;background:var(--vno-bg-subtle);color:var(--vno-text-secondary);padding:2px 6px;border-radius:4px;border:1px solid var(--vno-border-default);font-weight:600;">${t.badge}</span>` : "";
+      return `
+        <div class="vno-template-card" data-template-id="${t.id}" data-template-app="${t.app}">
+          <div class="vno-template-thumb" style="border-top:3px solid ${t.borderColor};display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:26px;">${t.icon}</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+            <strong style="font-size:13px;color:var(--vno-text-primary);">${t.title}</strong>
+            ${badgeHtml}
+          </div>
+          <span style="font-size:11px;color:var(--vno-text-muted);margin-top:2px;">${t.desc}</span>
+        </div>
+      `;
+    }).join("");
+
+    // 2. Render Real Recent Files or Empty State
+    const recentFiles = RecentFilesManager.getRecentFiles();
+    let recentSectionHtml = "";
+
+    if (recentFiles.length === 0) {
+      recentSectionHtml = `<div id="vno-recent-empty-container"></div>`;
+    } else {
+      const rowsHtml = recentFiles.map(file => {
+        const timeStr = new Date(file.lastModified).toLocaleDateString("vi-VN", {
+          day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
+        });
+        return `
+          <div class="vno-recent-row" data-recent-app="${file.app}" data-recent-name="${file.name}" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--vno-border-default);cursor:pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+            <div>
+              <strong style="font-size:13px;color:var(--vno-text-primary);">${file.name}</strong>
+              <div style="font-size:11px;color:var(--vno-text-muted);margin-top:2px;">Sửa đổi: ${timeStr}</div>
+            </div>
+            <span style="font-size:12px;color:var(--vno-text-secondary);">${file.format}</span>
+          </div>
+        `;
+      }).join("");
+
+      recentSectionHtml = `
+        <div style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);overflow:hidden;background:#ffffff;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--vno-border-default);background:#fafafa;font-size:12px;font-weight:bold;color:var(--vno-text-muted);">
+            <span>TÊN TÀI LIỆU</span>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span>VỊ TRÍ / ĐỊNH DẠNG</span>
+              <button class="vno-btn" id="vno-clear-recent" style="font-size:11px;padding:2px 8px;">Xóa lịch sử</button>
+            </div>
+          </div>
+          ${rowsHtml}
+        </div>
+      `;
+    }
+
     modal.innerHTML = `
       <div class="vno-backstage-sidebar">
         <button class="vno-backstage-back-btn" id="vno-backstage-back">
@@ -264,60 +382,11 @@ export class AppShell {
         <p style="color:var(--vno-text-muted);font-size:13px;margin-bottom:24px;">Khởi tạo tài liệu mới nhanh chóng theo mẫu quy chuẩn hành chính và doanh nghiệp</p>
 
         <div class="vno-template-grid">
-          <div class="vno-template-card" data-backstage-cmd="common.file.new">
-            <div class="vno-template-thumb">
-              <span style="font-size:24px;color:#cbd5e1;">📄</span>
-            </div>
-            <strong style="font-size:13px;color:var(--vno-text-primary);">Tài liệu trống</strong>
-            <span style="font-size:11px;color:var(--vno-text-muted);">Khởi tạo trang trắng</span>
-          </div>
-
-          <div class="vno-template-card" data-backstage-cmd="common.file.new">
-            <div class="vno-template-thumb" style="border-top:3px solid var(--vno-writer-primary);">
-              <span style="font-size:10px;text-align:center;padding:6px;color:#475569;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</span>
-            </div>
-            <strong style="font-size:13px;color:var(--vno-text-primary);">Văn bản hành chính</strong>
-            <span style="font-size:11px;color:var(--vno-text-muted);">Chuẩn NĐ 30/2020/NĐ-CP</span>
-          </div>
-
-          <div class="vno-template-card" data-backstage-cmd="common.file.new">
-            <div class="vno-template-thumb" style="border-top:3px solid var(--vno-sheet-primary);">
-              <span style="font-size:20px;color:#0f6d38;">📊</span>
-            </div>
-            <strong style="font-size:13px;color:var(--vno-text-primary);">Dự toán kinh phí</strong>
-            <span style="font-size:11px;color:var(--vno-text-muted);">Bảng tính công thức VNĐ</span>
-          </div>
-
-          <div class="vno-template-card" data-backstage-cmd="common.file.new">
-            <div class="vno-template-thumb" style="border-top:3px solid var(--vno-slides-primary);">
-              <span style="font-size:20px;color:#b53818;">📽️</span>
-            </div>
-            <strong style="font-size:13px;color:var(--vno-text-primary);">Đề cương thuyết trình</strong>
-            <span style="font-size:11px;color:var(--vno-text-muted);">Slide 16:9 widescreen</span>
-          </div>
+          ${templateCardsHtml}
         </div>
 
         <h2 style="font-size:18px;font-weight:700;margin-top:36px;margin-bottom:16px;color:var(--vno-text-primary);">Tài liệu mở gần đây</h2>
-        <div style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);overflow:hidden;">
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--vno-border-default);background:#fafafa;font-size:12px;font-weight:bold;color:var(--vno-text-muted);">
-            <span>TÊN TÀI LIỆU</span>
-            <span>VỊ TRÍ / ĐỊNH DẠNG</span>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--vno-border-default);cursor:pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-            <div>
-              <strong style="font-size:13px;color:var(--vno-text-primary);">Quyết định ban hành tiêu chuẩn 01.docx</strong>
-              <div style="font-size:11px;color:var(--vno-text-muted);margin-top:2px;">Sửa đổi: Hôm nay, 17:10</div>
-            </div>
-            <span style="font-size:12px;color:var(--vno-text-secondary);">DOCX Document (LibreOffice Core)</span>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-            <div>
-              <strong style="font-size:13px;color:var(--vno-text-primary);">Dự toán kinh phí VN Office 2026.xlsx</strong>
-              <div style="font-size:11px;color:var(--vno-text-muted);margin-top:2px;">Sửa đổi: Hôm nay, 17:08</div>
-            </div>
-            <span style="font-size:12px;color:var(--vno-text-secondary);">XLSX Spreadsheet (LibreOffice Core)</span>
-          </div>
-        </div>
+        ${recentSectionHtml}
       </div>
     `;
 
@@ -327,7 +396,74 @@ export class AppShell {
       if (modal.parentNode) modal.parentNode.removeChild(modal);
     };
 
+    // Nếu không có tài liệu gần đây, mount EmptyState component
+    const emptyContainer = modal.querySelector("#vno-recent-empty-container");
+    if (emptyContainer) {
+      const emptyStateEl = createEmptyState({
+        icon: "📁",
+        title: "Chưa có tài liệu gần đây",
+        description: "Các tài liệu bạn vừa khởi tạo hoặc chỉnh sửa sẽ tự động xuất hiện tại đây để truy cập nhanh.",
+        actionText: "Khởi tạo tài liệu mới (Ctrl+N)",
+        onAction: () => {
+          closeModal();
+          globalCommandBus.execute("common.file.new");
+        }
+      });
+      emptyContainer.appendChild(emptyStateEl);
+    }
+
+    // Xử lý nút Xóa lịch sử gần đây
+    const clearBtn = modal.querySelector("#vno-clear-recent");
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        RecentFilesManager.clearAll();
+        closeModal();
+        this.showBackstageMenu();
+      });
+    }
+
+    // Xử lý nhấp chọn tài liệu gần đây
+    modal.querySelectorAll(".vno-recent-row").forEach(row => {
+      row.addEventListener("click", () => {
+        const app = row.getAttribute("data-recent-app");
+        closeModal();
+        if (app !== this.appName && this.onSwitchApp) {
+          this.onSwitchApp(app);
+        }
+      });
+    });
+
+    // Xử lý chọn mẫu tài liệu (Template)
+    modal.querySelectorAll(".vno-template-card").forEach(card => {
+      card.addEventListener("click", () => {
+        const tmplId = card.getAttribute("data-template-id");
+        const tmplApp = card.getAttribute("data-template-app");
+        closeModal();
+
+        if (tmplApp === "current" || tmplApp === this.appName) {
+          this.applyTemplate(tmplId);
+        } else {
+          if (this.onSwitchApp) {
+            this.onSwitchApp(tmplApp, { templateId: tmplId });
+          } else {
+            showAlertDialog({
+              title: "Mẫu tài liệu",
+              message: `Mẫu này dành cho ứng dụng VN ${tmplApp.toUpperCase()}. Vui lòng chuyển sang ứng dụng đó để sử dụng.`
+            });
+          }
+        }
+      });
+    });
+
     modal.querySelector("#vno-backstage-back").addEventListener("click", closeModal);
+
+    modal.querySelector("#vno-backstage-about").addEventListener("click", () => {
+      showAlertDialog({
+        title: "Về Bộ Ứng Dụng VN Office",
+        message: "VN Office — Bộ ứng dụng văn phòng Việt Nam độc lập và chuẩn mực.\n\n• Phiên bản: 2.0 Enterprise Commercial Candidate\n• Kiến trúc: Shared Platform + LibreOffice Core Adapter Layer\n• Tiêu chuẩn: Nghị định 30/2020/NĐ-CP & ISO/IEC 29500 OOXML\n• Bảo mật: Quyền riêng tư tuyệt đối (Privacy-first on-device AI)"
+      });
+    });
+
     modal.querySelectorAll("[data-backstage-cmd]").forEach(btn => {
       btn.addEventListener("click", () => {
         const cmd = btn.getAttribute("data-backstage-cmd");
@@ -335,6 +471,30 @@ export class AppShell {
         globalCommandBus.execute(cmd);
       });
     });
+  }
+
+  applyTemplate(templateId) {
+    if (templateId === "blank") {
+      globalCommandBus.execute("common.file.new");
+      return;
+    }
+
+    if (this.appName === "writer" && templateId === "admin_doc") {
+      this.documentName = "Quyết định ban hành tiêu chuẩn 01.docx";
+      const tabEl = this.rootEl.querySelector(".vno-doc-tab span");
+      if (tabEl) tabEl.textContent = this.documentName;
+      RecentFilesManager.recordFile({ name: this.documentName, app: "writer" });
+    } else if (this.appName === "sheet" && templateId === "budget_estimate") {
+      this.documentName = "Dự toán kinh phí VN Office 2026.xlsx";
+      const tabEl = this.rootEl.querySelector(".vno-doc-tab span");
+      if (tabEl) tabEl.textContent = this.documentName;
+      RecentFilesManager.recordFile({ name: this.documentName, app: "sheet" });
+    } else if (this.appName === "slides" && templateId === "presentation_outline") {
+      this.documentName = "Báo cáo đề án phát triển VN Office 2026.pptx";
+      const tabEl = this.rootEl.querySelector(".vno-doc-tab span");
+      if (tabEl) tabEl.textContent = this.documentName;
+      RecentFilesManager.recordFile({ name: this.documentName, app: "slides" });
+    }
   }
 
   _setupGlobalShortcuts() {

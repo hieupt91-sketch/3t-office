@@ -1,13 +1,11 @@
-﻿/**
+/**
  * VN Writer Application Entrypoint — Refined Enterprise Edition
  */
 
 import { AppShell } from "../../platform/shell/app-shell.js";
 import { WRITER_RIBBON_TABS } from "./writer-ribbon.js";
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
-import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
-import { registerAllStandardCommands } from "../../platform/commands/command-definitions.js";
-import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { bootstrapPlatform } from "../../platform/bootstrap.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -17,14 +15,14 @@ export class WriterApp {
     this.canvas = null;
   }
 
-  async init() {
-    registerAllStandardCommands(globalCommandBus);
-    await globalUnoBridge.init();
+  async init(options = {}) {
+    await bootstrapPlatform();
 
+    const isBlank = options.templateId === "blank";
     this.shell = new AppShell({
       appName: "writer",
       appTitle: "VN Writer",
-      documentName: "Quyết định ban hành tiêu chuẩn 01.docx"
+      documentName: options.documentName || (isBlank ? "Tài liệu 1.docx" : "Quyết định ban hành tiêu chuẩn 01.docx")
     });
     this.shell.mount(this.mountElement);
     this.shell.ribbonHost.setStructure(WRITER_RIBBON_TABS, "home");
@@ -55,8 +53,11 @@ export class WriterApp {
     this.canvas.setAttribute("contenteditable", "true");
     this.canvas.setAttribute("spellcheck", "false");
 
-    // Mẫu văn bản chuẩn hóa
-    this.canvas.innerHTML = `
+    if (isBlank) {
+      this.canvas.innerHTML = `<p><br></p>`;
+    } else {
+      // Mẫu văn bản chuẩn hóa
+      this.canvas.innerHTML = `
       <table style="width:100%; border:none; margin-bottom:18pt;">
         <tr>
           <td style="width:45%; text-align:center; border:none; padding:0; vertical-align:top;">
