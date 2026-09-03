@@ -1,5 +1,5 @@
 ﻿/**
- * VN Slides — Enterprise Canvas Controller
+ * VN Slides — Enterprise Canvas Controller & Presentation Engine
  */
 
 export class SlidesCanvasController {
@@ -43,7 +43,7 @@ export class SlidesCanvasController {
 
     const navHeader = document.createElement("div");
     navHeader.className = "vno-slide-nav-header";
-    navHeader.innerHTML = `<button class="vno-slide-new-btn" id="vno-new-slide-btn">+ Thêm trang chiếu mới</button>`;
+    navHeader.innerHTML = `<button class="vno-slide-new-btn" id="vno-new-slide-btn" title="Thêm trang chiếu mới (Ctrl+M)">+ Thêm trang chiếu mới</button>`;
     navHeader.querySelector("#vno-new-slide-btn").addEventListener("click", () => this.addNewSlide());
     this.navEl.appendChild(navHeader);
 
@@ -133,6 +133,20 @@ export class SlidesCanvasController {
     };
     this.slides.push(newSlide);
     this.selectSlide(this.slides.length - 1);
+    return true;
+  }
+
+  duplicateCurrentSlide() {
+    const cur = this.slides[this.currentSlideIndex];
+    if (!cur) return false;
+    const dup = {
+      id: Date.now(),
+      title: `${cur.title} (Bản sao)`,
+      body: cur.body,
+      shapes: [...cur.shapes]
+    };
+    this.slides.splice(this.currentSlideIndex + 1, 0, dup);
+    this.selectSlide(this.currentSlideIndex + 1);
     return true;
   }
 
