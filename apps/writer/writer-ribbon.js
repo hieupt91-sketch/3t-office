@@ -156,6 +156,19 @@ export const WRITER_RIBBON_TABS = [
           { type: "button", commandId: "writer.header.insert", isLarge: true },
           { type: "button", commandId: "writer.footer.insert", isLarge: true }
         ]
+      },
+      {
+        label: "Mục lục & Chú thích",
+        items: [
+          { type: "button", commandId: "writer.reference.tocInsert", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.reference.footnoteInsert" },
+              { type: "button", commandId: "writer.reference.endnoteInsert" }
+            ]
+          }
+        ]
       }
     ]
   },
@@ -176,6 +189,26 @@ export const WRITER_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "common.file.print", isLarge: true },
           { type: "button", commandId: "writer.file.printPreview", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
+    id: "references",
+    label: "Tham chiếu",
+    groups: [
+      {
+        label: "Mục lục",
+        items: [
+          { type: "button", commandId: "writer.reference.tocInsert", isLarge: true },
+          { type: "button", commandId: "writer.reference.tocUpdate", isLarge: true }
+        ]
+      },
+      {
+        label: "Chú thích",
+        items: [
+          { type: "button", commandId: "writer.reference.footnoteInsert", isLarge: true },
+          { type: "button", commandId: "writer.reference.endnoteInsert", isLarge: true }
         ]
       }
     ]

@@ -18,6 +18,28 @@ const PAGE_SIZES_MM = {
 const DEFAULT_MARGINS_MM = { top: 20, bottom: 20, left: 30, right: 15 };
 const MM_TO_PX = 3.7795275591; // 96dpi
 
+/**
+ * Chuyển đổi số nguyên dương sang chữ số La Mã (dành cho Endnotes chuẩn Word)
+ * @param {number} num
+ * @returns {string}
+ */
+export function toRoman(num) {
+  const romanMap = [
+    [1000, "m"], [900, "cm"], [500, "d"], [400, "cd"],
+    [100, "c"], [90, "xc"], [50, "l"], [40, "xl"],
+    [10, "x"], [9, "ix"], [5, "v"], [4, "iv"], [1, "i"]
+  ];
+  let res = "";
+  let n = Math.max(1, parseInt(num, 10) || 1);
+  for (const [val, roman] of romanMap) {
+    while (n >= val) {
+      res += roman;
+      n -= val;
+    }
+  }
+  return res || "i";
+}
+
 export class WriterAdapter {
   constructor(editorDom) {
     this.editorDom = editorDom;
@@ -41,6 +63,7 @@ export class WriterAdapter {
     this._commentPanelKeyHandler = null;
     this.trackChangesEnabled = false;
     this._trackChangesBeforeInputHandler = null;
+    this._referenceClickHandler = null;
     this.printPreviewOverlay = null;
     this.currentPreviewPage = 1;
     this.previewTotalPages = 1;
@@ -91,6 +114,13 @@ export class WriterAdapter {
     this._bindUndoRedo();
     globalCommandBus.bindHandler("common.edit.undo", () => this.undo());
     globalCommandBus.bindHandler("common.edit.redo", () => this.redo());
+
+    // Bind References (TOC & Footnotes/Endnotes)
+    this._bindReferenceInteractions();
+    globalCommandBus.bindHandler("writer.reference.tocInsert", () => this.insertTableOfContents());
+    globalCommandBus.bindHandler("writer.reference.tocUpdate", () => this.updateTableOfContents());
+    globalCommandBus.bindHandler("writer.reference.footnoteInsert", (args) => this.insertFootnote(args));
+    globalCommandBus.bindHandler("writer.reference.endnoteInsert", (args) => this.insertEndnote(args));
 
     if (!this._lastSnapshot) {
       this._lastSnapshot = this._createSnapshot("Initial State");
@@ -259,8 +289,10 @@ export class WriterAdapter {
       this._commentAnchorClickHandler = (event) => {
         const anchor = event.target?.closest?.("[data-comment-id]");
         if (anchor && this.bodyDom.contains(anchor)) {
-          this.focusComment(anchor.dataset.commentId);
+          this.focusComment(anchor.dataset?.commentId || (typeof anchor.getAttribute === "function" ? anchor.getAttribute("data-comment-id") : null));
+          return;
         }
+        this._referenceClickHandler?.(event);
       };
       this.bodyDom.addEventListener("click", this._commentAnchorClickHandler);
       this._commentAnchorKeyHandler = (event) => {
@@ -661,6 +693,18 @@ export class WriterAdapter {
 
       case "writer.page.orientation":
         return await this._openPageSetup("orientation");
+
+      case "writer.reference.tocInsert":
+        return this.insertTableOfContents();
+
+      case "writer.reference.tocUpdate":
+        return this.updateTableOfContents();
+
+      case "writer.reference.footnoteInsert":
+        return this.insertFootnote(args);
+
+      case "writer.reference.endnoteInsert":
+        return this.insertEndnote(args);
 
       default:
         return false;
@@ -1166,7 +1210,9 @@ export class WriterAdapter {
     const withoutComments = this._stripCommentMarkup(html);
     return withoutComments
       .replace(/<del\b(?=[^>]*\bdata-vno-change=(?:"delete"|'delete'))[^>]*>[\s\S]*?<\/del>/gi, "")
-      .replace(/<ins\b(?=[^>]*\bdata-vno-change=(?:"insert"|'insert'))[^>]*>([\s\S]*?)<\/ins>/gi, "$1");
+      .replace(/<ins\b(?=[^>]*\bdata-vno-change=(?:"insert"|'insert'))[^>]*>([\s\S]*?)<\/ins>/gi, "$1")
+      .replace(/<button\b[^>]*class=["'][^"']*\bvno-toc-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
+      .replace(/<button\b[^>]*class=["'][^"']*\bvno-note-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "");
   }
 
   /**
@@ -1366,6 +1412,11 @@ export class WriterAdapter {
       if (tagName === "H1") return 60;
       if (tagName === "H2") return 48;
       if (tagName === "H3") return 40;
+      if (el.dataset?.vnoToc === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-toc") === "true")) {
+        let items = 2;
+        if (el.querySelectorAll) items = el.querySelectorAll(".vno-toc-item").length || 2;
+        return 40 + items * 26 + 16;
+      }
       if (tagName === "UL" || tagName === "OL") {
         let items = 3;
         if (el.querySelectorAll) items = el.querySelectorAll("li").length || 3;
@@ -1380,6 +1431,11 @@ export class WriterAdapter {
     };
 
     for (const el of blocks) {
+      if (el.dataset?.vnoFootnotes === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-footnotes") === "true") ||
+          el.dataset?.vnoEndnotes === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-endnotes") === "true")) {
+        continue;
+      }
+
       const styleStr = (typeof el.getAttribute === "function" ? el.getAttribute("style") : (el.style ? JSON.stringify(el.style) : "")) || "";
       const textContent = el.textContent || el.innerText || "";
       const isExplicitBreak = styleStr.includes("page-break-before") ||
@@ -1392,8 +1448,10 @@ export class WriterAdapter {
           currentPageHtmls = [];
           currentHeight = 0;
         }
-        // Bỏ qua đường kẻ dashed phân tách trang khi preview
-        continue;
+        // Chỉ bỏ qua nếu là phần tử phân tách trang chuyên biệt
+        if (textContent.includes("Phân tách trang") || (el.tagName || "").toUpperCase() === "HR") {
+          continue;
+        }
       }
 
       const h = estimateHeight(el);
@@ -1453,7 +1511,25 @@ export class WriterAdapter {
     const footerReservedPx = hasFooter ? 48 : 0;
     const availableBodyHeightPx = Math.max(150, dim.printableHeightPx - headerReservedPx - footerReservedPx);
 
-    const pageBodies = this.paginateContent(rawBody, availableBodyHeightPx, dim.printableWidthPx);
+    const notesData = this._extractNotesForPreview(rawBody);
+    const bodyForPagination = notesData.cleanHtml;
+
+    const pageBodies = this.paginateContent(bodyForPagination, availableBodyHeightPx, dim.printableWidthPx);
+
+    // Gắn Footnote vào chân trang của đúng trang chứa số mũ tương ứng
+    for (let i = 0; i < pageBodies.length; i++) {
+      const pageFootnotesHtml = this._renderPageFootnotesForPreview(pageBodies[i], notesData.footnotes);
+      if (pageFootnotesHtml) {
+        pageBodies[i] = `${pageBodies[i]}\n${pageFootnotesHtml}`;
+      }
+    }
+
+    // Gắn Endnote vào cuối trang cuối cùng của tài liệu
+    if (pageBodies.length > 0 && notesData.endnotes && notesData.endnotes.size > 0) {
+      const endnotesHtml = this._renderEndnotesForPreview(notesData.endnotes);
+      pageBodies[pageBodies.length - 1] = `${pageBodies[pageBodies.length - 1]}\n${endnotesHtml}`;
+    }
+
     const totalPages = Math.max(1, pageBodies.length);
     this.previewTotalPages = totalPages;
     this.currentPreviewPage = 1;
@@ -1936,6 +2012,7 @@ export class WriterAdapter {
       if (event && event._vnoHandled) return;
       if (event) event._vnoHandled = true;
       this.isDirty = true;
+      this._syncNotesFromDom();
       if (event?.inputType === "insertParagraph") {
         this.flushTyping();
         this.recordSnapshot("writer.text.newParagraph");
@@ -2016,6 +2093,1030 @@ export class WriterAdapter {
         }
       });
     }
+  }
+
+  // =========================================================================
+  // HE THONG MUC LUC TU DONG & CHU THICH (TOC & FOOTNOTES/ENDNOTES)
+  // =========================================================================
+
+  _extractNotesForPreview(rawHtml) {
+    const footnotes = new Map();
+    const endnotes = new Map();
+    let cleanHtml = rawHtml;
+
+    if (typeof document !== "undefined" && typeof document.createElement === "function") {
+      const temp = document.createElement("div");
+      temp.innerHTML = rawHtml;
+
+      const fnContainer = temp.querySelector ? temp.querySelector('[data-vno-footnotes="true"]') : null;
+      if (fnContainer) {
+        const items = Array.from(fnContainer.querySelectorAll ? fnContainer.querySelectorAll(".vno-footnote-item") : []);
+        for (const item of items) {
+          const id = (typeof item.getAttribute === "function" ? item.getAttribute("data-vno-footnote-id") : item.dataset?.vnoFootnoteId) || "";
+          const numEl = item.querySelector ? item.querySelector(".vno-note-num") : null;
+          const num = (numEl ? (numEl.textContent || numEl.innerText) : "").trim();
+          const textEl = item.querySelector ? item.querySelector(".vno-note-text") : null;
+          const textHtml = textEl ? (textEl.innerHTML || textEl.textContent || "").trim() : "";
+          if (id) {
+            footnotes.set(id, { id, num, textHtml });
+          }
+        }
+        if (typeof fnContainer.remove === "function") fnContainer.remove();
+        else if (fnContainer.parentNode) fnContainer.parentNode.removeChild(fnContainer);
+      }
+
+      const enContainer = temp.querySelector ? temp.querySelector('[data-vno-endnotes="true"]') : null;
+      if (enContainer) {
+        const items = Array.from(enContainer.querySelectorAll ? enContainer.querySelectorAll(".vno-endnote-item") : []);
+        for (const item of items) {
+          const id = (typeof item.getAttribute === "function" ? item.getAttribute("data-vno-endnote-id") : item.dataset?.vnoEndnoteId) || "";
+          const numEl = item.querySelector ? item.querySelector(".vno-note-num") : null;
+          const num = (numEl ? (numEl.textContent || numEl.innerText) : "").trim();
+          const textEl = item.querySelector ? item.querySelector(".vno-note-text") : null;
+          const textHtml = textEl ? (textEl.innerHTML || textEl.textContent || "").trim() : "";
+          if (id) {
+            endnotes.set(id, { id, num, textHtml });
+          }
+        }
+        if (typeof enContainer.remove === "function") enContainer.remove();
+        else if (enContainer.parentNode) enContainer.parentNode.removeChild(enContainer);
+      }
+
+      cleanHtml = temp.innerHTML;
+    } else {
+      cleanHtml = rawHtml
+        .replace(/<div\b[^>]*\bdata-vno-footnotes=["']?true["']?[^>]*>[\s\S]*?<\/div>/gi, "")
+        .replace(/<div\b[^>]*\bdata-vno-endnotes=["']?true["']?[^>]*>[\s\S]*?<\/div>/gi, "");
+    }
+
+    return { cleanHtml, footnotes, endnotes };
+  }
+
+  _renderPageFootnotesForPreview(pageHtml, footnotesMap) {
+    if (!footnotesMap || footnotesMap.size === 0) return "";
+    const matches = Array.from(pageHtml.matchAll(/data-vno-footnote-ref=["']([^"']+)["']/gi));
+    if (matches.length === 0) return "";
+
+    const rendered = [];
+    const seen = new Set();
+    for (const match of matches) {
+      const id = match[1];
+      if (id && !seen.has(id) && footnotesMap.has(id)) {
+        seen.add(id);
+        const fn = footnotesMap.get(id);
+        rendered.push(`
+          <div class="vno-print-preview-footnote-item" data-vno-footnote-id="${fn.id}">
+            <sup>${fn.num}</sup>
+            <span>${fn.textHtml || ""}</span>
+          </div>
+        `.trim());
+      }
+    }
+
+    if (rendered.length === 0) return "";
+    return `
+      <div class="vno-print-preview-footnotes">
+        <div class="vno-notes-separator" style="width:120px; border-top:1px solid #64748b; margin:10px 0 6px 0;"></div>
+        ${rendered.join("\n")}
+      </div>
+    `.trim();
+  }
+
+  _renderEndnotesForPreview(endnotesMap) {
+    if (!endnotesMap || endnotesMap.size === 0) return "";
+    const rendered = [];
+    for (const [id, en] of endnotesMap.entries()) {
+      rendered.push(`
+        <div class="vno-print-preview-endnote-item" data-vno-endnote-id="${en.id}">
+          <sup>${en.num}</sup>
+          <span>${en.textHtml || ""}</span>
+        </div>
+      `.trim());
+    }
+
+    if (rendered.length === 0) return "";
+    return `
+      <div class="vno-print-preview-endnotes">
+        <div class="vno-notes-separator" style="width:140px; border-top:1.5px solid #64748b; margin:14px 0 6px 0;"></div>
+        <div class="vno-notes-title" style="font-size:9pt; font-weight:bold; margin-bottom:4px;">CHÚ THÍCH CUỐI TÀI LIỆU</div>
+        ${rendered.join("\n")}
+      </div>
+    `.trim();
+  }
+
+  _bindReferenceInteractions() {
+    if (!this.bodyDom?.addEventListener || this._referenceClickHandler) return;
+
+    this._referenceClickHandler = (event) => {
+      const target = event.target;
+      if (!target) return;
+
+      // 0. Comment: Nhấp anchor ghi chú
+      const commentAnchor = target.closest ? target.closest("[data-comment-id]") : null;
+      if (commentAnchor && this.bodyDom?.contains?.(commentAnchor)) {
+        const commentId = commentAnchor.dataset?.commentId || (typeof commentAnchor.getAttribute === "function" ? commentAnchor.getAttribute("data-comment-id") : null);
+        if (commentId) {
+          this.focusComment(commentId);
+          return;
+        }
+      }
+
+      // 1. TOC: Nút cập nhật mục lục
+      const updateBtn = target.closest ? target.closest(".vno-toc-btn-update") : null;
+      if (updateBtn) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        this.updateTableOfContents();
+        return;
+      }
+
+      // 2. TOC: Nút xóa mục lục
+      const deleteBtn = target.closest ? target.closest(".vno-toc-btn-delete") : null;
+      if (deleteBtn) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        this.deleteTableOfContents();
+        return;
+      }
+
+      // 3. TOC: Nhấp link nhảy tới tiêu đề
+      const tocLink = target.closest ? target.closest(".vno-toc-link") : null;
+      if (tocLink) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const targetId = (tocLink.dataset?.targetId) || (typeof tocLink.getAttribute === "function" ? tocLink.getAttribute("href") : "")?.replace(/^#/, "");
+        if (targetId && this.bodyDom) {
+          const heading = this.bodyDom.querySelector ? this.bodyDom.querySelector(`#${targetId}`) : null;
+          if (heading) {
+            heading.scrollIntoView?.({ behavior: "smooth", block: "start" });
+            if (heading.focus) heading.focus();
+          }
+        }
+        return;
+      }
+
+      // 4. Footnote: Nhấp số mũ nhảy xuống ô nhập chú thích
+      const fnRef = target.closest ? target.closest("sup[data-vno-footnote-ref]") : null;
+      if (fnRef) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const fnId = typeof fnRef.getAttribute === "function" ? fnRef.getAttribute("data-vno-footnote-ref") : fnRef.dataset?.vnoFootnoteRef;
+        if (fnId && this.bodyDom) {
+          const noteItem = this.bodyDom.querySelector ? this.bodyDom.querySelector(`[data-vno-footnote-id="${fnId}"]`) : null;
+          if (noteItem) {
+            noteItem.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+            const textInput = noteItem.querySelector ? noteItem.querySelector(".vno-note-text") : null;
+            if (textInput?.focus) textInput.focus();
+          }
+        }
+        return;
+      }
+
+      // 5. Footnote: Nhấp số thứ tự ở chú thích nhảy ngược lên số mũ trong bài
+      const fnNum = target.closest ? target.closest(".vno-footnote-item .vno-note-num") : null;
+      if (fnNum) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const noteItem = fnNum.closest ? fnNum.closest(".vno-footnote-item") : null;
+        const fnId = noteItem ? (typeof noteItem.getAttribute === "function" ? noteItem.getAttribute("data-vno-footnote-id") : noteItem.dataset?.vnoFootnoteId) : null;
+        if (fnId && this.bodyDom) {
+          const refEl = this.bodyDom.querySelector ? this.bodyDom.querySelector(`sup[data-vno-footnote-ref="${fnId}"]`) : null;
+          if (refEl) {
+            refEl.scrollIntoView?.({ behavior: "smooth", block: "center" });
+          }
+        }
+        return;
+      }
+
+      // 6. Footnote: Nút xóa chú thích
+      const fnDelete = target.closest ? target.closest(".vno-footnote-item .vno-note-delete-btn") : null;
+      if (fnDelete) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const noteItem = fnDelete.closest ? fnDelete.closest(".vno-footnote-item") : null;
+        const fnId = noteItem ? (typeof noteItem.getAttribute === "function" ? noteItem.getAttribute("data-vno-footnote-id") : noteItem.dataset?.vnoFootnoteId) : null;
+        if (fnId) {
+          this.deleteFootnote(fnId);
+        }
+        return;
+      }
+
+      // 7. Endnote: Nhấp số mũ nhảy xuống ô nhập chú thích cuối
+      const enRef = target.closest ? target.closest("sup[data-vno-endnote-ref]") : null;
+      if (enRef) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const enId = typeof enRef.getAttribute === "function" ? enRef.getAttribute("data-vno-endnote-ref") : enRef.dataset?.vnoEndnoteRef;
+        if (enId && this.bodyDom) {
+          const noteItem = this.bodyDom.querySelector ? this.bodyDom.querySelector(`[data-vno-endnote-id="${enId}"]`) : null;
+          if (noteItem) {
+            noteItem.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+            const textInput = noteItem.querySelector ? noteItem.querySelector(".vno-note-text") : null;
+            if (textInput?.focus) textInput.focus();
+          }
+        }
+        return;
+      }
+
+      // 8. Endnote: Nhấp số thứ tự nhảy ngược lên số mũ trong bài
+      const enNum = target.closest ? target.closest(".vno-endnote-item .vno-note-num") : null;
+      if (enNum) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const noteItem = enNum.closest ? enNum.closest(".vno-endnote-item") : null;
+        const enId = noteItem ? (typeof noteItem.getAttribute === "function" ? noteItem.getAttribute("data-vno-endnote-id") : noteItem.dataset?.vnoEndnoteId) : null;
+        if (enId && this.bodyDom) {
+          const refEl = this.bodyDom.querySelector ? this.bodyDom.querySelector(`sup[data-vno-endnote-ref="${enId}"]`) : null;
+          if (refEl) {
+            refEl.scrollIntoView?.({ behavior: "smooth", block: "center" });
+          }
+        }
+        return;
+      }
+
+      // 9. Endnote: Nút xóa chú thích cuối
+      const enDelete = target.closest ? target.closest(".vno-endnote-item .vno-note-delete-btn") : null;
+      if (enDelete) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const noteItem = enDelete.closest ? enDelete.closest(".vno-endnote-item") : null;
+        const enId = noteItem ? (typeof noteItem.getAttribute === "function" ? noteItem.getAttribute("data-vno-endnote-id") : noteItem.dataset?.vnoEndnoteId) : null;
+        if (enId) {
+          this.deleteEndnote(enId);
+        }
+        return;
+      }
+    };
+
+    this.bodyDom.addEventListener("click", this._referenceClickHandler);
+  }
+
+  _syncNotesFromDom() {
+    if (!this.bodyDom) return;
+    const fnRefs = this.bodyDom.querySelectorAll ? Array.from(this.bodyDom.querySelectorAll("sup[data-vno-footnote-ref]")) : [];
+    const fnContainer = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-footnotes="true"]') : null;
+    if (fnContainer) {
+      const validFnIds = new Set(fnRefs.map(s => typeof s.getAttribute === "function" ? s.getAttribute("data-vno-footnote-ref") : s.dataset?.vnoFootnoteRef).filter(Boolean));
+      const items = fnContainer.querySelectorAll ? Array.from(fnContainer.querySelectorAll(".vno-footnote-item")) : [];
+      let changed = false;
+      for (const item of items) {
+        const id = typeof item.getAttribute === "function" ? item.getAttribute("data-vno-footnote-id") : item.dataset?.vnoFootnoteId;
+        if (id && !validFnIds.has(id)) {
+          if (typeof item.remove === "function") item.remove();
+          else if (item.parentNode) item.parentNode.removeChild(item);
+          changed = true;
+        }
+      }
+      if (changed || items.length !== fnRefs.length) {
+        this.renumberFootnotes();
+      }
+    }
+
+    const enRefs = this.bodyDom.querySelectorAll ? Array.from(this.bodyDom.querySelectorAll("sup[data-vno-endnote-ref]")) : [];
+    const enContainer = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-endnotes="true"]') : null;
+    if (enContainer) {
+      const validEnIds = new Set(enRefs.map(s => typeof s.getAttribute === "function" ? s.getAttribute("data-vno-endnote-ref") : s.dataset?.vnoEndnoteRef).filter(Boolean));
+      const items = enContainer.querySelectorAll ? Array.from(enContainer.querySelectorAll(".vno-endnote-item")) : [];
+      let changed = false;
+      for (const item of items) {
+        const id = typeof item.getAttribute === "function" ? item.getAttribute("data-vno-endnote-id") : item.dataset?.vnoEndnoteId;
+        if (id && !validEnIds.has(id)) {
+          if (typeof item.remove === "function") item.remove();
+          else if (item.parentNode) item.parentNode.removeChild(item);
+          changed = true;
+        }
+      }
+      if (changed || items.length !== enRefs.length) {
+        this.renumberEndnotes();
+      }
+    }
+  }
+
+  insertTableOfContents() {
+    this._initZones();
+    if (!this.bodyDom) return false;
+
+    const existing = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-toc="true"]') : null;
+    if (existing) {
+      return this.updateTableOfContents();
+    }
+
+    this.flushTyping();
+
+    const tocElement = this._buildTableOfContentsElement();
+    if (!tocElement) return false;
+
+    let inserted = false;
+    if (typeof window !== "undefined" && window.getSelection) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const commonNode = range.commonAncestorContainer;
+        if (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode)) {
+          try {
+            range.collapse(true);
+            if (typeof tocElement === "string") {
+              const temp = document.createElement("div");
+              temp.innerHTML = tocElement;
+              const node = temp.firstElementChild;
+              range.insertNode(node);
+              range.setStartAfter(node);
+            } else {
+              range.insertNode(tocElement);
+              range.setStartAfter(tocElement);
+            }
+            inserted = true;
+          } catch {}
+        }
+      }
+    }
+
+    if (!inserted) {
+      if (typeof tocElement === "string") {
+        this.bodyDom.innerHTML = `${tocElement}\n${this.bodyDom.innerHTML}`;
+      } else if (typeof this.bodyDom.prepend === "function") {
+        this.bodyDom.prepend(tocElement);
+      } else if (this.bodyDom.firstChild && typeof this.bodyDom.insertBefore === "function") {
+        this.bodyDom.insertBefore(tocElement, this.bodyDom.firstChild);
+      } else if (typeof this.bodyDom.appendChild === "function") {
+        this.bodyDom.appendChild(tocElement);
+      }
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.tocInsert");
+    return true;
+  }
+
+  updateTableOfContents() {
+    this._initZones();
+    if (!this.bodyDom) return false;
+
+    const tocBlock = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-toc="true"]') : null;
+    if (!tocBlock) {
+      return this.insertTableOfContents();
+    }
+
+    this.flushTyping();
+
+    const headings = this._collectHeadings();
+    let entriesHtml = "";
+
+    if (headings.length === 0) {
+      entriesHtml = `<div class="vno-toc-empty">Chưa có tiêu đề nào trong tài liệu. Hãy định dạng các đoạn văn bằng Kiểu dáng Heading 1, 2 hoặc 3 rồi cập nhật lại mục lục.</div>`;
+    } else {
+      entriesHtml = headings.map((h) => {
+        return `
+          <div class="vno-toc-item vno-toc-level-${h.level}">
+            <a href="#${h.id}" class="vno-toc-link" data-target-id="${h.id}">
+              <span class="vno-toc-text">${h.text}</span>
+              <span class="vno-toc-leader"></span>
+              <span class="vno-toc-page">${h.page}</span>
+            </a>
+          </div>
+        `.trim();
+      }).join("\n");
+    }
+
+    const entriesContainer = tocBlock.querySelector ? tocBlock.querySelector(".vno-toc-entries") : null;
+    if (entriesContainer) {
+      entriesContainer.innerHTML = entriesHtml;
+    } else {
+      const newElement = this._buildTableOfContentsElement();
+      if (typeof newElement !== "string" && tocBlock.parentNode) {
+        tocBlock.parentNode.replaceChild(newElement, tocBlock);
+      } else {
+        tocBlock.innerHTML = (typeof newElement === "string" ? newElement : newElement.innerHTML);
+      }
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.tocUpdate");
+    return true;
+  }
+
+  deleteTableOfContents() {
+    this._initZones();
+    if (!this.bodyDom) return false;
+
+    const tocBlock = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-toc="true"]') : null;
+    if (!tocBlock) return false;
+
+    this.flushTyping();
+
+    if (typeof tocBlock.remove === "function") {
+      tocBlock.remove();
+    } else if (tocBlock.parentNode && typeof tocBlock.parentNode.removeChild === "function") {
+      tocBlock.parentNode.removeChild(tocBlock);
+    } else {
+      this.bodyDom.innerHTML = this.bodyDom.innerHTML.replace(/<div\b[^>]*\bdata-vno-toc=["']?true["']?[^>]*>[\s\S]*?<\/div>/i, "");
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.tocDelete");
+    return true;
+  }
+
+  _buildTableOfContentsElement() {
+    const headings = this._collectHeadings();
+    let entriesHtml = "";
+
+    if (headings.length === 0) {
+      entriesHtml = `<div class="vno-toc-empty">Chưa có tiêu đề nào trong tài liệu. Hãy định dạng các đoạn văn bằng Kiểu dáng Heading 1, 2 hoặc 3 rồi cập nhật lại mục lục.</div>`;
+    } else {
+      entriesHtml = headings.map((h) => {
+        return `
+          <div class="vno-toc-item vno-toc-level-${h.level}">
+            <a href="#${h.id}" class="vno-toc-link" data-target-id="${h.id}">
+              <span class="vno-toc-text">${h.text}</span>
+              <span class="vno-toc-leader"></span>
+              <span class="vno-toc-page">${h.page}</span>
+            </a>
+          </div>
+        `.trim();
+      }).join("\n");
+    }
+
+    const html = `
+      <div data-vno-toc="true" class="vno-toc-block" contenteditable="false">
+        <div class="vno-toc-header">
+          <span class="vno-toc-title">MỤC LỤC</span>
+          <div class="vno-toc-actions">
+            <button type="button" class="vno-toc-btn vno-toc-btn-update" title="Cập nhật mục lục">🔄 Cập nhật</button>
+            <button type="button" class="vno-toc-btn vno-toc-btn-delete" title="Xóa mục lục">&times;</button>
+          </div>
+        </div>
+        <div class="vno-toc-entries">
+          ${entriesHtml}
+        </div>
+      </div>
+    `.trim();
+
+    if (typeof document !== "undefined" && typeof document.createElement === "function") {
+      const temp = document.createElement("div");
+      temp.innerHTML = html;
+      return temp.firstElementChild || html;
+    }
+    return html;
+  }
+
+  _collectHeadings() {
+    if (!this.bodyDom) return [];
+    let headingNodes = [];
+    if (typeof this.bodyDom.querySelectorAll === "function") {
+      let all = [];
+      try {
+        all = Array.from(this.bodyDom.querySelectorAll("h1, h2, h3"));
+      } catch {}
+      if (!all || all.length === 0) {
+        const walker = (node) => {
+          if (!node || !node.children) return;
+          for (const child of node.children) {
+            const tag = (child.tagName || "").toUpperCase();
+            if (tag === "H1" || tag === "H2" || tag === "H3") {
+              all.push(child);
+            }
+            walker(child);
+          }
+        };
+        walker(this.bodyDom);
+      }
+      headingNodes = all.filter((el) => !(el.closest && el.closest('[data-vno-toc="true"]')));
+    } else if (this.bodyDom.innerHTML) {
+      const matches = this.bodyDom.innerHTML.matchAll(/<(h[1-3])\b([^>]*)>([\s\S]*?)<\/\1>/gi);
+      let idx = 1;
+      for (const m of matches) {
+        headingNodes.push({
+          tagName: m[1].toUpperCase(),
+          textContent: m[3].replace(/<[^>]+>/g, "").trim(),
+          id: (m[2].match(/id=["']([^"']+)["']/i) || [])[1] || `heading-${idx++}`
+        });
+      }
+      return headingNodes.map((h, i) => ({
+        level: parseInt(h.tagName[1], 10),
+        id: h.id,
+        text: h.textContent || `Tiêu đề ${i + 1}`,
+        page: 1
+      }));
+    }
+
+    const headings = [];
+    headingNodes.forEach((node, index) => {
+      let id = typeof node.getAttribute === "function" ? node.getAttribute("id") : (node.attributes?.id || node.id);
+      if (!id) {
+        const rawText = (node.textContent || node.innerText || "").trim();
+        const slug = rawText
+          .toLowerCase()
+          .replace(/[^a-z0-9\u00C0-\u024F\u1EA0-\u1EF9]+/gi, "-")
+          .replace(/^-+|-+$/g, "");
+        id = `heading-${index + 1}${slug ? `-${slug.slice(0, 30)}` : ""}`;
+        if (typeof node.setAttribute === "function") {
+          node.setAttribute("id", id);
+        } else {
+          node.id = id;
+          if (node.attributes) node.attributes.id = id;
+        }
+      }
+
+      const tagName = (node.tagName || "H1").toUpperCase();
+      const level = tagName === "H1" ? 1 : (tagName === "H2" ? 2 : 3);
+      const text = (node.textContent || node.innerText || "").trim() || `Tiêu đề ${index + 1}`;
+      const page = this._estimateHeadingPage(node);
+
+      headings.push({ level, id, text, page });
+    });
+
+    return headings;
+  }
+
+  _estimateHeadingPage(headingNode) {
+    if (!this.bodyDom) return 1;
+    const dim = this.getPageDimensions ? this.getPageDimensions() : { printableHeightPx: 800, printableWidthPx: 600 };
+    const hasHeader = Boolean(this.headerDom?.innerText?.trim());
+    const hasFooter = Boolean(this.footerDom?.innerText?.trim());
+    const headerReservedPx = hasHeader ? 46 : 0;
+    const footerReservedPx = hasFooter ? 48 : 0;
+    const availableHeightPx = Math.max(150, (dim.printableHeightPx || 800) - headerReservedPx - footerReservedPx);
+
+    let blocks = [];
+    if (this.bodyDom.children && this.bodyDom.children.length > 0) {
+      blocks = Array.from(this.bodyDom.children);
+    }
+
+    let currentPage = 1;
+    let currentHeight = 0;
+
+    for (const el of blocks) {
+      if (el.dataset?.vnoToc === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-toc") === "true")) {
+        continue;
+      }
+      if (el.dataset?.vnoFootnotes === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-footnotes") === "true") ||
+          el.dataset?.vnoEndnotes === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-endnotes") === "true")) {
+        continue;
+      }
+
+      const styleStr = (typeof el.getAttribute === "function" ? el.getAttribute("style") : "") || "";
+      const text = el.textContent || el.innerText || "";
+      const isBreak = styleStr.includes("page-break-before") || text.includes("Phân tách trang");
+
+      if (isBreak && currentHeight > 0) {
+        currentPage++;
+        currentHeight = 0;
+      }
+
+      let h = 26;
+      const tag = (el.tagName || "").toUpperCase();
+      if (tag === "H1") h = 60;
+      else if (tag === "H2") h = 48;
+      else if (tag === "H3") h = 40;
+      else if (tag === "TABLE") h = 120;
+      else if (tag === "IMG") h = 200;
+      else {
+        const len = text.length;
+        h = Math.max(1, Math.ceil(len / 70)) * 26 + 8;
+      }
+
+      if (currentHeight + h > availableHeightPx && currentHeight > 0) {
+        currentPage++;
+        currentHeight = h;
+      } else {
+        currentHeight += h;
+      }
+
+      if (el === headingNode || el.contains?.(headingNode)) {
+        return currentPage;
+      }
+    }
+
+    return 1;
+  }
+
+  insertFootnote(options = {}) {
+    this._initZones();
+    if (!this.bodyDom) return null;
+
+    this.flushTyping();
+
+    const id = options.id || `fn-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    const sup = typeof document !== "undefined" && typeof document.createElement === "function"
+      ? document.createElement("sup")
+      : {
+          tagName: "SUP",
+          attributes: { "data-vno-footnote-ref": id, class: "vno-footnote-ref", contenteditable: "false" },
+          dataset: { vnoFootnoteRef: id },
+          className: "vno-footnote-ref",
+          textContent: "1",
+          setAttribute(k, v) { this.attributes[k] = v; },
+          getAttribute(k) { return this.attributes[k]; }
+        };
+    if (typeof sup.setAttribute === "function") {
+      sup.setAttribute("data-vno-footnote-ref", id);
+      sup.setAttribute("class", "vno-footnote-ref");
+      sup.setAttribute("contenteditable", "false");
+      sup.setAttribute("title", "Nhấp để chuyển đến chú thích");
+      sup.textContent = "1";
+    }
+
+    let inserted = false;
+    if (typeof window !== "undefined" && window.getSelection) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const commonNode = range.commonAncestorContainer;
+        if (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode)) {
+          try {
+            range.collapse(false);
+            range.insertNode(sup);
+            range.setStartAfter(sup);
+            inserted = true;
+          } catch {}
+        }
+      }
+    }
+
+    if (!inserted) {
+      const existingContainer = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-footnotes="true"]') : null;
+      if (existingContainer && existingContainer.parentNode) {
+        existingContainer.parentNode.insertBefore(sup, existingContainer);
+      } else if (typeof this.bodyDom.appendChild === "function") {
+        this.bodyDom.appendChild(sup);
+      } else {
+        const supHtml = `<sup data-vno-footnote-ref="${id}" class="vno-footnote-ref" contenteditable="false">1</sup>`;
+        this.bodyDom.innerHTML = `${this.bodyDom.innerHTML || ""}${supHtml}`;
+      }
+    }
+
+    let container = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-footnotes="true"]') : null;
+    if (!container) {
+      const containerHtml = `
+        <div data-vno-footnotes="true" class="vno-writer-footnotes-container" contenteditable="false">
+          <div class="vno-notes-separator"></div>
+        </div>
+      `.trim();
+
+      if (typeof document !== "undefined" && typeof document.createElement === "function") {
+        const temp = document.createElement("div");
+        temp.innerHTML = containerHtml;
+        container = temp.firstElementChild;
+      } else {
+        container = {
+          tagName: "DIV",
+          className: "vno-writer-footnotes-container",
+          attributes: { "data-vno-footnotes": "true", class: "vno-writer-footnotes-container", contenteditable: "false" },
+          dataset: { vnoFootnotes: "true" },
+          children: [],
+          appendChild(c) { this.children.push(c); return c; },
+          querySelector() { return null; },
+          querySelectorAll() { return []; },
+          setAttribute(k, v) { this.attributes[k] = v; },
+          getAttribute(k) { return this.attributes[k]; },
+          remove() {}
+        };
+      }
+
+      const endnotesContainer = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-endnotes="true"]') : null;
+      if (endnotesContainer && endnotesContainer.parentNode) {
+        endnotesContainer.parentNode.insertBefore(container, endnotesContainer);
+      } else if (typeof this.bodyDom.appendChild === "function") {
+        this.bodyDom.appendChild(container);
+      }
+    }
+
+    const initialText = options.text || "";
+    const itemHtml = `
+      <div class="vno-footnote-item" data-vno-footnote-id="${id}">
+        <span class="vno-note-num" title="Chuyển tới vị trí tham chiếu">1</span>
+        <span class="vno-note-text" contenteditable="true" data-placeholder="Nhập nội dung chú thích...">${initialText}</span>
+        <button type="button" class="vno-note-delete-btn" title="Xóa chú thích">&times;</button>
+      </div>
+    `.trim();
+
+    if (typeof document !== "undefined" && typeof document.createElement === "function") {
+      const temp = document.createElement("div");
+      temp.innerHTML = itemHtml;
+      const itemEl = temp.firstElementChild;
+      if (typeof container.appendChild === "function") {
+        container.appendChild(itemEl);
+      }
+      const textInput = itemEl.querySelector ? itemEl.querySelector(".vno-note-text") : null;
+      if (textInput?.focus) {
+        setTimeout(() => textInput.focus(), 10);
+      }
+    } else if (typeof container.appendChild === "function") {
+      container.appendChild({
+        tagName: "DIV",
+        className: "vno-footnote-item",
+        dataset: { vnoFootnoteId: id },
+        attributes: { "data-vno-footnote-id": id, class: "vno-footnote-item" },
+        innerHTML: itemHtml,
+        querySelector(s) {
+          if (s === ".vno-note-num") return { textContent: "1" };
+          return null;
+        },
+        remove() {}
+      });
+    }
+
+    this.renumberFootnotes();
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.footnoteInsert");
+    return id;
+  }
+
+  renumberFootnotes() {
+    this._initZones();
+    if (!this.bodyDom) return;
+
+    let refs = [];
+    if (typeof this.bodyDom.querySelectorAll === "function") {
+      refs = Array.from(this.bodyDom.querySelectorAll("sup[data-vno-footnote-ref]"));
+    }
+
+    const container = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-footnotes="true"]') : null;
+
+    if (refs.length === 0) {
+      if (container) {
+        if (typeof container.remove === "function") container.remove();
+        else if (container.parentNode) container.parentNode.removeChild(container);
+      }
+      return;
+    }
+
+    const validIds = new Set();
+    refs.forEach((sup, index) => {
+      const num = index + 1;
+      sup.textContent = String(num);
+      const id = typeof sup.getAttribute === "function" ? sup.getAttribute("data-vno-footnote-ref") : (sup.dataset?.vnoFootnoteRef || sup.attributes?.["data-vno-footnote-ref"]);
+      if (id) {
+        validIds.add(id);
+        if (container && typeof container.querySelector === "function") {
+          const item = container.querySelector(`[data-vno-footnote-id="${id}"]`);
+          if (item) {
+            const numSpan = item.querySelector ? item.querySelector(".vno-note-num") : null;
+            if (numSpan) numSpan.textContent = String(num);
+            if (typeof container.appendChild === "function") {
+              container.appendChild(item);
+            }
+          }
+        }
+      }
+    });
+
+    if (container && typeof container.querySelectorAll === "function") {
+      const items = Array.from(container.querySelectorAll(".vno-footnote-item") || []);
+      for (const item of items) {
+        const id = typeof item.getAttribute === "function" ? item.getAttribute("data-vno-footnote-id") : (item.dataset?.vnoFootnoteId || item.attributes?.["data-vno-footnote-id"]);
+        if (id && !validIds.has(id)) {
+          if (typeof item.remove === "function") item.remove();
+          else if (item.parentNode) item.parentNode.removeChild(item);
+        }
+      }
+      const remaining = container.querySelectorAll(".vno-footnote-item") || [];
+      if (remaining.length === 0) {
+        if (typeof container.remove === "function") container.remove();
+        else if (container.parentNode) container.parentNode.removeChild(container);
+      }
+    }
+  }
+
+  deleteFootnote(id) {
+    this._initZones();
+    if (!this.bodyDom || !id) return false;
+
+    this.flushTyping();
+
+    const sup = this.bodyDom.querySelector ? this.bodyDom.querySelector(`sup[data-vno-footnote-ref="${id}"]`) : null;
+    if (sup) {
+      if (typeof sup.remove === "function") sup.remove();
+      else if (sup.parentNode) sup.parentNode.removeChild(sup);
+    }
+
+    const item = this.bodyDom.querySelector ? this.bodyDom.querySelector(`[data-vno-footnote-id="${id}"]`) : null;
+    if (item) {
+      if (typeof item.remove === "function") item.remove();
+      else if (item.parentNode) item.parentNode.removeChild(item);
+    }
+
+    this.renumberFootnotes();
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.footnoteDelete");
+    return true;
+  }
+
+  insertEndnote(options = {}) {
+    this._initZones();
+    if (!this.bodyDom) return null;
+
+    this.flushTyping();
+
+    const id = options.id || `en-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    const sup = typeof document !== "undefined" && typeof document.createElement === "function"
+      ? document.createElement("sup")
+      : {
+          tagName: "SUP",
+          attributes: { "data-vno-endnote-ref": id, class: "vno-endnote-ref", contenteditable: "false" },
+          dataset: { vnoEndnoteRef: id },
+          className: "vno-endnote-ref",
+          textContent: "i",
+          setAttribute(k, v) { this.attributes[k] = v; },
+          getAttribute(k) { return this.attributes[k]; }
+        };
+    if (typeof sup.setAttribute === "function") {
+      sup.setAttribute("data-vno-endnote-ref", id);
+      sup.setAttribute("class", "vno-endnote-ref");
+      sup.setAttribute("contenteditable", "false");
+      sup.setAttribute("title", "Nhấp để chuyển đến chú thích cuối");
+      sup.textContent = "i";
+    }
+
+    let inserted = false;
+    if (typeof window !== "undefined" && window.getSelection) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const commonNode = range.commonAncestorContainer;
+        if (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode)) {
+          try {
+            range.collapse(false);
+            range.insertNode(sup);
+            range.setStartAfter(sup);
+            inserted = true;
+          } catch {}
+        }
+      }
+    }
+
+    if (!inserted) {
+      const existingContainer = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-endnotes="true"]') : null;
+      if (existingContainer && existingContainer.parentNode) {
+        existingContainer.parentNode.insertBefore(sup, existingContainer);
+      } else if (typeof this.bodyDom.appendChild === "function") {
+        this.bodyDom.appendChild(sup);
+      } else {
+        const supHtml = `<sup data-vno-endnote-ref="${id}" class="vno-endnote-ref" contenteditable="false">i</sup>`;
+        this.bodyDom.innerHTML = `${this.bodyDom.innerHTML || ""}${supHtml}`;
+      }
+    }
+
+    let container = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-endnotes="true"]') : null;
+    if (!container) {
+      const containerHtml = `
+        <div data-vno-endnotes="true" class="vno-writer-endnotes-container" contenteditable="false">
+          <div class="vno-notes-separator"></div>
+          <div class="vno-notes-title">CHÚ THÍCH CUỐI TÀI LIỆU</div>
+        </div>
+      `.trim();
+
+      if (typeof document !== "undefined" && typeof document.createElement === "function") {
+        const temp = document.createElement("div");
+        temp.innerHTML = containerHtml;
+        container = temp.firstElementChild;
+      } else {
+        container = {
+          tagName: "DIV",
+          className: "vno-writer-endnotes-container",
+          attributes: { "data-vno-endnotes": "true", class: "vno-writer-endnotes-container", contenteditable: "false" },
+          dataset: { vnoEndnotes: "true" },
+          children: [],
+          appendChild(c) { this.children.push(c); return c; },
+          querySelector() { return null; },
+          querySelectorAll() { return []; },
+          setAttribute(k, v) { this.attributes[k] = v; },
+          getAttribute(k) { return this.attributes[k]; },
+          remove() {}
+        };
+      }
+
+      if (typeof this.bodyDom.appendChild === "function") {
+        this.bodyDom.appendChild(container);
+      }
+    }
+
+    const initialText = options.text || "";
+    const itemHtml = `
+      <div class="vno-endnote-item" data-vno-endnote-id="${id}">
+        <span class="vno-note-num" title="Chuyển tới vị trí tham chiếu">i</span>
+        <span class="vno-note-text" contenteditable="true" data-placeholder="Nhập nội dung chú thích cuối...">${initialText}</span>
+        <button type="button" class="vno-note-delete-btn" title="Xóa chú thích">&times;</button>
+      </div>
+    `.trim();
+
+    if (typeof document !== "undefined" && typeof document.createElement === "function") {
+      const temp = document.createElement("div");
+      temp.innerHTML = itemHtml;
+      const itemEl = temp.firstElementChild;
+      if (typeof container.appendChild === "function") {
+        container.appendChild(itemEl);
+      }
+      const textInput = itemEl.querySelector ? itemEl.querySelector(".vno-note-text") : null;
+      if (textInput?.focus) {
+        setTimeout(() => textInput.focus(), 10);
+      }
+    } else if (typeof container.appendChild === "function") {
+      container.appendChild({
+        tagName: "DIV",
+        className: "vno-endnote-item",
+        dataset: { vnoEndnoteId: id },
+        attributes: { "data-vno-endnote-id": id, class: "vno-endnote-item" },
+        innerHTML: itemHtml,
+        querySelector(s) {
+          if (s === ".vno-note-num") return { textContent: "i" };
+          return null;
+        },
+        remove() {}
+      });
+    }
+
+    this.renumberEndnotes();
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.endnoteInsert");
+    return id;
+  }
+
+  renumberEndnotes() {
+    this._initZones();
+    if (!this.bodyDom) return;
+
+    let refs = [];
+    if (typeof this.bodyDom.querySelectorAll === "function") {
+      refs = Array.from(this.bodyDom.querySelectorAll("sup[data-vno-endnote-ref]"));
+    }
+
+    const container = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-endnotes="true"]') : null;
+
+    if (refs.length === 0) {
+      if (container) {
+        if (typeof container.remove === "function") container.remove();
+        else if (container.parentNode) container.parentNode.removeChild(container);
+      }
+      return;
+    }
+
+    const validIds = new Set();
+    refs.forEach((sup, index) => {
+      const roman = toRoman(index + 1);
+      sup.textContent = roman;
+      const id = typeof sup.getAttribute === "function" ? sup.getAttribute("data-vno-endnote-ref") : (sup.dataset?.vnoEndnoteRef || sup.attributes?.["data-vno-endnote-ref"]);
+      if (id) {
+        validIds.add(id);
+        if (container && typeof container.querySelector === "function") {
+          const item = container.querySelector(`[data-vno-endnote-id="${id}"]`);
+          if (item) {
+            const numSpan = item.querySelector ? item.querySelector(".vno-note-num") : null;
+            if (numSpan) numSpan.textContent = roman;
+            if (typeof container.appendChild === "function") {
+              container.appendChild(item);
+            }
+          }
+        }
+      }
+    });
+
+    if (container && typeof container.querySelectorAll === "function") {
+      const items = Array.from(container.querySelectorAll(".vno-endnote-item") || []);
+      for (const item of items) {
+        const id = typeof item.getAttribute === "function" ? item.getAttribute("data-vno-endnote-id") : (item.dataset?.vnoEndnoteId || item.attributes?.["data-vno-endnote-id"]);
+        if (id && !validIds.has(id)) {
+          if (typeof item.remove === "function") item.remove();
+          else if (item.parentNode) item.parentNode.removeChild(item);
+        }
+      }
+      const remaining = container.querySelectorAll(".vno-endnote-item") || [];
+      if (remaining.length === 0) {
+        if (typeof container.remove === "function") container.remove();
+        else if (container.parentNode) container.parentNode.removeChild(container);
+      }
+    }
+  }
+
+  deleteEndnote(id) {
+    this._initZones();
+    if (!this.bodyDom || !id) return false;
+
+    this.flushTyping();
+
+    const sup = this.bodyDom.querySelector ? this.bodyDom.querySelector(`sup[data-vno-endnote-ref="${id}"]`) : null;
+    if (sup) {
+      if (typeof sup.remove === "function") sup.remove();
+      else if (sup.parentNode) sup.parentNode.removeChild(sup);
+    }
+
+    const item = this.bodyDom.querySelector ? this.bodyDom.querySelector(`[data-vno-endnote-id="${id}"]`) : null;
+    if (item) {
+      if (typeof item.remove === "function") item.remove();
+      else if (item.parentNode) item.parentNode.removeChild(item);
+    }
+
+    this.renumberEndnotes();
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.endnoteDelete");
+    return true;
   }
 }
 

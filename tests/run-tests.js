@@ -27,6 +27,7 @@ import { runWriterUndoRedoTests } from "./unit/writer-undo-redo.test.js";
 import { runSheetLookupConditionalFunctionTests } from "./unit/sheet-lookup-conditional-functions.test.js";
 import { runSheetPivotTableTests } from "./unit/sheet-pivot-table.test.js";
 import { runSlidesSorterViewTests } from "./unit/slides-sorter-view.test.js";
+import { runWriterTocFootnotesTests } from "./unit/writer-toc-footnotes.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -61,7 +62,8 @@ async function runAll() {
     { title: "21. Behavioral Tests — VN Writer Deep Undo/Redo History", runner: runWriterUndoRedoTests },
     { title: "22. Unit Tests — VN Sheet Lookup & Conditional Functions", runner: runSheetLookupConditionalFunctionTests },
     { title: "23. Behavioral Tests — VN Sheet Pivot Table", runner: runSheetPivotTableTests },
-    { title: "24. Behavioral Tests — VN Slides Slide Sorter View", runner: runSlidesSorterViewTests }
+    { title: "24. Behavioral Tests — VN Slides Slide Sorter View", runner: runSlidesSorterViewTests },
+    { title: "25. Behavioral Tests — VN Writer Table of Contents & Footnotes/Endnotes", runner: runWriterTocFootnotesTests }
   ];
 
   for (const suite of suites) {

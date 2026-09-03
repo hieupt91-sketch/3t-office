@@ -679,4 +679,328 @@
   stroke: var(--vno-text-muted, #94a3b8) !important;
 }
 
+/* ==========================================================================
+   Table of Contents (Mục lục tự động — Word Parity)
+   ========================================================================== */
+.vno-toc-block {
+  margin: 18pt 0;
+  padding: 16px 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  user-select: text;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.vno-toc-block:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.vno-toc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid #0f4c81;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.vno-toc-title {
+  font-size: 14pt;
+  font-weight: 700;
+  color: #0f4c81;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.vno-toc-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vno-toc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vno-toc-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.vno-toc-btn-delete {
+  font-size: 14px;
+  padding: 2px 7px;
+  color: #94a3b8;
+}
+
+.vno-toc-btn-delete:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.vno-toc-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vno-toc-item {
+  display: flex;
+  align-items: baseline;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.vno-toc-link {
+  display: flex;
+  align-items: baseline;
+  width: 100%;
+  color: #1e293b;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.vno-toc-link:hover {
+  background-color: #e2e8f0;
+  color: #0f4c81;
+}
+
+.vno-toc-link:hover .vno-toc-text {
+  text-decoration: underline;
+}
+
+.vno-toc-text {
+  flex-shrink: 0;
+  max-width: 75%;
+}
+
+.vno-toc-leader {
+  flex: 1;
+  border-bottom: 1px dotted #94a3b8;
+  margin: 0 8px;
+  min-width: 24px;
+  align-self: baseline;
+  transform: translateY(-3px);
+}
+
+.vno-toc-page {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 11pt;
+  color: #475569;
+}
+
+.vno-toc-level-1 {
+  font-weight: 700;
+  font-size: 12pt;
+  margin-top: 4px;
+}
+
+.vno-toc-level-2 {
+  font-weight: 500;
+  font-size: 11pt;
+  padding-left: 20px;
+}
+
+.vno-toc-level-3 {
+  font-weight: 400;
+  font-style: italic;
+  font-size: 10.5pt;
+  padding-left: 40px;
+  color: #475569;
+}
+
+.vno-toc-empty {
+  padding: 12px 8px;
+  font-style: italic;
+  color: #64748b;
+  font-size: 11pt;
+  text-align: center;
+}
+
+/* ==========================================================================
+   Footnotes & Endnotes (Chú thích cuối trang / cuối tài liệu — Word Parity)
+   ========================================================================== */
+sup.vno-footnote-ref,
+sup.vno-endnote-ref {
+  font-size: 80%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+  top: -0.5em;
+  font-weight: 700;
+  color: #0f4c81;
+  padding: 0 2px;
+  cursor: pointer;
+  border-radius: 2px;
+  user-select: text;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+sup.vno-footnote-ref:hover,
+sup.vno-endnote-ref:hover {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+sup.vno-endnote-ref {
+  color: #b53818;
+}
+
+sup.vno-endnote-ref:hover {
+  background-color: #ffedd5;
+  color: #c2410c;
+}
+
+.vno-writer-footnotes-container,
+.vno-writer-endnotes-container {
+  margin-top: 28pt;
+  padding-top: 8pt;
+  user-select: text;
+}
+
+.vno-notes-separator {
+  width: 140px;
+  border-top: 1.5px solid #64748b;
+  margin: 12pt 0 10pt 0;
+}
+
+.vno-notes-title {
+  font-size: 10pt;
+  font-weight: 700;
+  color: #475569;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 8pt;
+}
+
+.vno-footnote-item,
+.vno-endnote-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 10pt;
+  line-height: 1.4;
+  color: #334155;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background-color 0.15s;
+}
+
+.vno-footnote-item:hover,
+.vno-endnote-item:hover {
+  background-color: #f8fafc;
+}
+
+.vno-footnote-item .vno-note-num,
+.vno-endnote-item .vno-note-num {
+  flex-shrink: 0;
+  min-width: 20px;
+  font-weight: 700;
+  color: #0f4c81;
+  cursor: pointer;
+  text-align: right;
+  user-select: none;
+}
+
+.vno-endnote-item .vno-note-num {
+  color: #b53818;
+}
+
+.vno-footnote-item .vno-note-num:hover,
+.vno-endnote-item .vno-note-num:hover {
+  text-decoration: underline;
+}
+
+.vno-note-text {
+  flex: 1;
+  min-height: 20px;
+  outline: none;
+  border-bottom: 1px dashed transparent;
+  word-break: break-word;
+}
+
+.vno-note-text:focus {
+  border-bottom-color: #94a3b8;
+}
+
+.vno-note-text:empty:before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  font-style: italic;
+  pointer-events: none;
+}
+
+.vno-note-delete-btn {
+  flex-shrink: 0;
+  opacity: 0;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.vno-footnote-item:hover .vno-note-delete-btn,
+.vno-endnote-item:hover .vno-note-delete-btn {
+  opacity: 0.6;
+}
+
+.vno-note-delete-btn:hover {
+  opacity: 1 !important;
+  color: #dc2626 !important;
+}
+
+/* Print Preview Footnotes & Endnotes */
+.vno-print-preview-footnotes,
+.vno-print-preview-endnotes {
+  margin-top: 14pt;
+  padding-top: 6pt;
+  font-size: 9pt;
+  line-height: 1.35;
+  color: #334155;
+}
+
+.vno-print-preview-footnote-item,
+.vno-print-preview-endnote-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 3px 0;
+}
+
+.vno-print-preview-footnote-item sup,
+.vno-print-preview-endnote-item sup {
+  font-weight: 700;
+  color: #0f4c81;
+}
+
+.vno-print-preview-endnote-item sup {
+  color: #b53818;
+}
+
+
 

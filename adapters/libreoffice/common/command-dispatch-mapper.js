@@ -82,6 +82,12 @@ export const VN_TO_UNO_MAP = {
   "writer.page.size": ".uno:PageDialog",
   "writer.file.printPreview": ".uno:PrintPreview",
 
+  // Writer / References
+  "writer.reference.tocInsert": ".uno:InsertMultiIndex",
+  "writer.reference.tocUpdate": ".uno:UpdateCurIndex",
+  "writer.reference.footnoteInsert": ".uno:InsertFootnote",
+  "writer.reference.endnoteInsert": ".uno:InsertEndnote",
+
   // Sheet / Calc
   "sheet.cell.edit": ".uno:SetInputMode",
   "sheet.cell.bold": ".uno:Bold",
