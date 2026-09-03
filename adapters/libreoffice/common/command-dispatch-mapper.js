@@ -127,7 +127,10 @@ export const VN_TO_UNO_MAP = {
   "slides.show.presenterMode": ".uno:PresenterConsole",
 
   // AI
-  "ai.assistant.grammarCheck": ".uno:SpellDialog"
+  // ai.assistant.grammarCheck CỐ Ý không có ở đây: nó có handler thật gắn qua
+  // bindHandler() trong platform/shell/app-shell.js. Trước đây có mặt ở đây
+  // TRÙNG với bind thủ công đó — vô hại hiện tại (thứ tự init khiến bản thật
+  // luôn thắng) nhưng là bẫy dễ vỡ nếu thứ tự bootstrap đổi. Xem audit finding.
 };
 
 export function getUnoCommand(vnCommandId) {

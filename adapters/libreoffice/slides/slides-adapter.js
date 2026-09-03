@@ -461,6 +461,18 @@ export class SlidesAdapter {
       case "slides.show.presenterMode":
         return this.canvas.startPresenterMode ? this.canvas.startPresenterMode() : false;
 
+      case "common.edit.cut":
+        if (typeof document !== "undefined") document.execCommand("cut", false, null);
+        return true;
+
+      case "common.edit.copy":
+        if (typeof document !== "undefined") document.execCommand("copy", false, null);
+        return true;
+
+      case "common.edit.paste":
+        if (typeof document !== "undefined") document.execCommand("paste", false, null);
+        return true;
+
       case "common.edit.undo":
         return this.canvas.undo ? this.canvas.undo() : false;
 
