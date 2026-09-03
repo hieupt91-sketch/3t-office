@@ -33,7 +33,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] Tìm kiếm/thay thế (dialog thật)
 - [x] Mở/Lưu/Xuất PDF file thật (DOCX/ODT qua LibreOffice headless)
 - [ ] Header/Footer thật (chèn được, hiển thị lặp lại mỗi trang khi in/xuất PDF)
-- [ ] Page Setup: khổ giấy, lề, hướng trang (Portrait/Landscape)
+- [x] Page Setup: khổ giấy, lề, hướng trang (Portrait/Landscape) — áp dụng canvas + export PDF/DOCX thật
 - [ ] Styles (Heading 1/2/3, Normal...) — bảng chọn kiểu đoạn văn nhanh
 - [ ] Track Changes (theo dõi thay đổi) — tối thiểu: bật/tắt, hiển thị insert/delete có màu
 - [ ] Comments (ghi chú lề trang)
@@ -62,14 +62,14 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] Công thức cơ bản (SUM/AVERAGE/MIN/MAX/COUNT/IF/CONCAT...)
 - [x] Formula autocomplete + tooltip tham số (giống Excel IntelliSense)
 - [x] Định dạng ô, tiền tệ VNĐ, phần trăm
-- [ ] **Nhiều sheet/tab** trong 1 workbook (hiện chỉ 1 lưới đơn — đây là khoảng trống lớn nhất)
-- [ ] Mở rộng lưới thật (hiện 12x35 cố định) — tối thiểu vài trăm dòng/cột với scroll ảo (virtualization)
-- [ ] Freeze panes (cố định hàng/cột tiêu đề)
-- [ ] Conditional Formatting (định dạng có điều kiện)
-- [ ] Data Validation (kiểm tra dữ liệu nhập, dropdown list)
+- [x] **Nhiều sheet/tab** trong 1 workbook (agy đã bổ sung, có nút thêm tab)
+- [ ] Mở rộng lưới thật (hiện 12x35 cố định) — tối thiểu vài trăm dòng/cột với scroll ảo (virtualization) — VẪN CÒN THIẾU
+- [ ] Freeze panes (cố định hàng/cột tiêu đề) — VẪN CÒN THIẾU
+- [ ] Conditional Formatting (định dạng có điều kiện) — VẪN CÒN THIẾU
+- [ ] Data Validation (kiểm tra dữ liệu nhập, dropdown list) — VẪN CÒN THIẾU
+- [x] Mở/Lưu file XLSX/ODS thật qua LibreOffice headless (round-trip đã test thật)
 - [ ] Sort & Filter thật trên vùng dữ liệu lớn
 - [ ] Charts thật (đã có SVG chart — mở rộng loại: cột/đường/tròn/miền)
-- [ ] Mở/Lưu file XLSX/ODS thật (hiện chỉ Writer có round-trip thật)
 - [ ] Undo/Redo sâu hơn (đã có stack cơ bản — cần test edge case)
 
 ### Tier 2
@@ -95,7 +95,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [ ] Transitions thật giữa các slide (không chỉ CSS tĩnh — cấu hình được loại/thời gian)
 - [ ] Animations cho object trong slide (entrance/exit/emphasis)
 - [ ] Speaker Notes (ghi chú cho người thuyết trình, hiện khi trình chiếu chế độ Presenter)
-- [ ] Mở/Lưu file PPTX/ODP thật
+- [x] Mở/Lưu file PPTX/ODP thật (qua định dạng trung gian FODP, round-trip đã test thật kể cả Open)
 - [ ] Layout chọn sẵn (Title Slide, Title+Content, Two Content...)
 
 ### Tier 2
