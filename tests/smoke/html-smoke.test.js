@@ -256,6 +256,65 @@ export async function runHtmlSmokeTests() {
         });
       }
 
+      const tempTrackChangesPath = path.join(ROOT_DIR, "tests", "smoke", "temp-writer-track-changes.html");
+      const trackChangesHtml = `<!DOCTYPE html><html><body>
+        <div id="page"><div class="vno-writer-body" contenteditable="true">abc</div></div>
+        <output id="result"></output>
+        <script type="module">
+          import { bootstrapPlatform } from "../../platform/bootstrap.js";
+          import { globalCommandBus } from "../../platform/commands/command-bus.js";
+          import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
+          await bootstrapPlatform();
+          const page = document.getElementById("page");
+          const body = page.querySelector(".vno-writer-body");
+          const adapter = new WriterAdapter(page);
+          adapter.attach();
+          await globalCommandBus.execute("writer.trackChanges.toggle");
+          const select = (start, end) => {
+            const range = document.createRange();
+            range.setStart(body.firstChild, start);
+            range.setEnd(body.firstChild, end);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+          };
+          select(3, 3);
+          body.dispatchEvent(new InputEvent("beforeinput", { inputType: "insertText", data: "X", bubbles: true, cancelable: true }));
+          const insertionMarked = body.querySelector('ins[data-vno-change="insert"]')?.textContent === "X";
+          select(1, 2);
+          body.dispatchEvent(new InputEvent("beforeinput", { inputType: "deleteContentBackward", bubbles: true, cancelable: true }));
+          const deletionMarked = body.querySelector('del[data-vno-change="delete"]')?.textContent === "b";
+          const exportClean = adapter._contentForExport();
+          const clean = exportClean.includes("acX") && !exportClean.includes("data-vno-change") && !exportClean.includes("<del");
+          await globalCommandBus.execute("writer.trackChanges.acceptAll");
+          const accepted = body.textContent === "acX" && !body.querySelector("[data-vno-change]");
+          body.textContent = "abc";
+          select(3, 3);
+          body.dispatchEvent(new InputEvent("beforeinput", { inputType: "insertText", data: "X", bubbles: true, cancelable: true }));
+          select(1, 2);
+          body.dispatchEvent(new InputEvent("beforeinput", { inputType: "deleteContentBackward", bubbles: true, cancelable: true }));
+          await globalCommandBus.execute("writer.trackChanges.rejectAll");
+          const rejected = body.textContent === "abc" && !body.querySelector("[data-vno-change]");
+          document.getElementById("result").dataset.pass = String(insertionMarked && deletionMarked && clean && accepted && rejected);
+        </script></body></html>`;
+      try {
+        fs.writeFileSync(tempTrackChangesPath, trackChangesHtml, "utf8");
+        const trackChangesProc = spawnSync(browserBinary, [
+          "--headless=new", "--allow-file-access-from-files", "--virtual-time-budget=3000", "--dump-dom",
+          "file:///" + tempTrackChangesPath.replace(/\\/g, "/")
+        ], { encoding: "utf8", timeout: 15000, windowsHide: true });
+        const passed = trackChangesProc.status === 0 && (trackChangesProc.stdout || "").includes('data-pass="true"');
+        results.push({
+          name: `Browser Headless (${browserName}): Track Changes gõ/xóa + Accept All/Reject All + export sạch`,
+          pass: passed,
+          ...(!passed ? { error: "Không đạt luồng DOM contenteditable thật" } : {})
+        });
+      } finally {
+        if (fs.existsSync(tempTrackChangesPath)) {
+          try { fs.unlinkSync(tempTrackChangesPath); } catch (_) {}
+        }
+      }
+
       // ==========================================
       // 4b. Smoke test render VN Slides thật qua Browser Headless
       // ==========================================
