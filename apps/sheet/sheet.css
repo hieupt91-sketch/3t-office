@@ -1,0 +1,120 @@
+﻿/**
+ * VN Sheet — Stylesheet
+ */
+
+.vno-sheet-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background-color: var(--vno-bg-surface);
+  overflow: hidden;
+}
+
+/* Formula Bar */
+.vno-formula-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px;
+  background-color: var(--vno-bg-subtle);
+  border-bottom: 1px solid var(--vno-border-subtle);
+  user-select: none;
+}
+
+.vno-name-box {
+  width: 60px;
+  height: 22px;
+  background-color: var(--vno-bg-surface);
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--vno-font-size-xs);
+  font-weight: 600;
+  color: var(--vno-app-sheet-primary);
+}
+
+.vno-fx-symbol {
+  font-style: italic;
+  font-family: serif;
+  font-size: 14px;
+  color: var(--vno-text-muted);
+  width: 20px;
+  text-align: center;
+}
+
+.vno-formula-input {
+  flex: 1;
+  height: 22px;
+  padding: 2px 6px;
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-xs);
+  font-family: var(--vno-font-family-ui);
+  font-size: var(--vno-font-size-sm);
+  outline: none;
+}
+.vno-formula-input:focus {
+  border-color: var(--vno-app-sheet-primary);
+}
+
+/* Grid View */
+.vno-grid-viewport {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.vno-grid-table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: var(--vno-font-size-sm);
+  font-family: var(--vno-font-family-ui);
+}
+
+.vno-grid-table th, .vno-grid-table td {
+  border: 1px solid #e2e8f0;
+  box-sizing: border-box;
+}
+
+/* Row & Column Headers */
+.vno-col-header, .vno-row-header {
+  background-color: #f8fafc;
+  color: #64748b;
+  font-weight: 600;
+  text-align: center;
+  user-select: none;
+}
+
+.vno-col-header {
+  height: 24px;
+  min-width: 90px;
+}
+
+.vno-row-header {
+  width: 44px;
+  height: 22px;
+}
+
+/* Data Cells */
+.vno-grid-cell {
+  padding: 2px 6px;
+  height: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: cell;
+}
+
+.vno-grid-cell.is-selected {
+  outline: 2px solid var(--vno-app-sheet-primary);
+  outline-offset: -2px;
+  background-color: rgba(16, 124, 65, 0.08) !important;
+}
+
+.vno-grid-cell.is-editing {
+  outline: 2px solid var(--vno-app-sheet-primary);
+  background-color: #ffffff !important;
+}
