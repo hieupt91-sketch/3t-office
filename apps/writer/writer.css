@@ -339,3 +339,313 @@
   cursor: copy !important;
 }
 
+/* ==========================================================================
+   VN Writer — Print Preview (Xem trước khi in) Enterprise Styles
+   ========================================================================== */
+
+.vno-print-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  background-color: #1e293b;
+  color: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  user-select: none;
+  animation: vnoFadeIn 0.15s ease-out;
+}
+
+@keyframes vnoFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.vno-print-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  min-height: 52px;
+  padding: 0 16px;
+  background-color: #0f172a;
+  border-bottom: 1px solid #334155;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  gap: 12px;
+  z-index: 10;
+}
+
+.vno-print-preview-toolbar-left,
+.vno-print-preview-toolbar-center,
+.vno-print-preview-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vno-print-preview-btn-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  background-color: #0284c7;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.vno-print-preview-btn-print:hover {
+  background-color: #0369a1;
+}
+
+.vno-print-preview-divider {
+  width: 1px;
+  height: 24px;
+  background-color: #334155;
+  margin: 0 4px;
+}
+
+.vno-print-preview-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 9999px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.vno-print-preview-badge strong {
+  color: #e2e8f0;
+}
+
+.vno-print-preview-nav-prev,
+.vno-print-preview-nav-next {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  background-color: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.vno-print-preview-nav-prev:hover:not(:disabled),
+.vno-print-preview-nav-next:hover:not(:disabled) {
+  background-color: #334155;
+  border-color: #64748b;
+}
+
+.vno-print-preview-nav-prev:disabled,
+.vno-print-preview-nav-next:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.vno-print-preview-page-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.vno-print-preview-page-input {
+  width: 44px;
+  padding: 4px 6px;
+  background-color: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: center;
+  font-weight: 600;
+  outline: none;
+}
+
+.vno-print-preview-page-input:focus {
+  border-color: #38bdf8;
+}
+
+.vno-print-preview-zoom-out,
+.vno-print-preview-zoom-in,
+.vno-print-preview-zoom-fit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 10px;
+  background-color: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.vno-print-preview-zoom-out:hover,
+.vno-print-preview-zoom-in:hover,
+.vno-print-preview-zoom-fit:hover {
+  background-color: #334155;
+}
+
+.vno-print-preview-zoom-level {
+  font-size: 12px;
+  min-width: 42px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.vno-print-preview-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background-color: transparent;
+  color: #94a3b8;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.vno-print-preview-close-btn:hover {
+  color: #f8fafc;
+  background-color: #dc2626;
+}
+
+.vno-print-preview-viewport {
+  flex: 1;
+  overflow: auto;
+  padding: 36px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #334155;
+}
+
+.vno-print-preview-pages-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 36px;
+  transition: transform 0.15s ease-out;
+}
+
+.vno-print-preview-sheet {
+  background-color: #ffffff;
+  color: #111827;
+  font-family: var(--vno-font-doc, "Times New Roman", Times, serif);
+  font-size: 14pt;
+  line-height: 1.4;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.45), 0 8px 10px -6px rgba(0, 0, 0, 0.35);
+  border-radius: 2px;
+  box-sizing: border-box;
+  position: relative;
+  user-select: text;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.vno-print-preview-sheet.is-active {
+  outline: 3px solid #38bdf8;
+  outline-offset: 4px;
+}
+
+.vno-print-preview-page-number-tag {
+  position: absolute;
+  top: -24px;
+  left: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #cbd5e1;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+
+.vno-print-preview-header,
+.vno-print-preview-footer {
+  font-size: 10pt;
+  color: #64748b;
+  box-sizing: border-box;
+  user-select: text;
+}
+
+.vno-print-preview-header {
+  border-bottom: 1px dashed #cbd5e1;
+  margin-bottom: 12px;
+  padding-bottom: 4px;
+}
+
+.vno-print-preview-footer {
+  border-top: 1px dashed #cbd5e1;
+  margin-top: 16px;
+  padding-top: 4px;
+}
+
+.vno-print-preview-body {
+  flex: 1;
+  overflow: hidden;
+  user-select: text;
+}
+
+.vno-print-preview-body p {
+  margin: 0 0 6pt 0;
+  text-align: justify;
+}
+
+.vno-print-preview-body h1 {
+  font-size: 16pt;
+  font-weight: bold;
+  text-align: center;
+  margin: 14pt 0 10pt 0;
+  text-transform: uppercase;
+}
+
+.vno-print-preview-body h2 {
+  font-size: 14pt;
+  font-weight: bold;
+  margin: 10pt 0 4pt 0;
+}
+
+.vno-print-preview-body h3 {
+  font-size: 13pt;
+  font-weight: bold;
+  font-style: italic;
+  margin: 8pt 0 3pt 0;
+}
+
+.vno-print-preview-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14pt 0;
+}
+
+.vno-print-preview-body td,
+.vno-print-preview-body th {
+  border: 1px solid #94a3b8;
+  padding: 6pt 10pt;
+}
+
+/* Ẩn các thanh công cụ khi in thật */
+@media print {
+  .vno-print-preview-toolbar,
+  .vno-print-preview-overlay {
+    display: none !important;
+  }
+}
+

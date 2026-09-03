@@ -37,7 +37,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] Styles (Heading 1/2/3, Normal...) — bảng chọn kiểu đoạn văn nhanh
 - [ ] Track Changes (theo dõi thay đổi) — tối thiểu: bật/tắt, hiển thị insert/delete có màu
 - [x] Comments (ghi chú lề trang) — Codex làm: bôi đen chọn text → `<mark data-comment-id>` anchor + panel bên phải điều hướng 2 chiều, xóa đồng bộ. Giới hạn đã biết: session-only, không ghi vào `word/comments.xml` khi xuất DOCX (đã strip metadata khỏi export, không giả vờ đã lưu).
-- [ ] Print Preview thật trước khi in
+- [x] Print Preview thật trước khi in — overlay xem trước chuẩn xác theo khổ giấy/hướng/lề thật (A4/Letter/Legal, Portrait/Landscape từ Page Setup, không cố định A4), tự động phân trang theo chiều cao trang và ngắt trang (Ctrl+Enter), điều hướng nhiều trang (Trang trước/sau, jump trang, phím mũi tên/PageUp/PageDown), zoom điều chỉnh (phóng to/thu nhỏ/vừa trang), lặp Header/Footer kèm số trang tự động mỗi trang, nút In gọi window.print() thật, đóng bằng Esc hoặc nút X. Ánh xạ lệnh `writer.file.printPreview` sang `.uno:PrintPreview`.
 - [x] Word/Character count đầy đủ (đã có đếm từ realtime — mở rộng: ký tự, đoạn, trang)
 - [ ] Undo/Redo có lịch sử sâu (không chỉ execCommand undo của trình duyệt)
 

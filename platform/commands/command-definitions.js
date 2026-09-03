@@ -84,7 +84,10 @@ export const WRITER_COMMANDS = [
   // Bố trí trang (Layout)
   { id: "writer.page.margins", category: "layout", label: "Căn lề", icon: "margins", tooltip: "Thiết lập lề tiêu chuẩn văn bản Việt Nam" },
   { id: "writer.page.orientation", category: "layout", label: "Hướng giấy", icon: "orientation", tooltip: "Khổ giấy dọc hoặc ngang" },
-  { id: "writer.page.size", category: "layout", label: "Kích thước giấy", icon: "pageBreak", tooltip: "Chọn khổ A4, Letter, v.v." }
+  { id: "writer.page.size", category: "layout", label: "Kích thước giấy", icon: "pageBreak", tooltip: "Chọn khổ A4, Letter, v.v." },
+
+  // In ấn & Xem trước (Print & Preview)
+  { id: "writer.file.printPreview", category: "file", label: "Xem trước khi in", shortcut: "Ctrl+F2", icon: "filePrint", tooltip: "Xem trước khi in (Ctrl+F2)" }
 ];
 
 export const SHEET_COMMANDS = [

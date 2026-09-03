@@ -73,10 +73,11 @@ export const VN_TO_UNO_MAP = {
   // Writer / Review
   "writer.comment.insert": ".uno:InsertAnnotation",
 
-  // Writer / Page Setup (Bố cục)
+  // Writer / Page Setup & Print
   "writer.page.margins": ".uno:PageDialog",
   "writer.page.orientation": ".uno:PageDialog",
   "writer.page.size": ".uno:PageDialog",
+  "writer.file.printPreview": ".uno:PrintPreview",
 
   // Sheet / Calc
   "sheet.cell.edit": ".uno:SetInputMode",
