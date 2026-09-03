@@ -40,6 +40,12 @@ export class SheetGridController {
     this.redoStack = [];
 
     this.selectedCoord = { r: 1, c: "A" };
+    this.selectionRange = { start: { r: 1, c: "A" }, end: { r: 1, c: "A" } };
+
+    // Rules are workbook state, partitioned explicitly by sheet. They are evaluated,
+    // never copied into a shared cell style, so switching tabs cannot leak visuals.
+    this.conditionalFormattingBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.dataValidationsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
 
     // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
     this.isFrozenPanes = false;
@@ -242,6 +248,8 @@ export class SheetGridController {
     if (!this.sheetsData[sheetName]) {
       this.sheetsData[sheetName] = new Map();
     }
+    if (!this.conditionalFormattingBySheet[sheetName]) this.conditionalFormattingBySheet[sheetName] = [];
+    if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
 
     // 1. Lưu trạng thái sheet hiện tại
     if (this.activeSheet && this.sheetStates) {
@@ -273,6 +281,7 @@ export class SheetGridController {
     this.activeFilters = new Map(nextState.activeFilters);
     this.isFilterActive = nextState.isFilterActive;
     this.selectedCoord = { ...nextState.selectedCoord };
+    this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
 
     if (this.container && this.container.classList) {
       if (this.isFilterActive) {
@@ -326,6 +335,8 @@ export class SheetGridController {
     if (!this.sheetsData[sheetName]) {
       this.sheetsData[sheetName] = new Map();
     }
+    if (!this.conditionalFormattingBySheet[sheetName]) this.conditionalFormattingBySheet[sheetName] = [];
+    if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
     if (!this.sheetStates) {
       this.sheetStates = {};
     }
@@ -400,6 +411,7 @@ export class SheetGridController {
           td.textContent = itm.val ?? "";
           if (itm.style) this._applyStylesToDom(td, itm.style);
         }
+        this._applyRuleVisuals(td, c, r);
 
         if (this.selectedCoord.c === c && this.selectedCoord.r === r) {
           td.classList.add("is-selected");
@@ -407,8 +419,12 @@ export class SheetGridController {
           handle.className = "vno-cell-autofill-handle";
           td.appendChild(handle);
         }
+        if (this._rangeContains(this.selectionRange, c, r) &&
+            (this.selectionRange.start.c !== this.selectionRange.end.c || this.selectionRange.start.r !== this.selectionRange.end.r)) {
+          td.classList.add("is-range-selected");
+        }
 
-        td.addEventListener("click", () => this.selectCell(c, r));
+        td.addEventListener("click", event => this.selectCell(c, r, event.shiftKey));
         td.addEventListener("dblclick", () => this.focusFormulaInput());
 
         tr.appendChild(td);
@@ -521,12 +537,17 @@ export class SheetGridController {
     this.setStyle("color", "#0f6d38");
   }
 
-  selectCell(col, row) {
+  selectCell(col, row, extendRange = false) {
     if (row < 1 || row > this.rowCount) return;
     if (this.autocomplete) {
       this.autocomplete.closeAll();
     }
 
+    if (!extendRange || !this.selectionRange) {
+      this.selectionRange = { start: { c: col, r: row }, end: { c: col, r: row } };
+    } else {
+      this.selectionRange.end = { c: col, r: row };
+    }
     this.selectedCoord = { c: col, r: row };
 
     // Tự động cuộn viewport nếu ô nằm ngoài phạm vi hiển thị ảo
@@ -535,12 +556,11 @@ export class SheetGridController {
       this._onViewportScroll();
     }
 
-    const old = this.container.querySelector(`.vno-grid-cell.is-selected`);
-    if (old) {
-      old.classList.remove("is-selected");
-      const handle = old.querySelector(".vno-cell-autofill-handle");
-      if (handle) handle.remove();
-    }
+    this.container.querySelectorAll?.(".vno-grid-cell.is-selected, .vno-grid-cell.is-range-selected").forEach(old => {
+      old.classList.remove("is-selected", "is-range-selected");
+      old.querySelector(".vno-cell-autofill-handle")?.remove();
+      old.querySelector(".vno-cell-validation-select")?.remove();
+    });
 
     const coordKey = `${col}${row}`;
     const target = this.container.querySelector(`.vno-grid-cell[data-coord="${coordKey}"]`);
@@ -550,12 +570,17 @@ export class SheetGridController {
       handle.className = "vno-cell-autofill-handle";
       target.appendChild(handle);
     }
+    this.container.querySelectorAll?.(".vno-grid-cell[data-coord]").forEach(cell => {
+      const inRange = this._rangeContains(this.selectionRange, cell.dataset.col, Number(cell.dataset.row));
+      cell.classList.toggle("is-range-selected", inRange && this.getSelectedRangeLabel().includes(":"));
+    });
 
-    if (this.nameBox) this.nameBox.textContent = coordKey;
+    if (this.nameBox) this.nameBox.textContent = this.getSelectedRangeLabel();
 
     const data = this.cellsData.get(coordKey);
     const displayVal = data ? (data.formula || data.val) : "";
     if (this.formulaInput) this.formulaInput.value = displayVal;
+    this._showValidationDropdown(target, col, row);
 
     if (this.options.onSelect) {
       this.options.onSelect(coordKey, data, this._calculateStats());
@@ -597,6 +622,7 @@ export class SheetGridController {
     if (cell) {
       cell.textContent = item.val;
       this._applyStylesToDom(cell, item.style);
+      this._applyRuleVisuals(cell, col, row);
     }
 
     // Tự động tính toán lại các ô có công thức khác
@@ -613,9 +639,13 @@ export class SheetGridController {
           itm.val = res;
         }
         const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`);
-        if (dom) dom.textContent = itm.val;
+        if (dom) {
+          dom.textContent = itm.val;
+          this._applyRuleVisuals(dom, ...this._splitCoord(k));
+        }
       }
     }
+    this._refreshVisibleRuleVisuals();
   }
 
   insertFormula(funcName = "SUM") {
@@ -1127,6 +1157,237 @@ export class SheetGridController {
     if (this.options.onSelect) {
       this.options.onSelect(coordKey, data, this._calculateStats());
     }
+  }
+
+  _splitCoord(coord) {
+    const match = String(coord).match(/^([A-Z]+)(\d+)$/);
+    return match ? [match[1], Number(match[2])] : ["A", 1];
+  }
+
+  _normalizeRange(range = this.selectionRange) {
+    const start = range?.start || this.selectedCoord;
+    const end = range?.end || start;
+    const startCol = this.cols.indexOf(start.c);
+    const endCol = this.cols.indexOf(end.c);
+    return {
+      start: { c: this.cols[Math.min(startCol, endCol)], r: Math.min(start.r, end.r) },
+      end: { c: this.cols[Math.max(startCol, endCol)], r: Math.max(start.r, end.r) }
+    };
+  }
+
+  getSelectedRangeLabel() {
+    const range = this._normalizeRange();
+    const first = `${range.start.c}${range.start.r}`;
+    const last = `${range.end.c}${range.end.r}`;
+    return first === last ? first : `${first}:${last}`;
+  }
+
+  _rangeContains(range, col, row) {
+    const normalized = this._normalizeRange(range);
+    const colIndex = this.cols.indexOf(col);
+    return colIndex >= this.cols.indexOf(normalized.start.c) &&
+      colIndex <= this.cols.indexOf(normalized.end.c) &&
+      row >= normalized.start.r && row <= normalized.end.r;
+  }
+
+  addConditionalFormattingRule(range, config) {
+    const validTypes = ["greaterThan", "lessThan", "blank"];
+    if (!config || !validTypes.includes(config.type)) return false;
+    const numericThreshold = config.type === "blank" ? null : Number(config.value);
+    if (config.type !== "blank" && !Number.isFinite(numericThreshold)) return false;
+    const rule = {
+      id: `cf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      range: this._normalizeRange(range),
+      type: config.type,
+      value: numericThreshold,
+      color: config.color || "#fff2cc"
+    };
+    this.conditionalFormattingBySheet[this.activeSheet].push(rule);
+    this._refreshVisibleRuleVisuals();
+    return rule;
+  }
+
+  getConditionalFormattingRules(sheetName = this.activeSheet) {
+    return [...(this.conditionalFormattingBySheet[sheetName] || [])];
+  }
+
+  _numericCellValue(value) {
+    if (typeof value === "number") return value;
+    const text = String(value ?? "").trim();
+    if (!text) return NaN;
+    const normalized = text.replace(/\s/g, "").replace(/₫/g, "").replace(/\./g, "").replace(",", ".");
+    return Number(normalized);
+  }
+
+  _matchingConditionalRule(col, row) {
+    const value = this.cellsData.get(`${col}${row}`)?.val ?? "";
+    return (this.conditionalFormattingBySheet[this.activeSheet] || []).find(rule => {
+      if (!this._rangeContains(rule.range, col, row)) return false;
+      if (rule.type === "blank") return String(value).trim() === "";
+      const numeric = this._numericCellValue(value);
+      if (!Number.isFinite(numeric)) return false;
+      return rule.type === "greaterThan" ? numeric > rule.value : numeric < rule.value;
+    }) || null;
+  }
+
+  addDataValidation(range, config) {
+    if (!config || !["list", "numberRange"].includes(config.type)) return false;
+    let normalizedConfig;
+    if (config.type === "list") {
+      const values = Array.isArray(config.values)
+        ? config.values.map(String).map(v => v.trim()).filter(Boolean)
+        : String(config.values || "").split(",").map(v => v.trim()).filter(Boolean);
+      if (!values.length) return false;
+      normalizedConfig = { type: "list", values: [...new Set(values)] };
+    } else {
+      const min = Number(config.min);
+      const max = Number(config.max);
+      if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) return false;
+      normalizedConfig = { type: "numberRange", min, max };
+    }
+    const validation = {
+      id: `dv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      range: this._normalizeRange(range),
+      ...normalizedConfig
+    };
+    this.dataValidationsBySheet[this.activeSheet].push(validation);
+    this._refreshVisibleRuleVisuals();
+    return validation;
+  }
+
+  getDataValidations(sheetName = this.activeSheet) {
+    return [...(this.dataValidationsBySheet[sheetName] || [])];
+  }
+
+  getValidationForCell(col, row) {
+    const rules = this.dataValidationsBySheet[this.activeSheet] || [];
+    return [...rules].reverse().find(rule => this._rangeContains(rule.range, col, row)) || null;
+  }
+
+  validateCellValue(col, row, value = this.cellsData.get(`${col}${row}`)?.val ?? "") {
+    const rule = this.getValidationForCell(col, row);
+    if (!rule || String(value).trim() === "") return { valid: true, rule };
+    if (rule.type === "list") {
+      const valid = rule.values.includes(String(value).trim());
+      return { valid, rule, message: valid ? "" : `Giá trị phải thuộc danh sách: ${rule.values.join(", ")}` };
+    }
+    const numeric = this._numericCellValue(value);
+    const valid = Number.isFinite(numeric) && numeric >= rule.min && numeric <= rule.max;
+    return { valid, rule, message: valid ? "" : `Giá trị phải là số từ ${rule.min} đến ${rule.max}` };
+  }
+
+  _applyRuleVisuals(dom, col, row) {
+    if (!dom) return;
+    const item = this.cellsData.get(`${col}${row}`);
+    const conditionalRule = this._matchingConditionalRule(col, row);
+    dom.style.backgroundColor = conditionalRule?.color || item?.style?.backgroundColor || "";
+    dom.classList.toggle("has-validation", !!this.getValidationForCell(col, row));
+    const validation = this.validateCellValue(col, row);
+    dom.classList.toggle("is-validation-invalid", !validation.valid);
+    if (!validation.valid) {
+      dom.title = `Cảnh báo kiểm tra dữ liệu: ${validation.message}`;
+      dom.setAttribute("aria-invalid", "true");
+    } else {
+      if (dom.title?.startsWith("Cảnh báo kiểm tra dữ liệu:")) dom.title = "";
+      dom.removeAttribute?.("aria-invalid");
+    }
+  }
+
+  _refreshVisibleRuleVisuals() {
+    if (!this.container?.querySelectorAll) return;
+    this.container.querySelectorAll(".vno-grid-cell[data-coord]").forEach(dom => {
+      this._applyRuleVisuals(dom, dom.dataset.col, Number(dom.dataset.row));
+    });
+  }
+
+  _showValidationDropdown(cell, col, row) {
+    if (!cell || typeof document === "undefined") return;
+    const rule = this.getValidationForCell(col, row);
+    if (!rule || rule.type !== "list") return;
+    const select = document.createElement("select");
+    select.className = "vno-cell-validation-select";
+    select.setAttribute("aria-label", `Chọn giá trị cho ô ${col}${row}`);
+    select.innerHTML = `<option value="">-- Chọn --</option>` + rule.values
+      .map(value => `<option value="${this._escapeHtml(value)}">${this._escapeHtml(value)}</option>`).join("");
+    const current = String(this.cellsData.get(`${col}${row}`)?.val ?? "");
+    if (rule.values.includes(current)) select.value = current;
+    select.addEventListener("click", event => event.stopPropagation());
+    select.addEventListener("change", () => {
+      this.setCellValue(col, row, select.value);
+      if (this.formulaInput) this.formulaInput.value = select.value;
+      this.selectCell(col, row);
+    });
+    cell.appendChild(select);
+    select.focus();
+  }
+
+  _escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char]);
+  }
+
+  _createSheetDialog(title, bodyHtml) {
+    if (typeof document === "undefined") return null;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay vno-sheet-rule-dialog";
+    overlay.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-label="${title}">
+      <div class="vno-dialog-header"><strong>${title}</strong><button class="vno-btn vno-rule-close" aria-label="Đóng">&times;</button></div>
+      <div class="vno-dialog-body">${bodyHtml}</div>
+      <div class="vno-dialog-footer"><button class="vno-btn vno-rule-cancel">Hủy</button><button class="vno-btn vno-btn-primary vno-rule-apply">Áp dụng</button></div>
+    </div>`;
+    const close = () => overlay.remove();
+    overlay.querySelector(".vno-rule-close").addEventListener("click", close);
+    overlay.querySelector(".vno-rule-cancel").addEventListener("click", close);
+    overlay.addEventListener("keydown", event => { if (event.key === "Escape") close(); });
+    document.body.appendChild(overlay);
+    overlay.querySelector("select, input")?.focus();
+    return overlay;
+  }
+
+  showConditionalFormattingDialog() {
+    const overlay = this._createSheetDialog("Định dạng có điều kiện", `
+      <p class="vno-rule-range">Phạm vi: <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <label>Quy tắc<select id="vno-cf-type"><option value="greaterThan">Giá trị lớn hơn</option><option value="lessThan">Giá trị nhỏ hơn</option><option value="blank">Ô trống</option></select></label>
+      <label id="vno-cf-value-row">Giá trị<input id="vno-cf-value" type="number" value="0"></label>
+      <label>Màu nền<input id="vno-cf-color" type="color" value="#fff2cc"></label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    const type = overlay.querySelector("#vno-cf-type");
+    const valueRow = overlay.querySelector("#vno-cf-value-row");
+    type.addEventListener("change", () => { valueRow.hidden = type.value === "blank"; });
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const result = this.addConditionalFormattingRule(this.selectionRange, {
+        type: type.value,
+        value: overlay.querySelector("#vno-cf-value").value,
+        color: overlay.querySelector("#vno-cf-color").value
+      });
+      if (!result) overlay.querySelector(".vno-rule-error").textContent = "Vui lòng nhập một giá trị số hợp lệ.";
+      else overlay.remove();
+    });
+    return true;
+  }
+
+  showDataValidationDialog() {
+    const overlay = this._createSheetDialog("Kiểm tra dữ liệu", `
+      <p class="vno-rule-range">Phạm vi: <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <label>Cho phép<select id="vno-dv-type"><option value="list">Danh sách lựa chọn</option><option value="numberRange">Số trong khoảng</option></select></label>
+      <label id="vno-dv-list-row">Các giá trị (cách nhau bằng dấu phẩy)<input id="vno-dv-list" type="text" placeholder="Đạt, Chưa đạt, Đang xử lý"></label>
+      <div id="vno-dv-number-row" hidden><label>Tối thiểu<input id="vno-dv-min" type="number" value="0"></label><label>Tối đa<input id="vno-dv-max" type="number" value="100"></label></div>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    const type = overlay.querySelector("#vno-dv-type");
+    type.addEventListener("change", () => {
+      overlay.querySelector("#vno-dv-list-row").hidden = type.value !== "list";
+      overlay.querySelector("#vno-dv-number-row").hidden = type.value !== "numberRange";
+    });
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const config = type.value === "list"
+        ? { type: "list", values: overlay.querySelector("#vno-dv-list").value }
+        : { type: "numberRange", min: overlay.querySelector("#vno-dv-min").value, max: overlay.querySelector("#vno-dv-max").value };
+      const result = this.addDataValidation(this.selectionRange, config);
+      if (!result) overlay.querySelector(".vno-rule-error").textContent = "Thông tin kiểm tra dữ liệu chưa hợp lệ.";
+      else overlay.remove();
+    });
+    return true;
   }
 
   _calculateStats() {

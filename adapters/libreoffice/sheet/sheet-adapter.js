@@ -5,6 +5,7 @@
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
+import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 
 export class SheetAdapter {
   constructor(gridController) {
@@ -15,6 +16,8 @@ export class SheetAdapter {
 
   attach() {
     globalUnoBridge.attachDocument(this);
+    globalCommandBus.bindHandler("sheet.format.conditional", () => this.grid.showConditionalFormattingDialog());
+    globalCommandBus.bindHandler("sheet.data.validation", () => this.grid.showDataValidationDialog());
   }
 
   /**
