@@ -109,6 +109,7 @@ export class WriterApp {
         </tr>
       </table>
     `;
+    }
 
     viewport.appendChild(this.canvas);
     container.appendChild(viewport);
