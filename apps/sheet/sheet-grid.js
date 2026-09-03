@@ -4,7 +4,6 @@
 
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { SheetChartBuilder } from "./sheet-chart.js";
-import { showAlertDialog } from "../../platform/ui-kit/dialogs.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 
@@ -46,6 +45,7 @@ export class SheetGridController {
     // never copied into a shared cell style, so switching tabs cannot leak visuals.
     this.conditionalFormattingBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.dataValidationsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.chartsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
 
     // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
     this.isFrozenPanes = false;
@@ -143,6 +143,7 @@ export class SheetGridController {
     // 2. Grid Table Viewport
     const vp = document.createElement("div");
     vp.className = "vno-grid-viewport";
+    vp.style.position = "relative";
     this.viewport = vp;
     vp.addEventListener("scroll", () => {
       this.autocomplete.updatePosition();
@@ -195,6 +196,11 @@ export class SheetGridController {
 
     table.appendChild(tbody);
     vp.appendChild(table);
+    const chartLayer = document.createElement("div");
+    chartLayer.className = "vno-sheet-chart-layer";
+    chartLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:6";
+    this.chartLayer = chartLayer;
+    vp.appendChild(chartLayer);
     this.container.appendChild(vp);
 
     // 3. Sheet Tab Bar dưới đáy
@@ -233,6 +239,7 @@ export class SheetGridController {
 
     this._populateInitialData();
     this._renderVirtualRows(1, 40);
+    this.renderCharts();
     this.selectCell("A", 1);
     this._bindGridKeyboardNavigation();
   }
@@ -250,6 +257,7 @@ export class SheetGridController {
     }
     if (!this.conditionalFormattingBySheet[sheetName]) this.conditionalFormattingBySheet[sheetName] = [];
     if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
+    if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
 
     // 1. Lưu trạng thái sheet hiện tại
     if (this.activeSheet && this.sheetStates) {
@@ -317,6 +325,7 @@ export class SheetGridController {
 
     // 6. Re-render lưới hiển thị ảo
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.renderCharts();
 
     // 7. Cập nhật ô chọn và thanh công thức
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
@@ -337,6 +346,7 @@ export class SheetGridController {
     }
     if (!this.conditionalFormattingBySheet[sheetName]) this.conditionalFormattingBySheet[sheetName] = [];
     if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
+    if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
     if (!this.sheetStates) {
       this.sheetStates = {};
     }
@@ -627,6 +637,7 @@ export class SheetGridController {
 
     // Tự động tính toán lại các ô có công thức khác
     this._recalculateAllFormulas(key);
+    this.refreshCharts();
   }
 
   _recalculateAllFormulas(excludeKey) {
@@ -755,20 +766,80 @@ export class SheetGridController {
   }
 
   openChartBuilder() {
-    const dataItems = [
-      { label: "Giao diện UI Kit", value: 25000000 },
-      { label: "LibreOffice Core", value: 45000000 },
-      { label: "UNO Bridge Bus", value: 30000000 },
-      { label: "OOXML Test Suite", value: 20000000 }
-    ];
-
-    SheetChartBuilder.showChartModal(dataItems, async (chartType) => {
-      await showAlertDialog({
-        title: "Biểu Đồ Bảng Tính",
-        message: `Đã tạo thành công ${chartType === "bar" ? "Biểu đồ Cột" : "Biểu đồ Tròn"} cho bảng tính!`,
-        type: "success"
-      });
+    const range = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const extracted = SheetChartBuilder.extractRangeData(this.cellsData, range, this.cols);
+    const dataItems = extracted.labels.map((label, index) => ({ label, value: extracted.data[index] }));
+    const rangeLabel = this._rangeLabel(range);
+    return SheetChartBuilder.showChartModal(dataItems, chartType => this.insertChart(chartType, range), {
+      rangeLabel,
+      title: `Biểu đồ ${rangeLabel}`
     });
+  }
+
+  insertChart(type, range = this.selectionRange) {
+    if (!SheetChartBuilder.supportedTypes.includes(type)) return false;
+    const normalizedRange = this._normalizeRange(range);
+    const chart = {
+      id: `chart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      type,
+      range: normalizedRange,
+      title: `Biểu đồ ${this._rangeLabel(normalizedRange)}`,
+      labels: [],
+      data: []
+    };
+    this.chartsBySheet[this.activeSheet] ||= [];
+    this.chartsBySheet[this.activeSheet].push(chart);
+    this._updateChartData(chart);
+    this.renderCharts();
+    return chart;
+  }
+
+  getCharts(sheetName = this.activeSheet) {
+    return [...(this.chartsBySheet[sheetName] || [])];
+  }
+
+  deleteChart(chartId, sheetName = this.activeSheet) {
+    const charts = this.chartsBySheet[sheetName] || [];
+    const index = charts.findIndex(chart => chart.id === chartId);
+    if (index < 0) return false;
+    charts.splice(index, 1);
+    if (sheetName === this.activeSheet) this.renderCharts();
+    return true;
+  }
+
+  _rangeLabel(range) {
+    const first = `${range.start.c}${range.start.r}`;
+    const last = `${range.end.c}${range.end.r}`;
+    return first === last ? first : `${first}:${last}`;
+  }
+
+  _updateChartData(chart) {
+    const extracted = SheetChartBuilder.extractRangeData(this.cellsData, chart.range, this.cols);
+    chart.labels = extracted.labels;
+    chart.data = extracted.data;
+    return chart;
+  }
+
+  refreshCharts() {
+    for (const chart of this.chartsBySheet[this.activeSheet] || []) this._updateChartData(chart);
+    this.renderCharts();
+  }
+
+  renderCharts() {
+    if (!this.chartLayer || typeof document === "undefined") return;
+    this.chartLayer.innerHTML = "";
+    for (const chart of this.chartsBySheet[this.activeSheet] || []) {
+      const panel = document.createElement("section");
+      const colOffset = Math.max(0, this.cols.indexOf(chart.range.end.c) + 1) * 100 + 46;
+      const rowOffset = Math.max(0, chart.range.start.r - 1) * this.rowHeight + 28;
+      panel.className = "vno-sheet-chart";
+      panel.dataset.chartId = chart.id;
+      panel.dataset.sheet = this.activeSheet;
+      panel.style.cssText = `position:absolute;left:${colOffset}px;top:${rowOffset}px;width:520px;height:300px;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,.18);pointer-events:auto;overflow:hidden`;
+      panel.innerHTML = `<button type="button" data-chart-delete aria-label="Xóa biểu đồ" title="Xóa biểu đồ" style="position:absolute;right:6px;top:4px;z-index:1;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer">&times;</button>${SheetChartBuilder.generateSvg(chart)}`;
+      panel.querySelector("[data-chart-delete]")?.addEventListener("click", () => this.deleteChart(chart.id));
+      this.chartLayer.appendChild(panel);
+    }
   }
 
   insertCurrentDate() {
