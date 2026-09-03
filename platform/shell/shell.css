@@ -333,6 +333,65 @@ body {
   position: relative;
 }
 
+/* AI Assistant Sidebar — panel trượt bên phải workspace */
+.vno-ai-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--vno-bg-app);
+  border-left: 1px solid var(--vno-border-default);
+  overflow: hidden;
+  transition: width 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+}
+.vno-ai-sidebar.is-hidden {
+  width: 0;
+  min-width: 0;
+  border-left-width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.vno-ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--vno-border-default);
+  font-weight: 600;
+  font-size: var(--vno-text-xs);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.vno-ai-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  min-width: 320px;
+}
+.vno-ai-input-box {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--vno-border-default);
+  flex-shrink: 0;
+  min-width: 320px;
+}
+.vno-ai-input-box input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-md);
+  font-size: var(--vno-text-xs);
+  font-family: var(--vno-font-ui);
+  color: var(--vno-text-primary);
+  background-color: var(--vno-bg-app);
+}
+.vno-ai-input-box input:focus {
+  outline: none;
+  border-color: #d97706;
+}
+
 /* ==========================================================================
    4. RULERS (Thước căn lề chuyên nghiệp)
    ========================================================================== */
