@@ -62,7 +62,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] Công thức cơ bản (SUM/AVERAGE/MIN/MAX/COUNT/IF/CONCAT...)
 - [x] Formula autocomplete + tooltip tham số (giống Excel IntelliSense)
 - [x] Định dạng ô, tiền tệ VNĐ, phần trăm
-- [x] **Nhiều sheet/tab** trong 1 workbook (agy đã bổ sung, có nút thêm tab)
+- [ ] **Nhiều sheet/tab** trong 1 workbook — **BỊ ĐÁNH DẤU SAI, ĐÃ SỬA LẠI**: agy đã thêm UI tab (tên sheet, click đổi active) nhưng toàn bộ 3 tab dùng CHUNG một `cellsData` Map duy nhất (`sheet-grid.js:20`) — đổi tab không đổi dữ liệu ô, chỉ đổi CSS active. Claude đã tự kiểm chứng bằng code review, không phải tính năng thật. Cần agy sửa lại: mỗi sheet phải có `cellsData` Map riêng, `activeSheet` phải swap Map + re-render khi đổi tab.
 - [x] Mở rộng lưới thật — 26 cột (A-Z) x 200 hàng với cuộn ảo (virtual scrolling spacers) không lag
 - [x] Freeze panes (cố định hàng 1 / cột A khi cuộn bằng CSS sticky mượt mà)
 - [ ] Conditional Formatting (định dạng có điều kiện) — VẪN CÒN THIẾU
