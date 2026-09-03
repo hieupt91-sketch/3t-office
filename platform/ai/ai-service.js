@@ -1,65 +1,63 @@
 /**
- * VN Office Platform — Local Privacy-First AI Service
+ * VN Office Platform — AI Service (Provider Orchestrator)
  * Tuân thủ nghiêm ngặt 07-security-ai/AI-ARCHITECTURE.md:
- * - Bảo mật tuyệt đối trên thiết bị (On-device / Local Processing)
- * - Không gửi nội dung tài liệu ra ngoài mà không có xác nhận
- * - Không tự động ghi đè nội dung tài liệu (yêu cầu người dùng chủ động bấm áp dụng)
+ *   AI UI -> VN AI Service (file này) -> Context/Permission Layer -> Provider Interface
+ *     -> Local Model (Ollama, nếu có consent + đang chạy) hoặc Rule-Based fallback.
+ * KHÔNG có Cloud Provider nào được cấu hình sẵn — thêm provider trả phí/bên ngoài
+ * cần quyết định rõ ràng từ chủ dự án (xem AGENTS.md mục 10 "Stop and ask").
+ *
+ * Giữ nguyên interface tĩnh `LocalAiService.query()` để tương thích ngược với
+ * platform/shell/app-shell.js — không đổi chữ ký hàm.
  */
+
+import { RuleBasedProvider } from "./providers/rule-based-provider.js";
+import { OllamaProvider } from "./providers/ollama-provider.js";
+import { AiConsentManager } from "./consent-manager.js";
 
 export class LocalAiService {
   /**
-   * Xử lý yêu cầu từ người dùng
-   * @param {string} prompt 
+   * Cho UI biết provider nào đang thực sự được dùng (không giả vờ) — hữu ích để
+   * hiển thị trạng thái thật trong AI Sidebar.
+   * @returns {Promise<{ id: string, label: string }>}
+   */
+  static async getActiveProviderInfo() {
+    if (AiConsentManager.hasLocalModelConsent() && (await OllamaProvider.isAvailable())) {
+      return { id: OllamaProvider.id, label: OllamaProvider.label };
+    }
+    return { id: RuleBasedProvider.id, label: RuleBasedProvider.label };
+  }
+
+  /**
+   * @param {string} prompt
    * @param {Object} [context]
    * @param {string} [context.documentText=""]
    * @param {string} [context.appName="writer"]
-   * @returns {Promise<{ reply: string, suggestion?: string }>}
+   * @returns {Promise<{ reply: string, suggestion?: string, providerId?: string }>}
    */
   static async query(prompt, context = {}) {
-    const p = (prompt || "").trim().toLowerCase();
-    const docText = (context.documentText || "").trim();
+    const wantsLocalModel = AiConsentManager.hasLocalModelConsent();
 
-    // Giả lập xử lý bất đồng bộ thực tế
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    if (p.includes("tóm tắt") || p.includes("summarize")) {
-      if (!docText) {
-        return {
-          reply: "Tài liệu hiện đang trống hoặc chưa có nội dung văn bản để tóm tắt. Vui lòng soạn thảo nội dung trước."
-        };
+    if (wantsLocalModel) {
+      const available = await OllamaProvider.isAvailable();
+      if (available) {
+        try {
+          const result = await OllamaProvider.query(prompt, context);
+          return { ...result, providerId: OllamaProvider.id };
+        } catch (err) {
+          // Không âm thầm nuốt lỗi bảo mật/kết nối — báo rõ cho người dùng và
+          // rơi về rule-based fallback để trợ lý vẫn phản hồi được điều gì đó.
+          const fallback = await RuleBasedProvider.query(prompt, context);
+          return {
+            reply: `⚠️ ${err.message} Đã chuyển tạm sang chế độ quy tắc cục bộ.\n\n${fallback.reply}`,
+            providerId: RuleBasedProvider.id
+          };
+        }
       }
-      const lines = docText.split("\n").filter(l => l.trim().length > 10).slice(0, 4);
-      const summaryBullets = lines.length > 0 
-        ? lines.map(l => `• ${l.trim().substring(0, 100)}...`).join("\n")
-        : "• Tài liệu chứa các điều khoản hành chính chuẩn hóa.";
-
-      return {
-        reply: `**Tóm tắt nội dung tài liệu (Cục bộ & Bảo mật):**\n\n${summaryBullets}\n\n*Phát hiện ${docText.split(/\s+/).length} từ trong văn bản.*`
-      };
     }
 
-    if (p.includes("chính tả") || p.includes("soát lỗi") || p.includes("grammar")) {
-      return {
-        reply: "Đã kiểm tra ngữ pháp tiếng Việt theo tiêu chuẩn Nghị định 30/2020/NĐ-CP: Bảng mã Unicode dựng sẵn (NFC), dấu câu và quy tắc viết hoa tên cơ quan, địa danh đều đạt chuẩn.",
-        suggestion: null
-      };
-    }
-
-    if (p.includes("trau chuốt") || p.includes("viết lại") || p.includes("rewrite")) {
-      return {
-        reply: "Gợi ý trau chuốt câu văn theo phong cách hành chính trang trọng:\n\n*\"Căn cứ vào chức năng, nhiệm vụ được giao, đơn vị kính đề nghị cấp có thẩm quyền xem xét, phê duyệt chủ trương thực hiện.\"*",
-        suggestion: "Căn cứ vào chức năng, nhiệm vụ được giao, đơn vị kính đề nghị cấp có thẩm quyền xem xét, phê duyệt chủ trương thực hiện."
-      };
-    }
-
-    if (p.includes("phím tắt") || p.includes("shortcut")) {
-      return {
-        reply: "Một số phím tắt thông dụng trong VN Office:\n• **Ctrl+S**: Lưu tài liệu\n• **Ctrl+Z / Ctrl+Y**: Hoàn tác / Làm lại\n• **Ctrl+B / I / U**: Đậm / Nghiêng / Gạch chân\n• **Ctrl+N / Ctrl+O**: Tạo mới / Mở tệp\n• **Alt+Q**: Tìm kiếm tính năng"
-      };
-    }
-
-    return {
-      reply: `Tôi đã nhận yêu cầu: "${prompt}".\nTôi có thể hỗ trợ bạn:\n1. Tóm tắt nội dung văn bản hiện tại\n2. Trau chuốt văn phong theo chuẩn hành chính\n3. Soát lỗi chính tả tiếng Việt\n4. Tra cứu phím tắt và tính năng`
-    };
+    const result = await RuleBasedProvider.query(prompt, context);
+    return { ...result, providerId: RuleBasedProvider.id };
   }
 }
+
+export { RuleBasedProvider, OllamaProvider, AiConsentManager };
