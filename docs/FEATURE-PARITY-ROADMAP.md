@@ -65,8 +65,8 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] **Nhiều sheet/tab** trong 1 workbook — Đã sửa triệt để: mỗi sheet trong `sheetsData` sở hữu một `Map` riêng biệt, `cellsData` là getter/reference trỏ tới sheet đang active. Khi click đổi tab hoặc gọi `switchSheet(name)`, ứng dụng chuyển đổi Map dữ liệu, cô lập hoàn toàn ô tính và công thức (đã kiểm chứng bằng test tự động: dữ liệu gõ ở sheet 1 không rò rỉ sang sheet 2, đổi lại sheet 1 dữ liệu còn nguyên; FormulaEngine tính toán độc lập theo sheet; Undo/Redo tự động quay về sheet gốc; trạng thái filter/sort độc lập). Nút "+" thêm sheet mới hoạt động thật. **Giới hạn đã biết**: Lưu/xuất tệp XLSX/ODS hiện tại chỉ xuất sheet đang active do cơ chế I/O trung gian CSV một sheet.
 - [x] Mở rộng lưới thật — 26 cột (A-Z) x 200 hàng với cuộn ảo (virtual scrolling spacers) không lag
 - [x] Freeze panes (cố định hàng 1 / cột A khi cuộn bằng CSS sticky mượt mà)
-- [ ] Conditional Formatting (định dạng có điều kiện) — VẪN CÒN THIẾU
-- [ ] Data Validation (kiểm tra dữ liệu nhập, dropdown list) — VẪN CÒN THIẾU
+- [x] Conditional Formatting (giá trị lớn hơn/nhỏ hơn/ô trống, tự đánh giá lại khi đổi giá trị, độc lập theo sheet)
+- [x] Data Validation (danh sách dropdown thật + số trong khoảng, cảnh báo không chặn cứng, độc lập theo sheet)
 - [x] Mở/Lưu file XLSX/ODS thật qua LibreOffice headless (round-trip đã test thật)
 - [x] Sort & Filter thật trên vùng dữ liệu (Sort A-Z, Z-A, Undo sort, AutoFilter popover lọc theo giá trị)
 - [ ] Charts thật (đã có SVG chart — mở rộng loại: cột/đường/tròn/miền)
