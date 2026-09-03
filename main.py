@@ -275,6 +275,12 @@ def main():
     )
     api.window = window
 
+    def on_closed():
+        # Thoát tiến trình sạch sẽ, tránh lỗi giải phóng COM WebView2 trên thread phụ
+        os._exit(0)
+
+    window.events.closed += on_closed
+
     try:
         webview.start(debug=False)
     except SystemExit:
@@ -282,7 +288,7 @@ def main():
     except Exception as exc:
         print(f"[VN Office] Thoát cửa sổ: {exc}")
     finally:
-        sys.exit(0)
+        os._exit(0)
 
 
 if __name__ == "__main__":
