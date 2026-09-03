@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office UI Kit — Precision Component Factory
  * Đảm bảo 100% nút Ribbon đều có Icon Vector sắc nét
  */
@@ -144,3 +144,42 @@ export function createSelect({ commandId, options, defaultValue, onChange }) {
 
   return select;
 }
+
+/**
+ * Tạo component Trạng thái rỗng (EmptyState) chuẩn UI Kit Rules (03-ui-ux/UI-KIT-RULES.md)
+ */
+export function createEmptyState({
+  icon = "📄",
+  title = "Chưa có dữ liệu",
+  description = "Không có mục nào để hiển thị vào lúc này.",
+  actionText = null,
+  onAction = null
+}) {
+  const container = document.createElement("div");
+  container.className = "vno-empty-state";
+  container.style.cssText = `
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 36px 20px;
+    text-align: center;
+    background: #fafafa;
+    border: 1px dashed var(--vno-border-default);
+    border-radius: var(--vno-radius-md);
+  `;
+
+  container.innerHTML = `
+    <div style="font-size: 36px; margin-bottom: 12px; color: var(--vno-text-muted);">${icon}</div>
+    <div style="font-size: 14px; font-weight: 700; color: var(--vno-text-primary); margin-bottom: 6px;">${title}</div>
+    <div style="font-size: 12px; color: var(--vno-text-muted); max-width: 340px; line-height: 1.5; margin-bottom: ${actionText ? "16px" : "0"};">${description}</div>
+    ${actionText ? `<button class="vno-btn vno-btn-primary vno-empty-action-btn" style="font-size: 12px; padding: 6px 14px;">${actionText}</button>` : ""}
+  `;
+
+  if (actionText && onAction) {
+    container.querySelector(".vno-empty-action-btn").addEventListener("click", onAction);
+  }
+
+  return container;
+}
+

@@ -1,15 +1,17 @@
-﻿/**
+/**
  * VN Office LibreOffice Adapter — VN Writer Adapter
  * Quản lý tương tác với StarWriter (sw) Document Model & Phím tắt Microsoft/LibreOffice
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
+import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
 
 export class WriterAdapter {
   constructor(editorDom) {
     this.editorDom = editorDom;
     this.documentContent = "";
     this.isDirty = false;
+    this.sourceFileName = "TaiLieu";
   }
 
   attach() {
@@ -166,12 +168,23 @@ export class WriterAdapter {
         return true;
 
       case "common.edit.hyperlink":
-        this._insertHyperlink();
+        await this._insertHyperlink();
         return true;
 
       case "common.file.save":
-        this.save();
-        return true;
+        return await this.save();
+
+      case "common.file.saveAs":
+        return await this.saveAs();
+
+      case "common.file.open":
+        return await this.open();
+
+      case "common.file.exportPdf":
+        return await this.exportPdf();
+
+      case "common.file.print":
+        return this.print();
 
       default:
         return false;
@@ -188,13 +201,34 @@ export class WriterAdapter {
       html += `</tr>`;
     }
     html += `</tbody></table><p><br></p>`;
-    document.execCommand("insertHTML", false, html);
+    let inserted = false;
+    if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+      try {
+        inserted = document.execCommand("insertHTML", false, html);
+      } catch {
+        inserted = false;
+      }
+    }
+    if (!inserted && this.editorDom) {
+      this.editorDom.innerHTML = (this.editorDom.innerHTML || "") + html;
+    }
     this.isDirty = true;
   }
 
   _insertPageBreak() {
     const html = `<div style="page-break-before:always; border-top:2px dashed #94a3b8; margin:24px 0; text-align:center; color:#94a3b8; font-size:11px; user-select:none;">--- Phân tách trang (Page Break) ---</div><p><br></p>`;
-    document.execCommand("insertHTML", false, html);
+    let inserted = false;
+    if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+      try {
+        inserted = document.execCommand("insertHTML", false, html);
+      } catch {
+        inserted = false;
+      }
+    }
+    if (!inserted && this.editorDom) {
+      this.editorDom.innerHTML = (this.editorDom.innerHTML || "") + html;
+    }
+    this.isDirty = true;
   }
 
   _setLineHeight(val) {
@@ -238,9 +272,16 @@ export class WriterAdapter {
     }
   }
 
-  _insertHyperlink() {
-    const url = prompt("Nhập địa chỉ liên kết (URL):", "https://");
+  async _insertHyperlink() {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    const url = await showPromptDialog({
+      title: "Chèn Liên Kết (Hyperlink)",
+      message: "Nhập địa chỉ liên kết (URL):",
+      defaultValue: "https://",
+      placeholder: "https://example.com"
+    });
     if (url && url !== "https://") {
+      this.editorDom.focus();
       document.execCommand("createLink", false, url);
     }
   }
@@ -264,21 +305,83 @@ export class WriterAdapter {
   }
 
   _showFindReplaceDialog(isReplace = false) {
-    const findText = prompt("Tìm kiếm văn bản:", "");
-    if (!findText) return;
-    if (isReplace) {
-      const repText = prompt(`Thay thế "${findText}" bằng:`, "");
-      if (repText !== null) {
-        this.editorDom.innerHTML = this.editorDom.innerHTML.split(findText).join(repText);
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+    showFindReplaceDialog({
+      isReplace,
+      onFind: (text) => {
+        if (typeof window !== "undefined" && window.find) {
+          window.find(text);
+        }
+      },
+      onReplace: (findText, repText) => {
+        if (findText && repText !== null) {
+          const content = this.editorDom.innerHTML;
+          const idx = content.indexOf(findText);
+          if (idx !== -1) {
+            this.editorDom.innerHTML = content.substring(0, idx) + repText + content.substring(idx + findText.length);
+          }
+        }
+      },
+      onReplaceAll: (findText, repText) => {
+        if (findText && repText !== null) {
+          this.editorDom.innerHTML = this.editorDom.innerHTML.split(findText).join(repText);
+        }
       }
-    } else {
-      window.find(findText);
-    }
+    });
   }
 
-  save() {
+  /**
+   * Lưu tài liệu thành tệp DOCX thật trên đĩa (qua LibreOffice headless engine).
+   * V1: luôn mở hộp thoại chọn nơi lưu (chưa lưu ngầm vào đường dẫn cũ) — sẽ tối ưu ở bản sau.
+   */
+  async save() {
     this.documentContent = this.editorDom.innerHTML;
-    this.isDirty = false;
-    console.log("[WriterAdapter] Đã lưu tài liệu sw.");
+    const result = await globalUnoBridge.saveRealFile("writer", this.documentContent, "docx", this.sourceFileName);
+    if (result.status === "ok") {
+      this.isDirty = false;
+      await showAlertDialog({ title: "Đã lưu", message: result.message, type: "success" });
+      return true;
+    }
+    if (result.status === "cancelled") return false;
+    await showAlertDialog({ title: "Không thể lưu", message: result.message, type: "error" });
+    return false;
+  }
+
+  async saveAs() {
+    return await this.save();
+  }
+
+  /**
+   * Mở một tệp DOCX/ODT thật từ đĩa, thay thế nội dung soạn thảo hiện tại.
+   */
+  async open() {
+    const result = await globalUnoBridge.openRealFile("writer");
+    if (result.status === "ok") {
+      this.editorDom.innerHTML = result.content;
+      this.documentContent = result.content;
+      this.sourceFileName = (result.fileName || "TaiLieu").replace(/\.[^/.]+$/, "");
+      this.isDirty = false;
+      return true;
+    }
+    if (result.status === "cancelled") return false;
+    await showAlertDialog({ title: "Không thể mở tệp", message: result.message, type: "error" });
+    return false;
+  }
+
+  async exportPdf() {
+    this.documentContent = this.editorDom.innerHTML;
+    const result = await globalUnoBridge.exportRealPdf("writer", this.documentContent, this.sourceFileName);
+    if (result.status === "ok") {
+      await showAlertDialog({ title: "Đã xuất PDF", message: result.message, type: "success" });
+      return true;
+    }
+    if (result.status === "cancelled") return false;
+    await showAlertDialog({ title: "Không thể xuất PDF", message: result.message, type: "error" });
+    return false;
+  }
+
+  print() {
+    window.print();
+    return true;
   }
 }

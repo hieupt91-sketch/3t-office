@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Sheet Application Entrypoint — Refined Enterprise Edition
  */
 
@@ -6,9 +6,7 @@ import { AppShell } from "../../platform/shell/app-shell.js";
 import { SHEET_RIBBON_TABS } from "./sheet-ribbon.js";
 import { SheetGridController } from "./sheet-grid.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
-import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
-import { registerAllStandardCommands } from "../../platform/commands/command-definitions.js";
-import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { bootstrapPlatform } from "../../platform/bootstrap.js";
 
 export class SheetApp {
   constructor(mountElement) {
@@ -18,14 +16,13 @@ export class SheetApp {
     this.adapter = null;
   }
 
-  async init() {
-    registerAllStandardCommands(globalCommandBus);
-    await globalUnoBridge.init();
+  async init(options = {}) {
+    await bootstrapPlatform();
 
     this.shell = new AppShell({
       appName: "sheet",
       appTitle: "VN Sheet",
-      documentName: "Dự toán kinh phí VN Office 2026.xlsx"
+      documentName: options.documentName || "Dự toán kinh phí VN Office 2026.xlsx"
     });
     this.shell.mount(this.mountElement);
     this.shell.ribbonHost.setStructure(SHEET_RIBBON_TABS, "home");
@@ -41,12 +38,20 @@ export class SheetApp {
     });
     this.grid.mount();
 
+    if (options.templateId === "blank") {
+      this.grid.cellsData.clear();
+      this.grid.container.querySelectorAll(".vno-grid-cell").forEach(td => td.textContent = "");
+      this.shell.documentName = "Bảng tính 1.xlsx";
+      const tabEl = this.shell.rootEl.querySelector(".vno-doc-tab span");
+      if (tabEl) tabEl.textContent = "Bảng tính 1.xlsx";
+    }
+
     this.shell.setEditorCanvas(gridWrap);
 
     this.adapter = new SheetAdapter(this.grid);
     this.adapter.attach();
 
-    this.shell.setStatus("SẴN SÀNG  |  Ô: A1  |  ĐẾM: 28  |  TỔNG CỘNG: 120.000.000 ₫");
+    this.grid.updateStatus();
     console.log("[SheetApp] Đã khởi tạo VN Sheet chuẩn hóa cao cấp.");
   }
 }

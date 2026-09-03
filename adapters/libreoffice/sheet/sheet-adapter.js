@@ -4,6 +4,7 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
+import { showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
 
 export class SheetAdapter {
   constructor(gridController) {
@@ -70,8 +71,19 @@ export class SheetAdapter {
         return true;
 
       case "sheet.data.filter":
-        alert("Chế độ lọc AutoFilter đã được bật cho bảng dữ liệu.");
+        if (typeof window !== "undefined" && typeof document !== "undefined") {
+          await showAlertDialog({
+            title: "Bộ Lọc Dữ Liệu (AutoFilter)",
+            message: "Chế độ lọc AutoFilter đã được kích hoạt cho bảng dữ liệu hiện tại."
+          });
+        }
         return true;
+
+      case "common.edit.undo":
+        return this.grid.undo ? this.grid.undo() : false;
+
+      case "common.edit.redo":
+        return this.grid.redo ? this.grid.redo() : false;
 
       case "common.file.save":
         this.isDirty = false;
