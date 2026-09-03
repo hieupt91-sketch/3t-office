@@ -167,11 +167,19 @@ DEFAULT_SAVE_FORMAT = {
 }
 
 
+def _active_window():
+    """Lấy cửa sổ pywebview hiện tại qua danh sách module-level `webview.windows`.
+
+    KHÔNG được lưu Window làm attribute trên VnOfficeApi: pywebview tự động quét đệ quy
+    mọi thuộc tính non-callable của js_api để build `window.pywebview.api`, và việc này
+    lần vào tận `Window` -> WinForms `AccessibilityObject.Bounds` -> `Rectangle.Empty.Empty...`
+    gây đệ quy vô hạn (RecursionError) khiến cửa sổ không bao giờ hiển thị được.
+    """
+    return webview.windows[0] if webview.windows else None
+
+
 class VnOfficeApi:
     """Python API phơi ra cho JavaScript giao tiếp (Bridge) — cầu nối thật tới LibreOffice."""
-
-    def __init__(self):
-        self.window = None
 
     def engine_status(self):
         """Cho UI biết document engine thật có sẵn sàng hay không (không giả vờ)."""
