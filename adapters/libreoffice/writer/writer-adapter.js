@@ -6,16 +6,152 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
 
+// Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
+const PAGE_SIZES_MM = {
+  a4: { label: "A4 (210 × 297 mm)", w: 210, h: 297 },
+  letter: { label: "Letter (216 × 279 mm)", w: 216, h: 279 },
+  legal: { label: "Legal (216 × 356 mm)", w: 216, h: 356 }
+};
+
+// Lề mặc định theo Nghị định 30/2020/NĐ-CP: Trên 20mm, Dưới 20mm, Trái 30mm, Phải 15mm
+const DEFAULT_MARGINS_MM = { top: 20, bottom: 20, left: 30, right: 15 };
+const MM_TO_PX = 3.7795275591; // 96dpi
+
 export class WriterAdapter {
   constructor(editorDom) {
     this.editorDom = editorDom;
     this.documentContent = "";
     this.isDirty = false;
     this.sourceFileName = "TaiLieu";
+    this.pageSetup = {
+      size: "a4",
+      orientation: "portrait",
+      margins: { ...DEFAULT_MARGINS_MM }
+    };
   }
 
   attach() {
     globalUnoBridge.attachDocument(this);
+    this._applyPageSetup();
+  }
+
+  /** Áp dụng kích thước/lề trang hiện tại lên canvas thật (không chỉ lưu state suông). */
+  _applyPageSetup() {
+    if (!this.editorDom) return;
+    const base = PAGE_SIZES_MM[this.pageSetup.size] || PAGE_SIZES_MM.a4;
+    const isLandscape = this.pageSetup.orientation === "landscape";
+    const widthMm = isLandscape ? base.h : base.w;
+    const heightMm = isLandscape ? base.w : base.h;
+    const { top, right, bottom, left } = this.pageSetup.margins;
+
+    this.editorDom.style.width = `${(widthMm * MM_TO_PX).toFixed(1)}px`;
+    this.editorDom.style.minHeight = `${(heightMm * MM_TO_PX).toFixed(1)}px`;
+    this.editorDom.style.padding =
+      `${(top * MM_TO_PX).toFixed(1)}px ${(right * MM_TO_PX).toFixed(1)}px ` +
+      `${(bottom * MM_TO_PX).toFixed(1)}px ${(left * MM_TO_PX).toFixed(1)}px`;
+  }
+
+  /**
+   * CSS `@page` thật để nhúng vào HTML trung gian trước khi gửi cho LibreOffice headless —
+   * đảm bảo khổ giấy/lề đúng trong DOCX/PDF xuất ra thật, không chỉ đúng trên canvas.
+   */
+  _getPageSetupCss() {
+    const base = PAGE_SIZES_MM[this.pageSetup.size] || PAGE_SIZES_MM.a4;
+    const isLandscape = this.pageSetup.orientation === "landscape";
+    const widthMm = isLandscape ? base.h : base.w;
+    const heightMm = isLandscape ? base.w : base.h;
+    const { top, right, bottom, left } = this.pageSetup.margins;
+    return `@page { size: ${widthMm}mm ${heightMm}mm; margin: ${top}mm ${right}mm ${bottom}mm ${left}mm; }`;
+  }
+
+  async _showPageSetupDialog(focusField = "size") {
+    if (typeof document === "undefined" || !document.body) return null;
+
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "vno-dialog-overlay";
+      const sizeOptions = Object.entries(PAGE_SIZES_MM)
+        .map(([key, v]) => `<option value="${key}" ${key === this.pageSetup.size ? "selected" : ""}>${v.label}</option>`)
+        .join("");
+
+      overlay.innerHTML = `
+        <div class="vno-dialog-box" style="width: 420px;" role="dialog" aria-modal="true">
+          <div class="vno-dialog-header">
+            <span>Thiết lập trang</span>
+            <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng">&times;</button>
+          </div>
+          <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
+            <label style="font-size:13px;font-weight:500;">Khổ giấy
+              <select class="vno-select" id="vno-pagesetup-size" style="width:100%;margin-top:4px;">${sizeOptions}</select>
+            </label>
+            <label style="font-size:13px;font-weight:500;">Hướng giấy
+              <select class="vno-select" id="vno-pagesetup-orientation" style="width:100%;margin-top:4px;">
+                <option value="portrait" ${this.pageSetup.orientation === "portrait" ? "selected" : ""}>Dọc (Portrait)</option>
+                <option value="landscape" ${this.pageSetup.orientation === "landscape" ? "selected" : ""}>Ngang (Landscape)</option>
+              </select>
+            </label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              ${["top", "bottom", "left", "right"].map(side => {
+                const sideLabel = { top: "Lề trên", bottom: "Lề dưới", left: "Lề trái", right: "Lề phải" }[side];
+                return `<label style="font-size:12px;">${sideLabel} (mm)
+                  <input type="number" min="0" max="100" class="vno-dialog-input" id="vno-pagesetup-margin-${side}"
+                    value="${this.pageSetup.margins[side]}"
+                    style="width:100%;margin-top:4px;box-sizing:border-box;padding:6px 10px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;" />
+                </label>`;
+              }).join("")}
+            </div>
+          </div>
+          <div class="vno-dialog-footer">
+            <button class="vno-btn vno-dialog-cancel-btn">Hủy bỏ</button>
+            <button class="vno-btn vno-btn-primary vno-dialog-ok-btn">Áp dụng</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+      overlay.querySelector(`#vno-pagesetup-${focusField === "orientation" ? "orientation" : "size"}`)?.focus();
+
+      const finish = (result) => {
+        document.removeEventListener("keydown", onKeyDown);
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        resolve(result);
+      };
+
+      const readForm = () => ({
+        size: overlay.querySelector("#vno-pagesetup-size").value,
+        orientation: overlay.querySelector("#vno-pagesetup-orientation").value,
+        margins: {
+          top: Number(overlay.querySelector("#vno-pagesetup-margin-top").value) || 0,
+          bottom: Number(overlay.querySelector("#vno-pagesetup-margin-bottom").value) || 0,
+          left: Number(overlay.querySelector("#vno-pagesetup-margin-left").value) || 0,
+          right: Number(overlay.querySelector("#vno-pagesetup-margin-right").value) || 0
+        }
+      });
+
+      overlay.querySelector(".vno-dialog-ok-btn").addEventListener("click", () => finish(readForm()));
+      overlay.querySelector(".vno-dialog-cancel-btn").addEventListener("click", () => finish(null));
+      overlay.querySelector(".vno-dialog-close-btn").addEventListener("click", () => finish(null));
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) finish(null);
+      });
+
+      const onKeyDown = (e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          finish(null);
+        }
+      };
+      document.addEventListener("keydown", onKeyDown);
+    });
+  }
+
+  async _openPageSetup(focusField) {
+    const result = await this._showPageSetupDialog(focusField);
+    if (!result) return false;
+    this.pageSetup = result;
+    this._applyPageSetup();
+    this.isDirty = true;
+    return true;
   }
 
   /**
@@ -186,6 +322,15 @@ export class WriterAdapter {
       case "common.file.print":
         return this.print();
 
+      case "writer.page.margins":
+        return await this._openPageSetup("margins");
+
+      case "writer.page.size":
+        return await this._openPageSetup("size");
+
+      case "writer.page.orientation":
+        return await this._openPageSetup("orientation");
+
       default:
         return false;
     }
@@ -331,12 +476,24 @@ export class WriterAdapter {
   }
 
   /**
+   * Nội dung HTML thật sự gửi cho LibreOffice để lưu/xuất — có kèm `@page` CSS của
+   * Page Setup hiện tại, để khổ giấy/lề trong DOCX/PDF xuất ra khớp với canvas.
+   * Đặt `<style>` ở đầu body thay vì head vì bộ dispatch hiện chỉ truyền 1 chuỗi
+   * nội dung (xem `main.py: save_document_dialog` bọc `<body>{content}</body>`) —
+   * trình phân tích HTML của LibreOffice vẫn áp dụng đúng CSS ở vị trí này.
+   */
+  _contentForExport() {
+    const html = this.editorDom.innerHTML;
+    return `<style>${this._getPageSetupCss()}</style>${html}`;
+  }
+
+  /**
    * Lưu tài liệu thành tệp DOCX thật trên đĩa (qua LibreOffice headless engine).
    * V1: luôn mở hộp thoại chọn nơi lưu (chưa lưu ngầm vào đường dẫn cũ) — sẽ tối ưu ở bản sau.
    */
   async save() {
     this.documentContent = this.editorDom.innerHTML;
-    const result = await globalUnoBridge.saveRealFile("writer", this.documentContent, "docx", this.sourceFileName);
+    const result = await globalUnoBridge.saveRealFile("writer", this._contentForExport(), "docx", this.sourceFileName);
     if (result.status === "ok") {
       this.isDirty = false;
       await showAlertDialog({ title: "Đã lưu", message: result.message, type: "success" });
@@ -370,7 +527,7 @@ export class WriterAdapter {
 
   async exportPdf() {
     this.documentContent = this.editorDom.innerHTML;
-    const result = await globalUnoBridge.exportRealPdf("writer", this.documentContent, this.sourceFileName);
+    const result = await globalUnoBridge.exportRealPdf("writer", this._contentForExport(), this.sourceFileName);
     if (result.status === "ok") {
       await showAlertDialog({ title: "Đã xuất PDF", message: result.message, type: "success" });
       return true;
