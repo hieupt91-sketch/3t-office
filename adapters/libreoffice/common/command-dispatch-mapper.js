@@ -70,6 +70,9 @@ export const VN_TO_UNO_MAP = {
   "writer.header.insert": ".uno:InsertPageHeader",
   "writer.footer.insert": ".uno:InsertPageFooter",
 
+  // Writer / Review
+  "writer.comment.insert": ".uno:InsertAnnotation",
+
   // Writer / Page Setup (Bố cục)
   "writer.page.margins": ".uno:PageDialog",
   "writer.page.orientation": ".uno:PageDialog",

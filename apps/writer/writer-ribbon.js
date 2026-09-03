@@ -182,6 +182,12 @@ export const WRITER_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "ai.assistant.grammarCheck", isLarge: true }
         ]
+      },
+      {
+        label: "Ghi chú",
+        items: [
+          { type: "button", commandId: "writer.comment.insert", isLarge: true }
+        ]
       }
     ]
   },
