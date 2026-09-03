@@ -173,6 +173,52 @@
   z-index: 5;
 }
 
+.vno-grid-cell.is-range-selected { background-image: linear-gradient(rgba(15, 109, 56, 0.08), rgba(15, 109, 56, 0.08)); }
+
+.vno-grid-cell.has-validation::after {
+  content: "▼";
+  position: absolute;
+  right: 3px;
+  top: 4px;
+  color: #475569;
+  font-size: 9px;
+}
+
+.vno-grid-cell.is-validation-invalid {
+  box-shadow: inset 0 0 0 2px #dc2626;
+}
+
+.vno-grid-cell.is-validation-invalid::before {
+  content: "!";
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  color: #dc2626;
+  font-weight: 800;
+}
+
+.vno-cell-validation-select {
+  position: absolute;
+  inset: 1px;
+  z-index: 8;
+  width: calc(100% - 2px);
+  border: 1px solid #0f6d38;
+  background: #fff;
+  font: inherit;
+}
+
+.vno-sheet-rule-dialog .vno-dialog-box { width: 460px; }
+.vno-sheet-rule-dialog .vno-dialog-body { display: grid; gap: 12px; }
+.vno-sheet-rule-dialog label { display: grid; gap: 5px; color: #334155; font-size: 12px; font-weight: 600; }
+.vno-sheet-rule-dialog input,
+.vno-sheet-rule-dialog select { border: 1px solid #94a3b8; border-radius: 4px; padding: 7px 8px; font: inherit; }
+.vno-sheet-rule-dialog input:focus,
+.vno-sheet-rule-dialog select:focus { outline: 2px solid #86efac; border-color: #0f6d38; }
+.vno-rule-range { margin: 0; padding: 8px; border-radius: 4px; background: #f1f5f9; font-size: 12px; }
+.vno-rule-error { min-height: 16px; color: #b91c1c; font-size: 12px; }
+#vno-dv-number-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+#vno-dv-number-row:not([hidden]) { display: grid; }
+
 /* Virtualization Spacers */
 .vno-grid-spacer-top td,
 .vno-grid-spacer-bottom td {

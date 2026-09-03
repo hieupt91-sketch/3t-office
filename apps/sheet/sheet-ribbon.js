@@ -88,6 +88,8 @@ export const SHEET_RIBBON_TABS = [
               { type: "button", commandId: "sheet.data.sortAsc" },
               { type: "button", commandId: "sheet.data.sortDesc" },
               { type: "button", commandId: "sheet.data.filter" },
+              { type: "button", commandId: "sheet.format.conditional" },
+              { type: "button", commandId: "sheet.data.validation" },
               { type: "button", commandId: "sheet.view.freezePanes" }
             ]
           }
@@ -118,6 +120,8 @@ export const SHEET_RIBBON_TABS = [
           { type: "button", commandId: "sheet.data.sortAsc", isLarge: true },
           { type: "button", commandId: "sheet.data.sortDesc", isLarge: true },
           { type: "button", commandId: "sheet.data.filter", isLarge: true },
+          { type: "button", commandId: "sheet.data.validation", isLarge: true },
+          { type: "button", commandId: "sheet.format.conditional", isLarge: true },
           { type: "button", commandId: "sheet.view.freezePanes", isLarge: true }
         ]
       }
