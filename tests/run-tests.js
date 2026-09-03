@@ -12,6 +12,8 @@ import { runI18nTests } from "./unit/i18n.test.js";
 import { runSyntaxCheckTests } from "./unit/syntax-check.test.js";
 import { runHtmlSmokeTests } from "./smoke/html-smoke.test.js";
 import { runAiServiceTests } from "./unit/ai-service.test.js";
+import { runSheetFileIoTests } from "./unit/sheet-file-io.test.js";
+import { runSlidesFileIoTests } from "./unit/slides-file-io.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -31,7 +33,9 @@ async function runAll() {
     { title: "6. Smoke Tests — Suite & Vietnamese Unicode", runner: runSuiteSmokeTests },
     { title: "7. Syntax & Codebase Integrity — node --check", runner: runSyntaxCheckTests },
     { title: "8. Smoke Tests — Application Entrypoints & index.html Runtime", runner: runHtmlSmokeTests },
-    { title: "9. Unit Tests — AI Service Provider Orchestration", runner: runAiServiceTests }
+    { title: "9. Unit Tests — AI Service Provider Orchestration", runner: runAiServiceTests },
+    { title: "10. Unit Tests — VN Sheet Real File I/O & CSV Adapter", runner: runSheetFileIoTests },
+    { title: "11. Unit Tests — VN Slides Real File I/O & FODP Adapter", runner: runSlidesFileIoTests }
   ];
 
   for (const suite of suites) {
