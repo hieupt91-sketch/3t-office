@@ -78,6 +78,9 @@ export const WRITER_COMMANDS = [
   { id: "writer.header.insert", category: "insert", label: "Đầu trang", icon: "headerFooter", tooltip: "Chèn tiêu đề đầu trang (Header)" },
   { id: "writer.footer.insert", category: "insert", label: "Chân trang", icon: "headerFooter", tooltip: "Chèn tiêu đề chân trang (Footer)" },
 
+  // Đánh giá (Review)
+  { id: "writer.comment.insert", category: "review", label: "Thêm ghi chú", icon: "textBox", tooltip: "Thêm ghi chú vào đoạn văn bản đang chọn" },
+
   // Bố trí trang (Layout)
   { id: "writer.page.margins", category: "layout", label: "Căn lề", icon: "margins", tooltip: "Thiết lập lề tiêu chuẩn văn bản Việt Nam" },
   { id: "writer.page.orientation", category: "layout", label: "Hướng giấy", icon: "orientation", tooltip: "Khổ giấy dọc hoặc ngang" },

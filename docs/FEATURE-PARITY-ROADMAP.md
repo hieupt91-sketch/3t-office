@@ -36,7 +36,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] Page Setup: khổ giấy, lề, hướng trang (Portrait/Landscape) — áp dụng canvas + export PDF/DOCX thật
 - [x] Styles (Heading 1/2/3, Normal...) — bảng chọn kiểu đoạn văn nhanh
 - [ ] Track Changes (theo dõi thay đổi) — tối thiểu: bật/tắt, hiển thị insert/delete có màu
-- [ ] Comments (ghi chú lề trang)
+- [x] Comments (ghi chú lề trang) — Codex làm: bôi đen chọn text → `<mark data-comment-id>` anchor + panel bên phải điều hướng 2 chiều, xóa đồng bộ. Giới hạn đã biết: session-only, không ghi vào `word/comments.xml` khi xuất DOCX (đã strip metadata khỏi export, không giả vờ đã lưu).
 - [ ] Print Preview thật trước khi in
 - [x] Word/Character count đầy đủ (đã có đếm từ realtime — mở rộng: ký tự, đoạn, trang)
 - [ ] Undo/Redo có lịch sử sâu (không chỉ execCommand undo của trình duyệt)
