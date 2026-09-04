@@ -394,6 +394,23 @@ export const viStrings = {
     hyperlink: {
       title: "Chèn Liên Kết (Hyperlink)",
       message: "Nhập địa chỉ liên kết (URL):"
+    },
+    toc: {
+      title: "MỤC LỤC",
+      updateBtn: "🔄 Cập nhật",
+      updateTooltip: "Cập nhật mục lục",
+      deleteTooltip: "Xóa mục lục",
+      empty: "Chưa có tiêu đề nào trong tài liệu. Hãy định dạng các đoạn văn bằng Kiểu dáng Heading 1, 2 hoặc 3 rồi cập nhật lại mục lục."
+    },
+    notes: {
+      footnotePlaceholder: "Nhập nội dung chú thích...",
+      endnotePlaceholder: "Nhập nội dung chú thích cuối...",
+      endnotesTitle: "CHÚ THÍCH CUỐI TÀI LIỆU",
+      deleteFootnote: "Xóa chú thích",
+      deleteEndnote: "Xóa chú thích cuối",
+      jumpToNote: "Nhấp để chuyển đến chú thích",
+      jumpToEndnote: "Nhấp để chuyển đến chú thích cuối",
+      jumpToRef: "Chuyển tới vị trí tham chiếu"
     }
   }
 };
