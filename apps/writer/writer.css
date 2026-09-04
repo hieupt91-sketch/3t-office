@@ -661,8 +661,18 @@
 /* Ẩn các thanh công cụ khi in thật */
 @media print {
   .vno-print-preview-toolbar,
-  .vno-print-preview-overlay {
+  .vno-print-preview-overlay,
+  .vno-writer-ruler,
+  .vno-writer-comments-panel {
     display: none !important;
+  }
+  .vno-writer-viewport {
+    overflow: visible !important;
+    height: auto !important;
+  }
+  .vno-writer-page {
+    box-shadow: none !important;
+    margin: 0 !important;
   }
 }
 

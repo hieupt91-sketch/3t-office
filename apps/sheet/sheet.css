@@ -456,3 +456,15 @@ tr.is-filtered-out {
 .vno-pivot-field { display:grid; grid-template-columns:minmax(120px,1fr) repeat(3,auto) 105px; gap:10px; align-items:center; padding:7px; border-bottom:1px solid #e2e8f0; }
 .vno-pivot-field:last-child { border-bottom:0; }
 .vno-name-manager{display:flex;flex-direction:column;gap:12px;min-width:520px}.vno-name-list{border:1px solid var(--vno-border-default);border-radius:6px;max-height:220px;overflow:auto}.vno-name-row{display:grid;grid-template-columns:1.2fr 1fr 1fr;width:100%;padding:8px 10px;border:0;border-bottom:1px solid var(--vno-border-default);background:transparent;text-align:left;cursor:pointer}.vno-name-row:hover,.vno-name-row.is-selected{background:#e7f4ec}.vno-name-actions{display:flex;gap:8px}.vno-name-form{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.vno-name-form label{display:flex;flex-direction:column;gap:4px;font-size:12px}.vno-name-form input,.vno-name-form select{padding:7px;border:1px solid var(--vno-border-default);border-radius:4px}.vno-name-empty{padding:18px;text-align:center;color:var(--vno-text-secondary)}
+
+/* In tài liệu (window.print()) — ẩn formula bar & thanh tab sheet, chỉ in lưới dữ liệu */
+@media print {
+  .vno-formula-bar,
+  .vno-sheet-tab-bar {
+    display: none !important;
+  }
+  .vno-sheet-container {
+    overflow: visible !important;
+    height: auto !important;
+  }
+}

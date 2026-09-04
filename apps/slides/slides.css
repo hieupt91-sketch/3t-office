@@ -815,3 +815,14 @@
 .vno-diagram-count { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; font-weight: 600; color: #334155; }
 .vno-diagram-count input { width: 76px; padding: 7px 9px; border: 1px solid #94a3b8; border-radius: 5px; font: inherit; }
 
+/* In tài liệu (window.print()) — ẩn dải thumbnail điều hướng, chỉ in slide đang xem */
+@media print {
+  .vno-slide-navigator {
+    display: none !important;
+  }
+  .vno-slide-canvas {
+    overflow: visible !important;
+    height: auto !important;
+  }
+}
+

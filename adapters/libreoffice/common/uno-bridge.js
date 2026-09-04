@@ -10,7 +10,6 @@ export class UnoBridge {
   constructor() {
     this.isConnected = false;
     this.activeDocument = null;
-    this.nativeBridge = null; // window.chrome?.webview?.hostObjects?.unoBridge hoặc Native IPC
     this.desktopApi = null; // window.pywebview.api — cầu nối Python thật tới LibreOffice headless
     this.hasRealEngine = false;
     this._listeners = new Map();
@@ -18,19 +17,33 @@ export class UnoBridge {
 
   /**
    * Khởi tạo kết nối tới LibreOffice Core Engine.
-   * Thứ tự ưu tiên: WebView2 Native Host > Python/pywebview Bridge (thật) > không có engine.
-   * Không giả vờ "đã kết nối" khi không có engine thật — UI phải biết sự thật để báo người dùng đúng.
+   * Cầu nối thật duy nhất hiện có là Python/pywebview Bridge (`main.py`) — KHÔNG có host
+   * native WebView2 nào được project này đăng ký (`AddHostObjectToScript` không tồn tại
+   * ở đâu trong repo). Trước đây có nhánh kiểm tra `window.chrome.webview.hostObjects.unoBridge`
+   * tưởng là "phát hiện native host", nhưng `window.chrome.webview` LUÔN tồn tại trên mọi
+   * trang chạy trong WebView2 (chính là backend mà pywebview dùng trên Windows — không liên
+   * quan gì tới việc có native host thật hay không), và `hostObjects.<tên bất kỳ>` của
+   * WebView2 luôn trả về một proxy callable KHÔNG BAO GIỜ throw kể cả khi chưa có host object
+   * nào tên đó được đăng ký thật. Kết quả: nhánh này LUÔN "thành công" giả trên Windows, gán
+   * `isConnected = true` mà KHÔNG BAO GIỜ gán `desktopApi`, khiến nhánh pywebview thật (bên
+   * dưới) không bao giờ chạy tới — đây chính là lỗi thật khiến Mở/Lưu/Xuất PDF luôn báo "chỉ
+   * khả dụng trong Desktop App" NGAY TRONG CHÍNH Desktop App thật, xác nhận bằng cách kết nối
+   * Playwright qua CDP thẳng vào cửa sổ ứng dụng thật đang chạy. Không giả vờ "đã kết nối" khi
+   * không có engine thật — UI phải biết sự thật để báo người dùng đúng.
    */
   async init() {
-    if (typeof window !== "undefined" && window.chrome && window.chrome.webview) {
-      try {
-        this.nativeBridge = window.chrome.webview.hostObjects.unoBridge;
-        this.isConnected = true;
-        this.hasRealEngine = true;
-        console.log("[UnoBridge] Đã kết nối với Native LibreOffice Core qua WebView2 Host.");
-      } catch (e) {
-        console.warn("[UnoBridge] Không kết nối được Native Host WebView2:", e);
-      }
+    if (!this.isConnected && typeof window !== "undefined") {
+      // pywebview chèn `window.pywebview.api` KHÔNG đồng bộ, thường VÀI TRĂM MILISECONDS
+      // sau khi trang bắt đầu chạy script (đặc biệt trên backend WebView2 của Windows).
+      // `bootstrapPlatform()` gọi `init()` ngay từ dòng script đầu tiên của index.html —
+      // nếu kiểm tra `window.pywebview.api` đồng bộ như trước, gần như luôn thua cuộc đua
+      // và rơi vào nhánh "không có engine" VĨNH VIỄN cho cả phiên, dù app Desktop thật đang
+      // chạy và LibreOffice engine thật hoàn toàn sẵn sàng — đây là lỗi thật khiến Mở/Lưu/Xuất
+      // PDF luôn báo "chỉ khả dụng trong Desktop App" ngay trong chính Desktop App. pywebview
+      // bắn sự kiện `pywebviewready` trên `window` ngay khi cầu nối sẵn sàng; chờ sự kiện đó
+      // (có timeout để không treo UI khi chạy trong trình duyệt thường, nơi sự kiện này
+      // không bao giờ bắn).
+      await this._waitForPywebviewBridge();
     }
 
     if (!this.isConnected && typeof window !== "undefined" && window.pywebview && window.pywebview.api) {
@@ -57,6 +70,27 @@ export class UnoBridge {
     }
 
     this._bindAllStandardCommands();
+  }
+
+  /**
+   * Chờ pywebview chèn xong `window.pywebview.api`, tối đa `timeoutMs`.
+   * Trả về ngay nếu đã sẵn sàng, hoặc nếu không chạy trong pywebview (trình duyệt
+   * thường/Playwright) thì sự kiện sẽ không bao giờ bắn — timeout đảm bảo không treo UI.
+   */
+  _waitForPywebviewBridge(timeoutMs = 3000) {
+    return new Promise((resolve) => {
+      if (window.pywebview && window.pywebview.api) return resolve();
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        window.removeEventListener("pywebviewready", onReady);
+        resolve();
+      };
+      const onReady = () => finish();
+      window.addEventListener("pywebviewready", onReady, { once: true });
+      setTimeout(finish, timeoutMs);
+    });
   }
 
   /**
@@ -128,10 +162,6 @@ export class UnoBridge {
    * @param {string} [vnCmdId] 
    */
   async dispatch(unoUrl, args, vnCmdId) {
-    if (this.nativeBridge) {
-      return await this.nativeBridge.dispatch(unoUrl, JSON.stringify(args || {}));
-    }
-
     // Virtual / Embedded Dispatch Handler (Đảm bảo hoạt động trơn tru trong mọi môi trường)
     if (this.activeDocument) {
       return await this.activeDocument.handleDispatch(unoUrl, args, vnCmdId);

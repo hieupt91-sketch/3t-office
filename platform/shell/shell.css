@@ -598,3 +598,27 @@ body {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ==========================================================================
+   6. IN TÀI LIỆU (window.print()) — ẩn toàn bộ khung ứng dụng dùng chung
+   ========================================================================== */
+/* `common.file.print` gọi thẳng `window.print()` của trình duyệt/WebView2 — nếu
+   không có quy tắc @media print, toàn bộ khung ứng dụng (topbar, ribbon, statusbar,
+   AI sidebar) cũng bị in ra cùng nội dung tài liệu, cho kết quả in sai/xấu hoàn toàn.
+   Mỗi app còn có panel riêng (Writer: ruler & comments panel; Sheet: formula bar &
+   sheet tabs; Slides: navigator/thumbnail rail) được ẩn thêm trong CSS riêng của app. */
+@media print {
+  .vno-topbar,
+  .vno-ribbon,
+  .vno-statusbar,
+  .vno-ai-sidebar,
+  .vno-backstage-modal,
+  #vno-keytips-overlay {
+    display: none !important;
+  }
+  .vno-workspace,
+  .vno-editor-container {
+    height: auto !important;
+    overflow: visible !important;
+  }
+}
