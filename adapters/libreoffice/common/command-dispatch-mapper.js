@@ -37,6 +37,8 @@ export const VN_TO_UNO_MAP = {
 
   // Writer / Text Formatting
   "writer.text.bold": ".uno:Bold",
+  "writer.nav.docStart": ".uno:StartOfDocument",
+  "writer.nav.docEnd": ".uno:EndOfDocument",
   "writer.text.italic": ".uno:Italic",
   "writer.text.underline": ".uno:Underline",
   "writer.text.strike": ".uno:Strikeout",
@@ -114,6 +116,8 @@ export const VN_TO_UNO_MAP = {
 
   // Sheet / Calc
   "sheet.cell.edit": ".uno:SetInputMode",
+  "sheet.nav.home": ".uno:GoToStart",
+  "sheet.nav.end": ".uno:GoToEndOfData",
   "sheet.select.column": ".uno:SelectColumn",
   "sheet.select.row": ".uno:SelectRow",
   "sheet.cell.bold": ".uno:Bold",

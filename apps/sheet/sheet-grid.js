@@ -1750,6 +1750,29 @@ export class SheetGridController {
     }
   }
 
+  navigateHome() {
+    this.selectCell("A", 1);
+    if (this.viewport) this.viewport.scrollLeft = 0;
+    return true;
+  }
+
+  navigateToDataEnd() {
+    let maxRow = 1;
+    let maxCol = 1;
+    for (const [coord, cell] of this.cellsData.entries()) {
+      if (!cell || (cell.val === "" && cell.formula === "")) continue;
+      const match = /^([A-Z]+)(\d+)$/i.exec(coord);
+      if (!match) continue;
+      maxRow = Math.max(maxRow, Number(match[2]));
+      maxCol = Math.max(maxCol, this._columnNumber(match[1].toUpperCase()));
+    }
+    const col = this._columnLabel(maxCol);
+    this.selectCell(col, maxRow);
+    const target = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${col}${maxRow}"]`);
+    target?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    return true;
+  }
+
   setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
     const key = `${col}${row}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };

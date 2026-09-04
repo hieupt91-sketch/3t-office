@@ -84,6 +84,10 @@ export const viStrings = {
     diagramTitle: "Chèn sơ đồ", diagramHint: "Chọn kiểu sơ đồ và số lượng hộp. Bạn có thể sửa chữ trực tiếp sau khi chèn.", diagramNodeCount: "Số lượng hộp", diagramInsert: "Chèn sơ đồ", diagramProcess: "Danh sách theo bước", diagramCycle: "Quy trình theo chu kỳ", diagramHierarchy: "Phân cấp tổ chức", diagramList: "Danh sách phân cấp", diagramStep: "Bước {number}", diagramItem: "Mục {number}", diagramRoot: "Lãnh đạo", diagramChild: "Bộ phận {number}"
   },
   commands: {
+    "writer.nav.docStart": { label: "Đầu tài liệu", tooltip: "Đến đầu tài liệu (Ctrl+Home)" },
+    "writer.nav.docEnd": { label: "Cuối tài liệu", tooltip: "Đến cuối tài liệu (Ctrl+End)" },
+    "sheet.nav.home": { label: "Ô đầu tiên", tooltip: "Đến ô A1 (Ctrl+Home)" },
+    "sheet.nav.end": { label: "Ô cuối có dữ liệu", tooltip: "Đến ô cuối cùng có dữ liệu (Ctrl+End)" },
     "common.file.new": { label: "Tạo mới", tooltip: "Tạo tài liệu mới (Ctrl+N)" },
     "common.file.open": { label: "Mở tệp", tooltip: "Mở tài liệu có sẵn (Ctrl+O)" },
     "common.file.save": { label: "Lưu", tooltip: "Lưu tài liệu hiện tại (Ctrl+S)" },

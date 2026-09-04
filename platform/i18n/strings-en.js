@@ -85,6 +85,10 @@ export const enStrings = {
     diagramTitle: "Insert Diagram", diagramHint: "Choose a diagram type and number of boxes. You can edit text directly after insertion.", diagramNodeCount: "Number of boxes", diagramInsert: "Insert Diagram", diagramProcess: "Step Process", diagramCycle: "Cycle Process", diagramHierarchy: "Organization Hierarchy", diagramList: "Hierarchical List", diagramStep: "Step {number}", diagramItem: "Item {number}", diagramRoot: "Leader", diagramChild: "Department {number}"
   },
   commands: {
+    "writer.nav.docStart": { label: "Document Start", tooltip: "Go to the start of the document (Ctrl+Home)" },
+    "writer.nav.docEnd": { label: "Document End", tooltip: "Go to the end of the document (Ctrl+End)" },
+    "sheet.nav.home": { label: "First Cell", tooltip: "Go to cell A1 (Ctrl+Home)" },
+    "sheet.nav.end": { label: "Last Data Cell", tooltip: "Go to the last cell containing data (Ctrl+End)" },
     "common.file.new": { label: "New", tooltip: "Create a new document (Ctrl+N)" },
     "common.file.open": { label: "Open", tooltip: "Open an existing document (Ctrl+O)" },
     "common.file.save": { label: "Save", tooltip: "Save the current document (Ctrl+S)" },

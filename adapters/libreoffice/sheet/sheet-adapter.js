@@ -1022,6 +1022,12 @@ export class SheetAdapter {
     if (!this.grid) return false;
 
     switch (vnCmdId) {
+      case "sheet.nav.home":
+        return this.grid.navigateHome();
+
+      case "sheet.nav.end":
+        return this.grid.navigateToDataEnd();
+
       case "sheet.cell.edit":
         if (typeof this.grid._focusFormulaInputAtEnd === "function") {
           this.grid._focusFormulaInputAtEnd();

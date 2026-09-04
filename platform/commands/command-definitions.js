@@ -44,6 +44,8 @@ export const COMMON_COMMANDS = [
 ];
 
 export const WRITER_COMMANDS = [
+  { id: "writer.nav.docStart", category: "nav", label: "Đầu tài liệu", shortcut: "Ctrl+Home", icon: "pageBreak", tooltip: "Đến đầu tài liệu (Ctrl+Home)" },
+  { id: "writer.nav.docEnd", category: "nav", label: "Cuối tài liệu", shortcut: "Ctrl+End", icon: "pageBreak", tooltip: "Đến cuối tài liệu (Ctrl+End)" },
   // Định dạng ký tự (Font / Character)
   { id: "writer.text.bold", category: "format", label: "Đậm", shortcut: "Ctrl+B", icon: "bold", tooltip: "Chữ đậm (Ctrl+B)", isToggle: true },
   { id: "writer.text.italic", category: "format", label: "Nghiêng", shortcut: "Ctrl+I", icon: "italic", tooltip: "Chữ nghiêng (Ctrl+I)", isToggle: true },
@@ -129,6 +131,8 @@ export const WRITER_COMMANDS = [
 ];
 
 export const SHEET_COMMANDS = [
+  { id: "sheet.nav.home", category: "nav", label: "Ô đầu tiên", shortcut: "Ctrl+Home", icon: "table", tooltip: "Đến ô A1 của trang tính (Ctrl+Home)" },
+  { id: "sheet.nav.end", category: "nav", label: "Ô cuối có dữ liệu", shortcut: "Ctrl+End", icon: "table", tooltip: "Đến ô cuối cùng có dữ liệu (Ctrl+End)" },
   // Ô và phạm vi (Cell & Range)
   { id: "sheet.cell.edit", category: "cell", label: "Chỉnh sửa ô", shortcut: "F2", icon: "textBox", tooltip: "Chỉnh sửa ô đang chọn (F2)" },
   { id: "sheet.select.column", category: "cell", label: "Chọn cột", shortcut: "Ctrl+Space", icon: "table", tooltip: "Chọn toàn bộ cột hiện tại (Ctrl+Space)" },
