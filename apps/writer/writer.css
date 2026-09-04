@@ -1141,6 +1141,8 @@ sup.vno-endnote-ref:hover {
   align-items: center;
   overflow-x: auto;
   padding: 2px;
+  max-width: 240px;
+  scrollbar-width: thin;
 }
 
 .vno-style-strip-item {
