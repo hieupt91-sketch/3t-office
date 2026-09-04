@@ -67,6 +67,7 @@ export const FUNCTION_CATALOG = [
   ,{ name: "RATE", category: "Tài chính", syntax: "RATE(nper, pmt, pv, [fv], [type], [guess])", desc: "Tính lãi suất mỗi kỳ của niên kim; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ), guess là giá trị dự đoán ban đầu." }
   ,{ name: "NPER", category: "Tài chính", syntax: "NPER(rate, pmt, pv, [fv], [type])", desc: "Tính số kỳ cần thiết để hoàn tất khoản vay hoặc đạt mục tiêu đầu tư với khoản thanh toán cố định; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
   ,{ name: "IPMT", category: "Tài chính", syntax: "IPMT(rate, per, nper, pv, [fv], [type])", desc: "Tính phần tiền lãi trong khoản thanh toán tại kỳ per; per phải từ 1 đến nper, type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
+  ,{ name: "PPMT", category: "Tài chính", syntax: "PPMT(rate, per, nper, pv, [fv], [type])", desc: "Tính phần tiền gốc trong khoản thanh toán tại kỳ per; per phải từ 1 đến nper, type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
   ,{ name: "SLN", category: "Tài chính", syntax: "SLN(cost, salvage, life)", desc: "Tính khấu hao đường thẳng mỗi kỳ từ nguyên giá, giá trị thu hồi và thời gian sử dụng." }
   ,{ name: "DB", category: "Tài chính", syntax: "DB(cost, salvage, life, period, [month])", desc: "Tính khấu hao theo số dư giảm dần cố định; month là số tháng trong năm đầu tiên (mặc định 12)." }
 ];
@@ -629,6 +630,16 @@ export class FormulaEngine {
         const balance = -(pv * elapsedFactor + payment * (1 + rate * type) * (elapsedFactor - 1) / rate);
         const interest = type === 1 ? balance * rate / (1 + rate) : balance * rate;
         return Number.isFinite(interest) ? interest : "#NUM!";
+      }
+
+      case "PPMT": {
+        if (args.length < 4) return "#VALUE!";
+        const payment = this._executeFunction("PMT", [args[0], args[2], args[3], args[4], args[5]]);
+        if (typeof payment !== "number") return payment;
+        const interest = this._executeFunction("IPMT", args);
+        if (typeof interest !== "number") return interest;
+        const principal = payment - interest;
+        return Number.isFinite(principal) ? principal : "#NUM!";
       }
 
       case "SLN": {

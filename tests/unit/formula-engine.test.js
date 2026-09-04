@@ -205,5 +205,19 @@ export async function runFormulaEngineTests() {
           engine.evaluate("=IPMT(0.01,13,12,1000)") === "#NUM!"
   });
 
+  // 19. PPMT — cùng khoản vay 2.000; phần gốc kỳ đầu bằng PMT trừ IPMT.
+  // Excel: =PPMT(10%/12,1,2*12,2000) -> -75,6231860083666
+  const ppmtRes = engine.evaluate("=PPMT(0.008333333333333333,1,24,2000)");
+  const ppmtZeroRateRes = engine.evaluate("=PPMT(0,5,10,1000)");
+  const matchingPmtRes = engine.evaluate("=PMT(0.008333333333333333,24,2000)");
+  results.push({
+    name: "Financial PPMT: đúng phần gốc Excel và luôn thỏa PPMT = PMT - IPMT",
+    pass: approximatelyEqual(ppmtRes, -75.62318600836664, 1e-10) &&
+          approximatelyEqual(ppmtZeroRateRes, -100) &&
+          approximatelyEqual(ppmtRes, matchingPmtRes - ipmtRes, 1e-12) &&
+          engine.evaluate("=PPMT(0.01,0,12,1000)") === "#NUM!" &&
+          engine.evaluate("=PPMT(0.01,13,12,1000)") === "#NUM!"
+  });
+
   return results;
 }
