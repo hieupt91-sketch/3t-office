@@ -845,8 +845,18 @@ export class SlidesCanvasController {
           const startEditing = (initialText) => {
             if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
             textEl.contentEditable = "true";
-            textEl.focus();
             if (initialText !== undefined) textEl.textContent = initialText;
+            textEl.focus();
+            if (initialText !== undefined) {
+              // Replacing textContent after focus resets the caret to the start in Chromium.
+              // Put it after the seed character so click-then-type preserves keyboard order.
+              const selection = window.getSelection();
+              const range = document.createRange();
+              range.selectNodeContents(textEl);
+              range.collapse(false);
+              selection.removeAllRanges();
+              selection.addRange(range);
+            }
           };
           textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.textContent));
           textEl.addEventListener("blur", () => {
