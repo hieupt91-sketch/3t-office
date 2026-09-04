@@ -14,14 +14,43 @@ export class SlidesAdapter {
     this.sourceFileName = "TrinhChieu";
   }
 
+  newDocument() {
+    this.sourceFileName = "TrinhChieu";
+    this.isDirty = false;
+    if (this.canvas?.resetToBlank) {
+      this.canvas.resetToBlank("BẢN TRÌNH CHIẾU MỚI");
+    }
+    return true;
+  }
+
+  closeDocument() {
+    return this.newDocument();
+  }
+
   attach() {
     globalUnoBridge.attachDocument(this);
     // common.edit.undo/redo dùng chung 1 handler toàn Suite qua Command Bus — mỗi app
     // (Writer/Sheet/Slides) PHẢI tự bindHandler() lại khi active, nếu không app kích hoạt
     // trước (mặc định Writer) sẽ chiếm vĩnh viễn phím Ctrl+Z/Ctrl+Y cho mọi app khác.
     // (Lỗi thật đã xảy ra: Ctrl+Z trong Slides gọi nhầm WriterAdapter.undo().)
+    globalCommandBus.bindHandler("common.file.new", () => this.newDocument());
+    globalCommandBus.bindHandler("common.file.close", () => this.closeDocument());
     globalCommandBus.bindHandler("common.edit.undo", () => this.canvas.undo ? this.canvas.undo() : false);
     globalCommandBus.bindHandler("common.edit.redo", () => this.canvas.redo ? this.canvas.redo() : false);
+    globalCommandBus.bindHandler("common.edit.selectAll", () => {
+      if (typeof document !== "undefined") {
+        document.execCommand("selectAll", false, null);
+        return true;
+      }
+      return false;
+    });
+    globalCommandBus.bindHandler("common.edit.pastePlain", () => {
+      if (typeof document !== "undefined") {
+        document.execCommand("paste", false, null);
+        return true;
+      }
+      return false;
+    });
     globalCommandBus.bindHandler("slides.review.commentInsert", (options) => {
       options = options || {};
       return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
@@ -477,8 +506,14 @@ export class SlidesAdapter {
         return this.canvas.startSlideShow();
 
       case "slides.text.insert":
-        this.canvas.bodyEl.innerText += "\n• Khung văn bản mới bổ sung";
-        this.canvas._renderThumbnails();
+        if (this.canvas.bodyEl) {
+          this.canvas.bodyEl.innerText += "\n• Khung văn bản mới bổ sung";
+          const currentSlide = this.canvas.slides?.[this.canvas.currentSlideIndex];
+          if (currentSlide) {
+            currentSlide.body = this.canvas.bodyEl.innerText;
+          }
+        }
+        this.canvas._renderThumbnails?.();
         return true;
 
       case "slides.shape.insert":
@@ -517,6 +552,9 @@ export class SlidesAdapter {
       case "slides.media.insertAudio":
         return await this._insertMediaDialog("audio");
 
+      case "slides.review.commentInsert":
+        return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
+
       case "common.edit.cut":
         if (typeof document !== "undefined") document.execCommand("cut", false, null);
         return true;
@@ -529,11 +567,25 @@ export class SlidesAdapter {
         if (typeof document !== "undefined") document.execCommand("paste", false, null);
         return true;
 
+      case "common.edit.pastePlain":
+        if (typeof document !== "undefined") document.execCommand("paste", false, null);
+        return true;
+
+      case "common.edit.selectAll":
+        if (typeof document !== "undefined") document.execCommand("selectAll", false, null);
+        return true;
+
       case "common.edit.undo":
         return this.canvas.undo ? this.canvas.undo() : false;
 
       case "common.edit.redo":
         return this.canvas.redo ? this.canvas.redo() : false;
+
+      case "common.file.new":
+        return this.newDocument();
+
+      case "common.file.open":
+        return await this.open();
 
       case "common.file.save":
         return await this.save();
@@ -541,14 +593,14 @@ export class SlidesAdapter {
       case "common.file.saveAs":
         return await this.saveAs();
 
-      case "common.file.open":
-        return await this.open();
-
       case "common.file.exportPdf":
         return await this.exportPdf();
 
       case "common.file.print":
         return this.print();
+
+      case "common.file.close":
+        return this.closeDocument();
 
       default:
         return false;

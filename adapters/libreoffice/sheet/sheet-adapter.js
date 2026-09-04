@@ -19,9 +19,12 @@ export class SheetAdapter {
     // common.edit.undo/redo dùng chung 1 handler toàn Suite qua Command Bus — mỗi app
     // (Writer/Sheet/Slides) PHẢI tự bindHandler() lại khi active, nếu không app kích hoạt
     // trước (mặc định Writer) sẽ chiếm vĩnh viễn phím Ctrl+Z/Ctrl+Y cho mọi app khác.
-    // (Lỗi thật đã xảy ra: Ctrl+Z trong Sheet/Slides gọi nhầm WriterAdapter.undo().)
+    globalCommandBus.bindHandler("common.file.new", () => this.newDocument());
+    globalCommandBus.bindHandler("common.file.close", () => this.closeDocument());
     globalCommandBus.bindHandler("common.edit.undo", () => this.grid.undo ? this.grid.undo() : false);
     globalCommandBus.bindHandler("common.edit.redo", () => this.grid.redo ? this.grid.redo() : false);
+    globalCommandBus.bindHandler("common.edit.selectAll", () => this.grid.selectAll ? this.grid.selectAll() : false);
+    globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pasteIntoSelectedCell());
     globalCommandBus.bindHandler("sheet.format.conditional", () => this.grid.showConditionalFormattingDialog());
     globalCommandBus.bindHandler("sheet.data.validation", () => this.grid.showDataValidationDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
@@ -228,6 +231,22 @@ export class SheetAdapter {
   }
 
   /**
+   * Tạo tài liệu bảng tính mới trắng hoặc đóng bảng tính hiện tại.
+   */
+  async newDocument() {
+    if (this.grid && typeof this.grid.resetToBlank === "function") {
+      this.grid.resetToBlank();
+    }
+    this.sourceFileName = "BangTinh";
+    this.isDirty = false;
+    return true;
+  }
+
+  async closeDocument() {
+    return await this.newDocument();
+  }
+
+  /**
    * Lưu bảng tính thành tệp XLSX thật trên đĩa (qua LibreOffice headless engine).
    */
   async save() {
@@ -314,11 +333,15 @@ export class SheetAdapter {
       case "sheet.cell.borders":
         return this.grid.setStyle("border", "2px solid #0f172a");
 
-      case "sheet.cell.fillColor":
-        return this._pickAndApplyColor("backgroundColor", "#FFF200");
+      case "sheet.cell.fillColor": {
+        const color = (typeof args === "string" && args) ? args : (args?.color || "#FFF200");
+        return this.grid.setStyle("backgroundColor", color);
+      }
 
-      case "sheet.cell.textColor":
-        return this._pickAndApplyColor("color", "#DC2626");
+      case "sheet.cell.textColor": {
+        const color = (typeof args === "string" && args) ? args : (args?.color || "#DC2626");
+        return this.grid.setStyle("color", color);
+      }
 
       case "sheet.format.currencyVND":
         return this.grid.formatCurrentCellCurrencyVND();
@@ -344,8 +367,23 @@ export class SheetAdapter {
       case "sheet.formula.average":
         return this.grid.insertFormula("AVERAGE");
 
+      case "sheet.formula.nameManager":
+        return this.grid.showNameManager(args || {});
+
       case "sheet.formula.arrayEnter":
         return this.grid.enterArrayFormula(args || {});
+
+      case "sheet.format.conditional":
+        return this.grid.showConditionalFormattingDialog();
+
+      case "sheet.data.validation":
+        return this.grid.showDataValidationDialog();
+
+      case "sheet.data.pivotTable":
+        return this.grid.showPivotTableDialog();
+
+      case "sheet.data.pivotRefresh":
+        return this.grid.refreshPivotTable();
 
       case "sheet.chart.insert":
         this.grid.openChartBuilder();
@@ -353,6 +391,36 @@ export class SheetAdapter {
 
       case "sheet.view.freezePanes":
         return this.grid.toggleFreezePanes ? this.grid.toggleFreezePanes() : false;
+
+      case "sheet.view.zoomIn":
+        return this.grid.zoomIn ? this.grid.zoomIn() : false;
+
+      case "sheet.view.zoomOut":
+        return this.grid.zoomOut ? this.grid.zoomOut() : false;
+
+      case "sheet.view.zoomReset":
+        return this.grid.zoomReset ? this.grid.zoomReset() : false;
+
+      case "sheet.view.gridlines":
+        return this.grid.toggleGridlines ? this.grid.toggleGridlines() : false;
+
+      case "sheet.view.headings":
+        return this.grid.toggleHeadings ? this.grid.toggleHeadings() : false;
+
+      case "sheet.review.commentInsert":
+        return this.grid.showCommentDialog ? this.grid.showCommentDialog(args || {}) : false;
+
+      case "sheet.page.setPrintArea":
+        return this.grid.setPrintArea ? this.grid.setPrintArea(args || {}) : false;
+
+      case "sheet.page.clearPrintArea":
+        return this.grid.clearPrintArea ? this.grid.clearPrintArea(args || {}) : false;
+
+      case "sheet.page.insertPageBreak":
+        return this.grid.insertPageBreak ? this.grid.insertPageBreak(args || {}) : false;
+
+      case "sheet.page.removePageBreak":
+        return this.grid.removePageBreak ? this.grid.removePageBreak(args || {}) : false;
 
       case "sheet.data.sortAsc":
         return this.grid.sort ? this.grid.sort(this.grid.selectedCoord?.c || "A", true) : false;
@@ -372,11 +440,23 @@ export class SheetAdapter {
       case "common.edit.paste":
         return await this._pasteIntoSelectedCell();
 
+      case "common.edit.pastePlain":
+        return await this._pasteIntoSelectedCell();
+
+      case "common.edit.selectAll":
+        return this.grid.selectAll ? this.grid.selectAll() : false;
+
       case "common.edit.undo":
         return this.grid.undo ? this.grid.undo() : false;
 
       case "common.edit.redo":
         return this.grid.redo ? this.grid.redo() : false;
+
+      case "common.file.new":
+        return await this.newDocument();
+
+      case "common.file.close":
+        return await this.closeDocument();
 
       case "common.file.save":
         return await this.save();
