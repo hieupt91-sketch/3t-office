@@ -104,6 +104,18 @@ export class SheetGridController {
   mount() {
     this.container.innerHTML = "";
     this.container.className = "vno-sheet-container";
+    // `tabindex="-1"` làm container CÓ THỂ nhận focus qua .focus() (không lọt vào thứ tự
+    // Tab của trang) — bắt buộc phải có thì `selectCell()` mới gọi `.focus()` được. Nếu
+    // không, click chọn ô để lại `document.activeElement === document.body`, khiến TOÀN
+    // BỘ tương tác bàn phím của lưới (mũi tên, Enter, Tab, F2, gõ "=" để bắt đầu công
+    // thức, và mọi cách gõ trực tiếp giá trị vào ô) không bao giờ tới được listener
+    // `keydown` gắn trên `this.container` — vì sự kiện bàn phím chỉ nổi bọt (bubble) từ
+    // phần tử đang có focus, và `document.body` không phải hậu duệ của container. Lỗi
+    // thật nghiêm trọng nhất tìm được trong toàn phiên (04/09/2026) — xác nhận qua
+    // Playwright: gõ trực tiếp vào ô đã chọn hoàn toàn không có tác dụng gì, kể cả với
+    // `=PMT(...)` vừa được Codex thêm.
+    this.container.setAttribute("tabindex", "-1");
+    this.container.style.outline = "none";
 
     // 1. Formula Bar
     const fBar = document.createElement("div");
@@ -640,9 +652,30 @@ export class SheetGridController {
         e.preventDefault();
         this.formulaInput.value = "=";
         this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, "=");
-        this.focusFormulaInput();
+        this._focusFormulaInputAtEnd();
         if (this.autocomplete) {
           this.autocomplete.handleInput("=", 1);
+        }
+        return;
+      } else if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Xóa nội dung ô đang chọn ngay, đúng hành vi Excel thật (không cần vào chế độ sửa).
+        e.preventDefault();
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, "");
+        if (this.formulaInput) this.formulaInput.value = "";
+        return;
+      } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Gõ TRỰC TIẾP bất kỳ ký tự in được nào khi đang chọn ô (không bấm F2 trước) phải
+        // THAY THẾ nội dung ô đó và vào chế độ sửa — đúng hành vi cơ bản nhất của Excel.
+        // Trước đây handler này chỉ đặc cách riêng ký tự "=" (bắt đầu công thức) và bỏ
+        // qua MỌI ký tự khác (`else return` không điều kiện) — nghĩa là gõ số/chữ trực
+        // tiếp vào ô đã chọn hoàn toàn không có tác dụng gì (lỗi thật, phát hiện
+        // 04/09/2026 khi xác minh trực tiếp hàm PMT vừa thêm).
+        e.preventDefault();
+        this.formulaInput.value = e.key;
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.key);
+        this._focusFormulaInputAtEnd();
+        if (this.autocomplete) {
+          this.autocomplete.handleInput(e.key, 1);
         }
         return;
       } else return;
@@ -656,6 +689,23 @@ export class SheetGridController {
     if (this.formulaInput) {
       this.formulaInput.focus();
       this.formulaInput.select();
+    }
+  }
+
+  /**
+   * Focus ô công thức với con trỏ đặt Ở CUỐI nội dung hiện có, KHÔNG bôi đen chọn hết
+   * (khác `focusFormulaInput()`). Dùng khi vừa gán 1 ký tự mở đầu (vd "=" để bắt đầu
+   * công thức, hoặc ký tự đầu tiên khi gõ trực tiếp thay thế nội dung ô) — nếu dùng
+   * `focusFormulaInput()` (bôi đen chọn hết) ở đây, ký tự tiếp theo gõ vào sẽ THAY THẾ
+   * (xóa mất) ký tự vừa đặt thay vì nối tiếp theo sau, dẫn đến gõ "=PMT(...)" chỉ còn
+   * lại "PMT(...)" (mất dấu "="). Lỗi thật, phát hiện 04/09/2026.
+   */
+  _focusFormulaInputAtEnd() {
+    if (!this.formulaInput) return;
+    this.formulaInput.focus();
+    const end = this.formulaInput.value.length;
+    if (typeof this.formulaInput.setSelectionRange === "function") {
+      this.formulaInput.setSelectionRange(end, end);
     }
   }
 
@@ -754,6 +804,15 @@ export class SheetGridController {
 
     if (this.options.onSelect) {
       this.options.onSelect(coordKey, data, this._calculateStats());
+    }
+
+    // Đưa focus bàn phím thật về container lưới (trừ khi người dùng đang gõ trong ô công
+    // thức — vd luồng "=" trong _bindGridKeyboardNavigation() đã tự focus formulaInput
+    // ngay sau khi gọi setCellValue(), KHÔNG gọi lại selectCell() nên không bị giành lại
+    // focus). Không có dòng này, mũi tên/Enter/Tab/F2/gõ trực tiếp vào ô đã chọn hoàn
+    // toàn không có tác dụng (xem chú thích tabindex ở mount()).
+    if (typeof this.container.focus === "function" && document.activeElement !== this.formulaInput) {
+      this.container.focus({ preventScroll: true });
     }
   }
 
