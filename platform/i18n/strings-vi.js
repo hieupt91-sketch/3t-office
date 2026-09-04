@@ -115,6 +115,7 @@ export const viStrings = {
     ,"sheet.formula.sum": { label: "AutoSum", tooltip: "Hàm tính tổng tự động AutoSum (Alt+=)" }
     ,"sheet.formula.average": { label: "Trung bình", tooltip: "Hàm tính trung bình cộng" }
     ,"sheet.formula.nameManager": { label: "Quản lý tên", tooltip: "Tạo, sửa và xóa vùng được đặt tên" }
+    ,"sheet.formula.arrayEnter": { label: "Nhập công thức mảng", tooltip: "Nhập công thức mảng cho vùng đã chọn (Ctrl+Shift+Enter)" }
     ,"sheet.data.sortAsc": { label: "Sắp xếp A-Z", tooltip: "Sắp xếp dữ liệu tăng dần" }
     ,"sheet.data.sortDesc": { label: "Sắp xếp Z-A", tooltip: "Sắp xếp dữ liệu giảm dần" }
     ,"sheet.data.filter": { label: "Bộ lọc", tooltip: "Bật/tắt chế độ lọc AutoFilter (Ctrl+Shift+L)" }

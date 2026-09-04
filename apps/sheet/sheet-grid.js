@@ -39,7 +39,12 @@ export class SheetGridController {
     this.commentsBySheet = Object.fromEntries(this.sheets.map(name => [name, {}]));
     this.printAreaBySheet = Object.fromEntries(this.sheets.map(name => [name, null]));
     this.pageBreaksBySheet = Object.fromEntries(this.sheets.map(name => [name, { rows: [], cols: [] }]));
-    this.formulaEngine = new FormulaEngine(() => this.cellsData, name => this.resolveNamedRange(name));
+    this.formulaEngine = new FormulaEngine(
+      () => this.cellsData,
+      name => this.resolveNamedRange(name),
+      sheetName => this.sheetsData?.[sheetName] || null,
+      () => this.activeSheet
+    );
     this.autocomplete = new FormulaAutocompleteController(this);
 
     this.undoStack = [];
@@ -126,6 +131,12 @@ export class SheetGridController {
         return;
       }
       if (e.key === "Enter") {
+        if (e.ctrlKey && e.shiftKey) {
+          e.preventDefault();
+          this.autocomplete.closeAll();
+          globalCommandBus.execute("sheet.formula.arrayEnter");
+          return;
+        }
         this.autocomplete.closeAll();
         this.selectCell(this.selectedCoord.c, this.selectedCoord.r + 1);
       } else if (e.key === "Escape") {
@@ -434,6 +445,7 @@ export class SheetGridController {
       this.activeSheet = "";
       this.switchSheet(nextSheet);
     }
+    this._recalculateAllFormulas();
     if (recordUndo) this._recordHistory({ type: "sheet-delete", sheet: sheetName, index, snapshot, nextSheet });
     return true;
   }
@@ -670,6 +682,10 @@ export class SheetGridController {
     const key = `${col}${row}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
 
+    if (recordUndo && val === "" && item.isArrayFormula && item.arrayRange) {
+      return this._clearArrayFormula(item.arrayRange);
+    }
+
     if (recordUndo) {
       this._recordHistory({
         type: "cell",
@@ -710,22 +726,81 @@ export class SheetGridController {
   }
 
   _recalculateAllFormulas(excludeKey) {
-    for (const [k, itm] of this.cellsData.entries()) {
-      if (k !== excludeKey && itm.formula) {
-        const res = this.formulaEngine.evaluate(itm.formula);
+    const activeSheet = this.activeSheet;
+    for (const sheetName of this.sheets) {
+      const map = this.sheetsData[sheetName];
+      this.activeSheet = sheetName;
+      for (const [k, itm] of map.entries()) {
+      if ((sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
+        let res;
+        if (itm.isArrayFormula && itm.arrayRange) {
+          const results = this.formulaEngine.evaluateArray(itm.formula);
+          const coords = this.formulaEngine.expandRange(itm.arrayRange);
+          res = Array.isArray(results) ? results[coords.indexOf(k)] : results;
+        } else res = this.formulaEngine.evaluate(itm.formula);
         if (typeof res === "number" && !itm.formula.toLowerCase().includes("count")) {
           itm.val = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(res);
         } else {
           itm.val = res;
         }
-        const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`);
+        const dom = sheetName === activeSheet ? this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`) : null;
         if (dom) {
           dom.textContent = itm.val;
           this._applyRuleVisuals(dom, ...this._splitCoord(k));
         }
       }
+      }
     }
+    this.activeSheet = activeSheet;
     this._refreshVisibleRuleVisuals();
+  }
+
+  enterArrayFormula(options = {}) {
+    options = options || {};
+    const formula = String(options.formula ?? this.formulaInput?.value ?? "").trim();
+    if (!formula.startsWith("=")) return false;
+    const range = this._normalizeRange();
+    const coords = [];
+    for (let row = range.start.r; row <= range.end.r; row++) {
+      for (let col = this.cols.indexOf(range.start.c); col <= this.cols.indexOf(range.end.c); col++) coords.push(`${this.cols[col]}${row}`);
+    }
+    const result = this.formulaEngine.evaluateArray(formula);
+    const values = Array.isArray(result) ? result : [result];
+    if (values.length !== coords.length) return false;
+    const pending = this.undoStack[this.undoStack.length - 1];
+    const activeKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const consumesPending = pending?.type === "cell" && pending.sheet === this.activeSheet && `${pending.col}${pending.row}` === activeKey;
+    const before = coords.map(coord => {
+      const item = structuredClone(this.cellsData.get(coord) || null);
+      if (consumesPending && coord === activeKey) return pending.prevVal ? { val: pending.prevVal, formula: pending.prevVal.startsWith?.("=") ? pending.prevVal : "", style: item?.style || {} } : null;
+      return item;
+    });
+    if (consumesPending) this.undoStack.pop();
+    const arrayRange = this.getSelectedRangeLabel();
+    coords.forEach((coord, index) => {
+      const [col, row] = this._splitCoord(coord);
+      const old = this.cellsData.get(coord) || { style: {} };
+      this.cellsData.set(coord, { ...old, val: values[index], formula, isArrayFormula: true, arrayRange });
+      const dom = this.container.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) dom.textContent = values[index];
+    });
+    const after = coords.map(coord => structuredClone(this.cellsData.get(coord)));
+    this._recordHistory({ type: "array-formula", sheet: this.activeSheet, coords, before, after });
+    this.refreshCharts();
+    return true;
+  }
+
+  _clearArrayFormula(arrayRange) {
+    const coords = this.formulaEngine.expandRange(arrayRange);
+    const before = coords.map(coord => structuredClone(this.cellsData.get(coord) || null));
+    coords.forEach(coord => {
+      this.cellsData.delete(coord);
+      const dom = this.container.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) dom.textContent = "";
+    });
+    this._recordHistory({ type: "array-formula", sheet: this.activeSheet, coords, before, after: coords.map(() => null) });
+    this.refreshCharts();
+    return true;
   }
 
   insertFormula(funcName = "SUM") {
@@ -1105,6 +1180,11 @@ export class SheetGridController {
     } else if (action.type === "cell") {
       this.setCellValue(action.col, action.row, action[value], false);
       this.selectCell(action.col, action.row);
+    } else if (action.type === "array-formula") {
+      const snapshots = direction === "undo" ? action.before : action.after;
+      action.coords.forEach((coord, index) => snapshots[index] ? this.cellsData.set(coord, structuredClone(snapshots[index])) : this.cellsData.delete(coord));
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      this.selectCell(...this._splitCoord(action.coords[0]));
     } else if (action.type === "style") {
       this.selectedCoord = { c: action.col, r: action.row };
       this.setStyle(action.prop, action[value], false);
@@ -1709,7 +1789,7 @@ export class SheetGridController {
     const collection = scope === "workbook" ? this.namedRangesWorkbook : (this.namedRangesBySheet[sheet] ||= []);
     const oldIndex = collection.findIndex(item => item.id === config.id);
     const before = oldIndex >= 0 ? structuredClone(collection[oldIndex]) : null;
-    const item = { id: config.id || `name-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name: String(config.name).trim(), ref, scope, sheet: scope === "sheet" ? sheet : null };
+    const item = { id: config.id || `name-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name: String(config.name).trim(), ref, scope, sheet };
     const index = oldIndex >= 0 ? oldIndex : collection.length;
     oldIndex >= 0 ? collection.splice(oldIndex, 1, item) : collection.push(item);
     if (recordUndo) this._recordHistory({ type: "named-range", sheet, scope, id: item.id, index, before, after: structuredClone(item) });

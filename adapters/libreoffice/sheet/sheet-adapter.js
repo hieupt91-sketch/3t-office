@@ -30,6 +30,10 @@ export class SheetAdapter {
       args = args || {};
       return this.grid.showNameManager(args);
     });
+    globalCommandBus.bindHandler("sheet.formula.arrayEnter", (options) => {
+      options = options || {};
+      return this.grid.enterArrayFormula(options);
+    });
     globalCommandBus.bindHandler("sheet.review.commentInsert", (args) => {
       args = args || {};
       return this.grid.showCommentDialog(args);
@@ -339,6 +343,9 @@ export class SheetAdapter {
 
       case "sheet.formula.average":
         return this.grid.insertFormula("AVERAGE");
+
+      case "sheet.formula.arrayEnter":
+        return this.grid.enterArrayFormula(args || {});
 
       case "sheet.chart.insert":
         this.grid.openChartBuilder();

@@ -51,12 +51,12 @@ export async function runSheetNamedRangesTextDateTests() {
     assert(grid.saveNamedRange({ name: "1 Sai", ref: "A1" }) === false, "Nhận tên có khoảng trắng");
     assert(grid.saveNamedRange({ name: "A1", ref: "A1" }) === false, "Nhận tên giống địa chỉ");
   });
-  test("Named range theo sheet cô lập và ưu tiên hơn workbook cùng tên", () => {
+  test("Named range theo sheet cô lập; workbook name giữ đúng sheet đích", () => {
     grid.saveNamedRange({ name: "ChiTieu", ref: "A1", scope: "workbook" });
     grid.saveNamedRange({ name: "ChiTieu", ref: "A2", scope: "sheet" });
     assert(grid.formulaEngine.evaluate("=SUM(ChiTieu)") === 20, "Sheet scope không override");
     grid.switchSheet("Kế hoạch Q3"); grid.cellsData.set("A1", { val: "7", formula: "", style: {} });
-    assert(grid.formulaEngine.evaluate("=SUM(ChiTieu)") === 7, "Sheet khác không dùng workbook scope");
+    assert(grid.formulaEngine.evaluate("=SUM(ChiTieu)") === 10, "Workbook scope phải giữ sheet đích thay vì đổi theo sheet active");
   });
   test("Thêm/sửa/xóa named range undo/redo đối xứng", () => {
     grid.switchSheet("Dự toán chi phí");

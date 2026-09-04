@@ -63,9 +63,11 @@ export class FormulaEngine {
   /**
    * @param {Map<string, {val: string, formula: string, style: Object}> | (() => Map<string, any>)} cellsData
    */
-  constructor(cellsData, namedRangeResolver = null) {
+  constructor(cellsData, namedRangeResolver = null, sheetResolver = null, currentSheetResolver = null) {
     this.cellsData = cellsData;
     this.namedRangeResolver = namedRangeResolver;
+    this.sheetResolver = sheetResolver;
+    this.currentSheetResolver = currentSheetResolver;
   }
 
   setCellsData(cellsData) {
@@ -79,8 +81,9 @@ export class FormulaEngine {
   /**
    * Trích xuất giá trị số hoặc chuỗi từ một ô
    */
-  getCellValue(coord) {
-    const map = this.cellsMap;
+  getCellValue(coord, sheetName = null) {
+    const map = sheetName && typeof this.sheetResolver === "function" ? this.sheetResolver(sheetName) : this.cellsMap;
+    if (sheetName && !map) return "#REF!";
     const item = map ? map.get(coord.toUpperCase()) : null;
     if (!item) return 0;
     const raw = item.val || "";
@@ -129,10 +132,12 @@ export class FormulaEngine {
     for (const arg of args) {
       if (typeof arg === "string" && arg.startsWith('"') && arg.endsWith('"')) {
         values.push(arg.slice(1, -1));
-      } else if (typeof arg === "string" && (arg.includes(":") || this._resolveNamedRange(arg))) {
-        const coords = this.expandRange(this._resolveRangeReference(arg));
+      } else if (typeof arg === "string" && (arg.includes(":") || arg.includes("!") || this._resolveNamedRange(arg))) {
+        const reference = this._parseReference(arg);
+        if (reference.error) { values.push(reference.error); continue; }
+        const coords = this.expandRange(reference.ref);
         for (const coord of coords) {
-          values.push(this.getCellValue(coord));
+          values.push(this.getCellValue(coord, reference.sheet));
         }
       } else if (typeof arg === "string" && /^[A-Z]+\d+$/i.test(arg.trim())) {
         values.push(this.getCellValue(arg.trim()));
@@ -150,11 +155,15 @@ export class FormulaEngine {
   }
 
   _rangeValues(range) {
-    return this.expandRange(this._resolveRangeReference(range)).map(coord => this.getCellValue(coord));
+    const reference = this._parseReference(range);
+    if (reference.error) return [reference.error];
+    return this.expandRange(reference.ref).map(coord => this.getCellValue(coord, reference.sheet));
   }
 
   _rangeMatrix(range) {
-    const match = this._resolveRangeReference(range).match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+    const reference = this._parseReference(range);
+    if (reference.error) return [[reference.error]];
+    const match = reference.ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
     if (!match) return [[this._resolveSingleValue(range)]];
     const [, startCol, startRowText, endCol, endRowText] = match;
     const startColIndex = this._columnIndex(startCol);
@@ -163,7 +172,7 @@ export class FormulaEngine {
     for (let row = Math.min(+startRowText, +endRowText); row <= Math.max(+startRowText, +endRowText); row++) {
       const values = [];
       for (let col = Math.min(startColIndex, endColIndex); col <= Math.max(startColIndex, endColIndex); col++) {
-        values.push(this.getCellValue(`${this._columnName(col)}${row}`));
+        values.push(this.getCellValue(`${this._columnName(col)}${row}`, reference.sheet));
       }
       rows.push(values);
     }
@@ -194,6 +203,23 @@ export class FormulaEngine {
     const raw = String(reference).trim();
     const named = this._resolveNamedRange(raw);
     return String(named?.ref || named || raw).replace(/\$/g, "").toUpperCase();
+  }
+
+  _parseReference(reference) {
+    const raw = String(reference).trim();
+    const named = this._resolveNamedRange(raw);
+    if (named) {
+      const sheet = named.sheet || (typeof this.currentSheetResolver === "function" ? this.currentSheetResolver() : null);
+      if (sheet && typeof this.sheetResolver === "function" && !this.sheetResolver(sheet)) return { error: "#REF!" };
+      return { sheet, ref: String(named.ref || named).replace(/\$/g, "").toUpperCase() };
+    }
+    const match = raw.match(/^(?:'((?:[^']|'')+)'|([^'!]+))!\s*(\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?)$/i);
+    if (match) {
+      const sheet = (match[1] ? match[1].replace(/''/g, "'") : match[2]).trim();
+      if (typeof this.sheetResolver !== "function" || !this.sheetResolver(sheet)) return { error: "#REF!" };
+      return { sheet, ref: match[3].replace(/\$/g, "").toUpperCase() };
+    }
+    return { sheet: null, ref: this._resolveRangeReference(raw) };
   }
 
   _compareValues(left, right) {
@@ -260,6 +286,37 @@ export class FormulaEngine {
     }
   }
 
+  evaluateArray(formula) {
+    if (!formula || !formula.startsWith("=")) return [formula];
+    const expr = formula.slice(1).trim();
+    const funcMatch = expr.match(/^SUM\s*\((.*)\)$/i);
+    if (funcMatch) {
+      const value = this._evaluateArrayArithmetic(funcMatch[1]);
+      return Array.isArray(value) ? value.reduce((sum, item) => sum + (Number(item) || 0), 0) : value;
+    }
+    return this._evaluateArrayArithmetic(expr);
+  }
+
+  _evaluateArrayArithmetic(expr) {
+    const match = expr.match(/^\s*((?:'[^']*(?:''[^']*)*'|[^\s!+\-*/]+)!\s*)?[A-Z]+\d+:[A-Z]+\d+\s*([+\-*/])\s*(.*?)\s*$/i);
+    if (!match) return this.evaluate(`=${expr}`);
+    const leftText = expr.slice(0, expr.indexOf(match[2])).trim();
+    const rightText = match[3].trim();
+    const left = this._rangeValues(leftText);
+    const rightRef = /^(?:(?:'[^']+'|[^!]+)!)?[A-Z]+\d+:[A-Z]+\d+$/i.test(rightText);
+    const right = rightRef ? this._rangeValues(rightText) : [this._resolveSingleValue(rightText)];
+    if (left.includes("#REF!") || right.includes("#REF!")) return "#REF!";
+    if (rightRef && left.length !== right.length) return "#VALUE!";
+    return left.map((value, index) => {
+      const a = Number(value) || 0;
+      const b = Number(rightRef ? right[index] : right[0]) || 0;
+      if (match[2] === "+") return a + b;
+      if (match[2] === "-") return a - b;
+      if (match[2] === "*") return a * b;
+      return b === 0 ? "#DIV/0!" : a / b;
+    });
+  }
+
   _splitArgs(argsStr) {
     if (!argsStr.trim()) return [];
     const args = [];
@@ -287,7 +344,9 @@ export class FormulaEngine {
     switch (funcName) {
       // Toán học
       case "SUM": {
-        const nums = this.collectNumericValues(args);
+        const rawValues = this.collectValues(args);
+        if (rawValues.includes("#REF!")) return "#REF!";
+        const nums = rawValues.map(v => typeof v === "number" ? v : Number(String(v).replace(/[^\d.-]/g, ""))).filter(v => !isNaN(v));
         const sum = nums.reduce((acc, v) => acc + v, 0);
         return sum;
       }
@@ -601,8 +660,9 @@ export class FormulaEngine {
     if (token.startsWith('"') && token.endsWith('"')) {
       return token.slice(1, -1);
     }
-    if (/^[A-Z]+\d+$/i.test(token)) {
-      return this.getCellValue(token);
+    if (/^(?:(?:'[^']+'|[^!]+)!)?[A-Z]+\d+$/i.test(token)) {
+      const reference = this._parseReference(token);
+      return reference.error || this.getCellValue(reference.ref, reference.sheet);
     }
     const named = this._resolveNamedRange(token);
     if (named) return this.getCellValue(this.expandRange(this._resolveRangeReference(token))[0]);
@@ -628,10 +688,14 @@ export class FormulaEngine {
 
   _evaluateArithmetic(expr) {
     // Thay thế các tọa độ ô (vd: A1, B2) thành giá trị số tương ứng
-    const resolved = expr.replace(/[A-Z]+\d+/gi, (coord) => {
-      const val = this.getCellValue(coord);
+    let referenceError = false;
+    const resolved = expr.replace(/(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ_][^\s!+\-*/()]*)![A-Z]+\d+|[A-Z]+\d+/gi, (token) => {
+      const reference = this._parseReference(token);
+      const val = reference.error || this.getCellValue(reference.ref, reference.sheet);
+      if (val === "#REF!") referenceError = true;
       return typeof val === "number" ? val : 0;
     });
+    if (referenceError) return "#REF!";
 
     // Tính toán an toàn
     if (/^[\d\s+\-*/().%^]+$/.test(resolved)) {

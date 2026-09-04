@@ -116,6 +116,7 @@ export const enStrings = {
     ,"sheet.formula.sum": { label: "AutoSum", tooltip: "Insert an AutoSum formula (Alt+=)" }
     ,"sheet.formula.average": { label: "Average", tooltip: "Insert an AVERAGE formula" }
     ,"sheet.formula.nameManager": { label: "Name Manager", tooltip: "Create, edit, and delete defined names" }
+    ,"sheet.formula.arrayEnter": { label: "Enter Array Formula", tooltip: "Enter an array formula for the selected range (Ctrl+Shift+Enter)" }
     ,"sheet.data.sortAsc": { label: "Sort A to Z", tooltip: "Sort data in ascending order" }
     ,"sheet.data.sortDesc": { label: "Sort Z to A", tooltip: "Sort data in descending order" }
     ,"sheet.data.filter": { label: "Filter", tooltip: "Turn AutoFilter on or off (Ctrl+Shift+L)" }
