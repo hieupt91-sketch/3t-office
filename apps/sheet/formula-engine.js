@@ -484,6 +484,7 @@ export class FormulaEngine {
 
       // Tài chính
       case "PMT": {
+        if (args.length < 3) return "#VALUE!";
         const rate = Number(this._resolveSingleValue(args[0]));
         const nper = Number(this._resolveSingleValue(args[1]));
         const pv = Number(this._resolveSingleValue(args[2]));
@@ -498,6 +499,7 @@ export class FormulaEngine {
       }
 
       case "FV": {
+        if (args.length < 3) return "#VALUE!";
         const rate = Number(this._resolveSingleValue(args[0]));
         const nper = Number(this._resolveSingleValue(args[1]));
         const pmt = Number(this._resolveSingleValue(args[2]));
@@ -512,6 +514,7 @@ export class FormulaEngine {
       }
 
       case "PV": {
+        if (args.length < 3) return "#VALUE!";
         const rate = Number(this._resolveSingleValue(args[0]));
         const nper = Number(this._resolveSingleValue(args[1]));
         const pmt = Number(this._resolveSingleValue(args[2]));
@@ -558,6 +561,7 @@ export class FormulaEngine {
       }
 
       case "RATE": {
+        if (args.length < 3) return "#VALUE!";
         const nper = Number(this._resolveSingleValue(args[0]));
         const pmt = Number(this._resolveSingleValue(args[1]));
         const pv = Number(this._resolveSingleValue(args[2]));
@@ -585,6 +589,7 @@ export class FormulaEngine {
       }
 
       case "SLN": {
+        if (args.length < 3) return "#VALUE!";
         const cost = Number(this._resolveSingleValue(args[0]));
         const salvage = Number(this._resolveSingleValue(args[1]));
         const life = Number(this._resolveSingleValue(args[2]));
@@ -594,6 +599,7 @@ export class FormulaEngine {
       }
 
       case "DB": {
+        if (args.length < 4) return "#VALUE!";
         const cost = Number(this._resolveSingleValue(args[0]));
         const salvage = Number(this._resolveSingleValue(args[1]));
         const life = Number(this._resolveSingleValue(args[2]));

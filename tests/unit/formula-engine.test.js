@@ -27,6 +27,9 @@ export async function runFormulaEngineTests() {
   cellsData.set("E4", { val: "18000", formula: "", style: {} });
   cellsData.set("E5", { val: "21000", formula: "", style: {} });
   cellsData.set("E6", { val: "26000", formula: "", style: {} });
+  cellsData.set("F1", { val: "-1", formula: "", style: {} });
+  cellsData.set("F2", { val: "2", formula: "", style: {} });
+  cellsData.set("F3", { val: "-2", formula: "", style: {} });
 
   const engine = new FormulaEngine(cellsData);
 
@@ -139,7 +142,8 @@ export async function runFormulaEngineTests() {
   results.push({
     name: "Financial IRR: hội tụ đúng nghiệm Excel và báo #NUM! khi không đổi dấu",
     pass: approximatelyEqual(irrRes, 0.08663094803653172, 1e-9) &&
-          engine.evaluate("=IRR(D2:D4)") === "#NUM!"
+          engine.evaluate("=IRR(D2:D4)") === "#NUM!" &&
+          engine.evaluate("=IRR(F1:F3)") === "#NUM!"
   });
 
   // 14. RATE — vay 10.000, trả 200 cuối mỗi tháng trong 60 tháng.
