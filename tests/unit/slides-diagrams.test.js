@@ -57,6 +57,7 @@ export async function runSlidesDiagramTests() {
     const group = canvas.slides[0].shapes.filter(shape => shape.diagramGroupId === result.diagramGroupId);
     if (group.filter(shape => shape.diagramRole === "node").length !== 4) throw new Error("Không có đúng 4 node");
     if (group.filter(shape => shape.type === "connector").length !== 3) throw new Error("Không có đúng 3 connector");
+    if (group.filter(shape => shape.type === "connector").some(shape => !shape.sourceId || !shape.targetId)) throw new Error("Connector thiếu sourceId/targetId");
     if (new Set(group.map(shape => shape.diagramGroupId)).size !== 1) throw new Error("Các shape không cùng group");
   });
 
@@ -87,9 +88,29 @@ export async function runSlidesDiagramTests() {
   await test("SmartArt xóa lẻ một node chỉ bỏ node đó, các node khác vẫn còn", () => {
     const canvas = createController(); canvas.insertDiagram("process", 4);
     const nodes = canvas.slides[0].shapes.filter(shape => shape.diagramRole === "node");
+    const unrelatedConnector = canvas.slides[0].shapes.find(shape => shape.sourceId === nodes[1].id && shape.targetId === nodes[2].id);
     canvas.deleteShape(nodes[0].id);
     const remaining = canvas.slides[0].shapes.filter(shape => shape.diagramRole === "node");
     if (remaining.length !== 3 || !remaining.some(shape => shape.id === nodes[1].id)) throw new Error("Xóa lẻ ảnh hưởng node khác");
+    if (canvas.slides[0].shapes.some(shape => shape.sourceId === nodes[0].id || shape.targetId === nodes[0].id)) throw new Error("Còn connector mồ côi");
+    if (!canvas.slides[0].shapes.some(shape => shape.id === unrelatedConnector.id)) throw new Error("Xóa nhầm connector không liên quan");
+    if (!canvas.undo() || !canvas.slides[0].shapes.some(shape => shape.id === nodes[0].id)) throw new Error("Undo không khôi phục node");
+    if (canvas.slides[0].shapes.filter(shape => shape.sourceId === nodes[0].id || shape.targetId === nodes[0].id).length !== 1) throw new Error("Undo không khôi phục connector");
+    if (!canvas.redo() || canvas.slides[0].shapes.some(shape => shape.id === nodes[0].id)) throw new Error("Redo không xóa lại node");
+  });
+
+  await test("SmartArt di chuyển node cập nhật hình học connector và Undo/Redo cả hai", () => {
+    const canvas = createController(); canvas.insertDiagram("process", 4);
+    const node = canvas.slides[0].shapes.find(shape => shape.diagramRole === "node");
+    const connector = canvas.slides[0].shapes.find(shape => shape.sourceId === node.id);
+    const from = { x: node.x, y: node.y };
+    node.x += 40; node.y += 25;
+    const to = { x: node.x, y: node.y };
+    canvas._updateDiagramConnectorsForNode(node);
+    if (connector.x1 !== node.x + node.w / 2 || connector.y1 !== node.y + node.h / 2) throw new Error("Connector chưa bám tâm node");
+    canvas.undoStack.push({ type: "diagram-node-move", slideIndex: 0, shapeId: node.id, from, to });
+    if (!canvas.undo() || connector.x1 !== from.x + node.w / 2 || connector.y1 !== from.y + node.h / 2) throw new Error("Undo move không hoàn tác connector");
+    if (!canvas.redo() || connector.x1 !== to.x + node.w / 2 || connector.y1 !== to.y + node.h / 2) throw new Error("Redo move không áp dụng connector");
   });
 
   await test("SmartArt hiển thị node, text và connector trong Slide Show toàn màn hình", () => {

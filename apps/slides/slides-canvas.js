@@ -610,7 +610,7 @@ export class SlidesCanvasController {
         id: `${groupId}-connector-${connectors.length + 1}`, type: "connector",
         x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.max(1, Math.abs(x2 - x1)), h: Math.max(1, Math.abs(y2 - y1)),
         x1, y1, x2, y2, color: "#475569", arrowEnd: arrow,
-        diagramGroupId: groupId, diagramRole: "connector"
+        diagramGroupId: groupId, diagramRole: "connector", sourceId: from.id, targetId: to.id
       });
     };
     if (type === "process" || type === "list") {
@@ -763,8 +763,24 @@ export class SlidesCanvasController {
     if (!slide || !Array.isArray(slide.shapes) || shapeId == null) return false;
     const index = slide.shapes.findIndex((sh) => String(sh.id) === String(shapeId));
     if (index < 0) return false;
-    const [removed] = slide.shapes.splice(index, 1);
-    this._recordShapeHistory("shape-delete", removed);
+    const shape = slide.shapes[index];
+    if (shape.diagramRole === "node" && shape.diagramGroupId) {
+      const removed = slide.shapes
+        .map((item, itemIndex) => ({ shape: item, index: itemIndex }))
+        .filter(item => String(item.shape.id) === String(shapeId) || (
+          item.shape.diagramRole === "connector" &&
+          item.shape.diagramGroupId === shape.diagramGroupId &&
+          (String(item.shape.sourceId) === String(shapeId) || String(item.shape.targetId) === String(shapeId))
+        ));
+      const removedIds = new Set(removed.map(item => String(item.shape.id)));
+      slide.shapes = slide.shapes.filter(item => !removedIds.has(String(item.id)));
+      this.undoStack.push({ type: "diagram-node-delete", slideIndex: this.currentSlideIndex, shapes: this._cloneShapes(removed) });
+      this.redoStack = [];
+      this._syncUndoRedoState();
+    } else {
+      const [removed] = slide.shapes.splice(index, 1);
+      this._recordShapeHistory("shape-delete", removed);
+    }
     if (String(this.selectedTarget) === String(shapeId)) this.setSelectedTarget(null);
     this._renderShapesLayer();
     return true;
@@ -803,17 +819,7 @@ export class SlidesCanvasController {
       el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${shape.diagramRole === "node" ? "move" : "pointer"};z-index:${isConnector ? 0 : 1};`;
 
       if (isConnector) {
-        const pad = 8;
-        const leftToRight = shape.x2 >= shape.x1;
-        const topToBottom = shape.y2 >= shape.y1;
-        const sx = (leftToRight ? 0 : shape.w) + pad;
-        const sy = (topToBottom ? 0 : shape.h) + pad;
-        const ex = (leftToRight ? shape.w : 0) + pad;
-        const ey = (topToBottom ? shape.h : 0) + pad;
-        const markerId = `arrow-${String(shape.id).replace(/[^a-zA-Z0-9_-]/g, "")}`;
-        el.style.left = `${shape.x - pad}px`; el.style.top = `${shape.y - pad}px`;
-        el.style.width = `${shape.w + pad * 2}px`; el.style.height = `${shape.h + pad * 2}px`;
-        el.innerHTML = `<svg viewBox="0 0 ${shape.w + pad * 2} ${shape.h + pad * 2}" width="100%" height="100%" overflow="visible"><defs><marker id="${markerId}" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="${shape.color || "#475569"}"/></marker></defs><line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="${shape.color || "#475569"}" stroke-width="3" ${shape.arrowEnd ? `marker-end="url(#${markerId})"` : ""}/></svg>`;
+        this._renderDiagramConnectorElement(el, shape);
       } else if (shape.type === "image" && shape.src) {
         const img = document.createElement("img");
         img.src = shape.src;
@@ -932,6 +938,7 @@ export class SlidesCanvasController {
         shape.x = Math.max(0, Math.min(this.slideSize.width - shape.w, originX + dx));
         shape.y = Math.max(0, Math.min(this.slideSize.height - shape.h, originY + dy));
         el.style.left = `${shape.x}px`; el.style.top = `${shape.y}px`;
+        this._updateDiagramConnectorsForNode(shape);
       };
       const up = () => {
         document.removeEventListener("pointermove", move);
@@ -947,6 +954,38 @@ export class SlidesCanvasController {
       document.addEventListener("pointermove", move);
       document.addEventListener("pointerup", up);
     });
+  }
+
+  _renderDiagramConnectorElement(el, shape) {
+    const pad = 8;
+    const leftToRight = shape.x2 >= shape.x1;
+    const topToBottom = shape.y2 >= shape.y1;
+    const sx = (leftToRight ? 0 : shape.w) + pad;
+    const sy = (topToBottom ? 0 : shape.h) + pad;
+    const ex = (leftToRight ? shape.w : 0) + pad;
+    const ey = (topToBottom ? shape.h : 0) + pad;
+    const markerId = `arrow-${String(shape.id).replace(/[^a-zA-Z0-9_-]/g, "")}`;
+    el.style.left = `${shape.x - pad}px`; el.style.top = `${shape.y - pad}px`;
+    el.style.width = `${shape.w + pad * 2}px`; el.style.height = `${shape.h + pad * 2}px`;
+    el.innerHTML = `<svg viewBox="0 0 ${shape.w + pad * 2} ${shape.h + pad * 2}" width="100%" height="100%" overflow="visible"><defs><marker id="${markerId}" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="${shape.color || "#475569"}"/></marker></defs><line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="${shape.color || "#475569"}" stroke-width="3" ${shape.arrowEnd ? `marker-end="url(#${markerId})"` : ""}/></svg>`;
+  }
+
+  _updateDiagramConnectorsForNode(node) {
+    const shapes = this.slides[this.currentSlideIndex]?.shapes || [];
+    const nodesById = new Map(shapes.filter(item => item.diagramRole === "node").map(item => [String(item.id), item]));
+    for (const connector of shapes) {
+      if (connector.diagramRole !== "connector" || connector.diagramGroupId !== node.diagramGroupId) continue;
+      if (String(connector.sourceId) !== String(node.id) && String(connector.targetId) !== String(node.id)) continue;
+      const source = nodesById.get(String(connector.sourceId));
+      const target = nodesById.get(String(connector.targetId));
+      if (!source || !target) continue;
+      connector.x1 = source.x + source.w / 2; connector.y1 = source.y + source.h / 2;
+      connector.x2 = target.x + target.w / 2; connector.y2 = target.y + target.h / 2;
+      connector.x = Math.min(connector.x1, connector.x2); connector.y = Math.min(connector.y1, connector.y2);
+      connector.w = Math.max(1, Math.abs(connector.x2 - connector.x1)); connector.h = Math.max(1, Math.abs(connector.y2 - connector.y1));
+      const connectorEl = Array.from(this.shapesLayer?.children || []).find(item => item.dataset?.shapeId === String(connector.id));
+      if (connectorEl) this._renderDiagramConnectorElement(connectorEl, connector);
+    }
   }
 
   _applyLayoutToDom(layoutType) {
@@ -1377,6 +1416,19 @@ export class SlidesCanvasController {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;
       shape.x = action.from.x; shape.y = action.from.y;
+      this.currentSlideIndex = action.slideIndex;
+      this._updateDiagramConnectorsForNode(shape);
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "diagram-node-delete") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      slide.shapes ||= [];
+      for (const item of [...action.shapes].sort((a, b) => a.index - b.index)) {
+        slide.shapes.splice(Math.min(item.index, slide.shapes.length), 0, this._cloneShapes([item.shape])[0]);
+      }
       this.redoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
@@ -1475,6 +1527,17 @@ export class SlidesCanvasController {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;
       shape.x = action.to.x; shape.y = action.to.y;
+      this.currentSlideIndex = action.slideIndex;
+      this._updateDiagramConnectorsForNode(shape);
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "diagram-node-delete") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      const ids = new Set(action.shapes.map(item => String(item.shape.id)));
+      slide.shapes = (slide.shapes || []).filter(item => !ids.has(String(item.id)));
       this.undoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
