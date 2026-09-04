@@ -1,12 +1,14 @@
-﻿/**
+/**
  * VN Office — VN Writer Columns Dialog (Chia cột văn bản)
  * Hộp thoại cấu hình Multi-column Layout chuẩn Microsoft Word Layout > Columns
  */
 
+import { t } from "../../platform/i18n/i18n.js";
+
 export const COLUMN_PRESETS = [
-  { id: "one", count: 1, gap: 0, rule: false, label: "Một cột", iconSvg: `<svg viewBox="0 0 40 40" width="36" height="36" fill="none"><rect x="6" y="4" width="28" height="32" rx="2" fill="#fff" stroke="#94a3b8" stroke-width="1.5"/><line x1="10" y1="10" x2="30" y2="10" stroke="#0f4c81" stroke-width="2" stroke-linecap="round"/><line x1="10" y1="15" x2="30" y2="15" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><line x1="10" y1="20" x2="30" y2="20" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><line x1="10" y1="25" x2="26" y2="25" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/></svg>` },
-  { id: "two", count: 2, gap: 10, rule: false, label: "Hai cột", iconSvg: `<svg viewBox="0 0 40 40" width="36" height="36" fill="none"><rect x="6" y="4" width="28" height="32" rx="2" fill="#fff" stroke="#94a3b8" stroke-width="1.5"/><line x1="10" y1="10" x2="18" y2="10" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/><line x1="10" y1="15" x2="18" y2="15" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><line x1="10" y1="20" x2="18" y2="20" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><line x1="10" y1="25" x2="16" y2="25" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><line x1="22" y1="10" x2="30" y2="10" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/><line x1="22" y1="15" x2="30" y2="15" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><line x1="22" y1="20" x2="30" y2="20" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><line x1="22" y1="25" x2="28" y2="25" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/></svg>` },
-  { id: "three", count: 3, gap: 10, rule: false, label: "Ba cột", iconSvg: `<svg viewBox="0 0 40 40" width="36" height="36" fill="none"><rect x="6" y="4" width="28" height="32" rx="2" fill="#fff" stroke="#94a3b8" stroke-width="1.5"/><line x1="9" y1="10" x2="14" y2="10" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/><line x1="9" y1="15" x2="14" y2="15" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="9" y1="20" x2="14" y2="20" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="9" y1="25" x2="13" y2="25" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="17.5" y1="10" x2="22.5" y2="10" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/><line x1="17.5" y1="15" x2="22.5" y2="15" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="17.5" y1="20" x2="22.5" y2="20" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="17.5" y1="25" x2="21.5" y2="25" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="26" y1="10" x2="31" y2="10" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/><line x1="26" y1="15" x2="31" y2="15" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="26" y1="20" x2="31" y2="20" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="26" y1="25" x2="30" y2="25" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/></svg>` }
+  { id: "one", count: 1, gap: 0, rule: false, label: "Một cột", labelKey: "writerDialogs.columns.presetOne", iconSvg: `<svg viewBox="0 0 40 40" width="36" height="36" fill="none"><rect x="6" y="4" width="28" height="32" rx="2" fill="#fff" stroke="#94a3b8" stroke-width="1.5"/><line x1="10" y1="10" x2="30" y2="10" stroke="#0f4c81" stroke-width="2" stroke-linecap="round"/><line x1="10" y1="15" x2="30" y2="15" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><line x1="10" y1="20" x2="30" y2="20" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><line x1="10" y1="25" x2="26" y2="25" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/></svg>` },
+  { id: "two", count: 2, gap: 10, rule: false, label: "Hai cột", labelKey: "writerDialogs.columns.presetTwo", iconSvg: `<svg viewBox="0 0 40 40" width="36" height="36" fill="none"><rect x="6" y="4" width="28" height="32" rx="2" fill="#fff" stroke="#94a3b8" stroke-width="1.5"/><line x1="10" y1="10" x2="18" y2="10" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/><line x1="10" y1="15" x2="18" y2="15" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><line x1="10" y1="20" x2="18" y2="20" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><line x1="10" y1="25" x2="16" y2="25" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><line x1="22" y1="10" x2="30" y2="10" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/><line x1="22" y1="15" x2="30" y2="15" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><line x1="22" y1="20" x2="30" y2="20" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/><line x1="22" y1="25" x2="28" y2="25" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/></svg>` },
+  { id: "three", count: 3, gap: 10, rule: false, label: "Ba cột", labelKey: "writerDialogs.columns.presetThree", iconSvg: `<svg viewBox="0 0 40 40" width="36" height="36" fill="none"><rect x="6" y="4" width="28" height="32" rx="2" fill="#fff" stroke="#94a3b8" stroke-width="1.5"/><line x1="9" y1="10" x2="14" y2="10" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/><line x1="9" y1="15" x2="14" y2="15" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="9" y1="20" x2="14" y2="20" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="9" y1="25" x2="13" y2="25" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="17.5" y1="10" x2="22.5" y2="10" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/><line x1="17.5" y1="15" x2="22.5" y2="15" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="17.5" y1="20" x2="22.5" y2="20" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="17.5" y1="25" x2="21.5" y2="25" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="26" y1="10" x2="31" y2="10" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/><line x1="26" y1="15" x2="31" y2="15" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="26" y1="20" x2="31" y2="20" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="26" y1="25" x2="30" y2="25" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/></svg>` }
 ];
 
 /**
@@ -22,7 +24,7 @@ export async function showColumnsDialog(currentColumns = null) {
     overlay.className = "vno-dialog-overlay";
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
-    overlay.setAttribute("aria-label", "Chia cột văn bản");
+    overlay.setAttribute("aria-label", t("writerDialogs.columns.title"));
 
     const cur = currentColumns || {};
     let initialCount = Math.max(1, Math.min(4, Number(cur.count) || 1));
@@ -33,22 +35,24 @@ export async function showColumnsDialog(currentColumns = null) {
     overlay.innerHTML = `
       <div class="vno-dialog-box vno-columns-dialog" style="width: 480px;">
         <div class="vno-dialog-header">
-          <span>Chia cột văn bản (Columns)</span>
-          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng">&times;</button>
+          <span>${t("writerDialogs.columns.title")}</span>
+          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex; flex-direction:column; gap:16px;">
           <!-- Khối chọn nhanh Presets -->
           <div>
             <label style="font-size:12px; font-weight:600; color:#334155; display:block; margin-bottom:8px;">
-              Mẫu chia cột chuẩn:
+              ${t("writerDialogs.columns.presetsTitle")}
             </label>
             <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">
-              ${COLUMN_PRESETS.map(p => `
+              ${COLUMN_PRESETS.map(p => {
+                const label = p.labelKey ? (t(p.labelKey) !== p.labelKey ? t(p.labelKey) : p.label) : p.label;
+                return `
                 <button type="button" class="vno-btn vno-col-preset-btn ${p.count === initialCount ? 'is-active' : ''}" data-count="${p.count}" data-gap="${p.gap}" style="display:flex; flex-direction:column; align-items:center; padding:8px; border:2px solid ${p.count === initialCount ? '#0f4c81' : '#cbd5e1'}; border-radius:6px; background:${p.count === initialCount ? '#eff6ff' : '#ffffff'}; cursor:pointer; gap:4px;">
                   <div style="pointer-events:none;">${p.iconSvg}</div>
-                  <span style="font-size:12px; font-weight:600; color:#1e293b; pointer-events:none;">${p.label}</span>
+                  <span style="font-size:12px; font-weight:600; color:#1e293b; pointer-events:none;">${label}</span>
                 </button>
-              `).join("")}
+              `}).join("")}
             </div>
           </div>
 
@@ -57,14 +61,14 @@ export async function showColumnsDialog(currentColumns = null) {
             <div style="display:flex; flex-direction:column; gap:12px;">
               <div>
                 <label for="vno-col-count-input" style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">
-                  Số cột (1 – 4):
+                  ${t("writerDialogs.columns.colCount")}
                 </label>
                 <input type="number" id="vno-col-count-input" class="vno-dialog-input" min="1" max="4" value="${initialCount}" style="width:100%; box-sizing:border-box; font-size:13px; font-weight:bold; padding:6px 10px;" />
               </div>
 
               <div>
                 <label for="vno-col-gap-input" style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">
-                  Khoảng cách giữa các cột (mm):
+                  ${t("writerDialogs.columns.colGap")}
                 </label>
                 <input type="number" id="vno-col-gap-input" class="vno-dialog-input" min="0" max="50" step="1" value="${initialGap}" style="width:100%; box-sizing:border-box; font-size:13px; padding:6px 10px;" />
               </div>
@@ -72,14 +76,14 @@ export async function showColumnsDialog(currentColumns = null) {
               <div style="margin-top:2px;">
                 <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:#334155; cursor:pointer;">
                   <input type="checkbox" id="vno-col-rule-input" ${initialRule ? 'checked' : ''} style="cursor:pointer;" />
-                  <span>Đường kẻ phân cách cột (Line between)</span>
+                  <span>${t("writerDialogs.columns.colRule")}</span>
                 </label>
               </div>
             </div>
 
             <!-- Khung xem trước trực quan (Live Preview) -->
             <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
-              <span style="font-size:11px; color:#64748b; margin-bottom:6px; font-weight:600;">Xem trước</span>
+              <span style="font-size:11px; color:#64748b; margin-bottom:6px; font-weight:600;">${t("writerDialogs.columns.preview")}</span>
               <div id="vno-col-preview-sheet" style="width:110px; height:130px; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.15); border-radius:2px; border:1px solid #cbd5e1; position:relative; display:flex; gap:6px; padding:8px; box-sizing:border-box;">
                 <!-- Cột preview sẽ được render động ở đây -->
               </div>
@@ -89,11 +93,11 @@ export async function showColumnsDialog(currentColumns = null) {
 
         <div class="vno-dialog-footer" style="display:flex; justify-content:space-between; align-items:center;">
           <div>
-            ${isMulti ? `<button type="button" class="vno-btn vno-btn-danger vno-col-btn-remove" style="color:#dc2626; border-color:#fca5a5;">Bỏ chia cột (1 cột)</button>` : `<span></span>`}
+            ${isMulti ? `<button type="button" class="vno-btn vno-btn-danger vno-col-btn-remove" style="color:#dc2626; border-color:#fca5a5;">${t("writerDialogs.columns.removeColumns")}</button>` : `<span></span>`}
           </div>
           <div style="display:flex; gap:8px;">
-            <button type="button" class="vno-btn vno-dialog-cancel-btn">Hủy bỏ</button>
-            <button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn">Áp dụng</button>
+            <button type="button" class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
+            <button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn">${t("writerDialogs.columns.apply")}</button>
           </div>
         </div>
       </div>

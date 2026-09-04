@@ -10,6 +10,7 @@ import { parseCsv, replaceMergeFields, showMailMergeDataSourceDialog, showInsert
 import { STYLE_PRESETS, showStyleGalleryDropdown, closeStyleGalleryDropdown, createStyleGalleryStrip } from "../../../apps/writer/style-gallery.js";
 import { showWatermarkDialog, showPageBorderDialog } from "../../../apps/writer/page-decorations.js";
 import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
+import { t } from "../../../platform/i18n/i18n.js";
 
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
 const PAGE_SIZES_MM = {
@@ -426,25 +427,57 @@ export class WriterAdapter {
         .map(([key, v]) => `<option value="${key}" ${key === this.pageSetup.size ? "selected" : ""}>${v.label}</option>`)
         .join("");
 
+      const titleText = (typeof t === "function" && t("writerDialogs.pageSetup.title") !== "writerDialogs.pageSetup.title")
+        ? t("writerDialogs.pageSetup.title")
+        : "Thiết lập trang";
+      const closeTitle = (typeof t === "function" && t("writerDialogs.pageSetup.close") !== "writerDialogs.pageSetup.close")
+        ? t("writerDialogs.pageSetup.close")
+        : "Đóng";
+      const paperSizeLabel = (typeof t === "function" && t("writerDialogs.pageSetup.paperSize") !== "writerDialogs.pageSetup.paperSize")
+        ? t("writerDialogs.pageSetup.paperSize")
+        : "Khổ giấy";
+      const orientationLabel = (typeof t === "function" && t("writerDialogs.pageSetup.orientation") !== "writerDialogs.pageSetup.orientation")
+        ? t("writerDialogs.pageSetup.orientation")
+        : "Hướng giấy";
+      const portraitLabel = (typeof t === "function" && t("writerDialogs.pageSetup.portrait") !== "writerDialogs.pageSetup.portrait")
+        ? t("writerDialogs.pageSetup.portrait")
+        : "Dọc (Portrait)";
+      const landscapeLabel = (typeof t === "function" && t("writerDialogs.pageSetup.landscape") !== "writerDialogs.pageSetup.landscape")
+        ? t("writerDialogs.pageSetup.landscape")
+        : "Ngang (Landscape)";
+      const cancelBtn = (typeof t === "function" && t("writerDialogs.pageSetup.cancel") !== "writerDialogs.pageSetup.cancel")
+        ? t("writerDialogs.pageSetup.cancel")
+        : "Hủy bỏ";
+      const applyBtn = (typeof t === "function" && t("writerDialogs.pageSetup.apply") !== "writerDialogs.pageSetup.apply")
+        ? t("writerDialogs.pageSetup.apply")
+        : "Áp dụng";
+
+      const marginLabels = {
+        top: (typeof t === "function" && t("writerDialogs.pageSetup.marginTop") !== "writerDialogs.pageSetup.marginTop") ? t("writerDialogs.pageSetup.marginTop") : "Lề trên",
+        bottom: (typeof t === "function" && t("writerDialogs.pageSetup.marginBottom") !== "writerDialogs.pageSetup.marginBottom") ? t("writerDialogs.pageSetup.marginBottom") : "Lề dưới",
+        left: (typeof t === "function" && t("writerDialogs.pageSetup.marginLeft") !== "writerDialogs.pageSetup.marginLeft") ? t("writerDialogs.pageSetup.marginLeft") : "Lề trái",
+        right: (typeof t === "function" && t("writerDialogs.pageSetup.marginRight") !== "writerDialogs.pageSetup.marginRight") ? t("writerDialogs.pageSetup.marginRight") : "Lề phải"
+      };
+
       overlay.innerHTML = `
         <div class="vno-dialog-box" style="width: 420px;" role="dialog" aria-modal="true">
           <div class="vno-dialog-header">
-            <span>Thiết lập trang</span>
-            <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng">&times;</button>
+            <span>${titleText}</span>
+            <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${closeTitle}">&times;</button>
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
-            <label style="font-size:13px;font-weight:500;">Khổ giấy
+            <label style="font-size:13px;font-weight:500;">${paperSizeLabel}
               <select class="vno-select" id="vno-pagesetup-size" style="width:100%;margin-top:4px;">${sizeOptions}</select>
             </label>
-            <label style="font-size:13px;font-weight:500;">Hướng giấy
+            <label style="font-size:13px;font-weight:500;">${orientationLabel}
               <select class="vno-select" id="vno-pagesetup-orientation" style="width:100%;margin-top:4px;">
-                <option value="portrait" ${this.pageSetup.orientation === "portrait" ? "selected" : ""}>Dọc (Portrait)</option>
-                <option value="landscape" ${this.pageSetup.orientation === "landscape" ? "selected" : ""}>Ngang (Landscape)</option>
+                <option value="portrait" ${this.pageSetup.orientation === "portrait" ? "selected" : ""}>${portraitLabel}</option>
+                <option value="landscape" ${this.pageSetup.orientation === "landscape" ? "selected" : ""}>${landscapeLabel}</option>
               </select>
             </label>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
               ${["top", "bottom", "left", "right"].map(side => {
-                const sideLabel = { top: "Lề trên", bottom: "Lề dưới", left: "Lề trái", right: "Lề phải" }[side];
+                const sideLabel = marginLabels[side];
                 return `<label style="font-size:12px;">${sideLabel} (mm)
                   <input type="number" min="0" max="100" class="vno-dialog-input" id="vno-pagesetup-margin-${side}"
                     value="${this.pageSetup.margins[side]}"
@@ -454,8 +487,8 @@ export class WriterAdapter {
             </div>
           </div>
           <div class="vno-dialog-footer">
-            <button class="vno-btn vno-dialog-cancel-btn">Hủy bỏ</button>
-            <button class="vno-btn vno-btn-primary vno-dialog-ok-btn">Áp dụng</button>
+            <button class="vno-btn vno-dialog-cancel-btn">${cancelBtn}</button>
+            <button class="vno-btn vno-btn-primary vno-dialog-ok-btn">${applyBtn}</button>
           </div>
         </div>
       `;
@@ -827,22 +860,41 @@ export class WriterAdapter {
 
     if (!insideBody) {
       if (!args?.silent) {
+        const noSelTitle = (typeof t === "function" && t("writerDialogs.comments.noSelectionTitle") !== "writerDialogs.comments.noSelectionTitle")
+          ? t("writerDialogs.comments.noSelectionTitle")
+          : "Chưa chọn văn bản";
+        const noSelMsg = (typeof t === "function" && t("writerDialogs.comments.noSelectionMsg") !== "writerDialogs.comments.noSelectionMsg")
+          ? t("writerDialogs.comments.noSelectionMsg")
+          : "Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm ghi chú.";
         await showAlertDialog({
-          title: "Chưa chọn văn bản",
-          message: "Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm ghi chú.",
+          title: noSelTitle,
+          message: noSelMsg,
           type: "warning"
         });
       }
       return false;
     }
 
+    const addTitle = (typeof t === "function" && t("writerDialogs.comments.addCommentTitle") !== "writerDialogs.comments.addCommentTitle")
+      ? t("writerDialogs.comments.addCommentTitle")
+      : "Thêm ghi chú";
+    const addPlaceholder = (typeof t === "function" && t("writerDialogs.comments.addCommentPlaceholder") !== "writerDialogs.comments.addCommentPlaceholder")
+      ? t("writerDialogs.comments.addCommentPlaceholder")
+      : "Nhập nội dung ghi chú...";
+    const addConfirm = (typeof t === "function" && t("writerDialogs.comments.addCommentBtn") !== "writerDialogs.comments.addCommentBtn")
+      ? t("writerDialogs.comments.addCommentBtn")
+      : "Thêm ghi chú";
+    const notePrefix = (typeof t === "function" && t("writerRibbon.group.comments") !== "writerRibbon.group.comments")
+      ? t("writerRibbon.group.comments")
+      : "Ghi chú";
+
     const content = args && Object.prototype.hasOwnProperty.call(args, "content")
       ? args.content
       : await showPromptDialog({
-          title: "Thêm ghi chú",
-          message: `Ghi chú cho “${anchorText.slice(0, 80)}${anchorText.length > 80 ? "…" : ""}”`,
-          placeholder: "Nhập nội dung ghi chú...",
-          confirmText: "Thêm ghi chú"
+          title: addTitle,
+          message: `${notePrefix} cho “${anchorText.slice(0, 80)}${anchorText.length > 80 ? "…" : ""}”`,
+          placeholder: addPlaceholder,
+          confirmText: addConfirm
         });
 
     if (content === null || !String(content).trim()) return false;
@@ -853,7 +905,10 @@ export class WriterAdapter {
     mark.dataset.commentId = id;
     mark.setAttribute("tabindex", "0");
     mark.setAttribute("role", "button");
-    mark.setAttribute("aria-label", `Mở ghi chú cho: ${anchorText.slice(0, 80)}`);
+    const openCommentPattern = (typeof t === "function" && t("writerDialogs.comments.openCommentAria") !== "writerDialogs.comments.openCommentAria")
+      ? t("writerDialogs.comments.openCommentAria")
+      : "Mở ghi chú cho: {text}";
+    mark.setAttribute("aria-label", openCommentPattern.replace("{text}", anchorText.slice(0, 80)));
 
     try {
       const fragment = range.extractContents();
@@ -1629,9 +1684,15 @@ export class WriterAdapter {
 
   async _insertHyperlink() {
     if (typeof window === "undefined" || typeof document === "undefined") return;
+    const linkTitle = (typeof t === "function" && t("writerDialogs.hyperlink.title") !== "writerDialogs.hyperlink.title")
+      ? t("writerDialogs.hyperlink.title")
+      : "Chèn Liên Kết (Hyperlink)";
+    const linkMsg = (typeof t === "function" && t("writerDialogs.hyperlink.message") !== "writerDialogs.hyperlink.message")
+      ? t("writerDialogs.hyperlink.message")
+      : "Nhập địa chỉ liên kết (URL):";
     const url = await showPromptDialog({
-      title: "Chèn Liên Kết (Hyperlink)",
-      message: "Nhập địa chỉ liên kết (URL):",
+      title: linkTitle,
+      message: linkMsg,
       defaultValue: "https://",
       placeholder: "https://example.com"
     });
@@ -2092,11 +2153,42 @@ export class WriterAdapter {
     this.currentPreviewPage = 1;
     this.previewZoom = 1.0;
 
+    const previewTitle = (typeof t === "function" && t("writerDialogs.printPreview.title") !== "writerDialogs.printPreview.title")
+      ? t("writerDialogs.printPreview.title")
+      : "Xem trước khi in";
+    const printBtnLabel = (typeof t === "function" && t("writerDialogs.printPreview.printBtn") !== "writerDialogs.printPreview.printBtn")
+      ? t("writerDialogs.printPreview.printBtn")
+      : "In tài liệu";
+    const printTooltip = (typeof t === "function" && t("writerDialogs.printPreview.printTooltip") !== "writerDialogs.printPreview.printTooltip")
+      ? t("writerDialogs.printPreview.printTooltip")
+      : "In tài liệu (Ctrl+P)";
+    const prevPageLabel = (typeof t === "function" && t("writerDialogs.printPreview.prevPage") !== "writerDialogs.printPreview.prevPage")
+      ? t("writerDialogs.printPreview.prevPage")
+      : "◀ Trang trước";
+    const nextPageLabel = (typeof t === "function" && t("writerDialogs.printPreview.nextPage") !== "writerDialogs.printPreview.nextPage")
+      ? t("writerDialogs.printPreview.nextPage")
+      : "Trang sau ▶";
+    const pagePrefix = (typeof t === "function" && t("writerDialogs.printPreview.pagePrefix") !== "writerDialogs.printPreview.pagePrefix")
+      ? t("writerDialogs.printPreview.pagePrefix")
+      : "Trang ";
+    const fitPageLabel = (typeof t === "function" && t("writerDialogs.printPreview.fitPage") !== "writerDialogs.printPreview.fitPage")
+      ? t("writerDialogs.printPreview.fitPage")
+      : "Vừa trang";
+    const closeTooltip = (typeof t === "function" && t("writerDialogs.printPreview.closeTooltip") !== "writerDialogs.printPreview.closeTooltip")
+      ? t("writerDialogs.printPreview.closeTooltip")
+      : "Đóng xem trước (Esc)";
+    const paperSizeLabel = (typeof t === "function" && t("writerDialogs.printPreview.paperSize") !== "writerDialogs.printPreview.paperSize")
+      ? t("writerDialogs.printPreview.paperSize")
+      : "Khổ";
+    const marginsLabel = (typeof t === "function" && t("writerDialogs.printPreview.margins") !== "writerDialogs.printPreview.margins")
+      ? t("writerDialogs.printPreview.margins")
+      : "Lề";
+
     const overlay = document.createElement("div");
     overlay.className = "vno-print-preview-overlay";
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
-    overlay.setAttribute("aria-label", "Xem trước khi in");
+    overlay.setAttribute("aria-label", previewTitle);
     overlay.dataset.paperSize = dim.sizeKey;
     overlay.dataset.paperOrientation = dim.orientation;
     overlay.dataset.pageCount = String(totalPages);
@@ -2110,29 +2202,29 @@ export class WriterAdapter {
     toolbar.className = "vno-print-preview-toolbar";
     toolbar.innerHTML = `
       <div class="vno-print-preview-toolbar-left">
-        <button class="vno-btn vno-btn-primary vno-print-preview-btn-print" title="In tài liệu (Ctrl+P)">
+        <button class="vno-btn vno-btn-primary vno-print-preview-btn-print" title="${printTooltip}">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" style="margin-right:6px;"><rect x="6" y="2" width="12" height="6" rx="1" fill="#E2E8F0" stroke="#475569" stroke-width="1.2"/><rect x="3" y="7" width="18" height="10" rx="2" fill="#0F4C81"/><rect x="6" y="13" width="12" height="8" rx="1" fill="#FFFFFF" stroke="#475569" stroke-width="1.2"/><line x1="8" y1="16" x2="16" y2="16" stroke="#94A3B8" stroke-width="1.2"/><line x1="8" y1="18" x2="14" y2="18" stroke="#94A3B8" stroke-width="1.2"/><circle cx="18" cy="10" r="1" fill="#10B981"/></svg>
-          <span>In tài liệu</span>
+          <span>${printBtnLabel}</span>
         </button>
         <div class="vno-print-preview-divider"></div>
         <div class="vno-print-preview-badge">
           <span class="vno-print-preview-paper-info">
-            Khổ: <strong>${dim.sizeLabel}</strong> · <strong>${dim.orientationLabel}</strong> · Lề: T${dim.margins.top} D${dim.margins.bottom} T${dim.margins.left} P${dim.margins.right} mm
+            ${paperSizeLabel}: <strong>${dim.sizeLabel}</strong> · <strong>${dim.orientationLabel}</strong> · ${marginsLabel}: T${dim.margins.top} D${dim.margins.bottom} T${dim.margins.left} P${dim.margins.right} mm
           </span>
         </div>
       </div>
 
       <div class="vno-print-preview-toolbar-center">
-        <button class="vno-btn vno-print-preview-nav-prev" title="Trang trước (Mũi tên trái / PageUp)" ${totalPages <= 1 ? "disabled" : ""}>
-          ◀ Trang trước
+        <button class="vno-btn vno-print-preview-nav-prev" title="${prevPageLabel}" ${totalPages <= 1 ? "disabled" : ""}>
+          ${prevPageLabel}
         </button>
         <div class="vno-print-preview-page-indicator">
-          <span>Trang </span>
+          <span>${pagePrefix}</span>
           <input type="number" min="1" max="${totalPages}" value="1" class="vno-print-preview-page-input" aria-label="Số trang" />
           <span> / <span class="vno-print-preview-total-pages">${totalPages}</span></span>
         </div>
-        <button class="vno-btn vno-print-preview-nav-next" title="Trang sau (Mũi tên phải / PageDown)" ${totalPages <= 1 ? "disabled" : ""}>
-          Trang sau ▶
+        <button class="vno-btn vno-print-preview-nav-next" title="${nextPageLabel}" ${totalPages <= 1 ? "disabled" : ""}>
+          ${nextPageLabel}
         </button>
       </div>
 
@@ -2140,9 +2232,9 @@ export class WriterAdapter {
         <button class="vno-btn vno-print-preview-zoom-out" title="Thu nhỏ">−</button>
         <span class="vno-print-preview-zoom-level">100%</span>
         <button class="vno-btn vno-print-preview-zoom-in" title="Phóng to">+</button>
-        <button class="vno-btn vno-print-preview-zoom-fit" title="Vừa chiều cao">Vừa trang</button>
+        <button class="vno-btn vno-print-preview-zoom-fit" title="Vừa chiều cao">${fitPageLabel}</button>
         <div class="vno-print-preview-divider"></div>
-        <button class="vno-btn vno-btn-icon-only vno-print-preview-close-btn" title="Đóng xem trước (Esc)">&times;</button>
+        <button class="vno-btn vno-btn-icon-only vno-print-preview-close-btn" title="${closeTooltip}">&times;</button>
       </div>
     `;
 
@@ -3823,9 +3915,15 @@ export class WriterAdapter {
         }
       } else {
         if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
+          const insertPromptTitle = (typeof t === "function" && t("writerDialogs.mailMerge.insertFieldTitle") !== "writerDialogs.mailMerge.insertFieldTitle")
+            ? t("writerDialogs.mailMerge.insertFieldTitle")
+            : "Chèn trường trộn thư";
+          const insertPromptMsg = (typeof t === "function" && t("writerDialogs.mailMerge.selectFieldPrompt") !== "writerDialogs.mailMerge.selectFieldPrompt")
+            ? t("writerDialogs.mailMerge.selectFieldPrompt")
+            : "Chưa có nguồn dữ liệu. Nhập tên trường cần chèn:";
           showPromptDialog({
-            title: "Chèn trường trộn thư",
-            message: "Chưa có nguồn dữ liệu. Nhập tên trường cần chèn:",
+            title: insertPromptTitle,
+            message: insertPromptMsg,
             defaultValue: "HoTen"
           }).then((val) => {
             if (val && val.trim()) {
@@ -3922,9 +4020,15 @@ export class WriterAdapter {
     const records = this.mailMergeData?.records || [];
     if (records.length === 0) {
       if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
+        const previewWarnTitle = (typeof t === "function" && t("writerDialogs.mailMerge.noDataWarningTitle") !== "writerDialogs.mailMerge.noDataWarningTitle")
+          ? t("writerDialogs.mailMerge.noDataWarningTitle")
+          : "Xem trước trộn thư";
+        const previewWarnMsg = (typeof t === "function" && t("writerDialogs.mailMerge.noDataWarningMsg") !== "writerDialogs.mailMerge.noDataWarningMsg")
+          ? t("writerDialogs.mailMerge.noDataWarningMsg")
+          : "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để dán bảng CSV trước.";
         showAlertDialog({
-          title: "Xem trước trộn thư",
-          message: "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để dán bảng CSV trước.",
+          title: previewWarnTitle,
+          message: previewWarnMsg,
           type: "warning"
         });
       }
@@ -4020,11 +4124,21 @@ export class WriterAdapter {
       ? options.records
       : (this.mailMergeData?.records || []);
 
+    const finishTitle = (typeof t === "function" && t("writerDialogs.mailMerge.finishTitle") !== "writerDialogs.mailMerge.finishTitle")
+      ? t("writerDialogs.mailMerge.finishTitle")
+      : "Hoàn tất trộn thư";
+    const finishNoData = (typeof t === "function" && t("writerDialogs.mailMerge.finishNoData") !== "writerDialogs.mailMerge.finishNoData")
+      ? t("writerDialogs.mailMerge.finishNoData")
+      : "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để dán bảng CSV.";
+    const finishNoFields = (typeof t === "function" && t("writerDialogs.mailMerge.finishNoFields") !== "writerDialogs.mailMerge.finishNoFields")
+      ? t("writerDialogs.mailMerge.finishNoFields")
+      : "Tài liệu hiện tại chưa chứa trường trộn thư nào. Hãy dùng lệnh 'Chèn trường' để chèn ít nhất một trường trộn.";
+
     if (records.length === 0) {
       if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
         showAlertDialog({
-          title: "Hoàn tất trộn thư",
-          message: "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để dán bảng CSV.",
+          title: finishTitle,
+          message: finishNoData,
           type: "warning"
         });
       }
@@ -4037,8 +4151,8 @@ export class WriterAdapter {
     if (!hasField) {
       if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
         showAlertDialog({
-          title: "Hoàn tất trộn thư",
-          message: "Tài liệu hiện tại chưa chứa trường trộn thư nào. Hãy dùng lệnh 'Chèn trường' để chèn ít nhất một trường trộn.",
+          title: finishTitle,
+          message: finishNoFields,
           type: "warning"
         });
       }
@@ -4061,9 +4175,12 @@ export class WriterAdapter {
     this.recordSnapshot("writer.mailMerge.finish");
 
     if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
+      const pattern = (typeof t === "function" && t("writerDialogs.mailMerge.finishSuccess") !== "writerDialogs.mailMerge.finishSuccess")
+        ? t("writerDialogs.mailMerge.finishSuccess")
+        : "Đã hoàn tất trộn thư thành công {count} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp.";
       showAlertDialog({
-        title: "Hoàn tất trộn thư",
-        message: `Đã hoàn tất trộn thư thành công ${records.length} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp.`,
+        title: finishTitle,
+        message: pattern.replace("{count}", records.length),
         type: "success"
       });
     }

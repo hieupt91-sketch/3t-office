@@ -48,8 +48,8 @@ export const WRITER_COMMANDS = [
   { id: "writer.text.italic", category: "format", label: "Nghiêng", shortcut: "Ctrl+I", icon: "italic", tooltip: "Chữ nghiêng (Ctrl+I)", isToggle: true },
   { id: "writer.text.underline", category: "format", label: "Gạch chân", shortcut: "Ctrl+U", icon: "underline", tooltip: "Gạch chân chữ (Ctrl+U)", isToggle: true },
   { id: "writer.text.strike", category: "format", label: "Gạch ngang", icon: "strike", tooltip: "Gạch ngang chữ", isToggle: true },
-  { id: "writer.font.grow", category: "format", label: "Tăng cỡ chữ", shortcut: "Ctrl+]", icon: "indentInc", tooltip: "Tăng cỡ chữ nhanh (Ctrl+])" },
-  { id: "writer.font.shrink", category: "format", label: "Giảm cỡ chữ", shortcut: "Ctrl+[", icon: "indentDec", tooltip: "Giảm cỡ chữ nhanh (Ctrl+[)" },
+  { id: "writer.font.grow", category: "format", label: "Tăng cỡ chữ", shortcut: "Ctrl+Shift+>", icon: "indentInc", tooltip: "Tăng cỡ chữ nhanh (Ctrl+Shift+>)" },
+  { id: "writer.font.shrink", category: "format", label: "Giảm cỡ chữ", shortcut: "Ctrl+Shift+<", icon: "indentDec", tooltip: "Giảm cỡ chữ nhanh (Ctrl+Shift+<)" },
   { id: "writer.text.subscript", category: "format", label: "Chỉ số dưới", shortcut: "Ctrl+=", icon: "strike", tooltip: "Chỉ số dưới X₂ (Ctrl+=)", isToggle: true },
   { id: "writer.text.superscript", category: "format", label: "Chỉ số trên", shortcut: "Ctrl+Shift++", icon: "strike", tooltip: "Chỉ số trên X² (Ctrl+Shift++)", isToggle: true },
   { id: "writer.text.clearFormat", category: "format", label: "Xóa định dạng", shortcut: "Ctrl+Space", icon: "clearFormat", tooltip: "Xóa toàn bộ định dạng về mặc định (Ctrl+Space)" },
@@ -81,8 +81,8 @@ export const WRITER_COMMANDS = [
   { id: "writer.footer.insert", category: "insert", label: "Chân trang", icon: "headerFooter", tooltip: "Chèn tiêu đề chân trang (Footer)" },
 
   // Đánh giá (Review)
-  { id: "writer.comment.insert", category: "review", label: "Thêm ghi chú", icon: "textBox", tooltip: "Thêm ghi chú vào đoạn văn bản đang chọn" },
-  { id: "writer.trackChanges.toggle", category: "review", label: "Theo dõi thay đổi", icon: "formatPainter", tooltip: "Bật/tắt đánh dấu nội dung thêm và xóa", isToggle: true },
+  { id: "writer.comment.insert", category: "review", label: "Thêm ghi chú", shortcut: "Ctrl+Alt+M", icon: "textBox", tooltip: "Thêm ghi chú vào đoạn văn bản đang chọn (Ctrl+Alt+M)" },
+  { id: "writer.trackChanges.toggle", category: "review", label: "Theo dõi thay đổi", shortcut: "Ctrl+Shift+E", icon: "formatPainter", tooltip: "Bật/tắt đánh dấu nội dung thêm và xóa (Ctrl+Shift+E)", isToggle: true },
   { id: "writer.trackChanges.acceptAll", category: "review", label: "Chấp nhận thay đổi", icon: "redo", tooltip: "Chấp nhận toàn bộ thay đổi trong tài liệu" },
   { id: "writer.trackChanges.rejectAll", category: "review", label: "Từ chối thay đổi", icon: "close", tooltip: "Từ chối toàn bộ thay đổi trong tài liệu" },
 
@@ -217,7 +217,7 @@ export function applyLocaleToCommandDefinitions(bus) {
     const tooltip = tCommand(cmd.id, "tooltip");
     if (label) cmd.label = label;
     if (tooltip) cmd.tooltip = tooltip;
-    if (label || tooltip) {
+    if (bus && typeof bus.updateState === "function" && (label || tooltip)) {
       bus.updateState(cmd.id, { ...(label ? { label } : {}), ...(tooltip ? { tooltip } : {}) });
     }
   }

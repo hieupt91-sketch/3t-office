@@ -3,6 +3,8 @@
  * Chuẩn hóa Quick Styles Microsoft Word 365 / LibreOffice Writer
  */
 
+import { t } from "../../platform/i18n/i18n.js";
+
 export const STYLE_PRESETS = [
   {
     id: "normal",
@@ -64,6 +66,18 @@ export const STYLE_PRESETS = [
 
 let activeDropdownInstance = null;
 
+function getPresetStrings(preset) {
+  const labelKey = `writerDialogs.styleGallery.${preset.id}.label`;
+  const sublabelKey = `writerDialogs.styleGallery.${preset.id}.sublabel`;
+  const descKey = `writerDialogs.styleGallery.${preset.id}.desc`;
+
+  const label = (typeof t === "function" && t(labelKey) !== labelKey) ? t(labelKey) : preset.label;
+  const sublabel = (typeof t === "function" && t(sublabelKey) !== sublabelKey) ? t(sublabelKey) : preset.sublabel;
+  const desc = (typeof t === "function" && t(descKey) !== descKey) ? t(descKey) : preset.description;
+
+  return { label, sublabel, desc };
+}
+
 /**
  * Hiển thị dropdown panel danh mục Thư viện Kiểu dáng
  * @param {Object} [options]
@@ -83,29 +97,43 @@ export function showStyleGalleryDropdown(options = {}) {
   const onSelectStyle = options.onSelectStyle || (() => {});
   const onClose = options.onClose || (() => {});
 
+  const ariaLabel = (typeof t === "function" && t("writerDialogs.styleGallery.title") !== "writerDialogs.styleGallery.title")
+    ? t("writerDialogs.styleGallery.title")
+    : "Thư viện kiểu dáng văn bản";
+  const titleText = (typeof t === "function" && t("writerDialogs.styleGallery.title") !== "writerDialogs.styleGallery.title")
+    ? t("writerDialogs.styleGallery.title")
+    : "Thư viện Kiểu dáng (Styles Gallery)";
+  const hintText = (typeof t === "function" && t("writerDialogs.styleGallery.hint") !== "writerDialogs.styleGallery.hint")
+    ? t("writerDialogs.styleGallery.hint")
+    : "Nhấp để áp dụng ngay";
+  const activeTooltip = (typeof t === "function" && t("writerRibbon.group.styles") !== "writerRibbon.group.styles")
+    ? t("writerRibbon.group.styles")
+    : "Đang áp dụng";
+
   const dropdown = document.createElement("div");
   dropdown.className = "vno-style-gallery-dropdown";
   dropdown.setAttribute("role", "dialog");
-  dropdown.setAttribute("aria-label", "Thư viện kiểu dáng văn bản");
+  dropdown.setAttribute("aria-label", ariaLabel);
 
   dropdown.innerHTML = `
     <div class="vno-style-gallery-header">
-      <span class="vno-style-gallery-title">Thư viện Kiểu dáng (Styles Gallery)</span>
-      <span class="vno-style-gallery-hint">Nhấp để áp dụng ngay</span>
+      <span class="vno-style-gallery-title">${titleText}</span>
+      <span class="vno-style-gallery-hint">${hintText}</span>
     </div>
     <div class="vno-style-gallery-grid">
       ${STYLE_PRESETS.map((preset) => {
+        const { label, sublabel, desc } = getPresetStrings(preset);
         const isActive = (preset.id === activeStyle) || (preset.id === "normal" && activeStyle === "p");
         return `
-          <button type="button" class="vno-style-card ${isActive ? "is-active" : ""}" data-style-id="${preset.id}" title="${preset.description}">
+          <button type="button" class="vno-style-card ${isActive ? "is-active" : ""}" data-style-id="${preset.id}" title="${desc}">
             <div class="vno-style-card-preview">
               <span style="${preset.previewCss}">${preset.previewSample}</span>
             </div>
             <div class="vno-style-card-meta">
-              <span class="vno-style-card-name">${preset.label}</span>
-              <span class="vno-style-card-tag">${preset.sublabel}</span>
+              <span class="vno-style-card-name">${label}</span>
+              <span class="vno-style-card-tag">${sublabel}</span>
             </div>
-            ${isActive ? `<span class="vno-style-card-check" title="Đang áp dụng">✓</span>` : ""}
+            ${isActive ? `<span class="vno-style-card-check" title="${activeTooltip}">✓</span>` : ""}
           </button>
         `;
       }).join("")}
@@ -208,21 +236,26 @@ export function createStyleGalleryStrip(options = {}) {
   const activeStyle = (options.activeStyle || "normal").toLowerCase();
   const onSelectStyle = options.onSelectStyle || (() => {});
 
+  const stripAriaLabel = (typeof t === "function" && t("writerRibbon.group.styles") !== "writerRibbon.group.styles")
+    ? t("writerRibbon.group.styles")
+    : "Dải chọn kiểu nhanh";
+
   const strip = document.createElement("div");
   strip.className = "vno-style-gallery-strip";
   strip.setAttribute("role", "toolbar");
-  strip.setAttribute("aria-label", "Dải chọn kiểu nhanh");
+  strip.setAttribute("aria-label", stripAriaLabel);
 
   STYLE_PRESETS.forEach((preset) => {
+    const { label, desc } = getPresetStrings(preset);
     const isActive = (preset.id === activeStyle) || (preset.id === "normal" && activeStyle === "p");
     const item = document.createElement("button");
     item.type = "button";
     item.className = `vno-style-strip-item ${isActive ? "is-active" : ""}`;
     item.setAttribute("data-style-id", preset.id);
-    item.title = `${preset.label}: ${preset.description}`;
+    item.title = `${label}: ${desc}`;
     item.innerHTML = `
       <div class="vno-style-strip-preview" style="${preset.previewCss}">${preset.previewSample}</div>
-      <div class="vno-style-strip-label">${preset.label}</div>
+      <div class="vno-style-strip-label">${label}</div>
     `;
     item.addEventListener("click", () => {
       onSelectStyle(preset.id);

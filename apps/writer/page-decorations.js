@@ -1,7 +1,9 @@
-﻿/**
+/**
  * VN Office — VN Writer Page Decorations (Hình mờ & Viền trang)
  * Hộp thoại và tiện ích cấu hình Watermark & Page Border chuẩn Word
  */
+
+import { t, getLocale } from "../../platform/i18n/i18n.js";
 
 export const WATERMARK_SUGGESTIONS = [
   "DỰ THẢO",
@@ -62,19 +64,31 @@ export async function showWatermarkDialog(currentWatermark = null) {
     const activeAngle = currentWatermark?.angle ?? 45;
     const hasWatermark = Boolean(currentWatermark && currentWatermark.text);
 
+    const isEn = getLocale() === "en";
+    const suggestions = isEn
+      ? ["DRAFT", "CONFIDENTIAL", "TOP SECRET", "URGENT", "COPY"]
+      : WATERMARK_SUGGESTIONS;
+
+    const colorLabelMap = {
+      "#dc2626": isEn ? "Light Red" : "Đỏ nhạt",
+      "#94a3b8": isEn ? "Standard Gray" : "Xám tiêu chuẩn",
+      "#2563eb": isEn ? "Blue" : "Xanh dương",
+      "#d97706": isEn ? "Amber" : "Vàng hổ phách"
+    };
+
     overlay.innerHTML = `
       <div class="vno-dialog-box vno-watermark-dialog" style="width: 440px;">
         <div class="vno-dialog-header">
-          <span>Hình mờ (Watermark)</span>
-          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng">&times;</button>
+          <span>${t("writerDialogs.watermark.title")}</span>
+          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex; flex-direction:column; gap:14px;">
           <div>
             <label style="font-size:12px; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
-              Gợi ý văn bản hành chính Việt Nam:
+              ${t("writerDialogs.watermark.suggestionsTitle")}
             </label>
             <div style="display:flex; flex-wrap:wrap; gap:6px;">
-              ${WATERMARK_SUGGESTIONS.map(s => `
+              ${suggestions.map(s => `
                 <button type="button" class="vno-btn vno-watermark-chip" data-text="${s}" style="font-size:11px; padding:3px 8px;">
                   ${s}
                 </button>
@@ -84,33 +98,33 @@ export async function showWatermarkDialog(currentWatermark = null) {
 
           <div>
             <label for="vno-wm-text" style="font-size:13px; font-weight:600; display:block; margin-bottom:4px;">
-              Nội dung hình mờ:
+              ${t("writerDialogs.watermark.textLabel")}
             </label>
-            <input type="text" id="vno-wm-text" class="vno-dialog-input" value="${activeText}" placeholder="Nhập chữ hình mờ (VD: DỰ THẢO, MẬT)..." style="width:100%; box-sizing:border-box; font-size:14px; font-weight:bold; padding:8px 10px;" />
+            <input type="text" id="vno-wm-text" class="vno-dialog-input" value="${activeText}" placeholder="${t("writerDialogs.watermark.placeholder")}" style="width:100%; box-sizing:border-box; font-size:14px; font-weight:bold; padding:8px 10px;" />
           </div>
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
             <div>
-              <label for="vno-wm-color" style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Màu sắc:</label>
+              <label for="vno-wm-color" style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">${t("writerDialogs.watermark.colorLabel")}</label>
               <select id="vno-wm-color" class="vno-select" style="width:100%;">
                 ${WATERMARK_COLORS.map(c => `
-                  <option value="${c.value}" ${c.value === activeColor ? "selected" : ""}>${c.label}</option>
+                  <option value="${c.value}" ${c.value === activeColor ? "selected" : ""}>${colorLabelMap[c.value] || c.label}</option>
                 `).join("")}
               </select>
             </div>
             <div>
-              <label for="vno-wm-angle" style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Góc xoay:</label>
+              <label for="vno-wm-angle" style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">${t("writerDialogs.watermark.angleLabel")}</label>
               <select id="vno-wm-angle" class="vno-select" style="width:100%;">
-                <option value="45" ${activeAngle === 45 ? "selected" : ""}>Chéo 45° (Chuẩn)</option>
-                <option value="-45" ${activeAngle === -45 ? "selected" : ""}>Chéo −45°</option>
-                <option value="0" ${activeAngle === 0 ? "selected" : ""}>Nằm ngang 0°</option>
+                <option value="45" ${activeAngle === 45 ? "selected" : ""}>${t("writerDialogs.watermark.angleDiagonal")}</option>
+                <option value="-45" ${activeAngle === -45 ? "selected" : ""}>${t("writerDialogs.watermark.angleDiagonalNeg")}</option>
+                <option value="0" ${activeAngle === 0 ? "selected" : ""}>${t("writerDialogs.watermark.angleHorizontal")}</option>
               </select>
             </div>
           </div>
 
           <div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-              <label for="vno-wm-opacity" style="font-size:12px; font-weight:600;">Độ mờ (Opacity):</label>
+              <label for="vno-wm-opacity" style="font-size:12px; font-weight:600;">${t("writerDialogs.watermark.opacityLabel")}</label>
               <span id="vno-wm-opacity-val" style="font-size:12px; font-weight:bold; color:#0f4c81;">${Math.round(activeOpacity * 100)}%</span>
             </div>
             <input type="range" id="vno-wm-opacity" min="0.05" max="0.6" step="0.05" value="${activeOpacity}" style="width:100%;" />
@@ -119,11 +133,11 @@ export async function showWatermarkDialog(currentWatermark = null) {
 
         <div class="vno-dialog-footer" style="display:flex; justify-content:space-between; align-items:center;">
           <div>
-            ${hasWatermark ? `<button type="button" class="vno-btn vno-btn-danger vno-wm-btn-remove" style="color:#dc2626; border-color:#fca5a5;">Xóa hình mờ</button>` : `<span></span>`}
+            ${hasWatermark ? `<button type="button" class="vno-btn vno-btn-danger vno-wm-btn-remove" style="color:#dc2626; border-color:#fca5a5;">${t("writerDialogs.watermark.removeWatermark")}</button>` : `<span></span>`}
           </div>
           <div style="display:flex; gap:8px;">
-            <button type="button" class="vno-btn vno-dialog-cancel-btn">Hủy bỏ</button>
-            <button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn">Áp dụng</button>
+            <button type="button" class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
+            <button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn">${t("writerDialogs.watermark.apply")}</button>
           </div>
         </div>
       </div>
@@ -216,38 +230,61 @@ export async function showPageBorderDialog(currentBorder = null) {
     const activeWidth = currentBorder?.width ?? 2;
     const activeColor = currentBorder?.color || "#0f4c81";
 
+    const isEn = getLocale() === "en";
+    const styleLabelMap = {
+      solid: isEn ? "Solid" : "Đường nét liền (Solid)",
+      dashed: isEn ? "Dashed" : "Đường nét đứt (Dashed)",
+      double: isEn ? "Double" : "Đường nét đôi (Double)",
+      none: isEn ? "None" : "Không có viền (None)"
+    };
+    const widthLabelMap = {
+      1: isEn ? "1 pt (Thin)" : "1 pt (Mỏng)",
+      1.5: "1.5 pt",
+      2: isEn ? "2 pt (Standard)" : "2 pt (Tiêu chuẩn)",
+      3: isEn ? "3 pt (Thick)" : "3 pt (Đậm)",
+      4.5: "4.5 pt",
+      6: isEn ? "6 pt (Extra Thick)" : "6 pt (Rất đậm)"
+    };
+    const colorLabelMap = {
+      "#0f4c81": isEn ? "VN Office Blue" : "Xanh VN Office",
+      "#1e293b": isEn ? "Charcoal" : "Đen than",
+      "#64748b": isEn ? "Neutral Gray" : "Xám trung tính",
+      "#dc2626": isEn ? "Official Red" : "Đỏ hành chính",
+      "#15803d": isEn ? "Green" : "Xanh lá cây"
+    };
+
     overlay.innerHTML = `
       <div class="vno-dialog-box vno-page-border-dialog" style="width: 460px;">
         <div class="vno-dialog-header">
-          <span>Viền trang (Page Border)</span>
-          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng">&times;</button>
+          <span>${t("writerDialogs.pageBorder.title")}</span>
+          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex; flex-direction:column; gap:14px;">
           <div style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap:16px; align-items:center;">
             <div style="display:flex; flex-direction:column; gap:10px;">
               <div>
-                <label for="vno-border-style" style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Kiểu đường viền:</label>
+                <label for="vno-border-style" style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">${t("writerDialogs.pageBorder.styleLabel")}</label>
                 <select id="vno-border-style" class="vno-select" style="width:100%;">
                   ${PAGE_BORDER_STYLES.map(s => `
-                    <option value="${s.value}" ${s.value === activeStyle ? "selected" : ""}>${s.label}</option>
+                    <option value="${s.value}" ${s.value === activeStyle ? "selected" : ""}>${styleLabelMap[s.value] || s.label}</option>
                   `).join("")}
                 </select>
               </div>
 
               <div>
-                <label for="vno-border-width" style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Độ dày viền:</label>
+                <label for="vno-border-width" style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">${t("writerDialogs.pageBorder.widthLabel")}</label>
                 <select id="vno-border-width" class="vno-select" style="width:100%;">
                   ${PAGE_BORDER_WIDTHS.map(w => `
-                    <option value="${w.value}" ${Number(w.value) === Number(activeWidth) ? "selected" : ""}>${w.label}</option>
+                    <option value="${w.value}" ${Number(w.value) === Number(activeWidth) ? "selected" : ""}>${widthLabelMap[w.value] || w.label}</option>
                   `).join("")}
                 </select>
               </div>
 
               <div>
-                <label for="vno-border-color" style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Màu sắc viền:</label>
+                <label for="vno-border-color" style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">${t("writerDialogs.pageBorder.colorLabel")}</label>
                 <select id="vno-border-color" class="vno-select" style="width:100%;">
                   ${PAGE_BORDER_COLORS.map(c => `
-                    <option value="${c.value}" ${c.value === activeColor ? "selected" : ""}>${c.label}</option>
+                    <option value="${c.value}" ${c.value === activeColor ? "selected" : ""}>${colorLabelMap[c.value] || c.label}</option>
                   `).join("")}
                 </select>
               </div>
@@ -255,11 +292,11 @@ export async function showPageBorderDialog(currentBorder = null) {
 
             <!-- Khung xem trước trực quan (Live Preview) -->
             <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
-              <span style="font-size:11px; color:#64748b; margin-bottom:6px; font-weight:600;">Xem trước viền trang</span>
+              <span style="font-size:11px; color:#64748b; margin-bottom:6px; font-weight:600;">${t("writerDialogs.pageBorder.previewTitle")}</span>
               <div id="vno-border-preview-sheet" style="width:110px; height:140px; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.15); border-radius:2px; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:10px; box-sizing:border-box;">
                 <div id="vno-border-preview-inner" style="position:absolute; inset:6px; pointer-events:none; border: 2px solid #0f4c81; box-sizing:border-box;"></div>
                 <div style="font-size:8px; color:#94a3b8; line-height:1.4; text-align:center;">
-                  Nội dung<br>văn bản<br>mẫu
+                  ${t("writerDialogs.pageBorder.sampleText")}
                 </div>
               </div>
             </div>
@@ -268,11 +305,11 @@ export async function showPageBorderDialog(currentBorder = null) {
 
         <div class="vno-dialog-footer" style="display:flex; justify-content:space-between; align-items:center;">
           <div>
-            ${isEnabled ? `<button type="button" class="vno-btn vno-btn-danger vno-border-btn-remove" style="color:#dc2626; border-color:#fca5a5;">Xóa viền trang</button>` : `<span></span>`}
+            ${isEnabled ? `<button type="button" class="vno-btn vno-btn-danger vno-border-btn-remove" style="color:#dc2626; border-color:#fca5a5;">${t("writerDialogs.pageBorder.removeBorder")}</button>` : `<span></span>`}
           </div>
           <div style="display:flex; gap:8px;">
-            <button type="button" class="vno-btn vno-dialog-cancel-btn">Hủy bỏ</button>
-            <button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn">Áp dụng</button>
+            <button type="button" class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
+            <button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn">${t("writerDialogs.pageBorder.apply")}</button>
           </div>
         </div>
       </div>
