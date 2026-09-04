@@ -867,6 +867,7 @@ export class FormulaEngine {
   }
 
   _resolveSingleValue(token) {
+    if (typeof token !== "string") return token;
     token = token.trim();
     if (token.startsWith('"') && token.endsWith('"')) {
       return token.slice(1, -1);
@@ -882,6 +883,21 @@ export class FormulaEngine {
     }
     if (token.toUpperCase() === "TRUE") return true;
     if (token.toUpperCase() === "FALSE") return false;
+
+    // Hỗ trợ biểu thức số học trong đối số hàm (ví dụ: 0.08/12, 12*5, A1/12)
+    if (/[+\-*/^()]/.test(token)) {
+      const arith = this._evaluateArithmetic(token, { raw: true });
+      if (typeof arith === "number" && Number.isFinite(arith)) {
+        return arith;
+      }
+    }
+    if (/^[A-Z_]+\s*\(.*\)$/i.test(token)) {
+      const nested = this.evaluate(`=${token}`);
+      if (nested !== "#LỖI!" && nested !== "#NAME?") {
+        return nested;
+      }
+    }
+
     return token;
   }
 
@@ -950,14 +966,14 @@ export class FormulaEngine {
     return "#NUM!";
   }
 
-  _evaluateArithmetic(expr) {
+  _evaluateArithmetic(expr, { raw = false } = {}) {
     // Thay thế các tọa độ ô (vd: A1, B2) thành giá trị số tương ứng
     let referenceError = false;
     const resolved = expr.replace(/(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ_][^\s!+\-*/()]*)![A-Z]+\d+|[A-Z]+\d+/gi, (token) => {
       const reference = this._parseReference(token);
       const val = reference.error || this.getCellValue(reference.ref, reference.sheet);
       if (val === "#REF!") referenceError = true;
-      return typeof val === "number" ? val : 0;
+      return typeof val === "number" ? val : (Number(val) || 0);
     });
     if (referenceError) return "#REF!";
 
@@ -965,9 +981,13 @@ export class FormulaEngine {
     if (/^[\d\s+\-*/().%^]+$/.test(resolved)) {
       // Thay thế ^ thành **
       const jsExpr = resolved.replace(/\^/g, "**");
-      // eslint-disable-next-line no-new-func
-      const result = Function(`"use strict"; return (${jsExpr})`)();
-      return typeof result === "number" ? Math.round(result * 100) / 100 : result;
+      try {
+        // eslint-disable-next-line no-new-func
+        const result = Function(`"use strict"; return (${jsExpr})`)();
+        return typeof result === "number" ? (raw ? result : Math.round(result * 100) / 100) : result;
+      } catch {
+        return "#VALUE!";
+      }
     }
 
     return "#VALUE!";

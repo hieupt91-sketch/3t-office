@@ -45,6 +45,7 @@ import { runWriterRefMailAuditTests } from "./unit/writer-refmail-audit.test.js"
 import { runSheetImageTests } from "./unit/sheet-images.test.js";
 import { runSlidesSlideSizeTests } from "./unit/slides-slide-size.test.js";
 import { runWriterRibbonBreadthTests } from "./unit/writer-ribbon-breadth.test.js";
+import { runSheetKeyboardAuditTests } from "./unit/sheet-keyboard-audit.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -97,7 +98,8 @@ async function runAll() {
     { title: "39. Behavioral & Unit Tests — VN Writer References & Mailings Audit", runner: runWriterRefMailAuditTests },
     { title: "40. Behavioral Tests — VN Sheet Insert Pictures", runner: runSheetImageTests },
     { title: "41. Behavioral Tests — VN Slides Slide Size", runner: runSlidesSlideSizeTests },
-    { title: "42. Behavioral & Unit Tests — VN Writer Ribbon Breadth (Sub/Sup, Illustrations, Themes, Links)", runner: runWriterRibbonBreadthTests }
+    { title: "42. Behavioral & Unit Tests — VN Writer Ribbon Breadth (Sub/Sup, Illustrations, Themes, Links)", runner: runWriterRibbonBreadthTests },
+    { title: "43. Behavioral & Unit Tests — VN Sheet Keyboard Entry & Formula Evaluation", runner: runSheetKeyboardAuditTests }
   ];
 
   for (const suite of suites) {

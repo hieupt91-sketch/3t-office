@@ -29,8 +29,11 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("common.file.close", () => this.closeDocument());
     globalCommandBus.bindHandler("common.edit.undo", () => this.grid.undo ? this.grid.undo() : false);
     globalCommandBus.bindHandler("common.edit.redo", () => this.grid.redo ? this.grid.redo() : false);
-    globalCommandBus.bindHandler("common.edit.selectAll", () => this.grid.selectAll ? this.grid.selectAll() : false);
+    globalCommandBus.bindHandler("common.edit.copy", () => this._copySelectedCell(false));
+    globalCommandBus.bindHandler("common.edit.cut", () => this._copySelectedCell(true));
+    globalCommandBus.bindHandler("common.edit.paste", () => this._pasteIntoSelectedCell());
     globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pasteIntoSelectedCell());
+    globalCommandBus.bindHandler("common.edit.selectAll", () => this.grid.selectAll ? this.grid.selectAll() : false);
     globalCommandBus.bindHandler("sheet.format.conditional", () => this.grid.showConditionalFormattingDialog());
     globalCommandBus.bindHandler("sheet.data.validation", () => this.grid.showDataValidationDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
@@ -333,7 +336,11 @@ export class SheetAdapter {
 
     switch (vnCmdId) {
       case "sheet.cell.edit":
-        this.grid.focusFormulaInput();
+        if (typeof this.grid._focusFormulaInputAtEnd === "function") {
+          this.grid._focusFormulaInputAtEnd();
+        } else {
+          this.grid.focusFormulaInput();
+        }
         return true;
 
       case "sheet.cell.bold":
@@ -551,6 +558,7 @@ export class SheetAdapter {
     const item = this.grid.cellsData?.get(key);
     const text = item ? (item.formula || item.val || "") : "";
 
+    this._clipboardText = String(text);
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(String(text));
@@ -571,14 +579,18 @@ export class SheetAdapter {
   async _pasteIntoSelectedCell() {
     const coord = this.grid.selectedCoord;
     if (!coord || !this.grid.setCellValue) return false;
+    let text = this._clipboardText || "";
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
-        const text = await navigator.clipboard.readText();
-        this.grid.setCellValue(coord.c, coord.r, text);
-        return true;
+        const clip = await navigator.clipboard.readText();
+        if (clip) text = clip;
       }
     } catch {
       // Trình duyệt có thể chặn đọc Clipboard nếu chưa có quyền/tương tác người dùng
+    }
+    if (text !== undefined && text !== null) {
+      this.grid.setCellValue(coord.c, coord.r, text);
+      return true;
     }
     return false;
   }

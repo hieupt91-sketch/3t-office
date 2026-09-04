@@ -140,6 +140,9 @@ export class SheetGridController {
     });
 
     this.formulaInput.addEventListener("keydown", (e) => {
+      // Ngăn sự kiện phím trong formulaInput nổi bọt lên container lưới (tránh xử lý trùng lặp Enter, Tab, mũi tên...)
+      e.stopPropagation();
+
       if (this.autocomplete.handleKeyDown(e)) {
         return;
       }
@@ -150,26 +153,58 @@ export class SheetGridController {
           globalCommandBus.execute("sheet.formula.arrayEnter");
           return;
         }
+        e.preventDefault();
         this.autocomplete.closeAll();
-        this.selectCell(this.selectedCoord.c, this.selectedCoord.r + 1);
+        const nextRow = e.shiftKey
+          ? Math.max(1, this.selectedCoord.r - 1)
+          : Math.min(this.rowCount, this.selectedCoord.r + 1);
+        this.selectCell(this.selectedCoord.c, nextRow);
+        return;
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        this.autocomplete.closeAll();
+        const colIdx = this.cols.indexOf(this.selectedCoord.c);
+        const nextCol = e.shiftKey
+          ? this.cols[Math.max(0, colIdx - 1)]
+          : this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
+        this.selectCell(nextCol, this.selectedCoord.r);
+        return;
       } else if (e.key === "Escape") {
+        e.preventDefault();
         this.autocomplete.closeAll();
-        const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-        const cur = this.cellsData.get(key);
-        this.formulaInput.value = cur ? cur.val : "";
+        if (this._cellValueBeforeEdit !== undefined) {
+          this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, this._cellValueBeforeEdit, false);
+          this.formulaInput.value = this._cellValueBeforeEdit;
+        } else {
+          const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+          const cur = this.cellsData.get(key);
+          this.formulaInput.value = cur ? (cur.formula || cur.val || "") : "";
+        }
+        if (typeof this.container.focus === "function") {
+          this.container.focus({ preventScroll: true });
+        }
+        return;
       }
     });
 
     fBar.querySelector("#vno-fx-cancel").addEventListener("click", () => {
       this.autocomplete.closeAll();
-      const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-      const cur = this.cellsData.get(key);
-      this.formulaInput.value = cur ? cur.val : "";
+      if (this._cellValueBeforeEdit !== undefined) {
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, this._cellValueBeforeEdit, false);
+        this.formulaInput.value = this._cellValueBeforeEdit;
+      } else {
+        const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+        const cur = this.cellsData.get(key);
+        this.formulaInput.value = cur ? (cur.formula || cur.val || "") : "";
+      }
+      if (typeof this.container.focus === "function") {
+        this.container.focus({ preventScroll: true });
+      }
     });
 
     fBar.querySelector("#vno-fx-ok").addEventListener("click", () => {
       this.autocomplete.closeAll();
-      this.selectCell(this.selectedCoord.c, this.selectedCoord.r + 1);
+      this.selectCell(this.selectedCoord.c, Math.min(this.rowCount, this.selectedCoord.r + 1));
     });
 
     fBar.querySelector("#vno-fx-insert").addEventListener("click", () => {
@@ -602,7 +637,7 @@ export class SheetGridController {
         }
 
         td.addEventListener("click", event => this.selectCell(c, r, event.shiftKey));
-        td.addEventListener("dblclick", () => this.focusFormulaInput());
+        td.addEventListener("dblclick", () => this._focusFormulaInputAtEnd());
         td.addEventListener("contextmenu", event => {
           event.preventDefault();
           this.selectCell(c, r);
@@ -639,40 +674,78 @@ export class SheetGridController {
       const colIdx = this.cols.indexOf(this.selectedCoord.c);
       let nextCol = this.selectedCoord.c;
       let nextRow = this.selectedCoord.r;
+      let extendRange = false;
 
-      if (e.key === "ArrowUp") nextRow = Math.max(1, nextRow - 1);
-      else if (e.key === "ArrowDown" || e.key === "Enter") nextRow = Math.min(this.rowCount, nextRow + 1);
-      else if (e.key === "ArrowLeft") nextCol = this.cols[Math.max(0, colIdx - 1)];
-      else if (e.key === "ArrowRight" || e.key === "Tab") nextCol = this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
-      else if (e.key === "F2") {
+      if (e.key === "ArrowUp") {
+        nextRow = Math.max(1, nextRow - 1);
+        extendRange = e.shiftKey;
+      } else if (e.key === "ArrowDown") {
+        nextRow = Math.min(this.rowCount, nextRow + 1);
+        extendRange = e.shiftKey;
+      } else if (e.key === "ArrowLeft") {
+        nextCol = this.cols[Math.max(0, colIdx - 1)];
+        extendRange = e.shiftKey;
+      } else if (e.key === "ArrowRight") {
+        nextCol = this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
+        extendRange = e.shiftKey;
+      } else if (e.key === "Enter") {
+        nextRow = e.shiftKey ? Math.max(1, nextRow - 1) : Math.min(this.rowCount, nextRow + 1);
+      } else if (e.key === "Tab") {
+        nextCol = e.shiftKey ? this.cols[Math.max(0, colIdx - 1)] : this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
+      } else if (e.key === "F2") {
         e.preventDefault();
-        this.focusFormulaInput();
+        const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+        const cur = this.cellsData.get(key);
+        this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
+        this._focusFormulaInputAtEnd();
         return;
       } else if (e.key === "=" && !e.ctrlKey && !e.altKey && !e.metaKey) {
         e.preventDefault();
+        const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+        const cur = this.cellsData.get(key);
+        this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
         this.formulaInput.value = "=";
-        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, "=");
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, "=", true, { coalesce: true });
         this._focusFormulaInputAtEnd();
         if (this.autocomplete) {
           this.autocomplete.handleInput("=", 1);
         }
         return;
       } else if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        // Xóa nội dung ô đang chọn ngay, đúng hành vi Excel thật (không cần vào chế độ sửa).
+        // Xóa nội dung ô hoặc vùng đang chọn ngay, đúng hành vi Excel thật
         e.preventDefault();
-        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, "");
+        if (this.selectionRange && (this.selectionRange.start.c !== this.selectionRange.end.c || this.selectionRange.start.r !== this.selectionRange.end.r)) {
+          const cells = this.formulaEngine.expandRange(this.getSelectedRangeLabel());
+          cells.forEach(coord => {
+            const [c, r] = this._splitCoord(coord);
+            this.setCellValue(c, r, "");
+          });
+        } else {
+          this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, "");
+        }
         if (this.formulaInput) this.formulaInput.value = "";
+        return;
+      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "c" || e.key === "C")) {
+        e.preventDefault();
+        globalCommandBus?.execute?.("common.edit.copy");
+        return;
+      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "v" || e.key === "V")) {
+        e.preventDefault();
+        globalCommandBus?.execute?.("common.edit.paste");
+        return;
+      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "x" || e.key === "X")) {
+        e.preventDefault();
+        globalCommandBus?.execute?.("common.edit.cut");
         return;
       } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
         // Gõ TRỰC TIẾP bất kỳ ký tự in được nào khi đang chọn ô (không bấm F2 trước) phải
         // THAY THẾ nội dung ô đó và vào chế độ sửa — đúng hành vi cơ bản nhất của Excel.
-        // Trước đây handler này chỉ đặc cách riêng ký tự "=" (bắt đầu công thức) và bỏ
-        // qua MỌI ký tự khác (`else return` không điều kiện) — nghĩa là gõ số/chữ trực
-        // tiếp vào ô đã chọn hoàn toàn không có tác dụng gì (lỗi thật, phát hiện
-        // 04/09/2026 khi xác minh trực tiếp hàm PMT vừa thêm).
         e.preventDefault();
+        const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+        const cur = this.cellsData.get(key);
+        this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
         this.formulaInput.value = e.key;
-        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.key);
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.key, true, { coalesce: true });
         this._focusFormulaInputAtEnd();
         if (this.autocomplete) {
           this.autocomplete.handleInput(e.key, 1);
@@ -681,7 +754,7 @@ export class SheetGridController {
       } else return;
 
       e.preventDefault();
-      this.selectCell(nextCol, nextRow);
+      this.selectCell(nextCol, nextRow, extendRange);
     });
   }
 
@@ -765,10 +838,11 @@ export class SheetGridController {
 
     if (!extendRange || !this.selectionRange) {
       this.selectionRange = { start: { c: col, r: row }, end: { c: col, r: row } };
+      this.selectedCoord = { c: col, r: row };
     } else {
       this.selectionRange.end = { c: col, r: row };
+      // Giữ nguyên selectedCoord là ô neo bắt đầu (anchor) của vùng chọn
     }
-    this.selectedCoord = { c: col, r: row };
 
     // Tự động cuộn viewport nếu ô nằm ngoài phạm vi hiển thị ảo
     if (this.viewport && (row < this.currentStartRow || row > this.currentEndRow)) {
@@ -797,21 +871,18 @@ export class SheetGridController {
 
     if (this.nameBox) this.nameBox.textContent = this.getSelectedRangeLabel();
 
-    const data = this.cellsData.get(coordKey);
+    const activeCoordKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const data = this.cellsData.get(activeCoordKey);
     const displayVal = data ? (data.formula || data.val) : "";
     if (this.formulaInput) this.formulaInput.value = displayVal;
     this._showValidationDropdown(target, col, row);
 
     if (this.options.onSelect) {
-      this.options.onSelect(coordKey, data, this._calculateStats());
+      this.options.onSelect(activeCoordKey, data, this._calculateStats());
     }
 
-    // Đưa focus bàn phím thật về container lưới (trừ khi người dùng đang gõ trong ô công
-    // thức — vd luồng "=" trong _bindGridKeyboardNavigation() đã tự focus formulaInput
-    // ngay sau khi gọi setCellValue(), KHÔNG gọi lại selectCell() nên không bị giành lại
-    // focus). Không có dòng này, mũi tên/Enter/Tab/F2/gõ trực tiếp vào ô đã chọn hoàn
-    // toàn không có tác dụng (xem chú thích tabindex ở mount()).
-    if (typeof this.container.focus === "function" && document.activeElement !== this.formulaInput) {
+    // Đưa focus bàn phím thật về container lưới khi chọn ô
+    if (typeof this.container.focus === "function") {
       this.container.focus({ preventScroll: true });
     }
   }
