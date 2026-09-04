@@ -111,6 +111,20 @@ export async function runSheetCommentsPrintAreaTests() {
       const css = readFileSync(new URL("../../apps/sheet/sheet.css", import.meta.url), "utf8");
       ["has-comment::after", "has-comment:hover", "is-print-area-top", "is-print-area-bottom", "has-page-break-row", "has-page-break-col"].forEach(token => assert(css.includes(token), `Thiếu CSS ${token}`));
     });
+    await test("Print Area: FODS round-trip dùng table:print-ranges chuẩn", () => {
+      const first = grid.activeSheet;
+      grid.printAreaBySheet[first] = "B2:F20";
+      const adapter = new SheetAdapter(grid);
+      const xml = adapter.serializeToFods();
+      assert(xml.includes("table:print-ranges="), "Thiếu table:print-ranges ODF chuẩn");
+      const parsed = adapter.parseFods(xml);
+      assert(parsed.printAreaBySheet[first] === "B2:F20", "Không đọc lại Print Area từ FODS");
+
+      const loaded = new SheetGridController(container());
+      loaded._refreshPageAndCommentVisuals = () => {};
+      assert(new SheetAdapter(loaded).loadFromFods(xml), "loadFromFods thất bại");
+      assert(loaded.printAreaBySheet[first] === "B2:F20", "loadFromFods không khôi phục Print Area");
+    });
   } finally { globalThis.document = originalDocument; }
   return results;
 }
