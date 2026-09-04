@@ -348,6 +348,16 @@
   outline-offset: 3px;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
 }
+.vno-slide-shape-item.is-connector { overflow: visible; }
+.vno-slide-shape-item.is-diagram-node { display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.vno-diagram-node-text, .vno-show-shape-text {
+  width: 100%; padding: 8px; box-sizing: border-box; color: #fff; font-size: 17px;
+  line-height: 1.25; font-weight: 700; text-align: center; word-break: break-word;
+  user-select: text; cursor: text; outline: none;
+}
+.vno-diagram-node-text[contenteditable="true"] { background: rgba(255,255,255,.16); box-shadow: inset 0 0 0 2px rgba(255,255,255,.8); }
+.vno-show-shape { display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.vno-show-connector { pointer-events: none; }
 .vno-slide-title.is-selected {
   outline: 2px dashed #2563eb !important;
   outline-offset: 2px;
@@ -784,6 +794,8 @@
 .vno-slide-sorter-accent { position: absolute; inset: 0 0 auto; height: 4px; }
 .vno-slide-sorter-title { font-size: clamp(12px, 1.15vw, 18px); line-height: 1.25; font-weight: 800; margin-bottom: 12px; max-height: 2.5em; overflow: hidden; }
 .vno-slide-sorter-body { white-space: pre-line; font-size: clamp(8px, .72vw, 12px); line-height: 1.45; overflow: hidden; }
+.vno-sorter-shape { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.vno-sorter-shape-node { position: absolute; z-index: 1; display: flex; align-items: center; justify-content: center; padding: 2px; box-sizing: border-box; overflow: hidden; color: #fff; font-size: 6px; font-weight: 700; text-align: center; }
 .vno-slide-sorter-actions { display: flex; justify-content: flex-end; gap: 7px; padding-top: 8px; opacity: .25; transition: opacity .15s; }
 .vno-slide-sorter-item:hover .vno-slide-sorter-actions, .vno-slide-sorter-item:focus-within .vno-slide-sorter-actions { opacity: 1; }
 .vno-slide-sorter-actions button { border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; padding: 4px 8px; color: #334155; cursor: pointer; font-size: 11px; }
@@ -792,4 +804,14 @@
 @media (max-width: 620px) {
   .vno-slide-sorter-grid { grid-template-columns: 1fr; padding: 16px; gap: 14px; }
 }
+
+/* Diagram chooser */
+.vno-diagram-hint { margin: 0 0 14px; color: #64748b; font-size: 13px; }
+.vno-diagram-type-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.vno-diagram-type { min-height: 100px; padding: 12px; border: 2px solid #cbd5e1; border-radius: 8px; background: #fff; color: #334155; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.vno-diagram-type:hover, .vno-diagram-type:focus-visible { border-color: #b53818; outline: none; }
+.vno-diagram-type.is-selected { border-color: #b53818; background: #fff7ed; box-shadow: 0 0 0 3px rgba(181,56,24,.14); }
+.vno-diagram-type-preview { min-height: 42px; color: #2563eb; font-size: 20px; line-height: 1.05; white-space: nowrap; }
+.vno-diagram-count { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; font-weight: 600; color: #334155; }
+.vno-diagram-count input { width: 76px; padding: 7px 9px; border: 1px solid #94a3b8; border-radius: 5px; font: inherit; }
 

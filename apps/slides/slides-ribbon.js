@@ -60,6 +60,7 @@ export const SLIDES_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "slides.image.insert", isLarge: true },
           { type: "button", commandId: "slides.shape.insert", isLarge: true },
+          { type: "button", commandId: "slides.diagram.insert", isLarge: true },
           { type: "button", commandId: "slides.text.insert", isLarge: true }
         ]
       },

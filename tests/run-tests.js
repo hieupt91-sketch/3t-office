@@ -39,6 +39,7 @@ import { runSheetRowColInsertTests } from "./unit/sheet-row-col-insert.test.js";
 import { runSheetSlidesI18nShortcutTests } from "./unit/sheet-slides-i18n-shortcuts.test.js";
 import { runWriterI18nShortcutsTests } from "./unit/writer-i18n-shortcuts.test.js";
 import { runSheetArrayFormulaTests } from "./unit/sheet-array-formulas.test.js";
+import { runSlidesDiagramTests } from "./unit/slides-diagrams.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -85,7 +86,8 @@ async function runAll() {
     { title: "33. Behavioral Tests — VN Sheet Row & Column Insert", runner: runSheetRowColInsertTests },
     { title: "34. Behavioral Tests — Sheet/Slides i18n & Standard Shortcuts", runner: runSheetSlidesI18nShortcutTests },
     { title: "35. Behavioral & Unit Tests — VN Writer i18n & Word Shortcuts", runner: runWriterI18nShortcutsTests },
-    { title: "36. Behavioral Tests — VN Sheet Cross-Sheet & Array Formulas", runner: runSheetArrayFormulaTests }
+    { title: "36. Behavioral Tests — VN Sheet Cross-Sheet & Array Formulas", runner: runSheetArrayFormulaTests },
+    { title: "37. Behavioral Tests — VN Slides SmartArt-like Diagrams", runner: runSlidesDiagramTests }
   ];
 
   for (const suite of suites) {

@@ -263,6 +263,14 @@ export const ICONS = {
     <polygon points="12,14 18,22 6,22" fill="#F59E0B"/>
   </svg>`,
 
+  diagram: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="5" width="9" height="7" rx="2" fill="#2563EB"/>
+    <rect x="20" y="5" width="9" height="7" rx="2" fill="#10B981"/>
+    <rect x="11.5" y="21" width="9" height="7" rx="2" fill="#F59E0B"/>
+    <path d="M12 8.5H18.5M24.5 12V16.5L20 21M7.5 12V16.5L12 21" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M17 6.5L19.5 8.5L17 10.5M21.5 18.5L20 21L22.8 21.2M10.5 18.5L12 21L9.2 21.2" stroke="#475569" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
   textBox: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
     <rect x="3" y="3" width="18" height="18" rx="2" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="2 2"/>
     <text x="7" y="17" font-size="14" font-weight="bold" fill="#1D4ED8" font-family="serif">A</text>

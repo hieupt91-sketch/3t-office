@@ -68,7 +68,8 @@ export const viStrings = {
     masterTitle: "Mẫu Slide Master", layoutTitle: "Chọn Bố Cục Trang Chiếu", transitionTitle: "Hiệu Ứng Chuyển Trang", animationTitle: "Hiệu Ứng Đối Tượng (Object Animations)",
     applyMaster: "Áp dụng mẫu", applyLayout: "Áp dụng bố cục", applyTransition: "Áp dụng chuyển tiếp", applyAnimation: "Áp dụng hiệu ứng", removeTransition: "Xóa chuyển tiếp", removeAnimation: "Xóa hiệu ứng", previewTransition: "▶ Xem thử chuyển tiếp", previewAnimation: "▶ Xem thử hiệu ứng", previewObject: "Đối tượng xem thử",
     animationTarget: "Đối tượng áp dụng:", animationType: "Kiểu hiệu ứng xuất hiện (Entrance):", animationDuration: "Thời gian hiệu ứng:", animationDelay: "Độ trễ xuất hiện:", noAnimation: "Không có hiệu ứng", immediate: "Ngay lập tức (0s)",
-    commentsLabel: "Nhận xét trang chiếu", newComment: "Nhận xét mới", commentPlaceholder: "Nhập nội dung nhận xét...", addComment: "Thêm nhận xét", rehearsalConfirm: "Tổng thời gian trình chiếu: {time}.\nLưu thời gian tập dượt cho từng trang?"
+    commentsLabel: "Nhận xét trang chiếu", newComment: "Nhận xét mới", commentPlaceholder: "Nhập nội dung nhận xét...", addComment: "Thêm nhận xét", rehearsalConfirm: "Tổng thời gian trình chiếu: {time}.\nLưu thời gian tập dượt cho từng trang?",
+    diagramTitle: "Chèn sơ đồ", diagramHint: "Chọn kiểu sơ đồ và số lượng hộp. Bạn có thể sửa chữ trực tiếp sau khi chèn.", diagramNodeCount: "Số lượng hộp", diagramInsert: "Chèn sơ đồ", diagramProcess: "Danh sách theo bước", diagramCycle: "Quy trình theo chu kỳ", diagramHierarchy: "Phân cấp tổ chức", diagramList: "Danh sách phân cấp", diagramStep: "Bước {number}", diagramItem: "Mục {number}", diagramRoot: "Lãnh đạo", diagramChild: "Bộ phận {number}"
   },
   commands: {
     "common.file.new": { label: "Tạo mới", tooltip: "Tạo tài liệu mới (Ctrl+N)" },
@@ -145,6 +146,7 @@ export const viStrings = {
     ,"slides.slide.delete": { label: "Xóa trang", tooltip: "Xóa trang chiếu đang chọn (Delete)" }
     ,"slides.text.insert": { label: "Hộp văn bản", tooltip: "Chèn khung văn bản mới" }
     ,"slides.shape.insert": { label: "Hình khối", tooltip: "Chèn hình chữ nhật, tròn, mũi tên" }
+    ,"slides.diagram.insert": { label: "Sơ đồ", tooltip: "Chèn sơ đồ quy trình, chu kỳ hoặc phân cấp" }
     ,"slides.image.insert": { label: "Hình ảnh", tooltip: "Chèn ảnh minh họa từ máy tính" }
     ,"slides.media.insertVideo": { label: "Video", tooltip: "Chèn video từ máy tính" }
     ,"slides.media.insertAudio": { label: "Âm thanh", tooltip: "Chèn âm thanh từ máy tính" }

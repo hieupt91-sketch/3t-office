@@ -149,6 +149,7 @@ export const VN_TO_UNO_MAP = {
   "slides.layout.select": ".uno:AssignLayout",
   "slides.text.insert": ".uno:Text",
   "slides.shape.insert": ".uno:BasicShapes",
+  "slides.diagram.insert": ".uno:InsertGraphic",
   "slides.image.insert": ".uno:InsertGraphic",
   "slides.media.insertVideo": ".uno:InsertAVMedia",
   "slides.media.insertAudio": ".uno:InsertAVMedia",

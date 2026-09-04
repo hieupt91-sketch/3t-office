@@ -527,6 +527,123 @@ export class SlidesCanvasController {
     return true;
   }
 
+  /** Chèn một sơ đồ gồm nhiều shape nhưng chỉ tạo một bước Undo/Redo. */
+  insertDiagram(diagramType = "process", nodeCount = 4) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    slide.shapes ||= [];
+    const count = Math.max(3, Math.min(6, parseInt(nodeCount, 10) || 4));
+    const type = ["process", "cycle", "hierarchy", "list"].includes(diagramType) ? diagramType : "process";
+    const groupId = `diagram-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const palette = ["#2563eb", "#0f766e", "#d97706", "#7c3aed", "#dc2626", "#0891b2"];
+    const nodes = [];
+
+    const addNode = (x, y, w, h, text, level = 0) => {
+      const node = {
+        id: `${groupId}-node-${nodes.length + 1}`, type: "rect", x, y, w, h,
+        color: palette[nodes.length % palette.length], text, diagramGroupId: groupId,
+        diagramRole: "node", diagramLevel: level,
+        animation: { type: "none", duration: 500, delay: 0 }
+      };
+      nodes.push(node);
+      return node;
+    };
+
+    if (type === "process") {
+      const w = count === 6 ? 112 : 128;
+      const gap = count === 6 ? 28 : 36;
+      const total = count * w + (count - 1) * gap;
+      const startX = (960 - total) / 2;
+      for (let i = 0; i < count; i++) addNode(startX + i * (w + gap), 225, w, 72, t("slidesDialogs.diagramStep", { number: i + 1 }));
+    } else if (type === "cycle") {
+      const radiusX = 245, radiusY = 145, w = 126, h = 62;
+      for (let i = 0; i < count; i++) {
+        const angle = -Math.PI / 2 + (Math.PI * 2 * i) / count;
+        addNode(480 + Math.cos(angle) * radiusX - w / 2, 280 + Math.sin(angle) * radiusY - h / 2, w, h, t("slidesDialogs.diagramStep", { number: i + 1 }));
+      }
+    } else if (type === "hierarchy") {
+      addNode(390, 125, 180, 72, t("slidesDialogs.diagramRoot"), 0);
+      const childCount = count - 1, w = Math.min(150, 720 / childCount - 20), gap = 24;
+      const total = childCount * w + (childCount - 1) * gap;
+      const startX = (960 - total) / 2;
+      for (let i = 0; i < childCount; i++) addNode(startX + i * (w + gap), 330, w, 68, t("slidesDialogs.diagramChild", { number: i + 1 }), 1);
+    } else {
+      for (let i = 0; i < count; i++) addNode(245 + (i % 3) * 42, 92 + i * 72, 390 - (i % 3) * 42, 54, t("slidesDialogs.diagramItem", { number: i + 1 }), i % 3);
+    }
+
+    const connectors = [];
+    const connect = (from, to, arrow = true) => {
+      const x1 = from.x + from.w / 2, y1 = from.y + from.h / 2;
+      const x2 = to.x + to.w / 2, y2 = to.y + to.h / 2;
+      connectors.push({
+        id: `${groupId}-connector-${connectors.length + 1}`, type: "connector",
+        x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.max(1, Math.abs(x2 - x1)), h: Math.max(1, Math.abs(y2 - y1)),
+        x1, y1, x2, y2, color: "#475569", arrowEnd: arrow,
+        diagramGroupId: groupId, diagramRole: "connector"
+      });
+    };
+    if (type === "process" || type === "list") {
+      for (let i = 0; i < nodes.length - 1; i++) connect(nodes[i], nodes[i + 1], type === "process");
+    } else if (type === "cycle") {
+      for (let i = 0; i < nodes.length; i++) connect(nodes[i], nodes[(i + 1) % nodes.length], true);
+    } else {
+      for (let i = 1; i < nodes.length; i++) connect(nodes[0], nodes[i], false);
+    }
+
+    const insertedShapes = [...connectors, ...nodes];
+    slide.shapes.push(...insertedShapes);
+    this.undoStack.push({ type: "diagram-insert", slideIndex: this.currentSlideIndex, shapes: this._cloneShapes(insertedShapes), diagramGroupId: groupId });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this.setSelectedTarget(nodes[0]?.id || null);
+    this._renderShapesLayer();
+    return { diagramGroupId: groupId, shapes: insertedShapes };
+  }
+
+  _cloneShapes(shapes) {
+    return JSON.parse(JSON.stringify(shapes || []));
+  }
+
+  _escapeShapeText(value) {
+    return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  _shapePresentationHtml(shape) {
+    if (shape.type === "connector") {
+      const marker = shape.arrowEnd ? "marker-end='url(#vno-show-arrow)'" : "";
+      return `<svg class="vno-show-connector" style="position:absolute;inset:0;width:960px;height:540px;overflow:visible" viewBox="0 0 960 540"><defs><marker id="vno-show-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="${shape.color || "#475569"}"/></marker></defs><line x1="${shape.x1}" y1="${shape.y1}" x2="${shape.x2}" y2="${shape.y2}" stroke="${shape.color || "#475569"}" stroke-width="3" ${marker}/></svg>`;
+    }
+    const pos = `position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;`;
+    let animStyle = "";
+    if (shape.animation?.type && shape.animation.type !== "none") {
+      animStyle = `opacity:0;animation:${this._getKeyframeName(shape.animation.type)} ${shape.animation.duration || 500}ms ease-out ${shape.animation.delay || 0}ms forwards;`;
+    }
+    if (shape.type === "image" && shape.src) return `<img src="${shape.src}" style="${pos}${animStyle}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,.15)" />`;
+    if (shape.type === "video" && shape.src) return `<video src="${shape.src}" controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,.15)"></video>`;
+    if (shape.type === "audio" && shape.src) return `<audio src="${shape.src}" controls style="${pos}${animStyle}"></audio>`;
+    const radius = shape.type === "ellipse" ? "50%" : "6px";
+    const text = shape.text !== undefined ? `<span class="vno-show-shape-text">${this._escapeShapeText(shape.text)}</span>` : "";
+    return `<div class="vno-show-shape" style="${pos}${animStyle}background:${shape.color || "#3b82f6"};opacity:.9;border-radius:${radius}">${text}</div>`;
+  }
+
+  _shapeSorterHtml(shape) {
+    if (shape.type === "connector") {
+      return `<svg class="vno-sorter-shape" viewBox="0 0 960 540" preserveAspectRatio="none"><line x1="${shape.x1}" y1="${shape.y1}" x2="${shape.x2}" y2="${shape.y2}" stroke="${shape.color || "#475569"}" stroke-width="8"/></svg>`;
+    }
+    if (shape.type !== "rect" && shape.type !== "ellipse") return "";
+    const style = `left:${shape.x / 9.6}%;top:${shape.y / 5.4}%;width:${shape.w / 9.6}%;height:${shape.h / 5.4}%;background:${shape.color || "#3b82f6"};border-radius:${shape.type === "ellipse" ? "50%" : "4px"}`;
+    return `<div class="vno-sorter-shape-node" style="${style}">${this._escapeShapeText(shape.text || "")}</div>`;
+  }
+
+  updateShapeText(shapeId, text) {
+    const shape = this.slides[this.currentSlideIndex]?.shapes?.find(item => String(item.id) === String(shapeId));
+    if (!shape || shape.type === "connector") return false;
+    shape.text = String(text || "").replace(/\r?\n/g, " ");
+    this._renderThumbnails();
+    if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+    return true;
+  }
+
   /**
    * Chèn một hình ảnh THẬT (do người dùng chọn qua hộp thoại file) vào slide hiện tại.
    * @param {string} dataUrl Ảnh dạng data URI đã đọc thật từ tệp người dùng chọn
@@ -642,10 +759,24 @@ export class SlidesCanvasController {
     shapes.forEach((shape) => {
       const el = document.createElement("div");
       const isSel = String(this.selectedTarget) === String(shape.id);
-      el.className = `vno-slide-shape-item ${isSel ? "is-selected" : ""}`;
-      el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:auto; cursor:pointer;`;
+      const isConnector = shape.type === "connector";
+      el.className = `vno-slide-shape-item ${isConnector ? "is-connector" : ""} ${shape.diagramRole === "node" ? "is-diagram-node" : ""} ${isSel ? "is-selected" : ""}`;
+      el.dataset.shapeId = String(shape.id);
+      el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${shape.diagramRole === "node" ? "move" : "pointer"};z-index:${isConnector ? 0 : 1};`;
 
-      if (shape.type === "image" && shape.src) {
+      if (isConnector) {
+        const pad = 8;
+        const leftToRight = shape.x2 >= shape.x1;
+        const topToBottom = shape.y2 >= shape.y1;
+        const sx = (leftToRight ? 0 : shape.w) + pad;
+        const sy = (topToBottom ? 0 : shape.h) + pad;
+        const ex = (leftToRight ? shape.w : 0) + pad;
+        const ey = (topToBottom ? shape.h : 0) + pad;
+        const markerId = `arrow-${String(shape.id).replace(/[^a-zA-Z0-9_-]/g, "")}`;
+        el.style.left = `${shape.x - pad}px`; el.style.top = `${shape.y - pad}px`;
+        el.style.width = `${shape.w + pad * 2}px`; el.style.height = `${shape.h + pad * 2}px`;
+        el.innerHTML = `<svg viewBox="0 0 ${shape.w + pad * 2} ${shape.h + pad * 2}" width="100%" height="100%" overflow="visible"><defs><marker id="${markerId}" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="${shape.color || "#475569"}"/></marker></defs><line x1="${sx}" y1="${sy}" x2="${ex}" y2="${ey}" stroke="${shape.color || "#475569"}" stroke-width="3" ${shape.arrowEnd ? `marker-end="url(#${markerId})"` : ""}/></svg>`;
+      } else if (shape.type === "image" && shape.src) {
         const img = document.createElement("img");
         img.src = shape.src;
         img.style.cssText = "width:100%;height:100%;object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,0.15);pointer-events:none;";
@@ -666,6 +797,44 @@ export class SlidesCanvasController {
         el.style.backgroundColor = shape.color || "#3b82f6";
         el.style.opacity = "0.85";
         el.style.borderRadius = shape.type === "ellipse" ? "50%" : "6px";
+        if (shape.text !== undefined) {
+          const textEl = document.createElement("div");
+          textEl.className = "vno-diagram-node-text";
+          textEl.textContent = shape.text || "";
+          textEl.contentEditable = "false";
+          textEl.setAttribute("role", "textbox");
+          textEl.setAttribute("aria-label", shape.text || t("slidesDialogs.diagramItem", { number: 1 }));
+          const startEditing = (initialText) => {
+            if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
+            textEl.contentEditable = "true";
+            textEl.focus();
+            if (initialText !== undefined) textEl.textContent = initialText;
+          };
+          textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.textContent));
+          textEl.addEventListener("blur", () => {
+            textEl.contentEditable = "false";
+            const before = textEl.dataset.originalText ?? "";
+            const after = shape.text || "";
+            if (before !== after) {
+              this.undoStack.push({ type: "shape-text-edit", slideIndex: this.currentSlideIndex, shapeId: shape.id, before, after });
+              this.redoStack = [];
+              this._syncUndoRedoState();
+            }
+          });
+          textEl.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") { event.preventDefault(); textEl.blur(); }
+            event.stopPropagation();
+          });
+          el.addEventListener("dblclick", (event) => { event.stopPropagation(); startEditing(); });
+          el.tabIndex = 0;
+          el.addEventListener("keydown", (event) => {
+            if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1) {
+              event.preventDefault(); event.stopPropagation(); startEditing(event.key);
+              this.updateShapeText(shape.id, event.key);
+            }
+          });
+          el.appendChild(textEl);
+        }
       }
 
       if (isSel) {
@@ -692,12 +861,44 @@ export class SlidesCanvasController {
       el.addEventListener("click", (e) => {
         e.stopPropagation();
         this.setSelectedTarget(shape.id);
+        el.focus?.();
       });
+
+      if (shape.diagramRole === "node") this._attachDiagramNodeDrag(el, shape);
 
       this.shapesLayer.appendChild(el);
     });
 
     this._renderThumbnails();
+  }
+
+  _attachDiagramNodeDrag(el, shape) {
+    el.addEventListener("pointerdown", (event) => {
+      if (event.target?.classList?.contains("vno-diagram-node-text") && event.target.contentEditable === "true") return;
+      const startX = event.clientX, startY = event.clientY, originX = shape.x, originY = shape.y;
+      let moved = false;
+      const move = (moveEvent) => {
+        const dx = moveEvent.clientX - startX, dy = moveEvent.clientY - startY;
+        if (Math.abs(dx) + Math.abs(dy) < 3) return;
+        moved = true;
+        shape.x = Math.max(0, Math.min(960 - shape.w, originX + dx));
+        shape.y = Math.max(0, Math.min(540 - shape.h, originY + dy));
+        el.style.left = `${shape.x}px`; el.style.top = `${shape.y}px`;
+      };
+      const up = () => {
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        if (moved) {
+          this.undoStack.push({ type: "diagram-node-move", slideIndex: this.currentSlideIndex, shapeId: shape.id, from: { x: originX, y: originY }, to: { x: shape.x, y: shape.y } });
+          this.redoStack = [];
+          this._syncUndoRedoState();
+          this._renderThumbnails();
+          if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+        }
+      };
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", up);
+    });
   }
 
   _applyLayoutToDom(layoutType) {
@@ -1018,6 +1219,7 @@ export class SlidesCanvasController {
           <div class="vno-slide-sorter-accent" style="background:${theme.accentColor || "#b53818"}"></div>
           <div class="vno-slide-sorter-title" style="color:${theme.titleColor || "#0f172a"}">${escapeHtml(slide.title || "Trang chiếu trống")}</div>
           <div class="vno-slide-sorter-body" style="color:${theme.bodyColor || "#475569"}">${escapeHtml(slide.body)}</div>
+          ${(slide.shapes || []).map(shape => this._shapeSorterHtml(shape)).join("")}
         </div>
         <div class="vno-slide-sorter-actions">
           <button type="button" data-action="duplicate" title="Nhân đôi trang chiếu ${index + 1}">Nhân đôi</button>
@@ -1109,6 +1311,28 @@ export class SlidesCanvasController {
       this.selectSlide(action.slideIndex);
       this._renderCommentsUi();
       return true;
+    } else if (action.type === "diagram-insert") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      const ids = new Set(action.shapes.map(shape => String(shape.id)));
+      slide.shapes = (slide.shapes || []).filter(shape => !ids.has(String(shape.id)));
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shape-text-edit") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      shape.text = action.before;
+      this.redoStack.push(action); this.selectSlide(action.slideIndex); this._renderShapesLayer(); return true;
+    } else if (action.type === "diagram-node-move") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      shape.x = action.from.x; shape.y = action.from.y;
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
     } else if (action.type === "shape-add" || action.type === "shape-delete") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -1175,6 +1399,29 @@ export class SlidesCanvasController {
       this.undoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderCommentsUi();
+      return true;
+    } else if (action.type === "diagram-insert") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      const existing = new Set((slide.shapes || []).map(shape => String(shape.id)));
+      slide.shapes ||= [];
+      slide.shapes.push(...this._cloneShapes(action.shapes.filter(shape => !existing.has(String(shape.id)))));
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shape-text-edit") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      shape.text = action.after;
+      this.undoStack.push(action); this.selectSlide(action.slideIndex); this._renderShapesLayer(); return true;
+    } else if (action.type === "diagram-node-move") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      shape.x = action.to.x; shape.y = action.to.y;
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
       return true;
     } else if (action.type === "shape-add" || action.type === "shape-delete") {
       const slide = this.slides[action.slideIndex];
@@ -1417,6 +1664,45 @@ export class SlidesCanvasController {
         close();
         resolve(true);
       });
+    });
+  }
+
+  showDiagramDialog() {
+    if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "vno-dialog-overlay vno-diagram-dialog";
+      const types = [
+        ["process", "diagramProcess", "1 → 2 → 3"],
+        ["cycle", "diagramCycle", "↻"],
+        ["hierarchy", "diagramHierarchy", "1\n└ 2  3"],
+        ["list", "diagramList", "1\n  2\n    3"]
+      ];
+      overlay.innerHTML = `
+        <div class="vno-dialog-box" style="width:620px" role="dialog" aria-modal="true" aria-labelledby="vno-diagram-title">
+          <div class="vno-dialog-header"><span id="vno-diagram-title">${t("slidesDialogs.diagramTitle")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}">&times;</button></div>
+          <div class="vno-dialog-body">
+            <p class="vno-diagram-hint">${t("slidesDialogs.diagramHint")}</p>
+            <div class="vno-diagram-type-grid">${types.map(([id, key, preview], index) => `<button type="button" class="vno-diagram-type ${index === 0 ? "is-selected" : ""}" data-diagram-type="${id}" aria-pressed="${index === 0}"><span class="vno-diagram-type-preview">${preview.replace(/\n/g, "<br>")}</span><strong>${t(`slidesDialogs.${key}`)}</strong></button>`).join("")}</div>
+            <label class="vno-diagram-count">${t("slidesDialogs.diagramNodeCount")}<input id="vno-diagram-count" type="number" min="3" max="6" value="4" /></label>
+          </div>
+          <div class="vno-dialog-footer"><button type="button" class="vno-btn" id="vno-diagram-cancel">${t("slidesDialogs.cancel")}</button><button type="button" class="vno-btn vno-btn-primary" id="vno-diagram-insert">${t("slidesDialogs.diagramInsert")}</button></div>
+        </div>`;
+      document.body.appendChild(overlay);
+      let selectedType = "process";
+      const cards = overlay.querySelectorAll(".vno-diagram-type");
+      cards.forEach(card => card.addEventListener("click", () => {
+        cards.forEach(item => { item.classList.remove("is-selected"); item.setAttribute("aria-pressed", "false"); });
+        card.classList.add("is-selected"); card.setAttribute("aria-pressed", "true"); selectedType = card.dataset.diagramType;
+      }));
+      const close = (value) => { overlay.remove(); resolve(value); };
+      overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
+      overlay.querySelector("#vno-diagram-cancel")?.addEventListener("click", () => close(false));
+      overlay.querySelector("#vno-diagram-insert")?.addEventListener("click", () => {
+        const count = overlay.querySelector("#vno-diagram-count")?.value || 4;
+        close(!!this.insertDiagram(selectedType, count));
+      });
+      overlay.querySelector(".vno-diagram-type")?.focus();
     });
   }
 
@@ -1846,27 +2132,7 @@ export class SlidesCanvasController {
 
     const renderShow = () => {
       const s = this.slides[currentShowIdx];
-      const shapesHtml = (s.shapes || []).map((shape) => {
-        const pos = `position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;`;
-        let animStyle = "";
-        if (shape.animation && shape.animation.type && shape.animation.type !== "none") {
-          const kf = this._getKeyframeName(shape.animation.type);
-          const dur = shape.animation.duration || 500;
-          const del = shape.animation.delay || 0;
-          animStyle = `opacity:0;animation:${kf} ${dur}ms ease-out ${del}ms forwards;`;
-        }
-        if (shape.type === "image" && shape.src) {
-          return `<img src="${shape.src}" style="${pos}${animStyle}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,0.15);" />`;
-        }
-        if (shape.type === "video" && shape.src) {
-          return `<video src="${shape.src}" controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,0.15);"></video>`;
-        }
-        if (shape.type === "audio" && shape.src) {
-          return `<audio src="${shape.src}" controls style="${pos}${animStyle}"></audio>`;
-        }
-        const radius = shape.type === "ellipse" ? "50%" : "6px";
-        return `<div style="${pos}${animStyle}background:${shape.color || "#3b82f6"};opacity:0.85;border-radius:${radius};"></div>`;
-      }).join("");
+      const shapesHtml = (s.shapes || []).map(shape => this._shapePresentationHtml(shape)).join("");
 
       let titleAnimStyle = "";
       if (s.titleAnimation && s.titleAnimation.type && s.titleAnimation.type !== "none") {

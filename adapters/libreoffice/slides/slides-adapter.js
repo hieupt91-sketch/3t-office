@@ -484,6 +484,9 @@ export class SlidesAdapter {
       case "slides.shape.insert":
         return this.canvas.insertShape ? this.canvas.insertShape("rect") : false;
 
+      case "slides.diagram.insert":
+        return this.canvas.showDiagramDialog ? this.canvas.showDiagramDialog() : false;
+
       case "slides.image.insert":
         return await this._insertImageDialog();
 

@@ -69,7 +69,8 @@ export const enStrings = {
     masterTitle: "Slide Master", layoutTitle: "Choose a Slide Layout", transitionTitle: "Transitions", animationTitle: "Object Animations",
     applyMaster: "Apply Theme", applyLayout: "Apply Layout", applyTransition: "Apply Transition", applyAnimation: "Apply Animation", removeTransition: "Remove Transition", removeAnimation: "Remove Animation", previewTransition: "▶ Preview Transition", previewAnimation: "▶ Preview Animation", previewObject: "Preview Object",
     animationTarget: "Apply to:", animationType: "Entrance animation:", animationDuration: "Duration:", animationDelay: "Delay:", noAnimation: "None", immediate: "Immediately (0s)",
-    commentsLabel: "Slide Comments", newComment: "New Comment", commentPlaceholder: "Enter a comment...", addComment: "Add Comment", rehearsalConfirm: "Total slide show time: {time}.\nSave the rehearsal timings for each slide?"
+    commentsLabel: "Slide Comments", newComment: "New Comment", commentPlaceholder: "Enter a comment...", addComment: "Add Comment", rehearsalConfirm: "Total slide show time: {time}.\nSave the rehearsal timings for each slide?",
+    diagramTitle: "Insert Diagram", diagramHint: "Choose a diagram type and number of boxes. You can edit text directly after insertion.", diagramNodeCount: "Number of boxes", diagramInsert: "Insert Diagram", diagramProcess: "Step Process", diagramCycle: "Cycle Process", diagramHierarchy: "Organization Hierarchy", diagramList: "Hierarchical List", diagramStep: "Step {number}", diagramItem: "Item {number}", diagramRoot: "Leader", diagramChild: "Department {number}"
   },
   commands: {
     "common.file.new": { label: "New", tooltip: "Create a new document (Ctrl+N)" },
@@ -146,6 +147,7 @@ export const enStrings = {
     ,"slides.slide.delete": { label: "Delete Slide", tooltip: "Delete the selected slide (Delete)" }
     ,"slides.text.insert": { label: "Text Box", tooltip: "Insert a text box" }
     ,"slides.shape.insert": { label: "Shapes", tooltip: "Insert a rectangle, oval, or arrow" }
+    ,"slides.diagram.insert": { label: "Diagram", tooltip: "Insert a process, cycle, or hierarchy diagram" }
     ,"slides.image.insert": { label: "Pictures", tooltip: "Insert a picture from this device" }
     ,"slides.media.insertVideo": { label: "Video", tooltip: "Insert a video from this device" }
     ,"slides.media.insertAudio": { label: "Audio", tooltip: "Insert audio from this device" }
