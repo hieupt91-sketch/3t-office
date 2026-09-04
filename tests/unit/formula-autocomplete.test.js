@@ -201,5 +201,13 @@ export async function runFormulaAutocompleteTests() {
           db.desc.includes("số dư giảm dần") && db.desc.includes("mặc định 12")
   });
 
+  const nper = FUNCTION_CATALOG.find(item => item.name === "NPER");
+  results.push({
+    name: "Autocomplete: NPER mô tả số kỳ và đủ tham số fv/type",
+    pass: nper?.category === "Tài chính" &&
+          nper.syntax === "NPER(rate, pmt, pv, [fv], [type])" &&
+          nper.desc.includes("số kỳ") && nper.desc.includes("đầu kỳ")
+  });
+
   return results;
 }

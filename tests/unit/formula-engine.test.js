@@ -179,5 +179,17 @@ export async function runFormulaEngineTests() {
           engine.evaluate("=DB(1000000,100000,6,1,13)") === "#NUM!"
   });
 
+  // 17. NPER — ví dụ chính thức của Excel: lãi 12%/năm, góp đầu tháng 100,
+  // vốn ban đầu 1.000 và mục tiêu 10.000. Excel: =NPER(12%/12,-100,-1000,10000,1) -> 59,6738656742946
+  const nperRes = engine.evaluate("=NPER(0.01,-100,-1000,10000,1)");
+  const nperZeroRateRes = engine.evaluate("=NPER(0,-100,1000,0,0)");
+  results.push({
+    name: "Financial NPER: đúng số kỳ Excel, quy ước type và nhánh rate=0",
+    pass: approximatelyEqual(nperRes, 59.67386567429457, 1e-10) &&
+          approximatelyEqual(nperZeroRateRes, 10) &&
+          engine.evaluate("=NPER(0,0,1000)") === "#NUM!" &&
+          engine.evaluate("=NPER(0.01,-10,1000,0,2)") === "#NUM!"
+  });
+
   return results;
 }

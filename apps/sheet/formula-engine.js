@@ -65,6 +65,7 @@ export const FUNCTION_CATALOG = [
   ,{ name: "NPV", category: "Tài chính", syntax: "NPV(rate, value1, [value2], ...)", desc: "Tính giá trị hiện tại ròng của chuỗi dòng tiền đều kỳ; value1 được chiết khấu từ cuối kỳ đầu tiên." }
   ,{ name: "IRR", category: "Tài chính", syntax: "IRR(values, [guess])", desc: "Tính tỷ suất hoàn vốn nội bộ của chuỗi dòng tiền có ít nhất một giá trị âm và một giá trị dương." }
   ,{ name: "RATE", category: "Tài chính", syntax: "RATE(nper, pmt, pv, [fv], [type], [guess])", desc: "Tính lãi suất mỗi kỳ của niên kim; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ), guess là giá trị dự đoán ban đầu." }
+  ,{ name: "NPER", category: "Tài chính", syntax: "NPER(rate, pmt, pv, [fv], [type])", desc: "Tính số kỳ cần thiết để hoàn tất khoản vay hoặc đạt mục tiêu đầu tư với khoản thanh toán cố định; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
   ,{ name: "SLN", category: "Tài chính", syntax: "SLN(cost, salvage, life)", desc: "Tính khấu hao đường thẳng mỗi kỳ từ nguyên giá, giá trị thu hồi và thời gian sử dụng." }
   ,{ name: "DB", category: "Tài chính", syntax: "DB(cost, salvage, life, period, [month])", desc: "Tính khấu hao theo số dư giảm dần cố định; month là số tháng trong năm đầu tiên (mặc định 12)." }
 ];
@@ -586,6 +587,27 @@ export class FormulaEngine {
             pmt * (type * annuityFactor + (1 + rate * type) * annuityDerivative);
         };
         return this._solveRate(valueAt, derivativeAt, guess);
+      }
+
+      case "NPER": {
+        if (args.length < 3) return "#VALUE!";
+        const rate = Number(this._resolveSingleValue(args[0]));
+        const pmt = Number(this._resolveSingleValue(args[1]));
+        const pv = Number(this._resolveSingleValue(args[2]));
+        const fv = args[3] === undefined ? 0 : Number(this._resolveSingleValue(args[3]));
+        const type = args[4] === undefined ? 0 : Number(this._resolveSingleValue(args[4]));
+        if (![rate, pmt, pv, fv, type].every(Number.isFinite)) return "#VALUE!";
+        if ((type !== 0 && type !== 1) || rate <= -1) return "#NUM!";
+        if (rate === 0) {
+          if (pmt === 0) return "#NUM!";
+          const periods = -(pv + fv) / pmt;
+          return Number.isFinite(periods) ? periods : "#NUM!";
+        }
+        const adjustedPayment = pmt * (1 + rate * type);
+        const ratio = (adjustedPayment - fv * rate) / (pv * rate + adjustedPayment);
+        if (ratio <= 0) return "#NUM!";
+        const periods = Math.log(ratio) / Math.log(1 + rate);
+        return Number.isFinite(periods) ? periods : "#NUM!";
       }
 
       case "SLN": {
