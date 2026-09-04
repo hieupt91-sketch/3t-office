@@ -259,7 +259,7 @@ export async function runWriterPrintPreviewTests() {
       if (def.category !== "file") throw new Error(`Category sai: ${def.category}`);
       if (!def.label.includes("Xem trước khi in")) throw new Error(`Label sai: ${def.label}`);
       if (def.shortcut !== "Ctrl+F2") throw new Error(`Shortcut sai: ${def.shortcut}`);
-      if (def.icon !== "filePrint") throw new Error(`Icon sai: ${def.icon}`);
+      if (def.icon !== "printPreview") throw new Error(`Icon sai: ${def.icon}`);
     });
 
     await test("Writer Print Preview: ánh xạ đúng .uno:PrintPreview trong command-dispatch-mapper.js", async () => {

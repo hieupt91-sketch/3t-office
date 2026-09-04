@@ -34,13 +34,15 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("table")) return ICONS.table;
   if (idLower.includes("image")) return ICONS.image;
   if (idLower.includes("page.break")) return ICONS.pageBreak;
-  if (idLower.includes("header") || idLower.includes("footer")) return ICONS.headerFooter;
+  if (idLower.includes("header") && idLower.includes("footer")) return ICONS.headerFooter;
+  if (idLower.includes("header")) return ICONS.header || ICONS.headerFooter;
+  if (idLower.includes("footer")) return ICONS.footer || ICONS.headerFooter;
   if (idLower.includes("margins")) return ICONS.margins;
   if (idLower.includes("orientation")) return ICONS.orientation;
   if (idLower.includes("merge")) return ICONS.mergeCells;
   if (idLower.includes("currency")) return ICONS.currencyVND;
   if (idLower.includes("sum")) return ICONS.autoSum;
-  if (idLower.includes("average")) return ICONS.autoSum;
+  if (idLower.includes("average")) return ICONS.average || ICONS.autoSum;
   if (idLower.includes("sortasc")) return ICONS.sortAsc;
   if (idLower.includes("sortdesc")) return ICONS.sortDesc;
   if (idLower.includes("filter")) return ICONS.filter;

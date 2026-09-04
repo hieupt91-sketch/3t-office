@@ -55,13 +55,15 @@
 /* Ribbon Large Button */
 .vno-ribbon-btn-large {
   flex-direction: column;
-  padding: 6px 8px;
-  min-width: 56px;
+  padding: 4px 6px;
+  min-width: 52px;
+  max-width: 86px;
   height: 72px;
   font-size: 11px;
   text-align: center;
-  gap: 4px;
+  gap: 3px;
   justify-content: center;
+  white-space: normal;
 }
 .vno-ribbon-btn-large .vno-btn-icon {
   display: flex;
@@ -69,6 +71,7 @@
   justify-content: center;
   width: 34px;
   height: 34px;
+  flex-shrink: 0;
   filter: drop-shadow(0 1px 2px rgba(0,0,0,0.06));
 }
 .vno-ribbon-btn-large .vno-btn-icon svg {
@@ -81,9 +84,12 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: normal;
+  max-width: 82px;
   line-height: 1.15;
   color: var(--vno-text-secondary);
   font-weight: 600;
+  word-break: break-word;
 }
 
 /* Ribbon Small Button */

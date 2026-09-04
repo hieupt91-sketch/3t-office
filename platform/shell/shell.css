@@ -315,18 +315,18 @@ body {
   display: flex;
   align-items: stretch;
   height: var(--vno-ribbon-body-height);
-  padding: 6px 10px;
+  padding: 4px 6px;
   background-color: #ffffff;
   overflow-x: auto;
   overflow-y: hidden;
-  gap: 2px;
+  gap: 0;
 }
 
 .vno-ribbon-group {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 0 8px;
+  padding: 0 6px;
   border-right: 1px solid var(--vno-border-default);
   flex-shrink: 0;
   position: relative;
@@ -335,7 +335,7 @@ body {
 .vno-ribbon-group-items {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   flex: 1;
 }
 

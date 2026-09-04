@@ -609,5 +609,184 @@ export const ICONS = {
     <rect x="3" y="5" width="18" height="13" rx="2" fill="#FAEEE8" stroke="#B53818" stroke-width="1.4"/>
     <text x="8" y="14.5" font-size="9" font-weight="800" fill="#B53818" font-family="sans-serif">#3</text>
     <path d="M7 21h10" stroke="#64748B" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`,
+
+  header: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="4" y="2" width="16" height="20" rx="2" fill="#F8FAFC" stroke="#475569" stroke-width="1.2"/>
+    <rect x="4" y="2" width="16" height="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.2"/>
+    <line x1="7" y1="5" x2="17" y2="5" stroke="#1D4ED8" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="7" y1="12" x2="17" y2="12" stroke="#CBD5E1" stroke-width="1.2"/>
+    <line x1="7" y1="16" x2="14" y2="16" stroke="#E2E8F0" stroke-width="1.2"/>
+  </svg>`,
+
+  footer: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="4" y="2" width="16" height="20" rx="2" fill="#F8FAFC" stroke="#475569" stroke-width="1.2"/>
+    <line x1="7" y1="7" x2="17" y2="7" stroke="#E2E8F0" stroke-width="1.2"/>
+    <line x1="7" y1="11" x2="14" y2="11" stroke="#CBD5E1" stroke-width="1.2"/>
+    <rect x="4" y="16" width="16" height="6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.2"/>
+    <line x1="7" y1="19" x2="17" y2="19" stroke="#1D4ED8" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
+  printPreview: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="2" width="12" height="16" rx="1.5" fill="#F8FAFC" stroke="#475569" stroke-width="1.2"/>
+    <line x1="6" y1="6" x2="12" y2="6" stroke="#94A3B8" stroke-width="1.2"/>
+    <line x1="6" y1="9" x2="11" y2="9" stroke="#CBD5E1" stroke-width="1.2"/>
+    <circle cx="16" cy="16" r="5" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/>
+    <path d="M19.5 19.5 22 22" stroke="#0F4C81" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+
+  pageSize: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="6" y="3" width="12" height="18" rx="1.5" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.3"/>
+    <path d="M3 8v8M21 8v8M3 8l2-2M3 8l2 2M21 8l-2-2M21 8l-2 2M3 16l2-2M3 16l2 2M21 16l-2-2M21 16l-2 2" stroke="#0F4C81" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="8.2" y="14" font-size="6" font-weight="800" fill="#1D4ED8" font-family="sans-serif">A4</text>
+  </svg>`,
+
+  trackChanges: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="4" y="3" width="13" height="18" rx="1.5" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.3"/>
+    <line x1="7" y1="8" x2="14" y2="8" stroke="#16A34A" stroke-width="1.6" stroke-linecap="round"/>
+    <line x1="7" y1="12" x2="12" y2="12" stroke="#DC2626" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M16 14l3 3 5-6" transform="translate(-4 1)" stroke="#16A34A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  percentFormat: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <circle cx="7" cy="7" r="3" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.3"/>
+    <circle cx="17" cy="17" r="3" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.3"/>
+    <path d="M6 18 18 6" stroke="#0F6D38" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  average: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="4" width="24" height="24" rx="5" fill="#ECFDF5" stroke="#0F6D38" stroke-width="1.2"/>
+    <text x="7" y="21" font-size="14" font-weight="800" fill="#0F6D38" font-family="serif">x̄</text>
+  </svg>`,
+
+  sparklineLine: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="5" width="26" height="22" rx="3" fill="#F0FDF4" stroke="#0F6D38" stroke-width="1.3"/>
+    <polyline points="6,22 12,14 17,17 26,8" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="26" cy="8" r="2" fill="#DC2626"/>
+  </svg>`,
+
+  sparklineColumn: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="5" width="26" height="22" rx="3" fill="#F0FDF4" stroke="#0F6D38" stroke-width="1.3"/>
+    <rect x="7" y="16" width="4" height="8" rx="0.8" fill="#93C5FD"/>
+    <rect x="14" y="11" width="4" height="13" rx="0.8" fill="#2563EB"/>
+    <rect x="21" y="8" width="4" height="16" rx="0.8" fill="#0F4C81"/>
+  </svg>`,
+
+  replace: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <circle cx="10" cy="10" r="6.5" stroke="#2563EB" stroke-width="1.8"/>
+    <path d="M15 15 20 20" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M8 8h4M10 8v4" stroke="#0F6D38" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`,
+
+  insertRow: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="4" width="18" height="16" rx="1.5" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.3"/>
+    <path d="M3 10h18M9 4v16" stroke="#CBD5E1"/>
+    <rect x="3" y="10" width="18" height="5" fill="#BBF7D0" opacity="0.85"/>
+    <path d="M16 7v6M13 10h6" stroke="#16A34A" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+
+  insertCol: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="4" width="18" height="16" rx="1.5" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.3"/>
+    <path d="M3 10h18M10 4v16" stroke="#CBD5E1"/>
+    <rect x="10" y="4" width="5" height="16" fill="#BBF7D0" opacity="0.85"/>
+    <path d="M17 8v6M14 11h6" stroke="#16A34A" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+
+  deleteRow: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="4" width="18" height="16" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.3"/>
+    <path d="M3 10h18M9 4v16" stroke="#CBD5E1"/>
+    <rect x="3" y="10" width="18" height="5" fill="#FECACA" opacity="0.9"/>
+    <path d="M14 10.5 19 14.5M19 10.5 14 14.5" stroke="#DC2626" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+
+  deleteCol: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="4" width="18" height="16" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.3"/>
+    <path d="M3 10h18M10 4v16" stroke="#CBD5E1"/>
+    <rect x="10" y="4" width="5" height="16" fill="#FECACA" opacity="0.9"/>
+    <path d="M16 8 20 14M20 8 16 14" stroke="#DC2626" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+
+  cellBorders: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="4" y="4" width="16" height="16" rx="1" fill="#F8FAFC" stroke="#0F172A" stroke-width="2"/>
+    <path d="M4 12h16M12 4v16" stroke="#94A3B8" stroke-width="1"/>
+  </svg>`,
+
+  conditionalFormat: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="6" width="24" height="6" rx="1.5" fill="#BBF7D0" stroke="#16A34A"/>
+    <rect x="4" y="13" width="24" height="6" rx="1.5" fill="#FEF08A" stroke="#CA8A04"/>
+    <rect x="4" y="20" width="24" height="6" rx="1.5" fill="#FECACA" stroke="#DC2626"/>
+  </svg>`,
+
+  freezePanes: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="5" width="24" height="22" rx="2" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.4"/>
+    <rect x="4" y="5" width="24" height="7" fill="#BBF7D0"/>
+    <rect x="4" y="5" width="8" height="22" fill="#86EFAC" opacity="0.85"/>
+    <path d="M4 12h24M12 5v22" stroke="#0F6D38" stroke-width="1.6"/>
+    <path d="M20 16l2 5 2-5" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  dataValidation: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="6" width="24" height="20" rx="3" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.4"/>
+    <path d="M8 13h10M8 18h7" stroke="#64748B" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="22" cy="16" r="6" fill="#DCFCE7" stroke="#16A34A" stroke-width="1.4"/>
+    <path d="M19.5 16.2 21.3 18l3.4-4" stroke="#15803D" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  aiSummarize: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="4" y="3" width="12" height="16" rx="1.5" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.3"/>
+    <path d="M7 7h6M7 10h5M7 13h4" stroke="#64748B" stroke-width="1.3" stroke-linecap="round"/>
+    <path d="M16 14l1.6 3.4L21 19l-3.4 1.6L16 24l-1.6-3.4L11 19l3.4-1.6L16 14Z" fill="#F5B800" stroke="#D97706" stroke-width="0.6"/>
+  </svg>`,
+
+  aiRewrite: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <path d="M4 18 14 8l3 3L7 21H4v-3Z" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.3" stroke-linejoin="round"/>
+    <path d="M13 9l2-2 3 3-2 2" stroke="#0F4C81" stroke-width="1.3" stroke-linejoin="round"/>
+    <path d="M18 3l1.2 2.6L22 7l-2.8 1.2L18 11l-1.2-2.8L14 7l2.8-1.4L18 3Z" fill="#F5B800"/>
+  </svg>`,
+
+  aiGrammar: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="4" width="14" height="16" rx="1.5" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.3"/>
+    <path d="M6 9h8M6 13h5" stroke="#64748B" stroke-width="1.3" stroke-linecap="round"/>
+    <circle cx="17" cy="16" r="5" fill="#DCFCE7" stroke="#16A34A" stroke-width="1.3"/>
+    <path d="M14.8 16.2 16.5 18l3.2-3.6" stroke="#15803D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  objectAnimation: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="6" y="8" width="16" height="12" rx="2" fill="#FAEEE8" stroke="#B53818" stroke-width="1.4"/>
+    <path d="M24 10l5 6-5 6" stroke="#F59E0B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="14" cy="14" r="2.2" fill="#B53818"/>
+  </svg>`,
+
+  slideTransition: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="6" width="14" height="10" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="13" y="14" width="16" height="12" rx="1.5" fill="#1E293B" stroke="#0F172A" stroke-width="1.2"/>
+    <polygon points="18,17 26,20 18,23" fill="#F59E0B"/>
+  </svg>`,
+
+  slidePlayFromBegin: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="4" width="26" height="18" rx="2" fill="#1E293B" stroke="#0F172A" stroke-width="1.2"/>
+    <polygon points="12,8 21,13 12,18" fill="#F59E0B"/>
+    <path d="M7 26h4M9 24v4" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M14 26h12" stroke="#94A3B8" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+
+  slidePlayFromCurrent: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="4" width="26" height="18" rx="2" fill="#1E293B" stroke="#0F172A" stroke-width="1.2"/>
+    <polygon points="12,8 21,13 12,18" fill="#38BDF8"/>
+    <path d="M7 26h8" stroke="#94A3B8" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M17 24v4M15 26h12" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`,
+
+  presenterMode: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="5" width="16" height="11" rx="1.5" fill="#1E293B"/>
+    <polygon points="8,8 14,10.5 8,13" fill="#F59E0B"/>
+    <rect x="13" y="14" width="16" height="12" rx="1.5" fill="#FFF7ED" stroke="#B53818" stroke-width="1.3"/>
+    <path d="M16 18h10M16 21h7M16 24h5" stroke="#B53818" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
+  speakerNotes: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="4" width="24" height="16" rx="2" fill="#FAEEE8" stroke="#B53818" stroke-width="1.4"/>
+    <path d="M8 22h8l-2 5" stroke="#B53818" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M9 9h14M9 13h10" stroke="#9A3412" stroke-width="1.5" stroke-linecap="round"/>
   </svg>`
 };
