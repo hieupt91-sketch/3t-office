@@ -1026,6 +1026,18 @@ export class SheetAdapter {
       case "sheet.cell.underline":
         return this.grid.toggleStyle("textDecoration", "underline", "none");
 
+      case "sheet.font.family":
+        return this.grid.setFontFamily(args);
+
+      case "sheet.font.size":
+        return this.grid.setFontSize(args);
+
+      case "sheet.font.grow":
+        return this.grid.adjustFontSize(1);
+
+      case "sheet.font.shrink":
+        return this.grid.adjustFontSize(-1);
+
       case "sheet.cell.alignLeft":
         return this.grid.setStyle("textAlign", "left");
 

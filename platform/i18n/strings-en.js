@@ -116,6 +116,10 @@ export const enStrings = {
     ,"sheet.select.column": { label: "Select Column", tooltip: "Select the entire current column (Ctrl+Space)" }
     ,"sheet.select.row": { label: "Select Row", tooltip: "Select the entire current row (Shift+Space)" }
     ,"sheet.cell.bold": { label: "Bold", tooltip: "Apply bold formatting (Ctrl+B)" }
+    ,"sheet.font.family": { label: "Font", tooltip: "Choose the cell font" }
+    ,"sheet.font.size": { label: "Font Size", tooltip: "Choose the cell font size" }
+    ,"sheet.font.grow": { label: "Increase Font Size", tooltip: "Increase to the next standard font size" }
+    ,"sheet.font.shrink": { label: "Decrease Font Size", tooltip: "Decrease to the previous standard font size" }
     ,"sheet.cell.italic": { label: "Italic", tooltip: "Apply italic formatting (Ctrl+I)" }
     ,"sheet.cell.underline": { label: "Underline", tooltip: "Apply underline formatting (Ctrl+U)" }
     ,"sheet.cell.alignLeft": { label: "Align Left", tooltip: "Align cell contents to the left" }

@@ -112,6 +112,8 @@ export const ICONS = {
   listNumber: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#334155" stroke-width="1.8"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 7h1v-4M3 7h3" stroke="#2563EB"/><path d="M3 13a2 2 0 1 1 3-1.7c-.5.4-2 1.7-2 2.7h3" stroke="#2563EB"/></svg>`,
   indentInc: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#334155" stroke-width="1.8"><line x1="21" y1="6" x2="11" y2="6"/><line x1="21" y1="12" x2="11" y2="12"/><line x1="21" y1="18" x2="11" y2="18"/><polyline points="7 8 3 12 7 16" stroke="#2563EB"/></svg>`,
   indentDec: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#334155" stroke-width="1.8"><line x1="21" y1="6" x2="11" y2="6"/><line x1="21" y1="12" x2="11" y2="12"/><line x1="21" y1="18" x2="11" y2="18"/><polyline points="3 8 7 12 3 16" stroke="#2563EB"/></svg>`,
+  fontGrow: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M3.5 19 9 5h2.2l5.5 14h-2.5l-1.35-3.65H7.3L5.95 19H3.5Zm4.55-5.75h4.05L10.08 7.7l-2.03 5.55Z" fill="#334155"/><path d="M18.5 11V4.5m-3.25 3.25 3.25-3.25 3.25 3.25" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  fontShrink: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M3.5 19 9 5h2.2l5.5 14h-2.5l-1.35-3.65H7.3L5.95 19H3.5Zm4.55-5.75h4.05L10.08 7.7l-2.03 5.55Z" fill="#334155"/><path d="M18.5 4.5V11m-3.25-3.25L18.5 11l3.25-3.25" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 
   // Chèn nâng cao (Insert Elements)
   table: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">

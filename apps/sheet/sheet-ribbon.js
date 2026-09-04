@@ -33,6 +33,32 @@ export const SHEET_RIBBON_TABS = [
               {
                 type: "row",
                 items: [
+                  {
+                    type: "select",
+                    commandId: "sheet.font.family",
+                    defaultValue: "Calibri",
+                    options: [
+                      { value: "Times New Roman", label: "Times New Roman" },
+                      { value: "Be Vietnam Pro", label: "Be Vietnam Pro" },
+                      { value: "Arial", label: "Arial" },
+                      { value: "Calibri", label: "Calibri" },
+                      { value: "Roboto", label: "Roboto" }
+                    ]
+                  },
+                  {
+                    type: "select",
+                    commandId: "sheet.font.size",
+                    defaultValue: "11",
+                    options: [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72]
+                      .map(size => ({ value: String(size), label: String(size) }))
+                  },
+                  { type: "button", commandId: "sheet.font.grow", iconOnly: true },
+                  { type: "button", commandId: "sheet.font.shrink", iconOnly: true }
+                ]
+              },
+              {
+                type: "row",
+                items: [
                   { type: "button", commandId: "sheet.cell.bold", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.italic", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.underline", iconOnly: true },

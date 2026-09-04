@@ -115,6 +115,10 @@ export const viStrings = {
     ,"sheet.select.column": { label: "Chọn cột", tooltip: "Chọn toàn bộ cột hiện tại (Ctrl+Space)" }
     ,"sheet.select.row": { label: "Chọn hàng", tooltip: "Chọn toàn bộ hàng hiện tại (Shift+Space)" }
     ,"sheet.cell.bold": { label: "Đậm", tooltip: "Chữ đậm (Ctrl+B)" }
+    ,"sheet.font.family": { label: "Phông chữ", tooltip: "Chọn phông chữ cho ô" }
+    ,"sheet.font.size": { label: "Cỡ chữ", tooltip: "Chọn cỡ chữ cho ô" }
+    ,"sheet.font.grow": { label: "Tăng cỡ chữ", tooltip: "Tăng cỡ chữ theo nấc chuẩn" }
+    ,"sheet.font.shrink": { label: "Giảm cỡ chữ", tooltip: "Giảm cỡ chữ theo nấc chuẩn" }
     ,"sheet.cell.italic": { label: "Nghiêng", tooltip: "Chữ nghiêng (Ctrl+I)" }
     ,"sheet.cell.underline": { label: "Gạch chân", tooltip: "Gạch chân (Ctrl+U)" }
     ,"sheet.cell.alignLeft": { label: "Căn trái", tooltip: "Căn lề trái" }

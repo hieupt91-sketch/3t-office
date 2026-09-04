@@ -2838,6 +2838,27 @@ export class SheetGridController {
     return this.setStyle(prop, next);
   }
 
+  setFontFamily(family) {
+    const allowed = ["Times New Roman", "Be Vietnam Pro", "Arial", "Calibri", "Roboto"];
+    return allowed.includes(family) ? this.setStyle("fontFamily", family) : false;
+  }
+
+  setFontSize(size) {
+    const numericSize = Number.parseInt(size, 10);
+    if (!Number.isFinite(numericSize) || numericSize < 1 || numericSize > 409) return false;
+    return this.setStyle("fontSize", `${numericSize}px`);
+  }
+
+  adjustFontSize(direction) {
+    const steps = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72];
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const current = Number.parseInt(this.cellsData.get(key)?.style?.fontSize, 10) || 11;
+    const next = direction > 0
+      ? (steps.find(size => size > current) || steps[steps.length - 1])
+      : ([...steps].reverse().find(size => size < current) || steps[0]);
+    return this.setFontSize(next);
+  }
+
   _recordHistory(action, { coalesce = false } = {}) {
     const previous = this.undoStack[this.undoStack.length - 1];
     const mergeCellEdit = coalesce && previous?.type === "cell" && action.type === "cell" &&
