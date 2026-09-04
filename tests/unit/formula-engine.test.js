@@ -142,5 +142,15 @@ export async function runFormulaEngineTests() {
           engine.evaluate("=IRR(D2:D4)") === "#NUM!"
   });
 
+  // 14. RATE — vay 10.000, trả 200 cuối mỗi tháng trong 60 tháng.
+  // Excel: =RATE(60,-200,10000) -> 0,618341316125365% mỗi tháng.
+  const rateRes = engine.evaluate("=RATE(60,-200,10000)");
+  results.push({
+    name: "Financial RATE: giải đúng lãi suất mỗi kỳ và kiểm tra nper",
+    pass: approximatelyEqual(rateRes, 0.006183413161253651, 1e-10) &&
+          engine.evaluate("=RATE(0,-200,10000)") === "#NUM!" &&
+          engine.evaluate("=RATE(10,0,1000,1000)") === "#NUM!"
+  });
+
   return results;
 }

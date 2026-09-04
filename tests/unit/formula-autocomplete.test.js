@@ -177,5 +177,13 @@ export async function runFormulaAutocompleteTests() {
           irr.desc.includes("giá trị âm") && irr.desc.includes("giá trị dương")
   });
 
+  const rate = FUNCTION_CATALOG.find(item => item.name === "RATE");
+  results.push({
+    name: "Autocomplete: RATE có đủ 6 tham số và mô tả type/guess",
+    pass: rate?.category === "Tài chính" &&
+          rate.syntax === "RATE(nper, pmt, pv, [fv], [type], [guess])" &&
+          rate.desc.includes("guess") && rate.desc.includes("đầu kỳ")
+  });
+
   return results;
 }

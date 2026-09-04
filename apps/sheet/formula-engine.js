@@ -64,6 +64,7 @@ export const FUNCTION_CATALOG = [
   ,{ name: "PV", category: "Tài chính", syntax: "PV(rate, nper, pmt, [fv], [type])", desc: "Tính giá trị hiện tại của khoản đầu tư hoặc chuỗi thanh toán; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
   ,{ name: "NPV", category: "Tài chính", syntax: "NPV(rate, value1, [value2], ...)", desc: "Tính giá trị hiện tại ròng của chuỗi dòng tiền đều kỳ; value1 được chiết khấu từ cuối kỳ đầu tiên." }
   ,{ name: "IRR", category: "Tài chính", syntax: "IRR(values, [guess])", desc: "Tính tỷ suất hoàn vốn nội bộ của chuỗi dòng tiền có ít nhất một giá trị âm và một giá trị dương." }
+  ,{ name: "RATE", category: "Tài chính", syntax: "RATE(nper, pmt, pv, [fv], [type], [guess])", desc: "Tính lãi suất mỗi kỳ của niên kim; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ), guess là giá trị dự đoán ban đầu." }
 ];
 
 export class FormulaEngine {
@@ -551,6 +552,33 @@ export class FormulaEngine {
             : total - period * value / Math.pow(1 + rate, period + 1),
           0
         );
+        return this._solveRate(valueAt, derivativeAt, guess);
+      }
+
+      case "RATE": {
+        const nper = Number(this._resolveSingleValue(args[0]));
+        const pmt = Number(this._resolveSingleValue(args[1]));
+        const pv = Number(this._resolveSingleValue(args[2]));
+        const fv = args[3] === undefined ? 0 : Number(this._resolveSingleValue(args[3]));
+        const type = args[4] === undefined ? 0 : Number(this._resolveSingleValue(args[4]));
+        const guess = args[5] === undefined ? 0.1 : Number(this._resolveSingleValue(args[5]));
+        if (![nper, pmt, pv, fv, type, guess].every(Number.isFinite)) return "#VALUE!";
+        if (nper <= 0 || (type !== 0 && type !== 1) || guess <= -1) return "#NUM!";
+        const valueAt = rate => {
+          if (Math.abs(rate) < 1e-12) return fv + pv + pmt * nper;
+          const factor = Math.pow(1 + rate, nper);
+          return fv + pv * factor + pmt * (1 + rate * type) * (factor - 1) / rate;
+        };
+        const derivativeAt = rate => {
+          if (Math.abs(rate) < 1e-8) {
+            return pv * nper + pmt * (type * nper + nper * (nper - 1) / 2);
+          }
+          const factor = Math.pow(1 + rate, nper);
+          const annuityFactor = (factor - 1) / rate;
+          const annuityDerivative = (nper * Math.pow(1 + rate, nper - 1) * rate - (factor - 1)) / (rate * rate);
+          return pv * nper * Math.pow(1 + rate, nper - 1) +
+            pmt * (type * annuityFactor + (1 + rate * type) * annuityDerivative);
+        };
         return this._solveRate(valueAt, derivativeAt, guess);
       }
 
