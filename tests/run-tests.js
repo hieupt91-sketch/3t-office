@@ -48,6 +48,10 @@ import { runWriterRibbonBreadthTests } from "./unit/writer-ribbon-breadth.test.j
 import { runSheetKeyboardAuditTests } from "./unit/sheet-keyboard-audit.test.js";
 import { runSheetFormatCellsTests } from "./unit/sheet-format-cells.test.js";
 import { runSheetEditingStylesTests } from "./unit/sheet-editing-styles.test.js";
+import { runSheetReferenceFunctionTests } from "./unit/sheet-reference-functions.test.js";
+import { runSheetMathStatFunctionTests } from "./unit/sheet-math-stat-functions.test.js";
+import { runSheetTextFunctionTests } from "./unit/sheet-text-functions.test.js";
+import { runSheetDateFunctionTests } from "./unit/sheet-date-functions.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -103,7 +107,11 @@ async function runAll() {
     { title: "42. Behavioral & Unit Tests — VN Writer Ribbon Breadth (Sub/Sup, Illustrations, Themes, Links)", runner: runWriterRibbonBreadthTests },
     { title: "43. Behavioral & Unit Tests — VN Sheet Keyboard Entry & Formula Evaluation", runner: runSheetKeyboardAuditTests },
     { title: "44. Behavioral & Unit Tests — VN Sheet Format Cells Dialog & Number Formats", runner: runSheetFormatCellsTests },
-    { title: "45. Behavioral & Unit Tests — VN Sheet Styles & Editing Groups", runner: runSheetEditingStylesTests }
+    { title: "45. Behavioral & Unit Tests — VN Sheet Styles & Editing Groups", runner: runSheetEditingStylesTests },
+    { title: "46. Unit Tests — VN Sheet Cross-Sheet Reference Functions", runner: runSheetReferenceFunctionTests },
+    { title: "47. Unit Tests — VN Sheet Math & Statistics Functions", runner: runSheetMathStatFunctionTests },
+    { title: "48. Unit Tests — VN Sheet Text Functions", runner: runSheetTextFunctionTests },
+    { title: "49. Unit Tests — VN Sheet Date Functions", runner: runSheetDateFunctionTests }
   ];
 
   for (const suite of suites) {

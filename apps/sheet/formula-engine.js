@@ -11,6 +11,15 @@ export const FUNCTION_CATALOG = [
   { name: "ABS", category: "Toán học", syntax: "ABS(number)", desc: "Trả về giá trị tuyệt đối của một số." },
   { name: "INT", category: "Toán học", syntax: "INT(number)", desc: "Làm tròn một số xuống số nguyên gần nhất." },
   { name: "MOD", category: "Toán học", syntax: "MOD(number, divisor)", desc: "Trả về số dư sau khi chia một số cho một số chia." },
+  { name: "SUMPRODUCT", category: "Toán học", syntax: "SUMPRODUCT(array1, [array2], ...)", desc: "Nhân các phần tử tương ứng trong các vùng rồi tính tổng các tích." },
+  { name: "SQRT", category: "Toán học", syntax: "SQRT(number)", desc: "Trả về căn bậc hai dương của một số." },
+  { name: "POWER", category: "Toán học", syntax: "POWER(number, power)", desc: "Nâng một số lên lũy thừa đã cho." },
+  { name: "ROUNDUP", category: "Toán học", syntax: "ROUNDUP(number, num_digits)", desc: "Làm tròn một số ra xa số không đến số chữ số chỉ định." },
+  { name: "ROUNDDOWN", category: "Toán học", syntax: "ROUNDDOWN(number, num_digits)", desc: "Làm tròn một số về phía số không đến số chữ số chỉ định." },
+  { name: "CEILING", category: "Toán học", syntax: "CEILING(number, significance)", desc: "Làm tròn một số lên bội số gần nhất của mức chính xác." },
+  { name: "FLOOR", category: "Toán học", syntax: "FLOOR(number, significance)", desc: "Làm tròn một số xuống bội số gần nhất của mức chính xác." },
+  { name: "TRUNC", category: "Toán học", syntax: "TRUNC(number, [num_digits])", desc: "Cắt bớt phần thập phân của một số đến số chữ số chỉ định." },
+  { name: "SIGN", category: "Toán học", syntax: "SIGN(number)", desc: "Trả về dấu của một số: -1, 0 hoặc 1." },
 
   // Thống kê
   { name: "AVERAGE", category: "Thống kê", syntax: "AVERAGE(number1, [number2], ...)", desc: "Tính giá trị trung bình cộng của các đối số." },
@@ -22,18 +31,40 @@ export const FUNCTION_CATALOG = [
   { name: "SUMIF", category: "Thống kê", syntax: "SUMIF(range, criteria, [sum_range])", desc: "Tính tổng các ô tương ứng thỏa một điều kiện." },
   { name: "COUNTIFS", category: "Thống kê", syntax: "COUNTIFS(range1, criteria1, [range2, criteria2], ...)", desc: "Đếm các hàng thỏa đồng thời nhiều điều kiện." },
   { name: "SUMIFS", category: "Thống kê", syntax: "SUMIFS(sum_range, range1, criteria1, [range2, criteria2], ...)", desc: "Tính tổng các hàng thỏa đồng thời nhiều điều kiện." },
+  { name: "AVERAGEIF", category: "Thống kê", syntax: "AVERAGEIF(range, criteria, [average_range])", desc: "Tính trung bình các ô tương ứng thỏa một điều kiện." },
+  { name: "AVERAGEIFS", category: "Thống kê", syntax: "AVERAGEIFS(average_range, criteria_range1, criteria1, ...)", desc: "Tính trung bình các ô thỏa đồng thời nhiều điều kiện." },
+  { name: "MEDIAN", category: "Thống kê", syntax: "MEDIAN(number1, [number2], ...)", desc: "Trả về trung vị của tập hợp số." },
+  { name: "RANK", category: "Thống kê", syntax: "RANK(number, ref, [order])", desc: "Trả về thứ hạng của một số trong danh sách." },
+  { name: "RANK.EQ", category: "Thống kê", syntax: "RANK.EQ(number, ref, [order])", desc: "Trả về thứ hạng bằng nhau của một số trong danh sách." },
+  { name: "LARGE", category: "Thống kê", syntax: "LARGE(array, k)", desc: "Trả về giá trị lớn thứ k trong tập dữ liệu." },
+  { name: "SMALL", category: "Thống kê", syntax: "SMALL(array, k)", desc: "Trả về giá trị nhỏ thứ k trong tập dữ liệu." },
+  { name: "COUNTBLANK", category: "Thống kê", syntax: "COUNTBLANK(range)", desc: "Đếm số ô trống trong một vùng." },
+  { name: "STDEV", category: "Thống kê", syntax: "STDEV(number1, [number2], ...)", desc: "Ước tính độ lệch chuẩn mẫu từ các đối số." },
+  { name: "VAR", category: "Thống kê", syntax: "VAR(number1, [number2], ...)", desc: "Ước tính phương sai mẫu từ các đối số." },
 
   // Tra cứu & tham chiếu
   { name: "VLOOKUP", category: "Tra cứu", syntax: "VLOOKUP(lookup_value, table_array, col_index, [range_lookup])", desc: "Tra theo cột đầu của bảng và trả về giá trị ở cột chỉ định." },
   { name: "HLOOKUP", category: "Tra cứu", syntax: "HLOOKUP(lookup_value, table_array, row_index, [range_lookup])", desc: "Tra theo hàng đầu của bảng và trả về giá trị ở hàng chỉ định." },
   { name: "INDEX", category: "Tra cứu", syntax: "INDEX(array, row_num, [col_num])", desc: "Trả về giá trị tại hàng và cột trong vùng." },
   { name: "MATCH", category: "Tra cứu", syntax: "MATCH(lookup_value, lookup_array, [match_type])", desc: "Trả về vị trí tương đối của giá trị trong vùng." },
+  { name: "XLOOKUP", category: "Tra cứu", syntax: "XLOOKUP(lookup_value, lookup_array, return_array, [if_not_found], [match_mode])", desc: "Tra cứu một giá trị trong một vùng và trả về giá trị tương ứng từ vùng khác." },
+  { name: "LOOKUP", category: "Tra cứu", syntax: "LOOKUP(lookup_value, lookup_vector, [result_vector])", desc: "Tra cứu gần đúng trong một hàng hoặc cột đã sắp xếp." },
+  { name: "CHOOSE", category: "Tra cứu", syntax: "CHOOSE(index_num, value1, [value2], ...)", desc: "Chọn một giá trị từ danh sách theo số thứ tự." },
+  { name: "INDIRECT", category: "Tra cứu", syntax: "INDIRECT(ref_text)", desc: "Trả về giá trị của tham chiếu được tạo từ chuỗi văn bản." },
+  { name: "OFFSET", category: "Tra cứu", syntax: "OFFSET(reference, rows, cols, [height], [width])", desc: "Trả về giá trị hoặc vùng được dịch chuyển từ một tham chiếu ban đầu." },
 
   // Logic
   { name: "IF", category: "Logic", syntax: "IF(logical_test, value_if_true, [value_if_false])", desc: "Kiểm tra điều kiện và trả về giá trị thứ nhất nếu đúng, thứ hai nếu sai." },
   { name: "AND", category: "Logic", syntax: "AND(logical1, [logical2], ...)", desc: "Trả về TRUE nếu tất cả các đối số là TRUE." },
   { name: "OR", category: "Logic", syntax: "OR(logical1, [logical2], ...)", desc: "Trả về TRUE nếu bất kỳ đối số nào là TRUE." },
   { name: "NOT", category: "Logic", syntax: "NOT(logical)", desc: "Đảo ngược giá trị logic của đối số." },
+  { name: "IFERROR", category: "Logic", syntax: "IFERROR(value, value_if_error)", desc: "Trả về giá trị thay thế khi biểu thức tạo ra bất kỳ lỗi nào." },
+  { name: "IFNA", category: "Logic", syntax: "IFNA(value, value_if_na)", desc: "Trả về giá trị thay thế khi biểu thức tạo ra lỗi #N/A." },
+  { name: "ISBLANK", category: "Logic", syntax: "ISBLANK(value)", desc: "Kiểm tra giá trị có phải là ô trống hay không." },
+  { name: "ISNUMBER", category: "Logic", syntax: "ISNUMBER(value)", desc: "Kiểm tra giá trị có phải là số hay không." },
+  { name: "ISTEXT", category: "Logic", syntax: "ISTEXT(value)", desc: "Kiểm tra giá trị có phải là văn bản hay không." },
+  { name: "ISERROR", category: "Logic", syntax: "ISERROR(value)", desc: "Kiểm tra giá trị có phải là mã lỗi hay không." },
+  { name: "ISNA", category: "Logic", syntax: "ISNA(value)", desc: "Kiểm tra giá trị có phải là lỗi #N/A hay không." },
 
   // Văn bản (Text)
   { name: "CONCAT", category: "Văn bản", syntax: "CONCAT(text1, [text2], ...)", desc: "Nối hai hoặc nhiều chuỗi văn bản thành một chuỗi duy nhất." },
@@ -47,6 +78,13 @@ export const FUNCTION_CATALOG = [
   { name: "CONCATENATE", category: "Văn bản", syntax: "CONCATENATE(text1, [text2], ...)", desc: "Nối nhiều chuỗi văn bản." },
   { name: "SUBSTITUTE", category: "Văn bản", syntax: "SUBSTITUTE(text, old_text, new_text, [instance_num])", desc: "Thay thế chuỗi con trong văn bản." },
   { name: "FIND", category: "Văn bản", syntax: "FIND(find_text, within_text, [start_num])", desc: "Tìm chuỗi con có phân biệt hoa thường." },
+  { name: "MID", category: "Văn bản", syntax: "MID(text, start_num, num_chars)", desc: "Trả về số ký tự chỉ định từ giữa chuỗi văn bản." },
+  { name: "VALUE", category: "Văn bản", syntax: "VALUE(text)", desc: "Chuyển đổi chuỗi biểu diễn số thành giá trị số." },
+  { name: "PROPER", category: "Văn bản", syntax: "PROPER(text)", desc: "Viết hoa chữ cái đầu của mỗi từ trong văn bản." },
+  { name: "TEXTJOIN", category: "Văn bản", syntax: "TEXTJOIN(delimiter, ignore_empty, text1, ...)", desc: "Nối các chuỗi bằng dấu phân cách và có thể bỏ qua ô trống." },
+  { name: "REPT", category: "Văn bản", syntax: "REPT(text, number_times)", desc: "Lặp lại văn bản theo số lần chỉ định." },
+  { name: "EXACT", category: "Văn bản", syntax: "EXACT(text1, text2)", desc: "So sánh chính xác hai chuỗi có phân biệt chữ hoa và chữ thường." },
+  { name: "SEARCH", category: "Văn bản", syntax: "SEARCH(find_text, within_text, [start_num])", desc: "Tìm chuỗi con không phân biệt chữ hoa và chữ thường." },
 
   // Ngày tháng
   { name: "TODAY", category: "Ngày tháng", syntax: "TODAY()", desc: "Trả về ngày hiện tại của hệ thống." },
@@ -57,6 +95,11 @@ export const FUNCTION_CATALOG = [
   ,{ name: "DATE", category: "Ngày tháng", syntax: "DATE(year, month, day)", desc: "Tạo một ngày từ năm, tháng và ngày." }
   ,{ name: "DATEDIF", category: "Ngày tháng", syntax: "DATEDIF(start_date, end_date, unit)", desc: "Tính số ngày, tháng hoặc năm trọn vẹn giữa hai ngày." }
   ,{ name: "EDATE", category: "Ngày tháng", syntax: "EDATE(start_date, months)", desc: "Cộng hoặc trừ số tháng vào một ngày." }
+  ,{ name: "WEEKDAY", category: "Ngày tháng", syntax: "WEEKDAY(date, [return_type])", desc: "Trả về số thứ tự của ngày trong tuần theo kiểu đánh số chỉ định." }
+  ,{ name: "NETWORKDAYS", category: "Ngày tháng", syntax: "NETWORKDAYS(start_date, end_date, [holidays])", desc: "Đếm số ngày làm việc giữa hai ngày, loại trừ cuối tuần và ngày nghỉ." }
+  ,{ name: "WORKDAY", category: "Ngày tháng", syntax: "WORKDAY(start_date, days, [holidays])", desc: "Trả về ngày làm việc trước hoặc sau một số ngày làm việc chỉ định." }
+  ,{ name: "EOMONTH", category: "Ngày tháng", syntax: "EOMONTH(start_date, months)", desc: "Trả về ngày cuối tháng trước hoặc sau số tháng chỉ định." }
+  ,{ name: "DAYS", category: "Ngày tháng", syntax: "DAYS(end_date, start_date)", desc: "Trả về số ngày giữa ngày kết thúc và ngày bắt đầu." }
 
   // Tài chính
   ,{ name: "PMT", category: "Tài chính", syntax: "PMT(rate, nper, pv, [fv], [type])", desc: "Tính khoản thanh toán định kỳ với lãi suất cố định; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
@@ -76,11 +119,12 @@ export class FormulaEngine {
   /**
    * @param {Map<string, {val: string, formula: string, style: Object}> | (() => Map<string, any>)} cellsData
    */
-  constructor(cellsData, namedRangeResolver = null, sheetResolver = null, currentSheetResolver = null) {
+  constructor(cellsData, namedRangeResolver = null, sheetResolver = null, currentSheetResolver = null, sheetNamesResolver = null) {
     this.cellsData = cellsData;
     this.namedRangeResolver = namedRangeResolver;
     this.sheetResolver = sheetResolver;
     this.currentSheetResolver = currentSheetResolver;
+    this.sheetNamesResolver = sheetNamesResolver;
   }
 
   setCellsData(cellsData) {
@@ -100,6 +144,9 @@ export class FormulaEngine {
     const item = map ? map.get(coord.toUpperCase()) : null;
     if (!item) return 0;
     const raw = item.val || "";
+
+    // Giữ nguyên chuỗi ngày để các hàm ngày tháng có thể phân tích, không coi dấu "/" là ký hiệu tiền tệ.
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}(?:\s|$)/.test(String(raw).trim())) return raw;
 
     // Ô định dạng Text: giữ nguyên chuỗi thô, không cho tính toán số học
     if (item.style?.numberFormat?.category === "text") {
@@ -147,18 +194,50 @@ export class FormulaEngine {
     return result;
   }
 
+  _isError(value) {
+    return typeof value === "string" && /^#(?:N\/A|VALUE!|REF!|DIV\/0!|NUM!|NAME\?|LỖI!)/.test(value);
+  }
+
+  _sheetNames() {
+    return typeof this.sheetNamesResolver === "function" ? this.sheetNamesResolver() : [];
+  }
+
+  _maxUsedRow(sheet = null) {
+    const map = sheet && typeof this.sheetResolver === "function" ? this.sheetResolver(sheet) : this.cellsMap;
+    let max = 1;
+    for (const coord of map?.keys?.() || []) {
+      const match = String(coord).match(/\d+$/);
+      if (match) max = Math.max(max, Number(match[0]));
+    }
+    return max;
+  }
+
+  _referenceValues(referenceText) {
+    const reference = this._parseReference(referenceText);
+    if (reference.error) return [reference.error];
+    if (reference.sheets) {
+      const values = [];
+      for (const sheet of reference.sheets) {
+        for (const coord of this.expandRange(reference.ref)) values.push(this.getCellValue(coord, sheet));
+      }
+      return values;
+    }
+    const column = reference.ref.match(/^([A-Z]+):([A-Z]+)$/);
+    const ref = column ? `${column[1]}1:${column[2]}${this._maxUsedRow(reference.sheet)}` : reference.ref;
+    return this.expandRange(ref).map(coord => this.getCellValue(coord, reference.sheet));
+  }
+
   collectValues(args) {
     const values = [];
     for (const arg of args) {
       if (typeof arg === "string" && arg.startsWith('"') && arg.endsWith('"')) {
         values.push(arg.slice(1, -1));
+      } else if (typeof arg === "string" && /^[A-Z_.]+\s*\(.*\)$/i.test(arg)) {
+        const resolved = this._resolveSingleValue(arg);
+        if (Array.isArray(resolved)) values.push(...resolved);
+        else values.push(resolved);
       } else if (typeof arg === "string" && (arg.includes(":") || arg.includes("!") || this._resolveNamedRange(arg))) {
-        const reference = this._parseReference(arg);
-        if (reference.error) { values.push(reference.error); continue; }
-        const coords = this.expandRange(reference.ref);
-        for (const coord of coords) {
-          values.push(this.getCellValue(coord, reference.sheet));
-        }
+        values.push(...this._referenceValues(arg));
       } else if (typeof arg === "string" && /^[A-Z]+\d+$/i.test(arg.trim())) {
         values.push(this.getCellValue(arg.trim()));
       } else {
@@ -176,15 +255,15 @@ export class FormulaEngine {
   }
 
   _rangeValues(range) {
-    const reference = this._parseReference(range);
-    if (reference.error) return [reference.error];
-    return this.expandRange(reference.ref).map(coord => this.getCellValue(coord, reference.sheet));
+    return this._referenceValues(range);
   }
 
   _rangeMatrix(range) {
     const reference = this._parseReference(range);
     if (reference.error) return [[reference.error]];
-    const match = reference.ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+    const column = reference.ref.match(/^([A-Z]+):([A-Z]+)$/);
+    const normalizedRef = column ? `${column[1]}1:${column[2]}${this._maxUsedRow(reference.sheet)}` : reference.ref;
+    const match = normalizedRef.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
     if (!match) return [[this._resolveSingleValue(range)]];
     const [, startCol, startRowText, endCol, endRowText] = match;
     const startColIndex = this._columnIndex(startCol);
@@ -234,7 +313,17 @@ export class FormulaEngine {
       if (sheet && typeof this.sheetResolver === "function" && !this.sheetResolver(sheet)) return { error: "#REF!" };
       return { sheet, ref: String(named.ref || named).replace(/\$/g, "").toUpperCase() };
     }
-    const match = raw.match(/^(?:'((?:[^']|'')+)'|([^'!]+))!\s*(\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?)$/i);
+    const threeD = raw.match(/^(?:'((?:[^']|'')+)'|([^':!]+))\s*:\s*(?:'((?:[^']|'')+)'|([^'!]+))!\s*(\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?)$/i);
+    if (threeD) {
+      const first = (threeD[1] ? threeD[1].replace(/''/g, "'") : threeD[2]).trim();
+      const last = (threeD[3] ? threeD[3].replace(/''/g, "'") : threeD[4]).trim();
+      const names = this._sheetNames();
+      const start = names.indexOf(first);
+      const end = names.indexOf(last);
+      if (start < 0 || end < 0) return { error: "#REF!" };
+      return { sheets: names.slice(Math.min(start, end), Math.max(start, end) + 1), ref: threeD[5].replace(/\$/g, "").toUpperCase() };
+    }
+    const match = raw.match(/^(?:'((?:[^']|'')+)'|([^'!]+))!\s*(\$?[A-Z]+(?::\$?[A-Z]+)|\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?)$/i);
     if (match) {
       const sheet = (match[1] ? match[1].replace(/''/g, "'") : match[2]).trim();
       if (typeof this.sheetResolver !== "function" || !this.sheetResolver(sheet)) return { error: "#REF!" };
@@ -292,7 +381,7 @@ export class FormulaEngine {
 
     try {
       // 1. Phân tích hàm có tên: TÊN_HÀM(đối số...)
-      const funcMatch = expr.match(/^([A-Z_]+)\s*\((.*)\)$/i);
+      const funcMatch = expr.match(/^([A-Z_.]+)\s*\((.*)\)$/i);
       if (funcMatch) {
         const funcName = funcMatch[1].toUpperCase();
         const rawArgs = this._splitArgs(funcMatch[2]);
@@ -380,7 +469,17 @@ export class FormulaEngine {
         return nums.reduce((acc, v) => acc * v, 1);
       }
 
+      case "SUMPRODUCT": {
+        if (!args.length) return "#VALUE!";
+        const arrays = args.map(arg => this._rangeValues(arg));
+        if (arrays.some(values => values.includes("#REF!"))) return "#REF!";
+        if (arrays.some(values => values.length !== arrays[0].length)) return "#VALUE!";
+        return arrays[0].reduce((sum, _, index) => sum + arrays.reduce((product, values) => product * (Number(values[index]) || 0), 1), 0);
+      }
+
       case "AVERAGE": {
+        const rawValues = this.collectValues(args);
+        if (rawValues.includes("#REF!")) return "#REF!";
         const nums = this.collectNumericValues(args);
         if (nums.length === 0) return 0;
         const sum = nums.reduce((acc, v) => acc + v, 0);
@@ -388,16 +487,19 @@ export class FormulaEngine {
       }
 
       case "MIN": {
+        if (this.collectValues(args).includes("#REF!")) return "#REF!";
         const nums = this.collectNumericValues(args);
         return nums.length ? Math.min(...nums) : 0;
       }
 
       case "MAX": {
+        if (this.collectValues(args).includes("#REF!")) return "#REF!";
         const nums = this.collectNumericValues(args);
         return nums.length ? Math.max(...nums) : 0;
       }
 
       case "COUNT": {
+        if (this.collectValues(args).includes("#REF!")) return "#REF!";
         const nums = this.collectNumericValues(args);
         return nums.length;
       }
@@ -405,6 +507,71 @@ export class FormulaEngine {
       case "COUNTA": {
         const vals = this.collectValues(args).filter(v => v !== "" && v !== null && v !== undefined);
         return vals.length;
+      }
+
+      case "AVERAGEIF": {
+        if (args.length < 2) return "#VALUE!";
+        const criteriaValues = this._rangeValues(args[0]);
+        const averageValues = this._rangeValues(args[2] || args[0]);
+        if (criteriaValues.includes("#REF!") || averageValues.includes("#REF!")) return "#REF!";
+        if (criteriaValues.length !== averageValues.length) return "#VALUE!";
+        const matches = averageValues.filter((value, index) => this._matchesCriteria(criteriaValues[index], args[1]) && typeof value === "number");
+        return matches.length ? matches.reduce((sum, value) => sum + value, 0) / matches.length : "#DIV/0!";
+      }
+
+      case "AVERAGEIFS": {
+        if (args.length < 3 || args.length % 2 === 0) return "#VALUE!";
+        const averageValues = this._rangeValues(args[0]);
+        const pairs = [];
+        for (let index = 1; index < args.length; index += 2) pairs.push([this._rangeValues(args[index]), args[index + 1]]);
+        if (pairs.some(([values]) => values.includes("#REF!"))) return "#REF!";
+        if (pairs.some(([values]) => values.length !== averageValues.length)) return "#VALUE!";
+        const matches = averageValues.filter((value, index) => typeof value === "number" && pairs.every(([values, criteria]) => this._matchesCriteria(values[index], criteria)));
+        return matches.length ? matches.reduce((sum, value) => sum + value, 0) / matches.length : "#DIV/0!";
+      }
+
+      case "MEDIAN": {
+        const nums = this.collectNumericValues(args).sort((a, b) => a - b);
+        if (!nums.length) return "#NUM!";
+        const middle = Math.floor(nums.length / 2);
+        return nums.length % 2 ? nums[middle] : (nums[middle - 1] + nums[middle]) / 2;
+      }
+
+      case "RANK":
+      case "RANK.EQ": {
+        if (args.length < 2) return "#VALUE!";
+        const number = Number(this._resolveSingleValue(args[0]));
+        const nums = this.collectNumericValues([args[1]]);
+        const order = args[2] === undefined ? 0 : Number(this._resolveSingleValue(args[2]));
+        if (!Number.isFinite(number) || !nums.includes(number)) return "#N/A";
+        nums.sort((a, b) => order === 0 ? b - a : a - b);
+        return nums.indexOf(number) + 1;
+      }
+
+      case "LARGE":
+      case "SMALL": {
+        if (args.length < 2) return "#VALUE!";
+        const nums = this.collectNumericValues([args[0]]).sort((a, b) => funcName === "LARGE" ? b - a : a - b);
+        const k = Number(this._resolveSingleValue(args[1]));
+        return Number.isInteger(k) && k >= 1 && k <= nums.length ? nums[k - 1] : "#NUM!";
+      }
+
+      case "COUNTBLANK": {
+        if (args.length !== 1) return "#VALUE!";
+        const reference = this._parseReference(args[0]);
+        if (reference.error || reference.sheets) return "#REF!";
+        const coords = this.expandRange(reference.ref);
+        const map = reference.sheet && typeof this.sheetResolver === "function" ? this.sheetResolver(reference.sheet) : this.cellsMap;
+        return coords.filter(coord => !map?.has(coord) || map.get(coord)?.val === "").length;
+      }
+
+      case "STDEV":
+      case "VAR": {
+        const nums = this.collectNumericValues(args);
+        if (nums.length < 2) return "#DIV/0!";
+        const mean = nums.reduce((sum, value) => sum + value, 0) / nums.length;
+        const variance = nums.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / (nums.length - 1);
+        return funcName === "STDEV" ? Math.sqrt(variance) : variance;
       }
 
       case "VLOOKUP":
@@ -450,6 +617,86 @@ export class FormulaEngine {
         return found < 0 ? "#N/A" : found + 1;
       }
 
+      case "XLOOKUP": {
+        if (args.length < 3) return "#VALUE!";
+        const lookup = this._resolveSingleValue(args[0]);
+        const lookupValues = this._rangeValues(args[1]);
+        const returnValues = this._rangeValues(args[2]);
+        if (lookupValues.includes("#REF!") || returnValues.includes("#REF!")) return "#REF!";
+        if (lookupValues.length !== returnValues.length) return "#VALUE!";
+        const matchMode = args[4] === undefined ? 0 : Number(this._resolveSingleValue(args[4]));
+        if (![0, -1, 1, 2].includes(matchMode)) return "#VALUE!";
+        let index = -1;
+        if (matchMode === 2) {
+          const pattern = String(lookup).replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
+          const regex = new RegExp(`^${pattern}$`, "i");
+          index = lookupValues.findIndex(value => regex.test(String(value)));
+        } else {
+          index = lookupValues.findIndex(value => this._equals(value, lookup));
+          if (index < 0 && matchMode !== 0) {
+            let best = null;
+            lookupValues.forEach((value, candidateIndex) => {
+              const comparison = this._compareValues(value, lookup);
+              if ((matchMode === -1 && comparison < 0) || (matchMode === 1 && comparison > 0)) {
+                if (!best || (matchMode === -1 ? comparison > best.comparison : comparison < best.comparison)) best = { candidateIndex, comparison };
+              }
+            });
+            index = best?.candidateIndex ?? -1;
+          }
+        }
+        if (index < 0) return args[3] === undefined ? "#N/A" : this._resolveSingleValue(args[3]);
+        return returnValues[index];
+      }
+
+      case "LOOKUP": {
+        if (args.length < 2) return "#VALUE!";
+        const lookup = this._resolveSingleValue(args[0]);
+        const vector = this._rangeValues(args[1]);
+        const results = args[2] === undefined ? vector : this._rangeValues(args[2]);
+        if (vector.includes("#REF!") || results.includes("#REF!")) return "#REF!";
+        if (vector.length !== results.length) return "#N/A";
+        let found = -1;
+        for (let index = 0; index < vector.length; index++) if (this._compareValues(vector[index], lookup) <= 0) found = index;
+        return found < 0 ? "#N/A" : results[found];
+      }
+
+      case "CHOOSE": {
+        const index = Number(this._resolveSingleValue(args[0]));
+        if (!Number.isInteger(index) || index < 1 || index >= args.length) return "#VALUE!";
+        return this._resolveSingleValue(args[index]);
+      }
+
+      case "INDIRECT": {
+        if (args.length < 1) return "#VALUE!";
+        const text = String(this._resolveSingleValue(args[0]));
+        const reference = this._parseReference(text);
+        if (reference.error || reference.sheets) return "#REF!";
+        if (!/^[A-Z]+\d+(?::[A-Z]+\d+)?$/i.test(reference.ref)) return "#REF!";
+        const values = this._referenceValues(text);
+        return values.length === 1 ? values[0] : values;
+      }
+
+      case "OFFSET": {
+        if (args.length < 3) return "#VALUE!";
+        const reference = this._parseReference(args[0]);
+        if (reference.error || reference.sheets) return "#REF!";
+        const match = reference.ref.match(/^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/);
+        const rows = Number(this._resolveSingleValue(args[1]));
+        const cols = Number(this._resolveSingleValue(args[2]));
+        if (!match || !Number.isInteger(rows) || !Number.isInteger(cols)) return "#VALUE!";
+        const defaultHeight = match[4] ? Math.abs(Number(match[4]) - Number(match[2])) + 1 : 1;
+        const defaultWidth = match[3] ? Math.abs(this._columnIndex(match[3]) - this._columnIndex(match[1])) + 1 : 1;
+        const height = args[3] === undefined ? defaultHeight : Number(this._resolveSingleValue(args[3]));
+        const width = args[4] === undefined ? defaultWidth : Number(this._resolveSingleValue(args[4]));
+        const startRow = Number(match[2]) + rows;
+        const startCol = this._columnIndex(match[1]) + cols;
+        if (![height, width].every(Number.isInteger) || height <= 0 || width <= 0 || startRow < 1 || startCol < 0) return "#REF!";
+        const ref = `${this._columnName(startCol)}${startRow}:${this._columnName(startCol + width - 1)}${startRow + height - 1}`;
+        const prefix = reference.sheet ? `'${reference.sheet.replace(/'/g, "''")}'!` : "";
+        const values = this._referenceValues(prefix + ref);
+        return values.length === 1 ? values[0] : values;
+      }
+
       case "COUNTIF":
         return this._rangeValues(args[0]).filter(value => this._matchesCriteria(value, args[1])).length;
 
@@ -491,9 +738,53 @@ export class FormulaEngine {
       }
 
       case "MOD": {
-        const num = this.collectNumericValues([args[0]])[0] || 0;
-        const div = this.collectNumericValues([args[1]])[0] || 1;
-        return num % div;
+        const num = Number(this._resolveSingleValue(args[0]));
+        const div = Number(this._resolveSingleValue(args[1]));
+        if (!Number.isFinite(num) || !Number.isFinite(div)) return "#VALUE!";
+        if (div === 0) return "#DIV/0!";
+        return ((num % div) + div) % div;
+      }
+
+      case "SQRT": {
+        const value = Number(this._resolveSingleValue(args[0]));
+        if (!Number.isFinite(value)) return "#VALUE!";
+        return value < 0 ? "#NUM!" : Math.sqrt(value);
+      }
+
+      case "POWER": {
+        const number = Number(this._resolveSingleValue(args[0]));
+        const power = Number(this._resolveSingleValue(args[1]));
+        if (!Number.isFinite(number) || !Number.isFinite(power)) return "#VALUE!";
+        const result = Math.pow(number, power);
+        return Number.isFinite(result) ? result : "#NUM!";
+      }
+
+      case "ROUNDUP":
+      case "ROUNDDOWN":
+      case "TRUNC": {
+        const number = Number(this._resolveSingleValue(args[0]));
+        const digits = args[1] === undefined ? 0 : Number(this._resolveSingleValue(args[1]));
+        if (!Number.isFinite(number) || !Number.isInteger(digits)) return "#VALUE!";
+        const factor = Math.pow(10, digits);
+        const scaled = number * factor;
+        const rounded = funcName === "ROUNDUP" ? Math.sign(scaled) * Math.ceil(Math.abs(scaled)) : Math.trunc(scaled);
+        return rounded / factor;
+      }
+
+      case "CEILING":
+      case "FLOOR": {
+        const number = Number(this._resolveSingleValue(args[0]));
+        const significance = Number(this._resolveSingleValue(args[1]));
+        if (!Number.isFinite(number) || !Number.isFinite(significance)) return "#VALUE!";
+        if (significance === 0) return 0;
+        if (number !== 0 && Math.sign(number) !== Math.sign(significance)) return "#NUM!";
+        const quotient = number / significance;
+        return (funcName === "CEILING" ? Math.ceil(quotient) : Math.floor(quotient)) * significance;
+      }
+
+      case "SIGN": {
+        const number = Number(this._resolveSingleValue(args[0]));
+        return Number.isFinite(number) ? Math.sign(number) : "#VALUE!";
       }
 
       // Tài chính
@@ -723,6 +1014,40 @@ export class FormulaEngine {
         return !this._evaluateCondition(args[0]);
       }
 
+      case "IFERROR":
+      case "IFNA": {
+        if (args.length < 2) return "#VALUE!";
+        const value = this._resolveSingleValue(args[0]);
+        const caught = funcName === "IFNA" ? value === "#N/A" : this._isError(value);
+        return caught ? this._resolveSingleValue(args[1]) : value;
+      }
+
+      case "ISBLANK": {
+        if (args.length !== 1) return "#VALUE!";
+        const reference = this._parseReference(args[0]);
+        if (reference.error) return false;
+        if (/^[A-Z]+\d+$/i.test(reference.ref)) {
+          const map = reference.sheet && typeof this.sheetResolver === "function" ? this.sheetResolver(reference.sheet) : this.cellsMap;
+          return !map?.has(reference.ref) || map.get(reference.ref)?.val === "";
+        }
+        return this._resolveSingleValue(args[0]) === "";
+      }
+
+      case "ISNUMBER":
+        if (args.length !== 1) return "#VALUE!";
+        return typeof this._resolveSingleValue(args[0]) === "number";
+      case "ISTEXT": {
+        if (args.length !== 1) return "#VALUE!";
+        const value = this._resolveSingleValue(args[0]);
+        return typeof value === "string" && !this._isError(value);
+      }
+      case "ISERROR":
+        if (args.length !== 1) return "#VALUE!";
+        return this._isError(this._resolveSingleValue(args[0]));
+      case "ISNA":
+        if (args.length !== 1) return "#VALUE!";
+        return this._resolveSingleValue(args[0]) === "#N/A";
+
       // Văn bản
       case "CONCAT":
       case "CONCATENATE": {
@@ -794,6 +1119,63 @@ export class FormulaEngine {
         return index < 0 ? "#VALUE!" : index + 1;
       }
 
+      case "MID": {
+        if (args.length < 3) return "#VALUE!";
+        const text = String(this._resolveSingleValue(args[0]) ?? "");
+        const start = Number(this._resolveSingleValue(args[1]));
+        const count = Number(this._resolveSingleValue(args[2]));
+        if (!Number.isInteger(start) || !Number.isInteger(count) || start < 1 || count < 0) return "#VALUE!";
+        return text.substring(start - 1, start - 1 + count);
+      }
+
+      case "VALUE": {
+        if (args.length !== 1) return "#VALUE!";
+        const text = String(this._resolveSingleValue(args[0])).trim();
+        const percent = text.endsWith("%");
+        const normalized = text.replace(/[%$€£₫\s]/g, "").replace(/,/g, "");
+        if (!normalized || !Number.isFinite(Number(normalized))) return "#VALUE!";
+        return Number(normalized) / (percent ? 100 : 1);
+      }
+
+      case "PROPER": {
+        if (args.length !== 1) return "#VALUE!";
+        return String(this._resolveSingleValue(args[0]) ?? "").toLowerCase().replace(/(^|[^\p{L}\p{N}])(\p{L})/gu, (_, prefix, letter) => prefix + letter.toUpperCase());
+      }
+
+      case "TEXTJOIN": {
+        if (args.length < 3) return "#VALUE!";
+        const delimiter = String(this._resolveSingleValue(args[0]) ?? "");
+        const ignoreEmpty = Boolean(this._resolveSingleValue(args[1]));
+        const values = this.collectValues(args.slice(2));
+        if (values.some(value => this._isError(value))) return values.find(value => this._isError(value));
+        const selected = ignoreEmpty ? values.filter(value => value !== "" && value !== null && value !== undefined) : values;
+        const result = selected.join(delimiter);
+        return result.length > 32767 ? "#VALUE!" : result;
+      }
+
+      case "REPT": {
+        if (args.length < 2) return "#VALUE!";
+        const text = String(this._resolveSingleValue(args[0]) ?? "");
+        const count = Number(this._resolveSingleValue(args[1]));
+        if (!Number.isFinite(count) || count < 0 || text.length * Math.trunc(count) > 32767) return "#VALUE!";
+        return text.repeat(Math.trunc(count));
+      }
+
+      case "EXACT": {
+        if (args.length !== 2) return "#VALUE!";
+        return String(this._resolveSingleValue(args[0]) ?? "") === String(this._resolveSingleValue(args[1]) ?? "");
+      }
+
+      case "SEARCH": {
+        if (args.length < 2) return "#VALUE!";
+        const findText = String(this._resolveSingleValue(args[0]) ?? "").toLocaleLowerCase();
+        const withinText = String(this._resolveSingleValue(args[1]) ?? "").toLocaleLowerCase();
+        const start = args[2] === undefined ? 1 : Number(this._resolveSingleValue(args[2]));
+        if (!Number.isInteger(start) || start < 1 || start > withinText.length + 1) return "#VALUE!";
+        const index = withinText.indexOf(findText, start - 1);
+        return index < 0 ? "#VALUE!" : index + 1;
+      }
+
       // Ngày tháng
       case "TODAY": {
         const now = new Date();
@@ -831,6 +1213,60 @@ export class FormulaEngine {
         const result = new Date(start.getFullYear(), start.getMonth() + months, 1);
         result.setDate(Math.min(targetDay, new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate()));
         return this._formatDate(result);
+      }
+
+      case "WEEKDAY": {
+        const date = this._parseDate(this._resolveSingleValue(args[0]));
+        const type = args[1] === undefined ? 1 : Number(this._resolveSingleValue(args[1]));
+        if (!date) return "#VALUE!";
+        const starts = { 1: 0, 2: 1, 3: 1, 11: 1, 12: 2, 13: 3, 14: 4, 15: 5, 16: 6, 17: 0 };
+        if (!(type in starts)) return "#NUM!";
+        const shifted = (date.getDay() - starts[type] + 7) % 7;
+        return type === 3 ? shifted : shifted + 1;
+      }
+
+      case "NETWORKDAYS": {
+        const start = this._parseDate(this._resolveSingleValue(args[0]));
+        const end = this._parseDate(this._resolveSingleValue(args[1]));
+        if (!start || !end) return "#VALUE!";
+        const holidays = this._holidaySet(args[2]);
+        if (holidays.error) return holidays.error;
+        const direction = start <= end ? 1 : -1;
+        let count = 0;
+        for (let date = new Date(start); direction > 0 ? date <= end : date >= end; date.setDate(date.getDate() + direction)) {
+          if (this._isWorkday(date, holidays.values)) count += direction;
+        }
+        return count;
+      }
+
+      case "WORKDAY": {
+        const start = this._parseDate(this._resolveSingleValue(args[0]));
+        const days = Number(this._resolveSingleValue(args[1]));
+        if (!start || !Number.isInteger(days)) return "#VALUE!";
+        const holidays = this._holidaySet(args[2]);
+        if (holidays.error) return holidays.error;
+        const direction = days < 0 ? -1 : 1;
+        let remaining = Math.abs(days);
+        const result = new Date(start);
+        while (remaining > 0) {
+          result.setDate(result.getDate() + direction);
+          if (this._isWorkday(result, holidays.values)) remaining--;
+        }
+        return this._formatDate(result);
+      }
+
+      case "EOMONTH": {
+        const start = this._parseDate(this._resolveSingleValue(args[0]));
+        const months = Number(this._resolveSingleValue(args[1]));
+        if (!start || !Number.isFinite(months)) return "#VALUE!";
+        return this._formatDate(new Date(start.getFullYear(), start.getMonth() + Math.trunc(months) + 1, 0));
+      }
+
+      case "DAYS": {
+        const end = this._parseDate(this._resolveSingleValue(args[0]));
+        const start = this._parseDate(this._resolveSingleValue(args[1]));
+        if (!start || !end) return "#VALUE!";
+        return Math.round((end - start) / 86400000);
       }
 
       case "YEAR": {
@@ -902,7 +1338,7 @@ export class FormulaEngine {
         return arith;
       }
     }
-    if (/^[A-Z_]+\s*\(.*\)$/i.test(token)) {
+    if (/^[A-Z_.]+\s*\(.*\)$/i.test(token)) {
       const nested = this.evaluate(`=${token}`);
       if (nested !== "#LỖI!" && nested !== "#NAME?") {
         return nested;
@@ -922,6 +1358,25 @@ export class FormulaEngine {
 
   _formatDate(date) {
     return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+  }
+
+  _holidaySet(argument) {
+    if (argument === undefined) return { values: new Set() };
+    const rawValues = typeof argument === "string" && (/^[A-Z]+\d+:[A-Z]+\d+$/i.test(argument) || argument.includes("!"))
+      ? this._rangeValues(argument)
+      : [this._resolveSingleValue(argument)];
+    if (rawValues.includes("#REF!")) return { error: "#REF!" };
+    const values = new Set();
+    for (const value of rawValues) {
+      const date = this._parseDate(value);
+      if (!date) return { error: "#VALUE!" };
+      values.add(this._formatDate(date));
+    }
+    return { values };
+  }
+
+  _isWorkday(date, holidays) {
+    return date.getDay() !== 0 && date.getDay() !== 6 && !holidays.has(this._formatDate(date));
   }
 
   _solveRate(valueAt, derivativeAt, guess) {

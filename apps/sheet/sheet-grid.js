@@ -67,7 +67,8 @@ export class SheetGridController {
       () => this.cellsData,
       name => this.resolveNamedRange(name),
       sheetName => this.sheetsData?.[sheetName] || null,
-      () => this.activeSheet
+      () => this.activeSheet,
+      () => this.sheets
     );
     this.autocomplete = new FormulaAutocompleteController(this);
 
