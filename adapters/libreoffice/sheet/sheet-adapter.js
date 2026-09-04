@@ -1047,6 +1047,24 @@ export class SheetAdapter {
       case "sheet.cell.alignRight":
         return this.grid.setStyle("textAlign", "right");
 
+      case "sheet.cell.alignTop":
+        return this.grid.setStyle("verticalAlign", "top");
+
+      case "sheet.cell.alignMiddle":
+        return this.grid.setStyle("verticalAlign", "middle");
+
+      case "sheet.cell.alignBottom":
+        return this.grid.setStyle("verticalAlign", "bottom");
+
+      case "sheet.cell.wrapText":
+        return this.grid.toggleWrapText();
+
+      case "sheet.cell.indentIncrease":
+        return this.grid.adjustIndent(1);
+
+      case "sheet.cell.indentDecrease":
+        return this.grid.adjustIndent(-1);
+
       case "sheet.cell.merge":
         return this.grid.toggleStyle("backgroundColor", "#e2e8f0", "transparent");
 

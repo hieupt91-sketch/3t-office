@@ -81,9 +81,20 @@ export const SHEET_RIBBON_TABS = [
               {
                 type: "row",
                 items: [
+                  { type: "button", commandId: "sheet.cell.alignTop", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.alignMiddle", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.alignBottom", iconOnly: true }
+                ]
+              },
+              {
+                type: "row",
+                items: [
                   { type: "button", commandId: "sheet.cell.alignLeft", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.alignCenter", iconOnly: true },
-                  { type: "button", commandId: "sheet.cell.alignRight", iconOnly: true }
+                  { type: "button", commandId: "sheet.cell.alignRight", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.wrapText", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.indentDecrease", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.indentIncrease", iconOnly: true }
                 ]
               },
               {

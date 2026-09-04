@@ -119,6 +119,12 @@ export const viStrings = {
     ,"sheet.font.size": { label: "Cỡ chữ", tooltip: "Chọn cỡ chữ cho ô" }
     ,"sheet.font.grow": { label: "Tăng cỡ chữ", tooltip: "Tăng cỡ chữ theo nấc chuẩn" }
     ,"sheet.font.shrink": { label: "Giảm cỡ chữ", tooltip: "Giảm cỡ chữ theo nấc chuẩn" }
+    ,"sheet.cell.alignTop": { label: "Căn trên", tooltip: "Căn nội dung lên trên ô" }
+    ,"sheet.cell.alignMiddle": { label: "Căn giữa dọc", tooltip: "Căn nội dung vào giữa ô theo chiều dọc" }
+    ,"sheet.cell.alignBottom": { label: "Căn dưới", tooltip: "Căn nội dung xuống dưới ô" }
+    ,"sheet.cell.wrapText": { label: "Ngắt dòng tự động", tooltip: "Tự động xuống dòng theo độ rộng cột" }
+    ,"sheet.cell.indentIncrease": { label: "Tăng thụt lề", tooltip: "Tăng thụt lề nội dung ô" }
+    ,"sheet.cell.indentDecrease": { label: "Giảm thụt lề", tooltip: "Giảm thụt lề nội dung ô" }
     ,"sheet.cell.italic": { label: "Nghiêng", tooltip: "Chữ nghiêng (Ctrl+I)" }
     ,"sheet.cell.underline": { label: "Gạch chân", tooltip: "Gạch chân (Ctrl+U)" }
     ,"sheet.cell.alignLeft": { label: "Căn trái", tooltip: "Căn lề trái" }

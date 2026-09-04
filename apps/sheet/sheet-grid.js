@@ -2859,6 +2859,19 @@ export class SheetGridController {
     return this.setFontSize(next);
   }
 
+  toggleWrapText() {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const current = this.cellsData.get(key)?.style?.whiteSpace;
+    return this.setStyle("whiteSpace", current === "normal" ? "nowrap" : "normal");
+  }
+
+  adjustIndent(direction) {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const current = Number.parseInt(this.cellsData.get(key)?.style?.paddingLeft, 10) || 8;
+    const next = Math.max(8, Math.min(56, current + (direction > 0 ? 12 : -12)));
+    return this.setStyle("paddingLeft", `${next}px`);
+  }
+
   _recordHistory(action, { coalesce = false } = {}) {
     const previous = this.undoStack[this.undoStack.length - 1];
     const mergeCellEdit = coalesce && previous?.type === "cell" && action.type === "cell" &&

@@ -120,6 +120,12 @@ export const enStrings = {
     ,"sheet.font.size": { label: "Font Size", tooltip: "Choose the cell font size" }
     ,"sheet.font.grow": { label: "Increase Font Size", tooltip: "Increase to the next standard font size" }
     ,"sheet.font.shrink": { label: "Decrease Font Size", tooltip: "Decrease to the previous standard font size" }
+    ,"sheet.cell.alignTop": { label: "Top Align", tooltip: "Align content to the top of the cell" }
+    ,"sheet.cell.alignMiddle": { label: "Middle Align", tooltip: "Center content vertically in the cell" }
+    ,"sheet.cell.alignBottom": { label: "Bottom Align", tooltip: "Align content to the bottom of the cell" }
+    ,"sheet.cell.wrapText": { label: "Wrap Text", tooltip: "Wrap content to fit the column width" }
+    ,"sheet.cell.indentIncrease": { label: "Increase Indent", tooltip: "Increase cell content indentation" }
+    ,"sheet.cell.indentDecrease": { label: "Decrease Indent", tooltip: "Decrease cell content indentation" }
     ,"sheet.cell.italic": { label: "Italic", tooltip: "Apply italic formatting (Ctrl+I)" }
     ,"sheet.cell.underline": { label: "Underline", tooltip: "Apply underline formatting (Ctrl+U)" }
     ,"sheet.cell.alignLeft": { label: "Align Left", tooltip: "Align cell contents to the left" }
