@@ -88,6 +88,14 @@ export const VN_TO_UNO_MAP = {
   "writer.reference.footnoteInsert": ".uno:InsertFootnote",
   "writer.reference.endnoteInsert": ".uno:InsertEndnote",
 
+  // Writer / Mail Merge
+  "writer.mailMerge.open": ".uno:MailMergeWizard",
+  "writer.mailMerge.insertField": ".uno:InsertField",
+  "writer.mailMerge.preview": ".uno:MailMergePreview",
+  "writer.mailMerge.prevRecord": ".uno:MailMergePrev",
+  "writer.mailMerge.nextRecord": ".uno:MailMergeNext",
+  "writer.mailMerge.finish": ".uno:MailMergeFinish",
+
   // Sheet / Calc
   "sheet.cell.edit": ".uno:SetInputMode",
   "sheet.cell.bold": ".uno:Bold",

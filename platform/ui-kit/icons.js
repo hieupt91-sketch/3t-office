@@ -289,5 +289,51 @@ export const ICONS = {
     <line x1="7" y1="17" x2="11" y2="17" stroke="#B53818" stroke-width="1.2"/>
     <text x="7" y="20.5" font-size="5" font-weight="900" fill="#DC2626" font-family="sans-serif">i</text>
     <line x1="9.5" y1="20" x2="17" y2="20" stroke="#64748B" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`,
+
+  // Trộn thư (Mail Merge)
+  mailMerge: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="2" y="6" width="20" height="14" rx="2" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/>
+    <path d="M2 8L12 14L22 8" stroke="#2563EB" stroke-width="1.5" stroke-linejoin="round"/>
+    <rect x="7" y="2" width="10" height="6" rx="1" fill="#FFFFFF" stroke="#0F4C81" stroke-width="1.2"/>
+    <line x1="9" y1="4" x2="15" y2="4" stroke="#2563EB" stroke-width="1.2" stroke-linecap="round"/>
+    <circle cx="18" cy="16" r="3.5" fill="#10B981"/>
+    <path d="M16.5 16L17.5 17L19.5 15" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  mergeInsertField: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.4"/>
+    <text x="5" y="15" font-family="monospace, sans-serif" font-size="11" font-weight="bold" fill="#2563EB">«</text>
+    <line x1="10" y1="13" x2="14" y2="13" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round"/>
+    <text x="15" y="15" font-family="monospace, sans-serif" font-size="11" font-weight="bold" fill="#2563EB">»</text>
+    <circle cx="18" cy="6" r="3.5" fill="#2563EB"/>
+    <line x1="18" y1="4.5" x2="18" y2="7.5" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="16.5" y1="6" x2="19.5" y2="6" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`,
+
+  mergePreview: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.4"/>
+    <path d="M4 12C6.5 8 10 6 12 6C14 6 17.5 8 20 12C17.5 16 14 18 12 18C10 18 6.5 16 4 12Z" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.2"/>
+    <circle cx="12" cy="12" r="3" fill="#2563EB"/>
+    <circle cx="13" cy="11" r="1" fill="#FFFFFF"/>
+  </svg>`,
+
+  mergePrev: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="2" y="3" width="20" height="18" rx="2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <polyline points="14 7 9 12 14 17" stroke="#0F4C81" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  mergeNext: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="2" y="3" width="20" height="18" rx="2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <polyline points="10 7 15 12 10 17" stroke="#0F4C81" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  mergeFinish: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="2" y="5" width="14" height="16" rx="2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="6" y="2" width="14" height="16" rx="2" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/>
+    <line x1="9" y1="6" x2="16" y2="6" stroke="#2563EB" stroke-width="1.3" stroke-linecap="round"/>
+    <line x1="9" y1="9" x2="16" y2="9" stroke="#94A3B8" stroke-width="1.2" stroke-linecap="round"/>
+    <circle cx="17" cy="16" r="4.5" fill="#10B981"/>
+    <polyline points="15 16 16.5 17.5 19 14.5" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`
 };

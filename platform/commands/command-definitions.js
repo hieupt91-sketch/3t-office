@@ -96,7 +96,15 @@ export const WRITER_COMMANDS = [
   { id: "writer.reference.tocInsert", category: "reference", label: "Mục lục tự động", icon: "tocInsert", tooltip: "Chèn mục lục tự động từ các tiêu đề Heading" },
   { id: "writer.reference.tocUpdate", category: "reference", label: "Cập nhật mục lục", icon: "tocUpdate", tooltip: "Cập nhật lại mục lục tài liệu" },
   { id: "writer.reference.footnoteInsert", category: "reference", label: "Chú thích trang", shortcut: "Ctrl+Alt+F", icon: "footnoteInsert", tooltip: "Chèn chú thích cuối trang (Footnote) (Ctrl+Alt+F)" },
-  { id: "writer.reference.endnoteInsert", category: "reference", label: "Chú thích cuối", shortcut: "Ctrl+Alt+D", icon: "endnoteInsert", tooltip: "Chèn chú thích cuối tài liệu (Endnote) (Ctrl+Alt+D)" }
+  { id: "writer.reference.endnoteInsert", category: "reference", label: "Chú thích cuối", shortcut: "Ctrl+Alt+D", icon: "endnoteInsert", tooltip: "Chèn chú thích cuối tài liệu (Endnote) (Ctrl+Alt+D)" },
+
+  // Trộn thư (Mail Merge)
+  { id: "writer.mailMerge.open", category: "mailmerge", label: "Nguồn dữ liệu", icon: "mailMerge", tooltip: "Mở bảng nhập dữ liệu trộn thư (CSV)" },
+  { id: "writer.mailMerge.insertField", category: "mailmerge", label: "Chèn trường", icon: "mergeInsertField", tooltip: "Chèn trường trộn thư tại vị trí con trỏ" },
+  { id: "writer.mailMerge.preview", category: "mailmerge", label: "Xem trước bản ghi", icon: "mergePreview", tooltip: "Bật/tắt xem trước bản ghi trộn thư", isToggle: true },
+  { id: "writer.mailMerge.prevRecord", category: "mailmerge", label: "Bản ghi trước", icon: "mergePrev", tooltip: "Chuyển tới bản ghi trước" },
+  { id: "writer.mailMerge.nextRecord", category: "mailmerge", label: "Bản ghi sau", icon: "mergeNext", tooltip: "Chuyển tới bản ghi tiếp theo" },
+  { id: "writer.mailMerge.finish", category: "mailmerge", label: "Hoàn tất & Tạo tài liệu", icon: "mergeFinish", tooltip: "Hoàn tất trộn và tạo tài liệu kết quả cho toàn bộ bản ghi" }
 ];
 
 export const SHEET_COMMANDS = [

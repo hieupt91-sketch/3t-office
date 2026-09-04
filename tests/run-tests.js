@@ -29,6 +29,7 @@ import { runSheetPivotTableTests } from "./unit/sheet-pivot-table.test.js";
 import { runSlidesSorterViewTests } from "./unit/slides-sorter-view.test.js";
 import { runWriterTocFootnotesTests } from "./unit/writer-toc-footnotes.test.js";
 import { runSheetNamedRangesTextDateTests } from "./unit/sheet-named-ranges-text-date.test.js";
+import { runWriterMailMergeTests } from "./unit/writer-mail-merge.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -65,7 +66,8 @@ async function runAll() {
     { title: "23. Behavioral Tests — VN Sheet Pivot Table", runner: runSheetPivotTableTests },
     { title: "24. Behavioral Tests — VN Slides Slide Sorter View", runner: runSlidesSorterViewTests },
     { title: "25. Behavioral Tests — VN Writer Table of Contents & Footnotes/Endnotes", runner: runWriterTocFootnotesTests },
-    { title: "26. Behavioral Tests — VN Sheet Named Ranges & Advanced TEXT/DATE", runner: runSheetNamedRangesTextDateTests }
+    { title: "26. Behavioral Tests — VN Sheet Named Ranges & Advanced TEXT/DATE", runner: runSheetNamedRangesTextDateTests },
+    { title: "27. Behavioral Tests — VN Writer Mail Merge", runner: runWriterMailMergeTests }
   ];
 
   for (const suite of suites) {
