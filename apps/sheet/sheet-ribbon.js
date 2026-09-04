@@ -281,6 +281,24 @@ export const SHEET_RIBBON_TABS = [
         label: "Biểu đồ",
         labelKey: "sheetRibbon.group.charts",
         items: [{ type: "button", commandId: "sheet.chart.insert", isLarge: true }]
+      },
+      {
+        label: "Biểu đồ thu nhỏ",
+        labelKey: "sheetRibbon.group.sparklines",
+        items: [
+          { type: "button", commandId: "sheet.insert.sparklineLine", isLarge: true },
+          { type: "button", commandId: "sheet.insert.sparklineColumn", isLarge: true }
+        ]
+      },
+      {
+        label: "Liên kết",
+        labelKey: "sheetRibbon.group.links",
+        items: [{ type: "button", commandId: "sheet.insert.hyperlink", isLarge: true }]
+      },
+      {
+        label: "Văn bản",
+        labelKey: "sheetRibbon.group.text",
+        items: [{ type: "button", commandId: "sheet.insert.textbox", isLarge: true }]
       }
     ]
   },

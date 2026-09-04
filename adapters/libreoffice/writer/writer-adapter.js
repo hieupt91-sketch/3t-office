@@ -1046,6 +1046,12 @@ export class WriterAdapter {
     let dispatchResult = false;
 
     switch (vnCmdId) {
+      case "writer.nav.docStart":
+        return this.navigateDocumentBoundary(false);
+
+      case "writer.nav.docEnd":
+        return this.navigateDocumentBoundary(true);
+
       case "writer.text.bold":
         {
           const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
@@ -1363,6 +1369,21 @@ export class WriterAdapter {
 
     this.recordSnapshot(vnCmdId);
     return dispatchResult;
+  }
+
+  navigateDocumentBoundary(toEnd = false) {
+    if (!this.bodyDom || typeof document === "undefined" || typeof window === "undefined") return false;
+    const selection = window.getSelection?.();
+    const range = document.createRange?.();
+    if (!selection || !range) return false;
+    range.selectNodeContents(this.bodyDom);
+    range.collapse(!toEnd);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    this.bodyDom.focus?.({ preventScroll: true });
+    const anchor = toEnd ? this.bodyDom.lastElementChild || this.bodyDom : this.bodyDom.firstElementChild || this.bodyDom;
+    anchor.scrollIntoView?.({ block: toEnd ? "end" : "start", inline: "nearest" });
+    return true;
   }
 
   async insertComment(args = null) {

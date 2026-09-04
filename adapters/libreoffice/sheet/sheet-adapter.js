@@ -4,7 +4,7 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
-import { showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
+import { showAlertDialog, showPromptDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 
 export class SheetAdapter {
@@ -1022,6 +1022,12 @@ export class SheetAdapter {
     if (!this.grid) return false;
 
     switch (vnCmdId) {
+      case "sheet.nav.home":
+        return this.grid.navigateHome();
+
+      case "sheet.nav.end":
+        return this.grid.navigateToDataEnd();
+
       case "sheet.cell.edit":
         if (typeof this.grid._focusFormulaInputAtEnd === "function") {
           this.grid._focusFormulaInputAtEnd();
@@ -1181,6 +1187,23 @@ export class SheetAdapter {
       case "sheet.chart.insert":
         this.grid.openChartBuilder();
         return true;
+
+      case "sheet.insert.sparklineLine":
+        return this.grid.insertSparkline("line");
+
+      case "sheet.insert.sparklineColumn":
+        return this.grid.insertSparkline("column");
+
+      case "common.edit.hyperlink":
+      case "sheet.insert.hyperlink": {
+        const url = args?.url || await showPromptDialog({ title: "Chèn liên kết", message: "Nhập địa chỉ liên kết (URL):", defaultValue: "https://", placeholder: "https://example.com" });
+        return url ? this.grid.insertHyperlink(url, args?.text) : false;
+      }
+
+      case "sheet.insert.textbox": {
+        const text = args?.text || await showPromptDialog({ title: "Chèn hộp văn bản", message: "Nhập nội dung hộp văn bản:", defaultValue: "", placeholder: "Nội dung" });
+        return text ? this.grid.insertTextBox(text) : false;
+      }
 
       case "sheet.insert.image":
         return await this._insertImageDialog(args || {});

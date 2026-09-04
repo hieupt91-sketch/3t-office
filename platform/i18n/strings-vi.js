@@ -58,7 +58,7 @@ export const viStrings = {
   },
   sheetRibbon: {
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", ai: "Trợ lý VN AI" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh & Trộn ô", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", pivotTable: "Bảng tổng hợp", illustrations: "Minh họa", charts: "Biểu đồ", printArea: "Vùng in", pageBreaks: "Ngắt trang", comments: "Ghi chú", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiAnalysis: "Phân tích dữ liệu AI" }
+    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh & Trộn ô", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", pivotTable: "Bảng tổng hợp", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", comments: "Ghi chú", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiAnalysis: "Phân tích dữ liệu AI" }
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", ai: "Trợ lý VN AI" },
@@ -84,6 +84,14 @@ export const viStrings = {
     diagramTitle: "Chèn sơ đồ", diagramHint: "Chọn kiểu sơ đồ và số lượng hộp. Bạn có thể sửa chữ trực tiếp sau khi chèn.", diagramNodeCount: "Số lượng hộp", diagramInsert: "Chèn sơ đồ", diagramProcess: "Danh sách theo bước", diagramCycle: "Quy trình theo chu kỳ", diagramHierarchy: "Phân cấp tổ chức", diagramList: "Danh sách phân cấp", diagramStep: "Bước {number}", diagramItem: "Mục {number}", diagramRoot: "Lãnh đạo", diagramChild: "Bộ phận {number}"
   },
   commands: {
+    "writer.nav.docStart": { label: "Đầu tài liệu", tooltip: "Đến đầu tài liệu (Ctrl+Home)" },
+    "writer.nav.docEnd": { label: "Cuối tài liệu", tooltip: "Đến cuối tài liệu (Ctrl+End)" },
+    "sheet.nav.home": { label: "Ô đầu tiên", tooltip: "Đến ô A1 (Ctrl+Home)" },
+    "sheet.nav.end": { label: "Ô cuối có dữ liệu", tooltip: "Đến ô cuối cùng có dữ liệu (Ctrl+End)" },
+    "sheet.insert.sparklineLine": { label: "Đường", tooltip: "Chèn biểu đồ mini dạng đường từ vùng đã chọn" },
+    "sheet.insert.sparklineColumn": { label: "Cột", tooltip: "Chèn biểu đồ mini dạng cột từ vùng đã chọn" },
+    "sheet.insert.hyperlink": { label: "Liên kết", tooltip: "Chèn liên kết vào ô hiện tại (Ctrl+K)" },
+    "sheet.insert.textbox": { label: "Hộp văn bản", tooltip: "Chèn hộp văn bản nổi" },
     "common.file.new": { label: "Tạo mới", tooltip: "Tạo tài liệu mới (Ctrl+N)" },
     "common.file.open": { label: "Mở tệp", tooltip: "Mở tài liệu có sẵn (Ctrl+O)" },
     "common.file.save": { label: "Lưu", tooltip: "Lưu tài liệu hiện tại (Ctrl+S)" },
