@@ -9,6 +9,15 @@ Phân công chuẩn cho từng hạng mục dưới đây:
 
 Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test thật, không tự nhận PASS nếu chưa chạy).
 
+### Lộ trình 6 giai đoạn (thống nhất với chủ dự án 04/09/2026)
+
+- **[x] Phase 0 — Dọn nút chết & lỗi luồng thao tác liên tục.** Hoàn thành 04/09/2026: audit Writer UI, Sheet+Slides UI (2 vòng), Writer refmail, Sheet keyboard-entry (lỗi focus nghiêm trọng), Writer/Slides focus verify, Slides SmartArt connectors, và cuối cùng là audit phiên soạn thảo Writer liên tục 9 bước (3 lỗi thật: Bold dính chữ gõ tiếp, Enter sau Heading không về Normal, Tab trong bảng thoát nhầm). Không còn hạng mục nào trong nhóm này đang treo.
+- **[x] Phase 1 — Bề rộng ribbon so với Word/Excel/PowerPoint thật.** Theme gallery, Illustrations (Shape/SmartArt/Chart cho Writer), Links, Sub/Superscript, Slide Size, cell-anchored images cho Sheet — đã bổ sung đúng vị trí tab như Office thật.
+- **[~] Phase 2 — VN Sheet đạt chuẩn kế toán.** PMT/FV/PV/NPV/IRR/RATE/SLN/DB/NPER/IPMT/PPMT đã có, cùng lỗi tính biểu thức số học trong đối số hàm (`0.08/12`) đã sửa. Còn thiếu: NETWORKDAYS, SEARCH và các hàm ít dùng khác nếu phát sinh nhu cầu thật.
+- **[~] Phase 3 — Độ tin cậy dữ liệu khi Lưu/Mở file thật.** Đã xong: lỗi mất dữ liệu nghiêm trọng khi lưu XLSX nhiều sheet (CSV → FODS). Còn lại: round-trip metadata comment/named-range/print-area/array-formula qua FODS/XLSX/ODS; đối chiếu số trang giữa Print Preview và phân trang thật.
+- **[ ] Phase 4 — Bề rộng ribbon còn lại (chọn lọc, bỏ tính năng ít dùng).**
+- **[ ] Phase 5 — Macro, đồng tác giả, đồng bộ cloud, AI backend thật.** Cần chủ dự án duyệt riêng trước khi bắt đầu (có hạng mục ảnh hưởng chi phí/hạ tầng).
+
 ### Ràng buộc bắt buộc — Bản quyền & Chất lượng (áp dụng cho MỌI hạng mục dưới đây)
 
 **1. Không phụ thuộc thứ cần trả phí hoặc có rủi ro tranh chấp bản quyền:**
