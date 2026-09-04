@@ -84,6 +84,7 @@ export const enStrings = {
     "common.file.close": { label: "Close", tooltip: "Close the document (Ctrl+W)" },
     "common.edit.undo": { label: "Undo", tooltip: "Undo the last action (Ctrl+Z)" },
     "common.edit.redo": { label: "Redo", tooltip: "Redo the last undone action (Ctrl+Y)" },
+    "common.edit.repeat": { label: "Repeat", tooltip: "Repeat the last action (F4)" },
     "common.edit.cut": { label: "Cut", tooltip: "Cut selection to clipboard (Ctrl+X)" },
     "common.edit.copy": { label: "Copy", tooltip: "Copy selection (Ctrl+C)" },
     "common.edit.paste": { label: "Paste", tooltip: "Paste from clipboard (Ctrl+V)" },
@@ -102,6 +103,8 @@ export const enStrings = {
     "ai.assistant.rewrite": { label: "Polish Writing", tooltip: "Rewrite text in polished Vietnamese style" },
     "ai.assistant.grammarCheck": { label: "Spell Check", tooltip: "Check Vietnamese spelling and grammar (F7)" }
     ,"sheet.cell.edit": { label: "Edit Cell", tooltip: "Edit the active cell (F2)" }
+    ,"sheet.select.column": { label: "Select Column", tooltip: "Select the entire current column (Ctrl+Space)" }
+    ,"sheet.select.row": { label: "Select Row", tooltip: "Select the entire current row (Shift+Space)" }
     ,"sheet.cell.bold": { label: "Bold", tooltip: "Apply bold formatting (Ctrl+B)" }
     ,"sheet.cell.italic": { label: "Italic", tooltip: "Apply italic formatting (Ctrl+I)" }
     ,"sheet.cell.underline": { label: "Underline", tooltip: "Apply underline formatting (Ctrl+U)" }
@@ -113,14 +116,16 @@ export const enStrings = {
     ,"sheet.cell.fillColor": { label: "Fill Color", tooltip: "Change the background color of selected cells" }
     ,"sheet.cell.textColor": { label: "Font Color", tooltip: "Change the text color in selected cells" }
     ,"sheet.format.cellsDialog": { label: "Format Cells...", tooltip: "Open the Format Cells dialog (Ctrl+1)" }
-    ,"sheet.format.currencyVND": { label: "VND Currency", tooltip: "Apply VND currency format (Ctrl+Shift+4 or Ctrl+Shift+$)" }
+    ,"sheet.format.currencyVND": { label: "VND Currency", tooltip: "Apply VND currency format (Ctrl+Shift+4 hoặc Ctrl+Shift+$)" }
     ,"sheet.format.percent": { label: "Percent Style", tooltip: "Apply percentage format (Ctrl+Shift+5)" }
     ,"sheet.format.standard": { label: "Comma Style", tooltip: "Apply number format with thousands separators (Ctrl+Shift+1)" }
     ,"sheet.insert.date": { label: "Current Date", tooltip: "Insert the current date (Ctrl+;)" }
+    ,"sheet.insert.time": { label: "Current Time", tooltip: "Insert the current time (Ctrl+Shift+;)" }
     ,"sheet.formula.sum": { label: "AutoSum", tooltip: "Insert an AutoSum formula (Alt+=)" }
     ,"sheet.formula.average": { label: "Average", tooltip: "Insert an AVERAGE formula" }
     ,"sheet.formula.nameManager": { label: "Name Manager", tooltip: "Create, edit, and delete defined names" }
     ,"sheet.formula.arrayEnter": { label: "Enter Array Formula", tooltip: "Enter an array formula for the selected range (Ctrl+Shift+Enter)" }
+    ,"sheet.formula.recalculate": { label: "Calculate Now", tooltip: "Recalculate all formulas in workbook (F9)" }
     ,"sheet.data.sortAsc": { label: "Sort A to Z", tooltip: "Sort data in ascending order" }
     ,"sheet.data.sortDesc": { label: "Sort Z to A", tooltip: "Sort data in descending order" }
     ,"sheet.data.filter": { label: "Filter", tooltip: "Turn AutoFilter on or off (Ctrl+Shift+L)" }
@@ -128,6 +133,7 @@ export const enStrings = {
     ,"sheet.data.validation": { label: "Data Validation", tooltip: "Create a drop-down list or restrict values to a number range" }
     ,"sheet.data.pivotTable": { label: "PivotTable", tooltip: "Create a PivotTable from the selected data range" }
     ,"sheet.data.pivotRefresh": { label: "Refresh PivotTable", tooltip: "Refresh the PivotTable from its source data" }
+    ,"sheet.view.toggleFormulas": { label: "Show Formulas", tooltip: "Show formulas in cells instead of calculated values (Ctrl+`)" }
     ,"sheet.view.freezePanes": { label: "Freeze Panes", tooltip: "Keep row 1 and column A visible while scrolling" }
     ,"sheet.view.zoomIn": { label: "Zoom In", tooltip: "Increase the worksheet zoom level" }
     ,"sheet.view.zoomOut": { label: "Zoom Out", tooltip: "Decrease the worksheet zoom level" }

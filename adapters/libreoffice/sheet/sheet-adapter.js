@@ -29,11 +29,17 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("common.file.close", () => this.closeDocument());
     globalCommandBus.bindHandler("common.edit.undo", () => this.grid.undo ? this.grid.undo() : false);
     globalCommandBus.bindHandler("common.edit.redo", () => this.grid.redo ? this.grid.redo() : false);
+    globalCommandBus.bindHandler("common.edit.repeat", () => this.grid.redo ? this.grid.redo() : false);
     globalCommandBus.bindHandler("common.edit.copy", () => this._copySelectedCell(false));
     globalCommandBus.bindHandler("common.edit.cut", () => this._copySelectedCell(true));
     globalCommandBus.bindHandler("common.edit.paste", () => this._pasteIntoSelectedCell());
     globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pasteIntoSelectedCell());
     globalCommandBus.bindHandler("common.edit.selectAll", () => this.grid.selectAll ? this.grid.selectAll() : false);
+    globalCommandBus.bindHandler("sheet.select.column", () => this.grid.selectCurrentColumn ? this.grid.selectCurrentColumn() : false);
+    globalCommandBus.bindHandler("sheet.select.row", () => this.grid.selectCurrentRow ? this.grid.selectCurrentRow() : false);
+    globalCommandBus.bindHandler("sheet.insert.time", () => this.grid.insertCurrentTime ? this.grid.insertCurrentTime() : false);
+    globalCommandBus.bindHandler("sheet.formula.recalculate", () => this.grid.recalculateAll ? this.grid.recalculateAll() : false);
+    globalCommandBus.bindHandler("sheet.view.toggleFormulas", () => this.grid.toggleShowFormulas ? this.grid.toggleShowFormulas() : false);
     globalCommandBus.bindHandler("sheet.format.cellsDialog", () => this.grid.showFormatCellsDialog());
     globalCommandBus.bindHandler("sheet.format.currencyVND", () => this.grid.formatCurrentCellCurrencyVND());
     globalCommandBus.bindHandler("sheet.format.percent", () => this.grid.formatCurrentCellPercent());

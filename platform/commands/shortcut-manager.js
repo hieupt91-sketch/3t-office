@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office Platform — Enterprise Shortcut & KeyTips Manager
  * Tương thích 100% hệ thống phím tắt Microsoft Office & LibreOffice
  * Tuân thủ quy định 01-architecture/COMMAND-ARCHITECTURE.md & 03-ui-ux/ACCESSIBILITY.md
@@ -116,12 +116,21 @@ export class ShortcutManager {
     if (e.key === ":") keyName = ":";
     if (e.key === "[") keyName = "[";
     if (e.key === "]") keyName = "]";
+    if (e.key === "`") keyName = "`";
+    if (e.key === "~") keyName = "~";
 
     // Tạo chuỗi tổ hợp phím
     const combo = `${e.ctrlKey || e.metaKey ? "CTRL+" : ""}${e.altKey ? "ALT+" : ""}${e.shiftKey ? "SHIFT+" : ""}${keyName}`;
 
-    if (this._shortcuts.has(combo)) {
-      const cmdId = this._shortcuts.get(combo);
+    let cmdId = this._shortcuts.get(combo);
+    if (!cmdId && (e.shiftKey || keyName === ":")) {
+      cmdId = this._shortcuts.get(combo.replace(":", ";"));
+    }
+    if (!cmdId && (e.shiftKey || keyName === "~")) {
+      cmdId = this._shortcuts.get(combo.replace("~", "`"));
+    }
+
+    if (cmdId) {
       e.preventDefault();
       e.stopPropagation();
       globalCommandBus.execute(cmdId);
@@ -131,10 +140,10 @@ export class ShortcutManager {
     // Một số phím đơn không có Ctrl/Alt: F1..F12, Escape, Delete
     if (!e.ctrlKey && !e.altKey && !e.metaKey) {
       if (this._shortcuts.has(keyName)) {
-        const cmdId = this._shortcuts.get(keyName);
+        const singleCmdId = this._shortcuts.get(keyName);
         e.preventDefault();
         e.stopPropagation();
-        globalCommandBus.execute(cmdId);
+        globalCommandBus.execute(singleCmdId);
       }
     }
   }
