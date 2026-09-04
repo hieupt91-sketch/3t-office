@@ -150,6 +150,7 @@ export class WriterAdapter {
     this.shapes = [];
     this.selectedShapeId = null;
     this.documentTheme = "office";
+    this.showFormattingMarks = false;
     this._styleSelectionHandler = null;
 
     this._initZones();
@@ -230,6 +231,10 @@ export class WriterAdapter {
     this._bindMouseAndKeyboardParity();
     globalCommandBus.bindHandler("writer.style.normal", () => this._applyParagraphStyle("normal"));
     globalCommandBus.bindHandler("writer.text.changeCase", () => this.changeCase());
+    globalCommandBus.bindHandler("writer.para.sort", () => this.sortParagraphs());
+    globalCommandBus.bindHandler("writer.para.showFormattingMarks", () => this.toggleFormattingMarks());
+    globalCommandBus.bindHandler("writer.para.shading", (args) => this.applyParagraphShading(args));
+    globalCommandBus.bindHandler("writer.para.borders", (args) => this.applyParagraphBorders(args));
     globalCommandBus.bindHandler("writer.para.moveUp", () => this.moveParagraph("up"));
     globalCommandBus.bindHandler("writer.para.moveDown", () => this.moveParagraph("down"));
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
@@ -445,6 +450,110 @@ export class WriterAdapter {
     this.isDirty = true;
     this.recordSnapshot("writer.text.changeCase");
     return true;
+  }
+
+  _getSelectedParagraphBlocks() {
+    if (typeof window === "undefined" || !this.bodyDom) return [];
+    const selection = window.getSelection?.();
+    if (!selection || selection.rangeCount === 0) return [];
+    const range = selection.getRangeAt(0);
+    const startElement = range.startContainer?.nodeType === 1
+      ? range.startContainer
+      : range.startContainer?.parentElement;
+    const listItem = startElement?.closest?.("li");
+    if (listItem && this.bodyDom.contains(listItem)) {
+      const siblings = Array.from(listItem.parentElement?.children || []).filter(node => node.tagName === "LI");
+      if (range.collapsed) return siblings;
+      return siblings.filter(node => range.intersectsNode?.(node));
+    }
+    const blocks = Array.from(this.bodyDom.children || []).filter(node =>
+      !node.hasAttribute?.("data-vno-auto-page-gap") && range.intersectsNode?.(node)
+    );
+    if (blocks.length === 1 && /^(OL|UL)$/i.test(blocks[0].tagName)) {
+      return Array.from(blocks[0].children || []).filter(node => node.tagName === "LI");
+    }
+    if (blocks.length) return blocks;
+    const closest = startElement?.closest?.("p,h1,h2,h3,h4,h5,h6,blockquote,div,td,th");
+    return closest && this.bodyDom.contains(closest) ? [closest] : [];
+  }
+
+  sortParagraphs() {
+    const blocks = this._getSelectedParagraphBlocks();
+    if (blocks.length < 2) return false;
+    const parent = blocks[0].parentNode;
+    if (!parent || blocks.some(node => node.parentNode !== parent)) return false;
+    this.flushTyping();
+    const marker = document.createComment("vno-sort-anchor");
+    parent.insertBefore(marker, blocks[0]);
+    const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+    blocks
+      .slice()
+      .sort((a, b) => collator.compare(a.textContent.trim(), b.textContent.trim()))
+      .forEach(node => parent.insertBefore(node, marker));
+    marker.remove();
+    this.isDirty = true;
+    this.recordSnapshot("writer.para.sort");
+    return true;
+  }
+
+  toggleFormattingMarks() {
+    this.showFormattingMarks = !this.showFormattingMarks;
+    this.bodyDom?.classList?.toggle("vno-show-formatting-marks", this.showFormattingMarks);
+    this._renderInlineFormattingMarks(this.showFormattingMarks);
+    globalCommandBus?.updateState?.("writer.para.showFormattingMarks", { checked: this.showFormattingMarks });
+    return this.showFormattingMarks;
+  }
+
+  _renderInlineFormattingMarks(show) {
+    if (!this.bodyDom || typeof document === "undefined") return;
+    if (!show) {
+      this.bodyDom.querySelectorAll?.("span[data-vno-format-mark]").forEach(span => span.replaceWith(document.createTextNode(span.textContent || "")));
+      this.bodyDom.normalize?.();
+      return;
+    }
+    const walker = document.createTreeWalker(this.bodyDom, NodeFilter.SHOW_TEXT, {
+      acceptNode: node => node.parentElement?.closest?.("[data-vno-format-mark],script,style")
+        ? NodeFilter.FILTER_REJECT
+        : (/[ \t]/.test(node.data) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT)
+    });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(node => {
+      const fragment = document.createDocumentFragment();
+      node.data.split(/([ \t])/).filter(part => part !== "").forEach(part => {
+        if (part === " " || part === "\t") {
+          const mark = document.createElement("span");
+          mark.dataset.vnoFormatMark = part === "\t" ? "tab" : "space";
+          mark.textContent = part;
+          fragment.appendChild(mark);
+        } else fragment.appendChild(document.createTextNode(part));
+      });
+      node.replaceWith(fragment);
+    });
+  }
+
+  _applyParagraphVisualStyle(styles, description) {
+    const blocks = this._getSelectedParagraphBlocks();
+    if (!blocks.length) return false;
+    this.flushTyping();
+    blocks.forEach(block => Object.assign(block.style, styles));
+    this.isDirty = true;
+    this.recordSnapshot(description);
+    return true;
+  }
+
+  applyParagraphShading(color = "#FFF2CC") {
+    const value = typeof color === "string" && color ? color : "#FFF2CC";
+    return this._applyParagraphVisualStyle({ backgroundColor: value }, "writer.para.shading");
+  }
+
+  applyParagraphBorders(style = "bottom") {
+    const borders = {
+      bottom: { border: "none", borderBottom: "1px solid #334155" },
+      all: { border: "1px solid #334155", borderBottom: "1px solid #334155" },
+      none: { border: "none", borderBottom: "none" }
+    };
+    return borders[style] ? this._applyParagraphVisualStyle(borders[style], "writer.para.borders") : false;
   }
 
   moveParagraph(direction = "up") {
@@ -1006,6 +1115,18 @@ export class WriterAdapter {
         document.execCommand("justifyFull", false, null);
         dispatchResult = true;
         break;
+
+      case "writer.para.sort":
+        return this.sortParagraphs();
+
+      case "writer.para.showFormattingMarks":
+        return this.toggleFormattingMarks();
+
+      case "writer.para.shading":
+        return this.applyParagraphShading(args);
+
+      case "writer.para.borders":
+        return this.applyParagraphBorders(args);
 
       case "writer.para.spacing1":
         this._setLineHeight("1.0");
@@ -2535,7 +2656,8 @@ export class WriterAdapter {
       .replace(/<div\b[^>]*data-vno-watermark=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/<div\b[^>]*data-vno-page-border=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/\s*\bvno-merge-preview\b/gi, "")
-      .replace(/<div\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "");
+      .replace(/<div\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
+      .replace(/<span\b[^>]*data-vno-format-mark=["'][^"']+["'][^>]*>([\s\S]*?)<\/span>/gi, "$1");
   }
 
   /**
@@ -2547,7 +2669,9 @@ export class WriterAdapter {
    * gây bước Undo thừa không tương ứng với thao tác thật nào của người dùng.
    */
   _stripAutoPageGaps(html) {
-    return String(html || "").replace(/<div\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "");
+    return String(html || "")
+      .replace(/<div\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
+      .replace(/<span\b[^>]*data-vno-format-mark=["'][^"']+["'][^>]*>([\s\S]*?)<\/span>/gi, "$1");
   }
 
   /**

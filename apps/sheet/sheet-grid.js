@@ -2221,6 +2221,34 @@ export class SheetGridController {
     });
   }
 
+  applyQuickNumberCategory(category) {
+    const defaults = {
+      general: { category: "general" },
+      number: { category: "number", decimals: 2, useThousands: true, negativeStyle: 0 },
+      currency: { category: "currency", currencySymbol: "₫", decimals: 2, useThousands: true, negativeStyle: 0 },
+      accounting: { category: "accounting", currencySymbol: "₫", decimals: 2 },
+      date: { category: "date", dateFormat: "dd/mm/yyyy" },
+      percentage: { category: "percentage", decimals: 2 },
+      scientific: { category: "scientific", decimals: 2 },
+      text: { category: "text" }
+    };
+    return defaults[category] ? this.applyNumberFormat(defaults[category]) : false;
+  }
+
+  adjustDecimalPlaces(direction) {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const current = this.cellsData.get(key)?.style?.numberFormat;
+    const config = structuredClone(current || {
+      category: "number",
+      decimals: 0,
+      useThousands: false,
+      negativeStyle: 0
+    });
+    if (["general", "text", "date"].includes(config.category)) return false;
+    config.decimals = Math.max(0, Math.min(30, (Number(config.decimals) || 0) + (direction > 0 ? 1 : -1)));
+    return this.applyNumberFormat(config);
+  }
+
   applyCellStyle(presetOrId, range = null, recordUndo = true) {
     let preset = presetOrId;
     if (typeof presetOrId === "string") {
@@ -2836,6 +2864,47 @@ export class SheetGridController {
     const cur = item.style[prop];
     const next = cur === valOn ? valOff : valOn;
     return this.setStyle(prop, next);
+  }
+
+  setFontFamily(family) {
+    const allowed = ["Times New Roman", "Be Vietnam Pro", "Arial", "Calibri", "Roboto"];
+    return allowed.includes(family) ? this.setStyle("fontFamily", family) : false;
+  }
+
+  setFontSize(size) {
+    const numericSize = Number.parseInt(size, 10);
+    if (!Number.isFinite(numericSize) || numericSize < 1 || numericSize > 409) return false;
+    return this.setStyle("fontSize", `${numericSize}px`);
+  }
+
+  adjustFontSize(direction) {
+    const steps = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72];
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const current = Number.parseInt(this.cellsData.get(key)?.style?.fontSize, 10) || 11;
+    const next = direction > 0
+      ? (steps.find(size => size > current) || steps[steps.length - 1])
+      : ([...steps].reverse().find(size => size < current) || steps[0]);
+    return this.setFontSize(next);
+  }
+
+  toggleWrapText() {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const current = this.cellsData.get(key)?.style?.whiteSpace;
+    const result = this.setStyle("whiteSpace", current === "normal" ? "nowrap" : "normal");
+    const cell = this.container.querySelector?.(`.vno-grid-cell[data-coord="${key}"]`);
+    cell?.classList?.toggle?.("is-wrap-text", current !== "normal");
+    const row = cell?.closest?.("tr");
+    if (row) {
+      row.style.height = current !== "normal" ? `${Math.max(this.rowHeight, cell.scrollHeight)}px` : `${this.rowHeight}px`;
+    }
+    return result;
+  }
+
+  adjustIndent(direction) {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const current = Number.parseInt(this.cellsData.get(key)?.style?.paddingLeft, 10) || 8;
+    const next = Math.max(8, Math.min(56, current + (direction > 0 ? 12 : -12)));
+    return this.setStyle("paddingLeft", `${next}px`);
   }
 
   _recordHistory(action, { coalesce = false } = {}) {
@@ -4200,6 +4269,7 @@ export class SheetGridController {
 
   _renderCellVisual(td, itm, col, row) {
     if (!td) return;
+    td.classList?.toggle?.("is-wrap-text", itm?.style?.whiteSpace === "normal");
     if (!itm) {
       td.textContent = "";
       td.style.color = "";

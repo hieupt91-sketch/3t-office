@@ -44,6 +44,19 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.format.currencyVND", () => this.grid.formatCurrentCellCurrencyVND());
     globalCommandBus.bindHandler("sheet.format.percent", () => this.grid.formatCurrentCellPercent());
     globalCommandBus.bindHandler("sheet.format.standard", () => this.grid.formatCurrentCellStandard());
+    globalCommandBus.bindHandler("sheet.font.family", (value) => this.grid.setFontFamily(value));
+    globalCommandBus.bindHandler("sheet.font.size", (value) => this.grid.setFontSize(value));
+    globalCommandBus.bindHandler("sheet.font.grow", () => this.grid.adjustFontSize(1));
+    globalCommandBus.bindHandler("sheet.font.shrink", () => this.grid.adjustFontSize(-1));
+    globalCommandBus.bindHandler("sheet.cell.alignTop", () => this.grid.setStyle("verticalAlign", "top"));
+    globalCommandBus.bindHandler("sheet.cell.alignMiddle", () => this.grid.setStyle("verticalAlign", "middle"));
+    globalCommandBus.bindHandler("sheet.cell.alignBottom", () => this.grid.setStyle("verticalAlign", "bottom"));
+    globalCommandBus.bindHandler("sheet.cell.wrapText", () => this.grid.toggleWrapText());
+    globalCommandBus.bindHandler("sheet.cell.indentIncrease", () => this.grid.adjustIndent(1));
+    globalCommandBus.bindHandler("sheet.cell.indentDecrease", () => this.grid.adjustIndent(-1));
+    globalCommandBus.bindHandler("sheet.format.quickCategory", (value) => this.grid.applyQuickNumberCategory(value));
+    globalCommandBus.bindHandler("sheet.format.increaseDecimal", () => this.grid.adjustDecimalPlaces(1));
+    globalCommandBus.bindHandler("sheet.format.decreaseDecimal", () => this.grid.adjustDecimalPlaces(-1));
     globalCommandBus.bindHandler("sheet.format.conditional", () => this.grid.showConditionalFormattingDialog());
     globalCommandBus.bindHandler("sheet.data.validation", () => this.grid.showDataValidationDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
@@ -1026,6 +1039,18 @@ export class SheetAdapter {
       case "sheet.cell.underline":
         return this.grid.toggleStyle("textDecoration", "underline", "none");
 
+      case "sheet.font.family":
+        return this.grid.setFontFamily(args);
+
+      case "sheet.font.size":
+        return this.grid.setFontSize(args);
+
+      case "sheet.font.grow":
+        return this.grid.adjustFontSize(1);
+
+      case "sheet.font.shrink":
+        return this.grid.adjustFontSize(-1);
+
       case "sheet.cell.alignLeft":
         return this.grid.setStyle("textAlign", "left");
 
@@ -1034,6 +1059,24 @@ export class SheetAdapter {
 
       case "sheet.cell.alignRight":
         return this.grid.setStyle("textAlign", "right");
+
+      case "sheet.cell.alignTop":
+        return this.grid.setStyle("verticalAlign", "top");
+
+      case "sheet.cell.alignMiddle":
+        return this.grid.setStyle("verticalAlign", "middle");
+
+      case "sheet.cell.alignBottom":
+        return this.grid.setStyle("verticalAlign", "bottom");
+
+      case "sheet.cell.wrapText":
+        return this.grid.toggleWrapText();
+
+      case "sheet.cell.indentIncrease":
+        return this.grid.adjustIndent(1);
+
+      case "sheet.cell.indentDecrease":
+        return this.grid.adjustIndent(-1);
 
       case "sheet.cell.merge":
         return this.grid.toggleStyle("backgroundColor", "#e2e8f0", "transparent");
@@ -1062,6 +1105,15 @@ export class SheetAdapter {
 
       case "sheet.format.standard":
         return this.grid.formatCurrentCellStandard();
+
+      case "sheet.format.quickCategory":
+        return this.grid.applyQuickNumberCategory(args);
+
+      case "sheet.format.increaseDecimal":
+        return this.grid.adjustDecimalPlaces(1);
+
+      case "sheet.format.decreaseDecimal":
+        return this.grid.adjustDecimalPlaces(-1);
 
       case "sheet.insert.date":
         return this.grid.insertCurrentDate();

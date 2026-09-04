@@ -115,6 +115,19 @@ export const viStrings = {
     ,"sheet.select.column": { label: "Chọn cột", tooltip: "Chọn toàn bộ cột hiện tại (Ctrl+Space)" }
     ,"sheet.select.row": { label: "Chọn hàng", tooltip: "Chọn toàn bộ hàng hiện tại (Shift+Space)" }
     ,"sheet.cell.bold": { label: "Đậm", tooltip: "Chữ đậm (Ctrl+B)" }
+    ,"sheet.font.family": { label: "Phông chữ", tooltip: "Chọn phông chữ cho ô" }
+    ,"sheet.font.size": { label: "Cỡ chữ", tooltip: "Chọn cỡ chữ cho ô" }
+    ,"sheet.font.grow": { label: "Tăng cỡ chữ", tooltip: "Tăng cỡ chữ theo nấc chuẩn" }
+    ,"sheet.font.shrink": { label: "Giảm cỡ chữ", tooltip: "Giảm cỡ chữ theo nấc chuẩn" }
+    ,"sheet.cell.alignTop": { label: "Căn trên", tooltip: "Căn nội dung lên trên ô" }
+    ,"sheet.cell.alignMiddle": { label: "Căn giữa dọc", tooltip: "Căn nội dung vào giữa ô theo chiều dọc" }
+    ,"sheet.cell.alignBottom": { label: "Căn dưới", tooltip: "Căn nội dung xuống dưới ô" }
+    ,"sheet.cell.wrapText": { label: "Ngắt dòng tự động", tooltip: "Tự động xuống dòng theo độ rộng cột" }
+    ,"sheet.cell.indentIncrease": { label: "Tăng thụt lề", tooltip: "Tăng thụt lề nội dung ô" }
+    ,"sheet.cell.indentDecrease": { label: "Giảm thụt lề", tooltip: "Giảm thụt lề nội dung ô" }
+    ,"sheet.format.quickCategory": { label: "Định dạng số", tooltip: "Chọn nhanh loại định dạng số" }
+    ,"sheet.format.increaseDecimal": { label: "Tăng số thập phân", tooltip: "Hiển thị thêm một chữ số thập phân" }
+    ,"sheet.format.decreaseDecimal": { label: "Giảm số thập phân", tooltip: "Hiển thị bớt một chữ số thập phân" }
     ,"sheet.cell.italic": { label: "Nghiêng", tooltip: "Chữ nghiêng (Ctrl+I)" }
     ,"sheet.cell.underline": { label: "Gạch chân", tooltip: "Gạch chân (Ctrl+U)" }
     ,"sheet.cell.alignLeft": { label: "Căn trái", tooltip: "Căn lề trái" }
@@ -223,6 +236,10 @@ export const viStrings = {
     "writer.para.moveDown": { label: "Di chuyển đoạn xuống", tooltip: "Di chuyển đoạn văn xuống dưới (Alt+Shift+Down)" },
     "writer.style.normal": { label: "Kiểu Thường", tooltip: "Áp dụng kiểu Normal chuẩn (Ctrl+Shift+N)" },
     "writer.text.changeCase": { label: "Đổi chữ hoa/thường", tooltip: "Chuyển đổi chữ hoa / thường / Tiêu đề (Shift+F3)" },
+    "writer.para.sort": { label: "Sắp xếp", tooltip: "Sắp xếp danh sách hoặc đoạn văn theo A–Z" },
+    "writer.para.showFormattingMarks": { label: "Hiện/ẩn ký tự định dạng", tooltip: "Hiện hoặc ẩn dấu đoạn và xuống dòng" },
+    "writer.para.shading": { label: "Tô nền đoạn", tooltip: "Tô màu nền đoạn văn hoặc ô bảng" },
+    "writer.para.borders": { label: "Viền đoạn", tooltip: "Chọn viền đoạn văn hoặc ô bảng" },
     "writer.table.insert": { label: "Bảng biểu", tooltip: "Chèn bảng mới vào văn bản" },
     "writer.image.insert": { label: "Hình ảnh", tooltip: "Chèn hình ảnh từ máy tính" },
     "writer.shape.insert": { label: "Hình khối", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },

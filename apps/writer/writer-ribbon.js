@@ -74,6 +74,7 @@ export const WRITER_RIBBON_TABS = [
                   { type: "button", commandId: "writer.text.subscript", iconOnly: true },
                   { type: "button", commandId: "writer.text.superscript", iconOnly: true },
                   { type: "button", commandId: "writer.text.strike", iconOnly: true },
+                  { type: "button", commandId: "writer.text.changeCase", iconOnly: true },
                   { type: "button", commandId: "writer.text.clearFormat", iconOnly: true },
                   { type: "button", commandId: "writer.color.text", iconOnly: true },
                   { type: "button", commandId: "writer.color.highlight", iconOnly: true }
@@ -96,6 +97,8 @@ export const WRITER_RIBBON_TABS = [
                 items: [
                   { type: "button", commandId: "writer.list.bullet", iconOnly: true },
                   { type: "button", commandId: "writer.list.numbered", iconOnly: true },
+                  { type: "button", commandId: "writer.para.sort", iconOnly: true },
+                  { type: "button", commandId: "writer.para.showFormattingMarks", iconOnly: true },
                   { type: "button", commandId: "writer.para.indentDec", iconOnly: true },
                   { type: "button", commandId: "writer.para.indentInc", iconOnly: true }
                 ]
@@ -106,7 +109,19 @@ export const WRITER_RIBBON_TABS = [
                   { type: "button", commandId: "writer.para.alignLeft", iconOnly: true },
                   { type: "button", commandId: "writer.para.alignCenter", iconOnly: true },
                   { type: "button", commandId: "writer.para.alignRight", iconOnly: true },
-                  { type: "button", commandId: "writer.para.justify", iconOnly: true }
+                  { type: "button", commandId: "writer.para.justify", iconOnly: true },
+                  { type: "button", commandId: "writer.para.shading", iconOnly: true },
+                  {
+                    type: "select",
+                    commandId: "writer.para.borders",
+                    defaultValue: "bottom",
+                    ariaLabel: "Viền đoạn văn",
+                    options: [
+                      { value: "bottom", label: "Viền dưới" },
+                      { value: "all", label: "Tất cả viền" },
+                      { value: "none", label: "Không viền" }
+                    ]
+                  }
                 ]
               }
             ]

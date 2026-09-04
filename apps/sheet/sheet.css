@@ -179,6 +179,14 @@
   background-color: #ffffff;
 }
 
+.vno-grid-cell.is-wrap-text {
+  height: auto;
+  min-height: 26px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+
 .vno-grid-cell.is-selected {
   outline: 2px solid var(--vno-sheet-primary);
   outline-offset: -2px;

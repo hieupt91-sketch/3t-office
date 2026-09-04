@@ -33,6 +33,32 @@ export const SHEET_RIBBON_TABS = [
               {
                 type: "row",
                 items: [
+                  {
+                    type: "select",
+                    commandId: "sheet.font.family",
+                    defaultValue: "Calibri",
+                    options: [
+                      { value: "Times New Roman", label: "Times New Roman" },
+                      { value: "Be Vietnam Pro", label: "Be Vietnam Pro" },
+                      { value: "Arial", label: "Arial" },
+                      { value: "Calibri", label: "Calibri" },
+                      { value: "Roboto", label: "Roboto" }
+                    ]
+                  },
+                  {
+                    type: "select",
+                    commandId: "sheet.font.size",
+                    defaultValue: "11",
+                    options: [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72]
+                      .map(size => ({ value: String(size), label: String(size) }))
+                  },
+                  { type: "button", commandId: "sheet.font.grow", iconOnly: true },
+                  { type: "button", commandId: "sheet.font.shrink", iconOnly: true }
+                ]
+              },
+              {
+                type: "row",
+                items: [
                   { type: "button", commandId: "sheet.cell.bold", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.italic", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.underline", iconOnly: true },
@@ -55,9 +81,20 @@ export const SHEET_RIBBON_TABS = [
               {
                 type: "row",
                 items: [
+                  { type: "button", commandId: "sheet.cell.alignTop", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.alignMiddle", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.alignBottom", iconOnly: true }
+                ]
+              },
+              {
+                type: "row",
+                items: [
                   { type: "button", commandId: "sheet.cell.alignLeft", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.alignCenter", iconOnly: true },
-                  { type: "button", commandId: "sheet.cell.alignRight", iconOnly: true }
+                  { type: "button", commandId: "sheet.cell.alignRight", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.wrapText", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.indentDecrease", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.indentIncrease", iconOnly: true }
                 ]
               },
               {
@@ -76,12 +113,34 @@ export const SHEET_RIBBON_TABS = [
         launcherCommandId: "sheet.format.cellsDialog",
         launcherTooltip: "Định dạng ô (Ctrl+1)",
         items: [
-          { type: "button", commandId: "sheet.format.currencyVND", isLarge: true },
           {
             type: "column",
             items: [
-              { type: "button", commandId: "sheet.format.percent" },
-              { type: "button", commandId: "sheet.format.cellsDialog" }
+              {
+                type: "select",
+                commandId: "sheet.format.quickCategory",
+                defaultValue: "general",
+                options: [
+                  { value: "general", label: "General" },
+                  { value: "number", label: "Number" },
+                  { value: "currency", label: "Currency" },
+                  { value: "accounting", label: "Accounting" },
+                  { value: "date", label: "Date" },
+                  { value: "percentage", label: "Percentage" },
+                  { value: "scientific", label: "Scientific" },
+                  { value: "text", label: "Text" }
+                ]
+              },
+              {
+                type: "row",
+                items: [
+                  { type: "button", commandId: "sheet.format.currencyVND", iconOnly: true },
+                  { type: "button", commandId: "sheet.format.percent", iconOnly: true },
+                  { type: "button", commandId: "sheet.format.increaseDecimal", iconOnly: true },
+                  { type: "button", commandId: "sheet.format.decreaseDecimal", iconOnly: true }
+                ]
+              },
+              { type: "button", commandId: "sheet.format.cellsDialog", iconOnly: true }
             ]
           }
         ]

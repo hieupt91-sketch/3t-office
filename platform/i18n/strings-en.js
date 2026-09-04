@@ -116,6 +116,19 @@ export const enStrings = {
     ,"sheet.select.column": { label: "Select Column", tooltip: "Select the entire current column (Ctrl+Space)" }
     ,"sheet.select.row": { label: "Select Row", tooltip: "Select the entire current row (Shift+Space)" }
     ,"sheet.cell.bold": { label: "Bold", tooltip: "Apply bold formatting (Ctrl+B)" }
+    ,"sheet.font.family": { label: "Font", tooltip: "Choose the cell font" }
+    ,"sheet.font.size": { label: "Font Size", tooltip: "Choose the cell font size" }
+    ,"sheet.font.grow": { label: "Increase Font Size", tooltip: "Increase to the next standard font size" }
+    ,"sheet.font.shrink": { label: "Decrease Font Size", tooltip: "Decrease to the previous standard font size" }
+    ,"sheet.cell.alignTop": { label: "Top Align", tooltip: "Align content to the top of the cell" }
+    ,"sheet.cell.alignMiddle": { label: "Middle Align", tooltip: "Center content vertically in the cell" }
+    ,"sheet.cell.alignBottom": { label: "Bottom Align", tooltip: "Align content to the bottom of the cell" }
+    ,"sheet.cell.wrapText": { label: "Wrap Text", tooltip: "Wrap content to fit the column width" }
+    ,"sheet.cell.indentIncrease": { label: "Increase Indent", tooltip: "Increase cell content indentation" }
+    ,"sheet.cell.indentDecrease": { label: "Decrease Indent", tooltip: "Decrease cell content indentation" }
+    ,"sheet.format.quickCategory": { label: "Number Format", tooltip: "Choose a number format category" }
+    ,"sheet.format.increaseDecimal": { label: "Increase Decimal", tooltip: "Show one more decimal place" }
+    ,"sheet.format.decreaseDecimal": { label: "Decrease Decimal", tooltip: "Show one fewer decimal place" }
     ,"sheet.cell.italic": { label: "Italic", tooltip: "Apply italic formatting (Ctrl+I)" }
     ,"sheet.cell.underline": { label: "Underline", tooltip: "Apply underline formatting (Ctrl+U)" }
     ,"sheet.cell.alignLeft": { label: "Align Left", tooltip: "Align cell contents to the left" }
@@ -224,6 +237,10 @@ export const enStrings = {
     "writer.para.moveDown": { label: "Move Paragraph Down", tooltip: "Move paragraph down (Alt+Shift+Down)" },
     "writer.style.normal": { label: "Normal Style", tooltip: "Apply Normal style (Ctrl+Shift+N)" },
     "writer.text.changeCase": { label: "Change Case", tooltip: "Cycle lowercase / UPPERCASE / Title Case (Shift+F3)" },
+    "writer.para.sort": { label: "Sort", tooltip: "Sort selected paragraphs or list items A–Z" },
+    "writer.para.showFormattingMarks": { label: "Show/Hide Formatting Marks", tooltip: "Show or hide paragraph and line-break marks" },
+    "writer.para.shading": { label: "Shading", tooltip: "Apply paragraph or table-cell shading" },
+    "writer.para.borders": { label: "Borders", tooltip: "Choose paragraph or table-cell borders" },
     "writer.table.insert": { label: "Table", tooltip: "Insert a table into document" },
     "writer.image.insert": { label: "Pictures", tooltip: "Insert pictures from your computer" },
     "writer.shape.insert": { label: "Shapes", tooltip: "Insert basic shapes (rectangle, circle, arrow, line)" },
