@@ -58,6 +58,31 @@ export function renderShapeSvg(shape) {
   </svg>`;
 }
 
+function trapFocus(dialogBox, event) {
+  if (event.key !== "Tab") return;
+  const focusables = Array.from(dialogBox.querySelectorAll(
+    'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+
+  if (event.shiftKey) {
+    if (document.activeElement === first || !dialogBox.contains(document.activeElement)) {
+      event.preventDefault();
+      last.focus();
+    }
+  } else {
+    if (document.activeElement === last || !dialogBox.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+}
+
 /**
  * Hiển thị Hộp thoại chọn Hình khối
  * @param {Object} [currentOptions]
@@ -67,34 +92,36 @@ export async function showShapeDialog(currentOptions = null) {
   if (typeof document === "undefined" || !document.body) return null;
 
   return new Promise((resolve) => {
+    const previousFocused = document.activeElement;
     const isEn = getLocale() === "en";
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
 
     let selectedType = currentOptions?.type || "rectangle";
 
     overlay.innerHTML = `
-      <div class="vno-dialog-box" style="width: 480px;">
+      <div class="vno-dialog-box" style="width: 480px;" role="dialog" aria-modal="true" aria-labelledby="vno-shape-dialog-title">
         <div class="vno-dialog-header">
-          <span>${isEn ? "Insert Shape" : "Chèn hình khối"}</span>
-          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn">&times;</button>
+          <span id="vno-shape-dialog-title">${isEn ? "Insert Shape" : "Chèn hình khối"}</span>
+          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex; flex-direction:column; gap:14px;">
           <p style="margin:0; font-size:13px; color:#64748b;">
             ${isEn ? "Select a basic geometric shape to insert onto the page layer:" : "Chọn hình khối cơ bản cần chèn vào trang văn bản:"}
           </p>
-          <div class="vno-shape-grid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;">
-            ${SHAPE_TYPES.map(s => `
-              <button type="button" class="vno-shape-card ${s.id === selectedType ? "is-selected" : ""}" data-shape-type="${s.id}"
-                style="display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px; border:2px solid ${s.id === selectedType ? "#2563eb" : "#cbd5e1"}; border-radius:8px; background:${s.id === selectedType ? "#eff6ff" : "#fff"}; cursor:pointer; outline:none;">
-                <div style="width:60px; height:40px; display:flex; align-items:center; justify-content:center;">
+          <div class="vno-shape-grid" role="radiogroup" aria-labelledby="vno-shape-dialog-title" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;">
+            ${SHAPE_TYPES.map(s => {
+              const isSel = s.id === selectedType;
+              const name = isEn ? s.nameEn : s.nameVi;
+              return `
+              <button type="button" role="radio" aria-checked="${isSel}" aria-label="${name}" class="vno-shape-card ${isSel ? "is-selected" : ""}" data-shape-type="${s.id}"
+                style="display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px; border:2px solid ${isSel ? "#2563eb" : "#cbd5e1"}; border-radius:8px; background:${isSel ? "#eff6ff" : "#fff"}; cursor:pointer; outline:none;">
+                <div style="width:60px; height:40px; display:flex; align-items:center; justify-content:center;" aria-hidden="true">
                   ${renderShapeSvg({ type: s.id, strokeWidth: 2 })}
                 </div>
-                <strong style="font-size:12px; color:#1e293b;">${isEn ? s.nameEn : s.nameVi}</strong>
+                <strong style="font-size:12px; color:#1e293b;">${name}</strong>
               </button>
-            `).join("")}
+            `}).join("")}
           </div>
         </div>
         <div class="vno-dialog-footer" style="display:flex; justify-content:flex-end; gap:8px;">
@@ -105,16 +132,19 @@ export async function showShapeDialog(currentOptions = null) {
     `;
 
     document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
 
     const cards = overlay.querySelectorAll(".vno-shape-card");
     cards.forEach(card => {
       card.addEventListener("click", () => {
         cards.forEach(c => {
           c.classList.remove("is-selected");
+          c.setAttribute("aria-checked", "false");
           c.style.borderColor = "#cbd5e1";
           c.style.background = "#fff";
         });
         card.classList.add("is-selected");
+        card.setAttribute("aria-checked", "true");
         card.style.borderColor = "#2563eb";
         card.style.background = "#eff6ff";
         selectedType = card.getAttribute("data-shape-type");
@@ -124,6 +154,9 @@ export async function showShapeDialog(currentOptions = null) {
     const cleanup = (result) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
       resolve(result);
     };
 
@@ -146,6 +179,8 @@ export async function showShapeDialog(currentOptions = null) {
         e.preventDefault();
         const shapeDef = SHAPE_TYPES.find(s => s.id === selectedType) || SHAPE_TYPES[0];
         cleanup({ type: selectedType, w: shapeDef.defaultW, h: shapeDef.defaultH });
+      } else if (e.key === "Tab") {
+        trapFocus(dialogBox, e);
       }
     };
     document.addEventListener("keydown", onKeyDown);
@@ -290,32 +325,34 @@ export async function showDiagramDialog(currentOptions = null) {
   if (typeof document === "undefined" || !document.body) return null;
 
   return new Promise((resolve) => {
+    const previousFocused = document.activeElement;
     const isEn = getLocale() === "en";
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
 
     let selectedType = currentOptions?.type || "process";
 
     overlay.innerHTML = `
-      <div class="vno-dialog-box" style="width: 520px;">
+      <div class="vno-dialog-box" style="width: 520px;" role="dialog" aria-modal="true" aria-labelledby="vno-diagram-dialog-title">
         <div class="vno-dialog-header">
-          <span>${isEn ? "Insert SmartArt Diagram" : "Chèn sơ đồ SmartArt"}</span>
-          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn">&times;</button>
+          <span id="vno-diagram-dialog-title">${isEn ? "Insert SmartArt Diagram" : "Chèn sơ đồ SmartArt"}</span>
+          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex; flex-direction:column; gap:14px;">
           <p style="margin:0; font-size:13px; color:#64748b;">
             ${isEn ? "Choose a visual diagram structure to insert into document:" : "Chọn kiểu bố cục sơ đồ minh họa cần chèn vào văn bản:"}
           </p>
-          <div class="vno-diagram-grid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;">
-            ${DIAGRAM_TYPES.map(d => `
-              <button type="button" class="vno-diagram-card ${d.id === selectedType ? "is-selected" : ""}" data-diagram-type="${d.id}"
-                style="display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px; border:2px solid ${d.id === selectedType ? "#2563eb" : "#cbd5e1"}; border-radius:8px; background:${d.id === selectedType ? "#eff6ff" : "#fff"}; cursor:pointer; outline:none;">
-                <span style="font-size:16px; color:#2563eb; font-weight:bold; min-height:36px; display:flex; align-items:center; justify-content:center; text-align:center;">${d.preview}</span>
-                <strong style="font-size:12px; color:#1e293b;">${isEn ? d.nameEn : d.nameVi}</strong>
+          <div class="vno-diagram-grid" role="radiogroup" aria-labelledby="vno-diagram-dialog-title" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;">
+            ${DIAGRAM_TYPES.map(d => {
+              const isSel = d.id === selectedType;
+              const name = isEn ? d.nameEn : d.nameVi;
+              return `
+              <button type="button" role="radio" aria-checked="${isSel}" aria-label="${name}" class="vno-diagram-card ${isSel ? "is-selected" : ""}" data-diagram-type="${d.id}"
+                style="display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px; border:2px solid ${isSel ? "#2563eb" : "#cbd5e1"}; border-radius:8px; background:${isSel ? "#eff6ff" : "#fff"}; cursor:pointer; outline:none;">
+                <span style="font-size:16px; color:#2563eb; font-weight:bold; min-height:36px; display:flex; align-items:center; justify-content:center; text-align:center;" aria-hidden="true">${d.preview}</span>
+                <strong style="font-size:12px; color:#1e293b;">${name}</strong>
               </button>
-            `).join("")}
+            `}).join("")}
           </div>
           <div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px;">
             <label for="vno-diagram-count-input" style="font-size:13px; font-weight:600; color:#334155;">
@@ -332,16 +369,19 @@ export async function showDiagramDialog(currentOptions = null) {
     `;
 
     document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
 
     const cards = overlay.querySelectorAll(".vno-diagram-card");
     cards.forEach(card => {
       card.addEventListener("click", () => {
         cards.forEach(c => {
           c.classList.remove("is-selected");
+          c.setAttribute("aria-checked", "false");
           c.style.borderColor = "#cbd5e1";
           c.style.background = "#fff";
         });
         card.classList.add("is-selected");
+        card.setAttribute("aria-checked", "true");
         card.style.borderColor = "#2563eb";
         card.style.background = "#eff6ff";
         selectedType = card.getAttribute("data-diagram-type");
@@ -351,6 +391,9 @@ export async function showDiagramDialog(currentOptions = null) {
     const cleanup = (result) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
       resolve(result);
     };
 
@@ -375,6 +418,8 @@ export async function showDiagramDialog(currentOptions = null) {
         const countInput = overlay.querySelector("#vno-diagram-count-input");
         const count = Number(countInput?.value) || 4;
         cleanup({ type: selectedType, count });
+      } else if (e.key === "Tab") {
+        trapFocus(dialogBox, e);
       }
     };
     document.addEventListener("keydown", onKeyDown);
@@ -513,11 +558,10 @@ export async function showChartDialog(currentOptions = null) {
   if (typeof document === "undefined" || !document.body) return null;
 
   return new Promise((resolve) => {
+    const previousFocused = document.activeElement;
     const isEn = getLocale() === "en";
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
 
     let currentType = currentOptions?.type || "bar";
     let currentTitle = currentOptions?.title || (isEn ? "Data Chart" : "Biểu đồ dữ liệu");
@@ -532,10 +576,10 @@ export async function showChartDialog(currentOptions = null) {
     ];
 
     overlay.innerHTML = `
-      <div class="vno-dialog-box" style="width: 660px;">
+      <div class="vno-dialog-box" style="width: 660px;" role="dialog" aria-modal="true" aria-labelledby="vno-chart-dialog-title">
         <div class="vno-dialog-header">
-          <span>${isEn ? "Insert Chart" : "Chèn biểu đồ minh họa"}</span>
-          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn">&times;</button>
+          <span id="vno-chart-dialog-title">${isEn ? "Insert Chart" : "Chèn biểu đồ minh họa"}</span>
+          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex; flex-direction:column; gap:14px;">
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
@@ -562,8 +606,8 @@ export async function showChartDialog(currentOptions = null) {
             <div id="vno-chart-data-rows" style="display:flex; flex-direction:column; gap:6px; max-height:110px; overflow-y:auto; padding-right:4px;">
               ${currentLabels.map((lbl, i) => `
                 <div class="vno-chart-row" style="display:flex; gap:8px; align-items:center;">
-                  <input type="text" class="vno-chart-lbl" value="${escHtml(lbl)}" placeholder="Nhãn" style="flex:1; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;" />
-                  <input type="number" class="vno-chart-val" value="${currentData[i] ?? 0}" placeholder="Giá trị" style="width:100px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;" />
+                  <input type="text" class="vno-chart-lbl" value="${escHtml(lbl)}" placeholder="Nhãn" aria-label="${isEn ? `Label ${i + 1}` : `Nhãn ${i + 1}`}" style="flex:1; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;" />
+                  <input type="number" class="vno-chart-val" value="${currentData[i] ?? 0}" placeholder="Giá trị" aria-label="${isEn ? `Value ${i + 1}` : `Giá trị ${i + 1}`}" style="width:100px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;" />
                 </div>
               `).join("")}
             </div>
@@ -574,7 +618,7 @@ export async function showChartDialog(currentOptions = null) {
             <span style="font-size:11px; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:4px;">
               ${isEn ? "Live Preview" : "Xem trước trực quan"}
             </span>
-            <div id="vno-chart-preview-box" style="height:170px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; overflow:hidden; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 1px 3px rgba(0,0,0,0.04);">
+            <div id="vno-chart-preview-box" aria-hidden="true" style="height:170px; border:1px solid #e2e8f0; border-radius:6px; background:#fff; overflow:hidden; display:flex; align-items:center; justify-content:center; box-shadow:inset 0 1px 3px rgba(0,0,0,0.04);">
               <!-- Render live SVG here -->
             </div>
           </div>
@@ -588,6 +632,7 @@ export async function showChartDialog(currentOptions = null) {
     `;
 
     document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
 
     const titleInput = overlay.querySelector("#vno-chart-title-input");
     const typeSelect = overlay.querySelector("#vno-chart-type-select");
@@ -626,6 +671,9 @@ export async function showChartDialog(currentOptions = null) {
     const cleanup = (result) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
       resolve(result);
     };
 
@@ -643,6 +691,8 @@ export async function showChartDialog(currentOptions = null) {
       if (e.key === "Escape") {
         e.preventDefault();
         cleanup(null);
+      } else if (e.key === "Tab") {
+        trapFocus(dialogBox, e);
       }
     };
     document.addEventListener("keydown", onKeyDown);

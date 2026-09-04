@@ -131,6 +131,31 @@ export function replaceMergeFields(html, record) {
   );
 }
 
+function trapFocus(dialogBox, event) {
+  if (event.key !== "Tab") return;
+  const focusables = Array.from(dialogBox.querySelectorAll(
+    'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+
+  if (event.shiftKey) {
+    if (document.activeElement === first || !dialogBox.contains(document.activeElement)) {
+      event.preventDefault();
+      last.focus();
+    }
+  } else {
+    if (document.activeElement === last || !dialogBox.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+}
+
 /**
  * Hiển thị Hộp thoại Nhập nguồn dữ liệu trộn thư (dán CSV)
  * @param {Object} options
@@ -148,6 +173,7 @@ export function showMailMergeDataSourceDialog({
     return;
   }
 
+  const previousFocused = document.activeElement;
   const overlay = document.createElement("div");
   overlay.className = "vno-dialog-overlay";
 
@@ -161,22 +187,22 @@ export function showMailMergeDataSourceDialog({
   const initialVal = currentCsv && currentCsv.trim() ? currentCsv : "";
 
   overlay.innerHTML = `
-    <div class="vno-dialog-box" style="width: 580px;" role="dialog" aria-modal="true">
+    <div class="vno-dialog-box" style="width: 580px;" role="dialog" aria-modal="true" aria-labelledby="vno-merge-ds-title">
       <div class="vno-dialog-header">
         <div style="display:flex;align-items:center;gap:8px;">
-          <span style="display:flex;color:#0f4c81;">${ICONS.mailMerge || ""}</span>
-          <span>${t("writerDialogs.mailMerge.dataSourceTitle")}</span>
+          <span style="display:flex;color:#0f4c81;" aria-hidden="true">${ICONS.mailMerge || ""}</span>
+          <span id="vno-merge-ds-title">${t("writerDialogs.mailMerge.dataSourceTitle")}</span>
         </div>
-        <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}">&times;</button>
+        <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
       </div>
       <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
-        <div style="font-size:13px;color:var(--vno-text-primary);line-height:1.5;">
+        <label for="vno-merge-csv-input" style="font-size:13px;color:var(--vno-text-primary);line-height:1.5;">
           ${t("writerDialogs.mailMerge.pastePrompt")}
-        </div>
-        <textarea class="vno-merge-csv-textarea" style="width:100%;height:160px;box-sizing:border-box;padding:10px;font-family:monospace;font-size:12.5px;line-height:1.4;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);resize:vertical;outline:none;" placeholder="${defaultSample.replace(/"/g, '&quot;')}">${initialVal}</textarea>
+        </label>
+        <textarea id="vno-merge-csv-input" class="vno-merge-csv-textarea" aria-label="${t("writerDialogs.mailMerge.pastePrompt")}" style="width:100%;height:160px;box-sizing:border-box;padding:10px;font-family:monospace;font-size:12.5px;line-height:1.4;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);resize:vertical;outline:none;" placeholder="${defaultSample.replace(/"/g, '&quot;')}">${initialVal}</textarea>
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <button type="button" class="vno-btn vno-btn-secondary vno-merge-sample-btn" style="font-size:12px;padding:4px 8px;">${t("writerDialogs.mailMerge.pasteSampleBtn")}</button>
-          <div class="vno-merge-status-badge" style="font-size:12px;color:#64748b;font-weight:500;">${t("writerDialogs.mailMerge.noData")}</div>
+          <div class="vno-merge-status-badge" style="font-size:12px;color:#64748b;font-weight:500;" aria-live="polite">${t("writerDialogs.mailMerge.noData")}</div>
         </div>
       </div>
       <div class="vno-dialog-footer">
@@ -187,6 +213,7 @@ export function showMailMergeDataSourceDialog({
   `;
 
   document.body.appendChild(overlay);
+  const dialogBox = overlay.querySelector(".vno-dialog-box");
 
   const textarea = overlay.querySelector(".vno-merge-csv-textarea");
   const statusBadge = overlay.querySelector(".vno-merge-status-badge");
@@ -224,6 +251,9 @@ export function showMailMergeDataSourceDialog({
   const cleanup = () => {
     document.removeEventListener("keydown", onKeyDown);
     if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    if (previousFocused && typeof previousFocused.focus === "function") {
+      previousFocused.focus();
+    }
   };
 
   const finishSave = () => {
@@ -249,6 +279,8 @@ export function showMailMergeDataSourceDialog({
     if (e.key === "Escape") {
       e.preventDefault();
       finishCancel();
+    } else if (e.key === "Tab") {
+      trapFocus(dialogBox, e);
     }
   };
   document.addEventListener("keydown", onKeyDown);
@@ -273,25 +305,26 @@ export function showInsertMergeFieldDialog({
     return;
   }
 
+  const previousFocused = document.activeElement;
   const overlay = document.createElement("div");
   overlay.className = "vno-dialog-overlay";
 
   const optionsHtml = fields.map((f) => `<option value="${f}">${f}</option>`).join("\n");
 
   overlay.innerHTML = `
-    <div class="vno-dialog-box" style="width: 440px;" role="dialog" aria-modal="true">
+    <div class="vno-dialog-box" style="width: 440px;" role="dialog" aria-modal="true" aria-labelledby="vno-merge-field-title">
       <div class="vno-dialog-header">
         <div style="display:flex;align-items:center;gap:8px;">
-          <span style="display:flex;color:#0f4c81;">${ICONS.mergeInsertField || ""}</span>
-          <span>${t("writerDialogs.mailMerge.insertFieldTitle")}</span>
+          <span style="display:flex;color:#0f4c81;" aria-hidden="true">${ICONS.mergeInsertField || ""}</span>
+          <span id="vno-merge-field-title">${t("writerDialogs.mailMerge.insertFieldTitle")}</span>
         </div>
-        <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}">&times;</button>
+        <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
       </div>
       <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
-        <label style="font-size:13px;font-weight:500;color:var(--vno-text-primary);">
+        <label for="vno-merge-field-select" style="font-size:13px;font-weight:500;color:var(--vno-text-primary);">
           ${t("writerDialogs.mailMerge.selectFieldPrompt")}
         </label>
-        <select class="vno-dialog-input vno-merge-field-select" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;outline:none;">
+        <select id="vno-merge-field-select" aria-label="${t("writerDialogs.mailMerge.selectFieldPrompt")}" class="vno-dialog-input vno-merge-field-select" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;outline:none;">
           ${optionsHtml}
         </select>
       </div>
@@ -303,6 +336,7 @@ export function showInsertMergeFieldDialog({
   `;
 
   document.body.appendChild(overlay);
+  const dialogBox = overlay.querySelector(".vno-dialog-box");
 
   const select = overlay.querySelector(".vno-merge-field-select");
   const insertBtn = overlay.querySelector(".vno-dialog-insert-btn");
@@ -312,6 +346,9 @@ export function showInsertMergeFieldDialog({
   const cleanup = () => {
     document.removeEventListener("keydown", onKeyDown);
     if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    if (previousFocused && typeof previousFocused.focus === "function") {
+      previousFocused.focus();
+    }
   };
 
   const finishInsert = () => {
@@ -340,6 +377,8 @@ export function showInsertMergeFieldDialog({
     } else if (e.key === "Enter") {
       e.preventDefault();
       finishInsert();
+    } else if (e.key === "Tab") {
+      trapFocus(dialogBox, e);
     }
   };
   document.addEventListener("keydown", onKeyDown);

@@ -99,6 +99,31 @@ export const DOCUMENT_THEMES = [
   }
 ];
 
+function trapFocus(dialogBox, event) {
+  if (event.key !== "Tab") return;
+  const focusables = Array.from(dialogBox.querySelectorAll(
+    'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+
+  if (event.shiftKey) {
+    if (document.activeElement === first || !dialogBox.contains(document.activeElement)) {
+      event.preventDefault();
+      last.focus();
+    }
+  } else {
+    if (document.activeElement === last || !dialogBox.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+}
+
 /**
  * Hiển thị Hộp thoại Thư viện Chủ đề Tài liệu (Document Themes & Formatting)
  * @param {string} [currentThemeId]
@@ -108,19 +133,18 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
   if (typeof document === "undefined" || !document.body) return null;
 
   return new Promise((resolve) => {
+    const previousFocused = document.activeElement;
     const isEn = getLocale() === "en";
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
 
     let selectedThemeId = currentThemeId || "office";
 
     overlay.innerHTML = `
-      <div class="vno-dialog-box" style="width: 680px; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="vno-dialog-box" style="width: 680px; max-height: 85vh; display: flex; flex-direction: column;" role="dialog" aria-modal="true" aria-labelledby="vno-theme-dialog-title">
         <div class="vno-dialog-header">
-          <span>${isEn ? "Document Themes & Formatting" : "Thư viện Kiểu & Chủ đề tài liệu"}</span>
-          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn">&times;</button>
+          <span id="vno-theme-dialog-title">${isEn ? "Document Themes & Formatting" : "Thư viện Kiểu & Chủ đề tài liệu"}</span>
+          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
         </div>
         <div class="vno-dialog-body" style="overflow-y:auto; display:flex; flex-direction:column; gap:14px; padding:16px;">
           <p style="margin:0; font-size:13px; color:#64748b;">
@@ -129,16 +153,16 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
               : "Chọn bộ kiểu định dạng tài liệu (thay đổi đồng bộ phông chữ, bảng màu tiêu đề và dãn dòng trên toàn bộ tài liệu):"}
           </p>
 
-          <div class="vno-theme-grid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;">
+          <div class="vno-theme-grid" role="radiogroup" aria-labelledby="vno-theme-dialog-title" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;">
             ${DOCUMENT_THEMES.map(theme => {
               const isSel = theme.id === selectedThemeId;
               const name = isEn ? theme.nameEn : theme.nameVi;
               return `
-                <button type="button" class="vno-theme-card ${isSel ? "is-selected" : ""}" data-theme-id="${theme.id}"
+                <button type="button" role="radio" aria-checked="${isSel}" aria-label="${name}" class="vno-theme-card ${isSel ? "is-selected" : ""}" data-theme-id="${theme.id}"
                   style="border:2px solid ${isSel ? "#2563eb" : "#cbd5e1"}; border-radius:8px; background:${isSel ? "#eff6ff" : "#fff"}; padding:12px; text-align:left; cursor:pointer; display:flex; flex-direction:column; gap:8px; outline:none; transition:all 0.15s ease;">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
                     <strong style="font-size:13px; color:${theme.h1Color}; font-family:${theme.fontFamily};">${name}</strong>
-                    <div style="display:flex; gap:3px;">
+                    <div style="display:flex; gap:3px;" aria-hidden="true">
                       <span style="width:10px; height:10px; border-radius:50%; background:${theme.h1Color};"></span>
                       <span style="width:10px; height:10px; border-radius:50%; background:${theme.h2Color};"></span>
                       <span style="width:10px; height:10px; border-radius:50%; background:${theme.h3Color};"></span>
@@ -160,16 +184,19 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
     `;
 
     document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
 
     const cards = overlay.querySelectorAll(".vno-theme-card");
     cards.forEach(card => {
       card.addEventListener("click", () => {
         cards.forEach(c => {
           c.classList.remove("is-selected");
+          c.setAttribute("aria-checked", "false");
           c.style.borderColor = "#cbd5e1";
           c.style.background = "#fff";
         });
         card.classList.add("is-selected");
+        card.setAttribute("aria-checked", "true");
         card.style.borderColor = "#2563eb";
         card.style.background = "#eff6ff";
         selectedThemeId = card.getAttribute("data-theme-id");
@@ -179,6 +206,9 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
     const cleanup = (result) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
       resolve(result);
     };
 
@@ -199,6 +229,8 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
       } else if (e.key === "Enter") {
         e.preventDefault();
         cleanup(selectedThemeId);
+      } else if (e.key === "Tab") {
+        trapFocus(dialogBox, e);
       }
     };
     document.addEventListener("keydown", onKeyDown);
