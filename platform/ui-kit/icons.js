@@ -385,5 +385,57 @@ export const ICONS = {
     <line x1="8" y1="8" x2="16" y2="8" stroke="#64748B" stroke-width="1.2" stroke-linecap="round"/>
     <line x1="8" y1="11" x2="16" y2="11" stroke="#94A3B8" stroke-width="1" stroke-linecap="round"/>
     <line x1="8" y1="14" x2="13" y2="14" stroke="#94A3B8" stroke-width="1" stroke-linecap="round"/>
+  </svg>`,
+
+  // Chia cột văn bản (Columns)
+  pageColumns: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="2" width="18" height="20" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.4"/>
+    <rect x="5" y="5" width="5.5" height="14" rx="1" fill="#EFF6FF"/>
+    <line x1="6.5" y1="7.5" x2="9.5" y2="7.5" stroke="#2563EB" stroke-width="1.3" stroke-linecap="round"/>
+    <line x1="6.5" y1="10.5" x2="9.5" y2="10.5" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="6.5" y1="13.5" x2="9" y2="13.5" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="6.5" y1="16.5" x2="9.5" y2="16.5" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <rect x="13.5" y="5" width="5.5" height="14" rx="1" fill="#EFF6FF"/>
+    <line x1="15" y1="7.5" x2="18" y2="7.5" stroke="#2563EB" stroke-width="1.3" stroke-linecap="round"/>
+    <line x1="15" y1="10.5" x2="18" y2="10.5" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="15" y1="13.5" x2="17.5" y2="13.5" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="15" y1="16.5" x2="18" y2="16.5" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="12" y1="5.5" x2="12" y2="18.5" stroke="#94A3B8" stroke-width="1" stroke-dasharray="2 1.5"/>
+  </svg>`,
+
+  columnsOne: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="4" y="3" width="16" height="18" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <line x1="7" y1="7" x2="17" y2="7" stroke="#0F4C81" stroke-width="1.6" stroke-linecap="round"/>
+    <line x1="7" y1="10" x2="17" y2="10" stroke="#64748B" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="7" y1="13" x2="17" y2="13" stroke="#64748B" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="7" y1="16" x2="14" y2="16" stroke="#64748B" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`,
+
+  columnsTwo: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="4" y="3" width="16" height="18" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <line x1="6.5" y1="7" x2="10.5" y2="7" stroke="#2563EB" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="6.5" y1="10" x2="10.5" y2="10" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="6.5" y1="13" x2="10.5" y2="13" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="6.5" y1="16" x2="9" y2="16" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="13.5" y1="7" x2="17.5" y2="7" stroke="#2563EB" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="13.5" y1="10" x2="17.5" y2="10" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="13.5" y1="13" x2="17.5" y2="13" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="13.5" y1="16" x2="16" y2="16" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+  </svg>`,
+
+  columnsThree: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <line x1="5" y1="7" x2="7.5" y2="7" stroke="#10B981" stroke-width="1.3" stroke-linecap="round"/>
+    <line x1="5" y1="10" x2="7.5" y2="10" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="5" y1="13" x2="7.5" y2="13" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="5" y1="16" x2="6.5" y2="16" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="10.5" y1="7" x2="13" y2="7" stroke="#10B981" stroke-width="1.3" stroke-linecap="round"/>
+    <line x1="10.5" y1="10" x2="13" y2="10" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="10.5" y1="13" x2="13" y2="13" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="10.5" y1="16" x2="12" y2="16" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="16" y1="7" x2="18.5" y2="7" stroke="#10B981" stroke-width="1.3" stroke-linecap="round"/>
+    <line x1="16" y1="10" x2="18.5" y2="10" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="16" y1="13" x2="18.5" y2="13" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+    <line x1="16" y1="16" x2="17.5" y2="16" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
   </svg>`
 };

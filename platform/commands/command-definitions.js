@@ -89,6 +89,10 @@ export const WRITER_COMMANDS = [
   { id: "writer.page.margins", category: "layout", label: "Căn lề", icon: "margins", tooltip: "Thiết lập lề tiêu chuẩn văn bản Việt Nam" },
   { id: "writer.page.orientation", category: "layout", label: "Hướng giấy", icon: "orientation", tooltip: "Khổ giấy dọc hoặc ngang" },
   { id: "writer.page.size", category: "layout", label: "Kích thước giấy", icon: "pageBreak", tooltip: "Chọn khổ A4, Letter, v.v." },
+  { id: "writer.page.columns", category: "layout", label: "Cột", icon: "pageColumns", tooltip: "Chia văn bản thành nhiều cột (1, 2, 3 cột hoặc tùy chỉnh)" },
+  { id: "writer.page.columns1", category: "layout", label: "1 cột", icon: "columnsOne", tooltip: "Định dạng toàn bộ văn bản 1 cột (Normal mặc định)" },
+  { id: "writer.page.columns2", category: "layout", label: "2 cột", icon: "columnsTwo", tooltip: "Chia nội dung văn bản thành 2 cột đều nhau" },
+  { id: "writer.page.columns3", category: "layout", label: "3 cột", icon: "columnsThree", tooltip: "Chia nội dung văn bản thành 3 cột đều nhau" },
   { id: "writer.page.watermark", category: "layout", label: "Hình mờ", icon: "pageWatermark", tooltip: "Thiết lập hoặc xóa hình mờ văn bản (Dự thảo, Mật, Khẩn...)" },
   { id: "writer.page.border", category: "layout", label: "Viền trang", icon: "pageBorder", tooltip: "Thiết lập viền bao quanh trang tài liệu" },
 
