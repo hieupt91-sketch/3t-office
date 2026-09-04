@@ -50,6 +50,7 @@ import { runSheetFormatCellsTests } from "./unit/sheet-format-cells.test.js";
 import { runSheetEditingStylesTests } from "./unit/sheet-editing-styles.test.js";
 import { runSheetReferenceFunctionTests } from "./unit/sheet-reference-functions.test.js";
 import { runSheetMathStatFunctionTests } from "./unit/sheet-math-stat-functions.test.js";
+import { runSheetTextFunctionTests } from "./unit/sheet-text-functions.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -107,7 +108,8 @@ async function runAll() {
     { title: "44. Behavioral & Unit Tests — VN Sheet Format Cells Dialog & Number Formats", runner: runSheetFormatCellsTests },
     { title: "45. Behavioral & Unit Tests — VN Sheet Styles & Editing Groups", runner: runSheetEditingStylesTests },
     { title: "46. Unit Tests — VN Sheet Cross-Sheet Reference Functions", runner: runSheetReferenceFunctionTests },
-    { title: "47. Unit Tests — VN Sheet Math & Statistics Functions", runner: runSheetMathStatFunctionTests }
+    { title: "47. Unit Tests — VN Sheet Math & Statistics Functions", runner: runSheetMathStatFunctionTests },
+    { title: "48. Unit Tests — VN Sheet Text Functions", runner: runSheetTextFunctionTests }
   ];
 
   for (const suite of suites) {

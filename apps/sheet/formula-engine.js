@@ -78,6 +78,13 @@ export const FUNCTION_CATALOG = [
   { name: "CONCATENATE", category: "Văn bản", syntax: "CONCATENATE(text1, [text2], ...)", desc: "Nối nhiều chuỗi văn bản." },
   { name: "SUBSTITUTE", category: "Văn bản", syntax: "SUBSTITUTE(text, old_text, new_text, [instance_num])", desc: "Thay thế chuỗi con trong văn bản." },
   { name: "FIND", category: "Văn bản", syntax: "FIND(find_text, within_text, [start_num])", desc: "Tìm chuỗi con có phân biệt hoa thường." },
+  { name: "MID", category: "Văn bản", syntax: "MID(text, start_num, num_chars)", desc: "Trả về số ký tự chỉ định từ giữa chuỗi văn bản." },
+  { name: "VALUE", category: "Văn bản", syntax: "VALUE(text)", desc: "Chuyển đổi chuỗi biểu diễn số thành giá trị số." },
+  { name: "PROPER", category: "Văn bản", syntax: "PROPER(text)", desc: "Viết hoa chữ cái đầu của mỗi từ trong văn bản." },
+  { name: "TEXTJOIN", category: "Văn bản", syntax: "TEXTJOIN(delimiter, ignore_empty, text1, ...)", desc: "Nối các chuỗi bằng dấu phân cách và có thể bỏ qua ô trống." },
+  { name: "REPT", category: "Văn bản", syntax: "REPT(text, number_times)", desc: "Lặp lại văn bản theo số lần chỉ định." },
+  { name: "EXACT", category: "Văn bản", syntax: "EXACT(text1, text2)", desc: "So sánh chính xác hai chuỗi có phân biệt chữ hoa và chữ thường." },
+  { name: "SEARCH", category: "Văn bản", syntax: "SEARCH(find_text, within_text, [start_num])", desc: "Tìm chuỗi con không phân biệt chữ hoa và chữ thường." },
 
   // Ngày tháng
   { name: "TODAY", category: "Ngày tháng", syntax: "TODAY()", desc: "Trả về ngày hiện tại của hệ thống." },
@@ -1094,6 +1101,63 @@ export class FormulaEngine {
       case "FIND": {
         const findText = String(this._resolveSingleValue(args[0]) ?? "");
         const withinText = String(this._resolveSingleValue(args[1]) ?? "");
+        const start = args[2] === undefined ? 1 : Number(this._resolveSingleValue(args[2]));
+        if (!Number.isInteger(start) || start < 1 || start > withinText.length + 1) return "#VALUE!";
+        const index = withinText.indexOf(findText, start - 1);
+        return index < 0 ? "#VALUE!" : index + 1;
+      }
+
+      case "MID": {
+        if (args.length < 3) return "#VALUE!";
+        const text = String(this._resolveSingleValue(args[0]) ?? "");
+        const start = Number(this._resolveSingleValue(args[1]));
+        const count = Number(this._resolveSingleValue(args[2]));
+        if (!Number.isInteger(start) || !Number.isInteger(count) || start < 1 || count < 0) return "#VALUE!";
+        return text.substring(start - 1, start - 1 + count);
+      }
+
+      case "VALUE": {
+        if (args.length !== 1) return "#VALUE!";
+        const text = String(this._resolveSingleValue(args[0])).trim();
+        const percent = text.endsWith("%");
+        const normalized = text.replace(/[%$€£₫\s]/g, "").replace(/,/g, "");
+        if (!normalized || !Number.isFinite(Number(normalized))) return "#VALUE!";
+        return Number(normalized) / (percent ? 100 : 1);
+      }
+
+      case "PROPER": {
+        if (args.length !== 1) return "#VALUE!";
+        return String(this._resolveSingleValue(args[0]) ?? "").toLowerCase().replace(/(^|[^\p{L}\p{N}])(\p{L})/gu, (_, prefix, letter) => prefix + letter.toUpperCase());
+      }
+
+      case "TEXTJOIN": {
+        if (args.length < 3) return "#VALUE!";
+        const delimiter = String(this._resolveSingleValue(args[0]) ?? "");
+        const ignoreEmpty = Boolean(this._resolveSingleValue(args[1]));
+        const values = this.collectValues(args.slice(2));
+        if (values.some(value => this._isError(value))) return values.find(value => this._isError(value));
+        const selected = ignoreEmpty ? values.filter(value => value !== "" && value !== null && value !== undefined) : values;
+        const result = selected.join(delimiter);
+        return result.length > 32767 ? "#VALUE!" : result;
+      }
+
+      case "REPT": {
+        if (args.length < 2) return "#VALUE!";
+        const text = String(this._resolveSingleValue(args[0]) ?? "");
+        const count = Number(this._resolveSingleValue(args[1]));
+        if (!Number.isFinite(count) || count < 0 || text.length * Math.trunc(count) > 32767) return "#VALUE!";
+        return text.repeat(Math.trunc(count));
+      }
+
+      case "EXACT": {
+        if (args.length !== 2) return "#VALUE!";
+        return String(this._resolveSingleValue(args[0]) ?? "") === String(this._resolveSingleValue(args[1]) ?? "");
+      }
+
+      case "SEARCH": {
+        if (args.length < 2) return "#VALUE!";
+        const findText = String(this._resolveSingleValue(args[0]) ?? "").toLocaleLowerCase();
+        const withinText = String(this._resolveSingleValue(args[1]) ?? "").toLocaleLowerCase();
         const start = args[2] === undefined ? 1 : Number(this._resolveSingleValue(args[2]));
         if (!Number.isInteger(start) || start < 1 || start > withinText.length + 1) return "#VALUE!";
         const index = withinText.indexOf(findText, start - 1);
