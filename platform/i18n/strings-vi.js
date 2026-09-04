@@ -22,6 +22,16 @@ export const viStrings = {
     fileMenu: "Tệp",
     switchLanguage: "Ngôn ngữ"
   },
+  aiAssistant: {
+    title: "Trợ lý VN AI", provider: "Nhà cung cấp AI", local: "Cục bộ (mặc định)",
+    activeProvider: "Đang dùng thực tế", configureKey: "Cấu hình API key", apiKey: "API key",
+    showKey: "Hiện key", hideKey: "Ẩn key", saveConsent: "Đồng ý & Lưu key", removeKey: "Xóa key",
+    send: "Gửi", stop: "Dừng", analyzing: "Đang phân tích...", stopped: "Đã dừng yêu cầu.",
+    keySaved: "Đã lưu key trên máy này.", keyRemoved: "Đã xóa key khỏi máy này.",
+    disclosureOpenai: "Khi dùng chế độ này, dữ liệu tài liệu sẽ được gửi tới máy chủ OpenAI. Key chỉ lưu trên máy này và không được gửi tới nơi nào khác.",
+    disclosureGemini: "Khi dùng chế độ này, dữ liệu tài liệu sẽ được gửi tới máy chủ Google. Key chỉ lưu trên máy này và không được gửi tới nơi nào khác.",
+    disclosureClaude: "Khi dùng chế độ này, dữ liệu tài liệu sẽ được gửi tới máy chủ Anthropic. Key chỉ lưu trên máy này và không được gửi tới nơi nào khác."
+  },
   backstage: {
     home: "Trang chủ",
     new: "Tạo mới (Ctrl+N)",

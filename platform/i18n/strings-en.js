@@ -23,6 +23,16 @@ export const enStrings = {
     fileMenu: "File",
     switchLanguage: "Language"
   },
+  aiAssistant: {
+    title: "VN AI Assistant", provider: "AI provider", local: "Local (default)",
+    activeProvider: "Actually in use", configureKey: "Configure API key", apiKey: "API key",
+    showKey: "Show key", hideKey: "Hide key", saveConsent: "Consent & Save key", removeKey: "Remove key",
+    send: "Send", stop: "Stop", analyzing: "Analyzing...", stopped: "Request stopped.",
+    keySaved: "Key saved on this device.", keyRemoved: "Key removed from this device.",
+    disclosureOpenai: "In this mode, document data is sent to OpenAI servers. The key is stored only on this device and is not sent anywhere else.",
+    disclosureGemini: "In this mode, document data is sent to Google servers. The key is stored only on this device and is not sent anywhere else.",
+    disclosureClaude: "In this mode, document data is sent to Anthropic servers. The key is stored only on this device and is not sent anywhere else."
+  },
   backstage: {
     home: "Home",
     new: "New (Ctrl+N)",

@@ -9,7 +9,7 @@ import { RibbonHost } from "../ribbon/ribbon-host.js";
 import { OFFICE_TEMPLATES } from "../templates/template-registry.js";
 import { RecentFilesManager } from "../recent/recent-manager.js";
 import { createEmptyState } from "../ui-kit/components.js";
-import { LocalAiService } from "../ai/ai-service.js";
+import { LocalAiService, ApiKeyManager } from "../ai/ai-service.js";
 import { showAlertDialog } from "../ui-kit/dialogs.js";
 import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
 
@@ -28,6 +28,7 @@ export class AppShell {
     this.onSwitchApp = options.onSwitchApp || null;
     this.zoomLevel = 100;
     this.isAiOpen = false;
+    this._aiRequestController = null;
 
     this.rootEl = null;
     this.ribbonHost = null;
@@ -257,6 +258,29 @@ export class AppShell {
         </div>
         <button type="button" class="vno-btn" id="vno-ai-close" aria-label="Đóng bảng Trợ lý VN AI" title="Đóng" style="font-size:16px;">&times;</button>
       </div>
+      <div style="padding:10px 12px;border-bottom:1px solid var(--vno-border-default);font-size:12px;display:grid;gap:8px;">
+        <label for="vno-ai-provider" style="font-weight:600;">${t("aiAssistant.provider")}</label>
+        <select id="vno-ai-provider" class="vno-input" style="width:100%;padding:7px;">
+          <option value="local">${t("aiAssistant.local")}</option>
+          <option value="openai">OpenAI (ChatGPT)</option>
+          <option value="gemini">Google Gemini</option>
+          <option value="claude">Anthropic Claude</option>
+        </select>
+        <div id="vno-ai-provider-status" role="status" aria-live="polite"></div>
+        <div id="vno-ai-key-panel" style="display:none;background:var(--vno-bg-subtle);padding:10px;border-radius:var(--vno-radius-md);">
+          <div id="vno-ai-disclosure" style="line-height:1.45;margin-bottom:8px;"></div>
+          <div id="vno-ai-key-form" style="display:grid;gap:7px;">
+            <label for="vno-ai-api-key" style="font-weight:600;">${t("aiAssistant.apiKey")}</label>
+            <div style="display:flex;gap:6px;">
+              <input id="vno-ai-api-key" type="password" autocomplete="off" spellcheck="false" style="min-width:0;flex:1;padding:7px;" />
+              <button type="button" class="vno-btn" id="vno-ai-key-toggle">${t("aiAssistant.showKey")}</button>
+            </div>
+            <button type="button" class="vno-btn vno-btn-primary" id="vno-ai-key-save">${t("aiAssistant.saveConsent")}</button>
+          </div>
+          <button type="button" class="vno-btn" id="vno-ai-key-remove" style="display:none;color:#b91c1c;">${t("aiAssistant.removeKey")}</button>
+          <div id="vno-ai-key-feedback" role="status" aria-live="polite" style="margin-top:6px;"></div>
+        </div>
+      </div>
       <div class="vno-ai-messages" id="vno-ai-messages" role="log" aria-live="polite">
         <div style="background:var(--vno-bg-subtle);border:1px solid var(--vno-border-default);padding:14px;border-radius:var(--vno-radius-md);font-size:12px;line-height:1.5;">
           <strong>Xin chào!</strong> Tôi là Trợ lý VN AI tích hợp trong VN Office.<br>
@@ -267,7 +291,8 @@ export class AppShell {
       </div>
       <div class="vno-ai-input-box">
         <input type="text" aria-label="Nội dung yêu cầu Trợ lý AI" placeholder="Nhập yêu cầu trau chuốt, tóm tắt..." id="vno-ai-input" />
-        <button type="button" class="vno-btn vno-btn-primary" id="vno-ai-send" aria-label="Gửi yêu cầu">Gửi</button>
+        <button type="button" class="vno-btn vno-btn-primary" id="vno-ai-send" aria-label="${t("aiAssistant.send")}">${t("aiAssistant.send")}</button>
+        <button type="button" class="vno-btn" id="vno-ai-stop" style="display:none;" aria-label="${t("aiAssistant.stop")}">${t("aiAssistant.stop")}</button>
       </div>
     `;
 
@@ -277,10 +302,63 @@ export class AppShell {
     const sendBtn = this.aiSidebar.querySelector("#vno-ai-send");
     const inputEl = this.aiSidebar.querySelector("#vno-ai-input");
     const messagesEl = this.aiSidebar.querySelector("#vno-ai-messages");
+    const stopBtn = this.aiSidebar.querySelector("#vno-ai-stop");
+    const providerSelect = this.aiSidebar.querySelector("#vno-ai-provider");
+    const providerStatus = this.aiSidebar.querySelector("#vno-ai-provider-status");
+    const keyPanel = this.aiSidebar.querySelector("#vno-ai-key-panel");
+    const keyForm = this.aiSidebar.querySelector("#vno-ai-key-form");
+    const keyInput = this.aiSidebar.querySelector("#vno-ai-api-key");
+    const keyToggle = this.aiSidebar.querySelector("#vno-ai-key-toggle");
+    const keyRemove = this.aiSidebar.querySelector("#vno-ai-key-remove");
+    const keyFeedback = this.aiSidebar.querySelector("#vno-ai-key-feedback");
+    const disclosureKeys = { openai: "aiAssistant.disclosureOpenai", gemini: "aiAssistant.disclosureGemini", claude: "aiAssistant.disclosureClaude" };
+    const providerLabels = { openai: "OpenAI (ChatGPT)", gemini: "Google Gemini", claude: "Anthropic Claude", ollama: "Ollama", "rule-based": "Quy tắc cục bộ" };
+
+    const refreshProviderUi = async () => {
+      const selected = providerSelect.value;
+      const isCloud = Boolean(disclosureKeys[selected]);
+      keyPanel.style.display = isCloud ? "block" : "none";
+      if (isCloud) {
+        const configured = ApiKeyManager.hasApiKey(selected);
+        this.aiSidebar.querySelector("#vno-ai-disclosure").textContent = t(disclosureKeys[selected]);
+        keyForm.style.display = configured ? "none" : "grid";
+        keyRemove.style.display = configured ? "inline-block" : "none";
+        keyInput.value = "";
+        keyInput.type = "password";
+        keyToggle.textContent = t("aiAssistant.showKey");
+      }
+      const active = await LocalAiService.getActiveProviderInfo();
+      providerStatus.textContent = `${t("aiAssistant.activeProvider")}: ${active.label}`;
+    };
+
+    providerSelect.value = LocalAiService.getSelectedProviderId();
+    providerSelect.addEventListener("change", async () => {
+      LocalAiService.setSelectedProviderId(providerSelect.value);
+      keyFeedback.textContent = "";
+      await refreshProviderUi();
+    });
+    keyToggle.addEventListener("click", () => {
+      const showing = keyInput.type === "text";
+      keyInput.type = showing ? "password" : "text";
+      keyToggle.textContent = t(showing ? "aiAssistant.showKey" : "aiAssistant.hideKey");
+    });
+    this.aiSidebar.querySelector("#vno-ai-key-save").addEventListener("click", async () => {
+      try {
+        ApiKeyManager.setApiKey(providerSelect.value, keyInput.value);
+        keyFeedback.textContent = t("aiAssistant.keySaved");
+        await refreshProviderUi();
+      } catch (error) { keyFeedback.textContent = error.message; }
+    });
+    keyRemove.addEventListener("click", async () => {
+      ApiKeyManager.removeApiKey(providerSelect.value);
+      keyFeedback.textContent = t("aiAssistant.keyRemoved");
+      await refreshProviderUi();
+    });
+    refreshProviderUi();
 
     const handleAiSend = async () => {
       const query = inputEl.value.trim();
-      if (!query) return;
+      if (!query || this._aiRequestController) return;
       inputEl.value = "";
 
       // 1. Thêm tin nhắn người dùng
@@ -296,19 +374,22 @@ export class AppShell {
       // 3. Trạng thái phản hồi
       const botMsg = document.createElement("div");
       botMsg.style.cssText = "background:#f0fdf4;border:1px solid #bbf7d0;padding:10px 12px;border-radius:var(--vno-radius-md);font-size:12px;line-height:1.5;margin-top:8px;";
-      botMsg.innerHTML = `<span style="color:#16a34a;">Đang phân tích cục bộ...</span>`;
+      botMsg.innerHTML = `<span style="color:#16a34a;">${t("aiAssistant.analyzing")}</span>`;
       messagesEl.appendChild(botMsg);
       messagesEl.scrollTop = messagesEl.scrollHeight;
 
-      const res = await LocalAiService.query(query, { documentText: docText, appName: this.appName });
-      botMsg.innerHTML = `
-        <div style="font-weight:bold;color:#16a34a;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
-          <span>✨</span> <span>Trợ lý VN AI</span>
-        </div>
-        <div style="white-space:pre-line;color:var(--vno-text-primary);">${res.reply.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")}</div>
-      `;
+      this._aiRequestController = new AbortController();
+      sendBtn.disabled = true;
+      stopBtn.style.display = "inline-block";
+      try {
+        const res = await LocalAiService.query(query, { documentText: docText, appName: this.appName, signal: this._aiRequestController.signal });
+        botMsg.innerHTML = `<div style="font-weight:bold;color:#16a34a;margin-bottom:6px;">✨ ${t("aiAssistant.title")}</div>`;
+        const replyEl = document.createElement("div");
+        replyEl.style.cssText = "white-space:pre-line;color:var(--vno-text-primary);";
+        replyEl.textContent = res.reply;
+        botMsg.appendChild(replyEl);
 
-      if (res.suggestion) {
+        if (res.suggestion) {
         const applyBtn = document.createElement("button");
         applyBtn.className = "vno-btn vno-btn-primary";
         applyBtn.style.cssText = "font-size:11px;padding:4px 10px;margin-top:8px;display:inline-block;";
@@ -318,10 +399,20 @@ export class AppShell {
           applyBtn.textContent = "✓ Đã áp dụng";
           applyBtn.disabled = true;
         });
-        botMsg.appendChild(applyBtn);
+          botMsg.appendChild(applyBtn);
+        }
+        providerStatus.textContent = `${t("aiAssistant.activeProvider")}: ${providerLabels[res.providerId] || res.providerId}`;
+      } catch (error) {
+        botMsg.textContent = this._aiRequestController.signal.aborted ? t("aiAssistant.stopped") : `⚠️ ${error.message}`;
+      } finally {
+        this._aiRequestController = null;
+        sendBtn.disabled = false;
+        stopBtn.style.display = "none";
       }
       messagesEl.scrollTop = messagesEl.scrollHeight;
     };
+
+    stopBtn.addEventListener("click", () => this._aiRequestController?.abort());
 
     this._handleAiSend = handleAiSend;
     this._aiInputEl = inputEl;

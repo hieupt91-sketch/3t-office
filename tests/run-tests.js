@@ -12,6 +12,8 @@ import { runI18nTests } from "./unit/i18n.test.js";
 import { runSyntaxCheckTests } from "./unit/syntax-check.test.js";
 import { runHtmlSmokeTests } from "./smoke/html-smoke.test.js";
 import { runAiServiceTests } from "./unit/ai-service.test.js";
+import { runApiKeyManagerTests } from "./unit/api-key-manager.test.js";
+import { runCloudProviderTests } from "./unit/cloud-providers.test.js";
 import { runSheetFileIoTests } from "./unit/sheet-file-io.test.js";
 import { runSlidesFileIoTests } from "./unit/slides-file-io.test.js";
 import { runMultiSheetTests } from "./unit/sheet-multi-sheet.test.js";
@@ -74,6 +76,8 @@ async function runAll() {
     { title: "7. Syntax & Codebase Integrity — node --check", runner: runSyntaxCheckTests },
     { title: "8. Smoke Tests — Application Entrypoints & index.html Runtime", runner: runHtmlSmokeTests },
     { title: "9. Unit Tests — AI Service Provider Orchestration", runner: runAiServiceTests },
+    { title: "9b. Unit Tests — AI API Key Manager", runner: runApiKeyManagerTests },
+    { title: "9c. Unit Tests — AI Cloud Providers (mock fetch)", runner: runCloudProviderTests },
     { title: "10. Unit Tests — VN Sheet Real File I/O & CSV Adapter", runner: runSheetFileIoTests },
     { title: "11. Unit Tests — VN Slides Real File I/O & FODP Adapter", runner: runSlidesFileIoTests },
     { title: "12. Unit Tests — VN Sheet Multi-Sheet Data Isolation", runner: runMultiSheetTests },
