@@ -70,6 +70,8 @@ export class WriterAdapter {
     this._commentPanelKeyHandler = null;
     this.trackChangesEnabled = false;
     this._trackChangesBeforeInputHandler = null;
+    this._workflowBeforeInputHandler = null;
+    this._resetInlineFormattingOnNextInput = null;
     this._referenceClickHandler = null;
     this.printPreviewOverlay = null;
     this.currentPreviewPage = 1;
@@ -146,6 +148,7 @@ export class WriterAdapter {
     globalUnoBridge.attachDocument(this);
     this._applyPageSetup();
     this._bindCommentInteractions();
+    this._bindContinuousEditingWorkflow();
     this._bindTrackChanges();
     this._renderCommentsPanel();
     this._updateTrackChangesCommandState();
@@ -206,6 +209,29 @@ export class WriterAdapter {
     if (!this.bodyDom?.addEventListener || this._trackChangesBeforeInputHandler) return;
     this._trackChangesBeforeInputHandler = (event) => this._handleTrackChangesBeforeInput(event);
     this.bodyDom.addEventListener("beforeinput", this._trackChangesBeforeInputHandler);
+  }
+
+  /**
+   * Giữ hành vi nhập liên tục giống Writer/Word ở ranh giới một vùng vừa được định
+   * dạng. Chromium đặt caret ở trong thẻ <b> khi người dùng chọn một đoạn, Ctrl+B,
+   * nhấn mũi tên phải rồi gõ tiếp; nếu không can thiệp, chữ mới bị in đậm ngoài ý
+   * muốn. Cờ này chỉ áp dụng cho lần chèn chữ kế tiếp sau một selection thật.
+   */
+  _bindContinuousEditingWorkflow() {
+    if (!this.bodyDom?.addEventListener || this._workflowBeforeInputHandler) return;
+    this._workflowBeforeInputHandler = (event) => {
+      if (!this._resetInlineFormattingOnNextInput) return;
+      if (event.inputType !== "insertText" && event.inputType !== "insertCompositionText") return;
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (!selection?.isCollapsed || !this.bodyDom.contains?.(selection.anchorNode)) return;
+
+      const formats = this._resetInlineFormattingOnNextInput;
+      this._resetInlineFormattingOnNextInput = null;
+      if (formats.bold && document.queryCommandState?.("bold")) {
+        document.execCommand("bold", false, null);
+      }
+    };
+    this.bodyDom.addEventListener("beforeinput", this._workflowBeforeInputHandler);
   }
 
   _handleTrackChangesBeforeInput(event) {
@@ -607,8 +633,13 @@ export class WriterAdapter {
 
     switch (vnCmdId) {
       case "writer.text.bold":
+        {
+          const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+          const hadSelection = Boolean(selection && !selection.isCollapsed && this.bodyDom?.contains?.(selection.anchorNode));
         document.execCommand("bold", false, null);
         dispatchResult = document.queryCommandState("bold");
+          this._resetInlineFormattingOnNextInput = hadSelection ? { bold: true } : null;
+        }
         break;
 
       case "writer.text.italic":
