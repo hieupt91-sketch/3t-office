@@ -100,8 +100,8 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 
 ### Tier 2
 - [x] Slide Sorter view — tab "Chế độ xem" mở overlay lưới responsive toàn màn hình; hiển thị đủ slide và số thứ tự; kéo-thả cập nhật trực tiếp mảng slide, filmstrip và canvas; double-click quay về Normal view đúng slide; Nhân đôi/Xóa tái dùng logic slide hiện hữu; Esc đóng overlay. Reorder tham gia undo/redo Slides bằng action `move` đối xứng. Giới hạn: chưa hỗ trợ kéo-thả trực tiếp trong filmstrip nhỏ bên trái (bonus ngoài phạm vi bắt buộc).
-- [ ] Rehearse Timings
-- [ ] Embed video/audio
+- [x] Rehearse Timings — `slides.show.rehearseTimings` mở trình chiếu toàn màn hình thật kèm đồng hồ đếm thật (`performance.now()`, cập nhật 250ms) hiển thị thời gian trang hiện tại + tổng; điều hướng trang (phím mũi tên/Space/click) ghi lại thời gian thật đã dừng ở từng trang; kết thúc (Esc/hết trang) hỏi lưu — nếu đồng ý, ghi `slide.rehearsedDuration` thật cho từng trang và hiển thị nhãn "⏱ Ns" trong Slide Sorter. **Giới hạn hiện tại:** không tự động phát lại đúng nhịp thời gian đã lưu (auto-advance) khi trình chiếu thật — chỉ lưu mốc tham khảo, giống bước đầu của PowerPoint trước khi bật "Use Timings".
+- [x] Embed video/audio — `slides.media.insertVideo`/`insertAudio` mở file picker thật, đọc file thật qua FileReader thành Data URL, chèn `<video controls>`/`<audio controls>` thật vào canvas soạn thảo VÀ vào chế độ trình chiếu toàn màn hình (phát được thật, trình duyệt xử lý native); xóa qua nút × thật trên đối tượng đang chọn, có Undo/Redo qua stack Slides hiện có (action `shape-add`/`shape-delete`, cũng áp dụng cho Shape/Image cũ vốn trước đây chèn được nhưng không xóa/undo được — nay đã có). **Giới hạn hiện tại:** cảnh báo console (không chặn) nếu tệp >10MB vì Data URL nhúng trực tiếp làm phình bộ nhớ/kích thước lưu FODP; chưa hỗ trợ kéo-thả di chuyển hay resize đối tượng media/shape/image trên canvas (giới hạn có sẵn từ trước, không phải hồi quy mới).
 - [ ] SmartArt-like diagram cơ bản
 
 ### Tier 3

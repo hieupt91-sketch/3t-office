@@ -2,6 +2,8 @@
  * VN Slides — Enterprise Canvas Controller & Presentation Engine
  */
 
+import { globalCommandBus } from "../../platform/commands/command-bus.js";
+
 export const SLIDE_MASTER_THEMES = [
   {
     id: "modern-blue",
@@ -335,6 +337,7 @@ export class SlidesCanvasController {
 
     this.selectSlide(0);
     this.applySlideMaster(this.masterTheme);
+    this._syncUndoRedoState();
   }
 
   /**
@@ -532,6 +535,85 @@ export class SlidesCanvasController {
     return true;
   }
 
+  /**
+   * Chèn video/audio THẬT (đã đọc thành Data URL từ tệp người dùng chọn) vào slide hiện tại.
+   * Giới hạn kích thước hợp lý: cảnh báo (không chặn) nếu tệp > MAX_MEDIA_SIZE_MB, vì Data URL
+   * nhúng trực tiếp vào bộ nhớ/FODP sẽ phình to theo kích thước tệp gốc (base64 ~+33%).
+   * @param {"video"|"audio"} mediaType
+   * @param {string} dataUrl
+   * @param {number} [sizeBytes]
+   */
+  insertMedia(mediaType, dataUrl, sizeBytes = 0) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !dataUrl || (mediaType !== "video" && mediaType !== "audio")) return false;
+    if (!Array.isArray(slide.shapes)) slide.shapes = [];
+
+    const MAX_MEDIA_SIZE_MB = 10;
+    if (sizeBytes > MAX_MEDIA_SIZE_MB * 1024 * 1024) {
+      console.warn(`[VN Slides] Tệp media ${(sizeBytes / 1024 / 1024).toFixed(1)}MB vượt ngưỡng khuyến nghị ${MAX_MEDIA_SIZE_MB}MB — có thể làm chậm lưu/mở tệp vì được nhúng dạng Data URL.`);
+    }
+
+    const offset = slide.shapes.length * 24;
+    const newShape = {
+      id: Date.now(),
+      type: mediaType,
+      x: 100 + offset,
+      y: 100 + offset,
+      w: mediaType === "video" ? 320 : 260,
+      h: mediaType === "video" ? 200 : 40,
+      src: dataUrl,
+      animation: { type: "none", duration: 500, delay: 0 }
+    };
+    slide.shapes.push(newShape);
+    this._recordShapeHistory("shape-add", newShape);
+
+    this.setSelectedTarget(newShape.id);
+    this._renderShapesLayer();
+    return true;
+  }
+
+  insertVideo(dataUrl, sizeBytes) {
+    return this.insertMedia("video", dataUrl, sizeBytes);
+  }
+
+  insertAudio(dataUrl, sizeBytes) {
+    return this.insertMedia("audio", dataUrl, sizeBytes);
+  }
+
+  /**
+   * Xóa một shape/media thật khỏi slide hiện tại theo id, có Undo/Redo qua stack Slides hiện có.
+   * @param {string|number} [shapeId] Mặc định = shape đang được chọn (selectedTarget)
+   */
+  deleteShape(shapeId = this.selectedTarget) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !Array.isArray(slide.shapes) || shapeId == null) return false;
+    const index = slide.shapes.findIndex((sh) => String(sh.id) === String(shapeId));
+    if (index < 0) return false;
+    const [removed] = slide.shapes.splice(index, 1);
+    this._recordShapeHistory("shape-delete", removed);
+    if (String(this.selectedTarget) === String(shapeId)) this.setSelectedTarget(null);
+    this._renderShapesLayer();
+    return true;
+  }
+
+  _recordShapeHistory(type, shape) {
+    this.undoStack.push({ type, slideIndex: this.currentSlideIndex, shape: { ...shape } });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+  }
+
+  /**
+   * Đồng bộ trạng thái enabled của common.edit.undo/redo trên Command Bus với stack thật.
+   * Bắt buộc phải gọi sau MỌI thay đổi undoStack/redoStack — commandId này dùng chung toàn Suite
+   * (Writer/Sheet cũng ghi vào cùng state), nên nếu Slides không tự đồng bộ, nút Undo/Redo và
+   * phím tắt Ctrl+Z/Ctrl+Y sẽ bị kẹt ở trạng thái do app khác để lại lúc khởi động trang.
+   */
+  _syncUndoRedoState() {
+    if (typeof globalCommandBus === "undefined" || !globalCommandBus?.updateState) return;
+    globalCommandBus.updateState("common.edit.undo", { enabled: this.undoStack.length > 0 });
+    globalCommandBus.updateState("common.edit.redo", { enabled: this.redoStack.length > 0 });
+  }
+
   _renderShapesLayer() {
     if (!this.shapesLayer) return;
     this.shapesLayer.innerHTML = "";
@@ -549,10 +631,35 @@ export class SlidesCanvasController {
         img.src = shape.src;
         img.style.cssText = "width:100%;height:100%;object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,0.15);pointer-events:none;";
         el.appendChild(img);
+      } else if (shape.type === "video" && shape.src) {
+        const video = document.createElement("video");
+        video.src = shape.src;
+        video.controls = true;
+        video.style.cssText = "width:100%;height:100%;box-shadow:0 2px 8px rgba(0,0,0,0.15);";
+        el.appendChild(video);
+      } else if (shape.type === "audio" && shape.src) {
+        const audio = document.createElement("audio");
+        audio.src = shape.src;
+        audio.controls = true;
+        audio.style.cssText = "width:100%;height:100%;";
+        el.appendChild(audio);
       } else {
         el.style.backgroundColor = shape.color || "#3b82f6";
         el.style.opacity = "0.85";
         el.style.borderRadius = shape.type === "ellipse" ? "50%" : "6px";
+      }
+
+      if (isSel) {
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "vno-shape-delete-btn";
+        delBtn.title = "Xóa đối tượng này";
+        delBtn.textContent = "×";
+        delBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.deleteShape(shape.id);
+        });
+        el.appendChild(delBtn);
       }
 
       if (shape.animation && shape.animation.type && shape.animation.type !== "none") {
@@ -712,6 +819,7 @@ export class SlidesCanvasController {
         newLayout: layoutType
       });
       this.redoStack = [];
+      this._syncUndoRedoState();
     }
 
     s.layoutType = layoutType;
@@ -747,6 +855,7 @@ export class SlidesCanvasController {
     if (recordUndo) {
       this.undoStack.push({ type: "add", index: newIdx, slide: newSlide });
       this.redoStack = [];
+      this._syncUndoRedoState();
     }
     this.selectSlide(newIdx);
     return true;
@@ -773,6 +882,7 @@ export class SlidesCanvasController {
     if (recordUndo) {
       this.undoStack.push({ type: "add", index: targetIdx, slide: dup });
       this.redoStack = [];
+      this._syncUndoRedoState();
     }
     this.selectSlide(targetIdx);
     return true;
@@ -785,6 +895,7 @@ export class SlidesCanvasController {
     if (recordUndo) {
       this.undoStack.push({ type: "delete", index: delIdx, slide: deleted });
       this.redoStack = [];
+      this._syncUndoRedoState();
     }
     const nextIdx = Math.max(0, delIdx - 1);
     this.selectSlide(nextIdx);
@@ -805,6 +916,7 @@ export class SlidesCanvasController {
     if (recordUndo) {
       this.undoStack.push({ type: "move", fromIndex, toIndex });
       this.redoStack = [];
+      this._syncUndoRedoState();
     }
     this.currentSlideIndex = Math.max(0, this.slides.indexOf(selectedSlide));
     this.selectSlide(this.currentSlideIndex);
@@ -870,8 +982,12 @@ export class SlidesCanvasController {
       item.dataset.slideIndex = String(index);
       item.tabIndex = 0;
       item.setAttribute("aria-label", `Trang chiếu ${index + 1}: ${slide.title || "Không có tiêu đề"}`);
+      const timingLabel = typeof slide.rehearsedDuration === "number"
+        ? `<div class="vno-slide-sorter-timing" title="Thời gian tập dượt đã lưu">⏱ ${Math.round(slide.rehearsedDuration)}s</div>`
+        : "";
       item.innerHTML = `
         <div class="vno-slide-sorter-number">${index + 1}</div>
+        ${timingLabel}
         <div class="vno-slide-sorter-preview" style="background:${theme.bgColor || "#fff"};font-family:${theme.fontFamily || "sans-serif"}">
           <div class="vno-slide-sorter-accent" style="background:${theme.accentColor || "#b53818"}"></div>
           <div class="vno-slide-sorter-title" style="color:${theme.titleColor || "#0f172a"}">${escapeHtml(slide.title || "Trang chiếu trống")}</div>
@@ -918,6 +1034,12 @@ export class SlidesCanvasController {
   }
 
   undo() {
+    const result = this._undoImpl();
+    this._syncUndoRedoState();
+    return result;
+  }
+
+  _undoImpl() {
     if (this.undoStack.length === 0) return false;
     const action = this.undoStack.pop();
     if (action.type === "add") {
@@ -947,11 +1069,30 @@ export class SlidesCanvasController {
       this.moveSlide(action.toIndex, action.fromIndex, false);
       this.redoStack.push(action);
       return true;
+    } else if (action.type === "shape-add" || action.type === "shape-delete") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      if (action.type === "shape-add") {
+        const idx = slide.shapes.findIndex((sh) => String(sh.id) === String(action.shape.id));
+        if (idx >= 0) slide.shapes.splice(idx, 1);
+      } else {
+        slide.shapes.push({ ...action.shape });
+      }
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
     }
     return false;
   }
 
   redo() {
+    const result = this._redoImpl();
+    this._syncUndoRedoState();
+    return result;
+  }
+
+  _redoImpl() {
     if (this.redoStack.length === 0) return false;
     const action = this.redoStack.pop();
     if (action.type === "delete") {
@@ -980,6 +1121,19 @@ export class SlidesCanvasController {
     } else if (action.type === "move") {
       this.moveSlide(action.fromIndex, action.toIndex, false);
       this.undoStack.push(action);
+      return true;
+    } else if (action.type === "shape-add" || action.type === "shape-delete") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      if (action.type === "shape-add") {
+        slide.shapes.push({ ...action.shape });
+      } else {
+        const idx = slide.shapes.findIndex((sh) => String(sh.id) === String(action.shape.id));
+        if (idx >= 0) slide.shapes.splice(idx, 1);
+      }
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
       return true;
     }
     return false;
@@ -1458,8 +1612,10 @@ export class SlidesCanvasController {
     });
   }
 
-  startSlideShow(startIndex) {
+  startSlideShow(startIndex, options = {}) {
     if (typeof document === "undefined" || !document.createElement) return false;
+    options = options || {};
+    const rehearsing = !!options.rehearsal;
     const idx = startIndex !== undefined ? startIndex : this.currentSlideIndex;
     let currentShowIdx = idx;
 
@@ -1470,6 +1626,57 @@ export class SlidesCanvasController {
     content.className = "vno-slideshow-content";
 
     const theme = this.masterTheme || {};
+
+    // === Rehearse Timings: đồng hồ thật + ghi thời gian thật đã dừng ở mỗi slide ===
+    let rehearseTimerBox = null;
+    let rehearseInterval = null;
+    let rehearseTotalStart = 0;
+    let rehearseSlideStart = 0;
+    const rehearseTimings = [];
+
+    const formatSeconds = (secs) => {
+      const m = String(Math.floor(secs / 60)).padStart(2, "0");
+      const s = String(Math.floor(secs % 60)).padStart(2, "0");
+      return `${m}:${s}`;
+    };
+
+    const updateRehearseClock = () => {
+      if (!rehearseTimerBox) return;
+      const totalElapsed = (performance.now() - rehearseTotalStart) / 1000;
+      const slideElapsed = (performance.now() - rehearseSlideStart) / 1000;
+      rehearseTimerBox.innerHTML = `<span>Trang: ${formatSeconds(slideElapsed)}</span> <span style="opacity:0.7;margin-left:10px;">Tổng: ${formatSeconds(totalElapsed)}</span>`;
+    };
+
+    const captureSlideTiming = () => {
+      const elapsed = Math.max(0, (performance.now() - rehearseSlideStart) / 1000);
+      rehearseTimings[currentShowIdx] = (rehearseTimings[currentShowIdx] || 0) + elapsed;
+    };
+
+    if (rehearsing) {
+      rehearseTimerBox = document.createElement("div");
+      rehearseTimerBox.className = "vno-rehearse-timer-box";
+      overlay.appendChild(rehearseTimerBox);
+      rehearseTotalStart = performance.now();
+      rehearseSlideStart = performance.now();
+      rehearseInterval = setInterval(updateRehearseClock, 250);
+    }
+
+    const finishRehearsal = () => {
+      captureSlideTiming();
+      if (rehearseInterval) clearInterval(rehearseInterval);
+      const totalSeconds = Math.round((performance.now() - rehearseTotalStart) / 1000);
+      const shouldSave = typeof window !== "undefined" && typeof window.confirm === "function"
+        ? window.confirm(`Tổng thời gian trình chiếu: ${formatSeconds(totalSeconds)}.\nLưu thời gian tập dượt cho từng trang?`)
+        : true;
+      if (shouldSave) {
+        this.slideTimings = rehearseTimings.map((v) => Math.round(v * 10) / 10);
+        this.slides.forEach((slide, i) => {
+          if (rehearseTimings[i] !== undefined) slide.rehearsedDuration = Math.round(rehearseTimings[i] * 10) / 10;
+        });
+        if (typeof this._renderSlideSorterGrid === "function") this._renderSlideSorterGrid();
+      }
+      return shouldSave;
+    };
 
     const renderShow = () => {
       const s = this.slides[currentShowIdx];
@@ -1484,6 +1691,12 @@ export class SlidesCanvasController {
         }
         if (shape.type === "image" && shape.src) {
           return `<img src="${shape.src}" style="${pos}${animStyle}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,0.15);" />`;
+        }
+        if (shape.type === "video" && shape.src) {
+          return `<video src="${shape.src}" controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,0.15);"></video>`;
+        }
+        if (shape.type === "audio" && shape.src) {
+          return `<audio src="${shape.src}" controls style="${pos}${animStyle}"></audio>`;
         }
         const radius = shape.type === "ellipse" ? "50%" : "6px";
         return `<div style="${pos}${animStyle}background:${shape.color || "#3b82f6"};opacity:0.85;border-radius:${radius};"></div>`;
@@ -1577,9 +1790,20 @@ export class SlidesCanvasController {
     overlay.appendChild(content);
     document.body.appendChild(overlay);
 
+    const goToSlide = (nextIdx) => {
+      if (rehearsing) {
+        captureSlideTiming();
+        rehearseSlideStart = performance.now();
+      }
+      currentShowIdx = nextIdx;
+      renderShow();
+    };
+
     const closeShow = () => {
+      const saved = rehearsing ? finishRehearsal() : undefined;
       document.removeEventListener("keydown", keyHandler);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      return saved;
     };
 
     const keyHandler = (e) => {
@@ -1587,30 +1811,42 @@ export class SlidesCanvasController {
         closeShow();
       } else if (e.key === " " || e.key === "ArrowRight" || e.key === "PageDown") {
         if (currentShowIdx < this.slides.length - 1) {
-          currentShowIdx++;
-          renderShow();
+          goToSlide(currentShowIdx + 1);
         } else {
           closeShow();
         }
       } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
         if (currentShowIdx > 0) {
-          currentShowIdx--;
-          renderShow();
+          goToSlide(currentShowIdx - 1);
         }
       }
     };
 
     document.addEventListener("keydown", keyHandler);
-    overlay.addEventListener("click", () => {
+    overlay.addEventListener("click", (e) => {
+      if (e.target && e.target.closest && e.target.closest("video, audio, .vno-rehearse-timer-box")) return;
       if (currentShowIdx < this.slides.length - 1) {
-        currentShowIdx++;
-        renderShow();
+        goToSlide(currentShowIdx + 1);
       } else {
         closeShow();
       }
     });
 
-    return true;
+    return rehearsing ? {
+      close: closeShow,
+      next: () => { if (currentShowIdx < this.slides.length - 1) goToSlide(currentShowIdx + 1); },
+      prev: () => { if (currentShowIdx > 0) goToSlide(currentShowIdx - 1); },
+      getTimings: () => rehearseTimings.slice()
+    } : true;
+  }
+
+  /**
+   * Bắt đầu Tập dượt hẹn giờ (PowerPoint Rehearse Timings) — trình chiếu toàn màn hình thật
+   * với đồng hồ đếm thời gian thật (performance.now()), ghi thời gian thật đã dừng ở mỗi
+   * slide, và hỏi lưu/hủy khi kết thúc (Esc hoặc slide cuối).
+   */
+  startRehearseTimings(startIndex) {
+    return this.startSlideShow(startIndex, { rehearsal: true });
   }
 
   startPresenterMode(startIndex) {

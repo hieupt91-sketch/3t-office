@@ -163,6 +163,8 @@ export const SLIDES_COMMANDS = [
   { id: "slides.text.insert", category: "insert", label: "Hộp văn bản", icon: "textBox", tooltip: "Chèn khung văn bản mới" },
   { id: "slides.shape.insert", category: "insert", label: "Hình khối", icon: "shape", tooltip: "Chèn hình chữ nhật, tròn, mũi tên" },
   { id: "slides.image.insert", category: "insert", label: "Hình ảnh", icon: "image", tooltip: "Chèn ảnh minh họa từ máy tính" },
+  { id: "slides.media.insertVideo", category: "insert", label: "Video", icon: "videoInsert", tooltip: "Chèn video từ máy tính" },
+  { id: "slides.media.insertAudio", category: "insert", label: "Âm thanh", icon: "audioInsert", tooltip: "Chèn âm thanh từ máy tính" },
 
   // Trình chiếu & Thiết kế
   { id: "slides.master.apply", category: "design", label: "Mẫu Slide Master", icon: "template", tooltip: "Áp dụng mẫu Slide Master đồng bộ font, màu, logo cho toàn bộ trang chiếu" },
@@ -172,7 +174,8 @@ export const SLIDES_COMMANDS = [
   { id: "slides.view.slideSorter", category: "view", label: "Bộ sắp xếp trang", icon: "slideSorter", tooltip: "Xem toàn bộ trang chiếu dạng lưới và kéo thả để sắp xếp" },
   { id: "slides.show.startFromBegin", category: "show", label: "Từ đầu", shortcut: "F5", icon: "slidePlay", tooltip: "Bắt đầu trình chiếu từ trang đầu tiên (F5)" },
   { id: "slides.show.startFromCurrent", category: "show", label: "Từ trang này", shortcut: "Shift+F5", icon: "slidePlay", tooltip: "Trình chiếu từ trang hiện tại (Shift+F5)" },
-  { id: "slides.show.presenterMode", category: "show", label: "Chế độ Presenter", shortcut: "Alt+F5", icon: "slidePlay", tooltip: "Trình chiếu chế độ Người thuyết trình kèm ghi chú và đồng hồ (Alt+F5)" }
+  { id: "slides.show.presenterMode", category: "show", label: "Chế độ Presenter", shortcut: "Alt+F5", icon: "slidePlay", tooltip: "Trình chiếu chế độ Người thuyết trình kèm ghi chú và đồng hồ (Alt+F5)" },
+  { id: "slides.show.rehearseTimings", category: "show", label: "Tập dượt hẹn giờ", icon: "rehearseTimings", tooltip: "Trình chiếu và đo thời gian thật ở mỗi trang, có thể lưu lại làm mốc thời gian" }
 ];
 
 export function registerAllStandardCommands(bus) {

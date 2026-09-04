@@ -226,6 +226,25 @@ export const ICONS = {
     <path d="M8 15.5H24" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2 2"/>
   </svg>`,
 
+  videoInsert: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="6" width="20" height="20" rx="2" fill="#F8FAFC" stroke="#0F172A" stroke-width="1.5"/>
+    <polygon points="10,12 19,16 10,20" fill="#DC2626"/>
+    <path d="M25 12L29 9V23L25 20V12Z" fill="#0F172A" stroke="#0F172A" stroke-width="1"/>
+  </svg>`,
+
+  audioInsert: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <path d="M8 12H12L18 6V26L12 20H8V12Z" fill="#0F172A"/>
+    <path d="M22 10C24.5 12.5 24.5 19.5 22 22" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/>
+    <path d="M25.5 6.5C29.5 11.5 29.5 20.5 25.5 25.5" stroke="#2563EB" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  </svg>`,
+
+  rehearseTimings: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <circle cx="16" cy="18" r="11" fill="#F8FAFC" stroke="#0F172A" stroke-width="1.5"/>
+    <path d="M16 11V18L21 21" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M12 3H20" stroke="#0F172A" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M16 3V7" stroke="#0F172A" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`,
+
   slidePlay: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="3" y="4" width="26" height="18" rx="2" fill="#1E293B" stroke="#0F172A" stroke-width="1.2"/>
     <polygon points="12,8 21,13 12,18" fill="#F59E0B"/>

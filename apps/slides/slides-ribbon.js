@@ -63,6 +63,13 @@ export const SLIDES_RIBBON_TABS = [
           { type: "button", commandId: "slides.shape.insert", isLarge: true },
           { type: "button", commandId: "slides.text.insert", isLarge: true }
         ]
+      },
+      {
+        label: "Đa phương tiện",
+        items: [
+          { type: "button", commandId: "slides.media.insertVideo", isLarge: true },
+          { type: "button", commandId: "slides.media.insertAudio", isLarge: true }
+        ]
       }
     ]
   },
@@ -123,7 +130,8 @@ export const SLIDES_RIBBON_TABS = [
       {
         label: "Người thuyết trình",
         items: [
-          { type: "button", commandId: "slides.notes.toggle", isLarge: true }
+          { type: "button", commandId: "slides.notes.toggle", isLarge: true },
+          { type: "button", commandId: "slides.show.rehearseTimings", isLarge: true }
         ]
       }
     ]

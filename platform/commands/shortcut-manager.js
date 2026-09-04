@@ -12,6 +12,7 @@ export class ShortcutManager {
     this._shortcuts = new Map();
     this._keytipsActive = false;
     this._keytipsContainer = null;
+    this._attachedWindow = null;
   }
 
   /**
@@ -45,6 +46,13 @@ export class ShortcutManager {
    * Gắn bộ lắng nghe sự kiện bàn phím toàn cục
    */
   attach(windowObj = window) {
+    // BẮT BUỘC idempotent: mỗi AppShell (Writer/Sheet/Slides) tự new AppShell() và gọi
+    // attach() lại mỗi lần chuyển app — nếu không chặn trùng, mỗi lần chuyển app sẽ cộng
+    // dồn thêm 1 cặp listener keydown/keyup trên window, khiến MỌI phím tắt (Ctrl+Z, Ctrl+S,
+    // Ctrl+B, F5...) bị thực thi lặp lại nhiều lần sau khi người dùng đổi app dù chỉ 1 lần.
+    // Lỗi thật đã phát hiện: Ctrl+Z gọi undo() 2 lần liên tiếp, hoàn tác luôn cả bước trước đó.
+    if (this._attachedWindow === windowObj) return;
+    this._attachedWindow = windowObj;
     windowObj.addEventListener("keydown", (e) => this._handleKeyDown(e), true);
     windowObj.addEventListener("keyup", (e) => this._handleKeyUp(e), true);
   }

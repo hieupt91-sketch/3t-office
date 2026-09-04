@@ -327,6 +327,55 @@
   z-index: 10;
 }
 
+.vno-shape-delete-btn {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  background-color: #dc2626;
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  z-index: 11;
+}
+.vno-shape-delete-btn:hover {
+  background-color: #b91c1c;
+}
+
+.vno-rehearse-timer-box {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  background-color: rgba(15, 23, 42, 0.85);
+  color: #ffffff;
+  font-family: monospace;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 8px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.vno-slide-sorter-timing {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  background-color: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 8px;
+  z-index: 2;
+}
+
 /* Speaker Notes Panel */
 .vno-slide-notes-panel {
   width: 960px;
@@ -678,7 +727,7 @@
   align-content: start;
   gap: 24px;
 }
-.vno-slide-sorter-item { min-width: 0; cursor: grab; border-radius: 8px; padding: 8px; border: 2px solid transparent; }
+.vno-slide-sorter-item { position: relative; min-width: 0; cursor: grab; border-radius: 8px; padding: 8px; border: 2px solid transparent; }
 .vno-slide-sorter-item:focus-visible, .vno-slide-sorter-item.is-current { border-color: #b53818; outline: none; background: rgba(255,255,255,.65); }
 .vno-slide-sorter-item.is-dragging { opacity: .45; cursor: grabbing; }
 .vno-slide-sorter-number { margin: 0 0 6px 2px; color: #475569; font-size: 13px; font-weight: 700; }

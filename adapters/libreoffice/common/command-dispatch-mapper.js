@@ -138,6 +138,8 @@ export const VN_TO_UNO_MAP = {
   "slides.text.insert": ".uno:Text",
   "slides.shape.insert": ".uno:BasicShapes",
   "slides.image.insert": ".uno:InsertGraphic",
+  "slides.media.insertVideo": ".uno:InsertAVMedia",
+  "slides.media.insertAudio": ".uno:InsertAVMedia",
   "slides.master.apply": ".uno:MasterLayouts",
   "slides.transition.apply": ".uno:SlideTransition",
   "slides.animation.apply": ".uno:CustomAnimation",
@@ -146,6 +148,7 @@ export const VN_TO_UNO_MAP = {
   "slides.show.startFromBegin": ".uno:StartPresentation",
   "slides.show.startFromCurrent": ".uno:StartPresentation",
   "slides.show.presenterMode": ".uno:PresenterConsole",
+  "slides.show.rehearseTimings": ".uno:RehearseTimings",
 
   // AI
   // ai.assistant.grammarCheck CỐ Ý không có ở đây: nó có handler thật gắn qua

@@ -5,6 +5,7 @@
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
+import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 
 export class SlidesAdapter {
   constructor(canvasController) {
@@ -15,6 +16,12 @@ export class SlidesAdapter {
 
   attach() {
     globalUnoBridge.attachDocument(this);
+    // common.edit.undo/redo dùng chung 1 handler toàn Suite qua Command Bus — mỗi app
+    // (Writer/Sheet/Slides) PHẢI tự bindHandler() lại khi active, nếu không app kích hoạt
+    // trước (mặc định Writer) sẽ chiếm vĩnh viễn phím Ctrl+Z/Ctrl+Y cho mọi app khác.
+    // (Lỗi thật đã xảy ra: Ctrl+Z trong Slides gọi nhầm WriterAdapter.undo().)
+    globalCommandBus.bindHandler("common.edit.undo", () => this.canvas.undo ? this.canvas.undo() : false);
+    globalCommandBus.bindHandler("common.edit.redo", () => this.canvas.redo ? this.canvas.redo() : false);
   }
 
   _escapeXml(str) {
@@ -411,6 +418,36 @@ export class SlidesAdapter {
     });
   }
 
+  /**
+   * Mở hộp thoại chọn video/audio THẬT của trình duyệt, đọc tệp thật thành Data URL và chèn
+   * vào slide hiện tại. Trả về Promise để handleDispatch await đúng kết quả thật.
+   * @param {"video"|"audio"} mediaType
+   */
+  _insertMediaDialog(mediaType) {
+    if (typeof document === "undefined") return Promise.resolve(false);
+    return new Promise((resolve) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = mediaType === "video" ? "video/*" : "audio/*";
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) {
+          resolve(false);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          const ok = this.canvas.insertMedia ? this.canvas.insertMedia(mediaType, evt.target.result, file.size) : false;
+          resolve(ok);
+        };
+        reader.onerror = () => resolve(false);
+        reader.readAsDataURL(file);
+      };
+      input.oncancel = () => resolve(false);
+      input.click();
+    });
+  }
+
   async handleDispatch(unoUrl, args, vnCmdId) {
     if (!this.canvas) return false;
     const cmd = vnCmdId || (unoUrl === ".uno:AssignLayout" ? "slides.layout.apply" : vnCmdId);
@@ -463,6 +500,15 @@ export class SlidesAdapter {
 
       case "slides.show.presenterMode":
         return this.canvas.startPresenterMode ? this.canvas.startPresenterMode() : false;
+
+      case "slides.show.rehearseTimings":
+        return this.canvas.startRehearseTimings ? !!this.canvas.startRehearseTimings() : false;
+
+      case "slides.media.insertVideo":
+        return await this._insertMediaDialog("video");
+
+      case "slides.media.insertAudio":
+        return await this._insertMediaDialog("audio");
 
       case "common.edit.cut":
         if (typeof document !== "undefined") document.execCommand("cut", false, null);

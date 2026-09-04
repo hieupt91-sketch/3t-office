@@ -16,6 +16,12 @@ export class SheetAdapter {
 
   attach() {
     globalUnoBridge.attachDocument(this);
+    // common.edit.undo/redo dùng chung 1 handler toàn Suite qua Command Bus — mỗi app
+    // (Writer/Sheet/Slides) PHẢI tự bindHandler() lại khi active, nếu không app kích hoạt
+    // trước (mặc định Writer) sẽ chiếm vĩnh viễn phím Ctrl+Z/Ctrl+Y cho mọi app khác.
+    // (Lỗi thật đã xảy ra: Ctrl+Z trong Sheet/Slides gọi nhầm WriterAdapter.undo().)
+    globalCommandBus.bindHandler("common.edit.undo", () => this.grid.undo ? this.grid.undo() : false);
+    globalCommandBus.bindHandler("common.edit.redo", () => this.grid.redo ? this.grid.redo() : false);
     globalCommandBus.bindHandler("sheet.format.conditional", () => this.grid.showConditionalFormattingDialog());
     globalCommandBus.bindHandler("sheet.data.validation", () => this.grid.showDataValidationDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
