@@ -104,9 +104,20 @@ export class AppShell {
 
       <!-- Right Actions: Language Switcher, AI Assistant & Controls -->
       <div class="vno-topbar-right">
-        <button class="vno-btn vno-lang-switch-btn" id="vno-toggle-lang-btn" title="${t("common.switchLanguage")}">
-          ${getLocale() === "vi" ? "🇻🇳 VI" : "🇬🇧 EN"}
-        </button>
+        <div class="vno-lang-switch-wrap" style="position:relative;">
+          <button class="vno-btn vno-lang-switch-btn" id="vno-toggle-lang-btn" title="${t("common.switchLanguage")}">
+            ${getLocale() === "vi" ? "🇻🇳 VI" : "🇬🇧 EN"}
+          </button>
+          <div id="vno-lang-menu" class="vno-lang-menu" style="display:none;">
+            ${getSupportedLocales().map(loc => `
+              <label class="vno-lang-menu-item">
+                <input type="radio" name="vno-lang-pick" value="${loc}" ${loc === getLocale() ? "checked" : ""}>
+                <span>${loc === "vi" ? "🇻🇳 Tiếng Việt" : "🇬🇧 English"}</span>
+              </label>
+            `).join("")}
+            <button class="vno-btn vno-btn-primary" id="vno-lang-apply-btn" style="width:100%;margin-top:8px;" disabled>${t("common.ok")}</button>
+          </div>
+        </div>
         <button class="vno-ai-trigger-btn" id="vno-toggle-ai-btn" title="Trợ lý VN AI (Alt+J)">
           <span style="color:#d97706;display:flex;">${ICONS.aiSparkle}</span>
           <span>Trợ lý VN AI</span>
@@ -146,11 +157,30 @@ export class AppShell {
 
     bar.querySelector("#vno-toggle-ai-btn").addEventListener("click", () => this.toggleAiSidebar());
 
-    bar.querySelector("#vno-toggle-lang-btn").addEventListener("click", () => {
-      const locales = getSupportedLocales();
-      const current = getLocale();
-      const next = locales[(locales.indexOf(current) + 1) % locales.length];
-      setLocale(next);
+    // Dropdown chọn ngôn ngữ + nút Áp dụng riêng biệt: người dùng chọn ngôn ngữ
+    // muốn chuyển sang, rồi bấm "Đồng ý" mới thật sự đổi + tải lại trang — tránh
+    // tải lại ngoài ý muốn chỉ vì lỡ bấm nhầm vào nút chuyển ngôn ngữ.
+    const langToggleBtn = bar.querySelector("#vno-toggle-lang-btn");
+    const langMenu = bar.querySelector("#vno-lang-menu");
+    const langApplyBtn = bar.querySelector("#vno-lang-apply-btn");
+
+    langToggleBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      langMenu.style.display = langMenu.style.display === "none" ? "block" : "none";
+    });
+    langMenu.addEventListener("click", (e) => e.stopPropagation());
+    document.addEventListener("click", () => {
+      langMenu.style.display = "none";
+    });
+    langMenu.querySelectorAll('input[name="vno-lang-pick"]').forEach((radio) => {
+      radio.addEventListener("change", () => {
+        langApplyBtn.disabled = radio.value === getLocale();
+      });
+    });
+    langApplyBtn.addEventListener("click", () => {
+      const picked = langMenu.querySelector('input[name="vno-lang-pick"]:checked')?.value;
+      if (!picked || picked === getLocale()) return;
+      setLocale(picked);
       // SPA dựng toàn bộ DOM (ribbon, backstage, dialog) một lần khi khởi động —
       // tải lại trang là cách chắc chắn nhất để MỌI thành phần UI đang hiển thị
       // đổi đúng ngôn ngữ mới, thay vì cố re-render từng phần rải rác dễ sót.

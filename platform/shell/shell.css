@@ -205,6 +205,30 @@ body {
   border-radius: var(--vno-radius-md);
   cursor: pointer;
 }
+.vno-lang-menu {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-md);
+  box-shadow: var(--vno-shadow-lg);
+  width: 190px;
+  z-index: 200;
+  padding: 8px;
+}
+.vno-lang-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--vno-radius-sm);
+}
+.vno-lang-menu-item:hover {
+  background-color: var(--vno-bg-hover);
+}
 
 /* ==========================================================================
    2. RIBBON HOST (Thanh công cụ dải băng chuẩn Office)

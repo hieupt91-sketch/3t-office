@@ -9,11 +9,26 @@ import { enStrings } from "./strings-en.js";
 const STORAGE_KEY = "vno-locale";
 const SUPPORTED_LOCALES = ["vi", "en"];
 
+function _detectSystemLocale() {
+  try {
+    if (typeof navigator === "undefined") return "vi";
+    const langs = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language];
+    for (const lang of langs || []) {
+      const short = String(lang || "").toLowerCase().split("-")[0];
+      if (SUPPORTED_LOCALES.includes(short)) return short;
+    }
+    return "vi";
+  } catch {
+    return "vi";
+  }
+}
+
 function _readPersistedLocale() {
   try {
-    if (typeof localStorage === "undefined") return "vi";
+    if (typeof localStorage === "undefined") return _detectSystemLocale();
     const saved = localStorage.getItem(STORAGE_KEY);
-    return SUPPORTED_LOCALES.includes(saved) ? saved : "vi";
+    // Chưa từng chọn thủ công lần nào -> dùng ngôn ngữ hệ thống trình duyệt/OS làm mặc định.
+    return SUPPORTED_LOCALES.includes(saved) ? saved : _detectSystemLocale();
   } catch {
     return "vi";
   }
