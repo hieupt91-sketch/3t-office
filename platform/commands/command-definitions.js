@@ -163,6 +163,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.row.insert", category: "insert", label: "Chèn hàng", shortcut: "Ctrl+Shift+=", icon: "table", tooltip: "Chèn thêm hàng mới (Ctrl+Shift+=)" },
   { id: "sheet.col.insert", category: "insert", label: "Chèn cột", icon: "table", tooltip: "Chèn thêm cột mới" },
   { id: "sheet.chart.insert", category: "insert", label: "Biểu đồ", icon: "filePrint", tooltip: "Chèn biểu đồ phân tích dữ liệu" }
+  ,{ id: "sheet.insert.image", category: "insert", label: "Chèn ảnh", icon: "image", tooltip: "Chèn ảnh vào ô đang chọn" }
 ];
 
 export const SLIDES_COMMANDS = [
@@ -183,6 +184,8 @@ export const SLIDES_COMMANDS = [
   { id: "slides.media.insertAudio", category: "insert", label: "Âm thanh", icon: "audioInsert", tooltip: "Chèn âm thanh từ máy tính" },
 
   // Trình chiếu & Thiết kế
+  { id: "slides.design.themeGallery", category: "design", label: "Chủ đề", icon: "themeGallery", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" },
+  { id: "slides.design.slideSize", category: "design", label: "Kích thước trang chiếu", icon: "slideSize", tooltip: "Chọn tỷ lệ trang chiếu 16:9 hoặc 4:3" },
   { id: "slides.master.apply", category: "design", label: "Mẫu Slide Master", icon: "template", tooltip: "Áp dụng mẫu Slide Master đồng bộ font, màu, logo cho toàn bộ trang chiếu" },
   { id: "slides.transition.apply", category: "transition", label: "Chuyển tiếp", icon: "slidePlay", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" },
   { id: "slides.animation.apply", category: "animation", label: "Hiệu ứng đối tượng", icon: "aiSparkle", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" },

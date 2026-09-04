@@ -87,6 +87,26 @@ export class SheetAdapter {
     });
   }
 
+  _insertImageDialog(options) {
+    options = options || {};
+    if (typeof document === "undefined" || typeof FileReader === "undefined") return Promise.resolve(false);
+    return new Promise(resolve => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = () => {
+        const file = input.files?.[0];
+        if (!file) { resolve(false); return; }
+        const reader = new FileReader();
+        reader.onload = event => resolve(!!this.grid.insertImage?.(event.target.result, options.anchor));
+        reader.onerror = () => resolve(false);
+        reader.readAsDataURL(file);
+      };
+      input.oncancel = () => resolve(false);
+      input.click();
+    });
+  }
+
   /**
    * Chuyển đổi dữ liệu bảng tính hiện tại thành chuỗi CSV (RFC 4180).
    * Giữ nguyên công thức bắt đầu bằng '=' để LibreOffice Calc xử lý chuẩn xác.
@@ -388,6 +408,9 @@ export class SheetAdapter {
       case "sheet.chart.insert":
         this.grid.openChartBuilder();
         return true;
+
+      case "sheet.insert.image":
+        return await this._insertImageDialog(args || {});
 
       case "sheet.view.freezePanes":
         return this.grid.toggleFreezePanes ? this.grid.toggleFreezePanes() : false;

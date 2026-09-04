@@ -65,7 +65,7 @@
 
 .vno-slide-thumb-card {
   flex: 1;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: var(--vno-slide-aspect, 16 / 9);
   background-color: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: var(--vno-radius-sm);
@@ -587,7 +587,7 @@
 }
 .vno-presenter-slide-card {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: var(--vno-slide-aspect, 16 / 9);
   max-height: 100%;
   padding: 24px 32px;
   border-radius: 4px;
@@ -787,7 +787,7 @@
 .vno-slide-sorter-item.is-dragging { opacity: .45; cursor: grabbing; }
 .vno-slide-sorter-number { margin: 0 0 6px 2px; color: #475569; font-size: 13px; font-weight: 700; }
 .vno-slide-sorter-preview {
-  position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 5px;
+  position: relative; aspect-ratio: var(--vno-slide-aspect, 16 / 9); overflow: hidden; border-radius: 5px;
   padding: 24px 26px; border: 1px solid #bcc7d5; box-shadow: 0 5px 14px rgba(15,23,42,.16);
   display: flex; flex-direction: column; box-sizing: border-box;
 }

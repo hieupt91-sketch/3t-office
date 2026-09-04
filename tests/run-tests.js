@@ -42,6 +42,8 @@ import { runSheetArrayFormulaTests } from "./unit/sheet-array-formulas.test.js";
 import { runSlidesDiagramTests } from "./unit/slides-diagrams.test.js";
 import { runShortcutScopeTests } from "./unit/shortcut-scope.test.js";
 import { runWriterRefMailAuditTests } from "./unit/writer-refmail-audit.test.js";
+import { runSheetImageTests } from "./unit/sheet-images.test.js";
+import { runSlidesSlideSizeTests } from "./unit/slides-slide-size.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -91,7 +93,9 @@ async function runAll() {
     { title: "36. Behavioral Tests — VN Sheet Cross-Sheet & Array Formulas", runner: runSheetArrayFormulaTests },
     { title: "37. Behavioral Tests — VN Slides SmartArt-like Diagrams", runner: runSlidesDiagramTests },
     { title: "38. Runtime Tests — Active App Shortcut Scope", runner: runShortcutScopeTests },
-    { title: "39. Behavioral & Unit Tests — VN Writer References & Mailings Audit", runner: runWriterRefMailAuditTests }
+    { title: "39. Behavioral & Unit Tests — VN Writer References & Mailings Audit", runner: runWriterRefMailAuditTests },
+    { title: "40. Behavioral Tests — VN Sheet Insert Pictures", runner: runSheetImageTests },
+    { title: "41. Behavioral Tests — VN Slides Slide Size", runner: runSlidesSlideSizeTests }
   ];
 
   for (const suite of suites) {
