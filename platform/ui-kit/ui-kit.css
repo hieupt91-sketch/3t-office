@@ -33,7 +33,9 @@
 }
 
 .vno-btn:focus-visible {
-  box-shadow: 0 0 0 2px var(--vno-border-focus);
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 1px #ffffff;
 }
 
 .vno-btn:disabled {
@@ -137,9 +139,18 @@
 .vno-select:hover {
   border-color: var(--vno-border-strong);
 }
-.vno-select:focus {
-  border-color: var(--vno-app-current);
-  box-shadow: 0 0 0 2px var(--vno-app-current-light);
+.vno-select:focus,
+.vno-select:focus-visible {
+  border-color: var(--vno-border-focus);
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 1px;
+}
+
+.vno-dialog-input:focus,
+.vno-dialog-input:focus-visible {
+  border-color: var(--vno-border-focus) !important;
+  outline: 2px solid var(--vno-border-focus) !important;
+  outline-offset: 1px;
 }
 
 /* Dialog & Modal */

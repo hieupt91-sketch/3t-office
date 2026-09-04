@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office Platform — Enterprise Shell Styles
  * Giao diện phần mềm văn phòng chuyên nghiệp chuẩn Fluent / Modern Desktop
  */
@@ -67,6 +67,10 @@ body {
   background-color: var(--vno-bg-hover);
   border-color: var(--vno-border-strong);
 }
+.vno-app-switcher-btn:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 1px;
+}
 
 /* Quick Access Toolbar */
 .vno-quick-tools {
@@ -87,10 +91,15 @@ body {
   border-radius: var(--vno-radius-sm);
   color: var(--vno-text-secondary);
   cursor: pointer;
+  outline: none;
 }
 .vno-quick-btn:hover {
   background-color: var(--vno-bg-hover);
   color: var(--vno-text-primary);
+}
+.vno-quick-btn:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 1px;
 }
 
 /* Document Tabs Bar */
@@ -114,6 +123,11 @@ body {
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s;
+  outline: none;
+}
+.vno-doc-tab:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 1px;
 }
 .vno-doc-tab:hover {
   background-color: var(--vno-bg-hover);
@@ -479,16 +493,32 @@ body {
 }
 .vno-zoom-slider button {
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   color: #ffffff;
   font-size: 14px;
   cursor: pointer;
   line-height: 1;
+  border-radius: var(--vno-radius-sm);
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+}
+.vno-zoom-slider button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
 }
 .vno-zoom-slider input[type="range"] {
   width: 90px;
   accent-color: #ffffff;
   cursor: pointer;
+  outline: none;
+}
+.vno-zoom-slider input[type="range"]:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
 }
 
 /* ==========================================================================
@@ -527,6 +557,11 @@ body {
   font-weight: 700;
   cursor: pointer;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  outline: none;
+}
+.vno-backstage-back-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: -2px;
 }
 
 .vno-backstage-nav-btn {
@@ -542,10 +577,15 @@ body {
   cursor: pointer;
   transition: all 0.15s;
   text-align: left;
+  outline: none;
 }
 .vno-backstage-nav-btn:hover {
   background-color: rgba(255, 255, 255, 0.12);
   color: #ffffff;
+}
+.vno-backstage-nav-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: -2px;
 }
 .vno-backstage-nav-btn.is-active {
   background-color: #ffffff;
@@ -576,11 +616,21 @@ body {
   flex-direction: column;
   align-items: center;
   text-align: center;
+  outline: none;
 }
 .vno-template-card:hover {
   border-color: var(--vno-app-current);
   box-shadow: var(--vno-shadow-md);
   transform: translateY(-2px);
+}
+.vno-template-card:focus-visible {
+  border-color: var(--vno-border-focus);
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 2px;
+}
+.vno-recent-row:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: -2px;
 }
 .vno-template-thumb {
   width: 100%;
