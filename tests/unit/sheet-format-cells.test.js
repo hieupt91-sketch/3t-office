@@ -276,16 +276,9 @@ export async function runSheetFormatCellsTests() {
     assert(grid.cellsData.get("A2")?.style?.numberFormat?.category === "percentage", "Sau redo A2 khôi phục percentage");
   });
 
-  // 10. FODS Round-Trip Test — LƯU Ý: đây là round-trip TRONG BỘ NHỚ (serializeToFods
-  // -> parseFods trực tiếp), xác nhận logic của chính adapter là đúng. Đã kiểm tra riêng
-  // bằng soffice.exe headless thật (FODS -> XLSX -> FODS) và xác nhận thuộc tính tùy biến
-  // `vno:number-format` KHÔNG sống sót qua một vòng chuyển đổi XLSX thật — LibreOffice loại
-  // bỏ mọi thuộc tính namespace lạ ở cấp <table:table-cell> khi convert sang XLSX. Vì vậy
-  // Format Cells hiện chỉ lưu định dạng số trong PHIÊN LÀM VIỆC hiện tại; Lưu ra XLSX thật
-  // rồi Mở lại sẽ mất định dạng (giá trị số/chuỗi vẫn giữ đúng, không mất dữ liệu). Việc lưu
-  // định dạng số bền qua file thật cần ánh xạ sang cơ chế ODF chuẩn (<number:number-style>
-  // + table:style-name) — xem docs/HANDOFF-SHEET-FORMAT-CELLS.md mục "Giới hạn đã biết".
-  test("SheetAdapter: adapter tự round-trip (trong bộ nhớ) thuộc tính vno:number-format qua serializeToFods/parseFods", () => {
+  // 10. FODS standard number styles. The custom vno attribute remains only as a
+  // same-session fallback; persistence uses ODF data styles and table-cell styles.
+  test("SheetAdapter: round-trip định dạng số qua style số ODF chuẩn", () => {
     const container = mockContainer();
     const grid = new SheetGridController(container);
     const adapter = new SheetAdapter(grid);
@@ -301,6 +294,9 @@ export async function runSheetFormatCellsTests() {
 
     // Serialize ra FODS XML
     const fodsXml = adapter.serializeToFods();
+    assert(fodsXml.includes("<number:currency-style"), "FODS phải có number:currency-style chuẩn");
+    assert(fodsXml.includes('style:data-style-name="n1"'), "Cell style phải trỏ tới data style");
+    assert(fodsXml.includes('table:style-name="ce1"'), "Ô phải trỏ tới cell style hai lớp");
     assert(fodsXml.includes("vno:number-format"), "FODS XML phải chứa thuộc tính vno:number-format");
     assert(fodsXml.includes("accounting"), "FODS XML phải lưu category accounting");
 
