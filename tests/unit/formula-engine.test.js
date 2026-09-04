@@ -191,5 +191,19 @@ export async function runFormulaEngineTests() {
           engine.evaluate("=NPER(0.01,-10,1000,0,2)") === "#NUM!"
   });
 
+  // 18. IPMT — khoản vay 2.000, lãi 10%/năm, trả hàng tháng trong 2 năm.
+  // Excel: =IPMT(10%/12,1,2*12,2000) -> -16,6666666666667
+  const ipmtRes = engine.evaluate("=IPMT(0.008333333333333333,1,24,2000)");
+  const ipmtTypeOneRes = engine.evaluate("=IPMT(0.008333333333333333,1,24,2000,0,1)");
+  const ipmtZeroRateRes = engine.evaluate("=IPMT(0,5,10,1000)");
+  results.push({
+    name: "Financial IPMT: đúng phần lãi Excel, đầu kỳ đầu không có lãi và rate=0",
+    pass: approximatelyEqual(ipmtRes, -16.666666666666668, 1e-10) &&
+          approximatelyEqual(ipmtTypeOneRes, 0) &&
+          approximatelyEqual(ipmtZeroRateRes, 0) &&
+          engine.evaluate("=IPMT(0.01,0,12,1000)") === "#NUM!" &&
+          engine.evaluate("=IPMT(0.01,13,12,1000)") === "#NUM!"
+  });
+
   return results;
 }

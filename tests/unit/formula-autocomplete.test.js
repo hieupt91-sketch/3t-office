@@ -209,5 +209,13 @@ export async function runFormulaAutocompleteTests() {
           nper.desc.includes("số kỳ") && nper.desc.includes("đầu kỳ")
   });
 
+  const ipmt = FUNCTION_CATALOG.find(item => item.name === "IPMT");
+  results.push({
+    name: "Autocomplete: IPMT mô tả phần lãi, kỳ per và đủ tham số tùy chọn",
+    pass: ipmt?.category === "Tài chính" &&
+          ipmt.syntax === "IPMT(rate, per, nper, pv, [fv], [type])" &&
+          ipmt.desc.includes("tiền lãi") && ipmt.desc.includes("1 đến nper")
+  });
+
   return results;
 }

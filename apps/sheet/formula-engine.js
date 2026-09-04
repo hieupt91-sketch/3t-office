@@ -66,6 +66,7 @@ export const FUNCTION_CATALOG = [
   ,{ name: "IRR", category: "Tài chính", syntax: "IRR(values, [guess])", desc: "Tính tỷ suất hoàn vốn nội bộ của chuỗi dòng tiền có ít nhất một giá trị âm và một giá trị dương." }
   ,{ name: "RATE", category: "Tài chính", syntax: "RATE(nper, pmt, pv, [fv], [type], [guess])", desc: "Tính lãi suất mỗi kỳ của niên kim; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ), guess là giá trị dự đoán ban đầu." }
   ,{ name: "NPER", category: "Tài chính", syntax: "NPER(rate, pmt, pv, [fv], [type])", desc: "Tính số kỳ cần thiết để hoàn tất khoản vay hoặc đạt mục tiêu đầu tư với khoản thanh toán cố định; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
+  ,{ name: "IPMT", category: "Tài chính", syntax: "IPMT(rate, per, nper, pv, [fv], [type])", desc: "Tính phần tiền lãi trong khoản thanh toán tại kỳ per; per phải từ 1 đến nper, type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
   ,{ name: "SLN", category: "Tài chính", syntax: "SLN(cost, salvage, life)", desc: "Tính khấu hao đường thẳng mỗi kỳ từ nguyên giá, giá trị thu hồi và thời gian sử dụng." }
   ,{ name: "DB", category: "Tài chính", syntax: "DB(cost, salvage, life, period, [month])", desc: "Tính khấu hao theo số dư giảm dần cố định; month là số tháng trong năm đầu tiên (mặc định 12)." }
 ];
@@ -608,6 +609,26 @@ export class FormulaEngine {
         if (ratio <= 0) return "#NUM!";
         const periods = Math.log(ratio) / Math.log(1 + rate);
         return Number.isFinite(periods) ? periods : "#NUM!";
+      }
+
+      case "IPMT": {
+        if (args.length < 4) return "#VALUE!";
+        const rate = Number(this._resolveSingleValue(args[0]));
+        const per = Number(this._resolveSingleValue(args[1]));
+        const nper = Number(this._resolveSingleValue(args[2]));
+        const pv = Number(this._resolveSingleValue(args[3]));
+        const fv = args[4] === undefined ? 0 : Number(this._resolveSingleValue(args[4]));
+        const type = args[5] === undefined ? 0 : Number(this._resolveSingleValue(args[5]));
+        if (![rate, per, nper, pv, fv, type].every(Number.isFinite)) return "#VALUE!";
+        if (nper <= 0 || per < 1 || per > nper || (type !== 0 && type !== 1) || rate <= -1) return "#NUM!";
+        if (rate === 0 || (type === 1 && per === 1)) return 0;
+        const paymentFactor = Math.pow(1 + rate, nper);
+        const payment = -((pv * paymentFactor + fv) * rate) /
+          ((1 + rate * type) * (paymentFactor - 1));
+        const elapsedFactor = Math.pow(1 + rate, per - 1);
+        const balance = -(pv * elapsedFactor + payment * (1 + rate * type) * (elapsedFactor - 1) / rate);
+        const interest = type === 1 ? balance * rate / (1 + rate) : balance * rate;
+        return Number.isFinite(interest) ? interest : "#NUM!";
       }
 
       case "SLN": {
