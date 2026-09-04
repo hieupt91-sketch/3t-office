@@ -68,7 +68,14 @@ export class ShortcutManager {
       else if (pLower === "alt") alt = true;
       else if (pLower === "shift") shift = true;
       else if (pLower === "meta" || pLower === "cmd" || pLower === "win") meta = true;
-      else key = p.toUpperCase();
+      else {
+        let k = p.toUpperCase();
+        if (k === "ARROWUP") k = "UP";
+        else if (k === "ARROWDOWN") k = "DOWN";
+        else if (k === "ARROWLEFT") k = "LEFT";
+        else if (k === "ARROWRIGHT") k = "RIGHT";
+        key = k;
+      }
     });
 
     return `${ctrl ? "CTRL+" : ""}${alt ? "ALT+" : ""}${shift ? "SHIFT+" : ""}${meta ? "META+" : ""}${key}`;
@@ -118,6 +125,10 @@ export class ShortcutManager {
     if (e.key === "]") keyName = "]";
     if (e.key === "`") keyName = "`";
     if (e.key === "~") keyName = "~";
+    if (e.key === "ArrowUp") keyName = "UP";
+    if (e.key === "ArrowDown") keyName = "DOWN";
+    if (e.key === "ArrowLeft") keyName = "LEFT";
+    if (e.key === "ArrowRight") keyName = "RIGHT";
 
     // Tạo chuỗi tổ hợp phím
     const combo = `${e.ctrlKey || e.metaKey ? "CTRL+" : ""}${e.altKey ? "ALT+" : ""}${e.shiftKey ? "SHIFT+" : ""}${keyName}`;

@@ -47,6 +47,8 @@ export const VN_TO_UNO_MAP = {
   "writer.text.clearFormat": ".uno:ResetAttributes",
   "writer.font.family": ".uno:FontName",
   "writer.font.size": ".uno:FontHeight",
+  "writer.style.normal": ".uno:StyleApply?Style:string=Standard",
+  "writer.text.changeCase": ".uno:ChangeCaseToUpper",
   "writer.style.apply": ".uno:StyleApply",
   "writer.style.gallery": ".uno:DesignerDialog",
   "writer.color.text": ".uno:Color",
@@ -64,6 +66,8 @@ export const VN_TO_UNO_MAP = {
   "writer.list.numbered": ".uno:DefaultNumbering",
   "writer.para.indentInc": ".uno:IncrementIndent",
   "writer.para.indentDec": ".uno:DecrementIndent",
+  "writer.para.moveUp": ".uno:MoveUp",
+  "writer.para.moveDown": ".uno:MoveDown",
 
   // Writer / Insert
   "writer.table.insert": ".uno:InsertTable",
