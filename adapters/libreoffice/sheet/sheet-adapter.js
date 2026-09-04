@@ -331,6 +331,35 @@ export class SheetAdapter {
     return cells.length > 1 && cells[1] !== cells[0] ? `${cells[0]}:${cells[1]}` : cells[0];
   }
 
+  _arrayFormulaInfo(coordinate, item) {
+    if (!item?.isArrayFormula || !item.arrayRange) return null;
+    const match = String(item.arrayRange).replace(/\$/g, "").toUpperCase().match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+    if (!match) return null;
+    const startColumn = this._columnNumber(match[1]);
+    const startRow = Number(match[2]);
+    const endColumn = this._columnNumber(match[3]);
+    const endRow = Number(match[4]);
+    if (endColumn < startColumn || endRow < startRow) return null;
+    return {
+      isAnchor: coordinate === `${match[1]}${match[2]}`,
+      columns: endColumn - startColumn + 1,
+      rows: endRow - startRow + 1
+    };
+  }
+
+  _restoreArrayFormula(data, startColumn, startRow, columns, rows, formula) {
+    const endColumn = startColumn + columns - 1;
+    const endRow = startRow + rows - 1;
+    const arrayRange = `${this._columnName(startColumn)}${startRow}:${this._columnName(endColumn)}${endRow}`;
+    for (let row = startRow; row <= endRow; row++) {
+      for (let column = startColumn; column <= endColumn; column++) {
+        const coordinate = `${this._columnName(column)}${row}`;
+        const item = data.get(coordinate) || { val: "", formula: "", style: {} };
+        data.set(coordinate, { ...item, formula, isArrayFormula: true, arrayRange });
+      }
+    }
+  }
+
   _parseNamedRangeElement(attributes, scope, fallbackSheet, index) {
     const get = name => this._unescapeXml(attributes.match(new RegExp(`${name}=["']([^"']*)["']`, "i"))?.[1] || "");
     const name = get("table:name");
@@ -458,16 +487,20 @@ export class SheetAdapter {
           else if (gap > 1) cellsXml += `<table:table-cell table:number-columns-repeated="${gap}"/>`;
 
           const item = rowCells.get(columnNumber);
-          const formula = item.formula && String(item.formula).startsWith("=") ? String(item.formula) : "";
+          const coordinate = `${this._columnName(columnNumber)}${rowNumber}`;
+          const arrayFormula = this._arrayFormulaInfo(coordinate, item);
+          const formula = (!arrayFormula || arrayFormula.isAnchor) && item.formula && String(item.formula).startsWith("=") ? String(item.formula) : "";
           const formulaAttrs = formula
             ? ` table:formula="${this._escapeXml(this._formulaToOdf(formula))}" vno:formula="${this._escapeXml(formula)}"`
+            : "";
+          const matrixAttrs = arrayFormula?.isAnchor
+            ? ` table:number-matrix-columns-spanned="${arrayFormula.columns}" table:number-matrix-rows-spanned="${arrayFormula.rows}"`
             : "";
           const numFmtAttr = item.style?.numberFormat
             ? ` vno:number-format="${this._escapeXml(JSON.stringify(item.style.numberFormat))}"`
             : "";
           const formatStyle = item.style?.numberFormat ? numberFormats.get(JSON.stringify(item.style.numberFormat)) : null;
-          const cellAttrs = `${formulaAttrs}${numFmtAttr}${formatStyle ? ` table:style-name="${formatStyle.cellStyle}"` : ""}`;
-          const coordinate = `${this._columnName(columnNumber)}${rowNumber}`;
+          const cellAttrs = `${formulaAttrs}${matrixAttrs}${numFmtAttr}${formatStyle ? ` table:style-name="${formatStyle.cellStyle}"` : ""}`;
           const comment = comments[coordinate];
           const annotationXml = comment ? `<office:annotation><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
           if (typeof item.val === "number" && Number.isFinite(item.val)) {
@@ -576,6 +609,7 @@ export class SheetAdapter {
           const data = new Map();
           const comments = {};
           const localRanges = [];
+          const arrayFormulas = [];
           let localNameIndex = 0;
           table.outerHTML.replace(/<table:named-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
             const range = this._parseNamedRangeElement(attrs, "sheet", name, ++localNameIndex);
@@ -603,6 +637,11 @@ export class SheetAdapter {
                 const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation;
                 if (hasValue) {
                   const item = this._cellFromFodsAttributes(attributes, text, numberStyles);
+                  const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);
+                  const matrixRows = Math.max(1, Number(attributes["table:number-matrix-rows-spanned"]) || 1);
+                  if ((attributes["table:number-matrix-columns-spanned"] || attributes["table:number-matrix-rows-spanned"]) && item.formula) {
+                    arrayFormulas.push({ column: columnNumber, row: rowNumber, columns: matrixColumns, rows: matrixRows, formula: item.formula });
+                  }
                   for (let repeat = 0; repeat < columnRepeat; repeat++) {
                     const coord = `${this._columnName(columnNumber + repeat)}${rowNumber}`;
                     data.set(coord, { ...item });
@@ -619,6 +658,7 @@ export class SheetAdapter {
               rowNumber++;
             }
           });
+          arrayFormulas.forEach(region => this._restoreArrayFormula(data, region.column, region.row, region.columns, region.rows, region.formula));
           workbook.sheets.push(name);
           workbook.sheetsData[name] = data;
           workbook.commentsBySheet[name] = comments;
@@ -643,6 +683,7 @@ export class SheetAdapter {
         const data = new Map();
         const comments = {};
         const localRanges = [];
+        const arrayFormulas = [];
         let localNameIndex = 0;
         tableMatch[2].replace(/<table:named-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
           const range = this._parseNamedRangeElement(attrs, "sheet", name, ++localNameIndex);
@@ -679,6 +720,11 @@ export class SheetAdapter {
               const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotationMatch;
               if (hasValue) {
                 const item = this._cellFromFodsAttributes(attributes, text, numberStyles);
+                const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);
+                const matrixRows = Math.max(1, Number(attributes["table:number-matrix-rows-spanned"]) || 1);
+                if ((attributes["table:number-matrix-columns-spanned"] || attributes["table:number-matrix-rows-spanned"]) && item.formula) {
+                  arrayFormulas.push({ column: columnNumber, row: rowNumber, columns: matrixColumns, rows: matrixRows, formula: item.formula });
+                }
                 for (let repeat = 0; repeat < columnRepeat; repeat++) {
                   const coord = `${this._columnName(columnNumber + repeat)}${rowNumber}`;
                   data.set(coord, { ...item });
@@ -698,6 +744,7 @@ export class SheetAdapter {
             rowNumber++;
           }
         }
+        arrayFormulas.forEach(region => this._restoreArrayFormula(data, region.column, region.row, region.columns, region.rows, region.formula));
         workbook.sheets.push(name);
         workbook.sheetsData[name] = data;
         workbook.commentsBySheet[name] = comments;

@@ -94,5 +94,27 @@ export async function runSheetArrayFormulaTests() {
     assert(await adapter.handleDispatch(null, { formula: "=1+2" }, command.id), "handleDispatch phải xử lý command thật");
     assert(await globalCommandBus.execute(command.id, { formula: "=2+3" }), "bindHandler phải xử lý command thật");
   });
+  await test("Array formula: FODS matrix spans round-trip và loadFromFods khôi phục toàn vùng", () => {
+    const grid = new SheetGridController(container());
+    for (let row = 1; row <= 3; row++) {
+      grid.setCellValue("A", row, row, false);
+      grid.setCellValue("B", row, 10, false);
+    }
+    grid.selectionRange = { start: { c: "C", r: 1 }, end: { c: "C", r: 3 } };
+    grid.selectedCoord = { c: "C", r: 1 };
+    grid.enterArrayFormula({ formula: "=A1:A3*B1:B3" });
+    const adapter = new SheetAdapter(grid);
+    const xml = adapter.serializeToFods();
+    assert((xml.match(/table:number-matrix-rows-spanned="3"/g) || []).length === 1, "Matrix span phải chỉ có trên ô góc");
+    assert((xml.match(/table:formula=/g) || []).length === 1, "Array formula không được lặp trên ô thành viên");
+    const parsed = adapter.parseFods(xml);
+    const sheet = grid.activeSheet;
+    assert([1, 2, 3].every(row => parsed.sheetsData[sheet].get(`C${row}`)?.isArrayFormula), "Parser không khôi phục metadata toàn vùng");
+    assert(parsed.sheetsData[sheet].get("C2")?.arrayRange === "C1:C3", "Parser khôi phục sai arrayRange");
+
+    const loaded = new SheetGridController(container());
+    assert(new SheetAdapter(loaded).loadFromFods(xml), "loadFromFods thất bại");
+    assert(loaded.sheetsData[sheet].get("C3")?.formula === "=A1:A3*B1:B3", "loadFromFods không khôi phục array formula");
+  });
   return results;
 }
