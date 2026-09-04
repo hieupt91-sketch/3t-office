@@ -239,7 +239,13 @@ export const SLIDES_COMMANDS = [
   { id: "slides.show.startFromBegin", category: "show", label: "Từ đầu", shortcut: "F5", icon: "slidePlay", tooltip: "Bắt đầu trình chiếu từ trang đầu tiên (F5)" },
   { id: "slides.show.startFromCurrent", category: "show", label: "Từ trang này", shortcut: "Shift+F5", icon: "slidePlay", tooltip: "Trình chiếu từ trang hiện tại (Shift+F5)" },
   { id: "slides.show.presenterMode", category: "show", label: "Chế độ Presenter", shortcut: "Alt+F5", icon: "slidePlay", tooltip: "Trình chiếu chế độ Người thuyết trình kèm ghi chú và đồng hồ (Alt+F5)" },
-  { id: "slides.show.rehearseTimings", category: "show", label: "Tập dượt hẹn giờ", icon: "rehearseTimings", tooltip: "Trình chiếu và đo thời gian thật ở mỗi trang, có thể lưu lại làm mốc thời gian" }
+  { id: "slides.show.rehearseTimings", category: "show", label: "Tập dượt hẹn giờ", icon: "rehearseTimings", tooltip: "Trình chiếu và đo thời gian thật ở mỗi trang, có thể lưu lại làm mốc thời gian" },
+  { id: "slides.shape.group", category: "arrange", label: "Nhóm đối tượng", shortcut: "Ctrl+G", icon: "shape", tooltip: "Nhóm các đối tượng đang chọn thành một khối (Ctrl+G)" },
+  { id: "slides.shape.ungroup", category: "arrange", label: "Bỏ nhóm", shortcut: "Ctrl+Shift+G", icon: "shape", tooltip: "Tách nhóm đối tượng đang chọn (Ctrl+Shift+G)" },
+  { id: "slides.nav.firstSlide", category: "nav", label: "Trang đầu tiên", shortcut: "Ctrl+Home", icon: "slideNew", tooltip: "Về trang chiếu đầu tiên (Ctrl+Home)" },
+  { id: "slides.nav.lastSlide", category: "nav", label: "Trang cuối cùng", shortcut: "Ctrl+End", icon: "slideNew", tooltip: "Đến trang chiếu cuối cùng (Ctrl+End)" },
+  { id: "slides.nav.prevSlide", category: "nav", label: "Trang trước", shortcut: "PageUp", icon: "slideNew", tooltip: "Về trang chiếu trước (Page Up)" },
+  { id: "slides.nav.nextSlide", category: "nav", label: "Trang sau", shortcut: "PageDown", icon: "slideNew", tooltip: "Đến trang chiếu sau (Page Down)" }
 ];
 
 export function registerAllStandardCommands(bus) {

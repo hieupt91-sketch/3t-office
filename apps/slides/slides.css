@@ -340,6 +340,10 @@
 
 /* Object Selection & Badges in Canvas */
 .vno-slide-shape-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   transition: outline 0.15s ease, box-shadow 0.15s ease;
   user-select: none;
 }
@@ -350,12 +354,17 @@
 }
 .vno-slide-shape-item.is-connector { overflow: visible; }
 .vno-slide-shape-item.is-diagram-node { display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
-.vno-diagram-node-text, .vno-show-shape-text {
+.vno-diagram-node-text, .vno-show-shape-text, .vno-shape-text {
   width: 100%; padding: 8px; box-sizing: border-box; color: #fff; font-size: 17px;
   line-height: 1.25; font-weight: 700; text-align: center; word-break: break-word;
   user-select: text; cursor: text; outline: none;
 }
-.vno-diagram-node-text[contenteditable="true"] { background: rgba(255,255,255,.16); box-shadow: inset 0 0 0 2px rgba(255,255,255,.8); }
+.vno-diagram-node-text[contenteditable="true"], .vno-shape-text[contenteditable="true"] { background: rgba(255,255,255,.16); box-shadow: inset 0 0 0 2px rgba(255,255,255,.8); }
+.vno-shape-text.is-textbox-text {
+  color: #1e293b;
+  font-weight: 500;
+  text-align: left;
+}
 .vno-show-shape { display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .vno-show-connector { pointer-events: none; }
 .vno-slide-title.is-selected {
@@ -380,6 +389,78 @@
   pointer-events: none;
   white-space: nowrap;
   z-index: 10;
+}
+
+/* 8 Resize Handles (PowerPoint parity) */
+.vno-shape-resize-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: #ffffff;
+  border: 1.5px solid #2563eb;
+  border-radius: 1px;
+  box-sizing: border-box;
+  z-index: 25;
+}
+.vno-handle-nw { top: -4px; left: -4px; cursor: nwse-resize; }
+.vno-handle-n { top: -4px; left: calc(50% - 4px); cursor: ns-resize; }
+.vno-handle-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.vno-handle-e { top: calc(50% - 4px); right: -4px; cursor: ew-resize; }
+.vno-handle-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+.vno-handle-s { bottom: -4px; left: calc(50% - 4px); cursor: ns-resize; }
+.vno-handle-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.vno-handle-w { top: calc(50% - 4px); left: -4px; cursor: ew-resize; }
+
+/* Smart Guides / Snap Lines */
+.vno-slide-smart-guides-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9990;
+}
+.vno-smart-guide {
+  pointer-events: none;
+}
+.vno-smart-guide-v {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 1px;
+  border-left: 1.5px dashed #ef4444;
+}
+.vno-smart-guide-h {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  border-top: 1.5px dashed #ef4444;
+}
+
+/* Marquee / Rubber-band Selection */
+.vno-marquee-selection {
+  position: absolute;
+  border: 1.5px dashed #2563eb;
+  background-color: rgba(37, 99, 235, 0.12);
+  pointer-events: none;
+  z-index: 9998;
+  box-sizing: border-box;
+}
+
+/* Filmstrip Drag-and-Drop */
+.vno-slide-thumb-item[draggable="true"] {
+  cursor: grab;
+}
+.vno-slide-thumb-item[draggable="true"]:active {
+  cursor: grabbing;
+}
+.vno-slide-thumb-item.is-dragging {
+  opacity: 0.4;
+}
+.vno-slide-thumb-item.is-drag-over {
+  outline: 2px dashed var(--vno-slides-primary, #b53818);
+  outline-offset: 3px;
+  background-color: rgba(181, 56, 24, 0.08);
+  border-radius: var(--vno-radius-sm, 4px);
 }
 
 .vno-shape-delete-btn {

@@ -190,6 +190,12 @@ export const VN_TO_UNO_MAP = {
   "slides.show.startFromCurrent": ".uno:StartPresentation",
   "slides.show.presenterMode": ".uno:PresenterConsole",
   "slides.show.rehearseTimings": ".uno:RehearseTimings",
+  "slides.shape.group": ".uno:FormatGroup",
+  "slides.shape.ungroup": ".uno:FormatUngroup",
+  "slides.nav.firstSlide": ".uno:JumpToFirstPage",
+  "slides.nav.lastSlide": ".uno:JumpToLastPage",
+  "slides.nav.prevSlide": ".uno:JumpToPrevPage",
+  "slides.nav.nextSlide": ".uno:JumpToNextPage",
 
   // AI
   // ai.assistant.grammarCheck CỐ Ý không có ở đây: nó có handler thật gắn qua

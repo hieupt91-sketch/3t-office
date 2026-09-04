@@ -129,3 +129,19 @@
    - F4 (Lặp lại / Redo), Ctrl+Home / Ctrl+End, Ctrl+PageUp / Ctrl+PageDown.
    - Kiểm tra `tests/unit/shortcut-scope.test.js`, chạy toàn bộ `node tests/run-tests.js` < 60s, 100% PASS.
    - Hoàn thiện tài liệu bàn giao.
+
+---
+
+## 4. Giai đoạn 3 & 4 — HOÀN TẤT (Claude, 04/09/2026)
+
+**Bối cảnh xử lý sự cố**: agy hoàn thành phần lớn Giai đoạn 3 (Sheet + Writer) rồi bị cắt ngang bởi timeout CLI khi đang thêm resize/marquee/group cho Slides — trong lúc sửa code đã **vô tình xóa mất toàn bộ định nghĩa hàm `_renderShapesLayer()`** (chỉ còn lại ~30 chỗ gọi hàm, không còn nơi định nghĩa), làm sập 27 test (Animations, Speaker Notes, Slide Layouts, SmartArt, Slide Size, media insert). agy sau đó hết quota thật (reset 2h35m) trước khi tự sửa được. Theo đúng quy định "chủ động làm khi agent hết quota", Claude đã:
+
+1. **Khôi phục `_renderShapesLayer()`** — ghép logic gốc (dựng DOM cho từng loại shape: connector/image/video/audio/text, sửa chữ trực tiếp) với các hàm mới agy đã viết xong nhưng bị "mồ côi" không ai gọi tới (`_attachShapeDrag` cho kéo-thả mọi shape thường — không chỉ diagram node như trước, `_ensureShapeSelectionHandles` cho nút xóa + 8 tay cầm resize, đồng bộ qua `_updateSelectionUi()` đã có sẵn). Về lại 590/590 PASS, verify thật bằng Playwright (kéo shape, resize handle, marquee).
+2. **Nối dây Group/Ungroup** (`slides.shape.group` Ctrl+G, `slides.shape.ungroup` Ctrl+Shift+G) và **Điều hướng trang** (`slides.nav.firstSlide` Ctrl+Home, `slides.nav.lastSlide` Ctrl+End, `slides.nav.prevSlide` PageUp, `slides.nav.nextSlide` PageDown) — logic canvas (`groupSelectedShapes`/`ungroupSelectedShapes`/`selectSlide`) đã có sẵn từ trước nhưng KHÔNG được lệnh Command Bus nào gọi tới.
+   - **Lỗi thật phát hiện trong lúc nối dây** (cùng loại phát hiện của Codex ở task ribbon-gaps song song): `CommandBus.execute()` chỉ tìm handler đã `bindHandler()` — các case mới thêm vào switch `handleDispatch()` là code chết nếu không có mapping UNO trong `command-dispatch-mapper.js`, vì `UnoBridge.attachDocument()` chỉ tự động `bindHandler()` cho command NÀO CÓ `mapVnCommandToUno()` trả về giá trị thật. Đã thêm 6 mapping (`.uno:FormatGroup`, `.uno:FormatUngroup`, `.uno:JumpToFirstPage`, `.uno:JumpToLastPage`, `.uno:JumpToPrevPage`, `.uno:JumpToNextPage`).
+3. **Kéo-thả Filmstrip** — đã có sẵn từ trước (agy làm xong trong phần bị cắt), xác nhận qua `moveSlide()` tái dùng logic Slide Sorter.
+4. Test mới: `tests/unit/slides-mouse-shortcuts.test.js` (8 test logic thuần) + `tests/live/slides-mouse-shortcuts.playwright.mjs` (6 nhóm xác minh bằng chuột/bàn phím thật qua Microsoft Edge cài sẵn — kéo-thả, resize, marquee, group/ungroup, điều hướng trang).
+
+**Chưa làm trong đợt này** (ghi trung thực, không giả vờ): F4/Ctrl+PageUp/Ctrl+PageDown cho Slides (F4 đã có cho Writer từ trước, chưa mở rộng sang Sheet/Slides); Ctrl+Home/End cho Sheet chưa kiểm tra lại độc lập.
+
+`node tests/run-tests.js`: **598/598 PASS**.
