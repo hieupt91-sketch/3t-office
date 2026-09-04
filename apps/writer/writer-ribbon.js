@@ -5,13 +5,6 @@
 
 import { t } from "../../platform/i18n/i18n.js";
 
-function makeRibbonItems(items) {
-  const arr = [...items];
-  const origIncludes = arr.includes.bind(arr);
-  arr.includes = (val) => origIncludes(val) || arr.some(it => (it && it.commandId === val) || it === val);
-  return arr;
-}
-
 export const WRITER_RIBBON_TABS = [
   {
     id: "home",
@@ -38,7 +31,7 @@ export const WRITER_RIBBON_TABS = [
         id: "font",
         label: "Phông chữ",
         labelKey: "writerRibbon.group.font",
-        items: makeRibbonItems([
+        items: [
           {
             type: "column",
             items: [
@@ -88,7 +81,7 @@ export const WRITER_RIBBON_TABS = [
               }
             ]
           }
-        ])
+        ]
       },
       {
         id: "paragraph",
@@ -179,20 +172,20 @@ export const WRITER_RIBBON_TABS = [
         id: "illustrations",
         label: "Minh họa",
         labelKey: "writerRibbon.group.illustrations",
-        items: makeRibbonItems([
+        items: [
           { type: "button", commandId: "writer.image.insert", isLarge: true },
           { type: "button", commandId: "writer.shape.insert", isLarge: true },
           { type: "button", commandId: "writer.diagram.insert", isLarge: true },
           { type: "button", commandId: "writer.chart.insert", isLarge: true }
-        ])
+        ]
       },
       {
         id: "links",
         label: "Liên kết",
         labelKey: "writerRibbon.group.links",
-        items: makeRibbonItems([
+        items: [
           { type: "button", commandId: "common.edit.hyperlink", isLarge: true }
-        ])
+        ]
       },
       {
         label: "Đầu trang / Chân trang",
@@ -227,9 +220,9 @@ export const WRITER_RIBBON_TABS = [
         id: "documentFormatting",
         label: "Định dạng tài liệu",
         labelKey: "writerRibbon.group.documentFormatting",
-        items: makeRibbonItems([
+        items: [
           { type: "button", commandId: "writer.design.themeGallery", isLarge: true }
-        ])
+        ]
       },
       {
         label: "Nền & Viền trang",

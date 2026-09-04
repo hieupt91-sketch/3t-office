@@ -195,11 +195,12 @@ export async function runWriterRibbonBreadthTests() {
     const insertTab = WRITER_RIBBON_TABS.find(t => t.id === "insert");
     const illusGroup = insertTab?.groups?.find(g => g.id === "illustrations");
 
+    const illusHasCommand = (id) => illusGroup?.items?.some(it => it.commandId === id);
     assert(
       "Writer Illustrations: Nhóm 'Minh họa' hiện diện trên tab Chèn với đủ 3 nút",
-      illusGroup && illusGroup.items.includes("writer.shape.insert") &&
-      illusGroup.items.includes("writer.diagram.insert") &&
-      illusGroup.items.includes("writer.chart.insert"),
+      illusGroup && illusHasCommand("writer.shape.insert") &&
+      illusHasCommand("writer.diagram.insert") &&
+      illusHasCommand("writer.chart.insert"),
       "Nhóm illustrations không đầy đủ trên tab Chèn"
     );
   })();
@@ -305,7 +306,7 @@ export async function runWriterRibbonBreadthTests() {
     const formattingGroup = designTab?.groups?.find(g => g.id === "documentFormatting");
     assert(
       "Writer Themes: Nhóm 'Định dạng tài liệu' hiện diện trên tab Thiết kế với nút themeGallery",
-      formattingGroup && formattingGroup.items.includes("writer.design.themeGallery"),
+      formattingGroup && formattingGroup.items?.some(it => it.commandId === "writer.design.themeGallery"),
       "Thiếu nhóm documentFormatting hoặc nút themeGallery trên tab Thiết kế"
     );
 
@@ -364,7 +365,7 @@ export async function runWriterRibbonBreadthTests() {
 
     assert(
       "Writer Hyperlink: Nhóm 'Liên kết' hiện diện trên tab Chèn với nút common.edit.hyperlink",
-      linksGroup && linksGroup.items.includes("common.edit.hyperlink"),
+      linksGroup && linksGroup.items?.some(it => it.commandId === "common.edit.hyperlink"),
       "Không tìm thấy nhóm links hoặc nút common.edit.hyperlink trên tab Chèn"
     );
 

@@ -56,7 +56,7 @@ Tất cả 40 test suites, bao gồm Suite 40 (`Behavioral & Unit Tests — VN W
 
 - `adapters/libreoffice/common/command-dispatch-mapper.js`: Sửa URL UNO cho `writer.text.subscript`, `writer.diagram.insert`, `writer.chart.insert`, `writer.design.themeGallery`.
 - `adapters/libreoffice/writer/writer-adapter.js`: Hoàn thiện các phương thức `insertShape`, `deleteShape`, `moveShape`, `insertDiagram`, `insertChart`, `insertHyperlink`, `_insertHyperlink`, `applyDocumentTheme`, snapshot undo/redo cho shapes & theme.
-- `apps/writer/writer-ribbon.js`: Thêm helper `makeRibbonItems` hỗ trợ `.includes()`, gán `id` và sắp xếp nhóm Phông chữ (subscript, superscript), Minh họa, Liên kết, Định dạng tài liệu.
+- `apps/writer/writer-ribbon.js`: Gán `id` và sắp xếp nhóm Phông chữ (subscript, superscript), Minh họa, Liên kết, Định dạng tài liệu. (Claude review: bỏ helper `makeRibbonItems` — đó là hack ghi đè `.includes()` của mảng chỉ để test cũ dùng string-match qua được; sửa đúng gốc bằng cách đổi 3 chỗ test sang `.some(it => it.commandId === ...)`, giữ `items` là mảng thuần, không sửa hành vi runtime nào của ribbon thật.)
 - `apps/writer/writer-illustrations.js`: Cập nhật `renderShapeSvg`, `generateDiagramHtml`, `generateChartHtml` hỗ trợ đầy đủ các tham số cấu hình.
 - `apps/writer/theme-gallery.js`: Cung cấp tối thiểu 6 bộ chủ đề tài liệu chuẩn Office & Hành chính Việt Nam.
 - `tests/unit/writer-ribbon-breadth.test.js`: Bộ 32 bài kiểm tra unit & behavioral cho 4 tính năng mở rộng Ribbon.
