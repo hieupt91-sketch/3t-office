@@ -1653,7 +1653,17 @@ export class SlidesCanvasController {
         });
       });
 
-      const close = () => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); };
+      const close = () => {
+        document.removeEventListener("keydown", onKey);
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      };
+      const onKey = (e) => {
+        if (e.key === "Escape") {
+          close();
+          resolve(false);
+        }
+      };
+      document.addEventListener("keydown", onKey);
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => { close(); resolve(false); });
       overlay.querySelector("#vno-master-cancel")?.addEventListener("click", () => { close(); resolve(false); });
 
@@ -1698,7 +1708,15 @@ export class SlidesCanvasController {
         cards.forEach(item => { item.classList.remove("is-selected"); item.setAttribute("aria-pressed", "false"); });
         card.classList.add("is-selected"); card.setAttribute("aria-pressed", "true"); selectedType = card.dataset.diagramType;
       }));
-      const close = (value) => { overlay.remove(); resolve(value); };
+      const close = (value) => {
+        document.removeEventListener("keydown", onKey);
+        overlay.remove();
+        resolve(value);
+      };
+      const onKey = (e) => {
+        if (e.key === "Escape") close(false);
+      };
+      document.addEventListener("keydown", onKey);
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
       overlay.querySelector("#vno-diagram-cancel")?.addEventListener("click", () => close(false));
       overlay.querySelector("#vno-diagram-insert")?.addEventListener("click", () => {
@@ -1773,8 +1791,16 @@ export class SlidesCanvasController {
       });
 
       const close = () => {
+        document.removeEventListener("keydown", onKey);
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
       };
+      const onKey = (e) => {
+        if (e.key === "Escape") {
+          close();
+          resolve(false);
+        }
+      };
+      document.addEventListener("keydown", onKey);
 
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => {
         close();
@@ -1889,7 +1915,18 @@ export class SlidesCanvasController {
       overlay.querySelector("#vno-trans-preview-btn")?.addEventListener("click", runPreview);
       typeSelect?.addEventListener("change", runPreview);
 
-      const close = () => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); };
+      const close = () => {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        document.removeEventListener("keydown", onKeyDown);
+      };
+      const onKeyDown = (e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          close();
+          resolve(false);
+        }
+      };
+      document.addEventListener("keydown", onKeyDown);
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => { close(); resolve(false); });
       overlay.querySelector("#vno-trans-cancel")?.addEventListener("click", () => { close(); resolve(false); });
 
@@ -2045,7 +2082,18 @@ export class SlidesCanvasController {
       delaySelect?.addEventListener("change", runPreview);
       overlay.querySelector("#vno-anim-preview-btn")?.addEventListener("click", runPreview);
 
-      const close = () => { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); };
+      const close = () => {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        document.removeEventListener("keydown", onKeyDown);
+      };
+      const onKeyDown = (e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          close();
+          resolve(false);
+        }
+      };
+      document.addEventListener("keydown", onKeyDown);
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => { close(); resolve(false); });
       overlay.querySelector("#vno-anim-cancel")?.addEventListener("click", () => { close(); resolve(false); });
 
@@ -2542,5 +2590,57 @@ export class SlidesCanvasController {
     this._activePresenterCleanup?.();
     this._activeShowCleanup = null;
     this._activePresenterCleanup = null;
+  }
+
+  /**
+   * Đặt lại bản trình chiếu về trạng thái trang trắng ban đầu (1 slide duy nhất).
+   * @param {string} [defaultTitle]
+   */
+  resetToBlank(defaultTitle = "BẢN TRÌNH CHIẾU MỚI") {
+    this.closeSlideSorter();
+    this._activeShowCleanup?.();
+    this._activePresenterCleanup?.();
+    this._activeShowCleanup = null;
+    this._activePresenterCleanup = null;
+
+    this.slides = [
+      {
+        id: 1,
+        title: defaultTitle,
+        body: "Nhấn vào đây để thêm nội dung trình chiếu...",
+        layoutType: "title-content",
+        shapes: [],
+        comments: [],
+        notes: "",
+        titleAnimation: { type: "none", duration: 500, delay: 0 }
+      }
+    ];
+    this.currentSlideIndex = 0;
+    this.undoStack = [];
+    this.redoStack = [];
+    this.selectedTarget = null;
+    this.masterTheme = {
+      themeId: "modern-blue",
+      fontFamily: "Inter, 'Segoe UI', sans-serif",
+      titleColor: "#1e3a8a",
+      bodyColor: "#334155",
+      accentColor: "#2563eb",
+      bgColor: "#f8fafc",
+      logoText: "VN OFFICE • THUYẾT TRÌNH",
+      footerText: "Tài liệu trình chiếu tiêu chuẩn VN Office",
+      showLogo: true,
+      showFooter: true
+    };
+    this.transitionConfig = {
+      type: "fade",
+      duration: 500
+    };
+
+    if (this.canvasEl) {
+      this.selectSlide(0);
+      this._renderThumbnails();
+      this.applySlideMaster(this.masterTheme);
+      this._syncUndoRedoState();
+    }
   }
 }

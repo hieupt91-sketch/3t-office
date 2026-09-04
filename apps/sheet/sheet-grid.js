@@ -181,10 +181,10 @@ export class SheetGridController {
     this.table = table;
     this._applyViewState();
 
-    // Column Headers
     const thead = document.createElement("thead");
     const trHead = document.createElement("tr");
     trHead.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
+    trHead.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
     this.cols.forEach(col => {
       const th = document.createElement("th");
       th.className = "vno-col-header";
@@ -276,6 +276,67 @@ export class SheetGridController {
 
   destroy() {
     this.autocomplete?.destroy?.();
+  }
+
+  selectAll() {
+    this.selectCell("A", 1);
+    this.selectCell(this.cols[this.cols.length - 1], this.rowCount, true);
+    return true;
+  }
+
+  resetToBlank(defaultSheetName = "Trang tính 1") {
+    this.sheets = [defaultSheetName];
+    this.activeSheet = defaultSheetName;
+    this.sheetsData = { [defaultSheetName]: new Map() };
+    this.sheetStates = {
+      [defaultSheetName]: { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, selectedCoord: { r: 1, c: "A" } }
+    };
+    this.namedRangesWorkbook = [];
+    this.namedRangesBySheet = { [defaultSheetName]: [] };
+    this.commentsBySheet = { [defaultSheetName]: {} };
+    this.printAreaBySheet = { [defaultSheetName]: null };
+    this.pageBreaksBySheet = { [defaultSheetName]: { rows: [], cols: [] } };
+    this.conditionalFormattingBySheet = { [defaultSheetName]: [] };
+    this.dataValidationsBySheet = { [defaultSheetName]: [] };
+    this.chartsBySheet = { [defaultSheetName]: [] };
+    this.pivotTablesBySheet = { [defaultSheetName]: [] };
+    this.isFrozenPanes = false;
+    this.isFilterActive = false;
+    this.hiddenRows = new Set();
+    this.activeFilters = new Map();
+    this.undoStack = [];
+    this.redoStack = [];
+
+    if (this.chartLayer) this.chartLayer.innerHTML = "";
+
+    if (this.tabBar && typeof this.tabBar.querySelector === "function") {
+      const tabsListEl = this.tabBar.querySelector("#vno-sheet-tabs-list");
+      if (tabsListEl && typeof document !== "undefined") {
+        tabsListEl.innerHTML = "";
+        const tab = document.createElement("div");
+        tab.className = "vno-sheet-tab-item is-active";
+        tab.dataset.sheet = defaultSheetName;
+        tab.textContent = defaultSheetName;
+        tab.addEventListener("click", () => this.switchSheet(defaultSheetName));
+        tabsListEl.appendChild(tab);
+      }
+    }
+
+    if (this.container && typeof this.container.querySelectorAll === "function") {
+      this.container.querySelectorAll(".vno-grid-cell").forEach((td) => {
+        td.textContent = "";
+        td.className = "vno-grid-cell";
+        td.style.cssText = "";
+      });
+    }
+
+    this._renderVirtualRows(1, 40);
+    this.renderCharts();
+    this.selectCell("A", 1);
+    if (this.formulaInput) this.formulaInput.value = "";
+    this._syncCommandStates();
+    this.updateStatus();
+    return true;
   }
 
   switchSheet(sheetName) {
@@ -2154,10 +2215,17 @@ export class SheetGridController {
       <div class="vno-dialog-body">${bodyHtml}</div>
       <div class="vno-dialog-footer"><button class="vno-btn vno-rule-cancel">${t("sheetDialogs.cancel")}</button><button class="vno-btn vno-btn-primary vno-rule-apply">${t("sheetDialogs.apply")}</button></div>
     </div>`;
-    const close = () => overlay.remove();
+    const onKey = (event) => {
+      if (event.key === "Escape") close();
+    };
+    const close = () => {
+      document.removeEventListener("keydown", onKey);
+      overlay.remove();
+    };
     overlay.querySelector(".vno-rule-close").addEventListener("click", close);
     overlay.querySelector(".vno-rule-cancel").addEventListener("click", close);
-    overlay.addEventListener("keydown", event => { if (event.key === "Escape") close(); });
+    overlay.addEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey);
     document.body.appendChild(overlay);
     overlay.querySelector("select, input")?.focus();
     return overlay;
