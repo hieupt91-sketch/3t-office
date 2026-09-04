@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office Ribbon Host Styles
  */
 
@@ -22,18 +22,19 @@
 }
 
 .vno-ribbon-tab-file {
-  background-color: var(--vno-app-writer-primary) !important;
+  background-color: var(--vno-app-current) !important;
   color: #ffffff !important;
   font-weight: 600;
   padding: 0 14px;
   height: 28px;
   border-radius: var(--vno-radius-xs);
+  border: 1px solid transparent;
+  cursor: pointer;
+  outline: none;
 }
-[data-app="sheet"] .vno-ribbon-tab-file {
-  background-color: var(--vno-app-sheet-primary) !important;
-}
-[data-app="slides"] .vno-ribbon-tab-file {
-  background-color: var(--vno-app-slides-primary) !important;
+.vno-ribbon-tab-file:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 1px;
 }
 
 .vno-ribbon-tab {
@@ -55,21 +56,16 @@
   background-color: var(--vno-bg-hover);
 }
 
+.vno-ribbon-tab:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: -2px;
+}
+
 .vno-ribbon-tab.is-active {
-  color: var(--vno-app-writer-primary);
+  color: var(--vno-app-current);
   font-weight: 600;
-  border-bottom-color: var(--vno-app-writer-primary);
+  border-bottom-color: var(--vno-app-current);
   background-color: var(--vno-bg-surface);
-}
-
-[data-app="sheet"] .vno-ribbon-tab.is-active {
-  color: var(--vno-app-sheet-primary);
-  border-bottom-color: var(--vno-app-sheet-primary);
-}
-
-[data-app="slides"] .vno-ribbon-tab.is-active {
-  color: var(--vno-app-slides-primary);
-  border-bottom-color: var(--vno-app-slides-primary);
 }
 
 /* Ribbon Tab Content Panel */

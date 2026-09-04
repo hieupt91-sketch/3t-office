@@ -47,6 +47,31 @@ export function toRoman(num) {
   return res || "i";
 }
 
+function trapFocus(dialogBox, event) {
+  if (event.key !== "Tab") return;
+  const focusables = Array.from(dialogBox.querySelectorAll(
+    'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+
+  if (event.shiftKey) {
+    if (document.activeElement === first || !dialogBox.contains(document.activeElement)) {
+      event.preventDefault();
+      last.focus();
+    }
+  } else {
+    if (document.activeElement === last || !dialogBox.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+}
+
 export class WriterAdapter {
   constructor(editorDom) {
     this.editorDom = editorDom;
@@ -521,6 +546,7 @@ export class WriterAdapter {
     if (typeof document === "undefined" || !document.body) return null;
 
     return new Promise((resolve) => {
+      const previousFocused = document.activeElement;
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay";
       const sizeOptions = Object.entries(PAGE_SIZES_MM)
@@ -560,10 +586,10 @@ export class WriterAdapter {
       };
 
       overlay.innerHTML = `
-        <div class="vno-dialog-box" style="width: 420px;" role="dialog" aria-modal="true">
+        <div class="vno-dialog-box" style="width: 420px;" role="dialog" aria-modal="true" aria-labelledby="vno-pagesetup-dialog-title">
           <div class="vno-dialog-header">
-            <span>${titleText}</span>
-            <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${closeTitle}">&times;</button>
+            <span id="vno-pagesetup-dialog-title">${titleText}</span>
+            <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${closeTitle}" aria-label="${closeTitle}">&times;</button>
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
             <label style="font-size:13px;font-weight:500;">${paperSizeLabel}
@@ -594,11 +620,15 @@ export class WriterAdapter {
       `;
 
       document.body.appendChild(overlay);
+      const dialogBox = overlay.querySelector(".vno-dialog-box");
       overlay.querySelector(`#vno-pagesetup-${focusField === "orientation" ? "orientation" : "size"}`)?.focus();
 
       const finish = (result) => {
         document.removeEventListener("keydown", onKeyDown);
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        if (previousFocused && typeof previousFocused.focus === "function") {
+          previousFocused.focus();
+        }
         resolve(result);
       };
 
@@ -624,6 +654,8 @@ export class WriterAdapter {
         if (e.key === "Escape") {
           e.preventDefault();
           finish(null);
+        } else if (e.key === "Tab") {
+          trapFocus(dialogBox, e);
         }
       };
       document.addEventListener("keydown", onKeyDown);
@@ -2687,13 +2719,15 @@ export class WriterAdapter {
     // Toolbar
     const toolbar = document.createElement("header");
     toolbar.className = "vno-print-preview-toolbar";
+    toolbar.setAttribute("role", "toolbar");
+    toolbar.setAttribute("aria-label", "Thanh công cụ xem trước khi in");
     toolbar.innerHTML = `
       <div class="vno-print-preview-toolbar-left">
-        <button class="vno-btn vno-btn-primary vno-print-preview-btn-print" title="${printTooltip}">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" style="margin-right:6px;"><rect x="6" y="2" width="12" height="6" rx="1" fill="#E2E8F0" stroke="#475569" stroke-width="1.2"/><rect x="3" y="7" width="18" height="10" rx="2" fill="#0F4C81"/><rect x="6" y="13" width="12" height="8" rx="1" fill="#FFFFFF" stroke="#475569" stroke-width="1.2"/><line x1="8" y1="16" x2="16" y2="16" stroke="#94A3B8" stroke-width="1.2"/><line x1="8" y1="18" x2="14" y2="18" stroke="#94A3B8" stroke-width="1.2"/><circle cx="18" cy="10" r="1" fill="#10B981"/></svg>
+        <button class="vno-btn vno-btn-primary vno-print-preview-btn-print" title="${printTooltip}" aria-label="${printTooltip}">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" style="margin-right:6px;" aria-hidden="true"><rect x="6" y="2" width="12" height="6" rx="1" fill="#E2E8F0" stroke="#475569" stroke-width="1.2"/><rect x="3" y="7" width="18" height="10" rx="2" fill="#0F4C81"/><rect x="6" y="13" width="12" height="8" rx="1" fill="#FFFFFF" stroke="#475569" stroke-width="1.2"/><line x1="8" y1="16" x2="16" y2="16" stroke="#94A3B8" stroke-width="1.2"/><line x1="8" y1="18" x2="14" y2="18" stroke="#94A3B8" stroke-width="1.2"/><circle cx="18" cy="10" r="1" fill="#10B981"/></svg>
           <span>${printBtnLabel}</span>
         </button>
-        <div class="vno-print-preview-divider"></div>
+        <div class="vno-print-preview-divider" aria-hidden="true"></div>
         <div class="vno-print-preview-badge">
           <span class="vno-print-preview-paper-info">
             ${paperSizeLabel}: <strong>${dim.sizeLabel}</strong> · <strong>${dim.orientationLabel}</strong> · ${marginsLabel}: T${dim.margins.top} D${dim.margins.bottom} T${dim.margins.left} P${dim.margins.right} mm
@@ -2702,7 +2736,7 @@ export class WriterAdapter {
       </div>
 
       <div class="vno-print-preview-toolbar-center">
-        <button class="vno-btn vno-print-preview-nav-prev" title="${prevPageLabel}" ${totalPages <= 1 ? "disabled" : ""}>
+        <button class="vno-btn vno-print-preview-nav-prev" title="${prevPageLabel}" aria-label="${prevPageLabel}" ${totalPages <= 1 ? "disabled" : ""}>
           ${prevPageLabel}
         </button>
         <div class="vno-print-preview-page-indicator">
@@ -2710,18 +2744,18 @@ export class WriterAdapter {
           <input type="number" min="1" max="${totalPages}" value="1" class="vno-print-preview-page-input" aria-label="Số trang" />
           <span> / <span class="vno-print-preview-total-pages">${totalPages}</span></span>
         </div>
-        <button class="vno-btn vno-print-preview-nav-next" title="${nextPageLabel}" ${totalPages <= 1 ? "disabled" : ""}>
+        <button class="vno-btn vno-print-preview-nav-next" title="${nextPageLabel}" aria-label="${nextPageLabel}" ${totalPages <= 1 ? "disabled" : ""}>
           ${nextPageLabel}
         </button>
       </div>
 
       <div class="vno-print-preview-toolbar-right">
-        <button class="vno-btn vno-print-preview-zoom-out" title="Thu nhỏ">−</button>
-        <span class="vno-print-preview-zoom-level">100%</span>
-        <button class="vno-btn vno-print-preview-zoom-in" title="Phóng to">+</button>
-        <button class="vno-btn vno-print-preview-zoom-fit" title="Vừa chiều cao">${fitPageLabel}</button>
-        <div class="vno-print-preview-divider"></div>
-        <button class="vno-btn vno-btn-icon-only vno-print-preview-close-btn" title="${closeTooltip}">&times;</button>
+        <button class="vno-btn vno-print-preview-zoom-out" title="Thu nhỏ" aria-label="Thu nhỏ">−</button>
+        <span class="vno-print-preview-zoom-level" aria-live="polite">100%</span>
+        <button class="vno-btn vno-print-preview-zoom-in" title="Phóng to" aria-label="Phóng to">+</button>
+        <button class="vno-btn vno-print-preview-zoom-fit" title="Vừa chiều cao" aria-label="${fitPageLabel}">${fitPageLabel}</button>
+        <div class="vno-print-preview-divider" aria-hidden="true"></div>
+        <button class="vno-btn vno-btn-icon-only vno-print-preview-close-btn" title="${closeTooltip}" aria-label="${closeTooltip}">&times;</button>
       </div>
     `;
 

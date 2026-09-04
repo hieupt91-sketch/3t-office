@@ -11,6 +11,31 @@ export const COLUMN_PRESETS = [
   { id: "three", count: 3, gap: 10, rule: false, label: "Ba cột", labelKey: "writerDialogs.columns.presetThree", iconSvg: `<svg viewBox="0 0 40 40" width="36" height="36" fill="none"><rect x="6" y="4" width="28" height="32" rx="2" fill="#fff" stroke="#94a3b8" stroke-width="1.5"/><line x1="9" y1="10" x2="14" y2="10" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/><line x1="9" y1="15" x2="14" y2="15" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="9" y1="20" x2="14" y2="20" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="9" y1="25" x2="13" y2="25" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="17.5" y1="10" x2="22.5" y2="10" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/><line x1="17.5" y1="15" x2="22.5" y2="15" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="17.5" y1="20" x2="22.5" y2="20" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="17.5" y1="25" x2="21.5" y2="25" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="26" y1="10" x2="31" y2="10" stroke="#10b981" stroke-width="1.8" stroke-linecap="round"/><line x1="26" y1="15" x2="31" y2="15" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="26" y1="20" x2="31" y2="20" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/><line x1="26" y1="25" x2="30" y2="25" stroke="#64748b" stroke-width="1.4" stroke-linecap="round"/></svg>` }
 ];
 
+function trapFocus(dialogBox, event) {
+  if (event.key !== "Tab") return;
+  const focusables = Array.from(dialogBox.querySelectorAll(
+    'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+
+  if (event.shiftKey) {
+    if (document.activeElement === first || !dialogBox.contains(document.activeElement)) {
+      event.preventDefault();
+      last.focus();
+    }
+  } else {
+    if (document.activeElement === last || !dialogBox.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+}
+
 /**
  * Hiển thị Hộp thoại Cấu hình Chia cột văn bản (Columns)
  * @param {Object} [currentColumns]
@@ -20,11 +45,9 @@ export async function showColumnsDialog(currentColumns = null) {
   if (typeof document === "undefined" || !document.body) return null;
 
   return new Promise((resolve) => {
+    const previousFocused = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
-    overlay.setAttribute("aria-label", t("writerDialogs.columns.title"));
 
     const cur = currentColumns || {};
     let initialCount = Math.max(1, Math.min(4, Number(cur.count) || 1));
@@ -33,23 +56,24 @@ export async function showColumnsDialog(currentColumns = null) {
     const isMulti = initialCount > 1;
 
     overlay.innerHTML = `
-      <div class="vno-dialog-box vno-columns-dialog" style="width: 480px;">
+      <div class="vno-dialog-box vno-columns-dialog" style="width: 480px;" role="dialog" aria-modal="true" aria-labelledby="vno-col-dialog-title">
         <div class="vno-dialog-header">
-          <span>${t("writerDialogs.columns.title")}</span>
-          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}">&times;</button>
+          <span id="vno-col-dialog-title">${t("writerDialogs.columns.title")}</span>
+          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex; flex-direction:column; gap:16px;">
           <!-- Khối chọn nhanh Presets -->
           <div>
-            <label style="font-size:12px; font-weight:600; color:#334155; display:block; margin-bottom:8px;">
+            <label id="vno-col-presets-label" style="font-size:12px; font-weight:600; color:#334155; display:block; margin-bottom:8px;">
               ${t("writerDialogs.columns.presetsTitle")}
             </label>
-            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">
+            <div role="radiogroup" aria-labelledby="vno-col-presets-label" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">
               ${COLUMN_PRESETS.map(p => {
                 const label = p.labelKey ? (t(p.labelKey) !== p.labelKey ? t(p.labelKey) : p.label) : p.label;
+                const isActive = p.count === initialCount;
                 return `
-                <button type="button" class="vno-btn vno-col-preset-btn ${p.count === initialCount ? 'is-active' : ''}" data-count="${p.count}" data-gap="${p.gap}" style="display:flex; flex-direction:column; align-items:center; padding:8px; border:2px solid ${p.count === initialCount ? '#0f4c81' : '#cbd5e1'}; border-radius:6px; background:${p.count === initialCount ? '#eff6ff' : '#ffffff'}; cursor:pointer; gap:4px;">
-                  <div style="pointer-events:none;">${p.iconSvg}</div>
+                <button type="button" role="radio" aria-checked="${isActive}" aria-label="${label}" class="vno-btn vno-col-preset-btn ${isActive ? 'is-active' : ''}" data-count="${p.count}" data-gap="${p.gap}" style="display:flex; flex-direction:column; align-items:center; padding:8px; border:2px solid ${isActive ? '#0f4c81' : '#cbd5e1'}; border-radius:6px; background:${isActive ? '#eff6ff' : '#ffffff'}; cursor:pointer; gap:4px;">
+                  <div style="pointer-events:none;" aria-hidden="true">${p.iconSvg}</div>
                   <span style="font-size:12px; font-weight:600; color:#1e293b; pointer-events:none;">${label}</span>
                 </button>
               `}).join("")}
@@ -82,7 +106,7 @@ export async function showColumnsDialog(currentColumns = null) {
             </div>
 
             <!-- Khung xem trước trực quan (Live Preview) -->
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;" aria-hidden="true">
               <span style="font-size:11px; color:#64748b; margin-bottom:6px; font-weight:600;">${t("writerDialogs.columns.preview")}</span>
               <div id="vno-col-preview-sheet" style="width:110px; height:130px; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.15); border-radius:2px; border:1px solid #cbd5e1; position:relative; display:flex; gap:6px; padding:8px; box-sizing:border-box;">
                 <!-- Cột preview sẽ được render động ở đây -->
@@ -104,6 +128,7 @@ export async function showColumnsDialog(currentColumns = null) {
     `;
 
     document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
 
     const countInput = overlay.querySelector("#vno-col-count-input");
     const gapInput = overlay.querySelector("#vno-col-gap-input");
@@ -154,7 +179,9 @@ export async function showColumnsDialog(currentColumns = null) {
       // Cập nhật viền nút preset
       presetButtons.forEach(btn => {
         const btnCount = Number(btn.getAttribute("data-count"));
-        if (btnCount === count) {
+        const isActive = btnCount === count;
+        btn.setAttribute("aria-checked", String(isActive));
+        if (isActive) {
           btn.style.borderColor = "#0f4c81";
           btn.style.backgroundColor = "#eff6ff";
           btn.classList.add("is-active");
@@ -187,6 +214,9 @@ export async function showColumnsDialog(currentColumns = null) {
     const cleanup = (result) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
       resolve(result);
     };
 
@@ -214,6 +244,8 @@ export async function showColumnsDialog(currentColumns = null) {
       } else if (e.key === "Enter" && (e.target === countInput || e.target === gapInput)) {
         e.preventDefault();
         overlay.querySelector(".vno-dialog-ok-btn")?.click();
+      } else if (e.key === "Tab") {
+        trapFocus(dialogBox, e);
       }
     };
     document.addEventListener("keydown", onKeyDown);

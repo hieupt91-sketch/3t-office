@@ -44,6 +44,31 @@ export const PAGE_BORDER_COLORS = [
   { label: "Xanh lá cây", value: "#15803d" }
 ];
 
+function trapFocus(dialogBox, event) {
+  if (event.key !== "Tab") return;
+  const focusables = Array.from(dialogBox.querySelectorAll(
+    'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+
+  if (event.shiftKey) {
+    if (document.activeElement === first || !dialogBox.contains(document.activeElement)) {
+      event.preventDefault();
+      last.focus();
+    }
+  } else {
+    if (document.activeElement === last || !dialogBox.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+}
+
 /**
  * Hiển thị Hộp thoại Cấu hình Hình mờ (Watermark)
  * @param {Object} [currentWatermark]
@@ -53,10 +78,9 @@ export async function showWatermarkDialog(currentWatermark = null) {
   if (typeof document === "undefined" || !document.body) return null;
 
   return new Promise((resolve) => {
+    const previousFocused = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
 
     const activeText = currentWatermark?.text || "DỰ THẢO";
     const activeColor = currentWatermark?.color || "#dc2626";
@@ -77,10 +101,10 @@ export async function showWatermarkDialog(currentWatermark = null) {
     };
 
     overlay.innerHTML = `
-      <div class="vno-dialog-box vno-watermark-dialog" style="width: 440px;">
+      <div class="vno-dialog-box vno-watermark-dialog" style="width: 440px;" role="dialog" aria-modal="true" aria-labelledby="vno-wm-dialog-title">
         <div class="vno-dialog-header">
-          <span>${t("writerDialogs.watermark.title")}</span>
-          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}">&times;</button>
+          <span id="vno-wm-dialog-title">${t("writerDialogs.watermark.title")}</span>
+          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex; flex-direction:column; gap:14px;">
           <div>
@@ -89,7 +113,7 @@ export async function showWatermarkDialog(currentWatermark = null) {
             </label>
             <div style="display:flex; flex-wrap:wrap; gap:6px;">
               ${suggestions.map(s => `
-                <button type="button" class="vno-btn vno-watermark-chip" data-text="${s}" style="font-size:11px; padding:3px 8px;">
+                <button type="button" class="vno-btn vno-watermark-chip" data-text="${s}" aria-label="${s}" style="font-size:11px; padding:3px 8px;">
                   ${s}
                 </button>
               `).join("")}
@@ -127,7 +151,7 @@ export async function showWatermarkDialog(currentWatermark = null) {
               <label for="vno-wm-opacity" style="font-size:12px; font-weight:600;">${t("writerDialogs.watermark.opacityLabel")}</label>
               <span id="vno-wm-opacity-val" style="font-size:12px; font-weight:bold; color:#0f4c81;">${Math.round(activeOpacity * 100)}%</span>
             </div>
-            <input type="range" id="vno-wm-opacity" min="0.05" max="0.6" step="0.05" value="${activeOpacity}" style="width:100%;" />
+            <input type="range" id="vno-wm-opacity" min="0.05" max="0.6" step="0.05" value="${activeOpacity}" aria-label="${t("writerDialogs.watermark.opacityLabel")}" aria-valuemin="5" aria-valuemax="60" aria-valuenow="${Math.round(activeOpacity * 100)}" style="width:100%;" />
           </div>
         </div>
 
@@ -144,6 +168,7 @@ export async function showWatermarkDialog(currentWatermark = null) {
     `;
 
     document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
 
     const txtInput = overlay.querySelector("#vno-wm-text");
     const opacityInput = overlay.querySelector("#vno-wm-opacity");
@@ -164,12 +189,17 @@ export async function showWatermarkDialog(currentWatermark = null) {
     });
 
     opacityInput?.addEventListener("input", () => {
-      if (opacityLabel) opacityLabel.textContent = `${Math.round(Number(opacityInput.value) * 100)}%`;
+      const pct = Math.round(Number(opacityInput.value) * 100);
+      if (opacityLabel) opacityLabel.textContent = `${pct}%`;
+      opacityInput.setAttribute("aria-valuenow", String(pct));
     });
 
     const cleanup = (result) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
       resolve(result);
     };
 
@@ -205,6 +235,8 @@ export async function showWatermarkDialog(currentWatermark = null) {
       } else if (e.key === "Enter" && e.target === txtInput) {
         e.preventDefault();
         overlay.querySelector(".vno-dialog-ok-btn")?.click();
+      } else if (e.key === "Tab") {
+        trapFocus(dialogBox, e);
       }
     };
     document.addEventListener("keydown", onKeyDown);
@@ -220,10 +252,9 @@ export async function showPageBorderDialog(currentBorder = null) {
   if (typeof document === "undefined" || !document.body) return null;
 
   return new Promise((resolve) => {
+    const previousFocused = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
 
     const isEnabled = Boolean(currentBorder && currentBorder.enabled);
     const activeStyle = currentBorder?.style || "solid";
@@ -254,10 +285,10 @@ export async function showPageBorderDialog(currentBorder = null) {
     };
 
     overlay.innerHTML = `
-      <div class="vno-dialog-box vno-page-border-dialog" style="width: 460px;">
+      <div class="vno-dialog-box vno-page-border-dialog" style="width: 460px;" role="dialog" aria-modal="true" aria-labelledby="vno-pb-dialog-title">
         <div class="vno-dialog-header">
-          <span>${t("writerDialogs.pageBorder.title")}</span>
-          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}">&times;</button>
+          <span id="vno-pb-dialog-title">${t("writerDialogs.pageBorder.title")}</span>
+          <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex; flex-direction:column; gap:14px;">
           <div style="display:grid; grid-template-columns: 1.2fr 0.8fr; gap:16px; align-items:center;">
@@ -291,7 +322,7 @@ export async function showPageBorderDialog(currentBorder = null) {
             </div>
 
             <!-- Khung xem trước trực quan (Live Preview) -->
-            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;" aria-hidden="true">
               <span style="font-size:11px; color:#64748b; margin-bottom:6px; font-weight:600;">${t("writerDialogs.pageBorder.previewTitle")}</span>
               <div id="vno-border-preview-sheet" style="width:110px; height:140px; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.15); border-radius:2px; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:10px; box-sizing:border-box;">
                 <div id="vno-border-preview-inner" style="position:absolute; inset:6px; pointer-events:none; border: 2px solid #0f4c81; box-sizing:border-box;"></div>
@@ -316,6 +347,7 @@ export async function showPageBorderDialog(currentBorder = null) {
     `;
 
     document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
 
     const styleSelect = overlay.querySelector("#vno-border-style");
     const widthSelect = overlay.querySelector("#vno-border-width");
@@ -343,6 +375,9 @@ export async function showPageBorderDialog(currentBorder = null) {
     const cleanup = (result) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
       resolve(result);
     };
 
@@ -374,6 +409,8 @@ export async function showPageBorderDialog(currentBorder = null) {
       if (e.key === "Escape") {
         e.preventDefault();
         cleanup(null);
+      } else if (e.key === "Tab") {
+        trapFocus(dialogBox, e);
       }
     };
     document.addEventListener("keydown", onKeyDown);

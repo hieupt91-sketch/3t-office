@@ -41,24 +41,63 @@ export class RibbonHost {
     // 1. Render Tabs Bar
     const tabsBar = document.createElement("div");
     tabsBar.className = "vno-ribbon-tabs";
+    tabsBar.setAttribute("role", "tablist");
+    tabsBar.setAttribute("aria-label", "Các thanh công cụ");
 
     // Nút "Tệp" đặc biệt
     const fileBtn = document.createElement("button");
     fileBtn.className = "vno-btn vno-ribbon-tab-file";
     fileBtn.type = "button";
     fileBtn.textContent = t("common.fileMenu");
+    fileBtn.setAttribute("aria-haspopup", "dialog");
+    fileBtn.setAttribute("aria-label", `${t("common.fileMenu")} (Mở menu tệp)`);
     fileBtn.addEventListener("click", () => {
       if (this.options.onFileMenuClick) this.options.onFileMenuClick();
     });
     tabsBar.appendChild(fileBtn);
 
     // Các tabs chức năng
-    this.tabs.forEach(tab => {
+    this.tabs.forEach((tab, index) => {
       const tabBtn = document.createElement("button");
-      tabBtn.className = `vno-ribbon-tab ${tab.id === this.activeTabId ? "is-active" : ""}`;
+      const isActive = tab.id === this.activeTabId;
+      tabBtn.className = `vno-ribbon-tab ${isActive ? "is-active" : ""}`;
       tabBtn.type = "button";
       tabBtn.textContent = tab.label;
+      tabBtn.setAttribute("role", "tab");
+      tabBtn.setAttribute("aria-selected", String(isActive));
+      tabBtn.setAttribute("aria-controls", `vno-ribbon-tabpanel-${tab.id}`);
+      tabBtn.id = `vno-ribbon-tab-${tab.id}`;
+      tabBtn.tabIndex = isActive ? 0 : -1;
+
       tabBtn.addEventListener("click", () => this.selectTab(tab.id));
+
+      // Hỗ trợ phím mũi tên điều hướng giữa các tab chuẩn WAI-ARIA
+      tabBtn.addEventListener("keydown", (e) => {
+        const tabButtons = Array.from(tabsBar.querySelectorAll(".vno-ribbon-tab"));
+        const currentIndex = tabButtons.indexOf(tabBtn);
+        let targetIndex = -1;
+
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+          e.preventDefault();
+          targetIndex = (currentIndex + 1) % tabButtons.length;
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+          e.preventDefault();
+          targetIndex = (currentIndex - 1 + tabButtons.length) % tabButtons.length;
+        } else if (e.key === "Home") {
+          e.preventDefault();
+          targetIndex = 0;
+        } else if (e.key === "End") {
+          e.preventDefault();
+          targetIndex = tabButtons.length - 1;
+        }
+
+        if (targetIndex !== -1 && this.tabs[targetIndex]) {
+          this.selectTab(this.tabs[targetIndex].id);
+          const updatedButtons = tabsBar.querySelectorAll(".vno-ribbon-tab");
+          if (updatedButtons[targetIndex]) updatedButtons[targetIndex].focus();
+        }
+      });
+
       tabsBar.appendChild(tabBtn);
     });
 
@@ -70,13 +109,20 @@ export class RibbonHost {
 
     const contentPanel = document.createElement("div");
     contentPanel.className = "vno-ribbon-content";
+    contentPanel.setAttribute("role", "tabpanel");
+    contentPanel.id = `vno-ribbon-tabpanel-${currentTab.id}`;
+    contentPanel.setAttribute("aria-labelledby", `vno-ribbon-tab-${currentTab.id}`);
 
     currentTab.groups.forEach(group => {
       const groupEl = document.createElement("div");
       groupEl.className = "vno-ribbon-group";
+      groupEl.setAttribute("role", "group");
+      groupEl.setAttribute("aria-label", group.label);
 
       const itemsEl = document.createElement("div");
       itemsEl.className = "vno-ribbon-group-items";
+      itemsEl.setAttribute("role", "toolbar");
+      itemsEl.setAttribute("aria-label", group.label);
 
       // Render items trong group
       group.items.forEach(item => {
@@ -138,8 +184,11 @@ export class RibbonHost {
 
       if (group.launcherCommandId) {
         const launcherBtn = document.createElement("button");
+        launcherBtn.type = "button";
         launcherBtn.className = "vno-ribbon-dialog-launcher";
-        launcherBtn.title = group.launcherTooltip || "Định dạng ô (Ctrl+1)";
+        const tooltip = group.launcherTooltip || "Định dạng ô (Ctrl+1)";
+        launcherBtn.title = tooltip;
+        launcherBtn.setAttribute("aria-label", tooltip);
         launcherBtn.setAttribute("data-command", group.launcherCommandId);
         launcherBtn.style.cssText = "position:absolute; right:0; bottom:0; width:14px; height:14px; padding:0; display:flex; align-items:center; justify-content:center; border:none; background:transparent; cursor:pointer; color:var(--vno-text-muted); opacity:0.75;";
         launcherBtn.innerHTML = ICONS.dialogLauncher || "";
