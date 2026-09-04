@@ -134,6 +134,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.cell.textColor", category: "format", label: "Màu chữ", icon: "colorText", tooltip: "Đổi màu chữ trong ô" },
 
   // Định dạng số & Tiền tệ (Number Format Shortcuts)
+  { id: "sheet.format.cellsDialog", category: "number", label: "Định dạng ô...", shortcut: "Ctrl+1", icon: "formatCells", tooltip: "Mở hộp thoại định dạng ô (Ctrl+1)" },
   { id: "sheet.format.currencyVND", category: "number", label: "Tiền tệ VNĐ", shortcut: "Ctrl+Shift+4", icon: "currencyVND", tooltip: "Định dạng tiền tệ VNĐ (Ctrl+Shift+4 hoặc Ctrl+Shift+$)" },
   { id: "sheet.format.percent", category: "number", label: "Phần trăm", shortcut: "Ctrl+Shift+5", icon: "currencyVND", tooltip: "Định dạng phần trăm % (Ctrl+Shift+5)" },
   { id: "sheet.format.standard", category: "number", label: "Phân cách hàng nghìn", shortcut: "Ctrl+Shift+1", icon: "currencyVND", tooltip: "Dấu phẩy phân cách hàng nghìn (Ctrl+Shift+1)" },

@@ -109,6 +109,7 @@ export const viStrings = {
     ,"sheet.cell.borders": { label: "Viền ô", tooltip: "Kẻ đường viền khung ô" }
     ,"sheet.cell.fillColor": { label: "Màu nền", tooltip: "Tô màu nền ô tính" }
     ,"sheet.cell.textColor": { label: "Màu chữ", tooltip: "Đổi màu chữ trong ô" }
+    ,"sheet.format.cellsDialog": { label: "Định dạng ô...", tooltip: "Mở hộp thoại định dạng ô (Ctrl+1)" }
     ,"sheet.format.currencyVND": { label: "Tiền tệ VNĐ", tooltip: "Định dạng tiền tệ VNĐ (Ctrl+Shift+4 hoặc Ctrl+Shift+$)" }
     ,"sheet.format.percent": { label: "Phần trăm", tooltip: "Định dạng phần trăm % (Ctrl+Shift+5)" }
     ,"sheet.format.standard": { label: "Phân cách hàng nghìn", tooltip: "Dấu phẩy phân cách hàng nghìn (Ctrl+Shift+1)" }
@@ -423,5 +424,41 @@ export const viStrings = {
       jumpToEndnote: "Nhấp để chuyển đến chú thích cuối",
       jumpToRef: "Chuyển tới vị trí tham chiếu"
     }
+  },
+  sheetFormatCells: {
+    dialogTitle: "Định dạng ô (Format Cells)",
+    tabNumber: "Số",
+    tabAlignment: "Căn chỉnh",
+    tabFont: "Phông chữ",
+    tabBorder: "Đường viền",
+    tabFill: "Tô màu",
+    tabProtection: "Bảo vệ",
+    categoryLabel: "Thể loại:",
+    sampleLabel: "Mẫu (Sample):",
+    catGeneral: "Chung (General)",
+    catNumber: "Số (Number)",
+    catCurrency: "Tiền tệ (Currency)",
+    catAccounting: "Kế toán (Accounting)",
+    catDate: "Ngày tháng (Date)",
+    catPercentage: "Phần trăm (Percentage)",
+    catScientific: "Khoa học (Scientific)",
+    catText: "Văn bản (Text)",
+    catCustom: "Tùy chỉnh (Custom)",
+    generalDesc: "Các ô định dạng Chung không có định dạng số cụ thể. Số và chữ sẽ được hiển thị như khi nhập.",
+    decimalPlaces: "Số chữ số thập phân:",
+    useThousands: "Sử dụng dấu phân cách hàng nghìn (1,000)",
+    negativeNumbers: "Số âm:",
+    currencySymbol: "Ký hiệu tiền tệ:",
+    noSymbol: "(Không có)",
+    accountingTitle: "Đặc điểm định dạng Kế toán:",
+    accountingRule1: "Ký hiệu tiền tệ luôn căn sát lề trái ô tính.",
+    accountingRule2: "Giá trị số luôn căn sát lề phải để thẳng hàng dấu thập phân.",
+    accountingRule3: "Số 0 hiển thị thành dấu gạch ngang (-).",
+    accountingRule4: "Số âm không dùng dấu trừ mà đặt trong dấu ngoặc đơn: (1,234.00).",
+    dateType: "Kiểu hiển thị ngày tháng (Type):",
+    dateLocale: "Vùng/Ngôn ngữ: Tiếng Việt (Việt Nam)",
+    percentageDesc: "Định dạng Phần trăm nhân giá trị ô với 100 và hiển thị kết quả kèm ký hiệu %. Giá trị lưu trữ gốc không đổi (ví dụ: 0.5 hiển thị là 50%). Khi gõ số mới vào ô đã định dạng %, số đó tự động chia cho 100.",
+    textDesc: "Các ô định dạng Văn bản được xử lý như chuỗi ký tự thô, ngay cả khi ô chứa số. Ô sẽ được căn lề trái tự nhiên và các hàm tính toán tổng số học như SUM sẽ bỏ qua ô này giống chuẩn Excel.",
+    customType: "Mã định dạng (Type):"
   }
 };
