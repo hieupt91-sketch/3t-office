@@ -418,7 +418,7 @@ export async function runWriterTocFootnotesTests() {
   });
 
   // Test 4: Ribbon Placement
-  await test("Writer References: Hiện diện trong Ribbon tab 'Tham chiếu' và 'Chèn'", async () => {
+  await test("Writer References: Hiện diện trong Ribbon tab 'Tham chiếu' (không trùng trên Chèn)", async () => {
     const refTab = WRITER_RIBBON_TABS.find(t => t.id === "references");
     if (!refTab) throw new Error("Chưa có tab 'Tham chiếu' (id: 'references') trên thanh Ribbon");
     if (refTab.label !== "Tham chiếu") throw new Error(`Nhãn tab kỳ vọng 'Tham chiếu', nhận '${refTab.label}'`);
@@ -437,7 +437,7 @@ export async function runWriterTocFootnotesTests() {
 
     const insertTab = WRITER_RIBBON_TABS.find(t => t.id === "insert");
     const insertRefGroup = insertTab?.groups?.find(g => g.label?.includes("Mục lục"));
-    if (!insertRefGroup) throw new Error("Thiếu nhóm Mục lục & Chú thích trên tab 'Chèn'");
+    if (insertRefGroup) throw new Error("Tab Chèn không được trùng nhóm Mục lục/Chú thích (one-feature-one-display)");
   });
 
   // Test 5: TOC Insertion from Headings (H1, H2, H3)
