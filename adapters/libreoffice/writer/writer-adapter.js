@@ -10,6 +10,8 @@ import { parseCsv, replaceMergeFields, showMailMergeDataSourceDialog, showInsert
 import { STYLE_PRESETS, showStyleGalleryDropdown, closeStyleGalleryDropdown, createStyleGalleryStrip } from "../../../apps/writer/style-gallery.js";
 import { showWatermarkDialog, showPageBorderDialog } from "../../../apps/writer/page-decorations.js";
 import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
+import { showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
+import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
 import { t } from "../../../platform/i18n/i18n.js";
 
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
@@ -115,6 +117,9 @@ export class WriterAdapter {
       gap: 10,
       rule: false
     };
+    this.shapes = [];
+    this.selectedShapeId = null;
+    this.documentTheme = "office";
     this._styleSelectionHandler = null;
 
     this._initZones();
@@ -185,6 +190,10 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.page.columns1", () => this.setColumns({ count: 1, gap: 0, rule: false }));
     globalCommandBus.bindHandler("writer.page.columns2", () => this.setColumns({ count: 2, gap: 10, rule: false }));
     globalCommandBus.bindHandler("writer.page.columns3", () => this.setColumns({ count: 3, gap: 10, rule: false }));
+    globalCommandBus.bindHandler("writer.shape.insert", (args) => this.insertShape(args));
+    globalCommandBus.bindHandler("writer.diagram.insert", (args) => this.insertDiagram(args));
+    globalCommandBus.bindHandler("writer.chart.insert", (args) => this.insertChart(args));
+    globalCommandBus.bindHandler("writer.design.themeGallery", (args) => this.openThemeGalleryDialog(args));
 
     if (!this._lastSnapshot) {
       this._lastSnapshot = this._createSnapshot("Initial State");
@@ -753,7 +762,7 @@ export class WriterAdapter {
         return true;
 
       case "common.edit.hyperlink":
-        await this._insertHyperlink();
+        await this._insertHyperlink(args);
         dispatchResult = true;
         break;
 
@@ -822,6 +831,18 @@ export class WriterAdapter {
 
       case "writer.page.columns3":
         return this.setColumns({ count: 3, gap: 10, rule: false });
+
+      case "writer.shape.insert":
+        return await this.insertShape(args);
+
+      case "writer.diagram.insert":
+        return await this.insertDiagram(args);
+
+      case "writer.chart.insert":
+        return await this.insertChart(args);
+
+      case "writer.design.themeGallery":
+        return await this.openThemeGalleryDialog(args);
 
       case "writer.reference.tocInsert":
         return this.insertTableOfContents();
@@ -1489,6 +1510,326 @@ export class WriterAdapter {
     this._applyWatermark();
     this._applyPageBorder();
     this._applyColumns();
+    this._renderShapes();
+  }
+
+  // --- HÌNH KHỐI (SHAPES) ---
+
+  insertShape(options = null) {
+    options = options || {};
+    this.flushTyping();
+    this._initZones();
+
+    const shapeType = options.shapeType || options.type || "rectangle";
+    const width = typeof options.width === "number" ? options.width : (typeof options.w === "number" ? options.w : 140);
+    const height = typeof options.height === "number" ? options.height : (typeof options.h === "number" ? options.h : 80);
+    const fill = options.fill || (shapeType === "line" ? "none" : shapeType === "circle" ? "#0ea5e9" : shapeType === "arrow" ? "#f59e0b" : "#2563eb");
+    const stroke = options.stroke || (shapeType === "line" ? "#0f172a" : shapeType === "circle" ? "#0284c7" : shapeType === "arrow" ? "#d97706" : "#1d4ed8");
+    const strokeWidth = options.strokeWidth || (shapeType === "line" ? 3 : 2);
+
+    const shapeId = `shape-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const shape = {
+      id: shapeId,
+      type: shapeType,
+      shapeType: shapeType,
+      x: typeof options.x === "number" ? options.x : 100,
+      y: typeof options.y === "number" ? options.y : (160 + ((this.shapes?.length || 0) * 25) % 250),
+      w: width,
+      h: height,
+      width: width,
+      height: height,
+      fill: fill,
+      stroke: stroke,
+      strokeWidth: strokeWidth
+    };
+
+    if (!this.shapes) this.shapes = [];
+    this.shapes.push(shape);
+    this._renderShapes();
+    this.isDirty = true;
+    this.recordSnapshot("writer.shape.insert");
+    return shape;
+  }
+
+  deleteShape(shapeId) {
+    if (!shapeId || !this.shapes) return false;
+    const idx = this.shapes.findIndex(s => s.id === shapeId);
+    if (idx === -1) return false;
+    this.shapes.splice(idx, 1);
+    if (this.selectedShapeId === shapeId) this.selectedShapeId = null;
+    this._renderShapes();
+    this.isDirty = true;
+    this.recordSnapshot("writer.shape.delete");
+    return true;
+  }
+
+  moveShape(shapeId, newX, newY) {
+    if (!shapeId || !this.shapes) return false;
+    const shape = this.shapes.find(s => s.id === shapeId);
+    if (!shape) return false;
+    shape.x = Math.max(0, newX);
+    shape.y = Math.max(0, newY);
+    this._renderShapes();
+    this.isDirty = true;
+    this.recordSnapshot("writer.shape.move");
+    return true;
+  }
+
+  _selectShape(shapeId) {
+    this.selectedShapeId = shapeId;
+    if (!this.editorDom || !this.editorDom.querySelectorAll) return;
+    const items = this.editorDom.querySelectorAll(".vno-writer-shape-item");
+    items.forEach(item => {
+      const isCur = (item.dataset?.shapeId || (typeof item.getAttribute === "function" ? item.getAttribute("data-shape-id") : null)) === shapeId;
+      if (isCur) {
+        item.classList.add("is-selected");
+      } else {
+        item.classList.remove("is-selected");
+      }
+    });
+  }
+
+  _renderShapes() {
+    if (!this.editorDom || typeof document === "undefined" || !document.createElement) return;
+    let layer = this.editorDom.querySelector ? this.editorDom.querySelector(".vno-writer-shapes-layer") : null;
+    if (!layer) {
+      layer = document.createElement("div");
+      layer.className = "vno-writer-shapes-layer";
+      this.editorDom.appendChild(layer);
+    }
+    layer.innerHTML = "";
+    if (!this.shapes || !this.shapes.length) return;
+
+    for (const shape of this.shapes) {
+      const el = document.createElement("div");
+      el.className = `vno-writer-shape-item ${shape.id === this.selectedShapeId ? "is-selected" : ""}`;
+      el.dataset.shapeId = shape.id;
+      el.dataset.shapeType = shape.type;
+      el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:auto; cursor:move; user-select:none; z-index:10;`;
+
+      const delBtn = `<button type="button" class="vno-shape-delete-btn" title="Xóa hình khối">&times;</button>`;
+      el.innerHTML = `${renderShapeSvg(shape)}${delBtn}`;
+
+      if (el.addEventListener) {
+        el.addEventListener("mousedown", (e) => {
+          if (e.target?.closest?.(".vno-shape-delete-btn")) return;
+          this._selectShape(shape.id);
+          const startMouseX = e.clientX;
+          const startMouseY = e.clientY;
+          const startX = shape.x;
+          const startY = shape.y;
+          let moved = false;
+
+          const onMouseMove = (moveEvt) => {
+            const dx = moveEvt.clientX - startMouseX;
+            const dy = moveEvt.clientY - startMouseY;
+            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) moved = true;
+            el.style.left = `${Math.max(0, startX + dx)}px`;
+            el.style.top = `${Math.max(0, startY + dy)}px`;
+          };
+
+          const onMouseUp = (upEvt) => {
+            if (typeof document !== "undefined") {
+              document.removeEventListener("mousemove", onMouseMove);
+              document.removeEventListener("mouseup", onMouseUp);
+            }
+            if (moved) {
+              const dx = upEvt.clientX - startMouseX;
+              const dy = upEvt.clientY - startMouseY;
+              shape.x = Math.max(0, startX + dx);
+              shape.y = Math.max(0, startY + dy);
+              this.isDirty = true;
+              this.recordSnapshot("writer.shape.move");
+            }
+          };
+
+          if (typeof document !== "undefined") {
+            document.addEventListener("mousemove", onMouseMove);
+            document.addEventListener("mouseup", onMouseUp);
+          }
+        });
+      }
+
+      layer.appendChild(el);
+    }
+  }
+
+  // --- SƠ ĐỒ SMARTART (DIAGRAMS) ---
+
+  insertDiagram(options = null) {
+    options = options || {};
+    this.flushTyping();
+    this._initZones();
+
+    const type = options.diagramType || options.type || "process";
+    const opts = { ...options, type, diagramType: type };
+    const html = generateDiagramHtml(opts);
+    let inserted = false;
+    if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+      try {
+        const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (sel && sel.rangeCount > 0 && this.bodyDom?.contains?.(sel.anchorNode)) {
+          inserted = document.execCommand("insertHTML", false, html);
+        }
+      } catch {
+        inserted = false;
+      }
+    }
+    const targetDom = this.bodyDom || this.editorDom;
+    if (!inserted && targetDom) {
+      targetDom.innerHTML = (targetDom.innerHTML || "") + html;
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.diagram.insert");
+    return true;
+  }
+
+  // --- BIỂU ĐỒ MINH HỌA (CHARTS) ---
+
+  insertChart(options = null) {
+    options = options || {};
+    this.flushTyping();
+    this._initZones();
+
+    const type = options.chartType || options.type || "bar";
+    const opts = { ...options, type, chartType: type };
+    const html = generateChartHtml(opts);
+    let inserted = false;
+    if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+      try {
+        const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (sel && sel.rangeCount > 0 && this.bodyDom?.contains?.(sel.anchorNode)) {
+          inserted = document.execCommand("insertHTML", false, html);
+        }
+      } catch {
+        inserted = false;
+      }
+    }
+    const targetDom = this.bodyDom || this.editorDom;
+    if (!inserted && targetDom) {
+      targetDom.innerHTML = (targetDom.innerHTML || "") + html;
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.chart.insert");
+    return true;
+  }
+
+  // --- SIÊU LIÊN KẾT (HYPERLINK) ---
+
+  insertHyperlink(options = null) {
+    options = options || {};
+    let url = typeof options === "string" ? options : options.url;
+    let text = typeof options === "string" ? "" : options.text;
+
+    if (!url) {
+      url = "https://";
+    }
+
+    this.flushTyping();
+    this._initZones();
+
+    const targetDom = this.bodyDom || this.editorDom;
+    const linkText = text || url;
+    const safeUrl = String(url).replace(/"/g, "&quot;");
+    const safeText = String(linkText).replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const linkHtml = `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline;">${safeText}</a>`;
+
+    let inserted = false;
+    if (typeof document !== "undefined" && typeof document.execCommand === "function" && !text) {
+      try {
+        const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (sel && sel.rangeCount > 0 && !sel.isCollapsed && this.bodyDom?.contains?.(sel.anchorNode)) {
+          inserted = document.execCommand("createLink", false, safeUrl);
+        }
+      } catch {
+        inserted = false;
+      }
+    }
+
+    if (!inserted && targetDom) {
+      if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+        try {
+          const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+          if (sel && sel.rangeCount > 0 && this.bodyDom?.contains?.(sel.anchorNode)) {
+            inserted = document.execCommand("insertHTML", false, linkHtml);
+          }
+        } catch {}
+      }
+      if (!inserted && targetDom.innerHTML !== undefined) {
+        targetDom.innerHTML = (targetDom.innerHTML || "") + linkHtml;
+      }
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("common.edit.hyperlink");
+    return true;
+  }
+
+  async _insertHyperlink(options = null) {
+    options = options || {};
+    let url = typeof options === "string" ? options : options.url;
+    let text = typeof options === "string" ? "" : options.text;
+    if (!url) {
+      if (typeof window !== "undefined" && typeof document !== "undefined" && document.body) {
+        const linkTitle = (typeof t === "function" && t("writerDialogs.hyperlink.title") !== "writerDialogs.hyperlink.title")
+          ? t("writerDialogs.hyperlink.title")
+          : "Chèn Liên Kết (Hyperlink)";
+        const linkMsg = (typeof t === "function" && t("writerDialogs.hyperlink.message") !== "writerDialogs.hyperlink.message")
+          ? t("writerDialogs.hyperlink.message")
+          : "Nhập địa chỉ liên kết (URL):";
+        url = await showPromptDialog({
+          title: linkTitle,
+          message: linkMsg,
+          defaultValue: "https://",
+          placeholder: "https://example.com"
+        });
+      }
+      if (!url) return false;
+    }
+    return this.insertHyperlink({ url, text });
+  }
+
+  // --- ĐỊNH DẠNG TÀI LIỆU & CHỦ ĐỀ (DOCUMENT THEMES) ---
+
+  async openThemeGalleryDialog(options = null) {
+    options = options || {};
+    const currentTheme = typeof options === "string" ? options : (options.themeId || this.documentTheme || "office");
+    const chosenTheme = await showThemeGalleryDialog(currentTheme);
+    if (!chosenTheme) return false;
+    return this.applyDocumentTheme(chosenTheme, true);
+  }
+
+  applyDocumentTheme(themeId = "office", record = true) {
+    if (record) {
+      this.flushTyping();
+    }
+    this._initZones();
+
+    const theme = DOCUMENT_THEMES.find(t => t.id === themeId) || DOCUMENT_THEMES[0];
+    this.documentTheme = theme.id;
+
+    const target = this.bodyDom || this.editorDom;
+    if (target) {
+      if (target.style) {
+        target.style.fontFamily = theme.fontFamily;
+        target.style.lineHeight = theme.lineHeight;
+        target.style.color = theme.bodyColor;
+      }
+      if (target.dataset) {
+        target.dataset.vnoTheme = theme.id;
+      }
+      if (typeof target.setAttribute === "function") {
+        try {
+          target.setAttribute("data-vno-theme", theme.id);
+        } catch {}
+      }
+    }
+
+    this.isDirty = true;
+    if (record) {
+      this.recordSnapshot("writer.design.themeGallery");
+    }
+    return true;
   }
 
   // --- CHIA CỘT VĂN BẢN (COLUMNS) ---
@@ -1700,26 +2041,6 @@ export class WriterAdapter {
     }
   }
 
-  async _insertHyperlink() {
-    if (typeof window === "undefined" || typeof document === "undefined") return;
-    const linkTitle = (typeof t === "function" && t("writerDialogs.hyperlink.title") !== "writerDialogs.hyperlink.title")
-      ? t("writerDialogs.hyperlink.title")
-      : "Chèn Liên Kết (Hyperlink)";
-    const linkMsg = (typeof t === "function" && t("writerDialogs.hyperlink.message") !== "writerDialogs.hyperlink.message")
-      ? t("writerDialogs.hyperlink.message")
-      : "Nhập địa chỉ liên kết (URL):";
-    const url = await showPromptDialog({
-      title: linkTitle,
-      message: linkMsg,
-      defaultValue: "https://",
-      placeholder: "https://example.com"
-    });
-    if (url && url !== "https://") {
-      this.editorDom.focus();
-      document.execCommand("createLink", false, url);
-    }
-  }
-
   _insertImageDialog() {
     const input = document.createElement("input");
     input.type = "file";
@@ -1819,7 +2140,14 @@ export class WriterAdapter {
       bodyExportHtml = `<div class="vno-writer-columns-content vno-writer-body" style="column-count:${colCount};-webkit-column-count:${colCount};column-gap:${colGap};-webkit-column-gap:${colGap};${this.columns.rule ? `column-rule:${colRule};-webkit-column-rule:${colRule};` : ''}">${bodyHtml}</div>`;
     }
 
-    const fullHtml = `${watermarkHtml}${headerHtml}${bodyExportHtml}${footerHtml}`;
+    let shapesHtml = "";
+    if (this.shapes && this.shapes.length) {
+      shapesHtml = `<div class="vno-export-shapes" style="position:relative; width:100%; height:0; overflow:visible;">\n` +
+        this.shapes.map(s => `  <div style="position:absolute; left:${s.x}px; top:${s.y}px; width:${s.w}px; height:${s.h}px;">${renderShapeSvg(s)}</div>\n`).join("") +
+        `</div>\n`;
+    }
+
+    const fullHtml = `${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}`;
     return `<style>${this._getPageSetupCss()}${columnsCss}</style>${fullHtml}`;
   }
 
@@ -1837,8 +2165,11 @@ export class WriterAdapter {
       .replace(/<ins\b(?=[^>]*\bdata-vno-change=(?:"insert"|'insert'))[^>]*>([\s\S]*?)<\/ins>/gi, "$1")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-toc-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-note-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
+      .replace(/<button\b[^>]*class=["'][^"']*\bvno-diagram-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
+      .replace(/<button\b[^>]*class=["'][^"']*\bvno-chart-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
       .replace(/<div\b[^>]*class=["'][^"']*\bvno-page-watermark\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/<div\b[^>]*class=["'][^"']*\bvno-page-border-frame\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "")
+      .replace(/<div\b[^>]*class=["'][^"']*\bvno-writer-shapes-layer\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/<div\b[^>]*data-vno-watermark=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/<div\b[^>]*data-vno-page-border=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/\s*\bvno-merge-preview\b/gi, "")
@@ -2684,6 +3015,8 @@ export class WriterAdapter {
       watermark: this.watermark ? JSON.parse(JSON.stringify(this.watermark)) : null,
       pageBorder: this.pageBorder ? JSON.parse(JSON.stringify(this.pageBorder)) : null,
       columns: this.columns ? JSON.parse(JSON.stringify(this.columns)) : { count: 1, gap: 10, rule: false },
+      shapes: this.shapes ? JSON.parse(JSON.stringify(this.shapes)) : [],
+      documentTheme: this.documentTheme || "office",
       description,
       timestamp: Date.now()
     };
@@ -2703,6 +3036,8 @@ export class WriterAdapter {
     if (JSON.stringify(a.watermark) !== JSON.stringify(b.watermark)) return false;
     if (JSON.stringify(a.pageBorder) !== JSON.stringify(b.pageBorder)) return false;
     if (JSON.stringify(a.columns) !== JSON.stringify(b.columns)) return false;
+    if (JSON.stringify(a.shapes || []) !== JSON.stringify(b.shapes || [])) return false;
+    if ((a.documentTheme || "office") !== (b.documentTheme || "office")) return false;
     return true;
   }
 
@@ -2746,6 +3081,12 @@ export class WriterAdapter {
     }
     if (Object.prototype.hasOwnProperty.call(snapshot, "columns")) {
       this.columns = snapshot.columns ? JSON.parse(JSON.stringify(snapshot.columns)) : { count: 1, gap: 10, rule: false };
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, "shapes")) {
+      this.shapes = snapshot.shapes ? JSON.parse(JSON.stringify(snapshot.shapes)) : [];
+    }
+    if (snapshot.documentTheme) {
+      this.applyDocumentTheme(snapshot.documentTheme, false);
     }
     this._applyDecorations();
     this._syncActiveStyleUI?.();
@@ -2905,6 +3246,15 @@ export class WriterAdapter {
 
     if (!this._undoKeyHandler && typeof target.addEventListener === "function") {
       this._undoKeyHandler = (event) => {
+        if ((event.key === "Delete" || event.key === "Backspace") && this.selectedShapeId) {
+          const active = typeof document !== "undefined" ? document.activeElement : null;
+          const isInput = active && (active.isContentEditable || active.tagName === "INPUT" || active.tagName === "TEXTAREA");
+          if (!isInput) {
+            event.preventDefault();
+            this.deleteShape(this.selectedShapeId);
+            return;
+          }
+        }
         if (!event.ctrlKey && !event.metaKey) return;
         const key = (event.key || "").toLowerCase();
         if (key === "z" && !event.shiftKey) {
@@ -3222,6 +3572,58 @@ export class WriterAdapter {
           this.deleteEndnote(enId);
         }
         return;
+      }
+
+      // 10. Diagram: Nút xóa sơ đồ
+      const diagramDel = target.closest ? target.closest(".vno-diagram-delete-btn") : null;
+      if (diagramDel) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const dEl = diagramDel.closest ? diagramDel.closest(".vno-writer-diagram") : null;
+        if (dEl) {
+          if (typeof dEl.remove === "function") dEl.remove();
+          else if (dEl.parentNode) dEl.parentNode.removeChild(dEl);
+          this.isDirty = true;
+          this.recordSnapshot("writer.diagram.delete");
+        }
+        return;
+      }
+
+      // 11. Chart: Nút xóa biểu đồ
+      const chartDel = target.closest ? target.closest(".vno-chart-delete-btn") : null;
+      if (chartDel) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const cEl = chartDel.closest ? chartDel.closest(".vno-writer-chart") : null;
+        if (cEl) {
+          if (typeof cEl.remove === "function") cEl.remove();
+          else if (cEl.parentNode) cEl.parentNode.removeChild(cEl);
+          this.isDirty = true;
+          this.recordSnapshot("writer.chart.delete");
+        }
+        return;
+      }
+
+      // 12. Shape: Nút xóa hình khối
+      const shapeDel = target.closest ? target.closest(".vno-shape-delete-btn") : null;
+      if (shapeDel) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const sEl = shapeDel.closest ? shapeDel.closest(".vno-writer-shape-item") : null;
+        const sId = sEl ? (typeof sEl.getAttribute === "function" ? sEl.getAttribute("data-shape-id") : sEl.dataset?.shapeId) : null;
+        if (sId) {
+          this.deleteShape(sId);
+        }
+        return;
+      }
+
+      // 13. Shape: Chọn hình khối khi click
+      const shapeItem = target.closest ? target.closest(".vno-writer-shape-item") : null;
+      if (shapeItem) {
+        const sId = typeof shapeItem.getAttribute === "function" ? shapeItem.getAttribute("data-shape-id") : shapeItem.dataset?.shapeId;
+        this._selectShape(sId);
+      } else if (!target.closest?.(".vno-writer-shape-item")) {
+        this._selectShape(null);
       }
     };
 
