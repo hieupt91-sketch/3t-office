@@ -336,6 +336,7 @@ export class SheetAdapter {
       const cells = this.grid.sheetsData?.[sheetName]
         || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
         || new Map();
+      const comments = this.grid.commentsBySheet?.[sheetName] || {};
       let maxRow = 0;
       const rows = new Map();
       for (const [coordinate, item] of cells.entries()) {
@@ -345,6 +346,15 @@ export class SheetAdapter {
         const columnNumber = this._columnNumber(match[1]);
         if (!rows.has(rowNumber)) rows.set(rowNumber, new Map());
         rows.get(rowNumber).set(columnNumber, item);
+        maxRow = Math.max(maxRow, rowNumber);
+      }
+      for (const coordinate of Object.keys(comments)) {
+        const match = String(coordinate).match(/^([A-Z]+)(\d+)$/);
+        if (!match) continue;
+        const rowNumber = Number(match[2]);
+        const columnNumber = this._columnNumber(match[1]);
+        if (!rows.has(rowNumber)) rows.set(rowNumber, new Map());
+        if (!rows.get(rowNumber).has(columnNumber)) rows.get(rowNumber).set(columnNumber, { val: "", formula: "", style: {} });
         maxRow = Math.max(maxRow, rowNumber);
       }
 
@@ -369,11 +379,14 @@ export class SheetAdapter {
             : "";
           const formatStyle = item.style?.numberFormat ? numberFormats.get(JSON.stringify(item.style.numberFormat)) : null;
           const cellAttrs = `${formulaAttrs}${numFmtAttr}${formatStyle ? ` table:style-name="${formatStyle.cellStyle}"` : ""}`;
+          const coordinate = `${this._columnName(columnNumber)}${rowNumber}`;
+          const comment = comments[coordinate];
+          const annotationXml = comment ? `<office:annotation><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
           if (typeof item.val === "number" && Number.isFinite(item.val)) {
-            cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}><text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+            cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
           } else {
             const text = item.val === undefined || item.val === null ? "" : String(item.val);
-            cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${cellAttrs}><text:p>${this._escapeXml(text)}</text:p></table:table-cell>`;
+            cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${cellAttrs}>${annotationXml}<text:p>${this._escapeXml(text)}</text:p></table:table-cell>`;
           }
           previousColumn = columnNumber;
         }
@@ -394,6 +407,7 @@ export class SheetAdapter {
                  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
                  xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0"
                  xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+                 xmlns:dc="http://purl.org/dc/elements/1.1/"
                  xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
                  xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2"
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
@@ -446,7 +460,7 @@ export class SheetAdapter {
 
   /** Parse FODS into every worksheet, including repeated rows/cells emitted by LibreOffice. */
   parseFods(xmlText) {
-    const workbook = { sheets: [], sheetsData: {}, activeSheet: "" };
+    const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {} };
     if (!xmlText) return workbook;
     const numberStyles = this._parseNumberStyles(xmlText);
 
@@ -459,6 +473,7 @@ export class SheetAdapter {
         tables.forEach((table, tableIndex) => {
           const name = table.getAttribute("table:name") || `Trang tính ${tableIndex + 1}`;
           const data = new Map();
+          const comments = {};
           const columnStyles = [];
           Array.from(table.children).filter(element => element.localName === "table-column").forEach(column => {
             const repeat = Math.max(1, Number(column.getAttribute("table:number-columns-repeated")) || 1);
@@ -474,12 +489,22 @@ export class SheetAdapter {
                 const columnRepeat = Math.max(1, Number(cell.getAttribute("table:number-columns-repeated")) || 1);
                 const attributes = Object.fromEntries(Array.from(cell.attributes).map(attr => [attr.name, attr.value]));
                 if (!attributes["table:style-name"] && columnStyles[columnNumber - 1]) attributes["table:style-name"] = columnStyles[columnNumber - 1];
-                const paragraphs = Array.from(cell.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p"));
+                const annotation = Array.from(cell.children).find(child => child.localName === "annotation");
+                const paragraphs = Array.from(cell.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p")).filter(paragraph => !annotation?.contains(paragraph));
                 const text = paragraphs.map(paragraph => paragraph.textContent || "").join("\n");
-                const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "";
+                const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation;
                 if (hasValue) {
                   const item = this._cellFromFodsAttributes(attributes, text, numberStyles);
-                  for (let repeat = 0; repeat < columnRepeat; repeat++) data.set(`${this._columnName(columnNumber + repeat)}${rowNumber}`, { ...item });
+                  for (let repeat = 0; repeat < columnRepeat; repeat++) {
+                    const coord = `${this._columnName(columnNumber + repeat)}${rowNumber}`;
+                    data.set(coord, { ...item });
+                    if (annotation) comments[coord] = {
+                      coord,
+                      text: Array.from(annotation.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p")).map(p => p.textContent || "").join("\n"),
+                      author: annotation.getElementsByTagNameNS("http://purl.org/dc/elements/1.1/", "creator")[0]?.textContent || annotation.getAttribute("office:author") || "",
+                      timestamp: annotation.getElementsByTagNameNS("http://purl.org/dc/elements/1.1/", "date")[0]?.textContent || annotation.getAttribute("office:create-date") || ""
+                    };
+                  }
                 }
                 columnNumber += columnRepeat;
               });
@@ -488,6 +513,7 @@ export class SheetAdapter {
           });
           workbook.sheets.push(name);
           workbook.sheetsData[name] = data;
+          workbook.commentsBySheet[name] = comments;
         });
       }
     }
@@ -503,6 +529,7 @@ export class SheetAdapter {
         const nameMatch = tableMatch[1].match(/table:name=["']([^"']*)["']/i);
         const name = this._unescapeXml(nameMatch?.[1] || `Trang tính ${tableIndex}`);
         const data = new Map();
+        const comments = {};
         const columnStyles = [];
         tableMatch[2].replace(/<table:table-column\b([^>]*)\/?\s*>/gi, (_, attrs) => {
           const repeat = Math.max(1, Number(attrs.match(/table:number-columns-repeated=["'](\d+)["']/i)?.[1]) || 1);
@@ -524,13 +551,28 @@ export class SheetAdapter {
               cellMatch[1].replace(/([\w:-]+)=["']([^"']*)["']/g, (_, key, value) => { attributes[key] = this._unescapeXml(value); return ""; });
               const columnRepeat = Math.max(1, Number(attributes["table:number-columns-repeated"]) || 1);
               if (!attributes["table:style-name"] && columnStyles[columnNumber - 1]) attributes["table:style-name"] = columnStyles[columnNumber - 1];
+              const content = String(cellMatch[2] || "");
+              const annotationMatch = content.match(/<office:annotation\b([^>]*)>([\s\S]*?)<\/office:annotation>/i);
+              const valueContent = annotationMatch ? content.replace(annotationMatch[0], "") : content;
               const paragraphs = [];
-              String(cellMatch[2] || "").replace(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi, (_, value) => { paragraphs.push(this._unescapeXml(value.replace(/<[^>]+>/g, ""))); return ""; });
+              valueContent.replace(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi, (_, value) => { paragraphs.push(this._unescapeXml(value.replace(/<[^>]+>/g, ""))); return ""; });
               const text = paragraphs.join("\n");
-              const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "";
+              const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotationMatch;
               if (hasValue) {
                 const item = this._cellFromFodsAttributes(attributes, text, numberStyles);
-                for (let repeat = 0; repeat < columnRepeat; repeat++) data.set(`${this._columnName(columnNumber + repeat)}${rowNumber}`, { ...item });
+                for (let repeat = 0; repeat < columnRepeat; repeat++) {
+                  const coord = `${this._columnName(columnNumber + repeat)}${rowNumber}`;
+                  data.set(coord, { ...item });
+                  if (annotationMatch) {
+                    const annotationBody = annotationMatch[2];
+                    comments[coord] = {
+                      coord,
+                      text: this._unescapeXml(annotationBody.match(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/i)?.[1]?.replace(/<[^>]+>/g, "") || ""),
+                      author: this._unescapeXml(annotationBody.match(/<dc:creator\b[^>]*>([\s\S]*?)<\/dc:creator>/i)?.[1]?.replace(/<[^>]+>/g, "") || annotationMatch[1].match(/office:author=["']([^"']*)["']/i)?.[1] || ""),
+                      timestamp: this._unescapeXml(annotationBody.match(/<dc:date\b[^>]*>([\s\S]*?)<\/dc:date>/i)?.[1]?.replace(/<[^>]+>/g, "") || annotationMatch[1].match(/office:create-date=["']([^"']*)["']/i)?.[1] || "")
+                    };
+                  }
+                }
               }
               columnNumber += columnRepeat;
             }
@@ -539,6 +581,7 @@ export class SheetAdapter {
         }
         workbook.sheets.push(name);
         workbook.sheetsData[name] = data;
+        workbook.commentsBySheet[name] = comments;
       }
     }
     if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
@@ -553,10 +596,12 @@ export class SheetAdapter {
     if (typeof this.grid.resetToBlank === "function") this.grid.resetToBlank(firstSheet);
     this.grid.sheets = [firstSheet];
     this.grid.sheetsData = { [firstSheet]: workbook.sheetsData[firstSheet] };
+    this.grid.commentsBySheet = { [firstSheet]: workbook.commentsBySheet[firstSheet] || {} };
     for (const sheetName of workbook.sheets.slice(1)) {
       if (typeof this.grid.addSheet === "function") this.grid.addSheet(sheetName, false);
       else this.grid.sheets.push(sheetName);
       this.grid.sheetsData[sheetName] = workbook.sheetsData[sheetName];
+      this.grid.commentsBySheet[sheetName] = workbook.commentsBySheet[sheetName] || {};
     }
     if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet);
     else this.grid.activeSheet = workbook.activeSheet;

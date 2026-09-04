@@ -52,6 +52,17 @@ export async function runSheetCommentsPrintAreaTests() {
       assert(grid.commentsBySheet[first].B2.text === "Đã sửa", "Comment sheet 1 bị thay thế");
     });
 
+    await test("Sheet Comments: FODS dùng office:annotation chuẩn và nạp lại đủ metadata", () => {
+      const first = grid.activeSheet;
+      grid.commentsBySheet[first].C3 = { coord: "C3", text: "Ô trống vẫn có ghi chú", author: "Lan", timestamp: "2026-09-04T08:30:00.000Z" };
+      const adapter = new SheetAdapter(grid);
+      const xml = adapter.serializeToFods();
+      assert(xml.includes("<office:annotation>") && xml.includes("<dc:creator>Lan</dc:creator>"), "Thiếu annotation ODF chuẩn");
+      const parsed = adapter.parseFods(xml);
+      assert(parsed.commentsBySheet[first].C3.text === "Ô trống vẫn có ghi chú", "Không đọc lại comment ô trống");
+      assert(parsed.commentsBySheet[first].C3.timestamp === "2026-09-04T08:30:00.000Z", "Không đọc lại timestamp");
+    });
+
     await test("Print Area: viền đúng bốn cạnh, clear và undo-redo", () => {
       grid.selectionRange = { start: { c: "B", r: 2 }, end: { c: "D", r: 4 } };
       assert(grid.setPrintArea() === "B2:D4", "Không lưu B2:D4");
