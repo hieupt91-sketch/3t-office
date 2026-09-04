@@ -87,16 +87,18 @@ export async function runSheetEditingStylesTests() {
   });
 
   // TEST 2: "One feature one display" - Conditional Formatting
-  test("Sheet Ribbon: Conditional Formatting dời sang Styles, không trùng lặp ở quickAnalysis", () => {
+  test("Sheet Ribbon: Conditional Formatting dời sang Styles, không trùng lặp ở Editing", () => {
     const homeTab = SHEET_RIBBON_TABS.find(tab => tab.id === "home");
     const stylesGroup = homeTab.groups.find(g => g.labelKey === "sheetRibbon.group.styles");
-    const quickGroup = homeTab.groups.find(g => g.labelKey === "sheetRibbon.group.quickAnalysis");
+    // AutoSum/Sort/Filter đã gộp vào đúng 1 nhóm Editing duy nhất theo thứ tự Excel thật
+    // (Excel không có nhóm "quickAnalysis" riêng — AutoSum/Fill/Clear/Sort/Find đều chung 1 nhóm Editing).
+    const editingGroup = homeTab.groups.find(g => g.labelKey === "sheetRibbon.group.editing");
 
     const stylesJson = JSON.stringify(stylesGroup);
-    const quickJson = JSON.stringify(quickGroup);
+    const editingJson = JSON.stringify(editingGroup);
 
     assert(stylesJson.includes("sheet.format.conditional"), "Nhóm Styles phải chứa sheet.format.conditional");
-    assert(!quickJson.includes("sheet.format.conditional"), "Nhóm quickAnalysis KHÔNG được còn sheet.format.conditional");
+    assert(!editingJson.includes("sheet.format.conditional"), "Nhóm Editing KHÔNG được còn sheet.format.conditional");
     assert(stylesJson.includes("sheet.style.formatAsTable"), "Nhóm Styles phải chứa sheet.style.formatAsTable");
     assert(stylesJson.includes("sheet.style.cellStyles"), "Nhóm Styles phải chứa sheet.style.cellStyles");
   });

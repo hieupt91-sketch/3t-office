@@ -121,24 +121,10 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
-        label: "Tính toán & Dữ liệu",
-        labelKey: "sheetRibbon.group.quickAnalysis",
-        items: [
-          { type: "button", commandId: "sheet.formula.sum", isLarge: true },
-          {
-            type: "column",
-            items: [
-              { type: "button", commandId: "sheet.data.sortAsc" },
-              { type: "button", commandId: "sheet.data.sortDesc" },
-              { type: "button", commandId: "sheet.data.filter" }
-            ]
-          }
-        ]
-      },
-      {
         label: "Chỉnh sửa",
         labelKey: "sheetRibbon.group.editing",
         items: [
+          { type: "button", commandId: "sheet.formula.sum", isLarge: true },
           {
             type: "column",
             items: [
@@ -152,6 +138,14 @@ export const SHEET_RIBBON_TABS = [
               { type: "button", commandId: "sheet.edit.clearAll" },
               { type: "button", commandId: "sheet.edit.clearFormats" },
               { type: "button", commandId: "sheet.edit.clearContents" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.data.sortAsc" },
+              { type: "button", commandId: "sheet.data.sortDesc" },
+              { type: "button", commandId: "sheet.data.filter" }
             ]
           },
           {
