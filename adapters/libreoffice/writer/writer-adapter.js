@@ -226,6 +226,14 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.chart.insert", (args) => this.insertChart(args));
     globalCommandBus.bindHandler("writer.design.themeGallery", (args) => this.openThemeGalleryDialog(args));
 
+    // Bind Office Parity Mouse & Shortcuts
+    this._bindMouseAndKeyboardParity();
+    globalCommandBus.bindHandler("writer.style.normal", () => this._applyParagraphStyle("normal"));
+    globalCommandBus.bindHandler("writer.text.changeCase", () => this.changeCase());
+    globalCommandBus.bindHandler("writer.para.moveUp", () => this.moveParagraph("up"));
+    globalCommandBus.bindHandler("writer.para.moveDown", () => this.moveParagraph("down"));
+    globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
+
     if (!this._lastSnapshot) {
       this._lastSnapshot = this._createSnapshot("Initial State");
     }
@@ -299,6 +307,187 @@ export class WriterAdapter {
       selection.addRange(range);
     };
     this.bodyDom.addEventListener("keydown", this._workflowKeydownHandler);
+  }
+
+  _bindMouseAndKeyboardParity() {
+    if (!this.bodyDom?.addEventListener) return;
+
+    // 1. Di chuột mép cột bảng đổi cursor col-resize & nhấp đúp tự động co giãn độ rộng cột
+    this.bodyDom.addEventListener("mousemove", (e) => {
+      const cell = e.target?.closest?.("td, th");
+      if (!cell || !cell.getBoundingClientRect) return;
+      const rect = cell.getBoundingClientRect();
+      if (e.clientX >= rect.right - 8 && e.clientX <= rect.right + 2) {
+        cell.classList.add("is-col-resize-hover");
+      } else {
+        cell.classList.remove("is-col-resize-hover");
+      }
+    });
+
+    this.bodyDom.addEventListener("dblclick", (e) => {
+      const cell = e.target?.closest?.("td, th");
+      if (!cell || !cell.getBoundingClientRect) return;
+      const rect = cell.getBoundingClientRect();
+      if (e.clientX >= rect.right - 8 && e.clientX <= rect.right + 2) {
+        const table = cell.closest?.("table");
+        if (table) {
+          e.preventDefault?.();
+          this.autoFitTableColumn(table, cell.cellIndex);
+        }
+      }
+    });
+
+    // 2. Kéo thả đoạn văn bản đã chọn (Drag & Drop) tích hợp hoàn tác Undo
+    this.bodyDom.addEventListener("dragstart", () => {
+      this._isDraggingText = true;
+    });
+
+    this.bodyDom.addEventListener("drop", () => {
+      if (this._isDraggingText) {
+        this._isDraggingText = false;
+        setTimeout(() => {
+          this.isDirty = true;
+          this.recordSnapshot("writer.text.dragDrop");
+        }, 10);
+      }
+    });
+
+    this.bodyDom.addEventListener("dragend", () => {
+      this._isDraggingText = false;
+    });
+  }
+
+  autoFitTableColumn(table, colIndex) {
+    if (!table) return null;
+    const rows = table.rows || [];
+    let maxLen = 4;
+    for (let i = 0; i < rows.length; i++) {
+      const cell = rows[i].cells ? rows[i].cells[colIndex] : null;
+      if (cell) {
+        const text = (cell.innerText || cell.textContent || "").trim();
+        if (text.length > maxLen) maxLen = text.length;
+      }
+    }
+    const computedWidth = Math.max(50, Math.min(650, Math.round(maxLen * 9.5 + 24)));
+    for (let i = 0; i < rows.length; i++) {
+      const cell = rows[i].cells ? rows[i].cells[colIndex] : null;
+      if (cell) {
+        cell.style.width = `${computedWidth}px`;
+      }
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.autoFitColumn");
+    return computedWidth;
+  }
+
+  changeCase() {
+    if (typeof window === "undefined") return false;
+    const sel = window.getSelection?.();
+    if (!sel || sel.rangeCount === 0) return false;
+
+    let range = sel.getRangeAt(0);
+    if (sel.isCollapsed && range) {
+      const node = sel.anchorNode;
+      if (node && node.nodeType === 3) {
+        const text = node.textContent || "";
+        const offset = sel.anchorOffset;
+        let start = offset;
+        let end = offset;
+        while (start > 0 && /\S/.test(text[start - 1])) start--;
+        while (end < text.length && /\S/.test(text[end])) end++;
+        if (end > start && typeof document !== "undefined") {
+          const newRange = document.createRange?.();
+          if (newRange) {
+            newRange.setStart(node, start);
+            newRange.setEnd(node, end);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+            range = newRange;
+          }
+        }
+      }
+    }
+
+    const text = sel.toString();
+    if (!text) return false;
+
+    this.flushTyping();
+    let newText = "";
+    const isAllUpper = (text === text.toUpperCase() && text !== text.toLowerCase());
+    const isAllLower = (text === text.toLowerCase() && text !== text.toUpperCase());
+
+    if (isAllUpper) {
+      // UPPER -> Title Case: Capitalize first letter of each word
+      newText = text.toLowerCase().replace(/(^|\s)\S/g, char => char.toUpperCase());
+    } else if (isAllLower) {
+      // lower -> UPPER
+      newText = text.toUpperCase();
+    } else {
+      // Mixed/Title -> lower
+      newText = text.toLowerCase();
+    }
+
+    let success = false;
+    if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+      try {
+        success = document.execCommand("insertText", false, newText);
+      } catch {
+        success = false;
+      }
+    }
+    if (!success && range?.deleteContents) {
+      range.deleteContents();
+      if (typeof document !== "undefined") {
+        range.insertNode(document.createTextNode(newText));
+      }
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.text.changeCase");
+    return true;
+  }
+
+  moveParagraph(direction = "up") {
+    if (typeof window === "undefined") return false;
+    const sel = window.getSelection?.();
+    if (!sel || sel.rangeCount === 0) return false;
+    let node = sel.getRangeAt(0).startContainer;
+    while (node && node !== this.bodyDom && node.parentElement !== this.bodyDom) {
+      node = node.parentElement;
+    }
+    if (!node || node === this.bodyDom) return false;
+
+    this.flushTyping();
+    if (direction === "up") {
+      const prev = node.previousElementSibling;
+      if (prev && this.bodyDom?.contains?.(prev)) {
+        this.bodyDom.insertBefore(node, prev);
+        this.isDirty = true;
+        this.recordSnapshot("writer.para.moveUp");
+        return true;
+      }
+    } else if (direction === "down") {
+      const next = node.nextElementSibling;
+      if (next && this.bodyDom?.contains?.(next)) {
+        this.bodyDom.insertBefore(next, node);
+        this.isDirty = true;
+        this.recordSnapshot("writer.para.moveDown");
+        return true;
+      }
+    }
+    return false;
+  }
+
+  repeatLastAction() {
+    if (this.redoStack && this.redoStack.length > 0) {
+      return this.redo();
+    }
+    const history = globalCommandBus.getHistory();
+    const last = history.filter(h => h.commandId && !h.commandId.includes("repeat") && !h.commandId.includes("undo") && !h.commandId.includes("redo")).pop();
+    if (last) {
+      return globalCommandBus.execute(last.commandId, last.args);
+    }
+    return false;
   }
 
   _handleTrackChangesBeforeInput(event) {
@@ -470,10 +659,52 @@ export class WriterAdapter {
           this.focusComment(anchor.dataset?.commentId || (typeof anchor.getAttribute === "function" ? anchor.getAttribute("data-comment-id") : null));
           return;
         }
+        if (event.detail === 3) {
+          let node = event.target;
+          while (node && node !== this.bodyDom && !/^(P|H[1-6]|BLOCKQUOTE|LI|DIV|TD|TH)$/i.test(node?.tagName)) {
+            node = node?.parentElement;
+          }
+          if (node && node !== this.bodyDom && typeof window !== "undefined" && typeof document !== "undefined") {
+            const range = document.createRange?.();
+            if (range) {
+              range.selectNodeContents(node);
+              const sel = window.getSelection?.();
+              sel?.removeAllRanges?.();
+              sel?.addRange?.(range);
+              event.preventDefault?.();
+            }
+          }
+          return;
+        }
         this._referenceClickHandler?.(event);
       };
       this.bodyDom.addEventListener("click", this._commentAnchorClickHandler);
       this._commentAnchorKeyHandler = (event) => {
+        if (event.altKey && event.shiftKey && (event.key === "ArrowUp" || event.key === "Up")) {
+          event.preventDefault?.();
+          this.moveParagraph("up");
+          return;
+        }
+        if (event.altKey && event.shiftKey && (event.key === "ArrowDown" || event.key === "Down")) {
+          event.preventDefault?.();
+          this.moveParagraph("down");
+          return;
+        }
+        if (event.shiftKey && (event.key === "F3" || event.keyCode === 114)) {
+          event.preventDefault?.();
+          this.changeCase();
+          return;
+        }
+        if (event.ctrlKey && event.shiftKey && (event.key === "N" || event.key === "n")) {
+          event.preventDefault?.();
+          this._applyParagraphStyle("normal");
+          return;
+        }
+        if (event.key === "F4" || event.keyCode === 115) {
+          event.preventDefault?.();
+          this.repeatLastAction();
+          return;
+        }
         if (event.key !== "Enter" && event.key !== " ") return;
         const anchor = event.target?.closest?.("[data-comment-id]");
         if (anchor) {
@@ -893,6 +1124,21 @@ export class WriterAdapter {
 
       case "writer.style.apply":
         return this._applyParagraphStyle(args);
+
+      case "writer.style.normal":
+        return this._applyParagraphStyle("normal");
+
+      case "writer.text.changeCase":
+        return this.changeCase();
+
+      case "writer.para.moveUp":
+        return this.moveParagraph("up");
+
+      case "writer.para.moveDown":
+        return this.moveParagraph("down");
+
+      case "common.edit.repeat":
+        return this.repeatLastAction();
 
       case "writer.style.gallery":
         return this.toggleStyleGallery(args);

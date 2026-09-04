@@ -17,6 +17,7 @@ export const VN_TO_UNO_MAP = {
   // Common / Edit
   "common.edit.undo": ".uno:Undo",
   "common.edit.redo": ".uno:Redo",
+  "common.edit.repeat": ".uno:Repeat",
   "common.edit.cut": ".uno:Cut",
   "common.edit.copy": ".uno:Copy",
   "common.edit.paste": ".uno:Paste",
@@ -46,6 +47,8 @@ export const VN_TO_UNO_MAP = {
   "writer.text.clearFormat": ".uno:ResetAttributes",
   "writer.font.family": ".uno:FontName",
   "writer.font.size": ".uno:FontHeight",
+  "writer.style.normal": ".uno:StyleApply?Style:string=Standard",
+  "writer.text.changeCase": ".uno:ChangeCaseToUpper",
   "writer.style.apply": ".uno:StyleApply",
   "writer.style.gallery": ".uno:DesignerDialog",
   "writer.color.text": ".uno:Color",
@@ -63,6 +66,8 @@ export const VN_TO_UNO_MAP = {
   "writer.list.numbered": ".uno:DefaultNumbering",
   "writer.para.indentInc": ".uno:IncrementIndent",
   "writer.para.indentDec": ".uno:DecrementIndent",
+  "writer.para.moveUp": ".uno:MoveUp",
+  "writer.para.moveDown": ".uno:MoveDown",
 
   // Writer / Insert
   "writer.table.insert": ".uno:InsertTable",
@@ -109,6 +114,8 @@ export const VN_TO_UNO_MAP = {
 
   // Sheet / Calc
   "sheet.cell.edit": ".uno:SetInputMode",
+  "sheet.select.column": ".uno:SelectColumn",
+  "sheet.select.row": ".uno:SelectRow",
   "sheet.cell.bold": ".uno:Bold",
   "sheet.cell.italic": ".uno:Italic",
   "sheet.cell.underline": ".uno:Underline",
@@ -125,12 +132,15 @@ export const VN_TO_UNO_MAP = {
   "sheet.format.percent": ".uno:NumberFormatPercent",
   "sheet.format.standard": ".uno:NumberFormatStandard",
   "sheet.insert.date": ".uno:InsertCurrentDate",
+  "sheet.insert.time": ".uno:InsertCurrentTime",
   "sheet.formula.sum": ".uno:AutoSum",
   "sheet.formula.average": ".uno:AutoSum",
   "sheet.formula.nameManager": ".uno:DefineName",
+  "sheet.formula.recalculate": ".uno:Calculate",
   "sheet.data.sortAsc": ".uno:Sortup",
   "sheet.data.sortDesc": ".uno:Sortdown",
   "sheet.data.filter": ".uno:DataFilterAutoFilter",
+  "sheet.view.toggleFormulas": ".uno:ShowFormulas",
   "sheet.view.freezePanes": ".uno:FreezePanes",
   "sheet.view.zoomIn": ".uno:ZoomPlus",
   "sheet.view.zoomOut": ".uno:ZoomMinus",

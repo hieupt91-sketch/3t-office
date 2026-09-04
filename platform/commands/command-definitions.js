@@ -19,6 +19,7 @@ export const COMMON_COMMANDS = [
   // Chỉnh sửa & Bảng nhớ tạm (Edit & Clipboard)
   { id: "common.edit.undo", category: "edit", label: "Hoàn tác", shortcut: "Ctrl+Z", icon: "undo", tooltip: "Hoàn tác thao tác vừa thực hiện (Ctrl+Z)" },
   { id: "common.edit.redo", category: "edit", label: "Làm lại", shortcut: "Ctrl+Y", icon: "redo", tooltip: "Làm lại thao tác vừa hoàn tác (Ctrl+Y)" },
+  { id: "common.edit.repeat", category: "edit", label: "Lặp lại", shortcut: "F4", icon: "redo", tooltip: "Lặp lại thao tác cuối (F4)" },
   { id: "common.edit.cut", category: "edit", label: "Cắt", shortcut: "Ctrl+X", icon: "cut", tooltip: "Cắt vùng chọn vào bộ nhớ tạm (Ctrl+X)" },
   { id: "common.edit.copy", category: "edit", label: "Sao chép", shortcut: "Ctrl+C", icon: "copy", tooltip: "Sao chép vùng chọn (Ctrl+C)" },
   { id: "common.edit.paste", category: "edit", label: "Dán", shortcut: "Ctrl+V", icon: "paste", tooltip: "Dán nội dung từ bộ nhớ tạm (Ctrl+V)" },
@@ -53,6 +54,8 @@ export const WRITER_COMMANDS = [
   { id: "writer.text.subscript", category: "format", label: "Chỉ số dưới", shortcut: "Ctrl+=", icon: "subscript", tooltip: "Chỉ số dưới X₂ (Ctrl+=)", isToggle: true },
   { id: "writer.text.superscript", category: "format", label: "Chỉ số trên", shortcut: "Ctrl+Shift++", icon: "superscript", tooltip: "Chỉ số trên X² (Ctrl+Shift++)", isToggle: true },
   { id: "writer.text.clearFormat", category: "format", label: "Xóa định dạng", shortcut: "Ctrl+Space", icon: "clearFormat", tooltip: "Xóa toàn bộ định dạng về mặc định (Ctrl+Space)" },
+  { id: "writer.style.normal", category: "format", label: "Kiểu Thường", shortcut: "Ctrl+Shift+N", icon: "clearFormat", tooltip: "Áp dụng kiểu Normal chuẩn (Ctrl+Shift+N)" },
+  { id: "writer.text.changeCase", category: "format", label: "Đổi chữ hoa/thường", shortcut: "Shift+F3", icon: "styleGallery", tooltip: "Chuyển đổi chữ hoa / thường / Tiêu đề (Shift+F3)" },
   { id: "writer.font.family", category: "format", label: "Phông chữ", tooltip: "Chọn phông chữ" },
   { id: "writer.font.size", category: "format", label: "Cỡ chữ", tooltip: "Chọn cỡ chữ" },
   { id: "writer.style.apply", category: "format", label: "Kiểu dáng", tooltip: "Áp dụng kiểu đoạn văn (Normal, Heading 1, 2, 3, Quote, Emphasis)" },
@@ -73,6 +76,8 @@ export const WRITER_COMMANDS = [
   { id: "writer.list.numbered", category: "paragraph", label: "Đánh số", icon: "listNumber", tooltip: "Tạo danh sách đánh số thứ tự", isToggle: true },
   { id: "writer.para.indentInc", category: "paragraph", label: "Thụt lề", shortcut: "Ctrl+M", icon: "indentInc", tooltip: "Tăng khoảng cách thụt lề đoạn văn (Ctrl+M)" },
   { id: "writer.para.indentDec", category: "paragraph", label: "Giảm thụt lề", shortcut: "Ctrl+Shift+M", icon: "indentDec", tooltip: "Giảm khoảng cách thụt lề đoạn văn (Ctrl+Shift+M)" },
+  { id: "writer.para.moveUp", category: "paragraph", label: "Di chuyển đoạn lên", shortcut: "Alt+Shift+Up", icon: "indentInc", tooltip: "Di chuyển đoạn văn lên trên (Alt+Shift+Up)" },
+  { id: "writer.para.moveDown", category: "paragraph", label: "Di chuyển đoạn xuống", shortcut: "Alt+Shift+Down", icon: "indentDec", tooltip: "Di chuyển đoạn văn xuống dưới (Alt+Shift+Down)" },
 
   // Chèn (Insert)
   { id: "writer.table.insert", category: "insert", label: "Bảng biểu", icon: "table", tooltip: "Chèn bảng mới vào văn bản" },
@@ -122,6 +127,8 @@ export const WRITER_COMMANDS = [
 export const SHEET_COMMANDS = [
   // Ô và phạm vi (Cell & Range)
   { id: "sheet.cell.edit", category: "cell", label: "Chỉnh sửa ô", shortcut: "F2", icon: "textBox", tooltip: "Chỉnh sửa ô đang chọn (F2)" },
+  { id: "sheet.select.column", category: "cell", label: "Chọn cột", shortcut: "Ctrl+Space", icon: "table", tooltip: "Chọn toàn bộ cột hiện tại (Ctrl+Space)" },
+  { id: "sheet.select.row", category: "cell", label: "Chọn hàng", shortcut: "Shift+Space", icon: "table", tooltip: "Chọn toàn bộ hàng hiện tại (Shift+Space)" },
   { id: "sheet.cell.bold", category: "format", label: "Đậm", shortcut: "Ctrl+B", icon: "bold", tooltip: "Chữ đậm (Ctrl+B)", isToggle: true },
   { id: "sheet.cell.italic", category: "format", label: "Nghiêng", shortcut: "Ctrl+I", icon: "italic", tooltip: "Chữ nghiêng (Ctrl+I)", isToggle: true },
   { id: "sheet.cell.underline", category: "format", label: "Gạch chân", shortcut: "Ctrl+U", icon: "underline", tooltip: "Gạch chân (Ctrl+U)", isToggle: true },
@@ -139,12 +146,14 @@ export const SHEET_COMMANDS = [
   { id: "sheet.format.percent", category: "number", label: "Phần trăm", shortcut: "Ctrl+Shift+5", icon: "currencyVND", tooltip: "Định dạng phần trăm % (Ctrl+Shift+5)" },
   { id: "sheet.format.standard", category: "number", label: "Phân cách hàng nghìn", shortcut: "Ctrl+Shift+1", icon: "currencyVND", tooltip: "Dấu phẩy phân cách hàng nghìn (Ctrl+Shift+1)" },
   { id: "sheet.insert.date", category: "number", label: "Chèn ngày hiện tại", shortcut: "Ctrl+;", icon: "pageBreak", tooltip: "Chèn ngày hôm nay (Ctrl+;)" },
+  { id: "sheet.insert.time", category: "number", label: "Chèn giờ hiện tại", shortcut: "Ctrl+Shift+;", icon: "pageBreak", tooltip: "Chèn giờ hiện tại (Ctrl+Shift+;)" },
 
   // Công thức & Dữ liệu
   { id: "sheet.formula.sum", category: "formula", label: "AutoSum", shortcut: "Alt+=", icon: "autoSum", tooltip: "Hàm tính tổng tự động AutoSum (Alt+=)" },
   { id: "sheet.formula.average", category: "formula", label: "Trung bình", icon: "autoSum", tooltip: "Hàm tính trung bình cộng" },
   { id: "sheet.formula.nameManager", category: "formula", label: "Quản lý tên", icon: "nameManager", tooltip: "Tạo, sửa và xóa vùng được đặt tên" },
   { id: "sheet.formula.arrayEnter", category: "formula", label: "Nhập công thức mảng", shortcut: "Ctrl+Shift+Enter", icon: "autoSum", tooltip: "Nhập công thức mảng cho vùng đã chọn (Ctrl+Shift+Enter)" },
+  { id: "sheet.formula.recalculate", category: "formula", label: "Tính lại toàn bộ", shortcut: "F9", icon: "refreshTable", tooltip: "Tính lại toàn bộ công thức bảng tính (F9)" },
   { id: "sheet.data.sortAsc", category: "data", label: "Sắp xếp A-Z", icon: "sortAsc", tooltip: "Sắp xếp dữ liệu tăng dần" },
   { id: "sheet.data.sortDesc", category: "data", label: "Sắp xếp Z-A", icon: "sortDesc", tooltip: "Sắp xếp dữ liệu giảm dần" },
   { id: "sheet.data.filter", category: "data", label: "Bộ lọc", shortcut: "Ctrl+Shift+L", icon: "filter", tooltip: "Bật/tắt chế độ lọc AutoFilter (Ctrl+Shift+L)", isToggle: true },
@@ -152,6 +161,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.data.validation", category: "data", label: "Kiểm tra dữ liệu", icon: "table", tooltip: "Tạo danh sách lựa chọn hoặc giới hạn số trong khoảng" },
   { id: "sheet.data.pivotTable", category: "data", label: "Bảng tổng hợp", icon: "pivotTable", tooltip: "Tạo Pivot Table từ vùng dữ liệu đang chọn" },
   { id: "sheet.data.pivotRefresh", category: "data", label: "Làm mới Pivot", icon: "refreshTable", tooltip: "Tính lại Pivot Table từ dữ liệu nguồn" },
+  { id: "sheet.view.toggleFormulas", category: "view", label: "Hiện công thức", shortcut: "Ctrl+`", icon: "autoSum", tooltip: "Hiển thị công thức thay vì kết quả (Ctrl+`)", isToggle: true },
   { id: "sheet.view.freezePanes", category: "view", label: "Cố định hàng/cột", icon: "table", tooltip: "Cố định hàng 1 và cột A khi cuộn (Freeze Panes)", isToggle: true },
   { id: "sheet.view.zoomIn", category: "view", label: "Phóng to", icon: "zoomIn", tooltip: "Tăng tỉ lệ hiển thị bảng tính" },
   { id: "sheet.view.zoomOut", category: "view", label: "Thu nhỏ", icon: "zoomOut", tooltip: "Giảm tỉ lệ hiển thị bảng tính" },

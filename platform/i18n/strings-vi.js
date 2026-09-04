@@ -83,6 +83,7 @@ export const viStrings = {
     "common.file.close": { label: "Đóng", tooltip: "Đóng tài liệu (Ctrl+W)" },
     "common.edit.undo": { label: "Hoàn tác", tooltip: "Hoàn tác thao tác vừa thực hiện (Ctrl+Z)" },
     "common.edit.redo": { label: "Làm lại", tooltip: "Làm lại thao tác vừa hoàn tác (Ctrl+Y)" },
+    "common.edit.repeat": { label: "Lặp lại", tooltip: "Lặp lại thao tác cuối (F4)" },
     "common.edit.cut": { label: "Cắt", tooltip: "Cắt vùng chọn vào bộ nhớ tạm (Ctrl+X)" },
     "common.edit.copy": { label: "Sao chép", tooltip: "Sao chép vùng chọn (Ctrl+C)" },
     "common.edit.paste": { label: "Dán", tooltip: "Dán nội dung từ bộ nhớ tạm (Ctrl+V)" },
@@ -101,6 +102,8 @@ export const viStrings = {
     "ai.assistant.rewrite": { label: "Viết lại trau chuốt", tooltip: "Viết lại câu từ chuẩn văn phong tiếng Việt" },
     "ai.assistant.grammarCheck": { label: "Soát lỗi chính tả", tooltip: "Kiểm tra chính tả và ngữ pháp tiếng Việt (F7)" }
     ,"sheet.cell.edit": { label: "Chỉnh sửa ô", tooltip: "Chỉnh sửa ô đang chọn (F2)" }
+    ,"sheet.select.column": { label: "Chọn cột", tooltip: "Chọn toàn bộ cột hiện tại (Ctrl+Space)" }
+    ,"sheet.select.row": { label: "Chọn hàng", tooltip: "Chọn toàn bộ hàng hiện tại (Shift+Space)" }
     ,"sheet.cell.bold": { label: "Đậm", tooltip: "Chữ đậm (Ctrl+B)" }
     ,"sheet.cell.italic": { label: "Nghiêng", tooltip: "Chữ nghiêng (Ctrl+I)" }
     ,"sheet.cell.underline": { label: "Gạch chân", tooltip: "Gạch chân (Ctrl+U)" }
@@ -116,10 +119,12 @@ export const viStrings = {
     ,"sheet.format.percent": { label: "Phần trăm", tooltip: "Định dạng phần trăm % (Ctrl+Shift+5)" }
     ,"sheet.format.standard": { label: "Phân cách hàng nghìn", tooltip: "Dấu phẩy phân cách hàng nghìn (Ctrl+Shift+1)" }
     ,"sheet.insert.date": { label: "Chèn ngày hiện tại", tooltip: "Chèn ngày hôm nay (Ctrl+;)" }
+    ,"sheet.insert.time": { label: "Chèn giờ hiện tại", tooltip: "Chèn giờ hiện tại (Ctrl+Shift+;)" }
     ,"sheet.formula.sum": { label: "AutoSum", tooltip: "Hàm tính tổng tự động AutoSum (Alt+=)" }
     ,"sheet.formula.average": { label: "Trung bình", tooltip: "Hàm tính trung bình cộng" }
     ,"sheet.formula.nameManager": { label: "Quản lý tên", tooltip: "Tạo, sửa và xóa vùng được đặt tên" }
     ,"sheet.formula.arrayEnter": { label: "Nhập công thức mảng", tooltip: "Nhập công thức mảng cho vùng đã chọn (Ctrl+Shift+Enter)" }
+    ,"sheet.formula.recalculate": { label: "Tính lại toàn bộ", tooltip: "Tính lại toàn bộ công thức bảng tính (F9)" }
     ,"sheet.data.sortAsc": { label: "Sắp xếp A-Z", tooltip: "Sắp xếp dữ liệu tăng dần" }
     ,"sheet.data.sortDesc": { label: "Sắp xếp Z-A", tooltip: "Sắp xếp dữ liệu giảm dần" }
     ,"sheet.data.filter": { label: "Bộ lọc", tooltip: "Bật/tắt chế độ lọc AutoFilter (Ctrl+Shift+L)" }
@@ -127,6 +132,7 @@ export const viStrings = {
     ,"sheet.data.validation": { label: "Kiểm tra dữ liệu", tooltip: "Tạo danh sách lựa chọn hoặc giới hạn số trong khoảng" }
     ,"sheet.data.pivotTable": { label: "Bảng tổng hợp", tooltip: "Tạo Pivot Table từ vùng dữ liệu đang chọn" }
     ,"sheet.data.pivotRefresh": { label: "Làm mới Pivot", tooltip: "Tính lại Pivot Table từ dữ liệu nguồn" }
+    ,"sheet.view.toggleFormulas": { label: "Hiện công thức", tooltip: "Hiển thị công thức thay vì kết quả (Ctrl+`)" }
     ,"sheet.view.freezePanes": { label: "Cố định hàng/cột", tooltip: "Cố định hàng 1 và cột A khi cuộn (Freeze Panes)" }
     ,"sheet.view.zoomIn": { label: "Phóng to", tooltip: "Tăng tỉ lệ hiển thị bảng tính" }
     ,"sheet.view.zoomOut": { label: "Thu nhỏ", tooltip: "Giảm tỉ lệ hiển thị bảng tính" }
@@ -203,6 +209,10 @@ export const viStrings = {
     "writer.list.numbered": { label: "Đánh số", tooltip: "Tạo danh sách đánh số thứ tự" },
     "writer.para.indentInc": { label: "Thụt lề", tooltip: "Tăng khoảng cách thụt lề đoạn văn (Ctrl+M)" },
     "writer.para.indentDec": { label: "Giảm thụt lề", tooltip: "Giảm khoảng cách thụt lề đoạn văn (Ctrl+Shift+M)" },
+    "writer.para.moveUp": { label: "Di chuyển đoạn lên", tooltip: "Di chuyển đoạn văn lên trên (Alt+Shift+Up)" },
+    "writer.para.moveDown": { label: "Di chuyển đoạn xuống", tooltip: "Di chuyển đoạn văn xuống dưới (Alt+Shift+Down)" },
+    "writer.style.normal": { label: "Kiểu Thường", tooltip: "Áp dụng kiểu Normal chuẩn (Ctrl+Shift+N)" },
+    "writer.text.changeCase": { label: "Đổi chữ hoa/thường", tooltip: "Chuyển đổi chữ hoa / thường / Tiêu đề (Shift+F3)" },
     "writer.table.insert": { label: "Bảng biểu", tooltip: "Chèn bảng mới vào văn bản" },
     "writer.image.insert": { label: "Hình ảnh", tooltip: "Chèn hình ảnh từ máy tính" },
     "writer.shape.insert": { label: "Hình khối", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },

@@ -364,16 +364,113 @@ tr.is-filtered-out {
   display: none !important;
 }
 
-/* Nút AutoFill chốt kéo */
+/* Nút AutoFill chốt kéo & Tay cầm di chuyển ô */
 .vno-cell-autofill-handle {
   position: absolute;
-  right: -1px;
-  bottom: -1px;
-  width: 6px;
-  height: 6px;
+  right: -2px;
+  bottom: -2px;
+  width: 7px;
+  height: 7px;
   background-color: var(--vno-sheet-primary);
+  border: 1px solid #ffffff;
   cursor: crosshair;
-  z-index: 10;
+  z-index: 20;
+  box-sizing: border-box;
+}
+.vno-cell-autofill-handle:hover {
+  transform: scale(1.3);
+  box-shadow: 0 0 0 1px var(--vno-sheet-primary);
+}
+
+.vno-cell-move-handle {
+  position: absolute;
+  cursor: move;
+  z-index: 15;
+  background: transparent;
+}
+.vno-cell-move-handle.top { top: -2px; left: 0; right: 0; height: 5px; }
+.vno-cell-move-handle.bottom { bottom: -2px; left: 0; right: 8px; height: 5px; }
+.vno-cell-move-handle.left { top: 0; bottom: 0; left: -2px; width: 5px; }
+.vno-cell-move-handle.right { top: 0; bottom: 8px; right: -2px; width: 5px; }
+.vno-cell-move-handle:hover {
+  background-color: rgba(15, 109, 56, 0.4);
+}
+
+.vno-grid-cell.is-autofill-preview {
+  outline: 1px dashed var(--vno-sheet-primary) !important;
+  background-color: rgba(15, 109, 56, 0.12) !important;
+}
+
+.vno-grid-cell.is-move-target-preview {
+  outline: 2px dashed #0284c7 !important;
+  background-color: rgba(2, 132, 199, 0.15) !important;
+}
+
+/* Bộ điều chỉnh kích thước cột và hàng (Resizers) */
+.vno-col-resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 16;
+  user-select: none;
+}
+.vno-col-resizer:hover {
+  background-color: var(--vno-sheet-primary);
+}
+
+.vno-row-resizer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  cursor: row-resize;
+  z-index: 15;
+  user-select: none;
+}
+.vno-row-resizer:hover {
+  background-color: var(--vno-sheet-primary);
+}
+
+/* Context Menu chuẩn Excel */
+.vno-sheet-context-menu {
+  position: fixed;
+  z-index: 10000;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+  min-width: 210px;
+  padding: 4px 0;
+  font-family: var(--vno-font-ui);
+  font-size: 12px;
+  color: #1e293b;
+  user-select: none;
+}
+.vno-sheet-context-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: background 80ms;
+}
+.vno-sheet-context-item:hover {
+  background: #f1f5f9;
+  color: var(--vno-sheet-primary);
+}
+.vno-sheet-context-item .shortcut {
+  color: #94a3b8;
+  font-size: 11px;
+  margin-left: 16px;
+}
+.vno-sheet-context-sep {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 4px 0;
 }
 
 /* Thanh Sheet Tabs ở dưới */

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office Platform — Enterprise Shortcut & KeyTips Manager
  * Tương thích 100% hệ thống phím tắt Microsoft Office & LibreOffice
  * Tuân thủ quy định 01-architecture/COMMAND-ARCHITECTURE.md & 03-ui-ux/ACCESSIBILITY.md
@@ -68,7 +68,14 @@ export class ShortcutManager {
       else if (pLower === "alt") alt = true;
       else if (pLower === "shift") shift = true;
       else if (pLower === "meta" || pLower === "cmd" || pLower === "win") meta = true;
-      else key = p.toUpperCase();
+      else {
+        let k = p.toUpperCase();
+        if (k === "ARROWUP") k = "UP";
+        else if (k === "ARROWDOWN") k = "DOWN";
+        else if (k === "ARROWLEFT") k = "LEFT";
+        else if (k === "ARROWRIGHT") k = "RIGHT";
+        key = k;
+      }
     });
 
     return `${ctrl ? "CTRL+" : ""}${alt ? "ALT+" : ""}${shift ? "SHIFT+" : ""}${meta ? "META+" : ""}${key}`;
@@ -116,12 +123,25 @@ export class ShortcutManager {
     if (e.key === ":") keyName = ":";
     if (e.key === "[") keyName = "[";
     if (e.key === "]") keyName = "]";
+    if (e.key === "`") keyName = "`";
+    if (e.key === "~") keyName = "~";
+    if (e.key === "ArrowUp") keyName = "UP";
+    if (e.key === "ArrowDown") keyName = "DOWN";
+    if (e.key === "ArrowLeft") keyName = "LEFT";
+    if (e.key === "ArrowRight") keyName = "RIGHT";
 
     // Tạo chuỗi tổ hợp phím
     const combo = `${e.ctrlKey || e.metaKey ? "CTRL+" : ""}${e.altKey ? "ALT+" : ""}${e.shiftKey ? "SHIFT+" : ""}${keyName}`;
 
-    if (this._shortcuts.has(combo)) {
-      const cmdId = this._shortcuts.get(combo);
+    let cmdId = this._shortcuts.get(combo);
+    if (!cmdId && (e.shiftKey || keyName === ":")) {
+      cmdId = this._shortcuts.get(combo.replace(":", ";"));
+    }
+    if (!cmdId && (e.shiftKey || keyName === "~")) {
+      cmdId = this._shortcuts.get(combo.replace("~", "`"));
+    }
+
+    if (cmdId) {
       e.preventDefault();
       e.stopPropagation();
       globalCommandBus.execute(cmdId);
@@ -131,10 +151,10 @@ export class ShortcutManager {
     // Một số phím đơn không có Ctrl/Alt: F1..F12, Escape, Delete
     if (!e.ctrlKey && !e.altKey && !e.metaKey) {
       if (this._shortcuts.has(keyName)) {
-        const cmdId = this._shortcuts.get(keyName);
+        const singleCmdId = this._shortcuts.get(keyName);
         e.preventDefault();
         e.stopPropagation();
-        globalCommandBus.execute(cmdId);
+        globalCommandBus.execute(singleCmdId);
       }
     }
   }

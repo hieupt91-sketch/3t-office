@@ -360,6 +360,28 @@
 .vno-writer-body {
   min-height: 800px;
   outline: none;
+  cursor: text;
+}
+
+.vno-writer-header,
+.vno-writer-footer {
+  cursor: text;
+}
+
+.vno-writer-viewport,
+.vno-writer-page {
+  cursor: default;
+}
+
+.vno-writer-body a,
+.vno-writer-header a,
+.vno-writer-footer a {
+  cursor: pointer !important;
+}
+
+.vno-writer-page td.is-col-resize-hover,
+.vno-writer-page th.is-col-resize-hover {
+  cursor: col-resize !important;
 }
 
 /* Format Painter Active Cursor */
