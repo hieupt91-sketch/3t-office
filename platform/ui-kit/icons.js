@@ -97,6 +97,8 @@ export const ICONS = {
   italic: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0F172A" stroke-width="2.4"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>`,
   underline: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0F172A" stroke-width="2.2"><path d="M6 3v7a6 6 0 0 0 12 0V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg>`,
   strike: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0F172A" stroke-width="2"><path d="M17.3 4.9c-2.3-.6-5.8-.8-7.3.5-1.5 1.3-1.2 3.6.5 4.6 1.4.8 3.5 1 5.3 1.5M4 12h16M7 17.5c1.4.8 3.3 1.2 5 1.2 3.2 0 5-1.4 5-3.3"/></svg>`,
+  subscript: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="5" x2="13" y2="17"/><line x1="13" y1="5" x2="4" y2="17"/><path d="M16 14.5c.2-.9 1-1.5 2-1.5 1.1 0 2 .8 2 1.8 0 1.2-1.2 2-2.2 2.8l-1.8 1.4h4" stroke-width="1.8"/></svg>`,
+  superscript: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0F172A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="13" y2="19"/><line x1="13" y1="7" x2="4" y2="19"/><path d="M16 5.5c.2-.9 1-1.5 2-1.5 1.1 0 2 .8 2 1.8 0 1.2-1.2 2-2.2 2.8l-1.8 1.4h4" stroke-width="1.8"/></svg>`,
   clearFormat: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M3 3l18 18M7 7l5-5 7 7-5 5" stroke="#EF4444" stroke-width="2"/><path d="M2 20h14" stroke="#475569" stroke-width="2"/></svg>`,
   colorText: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M6 17l6-13 6 13M8 13h8" stroke="#0F172A" stroke-width="2"/><rect x="2" y="19" width="20" height="3" rx="1" fill="#C01E17"/></svg>`,
   colorHighlight: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M9 11l-6 6v3h3l6-6" stroke="#D97706" stroke-width="1.8"/><path d="M22 7l-5-5-7 7 5 5 7-7z" fill="#FCD34D" stroke="#D97706" stroke-width="1.2"/><rect x="2" y="19" width="20" height="3" rx="1" fill="#F5B800"/></svg>`,
@@ -455,5 +457,39 @@ export const ICONS = {
     <line x1="16" y1="10" x2="18.5" y2="10" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
     <line x1="16" y1="13" x2="18.5" y2="13" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
     <line x1="16" y1="16" x2="17.5" y2="16" stroke="#64748B" stroke-width="1.1" stroke-linecap="round"/>
+  </svg>`,
+
+  // Minh họa & Liên kết (Illustrations & Links)
+  shape: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="3" width="10" height="10" rx="1.5" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.4"/>
+    <circle cx="15" cy="15" r="6" fill="#FEF3C7" stroke="#D97706" stroke-width="1.4"/>
+  </svg>`,
+
+  diagram: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="2" y="3" width="6" height="5" rx="1" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.2"/>
+    <rect x="16" y="3" width="6" height="5" rx="1" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.2"/>
+    <rect x="9" y="15" width="6" height="5" rx="1" fill="#DCFCE7" stroke="#15803D" stroke-width="1.2"/>
+    <path d="M5 8v3h14V8M12 11v4" stroke="#64748B" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`,
+
+  chart: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="12" width="4" height="9" rx="1" fill="#93C5FD"/>
+    <rect x="10" y="7" width="4" height="14" rx="1" fill="#2563EB"/>
+    <rect x="17" y="3" width="4" height="18" rx="1" fill="#0F4C81"/>
+    <polyline points="4 9 11 5 18 2" stroke="#DC2626" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="18" cy="2" r="1.5" fill="#DC2626"/>
+  </svg>`,
+
+  themeGallery: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="2" y="2" width="20" height="20" rx="3" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.4"/>
+    <rect x="4" y="4" width="7" height="7" rx="1.5" fill="#2563EB"/>
+    <rect x="13" y="4" width="7" height="7" rx="1.5" fill="#0F6D38"/>
+    <rect x="4" y="13" width="7" height="7" rx="1.5" fill="#D97706"/>
+    <rect x="13" y="13" width="7" height="7" rx="1.5" fill="#B53818"/>
+  </svg>`,
+
+  hyperlink: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
   </svg>`
 };

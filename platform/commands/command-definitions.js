@@ -27,7 +27,7 @@ export const COMMON_COMMANDS = [
   { id: "common.edit.selectAll", category: "edit", label: "Chọn tất cả", shortcut: "Ctrl+A", icon: "search", tooltip: "Chọn toàn bộ nội dung (Ctrl+A)" },
   { id: "common.edit.find", category: "edit", label: "Tìm kiếm", shortcut: "Ctrl+F", icon: "search", tooltip: "Tìm kiếm văn bản (Ctrl+F)" },
   { id: "common.edit.replace", category: "edit", label: "Thay thế", shortcut: "Ctrl+H", icon: "search", tooltip: "Tìm và thay thế văn bản (Ctrl+H)" },
-  { id: "common.edit.hyperlink", category: "edit", label: "Chèn liên kết", shortcut: "Ctrl+K", icon: "fileOpen", tooltip: "Chèn siêu liên kết (Ctrl+K)" },
+  { id: "common.edit.hyperlink", category: "edit", label: "Chèn liên kết", shortcut: "Ctrl+K", icon: "hyperlink", tooltip: "Chèn siêu liên kết (Ctrl+K)" },
 
   // Giao diện & Hiển thị (View & Shell)
   { id: "common.view.ribbonToggle", category: "view", label: "Thu gọn Ribbon", shortcut: "Ctrl+F1", icon: "chevronDown", tooltip: "Thu gọn hoặc mở rộng thanh Ribbon (Ctrl+F1)" },
@@ -50,13 +50,14 @@ export const WRITER_COMMANDS = [
   { id: "writer.text.strike", category: "format", label: "Gạch ngang", icon: "strike", tooltip: "Gạch ngang chữ", isToggle: true },
   { id: "writer.font.grow", category: "format", label: "Tăng cỡ chữ", shortcut: "Ctrl+Shift+>", icon: "indentInc", tooltip: "Tăng cỡ chữ nhanh (Ctrl+Shift+>)" },
   { id: "writer.font.shrink", category: "format", label: "Giảm cỡ chữ", shortcut: "Ctrl+Shift+<", icon: "indentDec", tooltip: "Giảm cỡ chữ nhanh (Ctrl+Shift+<)" },
-  { id: "writer.text.subscript", category: "format", label: "Chỉ số dưới", shortcut: "Ctrl+=", icon: "strike", tooltip: "Chỉ số dưới X₂ (Ctrl+=)", isToggle: true },
-  { id: "writer.text.superscript", category: "format", label: "Chỉ số trên", shortcut: "Ctrl+Shift++", icon: "strike", tooltip: "Chỉ số trên X² (Ctrl+Shift++)", isToggle: true },
+  { id: "writer.text.subscript", category: "format", label: "Chỉ số dưới", shortcut: "Ctrl+=", icon: "subscript", tooltip: "Chỉ số dưới X₂ (Ctrl+=)", isToggle: true },
+  { id: "writer.text.superscript", category: "format", label: "Chỉ số trên", shortcut: "Ctrl+Shift++", icon: "superscript", tooltip: "Chỉ số trên X² (Ctrl+Shift++)", isToggle: true },
   { id: "writer.text.clearFormat", category: "format", label: "Xóa định dạng", shortcut: "Ctrl+Space", icon: "clearFormat", tooltip: "Xóa toàn bộ định dạng về mặc định (Ctrl+Space)" },
   { id: "writer.font.family", category: "format", label: "Phông chữ", tooltip: "Chọn phông chữ" },
   { id: "writer.font.size", category: "format", label: "Cỡ chữ", tooltip: "Chọn cỡ chữ" },
   { id: "writer.style.apply", category: "format", label: "Kiểu dáng", tooltip: "Áp dụng kiểu đoạn văn (Normal, Heading 1, 2, 3, Quote, Emphasis)" },
   { id: "writer.style.gallery", category: "format", label: "Thư viện kiểu", icon: "styleGallery", tooltip: "Mở thư viện kiểu định dạng trực quan (Styles Gallery)" },
+  { id: "writer.design.themeGallery", category: "format", label: "Chủ đề văn bản", icon: "themeGallery", tooltip: "Mở thư viện chủ đề định dạng tài liệu (Document Themes)" },
   { id: "writer.color.text", category: "format", label: "Màu chữ", icon: "colorText", tooltip: "Đổi màu phông chữ" },
   { id: "writer.color.highlight", category: "format", label: "Màu nền chữ", icon: "colorHighlight", tooltip: "Tô màu nền văn bản" },
 
@@ -76,6 +77,9 @@ export const WRITER_COMMANDS = [
   // Chèn (Insert)
   { id: "writer.table.insert", category: "insert", label: "Bảng biểu", icon: "table", tooltip: "Chèn bảng mới vào văn bản" },
   { id: "writer.image.insert", category: "insert", label: "Hình ảnh", icon: "image", tooltip: "Chèn hình ảnh từ máy tính" },
+  { id: "writer.shape.insert", category: "insert", label: "Hình khối", icon: "shape", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },
+  { id: "writer.diagram.insert", category: "insert", label: "Sơ đồ SmartArt", icon: "diagram", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
+  { id: "writer.chart.insert", category: "insert", label: "Biểu đồ", icon: "chart", tooltip: "Chèn biểu đồ minh họa dữ liệu" },
   { id: "writer.page.break", category: "insert", label: "Ngắt trang", shortcut: "Ctrl+Enter", icon: "pageBreak", tooltip: "Ngắt sang trang mới (Ctrl+Enter)" },
   { id: "writer.header.insert", category: "insert", label: "Đầu trang", icon: "headerFooter", tooltip: "Chèn tiêu đề đầu trang (Header)" },
   { id: "writer.footer.insert", category: "insert", label: "Chân trang", icon: "headerFooter", tooltip: "Chèn tiêu đề chân trang (Footer)" },

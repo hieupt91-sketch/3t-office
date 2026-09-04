@@ -41,7 +41,7 @@ export const VN_TO_UNO_MAP = {
   "writer.text.strike": ".uno:Strikeout",
   "writer.font.grow": ".uno:Grow",
   "writer.font.shrink": ".uno:Shrink",
-  "writer.text.subscript": ".uno:SubScript",
+  "writer.text.subscript": ".uno:Subscript",
   "writer.text.superscript": ".uno:SuperScript",
   "writer.text.clearFormat": ".uno:ResetAttributes",
   "writer.font.family": ".uno:FontName",
@@ -67,9 +67,13 @@ export const VN_TO_UNO_MAP = {
   // Writer / Insert
   "writer.table.insert": ".uno:InsertTable",
   "writer.image.insert": ".uno:InsertGraphic",
+  "writer.shape.insert": ".uno:InsertDraw",
+  "writer.diagram.insert": ".uno:InsertDraw",
+  "writer.chart.insert": ".uno:InsertObjectChart",
   "writer.page.break": ".uno:InsertPagebreak",
   "writer.header.insert": ".uno:InsertPageHeader",
   "writer.footer.insert": ".uno:InsertPageFooter",
+  "writer.design.themeGallery": ".uno:PageTheme",
 
   // Writer / Review
   "writer.comment.insert": ".uno:InsertAnnotation",

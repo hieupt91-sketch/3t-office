@@ -12,6 +12,7 @@ export const WRITER_RIBBON_TABS = [
     labelKey: "writerRibbon.tab.home",
     groups: [
       {
+        id: "clipboard",
         label: "Bảng nhớ tạm",
         labelKey: "writerRibbon.group.clipboard",
         items: [
@@ -27,6 +28,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "font",
         label: "Phông chữ",
         labelKey: "writerRibbon.group.font",
         items: [
@@ -69,6 +71,8 @@ export const WRITER_RIBBON_TABS = [
                   { type: "button", commandId: "writer.text.bold", iconOnly: true },
                   { type: "button", commandId: "writer.text.italic", iconOnly: true },
                   { type: "button", commandId: "writer.text.underline", iconOnly: true },
+                  { type: "button", commandId: "writer.text.subscript", iconOnly: true },
+                  { type: "button", commandId: "writer.text.superscript", iconOnly: true },
                   { type: "button", commandId: "writer.text.strike", iconOnly: true },
                   { type: "button", commandId: "writer.text.clearFormat", iconOnly: true },
                   { type: "button", commandId: "writer.color.text", iconOnly: true },
@@ -80,6 +84,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "paragraph",
         label: "Đoạn văn",
         labelKey: "writerRibbon.group.paragraph",
         items: [
@@ -146,11 +151,29 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
-        label: "Bảng biểu & Hình",
-        labelKey: "writerRibbon.group.tablesIllustrations",
+        label: "Bảng biểu",
+        labelKey: "writerRibbon.group.tables",
         items: [
-          { type: "button", commandId: "writer.table.insert", isLarge: true },
-          { type: "button", commandId: "writer.image.insert", isLarge: true }
+          { type: "button", commandId: "writer.table.insert", isLarge: true }
+        ]
+      },
+      {
+        id: "illustrations",
+        label: "Minh họa",
+        labelKey: "writerRibbon.group.illustrations",
+        items: [
+          { type: "button", commandId: "writer.image.insert", isLarge: true },
+          { type: "button", commandId: "writer.shape.insert", isLarge: true },
+          { type: "button", commandId: "writer.diagram.insert", isLarge: true },
+          { type: "button", commandId: "writer.chart.insert", isLarge: true }
+        ]
+      },
+      {
+        id: "links",
+        label: "Liên kết",
+        labelKey: "writerRibbon.group.links",
+        items: [
+          { type: "button", commandId: "common.edit.hyperlink", isLarge: true }
         ]
       },
       {
@@ -182,6 +205,14 @@ export const WRITER_RIBBON_TABS = [
     label: "Thiết kế",
     labelKey: "writerRibbon.tab.design",
     groups: [
+      {
+        id: "documentFormatting",
+        label: "Định dạng tài liệu",
+        labelKey: "writerRibbon.group.documentFormatting",
+        items: [
+          { type: "button", commandId: "writer.design.themeGallery", isLarge: true }
+        ]
+      },
       {
         label: "Nền & Viền trang",
         labelKey: "writerRibbon.group.pageBackground",

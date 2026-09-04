@@ -1371,3 +1371,158 @@ p.vno-style-emphasis {
   box-shadow: 0 0 0 1px #0f4c81;
 }
 
+/* ==========================================================================
+   VN Writer — Minh họa (Shapes, Diagrams, Charts)
+   ========================================================================== */
+
+.vno-writer-shapes-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.vno-writer-shape-item {
+  position: absolute;
+  pointer-events: auto;
+  cursor: move;
+  user-select: none;
+  box-sizing: border-box;
+  transition: outline 0.1s ease;
+}
+
+.vno-writer-shape-item:hover .vno-shape-delete-btn,
+.vno-writer-shape-item.is-selected .vno-shape-delete-btn {
+  display: flex !important;
+}
+
+.vno-writer-shape-item.is-selected {
+  outline: 2px dashed #2563eb;
+  outline-offset: 2px;
+}
+
+.vno-shape-delete-btn {
+  position: absolute;
+  right: -8px;
+  top: -8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  z-index: 20;
+}
+
+.vno-writer-diagram {
+  margin: 16pt 0;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.vno-writer-chart {
+  margin: 16pt auto;
+  max-width: 640px;
+  position: relative;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  box-sizing: border-box;
+}
+
+/* Document Themes */
+[data-vno-theme="administrative"] {
+  font-family: 'Times New Roman', Times, serif !important;
+  color: #000000 !important;
+  line-height: 1.5 !important;
+}
+[data-vno-theme="administrative"] h1,
+[data-vno-theme="administrative"] h2,
+[data-vno-theme="administrative"] h3 {
+  color: #000000 !important;
+}
+[data-vno-theme="administrative"] p {
+  margin-bottom: 6pt !important;
+  line-height: 1.5 !important;
+}
+
+[data-vno-theme="modern"] {
+  font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  color: #334155 !important;
+  line-height: 1.6 !important;
+}
+[data-vno-theme="modern"] h1 { color: #0284c7 !important; }
+[data-vno-theme="modern"] h2 { color: #0369a1 !important; }
+[data-vno-theme="modern"] h3 { color: #075985 !important; }
+[data-vno-theme="modern"] p {
+  margin-bottom: 12pt !important;
+  line-height: 1.6 !important;
+}
+
+[data-vno-theme="elegant"] {
+  font-family: Georgia, 'Times New Roman', serif !important;
+  color: #27272a !important;
+  line-height: 1.6 !important;
+}
+[data-vno-theme="elegant"] h1 { color: #b45309 !important; }
+[data-vno-theme="elegant"] h2 { color: #d97706 !important; }
+[data-vno-theme="elegant"] h3 { color: #92400e !important; }
+[data-vno-theme="elegant"] p {
+  margin-bottom: 10pt !important;
+  line-height: 1.6 !important;
+}
+
+[data-vno-theme="formal-slate"] {
+  font-family: Arial, Helvetica, sans-serif !important;
+  color: #1e293b !important;
+  line-height: 1.45 !important;
+}
+[data-vno-theme="formal-slate"] h1 { color: #0f172a !important; }
+[data-vno-theme="formal-slate"] h2 { color: #334155 !important; }
+[data-vno-theme="formal-slate"] h3 { color: #475569 !important; }
+[data-vno-theme="formal-slate"] p {
+  margin-bottom: 8pt !important;
+  line-height: 1.45 !important;
+}
+
+[data-vno-theme="emerald"] {
+  font-family: 'Calibri', 'Segoe UI', sans-serif !important;
+  color: #1c1917 !important;
+  line-height: 1.5 !important;
+}
+[data-vno-theme="emerald"] h1 { color: #065f46 !important; }
+[data-vno-theme="emerald"] h2 { color: #047857 !important; }
+[data-vno-theme="emerald"] h3 { color: #059669 !important; }
+[data-vno-theme="emerald"] p {
+  margin-bottom: 8pt !important;
+  line-height: 1.5 !important;
+}
+
+[data-vno-theme="office"] {
+  font-family: 'Times New Roman', Times, serif;
+  color: #1e293b;
+  line-height: 1.5;
+}
+[data-vno-theme="office"] h1 { color: #0f4c81; }
+[data-vno-theme="office"] h2 { color: #1d4ed8; }
+[data-vno-theme="office"] h3 { color: #2563eb; }
+[data-vno-theme="office"] p {
+  margin-bottom: 8pt;
+  line-height: 1.5;
+}
+
+
