@@ -255,6 +255,10 @@ export class SheetAdapter {
     }).join("");
 
     const activeSheet = sheetNames.includes(this.grid.activeSheet) ? this.grid.activeSheet : sheetNames[0];
+    const tableViewsXml = sheetNames.map(sheetName => `<config:config-item-map-entry config:name="${this._escapeXml(sheetName)}">
+          <config:config-item config:name="CursorPositionX" config:type="int">0</config:config-item>
+          <config:config-item config:name="CursorPositionY" config:type="int">0</config:config-item>
+        </config:config-item-map-entry>`).join("");
     return `<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
                  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
@@ -266,6 +270,8 @@ export class SheetAdapter {
   <office:settings>
     <config:config-item-set config:name="ooo:view-settings">
       <config:config-item-map-indexed config:name="Views"><config:config-item-map-entry>
+        <config:config-item config:name="ViewId" config:type="string">view1</config:config-item>
+        <config:config-item-map-named config:name="Tables">${tableViewsXml}</config:config-item-map-named>
         <config:config-item config:name="ActiveTable" config:type="string">${this._escapeXml(activeSheet)}</config:config-item>
       </config:config-item-map-entry></config:config-item-map-indexed>
     </config:config-item-set>
