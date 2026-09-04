@@ -38,7 +38,61 @@ try {
   });
   if (savedText !== "Phê duyệt hồ sơ") throw new Error(`Text chưa lưu: ${savedText}`);
 
-  // Undo text edit, then Undo diagram insertion; one additional Ctrl+Z removes the whole group.
+  const firstNode = page.locator('.vno-slide-shape-item.is-diagram-node').first();
+  const nodeBox = await firstNode.boundingBox();
+  if (!nodeBox) throw new Error("Không lấy được bounding box node để kéo chuột thật");
+  const beforeDrag = await page.evaluate(async () => {
+    const { globalUnoBridge } = await import("/adapters/libreoffice/common/uno-bridge.js");
+    const canvas = globalUnoBridge.activeDocument.canvas;
+    const node = canvas.slides[0].shapes.find(s => s.diagramRole === "node");
+    const connector = canvas.slides[0].shapes.find(s => s.sourceId === node.id || s.targetId === node.id);
+    const connectorEl = document.querySelector(`[data-shape-id="${connector.id}"]`);
+    return { nodeId: node.id, connectorId: connector.id, nodeX: node.x, nodeY: node.y, x1: connector.x1, y1: connector.y1, left: connectorEl.style.left, top: connectorEl.style.top };
+  });
+  await page.mouse.move(nodeBox.x + nodeBox.width / 2, nodeBox.y + nodeBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(nodeBox.x + nodeBox.width / 2 + 70, nodeBox.y + nodeBox.height / 2 + 45, { steps: 8 });
+  const duringDrag = await page.evaluate(async ({ nodeId, connectorId }) => {
+    const { globalUnoBridge } = await import("/adapters/libreoffice/common/uno-bridge.js");
+    const canvas = globalUnoBridge.activeDocument.canvas;
+    const node = canvas.slides[0].shapes.find(s => s.id === nodeId);
+    const connector = canvas.slides[0].shapes.find(s => s.id === connectorId);
+    const connectorEl = document.querySelector(`[data-shape-id="${connectorId}"]`);
+    const endpointX = connector.sourceId === nodeId ? connector.x1 : connector.x2;
+    const endpointY = connector.sourceId === nodeId ? connector.y1 : connector.y2;
+    return { nodeX: node.x, nodeY: node.y, endpointX, endpointY, centerX: node.x + node.w / 2, centerY: node.y + node.h / 2, left: connectorEl.style.left, top: connectorEl.style.top };
+  }, { nodeId: beforeDrag.nodeId, connectorId: beforeDrag.connectorId });
+  if (duringDrag.nodeX === beforeDrag.nodeX || duringDrag.nodeY === beforeDrag.nodeY) throw new Error("Node chưa di chuyển khi đang giữ chuột");
+  if (duringDrag.endpointX !== duringDrag.centerX || duringDrag.endpointY !== duringDrag.centerY) throw new Error("Connector chưa bám node ngay trong pointermove");
+  if (duringDrag.left === beforeDrag.left && duringDrag.top === beforeDrag.top) throw new Error("DOM connector chưa render lại ngay khi kéo");
+  await page.mouse.up();
+
+  await page.keyboard.press("Control+Z");
+  const afterMoveUndo = await page.evaluate(async ({ nodeId, connectorId }) => {
+    const { globalUnoBridge } = await import("/adapters/libreoffice/common/uno-bridge.js");
+    const shapes = globalUnoBridge.activeDocument.canvas.slides[0].shapes;
+    const node = shapes.find(s => s.id === nodeId), connector = shapes.find(s => s.id === connectorId);
+    return { nodeX: node.x, nodeY: node.y, x1: connector.x1, y1: connector.y1 };
+  }, { nodeId: beforeDrag.nodeId, connectorId: beforeDrag.connectorId });
+  if (afterMoveUndo.nodeX !== beforeDrag.nodeX || afterMoveUndo.nodeY !== beforeDrag.nodeY || afterMoveUndo.x1 !== beforeDrag.x1 || afterMoveUndo.y1 !== beforeDrag.y1) throw new Error("Undo kéo chưa khôi phục node + connector");
+  await page.keyboard.press("Control+Y");
+
+  await firstNode.click();
+  await firstNode.locator('.vno-shape-delete-btn').dispatchEvent("click");
+  const afterDelete = await page.evaluate(async ({ nodeId }) => {
+    const { globalUnoBridge } = await import("/adapters/libreoffice/common/uno-bridge.js");
+    const shapes = globalUnoBridge.activeDocument.canvas.slides[0].shapes;
+    return { nodeExists: shapes.some(s => s.id === nodeId), orphanCount: shapes.filter(s => s.sourceId === nodeId || s.targetId === nodeId).length, nodes: shapes.filter(s => s.diagramRole === "node").length, connectors: shapes.filter(s => s.diagramRole === "connector").length };
+  }, { nodeId: beforeDrag.nodeId });
+  if (afterDelete.nodeExists || afterDelete.orphanCount || afterDelete.nodes !== 3 || afterDelete.connectors !== 2) throw new Error(`Xóa node sai: ${JSON.stringify(afterDelete)}`);
+  await page.keyboard.press("Control+Z");
+  if (await page.locator('.vno-slide-shape-item').count() !== 7) throw new Error("Undo xóa node không khôi phục đủ node + connector");
+  await page.keyboard.press("Control+Y");
+  if (await page.locator('.vno-slide-shape-item').count() !== 5) throw new Error("Redo xóa node không loại lại đúng node + connector");
+  await page.keyboard.press("Control+Z");
+
+  // Undo move, text edit, then diagram insertion.
+  await page.keyboard.press("Control+Z");
   await page.keyboard.press("Control+Z");
   await page.keyboard.press("Control+Z");
   const afterUndo = await page.locator('.vno-slide-shape-item').count();
@@ -59,7 +113,7 @@ try {
   await page.keyboard.press("Escape");
 
   if (errors.length) throw new Error(`Page errors: ${errors.join(" | ")}`);
-  console.log(JSON.stringify({ pass: true, browser: "Microsoft Edge", url: page.url(), interactions: "mouse ribbon/dialog + double-click/type + Ctrl+Z/Ctrl+Y + Slide Sorter + F5/Escape", inserted, savedText, afterUndo, afterRedo, pageErrors: errors.length }));
+  console.log(JSON.stringify({ pass: true, browser: "Microsoft Edge", url: page.url(), interactions: "mouse ribbon/dialog + real mouse.down/move/up drag + delete + Ctrl+Z/Ctrl+Y + Slide Sorter + F5/Escape", inserted, savedText, beforeDrag, duringDrag, afterMoveUndo, afterDelete, afterUndo, afterRedo, pageErrors: errors.length }));
 } finally {
   await browser.close();
 }
