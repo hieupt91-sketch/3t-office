@@ -3,6 +3,7 @@
  */
 
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { t } from "../../platform/i18n/i18n.js";
 
 export const SLIDE_MASTER_THEMES = [
   {
@@ -158,6 +159,8 @@ export class SlidesCanvasController {
     this.redoStack = [];
     this.slideSorterOverlay = null;
     this._slideSorterKeyHandler = null;
+    this._activeShowCleanup = null;
+    this._activePresenterCleanup = null;
     this.navEl = null;
     this.canvasEl = null;
     this.titleEl = null;
@@ -2231,12 +2234,19 @@ export class SlidesCanvasController {
       renderShow();
     };
 
-    const closeShow = () => {
-      const saved = rehearsing ? finishRehearsal() : undefined;
+    const closeShow = (discardRehearsal = false) => {
+      let saved;
+      if (rehearsing && discardRehearsal) {
+        if (rehearseInterval) clearInterval(rehearseInterval);
+      } else {
+        saved = rehearsing ? finishRehearsal() : undefined;
+      }
       document.removeEventListener("keydown", keyHandler);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (this._activeShowCleanup === cleanupShow) this._activeShowCleanup = null;
       return saved;
     };
+    const cleanupShow = () => closeShow(true);
 
     const keyHandler = (e) => {
       if (e.key === "Escape") {
@@ -2255,6 +2265,8 @@ export class SlidesCanvasController {
     };
 
     document.addEventListener("keydown", keyHandler);
+    this._activeShowCleanup?.();
+    this._activeShowCleanup = cleanupShow;
     overlay.addEventListener("click", (e) => {
       if (e.target && e.target.closest && e.target.closest("video, audio, .vno-rehearse-timer-box")) return;
       if (currentShowIdx < this.slides.length - 1) {
@@ -2473,6 +2485,7 @@ export class SlidesCanvasController {
       if (timerInterval) clearInterval(timerInterval);
       document.removeEventListener("keydown", keyHandler);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (this._activePresenterCleanup === closePresenter) this._activePresenterCleanup = null;
     };
 
     const nextSlide = () => {
@@ -2518,7 +2531,16 @@ export class SlidesCanvasController {
     };
 
     document.addEventListener("keydown", keyHandler);
+    this._activePresenterCleanup?.();
+    this._activePresenterCleanup = closePresenter;
     return true;
   }
+
+  destroy() {
+    this.closeSlideSorter();
+    this._activeShowCleanup?.();
+    this._activePresenterCleanup?.();
+    this._activeShowCleanup = null;
+    this._activePresenterCleanup = null;
+  }
 }
-import { t } from "../../platform/i18n/i18n.js";

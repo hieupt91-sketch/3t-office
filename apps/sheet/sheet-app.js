@@ -16,6 +16,7 @@ export class SheetApp {
     this.shell = null;
     this.grid = null;
     this.adapter = null;
+    this._lifecycleObserver = null;
   }
 
   async init(options = {}) {
@@ -28,6 +29,7 @@ export class SheetApp {
       documentName: options.documentName || "Dự toán kinh phí VN Office 2026.xlsx"
     });
     this.shell.mount(this.mountElement);
+    this._watchLifecycle();
     this.shell.ribbonHost.setStructure(applyLocaleToTabs(SHEET_RIBBON_TABS), "home");
 
     const gridWrap = document.createElement("div");
@@ -56,5 +58,20 @@ export class SheetApp {
 
     this.grid.updateStatus();
     console.log("[SheetApp] Đã khởi tạo VN Sheet chuẩn hóa cao cấp.");
+  }
+
+  _watchLifecycle() {
+    this._lifecycleObserver?.disconnect();
+    if (typeof MutationObserver === "undefined") return;
+    this._lifecycleObserver = new MutationObserver(() => {
+      if (this.mountElement.getAttribute("data-app") !== "sheet") this.destroy();
+    });
+    this._lifecycleObserver.observe(this.mountElement, { attributes: true, attributeFilter: ["data-app"] });
+  }
+
+  destroy() {
+    this._lifecycleObserver?.disconnect();
+    this._lifecycleObserver = null;
+    this.grid?.destroy?.();
   }
 }

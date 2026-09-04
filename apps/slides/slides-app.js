@@ -16,6 +16,7 @@ export class SlidesApp {
     this.shell = null;
     this.canvasController = null;
     this.adapter = null;
+    this._lifecycleObserver = null;
   }
 
   async init(options = {}) {
@@ -29,6 +30,7 @@ export class SlidesApp {
       documentName: options.documentName || (isBlank ? "Bản trình chiếu 1.pptx" : "Báo cáo đề án phát triển VN Office 2026.pptx")
     });
     this.shell.mount(this.mountElement);
+    this._watchLifecycle();
     this.shell.ribbonHost.setStructure(applyLocaleToTabs(SLIDES_RIBBON_TABS), "home");
 
     const studioWrap = document.createElement("div");
@@ -58,5 +60,20 @@ export class SlidesApp {
 
     this.shell.setStatus("Trang chiếu 1 / 3  |  Tỷ lệ 16:9 HD  |  Tiếng Việt  |  Sẵn sàng");
     console.log("[SlidesApp] Đã khởi tạo VN Slides chuẩn hóa cao cấp.");
+  }
+
+  _watchLifecycle() {
+    this._lifecycleObserver?.disconnect();
+    if (typeof MutationObserver === "undefined") return;
+    this._lifecycleObserver = new MutationObserver(() => {
+      if (this.mountElement.getAttribute("data-app") !== "slides") this.destroy();
+    });
+    this._lifecycleObserver.observe(this.mountElement, { attributes: true, attributeFilter: ["data-app"] });
+  }
+
+  destroy() {
+    this._lifecycleObserver?.disconnect();
+    this._lifecycleObserver = null;
+    this.canvasController?.destroy?.();
   }
 }

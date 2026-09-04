@@ -180,6 +180,7 @@ export class FormulaAutocompleteController {
     if (this._onDocClick && typeof document !== "undefined") {
       document.removeEventListener("mousedown", this._onDocClick);
     }
+    this._onDocClick = null;
     this.popup.destroy();
     this.tooltip.destroy();
   }

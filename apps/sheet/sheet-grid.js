@@ -274,6 +274,10 @@ export class SheetGridController {
     this._bindGridKeyboardNavigation();
   }
 
+  destroy() {
+    this.autocomplete?.destroy?.();
+  }
+
   switchSheet(sheetName) {
     if (!sheetName) return false;
     if (!this.sheets.includes(sheetName)) {
