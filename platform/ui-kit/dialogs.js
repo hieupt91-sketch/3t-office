@@ -6,6 +6,33 @@
 
 import { ICONS } from "./icons.js";
 
+let dialogIdCounter = 0;
+
+function trapFocus(dialogBox, event) {
+  if (event.key !== "Tab") return;
+  const focusables = Array.from(dialogBox.querySelectorAll(
+    'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+
+  if (event.shiftKey) {
+    if (document.activeElement === first || !dialogBox.contains(document.activeElement)) {
+      event.preventDefault();
+      last.focus();
+    }
+  } else {
+    if (document.activeElement === last || !dialogBox.contains(document.activeElement)) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+}
+
 /**
  * Hiển thị Hộp thoại Thông báo (thay thế alert)
  * @param {Object} options
@@ -26,6 +53,7 @@ export function showAlertDialog({
       resolve();
       return;
     }
+    const previousFocused = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
 
@@ -34,14 +62,16 @@ export function showAlertDialog({
     if (type === "error") iconColor = "#dc2626";
     if (type === "success") iconColor = "#16a34a";
 
+    const titleId = `vno-dialog-title-${++dialogIdCounter}`;
+
     overlay.innerHTML = `
-      <div class="vno-dialog-box" style="width: 420px;" role="dialog" aria-modal="true">
+      <div class="vno-dialog-box" style="width: 420px;" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
         <div class="vno-dialog-header">
           <div style="display:flex;align-items:center;gap:8px;">
-            <span style="display:flex;color:${iconColor};">${ICONS.brandLogo || ""}</span>
-            <span>${title}</span>
+            <span style="display:flex;color:${iconColor};" aria-hidden="true">${ICONS.brandLogo || ""}</span>
+            <span id="${titleId}">${title}</span>
           </div>
-          <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng">&times;</button>
+          <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng" aria-label="Đóng">&times;</button>
         </div>
         <div class="vno-dialog-body">
           <p style="margin:0;font-size:13px;line-height:1.6;color:var(--vno-text-primary);">${message}</p>
@@ -53,10 +83,14 @@ export function showAlertDialog({
     `;
 
     document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
 
     const cleanup = () => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
       resolve();
     };
 
@@ -74,6 +108,8 @@ export function showAlertDialog({
       if (e.key === "Escape" || e.key === "Enter") {
         e.preventDefault();
         cleanup();
+      } else if (e.key === "Tab") {
+        trapFocus(dialogBox, e);
       }
     };
     document.addEventListener("keydown", onKeyDown);
@@ -101,14 +137,16 @@ export function showConfirmDialog({
       resolve(true);
       return;
     }
+    const previousFocused = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
+    const titleId = `vno-dialog-title-${++dialogIdCounter}`;
 
     overlay.innerHTML = `
-      <div class="vno-dialog-box" style="width: 440px;" role="dialog" aria-modal="true">
+      <div class="vno-dialog-box" style="width: 440px;" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
         <div class="vno-dialog-header">
-          <span>${title}</span>
-          <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng">&times;</button>
+          <span id="${titleId}">${title}</span>
+          <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng" aria-label="Đóng">&times;</button>
         </div>
         <div class="vno-dialog-body">
           <p style="margin:0;font-size:13px;line-height:1.6;color:var(--vno-text-primary);">${message}</p>
@@ -121,10 +159,14 @@ export function showConfirmDialog({
     `;
 
     document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
 
     const finish = (result) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
       resolve(result);
     };
 
@@ -143,6 +185,8 @@ export function showConfirmDialog({
       } else if (e.key === "Enter") {
         e.preventDefault();
         finish(true);
+      } else if (e.key === "Tab") {
+        trapFocus(dialogBox, e);
       }
     };
     document.addEventListener("keydown", onKeyDown);
@@ -174,18 +218,21 @@ export function showPromptDialog({
       resolve(defaultValue);
       return;
     }
+    const previousFocused = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
+    const titleId = `vno-dialog-title-${++dialogIdCounter}`;
+    const inputId = `vno-prompt-input-${dialogIdCounter}`;
 
     overlay.innerHTML = `
-      <div class="vno-dialog-box" style="width: 460px;" role="dialog" aria-modal="true">
+      <div class="vno-dialog-box" style="width: 460px;" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
         <div class="vno-dialog-header">
-          <span>${title}</span>
-          <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng">&times;</button>
+          <span id="${titleId}">${title}</span>
+          <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng" aria-label="Đóng">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:10px;">
-          <label style="font-size:13px;font-weight:500;color:var(--vno-text-primary);">${message}</label>
-          <input type="text" class="vno-dialog-input" value="${defaultValue}" placeholder="${placeholder}" 
+          <label for="${inputId}" style="font-size:13px;font-weight:500;color:var(--vno-text-primary);">${message}</label>
+          <input type="text" id="${inputId}" class="vno-dialog-input" value="${defaultValue}" placeholder="${placeholder}" 
                  style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;outline:none;" />
         </div>
         <div class="vno-dialog-footer">
@@ -196,6 +243,7 @@ export function showPromptDialog({
     `;
 
     document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
 
     const input = overlay.querySelector(".vno-dialog-input");
     input.focus();
@@ -204,6 +252,9 @@ export function showPromptDialog({
     const finish = (val) => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
       resolve(val);
     };
 
@@ -222,6 +273,8 @@ export function showPromptDialog({
       } else if (e.key === "Enter") {
         e.preventDefault();
         finish(input.value);
+      } else if (e.key === "Tab") {
+        trapFocus(dialogBox, e);
       }
     };
     document.addEventListener("keydown", onKeyDown);
@@ -245,26 +298,28 @@ export function showFindReplaceDialog({
   if (typeof document === "undefined" || typeof document.createElement !== "function" || !document.body) {
     return;
   }
+  const previousFocused = document.activeElement;
   const overlay = document.createElement("div");
   overlay.className = "vno-dialog-overlay";
+  const titleId = `vno-dialog-title-${++dialogIdCounter}`;
 
   overlay.innerHTML = `
-    <div class="vno-dialog-box" style="width: 500px;" role="dialog" aria-modal="true">
+    <div class="vno-dialog-box" style="width: 500px;" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
       <div class="vno-dialog-header">
         <div style="display:flex;gap:12px;align-items:center;">
-          <span style="font-weight:700;">Tìm kiếm và Thay thế</span>
+          <span id="${titleId}" style="font-weight:700;">Tìm kiếm và Thay thế</span>
         </div>
-        <button class="vno-btn vno-btn-icon-only vno-fr-close" title="Đóng">&times;</button>
+        <button class="vno-btn vno-btn-icon-only vno-fr-close" title="Đóng" aria-label="Đóng">&times;</button>
       </div>
       <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px;">
         <div style="display:flex;flex-direction:column;gap:4px;">
-          <label style="font-size:12px;font-weight:600;color:var(--vno-text-secondary);">Tìm kiếm:</label>
+          <label for="vno-fr-find-input" style="font-size:12px;font-weight:600;color:var(--vno-text-secondary);">Tìm kiếm:</label>
           <input type="text" id="vno-fr-find-input" placeholder="Nhập từ hoặc cụm từ cần tìm..."
                  style="padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;width:100%;box-sizing:border-box;" />
         </div>
 
         <div id="vno-fr-replace-group" style="display:${isReplace ? "flex" : "none"};flex-direction:column;gap:4px;">
-          <label style="font-size:12px;font-weight:600;color:var(--vno-text-secondary);">Thay thế bằng:</label>
+          <label for="vno-fr-replace-input" style="font-size:12px;font-weight:600;color:var(--vno-text-secondary);">Thay thế bằng:</label>
           <input type="text" id="vno-fr-replace-input" placeholder="Nhập nội dung thay thế..."
                  style="padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;width:100%;box-sizing:border-box;" />
         </div>
@@ -284,6 +339,7 @@ export function showFindReplaceDialog({
   `;
 
   document.body.appendChild(overlay);
+  const dialogBox = overlay.querySelector(".vno-dialog-box");
 
   const findInput = overlay.querySelector("#vno-fr-find-input");
   const replaceInput = overlay.querySelector("#vno-fr-replace-input");
@@ -305,6 +361,9 @@ export function showFindReplaceDialog({
   const close = () => {
     document.removeEventListener("keydown", onKeyDown);
     if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    if (previousFocused && typeof previousFocused.focus === "function") {
+      previousFocused.focus();
+    }
   };
 
   overlay.querySelectorAll(".vno-fr-close, .vno-fr-close-btn").forEach(btn => {
@@ -341,6 +400,8 @@ export function showFindReplaceDialog({
     } else if (e.key === "Enter") {
       e.preventDefault();
       doFind();
+    } else if (e.key === "Tab") {
+      trapFocus(dialogBox, e);
     }
   };
   document.addEventListener("keydown", onKeyDown);
