@@ -213,6 +213,116 @@ export class SheetAdapter {
     return result;
   }
 
+  _numberFormatXml(config, name) {
+    const category = String(config.category || "number");
+    const decimals = Math.max(0, Math.min(30, Number(config.decimals ?? (["currency", "accounting", "percentage", "scientific"].includes(category) ? 2 : 0))));
+    const grouping = config.useThousands || category === "accounting" ? ' number:grouping="true"' : "";
+    const number = `<number:number number:min-integer-digits="1" number:decimal-places="${decimals}" number:min-decimal-places="${decimals}"${grouping}/>`;
+    if (category === "percentage") return `<number:percentage-style style:name="${name}">${number}<number:text>%</number:text></number:percentage-style>`;
+    if (category === "scientific") return `<number:number-style style:name="${name}"><number:scientific-number number:min-integer-digits="1" number:decimal-places="${decimals}" number:min-decimal-places="${decimals}" number:min-exponent-digits="2"/></number:number-style>`;
+    if (category === "text") return `<number:text-style style:name="${name}"><number:text-content/></number:text-style>`;
+    if (category === "date") {
+      const tokens = String(config.dateFormat || "dd/mm/yyyy").match(/"[^"]*"|yyyy|yy|mmmm|mm|dd|hh|ss|m|d|./gi) || [];
+      const parts = tokens.map(token => {
+        const lower = token.toLowerCase();
+        if (["d", "dd"].includes(lower)) return `<number:day number:style="${lower === "dd" ? "long" : "short"}"/>`;
+        if (["m", "mm", "mmmm"].includes(lower)) return `<number:month number:style="${lower === "m" ? "short" : "long"}"${lower === "mmmm" ? ' number:textual="true"' : ""}/>`;
+        if (["yy", "yyyy"].includes(lower)) return `<number:year number:style="${lower === "yyyy" ? "long" : "short"}"/>`;
+        if (lower === "hh") return '<number:hours number:style="long"/>';
+        if (lower === "ss") return '<number:seconds number:style="long"/>';
+        return `<number:text>${this._escapeXml(token.replace(/^"|"$/g, ""))}</number:text>`;
+      }).join("");
+      return `<number:date-style style:name="${name}">${parts}</number:date-style>`;
+    }
+    if (["currency", "accounting"].includes(category)) {
+      const rawSymbol = config.currencySymbol ?? "₫";
+      const symbol = `<number:currency-symbol>${this._escapeXml(rawSymbol)}</number:currency-symbol>`;
+      const after = config.symbolPosition === "after" || (config.symbolPosition === undefined && rawSymbol === "₫");
+      const spacer = category === "accounting" ? '<number:text> </number:text>' : "";
+      return `<number:currency-style style:name="${name}">${after ? `${number}${spacer}${symbol}` : `${symbol}${spacer}${number}`}</number:currency-style>`;
+    }
+    if (category === "custom") {
+      const pattern = String(config.customPattern || "General");
+      const numeric = pattern.match(/[#0,]+(?:\.([#0]+))?/);
+      const customDecimals = numeric?.[1]?.length || 0;
+      const customGrouping = numeric?.[0]?.includes(",") ? ' number:grouping="true"' : "";
+      const prefix = numeric ? pattern.slice(0, numeric.index) : "";
+      const suffix = numeric ? pattern.slice(numeric.index + numeric[0].length) : pattern;
+      return `<number:number-style style:name="${name}">${prefix ? `<number:text>${this._escapeXml(prefix)}</number:text>` : ""}<number:number number:min-integer-digits="1" number:decimal-places="${customDecimals}" number:min-decimal-places="${customDecimals}"${customGrouping}/>${suffix ? `<number:text>${this._escapeXml(suffix)}</number:text>` : ""}</number:number-style>`;
+    }
+    return `<number:number-style style:name="${name}">${number}</number:number-style>`;
+  }
+
+  _collectNumberFormats(sheetNames) {
+    const formats = new Map();
+    for (const sheetName of sheetNames) {
+      const cells = this.grid.sheetsData?.[sheetName] || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null) || new Map();
+      for (const item of cells.values()) {
+        if (!item?.style?.numberFormat) continue;
+        const key = JSON.stringify(item.style.numberFormat);
+        if (!formats.has(key)) {
+          const index = formats.size + 1;
+          formats.set(key, { config: item.style.numberFormat, dataStyle: `n${index}`, cellStyle: `ce${index}` });
+        }
+      }
+    }
+    return formats;
+  }
+
+  _parseNumberStyles(xmlText) {
+    // LibreOffice replaces common custom styles with its built-in N* styles during
+    // XLSX import; seed the subset produced by the formats VN Sheet writes.
+    const dataStyles = new Map([
+      ["N0", { category: "number", decimals: 0, useThousands: false }],
+      ["N4", { category: "number", decimals: 2, useThousands: true }],
+      ["N36", { category: "date", dateFormat: "dd/mm/yyyy" }],
+      ["N100", { category: "text" }]
+    ]);
+    const styleRegex = /<number:(number-style|percentage-style|currency-style|date-style|text-style)\b([^>]*)>([\s\S]*?)<\/number:\1>/gi;
+    let match;
+    while ((match = styleRegex.exec(xmlText)) !== null) {
+      const name = match[2].match(/style:name=["']([^"']+)["']/i)?.[1];
+      if (!name) continue;
+      const body = match[3];
+      const numberAttrs = body.match(/<number:(?:number|scientific-number)\b([^>]*)\/?\s*>/i)?.[1] || "";
+      const config = {
+        category: "number",
+        decimals: Number(numberAttrs.match(/number:decimal-places=["'](\d+)["']/i)?.[1] || 0),
+        useThousands: /number:grouping=["']true["']/i.test(numberAttrs)
+      };
+      if (match[1] === "percentage-style") config.category = "percentage";
+      else if (match[1] === "currency-style") {
+        config.category = "currency";
+        config.currencySymbol = this._unescapeXml(body.match(/<number:currency-symbol\b[^>]*>([\s\S]*?)<\/number:currency-symbol>/i)?.[1]?.replace(/<[^>]+>/g, "") || "");
+        if (body.search(/<number:currency-symbol\b/i) > body.search(/<number:number\b/i)) config.symbolPosition = "after";
+        if (/<number:text>\s<\/number:text>/i.test(body)) config.category = "accounting";
+      } else if (match[1] === "date-style") {
+        config.category = "date";
+        const parts = [];
+        body.replace(/<number:(day|month|year|hours|minutes|seconds)\b([^>]*)\/>|<number:text\b[^>]*>([\s\S]*?)<\/number:text>/gi, (all, kind, attrs, text) => {
+          if (!kind) parts.push(this._unescapeXml((text || "").replace(/<[^>]+>/g, "")));
+          else if (kind === "day") parts.push(/style=["']long/i.test(attrs) ? "dd" : "d");
+          else if (kind === "month") parts.push(/textual=["']true/i.test(attrs) ? "mmmm" : (/style=["']long/i.test(attrs) ? "mm" : "m"));
+          else if (kind === "year") parts.push(/style=["']long/i.test(attrs) ? "yyyy" : "yy");
+          else parts.push({ hours: "hh", minutes: "mm", seconds: "ss" }[kind]);
+          return all;
+        });
+        config.dateFormat = parts.join(""); delete config.decimals; delete config.useThousands;
+      } else if (match[1] === "text-style") {
+        config.category = "text"; delete config.decimals; delete config.useThousands;
+      } else if (/<number:scientific-number\b/i.test(body)) config.category = "scientific";
+      dataStyles.set(name, config);
+    }
+    const cellStyles = new Map();
+    xmlText.replace(/<style:style\b([^>]*)\/?\s*>/gi, (_, attrs) => {
+      const name = attrs.match(/style:name=["']([^"']+)["']/i)?.[1];
+      const dataName = attrs.match(/style:data-style-name=["']([^"']+)["']/i)?.[1];
+      if (name && dataName && dataStyles.has(dataName)) cellStyles.set(name, dataStyles.get(dataName));
+      return "";
+    });
+    return cellStyles;
+  }
+
   /** Serialize the complete workbook as Flat OpenDocument Spreadsheet XML. */
   serializeToFods() {
     if (!this.grid) return "";
@@ -221,6 +331,7 @@ export class SheetAdapter {
       : Object.keys(this.grid.sheetsData || {});
     if (sheetNames.length === 0) sheetNames.push(this.grid.activeSheet || "Trang tính 1");
 
+    const numberFormats = this._collectNumberFormats(sheetNames);
     const tablesXml = sheetNames.map(sheetName => {
       const cells = this.grid.sheetsData?.[sheetName]
         || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
@@ -256,7 +367,8 @@ export class SheetAdapter {
           const numFmtAttr = item.style?.numberFormat
             ? ` vno:number-format="${this._escapeXml(JSON.stringify(item.style.numberFormat))}"`
             : "";
-          const cellAttrs = `${formulaAttrs}${numFmtAttr}`;
+          const formatStyle = item.style?.numberFormat ? numberFormats.get(JSON.stringify(item.style.numberFormat)) : null;
+          const cellAttrs = `${formulaAttrs}${numFmtAttr}${formatStyle ? ` table:style-name="${formatStyle.cellStyle}"` : ""}`;
           if (typeof item.val === "number" && Number.isFinite(item.val)) {
             cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}><text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
           } else {
@@ -279,10 +391,14 @@ export class SheetAdapter {
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
                  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
                  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+                 xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+                 xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0"
+                 xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
                  xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
                  xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2"
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+  <office:automatic-styles>${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}</office:automatic-styles>
   <office:settings>
     <config:config-item-set config:name="ooo:view-settings">
       <config:config-item-map-indexed config:name="Views"><config:config-item-map-entry>
@@ -296,7 +412,7 @@ export class SheetAdapter {
 </office:document>`;
   }
 
-  _cellFromFodsAttributes(attributes, text) {
+  _cellFromFodsAttributes(attributes, text, numberStyles = new Map()) {
     const get = name => attributes[name] ?? "";
     const valueType = get("office:value-type");
     let value = text;
@@ -311,7 +427,10 @@ export class SheetAdapter {
     const formula = get("vno:formula") || this._formulaFromOdf(get("table:formula"));
     const style = {};
     const numFmtAttr = get("vno:number-format");
-    if (numFmtAttr) {
+    const standardFormat = numberStyles.get(get("table:style-name"));
+    if (standardFormat) {
+      style.numberFormat = { ...standardFormat };
+    } else if (numFmtAttr) {
       try {
         style.numberFormat = JSON.parse(numFmtAttr);
       } catch (e) {
@@ -329,6 +448,7 @@ export class SheetAdapter {
   parseFods(xmlText) {
     const workbook = { sheets: [], sheetsData: {}, activeSheet: "" };
     if (!xmlText) return workbook;
+    const numberStyles = this._parseNumberStyles(xmlText);
 
     if (typeof DOMParser !== "undefined") {
       const doc = new DOMParser().parseFromString(xmlText, "text/xml");
@@ -339,6 +459,11 @@ export class SheetAdapter {
         tables.forEach((table, tableIndex) => {
           const name = table.getAttribute("table:name") || `Trang tính ${tableIndex + 1}`;
           const data = new Map();
+          const columnStyles = [];
+          Array.from(table.children).filter(element => element.localName === "table-column").forEach(column => {
+            const repeat = Math.max(1, Number(column.getAttribute("table:number-columns-repeated")) || 1);
+            for (let index = 0; index < repeat; index++) columnStyles.push(column.getAttribute("table:default-cell-style-name") || "");
+          });
           let rowNumber = 1;
           const rowElements = Array.from(table.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "table-row"));
           rowElements.forEach(row => {
@@ -348,11 +473,12 @@ export class SheetAdapter {
               Array.from(row.children).filter(cell => ["table-cell", "covered-table-cell"].includes(cell.localName)).forEach(cell => {
                 const columnRepeat = Math.max(1, Number(cell.getAttribute("table:number-columns-repeated")) || 1);
                 const attributes = Object.fromEntries(Array.from(cell.attributes).map(attr => [attr.name, attr.value]));
+                if (!attributes["table:style-name"] && columnStyles[columnNumber - 1]) attributes["table:style-name"] = columnStyles[columnNumber - 1];
                 const paragraphs = Array.from(cell.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p"));
                 const text = paragraphs.map(paragraph => paragraph.textContent || "").join("\n");
                 const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "";
                 if (hasValue) {
-                  const item = this._cellFromFodsAttributes(attributes, text);
+                  const item = this._cellFromFodsAttributes(attributes, text, numberStyles);
                   for (let repeat = 0; repeat < columnRepeat; repeat++) data.set(`${this._columnName(columnNumber + repeat)}${rowNumber}`, { ...item });
                 }
                 columnNumber += columnRepeat;
@@ -377,6 +503,13 @@ export class SheetAdapter {
         const nameMatch = tableMatch[1].match(/table:name=["']([^"']*)["']/i);
         const name = this._unescapeXml(nameMatch?.[1] || `Trang tính ${tableIndex}`);
         const data = new Map();
+        const columnStyles = [];
+        tableMatch[2].replace(/<table:table-column\b([^>]*)\/?\s*>/gi, (_, attrs) => {
+          const repeat = Math.max(1, Number(attrs.match(/table:number-columns-repeated=["'](\d+)["']/i)?.[1]) || 1);
+          const styleName = this._unescapeXml(attrs.match(/table:default-cell-style-name=["']([^"']*)["']/i)?.[1] || "");
+          for (let index = 0; index < repeat; index++) columnStyles.push(styleName);
+          return "";
+        });
         let rowNumber = 1;
         const rowRegex = /<table:table-row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/table:table-row>)/gi;
         let rowMatch;
@@ -390,12 +523,13 @@ export class SheetAdapter {
               const attributes = {};
               cellMatch[1].replace(/([\w:-]+)=["']([^"']*)["']/g, (_, key, value) => { attributes[key] = this._unescapeXml(value); return ""; });
               const columnRepeat = Math.max(1, Number(attributes["table:number-columns-repeated"]) || 1);
+              if (!attributes["table:style-name"] && columnStyles[columnNumber - 1]) attributes["table:style-name"] = columnStyles[columnNumber - 1];
               const paragraphs = [];
               String(cellMatch[2] || "").replace(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi, (_, value) => { paragraphs.push(this._unescapeXml(value.replace(/<[^>]+>/g, ""))); return ""; });
               const text = paragraphs.join("\n");
               const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "";
               if (hasValue) {
-                const item = this._cellFromFodsAttributes(attributes, text);
+                const item = this._cellFromFodsAttributes(attributes, text, numberStyles);
                 for (let repeat = 0; repeat < columnRepeat; repeat++) data.set(`${this._columnName(columnNumber + repeat)}${rowNumber}`, { ...item });
               }
               columnNumber += columnRepeat;
