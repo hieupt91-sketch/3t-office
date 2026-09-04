@@ -62,6 +62,7 @@ export const FUNCTION_CATALOG = [
   ,{ name: "PMT", category: "Tài chính", syntax: "PMT(rate, nper, pv, [fv], [type])", desc: "Tính khoản thanh toán định kỳ với lãi suất cố định; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
   ,{ name: "FV", category: "Tài chính", syntax: "FV(rate, nper, pmt, [pv], [type])", desc: "Tính giá trị tương lai của khoản đầu tư; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
   ,{ name: "PV", category: "Tài chính", syntax: "PV(rate, nper, pmt, [fv], [type])", desc: "Tính giá trị hiện tại của khoản đầu tư hoặc chuỗi thanh toán; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
+  ,{ name: "NPV", category: "Tài chính", syntax: "NPV(rate, value1, [value2], ...)", desc: "Tính giá trị hiện tại ròng của chuỗi dòng tiền đều kỳ; value1 được chiết khấu từ cuối kỳ đầu tiên." }
 ];
 
 export class FormulaEngine {
@@ -518,6 +519,19 @@ export class FormulaEngine {
         const factor = Math.pow(1 + rate, nper);
         const presentValue = -(fv + pmt * (1 + rate * type) * (factor - 1) / rate) / factor;
         return Number.isFinite(presentValue) ? presentValue : "#NUM!";
+      }
+
+      case "NPV": {
+        const rate = Number(this._resolveSingleValue(args[0]));
+        if (!Number.isFinite(rate) || rate <= -1) return "#NUM!";
+        if (args.length < 2) return "#VALUE!";
+        const values = this.collectNumericValues(args.slice(1));
+        if (values.length === 0) return "#VALUE!";
+        const netPresentValue = values.reduce(
+          (total, value, index) => total + value / Math.pow(1 + rate, index + 1),
+          0
+        );
+        return Number.isFinite(netPresentValue) ? netPresentValue : "#NUM!";
       }
 
       // Logic

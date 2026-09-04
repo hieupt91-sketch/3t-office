@@ -161,5 +161,13 @@ export async function runFormulaAutocompleteTests() {
           pv.desc.includes("giá trị hiện tại")
   });
 
+  const npv = FUNCTION_CATALOG.find(item => item.name === "NPV");
+  results.push({
+    name: "Autocomplete: NPV mô tả rõ value1 bắt đầu ở cuối kỳ đầu tiên",
+    pass: npv?.category === "Tài chính" &&
+          npv.syntax === "NPV(rate, value1, [value2], ...)" &&
+          npv.desc.includes("cuối kỳ đầu tiên")
+  });
+
   return results;
 }

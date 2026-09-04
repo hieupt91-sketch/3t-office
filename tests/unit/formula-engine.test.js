@@ -17,6 +17,10 @@ export async function runFormulaEngineTests() {
   cellsData.set("B2", { val: "chào", formula: "", style: {} });
   cellsData.set("C1", { val: "25.000.000 ₫", formula: "", style: {} });
   cellsData.set("C2", { val: "45.000.000 ₫", formula: "", style: {} });
+  cellsData.set("D1", { val: "-10000", formula: "", style: {} });
+  cellsData.set("D2", { val: "3000", formula: "", style: {} });
+  cellsData.set("D3", { val: "4200", formula: "", style: {} });
+  cellsData.set("D4", { val: "6800", formula: "", style: {} });
 
   const engine = new FormulaEngine(cellsData);
 
@@ -110,6 +114,17 @@ export async function runFormulaEngineTests() {
     pass: approximatelyEqual(pvRes, 94281.35032823475, 1e-6) &&
           approximatelyEqual(pvZeroRateRes, 1000) &&
           engine.evaluate("=PV(0.01,0,-100)") === "#NUM!"
+  });
+
+  // 12. NPV — Excel chiết khấu value1 ở cuối kỳ 1, không phải kỳ 0.
+  // Excel: =NPV(10%,-10000,3000,4200,6800) -> 1.188,44341233522
+  const npvRes = engine.evaluate("=NPV(0.1,-10000,3000,4200,6800)");
+  const npvRangeRes = engine.evaluate("=NPV(0.1,D1:D4)");
+  results.push({
+    name: "Financial NPV: chiết khấu từ kỳ 1 và hỗ trợ vùng dòng tiền",
+    pass: approximatelyEqual(npvRes, 1188.4434123352207, 1e-9) &&
+          approximatelyEqual(npvRangeRes, 1188.4434123352207, 1e-9) &&
+          engine.evaluate("=NPV(-1,100)") === "#NUM!"
   });
 
   return results;
