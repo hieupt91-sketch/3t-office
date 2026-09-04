@@ -74,31 +74,39 @@ export function createCommandButton({ commandId, isLarge = false, iconOnly = fal
   const iconKey = customIcon || (state && state.icon ? state.icon : (def && def.icon ? def.icon : ""));
   const iconSvg = resolveIcon(commandId, iconKey);
   const shortcut = state ? state.shortcut : (def ? def.shortcut : "");
+  const accessibleName = shortcut ? `${label} (${shortcut})` : label;
+
+  btn.setAttribute("aria-label", accessibleName);
 
   // Thiết lập class & nội dung theo kích cỡ
   if (isLarge) {
     btn.className = "vno-btn vno-ribbon-btn-large";
     btn.innerHTML = `
-      <span class="vno-btn-icon">${iconSvg}</span>
+      <span class="vno-btn-icon" aria-hidden="true">${iconSvg}</span>
       <span class="vno-btn-label">${label}</span>
     `;
   } else if (iconOnly) {
     btn.className = "vno-btn vno-ribbon-btn-small vno-btn-icon-only";
-    btn.innerHTML = `<span class="vno-btn-icon">${iconSvg}</span>`;
+    btn.innerHTML = `<span class="vno-btn-icon" aria-hidden="true">${iconSvg}</span>`;
   } else {
     btn.className = "vno-btn vno-ribbon-btn-small";
     btn.innerHTML = `
-      <span class="vno-btn-icon">${iconSvg}</span>
+      <span class="vno-btn-icon" aria-hidden="true">${iconSvg}</span>
       <span class="vno-btn-label">${label}</span>
     `;
   }
 
   // Tooltip phong phú
-  btn.title = shortcut ? `${label} (${shortcut})` : label;
+  btn.title = accessibleName;
 
   if (state) {
     if (!state.enabled) btn.disabled = true;
-    if (state.checked) btn.classList.add("is-checked");
+    if (state.checked) {
+      btn.classList.add("is-checked");
+      btn.setAttribute("aria-pressed", "true");
+    } else if (typeof state.checked === "boolean") {
+      btn.setAttribute("aria-pressed", "false");
+    }
   }
 
   // Click handler
@@ -112,9 +120,18 @@ export function createCommandButton({ commandId, isLarge = false, iconOnly = fal
       btn.disabled = !newState.enabled;
       if (newState.checked) {
         btn.classList.add("is-checked");
+        btn.setAttribute("aria-pressed", "true");
       } else {
         btn.classList.remove("is-checked");
+        if (typeof newState.checked === "boolean") {
+          btn.setAttribute("aria-pressed", "false");
+        }
       }
+      const currentShortcut = newState.shortcut || shortcut;
+      const currentLabel = newState.label || label;
+      const newAccName = currentShortcut ? `${currentLabel} (${currentShortcut})` : currentLabel;
+      btn.setAttribute("aria-label", newAccName);
+      btn.title = newAccName;
       if (newState.label && !iconOnly) {
         const labelSpan = btn.querySelector(".vno-btn-label");
         if (labelSpan) labelSpan.textContent = newState.label;
@@ -125,10 +142,14 @@ export function createCommandButton({ commandId, isLarge = false, iconOnly = fal
   return btn;
 }
 
-export function createSelect({ commandId, options, defaultValue, onChange }) {
+export function createSelect({ commandId, options, defaultValue, onChange, ariaLabel }) {
   const select = document.createElement("select");
   select.className = "vno-select";
   if (commandId) select.setAttribute("data-command-id", commandId);
+
+  const def = commandId ? globalCommandBus.getDefinition(commandId) : null;
+  const selectLabel = ariaLabel || (def ? def.label : commandId) || "Tùy chọn";
+  select.setAttribute("aria-label", selectLabel);
 
   options.forEach(opt => {
     const el = document.createElement("option");
@@ -172,7 +193,7 @@ export function createEmptyState({
   `;
 
   container.innerHTML = `
-    <div style="font-size: 36px; margin-bottom: 12px; color: var(--vno-text-muted);">${icon}</div>
+    <div style="font-size: 36px; margin-bottom: 12px; color: var(--vno-text-muted);" aria-hidden="true">${icon}</div>
     <div style="font-size: 14px; font-weight: 700; color: var(--vno-text-primary); margin-bottom: 6px;">${title}</div>
     <div style="font-size: 12px; color: var(--vno-text-muted); max-width: 340px; line-height: 1.5; margin-bottom: ${actionText ? "16px" : "0"};">${description}</div>
     ${actionText ? `<button class="vno-btn vno-btn-primary vno-empty-action-btn" style="font-size: 12px; padding: 6px 14px;">${actionText}</button>` : ""}
@@ -207,6 +228,8 @@ export function createAutocompletePopup({ onSelect } = {}) {
 
   const el = document.createElement("div");
   el.className = "vno-autocomplete-popup";
+  el.setAttribute("role", "listbox");
+  el.setAttribute("aria-label", "Gợi ý công thức");
   el.style.display = "none";
   document.body.appendChild(el);
 
@@ -217,7 +240,9 @@ export function createAutocompletePopup({ onSelect } = {}) {
   const updateActiveHighlight = () => {
     const rows = el.querySelectorAll(".vno-autocomplete-item");
     rows.forEach((row, idx) => {
-      if (idx === currentIndex) {
+      const isActive = idx === currentIndex;
+      row.setAttribute("aria-selected", String(isActive));
+      if (isActive) {
         row.classList.add("is-active");
         if (typeof row.scrollIntoView === "function") {
           row.scrollIntoView({ block: "nearest" });
@@ -238,10 +263,14 @@ export function createAutocompletePopup({ onSelect } = {}) {
 
     currentItems.forEach((item, idx) => {
       const row = document.createElement("div");
-      row.className = `vno-autocomplete-item ${idx === currentIndex ? "is-active" : ""}`;
+      const isActive = idx === currentIndex;
+      row.className = `vno-autocomplete-item ${isActive ? "is-active" : ""}`;
+      row.setAttribute("role", "option");
+      row.setAttribute("aria-selected", String(isActive));
+      row.id = `vno-ac-item-${idx}`;
       row.innerHTML = `
         <div class="vno-ac-left">
-          <span class="vno-ac-fx">fx</span>
+          <span class="vno-ac-fx" aria-hidden="true">fx</span>
           <span class="vno-ac-name">${item.name}</span>
         </div>
         <span class="vno-ac-cat">${item.category || ""}</span>
@@ -341,6 +370,8 @@ export function createSyntaxTooltip() {
 
   const el = document.createElement("div");
   el.className = "vno-syntax-tooltip";
+  el.setAttribute("role", "tooltip");
+  el.setAttribute("aria-live", "polite");
   el.style.display = "none";
   document.body.appendChild(el);
 

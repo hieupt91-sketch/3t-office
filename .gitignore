@@ -1,4 +1,4 @@
-﻿# VN Office .gitignore
+# VN Office .gitignore
 *.zip
 *.7z
 *.tar.gz
@@ -29,3 +29,6 @@ $RECYCLE.BIN/
 
 # LibreOffice upstream baseline source (vendored zip-extract, no git history yet)
 /core-master/
+
+# Tool logs
+*.log
