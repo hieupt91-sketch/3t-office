@@ -6,6 +6,7 @@ import { AppShell } from "../../platform/shell/app-shell.js";
 import { WRITER_RIBBON_TABS } from "./writer-ribbon.js";
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
 import { bootstrapPlatform } from "../../platform/bootstrap.js";
+import { createStyleGalleryStrip } from "./style-gallery.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -152,8 +153,34 @@ export class WriterApp {
     this.adapter.setCommentsPanel(commentsPanel);
     this.adapter.attach();
 
+    this._mountStyleGalleryRibbonStrip();
     this._setupContentObserver();
     console.log("[WriterApp] Đã khởi tạo VN Writer chuẩn hóa cao cấp.");
+  }
+
+  _mountStyleGalleryRibbonStrip() {
+    if (typeof document === "undefined") return;
+    const groups = this.mountElement?.querySelectorAll?.(".vno-ribbon-group") || [];
+    let stylesGroup = null;
+    for (const g of groups) {
+      const label = g.querySelector?.(".vno-ribbon-group-label")?.textContent?.trim();
+      if (label === "Kiểu dáng") {
+        stylesGroup = g;
+        break;
+      }
+    }
+    if (stylesGroup) {
+      const itemsEl = stylesGroup.querySelector?.(".vno-ribbon-group-items");
+      if (itemsEl && !itemsEl.querySelector?.(".vno-style-gallery-strip")) {
+        const strip = createStyleGalleryStrip({
+          activeStyle: this.adapter?.getCurrentParagraphStyle?.() || "normal",
+          onSelectStyle: (styleId) => this.adapter?._applyParagraphStyle?.(styleId)
+        });
+        if (strip) {
+          itemsEl.appendChild(strip);
+        }
+      }
+    }
   }
 
   _setupContentObserver() {

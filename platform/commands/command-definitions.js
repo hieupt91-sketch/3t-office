@@ -54,7 +54,8 @@ export const WRITER_COMMANDS = [
   { id: "writer.text.clearFormat", category: "format", label: "Xóa định dạng", shortcut: "Ctrl+Space", icon: "clearFormat", tooltip: "Xóa toàn bộ định dạng về mặc định (Ctrl+Space)" },
   { id: "writer.font.family", category: "format", label: "Phông chữ", tooltip: "Chọn phông chữ" },
   { id: "writer.font.size", category: "format", label: "Cỡ chữ", tooltip: "Chọn cỡ chữ" },
-  { id: "writer.style.apply", category: "format", label: "Kiểu dáng", tooltip: "Áp dụng kiểu đoạn văn (Normal, Heading 1, 2, 3)" },
+  { id: "writer.style.apply", category: "format", label: "Kiểu dáng", tooltip: "Áp dụng kiểu đoạn văn (Normal, Heading 1, 2, 3, Quote, Emphasis)" },
+  { id: "writer.style.gallery", category: "format", label: "Thư viện kiểu", icon: "styleGallery", tooltip: "Mở thư viện kiểu định dạng trực quan (Styles Gallery)" },
   { id: "writer.color.text", category: "format", label: "Màu chữ", icon: "colorText", tooltip: "Đổi màu phông chữ" },
   { id: "writer.color.highlight", category: "format", label: "Màu nền chữ", icon: "colorHighlight", tooltip: "Tô màu nền văn bản" },
 
@@ -88,6 +89,8 @@ export const WRITER_COMMANDS = [
   { id: "writer.page.margins", category: "layout", label: "Căn lề", icon: "margins", tooltip: "Thiết lập lề tiêu chuẩn văn bản Việt Nam" },
   { id: "writer.page.orientation", category: "layout", label: "Hướng giấy", icon: "orientation", tooltip: "Khổ giấy dọc hoặc ngang" },
   { id: "writer.page.size", category: "layout", label: "Kích thước giấy", icon: "pageBreak", tooltip: "Chọn khổ A4, Letter, v.v." },
+  { id: "writer.page.watermark", category: "layout", label: "Hình mờ", icon: "pageWatermark", tooltip: "Thiết lập hoặc xóa hình mờ văn bản (Dự thảo, Mật, Khẩn...)" },
+  { id: "writer.page.border", category: "layout", label: "Viền trang", icon: "pageBorder", tooltip: "Thiết lập viền bao quanh trang tài liệu" },
 
   // In ấn & Xem trước (Print & Preview)
   { id: "writer.file.printPreview", category: "file", label: "Xem trước khi in", shortcut: "Ctrl+F2", icon: "filePrint", tooltip: "Xem trước khi in (Ctrl+F2)" },

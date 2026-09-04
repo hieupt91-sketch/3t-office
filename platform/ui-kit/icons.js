@@ -335,5 +335,31 @@ export const ICONS = {
     <line x1="9" y1="9" x2="16" y2="9" stroke="#94A3B8" stroke-width="1.2" stroke-linecap="round"/>
     <circle cx="17" cy="16" r="4.5" fill="#10B981"/>
     <polyline points="15 16 16.5 17.5 19 14.5" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  // Kiểu dáng & Trang trí trang (Styles Gallery & Page Decorations)
+  styleGallery: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="2" y="3" width="20" height="18" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.4"/>
+    <path d="M5.5 16L9 7H10.5L14 16H12.3L11.5 13.8H8L7.2 16H5.5ZM8.4 12.3H11.1L9.75 8.5L8.4 12.3Z" fill="#0F4C81"/>
+    <rect x="15" y="6" width="5" height="2" rx="0.8" fill="#2563EB"/>
+    <rect x="15" y="10" width="5" height="2" rx="0.8" fill="#10B981"/>
+    <rect x="15" y="14" width="5" height="2" rx="0.8" fill="#F59E0B"/>
+  </svg>`,
+
+  pageWatermark: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <path d="M5 2H15L20 7V22H5C3.9 22 3 21.1 3 20V4C3 2.9 3.9 2 5 2Z" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.4"/>
+    <path d="M15 2V7H20" fill="#DBEAFE" stroke="#0F4C81" stroke-width="1.2"/>
+    <g transform="rotate(-30 11 14)" opacity="0.7">
+      <rect x="4.5" y="12" width="13.5" height="4.5" rx="1" fill="#FEE2E2" stroke="#DC2626" stroke-width="0.9" stroke-dasharray="2 1"/>
+      <text x="6" y="15.5" font-family="sans-serif" font-size="3.2" font-weight="900" fill="#DC2626" letter-spacing="0.3">MẬT</text>
+    </g>
+  </svg>`,
+
+  pageBorder: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="2" width="18" height="20" rx="2" fill="#F8FAFC" stroke="#94A3B8" stroke-width="1.2"/>
+    <rect x="5.5" y="4.5" width="13" height="15" rx="1" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.5" stroke-dasharray="3.5 1.5"/>
+    <line x1="8" y1="8" x2="16" y2="8" stroke="#64748B" stroke-width="1.2" stroke-linecap="round"/>
+    <line x1="8" y1="11" x2="16" y2="11" stroke="#94A3B8" stroke-width="1" stroke-linecap="round"/>
+    <line x1="8" y1="14" x2="13" y2="14" stroke="#94A3B8" stroke-width="1" stroke-linecap="round"/>
   </svg>`
 };

@@ -77,6 +77,7 @@ export const WRITER_RIBBON_TABS = [
       {
         label: "Kiểu dáng",
         items: [
+          { type: "button", commandId: "writer.style.gallery", isLarge: true },
           {
             type: "column",
             items: [
@@ -88,7 +89,9 @@ export const WRITER_RIBBON_TABS = [
                   { value: "p", label: "Văn bản thường (Normal)" },
                   { value: "h1", label: "Tiêu đề 1 (Heading 1)" },
                   { value: "h2", label: "Tiêu đề 2 (Heading 2)" },
-                  { value: "h3", label: "Tiêu đề 3 (Heading 3)" }
+                  { value: "h3", label: "Tiêu đề 3 (Heading 3)" },
+                  { value: "quote", label: "Trích dẫn (Quote)" },
+                  { value: "emphasis", label: "Nhấn mạnh (Emphasis)" }
                 ]
               }
             ]
@@ -182,6 +185,13 @@ export const WRITER_RIBBON_TABS = [
           { type: "button", commandId: "writer.page.margins", isLarge: true },
           { type: "button", commandId: "writer.page.orientation", isLarge: true },
           { type: "button", commandId: "writer.page.size", isLarge: true }
+        ]
+      },
+      {
+        label: "Nền & Viền trang",
+        items: [
+          { type: "button", commandId: "writer.page.watermark", isLarge: true },
+          { type: "button", commandId: "writer.page.border", isLarge: true }
         ]
       },
       {
