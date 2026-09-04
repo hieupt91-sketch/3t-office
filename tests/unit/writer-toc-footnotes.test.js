@@ -22,8 +22,10 @@ class FakeClassList {
 class FakeElement {
   constructor(tagName = "div") {
     this.tagName = tagName.toUpperCase();
+    this.nodeType = 1;
     this.children = [];
     this.parentNode = null;
+    this.parentElement = null;
     this.dataset = {};
     this.className = "";
     this.classList = new FakeClassList(this);
@@ -160,6 +162,7 @@ class FakeElement {
   appendChild(child) {
     if (child.parentNode) child.parentNode.removeChild(child);
     child.parentNode = this;
+    child.parentElement = this;
     this.children.push(child);
     return child;
   }
@@ -167,6 +170,7 @@ class FakeElement {
   prepend(child) {
     if (child.parentNode) child.parentNode.removeChild(child);
     child.parentNode = this;
+    child.parentElement = this;
     this.children.unshift(child);
     return child;
   }
@@ -175,6 +179,7 @@ class FakeElement {
     if (child.parentNode) child.parentNode.removeChild(child);
     const index = this.children.indexOf(reference);
     child.parentNode = this;
+    child.parentElement = this;
     if (index >= 0) {
       this.children.splice(index, 0, child);
     } else {
@@ -187,6 +192,7 @@ class FakeElement {
     const index = this.children.indexOf(child);
     if (index >= 0) this.children.splice(index, 1);
     child.parentNode = null;
+    child.parentElement = null;
   }
 
   remove() {
@@ -824,6 +830,71 @@ export async function runWriterTocFootnotesTests() {
     if (!clean.includes("MỤC LỤC")) throw new Error("Tiêu đề mục lục bị xóa mất trong export");
     if (!clean.includes("1. Tiêu đề chính")) throw new Error("Mục lục bị xóa mất trong export");
     if (!clean.includes("Chú thích số một")) throw new Error("Nội dung chú thích bị xóa mất trong export");
+  });
+
+  // Test 14: Protected Zone Safety (_isInsideProtectedZone)
+  await test("Writer Protected Zones: _isInsideProtectedZone ngăn chặn việc chèn lồng footnote/endnote/TOC vào bên trong container ghi chú", async () => {
+    const rawHtml = `
+      <p id="doc-p">Đoạn văn thông thường.</p>
+      <div data-vno-footnotes="true" class="vno-writer-footnotes-container">
+        <div class="vno-footnote-item" data-vno-footnote-id="fn-1">
+          <span class="vno-note-num">1</span>
+          <span class="vno-note-text" id="fn-text">Nội dung chú thích</span>
+        </div>
+      </div>
+    `;
+    const { page, body } = createMockWriterDoc(rawHtml);
+    const adapter = new WriterAdapter(page);
+    adapter.attach();
+
+    const normalP = body.querySelector("#doc-p");
+    const fnText = body.querySelector("#fn-text");
+    const fnContainer = body.querySelector('[data-vno-footnotes="true"]');
+
+    if (adapter._isInsideProtectedZone(normalP)) {
+      throw new Error("Đoạn văn bình thường không được tính là protected zone");
+    }
+    if (!adapter._isInsideProtectedZone(fnText)) {
+      throw new Error("Node trong footnote text phải được nhận diện là protected zone");
+    }
+    if (!adapter._isInsideProtectedZone(fnContainer)) {
+      throw new Error("Container footnotes phải được nhận diện là protected zone");
+    }
+
+    // Mô phỏng con trỏ selection đang nằm trong fnText
+    const originalWindow = globalThis.window;
+    const originalDoc = globalThis.document;
+    try {
+      // BẮT BUỘC mock lại globalThis.document (như mọi test khác trong file này) —
+      // nếu không, document.createElement("sup") bên trong insertFootnote() sẽ dùng
+      // globalThis.document còn sót lại từ test trước (hoặc undefined), tạo ra phần tử
+      // không phải FakeElement thật, thiếu _matches() -> querySelectorAll() crash.
+      globalThis.document = { createElement: (tag) => new FakeElement(tag) };
+      globalThis.window = {
+        getSelection: () => ({
+          rangeCount: 1,
+          getRangeAt: () => ({
+            commonAncestorContainer: fnText,
+            collapse: () => {},
+            insertNode: (node) => fnText.appendChild(node)
+          })
+        })
+      };
+
+      // Gọi insertFootnote khi đang focus trong footnote text
+      const newFnId = adapter.insertFootnote({ text: "Chú thích mới không được lồng" });
+      if (!newFnId) throw new Error("insertFootnote thất bại");
+
+      // sup phải KHÔNG nằm trong fnText hay fnContainer
+      const sup = body.querySelector(`sup[data-vno-footnote-ref="${newFnId}"]`);
+      if (!sup) throw new Error("Không tìm thấy thẻ sup của footnote mới");
+      if (fnContainer.contains(sup)) {
+        throw new Error("LỖI: Thẻ sup bị chèn lồng vào bên trong vùng container của footnote cũ!");
+      }
+    } finally {
+      globalThis.window = originalWindow;
+      globalThis.document = originalDoc;
+    }
   });
 
   return results;

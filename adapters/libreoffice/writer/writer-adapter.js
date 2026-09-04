@@ -824,13 +824,13 @@ export class WriterAdapter {
         return this.updateTableOfContents();
 
       case "writer.reference.footnoteInsert":
-        return this.insertFootnote(args);
+        return Boolean(this.insertFootnote(args));
 
       case "writer.reference.endnoteInsert":
-        return this.insertEndnote(args);
+        return Boolean(this.insertEndnote(args));
 
       case "writer.mailMerge.open":
-        return this.openMailMergeDataSourceDialog(args);
+        return await this.openMailMergeDataSourceDialog(args);
 
       case "writer.mailMerge.insertField":
         return Boolean(this.insertMergeField(args));
@@ -1942,6 +1942,10 @@ export class WriterAdapter {
     this.clearWatermark?.();
     this.clearPageBorder?.();
     this.setColumns?.({ count: 1, gap: 0, rule: false });
+
+    this.mailMergeData = { fields: [], records: [], rawCsv: "" };
+    this.mailMergePreview = { enabled: false, recordIndex: 0 };
+    this._updateMailMergeCommandStates?.();
 
     this.documentContent = this.editorDom ? this.editorDom.innerHTML : "";
     this.sourceFileName = "TaiLieu";
@@ -3259,6 +3263,47 @@ export class WriterAdapter {
     }
   }
 
+  /**
+   * Kiểm tra xem một node DOM có nằm trong các vùng được bảo vệ (Footnotes, Endnotes, TOC, Auto page gap) hay không
+   * Để ngăn chặn việc chèn lồng footnote vào footnote, endnote vào endnote, hoặc merge field vào TOC/notes.
+   * @param {Node|Element} node
+   * @returns {boolean}
+   * @private
+   */
+  _isInsideProtectedZone(node) {
+    if (!node) return false;
+    let curr = (node.nodeType === 1 || (!node.nodeType && (node.tagName || node.getAttribute)))
+      ? node
+      : (node.parentElement || node.parentNode);
+    let depth = 0;
+    while (curr && curr !== this.bodyDom && depth < 50) {
+      if (typeof curr.getAttribute === "function") {
+        if (
+          curr.getAttribute("data-vno-footnotes") === "true" ||
+          curr.getAttribute("data-vno-endnotes") === "true" ||
+          curr.getAttribute("data-vno-toc") === "true" ||
+          curr.getAttribute("data-vno-auto-page-gap") === "true"
+        ) {
+          return true;
+        }
+      }
+      if (curr.classList) {
+        if (
+          curr.classList.contains("vno-footnote-item") ||
+          curr.classList.contains("vno-endnote-item") ||
+          curr.classList.contains("vno-toc-block") ||
+          curr.classList.contains("vno-writer-footnotes-container") ||
+          curr.classList.contains("vno-writer-endnotes-container")
+        ) {
+          return true;
+        }
+      }
+      curr = curr.parentNode || curr.parentElement;
+      depth++;
+    }
+    return false;
+  }
+
   insertTableOfContents() {
     this._initZones();
     if (!this.bodyDom) return false;
@@ -3279,7 +3324,7 @@ export class WriterAdapter {
       if (sel && sel.rangeCount > 0) {
         const range = sel.getRangeAt(0);
         const commonNode = range.commonAncestorContainer;
-        if (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode)) {
+        if (!this._isInsideProtectedZone(commonNode) && (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode))) {
           try {
             range.collapse(true);
             if (typeof tocElement === "string") {
@@ -3603,7 +3648,7 @@ export class WriterAdapter {
       if (sel && sel.rangeCount > 0) {
         const range = sel.getRangeAt(0);
         const commonNode = range.commonAncestorContainer;
-        if (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode)) {
+        if (!this._isInsideProtectedZone(commonNode) && (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode))) {
           try {
             range.collapse(false);
             range.insertNode(sup);
@@ -3615,7 +3660,7 @@ export class WriterAdapter {
     }
 
     if (!inserted) {
-      const existingContainer = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-footnotes="true"]') : null;
+      const existingContainer = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-footnotes="true"], [data-vno-endnotes="true"]') : null;
       if (existingContainer && existingContainer.parentNode) {
         existingContainer.parentNode.insertBefore(sup, existingContainer);
       } else if (typeof this.bodyDom.appendChild === "function") {
@@ -3819,7 +3864,7 @@ export class WriterAdapter {
       if (sel && sel.rangeCount > 0) {
         const range = sel.getRangeAt(0);
         const commonNode = range.commonAncestorContainer;
-        if (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode)) {
+        if (!this._isInsideProtectedZone(commonNode) && (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode))) {
           try {
             range.collapse(false);
             range.insertNode(sup);
@@ -3831,7 +3876,7 @@ export class WriterAdapter {
     }
 
     if (!inserted) {
-      const existingContainer = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-endnotes="true"]') : null;
+      const existingContainer = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-endnotes="true"], [data-vno-footnotes="true"]') : null;
       if (existingContainer && existingContainer.parentNode) {
         existingContainer.parentNode.insertBefore(sup, existingContainer);
       } else if (typeof this.bodyDom.appendChild === "function") {
@@ -4141,7 +4186,7 @@ export class WriterAdapter {
       if (sel && sel.rangeCount > 0) {
         const range = sel.getRangeAt(0);
         const commonNode = range.commonAncestorContainer;
-        if (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode)) {
+        if (!this._isInsideProtectedZone(commonNode) && (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode))) {
           try {
             range.deleteContents();
             range.insertNode(span);
@@ -4156,7 +4201,10 @@ export class WriterAdapter {
     }
 
     if (!inserted) {
-      if (typeof this.bodyDom.appendChild === "function") {
+      const existingContainer = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-footnotes="true"], [data-vno-endnotes="true"]') : null;
+      if (existingContainer && existingContainer.parentNode) {
+        existingContainer.parentNode.insertBefore(span, existingContainer);
+      } else if (typeof this.bodyDom.appendChild === "function") {
         const lastP = this.bodyDom.querySelector ? this.bodyDom.querySelector("p:last-of-type") : null;
         if (lastP && typeof lastP.appendChild === "function") {
           lastP.appendChild(span);

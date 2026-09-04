@@ -744,6 +744,30 @@ Lê Văn C, Chuyên viên, "Quận 1, TP. Hồ Chí Minh", "Khen thưởng"
     const resNoFields = adapter.finishMailMerge();
     if (resNoFields !== false) throw new Error("Văn bản không có merge field mà vẫn cho trộn");
   });
+
+  // Test 15: newDocument() Mail Merge State Reset
+  await test("Writer Mail Merge: newDocument() xóa sạch mailMergeData, reset mailMergePreview và cập nhật lại trạng thái commands", async () => {
+    const { page } = createMockWriterDoc("<p>Văn bản cũ</p>");
+    const adapter = new WriterAdapter(page);
+    adapter.attach();
+
+    const csvData = "HoTen,ChucVu\nNguyễn Văn A,Trưởng phòng";
+    adapter.setMailMergeData(csvData);
+    adapter.toggleMailMergePreview({ force: true, recordIndex: 0 });
+
+    if (adapter.mailMergeData.records.length !== 1) throw new Error("Chưa nạp dữ liệu");
+    if (adapter.mailMergePreview.enabled !== true) throw new Error("Preview chưa bật");
+
+    // Tạo văn bản mới
+    adapter.newDocument();
+
+    if (adapter.mailMergeData.records.length !== 0 || adapter.mailMergeData.fields.length !== 0 || adapter.mailMergeData.rawCsv !== "") {
+      throw new Error("newDocument() không xóa trắng mailMergeData");
+    }
+    if (adapter.mailMergePreview.enabled !== false || adapter.mailMergePreview.recordIndex !== 0) {
+      throw new Error("newDocument() không reset mailMergePreview");
+    }
+  });
   } finally {
     globalThis.document = originalDoc;
   }
