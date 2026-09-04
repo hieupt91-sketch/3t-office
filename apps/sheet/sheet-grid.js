@@ -11,6 +11,27 @@ import { FormatCellsDialog } from "./format-cells-dialog.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 
+function trapFocus(element, event) {
+  if (event.key !== "Tab") return;
+  const focusables = element.querySelectorAll(
+    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  );
+  if (!focusables || focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if (event.shiftKey) {
+    if (document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    }
+  } else {
+    if (document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+}
+
 export class SheetGridController {
   constructor(container, options = {}) {
     this.container = container;
@@ -122,14 +143,16 @@ export class SheetGridController {
     // 1. Formula Bar
     const fBar = document.createElement("div");
     fBar.className = "vno-formula-bar";
+    fBar.setAttribute("role", "region");
+    fBar.setAttribute("aria-label", "Thanh công thức");
     fBar.innerHTML = `
-      <div class="vno-name-box" id="vno-cell-name">A1</div>
-      <div class="vno-formula-actions">
-        <button class="vno-formula-btn" title="Hủy bỏ (Esc)" id="vno-fx-cancel">✕</button>
-        <button class="vno-formula-btn" title="Nhập (Enter)" id="vno-fx-ok">✓</button>
-        <button class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm tính toán (fx)" id="vno-fx-insert">fx</button>
+      <div class="vno-name-box" id="vno-cell-name" role="status" aria-label="Hộp tên ô">A1</div>
+      <div class="vno-formula-actions" role="toolbar" aria-label="Thao tác công thức">
+        <button class="vno-formula-btn" title="Hủy bỏ (Esc)" aria-label="Hủy bỏ (Esc)" id="vno-fx-cancel">✕</button>
+        <button class="vno-formula-btn" title="Nhập (Enter)" aria-label="Nhập (Enter)" id="vno-fx-ok">✓</button>
+        <button class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm tính toán (fx)" aria-label="Chèn hàm tính toán (fx)" id="vno-fx-insert">fx</button>
       </div>
-      <input type="text" class="vno-formula-input" id="vno-formula-val" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)" />
+      <input type="text" class="vno-formula-input" id="vno-formula-val" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)" />
     `;
     this.nameBox = fBar.querySelector("#vno-cell-name");
     this.formulaInput = fBar.querySelector("#vno-formula-val");
@@ -288,27 +311,56 @@ export class SheetGridController {
     // 3. Sheet Tab Bar dưới đáy
     const tabBar = document.createElement("div");
     tabBar.className = "vno-sheet-tab-bar";
+    tabBar.setAttribute("role", "region");
+    tabBar.setAttribute("aria-label", "Thanh trang tính");
     tabBar.innerHTML = `
       <div class="vno-sheet-tab-scroll">
-        <button class="vno-sheet-scroll-btn" title="Cuộn trái">◀</button>
-        <button class="vno-sheet-scroll-btn" title="Cuộn phải">▶</button>
+        <button class="vno-sheet-scroll-btn" title="Cuộn trái" aria-label="Cuộn trái">◀</button>
+        <button class="vno-sheet-scroll-btn" title="Cuộn phải" aria-label="Cuộn phải">▶</button>
       </div>
-      <div id="vno-sheet-tabs-list" style="display:flex;gap:3px;"></div>
-      <button class="vno-sheet-add-btn" title="Thêm trang tính mới">+</button>
+      <div id="vno-sheet-tabs-list" role="tablist" aria-label="Danh sách trang tính" style="display:flex;gap:3px;"></div>
+      <button class="vno-sheet-add-btn" title="Thêm trang tính mới" aria-label="Thêm trang tính mới">+</button>
     `;
     this.tabBar = tabBar;
 
     const tabsListEl = tabBar.querySelector("#vno-sheet-tabs-list");
     this.sheets.forEach(s => {
+      const isActive = s === this.activeSheet;
       const tab = document.createElement("div");
-      tab.className = `vno-sheet-tab-item ${s === this.activeSheet ? "is-active" : ""}`;
+      tab.className = `vno-sheet-tab-item ${isActive ? "is-active" : ""}`;
       tab.dataset.sheet = s;
       tab.textContent = s;
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", isActive ? "true" : "false");
+      tab.setAttribute("tabindex", isActive ? "0" : "-1");
       tab.addEventListener("click", () => {
         this.switchSheet(s);
       });
       tabsListEl.appendChild(tab);
     });
+
+    if (tabsListEl) {
+      tabsListEl.addEventListener("keydown", (e) => {
+        const tabs = Array.from(tabsListEl.querySelectorAll(".vno-sheet-tab-item"));
+        const curIdx = tabs.findIndex(t => t.dataset.sheet === this.activeSheet);
+        let targetIdx = -1;
+        if (e.key === "ArrowRight") {
+          targetIdx = (curIdx + 1) % tabs.length;
+        } else if (e.key === "ArrowLeft") {
+          targetIdx = (curIdx - 1 + tabs.length) % tabs.length;
+        } else if (e.key === "Home") {
+          targetIdx = 0;
+        } else if (e.key === "End") {
+          targetIdx = tabs.length - 1;
+        }
+        if (targetIdx >= 0 && tabs[targetIdx]) {
+          e.preventDefault();
+          const nextSheet = tabs[targetIdx].dataset.sheet;
+          this.switchSheet(nextSheet);
+          tabs[targetIdx].focus();
+        }
+      });
+    }
 
     const addBtn = tabBar.querySelector(".vno-sheet-add-btn");
     if (addBtn) {
@@ -375,6 +427,9 @@ export class SheetGridController {
         tab.className = "vno-sheet-tab-item is-active";
         tab.dataset.sheet = defaultSheetName;
         tab.textContent = defaultSheetName;
+        tab.setAttribute("role", "tab");
+        tab.setAttribute("aria-selected", "true");
+        tab.setAttribute("tabindex", "0");
         tab.addEventListener("click", () => this.switchSheet(defaultSheetName));
         tabsListEl.appendChild(tab);
       }
