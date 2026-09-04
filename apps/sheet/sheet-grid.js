@@ -1874,24 +1874,26 @@ export class SheetGridController {
     return label;
   }
 
-  _shiftCellReference(reference, axis, insertionPoint) {
+  _shiftCellReference(reference, axis, insertionPoint, direction = 1) {
     return String(reference).split(/("(?:""|[^"])*")/).map((segment, index) => {
       if (index % 2 === 1) return segment;
       return segment.replace(/(^|[^A-Z0-9_])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Z0-9_])/gi, (match, prefix, colAbs, col, rowAbs, row) => {
         let nextCol = col.toUpperCase();
         let nextRow = Number(row);
-        if (axis === "row" && nextRow >= insertionPoint) nextRow++;
-        if (axis === "col" && this._columnNumber(nextCol) >= insertionPoint) nextCol = this._columnLabel(this._columnNumber(nextCol) + 1);
+        const cmp = value => direction > 0 ? value >= insertionPoint : value > insertionPoint;
+        if (axis === "row" && cmp(nextRow)) nextRow += direction;
+        if (axis === "col" && cmp(this._columnNumber(nextCol))) nextCol = this._columnLabel(this._columnNumber(nextCol) + direction);
         return `${prefix}${colAbs}${nextCol}${rowAbs}${nextRow}`;
       });
     }).join("");
   }
 
-  _shiftRange(range, axis, insertionPoint) {
+  _shiftRange(range, axis, insertionPoint, direction = 1) {
     if (!range?.start || !range?.end) return range;
+    const cmp = value => direction > 0 ? value >= insertionPoint : value > insertionPoint;
     const shift = point => ({
-      c: axis === "col" && this._columnNumber(point.c) >= insertionPoint ? this._columnLabel(this._columnNumber(point.c) + 1) : point.c,
-      r: axis === "row" && point.r >= insertionPoint ? point.r + 1 : point.r
+      c: axis === "col" && cmp(this._columnNumber(point.c)) ? this._columnLabel(this._columnNumber(point.c) + direction) : point.c,
+      r: axis === "row" && cmp(point.r) ? point.r + direction : point.r
     });
     return { ...structuredClone(range), start: shift(range.start), end: shift(range.end) };
   }
@@ -1913,27 +1915,28 @@ export class SheetGridController {
     this._updateFilterButtons();
   }
 
-  _shiftGridMetadata(axis, insertionPoint) {
+  _shiftGridMetadata(axis, insertionPoint, direction = 1) {
     const sheet = this.activeSheet;
-    const shiftRange = range => this._shiftRange(range, axis, insertionPoint);
+    const cmp = value => direction > 0 ? value >= insertionPoint : value > insertionPoint;
+    const shiftRange = range => this._shiftRange(range, axis, insertionPoint, direction);
     this.conditionalFormattingBySheet[sheet] = (this.conditionalFormattingBySheet[sheet] || []).map(rule => ({ ...rule, range: shiftRange(rule.range) }));
     this.dataValidationsBySheet[sheet] = (this.dataValidationsBySheet[sheet] || []).map(rule => ({ ...rule, range: shiftRange(rule.range) }));
 
     const comments = {};
     for (const [coord, comment] of Object.entries(this.commentsBySheet[sheet] || {})) {
-      const shifted = this._shiftCellReference(coord, axis, insertionPoint);
+      const shifted = this._shiftCellReference(coord, axis, insertionPoint, direction);
       comments[shifted] = { ...structuredClone(comment), coord: shifted };
     }
     this.commentsBySheet[sheet] = comments;
 
-    if (this.printAreaBySheet[sheet]) this.printAreaBySheet[sheet] = this._shiftCellReference(this.printAreaBySheet[sheet], axis, insertionPoint);
+    if (this.printAreaBySheet[sheet]) this.printAreaBySheet[sheet] = this._shiftCellReference(this.printAreaBySheet[sheet], axis, insertionPoint, direction);
     const breaks = structuredClone(this.pageBreaksBySheet[sheet] || { rows: [], cols: [] });
-    if (axis === "row") breaks.rows = breaks.rows.map(row => row >= insertionPoint ? row + 1 : row);
-    else breaks.cols = breaks.cols.map(col => this._columnNumber(col) >= insertionPoint ? this._columnLabel(this._columnNumber(col) + 1) : col);
+    if (axis === "row") breaks.rows = breaks.rows.map(row => cmp(row) ? row + direction : row);
+    else breaks.cols = breaks.cols.map(col => cmp(this._columnNumber(col)) ? this._columnLabel(this._columnNumber(col) + direction) : col);
     this.pageBreaksBySheet[sheet] = breaks;
 
-    this.hiddenRows = new Set([...this.hiddenRows].map(row => axis === "row" && row >= insertionPoint ? row + 1 : row));
-    if (axis === "col") this.activeFilters = new Map([...this.activeFilters].map(([col, values]) => [this._columnNumber(col) >= insertionPoint ? this._columnLabel(this._columnNumber(col) + 1) : col, values]));
+    this.hiddenRows = new Set([...this.hiddenRows].map(row => axis === "row" && cmp(row) ? row + direction : row));
+    if (axis === "col") this.activeFilters = new Map([...this.activeFilters].map(([col, values]) => [cmp(this._columnNumber(col)) ? this._columnLabel(this._columnNumber(col) + direction) : col, values]));
   }
 
   insertRow(atRow = this.selectedCoord.r, recordUndo = true) {
@@ -1978,6 +1981,60 @@ export class SheetGridController {
     this.cols = Array.from({ length: this.cols.length + 1 }, (_, index) => this._columnLabel(index + 1));
     this._shiftGridMetadata("col", atColumnNumber);
     this.selectedCoord = { c: this._columnLabel(atColumnNumber), r: this.selectedCoord.r };
+    this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  deleteRow(atRow = this.selectedCoord.r, recordUndo = true) {
+    atRow = Number(atRow);
+    if (!Number.isInteger(atRow) || atRow < 1 || atRow > this.rowCount || this.rowCount <= 1) return false;
+    const before = this._snapshotGridStructure();
+    const shifted = new Map();
+    for (const [key, item] of this.cellsData.entries()) {
+      const [col, row] = this._splitCoord(key);
+      if (row === atRow) continue;
+      const nextRow = row > atRow ? row - 1 : row;
+      const nextItem = structuredClone(item);
+      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "row", atRow, -1);
+      shifted.set(`${col}${nextRow}`, nextItem);
+    }
+    this.sheetsData[this.activeSheet] = shifted;
+    this.rowCount--;
+    this._shiftGridMetadata("row", atRow, -1);
+    this.selectedCoord = { c: this.selectedCoord.c, r: Math.min(atRow, this.rowCount) };
+    this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  deleteColumn(atCol = this.selectedCoord.c, recordUndo = true) {
+    const atColumnNumber = typeof atCol === "number" ? atCol : this._columnNumber(atCol);
+    if (!Number.isInteger(atColumnNumber) || atColumnNumber < 1 || atColumnNumber > this.cols.length || this.cols.length <= 1) return false;
+    const before = this._snapshotGridStructure();
+    const shifted = new Map();
+    for (const [key, item] of this.cellsData.entries()) {
+      const [col, row] = this._splitCoord(key);
+      const colNumber = this._columnNumber(col);
+      if (colNumber === atColumnNumber) continue;
+      const nextCol = colNumber > atColumnNumber ? this._columnLabel(colNumber - 1) : col;
+      const nextItem = structuredClone(item);
+      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "col", atColumnNumber, -1);
+      shifted.set(`${nextCol}${row}`, nextItem);
+    }
+    this.sheetsData[this.activeSheet] = shifted;
+    this.cols = Array.from({ length: this.cols.length - 1 }, (_, index) => this._columnLabel(index + 1));
+    this._shiftGridMetadata("col", atColumnNumber, -1);
+    this.selectedCoord = { c: this._columnLabel(Math.min(atColumnNumber, this.cols.length)), r: this.selectedCoord.r };
     this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
     this._renderColumnHeaders();
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);

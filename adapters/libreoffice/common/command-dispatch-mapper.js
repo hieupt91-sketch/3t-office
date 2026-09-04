@@ -144,6 +144,8 @@ export const VN_TO_UNO_MAP = {
   "sheet.page.removePageBreak": ".uno:DeleteRowBreak",
   "sheet.row.insert": ".uno:InsertRowsBefore",
   "sheet.col.insert": ".uno:InsertColumnsBefore",
+  "sheet.row.delete": ".uno:DeleteRows",
+  "sheet.col.delete": ".uno:DeleteColumns",
   "sheet.chart.insert": ".uno:InsertObjectChart",
   "sheet.insert.image": ".uno:InsertGraphic",
 

@@ -33,7 +33,7 @@ export async function runSheetImageTests() {
       const illustrations = insertTab.groups.find(group => group.labelKey === "sheetRibbon.group.illustrations");
       const groupIndex = insertTab.groups.indexOf(illustrations);
       assert(illustrations?.items.some(item => item.commandId === "sheet.insert.image"), "Thiếu nút Pictures trong nhóm Illustrations");
-      assert(groupIndex > 0 && groupIndex < insertTab.groups.findIndex(group => group.labelKey === "sheetRibbon.group.charts"), "Illustrations phải đứng trước Charts");
+      assert(groupIndex >= 0 && groupIndex < insertTab.groups.findIndex(group => group.labelKey === "sheetRibbon.group.charts"), "Illustrations phải đứng trước Charts");
       assert(VN_TO_UNO_MAP["sheet.insert.image"] === ".uno:InsertGraphic", "Mapping InsertGraphic sai");
       assert(ICONS.image?.includes("<svg"), "Thiếu icon SVG image thật");
     });

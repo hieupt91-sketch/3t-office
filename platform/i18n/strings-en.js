@@ -139,6 +139,8 @@ export const enStrings = {
     ,"sheet.page.removePageBreak": { label: "Remove Page Break", tooltip: "Remove row and column page breaks at the active cell" }
     ,"sheet.row.insert": { label: "Insert Row", tooltip: "Insert a new row (Ctrl+Shift+=)" }
     ,"sheet.col.insert": { label: "Insert Column", tooltip: "Insert a new column" }
+    ,"sheet.row.delete": { label: "Delete Row", tooltip: "Delete the row containing the active cell" }
+    ,"sheet.col.delete": { label: "Delete Column", tooltip: "Delete the column containing the active cell" }
     ,"sheet.chart.insert": { label: "Chart", tooltip: "Insert a chart to visualize data" }
     ,"sheet.insert.image": { label: "Pictures", tooltip: "Insert a picture at the selected cell" }
     ,"slides.review.commentInsert": { label: "New Comment", tooltip: "Add a comment to the current slide" }

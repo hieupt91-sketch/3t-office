@@ -98,6 +98,14 @@ export class SheetAdapter {
       options = options || {};
       return this.grid.insertColumn(options.atCol);
     });
+    globalCommandBus.bindHandler("sheet.row.delete", (options) => {
+      options = options || {};
+      return this.grid.deleteRow(options.atRow);
+    });
+    globalCommandBus.bindHandler("sheet.col.delete", (options) => {
+      options = options || {};
+      return this.grid.deleteColumn(options.atCol);
+    });
   }
 
   _insertImageDialog(options) {
@@ -705,6 +713,12 @@ export class SheetAdapter {
 
       case "sheet.col.insert":
         return this.grid.insertColumn(args?.atCol);
+
+      case "sheet.row.delete":
+        return this.grid.deleteRow(args?.atRow);
+
+      case "sheet.col.delete":
+        return this.grid.deleteColumn(args?.atCol);
 
       case "sheet.formula.sum":
         return this.grid.insertFormula("SUM");

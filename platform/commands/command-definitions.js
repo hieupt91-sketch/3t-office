@@ -167,6 +167,8 @@ export const SHEET_COMMANDS = [
   // Chèn hàng/cột & Biểu đồ
   { id: "sheet.row.insert", category: "insert", label: "Chèn hàng", shortcut: "Ctrl+Shift+=", icon: "table", tooltip: "Chèn thêm hàng mới (Ctrl+Shift+=)" },
   { id: "sheet.col.insert", category: "insert", label: "Chèn cột", icon: "table", tooltip: "Chèn thêm cột mới" },
+  { id: "sheet.row.delete", category: "insert", label: "Xóa hàng", icon: "table", tooltip: "Xóa hàng chứa ô đang chọn" },
+  { id: "sheet.col.delete", category: "insert", label: "Xóa cột", icon: "table", tooltip: "Xóa cột chứa ô đang chọn" },
   { id: "sheet.chart.insert", category: "insert", label: "Biểu đồ", icon: "filePrint", tooltip: "Chèn biểu đồ phân tích dữ liệu" }
   ,{ id: "sheet.insert.image", category: "insert", label: "Chèn ảnh", icon: "image", tooltip: "Chèn ảnh vào ô đang chọn" }
 ];

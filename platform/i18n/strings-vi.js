@@ -138,6 +138,8 @@ export const viStrings = {
     ,"sheet.page.removePageBreak": { label: "Xóa ngắt trang", tooltip: "Xóa ngắt hàng và cột tại ô đang chọn" }
     ,"sheet.row.insert": { label: "Chèn hàng", tooltip: "Chèn thêm hàng mới (Ctrl+Shift+=)" }
     ,"sheet.col.insert": { label: "Chèn cột", tooltip: "Chèn thêm cột mới" }
+    ,"sheet.row.delete": { label: "Xóa hàng", tooltip: "Xóa hàng chứa ô đang chọn" }
+    ,"sheet.col.delete": { label: "Xóa cột", tooltip: "Xóa cột chứa ô đang chọn" }
     ,"sheet.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ phân tích dữ liệu" }
     ,"sheet.insert.image": { label: "Chèn ảnh", tooltip: "Chèn ảnh vào ô đang chọn" }
     ,"slides.review.commentInsert": { label: "Nhận xét mới", tooltip: "Thêm nhận xét cho trang chiếu hiện tại" }

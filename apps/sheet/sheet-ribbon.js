@@ -87,6 +87,26 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
+        label: "Ô",
+        labelKey: "sheetRibbon.group.cells",
+        items: [
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.row.insert" },
+              { type: "button", commandId: "sheet.col.insert" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.row.delete" },
+              { type: "button", commandId: "sheet.col.delete" }
+            ]
+          }
+        ]
+      },
+      {
         label: "Tính toán & Dữ liệu",
         labelKey: "sheetRibbon.group.quickAnalysis",
         items: [
@@ -158,14 +178,6 @@ export const SHEET_RIBBON_TABS = [
     label: "Chèn",
     labelKey: "sheetRibbon.tab.insert",
     groups: [
-      {
-        label: "Ô",
-        labelKey: "sheetRibbon.group.cells",
-        items: [
-          { type: "button", commandId: "sheet.row.insert", isLarge: true },
-          { type: "button", commandId: "sheet.col.insert", isLarge: true }
-        ]
-      },
       {
         label: "Minh họa",
         labelKey: "sheetRibbon.group.illustrations",
