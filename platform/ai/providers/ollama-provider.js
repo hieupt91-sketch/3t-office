@@ -74,7 +74,11 @@ export class OllamaProvider {
       : prompt;
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), QUERY_TIMEOUT_MS);
+    let timedOut = false;
+    const abortFromCaller = () => controller.abort(context.signal?.reason);
+    if (context.signal?.aborted) abortFromCaller();
+    else context.signal?.addEventListener("abort", abortFromCaller, { once: true });
+    const timer = setTimeout(() => { timedOut = true; controller.abort(); }, QUERY_TIMEOUT_MS);
 
     try {
       const res = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
@@ -91,8 +95,6 @@ export class OllamaProvider {
         })
       });
 
-      clearTimeout(timer);
-
       if (!res.ok) {
         throw new Error(`Ollama trả về lỗi HTTP ${res.status}`);
       }
@@ -106,9 +108,13 @@ export class OllamaProvider {
 
       return { reply };
     } catch (err) {
-      clearTimeout(timer);
-      const reason = err && err.name === "AbortError" ? "hết thời gian chờ phản hồi" : err.message;
+      const reason = err && err.name === "AbortError"
+        ? (timedOut ? "hết thời gian chờ phản hồi" : "yêu cầu đã được người dùng hủy")
+        : err.message;
       throw new Error(`Không thể truy vấn Ollama cục bộ (${reason}).`);
+    } finally {
+      clearTimeout(timer);
+      context.signal?.removeEventListener("abort", abortFromCaller);
     }
   }
 }

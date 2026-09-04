@@ -312,6 +312,7 @@ export class AppShell {
     const keyRemove = this.aiSidebar.querySelector("#vno-ai-key-remove");
     const keyFeedback = this.aiSidebar.querySelector("#vno-ai-key-feedback");
     const disclosureKeys = { openai: "aiAssistant.disclosureOpenai", gemini: "aiAssistant.disclosureGemini", claude: "aiAssistant.disclosureClaude" };
+    const providerLabels = { openai: "OpenAI (ChatGPT)", gemini: "Google Gemini", claude: "Anthropic Claude", ollama: "Ollama", "rule-based": "Quy tắc cục bộ" };
 
     const refreshProviderUi = async () => {
       const selected = providerSelect.value;
@@ -400,7 +401,7 @@ export class AppShell {
         });
           botMsg.appendChild(applyBtn);
         }
-        await refreshProviderUi();
+        providerStatus.textContent = `${t("aiAssistant.activeProvider")}: ${providerLabels[res.providerId] || res.providerId}`;
       } catch (error) {
         botMsg.textContent = this._aiRequestController.signal.aborted ? t("aiAssistant.stopped") : `⚠️ ${error.message}`;
       } finally {

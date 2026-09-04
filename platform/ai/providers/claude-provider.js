@@ -2,7 +2,7 @@ import { ApiKeyManager } from "../api-key-manager.js";
 import { SYSTEM_PROMPT, buildUserContent, createRequestCancellation, normalizeRequestError, throwProviderHttpError } from "./cloud-provider-utils.js";
 
 const ENDPOINT = "https://api.anthropic.com/v1/messages";
-const DEFAULT_MODEL = "claude-3-5-haiku-latest";
+const DEFAULT_MODEL = "claude-sonnet-4-6";
 
 export class ClaudeProvider {
   static get id() { return "claude"; }

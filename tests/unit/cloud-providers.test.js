@@ -1,5 +1,5 @@
 import {
-  LocalAiService, OpenAiProvider, GeminiProvider, ClaudeProvider, ApiKeyManager, AiConsentManager
+  LocalAiService, OpenAiProvider, GeminiProvider, ClaudeProvider, OllamaProvider, ApiKeyManager, AiConsentManager
 } from "../../platform/ai/ai-service.js";
 
 const PROVIDERS = [
@@ -65,6 +65,18 @@ export async function runCloudProviderTests() {
     try { await pending; } catch (error) { message = error.message; }
     if (!message.includes("người dùng hủy")) throw new Error(message || "Không hủy");
     ApiKeyManager.removeApiKey("claude");
+  });
+
+  await test("OllamaProvider: nút Dừng cũng hủy request cục bộ", async () => {
+    globalThis.fetch = (_url, options) => new Promise((_resolve, reject) => {
+      options.signal.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })), { once: true });
+    });
+    const controller = new AbortController();
+    const pending = OllamaProvider.query("test", { signal: controller.signal });
+    controller.abort();
+    let message = "";
+    try { await pending; } catch (error) { message = error.message; }
+    if (!message.includes("người dùng hủy")) throw new Error(message || "Không hủy");
   });
 
   globalThis.fetch = originalFetch;

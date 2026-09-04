@@ -2,7 +2,7 @@ import { ApiKeyManager } from "../api-key-manager.js";
 import { SYSTEM_PROMPT, buildUserContent, createRequestCancellation, normalizeRequestError, throwProviderHttpError } from "./cloud-provider-utils.js";
 
 const API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models";
-const DEFAULT_MODEL = "gemini-2.0-flash";
+const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 
 export class GeminiProvider {
   static get id() { return "gemini"; }
