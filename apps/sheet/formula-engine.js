@@ -232,6 +232,10 @@ export class FormulaEngine {
     for (const arg of args) {
       if (typeof arg === "string" && arg.startsWith('"') && arg.endsWith('"')) {
         values.push(arg.slice(1, -1));
+      } else if (typeof arg === "string" && /^[A-Z_.]+\s*\(.*\)$/i.test(arg)) {
+        const resolved = this._resolveSingleValue(arg);
+        if (Array.isArray(resolved)) values.push(...resolved);
+        else values.push(resolved);
       } else if (typeof arg === "string" && (arg.includes(":") || arg.includes("!") || this._resolveNamedRange(arg))) {
         values.push(...this._referenceValues(arg));
       } else if (typeof arg === "string" && /^[A-Z]+\d+$/i.test(arg.trim())) {

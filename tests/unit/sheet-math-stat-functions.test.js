@@ -21,7 +21,7 @@ export async function runSheetMathStatFunctionTests() {
   test("AVERAGEIF", () => { eq(engine.evaluate('=AVERAGEIF(C1:C4,"Bắc",B1:B4)'), 20); eq(engine.evaluate('=AVERAGEIF(C1:C4,"Tây",B1:B4)'), "#DIV/0!"); });
   test("AVERAGEIFS", () => { eq(engine.evaluate('=AVERAGEIFS(B1:B4,C1:C4,"Nam",A1:A4,">2")'), 40); eq(engine.evaluate('=AVERAGEIFS(B1:B4,C1:C4,"Tây")'), "#DIV/0!"); });
   test("MEDIAN", () => { eq(engine.evaluate("=MEDIAN(A1:A4)"), 2.5); eq(engine.evaluate("=MEDIAN()"), "#NUM!"); });
-  test("RANK và RANK.EQ", () => { eq(engine.evaluate("=RANK(3,A1:A4)"), 2); eq(engine.evaluate("=RANK.EQ(2,A1:A4,1)"), 2); eq(engine.evaluate("=RANK(9,A1:A4)"), "#N/A"); });
+  test("RANK và RANK.EQ", () => { eq(engine.evaluate("=RANK(3,A1:A4)"), 2); eq(engine.evaluate("=RANK.EQ(2,A1:A4,1)"), 2); eq(engine.evaluate("=RANK(9,A1:A4)"), "#N/A"); eq(engine.evaluate("=RANK.EQ(9,A1:A4)"), "#N/A"); });
   test("LARGE", () => { eq(engine.evaluate("=LARGE(A1:A4,2)"), 3); eq(engine.evaluate("=LARGE(A1:A4,9)"), "#NUM!"); });
   test("SMALL", () => { eq(engine.evaluate("=SMALL(A1:A4,2)"), 2); eq(engine.evaluate("=SMALL(A1:A4,0)"), "#NUM!"); });
   test("COUNTBLANK", () => { eq(engine.evaluate("=COUNTBLANK(D1:D4)"), 2); eq(engine.evaluate("=COUNTBLANK()"), "#VALUE!"); });

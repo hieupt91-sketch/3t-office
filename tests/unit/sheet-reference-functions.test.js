@@ -25,8 +25,8 @@ export async function runSheetReferenceFunctionTests() {
   test("ISTEXT nhận văn bản cross-sheet", () => { equal(engine.evaluate("=ISTEXT('Tháng 1'!B1)"), true); equal(engine.evaluate("=ISTEXT()"), "#VALUE!"); });
   test("ISERROR nhận mọi mã lỗi", () => { equal(engine.evaluate('=ISERROR(INDIRECT("Sai!A1"))'), true); equal(engine.evaluate("=ISERROR()"), "#VALUE!"); });
   test("ISNA chỉ nhận #N/A", () => { equal(engine.evaluate("=ISNA(XLOOKUP(999,'Tháng 1'!A:A,'Tháng 1'!B:B))"), true); equal(engine.evaluate("=ISNA()"), "#VALUE!"); });
-  test("INDIRECT đọc tham chiếu chuỗi xuyên sheet", () => { equal(engine.evaluate('=INDIRECT("Tháng 2!A1")'), 20); equal(engine.evaluate('=INDIRECT("Không có!A1")'), "#REF!"); });
-  test("OFFSET dịch ô tham chiếu cross-sheet", () => { equal(engine.evaluate("=OFFSET('Tháng 1'!A1,1,1)"), "Bình"); equal(engine.evaluate("=OFFSET(A1,-2,0)"), "#REF!"); });
+  test("INDIRECT đọc ô và vùng xuyên sheet", () => { equal(engine.evaluate('=INDIRECT("Tháng 2!A1")'), 20); equal(engine.evaluate('=SUM(INDIRECT("Tháng 1!A1:A3"))'), 600); equal(engine.evaluate('=INDIRECT("Không có!A1")'), "#REF!"); });
+  test("OFFSET dịch ô và vùng cross-sheet", () => { equal(engine.evaluate("=OFFSET('Tháng 1'!A1,1,1)"), "Bình"); equal(engine.evaluate("=SUM(OFFSET('Tháng 1'!A1,0,0,3,1))"), 600); equal(engine.evaluate("=OFFSET(A1,-2,0)"), "#REF!"); });
   test("XLOOKUP exact/full-column xuyên sheet và lỗi kích thước", () => { equal(engine.evaluate("=XLOOKUP(A1,'Tháng 1'!A:A,'Tháng 1'!B:B)"), "Bình"); equal(engine.evaluate("=XLOOKUP(A1,'Tháng 1'!A1:A3,'Tháng 1'!B1:B2)"), "#VALUE!"); });
   test("CHOOSE chọn giá trị ở sheet khác", () => { equal(engine.evaluate("=CHOOSE(2,'Tháng 2'!A1,'Tháng 3'!A1)"), 30); equal(engine.evaluate("=CHOOSE(3,1,2)"), "#VALUE!"); });
   test("LOOKUP trả vector kết quả xuyên sheet", () => { equal(engine.evaluate("=LOOKUP(250,'Tháng 1'!A1:A3,'Tháng 1'!B1:B3)"), "Bình"); equal(engine.evaluate("=LOOKUP(50,'Tháng 1'!A1:A3,'Tháng 1'!B1:B3)"), "#N/A"); });
