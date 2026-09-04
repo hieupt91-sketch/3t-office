@@ -146,6 +146,12 @@ export class WriterAdapter {
     this._updateTrackChangesCommandState();
     globalCommandBus.bindHandler("writer.file.printPreview", () => this.openPrintPreview());
 
+    // Bind Review (Ghi chú & Theo dõi thay đổi)
+    globalCommandBus.bindHandler("writer.comment.insert", (args) => this.insertComment(args));
+    globalCommandBus.bindHandler("writer.trackChanges.toggle", (args) => this.toggleTrackChanges(args?.enabled));
+    globalCommandBus.bindHandler("writer.trackChanges.acceptAll", () => this.acceptAllTrackChanges());
+    globalCommandBus.bindHandler("writer.trackChanges.rejectAll", () => this.rejectAllTrackChanges());
+
     // Bind undo/redo listeners & command handlers
     this._bindUndoRedo();
     globalCommandBus.bindHandler("common.edit.undo", () => this.undo());
@@ -3374,8 +3380,12 @@ export class WriterAdapter {
     const headings = this._collectHeadings();
     let entriesHtml = "";
 
+    const emptyMsg = (typeof t === "function" && t("writerDialogs.toc.empty") !== "writerDialogs.toc.empty")
+      ? t("writerDialogs.toc.empty")
+      : "Chưa có tiêu đề nào trong tài liệu. Hãy định dạng các đoạn văn bằng Kiểu dáng Heading 1, 2 hoặc 3 rồi cập nhật lại mục lục.";
+
     if (headings.length === 0) {
-      entriesHtml = `<div class="vno-toc-empty">Chưa có tiêu đề nào trong tài liệu. Hãy định dạng các đoạn văn bằng Kiểu dáng Heading 1, 2 hoặc 3 rồi cập nhật lại mục lục.</div>`;
+      entriesHtml = `<div class="vno-toc-empty">${emptyMsg}</div>`;
     } else {
       entriesHtml = headings.map((h) => {
         return `
@@ -3433,8 +3443,12 @@ export class WriterAdapter {
     const headings = this._collectHeadings();
     let entriesHtml = "";
 
+    const emptyMsg = (typeof t === "function" && t("writerDialogs.toc.empty") !== "writerDialogs.toc.empty")
+      ? t("writerDialogs.toc.empty")
+      : "Chưa có tiêu đề nào trong tài liệu. Hãy định dạng các đoạn văn bằng Kiểu dáng Heading 1, 2 hoặc 3 rồi cập nhật lại mục lục.";
+
     if (headings.length === 0) {
-      entriesHtml = `<div class="vno-toc-empty">Chưa có tiêu đề nào trong tài liệu. Hãy định dạng các đoạn văn bằng Kiểu dáng Heading 1, 2 hoặc 3 rồi cập nhật lại mục lục.</div>`;
+      entriesHtml = `<div class="vno-toc-empty">${emptyMsg}</div>`;
     } else {
       entriesHtml = headings.map((h) => {
         return `
@@ -3449,13 +3463,26 @@ export class WriterAdapter {
       }).join("\n");
     }
 
+    const tocTitle = (typeof t === "function" && t("writerDialogs.toc.title") !== "writerDialogs.toc.title")
+      ? t("writerDialogs.toc.title")
+      : "MỤC LỤC";
+    const updateBtnText = (typeof t === "function" && t("writerDialogs.toc.updateBtn") !== "writerDialogs.toc.updateBtn")
+      ? t("writerDialogs.toc.updateBtn")
+      : "🔄 Cập nhật";
+    const updateTooltip = (typeof t === "function" && t("writerDialogs.toc.updateTooltip") !== "writerDialogs.toc.updateTooltip")
+      ? t("writerDialogs.toc.updateTooltip")
+      : "Cập nhật mục lục";
+    const deleteTooltip = (typeof t === "function" && t("writerDialogs.toc.deleteTooltip") !== "writerDialogs.toc.deleteTooltip")
+      ? t("writerDialogs.toc.deleteTooltip")
+      : "Xóa mục lục";
+
     const html = `
       <div data-vno-toc="true" class="vno-toc-block" contenteditable="false">
         <div class="vno-toc-header">
-          <span class="vno-toc-title">MỤC LỤC</span>
+          <span class="vno-toc-title">${tocTitle}</span>
           <div class="vno-toc-actions">
-            <button type="button" class="vno-toc-btn vno-toc-btn-update" title="Cập nhật mục lục">🔄 Cập nhật</button>
-            <button type="button" class="vno-toc-btn vno-toc-btn-delete" title="Xóa mục lục">&times;</button>
+            <button type="button" class="vno-toc-btn vno-toc-btn-update" title="${updateTooltip}">${updateBtnText}</button>
+            <button type="button" class="vno-toc-btn vno-toc-btn-delete" title="${deleteTooltip}">&times;</button>
           </div>
         </div>
         <div class="vno-toc-entries">
@@ -3634,11 +3661,14 @@ export class WriterAdapter {
           setAttribute(k, v) { this.attributes[k] = v; },
           getAttribute(k) { return this.attributes[k]; }
         };
+    const jumpToNoteTitle = (typeof t === "function" && t("writerDialogs.notes.jumpToNote") !== "writerDialogs.notes.jumpToNote")
+      ? t("writerDialogs.notes.jumpToNote")
+      : "Nhấp để chuyển đến chú thích";
     if (typeof sup.setAttribute === "function") {
       sup.setAttribute("data-vno-footnote-ref", id);
       sup.setAttribute("class", "vno-footnote-ref");
       sup.setAttribute("contenteditable", "false");
-      sup.setAttribute("title", "Nhấp để chuyển đến chú thích");
+      sup.setAttribute("title", jumpToNoteTitle);
       sup.textContent = "1";
     }
 
@@ -3708,11 +3738,21 @@ export class WriterAdapter {
     }
 
     const initialText = options.text || "";
+    const jumpToRefTitle = (typeof t === "function" && t("writerDialogs.notes.jumpToRef") !== "writerDialogs.notes.jumpToRef")
+      ? t("writerDialogs.notes.jumpToRef")
+      : "Chuyển tới vị trí tham chiếu";
+    const placeholder = (typeof t === "function" && t("writerDialogs.notes.footnotePlaceholder") !== "writerDialogs.notes.footnotePlaceholder")
+      ? t("writerDialogs.notes.footnotePlaceholder")
+      : "Nhập nội dung chú thích...";
+    const deleteTitle = (typeof t === "function" && t("writerDialogs.notes.deleteFootnote") !== "writerDialogs.notes.deleteFootnote")
+      ? t("writerDialogs.notes.deleteFootnote")
+      : "Xóa chú thích";
+
     const itemHtml = `
       <div class="vno-footnote-item" data-vno-footnote-id="${id}">
-        <span class="vno-note-num" title="Chuyển tới vị trí tham chiếu">1</span>
-        <span class="vno-note-text" contenteditable="true" data-placeholder="Nhập nội dung chú thích...">${initialText}</span>
-        <button type="button" class="vno-note-delete-btn" title="Xóa chú thích">&times;</button>
+        <span class="vno-note-num" title="${jumpToRefTitle}">1</span>
+        <span class="vno-note-text" contenteditable="true" data-placeholder="${placeholder}">${initialText}</span>
+        <button type="button" class="vno-note-delete-btn" title="${deleteTitle}">&times;</button>
       </div>
     `.trim();
 
@@ -3734,6 +3774,8 @@ export class WriterAdapter {
         dataset: { vnoFootnoteId: id },
         attributes: { "data-vno-footnote-id": id, class: "vno-footnote-item" },
         innerHTML: itemHtml,
+        getAttribute(k) { return this.attributes ? this.attributes[k] : null; },
+        setAttribute(k, v) { if (!this.attributes) this.attributes = {}; this.attributes[k] = v; },
         querySelector(s) {
           if (s === ".vno-note-num") return { textContent: "1" };
           return null;
@@ -3850,11 +3892,14 @@ export class WriterAdapter {
           setAttribute(k, v) { this.attributes[k] = v; },
           getAttribute(k) { return this.attributes[k]; }
         };
+    const jumpToEndnoteTitle = (typeof t === "function" && t("writerDialogs.notes.jumpToEndnote") !== "writerDialogs.notes.jumpToEndnote")
+      ? t("writerDialogs.notes.jumpToEndnote")
+      : "Nhấp để chuyển đến chú thích cuối";
     if (typeof sup.setAttribute === "function") {
       sup.setAttribute("data-vno-endnote-ref", id);
       sup.setAttribute("class", "vno-endnote-ref");
       sup.setAttribute("contenteditable", "false");
-      sup.setAttribute("title", "Nhấp để chuyển đến chú thích cuối");
+      sup.setAttribute("title", jumpToEndnoteTitle);
       sup.textContent = "i";
     }
 
@@ -3889,10 +3934,13 @@ export class WriterAdapter {
 
     let container = this.bodyDom.querySelector ? this.bodyDom.querySelector('[data-vno-endnotes="true"]') : null;
     if (!container) {
+      const endnotesTitle = (typeof t === "function" && t("writerDialogs.notes.endnotesTitle") !== "writerDialogs.notes.endnotesTitle")
+        ? t("writerDialogs.notes.endnotesTitle")
+        : "CHÚ THÍCH CUỐI TÀI LIỆU";
       const containerHtml = `
         <div data-vno-endnotes="true" class="vno-writer-endnotes-container" contenteditable="false">
           <div class="vno-notes-separator"></div>
-          <div class="vno-notes-title">CHÚ THÍCH CUỐI TÀI LIỆU</div>
+          <div class="vno-notes-title">${endnotesTitle}</div>
         </div>
       `.trim();
 
@@ -3922,11 +3970,21 @@ export class WriterAdapter {
     }
 
     const initialText = options.text || "";
+    const jumpToRefTitle = (typeof t === "function" && t("writerDialogs.notes.jumpToRef") !== "writerDialogs.notes.jumpToRef")
+      ? t("writerDialogs.notes.jumpToRef")
+      : "Chuyển tới vị trí tham chiếu";
+    const placeholder = (typeof t === "function" && t("writerDialogs.notes.endnotePlaceholder") !== "writerDialogs.notes.endnotePlaceholder")
+      ? t("writerDialogs.notes.endnotePlaceholder")
+      : "Nhập nội dung chú thích cuối...";
+    const deleteTitle = (typeof t === "function" && t("writerDialogs.notes.deleteEndnote") !== "writerDialogs.notes.deleteEndnote")
+      ? t("writerDialogs.notes.deleteEndnote")
+      : "Xóa chú thích";
+
     const itemHtml = `
       <div class="vno-endnote-item" data-vno-endnote-id="${id}">
-        <span class="vno-note-num" title="Chuyển tới vị trí tham chiếu">i</span>
-        <span class="vno-note-text" contenteditable="true" data-placeholder="Nhập nội dung chú thích cuối...">${initialText}</span>
-        <button type="button" class="vno-note-delete-btn" title="Xóa chú thích">&times;</button>
+        <span class="vno-note-num" title="${jumpToRefTitle}">i</span>
+        <span class="vno-note-text" contenteditable="true" data-placeholder="${placeholder}">${initialText}</span>
+        <button type="button" class="vno-note-delete-btn" title="${deleteTitle}">&times;</button>
       </div>
     `.trim();
 
@@ -3948,6 +4006,8 @@ export class WriterAdapter {
         dataset: { vnoEndnoteId: id },
         attributes: { "data-vno-endnote-id": id, class: "vno-endnote-item" },
         innerHTML: itemHtml,
+        getAttribute(k) { return this.attributes ? this.attributes[k] : null; },
+        setAttribute(k, v) { if (!this.attributes) this.attributes = {}; this.attributes[k] = v; },
         querySelector(s) {
           if (s === ".vno-note-num") return { textContent: "i" };
           return null;

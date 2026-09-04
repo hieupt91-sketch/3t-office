@@ -395,6 +395,23 @@ export const enStrings = {
     hyperlink: {
       title: "Insert Hyperlink",
       message: "Enter hyperlink URL:"
+    },
+    toc: {
+      title: "TABLE OF CONTENTS",
+      updateBtn: "🔄 Update",
+      updateTooltip: "Update table of contents",
+      deleteTooltip: "Delete table of contents",
+      empty: "No headings found in document. Format paragraphs with Heading 1, 2, or 3 styles, then update the table of contents."
+    },
+    notes: {
+      footnotePlaceholder: "Type footnote text...",
+      endnotePlaceholder: "Type endnote text...",
+      endnotesTitle: "ENDNOTES",
+      deleteFootnote: "Delete footnote",
+      deleteEndnote: "Delete endnote",
+      jumpToNote: "Click to jump to footnote",
+      jumpToEndnote: "Click to jump to endnote",
+      jumpToRef: "Jump to reference"
     }
   }
 };
