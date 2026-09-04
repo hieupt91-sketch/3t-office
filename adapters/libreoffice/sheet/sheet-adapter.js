@@ -24,6 +24,26 @@ export class SheetAdapter {
       args = args || {};
       return this.grid.showNameManager(args);
     });
+    globalCommandBus.bindHandler("sheet.review.commentInsert", (args) => {
+      args = args || {};
+      return this.grid.showCommentDialog(args);
+    });
+    globalCommandBus.bindHandler("sheet.page.setPrintArea", (args) => {
+      args = args || {};
+      return this.grid.setPrintArea(args);
+    });
+    globalCommandBus.bindHandler("sheet.page.clearPrintArea", (args) => {
+      args = args || {};
+      return this.grid.clearPrintArea(args);
+    });
+    globalCommandBus.bindHandler("sheet.page.insertPageBreak", (args) => {
+      args = args || {};
+      return this.grid.insertPageBreak(args);
+    });
+    globalCommandBus.bindHandler("sheet.page.removePageBreak", (args) => {
+      args = args || {};
+      return this.grid.removePageBreak(args);
+    });
   }
 
   /**

@@ -174,6 +174,11 @@ export const ICONS = {
   </svg>`,
 
   nameManager: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none"><rect x="4" y="5" width="24" height="22" rx="3" fill="#ECFDF5" stroke="#0F6D38" stroke-width="1.5"/><path d="M10 22V10l8 12V10M21 13h5M21 18h5M21 23h5" stroke="#0F6D38" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  cellComment: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none"><path d="M5 5h22v16H14l-6 6v-6H5z" fill="#FFF7ED" stroke="#C2410C" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 11h12M10 16h9" stroke="#C2410C" stroke-width="2" stroke-linecap="round"/><path d="M23 5h4v4z" fill="#DC2626"/></svg>`,
+  printArea: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none"><rect x="4" y="5" width="24" height="22" rx="2" fill="#F8FAFC" stroke="#64748B"/><path d="M4 12h24M11 5v22M20 5v22M4 20h24" stroke="#CBD5E1"/><rect x="11" y="12" width="9" height="8" fill="#DCFCE7" stroke="#0F6D38" stroke-width="2"/></svg>`,
+  clearPrintArea: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" fill="#F8FAFC" stroke="#64748B"/><path d="M7 8l10 8M17 8L7 16" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/></svg>`,
+  sheetPageBreak: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none"><rect x="4" y="4" width="24" height="24" rx="2" fill="#F8FAFC" stroke="#64748B"/><path d="M4 16h24M16 4v24" stroke="#2563EB" stroke-width="2" stroke-dasharray="4 3"/><path d="M11 12l5 4 5-4" stroke="#0F6D38" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  removePageBreak: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#F8FAFC" stroke="#64748B"/><path d="M3 12h18M12 3v18" stroke="#2563EB" stroke-dasharray="3 2"/><path d="M8 8l8 8M16 8l-8 8" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/></svg>`,
 
   filter: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" fill="#67E8F9" stroke="#0891B2" stroke-width="1.5"/>

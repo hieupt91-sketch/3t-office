@@ -30,6 +30,7 @@ import { runSlidesSorterViewTests } from "./unit/slides-sorter-view.test.js";
 import { runWriterTocFootnotesTests } from "./unit/writer-toc-footnotes.test.js";
 import { runSheetNamedRangesTextDateTests } from "./unit/sheet-named-ranges-text-date.test.js";
 import { runWriterMailMergeTests } from "./unit/writer-mail-merge.test.js";
+import { runSheetCommentsPrintAreaTests } from "./unit/sheet-comments-printarea.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -67,7 +68,8 @@ async function runAll() {
     { title: "24. Behavioral Tests — VN Slides Slide Sorter View", runner: runSlidesSorterViewTests },
     { title: "25. Behavioral Tests — VN Writer Table of Contents & Footnotes/Endnotes", runner: runWriterTocFootnotesTests },
     { title: "26. Behavioral Tests — VN Sheet Named Ranges & Advanced TEXT/DATE", runner: runSheetNamedRangesTextDateTests },
-    { title: "27. Behavioral Tests — VN Writer Mail Merge", runner: runWriterMailMergeTests }
+    { title: "27. Behavioral Tests — VN Writer Mail Merge", runner: runWriterMailMergeTests },
+    { title: "28. Behavioral Tests — VN Sheet Comments, Print Area & Page Breaks", runner: runSheetCommentsPrintAreaTests }
   ];
 
   for (const suite of suites) {

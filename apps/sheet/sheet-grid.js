@@ -35,6 +35,9 @@ export class SheetGridController {
 
     this.namedRangesWorkbook = [];
     this.namedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.commentsBySheet = Object.fromEntries(this.sheets.map(name => [name, {}]));
+    this.printAreaBySheet = Object.fromEntries(this.sheets.map(name => [name, null]));
+    this.pageBreaksBySheet = Object.fromEntries(this.sheets.map(name => [name, { rows: [], cols: [] }]));
     this.formulaEngine = new FormulaEngine(() => this.cellsData, name => this.resolveNamedRange(name));
     this.autocomplete = new FormulaAutocompleteController(this);
 
@@ -269,6 +272,9 @@ export class SheetGridController {
     if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
     if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
+    if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
+    if (!(sheetName in this.printAreaBySheet)) this.printAreaBySheet[sheetName] = null;
+    if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
 
     // 1. Lưu trạng thái sheet hiện tại
     if (this.activeSheet && this.sheetStates) {
@@ -366,6 +372,10 @@ export class SheetGridController {
     if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
     if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
+    if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
+    if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
+    if (!(sheetName in this.printAreaBySheet)) this.printAreaBySheet[sheetName] = null;
+    if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
     if (!this.sheetStates) {
       this.sheetStates = {};
     }
@@ -409,6 +419,9 @@ export class SheetGridController {
     delete this.chartsBySheet[sheetName];
     delete this.pivotTablesBySheet[sheetName];
     delete this.namedRangesBySheet[sheetName];
+    delete this.commentsBySheet[sheetName];
+    delete this.printAreaBySheet[sheetName];
+    delete this.pageBreaksBySheet[sheetName];
     this.tabBar?.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)?.remove?.();
     if (this.activeSheet === sheetName) {
       this.activeSheet = "";
@@ -465,6 +478,7 @@ export class SheetGridController {
           if (itm.style) this._applyStylesToDom(td, itm.style);
         }
         this._applyRuleVisuals(td, c, r);
+        this._applyAnnotationAndPageVisuals(td, c, r);
 
         if (this.selectedCoord.c === c && this.selectedCoord.r === r) {
           td.classList.add("is-selected");
@@ -479,6 +493,11 @@ export class SheetGridController {
 
         td.addEventListener("click", event => this.selectCell(c, r, event.shiftKey));
         td.addEventListener("dblclick", () => this.focusFormulaInput());
+        td.addEventListener("contextmenu", event => {
+          event.preventDefault();
+          this.selectCell(c, r);
+          this.showCommentDialog({ source: "contextmenu" });
+        });
 
         tr.appendChild(td);
       });
@@ -1062,6 +1081,17 @@ export class SheetGridController {
       if (currentIndex >= 0) collection.splice(currentIndex, 1);
       if (desired) collection.splice(Math.min(action.index, collection.length), 0, structuredClone(desired));
       this._recalculateAllFormulas();
+    } else if (action.type === "comment") {
+      const comments = this.commentsBySheet[action.sheet] ||= {};
+      const desired = direction === "undo" ? action.before : action.after;
+      if (desired) comments[action.coord] = structuredClone(desired);
+      else delete comments[action.coord];
+      this._refreshPageAndCommentVisuals();
+    } else if (action.type === "sheet-page-layout") {
+      const desired = structuredClone(action[direction === "undo" ? "before" : "after"]);
+      if (action.property === "printAreaBySheet") this.printAreaBySheet[action.sheet] = desired;
+      else this.pageBreaksBySheet[action.sheet] = desired;
+      this._refreshPageAndCommentVisuals();
     } else if (action.type === "freeze") {
       this._setFreezePanes(action[value], false);
     } else if (action.type === "filter") {
@@ -1358,7 +1388,10 @@ export class SheetGridController {
       dataValidations: structuredClone(this.dataValidationsBySheet[sheetName] || []),
       charts: structuredClone(this.chartsBySheet[sheetName] || []),
       pivotTables: structuredClone(this.pivotTablesBySheet[sheetName] || []),
-      namedRanges: structuredClone(this.namedRangesBySheet[sheetName] || [])
+      namedRanges: structuredClone(this.namedRangesBySheet[sheetName] || []),
+      comments: structuredClone(this.commentsBySheet[sheetName] || {}),
+      printArea: this.printAreaBySheet[sheetName] || null,
+      pageBreaks: structuredClone(this.pageBreaksBySheet[sheetName] || { rows: [], cols: [] })
     };
   }
 
@@ -1377,6 +1410,9 @@ export class SheetGridController {
     this.chartsBySheet[sheetName] = structuredClone(snapshot.charts);
     this.pivotTablesBySheet[sheetName] = structuredClone(snapshot.pivotTables || []);
     this.namedRangesBySheet[sheetName] = structuredClone(snapshot.namedRanges || []);
+    this.commentsBySheet[sheetName] = structuredClone(snapshot.comments || {});
+    this.printAreaBySheet[sheetName] = snapshot.printArea || null;
+    this.pageBreaksBySheet[sheetName] = structuredClone(snapshot.pageBreaks || { rows: [], cols: [] });
     const tabs = this.tabBar?.querySelector?.("#vno-sheet-tabs-list");
     if (tabs && typeof document !== "undefined" && !this.tabBar.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)) {
       const tab = document.createElement("div");
@@ -1651,6 +1687,156 @@ export class SheetGridController {
 
   _escapeHtml(value) {
     return String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char]);
+  }
+
+  _parseRange(label) {
+    const match = String(label || "").toUpperCase().match(/^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/);
+    if (!match || !this.cols.includes(match[1]) || (match[3] && !this.cols.includes(match[3]))) return null;
+    return {
+      start: { c: match[1], r: Number(match[2]) },
+      end: { c: match[3] || match[1], r: Number(match[4] || match[2]) }
+    };
+  }
+
+  _refreshPageAndCommentVisuals() {
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+  }
+
+  _applyAnnotationAndPageVisuals(cell, col, row) {
+    const coord = `${col}${row}`;
+    const comment = this.commentsBySheet[this.activeSheet]?.[coord];
+    if (comment) {
+      cell.classList.add("has-comment");
+      const popup = document.createElement("span");
+      popup.className = "vno-cell-comment-popup";
+      popup.setAttribute("role", "tooltip");
+      popup.textContent = comment.author ? `${comment.author}: ${comment.text}` : comment.text;
+      cell.appendChild(popup);
+    }
+
+    const area = this._parseRange(this.printAreaBySheet[this.activeSheet]);
+    if (area && this._rangeContains(area, col, row)) {
+      if (row === Math.min(area.start.r, area.end.r)) cell.classList.add("is-print-area-top");
+      if (row === Math.max(area.start.r, area.end.r)) cell.classList.add("is-print-area-bottom");
+      const startCol = this.cols.indexOf(area.start.c);
+      const endCol = this.cols.indexOf(area.end.c);
+      const colIndex = this.cols.indexOf(col);
+      if (colIndex === Math.min(startCol, endCol)) cell.classList.add("is-print-area-left");
+      if (colIndex === Math.max(startCol, endCol)) cell.classList.add("is-print-area-right");
+    }
+
+    const breaks = this.pageBreaksBySheet[this.activeSheet] || { rows: [], cols: [] };
+    if (breaks.rows.includes(row)) cell.classList.add("has-page-break-row");
+    if (breaks.cols.includes(col)) cell.classList.add("has-page-break-col");
+  }
+
+  saveComment(options = {}) {
+    options = options || {};
+    const coord = String(options.coord || `${this.selectedCoord.c}${this.selectedCoord.r}`).toUpperCase();
+    const text = String(options.text || "").trim();
+    const parsedCoord = this._parseRange(coord);
+    if (!parsedCoord || parsedCoord.start.r < 1 || parsedCoord.start.r > this.rowCount || !text) return false;
+    const comments = this.commentsBySheet[this.activeSheet] ||= {};
+    const before = comments[coord] ? structuredClone(comments[coord]) : null;
+    const after = { coord, text, author: String(options.author || before?.author || "Người dùng VN Office"), timestamp: options.timestamp || new Date().toISOString() };
+    comments[coord] = after;
+    this._recordHistory({ type: "comment", sheet: this.activeSheet, coord, before, after: structuredClone(after) });
+    this._refreshPageAndCommentVisuals();
+    return after;
+  }
+
+  deleteComment(options = {}) {
+    options = options || {};
+    const coord = String(options.coord || `${this.selectedCoord.c}${this.selectedCoord.r}`).toUpperCase();
+    const comments = this.commentsBySheet[this.activeSheet] ||= {};
+    if (!comments[coord]) return false;
+    const before = structuredClone(comments[coord]);
+    delete comments[coord];
+    this._recordHistory({ type: "comment", sheet: this.activeSheet, coord, before, after: null });
+    this._refreshPageAndCommentVisuals();
+    return true;
+  }
+
+  showCommentDialog(options = {}) {
+    options = options || {};
+    const coord = String(options.coord || `${this.selectedCoord.c}${this.selectedCoord.r}`).toUpperCase();
+    const existing = this.commentsBySheet[this.activeSheet]?.[coord] || null;
+    const overlay = this._createSheetDialog(existing ? `Sửa ghi chú ${coord}` : `Ghi chú mới ${coord}`, `
+      <label class="vno-comment-field">Nội dung ghi chú<textarea id="vno-comment-text" rows="5" maxlength="2000" placeholder="Nhập ghi chú cho ${coord}">${this._escapeHtml(existing?.text || "")}</textarea></label>
+      <label class="vno-comment-field">Tác giả<input id="vno-comment-author" maxlength="100" value="${this._escapeHtml(existing?.author || "Người dùng VN Office")}"></label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    const apply = overlay.querySelector(".vno-rule-apply");
+    apply.textContent = existing ? "Lưu thay đổi" : "Thêm ghi chú";
+    if (existing) {
+      const remove = document.createElement("button");
+      remove.className = "vno-btn vno-btn-danger vno-comment-delete";
+      remove.textContent = "Xóa ghi chú";
+      overlay.querySelector(".vno-dialog-footer").prepend(remove);
+      remove.addEventListener("click", () => { this.deleteComment({ coord }); overlay.remove(); });
+    }
+    apply.addEventListener("click", () => {
+      const text = overlay.querySelector("#vno-comment-text").value.trim();
+      if (!text) { overlay.querySelector(".vno-rule-error").textContent = "Nội dung ghi chú không được để trống."; return; }
+      this.saveComment({ coord, text, author: overlay.querySelector("#vno-comment-author").value });
+      overlay.remove();
+    });
+    overlay.querySelector("#vno-comment-text")?.focus();
+    return true;
+  }
+
+  setPrintArea(options = {}) {
+    options = options || {};
+    const next = options.range || this.getSelectedRangeLabel();
+    if (!this._parseRange(next)) return false;
+    const before = this.printAreaBySheet[this.activeSheet] || null;
+    if (before === next) return next;
+    this.printAreaBySheet[this.activeSheet] = next;
+    this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "printAreaBySheet", before, after: next });
+    this._refreshPageAndCommentVisuals();
+    return next;
+  }
+
+  clearPrintArea(options = {}) {
+    options = options || {};
+    const before = this.printAreaBySheet[this.activeSheet] || null;
+    if (!before) return false;
+    this.printAreaBySheet[this.activeSheet] = null;
+    this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "printAreaBySheet", before, after: null });
+    this._refreshPageAndCommentVisuals();
+    return true;
+  }
+
+  insertPageBreak(options = {}) {
+    options = options || {};
+    const before = structuredClone(this.pageBreaksBySheet[this.activeSheet] || { rows: [], cols: [] });
+    const row = Number(options.row || this.selectedCoord.r);
+    const col = String(options.col || this.selectedCoord.c).toUpperCase();
+    if (!Number.isInteger(row) || row < 1 || row > this.rowCount || !this.cols.includes(col)) return false;
+    const after = structuredClone(before);
+    if (!after.rows.includes(row)) after.rows.push(row);
+    if (!after.cols.includes(col)) after.cols.push(col);
+    after.rows.sort((a, b) => a - b);
+    after.cols.sort((a, b) => this.cols.indexOf(a) - this.cols.indexOf(b));
+    if (JSON.stringify(before) === JSON.stringify(after)) return false;
+    this.pageBreaksBySheet[this.activeSheet] = after;
+    this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "pageBreaksBySheet", before, after: structuredClone(after) });
+    this._refreshPageAndCommentVisuals();
+    return true;
+  }
+
+  removePageBreak(options = {}) {
+    options = options || {};
+    const before = structuredClone(this.pageBreaksBySheet[this.activeSheet] || { rows: [], cols: [] });
+    const row = Number(options.row || this.selectedCoord.r);
+    const col = String(options.col || this.selectedCoord.c).toUpperCase();
+    if (!Number.isInteger(row) || row < 1 || row > this.rowCount || !this.cols.includes(col)) return false;
+    const after = { rows: before.rows.filter(item => item !== row), cols: before.cols.filter(item => item !== col) };
+    if (JSON.stringify(before) === JSON.stringify(after)) return false;
+    this.pageBreaksBySheet[this.activeSheet] = after;
+    this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "pageBreaksBySheet", before, after });
+    this._refreshPageAndCommentVisuals();
+    return true;
   }
 
   _createSheetDialog(title, bodyHtml) {

@@ -148,6 +148,31 @@ export const SHEET_RIBBON_TABS = [
     ]
   },
   {
+    id: "pageLayout",
+    label: "Bố trí trang",
+    groups: [
+      {
+        label: "Vùng in",
+        items: [
+          { type: "button", commandId: "sheet.page.setPrintArea", isLarge: true },
+          { type: "button", commandId: "sheet.page.clearPrintArea" }
+        ]
+      },
+      {
+        label: "Ngắt trang",
+        items: [
+          { type: "button", commandId: "sheet.page.insertPageBreak", isLarge: true },
+          { type: "button", commandId: "sheet.page.removePageBreak" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "review",
+    label: "Xem xét",
+    groups: [{ label: "Ghi chú", items: [{ type: "button", commandId: "sheet.review.commentInsert", isLarge: true }] }]
+  },
+  {
     id: "ai",
     label: "Trợ lý VN AI",
     groups: [
