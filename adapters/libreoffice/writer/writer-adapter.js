@@ -2869,6 +2869,18 @@ export class WriterAdapter {
   }
 
   /**
+   * Nguồn duy nhất cho chiều cao thân trang mà cả live pagination và Print Preview sử dụng.
+   * Header/footer chỉ chiếm chỗ khi thực sự có nội dung, giống cách chúng được render.
+   */
+  _getUsablePageHeight(dim = this.getPageDimensions()) {
+    const hasHeader = Boolean(this.headerDom && this.headerDom.innerText?.trim());
+    const hasFooter = Boolean(this.footerDom && this.footerDom.innerText?.trim());
+    const headerReservedPx = hasHeader ? 46 : 0;
+    const footerReservedPx = hasFooter ? 48 : 0;
+    return Math.max(150, dim.printableHeightPx - headerReservedPx - footerReservedPx);
+  }
+
+  /**
    * Phân trang nội dung tài liệu dựa trên chiều cao trang in khả dụng và ngắt trang thủ công.
    * @param {string} bodyHtml Nội dung HTML của phần thân tài liệu
    * @param {number} availableHeightPx Chiều cao vùng thân trang (đã trừ lề, header, footer)
@@ -2888,9 +2900,30 @@ export class WriterAdapter {
     const colWidthPx = colCount > 1 ? Math.max(100, (printableWidthPx - gapPx * (colCount - 1)) / colCount) : printableWidthPx;
 
     let blocks = [];
+    let measurementHost = null;
     if (typeof document !== "undefined" && typeof document.createElement === "function") {
       const temp = document.createElement("div");
+      temp.className = "vno-writer-body vno-pagination-measurement-host";
+      temp.setAttribute?.("aria-hidden", "true");
+      if (temp.style) {
+        temp.style.position = "absolute";
+        temp.style.visibility = "hidden";
+        temp.style.pointerEvents = "none";
+        temp.style.left = "-100000px";
+        temp.style.top = "0";
+        temp.style.width = `${colWidthPx}px`;
+        temp.style.height = "auto";
+        temp.style.columnCount = "1";
+        temp.style.webkitColumnCount = "1";
+      }
       temp.innerHTML = bodyHtml;
+      // Phải gắn vào DOM thật để Chromium tính wrapping, line-height và offsetHeight.
+      // Gắn dưới trang Writer giúp thừa kế đúng typography của tài liệu.
+      const measurementParent = this.editorDom?.appendChild ? this.editorDom : document.body;
+      if (measurementParent?.appendChild) {
+        measurementParent.appendChild(temp);
+        measurementHost = temp;
+      }
       if (temp.children && temp.children.length > 0) {
         blocks = Array.from(temp.children);
       } else if (temp.childNodes && temp.childNodes.length > 0) {
@@ -2999,6 +3032,10 @@ export class WriterAdapter {
       pages.push(currentPageHtmls.length > 0 ? currentPageHtmls.join("\n") : "<p><br></p>");
     }
 
+    if (measurementHost?.parentNode?.removeChild) {
+      measurementHost.parentNode.removeChild(measurementHost);
+    }
+
     return pages;
   }
 
@@ -3035,12 +3072,11 @@ export class WriterAdapter {
 
     const hasHeader = Boolean(headerHtml && headerHtml.trim());
     const hasFooter = Boolean(footerHtml && footerHtml.trim());
-    const headerReservedPx = hasHeader ? 46 : 0;
-    const footerReservedPx = hasFooter ? 48 : 0;
-    const availableBodyHeightPx = Math.max(150, dim.printableHeightPx - headerReservedPx - footerReservedPx);
+    const availableBodyHeightPx = this._getUsablePageHeight(dim);
 
     const notesData = this._extractNotesForPreview(rawBody);
-    const bodyForPagination = notesData.cleanHtml;
+    // Live pagination chèn gap chỉ để hiển thị. Không cho markup suy ra này tham gia đo preview.
+    const bodyForPagination = this._stripAutoPageGaps(notesData.cleanHtml);
 
     const pageBodies = this.paginateContent(bodyForPagination, availableBodyHeightPx, dim.printableWidthPx, this.columns);
 
@@ -3665,11 +3701,7 @@ export class WriterAdapter {
       }
 
       const dim = this.getPageDimensions();
-      const hasHeader = Boolean(this.headerDom && this.headerDom.innerText?.trim());
-      const hasFooter = Boolean(this.footerDom && this.footerDom.innerText?.trim());
-      const headerReservedPx = hasHeader ? 46 : 0;
-      const footerReservedPx = hasFooter ? 48 : 0;
-      const availableHeightPx = Math.max(150, dim.printableHeightPx - headerReservedPx - footerReservedPx);
+      const availableHeightPx = this._getUsablePageHeight(dim);
 
       const children = Array.from(this.bodyDom.children);
       let currentHeight = 0;
