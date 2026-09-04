@@ -214,6 +214,43 @@ export const WRITER_RIBBON_TABS = [
     ]
   },
   {
+    id: "mailings",
+    label: "Trộn thư",
+    groups: [
+      {
+        label: "Bắt đầu trộn",
+        items: [
+          { type: "button", commandId: "writer.mailMerge.open", isLarge: true }
+        ]
+      },
+      {
+        label: "Viết & Chèn trường",
+        items: [
+          { type: "button", commandId: "writer.mailMerge.insertField", isLarge: true }
+        ]
+      },
+      {
+        label: "Xem trước kết quả",
+        items: [
+          { type: "button", commandId: "writer.mailMerge.preview", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.mailMerge.prevRecord" },
+              { type: "button", commandId: "writer.mailMerge.nextRecord" }
+            ]
+          }
+        ]
+      },
+      {
+        label: "Hoàn tất",
+        items: [
+          { type: "button", commandId: "writer.mailMerge.finish", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
     id: "review",
     label: "Đánh giá",
     groups: [

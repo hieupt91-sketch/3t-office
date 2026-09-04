@@ -28,6 +28,7 @@ import { runSheetLookupConditionalFunctionTests } from "./unit/sheet-lookup-cond
 import { runSheetPivotTableTests } from "./unit/sheet-pivot-table.test.js";
 import { runSlidesSorterViewTests } from "./unit/slides-sorter-view.test.js";
 import { runWriterTocFootnotesTests } from "./unit/writer-toc-footnotes.test.js";
+import { runWriterMailMergeTests } from "./unit/writer-mail-merge.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -63,7 +64,8 @@ async function runAll() {
     { title: "22. Unit Tests — VN Sheet Lookup & Conditional Functions", runner: runSheetLookupConditionalFunctionTests },
     { title: "23. Behavioral Tests — VN Sheet Pivot Table", runner: runSheetPivotTableTests },
     { title: "24. Behavioral Tests — VN Slides Slide Sorter View", runner: runSlidesSorterViewTests },
-    { title: "25. Behavioral Tests — VN Writer Table of Contents & Footnotes/Endnotes", runner: runWriterTocFootnotesTests }
+    { title: "25. Behavioral Tests — VN Writer Table of Contents & Footnotes/Endnotes", runner: runWriterTocFootnotesTests },
+    { title: "26. Behavioral Tests — VN Writer Mail Merge", runner: runWriterMailMergeTests }
   ];
 
   for (const suite of suites) {

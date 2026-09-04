@@ -6,6 +6,7 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
+import { parseCsv, replaceMergeFields, showMailMergeDataSourceDialog, showInsertMergeFieldDialog } from "../../../apps/writer/mail-merge.js";
 
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
 const PAGE_SIZES_MM = {
@@ -81,6 +82,17 @@ export class WriterAdapter {
     this._undoKeyHandler = null;
     this._lastSnapshot = null;
 
+    // Mail Merge (Trộn thư) State
+    this.mailMergeData = {
+      fields: [],
+      records: [],
+      rawCsv: ""
+    };
+    this.mailMergePreview = {
+      enabled: false,
+      recordIndex: 0
+    };
+
     this._initZones();
     if (this.editorDom) {
       this._lastSnapshot = this._createSnapshot("Initial State");
@@ -121,6 +133,15 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.reference.tocUpdate", () => this.updateTableOfContents());
     globalCommandBus.bindHandler("writer.reference.footnoteInsert", (args) => this.insertFootnote(args));
     globalCommandBus.bindHandler("writer.reference.endnoteInsert", (args) => this.insertEndnote(args));
+
+    // Bind Mail Merge (Trộn thư)
+    globalCommandBus.bindHandler("writer.mailMerge.open", (args) => this.openMailMergeDataSourceDialog(args));
+    globalCommandBus.bindHandler("writer.mailMerge.insertField", (args) => this.insertMergeField(args));
+    globalCommandBus.bindHandler("writer.mailMerge.preview", (args) => this.toggleMailMergePreview(args));
+    globalCommandBus.bindHandler("writer.mailMerge.prevRecord", (args) => this.prevMailMergeRecord(args));
+    globalCommandBus.bindHandler("writer.mailMerge.nextRecord", (args) => this.nextMailMergeRecord(args));
+    globalCommandBus.bindHandler("writer.mailMerge.finish", (args) => this.finishMailMerge(args));
+    this._updateMailMergeCommandStates();
 
     if (!this._lastSnapshot) {
       this._lastSnapshot = this._createSnapshot("Initial State");
@@ -706,6 +727,24 @@ export class WriterAdapter {
       case "writer.reference.endnoteInsert":
         return this.insertEndnote(args);
 
+      case "writer.mailMerge.open":
+        return this.openMailMergeDataSourceDialog(args);
+
+      case "writer.mailMerge.insertField":
+        return Boolean(this.insertMergeField(args));
+
+      case "writer.mailMerge.preview":
+        return Boolean(this.toggleMailMergePreview(args));
+
+      case "writer.mailMerge.prevRecord":
+        return this.prevMailMergeRecord(args) !== false;
+
+      case "writer.mailMerge.nextRecord":
+        return this.nextMailMergeRecord(args) !== false;
+
+      case "writer.mailMerge.finish":
+        return Boolean(this.finishMailMerge(args));
+
       default:
         return false;
     }
@@ -1212,7 +1251,8 @@ export class WriterAdapter {
       .replace(/<del\b(?=[^>]*\bdata-vno-change=(?:"delete"|'delete'))[^>]*>[\s\S]*?<\/del>/gi, "")
       .replace(/<ins\b(?=[^>]*\bdata-vno-change=(?:"insert"|'insert'))[^>]*>([\s\S]*?)<\/ins>/gi, "$1")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-toc-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
-      .replace(/<button\b[^>]*class=["'][^"']*\bvno-note-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "");
+      .replace(/<button\b[^>]*class=["'][^"']*\bvno-note-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
+      .replace(/\s*\bvno-merge-preview\b/gi, "");
   }
 
   /**
@@ -3127,6 +3167,438 @@ export class WriterAdapter {
     this.isDirty = true;
     this.recordSnapshot("writer.reference.endnoteDelete");
     return true;
+  }
+
+  // =========================================================================
+  // HE THONG TRON THU (MAIL MERGE ENGINE)
+  // =========================================================================
+
+  /**
+   * Thiết lập nguồn dữ liệu trộn thư từ chuỗi CSV
+   * @param {string} csvText
+   * @returns {{ fields: string[], records: Array<Record<string, string>> }}
+   */
+  setMailMergeData(csvText) {
+    if (typeof csvText !== "string") {
+      this.mailMergeData = { fields: [], records: [], rawCsv: "" };
+      this._updateMailMergeCommandStates();
+      return { fields: [], records: [] };
+    }
+    const { fields, records } = parseCsv(csvText);
+    this.mailMergeData = {
+      rawCsv: csvText,
+      fields,
+      records
+    };
+    this.mailMergePreview.recordIndex = 0;
+    if (this.mailMergePreview.enabled) {
+      if (records.length > 0) {
+        this._renderMergePreview(records[0]);
+      } else {
+        this._clearMergePreview();
+        this.mailMergePreview.enabled = false;
+      }
+    }
+    this._updateMailMergeCommandStates();
+    return { fields, records };
+  }
+
+  /**
+   * Mở hộp thoại nhập nguồn dữ liệu CSV hoặc nạp trực tiếp qua options.csv
+   * @param {Object} [options={}]
+   * @returns {Promise<{ fields: string[], records: Array<Record<string, string>> }|null>}
+   */
+  async openMailMergeDataSourceDialog(options = {}) {
+    options = options || {};
+    if (options.csv !== undefined) {
+      return this.setMailMergeData(options.csv);
+    }
+    return new Promise((resolve) => {
+      showMailMergeDataSourceDialog({
+        currentCsv: this.mailMergeData?.rawCsv || "",
+        onSave: (csv) => {
+          const res = this.setMailMergeData(csv);
+          resolve(res);
+        },
+        onCancel: () => {
+          resolve(null);
+        }
+      });
+    });
+  }
+
+  /**
+   * Chèn trường trộn thư tại vị trí con trỏ trong tài liệu
+   * Cú pháp chuẩn Word: <span class="vno-merge-field" data-field="TenCot" contenteditable="false">«TenCot»</span>
+   * @param {Object|string} [options={}]
+   * @returns {HTMLElement|Object|null}
+   */
+  insertMergeField(options = {}) {
+    options = options || {};
+    this._initZones();
+    if (!this.bodyDom) return null;
+
+    this.flushTyping();
+
+    if (typeof options === "string") {
+      options = { field: options };
+    }
+
+    let fieldName = (options.field || options.fieldName || "").trim();
+
+    if (!fieldName) {
+      if (this.mailMergeData?.fields?.length > 0) {
+        if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
+          showInsertMergeFieldDialog({
+            fields: this.mailMergeData.fields,
+            onInsert: (selected) => {
+              if (selected) {
+                this.insertMergeField({ field: selected });
+              }
+            }
+          });
+          return null;
+        } else {
+          fieldName = this.mailMergeData.fields[0];
+        }
+      } else {
+        if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
+          showPromptDialog({
+            title: "Chèn trường trộn thư",
+            message: "Chưa có nguồn dữ liệu. Nhập tên trường cần chèn:",
+            defaultValue: "HoTen"
+          }).then((val) => {
+            if (val && val.trim()) {
+              this.insertMergeField({ field: val.trim() });
+            }
+          });
+          return null;
+        } else {
+          fieldName = "HoTen";
+        }
+      }
+    }
+
+    const span = typeof document !== "undefined" && typeof document.createElement === "function"
+      ? document.createElement("span")
+      : {
+          tagName: "SPAN",
+          className: "vno-merge-field",
+          dataset: { field: fieldName },
+          attributes: { class: "vno-merge-field", "data-field": fieldName, contenteditable: "false" },
+          textContent: `«${fieldName}»`,
+          setAttribute(k, v) { this.attributes[k] = v; },
+          getAttribute(k) { return this.attributes[k]; }
+        };
+
+    if (typeof span.setAttribute === "function") {
+      span.setAttribute("class", "vno-merge-field");
+      span.setAttribute("data-field", fieldName);
+      span.setAttribute("contenteditable", "false");
+      span.textContent = `«${fieldName}»`;
+    }
+
+    let inserted = false;
+    if (typeof window !== "undefined" && window.getSelection) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const commonNode = range.commonAncestorContainer;
+        if (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode)) {
+          try {
+            range.deleteContents();
+            range.insertNode(span);
+            range.setStartAfter(span);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+            inserted = true;
+          } catch {}
+        }
+      }
+    }
+
+    if (!inserted) {
+      if (typeof this.bodyDom.appendChild === "function") {
+        const lastP = this.bodyDom.querySelector ? this.bodyDom.querySelector("p:last-of-type") : null;
+        if (lastP && typeof lastP.appendChild === "function") {
+          lastP.appendChild(span);
+        } else {
+          this.bodyDom.appendChild(span);
+        }
+      } else {
+        const spanHtml = `<span class="vno-merge-field" data-field="${fieldName}" contenteditable="false">«${fieldName}»</span>`;
+        this.bodyDom.innerHTML = (this.bodyDom.innerHTML || "") + spanHtml;
+      }
+    }
+
+    if (this.mailMergePreview.enabled) {
+      const record = this.mailMergeData.records[this.mailMergePreview.recordIndex];
+      if (record && record[fieldName] !== undefined) {
+        span.textContent = record[fieldName];
+        if (span.classList?.add) span.classList.add("vno-merge-preview");
+      }
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.mailMerge.insertField");
+    return span;
+  }
+
+  /**
+   * Bật/tắt chế độ xem trước bản ghi trộn thư (Preview Results)
+   * @param {Object|boolean} [options={}]
+   * @returns {boolean}
+   */
+  toggleMailMergePreview(options = {}) {
+    options = options || {};
+    this.flushTyping();
+    this._initZones();
+
+    const force = typeof options.force === "boolean"
+      ? options.force
+      : (typeof options === "boolean" ? options : null);
+
+    const records = this.mailMergeData?.records || [];
+    if (records.length === 0) {
+      if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
+        showAlertDialog({
+          title: "Xem trước trộn thư",
+          message: "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để dán bảng CSV trước.",
+          type: "warning"
+        });
+      }
+      this.mailMergePreview.enabled = false;
+      this._updateMailMergeCommandStates();
+      return false;
+    }
+
+    const nextState = force !== null ? force : !this.mailMergePreview.enabled;
+    this.mailMergePreview.enabled = nextState;
+
+    if (options.recordIndex !== undefined) {
+      this.mailMergePreview.recordIndex = Math.max(0, Math.min(records.length - 1, parseInt(options.recordIndex, 10) || 0));
+    }
+
+    if (this.mailMergePreview.enabled) {
+      const currentIdx = Math.max(0, Math.min(records.length - 1, this.mailMergePreview.recordIndex));
+      this.mailMergePreview.recordIndex = currentIdx;
+      this._renderMergePreview(records[currentIdx]);
+    } else {
+      this._clearMergePreview();
+    }
+
+    this._updateMailMergeCommandStates();
+    return this.mailMergePreview.enabled;
+  }
+
+  /**
+   * Chuyển đến bản ghi trước đó trong danh sách trộn thư
+   * @param {Object} [options={}]
+   * @returns {number|boolean}
+   */
+  prevMailMergeRecord(options = {}) {
+    options = options || {};
+    const records = this.mailMergeData?.records || [];
+    if (records.length === 0) return false;
+
+    if (!this.mailMergePreview.enabled) {
+      return this.toggleMailMergePreview({ force: true, recordIndex: 0 });
+    }
+
+    if (this.mailMergePreview.recordIndex > 0) {
+      this.mailMergePreview.recordIndex--;
+      this._renderMergePreview(records[this.mailMergePreview.recordIndex]);
+      this._updateMailMergeCommandStates();
+      return this.mailMergePreview.recordIndex;
+    }
+    return false;
+  }
+
+  /**
+   * Chuyển đến bản ghi tiếp theo trong danh sách trộn thư
+   * @param {Object} [options={}]
+   * @returns {number|boolean}
+   */
+  nextMailMergeRecord(options = {}) {
+    options = options || {};
+    const records = this.mailMergeData?.records || [];
+    if (records.length === 0) return false;
+
+    if (!this.mailMergePreview.enabled) {
+      return this.toggleMailMergePreview({ force: true, recordIndex: 0 });
+    }
+
+    if (this.mailMergePreview.recordIndex < records.length - 1) {
+      this.mailMergePreview.recordIndex++;
+      this._renderMergePreview(records[this.mailMergePreview.recordIndex]);
+      this._updateMailMergeCommandStates();
+      return this.mailMergePreview.recordIndex;
+    }
+    return false;
+  }
+
+  /**
+   * Hoàn tất trộn thư: tạo ra N bản sao nội dung thật, nối bằng ngắt trang page-break-before
+   * @param {Object} [options={}]
+   * @returns {boolean}
+   */
+  finishMailMerge(options = {}) {
+    options = options || {};
+    this.flushTyping();
+    this._initZones();
+    if (!this.bodyDom) return false;
+
+    // Tắt chế độ preview trước để lấy HTML mẫu nguyên bản chứa field marker
+    if (this.mailMergePreview.enabled) {
+      this._clearMergePreview();
+      this.mailMergePreview.enabled = false;
+      this._updateMailMergeCommandStates();
+    }
+
+    const records = (options.records && options.records.length > 0)
+      ? options.records
+      : (this.mailMergeData?.records || []);
+
+    if (records.length === 0) {
+      if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
+        showAlertDialog({
+          title: "Hoàn tất trộn thư",
+          message: "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để dán bảng CSV.",
+          type: "warning"
+        });
+      }
+      return false;
+    }
+
+    const templateHtml = this.bodyDom.innerHTML || "";
+
+    const hasField = templateHtml.includes("vno-merge-field") || templateHtml.includes("data-field");
+    if (!hasField) {
+      if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
+        showAlertDialog({
+          title: "Hoàn tất trộn thư",
+          message: "Tài liệu hiện tại chưa chứa trường trộn thư nào. Hãy dùng lệnh 'Chèn trường' để chèn ít nhất một trường trộn.",
+          type: "warning"
+        });
+      }
+      return false;
+    }
+
+    // Bảo đảm snapshot trước khi trộn chứa template nguyên bản với field markers để Undo khôi phục chuẩn
+    this._lastSnapshot = this._createSnapshot("Template Before Merge");
+
+    const PAGE_BREAK_HTML = `<div style="page-break-before:always; border-top:2px dashed #94a3b8; margin:24px 0; text-align:center; color:#94a3b8; font-size:11px; user-select:none;">--- Phân tách trang (Page Break) ---</div>`;
+
+    const copies = records.map((record) => {
+      return replaceMergeFields(templateHtml, record);
+    });
+
+    const mergedHtml = copies.join(`\n${PAGE_BREAK_HTML}\n`);
+
+    this.bodyDom.innerHTML = mergedHtml;
+    this.isDirty = true;
+    this.recordSnapshot("writer.mailMerge.finish");
+
+    if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
+      showAlertDialog({
+        title: "Hoàn tất trộn thư",
+        message: `Đã hoàn tất trộn thư thành công ${records.length} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp.`,
+        type: "success"
+      });
+    }
+
+    return true;
+  }
+
+  /**
+   * Cập nhật hiển thị preview cho các trường trộn thư
+   * @param {Record<string, string>} record
+   * @private
+   */
+  _renderMergePreview(record) {
+    if (!this.bodyDom) return;
+    const fields = this.bodyDom.querySelectorAll
+      ? this.bodyDom.querySelectorAll(".vno-merge-field, [data-field]")
+      : [];
+    if (fields.length > 0) {
+      for (const field of fields) {
+        const fieldName = field.getAttribute ? field.getAttribute("data-field") : (field.dataset?.field || field.attributes?.["data-field"]);
+        if (fieldName) {
+          const val = record && record[fieldName] !== undefined ? record[fieldName] : `«${fieldName}»`;
+          field.textContent = val;
+          if (field.classList?.add) {
+            field.classList.add("vno-merge-preview");
+          }
+        }
+      }
+    } else if (typeof this.bodyDom.innerHTML === "string") {
+      this.bodyDom.innerHTML = this.bodyDom.innerHTML.replace(
+        /<span\b([^>]*\bdata-field=["']([^"']+)["'][^>]*)>([\s\S]*?)<\/span>/gi,
+        (match, attrs, fieldName) => {
+          const val = record && record[fieldName] !== undefined ? record[fieldName] : `«${fieldName}»`;
+          const withClass = attrs.includes("vno-merge-preview") ? attrs : attrs + ' class="vno-merge-preview"';
+          return `<span${withClass}>${val}</span>`;
+        }
+      );
+    }
+  }
+
+  /**
+   * Khôi phục hiển thị trường trộn thư về dạng marker ban đầu «FieldName»
+   * @private
+   */
+  _clearMergePreview() {
+    if (!this.bodyDom) return;
+    const fields = this.bodyDom.querySelectorAll
+      ? this.bodyDom.querySelectorAll(".vno-merge-field, [data-field]")
+      : [];
+    if (fields.length > 0) {
+      for (const field of fields) {
+        const fieldName = field.getAttribute ? field.getAttribute("data-field") : (field.dataset?.field || field.attributes?.["data-field"]);
+        if (fieldName) {
+          field.textContent = `«${fieldName}»`;
+          if (field.classList?.remove) {
+            field.classList.remove("vno-merge-preview");
+          }
+        }
+      }
+    } else if (typeof this.bodyDom.innerHTML === "string") {
+      this.bodyDom.innerHTML = this.bodyDom.innerHTML.replace(
+        /<span\b([^>]*\bdata-field=["']([^"']+)["'][^>]*)>([\s\S]*?)<\/span>/gi,
+        (match, attrs, fieldName) => {
+          const cleanAttrs = attrs.replace(/\bvno-merge-preview\b/g, "").trim();
+          return `<span${cleanAttrs}>«${fieldName}»</span>`;
+        }
+      );
+    }
+  }
+
+  /**
+   * Cập nhật trạng thái enabled/disabled/active của các command trộn thư trên Ribbon
+   * @private
+   */
+  _updateMailMergeCommandStates() {
+    if (typeof globalCommandBus?.updateState !== "function") return;
+
+    const hasData = Boolean(this.mailMergeData?.records?.length > 0);
+    const isPreview = Boolean(this.mailMergePreview?.enabled);
+    const currentIndex = this.mailMergePreview?.recordIndex || 0;
+    const totalRecords = this.mailMergeData?.records?.length || 0;
+
+    globalCommandBus.updateState("writer.mailMerge.preview", {
+      checked: isPreview,
+      enabled: hasData
+    });
+    globalCommandBus.updateState("writer.mailMerge.prevRecord", {
+      enabled: hasData && currentIndex > 0
+    });
+    globalCommandBus.updateState("writer.mailMerge.nextRecord", {
+      enabled: hasData && currentIndex < totalRecords - 1
+    });
+    globalCommandBus.updateState("writer.mailMerge.finish", {
+      enabled: hasData
+    });
   }
 }
 
