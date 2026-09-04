@@ -68,6 +68,12 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
   - **Theo dõi Thay đổi**: Bổ sung phím tắt `Ctrl+Shift+E` cho `writer.trackChanges.toggle`.
   - **Xem trước Khi in & Ngắt trang**: Khẳng định phím tắt chuẩn `Ctrl+F2` (`writer.file.printPreview`) và `Ctrl+Enter` (`writer.page.break`).
   - **Kiểm soát Xung đột Tập trung**: 100% phím tắt được định nghĩa tại `platform/commands/command-definitions.js`, không gắn listener tự do ngoài luồng. Được bảo chứng bằng test suite 34: 0 xung đột nội bộ trong 23 phím tắt Writer và 0 xung đột với `COMMON_COMMANDS`.
+- [x] Rà soát toàn diện icon/tính năng/phím tắt VN Writer, VN Sheet, VN Slides (04/09/2026) — audit thật bằng thao tác trình duyệt (Playwright), không chỉ đọc code tĩnh:
+  - **Xung đột phím tắt xuyên app** (Ctrl+B/I/U, Ctrl+M bị Sheet/Slides đăng ký sau ghi đè của Writer): sửa bằng kiến trúc `ShortcutManager` theo scope app đang active (`platform/commands/shortcut-manager.js`).
+  - **Lỗi chuẩn hóa tổ hợp phím có ký tự `+` thật** (Chỉ số trên `Ctrl+Shift++`): `_normalizeCombo()` tách chuỗi bằng dấu `+` nên phím `+` thật bị nuốt mất, không bao giờ khớp phím bấm — sửa tại gốc trong `shortcut-manager.js`, xác nhận bằng Playwright thật.
+  - **Rò rỉ observer "zombie"**: SheetApp/SlidesApp/WriterApp tái tạo mới mỗi lần chuyển app nhưng cùng mount vào một node DOM dùng chung, observer/listener của phiên cũ không bao giờ bị ngắt — thêm cơ chế `destroy()` tự dọn dẹp khi node đổi `data-app`.
+  - **Nút chết trên ribbon Writer**: File > Mới, File > Đóng không có `handleDispatch` case (bấm không có tác dụng); Format Painter crash khi bấm (`globalCommandBus.setState` không tồn tại, đúng phải là `updateState`); nút Màu chữ không phản ứng khi bấm trực tiếp không qua bảng chọn màu. Toàn bộ đã sửa và xác nhận bằng click thật.
+  - **Còn nợ**: audit sâu theo từng nút/phím tắt cho VN Sheet và VN Slides (tương đương mức độ agy đã làm cho Writer) chưa hoàn tất — Codex đang thực hiện, tạm dừng do hết hạn mức sử dụng.
 
 ### Tier 3 — Nâng cao
 - [ ] Macro/Script cơ bản (ghi lại thao tác)
