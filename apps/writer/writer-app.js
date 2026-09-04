@@ -185,7 +185,12 @@ export class WriterApp {
     const localizedStylesLabel = t("writerRibbon.group.styles");
     for (const g of groups) {
       const label = g.querySelector?.(".vno-ribbon-group-label")?.textContent?.trim();
-      if (label === "Kiểu dáng" || label === "Styles" || label === localizedStylesLabel) {
+      if (
+        label === "Kiểu dáng" ||
+        label === "Styles" ||
+        label === localizedStylesLabel ||
+        g.querySelector?.('button[data-command-id="writer.style.gallery"]')
+      ) {
         stylesGroup = g;
         break;
       }

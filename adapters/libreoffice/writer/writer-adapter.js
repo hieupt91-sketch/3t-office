@@ -685,7 +685,7 @@ export class WriterAdapter {
         break;
 
       case "writer.color.text":
-        if (args) document.execCommand("foreColor", false, args);
+        document.execCommand("foreColor", false, args || "#dc2626");
         dispatchResult = true;
         break;
 
@@ -759,6 +759,12 @@ export class WriterAdapter {
 
       case "writer.style.gallery":
         return this.toggleStyleGallery(args);
+
+      case "common.file.new":
+        return await this.newDocument();
+
+      case "common.file.close":
+        return await this.closeDocument();
 
       case "common.file.save":
         return await this.save();
@@ -1583,7 +1589,7 @@ export class WriterAdapter {
         fontSize: style.fontSize
       };
 
-      globalCommandBus.setState("common.edit.formatPainter", { checked: true });
+      globalCommandBus.updateState("common.edit.formatPainter", { checked: true });
       this.editorDom?.classList?.add("vno-format-painter-active");
 
       const onMouseUp = () => {
@@ -1637,7 +1643,7 @@ export class WriterAdapter {
 
   _clearFormatPainter() {
     this.copiedFormat = null;
-    globalCommandBus.setState("common.edit.formatPainter", { checked: false });
+    globalCommandBus.updateState("common.edit.formatPainter", { checked: false });
     this.editorDom?.classList?.remove("vno-format-painter-active");
   }
 
@@ -1894,6 +1900,41 @@ export class WriterAdapter {
     if (result.status === "cancelled") return false;
     await showAlertDialog({ title: "Không thể mở tệp", message: result.message, type: "error" });
     return false;
+  }
+
+  /**
+   * Tạo tài liệu mới trắng hoặc đóng tài liệu hiện tại, làm sạch vùng soạn thảo và các trạng thái trang.
+   */
+  async newDocument() {
+    this._initZones();
+    this.comments = [];
+    this.trackChangesEnabled = false;
+    this.activeCommentId = null;
+    this._renderCommentsPanel?.();
+
+    if (this.headerDom) this.headerDom.innerHTML = "";
+    if (this.footerDom) this.footerDom.innerHTML = "";
+    if (this.bodyDom) {
+      this.bodyDom.innerHTML = "<p><br></p>";
+    } else if (this.editorDom) {
+      this.editorDom.innerHTML = "<p><br></p>";
+    }
+
+    this.clearWatermark?.();
+    this.clearPageBorder?.();
+    this.setColumns?.({ count: 1, gap: 0, rule: false });
+
+    this.documentContent = this.editorDom ? this.editorDom.innerHTML : "";
+    this.sourceFileName = "TaiLieu";
+    this.isDirty = false;
+    this._updateTrackChangesCommandState?.();
+    this.clearUndoRedo?.();
+    this.editorDom?.focus?.();
+    return true;
+  }
+
+  async closeDocument() {
+    return await this.newDocument();
   }
 
   async exportPdf() {
@@ -2432,8 +2473,9 @@ export class WriterAdapter {
       }
       this.printPreviewOverlay = null;
     }
-    if (this.editorDom?.focus) {
-      this.editorDom.focus();
+    const targetFocus = this.bodyDom || this.editorDom;
+    if (targetFocus?.focus) {
+      targetFocus.focus();
     }
     return true;
   }
@@ -3862,8 +3904,9 @@ export class WriterAdapter {
    */
   async openMailMergeDataSourceDialog(options = {}) {
     options = options || {};
-    if (options.csv !== undefined) {
-      return this.setMailMergeData(options.csv);
+    const csvInput = options.csv !== undefined ? options.csv : options.csvText;
+    if (csvInput !== undefined) {
+      return this.setMailMergeData(csvInput);
     }
     return new Promise((resolve) => {
       showMailMergeDataSourceDialog({
