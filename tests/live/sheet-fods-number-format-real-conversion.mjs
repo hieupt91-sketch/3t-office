@@ -15,7 +15,9 @@ const formats = [
   ["A4", 1500000, { category: "accounting", currencySymbol: "₫", decimals: 0 }],
   ["A5", 45365, { category: "date", dateFormat: "dd/mm/yyyy" }],
   ["A6", 12345, { category: "scientific", decimals: 3 }],
-  ["A7", "00123", { category: "text" }]
+  ["A7", "00123", { category: "text" }],
+  ["A8", 1250000, { category: "custom", customPattern: '#,##0.00 "đ"' }],
+  ["A9", -2500, { category: "number", decimals: 2, useThousands: true, negativeStyle: 3 }]
 ];
 const cells = new Map(formats.map(([coord, val, numberFormat]) => [coord, { val, formula: "", style: { numberFormat } }]));
 const grid = { sheets: ["Định dạng"], activeSheet: "Định dạng", sheetsData: { "Định dạng": cells } };
@@ -41,6 +43,8 @@ try {
     if (expected.decimals !== undefined) assert.equal(actual.decimals, expected.decimals, `${coord} decimals`);
     if (expected.currencySymbol !== undefined) assert.equal(actual.currencySymbol, expected.currencySymbol, `${coord} symbol`);
     if (expected.dateFormat !== undefined) assert.equal(actual.dateFormat, expected.dateFormat, `${coord} date pattern`);
+    if (expected.customPattern !== undefined) assert.ok(actual.customPattern?.includes("đ"), `${coord} custom pattern: ${JSON.stringify(actual)}`);
+    if (expected.negativeStyle !== undefined) assert.equal(actual.negativeStyle, expected.negativeStyle, `${coord} negative style: ${JSON.stringify(actual)}`);
   }
   console.log(`PASS: real LibreOffice preserved ${formats.length} standard ODF number formats through FODS -> XLSX -> FODS (${fs.statSync(xlsx).size} bytes).`);
 } finally {

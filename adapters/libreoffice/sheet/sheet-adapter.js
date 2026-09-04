@@ -218,6 +218,12 @@ export class SheetAdapter {
     const decimals = Math.max(0, Math.min(30, Number(config.decimals ?? (["currency", "accounting", "percentage", "scientific"].includes(category) ? 2 : 0))));
     const grouping = config.useThousands || category === "accounting" ? ' number:grouping="true"' : "";
     const number = `<number:number number:min-integer-digits="1" number:decimal-places="${decimals}" number:min-decimal-places="${decimals}"${grouping}/>`;
+    const negativeStyle = Number(config.negativeStyle || 0);
+    const negativeWrapper = negativeStyle >= 2 ? `<number:text>(</number:text>${number}<number:text>)</number:text>` : number;
+    const negativeColor = [1, 3].includes(negativeStyle) ? '<style:text-properties fo:color="#ff0000"/>' : "";
+    const mappedStyles = body => negativeStyle > 0
+      ? `<number:number-style style:name="${name}P">${number}</number:number-style><number:number-style style:name="${name}">${negativeColor}${body}<style:map style:condition="value()&gt;=0" style:apply-style-name="${name}P"/></number:number-style>`
+      : `<number:number-style style:name="${name}">${body}</number:number-style>`;
     if (category === "percentage") return `<number:percentage-style style:name="${name}">${number}<number:text>%</number:text></number:percentage-style>`;
     if (category === "scientific") return `<number:number-style style:name="${name}"><number:scientific-number number:min-integer-digits="1" number:decimal-places="${decimals}" number:min-decimal-places="${decimals}" number:min-exponent-digits="2"/></number:number-style>`;
     if (category === "text") return `<number:text-style style:name="${name}"><number:text-content/></number:text-style>`;
@@ -238,7 +244,7 @@ export class SheetAdapter {
       const rawSymbol = config.currencySymbol ?? "₫";
       const symbol = `<number:currency-symbol>${this._escapeXml(rawSymbol)}</number:currency-symbol>`;
       const after = config.symbolPosition === "after" || (config.symbolPosition === undefined && rawSymbol === "₫");
-      const spacer = category === "accounting" ? '<number:text> </number:text>' : "";
+      const spacer = category === "accounting" ? '<number:fill-character> </number:fill-character>' : "";
       return `<number:currency-style style:name="${name}">${after ? `${number}${spacer}${symbol}` : `${symbol}${spacer}${number}`}</number:currency-style>`;
     }
     if (category === "custom") {
@@ -250,7 +256,7 @@ export class SheetAdapter {
       const suffix = numeric ? pattern.slice(numeric.index + numeric[0].length) : pattern;
       return `<number:number-style style:name="${name}">${prefix ? `<number:text>${this._escapeXml(prefix)}</number:text>` : ""}<number:number number:min-integer-digits="1" number:decimal-places="${customDecimals}" number:min-decimal-places="${customDecimals}"${customGrouping}/>${suffix ? `<number:text>${this._escapeXml(suffix)}</number:text>` : ""}</number:number-style>`;
     }
-    return `<number:number-style style:name="${name}">${number}</number:number-style>`;
+    return mappedStyles(negativeWrapper);
   }
 
   _collectNumberFormats(sheetNames) {
@@ -315,12 +321,17 @@ export class SheetAdapter {
         decimals: Number(numberAttrs.match(/number:decimal-places=["'](\d+)["']/i)?.[1] || 0),
         useThousands: /number:grouping=["']true["']/i.test(numberAttrs)
       };
+      if (/<style:map\b/i.test(body)) {
+        const parentheses = /<number:text>\s*\(<\/number:text>/i.test(body) && /<number:text>\s*\)<\/number:text>/i.test(body);
+        const red = /fo:color=["']#(?:ff0000|f00)["']/i.test(body);
+        config.negativeStyle = parentheses ? (red ? 3 : 2) : (red ? 1 : 0);
+      }
       if (match[1] === "percentage-style") config.category = "percentage";
       else if (match[1] === "currency-style") {
         config.category = "currency";
         config.currencySymbol = this._unescapeXml(body.match(/<number:currency-symbol\b[^>]*>([\s\S]*?)<\/number:currency-symbol>/i)?.[1]?.replace(/<[^>]+>/g, "") || "");
         if (body.search(/<number:currency-symbol\b/i) > body.search(/<number:number\b/i)) config.symbolPosition = "after";
-        if (/<number:text>\s<\/number:text>/i.test(body)) config.category = "accounting";
+        if (/<number:fill-character\b/i.test(body)) config.category = "accounting";
       } else if (match[1] === "date-style") {
         config.category = "date";
         const parts = [];
@@ -336,6 +347,15 @@ export class SheetAdapter {
       } else if (match[1] === "text-style") {
         config.category = "text"; delete config.decimals; delete config.useThousands;
       } else if (/<number:scientific-number\b/i.test(body)) config.category = "scientific";
+      else if (!/<style:map\b/i.test(body)) {
+        const literalTexts = [...body.matchAll(/<number:text\b[^>]*>([\s\S]*?)<\/number:text>/gi)].map(item => this._unescapeXml(item[1].replace(/<[^>]+>/g, ""))).filter(Boolean);
+        if (literalTexts.length) {
+          config.category = "custom";
+          const numericPattern = `${config.useThousands ? "#,##" : ""}0${config.decimals ? `.${"0".repeat(config.decimals)}` : ""}`;
+          config.customPattern = `${numericPattern}${literalTexts.map(text => ` "${text.replace(/"/g, '""')}"`).join("")}`;
+          delete config.decimals; delete config.useThousands;
+        }
+      }
       dataStyles.set(name, config);
     }
     const cellStyles = new Map();
