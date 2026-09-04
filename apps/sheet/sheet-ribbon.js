@@ -139,7 +139,8 @@ export const SHEET_RIBBON_TABS = [
                   { type: "button", commandId: "sheet.format.increaseDecimal", iconOnly: true },
                   { type: "button", commandId: "sheet.format.decreaseDecimal", iconOnly: true }
                 ]
-              }
+              },
+              { type: "button", commandId: "sheet.format.cellsDialog", iconOnly: true }
             ]
           }
         ]

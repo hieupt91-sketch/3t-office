@@ -2890,7 +2890,14 @@ export class SheetGridController {
   toggleWrapText() {
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const current = this.cellsData.get(key)?.style?.whiteSpace;
-    return this.setStyle("whiteSpace", current === "normal" ? "nowrap" : "normal");
+    const result = this.setStyle("whiteSpace", current === "normal" ? "nowrap" : "normal");
+    const cell = this.container.querySelector?.(`.vno-grid-cell[data-coord="${key}"]`);
+    cell?.classList?.toggle?.("is-wrap-text", current !== "normal");
+    const row = cell?.closest?.("tr");
+    if (row) {
+      row.style.height = current !== "normal" ? `${Math.max(this.rowHeight, cell.scrollHeight)}px` : `${this.rowHeight}px`;
+    }
+    return result;
   }
 
   adjustIndent(direction) {
@@ -4262,6 +4269,7 @@ export class SheetGridController {
 
   _renderCellVisual(td, itm, col, row) {
     if (!td) return;
+    td.classList?.toggle?.("is-wrap-text", itm?.style?.whiteSpace === "normal");
     if (!itm) {
       td.textContent = "";
       td.style.color = "";

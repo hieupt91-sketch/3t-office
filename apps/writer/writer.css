@@ -383,6 +383,25 @@
   user-select: none;
 }
 
+.vno-writer-body.vno-show-formatting-marks [data-vno-format-mark="space"] {
+  position: relative;
+  color: transparent;
+}
+
+.vno-writer-body.vno-show-formatting-marks [data-vno-format-mark="space"]::after {
+  content: "·";
+  position: absolute;
+  inset: 0;
+  color: #2563eb;
+  text-align: center;
+  user-select: none;
+}
+
+.vno-writer-body.vno-show-formatting-marks [data-vno-format-mark="tab"] {
+  color: #2563eb;
+  text-decoration: line-through;
+}
+
 .vno-writer-header,
 .vno-writer-footer {
   cursor: text;

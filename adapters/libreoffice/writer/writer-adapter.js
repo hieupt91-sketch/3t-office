@@ -469,6 +469,9 @@ export class WriterAdapter {
     const blocks = Array.from(this.bodyDom.children || []).filter(node =>
       !node.hasAttribute?.("data-vno-auto-page-gap") && range.intersectsNode?.(node)
     );
+    if (blocks.length === 1 && /^(OL|UL)$/i.test(blocks[0].tagName)) {
+      return Array.from(blocks[0].children || []).filter(node => node.tagName === "LI");
+    }
     if (blocks.length) return blocks;
     const closest = startElement?.closest?.("p,h1,h2,h3,h4,h5,h6,blockquote,div,td,th");
     return closest && this.bodyDom.contains(closest) ? [closest] : [];
@@ -496,8 +499,37 @@ export class WriterAdapter {
   toggleFormattingMarks() {
     this.showFormattingMarks = !this.showFormattingMarks;
     this.bodyDom?.classList?.toggle("vno-show-formatting-marks", this.showFormattingMarks);
+    this._renderInlineFormattingMarks(this.showFormattingMarks);
     globalCommandBus?.updateState?.("writer.para.showFormattingMarks", { checked: this.showFormattingMarks });
     return this.showFormattingMarks;
+  }
+
+  _renderInlineFormattingMarks(show) {
+    if (!this.bodyDom || typeof document === "undefined") return;
+    if (!show) {
+      this.bodyDom.querySelectorAll?.("span[data-vno-format-mark]").forEach(span => span.replaceWith(document.createTextNode(span.textContent || "")));
+      this.bodyDom.normalize?.();
+      return;
+    }
+    const walker = document.createTreeWalker(this.bodyDom, NodeFilter.SHOW_TEXT, {
+      acceptNode: node => node.parentElement?.closest?.("[data-vno-format-mark],script,style")
+        ? NodeFilter.FILTER_REJECT
+        : (/[ \t]/.test(node.data) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT)
+    });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(node => {
+      const fragment = document.createDocumentFragment();
+      node.data.split(/([ \t])/).filter(part => part !== "").forEach(part => {
+        if (part === " " || part === "\t") {
+          const mark = document.createElement("span");
+          mark.dataset.vnoFormatMark = part === "\t" ? "tab" : "space";
+          mark.textContent = part;
+          fragment.appendChild(mark);
+        } else fragment.appendChild(document.createTextNode(part));
+      });
+      node.replaceWith(fragment);
+    });
   }
 
   _applyParagraphVisualStyle(styles, description) {
@@ -2624,7 +2656,8 @@ export class WriterAdapter {
       .replace(/<div\b[^>]*data-vno-watermark=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/<div\b[^>]*data-vno-page-border=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/\s*\bvno-merge-preview\b/gi, "")
-      .replace(/<div\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "");
+      .replace(/<div\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
+      .replace(/<span\b[^>]*data-vno-format-mark=["'][^"']+["'][^>]*>([\s\S]*?)<\/span>/gi, "$1");
   }
 
   /**
@@ -2636,7 +2669,9 @@ export class WriterAdapter {
    * gây bước Undo thừa không tương ứng với thao tác thật nào của người dùng.
    */
   _stripAutoPageGaps(html) {
-    return String(html || "").replace(/<div\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "");
+    return String(html || "")
+      .replace(/<div\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
+      .replace(/<span\b[^>]*data-vno-format-mark=["'][^"']+["'][^>]*>([\s\S]*?)<\/span>/gi, "$1");
   }
 
   /**
