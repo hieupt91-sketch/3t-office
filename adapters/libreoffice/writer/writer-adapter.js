@@ -71,7 +71,9 @@ export class WriterAdapter {
     this.trackChangesEnabled = false;
     this._trackChangesBeforeInputHandler = null;
     this._workflowBeforeInputHandler = null;
+    this._workflowInputHandler = null;
     this._resetInlineFormattingOnNextInput = null;
+    this._normalizeParagraphAfterHeading = false;
     this._referenceClickHandler = null;
     this.printPreviewOverlay = null;
     this.currentPreviewPage = 1;
@@ -220,6 +222,11 @@ export class WriterAdapter {
   _bindContinuousEditingWorkflow() {
     if (!this.bodyDom?.addEventListener || this._workflowBeforeInputHandler) return;
     this._workflowBeforeInputHandler = (event) => {
+      if (event.inputType === "insertParagraph") {
+        const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+        const anchor = selection?.anchorNode?.nodeType === 1 ? selection.anchorNode : selection?.anchorNode?.parentElement;
+        this._normalizeParagraphAfterHeading = Boolean(anchor?.closest?.("h1,h2,h3") && this.bodyDom.contains(anchor));
+      }
       if (!this._resetInlineFormattingOnNextInput) return;
       if (event.inputType !== "insertText" && event.inputType !== "insertCompositionText") return;
       const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
@@ -232,6 +239,17 @@ export class WriterAdapter {
       }
     };
     this.bodyDom.addEventListener("beforeinput", this._workflowBeforeInputHandler);
+
+    this._workflowInputHandler = (event) => {
+      if (event.inputType !== "insertParagraph" || !this._normalizeParagraphAfterHeading) return;
+      this._normalizeParagraphAfterHeading = false;
+      try {
+        document.execCommand("formatBlock", false, "<p>");
+      } catch {
+        document.execCommand?.("formatBlock", false, "p");
+      }
+    };
+    this.bodyDom.addEventListener("input", this._workflowInputHandler);
   }
 
   _handleTrackChangesBeforeInput(event) {
