@@ -57,6 +57,9 @@ export const FUNCTION_CATALOG = [
   ,{ name: "DATE", category: "Ngày tháng", syntax: "DATE(year, month, day)", desc: "Tạo một ngày từ năm, tháng và ngày." }
   ,{ name: "DATEDIF", category: "Ngày tháng", syntax: "DATEDIF(start_date, end_date, unit)", desc: "Tính số ngày, tháng hoặc năm trọn vẹn giữa hai ngày." }
   ,{ name: "EDATE", category: "Ngày tháng", syntax: "EDATE(start_date, months)", desc: "Cộng hoặc trừ số tháng vào một ngày." }
+
+  // Tài chính
+  ,{ name: "PMT", category: "Tài chính", syntax: "PMT(rate, nper, pv, [fv], [type])", desc: "Tính khoản thanh toán định kỳ với lãi suất cố định; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
 ];
 
 export class FormulaEngine {
@@ -470,6 +473,21 @@ export class FormulaEngine {
         const num = this.collectNumericValues([args[0]])[0] || 0;
         const div = this.collectNumericValues([args[1]])[0] || 1;
         return num % div;
+      }
+
+      // Tài chính
+      case "PMT": {
+        const rate = Number(this._resolveSingleValue(args[0]));
+        const nper = Number(this._resolveSingleValue(args[1]));
+        const pv = Number(this._resolveSingleValue(args[2]));
+        const fv = args[3] === undefined ? 0 : Number(this._resolveSingleValue(args[3]));
+        const type = args[4] === undefined ? 0 : Number(this._resolveSingleValue(args[4]));
+        if (![rate, nper, pv, fv, type].every(Number.isFinite)) return "#VALUE!";
+        if (nper <= 0 || (type !== 0 && type !== 1) || rate <= -1) return "#NUM!";
+        if (rate === 0) return -(pv + fv) / nper;
+        const factor = Math.pow(1 + rate, nper);
+        const payment = -((pv * factor + fv) * rate) / ((1 + rate * type) * (factor - 1));
+        return Number.isFinite(payment) ? payment : "#NUM!";
       }
 
       // Logic

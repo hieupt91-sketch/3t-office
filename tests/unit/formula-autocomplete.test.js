@@ -136,5 +136,14 @@ export async function runFormulaAutocompleteTests() {
     pass: htmlVariadic.includes('<strong class="vno-syntax-param-active">...</strong>')
   });
 
+  // 15. Financial PMT có trong catalog với cú pháp tham số tiếng Việt rõ ràng.
+  const pmt = FUNCTION_CATALOG.find(item => item.name === "PMT");
+  results.push({
+    name: "Autocomplete: PMT thuộc nhóm Tài chính và mô tả đủ rate/nper/pv/fv/type",
+    pass: pmt?.category === "Tài chính" &&
+          pmt.syntax === "PMT(rate, nper, pv, [fv], [type])" &&
+          pmt.desc.includes("cuối kỳ") && pmt.desc.includes("đầu kỳ")
+  });
+
   return results;
 }

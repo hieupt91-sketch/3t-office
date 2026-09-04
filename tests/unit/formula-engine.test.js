@@ -6,6 +6,8 @@ import { FormulaEngine } from "../../apps/sheet/formula-engine.js";
 
 export async function runFormulaEngineTests() {
   const results = [];
+  const approximatelyEqual = (actual, expected, tolerance = 1e-8) =>
+    typeof actual === "number" && Math.abs(actual - expected) <= tolerance;
 
   const cellsData = new Map();
   cellsData.set("A1", { val: "10", formula: "", style: {} });
@@ -75,6 +77,17 @@ export async function runFormulaEngineTests() {
   results.push({
     name: "Formula: A1 + A2 * 2 = 50",
     pass: arithRes === 50
+  });
+
+  // 9. PMT — khoản vay 100.000.000, 12%/năm, trả hàng tháng trong 10 năm.
+  // Excel: =PMT(12%/12,120,100000000) -> -1.434.709,48402587
+  const pmtRes = engine.evaluate("=PMT(0.01,120,100000000)");
+  const pmtZeroRateRes = engine.evaluate("=PMT(0,10,1000,0,0)");
+  results.push({
+    name: "Financial PMT: đúng quy ước dấu Excel và không chia 0 khi rate=0",
+    pass: approximatelyEqual(pmtRes, -1434709.4840258735, 1e-6) &&
+          approximatelyEqual(pmtZeroRateRes, -100) &&
+          engine.evaluate("=PMT(0.01,0,1000)") === "#NUM!"
   });
 
   return results;
