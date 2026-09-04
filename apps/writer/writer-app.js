@@ -8,6 +8,7 @@ import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.
 import { bootstrapPlatform } from "../../platform/bootstrap.js";
 import { createStyleGalleryStrip } from "./style-gallery.js";
 import { t } from "../../platform/i18n/i18n.js";
+import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -19,6 +20,7 @@ export class WriterApp {
 
   async init(options = {}) {
     await bootstrapPlatform();
+    globalShortcutManager.setActiveScope("writer");
 
     const isBlank = options.templateId === "blank";
     this.shell = new AppShell({

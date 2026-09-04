@@ -8,6 +8,7 @@ import { SlidesCanvasController } from "./slides-canvas.js";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
 import { bootstrapPlatform } from "../../platform/bootstrap.js";
 import { applyLocaleToTabs } from "../../platform/i18n/i18n.js";
+import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 
 export class SlidesApp {
   constructor(mountElement) {
@@ -19,6 +20,7 @@ export class SlidesApp {
 
   async init(options = {}) {
     await bootstrapPlatform();
+    globalShortcutManager.setActiveScope("slides");
 
     const isBlank = options.templateId === "blank";
     this.shell = new AppShell({

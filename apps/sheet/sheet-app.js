@@ -8,6 +8,7 @@ import { SheetGridController } from "./sheet-grid.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { bootstrapPlatform } from "../../platform/bootstrap.js";
 import { applyLocaleToTabs } from "../../platform/i18n/i18n.js";
+import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 
 export class SheetApp {
   constructor(mountElement) {
@@ -19,6 +20,7 @@ export class SheetApp {
 
   async init(options = {}) {
     await bootstrapPlatform();
+    globalShortcutManager.setActiveScope("sheet");
 
     this.shell = new AppShell({
       appName: "sheet",

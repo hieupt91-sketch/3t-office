@@ -10,6 +10,9 @@ export class ShortcutManager {
   constructor() {
     /** @type {Map<string, string>} Chuỗi phím chuẩn hóa -> Command ID */
     this._shortcuts = new Map();
+    /** @type {Map<string, Map<string, string>>} Scope -> (phím -> Command ID) */
+    this._scopedShortcuts = new Map([["common", new Map()]]);
+    this._activeScope = null;
     this._keytipsActive = false;
     this._keytipsContainer = null;
     this._attachedWindow = null;
@@ -20,9 +23,28 @@ export class ShortcutManager {
    * @param {string} keyCombo Chuỗi phím (vd: "Ctrl+S", "Ctrl+Shift+L", "F5", "Alt+=")
    * @param {string} commandId
    */
-  bind(keyCombo, commandId) {
+  bind(keyCombo, commandId, scope = "common") {
     const normalized = this._normalizeCombo(keyCombo);
-    this._shortcuts.set(normalized, commandId);
+    if (!this._scopedShortcuts.has(scope)) this._scopedShortcuts.set(scope, new Map());
+    this._scopedShortcuts.get(scope).set(normalized, commandId);
+    this._rebuildActiveShortcuts();
+  }
+
+  /**
+   * Chỉ kích hoạt shortcut của ứng dụng đang hiển thị. Các command app có chủ ý
+   * dùng chung tổ hợp (ví dụ Ctrl+B và Ctrl+M) không được ghi đè âm thầm nhau.
+   */
+  setActiveScope(scope) {
+    this._activeScope = scope || null;
+    this._rebuildActiveShortcuts();
+  }
+
+  _rebuildActiveShortcuts() {
+    this._shortcuts.clear();
+    const common = this._scopedShortcuts.get("common");
+    if (common) for (const [combo, commandId] of common) this._shortcuts.set(combo, commandId);
+    const active = this._activeScope && this._scopedShortcuts.get(this._activeScope);
+    if (active) for (const [combo, commandId] of active) this._shortcuts.set(combo, commandId);
   }
 
   _normalizeCombo(combo) {

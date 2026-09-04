@@ -199,7 +199,11 @@ export function registerAllStandardCommands(bus) {
   for (const cmd of all) {
     bus.register(cmd);
     if (cmd.shortcut) {
-      globalShortcutManager.bind(cmd.shortcut, cmd.id);
+      const scope = cmd.id.startsWith("writer.") ? "writer"
+        : cmd.id.startsWith("sheet.") ? "sheet"
+          : cmd.id.startsWith("slides.") ? "slides"
+            : "common";
+      globalShortcutManager.bind(cmd.shortcut, cmd.id, scope);
     }
   }
   applyLocaleToCommandDefinitions(bus);
