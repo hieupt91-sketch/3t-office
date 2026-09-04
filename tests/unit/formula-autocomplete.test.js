@@ -185,5 +185,13 @@ export async function runFormulaAutocompleteTests() {
           rate.desc.includes("guess") && rate.desc.includes("đầu kỳ")
   });
 
+  const sln = FUNCTION_CATALOG.find(item => item.name === "SLN");
+  results.push({
+    name: "Autocomplete: SLN mô tả rõ ba tham số khấu hao đường thẳng",
+    pass: sln?.category === "Tài chính" &&
+          sln.syntax === "SLN(cost, salvage, life)" &&
+          sln.desc.includes("nguyên giá") && sln.desc.includes("giá trị thu hồi")
+  });
+
   return results;
 }

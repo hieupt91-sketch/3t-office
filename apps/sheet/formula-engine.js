@@ -65,6 +65,7 @@ export const FUNCTION_CATALOG = [
   ,{ name: "NPV", category: "Tài chính", syntax: "NPV(rate, value1, [value2], ...)", desc: "Tính giá trị hiện tại ròng của chuỗi dòng tiền đều kỳ; value1 được chiết khấu từ cuối kỳ đầu tiên." }
   ,{ name: "IRR", category: "Tài chính", syntax: "IRR(values, [guess])", desc: "Tính tỷ suất hoàn vốn nội bộ của chuỗi dòng tiền có ít nhất một giá trị âm và một giá trị dương." }
   ,{ name: "RATE", category: "Tài chính", syntax: "RATE(nper, pmt, pv, [fv], [type], [guess])", desc: "Tính lãi suất mỗi kỳ của niên kim; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ), guess là giá trị dự đoán ban đầu." }
+  ,{ name: "SLN", category: "Tài chính", syntax: "SLN(cost, salvage, life)", desc: "Tính khấu hao đường thẳng mỗi kỳ từ nguyên giá, giá trị thu hồi và thời gian sử dụng." }
 ];
 
 export class FormulaEngine {
@@ -580,6 +581,15 @@ export class FormulaEngine {
             pmt * (type * annuityFactor + (1 + rate * type) * annuityDerivative);
         };
         return this._solveRate(valueAt, derivativeAt, guess);
+      }
+
+      case "SLN": {
+        const cost = Number(this._resolveSingleValue(args[0]));
+        const salvage = Number(this._resolveSingleValue(args[1]));
+        const life = Number(this._resolveSingleValue(args[2]));
+        if (![cost, salvage, life].every(Number.isFinite)) return "#VALUE!";
+        if (life <= 0) return "#NUM!";
+        return (cost - salvage) / life;
       }
 
       // Logic

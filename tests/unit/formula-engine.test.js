@@ -152,5 +152,13 @@ export async function runFormulaEngineTests() {
           engine.evaluate("=RATE(10,0,1000,1000)") === "#NUM!"
   });
 
+  // 15. SLN — tài sản 1.000.000, giá trị thu hồi 100.000, sử dụng 5 năm.
+  // Excel: =SLN(1000000,100000,5) -> 180.000 mỗi năm.
+  const slnRes = engine.evaluate("=SLN(1000000,100000,5)");
+  results.push({
+    name: "Financial SLN: khấu hao đường thẳng đúng và kiểm tra life",
+    pass: slnRes === 180000 && engine.evaluate("=SLN(1000000,100000,0)") === "#NUM!"
+  });
+
   return results;
 }
