@@ -47,6 +47,7 @@ export const VN_TO_UNO_MAP = {
   "writer.font.family": ".uno:FontName",
   "writer.font.size": ".uno:FontHeight",
   "writer.style.apply": ".uno:StyleApply",
+  "writer.style.gallery": ".uno:DesignerDialog",
   "writer.color.text": ".uno:Color",
   "writer.color.highlight": ".uno:CharBackground",
 
@@ -80,6 +81,8 @@ export const VN_TO_UNO_MAP = {
   "writer.page.margins": ".uno:PageDialog",
   "writer.page.orientation": ".uno:PageDialog",
   "writer.page.size": ".uno:PageDialog",
+  "writer.page.watermark": ".uno:Watermark",
+  "writer.page.border": ".uno:BorderDialog",
   "writer.file.printPreview": ".uno:PrintPreview",
 
   // Writer / References

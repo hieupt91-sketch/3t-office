@@ -32,6 +32,7 @@ import { runSheetNamedRangesTextDateTests } from "./unit/sheet-named-ranges-text
 import { runWriterMailMergeTests } from "./unit/writer-mail-merge.test.js";
 import { runSheetCommentsPrintAreaTests } from "./unit/sheet-comments-printarea.test.js";
 import { runSlidesTimingsMediaTests } from "./unit/slides-timings-media.test.js";
+import { runWriterStyleGalleryWatermarkTests } from "./unit/writer-style-gallery-watermark.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -71,7 +72,8 @@ async function runAll() {
     { title: "26. Behavioral Tests — VN Sheet Named Ranges & Advanced TEXT/DATE", runner: runSheetNamedRangesTextDateTests },
     { title: "27. Behavioral Tests — VN Writer Mail Merge", runner: runWriterMailMergeTests },
     { title: "28. Behavioral Tests — VN Sheet Comments, Print Area & Page Breaks", runner: runSheetCommentsPrintAreaTests },
-    { title: "29. Behavioral Tests — VN Slides Rehearse Timings & Embed Media", runner: runSlidesTimingsMediaTests }
+    { title: "29. Behavioral Tests — VN Slides Rehearse Timings & Embed Media", runner: runSlidesTimingsMediaTests },
+    { title: "30. Behavioral Tests — VN Writer Style Gallery & Watermark / Page Border", runner: runWriterStyleGalleryWatermarkTests }
   ];
 
   for (const suite of suites) {

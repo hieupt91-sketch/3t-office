@@ -7,6 +7,8 @@ import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { parseCsv, replaceMergeFields, showMailMergeDataSourceDialog, showInsertMergeFieldDialog } from "../../../apps/writer/mail-merge.js";
+import { STYLE_PRESETS, showStyleGalleryDropdown, closeStyleGalleryDropdown, createStyleGalleryStrip } from "../../../apps/writer/style-gallery.js";
+import { showWatermarkDialog, showPageBorderDialog } from "../../../apps/writer/page-decorations.js";
 
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
 const PAGE_SIZES_MM = {
@@ -93,6 +95,16 @@ export class WriterAdapter {
       recordIndex: 0
     };
 
+    // Watermark & Page Border State
+    this.watermark = null;
+    this.pageBorder = {
+      enabled: false,
+      style: "solid",
+      width: 2,
+      color: "#0f4c81"
+    };
+    this._styleSelectionHandler = null;
+
     this._initZones();
     if (this.editorDom) {
       this._lastSnapshot = this._createSnapshot("Initial State");
@@ -142,6 +154,15 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.mailMerge.nextRecord", (args) => this.nextMailMergeRecord(args));
     globalCommandBus.bindHandler("writer.mailMerge.finish", (args) => this.finishMailMerge(args));
     this._updateMailMergeCommandStates();
+
+    // Áp dụng trang trí trang (Hình mờ & Viền trang)
+    this._applyDecorations();
+
+    // Bind Thư viện Kiểu & Trang trí trang (Watermark & Page Border)
+    this._bindStyleTracking();
+    globalCommandBus.bindHandler("writer.style.gallery", (args) => this.toggleStyleGallery(args));
+    globalCommandBus.bindHandler("writer.page.watermark", (args) => this.openWatermarkDialog(args));
+    globalCommandBus.bindHandler("writer.page.border", (args) => this.openPageBorderDialog(args));
 
     if (!this._lastSnapshot) {
       this._lastSnapshot = this._createSnapshot("Initial State");
@@ -377,7 +398,12 @@ export class WriterAdapter {
     const widthMm = isLandscape ? base.h : base.w;
     const heightMm = isLandscape ? base.w : base.h;
     const { top, right, bottom, left } = this.pageSetup.margins;
-    return `@page { size: ${widthMm}mm ${heightMm}mm; margin: ${top}mm ${right}mm ${bottom}mm ${left}mm; }`;
+    let pageCss = `@page { size: ${widthMm}mm ${heightMm}mm; margin: ${top}mm ${right}mm ${bottom}mm ${left}mm;`;
+    if (this.pageBorder && this.pageBorder.enabled && this.pageBorder.style !== "none") {
+      pageCss += ` border: ${this.pageBorder.width || 2}pt ${this.pageBorder.style || "solid"} ${this.pageBorder.color || "#0f4c81"};`;
+    }
+    pageCss += ` }`;
+    return pageCss;
   }
 
   async _showPageSetupDialog(focusField = "size") {
@@ -688,6 +714,9 @@ export class WriterAdapter {
       case "writer.style.apply":
         return this._applyParagraphStyle(args);
 
+      case "writer.style.gallery":
+        return this.toggleStyleGallery(args);
+
       case "common.file.save":
         return await this.save();
 
@@ -714,6 +743,12 @@ export class WriterAdapter {
 
       case "writer.page.orientation":
         return await this._openPageSetup("orientation");
+
+      case "writer.page.watermark":
+        return await this.openWatermarkDialog(args);
+
+      case "writer.page.border":
+        return await this.openPageBorderDialog(args);
 
       case "writer.reference.tocInsert":
         return this.insertTableOfContents();
@@ -1006,7 +1041,27 @@ export class WriterAdapter {
 
   _applyParagraphStyle(tag = "p") {
     this.flushTyping();
-    const targetTag = (tag || "p").toLowerCase();
+    const styleKey = String(tag || "p").toLowerCase().trim();
+
+    let targetTag = "p";
+    let addClass = "";
+
+    if (styleKey === "h1" || styleKey === "heading1") {
+      targetTag = "h1";
+    } else if (styleKey === "h2" || styleKey === "heading2") {
+      targetTag = "h2";
+    } else if (styleKey === "h3" || styleKey === "heading3") {
+      targetTag = "h3";
+    } else if (styleKey === "quote" || styleKey === "trichdan" || styleKey === "blockquote") {
+      targetTag = "blockquote";
+      addClass = "vno-style-quote";
+    } else if (styleKey === "emphasis" || styleKey === "nhanmanh") {
+      targetTag = "p";
+      addClass = "vno-style-emphasis";
+    } else {
+      targetTag = "p";
+    }
+
     if (typeof document !== "undefined" && typeof document.execCommand === "function") {
       try {
         document.execCommand("formatBlock", false, `<${targetTag}>`);
@@ -1016,9 +1071,328 @@ export class WriterAdapter {
         } catch {}
       }
     }
+
+    this._updateCurrentBlockStyle(targetTag, addClass);
+
     this.isDirty = true;
     this.recordSnapshot("writer.style.apply");
+    this._syncActiveStyleUI();
     return true;
+  }
+
+  _updateCurrentBlockStyle(targetTag, addClass) {
+    if (typeof window === "undefined") return;
+    const sel = window.getSelection ? window.getSelection() : null;
+    let node = sel && sel.rangeCount > 0 ? sel.anchorNode : null;
+    if (!node && this.bodyDom) {
+      node = this.bodyDom.firstElementChild || this.bodyDom.firstChild;
+    }
+    if (!node) return;
+
+    // Kiểm tra xem node có thực sự còn gắn trong bodyDom / editorDom không
+    let isConnected = false;
+    let check = node;
+    while (check) {
+      if (check === this.bodyDom || check === this.editorDom) {
+        isConnected = true;
+        break;
+      }
+      check = check.parentNode;
+    }
+    if (!isConnected && this.bodyDom) {
+      node = this.bodyDom.firstElementChild || this.bodyDom.children?.[0] || this.bodyDom.firstChild;
+    }
+    if (!node) return;
+    if (node.nodeType === 3) node = node.parentNode;
+
+    let block = node;
+    while (block && block !== this.bodyDom && block !== this.editorDom) {
+      const tag = (block.tagName || "").toLowerCase();
+      if (["p", "h1", "h2", "h3", "blockquote", "div", "li"].includes(tag)) {
+        break;
+      }
+      block = block.parentNode;
+    }
+
+    if (!block || block === this.bodyDom || block === this.editorDom) {
+      if (this.bodyDom && this.bodyDom.children && this.bodyDom.children.length > 0) {
+        block = this.bodyDom.children[0];
+      } else {
+        return;
+      }
+    }
+
+    // Chuyển đổi tag nếu khác targetTag (hoặc formatBlock không đổi element trong test mock)
+    if (block.tagName && block.tagName.toLowerCase() !== targetTag.toLowerCase()) {
+      if (typeof document !== "undefined" && document.createElement && block.parentNode) {
+        const newBlock = document.createElement(targetTag);
+        newBlock.innerHTML = block.innerHTML;
+        if (block.className) {
+          newBlock.className = block.className;
+        }
+        if (typeof block.parentNode.replaceChild === "function") {
+          block.parentNode.replaceChild(newBlock, block);
+        }
+        block = newBlock;
+      }
+    }
+
+    if (block) {
+      block.classList?.remove?.("vno-style-quote");
+      block.classList?.remove?.("vno-style-emphasis");
+      if (addClass) {
+        block.classList?.add?.(addClass);
+      }
+    }
+  }
+
+  getCurrentParagraphStyle() {
+    if (typeof window === "undefined" || !window.getSelection) return "normal";
+    const sel = window.getSelection();
+    let node = (sel && sel.rangeCount > 0) ? sel.anchorNode : null;
+    if (!node && this.bodyDom) {
+      node = this.bodyDom.firstElementChild || this.bodyDom.firstChild;
+    }
+    if (!node) return "normal";
+    if (node.nodeType === 3) node = node.parentNode;
+
+    while (node && node !== this.bodyDom && node !== this.editorDom) {
+      const tag = (node.tagName || "").toLowerCase();
+      if (tag === "h1") return "h1";
+      if (tag === "h2") return "h2";
+      if (tag === "h3") return "h3";
+      if (tag === "blockquote" || node.classList?.contains?.("vno-style-quote")) return "quote";
+      if (node.classList?.contains?.("vno-style-emphasis")) return "emphasis";
+      if (tag === "p") {
+        if (node.classList?.contains?.("vno-style-quote")) return "quote";
+        if (node.classList?.contains?.("vno-style-emphasis")) return "emphasis";
+        return "normal";
+      }
+      node = node.parentNode;
+    }
+    return "normal";
+  }
+
+  toggleStyleGallery(options = null) {
+    options = options || {};
+    if (options.style) {
+      return this._applyParagraphStyle(options.style);
+    }
+    const targetEl = options.targetEl ||
+      (typeof document !== "undefined" ? document.querySelector('[data-command-id="writer.style.gallery"]') : null);
+    const currentStyle = this.getCurrentParagraphStyle();
+    return showStyleGalleryDropdown({
+      targetEl,
+      activeStyle: currentStyle,
+      onSelectStyle: (styleId) => this._applyParagraphStyle(styleId)
+    });
+  }
+
+  _bindStyleTracking() {
+    if (typeof document === "undefined" || typeof document.addEventListener !== "function" || this._styleSelectionHandler) return;
+    this._styleSelectionHandler = () => this._syncActiveStyleUI();
+    document.addEventListener("selectionchange", this._styleSelectionHandler);
+    if (this.bodyDom?.addEventListener) {
+      this.bodyDom.addEventListener("keyup", this._styleSelectionHandler);
+      this.bodyDom.addEventListener("mouseup", this._styleSelectionHandler);
+    }
+  }
+
+  _syncActiveStyleUI() {
+    const currentStyle = this.getCurrentParagraphStyle();
+    if (typeof document !== "undefined") {
+      const selects = document.querySelectorAll ? document.querySelectorAll('select[data-command-id="writer.style.apply"]') : [];
+      selects.forEach?.((sel) => {
+        if (sel.value !== currentStyle) sel.value = currentStyle;
+      });
+
+      const cards = document.querySelectorAll ? document.querySelectorAll(".vno-style-gallery-dropdown .vno-style-card") : [];
+      cards.forEach?.((card) => {
+        const id = card.getAttribute?.("data-style-id");
+        const isActive = (id === currentStyle) || (id === "normal" && currentStyle === "p");
+        if (isActive) {
+          card.classList?.add?.("is-active");
+          if (!card.querySelector?.(".vno-style-card-check") && document.createElement) {
+            const check = document.createElement("span");
+            check.className = "vno-style-card-check";
+            check.title = "Đang áp dụng";
+            check.textContent = "✓";
+            card.appendChild?.(check);
+          }
+        } else {
+          card.classList?.remove?.("is-active");
+          const check = card.querySelector?.(".vno-style-card-check");
+          if (check && check.parentNode) check.parentNode.removeChild(check);
+        }
+      });
+
+      const stripItems = document.querySelectorAll ? document.querySelectorAll(".vno-style-gallery-strip .vno-style-strip-item") : [];
+      stripItems.forEach?.((item) => {
+        const id = item.getAttribute?.("data-style-id");
+        const isActive = (id === currentStyle) || (id === "normal" && currentStyle === "p");
+        if (isActive) {
+          item.classList?.add?.("is-active");
+        } else {
+          item.classList?.remove?.("is-active");
+        }
+      });
+    }
+  }
+
+  // --- HÌNH MỜ (WATERMARK) ---
+
+  setWatermark(watermarkData = null) {
+    watermarkData = watermarkData || {};
+    this.flushTyping();
+    const text = String(watermarkData.text || "").trim();
+    if (!text) {
+      return this.clearWatermark();
+    }
+    this.watermark = {
+      text,
+      color: watermarkData.color || "#dc2626",
+      opacity: typeof watermarkData.opacity === "number" ? watermarkData.opacity : 0.2,
+      angle: typeof watermarkData.angle === "number" ? watermarkData.angle : 45,
+      fontSize: watermarkData.fontSize || 72
+    };
+    this._applyWatermark();
+    this.isDirty = true;
+    this.recordSnapshot("writer.page.watermark");
+    return true;
+  }
+
+  clearWatermark() {
+    this.flushTyping();
+    const hadWatermark = Boolean(this.watermark && this.watermark.text);
+    this.watermark = null;
+    this._applyWatermark();
+    this.isDirty = true;
+    if (hadWatermark) {
+      this.recordSnapshot("writer.page.watermark.remove");
+    }
+    return true;
+  }
+
+  async openWatermarkDialog(options = null) {
+    options = options || {};
+    if (options.text !== undefined) {
+      return this.setWatermark(options);
+    }
+    const result = await showWatermarkDialog(this.watermark);
+    if (result === null) return false;
+    if (result === "") return this.clearWatermark();
+    return this.setWatermark(result);
+  }
+
+  _applyWatermark() {
+    if (!this.editorDom) return;
+    const existing = this.editorDom.querySelector?.(".vno-page-watermark") ||
+      this.editorDom.querySelector?.('[data-vno-watermark="true"]');
+    if (this.watermark && this.watermark.text) {
+      const angle = this.watermark.angle ?? 45;
+      const opacity = this.watermark.opacity ?? 0.2;
+      const color = this.watermark.color || "#dc2626";
+      const fontSize = this.watermark.fontSize || 72;
+      const text = this.watermark.text;
+      if (existing) {
+        existing.innerHTML = `<div class="vno-watermark-text" style="transform:rotate(-${angle}deg); color:${color}; opacity:${opacity}; font-size:${fontSize}px;">${text}</div>`;
+      } else {
+        const wmEl = (typeof document !== "undefined" && document.createElement)
+          ? document.createElement("div")
+          : null;
+        if (wmEl) {
+          wmEl.className = "vno-page-watermark";
+          wmEl.dataset.vnoWatermark = "true";
+          wmEl.innerHTML = `<div class="vno-watermark-text" style="transform:rotate(-${angle}deg); color:${color}; opacity:${opacity}; font-size:${fontSize}px;">${text}</div>`;
+          this.editorDom.appendChild(wmEl);
+        }
+      }
+    } else {
+      if (existing && existing.parentNode) {
+        existing.parentNode.removeChild(existing);
+      }
+    }
+  }
+
+  // --- VIỀN TRANG (PAGE BORDER) ---
+
+  setPageBorder(borderData = null) {
+    borderData = borderData || {};
+    this.flushTyping();
+    if (borderData.enabled === false || borderData.style === "none") {
+      return this.clearPageBorder();
+    }
+    this.pageBorder = {
+      enabled: true,
+      style: borderData.style || "solid",
+      width: typeof borderData.width === "number" ? borderData.width : 2,
+      color: borderData.color || "#0f4c81"
+    };
+    this._applyPageBorder();
+    this.isDirty = true;
+    this.recordSnapshot("writer.page.border");
+    return true;
+  }
+
+  clearPageBorder() {
+    this.flushTyping();
+    const hadBorder = Boolean(this.pageBorder && this.pageBorder.enabled);
+    this.pageBorder = {
+      enabled: false,
+      style: "none",
+      width: 2,
+      color: "#0f4c81"
+    };
+    this._applyPageBorder();
+    this.isDirty = true;
+    if (hadBorder) {
+      this.recordSnapshot("writer.page.border.remove");
+    }
+    return true;
+  }
+
+  async openPageBorderDialog(options = null) {
+    options = options || {};
+    if (options.style !== undefined || options.enabled !== undefined) {
+      return this.setPageBorder(options);
+    }
+    const result = await showPageBorderDialog(this.pageBorder);
+    if (result === null) return false;
+    if (result.enabled === false || result.style === "none") return this.clearPageBorder();
+    return this.setPageBorder(result);
+  }
+
+  _applyPageBorder() {
+    if (!this.editorDom) return;
+    const existing = this.editorDom.querySelector?.(".vno-page-border-frame") ||
+      this.editorDom.querySelector?.('[data-vno-page-border="true"]');
+    if (this.pageBorder && this.pageBorder.enabled && this.pageBorder.style !== "none") {
+      const style = this.pageBorder.style || "solid";
+      const width = this.pageBorder.width ?? 2;
+      const color = this.pageBorder.color || "#0f4c81";
+      if (existing) {
+        existing.style.border = `${width}pt ${style} ${color}`;
+      } else {
+        const borderEl = (typeof document !== "undefined" && document.createElement)
+          ? document.createElement("div")
+          : null;
+        if (borderEl) {
+          borderEl.className = "vno-page-border-frame";
+          borderEl.dataset.vnoPageBorder = "true";
+          borderEl.style.border = `${width}pt ${style} ${color}`;
+          this.editorDom.appendChild(borderEl);
+        }
+      }
+    } else {
+      if (existing && existing.parentNode) {
+        existing.parentNode.removeChild(existing);
+      }
+    }
+  }
+
+  _applyDecorations() {
+    this._applyWatermark();
+    this._applyPageBorder();
   }
 
   _toggleFormatPainter() {
@@ -1219,6 +1593,15 @@ export class WriterAdapter {
     let bodyHtml = "";
     let headerHtml = "";
     let footerHtml = "";
+    let watermarkHtml = "";
+
+    if (this.watermark && this.watermark.text) {
+      const angle = this.watermark.angle ?? 45;
+      const opacity = this.watermark.opacity ?? 0.2;
+      const color = this.watermark.color || "#dc2626";
+      const fontSize = this.watermark.fontSize || 72;
+      watermarkHtml = `<div class="vno-export-watermark" style="position:fixed;top:35%;left:10%;width:80%;text-align:center;transform:rotate(-${angle}deg);opacity:${opacity};font-size:${fontSize}pt;color:${color};font-weight:900;font-family:sans-serif;pointer-events:none;z-index:-10;">${this.watermark.text}</div>\n`;
+    }
 
     if (this.headerDom && this.headerDom.innerText?.trim()) {
       headerHtml = `<div title="header">\n${this.headerDom.innerHTML}\n</div>\n`;
@@ -1234,7 +1617,7 @@ export class WriterAdapter {
       footerHtml = `\n<div title="footer">\n${this.footerDom.innerHTML}\n</div>`;
     }
 
-    const fullHtml = `${headerHtml}${bodyHtml}${footerHtml}`;
+    const fullHtml = `${watermarkHtml}${headerHtml}${bodyHtml}${footerHtml}`;
     return `<style>${this._getPageSetupCss()}</style>${fullHtml}`;
   }
 
@@ -1252,6 +1635,10 @@ export class WriterAdapter {
       .replace(/<ins\b(?=[^>]*\bdata-vno-change=(?:"insert"|'insert'))[^>]*>([\s\S]*?)<\/ins>/gi, "$1")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-toc-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-note-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
+      .replace(/<div\b[^>]*class=["'][^"']*\bvno-page-watermark\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "")
+      .replace(/<div\b[^>]*class=["'][^"']*\bvno-page-border-frame\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "")
+      .replace(/<div\b[^>]*data-vno-watermark=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
+      .replace(/<div\b[^>]*data-vno-page-border=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/\s*\bvno-merge-preview\b/gi, "");
   }
 
@@ -1661,6 +2048,22 @@ export class WriterAdapter {
         ${hasFooter ? `<div class="vno-print-preview-footer">${pageFooterHtml}</div>` : ""}
       `;
 
+      if (this.watermark && this.watermark.text) {
+        const wmEl = document.createElement("div");
+        wmEl.className = "vno-print-preview-watermark";
+        wmEl.dataset.vnoWatermark = "true";
+        wmEl.innerHTML = `<div class="vno-watermark-text" style="transform:rotate(-${this.watermark.angle ?? 45}deg); color:${this.watermark.color || "#dc2626"}; opacity:${this.watermark.opacity ?? 0.2}; font-size:${this.watermark.fontSize || 72}px;">${this.watermark.text}</div>`;
+        sheet.appendChild(wmEl);
+      }
+
+      if (this.pageBorder && this.pageBorder.enabled && this.pageBorder.style !== "none") {
+        const borderEl = document.createElement("div");
+        borderEl.className = "vno-print-preview-page-border";
+        borderEl.dataset.vnoPageBorder = "true";
+        borderEl.style.cssText = `position:absolute; top:12px; left:12px; right:12px; bottom:12px; border:${this.pageBorder.width || 2}pt ${this.pageBorder.style || "solid"} ${this.pageBorder.color || "#0f4c81"}; pointer-events:none; z-index:2; box-sizing:border-box;`;
+        sheet.appendChild(borderEl);
+      }
+
       pagesContainer.appendChild(sheet);
     }
 
@@ -1976,6 +2379,8 @@ export class WriterAdapter {
       footerHtml: this.footerDom ? this.footerDom.innerHTML : null,
       pageSetup: this.pageSetup ? JSON.parse(JSON.stringify(this.pageSetup)) : null,
       comments: this.comments ? JSON.parse(JSON.stringify(this.comments)) : [],
+      watermark: this.watermark ? JSON.parse(JSON.stringify(this.watermark)) : null,
+      pageBorder: this.pageBorder ? JSON.parse(JSON.stringify(this.pageBorder)) : null,
       description,
       timestamp: Date.now()
     };
@@ -1992,6 +2397,8 @@ export class WriterAdapter {
     if (a.footerHtml !== b.footerHtml) return false;
     if (JSON.stringify(a.pageSetup) !== JSON.stringify(b.pageSetup)) return false;
     if (JSON.stringify(a.comments) !== JSON.stringify(b.comments)) return false;
+    if (JSON.stringify(a.watermark) !== JSON.stringify(b.watermark)) return false;
+    if (JSON.stringify(a.pageBorder) !== JSON.stringify(b.pageBorder)) return false;
     return true;
   }
 
@@ -2026,6 +2433,15 @@ export class WriterAdapter {
       this.comments = JSON.parse(JSON.stringify(snapshot.comments));
       this._renderCommentsPanel();
     }
+
+    if (Object.prototype.hasOwnProperty.call(snapshot, "watermark")) {
+      this.watermark = snapshot.watermark ? JSON.parse(JSON.stringify(snapshot.watermark)) : null;
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, "pageBorder")) {
+      this.pageBorder = snapshot.pageBorder ? JSON.parse(JSON.stringify(snapshot.pageBorder)) : { enabled: false };
+    }
+    this._applyDecorations();
+    this._syncActiveStyleUI?.();
 
     this.isDirty = true;
     this._updateTrackChangesCommandState?.();
