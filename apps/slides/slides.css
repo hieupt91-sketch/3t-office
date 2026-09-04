@@ -262,11 +262,42 @@
   right: 32px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   font-size: 10px;
   opacity: 0.6;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
   padding-top: 4px;
   pointer-events: none;
+}
+
+.vno-slide-hf-date,
+.vno-slide-hf-footer,
+.vno-slide-hf-number {
+  min-height: 1em;
+  white-space: nowrap;
+}
+
+.vno-slide-hf-footer {
+  flex: 1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vno-slide-hf-number {
+  text-align: right;
+}
+
+.vno-slide-table-shape {
+  overflow: hidden;
+}
+
+.vno-slide-table {
+  width: 100%;
+  height: 100%;
+  border-collapse: collapse;
+  background: #fff;
 }
 
 /* Slide Transition Keyframes */

@@ -4,6 +4,9 @@
 
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
+import { formatDateTime, showDateTimeDialog } from "../../platform/ui-kit/datetime-picker.js";
+import { showSymbolPicker } from "../../platform/ui-kit/symbol-picker.js";
+import { showSlideTableDialog, showHeaderFooterDialog } from "./insert-dialogs.js";
 
 export const SLIDE_MASTER_THEMES = [
   {
@@ -222,6 +225,14 @@ export class SlidesCanvasController {
       showFooter: true
     };
     this.slideSize = { preset: "wide", width: 960, height: 540 };
+    this.headerFooter = {
+      showDate: false,
+      showSlideNumber: true,
+      showFooter: true,
+      footerText: this.masterTheme.footerText,
+      dateFormat: "dd/MM/yyyy",
+      applyToAll: true
+    };
 
     // Transitions (Hiệu ứng chuyển slide thật)
     this.transitionConfig = {
@@ -604,6 +615,154 @@ export class SlidesCanvasController {
     return true;
   }
 
+  async insertTable(options = null) {
+    options = options || {};
+    let rows = Number(options.rows);
+    let cols = Number(options.cols);
+    if (!rows || !cols) {
+      const picked = await showSlideTableDialog({ rows: 3, cols: 3 });
+      if (!picked) return false;
+      rows = picked.rows;
+      cols = picked.cols;
+    }
+    rows = Math.max(1, Math.min(12, rows));
+    cols = Math.max(1, Math.min(12, cols));
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    if (!Array.isArray(slide.shapes)) slide.shapes = [];
+    const cells = Array.from({ length: rows }, (_, r) =>
+      Array.from({ length: cols }, (_, c) => (r === 0 ? `Cột ${c + 1}` : ""))
+    );
+    const offset = slide.shapes.length * 16;
+    const newShape = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      type: "table",
+      x: 80 + offset,
+      y: 160 + offset,
+      w: Math.min(720, cols * 140),
+      h: Math.min(280, rows * 36 + 12),
+      rows,
+      cols,
+      cells,
+      color: "transparent",
+      animation: { type: "none", duration: 500, delay: 0 }
+    };
+    slide.shapes.push(newShape);
+    this.undoStack.push({ type: "shape-add", slideIndex: this.currentSlideIndex, shape: { ...newShape, cells: JSON.parse(JSON.stringify(cells)) } });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this.setSelectedTarget(newShape.id);
+    this._renderShapesLayer();
+    return newShape;
+  }
+
+  _renderHeaderFooter() {
+    if (!this.masterFooterEl) return;
+    const slide = this.slides[this.currentSlideIndex];
+    const hf = slide?.headerFooter || this.headerFooter || {};
+    const dateText = hf.showDate ? formatDateTime(new Date(), hf.dateFormat || "dd/MM/yyyy") : "";
+    const footerText = hf.showFooter !== false
+      ? (hf.footerText ?? this.masterTheme?.footerText ?? "")
+      : "";
+    const pageText = hf.showSlideNumber !== false
+      ? `Trang ${this.currentSlideIndex + 1} / ${this.slides.length}`
+      : "";
+    this.masterFooterEl.innerHTML = `
+      <span class="vno-slide-hf-date" data-slide-placeholder="date">${dateText}</span>
+      <span class="vno-slide-hf-footer" data-slide-placeholder="footer">${footerText}</span>
+      <span class="vno-slide-hf-number" data-slide-placeholder="number">${pageText}</span>
+    `;
+  }
+
+  applyHeaderFooter(config = {}, options = {}) {
+    const next = {
+      showDate: false,
+      showSlideNumber: true,
+      showFooter: true,
+      footerText: this.masterTheme?.footerText || "",
+      dateFormat: "dd/MM/yyyy",
+      applyToAll: true,
+      ...(this.headerFooter || {}),
+      ...config
+    };
+    const applyToAll = options.applyToAll !== undefined ? options.applyToAll : next.applyToAll !== false;
+    next.applyToAll = applyToAll;
+    if (applyToAll) {
+      this.headerFooter = next;
+      this.slides.forEach(slide => {
+        slide.headerFooter = { ...next };
+      });
+    } else {
+      const slide = this.slides[this.currentSlideIndex];
+      if (!slide) return false;
+      slide.headerFooter = { ...next, applyToAll: false };
+    }
+    this._renderHeaderFooter();
+    this._renderThumbnails?.();
+    return true;
+  }
+
+  async openHeaderFooterDialog(options = null) {
+    options = options || {};
+    const current = this.slides[this.currentSlideIndex]?.headerFooter || this.headerFooter || {};
+    const hasExplicit = options.showDate !== undefined || options.showSlideNumber !== undefined || options.showFooter !== undefined;
+    const picked = hasExplicit ? { ...current, ...options } : await showHeaderFooterDialog(current);
+    if (!picked) return false;
+    return this.applyHeaderFooter(picked, { applyToAll: picked.applyToAll });
+  }
+
+  async insertDateTime(options = null) {
+    options = options || {};
+    let format = options.format;
+    if (!format) {
+      const picked = await showDateTimeDialog({ defaultFormat: this.headerFooter?.dateFormat || "dd/MM/yyyy" });
+      if (!picked) return false;
+      format = picked.format;
+    }
+    return this.applyHeaderFooter(
+      { showDate: true, dateFormat: format },
+      { applyToAll: options.applyToAll !== false }
+    );
+  }
+
+  insertSlideNumber(options = null) {
+    options = options || {};
+    return this.applyHeaderFooter(
+      { showSlideNumber: true },
+      { applyToAll: options.applyToAll !== false }
+    );
+  }
+
+  async insertSymbol(options = null) {
+    options = options || {};
+    let ch = options.char || options.symbol;
+    if (!ch) {
+      ch = await showSymbolPicker();
+      if (!ch) return false;
+    }
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    const shape = (slide.shapes || []).find(item => String(item.id) === String(this.selectedTarget));
+    if (shape && shape.text !== undefined) {
+      shape.text = (shape.text || "") + ch;
+      this._renderShapesLayer();
+      return true;
+    }
+    if (this.selectedTarget === "title" && this.titleEl) {
+      this.titleEl.innerText = (this.titleEl.innerText || "") + ch;
+      slide.title = this.titleEl.innerText;
+      this._renderThumbnails?.();
+      return true;
+    }
+    if (this.bodyEl) {
+      this.bodyEl.innerText = (this.bodyEl.innerText || "") + ch;
+      slide.body = this.bodyEl.innerText;
+      this._renderThumbnails?.();
+      return true;
+    }
+    return false;
+  }
+
   /** Chèn một sơ đồ gồm nhiều shape nhưng chỉ tạo một bước Undo/Redo. */
   insertDiagram(diagramType = "process", nodeCount = 4) {
     const slide = this.slides[this.currentSlideIndex];
@@ -883,6 +1042,31 @@ export class SlidesCanvasController {
         audio.controls = true;
         audio.style.cssText = "width:100%;height:100%;";
         el.appendChild(audio);
+      } else if (shape.type === "table") {
+        el.style.backgroundColor = "#ffffff";
+        el.style.opacity = "1";
+        el.style.borderRadius = "2px";
+        el.classList.add("vno-slide-table-shape");
+        const table = document.createElement("table");
+        table.className = "vno-slide-table";
+        table.style.cssText = "width:100%;height:100%;border-collapse:collapse;background:#fff;table-layout:fixed;";
+        (shape.cells || []).forEach((row, r) => {
+          const tr = document.createElement("tr");
+          (row || []).forEach((cell, c) => {
+            const td = document.createElement(r === 0 ? "th" : "td");
+            td.contentEditable = "true";
+            td.textContent = cell || "";
+            td.style.cssText = "border:1px solid #94a3b8;padding:6px 8px;font-size:13px;background:#fff;font-weight:" + (r === 0 ? "700" : "400") + ";";
+            td.addEventListener("mousedown", (event) => event.stopPropagation());
+            td.addEventListener("input", () => {
+              if (!shape.cells[r]) shape.cells[r] = [];
+              shape.cells[r][c] = td.textContent || "";
+            });
+            tr.appendChild(td);
+          });
+          table.appendChild(tr);
+        });
+        el.appendChild(table);
       } else {
         el.style.backgroundColor = shape.color || "#3b82f6";
         el.style.opacity = "0.85";
@@ -1717,12 +1901,7 @@ export class SlidesCanvasController {
       this._updateNotesCharCount();
     }
 
-    if (this.masterFooterEl) {
-      this.masterFooterEl.innerHTML = `
-        <span>${this.masterTheme?.footerText || "VN Office Slides"}</span>
-        <span>Trang ${this.currentSlideIndex + 1} / ${this.slides.length}</span>
-      `;
-    }
+    this._renderHeaderFooter();
 
     this._renderShapesLayer();
     this._renderCommentsUi();
@@ -1777,7 +1956,8 @@ export class SlidesCanvasController {
       layoutType,
       shapes: [],
       notes: "",
-      comments: []
+      comments: [],
+      headerFooter: this.headerFooter?.applyToAll !== false ? { ...(this.headerFooter || {}) } : undefined
     };
     this.slides.push(newSlide);
     const newIdx = this.slides.length - 1;
@@ -2469,12 +2649,9 @@ export class SlidesCanvasController {
       this.masterLogoEl.style.color = this.masterTheme.accentColor;
     }
     if (this.masterFooterEl) {
-      this.masterFooterEl.innerHTML = `
-        <span>${this.masterTheme?.footerText || "VN Office Slides"}</span>
-        <span>Trang ${this.currentSlideIndex + 1} / ${this.slides.length}</span>
-      `;
       this.masterFooterEl.style.color = this.masterTheme.bodyColor || "#64748b";
     }
+    this._renderHeaderFooter();
 
     this._renderThumbnails();
     this._renderSlideSorterGrid();
@@ -3640,6 +3817,14 @@ export class SlidesCanvasController {
       showFooter: true
     };
     this.slideSize = { preset: "wide", width: 960, height: 540 };
+    this.headerFooter = {
+      showDate: false,
+      showSlideNumber: true,
+      showFooter: true,
+      footerText: this.masterTheme.footerText,
+      dateFormat: "dd/MM/yyyy",
+      applyToAll: true
+    };
     this.transitionConfig = {
       type: "fade",
       duration: 500
