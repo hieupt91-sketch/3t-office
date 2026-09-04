@@ -70,6 +70,8 @@ export const WRITER_RIBBON_TABS = [
                   { type: "button", commandId: "writer.text.italic", iconOnly: true },
                   { type: "button", commandId: "writer.text.underline", iconOnly: true },
                   { type: "button", commandId: "writer.text.strike", iconOnly: true },
+                  { type: "button", commandId: "writer.text.subscript", iconOnly: true },
+                  { type: "button", commandId: "writer.text.superscript", iconOnly: true },
                   { type: "button", commandId: "writer.text.clearFormat", iconOnly: true },
                   { type: "button", commandId: "writer.color.text", iconOnly: true },
                   { type: "button", commandId: "writer.color.highlight", iconOnly: true }
