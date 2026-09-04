@@ -55,7 +55,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.text.superscript", category: "format", label: "Chỉ số trên", shortcut: "Ctrl+Shift++", icon: "superscript", tooltip: "Chỉ số trên X² (Ctrl+Shift++)", isToggle: true },
   { id: "writer.text.clearFormat", category: "format", label: "Xóa định dạng", shortcut: "Ctrl+Space", icon: "clearFormat", tooltip: "Xóa toàn bộ định dạng về mặc định (Ctrl+Space)" },
   { id: "writer.style.normal", category: "format", label: "Kiểu Thường", shortcut: "Ctrl+Shift+N", icon: "clearFormat", tooltip: "Áp dụng kiểu Normal chuẩn (Ctrl+Shift+N)" },
-  { id: "writer.text.changeCase", category: "format", label: "Đổi chữ hoa/thường", shortcut: "Shift+F3", icon: "styleGallery", tooltip: "Chuyển đổi chữ hoa / thường / Tiêu đề (Shift+F3)" },
+  { id: "writer.text.changeCase", category: "format", label: "Đổi chữ hoa/thường", shortcut: "Shift+F3", icon: "changeCase", tooltip: "Chuyển đổi chữ hoa / thường / Tiêu đề (Shift+F3)" },
   { id: "writer.font.family", category: "format", label: "Phông chữ", tooltip: "Chọn phông chữ" },
   { id: "writer.font.size", category: "format", label: "Cỡ chữ", tooltip: "Chọn cỡ chữ" },
   { id: "writer.style.apply", category: "format", label: "Kiểu dáng", tooltip: "Áp dụng kiểu đoạn văn (Normal, Heading 1, 2, 3, Quote, Emphasis)" },
@@ -78,6 +78,10 @@ export const WRITER_COMMANDS = [
   { id: "writer.para.indentDec", category: "paragraph", label: "Giảm thụt lề", shortcut: "Ctrl+Shift+M", icon: "indentDec", tooltip: "Giảm khoảng cách thụt lề đoạn văn (Ctrl+Shift+M)" },
   { id: "writer.para.moveUp", category: "paragraph", label: "Di chuyển đoạn lên", shortcut: "Alt+Shift+Up", icon: "indentInc", tooltip: "Di chuyển đoạn văn lên trên (Alt+Shift+Up)" },
   { id: "writer.para.moveDown", category: "paragraph", label: "Di chuyển đoạn xuống", shortcut: "Alt+Shift+Down", icon: "indentDec", tooltip: "Di chuyển đoạn văn xuống dưới (Alt+Shift+Down)" },
+  { id: "writer.para.sort", category: "paragraph", label: "Sắp xếp", icon: "paragraphSort", tooltip: "Sắp xếp danh sách hoặc đoạn văn theo A–Z" },
+  { id: "writer.para.showFormattingMarks", category: "paragraph", label: "Hiện/ẩn ký tự định dạng", icon: "formattingMarks", tooltip: "Hiện hoặc ẩn dấu đoạn và xuống dòng", isToggle: true },
+  { id: "writer.para.shading", category: "paragraph", label: "Tô nền đoạn", icon: "paragraphShading", tooltip: "Tô màu nền đoạn văn hoặc ô bảng" },
+  { id: "writer.para.borders", category: "paragraph", label: "Viền đoạn", icon: "paragraphBorders", tooltip: "Chọn viền đoạn văn hoặc ô bảng" },
 
   // Chèn (Insert)
   { id: "writer.table.insert", category: "insert", label: "Bảng biểu", icon: "table", tooltip: "Chèn bảng mới vào văn bản" },

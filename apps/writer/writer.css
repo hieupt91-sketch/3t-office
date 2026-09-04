@@ -363,6 +363,26 @@
   cursor: text;
 }
 
+/* View-only formatting marks. Pseudo-elements never enter the saved document HTML. */
+.vno-writer-body.vno-show-formatting-marks p::after,
+.vno-writer-body.vno-show-formatting-marks li::after,
+.vno-writer-body.vno-show-formatting-marks blockquote::after,
+.vno-writer-body.vno-show-formatting-marks h1::after,
+.vno-writer-body.vno-show-formatting-marks h2::after,
+.vno-writer-body.vno-show-formatting-marks h3::after {
+  content: " ¶";
+  color: #2563eb;
+  font-weight: 400;
+  opacity: 0.8;
+  user-select: none;
+}
+
+.vno-writer-body.vno-show-formatting-marks br::after {
+  content: "↵";
+  color: #2563eb;
+  user-select: none;
+}
+
 .vno-writer-header,
 .vno-writer-footer {
   cursor: text;
