@@ -528,6 +528,9 @@ export class SlidesAdapter {
       case "slides.master.apply":
         return this.canvas.showSlideMasterDialog ? this.canvas.showSlideMasterDialog() : false;
 
+      case "slides.design.themeGallery":
+        return this.canvas.showThemeGalleryDialog ? this.canvas.showThemeGalleryDialog() : false;
+
       case "slides.transition.apply":
         return this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false;
 

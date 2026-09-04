@@ -131,6 +131,8 @@ export const ICONS = {
     <circle cx="7" cy="10" r="2" fill="#FFFFFF" opacity="0.85"/>
   </svg>`,
 
+  themeGallery: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none"><rect x="3" y="4" width="26" height="20" rx="3" fill="#F8FAFC" stroke="#7C3AED" stroke-width="1.5"/><path d="M3 9h26" stroke="#7C3AED" stroke-width="4"/><rect x="7" y="13" width="8" height="7" rx="1" fill="#DBEAFE"/><rect x="17" y="13" width="8" height="7" rx="1" fill="#FFEDD5"/><circle cx="23" cy="24" r="6" fill="#7C3AED"/><path d="m20.5 24 1.7 1.7 3.4-4" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+
   image: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="3" y="5" width="26" height="22" rx="3" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.5"/>
     <circle cx="10" cy="11" r="3" fill="#F59E0B"/>

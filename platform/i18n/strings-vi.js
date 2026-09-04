@@ -52,7 +52,7 @@ export const viStrings = {
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", ai: "Trợ lý VN AI" },
-    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", drawing: "Đối tượng vẽ", imagesObjects: "Hình ảnh & Đối tượng", media: "Đa phương tiện", master: "Mẫu chủ đạo", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", comments: "Nhận xét", presentationViews: "Dạng xem bản trình chiếu", aiContent: "Tạo nội dung thuyết trình" }
+    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", drawing: "Đối tượng vẽ", imagesObjects: "Hình ảnh & Đối tượng", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", comments: "Nhận xét", presentationViews: "Dạng xem bản trình chiếu", aiContent: "Tạo nội dung thuyết trình" }
   },
   sheetDialogs: {
     close: "Đóng", cancel: "Hủy", cancelLong: "Hủy bỏ", apply: "Áp dụng", range: "Phạm vi", value: "Giá trị",
@@ -65,7 +65,7 @@ export const viStrings = {
   },
   slidesDialogs: {
     close: "Đóng", cancel: "Hủy bỏ", apply: "Áp dụng", preview: "Xem thử", delete: "Xóa",
-    masterTitle: "Mẫu Slide Master", layoutTitle: "Chọn Bố Cục Trang Chiếu", transitionTitle: "Hiệu Ứng Chuyển Trang", animationTitle: "Hiệu Ứng Đối Tượng (Object Animations)",
+    masterTitle: "Mẫu Slide Master", themeGalleryTitle: "Thư viện Chủ đề", themeGalleryHint: "Chọn một chủ đề để áp dụng ngay cho toàn bộ bản trình chiếu.", themePreviewTitle: "Tiêu đề bản trình chiếu", themeCorporateBlue: "Xanh Doanh Nghiệp", themeWarmTerracotta: "Terracotta Ấm Áp", themeMinimalMonochrome: "Đơn Sắc Tối Giản", themeNaturalGreen: "Xanh Lá Thiên Nhiên", themeModernCharcoal: "Than Chì Hiện Đại", themeEnergeticOrange: "Cam Năng Động", layoutTitle: "Chọn Bố Cục Trang Chiếu", transitionTitle: "Hiệu Ứng Chuyển Trang", animationTitle: "Hiệu Ứng Đối Tượng (Object Animations)",
     applyMaster: "Áp dụng mẫu", applyLayout: "Áp dụng bố cục", applyTransition: "Áp dụng chuyển tiếp", applyAnimation: "Áp dụng hiệu ứng", removeTransition: "Xóa chuyển tiếp", removeAnimation: "Xóa hiệu ứng", previewTransition: "▶ Xem thử chuyển tiếp", previewAnimation: "▶ Xem thử hiệu ứng", previewObject: "Đối tượng xem thử",
     animationTarget: "Đối tượng áp dụng:", animationType: "Kiểu hiệu ứng xuất hiện (Entrance):", animationDuration: "Thời gian hiệu ứng:", animationDelay: "Độ trễ xuất hiện:", noAnimation: "Không có hiệu ứng", immediate: "Ngay lập tức (0s)",
     commentsLabel: "Nhận xét trang chiếu", newComment: "Nhận xét mới", commentPlaceholder: "Nhập nội dung nhận xét...", addComment: "Thêm nhận xét", rehearsalConfirm: "Tổng thời gian trình chiếu: {time}.\nLưu thời gian tập dượt cho từng trang?",
@@ -151,6 +151,7 @@ export const viStrings = {
     ,"slides.media.insertVideo": { label: "Video", tooltip: "Chèn video từ máy tính" }
     ,"slides.media.insertAudio": { label: "Âm thanh", tooltip: "Chèn âm thanh từ máy tính" }
     ,"slides.master.apply": { label: "Mẫu Slide Master", tooltip: "Áp dụng mẫu Slide Master đồng bộ font, màu, logo cho toàn bộ trang chiếu" }
+    ,"slides.design.themeGallery": { label: "Chủ đề", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" }
     ,"slides.transition.apply": { label: "Chuyển tiếp", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Hiệu ứng đối tượng", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" }
     ,"slides.notes.toggle": { label: "Ghi chú thuyết trình", tooltip: "Bật/tắt khung ghi chú người thuyết trình dưới trang chiếu" }

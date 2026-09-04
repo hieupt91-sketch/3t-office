@@ -80,6 +80,13 @@ export const SLIDES_RIBBON_TABS = [
     labelKey: "slidesRibbon.tab.design",
     groups: [
       {
+        label: "Chủ đề",
+        labelKey: "slidesRibbon.group.themes",
+        items: [
+          { type: "button", commandId: "slides.design.themeGallery", isLarge: true }
+        ]
+      },
+      {
         label: "Mẫu chủ đạo",
         labelKey: "slidesRibbon.group.master",
         items: [

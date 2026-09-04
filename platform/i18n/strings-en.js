@@ -53,7 +53,7 @@ export const enStrings = {
   },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", ai: "VN AI Assistant" },
-    group: { slides: "Slides", clipboard: "Clipboard", drawing: "Drawing", imagesObjects: "Images & Objects", media: "Media", master: "Slide Master", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", comments: "Comments", presentationViews: "Presentation Views", aiContent: "AI Presentation Content" }
+    group: { slides: "Slides", clipboard: "Clipboard", drawing: "Drawing", imagesObjects: "Images & Objects", media: "Media", themes: "Themes", master: "Slide Master", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", comments: "Comments", presentationViews: "Presentation Views", aiContent: "AI Presentation Content" }
   },
   sheetDialogs: {
     close: "Close", cancel: "Cancel", cancelLong: "Cancel", apply: "Apply", range: "Range", value: "Value",
@@ -66,7 +66,7 @@ export const enStrings = {
   },
   slidesDialogs: {
     close: "Close", cancel: "Cancel", apply: "Apply", preview: "Preview", delete: "Delete",
-    masterTitle: "Slide Master", layoutTitle: "Choose a Slide Layout", transitionTitle: "Transitions", animationTitle: "Object Animations",
+    masterTitle: "Slide Master", themeGalleryTitle: "Theme Gallery", themeGalleryHint: "Choose a theme to apply it immediately to the whole presentation.", themePreviewTitle: "Presentation title", themeCorporateBlue: "Corporate Blue", themeWarmTerracotta: "Warm Terracotta", themeMinimalMonochrome: "Minimal Monochrome", themeNaturalGreen: "Natural Green", themeModernCharcoal: "Modern Charcoal", themeEnergeticOrange: "Energetic Orange", layoutTitle: "Choose a Slide Layout", transitionTitle: "Transitions", animationTitle: "Object Animations",
     applyMaster: "Apply Theme", applyLayout: "Apply Layout", applyTransition: "Apply Transition", applyAnimation: "Apply Animation", removeTransition: "Remove Transition", removeAnimation: "Remove Animation", previewTransition: "▶ Preview Transition", previewAnimation: "▶ Preview Animation", previewObject: "Preview Object",
     animationTarget: "Apply to:", animationType: "Entrance animation:", animationDuration: "Duration:", animationDelay: "Delay:", noAnimation: "None", immediate: "Immediately (0s)",
     commentsLabel: "Slide Comments", newComment: "New Comment", commentPlaceholder: "Enter a comment...", addComment: "Add Comment", rehearsalConfirm: "Total slide show time: {time}.\nSave the rehearsal timings for each slide?",
@@ -152,6 +152,7 @@ export const enStrings = {
     ,"slides.media.insertVideo": { label: "Video", tooltip: "Insert a video from this device" }
     ,"slides.media.insertAudio": { label: "Audio", tooltip: "Insert audio from this device" }
     ,"slides.master.apply": { label: "Slide Master", tooltip: "Apply a Slide Master theme across the presentation" }
+    ,"slides.design.themeGallery": { label: "Themes", tooltip: "Choose a design theme for the whole presentation" }
     ,"slides.transition.apply": { label: "Transitions", tooltip: "Apply a slide transition (Fade, Push, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Animations", tooltip: "Apply an entrance animation to an object" }
     ,"slides.notes.toggle": { label: "Speaker Notes", tooltip: "Show or hide the speaker notes pane" }

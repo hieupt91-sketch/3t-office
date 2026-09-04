@@ -183,6 +183,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.media.insertAudio", category: "insert", label: "Âm thanh", icon: "audioInsert", tooltip: "Chèn âm thanh từ máy tính" },
 
   // Trình chiếu & Thiết kế
+  { id: "slides.design.themeGallery", category: "design", label: "Chủ đề", icon: "themeGallery", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" },
   { id: "slides.master.apply", category: "design", label: "Mẫu Slide Master", icon: "template", tooltip: "Áp dụng mẫu Slide Master đồng bộ font, màu, logo cho toàn bộ trang chiếu" },
   { id: "slides.transition.apply", category: "transition", label: "Chuyển tiếp", icon: "slidePlay", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" },
   { id: "slides.animation.apply", category: "animation", label: "Hiệu ứng đối tượng", icon: "aiSparkle", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" },

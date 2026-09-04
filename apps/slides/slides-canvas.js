@@ -9,6 +9,7 @@ export const SLIDE_MASTER_THEMES = [
   {
     id: "modern-blue",
     name: "Xanh Doanh Nghiệp",
+    nameKey: "slidesDialogs.themeCorporateBlue",
     fontFamily: "Inter, 'Segoe UI', sans-serif",
     titleColor: "#1e3a8a",
     bodyColor: "#334155",
@@ -18,33 +19,58 @@ export const SLIDE_MASTER_THEMES = [
   },
   {
     id: "corporate-red",
-    name: "Đỏ Hành Chính",
+    name: "Terracotta Ấm Áp",
+    nameKey: "slidesDialogs.themeWarmTerracotta",
     fontFamily: "'Times New Roman', serif",
     titleColor: "#991b1b",
     bodyColor: "#1f2937",
     accentColor: "#b53818",
     bgColor: "#fffdfa",
-    logoText: "VN OFFICE • HÀNH CHÍNH"
+    logoText: "VN OFFICE • SÁNG TẠO"
   },
   {
     id: "emerald-green",
-    name: "Xanh Kinh Tế",
+    name: "Xanh Lá Thiên Nhiên",
+    nameKey: "slidesDialogs.themeNaturalGreen",
     fontFamily: "'Segoe UI', sans-serif",
     titleColor: "#064e3b",
     bodyColor: "#334155",
     accentColor: "#059669",
     bgColor: "#f0fdf4",
-    logoText: "VN OFFICE • KINH TẾ"
+    logoText: "VN OFFICE • BỀN VỮNG"
   },
   {
     id: "minimal-dark",
-    name: "Tối Giản Công Nghệ",
+    name: "Than Chì Hiện Đại",
+    nameKey: "slidesDialogs.themeModernCharcoal",
     fontFamily: "system-ui, sans-serif",
     titleColor: "#f8fafc",
     bodyColor: "#cbd5e1",
     accentColor: "#38bdf8",
     bgColor: "#0f172a",
-    logoText: "VN OFFICE • CÔNG NGHỆ"
+    logoText: "VN OFFICE • HIỆN ĐẠI"
+  },
+  {
+    id: "minimal-monochrome",
+    name: "Đơn Sắc Tối Giản",
+    nameKey: "slidesDialogs.themeMinimalMonochrome",
+    fontFamily: "Arial, sans-serif",
+    titleColor: "#111827",
+    bodyColor: "#4b5563",
+    accentColor: "#9ca3af",
+    bgColor: "#ffffff",
+    logoText: "VN OFFICE • TỐI GIẢN"
+  },
+  {
+    id: "energetic-orange",
+    name: "Cam Năng Động",
+    nameKey: "slidesDialogs.themeEnergeticOrange",
+    fontFamily: "Verdana, sans-serif",
+    titleColor: "#9a3412",
+    bodyColor: "#431407",
+    accentColor: "#f97316",
+    bgColor: "#fff7ed",
+    logoText: "VN OFFICE • NĂNG ĐỘNG"
   }
 ];
 
@@ -1349,6 +1375,10 @@ export class SlidesCanvasController {
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
       return true;
+    } else if (action.type === "master-theme") {
+      this.applySlideMaster(action.before, false);
+      this.redoStack.push(action);
+      return true;
     }
     return false;
   }
@@ -1438,6 +1468,10 @@ export class SlidesCanvasController {
       this.undoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
+      return true;
+    } else if (action.type === "master-theme") {
+      this.applySlideMaster(action.after, false);
+      this.undoStack.push(action);
       return true;
     }
     return false;
@@ -1555,7 +1589,7 @@ export class SlidesCanvasController {
     this._renderSlideSorterGrid();
   }
 
-  applySlideMaster(themeConfig) {
+  applySlideMaster(themeConfig, recordHistory = false) {
     if (!themeConfig) return false;
     if (typeof themeConfig === "string") {
       const found = SLIDE_MASTER_THEMES.find(t => t.id === themeConfig);
@@ -1563,7 +1597,13 @@ export class SlidesCanvasController {
       else return false;
     }
 
+    const previousTheme = { ...this.masterTheme };
     this.masterTheme = { ...this.masterTheme, ...themeConfig };
+    if (recordHistory && JSON.stringify(previousTheme) !== JSON.stringify(this.masterTheme)) {
+      this.undoStack.push({ type: "master-theme", before: previousTheme, after: { ...this.masterTheme } });
+      this.redoStack = [];
+      this._syncUndoRedoState();
+    }
 
     if (this.canvasEl) {
       this.canvasEl.style.fontFamily = this.masterTheme.fontFamily;
@@ -1597,7 +1637,52 @@ export class SlidesCanvasController {
     }
 
     this._renderThumbnails();
+    this._renderSlideSorterGrid();
     return true;
+  }
+
+  showThemeGalleryDialog() {
+    if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "vno-dialog-overlay vno-theme-gallery-dialog";
+      const selectedId = this.masterTheme.themeId || "modern-blue";
+      overlay.innerHTML = `
+        <div class="vno-dialog-box" style="width:720px;max-width:calc(100vw - 32px)" role="dialog" aria-modal="true" aria-labelledby="vno-theme-gallery-title">
+          <div class="vno-dialog-header"><span id="vno-theme-gallery-title">${t("slidesDialogs.themeGalleryTitle")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}">&times;</button></div>
+          <div class="vno-dialog-body">
+            <p style="font-size:12px;color:#64748b;margin:0 0 12px">${t("slidesDialogs.themeGalleryHint")}</p>
+            <div class="vno-theme-gallery-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+              ${SLIDE_MASTER_THEMES.map(theme => `
+                <button type="button" class="vno-theme-card ${theme.id === selectedId ? "is-selected" : ""}" data-theme-id="${theme.id}" aria-pressed="${theme.id === selectedId}" style="background:${theme.bgColor};text-align:left;min-height:112px">
+                  <span style="display:block;height:7px;background:${theme.accentColor};border-radius:3px"></span>
+                  <strong style="display:block;margin:11px 0 6px;color:${theme.titleColor};font-family:${theme.fontFamily}">${t(theme.nameKey)}</strong>
+                  <span style="display:block;color:${theme.bodyColor};font:11px ${theme.fontFamily}">${t("slidesDialogs.themePreviewTitle")}</span>
+                  <span style="display:block;margin-top:13px;color:${theme.accentColor};font:9px ${theme.fontFamily}">${theme.logoText}</span>
+                </button>`).join("")}
+            </div>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      let closed = false;
+      const close = (value) => {
+        if (closed) return;
+        closed = true;
+        document.removeEventListener("keydown", onKey);
+        overlay.remove();
+        resolve(value);
+      };
+      const onKey = event => { if (event.key === "Escape") close(false); };
+      document.addEventListener("keydown", onKey);
+      overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
+      overlay.querySelectorAll("[data-theme-id]").forEach(card => card.addEventListener("click", () => {
+        const theme = SLIDE_MASTER_THEMES.find(item => item.id === card.dataset.themeId);
+        if (!theme) return;
+        this.applySlideMaster({ ...theme, themeId: theme.id }, true);
+        close(true);
+      }));
+      overlay.querySelector("[data-theme-id]")?.focus();
+    });
   }
 
   showSlideMasterDialog() {

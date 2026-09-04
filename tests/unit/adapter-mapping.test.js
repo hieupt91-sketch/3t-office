@@ -8,7 +8,7 @@ import { mapVnCommandToUno, getVnCommand, VN_TO_UNO_MAP } from "../../adapters/l
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
-import { SlidesCanvasController } from "../../apps/slides/slides-canvas.js";
+import { SlidesCanvasController, SLIDE_MASTER_THEMES } from "../../apps/slides/slides-canvas.js";
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 
@@ -306,6 +306,11 @@ export async function runAdapterMappingTests() {
       this.masterDialogCalled = true;
       return true;
     },
+    themeGalleryCalled: false,
+    showThemeGalleryDialog() {
+      this.themeGalleryCalled = true;
+      return true;
+    },
     transitionDialogCalled: false,
     showTransitionDialog() {
       this.transitionDialogCalled = true;
@@ -353,6 +358,13 @@ export async function runAdapterMappingTests() {
     results.push({ name: "SlidesAdapter Dispatch: Lệnh slides.master.apply kích hoạt showSlideMasterDialog() thật", pass: true });
   } else {
     results.push({ name: "SlidesAdapter Dispatch: slides.master.apply thất bại", pass: false });
+  }
+
+  const themeGalleryRes = await slidesAdapter.handleDispatch(".uno:MasterLayouts", null, "slides.design.themeGallery");
+  if (themeGalleryRes && mockCanvas.themeGalleryCalled) {
+    results.push({ name: "SlidesAdapter Dispatch: slides.design.themeGallery mở Theme Gallery thật", pass: true });
+  } else {
+    results.push({ name: "SlidesAdapter Dispatch: slides.design.themeGallery thất bại", pass: false });
   }
 
   // Test Slide Transition Dispatch
@@ -405,6 +417,19 @@ export async function runAdapterMappingTests() {
     results.push({ name: "SlidesCanvas Master: Áp dụng thành công Slide Master 'corporate-red' đồng bộ font và màu", pass: true });
   } else {
     results.push({ name: "SlidesCanvas Master: applySlideMaster thất bại", pass: false });
+  }
+
+
+  const beforeGalleryTheme = { ...realCanvas.masterTheme };
+  const galleryTheme = SLIDE_MASTER_THEMES.find(theme => theme.id === "energetic-orange");
+  const galleryApplyRes = realCanvas.applySlideMaster({ ...galleryTheme, themeId: galleryTheme.id }, true);
+  const galleryUndoRes = realCanvas.undo();
+  const galleryUndoAccent = realCanvas.masterTheme.accentColor;
+  const galleryRedoRes = realCanvas.redo();
+  if (SLIDE_MASTER_THEMES.length >= 6 && galleryApplyRes && galleryUndoRes && galleryRedoRes && galleryUndoAccent === beforeGalleryTheme.accentColor && realCanvas.masterTheme.themeId === "energetic-orange") {
+    results.push({ name: "Slides Theme Gallery: có 6 theme và Apply/Undo/Redo đồng bộ masterTheme", pass: true });
+  } else {
+    results.push({ name: "Slides Theme Gallery: theme count hoặc Apply/Undo/Redo thất bại", pass: false });
   }
 
   // Test setTransition

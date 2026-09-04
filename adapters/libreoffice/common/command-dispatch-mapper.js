@@ -154,6 +154,7 @@ export const VN_TO_UNO_MAP = {
   "slides.media.insertVideo": ".uno:InsertAVMedia",
   "slides.media.insertAudio": ".uno:InsertAVMedia",
   "slides.master.apply": ".uno:MasterLayouts",
+  "slides.design.themeGallery": ".uno:MasterLayouts",
   "slides.transition.apply": ".uno:SlideTransition",
   "slides.animation.apply": ".uno:CustomAnimation",
   "slides.notes.toggle": ".uno:InsertAnnotation",
