@@ -48,18 +48,28 @@ export class ShortcutManager {
   }
 
   _normalizeCombo(combo) {
+    // `split("+")` không phân biệt được dấu '+' dùng làm DẤU PHÂN TÁCH modifier với
+    // dấu '+' là CHÍNH PHÍM thật (vd "Ctrl+Shift++" cho Chỉ số trên — LibreOffice/Word
+    // đều dùng tổ hợp này). Chuỗi đó split ra phần tử rỗng cuối cùng ("", sau dấu '+'
+    // cuối) — nếu bỏ qua phần tử rỗng như trước, phím thật ('+') bị mất, khiến tổ hợp
+    // chuẩn hóa thành "CTRL+SHIFT+" (thiếu phím) và không bao giờ khớp với phím bấm
+    // thật. Phần tử rỗng Ở VỊ TRÍ CUỐI nghĩa là phím thật chính là '+'.
     const parts = combo.split("+").map(p => p.trim());
     let ctrl = false, alt = false, shift = false, meta = false;
     let key = "";
 
-    for (const p of parts) {
+    parts.forEach((p, i) => {
+      if (p === "" && i === parts.length - 1) {
+        key = "+";
+        return;
+      }
       const pLower = p.toLowerCase();
       if (pLower === "ctrl" || pLower === "control") ctrl = true;
       else if (pLower === "alt") alt = true;
       else if (pLower === "shift") shift = true;
       else if (pLower === "meta" || pLower === "cmd" || pLower === "win") meta = true;
       else key = p.toUpperCase();
-    }
+    });
 
     return `${ctrl ? "CTRL+" : ""}${alt ? "ALT+" : ""}${shift ? "SHIFT+" : ""}${meta ? "META+" : ""}${key}`;
   }
