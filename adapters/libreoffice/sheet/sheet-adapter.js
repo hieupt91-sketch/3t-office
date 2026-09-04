@@ -269,6 +269,31 @@ export class SheetAdapter {
     return formats;
   }
 
+  _odfSheetName(sheetName) {
+    const name = String(sheetName || "").replace(/'/g, "''");
+    return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `'${name}'`;
+  }
+
+  _namedRangeXml(range, fallbackSheet) {
+    const sheet = range.sheet || fallbackSheet;
+    const ref = String(range.ref || "A1").replace(/\$/g, "").toUpperCase();
+    const [start, end = start] = ref.split(":");
+    const sheetRef = this._odfSheetName(sheet);
+    return `<table:named-range table:name="${this._escapeXml(range.name)}" table:base-cell-address="$${this._escapeXml(sheetRef)}.$${start.replace(/(\D+)(\d+)/, "$1$$$2")}" table:cell-range-address="$${this._escapeXml(sheetRef)}.$${start.replace(/(\D+)(\d+)/, "$1$$$2")}:.$${end.replace(/(\D+)(\d+)/, "$1$$$2")}"/>`;
+  }
+
+  _parseNamedRangeElement(attributes, scope, fallbackSheet, index) {
+    const get = name => this._unescapeXml(attributes.match(new RegExp(`${name}=["']([^"']*)["']`, "i"))?.[1] || "");
+    const name = get("table:name");
+    const address = get("table:cell-range-address");
+    const sheetMatch = address.match(/^\$(?:'((?:[^']|'')+)'|([^.]+))\./);
+    const sheet = (sheetMatch?.[1]?.replace(/''/g, "'") || sheetMatch?.[2] || fallbackSheet || "");
+    const cells = [...address.matchAll(/\.\$?([A-Z]+)\$?(\d+)/gi)].map(match => `${match[1].toUpperCase()}${match[2]}`);
+    if (!name || cells.length === 0) return null;
+    const ref = cells.length > 1 && cells[1] !== cells[0] ? `${cells[0]}:${cells[1]}` : cells[0];
+    return { id: `name-import-${scope}-${index}`, name, ref, scope, sheet };
+  }
+
   _parseNumberStyles(xmlText) {
     // LibreOffice replaces common custom styles with its built-in N* styles during
     // XLSX import; seed the subset produced by the formats VN Sheet writes.
@@ -392,7 +417,8 @@ export class SheetAdapter {
         }
         rowsXml += `<table:table-row>${cellsXml || "<table:table-cell/>"}</table:table-row>`;
       }
-      return `<table:table table:name="${this._escapeXml(sheetName)}">${rowsXml}</table:table>`;
+      const localNames = (this.grid.namedRangesBySheet?.[sheetName] || []).map(range => this._namedRangeXml(range, sheetName)).join("");
+      return `<table:table table:name="${this._escapeXml(sheetName)}">${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}</table:table>`;
     }).join("");
 
     const activeSheet = sheetNames.includes(this.grid.activeSheet) ? this.grid.activeSheet : sheetNames[0];
@@ -422,7 +448,7 @@ export class SheetAdapter {
       </config:config-item-map-entry></config:config-item-map-indexed>
     </config:config-item-set>
   </office:settings>
-  <office:body><office:spreadsheet>${tablesXml}</office:spreadsheet></office:body>
+  <office:body><office:spreadsheet>${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}</office:spreadsheet></office:body>
 </office:document>`;
   }
 
@@ -463,6 +489,15 @@ export class SheetAdapter {
     const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {} };
     if (!xmlText) return workbook;
     const numberStyles = this._parseNumberStyles(xmlText);
+    const tableBlocks = [];
+    xmlText.replace(/<table:table\b([^>]*)>([\s\S]*?)<\/table:table>/gi, all => { tableBlocks.push(all); return all; });
+    const workbookOnlyXml = tableBlocks.reduce((text, block) => text.replace(block, ""), xmlText);
+    let workbookNameIndex = 0;
+    workbookOnlyXml.replace(/<table:named-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
+      const range = this._parseNamedRangeElement(attrs, "workbook", "", ++workbookNameIndex);
+      if (range) workbook.namedRangesWorkbook.push(range);
+      return "";
+    });
 
     if (typeof DOMParser !== "undefined") {
       const doc = new DOMParser().parseFromString(xmlText, "text/xml");
@@ -474,6 +509,13 @@ export class SheetAdapter {
           const name = table.getAttribute("table:name") || `Trang tính ${tableIndex + 1}`;
           const data = new Map();
           const comments = {};
+          const localRanges = [];
+          let localNameIndex = 0;
+          table.outerHTML.replace(/<table:named-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
+            const range = this._parseNamedRangeElement(attrs, "sheet", name, ++localNameIndex);
+            if (range) localRanges.push(range);
+            return "";
+          });
           const columnStyles = [];
           Array.from(table.children).filter(element => element.localName === "table-column").forEach(column => {
             const repeat = Math.max(1, Number(column.getAttribute("table:number-columns-repeated")) || 1);
@@ -514,6 +556,7 @@ export class SheetAdapter {
           workbook.sheets.push(name);
           workbook.sheetsData[name] = data;
           workbook.commentsBySheet[name] = comments;
+          workbook.namedRangesBySheet[name] = localRanges;
         });
       }
     }
@@ -530,6 +573,13 @@ export class SheetAdapter {
         const name = this._unescapeXml(nameMatch?.[1] || `Trang tính ${tableIndex}`);
         const data = new Map();
         const comments = {};
+        const localRanges = [];
+        let localNameIndex = 0;
+        tableMatch[2].replace(/<table:named-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
+          const range = this._parseNamedRangeElement(attrs, "sheet", name, ++localNameIndex);
+          if (range) localRanges.push(range);
+          return "";
+        });
         const columnStyles = [];
         tableMatch[2].replace(/<table:table-column\b([^>]*)\/?\s*>/gi, (_, attrs) => {
           const repeat = Math.max(1, Number(attrs.match(/table:number-columns-repeated=["'](\d+)["']/i)?.[1]) || 1);
@@ -582,6 +632,7 @@ export class SheetAdapter {
         workbook.sheets.push(name);
         workbook.sheetsData[name] = data;
         workbook.commentsBySheet[name] = comments;
+        workbook.namedRangesBySheet[name] = localRanges;
       }
     }
     if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
@@ -597,11 +648,14 @@ export class SheetAdapter {
     this.grid.sheets = [firstSheet];
     this.grid.sheetsData = { [firstSheet]: workbook.sheetsData[firstSheet] };
     this.grid.commentsBySheet = { [firstSheet]: workbook.commentsBySheet[firstSheet] || {} };
+    this.grid.namedRangesWorkbook = workbook.namedRangesWorkbook || [];
+    this.grid.namedRangesBySheet = { [firstSheet]: workbook.namedRangesBySheet[firstSheet] || [] };
     for (const sheetName of workbook.sheets.slice(1)) {
       if (typeof this.grid.addSheet === "function") this.grid.addSheet(sheetName, false);
       else this.grid.sheets.push(sheetName);
       this.grid.sheetsData[sheetName] = workbook.sheetsData[sheetName];
       this.grid.commentsBySheet[sheetName] = workbook.commentsBySheet[sheetName] || {};
+      this.grid.namedRangesBySheet[sheetName] = workbook.namedRangesBySheet[sheetName] || [];
     }
     if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet);
     else this.grid.activeSheet = workbook.activeSheet;

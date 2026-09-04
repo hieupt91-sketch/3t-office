@@ -4,6 +4,7 @@ import { SHEET_RIBBON_TABS } from "../../apps/sheet/sheet-ribbon.js";
 import { SHEET_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
 import { VN_TO_UNO_MAP } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
+import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 
 export async function runSheetNamedRangesTextDateTests() {
   const results = [];
@@ -70,6 +71,18 @@ export async function runSheetNamedRangesTextDateTests() {
     grid.switchSheet("Nhân sự"); const item = grid.saveNamedRange({ name: "NhanSu", ref: "A1:A2", scope: "sheet" });
     grid.deleteSheet("Nhân sự"); assert(!grid.namedRangesBySheet["Nhân sự"], "Còn rác named range");
     grid.undo(); assert(grid.namedRangesBySheet["Nhân sự"].some(range => range.id === item.id), "Undo không phục hồi named range");
+  });
+  test("Named ranges round-trip qua table:named-expressions ODF chuẩn và giữ scope", () => {
+    const first = grid.sheets[0];
+    grid.switchSheet(first);
+    grid.namedRangesWorkbook = [{ id: "w1", name: "TongNam", ref: "A1:A3", scope: "workbook", sheet: first }];
+    grid.namedRangesBySheet[first] = [{ id: "s1", name: "ChiTieu", ref: "A2:A3", scope: "sheet", sheet: first }];
+    const adapter = new SheetAdapter(grid);
+    const xml = adapter.serializeToFods();
+    assert(xml.includes("<table:named-expressions>") && xml.includes('table:name="TongNam"'), "Thiếu named range ODF");
+    const parsed = adapter.parseFods(xml);
+    assert(parsed.namedRangesWorkbook[0]?.ref === "A1:A3", "Sai workbook range");
+    assert(parsed.namedRangesBySheet[first][0]?.scope === "sheet", "Sai sheet scope");
   });
   test("Name Manager có command, UNO mapping, ribbon và icon SVG thật", () => {
     assert(SHEET_COMMANDS.some(command => command.id === "sheet.formula.nameManager"), "Thiếu command");
