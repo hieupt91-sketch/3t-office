@@ -156,8 +156,26 @@ export class WriterApp {
     this.adapter.attach();
 
     this._mountStyleGalleryRibbonStrip();
+    this._watchRibbonForStyleGalleryStrip();
     this._setupContentObserver();
     console.log("[WriterApp] Đã khởi tạo VN Writer chuẩn hóa cao cấp.");
+  }
+
+  /**
+   * `_mountStyleGalleryRibbonStrip()` chèn dải thẻ kiểu trực tiếp vào DOM ribbon đã
+   * dựng sẵn (không qua cấu trúc `WRITER_RIBBON_TABS`). Mỗi lần đổi tab, `RibbonHost.render()`
+   * xóa sạch `innerHTML` rồi dựng lại toàn bộ ribbon từ đầu — nên dải kiểu bị mất và
+   * KHÔNG bao giờ tự chèn lại (bug thật: người dùng thấy dải kiểu "biến mất" sau khi
+   * chuyển tab rồi quay lại, chứ không phải "đã hết lỗi"). Theo dõi bằng MutationObserver
+   * để tự chèn lại mỗi khi ribbon được dựng lại.
+   */
+  _watchRibbonForStyleGalleryStrip() {
+    if (typeof MutationObserver === "undefined" || !this.mountElement) return;
+    if (this._styleGalleryObserver) return;
+    this._styleGalleryObserver = new MutationObserver(() => {
+      this._mountStyleGalleryRibbonStrip();
+    });
+    this._styleGalleryObserver.observe(this.mountElement, { childList: true, subtree: true });
   }
 
   _mountStyleGalleryRibbonStrip() {
