@@ -736,6 +736,10 @@ export class SheetGridController {
         e.preventDefault();
         globalCommandBus?.execute?.("common.edit.cut");
         return;
+      } else if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === "1") {
+        e.preventDefault();
+        this.showFormatCellsDialog();
+        return;
       } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
         // Gõ TRỰC TIẾP bất kỳ ký tự in được nào khi đang chọn ô (không bấm F2 trước) phải
         // THAY THẾ nội dung ô đó và vào chế độ sửa — đúng hành vi cơ bản nhất của Excel.
@@ -1262,7 +1266,17 @@ export class SheetGridController {
     FormatCellsDialog.show({
       currentConfig: item?.style?.numberFormat,
       sampleValue: item?.val,
-      onApply: (config) => this.applyNumberFormat(config)
+      onApply: (config) => {
+        this.applyNumberFormat(config);
+        if (typeof this.container?.focus === "function") {
+          this.container.focus({ preventScroll: true });
+        }
+      },
+      onClose: () => {
+        if (typeof this.container?.focus === "function") {
+          this.container.focus({ preventScroll: true });
+        }
+      }
     });
     return true;
   }

@@ -276,8 +276,16 @@ export async function runSheetFormatCellsTests() {
     assert(grid.cellsData.get("A2")?.style?.numberFormat?.category === "percentage", "Sau redo A2 khôi phục percentage");
   });
 
-  // 10. FODS Round-Trip Test
-  test("SheetAdapter: FODS round-trip lưu và phục hồi thuộc tính vno:number-format", () => {
+  // 10. FODS Round-Trip Test — LƯU Ý: đây là round-trip TRONG BỘ NHỚ (serializeToFods
+  // -> parseFods trực tiếp), xác nhận logic của chính adapter là đúng. Đã kiểm tra riêng
+  // bằng soffice.exe headless thật (FODS -> XLSX -> FODS) và xác nhận thuộc tính tùy biến
+  // `vno:number-format` KHÔNG sống sót qua một vòng chuyển đổi XLSX thật — LibreOffice loại
+  // bỏ mọi thuộc tính namespace lạ ở cấp <table:table-cell> khi convert sang XLSX. Vì vậy
+  // Format Cells hiện chỉ lưu định dạng số trong PHIÊN LÀM VIỆC hiện tại; Lưu ra XLSX thật
+  // rồi Mở lại sẽ mất định dạng (giá trị số/chuỗi vẫn giữ đúng, không mất dữ liệu). Việc lưu
+  // định dạng số bền qua file thật cần ánh xạ sang cơ chế ODF chuẩn (<number:number-style>
+  // + table:style-name) — xem docs/HANDOFF-SHEET-FORMAT-CELLS.md mục "Giới hạn đã biết".
+  test("SheetAdapter: adapter tự round-trip (trong bộ nhớ) thuộc tính vno:number-format qua serializeToFods/parseFods", () => {
     const container = mockContainer();
     const grid = new SheetGridController(container);
     const adapter = new SheetAdapter(grid);

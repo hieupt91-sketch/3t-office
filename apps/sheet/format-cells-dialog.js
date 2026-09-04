@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office — Format Cells Dialog (Ctrl+1)
  * Hộp thoại Định dạng ô chuẩn phong cách Microsoft Excel & LibreOffice Calc
  */
@@ -14,8 +14,9 @@ export class FormatCellsDialog {
    * @param {Object} [options.currentConfig] Cấu hình định dạng hiện tại của ô
    * @param {any} [options.sampleValue] Giá trị mẫu của ô đang chọn
    * @param {Function} options.onApply Callback khi người dùng nhấn OK (config) => void
+   * @param {Function} [options.onClose] Callback khi hộp thoại đóng () => void
    */
-  static show({ currentConfig = null, sampleValue = 1234.5678, onApply }) {
+  static show({ currentConfig = null, sampleValue = 1234.5678, onApply, onClose }) {
     if (typeof document === "undefined" || !document.body) return;
 
     // Đóng dialog cũ nếu có
@@ -531,6 +532,7 @@ export class FormatCellsDialog {
     const closeDialog = () => {
       document.removeEventListener("keydown", onKeyDown);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (typeof onClose === "function") onClose();
     };
 
     const applyDialog = () => {

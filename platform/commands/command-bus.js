@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office Platform — Global Command Bus
  * Tuân thủ chuẩn 01-architecture/COMMAND-ARCHITECTURE.md
  */
@@ -121,6 +121,13 @@ export class CommandBus {
       console.error(`[CommandBus] Lỗi thực thi lệnh [${commandId}]:`, err);
       throw err;
     }
+  }
+
+  /**
+   * Bí danh tương thích cho execute()
+   */
+  dispatch(commandId, args = null) {
+    return this.execute(commandId, args);
   }
 
   /**
