@@ -72,6 +72,7 @@ export class WriterAdapter {
     this._trackChangesBeforeInputHandler = null;
     this._workflowBeforeInputHandler = null;
     this._workflowInputHandler = null;
+    this._workflowKeydownHandler = null;
     this._resetInlineFormattingOnNextInput = null;
     this._normalizeParagraphAfterHeading = false;
     this._referenceClickHandler = null;
@@ -250,6 +251,29 @@ export class WriterAdapter {
       }
     };
     this.bodyDom.addEventListener("input", this._workflowInputHandler);
+
+    this._workflowKeydownHandler = (event) => {
+      if (event.key !== "Tab") return;
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      const anchor = selection?.anchorNode?.nodeType === 1 ? selection.anchorNode : selection?.anchorNode?.parentElement;
+      const cell = anchor?.closest?.("td,th");
+      if (!cell || !this.bodyDom.contains(cell)) return;
+
+      const table = cell.closest("table");
+      const cells = [...(table?.querySelectorAll?.("td,th") || [])];
+      const currentIndex = cells.indexOf(cell);
+      const nextIndex = currentIndex + (event.shiftKey ? -1 : 1);
+      if (nextIndex < 0 || nextIndex >= cells.length) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      this.bodyDom.focus?.({ preventScroll: true });
+      const range = document.createRange();
+      range.selectNodeContents(cells[nextIndex]);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    };
+    this.bodyDom.addEventListener("keydown", this._workflowKeydownHandler);
   }
 
   _handleTrackChangesBeforeInput(event) {
