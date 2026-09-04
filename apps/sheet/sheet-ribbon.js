@@ -113,12 +113,33 @@ export const SHEET_RIBBON_TABS = [
         launcherCommandId: "sheet.format.cellsDialog",
         launcherTooltip: "Định dạng ô (Ctrl+1)",
         items: [
-          { type: "button", commandId: "sheet.format.currencyVND", isLarge: true },
           {
             type: "column",
             items: [
-              { type: "button", commandId: "sheet.format.percent" },
-              { type: "button", commandId: "sheet.format.cellsDialog" }
+              {
+                type: "select",
+                commandId: "sheet.format.quickCategory",
+                defaultValue: "general",
+                options: [
+                  { value: "general", label: "General" },
+                  { value: "number", label: "Number" },
+                  { value: "currency", label: "Currency" },
+                  { value: "accounting", label: "Accounting" },
+                  { value: "date", label: "Date" },
+                  { value: "percentage", label: "Percentage" },
+                  { value: "scientific", label: "Scientific" },
+                  { value: "text", label: "Text" }
+                ]
+              },
+              {
+                type: "row",
+                items: [
+                  { type: "button", commandId: "sheet.format.currencyVND", iconOnly: true },
+                  { type: "button", commandId: "sheet.format.percent", iconOnly: true },
+                  { type: "button", commandId: "sheet.format.increaseDecimal", iconOnly: true },
+                  { type: "button", commandId: "sheet.format.decreaseDecimal", iconOnly: true }
+                ]
+              }
             ]
           }
         ]

@@ -2221,6 +2221,34 @@ export class SheetGridController {
     });
   }
 
+  applyQuickNumberCategory(category) {
+    const defaults = {
+      general: { category: "general" },
+      number: { category: "number", decimals: 2, useThousands: true, negativeStyle: 0 },
+      currency: { category: "currency", currencySymbol: "₫", decimals: 2, useThousands: true, negativeStyle: 0 },
+      accounting: { category: "accounting", currencySymbol: "₫", decimals: 2 },
+      date: { category: "date", dateFormat: "dd/mm/yyyy" },
+      percentage: { category: "percentage", decimals: 2 },
+      scientific: { category: "scientific", decimals: 2 },
+      text: { category: "text" }
+    };
+    return defaults[category] ? this.applyNumberFormat(defaults[category]) : false;
+  }
+
+  adjustDecimalPlaces(direction) {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const current = this.cellsData.get(key)?.style?.numberFormat;
+    const config = structuredClone(current || {
+      category: "number",
+      decimals: 0,
+      useThousands: false,
+      negativeStyle: 0
+    });
+    if (["general", "text", "date"].includes(config.category)) return false;
+    config.decimals = Math.max(0, Math.min(30, (Number(config.decimals) || 0) + (direction > 0 ? 1 : -1)));
+    return this.applyNumberFormat(config);
+  }
+
   applyCellStyle(presetOrId, range = null, recordUndo = true) {
     let preset = presetOrId;
     if (typeof presetOrId === "string") {

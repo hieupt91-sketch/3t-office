@@ -155,6 +155,9 @@ export const SHEET_COMMANDS = [
   { id: "sheet.format.currencyVND", category: "number", label: "Tiền tệ VNĐ", shortcut: "Ctrl+Shift+4", icon: "currencyVND", tooltip: "Định dạng tiền tệ VNĐ (Ctrl+Shift+4 hoặc Ctrl+Shift+$)" },
   { id: "sheet.format.percent", category: "number", label: "Phần trăm", shortcut: "Ctrl+Shift+5", icon: "currencyVND", tooltip: "Định dạng phần trăm % (Ctrl+Shift+5)" },
   { id: "sheet.format.standard", category: "number", label: "Phân cách hàng nghìn", shortcut: "Ctrl+Shift+1", icon: "currencyVND", tooltip: "Dấu phẩy phân cách hàng nghìn (Ctrl+Shift+1)" },
+  { id: "sheet.format.quickCategory", category: "number", label: "Định dạng số", tooltip: "Chọn nhanh loại định dạng số" },
+  { id: "sheet.format.increaseDecimal", category: "number", label: "Tăng số thập phân", icon: "increaseDecimal", tooltip: "Hiển thị thêm một chữ số thập phân" },
+  { id: "sheet.format.decreaseDecimal", category: "number", label: "Giảm số thập phân", icon: "decreaseDecimal", tooltip: "Hiển thị bớt một chữ số thập phân" },
   { id: "sheet.insert.date", category: "number", label: "Chèn ngày hiện tại", shortcut: "Ctrl+;", icon: "pageBreak", tooltip: "Chèn ngày hôm nay (Ctrl+;)" },
   { id: "sheet.insert.time", category: "number", label: "Chèn giờ hiện tại", shortcut: "Ctrl+Shift+;", icon: "pageBreak", tooltip: "Chèn giờ hiện tại (Ctrl+Shift+;)" },
 

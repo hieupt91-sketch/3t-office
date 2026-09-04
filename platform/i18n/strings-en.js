@@ -126,6 +126,9 @@ export const enStrings = {
     ,"sheet.cell.wrapText": { label: "Wrap Text", tooltip: "Wrap content to fit the column width" }
     ,"sheet.cell.indentIncrease": { label: "Increase Indent", tooltip: "Increase cell content indentation" }
     ,"sheet.cell.indentDecrease": { label: "Decrease Indent", tooltip: "Decrease cell content indentation" }
+    ,"sheet.format.quickCategory": { label: "Number Format", tooltip: "Choose a number format category" }
+    ,"sheet.format.increaseDecimal": { label: "Increase Decimal", tooltip: "Show one more decimal place" }
+    ,"sheet.format.decreaseDecimal": { label: "Decrease Decimal", tooltip: "Show one fewer decimal place" }
     ,"sheet.cell.italic": { label: "Italic", tooltip: "Apply italic formatting (Ctrl+I)" }
     ,"sheet.cell.underline": { label: "Underline", tooltip: "Apply underline formatting (Ctrl+U)" }
     ,"sheet.cell.alignLeft": { label: "Align Left", tooltip: "Align cell contents to the left" }

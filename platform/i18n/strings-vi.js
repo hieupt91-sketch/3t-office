@@ -125,6 +125,9 @@ export const viStrings = {
     ,"sheet.cell.wrapText": { label: "Ngắt dòng tự động", tooltip: "Tự động xuống dòng theo độ rộng cột" }
     ,"sheet.cell.indentIncrease": { label: "Tăng thụt lề", tooltip: "Tăng thụt lề nội dung ô" }
     ,"sheet.cell.indentDecrease": { label: "Giảm thụt lề", tooltip: "Giảm thụt lề nội dung ô" }
+    ,"sheet.format.quickCategory": { label: "Định dạng số", tooltip: "Chọn nhanh loại định dạng số" }
+    ,"sheet.format.increaseDecimal": { label: "Tăng số thập phân", tooltip: "Hiển thị thêm một chữ số thập phân" }
+    ,"sheet.format.decreaseDecimal": { label: "Giảm số thập phân", tooltip: "Hiển thị bớt một chữ số thập phân" }
     ,"sheet.cell.italic": { label: "Nghiêng", tooltip: "Chữ nghiêng (Ctrl+I)" }
     ,"sheet.cell.underline": { label: "Gạch chân", tooltip: "Gạch chân (Ctrl+U)" }
     ,"sheet.cell.alignLeft": { label: "Căn trái", tooltip: "Căn lề trái" }

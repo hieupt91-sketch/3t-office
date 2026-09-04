@@ -1093,6 +1093,15 @@ export class SheetAdapter {
       case "sheet.format.standard":
         return this.grid.formatCurrentCellStandard();
 
+      case "sheet.format.quickCategory":
+        return this.grid.applyQuickNumberCategory(args);
+
+      case "sheet.format.increaseDecimal":
+        return this.grid.adjustDecimalPlaces(1);
+
+      case "sheet.format.decreaseDecimal":
+        return this.grid.adjustDecimalPlaces(-1);
+
       case "sheet.insert.date":
         return this.grid.insertCurrentDate();
 
