@@ -140,6 +140,7 @@ export const VN_TO_UNO_MAP = {
   "sheet.row.insert": ".uno:InsertRowsBefore",
   "sheet.col.insert": ".uno:InsertColumnsBefore",
   "sheet.chart.insert": ".uno:InsertObjectChart",
+  "sheet.insert.image": ".uno:InsertGraphic",
 
   // Slides / Impress
   "slides.slide.new": ".uno:InsertPage",

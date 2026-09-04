@@ -41,6 +41,7 @@ import { runWriterI18nShortcutsTests } from "./unit/writer-i18n-shortcuts.test.j
 import { runSheetArrayFormulaTests } from "./unit/sheet-array-formulas.test.js";
 import { runSlidesDiagramTests } from "./unit/slides-diagrams.test.js";
 import { runShortcutScopeTests } from "./unit/shortcut-scope.test.js";
+import { runSheetImageTests } from "./unit/sheet-images.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -89,7 +90,8 @@ async function runAll() {
     { title: "35. Behavioral & Unit Tests — VN Writer i18n & Word Shortcuts", runner: runWriterI18nShortcutsTests },
     { title: "36. Behavioral Tests — VN Sheet Cross-Sheet & Array Formulas", runner: runSheetArrayFormulaTests },
     { title: "37. Behavioral Tests — VN Slides SmartArt-like Diagrams", runner: runSlidesDiagramTests },
-    { title: "38. Runtime Tests — Active App Shortcut Scope", runner: runShortcutScopeTests }
+    { title: "38. Runtime Tests — Active App Shortcut Scope", runner: runShortcutScopeTests },
+    { title: "39. Behavioral Tests — VN Sheet Insert Pictures", runner: runSheetImageTests }
   ];
 
   for (const suite of suites) {

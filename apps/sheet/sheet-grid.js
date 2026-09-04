@@ -60,6 +60,7 @@ export class SheetGridController {
     this.conditionalFormattingBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.dataValidationsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.chartsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.imagesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
 
     // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
@@ -228,6 +229,11 @@ export class SheetGridController {
     chartLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:6";
     this.chartLayer = chartLayer;
     vp.appendChild(chartLayer);
+    const imageLayer = document.createElement("div");
+    imageLayer.className = "vno-sheet-image-layer";
+    imageLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:7";
+    this.imageLayer = imageLayer;
+    vp.appendChild(imageLayer);
     this.container.appendChild(vp);
 
     // 3. Sheet Tab Bar dưới đáy
@@ -270,6 +276,7 @@ export class SheetGridController {
     this._syncCommandStates();
     this._renderVirtualRows(1, 40);
     this.renderCharts();
+    this.renderImages();
     this.selectCell("A", 1);
     this._bindGridKeyboardNavigation();
   }
@@ -299,6 +306,7 @@ export class SheetGridController {
     this.conditionalFormattingBySheet = { [defaultSheetName]: [] };
     this.dataValidationsBySheet = { [defaultSheetName]: [] };
     this.chartsBySheet = { [defaultSheetName]: [] };
+    this.imagesBySheet = { [defaultSheetName]: [] };
     this.pivotTablesBySheet = { [defaultSheetName]: [] };
     this.isFrozenPanes = false;
     this.isFilterActive = false;
@@ -308,6 +316,7 @@ export class SheetGridController {
     this.redoStack = [];
 
     if (this.chartLayer) this.chartLayer.innerHTML = "";
+    if (this.imageLayer) this.imageLayer.innerHTML = "";
 
     if (this.tabBar && typeof this.tabBar.querySelector === "function") {
       const tabsListEl = this.tabBar.querySelector("#vno-sheet-tabs-list");
@@ -332,6 +341,7 @@ export class SheetGridController {
 
     this._renderVirtualRows(1, 40);
     this.renderCharts();
+    this.renderImages();
     this.selectCell("A", 1);
     if (this.formulaInput) this.formulaInput.value = "";
     this._syncCommandStates();
@@ -353,6 +363,7 @@ export class SheetGridController {
     if (!this.conditionalFormattingBySheet[sheetName]) this.conditionalFormattingBySheet[sheetName] = [];
     if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
     if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
+    if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
     if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
@@ -430,6 +441,7 @@ export class SheetGridController {
     // 6. Re-render lưới hiển thị ảo
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
     this.renderCharts();
+    this.renderImages();
 
     // 7. Cập nhật ô chọn và thanh công thức
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
@@ -454,6 +466,7 @@ export class SheetGridController {
     if (!this.conditionalFormattingBySheet[sheetName]) this.conditionalFormattingBySheet[sheetName] = [];
     if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
     if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
+    if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
     if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
@@ -500,6 +513,7 @@ export class SheetGridController {
     delete this.conditionalFormattingBySheet[sheetName];
     delete this.dataValidationsBySheet[sheetName];
     delete this.chartsBySheet[sheetName];
+    delete this.imagesBySheet[sheetName];
     delete this.pivotTablesBySheet[sheetName];
     delete this.namedRangesBySheet[sheetName];
     delete this.commentsBySheet[sheetName];
@@ -1053,6 +1067,59 @@ export class SheetGridController {
     }
   }
 
+  insertImage(src, anchor = this.selectedCoord, recordUndo = true) {
+    if (typeof src !== "string" || !src.startsWith("data:image/")) return false;
+    const image = {
+      id: `image-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      src,
+      anchor: { c: anchor?.c || this.selectedCoord.c, r: Number(anchor?.r || this.selectedCoord.r) }
+    };
+    this.imagesBySheet[this.activeSheet] ||= [];
+    this.imagesBySheet[this.activeSheet].push(image);
+    this.renderImages();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "imagesBySheet", operation: "insert", index: this.imagesBySheet[this.activeSheet].length - 1, item: structuredClone(image) });
+    return image;
+  }
+
+  deleteImage(imageId, sheetName = this.activeSheet, recordUndo = true) {
+    const images = this.imagesBySheet[sheetName] || [];
+    const index = images.findIndex(image => image.id === imageId);
+    if (index < 0) return false;
+    const [image] = images.splice(index, 1);
+    if (sheetName === this.activeSheet) this.renderImages();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: sheetName, collection: "imagesBySheet", operation: "delete", index, item: structuredClone(image) });
+    return true;
+  }
+
+  renderImages() {
+    if (!this.imageLayer || typeof document === "undefined") return;
+    this.imageLayer.innerHTML = "";
+    for (const image of this.imagesBySheet[this.activeSheet] || []) {
+      const panel = document.createElement("figure");
+      const colOffset = Math.max(0, this.cols.indexOf(image.anchor.c)) * 100 + 46;
+      const rowOffset = Math.max(0, image.anchor.r - 1) * this.rowHeight + 28;
+      panel.className = "vno-sheet-image";
+      panel.dataset.imageId = image.id;
+      panel.dataset.sheet = this.activeSheet;
+      panel.dataset.anchor = `${image.anchor.c}${image.anchor.r}`;
+      panel.style.cssText = `position:absolute;left:${colOffset}px;top:${rowOffset}px;width:240px;min-height:80px;margin:0;padding:5px;background:#fff;border:1px solid #94a3b8;border-radius:6px;box-shadow:0 6px 18px rgba(15,23,42,.2);pointer-events:auto`;
+      const img = document.createElement("img");
+      img.src = image.src;
+      img.alt = t("sheetDialogs.insertedImageAlt");
+      img.style.cssText = "display:block;width:100%;height:auto;max-height:240px;object-fit:contain";
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.dataset.imageDelete = "";
+      remove.setAttribute("aria-label", t("sheetDialogs.deleteImage"));
+      remove.title = t("sheetDialogs.deleteImage");
+      remove.textContent = "×";
+      remove.style.cssText = "position:absolute;right:7px;top:7px;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer;box-shadow:0 1px 4px rgba(15,23,42,.25)";
+      remove.addEventListener("click", () => this.deleteImage(image.id));
+      panel.append(img, remove);
+      this.imageLayer.appendChild(panel);
+    }
+  }
+
   insertCurrentDate() {
     const now = new Date();
     const dateStr = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
@@ -1265,7 +1332,9 @@ export class SheetGridController {
         const index = collection.findIndex(item => item.id === action.item.id);
         if (index >= 0) collection.splice(index, 1);
       }
-      action.collection === "chartsBySheet" ? this.renderCharts() : this._refreshVisibleRuleVisuals();
+      if (action.collection === "chartsBySheet") this.renderCharts();
+      else if (action.collection === "imagesBySheet") this.renderImages();
+      else this._refreshVisibleRuleVisuals();
     } else if (action.type === "named-range") {
       const collection = action.scope === "workbook" ? this.namedRangesWorkbook : (this.namedRangesBySheet[action.sheet] ||= []);
       const desired = direction === "undo" ? action.before : action.after;
@@ -1754,6 +1823,7 @@ export class SheetGridController {
       conditionalFormatting: structuredClone(this.conditionalFormattingBySheet[sheetName] || []),
       dataValidations: structuredClone(this.dataValidationsBySheet[sheetName] || []),
       charts: structuredClone(this.chartsBySheet[sheetName] || []),
+      images: structuredClone(this.imagesBySheet[sheetName] || []),
       pivotTables: structuredClone(this.pivotTablesBySheet[sheetName] || []),
       namedRanges: structuredClone(this.namedRangesBySheet[sheetName] || []),
       comments: structuredClone(this.commentsBySheet[sheetName] || {}),
@@ -1775,6 +1845,7 @@ export class SheetGridController {
     this.conditionalFormattingBySheet[sheetName] = structuredClone(snapshot.conditionalFormatting);
     this.dataValidationsBySheet[sheetName] = structuredClone(snapshot.dataValidations);
     this.chartsBySheet[sheetName] = structuredClone(snapshot.charts);
+    this.imagesBySheet[sheetName] = structuredClone(snapshot.images || []);
     this.pivotTablesBySheet[sheetName] = structuredClone(snapshot.pivotTables || []);
     this.namedRangesBySheet[sheetName] = structuredClone(snapshot.namedRanges || []);
     this.commentsBySheet[sheetName] = structuredClone(snapshot.comments || {});

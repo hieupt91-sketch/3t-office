@@ -163,6 +163,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.row.insert", category: "insert", label: "Chèn hàng", shortcut: "Ctrl+Shift+=", icon: "table", tooltip: "Chèn thêm hàng mới (Ctrl+Shift+=)" },
   { id: "sheet.col.insert", category: "insert", label: "Chèn cột", icon: "table", tooltip: "Chèn thêm cột mới" },
   { id: "sheet.chart.insert", category: "insert", label: "Biểu đồ", icon: "filePrint", tooltip: "Chèn biểu đồ phân tích dữ liệu" }
+  ,{ id: "sheet.insert.image", category: "insert", label: "Chèn ảnh", icon: "image", tooltip: "Chèn ảnh vào ô đang chọn" }
 ];
 
 export const SLIDES_COMMANDS = [

@@ -48,7 +48,7 @@ export const viStrings = {
   },
   sheetRibbon: {
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", ai: "Trợ lý VN AI" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh & Trộn ô", number: "Định dạng số", quickAnalysis: "Tính toán & Dữ liệu", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", pivotTable: "Bảng tổng hợp", cells: "Ô", charts: "Biểu đồ", printArea: "Vùng in", pageBreaks: "Ngắt trang", comments: "Ghi chú", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiAnalysis: "Phân tích dữ liệu AI" }
+    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh & Trộn ô", number: "Định dạng số", quickAnalysis: "Tính toán & Dữ liệu", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", pivotTable: "Bảng tổng hợp", cells: "Ô", illustrations: "Minh họa", charts: "Biểu đồ", printArea: "Vùng in", pageBreaks: "Ngắt trang", comments: "Ghi chú", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiAnalysis: "Phân tích dữ liệu AI" }
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", ai: "Trợ lý VN AI" },
@@ -61,7 +61,7 @@ export const viStrings = {
     conditionalFormatting: "Định dạng có điều kiện", rule: "Quy tắc", greaterThan: "Giá trị lớn hơn", lessThan: "Giá trị nhỏ hơn", blankCell: "Ô trống", fillColor: "Màu nền", invalidNumber: "Vui lòng nhập một giá trị số hợp lệ.",
     dataValidation: "Kiểm tra dữ liệu", allow: "Cho phép", list: "Danh sách lựa chọn", numberRange: "Số trong khoảng", listValues: "Các giá trị (cách nhau bằng dấu phẩy)", listPlaceholder: "Đạt, Chưa đạt, Đang xử lý", minimum: "Tối thiểu", maximum: "Tối đa", invalidValidation: "Thông tin kiểm tra dữ liệu chưa hợp lệ.",
     pivotTitle: "Tạo Bảng tổng hợp", pivotSource: "Vùng dữ liệu nguồn (hàng đầu là tiêu đề)", loadFields: "Đọc tên cột", chooseFields: "Chọn trường cho từng vùng:", aggregateFor: "Phép tổng hợp cho {field}", sourceRangeFormat: "Vùng nguồn phải có dạng A1:D20.", sourceNeedsHeaders: "Hàng đầu tiên của vùng nguồn phải có tiêu đề.", uniqueHeaders: "Tiêu đề cột trong vùng nguồn phải là duy nhất.", selectValue: "Hãy chọn ít nhất một trường Values.", columnNotFound: "Không tìm thấy cột {field}.", sourceSheetNotFound: "Không tìm thấy sheet dữ liệu nguồn.",
-    chartDefaultTitle: "Biểu đồ dữ liệu", chartUnsupported: "Kiểu biểu đồ không được hỗ trợ: {type}", chartItem: "Mục {number}", chartNoNumericData: "Vùng đã chọn không có dữ liệu số", chartPiePositive: "Biểu đồ tròn cần giá trị dương", chartInsertFrom: "Chèn biểu đồ từ {range}", selectedRange: "vùng đã chọn", chartType: "Kiểu biểu đồ", chartColumn: "Cột", chartLine: "Đường", chartPie: "Tròn", chartArea: "Miền", insertIntoSheet: "Chèn vào bảng tính"
+    chartDefaultTitle: "Biểu đồ dữ liệu", chartUnsupported: "Kiểu biểu đồ không được hỗ trợ: {type}", chartItem: "Mục {number}", chartNoNumericData: "Vùng đã chọn không có dữ liệu số", chartPiePositive: "Biểu đồ tròn cần giá trị dương", chartInsertFrom: "Chèn biểu đồ từ {range}", selectedRange: "vùng đã chọn", chartType: "Kiểu biểu đồ", chartColumn: "Cột", chartLine: "Đường", chartPie: "Tròn", chartArea: "Miền", insertIntoSheet: "Chèn vào bảng tính", insertedImageAlt: "Ảnh được chèn trong trang tính", deleteImage: "Xóa ảnh"
   },
   slidesDialogs: {
     close: "Đóng", cancel: "Hủy bỏ", apply: "Áp dụng", preview: "Xem thử", delete: "Xóa",
@@ -138,6 +138,7 @@ export const viStrings = {
     ,"sheet.row.insert": { label: "Chèn hàng", tooltip: "Chèn thêm hàng mới (Ctrl+Shift+=)" }
     ,"sheet.col.insert": { label: "Chèn cột", tooltip: "Chèn thêm cột mới" }
     ,"sheet.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ phân tích dữ liệu" }
+    ,"sheet.insert.image": { label: "Chèn ảnh", tooltip: "Chèn ảnh vào ô đang chọn" }
     ,"slides.review.commentInsert": { label: "Nhận xét mới", tooltip: "Thêm nhận xét cho trang chiếu hiện tại" }
     ,"slides.slide.new": { label: "Trang mới", tooltip: "Chèn trang chiếu mới (Ctrl+M)" }
     ,"slides.layout.apply": { label: "Bố cục", tooltip: "Thay đổi bố cục trang chiếu (Tiêu đề, Nội dung, Hai cột, Trống)" }

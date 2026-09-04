@@ -36,8 +36,30 @@ for (const locale of ["vi", "en"]) {
     await page.keyboard.press("Control+Y");
     const redone = await page.evaluate(async () => (await import("/adapters/libreoffice/common/uno-bridge.js")).globalUnoBridge.activeDocument.canvas.masterTheme.themeId);
     if (redone !== "energetic-orange") throw new Error(`Redo theme sai: ${redone}`);
+    await page.click("#vno-switcher-toggle");
+    await page.click('[data-switch="sheet"]');
+    await page.waitForSelector(".vno-sheet-container");
+    await page.click('.vno-grid-cell[data-coord="C5"]');
+    await page.locator(".vno-ribbon-tab").filter({ hasText: locale === "vi" ? /^Chèn$/ : /^Insert$/ }).click();
+    const [chooser] = await Promise.all([
+      page.waitForEvent("filechooser"),
+      page.click('[data-command-id="sheet.insert.image"]')
+    ]);
+    await chooser.setFiles({ name: "minh-hoa.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64") });
+    await page.waitForSelector('.vno-sheet-image[data-anchor="C5"] img');
+    const insertedImage = await page.evaluate(async () => {
+      const grid = (await import("/adapters/libreoffice/common/uno-bridge.js")).globalUnoBridge.activeDocument.grid;
+      return { count: grid.imagesBySheet[grid.activeSheet].length, anchor: grid.imagesBySheet[grid.activeSheet][0]?.anchor, history: grid.undoStack.at(-1)?.collection };
+    });
+    if (insertedImage.count !== 1 || insertedImage.anchor?.c !== "C" || insertedImage.anchor?.r !== 5 || insertedImage.history !== "imagesBySheet") throw new Error(`Insert image sai: ${JSON.stringify(insertedImage)}`);
+    await page.click("[data-image-delete]");
+    if (await page.locator(".vno-sheet-image").count()) throw new Error("Nút xóa ảnh không xóa overlay");
+    await page.keyboard.press("Control+Z");
+    if (await page.locator(".vno-sheet-image").count() !== 1) throw new Error("Undo xóa ảnh không khôi phục overlay");
+    await page.keyboard.press("Control+Y");
+    if (await page.locator(".vno-sheet-image").count() !== 0) throw new Error("Redo xóa ảnh không loại overlay");
     if (errors.length) throw new Error(`Page errors: ${errors.join(" | ")}`);
-    console.log(`PASS\t${locale}\tTheme Gallery click + apply + Undo/Redo`);
+    console.log(`PASS\t${locale}\tTheme Gallery + Sheet Pictures click/file chooser/delete/Undo/Redo`);
   } catch (error) {
     failures++;
     console.error(`FAIL\t${locale}\tTheme Gallery\t${error.message}`);

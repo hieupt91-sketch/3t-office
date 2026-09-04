@@ -49,7 +49,7 @@ export const enStrings = {
   },
   sheetRibbon: {
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", ai: "VN AI Assistant" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", quickAnalysis: "Editing & Data", functionLibrary: "Function Library", definedNames: "Defined Names", sortFilter: "Sort & Filter", dataTools: "Data Tools", pivotTable: "PivotTable", cells: "Cells", charts: "Charts", printArea: "Print Area", pageBreaks: "Page Breaks", comments: "Comments", show: "Show", zoom: "Zoom", window: "Window", aiAnalysis: "AI Data Analysis" }
+    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", quickAnalysis: "Editing & Data", functionLibrary: "Function Library", definedNames: "Defined Names", sortFilter: "Sort & Filter", dataTools: "Data Tools", pivotTable: "PivotTable", cells: "Cells", illustrations: "Illustrations", charts: "Charts", printArea: "Print Area", pageBreaks: "Page Breaks", comments: "Comments", show: "Show", zoom: "Zoom", window: "Window", aiAnalysis: "AI Data Analysis" }
   },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", ai: "VN AI Assistant" },
@@ -62,7 +62,7 @@ export const enStrings = {
     conditionalFormatting: "Conditional Formatting", rule: "Rule", greaterThan: "Greater Than", lessThan: "Less Than", blankCell: "Blanks", fillColor: "Fill Color", invalidNumber: "Enter a valid number.",
     dataValidation: "Data Validation", allow: "Allow", list: "List", numberRange: "Whole number range", listValues: "Source values (comma-separated)", listPlaceholder: "Approved, Rejected, In progress", minimum: "Minimum", maximum: "Maximum", invalidValidation: "The data validation settings are not valid.",
     pivotTitle: "Create PivotTable", pivotSource: "Table/Range (first row contains headers)", loadFields: "Load Fields", chooseFields: "Choose fields for each area:", aggregateFor: "Summarize values by for {field}", sourceRangeFormat: "The source range must use a format such as A1:D20.", sourceNeedsHeaders: "The first row of the source range must contain headers.", uniqueHeaders: "Each source column must have a unique header.", selectValue: "Select at least one Values field.", columnNotFound: "Column {field} was not found.", sourceSheetNotFound: "The source worksheet was not found.",
-    chartDefaultTitle: "Data Chart", chartUnsupported: "Unsupported chart type: {type}", chartItem: "Item {number}", chartNoNumericData: "The selected range contains no numeric data", chartPiePositive: "A pie chart requires positive values", chartInsertFrom: "Insert Chart from {range}", selectedRange: "selected range", chartType: "Chart Type", chartColumn: "Column", chartLine: "Line", chartPie: "Pie", chartArea: "Area", insertIntoSheet: "Insert into Worksheet"
+    chartDefaultTitle: "Data Chart", chartUnsupported: "Unsupported chart type: {type}", chartItem: "Item {number}", chartNoNumericData: "The selected range contains no numeric data", chartPiePositive: "A pie chart requires positive values", chartInsertFrom: "Insert Chart from {range}", selectedRange: "selected range", chartType: "Chart Type", chartColumn: "Column", chartLine: "Line", chartPie: "Pie", chartArea: "Area", insertIntoSheet: "Insert into Worksheet", insertedImageAlt: "Image inserted in the worksheet", deleteImage: "Delete image"
   },
   slidesDialogs: {
     close: "Close", cancel: "Cancel", apply: "Apply", preview: "Preview", delete: "Delete",
@@ -139,6 +139,7 @@ export const enStrings = {
     ,"sheet.row.insert": { label: "Insert Row", tooltip: "Insert a new row (Ctrl+Shift+=)" }
     ,"sheet.col.insert": { label: "Insert Column", tooltip: "Insert a new column" }
     ,"sheet.chart.insert": { label: "Chart", tooltip: "Insert a chart to visualize data" }
+    ,"sheet.insert.image": { label: "Pictures", tooltip: "Insert a picture at the selected cell" }
     ,"slides.review.commentInsert": { label: "New Comment", tooltip: "Add a comment to the current slide" }
     ,"slides.slide.new": { label: "New Slide", tooltip: "Insert a new slide (Ctrl+M)" }
     ,"slides.layout.apply": { label: "Layout", tooltip: "Change the slide layout (Title, Content, Two Content, Blank)" }
