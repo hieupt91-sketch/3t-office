@@ -73,12 +73,15 @@ export const SHEET_RIBBON_TABS = [
       {
         label: "Định dạng số",
         labelKey: "sheetRibbon.group.number",
+        launcherCommandId: "sheet.format.cellsDialog",
+        launcherTooltip: "Định dạng ô (Ctrl+1)",
         items: [
           { type: "button", commandId: "sheet.format.currencyVND", isLarge: true },
           {
             type: "column",
             items: [
-              { type: "button", commandId: "sheet.format.percent" }
+              { type: "button", commandId: "sheet.format.percent" },
+              { type: "button", commandId: "sheet.format.cellsDialog" }
             ]
           }
         ]

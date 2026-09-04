@@ -491,5 +491,20 @@ export const ICONS = {
   hyperlink: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
     <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+  </svg>`,
+
+  // Hộp thoại định dạng ô & Dialog launcher
+  formatCells: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="4" width="18" height="16" rx="2" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.5"/>
+    <line x1="3" y1="10" x2="21" y2="10" stroke="#0F6D38" stroke-width="1.2"/>
+    <line x1="10" y1="4" x2="10" y2="20" stroke="#0F6D38" stroke-width="1.2"/>
+    <text x="5" y="8.5" fill="#0F6D38" font-size="5" font-weight="700" font-family="sans-serif">12</text>
+    <text x="12" y="8.5" fill="#0F6D38" font-size="5" font-weight="700" font-family="sans-serif">₫</text>
+    <path d="M14 14l3 3m0-3l-3 3" stroke="#2563EB" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`,
+
+  dialogLauncher: `<svg viewBox="0 0 14 14" width="10" height="10" fill="none">
+    <path d="M2 11h9V2" stroke="#94A3B8" stroke-width="1.2"/>
+    <path d="M11 11L5 5m0 0h4m-4 0v4" stroke="#475569" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`
 };

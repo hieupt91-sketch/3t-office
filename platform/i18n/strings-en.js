@@ -110,6 +110,7 @@ export const enStrings = {
     ,"sheet.cell.borders": { label: "Borders", tooltip: "Apply borders to the selected cells" }
     ,"sheet.cell.fillColor": { label: "Fill Color", tooltip: "Change the background color of selected cells" }
     ,"sheet.cell.textColor": { label: "Font Color", tooltip: "Change the text color in selected cells" }
+    ,"sheet.format.cellsDialog": { label: "Format Cells...", tooltip: "Open the Format Cells dialog (Ctrl+1)" }
     ,"sheet.format.currencyVND": { label: "VND Currency", tooltip: "Apply VND currency format (Ctrl+Shift+4 or Ctrl+Shift+$)" }
     ,"sheet.format.percent": { label: "Percent Style", tooltip: "Apply percentage format (Ctrl+Shift+5)" }
     ,"sheet.format.standard": { label: "Comma Style", tooltip: "Apply number format with thousands separators (Ctrl+Shift+1)" }
@@ -424,5 +425,41 @@ export const enStrings = {
       jumpToEndnote: "Click to jump to endnote",
       jumpToRef: "Jump to reference"
     }
+  },
+  sheetFormatCells: {
+    dialogTitle: "Format Cells",
+    tabNumber: "Number",
+    tabAlignment: "Alignment",
+    tabFont: "Font",
+    tabBorder: "Border",
+    tabFill: "Fill",
+    tabProtection: "Protection",
+    categoryLabel: "Category:",
+    sampleLabel: "Sample:",
+    catGeneral: "General",
+    catNumber: "Number",
+    catCurrency: "Currency",
+    catAccounting: "Accounting",
+    catDate: "Date",
+    catPercentage: "Percentage",
+    catScientific: "Scientific",
+    catText: "Text",
+    catCustom: "Custom",
+    generalDesc: "General format cells have no specific number format.",
+    decimalPlaces: "Decimal places:",
+    useThousands: "Use 1000 Separator (,)",
+    negativeNumbers: "Negative numbers:",
+    currencySymbol: "Symbol:",
+    noSymbol: "(None)",
+    accountingTitle: "Accounting Format Features:",
+    accountingRule1: "Currency symbols line up at the left edge of the cell.",
+    accountingRule2: "Numbers align to the right to line up decimal points.",
+    accountingRule3: "Zero values display as a dash (-).",
+    accountingRule4: "Negative numbers appear in parentheses: (1,234.00).",
+    dateType: "Type:",
+    dateLocale: "Locale: Vietnamese (Vietnam)",
+    percentageDesc: "Percentage formats multiply the cell value by 100 and display the result with a percent symbol. Raw cell value remains unchanged. Typing numbers into a percentage-formatted cell will automatically divide by 100.",
+    textDesc: "Text format cells are treated as text even when a number is in the cell. The cell is displayed exactly as entered and mathematical sum formulas ignore these cells.",
+    customType: "Type:"
   }
 };

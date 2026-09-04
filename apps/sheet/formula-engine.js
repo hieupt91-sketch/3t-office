@@ -101,6 +101,13 @@ export class FormulaEngine {
     if (!item) return 0;
     const raw = item.val || "";
 
+    // Ô định dạng Text: giữ nguyên chuỗi thô, không cho tính toán số học
+    if (item.style?.numberFormat?.category === "text") {
+      const textVal = new String(raw);
+      textVal.isTextCell = true;
+      return textVal;
+    }
+
     // Xử lý chuỗi tiền tệ VNĐ (vd: "25.000.000 ₫" -> loại bỏ dấu chấm hàng nghìn -> 25000000)
     const cleaned = raw.toString().replace(/\./g, "").replace(/[^\d-]/g, "");
     if (cleaned && !isNaN(Number(cleaned))) {
@@ -163,6 +170,7 @@ export class FormulaEngine {
 
   collectNumericValues(args) {
     return this.collectValues(args)
+      .filter(v => !(v && v.isTextCell))
       .map(v => typeof v === "number" ? v : Number(v.toString().replace(/[^\d.-]/g, "")))
       .filter(v => !isNaN(v));
   }
@@ -359,7 +367,10 @@ export class FormulaEngine {
       case "SUM": {
         const rawValues = this.collectValues(args);
         if (rawValues.includes("#REF!")) return "#REF!";
-        const nums = rawValues.map(v => typeof v === "number" ? v : Number(String(v).replace(/[^\d.-]/g, ""))).filter(v => !isNaN(v));
+        const nums = rawValues
+          .filter(v => !(v && v.isTextCell))
+          .map(v => typeof v === "number" ? v : Number(String(v).replace(/[^\d.-]/g, "")))
+          .filter(v => !isNaN(v));
         const sum = nums.reduce((acc, v) => acc + v, 0);
         return sum;
       }

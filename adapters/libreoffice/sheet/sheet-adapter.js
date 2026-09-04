@@ -34,6 +34,10 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("common.edit.paste", () => this._pasteIntoSelectedCell());
     globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pasteIntoSelectedCell());
     globalCommandBus.bindHandler("common.edit.selectAll", () => this.grid.selectAll ? this.grid.selectAll() : false);
+    globalCommandBus.bindHandler("sheet.format.cellsDialog", () => this.grid.showFormatCellsDialog());
+    globalCommandBus.bindHandler("sheet.format.currencyVND", () => this.grid.formatCurrentCellCurrencyVND());
+    globalCommandBus.bindHandler("sheet.format.percent", () => this.grid.formatCurrentCellPercent());
+    globalCommandBus.bindHandler("sheet.format.standard", () => this.grid.formatCurrentCellStandard());
     globalCommandBus.bindHandler("sheet.format.conditional", () => this.grid.showConditionalFormattingDialog());
     globalCommandBus.bindHandler("sheet.data.validation", () => this.grid.showDataValidationDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
@@ -241,11 +245,15 @@ export class SheetAdapter {
           const formulaAttrs = formula
             ? ` table:formula="${this._escapeXml(this._formulaToOdf(formula))}" vno:formula="${this._escapeXml(formula)}"`
             : "";
+          const numFmtAttr = item.style?.numberFormat
+            ? ` vno:number-format="${this._escapeXml(JSON.stringify(item.style.numberFormat))}"`
+            : "";
+          const cellAttrs = `${formulaAttrs}${numFmtAttr}`;
           if (typeof item.val === "number" && Number.isFinite(item.val)) {
-            cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${formulaAttrs}><text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+            cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}><text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
           } else {
             const text = item.val === undefined || item.val === null ? "" : String(item.val);
-            cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${formulaAttrs}><text:p>${this._escapeXml(text)}</text:p></table:table-cell>`;
+            cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${cellAttrs}><text:p>${this._escapeXml(text)}</text:p></table:table-cell>`;
           }
           previousColumn = columnNumber;
         }
@@ -293,7 +301,20 @@ export class SheetAdapter {
       value = get("office:string-value");
     }
     const formula = get("vno:formula") || this._formulaFromOdf(get("table:formula"));
-    return { val: value, formula, style: {} };
+    const style = {};
+    const numFmtAttr = get("vno:number-format");
+    if (numFmtAttr) {
+      try {
+        style.numberFormat = JSON.parse(numFmtAttr);
+      } catch (e) {
+        // ignore parse error
+      }
+    } else if (valueType === "percentage") {
+      style.numberFormat = { category: "percentage", decimals: 2 };
+    } else if (valueType === "currency") {
+      style.numberFormat = { category: "currency", currencySymbol: "₫", decimals: 0, useThousands: true };
+    }
+    return { val: value, formula, style };
   }
 
   /** Parse FODS into every worksheet, including repeated rows/cells emitted by LibreOffice. */
@@ -663,6 +684,9 @@ export class SheetAdapter {
         const color = (typeof args === "string" && args) ? args : (args?.color || "#DC2626");
         return this.grid.setStyle("color", color);
       }
+
+      case "sheet.format.cellsDialog":
+        return this.grid.showFormatCellsDialog();
 
       case "sheet.format.currencyVND":
         return this.grid.formatCurrentCellCurrencyVND();

@@ -55,17 +55,17 @@ export function t(key, params = {}) {
     if (val && typeof val === "object" && p in val) {
       val = val[p];
     } else {
-      return key; // Fallback về key nếu không tìm thấy
+      return typeof params === "string" ? params : key; // Fallback về chuỗi mặc định hoặc key nếu không tìm thấy
     }
   }
 
-  if (typeof val === "string" && params) {
+  if (typeof val === "string" && params && typeof params === "object") {
     for (const [k, v] of Object.entries(params)) {
-      val = val.replace(new RegExp(`{${k}}`, "g"), String(v));
+      val = val.replaceAll(`{${k}}`, String(v));
     }
   }
 
-  return typeof val === "string" ? val : key;
+  return typeof val === "string" ? val : (typeof params === "string" ? params : key);
 }
 
 /**

@@ -6,6 +6,8 @@ import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { SheetChartBuilder } from "./sheet-chart.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
 import { PivotTableEngine } from "./pivot-table.js";
+import { NumberFormatter } from "./number-formatter.js";
+import { FormatCellsDialog } from "./format-cells-dialog.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 
@@ -618,10 +620,7 @@ export class SheetGridController {
         td.dataset.row = r;
 
         const itm = this.cellsData.get(coordKey);
-        if (itm) {
-          td.textContent = itm.val ?? "";
-          if (itm.style) this._applyStylesToDom(td, itm.style);
-        }
+        this._renderCellVisual(td, itm, c, r);
         this._applyRuleVisuals(td, c, r);
         this._applyAnnotationAndPageVisuals(td, c, r);
 
@@ -736,6 +735,10 @@ export class SheetGridController {
       } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "x" || e.key === "X")) {
         e.preventDefault();
         globalCommandBus?.execute?.("common.edit.cut");
+        return;
+      } else if (e.ctrlKey && !e.altKey && !e.metaKey && e.key === "1") {
+        e.preventDefault();
+        this.showFormatCellsDialog();
         return;
       } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
         // Gõ TRỰC TIẾP bất kỳ ký tự in được nào khi đang chọn ô (không bấm F2 trước) phải
@@ -917,15 +920,14 @@ export class SheetGridController {
       }
     } else {
       item.formula = "";
-      item.val = val;
+      item.val = NumberFormatter.normalizeInputForFormat(val, item.style?.numberFormat);
     }
 
     this.cellsData.set(key, item);
 
     const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
     if (cell) {
-      cell.textContent = item.val;
-      this._applyStylesToDom(cell, item.style);
+      this._renderCellVisual(cell, item, col, row);
       this._applyRuleVisuals(cell, col, row);
     }
 
@@ -954,8 +956,9 @@ export class SheetGridController {
         }
         const dom = sheetName === activeSheet ? this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`) : null;
         if (dom) {
-          dom.textContent = itm.val;
-          this._applyRuleVisuals(dom, ...this._splitCoord(k));
+          const [cCoord, rCoord] = this._splitCoord(k);
+          this._renderCellVisual(dom, itm, cCoord, rCoord);
+          this._applyRuleVisuals(dom, cCoord, rCoord);
         }
       }
       }
@@ -1257,47 +1260,105 @@ export class SheetGridController {
     return true;
   }
 
-  formatCurrentCellCurrencyVND() {
-    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-    const data = this.cellsData.get(key);
-    if (!data || !data.val) return true;
-
-    const num = parseFloat(data.val.toString().replace(/\./g, "").replace(/[^\d-]/g, ""));
-    if (!isNaN(num)) {
-      data.val = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(num);
-      this.cellsData.set(key, data);
-      const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
-      if (cell) cell.textContent = data.val;
-    }
+  showFormatCellsDialog() {
+    const activeKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const item = this.cellsData.get(activeKey);
+    FormatCellsDialog.show({
+      currentConfig: item?.style?.numberFormat,
+      sampleValue: item?.val,
+      onApply: (config) => {
+        this.applyNumberFormat(config);
+        if (typeof this.container?.focus === "function") {
+          this.container.focus({ preventScroll: true });
+        }
+      },
+      onClose: () => {
+        if (typeof this.container?.focus === "function") {
+          this.container.focus({ preventScroll: true });
+        }
+      }
+    });
     return true;
+  }
+
+  applyNumberFormat(config, range = null, recordUndo = true) {
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+
+    const before = {};
+    const after = {};
+
+    coords.forEach(coord => {
+      const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      before[coord] = {
+        numberFormat: existing.style?.numberFormat ? structuredClone(existing.style.numberFormat) : null,
+        style: structuredClone(existing.style || {}),
+        val: existing.val
+      };
+
+      existing.style = existing.style ? structuredClone(existing.style) : {};
+
+      if (!config || config.category === "general") {
+        delete existing.style.numberFormat;
+      } else {
+        existing.style.numberFormat = structuredClone(config);
+      }
+
+      if (config?.category === "text") {
+        existing.style.textAlign = "left";
+      }
+
+      after[coord] = {
+        numberFormat: existing.style?.numberFormat ? structuredClone(existing.style.numberFormat) : null,
+        style: structuredClone(existing.style || {}),
+        val: existing.val
+      };
+
+      this.cellsData.set(coord, existing);
+
+      const [c, r] = this._splitCoord(coord);
+      const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        this._renderCellVisual(dom, existing, c, r);
+      }
+    });
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "format-cells",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    return true;
+  }
+
+  formatCurrentCellCurrencyVND() {
+    return this.applyNumberFormat({
+      category: "currency",
+      currencySymbol: "₫",
+      decimals: 0,
+      useThousands: true,
+      negativeStyle: 0
+    });
   }
 
   formatCurrentCellPercent() {
-    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-    const data = this.cellsData.get(key);
-    if (!data || !data.val) return true;
-    const num = parseFloat(data.val.toString().replace(/[^\d.]/g, ""));
-    if (!isNaN(num)) {
-      data.val = `${num}%`;
-      this.cellsData.set(key, data);
-      const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
-      if (cell) cell.textContent = data.val;
-    }
-    return true;
+    return this.applyNumberFormat({
+      category: "percentage",
+      decimals: 2
+    });
   }
 
   formatCurrentCellStandard() {
-    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-    const data = this.cellsData.get(key);
-    if (!data || !data.val) return true;
-    const num = parseFloat(data.val.toString().replace(/\./g, "").replace(/[^\d-]/g, ""));
-    if (!isNaN(num)) {
-      data.val = new Intl.NumberFormat("vi-VN").format(num);
-      this.cellsData.set(key, data);
-      const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
-      if (cell) cell.textContent = data.val;
-    }
-    return true;
+    return this.applyNumberFormat({
+      category: "number",
+      decimals: 2,
+      useThousands: true,
+      negativeStyle: 0
+    });
   }
 
   setStyle(prop, val, recordUndo = true) {
@@ -1450,6 +1511,23 @@ export class SheetGridController {
     } else if (action.type === "style") {
       this.selectedCoord = { c: action.col, r: action.row };
       this.setStyle(action.prop, action[value], false);
+    } else if (action.type === "format-cells") {
+      const snapshots = direction === "undo" ? action.before : action.after;
+      for (const [coord, snap] of Object.entries(snapshots)) {
+        const itm = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+        itm.style = structuredClone(snap.style || {});
+        if (snap.numberFormat) {
+          itm.style.numberFormat = structuredClone(snap.numberFormat);
+        } else {
+          delete itm.style.numberFormat;
+        }
+        this.cellsData.set(coord, itm);
+        const [c, r] = this._splitCoord(coord);
+        const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+        if (dom) {
+          this._renderCellVisual(dom, itm, c, r);
+        }
+      }
     } else if (action.type === "sort") {
       this._restoreCells(direction === "undo" ? action.before : action.after);
     } else if (action.type === "pivot-refresh") {
@@ -2586,8 +2664,40 @@ export class SheetGridController {
   }
 
   _applyStylesToDom(dom, styles) {
+    if (!dom || !styles) return;
     for (const [k, v] of Object.entries(styles)) {
+      if (k === "numberFormat") continue;
       dom.style[k] = v;
+    }
+  }
+
+  _renderCellVisual(td, itm, col, row) {
+    if (!td) return;
+    if (!itm) {
+      td.textContent = "";
+      td.style.color = "";
+      td.style.textAlign = "";
+      return;
+    }
+
+    if (itm.style) {
+      this._applyStylesToDom(td, itm.style);
+    }
+
+    if (itm.style?.numberFormat) {
+      const formatted = NumberFormatter.formatValue(itm.val, itm.style.numberFormat);
+      if (formatted.isAccounting) {
+        td.innerHTML = `<span class="vno-cell-accounting-symbol" style="float:left;user-select:none;color:inherit;">${formatted.symbol || ""}</span><span class="vno-cell-accounting-num" style="float:right;color:inherit;">${formatted.numberText}</span>`;
+        td.style.textAlign = "right";
+      } else {
+        td.textContent = formatted.text;
+        if (formatted.isRed) td.style.color = "#dc2626";
+        else if (itm.style?.color) td.style.color = itm.style.color;
+        if (formatted.align) td.style.textAlign = formatted.align;
+        else if (itm.style?.textAlign) td.style.textAlign = itm.style.textAlign;
+      }
+    } else {
+      td.textContent = itm.val ?? "";
     }
   }
 }

@@ -1,10 +1,12 @@
-﻿/**
+/**
  * VN Office Platform — Ribbon Host Framework
  * Quản lý kết cấu Ribbon động theo app context
  */
 
 import { createCommandButton, createSelect } from "../ui-kit/components.js";
 import { t } from "../i18n/i18n.js";
+import { ICONS } from "../ui-kit/icons.js";
+import { globalCommandBus } from "../commands/command-bus.js";
 
 export class RibbonHost {
   /**
@@ -125,10 +127,31 @@ export class RibbonHost {
 
       groupEl.appendChild(itemsEl);
 
+      const labelRowEl = document.createElement("div");
+      labelRowEl.className = "vno-ribbon-group-footer";
+      labelRowEl.style.cssText = "display:flex; align-items:center; justify-content:center; position:relative; padding-top:2px;";
+
       const labelEl = document.createElement("div");
       labelEl.className = "vno-ribbon-group-label";
       labelEl.textContent = group.label;
-      groupEl.appendChild(labelEl);
+      labelRowEl.appendChild(labelEl);
+
+      if (group.launcherCommandId) {
+        const launcherBtn = document.createElement("button");
+        launcherBtn.className = "vno-ribbon-dialog-launcher";
+        launcherBtn.title = group.launcherTooltip || "Định dạng ô (Ctrl+1)";
+        launcherBtn.setAttribute("data-command", group.launcherCommandId);
+        launcherBtn.style.cssText = "position:absolute; right:0; bottom:0; width:14px; height:14px; padding:0; display:flex; align-items:center; justify-content:center; border:none; background:transparent; cursor:pointer; color:var(--vno-text-muted); opacity:0.75;";
+        launcherBtn.innerHTML = ICONS.dialogLauncher || "";
+        launcherBtn.addEventListener("click", () => {
+          globalCommandBus?.execute?.(group.launcherCommandId);
+        });
+        launcherBtn.addEventListener("mouseenter", () => { launcherBtn.style.opacity = "1"; });
+        launcherBtn.addEventListener("mouseleave", () => { launcherBtn.style.opacity = "0.75"; });
+        labelRowEl.appendChild(launcherBtn);
+      }
+
+      groupEl.appendChild(labelRowEl);
 
       contentPanel.appendChild(groupEl);
     });
