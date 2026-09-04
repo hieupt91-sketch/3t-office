@@ -21,6 +21,12 @@ export async function runFormulaEngineTests() {
   cellsData.set("D2", { val: "3000", formula: "", style: {} });
   cellsData.set("D3", { val: "4200", formula: "", style: {} });
   cellsData.set("D4", { val: "6800", formula: "", style: {} });
+  cellsData.set("E1", { val: "-70000", formula: "", style: {} });
+  cellsData.set("E2", { val: "12000", formula: "", style: {} });
+  cellsData.set("E3", { val: "15000", formula: "", style: {} });
+  cellsData.set("E4", { val: "18000", formula: "", style: {} });
+  cellsData.set("E5", { val: "21000", formula: "", style: {} });
+  cellsData.set("E6", { val: "26000", formula: "", style: {} });
 
   const engine = new FormulaEngine(cellsData);
 
@@ -125,6 +131,15 @@ export async function runFormulaEngineTests() {
     pass: approximatelyEqual(npvRes, 1188.4434123352207, 1e-9) &&
           approximatelyEqual(npvRangeRes, 1188.4434123352207, 1e-9) &&
           engine.evaluate("=NPV(-1,100)") === "#NUM!"
+  });
+
+  // 13. IRR — dòng tiền đầu tư ban đầu và 5 khoản thu cuối năm.
+  // Excel: =IRR(E1:E6) -> 8,66309480365317%
+  const irrRes = engine.evaluate("=IRR(E1:E6)");
+  results.push({
+    name: "Financial IRR: hội tụ đúng nghiệm Excel và báo #NUM! khi không đổi dấu",
+    pass: approximatelyEqual(irrRes, 0.08663094803653172, 1e-9) &&
+          engine.evaluate("=IRR(D2:D4)") === "#NUM!"
   });
 
   return results;

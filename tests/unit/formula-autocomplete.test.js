@@ -169,5 +169,13 @@ export async function runFormulaAutocompleteTests() {
           npv.desc.includes("cuối kỳ đầu tiên")
   });
 
+  const irr = FUNCTION_CATALOG.find(item => item.name === "IRR");
+  results.push({
+    name: "Autocomplete: IRR thuộc nhóm Tài chính và nêu điều kiện đổi dấu dòng tiền",
+    pass: irr?.category === "Tài chính" &&
+          irr.syntax === "IRR(values, [guess])" &&
+          irr.desc.includes("giá trị âm") && irr.desc.includes("giá trị dương")
+  });
+
   return results;
 }

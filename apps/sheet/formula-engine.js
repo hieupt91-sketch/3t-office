@@ -63,6 +63,7 @@ export const FUNCTION_CATALOG = [
   ,{ name: "FV", category: "Tài chính", syntax: "FV(rate, nper, pmt, [pv], [type])", desc: "Tính giá trị tương lai của khoản đầu tư; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
   ,{ name: "PV", category: "Tài chính", syntax: "PV(rate, nper, pmt, [fv], [type])", desc: "Tính giá trị hiện tại của khoản đầu tư hoặc chuỗi thanh toán; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
   ,{ name: "NPV", category: "Tài chính", syntax: "NPV(rate, value1, [value2], ...)", desc: "Tính giá trị hiện tại ròng của chuỗi dòng tiền đều kỳ; value1 được chiết khấu từ cuối kỳ đầu tiên." }
+  ,{ name: "IRR", category: "Tài chính", syntax: "IRR(values, [guess])", desc: "Tính tỷ suất hoàn vốn nội bộ của chuỗi dòng tiền có ít nhất một giá trị âm và một giá trị dương." }
 ];
 
 export class FormulaEngine {
@@ -534,6 +535,25 @@ export class FormulaEngine {
         return Number.isFinite(netPresentValue) ? netPresentValue : "#NUM!";
       }
 
+      case "IRR": {
+        if (args.length < 1) return "#VALUE!";
+        const values = this.collectNumericValues([args[0]]);
+        const guess = args[1] === undefined ? 0.1 : Number(this._resolveSingleValue(args[1]));
+        if (!Number.isFinite(guess) || guess <= -1 ||
+            !values.some(value => value < 0) || !values.some(value => value > 0)) return "#NUM!";
+        const valueAt = rate => values.reduce(
+          (total, value, period) => total + value / Math.pow(1 + rate, period),
+          0
+        );
+        const derivativeAt = rate => values.reduce(
+          (total, value, period) => period === 0
+            ? total
+            : total - period * value / Math.pow(1 + rate, period + 1),
+          0
+        );
+        return this._solveRate(valueAt, derivativeAt, guess);
+      }
+
       // Logic
       case "IF": {
         const condExpr = args[0];
@@ -746,6 +766,59 @@ export class FormulaEngine {
 
   _formatDate(date) {
     return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+  }
+
+  _solveRate(valueAt, derivativeAt, guess) {
+    const tolerance = 1e-10;
+    let rate = guess;
+    for (let iteration = 0; iteration < 100; iteration++) {
+      const value = valueAt(rate);
+      if (Number.isFinite(value) && Math.abs(value) <= tolerance) return rate;
+      const derivative = derivativeAt(rate);
+      if (!Number.isFinite(value) || !Number.isFinite(derivative) || Math.abs(derivative) < 1e-14) break;
+      const nextRate = rate - value / derivative;
+      if (!Number.isFinite(nextRate) || nextRate <= -1) break;
+      if (Math.abs(nextRate - rate) <= tolerance) return nextRate;
+      rate = nextRate;
+    }
+
+    // Fallback chia đôi: quét logarit theo (1 + rate) để phủ cả lãi suất gần -100% và rất lớn.
+    const candidates = [guess];
+    for (let exponent = -64; exponent <= 64; exponent++) {
+      candidates.push(Math.pow(10, exponent / 8) - 1);
+    }
+    candidates.sort((a, b) => a - b);
+    let bestBracket = null;
+    for (let index = 1; index < candidates.length; index++) {
+      const left = candidates[index - 1];
+      const right = candidates[index];
+      const leftValue = valueAt(left);
+      const rightValue = valueAt(right);
+      if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) continue;
+      if (leftValue === 0) return left;
+      if (rightValue === 0) return right;
+      if (leftValue * rightValue < 0) {
+        const distance = Math.abs((left + right) / 2 - guess);
+        if (!bestBracket || distance < bestBracket.distance) bestBracket = { left, right, distance };
+      }
+    }
+    if (!bestBracket) return "#NUM!";
+
+    let { left, right } = bestBracket;
+    let leftValue = valueAt(left);
+    for (let iteration = 0; iteration < 200; iteration++) {
+      const middle = (left + right) / 2;
+      const middleValue = valueAt(middle);
+      if (!Number.isFinite(middleValue)) return "#NUM!";
+      if (Math.abs(middleValue) <= tolerance || Math.abs(right - left) <= tolerance) return middle;
+      if (leftValue * middleValue <= 0) {
+        right = middle;
+      } else {
+        left = middle;
+        leftValue = middleValue;
+      }
+    }
+    return "#NUM!";
   }
 
   _evaluateArithmetic(expr) {
