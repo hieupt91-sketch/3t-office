@@ -8,6 +8,7 @@ import { FormulaAutocompleteController } from "./formula-autocomplete.js";
 import { PivotTableEngine } from "./pivot-table.js";
 import { NumberFormatter } from "./number-formatter.js";
 import { FormatCellsDialog } from "./format-cells-dialog.js";
+import { showCellStylesDialog, showFormatAsTableDialog, CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "./cell-styles.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 
@@ -795,6 +796,14 @@ export class SheetGridController {
         e.preventDefault();
         this.showFormatCellsDialog();
         return;
+      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "d" || e.key === "D")) {
+        e.preventDefault();
+        this.fillDown();
+        return;
+      } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "r" || e.key === "R")) {
+        e.preventDefault();
+        this.fillRight();
+        return;
       } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
         // Gõ TRỰC TIẾP bất kỳ ký tự in được nào khi đang chọn ô (không bấm F2 trước) phải
         // THAY THẾ nội dung ô đó và vào chế độ sửa — đúng hành vi cơ bản nhất của Excel.
@@ -1416,6 +1425,590 @@ export class SheetGridController {
     });
   }
 
+  applyCellStyle(presetOrId, range = null, recordUndo = true) {
+    let preset = presetOrId;
+    if (typeof presetOrId === "string") {
+      preset = CELL_STYLE_PRESETS.find(p => p.id === presetOrId) || { id: presetOrId, style: {} };
+    }
+    if (!preset) return false;
+
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+
+    const before = {};
+    const after = {};
+
+    coords.forEach(coord => {
+      const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      before[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+
+      existing.style = existing.style ? structuredClone(existing.style) : {};
+
+      if (preset.id === "normal") {
+        delete existing.style.backgroundColor;
+        delete existing.style.color;
+        delete existing.style.fontWeight;
+        delete existing.style.fontStyle;
+        delete existing.style.textDecoration;
+        delete existing.style.border;
+        delete existing.style.borderTop;
+        delete existing.style.borderBottom;
+        delete existing.style.fontSize;
+      } else if (preset.style) {
+        Object.assign(existing.style, preset.style);
+      }
+
+      if (preset.numberFormat) {
+        existing.style.numberFormat = structuredClone(preset.numberFormat);
+      }
+
+      after[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+
+      this.cellsData.set(coord, existing);
+
+      const [c, r] = this._splitCoord(coord);
+      const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        this._renderCellVisual(dom, existing, c, r);
+      }
+    });
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "cell-style",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    return true;
+  }
+
+  showCellStylesDialog() {
+    return showCellStylesDialog(this);
+  }
+
+  formatAsTable(presetOrId, range = null, recordUndo = true) {
+    let preset = presetOrId;
+    if (typeof presetOrId === "string") {
+      preset = TABLE_STYLE_PRESETS.find(p => p.id === presetOrId) || TABLE_STYLE_PRESETS[0];
+    }
+    if (!preset) return false;
+
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+
+    const minRow = Math.min(targetRange.start.r, targetRange.end.r);
+
+    const before = {};
+    const after = {};
+
+    coords.forEach(coord => {
+      const [c, r] = this._splitCoord(coord);
+      const rowNum = Number(r);
+      const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+
+      before[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+
+      existing.style = existing.style ? structuredClone(existing.style) : {};
+
+      if (rowNum === minRow) {
+        Object.assign(existing.style, preset.headerStyle);
+      } else {
+        const isEvenBanded = (rowNum - minRow) % 2 === 1;
+        const rowStyle = isEvenBanded ? preset.evenRowStyle : preset.oddRowStyle;
+        Object.assign(existing.style, rowStyle);
+      }
+
+      after[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+
+      this.cellsData.set(coord, existing);
+
+      const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        this._renderCellVisual(dom, existing, c, r);
+      }
+    });
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "format-table",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    return true;
+  }
+
+  showFormatAsTableDialog() {
+    return showFormatAsTableDialog(this);
+  }
+
+  _offsetFormula(formula, deltaCol, deltaRow) {
+    if (!formula || typeof formula !== "string" || !formula.startsWith("=")) return formula;
+    return formula.split(/("(?:""|[^"])*")/).map((segment, index) => {
+      if (index % 2 === 1) return segment;
+      return segment.replace(/(^|[^A-Z0-9_])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Z0-9_])/gi, (match, prefix, colAbs, col, rowAbs, row) => {
+        let nextCol = col.toUpperCase();
+        let nextRow = Number(row);
+        if (!colAbs && deltaCol !== 0) {
+          const colNum = this._columnNumber(nextCol) + deltaCol;
+          if (colNum >= 1 && colNum <= 26) {
+            nextCol = this._columnLabel(colNum);
+          }
+        }
+        if (!rowAbs && deltaRow !== 0) {
+          const rNum = nextRow + deltaRow;
+          if (rNum >= 1) {
+            nextRow = rNum;
+          }
+        }
+        return `${prefix}${colAbs}${nextCol}${rowAbs}${nextRow}`;
+      });
+    }).join("");
+  }
+
+  fillDown(range = null, recordUndo = true) {
+    const rawRange = range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord };
+    const norm = this._normalizeRange(rawRange);
+    const minColNum = this._columnNumber(norm.start.c);
+    const maxColNum = this._columnNumber(norm.end.c);
+    const minRow = norm.start.r;
+    const maxRow = norm.end.r;
+
+    const isSingleRow = (minRow === maxRow);
+    const sourceRow = isSingleRow ? (minRow - 1) : minRow;
+    if (sourceRow < 1) return false;
+
+    const destStartRow = isSingleRow ? minRow : (minRow + 1);
+    const destEndRow = maxRow;
+    if (destStartRow > destEndRow) return false;
+
+    const before = {};
+    const after = {};
+
+    for (let colNum = minColNum; colNum <= maxColNum; colNum++) {
+      const colLabel = this._columnLabel(colNum);
+      const sourceKey = `${colLabel}${sourceRow}`;
+      const sourceCell = this.cellsData.get(sourceKey) || { val: "", formula: "", style: {} };
+
+      for (let r = destStartRow; r <= destEndRow; r++) {
+        const destKey = `${colLabel}${r}`;
+        const existing = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
+        before[destKey] = {
+          val: existing.val,
+          formula: existing.formula,
+          style: structuredClone(existing.style || {})
+        };
+
+        const deltaRow = r - sourceRow;
+        let newFormula = "";
+        let newVal = "";
+        const newStyle = structuredClone(sourceCell.style || {});
+
+        if (sourceCell.formula && sourceCell.formula.startsWith("=")) {
+          newFormula = this._offsetFormula(sourceCell.formula, 0, deltaRow);
+          const calculated = this.formulaEngine.evaluate(newFormula);
+          if (typeof calculated === "number" && !newFormula.toLowerCase().includes("count") && !newFormula.toLowerCase().includes("len")) {
+            newVal = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(calculated);
+          } else {
+            newVal = calculated;
+          }
+        } else {
+          newFormula = "";
+          newVal = sourceCell.val;
+        }
+
+        const newItem = { val: newVal, formula: newFormula, style: newStyle };
+        this.cellsData.set(destKey, newItem);
+
+        after[destKey] = {
+          val: newItem.val,
+          formula: newItem.formula,
+          style: structuredClone(newItem.style)
+        };
+
+        const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${destKey}"]`);
+        if (dom) {
+          this._renderCellVisual(dom, newItem, colLabel, r);
+          this._applyRuleVisuals?.(dom, colLabel, r);
+        }
+      }
+    }
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "fill",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    this._recalculateAllFormulas();
+    return true;
+  }
+
+  fillRight(range = null, recordUndo = true) {
+    const rawRange = range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord };
+    const norm = this._normalizeRange(rawRange);
+    const minColNum = this._columnNumber(norm.start.c);
+    const maxColNum = this._columnNumber(norm.end.c);
+    const minRow = norm.start.r;
+    const maxRow = norm.end.r;
+
+    const isSingleCol = (minColNum === maxColNum);
+    const sourceColNum = isSingleCol ? (minColNum - 1) : minColNum;
+    if (sourceColNum < 1) return false;
+
+    const destStartCol = isSingleCol ? minColNum : (minColNum + 1);
+    const destEndCol = maxColNum;
+    if (destStartCol > destEndCol) return false;
+
+    const before = {};
+    const after = {};
+
+    for (let r = minRow; r <= maxRow; r++) {
+      const sourceColLabel = this._columnLabel(sourceColNum);
+      const sourceKey = `${sourceColLabel}${r}`;
+      const sourceCell = this.cellsData.get(sourceKey) || { val: "", formula: "", style: {} };
+
+      for (let colNum = destStartCol; colNum <= destEndCol; colNum++) {
+        const destColLabel = this._columnLabel(colNum);
+        const destKey = `${destColLabel}${r}`;
+        const existing = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
+        before[destKey] = {
+          val: existing.val,
+          formula: existing.formula,
+          style: structuredClone(existing.style || {})
+        };
+
+        const deltaCol = colNum - sourceColNum;
+        let newFormula = "";
+        let newVal = "";
+        const newStyle = structuredClone(sourceCell.style || {});
+
+        if (sourceCell.formula && sourceCell.formula.startsWith("=")) {
+          newFormula = this._offsetFormula(sourceCell.formula, deltaCol, 0);
+          const calculated = this.formulaEngine.evaluate(newFormula);
+          if (typeof calculated === "number" && !newFormula.toLowerCase().includes("count") && !newFormula.toLowerCase().includes("len")) {
+            newVal = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(calculated);
+          } else {
+            newVal = calculated;
+          }
+        } else {
+          newFormula = "";
+          newVal = sourceCell.val;
+        }
+
+        const newItem = { val: newVal, formula: newFormula, style: newStyle };
+        this.cellsData.set(destKey, newItem);
+
+        after[destKey] = {
+          val: newItem.val,
+          formula: newItem.formula,
+          style: structuredClone(newItem.style)
+        };
+
+        const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${destKey}"]`);
+        if (dom) {
+          this._renderCellVisual(dom, newItem, destColLabel, r);
+          this._applyRuleVisuals?.(dom, destColLabel, r);
+        }
+      }
+    }
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "fill",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    this._recalculateAllFormulas();
+    return true;
+  }
+
+  clearAll(range = null, recordUndo = true) {
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+
+    const before = {};
+    const after = {};
+
+    coords.forEach(coord => {
+      const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      before[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+
+      const newItem = { val: "", formula: "", style: {} };
+      this.cellsData.set(coord, newItem);
+
+      after[coord] = {
+        val: "",
+        formula: "",
+        style: {}
+      };
+
+      const [c, r] = this._splitCoord(coord);
+      const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        dom.style.cssText = "";
+        this._renderCellVisual(dom, newItem, c, r);
+      }
+    });
+
+    if (this.formulaInput && coords.includes(`${this.selectedCoord.c}${this.selectedCoord.r}`)) {
+      this.formulaInput.value = "";
+    }
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "clear",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    this._recalculateAllFormulas();
+    return true;
+  }
+
+  clearFormats(range = null, recordUndo = true) {
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+
+    const before = {};
+    const after = {};
+
+    coords.forEach(coord => {
+      const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      before[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+
+      existing.style = {};
+      this.cellsData.set(coord, existing);
+
+      after[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: {}
+      };
+
+      const [c, r] = this._splitCoord(coord);
+      const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        dom.style.cssText = "";
+        this._renderCellVisual(dom, existing, c, r);
+      }
+    });
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "clear",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    return true;
+  }
+
+  clearContents(range = null, recordUndo = true) {
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+
+    const before = {};
+    const after = {};
+
+    coords.forEach(coord => {
+      const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      before[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+
+      existing.val = "";
+      existing.formula = "";
+      this.cellsData.set(coord, existing);
+
+      after[coord] = {
+        val: "",
+        formula: "",
+        style: structuredClone(existing.style || {})
+      };
+
+      const [c, r] = this._splitCoord(coord);
+      const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        this._renderCellVisual(dom, existing, c, r);
+      }
+    });
+
+    if (this.formulaInput && coords.includes(`${this.selectedCoord.c}${this.selectedCoord.r}`)) {
+      this.formulaInput.value = "";
+    }
+
+    if (recordUndo) {
+      this._recordHistory({
+        type: "clear",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    this._recalculateAllFormulas();
+    return true;
+  }
+
+  showFindDialog() {
+    if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
+
+    return new Promise(resolve => {
+      const overlay = document.createElement("div");
+      overlay.className = "vno-dialog-overlay vno-find-dialog";
+      const titleText = (typeof t === "function" && t("commonDialogs.findTitle") !== "commonDialogs.findTitle")
+        ? t("commonDialogs.findTitle")
+        : "Tìm kiếm trong bảng tính";
+
+      overlay.innerHTML = `
+        <div class="vno-dialog-box" style="width: 380px;" role="dialog" aria-modal="true" aria-labelledby="vno-find-title">
+          <div class="vno-dialog-header">
+            <span id="vno-find-title" style="font-weight:600;font-size:14px;color:#0f172a;">${titleText}</span>
+            <button type="button" class="vno-btn vno-dialog-close-btn" aria-label="Đóng">&times;</button>
+          </div>
+          <div class="vno-dialog-body" style="padding:16px;">
+            <div style="margin-bottom:12px;">
+              <label for="vno-find-query-input" style="display:block;font-size:12px;font-weight:500;color:#334155;margin-bottom:4px;">Nội dung cần tìm:</label>
+              <input type="text" id="vno-find-query-input" class="vno-input" style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;" placeholder="Nhập từ khóa hoặc số..." />
+            </div>
+            <div id="vno-find-status" style="font-size:12px;color:#64748b;min-height:18px;margin-bottom:8px;"></div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;">
+              <button type="button" class="vno-btn" id="vno-find-cancel-btn" style="padding:6px 12px;">Đóng</button>
+              <button type="button" class="vno-btn vno-btn-primary" id="vno-find-next-btn" style="padding:6px 14px;background:#0f6d38;color:#fff;border-radius:4px;border:none;cursor:pointer;">Tìm tiếp</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+
+      const input = overlay.querySelector("#vno-find-query-input");
+      const status = overlay.querySelector("#vno-find-status");
+      const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+      const cancelBtn = overlay.querySelector("#vno-find-cancel-btn");
+      const nextBtn = overlay.querySelector("#vno-find-next-btn");
+
+      let lastFoundCoord = null;
+
+      const doFind = () => {
+        const query = (input?.value || "").trim().toLowerCase();
+        if (!query) {
+          if (status) {
+            status.textContent = "Vui lòng nhập nội dung cần tìm";
+            status.style.color = "#dc2626";
+          }
+          return;
+        }
+
+        const entries = Array.from(this.cellsData.entries());
+        if (entries.length === 0) {
+          if (status) {
+            status.textContent = "Bảng tính hiện chưa có dữ liệu";
+            status.style.color = "#dc2626";
+          }
+          return;
+        }
+
+        let startIndex = 0;
+        if (lastFoundCoord) {
+          const idx = entries.findIndex(([c]) => c === lastFoundCoord);
+          if (idx >= 0) startIndex = idx + 1;
+        }
+
+        let found = null;
+        for (let i = 0; i < entries.length; i++) {
+          const checkIdx = (startIndex + i) % entries.length;
+          const [coord, item] = entries[checkIdx];
+          const valStr = String(item.val ?? "").toLowerCase();
+          const formulaStr = String(item.formula ?? "").toLowerCase();
+          if (valStr.includes(query) || formulaStr.includes(query)) {
+            found = coord;
+            break;
+          }
+        }
+
+        if (found) {
+          lastFoundCoord = found;
+          const [c, r] = this._splitCoord(found);
+          this.selectCell(c, r);
+          if (status) {
+            status.textContent = `Đã tìm thấy tại ô ${found}`;
+            status.style.color = "#0f6d38";
+          }
+        } else {
+          if (status) {
+            status.textContent = `Không tìm thấy "${query}"`;
+            status.style.color = "#dc2626";
+          }
+        }
+      };
+
+      const close = () => {
+        document.removeEventListener("keydown", onKey);
+        overlay.remove();
+        this.container?.focus?.();
+        resolve(true);
+      };
+
+      const onKey = e => {
+        if (e.key === "Escape") close();
+        if (e.key === "Enter" && e.target === input) {
+          e.preventDefault();
+          doFind();
+        }
+        trapFocus(overlay, e);
+      };
+
+      document.addEventListener("keydown", onKey);
+      closeBtn?.addEventListener("click", close);
+      cancelBtn?.addEventListener("click", close);
+      nextBtn?.addEventListener("click", doFind);
+      input?.focus();
+    });
+  }
+
   setStyle(prop, val, recordUndo = true) {
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
@@ -1583,6 +2176,32 @@ export class SheetGridController {
           this._renderCellVisual(dom, itm, c, r);
         }
       }
+    } else if (action.type === "cell-style" || action.type === "format-table" || action.type === "fill" || action.type === "clear" || action.type === "batch-cells") {
+      const snapshots = direction === "undo" ? action.before : action.after;
+      for (const [coord, snap] of Object.entries(snapshots)) {
+        if (!snap) {
+          this.cellsData.delete(coord);
+        } else {
+          const itm = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+          itm.val = snap.val ?? "";
+          itm.formula = snap.formula ?? "";
+          itm.style = structuredClone(snap.style || {});
+          this.cellsData.set(coord, itm);
+        }
+        const [c, r] = this._splitCoord(coord);
+        const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+        if (dom) {
+          const itm = this.cellsData.get(coord);
+          if (itm) {
+            this._renderCellVisual(dom, itm, c, r);
+            this._applyRuleVisuals?.(dom, c, r);
+          } else {
+            dom.textContent = "";
+            dom.style.cssText = "";
+          }
+        }
+      }
+      this._recalculateAllFormulas();
     } else if (action.type === "sort") {
       this._restoreCells(direction === "undo" ? action.before : action.after);
     } else if (action.type === "pivot-refresh") {

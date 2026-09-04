@@ -503,6 +503,52 @@ export const ICONS = {
     <path d="M14 14l3 3m0-3l-3 3" stroke="#2563EB" stroke-width="1.2" stroke-linecap="round"/>
   </svg>`,
 
+  // Sheet Styles & Editing Icons
+  formatTable: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="5" width="26" height="22" rx="3" fill="#FFFFFF" stroke="#0F4C81" stroke-width="1.5"/>
+    <rect x="3" y="5" width="26" height="6" rx="2" fill="#2563EB"/>
+    <line x1="3" y1="11" x2="29" y2="11" stroke="#1D4ED8" stroke-width="1.5"/>
+    <line x1="12" y1="5" x2="12" y2="27" stroke="#CBD5E1" stroke-width="1.2"/>
+    <line x1="21" y1="5" x2="21" y2="27" stroke="#CBD5E1" stroke-width="1.2"/>
+    <rect x="3" y="16" width="26" height="5" fill="#F0F7FF"/>
+    <line x1="3" y1="16" x2="29" y2="16" stroke="#E2E8F0" stroke-width="1"/>
+    <line x1="3" y1="21" x2="29" y2="21" stroke="#E2E8F0" stroke-width="1"/>
+  </svg>`,
+
+  cellStyles: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="2" y="2" width="20" height="20" rx="3" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.4"/>
+    <rect x="4" y="4" width="7" height="7" rx="1.5" fill="#BBF7D0" stroke="#16A34A" stroke-width="0.8"/>
+    <rect x="13" y="4" width="7" height="7" rx="1.5" fill="#FECACA" stroke="#DC2626" stroke-width="0.8"/>
+    <rect x="4" y="13" width="7" height="7" rx="1.5" fill="#FEF08A" stroke="#CA8A04" stroke-width="0.8"/>
+    <rect x="13" y="13" width="7" height="7" rx="1.5" fill="#BFDBFE" stroke="#2563EB" stroke-width="0.8"/>
+  </svg>`,
+
+  fillDown: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="4" y="3" width="16" height="7" rx="1.5" fill="#BBF7D0" stroke="#16A34A" stroke-width="1.2"/>
+    <rect x="4" y="14" width="16" height="7" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2" stroke-dasharray="2 2"/>
+    <path d="M12 9V16M9 13L12 16L15 13" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  fillRight: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="4" width="7" height="16" rx="1.5" fill="#BBF7D0" stroke="#16A34A" stroke-width="1.2"/>
+    <rect x="14" y="4" width="7" height="16" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2" stroke-dasharray="2 2"/>
+    <path d="M9 12H16M13 9L16 12L13 15" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  clearAll: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <path d="M19 7L18.1 19.1C18 20.2 17.1 21 16 21H8C6.9 21 6 20.2 5.9 19.1L5 7M3 7H21M9 7V4C9 3.4 9.4 3 10 3H14C14.6 3 15 3.4 15 4V7" stroke="#DC2626" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="10" y1="11" x2="10" y2="17" stroke="#DC2626" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="14" y1="11" x2="14" y2="17" stroke="#DC2626" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
+  clearContents: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="4" width="18" height="16" rx="2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.4"/>
+    <line x1="7" y1="9" x2="13" y2="9" stroke="#94A3B8" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="16.5" cy="14.5" r="4.5" fill="#EF4444"/>
+    <line x1="14.5" y1="12.5" x2="18.5" y2="16.5" stroke="#FFF" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="18.5" y1="12.5" x2="14.5" y2="16.5" stroke="#FFF" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`,
+
   dialogLauncher: `<svg viewBox="0 0 14 14" width="10" height="10" fill="none">
     <path d="M2 11h9V2" stroke="#94A3B8" stroke-width="1.2"/>
     <path d="M11 11L5 5m0 0h4m-4 0v4" stroke="#475569" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>

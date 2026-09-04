@@ -106,6 +106,35 @@ export class SheetAdapter {
       options = options || {};
       return this.grid.deleteColumn(options.atCol);
     });
+    globalCommandBus.bindHandler("sheet.style.formatAsTable", () => {
+      return this.grid.showFormatAsTableDialog ? this.grid.showFormatAsTableDialog() : false;
+    });
+    globalCommandBus.bindHandler("sheet.style.cellStyles", () => {
+      return this.grid.showCellStylesDialog ? this.grid.showCellStylesDialog() : false;
+    });
+    globalCommandBus.bindHandler("sheet.edit.fillDown", (options) => {
+      options = options || {};
+      return this.grid.fillDown ? this.grid.fillDown(options.range) : false;
+    });
+    globalCommandBus.bindHandler("sheet.edit.fillRight", (options) => {
+      options = options || {};
+      return this.grid.fillRight ? this.grid.fillRight(options.range) : false;
+    });
+    globalCommandBus.bindHandler("sheet.edit.clearAll", (options) => {
+      options = options || {};
+      return this.grid.clearAll ? this.grid.clearAll(options.range) : false;
+    });
+    globalCommandBus.bindHandler("sheet.edit.clearFormats", (options) => {
+      options = options || {};
+      return this.grid.clearFormats ? this.grid.clearFormats(options.range) : false;
+    });
+    globalCommandBus.bindHandler("sheet.edit.clearContents", (options) => {
+      options = options || {};
+      return this.grid.clearContents ? this.grid.clearContents(options.range) : false;
+    });
+    globalCommandBus.bindHandler("common.edit.find", () => {
+      return this.grid.showFindDialog ? this.grid.showFindDialog() : false;
+    });
   }
 
   _insertImageDialog(options) {
@@ -743,6 +772,30 @@ export class SheetAdapter {
 
       case "sheet.data.pivotRefresh":
         return this.grid.refreshPivotTable();
+
+      case "sheet.style.formatAsTable":
+        return this.grid.showFormatAsTableDialog ? this.grid.showFormatAsTableDialog() : false;
+
+      case "sheet.style.cellStyles":
+        return this.grid.showCellStylesDialog ? this.grid.showCellStylesDialog() : false;
+
+      case "sheet.edit.fillDown":
+        return this.grid.fillDown ? this.grid.fillDown(args?.range) : false;
+
+      case "sheet.edit.fillRight":
+        return this.grid.fillRight ? this.grid.fillRight(args?.range) : false;
+
+      case "sheet.edit.clearAll":
+        return this.grid.clearAll ? this.grid.clearAll(args?.range) : false;
+
+      case "sheet.edit.clearFormats":
+        return this.grid.clearFormats ? this.grid.clearFormats(args?.range) : false;
+
+      case "sheet.edit.clearContents":
+        return this.grid.clearContents ? this.grid.clearContents(args?.range) : false;
+
+      case "common.edit.find":
+        return this.grid.showFindDialog ? this.grid.showFindDialog() : false;
 
       case "sheet.chart.insert":
         this.grid.openChartBuilder();

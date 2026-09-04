@@ -87,6 +87,20 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
+        label: "Kiểu ô",
+        labelKey: "sheetRibbon.group.styles",
+        items: [
+          { type: "button", commandId: "sheet.format.conditional", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.style.formatAsTable" },
+              { type: "button", commandId: "sheet.style.cellStyles" }
+            ]
+          }
+        ]
+      },
+      {
         label: "Ô",
         labelKey: "sheetRibbon.group.cells",
         items: [
@@ -116,8 +130,35 @@ export const SHEET_RIBBON_TABS = [
             items: [
               { type: "button", commandId: "sheet.data.sortAsc" },
               { type: "button", commandId: "sheet.data.sortDesc" },
-              { type: "button", commandId: "sheet.data.filter" },
-              { type: "button", commandId: "sheet.format.conditional" }
+              { type: "button", commandId: "sheet.data.filter" }
+            ]
+          }
+        ]
+      },
+      {
+        label: "Chỉnh sửa",
+        labelKey: "sheetRibbon.group.editing",
+        items: [
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.edit.fillDown" },
+              { type: "button", commandId: "sheet.edit.fillRight" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.edit.clearAll" },
+              { type: "button", commandId: "sheet.edit.clearFormats" },
+              { type: "button", commandId: "sheet.edit.clearContents" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "common.edit.find" },
+              { type: "button", commandId: "common.edit.replace" }
             ]
           }
         ]
