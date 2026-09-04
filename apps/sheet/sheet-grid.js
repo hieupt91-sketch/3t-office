@@ -995,14 +995,24 @@ export class SheetGridController {
     const closeHandler = (evt) => {
       if (!menu.contains(evt.target)) {
         this._closeContextMenu();
-        document.removeEventListener("mousedown", closeHandler);
       }
     };
-    setTimeout(() => document.addEventListener("mousedown", closeHandler), 10);
+    const escHandler = (evt) => {
+      if (evt.key === "Escape") this._closeContextMenu();
+    };
+    menu._vnoCleanup = () => {
+      document.removeEventListener("mousedown", closeHandler);
+      document.removeEventListener("keydown", escHandler);
+    };
+    setTimeout(() => {
+      document.addEventListener("mousedown", closeHandler);
+      document.addEventListener("keydown", escHandler);
+    }, 10);
   }
 
   _closeContextMenu() {
     if (this._activeContextMenu) {
+      this._activeContextMenu._vnoCleanup?.();
       this._activeContextMenu.remove();
       this._activeContextMenu = null;
     }
