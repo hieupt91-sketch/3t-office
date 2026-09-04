@@ -5,6 +5,7 @@
  */
 
 import { ICONS } from "../../platform/ui-kit/icons.js";
+import { t } from "../../platform/i18n/i18n.js";
 
 /**
  * Phân tích cú pháp CSV thuần JavaScript
@@ -164,23 +165,23 @@ export function showMailMergeDataSourceDialog({
       <div class="vno-dialog-header">
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="display:flex;color:#0f4c81;">${ICONS.mailMerge || ""}</span>
-          <span>Trộn thư — Nguồn dữ liệu (CSV)</span>
+          <span>${t("writerDialogs.mailMerge.dataSourceTitle")}</span>
         </div>
-        <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng">&times;</button>
+        <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}">&times;</button>
       </div>
       <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
         <div style="font-size:13px;color:var(--vno-text-primary);line-height:1.5;">
-          Dán dữ liệu bảng tính dạng <strong>CSV</strong> vào khung bên dưới (dòng đầu tiên là tiêu đề các cột):
+          ${t("writerDialogs.mailMerge.pastePrompt")}
         </div>
         <textarea class="vno-merge-csv-textarea" style="width:100%;height:160px;box-sizing:border-box;padding:10px;font-family:monospace;font-size:12.5px;line-height:1.4;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);resize:vertical;outline:none;" placeholder="${defaultSample.replace(/"/g, '&quot;')}">${initialVal}</textarea>
         <div style="display:flex;align-items:center;justify-content:space-between;">
-          <button type="button" class="vno-btn vno-btn-secondary vno-merge-sample-btn" style="font-size:12px;padding:4px 8px;">📋 Dán dữ liệu mẫu</button>
-          <div class="vno-merge-status-badge" style="font-size:12px;color:#64748b;font-weight:500;">Chưa có dữ liệu</div>
+          <button type="button" class="vno-btn vno-btn-secondary vno-merge-sample-btn" style="font-size:12px;padding:4px 8px;">${t("writerDialogs.mailMerge.pasteSampleBtn")}</button>
+          <div class="vno-merge-status-badge" style="font-size:12px;color:#64748b;font-weight:500;">${t("writerDialogs.mailMerge.noData")}</div>
         </div>
       </div>
       <div class="vno-dialog-footer">
-        <button class="vno-btn vno-dialog-cancel-btn">Hủy bỏ</button>
-        <button class="vno-btn vno-btn-primary vno-dialog-save-btn">Lưu nguồn dữ liệu</button>
+        <button class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
+        <button class="vno-btn vno-btn-primary vno-dialog-save-btn">${t("writerDialogs.mailMerge.saveDataSource")}</button>
       </div>
     </div>
   `;
@@ -197,16 +198,16 @@ export function showMailMergeDataSourceDialog({
   const updateStatus = () => {
     const text = textarea.value.trim();
     if (!text) {
-      statusBadge.textContent = "Chưa có dữ liệu";
+      statusBadge.textContent = t("writerDialogs.mailMerge.noData");
       statusBadge.style.color = "#64748b";
       return;
     }
     const { fields, records } = parseCsv(text);
     if (fields.length === 0) {
-      statusBadge.textContent = "CSV chưa hợp lệ (thiếu tiêu đề cột)";
+      statusBadge.textContent = t("writerDialogs.mailMerge.invalidCsv");
       statusBadge.style.color = "#dc2626";
     } else {
-      statusBadge.textContent = `Đã tìm thấy: ${fields.length} cột (${fields.slice(0, 3).join(", ")}${fields.length > 3 ? "..." : ""}) | ${records.length} bản ghi`;
+      statusBadge.textContent = t("writerDialogs.mailMerge.foundData", { count: fields.length, records: records.length });
       statusBadge.style.color = "#16a34a";
     }
   };
@@ -282,21 +283,21 @@ export function showInsertMergeFieldDialog({
       <div class="vno-dialog-header">
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="display:flex;color:#0f4c81;">${ICONS.mergeInsertField || ""}</span>
-          <span>Chèn trường trộn thư</span>
+          <span>${t("writerDialogs.mailMerge.insertFieldTitle")}</span>
         </div>
-        <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng">&times;</button>
+        <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}">&times;</button>
       </div>
       <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
         <label style="font-size:13px;font-weight:500;color:var(--vno-text-primary);">
-          Chọn trường dữ liệu muốn chèn vào tài liệu:
+          ${t("writerDialogs.mailMerge.selectFieldPrompt")}
         </label>
         <select class="vno-dialog-input vno-merge-field-select" style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;outline:none;">
           ${optionsHtml}
         </select>
       </div>
       <div class="vno-dialog-footer">
-        <button class="vno-btn vno-dialog-cancel-btn">Hủy bỏ</button>
-        <button class="vno-btn vno-btn-primary vno-dialog-insert-btn">Chèn trường</button>
+        <button class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
+        <button class="vno-btn vno-btn-primary vno-dialog-insert-btn">${t("writerDialogs.mailMerge.insertBtn")}</button>
       </div>
     </div>
   `;

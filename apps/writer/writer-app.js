@@ -3,10 +3,11 @@
  */
 
 import { AppShell } from "../../platform/shell/app-shell.js";
-import { WRITER_RIBBON_TABS } from "./writer-ribbon.js";
+import { WRITER_RIBBON_TABS, applyLocaleToWriterRibbon } from "./writer-ribbon.js";
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
 import { bootstrapPlatform } from "../../platform/bootstrap.js";
 import { createStyleGalleryStrip } from "./style-gallery.js";
+import { t } from "../../platform/i18n/i18n.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -26,6 +27,7 @@ export class WriterApp {
       documentName: options.documentName || (isBlank ? "Tài liệu 1.docx" : "Quyết định ban hành tiêu chuẩn 01.docx")
     });
     this.shell.mount(this.mountElement);
+    applyLocaleToWriterRibbon(WRITER_RIBBON_TABS);
     this.shell.ribbonHost.setStructure(WRITER_RIBBON_TABS, "home");
 
     // Khung giao diện Writer: Ruler + Viewport + Trang A4
@@ -57,7 +59,7 @@ export class WriterApp {
     header.className = "vno-writer-header";
     header.setAttribute("contenteditable", "true");
     header.setAttribute("spellcheck", "false");
-    header.setAttribute("data-placeholder", "Nhấp để nhập tiêu đề đầu trang (Header)...");
+    header.setAttribute("data-placeholder", t("writerDialogs.comments.placeholderHeader"));
 
     const body = document.createElement("div");
     body.className = "vno-writer-body";
@@ -68,7 +70,7 @@ export class WriterApp {
     footer.className = "vno-writer-footer";
     footer.setAttribute("contenteditable", "true");
     footer.setAttribute("spellcheck", "false");
-    footer.setAttribute("data-placeholder", "Nhấp để nhập tiêu đề chân trang (Footer)...");
+    footer.setAttribute("data-placeholder", t("writerDialogs.comments.placeholderFooter"));
 
     if (isBlank) {
       body.innerHTML = `<p><br></p>`;
@@ -142,7 +144,7 @@ export class WriterApp {
 
     const commentsPanel = document.createElement("aside");
     commentsPanel.className = "vno-writer-comments-panel";
-    commentsPanel.setAttribute("aria-label", "Ghi chú tài liệu");
+    commentsPanel.setAttribute("aria-label", t("writerDialogs.comments.panelLabel"));
     commentsPanel.hidden = true;
     workspace.appendChild(commentsPanel);
 
@@ -162,9 +164,10 @@ export class WriterApp {
     if (typeof document === "undefined") return;
     const groups = this.mountElement?.querySelectorAll?.(".vno-ribbon-group") || [];
     let stylesGroup = null;
+    const localizedStylesLabel = t("writerRibbon.group.styles");
     for (const g of groups) {
       const label = g.querySelector?.(".vno-ribbon-group-label")?.textContent?.trim();
-      if (label === "Kiểu dáng") {
+      if (label === "Kiểu dáng" || label === "Styles" || label === localizedStylesLabel) {
         stylesGroup = g;
         break;
       }

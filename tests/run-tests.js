@@ -36,6 +36,7 @@ import { runWriterStyleGalleryWatermarkTests } from "./unit/writer-style-gallery
 import { runSheetViewSlidesCommentsTests } from "./unit/sheet-view-slides-comments.test.js";
 import { runWriterColumnsTests } from "./unit/writer-columns.test.js";
 import { runSheetRowColInsertTests } from "./unit/sheet-row-col-insert.test.js";
+import { runWriterI18nShortcutsTests } from "./unit/writer-i18n-shortcuts.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -79,7 +80,8 @@ async function runAll() {
     { title: "30. Behavioral Tests — VN Writer Style Gallery & Watermark / Page Border", runner: runWriterStyleGalleryWatermarkTests },
     { title: "31. Behavioral Tests — VN Sheet View & VN Slides Review Comments", runner: runSheetViewSlidesCommentsTests },
     { title: "32. Behavioral Tests — VN Writer Columns", runner: runWriterColumnsTests },
-    { title: "33. Behavioral Tests — VN Sheet Row & Column Insert", runner: runSheetRowColInsertTests }
+    { title: "33. Behavioral Tests — VN Sheet Row & Column Insert", runner: runSheetRowColInsertTests },
+    { title: "34. Behavioral & Unit Tests — VN Writer i18n & Word Shortcuts", runner: runWriterI18nShortcutsTests }
   ];
 
   for (const suite of suites) {
