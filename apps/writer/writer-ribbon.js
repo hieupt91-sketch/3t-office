@@ -188,7 +188,22 @@ export const WRITER_RIBBON_TABS = [
         label: "Liên kết",
         labelKey: "writerRibbon.group.links",
         items: [
-          { type: "button", commandId: "common.edit.hyperlink", isLarge: true }
+          { type: "button", commandId: "common.edit.hyperlink", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.insert.bookmark" },
+              { type: "button", commandId: "writer.insert.crossReference" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "comments",
+        label: "Ghi chú",
+        labelKey: "writerRibbon.group.comments",
+        items: [
+          { type: "button", commandId: "writer.comment.insert", isLarge: true }
         ]
       },
       {
@@ -197,6 +212,30 @@ export const WRITER_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "writer.header.insert", isLarge: true },
           { type: "button", commandId: "writer.footer.insert", isLarge: true }
+        ]
+      },
+      {
+        id: "text",
+        label: "Văn bản",
+        labelKey: "writerRibbon.group.text",
+        items: [
+          { type: "button", commandId: "writer.insert.textbox", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.format.dropCap" },
+              { type: "button", commandId: "writer.insert.dateTime" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "symbols",
+        label: "Ký hiệu",
+        labelKey: "writerRibbon.group.symbols",
+        items: [
+          { type: "button", commandId: "writer.insert.equation", isLarge: true },
+          { type: "button", commandId: "writer.insert.symbol", isLarge: true }
         ]
       },
       {

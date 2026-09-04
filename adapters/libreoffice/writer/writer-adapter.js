@@ -12,6 +12,9 @@ import { showWatermarkDialog, showPageBorderDialog } from "../../../apps/writer/
 import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
 import { showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
+import { showSymbolPicker } from "../../../platform/ui-kit/symbol-picker.js";
+import { formatDateTime, showDateTimeDialog } from "../../../platform/ui-kit/datetime-picker.js";
+import { showEquationDialog, showBookmarkDialog, showCrossReferenceDialog, slugBookmarkName } from "../../../apps/writer/insert-dialogs.js";
 import { t } from "../../../platform/i18n/i18n.js";
 
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
@@ -226,6 +229,13 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.diagram.insert", (args) => this.insertDiagram(args));
     globalCommandBus.bindHandler("writer.chart.insert", (args) => this.insertChart(args));
     globalCommandBus.bindHandler("writer.design.themeGallery", (args) => this.openThemeGalleryDialog(args));
+    globalCommandBus.bindHandler("writer.insert.textbox", (args) => this.insertTextBox(args));
+    globalCommandBus.bindHandler("writer.format.dropCap", (args) => this.applyDropCap(args));
+    globalCommandBus.bindHandler("writer.insert.dateTime", (args) => this.insertDateTime(args));
+    globalCommandBus.bindHandler("writer.insert.equation", (args) => this.insertEquation(args));
+    globalCommandBus.bindHandler("writer.insert.symbol", (args) => this.insertSymbol(args));
+    globalCommandBus.bindHandler("writer.insert.bookmark", (args) => this.insertBookmark(args));
+    globalCommandBus.bindHandler("writer.insert.crossReference", (args) => this.insertCrossReference(args));
 
     // Bind Office Parity Mouse & Shortcuts
     this._bindMouseAndKeyboardParity();
@@ -1324,6 +1334,27 @@ export class WriterAdapter {
       case "writer.chart.insert":
         return await this.insertChart(args);
 
+      case "writer.insert.textbox":
+        return this.insertTextBox(args);
+
+      case "writer.format.dropCap":
+        return this.applyDropCap(args);
+
+      case "writer.insert.dateTime":
+        return await this.insertDateTime(args);
+
+      case "writer.insert.equation":
+        return await this.insertEquation(args);
+
+      case "writer.insert.symbol":
+        return await this.insertSymbol(args);
+
+      case "writer.insert.bookmark":
+        return await this.insertBookmark(args);
+
+      case "writer.insert.crossReference":
+        return await this.insertCrossReference(args);
+
       case "writer.design.themeGallery":
         return await this.openThemeGalleryDialog(args);
 
@@ -2023,7 +2054,8 @@ export class WriterAdapter {
       height: height,
       fill: fill,
       stroke: stroke,
-      strokeWidth: strokeWidth
+      strokeWidth: strokeWidth,
+      text: typeof options.text === "string" ? options.text : undefined
     };
 
     if (!this.shapes) this.shapes = [];
@@ -2091,11 +2123,28 @@ export class WriterAdapter {
       el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:auto; cursor:move; user-select:none; z-index:10;`;
 
       const delBtn = `<button type="button" class="vno-shape-delete-btn" title="Xóa hình khối">&times;</button>`;
-      el.innerHTML = `${renderShapeSvg(shape)}${delBtn}`;
+      const isTextBox = shape.type === "textbox" || shape.shapeType === "textbox";
+      if (isTextBox) {
+        el.classList.add("vno-writer-textbox");
+        const text = String(shape.text || "Nhập văn bản").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        el.innerHTML = `<div class="vno-writer-textbox-body" contenteditable="true" role="textbox">${text}</div>${delBtn}<div class="vno-shape-resize-handle vno-handle-se" data-handle-dir="se"></div>`;
+        const body = el.querySelector(".vno-writer-textbox-body");
+        if (body?.addEventListener) {
+          body.addEventListener("input", () => {
+            shape.text = body.textContent || "";
+            this.isDirty = true;
+          });
+          body.addEventListener("mousedown", (evt) => evt.stopPropagation());
+        }
+      } else {
+        el.innerHTML = `${renderShapeSvg(shape)}${delBtn}`;
+      }
 
       if (el.addEventListener) {
         el.addEventListener("mousedown", (e) => {
           if (e.target?.closest?.(".vno-shape-delete-btn")) return;
+          if (e.target?.closest?.(".vno-writer-textbox-body")) return;
+          if (e.target?.closest?.(".vno-shape-resize-handle")) return;
           this._selectShape(shape.id);
           const startMouseX = e.clientX;
           const startMouseY = e.clientY;
@@ -2130,6 +2179,33 @@ export class WriterAdapter {
             document.addEventListener("mousemove", onMouseMove);
             document.addEventListener("mouseup", onMouseUp);
           }
+        });
+      }
+
+      const resizeHandle = el.querySelector?.(".vno-shape-resize-handle");
+      if (resizeHandle?.addEventListener) {
+        resizeHandle.addEventListener("mousedown", (event) => {
+          event.stopPropagation();
+          event.preventDefault();
+          this._selectShape(shape.id);
+          const startX = event.clientX;
+          const startY = event.clientY;
+          const origW = shape.w;
+          const origH = shape.h;
+          const onMove = (moveEvt) => {
+            shape.w = Math.max(80, origW + (moveEvt.clientX - startX));
+            shape.h = Math.max(40, origH + (moveEvt.clientY - startY));
+            el.style.width = `${shape.w}px`;
+            el.style.height = `${shape.h}px`;
+          };
+          const onUp = () => {
+            document.removeEventListener("mousemove", onMove);
+            document.removeEventListener("mouseup", onUp);
+            this.isDirty = true;
+            this.recordSnapshot("writer.shape.resize");
+          };
+          document.addEventListener("mousemove", onMove);
+          document.addEventListener("mouseup", onUp);
         });
       }
 
@@ -2270,6 +2346,274 @@ export class WriterAdapter {
       if (!url) return false;
     }
     return this.insertHyperlink({ url, text });
+  }
+
+  _escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  _insertHtmlAtCursor(html) {
+    this.flushTyping();
+    this._initZones();
+    const targetDom = this.bodyDom || this.editorDom;
+    let inserted = false;
+    if (typeof document !== "undefined" && typeof window !== "undefined" && targetDom) {
+      try {
+        const sel = window.getSelection?.();
+        if (sel && sel.rangeCount > 0 && targetDom.contains?.(sel.anchorNode) && document.createElement) {
+          const range = sel.getRangeAt(0);
+          range.deleteContents();
+          const temp = document.createElement("div");
+          temp.innerHTML = html;
+          const frag = document.createDocumentFragment();
+          while (temp.firstChild) frag.appendChild(temp.firstChild);
+          range.insertNode(frag);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+          inserted = true;
+        }
+      } catch {
+        inserted = false;
+      }
+    }
+    if (!inserted && targetDom) {
+      if (typeof targetDom.insertAdjacentHTML === "function") {
+        targetDom.insertAdjacentHTML("beforeend", html);
+      } else {
+        targetDom.innerHTML = (targetDom.innerHTML || "") + html;
+      }
+    }
+    this.isDirty = true;
+    return true;
+  }
+
+  insertTextBox(options = null) {
+    options = options || {};
+    const text = typeof options.text === "string" ? options.text : "Nhập văn bản";
+    return this.insertShape({
+      type: "textbox",
+      shapeType: "textbox",
+      width: typeof options.width === "number" ? options.width : 220,
+      height: typeof options.height === "number" ? options.height : 80,
+      fill: "transparent",
+      stroke: "#2563eb",
+      text,
+      x: typeof options.x === "number" ? options.x : 72,
+      y: typeof options.y === "number" ? options.y : 120
+    });
+  }
+
+  applyDropCap(options = null) {
+    options = options || {};
+    const lines = Math.max(2, Math.min(3, Number(options.lines) || 3));
+    this.flushTyping();
+    this._initZones();
+    const targetDom = this.bodyDom || this.editorDom;
+    if (!targetDom) return false;
+
+    let para = null;
+    if (typeof window !== "undefined" && typeof document !== "undefined") {
+      const sel = window.getSelection?.();
+      let node = sel && sel.anchorNode && targetDom.contains?.(sel.anchorNode) ? sel.anchorNode : null;
+      if (node && node.nodeType === 3) node = node.parentElement;
+      while (node && node !== targetDom) {
+        const tag = node.tagName;
+        if (tag === "P" || tag === "LI" || /^H[1-6]$/.test(tag)) {
+          para = node;
+          break;
+        }
+        node = node.parentElement;
+      }
+      if (!para && targetDom.querySelector) {
+        para = targetDom.querySelector("p, li, h1, h2, h3");
+      }
+    }
+
+    if (para && para.querySelector) {
+      const existing = para.querySelector(".vno-drop-cap");
+      if (existing) {
+        const letter = existing.textContent || "";
+        existing.replaceWith(document.createTextNode(letter));
+        para.normalize?.();
+        this.isDirty = true;
+        this.recordSnapshot("writer.format.dropCap");
+        return true;
+      }
+      const walkerText = para.textContent || "";
+      const match = walkerText.match(/[A-Za-zÀ-ỹ0-9]/);
+      if (!match) return false;
+      const letter = match[0];
+      const html = para.innerHTML || "";
+      const idx = html.indexOf(letter);
+      if (idx === -1) return false;
+      para.innerHTML = `${html.slice(0, idx)}<span class="vno-drop-cap" data-drop-lines="${lines}">${this._escapeHtml(letter)}</span>${html.slice(idx + letter.length)}`;
+      this.isDirty = true;
+      this.recordSnapshot("writer.format.dropCap");
+      return true;
+    }
+
+    const html = String(targetDom.innerHTML || "");
+    if (html.includes("vno-drop-cap")) {
+      targetDom.innerHTML = html.replace(/<span\b[^>]*class=["'][^"']*\bvno-drop-cap\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/i, "$1");
+      this.isDirty = true;
+      this.recordSnapshot("writer.format.dropCap");
+      return true;
+    }
+    const replaced = html.replace(
+      /(<(?:p|li|h[1-6])\b[^>]*>)(\s*)([^<\s])/i,
+      `$1$2<span class="vno-drop-cap" data-drop-lines="${lines}">$3</span>`
+    );
+    if (replaced === html) return false;
+    targetDom.innerHTML = replaced;
+    this.isDirty = true;
+    this.recordSnapshot("writer.format.dropCap");
+    return true;
+  }
+
+  async insertDateTime(options = null) {
+    options = options || {};
+    let format = options.format;
+    let text = options.text;
+    const now = options.now instanceof Date ? options.now : new Date();
+    if (!format && !text) {
+      const picked = await showDateTimeDialog({ now, defaultFormat: "dd/MM/yyyy" });
+      if (!picked) return false;
+      format = picked.format;
+      text = picked.text;
+    }
+    format = format || "dd/MM/yyyy";
+    text = text || formatDateTime(now, format);
+    const html = `<span class="vno-datetime" data-datetime-format="${this._escapeHtml(format)}">${this._escapeHtml(text)}</span>`;
+    this._insertHtmlAtCursor(html);
+    this.recordSnapshot("writer.insert.dateTime");
+    return true;
+  }
+
+  async insertEquation(options = null) {
+    options = options || {};
+    let expression = options.expression || options.text;
+    if (!expression) {
+      expression = await showEquationDialog({ expression: "E = mc²" });
+      if (!expression) return false;
+    }
+    const html = `<span class="vno-equation" role="math" data-equation="true">${this._escapeHtml(expression)}</span>`;
+    this._insertHtmlAtCursor(html);
+    this.recordSnapshot("writer.insert.equation");
+    return true;
+  }
+
+  async insertSymbol(options = null) {
+    options = options || {};
+    let ch = options.char || options.symbol;
+    if (!ch) {
+      ch = await showSymbolPicker();
+      if (!ch) return false;
+    }
+    this._insertHtmlAtCursor(this._escapeHtml(ch));
+    this.recordSnapshot("writer.insert.symbol");
+    return true;
+  }
+
+  _uniqueBookmarkId(baseId) {
+    const targetDom = this.bodyDom || this.editorDom;
+    let id = baseId;
+    let n = 2;
+    const html = String(targetDom?.innerHTML || "");
+    while (html.includes(`id="${id}"`) || html.includes(`id='${id}'`)) {
+      id = `${baseId}-${n}`;
+      n += 1;
+    }
+    return id;
+  }
+
+  async insertBookmark(options = null) {
+    options = options || {};
+    let name = options.name;
+    if (!name) {
+      name = await showBookmarkDialog({ name: "bookmark1" });
+      if (!name) return false;
+    }
+    const id = this._uniqueBookmarkId(slugBookmarkName(name));
+    const html = `<a id="${this._escapeHtml(id)}" class="vno-bookmark" data-bookmark-name="${this._escapeHtml(name)}"></a>`;
+    this._insertHtmlAtCursor(html);
+    this.recordSnapshot("writer.insert.bookmark");
+    return { id, name };
+  }
+
+  listCrossReferenceTargets() {
+    const targets = [];
+    const targetDom = this.bodyDom || this.editorDom;
+    if (targetDom?.querySelectorAll) {
+      const headings = targetDom.querySelectorAll("h1, h2, h3");
+      headings.forEach((el, index) => {
+        const label = (el.textContent || "").trim();
+        if (!label) return;
+        if (!el.id) el.id = this._uniqueBookmarkId(slugBookmarkName(`heading-${index + 1}-${label}`));
+        targets.push({ id: el.id, type: "heading", label });
+      });
+      targetDom.querySelectorAll("a.vno-bookmark").forEach((el) => {
+        const id = el.id || el.getAttribute("data-bookmark-name");
+        if (!id) return;
+        if (!el.id) el.id = id;
+        targets.push({
+          id,
+          type: "bookmark",
+          label: el.getAttribute("data-bookmark-name") || id
+        });
+      });
+      return targets;
+    }
+
+    const html = String(targetDom?.innerHTML || "");
+    const headingRe = /<(h[1-3])([^>]*)>([\s\S]*?)<\/\1>/gi;
+    let match;
+    let headingIndex = 0;
+    while ((match = headingRe.exec(html))) {
+      const label = String(match[3] || "").replace(/<[^>]+>/g, "").trim();
+      if (!label) continue;
+      headingIndex += 1;
+      const idMatch = /id=["']([^"']+)["']/.exec(match[2] || "");
+      targets.push({
+        id: idMatch ? idMatch[1] : slugBookmarkName(`heading-${headingIndex}-${label}`),
+        type: "heading",
+        label
+      });
+    }
+    const bookmarkRe = /<a\b[^>]*class=["'][^"']*\bvno-bookmark\b[^"']*["'][^>]*>/gi;
+    while ((match = bookmarkRe.exec(html))) {
+      const tag = match[0];
+      const idMatch = /id=["']([^"']+)["']/.exec(tag);
+      const nameMatch = /data-bookmark-name=["']([^"']+)["']/.exec(tag);
+      const id = (idMatch && idMatch[1]) || (nameMatch && nameMatch[1]);
+      if (!id) continue;
+      targets.push({ id, type: "bookmark", label: (nameMatch && nameMatch[1]) || id });
+    }
+    return targets;
+  }
+
+  async insertCrossReference(options = null) {
+    options = options || {};
+    let targetId = options.targetId || options.id;
+    let display = options.display || options.text;
+    let type = options.type || "bookmark";
+    if (!targetId) {
+      const picked = await showCrossReferenceDialog(this.listCrossReferenceTargets());
+      if (!picked) return false;
+      targetId = picked.targetId;
+      display = picked.display;
+      type = picked.type;
+    }
+    if (!targetId) return false;
+    display = display || targetId;
+    const html = `<a href="#${this._escapeHtml(targetId)}" class="vno-cross-ref" data-xref-type="${this._escapeHtml(type)}">${this._escapeHtml(display)}</a>`;
+    this._insertHtmlAtCursor(html);
+    this.recordSnapshot("writer.insert.crossReference");
+    return true;
   }
 
   // --- ĐỊNH DẠNG TÀI LIỆU & CHỦ ĐỀ (DOCUMENT THEMES) ---
@@ -2626,7 +2970,12 @@ export class WriterAdapter {
     let shapesHtml = "";
     if (this.shapes && this.shapes.length) {
       shapesHtml = `<div class="vno-export-shapes" style="position:relative; width:100%; height:0; overflow:visible;">\n` +
-        this.shapes.map(s => `  <div style="position:absolute; left:${s.x}px; top:${s.y}px; width:${s.w}px; height:${s.h}px;">${renderShapeSvg(s)}</div>\n`).join("") +
+        this.shapes.map(s => {
+          const inner = (s.type === "textbox" || s.shapeType === "textbox")
+            ? `<div class="vno-writer-textbox-body">${this._escapeHtml(s.text || "")}</div>`
+            : renderShapeSvg(s);
+          return `  <div style="position:absolute; left:${s.x}px; top:${s.y}px; width:${s.w}px; height:${s.h}px;">${inner}</div>\n`;
+        }).join("") +
         `</div>\n`;
     }
 
