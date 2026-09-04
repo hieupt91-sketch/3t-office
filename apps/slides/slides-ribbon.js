@@ -92,6 +92,13 @@ export const SLIDES_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "slides.master.apply", isLarge: true }
         ]
+      },
+      {
+        label: "Tùy chỉnh",
+        labelKey: "slidesRibbon.group.customize",
+        items: [
+          { type: "button", commandId: "slides.design.slideSize", isLarge: true }
+        ]
       }
     ]
   },

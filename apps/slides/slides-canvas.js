@@ -218,6 +218,7 @@ export class SlidesCanvasController {
       showLogo: true,
       showFooter: true
     };
+    this.slideSize = { preset: "wide", width: 960, height: 540 };
 
     // Transitions (Hiệu ứng chuyển slide thật)
     this.transitionConfig = {
@@ -254,6 +255,7 @@ export class SlidesCanvasController {
 
     this.canvasEl = document.createElement("div");
     this.canvasEl.className = "vno-slide-canvas";
+    this._applySlideSizeToDom();
 
     this.titleEl = document.createElement("div");
     this.titleEl.className = "vno-slide-title";
@@ -620,6 +622,13 @@ export class SlidesCanvasController {
     }
 
     const insertedShapes = [...connectors, ...nodes];
+    if (this.slideSize.width !== 960 || this.slideSize.height !== 540) {
+      const scaleX = this.slideSize.width / 960, scaleY = this.slideSize.height / 540;
+      for (const shape of insertedShapes) {
+        for (const key of ["x", "w", "x1", "x2"]) if (Number.isFinite(shape[key])) shape[key] *= scaleX;
+        for (const key of ["y", "h", "y1", "y2"]) if (Number.isFinite(shape[key])) shape[key] *= scaleY;
+      }
+    }
     slide.shapes.push(...insertedShapes);
     this.undoStack.push({ type: "diagram-insert", slideIndex: this.currentSlideIndex, shapes: this._cloneShapes(insertedShapes), diagramGroupId: groupId });
     this.redoStack = [];
@@ -640,7 +649,7 @@ export class SlidesCanvasController {
   _shapePresentationHtml(shape) {
     if (shape.type === "connector") {
       const marker = shape.arrowEnd ? "marker-end='url(#vno-show-arrow)'" : "";
-      return `<svg class="vno-show-connector" style="position:absolute;inset:0;width:960px;height:540px;overflow:visible" viewBox="0 0 960 540"><defs><marker id="vno-show-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="${shape.color || "#475569"}"/></marker></defs><line x1="${shape.x1}" y1="${shape.y1}" x2="${shape.x2}" y2="${shape.y2}" stroke="${shape.color || "#475569"}" stroke-width="3" ${marker}/></svg>`;
+      return `<svg class="vno-show-connector" style="position:absolute;inset:0;width:${this.slideSize.width}px;height:${this.slideSize.height}px;overflow:visible" viewBox="0 0 ${this.slideSize.width} ${this.slideSize.height}"><defs><marker id="vno-show-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="${shape.color || "#475569"}"/></marker></defs><line x1="${shape.x1}" y1="${shape.y1}" x2="${shape.x2}" y2="${shape.y2}" stroke="${shape.color || "#475569"}" stroke-width="3" ${marker}/></svg>`;
     }
     const pos = `position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;`;
     let animStyle = "";
@@ -657,10 +666,10 @@ export class SlidesCanvasController {
 
   _shapeSorterHtml(shape) {
     if (shape.type === "connector") {
-      return `<svg class="vno-sorter-shape" viewBox="0 0 960 540" preserveAspectRatio="none"><line x1="${shape.x1}" y1="${shape.y1}" x2="${shape.x2}" y2="${shape.y2}" stroke="${shape.color || "#475569"}" stroke-width="8"/></svg>`;
+      return `<svg class="vno-sorter-shape" viewBox="0 0 ${this.slideSize.width} ${this.slideSize.height}" preserveAspectRatio="none"><line x1="${shape.x1}" y1="${shape.y1}" x2="${shape.x2}" y2="${shape.y2}" stroke="${shape.color || "#475569"}" stroke-width="8"/></svg>`;
     }
     if (shape.type !== "rect" && shape.type !== "ellipse") return "";
-    const style = `left:${shape.x / 9.6}%;top:${shape.y / 5.4}%;width:${shape.w / 9.6}%;height:${shape.h / 5.4}%;background:${shape.color || "#3b82f6"};border-radius:${shape.type === "ellipse" ? "50%" : "4px"}`;
+    const style = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:${shape.color || "#3b82f6"};border-radius:${shape.type === "ellipse" ? "50%" : "4px"}`;
     return `<div class="vno-sorter-shape-node" style="${style}">${this._escapeShapeText(shape.text || "")}</div>`;
   }
 
@@ -910,8 +919,8 @@ export class SlidesCanvasController {
         const dx = moveEvent.clientX - startX, dy = moveEvent.clientY - startY;
         if (Math.abs(dx) + Math.abs(dy) < 3) return;
         moved = true;
-        shape.x = Math.max(0, Math.min(960 - shape.w, originX + dx));
-        shape.y = Math.max(0, Math.min(540 - shape.h, originY + dy));
+        shape.x = Math.max(0, Math.min(this.slideSize.width - shape.w, originX + dx));
+        shape.y = Math.max(0, Math.min(this.slideSize.height - shape.h, originY + dy));
         el.style.left = `${shape.x}px`; el.style.top = `${shape.y}px`;
       };
       const up = () => {
@@ -1379,6 +1388,10 @@ export class SlidesCanvasController {
       this.applySlideMaster(action.before, false);
       this.redoStack.push(action);
       return true;
+    } else if (action.type === "slide-size") {
+      this._restoreSlideSize(action.before);
+      this.redoStack.push(action);
+      return true;
     }
     return false;
   }
@@ -1471,6 +1484,10 @@ export class SlidesCanvasController {
       return true;
     } else if (action.type === "master-theme") {
       this.applySlideMaster(action.after, false);
+      this.undoStack.push(action);
+      return true;
+    } else if (action.type === "slide-size") {
+      this._restoreSlideSize(action.after);
       this.undoStack.push(action);
       return true;
     }
@@ -1639,6 +1656,83 @@ export class SlidesCanvasController {
     this._renderThumbnails();
     this._renderSlideSorterGrid();
     return true;
+  }
+
+  _applySlideSizeToDom() {
+    if (!this.canvasEl) return;
+    this.canvasEl.style.width = `${this.slideSize.width}px`;
+    this.canvasEl.style.height = `${this.slideSize.height}px`;
+    this.canvasEl.dataset.slideSize = this.slideSize.preset;
+    this.container?.style?.setProperty?.("--vno-slide-aspect", `${this.slideSize.width} / ${this.slideSize.height}`);
+    if (this.notesPanelEl) this.notesPanelEl.style.width = `${this.slideSize.width}px`;
+  }
+
+  _captureSlideGeometry() {
+    return this.slides.map(slide => (slide.shapes || []).map(shape => ({
+      id: shape.id, x: shape.x, y: shape.y, w: shape.w, h: shape.h,
+      x1: shape.x1, y1: shape.y1, x2: shape.x2, y2: shape.y2
+    })));
+  }
+
+  _restoreSlideSize(snapshot) {
+    this.slideSize = { ...snapshot.size };
+    snapshot.geometry.forEach((geometry, slideIndex) => geometry.forEach(saved => {
+      const shape = this.slides[slideIndex]?.shapes?.find(item => String(item.id) === String(saved.id));
+      if (!shape) return;
+      for (const key of ["x", "y", "w", "h", "x1", "y1", "x2", "y2"]) if (Number.isFinite(saved[key])) shape[key] = saved[key];
+    }));
+    this._applySlideSizeToDom();
+    this.selectSlide(this.currentSlideIndex);
+    this._renderThumbnails();
+    this._renderSlideSorterGrid();
+    return true;
+  }
+
+  setSlideSize(options, recordHistory = true) {
+    options = options || {};
+    const presets = { wide: { preset: "wide", width: 960, height: 540 }, standard: { preset: "standard", width: 720, height: 540 } };
+    const next = presets[options.preset || options] || null;
+    if (!next || next.preset === this.slideSize.preset) return false;
+    const before = { size: { ...this.slideSize }, geometry: this._captureSlideGeometry() };
+    const scaleX = next.width / this.slideSize.width;
+    const scaleY = next.height / this.slideSize.height;
+    for (const slide of this.slides) for (const shape of slide.shapes || []) {
+      for (const key of ["x", "w", "x1", "x2"]) if (Number.isFinite(shape[key])) shape[key] = Math.round(shape[key] * scaleX * 100) / 100;
+      for (const key of ["y", "h", "y1", "y2"]) if (Number.isFinite(shape[key])) shape[key] = Math.round(shape[key] * scaleY * 100) / 100;
+    }
+    this.slideSize = { ...next };
+    this._applySlideSizeToDom();
+    this.selectSlide(this.currentSlideIndex);
+    this._renderThumbnails();
+    this._renderSlideSorterGrid();
+    if (recordHistory) {
+      this.undoStack.push({ type: "slide-size", before, after: { size: { ...this.slideSize }, geometry: this._captureSlideGeometry() } });
+      this.redoStack = [];
+      this._syncUndoRedoState();
+    }
+    return true;
+  }
+
+  showSlideSizeDialog() {
+    if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
+    return new Promise(resolve => {
+      const overlay = document.createElement("div");
+      overlay.className = "vno-dialog-overlay vno-slide-size-dialog";
+      overlay.innerHTML = `<div class="vno-dialog-box" style="width:480px" role="dialog" aria-modal="true" aria-labelledby="vno-slide-size-title">
+        <div class="vno-dialog-header"><span id="vno-slide-size-title">${t("slidesDialogs.slideSizeTitle")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}">&times;</button></div>
+        <div class="vno-dialog-body"><p style="font-size:12px;color:#64748b">${t("slidesDialogs.slideSizeHint")}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <button type="button" class="vno-theme-card" data-slide-size="wide" aria-pressed="${this.slideSize.preset === "wide"}"><span style="display:block;aspect-ratio:16/9;background:#dbeafe;border:2px solid #2563eb"></span><strong>${t("slidesDialogs.slideSizeWide")}</strong><small>16:9 · 960 × 540</small></button>
+          <button type="button" class="vno-theme-card" data-slide-size="standard" aria-pressed="${this.slideSize.preset === "standard"}"><span style="display:block;aspect-ratio:4/3;background:#ffedd5;border:2px solid #f97316"></span><strong>${t("slidesDialogs.slideSizeStandard")}</strong><small>4:3 · 720 × 540</small></button>
+        </div></div></div>`;
+      document.body.appendChild(overlay);
+      let closed = false;
+      const close = value => { if (closed) return; closed = true; document.removeEventListener("keydown", onKey); overlay.remove(); resolve(value); };
+      const onKey = event => { if (event.key === "Escape") close(false); };
+      document.addEventListener("keydown", onKey);
+      overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
+      overlay.querySelectorAll("[data-slide-size]").forEach(button => button.addEventListener("click", () => close(this.setSlideSize({ preset: button.dataset.slideSize }))));
+      overlay.querySelector("[data-slide-size]")?.focus();
+    });
   }
 
   showThemeGalleryDialog() {
@@ -2212,6 +2306,8 @@ export class SlidesCanvasController {
 
     const content = document.createElement("div");
     content.className = "vno-slideshow-content";
+    content.style.height = `${this.slideSize.height / this.slideSize.width * 100}vw`;
+    content.style.maxWidth = `${this.slideSize.width / this.slideSize.height * 100}vh`;
 
     const theme = this.masterTheme || {};
 
@@ -2716,12 +2812,14 @@ export class SlidesCanvasController {
       showLogo: true,
       showFooter: true
     };
+    this.slideSize = { preset: "wide", width: 960, height: 540 };
     this.transitionConfig = {
       type: "fade",
       duration: 500
     };
 
     if (this.canvasEl) {
+      this._applySlideSizeToDom();
       this.selectSlide(0);
       this._renderThumbnails();
       this.applySlideMaster(this.masterTheme);

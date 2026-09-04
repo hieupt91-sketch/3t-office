@@ -36,6 +36,27 @@ for (const locale of ["vi", "en"]) {
     await page.keyboard.press("Control+Y");
     const redone = await page.evaluate(async () => (await import("/adapters/libreoffice/common/uno-bridge.js")).globalUnoBridge.activeDocument.canvas.masterTheme.themeId);
     if (redone !== "energetic-orange") throw new Error(`Redo theme sai: ${redone}`);
+    await page.locator(".vno-ribbon-tab").filter({ hasText: locale === "vi" ? /^Chèn$/ : /^Insert$/ }).click();
+    await page.click('[data-command-id="slides.shape.insert"]');
+    const shapeBefore = await page.evaluate(async () => {
+      const canvas = (await import("/adapters/libreoffice/common/uno-bridge.js")).globalUnoBridge.activeDocument.canvas;
+      const shape = canvas.slides[canvas.currentSlideIndex].shapes.at(-1);
+      return { x: shape.x, w: shape.w };
+    });
+    await page.locator(".vno-ribbon-tab").filter({ hasText: locale === "vi" ? /^Thiết kế$/ : /^Design$/ }).click();
+    await page.click('[data-command-id="slides.design.slideSize"]');
+    await page.click('[data-slide-size="standard"]');
+    await page.waitForSelector('.vno-slide-canvas[data-slide-size="standard"]');
+    const sizeApplied = await page.evaluate(async () => {
+      const canvas = (await import("/adapters/libreoffice/common/uno-bridge.js")).globalUnoBridge.activeDocument.canvas;
+      const shape = canvas.slides[canvas.currentSlideIndex].shapes.at(-1);
+      return { preset: canvas.slideSize.preset, width: canvas.canvasEl.getBoundingClientRect().width, x: shape.x, w: shape.w };
+    });
+    if (sizeApplied.preset !== "standard" || sizeApplied.width !== 720 || sizeApplied.x !== shapeBefore.x * 0.75 || sizeApplied.w !== shapeBefore.w * 0.75) throw new Error(`Slide Size chưa scale đúng: ${JSON.stringify({ shapeBefore, sizeApplied })}`);
+    await page.keyboard.press("Control+Z");
+    if (await page.locator('.vno-slide-canvas[data-slide-size="wide"]').count() !== 1) throw new Error("Undo Slide Size không về 16:9");
+    await page.keyboard.press("Control+Y");
+    if (await page.locator('.vno-slide-canvas[data-slide-size="standard"]').count() !== 1) throw new Error("Redo Slide Size không về 4:3");
     await page.click("#vno-switcher-toggle");
     await page.click('[data-switch="sheet"]');
     await page.waitForSelector(".vno-sheet-container");
@@ -59,7 +80,7 @@ for (const locale of ["vi", "en"]) {
     await page.keyboard.press("Control+Y");
     if (await page.locator(".vno-sheet-image").count() !== 0) throw new Error("Redo xóa ảnh không loại overlay");
     if (errors.length) throw new Error(`Page errors: ${errors.join(" | ")}`);
-    console.log(`PASS\t${locale}\tTheme Gallery + Sheet Pictures click/file chooser/delete/Undo/Redo`);
+    console.log(`PASS\t${locale}\tTheme Gallery + Slide Size + Sheet Pictures via real ribbon/dialog/keyboard`);
   } catch (error) {
     failures++;
     console.error(`FAIL\t${locale}\tTheme Gallery\t${error.message}`);
