@@ -97,6 +97,19 @@
   table-layout: fixed;
   font-size: var(--vno-text-xs);
   font-family: var(--vno-font-ui);
+  transform-origin: top left;
+  transition: transform 120ms ease-out;
+}
+
+.vno-hide-gridlines .vno-grid-cell {
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+}
+
+.vno-hide-headings .vno-grid-table thead,
+.vno-hide-headings .vno-row-header,
+.vno-hide-headings .vno-grid-corner-header {
+  display: none;
 }
 
 /* Headers & Sticky Positioning */

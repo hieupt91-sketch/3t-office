@@ -62,6 +62,11 @@ export class SheetGridController {
     this.hiddenRows = new Set();
     this.activeFilters = new Map();
 
+    // View state is workbook UI state. Gridlines/headings default to visible.
+    this.zoomLevel = 1;
+    this.gridlinesVisible = true;
+    this.headingsVisible = true;
+
     // Virtual scroll state
     this.currentStartRow = 1;
     this.currentEndRow = 35;
@@ -162,6 +167,7 @@ export class SheetGridController {
     const table = document.createElement("table");
     table.className = "vno-grid-table";
     this.table = table;
+    this._applyViewState();
 
     // Column Headers
     const thead = document.createElement("thead");
@@ -1010,6 +1016,44 @@ export class SheetGridController {
     globalCommandBus?.updateState?.("common.edit.redo", { enabled: this.redoStack.length > 0 });
     globalCommandBus?.updateState?.("sheet.view.freezePanes", { checked: !!this.isFrozenPanes });
     globalCommandBus?.updateState?.("sheet.data.filter", { checked: !!this.isFilterActive });
+    globalCommandBus?.updateState?.("sheet.view.gridlines", { checked: this.gridlinesVisible });
+    globalCommandBus?.updateState?.("sheet.view.headings", { checked: this.headingsVisible });
+  }
+
+  _applyViewState() {
+    if (this.table) {
+      this.table.style.transform = `scale(${this.zoomLevel})`;
+      this.table.style.transformOrigin = "top left";
+      this.table.dataset.zoom = String(this.zoomLevel);
+    }
+    this.container?.classList.toggle("vno-hide-gridlines", !this.gridlinesVisible);
+    this.container?.classList.toggle("vno-hide-headings", !this.headingsVisible);
+  }
+
+  setZoom(level) {
+    const next = Math.min(2, Math.max(0.5, Math.round(Number(level) * 10) / 10));
+    if (!Number.isFinite(next)) return false;
+    this.zoomLevel = next;
+    this._applyViewState();
+    return this.zoomLevel;
+  }
+
+  zoomIn() { return this.setZoom(this.zoomLevel + 0.1); }
+  zoomOut() { return this.setZoom(this.zoomLevel - 0.1); }
+  zoomReset() { return this.setZoom(1); }
+
+  toggleGridlines() {
+    this.gridlinesVisible = !this.gridlinesVisible;
+    this._applyViewState();
+    this._syncCommandStates();
+    return this.gridlinesVisible;
+  }
+
+  toggleHeadings() {
+    this.headingsVisible = !this.headingsVisible;
+    this._applyViewState();
+    this._syncCommandStates();
+    return this.headingsVisible;
   }
 
   undo() {

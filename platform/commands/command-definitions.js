@@ -142,6 +142,11 @@ export const SHEET_COMMANDS = [
   { id: "sheet.data.pivotTable", category: "data", label: "Bảng tổng hợp", icon: "pivotTable", tooltip: "Tạo Pivot Table từ vùng dữ liệu đang chọn" },
   { id: "sheet.data.pivotRefresh", category: "data", label: "Làm mới Pivot", icon: "refreshTable", tooltip: "Tính lại Pivot Table từ dữ liệu nguồn" },
   { id: "sheet.view.freezePanes", category: "view", label: "Cố định hàng/cột", icon: "table", tooltip: "Cố định hàng 1 và cột A khi cuộn (Freeze Panes)", isToggle: true },
+  { id: "sheet.view.zoomIn", category: "view", label: "Phóng to", icon: "zoomIn", tooltip: "Tăng tỉ lệ hiển thị bảng tính" },
+  { id: "sheet.view.zoomOut", category: "view", label: "Thu nhỏ", icon: "zoomOut", tooltip: "Giảm tỉ lệ hiển thị bảng tính" },
+  { id: "sheet.view.zoomReset", category: "view", label: "100%", icon: "zoomReset", tooltip: "Đặt lại tỉ lệ hiển thị 100%" },
+  { id: "sheet.view.gridlines", category: "view", label: "Đường lưới", icon: "gridlines", tooltip: "Ẩn hoặc hiện đường viền ô", isToggle: true },
+  { id: "sheet.view.headings", category: "view", label: "Tiêu đề", icon: "headings", tooltip: "Ẩn hoặc hiện tiêu đề hàng và cột", isToggle: true },
   { id: "sheet.review.commentInsert", category: "review", label: "Ghi chú mới", icon: "cellComment", tooltip: "Thêm, sửa hoặc xóa ghi chú của ô đang chọn" },
   { id: "sheet.page.setPrintArea", category: "page", label: "Đặt vùng in", icon: "printArea", tooltip: "Đặt vùng đang chọn làm vùng in" },
   { id: "sheet.page.clearPrintArea", category: "page", label: "Xóa vùng in", icon: "clearPrintArea", tooltip: "Xóa vùng in của trang tính hiện tại" },
@@ -155,6 +160,7 @@ export const SHEET_COMMANDS = [
 ];
 
 export const SLIDES_COMMANDS = [
+  { id: "slides.review.commentInsert", category: "review", label: "Nhận xét mới", icon: "comment", tooltip: "Thêm nhận xét cho trang chiếu hiện tại" },
   // Quản lý Trang chiếu
   { id: "slides.slide.new", category: "slide", label: "Trang mới", shortcut: "Ctrl+M", icon: "slideNew", tooltip: "Chèn trang chiếu mới (Ctrl+M)" },
   { id: "slides.layout.apply", category: "slide", label: "Bố cục", icon: "slideLayout", tooltip: "Thay đổi bố cục trang chiếu (Tiêu đề, Nội dung, Hai cột, Trống)" },

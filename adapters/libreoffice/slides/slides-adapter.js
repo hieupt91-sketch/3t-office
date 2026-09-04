@@ -22,6 +22,10 @@ export class SlidesAdapter {
     // (Lỗi thật đã xảy ra: Ctrl+Z trong Slides gọi nhầm WriterAdapter.undo().)
     globalCommandBus.bindHandler("common.edit.undo", () => this.canvas.undo ? this.canvas.undo() : false);
     globalCommandBus.bindHandler("common.edit.redo", () => this.canvas.redo ? this.canvas.redo() : false);
+    globalCommandBus.bindHandler("slides.review.commentInsert", (options) => {
+      options = options || {};
+      return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
+    });
   }
 
   _escapeXml(str) {

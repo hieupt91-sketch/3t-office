@@ -137,6 +137,16 @@ export const SLIDES_RIBBON_TABS = [
     ]
   },
   {
+    id: "review",
+    label: "Đánh giá",
+    groups: [
+      {
+        label: "Nhận xét",
+        items: [{ type: "button", commandId: "slides.review.commentInsert", isLarge: true }]
+      }
+    ]
+  },
+  {
     id: "view",
     label: "Chế độ xem",
     groups: [

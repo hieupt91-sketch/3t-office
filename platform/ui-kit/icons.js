@@ -85,6 +85,12 @@ export const ICONS = {
 
   undo: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`,
   redo: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2.2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+  zoomIn: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M10.5 7.5v6M7.5 10.5h6"/></svg>`,
+  zoomOut: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M7.5 10.5h6"/></svg>`,
+  zoomReset: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><path d="M4 8a8 8 0 1 1-1 7M4 3v5h5"/><text x="8" y="15" fill="#2563EB" stroke="none" font-size="7" font-weight="700">100</text></svg>`,
+  gridlines: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0F6D38" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>`,
+  headings: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0F6D38" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M8 3v18M3 8h18"/><path d="m11 6 1.5-3L14 6M5 11v6M4 12l1-1 1 1"/></svg>`,
+  comment: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#B53818" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4V4Z"/><path d="M8 8h8M8 12h5"/></svg>`,
 
   // Định dạng ký tự
   bold: `<svg viewBox="0 0 24 24" width="15" height="15" fill="#0F172A"><path d="M6 3h7c2.76 0 5 2.24 5 5 0 1.55-.7 2.94-1.8 3.87C17.48 12.87 18.5 14.54 18.5 16.5 18.5 19.54 16.04 22 13 22H6V3zm3.5 3v4h3.5c1.1 0 2-.9 2-2s-.9-2-2-2H9.5zm0 7v6H13c1.38 0 2.5-1.12 2.5-2.5S14.38 13 13 13H9.5z"/></svg>`,

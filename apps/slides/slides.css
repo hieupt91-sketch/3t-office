@@ -111,6 +111,51 @@
   flex-direction: column;
 }
 
+.vno-slide-comment-indicator {
+  position: absolute;
+  right: 14px;
+  bottom: 34px;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border: 1px solid #f59e0b;
+  border-radius: 14px;
+  background: #fffbeb;
+  color: #92400e;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .18);
+}
+.vno-slide-comment-indicator[hidden] { display: none; }
+
+.vno-slide-comments-panel {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 80;
+  width: 320px;
+  max-height: calc(100% - 36px);
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .25);
+}
+.vno-slide-comments-panel[hidden] { display: none; }
+.vno-slide-comments-panel header,.vno-slide-comment-meta { display:flex;align-items:center;justify-content:space-between;gap:8px; }
+.vno-slide-comments-panel header button,.vno-slide-comment-meta button { border:0;background:transparent;color:#b53818;cursor:pointer; }
+.vno-slide-comments-list { display:flex;flex-direction:column;gap:8px;margin:12px 0; }
+.vno-slide-comment-item { padding:8px;border:1px solid #fde68a;border-radius:6px;background:#fffbeb; }
+.vno-slide-comment-item p { margin:6px 0 0;white-space:pre-wrap;color:#334155; }
+.vno-slide-comment-meta { font-size:11px;color:#64748b; }
+.vno-slide-comments-empty { color:#64748b;font-style:italic; }
+.vno-slide-comment-compose { display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:600; }
+.vno-slide-comment-compose textarea { resize:vertical;padding:8px;border:1px solid #cbd5e1;border-radius:5px;font:inherit; }
+.vno-slide-comment-add { margin-top:8px;padding:7px 10px;border:0;border-radius:5px;background:#b53818;color:#fff;font-weight:600;cursor:pointer; }
+.vno-slide-sorter-comments { position:absolute;top:32px;right:10px;z-index:4;padding:3px 7px;border-radius:12px;background:#fffbeb;color:#92400e;font-size:11px;font-weight:700;border:1px solid #f59e0b; }
+
 .vno-slide-title {
   font-size: 32px;
   font-weight: 800;

@@ -127,6 +127,7 @@ export class SlidesCanvasController {
         body: "• Giải pháp công nghệ độc lập, bảo mật và chuẩn mực quốc gia\n• Tận dụng sức mạnh xử lý tài liệu vượt trội từ LibreOffice Core Engine\n• Giao diện thuần Việt, hiện đại, quen thuộc và thân thiện với người dùng",
         layoutType: "title-content",
         shapes: [],
+        comments: [],
         notes: "Giới thiệu tổng quan về bộ ứng dụng VN Office, nhấn mạnh tính độc lập công nghệ và bảo mật dữ liệu theo tiêu chuẩn quốc gia.",
         titleAnimation: { type: "fadeIn", duration: 600, delay: 100 },
         bodyAnimation: { type: "flyIn", duration: 700, delay: 300 }
@@ -137,6 +138,7 @@ export class SlidesCanvasController {
         body: "1. VN App UI (Writer, Sheet, Slides đồng bộ phát triển)\n2. VN Shared Platform & Global Command Bus\n3. VN LibreOffice Adapter Layer (UNO Bridge & PyUNO)\n4. LibreOffice Core Engine C++",
         layoutType: "title-content",
         shapes: [],
+        comments: [],
         notes: "Làm rõ vai trò của UNO Bridge kết nối giữa tầng giao diện web và tầng lõi LibreOffice C++ headless mà không phát sinh chi phí bản quyền.",
         titleAnimation: { type: "fadeIn", duration: 500, delay: 0 }
       },
@@ -146,6 +148,7 @@ export class SlidesCanvasController {
         body: "• Hỗ trợ toàn diện định dạng văn bản hành chính theo Nghị định 30/2020/NĐ-CP\n• Tương thích 100% hai chiều với hệ sinh thái OOXML (DOCX, XLSX, PPTX)\n• Tích hợp trợ lý AI bảo mật cục bộ, bảo vệ quyền riêng tư tuyệt đối",
         layoutType: "title-content",
         shapes: [],
+        comments: [],
         notes: "Nhấn mạnh khả năng tương thích định dạng DOCX/XLSX/PPTX và tuân thủ Nghị định 30/2020/NĐ-CP về thể thức văn bản hành chính.",
         titleAnimation: { type: "zoomIn", duration: 600, delay: 200 }
       }
@@ -162,6 +165,8 @@ export class SlidesCanvasController {
     this.bodyEl = null;
     this.body2El = null;
     this.selectedTarget = null; // "title" | "body" | "body2" | shapeId
+    this.commentButtonEl = null;
+    this.commentPanelEl = null;
 
     // Speaker Notes State
     this.isNotesVisible = false;
@@ -287,6 +292,18 @@ export class SlidesCanvasController {
     this.shapesLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;";
     this.canvasEl.appendChild(this.shapesLayer);
 
+    this.commentButtonEl = document.createElement("button");
+    this.commentButtonEl.type = "button";
+    this.commentButtonEl.className = "vno-slide-comment-indicator";
+    this.commentButtonEl.title = "Mở nhận xét của trang chiếu";
+    this.commentButtonEl.setAttribute("aria-label", "Mở nhận xét của trang chiếu");
+    this.commentButtonEl.innerHTML = `<span aria-hidden="true">◰</span><strong>0</strong>`;
+    this.commentButtonEl.addEventListener("click", (event) => {
+      event.stopPropagation();
+      this.openCommentsPanel(false);
+    });
+    this.canvasEl.appendChild(this.commentButtonEl);
+
     stage.appendChild(this.canvasEl);
 
     // Speaker Notes Panel (Dưới canvas, có thể thu gọn / mở rộng)
@@ -334,6 +351,8 @@ export class SlidesCanvasController {
 
     stage.appendChild(this.notesPanelEl);
     this.container.appendChild(stage);
+
+    this._createCommentsPanel(stage);
 
     this.selectSlide(0);
     this.applySlideMaster(this.masterTheme);
@@ -798,6 +817,7 @@ export class SlidesCanvasController {
     }
 
     this._renderShapesLayer();
+    this._renderCommentsUi();
 
     if (this.options.onChange) {
       this.options.onChange(this.currentSlideIndex + 1, this.slides.length);
@@ -848,7 +868,8 @@ export class SlidesCanvasController {
       body2: layoutType === "two-content" ? "• Nhập nội dung cột 2 tại đây...\n• Điểm thứ hai" : undefined,
       layoutType,
       shapes: [],
-      notes: ""
+      notes: "",
+      comments: []
     };
     this.slides.push(newSlide);
     const newIdx = this.slides.length - 1;
@@ -875,7 +896,8 @@ export class SlidesCanvasController {
       titleAnimation: cur.titleAnimation ? { ...cur.titleAnimation } : undefined,
       bodyAnimation: cur.bodyAnimation ? { ...cur.bodyAnimation } : undefined,
       body2Animation: cur.body2Animation ? { ...cur.body2Animation } : undefined,
-      transition: cur.transition ? { ...cur.transition } : undefined
+      transition: cur.transition ? { ...cur.transition } : undefined,
+      comments: (cur.comments || []).map(comment => ({ ...comment, id: `${comment.id}-copy-${Date.now()}` }))
     };
     const targetIdx = this.currentSlideIndex + 1;
     this.slides.splice(targetIdx, 0, dup);
@@ -985,9 +1007,13 @@ export class SlidesCanvasController {
       const timingLabel = typeof slide.rehearsedDuration === "number"
         ? `<div class="vno-slide-sorter-timing" title="Thời gian tập dượt đã lưu">⏱ ${Math.round(slide.rehearsedDuration)}s</div>`
         : "";
+      const commentBadge = (slide.comments || []).length > 0
+        ? `<div class="vno-slide-sorter-comments" title="${slide.comments.length} nhận xét">💬 ${slide.comments.length}</div>`
+        : "";
       item.innerHTML = `
         <div class="vno-slide-sorter-number">${index + 1}</div>
         ${timingLabel}
+        ${commentBadge}
         <div class="vno-slide-sorter-preview" style="background:${theme.bgColor || "#fff"};font-family:${theme.fontFamily || "sans-serif"}">
           <div class="vno-slide-sorter-accent" style="background:${theme.accentColor || "#b53818"}"></div>
           <div class="vno-slide-sorter-title" style="color:${theme.titleColor || "#0f172a"}">${escapeHtml(slide.title || "Trang chiếu trống")}</div>
@@ -1069,6 +1095,20 @@ export class SlidesCanvasController {
       this.moveSlide(action.toIndex, action.fromIndex, false);
       this.redoStack.push(action);
       return true;
+    } else if (action.type === "comment-add" || action.type === "comment-delete") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      slide.comments ||= [];
+      if (action.type === "comment-add") {
+        const idx = slide.comments.findIndex(comment => comment.id === action.comment.id);
+        if (idx >= 0) slide.comments.splice(idx, 1);
+      } else {
+        slide.comments.splice(Math.min(action.commentIndex, slide.comments.length), 0, { ...action.comment });
+      }
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderCommentsUi();
+      return true;
     } else if (action.type === "shape-add" || action.type === "shape-delete") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -1122,6 +1162,20 @@ export class SlidesCanvasController {
       this.moveSlide(action.fromIndex, action.toIndex, false);
       this.undoStack.push(action);
       return true;
+    } else if (action.type === "comment-add" || action.type === "comment-delete") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      slide.comments ||= [];
+      if (action.type === "comment-add") {
+        slide.comments.splice(Math.min(action.commentIndex, slide.comments.length), 0, { ...action.comment });
+      } else {
+        const idx = slide.comments.findIndex(comment => comment.id === action.comment.id);
+        if (idx >= 0) slide.comments.splice(idx, 1);
+      }
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderCommentsUi();
+      return true;
     } else if (action.type === "shape-add" || action.type === "shape-delete") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -1137,6 +1191,118 @@ export class SlidesCanvasController {
       return true;
     }
     return false;
+  }
+
+  _createCommentsPanel(stage) {
+    const panel = document.createElement("aside");
+    panel.className = "vno-slide-comments-panel";
+    panel.hidden = true;
+    panel.setAttribute("aria-label", "Nhận xét trang chiếu");
+    panel.innerHTML = `
+      <header><strong>Nhận xét trang chiếu</strong><button type="button" data-comment-close aria-label="Đóng">×</button></header>
+      <div class="vno-slide-comments-list" aria-live="polite"></div>
+      <label class="vno-slide-comment-compose">Nhận xét mới
+        <textarea rows="3" placeholder="Nhập nội dung nhận xét..."></textarea>
+      </label>
+      <button type="button" class="vno-slide-comment-add">Thêm nhận xét</button>`;
+    panel.querySelector("[data-comment-close]")?.addEventListener("click", () => this.closeCommentsPanel());
+    panel.querySelector(".vno-slide-comment-add")?.addEventListener("click", () => {
+      const input = panel.querySelector("textarea");
+      if (this.addComment(input?.value || "")) input.value = "";
+    });
+    panel.querySelector("textarea")?.addEventListener("keydown", event => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        panel.querySelector(".vno-slide-comment-add")?.click();
+      }
+    });
+    stage.appendChild(panel);
+    this.commentPanelEl = panel;
+  }
+
+  openCommentsPanel(focusInput = true) {
+    if (!this.commentPanelEl) return false;
+    this.commentPanelEl.hidden = false;
+    this._renderCommentsUi();
+    if (focusInput) this.commentPanelEl.querySelector("textarea")?.focus();
+    return true;
+  }
+
+  closeCommentsPanel() {
+    if (!this.commentPanelEl) return false;
+    this.commentPanelEl.hidden = true;
+    return true;
+  }
+
+  addComment(text, author = "Người dùng") {
+    const cleanText = String(text || "").trim();
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !cleanText) return false;
+    slide.comments ||= [];
+    const comment = {
+      id: `comment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      text: cleanText,
+      author: String(author || "Người dùng"),
+      timestamp: new Date().toISOString()
+    };
+    const commentIndex = slide.comments.length;
+    slide.comments.push(comment);
+    this.undoStack.push({ type: "comment-add", slideIndex: this.currentSlideIndex, comment: { ...comment }, commentIndex });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderCommentsUi();
+    return comment;
+  }
+
+  deleteComment(commentId) {
+    const slide = this.slides[this.currentSlideIndex];
+    const commentIndex = (slide?.comments || []).findIndex(comment => comment.id === commentId);
+    if (!slide || commentIndex < 0) return false;
+    const [comment] = slide.comments.splice(commentIndex, 1);
+    this.undoStack.push({ type: "comment-delete", slideIndex: this.currentSlideIndex, comment: { ...comment }, commentIndex });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderCommentsUi();
+    return true;
+  }
+
+  _renderCommentsUi() {
+    const comments = this.slides[this.currentSlideIndex]?.comments || [];
+    if (this.commentButtonEl) {
+      this.commentButtonEl.hidden = comments.length === 0;
+      const count = this.commentButtonEl.querySelector("strong");
+      if (count) count.textContent = String(comments.length);
+    }
+    const list = this.commentPanelEl?.querySelector(".vno-slide-comments-list");
+    if (list) {
+      list.innerHTML = "";
+      if (!comments.length) {
+        const empty = document.createElement("p");
+        empty.className = "vno-slide-comments-empty";
+        empty.textContent = "Trang chiếu này chưa có nhận xét.";
+        list.appendChild(empty);
+      }
+      comments.forEach(comment => {
+        const item = document.createElement("article");
+        item.className = "vno-slide-comment-item";
+        const meta = document.createElement("div");
+        meta.className = "vno-slide-comment-meta";
+        const identity = document.createElement("span");
+        identity.textContent = `${comment.author} · ${new Date(comment.timestamp).toLocaleString("vi-VN")}`;
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.textContent = "Xóa";
+        remove.setAttribute("aria-label", `Xóa nhận xét của ${comment.author}`);
+        remove.addEventListener("click", () => this.deleteComment(comment.id));
+        meta.append(identity, remove);
+        const body = document.createElement("p");
+        body.textContent = comment.text;
+        item.append(meta, body);
+        list.appendChild(item);
+      });
+    }
+    this._renderThumbnails();
+    this._renderSlideSorterGrid();
   }
 
   applySlideMaster(themeConfig) {

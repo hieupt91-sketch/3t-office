@@ -34,6 +34,26 @@ export class SheetAdapter {
       args = args || {};
       return this.grid.showCommentDialog(args);
     });
+    globalCommandBus.bindHandler("sheet.view.zoomIn", (options) => {
+      options = options || {};
+      return this.grid.zoomIn();
+    });
+    globalCommandBus.bindHandler("sheet.view.zoomOut", (options) => {
+      options = options || {};
+      return this.grid.zoomOut();
+    });
+    globalCommandBus.bindHandler("sheet.view.zoomReset", (options) => {
+      options = options || {};
+      return this.grid.zoomReset();
+    });
+    globalCommandBus.bindHandler("sheet.view.gridlines", (options) => {
+      options = options || {};
+      return this.grid.toggleGridlines();
+    });
+    globalCommandBus.bindHandler("sheet.view.headings", (options) => {
+      options = options || {};
+      return this.grid.toggleHeadings();
+    });
     globalCommandBus.bindHandler("sheet.page.setPrintArea", (args) => {
       args = args || {};
       return this.grid.setPrintArea(args);

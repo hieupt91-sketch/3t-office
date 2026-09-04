@@ -89,8 +89,7 @@ export const SHEET_RIBBON_TABS = [
               { type: "button", commandId: "sheet.data.sortDesc" },
               { type: "button", commandId: "sheet.data.filter" },
               { type: "button", commandId: "sheet.format.conditional" },
-              { type: "button", commandId: "sheet.data.validation" },
-              { type: "button", commandId: "sheet.view.freezePanes" }
+              { type: "button", commandId: "sheet.data.validation" }
             ]
           }
         ]
@@ -127,8 +126,7 @@ export const SHEET_RIBBON_TABS = [
           { type: "button", commandId: "sheet.data.validation", isLarge: true },
           { type: "button", commandId: "sheet.data.pivotTable", isLarge: true },
           { type: "button", commandId: "sheet.data.pivotRefresh", isLarge: true },
-          { type: "button", commandId: "sheet.format.conditional", isLarge: true },
-          { type: "button", commandId: "sheet.view.freezePanes", isLarge: true }
+          { type: "button", commandId: "sheet.format.conditional", isLarge: true }
         ]
       }
     ]
@@ -171,6 +169,31 @@ export const SHEET_RIBBON_TABS = [
     id: "review",
     label: "Xem xét",
     groups: [{ label: "Ghi chú", items: [{ type: "button", commandId: "sheet.review.commentInsert", isLarge: true }] }]
+  },
+  {
+    id: "view",
+    label: "Chế độ xem",
+    groups: [
+      {
+        label: "Hiển thị",
+        items: [
+          { type: "button", commandId: "sheet.view.gridlines", isLarge: true },
+          { type: "button", commandId: "sheet.view.headings", isLarge: true }
+        ]
+      },
+      {
+        label: "Thu phóng",
+        items: [
+          { type: "button", commandId: "sheet.view.zoomIn", isLarge: true },
+          { type: "button", commandId: "sheet.view.zoomOut" },
+          { type: "button", commandId: "sheet.view.zoomReset" }
+        ]
+      },
+      {
+        label: "Cửa sổ",
+        items: [{ type: "button", commandId: "sheet.view.freezePanes", isLarge: true }]
+      }
+    ]
   },
   {
     id: "ai",
