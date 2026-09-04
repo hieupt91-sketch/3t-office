@@ -59,7 +59,7 @@ export const enStrings = {
   },
   sheetRibbon: {
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", ai: "VN AI Assistant" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", sortFilter: "Sort & Filter", dataTools: "Data Tools", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", printArea: "Print Area", pageBreaks: "Page Breaks", comments: "Comments", show: "Show", zoom: "Zoom", window: "Window", aiAnalysis: "AI Data Analysis" }
+    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", sortFilter: "Sort & Filter", dataTools: "Data Tools", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", comments: "Comments", show: "Show", zoom: "Zoom", window: "Window", aiAnalysis: "AI Data Analysis" }
   },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", ai: "VN AI Assistant" },
@@ -89,6 +89,10 @@ export const enStrings = {
     "writer.nav.docEnd": { label: "Document End", tooltip: "Go to the end of the document (Ctrl+End)" },
     "sheet.nav.home": { label: "First Cell", tooltip: "Go to cell A1 (Ctrl+Home)" },
     "sheet.nav.end": { label: "Last Data Cell", tooltip: "Go to the last cell containing data (Ctrl+End)" },
+    "sheet.insert.sparklineLine": { label: "Line", tooltip: "Insert a line sparkline from the selected range" },
+    "sheet.insert.sparklineColumn": { label: "Column", tooltip: "Insert a column sparkline from the selected range" },
+    "sheet.insert.hyperlink": { label: "Link", tooltip: "Insert a hyperlink in the active cell (Ctrl+K)" },
+    "sheet.insert.textbox": { label: "Text Box", tooltip: "Insert a floating text box" },
     "common.file.new": { label: "New", tooltip: "Create a new document (Ctrl+N)" },
     "common.file.open": { label: "Open", tooltip: "Open an existing document (Ctrl+O)" },
     "common.file.save": { label: "Save", tooltip: "Save the current document (Ctrl+S)" },

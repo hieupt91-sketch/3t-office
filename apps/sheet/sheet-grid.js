@@ -96,6 +96,7 @@ export class SheetGridController {
     this.dataValidationsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.chartsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.imagesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.textBoxesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
 
     // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
@@ -344,6 +345,11 @@ export class SheetGridController {
     imageLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:7";
     this.imageLayer = imageLayer;
     vp.appendChild(imageLayer);
+    const textBoxLayer = document.createElement("div");
+    textBoxLayer.className = "vno-sheet-textbox-layer";
+    textBoxLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:8";
+    this.textBoxLayer = textBoxLayer;
+    vp.appendChild(textBoxLayer);
     this.container.appendChild(vp);
 
     // 3. Sheet Tab Bar dưới đáy
@@ -416,6 +422,7 @@ export class SheetGridController {
     this._renderVirtualRows(1, 40);
     this.renderCharts();
     this.renderImages();
+    this.renderTextBoxes();
     this.selectCell("A", 1);
     this._bindGridKeyboardNavigation();
   }
@@ -1041,6 +1048,7 @@ export class SheetGridController {
     this.dataValidationsBySheet = { [defaultSheetName]: [] };
     this.chartsBySheet = { [defaultSheetName]: [] };
     this.imagesBySheet = { [defaultSheetName]: [] };
+    this.textBoxesBySheet = { [defaultSheetName]: [] };
     this.pivotTablesBySheet = { [defaultSheetName]: [] };
     this.isFrozenPanes = false;
     this.isFilterActive = false;
@@ -1079,6 +1087,7 @@ export class SheetGridController {
     this._renderVirtualRows(1, 40);
     this.renderCharts();
     this.renderImages();
+    this.renderTextBoxes();
     this.selectCell("A", 1);
     if (this.formulaInput) this.formulaInput.value = "";
     this._syncCommandStates();
@@ -1101,6 +1110,7 @@ export class SheetGridController {
     if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
     if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
     if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
+    if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
     if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
@@ -1179,6 +1189,7 @@ export class SheetGridController {
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
     this.renderCharts();
     this.renderImages();
+    this.renderTextBoxes();
 
     // 7. Cập nhật ô chọn và thanh công thức
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
@@ -1204,6 +1215,7 @@ export class SheetGridController {
     if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
     if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
     if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
+    if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
     if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
@@ -1251,6 +1263,7 @@ export class SheetGridController {
     delete this.dataValidationsBySheet[sheetName];
     delete this.chartsBySheet[sheetName];
     delete this.imagesBySheet[sheetName];
+    delete this.textBoxesBySheet[sheetName];
     delete this.pivotTablesBySheet[sheetName];
     delete this.namedRangesBySheet[sheetName];
     delete this.commentsBySheet[sheetName];
@@ -2133,6 +2146,63 @@ export class SheetGridController {
       remove.addEventListener("click", () => this.deleteImage(image.id));
       panel.append(img, remove);
       this.imageLayer.appendChild(panel);
+    }
+  }
+
+  insertSparkline(type, range = this.selectionRange) {
+    if (!["line", "column"].includes(type)) return false;
+    const sourceRange = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
+    const values = [];
+    for (let row = sourceRange.start.r; row <= sourceRange.end.r; row++) {
+      for (let col = this._columnNumber(sourceRange.start.c); col <= this._columnNumber(sourceRange.end.c); col++) {
+        const raw = this.cellsData.get(`${this._columnLabel(col)}${row}`)?.val;
+        const value = Number(String(raw ?? "").replace(/\s/g, "").replace(/[₫%]/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", ".").replace(/[^\d.+-]/g, ""));
+        if (String(raw ?? "").trim() && Number.isFinite(value)) values.push(value);
+      }
+    }
+    if (!values.length) return false;
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
+    item.sparkline = { type, values, sourceRange };
+    this.cellsData.set(key, item);
+    this._renderCellVisual(this.container?.querySelector?.(`.vno-grid-cell[data-coord="${key}"]`), item, this.selectedCoord.c, this.selectedCoord.r);
+    return item.sparkline;
+  }
+
+  insertHyperlink(url, text = "") {
+    const safeUrl = String(url || "").trim();
+    if (!/^(https?:|mailto:)/i.test(safeUrl)) return false;
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
+    item.hyperlink = safeUrl;
+    if (text) item.val = text;
+    else if (!item.val) item.val = safeUrl;
+    this.cellsData.set(key, item);
+    this._renderCellVisual(this.container?.querySelector?.(`.vno-grid-cell[data-coord="${key}"]`), item, this.selectedCoord.c, this.selectedCoord.r);
+    return true;
+  }
+
+  insertTextBox(text, anchor = this.selectedCoord) {
+    const box = { id: `textbox-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: String(text), anchor: { c: anchor.c, r: anchor.r } };
+    this.textBoxesBySheet[this.activeSheet] ||= [];
+    this.textBoxesBySheet[this.activeSheet].push(box);
+    this.renderTextBoxes();
+    this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "textBoxesBySheet", operation: "insert", index: this.textBoxesBySheet[this.activeSheet].length - 1, item: structuredClone(box) });
+    return box;
+  }
+
+  renderTextBoxes() {
+    if (!this.textBoxLayer || typeof document === "undefined") return;
+    this.textBoxLayer.innerHTML = "";
+    for (const box of this.textBoxesBySheet[this.activeSheet] || []) {
+      const el = document.createElement("div");
+      el.className = "vno-sheet-textbox";
+      el.dataset.textboxId = box.id;
+      el.contentEditable = "true";
+      el.textContent = box.text;
+      el.style.cssText = `position:absolute;left:${Math.max(0, this.cols.indexOf(box.anchor.c)) * 100 + 46}px;top:${Math.max(0, box.anchor.r - 1) * this.rowHeight + 28}px;min-width:180px;min-height:54px;padding:10px;background:#fff;border:1px solid #64748b;box-shadow:0 4px 12px rgba(15,23,42,.16);pointer-events:auto;resize:both;overflow:auto`;
+      el.addEventListener("input", () => { box.text = el.textContent || ""; });
+      this.textBoxLayer.appendChild(el);
     }
   }
 
@@ -3104,6 +3174,7 @@ export class SheetGridController {
       }
       if (action.collection === "chartsBySheet") this.renderCharts();
       else if (action.collection === "imagesBySheet") this.renderImages();
+      else if (action.collection === "textBoxesBySheet") this.renderTextBoxes();
       else this._refreshVisibleRuleVisuals();
     } else if (action.type === "named-range") {
       const collection = action.scope === "workbook" ? this.namedRangesWorkbook : (this.namedRangesBySheet[action.sheet] ||= []);
@@ -3655,6 +3726,7 @@ export class SheetGridController {
       dataValidations: structuredClone(this.dataValidationsBySheet[sheetName] || []),
       charts: structuredClone(this.chartsBySheet[sheetName] || []),
       images: structuredClone(this.imagesBySheet[sheetName] || []),
+      textBoxes: structuredClone(this.textBoxesBySheet[sheetName] || []),
       pivotTables: structuredClone(this.pivotTablesBySheet[sheetName] || []),
       namedRanges: structuredClone(this.namedRangesBySheet[sheetName] || []),
       comments: structuredClone(this.commentsBySheet[sheetName] || {}),
@@ -3677,6 +3749,7 @@ export class SheetGridController {
     this.dataValidationsBySheet[sheetName] = structuredClone(snapshot.dataValidations);
     this.chartsBySheet[sheetName] = structuredClone(snapshot.charts);
     this.imagesBySheet[sheetName] = structuredClone(snapshot.images || []);
+    this.textBoxesBySheet[sheetName] = structuredClone(snapshot.textBoxes || []);
     this.pivotTablesBySheet[sheetName] = structuredClone(snapshot.pivotTables || []);
     this.namedRangesBySheet[sheetName] = structuredClone(snapshot.namedRanges || []);
     this.commentsBySheet[sheetName] = structuredClone(snapshot.comments || {});
@@ -4302,6 +4375,24 @@ export class SheetGridController {
 
     if (itm.style) {
       this._applyStylesToDom(td, itm.style);
+    }
+
+    if (itm.sparkline) {
+      const values = itm.sparkline.values;
+      const min = Math.min(...values), max = Math.max(...values), span = max - min || 1;
+      if (itm.sparkline.type === "column") {
+        const width = 96 / values.length;
+        td.innerHTML = `<svg data-sparkline="column" viewBox="0 0 100 24" width="100%" height="24" aria-label="Sparkline column">${values.map((value, i) => `<rect x="${i * width + 1}" y="${22 - (value - min) / span * 20}" width="${Math.max(1, width - 2)}" height="${Math.max(1, (value - min) / span * 20)}" fill="#0f6d38"/>`).join("")}</svg>`;
+      } else {
+        const points = values.map((value, i) => `${values.length === 1 ? 50 : i * 100 / (values.length - 1)},${22 - (value - min) / span * 20}`).join(" ");
+        td.innerHTML = `<svg data-sparkline="line" viewBox="0 0 100 24" width="100%" height="24" aria-label="Sparkline line"><polyline points="${points}" fill="none" stroke="#0f6d38" stroke-width="2"/></svg>`;
+      }
+      return;
+    }
+
+    if (itm.hyperlink) {
+      td.innerHTML = `<a href="${this._escapeHtml(itm.hyperlink)}" target="_blank" rel="noopener noreferrer">${this._escapeHtml(itm.val || itm.hyperlink)}</a>`;
+      return;
     }
 
     if (this.showFormulas && itm.formula) {
