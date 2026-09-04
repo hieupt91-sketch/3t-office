@@ -14,11 +14,13 @@ import {
 export async function runFormulaAutocompleteTests() {
   const results = [];
 
-  // 1. Tiền tố "AV" phải trả về AVERAGE
+  // 1. Tiền tố "AV" phải ưu tiên AVERAGE và vẫn gợi ý các biến thể mới.
   const avSuggestions = getFunctionSuggestions("AV");
   results.push({
     name: "Autocomplete: Gõ 'AV' trả về AVERAGE trong danh sách gợi ý",
-    pass: avSuggestions.length === 1 && avSuggestions[0].name === "AVERAGE"
+    pass: avSuggestions[0]?.name === "AVERAGE" &&
+          avSuggestions.some(item => item.name === "AVERAGEIF") &&
+          avSuggestions.some(item => item.name === "AVERAGEIFS")
   });
 
   // 2. Gõ hàm không tồn tại trả về danh sách rỗng
