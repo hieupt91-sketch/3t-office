@@ -101,5 +101,16 @@ export async function runFormulaEngineTests() {
           engine.evaluate("=FV(0.01,-1,-100)") === "#NUM!"
   });
 
+  // 11. PV — nhận 1.000 cuối mỗi tháng, chiết khấu 5%/năm trong 10 năm.
+  // Excel: =PV(5%/12,120,-1000,0,0) -> 94.281,3503282348
+  const pvRes = engine.evaluate("=PV(0.004166666666666667,120,-1000,0,0)");
+  const pvZeroRateRes = engine.evaluate("=PV(0,10,-100,0,0)");
+  results.push({
+    name: "Financial PV: đúng giá trị hiện tại, quy ước dấu và nhánh rate=0",
+    pass: approximatelyEqual(pvRes, 94281.35032823475, 1e-6) &&
+          approximatelyEqual(pvZeroRateRes, 1000) &&
+          engine.evaluate("=PV(0.01,0,-100)") === "#NUM!"
+  });
+
   return results;
 }
