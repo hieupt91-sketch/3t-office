@@ -116,6 +116,267 @@ export class SheetAdapter {
     });
   }
 
+  _escapeXml(value) {
+    if (value === undefined || value === null) return "";
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
+  _unescapeXml(value) {
+    if (!value) return "";
+    return String(value)
+      .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
+      .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(parseInt(code, 10)))
+      .replace(/&apos;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/&gt;/g, ">")
+      .replace(/&lt;/g, "<")
+      .replace(/&amp;/g, "&");
+  }
+
+  _columnNumber(columnName) {
+    return String(columnName || "").split("").reduce((total, char) => total * 26 + char.charCodeAt(0) - 64, 0);
+  }
+
+  _columnName(columnNumber) {
+    let result = "";
+    for (let n = columnNumber; n > 0; n = Math.floor((n - 1) / 26)) {
+      result = String.fromCharCode(65 + ((n - 1) % 26)) + result;
+    }
+    return result;
+  }
+
+  _formulaToOdf(formula) {
+    if (!formula || !String(formula).startsWith("=")) return "";
+    let expression = String(formula).slice(1);
+    const references = [];
+    expression = expression.replace(/((?:'[^']+'|[A-Za-z0-9_À-ỹ ]+)!)?(\$?[A-Z]+\$?\d+):(\$?[A-Z]+\$?\d+)/g, (_, sheet, start, end) => {
+      const prefix = sheet ? `$${sheet.slice(0, -1)}.` : ".";
+      references.push(`[${prefix}${start}:${prefix}${end}]`);
+      return `__VNO_REF_${references.length - 1}__`;
+    });
+    expression = expression.replace(/((?:'[^']+'|[A-Za-z0-9_À-ỹ ]+)!)?(\$?[A-Z]+\$?\d+)/g, (_, sheet, cell) => {
+      const prefix = sheet ? `$${sheet.slice(0, -1)}.` : ".";
+      references.push(`[${prefix}${cell}]`);
+      return `__VNO_REF_${references.length - 1}__`;
+    });
+    expression = expression.replace(/__VNO_REF_(\d+)__/g, (_, index) => references[Number(index)]);
+    return `of:=${expression}`;
+  }
+
+  _formulaFromOdf(formula) {
+    if (!formula) return "";
+    let expression = String(formula).replace(/^of:=/i, "=");
+    expression = expression.replace(/\[([^\]]+)\]/g, (_, reference) => {
+      const parts = reference.split(":").map(part => {
+        if (part.startsWith(".")) return part.slice(1);
+        const match = part.match(/^\$((?:'[^']+'|[^.]+))\.(.+)$/);
+        return match ? `${match[1]}!${match[2]}` : part;
+      });
+      return parts.join(":");
+    });
+    return expression.replace(/;/g, ",");
+  }
+
+  /** Serialize the complete workbook as Flat OpenDocument Spreadsheet XML. */
+  serializeToFods() {
+    if (!this.grid) return "";
+    const sheetNames = (this.grid.sheets && this.grid.sheets.length)
+      ? [...this.grid.sheets]
+      : Object.keys(this.grid.sheetsData || {});
+    if (sheetNames.length === 0) sheetNames.push(this.grid.activeSheet || "Trang tính 1");
+
+    const tablesXml = sheetNames.map(sheetName => {
+      const cells = this.grid.sheetsData?.[sheetName]
+        || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
+        || new Map();
+      let maxRow = 0;
+      const rows = new Map();
+      for (const [coordinate, item] of cells.entries()) {
+        const match = String(coordinate).match(/^([A-Z]+)(\d+)$/);
+        if (!match || !item || ((item.val === "" || item.val === undefined || item.val === null) && !item.formula)) continue;
+        const rowNumber = Number(match[2]);
+        const columnNumber = this._columnNumber(match[1]);
+        if (!rows.has(rowNumber)) rows.set(rowNumber, new Map());
+        rows.get(rowNumber).set(columnNumber, item);
+        maxRow = Math.max(maxRow, rowNumber);
+      }
+
+      let rowsXml = "";
+      for (let rowNumber = 1; rowNumber <= Math.max(1, maxRow); rowNumber++) {
+        const rowCells = rows.get(rowNumber) || new Map();
+        const usedColumns = [...rowCells.keys()].sort((a, b) => a - b);
+        let cellsXml = "";
+        let previousColumn = 0;
+        for (const columnNumber of usedColumns) {
+          const gap = columnNumber - previousColumn - 1;
+          if (gap === 1) cellsXml += "<table:table-cell/>";
+          else if (gap > 1) cellsXml += `<table:table-cell table:number-columns-repeated="${gap}"/>`;
+
+          const item = rowCells.get(columnNumber);
+          const formula = item.formula && String(item.formula).startsWith("=") ? String(item.formula) : "";
+          const formulaAttrs = formula
+            ? ` table:formula="${this._escapeXml(this._formulaToOdf(formula))}" vno:formula="${this._escapeXml(formula)}"`
+            : "";
+          if (typeof item.val === "number" && Number.isFinite(item.val)) {
+            cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${formulaAttrs}><text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+          } else {
+            const text = item.val === undefined || item.val === null ? "" : String(item.val);
+            cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${formulaAttrs}><text:p>${this._escapeXml(text)}</text:p></table:table-cell>`;
+          }
+          previousColumn = columnNumber;
+        }
+        rowsXml += `<table:table-row>${cellsXml || "<table:table-cell/>"}</table:table-row>`;
+      }
+      return `<table:table table:name="${this._escapeXml(sheetName)}">${rowsXml}</table:table>`;
+    }).join("");
+
+    const activeSheet = sheetNames.includes(this.grid.activeSheet) ? this.grid.activeSheet : sheetNames[0];
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+                 xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+                 xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+                 xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+                 xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
+                 office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+  <office:settings>
+    <config:config-item-set config:name="ooo:view-settings">
+      <config:config-item-map-indexed config:name="Views"><config:config-item-map-entry>
+        <config:config-item config:name="ActiveTable" config:type="string">${this._escapeXml(activeSheet)}</config:config-item>
+      </config:config-item-map-entry></config:config-item-map-indexed>
+    </config:config-item-set>
+  </office:settings>
+  <office:body><office:spreadsheet>${tablesXml}</office:spreadsheet></office:body>
+</office:document>`;
+  }
+
+  _cellFromFodsAttributes(attributes, text) {
+    const get = name => attributes[name] ?? "";
+    const valueType = get("office:value-type");
+    let value = text;
+    if (["float", "percentage", "currency"].includes(valueType)) {
+      const numericValue = Number(get("office:value"));
+      value = Number.isFinite(numericValue) ? numericValue : text;
+    } else if (valueType === "boolean") {
+      value = get("office:boolean-value") === "true";
+    } else if (get("office:string-value")) {
+      value = get("office:string-value");
+    }
+    const formula = get("vno:formula") || this._formulaFromOdf(get("table:formula"));
+    return { val: value, formula, style: {} };
+  }
+
+  /** Parse FODS into every worksheet, including repeated rows/cells emitted by LibreOffice. */
+  parseFods(xmlText) {
+    const workbook = { sheets: [], sheetsData: {}, activeSheet: "" };
+    if (!xmlText) return workbook;
+
+    if (typeof DOMParser !== "undefined") {
+      const doc = new DOMParser().parseFromString(xmlText, "text/xml");
+      if (!doc.querySelector("parsererror")) {
+        const configItems = Array.from(doc.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:config:1.0", "config-item"));
+        workbook.activeSheet = configItems.find(item => item.getAttribute("config:name") === "ActiveTable")?.textContent || "";
+        const tables = Array.from(doc.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "table"));
+        tables.forEach((table, tableIndex) => {
+          const name = table.getAttribute("table:name") || `Trang tính ${tableIndex + 1}`;
+          const data = new Map();
+          let rowNumber = 1;
+          const rowElements = Array.from(table.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "table-row"));
+          rowElements.forEach(row => {
+            const rowRepeat = Math.max(1, Number(row.getAttribute("table:number-rows-repeated")) || 1);
+            for (let repeatedRow = 0; repeatedRow < rowRepeat; repeatedRow++) {
+              let columnNumber = 1;
+              Array.from(row.children).filter(cell => ["table-cell", "covered-table-cell"].includes(cell.localName)).forEach(cell => {
+                const columnRepeat = Math.max(1, Number(cell.getAttribute("table:number-columns-repeated")) || 1);
+                const attributes = Object.fromEntries(Array.from(cell.attributes).map(attr => [attr.name, attr.value]));
+                const paragraphs = Array.from(cell.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p"));
+                const text = paragraphs.map(paragraph => paragraph.textContent || "").join("\n");
+                const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "";
+                if (hasValue) {
+                  const item = this._cellFromFodsAttributes(attributes, text);
+                  for (let repeat = 0; repeat < columnRepeat; repeat++) data.set(`${this._columnName(columnNumber + repeat)}${rowNumber}`, { ...item });
+                }
+                columnNumber += columnRepeat;
+              });
+              rowNumber++;
+            }
+          });
+          workbook.sheets.push(name);
+          workbook.sheetsData[name] = data;
+        });
+      }
+    }
+
+    if (workbook.sheets.length === 0) {
+      const activeMatch = xmlText.match(/<config:config-item[^>]*config:name=["']ActiveTable["'][^>]*>([\s\S]*?)<\/config:config-item>/i);
+      workbook.activeSheet = activeMatch ? this._unescapeXml(activeMatch[1].replace(/<[^>]+>/g, "")) : "";
+      const tableRegex = /<table:table\b([^>]*)>([\s\S]*?)<\/table:table>/gi;
+      let tableMatch;
+      let tableIndex = 0;
+      while ((tableMatch = tableRegex.exec(xmlText)) !== null) {
+        tableIndex++;
+        const nameMatch = tableMatch[1].match(/table:name=["']([^"']*)["']/i);
+        const name = this._unescapeXml(nameMatch?.[1] || `Trang tính ${tableIndex}`);
+        const data = new Map();
+        let rowNumber = 1;
+        const rowRegex = /<table:table-row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/table:table-row>)/gi;
+        let rowMatch;
+        while ((rowMatch = rowRegex.exec(tableMatch[2])) !== null) {
+          const rowRepeat = Math.max(1, Number(rowMatch[1].match(/table:number-rows-repeated=["'](\d+)["']/i)?.[1]) || 1);
+          for (let repeatedRow = 0; repeatedRow < rowRepeat; repeatedRow++) {
+            let columnNumber = 1;
+            const cellRegex = /<(?:table:)?(?:table-cell|covered-table-cell)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:table:)?(?:table-cell|covered-table-cell)>)/gi;
+            let cellMatch;
+            while ((cellMatch = cellRegex.exec(rowMatch[2] || "")) !== null) {
+              const attributes = {};
+              cellMatch[1].replace(/([\w:-]+)=["']([^"']*)["']/g, (_, key, value) => { attributes[key] = this._unescapeXml(value); return ""; });
+              const columnRepeat = Math.max(1, Number(attributes["table:number-columns-repeated"]) || 1);
+              const paragraphs = [];
+              String(cellMatch[2] || "").replace(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi, (_, value) => { paragraphs.push(this._unescapeXml(value.replace(/<[^>]+>/g, ""))); return ""; });
+              const text = paragraphs.join("\n");
+              const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "";
+              if (hasValue) {
+                const item = this._cellFromFodsAttributes(attributes, text);
+                for (let repeat = 0; repeat < columnRepeat; repeat++) data.set(`${this._columnName(columnNumber + repeat)}${rowNumber}`, { ...item });
+              }
+              columnNumber += columnRepeat;
+            }
+            rowNumber++;
+          }
+        }
+        workbook.sheets.push(name);
+        workbook.sheetsData[name] = data;
+      }
+    }
+    if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
+    return workbook;
+  }
+
+  loadFromFods(fodsText) {
+    if (!this.grid) return false;
+    const workbook = this.parseFods(fodsText);
+    if (workbook.sheets.length === 0) return false;
+    const firstSheet = workbook.sheets[0];
+    if (typeof this.grid.resetToBlank === "function") this.grid.resetToBlank(firstSheet);
+    this.grid.sheets = [firstSheet];
+    this.grid.sheetsData = { [firstSheet]: workbook.sheetsData[firstSheet] };
+    for (const sheetName of workbook.sheets.slice(1)) {
+      if (typeof this.grid.addSheet === "function") this.grid.addSheet(sheetName, false);
+      else this.grid.sheets.push(sheetName);
+      this.grid.sheetsData[sheetName] = workbook.sheetsData[sheetName];
+    }
+    if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet);
+    else this.grid.activeSheet = workbook.activeSheet;
+    this.grid.undoStack = [];
+    this.grid.redoStack = [];
+    this.grid.updateStatus?.();
+    return true;
+  }
+
   /**
    * Chuyển đổi dữ liệu bảng tính hiện tại thành chuỗi CSV (RFC 4180).
    * Giữ nguyên công thức bắt đầu bằng '=' để LibreOffice Calc xử lý chuẩn xác.
@@ -280,8 +541,8 @@ export class SheetAdapter {
    * Lưu bảng tính thành tệp XLSX thật trên đĩa (qua LibreOffice headless engine).
    */
   async save() {
-    const csvContent = this.serializeToCsv();
-    const result = await globalUnoBridge.saveRealFile("sheet", csvContent, "xlsx", this.sourceFileName);
+    const fodsContent = this.serializeToFods();
+    const result = await globalUnoBridge.saveRealFile("sheet", fodsContent, "xlsx", this.sourceFileName);
     if (result.status === "ok") {
       this.isDirty = false;
       await showAlertDialog({ title: "Đã lưu", message: result.message, type: "success" });
@@ -302,7 +563,7 @@ export class SheetAdapter {
   async open() {
     const result = await globalUnoBridge.openRealFile("sheet");
     if (result.status === "ok") {
-      this.loadFromCsv(result.content);
+      this.loadFromFods(result.content);
       this.sourceFileName = (result.fileName || "BangTinh").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
       return true;
@@ -313,8 +574,8 @@ export class SheetAdapter {
   }
 
   async exportPdf() {
-    const csvContent = this.serializeToCsv();
-    const result = await globalUnoBridge.exportRealPdf("sheet", csvContent, this.sourceFileName);
+    const fodsContent = this.serializeToFods();
+    const result = await globalUnoBridge.exportRealPdf("sheet", fodsContent, this.sourceFileName);
     if (result.status === "ok") {
       await showAlertDialog({ title: "Đã xuất PDF", message: result.message, type: "success" });
       return true;

@@ -31,9 +31,35 @@ export async function runSheetFileIoTests() {
     constructor() {
       this.cols = ["A", "B", "C", "D", "E", "F"];
       this.rowCount = 10;
-      this.cellsData = new Map();
+      this.sheets = ["Trang tính 1"];
+      this.activeSheet = "Trang tính 1";
+      this.sheetsData = { "Trang tính 1": new Map() };
       this.selectedCell = null;
       this.statusUpdated = false;
+    }
+
+    get cellsData() {
+      return this.sheetsData[this.activeSheet];
+    }
+
+    resetToBlank(name = "Trang tính 1") {
+      this.sheets = [name];
+      this.activeSheet = name;
+      this.sheetsData = { [name]: new Map() };
+    }
+
+    addSheet(name) {
+      if (!this.sheets.includes(name)) this.sheets.push(name);
+      this.sheetsData[name] ||= new Map();
+      this.activeSheet = name;
+      return name;
+    }
+
+    switchSheet(name) {
+      if (!this.sheets.includes(name)) this.sheets.push(name);
+      this.sheetsData[name] ||= new Map();
+      this.activeSheet = name;
+      return true;
     }
 
     setCellValue(col, row, val) {
@@ -118,6 +144,44 @@ export async function runSheetFileIoTests() {
     }
   });
 
+  test("SheetAdapter: FODS round-trip giữ nguyên dữ liệu, tên và active sheet của 3 sheet", () => {
+    const source = new MockGridController();
+    source.sheets = ["Doanh thu", "Kế hoạch quý", "Nhân sự Việt Nam"];
+    source.sheetsData = {
+      "Doanh thu": new Map([
+        ["A1", { val: "Sản phẩm", formula: "", style: {} }],
+        ["B2", { val: 1250.5, formula: "", style: {} }],
+        ["C3", { val: 1260.5, formula: "=SUM(B2,10)", style: {} }]
+      ]),
+      "Kế hoạch quý": new Map([
+        ["A1", { val: "Quý III & IV <2027>", formula: "", style: {} }],
+        ["F10", { val: -42.75, formula: "", style: {} }]
+      ]),
+      "Nhân sự Việt Nam": new Map([
+        ["A1", { val: "Nguyễn Văn An", formula: "", style: {} }],
+        ["B1", { val: 37, formula: "", style: {} }]
+      ])
+    };
+    source.activeSheet = "Kế hoạch quý";
+
+    const xml = new SheetAdapter(source).serializeToFods();
+    if ((xml.match(/<table:table table:name=/g) || []).length !== 3) throw new Error("FODS không chứa đúng 3 sheet");
+    if (!xml.includes("Kế hoạch quý") || !xml.includes("&amp;") || !xml.includes("&lt;2027&gt;")) {
+      throw new Error("Tên sheet hoặc chuỗi XML chưa được bảo toàn/escape đúng");
+    }
+
+    const target = new MockGridController();
+    const adapter = new SheetAdapter(target);
+    if (!adapter.loadFromFods(xml)) throw new Error("Không nạp được FODS vừa serialize");
+    if (target.sheets.join("|") !== source.sheets.join("|")) throw new Error(`Sai danh sách sheet: ${target.sheets.join("|")}`);
+    if (target.activeSheet !== "Kế hoạch quý") throw new Error(`Sai active sheet: ${target.activeSheet}`);
+    if (target.sheetsData["Doanh thu"].get("B2")?.val !== 1250.5) throw new Error("Mất/sai số ở sheet Doanh thu");
+    if (target.sheetsData["Doanh thu"].get("C3")?.formula !== "=SUM(B2,10)") throw new Error("Mất công thức gốc ở sheet Doanh thu");
+    if (target.sheetsData["Kế hoạch quý"].get("A1")?.val !== "Quý III & IV <2027>") throw new Error("Sai chuỗi escape ở sheet Kế hoạch quý");
+    if (target.sheetsData["Kế hoạch quý"].get("F10")?.val !== -42.75) throw new Error("Mất số ở sheet Kế hoạch quý");
+    if (target.sheetsData["Nhân sự Việt Nam"].get("A1")?.val !== "Nguyễn Văn An") throw new Error("Mất Unicode ở sheet Nhân sự Việt Nam");
+  });
+
   await asyncTest("SheetAdapter: handleDispatch điều phối save, open, exportPdf chuẩn xác", async () => {
     const grid = new MockGridController();
     grid.setCellValue("A", 1, "Dữ liệu");
@@ -137,7 +201,7 @@ export async function runSheetFileIoTests() {
     };
     globalUnoBridge.openRealFile = async (kind) => {
       openCalled = true;
-      return { status: "ok", content: "A,B\n1,2", fileName: "BaoCao.xlsx" };
+      return { status: "ok", content: adapter.serializeToFods(), fileName: "BaoCao.xlsx" };
     };
     globalUnoBridge.exportRealPdf = async (kind, content, name) => {
       exportPdfCalled = true;
@@ -148,6 +212,9 @@ export async function runSheetFileIoTests() {
       await adapter.handleDispatch(".uno:Save", null, "common.file.save");
       if (!saveCalledWith || saveCalledWith.kind !== "sheet" || saveCalledWith.format !== "xlsx") {
         throw new Error(`Lưu file không gọi đúng Bridge: ${JSON.stringify(saveCalledWith)}`);
+      }
+      if (!saveCalledWith.content.includes("<office:spreadsheet>") || !saveCalledWith.content.includes("<table:table")) {
+        throw new Error("Bridge chưa nhận nội dung FODS");
       }
 
       await adapter.handleDispatch(".uno:Open", null, "common.file.open");
