@@ -62,7 +62,7 @@ export const viStrings = {
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", ai: "Trợ lý VN AI" },
-    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", drawing: "Đối tượng vẽ", imagesObjects: "Hình ảnh & Đối tượng", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", comments: "Nhận xét", presentationViews: "Dạng xem bản trình chiếu", aiContent: "Tạo nội dung thuyết trình" }
+    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", drawing: "Đối tượng vẽ", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", comments: "Nhận xét", presentationViews: "Dạng xem bản trình chiếu", aiContent: "Tạo nội dung thuyết trình" }
   },
   sheetDialogs: {
     close: "Đóng", cancel: "Hủy", cancelLong: "Hủy bỏ", apply: "Áp dụng", range: "Phạm vi", value: "Giá trị",
@@ -192,6 +192,11 @@ export const viStrings = {
     ,"slides.image.insert": { label: "Hình ảnh", tooltip: "Chèn ảnh minh họa từ máy tính" }
     ,"slides.media.insertVideo": { label: "Video", tooltip: "Chèn video từ máy tính" }
     ,"slides.media.insertAudio": { label: "Âm thanh", tooltip: "Chèn âm thanh từ máy tính" }
+    ,"slides.insert.table": { label: "Bảng", tooltip: "Chèn bảng vào trang chiếu, kéo-thả và đổi kích thước được" }
+    ,"slides.insert.headerFooter": { label: "Đầu trang & Chân trang", tooltip: "Bật/tắt ngày tháng, số trang và chân trang" }
+    ,"slides.insert.dateTime": { label: "Ngày & Giờ", tooltip: "Chèn placeholder ngày giờ tự cập nhật" }
+    ,"slides.insert.slideNumber": { label: "Số trang chiếu", tooltip: "Chèn placeholder số trang chiếu tự cập nhật" }
+    ,"slides.insert.symbol": { label: "Ký hiệu", tooltip: "Chèn ký tự đặc biệt vào khung văn bản đang chọn" }
     ,"slides.master.apply": { label: "Mẫu Slide Master", tooltip: "Áp dụng mẫu Slide Master đồng bộ font, màu, logo cho toàn bộ trang chiếu" }
     ,"slides.design.themeGallery": { label: "Chủ đề", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" }
     ,"slides.design.slideSize": { label: "Kích thước trang chiếu", tooltip: "Chọn tỷ lệ trang chiếu 16:9 hoặc 4:3" }
@@ -254,6 +259,13 @@ export const viStrings = {
     "writer.page.break": { label: "Ngắt trang", tooltip: "Ngắt sang trang mới (Ctrl+Enter)" },
     "writer.header.insert": { label: "Đầu trang", tooltip: "Chèn tiêu đề đầu trang (Header)" },
     "writer.footer.insert": { label: "Chân trang", tooltip: "Chèn tiêu đề chân trang (Footer)" },
+    "writer.insert.textbox": { label: "Hộp văn bản", tooltip: "Chèn khung văn bản độc lập, kéo-thả được" },
+    "writer.format.dropCap": { label: "Chữ cái đầu đoạn", tooltip: "Phóng to chữ cái đầu đoạn văn (Drop Cap)" },
+    "writer.insert.dateTime": { label: "Ngày & Giờ", tooltip: "Chèn ngày giờ hiện tại tại vị trí con trỏ" },
+    "writer.insert.equation": { label: "Công thức", tooltip: "Chèn hộp công thức toán học dạng chữ (bản rút gọn)" },
+    "writer.insert.symbol": { label: "Ký hiệu", tooltip: "Chèn ký tự đặc biệt tại vị trí con trỏ" },
+    "writer.insert.bookmark": { label: "Đánh dấu", tooltip: "Đánh dấu vị trí trong tài liệu để nhảy tới sau" },
+    "writer.insert.crossReference": { label: "Tham chiếu chéo", tooltip: "Chèn liên kết nội bộ tới tiêu đề hoặc đánh dấu" },
     "writer.comment.insert": { label: "Thêm ghi chú", tooltip: "Thêm ghi chú vào đoạn văn bản đang chọn (Ctrl+Alt+M)" },
     "writer.trackChanges.toggle": { label: "Theo dõi thay đổi", tooltip: "Bật/tắt đánh dấu nội dung thêm và xóa (Ctrl+Shift+E)" },
     "writer.trackChanges.acceptAll": { label: "Chấp nhận thay đổi", tooltip: "Chấp nhận toàn bộ thay đổi trong tài liệu" },
@@ -303,6 +315,8 @@ export const viStrings = {
       links: "Liên kết",
       documentFormatting: "Định dạng tài liệu",
       headerFooter: "Đầu trang / Chân trang",
+      text: "Văn bản",
+      symbols: "Ký hiệu",
       tocNotes: "Mục lục & Chú thích",
       pageSetup: "Thiết lập trang",
       pageBackground: "Nền & Viền trang",

@@ -308,3 +308,49 @@
   line-height: 1.4;
 }
 
+.vno-symbol-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+
+.vno-symbol-cell {
+  min-width: 0;
+  height: 36px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.vno-symbol-cell:hover,
+.vno-symbol-cell:focus-visible {
+  border-color: #2563eb;
+  background: #eff6ff;
+  outline: none;
+}
+
+.vno-datetime-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vno-datetime-preset {
+  text-align: left;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.vno-datetime-preset.is-selected,
+.vno-datetime-preset:hover,
+.vno-datetime-preset:focus-visible {
+  border-color: #2563eb;
+  background: #eff6ff;
+  outline: none;
+}
+

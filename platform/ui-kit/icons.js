@@ -565,5 +565,49 @@ export const ICONS = {
   dialogLauncher: `<svg viewBox="0 0 14 14" width="10" height="10" fill="none">
     <path d="M2 11h9V2" stroke="#94A3B8" stroke-width="1.2"/>
     <path d="M11 11L5 5m0 0h4m-4 0v4" stroke="#475569" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  dropCap: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <text x="3" y="18" font-size="16" font-weight="800" fill="#0F4C81" font-family="serif">A</text>
+    <line x1="12" y1="7" x2="21" y2="7" stroke="#64748B" stroke-width="1.6" stroke-linecap="round"/>
+    <line x1="12" y1="11" x2="21" y2="11" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>
+    <line x1="3" y1="21" x2="21" y2="21" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
+  dateTime: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="5" width="18" height="16" rx="2" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.4"/>
+    <rect x="3" y="5" width="18" height="5" rx="2" fill="#2563EB"/>
+    <path d="M8 3v4M16 3v4" stroke="#1D4ED8" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="16.5" cy="16.5" r="4.2" fill="#FFFFFF" stroke="#0F4C81" stroke-width="1.2"/>
+    <path d="M16.5 14.6V16.5l1.4 1" stroke="#DC2626" stroke-width="1.3" stroke-linecap="round"/>
+  </svg>`,
+
+  equation: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="2" y="3" width="20" height="18" rx="3" fill="#F8FAFC" stroke="#7C3AED" stroke-width="1.4"/>
+    <text x="5" y="16" font-size="11" font-weight="700" fill="#6D28D9" font-family="serif">∑x</text>
+    <path d="M15 8h5M16.5 8v8M15 16h5" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`,
+
+  symbol: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#FEF3C7" stroke="#D97706" stroke-width="1.4"/>
+    <text x="6.2" y="17" font-size="13" font-weight="800" fill="#92400E" font-family="serif">Ω</text>
+  </svg>`,
+
+  bookmark: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <path d="M7 3h10a1.5 1.5 0 0 1 1.5 1.5V21l-6.5-3.5L5.5 21V4.5A1.5 1.5 0 0 1 7 3Z" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M9 8h6" stroke="#1D4ED8" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
+  crossReference: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="2" y="4" width="11" height="14" rx="1.5" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.4"/>
+    <rect x="11" y="8" width="11" height="14" rx="1.5" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.4"/>
+    <path d="M6 9h3M6 12h2" stroke="#64748B" stroke-width="1.3" stroke-linecap="round"/>
+    <path d="M14 13h5M16.5 11L19 13l-2.5 2" stroke="#16A34A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  slideNumber: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="5" width="18" height="13" rx="2" fill="#FAEEE8" stroke="#B53818" stroke-width="1.4"/>
+    <text x="8" y="14.5" font-size="9" font-weight="800" fill="#B53818" font-family="sans-serif">#3</text>
+    <path d="M7 21h10" stroke="#64748B" stroke-width="1.5" stroke-linecap="round"/>
   </svg>`
 };

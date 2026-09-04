@@ -92,6 +92,13 @@ export const WRITER_COMMANDS = [
   { id: "writer.page.break", category: "insert", label: "Ngắt trang", shortcut: "Ctrl+Enter", icon: "pageBreak", tooltip: "Ngắt sang trang mới (Ctrl+Enter)" },
   { id: "writer.header.insert", category: "insert", label: "Đầu trang", icon: "headerFooter", tooltip: "Chèn tiêu đề đầu trang (Header)" },
   { id: "writer.footer.insert", category: "insert", label: "Chân trang", icon: "headerFooter", tooltip: "Chèn tiêu đề chân trang (Footer)" },
+  { id: "writer.insert.textbox", category: "insert", label: "Hộp văn bản", icon: "textBox", tooltip: "Chèn khung văn bản độc lập, kéo-thả được" },
+  { id: "writer.format.dropCap", category: "insert", label: "Chữ cái đầu đoạn", icon: "dropCap", tooltip: "Phóng to chữ cái đầu đoạn văn (Drop Cap)" },
+  { id: "writer.insert.dateTime", category: "insert", label: "Ngày & Giờ", icon: "dateTime", tooltip: "Chèn ngày giờ hiện tại tại vị trí con trỏ" },
+  { id: "writer.insert.equation", category: "insert", label: "Công thức", icon: "equation", tooltip: "Chèn hộp công thức toán học dạng chữ (bản rút gọn)" },
+  { id: "writer.insert.symbol", category: "insert", label: "Ký hiệu", icon: "symbol", tooltip: "Chèn ký tự đặc biệt tại vị trí con trỏ" },
+  { id: "writer.insert.bookmark", category: "insert", label: "Đánh dấu", icon: "bookmark", tooltip: "Đánh dấu vị trí trong tài liệu để nhảy tới sau" },
+  { id: "writer.insert.crossReference", category: "insert", label: "Tham chiếu chéo", icon: "crossReference", tooltip: "Chèn liên kết nội bộ tới tiêu đề hoặc đánh dấu" },
 
   // Đánh giá (Review)
   { id: "writer.comment.insert", category: "review", label: "Thêm ghi chú", shortcut: "Ctrl+Alt+M", icon: "textBox", tooltip: "Thêm ghi chú vào đoạn văn bản đang chọn (Ctrl+Alt+M)" },
@@ -227,6 +234,11 @@ export const SLIDES_COMMANDS = [
   { id: "slides.image.insert", category: "insert", label: "Hình ảnh", icon: "image", tooltip: "Chèn ảnh minh họa từ máy tính" },
   { id: "slides.media.insertVideo", category: "insert", label: "Video", icon: "videoInsert", tooltip: "Chèn video từ máy tính" },
   { id: "slides.media.insertAudio", category: "insert", label: "Âm thanh", icon: "audioInsert", tooltip: "Chèn âm thanh từ máy tính" },
+  { id: "slides.insert.table", category: "insert", label: "Bảng", icon: "table", tooltip: "Chèn bảng vào trang chiếu, kéo-thả và đổi kích thước được" },
+  { id: "slides.insert.headerFooter", category: "insert", label: "Đầu trang & Chân trang", icon: "headerFooter", tooltip: "Bật/tắt ngày tháng, số trang và chân trang" },
+  { id: "slides.insert.dateTime", category: "insert", label: "Ngày & Giờ", icon: "dateTime", tooltip: "Chèn placeholder ngày giờ tự cập nhật" },
+  { id: "slides.insert.slideNumber", category: "insert", label: "Số trang chiếu", icon: "slideNumber", tooltip: "Chèn placeholder số trang chiếu tự cập nhật" },
+  { id: "slides.insert.symbol", category: "insert", label: "Ký hiệu", icon: "symbol", tooltip: "Chèn ký tự đặc biệt vào khung văn bản đang chọn" },
 
   // Trình chiếu & Thiết kế
   { id: "slides.design.themeGallery", category: "design", label: "Chủ đề", icon: "themeGallery", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" },
