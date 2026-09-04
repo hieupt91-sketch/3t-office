@@ -1099,7 +1099,9 @@ export class SheetGridController {
     }
     if (action.sheet && action.sheet !== this.activeSheet) this.switchSheet(action.sheet);
     const value = direction === "undo" ? "prevVal" : "nextVal";
-    if (action.type === "cell") {
+    if (action.type === "grid-structure") {
+      this._restoreGridStructure(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "cell") {
       this.setCellValue(action.col, action.row, action[value], false);
       this.selectCell(action.col, action.row);
     } else if (action.type === "style") {
@@ -1382,6 +1384,181 @@ export class SheetGridController {
 
   _snapshotCells(sheetName = this.activeSheet) {
     return Array.from((this.sheetsData[sheetName] || new Map()).entries(), ([key, value]) => [key, structuredClone(value)]);
+  }
+
+  _snapshotGridStructure(sheetName = this.activeSheet) {
+    const state = this.sheetStates[sheetName] || {};
+    return {
+      sheetName,
+      cells: this._snapshotCells(sheetName),
+      rowCount: this.rowCount,
+      cols: [...this.cols],
+      conditionalFormatting: structuredClone(this.conditionalFormattingBySheet[sheetName] || []),
+      dataValidations: structuredClone(this.dataValidationsBySheet[sheetName] || []),
+      comments: structuredClone(this.commentsBySheet[sheetName] || {}),
+      printArea: this.printAreaBySheet[sheetName] || null,
+      pageBreaks: structuredClone(this.pageBreaksBySheet[sheetName] || { rows: [], cols: [] }),
+      hiddenRows: [...(sheetName === this.activeSheet ? this.hiddenRows : (state.hiddenRows || []))],
+      activeFilters: Array.from(sheetName === this.activeSheet ? this.activeFilters : (state.activeFilters || []), ([col, values]) => [col, [...values]]),
+      selectedCoord: { ...(sheetName === this.activeSheet ? this.selectedCoord : (state.selectedCoord || { r: 1, c: "A" })) },
+      selectionRange: structuredClone(this.selectionRange)
+    };
+  }
+
+  _restoreGridStructure(snapshot) {
+    this.rowCount = snapshot.rowCount;
+    this.cols = [...snapshot.cols];
+    this.sheetsData[snapshot.sheetName] = new Map(snapshot.cells.map(([key, value]) => [key, structuredClone(value)]));
+    this.conditionalFormattingBySheet[snapshot.sheetName] = structuredClone(snapshot.conditionalFormatting);
+    this.dataValidationsBySheet[snapshot.sheetName] = structuredClone(snapshot.dataValidations);
+    this.commentsBySheet[snapshot.sheetName] = structuredClone(snapshot.comments);
+    this.printAreaBySheet[snapshot.sheetName] = snapshot.printArea;
+    this.pageBreaksBySheet[snapshot.sheetName] = structuredClone(snapshot.pageBreaks);
+    this.hiddenRows = new Set(snapshot.hiddenRows);
+    this.activeFilters = new Map(snapshot.activeFilters.map(([col, values]) => [col, new Set(values)]));
+    this.selectedCoord = { ...snapshot.selectedCoord };
+    this.selectionRange = structuredClone(snapshot.selectionRange);
+    if (this.sheetStates[snapshot.sheetName]) {
+      Object.assign(this.sheetStates[snapshot.sheetName], {
+        hiddenRows: new Set(this.hiddenRows),
+        activeFilters: new Map(this.activeFilters),
+        selectedCoord: { ...this.selectedCoord }
+      });
+    }
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+  }
+
+  _columnNumber(label) {
+    return String(label).toUpperCase().split("").reduce((value, char) => value * 26 + char.charCodeAt(0) - 64, 0);
+  }
+
+  _columnLabel(number) {
+    let value = number;
+    let label = "";
+    while (value > 0) {
+      value--;
+      label = String.fromCharCode(65 + (value % 26)) + label;
+      value = Math.floor(value / 26);
+    }
+    return label;
+  }
+
+  _shiftCellReference(reference, axis, insertionPoint) {
+    return String(reference).split(/("(?:""|[^"])*")/).map((segment, index) => {
+      if (index % 2 === 1) return segment;
+      return segment.replace(/(^|[^A-Z0-9_])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Z0-9_])/gi, (match, prefix, colAbs, col, rowAbs, row) => {
+        let nextCol = col.toUpperCase();
+        let nextRow = Number(row);
+        if (axis === "row" && nextRow >= insertionPoint) nextRow++;
+        if (axis === "col" && this._columnNumber(nextCol) >= insertionPoint) nextCol = this._columnLabel(this._columnNumber(nextCol) + 1);
+        return `${prefix}${colAbs}${nextCol}${rowAbs}${nextRow}`;
+      });
+    }).join("");
+  }
+
+  _shiftRange(range, axis, insertionPoint) {
+    if (!range?.start || !range?.end) return range;
+    const shift = point => ({
+      c: axis === "col" && this._columnNumber(point.c) >= insertionPoint ? this._columnLabel(this._columnNumber(point.c) + 1) : point.c,
+      r: axis === "row" && point.r >= insertionPoint ? point.r + 1 : point.r
+    });
+    return { ...structuredClone(range), start: shift(range.start), end: shift(range.end) };
+  }
+
+  _renderColumnHeaders() {
+    const row = this.table?.querySelector?.("thead tr");
+    if (row) {
+      row.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
+      this.cols.forEach(col => {
+        const th = document.createElement("th");
+        th.className = "vno-col-header";
+        th.dataset.col = col;
+        th.innerHTML = `<span class="vno-col-title">${col}</span><button class="vno-filter-btn" data-col="${col}" title="Lọc và sắp xếp cột ${col}" style="display:none;">▼</button>`;
+        row.appendChild(th);
+      });
+    }
+    this.topSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(this.cols.length + 1));
+    this.bottomSpacer?.querySelector?.("td")?.setAttribute?.("colspan", String(this.cols.length + 1));
+    this._updateFilterButtons();
+  }
+
+  _shiftGridMetadata(axis, insertionPoint) {
+    const sheet = this.activeSheet;
+    const shiftRange = range => this._shiftRange(range, axis, insertionPoint);
+    this.conditionalFormattingBySheet[sheet] = (this.conditionalFormattingBySheet[sheet] || []).map(rule => ({ ...rule, range: shiftRange(rule.range) }));
+    this.dataValidationsBySheet[sheet] = (this.dataValidationsBySheet[sheet] || []).map(rule => ({ ...rule, range: shiftRange(rule.range) }));
+
+    const comments = {};
+    for (const [coord, comment] of Object.entries(this.commentsBySheet[sheet] || {})) {
+      const shifted = this._shiftCellReference(coord, axis, insertionPoint);
+      comments[shifted] = { ...structuredClone(comment), coord: shifted };
+    }
+    this.commentsBySheet[sheet] = comments;
+
+    if (this.printAreaBySheet[sheet]) this.printAreaBySheet[sheet] = this._shiftCellReference(this.printAreaBySheet[sheet], axis, insertionPoint);
+    const breaks = structuredClone(this.pageBreaksBySheet[sheet] || { rows: [], cols: [] });
+    if (axis === "row") breaks.rows = breaks.rows.map(row => row >= insertionPoint ? row + 1 : row);
+    else breaks.cols = breaks.cols.map(col => this._columnNumber(col) >= insertionPoint ? this._columnLabel(this._columnNumber(col) + 1) : col);
+    this.pageBreaksBySheet[sheet] = breaks;
+
+    this.hiddenRows = new Set([...this.hiddenRows].map(row => axis === "row" && row >= insertionPoint ? row + 1 : row));
+    if (axis === "col") this.activeFilters = new Map([...this.activeFilters].map(([col, values]) => [this._columnNumber(col) >= insertionPoint ? this._columnLabel(this._columnNumber(col) + 1) : col, values]));
+  }
+
+  insertRow(atRow = this.selectedCoord.r, recordUndo = true) {
+    atRow = Number(atRow);
+    if (!Number.isInteger(atRow) || atRow < 1 || atRow > this.rowCount) return false;
+    const before = this._snapshotGridStructure();
+    const shifted = new Map();
+    for (const [key, item] of this.cellsData.entries()) {
+      const [col, row] = this._splitCoord(key);
+      const nextKey = `${col}${row >= atRow ? row + 1 : row}`;
+      const nextItem = structuredClone(item);
+      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "row", atRow);
+      shifted.set(nextKey, nextItem);
+    }
+    this.sheetsData[this.activeSheet] = shifted;
+    this.rowCount++;
+    this._shiftGridMetadata("row", atRow);
+    this.selectedCoord = { c: this.selectedCoord.c, r: atRow };
+    this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  insertColumn(atCol = this.selectedCoord.c, recordUndo = true) {
+    const atColumnNumber = typeof atCol === "number" ? atCol : this._columnNumber(atCol);
+    if (!Number.isInteger(atColumnNumber) || atColumnNumber < 1 || atColumnNumber > this.cols.length) return false;
+    const before = this._snapshotGridStructure();
+    const shifted = new Map();
+    for (const [key, item] of this.cellsData.entries()) {
+      const [col, row] = this._splitCoord(key);
+      const colNumber = this._columnNumber(col);
+      const nextKey = `${colNumber >= atColumnNumber ? this._columnLabel(colNumber + 1) : col}${row}`;
+      const nextItem = structuredClone(item);
+      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "col", atColumnNumber);
+      shifted.set(nextKey, nextItem);
+    }
+    this.sheetsData[this.activeSheet] = shifted;
+    this.cols = Array.from({ length: this.cols.length + 1 }, (_, index) => this._columnLabel(index + 1));
+    this._shiftGridMetadata("col", atColumnNumber);
+    this.selectedCoord = { c: this._columnLabel(atColumnNumber), r: this.selectedCoord.r };
+    this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
   }
 
   _restoreCells(entries) {

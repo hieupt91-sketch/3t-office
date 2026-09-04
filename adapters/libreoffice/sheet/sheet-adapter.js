@@ -70,6 +70,14 @@ export class SheetAdapter {
       args = args || {};
       return this.grid.removePageBreak(args);
     });
+    globalCommandBus.bindHandler("sheet.row.insert", (options) => {
+      options = options || {};
+      return this.grid.insertRow(options.atRow);
+    });
+    globalCommandBus.bindHandler("sheet.col.insert", (options) => {
+      options = options || {};
+      return this.grid.insertColumn(options.atCol);
+    });
   }
 
   /**
@@ -319,6 +327,12 @@ export class SheetAdapter {
 
       case "sheet.insert.date":
         return this.grid.insertCurrentDate();
+
+      case "sheet.row.insert":
+        return this.grid.insertRow(args?.atRow);
+
+      case "sheet.col.insert":
+        return this.grid.insertColumn(args?.atCol);
 
       case "sheet.formula.sum":
         return this.grid.insertFormula("SUM");
