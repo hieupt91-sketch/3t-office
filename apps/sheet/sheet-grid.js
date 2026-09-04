@@ -1314,24 +1314,28 @@ export class SheetGridController {
 
   sort(col = this.selectedCoord.c, ascending = true) {
     const before = this._snapshotCells();
-    // Thu thập các hàng dữ liệu cần sắp xếp
-    const rowsWithData = [];
+    // Ưu tiên đúng vùng người dùng đã chọn. Trước đây hàm hard-code r >= 4,
+    // khiến Sort không làm gì với bảng bắt đầu ở hàng 1/2 dù dispatch vẫn chạy.
+    const selectedRange = this._normalizeRange(this.selectionRange);
+    const hasRowSelection = selectedRange.end.r > selectedRange.start.r;
+    const rowsWithData = hasRowSelection
+      ? Array.from({ length: selectedRange.end.r - selectedRange.start.r + 1 }, (_, index) => selectedRange.start.r + index)
+      : [];
     for (const [key, item] of this.cellsData.entries()) {
+      if (hasRowSelection) break;
       if ((item.val !== "" && item.val !== undefined) || item.formula) {
         const m = key.match(/^([A-Z]+)(\d+)$/);
         if (m) {
           const r = parseInt(m[2], 10);
           const isTotalRow = (item.formula && item.formula.toLowerCase().includes("sum")) || String(item.val).toLowerCase().includes("tổng");
-          if (r >= 4 && !isTotalRow && !rowsWithData.includes(r)) {
+          if (!isTotalRow && !rowsWithData.includes(r)) {
             rowsWithData.push(r);
           }
         }
       }
     }
 
-    if (rowsWithData.length < 2) {
-      rowsWithData.push(4, 5, 6, 7);
-    }
+    if (rowsWithData.length < 2) return false;
 
     rowsWithData.sort((a, b) => a - b);
     const minRow = rowsWithData[0];
