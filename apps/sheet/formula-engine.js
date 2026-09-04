@@ -11,6 +11,15 @@ export const FUNCTION_CATALOG = [
   { name: "ABS", category: "Toán học", syntax: "ABS(number)", desc: "Trả về giá trị tuyệt đối của một số." },
   { name: "INT", category: "Toán học", syntax: "INT(number)", desc: "Làm tròn một số xuống số nguyên gần nhất." },
   { name: "MOD", category: "Toán học", syntax: "MOD(number, divisor)", desc: "Trả về số dư sau khi chia một số cho một số chia." },
+  { name: "SUMPRODUCT", category: "Toán học", syntax: "SUMPRODUCT(array1, [array2], ...)", desc: "Nhân các phần tử tương ứng trong các vùng rồi tính tổng các tích." },
+  { name: "SQRT", category: "Toán học", syntax: "SQRT(number)", desc: "Trả về căn bậc hai dương của một số." },
+  { name: "POWER", category: "Toán học", syntax: "POWER(number, power)", desc: "Nâng một số lên lũy thừa đã cho." },
+  { name: "ROUNDUP", category: "Toán học", syntax: "ROUNDUP(number, num_digits)", desc: "Làm tròn một số ra xa số không đến số chữ số chỉ định." },
+  { name: "ROUNDDOWN", category: "Toán học", syntax: "ROUNDDOWN(number, num_digits)", desc: "Làm tròn một số về phía số không đến số chữ số chỉ định." },
+  { name: "CEILING", category: "Toán học", syntax: "CEILING(number, significance)", desc: "Làm tròn một số lên bội số gần nhất của mức chính xác." },
+  { name: "FLOOR", category: "Toán học", syntax: "FLOOR(number, significance)", desc: "Làm tròn một số xuống bội số gần nhất của mức chính xác." },
+  { name: "TRUNC", category: "Toán học", syntax: "TRUNC(number, [num_digits])", desc: "Cắt bớt phần thập phân của một số đến số chữ số chỉ định." },
+  { name: "SIGN", category: "Toán học", syntax: "SIGN(number)", desc: "Trả về dấu của một số: -1, 0 hoặc 1." },
 
   // Thống kê
   { name: "AVERAGE", category: "Thống kê", syntax: "AVERAGE(number1, [number2], ...)", desc: "Tính giá trị trung bình cộng của các đối số." },
@@ -22,6 +31,16 @@ export const FUNCTION_CATALOG = [
   { name: "SUMIF", category: "Thống kê", syntax: "SUMIF(range, criteria, [sum_range])", desc: "Tính tổng các ô tương ứng thỏa một điều kiện." },
   { name: "COUNTIFS", category: "Thống kê", syntax: "COUNTIFS(range1, criteria1, [range2, criteria2], ...)", desc: "Đếm các hàng thỏa đồng thời nhiều điều kiện." },
   { name: "SUMIFS", category: "Thống kê", syntax: "SUMIFS(sum_range, range1, criteria1, [range2, criteria2], ...)", desc: "Tính tổng các hàng thỏa đồng thời nhiều điều kiện." },
+  { name: "AVERAGEIF", category: "Thống kê", syntax: "AVERAGEIF(range, criteria, [average_range])", desc: "Tính trung bình các ô tương ứng thỏa một điều kiện." },
+  { name: "AVERAGEIFS", category: "Thống kê", syntax: "AVERAGEIFS(average_range, criteria_range1, criteria1, ...)", desc: "Tính trung bình các ô thỏa đồng thời nhiều điều kiện." },
+  { name: "MEDIAN", category: "Thống kê", syntax: "MEDIAN(number1, [number2], ...)", desc: "Trả về trung vị của tập hợp số." },
+  { name: "RANK", category: "Thống kê", syntax: "RANK(number, ref, [order])", desc: "Trả về thứ hạng của một số trong danh sách." },
+  { name: "RANK.EQ", category: "Thống kê", syntax: "RANK.EQ(number, ref, [order])", desc: "Trả về thứ hạng bằng nhau của một số trong danh sách." },
+  { name: "LARGE", category: "Thống kê", syntax: "LARGE(array, k)", desc: "Trả về giá trị lớn thứ k trong tập dữ liệu." },
+  { name: "SMALL", category: "Thống kê", syntax: "SMALL(array, k)", desc: "Trả về giá trị nhỏ thứ k trong tập dữ liệu." },
+  { name: "COUNTBLANK", category: "Thống kê", syntax: "COUNTBLANK(range)", desc: "Đếm số ô trống trong một vùng." },
+  { name: "STDEV", category: "Thống kê", syntax: "STDEV(number1, [number2], ...)", desc: "Ước tính độ lệch chuẩn mẫu từ các đối số." },
+  { name: "VAR", category: "Thống kê", syntax: "VAR(number1, [number2], ...)", desc: "Ước tính phương sai mẫu từ các đối số." },
 
   // Tra cứu & tham chiếu
   { name: "VLOOKUP", category: "Tra cứu", syntax: "VLOOKUP(lookup_value, table_array, col_index, [range_lookup])", desc: "Tra theo cột đầu của bảng và trả về giá trị ở cột chỉ định." },
@@ -431,6 +450,14 @@ export class FormulaEngine {
         return nums.reduce((acc, v) => acc * v, 1);
       }
 
+      case "SUMPRODUCT": {
+        if (!args.length) return "#VALUE!";
+        const arrays = args.map(arg => this._rangeValues(arg));
+        if (arrays.some(values => values.includes("#REF!"))) return "#REF!";
+        if (arrays.some(values => values.length !== arrays[0].length)) return "#VALUE!";
+        return arrays[0].reduce((sum, _, index) => sum + arrays.reduce((product, values) => product * (Number(values[index]) || 0), 1), 0);
+      }
+
       case "AVERAGE": {
         const rawValues = this.collectValues(args);
         if (rawValues.includes("#REF!")) return "#REF!";
@@ -461,6 +488,71 @@ export class FormulaEngine {
       case "COUNTA": {
         const vals = this.collectValues(args).filter(v => v !== "" && v !== null && v !== undefined);
         return vals.length;
+      }
+
+      case "AVERAGEIF": {
+        if (args.length < 2) return "#VALUE!";
+        const criteriaValues = this._rangeValues(args[0]);
+        const averageValues = this._rangeValues(args[2] || args[0]);
+        if (criteriaValues.includes("#REF!") || averageValues.includes("#REF!")) return "#REF!";
+        if (criteriaValues.length !== averageValues.length) return "#VALUE!";
+        const matches = averageValues.filter((value, index) => this._matchesCriteria(criteriaValues[index], args[1]) && typeof value === "number");
+        return matches.length ? matches.reduce((sum, value) => sum + value, 0) / matches.length : "#DIV/0!";
+      }
+
+      case "AVERAGEIFS": {
+        if (args.length < 3 || args.length % 2 === 0) return "#VALUE!";
+        const averageValues = this._rangeValues(args[0]);
+        const pairs = [];
+        for (let index = 1; index < args.length; index += 2) pairs.push([this._rangeValues(args[index]), args[index + 1]]);
+        if (pairs.some(([values]) => values.includes("#REF!"))) return "#REF!";
+        if (pairs.some(([values]) => values.length !== averageValues.length)) return "#VALUE!";
+        const matches = averageValues.filter((value, index) => typeof value === "number" && pairs.every(([values, criteria]) => this._matchesCriteria(values[index], criteria)));
+        return matches.length ? matches.reduce((sum, value) => sum + value, 0) / matches.length : "#DIV/0!";
+      }
+
+      case "MEDIAN": {
+        const nums = this.collectNumericValues(args).sort((a, b) => a - b);
+        if (!nums.length) return "#NUM!";
+        const middle = Math.floor(nums.length / 2);
+        return nums.length % 2 ? nums[middle] : (nums[middle - 1] + nums[middle]) / 2;
+      }
+
+      case "RANK":
+      case "RANK.EQ": {
+        if (args.length < 2) return "#VALUE!";
+        const number = Number(this._resolveSingleValue(args[0]));
+        const nums = this.collectNumericValues([args[1]]);
+        const order = args[2] === undefined ? 0 : Number(this._resolveSingleValue(args[2]));
+        if (!Number.isFinite(number) || !nums.includes(number)) return "#N/A";
+        nums.sort((a, b) => order === 0 ? b - a : a - b);
+        return nums.indexOf(number) + 1;
+      }
+
+      case "LARGE":
+      case "SMALL": {
+        if (args.length < 2) return "#VALUE!";
+        const nums = this.collectNumericValues([args[0]]).sort((a, b) => funcName === "LARGE" ? b - a : a - b);
+        const k = Number(this._resolveSingleValue(args[1]));
+        return Number.isInteger(k) && k >= 1 && k <= nums.length ? nums[k - 1] : "#NUM!";
+      }
+
+      case "COUNTBLANK": {
+        if (args.length !== 1) return "#VALUE!";
+        const reference = this._parseReference(args[0]);
+        if (reference.error || reference.sheets) return "#REF!";
+        const coords = this.expandRange(reference.ref);
+        const map = reference.sheet && typeof this.sheetResolver === "function" ? this.sheetResolver(reference.sheet) : this.cellsMap;
+        return coords.filter(coord => !map?.has(coord) || map.get(coord)?.val === "").length;
+      }
+
+      case "STDEV":
+      case "VAR": {
+        const nums = this.collectNumericValues(args);
+        if (nums.length < 2) return "#DIV/0!";
+        const mean = nums.reduce((sum, value) => sum + value, 0) / nums.length;
+        const variance = nums.reduce((sum, value) => sum + Math.pow(value - mean, 2), 0) / (nums.length - 1);
+        return funcName === "STDEV" ? Math.sqrt(variance) : variance;
       }
 
       case "VLOOKUP":
@@ -627,9 +719,53 @@ export class FormulaEngine {
       }
 
       case "MOD": {
-        const num = this.collectNumericValues([args[0]])[0] || 0;
-        const div = this.collectNumericValues([args[1]])[0] || 1;
-        return num % div;
+        const num = Number(this._resolveSingleValue(args[0]));
+        const div = Number(this._resolveSingleValue(args[1]));
+        if (!Number.isFinite(num) || !Number.isFinite(div)) return "#VALUE!";
+        if (div === 0) return "#DIV/0!";
+        return ((num % div) + div) % div;
+      }
+
+      case "SQRT": {
+        const value = Number(this._resolveSingleValue(args[0]));
+        if (!Number.isFinite(value)) return "#VALUE!";
+        return value < 0 ? "#NUM!" : Math.sqrt(value);
+      }
+
+      case "POWER": {
+        const number = Number(this._resolveSingleValue(args[0]));
+        const power = Number(this._resolveSingleValue(args[1]));
+        if (!Number.isFinite(number) || !Number.isFinite(power)) return "#VALUE!";
+        const result = Math.pow(number, power);
+        return Number.isFinite(result) ? result : "#NUM!";
+      }
+
+      case "ROUNDUP":
+      case "ROUNDDOWN":
+      case "TRUNC": {
+        const number = Number(this._resolveSingleValue(args[0]));
+        const digits = args[1] === undefined ? 0 : Number(this._resolveSingleValue(args[1]));
+        if (!Number.isFinite(number) || !Number.isInteger(digits)) return "#VALUE!";
+        const factor = Math.pow(10, digits);
+        const scaled = number * factor;
+        const rounded = funcName === "ROUNDUP" ? Math.sign(scaled) * Math.ceil(Math.abs(scaled)) : Math.trunc(scaled);
+        return rounded / factor;
+      }
+
+      case "CEILING":
+      case "FLOOR": {
+        const number = Number(this._resolveSingleValue(args[0]));
+        const significance = Number(this._resolveSingleValue(args[1]));
+        if (!Number.isFinite(number) || !Number.isFinite(significance)) return "#VALUE!";
+        if (significance === 0) return 0;
+        if (number !== 0 && Math.sign(number) !== Math.sign(significance)) return "#NUM!";
+        const quotient = number / significance;
+        return (funcName === "CEILING" ? Math.ceil(quotient) : Math.floor(quotient)) * significance;
+      }
+
+      case "SIGN": {
+        const number = Number(this._resolveSingleValue(args[0]));
+        return Number.isFinite(number) ? Math.sign(number) : "#VALUE!";
       }
 
       // Tài chính

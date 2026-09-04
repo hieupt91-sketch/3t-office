@@ -49,6 +49,7 @@ import { runSheetKeyboardAuditTests } from "./unit/sheet-keyboard-audit.test.js"
 import { runSheetFormatCellsTests } from "./unit/sheet-format-cells.test.js";
 import { runSheetEditingStylesTests } from "./unit/sheet-editing-styles.test.js";
 import { runSheetReferenceFunctionTests } from "./unit/sheet-reference-functions.test.js";
+import { runSheetMathStatFunctionTests } from "./unit/sheet-math-stat-functions.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -105,7 +106,8 @@ async function runAll() {
     { title: "43. Behavioral & Unit Tests — VN Sheet Keyboard Entry & Formula Evaluation", runner: runSheetKeyboardAuditTests },
     { title: "44. Behavioral & Unit Tests — VN Sheet Format Cells Dialog & Number Formats", runner: runSheetFormatCellsTests },
     { title: "45. Behavioral & Unit Tests — VN Sheet Styles & Editing Groups", runner: runSheetEditingStylesTests },
-    { title: "46. Unit Tests — VN Sheet Cross-Sheet Reference Functions", runner: runSheetReferenceFunctionTests }
+    { title: "46. Unit Tests — VN Sheet Cross-Sheet Reference Functions", runner: runSheetReferenceFunctionTests },
+    { title: "47. Unit Tests — VN Sheet Math & Statistics Functions", runner: runSheetMathStatFunctionTests }
   ];
 
   for (const suite of suites) {
