@@ -590,6 +590,21 @@ export class SlidesAdapter {
       case "slides.review.commentInsert":
         return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
 
+      case "slides.insert.table":
+        return this.canvas.insertTable ? await this.canvas.insertTable(args) : false;
+
+      case "slides.insert.headerFooter":
+        return this.canvas.openHeaderFooterDialog ? await this.canvas.openHeaderFooterDialog(args) : false;
+
+      case "slides.insert.dateTime":
+        return this.canvas.insertDateTime ? await this.canvas.insertDateTime(args) : false;
+
+      case "slides.insert.slideNumber":
+        return this.canvas.insertSlideNumber ? this.canvas.insertSlideNumber(args) : false;
+
+      case "slides.insert.symbol":
+        return this.canvas.insertSymbol ? await this.canvas.insertSymbol(args) : false;
+
       case "common.edit.cut":
         if (typeof document !== "undefined") document.execCommand("cut", false, null);
         return true;

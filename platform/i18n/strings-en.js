@@ -63,7 +63,7 @@ export const enStrings = {
   },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", ai: "VN AI Assistant" },
-    group: { slides: "Slides", clipboard: "Clipboard", drawing: "Drawing", imagesObjects: "Images & Objects", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", comments: "Comments", presentationViews: "Presentation Views", aiContent: "AI Presentation Content" }
+    group: { slides: "Slides", clipboard: "Clipboard", drawing: "Drawing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", comments: "Comments", presentationViews: "Presentation Views", aiContent: "AI Presentation Content" }
   },
   sheetDialogs: {
     close: "Close", cancel: "Cancel", cancelLong: "Cancel", apply: "Apply", range: "Range", value: "Value",
@@ -201,6 +201,11 @@ export const enStrings = {
     ,"slides.image.insert": { label: "Pictures", tooltip: "Insert a picture from this device" }
     ,"slides.media.insertVideo": { label: "Video", tooltip: "Insert a video from this device" }
     ,"slides.media.insertAudio": { label: "Audio", tooltip: "Insert audio from this device" }
+    ,"slides.insert.table": { label: "Table", tooltip: "Insert a table you can drag and resize" }
+    ,"slides.insert.headerFooter": { label: "Header & Footer", tooltip: "Show or hide date, slide number, and footer" }
+    ,"slides.insert.dateTime": { label: "Date & Time", tooltip: "Insert an auto-updating date and time placeholder" }
+    ,"slides.insert.slideNumber": { label: "Slide Number", tooltip: "Insert an auto-updating slide number placeholder" }
+    ,"slides.insert.symbol": { label: "Symbol", tooltip: "Insert a special character into the selected text box" }
     ,"slides.master.apply": { label: "Slide Master", tooltip: "Apply a Slide Master theme across the presentation" }
     ,"slides.design.themeGallery": { label: "Themes", tooltip: "Choose a design theme for the whole presentation" }
     ,"slides.design.slideSize": { label: "Slide Size", tooltip: "Choose a 16:9 or 4:3 slide ratio" }
@@ -263,6 +268,13 @@ export const enStrings = {
     "writer.page.break": { label: "Page Break", tooltip: "Insert a page break (Ctrl+Enter)" },
     "writer.header.insert": { label: "Header", tooltip: "Insert header" },
     "writer.footer.insert": { label: "Footer", tooltip: "Insert footer" },
+    "writer.insert.textbox": { label: "Text Box", tooltip: "Insert a freely movable text box" },
+    "writer.format.dropCap": { label: "Drop Cap", tooltip: "Enlarge the first letter of the paragraph" },
+    "writer.insert.dateTime": { label: "Date & Time", tooltip: "Insert the current date and time at the cursor" },
+    "writer.insert.equation": { label: "Equation", tooltip: "Insert a basic math text box (reduced editor)" },
+    "writer.insert.symbol": { label: "Symbol", tooltip: "Insert a special character at the cursor" },
+    "writer.insert.bookmark": { label: "Bookmark", tooltip: "Mark a location in the document to jump to later" },
+    "writer.insert.crossReference": { label: "Cross-reference", tooltip: "Insert an internal link to a heading or bookmark" },
     "writer.comment.insert": { label: "New Comment", tooltip: "Add a comment to the selected text (Ctrl+Alt+M)" },
     "writer.trackChanges.toggle": { label: "Track Changes", tooltip: "Track changes in the document (Ctrl+Shift+E)" },
     "writer.trackChanges.acceptAll": { label: "Accept All Changes", tooltip: "Accept all changes in document" },
@@ -312,6 +324,8 @@ export const enStrings = {
       links: "Links",
       documentFormatting: "Document Formatting",
       headerFooter: "Header & Footer",
+      text: "Text",
+      symbols: "Symbols",
       tocNotes: "Table of Contents & Notes",
       pageSetup: "Page Setup",
       pageBackground: "Page Background",

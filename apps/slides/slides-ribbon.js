@@ -55,13 +55,60 @@ export const SLIDES_RIBBON_TABS = [
     labelKey: "slidesRibbon.tab.insert",
     groups: [
       {
-        label: "Hình ảnh & Đối tượng",
-        labelKey: "slidesRibbon.group.imagesObjects",
+        id: "tables",
+        label: "Bảng",
+        labelKey: "slidesRibbon.group.tables",
         items: [
-          { type: "button", commandId: "slides.image.insert", isLarge: true },
+          { type: "button", commandId: "slides.insert.table", isLarge: true }
+        ]
+      },
+      {
+        id: "images",
+        label: "Hình ảnh",
+        labelKey: "slidesRibbon.group.images",
+        items: [
+          { type: "button", commandId: "slides.image.insert", isLarge: true }
+        ]
+      },
+      {
+        id: "illustrations",
+        label: "Minh họa",
+        labelKey: "slidesRibbon.group.illustrations",
+        items: [
           { type: "button", commandId: "slides.shape.insert", isLarge: true },
-          { type: "button", commandId: "slides.diagram.insert", isLarge: true },
-          { type: "button", commandId: "slides.text.insert", isLarge: true }
+          { type: "button", commandId: "slides.diagram.insert", isLarge: true }
+        ]
+      },
+      {
+        id: "comments",
+        label: "Nhận xét",
+        labelKey: "slidesRibbon.group.comments",
+        items: [
+          { type: "button", commandId: "slides.review.commentInsert", isLarge: true }
+        ]
+      },
+      {
+        id: "text",
+        label: "Văn bản",
+        labelKey: "slidesRibbon.group.text",
+        items: [
+          { type: "button", commandId: "slides.text.insert", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "slides.insert.headerFooter" },
+              { type: "button", commandId: "slides.insert.dateTime" },
+              { type: "button", commandId: "slides.insert.slideNumber" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "symbols",
+        label: "Ký hiệu",
+        labelKey: "slidesRibbon.group.symbols",
+        items: [
+          { type: "button", commandId: "slides.insert.symbol", isLarge: true }
         ]
       },
       {
