@@ -95,6 +95,11 @@ export const FUNCTION_CATALOG = [
   ,{ name: "DATE", category: "Ngày tháng", syntax: "DATE(year, month, day)", desc: "Tạo một ngày từ năm, tháng và ngày." }
   ,{ name: "DATEDIF", category: "Ngày tháng", syntax: "DATEDIF(start_date, end_date, unit)", desc: "Tính số ngày, tháng hoặc năm trọn vẹn giữa hai ngày." }
   ,{ name: "EDATE", category: "Ngày tháng", syntax: "EDATE(start_date, months)", desc: "Cộng hoặc trừ số tháng vào một ngày." }
+  ,{ name: "WEEKDAY", category: "Ngày tháng", syntax: "WEEKDAY(date, [return_type])", desc: "Trả về số thứ tự của ngày trong tuần theo kiểu đánh số chỉ định." }
+  ,{ name: "NETWORKDAYS", category: "Ngày tháng", syntax: "NETWORKDAYS(start_date, end_date, [holidays])", desc: "Đếm số ngày làm việc giữa hai ngày, loại trừ cuối tuần và ngày nghỉ." }
+  ,{ name: "WORKDAY", category: "Ngày tháng", syntax: "WORKDAY(start_date, days, [holidays])", desc: "Trả về ngày làm việc trước hoặc sau một số ngày làm việc chỉ định." }
+  ,{ name: "EOMONTH", category: "Ngày tháng", syntax: "EOMONTH(start_date, months)", desc: "Trả về ngày cuối tháng trước hoặc sau số tháng chỉ định." }
+  ,{ name: "DAYS", category: "Ngày tháng", syntax: "DAYS(end_date, start_date)", desc: "Trả về số ngày giữa ngày kết thúc và ngày bắt đầu." }
 
   // Tài chính
   ,{ name: "PMT", category: "Tài chính", syntax: "PMT(rate, nper, pv, [fv], [type])", desc: "Tính khoản thanh toán định kỳ với lãi suất cố định; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
@@ -139,6 +144,9 @@ export class FormulaEngine {
     const item = map ? map.get(coord.toUpperCase()) : null;
     if (!item) return 0;
     const raw = item.val || "";
+
+    // Giữ nguyên chuỗi ngày để các hàm ngày tháng có thể phân tích, không coi dấu "/" là ký hiệu tiền tệ.
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}(?:\s|$)/.test(String(raw).trim())) return raw;
 
     // Ô định dạng Text: giữ nguyên chuỗi thô, không cho tính toán số học
     if (item.style?.numberFormat?.category === "text") {
@@ -1203,6 +1211,60 @@ export class FormulaEngine {
         return this._formatDate(result);
       }
 
+      case "WEEKDAY": {
+        const date = this._parseDate(this._resolveSingleValue(args[0]));
+        const type = args[1] === undefined ? 1 : Number(this._resolveSingleValue(args[1]));
+        if (!date) return "#VALUE!";
+        const starts = { 1: 0, 2: 1, 3: 1, 11: 1, 12: 2, 13: 3, 14: 4, 15: 5, 16: 6, 17: 0 };
+        if (!(type in starts)) return "#NUM!";
+        const shifted = (date.getDay() - starts[type] + 7) % 7;
+        return type === 3 ? shifted : shifted + 1;
+      }
+
+      case "NETWORKDAYS": {
+        const start = this._parseDate(this._resolveSingleValue(args[0]));
+        const end = this._parseDate(this._resolveSingleValue(args[1]));
+        if (!start || !end) return "#VALUE!";
+        const holidays = this._holidaySet(args[2]);
+        if (holidays.error) return holidays.error;
+        const direction = start <= end ? 1 : -1;
+        let count = 0;
+        for (let date = new Date(start); direction > 0 ? date <= end : date >= end; date.setDate(date.getDate() + direction)) {
+          if (this._isWorkday(date, holidays.values)) count += direction;
+        }
+        return count;
+      }
+
+      case "WORKDAY": {
+        const start = this._parseDate(this._resolveSingleValue(args[0]));
+        const days = Number(this._resolveSingleValue(args[1]));
+        if (!start || !Number.isInteger(days)) return "#VALUE!";
+        const holidays = this._holidaySet(args[2]);
+        if (holidays.error) return holidays.error;
+        const direction = days < 0 ? -1 : 1;
+        let remaining = Math.abs(days);
+        const result = new Date(start);
+        while (remaining > 0) {
+          result.setDate(result.getDate() + direction);
+          if (this._isWorkday(result, holidays.values)) remaining--;
+        }
+        return this._formatDate(result);
+      }
+
+      case "EOMONTH": {
+        const start = this._parseDate(this._resolveSingleValue(args[0]));
+        const months = Number(this._resolveSingleValue(args[1]));
+        if (!start || !Number.isFinite(months)) return "#VALUE!";
+        return this._formatDate(new Date(start.getFullYear(), start.getMonth() + Math.trunc(months) + 1, 0));
+      }
+
+      case "DAYS": {
+        const end = this._parseDate(this._resolveSingleValue(args[0]));
+        const start = this._parseDate(this._resolveSingleValue(args[1]));
+        if (!start || !end) return "#VALUE!";
+        return Math.round((end - start) / 86400000);
+      }
+
       case "YEAR": {
         const val = String(this._resolveSingleValue(args[0]) || "");
         const parts = val.split("/");
@@ -1292,6 +1354,25 @@ export class FormulaEngine {
 
   _formatDate(date) {
     return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+  }
+
+  _holidaySet(argument) {
+    if (argument === undefined) return { values: new Set() };
+    const rawValues = typeof argument === "string" && (/^[A-Z]+\d+:[A-Z]+\d+$/i.test(argument) || argument.includes("!"))
+      ? this._rangeValues(argument)
+      : [this._resolveSingleValue(argument)];
+    if (rawValues.includes("#REF!")) return { error: "#REF!" };
+    const values = new Set();
+    for (const value of rawValues) {
+      const date = this._parseDate(value);
+      if (!date) return { error: "#VALUE!" };
+      values.add(this._formatDate(date));
+    }
+    return { values };
+  }
+
+  _isWorkday(date, holidays) {
+    return date.getDay() !== 0 && date.getDay() !== 6 && !holidays.has(this._formatDate(date));
   }
 
   _solveRate(valueAt, derivativeAt, guess) {

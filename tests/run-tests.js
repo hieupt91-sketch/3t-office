@@ -51,6 +51,7 @@ import { runSheetEditingStylesTests } from "./unit/sheet-editing-styles.test.js"
 import { runSheetReferenceFunctionTests } from "./unit/sheet-reference-functions.test.js";
 import { runSheetMathStatFunctionTests } from "./unit/sheet-math-stat-functions.test.js";
 import { runSheetTextFunctionTests } from "./unit/sheet-text-functions.test.js";
+import { runSheetDateFunctionTests } from "./unit/sheet-date-functions.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -109,7 +110,8 @@ async function runAll() {
     { title: "45. Behavioral & Unit Tests — VN Sheet Styles & Editing Groups", runner: runSheetEditingStylesTests },
     { title: "46. Unit Tests — VN Sheet Cross-Sheet Reference Functions", runner: runSheetReferenceFunctionTests },
     { title: "47. Unit Tests — VN Sheet Math & Statistics Functions", runner: runSheetMathStatFunctionTests },
-    { title: "48. Unit Tests — VN Sheet Text Functions", runner: runSheetTextFunctionTests }
+    { title: "48. Unit Tests — VN Sheet Text Functions", runner: runSheetTextFunctionTests },
+    { title: "49. Unit Tests — VN Sheet Date Functions", runner: runSheetDateFunctionTests }
   ];
 
   for (const suite of suites) {
