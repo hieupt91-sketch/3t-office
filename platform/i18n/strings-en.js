@@ -181,6 +181,12 @@ export const enStrings = {
     ,"slides.show.startFromCurrent": { label: "From Current Slide", tooltip: "Start the slide show from the current slide (Shift+F5)" }
     ,"slides.show.presenterMode": { label: "Presenter View", tooltip: "Start Presenter View with notes and a timer (Alt+F5)" }
     ,"slides.show.rehearseTimings": { label: "Rehearse Timings", tooltip: "Practice the slide show and record the time spent on each slide" }
+    ,"slides.shape.group": { label: "Group", tooltip: "Group the selected objects together (Ctrl+G)" }
+    ,"slides.shape.ungroup": { label: "Ungroup", tooltip: "Ungroup the selected objects (Ctrl+Shift+G)" }
+    ,"slides.nav.firstSlide": { label: "First Slide", tooltip: "Go to the first slide (Ctrl+Home)" }
+    ,"slides.nav.lastSlide": { label: "Last Slide", tooltip: "Go to the last slide (Ctrl+End)" }
+    ,"slides.nav.prevSlide": { label: "Previous Slide", tooltip: "Go to the previous slide (Page Up)" }
+    ,"slides.nav.nextSlide": { label: "Next Slide", tooltip: "Go to the next slide (Page Down)" }
 
     ,// VN Writer Commands
     "writer.text.bold": { label: "Bold", tooltip: "Bold (Ctrl+B)" },

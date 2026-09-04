@@ -502,6 +502,28 @@ export class SlidesAdapter {
       case "slides.slide.delete":
         return this.canvas.deleteCurrentSlide();
 
+      case "slides.shape.group":
+        return this.canvas.groupSelectedShapes ? this.canvas.groupSelectedShapes() : false;
+
+      case "slides.shape.ungroup":
+        return this.canvas.ungroupSelectedShapes ? this.canvas.ungroupSelectedShapes() : false;
+
+      case "slides.nav.firstSlide":
+        this.canvas.selectSlide(0);
+        return true;
+
+      case "slides.nav.lastSlide":
+        this.canvas.selectSlide(this.canvas.slides.length - 1);
+        return true;
+
+      case "slides.nav.prevSlide":
+        this.canvas.selectSlide(this.canvas.currentSlideIndex - 1);
+        return true;
+
+      case "slides.nav.nextSlide":
+        this.canvas.selectSlide(this.canvas.currentSlideIndex + 1);
+        return true;
+
       case "slides.layout.apply":
       case "slides.layout.select":
         return this.canvas.showLayoutDialog ? this.canvas.showLayoutDialog() : false;

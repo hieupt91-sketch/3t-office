@@ -180,6 +180,12 @@ export const viStrings = {
     ,"slides.show.startFromCurrent": { label: "Từ trang này", tooltip: "Trình chiếu từ trang hiện tại (Shift+F5)" }
     ,"slides.show.presenterMode": { label: "Chế độ Presenter", tooltip: "Trình chiếu chế độ Người thuyết trình kèm ghi chú và đồng hồ (Alt+F5)" }
     ,"slides.show.rehearseTimings": { label: "Tập dượt hẹn giờ", tooltip: "Trình chiếu và đo thời gian thật ở mỗi trang, có thể lưu lại làm mốc thời gian" }
+    ,"slides.shape.group": { label: "Nhóm đối tượng", tooltip: "Nhóm các đối tượng đang chọn thành một khối (Ctrl+G)" }
+    ,"slides.shape.ungroup": { label: "Bỏ nhóm", tooltip: "Tách nhóm đối tượng đang chọn (Ctrl+Shift+G)" }
+    ,"slides.nav.firstSlide": { label: "Trang đầu tiên", tooltip: "Về trang chiếu đầu tiên (Ctrl+Home)" }
+    ,"slides.nav.lastSlide": { label: "Trang cuối cùng", tooltip: "Đến trang chiếu cuối cùng (Ctrl+End)" }
+    ,"slides.nav.prevSlide": { label: "Trang trước", tooltip: "Về trang chiếu trước (Page Up)" }
+    ,"slides.nav.nextSlide": { label: "Trang sau", tooltip: "Đến trang chiếu sau (Page Down)" }
 
     ,// VN Writer Commands
     "writer.text.bold": { label: "Đậm", tooltip: "Chữ đậm (Ctrl+B)" },

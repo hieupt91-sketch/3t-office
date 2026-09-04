@@ -54,6 +54,7 @@ import { runSheetTextFunctionTests } from "./unit/sheet-text-functions.test.js";
 import { runSheetDateFunctionTests } from "./unit/sheet-date-functions.test.js";
 import { runSheetMouseShortcutsTests } from "./unit/sheet-mouse-shortcuts.test.js";
 import { runWriterMouseShortcutsTests } from "./unit/writer-mouse-shortcuts.test.js";
+import { runSlidesMouseShortcutsTests } from "./unit/slides-mouse-shortcuts.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -115,7 +116,8 @@ async function runAll() {
     { title: "48. Unit Tests — VN Sheet Text Functions", runner: runSheetTextFunctionTests },
     { title: "49. Unit Tests — VN Sheet Date Functions", runner: runSheetDateFunctionTests },
     { title: "50. Behavioral & Unit Tests — VN Sheet Mouse Interactions & Office Parity Shortcuts", runner: runSheetMouseShortcutsTests },
-    { title: "51. Behavioral & Unit Tests — VN Writer Mouse Interactions & Office Parity Shortcuts", runner: runWriterMouseShortcutsTests }
+    { title: "51. Behavioral & Unit Tests — VN Writer Mouse Interactions & Office Parity Shortcuts", runner: runWriterMouseShortcutsTests },
+    { title: "52. Behavioral & Unit Tests — VN Slides Mouse Interactions & Office Parity Shortcuts", runner: runSlidesMouseShortcutsTests }
   ];
 
   for (const suite of suites) {
