@@ -244,8 +244,11 @@ export class WriterApp {
       const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
       const chars = text.replace(/[\r\n]/g, "").length;
       const paragraphs = text ? text.split(/\n+/).filter(p => p.trim().length > 0).length : 0;
-      const pageBreaks = this.canvas.querySelectorAll ? this.canvas.querySelectorAll("[style*='page-break-before']").length : 0;
-      const totalPages = Math.max(1, pageBreaks + 1);
+      // Số trang thật do WriterAdapter._recomputeLivePagination() đo và tính (dựa trên
+      // chiều cao thật của nội dung, không phải chỉ đếm ngắt trang thủ công như trước).
+      // Debounce 250ms nên ngay sau khi gõ có thể còn số cũ trong chốc lát — sự kiện
+      // "vno-pagination-updated" bên dưới sẽ gọi lại updateStats() khi số mới sẵn sàng.
+      const totalPages = Math.max(1, this.adapter?._livePageCount || 1);
 
       this.shell.setStatus(
         `Trang 1 / ${totalPages}  |  ${words} từ  |  ${chars} ký tự  |  ${paragraphs} đoạn  |  Tiếng Việt (NĐ 30/2020/NĐ-CP)`
@@ -253,6 +256,7 @@ export class WriterApp {
     };
 
     this.canvas.addEventListener("input", updateStats);
+    this.canvas.addEventListener("vno-pagination-updated", updateStats);
     updateStats();
   }
 }

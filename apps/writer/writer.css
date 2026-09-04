@@ -227,6 +227,18 @@
   pointer-events: none;
 }
 
+/* Dải ngăn trang tự động (chèn bởi WriterAdapter._recomputeLivePagination()) —
+   mô phỏng khoảng cách thật giữa 2 trang giấy trong khung soạn thảo trực tiếp.
+   `margin` âm đúng bằng padding của `.vno-writer-page` để phá vỡ ra hết chiều rộng. */
+.vno-page-auto-gap {
+  height: 64px;
+  margin: 16px -56px 16px -113px;
+  background: #e2e8f0;
+  box-shadow: inset 0 6px 8px -6px rgba(15, 23, 42, 0.25), inset 0 -6px 8px -6px rgba(15, 23, 42, 0.25);
+  user-select: none;
+  pointer-events: none;
+}
+
 .vno-writer-page p {
   margin: 0 0 6pt 0;
   text-align: justify;
@@ -663,7 +675,8 @@
   .vno-print-preview-toolbar,
   .vno-print-preview-overlay,
   .vno-writer-ruler,
-  .vno-writer-comments-panel {
+  .vno-writer-comments-panel,
+  .vno-page-auto-gap {
     display: none !important;
   }
   .vno-writer-viewport {

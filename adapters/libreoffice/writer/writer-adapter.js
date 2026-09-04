@@ -85,6 +85,11 @@ export class WriterAdapter {
     this._inputHandler = null;
     this._undoKeyHandler = null;
     this._lastSnapshot = null;
+    this._paginationInputHandler = null;
+    this._paginationDebounceTimer = null;
+    this._paginationDebounceMs = 250;
+    this._paginating = false;
+    this._livePageCount = 1;
 
     // Mail Merge (Trộn thư) State
     this.mailMergeData = {
@@ -179,6 +184,7 @@ export class WriterAdapter {
       this._lastSnapshot = this._createSnapshot("Initial State");
     }
     this._updateUndoRedoUI();
+    this._recomputeLivePagination();
   }
 
   _bindTrackChanges() {
@@ -1829,7 +1835,20 @@ export class WriterAdapter {
       .replace(/<div\b[^>]*class=["'][^"']*\bvno-page-border-frame\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/<div\b[^>]*data-vno-watermark=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/<div\b[^>]*data-vno-page-border=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
-      .replace(/\s*\bvno-merge-preview\b/gi, "");
+      .replace(/\s*\bvno-merge-preview\b/gi, "")
+      .replace(/<div\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "");
+  }
+
+  /**
+   * Loại bỏ các dải ngăn trang tự động (`_recomputeLivePagination()`) khỏi HTML —
+   * dùng khi lưu snapshot Undo/Redo. Các dải này là dữ liệu SUY RA (derived) từ chiều
+   * cao đo được, không phải nội dung người dùng gõ, nên không được coi là một phần
+   * thay đổi thực chất khi so sánh snapshot (`_isSnapshotEqual`) — nếu không loại bỏ,
+   * việc đo lại chiều cao (vd font web tải xong sau) có thể tạo khác biệt string giả,
+   * gây bước Undo thừa không tương ứng với thao tác thật nào của người dùng.
+   */
+  _stripAutoPageGaps(html) {
+    return String(html || "").replace(/<div\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "");
   }
 
   /**
@@ -2647,7 +2666,7 @@ export class WriterAdapter {
   _createSnapshot(description = "") {
     this._initZones();
     return {
-      bodyHtml: this.bodyDom ? this.bodyDom.innerHTML : (this.editorDom ? this.editorDom.innerHTML : ""),
+      bodyHtml: this._stripAutoPageGaps(this.bodyDom ? this.bodyDom.innerHTML : (this.editorDom ? this.editorDom.innerHTML : "")),
       headerHtml: this.headerDom ? this.headerDom.innerHTML : null,
       footerHtml: this.footerDom ? this.footerDom.innerHTML : null,
       pageSetup: this.pageSetup ? JSON.parse(JSON.stringify(this.pageSetup)) : null,
@@ -2733,6 +2752,109 @@ export class WriterAdapter {
   }
 
   /**
+   * Gom cụm việc tính lại dàn trang với debounce ngắn (250ms) — độc lập với debounce
+   * 600ms của Undo/Redo vì đây chỉ là cập nhật HIỂN THỊ (không tạo bước lịch sử).
+   * @private
+   */
+  _schedulePaginationRecompute() {
+    if (this._paginationDebounceTimer) {
+      clearTimeout(this._paginationDebounceTimer);
+    }
+    this._paginationDebounceTimer = setTimeout(() => {
+      this._paginationDebounceTimer = null;
+      this._recomputeLivePagination();
+    }, this._paginationDebounceMs);
+  }
+
+  /**
+   * Dàn trang thời gian thực trong khung soạn thảo trực tiếp (KHÁC Print Preview,
+   * vốn đã tự tính trang riêng qua `paginateContent()`). `.vno-writer-page` trước đây
+   * chỉ có `min-height` bằng 1 trang A4 và không giới hạn chiều cao tối đa — khi nội
+   * dung tràn quá 1 trang, tờ giấy chỉ kéo dài vô hạn thành MỘT trang duy nhất, không
+   * tự tách sang trang 2/3 như Word/LibreOffice thật (lỗi thật người dùng phát hiện
+   * 04/09/2026). Hàm này đo chiều cao THẬT của từng khối con trực tiếp trong
+   * `bodyDom` (DOM đã gắn kết, `offsetHeight` chính xác — KHÔNG cần ước lượng như
+   * `paginateContent()` phải làm vì nó đo trên DOM tạm chưa gắn kết), và khi tổng chiều
+   * cao vượt quá vùng nội dung khả dụng của 1 trang thì chèn một dải ngăn trang
+   * (`contenteditable="false"`, đánh dấu `data-vno-auto-page-gap="true"`) ngay trước
+   * khối làm tràn — dải này bị loại bỏ khỏi snapshot Undo/Redo (`_stripAutoPageGaps`)
+   * và khỏi nội dung xuất file (`_stripSessionMarkup`) vì nó là dữ liệu SUY RA từ phép
+   * đo, không phải nội dung người dùng gõ. Ngắt trang thủ công (Ctrl+Enter) được coi
+   * là điểm reset trang cứng, giống hệt logic trong `paginateContent()`.
+   *
+   * Giới hạn đã biết (ghi nhận trung thực, không giả vờ đã xong 100%): một khối ĐƠN
+   * LẺ tự nó đã cao hơn 1 trang (bảng rất lớn, ảnh rất lớn) sẽ không tự tách nhỏ hơn —
+   * giống hạn chế đã có của `paginateContent()`/Print Preview. Header/Footer KHÔNG
+   * được lặp lại hình ảnh ở mỗi trang trong khung soạn thảo sống (chỉ hiện 1 lần như
+   * trước) — việc lặp Header/Footer chính xác theo từng trang vẫn do Print Preview đảm
+   * nhiệm khi cần xem trước chuẩn xác để in/xuất.
+   */
+  _recomputeLivePagination() {
+    if (typeof document === "undefined" || !this.bodyDom || this._paginating) return;
+    // `bodyDom.children` chỉ tồn tại trên DOM trình duyệt thật — các mock DOM nhẹ dùng
+    // trong unit test (vd tests/unit/writer-undo-redo.test.js) không khai báo `children`,
+    // nên phải kiểm tra trước khi Array.from(), nếu không sẽ crash toàn bộ suite Undo/Redo.
+    if (!this.bodyDom.children || typeof this.bodyDom.querySelectorAll !== "function") return;
+    this._paginating = true;
+    try {
+      const oldGaps = this.bodyDom.querySelectorAll('[data-vno-auto-page-gap="true"]');
+      if (oldGaps && typeof oldGaps.forEach === "function") {
+        oldGaps.forEach((el) => el.remove());
+      }
+
+      const dim = this.getPageDimensions();
+      const hasHeader = Boolean(this.headerDom && this.headerDom.innerText?.trim());
+      const hasFooter = Boolean(this.footerDom && this.footerDom.innerText?.trim());
+      const headerReservedPx = hasHeader ? 46 : 0;
+      const footerReservedPx = hasFooter ? 48 : 0;
+      const availableHeightPx = Math.max(150, dim.printableHeightPx - headerReservedPx - footerReservedPx);
+
+      const children = Array.from(this.bodyDom.children);
+      let currentHeight = 0;
+      let pageCount = 1;
+      const gapBeforeEls = [];
+
+      for (const el of children) {
+        const styleStr = (typeof el.getAttribute === "function" ? el.getAttribute("style") : "") || "";
+        const textContent = el.textContent || "";
+        const isManualBreak = styleStr.includes("page-break-before") || styleStr.includes("break-before") || textContent.includes("Phân tách trang");
+
+        if (isManualBreak) {
+          currentHeight = 0;
+          pageCount++;
+          continue;
+        }
+
+        const h = el.offsetHeight || 0;
+        if (currentHeight > 0 && currentHeight + h > availableHeightPx) {
+          gapBeforeEls.push(el);
+          currentHeight = h;
+          pageCount++;
+        } else {
+          currentHeight += h;
+        }
+      }
+
+      for (const el of gapBeforeEls) {
+        const gap = document.createElement("div");
+        gap.className = "vno-page-auto-gap";
+        gap.setAttribute("contenteditable", "false");
+        gap.setAttribute("data-vno-auto-page-gap", "true");
+        this.bodyDom.insertBefore(gap, el);
+      }
+
+      this._livePageCount = pageCount;
+      if (typeof this.bodyDom.dispatchEvent === "function") {
+        try {
+          this.bodyDom.dispatchEvent(new CustomEvent("vno-pagination-updated", { bubbles: true, detail: { pageCount } }));
+        } catch {}
+      }
+    } finally {
+      this._paginating = false;
+    }
+  }
+
+  /**
    * Lắng nghe sự kiện bàn phím & gõ chữ để lưu lịch sử
    * @private
    */
@@ -2758,6 +2880,17 @@ export class WriterAdapter {
     target.addEventListener("input", this._inputHandler);
     if (this.bodyDom && this.bodyDom !== target && typeof this.bodyDom.addEventListener === "function") {
       this.bodyDom.addEventListener("input", this._inputHandler);
+    }
+
+    // Lắng nghe "input" ĐỘC LẬP với `_inputHandler` ở trên — cố ý KHÔNG kiểm tra
+    // `_isUndoingRedoing`, vì `_restoreSnapshot()` (chạy trong lúc cờ đó đang true)
+    // tự phát sự kiện "input" tổng hợp ở cuối để các bên quan sát (đếm từ, đếm trang)
+    // cập nhật lại — dàn trang PHẢI chạy lại đúng lúc đó (sau Undo/Redo) chứ không được
+    // bỏ qua. Việc chèn/xóa dải ngăn trang bằng JS (insertBefore/remove) không tự phát
+    // sự kiện "input" của trình duyệt, nên không có nguy cơ đệ quy vô hạn.
+    if (!this._paginationInputHandler && this.bodyDom && typeof this.bodyDom.addEventListener === "function") {
+      this._paginationInputHandler = () => this._schedulePaginationRecompute();
+      this.bodyDom.addEventListener("input", this._paginationInputHandler);
     }
 
     if (!this._undoKeyHandler && typeof target.addEventListener === "function") {
@@ -3394,6 +3527,9 @@ export class WriterAdapter {
       }
       if (el.dataset?.vnoFootnotes === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-footnotes") === "true") ||
           el.dataset?.vnoEndnotes === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-endnotes") === "true")) {
+        continue;
+      }
+      if (typeof el.getAttribute === "function" && el.getAttribute("data-vno-auto-page-gap") === "true") {
         continue;
       }
 
