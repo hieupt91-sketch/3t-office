@@ -230,7 +230,7 @@ export async function runHtmlSmokeTests() {
       const hasHeader = renderedDom.includes('vno-writer-header');
       const hasFooter = renderedDom.includes('vno-writer-footer');
       const hasBody = renderedDom.includes('vno-writer-body');
-      const hasStyles = renderedDom.includes('writer.style.apply');
+      const hasStyles = renderedDom.includes('writer.style.gallery');
 
       if (proc.status === 0 && hasRoot && hasShell && hasWriterApp && hasRibbon && hasTopbar && hasPage && hasHeader && hasFooter && hasBody && hasStyles) {
         results.push({
@@ -247,7 +247,7 @@ export async function runHtmlSmokeTests() {
           !hasHeader && "thiếu .vno-writer-header",
           !hasFooter && "thiếu .vno-writer-footer",
           !hasBody && "thiếu .vno-writer-body",
-          !hasStyles && "thiếu select writer.style.apply"
+          !hasStyles && "thiếu nút writer.style.gallery"
         ].filter(Boolean).join(", ");
 
         results.push({

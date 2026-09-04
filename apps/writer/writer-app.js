@@ -157,6 +157,7 @@ export class WriterApp {
 
     this.adapter = new WriterAdapter(this.canvas);
     this.adapter.setCommentsPanel(commentsPanel);
+    this.adapter.setShell(this.shell);
     this.adapter.attach();
 
     this._mountStyleGalleryRibbonStrip();

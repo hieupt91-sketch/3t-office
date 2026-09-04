@@ -111,26 +111,15 @@ export const WRITER_RIBBON_TABS = [
       {
         label: "Kiểu dáng",
         labelKey: "writerRibbon.group.styles",
+        // CHỈ MỘT cách hiển thị cho việc chọn kiểu đoạn văn (đúng chuẩn Word Home tab:
+        // dải Quick Styles + nút mở thư viện đầy đủ). Trước đây có THÊM một dropdown
+        // <select> writer.style.apply song song với dải thẻ Quick Style tự chèn bởi
+        // `_mountStyleGalleryRibbonStrip()` — cùng 1 việc (chọn Normal/Heading 1/2/3)
+        // bị hiển thị trùng lặp 2 kiểu khác nhau cạnh nhau (lỗi UI thật, người dùng
+        // phát hiện 04/09/2026). `writer.style.apply` vẫn còn là command thật (dùng nội
+        // bộ/lệnh gọi trực tiếp), chỉ không còn render dropdown thừa trên ribbon nữa.
         items: [
-          { type: "button", commandId: "writer.style.gallery", isLarge: true },
-          {
-            type: "column",
-            items: [
-              {
-                type: "select",
-                commandId: "writer.style.apply",
-                defaultValue: "p",
-                options: [
-                  { value: "p", label: "Văn bản thường (Normal)" },
-                  { value: "h1", label: "Tiêu đề 1 (Heading 1)" },
-                  { value: "h2", label: "Tiêu đề 2 (Heading 2)" },
-                  { value: "h3", label: "Tiêu đề 3 (Heading 3)" },
-                  { value: "quote", label: "Trích dẫn (Quote)" },
-                  { value: "emphasis", label: "Nhấn mạnh (Emphasis)" }
-                ]
-              }
-            ]
-          }
+          { type: "button", commandId: "writer.style.gallery", isLarge: true }
         ]
       },
       {

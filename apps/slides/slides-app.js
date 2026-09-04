@@ -56,6 +56,7 @@ export class SlidesApp {
     this.shell.setEditorCanvas(studioWrap);
 
     this.adapter = new SlidesAdapter(this.canvasController);
+    this.adapter.setShell(this.shell);
     this.adapter.attach();
 
     this.shell.setStatus("Trang chiếu 1 / 3  |  Tỷ lệ 16:9 HD  |  Tiếng Việt  |  Sẵn sàng");

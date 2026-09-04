@@ -557,6 +557,21 @@ export class AppShell {
     }
   }
 
+  /**
+   * Đưa khung chrome (tên tài liệu trên tab, tab ribbon đang chọn) về trạng thái tài
+   * liệu mới trắng — dùng khi File > Mới/Đóng thật sự xóa nội dung nhưng KHÔNG được để
+   * ribbon kẹt ở tab người dùng đang đứng trước đó hay giữ nguyên tên tệp mẫu cũ, khác
+   * với hành vi thật của Word/LibreOffice (lỗi thật, người dùng phát hiện 04/09/2026).
+   * @param {string} newDocumentName
+   * @param {string} [homeTabId="home"]
+   */
+  resetDocumentChrome(newDocumentName, homeTabId = "home") {
+    this.documentName = newDocumentName;
+    const tabEl = this.rootEl?.querySelector(".vno-doc-tab span");
+    if (tabEl) tabEl.textContent = this.documentName;
+    this.ribbonHost?.selectTab(homeTabId);
+  }
+
   _setupGlobalShortcuts() {
     globalShortcutManager.attach(window);
 

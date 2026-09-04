@@ -300,15 +300,17 @@ export async function runWriterStyleGalleryWatermarkTests() {
     const layoutTab = WRITER_RIBBON_TABS.find(t => t.id === "layout");
 
     let hasGalleryInHome = false;
-    let hasExtendedStyles = false;
+    let hasNoDuplicateStyleSelect = false;
     if (homeTab) {
       const stylesGroup = homeTab.groups.find(g => g.label === "Kiểu dáng");
       if (stylesGroup) {
         hasGalleryInHome = stylesGroup.items.some(it => it.commandId === "writer.style.gallery");
-        const selectCol = stylesGroup.items.find(it => it.type === "column");
-        const styleSelect = selectCol?.items?.find(it => it.commandId === "writer.style.apply");
-        hasExtendedStyles = styleSelect?.options?.some(o => o.value === "quote") &&
-                            styleSelect?.options?.some(o => o.value === "emphasis");
+        // "Một tính năng, một cách hiển thị" (quy định chung 04/09/2026): nhóm Kiểu dáng
+        // CHỈ được có nút mở thư viện + dải Quick Style tự chèn — KHÔNG được có thêm
+        // dropdown <select> writer.style.apply song song (từng là lỗi UI thật, trùng
+        // lặp 2 cách chọn cùng 1 việc). Đủ 6 style (kể cả quote/emphasis) đã được xác
+        // nhận riêng ở TEST 5 qua STYLE_PRESETS — nguồn dữ liệu thật của dải Quick Style.
+        hasNoDuplicateStyleSelect = !stylesGroup.items.some(it => it.type === "column" || it.type === "select");
       }
     }
 
@@ -323,9 +325,9 @@ export async function runWriterStyleGalleryWatermarkTests() {
     }
 
     assert(
-      "Writer Style & Page: Hiện diện đầy đủ trên Ribbon tab Trang đầu (Kiểu dáng) và Bố cục (Nền & Viền trang)",
-      hasGalleryInHome && hasExtendedStyles && hasWatermarkInLayout && hasBorderInLayout,
-      "Ribbon structure chưa tích hợp đúng các command mới"
+      "Writer Style & Page: Hiện diện đầy đủ trên Ribbon tab Trang đầu (Kiểu dáng, không trùng lặp) và Bố cục (Nền & Viền trang)",
+      hasGalleryInHome && hasNoDuplicateStyleSelect && hasWatermarkInLayout && hasBorderInLayout,
+      "Ribbon structure chưa tích hợp đúng các command mới, hoặc nhóm Kiểu dáng bị trùng lặp cách hiển thị"
     );
   })();
 

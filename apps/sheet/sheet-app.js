@@ -54,6 +54,7 @@ export class SheetApp {
     this.shell.setEditorCanvas(gridWrap);
 
     this.adapter = new SheetAdapter(this.grid);
+    this.adapter.setShell(this.shell);
     this.adapter.attach();
 
     this.grid.updateStatus();

@@ -12,6 +12,12 @@ export class SheetAdapter {
     this.grid = gridController;
     this.isDirty = false;
     this.sourceFileName = "BangTinh";
+    this.shell = null;
+  }
+
+  /** Gắn tham chiếu AppShell — xem chú thích trong WriterAdapter.setShell(). */
+  setShell(shell) {
+    this.shell = shell;
   }
 
   attach() {
@@ -259,6 +265,7 @@ export class SheetAdapter {
     }
     this.sourceFileName = "BangTinh";
     this.isDirty = false;
+    this.shell?.resetDocumentChrome?.("Bảng tính 1.xlsx");
     return true;
   }
 

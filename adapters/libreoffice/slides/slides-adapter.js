@@ -12,6 +12,12 @@ export class SlidesAdapter {
     this.canvas = canvasController;
     this.isDirty = false;
     this.sourceFileName = "TrinhChieu";
+    this.shell = null;
+  }
+
+  /** Gắn tham chiếu AppShell — xem chú thích trong WriterAdapter.setShell(). */
+  setShell(shell) {
+    this.shell = shell;
   }
 
   newDocument() {
@@ -20,6 +26,7 @@ export class SlidesAdapter {
     if (this.canvas?.resetToBlank) {
       this.canvas.resetToBlank("BẢN TRÌNH CHIẾU MỚI");
     }
+    this.shell?.resetDocumentChrome?.("Bản trình chiếu 1.pptx");
     return true;
   }
 
