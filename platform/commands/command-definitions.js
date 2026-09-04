@@ -169,8 +169,19 @@ export const SHEET_COMMANDS = [
   { id: "sheet.col.insert", category: "insert", label: "Chèn cột", icon: "table", tooltip: "Chèn thêm cột mới" },
   { id: "sheet.row.delete", category: "insert", label: "Xóa hàng", icon: "table", tooltip: "Xóa hàng chứa ô đang chọn" },
   { id: "sheet.col.delete", category: "insert", label: "Xóa cột", icon: "table", tooltip: "Xóa cột chứa ô đang chọn" },
-  { id: "sheet.chart.insert", category: "insert", label: "Biểu đồ", icon: "filePrint", tooltip: "Chèn biểu đồ phân tích dữ liệu" }
-  ,{ id: "sheet.insert.image", category: "insert", label: "Chèn ảnh", icon: "image", tooltip: "Chèn ảnh vào ô đang chọn" }
+  { id: "sheet.chart.insert", category: "insert", label: "Biểu đồ", icon: "filePrint", tooltip: "Chèn biểu đồ phân tích dữ liệu" },
+  { id: "sheet.insert.image", category: "insert", label: "Chèn ảnh", icon: "image", tooltip: "Chèn ảnh vào ô đang chọn" },
+
+  // Kiểu dáng & Định dạng bảng (Styles)
+  { id: "sheet.style.formatAsTable", category: "format", label: "Định dạng bảng", icon: "formatTable", tooltip: "Định dạng vùng chọn theo kiểu bảng có màu xen kẽ" },
+  { id: "sheet.style.cellStyles", category: "format", label: "Kiểu ô", icon: "cellStyles", tooltip: "Mở thư viện kiểu ô định sẵn (Normal, Good, Bad, Neutral...)" },
+
+  // Chỉnh sửa & Điền/Xóa (Editing: Fill & Clear)
+  { id: "sheet.edit.fillDown", category: "edit", label: "Điền xuống", shortcut: "Ctrl+D", icon: "fillDown", tooltip: "Sao chép giá trị và công thức ô trên xuống các ô dưới (Ctrl+D)" },
+  { id: "sheet.edit.fillRight", category: "edit", label: "Điền sang phải", shortcut: "Ctrl+R", icon: "fillRight", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" },
+  { id: "sheet.edit.clearAll", category: "edit", label: "Xóa tất cả", icon: "clearAll", tooltip: "Xóa toàn bộ nội dung, công thức và định dạng của các ô đã chọn" },
+  { id: "sheet.edit.clearFormats", category: "edit", label: "Xóa định dạng", icon: "clearFormat", tooltip: "Xóa định dạng ô và đưa về mặc định nhưng giữ nguyên nội dung" },
+  { id: "sheet.edit.clearContents", category: "edit", label: "Xóa nội dung", icon: "clearContents", tooltip: "Xóa nội dung và công thức của ô nhưng giữ nguyên định dạng" }
 ];
 
 export const SLIDES_COMMANDS = [

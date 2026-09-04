@@ -47,6 +47,7 @@ import { runSlidesSlideSizeTests } from "./unit/slides-slide-size.test.js";
 import { runWriterRibbonBreadthTests } from "./unit/writer-ribbon-breadth.test.js";
 import { runSheetKeyboardAuditTests } from "./unit/sheet-keyboard-audit.test.js";
 import { runSheetFormatCellsTests } from "./unit/sheet-format-cells.test.js";
+import { runSheetEditingStylesTests } from "./unit/sheet-editing-styles.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -101,7 +102,8 @@ async function runAll() {
     { title: "41. Behavioral Tests — VN Slides Slide Size", runner: runSlidesSlideSizeTests },
     { title: "42. Behavioral & Unit Tests — VN Writer Ribbon Breadth (Sub/Sup, Illustrations, Themes, Links)", runner: runWriterRibbonBreadthTests },
     { title: "43. Behavioral & Unit Tests — VN Sheet Keyboard Entry & Formula Evaluation", runner: runSheetKeyboardAuditTests },
-    { title: "44. Behavioral & Unit Tests — VN Sheet Format Cells Dialog & Number Formats", runner: runSheetFormatCellsTests }
+    { title: "44. Behavioral & Unit Tests — VN Sheet Format Cells Dialog & Number Formats", runner: runSheetFormatCellsTests },
+    { title: "45. Behavioral & Unit Tests — VN Sheet Styles & Editing Groups", runner: runSheetEditingStylesTests }
   ];
 
   for (const suite of suites) {

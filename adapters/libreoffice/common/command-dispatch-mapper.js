@@ -148,6 +148,13 @@ export const VN_TO_UNO_MAP = {
   "sheet.col.delete": ".uno:DeleteColumns",
   "sheet.chart.insert": ".uno:InsertObjectChart",
   "sheet.insert.image": ".uno:InsertGraphic",
+  "sheet.style.formatAsTable": ".uno:AutoFormat",
+  "sheet.style.cellStyles": ".uno:StyleCatalog",
+  "sheet.edit.fillDown": ".uno:FillDown",
+  "sheet.edit.fillRight": ".uno:FillRight",
+  "sheet.edit.clearAll": ".uno:ClearAll",
+  "sheet.edit.clearFormats": ".uno:DeleteFormat",
+  "sheet.edit.clearContents": ".uno:ClearContents",
 
   // Slides / Impress
   "slides.slide.new": ".uno:InsertPage",
