@@ -87,6 +87,7 @@ FORMAT_FILTERS = {
     "xlsx": "Calc MS Excel 2007 XML",
     "ods": "calc8",
     "csv": "Text - txt - csv (StarCalc)",
+    "fods": "OpenDocument Spreadsheet Flat XML",
     "pptx": "Impress MS PowerPoint 2007 XML",
     "odp": "impress8",
     # "fodp" cố ý KHÔNG có filter tường minh — đã thử nghiệm thật, mọi filter name
@@ -219,7 +220,7 @@ class VnOfficeApi:
         if app_kind == "writer":
             target_ext = "html"
         elif app_kind == "sheet":
-            target_ext = "csv"
+            target_ext = "fods"
         elif app_kind == "slides":
             target_ext = "fodp"
         else:
@@ -268,8 +269,8 @@ class VnOfficeApi:
                     with open(src_path, "w", encoding="utf-8") as f:
                         f.write(f"<html><head><meta charset='utf-8'></head><body>{content}</body></html>")
                 elif app_kind == "sheet":
-                    src_path = os.path.join(tmp, "draft.csv")
-                    with open(src_path, "w", encoding="utf-8-sig") as f:
+                    src_path = os.path.join(tmp, "draft.fods")
+                    with open(src_path, "w", encoding="utf-8") as f:
                         f.write(content)
                 elif app_kind == "slides":
                     src_path = os.path.join(tmp, "draft.fodp")

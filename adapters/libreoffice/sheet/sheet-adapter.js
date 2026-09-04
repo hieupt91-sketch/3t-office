@@ -165,6 +165,7 @@ export class SheetAdapter {
       return `__VNO_REF_${references.length - 1}__`;
     });
     expression = expression.replace(/__VNO_REF_(\d+)__/g, (_, index) => references[Number(index)]);
+    expression = this._replaceFormulaSeparators(expression, ",", ";");
     return `of:=${expression}`;
   }
 
@@ -179,7 +180,25 @@ export class SheetAdapter {
       });
       return parts.join(":");
     });
-    return expression.replace(/;/g, ",");
+    return this._replaceFormulaSeparators(expression, ";", ",");
+  }
+
+  _replaceFormulaSeparators(expression, from, to) {
+    let inString = false;
+    let result = "";
+    for (let index = 0; index < expression.length; index++) {
+      const char = expression[index];
+      if (char === '"') {
+        if (inString && expression[index + 1] === '"') {
+          result += '""';
+          index++;
+          continue;
+        }
+        inString = !inString;
+      }
+      result += !inString && char === from ? to : char;
+    }
+    return result;
   }
 
   /** Serialize the complete workbook as Flat OpenDocument Spreadsheet XML. */
@@ -241,6 +260,7 @@ export class SheetAdapter {
                  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
                  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
                  xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+                 xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2"
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
   <office:settings>
