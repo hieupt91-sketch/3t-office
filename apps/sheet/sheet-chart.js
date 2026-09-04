@@ -32,21 +32,21 @@ export class SheetChartBuilder {
     return { labels, data };
   }
 
-  static generateSvg({ type = "bar", title = "Biểu đồ dữ liệu", labels = [], data = [] }) {
-    if (!TYPES.includes(type)) throw new Error(`Kiểu biểu đồ không được hỗ trợ: ${type}`);
+  static generateSvg({ type = "bar", title = t("sheetDialogs.chartDefaultTitle"), labels = [], data = [] }) {
+    if (!TYPES.includes(type)) throw new Error(t("sheetDialogs.chartUnsupported", { type }));
     const values = data.map(numberValue).map(value => value ?? 0);
-    const names = values.map((_, index) => esc(labels[index] || `Mục ${index + 1}`));
+    const names = values.map((_, index) => esc(labels[index] || t("sheetDialogs.chartItem", { number: index + 1 })));
     const width = 680, height = 360;
     const p = { top: 50, right: 35, bottom: 65, left: 70 };
     const chartW = width - p.left - p.right, chartH = height - p.top - p.bottom;
     const heading = `<text data-chart-title x="340" y="28" text-anchor="middle" font-size="16" font-weight="bold" fill="#0f172a">${esc(title)}</text>`;
     const wrap = body => `<svg data-chart-type="${type}" viewBox="0 0 ${width} ${height}" width="100%" height="100%" style="background:#fff">${heading}${body}</svg>`;
-    if (!values.length) return wrap('<text x="340" y="190" text-anchor="middle" fill="#64748b">Vùng đã chọn không có dữ liệu số</text>');
+    if (!values.length) return wrap(`<text x="340" y="190" text-anchor="middle" fill="#64748b">${esc(t("sheetDialogs.chartNoNumericData"))}</text>`);
 
     if (type === "pie") {
       const positive = values.map(value => Math.max(0, value));
       const total = positive.reduce((sum, value) => sum + value, 0);
-      if (!total) return wrap('<text x="340" y="190" text-anchor="middle" fill="#64748b">Biểu đồ tròn cần giá trị dương</text>');
+      if (!total) return wrap(`<text x="340" y="190" text-anchor="middle" fill="#64748b">${esc(t("sheetDialogs.chartPiePositive"))}</text>`);
       let angle = -Math.PI / 2, body = "";
       positive.forEach((value, index) => {
         const next = angle + value / total * Math.PI * 2, cx = 245, cy = 190, radius = 105;
@@ -94,8 +94,10 @@ export class SheetChartBuilder {
     modal.className = "vno-dialog-overlay";
     const labels = dataItems.map(item => item.label), data = dataItems.map(item => item.value);
     let currentType = "bar";
-    modal.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-chart-title" style="width:760px;max-width:95vw"><div class="vno-dialog-header"><span id="vno-chart-title">Chèn biểu đồ từ ${esc(options.rangeLabel || "vùng đã chọn")}</span><button class="vno-btn" data-chart-close aria-label="Đóng">×</button></div><div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px"><div role="group" aria-label="Kiểu biểu đồ" style="display:flex;gap:8px">${[["bar", "Cột"], ["line", "Đường"], ["pie", "Tròn"], ["area", "Miền"]].map(([kind, label]) => `<button class="vno-btn${kind === "bar" ? " is-checked" : ""}" data-chart-type="${kind}" aria-pressed="${kind === "bar"}">${label}</button>`).join("")}</div><div data-chart-preview style="height:340px;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden"></div></div><div class="vno-dialog-footer"><button class="vno-btn" data-chart-cancel>Hủy</button><button class="vno-btn vno-btn-primary" data-chart-apply>Chèn vào bảng tính</button></div></div>`;
-    const render = () => { modal.querySelector("[data-chart-preview]").innerHTML = this.generateSvg({ type: currentType, title: options.title || "Biểu đồ dữ liệu", labels, data }); };
+    const range = options.rangeLabel || t("sheetDialogs.selectedRange");
+    const chartTypes = [["bar", "chartColumn"], ["line", "chartLine"], ["pie", "chartPie"], ["area", "chartArea"]];
+    modal.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-chart-title" style="width:760px;max-width:95vw"><div class="vno-dialog-header"><span id="vno-chart-title">${esc(t("sheetDialogs.chartInsertFrom", { range }))}</span><button class="vno-btn" data-chart-close aria-label="${esc(t("sheetDialogs.close"))}">×</button></div><div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px"><div role="group" aria-label="${esc(t("sheetDialogs.chartType"))}" style="display:flex;gap:8px">${chartTypes.map(([kind, key]) => `<button class="vno-btn${kind === "bar" ? " is-checked" : ""}" data-chart-type="${kind}" aria-pressed="${kind === "bar"}">${esc(t(`sheetDialogs.${key}`))}</button>`).join("")}</div><div data-chart-preview style="height:340px;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden"></div></div><div class="vno-dialog-footer"><button class="vno-btn" data-chart-cancel>${esc(t("sheetDialogs.cancel"))}</button><button class="vno-btn vno-btn-primary" data-chart-apply>${esc(t("sheetDialogs.insertIntoSheet"))}</button></div></div>`;
+    const render = () => { modal.querySelector("[data-chart-preview]").innerHTML = this.generateSvg({ type: currentType, title: options.title || t("sheetDialogs.chartDefaultTitle"), labels, data }); };
     const close = () => modal.remove();
     modal.querySelectorAll("[data-chart-type]").forEach(button => button.addEventListener("click", () => {
       currentType = button.dataset.chartType;
@@ -110,3 +112,4 @@ export class SheetChartBuilder {
     return modal;
   }
 }
+import { t } from "../../platform/i18n/i18n.js";

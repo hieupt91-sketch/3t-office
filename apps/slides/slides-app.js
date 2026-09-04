@@ -7,6 +7,7 @@ import { SLIDES_RIBBON_TABS } from "./slides-ribbon.js";
 import { SlidesCanvasController } from "./slides-canvas.js";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
 import { bootstrapPlatform } from "../../platform/bootstrap.js";
+import { applyLocaleToTabs } from "../../platform/i18n/i18n.js";
 
 export class SlidesApp {
   constructor(mountElement) {
@@ -26,7 +27,7 @@ export class SlidesApp {
       documentName: options.documentName || (isBlank ? "Bản trình chiếu 1.pptx" : "Báo cáo đề án phát triển VN Office 2026.pptx")
     });
     this.shell.mount(this.mountElement);
-    this.shell.ribbonHost.setStructure(SLIDES_RIBBON_TABS, "home");
+    this.shell.ribbonHost.setStructure(applyLocaleToTabs(SLIDES_RIBBON_TABS), "home");
 
     const studioWrap = document.createElement("div");
     studioWrap.style.width = "100%";

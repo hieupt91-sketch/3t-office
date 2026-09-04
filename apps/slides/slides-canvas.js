@@ -1197,14 +1197,14 @@ export class SlidesCanvasController {
     const panel = document.createElement("aside");
     panel.className = "vno-slide-comments-panel";
     panel.hidden = true;
-    panel.setAttribute("aria-label", "Nhận xét trang chiếu");
+    panel.setAttribute("aria-label", t("slidesDialogs.commentsLabel"));
     panel.innerHTML = `
-      <header><strong>Nhận xét trang chiếu</strong><button type="button" data-comment-close aria-label="Đóng">×</button></header>
+      <header><strong>${t("slidesDialogs.commentsLabel")}</strong><button type="button" data-comment-close aria-label="${t("slidesDialogs.close")}">×</button></header>
       <div class="vno-slide-comments-list" aria-live="polite"></div>
-      <label class="vno-slide-comment-compose">Nhận xét mới
-        <textarea rows="3" placeholder="Nhập nội dung nhận xét..."></textarea>
+      <label class="vno-slide-comment-compose">${t("slidesDialogs.newComment")}
+        <textarea rows="3" placeholder="${t("slidesDialogs.commentPlaceholder")}"></textarea>
       </label>
-      <button type="button" class="vno-slide-comment-add">Thêm nhận xét</button>`;
+      <button type="button" class="vno-slide-comment-add">${t("slidesDialogs.addComment")}</button>`;
     panel.querySelector("[data-comment-close]")?.addEventListener("click", () => this.closeCommentsPanel());
     panel.querySelector(".vno-slide-comment-add")?.addEventListener("click", () => {
       const input = panel.querySelector("textarea");
@@ -1361,7 +1361,7 @@ export class SlidesCanvasController {
       overlay.innerHTML = `
         <div class="vno-dialog-box" style="width: 540px;" role="dialog" aria-modal="true">
           <div class="vno-dialog-header">
-            <span>Thiết Lập Mẫu Slide Master (Chủ Đề Toàn Bài)</span>
+            <span>${t("slidesDialogs.masterTitle")}</span>
             <button class="vno-btn vno-dialog-close-btn" style="font-size:16px;">&times;</button>
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
@@ -1381,8 +1381,8 @@ export class SlidesCanvasController {
             </div>
           </div>
           <div class="vno-dialog-footer">
-            <button class="vno-btn" id="vno-master-cancel">Hủy bỏ</button>
-            <button class="vno-btn vno-btn-primary" id="vno-master-apply">Áp dụng cho toàn bộ slide</button>
+            <button class="vno-btn" id="vno-master-cancel">${t("slidesDialogs.cancel")}</button>
+            <button class="vno-btn vno-btn-primary" id="vno-master-apply">${t("slidesDialogs.applyMaster")}</button>
           </div>
         </div>
       `;
@@ -1434,7 +1434,7 @@ export class SlidesCanvasController {
       overlay.innerHTML = `
         <div class="vno-dialog-box" style="width: 560px;" role="dialog" aria-modal="true">
           <div class="vno-dialog-header">
-            <span>Bố Cục Trang Chiếu (Slide Layout)</span>
+            <span>${t("slidesDialogs.layoutTitle")}</span>
             <button class="vno-btn vno-dialog-close-btn" style="font-size:16px;">&times;</button>
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px;">
@@ -1457,10 +1457,10 @@ export class SlidesCanvasController {
             </div>
           </div>
           <div class="vno-dialog-footer" style="display:flex;justify-content:space-between;">
-            <button class="vno-btn" id="vno-layout-cancel">Hủy bỏ</button>
+            <button class="vno-btn" id="vno-layout-cancel">${t("slidesDialogs.cancel")}</button>
             <div style="display:flex;gap:8px;">
-              <button class="vno-btn" id="vno-layout-apply-all">Áp dụng tất cả</button>
-              <button class="vno-btn vno-btn-primary" id="vno-layout-apply-current">Áp dụng cho trang này</button>
+              <button class="vno-btn" id="vno-layout-apply-all">${t("slidesDialogs.applyLayout")}</button>
+              <button class="vno-btn vno-btn-primary" id="vno-layout-apply-current">${t("slidesDialogs.applyLayout")}</button>
             </div>
           </div>
         </div>
@@ -1542,7 +1542,7 @@ export class SlidesCanvasController {
       overlay.innerHTML = `
         <div class="vno-dialog-box" style="width: 460px;" role="dialog" aria-modal="true">
           <div class="vno-dialog-header">
-            <span>Hiệu Ứng Chuyển Trang Chiếu (Slide Transitions)</span>
+            <span>${t("slidesDialogs.transitionTitle")}</span>
             <button class="vno-btn vno-dialog-close-btn" style="font-size:16px;">&times;</button>
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
@@ -1572,10 +1572,10 @@ export class SlidesCanvasController {
             </div>
           </div>
           <div class="vno-dialog-footer" style="display:flex;justify-content:space-between;">
-            <button class="vno-btn" id="vno-trans-cancel">Hủy bỏ</button>
+              <button class="vno-btn" id="vno-trans-cancel">${t("slidesDialogs.cancel")}</button>
             <div style="display:flex;gap:6px;">
-              <button class="vno-btn" id="vno-trans-apply-current">Chỉ slide này</button>
-              <button class="vno-btn vno-btn-primary" id="vno-trans-apply-all">Áp dụng tất cả slide</button>
+              <button class="vno-btn" id="vno-trans-apply-current">${t("slidesDialogs.applyTransition")}</button>
+              <button class="vno-btn vno-btn-primary" id="vno-trans-apply-all">${t("slidesDialogs.applyTransition")}</button>
             </div>
           </div>
         </div>
@@ -1657,20 +1657,20 @@ export class SlidesCanvasController {
       overlay.innerHTML = `
         <div class="vno-dialog-box" style="width: 500px;" role="dialog" aria-modal="true">
           <div class="vno-dialog-header">
-            <span>Hiệu Ứng Đối Tượng (Object Animations)</span>
+            <span>${t("slidesDialogs.animationTitle")}</span>
             <button class="vno-btn vno-dialog-close-btn" style="font-size:16px;">&times;</button>
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <label style="font-size:12px;font-weight:600;color:#334155;">Đối tượng áp dụng:</label>
+              <label style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationTarget")}</label>
               <select class="vno-select" id="vno-anim-target-select">
                 ${targetOptions.map(t => `<option value="${t.id}" ${t.id === initialTarget ? "selected" : ""}>${t.label}</option>`).join("")}
               </select>
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <label style="font-size:12px;font-weight:600;color:#334155;">Kiểu hiệu ứng xuất hiện (Entrance):</label>
+              <label style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationType")}</label>
               <select class="vno-select" id="vno-anim-type-select">
-                <option value="none" ${currentAnim.type === "none" ? "selected" : ""}>Không có hiệu ứng</option>
+                <option value="none" ${currentAnim.type === "none" ? "selected" : ""}>${t("slidesDialogs.noAnimation")}</option>
                 <option value="fadeIn" ${currentAnim.type === "fadeIn" || currentAnim.type === "fade" ? "selected" : ""}>Mờ dần xuất hiện (Fade In)</option>
                 <option value="flyIn" ${currentAnim.type === "flyIn" || currentAnim.type === "fly" ? "selected" : ""}>Bay từ dưới lên (Fly In)</option>
                 <option value="zoomIn" ${currentAnim.type === "zoomIn" || currentAnim.type === "zoom" ? "selected" : ""}>Thu phóng xuất hiện (Zoom In)</option>
@@ -1680,7 +1680,7 @@ export class SlidesCanvasController {
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
               <div style="display:flex;flex-direction:column;gap:4px;">
-                <label style="font-size:12px;font-weight:600;color:#334155;">Thời gian hiệu ứng:</label>
+                <label style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationDuration")}</label>
                 <select class="vno-select" id="vno-anim-duration-select">
                   <option value="300" ${currentAnim.duration === 300 ? "selected" : ""}>Rất nhanh (0.3s)</option>
                   <option value="500" ${currentAnim.duration === 500 ? "selected" : ""}>Tiêu chuẩn (0.5s)</option>
@@ -1689,9 +1689,9 @@ export class SlidesCanvasController {
                 </select>
               </div>
               <div style="display:flex;flex-direction:column;gap:4px;">
-                <label style="font-size:12px;font-weight:600;color:#334155;">Độ trễ xuất hiện:</label>
+                <label style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationDelay")}</label>
                 <select class="vno-select" id="vno-anim-delay-select">
-                  <option value="0" ${currentAnim.delay === 0 ? "selected" : ""}>Ngay lập tức (0s)</option>
+                  <option value="0" ${currentAnim.delay === 0 ? "selected" : ""}>${t("slidesDialogs.immediate")}</option>
                   <option value="200" ${currentAnim.delay === 200 ? "selected" : ""}>Sau 0.2s</option>
                   <option value="500" ${currentAnim.delay === 500 ? "selected" : ""}>Sau 0.5s</option>
                   <option value="1000" ${currentAnim.delay === 1000 ? "selected" : ""}>Sau 1.0s</option>
@@ -1700,18 +1700,18 @@ export class SlidesCanvasController {
             </div>
             <div style="padding:16px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:4px;text-align:center;overflow:hidden;">
               <div id="vno-anim-preview-box" style="font-size:15px;font-weight:bold;color:#2563eb;padding:12px;background:#ffffff;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);display:inline-block;min-width:180px;">
-                Đối tượng xem thử
+                ${t("slidesDialogs.previewObject")}
               </div>
               <div>
-                <button class="vno-btn" id="vno-anim-preview-btn" style="margin-top:10px;font-size:11px;">▶ Xem thử hiệu ứng</button>
+                <button class="vno-btn" id="vno-anim-preview-btn" style="margin-top:10px;font-size:11px;">${t("slidesDialogs.previewAnimation")}</button>
               </div>
             </div>
           </div>
           <div class="vno-dialog-footer" style="display:flex;justify-content:space-between;">
-            <button class="vno-btn" id="vno-anim-cancel">Hủy bỏ</button>
+            <button class="vno-btn" id="vno-anim-cancel">${t("slidesDialogs.cancel")}</button>
             <div style="display:flex;gap:6px;">
-              <button class="vno-btn" id="vno-anim-clear" style="color:#ef4444;">Xóa hiệu ứng</button>
-              <button class="vno-btn vno-btn-primary" id="vno-anim-apply">Áp dụng hiệu ứng</button>
+              <button class="vno-btn" id="vno-anim-clear" style="color:#ef4444;">${t("slidesDialogs.removeAnimation")}</button>
+              <button class="vno-btn vno-btn-primary" id="vno-anim-apply">${t("slidesDialogs.applyAnimation")}</button>
             </div>
           </div>
         </div>
@@ -1832,7 +1832,7 @@ export class SlidesCanvasController {
       if (rehearseInterval) clearInterval(rehearseInterval);
       const totalSeconds = Math.round((performance.now() - rehearseTotalStart) / 1000);
       const shouldSave = typeof window !== "undefined" && typeof window.confirm === "function"
-        ? window.confirm(`Tổng thời gian trình chiếu: ${formatSeconds(totalSeconds)}.\nLưu thời gian tập dượt cho từng trang?`)
+        ? window.confirm(t("slidesDialogs.rehearsalConfirm", { time: formatSeconds(totalSeconds) }))
         : true;
       if (shouldSave) {
         this.slideTimings = rehearseTimings.map((v) => Math.round(v * 10) / 10);
@@ -2255,3 +2255,4 @@ export class SlidesCanvasController {
     return true;
   }
 }
+import { t } from "../../platform/i18n/i18n.js";

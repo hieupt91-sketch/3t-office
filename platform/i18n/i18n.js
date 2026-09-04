@@ -110,3 +110,20 @@ export function getLocale() {
 export function getSupportedLocales() {
   return SUPPORTED_LOCALES.slice();
 }
+
+/**
+ * Tạo bản sao cấu trúc ribbon với nhãn tab/nhóm theo locale hiện tại.
+ * Giữ nguyên `label` làm fallback và không mutate cấu hình export dùng chung.
+ * @param {Array<Object>} tabs
+ * @returns {Array<Object>}
+ */
+export function applyLocaleToTabs(tabs) {
+  return (tabs || []).map(tab => ({
+    ...tab,
+    label: tab.labelKey ? (t(tab.labelKey) || tab.label) : tab.label,
+    groups: (tab.groups || []).map(group => ({
+      ...group,
+      label: group.labelKey ? (t(group.labelKey) || group.label) : group.label
+    }))
+  }));
+}

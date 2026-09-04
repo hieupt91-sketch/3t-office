@@ -7,6 +7,7 @@ import { SheetChartBuilder } from "./sheet-chart.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
 import { PivotTableEngine } from "./pivot-table.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { t } from "../../platform/i18n/i18n.js";
 
 export class SheetGridController {
   constructor(container, options = {}) {
@@ -742,14 +743,14 @@ export class SheetGridController {
     const modal = document.createElement("div");
     modal.className = "vno-dialog-overlay";
 
-    let selectedCat = "Tất cả";
+    let selectedCat = t("sheetDialogs.allCategory");
     let selectedFunc = FUNCTION_CATALOG[0];
 
     const renderFuncList = () => {
       const listEl = modal.querySelector("#vno-func-list");
       listEl.innerHTML = "";
 
-      const filtered = selectedCat === "Tất cả" 
+      const filtered = selectedCat === t("sheetDialogs.allCategory")
         ? FUNCTION_CATALOG 
         : FUNCTION_CATALOG.filter(f => f.category === selectedCat);
 
@@ -776,19 +777,19 @@ export class SheetGridController {
     modal.innerHTML = `
       <div class="vno-dialog-box" style="width:580px;">
         <div class="vno-dialog-header">
-          <span>Chèn Hàm (Insert Function fx)</span>
+          <span>${t("sheetDialogs.functionTitle")}</span>
           <button class="vno-btn" id="vno-fx-close" style="font-size:16px;">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
           <div style="display:flex;align-items:center;gap:10px;">
-            <span style="font-size:12px;font-weight:600;">Danh mục hàm:</span>
+            <span style="font-size:12px;font-weight:600;">${t("sheetDialogs.functionCategory")}</span>
             <select class="vno-select" id="vno-func-cat-select" style="flex:1;">
-              <option value="Tất cả">Tất cả các hàm</option>
-              <option value="Toán học">Toán học & Lượng giác</option>
-              <option value="Thống kê">Thống kê (AVERAGE, COUNT...)</option>
-              <option value="Logic">Logic (IF, AND, OR...)</option>
-              <option value="Văn bản">Văn bản (CONCAT, LEN...)</option>
-              <option value="Ngày tháng">Ngày & Giờ (TODAY, NOW...)</option>
+              <option value="${t("sheetDialogs.allCategory")}">${t("sheetDialogs.allFunctions")}</option>
+              <option value="Toán học">${t("sheetDialogs.mathFunctions")}</option>
+              <option value="Thống kê">${t("sheetDialogs.statsFunctions")}</option>
+              <option value="Logic">${t("sheetDialogs.logicFunctions")}</option>
+              <option value="Văn bản">${t("sheetDialogs.textFunctions")}</option>
+              <option value="Ngày tháng">${t("sheetDialogs.dateFunctions")}</option>
             </select>
           </div>
 
@@ -801,8 +802,8 @@ export class SheetGridController {
           </div>
         </div>
         <div class="vno-dialog-footer">
-          <button class="vno-btn" id="vno-fx-cancel-btn">Hủy bỏ</button>
-          <button class="vno-btn vno-btn-primary" id="vno-fx-insert-btn">Chèn hàm vào ô</button>
+          <button class="vno-btn" id="vno-fx-cancel-btn">${t("sheetDialogs.cancelLong")}</button>
+          <button class="vno-btn vno-btn-primary" id="vno-fx-insert-btn">${t("sheetDialogs.insertFunction")}</button>
         </div>
       </div>
     `;
@@ -817,7 +818,7 @@ export class SheetGridController {
 
     modal.querySelector("#vno-func-cat-select").addEventListener("change", (e) => {
       selectedCat = e.target.value;
-      const filtered = selectedCat === "Tất cả" 
+      const filtered = selectedCat === t("sheetDialogs.allCategory")
         ? FUNCTION_CATALOG 
         : FUNCTION_CATALOG.filter(f => f.category === selectedCat);
       if (filtered[0]) selectedFunc = filtered[0];
@@ -1982,23 +1983,23 @@ export class SheetGridController {
     options = options || {};
     const coord = String(options.coord || `${this.selectedCoord.c}${this.selectedCoord.r}`).toUpperCase();
     const existing = this.commentsBySheet[this.activeSheet]?.[coord] || null;
-    const overlay = this._createSheetDialog(existing ? `Sửa ghi chú ${coord}` : `Ghi chú mới ${coord}`, `
-      <label class="vno-comment-field">Nội dung ghi chú<textarea id="vno-comment-text" rows="5" maxlength="2000" placeholder="Nhập ghi chú cho ${coord}">${this._escapeHtml(existing?.text || "")}</textarea></label>
-      <label class="vno-comment-field">Tác giả<input id="vno-comment-author" maxlength="100" value="${this._escapeHtml(existing?.author || "Người dùng VN Office")}"></label>
+    const overlay = this._createSheetDialog(t(existing ? "sheetDialogs.editComment" : "sheetDialogs.newComment", { coord }), `
+      <label class="vno-comment-field">${t("sheetDialogs.commentContent")}<textarea id="vno-comment-text" rows="5" maxlength="2000" placeholder="${t("sheetDialogs.commentPlaceholder", { coord })}">${this._escapeHtml(existing?.text || "")}</textarea></label>
+      <label class="vno-comment-field">${t("sheetDialogs.author")}<input id="vno-comment-author" maxlength="100" value="${this._escapeHtml(existing?.author || t("sheetDialogs.defaultAuthor"))}"></label>
       <div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
     const apply = overlay.querySelector(".vno-rule-apply");
-    apply.textContent = existing ? "Lưu thay đổi" : "Thêm ghi chú";
+    apply.textContent = t(existing ? "sheetDialogs.saveChanges" : "sheetDialogs.addComment");
     if (existing) {
       const remove = document.createElement("button");
       remove.className = "vno-btn vno-btn-danger vno-comment-delete";
-      remove.textContent = "Xóa ghi chú";
+      remove.textContent = t("sheetDialogs.deleteComment");
       overlay.querySelector(".vno-dialog-footer").prepend(remove);
       remove.addEventListener("click", () => { this.deleteComment({ coord }); overlay.remove(); });
     }
     apply.addEventListener("click", () => {
       const text = overlay.querySelector("#vno-comment-text").value.trim();
-      if (!text) { overlay.querySelector(".vno-rule-error").textContent = "Nội dung ghi chú không được để trống."; return; }
+      if (!text) { overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.emptyComment"); return; }
       this.saveComment({ coord, text, author: overlay.querySelector("#vno-comment-author").value });
       overlay.remove();
     });
@@ -2065,9 +2066,9 @@ export class SheetGridController {
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay vno-sheet-rule-dialog";
     overlay.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-label="${title}">
-      <div class="vno-dialog-header"><strong>${title}</strong><button class="vno-btn vno-rule-close" aria-label="Đóng">&times;</button></div>
+      <div class="vno-dialog-header"><strong>${title}</strong><button class="vno-btn vno-rule-close" aria-label="${t("sheetDialogs.close")}">&times;</button></div>
       <div class="vno-dialog-body">${bodyHtml}</div>
-      <div class="vno-dialog-footer"><button class="vno-btn vno-rule-cancel">Hủy</button><button class="vno-btn vno-btn-primary vno-rule-apply">Áp dụng</button></div>
+      <div class="vno-dialog-footer"><button class="vno-btn vno-rule-cancel">${t("sheetDialogs.cancel")}</button><button class="vno-btn vno-btn-primary vno-rule-apply">${t("sheetDialogs.apply")}</button></div>
     </div>`;
     const close = () => overlay.remove();
     overlay.querySelector(".vno-rule-close").addEventListener("click", close);
@@ -2079,11 +2080,11 @@ export class SheetGridController {
   }
 
   showConditionalFormattingDialog() {
-    const overlay = this._createSheetDialog("Định dạng có điều kiện", `
-      <p class="vno-rule-range">Phạm vi: <strong>${this.getSelectedRangeLabel()}</strong></p>
-      <label>Quy tắc<select id="vno-cf-type"><option value="greaterThan">Giá trị lớn hơn</option><option value="lessThan">Giá trị nhỏ hơn</option><option value="blank">Ô trống</option></select></label>
-      <label id="vno-cf-value-row">Giá trị<input id="vno-cf-value" type="number" value="0"></label>
-      <label>Màu nền<input id="vno-cf-color" type="color" value="#fff2cc"></label>
+    const overlay = this._createSheetDialog(t("sheetDialogs.conditionalFormatting"), `
+      <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <label>${t("sheetDialogs.rule")}<select id="vno-cf-type"><option value="greaterThan">${t("sheetDialogs.greaterThan")}</option><option value="lessThan">${t("sheetDialogs.lessThan")}</option><option value="blank">${t("sheetDialogs.blankCell")}</option></select></label>
+      <label id="vno-cf-value-row">${t("sheetDialogs.value")}<input id="vno-cf-value" type="number" value="0"></label>
+      <label>${t("sheetDialogs.fillColor")}<input id="vno-cf-color" type="color" value="#fff2cc"></label>
       <div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
     const type = overlay.querySelector("#vno-cf-type");
@@ -2095,18 +2096,18 @@ export class SheetGridController {
         value: overlay.querySelector("#vno-cf-value").value,
         color: overlay.querySelector("#vno-cf-color").value
       });
-      if (!result) overlay.querySelector(".vno-rule-error").textContent = "Vui lòng nhập một giá trị số hợp lệ.";
+      if (!result) overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.invalidNumber");
       else overlay.remove();
     });
     return true;
   }
 
   showDataValidationDialog() {
-    const overlay = this._createSheetDialog("Kiểm tra dữ liệu", `
-      <p class="vno-rule-range">Phạm vi: <strong>${this.getSelectedRangeLabel()}</strong></p>
-      <label>Cho phép<select id="vno-dv-type"><option value="list">Danh sách lựa chọn</option><option value="numberRange">Số trong khoảng</option></select></label>
-      <label id="vno-dv-list-row">Các giá trị (cách nhau bằng dấu phẩy)<input id="vno-dv-list" type="text" placeholder="Đạt, Chưa đạt, Đang xử lý"></label>
-      <div id="vno-dv-number-row" hidden><label>Tối thiểu<input id="vno-dv-min" type="number" value="0"></label><label>Tối đa<input id="vno-dv-max" type="number" value="100"></label></div>
+    const overlay = this._createSheetDialog(t("sheetDialogs.dataValidation"), `
+      <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <label>${t("sheetDialogs.allow")}<select id="vno-dv-type"><option value="list">${t("sheetDialogs.list")}</option><option value="numberRange">${t("sheetDialogs.numberRange")}</option></select></label>
+      <label id="vno-dv-list-row">${t("sheetDialogs.listValues")}<input id="vno-dv-list" type="text" placeholder="${t("sheetDialogs.listPlaceholder")}"></label>
+      <div id="vno-dv-number-row" hidden><label>${t("sheetDialogs.minimum")}<input id="vno-dv-min" type="number" value="0"></label><label>${t("sheetDialogs.maximum")}<input id="vno-dv-max" type="number" value="100"></label></div>
       <div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
     const type = overlay.querySelector("#vno-dv-type");
@@ -2119,7 +2120,7 @@ export class SheetGridController {
         ? { type: "list", values: overlay.querySelector("#vno-dv-list").value }
         : { type: "numberRange", min: overlay.querySelector("#vno-dv-min").value, max: overlay.querySelector("#vno-dv-max").value };
       const result = this.addDataValidation(this.selectionRange, config);
-      if (!result) overlay.querySelector(".vno-rule-error").textContent = "Thông tin kiểm tra dữ liệu chưa hợp lệ.";
+      if (!result) overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.invalidValidation");
       else overlay.remove();
     });
     return true;
@@ -2128,7 +2129,7 @@ export class SheetGridController {
   createPivotTable(config, recordUndo = true) {
     const sourceSheet = config.sourceSheet || this.activeSheet;
     const sourceCells = this.sheetsData[sourceSheet];
-    if (!sourceCells) throw new Error("Không tìm thấy sheet dữ liệu nguồn.");
+    if (!sourceCells) throw new Error(t("sheetDialogs.sourceSheetNotFound"));
     const table = PivotTableEngine.aggregate(sourceCells, config);
     const baseName = `${sourceSheet} (2)`;
     let targetSheet = config.targetSheet || baseName;
@@ -2164,10 +2165,10 @@ export class SheetGridController {
   showPivotTableDialog() {
     const sourceSheet = this.activeSheet;
     const defaultRange = this.getSelectedRangeLabel();
-    const overlay = this._createSheetDialog("Tạo Bảng tổng hợp", `
+    const overlay = this._createSheetDialog(t("sheetDialogs.pivotTitle"), `
       <div class="vno-pivot-dialog">
-        <label>Vùng dữ liệu nguồn (hàng đầu là tiêu đề)<input id="vno-pivot-range" value="${this._escapeHtml(defaultRange)}" aria-label="Vùng dữ liệu nguồn"></label>
-        <button class="vno-btn" id="vno-pivot-load-fields" type="button">Đọc tên cột</button>
+        <label>${t("sheetDialogs.pivotSource")}<input id="vno-pivot-range" value="${this._escapeHtml(defaultRange)}" aria-label="${t("sheetDialogs.pivotSource")}"></label>
+        <button class="vno-btn" id="vno-pivot-load-fields" type="button">${t("sheetDialogs.loadFields")}</button>
         <div class="vno-pivot-fields" aria-live="polite"></div>
         <div class="vno-rule-error" role="alert"></div>
       </div>`);
@@ -2177,13 +2178,13 @@ export class SheetGridController {
     const loadFields = () => {
       try {
         const { headers } = PivotTableEngine.readSource(this.sheetsData[sourceSheet], overlay.querySelector("#vno-pivot-range").value);
-        fieldsHost.innerHTML = `<p>Chọn trường cho từng vùng:</p>${headers.map((header, index) => `
+        fieldsHost.innerHTML = `<p>${t("sheetDialogs.chooseFields")}</p>${headers.map((header, index) => `
           <div class="vno-pivot-field" data-field="${this._escapeHtml(header)}">
             <strong>${this._escapeHtml(header)}</strong>
             <label><input type="checkbox" data-zone="rows" data-index="${index}"> Rows</label>
             <label><input type="checkbox" data-zone="columns" data-index="${index}"> Columns</label>
             <label><input type="checkbox" data-zone="values" data-index="${index}"> Values</label>
-            <select data-aggregate="${index}" aria-label="Phép tổng hợp cho ${this._escapeHtml(header)}"><option>SUM</option><option>COUNT</option><option>AVERAGE</option><option>MIN</option><option>MAX</option></select>
+            <select data-aggregate="${index}" aria-label="${t("sheetDialogs.aggregateFor", { field: this._escapeHtml(header) })}"><option>SUM</option><option>COUNT</option><option>AVERAGE</option><option>MIN</option><option>MAX</option></select>
           </div>`).join("")}`;
         fieldsHost.dataset.headers = JSON.stringify(headers);
         error.textContent = "";

@@ -7,9 +7,11 @@ export const SHEET_RIBBON_TABS = [
   {
     id: "home",
     label: "Trang đầu",
+    labelKey: "sheetRibbon.tab.home",
     groups: [
       {
         label: "Bảng nhớ tạm",
+        labelKey: "sheetRibbon.group.clipboard",
         items: [
           { type: "button", commandId: "common.edit.paste", isLarge: true },
           {
@@ -23,6 +25,7 @@ export const SHEET_RIBBON_TABS = [
       },
       {
         label: "Phông chữ",
+        labelKey: "sheetRibbon.group.font",
         items: [
           {
             type: "column",
@@ -44,6 +47,7 @@ export const SHEET_RIBBON_TABS = [
       },
       {
         label: "Căn chỉnh & Trộn ô",
+        labelKey: "sheetRibbon.group.alignment",
         items: [
           {
             type: "column",
@@ -68,6 +72,7 @@ export const SHEET_RIBBON_TABS = [
       },
       {
         label: "Định dạng số",
+        labelKey: "sheetRibbon.group.number",
         items: [
           { type: "button", commandId: "sheet.format.currencyVND", isLarge: true },
           {
@@ -80,6 +85,7 @@ export const SHEET_RIBBON_TABS = [
       },
       {
         label: "Tính toán & Dữ liệu",
+        labelKey: "sheetRibbon.group.quickAnalysis",
         items: [
           { type: "button", commandId: "sheet.formula.sum", isLarge: true },
           {
@@ -88,8 +94,7 @@ export const SHEET_RIBBON_TABS = [
               { type: "button", commandId: "sheet.data.sortAsc" },
               { type: "button", commandId: "sheet.data.sortDesc" },
               { type: "button", commandId: "sheet.data.filter" },
-              { type: "button", commandId: "sheet.format.conditional" },
-              { type: "button", commandId: "sheet.data.validation" }
+              { type: "button", commandId: "sheet.format.conditional" }
             ]
           }
         ]
@@ -99,9 +104,11 @@ export const SHEET_RIBBON_TABS = [
   {
     id: "formulas",
     label: "Công thức",
+    labelKey: "sheetRibbon.tab.formulas",
     groups: [
       {
         label: "Hàm tính toán",
+        labelKey: "sheetRibbon.group.functionLibrary",
         items: [
           { type: "button", commandId: "sheet.formula.sum", isLarge: true },
           { type: "button", commandId: "sheet.formula.average", isLarge: true }
@@ -109,6 +116,7 @@ export const SHEET_RIBBON_TABS = [
       },
       {
         label: "Tên đã xác định",
+        labelKey: "sheetRibbon.group.definedNames",
         items: [{ type: "button", commandId: "sheet.formula.nameManager", isLarge: true }]
       }
     ]
@@ -116,17 +124,28 @@ export const SHEET_RIBBON_TABS = [
   {
     id: "data",
     label: "Dữ liệu",
+    labelKey: "sheetRibbon.tab.data",
     groups: [
       {
         label: "Sắp xếp & Lọc",
+        labelKey: "sheetRibbon.group.sortFilter",
         items: [
           { type: "button", commandId: "sheet.data.sortAsc", isLarge: true },
           { type: "button", commandId: "sheet.data.sortDesc", isLarge: true },
-          { type: "button", commandId: "sheet.data.filter", isLarge: true },
-          { type: "button", commandId: "sheet.data.validation", isLarge: true },
+          { type: "button", commandId: "sheet.data.filter", isLarge: true }
+        ]
+      },
+      {
+        label: "Công cụ dữ liệu",
+        labelKey: "sheetRibbon.group.dataTools",
+        items: [{ type: "button", commandId: "sheet.data.validation", isLarge: true }]
+      },
+      {
+        label: "Bảng tổng hợp",
+        labelKey: "sheetRibbon.group.pivotTable",
+        items: [
           { type: "button", commandId: "sheet.data.pivotTable", isLarge: true },
-          { type: "button", commandId: "sheet.data.pivotRefresh", isLarge: true },
-          { type: "button", commandId: "sheet.format.conditional", isLarge: true }
+          { type: "button", commandId: "sheet.data.pivotRefresh", isLarge: true }
         ]
       }
     ]
@@ -134,23 +153,31 @@ export const SHEET_RIBBON_TABS = [
   {
     id: "insert",
     label: "Chèn",
+    labelKey: "sheetRibbon.tab.insert",
     groups: [
       {
-        label: "Hàng, Cột & Đồ thị",
+        label: "Ô",
+        labelKey: "sheetRibbon.group.cells",
         items: [
           { type: "button", commandId: "sheet.row.insert", isLarge: true },
-          { type: "button", commandId: "sheet.col.insert", isLarge: true },
-          { type: "button", commandId: "sheet.chart.insert", isLarge: true }
+          { type: "button", commandId: "sheet.col.insert", isLarge: true }
         ]
+      },
+      {
+        label: "Biểu đồ",
+        labelKey: "sheetRibbon.group.charts",
+        items: [{ type: "button", commandId: "sheet.chart.insert", isLarge: true }]
       }
     ]
   },
   {
     id: "pageLayout",
     label: "Bố trí trang",
+    labelKey: "sheetRibbon.tab.pageLayout",
     groups: [
       {
         label: "Vùng in",
+        labelKey: "sheetRibbon.group.printArea",
         items: [
           { type: "button", commandId: "sheet.page.setPrintArea", isLarge: true },
           { type: "button", commandId: "sheet.page.clearPrintArea" }
@@ -158,6 +185,7 @@ export const SHEET_RIBBON_TABS = [
       },
       {
         label: "Ngắt trang",
+        labelKey: "sheetRibbon.group.pageBreaks",
         items: [
           { type: "button", commandId: "sheet.page.insertPageBreak", isLarge: true },
           { type: "button", commandId: "sheet.page.removePageBreak" }
@@ -168,14 +196,17 @@ export const SHEET_RIBBON_TABS = [
   {
     id: "review",
     label: "Xem xét",
-    groups: [{ label: "Ghi chú", items: [{ type: "button", commandId: "sheet.review.commentInsert", isLarge: true }] }]
+    labelKey: "sheetRibbon.tab.review",
+    groups: [{ label: "Ghi chú", labelKey: "sheetRibbon.group.comments", items: [{ type: "button", commandId: "sheet.review.commentInsert", isLarge: true }] }]
   },
   {
     id: "view",
     label: "Chế độ xem",
+    labelKey: "sheetRibbon.tab.view",
     groups: [
       {
         label: "Hiển thị",
+        labelKey: "sheetRibbon.group.show",
         items: [
           { type: "button", commandId: "sheet.view.gridlines", isLarge: true },
           { type: "button", commandId: "sheet.view.headings", isLarge: true }
@@ -183,6 +214,7 @@ export const SHEET_RIBBON_TABS = [
       },
       {
         label: "Thu phóng",
+        labelKey: "sheetRibbon.group.zoom",
         items: [
           { type: "button", commandId: "sheet.view.zoomIn", isLarge: true },
           { type: "button", commandId: "sheet.view.zoomOut" },
@@ -191,6 +223,7 @@ export const SHEET_RIBBON_TABS = [
       },
       {
         label: "Cửa sổ",
+        labelKey: "sheetRibbon.group.window",
         items: [{ type: "button", commandId: "sheet.view.freezePanes", isLarge: true }]
       }
     ]
@@ -198,9 +231,11 @@ export const SHEET_RIBBON_TABS = [
   {
     id: "ai",
     label: "Trợ lý VN AI",
+    labelKey: "sheetRibbon.tab.ai",
     groups: [
       {
         label: "Phân tích dữ liệu AI",
+        labelKey: "sheetRibbon.group.aiAnalysis",
         items: [
           { type: "button", commandId: "ai.assistant.toggle", isLarge: true },
           { type: "button", commandId: "ai.assistant.summarize", isLarge: true }

@@ -369,11 +369,11 @@ export async function runHtmlSmokeTests() {
         const hasCanvas = slidesDom.includes("vno-slide-canvas");
         const hasNotes = slidesDom.includes("vno-slide-notes-panel");
         const hasNotesBar = slidesDom.includes("vno-slide-notes-bar");
-        const hasAnimTab = slidesDom.includes("Hoạt hình");
+        const hasAnimTab = slidesDom.includes("Hoạt hình") || slidesDom.includes("Animations");
         const hasShowTab = slidesDom.includes("Trình chiếu");
         const hasPresenterBtn = slidesDom.includes("slides.show.presenterMode");
         const hasNotesToggleBtn = slidesDom.includes("slides.notes.toggle");
-        const hasViewTab = slidesDom.includes("Chế độ xem");
+        const hasViewTab = slidesDom.includes("Chế độ xem") || slidesDom.includes("View");
         const hasSorter = slidesDom.includes("vno-slide-sorter-overlay");
         const sorterThumbCount = (slidesDom.match(/class="vno-slide-sorter-item/g) || []).length;
 

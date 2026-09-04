@@ -159,7 +159,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.page.removePageBreak", category: "page", label: "Xóa ngắt trang", icon: "removePageBreak", tooltip: "Xóa ngắt hàng và cột tại ô đang chọn" },
 
   // Chèn hàng/cột & Biểu đồ
-  { id: "sheet.row.insert", category: "insert", label: "Chèn hàng", icon: "table", tooltip: "Chèn thêm hàng mới" },
+  { id: "sheet.row.insert", category: "insert", label: "Chèn hàng", shortcut: "Ctrl+Shift+=", icon: "table", tooltip: "Chèn thêm hàng mới (Ctrl+Shift+=)" },
   { id: "sheet.col.insert", category: "insert", label: "Chèn cột", icon: "table", tooltip: "Chèn thêm cột mới" },
   { id: "sheet.chart.insert", category: "insert", label: "Biểu đồ", icon: "filePrint", tooltip: "Chèn biểu đồ phân tích dữ liệu" }
 ];

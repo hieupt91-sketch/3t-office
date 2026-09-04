@@ -7,6 +7,7 @@ import { SHEET_RIBBON_TABS } from "./sheet-ribbon.js";
 import { SheetGridController } from "./sheet-grid.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { bootstrapPlatform } from "../../platform/bootstrap.js";
+import { applyLocaleToTabs } from "../../platform/i18n/i18n.js";
 
 export class SheetApp {
   constructor(mountElement) {
@@ -25,7 +26,7 @@ export class SheetApp {
       documentName: options.documentName || "Dự toán kinh phí VN Office 2026.xlsx"
     });
     this.shell.mount(this.mountElement);
-    this.shell.ribbonHost.setStructure(SHEET_RIBBON_TABS, "home");
+    this.shell.ribbonHost.setStructure(applyLocaleToTabs(SHEET_RIBBON_TABS), "home");
 
     const gridWrap = document.createElement("div");
     gridWrap.style.width = "100%";

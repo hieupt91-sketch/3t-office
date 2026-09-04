@@ -2,7 +2,7 @@
 export class PivotTableEngine {
   static parseRange(range) {
     const match = String(range).trim().toUpperCase().match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
-    if (!match) throw new Error("Vùng nguồn phải có dạng A1:D20.");
+    if (!match) throw new Error(t("sheetDialogs.sourceRangeFormat"));
     return { startCol: match[1], startRow: +match[2], endCol: match[3], endRow: +match[4] };
   }
 
@@ -23,8 +23,8 @@ export class PivotTableEngine {
     const end = this.columnIndex(parsed.endCol);
     const headers = [];
     for (let col = start; col <= end; col++) headers.push(String(cells.get(`${this.columnName(col)}${parsed.startRow}`)?.val ?? "").trim());
-    if (headers.some(header => !header)) throw new Error("Hàng đầu tiên của vùng nguồn phải có tiêu đề.");
-    if (new Set(headers).size !== headers.length) throw new Error("Tiêu đề cột trong vùng nguồn phải là duy nhất.");
+    if (headers.some(header => !header)) throw new Error(t("sheetDialogs.sourceNeedsHeaders"));
+    if (new Set(headers).size !== headers.length) throw new Error(t("sheetDialogs.uniqueHeaders"));
     const records = [];
     for (let row = parsed.startRow + 1; row <= parsed.endRow; row++) {
       const record = {};
@@ -44,8 +44,8 @@ export class PivotTableEngine {
     const rows = config.rows || [];
     const columns = config.columns || [];
     const values = config.values || [];
-    if (!values.length) throw new Error("Hãy chọn ít nhất một trường Values.");
-    for (const field of [...rows, ...columns, ...values.map(item => item.field)]) if (!headers.includes(field)) throw new Error(`Không tìm thấy cột ${field}.`);
+    if (!values.length) throw new Error(t("sheetDialogs.selectValue"));
+    for (const field of [...rows, ...columns, ...values.map(item => item.field)]) if (!headers.includes(field)) throw new Error(t("sheetDialogs.columnNotFound", { field }));
     const rowKeys = [...new Set(records.map(record => rows.map(field => String(record[field])).join("\u001f")))];
     const columnKeys = [...new Set(records.map(record => columns.map(field => String(record[field])).join("\u001f")))];
     if (!rows.length) rowKeys.splice(0, rowKeys.length, "");
@@ -79,3 +79,4 @@ export class PivotTableEngine {
     return cells;
   }
 }
+import { t } from "../../platform/i18n/i18n.js";

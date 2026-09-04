@@ -89,7 +89,7 @@ export async function runSlidesLayoutsTests() {
     }
   });
 
-  test("Slide Layouts Ribbon: Hiện diện trong thanh Ribbon ở cả tab 'Trang đầu' và 'Thiết kế'", () => {
+  test("Slide Layouts Ribbon: Hiện diện trong tab 'Trang đầu' theo chuẩn PowerPoint", () => {
     const homeTab = SLIDES_RIBBON_TABS.find(t => t.id === "home");
     if (!homeTab) throw new Error("Không tìm thấy tab home");
     const slideGroup = homeTab.groups.find(g => g.label === "Trang chiếu");
@@ -100,13 +100,7 @@ export async function runSlidesLayoutsTests() {
     }
 
     const designTab = SLIDES_RIBBON_TABS.find(t => t.id === "design");
-    if (!designTab) throw new Error("Không tìm thấy tab design");
-    const layoutGroup = designTab.groups.find(g => g.label === "Bố cục trang" || g.label === "Bố cục");
-    if (!layoutGroup) throw new Error("Không tìm thấy nhóm Bố cục trong tab Thiết kế");
-    const hasLayoutInDesign = layoutGroup.items.some(it => it.commandId === "slides.layout.apply");
-    if (!hasLayoutInDesign) {
-      throw new Error("slides.layout.apply chưa xuất hiện trong nhóm Bố cục của tab Thiết kế");
-    }
+    if (designTab?.groups.some(group => group.items.some(item => item.commandId === "slides.layout.apply"))) throw new Error("Layout không nên nằm trong tab Thiết kế");
   });
 
   // =========================================================================

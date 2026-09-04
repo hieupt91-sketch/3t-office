@@ -7,9 +7,11 @@ export const SLIDES_RIBBON_TABS = [
   {
     id: "home",
     label: "Trang đầu",
+    labelKey: "slidesRibbon.tab.home",
     groups: [
       {
         label: "Trang chiếu",
+        labelKey: "slidesRibbon.group.slides",
         items: [
           { type: "button", commandId: "slides.slide.new", isLarge: true },
           { type: "button", commandId: "slides.layout.apply", isLarge: true },
@@ -24,6 +26,7 @@ export const SLIDES_RIBBON_TABS = [
       },
       {
         label: "Bảng nhớ tạm",
+        labelKey: "slidesRibbon.group.clipboard",
         items: [
           { type: "button", commandId: "common.edit.paste", isLarge: true },
           {
@@ -37,17 +40,11 @@ export const SLIDES_RIBBON_TABS = [
       },
       {
         label: "Đối tượng vẽ",
+        labelKey: "slidesRibbon.group.drawing",
         items: [
           { type: "button", commandId: "slides.text.insert", isLarge: true },
           { type: "button", commandId: "slides.shape.insert", isLarge: true },
-          { type: "button", commandId: "slides.image.insert", isLarge: true },
-          { type: "button", commandId: "slides.animation.apply", isLarge: true }
-        ]
-      },
-      {
-        label: "Trình chiếu",
-        items: [
-          { type: "button", commandId: "slides.show.startFromBegin", isLarge: true }
+          { type: "button", commandId: "slides.image.insert", isLarge: true }
         ]
       }
     ]
@@ -55,9 +52,11 @@ export const SLIDES_RIBBON_TABS = [
   {
     id: "insert",
     label: "Chèn",
+    labelKey: "slidesRibbon.tab.insert",
     groups: [
       {
         label: "Hình ảnh & Đối tượng",
+        labelKey: "slidesRibbon.group.imagesObjects",
         items: [
           { type: "button", commandId: "slides.image.insert", isLarge: true },
           { type: "button", commandId: "slides.shape.insert", isLarge: true },
@@ -66,6 +65,7 @@ export const SLIDES_RIBBON_TABS = [
       },
       {
         label: "Đa phương tiện",
+        labelKey: "slidesRibbon.group.media",
         items: [
           { type: "button", commandId: "slides.media.insertVideo", isLarge: true },
           { type: "button", commandId: "slides.media.insertAudio", isLarge: true }
@@ -76,17 +76,13 @@ export const SLIDES_RIBBON_TABS = [
   {
     id: "design",
     label: "Thiết kế",
+    labelKey: "slidesRibbon.tab.design",
     groups: [
       {
         label: "Mẫu chủ đạo",
+        labelKey: "slidesRibbon.group.master",
         items: [
           { type: "button", commandId: "slides.master.apply", isLarge: true }
-        ]
-      },
-      {
-        label: "Bố cục trang",
-        items: [
-          { type: "button", commandId: "slides.layout.apply", isLarge: true }
         ]
       }
     ]
@@ -94,9 +90,11 @@ export const SLIDES_RIBBON_TABS = [
   {
     id: "transitions",
     label: "Chuyển tiếp",
+    labelKey: "slidesRibbon.tab.transitions",
     groups: [
       {
         label: "Hiệu ứng chuyển trang",
+        labelKey: "slidesRibbon.group.transitions",
         items: [
           { type: "button", commandId: "slides.transition.apply", isLarge: true }
         ]
@@ -106,9 +104,11 @@ export const SLIDES_RIBBON_TABS = [
   {
     id: "animations",
     label: "Hoạt hình",
+    labelKey: "slidesRibbon.tab.animations",
     groups: [
       {
         label: "Hiệu ứng đối tượng",
+        labelKey: "slidesRibbon.group.animations",
         items: [
           { type: "button", commandId: "slides.animation.apply", isLarge: true }
         ]
@@ -118,9 +118,11 @@ export const SLIDES_RIBBON_TABS = [
   {
     id: "slideshow",
     label: "Trình chiếu",
+    labelKey: "slidesRibbon.tab.slideshow",
     groups: [
       {
         label: "Khởi động chiếu",
+        labelKey: "slidesRibbon.group.startSlideshow",
         items: [
           { type: "button", commandId: "slides.show.startFromBegin", isLarge: true },
           { type: "button", commandId: "slides.show.startFromCurrent", isLarge: true },
@@ -129,6 +131,7 @@ export const SLIDES_RIBBON_TABS = [
       },
       {
         label: "Người thuyết trình",
+        labelKey: "slidesRibbon.group.presenter",
         items: [
           { type: "button", commandId: "slides.notes.toggle", isLarge: true },
           { type: "button", commandId: "slides.show.rehearseTimings", isLarge: true }
@@ -139,9 +142,11 @@ export const SLIDES_RIBBON_TABS = [
   {
     id: "review",
     label: "Đánh giá",
+    labelKey: "slidesRibbon.tab.review",
     groups: [
       {
         label: "Nhận xét",
+        labelKey: "slidesRibbon.group.comments",
         items: [{ type: "button", commandId: "slides.review.commentInsert", isLarge: true }]
       }
     ]
@@ -149,9 +154,11 @@ export const SLIDES_RIBBON_TABS = [
   {
     id: "view",
     label: "Chế độ xem",
+    labelKey: "slidesRibbon.tab.view",
     groups: [
       {
         label: "Dạng xem bản trình chiếu",
+        labelKey: "slidesRibbon.group.presentationViews",
         items: [
           { type: "button", commandId: "slides.view.slideSorter", isLarge: true },
           { type: "button", commandId: "slides.notes.toggle", isLarge: true }
@@ -162,9 +169,11 @@ export const SLIDES_RIBBON_TABS = [
   {
     id: "ai",
     label: "Trợ lý VN AI",
+    labelKey: "slidesRibbon.tab.ai",
     groups: [
       {
         label: "Tạo nội dung thuyết trình",
+        labelKey: "slidesRibbon.group.aiContent",
         items: [
           { type: "button", commandId: "ai.assistant.toggle", isLarge: true },
           { type: "button", commandId: "ai.assistant.summarize", isLarge: true }
