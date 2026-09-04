@@ -34,6 +34,7 @@ import { runSheetCommentsPrintAreaTests } from "./unit/sheet-comments-printarea.
 import { runSlidesTimingsMediaTests } from "./unit/slides-timings-media.test.js";
 import { runWriterStyleGalleryWatermarkTests } from "./unit/writer-style-gallery-watermark.test.js";
 import { runSheetViewSlidesCommentsTests } from "./unit/sheet-view-slides-comments.test.js";
+import { runWriterColumnsTests } from "./unit/writer-columns.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -75,7 +76,8 @@ async function runAll() {
     { title: "28. Behavioral Tests — VN Sheet Comments, Print Area & Page Breaks", runner: runSheetCommentsPrintAreaTests },
     { title: "29. Behavioral Tests — VN Slides Rehearse Timings & Embed Media", runner: runSlidesTimingsMediaTests },
     { title: "30. Behavioral Tests — VN Writer Style Gallery & Watermark / Page Border", runner: runWriterStyleGalleryWatermarkTests },
-    { title: "31. Behavioral Tests — VN Sheet View & VN Slides Review Comments", runner: runSheetViewSlidesCommentsTests }
+    { title: "31. Behavioral Tests — VN Sheet View & VN Slides Review Comments", runner: runSheetViewSlidesCommentsTests },
+    { title: "32. Behavioral Tests — VN Writer Columns", runner: runWriterColumnsTests }
   ];
 
   for (const suite of suites) {

@@ -9,6 +9,7 @@ import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { parseCsv, replaceMergeFields, showMailMergeDataSourceDialog, showInsertMergeFieldDialog } from "../../../apps/writer/mail-merge.js";
 import { STYLE_PRESETS, showStyleGalleryDropdown, closeStyleGalleryDropdown, createStyleGalleryStrip } from "../../../apps/writer/style-gallery.js";
 import { showWatermarkDialog, showPageBorderDialog } from "../../../apps/writer/page-decorations.js";
+import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
 
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
 const PAGE_SIZES_MM = {
@@ -103,6 +104,11 @@ export class WriterAdapter {
       width: 2,
       color: "#0f4c81"
     };
+    this.columns = {
+      count: 1,
+      gap: 10,
+      rule: false
+    };
     this._styleSelectionHandler = null;
 
     this._initZones();
@@ -163,6 +169,10 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.style.gallery", (args) => this.toggleStyleGallery(args));
     globalCommandBus.bindHandler("writer.page.watermark", (args) => this.openWatermarkDialog(args));
     globalCommandBus.bindHandler("writer.page.border", (args) => this.openPageBorderDialog(args));
+    globalCommandBus.bindHandler("writer.page.columns", (args) => this.openColumnsDialog(args));
+    globalCommandBus.bindHandler("writer.page.columns1", () => this.setColumns({ count: 1, gap: 0, rule: false }));
+    globalCommandBus.bindHandler("writer.page.columns2", () => this.setColumns({ count: 2, gap: 10, rule: false }));
+    globalCommandBus.bindHandler("writer.page.columns3", () => this.setColumns({ count: 3, gap: 10, rule: false }));
 
     if (!this._lastSnapshot) {
       this._lastSnapshot = this._createSnapshot("Initial State");
@@ -749,6 +759,18 @@ export class WriterAdapter {
 
       case "writer.page.border":
         return await this.openPageBorderDialog(args);
+
+      case "writer.page.columns":
+        return await this.openColumnsDialog(args);
+
+      case "writer.page.columns1":
+        return this.setColumns({ count: 1, gap: 0, rule: false });
+
+      case "writer.page.columns2":
+        return this.setColumns({ count: 2, gap: 10, rule: false });
+
+      case "writer.page.columns3":
+        return this.setColumns({ count: 3, gap: 10, rule: false });
 
       case "writer.reference.tocInsert":
         return this.insertTableOfContents();
@@ -1393,6 +1415,97 @@ export class WriterAdapter {
   _applyDecorations() {
     this._applyWatermark();
     this._applyPageBorder();
+    this._applyColumns();
+  }
+
+  // --- CHIA CỘT VĂN BẢN (COLUMNS) ---
+
+  setColumns(columnsData = null) {
+    columnsData = columnsData || {};
+    this.flushTyping();
+    this._initZones();
+
+    const count = Math.max(1, Math.min(4, Number(columnsData.count) || 1));
+    const gap = typeof columnsData.gap === "number" ? columnsData.gap : (parseFloat(columnsData.gap) || 10);
+    const rule = Boolean(columnsData.rule);
+
+    this.columns = {
+      count,
+      gap: count > 1 ? gap : 0,
+      rule: count > 1 ? rule : false
+    };
+
+    this._applyColumns();
+    this.isDirty = true;
+    this.recordSnapshot(count > 1 ? `writer.page.columns.${count}` : "writer.page.columns.reset");
+    return this.columns;
+  }
+
+  clearColumns() {
+    return this.setColumns({ count: 1, gap: 0, rule: false });
+  }
+
+  async openColumnsDialog(options = null) {
+    options = options || {};
+    if (options.count !== undefined && !options.openDialog) {
+      return this.setColumns(options);
+    }
+    const result = await showColumnsDialog(this.columns);
+    if (result === null) return null;
+    return this.setColumns(result);
+  }
+
+  _applyColumns() {
+    this._initZones();
+    const target = this.bodyDom || this.editorDom;
+    if (!target) return;
+
+    const config = this.columns || { count: 1 };
+    const count = Math.max(1, Math.min(4, Number(config.count) || 1));
+    const gap = config.gap ?? 10;
+    const rule = config.rule;
+
+    if (!target.style) {
+      target.style = {};
+    }
+    if (!target.dataset) {
+      target.dataset = {};
+    }
+
+    if (count > 1) {
+      const gapStr = typeof gap === "number" ? `${gap}mm` : String(gap);
+      const ruleStr = rule ? (typeof rule === "string" ? rule : "1px solid #94a3b8") : "none";
+
+      target.style.columnCount = String(count);
+      target.style.webkitColumnCount = String(count);
+      target.style.columnGap = gapStr;
+      target.style.webkitColumnGap = gapStr;
+      target.style.columnRule = ruleStr;
+      target.style.webkitColumnRule = ruleStr;
+
+      target.dataset.vnoColumnCount = String(count);
+      if (target.classList) {
+        target.classList.add?.("vno-columns-active");
+        target.classList.toggle?.("vno-columns-2", count === 2);
+        target.classList.toggle?.("vno-columns-3", count === 3);
+        target.classList.toggle?.("vno-columns-4", count === 4);
+      }
+    } else {
+      target.style.columnCount = "";
+      target.style.webkitColumnCount = "";
+      target.style.columnGap = "";
+      target.style.webkitColumnGap = "";
+      target.style.columnRule = "";
+      target.style.webkitColumnRule = "";
+
+      delete target.dataset.vnoColumnCount;
+      if (target.classList) {
+        target.classList.remove?.("vno-columns-active");
+        target.classList.remove?.("vno-columns-2");
+        target.classList.remove?.("vno-columns-3");
+        target.classList.remove?.("vno-columns-4");
+      }
+    }
   }
 
   _toggleFormatPainter() {
@@ -1617,8 +1730,18 @@ export class WriterAdapter {
       footerHtml = `\n<div title="footer">\n${this.footerDom.innerHTML}\n</div>`;
     }
 
-    const fullHtml = `${watermarkHtml}${headerHtml}${bodyHtml}${footerHtml}`;
-    return `<style>${this._getPageSetupCss()}</style>${fullHtml}`;
+    let columnsCss = "";
+    let bodyExportHtml = bodyHtml;
+    if (this.columns && this.columns.count > 1) {
+      const colCount = this.columns.count;
+      const colGap = typeof this.columns.gap === "number" ? `${this.columns.gap}mm` : (this.columns.gap || "10mm");
+      const colRule = this.columns.rule ? (typeof this.columns.rule === "string" ? this.columns.rule : "1px solid #94a3b8") : "none";
+      columnsCss = `\n.vno-writer-body, .vno-writer-columns-content, body { column-count: ${colCount}; -webkit-column-count: ${colCount}; column-gap: ${colGap}; -webkit-column-gap: ${colGap}; ${this.columns.rule ? `column-rule: ${colRule}; -webkit-column-rule: ${colRule};` : ''} }`;
+      bodyExportHtml = `<div class="vno-writer-columns-content vno-writer-body" style="column-count:${colCount};-webkit-column-count:${colCount};column-gap:${colGap};-webkit-column-gap:${colGap};${this.columns.rule ? `column-rule:${colRule};-webkit-column-rule:${colRule};` : ''}">${bodyHtml}</div>`;
+    }
+
+    const fullHtml = `${watermarkHtml}${headerHtml}${bodyExportHtml}${footerHtml}`;
+    return `<style>${this._getPageSetupCss()}${columnsCss}</style>${fullHtml}`;
   }
 
   _stripCommentMarkup(html) {
@@ -1781,10 +1904,17 @@ export class WriterAdapter {
    * @param {number} printableWidthPx Chiều rộng vùng in khả dụng
    * @returns {string[]} Danh sách chuỗi HTML tương ứng với từng trang
    */
-  paginateContent(bodyHtml, availableHeightPx, printableWidthPx) {
+  paginateContent(bodyHtml, availableHeightPx, printableWidthPx, columns = null) {
     if (!bodyHtml || !bodyHtml.trim()) {
       return ["<p><br></p>"];
     }
+
+    const activeCols = columns || this.columns;
+    const colCount = (activeCols && activeCols.count > 1) ? activeCols.count : 1;
+    const gapMm = (activeCols && typeof activeCols.gap === "number") ? activeCols.gap : 10;
+    const gapPx = gapMm * MM_TO_PX;
+    const effectiveAvailableHeightPx = colCount > 1 ? availableHeightPx * colCount * 0.95 : availableHeightPx;
+    const colWidthPx = colCount > 1 ? Math.max(100, (printableWidthPx - gapPx * (colCount - 1)) / colCount) : printableWidthPx;
 
     let blocks = [];
     if (typeof document !== "undefined" && typeof document.createElement === "function") {
@@ -1852,7 +1982,7 @@ export class WriterAdapter {
       if (tagName === "IMG") return 250;
 
       // Đoạn văn mặc định
-      const charsPerLine = Math.max(25, Math.floor(printableWidthPx / 8.5));
+      const charsPerLine = Math.max(20, Math.floor(colWidthPx / 8.5));
       const lines = text ? Math.max(1, Math.ceil(text.length / charsPerLine)) : 1;
       return lines * 26 + 10;
     };
@@ -1941,7 +2071,7 @@ export class WriterAdapter {
     const notesData = this._extractNotesForPreview(rawBody);
     const bodyForPagination = notesData.cleanHtml;
 
-    const pageBodies = this.paginateContent(bodyForPagination, availableBodyHeightPx, dim.printableWidthPx);
+    const pageBodies = this.paginateContent(bodyForPagination, availableBodyHeightPx, dim.printableWidthPx, this.columns);
 
     // Gắn Footnote vào chân trang của đúng trang chứa số mũ tương ứng
     for (let i = 0; i < pageBodies.length; i++) {
@@ -1973,6 +2103,7 @@ export class WriterAdapter {
     overlay.dataset.activePage = "1";
     overlay.dataset.widthMm = String(dim.widthMm);
     overlay.dataset.heightMm = String(dim.heightMm);
+    overlay.dataset.columnCount = String(this.columns?.count || 1);
 
     // Toolbar
     const toolbar = document.createElement("header");
@@ -2041,10 +2172,18 @@ export class WriterAdapter {
         pageFooterHtml = footerHtml.replace(/Trang\s+\d+(\s*\/\s*\d+)?/gi, `Trang ${pageIndex} / ${totalPages}`);
       }
 
+      const hasColumns = Boolean(this.columns && this.columns.count > 1);
+      const colCount = hasColumns ? this.columns.count : 1;
+      const colGap = hasColumns ? (typeof this.columns.gap === "number" ? `${this.columns.gap}mm` : (this.columns.gap || "10mm")) : "";
+      const colRule = hasColumns && this.columns.rule ? (typeof this.columns.rule === "string" ? this.columns.rule : "1px solid #94a3b8") : "";
+      const colStyleAttr = hasColumns
+        ? `column-count:${colCount}; -webkit-column-count:${colCount}; column-gap:${colGap}; -webkit-column-gap:${colGap}; ${colRule ? `column-rule:${colRule}; -webkit-column-rule:${colRule};` : ''}`
+        : "";
+
       sheet.innerHTML = `
         <div class="vno-print-preview-page-number-tag">Trang ${pageIndex} / ${totalPages}</div>
         ${hasHeader ? `<div class="vno-print-preview-header">${headerHtml}</div>` : ""}
-        <div class="vno-print-preview-body">${pageBodies[i] || "<p><br></p>"}</div>
+        <div class="vno-print-preview-body${hasColumns ? ` vno-columns-active vno-columns-${colCount}` : ""}" style="${colStyleAttr}">${pageBodies[i] || "<p><br></p>"}</div>
         ${hasFooter ? `<div class="vno-print-preview-footer">${pageFooterHtml}</div>` : ""}
       `;
 
@@ -2381,6 +2520,7 @@ export class WriterAdapter {
       comments: this.comments ? JSON.parse(JSON.stringify(this.comments)) : [],
       watermark: this.watermark ? JSON.parse(JSON.stringify(this.watermark)) : null,
       pageBorder: this.pageBorder ? JSON.parse(JSON.stringify(this.pageBorder)) : null,
+      columns: this.columns ? JSON.parse(JSON.stringify(this.columns)) : { count: 1, gap: 10, rule: false },
       description,
       timestamp: Date.now()
     };
@@ -2399,6 +2539,7 @@ export class WriterAdapter {
     if (JSON.stringify(a.comments) !== JSON.stringify(b.comments)) return false;
     if (JSON.stringify(a.watermark) !== JSON.stringify(b.watermark)) return false;
     if (JSON.stringify(a.pageBorder) !== JSON.stringify(b.pageBorder)) return false;
+    if (JSON.stringify(a.columns) !== JSON.stringify(b.columns)) return false;
     return true;
   }
 
@@ -2439,6 +2580,9 @@ export class WriterAdapter {
     }
     if (Object.prototype.hasOwnProperty.call(snapshot, "pageBorder")) {
       this.pageBorder = snapshot.pageBorder ? JSON.parse(JSON.stringify(snapshot.pageBorder)) : { enabled: false };
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, "columns")) {
+      this.columns = snapshot.columns ? JSON.parse(JSON.stringify(snapshot.columns)) : { count: 1, gap: 10, rule: false };
     }
     this._applyDecorations();
     this._syncActiveStyleUI?.();

@@ -184,7 +184,16 @@ export const WRITER_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "writer.page.margins", isLarge: true },
           { type: "button", commandId: "writer.page.orientation", isLarge: true },
-          { type: "button", commandId: "writer.page.size", isLarge: true }
+          { type: "button", commandId: "writer.page.size", isLarge: true },
+          { type: "button", commandId: "writer.page.columns", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.page.columns1" },
+              { type: "button", commandId: "writer.page.columns2" },
+              { type: "button", commandId: "writer.page.columns3" }
+            ]
+          }
         ]
       },
       {
