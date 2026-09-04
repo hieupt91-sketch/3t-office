@@ -1314,24 +1314,28 @@ export class SheetGridController {
 
   sort(col = this.selectedCoord.c, ascending = true) {
     const before = this._snapshotCells();
-    // Thu thập các hàng dữ liệu cần sắp xếp
-    const rowsWithData = [];
+    // Ưu tiên đúng vùng người dùng đã chọn. Trước đây hàm hard-code r >= 4,
+    // khiến Sort không làm gì với bảng bắt đầu ở hàng 1/2 dù dispatch vẫn chạy.
+    const selectedRange = this._normalizeRange(this.selectionRange);
+    const hasRowSelection = selectedRange.end.r > selectedRange.start.r;
+    const rowsWithData = hasRowSelection
+      ? Array.from({ length: selectedRange.end.r - selectedRange.start.r + 1 }, (_, index) => selectedRange.start.r + index)
+      : [];
     for (const [key, item] of this.cellsData.entries()) {
+      if (hasRowSelection) break;
       if ((item.val !== "" && item.val !== undefined) || item.formula) {
         const m = key.match(/^([A-Z]+)(\d+)$/);
         if (m) {
           const r = parseInt(m[2], 10);
           const isTotalRow = (item.formula && item.formula.toLowerCase().includes("sum")) || String(item.val).toLowerCase().includes("tổng");
-          if (r >= 4 && !isTotalRow && !rowsWithData.includes(r)) {
+          if (!isTotalRow && !rowsWithData.includes(r)) {
             rowsWithData.push(r);
           }
         }
       }
     }
 
-    if (rowsWithData.length < 2) {
-      rowsWithData.push(4, 5, 6, 7);
-    }
+    if (rowsWithData.length < 2) return false;
 
     rowsWithData.sort((a, b) => a - b);
     const minRow = rowsWithData[0];
@@ -2140,13 +2144,13 @@ export class SheetGridController {
       remove.className = "vno-btn vno-btn-danger vno-comment-delete";
       remove.textContent = t("sheetDialogs.deleteComment");
       overlay.querySelector(".vno-dialog-footer").prepend(remove);
-      remove.addEventListener("click", () => { this.deleteComment({ coord }); overlay.remove(); });
+      remove.addEventListener("click", () => { this.deleteComment({ coord }); overlay.closeDialog(); });
     }
     apply.addEventListener("click", () => {
       const text = overlay.querySelector("#vno-comment-text").value.trim();
       if (!text) { overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.emptyComment"); return; }
       this.saveComment({ coord, text, author: overlay.querySelector("#vno-comment-author").value });
-      overlay.remove();
+      overlay.closeDialog();
     });
     overlay.querySelector("#vno-comment-text")?.focus();
     return true;
@@ -2222,9 +2226,9 @@ export class SheetGridController {
       document.removeEventListener("keydown", onKey);
       overlay.remove();
     };
+    overlay.closeDialog = close;
     overlay.querySelector(".vno-rule-close").addEventListener("click", close);
     overlay.querySelector(".vno-rule-cancel").addEventListener("click", close);
-    overlay.addEventListener("keydown", onKey);
     document.addEventListener("keydown", onKey);
     document.body.appendChild(overlay);
     overlay.querySelector("select, input")?.focus();
@@ -2249,7 +2253,7 @@ export class SheetGridController {
         color: overlay.querySelector("#vno-cf-color").value
       });
       if (!result) overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.invalidNumber");
-      else overlay.remove();
+      else overlay.closeDialog();
     });
     return true;
   }
@@ -2273,7 +2277,7 @@ export class SheetGridController {
         : { type: "numberRange", min: overlay.querySelector("#vno-dv-min").value, max: overlay.querySelector("#vno-dv-max").value };
       const result = this.addDataValidation(this.selectionRange, config);
       if (!result) overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.invalidValidation");
-      else overlay.remove();
+      else overlay.closeDialog();
     });
     return true;
   }
@@ -2353,7 +2357,7 @@ export class SheetGridController {
         const selected = zone => [...fieldsHost.querySelectorAll(`input[data-zone="${zone}"]:checked`)].map(input => headers[+input.dataset.index]);
         const valueFields = [...fieldsHost.querySelectorAll('input[data-zone="values"]:checked')].map(input => ({ field: headers[+input.dataset.index], aggregate: fieldsHost.querySelector(`select[data-aggregate="${input.dataset.index}"]`).value }));
         this.createPivotTable({ sourceSheet, sourceRange: overlay.querySelector("#vno-pivot-range").value, rows: selected("rows"), columns: selected("columns"), values: valueFields });
-        overlay.remove();
+        overlay.closeDialog();
       } catch (err) {
         error.textContent = err.message;
       }
