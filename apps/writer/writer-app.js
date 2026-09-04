@@ -16,6 +16,7 @@ export class WriterApp {
     this.shell = null;
     this.adapter = null;
     this.canvas = null;
+    this._lifecycleObserver = null;
   }
 
   async init(options = {}) {
@@ -29,6 +30,7 @@ export class WriterApp {
       documentName: options.documentName || (isBlank ? "Tài liệu 1.docx" : "Quyết định ban hành tiêu chuẩn 01.docx")
     });
     this.shell.mount(this.mountElement);
+    this._watchLifecycle();
     applyLocaleToWriterRibbon(WRITER_RIBBON_TABS);
     this.shell.ribbonHost.setStructure(WRITER_RIBBON_TABS, "home");
 
@@ -178,6 +180,31 @@ export class WriterApp {
       this._mountStyleGalleryRibbonStrip();
     });
     this._styleGalleryObserver.observe(this.mountElement, { childList: true, subtree: true });
+  }
+
+  /**
+   * `mountElement` (#vno-app-root) là node DOM dùng chung, tái sử dụng bởi mọi lần
+   * chuyển app (Writer/Sheet/Slides đều mount vào cùng node này qua AppShell.mount(),
+   * hàm này set data-app=<tên app>). Không có cơ chế dọn dẹp thì mỗi lần quay lại
+   * Writer sẽ tạo thêm một WriterApp mới trong khi observer của phiên trước vẫn sống,
+   * giữ sống vĩnh viễn adapter cũ (rò rỉ bộ nhớ) và chạy lại trên mọi thay đổi DOM của
+   * cả Sheet/Slides. Theo dõi thuộc tính data-app: khi nó đổi khỏi "writer" nghĩa là
+   * app khác vừa mount đè lên, tự dọn dẹp phiên này.
+   */
+  _watchLifecycle() {
+    this._lifecycleObserver?.disconnect();
+    if (typeof MutationObserver === "undefined" || !this.mountElement) return;
+    this._lifecycleObserver = new MutationObserver(() => {
+      if (this.mountElement.getAttribute("data-app") !== "writer") this.destroy();
+    });
+    this._lifecycleObserver.observe(this.mountElement, { attributes: true, attributeFilter: ["data-app"] });
+  }
+
+  destroy() {
+    this._lifecycleObserver?.disconnect();
+    this._lifecycleObserver = null;
+    this._styleGalleryObserver?.disconnect();
+    this._styleGalleryObserver = null;
   }
 
   _mountStyleGalleryRibbonStrip() {
