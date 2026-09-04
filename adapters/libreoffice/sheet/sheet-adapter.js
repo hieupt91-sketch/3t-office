@@ -20,6 +20,10 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.data.validation", () => this.grid.showDataValidationDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
     globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this.grid.refreshPivotTable());
+    globalCommandBus.bindHandler("sheet.formula.nameManager", (args) => {
+      args = args || {};
+      return this.grid.showNameManager(args);
+    });
   }
 
   /**

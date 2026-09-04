@@ -107,6 +107,10 @@ export const SHEET_RIBBON_TABS = [
           { type: "button", commandId: "sheet.formula.sum", isLarge: true },
           { type: "button", commandId: "sheet.formula.average", isLarge: true }
         ]
+      },
+      {
+        label: "Tên đã xác định",
+        items: [{ type: "button", commandId: "sheet.formula.nameManager", isLarge: true }]
       }
     ]
   },

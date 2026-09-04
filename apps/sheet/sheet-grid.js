@@ -33,7 +33,9 @@ export class SheetGridController {
       "Nhân sự": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, selectedCoord: { r: 1, c: "A" } }
     };
 
-    this.formulaEngine = new FormulaEngine(() => this.cellsData);
+    this.namedRangesWorkbook = [];
+    this.namedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.formulaEngine = new FormulaEngine(() => this.cellsData, name => this.resolveNamedRange(name));
     this.autocomplete = new FormulaAutocompleteController(this);
 
     this.undoStack = [];
@@ -266,6 +268,7 @@ export class SheetGridController {
     if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
     if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
+    if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
 
     // 1. Lưu trạng thái sheet hiện tại
     if (this.activeSheet && this.sheetStates) {
@@ -405,6 +408,7 @@ export class SheetGridController {
     delete this.dataValidationsBySheet[sheetName];
     delete this.chartsBySheet[sheetName];
     delete this.pivotTablesBySheet[sheetName];
+    delete this.namedRangesBySheet[sheetName];
     this.tabBar?.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)?.remove?.();
     if (this.activeSheet === sheetName) {
       this.activeSheet = "";
@@ -1051,6 +1055,13 @@ export class SheetGridController {
         if (index >= 0) collection.splice(index, 1);
       }
       action.collection === "chartsBySheet" ? this.renderCharts() : this._refreshVisibleRuleVisuals();
+    } else if (action.type === "named-range") {
+      const collection = action.scope === "workbook" ? this.namedRangesWorkbook : (this.namedRangesBySheet[action.sheet] ||= []);
+      const desired = direction === "undo" ? action.before : action.after;
+      const currentIndex = collection.findIndex(item => item.id === action.id);
+      if (currentIndex >= 0) collection.splice(currentIndex, 1);
+      if (desired) collection.splice(Math.min(action.index, collection.length), 0, structuredClone(desired));
+      this._recalculateAllFormulas();
     } else if (action.type === "freeze") {
       this._setFreezePanes(action[value], false);
     } else if (action.type === "filter") {
@@ -1346,7 +1357,8 @@ export class SheetGridController {
       conditionalFormatting: structuredClone(this.conditionalFormattingBySheet[sheetName] || []),
       dataValidations: structuredClone(this.dataValidationsBySheet[sheetName] || []),
       charts: structuredClone(this.chartsBySheet[sheetName] || []),
-      pivotTables: structuredClone(this.pivotTablesBySheet[sheetName] || [])
+      pivotTables: structuredClone(this.pivotTablesBySheet[sheetName] || []),
+      namedRanges: structuredClone(this.namedRangesBySheet[sheetName] || [])
     };
   }
 
@@ -1364,6 +1376,7 @@ export class SheetGridController {
     this.dataValidationsBySheet[sheetName] = structuredClone(snapshot.dataValidations);
     this.chartsBySheet[sheetName] = structuredClone(snapshot.charts);
     this.pivotTablesBySheet[sheetName] = structuredClone(snapshot.pivotTables || []);
+    this.namedRangesBySheet[sheetName] = structuredClone(snapshot.namedRanges || []);
     const tabs = this.tabBar?.querySelector?.("#vno-sheet-tabs-list");
     if (tabs && typeof document !== "undefined" && !this.tabBar.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)) {
       const tab = document.createElement("div");
@@ -1414,6 +1427,77 @@ export class SheetGridController {
     const first = `${range.start.c}${range.start.r}`;
     const last = `${range.end.c}${range.end.r}`;
     return first === last ? first : `${first}:${last}`;
+  }
+
+  resolveNamedRange(name, sheetName = this.activeSheet) {
+    const key = String(name).trim().toLocaleLowerCase();
+    return (this.namedRangesBySheet[sheetName] || []).find(item => item.name.toLocaleLowerCase() === key) ||
+      this.namedRangesWorkbook.find(item => item.name.toLocaleLowerCase() === key) || null;
+  }
+
+  validateNamedRangeName(name, editingId = null, scope = "workbook", sheetName = this.activeSheet) {
+    const value = String(name || "").trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(value) || /^[A-Za-z]+\d+$/.test(value)) return false;
+    const collection = scope === "workbook" ? this.namedRangesWorkbook : (this.namedRangesBySheet[sheetName] || []);
+    return !collection.some(item => item.id !== editingId && item.name.toLocaleLowerCase() === value.toLocaleLowerCase());
+  }
+
+  saveNamedRange(config, recordUndo = true) {
+    config = config || {};
+    const scope = config.scope === "sheet" ? "sheet" : "workbook";
+    const sheet = config.sheet || this.activeSheet;
+    const ref = String(config.ref || "").replace(/\$/g, "").toUpperCase();
+    if (!this.validateNamedRangeName(config.name, config.id, scope, sheet) || !/^[A-Z]+\d+(?::[A-Z]+\d+)?$/.test(ref)) return false;
+    const collection = scope === "workbook" ? this.namedRangesWorkbook : (this.namedRangesBySheet[sheet] ||= []);
+    const oldIndex = collection.findIndex(item => item.id === config.id);
+    const before = oldIndex >= 0 ? structuredClone(collection[oldIndex]) : null;
+    const item = { id: config.id || `name-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name: String(config.name).trim(), ref, scope, sheet: scope === "sheet" ? sheet : null };
+    const index = oldIndex >= 0 ? oldIndex : collection.length;
+    oldIndex >= 0 ? collection.splice(oldIndex, 1, item) : collection.push(item);
+    if (recordUndo) this._recordHistory({ type: "named-range", sheet, scope, id: item.id, index, before, after: structuredClone(item) });
+    this._recalculateAllFormulas();
+    return item;
+  }
+
+  deleteNamedRange(id, scope = "workbook", sheetName = this.activeSheet, recordUndo = true) {
+    const collection = scope === "workbook" ? this.namedRangesWorkbook : (this.namedRangesBySheet[sheetName] || []);
+    const index = collection.findIndex(item => item.id === id);
+    if (index < 0) return false;
+    const [before] = collection.splice(index, 1);
+    if (recordUndo) this._recordHistory({ type: "named-range", sheet: sheetName, scope, id, index, before: structuredClone(before), after: null });
+    this._recalculateAllFormulas();
+    return true;
+  }
+
+  showNameManager(options = {}) {
+    options = options || {};
+    if (typeof document === "undefined") return false;
+    const overlay = this._createSheetDialog("Trình quản lý tên", `<div class="vno-name-manager">
+      <div class="vno-name-list" role="list"></div>
+      <div class="vno-name-actions"><button type="button" class="vno-btn" id="vno-name-new">Thêm mới</button><button type="button" class="vno-btn" id="vno-name-edit">Sửa</button><button type="button" class="vno-btn" id="vno-name-delete">Xóa</button></div>
+      <div class="vno-name-form" hidden><label>Tên<input id="vno-name-value" autocomplete="off"></label><label>Vùng tham chiếu<input id="vno-name-ref" value="${this._escapeHtml(this.getSelectedRangeLabel())}"></label><label>Phạm vi<select id="vno-name-scope"><option value="workbook">Workbook</option><option value="sheet">Sheet: ${this._escapeHtml(this.activeSheet)}</option></select></label></div>
+      <div class="vno-rule-error" role="alert"></div></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").textContent = "Lưu";
+    let selected = null;
+    const form = overlay.querySelector(".vno-name-form");
+    const render = () => {
+      const names = [...this.namedRangesWorkbook, ...(this.namedRangesBySheet[this.activeSheet] || [])];
+      overlay.querySelector(".vno-name-list").innerHTML = names.length ? names.map(item => `<button type="button" class="vno-name-row" data-id="${item.id}"><strong>${this._escapeHtml(item.name)}</strong><span>${this._escapeHtml(item.ref)}</span><span>${item.scope === "workbook" ? "Workbook" : this._escapeHtml(item.sheet)}</span></button>`).join("") : `<p class="vno-name-empty">Chưa có vùng được đặt tên.</p>`;
+      overlay.querySelectorAll(".vno-name-row").forEach(row => row.addEventListener("click", () => { selected = names.find(item => item.id === row.dataset.id); overlay.querySelectorAll(".vno-name-row").forEach(item => item.classList.toggle("is-selected", item === row)); }));
+    };
+    const openForm = item => { form.hidden = false; selected = item || null; overlay.querySelector("#vno-name-value").value = item?.name || ""; overlay.querySelector("#vno-name-ref").value = item?.ref || this.getSelectedRangeLabel(); overlay.querySelector("#vno-name-scope").value = item?.scope || "workbook"; overlay.querySelector("#vno-name-scope").disabled = !!item; overlay.querySelector("#vno-name-value").focus(); };
+    overlay.querySelector("#vno-name-new").addEventListener("click", () => openForm(null));
+    overlay.querySelector("#vno-name-edit").addEventListener("click", () => selected && openForm(selected));
+    overlay.querySelector("#vno-name-delete").addEventListener("click", () => { if (selected && this.deleteNamedRange(selected.id, selected.scope, selected.sheet || this.activeSheet)) { selected = null; render(); } });
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      if (form.hidden) { openForm(null); return; }
+      const result = this.saveNamedRange({ id: selected?.id, name: overlay.querySelector("#vno-name-value").value, ref: overlay.querySelector("#vno-name-ref").value, scope: overlay.querySelector("#vno-name-scope").value, sheet: this.activeSheet });
+      if (!result) { overlay.querySelector(".vno-rule-error").textContent = "Tên hoặc vùng tham chiếu không hợp lệ/trùng lặp."; return; }
+      selected = result; form.hidden = true; overlay.querySelector(".vno-rule-error").textContent = ""; render();
+    });
+    render();
+    return true;
   }
 
   _rangeContains(range, col, row) {

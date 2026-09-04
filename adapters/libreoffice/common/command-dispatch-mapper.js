@@ -107,6 +107,7 @@ export const VN_TO_UNO_MAP = {
   "sheet.insert.date": ".uno:InsertCurrentDate",
   "sheet.formula.sum": ".uno:AutoSum",
   "sheet.formula.average": ".uno:AutoSum",
+  "sheet.formula.nameManager": ".uno:DefineName",
   "sheet.data.sortAsc": ".uno:Sortup",
   "sheet.data.sortDesc": ".uno:Sortdown",
   "sheet.data.filter": ".uno:DataFilterAutoFilter",

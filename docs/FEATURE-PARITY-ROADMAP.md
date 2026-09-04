@@ -73,9 +73,9 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 
 ### Tier 2
 - [x] Pivot Table (Bảng tổng hợp) — chọn vùng nguồn có header; cấu hình nhiều trường Rows/Columns/Values; tổng hợp Sum/Count/Average/Min/Max; tạo kết quả thật trên sheet mới; state `pivotTablesBySheet` cô lập; nút Refresh đọc lại dữ liệu nguồn; tạo/xóa/refresh hỗ trợ undo/redo.
-- [ ] Named Ranges (đặt tên vùng)
+- [x] Named Ranges (đặt tên vùng) — Name Manager trên tab Công thức hỗ trợ thêm/sửa/xóa tên, phạm vi Workbook hoặc sheet hiện tại, kiểm tra tên hợp lệ, dùng trực tiếp trong công thức vùng (ví dụ `SUM(DoanhThu_Q1)`), cô lập sheet scope, dọn khi xóa sheet và undo/redo đầy đủ. **Giới hạn hiện tại:** vùng tham chiếu là địa chỉ ô/vùng liên tục trong cùng sheet (`A1` hoặc `A1:A12`); chưa hỗ trợ vùng rời, tham chiếu sheet khác trong một tên, hay bảo toàn metadata named range khi xuất XLSX/ODS qua luồng CSV trung gian.
 - [x] Nhóm hàm tra cứu/điều kiện: VLOOKUP/HLOOKUP (exact + approximate), INDEX, MATCH (0/1/-1), COUNTIF/SUMIF/COUNTIFS/SUMIFS (so sánh số + wildcard), có behavioral tests với kết quả chính xác và #N/A.
-- [ ] Thêm hàm TEXT/DATE nâng cao
+- [x] Thêm hàm TEXT/DATE nâng cao — đã có `TEXT`, `DATE`, `DATEDIF`, `EDATE`, `CONCATENATE`, `SUBSTITUTE`, `FIND` trong catalog/autocomplete và engine thật, với test kết quả cụ thể. **Giới hạn hiện tại:** `TEXT` hỗ trợ ba mẫu `#,##0`, `0.00`, `dd/mm/yyyy`; `DATEDIF` hỗ trợ `d/m/y`; chưa có `NETWORKDAYS` và `SEARCH` (không thuộc phạm vi đợt này).
 - [ ] Cell comments/notes
 - [ ] Print area, page breaks cho bảng tính
 

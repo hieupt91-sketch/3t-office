@@ -43,6 +43,10 @@ export const FUNCTION_CATALOG = [
   { name: "TRIM", category: "Văn bản", syntax: "TRIM(text)", desc: "Xóa bỏ tất cả các khoảng trắng thừa giữa các từ trong chuỗi." },
   { name: "LEFT", category: "Văn bản", syntax: "LEFT(text, [num_chars])", desc: "Lấy số lượng ký tự đầu tiên từ bên trái chuỗi văn bản." },
   { name: "RIGHT", category: "Văn bản", syntax: "RIGHT(text, [num_chars])", desc: "Lấy số lượng ký tự cuối cùng từ bên phải chuỗi văn bản." },
+  { name: "TEXT", category: "Văn bản", syntax: "TEXT(value, format_text)", desc: "Định dạng số hoặc ngày thành văn bản." },
+  { name: "CONCATENATE", category: "Văn bản", syntax: "CONCATENATE(text1, [text2], ...)", desc: "Nối nhiều chuỗi văn bản." },
+  { name: "SUBSTITUTE", category: "Văn bản", syntax: "SUBSTITUTE(text, old_text, new_text, [instance_num])", desc: "Thay thế chuỗi con trong văn bản." },
+  { name: "FIND", category: "Văn bản", syntax: "FIND(find_text, within_text, [start_num])", desc: "Tìm chuỗi con có phân biệt hoa thường." },
 
   // Ngày tháng
   { name: "TODAY", category: "Ngày tháng", syntax: "TODAY()", desc: "Trả về ngày hiện tại của hệ thống." },
@@ -50,14 +54,18 @@ export const FUNCTION_CATALOG = [
   { name: "YEAR", category: "Ngày tháng", syntax: "YEAR(date)", desc: "Trả về năm tương ứng của một ngày cụ thể." },
   { name: "MONTH", category: "Ngày tháng", syntax: "MONTH(date)", desc: "Trả về tháng trong năm (từ 1 đến 12)." },
   { name: "DAY", category: "Ngày tháng", syntax: "DAY(date)", desc: "Trả về ngày trong tháng (từ 1 đến 31)." }
+  ,{ name: "DATE", category: "Ngày tháng", syntax: "DATE(year, month, day)", desc: "Tạo một ngày từ năm, tháng và ngày." }
+  ,{ name: "DATEDIF", category: "Ngày tháng", syntax: "DATEDIF(start_date, end_date, unit)", desc: "Tính số ngày, tháng hoặc năm trọn vẹn giữa hai ngày." }
+  ,{ name: "EDATE", category: "Ngày tháng", syntax: "EDATE(start_date, months)", desc: "Cộng hoặc trừ số tháng vào một ngày." }
 ];
 
 export class FormulaEngine {
   /**
    * @param {Map<string, {val: string, formula: string, style: Object}> | (() => Map<string, any>)} cellsData
    */
-  constructor(cellsData) {
+  constructor(cellsData, namedRangeResolver = null) {
     this.cellsData = cellsData;
+    this.namedRangeResolver = namedRangeResolver;
   }
 
   setCellsData(cellsData) {
@@ -121,8 +129,8 @@ export class FormulaEngine {
     for (const arg of args) {
       if (typeof arg === "string" && arg.startsWith('"') && arg.endsWith('"')) {
         values.push(arg.slice(1, -1));
-      } else if (typeof arg === "string" && arg.includes(":")) {
-        const coords = this.expandRange(arg);
+      } else if (typeof arg === "string" && (arg.includes(":") || this._resolveNamedRange(arg))) {
+        const coords = this.expandRange(this._resolveRangeReference(arg));
         for (const coord of coords) {
           values.push(this.getCellValue(coord));
         }
@@ -142,11 +150,11 @@ export class FormulaEngine {
   }
 
   _rangeValues(range) {
-    return this.expandRange(String(range)).map(coord => this.getCellValue(coord));
+    return this.expandRange(this._resolveRangeReference(range)).map(coord => this.getCellValue(coord));
   }
 
   _rangeMatrix(range) {
-    const match = String(range).trim().toUpperCase().match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+    const match = this._resolveRangeReference(range).match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
     if (!match) return [[this._resolveSingleValue(range)]];
     const [, startCol, startRowText, endCol, endRowText] = match;
     const startColIndex = this._columnIndex(startCol);
@@ -175,6 +183,17 @@ export class FormulaEngine {
       value = Math.floor(value / 26);
     }
     return name;
+  }
+
+  _resolveNamedRange(name) {
+    if (typeof this.namedRangeResolver !== "function") return null;
+    return this.namedRangeResolver(String(name).trim()) || null;
+  }
+
+  _resolveRangeReference(reference) {
+    const raw = String(reference).trim();
+    const named = this._resolveNamedRange(raw);
+    return String(named?.ref || named || raw).replace(/\$/g, "").toUpperCase();
   }
 
   _compareValues(left, right) {
@@ -462,6 +481,38 @@ export class FormulaEngine {
         return text.substring(Math.max(0, text.length - len));
       }
 
+      case "TEXT": {
+        const value = this._resolveSingleValue(args[0]);
+        const format = String(this._resolveSingleValue(args[1]) || "").toLowerCase();
+        if (format === "#,##0") return Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 });
+        if (format === "0.00") return Number(value).toFixed(2);
+        if (format === "dd/mm/yyyy") {
+          const date = this._parseDate(value);
+          return date ? this._formatDate(date) : "#VALUE!";
+        }
+        return String(value);
+      }
+
+      case "SUBSTITUTE": {
+        const text = String(this._resolveSingleValue(args[0]) ?? "");
+        const oldText = String(this._resolveSingleValue(args[1]) ?? "");
+        const newText = String(this._resolveSingleValue(args[2]) ?? "");
+        if (args[3] === undefined) return oldText ? text.split(oldText).join(newText) : text;
+        const instance = Number(this._resolveSingleValue(args[3]));
+        if (!Number.isInteger(instance) || instance < 1 || !oldText) return "#VALUE!";
+        let seen = 0;
+        return text.replace(new RegExp(oldText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), match => ++seen === instance ? newText : match);
+      }
+
+      case "FIND": {
+        const findText = String(this._resolveSingleValue(args[0]) ?? "");
+        const withinText = String(this._resolveSingleValue(args[1]) ?? "");
+        const start = args[2] === undefined ? 1 : Number(this._resolveSingleValue(args[2]));
+        if (!Number.isInteger(start) || start < 1 || start > withinText.length + 1) return "#VALUE!";
+        const index = withinText.indexOf(findText, start - 1);
+        return index < 0 ? "#VALUE!" : index + 1;
+      }
+
       // Ngày tháng
       case "TODAY": {
         const now = new Date();
@@ -473,10 +524,48 @@ export class FormulaEngine {
         return `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
       }
 
+      case "DATE": {
+        const date = new Date(Number(this._resolveSingleValue(args[0])), Number(this._resolveSingleValue(args[1])) - 1, Number(this._resolveSingleValue(args[2])));
+        return Number.isNaN(date.getTime()) ? "#VALUE!" : this._formatDate(date);
+      }
+
+      case "DATEDIF": {
+        const start = this._parseDate(this._resolveSingleValue(args[0]));
+        const end = this._parseDate(this._resolveSingleValue(args[1]));
+        const unit = String(this._resolveSingleValue(args[2]) || "").toLowerCase();
+        if (!start || !end || end < start) return "#NUM!";
+        if (unit === "d") return Math.floor((end - start) / 86400000);
+        let count = (end.getFullYear() - start.getFullYear()) * 12 + end.getMonth() - start.getMonth();
+        if (end.getDate() < start.getDate()) count--;
+        if (unit === "m") return count;
+        if (unit === "y") return Math.floor(count / 12);
+        return "#NUM!";
+      }
+
+      case "EDATE": {
+        const start = this._parseDate(this._resolveSingleValue(args[0]));
+        if (!start) return "#VALUE!";
+        const months = Math.trunc(Number(this._resolveSingleValue(args[1])));
+        const targetDay = start.getDate();
+        const result = new Date(start.getFullYear(), start.getMonth() + months, 1);
+        result.setDate(Math.min(targetDay, new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate()));
+        return this._formatDate(result);
+      }
+
       case "YEAR": {
         const val = String(this._resolveSingleValue(args[0]) || "");
         const parts = val.split("/");
         return parts.length >= 3 ? parseInt(parts[2], 10) : new Date().getFullYear();
+      }
+
+      case "MONTH": {
+        const date = this._parseDate(this._resolveSingleValue(args[0]));
+        return date ? date.getMonth() + 1 : "#VALUE!";
+      }
+
+      case "DAY": {
+        const date = this._parseDate(this._resolveSingleValue(args[0]));
+        return date ? date.getDate() : "#VALUE!";
       }
 
       default:
@@ -515,12 +604,26 @@ export class FormulaEngine {
     if (/^[A-Z]+\d+$/i.test(token)) {
       return this.getCellValue(token);
     }
+    const named = this._resolveNamedRange(token);
+    if (named) return this.getCellValue(this.expandRange(this._resolveRangeReference(token))[0]);
     if (!isNaN(Number(token))) {
       return Number(token);
     }
     if (token.toUpperCase() === "TRUE") return true;
     if (token.toUpperCase() === "FALSE") return false;
     return token;
+  }
+
+  _parseDate(value) {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return new Date(value);
+    const match = String(value).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (!match) return null;
+    const date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
+    return date.getFullYear() === Number(match[3]) && date.getMonth() === Number(match[2]) - 1 && date.getDate() === Number(match[1]) ? date : null;
+  }
+
+  _formatDate(date) {
+    return `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
   }
 
   _evaluateArithmetic(expr) {

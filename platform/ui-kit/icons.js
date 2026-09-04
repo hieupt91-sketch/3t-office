@@ -173,6 +173,8 @@ export const ICONS = {
     <path d="M22 9H11L17 16L11 23H22" stroke="#0F6D38" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
+  nameManager: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none"><rect x="4" y="5" width="24" height="22" rx="3" fill="#ECFDF5" stroke="#0F6D38" stroke-width="1.5"/><path d="M10 22V10l8 12V10M21 13h5M21 18h5M21 23h5" stroke="#0F6D38" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+
   filter: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" fill="#67E8F9" stroke="#0891B2" stroke-width="1.5"/>
   </svg>`,
