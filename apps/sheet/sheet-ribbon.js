@@ -72,7 +72,7 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
-        label: "Căn chỉnh & Trộn ô",
+        label: "Căn chỉnh",
         labelKey: "sheetRibbon.group.alignment",
         items: [
           {
@@ -121,14 +121,14 @@ export const SHEET_RIBBON_TABS = [
                 commandId: "sheet.format.quickCategory",
                 defaultValue: "general",
                 options: [
-                  { value: "general", label: "General" },
-                  { value: "number", label: "Number" },
-                  { value: "currency", label: "Currency" },
-                  { value: "accounting", label: "Accounting" },
-                  { value: "date", label: "Date" },
-                  { value: "percentage", label: "Percentage" },
-                  { value: "scientific", label: "Scientific" },
-                  { value: "text", label: "Text" }
+                  { value: "general", label: "Chung" },
+                  { value: "number", label: "Số" },
+                  { value: "currency", label: "Tiền tệ" },
+                  { value: "accounting", label: "Kế toán" },
+                  { value: "date", label: "Ngày" },
+                  { value: "percentage", label: "Phần trăm" },
+                  { value: "scientific", label: "Khoa học" },
+                  { value: "text", label: "Văn bản" }
                 ]
               },
               {
@@ -210,8 +210,8 @@ export const SHEET_RIBBON_TABS = [
           {
             type: "column",
             items: [
-              { type: "button", commandId: "common.edit.find" },
-              { type: "button", commandId: "common.edit.replace" }
+              { type: "button", commandId: "common.edit.find", iconOnly: true },
+              { type: "button", commandId: "common.edit.replace", iconOnly: true }
             ]
           }
         ]

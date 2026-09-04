@@ -27,8 +27,8 @@ export const COMMON_COMMANDS = [
   { id: "common.edit.formatPainter", category: "edit", label: "Sao chép định dạng", shortcut: "Ctrl+Shift+C", icon: "formatPainter", tooltip: "Sao chép định dạng (Ctrl+Shift+C)" },
   { id: "common.edit.selectAll", category: "edit", label: "Chọn tất cả", shortcut: "Ctrl+A", icon: "search", tooltip: "Chọn toàn bộ nội dung (Ctrl+A)" },
   { id: "common.edit.find", category: "edit", label: "Tìm kiếm", shortcut: "Ctrl+F", icon: "search", tooltip: "Tìm kiếm văn bản (Ctrl+F)" },
-  { id: "common.edit.replace", category: "edit", label: "Thay thế", shortcut: "Ctrl+H", icon: "search", tooltip: "Tìm và thay thế văn bản (Ctrl+H)" },
-  { id: "common.edit.hyperlink", category: "edit", label: "Chèn liên kết", shortcut: "Ctrl+K", icon: "hyperlink", tooltip: "Chèn siêu liên kết (Ctrl+K)" },
+  { id: "common.edit.replace", category: "edit", label: "Thay thế", shortcut: "Ctrl+H", icon: "replace", tooltip: "Tìm và thay thế văn bản (Ctrl+H)" },
+  { id: "common.edit.hyperlink", category: "edit", label: "Liên kết", shortcut: "Ctrl+K", icon: "hyperlink", tooltip: "Chèn siêu liên kết (Ctrl+K)" },
 
   // Giao diện & Hiển thị (View & Shell)
   { id: "common.view.ribbonToggle", category: "view", label: "Thu gọn Ribbon", shortcut: "Ctrl+F1", icon: "chevronDown", tooltip: "Thu gọn hoặc mở rộng thanh Ribbon (Ctrl+F1)" },
@@ -38,9 +38,9 @@ export const COMMON_COMMANDS = [
 
   // Trợ lý AI (AI Assistant)
   { id: "ai.assistant.toggle", category: "ai", label: "Trợ lý VN AI", shortcut: "Alt+J", icon: "aiSparkle", tooltip: "Mở bảng trợ lý VN AI (Alt+J)", isToggle: true },
-  { id: "ai.assistant.summarize", category: "ai", label: "Tóm tắt nhanh", icon: "aiSparkle", tooltip: "Tóm tắt nội dung vùng chọn bằng AI" },
-  { id: "ai.assistant.rewrite", category: "ai", label: "Viết lại trau chuốt", icon: "aiSparkle", tooltip: "Viết lại câu từ chuẩn văn phong tiếng Việt" },
-  { id: "ai.assistant.grammarCheck", category: "ai", label: "Soát lỗi chính tả", shortcut: "F7", icon: "aiSparkle", tooltip: "Kiểm tra chính tả và ngữ pháp tiếng Việt (F7)" }
+  { id: "ai.assistant.summarize", category: "ai", label: "Tóm tắt nhanh", icon: "aiSummarize", tooltip: "Tóm tắt nội dung vùng chọn bằng AI" },
+  { id: "ai.assistant.rewrite", category: "ai", label: "Viết lại", icon: "aiRewrite", tooltip: "Viết lại câu từ chuẩn văn phong tiếng Việt" },
+  { id: "ai.assistant.grammarCheck", category: "ai", label: "Soát lỗi chính tả", shortcut: "F7", icon: "aiGrammar", tooltip: "Kiểm tra chính tả và ngữ pháp tiếng Việt (F7)" }
 ];
 
 export const WRITER_COMMANDS = [
@@ -89,13 +89,13 @@ export const WRITER_COMMANDS = [
   { id: "writer.table.insert", category: "insert", label: "Bảng biểu", icon: "table", tooltip: "Chèn bảng mới vào văn bản" },
   { id: "writer.image.insert", category: "insert", label: "Hình ảnh", icon: "image", tooltip: "Chèn hình ảnh từ máy tính" },
   { id: "writer.shape.insert", category: "insert", label: "Hình khối", icon: "shape", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },
-  { id: "writer.diagram.insert", category: "insert", label: "Sơ đồ SmartArt", icon: "diagram", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
+  { id: "writer.diagram.insert", category: "insert", label: "Sơ đồ", icon: "diagram", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
   { id: "writer.chart.insert", category: "insert", label: "Biểu đồ", icon: "chart", tooltip: "Chèn biểu đồ minh họa dữ liệu" },
   { id: "writer.page.break", category: "insert", label: "Ngắt trang", shortcut: "Ctrl+Enter", icon: "pageBreak", tooltip: "Ngắt sang trang mới (Ctrl+Enter)" },
-  { id: "writer.header.insert", category: "insert", label: "Đầu trang", icon: "headerFooter", tooltip: "Chèn tiêu đề đầu trang (Header)" },
-  { id: "writer.footer.insert", category: "insert", label: "Chân trang", icon: "headerFooter", tooltip: "Chèn tiêu đề chân trang (Footer)" },
+  { id: "writer.header.insert", category: "insert", label: "Đầu trang", icon: "header", tooltip: "Chèn tiêu đề đầu trang (Header)" },
+  { id: "writer.footer.insert", category: "insert", label: "Chân trang", icon: "footer", tooltip: "Chèn tiêu đề chân trang (Footer)" },
   { id: "writer.insert.textbox", category: "insert", label: "Hộp văn bản", icon: "textBox", tooltip: "Chèn khung văn bản độc lập, kéo-thả được" },
-  { id: "writer.format.dropCap", category: "insert", label: "Chữ cái đầu đoạn", icon: "dropCap", tooltip: "Phóng to chữ cái đầu đoạn văn (Drop Cap)" },
+  { id: "writer.format.dropCap", category: "insert", label: "Chữ đầu đoạn", icon: "dropCap", tooltip: "Phóng to chữ cái đầu đoạn văn (Drop Cap)" },
   { id: "writer.insert.dateTime", category: "insert", label: "Ngày & Giờ", icon: "dateTime", tooltip: "Chèn ngày giờ hiện tại tại vị trí con trỏ" },
   { id: "writer.insert.equation", category: "insert", label: "Công thức", icon: "equation", tooltip: "Chèn hộp công thức toán học dạng chữ (bản rút gọn)" },
   { id: "writer.insert.symbol", category: "insert", label: "Ký hiệu", icon: "symbol", tooltip: "Chèn ký tự đặc biệt tại vị trí con trỏ" },
@@ -103,15 +103,15 @@ export const WRITER_COMMANDS = [
   { id: "writer.insert.crossReference", category: "insert", label: "Tham chiếu chéo", icon: "crossReference", tooltip: "Chèn liên kết nội bộ tới tiêu đề hoặc đánh dấu" },
 
   // Đánh giá (Review)
-  { id: "writer.comment.insert", category: "review", label: "Thêm ghi chú", shortcut: "Ctrl+Alt+M", icon: "textBox", tooltip: "Thêm ghi chú vào đoạn văn bản đang chọn (Ctrl+Alt+M)" },
-  { id: "writer.trackChanges.toggle", category: "review", label: "Theo dõi thay đổi", shortcut: "Ctrl+Shift+E", icon: "formatPainter", tooltip: "Bật/tắt đánh dấu nội dung thêm và xóa (Ctrl+Shift+E)", isToggle: true },
+  { id: "writer.comment.insert", category: "review", label: "Thêm ghi chú", shortcut: "Ctrl+Alt+M", icon: "comment", tooltip: "Thêm ghi chú vào đoạn văn bản đang chọn (Ctrl+Alt+M)" },
+  { id: "writer.trackChanges.toggle", category: "review", label: "Theo dõi thay đổi", shortcut: "Ctrl+Shift+E", icon: "trackChanges", tooltip: "Bật/tắt đánh dấu nội dung thêm và xóa (Ctrl+Shift+E)", isToggle: true },
   { id: "writer.trackChanges.acceptAll", category: "review", label: "Chấp nhận thay đổi", icon: "redo", tooltip: "Chấp nhận toàn bộ thay đổi trong tài liệu" },
   { id: "writer.trackChanges.rejectAll", category: "review", label: "Từ chối thay đổi", icon: "close", tooltip: "Từ chối toàn bộ thay đổi trong tài liệu" },
 
   // Bố trí trang (Layout)
   { id: "writer.page.margins", category: "layout", label: "Căn lề", icon: "margins", tooltip: "Thiết lập lề tiêu chuẩn văn bản Việt Nam" },
   { id: "writer.page.orientation", category: "layout", label: "Hướng giấy", icon: "orientation", tooltip: "Khổ giấy dọc hoặc ngang" },
-  { id: "writer.page.size", category: "layout", label: "Kích thước giấy", icon: "pageBreak", tooltip: "Chọn khổ A4, Letter, v.v." },
+  { id: "writer.page.size", category: "layout", label: "Khổ giấy", icon: "pageSize", tooltip: "Chọn khổ A4, Letter, v.v." },
   { id: "writer.page.columns", category: "layout", label: "Cột", icon: "pageColumns", tooltip: "Chia văn bản thành nhiều cột (1, 2, 3 cột hoặc tùy chỉnh)" },
   { id: "writer.page.columns1", category: "layout", label: "1 cột", icon: "columnsOne", tooltip: "Định dạng toàn bộ văn bản 1 cột (Normal mặc định)" },
   { id: "writer.page.columns2", category: "layout", label: "2 cột", icon: "columnsTwo", tooltip: "Chia nội dung văn bản thành 2 cột đều nhau" },
@@ -120,7 +120,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.page.border", category: "layout", label: "Viền trang", icon: "pageBorder", tooltip: "Thiết lập viền bao quanh trang tài liệu" },
 
   // In ấn & Xem trước (Print & Preview)
-  { id: "writer.file.printPreview", category: "file", label: "Xem trước khi in", shortcut: "Ctrl+F2", icon: "filePrint", tooltip: "Xem trước khi in (Ctrl+F2)" },
+  { id: "writer.file.printPreview", category: "file", label: "Xem trước khi in", shortcut: "Ctrl+F2", icon: "printPreview", tooltip: "Xem trước khi in (Ctrl+F2)" },
 
   // Tham chiếu & Chú thích (References, TOC, Footnotes/Endnotes)
   { id: "writer.reference.tocInsert", category: "reference", label: "Mục lục tự động", icon: "tocInsert", tooltip: "Chèn mục lục tự động từ các tiêu đề Heading" },
@@ -134,7 +134,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.mailMerge.preview", category: "mailmerge", label: "Xem trước bản ghi", icon: "mergePreview", tooltip: "Bật/tắt xem trước bản ghi trộn thư", isToggle: true },
   { id: "writer.mailMerge.prevRecord", category: "mailmerge", label: "Bản ghi trước", icon: "mergePrev", tooltip: "Chuyển tới bản ghi trước" },
   { id: "writer.mailMerge.nextRecord", category: "mailmerge", label: "Bản ghi sau", icon: "mergeNext", tooltip: "Chuyển tới bản ghi tiếp theo" },
-  { id: "writer.mailMerge.finish", category: "mailmerge", label: "Hoàn tất & Tạo tài liệu", icon: "mergeFinish", tooltip: "Hoàn tất trộn và tạo tài liệu kết quả cho toàn bộ bản ghi" }
+  { id: "writer.mailMerge.finish", category: "mailmerge", label: "Hoàn tất trộn", icon: "mergeFinish", tooltip: "Hoàn tất trộn và tạo tài liệu kết quả cho toàn bộ bản ghi" }
 ];
 
 export const SHEET_COMMANDS = [
@@ -161,14 +161,14 @@ export const SHEET_COMMANDS = [
   { id: "sheet.cell.indentIncrease", category: "format", label: "Tăng thụt lề", icon: "indentInc", tooltip: "Tăng thụt lề nội dung ô" },
   { id: "sheet.cell.indentDecrease", category: "format", label: "Giảm thụt lề", icon: "indentDec", tooltip: "Giảm thụt lề nội dung ô" },
   { id: "sheet.cell.merge", category: "cell", label: "Trộn ô", icon: "mergeCells", tooltip: "Trộn các ô đã chọn và căn giữa", isToggle: true },
-  { id: "sheet.cell.borders", category: "cell", label: "Viền ô", icon: "table", tooltip: "Kẻ đường viền khung ô" },
+  { id: "sheet.cell.borders", category: "cell", label: "Viền ô", icon: "cellBorders", tooltip: "Kẻ đường viền khung ô" },
   { id: "sheet.cell.fillColor", category: "format", label: "Màu nền", icon: "colorHighlight", tooltip: "Tô màu nền ô tính" },
   { id: "sheet.cell.textColor", category: "format", label: "Màu chữ", icon: "colorText", tooltip: "Đổi màu chữ trong ô" },
 
   // Định dạng số & Tiền tệ (Number Format Shortcuts)
   { id: "sheet.format.cellsDialog", category: "number", label: "Định dạng ô...", shortcut: "Ctrl+1", icon: "formatCells", tooltip: "Mở hộp thoại định dạng ô (Ctrl+1)" },
   { id: "sheet.format.currencyVND", category: "number", label: "Tiền tệ VNĐ", shortcut: "Ctrl+Shift+4", icon: "currencyVND", tooltip: "Định dạng tiền tệ VNĐ (Ctrl+Shift+4 hoặc Ctrl+Shift+$)" },
-  { id: "sheet.format.percent", category: "number", label: "Phần trăm", shortcut: "Ctrl+Shift+5", icon: "currencyVND", tooltip: "Định dạng phần trăm % (Ctrl+Shift+5)" },
+  { id: "sheet.format.percent", category: "number", label: "Phần trăm", shortcut: "Ctrl+Shift+5", icon: "percentFormat", tooltip: "Định dạng phần trăm % (Ctrl+Shift+5)" },
   { id: "sheet.format.standard", category: "number", label: "Phân cách hàng nghìn", shortcut: "Ctrl+Shift+1", icon: "currencyVND", tooltip: "Dấu phẩy phân cách hàng nghìn (Ctrl+Shift+1)" },
   { id: "sheet.format.quickCategory", category: "number", label: "Định dạng số", tooltip: "Chọn nhanh loại định dạng số" },
   { id: "sheet.format.increaseDecimal", category: "number", label: "Tăng số thập phân", icon: "increaseDecimal", tooltip: "Hiển thị thêm một chữ số thập phân" },
@@ -178,19 +178,19 @@ export const SHEET_COMMANDS = [
 
   // Công thức & Dữ liệu
   { id: "sheet.formula.sum", category: "formula", label: "AutoSum", shortcut: "Alt+=", icon: "autoSum", tooltip: "Hàm tính tổng tự động AutoSum (Alt+=)" },
-  { id: "sheet.formula.average", category: "formula", label: "Trung bình", icon: "autoSum", tooltip: "Hàm tính trung bình cộng" },
+  { id: "sheet.formula.average", category: "formula", label: "Trung bình", icon: "average", tooltip: "Hàm tính trung bình cộng" },
   { id: "sheet.formula.nameManager", category: "formula", label: "Quản lý tên", icon: "nameManager", tooltip: "Tạo, sửa và xóa vùng được đặt tên" },
   { id: "sheet.formula.arrayEnter", category: "formula", label: "Nhập công thức mảng", shortcut: "Ctrl+Shift+Enter", icon: "autoSum", tooltip: "Nhập công thức mảng cho vùng đã chọn (Ctrl+Shift+Enter)" },
   { id: "sheet.formula.recalculate", category: "formula", label: "Tính lại toàn bộ", shortcut: "F9", icon: "refreshTable", tooltip: "Tính lại toàn bộ công thức bảng tính (F9)" },
   { id: "sheet.data.sortAsc", category: "data", label: "Sắp xếp A-Z", icon: "sortAsc", tooltip: "Sắp xếp dữ liệu tăng dần" },
   { id: "sheet.data.sortDesc", category: "data", label: "Sắp xếp Z-A", icon: "sortDesc", tooltip: "Sắp xếp dữ liệu giảm dần" },
   { id: "sheet.data.filter", category: "data", label: "Bộ lọc", shortcut: "Ctrl+Shift+L", icon: "filter", tooltip: "Bật/tắt chế độ lọc AutoFilter (Ctrl+Shift+L)", isToggle: true },
-  { id: "sheet.format.conditional", category: "format", label: "Định dạng có điều kiện", icon: "colorHighlight", tooltip: "Tô nổi bật các ô theo giá trị hoặc trạng thái trống" },
-  { id: "sheet.data.validation", category: "data", label: "Kiểm tra dữ liệu", icon: "table", tooltip: "Tạo danh sách lựa chọn hoặc giới hạn số trong khoảng" },
+  { id: "sheet.format.conditional", category: "format", label: "Định dạng có điều kiện", icon: "conditionalFormat", tooltip: "Tô nổi bật các ô theo giá trị hoặc trạng thái trống" },
+  { id: "sheet.data.validation", category: "data", label: "Kiểm tra dữ liệu", icon: "dataValidation", tooltip: "Tạo danh sách lựa chọn hoặc giới hạn số trong khoảng" },
   { id: "sheet.data.pivotTable", category: "data", label: "Bảng tổng hợp", icon: "pivotTable", tooltip: "Tạo Pivot Table từ vùng dữ liệu đang chọn" },
   { id: "sheet.data.pivotRefresh", category: "data", label: "Làm mới Pivot", icon: "refreshTable", tooltip: "Tính lại Pivot Table từ dữ liệu nguồn" },
   { id: "sheet.view.toggleFormulas", category: "view", label: "Hiện công thức", shortcut: "Ctrl+`", icon: "autoSum", tooltip: "Hiển thị công thức thay vì kết quả (Ctrl+`)", isToggle: true },
-  { id: "sheet.view.freezePanes", category: "view", label: "Cố định hàng/cột", icon: "table", tooltip: "Cố định hàng 1 và cột A khi cuộn (Freeze Panes)", isToggle: true },
+  { id: "sheet.view.freezePanes", category: "view", label: "Cố định hàng/cột", icon: "freezePanes", tooltip: "Cố định hàng 1 và cột A khi cuộn (Freeze Panes)", isToggle: true },
   { id: "sheet.view.zoomIn", category: "view", label: "Phóng to", icon: "zoomIn", tooltip: "Tăng tỉ lệ hiển thị bảng tính" },
   { id: "sheet.view.zoomOut", category: "view", label: "Thu nhỏ", icon: "zoomOut", tooltip: "Giảm tỉ lệ hiển thị bảng tính" },
   { id: "sheet.view.zoomReset", category: "view", label: "100%", icon: "zoomReset", tooltip: "Đặt lại tỉ lệ hiển thị 100%" },
@@ -203,14 +203,14 @@ export const SHEET_COMMANDS = [
   { id: "sheet.page.removePageBreak", category: "page", label: "Xóa ngắt trang", icon: "removePageBreak", tooltip: "Xóa ngắt hàng và cột tại ô đang chọn" },
 
   // Chèn hàng/cột & Biểu đồ
-  { id: "sheet.row.insert", category: "insert", label: "Chèn hàng", shortcut: "Ctrl+Shift+=", icon: "table", tooltip: "Chèn thêm hàng mới (Ctrl+Shift+=)" },
-  { id: "sheet.col.insert", category: "insert", label: "Chèn cột", icon: "table", tooltip: "Chèn thêm cột mới" },
-  { id: "sheet.row.delete", category: "insert", label: "Xóa hàng", icon: "table", tooltip: "Xóa hàng chứa ô đang chọn" },
-  { id: "sheet.col.delete", category: "insert", label: "Xóa cột", icon: "table", tooltip: "Xóa cột chứa ô đang chọn" },
-  { id: "sheet.chart.insert", category: "insert", label: "Biểu đồ", icon: "filePrint", tooltip: "Chèn biểu đồ phân tích dữ liệu" },
+  { id: "sheet.row.insert", category: "insert", label: "Chèn hàng", shortcut: "Ctrl+Shift+=", icon: "insertRow", tooltip: "Chèn thêm hàng mới (Ctrl+Shift+=)" },
+  { id: "sheet.col.insert", category: "insert", label: "Chèn cột", icon: "insertCol", tooltip: "Chèn thêm cột mới" },
+  { id: "sheet.row.delete", category: "insert", label: "Xóa hàng", icon: "deleteRow", tooltip: "Xóa hàng chứa ô đang chọn" },
+  { id: "sheet.col.delete", category: "insert", label: "Xóa cột", icon: "deleteCol", tooltip: "Xóa cột chứa ô đang chọn" },
+  { id: "sheet.chart.insert", category: "insert", label: "Biểu đồ", icon: "chart", tooltip: "Chèn biểu đồ phân tích dữ liệu" },
   { id: "sheet.insert.image", category: "insert", label: "Chèn ảnh", icon: "image", tooltip: "Chèn ảnh vào ô đang chọn" },
-  { id: "sheet.insert.sparklineLine", category: "insert", label: "Đường", icon: "chart", tooltip: "Chèn biểu đồ mini dạng đường từ vùng dữ liệu đã chọn" },
-  { id: "sheet.insert.sparklineColumn", category: "insert", label: "Cột", icon: "chart", tooltip: "Chèn biểu đồ mini dạng cột từ vùng dữ liệu đã chọn" },
+  { id: "sheet.insert.sparklineLine", category: "insert", label: "Đường", icon: "sparklineLine", tooltip: "Chèn biểu đồ mini dạng đường từ vùng dữ liệu đã chọn" },
+  { id: "sheet.insert.sparklineColumn", category: "insert", label: "Cột", icon: "sparklineColumn", tooltip: "Chèn biểu đồ mini dạng cột từ vùng dữ liệu đã chọn" },
   { id: "sheet.insert.hyperlink", category: "insert", label: "Liên kết", icon: "hyperlink", tooltip: "Chèn liên kết vào ô hiện tại (Ctrl+K)" },
   { id: "sheet.insert.textbox", category: "insert", label: "Hộp văn bản", icon: "textBox", tooltip: "Chèn hộp văn bản nổi trên trang tính" },
 
@@ -220,7 +220,7 @@ export const SHEET_COMMANDS = [
 
   // Chỉnh sửa & Điền/Xóa (Editing: Fill & Clear)
   { id: "sheet.edit.fillDown", category: "edit", label: "Điền xuống", shortcut: "Ctrl+D", icon: "fillDown", tooltip: "Sao chép giá trị và công thức ô trên xuống các ô dưới (Ctrl+D)" },
-  { id: "sheet.edit.fillRight", category: "edit", label: "Điền sang phải", shortcut: "Ctrl+R", icon: "fillRight", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" },
+  { id: "sheet.edit.fillRight", category: "edit", label: "Điền phải", shortcut: "Ctrl+R", icon: "fillRight", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" },
   { id: "sheet.edit.clearAll", category: "edit", label: "Xóa tất cả", icon: "clearAll", tooltip: "Xóa toàn bộ nội dung, công thức và định dạng của các ô đã chọn" },
   { id: "sheet.edit.clearFormats", category: "edit", label: "Xóa định dạng", icon: "clearFormat", tooltip: "Xóa định dạng ô và đưa về mặc định nhưng giữ nguyên nội dung" },
   { id: "sheet.edit.clearContents", category: "edit", label: "Xóa nội dung", icon: "clearContents", tooltip: "Xóa nội dung và công thức của ô nhưng giữ nguyên định dạng" }
@@ -250,15 +250,15 @@ export const SLIDES_COMMANDS = [
 
   // Trình chiếu & Thiết kế
   { id: "slides.design.themeGallery", category: "design", label: "Chủ đề", icon: "themeGallery", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" },
-  { id: "slides.design.slideSize", category: "design", label: "Kích thước trang chiếu", icon: "slideSize", tooltip: "Chọn tỷ lệ trang chiếu 16:9 hoặc 4:3" },
+  { id: "slides.design.slideSize", category: "design", label: "Cỡ trang chiếu", icon: "slideSize", tooltip: "Chọn tỷ lệ trang chiếu 16:9 hoặc 4:3" },
   { id: "slides.master.apply", category: "design", label: "Mẫu Slide Master", icon: "template", tooltip: "Áp dụng mẫu Slide Master đồng bộ font, màu, logo cho toàn bộ trang chiếu" },
-  { id: "slides.transition.apply", category: "transition", label: "Chuyển tiếp", icon: "slidePlay", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" },
-  { id: "slides.animation.apply", category: "animation", label: "Hiệu ứng đối tượng", icon: "aiSparkle", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" },
-  { id: "slides.notes.toggle", category: "view", label: "Ghi chú thuyết trình", icon: "textBox", tooltip: "Bật/tắt khung ghi chú người thuyết trình dưới trang chiếu", isToggle: true },
+  { id: "slides.transition.apply", category: "transition", label: "Chuyển tiếp", icon: "slideTransition", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" },
+  { id: "slides.animation.apply", category: "animation", label: "Hiệu ứng đối tượng", icon: "objectAnimation", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" },
+  { id: "slides.notes.toggle", category: "view", label: "Ghi chú thuyết trình", icon: "speakerNotes", tooltip: "Bật/tắt khung ghi chú người thuyết trình dưới trang chiếu", isToggle: true },
   { id: "slides.view.slideSorter", category: "view", label: "Bộ sắp xếp trang", icon: "slideSorter", tooltip: "Xem toàn bộ trang chiếu dạng lưới và kéo thả để sắp xếp" },
-  { id: "slides.show.startFromBegin", category: "show", label: "Từ đầu", shortcut: "F5", icon: "slidePlay", tooltip: "Bắt đầu trình chiếu từ trang đầu tiên (F5)" },
-  { id: "slides.show.startFromCurrent", category: "show", label: "Từ trang này", shortcut: "Shift+F5", icon: "slidePlay", tooltip: "Trình chiếu từ trang hiện tại (Shift+F5)" },
-  { id: "slides.show.presenterMode", category: "show", label: "Chế độ Presenter", shortcut: "Alt+F5", icon: "slidePlay", tooltip: "Trình chiếu chế độ Người thuyết trình kèm ghi chú và đồng hồ (Alt+F5)" },
+  { id: "slides.show.startFromBegin", category: "show", label: "Từ đầu", shortcut: "F5", icon: "slidePlayFromBegin", tooltip: "Bắt đầu trình chiếu từ trang đầu tiên (F5)" },
+  { id: "slides.show.startFromCurrent", category: "show", label: "Từ trang này", shortcut: "Shift+F5", icon: "slidePlayFromCurrent", tooltip: "Trình chiếu từ trang hiện tại (Shift+F5)" },
+  { id: "slides.show.presenterMode", category: "show", label: "Chế độ Presenter", shortcut: "Alt+F5", icon: "presenterMode", tooltip: "Trình chiếu chế độ Người thuyết trình kèm ghi chú và đồng hồ (Alt+F5)" },
   { id: "slides.show.rehearseTimings", category: "show", label: "Tập dượt hẹn giờ", icon: "rehearseTimings", tooltip: "Trình chiếu và đo thời gian thật ở mỗi trang, có thể lưu lại làm mốc thời gian" },
   { id: "slides.shape.group", category: "arrange", label: "Nhóm đối tượng", shortcut: "Ctrl+G", icon: "shape", tooltip: "Nhóm các đối tượng đang chọn thành một khối (Ctrl+G)" },
   { id: "slides.shape.ungroup", category: "arrange", label: "Bỏ nhóm", shortcut: "Ctrl+Shift+G", icon: "shape", tooltip: "Tách nhóm đối tượng đang chọn (Ctrl+Shift+G)" },

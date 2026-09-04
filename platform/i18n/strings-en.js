@@ -111,14 +111,14 @@ export const enStrings = {
     "common.edit.selectAll": { label: "Select All", tooltip: "Select all content (Ctrl+A)" },
     "common.edit.find": { label: "Find", tooltip: "Find text (Ctrl+F)" },
     "common.edit.replace": { label: "Replace", tooltip: "Find and replace text (Ctrl+H)" },
-    "common.edit.hyperlink": { label: "Insert Link", tooltip: "Insert a hyperlink (Ctrl+K)" },
+    "common.edit.hyperlink": { label: "Link", tooltip: "Insert a hyperlink (Ctrl+K)" },
     "common.view.ribbonToggle": { label: "Collapse Ribbon", tooltip: "Collapse or expand the ribbon (Ctrl+F1)" },
     "common.view.zoomIn": { label: "Zoom In", tooltip: "Increase zoom level (Ctrl++)" },
     "common.view.zoomOut": { label: "Zoom Out", tooltip: "Decrease zoom level (Ctrl+-)" },
     "common.view.fullScreen": { label: "Full Screen", tooltip: "Toggle full screen mode (F11)" },
     "ai.assistant.toggle": { label: "VN AI Assistant", tooltip: "Open the VN AI assistant panel (Alt+J)" },
     "ai.assistant.summarize": { label: "Quick Summary", tooltip: "Summarize the selected content with AI" },
-    "ai.assistant.rewrite": { label: "Polish Writing", tooltip: "Rewrite text in polished Vietnamese style" },
+    "ai.assistant.rewrite": { label: "Rewrite", tooltip: "Rewrite text in polished Vietnamese style" },
     "ai.assistant.grammarCheck": { label: "Spell Check", tooltip: "Check Vietnamese spelling and grammar (F7)" }
     ,"sheet.cell.edit": { label: "Edit Cell", tooltip: "Edit the active cell (F2)" }
     ,"sheet.select.column": { label: "Select Column", tooltip: "Select the entire current column (Ctrl+Space)" }

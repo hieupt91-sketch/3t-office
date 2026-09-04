@@ -141,16 +141,9 @@ export const WRITER_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "writer.style.gallery", isLarge: true }
         ]
-      },
-      {
-        label: "Chèn nhanh",
-        labelKey: "writerRibbon.group.quickInsert",
-        items: [
-          { type: "button", commandId: "writer.table.insert", isLarge: true },
-          { type: "button", commandId: "writer.image.insert", isLarge: true },
-          { type: "button", commandId: "writer.page.break", isLarge: true }
-        ]
       }
+      // Nhóm "Chèn nhanh" (Table/Image/Page Break) đã gỡ khỏi Home: cùng lệnh đã có
+      // trên tab Chèn, vi phạm one-feature-one-display và làm Home thêm dày.
     ]
   },
   {
@@ -237,21 +230,10 @@ export const WRITER_RIBBON_TABS = [
           { type: "button", commandId: "writer.insert.equation", isLarge: true },
           { type: "button", commandId: "writer.insert.symbol", isLarge: true }
         ]
-      },
-      {
-        label: "Mục lục & Chú thích",
-        labelKey: "writerRibbon.group.tocNotes",
-        items: [
-          { type: "button", commandId: "writer.reference.tocInsert", isLarge: true },
-          {
-            type: "column",
-            items: [
-              { type: "button", commandId: "writer.reference.footnoteInsert" },
-              { type: "button", commandId: "writer.reference.endnoteInsert" }
-            ]
-          }
-        ]
       }
+      // Mục lục / chú thích chỉ hiển thị trên tab Tham chiếu (canonical Word).
+      // Trước đây nhóm này còn nằm trên tab Chèn, làm tràn ngang ở 1600px và
+      // trùng lệnh với tab Tham chiếu (one-feature-one-display).
     ]
   },
   {

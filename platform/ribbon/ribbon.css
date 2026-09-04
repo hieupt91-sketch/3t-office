@@ -14,7 +14,7 @@
 .vno-ribbon-tabs {
   display: flex;
   align-items: center;
-  height: var(--vno-ribbon-tab-height);
+  height: var(--vno-ribbon-tabs-height);
   padding: 0 4px;
   background-color: var(--vno-bg-subtle);
   border-bottom: 1px solid var(--vno-border-subtle);
@@ -72,7 +72,7 @@
 .vno-ribbon-content {
   display: flex;
   align-items: stretch;
-  height: var(--vno-ribbon-content-height);
+  height: var(--vno-ribbon-body-height);
   padding: 4px 8px;
   background-color: var(--vno-bg-surface);
   overflow-x: auto;

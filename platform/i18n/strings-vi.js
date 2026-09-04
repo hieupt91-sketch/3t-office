@@ -58,7 +58,7 @@ export const viStrings = {
   },
   sheetRibbon: {
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", ai: "Trợ lý VN AI" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh & Trộn ô", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", pivotTable: "Bảng tổng hợp", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", comments: "Ghi chú", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiAnalysis: "Phân tích dữ liệu AI" }
+    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", pivotTable: "Bảng tổng hợp", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", comments: "Ghi chú", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiAnalysis: "Phân tích dữ liệu AI" }
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", ai: "Trợ lý VN AI" },
@@ -110,14 +110,14 @@ export const viStrings = {
     "common.edit.selectAll": { label: "Chọn tất cả", tooltip: "Chọn toàn bộ nội dung (Ctrl+A)" },
     "common.edit.find": { label: "Tìm kiếm", tooltip: "Tìm kiếm văn bản (Ctrl+F)" },
     "common.edit.replace": { label: "Thay thế", tooltip: "Tìm và thay thế văn bản (Ctrl+H)" },
-    "common.edit.hyperlink": { label: "Chèn liên kết", tooltip: "Chèn siêu liên kết (Ctrl+K)" },
+    "common.edit.hyperlink": { label: "Liên kết", tooltip: "Chèn siêu liên kết (Ctrl+K)" },
     "common.view.ribbonToggle": { label: "Thu gọn Ribbon", tooltip: "Thu gọn hoặc mở rộng thanh Ribbon (Ctrl+F1)" },
     "common.view.zoomIn": { label: "Phóng to", tooltip: "Tăng tỉ lệ hiển thị (Ctrl++)" },
     "common.view.zoomOut": { label: "Thu nhỏ", tooltip: "Giảm tỉ lệ hiển thị (Ctrl+-)" },
     "common.view.fullScreen": { label: "Toàn màn hình", tooltip: "Bật/tắt chế độ toàn màn hình (F11)" },
     "ai.assistant.toggle": { label: "Trợ lý VN AI", tooltip: "Mở bảng trợ lý VN AI (Alt+J)" },
     "ai.assistant.summarize": { label: "Tóm tắt nhanh", tooltip: "Tóm tắt nội dung vùng chọn bằng AI" },
-    "ai.assistant.rewrite": { label: "Viết lại trau chuốt", tooltip: "Viết lại câu từ chuẩn văn phong tiếng Việt" },
+    "ai.assistant.rewrite": { label: "Viết lại", tooltip: "Viết lại câu từ chuẩn văn phong tiếng Việt" },
     "ai.assistant.grammarCheck": { label: "Soát lỗi chính tả", tooltip: "Kiểm tra chính tả và ngữ pháp tiếng Việt (F7)" }
     ,"sheet.cell.edit": { label: "Chỉnh sửa ô", tooltip: "Chỉnh sửa ô đang chọn (F2)" }
     ,"sheet.select.column": { label: "Chọn cột", tooltip: "Chọn toàn bộ cột hiện tại (Ctrl+Space)" }
@@ -184,7 +184,7 @@ export const viStrings = {
     ,"sheet.style.formatAsTable": { label: "Định dạng bảng", tooltip: "Định dạng vùng chọn theo kiểu bảng có màu xen kẽ" }
     ,"sheet.style.cellStyles": { label: "Kiểu ô", tooltip: "Mở thư viện kiểu ô định sẵn (Normal, Good, Bad, Neutral...)" }
     ,"sheet.edit.fillDown": { label: "Điền xuống", tooltip: "Sao chép giá trị và công thức ô trên xuống các ô dưới (Ctrl+D)" }
-    ,"sheet.edit.fillRight": { label: "Điền sang phải", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" }
+    ,"sheet.edit.fillRight": { label: "Điền phải", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" }
     ,"sheet.edit.clearAll": { label: "Xóa tất cả", tooltip: "Xóa toàn bộ nội dung, công thức và định dạng của các ô đã chọn" }
     ,"sheet.edit.clearFormats": { label: "Xóa định dạng", tooltip: "Xóa định dạng ô và đưa về mặc định nhưng giữ nguyên nội dung" }
     ,"sheet.edit.clearContents": { label: "Xóa nội dung", tooltip: "Xóa nội dung và công thức của ô nhưng giữ nguyên định dạng" }
@@ -207,7 +207,7 @@ export const viStrings = {
     ,"slides.insert.symbol": { label: "Ký hiệu", tooltip: "Chèn ký tự đặc biệt vào khung văn bản đang chọn" }
     ,"slides.master.apply": { label: "Mẫu Slide Master", tooltip: "Áp dụng mẫu Slide Master đồng bộ font, màu, logo cho toàn bộ trang chiếu" }
     ,"slides.design.themeGallery": { label: "Chủ đề", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" }
-    ,"slides.design.slideSize": { label: "Kích thước trang chiếu", tooltip: "Chọn tỷ lệ trang chiếu 16:9 hoặc 4:3" }
+    ,"slides.design.slideSize": { label: "Cỡ trang chiếu", tooltip: "Chọn tỷ lệ trang chiếu 16:9 hoặc 4:3" }
     ,"slides.transition.apply": { label: "Chuyển tiếp", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Hiệu ứng đối tượng", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" }
     ,"slides.notes.toggle": { label: "Ghi chú thuyết trình", tooltip: "Bật/tắt khung ghi chú người thuyết trình dưới trang chiếu" }
@@ -262,13 +262,13 @@ export const viStrings = {
     "writer.table.insert": { label: "Bảng biểu", tooltip: "Chèn bảng mới vào văn bản" },
     "writer.image.insert": { label: "Hình ảnh", tooltip: "Chèn hình ảnh từ máy tính" },
     "writer.shape.insert": { label: "Hình khối", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },
-    "writer.diagram.insert": { label: "Sơ đồ SmartArt", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
+    "writer.diagram.insert": { label: "Sơ đồ", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
     "writer.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ minh họa dữ liệu" },
     "writer.page.break": { label: "Ngắt trang", tooltip: "Ngắt sang trang mới (Ctrl+Enter)" },
     "writer.header.insert": { label: "Đầu trang", tooltip: "Chèn tiêu đề đầu trang (Header)" },
     "writer.footer.insert": { label: "Chân trang", tooltip: "Chèn tiêu đề chân trang (Footer)" },
     "writer.insert.textbox": { label: "Hộp văn bản", tooltip: "Chèn khung văn bản độc lập, kéo-thả được" },
-    "writer.format.dropCap": { label: "Chữ cái đầu đoạn", tooltip: "Phóng to chữ cái đầu đoạn văn (Drop Cap)" },
+    "writer.format.dropCap": { label: "Chữ đầu đoạn", tooltip: "Phóng to chữ cái đầu đoạn văn (Drop Cap)" },
     "writer.insert.dateTime": { label: "Ngày & Giờ", tooltip: "Chèn ngày giờ hiện tại tại vị trí con trỏ" },
     "writer.insert.equation": { label: "Công thức", tooltip: "Chèn hộp công thức toán học dạng chữ (bản rút gọn)" },
     "writer.insert.symbol": { label: "Ký hiệu", tooltip: "Chèn ký tự đặc biệt tại vị trí con trỏ" },
@@ -280,7 +280,7 @@ export const viStrings = {
     "writer.trackChanges.rejectAll": { label: "Từ chối thay đổi", tooltip: "Từ chối toàn bộ thay đổi trong tài liệu" },
     "writer.page.margins": { label: "Căn lề", tooltip: "Thiết lập lề tiêu chuẩn văn bản Việt Nam" },
     "writer.page.orientation": { label: "Hướng giấy", tooltip: "Khổ giấy dọc hoặc ngang" },
-    "writer.page.size": { label: "Kích thước giấy", tooltip: "Chọn khổ A4, Letter, v.v." },
+    "writer.page.size": { label: "Khổ giấy", tooltip: "Chọn khổ A4, Letter, v.v." },
     "writer.page.columns": { label: "Cột", tooltip: "Chia văn bản thành nhiều cột (1, 2, 3 cột hoặc tùy chỉnh)" },
     "writer.page.columns1": { label: "1 cột", tooltip: "Định dạng toàn bộ văn bản 1 cột (Normal mặc định)" },
     "writer.page.columns2": { label: "2 cột", tooltip: "Chia nội dung văn bản thành 2 cột đều nhau" },
@@ -297,7 +297,7 @@ export const viStrings = {
     "writer.mailMerge.preview": { label: "Xem trước kết quả", tooltip: "Bật/tắt xem trước bản ghi trộn thư" },
     "writer.mailMerge.prevRecord": { label: "Bản ghi trước", tooltip: "Chuyển tới bản ghi trước" },
     "writer.mailMerge.nextRecord": { label: "Bản ghi sau", tooltip: "Chuyển tới bản ghi tiếp theo" },
-    "writer.mailMerge.finish": { label: "Hoàn tất & Tạo tài liệu", tooltip: "Hoàn tất trộn và tạo tài liệu kết quả cho toàn bộ bản ghi" }
+    "writer.mailMerge.finish": { label: "Hoàn tất trộn", tooltip: "Hoàn tất trộn và tạo tài liệu kết quả cho toàn bộ bản ghi" }
   },
   writerRibbon: {
     tab: {
