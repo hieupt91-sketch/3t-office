@@ -194,6 +194,9 @@ export class SlidesCanvasController {
     this.bodyEl = null;
     this.body2El = null;
     this.selectedTarget = null; // "title" | "body" | "body2" | shapeId
+    this.selectedShapeIds = new Set();
+    this.smartGuidesLayer = null;
+    this._windowKeyHandler = null;
     this.commentButtonEl = null;
     this.commentPanelEl = null;
 
@@ -323,6 +326,11 @@ export class SlidesCanvasController {
     this.shapesLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;";
     this.canvasEl.appendChild(this.shapesLayer);
 
+    this.smartGuidesLayer = document.createElement("div");
+    this.smartGuidesLayer.className = "vno-slide-smart-guides-layer";
+    this.smartGuidesLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:9990;";
+    this.canvasEl.appendChild(this.smartGuidesLayer);
+
     this.commentButtonEl = document.createElement("button");
     this.commentButtonEl.type = "button";
     this.commentButtonEl.className = "vno-slide-comment-indicator";
@@ -388,6 +396,7 @@ export class SlidesCanvasController {
     this.selectSlide(0);
     this.applySlideMaster(this.masterTheme);
     this._syncUndoRedoState();
+    this._setupCanvasEvents();
   }
 
   /**
@@ -431,18 +440,39 @@ export class SlidesCanvasController {
   /**
    * Đặt đối tượng đang được chọn trên canvas (title, body, hoặc shape ID).
    */
-  setSelectedTarget(target) {
+  setSelectedTarget(target, extraTargets = []) {
     this.selectedTarget = target;
+    if (!this.selectedShapeIds) this.selectedShapeIds = new Set();
+    if (target === "title" || target === "body" || target === "body2" || target == null) {
+      this.selectedShapeIds.clear();
+    } else {
+      this.selectedShapeIds = new Set([String(target), ...(extraTargets || []).map(String)]);
+    }
+    this._updateSelectionUi();
+  }
+
+  /**
+   * Đặt danh sách các shape ID đang được chọn cùng lúc.
+   * @param {Array<string|number>} shapeIds
+   */
+  setSelectedShapes(shapeIds = []) {
+    if (!this.selectedShapeIds) this.selectedShapeIds = new Set();
+    this.selectedShapeIds = new Set((shapeIds || []).map(String));
+    this.selectedTarget = (shapeIds && shapeIds.length > 0) ? shapeIds[0] : null;
+    this._updateSelectionUi();
+  }
+
+  _updateSelectionUi() {
     if (this.titleEl) {
-      if (target === "title") this.titleEl.classList.add("is-selected");
+      if (this.selectedTarget === "title") this.titleEl.classList.add("is-selected");
       else this.titleEl.classList.remove("is-selected");
     }
     if (this.bodyEl) {
-      if (target === "body") this.bodyEl.classList.add("is-selected");
+      if (this.selectedTarget === "body") this.bodyEl.classList.add("is-selected");
       else this.bodyEl.classList.remove("is-selected");
     }
     if (this.body2El) {
-      if (target === "body2") this.body2El.classList.add("is-selected");
+      if (this.selectedTarget === "body2") this.body2El.classList.add("is-selected");
       else this.body2El.classList.remove("is-selected");
     }
     if (this.shapesLayer) {
@@ -451,8 +481,14 @@ export class SlidesCanvasController {
       const shapes = (slide && slide.shapes) || [];
       items.forEach((item, idx) => {
         const sh = shapes[idx];
-        if (sh && String(sh.id) === String(target)) item.classList.add("is-selected");
-        else item.classList.remove("is-selected");
+        const isSel = sh && (this.selectedShapeIds?.has(String(sh.id)) || String(this.selectedTarget) === String(sh.id));
+        if (isSel) {
+          item.classList.add("is-selected");
+          this._ensureShapeSelectionHandles(item, sh);
+        } else {
+          item.classList.remove("is-selected");
+          this._removeShapeSelectionHandles(item);
+        }
       });
     }
   }
@@ -541,17 +577,27 @@ export class SlidesCanvasController {
     if (!Array.isArray(slide.shapes)) slide.shapes = [];
 
     const offset = slide.shapes.length * 24;
+    const isEllipse = shapeType === "ellipse" || shapeType === "circle";
+    const isArrow = shapeType === "arrow";
+    const isTextbox = shapeType === "textbox";
+    const normalizedType = isEllipse ? "ellipse" : isArrow ? "arrow" : isTextbox ? "textbox" : "rect";
+
     const newShape = {
-      id: Date.now(),
-      type: shapeType === "ellipse" ? "ellipse" : "rect",
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      type: normalizedType,
       x: 80 + offset,
       y: 80 + offset,
-      w: 200,
-      h: 120,
-      color: "#3b82f6",
+      w: isTextbox ? 240 : isArrow ? 200 : isEllipse ? 160 : 200,
+      h: isTextbox ? 60 : isArrow ? 80 : isEllipse ? 160 : 120,
+      color: isTextbox ? "transparent" : "#3b82f6",
+      text: "",
       animation: { type: "none", duration: 500, delay: 0 }
     };
     slide.shapes.push(newShape);
+
+    this.undoStack.push({ type: "shape-add", slideIndex: this.currentSlideIndex, shape: { ...newShape } });
+    this.redoStack = [];
+    this._syncUndoRedoState();
 
     this.setSelectedTarget(newShape.id);
     this._renderShapesLayer();
@@ -812,11 +858,11 @@ export class SlidesCanvasController {
 
     shapes.forEach((shape) => {
       const el = document.createElement("div");
-      const isSel = String(this.selectedTarget) === String(shape.id);
       const isConnector = shape.type === "connector";
+      const isSel = this.selectedShapeIds?.has(String(shape.id)) || String(this.selectedTarget) === String(shape.id);
       el.className = `vno-slide-shape-item ${isConnector ? "is-connector" : ""} ${shape.diagramRole === "node" ? "is-diagram-node" : ""} ${isSel ? "is-selected" : ""}`;
       el.dataset.shapeId = String(shape.id);
-      el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${shape.diagramRole === "node" ? "move" : "pointer"};z-index:${isConnector ? 0 : 1};`;
+      el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${isConnector ? "default" : "move"};z-index:${isConnector ? 0 : 1};`;
 
       if (isConnector) {
         this._renderDiagramConnectorElement(el, shape);
@@ -891,19 +937,6 @@ export class SlidesCanvasController {
         }
       }
 
-      if (isSel) {
-        const delBtn = document.createElement("button");
-        delBtn.type = "button";
-        delBtn.className = "vno-shape-delete-btn";
-        delBtn.title = "Xóa đối tượng này";
-        delBtn.textContent = "×";
-        delBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          this.deleteShape(shape.id);
-        });
-        el.appendChild(delBtn);
-      }
-
       if (shape.animation && shape.animation.type && shape.animation.type !== "none") {
         const badge = document.createElement("span");
         badge.className = "vno-anim-badge";
@@ -914,47 +947,606 @@ export class SlidesCanvasController {
 
       el.addEventListener("click", (e) => {
         e.stopPropagation();
-        this.setSelectedTarget(shape.id);
+        if (!isConnector && (e.shiftKey || e.ctrlKey)) {
+          const id = String(shape.id);
+          const set = new Set(this.selectedShapeIds || []);
+          if (set.has(id)) set.delete(id); else set.add(id);
+          this.selectedShapeIds = set;
+          this.selectedTarget = Array.from(set)[0] || null;
+          this._updateSelectionUi();
+        } else {
+          this.setSelectedTarget(shape.id);
+        }
         el.focus?.();
       });
 
-      if (shape.diagramRole === "node") this._attachDiagramNodeDrag(el, shape);
+      if (!isConnector) this._attachShapeDrag(el, shape);
 
       this.shapesLayer.appendChild(el);
     });
 
+    this._updateSelectionUi();
     this._renderThumbnails();
   }
 
-  _attachDiagramNodeDrag(el, shape) {
-    el.addEventListener("pointerdown", (event) => {
-      if (event.target?.classList?.contains("vno-diagram-node-text") && event.target.contentEditable === "true") return;
-      const startX = event.clientX, startY = event.clientY, originX = shape.x, originY = shape.y;
-      let moved = false;
+  _ensureShapeSelectionHandles(el, shape) {
+    if (!el || shape.type === "connector") return;
+    if (!el.querySelector(".vno-shape-delete-btn")) {
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "vno-shape-delete-btn";
+      delBtn.title = "Xóa đối tượng này";
+      delBtn.textContent = "×";
+      delBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.deleteShape(shape.id);
+      });
+      el.appendChild(delBtn);
+    }
+
+    if (!el.querySelector(".vno-shape-resize-handle")) {
+      const handles = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+      handles.forEach(dir => {
+        const h = document.createElement("div");
+        h.className = `vno-shape-resize-handle vno-handle-${dir}`;
+        h.dataset.handleDir = dir;
+        this._attachResizeHandle(h, el, shape, dir);
+        el.appendChild(h);
+      });
+    }
+  }
+
+  _removeShapeSelectionHandles(el) {
+    if (!el) return;
+    const delBtn = el.querySelector(".vno-shape-delete-btn");
+    if (delBtn) delBtn.remove();
+    el.querySelectorAll(".vno-shape-resize-handle").forEach(h => h.remove());
+  }
+
+  _attachResizeHandle(handleEl, shapeEl, shape, dir) {
+    handleEl.addEventListener("pointerdown", (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+
+      const startClientX = event.clientX;
+      const startClientY = event.clientY;
+      const origX = shape.x;
+      const origY = shape.y;
+      const origW = shape.w;
+      const origH = shape.h;
+      const aspect = (origW && origH) ? origW / origH : 1;
+      let resized = false;
+
       const move = (moveEvent) => {
-        const dx = moveEvent.clientX - startX, dy = moveEvent.clientY - startY;
-        if (Math.abs(dx) + Math.abs(dy) < 3) return;
-        moved = true;
-        shape.x = Math.max(0, Math.min(this.slideSize.width - shape.w, originX + dx));
-        shape.y = Math.max(0, Math.min(this.slideSize.height - shape.h, originY + dy));
-        el.style.left = `${shape.x}px`; el.style.top = `${shape.y}px`;
-        this._updateDiagramConnectorsForNode(shape);
+        const dx = moveEvent.clientX - startClientX;
+        const dy = moveEvent.clientY - startClientY;
+        if (!resized && Math.abs(dx) + Math.abs(dy) < 2) return;
+        resized = true;
+
+        let newX = origX;
+        let newY = origY;
+        let newW = origW;
+        let newH = origH;
+
+        const isCorner = ["nw", "ne", "se", "sw"].includes(dir);
+        const keepAspect = isCorner && moveEvent.shiftKey;
+
+        if (dir.includes("e")) {
+          newW = Math.max(20, origW + dx);
+        }
+        if (dir.includes("s")) {
+          newH = Math.max(20, origH + dy);
+        }
+        if (dir.includes("w")) {
+          newW = Math.max(20, origW - dx);
+          newX = origX + (origW - newW);
+        }
+        if (dir.includes("n")) {
+          newH = Math.max(20, origH - dy);
+          newY = origY + (origH - newH);
+        }
+
+        if (keepAspect) {
+          if (dir === "se" || dir === "nw") {
+            newH = Math.max(20, Math.round(newW / aspect));
+            if (dir === "nw") newY = origY + (origH - newH);
+          } else if (dir === "ne" || dir === "sw") {
+            newH = Math.max(20, Math.round(newW / aspect));
+            if (dir === "sw") newY = origY + (origH - newH);
+          }
+        }
+
+        newX = Math.max(0, Math.min(this.slideSize.width - 20, newX));
+        newY = Math.max(0, Math.min(this.slideSize.height - 20, newY));
+        newW = Math.min(this.slideSize.width - newX, newW);
+        newH = Math.min(this.slideSize.height - newY, newH);
+
+        shape.x = newX;
+        shape.y = newY;
+        shape.w = newW;
+        shape.h = newH;
+
+        shapeEl.style.left = `${newX}px`;
+        shapeEl.style.top = `${newY}px`;
+        shapeEl.style.width = `${newW}px`;
+        shapeEl.style.height = `${newH}px`;
+
+        if (shape.diagramRole === "node") {
+          this._updateDiagramConnectorsForNode(shape);
+        }
       };
+
       const up = () => {
         document.removeEventListener("pointermove", move);
         document.removeEventListener("pointerup", up);
-        if (moved) {
-          this.undoStack.push({ type: "diagram-node-move", slideIndex: this.currentSlideIndex, shapeId: shape.id, from: { x: originX, y: originY }, to: { x: shape.x, y: shape.y } });
+        if (resized) {
+          this.undoStack.push({
+            type: "shape-resize",
+            slideIndex: this.currentSlideIndex,
+            shapeId: shape.id,
+            from: { x: origX, y: origY, w: origW, h: origH },
+            to: { x: shape.x, y: shape.y, w: shape.w, h: shape.h }
+          });
           this.redoStack = [];
           this._syncUndoRedoState();
           this._renderThumbnails();
           if (this.slideSorterOverlay) this._renderSlideSorterGrid();
         }
       };
+
       document.addEventListener("pointermove", move);
       document.addEventListener("pointerup", up);
     });
   }
+
+  _clearSmartGuides() {
+    if (this.smartGuidesLayer) this.smartGuidesLayer.innerHTML = "";
+  }
+
+  _renderSmartGuides(guideV, guideH) {
+    if (!this.smartGuidesLayer) return;
+    this.smartGuidesLayer.innerHTML = "";
+    if (guideV !== null) {
+      const v = document.createElement("div");
+      v.className = "vno-smart-guide vno-smart-guide-v";
+      v.style.cssText = `position:absolute;top:0;height:100%;left:${guideV}px;width:1px;border-left:1.5px dashed #ef4444;pointer-events:none;z-index:9999;box-sizing:border-box;`;
+      this.smartGuidesLayer.appendChild(v);
+    }
+    if (guideH !== null) {
+      const h = document.createElement("div");
+      h.className = "vno-smart-guide vno-smart-guide-h";
+      h.style.cssText = `position:absolute;left:0;width:100%;top:${guideH}px;height:1px;border-top:1.5px dashed #ef4444;pointer-events:none;z-index:9999;box-sizing:border-box;`;
+      this.smartGuidesLayer.appendChild(h);
+    }
+  }
+
+  _attachShapeDrag(el, shape) {
+    el.addEventListener("pointerdown", (event) => {
+      if (event.target?.classList?.contains("vno-shape-resize-handle")) return;
+      if (event.target?.classList?.contains("vno-shape-delete-btn")) return;
+      if (event.target?.classList?.contains("vno-diagram-node-text") && event.target.contentEditable === "true") return;
+
+      const startX = event.clientX;
+      const startY = event.clientY;
+
+      if (!this.selectedShapeIds) this.selectedShapeIds = new Set();
+      if (!this.selectedShapeIds.has(String(shape.id)) && !event.shiftKey && !event.ctrlKey) {
+        this.setSelectedTarget(shape.id);
+      }
+
+      const slide = this.slides[this.currentSlideIndex];
+      const allShapes = (slide && slide.shapes) || [];
+
+      const activeGroupIds = new Set();
+      this.selectedShapeIds.forEach(id => {
+        const s = allShapes.find(item => String(item.id) === id);
+        if (s?.groupId) activeGroupIds.add(s.groupId);
+      });
+
+      const shapesToMove = allShapes.filter(s => {
+        if (s.type === "connector") return false;
+        if (this.selectedShapeIds.has(String(s.id))) return true;
+        if (s.groupId && activeGroupIds.has(s.groupId)) return true;
+        if (String(s.id) === String(shape.id)) return true;
+        return false;
+      });
+
+      const movingEntries = shapesToMove.map(s => {
+        const shapeEl = this.shapesLayer?.querySelector(`[data-shape-id="${s.id}"]`);
+        return { shape: s, startX: s.x, startY: s.y, el: shapeEl };
+      });
+
+      const otherShapes = allShapes.filter(s => !shapesToMove.includes(s) && s.type !== "connector");
+
+      let moved = false;
+
+      const move = (moveEvent) => {
+        let dx = moveEvent.clientX - startX;
+        let dy = moveEvent.clientY - startY;
+        if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+        moved = true;
+
+        let candX = shape.x;
+        let candY = shape.y;
+        const targetOrigin = movingEntries.find(m => m.shape === shape) || movingEntries[0];
+        if (targetOrigin) {
+          candX = targetOrigin.startX + dx;
+          candY = targetOrigin.startY + dy;
+        }
+
+        const snapThreshold = 5;
+        let guideV = null;
+        let guideH = null;
+
+        const candLeft = candX;
+        const candCenterX = candX + shape.w / 2;
+        const candRight = candX + shape.w;
+
+        const candTop = candY;
+        const candCenterY = candY + shape.h / 2;
+        const candBottom = candY + shape.h;
+
+        const refLinesX = [
+          { val: this.slideSize.width / 2 }
+        ];
+        otherShapes.forEach(o => {
+          refLinesX.push({ val: o.x });
+          refLinesX.push({ val: o.x + o.w / 2 });
+          refLinesX.push({ val: o.x + o.w });
+        });
+
+        for (const ref of refLinesX) {
+          if (Math.abs(candLeft - ref.val) <= snapThreshold) {
+            dx += (ref.val - candLeft);
+            guideV = ref.val;
+            break;
+          } else if (Math.abs(candCenterX - ref.val) <= snapThreshold) {
+            dx += (ref.val - candCenterX);
+            guideV = ref.val;
+            break;
+          } else if (Math.abs(candRight - ref.val) <= snapThreshold) {
+            dx += (ref.val - candRight);
+            guideV = ref.val;
+            break;
+          }
+        }
+
+        const refLinesY = [
+          { val: this.slideSize.height / 2 }
+        ];
+        otherShapes.forEach(o => {
+          refLinesY.push({ val: o.y });
+          refLinesY.push({ val: o.y + o.h / 2 });
+          refLinesY.push({ val: o.y + o.h });
+        });
+
+        for (const ref of refLinesY) {
+          if (Math.abs(candTop - ref.val) <= snapThreshold) {
+            dy += (ref.val - candTop);
+            guideH = ref.val;
+            break;
+          } else if (Math.abs(candCenterY - ref.val) <= snapThreshold) {
+            dy += (ref.val - candCenterY);
+            guideH = ref.val;
+            break;
+          } else if (Math.abs(candBottom - ref.val) <= snapThreshold) {
+            dy += (ref.val - candBottom);
+            guideH = ref.val;
+            break;
+          }
+        }
+
+        this._renderSmartGuides(guideV, guideH);
+
+        movingEntries.forEach(m => {
+          m.shape.x = Math.max(0, Math.min(this.slideSize.width - m.shape.w, m.startX + dx));
+          m.shape.y = Math.max(0, Math.min(this.slideSize.height - m.shape.h, m.startY + dy));
+          if (m.el) {
+            m.el.style.left = `${m.shape.x}px`;
+            m.el.style.top = `${m.shape.y}px`;
+          }
+          if (m.shape.diagramRole === "node") {
+            this._updateDiagramConnectorsForNode(m.shape);
+          }
+        });
+      };
+
+      const up = () => {
+        this._clearSmartGuides();
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        if (moved) {
+          if (movingEntries.length === 1) {
+            this.undoStack.push({
+              type: "shape-move",
+              slideIndex: this.currentSlideIndex,
+              shapeId: movingEntries[0].shape.id,
+              from: { x: movingEntries[0].startX, y: movingEntries[0].startY },
+              to: { x: movingEntries[0].shape.x, y: movingEntries[0].shape.y }
+            });
+          } else {
+            this.undoStack.push({
+              type: "shapes-move",
+              slideIndex: this.currentSlideIndex,
+              moves: movingEntries.map(m => ({
+                shapeId: m.shape.id,
+                from: { x: m.startX, y: m.startY },
+                to: { x: m.shape.x, y: m.shape.y }
+              }))
+            });
+          }
+          this.redoStack = [];
+          this._syncUndoRedoState();
+          this._renderThumbnails();
+          if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+        }
+      };
+
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", up);
+    });
+  }
+
+  _attachDiagramNodeDrag(el, shape) {
+    return this._attachShapeDrag(el, shape);
+  }
+
+  _setupCanvasEvents() {
+    if (!this.canvasEl) return;
+
+    // Marquee / Rubber-band Selection
+    this.canvasEl.addEventListener("pointerdown", (event) => {
+      if (event.target !== this.canvasEl && event.target !== this.shapesLayer) {
+        return;
+      }
+      if (event.target.closest?.(".vno-slide-shape-item") ||
+          event.target.closest?.(".vno-slide-comment-indicator") ||
+          event.target.closest?.(".vno-slide-title") ||
+          event.target.closest?.(".vno-slide-body")) {
+        return;
+      }
+
+      const rect = this.canvasEl.getBoundingClientRect();
+      const startX = event.clientX - rect.left;
+      const startY = event.clientY - rect.top;
+
+      if (!event.shiftKey && !event.ctrlKey) {
+        this.setSelectedTarget(null);
+      }
+
+      const marqueeEl = document.createElement("div");
+      marqueeEl.className = "vno-marquee-selection";
+      marqueeEl.style.cssText = `position:absolute;left:${startX}px;top:${startY}px;width:0px;height:0px;border:1.5px dashed #2563eb;background:rgba(37,99,235,0.12);pointer-events:none;z-index:9998;box-sizing:border-box;`;
+      this.canvasEl.appendChild(marqueeEl);
+
+      let moved = false;
+      const initialSelected = new Set(this.selectedShapeIds || []);
+
+      const move = (moveEvent) => {
+        const curX = moveEvent.clientX - rect.left;
+        const curY = moveEvent.clientY - rect.top;
+        const minX = Math.max(0, Math.min(startX, curX));
+        const minY = Math.max(0, Math.min(startY, curY));
+        const width = Math.abs(curX - startX);
+        const height = Math.abs(curY - startY);
+
+        if (!moved && width + height < 3) return;
+        moved = true;
+
+        marqueeEl.style.left = `${minX}px`;
+        marqueeEl.style.top = `${minY}px`;
+        marqueeEl.style.width = `${width}px`;
+        marqueeEl.style.height = `${height}px`;
+
+        const slide = this.slides[this.currentSlideIndex];
+        const shapes = (slide && slide.shapes) || [];
+        const currentSelected = new Set(initialSelected);
+
+        shapes.forEach(sh => {
+          if (sh.type === "connector") return;
+          const shLeft = sh.x;
+          const shTop = sh.y;
+          const shRight = sh.x + sh.w;
+          const shBottom = sh.y + sh.h;
+          const mRight = minX + width;
+          const mBottom = minY + height;
+
+          const intersects = !(shRight < minX || shLeft > mRight || shBottom < minY || shTop > mBottom);
+          if (intersects) {
+            currentSelected.add(String(sh.id));
+          }
+        });
+
+        this.selectedShapeIds = currentSelected;
+        this.selectedTarget = Array.from(currentSelected)[0] || null;
+        this._updateSelectionUi();
+      };
+
+      const up = () => {
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        if (marqueeEl.parentNode) {
+          marqueeEl.parentNode.removeChild(marqueeEl);
+        }
+      };
+
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", up);
+    });
+
+    // Keyboard navigation & manipulation
+    this._windowKeyHandler = (e) => {
+      const activeEl = typeof document !== "undefined" ? document.activeElement : null;
+      if (activeEl && (activeEl.isContentEditable || activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) {
+        return;
+      }
+
+      if (e.key === "Tab") {
+        if (this.canvasEl && (document.activeElement === document.body || this.container?.contains(activeEl))) {
+          e.preventDefault();
+          this.selectNextObject(e.shiftKey);
+          return;
+        }
+      }
+
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        if (this.selectedShapeIds && this.selectedShapeIds.size > 0) {
+          e.preventDefault();
+          const step = e.shiftKey ? 10 : 1;
+          const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+          const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+          this.nudgeSelected(dx, dy);
+        }
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("keydown", this._windowKeyHandler);
+    }
+  }
+
+  groupSelectedShapes() {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !this.selectedShapeIds || this.selectedShapeIds.size < 2) return false;
+    const selectedList = slide.shapes?.filter(s => this.selectedShapeIds.has(String(s.id)) && s.type !== "connector") || [];
+    if (selectedList.length < 2) return false;
+
+    const newGroupId = `group-${Date.now()}`;
+    const previousGroups = selectedList.map(s => ({ shapeId: s.id, groupId: s.groupId || null }));
+    selectedList.forEach(s => { s.groupId = newGroupId; });
+
+    this.undoStack.push({
+      type: "shapes-group",
+      slideIndex: this.currentSlideIndex,
+      groupId: newGroupId,
+      previousGroups
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderShapesLayer();
+    return true;
+  }
+
+  ungroupSelectedShapes() {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !this.selectedShapeIds || this.selectedShapeIds.size === 0) return false;
+    const allShapes = slide.shapes || [];
+    const selected = allShapes.filter(s => this.selectedShapeIds.has(String(s.id)));
+    const targetGroup = selected.find(s => s.groupId)?.groupId;
+    if (!targetGroup) return false;
+
+    const groupShapes = allShapes.filter(s => s.groupId === targetGroup);
+    groupShapes.forEach(s => { s.groupId = null; });
+
+    this.undoStack.push({
+      type: "shapes-ungroup",
+      slideIndex: this.currentSlideIndex,
+      groupId: targetGroup,
+      shapeIds: groupShapes.map(s => s.id)
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderShapesLayer();
+    return true;
+  }
+
+  nudgeSelected(dx, dy) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !this.selectedShapeIds || this.selectedShapeIds.size === 0) return false;
+    const allShapes = slide.shapes || [];
+
+    const activeGroupIds = new Set();
+    this.selectedShapeIds.forEach(id => {
+      const s = allShapes.find(item => String(item.id) === id);
+      if (s?.groupId) activeGroupIds.add(s.groupId);
+    });
+
+    const shapesToMove = allShapes.filter(s => {
+      if (s.type === "connector") return false;
+      if (this.selectedShapeIds.has(String(s.id))) return true;
+      if (s.groupId && activeGroupIds.has(s.groupId)) return true;
+      return false;
+    });
+
+    if (shapesToMove.length === 0) return false;
+
+    const moves = shapesToMove.map(s => {
+      const from = { x: s.x, y: s.y };
+      s.x = Math.max(0, Math.min(this.slideSize.width - s.w, s.x + dx));
+      s.y = Math.max(0, Math.min(this.slideSize.height - s.h, s.y + dy));
+      const shapeEl = this.shapesLayer?.querySelector(`[data-shape-id="${s.id}"]`);
+      if (shapeEl) {
+        shapeEl.style.left = `${s.x}px`;
+        shapeEl.style.top = `${s.y}px`;
+      }
+      if (s.diagramRole === "node") this._updateDiagramConnectorsForNode(s);
+      return { shapeId: s.id, from, to: { x: s.x, y: s.y } };
+    });
+
+    if (moves.length === 1) {
+      this.undoStack.push({
+        type: "shape-move",
+        slideIndex: this.currentSlideIndex,
+        shapeId: moves[0].shapeId,
+        from: moves[0].from,
+        to: moves[0].to
+      });
+    } else {
+      this.undoStack.push({
+        type: "shapes-move",
+        slideIndex: this.currentSlideIndex,
+        moves
+      });
+    }
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderThumbnails();
+    return true;
+  }
+
+  selectNextObject(backward = false) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return;
+    const targets = [];
+    const layout = slide.layoutType || "title-content";
+    if (layout !== "blank") {
+      targets.push("title");
+      if (layout !== "title-only") {
+        targets.push("body");
+        if (layout === "two-content") targets.push("body2");
+      }
+    }
+    (slide.shapes || []).forEach(s => {
+      if (s.type !== "connector") targets.push(s.id);
+    });
+
+    if (targets.length === 0) return;
+
+    let curIdx = -1;
+    if (this.selectedTarget) {
+      curIdx = targets.findIndex(t => String(t) === String(this.selectedTarget));
+    }
+
+    let nextIdx;
+    if (curIdx === -1) {
+      nextIdx = backward ? targets.length - 1 : 0;
+    } else {
+      nextIdx = backward ? (curIdx - 1 + targets.length) % targets.length : (curIdx + 1) % targets.length;
+    }
+
+    const nextTarget = targets[nextIdx];
+    this.setSelectedTarget(nextTarget);
+
+    if (nextTarget === "title") this.titleEl?.focus();
+    else if (nextTarget === "body") this.bodyEl?.focus();
+    else if (nextTarget === "body2") this.body2El?.focus();
+    else {
+      const shEl = this.shapesLayer?.querySelector(`[data-shape-id="${nextTarget}"]`);
+      shEl?.focus();
+    }
+  }
+
+
 
   _renderDiagramConnectorElement(el, shape) {
     const pad = 8;
@@ -1074,6 +1666,34 @@ export class SlidesCanvasController {
           ${cardInner}
         </div>
       `;
+
+      item.setAttribute("draggable", "true");
+      item.dataset.slideIndex = String(idx);
+      item.addEventListener("dragstart", (event) => {
+        event.dataTransfer?.setData("text/plain", String(idx));
+        if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+        item.classList.add("is-dragging");
+      });
+      item.addEventListener("dragend", () => {
+        item.classList.remove("is-dragging");
+        this.slideListContainer?.querySelectorAll(".is-drag-over").forEach(el => el.classList.remove("is-drag-over"));
+      });
+      item.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+        item.classList.add("is-drag-over");
+      });
+      item.addEventListener("dragleave", () => {
+        item.classList.remove("is-drag-over");
+      });
+      item.addEventListener("drop", (event) => {
+        event.preventDefault();
+        item.classList.remove("is-drag-over");
+        const fromIndex = Number(event.dataTransfer?.getData("text/plain"));
+        if (!Number.isNaN(fromIndex) && fromIndex !== idx) {
+          this.moveSlide(fromIndex, idx);
+        }
+      });
 
       item.addEventListener("click", () => this.selectSlide(idx));
       this.slideListContainer.appendChild(item);
@@ -1450,6 +2070,71 @@ export class SlidesCanvasController {
       this.applySlideMaster(action.before, false);
       this.redoStack.push(action);
       return true;
+    } else if (action.type === "shape-move") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      shape.x = action.from.x; shape.y = action.from.y;
+      this.currentSlideIndex = action.slideIndex;
+      if (shape.diagramRole === "node") this._updateDiagramConnectorsForNode(shape);
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shapes-move") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      action.moves.forEach(m => {
+        const s = slide.shapes?.find(item => String(item.id) === String(m.shapeId));
+        if (s) {
+          s.x = m.from.x; s.y = m.from.y;
+          if (s.diagramRole === "node") this._updateDiagramConnectorsForNode(s);
+        }
+      });
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shape-resize") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      shape.x = action.from.x; shape.y = action.from.y; shape.w = action.from.w; shape.h = action.from.h;
+      this.currentSlideIndex = action.slideIndex;
+      if (shape.diagramRole === "node") this._updateDiagramConnectorsForNode(shape);
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shapes-delete") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      slide.shapes ||= [];
+      slide.shapes.push(...this._cloneShapes(action.shapes));
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shapes-group") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      action.previousGroups.forEach(pg => {
+        const s = slide.shapes?.find(item => String(item.id) === String(pg.shapeId));
+        if (s) s.groupId = pg.groupId;
+      });
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shapes-ungroup") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      action.shapeIds.forEach(id => {
+        const s = slide.shapes?.find(item => String(item.id) === String(id));
+        if (s) s.groupId = action.groupId;
+      });
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
     } else if (action.type === "slide-size") {
       this._restoreSlideSize(action.before);
       this.redoStack.push(action);
@@ -1558,6 +2243,71 @@ export class SlidesCanvasController {
     } else if (action.type === "master-theme") {
       this.applySlideMaster(action.after, false);
       this.undoStack.push(action);
+      return true;
+    } else if (action.type === "shape-move") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      shape.x = action.to.x; shape.y = action.to.y;
+      this.currentSlideIndex = action.slideIndex;
+      if (shape.diagramRole === "node") this._updateDiagramConnectorsForNode(shape);
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shapes-move") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      action.moves.forEach(m => {
+        const s = slide.shapes?.find(item => String(item.id) === String(m.shapeId));
+        if (s) {
+          s.x = m.to.x; s.y = m.to.y;
+          if (s.diagramRole === "node") this._updateDiagramConnectorsForNode(s);
+        }
+      });
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shape-resize") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      shape.x = action.to.x; shape.y = action.to.y; shape.w = action.to.w; shape.h = action.to.h;
+      this.currentSlideIndex = action.slideIndex;
+      if (shape.diagramRole === "node") this._updateDiagramConnectorsForNode(shape);
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shapes-delete") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      const ids = new Set(action.shapes.map(s => String(s.id)));
+      slide.shapes = (slide.shapes || []).filter(s => !ids.has(String(s.id)));
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shapes-group") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      action.previousGroups.forEach(pg => {
+        const s = slide.shapes?.find(item => String(item.id) === String(pg.shapeId));
+        if (s) s.groupId = action.groupId;
+      });
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shapes-ungroup") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      action.shapeIds.forEach(id => {
+        const s = slide.shapes?.find(item => String(item.id) === String(id));
+        if (s) s.groupId = null;
+      });
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
       return true;
     } else if (action.type === "slide-size") {
       this._restoreSlideSize(action.after);
@@ -2844,6 +3594,10 @@ export class SlidesCanvasController {
     this._activePresenterCleanup?.();
     this._activeShowCleanup = null;
     this._activePresenterCleanup = null;
+    if (typeof window !== "undefined" && this._windowKeyHandler) {
+      window.removeEventListener("keydown", this._windowKeyHandler);
+      this._windowKeyHandler = null;
+    }
   }
 
   /**
