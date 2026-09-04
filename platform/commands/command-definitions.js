@@ -204,7 +204,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.insert.image", category: "insert", label: "Chèn ảnh", icon: "image", tooltip: "Chèn ảnh vào ô đang chọn" },
   { id: "sheet.insert.sparklineLine", category: "insert", label: "Đường", icon: "chart", tooltip: "Chèn biểu đồ mini dạng đường từ vùng dữ liệu đã chọn" },
   { id: "sheet.insert.sparklineColumn", category: "insert", label: "Cột", icon: "chart", tooltip: "Chèn biểu đồ mini dạng cột từ vùng dữ liệu đã chọn" },
-  { id: "sheet.insert.hyperlink", category: "insert", label: "Liên kết", shortcut: "Ctrl+K", icon: "hyperlink", tooltip: "Chèn liên kết vào ô hiện tại (Ctrl+K)" },
+  { id: "sheet.insert.hyperlink", category: "insert", label: "Liên kết", icon: "hyperlink", tooltip: "Chèn liên kết vào ô hiện tại (Ctrl+K)" },
   { id: "sheet.insert.textbox", category: "insert", label: "Hộp văn bản", icon: "textBox", tooltip: "Chèn hộp văn bản nổi trên trang tính" },
 
   // Kiểu dáng & Định dạng bảng (Styles)

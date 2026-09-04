@@ -1194,6 +1194,7 @@ export class SheetAdapter {
       case "sheet.insert.sparklineColumn":
         return this.grid.insertSparkline("column");
 
+      case "common.edit.hyperlink":
       case "sheet.insert.hyperlink": {
         const url = args?.url || await showPromptDialog({ title: "Chèn liên kết", message: "Nhập địa chỉ liên kết (URL):", defaultValue: "https://", placeholder: "https://example.com" });
         return url ? this.grid.insertHyperlink(url, args?.text) : false;
