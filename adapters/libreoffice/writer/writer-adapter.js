@@ -2618,6 +2618,14 @@ export class WriterAdapter {
         }
       }
 
+      // h1/h2/h3 không nhận focus() bằng trình duyệt thật nếu thiếu tabindex —
+      // TOC link nhảy tới heading cần focus() thật sự hoạt động (không chỉ scroll).
+      if (typeof node.hasAttribute === "function" && !node.hasAttribute("tabindex")) {
+        node.setAttribute("tabindex", "-1");
+      } else if (node.attributes && node.attributes.tabindex === undefined) {
+        node.attributes.tabindex = "-1";
+      }
+
       const tagName = (node.tagName || "H1").toUpperCase();
       const level = tagName === "H1" ? 1 : (tagName === "H2" ? 2 : 3);
       const text = (node.textContent || node.innerText || "").trim() || `Tiêu đề ${index + 1}`;
@@ -2697,6 +2705,7 @@ export class WriterAdapter {
 
     this.flushTyping();
 
+    options = options || {};
     const id = options.id || `fn-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     const sup = typeof document !== "undefined" && typeof document.createElement === "function"
@@ -2912,6 +2921,7 @@ export class WriterAdapter {
 
     this.flushTyping();
 
+    options = options || {};
     const id = options.id || `en-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
     const sup = typeof document !== "undefined" && typeof document.createElement === "function"
