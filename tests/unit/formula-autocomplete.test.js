@@ -145,5 +145,13 @@ export async function runFormulaAutocompleteTests() {
           pmt.desc.includes("cuối kỳ") && pmt.desc.includes("đầu kỳ")
   });
 
+  const fv = FUNCTION_CATALOG.find(item => item.name === "FV");
+  results.push({
+    name: "Autocomplete: FV thuộc nhóm Tài chính với cú pháp đầy đủ",
+    pass: fv?.category === "Tài chính" &&
+          fv.syntax === "FV(rate, nper, pmt, [pv], [type])" &&
+          fv.desc.includes("giá trị tương lai")
+  });
+
   return results;
 }

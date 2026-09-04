@@ -90,5 +90,16 @@ export async function runFormulaEngineTests() {
           engine.evaluate("=PMT(0.01,0,1000)") === "#NUM!"
   });
 
+  // 10. FV — gửi đầu kỳ 10.000 và góp cuối tháng 1.000, lãi 5%/năm trong 10 năm.
+  // Excel: =FV(5%/12,120,-1000,-10000,0) -> 171.752,37442257
+  const fvRes = engine.evaluate("=FV(0.004166666666666667,120,-1000,-10000,0)");
+  const fvZeroRateRes = engine.evaluate("=FV(0,10,-100,-1000,0)");
+  results.push({
+    name: "Financial FV: đúng giá trị tương lai, quy ước dấu và nhánh rate=0",
+    pass: approximatelyEqual(fvRes, 171752.37442257005, 1e-6) &&
+          approximatelyEqual(fvZeroRateRes, 2000) &&
+          engine.evaluate("=FV(0.01,-1,-100)") === "#NUM!"
+  });
+
   return results;
 }

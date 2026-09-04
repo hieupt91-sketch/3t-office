@@ -60,6 +60,7 @@ export const FUNCTION_CATALOG = [
 
   // Tài chính
   ,{ name: "PMT", category: "Tài chính", syntax: "PMT(rate, nper, pv, [fv], [type])", desc: "Tính khoản thanh toán định kỳ với lãi suất cố định; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
+  ,{ name: "FV", category: "Tài chính", syntax: "FV(rate, nper, pmt, [pv], [type])", desc: "Tính giá trị tương lai của khoản đầu tư; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ)." }
 ];
 
 export class FormulaEngine {
@@ -488,6 +489,20 @@ export class FormulaEngine {
         const factor = Math.pow(1 + rate, nper);
         const payment = -((pv * factor + fv) * rate) / ((1 + rate * type) * (factor - 1));
         return Number.isFinite(payment) ? payment : "#NUM!";
+      }
+
+      case "FV": {
+        const rate = Number(this._resolveSingleValue(args[0]));
+        const nper = Number(this._resolveSingleValue(args[1]));
+        const pmt = Number(this._resolveSingleValue(args[2]));
+        const pv = args[3] === undefined ? 0 : Number(this._resolveSingleValue(args[3]));
+        const type = args[4] === undefined ? 0 : Number(this._resolveSingleValue(args[4]));
+        if (![rate, nper, pmt, pv, type].every(Number.isFinite)) return "#VALUE!";
+        if (nper <= 0 || (type !== 0 && type !== 1) || rate <= -1) return "#NUM!";
+        if (rate === 0) return -(pv + pmt * nper);
+        const factor = Math.pow(1 + rate, nper);
+        const futureValue = -(pv * factor + pmt * (1 + rate * type) * (factor - 1) / rate);
+        return Number.isFinite(futureValue) ? futureValue : "#NUM!";
       }
 
       // Logic
