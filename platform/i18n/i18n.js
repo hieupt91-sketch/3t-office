@@ -1,13 +1,28 @@
 /**
- * VN Office Platform — Lightweight Vietnamese i18n Localization Layer
+ * VN Office Platform — i18n Localization Layer (Đa ngôn ngữ: Tiếng Việt + English)
  * Tuân thủ 03-ui-ux/VIETNAMESE-I18N.md & 00-governance/NON-NEGOTIABLE-RULES.md (#16)
  */
 
 import { viStrings } from "./strings-vi.js";
+import { enStrings } from "./strings-en.js";
 
-let _currentLocale = "vi";
+const STORAGE_KEY = "vno-locale";
+const SUPPORTED_LOCALES = ["vi", "en"];
+
+function _readPersistedLocale() {
+  try {
+    if (typeof localStorage === "undefined") return "vi";
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return SUPPORTED_LOCALES.includes(saved) ? saved : "vi";
+  } catch {
+    return "vi";
+  }
+}
+
+let _currentLocale = _readPersistedLocale();
 const _catalogs = {
-  vi: viStrings
+  vi: viStrings,
+  en: enStrings
 };
 
 /**
@@ -39,12 +54,31 @@ export function t(key, params = {}) {
 }
 
 /**
- * Thiết lập ngôn ngữ hoạt động
- * @param {"vi"} locale 
+ * Tra cứu chuỗi nhãn/tooltip của 1 command theo commandId — dùng cho
+ * `platform/commands/command-definitions.js`'s applyLocaleToCommandDefinitions().
+ * @param {string} commandId
+ * @param {"label"|"tooltip"} field
+ * @returns {string|null}
+ */
+export function tCommand(commandId, field) {
+  const catalog = _catalogs[_currentLocale] || _catalogs.vi;
+  return catalog.commands?.[commandId]?.[field] || null;
+}
+
+/**
+ * Thiết lập ngôn ngữ hoạt động và LƯU LẠI (localStorage) để tải lại đúng ngôn ngữ
+ * ở lần mở ứng dụng tiếp theo. Việc thay đổi ngôn ngữ trên các thành phần UI đang
+ * hiển thị (ribbon, dialog, backstage...) cần tải lại trang (SPA dựng DOM một lần
+ * khi khởi động) — xem `getSupportedLocales()`/`STORAGE_KEY` — gọi `location.reload()`
+ * ở tầng UI (nút chuyển ngôn ngữ trên topbar) sau khi gọi hàm này.
+ * @param {"vi"|"en"} locale
  */
 export function setLocale(locale) {
   if (_catalogs[locale]) {
     _currentLocale = locale;
+    try {
+      if (typeof localStorage !== "undefined") localStorage.setItem(STORAGE_KEY, locale);
+    } catch {}
   }
 }
 
@@ -53,4 +87,11 @@ export function setLocale(locale) {
  */
 export function getLocale() {
   return _currentLocale;
+}
+
+/**
+ * Danh sách ngôn ngữ được hỗ trợ, dùng để dựng UI chuyển ngôn ngữ.
+ */
+export function getSupportedLocales() {
+  return SUPPORTED_LOCALES.slice();
 }

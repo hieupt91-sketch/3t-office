@@ -198,6 +198,13 @@ body {
   filter: brightness(0.96);
   box-shadow: var(--vno-shadow-xs);
 }
+.vno-lang-switch-btn {
+  padding: 5px 10px;
+  font-weight: 600;
+  font-size: var(--vno-text-xs);
+  border-radius: var(--vno-radius-md);
+  cursor: pointer;
+}
 
 /* ==========================================================================
    2. RIBBON HOST (Thanh công cụ dải băng chuẩn Office)

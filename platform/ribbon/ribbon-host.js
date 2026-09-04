@@ -4,6 +4,7 @@
  */
 
 import { createCommandButton, createSelect } from "../ui-kit/components.js";
+import { t } from "../i18n/i18n.js";
 
 export class RibbonHost {
   /**
@@ -43,7 +44,7 @@ export class RibbonHost {
     const fileBtn = document.createElement("button");
     fileBtn.className = "vno-btn vno-ribbon-tab-file";
     fileBtn.type = "button";
-    fileBtn.textContent = "Tệp";
+    fileBtn.textContent = t("common.fileMenu");
     fileBtn.addEventListener("click", () => {
       if (this.options.onFileMenuClick) this.options.onFileMenuClick();
     });

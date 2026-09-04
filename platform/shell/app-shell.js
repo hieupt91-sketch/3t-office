@@ -11,7 +11,7 @@ import { RecentFilesManager } from "../recent/recent-manager.js";
 import { createEmptyState } from "../ui-kit/components.js";
 import { LocalAiService } from "../ai/ai-service.js";
 import { showAlertDialog } from "../ui-kit/dialogs.js";
-import { t } from "../i18n/i18n.js";
+import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
 
 export class AppShell {
   /**
@@ -102,8 +102,11 @@ export class AppShell {
         </div>
       </div>
 
-      <!-- Right Actions: AI Assistant & Controls -->
+      <!-- Right Actions: Language Switcher, AI Assistant & Controls -->
       <div class="vno-topbar-right">
+        <button class="vno-btn vno-lang-switch-btn" id="vno-toggle-lang-btn" title="${t("common.switchLanguage")}">
+          ${getLocale() === "vi" ? "🇻🇳 VI" : "🇬🇧 EN"}
+        </button>
         <button class="vno-ai-trigger-btn" id="vno-toggle-ai-btn" title="Trợ lý VN AI (Alt+J)">
           <span style="color:#d97706;display:flex;">${ICONS.aiSparkle}</span>
           <span>Trợ lý VN AI</span>
@@ -142,6 +145,17 @@ export class AppShell {
     });
 
     bar.querySelector("#vno-toggle-ai-btn").addEventListener("click", () => this.toggleAiSidebar());
+
+    bar.querySelector("#vno-toggle-lang-btn").addEventListener("click", () => {
+      const locales = getSupportedLocales();
+      const current = getLocale();
+      const next = locales[(locales.indexOf(current) + 1) % locales.length];
+      setLocale(next);
+      // SPA dựng toàn bộ DOM (ribbon, backstage, dialog) một lần khi khởi động —
+      // tải lại trang là cách chắc chắn nhất để MỌI thành phần UI đang hiển thị
+      // đổi đúng ngôn ngữ mới, thay vì cố re-render từng phần rải rác dễ sót.
+      if (typeof location !== "undefined" && location.reload) location.reload();
+    });
 
     this.rootEl.appendChild(bar);
   }

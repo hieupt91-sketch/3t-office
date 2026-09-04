@@ -4,6 +4,7 @@
  */
 
 import { globalShortcutManager } from "./shortcut-manager.js";
+import { tCommand } from "../i18n/i18n.js";
 
 export const COMMON_COMMANDS = [
   // Tệp (File)
@@ -193,6 +194,27 @@ export function registerAllStandardCommands(bus) {
     bus.register(cmd);
     if (cmd.shortcut) {
       globalShortcutManager.bind(cmd.shortcut, cmd.id);
+    }
+  }
+  applyLocaleToCommandDefinitions(bus);
+}
+
+/**
+ * Ghi đè label/tooltip của mọi command đã đăng ký theo ngôn ngữ hiện tại (i18n),
+ * cho những command ĐÃ CÓ bản dịch trong `platform/i18n/strings-{vi,en}.js`'s
+ * `commands` catalog. Command chưa có bản dịch giữ nguyên label/tooltip gốc
+ * (an toàn — không cần dịch hết cùng lúc, migrate dần từng phần).
+ * @param {import('./command-bus.js').CommandBus} bus
+ */
+export function applyLocaleToCommandDefinitions(bus) {
+  const all = [...COMMON_COMMANDS, ...WRITER_COMMANDS, ...SHEET_COMMANDS, ...SLIDES_COMMANDS];
+  for (const cmd of all) {
+    const label = tCommand(cmd.id, "label");
+    const tooltip = tCommand(cmd.id, "tooltip");
+    if (label) cmd.label = label;
+    if (tooltip) cmd.tooltip = tooltip;
+    if (label || tooltip) {
+      bus.updateState(cmd.id, { ...(label ? { label } : {}), ...(tooltip ? { tooltip } : {}) });
     }
   }
 }
