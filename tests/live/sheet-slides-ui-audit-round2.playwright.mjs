@@ -81,7 +81,15 @@ for (const locale of ["vi", "en"]) {
     });
     expect(state?.isArrayFormula, "array metadata không được tạo");
   });
-  await check("Sheet Name Manager opens and Escape closes from document focus", async () => {
+  await check("Sheet Name Manager creates a name and Escape closes from document focus", async () => {
+    await clickCommand("sheet.formula.nameManager");
+    await page.locator("#vno-name-new").click();
+    await page.locator("#vno-name-value").fill("AuditRange");
+    await page.locator("#vno-name-ref").fill("A1:A3");
+    await page.locator(".vno-rule-apply").click();
+    const named = await page.evaluate(async () => (await import("/adapters/libreoffice/common/uno-bridge.js")).globalUnoBridge.activeDocument.grid.namedRangesWorkbook.some(item => item.name === "AuditRange"));
+    expect(named, "Name Manager không lưu tên");
+    await page.locator(".vno-rule-cancel").click();
     await clickCommand("sheet.formula.nameManager");
     await page.locator("body").focus(); await page.keyboard.press("Escape");
     expect(await page.locator(".vno-sheet-rule-dialog").count() === 0, "Name Manager không đóng bằng Escape");
@@ -105,9 +113,20 @@ for (const locale of ["vi", "en"]) {
     const validations = await page.evaluate(async () => (await import("/adapters/libreoffice/common/uno-bridge.js")).globalUnoBridge.activeDocument.grid.dataValidationsBySheet);
     expect(Object.values(validations).some(items => items.length), "validation không được lưu");
   });
-  await check("Sheet Pivot Table dialog and Escape", async () => {
+  await check("Sheet Pivot Table creates a real result sheet and Escape", async () => {
+    await page.locator('.vno-grid-cell[data-coord="A1"]').click();
+    await page.locator('.vno-grid-cell[data-coord="C3"]').click({ modifiers: ["Shift"] });
     await clickCommand("sheet.data.pivotTable");
     expect(await page.locator(".vno-pivot-dialog").count() === 1, "Pivot dialog không mở");
+    await page.locator('input[data-zone="rows"][data-index="1"]').check();
+    await page.locator('input[data-zone="values"][data-index="2"]').check();
+    await page.locator(".vno-rule-apply").click();
+    const pivotCount = await page.evaluate(async () => {
+      const g = (await import("/adapters/libreoffice/common/uno-bridge.js")).globalUnoBridge.activeDocument.grid;
+      return Object.values(g.pivotTablesBySheet).reduce((sum, items) => sum + items.length, 0);
+    });
+    expect(pivotCount > 0, "Pivot Table không được tạo");
+    await clickCommand("sheet.data.pivotTable");
     await page.evaluate(() => document.activeElement?.blur()); await page.keyboard.press("Escape");
     expect(await page.locator(".vno-pivot-dialog").count() === 0, "Pivot dialog không đóng Escape");
   });
@@ -173,12 +192,14 @@ for (const locale of ["vi", "en"]) {
     await page.waitForTimeout(50);
     await clickCommand("slides.shape.insert"); await clickCommand("slides.diagram.insert");
     expect(await page.locator(".vno-diagram-dialog").count() + await page.locator("[data-diagram-type]").count() > 0, "diagram dialog không mở");
-    await page.keyboard.press("Escape");
+    await page.locator('[data-diagram-type="cycle"]').click();
+    await page.locator("#vno-diagram-count").fill("3");
+    await page.locator("#vno-diagram-insert").click();
     const types = await page.evaluate(async () => {
       const c = (await import("/adapters/libreoffice/common/uno-bridge.js")).globalUnoBridge.activeDocument.canvas;
       return c.slides[c.currentSlideIndex].shapes.map(shape => shape.type);
     });
-    expect(types.includes("image") && types.includes("video") && types.includes("audio") && types.includes("rect"), `thiếu object ${types}`);
+    expect(types.includes("image") && types.includes("video") && types.includes("audio") && types.includes("rect") && types.includes("connector"), `thiếu object ${types}`);
   });
   await check("No browser runtime errors", async () => {
     const relevant = errors.filter(error => !error.includes("404") && !error.includes("NotSupportedError"));
