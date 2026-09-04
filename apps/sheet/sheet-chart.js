@@ -98,7 +98,11 @@ export class SheetChartBuilder {
     const chartTypes = [["bar", "chartColumn"], ["line", "chartLine"], ["pie", "chartPie"], ["area", "chartArea"]];
     modal.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-chart-title" style="width:760px;max-width:95vw"><div class="vno-dialog-header"><span id="vno-chart-title">${esc(t("sheetDialogs.chartInsertFrom", { range }))}</span><button class="vno-btn" data-chart-close aria-label="${esc(t("sheetDialogs.close"))}">×</button></div><div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px"><div role="group" aria-label="${esc(t("sheetDialogs.chartType"))}" style="display:flex;gap:8px">${chartTypes.map(([kind, key]) => `<button class="vno-btn${kind === "bar" ? " is-checked" : ""}" data-chart-type="${kind}" aria-pressed="${kind === "bar"}">${esc(t(`sheetDialogs.${key}`))}</button>`).join("")}</div><div data-chart-preview style="height:340px;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden"></div></div><div class="vno-dialog-footer"><button class="vno-btn" data-chart-cancel>${esc(t("sheetDialogs.cancel"))}</button><button class="vno-btn vno-btn-primary" data-chart-apply>${esc(t("sheetDialogs.insertIntoSheet"))}</button></div></div>`;
     const render = () => { modal.querySelector("[data-chart-preview]").innerHTML = this.generateSvg({ type: currentType, title: options.title || t("sheetDialogs.chartDefaultTitle"), labels, data }); };
-    const close = () => modal.remove();
+    const onKeyDown = event => { if (event.key === "Escape") close(); };
+    const close = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      modal.remove();
+    };
     modal.querySelectorAll("[data-chart-type]").forEach(button => button.addEventListener("click", () => {
       currentType = button.dataset.chartType;
       modal.querySelectorAll("[data-chart-type]").forEach(item => { item.classList.toggle("is-checked", item === button); item.setAttribute("aria-pressed", String(item === button)); });
@@ -107,7 +111,7 @@ export class SheetChartBuilder {
     modal.querySelector("[data-chart-close]").addEventListener("click", close);
     modal.querySelector("[data-chart-cancel]").addEventListener("click", close);
     modal.querySelector("[data-chart-apply]").addEventListener("click", () => { onInsert?.(currentType); close(); });
-    modal.addEventListener("keydown", event => { if (event.key === "Escape") close(); });
+    document.addEventListener("keydown", onKeyDown);
     document.body.appendChild(modal); render(); modal.querySelector('[data-chart-type="bar"]').focus();
     return modal;
   }
