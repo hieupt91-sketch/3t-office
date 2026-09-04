@@ -66,6 +66,7 @@ export const FUNCTION_CATALOG = [
   ,{ name: "IRR", category: "Tài chính", syntax: "IRR(values, [guess])", desc: "Tính tỷ suất hoàn vốn nội bộ của chuỗi dòng tiền có ít nhất một giá trị âm và một giá trị dương." }
   ,{ name: "RATE", category: "Tài chính", syntax: "RATE(nper, pmt, pv, [fv], [type], [guess])", desc: "Tính lãi suất mỗi kỳ của niên kim; type là 0 (cuối kỳ) hoặc 1 (đầu kỳ), guess là giá trị dự đoán ban đầu." }
   ,{ name: "SLN", category: "Tài chính", syntax: "SLN(cost, salvage, life)", desc: "Tính khấu hao đường thẳng mỗi kỳ từ nguyên giá, giá trị thu hồi và thời gian sử dụng." }
+  ,{ name: "DB", category: "Tài chính", syntax: "DB(cost, salvage, life, period, [month])", desc: "Tính khấu hao theo số dư giảm dần cố định; month là số tháng trong năm đầu tiên (mặc định 12)." }
 ];
 
 export class FormulaEngine {
@@ -590,6 +591,36 @@ export class FormulaEngine {
         if (![cost, salvage, life].every(Number.isFinite)) return "#VALUE!";
         if (life <= 0) return "#NUM!";
         return (cost - salvage) / life;
+      }
+
+      case "DB": {
+        const cost = Number(this._resolveSingleValue(args[0]));
+        const salvage = Number(this._resolveSingleValue(args[1]));
+        const life = Number(this._resolveSingleValue(args[2]));
+        const period = Number(this._resolveSingleValue(args[3]));
+        const month = args[4] === undefined ? 12 : Number(this._resolveSingleValue(args[4]));
+        if (![cost, salvage, life, period, month].every(Number.isFinite)) return "#VALUE!";
+        const finalPeriod = life + (month < 12 ? 1 : 0);
+        if (cost <= 0 || salvage < 0 || salvage > cost || life <= 0 ||
+            !Number.isInteger(period) || period < 1 || period > finalPeriod ||
+            !Number.isInteger(month) || month < 1 || month > 12) return "#NUM!";
+
+        // Excel làm tròn hệ số giảm dần tới ba chữ số thập phân trước khi tính từng kỳ.
+        const rate = Math.round((1 - Math.pow(salvage / cost, 1 / life)) * 1000) / 1000;
+        let totalDepreciation = 0;
+        let depreciation = 0;
+        for (let currentPeriod = 1; currentPeriod <= period; currentPeriod++) {
+          const remainingValue = cost - totalDepreciation;
+          if (currentPeriod === 1) {
+            depreciation = cost * rate * month / 12;
+          } else if (currentPeriod === life + 1) {
+            depreciation = remainingValue * rate * (12 - month) / 12;
+          } else {
+            depreciation = remainingValue * rate;
+          }
+          totalDepreciation += depreciation;
+        }
+        return Number.isFinite(depreciation) ? depreciation : "#NUM!";
       }
 
       // Logic

@@ -193,5 +193,13 @@ export async function runFormulaAutocompleteTests() {
           sln.desc.includes("nguyên giá") && sln.desc.includes("giá trị thu hồi")
   });
 
+  const db = FUNCTION_CATALOG.find(item => item.name === "DB");
+  results.push({
+    name: "Autocomplete: DB mô tả rõ phương pháp và tham số month",
+    pass: db?.category === "Tài chính" &&
+          db.syntax === "DB(cost, salvage, life, period, [month])" &&
+          db.desc.includes("số dư giảm dần") && db.desc.includes("mặc định 12")
+  });
+
   return results;
 }

@@ -160,5 +160,20 @@ export async function runFormulaEngineTests() {
     pass: slnRes === 180000 && engine.evaluate("=SLN(1000000,100000,0)") === "#NUM!"
   });
 
+  // 16. DB — ví dụ chính thức của Excel: tài sản 1.000.000, thu hồi 100.000,
+  // đời hữu ích 6 năm, năm đầu dùng 7 tháng. Excel lần lượt trả 186.083,33;
+  // 259.639,42 và kỳ cuối 5 tháng là 15.845,10.
+  const dbFirstRes = engine.evaluate("=DB(1000000,100000,6,1,7)");
+  const dbSecondRes = engine.evaluate("=DB(1000000,100000,6,2,7)");
+  const dbLastRes = engine.evaluate("=DB(1000000,100000,6,7,7)");
+  results.push({
+    name: "Financial DB: đúng hệ số làm tròn, tháng đầu và kỳ cuối kiểu Excel",
+    pass: approximatelyEqual(dbFirstRes, 186083.33333333334, 1e-8) &&
+          approximatelyEqual(dbSecondRes, 259639.41666666666, 1e-8) &&
+          approximatelyEqual(dbLastRes, 15845.098473848071, 1e-8) &&
+          engine.evaluate("=DB(1000000,100000,0,1)") === "#NUM!" &&
+          engine.evaluate("=DB(1000000,100000,6,1,13)") === "#NUM!"
+  });
+
   return results;
 }
