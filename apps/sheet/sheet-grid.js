@@ -488,7 +488,11 @@ export class SheetGridController {
 
   setCalculationMode(mode = "automatic") {
     if (!["automatic", "manual"].includes(mode)) return false;
+    const prev = this.calculationMode;
     this.calculationMode = mode;
+    if (prev === "manual" && mode === "automatic") {
+      this.recalculateAll();
+    }
     return this.calculationMode;
   }
 
