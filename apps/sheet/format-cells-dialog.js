@@ -91,22 +91,22 @@ export class FormatCellsDialog {
 
         <!-- Tabs Header (Number is active) -->
         <div class="vno-fc-tabs" role="tablist" aria-label="Các thẻ định dạng ô" style="display:flex; background: #f1f5f9; border-bottom: 1px solid #cbd5e1; padding: 0 8px; gap: 4px;">
-          <button type="button" role="tab" aria-selected="true" class="vno-fc-tab is-active" style="padding: 8px 14px; font-size: 12px; font-weight: 600; color: #0f6d38; background: #ffffff; border: 1px solid #cbd5e1; border-bottom-color: #ffffff; margin-bottom: -1px; border-radius: 4px 4px 0 0; cursor: pointer;">
+          <button type="button" role="tab" aria-selected="true" class="vno-fc-tab is-active">
             ${t("sheetFormatCells.tabNumber", "Số")}
           </button>
-          <button type="button" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1" class="vno-fc-tab" style="padding: 8px 14px; font-size: 12px; font-weight: 500; color: #475569; background: transparent; border: none; cursor: not-allowed;" title="Định dạng số được ưu tiên">
+          <button type="button" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1" class="vno-fc-tab" title="Định dạng số được ưu tiên">
             ${t("sheetFormatCells.tabAlignment", "Căn chỉnh")}
           </button>
-          <button type="button" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1" class="vno-fc-tab" style="padding: 8px 14px; font-size: 12px; font-weight: 500; color: #475569; background: transparent; border: none; cursor: not-allowed;">
+          <button type="button" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1" class="vno-fc-tab">
             ${t("sheetFormatCells.tabFont", "Phông chữ")}
           </button>
-          <button type="button" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1" class="vno-fc-tab" style="padding: 8px 14px; font-size: 12px; font-weight: 500; color: #475569; background: transparent; border: none; cursor: not-allowed;">
+          <button type="button" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1" class="vno-fc-tab">
             ${t("sheetFormatCells.tabBorder", "Đường viền")}
           </button>
-          <button type="button" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1" class="vno-fc-tab" style="padding: 8px 14px; font-size: 12px; font-weight: 500; color: #475569; background: transparent; border: none; cursor: not-allowed;">
+          <button type="button" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1" class="vno-fc-tab">
             ${t("sheetFormatCells.tabFill", "Tô màu")}
           </button>
-          <button type="button" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1" class="vno-fc-tab" style="padding: 8px 14px; font-size: 12px; font-weight: 500; color: #475569; background: transparent; border: none; cursor: not-allowed;">
+          <button type="button" role="tab" aria-selected="false" aria-disabled="true" tabindex="-1" class="vno-fc-tab">
             ${t("sheetFormatCells.tabProtection", "Bảo vệ")}
           </button>
         </div>
@@ -121,8 +121,7 @@ export class FormatCellsDialog {
             <div class="vno-fc-category-list" role="listbox" aria-labelledby="vno-fc-cat-lbl" tabindex="0" style="border: 1px solid #cbd5e1; border-radius: 4px; overflow-y: auto; height: 280px; background: #ffffff; padding: 2px;">
               ${categories.map(cat => `
                 <div class="vno-fc-cat-item ${cat.id === state.category ? 'is-selected' : ''}" data-cat="${cat.id}"
-                     role="option" aria-selected="${cat.id === state.category ? 'true' : 'false'}" tabindex="${cat.id === state.category ? '0' : '-1'}"
-                     style="padding: 5px 10px; font-size: 12px; cursor: pointer; border-radius: 3px; user-select: none; ${cat.id === state.category ? 'background:#e7f4ec; color:#0f6d38; font-weight:600;' : 'color:#1e293b;'}">
+                     role="option" aria-selected="${cat.id === state.category ? 'true' : 'false'}" tabindex="${cat.id === state.category ? '0' : '-1'}">
                   ${cat.label}
                 </div>
               `).join("")}
@@ -227,10 +226,10 @@ export class FormatCellsDialog {
                 ${t("sheetFormatCells.negativeNumbers", "Số âm:")}
               </label>
               <div id="vno-fc-negative-list" role="listbox" aria-labelledby="vno-fc-neg-lbl" tabindex="0" style="border: 1px solid #cbd5e1; border-radius: 4px; max-height: 120px; overflow-y: auto; background: #ffffff;">
-                <div class="vno-fc-neg-item ${state.negativeStyle === 0 ? 'is-selected' : ''}" data-neg="0" role="option" aria-selected="${state.negativeStyle === 0 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 0 ? '0' : '-1'}" style="padding: 4px 8px; font-size: 12px; cursor: pointer; color: #0f172a; ${state.negativeStyle === 0 ? 'background:#e2e8f0;' : ''}">-1234.10</div>
-                <div class="vno-fc-neg-item ${state.negativeStyle === 1 ? 'is-selected' : ''}" data-neg="1" role="option" aria-selected="${state.negativeStyle === 1 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 1 ? '0' : '-1'}" style="padding: 4px 8px; font-size: 12px; cursor: pointer; color: #dc2626; ${state.negativeStyle === 1 ? 'background:#e2e8f0;' : ''}">1234.10</div>
-                <div class="vno-fc-neg-item ${state.negativeStyle === 2 ? 'is-selected' : ''}" data-neg="2" role="option" aria-selected="${state.negativeStyle === 2 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 2 ? '0' : '-1'}" style="padding: 4px 8px; font-size: 12px; cursor: pointer; color: #0f172a; ${state.negativeStyle === 2 ? 'background:#e2e8f0;' : ''}">(1234.10)</div>
-                <div class="vno-fc-neg-item ${state.negativeStyle === 3 ? 'is-selected' : ''}" data-neg="3" role="option" aria-selected="${state.negativeStyle === 3 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 3 ? '0' : '-1'}" style="padding: 4px 8px; font-size: 12px; cursor: pointer; color: #dc2626; ${state.negativeStyle === 3 ? 'background:#e2e8f0;' : ''}">(1234.10)</div>
+                <div class="vno-fc-neg-item ${state.negativeStyle === 0 ? 'is-selected' : ''}" data-neg="0" role="option" aria-selected="${state.negativeStyle === 0 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 0 ? '0' : '-1'}">-1234.10</div>
+                <div class="vno-fc-neg-item ${state.negativeStyle === 1 ? 'is-selected' : ''}" data-neg="1" role="option" aria-selected="${state.negativeStyle === 1 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 1 ? '0' : '-1'}" style="color: #dc2626;">1234.10</div>
+                <div class="vno-fc-neg-item ${state.negativeStyle === 2 ? 'is-selected' : ''}" data-neg="2" role="option" aria-selected="${state.negativeStyle === 2 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 2 ? '0' : '-1'}">(1234.10)</div>
+                <div class="vno-fc-neg-item ${state.negativeStyle === 3 ? 'is-selected' : ''}" data-neg="3" role="option" aria-selected="${state.negativeStyle === 3 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 3 ? '0' : '-1'}" style="color: #dc2626;">(1234.10)</div>
               </div>
             </div>
           `;
@@ -251,11 +250,11 @@ export class FormatCellsDialog {
           negItems.forEach(item => {
             item.addEventListener("click", () => {
               negItems.forEach(i => {
-                i.style.background = "transparent";
+                i.classList.remove("is-selected");
                 i.setAttribute("aria-selected", "false");
                 i.setAttribute("tabindex", "-1");
               });
-              item.style.background = "#e2e8f0";
+              item.classList.add("is-selected");
               item.setAttribute("aria-selected", "true");
               item.setAttribute("tabindex", "0");
               state.negativeStyle = Number(item.dataset.neg);
@@ -295,10 +294,10 @@ export class FormatCellsDialog {
                 ${t("sheetFormatCells.negativeNumbers", "Số âm:")}
               </label>
               <div id="vno-fc-negative-list" role="listbox" aria-labelledby="vno-fc-neg-curr-lbl" tabindex="0" style="border: 1px solid #cbd5e1; border-radius: 4px; max-height: 100px; overflow-y: auto; background: #ffffff;">
-                <div class="vno-fc-neg-item ${state.negativeStyle === 0 ? 'is-selected' : ''}" data-neg="0" role="option" aria-selected="${state.negativeStyle === 0 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 0 ? '0' : '-1'}" style="padding: 4px 8px; font-size: 12px; cursor: pointer; color: #0f172a; ${state.negativeStyle === 0 ? 'background:#e2e8f0;' : ''}">-1,234.10 ₫</div>
-                <div class="vno-fc-neg-item ${state.negativeStyle === 1 ? 'is-selected' : ''}" data-neg="1" role="option" aria-selected="${state.negativeStyle === 1 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 1 ? '0' : '-1'}" style="padding: 4px 8px; font-size: 12px; cursor: pointer; color: #dc2626; ${state.negativeStyle === 1 ? 'background:#e2e8f0;' : ''}">1,234.10 ₫</div>
-                <div class="vno-fc-neg-item ${state.negativeStyle === 2 ? 'is-selected' : ''}" data-neg="2" role="option" aria-selected="${state.negativeStyle === 2 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 2 ? '0' : '-1'}" style="padding: 4px 8px; font-size: 12px; cursor: pointer; color: #0f172a; ${state.negativeStyle === 2 ? 'background:#e2e8f0;' : ''}">(1,234.10 ₫)</div>
-                <div class="vno-fc-neg-item ${state.negativeStyle === 3 ? 'is-selected' : ''}" data-neg="3" role="option" aria-selected="${state.negativeStyle === 3 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 3 ? '0' : '-1'}" style="padding: 4px 8px; font-size: 12px; cursor: pointer; color: #dc2626; ${state.negativeStyle === 3 ? 'background:#e2e8f0;' : ''}">(1,234.10 ₫)</div>
+                <div class="vno-fc-neg-item ${state.negativeStyle === 0 ? 'is-selected' : ''}" data-neg="0" role="option" aria-selected="${state.negativeStyle === 0 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 0 ? '0' : '-1'}">-1,234.10 ₫</div>
+                <div class="vno-fc-neg-item ${state.negativeStyle === 1 ? 'is-selected' : ''}" data-neg="1" role="option" aria-selected="${state.negativeStyle === 1 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 1 ? '0' : '-1'}" style="color: #dc2626;">1,234.10 ₫</div>
+                <div class="vno-fc-neg-item ${state.negativeStyle === 2 ? 'is-selected' : ''}" data-neg="2" role="option" aria-selected="${state.negativeStyle === 2 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 2 ? '0' : '-1'}">(1,234.10 ₫)</div>
+                <div class="vno-fc-neg-item ${state.negativeStyle === 3 ? 'is-selected' : ''}" data-neg="3" role="option" aria-selected="${state.negativeStyle === 3 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 3 ? '0' : '-1'}" style="color: #dc2626;">(1,234.10 ₫)</div>
               </div>
             </div>
           `;
@@ -319,11 +318,11 @@ export class FormatCellsDialog {
           negItems.forEach(item => {
             item.addEventListener("click", () => {
               negItems.forEach(i => {
-                i.style.background = "transparent";
+                i.classList.remove("is-selected");
                 i.setAttribute("aria-selected", "false");
                 i.setAttribute("tabindex", "-1");
               });
-              item.style.background = "#e2e8f0";
+              item.classList.add("is-selected");
               item.setAttribute("aria-selected", "true");
               item.setAttribute("tabindex", "0");
               state.negativeStyle = Number(item.dataset.neg);
@@ -401,8 +400,7 @@ export class FormatCellsDialog {
               <div id="vno-fc-date-list" role="listbox" aria-labelledby="vno-fc-date-lbl" tabindex="0" style="border: 1px solid #cbd5e1; border-radius: 4px; height: 160px; overflow-y: auto; background: #ffffff;">
                 ${dateFormats.map(df => `
                   <div class="vno-fc-date-item ${state.dateFormat === df.id ? 'is-selected' : ''}" data-fmt="${df.id}"
-                       role="option" aria-selected="${state.dateFormat === df.id ? 'true' : 'false'}" tabindex="${state.dateFormat === df.id ? '0' : '-1'}"
-                       style="padding: 6px 10px; font-size: 12px; cursor: pointer; ${state.dateFormat === df.id ? 'background:#e7f4ec; color:#0f6d38; font-weight:600;' : 'color:#1e293b;'}">
+                       role="option" aria-selected="${state.dateFormat === df.id ? 'true' : 'false'}" tabindex="${state.dateFormat === df.id ? '0' : '-1'}">
                     ${df.label}
                   </div>
                 `).join("")}
@@ -417,15 +415,11 @@ export class FormatCellsDialog {
           dateItems.forEach(item => {
             item.addEventListener("click", () => {
               dateItems.forEach(i => {
-                i.style.background = "transparent";
-                i.style.color = "#1e293b";
-                i.style.fontWeight = "normal";
+                i.classList.remove("is-selected");
                 i.setAttribute("aria-selected", "false");
                 i.setAttribute("tabindex", "-1");
               });
-              item.style.background = "#e7f4ec";
-              item.style.color = "#0f6d38";
-              item.style.fontWeight = "600";
+              item.classList.add("is-selected");
               item.setAttribute("aria-selected", "true");
               item.setAttribute("tabindex", "0");
               state.dateFormat = item.dataset.fmt;
@@ -519,8 +513,7 @@ export class FormatCellsDialog {
               <div id="vno-fc-custom-list" role="listbox" aria-label="${t("sheetFormatCells.customType", "Mã định dạng (Type):")}" tabindex="0" style="border: 1px solid #cbd5e1; border-radius: 4px; height: 140px; overflow-y: auto; background: #ffffff; margin-top: 4px;">
                 ${customPatterns.map(p => `
                   <div class="vno-fc-pattern-item ${state.customPattern === p ? 'is-selected' : ''}" data-pattern="${p}"
-                       role="option" aria-selected="${state.customPattern === p ? 'true' : 'false'}" tabindex="${state.customPattern === p ? '0' : '-1'}"
-                       style="padding: 4px 8px; font-size: 12px; font-family: monospace; cursor: pointer; ${state.customPattern === p ? 'background:#e7f4ec; color:#0f6d38;' : 'color:#1e293b;'}">
+                       role="option" aria-selected="${state.customPattern === p ? 'true' : 'false'}" tabindex="${state.customPattern === p ? '0' : '-1'}">
                     ${p}
                   </div>
                 `).join("")}
@@ -538,13 +531,11 @@ export class FormatCellsDialog {
           patternItems.forEach(item => {
             item.addEventListener("click", () => {
               patternItems.forEach(i => {
-                i.style.background = "transparent";
-                i.style.color = "#1e293b";
+                i.classList.remove("is-selected");
                 i.setAttribute("aria-selected", "false");
                 i.setAttribute("tabindex", "-1");
               });
-              item.style.background = "#e7f4ec";
-              item.style.color = "#0f6d38";
+              item.classList.add("is-selected");
               item.setAttribute("aria-selected", "true");
               item.setAttribute("tabindex", "0");
               patternInput.value = item.dataset.pattern;
@@ -569,9 +560,6 @@ export class FormatCellsDialog {
         i.classList.toggle("is-selected", isMatch);
         i.setAttribute("aria-selected", isMatch ? "true" : "false");
         i.setAttribute("tabindex", isMatch ? "0" : "-1");
-        i.style.background = isMatch ? "#e7f4ec" : "transparent";
-        i.style.color = isMatch ? "#0f6d38" : "#1e293b";
-        i.style.fontWeight = isMatch ? "600" : "normal";
       });
       state.category = catItems[index].dataset.cat;
       catItems[index].focus();

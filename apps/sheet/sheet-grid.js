@@ -4324,6 +4324,7 @@ export class SheetGridController {
 
   _createSheetDialog(title, bodyHtml) {
     if (typeof document === "undefined") return null;
+    const previousActive = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay vno-sheet-rule-dialog";
     overlay.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-label="${title}">
@@ -4332,15 +4333,37 @@ export class SheetGridController {
       <div class="vno-dialog-footer"><button class="vno-btn vno-rule-cancel">${t("sheetDialogs.cancel")}</button><button class="vno-btn vno-btn-primary vno-rule-apply">${t("sheetDialogs.apply")}</button></div>
     </div>`;
     const onKey = (event) => {
-      if (event.key === "Escape") close();
+      if (event.key === "Escape") {
+        close();
+      } else if (event.key === "Tab") {
+        const dialogBox = overlay.querySelector(".vno-dialog-box");
+        const focusables = dialogBox ? Array.from(dialogBox.querySelectorAll('button:not([disabled]), select:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0) : [];
+        if (focusables.length > 0) {
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (event.shiftKey && (document.activeElement === first || !dialogBox.contains(document.activeElement))) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && (document.activeElement === last || !dialogBox.contains(document.activeElement))) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      }
     };
     const close = () => {
       document.removeEventListener("keydown", onKey);
       overlay.remove();
+      if (previousActive && typeof previousActive.focus === "function") {
+        try { previousActive.focus(); } catch (_) {}
+      }
     };
     overlay.closeDialog = close;
     overlay.querySelector(".vno-rule-close").addEventListener("click", close);
     overlay.querySelector(".vno-rule-cancel").addEventListener("click", close);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) close();
+    });
     document.addEventListener("keydown", onKey);
     document.body.appendChild(overlay);
     overlay.querySelector("select, input")?.focus();

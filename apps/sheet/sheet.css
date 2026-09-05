@@ -175,7 +175,18 @@
 }
 
 .vno-sheet-rule-dialog fieldset { display: grid; gap: 6px; max-height: 180px; overflow: auto; margin: 10px 0; }
-.vno-sheet-rule-dialog fieldset label { display: flex; align-items: center; gap: 7px; }
+.vno-sheet-rule-dialog fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.vno-sheet-rule-dialog fieldset label:hover {
+  background-color: #f1f5f9;
+}
 .vno-data-preview { margin-top: 10px; padding: 10px; border: 1px solid #bbf7d0; background: #f0fdf4; font-family: Consolas, monospace; }
 .vno-row-header:hover {
   background-color: var(--vno-sheet-light);
@@ -258,13 +269,56 @@
   font: inherit;
 }
 
-.vno-sheet-rule-dialog .vno-dialog-box { width: 460px; }
+.vno-sheet-rule-dialog .vno-dialog-box {
+  width: 460px;
+  animation: vnoGalleryModalFadeIn 0.15s ease-out;
+}
 .vno-sheet-rule-dialog .vno-dialog-body { display: grid; gap: 12px; }
 .vno-sheet-rule-dialog label { display: grid; gap: 5px; color: #334155; font-size: 12px; font-weight: 600; }
 .vno-sheet-rule-dialog input,
-.vno-sheet-rule-dialog select { border: 1px solid #94a3b8; border-radius: 4px; padding: 7px 8px; font: inherit; }
+.vno-sheet-rule-dialog select {
+  border: 1px solid #94a3b8;
+  border-radius: 4px;
+  padding: 7px 8px;
+  font: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
 .vno-sheet-rule-dialog input:focus,
-.vno-sheet-rule-dialog select:focus { outline: 2px solid #86efac; border-color: #0f6d38; }
+.vno-sheet-rule-dialog select:focus {
+  outline: 2px solid #86efac;
+  border-color: #0f6d38;
+  box-shadow: 0 0 0 2px rgba(15, 109, 56, 0.15);
+}
+.vno-sheet-rule-dialog input:disabled,
+.vno-sheet-rule-dialog select:disabled,
+.vno-sheet-rule-dialog button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.vno-sheet-rule-dialog .vno-rule-close {
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.12s ease, color 0.12s ease, transform 0.1s ease;
+}
+.vno-sheet-rule-dialog .vno-rule-close:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+.vno-sheet-rule-dialog .vno-rule-close:active {
+  transform: scale(0.92);
+}
+.vno-sheet-rule-dialog .vno-dialog-footer .vno-btn {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+.vno-sheet-rule-dialog .vno-dialog-footer .vno-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
 .vno-rule-range { margin: 0; padding: 8px; border-radius: 4px; background: #f1f5f9; font-size: 12px; }
 .vno-rule-error { min-height: 16px; color: #b91c1c; font-size: 12px; }
 #vno-dv-number-row { grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -579,6 +633,191 @@ tr.is-filtered-out {
 .vno-pivot-field { display:grid; grid-template-columns:minmax(120px,1fr) repeat(3,auto) 105px; gap:10px; align-items:center; padding:7px; border-bottom:1px solid #e2e8f0; }
 .vno-pivot-field:last-child { border-bottom:0; }
 .vno-name-manager{display:flex;flex-direction:column;gap:12px;min-width:520px}.vno-name-list{border:1px solid var(--vno-border-default);border-radius:6px;max-height:220px;overflow:auto}.vno-name-row{display:grid;grid-template-columns:1.2fr 1fr 1fr;width:100%;padding:8px 10px;border:0;border-bottom:1px solid var(--vno-border-default);background:transparent;text-align:left;cursor:pointer}.vno-name-row:hover,.vno-name-row.is-selected{background:#e7f4ec}.vno-name-actions{display:flex;gap:8px}.vno-name-form{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.vno-name-form label{display:flex;flex-direction:column;gap:4px;font-size:12px}.vno-name-form input,.vno-name-form select{padding:7px;border:1px solid var(--vno-border-default);border-radius:4px}.vno-name-empty{padding:18px;text-align:center;color:var(--vno-text-secondary)}
+
+/* ==========================================================================
+   FORMAT CELLS DIALOG (CTRL+1) MICROINTERACTIONS
+   ========================================================================== */
+.vno-format-cells-box {
+  animation: vnoFormatCellsFadeIn 0.15s ease-out;
+}
+@keyframes vnoFormatCellsFadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.vno-fc-tab {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.vno-fc-tab:hover:not([aria-disabled="true"]) {
+  background-color: #ffffff;
+  color: #0f6d38;
+}
+.vno-fc-tab.is-active {
+  color: #0f6d38 !important;
+  font-weight: 600;
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1;
+  border-bottom-color: #ffffff;
+  margin-bottom: -1px;
+}
+.vno-fc-tab[aria-disabled="true"] {
+  cursor: not-allowed !important;
+  opacity: 0.65;
+}
+.vno-fc-tab[aria-disabled="true"]:hover {
+  background-color: transparent !important;
+  color: #475569 !important;
+}
+
+.vno-fc-cat-item {
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  user-select: none;
+  color: #1e293b;
+  background-color: transparent;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.vno-fc-cat-item:hover:not(.is-selected) {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+.vno-fc-cat-item:active {
+  transform: scale(0.98);
+}
+.vno-fc-cat-item.is-selected {
+  background-color: #e7f4ec;
+  color: #0f6d38;
+  font-weight: 600;
+}
+.vno-fc-cat-item:focus-visible {
+  outline: 2px solid #0f6d38;
+  outline-offset: -1px;
+}
+
+.vno-fc-neg-item,
+.vno-fc-date-item,
+.vno-fc-pattern-item {
+  padding: 5px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  color: #1e293b;
+  background-color: transparent;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.vno-fc-neg-item:hover:not(.is-selected),
+.vno-fc-date-item:hover:not(.is-selected),
+.vno-fc-pattern-item:hover:not(.is-selected) {
+  background-color: #f1f5f9;
+}
+.vno-fc-neg-item:active,
+.vno-fc-date-item:active,
+.vno-fc-pattern-item:active {
+  transform: scale(0.98);
+}
+.vno-fc-neg-item.is-selected,
+.vno-fc-date-item.is-selected,
+.vno-fc-pattern-item.is-selected {
+  background-color: #e7f4ec;
+  color: #0f6d38;
+  font-weight: 600;
+}
+
+.vno-fc-close-btn,
+.vno-fc-cancel-btn,
+.vno-fc-ok-btn {
+  transition: all 0.12s ease-in-out;
+}
+.vno-fc-close-btn:hover {
+  background-color: #fee2e2 !important;
+  color: #b91c1c !important;
+}
+.vno-fc-close-btn:active,
+.vno-fc-cancel-btn:active,
+.vno-fc-ok-btn:active {
+  transform: scale(0.96);
+}
+.vno-fc-cancel-btn:hover {
+  background-color: #f1f5f9 !important;
+}
+.vno-fc-ok-btn:hover {
+  background-color: #0d5c2f !important;
+}
+
+/* ==========================================================================
+   CELL STYLES & TABLE STYLES GALLERY MICROINTERACTIONS
+   ========================================================================== */
+.vno-cell-styles-dialog .vno-dialog-box,
+.vno-format-table-dialog .vno-dialog-box {
+  animation: vnoGalleryModalFadeIn 0.15s ease-out;
+}
+@keyframes vnoGalleryModalFadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.vno-cell-style-card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  user-select: none;
+}
+.vno-cell-style-card:hover {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 3px 10px rgba(59, 130, 246, 0.16) !important;
+  transform: translateY(-1px);
+}
+.vno-cell-style-card:active {
+  transform: translateY(0) scale(0.98);
+}
+.vno-cell-style-card:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.vno-table-style-card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  user-select: none;
+}
+.vno-table-style-card:hover {
+  border-color: #2563eb !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.14) !important;
+  transform: translateY(-1px);
+}
+.vno-table-style-card:active {
+  transform: translateY(0) scale(0.98);
+}
+.vno-table-style-card:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
 
 /* In tài liệu (window.print()) — ẩn formula bar & thanh tab sheet, chỉ in lưới dữ liệu */
 @media print {

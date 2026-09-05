@@ -190,13 +190,10 @@ export class RibbonHost {
         launcherBtn.title = tooltip;
         launcherBtn.setAttribute("aria-label", tooltip);
         launcherBtn.setAttribute("data-command", group.launcherCommandId);
-        launcherBtn.style.cssText = "position:absolute; right:0; bottom:0; width:14px; height:14px; padding:0; display:flex; align-items:center; justify-content:center; border:none; background:transparent; cursor:pointer; color:var(--vno-text-muted); opacity:0.75;";
         launcherBtn.innerHTML = ICONS.dialogLauncher || "";
         launcherBtn.addEventListener("click", () => {
           globalCommandBus?.execute?.(group.launcherCommandId);
         });
-        launcherBtn.addEventListener("mouseenter", () => { launcherBtn.style.opacity = "1"; });
-        launcherBtn.addEventListener("mouseleave", () => { launcherBtn.style.opacity = "0.75"; });
         labelRowEl.appendChild(launcherBtn);
       }
 

@@ -327,18 +327,34 @@
   border-radius: 6px;
   padding: 10px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  user-select: none;
 }
 .vno-theme-card:hover {
   border-color: #94a3b8;
-  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
 }
-.vno-theme-card.is-selected {
+.vno-theme-card:active {
+  transform: translateY(0) scale(0.98);
+}
+.vno-theme-card.is-selected,
+.vno-theme-card[aria-checked="true"] {
   border-color: var(--vno-slides-primary, #b53818);
   background-color: #fef2f2;
+  box-shadow: 0 0 0 1px rgba(181, 56, 24, 0.25);
+}
+.vno-theme-card.is-selected:hover,
+.vno-theme-card[aria-checked="true"]:hover {
+  border-color: #991b1b;
+  box-shadow: 0 4px 12px rgba(181, 56, 24, 0.15);
+}
+.vno-theme-card:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Object Entrance Animations */
@@ -800,7 +816,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
   user-select: none;
 }
 
@@ -808,6 +824,10 @@
   border-color: var(--vno-slides-primary, #b53818);
   outline: 2px solid rgba(181, 56, 24, 0.35);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.07);
+  transform: translateY(-1px);
+}
+.vno-layout-card:active {
+  transform: translateY(0) scale(0.98);
 }
 
 .vno-theme-card:focus-visible {
@@ -822,7 +842,8 @@
   outline-offset: 2px;
 }
 
-.vno-layout-card.is-selected {
+.vno-layout-card.is-selected,
+.vno-layout-card[aria-checked="true"] {
   border-color: var(--vno-slides-primary, #b53818);
   background-color: #fff9f8;
   box-shadow: 0 0 0 2px rgba(181, 56, 24, 0.22);
@@ -924,8 +945,24 @@
 .vno-sorter-shape-node { position: absolute; z-index: 1; display: flex; align-items: center; justify-content: center; padding: 2px; box-sizing: border-box; overflow: hidden; color: #fff; font-size: 6px; font-weight: 700; text-align: center; }
 .vno-slide-sorter-actions { display: flex; justify-content: flex-end; gap: 7px; padding-top: 8px; opacity: .25; transition: opacity .15s; }
 .vno-slide-sorter-item:hover .vno-slide-sorter-actions, .vno-slide-sorter-item:focus-within .vno-slide-sorter-actions { opacity: 1; }
-.vno-slide-sorter-actions button { border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; padding: 4px 8px; color: #334155; cursor: pointer; font-size: 11px; }
-.vno-slide-sorter-actions button:hover { border-color: #b53818; color: #b53818; }
+.vno-slide-sorter-actions button {
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  padding: 4px 8px;
+  color: #334155;
+  cursor: pointer;
+  font-size: 11px;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, transform 0.1s ease;
+}
+.vno-slide-sorter-actions button:hover {
+  border-color: #b53818;
+  color: #b53818;
+  background-color: #fff7ed;
+}
+.vno-slide-sorter-actions button:active:not(:disabled) {
+  transform: scale(0.95);
+}
 .vno-slide-sorter-actions button:disabled { opacity: .45; cursor: not-allowed; }
 @media (max-width: 620px) {
   .vno-slide-sorter-grid { grid-template-columns: 1fr; padding: 16px; gap: 14px; }
@@ -934,9 +971,40 @@
 /* Diagram chooser */
 .vno-diagram-hint { margin: 0 0 14px; color: #475569; font-size: 13px; }
 .vno-diagram-type-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-.vno-diagram-type { min-height: 100px; padding: 12px; border: 2px solid #cbd5e1; border-radius: 8px; background: #fff; color: #334155; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.vno-diagram-type:hover, .vno-diagram-type:focus-visible { border-color: #b53818; outline: none; }
-.vno-diagram-type.is-selected { border-color: #b53818; background: #fff7ed; box-shadow: 0 0 0 3px rgba(181,56,24,.14); }
+.vno-diagram-type {
+  min-height: 100px;
+  padding: 12px;
+  border: 2px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+  user-select: none;
+}
+.vno-diagram-type:hover {
+  border-color: #b53818;
+  box-shadow: 0 4px 10px rgba(181, 56, 24, 0.12);
+  transform: translateY(-1px);
+}
+.vno-diagram-type:focus-visible {
+  border-color: #b53818;
+  outline: 2px solid rgba(181, 56, 24, 0.35);
+  outline-offset: 1px;
+}
+.vno-diagram-type:active {
+  transform: translateY(0) scale(0.97);
+}
+.vno-diagram-type.is-selected,
+.vno-diagram-type[aria-checked="true"] {
+  border-color: #b53818;
+  background: #fff7ed;
+  box-shadow: 0 0 0 3px rgba(181, 56, 24, 0.14);
+}
 .vno-diagram-type-preview { min-height: 42px; color: #2563eb; font-size: 20px; line-height: 1.05; white-space: nowrap; }
 .vno-diagram-count { margin-top: 16px; display: flex; align-items: center; justify-content: space-between; font-weight: 600; color: #334155; }
 .vno-diagram-count input { width: 76px; padding: 7px 9px; border: 1px solid #94a3b8; border-radius: 5px; font: inherit; }
