@@ -28,7 +28,7 @@ export async function runSheetFormatDropdownTests() {
     catch (error) { results.push({ name, pass: false, error: error.message }); }
   };
 
-  await test("Ribbon: nhóm Ô có dropdown Định dạng với 8 lệnh hàng/cột", () => {
+  await test("Ribbon: nhóm Ô có dropdown Định dạng với lệnh hàng/cột và quản lý trang tính", () => {
     const home = SHEET_RIBBON_TABS.find(tab => tab.id === "home");
     const cells = home.groups.find(group => group.id === "cells");
     const dropdown = flatten(cells.items).find(item => item.id === "sheet.cells.format")
@@ -37,7 +37,8 @@ export async function runSheetFormatDropdownTests() {
     const ids = dropdown.items.map(item => item.commandId);
     const expected = [
       "sheet.row.height", "sheet.row.autoFit", "sheet.col.width", "sheet.col.autoFit",
-      "sheet.row.hide", "sheet.row.unhide", "sheet.col.hide", "sheet.col.unhide"
+      "sheet.row.hide", "sheet.row.unhide", "sheet.col.hide", "sheet.col.unhide",
+      "sheet.sheet.rename", "sheet.sheet.moveOrCopy", "sheet.sheet.protect"
     ];
     assert(JSON.stringify(ids) === JSON.stringify(expected), `Mục dropdown sai: ${ids.join(", ")}`);
     expected.forEach(id => {
