@@ -41,7 +41,10 @@ export async function runWriterHelpTests() {
       if (!ids.includes(id)) throw new Error(`Thiếu bài hướng dẫn ${id}`);
     }
     if (getHelpEntriesForApp("writer").length < 6) throw new Error("Catalog Writer quá mỏng");
-    if (getHelpEntriesForApp("sheet").length !== 0) throw new Error("Sheet chưa được phép có entry trong task này");
+    const writerOnly = getHelpEntriesForApp("writer");
+    if (writerOnly.some((entry) => entry.app !== "writer")) {
+      throw new Error("getHelpEntriesForApp(writer) lẫn entry app khác");
+    }
   });
 
   await test("Help: mỗi bài có tiêu đề, mô tả, vị trí ribbon và bước dùng thật (không placeholder)", () => {

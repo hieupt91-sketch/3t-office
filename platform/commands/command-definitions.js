@@ -298,7 +298,8 @@ export const SHEET_COMMANDS = [
   { id: "sheet.edit.fillRight", category: "edit", label: "Điền phải", shortcut: "Ctrl+R", icon: "fillRight", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" },
   { id: "sheet.edit.clearAll", category: "edit", label: "Xóa tất cả", icon: "clearAll", tooltip: "Xóa toàn bộ nội dung, công thức và định dạng của các ô đã chọn" },
   { id: "sheet.edit.clearFormats", category: "edit", label: "Xóa định dạng", icon: "clearFormat", tooltip: "Xóa định dạng ô và đưa về mặc định nhưng giữ nguyên nội dung" },
-  { id: "sheet.edit.clearContents", category: "edit", label: "Xóa nội dung", icon: "clearContents", tooltip: "Xóa nội dung và công thức của ô nhưng giữ nguyên định dạng" }
+  { id: "sheet.edit.clearContents", category: "edit", label: "Xóa nội dung", icon: "clearContents", tooltip: "Xóa nội dung và công thức của ô nhưng giữ nguyên định dạng" },
+  { id: "sheet.help.open", category: "help", label: "Trợ giúp", shortcut: "F1", icon: "help", tooltip: "Mở hướng dẫn sử dụng (F1)", isToggle: true }
 ];
 
 export const SLIDES_COMMANDS = [
@@ -379,7 +380,8 @@ export const SLIDES_COMMANDS = [
   { id: "slides.para.justify", category: "paragraph", label: "Căn đều", shortcut: "Ctrl+J", icon: "alignJustify", tooltip: "Căn đều hai bên (Ctrl+J)", isToggle: true },
   { id: "slides.para.indentInc", category: "paragraph", label: "Thụt lề", icon: "indentInc", tooltip: "Tăng thụt lề đoạn văn" },
   { id: "slides.para.indentDec", category: "paragraph", label: "Giảm thụt lề", icon: "indentDec", tooltip: "Giảm thụt lề đoạn văn" },
-  { id: "slides.para.lineSpacing", category: "paragraph", label: "Giãn dòng", icon: "alignLeft", tooltip: "Chọn khoảng cách dòng 1.0 / 1.5 / 2.0" }
+  { id: "slides.para.lineSpacing", category: "paragraph", label: "Giãn dòng", icon: "alignLeft", tooltip: "Chọn khoảng cách dòng 1.0 / 1.5 / 2.0" },
+  { id: "slides.help.open", category: "help", label: "Trợ giúp", shortcut: "F1", icon: "help", tooltip: "Mở hướng dẫn sử dụng (F1)", isToggle: true }
 ];
 
 export function registerAllStandardCommands(bus) {

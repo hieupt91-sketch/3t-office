@@ -129,6 +129,7 @@ export class SheetAdapter {
       return this.grid.showSpellcheckDialog(args);
     });
     globalShortcutManager.bind("F7", "sheet.review.spellCheck", "sheet");
+    globalShortcutManager.bind("F1", "sheet.help.open", "sheet");
     globalCommandBus.bindHandler("sheet.review.commentInsert", (args) => {
       args = args || {};
       return this.grid.showCommentDialog(args);

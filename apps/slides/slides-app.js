@@ -9,6 +9,9 @@ import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.
 import { bootstrapPlatform } from "../../platform/bootstrap.js";
 import { applyLocaleToTabs } from "../../platform/i18n/i18n.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
+import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { HelpPanel } from "../../platform/help/index.js";
+import "../../platform/help/entries-slides.js";
 
 export class SlidesApp {
   constructor(mountElement) {
@@ -16,6 +19,7 @@ export class SlidesApp {
     this.shell = null;
     this.canvasController = null;
     this.adapter = null;
+    this.helpPanel = null;
     this._lifecycleObserver = null;
   }
 
@@ -33,9 +37,15 @@ export class SlidesApp {
     this._watchLifecycle();
     this.shell.ribbonHost.setStructure(applyLocaleToTabs(SLIDES_RIBBON_TABS), "home");
 
+    const workspace = document.createElement("div");
+    workspace.className = "vno-slides-workspace";
+
     const studioWrap = document.createElement("div");
-    studioWrap.style.width = "100%";
+    studioWrap.style.flex = "1 1 auto";
+    studioWrap.style.minWidth = "0";
+    studioWrap.style.minHeight = "0";
     studioWrap.style.height = "100%";
+    workspace.appendChild(studioWrap);
 
     this.canvasController = new SlidesCanvasController(studioWrap, {
       onChange: (current, total) => {
@@ -53,7 +63,14 @@ export class SlidesApp {
       if (tabEl) tabEl.textContent = "Bản trình chiếu 1.pptx";
     }
 
-    this.shell.setEditorCanvas(studioWrap);
+    this.helpPanel = new HelpPanel({ app: "slides" });
+    this.helpPanel.mount(workspace);
+    globalCommandBus.bindHandler("slides.help.open", (args) => {
+      if (args?.entryId || args?.query != null) return this.helpPanel.open(args);
+      return this.helpPanel.toggle();
+    });
+
+    this.shell.setEditorCanvas(workspace);
 
     this.adapter = new SlidesAdapter(this.canvasController);
     this.adapter.setShell(this.shell);
@@ -75,6 +92,8 @@ export class SlidesApp {
   destroy() {
     this._lifecycleObserver?.disconnect();
     this._lifecycleObserver = null;
+    this.helpPanel?.destroy();
+    this.helpPanel = null;
     this.canvasController?.destroy?.();
   }
 }
