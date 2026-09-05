@@ -516,6 +516,22 @@ export class SheetAdapter {
     const validationsByCell = new Map();
     const odfAddress = (sheetName, cell) => `'${String(sheetName).replace(/'/g, "''")}'.${cell}`;
     const rangeAddress = (sheetName, range) => `${odfAddress(sheetName, `${range.start.c}${range.start.r}`)}:${odfAddress(sheetName, `${range.end.c}${range.end.r}`)}`;
+    const usedRange = sheetName => {
+      const cells = this.grid.sheetsData?.[sheetName]
+        || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
+        || new Map();
+      let minRow = Infinity, maxRow = 0, minColumn = Infinity, maxColumn = 0;
+      for (const [coordinate, item] of cells.entries()) {
+        const match = String(coordinate).match(/^([A-Z]+)(\d+)$/);
+        if (!match || !item || ((item.val === "" || item.val === undefined || item.val === null) && !item.formula)) continue;
+        const row = Number(match[2]);
+        const column = this._columnNumber(match[1]);
+        minRow = Math.min(minRow, row); maxRow = Math.max(maxRow, row);
+        minColumn = Math.min(minColumn, column); maxColumn = Math.max(maxColumn, column);
+      }
+      if (!maxRow || !maxColumn) return { start: { c: "A", r: 1 }, end: { c: "A", r: 1 } };
+      return { start: { c: this._columnName(minColumn), r: minRow }, end: { c: this._columnName(maxColumn), r: maxRow } };
+    };
     const normalizedColor = color => String(color || "#fff2cc").trim().toLowerCase();
     const styleForColor = color => {
       const normalized = normalizedColor(color);
@@ -695,6 +711,34 @@ export class SheetAdapter {
       return `<table:table table:name="${this._escapeXml(sheetName)}"${printRangeAttr}>${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}</table:table>`;
     }).join("");
 
+    const dataPilotTables = [];
+    for (const [ownerSheet, pivots] of Object.entries(this.grid.pivotTablesBySheet || {})) {
+      for (const pivot of pivots || []) {
+        const sourceSheet = pivot?.sourceSheet;
+        const targetSheet = pivot?.targetSheet || ownerSheet;
+        const source = String(pivot?.sourceRange || "").trim().toUpperCase().match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
+        if (!source || !sheetNames.includes(sourceSheet) || !sheetNames.includes(targetSheet)) continue;
+        const fields = [];
+        for (const field of pivot.rows || []) {
+          if (field) fields.push(`<table:data-pilot-field table:source-field-name="${this._escapeXml(field)}" table:orientation="row" table:function="auto"/>`);
+        }
+        for (const field of pivot.columns || []) {
+          if (field) fields.push(`<table:data-pilot-field table:source-field-name="${this._escapeXml(field)}" table:orientation="column" table:function="auto"/>`);
+        }
+        for (const value of pivot.values || []) {
+          const fn = this._dataPilotFunction(value?.aggregate);
+          if (value?.field && fn) fields.push(`<table:data-pilot-field table:source-field-name="${this._escapeXml(value.field)}" table:orientation="data" table:function="${fn}"/>`);
+        }
+        if (!fields.some(field => /table:orientation="data"/.test(field))) continue;
+        const sourceRange = {
+          start: { c: source[1], r: Number(source[2]) },
+          end: { c: source[3], r: Number(source[4]) }
+        };
+        dataPilotTables.push(`<table:data-pilot-table table:name="${this._escapeXml(pivot.name || pivot.id || `Pivot ${dataPilotTables.length + 1}`)}" table:target-range-address="${this._escapeXml(rangeAddress(targetSheet, usedRange(targetSheet)))}"><table:source-cell-range table:cell-range-address="${this._escapeXml(rangeAddress(sourceSheet, sourceRange))}"/>${fields.join("")}</table:data-pilot-table>`);
+      }
+    }
+    const dataPilotXml = dataPilotTables.length ? `<table:data-pilot-tables>${dataPilotTables.join("")}</table:data-pilot-tables>` : "";
+
     const activeSheet = sheetNames.includes(this.grid.activeSheet) ? this.grid.activeSheet : sheetNames[0];
     const tableViewsXml = sheetNames.map(sheetName => `<config:config-item-map-entry config:name="${this._escapeXml(sheetName)}">
           <config:config-item config:name="CursorPositionX" config:type="int">0</config:config-item>
@@ -724,7 +768,7 @@ export class SheetAdapter {
       </config:config-item-map-entry></config:config-item-map-indexed>
     </config:config-item-set>
   </office:settings>
-  <office:body><office:spreadsheet>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}</office:spreadsheet></office:body>
+  <office:body><office:spreadsheet>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}</office:spreadsheet></office:body>
 </office:document>`;
   }
 
@@ -923,6 +967,11 @@ export class SheetAdapter {
     if (raw === "max") return "MAX";
     if (raw === "sum" || raw === "auto" || raw === "") return "SUM";
     return null;
+  }
+
+  _dataPilotFunction(aggregate) {
+    const raw = String(aggregate || "SUM").trim().toUpperCase();
+    return ({ SUM: "sum", COUNT: "count", AVERAGE: "average", MIN: "min", MAX: "max" })[raw] || null;
   }
 
   _a1FromOdfRange(parsed) {

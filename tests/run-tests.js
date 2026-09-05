@@ -72,6 +72,7 @@ import { runSheetCfValidationFodsRoundTripTests } from "./unit/sheet-cf-validati
 import { runWriterTrackChangesImportTests } from "./unit/writer-trackchanges-import.test.js";
 import { runWriterCommentsImportTests } from "./unit/writer-comments-import.test.js";
 import { runSheetPivotImportTests } from "./unit/sheet-pivot-import.test.js";
+import { runSheetPivotSaveFodsTests } from "./unit/sheet-pivot-save-fods.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -151,7 +152,8 @@ async function runAll() {
     { title: "64. Round-trip Tests — VN Sheet CF & Data Validation Save FODS", runner: runSheetCfValidationFodsRoundTripTests },
     { title: "65. Unit Tests — Writer Track Changes Import Fidelity (real DOCX w:ins/w:del)", runner: runWriterTrackChangesImportTests },
     { title: "66. Unit Tests — Writer Comments Import Fidelity (real DOCX w:comment)", runner: runWriterCommentsImportTests },
-    { title: "67. Unit Tests — Sheet Pivot Table Import Fidelity (real XLSX DataPilot)", runner: runSheetPivotImportTests }
+    { title: "67. Unit Tests — Sheet Pivot Table Import Fidelity (real XLSX DataPilot)", runner: runSheetPivotImportTests },
+    { title: "68. Round-trip Tests — Sheet Pivot Table Save FODS", runner: runSheetPivotSaveFodsTests }
   ];
 
   for (const suite of suites) {
