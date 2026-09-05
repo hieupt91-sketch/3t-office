@@ -1320,10 +1320,6 @@ export class SheetGridController {
         <span class="vno-row-title">${r}</span>
         <div class="vno-row-resizer" data-row="${r}" title="Nhấp đúp để tự động vừa chiều cao hàng ${r}"></div>
       `;
-      th.querySelector(".vno-outline-toggle")?.addEventListener("click", event => {
-        event.stopPropagation();
-        this.toggleOutlineGroup(event.currentTarget.dataset.groupId);
-      });
       thRow.querySelector(".vno-outline-toggle")?.addEventListener("click", event => {
         event.stopPropagation();
         this.toggleOutlineGroup(event.currentTarget.dataset.groupId);
