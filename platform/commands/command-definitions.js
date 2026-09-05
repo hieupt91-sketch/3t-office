@@ -170,7 +170,9 @@ export const WRITER_COMMANDS = [
   { id: "writer.mailMerge.preview", category: "mailmerge", label: "Xem trước bản ghi", icon: "mergePreview", tooltip: "Bật/tắt xem trước bản ghi trộn thư", isToggle: true },
   { id: "writer.mailMerge.prevRecord", category: "mailmerge", label: "Bản ghi trước", icon: "mergePrev", tooltip: "Chuyển tới bản ghi trước" },
   { id: "writer.mailMerge.nextRecord", category: "mailmerge", label: "Bản ghi sau", icon: "mergeNext", tooltip: "Chuyển tới bản ghi tiếp theo" },
-  { id: "writer.mailMerge.finish", category: "mailmerge", label: "Hoàn tất trộn", icon: "mergeFinish", tooltip: "Hoàn tất trộn và tạo tài liệu kết quả cho toàn bộ bản ghi" }
+  { id: "writer.mailMerge.finish", category: "mailmerge", label: "Hoàn tất trộn", icon: "mergeFinish", tooltip: "Hoàn tất trộn và tạo tài liệu kết quả cho toàn bộ bản ghi" },
+  { id: "writer.mailings.envelopes", category: "mailmerge", label: "Phong bì", icon: "envelope", tooltip: "Tạo trang phong bì với địa chỉ người nhận và người gửi" },
+  { id: "writer.mailings.labels", category: "mailmerge", label: "Nhãn", icon: "labels", tooltip: "Tạo trang nhãn — một nội dung hoặc hàng loạt từ Trộn thư" }
 ];
 
 export const SHEET_COMMANDS = [

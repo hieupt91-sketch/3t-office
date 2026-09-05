@@ -406,6 +406,14 @@ export const WRITER_RIBBON_TABS = [
     labelKey: "writerRibbon.tab.mailings",
     groups: [
       {
+        label: "Tạo",
+        labelKey: "writerRibbon.group.createMailings",
+        items: [
+          { type: "button", commandId: "writer.mailings.envelopes", isLarge: true },
+          { type: "button", commandId: "writer.mailings.labels", isLarge: true }
+        ]
+      },
+      {
         label: "Bắt đầu trộn",
         labelKey: "writerRibbon.group.startMerge",
         items: [

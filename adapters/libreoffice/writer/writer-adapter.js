@@ -7,6 +7,16 @@ import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { parseCsv, replaceMergeFields, showMailMergeDataSourceDialog, showInsertMergeFieldDialog } from "../../../apps/writer/mail-merge.js";
+import {
+  ENVELOPE_SIZES,
+  LABEL_LAYOUTS,
+  buildEnvelopeHtml,
+  buildLabelSheetHtml,
+  formatRecordAsAddress,
+  paginateLabelContents,
+  showEnvelopeDialog,
+  showLabelsDialog
+} from "../../../apps/writer/envelopes-labels.js";
 import { STYLE_PRESETS, showStyleGalleryDropdown, closeStyleGalleryDropdown, createStyleGalleryStrip } from "../../../apps/writer/style-gallery.js";
 import { showWatermarkDialog, showPageBorderDialog, showPageColorDialog } from "../../../apps/writer/page-decorations.js";
 import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
@@ -39,7 +49,10 @@ import { countBlockParagraphs, countDocumentStats, showWordCountDialog } from ".
 const PAGE_SIZES_MM = {
   a4: { label: "A4 (210 × 297 mm)", w: 210, h: 297 },
   letter: { label: "Letter (216 × 279 mm)", w: 216, h: 279 },
-  legal: { label: "Legal (216 × 356 mm)", w: 216, h: 356 }
+  legal: { label: "Legal (216 × 356 mm)", w: 216, h: 356 },
+  dl: { label: ENVELOPE_SIZES.dl.label, w: ENVELOPE_SIZES.dl.w, h: ENVELOPE_SIZES.dl.h },
+  c5: { label: ENVELOPE_SIZES.c5.label, w: ENVELOPE_SIZES.c5.w, h: ENVELOPE_SIZES.c5.h },
+  number10: { label: ENVELOPE_SIZES.number10.label, w: ENVELOPE_SIZES.number10.w, h: ENVELOPE_SIZES.number10.h }
 };
 
 // Lề mặc định theo Nghị định 30/2020/NĐ-CP: Trên 20mm, Dưới 20mm, Trái 30mm, Phải 15mm
@@ -255,6 +268,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.mailMerge.prevRecord", (args) => this.prevMailMergeRecord(args));
     globalCommandBus.bindHandler("writer.mailMerge.nextRecord", (args) => this.nextMailMergeRecord(args));
     globalCommandBus.bindHandler("writer.mailMerge.finish", (args) => this.finishMailMerge(args));
+    globalCommandBus.bindHandler("writer.mailings.envelopes", (args) => this.openEnvelopeDialog(args));
+    globalCommandBus.bindHandler("writer.mailings.labels", (args) => this.openLabelsDialog(args));
     this._updateMailMergeCommandStates();
 
     // Áp dụng trang trí trang (Hình mờ & Viền trang)
@@ -2217,6 +2232,12 @@ export class WriterAdapter {
       case "writer.mailMerge.finish":
         return Boolean(this.finishMailMerge(args));
 
+      case "writer.mailings.envelopes":
+        return this.openEnvelopeDialog(args);
+
+      case "writer.mailings.labels":
+        return this.openLabelsDialog(args);
+
       default:
         return false;
     }
@@ -2813,6 +2834,169 @@ export class WriterAdapter {
     this.activeSectionId = sectionId;
     this.pageSetup = JSON.parse(JSON.stringify(this.sectionPageSetups[sectionId]));
     this._applyPageSetup();
+    return true;
+  }
+
+  _buildSectionBreakMarker(type, id, caption) {
+    const labels = { nextPage: "Trang kế tiếp", continuous: "Liên tục", evenPage: "Trang chẵn", oddPage: "Trang lẻ" };
+    const breakStyle = type === "continuous" ? "" : `break-before:${type === "evenPage" ? "left" : type === "oddPage" ? "right" : "page"};page-break-before:always;`;
+    const text = caption || `--- Ngắt mục (${labels[type] || type}) ---`;
+    return `<div class="vno-section-break" data-vno-section-break="${type}" data-vno-section-id="${id}" contenteditable="false" style="${breakStyle}border-top:2px double #7c3aed;margin:20px 0;text-align:center;color:#6d28d9;font-size:11px;user-select:none">${text}</div>`;
+  }
+
+  _envelopePageSetup(sizeId) {
+    const size = ENVELOPE_SIZES[sizeId] || ENVELOPE_SIZES.dl;
+    return {
+      size: size.id,
+      orientation: "portrait",
+      margins: { top: 8, bottom: 8, left: 10, right: 10 }
+    };
+  }
+
+  _mailMergeRecords() {
+    const records = this.mailMergeData?.records;
+    return Array.isArray(records) ? records : [];
+  }
+
+  async openEnvelopeDialog(options) {
+    options = options || {};
+    if (options.deliveryAddress || options.useMailMerge) return this.insertEnvelope(options);
+    const result = await showEnvelopeDialog({
+      mailMergeCount: this._mailMergeRecords().length,
+      defaults: options
+    });
+    if (!result) return false;
+    return this.insertEnvelope(result);
+  }
+
+  /**
+   * Chèn một hoặc nhiều trang phong bì (đơn hoặc hàng loạt từ Mail Merge).
+   * Trang phong bì là mục (section) riêng với khổ giấy = khổ phong bì — đúng trên canvas;
+   * xuất DOCX/PDF vẫn chịu giới hạn HTML filter của LibreOffice (một @page chung).
+   */
+  insertEnvelope(options) {
+    options = options || {};
+    const sizeId = ENVELOPE_SIZES[options.size] ? options.size : "dl";
+    const useMailMerge = Boolean(options.useMailMerge);
+    const records = useMailMerge ? this._mailMergeRecords() : [];
+    const fields = this.mailMergeData?.fields || [];
+    let deliveries = [];
+    if (useMailMerge && records.length) {
+      deliveries = records.map((record) => formatRecordAsAddress(record, fields)).filter(Boolean);
+    } else {
+      const one = String(options.deliveryAddress || "").trim();
+      if (one) deliveries = [one];
+    }
+    if (!deliveries.length) return false;
+
+    this.flushTyping();
+    this._initZones();
+    const target = this.bodyDom || this.editorDom;
+    if (!target) return false;
+
+    const omitReturn = Boolean(options.omitReturn);
+    const returnAddress = omitReturn ? "" : String(options.returnAddress || "").trim();
+    const envelopeHtml = deliveries
+      .map((deliveryAddress, index) => buildEnvelopeHtml({
+        sizeId,
+        deliveryAddress,
+        returnAddress,
+        omitReturn,
+        pageBreak: index > 0
+      }))
+      .join("");
+    const envelopeSetup = this._envelopePageSetup(sizeId);
+    const position = options.position === "start" ? "start" : "end";
+    const existing = target.innerHTML || "";
+    const firstSectionId = Object.keys(this.sectionPageSetups || {})[0] || "section-1";
+    const originalFirstSetup = JSON.parse(JSON.stringify(this.sectionPageSetups[firstSectionId] || this.pageSetup));
+
+    if (position === "start") {
+      const restId = `section-${++this._sectionSequence}`;
+      const breakHtml = this._buildSectionBreakMarker("nextPage", restId, "--- Ngắt mục (sau phong bì) ---");
+      target.innerHTML = envelopeHtml + breakHtml + existing;
+      this.sectionPageSetups[firstSectionId] = JSON.parse(JSON.stringify(envelopeSetup));
+      this.sectionPageSetups[restId] = originalFirstSetup;
+      this.activeSectionId = firstSectionId;
+      this.pageSetup = JSON.parse(JSON.stringify(envelopeSetup));
+    } else {
+      const envId = `section-${++this._sectionSequence}`;
+      const breakHtml = this._buildSectionBreakMarker("nextPage", envId, "--- Ngắt mục (phong bì) ---");
+      target.innerHTML = existing + breakHtml + envelopeHtml;
+      this.sectionPageSetups[envId] = JSON.parse(JSON.stringify(envelopeSetup));
+      this.activeSectionId = envId;
+      this.pageSetup = JSON.parse(JSON.stringify(envelopeSetup));
+    }
+    this._applyPageSetup();
+    this.isDirty = true;
+    this.recordSnapshot("writer.mailings.envelopes");
+    return true;
+  }
+
+  async openLabelsDialog(options) {
+    options = options || {};
+    if (options.content || options.useMailMerge) return this.insertLabels(options);
+    const result = await showLabelsDialog({
+      mailMergeCount: this._mailMergeRecords().length,
+      defaults: options
+    });
+    if (!result) return false;
+    return this.insertLabels(result);
+  }
+
+  /**
+   * Chèn một hoặc nhiều tờ nhãn A4. Không Mail Merge: mọi ô cùng nội dung.
+   * Có Mail Merge: mỗi ô một bản ghi; dư thì sang trang mới.
+   */
+  insertLabels(options) {
+    options = options || {};
+    const layout = LABEL_LAYOUTS[options.layout] || LABEL_LAYOUTS["avery-l7160"];
+    const useMailMerge = Boolean(options.useMailMerge);
+    let contents = [];
+    if (useMailMerge) {
+      const records = this._mailMergeRecords();
+      const fields = this.mailMergeData?.fields || [];
+      contents = records.map((record) => formatRecordAsAddress(record, fields));
+    } else {
+      const text = String(options.content || "").trim();
+      if (!text) return false;
+      const cellsPerPage = layout.cols * layout.rows;
+      contents = Array.from({ length: cellsPerPage }, () => text);
+    }
+    if (!contents.length) return false;
+
+    this.flushTyping();
+    this._initZones();
+    const target = this.bodyDom || this.editorDom;
+    if (!target) return false;
+
+    const pages = paginateLabelContents(contents, layout);
+    const sheetsHtml = pages
+      .map((pageContents, index) => buildLabelSheetHtml({ layout, contents: pageContents, pageBreak: index > 0 }))
+      .join("");
+    const a4Setup = {
+      size: "a4",
+      orientation: "portrait",
+      margins: { top: 10, bottom: 10, left: 8, right: 8 }
+    };
+    const current = this.pageSetup || {};
+    const needSection = current.size !== "a4" || current.orientation !== "portrait";
+    const existing = target.innerHTML || "";
+    const pageBreak = `<p class="vno-labels-page-break" data-vno-labels-break="true" style="page-break-before:always;break-before:page;margin:0;height:0;overflow:hidden;" aria-hidden="true">&nbsp;</p>`;
+
+    if (needSection || existing.trim()) {
+      const labelSectionId = `section-${++this._sectionSequence}`;
+      const breakHtml = this._buildSectionBreakMarker("nextPage", labelSectionId, "--- Ngắt mục (nhãn) ---");
+      target.innerHTML = existing + breakHtml + sheetsHtml;
+      this.sectionPageSetups[labelSectionId] = JSON.parse(JSON.stringify(a4Setup));
+      this.activeSectionId = labelSectionId;
+      this.pageSetup = JSON.parse(JSON.stringify(a4Setup));
+      this._applyPageSetup();
+    } else {
+      target.innerHTML = (existing ? pageBreak : "") + sheetsHtml;
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.mailings.labels");
     return true;
   }
 
