@@ -15,6 +15,8 @@ Track Changes import: `sample-writer-trackchanges.docx` from `src/sample-writer-
 
 Comments import: `sample-writer-comments.docx` from `src/sample-writer-comments.fodt` (ODF `<office:annotation>` + `<dc:creator>` + range end). LibreOffice writes native `word/comments.xml` and `w:commentRangeStart` / `w:commentReference` in `word/document.xml`. Not produced by VN Office.
 
+Slides comments import: `src/sample-slides-comments.fodp` is handwritten Flat ODF with page-level `<office:annotation>` on `<draw:page>` (not VN `serializeToFodp()`). Live test converts it with soffice to PPTX (`ppt/commentAuthors.xml` + `ppt/comments/comment1.xml`) then back to FODP. LibreOffice rewrites the element to `<officeooo:annotation>` after the hop.
+
 Regenerate:
 
 ```
