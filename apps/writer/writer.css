@@ -220,6 +220,12 @@
   user-select: text;
 }
 
+.vno-writer-body [data-vno-change].is-vno-change-active {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  background: rgba(37, 99, 235, 0.16);
+}
+
 .vno-status-wordcount {
   background: transparent;
   border: none;

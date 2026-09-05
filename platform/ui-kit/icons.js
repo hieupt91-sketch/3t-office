@@ -683,6 +683,26 @@ export const ICONS = {
     <path d="M16 14l3 3 5-6" transform="translate(-4 1)" stroke="#16A34A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
+  trackChangePrev: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.2"/>
+    <polyline points="8 14 12 9 16 14" stroke="#0F4C81" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  trackChangeNext: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.2"/>
+    <polyline points="8 10 12 15 16 10" stroke="#0F4C81" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  trackChangeAccept: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" fill="#F0FDF4" stroke="#16A34A" stroke-width="1.2"/>
+    <path d="M8 12.5l2.6 2.6L16.5 9" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  trackChangeReject: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" fill="#FEF2F2" stroke="#DC2626" stroke-width="1.2"/>
+    <path d="M9 9l6 6M15 9l-6 6" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
   wordCount: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
     <rect x="4" y="3" width="16" height="18" rx="1.5" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.3"/>
     <path d="M7 8h10M7 12h7M7 16h5" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>

@@ -454,6 +454,20 @@ export const WRITER_RIBBON_TABS = [
           {
             type: "column",
             items: [
+              { type: "button", commandId: "writer.trackChanges.previous" },
+              { type: "button", commandId: "writer.trackChanges.next" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.trackChanges.acceptOne" },
+              { type: "button", commandId: "writer.trackChanges.rejectOne" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
               { type: "button", commandId: "writer.trackChanges.acceptAll" },
               { type: "button", commandId: "writer.trackChanges.rejectAll" }
             ]

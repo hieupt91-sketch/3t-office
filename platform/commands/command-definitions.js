@@ -117,6 +117,10 @@ export const WRITER_COMMANDS = [
   // Đánh giá (Review)
   { id: "writer.comment.insert", category: "review", label: "Thêm ghi chú", shortcut: "Ctrl+Alt+M", icon: "comment", tooltip: "Thêm ghi chú vào đoạn văn bản đang chọn (Ctrl+Alt+M)" },
   { id: "writer.trackChanges.toggle", category: "review", label: "Theo dõi thay đổi", shortcut: "Ctrl+Shift+E", icon: "trackChanges", tooltip: "Bật/tắt đánh dấu nội dung thêm và xóa (Ctrl+Shift+E)", isToggle: true },
+  { id: "writer.trackChanges.previous", category: "review", label: "Thay đổi trước", icon: "trackChangePrev", tooltip: "Nhảy tới thay đổi trước đó" },
+  { id: "writer.trackChanges.next", category: "review", label: "Thay đổi sau", icon: "trackChangeNext", tooltip: "Nhảy tới thay đổi tiếp theo" },
+  { id: "writer.trackChanges.acceptOne", category: "review", label: "Chấp nhận một", icon: "trackChangeAccept", tooltip: "Chấp nhận thay đổi đang chọn" },
+  { id: "writer.trackChanges.rejectOne", category: "review", label: "Từ chối một", icon: "trackChangeReject", tooltip: "Từ chối thay đổi đang chọn" },
   { id: "writer.trackChanges.acceptAll", category: "review", label: "Chấp nhận thay đổi", icon: "redo", tooltip: "Chấp nhận toàn bộ thay đổi trong tài liệu" },
   { id: "writer.trackChanges.rejectAll", category: "review", label: "Từ chối thay đổi", icon: "close", tooltip: "Từ chối toàn bộ thay đổi trong tài liệu" },
   { id: "writer.review.wordCount", category: "review", label: "Đếm từ", icon: "wordCount", tooltip: "Xem số từ, ký tự, đoạn văn và dòng của tài liệu" },

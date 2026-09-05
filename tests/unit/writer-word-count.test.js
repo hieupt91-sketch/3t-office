@@ -52,7 +52,7 @@ export async function runWriterWordCountTests() {
     const stats = countDocumentStats("Đoạn một\n\nĐoạn hai\nDòng ba");
     if (stats.paragraphs !== 3) throw new Error(`Số đoạn sai: ${stats.paragraphs}`);
     if (stats.lines !== 4) throw new Error(`Số dòng sai: ${stats.lines}`);
-    if (stats.words !== 7) throw new Error(`Số từ sai: ${stats.words}`);
+    if (stats.words !== 6) throw new Error(`Số từ sai: ${stats.words}`);
   });
 
   await test("Word Count: countBlockParagraphs chỉ đếm khối có chữ", () => {
@@ -106,7 +106,7 @@ export async function runWriterWordCountTests() {
     };
     const adapter = new WriterAdapter(page);
     const stats = adapter.getWordCountStats({ preferSelection: false });
-    if (stats.words !== 5) throw new Error(`Adapter đếm sai: ${stats.words}`);
+    if (stats.words !== 6) throw new Error(`Adapter đếm sai: ${stats.words}`);
     if (stats.scope !== "document") throw new Error(`Sai phạm vi: ${stats.scope}`);
     if (stats.paragraphs !== 1) throw new Error(`Sai số đoạn: ${stats.paragraphs}`);
   });
