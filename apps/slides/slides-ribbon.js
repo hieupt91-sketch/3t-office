@@ -234,9 +234,9 @@ export const SLIDES_RIBBON_TABS = [
         label: "Hiển thị",
         labelKey: "slidesRibbon.group.show",
         items: [
-          { type: "button", commandId: "slides.view.ruler", isLarge: true },
-          { type: "button", commandId: "slides.view.gridlines", isLarge: true },
-          { type: "button", commandId: "slides.view.guides", isLarge: true }
+          { type: "button", commandId: "slides.view.ruler" },
+          { type: "button", commandId: "slides.view.gridlines" },
+          { type: "button", commandId: "slides.view.guides" }
         ]
       },
       {

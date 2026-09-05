@@ -92,8 +92,9 @@ export const ICONS = {
   headings: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0F6D38" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M8 3v18M3 8h18"/><path d="m11 6 1.5-3L14 6M5 11v6M4 12l1-1 1 1"/></svg>`,
   writerPrintLayout: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="5" y="2.5" width="14" height="19" rx="1.5" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.5"/><path d="M8 7h8M8 10h8M8 13h6M8 17h8" stroke="#60A5FA" stroke-width="1.4" stroke-linecap="round"/></svg>`,
   writerWebLayout: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="2.5" y="4" width="19" height="16" rx="2" fill="#ECFEFF" stroke="#0F4C81" stroke-width="1.5"/><path d="M3 8h18M7 4v4M11 4v4M7 12h10M7 15h7" stroke="#0891B2" stroke-width="1.4" stroke-linecap="round"/></svg>`,
-  writerReadMode: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M3 5.5c3.3-1.3 6.3-.7 9 1.3v13c-2.7-2-5.7-2.6-9-1.3v-13Z" fill="#DBEAFE" stroke="#0F4C81" stroke-width="1.4"/><path d="M21 5.5c-3.3-1.3-6.3-.7-9 1.3v13c2.7-2 5.7-2.6 9-1.3v-13Z" fill="#FEF3C7" stroke="#0F4C81" stroke-width="1.4"/></svg>`,
-  writerRuler: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="2" y="7" width="20" height="10" rx="1.5" fill="#FEF3C7" stroke="#A16207" stroke-width="1.4"/><path d="M6 7v5M10 7v3M14 7v5M18 7v3" stroke="#A16207" stroke-width="1.3"/></svg>`,
+  writerReadMode: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M3 5.5c3.3-1.3 6.3-.7 9 1.3v13c-2.7-2-5.7-2.6-9-1.3v-13Z" fill="#DBEAFE" stroke="#0F4C81" stroke-width="1.4"/><path d="M21 5.5c-3.3-1.3-6.3-.7-9 1.3v13c2.7-2 5.7-2.6 9-1.3v-13Z" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/></svg>`,
+  writerRuler: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="2" y="7" width="20" height="10" rx="1.5" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/><path d="M6 7v5M10 7v3M14 7v5M18 7v3" stroke="#2563EB" stroke-width="1.3"/></svg>`,
+  writerGridlines: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="3" width="18" height="18" rx="1.5" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/><path d="M8 3v18M13 3v18M18 3v18M3 8h18M3 13h18M3 18h18" stroke="#2563EB" stroke-width="1" stroke-dasharray="1.5 1.5"/></svg>`,
   writerPageWidth: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="5" y="3" width="14" height="18" rx="1.5" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/><path d="M2 12h20M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3" stroke="#2563EB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   writerNewWindow: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="6" width="14" height="14" rx="1.5" fill="#DBEAFE" stroke="#0F4C81" stroke-width="1.4"/><rect x="7" y="3" width="14" height="14" rx="1.5" fill="#FFF" stroke="#2563EB" stroke-width="1.4"/><path d="M7 7h14" stroke="#2563EB" stroke-width="1.4"/></svg>`,
   newWindow: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="6" width="14" height="14" rx="1.5" fill="#DBEAFE" stroke="#0F4C81" stroke-width="1.4"/><rect x="7" y="3" width="14" height="14" rx="1.5" fill="#FFF" stroke="#2563EB" stroke-width="1.4"/><path d="M7 7h14" stroke="#2563EB" stroke-width="1.4"/></svg>`,
@@ -216,7 +217,7 @@ export const ICONS = {
     <path d="M22 9H11L17 16L11 23H22" stroke="#0F6D38" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
-  nameManager: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none"><rect x="4" y="5" width="24" height="22" rx="3" fill="#ECFDF5" stroke="#0F6D38" stroke-width="1.5"/><path d="M10 22V10l8 12V10M21 13h5M21 18h5M21 23h5" stroke="#0F6D38" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  nameManager: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none"><rect x="4" y="8" width="24" height="19" rx="2.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.4"/><path d="M4 14h24M12 14v13M20 14v13" stroke="#CBD5E1" stroke-width="1.2"/><rect x="7" y="4" width="13" height="7" rx="1.5" fill="#0F6D38" stroke="#0A4D27" stroke-width="1.2"/><path d="M10 7.5h7" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round"/></svg>`,
   cellComment: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none"><path d="M5 5h22v16H14l-6 6v-6H5z" fill="#FFF7ED" stroke="#C2410C" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 11h12M10 16h9" stroke="#C2410C" stroke-width="2" stroke-linecap="round"/><path d="M23 5h4v4z" fill="#DC2626"/></svg>`,
   printArea: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none"><rect x="4" y="5" width="24" height="22" rx="2" fill="#F8FAFC" stroke="#64748B"/><path d="M4 12h24M11 5v22M20 5v22M4 20h24" stroke="#CBD5E1"/><rect x="11" y="12" width="9" height="8" fill="#DCFCE7" stroke="#0F6D38" stroke-width="2"/></svg>`,
   clearPrintArea: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="3" y="4" width="18" height="16" rx="2" fill="#F8FAFC" stroke="#64748B"/><path d="M7 8l10 8M17 8L7 16" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/></svg>`,
@@ -810,9 +811,8 @@ export const ICONS = {
 
   // Tab Công thức (Formulas Tab Icons)
   insertFunction: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
-    <rect x="3" y="4" width="26" height="24" rx="4" fill="#ECFDF5" stroke="#0F6D38" stroke-width="1.5"/>
-    <path d="M9 22V13c0-2 1.2-3 3-3h2M8 17h6" stroke="#0F6D38" stroke-width="2.2" stroke-linecap="round"/>
-    <path d="M17 14l6 8M23 14l-6 8" stroke="#0F6D38" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M12.5 5.5c-3.2 0-5.3 2.1-5.9 5.8H4.5v3.2h2.1L4.2 26.5h3.6l2.3-12h3.4v-3.2h-2.8c.35-1.9 1.4-2.8 2.8-2.8h1.2V5.5h-2.2z" fill="#0F6D38"/>
+    <path d="M17.2 14.5h3.6l2.2 4.2 2.3-4.2h3.5l-3.9 6.4 4.3 7h-3.7l-2.6-4.6-2.6 4.6h-3.6l4.4-7-3.6-6.4z" fill="#0F6D38"/>
   </svg>`,
 
   countNumbers: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
@@ -915,9 +915,10 @@ export const ICONS = {
   </svg>`,
 
   removeArrows: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
-    <path d="M5 8h10c1 0 2 1 2 2v6" stroke="#94A3B8" stroke-width="1.6" stroke-linecap="round"/>
-    <path d="M15 14l2 2 2-2" stroke="#94A3B8" stroke-width="1.6" stroke-linecap="round"/>
-    <path d="M6 18l12-12M6 6l12 12" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/>
+    <path d="M4 8h9c1.1 0 2 .9 2 2v4" stroke="#2563EB" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M13 12l2 2 2-2" stroke="#2563EB" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="4" cy="8" r="1.5" fill="#2563EB"/>
+    <path d="M15 19l5-5M15 14l5 5" stroke="#DC2626" stroke-width="1.8" stroke-linecap="round"/>
   </svg>`,
 
   showFormulas: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
@@ -932,12 +933,14 @@ export const ICONS = {
     <path d="M4 4l4 0 0 4z" fill="#10B981"/>
   </svg>`,
 
-  watchWindow: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
-    <rect x="3" y="4" width="18" height="16" rx="3" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
-    <path d="M3 9h18M8 4v16" stroke="#CBD5E1"/>
-    <circle cx="8" cy="13" r="3.5" stroke="#2563EB" stroke-width="1.4" fill="#DBEAFE"/>
-    <circle cx="15" cy="13" r="3.5" stroke="#2563EB" stroke-width="1.4" fill="#DBEAFE"/>
-    <path d="M11.5 13h1" stroke="#2563EB" stroke-width="1.4"/>
+  watchWindow: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="5" width="26" height="22" rx="3" fill="#F8FAFC" stroke="#64748B" stroke-width="1.4"/>
+    <path d="M3 11h26M10 5v22M20 5v22M3 18h26" stroke="#E2E8F0" stroke-width="1.2"/>
+    <rect x="3" y="5" width="26" height="6" fill="#F1F5F9"/>
+    <circle cx="11" cy="18" r="4.2" stroke="#0F6D38" stroke-width="1.8" fill="#DCFCE7"/>
+    <circle cx="21" cy="18" r="4.2" stroke="#0F6D38" stroke-width="1.8" fill="#DCFCE7"/>
+    <path d="M15.2 18h1.6" stroke="#0F6D38" stroke-width="1.8"/>
+    <path d="M6.8 18H5M25.2 18H27" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round"/>
   </svg>`,
 
   calculationOptions: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">

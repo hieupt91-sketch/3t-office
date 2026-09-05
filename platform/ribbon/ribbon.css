@@ -100,6 +100,54 @@
   flex: 1;
 }
 
+/* Show / Hiển thị Group — Compact Vertical Column (Matching Real Office 2016) */
+.vno-ribbon-group[data-group-id="show"] .vno-ribbon-group-items {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+}
+
+.vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small {
+  width: 100%;
+  height: 22px;
+  padding: 2px 8px;
+  font-size: 11px;
+  justify-content: flex-start;
+  border-radius: 3px;
+  gap: 6px;
+}
+
+.vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small .vno-btn-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small.is-checked {
+  background-color: var(--vno-app-current-light, #e7f4ec) !important;
+  color: var(--vno-app-current, #0f6d38) !important;
+  border-color: transparent !important;
+  font-weight: 600;
+}
+
+/* Ribbon Selects */
+.vno-ribbon .vno-select {
+  height: 22px;
+  padding: 1px 6px;
+  font-size: 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background-color: #ffffff;
+  color: #1e293b;
+}
+.vno-ribbon .vno-select:hover {
+  border-color: #94a3b8;
+}
+.vno-ribbon .vno-select:focus-visible {
+  border-color: var(--vno-app-current, #0f6d38);
+  outline: 1px solid var(--vno-app-current, #0f6d38);
+}
+
 .vno-ribbon-group-column {
   display: flex;
   flex-direction: column;
