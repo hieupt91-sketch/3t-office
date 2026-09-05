@@ -62,7 +62,8 @@ export const viStrings = {
   sheetRibbon: {
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", ai: "Trợ lý VN AI" },
     group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", proofing: "Chứng minh", comments: "Ghi chú", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiAnalysis: "Phân tích dữ liệu AI" },
-    editing: { fill: "Điền", clear: "Xóa" }
+    editing: { fill: "Điền", clear: "Xóa" },
+    cells: { format: "Định dạng" }
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", ai: "Trợ lý VN AI" },
@@ -87,7 +88,10 @@ export const viStrings = {
     pivotTitle: "Tạo Bảng tổng hợp", pivotSource: "Vùng dữ liệu nguồn (hàng đầu là tiêu đề)", loadFields: "Đọc tên cột", chooseFields: "Chọn trường cho từng vùng:", aggregateFor: "Phép tổng hợp cho {field}", sourceRangeFormat: "Vùng nguồn phải có dạng A1:D20.", sourceNeedsHeaders: "Hàng đầu tiên của vùng nguồn phải có tiêu đề.", uniqueHeaders: "Tiêu đề cột trong vùng nguồn phải là duy nhất.", selectValue: "Hãy chọn ít nhất một trường Values.", columnNotFound: "Không tìm thấy cột {field}.", sourceSheetNotFound: "Không tìm thấy sheet dữ liệu nguồn.", createPivotBtn: "Tạo Pivot Table",
     chartDefaultTitle: "Biểu đồ dữ liệu", chartUnsupported: "Kiểu biểu đồ không được hỗ trợ: {type}", chartItem: "Mục {number}", chartNoNumericData: "Vùng đã chọn không có dữ liệu số", chartPiePositive: "Biểu đồ tròn cần giá trị dương", chartInsertFrom: "Chèn biểu đồ từ {range}", selectedRange: "vùng đã chọn", chartType: "Kiểu biểu đồ", chartColumn: "Cột", chartLine: "Đường", chartPie: "Tròn", chartArea: "Miền", insertIntoSheet: "Chèn vào bảng tính", insertedImageAlt: "Ảnh được chèn trong trang tính", deleteImage: "Xóa ảnh",
     cellStylesTitle: "Thư viện kiểu ô (Cell Styles)", cellStylesHint: "Chọn một kiểu để áp dụng ngay lập tức cho các ô đang chọn:",
-    formatAsTableTitle: "Định dạng theo bảng (Format as Table)", formatAsTableHint: "Chọn kiểu bảng để áp dụng màu tiêu đề và hàng xen kẽ (banded rows):"
+    formatAsTableTitle: "Định dạng theo bảng (Format as Table)", formatAsTableHint: "Chọn kiểu bảng để áp dụng màu tiêu đề và hàng xen kẽ (banded rows):",
+    rowHeightTitle: "Chiều cao hàng", rowHeightMessage: "Chiều cao hàng (pixel):",
+    colWidthTitle: "Độ rộng cột", colWidthMessage: "Độ rộng cột (pixel):",
+    invalidRowColSize: "Vui lòng nhập một số hợp lệ trong khoảng cho phép."
   },
   slidesDialogs: {
     close: "Đóng", cancel: "Hủy bỏ", apply: "Áp dụng", preview: "Xem thử", delete: "Xóa",
@@ -249,6 +253,14 @@ export const viStrings = {
     ,"sheet.col.insert": { label: "Chèn cột", tooltip: "Chèn thêm cột mới" }
     ,"sheet.row.delete": { label: "Xóa hàng", tooltip: "Xóa hàng chứa ô đang chọn" }
     ,"sheet.col.delete": { label: "Xóa cột", tooltip: "Xóa cột chứa ô đang chọn" }
+    ,"sheet.row.height": { label: "Chiều cao hàng...", tooltip: "Đặt chiều cao (pixel) cho các hàng đang chọn" }
+    ,"sheet.row.autoFit": { label: "Tự động vừa chiều cao hàng", tooltip: "Tự động vừa chiều cao theo nội dung các hàng đang chọn" }
+    ,"sheet.col.width": { label: "Độ rộng cột...", tooltip: "Đặt độ rộng (pixel) cho các cột đang chọn" }
+    ,"sheet.col.autoFit": { label: "Tự động vừa độ rộng cột", tooltip: "Tự động vừa độ rộng theo nội dung các cột đang chọn" }
+    ,"sheet.row.hide": { label: "Ẩn hàng", tooltip: "Ẩn các hàng đang chọn" }
+    ,"sheet.row.unhide": { label: "Hiện hàng", tooltip: "Hiện các hàng đã ẩn trong vùng chọn" }
+    ,"sheet.col.hide": { label: "Ẩn cột", tooltip: "Ẩn các cột đang chọn" }
+    ,"sheet.col.unhide": { label: "Hiện cột", tooltip: "Hiện các cột đã ẩn trong vùng chọn" }
     ,"sheet.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ phân tích dữ liệu" }
     ,"sheet.insert.image": { label: "Chèn ảnh", tooltip: "Chèn ảnh vào ô đang chọn" }
     ,"sheet.style.formatAsTable": { label: "Định dạng bảng", tooltip: "Định dạng vùng chọn theo kiểu bảng có màu xen kẽ" }

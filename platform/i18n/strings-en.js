@@ -63,7 +63,8 @@ export const enStrings = {
   sheetRibbon: {
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", ai: "VN AI Assistant" },
     group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", proofing: "Proofing", comments: "Comments", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", aiAnalysis: "AI Data Analysis" },
-    editing: { fill: "Fill", clear: "Clear" }
+    editing: { fill: "Fill", clear: "Clear" },
+    cells: { format: "Format" }
   },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", ai: "VN AI Assistant" },
@@ -88,7 +89,10 @@ export const enStrings = {
     pivotTitle: "Create PivotTable", pivotSource: "Table/Range (first row contains headers)", loadFields: "Load Fields", chooseFields: "Choose fields for each area:", aggregateFor: "Summarize values by for {field}", sourceRangeFormat: "The source range must use a format such as A1:D20.", sourceNeedsHeaders: "The first row of the source range must contain headers.", uniqueHeaders: "Each source column must have a unique header.", selectValue: "Select at least one Values field.", columnNotFound: "Column {field} was not found.", sourceSheetNotFound: "The source worksheet was not found.", createPivotBtn: "Create PivotTable",
     chartDefaultTitle: "Data Chart", chartUnsupported: "Unsupported chart type: {type}", chartItem: "Item {number}", chartNoNumericData: "The selected range contains no numeric data", chartPiePositive: "A pie chart requires positive values", chartInsertFrom: "Insert Chart from {range}", selectedRange: "selected range", chartType: "Chart Type", chartColumn: "Column", chartLine: "Line", chartPie: "Pie", chartArea: "Area", insertIntoSheet: "Insert into Worksheet", insertedImageAlt: "Image inserted in the worksheet", deleteImage: "Delete image",
     cellStylesTitle: "Cell Styles Gallery", cellStylesHint: "Select a style to apply immediately to the selected cells:",
-    formatAsTableTitle: "Format as Table", formatAsTableHint: "Select a table style to apply header colors and banded rows:"
+    formatAsTableTitle: "Format as Table", formatAsTableHint: "Select a table style to apply header colors and banded rows:",
+    rowHeightTitle: "Row Height", rowHeightMessage: "Row height (pixels):",
+    colWidthTitle: "Column Width", colWidthMessage: "Column width (pixels):",
+    invalidRowColSize: "Please enter a valid number in the allowed range."
   },
   slidesDialogs: {
     close: "Close", cancel: "Cancel", apply: "Apply", preview: "Preview", delete: "Delete",
@@ -250,6 +254,14 @@ export const enStrings = {
     ,"sheet.col.insert": { label: "Insert Column", tooltip: "Insert a new column" }
     ,"sheet.row.delete": { label: "Delete Row", tooltip: "Delete the row containing the active cell" }
     ,"sheet.col.delete": { label: "Delete Column", tooltip: "Delete the column containing the active cell" }
+    ,"sheet.row.height": { label: "Row Height...", tooltip: "Set the height (pixels) of the selected rows" }
+    ,"sheet.row.autoFit": { label: "AutoFit Row Height", tooltip: "AutoFit the height of the selected rows to their content" }
+    ,"sheet.col.width": { label: "Column Width...", tooltip: "Set the width (pixels) of the selected columns" }
+    ,"sheet.col.autoFit": { label: "AutoFit Column Width", tooltip: "AutoFit the width of the selected columns to their content" }
+    ,"sheet.row.hide": { label: "Hide Rows", tooltip: "Hide the selected rows" }
+    ,"sheet.row.unhide": { label: "Unhide Rows", tooltip: "Unhide hidden rows in the selection" }
+    ,"sheet.col.hide": { label: "Hide Columns", tooltip: "Hide the selected columns" }
+    ,"sheet.col.unhide": { label: "Unhide Columns", tooltip: "Unhide hidden columns in the selection" }
     ,"sheet.chart.insert": { label: "Chart", tooltip: "Insert a chart to visualize data" }
     ,"sheet.insert.image": { label: "Pictures", tooltip: "Insert a picture at the selected cell" }
     ,"sheet.style.formatAsTable": { label: "Format as Table", tooltip: "Format selected range as a styled table with alternating rows" }
