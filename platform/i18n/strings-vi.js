@@ -58,7 +58,7 @@ export const viStrings = {
   },
   sheetRibbon: {
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", ai: "Trợ lý VN AI" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", comments: "Ghi chú", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiAnalysis: "Phân tích dữ liệu AI" }
+    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", comments: "Ghi chú", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiAnalysis: "Phân tích dữ liệu AI" }
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", ai: "Trợ lý VN AI" },
@@ -66,7 +66,9 @@ export const viStrings = {
   },
   sheetDialogs: {
     close: "Đóng", cancel: "Hủy", cancelLong: "Hủy bỏ", apply: "Áp dụng", range: "Phạm vi", value: "Giá trị",
-    functionTitle: "Chèn Hàm (Insert Function fx)", functionCategory: "Danh mục hàm:", allCategory: "Tất cả", allFunctions: "Tất cả các hàm", mathFunctions: "Toán học & Lượng giác", statsFunctions: "Thống kê (AVERAGE, COUNT...)", logicFunctions: "Logic (IF, AND, OR...)", textFunctions: "Văn bản (CONCAT, LEN...)", dateFunctions: "Ngày & Giờ (TODAY, NOW...)", insertFunction: "Chèn hàm vào ô",
+    functionTitle: "Chèn Hàm (Insert Function fx)", functionCategory: "Danh mục hàm:", allCategory: "Tất cả", allFunctions: "Tất cả các hàm", mathFunctions: "Toán học & Lượng giác", statsFunctions: "Thống kê (AVERAGE, COUNT...)", logicFunctions: "Logic (IF, AND, OR...)", textFunctions: "Văn bản (CONCAT, LEN...)", dateFunctions: "Ngày & Giờ (TODAY, NOW...)", financialFunctions: "Tài chính (PMT, FV, PV...)", lookupFunctions: "Tra cứu & Tham chiếu (VLOOKUP, INDEX...)", searchFunction: "Tìm kiếm hàm:", searchPlaceholder: "Gõ tên hàm hoặc mô tả để tìm kiếm...", insertFunction: "Chèn hàm vào ô",
+    errorCheckingTitle: "Kiểm tra lỗi công thức (Error Checking)", noErrorsFound: "Kiểm tra hoàn tất. Không tìm thấy ô nào có giá trị lỗi trong trang tính.",
+    watchWindowTitle: "Cửa sổ theo dõi (Watch Window)", addWatch: "Thêm ô theo dõi", deleteWatch: "Xóa theo dõi", defineNameTitle: "Đặt tên vùng (Define Name)", nameLabel: "Tên:", refersTo: "Tham chiếu đến:", useInFormulaTitle: "Dùng tên trong công thức",
     newComment: "Ghi chú mới {coord}", editComment: "Sửa ghi chú {coord}", commentContent: "Nội dung ghi chú", commentPlaceholder: "Nhập ghi chú cho {coord}", author: "Tác giả", defaultAuthor: "Người dùng VN Office", saveChanges: "Lưu thay đổi", addComment: "Thêm ghi chú", deleteComment: "Xóa ghi chú", emptyComment: "Nội dung ghi chú không được để trống.",
     conditionalFormatting: "Định dạng có điều kiện", rule: "Quy tắc", greaterThan: "Giá trị lớn hơn", lessThan: "Giá trị nhỏ hơn", blankCell: "Ô trống", fillColor: "Màu nền", invalidNumber: "Vui lòng nhập một giá trị số hợp lệ.",
     dataValidation: "Kiểm tra dữ liệu", allow: "Cho phép", list: "Danh sách lựa chọn", numberRange: "Số trong khoảng", listValues: "Các giá trị (cách nhau bằng dấu phẩy)", listPlaceholder: "Đạt, Chưa đạt, Đang xử lý", minimum: "Tối thiểu", maximum: "Tối đa", invalidValidation: "Thông tin kiểm tra dữ liệu chưa hợp lệ.",
@@ -151,9 +153,33 @@ export const viStrings = {
     ,"sheet.format.standard": { label: "Phân cách hàng nghìn", tooltip: "Dấu phẩy phân cách hàng nghìn (Ctrl+Shift+1)" }
     ,"sheet.insert.date": { label: "Chèn ngày hiện tại", tooltip: "Chèn ngày hôm nay (Ctrl+;)" }
     ,"sheet.insert.time": { label: "Chèn giờ hiện tại", tooltip: "Chèn giờ hiện tại (Ctrl+Shift+;)" }
+    ,"sheet.formula.insertFunction": { label: "Chèn hàm", tooltip: "Mở hộp thoại Chèn hàm fx (Shift+F3)" }
     ,"sheet.formula.sum": { label: "AutoSum", tooltip: "Hàm tính tổng tự động AutoSum (Alt+=)" }
-    ,"sheet.formula.average": { label: "Trung bình", tooltip: "Hàm tính trung bình cộng" }
+    ,"sheet.formula.average": { label: "Trung bình", tooltip: "Hàm tính trung bình cộng (AVERAGE)" }
+    ,"sheet.formula.countNumbers": { label: "Đếm số", tooltip: "Hàm đếm các ô chứa số (COUNT)" }
+    ,"sheet.formula.max": { label: "Lớn nhất", tooltip: "Hàm tìm giá trị lớn nhất (MAX)" }
+    ,"sheet.formula.min": { label: "Nhỏ nhất", tooltip: "Hàm tìm giá trị nhỏ nhất (MIN)" }
+    ,"sheet.formula.categoryFinancial": { label: "Tài chính", tooltip: "Duyệt các hàm tài chính (PMT, FV, PV, NPV, IRR...)" }
+    ,"sheet.formula.categoryLogical": { label: "Logic", tooltip: "Duyệt các hàm logic (IF, AND, OR...)" }
+    ,"sheet.formula.categoryText": { label: "Văn bản", tooltip: "Duyệt các hàm xử lý văn bản (CONCAT, LEN, MID...)" }
+    ,"sheet.formula.categoryDateTime": { label: "Ngày & Giờ", tooltip: "Duyệt các hàm ngày tháng (TODAY, NOW, DATE...)" }
+    ,"sheet.formula.categoryLookup": { label: "Tra cứu & Tham chiếu", tooltip: "Duyệt các hàm tra cứu (VLOOKUP, INDEX, MATCH...)" }
+    ,"sheet.formula.categoryMath": { label: "Toán & Lượng giác", tooltip: "Duyệt các hàm toán học (ROUND, SUMPRODUCT...)" }
+    ,"sheet.formula.categoryMore": { label: "Thêm hàm", tooltip: "Duyệt các hàm thống kê và nâng cao khác" }
     ,"sheet.formula.nameManager": { label: "Quản lý tên", tooltip: "Tạo, sửa và xóa vùng được đặt tên" }
+    ,"sheet.formula.defineName": { label: "Đặt tên vùng", tooltip: "Đặt tên cho ô hoặc vùng ô đang chọn" }
+    ,"sheet.formula.useInFormula": { label: "Dùng trong công thức", tooltip: "Chèn tên đã đặt vào công thức đang soạn" }
+    ,"sheet.formula.createFromSelection": { label: "Tạo từ vùng chọn", tooltip: "Tự động tạo tên từ tiêu đề hàng hoặc cột (Ctrl+Shift+F3)" }
+    ,"sheet.formula.tracePrecedents": { label: "Tìm ô tiền lệ", tooltip: "Vẽ mũi tên chỉ đến các ô cung cấp giá trị cho công thức này" }
+    ,"sheet.formula.traceDependents": { label: "Tìm ô phụ thuộc", tooltip: "Vẽ mũi tên chỉ đến các ô phụ thuộc vào giá trị ô này" }
+    ,"sheet.formula.removeArrows": { label: "Xóa mũi tên", tooltip: "Xóa toàn bộ mũi tên kiểm tra công thức" }
+    ,"sheet.formula.showFormulas": { label: "Hiện công thức", tooltip: "Hiển thị công thức thay vì kết quả trong toàn bộ sheet (Ctrl+`)" }
+    ,"sheet.formula.errorChecking": { label: "Kiểm tra lỗi", tooltip: "Quét và kiểm tra các ô có công thức bị lỗi trong bảng tính" }
+    ,"sheet.formula.watchWindow": { label: "Cửa sổ theo dõi", tooltip: "Mở cửa sổ theo dõi giá trị các ô quan trọng khi cuộn bảng tính" }
+    ,"sheet.calc.calculationOptions": { label: "Tùy chọn tính toán", tooltip: "Chọn chế độ tính toán tự động hoặc thủ công" }
+    ,"sheet.calc.modeAutomatic": { label: "Tự động", tooltip: "Tự động tính lại công thức khi dữ liệu thay đổi" }
+    ,"sheet.calc.modeManual": { label: "Thủ công", tooltip: "Chỉ tính lại công thức khi nhấn Tính lại (F9)" }
+    ,"sheet.calc.calculateSheet": { label: "Tính trang hiện tại", tooltip: "Tính lại công thức trong trang tính hiện tại (Shift+F9)" }
     ,"sheet.formula.arrayEnter": { label: "Nhập công thức mảng", tooltip: "Nhập công thức mảng cho vùng đã chọn (Ctrl+Shift+Enter)" }
     ,"sheet.formula.recalculate": { label: "Tính lại toàn bộ", tooltip: "Tính lại toàn bộ công thức bảng tính (F9)" }
     ,"sheet.data.sortAsc": { label: "Sắp xếp A-Z", tooltip: "Sắp xếp dữ liệu tăng dần" }

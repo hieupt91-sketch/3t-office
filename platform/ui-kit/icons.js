@@ -806,5 +806,154 @@ export const ICONS = {
     <rect x="4" y="4" width="24" height="16" rx="2" fill="#FAEEE8" stroke="#B53818" stroke-width="1.4"/>
     <path d="M8 22h8l-2 5" stroke="#B53818" stroke-width="1.5" stroke-linejoin="round"/>
     <path d="M9 9h14M9 13h10" stroke="#9A3412" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`,
+
+  // Tab Công thức (Formulas Tab Icons)
+  insertFunction: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="4" width="26" height="24" rx="4" fill="#ECFDF5" stroke="#0F6D38" stroke-width="1.5"/>
+    <path d="M9 22V13c0-2 1.2-3 3-3h2M8 17h6" stroke="#0F6D38" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M17 14l6 8M23 14l-6 8" stroke="#0F6D38" stroke-width="2.2" stroke-linecap="round"/>
+  </svg>`,
+
+  countNumbers: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#F0FDF4" stroke="#0F6D38" stroke-width="1.2"/>
+    <path d="M6 16V8l-1.5 1.5M10.5 10a2 2 0 0 1 2 2c0 1-2 2-2 4h3M15 16h2a2 2 0 0 0 0-4h-1m1 0a1.8 1.8 0 0 0 0-3.6h-2" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  maxFunction: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="6" y="13" width="3" height="6" fill="#94A3B8"/>
+    <rect x="10.5" y="7" width="3" height="12" fill="#0F6D38"/>
+    <rect x="15" y="10" width="3" height="9" fill="#94A3B8"/>
+    <path d="M12 4l-2 3h4l-2-3z" fill="#DC2626"/>
+  </svg>`,
+
+  minFunction: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="6" y="8" width="3" height="11" fill="#94A3B8"/>
+    <rect x="10.5" y="14" width="3" height="5" fill="#0F6D38"/>
+    <rect x="15" y="10" width="3" height="9" fill="#94A3B8"/>
+    <path d="M12 21l-2-3h4l-2 3z" fill="#2563EB"/>
+  </svg>`,
+
+  categoryFinancial: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="4" width="18" height="16" rx="3" fill="#FEF3C7" stroke="#D97706" stroke-width="1.2"/>
+    <circle cx="12" cy="12" r="5" fill="#F59E0B"/>
+    <path d="M12 9v6M10.5 10.5h2.5a1 1 0 0 1 0 2h-2a1 1 0 0 0 0 2h2.5" stroke="#FFF" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`,
+
+  categoryLogical: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.2"/>
+    <path d="M6 12h4m0 0l4-4m-4 4l4 4m4-4h2" stroke="#2563EB" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="6" cy="12" r="1.5" fill="#2563EB"/>
+    <circle cx="18" cy="8" r="1.5" fill="#10B981"/>
+    <circle cx="18" cy="16" r="1.5" fill="#EF4444"/>
+  </svg>`,
+
+  categoryText: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <path d="M7 7h10M12 7v11M9 18h6" stroke="#4F46E5" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`,
+
+  categoryDateTime: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="4" width="18" height="16" rx="3" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <path d="M3 8h18M8 2v4M16 2v4" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round"/>
+    <circle cx="14" cy="13" r="4" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.2"/>
+    <path d="M14 11.5v1.8l1.2.8" stroke="#0F6D38" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`,
+
+  categoryLookup: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <path d="M3 9h18M9 3v18" stroke="#CBD5E1"/>
+    <circle cx="14" cy="14" r="3.5" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.3"/>
+    <path d="M16.5 16.5L20 20" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`,
+
+  categoryMath: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <path d="M6 7h4M8 5v4M14 7h4M6 17h4M8 15v4M14 15h4M14 18h4" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
+  categoryMore: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <path d="M7 6h10l-6 6 6 6H7" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  defineName: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <path d="M4 6a2 2 0 0 1 2-2h7l7 7-7 7H6a2 2 0 0 1-2-2V6z" fill="#ECFDF5" stroke="#0F6D38" stroke-width="1.3"/>
+    <circle cx="8" cy="8" r="1.5" fill="#0F6D38"/>
+    <path d="M15 13v4m-2-2h4" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
+  useInFormula: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <path d="M6 7h8M6 11h12M6 15h6" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M16 14l3 3-3 3m3-3h-5" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  createFromSelection: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="5" y="5" width="14" height="4" fill="#BBF7D0"/>
+    <path d="M5 9h14M5 13h14M5 17h14M10 5v14M15 5v14" stroke="#94A3B8" stroke-width="0.8"/>
+    <path d="M17 13l2 2-2 2" stroke="#0F6D38" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  tracePrecedents: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="6" height="6" rx="1" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.2"/>
+    <rect x="15" y="15" width="6" height="6" rx="1" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.2"/>
+    <circle cx="6" cy="6" r="1.5" fill="#2563EB"/>
+    <path d="M6 9v7c0 1 1 2 2 2h6" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M12 16l3 2-3 2v-4z" fill="#2563EB"/>
+  </svg>`,
+
+  traceDependents: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="6" height="6" rx="1" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.2"/>
+    <rect x="15" y="15" width="6" height="6" rx="1" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.2"/>
+    <circle cx="6" cy="6" r="1.5" fill="#0F6D38"/>
+    <path d="M9 6h6c1 0 2 1 2 2v6" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M15 12l2 3 2-3h-4z" fill="#2563EB"/>
+  </svg>`,
+
+  removeArrows: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <path d="M5 8h10c1 0 2 1 2 2v6" stroke="#94A3B8" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M15 14l2 2 2-2" stroke="#94A3B8" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M6 18l12-12M6 6l12 12" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  showFormulas: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#ECFDF5" stroke="#0F6D38" stroke-width="1.3"/>
+    <path d="M7 16V10c0-1.5 1-2 2-2h2M6 13h5" stroke="#0F6D38" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M13 11l4 5M17 11l-4 5" stroke="#0F6D38" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`,
+
+  errorChecking: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#FFFBEB" stroke="#D97706" stroke-width="1.2"/>
+    <path d="M12 7v6M12 16h.01" stroke="#D97706" stroke-width="2" stroke-linecap="round"/>
+    <path d="M4 4l4 0 0 4z" fill="#10B981"/>
+  </svg>`,
+
+  watchWindow: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="4" width="18" height="16" rx="3" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <path d="M3 9h18M8 4v16" stroke="#CBD5E1"/>
+    <circle cx="8" cy="13" r="3.5" stroke="#2563EB" stroke-width="1.4" fill="#DBEAFE"/>
+    <circle cx="15" cy="13" r="3.5" stroke="#2563EB" stroke-width="1.4" fill="#DBEAFE"/>
+    <path d="M11.5 13h1" stroke="#2563EB" stroke-width="1.4"/>
+  </svg>`,
+
+  calculationOptions: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#F0FDF4" stroke="#0F6D38" stroke-width="1.2"/>
+    <rect x="6" y="6" width="12" height="4" rx="1" fill="#DCFCE7"/>
+    <circle cx="8" cy="13" r="1" fill="#0F6D38"/>
+    <circle cx="12" cy="13" r="1" fill="#0F6D38"/>
+    <circle cx="16" cy="13" r="1" fill="#0F6D38"/>
+    <circle cx="8" cy="17" r="1" fill="#0F6D38"/>
+    <circle cx="12" cy="17" r="1" fill="#0F6D38"/>
+    <path d="M15 17h2" stroke="#0F6D38" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`,
+
+  calculateSheet: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="4" y="3" width="16" height="18" rx="2" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.2"/>
+    <path d="M7 7h10M7 11h5" stroke="#94A3B8" stroke-width="1.2"/>
+    <path d="M15 13a3.5 3.5 0 1 1-1-2.5M15 9v3h-3" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`
 };
