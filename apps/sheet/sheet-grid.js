@@ -12,6 +12,7 @@ import { showCellStylesDialog, showFormatAsTableDialog, CELL_STYLE_PRESETS, TABL
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { SheetDataTools } from "./data-tools.js";
+import { showConfirmDialog } from "../../platform/ui-kit/dialogs.js";
 
 function trapFocus(element, event) {
   if (event.key !== "Tab") return;
@@ -64,6 +65,7 @@ export class SheetGridController {
     this.commentsBySheet = Object.fromEntries(this.sheets.map(name => [name, {}]));
     this.printAreaBySheet = Object.fromEntries(this.sheets.map(name => [name, null]));
     this.pageBreaksBySheet = Object.fromEntries(this.sheets.map(name => [name, { rows: [], cols: [] }]));
+    this.mergedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.formulaEngine = new FormulaEngine(
       () => this.cellsData,
       name => this.resolveNamedRange(name),
@@ -1181,6 +1183,7 @@ export class SheetGridController {
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
     if (!(sheetName in this.printAreaBySheet)) this.printAreaBySheet[sheetName] = null;
     if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
+    if (!this.mergedRangesBySheet[sheetName]) this.mergedRangesBySheet[sheetName] = [];
 
     // 1. Lưu trạng thái sheet hiện tại
     if (this.activeSheet && this.sheetStates) {
@@ -1286,6 +1289,7 @@ export class SheetGridController {
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
     if (!(sheetName in this.printAreaBySheet)) this.printAreaBySheet[sheetName] = null;
     if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
+    if (!this.mergedRangesBySheet[sheetName]) this.mergedRangesBySheet[sheetName] = [];
     if (!this.sheetStates) {
       this.sheetStates = {};
     }
@@ -1334,6 +1338,7 @@ export class SheetGridController {
     delete this.commentsBySheet[sheetName];
     delete this.printAreaBySheet[sheetName];
     delete this.pageBreaksBySheet[sheetName];
+    delete this.mergedRangesBySheet[sheetName];
     this.tabBar?.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)?.remove?.();
     if (this.activeSheet === sheetName) {
       this.activeSheet = "";
@@ -1405,6 +1410,8 @@ export class SheetGridController {
       const isMulti = (normRange.start.c !== normRange.end.c || normRange.start.r !== normRange.end.r);
 
       this.cols.forEach(c => {
+        const mergedRange = this.getMergedRangeForCell(c, r);
+        if (mergedRange && (mergedRange.start.c !== c || mergedRange.start.r !== r)) return;
         const td = document.createElement("td");
         td.hidden = this._isOutlineColumnHidden(c);
         td.className = "vno-grid-cell";
@@ -1412,6 +1419,12 @@ export class SheetGridController {
         td.dataset.coord = coordKey;
         td.dataset.col = c;
         td.dataset.row = r;
+        if (mergedRange) {
+          td.colSpan = this._columnNumber(mergedRange.end.c) - this._columnNumber(mergedRange.start.c) + 1;
+          td.rowSpan = mergedRange.end.r - mergedRange.start.r + 1;
+          td.dataset.mergedRange = this._rangeLabel(mergedRange);
+          td.classList.add("is-merged-cell");
+        }
 
         const itm = this.cellsData.get(coordKey);
         this._renderCellVisual(td, itm, c, r);
@@ -1780,7 +1793,13 @@ export class SheetGridController {
       this.autocomplete.closeAll();
     }
 
-    if (!extendRange || !this.selectionRange) {
+    const mergedRange = this.getMergedRangeForCell(col, row);
+    if (mergedRange && !extendRange) {
+      this.selectionRange = structuredClone(mergedRange);
+      this.selectedCoord = { ...mergedRange.start };
+      col = mergedRange.start.c;
+      row = mergedRange.start.r;
+    } else if (!extendRange || !this.selectionRange) {
       this.selectionRange = { start: { c: col, r: row }, end: { c: col, r: row } };
       this.selectedCoord = { c: col, r: row };
     } else {
@@ -3627,6 +3646,98 @@ export class SheetGridController {
     return this.setStyle("paddingLeft", `${next}px`);
   }
 
+  _rangeLabel(range) {
+    const normalized = this._normalizeRange(range);
+    return `${normalized.start.c}${normalized.start.r}:${normalized.end.c}${normalized.end.r}`;
+  }
+
+  getMergedRanges(sheetName = this.activeSheet) {
+    return this.mergedRangesBySheet[sheetName] ||= [];
+  }
+
+  getMergedRangeForCell(col, row, sheetName = this.activeSheet) {
+    return this.getMergedRanges(sheetName).find(range => this._rangeContains(range, col, row)) || null;
+  }
+
+  _rangesIntersect(left, right) {
+    const a = this._normalizeRange(left);
+    const b = this._normalizeRange(right);
+    return !(this._columnNumber(a.end.c) < this._columnNumber(b.start.c) ||
+      this._columnNumber(a.start.c) > this._columnNumber(b.end.c) ||
+      a.end.r < b.start.r || a.start.r > b.end.r);
+  }
+
+  async mergeCells(mode = "mergeCenter", range = this.selectionRange, { confirmDataLoss = true } = {}) {
+    const normalized = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
+    const width = this._columnNumber(normalized.end.c) - this._columnNumber(normalized.start.c) + 1;
+    const height = normalized.end.r - normalized.start.r + 1;
+    if (width === 1 && height === 1) return false;
+    if (this.getMergedRanges().some(existing => this._rangesIntersect(existing, normalized))) return false;
+
+    const ranges = mode === "mergeAcross"
+      ? Array.from({ length: height }, (_, index) => ({ start: { c: normalized.start.c, r: normalized.start.r + index }, end: { c: normalized.end.c, r: normalized.start.r + index } }))
+      : [normalized];
+    const populated = [];
+    for (const mergeRange of ranges) {
+      for (let row = mergeRange.start.r; row <= mergeRange.end.r; row++) {
+        for (let colNumber = this._columnNumber(mergeRange.start.c); colNumber <= this._columnNumber(mergeRange.end.c); colNumber++) {
+          const coord = `${this._columnLabel(colNumber)}${row}`;
+          const item = this.cellsData.get(coord);
+          if (item && (item.formula || item.val !== "" && item.val !== null && item.val !== undefined)) populated.push(coord);
+        }
+      }
+    }
+    if (confirmDataLoss && populated.length > ranges.length) {
+      const confirmed = await showConfirmDialog({
+        title: "Merge cells",
+        message: "Vùng chọn có nhiều ô chứa dữ liệu. Chỉ dữ liệu ở ô trên cùng bên trái của mỗi vùng gộp được giữ lại.",
+        confirmText: "Tiếp tục gộp",
+        cancelText: "Hủy"
+      });
+      if (!confirmed) return false;
+    }
+
+    const beforeCells = this._snapshotCells();
+    const beforeRanges = structuredClone(this.getMergedRanges());
+    for (const mergeRange of ranges) {
+      const topLeft = `${mergeRange.start.c}${mergeRange.start.r}`;
+      for (let row = mergeRange.start.r; row <= mergeRange.end.r; row++) {
+        for (let colNumber = this._columnNumber(mergeRange.start.c); colNumber <= this._columnNumber(mergeRange.end.c); colNumber++) {
+          const coord = `${this._columnLabel(colNumber)}${row}`;
+          if (coord !== topLeft) this.cellsData.delete(coord);
+        }
+      }
+      if (mode === "mergeCenter") {
+        const item = this.cellsData.get(topLeft) || { val: "", formula: "", style: {} };
+        item.style = { ...(item.style || {}), textAlign: "center", verticalAlign: "middle" };
+        this.cellsData.set(topLeft, item);
+      }
+      this.getMergedRanges().push(structuredClone(mergeRange));
+    }
+    this.selectionRange = structuredClone(normalized);
+    this.selectedCoord = { ...normalized.start };
+    const action = { type: "merge-cells", sheet: this.activeSheet, beforeCells, afterCells: this._snapshotCells(), beforeRanges, afterRanges: structuredClone(this.getMergedRanges()), selection: structuredClone(normalized) };
+    this._recordHistory(action);
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.selectCell(normalized.start.c, normalized.start.r);
+    return true;
+  }
+
+  unmergeCells(range = this.selectionRange) {
+    const normalized = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
+    const beforeRanges = structuredClone(this.getMergedRanges());
+    const removed = beforeRanges.filter(existing => this._rangesIntersect(existing, normalized));
+    if (!removed.length) return false;
+    const beforeCells = this._snapshotCells();
+    this.mergedRangesBySheet[this.activeSheet] = beforeRanges.filter(existing => !this._rangesIntersect(existing, normalized));
+    this.selectionRange = structuredClone(normalized);
+    this.selectedCoord = { ...normalized.start };
+    this._recordHistory({ type: "merge-cells", sheet: this.activeSheet, beforeCells, afterCells: this._snapshotCells(), beforeRanges, afterRanges: structuredClone(this.getMergedRanges()), selection: structuredClone(normalized) });
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.selectCell(normalized.start.c, normalized.start.r);
+    return true;
+  }
+
   _recordHistory(action, { coalesce = false } = {}) {
     const previous = this.undoStack[this.undoStack.length - 1];
     const mergeCellEdit = coalesce && previous?.type === "cell" && action.type === "cell" &&
@@ -3881,7 +3992,13 @@ export class SheetGridController {
     }
     if (action.sheet && action.sheet !== this.activeSheet) this.switchSheet(action.sheet);
     const value = direction === "undo" ? "prevVal" : "nextVal";
-    if (action.type === "grid-structure") {
+    if (action.type === "merge-cells") {
+      const useBefore = direction === "undo";
+      this.sheetsData[action.sheet] = new Map((useBefore ? action.beforeCells : action.afterCells).map(([key, item]) => [key, structuredClone(item)]));
+      this.mergedRangesBySheet[action.sheet] = structuredClone(useBefore ? action.beforeRanges : action.afterRanges);
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      this.selectCell(action.selection.start.c, action.selection.start.r);
+    } else if (action.type === "grid-structure") {
       this._restoreGridStructure(direction === "undo" ? action.before : action.after);
     } else if (action.type === "cell") {
       this.setCellValue(action.col, action.row, action[value], false);
@@ -4240,6 +4357,7 @@ export class SheetGridController {
       selectedCoord: { ...(sheetName === this.activeSheet ? this.selectedCoord : (state.selectedCoord || { r: 1, c: "A" })) },
       selectionRange: structuredClone(this.selectionRange),
       outlineGroups: structuredClone(this.outlineGroupsBySheet[sheetName] || [])
+      ,mergedRanges: structuredClone(this.mergedRangesBySheet[sheetName] || [])
     };
   }
 
@@ -4257,6 +4375,7 @@ export class SheetGridController {
     this.selectedCoord = { ...snapshot.selectedCoord };
     this.selectionRange = structuredClone(snapshot.selectionRange);
     this.outlineGroupsBySheet[snapshot.sheetName] = structuredClone(snapshot.outlineGroups || []);
+    this.mergedRangesBySheet[snapshot.sheetName] = structuredClone(snapshot.mergedRanges || []);
     if (this.sheetStates[snapshot.sheetName]) {
       Object.assign(this.sheetStates[snapshot.sheetName], {
         hiddenRows: new Set(this.hiddenRows),
@@ -4335,6 +4454,19 @@ export class SheetGridController {
     const shiftRange = range => this._shiftRange(range, axis, insertionPoint, direction);
     this.conditionalFormattingBySheet[sheet] = (this.conditionalFormattingBySheet[sheet] || []).map(rule => ({ ...rule, range: shiftRange(rule.range) }));
     this.dataValidationsBySheet[sheet] = (this.dataValidationsBySheet[sheet] || []).map(rule => ({ ...rule, range: shiftRange(rule.range) }));
+    this.mergedRangesBySheet[sheet] = (this.mergedRangesBySheet[sheet] || []).flatMap(range => {
+      if (direction > 0) return [shiftRange(range)];
+      const normalized = this._normalizeRange(range);
+      const start = axis === "row" ? normalized.start.r : this._columnNumber(normalized.start.c);
+      const end = axis === "row" ? normalized.end.r : this._columnNumber(normalized.end.c);
+      if (insertionPoint < start) return [shiftRange(normalized)];
+      if (insertionPoint > end) return [normalized];
+      if (start === end) return [];
+      const next = structuredClone(normalized);
+      if (axis === "row") next.end.r--;
+      else next.end.c = this._columnLabel(end - 1);
+      return [next];
+    });
 
     const comments = {};
     for (const [coord, comment] of Object.entries(this.commentsBySheet[sheet] || {})) {
@@ -4512,7 +4644,8 @@ export class SheetGridController {
       namedRanges: structuredClone(this.namedRangesBySheet[sheetName] || []),
       comments: structuredClone(this.commentsBySheet[sheetName] || {}),
       printArea: this.printAreaBySheet[sheetName] || null,
-      pageBreaks: structuredClone(this.pageBreaksBySheet[sheetName] || { rows: [], cols: [] })
+      pageBreaks: structuredClone(this.pageBreaksBySheet[sheetName] || { rows: [], cols: [] }),
+      mergedRanges: structuredClone(this.mergedRangesBySheet[sheetName] || [])
     };
   }
 
@@ -4536,6 +4669,7 @@ export class SheetGridController {
     this.commentsBySheet[sheetName] = structuredClone(snapshot.comments || {});
     this.printAreaBySheet[sheetName] = snapshot.printArea || null;
     this.pageBreaksBySheet[sheetName] = structuredClone(snapshot.pageBreaks || { rows: [], cols: [] });
+    this.mergedRangesBySheet[sheetName] = structuredClone(snapshot.mergedRanges || []);
     const tabs = this.tabBar?.querySelector?.("#vno-sheet-tabs-list");
     if (tabs && typeof document !== "undefined" && !this.tabBar.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)) {
       const tab = document.createElement("div");

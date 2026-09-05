@@ -144,6 +144,10 @@ export const viStrings = {
     ,"sheet.cell.alignCenter": { label: "Căn giữa", tooltip: "Căn lề giữa" }
     ,"sheet.cell.alignRight": { label: "Căn phải", tooltip: "Căn lề phải" }
     ,"sheet.cell.merge": { label: "Trộn ô", tooltip: "Trộn các ô đã chọn và căn giữa" }
+    ,"sheet.cell.mergeCenter": { label: "Trộn & căn giữa", tooltip: "Trộn vùng chọn thành một ô và căn giữa" }
+    ,"sheet.cell.mergeAcross": { label: "Trộn theo hàng", tooltip: "Trộn riêng từng hàng trong vùng chọn" }
+    ,"sheet.cell.mergeCells": { label: "Trộn ô", tooltip: "Trộn vùng chọn và giữ căn chỉnh hiện tại" }
+    ,"sheet.cell.unmerge": { label: "Tách ô", tooltip: "Tách các ô đã trộn" }
     ,"sheet.cell.borders": { label: "Viền ô", tooltip: "Kẻ đường viền khung ô" }
     ,"sheet.cell.fillColor": { label: "Màu nền", tooltip: "Tô màu nền ô tính" }
     ,"sheet.cell.textColor": { label: "Màu chữ", tooltip: "Đổi màu chữ trong ô" }

@@ -205,6 +205,8 @@ export const ICONS = {
     <polyline points="9 10 7 12 9 14" stroke="#0F6D38" stroke-width="1.5"/>
     <polyline points="15 10 17 12 15 14" stroke="#0F6D38" stroke-width="1.5"/>
   </svg>`,
+  mergeAcross: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="3" y="5" width="18" height="6" rx="1" fill="#E7F4EC" stroke="#0F6D38"/><rect x="3" y="13" width="18" height="6" rx="1" fill="#E7F4EC" stroke="#0F6D38"/><path d="M7 8h10M7 16h10" stroke="#0F6D38" stroke-width="1.5"/></svg>`,
+  unmergeCells: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" fill="#FFF7ED" stroke="#C2410C"/><path d="M12 5v14M3 12h18" stroke="#C2410C"/><path d="m8 9-3 3 3 3m8-6 3 3-3 3" stroke="#C2410C" stroke-width="1.5"/></svg>`,
 
   currencyVND: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <circle cx="16" cy="16" r="13" fill="#F5B800" stroke="#D97706" stroke-width="1.5"/>
