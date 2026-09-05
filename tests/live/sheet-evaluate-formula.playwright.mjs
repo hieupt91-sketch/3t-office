@@ -13,7 +13,7 @@ const server = http.createServer((req, res) => {
 await new Promise(resolve => server.listen(8807, resolve));
 const playwright = await import(pathToFileURL("C:/Users/3T Computer/AppData/Local/Temp/vno-playwright-tools/node_modules/playwright-core/index.mjs"));
 const browser = await playwright.chromium.launch({ executablePath: "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", headless: true });
-const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, locale: "vi-VN" });
 const errors = [];
 page.on("pageerror", error => errors.push(error.message));
 
@@ -46,13 +46,13 @@ try {
   const f1Value = (await shell.locator('[data-coord="F1"]').textContent()).trim();
   if (f1Value !== "6") throw new Error(`F1 trên lưới phải là 6 trước khi mở dialog, thực tế: ${f1Value}`);
 
-  await page.locator(".vno-ribbon-tab").filter({ hasText: /^Công thức$/ }).click();
+  await shell.locator("#vno-ribbon-tab-formulas").click();
   const command = shell.locator('[data-command-id="sheet.formula.evaluateFormula"]');
   if (await command.count() < 1) throw new Error("Ribbon thiếu nút Ước lượng công thức");
   if (!(await command.locator("svg").count())) throw new Error("Nút Ước lượng công thức thiếu SVG");
   await command.first().click();
 
-  const dialog = page.locator('.vno-dialog-box[aria-label="Ước lượng công thức"]');
+  const dialog = page.locator(".vno-evaluate-formula-dialog .vno-dialog-box");
   await dialog.waitFor();
   const underline = dialog.locator(".vno-eval-underline");
   await underline.waitFor();
