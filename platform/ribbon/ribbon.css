@@ -79,6 +79,10 @@
   overflow-y: hidden;
 }
 
+/* VNO-GAP-UI: Sheet Home "Chinh sua" group va Formulas tab tran ngang ~189px/~22px
+   o do phan giai 1366px (xem docs/VNO-GAPS.md #1, #2). Can CSS responsive giam
+   gap/padding <=1400px hoac gom nho Fill/Clear thanh dropdown giong Excel that. */
+
 /* Ribbon Group */
 .vno-ribbon-group {
   display: flex;
