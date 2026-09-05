@@ -87,7 +87,7 @@ export class WriterAdapter {
       margins: { ...DEFAULT_MARGINS_MM }
     };
     this.copiedFormat = null;
-    /** @type {Array<{id:string, anchorText:string, content:string, createdAt:string}>} */
+    /** @type {Array<{id:string, anchorText:string, content:string, createdAt:string, author?:string}>} */
     this.comments = [];
     this.commentsPanel = null;
     this.activeCommentId = null;
@@ -937,14 +937,22 @@ export class WriterAdapter {
    * Heading 1 is also wrapped as `<ol><li><h1>` — unwrap so Writer keeps h1
    * instead of a numbered list / Normal paragraph.
    *
-   * StarWriter HTML also flattens OOXML Track Changes (`w:ins` / `w:del`) into
-   * ordinary paragraph text. When the desktop bridge forwards `word/document.xml`,
-   * wrap those runs back into `<ins>` / `<del>` before the body is mounted.
+   * StarWriter HTML also flattens OOXML Track Changes (`w:ins` / `w:del`) and
+   * Word comments into ordinary paragraph text (comment bodies survive only as
+   * HTML comments; authors are dropped). When the desktop bridge forwards
+   * `word/document.xml` and `word/comments.xml`, wrap those runs back into
+   * `<ins>` / `<del>` / `<mark data-comment-id>` before the body is mounted.
    */
-  _normalizeImportedHtml(raw, ooxmlDocumentXml) {
+  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml) {
     let html = String(raw || "");
+    let comments = [];
     if (ooxmlDocumentXml) {
       html = this._applyOoxmlTrackChangesToHtml(html, ooxmlDocumentXml);
+    }
+    if (ooxmlDocumentXml && ooxmlCommentsXml) {
+      const overlaid = this._applyOoxmlCommentsToHtml(html, ooxmlDocumentXml, ooxmlCommentsXml);
+      html = overlaid.html;
+      comments = overlaid.comments;
     }
     html = this._upgradeImportedTrackChangeMarkup(html);
     const page = this._pageSetupFromImportedCss(html);
@@ -970,7 +978,7 @@ export class WriterAdapter {
       footer = footerMatch[1].trim();
       html = html.replace(footerMatch[0], "");
     }
-    return { body: html.trim(), header, footer, page };
+    return { body: html.trim(), header, footer, page, comments };
   }
 
   /**
@@ -1081,6 +1089,184 @@ export class WriterAdapter {
     return String(html || "")
       .replace(/<ins\b([^>]*)>/gi, (full, attrs) => upgrade(full, attrs, "insert"))
       .replace(/<del\b([^>]*)>/gi, (full, attrs) => upgrade(full, attrs, "delete"));
+  }
+
+  _ooxmlPlainText(xml) {
+    const texts = [];
+    const textRe = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi;
+    let match;
+    while ((match = textRe.exec(String(xml || "")))) {
+      texts.push(this._decodeXmlEntities(match[1]));
+    }
+    return texts.join("");
+  }
+
+  _flexibleTextPattern(text) {
+    const parts = String(text || "").trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return "";
+    return parts.map((part) => this._escapeRegExp(part)).join("\\s+");
+  }
+
+  _lastWords(text, count = 4) {
+    const parts = String(text || "").trim().split(/\s+/).filter(Boolean);
+    return parts.slice(-count).join(" ");
+  }
+
+  _firstWords(text, count = 4) {
+    const parts = String(text || "").trim().split(/\s+/).filter(Boolean);
+    return parts.slice(0, count).join(" ");
+  }
+
+  /**
+   * Parse word/comments.xml: id → author, date, body.
+   * StarWriter HTML keeps the body only as `<!-- ... -->` and drops the author.
+   */
+  _extractOoxmlCommentBodies(commentsXml) {
+    const source = String(commentsXml || "");
+    const bodies = new Map();
+    const blockRe = /<w:comment\b([^>]*)>([\s\S]*?)<\/w:comment>/gi;
+    let match;
+    while ((match = blockRe.exec(source))) {
+      const attrs = match[1] || "";
+      const inner = match[2] || "";
+      const id = this._decodeXmlEntities((attrs.match(/\bw:id="([^"]*)"/i) || [])[1] || "");
+      if (id === "") continue;
+      const author = this._decodeXmlEntities((attrs.match(/\bw:author="([^"]*)"/i) || [])[1] || "");
+      const date = this._decodeXmlEntities((attrs.match(/\bw:date="([^"]*)"/i) || [])[1] || "");
+      const paragraphs = [];
+      const pRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/gi;
+      let pMatch;
+      while ((pMatch = pRe.exec(inner))) {
+        const para = this._ooxmlPlainText(pMatch[1]).trim();
+        if (para) paragraphs.push(para);
+      }
+      bodies.set(id, { author, date, content: paragraphs.join("\n").trim() });
+    }
+    return bodies;
+  }
+
+  /**
+   * Parse word/document.xml comment ranges. The anchored text lives between
+   * `w:commentRangeStart` and `w:commentRangeEnd`; prefix/suffix help disambiguate
+   * when the same phrase also appears in a heading.
+   */
+  _extractOoxmlCommentAnchors(documentXml) {
+    const source = String(documentXml || "");
+    const anchors = new Map();
+    const startRe = /<w:commentRangeStart\b([^>]*)\/?>/gi;
+    let startMatch;
+    while ((startMatch = startRe.exec(source))) {
+      const id = this._decodeXmlEntities((startMatch[1].match(/\bw:id="([^"]*)"/i) || [])[1] || "");
+      if (id === "") continue;
+      const rest = source.slice(startMatch.index + startMatch[0].length);
+      const endRe = new RegExp(`<w:commentRangeEnd\\b[^>]*\\bw:id="${this._escapeRegExp(id)}"[^>]*\\/?>`, "i");
+      const endMatch = endRe.exec(rest);
+      if (!endMatch) continue;
+      const inner = rest.slice(0, endMatch.index);
+      const after = rest.slice(endMatch.index + endMatch[0].length);
+      const before = source.slice(0, startMatch.index);
+      anchors.set(id, {
+        text: this._ooxmlPlainText(inner),
+        prefix: this._ooxmlPlainText(before),
+        suffix: this._ooxmlPlainText(after)
+      });
+    }
+    return anchors;
+  }
+
+  _isInsideImportedComment(html, offset) {
+    const before = String(html || "").slice(0, offset);
+    const lastOpen = Math.max(before.lastIndexOf("<mark"), before.lastIndexOf("<MARK"));
+    if (lastOpen < 0) return false;
+    const lastClose = Math.max(before.lastIndexOf("</mark>"), before.lastIndexOf("</MARK>"));
+    return lastClose < lastOpen;
+  }
+
+  _importedCommentMarkOpen(comment) {
+    const authorAttr = comment.author
+      ? ` data-vno-comment-author="${this._escapeHtml(comment.author)}"`
+      : "";
+    const titleAttr = comment.author ? ` title="${this._escapeHtml(comment.author)}"` : "";
+    const label = `Mở ghi chú cho: ${String(comment.anchorText || "").slice(0, 80)}`;
+    return `<mark class="vno-comment-anchor" data-comment-id="${this._escapeHtml(comment.id)}" tabindex="0" role="button"${authorAttr}${titleAttr} aria-label="${this._escapeHtml(label)}">`;
+  }
+
+  _wrapImportedCommentInHtml(html, comment) {
+    const targetFlex = this._flexibleTextPattern(comment.anchorText);
+    if (!targetFlex) return { html, applied: false };
+    const markOpen = this._importedCommentMarkOpen(comment);
+    const markClose = "</mark>";
+    const source = String(html || "");
+
+    if (comment.content) {
+      const hint = new RegExp(`(${targetFlex})(\\s*)<!--\\s*${this._escapeRegExp(comment.content)}\\s*-->`);
+      if (hint.test(source)) {
+        return {
+          html: source.replace(hint, (_full, target) => `${markOpen}${target}${markClose}`),
+          applied: true
+        };
+      }
+    }
+
+    const prefixFlex = this._flexibleTextPattern(comment.prefix);
+    if (prefixFlex) {
+      const withPrefix = new RegExp(`(${prefixFlex})(\\s+)(${targetFlex})`);
+      let applied = false;
+      const next = source.replace(withPrefix, (full, pre, ws, target, offset) => {
+        if (applied || /[<>]/.test(target) || this._isInsideImportedComment(source, offset + pre.length + ws.length)) {
+          return full;
+        }
+        applied = true;
+        return `${pre}${ws}${markOpen}${target}${markClose}`;
+      });
+      if (applied) return { html: next, applied: true };
+    }
+
+    const targetOnly = new RegExp(targetFlex, "g");
+    const matches = [...source.matchAll(targetOnly)].filter((item) => (
+      !/[<>]/.test(item[0]) && !this._isInsideImportedComment(source, item.index)
+    ));
+    if (matches.length === 1) {
+      const match = matches[0];
+      const next = source.slice(0, match.index) + markOpen + match[0] + markClose + source.slice(match.index + match[0].length);
+      return { html: next, applied: true };
+    }
+
+    return { html: source, applied: false };
+  }
+
+  _applyOoxmlCommentsToHtml(html, documentXml, commentsXml) {
+    const bodies = this._extractOoxmlCommentBodies(commentsXml);
+    const anchors = this._extractOoxmlCommentAnchors(documentXml);
+    if (!bodies.size) return { html: String(html || ""), comments: [] };
+    let next = String(html || "");
+    const imported = [];
+    for (const [ooxmlId, body] of bodies) {
+      const anchor = anchors.get(ooxmlId) || { text: "", prefix: "", suffix: "" };
+      const id = `writer-comment-import-${ooxmlId}`;
+      const wrapped = this._wrapImportedCommentInHtml(next, {
+        id,
+        anchorText: anchor.text,
+        prefix: this._lastWords(anchor.prefix, 4),
+        suffix: this._firstWords(anchor.suffix, 4),
+        content: body.content,
+        author: body.author
+      });
+      if (!wrapped.applied) continue;
+      next = wrapped.html;
+      imported.push({
+        id,
+        anchorText: String(anchor.text || "").trim().replace(/\s+/g, " "),
+        content: body.content,
+        author: body.author || "",
+        createdAt: body.date || new Date().toISOString()
+      });
+    }
+    for (const comment of imported) {
+      if (!comment.content) continue;
+      next = next.replace(new RegExp(`<!--\\s*${this._escapeRegExp(comment.content)}\\s*-->`, "g"), "");
+    }
+    return { html: next, comments: imported };
   }
 
   async _showPageSetupDialog(focusField = "size") {
@@ -1758,16 +1944,25 @@ export class WriterAdapter {
       content.textContent = comment.content;
       const meta = document.createElement("div");
       meta.className = "vno-comment-meta";
+      const info = document.createElement("span");
+      info.className = "vno-comment-info";
+      if (comment.author) {
+        const who = document.createElement("span");
+        who.className = "vno-comment-author";
+        who.textContent = comment.author;
+        info.appendChild(who);
+      }
       const time = document.createElement("time");
       time.dateTime = comment.createdAt;
       time.textContent = new Date(comment.createdAt).toLocaleString("vi-VN");
+      info.appendChild(time);
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "vno-comment-delete";
       remove.dataset.commentDelete = comment.id;
       remove.setAttribute("aria-label", `Xóa ghi chú cho ${comment.anchorText}`);
       remove.textContent = "Xóa";
-      meta.append(time, remove);
+      meta.append(info, remove);
       card.append(preview, content, meta);
       this.commentsPanel.appendChild(card);
     }
@@ -3268,7 +3463,11 @@ export class WriterAdapter {
       this.trackChangesEnabled = false;
       this.activeCommentId = null;
       this._renderCommentsPanel();
-      const imported = this._normalizeImportedHtml(result.content || "", result.ooxmlDocumentXml);
+      const imported = this._normalizeImportedHtml(
+        result.content || "",
+        result.ooxmlDocumentXml,
+        result.ooxmlCommentsXml
+      );
       if (imported.page) {
         this.pageSetup = {
           size: imported.page.size || this.pageSetup.size,
@@ -3286,6 +3485,12 @@ export class WriterAdapter {
         this.bodyDom.innerHTML = imported.body;
       } else if (this.editorDom) {
         this.editorDom.innerHTML = imported.body;
+      }
+
+      if (imported.comments?.length) {
+        this.comments = imported.comments;
+        this._commentSequence = Math.max(this._commentSequence, imported.comments.length);
+        this._renderCommentsPanel();
       }
 
       this.documentContent = this.editorDom ? this.editorDom.innerHTML : raw;

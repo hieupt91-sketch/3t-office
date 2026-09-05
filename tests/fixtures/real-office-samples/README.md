@@ -13,6 +13,8 @@ Round 1: `sample-writer.docx`, `sample-sheet.xlsx`, `sample-slides.pptx`.
 Round 2: `sample-writer-image.docx`, `sample-sheet-formulas.xlsx`, `sample-sheet-validation.xlsx`.
 Track Changes import: `sample-writer-trackchanges.docx` from `src/sample-writer-trackchanges.fodt` (ODF `<text:tracked-changes>` with insertion + deletion + author). LibreOffice writes native OOXML `w:ins` / `w:del`. Not produced by VN Office.
 
+Comments import: `sample-writer-comments.docx` from `src/sample-writer-comments.fodt` (ODF `<office:annotation>` + `<dc:creator>` + range end). LibreOffice writes native `word/comments.xml` and `w:commentRangeStart` / `w:commentReference` in `word/document.xml`. Not produced by VN Office.
+
 Regenerate:
 
 ```
