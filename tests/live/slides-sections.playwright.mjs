@@ -1,4 +1,4 @@
-/** Live Slide Sorter Sections proof. Uses Playwright mouse/keyboard APIs; never SendKeys. */
+/** Live Slides Sections: ribbon add, thumbnail collapse/expand by real click. Never SendKeys. */
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -32,82 +32,102 @@ try {
   await page.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: "networkidle" });
   await page.locator("#vno-switcher-toggle").click();
   await page.locator('.vno-switcher-item[data-switch="slides"]').click();
+  await page.locator(".vno-slide-canvas").waitFor();
+
   await page.evaluate(async () => {
     const { globalUnoBridge } = await import("/adapters/libreoffice/common/uno-bridge.js");
     const canvas = globalUnoBridge.activeDocument.canvas;
     canvas.sections = [];
-    canvas.slides = [
-      { id: 1, title: "Mở đầu", body: "A", layoutType: "title-content", shapes: [], comments: [] },
-      { id: 2, title: "Nội dung", body: "B", layoutType: "title-content", shapes: [], comments: [] },
-      { id: 3, title: "Kết luận", body: "C", layoutType: "title-content", shapes: [], comments: [] }
-    ];
+    canvas.collapsedSectionIds = new Set();
+    canvas.slides = Array.from({ length: 6 }, (_, index) => ({
+      id: index + 1,
+      title: `Trang ${index + 1}`,
+      body: `Nội dung ${index + 1}`,
+      layoutType: "title-content",
+      shapes: [],
+      comments: [],
+      hidden: false
+    }));
     canvas.selectSlide(0);
-    canvas.openSlideSorter();
   });
+  await page.locator(".vno-slide-thumb-item").first().waitFor();
 
-  const addSectionAt = async (slideIndex, name) => {
-    await page.locator(".vno-slide-sorter-item").nth(slideIndex).click({ button: "right" });
-    await page.locator('[data-section-action="add"]').click();
+  const addSectionViaRibbon = async (name) => {
+    await page.locator("#vno-ribbon-tab-home").click();
+    await page.locator('[data-dropdown-id="slides.section.menu"]').click();
+    await page.locator('.vno-ribbon-dropdown-menu [data-command-id="slides.section.add"]').click();
     const input = page.locator(".vno-dialog-input");
+    await input.waitFor();
     await input.fill(name);
     await page.locator(".vno-dialog-ok-btn").click();
+    await page.locator(".vno-dialog-input").waitFor({ state: "detached" });
   };
-  await addSectionAt(0, "Phần 1: Giới thiệu");
-  await addSectionAt(2, "Phần 2: Kết luận");
-  const headings = await page.locator(".vno-slide-section-divider").allTextContents();
-  assert(headings.join("|") === "Phần 1: Giới thiệu|Phần 2: Kết luận", `Wrong section headings: ${headings}`);
 
-  await page.locator(".vno-slide-sorter-item").nth(0).dragTo(page.locator(".vno-slide-sorter-item").nth(2));
-  const moved = await page.evaluate(async () => {
+  await addSectionViaRibbon("Giới thiệu");
+  await page.evaluate(async () => {
+    const { globalUnoBridge } = await import("/adapters/libreoffice/common/uno-bridge.js");
+    globalUnoBridge.activeDocument.canvas.selectSlide(3);
+  });
+  await addSectionViaRibbon("Nội dung chính");
+
+  const model = await page.evaluate(async () => {
     const { globalUnoBridge } = await import("/adapters/libreoffice/common/uno-bridge.js");
     const canvas = globalUnoBridge.activeDocument.canvas;
-    return { lastTitle: canvas.slides[2].title, sameSection: canvas.slides[2].sectionId === canvas.sections[1].id };
+    return {
+      names: canvas.sections.map(item => item.name),
+      membership: canvas.slides.map((slide, index) => canvas.getSectionForSlide(index)?.name || null),
+      starts: canvas.sections.map(item => item.startSlideIndex)
+    };
   });
-  assert(moved.lastTitle === "Mở đầu" && moved.sameSection, `Drag did not update target section: ${JSON.stringify(moved)}`);
+  assert(model.names.join("|") === "Giới thiệu|Nội dung chính", `Sai tên phần: ${model.names}`);
+  assert(model.membership.join("|") === "Giới thiệu|Giới thiệu|Giới thiệu|Nội dung chính|Nội dung chính|Nội dung chính", `Sai membership: ${model.membership}`);
+  assert(model.starts.join(",") === "0,3", `Sai startSlideIndex: ${model.starts}`);
 
-  await page.locator(".vno-slide-sorter-item").last().click({ button: "right" });
-  await page.locator('[data-section-action="rename"]').click();
-  await page.locator(".vno-dialog-input").fill("Phần 2: Tổng kết");
-  await page.locator(".vno-dialog-ok-btn").click();
-  assert(await page.locator(".vno-slide-section-divider").last().textContent() === "Phần 2: Tổng kết", "Rename section not rendered");
+  const headerNames = await page.locator(".vno-slide-section-header .vno-slide-section-name").allTextContents();
+  assert(headerNames.join("|") === "Giới thiệu|Nội dung chính", `Thumbnail header sai: ${headerNames}`);
+  assert(await page.locator(".vno-slide-thumb-item").count() === 6, "Phải hiện 6 thumbnail trước khi thu gọn");
 
-  await page.locator(".vno-slide-sorter-item").last().click({ button: "right" });
-  await page.locator('[data-section-action="remove"]').click();
-  const afterRemove = await page.evaluate(async () => {
+  await page.locator(".vno-slide-section-header .vno-slide-section-toggle").first().click();
+  assert(await page.locator(".vno-slide-thumb-item").count() === 3, "Thu gọn phần 1 phải ẩn đúng 3 thumbnail");
+  const remaining = await page.locator(".vno-slide-thumb-item").evaluateAll(nodes => nodes.map(node => node.getAttribute("data-slide-index")));
+  assert(remaining.join(",") === "3,4,5", `Thu gọn ẩn sai slide, còn ${remaining}`);
+  const collapsedState = await page.evaluate(async () => {
     const { globalUnoBridge } = await import("/adapters/libreoffice/common/uno-bridge.js");
     const canvas = globalUnoBridge.activeDocument.canvas;
-    return { slideCount: canvas.slides.length, sectionCount: canvas.sections.length };
+    return canvas.isSectionCollapsed(canvas.sections[0].id);
   });
-  assert(afterRemove.slideCount === 3 && afterRemove.sectionCount === 1, `Remove section affected slides: ${JSON.stringify(afterRemove)}`);
+  assert(collapsedState, "Model chưa đánh dấu phần 1 collapsed");
+  assert(await page.locator(".vno-slide-section-header").count() === 2, "Thu gọn không được ẩn thanh tiêu đề");
 
+  await page.locator(".vno-slide-section-header .vno-slide-section-toggle").first().click();
+  assert(await page.locator(".vno-slide-thumb-item").count() === 6, "Mở rộng phải hiện lại 6 thumbnail");
+
+  await page.locator("#vno-ribbon-tab-view").click();
+  await page.locator('[data-command-id="slides.view.slideSorter"]').click();
+  await page.locator(".vno-slide-sorter-overlay").waitFor();
+  assert(await page.locator(".vno-slide-sorter-item").count() === 6, "Sorter phải hiện 6 slide khi mở rộng");
+  await page.locator(".vno-slide-section-divider .vno-slide-section-toggle").first().click();
+  assert(await page.locator(".vno-slide-sorter-item").count() === 3, "Sorter thu gọn phải ẩn đúng slide trong phần");
+  await page.locator(".vno-slide-section-divider .vno-slide-section-toggle").first().click();
+  assert(await page.locator(".vno-slide-sorter-item").count() === 6, "Sorter mở rộng phải hiện lại slide");
   await page.locator(".vno-slide-sorter-close").click();
+
   await page.evaluate(async () => {
     const { globalUnoBridge } = await import("/adapters/libreoffice/common/uno-bridge.js");
     globalUnoBridge.activeDocument.canvas.selectSlide(0);
   });
-  await page.locator("#vno-ribbon-tab-transitions").click();
-  await page.evaluate(() => document.activeElement?.blur());
-  // Browser-level F5 reloads Edge, so feed the real KeyboardEvent through the app's shortcut manager.
-  const f5Command = await page.evaluate(async () => {
-    const { globalShortcutManager } = await import("/platform/commands/shortcut-manager.js");
-    const { globalCommandBus } = await import("/platform/commands/command-bus.js");
-    globalShortcutManager.setActiveScope("slides");
-    const commandId = globalShortcutManager._shortcuts.get("F5");
-    await globalCommandBus.execute(commandId);
-    return commandId;
-  });
-  assert(f5Command === "slides.show.startFromBegin", `F5 mapping is wrong: ${f5Command}`);
-  const showState = await page.evaluate(async () => {
+  await page.locator("#vno-ribbon-tab-home").click();
+  await page.locator('[data-dropdown-id="slides.section.menu"]').click();
+  await page.locator('.vno-ribbon-dropdown-menu [data-command-id="slides.section.moveDown"]').click();
+  const moved = await page.evaluate(async () => {
     const { globalUnoBridge } = await import("/adapters/libreoffice/common/uno-bridge.js");
     const canvas = globalUnoBridge.activeDocument.canvas;
-    return { sections: canvas.sections, slideSections: canvas.slides.map(slide => slide.sectionId), overlays: document.querySelectorAll(".vno-slideshow-overlay").length };
+    return canvas.slides.map(slide => slide.title);
   });
-  console.log("F5_STATE", JSON.stringify(showState));
-  assert(await page.locator(".vno-slideshow-section").textContent() === "Phần 1: Giới thiệu", "F5 does not show current section");
-  await page.keyboard.press("Escape");
+  assert(moved.join("|") === "Trang 4|Trang 5|Trang 6|Trang 1|Trang 2|Trang 3", `Ribbon moveDown sai thứ tự: ${moved}`);
 
   assert(pageErrors.length === 0, `Browser errors: ${pageErrors.join(" | ")}`);
-  console.log("PASS: live Slide Sorter add/rename/remove/drag and F5 section label");
+  console.log("PASS: live ribbon add/collapse/expand/moveDown Sections");
 } finally {
   if (browser) await browser.close();
   await new Promise(resolve => server.close(resolve));

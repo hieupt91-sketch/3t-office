@@ -41,7 +41,8 @@ export async function runSlidesHelpTests() {
       "slides.animation.apply",
       "slides.animation.pane",
       "slides.show.setupShow",
-      "slides.transition.apply"
+      "slides.transition.apply",
+      "slides.section.groups"
     ];
     for (const id of required) {
       if (!ids.includes(id)) throw new Error(`Thiếu bài hướng dẫn ${id}`);

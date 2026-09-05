@@ -145,7 +145,8 @@ export async function runSlidesSorterViewTests() {
     canvas.openSlideSorter();
     const grid = canvas.slideSorterOverlay.querySelector(".vno-slide-sorter-grid");
     const dividers = grid.children.filter(child => child.classList.contains("vno-slide-section-divider"));
-    if (dividers.length !== 1 || dividers[0].textContent !== "Phần 2: Nội dung chính") {
+    const nameEl = dividers[0]?.querySelector?.(".vno-slide-section-name");
+    if (dividers.length !== 1 || nameEl?.textContent !== "Phần 2: Nội dung chính") {
       throw new Error("Slide Sorter không hiện đúng thanh chia/tên section");
     }
   });
