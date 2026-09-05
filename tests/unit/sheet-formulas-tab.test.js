@@ -285,6 +285,26 @@ export async function runSheetFormulasTabTests() {
     assert(String(grid.cellsData.get("B1")?.val).includes("600"), `Khi ở chế độ automatic, B1 phải được tính ngay thành 600, thực tế: ${grid.cellsData.get("B1")?.val}`);
   });
 
+  await test("Calculation Engine: chế độ Manual phải chặn MỌI đường gọi _recalculateAllFormulas (autofill/paste/insert/sort), không chỉ gõ trực tiếp vào ô", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.setCellValue("A", 1, 10);
+    grid.setCellValue("B", 1, "=A1*2");
+    assert(String(grid.cellsData.get("B1")?.val).includes("20"), "B1 ban đầu phải là 20");
+
+    grid.setCalculationMode("manual");
+
+    // Sửa giá trị nguồn trực tiếp trong model (mô phỏng đường đi của autofill/paste/insert
+    // row/sort — các thao tác này không đi qua setCellValue mà chỉnh cellsData trực tiếp
+    // rồi tự gọi _recalculateAllFormulas()) và gọi lại hàm không có force.
+    grid.cellsData.get("A1").val = 99;
+    grid._recalculateAllFormulas();
+    assert(String(grid.cellsData.get("B1")?.val).includes("20"), `Ở chế độ Manual, _recalculateAllFormulas() KHÔNG force phải bị chặn hoàn toàn (mọi đường gọi, không riêng setCellValue) — B1 phải vẫn là 20, thực tế: ${grid.cellsData.get("B1")?.val}`);
+
+    // force=true (đường Calculate Now / F9 dùng) phải luôn vượt qua gác cổng Manual.
+    grid._recalculateAllFormulas(undefined, true);
+    assert(String(grid.cellsData.get("B1")?.val).includes("198"), `_recalculateAllFormulas(undefined, true) phải luôn tính lại bất kể chế độ — B1 phải là 198, thực tế: ${grid.cellsData.get("B1")?.val}`);
+  });
+
   await test("Defined Names: createNamesFromSelection tạo vùng đặt tên từ tiêu đề hàng trên cùng", () => {
     const grid = new SheetGridController(mockContainer());
     grid.setCellValue("A", 1, "GiaBan");

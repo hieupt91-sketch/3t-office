@@ -531,7 +531,7 @@ export class SheetGridController {
   }
 
   recalculateAll() {
-    this._recalculateAllFormulas();
+    this._recalculateAllFormulas(undefined, true);
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
     this._updateWatchWindow?.();
     return true;
@@ -1907,7 +1907,8 @@ export class SheetGridController {
     this._updateWatchWindow?.();
   }
 
-  _recalculateAllFormulas(excludeKey) {
+  _recalculateAllFormulas(excludeKey, force = false) {
+    if (this.calculationMode === "manual" && !force) return;
     const activeSheet = this.activeSheet;
     for (const sheetName of this.sheets) {
       const map = this.sheetsData[sheetName];
