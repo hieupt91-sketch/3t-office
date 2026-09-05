@@ -32,7 +32,7 @@ body {
    ========================================================================== */
 .vno-topbar {
   height: var(--vno-topbar-height);
-  background-color: #ffffff;
+  background-color: var(--vno-bg-window);
   border-bottom: 1px solid var(--vno-border-default);
   display: flex;
   align-items: center;
@@ -134,10 +134,10 @@ body {
   color: var(--vno-text-primary);
 }
 .vno-doc-tab.is-active {
-  background-color: #ffffff;
+  background-color: var(--vno-bg-window);
   border-color: var(--vno-app-current);
   border-bottom: 2px solid var(--vno-app-current);
-  color: var(--vno-app-current);
+  color: var(--vno-app-current-fg, var(--vno-app-current));
   font-weight: 600;
   box-shadow: var(--vno-shadow-xs);
 }
@@ -174,7 +174,7 @@ body {
   transition: all 0.2s ease;
 }
 .vno-search-input-wrap:focus-within {
-  background-color: #ffffff;
+  background-color: var(--vno-bg-window);
   border-color: var(--vno-app-current);
   box-shadow: 0 0 0 3px var(--vno-app-current-light);
 }
@@ -218,12 +218,38 @@ body {
   font-size: var(--vno-text-xs);
   border-radius: var(--vno-radius-md);
   cursor: pointer;
+  border: 1px solid var(--vno-border-default);
+  background-color: var(--vno-bg-subtle);
+  color: var(--vno-text-primary);
+}
+.vno-theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  font-weight: 600;
+  font-size: var(--vno-text-xs);
+  border-radius: var(--vno-radius-md);
+  cursor: pointer;
+  border: 1px solid var(--vno-border-default);
+  background-color: var(--vno-bg-subtle);
+  color: var(--vno-text-primary);
+  transition: all 0.15s ease;
+}
+.vno-theme-toggle-btn:hover {
+  background-color: var(--vno-bg-hover);
+  border-color: var(--vno-border-strong);
+}
+.vno-theme-toggle-btn:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 1px;
 }
 .vno-lang-menu {
   position: absolute;
   top: 36px;
   right: 0;
-  background: #ffffff;
+  background: var(--vno-bg-window);
+  color: var(--vno-text-primary);
   border: 1px solid var(--vno-border-default);
   border-radius: var(--vno-radius-md);
   box-shadow: var(--vno-shadow-lg);
@@ -239,6 +265,7 @@ body {
   font-size: 13px;
   cursor: pointer;
   border-radius: var(--vno-radius-sm);
+  color: var(--vno-text-primary);
 }
 .vno-lang-menu-item:hover {
   background-color: var(--vno-bg-hover);
@@ -248,7 +275,7 @@ body {
    2. RIBBON HOST (Thanh công cụ dải băng chuẩn Office)
    ========================================================================== */
 .vno-ribbon {
-  background-color: #ffffff;
+  background-color: var(--vno-bg-surface);
   border-bottom: 1px solid var(--vno-border-default);
   box-shadow: var(--vno-shadow-xs);
   display: flex;
@@ -261,7 +288,7 @@ body {
   align-items: center;
   height: var(--vno-ribbon-tabs-height);
   padding: 0 8px;
-  background-color: #fafafa;
+  background-color: var(--vno-bg-subtle);
   border-bottom: 1px solid var(--vno-border-default);
   gap: 2px;
 }
@@ -304,10 +331,10 @@ body {
   background-color: var(--vno-bg-hover);
 }
 .vno-ribbon-tab.is-active {
-  color: var(--vno-app-current);
+  color: var(--vno-app-current-fg, var(--vno-app-current));
   font-weight: 700;
   border-bottom-color: var(--vno-app-current);
-  background-color: #ffffff;
+  background-color: var(--vno-bg-surface);
 }
 
 /* Ribbon Body (Nhóm nút lệnh) */
@@ -316,7 +343,7 @@ body {
   align-items: stretch;
   height: var(--vno-ribbon-body-height);
   padding: 4px 6px;
-  background-color: #ffffff;
+  background-color: var(--vno-bg-surface);
   overflow-x: auto;
   overflow-y: hidden;
   gap: 0;
@@ -505,7 +532,7 @@ body {
 .vno-ribbon-dropdown-menu {
   position: fixed;
   z-index: 10000;
-  background: #ffffff;
+  background: var(--vno-bg-window);
   border: 1px solid var(--vno-border-default, #cbd5e1);
   border-radius: var(--vno-radius-md, 6px);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
@@ -792,14 +819,15 @@ body {
   outline-offset: -2px;
 }
 .vno-backstage-nav-btn.is-active {
-  background-color: #ffffff;
-  color: var(--vno-app-current);
+  background-color: var(--vno-bg-window);
+  color: var(--vno-app-current-fg, var(--vno-app-current));
   font-weight: 700;
 }
 
 .vno-backstage-content {
   flex: 1;
-  background-color: #ffffff;
+  background-color: var(--vno-bg-window);
+  color: var(--vno-text-primary);
   padding: 40px 60px;
   overflow-y: auto;
 }
@@ -811,6 +839,7 @@ body {
   margin-top: 16px;
 }
 .vno-template-card {
+  background-color: var(--vno-bg-subtle);
   border: 1px solid var(--vno-border-default);
   border-radius: var(--vno-radius-md);
   padding: 12px;
@@ -839,7 +868,7 @@ body {
 .vno-template-thumb {
   width: 100%;
   aspect-ratio: 1 / 1.414;
-  background-color: #f8fafc;
+  background-color: var(--vno-bg-muted);
   border: 1px solid var(--vno-border-subtle);
   margin-bottom: 8px;
   display: flex;

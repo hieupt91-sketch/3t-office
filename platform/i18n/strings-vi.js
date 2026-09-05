@@ -20,7 +20,10 @@ export const viStrings = {
     cancel: "Hủy bỏ",
     close: "Đóng",
     fileMenu: "Tệp",
-    switchLanguage: "Ngôn ngữ"
+    switchLanguage: "Ngôn ngữ",
+    toggleTheme: "Chế độ Tối / Sáng",
+    themeDark: "Giao diện Tối",
+    themeLight: "Giao diện Sáng"
   },
   aiAssistant: {
     title: "Trợ lý VN AI", provider: "Nhà cung cấp AI", local: "Cục bộ (mặc định)",

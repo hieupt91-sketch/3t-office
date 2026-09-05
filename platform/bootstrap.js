@@ -7,6 +7,7 @@
 import { globalCommandBus } from "./commands/command-bus.js";
 import { registerAllStandardCommands } from "./commands/command-definitions.js";
 import { globalUnoBridge } from "../adapters/libreoffice/common/uno-bridge.js";
+import { themeManager } from "./theme/theme-manager.js";
 
 let _isBootstrapped = false;
 let _bootstrapPromise = null;
@@ -46,6 +47,8 @@ export async function bootstrapPlatform() {
 
   _bootstrapPromise = (async () => {
     registerAllStandardCommands(globalCommandBus);
+    globalCommandBus.bindHandler("common.view.toggleTheme", () => themeManager.toggleTheme());
+    themeManager.init();
     await globalUnoBridge.init();
     _isBootstrapped = true;
     console.log("[VN Office Platform] Hoàn tất bootstrap suite thành công.");

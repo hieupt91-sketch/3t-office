@@ -13,6 +13,7 @@ import { LocalAiService, ApiKeyManager } from "../ai/ai-service.js";
 import { showAlertDialog } from "../ui-kit/dialogs.js";
 import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
 import { getPlatformLaunchContext } from "../bootstrap.js";
+import { themeManager } from "../theme/theme-manager.js";
 
 export class AppShell {
   /**
@@ -85,7 +86,7 @@ export class AppShell {
             <span style="display:flex;margin-left:2px;" aria-hidden="true">${ICONS.chevronDown}</span>
           </button>
           <div id="vno-switcher-menu" role="menu" aria-label="Bộ ứng dụng VN Office"
-               style="display:none; position:absolute; top:36px; left:0; background:#ffffff; border:1px solid var(--vno-border-default); border-radius:var(--vno-radius-md); box-shadow:var(--vno-shadow-lg); width:230px; z-index:200; padding:6px 0;">
+               style="display:none; position:absolute; top:36px; left:0; background:var(--vno-bg-window); color:var(--vno-text-primary); border:1px solid var(--vno-border-default); border-radius:var(--vno-radius-md); box-shadow:var(--vno-shadow-lg); width:230px; z-index:200; padding:6px 0;">
             <div style="padding:6px 14px; font-size:11px; font-weight:bold; color:var(--vno-text-muted); text-transform:uppercase;" role="presentation">Bộ ứng dụng VN Office</div>
             <div class="vno-switcher-item" data-switch="writer" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appWriter} <span>VN Writer (Soạn thảo)</span></div>
             <div class="vno-switcher-item" data-switch="sheet" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSheet} <span>VN Sheet (Bảng tính)</span></div>
@@ -141,6 +142,13 @@ export class AppShell {
             <button class="vno-btn vno-btn-primary" id="vno-lang-apply-btn" style="width:100%;margin-top:8px;" disabled>${t("common.ok")}</button>
           </div>
         </div>
+        <button class="vno-btn vno-theme-toggle-btn" id="vno-toggle-theme-btn"
+                aria-label="${t("common.toggleTheme")}"
+                title="${t("common.toggleTheme")} (Dark Mode)"
+                aria-pressed="${themeManager.getTheme() === 'dark'}">
+          <span class="vno-theme-icon" aria-hidden="true" style="display:flex;">${themeManager.getTheme() === "dark" ? ICONS.themeSun : ICONS.themeMoon}</span>
+          <span class="vno-theme-label">${themeManager.getTheme() === "dark" ? (getLocale() === "vi" ? "Sáng" : "Light") : (getLocale() === "vi" ? "Tối" : "Dark")}</span>
+        </button>
         <button class="vno-ai-trigger-btn" id="vno-toggle-ai-btn" aria-label="Trợ lý VN AI (Alt+J)" title="Trợ lý VN AI (Alt+J)">
           <span style="color:#d97706;display:flex;" aria-hidden="true">${ICONS.aiSparkle}</span>
           <span>Trợ lý VN AI</span>
@@ -242,6 +250,27 @@ export class AppShell {
       if (!picked || picked === getLocale()) return;
       setLocale(picked);
       if (typeof location !== "undefined" && location.reload) location.reload();
+    });
+
+    // Dark / Light Mode Toggle Button
+    const themeToggleBtn = bar.querySelector("#vno-toggle-theme-btn");
+    const updateThemeBtnUI = (theme) => {
+      if (!themeToggleBtn) return;
+      const isDark = theme === "dark";
+      themeToggleBtn.setAttribute("aria-pressed", String(isDark));
+      const iconEl = themeToggleBtn.querySelector(".vno-theme-icon");
+      const labelEl = themeToggleBtn.querySelector(".vno-theme-label");
+      if (iconEl) iconEl.innerHTML = isDark ? ICONS.themeSun : ICONS.themeMoon;
+      if (labelEl) labelEl.textContent = isDark ? (getLocale() === "vi" ? "Sáng" : "Light") : (getLocale() === "vi" ? "Tối" : "Dark");
+    };
+
+    themeToggleBtn?.addEventListener("click", () => {
+      const next = themeManager.toggleTheme();
+      updateThemeBtnUI(next);
+    });
+
+    themeManager.onThemeChange((theme) => {
+      updateThemeBtnUI(theme);
     });
 
     this.rootEl.appendChild(bar);

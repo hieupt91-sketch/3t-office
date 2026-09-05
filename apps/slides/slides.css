@@ -7,15 +7,15 @@
   display: flex;
   width: 100%;
   height: 100%;
-  background-color: #cbd5e1;
+  background-color: var(--vno-bg-app);
   overflow: hidden;
 }
 
 /* Slide Filmstrip Navigator (Cột trái) */
 .vno-slide-navigator {
   width: 220px;
-  background-color: #f1f5f9;
-  border-right: 1px solid var(--vno-border-strong);
+  background-color: var(--vno-bg-subtle);
+  border-right: 1px solid var(--vno-border-default);
   display: flex;
   flex-direction: column;
   padding: 12px 10px;
@@ -31,9 +31,9 @@
 .vno-slide-new-btn {
   width: 100%;
   padding: 8px;
-  background-color: #ffffff;
+  background-color: var(--vno-bg-window);
   border: 1px dashed var(--vno-slides-primary);
-  color: var(--vno-slides-primary);
+  color: var(--vno-slides-primary-fg, var(--vno-slides-primary));
   border-radius: var(--vno-radius-md);
   font-weight: 700;
   font-size: var(--vno-text-xs);
@@ -66,8 +66,8 @@
 .vno-slide-thumb-card {
   flex: 1;
   aspect-ratio: var(--vno-slide-aspect, 16 / 9);
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
+  background-color: var(--vno-bg-window);
+  border: 1px solid var(--vno-border-default);
   border-radius: var(--vno-radius-sm);
   box-shadow: var(--vno-shadow-sm);
   padding: 8px;
@@ -96,12 +96,15 @@
   padding: 24px;
   overflow: auto;
   position: relative;
+  background-color: var(--vno-bg-app);
 }
 
 .vno-slide-canvas {
   width: 960px; /* Tỉ lệ 16:9 chuẩn HD */
   height: 540px;
-  background-color: #ffffff;
+  background-color: var(--vno-bg-window);
+  color: var(--vno-text-primary);
+  border: 1px solid var(--vno-border-subtle);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
   border-radius: 4px;
   position: relative;
@@ -138,9 +141,10 @@
   max-height: calc(100% - 36px);
   overflow: auto;
   padding: 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--vno-border-default);
   border-radius: 8px;
-  background: #fff;
+  background: var(--vno-bg-window);
+  color: var(--vno-text-primary);
   box-shadow: 0 12px 32px rgba(15, 23, 42, .25);
 }
 .vno-slide-comments-panel[hidden] { display: none; }

@@ -111,6 +111,9 @@ export const ICONS = {
   slidesFitWindow: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="4" y="5" width="16" height="12" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.4"/><path d="M2 2l4 4M2 2h3M2 2v3M22 2l-4 4M22 2h-3M22 2v3M2 20l4-4M2 20h3M2 20v-3M22 20l-4-4M22 20h-3M22 20v-3" stroke="#B53818" stroke-width="1.5" stroke-linecap="round"/></svg>`,
   comment: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#B53818" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v12H9l-5 4V4Z"/><path d="M8 8h8M8 12h5"/></svg>`,
 
+  themeMoon: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`,
+  themeSun: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`,
+
   // Định dạng ký tự
   bold: `<svg viewBox="0 0 24 24" width="15" height="15" fill="#0F172A"><path d="M6 3h7c2.76 0 5 2.24 5 5 0 1.55-.7 2.94-1.8 3.87C17.48 12.87 18.5 14.54 18.5 16.5 18.5 19.54 16.04 22 13 22H6V3zm3.5 3v4h3.5c1.1 0 2-.9 2-2s-.9-2-2-2H9.5zm0 7v6H13c1.38 0 2.5-1.12 2.5-2.5S14.38 13 13 13H9.5z"/></svg>`,
   italic: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0F172A" stroke-width="2.4"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>`,

@@ -135,13 +135,14 @@
   height: 22px;
   padding: 1px 6px;
   font-size: 11px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--vno-border-default);
   border-radius: 3px;
-  background-color: #ffffff;
-  color: #1e293b;
+  background-color: var(--vno-bg-window);
+  color: var(--vno-text-primary);
 }
 .vno-ribbon .vno-select:hover {
-  border-color: #94a3b8;
+  border-color: var(--vno-border-strong);
+  background-color: var(--vno-bg-hover);
 }
 .vno-ribbon .vno-select:focus-visible {
   border-color: var(--vno-app-current, #0f6d38);

@@ -25,30 +25,51 @@ const CSS_FILES = [
 export function runContrastAudit() {
   // 1. Phân tích biến CSS (tokens)
   const cssVars = new Map();
+  const darkVars = new Map();
 
   for (const relPath of CSS_FILES) {
     const fullPath = path.join(ROOT_DIR, relPath);
     if (!fs.existsSync(fullPath)) continue;
     const content = fs.readFileSync(fullPath, "utf8");
 
-    // Bắt --vno-*: value;
+    // Bắt --vno-*: value; trong :root để kiểm tra Light Theme tiêu chuẩn
+    let blockToScan = content;
+    if (relPath.includes("tokens.css")) {
+      const rootMatch = content.match(/:root\s*\{([\s\S]*?)\}/);
+      if (rootMatch) blockToScan = rootMatch[1];
+
+      // Đồng thời trích xuất biến Dark Mode
+      const darkMatch = content.match(/\[data-theme="dark"\][^{]*\{([\s\S]*?)\}/);
+      if (darkMatch) {
+        const darkVarRegex = /(--vno-[a-z0-9-]+)\s*:\s*([^;]+);/g;
+        let dm;
+        while ((dm = darkVarRegex.exec(darkMatch[1])) !== null) {
+          darkVars.set(dm[1].trim(), dm[2].trim());
+        }
+      }
+    }
+
     const varRegex = /(--vno-[a-z0-9-]+)\s*:\s*([^;]+);/g;
     let m;
-    while ((m = varRegex.exec(content)) !== null) {
+    while ((m = varRegex.exec(blockToScan)) !== null) {
       const varName = m[1].trim();
       const rawVal = m[2].trim();
-      cssVars.set(varName, rawVal);
+      if (!cssVars.has(varName)) {
+        cssVars.set(varName, rawVal);
+      }
     }
   }
 
   // Hàm resolve giá trị CSS (xử lý lồng var(--vno-...))
-  function resolveValue(val) {
+  function resolveValue(val, isDark = false) {
     if (!val) return null;
     let resolved = val.trim();
     let loops = 0;
+    const vMap = isDark ? darkVars : cssVars;
     while (resolved.includes("var(") && loops < 5) {
       loops++;
       resolved = resolved.replace(/var\(\s*(--vno-[a-z0-9-]+)(?:,\s*([^)]+))?\s*\)/g, (match, varName, fallback) => {
+        if (vMap.has(varName)) return vMap.get(varName);
         if (cssVars.has(varName)) return cssVars.get(varName);
         return fallback ? fallback.trim() : match;
       });
@@ -56,7 +77,7 @@ export function runContrastAudit() {
     return resolved;
   }
 
-  // 2. Kiểm tra các cặp màu token tiêu chuẩn
+  // 2. Kiểm tra các cặp màu token tiêu chuẩn (Light theme)
   const tokenPairs = [
     { label: "Token: text-primary on bg-window", fg: "--vno-text-primary", bg: "--vno-bg-window" },
     { label: "Token: text-primary on bg-surface", fg: "--vno-text-primary", bg: "--vno-bg-surface" },
@@ -121,11 +142,12 @@ export function runContrastAudit() {
       const bgMatch = body.match(/(?:^|;|\s)background(?:-color)?\s*:\s*([^;!]+)/);
 
       if (colorMatch) {
+        const isDarkContext = selector.includes("data-theme=\"dark\"") || selector.includes("data-theme='dark'");
         let fgRaw = colorMatch[1].trim();
-        let bgRaw = bgMatch ? bgMatch[1].trim() : "#ffffff"; // Mặc định nền surface/window
+        let bgRaw = bgMatch ? bgMatch[1].trim() : (isDarkContext ? "#1e1e1e" : "#ffffff");
 
-        let resolvedFg = resolveValue(fgRaw);
-        let resolvedBg = resolveValue(bgRaw);
+        let resolvedFg = resolveValue(fgRaw, isDarkContext);
+        let resolvedBg = resolveValue(bgRaw, isDarkContext);
 
         // Bỏ qua gradient, image url, hoặc transparent
         if (resolvedBg.includes("url(") || resolvedBg.includes("gradient")) continue;
@@ -133,6 +155,11 @@ export function runContrastAudit() {
 
         // Bỏ qua shape text trên canvas vì text nằm trên vector shape có màu riêng
         if (selector.includes("shape-text") || selector.includes("shape-node") || selector.includes("diagram-node-text")) continue;
+
+        // Bỏ qua các rule dark theme đặc thù nếu nền chưa gắn cụ thể
+        if (isDarkContext && (!bgMatch || resolvedBg === "transparent")) {
+          resolvedBg = "#1e1e1e";
+        }
 
         // Nhận diện ngữ cảnh nền của các overlay (Presenter mode, Print preview toolbar/sheet, Backstage, Topbar, Statusbar, Read Mode toolbar)
         if (selector.includes("presenter-") || selector.includes("backstage-") || selector.includes("print-preview-") || selector.includes("zoom-slider") || selector.includes("writer-read-toolbar")) {
