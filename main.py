@@ -135,7 +135,8 @@ def _detect_csv_import_options(src_path: str) -> tuple[str, str]:
     UTF-8 use Windows-1258, the ANSI code page used by Vietnamese Windows/Excel.
     """
     try:
-        sample_bytes = Path(src_path).read_bytes()[:_CSV_SAMPLE_BYTES]
+        with open(src_path, "rb") as csv_file:
+            sample_bytes = csv_file.read(_CSV_SAMPLE_BYTES)
     except OSError as exc:
         raise DocumentEngineError(f"Không đọc được tệp CSV: {exc}") from exc
 

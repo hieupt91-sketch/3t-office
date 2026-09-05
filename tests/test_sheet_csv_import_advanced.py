@@ -12,6 +12,8 @@ import unicodedata
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import main
 
@@ -66,6 +68,27 @@ class SheetCsvImportAdvancedTests(unittest.TestCase):
                 self.assertEqual(encoding, expected_encoding)
                 self.assertTrue(options.startswith(expected_prefix), options)
                 self.assertTrue(options.endswith(",1066,false,true"), options)
+
+    def test_xlsx_and_ods_paths_do_not_receive_csv_infilter(self):
+        with tempfile.TemporaryDirectory(prefix="vno_non_csv_") as tmp:
+            for extension in ("xlsx", "ods"):
+                case_dir = Path(tmp, extension)
+                case_dir.mkdir()
+                source = case_dir / f"workbook.{extension}"
+                source.write_bytes(b"placeholder")
+                expected_output = case_dir / "workbook.fods"
+                expected_output.write_text("<office:document/>", encoding="utf-8")
+                with patch.object(
+                    main.subprocess,
+                    "run",
+                    return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+                ) as run:
+                    result = main._run_soffice_convert(
+                        str(source), "fods", str(case_dir), app_kind="sheet"
+                    )
+                command = run.call_args.args[0]
+                self.assertEqual(result, str(expected_output))
+                self.assertFalse(any(arg.startswith("--infilter=") for arg in command), command)
 
     @unittest.skipUnless(main.SOFFICE_PATH, "LibreOffice soffice is not installed")
     def test_real_soffice_import_preserves_columns_vietnamese_and_number(self):
