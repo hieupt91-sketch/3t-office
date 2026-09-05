@@ -514,6 +514,15 @@ export const SHEET_RIBBON_TABS = [
           { type: "button", commandId: "sheet.review.commentDelete" },
           { type: "button", commandId: "sheet.review.commentResolve" }
         ]
+      },
+      {
+        id: "protection",
+        label: "Bảo vệ",
+        labelKey: "sheetRibbon.group.protection",
+        items: [
+          { type: "button", commandId: "sheet.sheet.protect", isLarge: true },
+          { type: "button", commandId: "sheet.workbook.protect", isLarge: true }
+        ]
       }
     ]
   },

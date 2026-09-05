@@ -304,6 +304,22 @@ export const SHEET_HELP_ENTRIES = [
       "Bỏ bảo vệ: chọn lại cùng mục. Nếu đã đặt mật khẩu, nhập đúng mật khẩu. Sai mật khẩu hiện lỗi trong hộp thoại.",
       "Đây là khóa giao diện giống Excel/LibreOffice tự làm trên máy, mật khẩu không mã hóa, không chống người cố tình sửa file. Trạng thái khóa không đi vào Undo."
     ]
+  },
+  {
+    id: "sheet.workbook.protect",
+    app: "sheet",
+    commandIds: ["sheet.workbook.protect"],
+    title: "Bảo vệ workbook (khóa cấu trúc)",
+    summary: "Khóa cấu trúc sổ làm việc: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Khác Bảo vệ trang tính — nội dung ô vẫn sửa được. Có thể đặt mật khẩu tùy chọn lưu dạng chữ thường trong phiên — không phải bảo mật thật.",
+    ribbon: { tab: "Xem xét", tabId: "review", group: "Bảo vệ" },
+    keywords: ["bảo vệ workbook", "protect workbook", "khóa cấu trúc", "cấu trúc workbook", "unprotect workbook", "bỏ bảo vệ workbook"],
+    steps: [
+      "Mở tab Xem xét, nhóm Bảo vệ (cạnh Ghi chú). Nhấn Bảo vệ workbook... — khi đã khóa, cùng nút đổi thành Bỏ bảo vệ workbook... Cùng nhóm còn nút Bảo vệ trang tính... (cũng có trong Trang đầu > Ô > Định dạng).",
+      "Hộp thoại có ô «Bảo vệ cấu trúc workbook (trang tính)». Có thể nhập mật khẩu rồi nhập lại để xác nhận (để trống nếu không cần).",
+      "Khi đã bảo vệ workbook: không thêm trang (nút + dưới lưới bị tắt), không xóa, không đổi tên (kể cả nhấp đúp tab), không di chuyển hay sao chép trang tính. Sửa nội dung ô, định dạng và chèn/xóa hàng cột vẫn được — trừ khi trang đó còn đang Bảo vệ trang tính.",
+      "Bỏ bảo vệ: nhấn lại Bỏ bảo vệ workbook... Nếu đã đặt mật khẩu, nhập đúng mật khẩu. Sai mật khẩu hiện lỗi trong hộp thoại.",
+      "Đây là khóa giao diện giống Excel, mật khẩu không mã hóa, không chống người cố tình sửa file. Trạng thái khóa không đi vào Undo và không ghi vào FODS."
+    ]
   }
 ];
 

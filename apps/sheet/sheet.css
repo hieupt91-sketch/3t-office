@@ -739,6 +739,15 @@ tr.is-filtered-out {
   background-color: var(--vno-bg-hover);
   color: var(--vno-sheet-primary);
 }
+.vno-sheet-add-btn:disabled,
+.vno-workbook-protected .vno-sheet-add-btn {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.vno-sheet-add-btn:disabled:hover {
+  background: transparent;
+  color: var(--vno-text-muted);
+}
 .vno-pivot-dialog { display:flex; flex-direction:column; gap:10px; min-width:560px; }
 .vno-pivot-dialog > label { display:flex; flex-direction:column; gap:5px; font-weight:600; }
 .vno-pivot-dialog input { padding:7px 9px; border:1px solid var(--vno-border-default); border-radius:5px; }

@@ -298,6 +298,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.sheet.rename", category: "format", label: "Đổi tên trang tính...", icon: "renameSheet", tooltip: "Đổi tên trang tính hiện tại (cùng hộp thoại với nhấp đúp tab dưới lưới)" },
   { id: "sheet.sheet.moveOrCopy", category: "format", label: "Di chuyển hoặc Sao chép trang tính...", icon: "moveCopySheet", tooltip: "Đổi thứ tự tab hoặc tạo bản sao trang tính (dữ liệu, định dạng, Page Setup)" },
   { id: "sheet.sheet.protect", category: "format", label: "Bảo vệ trang tính...", icon: "protectSheet", tooltip: "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)" },
+  { id: "sheet.workbook.protect", category: "review", label: "Bảo vệ workbook...", icon: "protectWorkbook", tooltip: "Khóa cấu trúc workbook: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Không khóa nội dung ô (khóa giao diện, không phải bảo mật thật)" },
   { id: "sheet.chart.insert", category: "insert", label: "Biểu đồ", icon: "chart", tooltip: "Chèn biểu đồ phân tích dữ liệu" },
   { id: "sheet.chart.pivotChart", category: "insert", label: "Biểu đồ Pivot", icon: "pivotChart", tooltip: "Chèn biểu đồ Cột hoặc Tròn liên kết với dữ liệu Pivot đã tổng hợp" },
   { id: "sheet.insert.image", category: "insert", label: "Chèn ảnh", icon: "image", tooltip: "Chèn ảnh vào ô đang chọn" },

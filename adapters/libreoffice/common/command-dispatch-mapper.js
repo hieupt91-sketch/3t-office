@@ -235,6 +235,7 @@ export const VN_TO_UNO_MAP = {
   "sheet.sheet.rename": ".uno:RenameTable",
   "sheet.sheet.moveOrCopy": ".uno:Move",
   "sheet.sheet.protect": ".uno:Protect",
+  "sheet.workbook.protect": ".uno:ToolProtectionDocument",
   "sheet.chart.insert": ".uno:InsertObjectChart",
   "sheet.insert.image": ".uno:InsertGraphic",
   "sheet.insert.sparklineLine": ".uno:InsertSparkline",

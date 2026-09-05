@@ -156,6 +156,7 @@ export class SheetGridController {
     this.userHiddenRowsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
     this.userHiddenColsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
     this.protectionBySheet = Object.fromEntries(this.sheets.map(name => [name, { enabled: false, password: "" }]));
+    this.workbookProtection = { enabled: false, password: "" };
     this.dataTools = new SheetDataTools(this);
 
     // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
@@ -1521,6 +1522,7 @@ export class SheetGridController {
     this.userHiddenRowsBySheet = { [defaultSheetName]: new Set() };
     this.userHiddenColsBySheet = { [defaultSheetName]: new Set() };
     this.protectionBySheet = { [defaultSheetName]: { enabled: false, password: "" } };
+    this.workbookProtection = { enabled: false, password: "" };
     this.isFrozenPanes = false;
     this.isFilterActive = false;
     this.hiddenRows = new Set();
@@ -1666,6 +1668,7 @@ export class SheetGridController {
     const previousSheet = this.activeSheet;
     const sheetName = name || `Trang tính ${this.sheets.length + 1}`;
     const isNewSheet = !this.sheets.includes(sheetName);
+    if (isNewSheet && this._guardWorkbookStructure()) return false;
     if (isNewSheet) {
       this.sheets.push(sheetName);
     }
@@ -1711,6 +1714,7 @@ export class SheetGridController {
   }
 
   deleteSheet(sheetName = this.activeSheet, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
     const index = this.sheets.indexOf(sheetName);
     if (index < 0 || this.sheets.length <= 1) return false;
     const snapshot = this._snapshotSheet(sheetName);
@@ -1975,6 +1979,7 @@ export class SheetGridController {
   }
 
   renameSheet(oldName, newName, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
     const from = oldName || this.activeSheet;
     if (!this.sheets.includes(from)) return false;
     const validated = this.validateSheetName(newName, { excludeName: from });
@@ -1994,6 +1999,7 @@ export class SheetGridController {
   }
 
   async showRenameSheetDialog(sheetName = this.activeSheet) {
+    if (this._guardWorkbookStructure()) return false;
     const target = sheetName || this.activeSheet;
     if (!this.sheets.includes(target)) return false;
     if (typeof document === "undefined") return false;
@@ -2039,6 +2045,7 @@ export class SheetGridController {
   }
 
   moveSheet(sheetName, beforeName, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
     const name = sheetName || this.activeSheet;
     const from = this.sheets.indexOf(name);
     if (from < 0) return false;
@@ -2110,6 +2117,7 @@ export class SheetGridController {
   }
 
   copySheet(sourceName, beforeName, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
     const source = sourceName || this.activeSheet;
     if (!this.sheets.includes(source)) return false;
     this._flushActiveSheetState();
@@ -2130,6 +2138,7 @@ export class SheetGridController {
   }
 
   async showMoveCopySheetDialog(sheetName = this.activeSheet) {
+    if (this._guardWorkbookStructure()) return false;
     const target = sheetName || this.activeSheet;
     if (!this.sheets.includes(target)) return false;
     if (typeof document === "undefined") return false;
@@ -2201,6 +2210,7 @@ export class SheetGridController {
         ? t("sheetDialogs.unprotectSheetTooltip", "Tắt khóa giao diện của trang tính hiện tại")
         : t("sheetDialogs.protectSheetTooltip", "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)")
     });
+    this._applyWorkbookProtectionUi();
     if (renderTabs) this._renderSheetTabs();
   }
 
@@ -2284,6 +2294,131 @@ export class SheetGridController {
         return;
       }
       this.protectSheet({ sheetName: target, password });
+      overlay.closeDialog();
+    });
+    return true;
+  }
+
+  isWorkbookProtected() {
+    return !!this.workbookProtection?.enabled;
+  }
+
+  getWorkbookProtection() {
+    return this.workbookProtection || { enabled: false, password: "" };
+  }
+
+  _notifyWorkbookProtected() {
+    if (typeof document === "undefined" || !document.body) return;
+    const existing = document.querySelector?.(".vno-dialog-overlay");
+    if (existing && /Bảo vệ workbook|Protect Workbook/i.test(existing.textContent || "")) return;
+    showAlertDialog({
+      title: t("sheetDialogs.protectWorkbookTitle", "Bảo vệ workbook"),
+      message: t("sheetDialogs.workbookProtectedStructure", "Workbook đang được bảo vệ cấu trúc. Không thể thêm, xóa, đổi tên, di chuyển hoặc sao chép trang tính. Nội dung ô vẫn sửa được. Chọn Bỏ bảo vệ workbook để mở khóa (chỉ là khóa giao diện, không phải bảo mật thật)."),
+      type: "warning"
+    });
+  }
+
+  _guardWorkbookStructure() {
+    if (this._applyingHistory) return false;
+    if (!this.isWorkbookProtected()) return false;
+    this._notifyWorkbookProtected();
+    return true;
+  }
+
+  _applyWorkbookProtectionUi() {
+    const locked = this.isWorkbookProtected();
+    this.container?.classList?.toggle?.("vno-workbook-protected", locked);
+    const addBtn = this.tabBar?.querySelector?.(".vno-sheet-add-btn");
+    if (addBtn) {
+      addBtn.disabled = locked;
+      addBtn.setAttribute("aria-disabled", locked ? "true" : "false");
+      addBtn.title = locked
+        ? t("sheetDialogs.workbookProtectedStructure", "Workbook đang được bảo vệ cấu trúc. Không thể thêm trang tính.")
+        : t("sheetDialogs.addSheet", "Thêm trang tính mới");
+    }
+    globalCommandBus?.updateState?.("sheet.workbook.protect", {
+      label: locked
+        ? t("sheetDialogs.unprotectWorkbook", "Bỏ bảo vệ workbook...")
+        : t("sheetDialogs.protectWorkbook", "Bảo vệ workbook..."),
+      tooltip: locked
+        ? t("sheetDialogs.unprotectWorkbookTooltip", "Tắt khóa cấu trúc workbook (thêm/xóa/đổi tên/di chuyển/sao chép trang tính)")
+        : t("sheetDialogs.protectWorkbookTooltip", "Khóa cấu trúc workbook: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Không khóa nội dung ô.")
+    });
+  }
+
+  protectWorkbook(options = {}) {
+    if (!this.workbookProtection) this.workbookProtection = { enabled: false, password: "" };
+    this.workbookProtection = {
+      enabled: true,
+      password: String(options.password || "")
+    };
+    this._applyWorkbookProtectionUi();
+    this._syncCommandStates();
+    return true;
+  }
+
+  unprotectWorkbook(options = {}) {
+    const current = this.getWorkbookProtection();
+    if (!current.enabled) return true;
+    const supplied = options.password == null ? "" : String(options.password);
+    if (current.password && supplied !== current.password) return false;
+    this.workbookProtection = { enabled: false, password: "" };
+    this._applyWorkbookProtectionUi();
+    this._syncCommandStates();
+    return true;
+  }
+
+  async showProtectWorkbookDialog() {
+    if (this.isWorkbookProtected()) {
+      const current = this.getWorkbookProtection();
+      if (!current.password) return this.unprotectWorkbook();
+      if (typeof document === "undefined") return false;
+      const overlay = this._createSheetDialog(t("sheetDialogs.unprotectWorkbook", "Bỏ bảo vệ workbook"), `
+        <p>${t("sheetDialogs.unprotectWorkbookPasswordMessage", "Nhập mật khẩu để bỏ bảo vệ cấu trúc workbook (khóa giao diện, không phải bảo mật thật).")}</p>
+        <label>${t("sheetDialogs.protectPassword", "Mật khẩu")}
+          <input id="vno-unprotect-wb-password" class="vno-dialog-input" type="password" autocomplete="off">
+        </label>
+        <div class="vno-rule-error" role="alert"></div>`);
+      if (!overlay) return false;
+      overlay.querySelector(".vno-rule-apply").textContent = t("common.ok", "Đồng ý");
+      overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+        const ok = this.unprotectWorkbook({ password: overlay.querySelector("#vno-unprotect-wb-password").value });
+        if (!ok) {
+          overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.unprotectPasswordWrong", "Mật khẩu không đúng.");
+          return;
+        }
+        overlay.closeDialog();
+      });
+      return true;
+    }
+    if (typeof document === "undefined") return false;
+    const overlay = this._createSheetDialog(t("sheetDialogs.protectWorkbookTitle", "Bảo vệ workbook"), `
+      <label class="vno-dialog-check">
+        <input type="checkbox" id="vno-protect-wb-enable" checked>
+        ${t("sheetDialogs.protectWorkbookCheckbox", "Bảo vệ cấu trúc workbook (trang tính)")}
+      </label>
+      <p class="vno-dialog-hint">${t("sheetDialogs.protectWorkbookHint", "Khi bật: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Nội dung ô vẫn sửa được — khác Bảo vệ trang tính. Đây là khóa giao diện, mật khẩu lưu dạng chữ thường trong phiên làm việc — không phải bảo mật thật.")}</p>
+      <label>${t("sheetDialogs.protectPassword", "Mật khẩu (tùy chọn)")}
+        <input id="vno-protect-wb-password" class="vno-dialog-input" type="password" autocomplete="new-password">
+      </label>
+      <label>${t("sheetDialogs.protectPasswordConfirm", "Nhập lại mật khẩu")}
+        <input id="vno-protect-wb-password2" class="vno-dialog-input" type="password" autocomplete="new-password">
+      </label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").textContent = t("common.ok", "Đồng ý");
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      if (!overlay.querySelector("#vno-protect-wb-enable").checked) {
+        overlay.closeDialog();
+        return;
+      }
+      const password = overlay.querySelector("#vno-protect-wb-password").value;
+      const confirm = overlay.querySelector("#vno-protect-wb-password2").value;
+      if (password !== confirm) {
+        overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.protectPasswordMismatch", "Hai mật khẩu không khớp.");
+        return;
+      }
+      this.protectWorkbook({ password });
       overlay.closeDialog();
     });
     return true;
@@ -4961,6 +5096,7 @@ export class SheetGridController {
         ? t("sheetDialogs.unprotectSheetTooltip", "Tắt khóa giao diện của trang tính hiện tại")
         : t("sheetDialogs.protectSheetTooltip", "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)")
     });
+    this._applyWorkbookProtectionUi();
   }
 
   _applyViewState() {
@@ -5168,6 +5304,15 @@ export class SheetGridController {
   }
 
   _applyHistoryAction(action, direction) {
+    this._applyingHistory = true;
+    try {
+      return this._applyHistoryActionImpl(action, direction);
+    } finally {
+      this._applyingHistory = false;
+    }
+  }
+
+  _applyHistoryActionImpl(action, direction) {
     if (action.type === "sheet-add") {
       if (direction === "undo") {
         const removed = this.deleteSheet(action.sheetName, false);
@@ -7287,6 +7432,7 @@ export class SheetGridController {
   }
 
   createPivotTable(config, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
     const sourceSheet = config.sourceSheet || this.activeSheet;
     const sourceCells = this.sheetsData[sourceSheet];
     if (!sourceCells) throw new Error(t("sheetDialogs.sourceSheetNotFound"));
@@ -7296,7 +7442,7 @@ export class SheetGridController {
     let suffix = 3;
     while (this.sheets.includes(targetSheet)) targetSheet = `${sourceSheet} (${suffix++})`;
     const previousSheet = this.activeSheet;
-    this.addSheet(targetSheet, false);
+    if (this.addSheet(targetSheet, false) === false) return false;
     this.sheetsData[targetSheet] = PivotTableEngine.toCells(table);
     const pivot = { ...structuredClone(config), id: config.id || `pivot-${Date.now()}`, sourceSheet, targetSheet, resultRange: PivotTableEngine.resultRange(table) };
     this.pivotTablesBySheet[targetSheet] = [pivot];

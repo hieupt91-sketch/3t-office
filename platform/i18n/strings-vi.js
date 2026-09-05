@@ -71,7 +71,7 @@ export const viStrings = {
   sheetRibbon: {
     whatIfAnalysis: "Phân tích What-If",
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý VN AI" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", proofing: "Chứng minh", comments: "Ghi chú", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI" },
+    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", proofing: "Chứng minh", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI" },
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" }
   },
@@ -128,7 +128,16 @@ export const viStrings = {
     unprotectPasswordWrong: "Mật khẩu không đúng.",
     sheetProtectedEdit: "Trang tính đang được bảo vệ. Không thể sửa nội dung ô, định dạng, hay xóa hàng/cột. Chọn Bỏ bảo vệ trang tính để mở khóa (chỉ là khóa giao diện, không phải bảo mật thật).",
     sheetTabProtectedTitle: "{name} (đã bảo vệ)",
-    sheetTabProtectedAria: "{name}, đã bảo vệ"
+    sheetTabProtectedAria: "{name}, đã bảo vệ",
+    addSheet: "Thêm trang tính mới",
+    protectWorkbook: "Bảo vệ workbook...", unprotectWorkbook: "Bỏ bảo vệ workbook...",
+    protectWorkbookTitle: "Bảo vệ workbook",
+    protectWorkbookCheckbox: "Bảo vệ cấu trúc workbook (trang tính)",
+    protectWorkbookHint: "Khi bật: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Nội dung ô vẫn sửa được — khác Bảo vệ trang tính. Đây là khóa giao diện, mật khẩu lưu dạng chữ thường trong phiên làm việc — không phải bảo mật thật.",
+    protectWorkbookTooltip: "Khóa cấu trúc workbook: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Không khóa nội dung ô (khóa giao diện, không phải bảo mật thật)",
+    unprotectWorkbookTooltip: "Tắt khóa cấu trúc workbook (thêm/xóa/đổi tên/di chuyển/sao chép trang tính)",
+    unprotectWorkbookPasswordMessage: "Nhập mật khẩu để bỏ bảo vệ cấu trúc workbook (khóa giao diện, không phải bảo mật thật).",
+    workbookProtectedStructure: "Workbook đang được bảo vệ cấu trúc. Không thể thêm, xóa, đổi tên, di chuyển hoặc sao chép trang tính. Nội dung ô vẫn sửa được. Chọn Bỏ bảo vệ workbook để mở khóa (chỉ là khóa giao diện, không phải bảo mật thật)."
   },
   slidesDialogs: {
     close: "Đóng", cancel: "Hủy bỏ", apply: "Áp dụng", preview: "Xem thử", delete: "Xóa",
@@ -314,6 +323,7 @@ export const viStrings = {
     ,"sheet.sheet.rename": { label: "Đổi tên trang tính...", tooltip: "Đổi tên trang tính hiện tại (cùng hộp thoại với nhấp đúp tab dưới lưới)" }
     ,"sheet.sheet.moveOrCopy": { label: "Di chuyển hoặc Sao chép trang tính...", tooltip: "Đổi thứ tự tab hoặc tạo bản sao trang tính (dữ liệu, định dạng, Page Setup)" }
     ,"sheet.sheet.protect": { label: "Bảo vệ trang tính...", tooltip: "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)" }
+    ,"sheet.workbook.protect": { label: "Bảo vệ workbook...", tooltip: "Khóa cấu trúc workbook: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Không khóa nội dung ô (khóa giao diện, không phải bảo mật thật)" }
     ,"sheet.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ phân tích dữ liệu" }
     ,"sheet.chart.pivotChart": { label: "Biểu đồ Pivot", tooltip: "Chèn biểu đồ Cột hoặc Tròn liên kết với dữ liệu Pivot đã tổng hợp" }
     ,"sheet.insert.image": { label: "Chèn ảnh", tooltip: "Chèn ảnh vào ô đang chọn" }

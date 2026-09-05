@@ -72,7 +72,7 @@ export const enStrings = {
   sheetRibbon: {
     whatIfAnalysis: "What-If Analysis",
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "VN AI Assistant" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", proofing: "Proofing", comments: "Comments", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", help: "Help", aiAnalysis: "AI Data Analysis" },
+    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", help: "Help", aiAnalysis: "AI Data Analysis" },
     editing: { fill: "Fill", clear: "Clear" },
     cells: { format: "Format" }
   },
@@ -129,7 +129,16 @@ export const enStrings = {
     unprotectPasswordWrong: "The password is incorrect.",
     sheetProtectedEdit: "The sheet is protected. You cannot edit cells, change formatting, or delete rows/columns. Choose Unprotect Sheet to unlock (UI lock only, not real security).",
     sheetTabProtectedTitle: "{name} (protected)",
-    sheetTabProtectedAria: "{name}, protected"
+    sheetTabProtectedAria: "{name}, protected",
+    addSheet: "Add a new sheet",
+    protectWorkbook: "Protect Workbook...", unprotectWorkbook: "Unprotect Workbook...",
+    protectWorkbookTitle: "Protect Workbook",
+    protectWorkbookCheckbox: "Protect workbook structure (sheets)",
+    protectWorkbookHint: "When on: adding, deleting, renaming, moving, or copying sheets is blocked. Cell contents stay editable — unlike Protect Sheet. This is a UI lock; the optional password is stored in plain text for this session — not real security.",
+    protectWorkbookTooltip: "Lock workbook structure: no adding, deleting, renaming, moving, or copying sheets. Does not lock cell contents (UI lock, not real security)",
+    unprotectWorkbookTooltip: "Turn off the workbook structure lock (add/delete/rename/move/copy sheets)",
+    unprotectWorkbookPasswordMessage: "Enter the password to unprotect workbook structure (UI lock, not real security).",
+    workbookProtectedStructure: "The workbook structure is protected. You cannot add, delete, rename, move, or copy sheets. Cell contents stay editable. Choose Unprotect Workbook to unlock (UI lock only, not real security)."
   },
   slidesDialogs: {
     close: "Close", cancel: "Cancel", apply: "Apply", preview: "Preview", delete: "Delete",
@@ -315,6 +324,7 @@ export const enStrings = {
     ,"sheet.sheet.rename": { label: "Rename Sheet...", tooltip: "Rename the current worksheet (same dialog as double-clicking the sheet tab)" }
     ,"sheet.sheet.moveOrCopy": { label: "Move or Copy Sheet...", tooltip: "Reorder tabs or duplicate a worksheet (data, formatting, Page Setup)" }
     ,"sheet.sheet.protect": { label: "Protect Sheet...", tooltip: "Lock cell edits, formatting, and row/column deletion on the current sheet (UI lock, not real security)" }
+    ,"sheet.workbook.protect": { label: "Protect Workbook...", tooltip: "Lock workbook structure: no adding, deleting, renaming, moving, or copying sheets. Does not lock cell contents (UI lock, not real security)" }
     ,"sheet.chart.insert": { label: "Chart", tooltip: "Insert a chart to visualize data" }
     ,"sheet.chart.pivotChart": { label: "PivotChart", tooltip: "Insert a Column or Pie chart linked to summarized Pivot data" }
     ,"sheet.insert.image": { label: "Pictures", tooltip: "Insert a picture at the selected cell" }

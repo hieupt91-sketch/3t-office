@@ -862,6 +862,14 @@ export const ICONS = {
     <circle cx="12" cy="16" r="1.5" fill="#0F6D38"/>
   </svg>`,
 
+  protectWorkbook: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="5" width="12" height="14" rx="1.4" fill="#ECFDF5" stroke="#0F6D38" stroke-width="1.3"/>
+    <path d="M3 9h12M7 5v14" stroke="#86EFAC"/>
+    <rect x="11" y="11" width="10" height="9" rx="1.4" fill="#FEF3C7" stroke="#D97706" stroke-width="1.3"/>
+    <path d="M13.4 11V8.8a2.6 2.6 0 0 1 5.2 0V11" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round"/>
+    <circle cx="16" cy="15.6" r="1.2" fill="#0F6D38"/>
+  </svg>`,
+
   cellBorders: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
     <rect x="4" y="4" width="16" height="16" rx="1" fill="#F8FAFC" stroke="#0F172A" stroke-width="2"/>
     <path d="M4 12h16M12 4v16" stroke="#94A3B8" stroke-width="1"/>
