@@ -508,11 +508,99 @@ export class SheetAdapter {
     if (sheetNames.length === 0) sheetNames.push(this.grid.activeSheet || "Trang tính 1");
 
     const numberFormats = this._collectNumberFormats(sheetNames);
+    const conditionalNamedStyles = [];
+    const conditionalBaseStyles = [];
+    const conditionalStyleNames = new Map();
+    const conditionalBaseByCell = new Map();
+    const validationDefinitions = [];
+    const validationsByCell = new Map();
+    const odfAddress = (sheetName, cell) => `'${String(sheetName).replace(/'/g, "''")}'.${cell}`;
+    const rangeAddress = (sheetName, range) => `${odfAddress(sheetName, `${range.start.c}${range.start.r}`)}:${odfAddress(sheetName, `${range.end.c}${range.end.r}`)}`;
+    const normalizedColor = color => String(color || "#fff2cc").trim().toLowerCase();
+    const styleForColor = color => {
+      const normalized = normalizedColor(color);
+      if (!conditionalStyleNames.has(normalized)) {
+        const name = `vno_cf_${conditionalStyleNames.size + 1}`;
+        conditionalStyleNames.set(normalized, name);
+        conditionalNamedStyles.push(`<style:style style:name="${name}" style:family="table-cell"><style:table-cell-properties fo:background-color="${this._escapeXml(normalized)}"/></style:style>`);
+      }
+      return conditionalStyleNames.get(normalized);
+    };
+
+    const conditionalFormatsBySheet = {};
+    sheetNames.forEach((sheetName, sheetIndex) => {
+      const rules = this.grid.conditionalFormattingBySheet?.[sheetName] || [];
+      const groupedRules = new Map();
+      for (const rule of rules) {
+        if (!rule?.range || !["greaterThan", "lessThan", "blank"].includes(rule.type)) continue;
+        const key = JSON.stringify(rule.range);
+        if (!groupedRules.has(key)) groupedRules.set(key, []);
+        groupedRules.get(key).push(rule);
+      }
+      const sheetConditionalCells = new Map();
+      for (const grouped of groupedRules.values()) {
+        const baseName = `vno_cf_base_${sheetIndex + 1}_${conditionalBaseStyles.length + 1}`;
+        const base = odfAddress(sheetName, `${grouped[0].range.start.c}${grouped[0].range.start.r}`);
+        const maps = grouped.map(rule => {
+          const condition = rule.type === "greaterThan"
+            ? `cell-content()&gt;${Number(rule.value)}`
+            : rule.type === "lessThan"
+              ? `cell-content()&lt;${Number(rule.value)}`
+              : `is-true-formula(LEN(TRIM([.${grouped[0].range.start.c}${grouped[0].range.start.r}]))=0)`;
+          return `<style:map style:condition="${condition}" style:apply-style-name="${styleForColor(rule.color)}" style:base-cell-address="${this._escapeXml(base)}"/>`;
+        }).join("");
+        conditionalBaseStyles.push(`<style:style style:name="${baseName}" style:family="table-cell">${maps}</style:style>`);
+        const range = grouped[0].range;
+        for (let row = range.start.r; row <= range.end.r; row++) {
+          for (let column = this._columnNumber(range.start.c); column <= this._columnNumber(range.end.c); column++) {
+            sheetConditionalCells.set(`${this._columnName(column)}${row}`, { baseName, maps });
+          }
+        }
+      }
+      conditionalBaseByCell.set(sheetName, sheetConditionalCells);
+      conditionalFormatsBySheet[sheetName] = rules.map(rule => {
+        if (!rule?.range || !["greaterThan", "lessThan", "blank"].includes(rule.type)) return "";
+        const styleName = styleForColor(rule.color);
+        const value = rule.type === "greaterThan"
+          ? `&gt;${Number(rule.value)}`
+          : rule.type === "lessThan"
+            ? `&lt;${Number(rule.value)}`
+            : `formula-is(LEN(TRIM([.${rule.range.start.c}${rule.range.start.r}]))=0)`;
+        const base = odfAddress(sheetName, `${rule.range.start.c}${rule.range.start.r}`);
+        return `<calcext:conditional-format calcext:target-range-address="${this._escapeXml(rangeAddress(sheetName, rule.range))}"><calcext:condition calcext:apply-style-name="${styleName}" calcext:value="${value}" calcext:base-cell-address="${this._escapeXml(base)}"/></calcext:conditional-format>`;
+      }).filter(Boolean).join("");
+
+      (this.grid.dataValidationsBySheet?.[sheetName] || []).forEach((rule, ruleIndex) => {
+        if (!rule?.range || !["list", "numberRange"].includes(rule.type)) return;
+        const name = `vno_validation_${sheetIndex + 1}_${ruleIndex + 1}`;
+        let condition = "";
+        if (rule.type === "list") {
+          const values = Array.isArray(rule.values) ? rule.values : String(rule.values || "").split(",");
+          const quoted = values.map(value => `&quot;${this._escapeXml(String(value).trim().replace(/"/g, '""'))}&quot;`).join(";");
+          if (!quoted) return;
+          condition = `of:cell-content-is-in-list(${quoted})`;
+        } else {
+          if (!Number.isFinite(Number(rule.min)) || !Number.isFinite(Number(rule.max))) return;
+          condition = `of:cell-content-is-whole-number() and cell-content-is-between(${Number(rule.min)},${Number(rule.max)})`;
+        }
+        const base = odfAddress(sheetName, `${rule.range.start.c}${rule.range.start.r}`);
+        validationDefinitions.push(`<table:content-validation table:name="${name}" table:condition="${condition}" table:base-cell-address="${this._escapeXml(base)}" table:allow-empty-cell="true" table:display-list="unsorted"/>`);
+        const sheetCells = validationsByCell.get(sheetName) || new Map();
+        for (let row = rule.range.start.r; row <= rule.range.end.r; row++) {
+          for (let column = this._columnNumber(rule.range.start.c); column <= this._columnNumber(rule.range.end.c); column++) {
+            sheetCells.set(`${this._columnName(column)}${row}`, name);
+          }
+        }
+        validationsByCell.set(sheetName, sheetCells);
+      });
+    });
     const tablesXml = sheetNames.map(sheetName => {
       const cells = this.grid.sheetsData?.[sheetName]
         || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
         || new Map();
       const comments = this.grid.commentsBySheet?.[sheetName] || {};
+      const cellValidations = validationsByCell.get(sheetName) || new Map();
+      const cellConditionalBases = conditionalBaseByCell.get(sheetName) || new Map();
       let maxRow = 0;
       const rows = new Map();
       for (const [coordinate, item] of cells.entries()) {
@@ -525,6 +613,24 @@ export class SheetAdapter {
         maxRow = Math.max(maxRow, rowNumber);
       }
       for (const coordinate of Object.keys(comments)) {
+        const match = String(coordinate).match(/^([A-Z]+)(\d+)$/);
+        if (!match) continue;
+        const rowNumber = Number(match[2]);
+        const columnNumber = this._columnNumber(match[1]);
+        if (!rows.has(rowNumber)) rows.set(rowNumber, new Map());
+        if (!rows.get(rowNumber).has(columnNumber)) rows.get(rowNumber).set(columnNumber, { val: "", formula: "", style: {} });
+        maxRow = Math.max(maxRow, rowNumber);
+      }
+      for (const coordinate of cellValidations.keys()) {
+        const match = String(coordinate).match(/^([A-Z]+)(\d+)$/);
+        if (!match) continue;
+        const rowNumber = Number(match[2]);
+        const columnNumber = this._columnNumber(match[1]);
+        if (!rows.has(rowNumber)) rows.set(rowNumber, new Map());
+        if (!rows.get(rowNumber).has(columnNumber)) rows.get(rowNumber).set(columnNumber, { val: "", formula: "", style: {} });
+        maxRow = Math.max(maxRow, rowNumber);
+      }
+      for (const coordinate of cellConditionalBases.keys()) {
         const match = String(coordinate).match(/^([A-Z]+)(\d+)$/);
         if (!match) continue;
         const rowNumber = Number(match[2]);
@@ -559,7 +665,17 @@ export class SheetAdapter {
             ? ` vno:number-format="${this._escapeXml(JSON.stringify(item.style.numberFormat))}"`
             : "";
           const formatStyle = item.style?.numberFormat ? numberFormats.get(JSON.stringify(item.style.numberFormat)) : null;
-          const cellAttrs = `${formulaAttrs}${matrixAttrs}${numFmtAttr}${formatStyle ? ` table:style-name="${formatStyle.cellStyle}"` : ""}`;
+          const conditionalBase = cellConditionalBases.get(coordinate);
+          let cellStyleName = conditionalBase?.baseName || formatStyle?.cellStyle || "";
+          if (conditionalBase && formatStyle) {
+            cellStyleName = `${conditionalBase.baseName}_${formatStyle.cellStyle}`;
+            if (!conditionalBaseStyles.some(style => style.includes(`style:name="${cellStyleName}"`))) {
+              conditionalBaseStyles.push(`<style:style style:name="${cellStyleName}" style:family="table-cell" style:data-style-name="${formatStyle.dataStyle}">${conditionalBase.maps}</style:style>`);
+            }
+          }
+          const validationName = cellValidations.get(coordinate);
+          const validationAttr = validationName ? ` table:content-validation-name="${validationName}"` : "";
+          const cellAttrs = `${formulaAttrs}${matrixAttrs}${numFmtAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}`;
           const comment = comments[coordinate];
           const annotationXml = comment ? `<office:annotation><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
           if (typeof item.val === "number" && Number.isFinite(item.val)) {
@@ -575,7 +691,8 @@ export class SheetAdapter {
       const localNames = (this.grid.namedRangesBySheet?.[sheetName] || []).map(range => this._namedRangeXml(range, sheetName)).join("");
       const printRange = this._printRangeAddress(sheetName, this.grid.printAreaBySheet?.[sheetName]);
       const printRangeAttr = printRange ? ` table:print-ranges="${this._escapeXml(printRange)}"` : "";
-      return `<table:table table:name="${this._escapeXml(sheetName)}"${printRangeAttr}>${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}</table:table>`;
+      const conditionalXml = conditionalFormatsBySheet[sheetName];
+      return `<table:table table:name="${this._escapeXml(sheetName)}"${printRangeAttr}>${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}</table:table>`;
     }).join("");
 
     const activeSheet = sheetNames.includes(this.grid.activeSheet) ? this.grid.activeSheet : sheetNames[0];
@@ -593,9 +710,11 @@ export class SheetAdapter {
                  xmlns:dc="http://purl.org/dc/elements/1.1/"
                  xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
                  xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2"
+                 xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0"
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
-  <office:automatic-styles>${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}</office:automatic-styles>
+  ${conditionalNamedStyles.length ? `<office:styles>${conditionalNamedStyles.join("")}</office:styles>` : ""}
+  <office:automatic-styles>${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${conditionalBaseStyles.join("")}</office:automatic-styles>
   <office:settings>
     <config:config-item-set config:name="ooo:view-settings">
       <config:config-item-map-indexed config:name="Views"><config:config-item-map-entry>
@@ -605,7 +724,7 @@ export class SheetAdapter {
       </config:config-item-map-entry></config:config-item-map-indexed>
     </config:config-item-set>
   </office:settings>
-  <office:body><office:spreadsheet>${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}</office:spreadsheet></office:body>
+  <office:body><office:spreadsheet>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}</office:spreadsheet></office:body>
 </office:document>`;
   }
 
@@ -848,7 +967,7 @@ export class SheetAdapter {
                 const annotation = Array.from(cell.children).find(child => child.localName === "annotation");
                 const paragraphs = Array.from(cell.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p")).filter(paragraph => !annotation?.contains(paragraph));
                 const text = paragraphs.map(paragraph => paragraph.textContent || "").join("\n");
-                const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation;
+                const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"];
                 if (hasValue) {
                   const item = this._cellFromFodsAttributes(attributes, text, numberStyles);
                   const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);
@@ -934,7 +1053,7 @@ export class SheetAdapter {
               const paragraphs = [];
               valueContent.replace(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi, (_, value) => { paragraphs.push(this._unescapeXml(value.replace(/<[^>]+>/g, ""))); return ""; });
               const text = paragraphs.join("\n");
-              const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotationMatch;
+              const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotationMatch || attributes["table:content-validation-name"];
               if (hasValue) {
                 const item = this._cellFromFodsAttributes(attributes, text, numberStyles);
                 const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);

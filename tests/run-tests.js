@@ -68,6 +68,7 @@ import { runSheetSlidesViewTabTests } from "./unit/sheet-slides-view-tab.test.js
 import { runSlidesSpellcheckViTests } from "./unit/slides-spellcheck-vi.test.js";
 import { runSheetFormulasTabTests } from "./unit/sheet-formulas-tab.test.js";
 import { runDesktopLaunchContextTests } from "./unit/desktop-launch-context.test.js";
+import { runSheetCfValidationFodsRoundTripTests } from "./unit/sheet-cf-validation-fods-roundtrip.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -143,7 +144,8 @@ async function runAll() {
     { title: "60. Behavioral & Unit Tests — VN Sheet & VN Slides Real View Tabs", runner: runSheetSlidesViewTabTests },
     { title: "61. Behavioral & Unit Tests — Vietnamese Slides Spellchecker", runner: runSlidesSpellcheckViTests },
     { title: "62. Behavioral & Unit Tests — VN Sheet Real Formulas Tab (Function Library, Defined Names, Auditing, Calculation Mode)", runner: runSheetFormulasTabTests },
-    { title: "63. Desktop Launch Context — Single App & Web Suite Mode", runner: runDesktopLaunchContextTests }
+    { title: "63. Desktop Launch Context — Single App & Web Suite Mode", runner: runDesktopLaunchContextTests },
+    { title: "64. Round-trip Tests — VN Sheet CF & Data Validation Save FODS", runner: runSheetCfValidationFodsRoundTripTests }
   ];
 
   for (const suite of suites) {
