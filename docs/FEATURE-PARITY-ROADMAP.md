@@ -152,7 +152,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] Tab View (Slides) — 4 nhóm chuẩn PowerPoint: **Dạng xem bản trình chiếu** (Normal, Slide Sorter, Notes, Reading View toàn màn hình với điều hướng phím mũi tên/Escape), **Hiển thị** (Ruler SVG theo cm, Gridlines 20px, Guides kéo-thả với tooltip tọa độ), **Thu phóng** (In/Out/Reset, Fit to Window), **Cửa sổ** (New Window). Xem `docs/HANDOFF-SHEET-SLIDES-VIEW-TAB.md`.
 
 ### Tier 3
-- [ ] Morph-style transition
+- [x] Morph-style transition — F5 match shape đơn giản theo cùng `id` + cùng loại, dùng CSS FLIP transform để di chuyển/resize và đổi màu mượt; không có match rõ ràng thì crossfade an toàn. Đây không phải thuật toán matching đầy đủ của PowerPoint. FODP VN lưu `vno:transition="morph"` kèm SMIL Fade fallback; LibreOffice 26.2.1 loại metadata custom và không đọc/ghi `p159:morph` qua PPTX, đã đo thật. Xem `docs/HANDOFF-SLIDES-MORPH-TRANSITION.md`.
 - [ ] Co-authoring
 
 ---
