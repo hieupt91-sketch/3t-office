@@ -2834,11 +2834,14 @@ export class SlidesCanvasController {
     menu.addEventListener("keydown", event => {
       if (event.key === "Escape") {
         event.preventDefault();
+        event.stopPropagation();
         close(true);
       } else if (event.key === "Tab") {
+        event.stopPropagation();
         trapFocus(menu, event);
       } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
+        event.stopPropagation();
         const buttons = Array.from(menu.querySelectorAll("button"));
         if (!buttons.length) return;
         const curIdx = buttons.indexOf(document.activeElement);

@@ -82,6 +82,7 @@ import { runSlidesDiagramGroupSelectTests } from "./unit/slides-diagram-group-se
 import { runSlidesSpeakernotesImportTests } from "./unit/slides-speakernotes-import.test.js";
 import { runSheetChartsImportTests } from "./unit/sheet-charts-import.test.js";
 import { runWriterTablesImportTests } from "./unit/writer-tables-import.test.js";
+import { runA11yAuditNewFeaturesTests } from "./unit/a11y-audit-new-features.test.js";
 import { runSlidesWordArtTests } from "./unit/slides-wordart.test.js";
 
 async function runAll() {
@@ -173,7 +174,8 @@ async function runAll() {
     { title: "75. Unit Tests — Slides Speaker Notes Import Fidelity (real PPTX notesSlides → FODP)", runner: runSlidesSpeakernotesImportTests },
     { title: "76. Unit Tests — Sheet Charts Import Fidelity (real XLSX DrawingML chart → FODS)", runner: runSheetChartsImportTests },
     { title: "77. Unit Tests — Writer Tables Import Fidelity (real DOCX w:tbl merge/border/shading)", runner: runWriterTablesImportTests },
-    { title: "78. Behavioral Tests — VN Slides WordArt (chữ nghệ thuật)", runner: runSlidesWordArtTests }
+    { title: "78. Behavioral Tests — VN Slides WordArt (chữ nghệ thuật)", runner: runSlidesWordArtTests },
+    { title: "79. Accessibility Audit — Keyboard Navigation for New Features (Paste Special, Merge Cells, Sections, WordArt, SmartArt Group Select, Dark Mode Toggle)", runner: runA11yAuditNewFeaturesTests }
   ];
 
   for (const suite of suites) {
