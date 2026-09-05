@@ -14,7 +14,7 @@ import { showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
 import { showSymbolPicker } from "../../../platform/ui-kit/symbol-picker.js";
 import { formatDateTime, showDateTimeDialog } from "../../../platform/ui-kit/datetime-picker.js";
-import { showEquationDialog, showBookmarkDialog, showCrossReferenceDialog, slugBookmarkName } from "../../../apps/writer/insert-dialogs.js";
+import { showEquationDialog, showBookmarkDialog, showCrossReferenceDialog, slugBookmarkName, showWordArtDialog, buildWriterWordArtHtml, applyWordArtCss, parseWordArtStyleAttr, resolveWordArtStyle } from "../../../apps/writer/insert-dialogs.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import { CITATION_STYLES, authorSortKey, citationMetadataHtml, formatBibliographyEntry, formatInTextCitation, normalizeSource, parseCitationMetadata, showInsertCitationDialog, showSourceManagerDialog } from "../../../apps/writer/citations.js";
 import {
@@ -173,6 +173,8 @@ export class WriterAdapter {
     };
     this.shapes = [];
     this.selectedShapeId = null;
+    this.selectedWordArtEl = null;
+    this._wordArtEditing = false;
     this.documentTheme = "office";
     this.showFormattingMarks = false;
     this._styleSelectionHandler = null;
@@ -264,6 +266,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.chart.insert", (args) => this.insertChart(args));
     globalCommandBus.bindHandler("writer.design.themeGallery", (args) => this.openThemeGalleryDialog(args));
     globalCommandBus.bindHandler("writer.insert.textbox", (args) => this.insertTextBox(args));
+    globalCommandBus.bindHandler("writer.insert.wordart", (args) => this.insertWordArt(args));
     globalCommandBus.bindHandler("writer.format.dropCap", (args) => this.applyDropCap(args));
     globalCommandBus.bindHandler("writer.insert.dateTime", (args) => this.insertDateTime(args));
     globalCommandBus.bindHandler("writer.insert.equation", (args) => this.insertEquation(args));
@@ -273,6 +276,7 @@ export class WriterAdapter {
 
     // Bind Office Parity Mouse & Shortcuts
     this._bindMouseAndKeyboardParity();
+    this._bindWordArtInteractions();
     globalCommandBus.bindHandler("writer.style.normal", () => this._applyParagraphStyle("normal"));
     globalCommandBus.bindHandler("writer.text.changeCase", () => this.changeCase());
     globalCommandBus.bindHandler("writer.para.sort", () => this.sortParagraphs());
@@ -2092,6 +2096,9 @@ export class WriterAdapter {
       case "writer.insert.textbox":
         return this.insertTextBox(args);
 
+      case "writer.insert.wordart":
+        return await this.insertWordArt(args);
+
       case "writer.format.dropCap":
         return this.applyDropCap(args);
 
@@ -3307,6 +3314,176 @@ export class WriterAdapter {
     return true;
   }
 
+  _wordArtHtmlPattern() {
+    return /<span\b[^>]*class=["'][^"']*\bvno-writer-wordart\b[^"']*["'][^>]*>[\s\S]*?<\/span><\/span>/i;
+  }
+
+  async insertWordArt(options = null) {
+    options = options || {};
+    const hasExplicit = typeof options.text === "string" || options.presetId || options.styleId;
+    const picked = hasExplicit ? options : await showWordArtDialog(options);
+    if (!picked) return false;
+    const text = String(picked.text || options.text || "VN Office").trim() || "VN Office";
+    const presetId = picked.presetId || options.presetId || options.styleId || "navy-outline";
+    const style = resolveWordArtStyle({ ...picked, ...options, presetId, text });
+    const html = buildWriterWordArtHtml(text, { ...picked, ...options, presetId });
+    this._insertHtmlAtCursor(html);
+    this._hydrateWordArtFromDom();
+    this.recordSnapshot("writer.insert.wordart");
+    return { text, presetId, style };
+  }
+
+  updateWordArtText(text, target = null) {
+    const next = String(text || "").trim();
+    if (!next) return false;
+    const el = target
+      || this.selectedWordArtEl
+      || this.bodyDom?.querySelector?.(".vno-writer-wordart.is-selected")
+      || this.bodyDom?.querySelector?.("[data-vno-wordart='true'], .vno-writer-wordart");
+    if (el?.querySelector || el?.setAttribute) {
+      const textEl = el.querySelector?.(".vno-wordart-text") || el;
+      if (textEl && textEl.textContent !== undefined) textEl.textContent = next;
+      el.setAttribute?.("data-vno-wordart-text", next);
+      el.setAttribute?.("aria-label", `Chữ nghệ thuật: ${next}`);
+      if (el.dataset) el.dataset.vnoWordartText = next;
+      this.isDirty = true;
+      this.recordSnapshot("writer.wordart.editText");
+      return true;
+    }
+    const targetDom = this.bodyDom || this.editorDom;
+    if (!targetDom || typeof targetDom.innerHTML !== "string") return false;
+    const escaped = this._escapeHtml(next);
+    let html = String(targetDom.innerHTML);
+    if (!this._wordArtHtmlPattern().test(html)) return false;
+    html = html.replace(/data-vno-wordart-text="[^"]*"/i, `data-vno-wordart-text="${escaped}"`);
+    html = html.replace(/aria-label="Chữ nghệ thuật: [^"]*"/i, `aria-label="Chữ nghệ thuật: ${escaped}"`);
+    html = html.replace(/(<span class="vno-wordart-text"[^>]*>)[\s\S]*?(<\/span>)/i, `$1${escaped}$2`);
+    targetDom.innerHTML = html;
+    this.isDirty = true;
+    this.recordSnapshot("writer.wordart.editText");
+    return true;
+  }
+
+  deleteWordArt(target = null) {
+    const el = target
+      || this.selectedWordArtEl
+      || this.bodyDom?.querySelector?.(".vno-writer-wordart.is-selected")
+      || this.bodyDom?.querySelector?.("[data-vno-wordart='true'], .vno-writer-wordart");
+    if (el && (typeof el.remove === "function" || el.parentNode)) {
+      if (typeof el.remove === "function") el.remove();
+      else el.parentNode.removeChild(el);
+      this.selectedWordArtEl = null;
+      this._wordArtEditing = false;
+      this.isDirty = true;
+      this.recordSnapshot("writer.wordart.delete");
+      return true;
+    }
+    const targetDom = this.bodyDom || this.editorDom;
+    if (!targetDom || typeof targetDom.innerHTML !== "string") return false;
+    const next = String(targetDom.innerHTML).replace(this._wordArtHtmlPattern(), "");
+    if (next === targetDom.innerHTML) return false;
+    targetDom.innerHTML = next;
+    this.selectedWordArtEl = null;
+    this._wordArtEditing = false;
+    this.isDirty = true;
+    this.recordSnapshot("writer.wordart.delete");
+    return true;
+  }
+
+  _selectWordArt(el) {
+    this._initZones();
+    const nodes = this.bodyDom?.querySelectorAll?.(".vno-writer-wordart") || [];
+    nodes.forEach?.((item) => item.classList?.remove?.("is-selected"));
+    this.selectedWordArtEl = el || null;
+    if (el?.classList) el.classList.add("is-selected");
+  }
+
+  _beginWordArtEdit(el) {
+    if (!el) return false;
+    const textEl = el.querySelector?.(".vno-wordart-text") || el;
+    if (!textEl) return false;
+    this._selectWordArt(el);
+    this._wordArtEditing = true;
+    el.classList?.add?.("is-editing");
+    if (textEl.setAttribute) textEl.setAttribute("contenteditable", "true");
+    else textEl.contentEditable = "true";
+    textEl.focus?.();
+    try {
+      const sel = window.getSelection?.();
+      if (sel && document.createRange) {
+        const range = document.createRange();
+        range.selectNodeContents(textEl);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    } catch {}
+    const finish = () => {
+      textEl.removeEventListener?.("blur", finish);
+      textEl.removeEventListener?.("keydown", onEditKey);
+      if (textEl.setAttribute) textEl.setAttribute("contenteditable", "false");
+      else textEl.contentEditable = "false";
+      el.classList?.remove?.("is-editing");
+      this._wordArtEditing = false;
+      const next = String(textEl.textContent || "").trim() || "VN Office";
+      textEl.textContent = next;
+      el.setAttribute?.("data-vno-wordart-text", next);
+      el.setAttribute?.("aria-label", `Chữ nghệ thuật: ${next}`);
+      this.isDirty = true;
+      this.recordSnapshot("writer.wordart.editText");
+    };
+    const onEditKey = (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        textEl.blur?.();
+      } else if (event.key === "Escape") {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        textEl.blur?.();
+      }
+    };
+    textEl.addEventListener?.("blur", finish);
+    textEl.addEventListener?.("keydown", onEditKey);
+    return true;
+  }
+
+  _hydrateWordArtFromDom() {
+    this._initZones();
+    const root = this.bodyDom || this.editorDom;
+    if (!root?.querySelectorAll) return;
+    const nodes = root.querySelectorAll(".vno-writer-wordart, [data-vno-wordart='true']");
+    nodes.forEach((el) => {
+      const textEl = el.querySelector?.(".vno-wordart-text") || el;
+      const stored = parseWordArtStyleAttr(
+        el.getAttribute?.("data-vno-wordart-style") || el.dataset?.vnoWordartStyle
+      );
+      const presetId = el.getAttribute?.("data-vno-wordart-preset") || el.dataset?.vnoWordartPreset || stored?.presetId;
+      applyWordArtCss(textEl, { ...(stored || {}), presetId });
+    });
+  }
+
+  _bindWordArtInteractions() {
+    if (!this.bodyDom?.addEventListener || this._wordArtClickHandler) return;
+    this._wordArtClickHandler = (event) => {
+      const wa = event.target?.closest?.(".vno-writer-wordart, [data-vno-wordart='true']");
+      if (wa) {
+        if (this._wordArtEditing && this.selectedWordArtEl === wa) return;
+        this._selectWordArt(wa);
+      } else {
+        this._selectWordArt(null);
+      }
+    };
+    this._wordArtDblClickHandler = (event) => {
+      const wa = event.target?.closest?.(".vno-writer-wordart, [data-vno-wordart='true']");
+      if (!wa) return;
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      this._beginWordArtEdit(wa);
+    };
+    this.bodyDom.addEventListener("click", this._wordArtClickHandler);
+    this.bodyDom.addEventListener("dblclick", this._wordArtDblClickHandler);
+  }
+
   _uniqueBookmarkId(baseId) {
     const targetDom = this.bodyDom || this.editorDom;
     let id = baseId;
@@ -3879,6 +4056,7 @@ export class WriterAdapter {
 
       this._hydrateCitationsFromDom(result.content || imported.body);
       this._hydrateCaptionsFromDom(result.content || imported.body);
+      this._hydrateWordArtFromDom();
 
       this.documentContent = this.editorDom ? this.editorDom.innerHTML : raw;
       this.sourceFileName = (result.fileName || "TaiLieu").replace(/\.[^/.]+$/, "");
@@ -4779,6 +4957,7 @@ export class WriterAdapter {
     if (typeof this._hydrateCaptionsFromDom === "function") {
       this._hydrateCaptionsFromDom();
     }
+    this._hydrateWordArtFromDom();
     this._applyDecorations();
     this._syncActiveStyleUI?.();
 
@@ -4933,6 +5112,12 @@ export class WriterAdapter {
 
     if (!this._undoKeyHandler && typeof target.addEventListener === "function") {
       this._undoKeyHandler = (event) => {
+        if ((event.key === "Delete" || event.key === "Backspace") && this.selectedWordArtEl && !this._wordArtEditing) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.deleteWordArt(this.selectedWordArtEl);
+          return;
+        }
         if ((event.key === "Delete" || event.key === "Backspace") && this.selectedShapeId) {
           const active = typeof document !== "undefined" ? document.activeElement : null;
           const isInput = active && (active.isContentEditable || active.tagName === "INPUT" || active.tagName === "TEXTAREA");
@@ -4941,6 +5126,11 @@ export class WriterAdapter {
             this.deleteShape(this.selectedShapeId);
             return;
           }
+        }
+        if ((event.key === "Enter" || event.key === "F2") && this.selectedWordArtEl && !this._wordArtEditing) {
+          event.preventDefault();
+          this._beginWordArtEdit(this.selectedWordArtEl);
+          return;
         }
         if (!event.ctrlKey && !event.metaKey) return;
         const key = (event.key || "").toLowerCase();

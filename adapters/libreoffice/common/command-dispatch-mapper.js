@@ -96,6 +96,7 @@ export const VN_TO_UNO_MAP = {
   "writer.header.insert": ".uno:InsertPageHeader",
   "writer.footer.insert": ".uno:InsertPageFooter",
   "writer.insert.textbox": ".uno:DrawText",
+  "writer.insert.wordart": ".uno:FontworkGalleryFloater",
   "writer.format.dropCap": ".uno:DropCap",
   "writer.insert.dateTime": ".uno:InsertDateField",
   "writer.insert.equation": ".uno:InsertFormula",

@@ -398,6 +398,7 @@ export const viStrings = {
     "writer.header.insert": { label: "Đầu trang", tooltip: "Chèn tiêu đề đầu trang (Header)" },
     "writer.footer.insert": { label: "Chân trang", tooltip: "Chèn tiêu đề chân trang (Footer)" },
     "writer.insert.textbox": { label: "Hộp văn bản", tooltip: "Chèn khung văn bản độc lập, kéo-thả được" },
+    "writer.insert.wordart": { label: "Chữ nghệ thuật", tooltip: "Chèn chữ nghệ thuật với viền, đổ bóng hoặc gradient tại vị trí con trỏ" },
     "writer.format.dropCap": { label: "Chữ đầu đoạn", tooltip: "Phóng to chữ cái đầu đoạn văn (Drop Cap)" },
     "writer.insert.dateTime": { label: "Ngày & Giờ", tooltip: "Chèn ngày giờ hiện tại tại vị trí con trỏ" },
     "writer.insert.equation": { label: "Công thức", tooltip: "Chèn hộp công thức toán học dạng chữ (bản rút gọn)" },

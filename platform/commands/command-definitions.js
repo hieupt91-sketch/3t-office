@@ -107,6 +107,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.header.insert", category: "insert", label: "Đầu trang", icon: "header", tooltip: "Chèn tiêu đề đầu trang (Header)" },
   { id: "writer.footer.insert", category: "insert", label: "Chân trang", icon: "footer", tooltip: "Chèn tiêu đề chân trang (Footer)" },
   { id: "writer.insert.textbox", category: "insert", label: "Hộp văn bản", icon: "textBox", tooltip: "Chèn khung văn bản độc lập, kéo-thả được" },
+  { id: "writer.insert.wordart", category: "insert", label: "Chữ nghệ thuật", icon: "wordArt", tooltip: "Chèn chữ nghệ thuật với viền, đổ bóng hoặc gradient tại vị trí con trỏ" },
   { id: "writer.format.dropCap", category: "insert", label: "Chữ đầu đoạn", icon: "dropCap", tooltip: "Phóng to chữ cái đầu đoạn văn (Drop Cap)" },
   { id: "writer.insert.dateTime", category: "insert", label: "Ngày & Giờ", icon: "dateTime", tooltip: "Chèn ngày giờ hiện tại tại vị trí con trỏ" },
   { id: "writer.insert.equation", category: "insert", label: "Công thức", icon: "equation", tooltip: "Chèn hộp công thức toán học dạng chữ (bản rút gọn)" },

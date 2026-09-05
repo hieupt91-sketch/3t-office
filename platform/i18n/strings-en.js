@@ -399,6 +399,7 @@ export const enStrings = {
     "writer.header.insert": { label: "Header", tooltip: "Insert header" },
     "writer.footer.insert": { label: "Footer", tooltip: "Insert footer" },
     "writer.insert.textbox": { label: "Text Box", tooltip: "Insert a freely movable text box" },
+    "writer.insert.wordart": { label: "WordArt", tooltip: "Insert stylized decorative text with outline, shadow, or gradient at the cursor" },
     "writer.format.dropCap": { label: "Drop Cap", tooltip: "Enlarge the first letter of the paragraph" },
     "writer.insert.dateTime": { label: "Date & Time", tooltip: "Insert the current date and time at the cursor" },
     "writer.insert.equation": { label: "Equation", tooltip: "Insert a basic math text box (reduced editor)" },
