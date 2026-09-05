@@ -26,6 +26,15 @@ export const enStrings = {
     themeDark: "Dark Theme",
     themeLight: "Light Theme"
   },
+  help: {
+    panelTitle: "Help",
+    searchPlaceholder: "Search a feature, e.g. Word Count",
+    topicList: "Topic list",
+    noResults: "No matching help topic.",
+    pickTopic: "Select a feature in the list to read its guide.",
+    location: "Location",
+    stepsHeading: "How to use"
+  },
   aiAssistant: {
     title: "VN AI Assistant", provider: "AI provider", local: "Local (default)",
     activeProvider: "Actually in use", configureKey: "Configure API key", apiKey: "API key",
@@ -396,8 +405,14 @@ export const enStrings = {
     "writer.insert.crossReference": { label: "Cross-reference", tooltip: "Insert an internal link to a heading or bookmark" },
     "writer.comment.insert": { label: "New Comment", tooltip: "Add a comment to the selected text (Ctrl+Alt+M)" },
     "writer.trackChanges.toggle": { label: "Track Changes", tooltip: "Track changes in the document (Ctrl+Shift+E)" },
+    "writer.trackChanges.previous": { label: "Previous Change", tooltip: "Go to the previous tracked change" },
+    "writer.trackChanges.next": { label: "Next Change", tooltip: "Go to the next tracked change" },
+    "writer.trackChanges.acceptOne": { label: "Accept This", tooltip: "Accept the selected change" },
+    "writer.trackChanges.rejectOne": { label: "Reject This", tooltip: "Reject the selected change" },
     "writer.trackChanges.acceptAll": { label: "Accept All Changes", tooltip: "Accept all changes in document" },
     "writer.trackChanges.rejectAll": { label: "Reject All Changes", tooltip: "Reject all changes in document" },
+    "writer.review.wordCount": { label: "Word Count", tooltip: "Show words, characters, paragraphs and lines in the document" },
+    "writer.help.open": { label: "Help", tooltip: "Open the in-app user guide (F1)" },
     "writer.page.margins": { label: "Margins", tooltip: "Adjust document margins" },
     "writer.page.orientation": { label: "Orientation", tooltip: "Switch page orientation between portrait and landscape" },
     "writer.page.size": { label: "Size", tooltip: "Choose page size (A4, Letter, etc.)" },
@@ -447,6 +462,7 @@ export const enStrings = {
       mailings: "Mailings",
       review: "Review",
       view: "View",
+      help: "Help",
       ai: "VN AI Assistant"
     },
     group: {
@@ -483,6 +499,7 @@ export const enStrings = {
       show: "Show",
       zoom: "Zoom",
       window: "Window",
+      help: "Help",
       aiFeatures: "Vietnamese AI Features"
     }
   },
@@ -500,6 +517,17 @@ export const enStrings = {
       apply: "Apply",
       cancel: "Cancel",
       close: "Close"
+    },
+    wordCount: {
+      title: "Word Count",
+      scopeDocument: "Statistics for the whole document",
+      scopeSelection: "Statistics for the current selection",
+      words: "Words",
+      charsNoSpaces: "Characters (no spaces)",
+      charsWithSpaces: "Characters (with spaces)",
+      paragraphs: "Paragraphs",
+      lines: "Lines",
+      statusLabel: "{count} words"
     },
     columns: {
       title: "Columns",

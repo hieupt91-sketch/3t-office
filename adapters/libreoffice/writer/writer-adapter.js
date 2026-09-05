@@ -33,6 +33,7 @@ import {
   tableOfFiguresTitle,
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
+import { countBlockParagraphs, countDocumentStats, showWordCountDialog } from "../../../apps/writer/word-count.js";
 
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
 const PAGE_SIZES_MM = {
@@ -114,6 +115,7 @@ export class WriterAdapter {
     this._commentAnchorKeyHandler = null;
     this._commentPanelKeyHandler = null;
     this.trackChangesEnabled = false;
+    this._activeTrackChange = null;
     this._trackChangesBeforeInputHandler = null;
     this._workflowBeforeInputHandler = null;
     this._workflowInputHandler = null;
@@ -208,8 +210,13 @@ export class WriterAdapter {
     // Bind Review (Ghi chú & Theo dõi thay đổi)
     globalCommandBus.bindHandler("writer.comment.insert", (args) => this.insertComment(args));
     globalCommandBus.bindHandler("writer.trackChanges.toggle", (args) => this.toggleTrackChanges(args?.enabled));
+    globalCommandBus.bindHandler("writer.trackChanges.previous", () => this.previousTrackChange());
+    globalCommandBus.bindHandler("writer.trackChanges.next", () => this.nextTrackChange());
+    globalCommandBus.bindHandler("writer.trackChanges.acceptOne", () => this.acceptOneTrackChange());
+    globalCommandBus.bindHandler("writer.trackChanges.rejectOne", () => this.rejectOneTrackChange());
     globalCommandBus.bindHandler("writer.trackChanges.acceptAll", () => this.acceptAllTrackChanges());
     globalCommandBus.bindHandler("writer.trackChanges.rejectAll", () => this.rejectAllTrackChanges());
+    globalCommandBus.bindHandler("writer.review.wordCount", () => this.openWordCountDialog());
 
     // Bind undo/redo listeners & command handlers
     this._bindUndoRedo();
@@ -287,6 +294,7 @@ export class WriterAdapter {
     if (!this.bodyDom?.addEventListener || this._trackChangesBeforeInputHandler) return;
     this._trackChangesBeforeInputHandler = (event) => this._handleTrackChangesBeforeInput(event);
     this.bodyDom.addEventListener("beforeinput", this._trackChangesBeforeInputHandler);
+    this.bodyDom.addEventListener("input", () => this._updateTrackChangesCommandState());
   }
 
   /**
@@ -740,12 +748,133 @@ export class WriterAdapter {
   }
 
   acceptAllTrackChanges() {
+    this._clearTrackChangeHighlight();
     this._resolveAllTrackChanges(true);
     return true;
   }
 
   rejectAllTrackChanges() {
+    this._clearTrackChangeHighlight();
     this._resolveAllTrackChanges(false);
+    return true;
+  }
+
+  nextTrackChange() {
+    const changes = this._listTrackChanges();
+    if (!changes.length) return false;
+    const current = this._trackChangeAtSelection();
+    const index = changes.indexOf(current);
+    const next = changes[(index + 1) % changes.length];
+    return this._selectTrackChange(next);
+  }
+
+  previousTrackChange() {
+    const changes = this._listTrackChanges();
+    if (!changes.length) return false;
+    const current = this._trackChangeAtSelection();
+    const index = changes.indexOf(current);
+    const previous = index <= 0 ? changes[changes.length - 1] : changes[index - 1];
+    return this._selectTrackChange(previous);
+  }
+
+  acceptOneTrackChange() {
+    return this._resolveCurrentTrackChange(true);
+  }
+
+  rejectOneTrackChange() {
+    return this._resolveCurrentTrackChange(false);
+  }
+
+  _listTrackChanges() {
+    if (!this.bodyDom?.querySelectorAll) return [];
+    const insertions = [...(this.bodyDom.querySelectorAll('ins[data-vno-change="insert"]') || [])];
+    const deletions = [...(this.bodyDom.querySelectorAll('del[data-vno-change="delete"]') || [])];
+    const all = [...insertions, ...deletions].filter((node) => !node.removed);
+    if (all.length > 1 && typeof all[0].compareDocumentPosition === "function") {
+      all.sort((a, b) => {
+        const position = a.compareDocumentPosition(b);
+        if (position & 2) return 1;
+        if (position & 4) return -1;
+        return 0;
+      });
+    }
+    return all;
+  }
+
+  _changeKind(node) {
+    return node?.dataset?.vnoChange || node?.getAttribute?.("data-vno-change") || node?.kind || "";
+  }
+
+  _trackChangeAtSelection() {
+    if (typeof window !== "undefined" && window.getSelection) {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const anchor = selection.anchorNode;
+        const element = anchor?.nodeType === 1 ? anchor : anchor?.parentElement;
+        const change = element?.closest?.("[data-vno-change]");
+        if (change && (!this.bodyDom || this.bodyDom.contains?.(change))) return change;
+      }
+    }
+    if (this._activeTrackChange && (!this.bodyDom || this.bodyDom.contains?.(this._activeTrackChange))) {
+      return this._activeTrackChange;
+    }
+    return null;
+  }
+
+  _clearTrackChangeHighlight() {
+    const node = this._activeTrackChange;
+    if (node?.classList?.remove) node.classList.remove("is-vno-change-active");
+    this._activeTrackChange = null;
+  }
+
+  _selectTrackChange(node) {
+    this._clearTrackChangeHighlight();
+    if (!node) return false;
+    this._activeTrackChange = node;
+    node.classList?.add?.("is-vno-change-active");
+    if (typeof node.scrollIntoView === "function") {
+      try { node.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch { /* ignore */ }
+    }
+    return true;
+  }
+
+  _unwrapTrackedNode(node) {
+    if (typeof node.replaceWith === "function") {
+      const children = node.childNodes ? [...node.childNodes] : [];
+      node.replaceWith(...children);
+    }
+  }
+
+  _resolveOneTrackChange(node, accept) {
+    if (!node) return false;
+    const kind = this._changeKind(node);
+    if (accept) {
+      if (kind === "insert") this._unwrapTrackedNode(node);
+      else node.remove?.();
+    } else if (kind === "insert") {
+      node.remove?.();
+    } else {
+      this._unwrapTrackedNode(node);
+    }
+    this.isDirty = true;
+    if (this._activeTrackChange === node) this._clearTrackChangeHighlight();
+    return true;
+  }
+
+  _resolveCurrentTrackChange(accept) {
+    this.flushTyping();
+    this._initZones();
+    const current = this._trackChangeAtSelection() || this._listTrackChanges()[0];
+    if (!current) return false;
+    const changes = this._listTrackChanges();
+    const index = Math.max(0, changes.indexOf(current));
+    this._resolveOneTrackChange(current, accept);
+    this._updateTrackChangesCommandState();
+    this.recordSnapshot(accept ? "writer.trackChanges.acceptOne" : "writer.trackChanges.rejectOne");
+    const remaining = this._listTrackChanges();
+    if (remaining.length) {
+      this._selectTrackChange(remaining[Math.min(index, remaining.length - 1)]);
+    }
     return true;
   }
 
@@ -769,10 +898,61 @@ export class WriterAdapter {
   }
 
   _updateTrackChangesCommandState() {
-    const hasChanges = !!this.bodyDom?.querySelector?.('[data-vno-change]');
+    const hasChanges = !!this.bodyDom?.querySelector?.("[data-vno-change]");
     globalCommandBus.updateState("writer.trackChanges.toggle", { checked: this.trackChangesEnabled });
     globalCommandBus.updateState("writer.trackChanges.acceptAll", { enabled: hasChanges });
     globalCommandBus.updateState("writer.trackChanges.rejectAll", { enabled: hasChanges });
+    globalCommandBus.updateState("writer.trackChanges.previous", { enabled: hasChanges });
+    globalCommandBus.updateState("writer.trackChanges.next", { enabled: hasChanges });
+    globalCommandBus.updateState("writer.trackChanges.acceptOne", { enabled: hasChanges });
+    globalCommandBus.updateState("writer.trackChanges.rejectOne", { enabled: hasChanges });
+  }
+
+  /**
+   * Thống kê đếm từ trên thân tài liệu (không gồm đầu/chân trang).
+   * Nếu có vùng chọn không rỗng trong body thì đếm vùng chọn.
+   */
+  getWordCountStats(options = {}) {
+    this._initZones();
+    const preferSelection = options.preferSelection !== false;
+    const body = this.bodyDom;
+    if (!body) {
+      return {
+        words: 0,
+        charactersWithSpaces: 0,
+        charactersNoSpaces: 0,
+        paragraphs: 0,
+        lines: 0,
+        scope: "document"
+      };
+    }
+
+    let selectedText = "";
+    if (preferSelection && typeof window !== "undefined" && window.getSelection) {
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const ancestor = range.commonAncestorContainer;
+        const inBody = ancestor === body || body.contains?.(ancestor);
+        if (inBody) selectedText = selection.toString() || "";
+      }
+    }
+
+    if (selectedText.trim()) {
+      return countDocumentStats(selectedText, { scope: "selection" });
+    }
+
+    const text = body.innerText != null ? body.innerText : (body.textContent || "");
+    const paragraphCount = countBlockParagraphs(body);
+    return countDocumentStats(text, {
+      scope: "document",
+      paragraphCount: paragraphCount || undefined
+    });
+  }
+
+  openWordCountDialog() {
+    const stats = this.getWordCountStats({ preferSelection: true });
+    return showWordCountDialog(stats);
   }
 
   /**
@@ -1608,8 +1788,13 @@ export class WriterAdapter {
     }
 
     if (vnCmdId === "writer.trackChanges.toggle") return this.toggleTrackChanges(args?.enabled);
+    if (vnCmdId === "writer.trackChanges.previous") return this.previousTrackChange();
+    if (vnCmdId === "writer.trackChanges.next") return this.nextTrackChange();
+    if (vnCmdId === "writer.trackChanges.acceptOne") return this.acceptOneTrackChange();
+    if (vnCmdId === "writer.trackChanges.rejectOne") return this.rejectOneTrackChange();
     if (vnCmdId === "writer.trackChanges.acceptAll") return this.acceptAllTrackChanges();
     if (vnCmdId === "writer.trackChanges.rejectAll") return this.rejectAllTrackChanges();
+    if (vnCmdId === "writer.review.wordCount") return this.openWordCountDialog();
 
     if (vnCmdId !== "common.edit.undo" && vnCmdId !== "common.edit.redo") {
       this.flushTyping();

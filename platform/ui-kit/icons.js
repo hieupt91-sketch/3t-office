@@ -684,6 +684,39 @@ export const ICONS = {
     <path d="M16 14l3 3 5-6" transform="translate(-4 1)" stroke="#16A34A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
+  trackChangePrev: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.2"/>
+    <polyline points="8 14 12 9 16 14" stroke="#0F4C81" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  trackChangeNext: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.2"/>
+    <polyline points="8 10 12 15 16 10" stroke="#0F4C81" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  trackChangeAccept: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" fill="#F0FDF4" stroke="#16A34A" stroke-width="1.2"/>
+    <path d="M8 12.5l2.6 2.6L16.5 9" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  trackChangeReject: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" fill="#FEF2F2" stroke="#DC2626" stroke-width="1.2"/>
+    <path d="M9 9l6 6M15 9l-6 6" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  help: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <circle cx="12" cy="12" r="9" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/>
+    <path d="M9.6 9.2c0-1.4 1.1-2.5 2.5-2.5s2.4 1 2.4 2.3c0 1.3-1.1 1.8-1.9 2.4-.7.5-1 1-1 1.8" stroke="#0F4C81" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="12" cy="17.1" r="1.05" fill="#0F4C81"/>
+  </svg>`,
+
+  wordCount: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="4" y="3" width="16" height="18" rx="1.5" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.3"/>
+    <path d="M7 8h10M7 12h7M7 16h5" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>
+    <rect x="13" y="14" width="8" height="7" rx="1.2" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.2"/>
+    <text x="17" y="19.2" text-anchor="middle" font-size="5.5" font-weight="800" fill="#1D4ED8" font-family="sans-serif">123</text>
+  </svg>`,
+
   percentFormat: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
     <circle cx="7" cy="7" r="3" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.3"/>
     <circle cx="17" cy="17" r="3" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.3"/>

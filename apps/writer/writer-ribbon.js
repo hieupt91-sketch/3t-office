@@ -435,7 +435,8 @@ export const WRITER_RIBBON_TABS = [
         label: "Chính tả & Ngữ pháp",
         labelKey: "writerRibbon.group.proofread",
         items: [
-          { type: "button", commandId: "ai.assistant.grammarCheck", isLarge: true }
+          { type: "button", commandId: "ai.assistant.grammarCheck", isLarge: true },
+          { type: "button", commandId: "writer.review.wordCount", isLarge: true }
         ]
       },
       {
@@ -450,6 +451,20 @@ export const WRITER_RIBBON_TABS = [
         labelKey: "writerRibbon.group.tracking",
         items: [
           { type: "button", commandId: "writer.trackChanges.toggle", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.trackChanges.previous" },
+              { type: "button", commandId: "writer.trackChanges.next" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.trackChanges.acceptOne" },
+              { type: "button", commandId: "writer.trackChanges.rejectOne" }
+            ]
+          },
           {
             type: "column",
             items: [
@@ -503,6 +518,20 @@ export const WRITER_RIBBON_TABS = [
         label: "Cửa sổ",
         labelKey: "writerRibbon.group.window",
         items: [{ type: "button", commandId: "writer.view.newWindow", isLarge: true }]
+      }
+    ]
+  },
+  {
+    id: "help",
+    label: "Trợ giúp",
+    labelKey: "writerRibbon.tab.help",
+    groups: [
+      {
+        label: "Trợ giúp",
+        labelKey: "writerRibbon.group.help",
+        items: [
+          { type: "button", commandId: "writer.help.open", isLarge: true }
+        ]
       }
     ]
   },

@@ -10,7 +10,17 @@ class FakeChangeNode {
     this.childNodes = [{ textContent: text }];
     this.removed = false;
     this.unwrapped = false;
+    this.tagName = kind === "insert" ? "INS" : "DEL";
+    this.dataset = { vnoChange: kind };
+    this.className = "";
+    this.scrolled = false;
+    this.classList = {
+      add: (name) => { this.className = `${this.className} ${name}`.trim(); },
+      remove: (name) => { this.className = this.className.split(/\s+/).filter((item) => item && item !== name).join(" "); }
+    };
   }
+  getAttribute(name) { return name === "data-vno-change" ? this.kind : null; }
+  scrollIntoView() { this.scrolled = true; }
   remove() { this.removed = true; }
   replaceWith() { this.unwrapped = true; }
 }
@@ -25,11 +35,14 @@ class FakeBody {
   contains() { return true; }
   dispatchEvent() { return true; }
   querySelector(selector) {
-    return selector === "[data-vno-change]" && this.changes.some((node) => !node.removed) ? this.changes[0] : null;
+    const live = this.changes.filter((node) => !node.removed && !node.unwrapped);
+    return selector.includes("data-vno-change") && live.length ? live[0] : null;
   }
   querySelectorAll(selector) {
+    const live = this.changes.filter((node) => !node.removed && !node.unwrapped);
+    if (selector.startsWith("ins") && selector.includes("del")) return live;
     const kind = selector.startsWith("ins") ? "insert" : "delete";
-    return this.changes.filter((node) => node.kind === kind && !node.removed);
+    return live.filter((node) => node.kind === kind);
   }
 }
 
@@ -136,6 +149,69 @@ export async function runWriterTrackChangesTests() {
       globalUnoBridge.exportRealPdf = originalPdf;
     }
     if (saved !== clean || pdf !== clean) throw new Error("Save/PDF không dùng chung accepted view sạch");
+  });
+
+  await test("Writer Track Changes: Previous/Next nhảy và highlight tuần tự, rồi quay vòng", async () => {
+    const body = new FakeBody();
+    const first = new FakeChangeNode("insert", "một");
+    const second = new FakeChangeNode("insert", "hai");
+    const third = new FakeChangeNode("insert", "ba");
+    body.changes.push(first, second, third);
+    const adapter = makeAdapter(body);
+    if (!adapter.nextTrackChange() || first.className.indexOf("is-vno-change-active") < 0) {
+      throw new Error("Next đầu tiên không chọn thay đổi 1");
+    }
+    if (!adapter.nextTrackChange() || second.className.indexOf("is-vno-change-active") < 0) {
+      throw new Error("Next thứ hai không chọn thay đổi 2");
+    }
+    adapter.nextTrackChange();
+    adapter.nextTrackChange();
+    if (first.className.indexOf("is-vno-change-active") < 0) throw new Error("Next không quay vòng về thay đổi đầu");
+    adapter.previousTrackChange();
+    if (third.className.indexOf("is-vno-change-active") < 0) throw new Error("Previous không nhảy về thay đổi cuối");
+  });
+
+  await test("Writer Track Changes: Accept One / Reject One chỉ xử lý thay đổi đang chọn", async () => {
+    const acceptBody = new FakeBody();
+    const keepInsert = new FakeChangeNode("insert", "giữ");
+    const acceptInsert = new FakeChangeNode("insert", "nhận");
+    acceptBody.changes.push(keepInsert, acceptInsert);
+    const acceptAdapter = makeAdapter(acceptBody);
+    acceptAdapter._selectTrackChange(acceptInsert);
+    acceptAdapter.acceptOneTrackChange();
+    if (!acceptInsert.unwrapped) throw new Error("Accept One không giữ insertion đang chọn");
+    if (keepInsert.unwrapped || keepInsert.removed) throw new Error("Accept One đụng thay đổi khác");
+
+    const rejectBody = new FakeBody();
+    const keepDelete = new FakeChangeNode("delete", "cũ");
+    const rejectInsert = new FakeChangeNode("insert", "bỏ");
+    rejectBody.changes.push(keepDelete, rejectInsert);
+    const rejectAdapter = makeAdapter(rejectBody);
+    rejectAdapter._selectTrackChange(rejectInsert);
+    rejectAdapter.rejectOneTrackChange();
+    if (!rejectInsert.removed) throw new Error("Reject One không bỏ insertion đang chọn");
+    if (keepDelete.removed || keepDelete.unwrapped) throw new Error("Reject One đụng thay đổi khác");
+  });
+
+  await test("Writer Track Changes: lệnh nav/acceptOne/rejectOne có định nghĩa và ribbon", async () => {
+    const { WRITER_COMMANDS } = await import("../../platform/commands/command-definitions.js");
+    const { WRITER_RIBBON_TABS } = await import("../../apps/writer/writer-ribbon.js");
+    const ids = [
+      "writer.trackChanges.previous",
+      "writer.trackChanges.next",
+      "writer.trackChanges.acceptOne",
+      "writer.trackChanges.rejectOne"
+    ];
+    for (const id of ids) {
+      if (!WRITER_COMMANDS.find((cmd) => cmd.id === id)) throw new Error(`Thiếu ${id}`);
+    }
+    const flatten = (items = []) => items.flatMap((item) => (item.items ? flatten(item.items) : [item]));
+    const review = WRITER_RIBBON_TABS.find((tab) => tab.id === "review");
+    const tracking = review?.groups?.find((group) => group.labelKey === "writerRibbon.group.tracking");
+    const ribbonIds = flatten(tracking?.items || []).map((item) => item.commandId);
+    for (const id of ids) {
+      if (!ribbonIds.includes(id)) throw new Error(`Ribbon thiếu ${id}: ${ribbonIds.join(", ")}`);
+    }
   });
 
   return results;
