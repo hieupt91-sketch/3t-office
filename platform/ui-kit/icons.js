@@ -457,6 +457,22 @@ export const ICONS = {
     <polyline points="15 16 16.5 17.5 19 14.5" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
+  envelope: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="2" y="6" width="20" height="13" rx="2" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/>
+    <path d="M3 7.5L12 13.5L21 7.5" stroke="#2563EB" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M5 16.5H10" stroke="#94A3B8" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`,
+
+  labels: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.4"/>
+    <rect x="5" y="5" width="6.2" height="4.2" rx="0.6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1"/>
+    <rect x="12.8" y="5" width="6.2" height="4.2" rx="0.6" fill="#DBEAFE" stroke="#2563EB" stroke-width="1"/>
+    <rect x="5" y="10.4" width="6.2" height="4.2" rx="0.6" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1"/>
+    <rect x="12.8" y="10.4" width="6.2" height="4.2" rx="0.6" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1"/>
+    <rect x="5" y="15.8" width="6.2" height="3.2" rx="0.6" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1"/>
+    <rect x="12.8" y="15.8" width="6.2" height="3.2" rx="0.6" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1"/>
+  </svg>`,
+
   // Kiểu dáng & Trang trí trang (Styles Gallery & Page Decorations)
   styleGallery: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
     <rect x="2" y="3" width="20" height="18" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.4"/>

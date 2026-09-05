@@ -571,7 +571,9 @@ export const viStrings = {
     "writer.mailMerge.preview": { label: "Xem trước kết quả", tooltip: "Bật/tắt xem trước bản ghi trộn thư" },
     "writer.mailMerge.prevRecord": { label: "Bản ghi trước", tooltip: "Chuyển tới bản ghi trước" },
     "writer.mailMerge.nextRecord": { label: "Bản ghi sau", tooltip: "Chuyển tới bản ghi tiếp theo" },
-    "writer.mailMerge.finish": { label: "Hoàn tất trộn", tooltip: "Hoàn tất trộn và tạo tài liệu kết quả cho toàn bộ bản ghi" }
+    "writer.mailMerge.finish": { label: "Hoàn tất trộn", tooltip: "Hoàn tất trộn và tạo tài liệu kết quả cho toàn bộ bản ghi" },
+    "writer.mailings.envelopes": { label: "Phong bì", tooltip: "Tạo trang phong bì với địa chỉ người nhận và người gửi" },
+    "writer.mailings.labels": { label: "Nhãn", tooltip: "Tạo trang nhãn — một nội dung hoặc hàng loạt từ Trộn thư" }
   },
   writerRibbon: {
     tab: {
@@ -609,6 +611,7 @@ export const viStrings = {
       footnotes: "Chú thích",
       citationsBibliography: "Trích dẫn & Thư mục tài liệu",
       captions: "Chú thích ảnh",
+      createMailings: "Tạo",
       startMerge: "Bắt đầu trộn",
       writeInsert: "Viết & Chèn trường",
       previewResults: "Xem trước kết quả",
@@ -746,6 +749,31 @@ export const viStrings = {
       updateTooltip: "Cập nhật danh mục hình ảnh",
       deleteTooltip: "Xóa danh mục hình ảnh",
       empty: "Chưa có chú thích nào trong tài liệu. Hãy chèn chú thích ảnh hoặc bảng rồi cập nhật lại danh mục."
+    },
+    envelopes: {
+      title: "Phong bì",
+      hint: "Nhập địa chỉ người nhận và (tuỳ chọn) người gửi, chọn khổ phong bì, rồi thêm một trang riêng vào tài liệu.",
+      delivery: "Địa chỉ người nhận",
+      returnAddr: "Địa chỉ người gửi",
+      omitReturn: "Ẩn địa chỉ người gửi",
+      size: "Khổ phong bì",
+      position: "Vị trí trang",
+      positionStart: "Đầu tài liệu",
+      positionEnd: "Cuối tài liệu",
+      addToDocument: "Thêm vào tài liệu",
+      useMailMerge: "Dùng nguồn Trộn thư hiện có",
+      records: "bản ghi",
+      deliveryRequired: "Hãy nhập địa chỉ người nhận, hoặc bật nguồn Trộn thư."
+    },
+    labels: {
+      title: "Nhãn",
+      hint: "Nhập nội dung một nhãn (mọi ô giống nhau) hoặc dùng nguồn Trộn thư để mỗi ô một bản ghi. Nhiều hơn một tờ thì tự thêm trang.",
+      content: "Nội dung nhãn",
+      layout: "Kiểu lưới nhãn",
+      createPage: "Tạo trang nhãn mới",
+      useMailMerge: "Điền hàng loạt từ nguồn Trộn thư",
+      records: "bản ghi",
+      contentRequired: "Hãy nhập nội dung nhãn, hoặc bật nguồn Trộn thư."
     },
     mailMerge: {
       dataSourceTitle: "Trộn thư — Nguồn dữ liệu (CSV)",

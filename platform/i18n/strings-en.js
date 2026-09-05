@@ -572,7 +572,9 @@ export const enStrings = {
     "writer.mailMerge.preview": { label: "Preview Results", tooltip: "Preview merged records" },
     "writer.mailMerge.prevRecord": { label: "Previous Record", tooltip: "Go to previous record" },
     "writer.mailMerge.nextRecord": { label: "Next Record", tooltip: "Go to next record" },
-    "writer.mailMerge.finish": { label: "Finish & Merge", tooltip: "Complete merge and generate merged document" }
+    "writer.mailMerge.finish": { label: "Finish & Merge", tooltip: "Complete merge and generate merged document" },
+    "writer.mailings.envelopes": { label: "Envelopes", tooltip: "Add an envelope page with delivery and return addresses" },
+    "writer.mailings.labels": { label: "Labels", tooltip: "Create a label sheet — one text or a record per cell from Mail Merge" }
   },
   writerRibbon: {
     tab: {
@@ -610,6 +612,7 @@ export const enStrings = {
       footnotes: "Footnotes",
       citationsBibliography: "Citations & Bibliography",
       captions: "Captions",
+      createMailings: "Create",
       startMerge: "Start Mail Merge",
       writeInsert: "Write & Insert Fields",
       previewResults: "Preview Results",
@@ -747,6 +750,31 @@ export const enStrings = {
       updateTooltip: "Update table of figures",
       deleteTooltip: "Delete table of figures",
       empty: "No captions in the document yet. Insert picture or table captions, then update the list."
+    },
+    envelopes: {
+      title: "Envelopes",
+      hint: "Enter the delivery address and an optional return address, choose an envelope size, then add a separate page to the document.",
+      delivery: "Delivery address",
+      returnAddr: "Return address",
+      omitReturn: "Omit return address",
+      size: "Envelope size",
+      position: "Page position",
+      positionStart: "Start of document",
+      positionEnd: "End of document",
+      addToDocument: "Add to document",
+      useMailMerge: "Use the current Mail Merge source",
+      records: "records",
+      deliveryRequired: "Enter a delivery address, or turn on the Mail Merge source."
+    },
+    labels: {
+      title: "Labels",
+      hint: "Type one label (every cell repeats it) or fill each cell from Mail Merge. Extra records add extra pages.",
+      content: "Label text",
+      layout: "Label layout",
+      createPage: "New label page",
+      useMailMerge: "Fill from Mail Merge source",
+      records: "records",
+      contentRequired: "Enter label text, or turn on the Mail Merge source."
     },
     mailMerge: {
       dataSourceTitle: "Mail Merge — Data Source (CSV)",

@@ -117,6 +117,38 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.mailings.envelopes",
+    app: "writer",
+    commandIds: ["writer.mailings.envelopes"],
+    title: "Phong bì",
+    summary: "Thêm một trang phong bì riêng vào tài liệu: địa chỉ người nhận ở giữa-dưới, địa chỉ người gửi góc trên-trái, khổ giấy đúng kích thước phong bì (DL, C5 hoặc Number 10).",
+    ribbon: { tab: "Trộn thư", tabId: "mailings", group: "Tạo" },
+    keywords: ["phong bì", "envelope", "địa chỉ", "người nhận", "người gửi", "mailings", "trộn thư"],
+    steps: [
+      "Mở tab Trộn thư, nhóm Tạo, nhấn Phong bì.",
+      "Trong hộp thoại Phong bì, gõ Địa chỉ người nhận (nhiều dòng được). Địa chỉ người gửi có thể để trống hoặc chọn Ẩn địa chỉ người gửi.",
+      "Chọn khổ: DL 220×110 mm, C5 229×162 mm, hoặc Number 10 / Danh thiếp 241,3×104,8 mm. Chọn thêm vào Đầu tài liệu hoặc Cuối tài liệu.",
+      "Nếu đã dán nguồn Trộn thư (nhóm Bắt đầu trộn), có thể bật Dùng nguồn Trộn thư hiện có để tạo một trang phong bì cho mỗi bản ghi — địa chỉ người nhận lấy từ các cột CSV.",
+      "Nhấn Thêm vào tài liệu. Trang phong bì là mục riêng: canvas đổi khổ giấy theo phong bì. Ctrl+Z hoàn tác, Ctrl+Y làm lại. Xuất DOCX/PDF vẫn dùng một khổ giấy chung (giới hạn bộ lọc HTML của LibreOffice, giống Ngắt mục)."
+    ]
+  },
+  {
+    id: "writer.mailings.labels",
+    app: "writer",
+    commandIds: ["writer.mailings.labels"],
+    title: "Nhãn",
+    summary: "Tạo tờ nhãn khổ A4 theo lưới Avery (3×7 ô 63,5×38,1 mm hoặc 3×8 ô ~66×34 mm). Cùng một nội dung cho mọi ô, hoặc mỗi ô một bản ghi từ nguồn Trộn thư.",
+    ribbon: { tab: "Trộn thư", tabId: "mailings", group: "Tạo" },
+    keywords: ["nhãn", "labels", "avery", "lưới", "địa chỉ", "trộn thư", "mail merge"],
+    steps: [
+      "Mở tab Trộn thư, nhóm Tạo, nhấn Nhãn.",
+      "Gõ Nội dung nhãn (nhiều dòng). Chọn kiểu lưới: Avery L7160 (3 cột × 7 hàng, 63,5×38,1 mm) hoặc 3 cột × 8 hàng trên A4.",
+      "Nhấn Tạo trang nhãn mới. Mọi ô trên tờ có cùng nội dung. Trang nhãn được chèn sau nội dung hiện tại (ngắt trang/ngắt mục).",
+      "Để in hàng loạt: trước hết dán CSV ở Nguồn dữ liệu (cùng tab Trộn thư), rồi trong hộp thoại Nhãn bật Điền hàng loạt từ nguồn Trộn thư. Mỗi ô nhận một bản ghi khác nhau; dư bản ghi thì sang tờ mới.",
+      "Ctrl+Z hoàn tác, Ctrl+Y làm lại. Tờ nhãn dùng khổ A4 nên xuất in/PDF giữ đúng lưới trên canvas."
+    ]
+  },
+  {
     id: "writer.mailMerge",
     app: "writer",
     commandIds: [

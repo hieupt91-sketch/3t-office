@@ -1607,6 +1607,32 @@ sup.vno-endnote-ref:hover {
   font-weight: normal;
 }
 
+.vno-envelope-page {
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: #fff;
+}
+
+.vno-envelope-return,
+.vno-envelope-delivery {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.vno-label-sheet {
+  box-sizing: border-box;
+}
+
+.vno-label-grid {
+  table-layout: fixed;
+}
+
+.vno-label-cell {
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
 /* ==========================================================================
    Thư viện Kiểu dáng (Styles Gallery) & Presets Typography
    ========================================================================== */
