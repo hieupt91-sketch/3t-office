@@ -17,6 +17,22 @@ import { formatDateTime, showDateTimeDialog } from "../../../platform/ui-kit/dat
 import { showEquationDialog, showBookmarkDialog, showCrossReferenceDialog, slugBookmarkName } from "../../../apps/writer/insert-dialogs.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import { CITATION_STYLES, authorSortKey, citationMetadataHtml, formatBibliographyEntry, formatInTextCitation, normalizeSource, parseCitationMetadata, showInsertCitationDialog, showSourceManagerDialog } from "../../../apps/writer/citations.js";
+import {
+  buildCaptionHtml,
+  captionKindLabel,
+  captionsMetadataHtml,
+  defaultCaptionPosition,
+  normalizeCaptionKind,
+  normalizeTofKind,
+  parseCaptionMarker,
+  parseCaptionsMetadata,
+  parseCaptionVisibleText,
+  parseTofMarker,
+  showInsertCaptionDialog,
+  showInsertTableOfFiguresDialog,
+  tableOfFiguresTitle,
+  tofMarkerHtml
+} from "../../../apps/writer/captions.js";
 
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
 const PAGE_SIZES_MM = {
@@ -210,6 +226,10 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.reference.citationInsert", (args) => this.openInsertCitationDialog(args));
     globalCommandBus.bindHandler("writer.reference.sourcesManage", (args) => this.openSourceManagerDialog(args));
     globalCommandBus.bindHandler("writer.reference.bibliographyInsert", () => this.insertBibliography());
+    globalCommandBus.bindHandler("writer.reference.captionInsert", (args) => this.openInsertCaptionDialog(args));
+    globalCommandBus.bindHandler("writer.reference.tofInsert", (args) => this.openInsertTableOfFiguresDialog(args));
+    globalCommandBus.bindHandler("writer.reference.tofUpdate", (args) => this.updateTableOfFigures(args));
+    this._bindCaptionObserver();
 
     // Bind Mail Merge (Trộn thư)
     globalCommandBus.bindHandler("writer.mailMerge.open", (args) => this.openMailMergeDataSourceDialog(args));
@@ -1920,6 +1940,15 @@ export class WriterAdapter {
       case "writer.reference.endnoteInsert":
         return Boolean(this.insertEndnote(args));
 
+      case "writer.reference.captionInsert":
+        return this.openInsertCaptionDialog(args);
+
+      case "writer.reference.tofInsert":
+        return this.openInsertTableOfFiguresDialog(args);
+
+      case "writer.reference.tofUpdate":
+        return this.updateTableOfFigures(args);
+
       case "writer.mailMerge.open":
         return await this.openMailMergeDataSourceDialog(args);
 
@@ -3571,6 +3600,8 @@ export class WriterAdapter {
       .replace(/<del\b(?=[^>]*\bdata-vno-change=(?:"delete"|'delete'))[^>]*>[\s\S]*?<\/del>/gi, "")
       .replace(/<ins\b(?=[^>]*\bdata-vno-change=(?:"insert"|'insert'))[^>]*>([\s\S]*?)<\/ins>/gi, "$1")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-toc-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
+      .replace(/<button\b[^>]*class=["'][^"']*\bvno-tof-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
+      .replace(/<button\b[^>]*class=["'][^"']*\bvno-caption-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-note-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-diagram-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-chart-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
@@ -3662,6 +3693,7 @@ export class WriterAdapter {
       }
 
       this._hydrateCitationsFromDom(result.content || imported.body);
+      this._hydrateCaptionsFromDom(result.content || imported.body);
 
       this.documentContent = this.editorDom ? this.editorDom.innerHTML : raw;
       this.sourceFileName = (result.fileName || "TaiLieu").replace(/\.[^/.]+$/, "");
@@ -3888,6 +3920,11 @@ export class WriterAdapter {
       if (el.dataset?.vnoToc === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-toc") === "true")) {
         let items = 2;
         if (el.querySelectorAll) items = el.querySelectorAll(".vno-toc-item").length || 2;
+        return 40 + items * 26 + 16;
+      }
+      if (el.dataset?.vnoTof === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-tof") === "true")) {
+        let items = 2;
+        if (el.querySelectorAll) items = el.querySelectorAll(".vno-tof-item").length || 2;
         return 40 + items * 26 + 16;
       }
       if (tagName === "UL" || tagName === "OL") {
@@ -4554,6 +4591,9 @@ export class WriterAdapter {
         this.citationSources = [];
       }
     }
+    if (typeof this._hydrateCaptionsFromDom === "function") {
+      this._hydrateCaptionsFromDom();
+    }
     this._applyDecorations();
     this._syncActiveStyleUI?.();
 
@@ -4944,6 +4984,48 @@ export class WriterAdapter {
         return;
       }
 
+      const tofUpdateBtn = target.closest ? target.closest(".vno-tof-btn-update") : null;
+      if (tofUpdateBtn) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const tofBlock = tofUpdateBtn.closest ? tofUpdateBtn.closest('[data-vno-tof="true"]') : null;
+        const kind = tofBlock
+          ? (tofBlock.dataset?.vnoTofKind || (typeof tofBlock.getAttribute === "function" ? tofBlock.getAttribute("data-vno-tof-kind") : "figure"))
+          : "figure";
+        this.updateTableOfFigures({ kind, recordHistory: true });
+        return;
+      }
+
+      const tofDeleteBtn = target.closest ? target.closest(".vno-tof-btn-delete") : null;
+      if (tofDeleteBtn) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const tofBlock = tofDeleteBtn.closest ? tofDeleteBtn.closest('[data-vno-tof="true"]') : null;
+        this.deleteTableOfFigures(tofBlock);
+        return;
+      }
+
+      const tofLink = target.closest ? target.closest(".vno-tof-link") : null;
+      if (tofLink) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const targetId = (tofLink.dataset?.targetId) || (typeof tofLink.getAttribute === "function" ? tofLink.getAttribute("href") : "")?.replace(/^#/, "");
+        this._jumpToCaption(targetId);
+        return;
+      }
+
+      const captionDelete = target.closest ? target.closest(".vno-caption-delete-btn") : null;
+      if (captionDelete) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const caption = captionDelete.closest ? captionDelete.closest('[data-vno-caption="true"]') : null;
+        const captionId = caption
+          ? (caption.getAttribute?.("data-vno-caption-id") || caption.id || caption.dataset?.vnoCaptionId)
+          : null;
+        if (captionId) this.deleteCaption(captionId);
+        return;
+      }
+
       // 4. Footnote: Nhấp số mũ nhảy xuống ô nhập chú thích
       const fnRef = target.closest ? target.closest("sup[data-vno-footnote-ref]") : null;
       if (fnRef) {
@@ -5152,6 +5234,7 @@ export class WriterAdapter {
           curr.getAttribute("data-vno-footnotes") === "true" ||
           curr.getAttribute("data-vno-endnotes") === "true" ||
           curr.getAttribute("data-vno-toc") === "true" ||
+          curr.getAttribute("data-vno-tof") === "true" ||
           curr.getAttribute("data-vno-auto-page-gap") === "true"
         ) {
           return true;
@@ -5162,6 +5245,7 @@ export class WriterAdapter {
           curr.classList.contains("vno-footnote-item") ||
           curr.classList.contains("vno-endnote-item") ||
           curr.classList.contains("vno-toc-block") ||
+          curr.classList.contains("vno-tof-block") ||
           curr.classList.contains("vno-writer-footnotes-container") ||
           curr.classList.contains("vno-writer-endnotes-container")
         ) {
@@ -5459,6 +5543,9 @@ export class WriterAdapter {
 
     for (const el of blocks) {
       if (el.dataset?.vnoToc === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-toc") === "true")) {
+        continue;
+      }
+      if (el.dataset?.vnoTof === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-tof") === "true")) {
         continue;
       }
       if (el.dataset?.vnoFootnotes === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-footnotes") === "true") ||
@@ -6157,6 +6244,579 @@ export class WriterAdapter {
     this._syncCitationMetadata();
     this.isDirty = true;
     this.recordSnapshot("writer.reference.bibliographyInsert");
+    return true;
+  }
+
+  _nodeIsCaption(node) {
+    if (!node || node.nodeType !== 1) return false;
+    return this._captionAttr(node, "data-vno-caption") === "true"
+      || node.dataset?.vnoCaption === "true"
+      || Boolean(node.querySelector?.('[data-vno-caption="true"]'));
+  }
+
+  _bindCaptionObserver() {
+    if (typeof MutationObserver === "undefined" || !this.bodyDom || this._captionObserver) return;
+    this._captionObserver = new MutationObserver((mutations) => {
+      if (this._isUndoingRedoing || this._captionMutating) return;
+      const captionRemoved = mutations.some((mutation) => Array.from(mutation.removedNodes || []).some((node) => this._nodeIsCaption(node)));
+      if (!captionRemoved) return;
+      this.renumberCaptions({ recordHistory: false, updateTof: true });
+    });
+    try {
+      this._captionObserver.observe(this.bodyDom, { childList: true, subtree: true });
+    } catch {
+      this._captionObserver = null;
+    }
+  }
+
+  _captionAttr(el, name) {
+    if (!el) return "";
+    if (typeof el.getAttribute === "function") return el.getAttribute(name) || "";
+    return el.attributes?.[name] || "";
+  }
+
+  _collectCaptionNodes() {
+    this._initZones();
+    if (!this.bodyDom) return [];
+    let nodes = [];
+    if (typeof this.bodyDom.querySelectorAll === "function") {
+      try {
+        nodes = Array.from(this.bodyDom.querySelectorAll('[data-vno-caption="true"]'));
+      } catch {
+        nodes = [];
+      }
+      if (!nodes.length && this.bodyDom.children) {
+        const walk = (node) => {
+          if (!node?.children) return;
+          for (const child of node.children) {
+            if (this._captionAttr(child, "data-vno-caption") === "true" || child.dataset?.vnoCaption === "true") {
+              nodes.push(child);
+            }
+            walk(child);
+          }
+        };
+        walk(this.bodyDom);
+      }
+    }
+    return nodes.filter((el) => !(el.closest && el.closest('[data-vno-tof="true"]')));
+  }
+
+  _syncCaptionMetadata() {
+    this._initZones();
+    if (!this.bodyDom || this._isUndoingRedoing) return;
+    const captions = this._collectCaptions("all").map((item) => ({
+      id: item.id,
+      kind: item.kind,
+      number: item.number,
+      text: item.text
+    }));
+    const tof = this._listTableOfFiguresBlocks().map((el) => ({
+      kind: el.dataset?.vnoTofKind || this._captionAttr(el, "data-vno-tof-kind") || "figure"
+    }));
+    const existing = this.bodyDom.querySelector?.('[data-vno-caption-metadata="true"]');
+    if (!captions.length && !tof.length) {
+      if (existing?.remove) existing.remove();
+      return;
+    }
+    const html = captionsMetadataHtml({ captions, tof });
+    if (existing?.remove) existing.remove();
+    if (typeof this.bodyDom.insertAdjacentHTML === "function") this.bodyDom.insertAdjacentHTML("beforeend", html);
+    else this.bodyDom.innerHTML = `${this.bodyDom.innerHTML || ""}${html}`;
+  }
+
+  _collectCaptions(kind = "all") {
+    const wanted = kind && kind !== "all" ? normalizeCaptionKind(kind) : "all";
+    return this._collectCaptionNodes().map((el) => {
+      const capKind = normalizeCaptionKind(this._captionAttr(el, "data-vno-caption-kind") || el.dataset?.vnoCaptionKind || "figure");
+      if (wanted !== "all" && capKind !== wanted) return null;
+      const id = el.id || this._captionAttr(el, "id") || this._captionAttr(el, "data-vno-caption-id") || el.dataset?.vnoCaptionId;
+      const textEl = el.querySelector?.(".vno-caption-text");
+      const numEl = el.querySelector?.(".vno-caption-number");
+      const labelEl = el.querySelector?.(".vno-caption-label");
+      const text = (textEl?.textContent || "").trim();
+      const number = String(numEl?.textContent || this._captionAttr(el, "data-vno-caption-index") || "").trim();
+      const label = (labelEl?.textContent || captionKindLabel(capKind)).trim();
+      return {
+        el,
+        id,
+        kind: capKind,
+        number,
+        label,
+        text,
+        display: text ? `${label} ${number}: ${text}` : `${label} ${number}`,
+        page: this._estimateHeadingPage(el)
+      };
+    }).filter(Boolean);
+  }
+
+  _findCaptionTarget(explicit) {
+    this._initZones();
+    if (explicit) {
+      if (typeof explicit === "string") {
+        return this.bodyDom?.querySelector?.(explicit) || null;
+      }
+      return explicit;
+    }
+    const selectedImg = this.bodyDom?.querySelector?.("img.is-vno-image-selected");
+    if (selectedImg) return selectedImg;
+    if (typeof window === "undefined" || !window.getSelection) return null;
+    const selection = window.getSelection();
+    if (!selection?.anchorNode) return null;
+    const node = selection.anchorNode.nodeType === 1 ? selection.anchorNode : selection.anchorNode.parentElement;
+    if (!node || !this.bodyDom?.contains?.(node)) return null;
+    const caption = node.closest?.('[data-vno-caption="true"]');
+    if (caption) return null;
+    return node.closest?.("table")
+      || node.closest?.("img")
+      || node.closest?.(".vno-equation, [data-equation='true']")
+      || node.closest?.(".vno-writer-diagram, .vno-writer-shape-item, svg")
+      || (node.querySelector?.("img") && this.bodyDom.contains(node.querySelector("img")) ? node.querySelector("img") : null);
+  }
+
+  _inferCaptionKind(target) {
+    if (!target) return "figure";
+    const tag = String(target.tagName || "").toUpperCase();
+    if (tag === "TABLE") return "table";
+    if (target.classList?.contains("vno-equation") || this._captionAttr(target, "data-equation") === "true") return "equation";
+    return "figure";
+  }
+
+  _captionAnchorBlock(target) {
+    if (!target || target === this.bodyDom) return null;
+    const tag = String(target.tagName || "").toUpperCase();
+    if (tag === "TABLE" || tag === "FIGURE" || this._captionAttr(target, "data-vno-caption") === "true") return target;
+    let curr = target;
+    let depth = 0;
+    while (curr && curr !== this.bodyDom && depth < 12) {
+      const parent = curr.parentNode || curr.parentElement;
+      if (!parent || parent === this.bodyDom) return curr;
+      const parentTag = String(parent.tagName || "").toUpperCase();
+      if (parentTag === "TD" || parentTag === "TH" || parentTag === "TR") return target;
+      curr = parent;
+      depth += 1;
+    }
+    return target;
+  }
+
+  _insertHtmlNear(target, html, position = "below") {
+    const where = position === "above" ? "beforebegin" : "afterend";
+    if (target && typeof target.insertAdjacentHTML === "function") {
+      try {
+        target.insertAdjacentHTML(where, html);
+        return true;
+      } catch {}
+    }
+    if (target?.parentNode && typeof target.outerHTML === "string") {
+      const parent = target.parentNode;
+      const outer = target.outerHTML;
+      const parentHtml = parent.innerHTML || "";
+      const idx = parentHtml.indexOf(outer);
+      if (idx >= 0) {
+        const at = position === "above" ? idx : idx + outer.length;
+        parent.innerHTML = `${parentHtml.slice(0, at)}${html}${parentHtml.slice(at)}`;
+        return true;
+      }
+      if (typeof parent.insertBefore === "function" && typeof document !== "undefined" && document.createElement) {
+        try {
+          const holder = document.createElement("div");
+          holder.innerHTML = html;
+          const node = holder.firstElementChild;
+          if (node) {
+            if (position === "above") parent.insertBefore(node, target);
+            else if (target.nextSibling) parent.insertBefore(node, target.nextSibling);
+            else parent.appendChild(node);
+            return true;
+          }
+        } catch {}
+      }
+    }
+    const targetDom = this.bodyDom || this.editorDom;
+    if (!targetDom) return false;
+    if (typeof targetDom.insertAdjacentHTML === "function") targetDom.insertAdjacentHTML("beforeend", html);
+    else targetDom.innerHTML = `${targetDom.innerHTML || ""}${html}`;
+    return true;
+  }
+
+  _jumpToCaption(targetId) {
+    if (!targetId || !this.bodyDom) return false;
+    const escaped = String(targetId).replace(/"/g, "");
+    const caption = this.bodyDom.querySelector
+      ? (this.bodyDom.querySelector(`#${escaped}`) || this.bodyDom.querySelector(`[data-vno-caption-id="${escaped}"]`))
+      : null;
+    if (!caption) return false;
+    caption.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    if (typeof caption.focus === "function") caption.focus();
+    const text = caption.querySelector?.(".vno-caption-text");
+    if (text && typeof text.focus === "function") text.focus();
+    return true;
+  }
+
+  _newCaptionId(kind) {
+    return `vno-cap-${normalizeCaptionKind(kind)}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  }
+
+  renumberCaptions(options = {}) {
+    options = options || {};
+    const counts = { figure: 0, table: 0, equation: 0 };
+    this._captionMutating = true;
+    try {
+      for (const el of this._collectCaptionNodes()) {
+        const kind = normalizeCaptionKind(this._captionAttr(el, "data-vno-caption-kind") || el.dataset?.vnoCaptionKind || "figure");
+        counts[kind] = (counts[kind] || 0) + 1;
+        const number = counts[kind];
+        const id = el.id || this._captionAttr(el, "data-vno-caption-id") || this._newCaptionId(kind);
+        if (typeof el.setAttribute === "function") {
+          el.setAttribute("data-vno-caption-kind", kind);
+          el.setAttribute("data-vno-caption-index", String(number));
+          el.setAttribute("data-vno-caption-id", id);
+          el.setAttribute("id", id);
+          el.setAttribute("tabindex", "-1");
+        } else {
+          el.id = id;
+          if (el.dataset) {
+            el.dataset.vnoCaptionKind = kind;
+            el.dataset.vnoCaptionIndex = String(number);
+            el.dataset.vnoCaptionId = id;
+          }
+        }
+        const numEl = el.querySelector?.(".vno-caption-number");
+        if (numEl) numEl.textContent = String(number);
+        const labelEl = el.querySelector?.(".vno-caption-label");
+        if (labelEl) labelEl.textContent = captionKindLabel(kind);
+        const marker = el.querySelector?.("[data-vno-caption-marker='true']");
+        if (marker) {
+          marker.textContent = `VNO_CAPTION_V1:${encodeURIComponent(JSON.stringify({ version: 1, kind, id, index: number }))}`;
+        }
+      }
+      if (options.updateTof !== false) {
+        this.updateTableOfFigures({ recordHistory: false });
+      }
+      this._syncCaptionMetadata();
+    } finally {
+      this._captionMutating = false;
+    }
+    if (options.recordHistory) {
+      this.isDirty = true;
+      this.recordSnapshot("writer.reference.captionRenumber");
+    }
+    return counts;
+  }
+
+  insertCaption(options = {}) {
+    options = options || {};
+    this._initZones();
+    if (!this.bodyDom) return null;
+    this.flushTyping();
+
+    const target = this._findCaptionTarget(options.target || options.targetSelector);
+    const kind = normalizeCaptionKind(options.kind || this._inferCaptionKind(target));
+    const position = options.position === "above" || options.position === "below"
+      ? options.position
+      : defaultCaptionPosition(kind);
+    const text = String(options.text || "");
+    const id = options.id || this._newCaptionId(kind);
+    const html = buildCaptionHtml({ kind, id, number: 1, text });
+    const anchor = this._captionAnchorBlock(target);
+
+    this._captionMutating = true;
+    try {
+      if (anchor) this._insertHtmlNear(anchor, html, position);
+      else this._insertHtmlAtCursor(html);
+      this.renumberCaptions({ recordHistory: false, updateTof: true });
+    } finally {
+      this._captionMutating = false;
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.captionInsert");
+    return id;
+  }
+
+  async openInsertCaptionDialog(options = {}) {
+    options = options || {};
+    const target = this._findCaptionTarget(options.target || options.targetSelector);
+    const kind = options.kind || this._inferCaptionKind(target);
+    const position = options.position || defaultCaptionPosition(kind);
+    if (options.text !== undefined) {
+      return this.insertCaption({ ...options, target, kind, position, text: options.text });
+    }
+    const existingOfKind = this._collectCaptions(kind).length;
+    const picked = await showInsertCaptionDialog({
+      kind,
+      position,
+      text: "",
+      nextNumber: existingOfKind + 1,
+      hasTarget: Boolean(target)
+    });
+    if (!picked) return null;
+    return this.insertCaption({ ...picked, target });
+  }
+
+  deleteCaption(id) {
+    this._initZones();
+    if (!this.bodyDom || !id) return false;
+    const caption = this.bodyDom.querySelector
+      ? (this.bodyDom.querySelector(`[data-vno-caption-id="${id}"]`) || this.bodyDom.querySelector(`#${id}`))
+      : null;
+    if (!caption) return false;
+    this.flushTyping();
+    this._captionMutating = true;
+    try {
+      if (typeof caption.remove === "function") caption.remove();
+      else if (caption.parentNode?.removeChild) caption.parentNode.removeChild(caption);
+    } finally {
+      this._captionMutating = false;
+    }
+    this.renumberCaptions({ recordHistory: false, updateTof: true });
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.captionDelete");
+    return true;
+  }
+
+  _tofEmptyMessage() {
+    const msg = typeof t === "function" ? t("writerDialogs.tof.empty") : "";
+    return (!msg || msg === "writerDialogs.tof.empty")
+      ? "Chưa có chú thích nào trong tài liệu. Hãy chèn chú thích ảnh hoặc bảng rồi cập nhật lại danh mục."
+      : msg;
+  }
+
+  _buildTableOfFiguresEntriesHtml(kind = "figure") {
+    const captions = this._collectCaptions(kind);
+    if (!captions.length) {
+      return `<div class="vno-tof-empty">${this._tofEmptyMessage()}</div>`;
+    }
+    return captions.map((item) => `
+      <div class="vno-tof-item" data-vno-tof-kind="${this._escapeHtml(item.kind)}">
+        <a href="#${this._escapeHtml(item.id)}" class="vno-tof-link" data-target-id="${this._escapeHtml(item.id)}">
+          <span class="vno-tof-text">${this._escapeHtml(item.display)}</span>
+          <span class="vno-tof-leader"></span>
+          <span class="vno-tof-page">${item.page}</span>
+        </a>
+      </div>
+    `.trim()).join("\n");
+  }
+
+  _buildTableOfFiguresElement(kind = "figure") {
+    const safeKind = normalizeTofKind(kind);
+    const title = tableOfFiguresTitle(safeKind);
+    const updateBtnText = (typeof t === "function" && t("writerDialogs.tof.updateBtn") !== "writerDialogs.tof.updateBtn")
+      ? t("writerDialogs.tof.updateBtn")
+      : "Cập nhật";
+    const updateTooltip = (typeof t === "function" && t("writerDialogs.tof.updateTooltip") !== "writerDialogs.tof.updateTooltip")
+      ? t("writerDialogs.tof.updateTooltip")
+      : "Cập nhật danh mục hình ảnh";
+    const deleteTooltip = (typeof t === "function" && t("writerDialogs.tof.deleteTooltip") !== "writerDialogs.tof.deleteTooltip")
+      ? t("writerDialogs.tof.deleteTooltip")
+      : "Xóa danh mục hình ảnh";
+    const html = `
+      <div data-vno-tof="true" data-vno-tof-kind="${this._escapeHtml(safeKind)}" class="vno-tof-block" contenteditable="false">
+        <div class="vno-tof-header">
+          <span class="vno-tof-title">${this._escapeHtml(title)}</span>
+          <div class="vno-tof-actions">
+            <button type="button" class="vno-tof-btn vno-tof-btn-update" title="${this._escapeHtml(updateTooltip)}">${this._escapeHtml(updateBtnText)}</button>
+            <button type="button" class="vno-tof-btn vno-tof-btn-delete" title="${this._escapeHtml(deleteTooltip)}">&times;</button>
+          </div>
+        </div>
+        <div class="vno-tof-entries">
+          ${this._buildTableOfFiguresEntriesHtml(safeKind)}
+        </div>
+        ${tofMarkerHtml({ kind: safeKind })}
+      </div>
+    `.trim();
+    if (typeof document !== "undefined" && typeof document.createElement === "function") {
+      const temp = document.createElement("div");
+      temp.innerHTML = html;
+      return temp.firstElementChild || html;
+    }
+    return html;
+  }
+
+  _listTableOfFiguresBlocks() {
+    this._initZones();
+    if (!this.bodyDom?.querySelectorAll) return [];
+    try {
+      return Array.from(this.bodyDom.querySelectorAll('[data-vno-tof="true"]'));
+    } catch {
+      return [];
+    }
+  }
+
+  _findTableOfFigures(kind) {
+    const wanted = normalizeTofKind(kind);
+    return this._listTableOfFiguresBlocks().find((el) => {
+      const blockKind = normalizeTofKind(el.dataset?.vnoTofKind || this._captionAttr(el, "data-vno-tof-kind") || "figure");
+      return blockKind === wanted;
+    }) || null;
+  }
+
+  insertTableOfFigures(options = {}) {
+    options = options || {};
+    this._initZones();
+    if (!this.bodyDom) return false;
+    const kind = normalizeTofKind(options.kind || "figure");
+    const existing = this._findTableOfFigures(kind);
+    if (existing) return this.updateTableOfFigures({ kind, recordHistory: true });
+
+    this.flushTyping();
+    const tofElement = this._buildTableOfFiguresElement(kind);
+    let inserted = false;
+    if (typeof window !== "undefined" && window.getSelection && typeof tofElement !== "string") {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const commonNode = range.commonAncestorContainer;
+        if (!this._isInsideProtectedZone(commonNode) && (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode))) {
+          try {
+            range.collapse(true);
+            range.insertNode(tofElement);
+            range.setStartAfter(tofElement);
+            inserted = true;
+          } catch {}
+        }
+      }
+    }
+    if (!inserted) {
+      if (typeof tofElement === "string") {
+        if (typeof this.bodyDom.insertAdjacentHTML === "function") this.bodyDom.insertAdjacentHTML("beforeend", tofElement);
+        else this.bodyDom.innerHTML = `${this.bodyDom.innerHTML || ""}\n${tofElement}`;
+      } else if (typeof this.bodyDom.appendChild === "function") {
+        this.bodyDom.appendChild(tofElement);
+      } else {
+        this.bodyDom.innerHTML = `${this.bodyDom.innerHTML || ""}${tofElement.outerHTML || ""}`;
+      }
+    }
+    this._syncCaptionMetadata();
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.tofInsert");
+    return true;
+  }
+
+  async openInsertTableOfFiguresDialog(options = {}) {
+    options = options || {};
+    if (options.kind) return this.insertTableOfFigures(options);
+    const picked = await showInsertTableOfFiguresDialog({ kind: "figure" });
+    if (!picked) return false;
+    return this.insertTableOfFigures(picked);
+  }
+
+  updateTableOfFigures(options = {}) {
+    options = options || {};
+    this._initZones();
+    if (!this.bodyDom) return false;
+    const blocks = this._listTableOfFiguresBlocks();
+    const kindFilter = options.kind ? normalizeTofKind(options.kind) : null;
+    const targets = kindFilter
+      ? blocks.filter((el) => normalizeTofKind(el.dataset?.vnoTofKind || this._captionAttr(el, "data-vno-tof-kind") || "figure") === kindFilter)
+      : blocks;
+
+    if (!targets.length) {
+      if (options.recordHistory === false) return false;
+      return this.insertTableOfFigures({ kind: kindFilter || "figure" });
+    }
+
+    if (options.recordHistory !== false) this.flushTyping();
+
+    for (const block of targets) {
+      const kind = normalizeTofKind(block.dataset?.vnoTofKind || this._captionAttr(block, "data-vno-tof-kind") || "figure");
+      const entries = block.querySelector?.(".vno-tof-entries");
+      const titleEl = block.querySelector?.(".vno-tof-title");
+      if (titleEl) titleEl.textContent = tableOfFiguresTitle(kind);
+      if (entries) entries.innerHTML = this._buildTableOfFiguresEntriesHtml(kind);
+      else {
+        const rebuilt = this._buildTableOfFiguresElement(kind);
+        if (typeof rebuilt !== "string" && block.parentNode) block.parentNode.replaceChild(rebuilt, block);
+        else block.innerHTML = typeof rebuilt === "string" ? rebuilt : rebuilt.innerHTML;
+      }
+    }
+
+    if (options.recordHistory !== false) {
+      this.isDirty = true;
+      this.recordSnapshot("writer.reference.tofUpdate");
+    }
+    return true;
+  }
+
+  deleteTableOfFigures(block) {
+    this._initZones();
+    const tofBlock = block || (this.bodyDom?.querySelector ? this.bodyDom.querySelector('[data-vno-tof="true"]') : null);
+    if (!tofBlock) return false;
+    this.flushTyping();
+    if (typeof tofBlock.remove === "function") tofBlock.remove();
+    else if (tofBlock.parentNode?.removeChild) tofBlock.parentNode.removeChild(tofBlock);
+    this._syncCaptionMetadata();
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.tofDelete");
+    return true;
+  }
+
+  _hydrateCaptionsFromDom(fallbackHtml = "") {
+    this._initZones();
+    if (!this.bodyDom || this._isUndoingRedoing) return false;
+    const html = fallbackHtml || this.bodyDom.innerHTML || "";
+
+    this._collectCaptionNodes().forEach((el) => {
+      const marker = el.querySelector?.("[data-vno-caption-marker='true']");
+      const parsed = parseCaptionMarker(marker?.textContent || el.textContent || "");
+      if (parsed?.kind && typeof el.setAttribute === "function") {
+        el.setAttribute("data-vno-caption-kind", parsed.kind);
+        if (parsed.id) {
+          el.setAttribute("data-vno-caption-id", parsed.id);
+          el.setAttribute("id", parsed.id);
+        }
+      }
+    });
+
+    if (this.bodyDom.querySelectorAll && this._collectCaptionNodes().length === 0) {
+      const paragraphs = Array.from(this.bodyDom.querySelectorAll("p"));
+      for (const p of paragraphs) {
+        if (this._captionAttr(p, "data-vno-caption") === "true") continue;
+        if (p.closest?.('[data-vno-tof="true"]')) continue;
+        const marker = parseCaptionMarker(p.textContent || "");
+        const parsed = marker || parseCaptionVisibleText(p.textContent || "");
+        if (!parsed) continue;
+        const id = marker?.id || this._newCaptionId(parsed.kind);
+        const text = parsed.text || String(p.textContent || "").replace(/^(Hình|Figure|Bảng|Table|Phương trình|Equation)\s+\d+\s*:?\s*/i, "").trim();
+        p.classList?.add("vno-caption");
+        if (typeof p.setAttribute === "function") {
+          p.setAttribute("data-vno-caption", "true");
+          p.setAttribute("data-vno-caption-kind", parsed.kind);
+          p.setAttribute("data-vno-caption-id", id);
+          p.setAttribute("id", id);
+          p.setAttribute("contenteditable", "false");
+          p.setAttribute("tabindex", "-1");
+        }
+        const inner = buildCaptionHtml({ kind: parsed.kind, id, number: parsed.number || 1, text });
+        const match = inner.match(/<p\b[^>]*>([\s\S]*)<\/p>/i);
+        if (match) p.innerHTML = match[1];
+      }
+    }
+
+    const tofBlocks = this.bodyDom.querySelectorAll ? Array.from(this.bodyDom.querySelectorAll('[data-vno-tof="true"]')) : [];
+    tofBlocks.forEach((block) => {
+      const marker = parseTofMarker(block.textContent || html);
+      if (marker?.kind && typeof block.setAttribute === "function") {
+        block.setAttribute("data-vno-tof", "true");
+        block.setAttribute("data-vno-tof-kind", marker.kind);
+      }
+    });
+
+    const meta = parseCaptionsMetadata(html);
+    if (meta?.captions?.length && this._collectCaptionNodes().length === 0) {
+      const paragraphs = Array.from(this.bodyDom.querySelectorAll?.("p") || []);
+      meta.captions.forEach((item) => {
+        const match = paragraphs.find((p) => {
+          const parsed = parseCaptionVisibleText(p.textContent || "");
+          return parsed && parsed.kind === item.kind && parsed.text === item.text;
+        });
+        if (!match || typeof match.setAttribute !== "function") return;
+        match.setAttribute("data-vno-caption", "true");
+        match.setAttribute("data-vno-caption-kind", item.kind);
+        match.setAttribute("data-vno-caption-id", item.id);
+        match.setAttribute("id", item.id);
+      });
+    }
+
+    this.renumberCaptions({ recordHistory: false, updateTof: Boolean(tofBlocks.length) });
     return true;
   }
 

@@ -143,6 +143,9 @@ export const WRITER_COMMANDS = [
   { id: "writer.reference.citationInsert", category: "reference", label: "Chèn trích dẫn", icon: "citationInsert", tooltip: "Chèn trích dẫn từ danh sách nguồn" },
   { id: "writer.reference.sourcesManage", category: "reference", label: "Quản lý nguồn", icon: "sourcesManage", tooltip: "Thêm, sửa hoặc xóa nguồn tài liệu" },
   { id: "writer.reference.bibliographyInsert", category: "reference", label: "Thư mục tài liệu", icon: "bibliographyInsert", tooltip: "Chèn danh mục tự động từ các nguồn đã trích dẫn" },
+  { id: "writer.reference.captionInsert", category: "reference", label: "Chèn chú thích ảnh", icon: "captionInsert", tooltip: "Chèn chú thích tự đánh số cho hình ảnh, bảng hoặc phương trình" },
+  { id: "writer.reference.tofInsert", category: "reference", label: "Danh mục hình ảnh", icon: "tofInsert", tooltip: "Chèn danh mục hình ảnh/bảng tự động từ các chú thích đã chèn" },
+  { id: "writer.reference.tofUpdate", category: "reference", label: "Cập nhật danh mục", icon: "tofUpdate", tooltip: "Cập nhật lại danh mục hình ảnh/bảng từ các chú thích hiện có" },
 
   // Trộn thư (Mail Merge)
   { id: "writer.mailMerge.open", category: "mailmerge", label: "Nguồn dữ liệu", icon: "mailMerge", tooltip: "Mở bảng nhập dữ liệu trộn thư (CSV)" },

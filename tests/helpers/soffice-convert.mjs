@@ -13,6 +13,7 @@ export const FORMAT_FILTERS = {
   docx: "MS Word 2007 XML",
   odt: "writer8",
   html: "HTML (StarWriter)",
+  fodt: "OpenDocument Text Flat XML",
   xlsx: "Calc MS Excel 2007 XML",
   ods: "calc8",
   csv: "Text - txt - csv (StarCalc)",

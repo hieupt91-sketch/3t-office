@@ -359,6 +359,15 @@ export const WRITER_RIBBON_TABS = [
           { type: "button", commandId: "writer.reference.citationInsert", isLarge: true },
           { type: "button", commandId: "writer.reference.bibliographyInsert", isLarge: true }
         ]
+      },
+      {
+        label: "Chú thích ảnh",
+        labelKey: "writerRibbon.group.captions",
+        items: [
+          { type: "button", commandId: "writer.reference.captionInsert", isLarge: true },
+          { type: "button", commandId: "writer.reference.tofInsert", isLarge: true },
+          { type: "button", commandId: "writer.reference.tofUpdate", isLarge: true }
+        ]
       }
     ]
   },
