@@ -1049,7 +1049,7 @@ export async function runSlidesFileIoTests() {
         </anim:seq>
       </anim:par>
     </draw:page>
-    <draw:page draw:name="page2" presentation:layout="two-content">
+    <draw:page draw:name="page2">
       <draw:frame presentation:class="title"><draw:text-box><text:p>Hai cot</text:p></draw:text-box></draw:frame>
       <draw:frame presentation:class="outline" xml:id="id4" draw:id="id4"><draw:text-box><text:p>Trai</text:p></draw:text-box></draw:frame>
       <draw:frame presentation:class="outline" xml:id="id5" draw:id="id5"><draw:text-box><text:p>Phai</text:p></draw:text-box></draw:frame>
@@ -1083,6 +1083,9 @@ export async function runSlidesFileIoTests() {
     }
     if (parsed[0].bodyAnimation?.type !== "flyIn" || parsed[0].bodyAnimation.duration !== 700 || parsed[0].bodyAnimation.delay !== 300) {
       throw new Error(`soffice body flyIn qua id3: ${JSON.stringify(parsed[0].bodyAnimation)}`);
+    }
+    if (parsed[1].layoutType !== "two-content") {
+      throw new Error(`thieu presentation:layout nhung 2 outline phai suy two-content: ${parsed[1].layoutType}`);
     }
     if (parsed[1].body !== "Trai" || parsed[1].body2 !== "Phai") {
       throw new Error(`two-content khong id name: body=${parsed[1].body} body2=${parsed[1].body2}`);

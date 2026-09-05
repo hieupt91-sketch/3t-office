@@ -1044,7 +1044,7 @@ export class SlidesAdapter {
       idx++;
       const fullPageTag = pageMatch[1] || "";
       const layoutMatch = fullPageTag.match(/presentation:layout=["']([^"']+)["']/i);
-      const pageLayout = layoutMatch ? layoutMatch[1] : "title-content";
+      let pageLayout = layoutMatch ? layoutMatch[1] : "";
       const originalPageXml = pageMatch[2];
       const pageTransition = this._parsePageTransition(fullPageTag, originalPageXml, drawingPageStyles);
       const animByTarget = this._parsePageAnimations(originalPageXml);
@@ -1086,6 +1086,14 @@ export class SlidesAdapter {
       const outlineParas = this._frameParagraphsByClass(pageContent, "outline");
       const outlineBlocks = this._frameBlocksByClass(pageContent, "outline");
       const hasPlaceholderClasses = titleParas.length > 0 || subtitleParas.length > 0 || outlineParas.length > 0;
+      // PPTX hop drops presentation:layout; restore two-content / title-only from remaining placeholders.
+      if (pageLayout !== "blank") {
+        if (outlineBlocks.length > 1) pageLayout = "two-content";
+        else if (!pageLayout && hasPlaceholderClasses && titleParas.length && outlineBlocks.length === 0 && subtitleParas.length === 0) {
+          pageLayout = "title-only";
+        }
+      }
+      if (!pageLayout) pageLayout = "title-content";
 
       let title = `Trang chiếu ${idx}`;
       let body = "";
