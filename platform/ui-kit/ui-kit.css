@@ -30,6 +30,7 @@
 
 .vno-btn:active:not(:disabled) {
   background-color: var(--vno-bg-active);
+  transform: scale(0.96);
 }
 
 .vno-btn:focus-visible {
@@ -140,16 +141,18 @@
   border-radius: var(--vno-radius-sm);
   outline: none;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 .vno-select:hover {
   border-color: var(--vno-border-strong);
+  background-color: #f8fafc;
 }
 .vno-select:focus,
 .vno-select:focus-visible {
   border-color: var(--vno-border-focus);
   outline: 2px solid var(--vno-border-focus);
   outline-offset: 1px;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
 .vno-dialog-input:focus,
