@@ -2000,7 +2000,7 @@ export class SheetGridController {
   showFunctionDialog(categoryFilter = null) {
     if (typeof document === "undefined") return false;
     const modal = document.createElement("div");
-    modal.className = "vno-dialog-overlay";
+    modal.className = "vno-dialog-overlay vno-func-dialog";
 
     let selectedCat = categoryFilter || t("sheetDialogs.allCategory");
     let searchQuery = "";
