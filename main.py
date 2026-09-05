@@ -7,6 +7,9 @@ cho các thao tác Mở/Lưu/Xuất PDF — cross-platform: Windows, Linux, macO
 
 import os
 import sys
+import base64
+import html
+import re
 import shutil
 import subprocess
 import tempfile
@@ -184,6 +187,63 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
     return str(out_path)
 
 
+_IMG_TAG_RE = re.compile(r"<img\b([^>]*?)(\s*/?)>", re.IGNORECASE)
+_SRC_ATTR_RE = re.compile(r"""\bsrc=["']([^"']+)["']""", re.IGNORECASE)
+_SRC_ATTR_REPLACE_RE = re.compile(r"""\bsrc=["'][^"']*["']""", re.IGNORECASE)
+
+
+def _inline_html_images(html_text: str, html_path: str) -> str:
+    """Replace <img src> sidecar files with data URIs while the convert temp dir still exists.
+
+    LibreOffice HTML (StarWriter) writes images as files next to the .html (not data URIs).
+    open_document_dialog() must inline those bytes before TemporaryDirectory deletes them.
+    Missing files (http/https, already-gone sidecars) leave the original tag unchanged.
+    """
+    if not html_text:
+        return html_text or ""
+    html_dir = os.path.dirname(html_path or "")
+
+    def replace_tag(match: re.Match) -> str:
+        original = match.group(0)
+        attrs = match.group(1)
+        src_match = _SRC_ATTR_RE.search(attrs)
+        if not src_match:
+            return original
+        src = src_match.group(1)
+        if re.match(r"^data:", src, re.IGNORECASE):
+            return f"<img{attrs}>"
+        decoded = html.unescape(src)
+        candidates = [
+            os.path.join(html_dir, decoded),
+            re.sub(r"^/([A-Za-z]:)", r"\1", decoded),
+            re.sub(r"^file:///", "", decoded, flags=re.IGNORECASE),
+        ]
+        file_path = next(
+            (candidate for candidate in candidates if candidate and os.path.isfile(candidate)),
+            None,
+        )
+        if not file_path:
+            return f"<img{attrs}>"
+        try:
+            with open(file_path, "rb") as image_file:
+                raw = image_file.read()
+            encoded = base64.b64encode(raw).decode("ascii")
+        except OSError:
+            return original
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext in (".jpg", ".jpeg"):
+            mime = "image/jpeg"
+        elif ext == ".gif":
+            mime = "image/gif"
+        else:
+            mime = "image/png"
+        data_uri = f"data:{mime};base64,{encoded}"
+        next_attrs = _SRC_ATTR_REPLACE_RE.sub(f'src="{data_uri}"', attrs, count=1)
+        return f"<img{next_attrs}>"
+
+    return _IMG_TAG_RE.sub(replace_tag, html_text)
+
+
 OPEN_FILE_TYPES = {
     "writer": ("Tài liệu Word (*.docx;*.odt;*.doc;*.rtf)", "Tất cả tệp (*.*)"),
     "sheet": ("Bảng tính Excel (*.xlsx;*.ods;*.csv)", "Tất cả tệp (*.*)"),
@@ -256,6 +316,8 @@ class VnOfficeApi:
                 out_path = _run_soffice_convert(src_path, target_ext, tmp, app_kind=app_kind)
                 with open(out_path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
+                if app_kind == "writer":
+                    content = _inline_html_images(content, out_path)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
 
