@@ -82,22 +82,116 @@
   --vno-radius-sm: 3px;
   --vno-radius-md: 5px;
   --vno-radius-lg: 8px;
+  /* Biến ngữ nghĩa chuẩn hóa (Semantic Theme Properties) */
+  --vno-color-bg: var(--vno-bg-window);
+  --vno-color-bg-app: var(--vno-bg-app);
+  --vno-color-bg-surface: var(--vno-bg-surface);
+  --vno-color-bg-subtle: var(--vno-bg-subtle);
+  --vno-color-bg-muted: var(--vno-bg-muted);
+  --vno-color-bg-hover: var(--vno-bg-hover);
+  --vno-color-bg-active: var(--vno-bg-active);
+  --vno-color-bg-selected: var(--vno-bg-selected);
+
+  --vno-color-text: var(--vno-text-primary);
+  --vno-color-text-secondary: var(--vno-text-secondary);
+  --vno-color-text-muted: var(--vno-text-muted);
+  --vno-color-text-subtle: var(--vno-text-subtle);
+  --vno-color-text-disabled: var(--vno-text-disabled);
+  --vno-color-text-inverse: var(--vno-text-inverse);
+
+  --vno-color-border: var(--vno-border-default);
+  --vno-color-border-subtle: var(--vno-border-subtle);
+  --vno-color-border-strong: var(--vno-border-strong);
+  --vno-color-border-focus: var(--vno-border-focus);
+
+  --vno-color-accent: var(--vno-app-current);
+  --vno-color-accent-hover: var(--vno-app-current-hover);
+  --vno-color-accent-light: var(--vno-app-current-light);
+  --vno-app-current-fg: var(--vno-writer-primary);
 }
 
 [data-app="writer"] {
   --vno-app-current: var(--vno-writer-primary);
   --vno-app-current-hover: var(--vno-writer-hover);
   --vno-app-current-light: var(--vno-writer-light);
+  --vno-app-current-fg: var(--vno-writer-primary);
 }
 
 [data-app="sheet"] {
   --vno-app-current: var(--vno-sheet-primary);
   --vno-app-current-hover: var(--vno-sheet-hover);
   --vno-app-current-light: var(--vno-sheet-light);
+  --vno-app-current-fg: var(--vno-sheet-primary);
 }
 
 [data-app="slides"] {
   --vno-app-current: var(--vno-slides-primary);
   --vno-app-current-hover: var(--vno-slides-hover);
+  --vno-app-current-light: var(--vno-slides-light);
+  --vno-app-current-fg: var(--vno-slides-primary);
+}
+
+/* ==========================================================================
+   CHẾ ĐỘ TỐI (DARK MODE) — Chuẩn Microsoft Office Dark Gray / Fluent Dark
+   ========================================================================== */
+[data-theme="dark"],
+:root[data-theme="dark"] {
+  /* Bảng màu trung tính tối (Dark Gray #1e1e1e / #252526) */
+  --vno-bg-app: #181818;
+  --vno-bg-window: #1e1e1e;
+  --vno-bg-surface: #252526;
+  --vno-bg-subtle: #1f1f1f;
+  --vno-bg-muted: #2d2d2d;
+  --vno-bg-hover: #37373d;
+  --vno-bg-active: #454545;
+  --vno-bg-selected: #094771;
+
+  /* Văn bản & Biểu tượng sáng đạt chuẩn WCAG AA / AAA trên nền tối */
+  --vno-text-primary: #f1f5f9;
+  --vno-text-secondary: #cbd5e1;
+  --vno-text-muted: #94a3b8;
+  --vno-text-subtle: #94a3b8;
+  --vno-text-disabled: #52525b;
+  --vno-text-inverse: #0f172a;
+
+  /* Đường viền & Phân cách tối */
+  --vno-border-subtle: #2d2d2d;
+  --vno-border-default: #3e3e42;
+  --vno-border-strong: #52525b;
+  --vno-border-focus: #3b82f6;
+
+  /* Màu sắc chủ đạo từng App khi ở theme Dark */
+  --vno-writer-light: #172554;
+  --vno-writer-border: #1d4ed8;
+
+  --vno-sheet-light: #052e16;
+  --vno-sheet-border: #15803d;
+
+  --vno-slides-light: #431407;
+  --vno-slides-border: #c2410c;
+
+  /* Đổ bóng cho chế độ Dark */
+  --vno-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --vno-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --vno-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.6);
+  --vno-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.7);
+  --vno-shadow-paper: 0 4px 20px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"][data-app="writer"],
+:root[data-theme="dark"][data-app="writer"] {
+  --vno-app-current-fg: #60a5fa;
+  --vno-app-current-light: var(--vno-writer-light);
+}
+
+[data-theme="dark"][data-app="sheet"],
+:root[data-theme="dark"][data-app="sheet"] {
+  --vno-app-current-fg: #4ade80;
+  --vno-app-current-light: var(--vno-sheet-light);
+}
+
+[data-theme="dark"][data-app="slides"],
+:root[data-theme="dark"][data-app="slides"] {
+  --vno-app-current-fg: #fb923c;
   --vno-app-current-light: var(--vno-slides-light);
 }

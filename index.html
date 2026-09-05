@@ -59,6 +59,9 @@
       return true;
     }
 
+    // Khởi tạo theme (Light/Dark từ localStorage)
+    themeManager.init();
+
     // Bootstrap suite tập trung một lần duy nhất rồi khởi động VN Writer
     await bootstrapPlatform();
     const initialApp = launchContext.appKind || "writer";

@@ -35,6 +35,7 @@ export const COMMON_COMMANDS = [
   { id: "common.view.zoomIn", category: "view", label: "Phóng to", shortcut: "Ctrl++", icon: "search", tooltip: "Tăng tỉ lệ hiển thị (Ctrl++)" },
   { id: "common.view.zoomOut", category: "view", label: "Thu nhỏ", shortcut: "Ctrl+-", icon: "search", tooltip: "Giảm tỉ lệ hiển thị (Ctrl+-)" },
   { id: "common.view.fullScreen", category: "view", label: "Toàn màn hình", shortcut: "F11", icon: "slidePlay", tooltip: "Bật/tắt chế độ toàn màn hình (F11)", isToggle: true },
+  { id: "common.view.toggleTheme", category: "view", label: "Chế độ Tối/Sáng", icon: "themeMoon", tooltip: "Chuyển đổi giao diện Tối/Sáng (Dark Mode)", isToggle: true },
 
   // Trợ lý AI (AI Assistant)
   { id: "ai.assistant.toggle", category: "ai", label: "Trợ lý VN AI", shortcut: "Alt+J", icon: "aiSparkle", tooltip: "Mở bảng trợ lý VN AI (Alt+J)", isToggle: true },

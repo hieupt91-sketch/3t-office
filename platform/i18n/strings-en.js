@@ -21,7 +21,10 @@ export const enStrings = {
     cancel: "Cancel",
     close: "Close",
     fileMenu: "File",
-    switchLanguage: "Language"
+    switchLanguage: "Language",
+    toggleTheme: "Dark / Light Mode",
+    themeDark: "Dark Theme",
+    themeLight: "Light Theme"
   },
   aiAssistant: {
     title: "VN AI Assistant", provider: "AI provider", local: "Local (default)",

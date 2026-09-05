@@ -8,7 +8,7 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background-color: #ffffff;
+  background-color: var(--vno-bg-window);
   overflow: hidden;
 }
 
@@ -19,7 +19,7 @@
   gap: 4px;
   height: 30px;
   padding: 0 10px;
-  background-color: #f8fafc;
+  background-color: var(--vno-bg-subtle);
   border-bottom: 1px solid var(--vno-border-default);
   user-select: none;
 }
@@ -27,7 +27,7 @@
 .vno-name-box {
   width: 70px;
   height: 22px;
-  background-color: #ffffff;
+  background-color: var(--vno-bg-window);
   border: 1px solid var(--vno-border-strong);
   border-radius: var(--vno-radius-sm);
   display: flex;
@@ -35,7 +35,7 @@
   justify-content: center;
   font-size: var(--vno-text-xs);
   font-weight: 700;
-  color: var(--vno-sheet-primary);
+  color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
 }
 
 .vno-formula-actions {
@@ -64,7 +64,7 @@
   font-weight: bold;
   font-style: italic;
   font-family: serif;
-  color: var(--vno-sheet-primary);
+  color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
   font-size: 13px;
 }
 
@@ -77,7 +77,8 @@
   font-family: var(--vno-font-mono);
   font-size: var(--vno-text-xs);
   outline: none;
-  background-color: #ffffff;
+  background-color: var(--vno-bg-window);
+  color: var(--vno-text-primary);
 }
 .vno-formula-input:focus {
   border-color: var(--vno-sheet-primary);
@@ -89,7 +90,7 @@
   flex: 1;
   overflow: auto;
   position: relative;
-  background-color: #ffffff;
+  background-color: var(--vno-bg-window);
 }
 
 .vno-grid-table {
@@ -116,9 +117,9 @@
 .vno-grid-corner-header {
   width: 44px;
   height: 24px;
-  background-color: #f1f5f9;
-  border-right: 1px solid #cbd5e1;
-  border-bottom: 1px solid #cbd5e1;
+  background-color: var(--vno-bg-muted);
+  border-right: 1px solid var(--vno-border-default);
+  border-bottom: 1px solid var(--vno-border-default);
   cursor: pointer;
   position: sticky;
   top: 0;
@@ -129,12 +130,12 @@
 .vno-col-header {
   height: 24px;
   min-width: 100px;
-  background-color: #f8fafc;
-  color: #475569;
+  background-color: var(--vno-bg-subtle);
+  color: var(--vno-text-muted);
   font-weight: 600;
   text-align: center;
-  border-right: 1px solid #e2e8f0;
-  border-bottom: 1px solid #cbd5e1;
+  border-right: 1px solid var(--vno-border-default);
+  border-bottom: 1px solid var(--vno-border-strong);
   user-select: none;
   position: sticky;
   top: 0;
@@ -142,22 +143,26 @@
 }
 .vno-col-header:hover {
   background-color: var(--vno-sheet-light);
-  color: var(--vno-sheet-primary);
+  color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
 }
 
 .vno-row-header {
   width: 44px;
   height: 26px;
-  background-color: #f8fafc;
-  color: #475569;
+  background-color: var(--vno-bg-subtle);
+  color: var(--vno-text-muted);
   font-weight: 600;
   text-align: center;
-  border-right: 1px solid #cbd5e1;
-  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid var(--vno-border-strong);
+  border-bottom: 1px solid var(--vno-border-default);
   user-select: none;
   position: sticky;
   left: 0;
   z-index: 9;
+}
+.vno-row-header:hover {
+  background-color: var(--vno-sheet-light);
+  color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
 }
 
 .vno-outline-toggle {
@@ -167,8 +172,8 @@
   padding: 0;
   border: 1px solid #64748b;
   border-radius: 3px;
-  background: #fff;
-  color: #0f6d38;
+  background: var(--vno-bg-window);
+  color: var(--vno-sheet-primary-fg, #0f6d38);
   font-weight: 800;
   line-height: 15px;
   cursor: pointer;
@@ -185,13 +190,9 @@
   transition: background-color 0.12s ease;
 }
 .vno-sheet-rule-dialog fieldset label:hover {
-  background-color: #f1f5f9;
+  background-color: var(--vno-bg-hover);
 }
 .vno-data-preview { margin-top: 10px; padding: 10px; border: 1px solid #bbf7d0; background: #f0fdf4; font-family: Consolas, monospace; }
-.vno-row-header:hover {
-  background-color: var(--vno-sheet-light);
-  color: var(--vno-sheet-primary);
-}
 
 /* Data Cells */
 .vno-grid-cell {
@@ -202,10 +203,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: cell;
-  border-right: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid var(--vno-border-subtle);
+  border-bottom: 1px solid var(--vno-border-subtle);
   position: relative;
-  background-color: #ffffff;
+  background-color: var(--vno-bg-window);
+  color: var(--vno-text-primary);
 }
 
 .vno-grid-cell.is-wrap-text {
@@ -520,15 +522,15 @@ tr.is-filtered-out {
 .vno-sheet-context-menu {
   position: fixed;
   z-index: 10000;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
+  background: var(--vno-bg-window);
+  border: 1px solid var(--vno-border-default);
   border-radius: 6px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
   min-width: 210px;
   padding: 4px 0;
   font-family: var(--vno-font-ui);
   font-size: 12px;
-  color: #1e293b;
+  color: var(--vno-text-primary);
   user-select: none;
 }
 .vno-sheet-context-item {
@@ -540,24 +542,24 @@ tr.is-filtered-out {
   transition: background 80ms;
 }
 .vno-sheet-context-item:hover {
-  background: #f1f5f9;
-  color: var(--vno-sheet-primary);
+  background: var(--vno-bg-hover);
+  color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
 }
 .vno-sheet-context-item .shortcut {
-  color: #475569;
+  color: var(--vno-text-muted);
   font-size: 11px;
   margin-left: 16px;
 }
 .vno-sheet-context-sep {
   height: 1px;
-  background: #e2e8f0;
+  background: var(--vno-border-default);
   margin: 4px 0;
 }
 
 /* Thanh Sheet Tabs ở dưới */
 .vno-sheet-tab-bar {
   height: 30px;
-  background-color: #f1f5f9;
+  background-color: var(--vno-bg-subtle);
   border-top: 1px solid var(--vno-border-default);
   display: flex;
   align-items: center;
@@ -587,7 +589,7 @@ tr.is-filtered-out {
 
 .vno-sheet-tab-item {
   padding: 4px 14px;
-  background-color: #e2e8f0;
+  background-color: var(--vno-bg-muted);
   border-top-left-radius: var(--vno-radius-sm);
   border-top-right-radius: var(--vno-radius-sm);
   font-size: var(--vno-text-xs);
@@ -598,12 +600,12 @@ tr.is-filtered-out {
   transition: all 0.15s;
 }
 .vno-sheet-tab-item:hover {
-  background-color: #f1f5f9;
+  background-color: var(--vno-bg-hover);
   color: var(--vno-text-primary);
 }
 .vno-sheet-tab-item.is-active {
-  background-color: #ffffff;
-  color: var(--vno-sheet-primary);
+  background-color: var(--vno-bg-window);
+  color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
   font-weight: 700;
   border-bottom-color: var(--vno-sheet-primary);
   box-shadow: var(--vno-shadow-xs);
