@@ -2655,9 +2655,13 @@ export class SlidesCanvasController {
     const menu = document.createElement("div");
     menu.className = "vno-slide-section-menu";
     menu.setAttribute?.("role", "menu");
-    menu.style.cssText = `position:fixed;left:${clientX}px;top:${clientY}px;z-index:10040;min-width:180px;padding:6px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
+    menu.style.cssText = `position:fixed;left:${clientX}px;top:${clientY}px;z-index:10040;min-width:180px;padding:6px;background:var(--vno-bg-surface);color:var(--vno-text-primary);border:1px solid var(--vno-border-default);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
     menu.innerHTML = `<button type="button" data-section-action="add" role="menuitem">Thêm Phần</button>${section ? `<button type="button" data-section-action="rename" role="menuitem">Đổi tên Phần</button><button type="button" data-section-action="remove" role="menuitem">Xóa Phần (giữ slide)</button>` : ""}`;
-    for (const button of menu.querySelectorAll?.("button") || []) button.style.cssText = "display:block;width:100%;padding:8px;text-align:left;border:0;background:#fff;cursor:pointer";
+    for (const button of menu.querySelectorAll?.("button") || []) {
+      button.style.cssText = "display:block;width:100%;padding:8px;text-align:left;border:0;background:transparent;color:inherit;cursor:pointer";
+      button.addEventListener("mouseenter", () => { button.style.backgroundColor = "var(--vno-bg-hover)"; });
+      button.addEventListener("mouseleave", () => { button.style.backgroundColor = "transparent"; });
+    }
     const close = () => menu.remove();
     menu.querySelector('[data-section-action="add"]')?.addEventListener("click", () => { close(); this._promptAddSection(slideIndex); });
     menu.querySelector('[data-section-action="rename"]')?.addEventListener("click", () => { close(); this._promptRenameSection(section.id); });
@@ -2741,7 +2745,7 @@ export class SlidesCanvasController {
         divider.dataset.sectionId = section.id;
         divider.setAttribute?.("role", "heading");
         divider.setAttribute?.("aria-level", "2");
-        divider.style.cssText = "grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:5px 4px;border-bottom:3px solid #b53818;color:#7c2d12;font-size:15px;font-weight:800";
+        divider.style.cssText = "grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:5px 4px;border-bottom:3px solid var(--vno-app-current, #b53818);color:var(--vno-app-current-fg, #7c2d12);font-size:15px;font-weight:800";
         divider.textContent = section.name;
         grid.appendChild(divider);
       }
