@@ -3818,12 +3818,15 @@ export class SlidesCanvasController {
       content.style.animation = "none";
       void content.offsetWidth;
       if (t.type === "morph" && this._applyMorphTransition(content, previousSlide, s, t.duration)) {
-        content.dataset.vnoTransition = "morph";
+        if (content.dataset) content.dataset.vnoTransition = "morph";
+        else content.setAttribute?.("data-vno-transition", "morph");
       } else {
         // Safe Morph fallback: without a clear same-id shape match, crossfade instead of freezing or failing.
         const fallbackType = t.type === "morph" ? "fade" : t.type;
         const animName = `vnoTransition${fallbackType.charAt(0).toUpperCase() + fallbackType.slice(1)}`;
-        content.dataset.vnoTransition = t.type === "morph" ? "morph-fallback-fade" : fallbackType;
+        const transitionState = t.type === "morph" ? "morph-fallback-fade" : fallbackType;
+        if (content.dataset) content.dataset.vnoTransition = transitionState;
+        else content.setAttribute?.("data-vno-transition", transitionState);
         content.style.animation = `${animName} ${t.duration}ms ease-out forwards`;
       }
     };

@@ -381,5 +381,46 @@ export async function runSlidesAnimationsNotesTests() {
     if (!presenterStarted) throw new Error("handleDispatch không gọi canvas.startPresenterMode");
   });
 
+  test("Morph: matches only same-id same-type shapes with finite geometry", () => {
+    const canvas = new SlidesCanvasController({ innerHTML: "", className: "", appendChild() {} });
+    const matches = canvas._getMorphMatches(
+      { shapes: [
+        { id: "stable", type: "rect", x: 10, y: 20, w: 100, h: 60, color: "#ff0000" },
+        { id: "wrong-type", type: "ellipse", x: 0, y: 0, w: 20, h: 20 },
+        { id: "connector", type: "connector", x: 0, y: 0, w: 20, h: 20 }
+      ] },
+      { shapes: [
+        { id: "stable", type: "rect", x: 210, y: 120, w: 200, h: 90, color: "#0000ff" },
+        { id: "wrong-type", type: "rect", x: 0, y: 0, w: 20, h: 20 },
+        { id: "connector", type: "connector", x: 0, y: 0, w: 20, h: 20 },
+        { id: "new", type: "rect", x: 0, y: 0, w: 20, h: 20 }
+      ] }
+    );
+    if (matches.length !== 1 || matches[0].id !== "stable") {
+      throw new Error(`Morph matching incorrect: ${JSON.stringify(matches.map(item => item.id))}`);
+    }
+  });
+
+  test("Morph FODP: custom vno metadata round-trips with a standards-safe SMIL fade fallback", () => {
+    const source = {
+      slides: [{
+        id: 1, title: "Morph", body: "", layoutType: "blank", shapes: [],
+        transition: { type: "morph", duration: 800 }
+      }]
+    };
+    const adapter = new SlidesAdapter(source);
+    const xml = adapter.serializeToFodp();
+    if (!xml.includes('xmlns:vno="urn:vn-office:slides:1.0"') || !xml.includes('vno:transition="morph"')) {
+      throw new Error("FODP is missing custom vno:transition Morph metadata");
+    }
+    if (!xml.includes('smil:type="fade"') || !xml.includes('smil:dur="0.8s"')) {
+      throw new Error("FODP Morph is missing the safe SMIL fade fallback");
+    }
+    const parsed = new SlidesAdapter(null).parseFodp(xml);
+    if (parsed[0]?.transition?.type !== "morph" || parsed[0]?.transition?.duration !== 800) {
+      throw new Error(`Morph FODP round-trip incorrect: ${JSON.stringify(parsed[0]?.transition)}`);
+    }
+  });
+
   return results;
 }
