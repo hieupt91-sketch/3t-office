@@ -276,7 +276,7 @@ export class WriterAdapter {
 
     // Bind Office Parity Mouse & Shortcuts
     this._bindMouseAndKeyboardParity();
-    this._bindWordArtInteractions();
+    this._hydrateWordArtFromDom();
     globalCommandBus.bindHandler("writer.style.normal", () => this._applyParagraphStyle("normal"));
     globalCommandBus.bindHandler("writer.text.changeCase", () => this.changeCase());
     globalCommandBus.bindHandler("writer.para.sort", () => this.sortParagraphs());
@@ -379,6 +379,13 @@ export class WriterAdapter {
     });
 
     this.bodyDom.addEventListener("dblclick", (e) => {
+      const wordArt = e.target?.closest?.(".vno-writer-wordart, [data-vno-wordart='true']");
+      if (wordArt) {
+        e.preventDefault?.();
+        e.stopPropagation?.();
+        this._beginWordArtEdit(wordArt);
+        return;
+      }
       const cell = e.target?.closest?.("td, th");
       if (!cell || !cell.getBoundingClientRect) return;
       const rect = cell.getBoundingClientRect();
@@ -989,6 +996,14 @@ export class WriterAdapter {
           this.focusComment(anchor.dataset?.commentId || (typeof anchor.getAttribute === "function" ? anchor.getAttribute("data-comment-id") : null));
           return;
         }
+        const wordArt = event.target?.closest?.(".vno-writer-wordart, [data-vno-wordart='true']");
+        if (wordArt) {
+          if (!(this._wordArtEditing && this.selectedWordArtEl === wordArt)) {
+            this._selectWordArt(wordArt);
+          }
+          return;
+        }
+        this._selectWordArt(null);
         if (event.detail === 3) {
           let node = event.target;
           while (node && node !== this.bodyDom && !/^(P|H[1-6]|BLOCKQUOTE|LI|DIV|TD|TH)$/i.test(node?.tagName)) {
@@ -2901,6 +2916,7 @@ export class WriterAdapter {
 
   _renderShapes() {
     if (!this.editorDom || typeof document === "undefined" || !document.createElement) return;
+    if (typeof this.editorDom.appendChild !== "function" || typeof this.editorDom.querySelector !== "function") return;
     let layer = this.editorDom.querySelector ? this.editorDom.querySelector(".vno-writer-shapes-layer") : null;
     if (!layer) {
       layer = document.createElement("div");
@@ -3333,13 +3349,21 @@ export class WriterAdapter {
     return { text, presetId, style };
   }
 
+  _liveWordArtEl(target = null) {
+    this._initZones();
+    if (target && target.isConnected !== false) return target;
+    if (this.selectedWordArtEl && this.selectedWordArtEl.isConnected !== false) {
+      return this.selectedWordArtEl;
+    }
+    return this.bodyDom?.querySelector?.(".vno-writer-wordart.is-selected")
+      || this.bodyDom?.querySelector?.("[data-vno-wordart='true'], .vno-writer-wordart")
+      || null;
+  }
+
   updateWordArtText(text, target = null) {
     const next = String(text || "").trim();
     if (!next) return false;
-    const el = target
-      || this.selectedWordArtEl
-      || this.bodyDom?.querySelector?.(".vno-writer-wordart.is-selected")
-      || this.bodyDom?.querySelector?.("[data-vno-wordart='true'], .vno-writer-wordart");
+    const el = this._liveWordArtEl(target);
     if (el?.querySelector || el?.setAttribute) {
       const textEl = el.querySelector?.(".vno-wordart-text") || el;
       if (textEl && textEl.textContent !== undefined) textEl.textContent = next;
@@ -3365,10 +3389,7 @@ export class WriterAdapter {
   }
 
   deleteWordArt(target = null) {
-    const el = target
-      || this.selectedWordArtEl
-      || this.bodyDom?.querySelector?.(".vno-writer-wordart.is-selected")
-      || this.bodyDom?.querySelector?.("[data-vno-wordart='true'], .vno-writer-wordart");
+    const el = this._liveWordArtEl(target);
     if (el && (typeof el.remove === "function" || el.parentNode)) {
       if (typeof el.remove === "function") el.remove();
       else el.parentNode.removeChild(el);
@@ -3460,28 +3481,6 @@ export class WriterAdapter {
       const presetId = el.getAttribute?.("data-vno-wordart-preset") || el.dataset?.vnoWordartPreset || stored?.presetId;
       applyWordArtCss(textEl, { ...(stored || {}), presetId });
     });
-  }
-
-  _bindWordArtInteractions() {
-    if (!this.bodyDom?.addEventListener || this._wordArtClickHandler) return;
-    this._wordArtClickHandler = (event) => {
-      const wa = event.target?.closest?.(".vno-writer-wordart, [data-vno-wordart='true']");
-      if (wa) {
-        if (this._wordArtEditing && this.selectedWordArtEl === wa) return;
-        this._selectWordArt(wa);
-      } else {
-        this._selectWordArt(null);
-      }
-    };
-    this._wordArtDblClickHandler = (event) => {
-      const wa = event.target?.closest?.(".vno-writer-wordart, [data-vno-wordart='true']");
-      if (!wa) return;
-      event.preventDefault?.();
-      event.stopPropagation?.();
-      this._beginWordArtEdit(wa);
-    };
-    this.bodyDom.addEventListener("click", this._wordArtClickHandler);
-    this.bodyDom.addEventListener("dblclick", this._wordArtDblClickHandler);
   }
 
   _uniqueBookmarkId(baseId) {
@@ -4957,6 +4956,8 @@ export class WriterAdapter {
     if (typeof this._hydrateCaptionsFromDom === "function") {
       this._hydrateCaptionsFromDom();
     }
+    this.selectedWordArtEl = null;
+    this._wordArtEditing = false;
     this._hydrateWordArtFromDom();
     this._applyDecorations();
     this._syncActiveStyleUI?.();
@@ -5324,6 +5325,15 @@ export class WriterAdapter {
           return;
         }
       }
+
+      const wordArt = target.closest?.(".vno-writer-wordart, [data-vno-wordart='true']");
+      if (wordArt) {
+        if (!(this._wordArtEditing && this.selectedWordArtEl === wordArt)) {
+          this._selectWordArt(wordArt);
+        }
+        return;
+      }
+      this._selectWordArt(null);
 
       // 1. TOC: Nút cập nhật mục lục
       const updateBtn = target.closest ? target.closest(".vno-toc-btn-update") : null;
