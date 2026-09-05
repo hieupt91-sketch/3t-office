@@ -64,7 +64,7 @@ try {
   assert.ok(protectKept, "table:protected missing after hop");
   assert.equal(parsed.protectionBySheet[sheet]?.enabled, true, "parse lost sheet protect");
   if (!structureKept) {
-    console.log("NOTE: LibreOffice dropped table:structure-protected through XLSX hop (workbook structure lock).");
+    console.log("NOTE: LibreOffice dropped table:structure-protected through XLSX hop (workbook structure lock). Native OOXML post-process: tests/live/sheet-xlsx-workbook-protection-native-export.mjs");
   }
   if (!outlineKept) {
     console.log("NOTE: LibreOffice dropped table:table-row-group through XLSX hop (outline).");

@@ -10,6 +10,7 @@ import sys
 import base64
 import csv
 import html
+import importlib.util
 import re
 import shutil
 import subprocess
@@ -252,6 +253,60 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
     return str(out_path)
 
 
+_OOXML_ZIP_PATCH = None
+
+
+def _ooxml_zip_patch():
+    """Load adapters/libreoffice/common/ooxml_zip_patch.py without making adapters a package."""
+    global _OOXML_ZIP_PATCH
+    if _OOXML_ZIP_PATCH is None:
+        module_path = os.path.join(ROOT_DIR, "adapters", "libreoffice", "common", "ooxml_zip_patch.py")
+        spec = importlib.util.spec_from_file_location("vno_ooxml_zip_patch", module_path)
+        if spec is None or spec.loader is None:
+            raise DocumentEngineError("Không tải được module hậu-kỳ OOXML.")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _OOXML_ZIP_PATCH = module
+    return _OOXML_ZIP_PATCH
+
+
+def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str | None, target_format: str) -> None:
+    """Patch native OOXML that LibreOffice omitted, after soffice convert.
+
+    Why here (main.py), not SheetAdapter: File → Lưu serializes FODS in JS, then
+    this process converts FODS→XLSX and writes the dest path. The JS adapter
+    never receives XLSX bytes. The post-process must run on the converted ZIP
+    before shutil.copyfile.
+
+    Sheet XLSX: FODS already has table:structure-protected. LibreOffice writes
+    <workbookProtection lockWindows="false"/> but not lockStructure="1".
+    Excel's Protect Workbook structure lock IS that standard attribute — not a
+    custom namespace. We add it in-place on the existing element.
+    """
+    if app_kind != "sheet" or str(target_format).lower() != "xlsx":
+        return
+    if not src_path or not str(src_path).lower().endswith(".fods"):
+        return
+    try:
+        with open(src_path, "r", encoding="utf-8", errors="replace") as handle:
+            fods = handle.read()
+        patcher = _ooxml_zip_patch()
+        if not patcher.fods_has_structure_protection(fods):
+            return
+        with open(out_path, "rb") as handle:
+            original = handle.read()
+        patched = patcher.postprocess_sheet_xlsx(original, source_fods=fods, enabled=True)
+        if patched != original:
+            with open(out_path, "wb") as handle:
+                handle.write(patched)
+    except DocumentEngineError:
+        raise
+    except Exception as exc:
+        raise DocumentEngineError(
+            f"Không bổ sung được khóa cấu trúc workbook vào XLSX: {exc}"
+        ) from exc
+
+
 _IMG_TAG_RE = re.compile(r"<img\b([^>]*?)(\s*/?)>", re.IGNORECASE)
 _SRC_ATTR_RE = re.compile(r"""\bsrc=["']([^"']+)["']""", re.IGNORECASE)
 _SRC_ATTR_REPLACE_RE = re.compile(r"""\bsrc=["'][^"']*["']""", re.IGNORECASE)
@@ -468,6 +523,7 @@ class VnOfficeApi:
                     return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
 
                 out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
+                _apply_native_export_postprocess(src_path, out_path, app_kind, target_format)
                 shutil.copyfile(out_path, dest_path)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}

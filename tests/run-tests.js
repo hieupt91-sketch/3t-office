@@ -116,6 +116,7 @@ import { runSlidesSectionsTests } from "./unit/slides-sections.test.js";
 import { runWriterEnvelopesLabelsTests } from "./unit/writer-envelopes-labels.test.js";
 import { runSheetRealexportFodsTests } from "./unit/sheet-realexport-fods.test.js";
 import { runWriterFodtPhaseATests } from "./unit/writer-fodt-phase-a.test.js";
+import { runSheetXlsxNativePostprocessTests } from "./unit/sheet-xlsx-native-postprocess.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -239,7 +240,8 @@ async function runAll() {
     { title: "104. Behavioral Tests — VN Slides Sections (nhóm trang chiếu)", runner: runSlidesSectionsTests },
     { title: "105. Behavioral Tests — VN Writer Envelopes & Labels (Mailings > Create)", runner: runWriterEnvelopesLabelsTests },
     { title: "106. Unit Tests — Sheet FODS real-export serialize (charts, page-break, sparkline, protect, outline)", runner: runSheetRealexportFodsTests },
-    { title: "107. Unit Tests — Writer FODT Phase A serialize/parse", runner: runWriterFodtPhaseATests }
+    { title: "107. Unit Tests — Writer FODT Phase A serialize/parse", runner: runWriterFodtPhaseATests },
+    { title: "108. Unit Tests — Sheet native XLSX post-process (workbookProtection lockStructure)", runner: runSheetXlsxNativePostprocessTests }
   ];
 
   for (const suite of suites) {
