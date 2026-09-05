@@ -87,6 +87,7 @@ import { runA11yAuditNewFeaturesTests } from "./unit/a11y-audit-new-features.tes
 import { runSlidesWordArtTests } from "./unit/slides-wordart.test.js";
 import { runSheetFormatPainterTests } from "./unit/sheet-format-painter.test.js";
 import { runSheetGoalSeekTests } from "./unit/sheet-goal-seek.test.js";
+import { runSlidesHideSlideTests } from "./unit/slides-hide-slide.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -181,7 +182,8 @@ async function runAll() {
     { title: "78. Behavioral Tests — VN Slides WordArt (chữ nghệ thuật)", runner: runSlidesWordArtTests },
     { title: "79. Behavioral Tests — VN Sheet Format Painter", runner: runSheetFormatPainterTests },
     { title: "80. Accessibility Audit — Keyboard Navigation for New Features (Paste Special, Merge Cells, Sections, WordArt, SmartArt Group Select, Dark Mode Toggle)", runner: runA11yAuditNewFeaturesTests },
-    { title: "81. Behavioral Tests — VN Sheet Goal Seek", runner: runSheetGoalSeekTests }
+    { title: "81. Behavioral Tests — VN Sheet Goal Seek", runner: runSheetGoalSeekTests },
+    { title: "82. Behavioral Tests — VN Slides Hide Slide (Ẩn trang chiếu)", runner: runSlidesHideSlideTests }
   ];
 
   for (const suite of suites) {
