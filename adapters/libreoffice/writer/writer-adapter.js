@@ -947,6 +947,13 @@ export class WriterAdapter {
    * `<div title="header|footer">` (the same markers VN Writer already emits
    * on save). PAGE/NUMPAGES become `<sdfield>` plus a gray span — unwrap so
    * Print Preview can still replace `Trang N / M`.
+   *
+   * Footnotes/Endnotes are also kept (unlike Track Changes / Comments):
+   * `<a class="sdfootnoteanc">` / `sdendnoteanc` plus
+   * `<div id="sdfootnoteN">` / `sdendnoteN` bodies. Map those onto the
+   * existing VN Writer `data-vno-footnote-ref` / `data-vno-endnote-ref`
+   * containers so session click-to-jump, renumber, and Print Preview work.
+   * No OOXML sidecar is required for this path.
    */
   _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml) {
     let html = String(raw || "");
@@ -983,6 +990,7 @@ export class WriterAdapter {
       footer = this._normalizeImportedHeaderFooterHtml(footerMatch[1]);
       html = html.replace(footerMatch[0], "");
     }
+    html = this._normalizeImportedStarWriterNotes(html);
     return { body: html.trim(), header, footer, page, comments };
   }
 
@@ -999,6 +1007,130 @@ export class WriterAdapter {
       "$1"
     );
     return out.trim();
+  }
+
+  /**
+   * StarWriter HTML of a real Word DOCX keeps footnotes/endnotes as
+   * `a.sdfootnoteanc` / `a.sdendnoteanc` citations plus
+   * `div#sdfootnoteN` / `div#sdendnoteN` bodies (LibreOffice 26.2 measured).
+   * Map them onto VN Writer session markup. Do not invent notes when the
+   * HTML has no StarWriter markers.
+   */
+  _normalizeImportedStarWriterNotes(html) {
+    let out = String(html || "");
+    if (!/sdfootnoteanc|sdendnoteanc|id=["']sdfootnote\d+|id=["']sdendnote\d+/i.test(out)) {
+      return out;
+    }
+
+    const footnotes = this._extractStarWriterNoteBodies(out, "footnote");
+    const endnotes = this._extractStarWriterNoteBodies(out, "endnote");
+    const footnoteOrder = [];
+    const endnoteOrder = [];
+    const footnoteLabels = new Map();
+    const endnoteLabels = new Map();
+
+    out = out.replace(
+      /<a\b([^>]*\bclass=["'][^"']*\bsdfootnoteanc\b[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi,
+      (_all, attrs, inner) => {
+        const num = this._starWriterNoteNumber(attrs, inner, "sdfootnote") || String(footnoteOrder.length + 1);
+        const id = `fn-import-${num}`;
+        const visible = this._starWriterCitationLabel(inner, num);
+        if (!footnoteOrder.includes(num)) footnoteOrder.push(num);
+        footnoteLabels.set(num, visible);
+        return `<sup data-vno-footnote-ref="${id}" class="vno-footnote-ref" contenteditable="false" title="Nhấp để chuyển đến chú thích">${this._escapeHtml(visible)}</sup>`;
+      }
+    );
+
+    out = out.replace(
+      /<a\b([^>]*\bclass=["'][^"']*\bsdendnoteanc\b[^"']*["'][^>]*)>([\s\S]*?)<\/a>/gi,
+      (_all, attrs, inner) => {
+        const num = this._starWriterNoteNumber(attrs, inner, "sdendnote") || String(endnoteOrder.length + 1);
+        const id = `en-import-${num}`;
+        const visible = this._starWriterCitationLabel(inner, toRoman(Number(num) || 1));
+        if (!endnoteOrder.includes(num)) endnoteOrder.push(num);
+        endnoteLabels.set(num, visible);
+        return `<sup data-vno-endnote-ref="${id}" class="vno-endnote-ref" contenteditable="false" title="Nhấp để chuyển đến chú thích cuối">${this._escapeHtml(visible)}</sup>`;
+      }
+    );
+
+    out = out.replace(/<div\b[^>]*\bid=["']sdfootnote\d+["'][^>]*>[\s\S]*?<\/div>/gi, "");
+    out = out.replace(/<div\b[^>]*\bid=["']sdendnote\d+["'][^>]*>[\s\S]*?<\/div>/gi, "");
+
+    for (const num of footnotes.keys()) {
+      if (!footnoteOrder.includes(num)) footnoteOrder.push(num);
+    }
+    for (const num of endnotes.keys()) {
+      if (!endnoteOrder.includes(num)) endnoteOrder.push(num);
+    }
+
+    const alreadyHasFootnotes = /data-vno-footnotes=["']?true["']?/i.test(out);
+    const alreadyHasEndnotes = /data-vno-endnotes=["']?true["']?/i.test(out);
+
+    if (footnoteOrder.length && !alreadyHasFootnotes) {
+      const items = footnoteOrder.map((num) => {
+        const id = `fn-import-${num}`;
+        const label = footnoteLabels.get(num) || num;
+        const text = footnotes.get(num) || "";
+        return `<div class="vno-footnote-item" data-vno-footnote-id="${id}"><span class="vno-note-num" title="Chuyển tới vị trí tham chiếu">${this._escapeHtml(label)}</span><span class="vno-note-text" contenteditable="true">${this._escapeHtml(text)}</span><button type="button" class="vno-note-delete-btn" title="Xóa chú thích">&times;</button></div>`;
+      }).join("");
+      out = `${out.trim()}\n<div data-vno-footnotes="true" class="vno-writer-footnotes-container" contenteditable="false"><div class="vno-notes-separator"></div>${items}</div>`;
+    }
+
+    if (endnoteOrder.length && !alreadyHasEndnotes) {
+      const items = endnoteOrder.map((num) => {
+        const id = `en-import-${num}`;
+        const label = endnoteLabels.get(num) || toRoman(Number(num) || 1);
+        const text = endnotes.get(num) || "";
+        return `<div class="vno-endnote-item" data-vno-endnote-id="${id}"><span class="vno-note-num" title="Chuyển tới vị trí tham chiếu">${this._escapeHtml(label)}</span><span class="vno-note-text" contenteditable="true">${this._escapeHtml(text)}</span><button type="button" class="vno-note-delete-btn" title="Xóa chú thích">&times;</button></div>`;
+      }).join("");
+      out = `${out.trim()}\n<div data-vno-endnotes="true" class="vno-writer-endnotes-container" contenteditable="false"><div class="vno-notes-separator"></div><div class="vno-notes-title">CHÚ THÍCH CUỐI TÀI LIỆU</div>${items}</div>`;
+    }
+
+    return out.trim();
+  }
+
+  _starWriterNoteNumber(attrs, inner, prefix) {
+    const blob = `${attrs || ""} ${inner || ""}`;
+    const match = blob.match(new RegExp(`${this._escapeRegExp(prefix)}(\\d+)`, "i"));
+    return match ? match[1] : "";
+  }
+
+  _starWriterCitationLabel(inner, fallback) {
+    const text = String(inner || "")
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s+/g, "")
+      .trim();
+    return text || String(fallback || "");
+  }
+
+  _extractStarWriterNoteBodies(html, kind) {
+    const prefix = kind === "endnote" ? "sdendnote" : "sdfootnote";
+    const bodies = new Map();
+    const divRe = new RegExp(
+      `<div\\b[^>]*\\bid=["']${prefix}(\\d+)["'][^>]*>([\\s\\S]*?)<\\/div>`,
+      "gi"
+    );
+    let match;
+    while ((match = divRe.exec(String(html || "")))) {
+      const num = match[1];
+      let inner = match[2] || "";
+      inner = inner.replace(
+        /<a\b[^>]*\bclass=["'][^"']*\bsd(?:foot|end)notesym\b[^"']*["'][^>]*>[\s\S]*?<\/a>/gi,
+        ""
+      );
+      const text = inner
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&#160;/gi, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/\s+/g, " ")
+        .trim();
+      bodies.set(num, text);
+    }
+    return bodies;
   }
 
   /**
