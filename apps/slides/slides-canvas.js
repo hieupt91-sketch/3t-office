@@ -654,6 +654,219 @@ export class SlidesCanvasController {
     return true;
   }
 
+  _collectFindTargets() {
+    this._syncEditableFieldsFromDom();
+    const targets = [];
+    (this.slides || []).forEach((slide, slideIndex) => {
+      targets.push({ slideIndex, field: "title", shapeId: null, text: String(slide.title || "") });
+      targets.push({ slideIndex, field: "body", shapeId: null, text: String(slide.body || "") });
+      if (slide.body2 != null && String(slide.body2)) {
+        targets.push({ slideIndex, field: "body2", shapeId: null, text: String(slide.body2) });
+      }
+      for (const shape of slide.shapes || []) {
+        const text = String(shape.text || "");
+        if (!text) continue;
+        targets.push({ slideIndex, field: "shape", shapeId: shape.id, text });
+      }
+    });
+    return targets;
+  }
+
+  _rewriteFieldHtml(html, findText, replaceText, all) {
+    if (!html) return html;
+    const source = String(html);
+    const from = String(findText);
+    const to = String(replaceText);
+    return all ? source.split(from).join(to) : source.replace(from, to);
+  }
+
+  _setSlideFieldText(slideIndex, field, shapeId, nextText, findText, replaceText, all = false) {
+    const slide = this.slides[slideIndex];
+    if (!slide) return false;
+    if (shapeId != null) {
+      const shape = slide.shapes?.find(item => String(item.id) === String(shapeId));
+      if (!shape) return false;
+      shape.text = nextText;
+      if (shape.textHtml) shape.textHtml = this._rewriteFieldHtml(shape.textHtml, findText, replaceText, all);
+      return true;
+    }
+    if (field === "title") {
+      slide.title = nextText;
+      if (slide.titleHtml) slide.titleHtml = this._rewriteFieldHtml(slide.titleHtml, findText, replaceText, all);
+      return true;
+    }
+    if (field === "body2") {
+      slide.body2 = nextText;
+      if (slide.body2Html) slide.body2Html = this._rewriteFieldHtml(slide.body2Html, findText, replaceText, all);
+      return true;
+    }
+    slide.body = nextText;
+    if (slide.bodyHtml) slide.bodyHtml = this._rewriteFieldHtml(slide.bodyHtml, findText, replaceText, all);
+    return true;
+  }
+
+  _snapshotAllSlideTexts() {
+    return (this.slides || []).map((slide, slideIndex) => ({
+      slideIndex,
+      title: slide.title,
+      titleHtml: slide.titleHtml,
+      body: slide.body,
+      bodyHtml: slide.bodyHtml,
+      body2: slide.body2,
+      body2Html: slide.body2Html,
+      shapes: (slide.shapes || []).map(shape => ({ id: shape.id, text: shape.text, textHtml: shape.textHtml }))
+    }));
+  }
+
+  _restoreAllSlideTexts(snapshot) {
+    for (const item of snapshot || []) {
+      const slide = this.slides[item.slideIndex];
+      if (!slide) continue;
+      slide.title = item.title;
+      if (item.titleHtml) slide.titleHtml = item.titleHtml;
+      else delete slide.titleHtml;
+      slide.body = item.body;
+      if (item.bodyHtml) slide.bodyHtml = item.bodyHtml;
+      else delete slide.bodyHtml;
+      slide.body2 = item.body2;
+      if (item.body2Html) slide.body2Html = item.body2Html;
+      else delete slide.body2Html;
+      for (const shapeSnap of item.shapes || []) {
+        const shape = slide.shapes?.find(entry => String(entry.id) === String(shapeSnap.id));
+        if (!shape) continue;
+        shape.text = shapeSnap.text;
+        if (shapeSnap.textHtml) shape.textHtml = shapeSnap.textHtml;
+        else delete shape.textHtml;
+      }
+    }
+    this.selectSlide(this.currentSlideIndex);
+  }
+
+  _revealFindTarget(target) {
+    if (!target) return;
+    if (this.currentSlideIndex !== target.slideIndex) this.selectSlide(target.slideIndex);
+    else this.selectSlide(target.slideIndex);
+    if (target.shapeId != null) this.setSelectedShapes([target.shapeId]);
+    else this.setSelectedTarget(target.field);
+    const fieldEl = target.field === "title" ? this.titleEl
+      : target.field === "body2" ? this.body2El
+        : target.field === "body" ? this.bodyEl
+          : null;
+    fieldEl?.focus?.();
+  }
+
+  _pushFindReplaceUndo(before) {
+    this.undoStack.push({
+      type: "find-replace",
+      before,
+      after: this._snapshotAllSlideTexts(),
+      slideIndex: this.currentSlideIndex
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+  }
+
+  findNext(query) {
+    const needle = String(query || "");
+    if (!needle) return false;
+    const targets = this._collectFindTargets();
+    if (!targets.length) return false;
+    if (!this._findState || this._findState.query !== needle) {
+      this._findState = { query: needle, locIndex: 0, charIndex: 0 };
+    }
+    const startLoc = this._findState.locIndex || 0;
+    const startChar = this._findState.charIndex || 0;
+    for (let step = 0; step <= targets.length; step++) {
+      const loc = (startLoc + step) % targets.length;
+      const from = step === 0 ? startChar : 0;
+      const idx = String(targets[loc].text || "").indexOf(needle, from);
+      if (idx >= 0) {
+        this._findState.locIndex = loc;
+        this._findState.charIndex = idx + needle.length;
+        this._findState.matchIndex = idx;
+        this._findState.matchLength = needle.length;
+        this._revealFindTarget(targets[loc]);
+        return { ...targets[loc], index: idx, query: needle };
+      }
+    }
+    return false;
+  }
+
+  replaceOne(findText, replaceText) {
+    const needle = String(findText || "");
+    if (!needle) return false;
+    const replacement = replaceText == null ? "" : String(replaceText);
+    let match = null;
+    if (this._findState?.query === needle && Number.isInteger(this._findState.matchIndex)) {
+      const targets = this._collectFindTargets();
+      const current = targets[this._findState.locIndex];
+      if (current && String(current.text).substr(this._findState.matchIndex, needle.length) === needle) {
+        match = { ...current, index: this._findState.matchIndex };
+      }
+    }
+    if (!match) match = this.findNext(needle);
+    if (!match) return false;
+    const before = this._snapshotAllSlideTexts();
+    const nextText = match.text.slice(0, match.index) + replacement + match.text.slice(match.index + needle.length);
+    this._setSlideFieldText(match.slideIndex, match.field, match.shapeId, nextText, needle, replacement, false);
+    this._pushFindReplaceUndo(before);
+    this._findState = {
+      query: needle,
+      locIndex: this._findState?.locIndex || 0,
+      charIndex: match.index + replacement.length,
+      matchIndex: null,
+      matchLength: 0
+    };
+    this._revealFindTarget(match);
+    return true;
+  }
+
+  replaceAll(findText, replaceText) {
+    const needle = String(findText || "");
+    if (!needle) return 0;
+    const replacement = replaceText == null ? "" : String(replaceText);
+    const before = this._snapshotAllSlideTexts();
+    const targets = this._collectFindTargets();
+    let count = 0;
+    for (const target of targets) {
+      if (!String(target.text).includes(needle)) continue;
+      const parts = String(target.text).split(needle);
+      count += parts.length - 1;
+      this._setSlideFieldText(target.slideIndex, target.field, target.shapeId, parts.join(replacement), needle, replacement, true);
+    }
+    if (count > 0) {
+      this._pushFindReplaceUndo(before);
+      this.selectSlide(this.currentSlideIndex);
+    }
+    this._findState = { query: needle, locIndex: 0, charIndex: 0, matchIndex: null, matchLength: 0 };
+    return count;
+  }
+
+  selectAllShapes() {
+    const slide = this.slides[this.currentSlideIndex];
+    const ids = (slide?.shapes || []).map(shape => String(shape.id));
+    this.setSelectedShapes(ids);
+    return true;
+  }
+
+  selectDrawingObjects() {
+    const slide = this.slides[this.currentSlideIndex];
+    const ids = (slide?.shapes || [])
+      .filter(shape => shape.type !== "connector" && shape.diagramRole !== "connector")
+      .map(shape => String(shape.id));
+    this.setSelectedShapes(ids);
+    return true;
+  }
+
+  selectAllForContext() {
+    const active = typeof document !== "undefined" ? document.activeElement : null;
+    if (active && active.isContentEditable && typeof document.execCommand === "function") {
+      document.execCommand("selectAll", false, null);
+      return true;
+    }
+    return this.selectAllShapes();
+  }
+
   replaceSpellcheckIssue(issue, replacement) {
     if (!issue) return false;
     const source = String(issue.text ?? "");
@@ -4420,6 +4633,10 @@ export class SlidesCanvasController {
       this._renderShapesLayer();
       this._renderAnimationPane();
       return true;
+    } else if (action.type === "find-replace") {
+      this._restoreAllSlideTexts(action.before);
+      this.redoStack.push(action);
+      return true;
     }
     return false;
   }
@@ -4660,6 +4877,10 @@ export class SlidesCanvasController {
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
       this._renderAnimationPane();
+      return true;
+    } else if (action.type === "find-replace") {
+      this._restoreAllSlideTexts(action.after);
+      this.undoStack.push(action);
       return true;
     }
     return false;

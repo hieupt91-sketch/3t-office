@@ -215,6 +215,36 @@ export const SLIDES_HELP_ENTRIES = [
       "Trình chiếu không có thuyết minh: lưu cờ cho bản trình chiếu. VN Slides chưa có audio thuyết minh — đánh dấu không tắt âm thanh nào lúc này.",
       "Màu con trỏ bút / laser: chọn màu bằng ô màu. VN Slides chưa vẽ bút hay laser trên màn hình chiếu; màu được lưu (kể cả khi lưu FODP) để dùng khi tính năng đó có. Nhấn Áp dụng để giữ, Hủy hoặc Esc để bỏ."
     ]
+  },
+  {
+    id: "slides.edit.findReplace",
+    app: "slides",
+    commandIds: ["common.edit.find", "common.edit.replace"],
+    title: "Tìm kiếm và Thay thế trên trang chiếu",
+    summary: "Tìm chữ trong tiêu đề, nội dung và hình trên TẤT CẢ các trang chiếu (không chỉ trang đang mở), rồi thay thế từng chỗ hoặc tất cả. Giống PowerPoint: tìm xuyên suốt bài. Hoàn tác bằng Ctrl+Z.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["tìm kiếm", "thay thế", "find", "replace", "ctrl+f", "ctrl+h", "chỉnh sửa", "tìm chữ"],
+    steps: [
+      "Tab Trang đầu, nhóm Chỉnh sửa (cuối ribbon Home), nhấn Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H). Cùng hộp thoại; Thay thế hiện thêm ô «Thay thế bằng» và nút Thay thế / Thay thế tất cả.",
+      "Gõ cụm cần tìm. Tìm tiếp nhảy lần lượt mọi chỗ khớp trong tiêu đề, nội dung (cả cột 2 nếu bố cục hai cột) và chữ trên hình của mọi trang — tự chuyển trang khi khớp ở trang khác.",
+      "Thay thế: đổi chỗ đang khớp rồi tìm chỗ tiếp. Thay thế tất cả: đổi mọi chỗ khớp trên toàn bài. Nội dung trang đổi thật; Ctrl+Z hoàn tác cả lượt thay (kể cả Thay thế tất cả).",
+      "Không tìm trong ghi chú người thuyết trình. Phân biệt hoa/thường đúng như chuỗi đã gõ."
+    ]
+  },
+  {
+    id: "slides.edit.select",
+    app: "slides",
+    commandIds: ["slides.edit.selectAll", "slides.edit.selectObjects"],
+    title: "Chọn đối tượng trên trang chiếu",
+    summary: "Dropdown Chọn ở nhóm Chỉnh sửa (cuối Home): Chọn tất cả hình trên trang hiện tại, hoặc Chọn đối tượng (hình vẽ, không gồm đường nối).",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["chọn", "select", "chọn tất cả", "chọn đối tượng", "hình", "shape"],
+    steps: [
+      "Mở trang cần chọn đối tượng. Tab Trang đầu, nhóm Chỉnh sửa (cuối Home), nhấn dropdown Chọn.",
+      "Chọn tất cả: đánh dấu mọi hình trên trang hiện tại (hộp văn bản, hình khối, ảnh, WordArt, sơ đồ, đường nối). Không chọn khung tiêu đề/nội dung của bố cục.",
+      "Chọn đối tượng: chỉ các hình vẽ, bỏ đường nối (connector). Dùng khi cần kéo/xóa nhóm hình mà không kéo đường nối kèm theo.",
+      "Khi đang gõ trong tiêu đề hoặc nội dung, Ctrl+A vẫn chọn hết chữ trong khung đó; ngoài khung chữ, Ctrl+A chọn tất cả hình trên trang."
+    ]
   }
 ];
 

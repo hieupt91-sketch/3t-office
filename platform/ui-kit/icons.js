@@ -862,6 +862,18 @@ export const ICONS = {
     <circle cx="12" cy="16" r="1.5" fill="#0F6D38"/>
   </svg>`,
 
+  selectAll: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="4" y="5" width="16" height="14" rx="1.6" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.3"/>
+    <path d="M7 9h10M7 12.5h7M7 16h5" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"/>
+    <rect x="13.5" y="13" width="6.5" height="6.5" rx="1" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.2"/>
+  </svg>`,
+
+  selectObjects: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="5" y="5" width="10" height="8" rx="1.2" fill="#FEF3C7" stroke="#D97706" stroke-width="1.2"/>
+    <rect x="10" y="11" width="9" height="8" rx="1.2" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.2"/>
+    <path d="M8 19l2.2-6.4 2.1 2.4 3.5-4.2" stroke="#0F6D38" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
   protectWorkbook: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
     <rect x="3" y="5" width="12" height="14" rx="1.4" fill="#ECFDF5" stroke="#0F6D38" stroke-width="1.3"/>
     <path d="M3 9h12M7 5v14" stroke="#86EFAC"/>

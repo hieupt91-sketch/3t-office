@@ -292,6 +292,8 @@ export const VN_TO_UNO_MAP = {
   "slides.review.commentInsert": ".uno:InsertAnnotation",
   "slides.review.spellCheck": ".uno:Spelling",
   "slides.edit.formatPainter": ".uno:FormatPaintbrush",
+  "slides.edit.selectAll": ".uno:SelectAll",
+  "slides.edit.selectObjects": ".uno:SelectObject",
   "slides.show.startFromBegin": ".uno:StartPresentation",
   "slides.show.startFromCurrent": ".uno:StartPresentation",
   "slides.show.presenterMode": ".uno:PresenterConsole",

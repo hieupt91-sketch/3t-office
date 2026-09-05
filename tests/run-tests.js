@@ -98,6 +98,7 @@ import { runWriterCaptionsTests } from "./unit/writer-captions.test.js";
 import { runSheetFormatDropdownTests } from "./unit/sheet-format-dropdown.test.js";
 import { runSheetRenameMoveProtectTests } from "./unit/sheet-rename-move-protect.test.js";
 import { runSheetProtectWorkbookTests } from "./unit/sheet-protect-workbook.test.js";
+import { runSlidesEditingGroupTests } from "./unit/slides-editing-group.test.js";
 import { runSlidesFormatPainterTests } from "./unit/slides-format-painter.test.js";
 import { runSlidesSpellcheckRibbonTests } from "./unit/slides-spellcheck-ribbon.test.js";
 import { runSlidesFormatBackgroundTests } from "./unit/slides-format-background.test.js";
@@ -213,6 +214,7 @@ async function runAll() {
     { title: "88. Behavioral Tests — VN Sheet Home Cells Format dropdown (row/col size & hide)", runner: runSheetFormatDropdownTests },
     { title: "97. Behavioral Tests — VN Sheet Rename / Move-Copy / Protect Sheet", runner: runSheetRenameMoveProtectTests },
     { title: "99. Behavioral Tests — VN Sheet Protect Workbook", runner: runSheetProtectWorkbookTests },
+    { title: "100. Behavioral Tests — VN Slides Home Editing group (Find/Replace/Select)", runner: runSlidesEditingGroupTests },
     { title: "89. Behavioral Tests — VN Slides Format Painter", runner: runSlidesFormatPainterTests },
     { title: "90. Behavioral Tests — VN Slides Review Spellcheck Ribbon", runner: runSlidesSpellcheckRibbonTests },
     { title: "91. Behavioral Tests — VN Slides Format Background", runner: runSlidesFormatBackgroundTests },
