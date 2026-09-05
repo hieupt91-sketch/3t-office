@@ -262,13 +262,17 @@ export async function runSheetChartsImportTests() {
     assert(drawingRels && /charts\/chart1\.xml/.test(drawingRels.toString("utf8")), "drawing rels không trỏ tới xl/charts/chart1.xml");
   });
 
-  test("serializeToFods không ghi chart:chart (giới hạn Lưu, cùng class Pivot)", () => {
+  test("serializeToFods ghi chart:chart và parseFods đọc lại đúng range/type/title", () => {
     const grid = new SheetGridController(container());
     const adapter = new SheetAdapter(grid);
     assert(adapter.loadFromFods(fs.readFileSync(FODS, "utf8")), "loadFromFods thất bại");
     const saved = adapter.serializeToFods();
     assert(saved.includes("DoanhThu") && saved.includes(">200<"), "serialize mất dữ liệu ô");
-    assert(!/<chart:chart\b/i.test(saved), "serialize không được bịa chart:chart");
+    assert(/<chart:chart\b/i.test(saved), "serialize phải ghi chart:chart khi workbook có biểu đồ");
+    assert(/chart:class="chart:bar"/i.test(saved), "serialize phải giữ class bar");
+    assert(/chart:values-cell-range-address="[^"]*B2[^"]*B5/i.test(saved), "serialize phải trỏ series B2:B5");
+    const roundTrip = new SheetAdapter(null).parseFods(saved);
+    assertImportedBarChart(roundTrip.chartsBySheet.DoanhThu?.[0], "serializeToFods -> parseFods");
   });
 
   await asyncTest("adapter.open() nạp FODS soffice: nhận chart, không mất số liệu", async () => {

@@ -78,6 +78,31 @@ export async function runSlidesFileIoTests() {
     }
   });
 
+  test("SlidesAdapter: Slide Master serialize vào style:master-page và parse lại", () => {
+    const canvas = new MockCanvasController();
+    canvas.masterTheme = {
+      id: "corporate-red",
+      fontFamily: "'Times New Roman', serif",
+      titleColor: "#991b1b",
+      bodyColor: "#1f2937",
+      accentColor: "#b53818",
+      bgColor: "#fffdfa",
+      logoText: "VN OFFICE • SÁNG TẠO",
+      footerText: "Bảo mật nội bộ"
+    };
+    const adapter = new SlidesAdapter(canvas);
+    const fodp = adapter.serializeToFodp();
+    if (!fodp.includes("vno:master-theme=")) throw new Error("Thiếu vno:master-theme trên master-page");
+    if (!fodp.includes("VN OFFICE • SÁNG TẠO")) throw new Error("Thiếu logo master trên master-page");
+    if (!fodp.includes("Bảo mật nội bộ")) throw new Error("Thiếu footer master");
+    if (!fodp.includes('draw:fill-color="#fffdfa"')) throw new Error("Thiếu màu nền master trên dp1");
+    const parsed = new SlidesAdapter(null).parseFodp(fodp);
+    if (parsed.masterTheme?.logoText !== "VN OFFICE • SÁNG TẠO") {
+      throw new Error(`parse masterTheme sai: ${JSON.stringify(parsed.masterTheme)}`);
+    }
+    if (parsed.masterTheme?.accentColor !== "#b53818") throw new Error("parse mất accentColor");
+  });
+
   test("SlidesAdapter: parseFodp phân tích chính xác các trang chiếu, tiêu đề và nội dung", () => {
     const adapter = new SlidesAdapter(null);
     const sampleFodp = `<?xml version="1.0" encoding="UTF-8"?>
