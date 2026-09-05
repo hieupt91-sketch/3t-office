@@ -4292,6 +4292,16 @@ export class WriterAdapter {
       bodyHtml = this._stripSessionMarkup(this.editorDom.innerHTML);
     }
 
+    // LibreOffice's Writer HTML importer drops a class-only Drop Cap span
+    // completely (including its first letter) because writer.css is not part
+    // of the conversion payload. Use legacy HTML font markup here: the import
+    // filter maps it reliably to a large DOCX run, preserving both the initial
+    // and an obvious drop-cap-style visual fallback in real DOCX/PDF exports.
+    bodyHtml = bodyHtml.replace(
+      /<span\b(?=[^>]*\bclass=["'][^"']*\bvno-drop-cap\b[^"']*["'])(?=[^>]*\bdata-drop-lines=["']([23])["'])[^>]*>([\s\S]*?)<\/span>/gi,
+      (_match, lines, initial) => `<font size="${lines === "2" ? "6" : "7"}"><b>${initial}</b></font>`
+    );
+
     const firstSectionId = Object.keys(this.sectionPageSetups || {})[0] || "section-1";
     bodyHtml = `<div class="vno-export-section vno-export-${firstSectionId}" data-vno-export-section="${firstSectionId}">` + bodyHtml.replace(
       /<div\b[^>]*data-vno-section-break=["'](nextPage|continuous|evenPage|oddPage)["'][^>]*data-vno-section-id=["']([^"']+)["'][^>]*>[\s\S]*?<\/div>/gi,
