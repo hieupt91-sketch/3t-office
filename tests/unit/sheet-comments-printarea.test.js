@@ -127,7 +127,7 @@ export async function runSheetCommentsPrintAreaTests() {
     });
     await test("Page Setup model is saved per sheet and supports undo/redo", () => {
       const first = grid.activeSheet;
-      const changed = grid.setPageSetup({ margins: { top: 2.2, bottom: 2.3, left: 1.4, right: 1.5 }, orientation: "landscape", size: "legal", printTitles: { rows: "1:2", cols: "A:B" } });
+      const changed = grid.setPageSetup({ margins: { top: 2.2, bottom: 2.3, left: 1.4, right: 1.5 }, orientation: "landscape", size: "legal", scale: { mode: "pages", pagesWide: 1, pagesTall: 0 }, printTitles: { rows: "1:2", cols: "A:B" } });
       assert(changed.orientation === "landscape" && changed.size === "legal" && changed.margins.top === 2.2, "Page Setup values were not saved");
       grid.undo();
       assert(grid.getPageSetup().orientation === "portrait", "Page Setup undo failed");
@@ -139,6 +139,12 @@ export async function runSheetCommentsPrintAreaTests() {
       assert(grid.getPageSetup().margins.left === 1.27, "Narrow preset is incorrect");
       grid.switchSheet(first);
       assert(grid.getPageSetup().size === "legal" && grid.getPageSetup().printTitles.rows === "1:2", "First-sheet Page Setup was lost");
+      assert(grid.getPageSetup().scale.mode === "pages" && grid.getPageSetup().scale.pagesWide === 1, "Scale to Fit was lost");
+      grid.setPageSetup({ headerFooter: { header: { left: "&F", center: "Tên sheet: &A", right: "&D" }, footer: { center: "Trang &P / &N" } } });
+      grid.setPageSetup({ centerOnPage: { horizontal: true, vertical: true } });
+      grid.setPageSetup({ printOptions: { gridlines: true, headings: true } });
+      assert(grid.getPageSetup().headerFooter.header.center === "Tên sheet: &A", "Header/Footer model was lost");
+      assert(grid.setPageSetup({ scale: { mode: "percent", percent: 9 } }) === false, "Invalid print scale was accepted");
     });
 
     await test("Page Setup FODS has native page layout and round-trips the model", () => {
@@ -148,6 +154,10 @@ export async function runSheetCommentsPrintAreaTests() {
       assert(xml.includes("style:page-layout-properties") && xml.includes('style:print-orientation="landscape"'), "Native landscape page layout is missing");
       assert(xml.includes('fo:page-width="35.56cm"') && xml.includes('fo:margin-top="2.2cm"'), "Legal page size or margins are missing");
       assert(xml.includes("style:master-page-name=") && xml.includes("table:style-name="), "Worksheet is not connected to a master page");
+      assert(xml.includes('style:scale-to-X="1"') && xml.includes('style:scale-to-Y="0"'), "Native ODF Scale to Fit axes are missing");
+      assert(xml.includes("<style:header>") && xml.includes("<text:sheet-name/>") && xml.includes("<text:page-number>1</text:page-number>"), "Native ODF Header/Footer fields are missing");
+      assert(xml.includes('style:table-centering="both"'), "Native ODF page centering is missing");
+      assert(/style:print="[^"]*grid[^"]*headers/.test(xml), "Native ODF print gridlines/headings are missing");
       const parsed = adapter.parseFods(xml);
       assert(parsed.pageSetupBySheet[first].size === "legal" && parsed.pageSetupBySheet[first].margins.right === 1.5, "FODS parser lost Page Setup");
     });

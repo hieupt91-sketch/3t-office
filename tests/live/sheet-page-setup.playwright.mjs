@@ -38,6 +38,13 @@ try {
   await dialog.locator("#vno-sheet-size").selectOption("letter");
   await dialog.locator("#vno-sheet-title-rows").fill("1:2");
   await dialog.locator("#vno-sheet-title-cols").fill("A:B");
+  await dialog.locator('[name="vno-sheet-scale-mode"][value="pages"]').check();
+  await dialog.locator("#vno-sheet-scale-wide").fill("1");
+  await dialog.locator("#vno-sheet-scale-tall").fill("0");
+  await dialog.locator("#vno-sheet-center-horizontal").check();
+  await dialog.locator("#vno-sheet-center-vertical").check();
+  await dialog.locator("#vno-sheet-print-gridlines").check();
+  await dialog.locator("#vno-sheet-print-headings").check();
   await dialog.locator(".vno-rule-apply").click();
   await dialog.waitFor({ state: "detached" });
   const result = await page.evaluate(async () => {
@@ -51,7 +58,18 @@ try {
   });
   if (result.firstSetup.orientation !== "landscape" || result.firstSetup.size !== "letter" || result.firstSetup.margins.top !== 2.25 || result.firstSetup.margins.left !== 1.27) throw new Error(`UI model mismatch: ${JSON.stringify(result.firstSetup)}`);
   if (result.firstSetup.printTitles.rows !== "1:2" || result.firstSetup.printTitles.cols !== "A:B") throw new Error("Print Titles were not saved");
+  if (result.firstSetup.scale.mode !== "pages" || result.firstSetup.scale.pagesWide !== 1 || !result.firstSetup.centerOnPage.horizontal || !result.firstSetup.printOptions.gridlines) throw new Error("Advanced Page Setup was not saved");
   if (result.secondSetup.orientation !== "portrait" || result.secondSetup.size !== "a4") throw new Error("Page Setup leaked to another sheet");
+  await page.locator('[data-command-id="sheet.page.headerFooter"]').click();
+  const hfDialog = page.locator('[role="dialog"]').filter({ has: page.locator("#vno-sheet-header-left") });
+  await hfDialog.locator('#vno-sheet-header-center').fill("VN HEADER &A");
+  await hfDialog.locator('#vno-sheet-footer-center').fill("Trang &P / &N");
+  await hfDialog.locator(".vno-rule-apply").click();
+  const header = await page.evaluate(async () => (await import("/adapters/libreoffice/common/uno-bridge.js")).globalUnoBridge.activeDocument.grid.getPageSetup().headerFooter.header.center);
+  if (header !== "VN HEADER &A") throw new Error("Header/Footer dialog did not update the active sheet");
+  await page.locator(".vno-ribbon-tab").filter({ hasText: "Trợ giúp" }).click();
+  await page.locator('[data-command-id="sheet.help.open"]').click();
+  await page.locator(".vno-help-panel:not([hidden])").waitFor({ state: "visible" });
   if (errors.length) throw new Error(`Browser errors: ${errors.join(" | ")}`);
   console.log(`PASS: live Sheet canvas Page Setup dialog changed margins/orientation/size/print titles and remained isolated (${result.first} -> ${result.second}).`);
 } finally {

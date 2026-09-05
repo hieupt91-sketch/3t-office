@@ -126,6 +126,9 @@ export const viStrings = {
     spellcheckTitle: "Chính tả", spellcheckNotInDictionary: "Không có trong từ điển:", spellcheckLocation: "Vị trí", spellcheckContext: "Nội dung", spellcheckSuggestions: "Gợi ý:", spellcheckNoSuggestions: "(Không có gợi ý gần)", spellcheckIgnore: "Bỏ qua", spellcheckIgnoreAll: "Bỏ qua tất cả", spellcheckAdd: "Thêm vào từ điển", spellcheckReplace: "Thay thế", spellcheckReplaceAll: "Thay thế tất cả", spellcheckClose: "Đóng", spellcheckStatus: "Lỗi {current} / {total}", spellcheckComplete: "Đã kiểm tra xong trang chiếu hiện tại. Không tìm thấy lỗi chính tả.", spellcheckCompleteRemaining: "Đã kiểm tra xong. Không còn lỗi chính tả.", spellcheckFieldTitle: "Tiêu đề", spellcheckFieldBody: "Nội dung", spellcheckFieldBody2: "Nội dung cột 2", spellcheckFieldShape: "Hình"
   },
   commands: {
+    "sheet.page.scale": { label: "Tỷ lệ vừa trang", tooltip: "Thu phóng nội dung in theo phần trăm hoặc số trang" },
+    "sheet.page.headerFooter": { label: "Tiêu đề Đầu/Cuối trang", tooltip: "Đặt đầu trang và cuối trang khi in" },
+    "sheet.help.open": { label: "Trợ giúp", tooltip: "Mở hướng dẫn sử dụng (F1)" },
     "writer.nav.docStart": { label: "Đầu tài liệu", tooltip: "Đến đầu tài liệu (Ctrl+Home)" },
     "writer.nav.docEnd": { label: "Cuối tài liệu", tooltip: "Đến cuối tài liệu (Ctrl+End)" },
     "sheet.nav.home": { label: "Ô đầu tiên", tooltip: "Đến ô A1 (Ctrl+Home)" },
