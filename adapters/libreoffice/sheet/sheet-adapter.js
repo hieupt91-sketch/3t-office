@@ -399,10 +399,12 @@ export class SheetAdapter {
       if (!name) return "";
       if (family === "table-column") {
         const widthPx = this._odfLengthToPx(String(body).match(/style:column-width=["']([^"']+)["']/i)?.[1]);
-        if (widthPx != null) columns.set(name, { widthPx });
+        const pageBreak = /fo:break-before=["']page["']/i.test(body);
+        if (widthPx != null || pageBreak) columns.set(name, { widthPx, pageBreak });
       } else if (family === "table-row") {
         const heightPx = this._odfLengthToPx(String(body).match(/style:row-height=["']([^"']+)["']/i)?.[1]);
-        if (heightPx != null) rows.set(name, { heightPx });
+        const pageBreak = /fo:break-before=["']page["']/i.test(body);
+        if (heightPx != null || pageBreak) rows.set(name, { heightPx, pageBreak });
       }
       return "";
     });
@@ -668,6 +670,330 @@ export class SheetAdapter {
     return cellStyles;
   }
 
+  _odfChartClass(type) {
+    const raw = String(type || "").toLowerCase();
+    if (raw === "pie") return "circle";
+    if (raw === "bar" || raw === "column") return "bar";
+    if (raw === "line" || raw === "area") return raw;
+    return null;
+  }
+
+  _odfCellAddress(sheetName, cell) {
+    return `${this._odfSheetName(sheetName)}.${cell}`;
+  }
+
+  _odfRangePair(sheetName, start, end) {
+    const first = this._odfCellAddress(sheetName, start);
+    const last = this._odfCellAddress(sheetName, end);
+    return first === last ? first : `${first}:${last}`;
+  }
+
+  _cellHasPersistableContent(item) {
+    if (!item) return false;
+    if (item.formula) return true;
+    if (item.sparkline) return true;
+    return item.val !== "" && item.val !== undefined && item.val !== null;
+  }
+
+  _chartSeriesPlan(sheetName, chart) {
+    const chartClass = this._odfChartClass(chart?.type);
+    const range = chart?.range;
+    if (!chartClass || !range?.start || !range?.end) return null;
+    const startCol = this._columnNumber(range.start.c);
+    const endCol = this._columnNumber(range.end.c);
+    const startRow = Number(range.start.r);
+    const endRow = Number(range.end.r);
+    if (![startCol, endCol, startRow, endRow].every(Number.isInteger) || startCol < 1 || startRow < 1) return null;
+    const left = Math.min(startCol, endCol);
+    const right = Math.max(startCol, endCol);
+    const top = Math.min(startRow, endRow);
+    const bottom = Math.max(startRow, endRow);
+    const cells = this.grid.sheetsData?.[sheetName]
+      || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
+      || new Map();
+    const numeric = (col, row) => {
+      const raw = cells.get(`${this._columnName(col)}${row}`)?.val;
+      if (typeof raw === "number") return Number.isFinite(raw);
+      const text = String(raw ?? "").trim();
+      return text !== "" && Number.isFinite(Number(text.replace(/\s/g, "").replace(",", ".")));
+    };
+    let valueCol = -1;
+    for (let col = left === right ? left : left + 1; col <= right; col++) {
+      for (let row = top; row <= bottom; row++) {
+        if (numeric(col, row)) { valueCol = col; break; }
+      }
+      if (valueCol > 0) break;
+    }
+    if (valueCol < 0) {
+      for (let col = left; col <= right; col++) {
+        for (let row = top; row <= bottom; row++) {
+          if (numeric(col, row)) { valueCol = col; break; }
+        }
+        if (valueCol > 0) break;
+      }
+    }
+    if (valueCol < 0) return null;
+    const labelCol = left !== valueCol ? left : 0;
+    const headerIsText = !numeric(valueCol, top);
+    const dataTop = headerIsText && top < bottom ? top + 1 : top;
+    const pointCount = bottom - dataTop + 1;
+    if (pointCount < 1) return null;
+    const valueStart = `${this._columnName(valueCol)}${dataTop}`;
+    const valueEnd = `${this._columnName(valueCol)}${bottom}`;
+    const categoryStart = labelCol ? `${this._columnName(labelCol)}${dataTop}` : "";
+    const categoryEnd = labelCol ? `${this._columnName(labelCol)}${bottom}` : "";
+    const labelCell = headerIsText ? `${this._columnName(valueCol)}${top}` : "";
+    const plotStart = `${this._columnName(left)}${top}`;
+    const plotEnd = `${this._columnName(right)}${bottom}`;
+    const localRows = [];
+    for (let row = dataTop; row <= bottom; row++) {
+      const labelVal = labelCol
+        ? String(cells.get(`${this._columnName(labelCol)}${row}`)?.val ?? `${this._columnName(valueCol)}${row}`)
+        : `${this._columnName(valueCol)}${row}`;
+      const raw = cells.get(`${this._columnName(valueCol)}${row}`)?.val;
+      const number = typeof raw === "number" ? raw : Number(String(raw ?? "").replace(/\s/g, "").replace(",", "."));
+      localRows.push({ label: labelVal, value: Number.isFinite(number) ? number : 0 });
+    }
+    return {
+      chartClass,
+      pointCount,
+      plotRange: this._odfRangePair(sheetName, plotStart, plotEnd),
+      valuesRange: this._odfRangePair(sheetName, valueStart, valueEnd),
+      categoriesRange: categoryStart ? this._odfRangePair(sheetName, categoryStart, categoryEnd) : "",
+      labelCellRange: labelCell ? this._odfCellAddress(sheetName, labelCell) : "",
+      notifyRange: this._odfRangePair(sheetName, plotStart, plotEnd),
+      localRows,
+      title: String(chart.title || `Biểu đồ ${plotStart}:${plotEnd}`)
+    };
+  }
+
+  _serializeChartsXml(sheetName) {
+    const charts = this.grid.chartsBySheet?.[sheetName] || [];
+    const frames = [];
+    charts.forEach((chart, index) => {
+      const plan = this._chartSeriesPlan(sheetName, chart);
+      if (!plan) return;
+      const width = Number.isFinite(Number(chart.w)) ? this._pxToOdfCm(chart.w) : "12.000";
+      const height = Number.isFinite(Number(chart.h)) ? this._pxToOdfCm(chart.h) : "8.000";
+      const x = Number.isFinite(Number(chart.x)) ? this._pxToOdfCm(chart.x) : (5.5 + (index % 2) * 0.4).toFixed(3);
+      const y = Number.isFinite(Number(chart.y)) ? this._pxToOdfCm(chart.y) : (0.4 + index * 0.5).toFixed(3);
+      const title = this._escapeXml(plan.title);
+      const kindAttr = chart.kind === "pivot" ? ` vno:chart-kind="pivot" vno:pivot-id="${this._escapeXml(chart.pivotId || "")}"` : "";
+      const categories = plan.categoriesRange
+        ? `<chart:axis chart:dimension="x" chart:name="primary-x"><chart:categories table:cell-range-address="${this._escapeXml(plan.categoriesRange)}"/></chart:axis>`
+        : "";
+      const yAxis = plan.chartClass === "circle" ? "" : `<chart:axis chart:dimension="y" chart:name="primary-y"><chart:grid chart:class="major"/></chart:axis>`;
+      const labelAddr = plan.labelCellRange ? ` chart:label-cell-address="${this._escapeXml(plan.labelCellRange)}"` : "";
+      const points = Array.from({ length: plan.pointCount }, () => "<chart:data-point/>").join("");
+      const localRows = plan.localRows.map(row => `<table:table-row><table:table-cell office:value-type="string"><text:p>${this._escapeXml(row.label)}</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="${row.value}"><text:p>${row.value}</text:p></table:table-cell></table:table-row>`).join("");
+      frames.push(`<draw:frame draw:name="${this._escapeXml(chart.id || `Chart${index + 1}`)}" draw:z-index="${index}" svg:width="${width}cm" svg:height="${height}cm" svg:x="${x}cm" svg:y="${y}cm"${kindAttr}>
+          <draw:object draw:notify-on-update-of-ranges="${this._escapeXml(plan.notifyRange)}">
+            <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.chart">
+              <office:body><office:chart>
+                <chart:chart svg:width="${width}cm" svg:height="${height}cm" xlink:href=".." xlink:type="simple" chart:class="chart:${plan.chartClass}">
+                  <chart:title><text:p>${title}</text:p></chart:title>
+                  <chart:legend chart:legend-position="end"/>
+                  <chart:plot-area table:cell-range-address="${this._escapeXml(plan.plotRange)}" chart:data-source-has-labels="${plan.labelCellRange || plan.categoriesRange ? "both" : "none"}">
+                    ${categories}${yAxis}
+                    <chart:series chart:values-cell-range-address="${this._escapeXml(plan.valuesRange)}"${labelAddr} chart:class="chart:${plan.chartClass}">${points}</chart:series>
+                  </chart:plot-area>
+                  <table:table table:name="local-table">
+                    <table:table-header-rows><table:table-row><table:table-cell/><table:table-cell office:value-type="string"><text:p>${title}</text:p></table:table-cell></table:table-row></table:table-header-rows>
+                    <table:table-rows>${localRows}</table:table-rows>
+                  </table:table>
+                </chart:chart>
+              </office:chart></office:body>
+            </office:document>
+          </draw:object>
+        </draw:frame>`);
+    });
+    return frames.length ? `<table:shapes>${frames.join("")}</table:shapes>` : "";
+  }
+
+  _serializeSparklinesXml(sheetName) {
+    const cells = this.grid.sheetsData?.[sheetName]
+      || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
+      || new Map();
+    const groups = { line: [], column: [] };
+    for (const [coordinate, item] of cells.entries()) {
+      const spark = item?.sparkline;
+      if (!spark || !["line", "column"].includes(spark.type)) continue;
+      const source = spark.sourceRange;
+      if (!source?.start || !source?.end) continue;
+      const dataRange = this._odfRangePair(sheetName, `${source.start.c}${source.start.r}`, `${source.end.c}${source.end.r}`);
+      groups[spark.type].push(`<calcext:sparkline calcext:cell-address="${this._escapeXml(this._odfCellAddress(sheetName, coordinate))}" calcext:data-range="${this._escapeXml(dataRange)}"/>`);
+    }
+    const blocks = [];
+    for (const [type, sparklines] of Object.entries(groups)) {
+      if (!sparklines.length) continue;
+      blocks.push(`<calcext:sparkline-group calcext:type="${type}" calcext:display-empty-cells-as="gap" calcext:display-hidden="false"><calcext:sparklines>${sparklines.join("")}</calcext:sparklines></calcext:sparkline-group>`);
+    }
+    return blocks.length ? `<calcext:sparkline-groups>${blocks.join("")}</calcext:sparkline-groups>` : "";
+  }
+
+  _wrapOutlineGroups(sheetName, parts, axis, tagName) {
+    const groups = (this.grid.outlineGroupsBySheet?.[sheetName] || [])
+      .filter(group => group?.axis === axis && Number.isFinite(Number(group.start)) && Number.isFinite(Number(group.end)) && Number(group.end) > Number(group.start))
+      .map(group => ({ start: Number(group.start), end: Number(group.end), collapsed: !!group.collapsed }))
+      .sort((a, b) => a.start - b.start || b.end - a.end);
+    if (!groups.length) return parts.map(part => part.xml).join("");
+    const claimed = new Set();
+    const wrapAt = new Map();
+    for (const group of groups) {
+      let overlap = false;
+      for (let key = group.start; key <= group.end; key++) {
+        if (claimed.has(key)) { overlap = true; break; }
+      }
+      if (overlap) continue;
+      for (let key = group.start; key <= group.end; key++) claimed.add(key);
+      wrapAt.set(group.start, group);
+    }
+    let xml = "";
+    let index = 0;
+    while (index < parts.length) {
+      const part = parts[index];
+      const group = wrapAt.get(part.key);
+      if (!group) {
+        xml += part.xml;
+        index += 1;
+        continue;
+      }
+      const display = group.collapsed ? ' table:display="false"' : "";
+      xml += `<${tagName}${display}>`;
+      while (index < parts.length && parts[index].key <= group.end) {
+        xml += parts[index].xml;
+        index += 1;
+      }
+      xml += `</${tagName}>`;
+    }
+    return xml;
+  }
+
+  _attachImportedPageBreaks(workbook, xmlText, rowColStyles) {
+    workbook.pageBreaksBySheet = Object.fromEntries((workbook.sheets || []).map(name => [name, { rows: [], cols: [] }]));
+    const pageColStyles = new Set();
+    const pageRowStyles = new Set();
+    for (const [name, style] of rowColStyles.columns || []) {
+      if (style?.pageBreak) pageColStyles.add(name);
+    }
+    for (const [name, style] of rowColStyles.rows || []) {
+      if (style?.pageBreak) pageRowStyles.add(name);
+    }
+    if (!pageColStyles.size && !pageRowStyles.size) return;
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>([\s\S]*?)<\/table:table>/gi, (_, attrs, body) => {
+      const name = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      const target = workbook.pageBreaksBySheet[name];
+      if (!target) return "";
+      let column = 1;
+      body.replace(/<table:table-column(?=[\s>/])([^>]*)\/?\s*>/gi, (all, colAttrs) => {
+        const repeat = Math.max(1, Number(colAttrs.match(/table:number-columns-repeated=["'](\d+)["']/i)?.[1]) || 1);
+        const styleName = this._unescapeXml(colAttrs.match(/table:style-name=["']([^"']*)["']/i)?.[1] || "");
+        for (let index = 0; index < repeat; index++, column++) {
+          if (pageColStyles.has(styleName)) target.cols.push(this._columnName(column));
+        }
+        return "";
+      });
+      let row = 1;
+      body.replace(/<table:table-row(?=[\s>/])([^>]*)(?:\/>|>)/gi, (all, rowAttrs) => {
+        const repeat = Math.max(1, Number(rowAttrs.match(/table:number-rows-repeated=["'](\d+)["']/i)?.[1]) || 1);
+        const styleName = this._unescapeXml(rowAttrs.match(/table:style-name=["']([^"']*)["']/i)?.[1] || "");
+        for (let index = 0; index < repeat; index++, row++) {
+          if (pageRowStyles.has(styleName)) target.rows.push(row);
+        }
+        return "";
+      });
+      return "";
+    });
+  }
+
+  _attachImportedProtection(workbook, xmlText) {
+    workbook.workbookProtection = {
+      enabled: /<office:spreadsheet\b[^>]*table:structure-protected=["']true["']/i.test(xmlText || "")
+    };
+    workbook.protectionBySheet = Object.fromEntries((workbook.sheets || []).map(name => [name, { enabled: false, password: "" }]));
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
+      const name = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      if (!name || !workbook.protectionBySheet[name]) return "";
+      if (/table:protected=["']true["']/i.test(attrs)) {
+        workbook.protectionBySheet[name] = { enabled: true, password: "" };
+      }
+      return "";
+    });
+  }
+
+  _attachImportedSparklines(workbook, xmlText) {
+    String(xmlText || "").replace(/<calcext:sparkline-group\b([^>]*)>([\s\S]*?)<\/calcext:sparkline-group>/gi, (_, attrs, body) => {
+      const typeRaw = (attrs.match(/calcext:type=["']([^"']+)["']/i)?.[1] || "line").toLowerCase();
+      const type = typeRaw === "column" ? "column" : "line";
+      body.replace(/<calcext:sparkline\b([^>]*)\/?\s*>/gi, (all, sparkAttrs) => {
+        const cell = this._parseOdfTargetRange(sparkAttrs.match(/calcext:cell-address=["']([^"']+)["']/i)?.[1] || "", workbook.sheets[0]);
+        const data = this._parseOdfTargetRange(sparkAttrs.match(/calcext:data-range=["']([^"']+)["']/i)?.[1] || "", workbook.sheets[0]);
+        if (!cell?.range || !data?.range || !workbook.sheetsData[cell.sheet]) return "";
+        const coord = `${cell.range.start.c}${cell.range.start.r}`;
+        const item = workbook.sheetsData[cell.sheet].get(coord) || { val: "", formula: "", style: {} };
+        const values = [];
+        const startCol = this._columnNumber(data.range.start.c);
+        const endCol = this._columnNumber(data.range.end.c);
+        for (let row = data.range.start.r; row <= data.range.end.r; row++) {
+          for (let col = startCol; col <= endCol; col++) {
+            const raw = workbook.sheetsData[data.sheet || cell.sheet]?.get(`${this._columnName(col)}${row}`)?.val;
+            const number = typeof raw === "number" ? raw : Number(String(raw ?? "").replace(/\s/g, "").replace(",", "."));
+            if (Number.isFinite(number)) values.push(number);
+          }
+        }
+        item.sparkline = { type, values, sourceRange: data.range };
+        workbook.sheetsData[cell.sheet].set(coord, item);
+        return "";
+      });
+      return "";
+    });
+  }
+
+  _attachImportedOutline(workbook, xmlText) {
+    workbook.outlineGroupsBySheet = Object.fromEntries((workbook.sheets || []).map(name => [name, []]));
+    let index = 0;
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>([\s\S]*?)<\/table:table>/gi, (_, attrs, body) => {
+      const name = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      const groups = workbook.outlineGroupsBySheet[name];
+      if (!groups) return "";
+      let column = 1;
+      const walkColumns = (xml) => {
+        const regex = /<table:table-column-group\b([^>]*)>([\s\S]*?)<\/table:table-column-group>|<table:table-column(?=[\s>/])([^>]*)\/?\s*>/gi;
+        let match;
+        while ((match = regex.exec(xml)) !== null) {
+          if (match[0].startsWith("<table:table-column-group")) {
+            const start = column;
+            const collapsed = /table:display=["']false["']/i.test(match[1] || "");
+            walkColumns(match[2] || "");
+            const end = column - 1;
+            if (end > start) groups.push({ id: `outline-import-${++index}`, axis: "col", start, end, collapsed });
+          } else {
+            column += Math.max(1, Number((match[3] || "").match(/table:number-columns-repeated=["'](\d+)["']/i)?.[1]) || 1);
+          }
+        }
+      };
+      walkColumns(body);
+      let row = 1;
+      const walkRows = (xml) => {
+        const regex = /<table:table-row-group\b([^>]*)>([\s\S]*?)<\/table:table-row-group>|<table:table-row(?=[\s>/])([^>]*)(?:\/>|>)/gi;
+        let match;
+        while ((match = regex.exec(xml)) !== null) {
+          if (match[0].startsWith("<table:table-row-group")) {
+            const start = row;
+            const collapsed = /table:display=["']false["']/i.test(match[1] || "");
+            walkRows(match[2] || "");
+            const end = row - 1;
+            if (end > start) groups.push({ id: `outline-import-${++index}`, axis: "row", start, end, collapsed });
+          } else {
+            row += Math.max(1, Number((match[3] || "").match(/table:number-rows-repeated=["'](\d+)["']/i)?.[1]) || 1);
+          }
+        }
+      };
+      walkRows(body);
+      return "";
+    });
+  }
+
   /** Serialize the complete workbook as Flat OpenDocument Spreadsheet XML. */
   serializeToFods() {
     if (!this.grid) return "";
@@ -692,21 +1018,23 @@ export class SheetAdapter {
     const rowStyleNames = new Map();
     const defaultRowHeight = this.grid.rowHeight || 26;
     const defaultColWidth = this.grid.defaultColWidth || 100;
-    const colStyleFor = (px) => {
-      const key = Math.round(Number(px));
+    const colStyleFor = (px, pageBreak = false) => {
+      const widthKey = Math.round(Number(px));
+      const key = `${widthKey}:${pageBreak ? "page" : "auto"}`;
       if (!colStyleNames.has(key)) {
         const name = `vno-co-${colStyleNames.size + 1}`;
         colStyleNames.set(key, name);
-        dimensionStyles.push(`<style:style style:name="${name}" style:family="table-column"><style:table-column-properties fo:break-before="auto" style:column-width="${this._pxToOdfCm(key)}cm"/></style:style>`);
+        dimensionStyles.push(`<style:style style:name="${name}" style:family="table-column"><style:table-column-properties fo:break-before="${pageBreak ? "page" : "auto"}" style:column-width="${this._pxToOdfCm(widthKey)}cm"/></style:style>`);
       }
       return colStyleNames.get(key);
     };
-    const rowStyleFor = (px) => {
-      const key = Math.round(Number(px));
+    const rowStyleFor = (px, pageBreak = false) => {
+      const heightKey = Math.round(Number(px));
+      const key = `${heightKey}:${pageBreak ? "page" : "auto"}`;
       if (!rowStyleNames.has(key)) {
         const name = `vno-ro-${rowStyleNames.size + 1}`;
         rowStyleNames.set(key, name);
-        dimensionStyles.push(`<style:style style:name="${name}" style:family="table-row"><style:table-row-properties style:row-height="${this._pxToOdfCm(key)}cm" fo:break-before="auto" style:use-optimal-row-height="false"/></style:style>`);
+        dimensionStyles.push(`<style:style style:name="${name}" style:family="table-row"><style:table-row-properties style:row-height="${this._pxToOdfCm(heightKey)}cm" fo:break-before="${pageBreak ? "page" : "auto"}" style:use-optimal-row-height="false"/></style:style>`);
       }
       return rowStyleNames.get(key);
     };
@@ -848,7 +1176,7 @@ export class SheetAdapter {
       const rows = new Map();
       for (const [coordinate, item] of cells.entries()) {
         const match = String(coordinate).match(/^([A-Z]+)(\d+)$/);
-        if (!match || !item || ((item.val === "" || item.val === undefined || item.val === null) && !item.formula)) continue;
+        if (!match || !this._cellHasPersistableContent(item)) continue;
         const rowNumber = Number(match[2]);
         const columnNumber = this._columnNumber(match[1]);
         if (!rows.has(rowNumber)) rows.set(rowNumber, new Map());
@@ -907,28 +1235,38 @@ export class SheetAdapter {
       }
 
       const layout = this._sheetRowColLayout(sheetName);
+      const pageBreaks = this.grid.pageBreaksBySheet?.[sheetName] || { rows: [], cols: [] };
+      const pageBreakRows = new Set((pageBreaks.rows || []).map(Number).filter(Number.isInteger));
+      const pageBreakCols = new Set((pageBreaks.cols || []).map(col => String(col).toUpperCase()));
       let maxCol = 1;
       for (const rowCells of rows.values()) {
         for (const columnNumber of rowCells.keys()) maxCol = Math.max(maxCol, columnNumber);
       }
       for (const [rowNumber] of layout.rowHeights) maxRow = Math.max(maxRow, Number(rowNumber) || 0);
       for (const rowNumber of layout.hiddenRows) maxRow = Math.max(maxRow, Number(rowNumber) || 0);
+      for (const rowNumber of pageBreakRows) maxRow = Math.max(maxRow, Number(rowNumber) || 0);
       for (const [col] of layout.colWidths) maxCol = Math.max(maxCol, this._columnNumber(col));
       for (const col of layout.hiddenCols) maxCol = Math.max(maxCol, this._columnNumber(col));
+      for (const col of pageBreakCols) maxCol = Math.max(maxCol, this._columnNumber(col));
+      for (const group of this.grid.outlineGroupsBySheet?.[sheetName] || []) {
+        if (group?.axis === "row") maxRow = Math.max(maxRow, Number(group.end) || 0);
+        if (group?.axis === "col") maxCol = Math.max(maxCol, Number(group.end) || 0);
+      }
 
-      let columnsXml = "";
+      const columnParts = [];
       for (let columnNumber = 1; columnNumber <= Math.max(1, maxCol); columnNumber++) {
         const colName = this._columnName(columnNumber);
         const hidden = layout.hiddenCols.has(colName);
         const width = layout.colWidths.get(colName);
+        const pageBreak = pageBreakCols.has(colName);
         const attrs = [];
-        if (Number.isFinite(width)) attrs.push(`table:style-name="${colStyleFor(width)}"`);
-        else if (hidden) attrs.push(`table:style-name="${colStyleFor(defaultColWidth)}"`);
+        if (Number.isFinite(width) || hidden || pageBreak) attrs.push(`table:style-name="${colStyleFor(Number.isFinite(width) ? width : defaultColWidth, pageBreak)}"`);
         if (hidden) attrs.push(`table:visibility="collapse"`);
-        columnsXml += `<table:table-column${attrs.length ? ` ${attrs.join(" ")}` : ""}/>`;
+        columnParts.push({ key: columnNumber, xml: `<table:table-column${attrs.length ? ` ${attrs.join(" ")}` : ""}/>` });
       }
+      const columnsXml = this._wrapOutlineGroups(sheetName, columnParts, "col", "table:table-column-group");
 
-      let rowsXml = "";
+      const rowParts = [];
       for (let rowNumber = 1; rowNumber <= Math.max(1, maxRow); rowNumber++) {
         const rowCells = rows.get(rowNumber) || new Map();
         const usedColumns = [...rowCells.keys()].sort((a, b) => a - b);
@@ -988,20 +1326,25 @@ export class SheetAdapter {
         }
         const rowHidden = layout.hiddenRows.has(rowNumber);
         const rowHeight = layout.rowHeights.get(rowNumber);
+        const rowPageBreak = pageBreakRows.has(rowNumber);
         const rowAttrs = [];
-        if (Number.isFinite(rowHeight)) rowAttrs.push(`table:style-name="${rowStyleFor(rowHeight)}"`);
-        else if (rowHidden) rowAttrs.push(`table:style-name="${rowStyleFor(defaultRowHeight)}"`);
+        if (Number.isFinite(rowHeight) || rowHidden || rowPageBreak) rowAttrs.push(`table:style-name="${rowStyleFor(Number.isFinite(rowHeight) ? rowHeight : defaultRowHeight, rowPageBreak)}"`);
         if (rowHidden) rowAttrs.push(`table:visibility="collapse"`);
-        rowsXml += `<table:table-row${rowAttrs.length ? ` ${rowAttrs.join(" ")}` : ""}>${cellsXml || "<table:table-cell/>"}</table:table-row>`;
+        rowParts.push({ key: rowNumber, xml: `<table:table-row${rowAttrs.length ? ` ${rowAttrs.join(" ")}` : ""}>${cellsXml || "<table:table-cell/>"}</table:table-row>` });
       }
+      const rowsXml = this._wrapOutlineGroups(sheetName, rowParts, "row", "table:table-row-group");
       const localNames = (this.grid.namedRangesBySheet?.[sheetName] || []).map(range => this._namedRangeXml(range, sheetName)).join("");
       const printRange = this._printRangeAddress(sheetName, this.grid.printAreaBySheet?.[sheetName]);
       const printRangeAttr = printRange ? ` table:print-ranges="${this._escapeXml(printRange)}"` : "";
       const pageStyle = pageStyleBySheet.get(sheetName);
       const printTitles = this.grid.pageSetupBySheet?.[sheetName]?.printTitles || {};
+      const protectedSheet = !!this.grid.protectionBySheet?.[sheetName]?.enabled;
+      const protectedAttr = protectedSheet ? ' table:protected="true"' : "";
       const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
-      return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}>${columnsXml}${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}</table:table>`;
+      const chartsXml = this._serializeChartsXml(sheetName);
+      const sparklinesXml = this._serializeSparklinesXml(sheetName);
+      return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}${protectedAttr}>${chartsXml}${columnsXml}${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}${sparklinesXml}</table:table>`;
     }).join("");
 
     const dataPilotTables = [];
@@ -1037,6 +1380,8 @@ export class SheetAdapter {
           <config:config-item config:name="CursorPositionX" config:type="int">0</config:config-item>
           <config:config-item config:name="CursorPositionY" config:type="int">0</config:config-item>
         </config:config-item-map-entry>`).join("");
+    const structureProtected = !!this.grid.workbookProtection?.enabled;
+    const structureAttr = structureProtected ? ' table:structure-protected="true"' : "";
     return `<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
                  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
@@ -1047,6 +1392,10 @@ export class SheetAdapter {
                  xmlns:dc="http://purl.org/dc/elements/1.1/"
                  xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
                  xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2"
+                 xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+                 xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0"
+                 xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+                 xmlns:xlink="http://www.w3.org/1999/xlink"
                  xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0"
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
@@ -1062,7 +1411,7 @@ export class SheetAdapter {
       </config:config-item-map-entry></config:config-item-map-indexed>
     </config:config-item-set>
   </office:settings>
-  <office:body><office:spreadsheet>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}</office:spreadsheet></office:body>
+  <office:body><office:spreadsheet${structureAttr}>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}</office:spreadsheet></office:body>
 </office:document>`;
   }
 
@@ -1336,7 +1685,7 @@ export class SheetAdapter {
   _attachImportedCharts(workbook, xmlText) {
     workbook.chartsBySheet = Object.fromEntries((workbook.sheets || []).map(name => [name, []]));
     let index = 0;
-    String(xmlText || "").replace(/<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi, (_, _attrs, body) => {
+    String(xmlText || "").replace(/<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi, (_, frameAttrs, body) => {
       const chartMatch = body.match(/<chart:chart\b([^>]*)>([\s\S]*?)<\/chart:chart>/i);
       if (!chartMatch) return "";
       const type = this._mapOdfChartClass(chartMatch[1].match(/chart:class=["']([^"']+)["']/i)?.[1] || "");
@@ -1373,6 +1722,10 @@ export class SheetAdapter {
         imported: true,
         seriesCount: seriesAttrs.length
       };
+      if (this._unescapeXml(String(frameAttrs || "").match(/vno:chart-kind=["']([^"']+)["']/i)?.[1] || "") === "pivot") {
+        chart.kind = "pivot";
+        chart.pivotId = this._unescapeXml(String(frameAttrs || "").match(/vno:pivot-id=["']([^"']+)["']/i)?.[1] || "");
+      }
       const cells = workbook.sheetsData[union.sheet];
       if (cells instanceof Map) {
         const extracted = SheetChartBuilder.extractRangeData(cells, chart.range, this._columnsForChartExtract());
@@ -1650,7 +2003,7 @@ export class SheetAdapter {
         const colWidths = new Map();
         const hiddenCols = new Set();
         let layoutColumn = 1;
-        tableMatch[2].replace(/<table:table-column\b([^>]*)\/?\s*>/gi, (_, attrs) => {
+        tableMatch[2].replace(/<table:table-column(?=[\s>/])([^>]*)\/?\s*>/gi, (_, attrs) => {
           const repeat = Math.max(1, Number(attrs.match(/table:number-columns-repeated=["'](\d+)["']/i)?.[1]) || 1);
           const defaultCellStyle = this._unescapeXml(attrs.match(/table:default-cell-style-name=["']([^"']*)["']/i)?.[1] || "");
           const styleName = this._unescapeXml(attrs.match(/table:style-name=["']([^"']*)["']/i)?.[1] || "");
@@ -1668,7 +2021,7 @@ export class SheetAdapter {
         const rowHeights = new Map();
         const hiddenRows = new Set();
         let rowNumber = 1;
-        const rowRegex = /<table:table-row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/table:table-row>)/gi;
+        const rowRegex = /<table:table-row(?=[\s>/])([^>]*?)(?:\/>|>([\s\S]*?)<\/table:table-row>)/gi;
         let rowMatch;
         while ((rowMatch = rowRegex.exec(tableMatch[2])) !== null) {
           const rowRepeat = Math.max(1, Number(rowMatch[1].match(/table:number-rows-repeated=["'](\d+)["']/i)?.[1]) || 1);
@@ -1753,6 +2106,10 @@ export class SheetAdapter {
     this._attachImportedRules(workbook, tableXml);
     this._attachImportedPivots(workbook, xmlText);
     this._attachImportedCharts(workbook, xmlText);
+    this._attachImportedPageBreaks(workbook, tableXml, rowColStyles);
+    this._attachImportedProtection(workbook, xmlText);
+    this._attachImportedSparklines(workbook, xmlText);
+    this._attachImportedOutline(workbook, tableXml);
     return workbook;
   }
 
@@ -1790,6 +2147,10 @@ export class SheetAdapter {
     this.grid.colWidthsBySheet = {};
     this.grid.userHiddenRowsBySheet = {};
     this.grid.userHiddenColsBySheet = {};
+    this.grid.pageBreaksBySheet = {};
+    this.grid.protectionBySheet = {};
+    this.grid.outlineGroupsBySheet = {};
+    this.grid.workbookProtection = workbook.workbookProtection || { enabled: false, password: "" };
     for (const sheetName of workbook.sheets) {
       this.grid.conditionalFormattingBySheet[sheetName] = workbook.conditionalFormattingBySheet?.[sheetName] || [];
       this.grid.dataValidationsBySheet[sheetName] = workbook.dataValidationsBySheet?.[sheetName] || [];
@@ -1799,6 +2160,9 @@ export class SheetAdapter {
       this.grid.colWidthsBySheet[sheetName] = this._asLayoutMap(workbook.colWidthsBySheet?.[sheetName], false);
       this.grid.userHiddenRowsBySheet[sheetName] = this._asLayoutSet(workbook.userHiddenRowsBySheet?.[sheetName], true);
       this.grid.userHiddenColsBySheet[sheetName] = this._asLayoutSet(workbook.userHiddenColsBySheet?.[sheetName], false);
+      this.grid.pageBreaksBySheet[sheetName] = workbook.pageBreaksBySheet?.[sheetName] || { rows: [], cols: [] };
+      this.grid.protectionBySheet[sheetName] = workbook.protectionBySheet?.[sheetName] || { enabled: false, password: "" };
+      this.grid.outlineGroupsBySheet[sheetName] = workbook.outlineGroupsBySheet?.[sheetName] || [];
     }
     this.grid.undoStack = [];
     this.grid.redoStack = [];
@@ -1806,6 +2170,7 @@ export class SheetAdapter {
     this.grid._refreshRowColLayoutView?.();
     this.grid.refreshCharts?.();
     this.grid.renderCharts?.();
+    this.grid._applyProtectionUi?.({ renderTabs: true });
     this.grid.updateStatus?.();
     return true;
   }

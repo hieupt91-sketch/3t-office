@@ -1456,7 +1456,18 @@ export class SlidesAdapter {
       <style:page-layout-properties fo:page-width="28cm" fo:page-height="15.75cm" style:print-orientation="landscape"/>
     </style:page-layout>
     <style:style style:name="dp1" style:family="drawing-page">
-      <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true"/>
+      <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true"${this._masterPageFillAttrs()}/>
+    </style:style>
+    <style:style style:name="grMasterAccent" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="solid" draw:fill-color="${this._escapeXml(this._masterTheme()?.accentColor || "#2563eb")}"/>
+    </style:style>
+    <style:style style:name="grMasterLogo" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+      <style:text-properties fo:color="${this._escapeXml(this._masterTheme()?.accentColor || "#2563eb")}" fo:font-size="14pt" fo:font-weight="bold"/>
+    </style:style>
+    <style:style style:name="grMasterFooter" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+      <style:text-properties fo:color="${this._escapeXml(this._masterTheme()?.bodyColor || "#64748b")}" fo:font-size="10pt"/>
     </style:style>`;
 
     (slides || []).forEach((slide, idx) => {
@@ -2130,6 +2141,61 @@ export class SlidesAdapter {
     return { comments, pageXml: next };
   }
 
+  _masterTheme() {
+    return this.canvas?.masterTheme || null;
+  }
+
+  _masterPageFillAttrs() {
+    const color = this._cssColorToHex(this._masterTheme()?.bgColor || "") || this._masterTheme()?.bgColor;
+    if (!color) return "";
+    return ` draw:fill="solid" draw:fill-color="${this._escapeXml(color)}"`;
+  }
+
+  _serializeMasterPageXml() {
+    const theme = this._masterTheme();
+    if (!theme) {
+      return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"/>`;
+    }
+    const payload = {
+      id: theme.id || theme.themeId || "",
+      fontFamily: theme.fontFamily || "",
+      titleColor: theme.titleColor || "",
+      bodyColor: theme.bodyColor || "",
+      accentColor: theme.accentColor || "",
+      bgColor: theme.bgColor || "",
+      logoText: theme.logoText || "",
+      footerText: theme.footerText || ""
+    };
+    const logo = this._escapeXml(theme.logoText || "");
+    const footer = this._escapeXml(theme.footerText || "");
+    return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1" vno:master-theme="${this._escapeXml(JSON.stringify(payload))}">
+      <draw:rect draw:style-name="grMasterAccent" svg:x="0cm" svg:y="0cm" svg:width="28cm" svg:height="0.25cm"/>
+      <draw:frame draw:style-name="grMasterLogo" svg:x="0.6cm" svg:y="0.4cm" svg:width="16cm" svg:height="0.8cm">
+        <draw:text-box><text:p>${logo}</text:p></draw:text-box>
+      </draw:frame>
+      ${footer ? `<draw:frame draw:style-name="grMasterFooter" svg:x="0.6cm" svg:y="14.6cm" svg:width="26.8cm" svg:height="0.7cm">
+        <draw:text-box><text:p>${footer}</text:p></draw:text-box>
+      </draw:frame>` : ""}
+    </style:master-page>`;
+  }
+
+  _parseMasterTheme(xmlText) {
+    const master = String(xmlText || "").match(/<style:master-page\b([^>]*)>/i)?.[1] || "";
+    const raw = this._unescapeXml(this._attr(master, "vno:master-theme"));
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") return parsed;
+      } catch (_) { /* ignore malformed metadata */ }
+    }
+    const fill = String(xmlText || "").match(/<style:style[^>]*style:name="dp1"[^>]*>[\s\S]*?<\/style:style>/i)?.[0] || "";
+    const bgColor = fill.match(/draw:fill-color=["']([^"']+)["']/i)?.[1] || "";
+    const logoMatch = String(xmlText || "").match(/<style:master-page\b[\s\S]*?<draw:frame[^>]*grMasterLogo[\s\S]*?<text:p\b[^>]*>([\s\S]*?)<\/text:p>/i);
+    const logoText = logoMatch ? this._unescapeXml(logoMatch[1].replace(/<[^>]+>/g, "")).trim() : "";
+    if (!bgColor && !logoText) return null;
+    return { bgColor, logoText };
+  }
+
   /**
    * Chuyển đổi toàn bộ slide hiện tại thành định dạng OpenDocument Flat XML (FODP).
    * LibreOffice Impress có thể chuyển đổi FODP trực tiếp sang PPTX, ODP hoặc PDF.
@@ -2250,7 +2316,7 @@ export class SlidesAdapter {
   <office:automatic-styles>${automaticStyles}
   </office:automatic-styles>
   <office:master-styles>
-    <style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"/>
+    ${this._serializeMasterPageXml()}
   </office:master-styles>
   <office:body>
     <office:presentation>${pagesXml}${this._serializePresentationSettings()}
@@ -2443,6 +2509,7 @@ export class SlidesAdapter {
 
     Object.defineProperty(parsedSlides, "sections", { value: parsedSections, enumerable: false });
     Object.defineProperty(parsedSlides, "slideShowSettings", { value: this._parsePresentationSettings(xmlText), enumerable: false });
+    Object.defineProperty(parsedSlides, "masterTheme", { value: this._parseMasterTheme(xmlText), enumerable: false });
     return parsedSlides;
   }
 
@@ -2488,6 +2555,11 @@ export class SlidesAdapter {
         this.canvas.applySlideShowSettings(newSlides.slideShowSettings);
       } else if (newSlides.slideShowSettings) {
         this.canvas.slideShowSettings = { ...newSlides.slideShowSettings };
+      }
+      if (newSlides.masterTheme && this.canvas.applySlideMaster) {
+        this.canvas.applySlideMaster(newSlides.masterTheme);
+      } else if (newSlides.masterTheme) {
+        this.canvas.masterTheme = { ...(this.canvas.masterTheme || {}), ...newSlides.masterTheme };
       }
       if (typeof this.canvas.selectSlide === "function") {
         this.canvas.selectSlide(0);
