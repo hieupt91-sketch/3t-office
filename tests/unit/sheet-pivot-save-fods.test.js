@@ -68,9 +68,10 @@ export async function runSheetPivotSaveFodsTests() {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "vno-pivot-save-"));
     try {
       const source = path.join(root, "pivot.fods");
+      const profileDir = path.join(root, "profile");
       fs.writeFileSync(source, new SheetAdapter(makeGrid()).serializeToFods(), "utf8");
-      const xlsx = convertWithSoffice(source, "xlsx", path.join(root, "xlsx"), { profileDir: path.join(root, "profile-xlsx"), timeoutMs: 20000 });
-      const roundTrip = convertWithSoffice(xlsx, "fods", path.join(root, "fods"), { profileDir: path.join(root, "profile-fods"), timeoutMs: 20000 });
+      const xlsx = convertWithSoffice(source, "xlsx", path.join(root, "xlsx"), { profileDir, timeoutMs: 20000 });
+      const roundTrip = convertWithSoffice(xlsx, "fods", path.join(root, "fods"), { profileDir, timeoutMs: 20000 });
       const xml = fs.readFileSync(roundTrip, "utf8");
       assert(/<table:data-pilot-table\b/i.test(xml), "LibreOffice đã làm mất DataPilot");
       verifyPivot(new SheetAdapter(null).parseFods(xml), "LibreOffice FODS -> XLSX -> FODS");
