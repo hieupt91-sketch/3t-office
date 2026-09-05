@@ -2039,7 +2039,8 @@ export class SheetAdapter {
   async _copySelectedCell(isCut) {
     const coord = this.grid.selectedCoord;
     if (!coord) return false;
-    const range = this.grid._normalizeRange?.(this.grid.selectionRange) || { start: coord, end: coord };
+    let range = this.grid._normalizeRange?.(this.grid.selectionRange) || { start: coord, end: coord };
+    if (!this.grid._rangeContains?.(range, coord.c, coord.r)) range = { start: { ...coord }, end: { ...coord } };
     const cells = [];
     const textRows = [];
     for (let row = range.start.r; row <= range.end.r; row++) {
