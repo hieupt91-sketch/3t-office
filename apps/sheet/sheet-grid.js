@@ -20,6 +20,7 @@ export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
   margins: Object.freeze({ top: 1.91, bottom: 1.91, left: 1.78, right: 1.78 }),
   orientation: "portrait",
   size: "a4",
+  scale: Object.freeze({ mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0 }),
   printTitles: Object.freeze({ rows: "", cols: "" })
 });
 
@@ -35,6 +36,7 @@ function newSheetPageSetup(overrides = {}) {
     margins: { ...DEFAULT_SHEET_PAGE_SETUP.margins, ...(overrides.margins || {}) },
     orientation: overrides.orientation || DEFAULT_SHEET_PAGE_SETUP.orientation,
     size: overrides.size || DEFAULT_SHEET_PAGE_SETUP.size,
+    scale: { ...DEFAULT_SHEET_PAGE_SETUP.scale, ...(overrides.scale || {}) },
     printTitles: { ...DEFAULT_SHEET_PAGE_SETUP.printTitles, ...(overrides.printTitles || {}) }
   };
 }
@@ -5962,7 +5964,14 @@ export class SheetGridController {
     printTitles.cols = String(printTitles.cols || "").trim().toUpperCase();
     if (printTitles.rows && !/^\d+(?::\d+)?$/.test(printTitles.rows)) return false;
     if (printTitles.cols && !/^[A-Z]+(?::[A-Z]+)?$/.test(printTitles.cols)) return false;
-    const after = { margins, orientation, size, printTitles };
+    const scale = { ...before.scale, ...(changes.scale || {}) };
+    if (!["percent", "pages"].includes(scale.mode)) return false;
+    scale.percent = Number(scale.percent);
+    scale.pagesWide = Number(scale.pagesWide);
+    scale.pagesTall = Number(scale.pagesTall);
+    if (!Number.isInteger(scale.percent) || scale.percent < 10 || scale.percent > 400) return false;
+    if (![scale.pagesWide, scale.pagesTall].every(value => Number.isInteger(value) && value >= 0 && value <= 1000)) return false;
+    const after = { margins, orientation, size, scale, printTitles };
     if (JSON.stringify(before) === JSON.stringify(after)) return after;
     this.pageSetupBySheet[this.activeSheet] = after;
     this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "pageSetupBySheet", before, after: structuredClone(after) });
@@ -5984,6 +5993,10 @@ export class SheetGridController {
       <label>Hướng trang<select id="vno-sheet-orientation" class="vno-select" style="width:100%;margin-top:4px"><option value="portrait" ${setup.orientation === "portrait" ? "selected" : ""}>Dọc</option><option value="landscape" ${setup.orientation === "landscape" ? "selected" : ""}>Ngang</option></select></label>
       <label>Khổ giấy<select id="vno-sheet-size" class="vno-select" style="width:100%;margin-top:4px"><option value="a4" ${setup.size === "a4" ? "selected" : ""}>A4</option><option value="letter" ${setup.size === "letter" ? "selected" : ""}>Letter</option><option value="legal" ${setup.size === "legal" ? "selected" : ""}>Legal</option></select></label>
       <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Tiêu đề in (tùy chọn)</legend><label>Hàng lặp lại (ví dụ 1:2)<input id="vno-sheet-title-rows" value="${this._escapeHtml(setup.printTitles.rows)}" class="vno-dialog-input"></label><label>Cột lặp lại (ví dụ A:B)<input id="vno-sheet-title-cols" value="${this._escapeHtml(setup.printTitles.cols)}" class="vno-dialog-input"></label></fieldset>
+      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Tỷ lệ vừa trang</legend>
+        <label><input type="radio" name="vno-sheet-scale-mode" value="percent" ${setup.scale.mode === "percent" ? "checked" : ""}> Vừa theo tỷ lệ <input id="vno-sheet-scale-percent" type="number" min="10" max="400" value="${setup.scale.percent}" class="vno-dialog-input" style="width:76px">%</label>
+        <label><input type="radio" name="vno-sheet-scale-mode" value="pages" ${setup.scale.mode === "pages" ? "checked" : ""}> Vừa trong <input id="vno-sheet-scale-wide" type="number" min="0" max="1000" value="${setup.scale.pagesWide}" class="vno-dialog-input" style="width:64px"> trang ngang × <input id="vno-sheet-scale-tall" type="number" min="0" max="1000" value="${setup.scale.pagesTall}" class="vno-dialog-input" style="width:64px"> trang dọc <small>(0 = tự động)</small></label>
+      </fieldset>
       <div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
     const presets = { normal: [1.91, 1.91, 1.78, 1.78], wide: [2.54, 2.54, 5.08, 5.08], narrow: [1.27, 1.27, 1.27, 1.27] };
@@ -5996,12 +6009,13 @@ export class SheetGridController {
         margins: Object.fromEntries(["top", "bottom", "left", "right"].map(side => [side, overlay.querySelector(`#vno-sheet-margin-${side}`).value])),
         orientation: overlay.querySelector("#vno-sheet-orientation").value,
         size: overlay.querySelector("#vno-sheet-size").value,
+        scale: { mode: overlay.querySelector('[name="vno-sheet-scale-mode"]:checked').value, percent: overlay.querySelector("#vno-sheet-scale-percent").value, pagesWide: overlay.querySelector("#vno-sheet-scale-wide").value, pagesTall: overlay.querySelector("#vno-sheet-scale-tall").value },
         printTitles: { rows: overlay.querySelector("#vno-sheet-title-rows").value, cols: overlay.querySelector("#vno-sheet-title-cols").value }
       });
       if (!result) { overlay.querySelector(".vno-rule-error").textContent = "Giá trị lề hoặc tiêu đề in không hợp lệ."; return; }
       overlay.closeDialog();
     });
-    const focusIds = { margins: "vno-sheet-margin-preset", orientation: "vno-sheet-orientation", size: "vno-sheet-size", printTitles: "vno-sheet-title-rows" };
+    const focusIds = { margins: "vno-sheet-margin-preset", orientation: "vno-sheet-orientation", size: "vno-sheet-size", scale: "vno-sheet-scale-percent", printTitles: "vno-sheet-title-rows" };
     overlay.querySelector(`#${focusIds[focusField] || focusIds.margins}`)?.focus();
     return true;
   }

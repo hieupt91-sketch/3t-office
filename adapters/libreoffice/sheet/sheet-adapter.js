@@ -178,6 +178,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.page.margins", () => this.grid.showPageSetupDialog?.("margins") || false);
     globalCommandBus.bindHandler("sheet.page.orientation", () => this.grid.showPageSetupDialog?.("orientation") || false);
     globalCommandBus.bindHandler("sheet.page.size", () => this.grid.showPageSetupDialog?.("size") || false);
+    globalCommandBus.bindHandler("sheet.page.scale", () => this.grid.showPageSetupDialog?.("scale") || false);
     globalCommandBus.bindHandler("sheet.page.printTitles", () => this.grid.showPageSetupDialog?.("printTitles") || false);
     globalCommandBus.bindHandler("sheet.row.insert", (options) => {
       options = options || {};
@@ -684,9 +685,13 @@ export class SheetAdapter {
       const width = orientation === "landscape" ? base[1] : base[0];
       const height = orientation === "landscape" ? base[0] : base[1];
       const margins = { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(setup.margins || {}) };
+      const scale = { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(setup.scale || {}) };
+      const scaleAttribute = scale.mode === "pages"
+        ? ` style:scale-to-pages="${Math.max(1, scale.pagesWide || scale.pagesTall || 1)}"`
+        : ` style:scale-to="${Math.min(400, Math.max(10, scale.percent || 100))}%"`;
       const suffix = index + 1;
-      pageStyleBySheet.set(sheetName, { tableStyle: `vno-table-page-${suffix}`, size, orientation, margins });
-      pageLayouts.push(`<style:page-layout style:name="vno-page-layout-${suffix}"><style:page-layout-properties fo:page-width="${width}cm" fo:page-height="${height}cm" style:print-orientation="${orientation}" fo:margin-top="${margins.top}cm" fo:margin-bottom="${margins.bottom}cm" fo:margin-left="${margins.left}cm" fo:margin-right="${margins.right}cm"/></style:page-layout>`);
+      pageStyleBySheet.set(sheetName, { tableStyle: `vno-table-page-${suffix}`, size, orientation, margins, scale });
+      pageLayouts.push(`<style:page-layout style:name="vno-page-layout-${suffix}"><style:page-layout-properties fo:page-width="${width}cm" fo:page-height="${height}cm" style:print-orientation="${orientation}" fo:margin-top="${margins.top}cm" fo:margin-bottom="${margins.bottom}cm" fo:margin-left="${margins.left}cm" fo:margin-right="${margins.right}cm"${scaleAttribute}/></style:page-layout>`);
       tablePageStyles.push(`<style:style style:name="vno-table-page-${suffix}" style:family="table" style:master-page-name="vno-master-page-${suffix}"/>`);
       masterPages.push(`<style:master-page style:name="vno-master-page-${suffix}" style:page-layout-name="vno-page-layout-${suffix}"/>`);
     });
@@ -950,7 +955,7 @@ export class SheetAdapter {
       const printRangeAttr = printRange ? ` table:print-ranges="${this._escapeXml(printRange)}"` : "";
       const pageStyle = pageStyleBySheet.get(sheetName);
       const printTitles = this.grid.pageSetupBySheet?.[sheetName]?.printTitles || {};
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"`;
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}>${columnsXml}${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}</table:table>`;
     }).join("");
@@ -1431,10 +1436,13 @@ export class SheetAdapter {
           const printArea = this._parsePrintRangeAddress(table.getAttribute("table:print-ranges"));
           let pageMargins = {};
           try { pageMargins = JSON.parse(table.getAttribute("vno:page-margins") || "{}"); } catch (_) { pageMargins = {}; }
+          let pageScale = {};
+          try { pageScale = JSON.parse(table.getAttribute("vno:page-scale") || "{}"); } catch (_) { pageScale = {}; }
           const pageSetup = {
             size: table.getAttribute("vno:page-size") || "a4",
             orientation: table.getAttribute("vno:page-orientation") || "portrait",
             margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...pageMargins },
+            scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...pageScale },
             printTitles: { rows: table.getAttribute("vno:print-title-rows") || "", cols: table.getAttribute("vno:print-title-cols") || "" }
           };
           const data = new Map();
@@ -1556,10 +1564,13 @@ export class SheetAdapter {
         const pageAttr = key => this._unescapeXml(tableMatch[1].match(new RegExp(`${key}=["']([^"']*)["']`, "i"))?.[1] || "");
         let pageMargins = {};
         try { pageMargins = JSON.parse(pageAttr("vno:page-margins") || "{}"); } catch (_) { pageMargins = {}; }
+        let pageScale = {};
+        try { pageScale = JSON.parse(pageAttr("vno:page-scale") || "{}"); } catch (_) { pageScale = {}; }
         const pageSetup = {
           size: pageAttr("vno:page-size") || "a4",
           orientation: pageAttr("vno:page-orientation") || "portrait",
           margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...pageMargins },
+          scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...pageScale },
           printTitles: { rows: pageAttr("vno:print-title-rows"), cols: pageAttr("vno:print-title-cols") }
         };
         const data = new Map();
