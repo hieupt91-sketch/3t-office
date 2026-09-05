@@ -1256,6 +1256,52 @@
   .vno-slide-sorter-grid { grid-template-columns: 1fr; padding: 16px; gap: 14px; }
 }
 
+.vno-slide-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 2px 4px;
+  margin: 2px 0 0;
+  border-bottom: 2px solid var(--vno-app-current, #b53818);
+  color: var(--vno-app-current-fg, #7c2d12);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  user-select: none;
+}
+.vno-slide-section-header .vno-slide-section-name,
+.vno-slide-section-divider .vno-slide-section-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vno-slide-section-header .vno-slide-section-count,
+.vno-slide-section-divider .vno-slide-section-count {
+  flex: 0 0 auto;
+  font-weight: 700;
+  opacity: 0.85;
+  font-size: 0.92em;
+}
+.vno-slide-section-toggle {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.vno-slide-section-toggle:hover {
+  background: var(--vno-bg-hover, rgba(15, 23, 42, 0.08));
+}
+.vno-slide-section-header:focus-visible,
+.vno-slide-section-toggle:focus-visible,
 .vno-slide-section-divider:focus-visible {
   outline: 2px solid var(--vno-slides-primary, #b53818);
   outline-offset: 2px;

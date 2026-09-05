@@ -345,6 +345,11 @@ export const SLIDES_COMMANDS = [
   { id: "slides.slide.duplicate", category: "slide", label: "Nhân đôi", shortcut: "Ctrl+D", icon: "copy", tooltip: "Nhân đôi trang chiếu đang chọn (Ctrl+D)" },
   { id: "slides.slide.delete", category: "slide", label: "Xóa trang", shortcut: "Delete", icon: "close", tooltip: "Xóa trang chiếu đang chọn (Delete)" },
   { id: "slides.slide.toggleHidden", category: "show", label: "Ẩn trang chiếu", icon: "hideSlide", tooltip: "Ẩn hoặc hiện trang chiếu đang chọn khi trình chiếu F5. Trang vẫn còn trong tệp và Slide Sorter.", isToggle: true },
+  { id: "slides.section.add", category: "slide", label: "Thêm phần", icon: "slideSection", tooltip: "Thêm phần bắt đầu từ trang đang chọn để nhóm các trang chiếu liên tiếp" },
+  { id: "slides.section.rename", category: "slide", label: "Đổi tên phần", icon: "slideSection", tooltip: "Đổi tên phần chứa trang chiếu đang chọn" },
+  { id: "slides.section.remove", category: "slide", label: "Xóa phần", icon: "slideSection", tooltip: "Bỏ nhóm phần — không xóa các trang chiếu bên trong" },
+  { id: "slides.section.moveUp", category: "slide", label: "Chuyển phần lên", icon: "slideSectionUp", tooltip: "Di chuyển cả nhóm trang của phần lên trên phần kề trước, giữ thứ tự trang bên trong" },
+  { id: "slides.section.moveDown", category: "slide", label: "Chuyển phần xuống", icon: "slideSectionDown", tooltip: "Di chuyển cả nhóm trang của phần xuống dưới phần kề sau, giữ thứ tự trang bên trong" },
 
   // Chèn đối tượng
   { id: "slides.text.insert", category: "insert", label: "Hộp văn bản", icon: "textBox", tooltip: "Chèn khung văn bản mới" },

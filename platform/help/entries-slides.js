@@ -247,6 +247,27 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.section.groups",
+    app: "slides",
+    commandIds: [
+      "slides.section.add",
+      "slides.section.rename",
+      "slides.section.remove",
+      "slides.section.moveUp",
+      "slides.section.moveDown"
+    ],
+    title: "Phần (Sections) — nhóm trang chiếu",
+    summary: "Nhóm các trang chiếu liên tiếp thành một phần có tên (ví dụ Giới thiệu, Nội dung chính, Kết luận). Thanh tiêu đề hiện trên dải thumbnail trái và Bộ sắp xếp trang; thu gọn để ẩn thumbnail trong nhóm; xóa phần chỉ bỏ nhóm, không xóa trang.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Trang chiếu" },
+    keywords: ["phần", "section", "nhóm trang", "thu gọn", "mở rộng", "đổi tên phần", "xóa phần", "sắp xếp phần", "slide sorter"],
+    steps: [
+      "Chọn trang sẽ là trang đầu của nhóm. Tab Trang đầu, nhóm Trang chiếu, mở dropdown Phần (cạnh Trang mới / Bố cục / Nhân đôi / Xóa trang), chọn Thêm phần. Hộp thoại điền tên — mặc định Phần 1, Phần 2, … — rồi Thêm. Phần bắt đầu từ trang đang chọn và chạy tới phần kế tiếp (hoặc hết bài).",
+      "Dải thumbnail trái và Bộ sắp xếp trang (tab Chế độ xem) hiện thanh tiêu đề trước nhóm: tên phần + số trang trong ngoặc. Nút ▾/▸ thu gọn hoặc mở rộng cả nhóm — khi thu gọn chỉ còn thanh tiêu đề, các thumbnail bên trong bị ẩn. Nhấp thanh tiêu đề để nhảy tới trang đầu nhóm. Chuột phải thumbnail hoặc thanh tiêu đề cũng mở menu Thêm / Đổi tên / Xóa phần.",
+      "Đổi tên phần / Xóa phần / Chuyển phần lên / Chuyển phần xuống nằm cùng dropdown Phần. Xóa phần chỉ bỏ nhóm (trang vẫn còn, đúng thứ tự). Chuyển lên/xuống đổi chỗ cả khối trang của phần với phần kề, giữ thứ tự trang bên trong nhóm.",
+      "Hoàn tác / Làm lại (Ctrl+Z / Ctrl+Y) dùng chung ngăn lịch sử của VN Slides: thêm, đổi tên, xóa phần và chuyển cả nhóm đều hoàn tác được. Thu gọn/mở rộng chỉ là trạng thái xem, không vào lịch sử."
+    ]
+  },
+  {
     id: "slides.slide.manage",
     app: "slides",
     commandIds: [

@@ -112,6 +112,7 @@ import { runSlidesAnimationPaneSetupShowTests } from "./unit/slides-animation-pa
 import { runWriterIllustrationDialogTests } from "./unit/writer-illustration-dialogs.test.js";
 import { runSheetEvaluateFormulaTests } from "./unit/sheet-evaluate-formula.test.js";
 import { runSheetConsolidateTests } from "./unit/sheet-consolidate.test.js";
+import { runSlidesSectionsTests } from "./unit/slides-sections.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -231,7 +232,8 @@ async function runAll() {
     { title: "98. Behavioral Tests — VN Slides Animation Pane & Set Up Slide Show", runner: runSlidesAnimationPaneSetupShowTests },
     { title: "101. Behavioral Tests — VN Writer Illustration Dialogs (Shape/Diagram/Chart pickers)", runner: runWriterIllustrationDialogTests },
     { title: "102. Behavioral Tests — VN Sheet Evaluate Formula", runner: runSheetEvaluateFormulaTests },
-    { title: "103. Behavioral Tests — VN Sheet Consolidate (Hợp nhất dữ liệu)", runner: runSheetConsolidateTests }
+    { title: "103. Behavioral Tests — VN Sheet Consolidate (Hợp nhất dữ liệu)", runner: runSheetConsolidateTests },
+    { title: "104. Behavioral Tests — VN Slides Sections (nhóm trang chiếu)", runner: runSlidesSectionsTests }
   ];
 
   for (const suite of suites) {
