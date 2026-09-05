@@ -70,8 +70,8 @@ export const enStrings = {
     findReplace: "Find and Replace"
   },
   sheetRibbon: {
-    tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", ai: "VN AI Assistant" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", proofing: "Proofing", comments: "Comments", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", aiAnalysis: "AI Data Analysis" },
+    tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "VN AI Assistant" },
+    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", proofing: "Proofing", comments: "Comments", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", help: "Help", aiAnalysis: "AI Data Analysis" },
     editing: { fill: "Fill", clear: "Clear" },
     cells: { format: "Format" }
   },
@@ -127,6 +127,9 @@ export const enStrings = {
     spellcheckTitle: "Spelling", spellcheckNotInDictionary: "Not in Dictionary:", spellcheckLocation: "Location", spellcheckContext: "Text", spellcheckSuggestions: "Suggestions:", spellcheckNoSuggestions: "(No close suggestions)", spellcheckIgnore: "Ignore Once", spellcheckIgnoreAll: "Ignore All", spellcheckAdd: "Add to Dictionary", spellcheckReplace: "Change", spellcheckReplaceAll: "Change All", spellcheckClose: "Close", spellcheckStatus: "Issue {current} of {total}", spellcheckComplete: "The spelling check is complete for this slide. No misspellings were found.", spellcheckCompleteRemaining: "The spelling check is complete. No misspellings remain.", spellcheckFieldTitle: "Title", spellcheckFieldBody: "Body", spellcheckFieldBody2: "Second column", spellcheckFieldShape: "Shape"
   },
   commands: {
+    "sheet.page.scale": { label: "Scale to Fit", tooltip: "Scale printed content by percentage or page count" },
+    "sheet.page.headerFooter": { label: "Header & Footer", tooltip: "Set printable page headers and footers" },
+    "sheet.help.open": { label: "Help", tooltip: "Open user guidance (F1)" },
     "writer.nav.docStart": { label: "Document Start", tooltip: "Go to the start of the document (Ctrl+Home)" },
     "writer.nav.docEnd": { label: "Document End", tooltip: "Go to the end of the document (Ctrl+End)" },
     "sheet.nav.home": { label: "First Cell", tooltip: "Go to cell A1 (Ctrl+Home)" },

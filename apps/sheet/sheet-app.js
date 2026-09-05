@@ -9,6 +9,9 @@ import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js"
 import { bootstrapPlatform } from "../../platform/bootstrap.js";
 import { applyLocaleToTabs } from "../../platform/i18n/i18n.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
+import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { HelpPanel, registerHelpEntries } from "../../platform/help/index.js";
+import { SHEET_HELP_ENTRIES } from "../../platform/help/entries-sheet.js";
 
 export class SheetApp {
   constructor(mountElement) {
@@ -17,6 +20,7 @@ export class SheetApp {
     this.grid = null;
     this.adapter = null;
     this._lifecycleObserver = null;
+    this.helpPanel = null;
   }
 
   async init(options = {}) {
@@ -42,6 +46,11 @@ export class SheetApp {
       }
     });
     this.grid.mount();
+
+    registerHelpEntries(SHEET_HELP_ENTRIES);
+    this.helpPanel = new HelpPanel({ app: "sheet" });
+    this.helpPanel.mount(gridWrap);
+    globalCommandBus.bindHandler("sheet.help.open", args => args?.entryId || args?.query != null ? this.helpPanel.open(args) : this.helpPanel.toggle());
 
     if (options.templateId === "blank") {
       this.grid.cellsData.clear();
@@ -74,5 +83,7 @@ export class SheetApp {
     this._lifecycleObserver?.disconnect();
     this._lifecycleObserver = null;
     this.grid?.destroy?.();
+    this.helpPanel?.destroy();
+    this.helpPanel = null;
   }
 }

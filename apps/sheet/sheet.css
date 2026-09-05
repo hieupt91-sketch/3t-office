@@ -291,9 +291,12 @@
 
 .vno-sheet-rule-dialog .vno-dialog-box {
   width: 460px;
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
   animation: vnoGalleryModalFadeIn 0.15s ease-out;
 }
-.vno-sheet-rule-dialog .vno-dialog-body { display: grid; gap: 12px; }
+.vno-sheet-rule-dialog .vno-dialog-body { display: grid; gap: 12px; overflow-y: auto; }
 .vno-sheet-rule-dialog label { display: grid; gap: 5px; color: var(--vno-text-secondary); font-size: 12px; font-weight: 600; }
 .vno-sheet-rule-dialog input,
 .vno-sheet-rule-dialog select {
