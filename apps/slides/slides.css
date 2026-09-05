@@ -415,6 +415,11 @@
   transition: outline 0.15s ease, box-shadow 0.15s ease;
   user-select: none;
 }
+.vno-slide-shape-item:focus-visible {
+  outline: 2px solid var(--vno-slides-primary, #b53818) !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(181, 56, 24, 0.25);
+}
 .vno-slide-shape-item.is-selected {
   outline: 2px dashed #2563eb !important;
   outline-offset: 3px;
@@ -424,6 +429,11 @@
   outline: 1.5px solid rgba(22, 163, 74, 0.55) !important;
   outline-offset: 2px;
   box-shadow: none;
+}
+.vno-slide-shape-item.is-diagram-group-member.is-selected:focus-visible {
+  outline: 2px solid #16a34a !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.35);
 }
 .vno-diagram-group-bounds {
   position: absolute;
@@ -491,6 +501,11 @@
 .vno-wordart-preset[aria-checked="true"] {
   outline: 2px solid var(--vno-slides-primary, #b53818);
   outline-offset: 1px;
+}
+.vno-wordart-preset:focus-visible {
+  outline: 2px solid var(--vno-slides-primary, #b53818) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(181, 56, 24, 0.25);
 }
 .vno-wordart-preview {
   display: flex;
@@ -1065,6 +1080,17 @@
 .vno-slide-sorter-actions button:disabled { opacity: .45; cursor: not-allowed; }
 @media (max-width: 620px) {
   .vno-slide-sorter-grid { grid-template-columns: 1fr; padding: 16px; gap: 14px; }
+}
+
+.vno-slide-section-divider:focus-visible {
+  outline: 2px solid var(--vno-slides-primary, #b53818);
+  outline-offset: 2px;
+}
+.vno-slide-section-menu button:focus-visible,
+.vno-slide-section-menu button:focus {
+  background-color: var(--vno-bg-hover, rgba(0, 0, 0, 0.08)) !important;
+  outline: 2px solid var(--vno-slides-primary, #b53818) !important;
+  outline-offset: -2px;
 }
 
 /* Diagram chooser */

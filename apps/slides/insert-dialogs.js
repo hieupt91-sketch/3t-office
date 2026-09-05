@@ -433,7 +433,7 @@ export function showWordArtDialog(options = {}) {
     const cards = WORDART_PRESETS.map((preset, index) => {
       const selected = preset.id === defaultPreset || (!options.presetId && index === 0);
       const label = isEn ? preset.nameEn : preset.nameVi;
-      return `<button type="button" role="radio" class="vno-wordart-preset ${selected ? "is-selected" : ""}" data-wordart-preset="${preset.id}" aria-checked="${selected}" aria-label="${label}" style="background:${preset.previewBg}">
+      return `<button type="button" role="radio" class="vno-wordart-preset ${selected ? "is-selected" : ""}" data-wordart-preset="${preset.id}" aria-checked="${selected}" tabindex="${selected ? "0" : "-1"}" aria-label="${label}" style="background:${preset.previewBg}">
         <span class="vno-wordart-preview" aria-hidden="true" style="${buildWordArtCss(preset, { fontScale: 0.55 })}">Aa</span>
         <strong class="vno-wordart-preset-name">${label}</strong>
       </button>`;
@@ -469,11 +469,34 @@ export function showWordArtDialog(options = {}) {
         presetButtons.forEach((item) => {
           item.classList.remove("is-selected");
           item.setAttribute("aria-checked", "false");
+          item.setAttribute("tabindex", "-1");
         });
         button.classList.add("is-selected");
         button.setAttribute("aria-checked", "true");
+        button.setAttribute("tabindex", "0");
         selectedPreset = button.dataset.wordartPreset;
       });
+    });
+    const gallery = overlay.querySelector("#vno-wordart-gallery");
+    gallery?.addEventListener("keydown", (event) => {
+      if (["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(event.key)) {
+        event.preventDefault();
+        const buttons = Array.from(presetButtons);
+        const curIdx = buttons.indexOf(document.activeElement);
+        let nextIdx;
+        if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+          nextIdx = curIdx === -1 ? 0 : (curIdx + 1) % buttons.length;
+        } else {
+          nextIdx = curIdx === -1 ? buttons.length - 1 : (curIdx - 1 + buttons.length) % buttons.length;
+        }
+        buttons.forEach((b, i) => {
+          b.classList.remove("is-selected");
+          b.setAttribute("aria-checked", i === nextIdx ? "true" : "false");
+          b.setAttribute("tabindex", i === nextIdx ? "0" : "-1");
+        });
+        buttons[nextIdx]?.click();
+        buttons[nextIdx]?.focus();
+      }
     });
     textInput.focus();
     textInput.select?.();
@@ -500,11 +523,14 @@ export function showWordArtDialog(options = {}) {
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
+        event.stopPropagation();
         cleanup(null);
       } else if (event.key === "Enter" && event.target === textInput) {
         event.preventDefault();
+        event.stopPropagation();
         commit();
       } else if (event.key === "Tab") {
+        event.stopPropagation();
         trapFocus(dialogBox, event);
       }
     };

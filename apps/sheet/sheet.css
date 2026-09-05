@@ -198,6 +198,12 @@
 .vno-sheet-rule-dialog fieldset label:hover {
   background-color: var(--vno-bg-hover);
 }
+.vno-sheet-rule-dialog fieldset label:focus-within,
+.vno-sheet-rule-dialog fieldset label:has(input:focus-visible) {
+  outline: 2px solid var(--vno-border-focus, #0f6d38);
+  outline-offset: 1px;
+  background-color: var(--vno-bg-hover);
+}
 .vno-data-preview { margin-top: 10px; padding: 10px; border: 1px solid #bbf7d0; background: #f0fdf4; font-family: Consolas, monospace; }
 
 /* Data Cells */
@@ -320,6 +326,10 @@
 .vno-sheet-rule-dialog .vno-rule-close:hover {
   background-color: var(--vno-bg-hover);
   color: var(--vno-text-primary);
+}
+.vno-sheet-rule-dialog .vno-rule-close:focus-visible {
+  outline: 2px solid var(--vno-border-focus, #0f6d38);
+  outline-offset: 1px;
 }
 .vno-sheet-rule-dialog .vno-rule-close:active {
   transform: scale(0.92);

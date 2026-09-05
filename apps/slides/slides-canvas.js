@@ -1580,6 +1580,12 @@ export class SlidesCanvasController {
       const isSel = this.selectedShapeIds?.has(String(shape.id)) || String(this.selectedTarget) === String(shape.id);
       el.className = `vno-slide-shape-item ${isConnector ? "is-connector" : ""} ${shape.diagramRole === "node" ? "is-diagram-node" : ""} ${isSel ? "is-selected" : ""}`;
       el.dataset.shapeId = String(shape.id);
+      if (shape.diagramGroupId) {
+        el.dataset.diagramGroupId = String(shape.diagramGroupId);
+        el.setAttribute?.("aria-label", `Sơ đồ SmartArt: ${shape.text || "Mục sơ đồ"}`);
+      } else {
+        el.setAttribute?.("aria-label", shape.text || (shape.type === "wordart" ? "Chữ nghệ thuật" : "Hình vẽ"));
+      }
       el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${isConnector ? "default" : "move"};z-index:${isConnector ? 0 : 1};`;
 
       if (isConnector) {
@@ -1648,7 +1654,13 @@ export class SlidesCanvasController {
         el.addEventListener("dblclick", (event) => { event.stopPropagation(); startEditing(); });
         el.tabIndex = 0;
         el.addEventListener("keydown", (event) => {
-          if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1) {
+          if (event.key === "Delete" || event.key === "Backspace") {
+            event.preventDefault();
+            event.stopPropagation();
+            this.deleteSelectedShapes();
+            return;
+          }
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1 && event.key !== " ") {
             event.preventDefault(); event.stopPropagation(); startEditing(event.key);
             this.updateShapeText(shape.id, event.key);
           }
@@ -1725,7 +1737,19 @@ export class SlidesCanvasController {
           el.addEventListener("dblclick", (event) => { event.stopPropagation(); startEditing(); });
           el.tabIndex = 0;
           el.addEventListener("keydown", (event) => {
-            if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1) {
+            if (shape.diagramGroupId && (event.key === "Enter" || event.key === " ")) {
+              event.preventDefault();
+              event.stopPropagation();
+              this.selectDiagramGroup(shape.diagramGroupId, shape.id);
+              return;
+            }
+            if (event.key === "Delete" || event.key === "Backspace") {
+              event.preventDefault();
+              event.stopPropagation();
+              this.deleteSelectedShapes();
+              return;
+            }
+            if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1 && event.key !== " ") {
               event.preventDefault(); event.stopPropagation(); startEditing(event.key);
               this.updateShapeText(shape.id, event.key);
             }
@@ -2755,22 +2779,82 @@ export class SlidesCanvasController {
     document.querySelector?.(".vno-slide-section-menu")?.remove?.();
     const slide = this.slides[slideIndex];
     if (!slide) return false;
+    const previousFocused = typeof document !== "undefined" ? document.activeElement : null;
+    if ((!clientX && !clientY) && previousFocused?.getBoundingClientRect) {
+      const rect = previousFocused.getBoundingClientRect();
+      clientX = Math.round(rect.left + 24);
+      clientY = Math.round(rect.top + 24);
+    }
     const section = this.sections.find(item => item.id === slide.sectionId);
     const menu = document.createElement("div");
     menu.className = "vno-slide-section-menu";
     menu.setAttribute?.("role", "menu");
-    menu.style.cssText = `position:fixed;left:${clientX}px;top:${clientY}px;z-index:10040;min-width:180px;padding:6px;background:var(--vno-bg-surface);color:var(--vno-text-primary);border:1px solid var(--vno-border-default);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
-    menu.innerHTML = `<button type="button" data-section-action="add" role="menuitem">Thêm Phần</button>${section ? `<button type="button" data-section-action="rename" role="menuitem">Đổi tên Phần</button><button type="button" data-section-action="remove" role="menuitem">Xóa Phần (giữ slide)</button>` : ""}`;
+    menu.setAttribute?.("aria-label", "Tùy chọn Phần trang chiếu");
+    menu.style.cssText = `position:fixed;left:${clientX || 100}px;top:${clientY || 100}px;z-index:10040;min-width:180px;padding:6px;background:var(--vno-bg-surface);color:var(--vno-text-primary);border:1px solid var(--vno-border-default);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
+    menu.innerHTML = `<button type="button" data-section-action="add" role="menuitem" tabindex="0">Thêm Phần</button>${section ? `<button type="button" data-section-action="rename" role="menuitem" tabindex="-1">Đổi tên Phần</button><button type="button" data-section-action="remove" role="menuitem" tabindex="-1">Xóa Phần (giữ slide)</button>` : ""}`;
     for (const button of menu.querySelectorAll?.("button") || []) {
-      button.style.cssText = "display:block;width:100%;padding:8px;text-align:left;border:0;background:transparent;color:inherit;cursor:pointer";
+      button.style.cssText = "display:block;width:100%;padding:8px;text-align:left;border:0;background:transparent;color:inherit;cursor:pointer;border-radius:4px;font-size:13px;";
       button.addEventListener("mouseenter", () => { button.style.backgroundColor = "var(--vno-bg-hover)"; });
-      button.addEventListener("mouseleave", () => { button.style.backgroundColor = "transparent"; });
+      button.addEventListener("mouseleave", () => { if (document.activeElement !== button) button.style.backgroundColor = "transparent"; });
+      button.addEventListener("focus", () => { button.style.backgroundColor = "var(--vno-bg-hover)"; });
+      button.addEventListener("blur", () => { button.style.backgroundColor = "transparent"; });
     }
-    const close = () => menu.remove();
-    menu.querySelector('[data-section-action="add"]')?.addEventListener("click", () => { close(); this._promptAddSection(slideIndex); });
-    menu.querySelector('[data-section-action="rename"]')?.addEventListener("click", () => { close(); this._promptRenameSection(section.id); });
-    menu.querySelector('[data-section-action="remove"]')?.addEventListener("click", () => { close(); this.removeSection(section.id); });
-    menu.addEventListener("keydown", event => { if (event.key === "Escape") close(); });
+    const close = (restoreFocus = true) => {
+      document.removeEventListener("click", onDocClick);
+      menu.remove();
+      if (restoreFocus && previousFocused && typeof previousFocused.focus === "function") {
+        try { previousFocused.focus(); } catch (_) {}
+      }
+    };
+    const onDocClick = (e) => {
+      if (!menu.contains(e.target)) close(true);
+    };
+    setTimeout(() => {
+      if (typeof document !== "undefined") document.addEventListener("click", onDocClick);
+    }, 0);
+
+    menu.querySelector('[data-section-action="add"]')?.addEventListener("click", async () => {
+      close(false);
+      await this._promptAddSection(slideIndex);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        try { previousFocused.focus(); } catch (_) {}
+      }
+    });
+    menu.querySelector('[data-section-action="rename"]')?.addEventListener("click", async () => {
+      close(false);
+      await this._promptRenameSection(section.id);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        try { previousFocused.focus(); } catch (_) {}
+      }
+    });
+    menu.querySelector('[data-section-action="remove"]')?.addEventListener("click", () => {
+      close(true);
+      this.removeSection(section.id);
+    });
+    menu.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        close(true);
+      } else if (event.key === "Tab") {
+        event.stopPropagation();
+        trapFocus(menu, event);
+      } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        event.stopPropagation();
+        const buttons = Array.from(menu.querySelectorAll("button"));
+        if (!buttons.length) return;
+        const curIdx = buttons.indexOf(document.activeElement);
+        let nextIdx;
+        if (event.key === "ArrowDown") {
+          nextIdx = curIdx === -1 ? 0 : (curIdx + 1) % buttons.length;
+        } else {
+          nextIdx = curIdx === -1 ? buttons.length - 1 : (curIdx - 1 + buttons.length) % buttons.length;
+        }
+        buttons.forEach((b, i) => b.setAttribute("tabindex", i === nextIdx ? "0" : "-1"));
+        buttons[nextIdx]?.focus();
+      }
+    });
     document.body.appendChild(menu);
     menu.querySelector("button")?.focus?.();
     return true;
@@ -2885,6 +2969,10 @@ export class SlidesCanvasController {
           event.preventDefault();
           this.selectSlide(index);
           this.closeSlideSorter();
+        } else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+          event.preventDefault();
+          const rect = item.getBoundingClientRect?.() || { left: 100, top: 100 };
+          this._openSlideSectionMenu(index, (rect.left || 0) + 24, (rect.top || 0) + 24);
         }
       });
       item.addEventListener("dragstart", (event) => {
