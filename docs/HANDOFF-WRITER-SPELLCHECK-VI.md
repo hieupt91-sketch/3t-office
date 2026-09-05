@@ -14,7 +14,7 @@ FINDINGS:
 
 - Writer dùng ba vùng `contenteditable` độc lập (header/body/footer) trong `apps/writer/writer-app.js`; browser spellcheck bị tắt chủ động.
 - Không có spellchecker dùng chung trong Platform trước thay đổi này.
-- Từ điển Hunspell tiếng Việt do LibreOffice phân phối phù hợp thứ tự reuse-before-rewrite và không cần API/runtime package.
+- Bản đầu dùng từ điển Hunspell do LibreOffice phân phối, nhưng dữ liệu đó là GPL-2.0 và không đạt policy MIT/CC0/public-domain của dự án; follow-up này đã loại bỏ hoàn toàn nguồn đó.
 
 IMPLEMENTATION SUMMARY:
 
@@ -22,32 +22,32 @@ IMPLEMENTATION SUMMARY:
 - Thêm DOM controller dùng debounce 400 ms, giữ caret theo text offset, bọc riêng token chưa chắc chắn bằng `.vno-spelling-uncertain`, và dọn listener/menu theo lifecycle Writer.
 - Menu chuột phải có tối đa 5 gợi ý gần, “Bỏ qua”, “Thêm vào từ điển”; các nút có role menu/menuitem và focus keyboard.
 - Token viết hoa kiểu tên riêng và chữ viết tắt chưa biết không bị đánh dấu để giảm false positive. Đây là lựa chọn bảo thủ: feature chỉ khẳng định “chưa chắc chắn”, không cố bắt mọi lỗi.
-- Dữ liệu được đóng gói thành ES module tĩnh để chạy cả HTTP và `file://`; file `.dic` nguyên bản được giữ để audit provenance.
+- Dữ liệu CC0 được đóng gói thành ES module tĩnh để chạy cả HTTP và `file://`; không còn file `.dic` hay dữ liệu GPL trong feature.
 - Chưa áp dụng cho Slides; Writer được ưu tiên và hoàn thiện/test đầy đủ trước.
 
 ## Nguồn từ điển và giấy phép
 
-- Nguồn: LibreOffice Dictionaries, `dictionaries/vi/vi_VN.dic`, bản lấy từ nhánh `master` ngày 2026-09-05.
-- Upstream: https://github.com/LibreOffice/dictionaries/tree/master/vi
-- Tác giả ghi trong upstream: Ivan Garcia và Nguyễn Xuân Minh; dựa trên danh sách Từ Điển Tiếng Việt của Hồ Ngọc Đức.
-- Giấy phép dữ liệu: GNU GPL phiên bản 2, giữ nguyên tại `platform/text/dictionaries/LICENSES-vi.txt`.
-- Kích thước: header upstream khai báo 6.631 mục; 6.631 dòng dữ liệu được đóng gói, trong đó engine chuẩn hóa thành 6.630 mục phân biệt sau lowercase/NFC.
+- Nguồn dữ liệu: 5.711 câu tiếng Việt trong Mozilla Common Voice, file `server/data/vi/sentence-collector.txt` tại snapshot commit `154dda177b3c45db8423b4f970bd131490b224b1` (2022-12-14), SHA-256 `6E6B9D0C3DB850237CC916811951C6536809EECCC15786BB8BDFA5D6B63C2552`: https://github.com/common-voice/common-voice/blob/154dda177b3c45db8423b4f970bd131490b224b1/server/data/vi/sentence-collector.txt
+- File giấy phép thật được đọc trực tiếp trong chính thư mục dữ liệu: https://github.com/common-voice/common-voice/blob/154dda177b3c45db8423b4f970bd131490b224b1/server/data/LICENSE
+- Nội dung giấy phép là **CC0 1.0 Universal** (SPDX `CC0-1.0`). Phần “Statement of Purpose” nói rõ phạm vi gồm cả original work và database; legal code cho phép từ bỏ quyền ở mức tối đa để mọi người có thể build upon, modify, incorporate, reuse và redistribute tự do cho mọi mục đích, kể cả thương mại. Bản ghi provenance và link legal code nằm tại `platform/text/dictionaries/LICENSES-vi.txt`.
+- Quy trình biên soạn: đọc snapshot CC0; chuẩn hóa toàn corpus sang Unicode NFC; trích token chỉ gồm chữ cái; lowercase; loại trùng chính xác; sort theo locale `vi`; đóng gói 2.798 token phân biệt vào ES module. Không trộn dữ liệu LibreOffice/Hunspell/Hồ Ngọc Đức/Wiktionary/OpenSubtitles.
+- Kiểm tra chéo nguồn bị loại: `duyet/vietnamese-wordlist` có file `LICENSE` GPL-2.0 thật; `vntk/dictionary` dù có file MIT nhưng chứa nguyên các file `Viet11K/Viet22K/Viet39K/Viet74K` cùng họ dữ liệu Hồ Ngọc Đức nên provenance dữ liệu không sạch; `hermitdave/FrequencyWords` có LICENSE MIT cho code nhưng README chỉ định content là CC-BY-SA-4.0. Không dùng dữ liệu từ các nguồn này.
 - Không dùng dịch vụ trả phí, không gọi cloud, không gửi nội dung tài liệu ra ngoài và không thêm dependency.
 
 ### Đánh giá theo Dependency Policy
 
-- Purpose: danh sách âm tiết hợp lệ và nền gợi ý cho spellcheck tiếng Việt.
-- Alternatives: VNTK/Viet74K bị loại vì provenance/license dữ liệu không đủ rõ dù repo code ghi MIT; tự viết vài nghìn từ bị loại vì chất lượng thấp hơn nguồn LibreOffice hiện hữu.
-- License: GPL-2.0, được phân phối như data file tách biệt với attribution nguyên bản theo yêu cầu GPL-compatible của task.
-- Maintenance: nằm trong kho dictionaries chính thức của LibreOffice; dữ liệu tiếng Việt cũ và ít thay đổi.
+- Purpose: danh sách token tiếng Việt phổ biến và nền gợi ý cho spellcheck tiếng Việt.
+- Alternatives: các wordlist GPL và các repo chỉ cấp MIT cho code nhưng không chứng minh license/provenance của data đều bị loại; Common Voice được chọn vì dữ liệu tiếng Việt hiện diện ngay dưới `server/data` cùng file CC0 thật.
+- License: CC0-1.0, thuộc đúng nhóm giấy phép nhẹ được chủ dự án chấp thuận; không có nghĩa vụ copyleft/share-alike.
+- Maintenance: cập nhật thủ công từ snapshot Common Voice đã ghim; mọi lần cập nhật phải đọc lại file license cạnh data, ghi commit nguồn và tái tạo deterministically.
 - Security: plain text tĩnh, được parse thành Set; không binary, không code bên thứ ba thực thi, không network runtime.
-- Build/platform impact: khoảng 40 KB `.dic` và module dữ liệu tương ứng; chạy trong trình duyệt/WebView trên mọi platform hỗ trợ ES modules và Unicode property escapes.
-- Update strategy: cập nhật thủ công từ upstream LibreOffice, giữ license và chạy lại unit/live tests; không tự động tải dữ liệu.
+- Build/platform impact: chỉ còn module dữ liệu tĩnh khoảng 36 KB; chạy trong trình duyệt/WebView trên mọi platform hỗ trợ ES modules và Unicode property escapes.
+- Update strategy: tải thủ công snapshot câu CC0 đã xác minh, áp lại pipeline NFC/tokenize/lowercase/deduplicate/sort và chạy unit/live tests; không tự động tải dữ liệu lúc runtime.
 
 ## False-positive và giới hạn
 
-- Corpus acceptance hiện có 86 token trong 5 câu văn phòng/giáo dục có dấu: 0 false positive (0%). Đây là corpus kiểm thử có chủ đích, không phải ước lượng thống kê cho toàn bộ tiếng Việt.
-- Ước tính thực tế: thấp với văn bản phổ thông vì dictionary bao phủ hơn 6.600 âm tiết và bỏ qua tên riêng/chữ viết tắt viết hoa; từ vay mượn viết thường, tiếng lóng và tên riêng viết thường vẫn có thể bị đánh dấu.
+- Corpus acceptance hiện có 78 token trong 5 câu văn phòng/giáo dục có dấu: 0 false positive (0%). Đây là corpus kiểm thử có chủ đích, không phải ước lượng thống kê cho toàn bộ tiếng Việt.
+- Dictionary mới nhỏ hơn nguồn cũ và dựa trên corpus lời nói, nên false positive với thuật ngữ chuyên ngành/từ hiếm có thể tăng; tên riêng/chữ viết tắt viết hoa vẫn được heuristic bỏ qua.
 - Kiểm tra theo âm tiết tách bằng khoảng trắng, không kiểm tra ngữ pháp/ngữ cảnh và không bắt lỗi “từ thật nhưng dùng sai” (ví dụ hai âm tiết đều hợp lệ nhưng ghép sai nghĩa).
 - Heuristic tên riêng làm giảm phiền nhưng có thể bỏ sót lỗi ở token viết hoa.
 - Gợi ý dùng Levenshtein ngắn trên dictionary âm tiết; chưa xếp hạng theo tần suất/ngữ cảnh.
@@ -55,7 +55,7 @@ IMPLEMENTATION SUMMARY:
 
 FILES CHANGED:
 
-- `platform/text/dictionaries/vi_VN.dic`
+- `platform/text/dictionaries/vi_VN.dic` (đã xóa vì GPL-2.0)
 - `platform/text/dictionaries/vi-dictionary.js`
 - `platform/text/dictionaries/LICENSES-vi.txt`
 - `platform/text/vi-spellchecker.js`
@@ -80,7 +80,7 @@ TEST RESULTS: PASS — `node tests/run-tests.js`: 667/667 PASS, 0 FAIL, 12.7 gi�
 
 KNOWN FAILURES: Không có trong các test đã chạy.
 
-RISKS: Xem mục False-positive và giới hạn; dữ liệu GPL-2.0 phải tiếp tục được phân phối cùng attribution/license.
+RISKS: Xem mục False-positive và giới hạn; corpus Common Voice có thể chứa biến thể khẩu ngữ hoặc lỗi do người đóng góp, dù dữ liệu có giấy phép CC0 rõ ràng.
 
 DEPENDENCIES/BLOCKERS: Không có dependency runtime; không có blocker hiện tại.
 

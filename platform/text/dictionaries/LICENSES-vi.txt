@@ -15,6 +15,7 @@ https://github.com/common-voice/common-voice/blob/154dda177b3c45db8423b4f970bd13
 
 Snapshot commit: 154dda177b3c45db8423b4f970bd131490b224b1
 Snapshot commit date: 2022-12-14
+Source SHA-256: 6E6B9D0C3DB850237CC916811951C6536809EECCC15786BB8BDFA5D6B63C2552
 
 The source file contains 5,711 non-empty Vietnamese sentences. The VN Office
 word list was derived offline by normalizing the corpus to Unicode NFC,
