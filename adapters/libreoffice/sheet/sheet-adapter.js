@@ -18,6 +18,16 @@ export class SheetAdapter {
     this.shell = null;
   }
 
+  /**
+   * Grid-model signal for the native XLSX post-process (lockStructure).
+   * serializeToFods() already writes table:structure-protected from this flag.
+   * Production File → Lưu patches xl/workbook.xml in main.py after soffice;
+   * tests call postProcessSheetXlsx() with this adapter or the grid.
+   */
+  wantsNativeXlsxWorkbookProtection() {
+    return !!this.grid?.workbookProtection?.enabled;
+  }
+
   /** Gắn tham chiếu AppShell — xem chú thích trong WriterAdapter.setShell(). */
   setShell(shell) {
     this.shell = shell;
@@ -1381,6 +1391,8 @@ export class SheetAdapter {
           <config:config-item config:name="CursorPositionY" config:type="int">0</config:config-item>
         </config:config-item-map-entry>`).join("");
     const structureProtected = !!this.grid.workbookProtection?.enabled;
+    // ODF flag. LibreOffice FODS→XLSX keeps <workbookProtection> but drops
+    // lockStructure; native-export post-process restores it (see xlsx-native-postprocess.js).
     const structureAttr = structureProtected ? ' table:structure-protected="true"' : "";
     return `<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"

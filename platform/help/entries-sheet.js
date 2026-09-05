@@ -318,7 +318,7 @@ export const SHEET_HELP_ENTRIES = [
       "Hộp thoại có ô «Bảo vệ cấu trúc workbook (trang tính)». Có thể nhập mật khẩu rồi nhập lại để xác nhận (để trống nếu không cần).",
       "Khi đã bảo vệ workbook: không thêm trang (nút + dưới lưới bị tắt), không xóa, không đổi tên (kể cả nhấp đúp tab), không di chuyển hay sao chép trang tính. Sửa nội dung ô, định dạng và chèn/xóa hàng cột vẫn được — trừ khi trang đó còn đang Bảo vệ trang tính.",
       "Bỏ bảo vệ: nhấn lại Bỏ bảo vệ workbook... Nếu đã đặt mật khẩu, nhập đúng mật khẩu. Sai mật khẩu hiện lỗi trong hộp thoại.",
-      "Đây là khóa giao diện giống Excel, mật khẩu không mã hóa, không chống người cố tình sửa file. Trạng thái khóa không đi vào Undo và không ghi vào FODS."
+      "Lưu tệp: File → Lưu thành .fods/.ods giữ thuộc tính ODF table:structure-protected. Khi Lưu thành .xlsx, VN Office bổ sung phần tử chuẩn OOXML <workbookProtection lockStructure=\"1\"/> vào xl/workbook.xml (LibreOffice convert không sinh thuộc tính này) — Excel thật sẽ khóa cấu trúc workbook. Mật khẩu phiên không ghi hash vào file. Trạng thái khóa không đi vào Undo. Đây là khóa giao diện, không phải bảo mật mã hóa."
     ]
   },
   {
