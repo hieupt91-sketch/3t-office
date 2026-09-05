@@ -5,6 +5,7 @@
 
 import { ICONS } from "./icons.js";
 import { globalCommandBus } from "../commands/command-bus.js";
+import { t } from "../i18n/i18n.js";
 
 /**
  * Tự động tìm kiếm Icon phù hợp theo Command ID
@@ -13,12 +14,18 @@ function resolveIcon(commandId, iconName) {
   if (iconName && ICONS[iconName]) return ICONS[iconName];
 
   // Auto fallback theo từ khóa trong commandId
-  const idLower = commandId.toLowerCase();
+  const idLower = (commandId || "").toLowerCase();
   if (idLower.includes("bold")) return ICONS.bold;
   if (idLower.includes("italic")) return ICONS.italic;
   if (idLower.includes("underline")) return ICONS.underline;
   if (idLower.includes("strike")) return ICONS.strike;
   if (idLower.includes("clearformat")) return ICONS.clearFormat;
+  if (idLower.includes("clearall")) return ICONS.clearAll;
+  if (idLower.includes("clearcontents")) return ICONS.clearContents;
+  if (idLower.includes("clear")) return ICONS.clearAll || ICONS.clearFormat;
+  if (idLower.includes("filldown")) return ICONS.fillDown;
+  if (idLower.includes("fillright")) return ICONS.fillRight;
+  if (idLower.includes("fill")) return ICONS.fillDown;
   if (idLower.includes("cut")) return ICONS.cut;
   if (idLower.includes("copy")) return ICONS.copy;
   if (idLower.includes("paste")) return ICONS.paste;
@@ -431,4 +438,241 @@ export function createSyntaxTooltip() {
   };
 }
 
+/**
+ * Quản lý dropdown đang mở (chỉ cho phép 1 dropdown hiển thị tại 1 thời điểm)
+ */
+let activeRibbonDropdown = null;
 
+export function closeActiveDropdown() {
+  if (activeRibbonDropdown) {
+    activeRibbonDropdown.close();
+    activeRibbonDropdown = null;
+  }
+}
+
+/**
+ * Tạo nút Ribbon Dropdown (hỗ trợ các nhóm lệnh như Fill, Clear)
+ * @param {Object} options
+ * @param {string} [options.id]
+ * @param {string} options.label
+ * @param {string} [options.labelKey]
+ * @param {string} [options.icon]
+ * @param {boolean} [options.isLarge=false]
+ * @param {Array<{commandId: string, label?: string, icon?: string}>} options.items
+ * @param {string} [options.ariaLabel]
+ * @returns {HTMLElement}
+ */
+export function createDropdownButton({
+  id,
+  label,
+  labelKey,
+  icon,
+  isLarge = false,
+  items = [],
+  ariaLabel
+}) {
+  if (typeof document === "undefined" || typeof document.createElement !== "function") {
+    return { id, label, items };
+  }
+
+  const btn = document.createElement("button");
+  btn.setAttribute("type", "button");
+  if (id) {
+    btn.setAttribute("data-dropdown-id", id);
+    btn.setAttribute("data-dropdown-toggle", id);
+  }
+
+  const displayLabel = labelKey ? t(labelKey, label) : (label || id || "Tùy chọn");
+  const iconKey = icon || (items[0] ? items[0].commandId : "");
+  const iconSvg = resolveIcon(id || iconKey, iconKey);
+  const accessibleName = ariaLabel || displayLabel;
+
+  btn.setAttribute("aria-label", accessibleName);
+  btn.setAttribute("aria-haspopup", "menu");
+  btn.setAttribute("aria-expanded", "false");
+
+  const arrowSvg = `<span class="vno-btn-arrow" aria-hidden="true" data-dropdown-arrow="true">${ICONS.chevronDown || `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`}</span>`;
+
+  if (isLarge) {
+    btn.className = "vno-btn vno-ribbon-btn-large vno-ribbon-btn-dropdown";
+    btn.innerHTML = `
+      <span class="vno-btn-icon" aria-hidden="true">${iconSvg}</span>
+      <span class="vno-btn-label">
+        <span class="vno-btn-text">${displayLabel}</span>
+        ${arrowSvg}
+      </span>
+    `;
+  } else {
+    btn.className = "vno-btn vno-ribbon-btn-small vno-ribbon-btn-dropdown";
+    btn.innerHTML = `
+      <span class="vno-btn-icon" aria-hidden="true">${iconSvg}</span>
+      <span class="vno-btn-label">${displayLabel}</span>
+      ${arrowSvg}
+    `;
+  }
+
+  btn.title = accessibleName;
+
+  let menuEl = null;
+  let focusedIndex = -1;
+
+  const closeMenu = () => {
+    if (menuEl) {
+      if (typeof menuEl._cleanup === "function") menuEl._cleanup();
+      if (menuEl.parentNode) menuEl.parentNode.removeChild(menuEl);
+      menuEl = null;
+    }
+    btn.setAttribute("aria-expanded", "false");
+    btn.classList.remove("is-active");
+    if (activeRibbonDropdown && activeRibbonDropdown.button === btn) {
+      activeRibbonDropdown = null;
+    }
+    focusedIndex = -1;
+  };
+
+  const setFocusedIndex = (idx) => {
+    focusedIndex = idx;
+    if (!menuEl) return;
+    const itemEls = menuEl.querySelectorAll(".vno-ribbon-dropdown-item");
+    itemEls.forEach((el, i) => {
+      if (i === idx) {
+        el.classList.add("is-focused");
+        el.focus();
+      } else {
+        el.classList.remove("is-focused");
+      }
+    });
+  };
+
+  const openMenu = () => {
+    closeActiveDropdown();
+
+    menuEl = document.createElement("div");
+    menuEl.className = "vno-ribbon-dropdown-menu";
+    menuEl.setAttribute("role", "menu");
+    menuEl.setAttribute("aria-label", accessibleName);
+    if (id) menuEl.id = `vno-dropdown-menu-${id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+    btn.setAttribute("aria-controls", menuEl.id);
+
+    items.forEach((subItem, idx) => {
+      const def = globalCommandBus.getDefinition(subItem.commandId);
+      const state = globalCommandBus.getState(subItem.commandId);
+      const subLabel = subItem.label || (state ? state.label : (def ? def.label : subItem.commandId));
+      const subIconKey = subItem.icon || (state && state.icon ? state.icon : (def && def.icon ? def.icon : ""));
+      const subIconSvg = resolveIcon(subItem.commandId, subIconKey);
+      const shortcut = state ? state.shortcut : (def ? def.shortcut : "");
+
+      const itemEl = document.createElement("div");
+      itemEl.className = "vno-ribbon-dropdown-item";
+      itemEl.setAttribute("role", "menuitem");
+      itemEl.setAttribute("tabindex", "-1");
+      itemEl.setAttribute("data-command-id", subItem.commandId);
+      itemEl.setAttribute("aria-label", shortcut ? `${subLabel} (${shortcut})` : subLabel);
+
+      itemEl.innerHTML = `
+        <span class="vno-menu-item-icon" aria-hidden="true">${subIconSvg}</span>
+        <span class="vno-menu-item-label">${subLabel}</span>
+        ${shortcut ? `<span class="vno-menu-item-shortcut">${shortcut}</span>` : ""}
+      `;
+
+      if (state && !state.enabled) {
+        itemEl.classList.add("is-disabled");
+        itemEl.setAttribute("aria-disabled", "true");
+      }
+
+      itemEl.addEventListener("click", (e) => {
+        e.stopPropagation();
+        closeMenu();
+        globalCommandBus.execute(subItem.commandId);
+      });
+
+      itemEl.addEventListener("mouseenter", () => {
+        setFocusedIndex(idx);
+      });
+
+      menuEl.appendChild(itemEl);
+    });
+
+    document.body.appendChild(menuEl);
+
+    // Position menu directly beneath button
+    const rect = btn.getBoundingClientRect();
+    const menuWidth = menuEl.offsetWidth || 180;
+    let left = rect.left;
+    if (left + menuWidth > window.innerWidth - 10) {
+      left = Math.max(10, window.innerWidth - menuWidth - 10);
+    }
+    menuEl.style.top = `${rect.bottom + 2}px`;
+    menuEl.style.left = `${left}px`;
+
+    btn.setAttribute("aria-expanded", "true");
+    btn.classList.add("is-active");
+
+    const onDocMouseDown = (e) => {
+      if (!menuEl.contains(e.target) && !btn.contains(e.target)) {
+        closeMenu();
+      }
+    };
+
+    const onDocKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeMenu();
+        btn.focus();
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const nextIdx = focusedIndex < items.length - 1 ? focusedIndex + 1 : 0;
+        setFocusedIndex(nextIdx);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const prevIdx = focusedIndex > 0 ? focusedIndex - 1 : items.length - 1;
+        setFocusedIndex(prevIdx);
+      } else if (e.key === "Enter" || e.key === " ") {
+        if (focusedIndex >= 0 && focusedIndex < items.length) {
+          e.preventDefault();
+          const itemEls = menuEl.querySelectorAll(".vno-ribbon-dropdown-item");
+          if (itemEls[focusedIndex]) itemEls[focusedIndex].click();
+        }
+      } else if (e.key === "Tab") {
+        closeMenu();
+      }
+    };
+
+    menuEl._cleanup = () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onDocKeyDown);
+    };
+
+    document.addEventListener("keydown", onDocKeyDown);
+    setTimeout(() => {
+      document.addEventListener("mousedown", onDocMouseDown);
+    }, 10);
+
+    activeRibbonDropdown = {
+      button: btn,
+      menu: menuEl,
+      close: closeMenu
+    };
+  };
+
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (menuEl) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  });
+
+  btn.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+      if (!menuEl) {
+        e.preventDefault();
+        openMenu();
+        setFocusedIndex(0);
+      }
+    }
+  });
+
+  return btn;
+}

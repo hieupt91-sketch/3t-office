@@ -3,7 +3,7 @@
  * Quản lý kết cấu Ribbon động theo app context
  */
 
-import { createCommandButton, createSelect } from "../ui-kit/components.js";
+import { createCommandButton, createSelect, createDropdownButton, closeActiveDropdown } from "../ui-kit/components.js";
 import { t } from "../i18n/i18n.js";
 import { ICONS } from "../ui-kit/icons.js";
 import { globalCommandBus } from "../commands/command-bus.js";
@@ -29,12 +29,14 @@ export class RibbonHost {
   }
 
   selectTab(tabId) {
+    closeActiveDropdown();
     if (this.activeTabId === tabId) return;
     this.activeTabId = tabId;
     this.render();
   }
 
   render() {
+    closeActiveDropdown();
     this.container.innerHTML = "";
     this.container.className = "vno-ribbon";
 
@@ -135,6 +137,15 @@ export class RibbonHost {
             customLabel: item.label,
             customIcon: item.icon
           }));
+        } else if (item.type === "dropdown") {
+          itemsEl.appendChild(createDropdownButton({
+            id: item.id,
+            label: item.labelKey ? t(item.labelKey, item.label) : item.label,
+            labelKey: item.labelKey,
+            icon: item.icon,
+            isLarge: item.isLarge,
+            items: item.items
+          }));
         } else if (item.type === "column") {
           const colEl = document.createElement("div");
           colEl.className = "vno-ribbon-group-column";
@@ -145,6 +156,15 @@ export class RibbonHost {
               subItem.items.forEach(rowItem => {
                 if (rowItem.type === "select") {
                   rowEl.appendChild(createSelect(rowItem));
+                } else if (rowItem.type === "dropdown") {
+                  rowEl.appendChild(createDropdownButton({
+                    id: rowItem.id,
+                    label: rowItem.labelKey ? t(rowItem.labelKey, rowItem.label) : rowItem.label,
+                    labelKey: rowItem.labelKey,
+                    icon: rowItem.icon,
+                    isLarge: rowItem.isLarge,
+                    items: rowItem.items
+                  }));
                 } else {
                   rowEl.appendChild(createCommandButton({
                     commandId: rowItem.commandId,
@@ -156,6 +176,15 @@ export class RibbonHost {
                 }
               });
               colEl.appendChild(rowEl);
+            } else if (subItem.type === "dropdown") {
+              colEl.appendChild(createDropdownButton({
+                id: subItem.id,
+                label: subItem.labelKey ? t(subItem.labelKey, subItem.label) : subItem.label,
+                labelKey: subItem.labelKey,
+                icon: subItem.icon,
+                isLarge: subItem.isLarge,
+                items: subItem.items
+              }));
             } else if (subItem.type === "select") {
               colEl.appendChild(createSelect(subItem));
             } else {
