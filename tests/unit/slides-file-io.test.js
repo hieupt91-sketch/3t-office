@@ -331,7 +331,7 @@ export async function runSlidesFileIoTests() {
     }
   });
 
-  test("SlidesAdapter: serializeToFodp ghi arrow/table/video/audio (rút gọn media qua draw:plugin)", () => {
+  test("SlidesAdapter: serializeToFodp ghi arrow/table/video/audio (draw:plugin + data href)", () => {
     const adapter = new SlidesAdapter({
       slides: [{
         id: 11,
@@ -356,6 +356,12 @@ export async function runSlidesFileIoTests() {
     if (!fodp.includes("<draw:plugin") || !fodp.includes('draw:mime-type="video/mp4"') || !fodp.includes('draw:mime-type="audio/mpeg"')) {
       throw new Error("Video/audio không ghi draw:plugin + mime-type");
     }
+    if (!fodp.includes('xlink:href="data:video/mp4;base64,AAAA"') || !fodp.includes('xlink:href="data:audio/mpeg;base64,//uQ"')) {
+      throw new Error("Video/audio phải ghi data URL vào xlink:href (soffice PPTX hop bỏ office:binary-data trong plugin)");
+    }
+    if (!fodp.includes("<office:binary-data>AAAA</office:binary-data>") || !fodp.includes("<office:binary-data>//uQ</office:binary-data>")) {
+      throw new Error("Video/audio vẫn cần office:binary-data cho FODP thuần VN Office");
+    }
     const parsed = adapter.parseFodp(fodp);
     const byId = Object.fromEntries((parsed[0].shapes || []).map((shape) => [String(shape.id), shape]));
     if (!byId.arr1 || byId.arr1.type !== "arrow" || byId.arr1.text !== "Mũi tên") {
@@ -377,8 +383,57 @@ export async function runSlidesFileIoTests() {
     if (!byId.vid1 || byId.vid1.type !== "video" || !String(byId.vid1.src).startsWith("data:video/mp4;base64,")) {
       throw new Error(`Video parse sai: ${JSON.stringify(byId.vid1)}`);
     }
+    if (byId.vid1.src !== "data:video/mp4;base64,AAAA") {
+      throw new Error(`Video src bytes lệch: ${byId.vid1.src}`);
+    }
     if (!byId.aud1 || byId.aud1.type !== "audio") {
       throw new Error(`Audio parse sai: ${JSON.stringify(byId.aud1)}`);
+    }
+  });
+
+  test("SlidesAdapter: parseFodp đọc plugin soffice (data href + mime unknown + poster image)", () => {
+    const adapter = new SlidesAdapter(null);
+    const sofficeFodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+ xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+ xmlns:xlink="http://www.w3.org/1999/xlink">
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:frame presentation:class="object" svg:width="8.466cm" svg:height="4.761cm" svg:x="1.058cm" svg:y="1.058cm">
+        <draw:plugin xlink:href="data:video/mp4;base64,AAAAHGZ0eXA=" xlink:type="simple" xlink:show="embed" draw:mime-type="video/unknown">
+          <draw:param draw:name="Loop" draw:value="false"/>
+        </draw:plugin>
+      </draw:frame>
+      <draw:frame presentation:class="object" svg:width="6.878cm" svg:height="1.057cm" svg:x="1.058cm" svg:y="6.35cm">
+        <draw:plugin xlink:href="data:audio/mpeg;base64,//uQBA==" xlink:type="simple" xlink:show="embed" draw:mime-type="audio/unknown">
+          <draw:param draw:name="Loop" draw:value="false"/>
+        </draw:plugin>
+      </draw:frame>
+      <draw:frame draw:name="vid-poster" svg:width="8cm" svg:height="4cm" svg:x="12cm" svg:y="1cm">
+        <draw:plugin xlink:href="data:video/mp4;base64,AAAAPPTX" draw:mime-type="video/mp4"></draw:plugin>
+        <draw:image>
+          <office:binary-data>iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==</office:binary-data>
+        </draw:image>
+      </draw:frame>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const parsed = adapter.parseFodp(sofficeFodp);
+    const shapes = parsed[0].shapes || [];
+    const video = shapes.find((shape) => shape.type === "video" && String(shape.src || "").includes("AAAAHGZ0eXA="));
+    const audio = shapes.find((shape) => shape.type === "audio");
+    const poster = shapes.find((shape) => String(shape.id) === "vid-poster");
+    if (!video || video.type !== "video" || video.src !== "data:video/mp4;base64,AAAAHGZ0eXA=") {
+      throw new Error(`Video data-href soffice sai: ${JSON.stringify(video)}`);
+    }
+    if (!audio || audio.type !== "audio" || audio.src !== "data:audio/mpeg;base64,//uQBA==") {
+      throw new Error(`Audio data-href soffice sai: ${JSON.stringify(audio)}`);
+    }
+    if (!poster || poster.type !== "video" || poster.src !== "data:video/mp4;base64,AAAAPPTX") {
+      throw new Error(`Plugin+poster phải là video, không phải PNG: ${JSON.stringify(poster && { type: poster.type, src: (poster.src || "").slice(0, 60) })}`);
     }
   });
 
