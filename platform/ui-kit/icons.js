@@ -703,6 +703,12 @@ export const ICONS = {
     <path d="M9 9l6 6M15 9l-6 6" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/>
   </svg>`,
 
+  help: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <circle cx="12" cy="12" r="9" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/>
+    <path d="M9.6 9.2c0-1.4 1.1-2.5 2.5-2.5s2.4 1 2.4 2.3c0 1.3-1.1 1.8-1.9 2.4-.7.5-1 1-1 1.8" stroke="#0F4C81" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="12" cy="17.1" r="1.05" fill="#0F4C81"/>
+  </svg>`,
+
   wordCount: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
     <rect x="4" y="3" width="16" height="18" rx="1.5" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.3"/>
     <path d="M7 8h10M7 12h7M7 16h5" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>

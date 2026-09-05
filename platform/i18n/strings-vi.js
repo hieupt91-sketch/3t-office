@@ -25,6 +25,15 @@ export const viStrings = {
     themeDark: "Giao diện Tối",
     themeLight: "Giao diện Sáng"
   },
+  help: {
+    panelTitle: "Trợ giúp",
+    searchPlaceholder: "Tìm tính năng, ví dụ: Đếm từ",
+    topicList: "Danh sách chủ đề",
+    noResults: "Không tìm thấy hướng dẫn phù hợp.",
+    pickTopic: "Chọn một tính năng ở danh sách trên để xem hướng dẫn.",
+    location: "Vị trí",
+    stepsHeading: "Cách dùng"
+  },
   aiAssistant: {
     title: "Trợ lý VN AI", provider: "Nhà cung cấp AI", local: "Cục bộ (mặc định)",
     activeProvider: "Đang dùng thực tế", configureKey: "Cấu hình API key", apiKey: "API key",
@@ -402,6 +411,7 @@ export const viStrings = {
     "writer.trackChanges.acceptAll": { label: "Chấp nhận thay đổi", tooltip: "Chấp nhận toàn bộ thay đổi trong tài liệu" },
     "writer.trackChanges.rejectAll": { label: "Từ chối thay đổi", tooltip: "Từ chối toàn bộ thay đổi trong tài liệu" },
     "writer.review.wordCount": { label: "Đếm từ", tooltip: "Xem số từ, ký tự, đoạn văn và dòng của tài liệu" },
+    "writer.help.open": { label: "Trợ giúp", tooltip: "Mở hướng dẫn sử dụng (F1)" },
     "writer.page.margins": { label: "Căn lề", tooltip: "Thiết lập lề tiêu chuẩn văn bản Việt Nam" },
     "writer.page.orientation": { label: "Hướng giấy", tooltip: "Khổ giấy dọc hoặc ngang" },
     "writer.page.size": { label: "Khổ giấy", tooltip: "Chọn khổ A4, Letter, v.v." },
@@ -451,6 +461,7 @@ export const viStrings = {
       mailings: "Trộn thư",
       review: "Đánh giá",
       view: "Chế độ xem",
+      help: "Trợ giúp",
       ai: "Trợ lý VN AI"
     },
     group: {
@@ -487,6 +498,7 @@ export const viStrings = {
       show: "Hiển thị",
       zoom: "Thu phóng",
       window: "Cửa sổ",
+      help: "Trợ giúp",
       aiFeatures: "Tính năng AI thuần Việt"
     }
   },

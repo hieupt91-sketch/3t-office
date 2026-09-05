@@ -26,6 +26,15 @@ export const enStrings = {
     themeDark: "Dark Theme",
     themeLight: "Light Theme"
   },
+  help: {
+    panelTitle: "Help",
+    searchPlaceholder: "Search a feature, e.g. Word Count",
+    topicList: "Topic list",
+    noResults: "No matching help topic.",
+    pickTopic: "Select a feature in the list to read its guide.",
+    location: "Location",
+    stepsHeading: "How to use"
+  },
   aiAssistant: {
     title: "VN AI Assistant", provider: "AI provider", local: "Local (default)",
     activeProvider: "Actually in use", configureKey: "Configure API key", apiKey: "API key",
@@ -403,6 +412,7 @@ export const enStrings = {
     "writer.trackChanges.acceptAll": { label: "Accept All Changes", tooltip: "Accept all changes in document" },
     "writer.trackChanges.rejectAll": { label: "Reject All Changes", tooltip: "Reject all changes in document" },
     "writer.review.wordCount": { label: "Word Count", tooltip: "Show words, characters, paragraphs and lines in the document" },
+    "writer.help.open": { label: "Help", tooltip: "Open the in-app user guide (F1)" },
     "writer.page.margins": { label: "Margins", tooltip: "Adjust document margins" },
     "writer.page.orientation": { label: "Orientation", tooltip: "Switch page orientation between portrait and landscape" },
     "writer.page.size": { label: "Size", tooltip: "Choose page size (A4, Letter, etc.)" },
@@ -452,6 +462,7 @@ export const enStrings = {
       mailings: "Mailings",
       review: "Review",
       view: "View",
+      help: "Help",
       ai: "VN AI Assistant"
     },
     group: {
@@ -488,6 +499,7 @@ export const enStrings = {
       show: "Show",
       zoom: "Zoom",
       window: "Window",
+      help: "Help",
       aiFeatures: "Vietnamese AI Features"
     }
   },

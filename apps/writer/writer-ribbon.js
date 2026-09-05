@@ -522,6 +522,20 @@ export const WRITER_RIBBON_TABS = [
     ]
   },
   {
+    id: "help",
+    label: "Trợ giúp",
+    labelKey: "writerRibbon.tab.help",
+    groups: [
+      {
+        label: "Trợ giúp",
+        labelKey: "writerRibbon.group.help",
+        items: [
+          { type: "button", commandId: "writer.help.open", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
     id: "ai",
     label: "Trợ lý VN AI",
     labelKey: "writerRibbon.tab.ai",

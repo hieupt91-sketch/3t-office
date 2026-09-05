@@ -15,6 +15,7 @@ import { WriterViewController } from "./writer-view-controller.js";
 import { VietnameseSpellChecker } from "../../platform/text/vi-spellchecker.js";
 import { SpellcheckDomController } from "../../platform/text/spellcheck-dom-controller.js";
 import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
+import { HelpPanel } from "../../platform/help/index.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -25,6 +26,7 @@ export class WriterApp {
     this._lifecycleObserver = null;
     this.viewController = null;
     this.spellcheckController = null;
+    this.helpPanel = null;
   }
 
   async init(options = {}) {
@@ -160,6 +162,13 @@ export class WriterApp {
     commentsPanel.hidden = true;
     workspace.appendChild(commentsPanel);
 
+    this.helpPanel = new HelpPanel({ app: "writer" });
+    this.helpPanel.mount(workspace);
+    globalCommandBus.bindHandler("writer.help.open", (args) => {
+      if (args?.entryId || args?.query != null) return this.helpPanel.open(args);
+      return this.helpPanel.toggle();
+    });
+
     container.appendChild(workspace);
     this.shell.setEditorCanvas(container);
 
@@ -233,6 +242,8 @@ export class WriterApp {
     this.arrangeController = null;
     this.spellcheckController?.destroy();
     this.spellcheckController = null;
+    this.helpPanel?.destroy();
+    this.helpPanel = null;
   }
 
   _setupVietnameseSpellcheck(editableRoots) {

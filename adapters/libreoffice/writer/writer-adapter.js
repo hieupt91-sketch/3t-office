@@ -294,6 +294,7 @@ export class WriterAdapter {
     if (!this.bodyDom?.addEventListener || this._trackChangesBeforeInputHandler) return;
     this._trackChangesBeforeInputHandler = (event) => this._handleTrackChangesBeforeInput(event);
     this.bodyDom.addEventListener("beforeinput", this._trackChangesBeforeInputHandler);
+    this.bodyDom.addEventListener("input", () => this._updateTrackChangesCommandState());
   }
 
   /**

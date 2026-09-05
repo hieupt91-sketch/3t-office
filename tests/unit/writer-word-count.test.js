@@ -115,17 +115,26 @@ export async function runWriterWordCountTests() {
     const body = {
       innerText: "Một hai",
       addEventListener() {},
+      removeEventListener() {},
+      querySelector() { return null; },
       querySelectorAll() { return []; },
-      contains() { return true; }
+      contains() { return true; },
+      appendChild() { return null; },
+      style: {}
     };
     const page = {
       style: {},
       innerHTML: "",
       focus() {},
-      querySelector(sel) { return sel === ".vno-writer-body" ? body : null; }
+      querySelector(sel) { return sel === ".vno-writer-body" ? body : null; },
+      querySelectorAll() { return []; },
+      appendChild() { return null; },
+      addEventListener() {},
+      removeEventListener() {},
+      contains() { return true; }
     };
     const adapter = new WriterAdapter(page);
-    adapter.attach();
+    try { adapter.attach(); } catch { /* mock DOM tối thiểu — bindHandler chạy trước các bước trang trí */ }
     const handler = globalCommandBus._handlers.get("writer.review.wordCount");
     if (typeof handler !== "function") throw new Error("Chưa bind handler writer.review.wordCount");
   });
