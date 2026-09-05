@@ -990,22 +990,74 @@ export class SlidesCanvasController {
     return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
-  _shapePresentationHtml(shape) {
+  _shapePresentationHtml(shape, options = {}) {
+    const shapeId = this._escapeShapeText(String(shape.id ?? ""));
+    const morphAttrs = ` data-vno-shape-id="${shapeId}" data-vno-shape-type="${this._escapeShapeText(shape.type || "rect")}"`;
     if (shape.type === "connector") {
       const marker = shape.arrowEnd ? "marker-end='url(#vno-show-arrow)'" : "";
-      return `<svg class="vno-show-connector" style="position:absolute;inset:0;width:${this.slideSize.width}px;height:${this.slideSize.height}px;overflow:visible" viewBox="0 0 ${this.slideSize.width} ${this.slideSize.height}"><defs><marker id="vno-show-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="${shape.color || "#475569"}"/></marker></defs><line x1="${shape.x1}" y1="${shape.y1}" x2="${shape.x2}" y2="${shape.y2}" stroke="${shape.color || "#475569"}" stroke-width="3" ${marker}/></svg>`;
+      return `<svg class="vno-show-connector"${morphAttrs} style="position:absolute;inset:0;width:${this.slideSize.width}px;height:${this.slideSize.height}px;overflow:visible" viewBox="0 0 ${this.slideSize.width} ${this.slideSize.height}"><defs><marker id="vno-show-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="${shape.color || "#475569"}"/></marker></defs><line x1="${shape.x1}" y1="${shape.y1}" x2="${shape.x2}" y2="${shape.y2}" stroke="${shape.color || "#475569"}" stroke-width="3" ${marker}/></svg>`;
     }
     const pos = `position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;`;
     let animStyle = "";
-    if (shape.animation?.type && shape.animation.type !== "none") {
+    if (!options.suppressAnimation && shape.animation?.type && shape.animation.type !== "none") {
       animStyle = `opacity:0;animation:${this._getKeyframeName(shape.animation.type)} ${shape.animation.duration || 500}ms ease-out ${shape.animation.delay || 0}ms forwards;`;
     }
-    if (shape.type === "image" && shape.src) return `<img src="${shape.src}" style="${pos}${animStyle}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,.15)" />`;
-    if (shape.type === "video" && shape.src) return `<video src="${shape.src}" controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,.15)"></video>`;
-    if (shape.type === "audio" && shape.src) return `<audio src="${shape.src}" controls style="${pos}${animStyle}"></audio>`;
+    if (shape.type === "image" && shape.src) return `<img src="${shape.src}"${morphAttrs} style="${pos}${animStyle}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,.15)" />`;
+    if (shape.type === "video" && shape.src) return `<video src="${shape.src}"${morphAttrs} controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,.15)"></video>`;
+    if (shape.type === "audio" && shape.src) return `<audio src="${shape.src}"${morphAttrs} controls style="${pos}${animStyle}"></audio>`;
     const radius = shape.type === "ellipse" ? "50%" : "6px";
     const text = shape.text !== undefined ? `<span class="vno-show-shape-text">${this._escapeShapeText(shape.text)}</span>` : "";
-    return `<div class="vno-show-shape" style="${pos}${animStyle}background:${shape.color || "#3b82f6"};opacity:.9;border-radius:${radius}">${text}</div>`;
+    return `<div class="vno-show-shape"${morphAttrs} style="${pos}${animStyle}background:${shape.color || "#3b82f6"};opacity:.9;border-radius:${radius}">${text}</div>`;
+  }
+
+  _getMorphMatches(fromSlide, toSlide) {
+    const fromById = new Map((fromSlide?.shapes || []).map(shape => [String(shape.id), shape]));
+    return (toSlide?.shapes || []).flatMap((toShape) => {
+      const fromShape = fromById.get(String(toShape.id));
+      if (!fromShape || fromShape.type === "connector" || toShape.type === "connector" || fromShape.type !== toShape.type) return [];
+      const geometry = [fromShape.x, fromShape.y, fromShape.w, fromShape.h, toShape.x, toShape.y, toShape.w, toShape.h];
+      return geometry.every(Number.isFinite) ? [{ id: String(toShape.id), from: fromShape, to: toShape }] : [];
+    });
+  }
+
+  _applyMorphTransition(content, fromSlide, toSlide, duration) {
+    const matches = this._getMorphMatches(fromSlide, toSlide);
+    if (!matches.length) return false;
+    const nodes = [...(content.querySelectorAll?.("[data-vno-shape-id]") || [])];
+    const nodeById = new Map(nodes.map(node => [String(node.dataset?.vnoShapeId || ""), node]));
+    const matchedIds = new Set(matches.map(match => match.id));
+    const ms = Math.max(1, Number(duration) || 500);
+
+    for (const match of matches) {
+      const node = nodeById.get(match.id);
+      if (!node) continue;
+      const scaleX = match.to.w ? match.from.w / match.to.w : 1;
+      const scaleY = match.to.h ? match.from.h / match.to.h : 1;
+      node.classList?.add("vno-morph-shape");
+      node.dataset.vnoMorphState = "from";
+      node.style.transition = `transform ${ms}ms ease-in-out, background-color ${ms}ms ease-in-out, opacity ${ms}ms ease-in-out`;
+      node.style.transformOrigin = "top left";
+      node.style.transform = `translate(${match.from.x - match.to.x}px, ${match.from.y - match.to.y}px) scale(${scaleX}, ${scaleY})`;
+      node.style.backgroundColor = match.from.color || "#3b82f6";
+      node.style.opacity = "0.9";
+    }
+    for (const node of nodes) {
+      if (!matchedIds.has(String(node.dataset?.vnoShapeId || ""))) node.classList?.add("vno-morph-enter");
+    }
+
+    const start = () => {
+      for (const match of matches) {
+        const node = nodeById.get(match.id);
+        if (!node) continue;
+        node.dataset.vnoMorphState = "running";
+        node.style.transform = "translate(0px, 0px) scale(1, 1)";
+        node.style.backgroundColor = match.to.color || "#3b82f6";
+        node.style.opacity = "0.9";
+      }
+    };
+    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => requestAnimationFrame(start));
+    else setTimeout(start, 0);
+    return true;
   }
 
   _shapeSorterHtml(shape) {
@@ -3328,6 +3380,7 @@ export class SlidesCanvasController {
                 <option value="slide" ${currentType === "slide" ? "selected" : ""}>Trượt ngang (Slide)</option>
                 <option value="zoom" ${currentType === "zoom" ? "selected" : ""}>Thu phóng (Zoom)</option>
                 <option value="flip" ${currentType === "flip" ? "selected" : ""}>Lật trang 3D (Flip)</option>
+                <option value="morph" ${currentType === "morph" ? "selected" : ""}>Morph</option>
               </select>
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
@@ -3367,7 +3420,9 @@ export class SlidesCanvasController {
         if (!previewBox || !typeSelect || !durationSelect) return;
         const type = typeSelect.value;
         const dur = durationSelect.value;
-        const animName = `vnoTransition${type.charAt(0).toUpperCase() + type.slice(1)}`;
+        // Dialog preview has no adjacent-slide shape pair, so Morph previews its documented crossfade fallback.
+        const previewType = type === "morph" ? "fade" : type;
+        const animName = `vnoTransition${previewType.charAt(0).toUpperCase() + previewType.slice(1)}`;
         previewBox.style.animation = "none";
         void previewBox.offsetWidth;
         previewBox.style.animation = `${animName} ${dur}ms ease-out forwards`;
@@ -3676,9 +3731,11 @@ export class SlidesCanvasController {
       return shouldSave;
     };
 
-    const renderShow = () => {
+    const renderShow = (previousSlide = null) => {
       const s = this.slides[currentShowIdx];
-      const shapesHtml = (s.shapes || []).map(shape => this._shapePresentationHtml(shape)).join("");
+      const transition = s.transition || this.transitionConfig || { type: "fade", duration: 500 };
+      const isMorph = transition.type === "morph";
+      const shapesHtml = (s.shapes || []).map(shape => this._shapePresentationHtml(shape, { suppressAnimation: isMorph })).join("");
 
       let titleAnimStyle = "";
       if (s.titleAnimation && s.titleAnimation.type && s.titleAnimation.type !== "none") {
@@ -3757,11 +3814,18 @@ export class SlidesCanvasController {
       `;
 
       // Áp dụng Transition Animation thật
-      const t = s.transition || this.transitionConfig || { type: "fade", duration: 500 };
-      const animName = `vnoTransition${t.type.charAt(0).toUpperCase() + t.type.slice(1)}`;
+      const t = transition;
       content.style.animation = "none";
       void content.offsetWidth;
-      content.style.animation = `${animName} ${t.duration}ms ease-out forwards`;
+      if (t.type === "morph" && this._applyMorphTransition(content, previousSlide, s, t.duration)) {
+        content.dataset.vnoTransition = "morph";
+      } else {
+        // Safe Morph fallback: without a clear same-id shape match, crossfade instead of freezing or failing.
+        const fallbackType = t.type === "morph" ? "fade" : t.type;
+        const animName = `vnoTransition${fallbackType.charAt(0).toUpperCase() + fallbackType.slice(1)}`;
+        content.dataset.vnoTransition = t.type === "morph" ? "morph-fallback-fade" : fallbackType;
+        content.style.animation = `${animName} ${t.duration}ms ease-out forwards`;
+      }
     };
 
     renderShow();
@@ -3773,8 +3837,9 @@ export class SlidesCanvasController {
         captureSlideTiming();
         rehearseSlideStart = performance.now();
       }
+      const previousSlide = this.slides[currentShowIdx];
       currentShowIdx = nextIdx;
-      renderShow();
+      renderShow(previousSlide);
     };
 
     const closeShow = (discardRehearsal = false) => {

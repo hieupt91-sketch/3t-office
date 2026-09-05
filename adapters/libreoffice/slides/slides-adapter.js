@@ -234,6 +234,8 @@ export class SlidesAdapter {
     if (type === "zoom") return { type: "irisWipe", subtype: "rectangle", dur };
     // fadeOverColor is valid ODF; LibreOffice PPTX filter drops it (measured).
     if (type === "flip") return { type: "fadeOverColor", subtype: "crossfade", dur, fadeColor: "#000000" };
+    // ODF/SMIL has no Morph transition. Persist a standards-safe fade plus vno:transition metadata on draw:page.
+    if (type === "morph") return { type: "fade", subtype: "crossfade", dur };
     return { type: "fade", subtype: "crossfade", dur };
   }
 
@@ -409,6 +411,7 @@ export class SlidesAdapter {
   }
 
   _parsePageTransition(pageAttrs, pageContent, drawingPageStyles) {
+    const vnCustomType = this._attr(pageAttrs, "vno:transition").toLowerCase();
     const styleName = this._attr(pageAttrs, "draw:style-name");
     const fromStyle = drawingPageStyles.get(styleName) || {};
     const filterMatch = String(pageContent || "").match(/<anim:transitionFilter\b([^>]*?)\/?>/i);
@@ -420,6 +423,12 @@ export class SlidesAdapter {
       filterType || fromStyle.smilType,
       filterSubtype || fromStyle.smilSubtype
     );
+    if (vnCustomType === "morph") {
+      return {
+        type: "morph",
+        duration: this._parseSmilTimeToMs(filterDur) || fromStyle.duration || 500
+      };
+    }
     if (!vnType) return undefined;
     return {
       type: vnType,
@@ -1212,8 +1221,9 @@ export class SlidesAdapter {
       const animXml = this._serializePageAnimXml(pageXmlId, slide, idMap, placeholderIds);
       const commentsXml = this._serializePageCommentsXml(slide.comments);
 
+      const vnTransitionAttr = slide.transition?.type === "morph" ? ' vno:transition="morph"' : "";
       pagesXml += `
-      <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="Standard" presentation:layout="${layoutType}" xml:id="${pageXmlId}" draw:id="${pageXmlId}">
+      <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="Standard" presentation:layout="${layoutType}" xml:id="${pageXmlId}" draw:id="${pageXmlId}"${vnTransitionAttr}>
         ${framesXml}${shapesXml}${animXml}${notesXml}${commentsXml}
       </draw:page>`;
     });
@@ -1233,6 +1243,7 @@ export class SlidesAdapter {
                  xmlns:dc="http://purl.org/dc/elements/1.1/"
                  xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
                  xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0"
+                 xmlns:vno="urn:vn-office:slides:1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.presentation">
   <office:automatic-styles>${automaticStyles}
   </office:automatic-styles>

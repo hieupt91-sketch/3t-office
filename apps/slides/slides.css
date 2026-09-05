@@ -329,6 +329,15 @@
   to { transform: perspective(1000px) rotateY(0deg); opacity: 1; }
 }
 
+/* Morph uses FLIP transforms on same-id shapes. New unmatched shapes enter softly. */
+.vno-morph-shape {
+  will-change: transform, background-color, opacity;
+}
+
+.vno-morph-enter {
+  animation: vnoTransitionFade 0.5s ease-out forwards;
+}
+
 /* Theme cards for Slide Master Modal */
 .vno-theme-card {
   border: 2px solid #cbd5e1;
