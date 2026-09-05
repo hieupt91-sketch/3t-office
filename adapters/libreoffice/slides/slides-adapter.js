@@ -77,6 +77,637 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.view.zoomReset", () => this.canvas.zoomReset ? this.canvas.zoomReset() : false);
     globalCommandBus.bindHandler("slides.view.fitToWindow", () => this.canvas.fitToWindow ? this.canvas.fitToWindow() : false);
     globalCommandBus.bindHandler("slides.view.newWindow", () => this.canvas.newWindow ? this.canvas.newWindow() : false);
+    this._bindTextFormatTracking();
+  }
+
+  _bindTextFormatTracking() {
+    if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
+    if (this._textFormatSelectionHandler) return;
+    this._textFormatSelectionHandler = () => {
+      this._rememberTextSelection();
+      this._syncTextFormatState();
+    };
+    this._textFormatMouseDownHandler = (event) => {
+      const host = event.target?.closest?.("[data-command-id]");
+      const id = host?.getAttribute?.("data-command-id") || "";
+      if (!/^slides\.(text|font|para|list|color)\./.test(id)) return;
+      this._rememberTextSelection();
+      const tag = (event.target?.tagName || host?.tagName || "").toUpperCase();
+      if (tag === "SELECT" || tag === "OPTION") return;
+      event.preventDefault();
+    };
+    document.addEventListener("selectionchange", this._textFormatSelectionHandler);
+    document.addEventListener("mousedown", this._textFormatMouseDownHandler, true);
+  }
+
+  _isSlideEditable(el) {
+    if (!el) return false;
+    const editable = el.contentEditable === "true" || el.contentEditable === true;
+    if (!editable) return false;
+    if (this.canvas?.canvasEl?.contains?.(el)) return true;
+    const cls = el.classList;
+    return !!(cls?.contains?.("vno-slide-title")
+      || cls?.contains?.("vno-slide-body")
+      || cls?.contains?.("vno-diagram-node-text")
+      || cls?.contains?.("vno-wordart-text")
+      || el.tagName === "TD"
+      || el.tagName === "TH");
+  }
+
+  _containingEditable(node) {
+    let current = node;
+    if (current?.nodeType === 3) current = current.parentNode;
+    while (current) {
+      if (this._isSlideEditable(current)) return current;
+      current = current.parentNode;
+    }
+    return null;
+  }
+
+  _rememberTextSelection() {
+    if (typeof window === "undefined" || typeof window.getSelection !== "function") return;
+    const active = typeof document !== "undefined" ? document.activeElement : null;
+    if (active && !this._isSlideEditable(active) && active !== document.body && active?.tagName !== "BODY") {
+      return;
+    }
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    const editable = this._containingEditable(range.commonAncestorContainer);
+    if (!editable) return;
+    try {
+      this._savedRange = range.cloneRange();
+    } catch {
+      this._savedRange = range;
+    }
+    this._savedEditable = editable;
+  }
+
+  _restoreTextSelection() {
+    if (typeof window !== "undefined" && typeof window.getSelection === "function") {
+      const live = window.getSelection();
+      if (live?.rangeCount && !live.getRangeAt(0).collapsed) {
+        const liveEditable = this._containingEditable(live.getRangeAt(0).commonAncestorContainer);
+        if (liveEditable) {
+          this._savedEditable = liveEditable;
+          try { this._savedRange = live.getRangeAt(0).cloneRange(); } catch { this._savedRange = live.getRangeAt(0); }
+          liveEditable.focus?.();
+          return liveEditable;
+        }
+      }
+    }
+    const editable = this._savedEditable && this._isSlideEditable(this._savedEditable)
+      ? this._savedEditable
+      : (this._isSlideEditable(typeof document !== "undefined" ? document.activeElement : null)
+        ? document.activeElement
+        : this.canvas?.titleEl);
+    editable?.focus?.();
+    if (this._savedRange && typeof window !== "undefined" && typeof window.getSelection === "function") {
+      try {
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(this._savedRange);
+      } catch {
+        /* selection may be stale after slide switch */
+      }
+    }
+    return editable;
+  }
+
+  _queryCommandState(command) {
+    try {
+      return !!(typeof document !== "undefined" && document.queryCommandState?.(command));
+    } catch {
+      return false;
+    }
+  }
+
+  _queryCommandValue(command) {
+    try {
+      return typeof document !== "undefined" ? String(document.queryCommandValue?.(command) || "") : "";
+    } catch {
+      return "";
+    }
+  }
+
+  _syncTextFormatState() {
+    if (typeof globalCommandBus?.updateState !== "function") return;
+    globalCommandBus.updateState("slides.text.bold", { checked: this._queryCommandState("bold") });
+    globalCommandBus.updateState("slides.text.italic", { checked: this._queryCommandState("italic") });
+    globalCommandBus.updateState("slides.text.underline", { checked: this._queryCommandState("underline") });
+    globalCommandBus.updateState("slides.text.strike", { checked: this._queryCommandState("strikeThrough") });
+    globalCommandBus.updateState("slides.list.bullet", { checked: this._queryCommandState("insertUnorderedList") });
+    globalCommandBus.updateState("slides.list.numbered", { checked: this._queryCommandState("insertOrderedList") });
+    globalCommandBus.updateState("slides.para.alignLeft", { checked: this._queryCommandState("justifyLeft") });
+    globalCommandBus.updateState("slides.para.alignCenter", { checked: this._queryCommandState("justifyCenter") });
+    globalCommandBus.updateState("slides.para.alignRight", { checked: this._queryCommandState("justifyRight") });
+    globalCommandBus.updateState("slides.para.justify", { checked: this._queryCommandState("justifyFull") });
+
+    const familyRaw = this._queryCommandValue("fontName").replace(/['"]/g, "").split(",")[0].trim();
+    if (typeof document !== "undefined" && document.querySelectorAll) {
+      document.querySelectorAll('select[data-command-id="slides.font.family"]').forEach((select) => {
+        if (familyRaw && [...(select.options || [])].some((option) => option.value === familyRaw)) {
+          select.value = familyRaw;
+        }
+      });
+      const sizeRaw = this._queryCommandValue("fontSize");
+      document.querySelectorAll('select[data-command-id="slides.font.size"]').forEach((select) => {
+        if (sizeRaw && [...(select.options || [])].some((option) => option.value === sizeRaw)) {
+          select.value = sizeRaw;
+        }
+      });
+    }
+  }
+
+  _applyExecCommand(command, value) {
+    this._restoreTextSelection();
+    if (typeof document === "undefined" || typeof document.execCommand !== "function") return false;
+    const ok = document.execCommand(command, false, value === undefined ? null : value);
+    this.canvas?._syncEditableFieldsFromDom?.();
+    this._syncTextFormatState();
+    return ok;
+  }
+
+  _setLineHeight(value) {
+    this._restoreTextSelection();
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    let node = selection?.anchorNode;
+    if (node?.nodeType === 3) node = node.parentNode;
+    const root = this._savedEditable || this.canvas?.canvasEl;
+    while (node && node !== root && node.tagName !== "P" && node.tagName !== "DIV" && node.tagName !== "LI") {
+      node = node.parentNode;
+    }
+    if (node && node !== root && node.style) node.style.lineHeight = String(value);
+    else if (this._savedEditable?.style) this._savedEditable.style.lineHeight = String(value);
+    this.canvas?._syncEditableFieldsFromDom?.();
+    this._syncTextFormatState();
+    return true;
+  }
+
+  _adjustFontSize(delta) {
+    this._restoreTextSelection();
+    if (typeof document === "undefined" || typeof document.execCommand !== "function") return false;
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    let node = selection?.anchorNode;
+    if (node?.nodeType === 3) node = node.parentNode;
+    const current = (typeof window !== "undefined" && node && window.getComputedStyle)
+      ? parseInt(window.getComputedStyle(node).fontSize, 10)
+      : 16;
+    const nextSize = Math.max(10, Math.min(96, (Number.isFinite(current) ? current : 16) + delta * 4));
+    document.execCommand("fontSize", false, "7");
+    const root = this._savedEditable || this.canvas?.canvasEl;
+    const fonts = root?.getElementsByTagName?.("font") || [];
+    for (let index = 0; index < fonts.length; index++) {
+      if (fonts[index].size === "7" || fonts[index].getAttribute?.("size") === "7") {
+        fonts[index].removeAttribute("size");
+        fonts[index].style.fontSize = `${nextSize}px`;
+      }
+    }
+    this.canvas?._syncEditableFieldsFromDom?.();
+    this._syncTextFormatState();
+    return true;
+  }
+
+  _isTextFormatCommand(cmd) {
+    return /^(slides\.text\.(bold|italic|underline|strike|clearFormat)|slides\.font\.(family|size|grow|shrink)|slides\.color\.(text|highlight)|slides\.list\.(bullet|numbered)|slides\.para\.(alignLeft|alignCenter|alignRight|justify|indentInc|indentDec|lineSpacing))$/.test(cmd || "");
+  }
+
+  _handleTextFormatCommand(cmd, args) {
+    switch (cmd) {
+      case "slides.text.bold":
+        this._applyExecCommand("bold");
+        return this._queryCommandState("bold");
+      case "slides.text.italic":
+        this._applyExecCommand("italic");
+        return this._queryCommandState("italic");
+      case "slides.text.underline":
+        this._applyExecCommand("underline");
+        return this._queryCommandState("underline");
+      case "slides.text.strike":
+        this._applyExecCommand("strikeThrough");
+        return this._queryCommandState("strikeThrough");
+      case "slides.text.clearFormat":
+        return this._applyExecCommand("removeFormat");
+      case "slides.font.family":
+        if (args) this._applyExecCommand("fontName", args);
+        return true;
+      case "slides.font.size":
+        if (args) this._applyExecCommand("fontSize", args);
+        return true;
+      case "slides.font.grow":
+        return this._adjustFontSize(1);
+      case "slides.font.shrink":
+        return this._adjustFontSize(-1);
+      case "slides.color.text":
+        return this._applyExecCommand("foreColor", args || "#dc2626");
+      case "slides.color.highlight":
+        return this._applyExecCommand("hiliteColor", args || "#ffcd00");
+      case "slides.list.bullet":
+        this._applyExecCommand("insertUnorderedList");
+        return this._queryCommandState("insertUnorderedList");
+      case "slides.list.numbered":
+        this._applyExecCommand("insertOrderedList");
+        return this._queryCommandState("insertOrderedList");
+      case "slides.para.alignLeft":
+        this._applyExecCommand("justifyLeft");
+        this._syncTextFormatState();
+        return this._queryCommandState("justifyLeft");
+      case "slides.para.alignCenter":
+        this._applyExecCommand("justifyCenter");
+        this._syncTextFormatState();
+        return this._queryCommandState("justifyCenter");
+      case "slides.para.alignRight":
+        this._applyExecCommand("justifyRight");
+        this._syncTextFormatState();
+        return this._queryCommandState("justifyRight");
+      case "slides.para.justify":
+        this._applyExecCommand("justifyFull");
+        this._syncTextFormatState();
+        return this._queryCommandState("justifyFull");
+      case "slides.para.indentInc":
+        return this._applyExecCommand("indent");
+      case "slides.para.indentDec":
+        return this._applyExecCommand("outdent");
+      case "slides.para.lineSpacing":
+        return this._setLineHeight(args || "1.0");
+      default:
+        return false;
+    }
+  }
+
+  _newRichTextContext() {
+    return { textStyles: [], paraStyles: [], listStyles: [] };
+  }
+
+  _richKey(props) {
+    return Object.keys(props || {}).sort().filter((key) => props[key]).map((key) => `${key}=${props[key]}`).join(";");
+  }
+
+  _ensureNamedStyle(list, prefix, props) {
+    const filtered = {};
+    for (const [key, value] of Object.entries(props || {})) {
+      if (value) filtered[key] = value;
+    }
+    if (!Object.keys(filtered).length) return null;
+    const key = this._richKey(filtered);
+    let found = list.find((item) => item.key === key);
+    if (!found) {
+      found = { name: `${prefix}${list.length + 1}`, key, props: filtered };
+      list.push(found);
+    }
+    return found.name;
+  }
+
+  _htmlHasFormat(html) {
+    const value = String(html || "");
+    if (!value) return false;
+    if (/<(b|strong|i|em|u|s|strike|sub|sup|font|ul|ol|li|blockquote)\b/i.test(value)) return true;
+    if (/style\s*=\s*["'][^"']*(font-weight|font-style|text-decoration|color|background|font-family|font-size|text-align|line-height)/i.test(value)) return true;
+    return /<(span|div|p)\b[^>]*(align|face|color|size)=/i.test(value);
+  }
+
+  _plainFromHtml(html) {
+    return this._unescapeXml(String(html || "")
+      .replace(/<span[^>]*data-vno-spelling-uncertain[^>]*>([\s\S]*?)<\/span>/gi, "$1")
+      .replace(/<span[^>]*class="[^"]*vno-spelling-uncertain[^"]*"[^>]*>([\s\S]*?)<\/span>/gi, "$1")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/(p|div|li|h[1-6])>/gi, "\n")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/\n+$/g, ""));
+  }
+
+  _cssColorToHex(raw) {
+    const value = String(raw || "").trim();
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value)) {
+      if (value.length === 4) {
+        return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`.toLowerCase();
+      }
+      return value.toLowerCase();
+    }
+    const rgb = value.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (rgb) {
+      const hex = (num) => Number(num).toString(16).padStart(2, "0");
+      return `#${hex(rgb[1])}${hex(rgb[2])}${hex(rgb[3])}`;
+    }
+    return value;
+  }
+
+  _htmlFontSizeToPt(size) {
+    const map = { 1: "10pt", 2: "13pt", 3: "16pt", 4: "18pt", 5: "24pt", 6: "32pt", 7: "48pt" };
+    return map[String(size)] || null;
+  }
+
+  _styleFromHtmlAttrs(tag, attrs) {
+    const out = {};
+    const lower = String(tag || "").toLowerCase();
+    if (lower === "b" || lower === "strong") out.bold = true;
+    if (lower === "i" || lower === "em") out.italic = true;
+    if (lower === "u") out.underline = true;
+    if (lower === "s" || lower === "strike") out.strike = true;
+    if (lower === "font") {
+      const face = this._attr(` ${attrs} `, "face") || attrs.match(/face\s*=\s*["']([^"']+)["']/i)?.[1];
+      const color = this._attr(` ${attrs} `, "color") || attrs.match(/color\s*=\s*["']([^"']+)["']/i)?.[1];
+      const size = this._attr(` ${attrs} `, "size") || attrs.match(/size\s*=\s*["']?(\d+)/i)?.[1];
+      if (face) out.family = face.split(",")[0].replace(/['"]/g, "").trim();
+      if (color) out.color = this._cssColorToHex(color);
+      if (size) out.size = this._htmlFontSizeToPt(size);
+    }
+    const style = attrs.match(/style\s*=\s*["']([^"']*)["']/i)?.[1] || "";
+    for (const part of style.split(";")) {
+      const colon = part.indexOf(":");
+      if (colon < 0) continue;
+      const key = part.slice(0, colon).trim().toLowerCase();
+      const value = part.slice(colon + 1).trim();
+      if (!key || !value) continue;
+      if (key === "font-weight" && /^(bold|[7-9]00)$/i.test(value)) out.bold = true;
+      if (key === "font-style" && /italic/i.test(value)) out.italic = true;
+      if (key === "text-decoration" && /underline/i.test(value)) out.underline = true;
+      if (key === "text-decoration" && /line-through/i.test(value)) out.strike = true;
+      if (key === "color") out.color = this._cssColorToHex(value);
+      if (key === "background-color" || key === "background") out.bg = this._cssColorToHex(value);
+      if (key === "font-family") out.family = value.replace(/['"]/g, "").split(",")[0].trim();
+      if (key === "font-size") out.size = /pt|px|em|%/i.test(value) ? value : `${value}pt`;
+      if (key === "text-align") out.align = value;
+      if (key === "line-height") out.lineHeight = value;
+      if (key === "margin-left") out.indent = value;
+    }
+    const align = attrs.match(/\balign\s*=\s*["']([^"']+)["']/i)?.[1];
+    if (align) out.align = align;
+    return out;
+  }
+
+  _walkHtml(html, handlers) {
+    const re = /<\/?([a-zA-Z0-9]+)([^>]*)\/?>|([^<]+)/g;
+    let match;
+    const source = String(html || "");
+    while ((match = re.exec(source))) {
+      if (match[3]) {
+        handlers.text?.(this._unescapeXml(match[3].replace(/&nbsp;/gi, " ")));
+        continue;
+      }
+      const tag = match[1].toLowerCase();
+      const isClose = source[match.index + 1] === "/";
+      const selfClose = /\/\s*>$/.test(match[0]) || tag === "br";
+      if (isClose) handlers.close?.(tag);
+      else {
+        handlers.open?.(tag, match[2] || "");
+        if (selfClose) handlers.close?.(tag);
+      }
+    }
+  }
+
+  _spansToOdf(texts, block, ctx) {
+    const paraName = this._ensureNamedStyle(ctx.paraStyles, "vnoP", {
+      align: block.align,
+      lineHeight: block.lineHeight,
+      indent: block.indent
+    });
+    const styleAttr = paraName ? ` text:style-name="${paraName}"` : "";
+    const inner = (texts || []).map(({ text, fmt }) => {
+      const escaped = this._escapeXml(text);
+      const name = this._ensureNamedStyle(ctx.textStyles, "vnoT", fmt);
+      return name ? `<text:span text:style-name="${name}">${escaped}</text:span>` : escaped;
+    }).join("");
+    return `<text:p${styleAttr}>${inner}</text:p>`;
+  }
+
+  _htmlToOdfXml(html, ctx) {
+    if (!this._htmlHasFormat(html)) return this._textParagraphsXml(this._plainFromHtml(html));
+    const blocks = [];
+    let current = { texts: [], align: null, lineHeight: null, indent: null, list: null };
+    const formatStack = [{}];
+    const currentFmt = () => Object.assign({}, ...formatStack);
+    const flush = () => {
+      if (current.texts.some((item) => item.text) || current.list) blocks.push(current);
+      current = { texts: [], align: current.align, lineHeight: current.lineHeight, indent: current.indent, list: current.list };
+    };
+
+    this._walkHtml(html, {
+      text: (text) => {
+        if (text) current.texts.push({ text, fmt: currentFmt() });
+      },
+      open: (tag, attrs) => {
+        const css = this._styleFromHtmlAttrs(tag, attrs);
+        if (css.align) current.align = css.align;
+        if (css.lineHeight) current.lineHeight = css.lineHeight;
+        if (css.indent) current.indent = css.indent;
+        if (tag === "ul") current.list = "bullet";
+        if (tag === "ol") current.list = "number";
+        if (tag === "br") {
+          flush();
+          return;
+        }
+        if ((tag === "p" || tag === "div" || tag === "li") && current.texts.length) flush();
+        if (tag === "li") current.list = current.list || "bullet";
+        formatStack.push(css);
+      },
+      close: (tag) => {
+        if (tag === "li" || tag === "p" || tag === "div") {
+          if (current.texts.length || tag === "li") flush();
+        }
+        if (tag === "ul" || tag === "ol") current.list = null;
+        if (formatStack.length > 1) formatStack.pop();
+      }
+    });
+    if (current.texts.length) flush();
+    if (!blocks.length) return this._textParagraphsXml(this._plainFromHtml(html));
+
+    const parts = [];
+    let listBuffer = null;
+    const flushList = () => {
+      if (!listBuffer) return;
+      const listName = this._ensureNamedStyle(ctx.listStyles, "vnoL", { kind: listBuffer.kind });
+      const items = listBuffer.items.map((item) => `<text:list-item>${item}</text:list-item>`).join("");
+      parts.push(`<text:list text:style-name="${listName}">${items}</text:list>`);
+      listBuffer = null;
+    };
+    for (const block of blocks) {
+      const para = this._spansToOdf(block.texts, block, ctx);
+      if (block.list) {
+        if (!listBuffer || listBuffer.kind !== block.list) {
+          flushList();
+          listBuffer = { kind: block.list, items: [] };
+        }
+        listBuffer.items.push(para);
+      } else {
+        flushList();
+        parts.push(para);
+      }
+    }
+    flushList();
+    return parts.join("") || "<text:p/>";
+  }
+
+  _richOrPlainXml(plain, html, ctx) {
+    if (html && this._htmlHasFormat(html) && ctx) return this._htmlToOdfXml(html, ctx);
+    return this._textParagraphsXml(plain);
+  }
+
+  _serializeRichTextStyles(ctx) {
+    if (!ctx) return "";
+    let xml = "";
+    for (const style of ctx.paraStyles) {
+      const props = style.props || {};
+      const attrs = [];
+      if (props.align) attrs.push(`fo:text-align="${this._escapeXml(props.align)}"`);
+      if (props.lineHeight) attrs.push(`fo:line-height="${this._escapeXml(props.lineHeight)}"`);
+      if (props.indent) attrs.push(`fo:margin-left="${this._escapeXml(props.indent)}"`);
+      xml += `
+    <style:style style:name="${style.name}" style:family="paragraph">
+      <style:paragraph-properties ${attrs.join(" ")}/>
+    </style:style>`;
+    }
+    for (const style of ctx.textStyles) {
+      const props = style.props || {};
+      const attrs = [];
+      if (props.bold) attrs.push('fo:font-weight="bold"');
+      if (props.italic) attrs.push('fo:font-style="italic"');
+      if (props.underline) {
+        attrs.push('style:text-underline-style="solid"');
+        attrs.push('style:text-underline-width="auto"');
+        attrs.push('style:text-underline-color="font-color"');
+      }
+      if (props.strike) attrs.push('style:text-line-through-style="solid"');
+      if (props.color) attrs.push(`fo:color="${this._escapeXml(props.color)}"`);
+      if (props.bg) attrs.push(`fo:background-color="${this._escapeXml(props.bg)}"`);
+      if (props.family) {
+        attrs.push(`fo:font-family="${this._escapeXml(props.family)}"`);
+        attrs.push(`style:font-name="${this._escapeXml(props.family)}"`);
+      }
+      if (props.size) attrs.push(`fo:font-size="${this._escapeXml(props.size)}"`);
+      xml += `
+    <style:style style:name="${style.name}" style:family="text">
+      <style:text-properties ${attrs.join(" ")}/>
+    </style:style>`;
+    }
+    for (const style of ctx.listStyles) {
+      if (style.props?.kind === "number") {
+        xml += `
+    <text:list-style style:name="${style.name}">
+      <text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix=".">
+        <style:list-level-properties text:space-before="0.5cm" text:min-label-width="0.5cm"/>
+      </text:list-level-style-number>
+    </text:list-style>`;
+      } else {
+        xml += `
+    <text:list-style style:name="${style.name}">
+      <text:list-level-style-bullet text:level="1" text:bullet-char="•">
+        <style:list-level-properties text:space-before="0.5cm" text:min-label-width="0.5cm"/>
+      </text:list-level-style-bullet>
+    </text:list-style>`;
+      }
+    }
+    return xml;
+  }
+
+  _parseRichStyleMaps(xmlText) {
+    const text = new Map();
+    const para = new Map();
+    const list = new Map();
+    const styleRe = /<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi;
+    let match;
+    while ((match = styleRe.exec(xmlText || "")) !== null) {
+      const family = match[1].match(/style:family=["']([^"']+)["']/i)?.[1];
+      const name = match[1].match(/style:name=["']([^"']+)["']/i)?.[1];
+      if (!name) continue;
+      const inner = match[2] || "";
+      if (family === "text") {
+        text.set(name, {
+          bold: /fo:font-weight=["']bold["']/i.test(inner) || /fo:font-weight=["'][7-9]00["']/i.test(inner),
+          italic: /fo:font-style=["']italic["']/i.test(inner),
+          underline: /style:text-underline-style=["'](?!none)[^"']+["']/i.test(inner),
+          strike: /style:text-line-through-style=["'](?!none)[^"']+["']/i.test(inner),
+          color: inner.match(/fo:color=["']([^"']+)["']/i)?.[1],
+          bg: inner.match(/fo:background-color=["']([^"']+)["']/i)?.[1],
+          family: inner.match(/fo:font-family=["']([^"']+)["']/i)?.[1] || inner.match(/style:font-name=["']([^"']+)["']/i)?.[1],
+          size: inner.match(/fo:font-size=["']([^"']+)["']/i)?.[1]
+        });
+      } else if (family === "paragraph") {
+        para.set(name, {
+          align: inner.match(/fo:text-align=["']([^"']+)["']/i)?.[1],
+          lineHeight: inner.match(/fo:line-height=["']([^"']+)["']/i)?.[1],
+          indent: inner.match(/fo:margin-left=["']([^"']+)["']/i)?.[1]
+        });
+      }
+    }
+    const listRe = /<text:list-style\b([^>]*)>([\s\S]*?)<\/text:list-style>/gi;
+    while ((match = listRe.exec(xmlText || "")) !== null) {
+      const name = match[1].match(/style:name=["']([^"']+)["']/i)?.[1];
+      if (!name) continue;
+      list.set(name, /list-level-style-number/i.test(match[2] || "") ? "number" : "bullet");
+    }
+    return { text, para, list };
+  }
+
+  _odfInlineToHtml(inner, maps) {
+    let html = String(inner || "").replace(/<text:line-break\b[^>]*\/?>/gi, "<br>");
+    html = html.replace(/<text:span\b([^>]*)>([\s\S]*?)<\/text:span>/gi, (_, attrs, content) => {
+      const name = attrs.match(/text:style-name=["']([^"']+)["']/i)?.[1];
+      const fmt = maps?.text?.get(name) || {};
+      let wrapped = this._escapeXml(this._unescapeXml(String(content).replace(/<[^>]+>/g, "")));
+      if (fmt.bold) wrapped = `<b>${wrapped}</b>`;
+      if (fmt.italic) wrapped = `<i>${wrapped}</i>`;
+      if (fmt.underline) wrapped = `<u>${wrapped}</u>`;
+      if (fmt.strike) wrapped = `<s>${wrapped}</s>`;
+      const spanStyles = [];
+      if (fmt.color) spanStyles.push(`color:${fmt.color}`);
+      if (fmt.bg) spanStyles.push(`background-color:${fmt.bg}`);
+      if (fmt.family) spanStyles.push(`font-family:${fmt.family}`);
+      if (fmt.size) spanStyles.push(`font-size:${fmt.size}`);
+      if (spanStyles.length) wrapped = `<span style="${spanStyles.join(";")}">${wrapped}</span>`;
+      return wrapped;
+    });
+    return html.replace(/<\/?text:[^>]+>/g, "");
+  }
+
+  _htmlFromOdfXml(xml, maps) {
+    const source = String(xml || "");
+    if (!source) return "";
+    let out = "";
+    const re = /<text:list\b([^>]*)>([\s\S]*?)<\/text:list>|<text:p\b([^>]*)>([\s\S]*?)<\/text:p>/gi;
+    let match;
+    while ((match = re.exec(source)) !== null) {
+      if (match[0].startsWith("<text:list")) {
+        const listName = (match[1] || "").match(/text:style-name=["']([^"']+)["']/i)?.[1];
+        const kind = maps?.list?.get(listName) || "bullet";
+        const tag = kind === "number" ? "ol" : "ul";
+        const items = [];
+        const itemRe = /<text:list-item\b[^>]*>([\s\S]*?)<\/text:list-item>/gi;
+        let itemMatch;
+        while ((itemMatch = itemRe.exec(match[2] || "")) !== null) {
+          items.push(`<li>${this._odfInlineToHtml(itemMatch[1], maps)}</li>`);
+        }
+        out += `<${tag}>${items.join("")}</${tag}>`;
+      } else {
+        const paraName = (match[3] || "").match(/text:style-name=["']([^"']+)["']/i)?.[1];
+        const para = maps?.para?.get(paraName) || {};
+        const inner = this._odfInlineToHtml(match[4], maps);
+        const styles = [];
+        if (para.align) styles.push(`text-align:${para.align}`);
+        if (para.lineHeight) styles.push(`line-height:${para.lineHeight}`);
+        if (para.indent) styles.push(`margin-left:${para.indent}`);
+        const styleAttr = styles.length ? ` style="${styles.join(";")}"` : "";
+        out += `<div${styleAttr}>${inner}</div>`;
+      }
+    }
+    return out;
+  }
+
+  _frameHtmlByClass(pageXml, className, maps) {
+    const frames = [];
+    const regex = /<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi;
+    let match;
+    while ((match = regex.exec(pageXml || "")) !== null) {
+      const cls = match[1].match(/presentation:class=["']([^"']+)["']/i)?.[1];
+      if (cls === className) frames.push(this._htmlFromOdfXml(match[2], maps));
+    }
+    return frames;
+  }
+
+  _shapeHtmlFromXml(inner) {
+    const html = this._htmlFromOdfXml(inner, this._richMaps);
+    return this._htmlHasFormat(html) ? html : undefined;
   }
 
   _escapeXml(str) {
@@ -691,10 +1322,10 @@ export class SlidesAdapter {
     return xml;
   }
 
-  _serializeShape(shape, drawId, idMap) {
+  _serializeShape(shape, drawId, idMap, richCtx) {
     const type = shape?.type || "rect";
     const geom = this._shapeGeomAttrs(shape, drawId);
-    const textXml = this._textParagraphsXml(shape.text);
+    const textXml = this._richOrPlainXml(shape.text, shape.textHtml, richCtx);
 
     if (type === "connector") {
       const start = this._escapeXml(String(idMap.get(String(shape.sourceId)) || shape.sourceId || ""));
@@ -745,7 +1376,11 @@ export class SlidesAdapter {
       const cols = Math.max(1, Number(shape.cols) || rows.reduce((max, row) => Math.max(max, (row || []).length), 1));
       const rowsXml = rows.map((row) => {
         const cells = Array.from({ length: cols }, (_, index) => row?.[index] ?? "");
-        const cellsXml = cells.map((cell) => `<table:table-cell office:value-type="string">${this._textParagraphsXml(cell)}</table:table-cell>`).join("");
+        const cellsXml = cells.map((cell) => {
+          const html = this._htmlHasFormat(cell) ? cell : "";
+          const plain = html ? this._plainFromHtml(cell) : cell;
+          return `<table:table-cell office:value-type="string">${this._richOrPlainXml(plain, html, richCtx)}</table:table-cell>`;
+        }).join("");
         return `<table:table-row>${cellsXml}</table:table-row>`;
       }).join("");
       return `
@@ -827,10 +1462,10 @@ export class SlidesAdapter {
         </draw:rect>`;
   }
 
-  _serializeSlideShapes(shapes, idMap) {
+  _serializeSlideShapes(shapes, idMap, richCtx) {
     if (!Array.isArray(shapes) || shapes.length === 0) return "";
     const map = idMap || this._collectShapeIdMap(shapes);
-    return shapes.map((shape) => this._serializeShape(shape, map.get(String(shape.id)), map)).join("");
+    return shapes.map((shape) => this._serializeShape(shape, map.get(String(shape.id)), map, richCtx)).join("");
   }
 
   _parseGraphicFillStyles(xmlText) {
@@ -907,6 +1542,7 @@ export class SlidesAdapter {
       h: this._odfLengthToPx(get("svg:height")) || 120,
       color,
       text: this._paragraphsFromXml(inner).join("\n"),
+      textHtml: this._shapeHtmlFromXml(inner),
       animation: this._noneAnimation()
     };
   }
@@ -977,7 +1613,8 @@ export class SlidesAdapter {
         const fallback = isCovered
           ? ""
           : this._unescapeXml(this._attr(cellMatch[1], "office:value") || this._attr(cellMatch[1], "office:string-value") || "");
-        const cellText = text || fallback;
+        const cellHtml = isCovered ? "" : this._htmlFromOdfXml(cellMatch[2] || "", this._richMaps);
+        const cellText = this._htmlHasFormat(cellHtml) ? cellHtml : (text || fallback);
         for (let index = 0; index < colRepeat; index++) cells.push(cellText);
       }
       for (let index = 0; index < rowRepeat; index++) rows.push(cells.slice());
@@ -1053,7 +1690,8 @@ export class SlidesAdapter {
         ...base,
         type: "textbox",
         color: get("draw:fill-color") || style.fill || "transparent",
-        text: this._paragraphsFromXml(inner).join("\n")
+        text: this._paragraphsFromXml(inner).join("\n"),
+        textHtml: this._shapeHtmlFromXml(inner)
       };
     }
     return null;
@@ -1312,11 +1950,12 @@ export class SlidesAdapter {
   serializeToFodp() {
     const slides = (this.canvas && this.canvas.slides) || [];
     const sections = (this.canvas && this.canvas.sections) || [];
+    const richCtx = this._newRichTextContext();
     let pagesXml = "";
 
     slides.forEach((slide, idx) => {
       const pageName = `page${idx + 1}`;
-      const titleEscaped = this._escapeXml(slide.title || `Trang chiếu ${idx + 1}`);
+      const titleXml = this._richOrPlainXml(slide.title || `Trang chiếu ${idx + 1}`, slide.titleHtml, richCtx);
       const layoutType = slide.layoutType || "title-content";
 
       const notesXml = slide.notes ? `
@@ -1342,23 +1981,17 @@ export class SlidesAdapter {
         framesXml = `
         <draw:frame presentation:style-name="prTitle" presentation:class="title"${titleIds} svg:x="2cm" svg:y="6cm" svg:width="24cm" svg:height="6cm">
           <draw:text-box>
-            <text:p>${titleEscaped}</text:p>
+            ${titleXml}
           </draw:text-box>
         </draw:frame>`;
       } else if (layoutType === "two-content") {
-        const bodyLines = (slide.body || "").split("\n");
-        const bodyParasXml = bodyLines
-          .map((line) => `<text:p>${this._escapeXml(line)}</text:p>`)
-          .join("");
-        const body2Lines = (slide.body2 || "").split("\n");
-        const body2ParasXml = body2Lines
-          .map((line) => `<text:p>${this._escapeXml(line)}</text:p>`)
-          .join("");
+        const bodyParasXml = this._richOrPlainXml(slide.body, slide.bodyHtml, richCtx);
+        const body2ParasXml = this._richOrPlainXml(slide.body2, slide.body2Html, richCtx);
 
         framesXml = `
         <draw:frame presentation:style-name="prTitle" presentation:class="title"${titleIds} svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
           <draw:text-box>
-            <text:p>${titleEscaped}</text:p>
+            ${titleXml}
           </draw:text-box>
         </draw:frame>
         <draw:frame presentation:style-name="prBody" presentation:class="outline"${bodyIds} svg:x="2cm" svg:y="5.5cm" svg:width="11.5cm" svg:height="11cm">
@@ -1372,16 +2005,12 @@ export class SlidesAdapter {
           </draw:text-box>
         </draw:frame>`;
       } else {
-        // title-content (default)
-        const bodyLines = (slide.body || "").split("\n");
-        const bodyParasXml = bodyLines
-          .map((line) => `<text:p>${this._escapeXml(line)}</text:p>`)
-          .join("");
+        const bodyParasXml = this._richOrPlainXml(slide.body, slide.bodyHtml, richCtx);
 
         framesXml = `
         <draw:frame presentation:style-name="prTitle" presentation:class="title"${titleIds} svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
           <draw:text-box>
-            <text:p>${titleEscaped}</text:p>
+            ${titleXml}
           </draw:text-box>
         </draw:frame>
         <draw:frame presentation:style-name="prBody" presentation:class="outline"${bodyIds} svg:x="2cm" svg:y="5.5cm" svg:width="24cm" svg:height="11cm">
@@ -1391,7 +2020,7 @@ export class SlidesAdapter {
         </draw:frame>`;
       }
 
-      const shapesXml = this._serializeSlideShapes(slide.shapes || [], idMap);
+      const shapesXml = this._serializeSlideShapes(slide.shapes || [], idMap, richCtx);
       const pageXmlId = `idPage${idx + 1}`;
       const pageStyleName = this._pageDrawingStyleName(slide, idx);
       const animXml = this._serializePageAnimXml(pageXmlId, slide, idMap, placeholderIds);
@@ -1408,7 +2037,7 @@ export class SlidesAdapter {
       </draw:page>`;
     });
 
-    const automaticStyles = this._serializeGraphicStyles(slides);
+    const automaticStyles = this._serializeGraphicStyles(slides) + this._serializeRichTextStyles(richCtx);
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
@@ -1447,6 +2076,7 @@ export class SlidesAdapter {
     const parsedSlides = [];
     const graphicStyles = this._parseGraphicFillStyles(xmlText);
     const drawingPageStyles = this._parseDrawingPageStyles(xmlText);
+    this._richMaps = this._parseRichStyleMaps(xmlText);
     const parsedSections = [];
 
     // Negative lookahead: do not match draw:page-thumbnail / page-number placeholders.
@@ -1577,6 +2207,14 @@ export class SlidesAdapter {
         body = pageLayout === "title-only" ? "" : (paragraphs.length > 1 ? paragraphs.slice(1).join("\n") : "");
       }
 
+      const titleHtmls = this._frameHtmlByClass(pageContent, "title", this._richMaps);
+      const outlineHtmls = this._frameHtmlByClass(pageContent, "outline", this._richMaps);
+      const subtitleHtmls = this._frameHtmlByClass(pageContent, "subtitle", this._richMaps);
+      const titleHtml = titleHtmls.find((item) => this._htmlHasFormat(item));
+      const bodyHtml = (subtitleHtmls.find((item) => this._htmlHasFormat(item))
+        || (pageLayout === "two-content" ? outlineHtmls[0] : outlineHtmls.find((item) => this._htmlHasFormat(item))));
+      const body2Html = pageLayout === "two-content" ? outlineHtmls[1] : undefined;
+
       const styleName = this._attr(fullPageTag, "draw:style-name");
       const fromPageStyle = drawingPageStyles.get(styleName) || {};
       const pageVisibility = this._attr(fullPageTag, "presentation:visibility") || this._attr(fullPageTag, "presentation:visible");
@@ -1588,6 +2226,9 @@ export class SlidesAdapter {
         title,
         body,
         body2,
+        ...(titleHtml && this._htmlHasFormat(titleHtml) ? { titleHtml } : {}),
+        ...(bodyHtml && this._htmlHasFormat(bodyHtml) ? { bodyHtml } : {}),
+        ...(body2Html && this._htmlHasFormat(body2Html) ? { body2Html } : {}),
         layoutType: pageLayout,
         shapes,
         notes: notesText,
@@ -1740,6 +2381,10 @@ export class SlidesAdapter {
   async handleDispatch(unoUrl, args, vnCmdId) {
     if (!this.canvas) return false;
     const cmd = vnCmdId || (unoUrl === ".uno:AssignLayout" ? "slides.layout.apply" : vnCmdId);
+
+    if (this._isTextFormatCommand(cmd)) {
+      return this._handleTextFormatCommand(cmd, args);
+    }
 
     switch (cmd) {
       case "slides.slide.new":
