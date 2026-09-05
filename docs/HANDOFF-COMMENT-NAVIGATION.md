@@ -10,7 +10,7 @@ IMPLEMENTATION SUMMARY: Thêm bốn command/app; Next/Previous quay vòng và fo
 FILES CHANGED: apps/writer/*; apps/sheet/*; apps/slides/*; ba adapter tương ứng; platform/commands/command-definitions.js; platform/i18n/*; platform/ui-kit/icons.js; platform/help/entries-*.js; tests/unit/*comments*; tests/live/comment-navigation.playwright.mjs; tài liệu này.
 COMMANDS RUN: git/worktree verification; targeted unit runners; node tests/run-tests.js; node tests/live/comment-navigation.playwright.mjs.
 BUILD RESULT: NOT RUN (repo dùng test runner trực tiếp; không có build riêng trong scope).
-TEST RESULTS: Full suite lần đầu PASS 1000/1000 trong 69.9 giây trước khi thêm test mới. Targeted comment tests được chạy lại sau khi thêm test. Live Playwright: xem trạng thái cuối bên dưới.
+TEST RESULTS: PASS — `node tests/run-tests.js`: 1003/1003, 0 fail, khoảng 64 giây. PASS — `node tests/live/comment-navigation.playwright.mjs`: cả Writer/Sheet/Slides, click ribbon thật, không SendKeys.
 KNOWN FAILURES: Không có lỗi sản phẩm đã biết; cảnh báo command chưa khai báo trong targeted isolated runner là do runner không bootstrap registry toàn suite.
 RISKS: Trạng thái `resolved` là metadata VN model; comment cũ/import cũ không có field này được hiểu là chưa xử lý. Không sửa semantics file format/Core.
 DEPENDENCIES/BLOCKERS: Không.
