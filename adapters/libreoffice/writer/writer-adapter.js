@@ -936,9 +936,17 @@ export class WriterAdapter {
    * LibreOffice HTML (StarWriter) emits a full HTML document. Outline-level
    * Heading 1 is also wrapped as `<ol><li><h1>` — unwrap so Writer keeps h1
    * instead of a numbered list / Normal paragraph.
+   *
+   * StarWriter HTML also flattens OOXML Track Changes (`w:ins` / `w:del`) into
+   * ordinary paragraph text. When the desktop bridge forwards `word/document.xml`,
+   * wrap those runs back into `<ins>` / `<del>` before the body is mounted.
    */
-  _normalizeImportedHtml(raw) {
+  _normalizeImportedHtml(raw, ooxmlDocumentXml) {
     let html = String(raw || "");
+    if (ooxmlDocumentXml) {
+      html = this._applyOoxmlTrackChangesToHtml(html, ooxmlDocumentXml);
+    }
+    html = this._upgradeImportedTrackChangeMarkup(html);
     const page = this._pageSetupFromImportedCss(html);
     const bodyMatch = html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
     if (bodyMatch) html = bodyMatch[1];
@@ -963,6 +971,116 @@ export class WriterAdapter {
       html = html.replace(footerMatch[0], "");
     }
     return { body: html.trim(), header, footer, page };
+  }
+
+  /**
+   * Parse native Word revision marks. LibreOffice HTML (StarWriter) drops the
+   * tags and author, but keeps both inserted and deleted text as plain runs.
+   */
+  _extractOoxmlRevisions(xml) {
+    const source = String(xml || "");
+    const revisions = [];
+    const blockRe = /<w:(ins|del)\b([^>]*)>([\s\S]*?)<\/w:\1>/gi;
+    let match;
+    while ((match = blockRe.exec(source))) {
+      const kind = match[1].toLowerCase() === "ins" ? "insert" : "delete";
+      const attrs = match[2] || "";
+      const inner = match[3] || "";
+      const author = this._decodeXmlEntities((attrs.match(/\bw:author="([^"]*)"/i) || [])[1] || "");
+      const date = this._decodeXmlEntities((attrs.match(/\bw:date="([^"]*)"/i) || [])[1] || "");
+      const texts = [];
+      const textRe = /<w:(?:t|delText)\b[^>]*>([\s\S]*?)<\/w:(?:t|delText)>/gi;
+      let textMatch;
+      while ((textMatch = textRe.exec(inner))) {
+        texts.push(this._decodeXmlEntities(textMatch[1]));
+      }
+      const text = texts.join("");
+      if (text) revisions.push({ kind, text, author, date });
+    }
+    return revisions;
+  }
+
+  _decodeXmlEntities(value) {
+    return String(value || "")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'");
+  }
+
+  _escapeRegExp(value) {
+    return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  _isInsideImportedRevision(html, offset) {
+    const before = String(html || "").slice(0, offset);
+    const lastOpenIns = Math.max(before.lastIndexOf("<ins"), before.lastIndexOf("<INS"));
+    const lastOpenDel = Math.max(before.lastIndexOf("<del"), before.lastIndexOf("<DEL"));
+    const lastOpen = Math.max(lastOpenIns, lastOpenDel);
+    if (lastOpen < 0) return false;
+    const lastCloseIns = Math.max(before.lastIndexOf("</ins>"), before.lastIndexOf("</INS>"));
+    const lastCloseDel = Math.max(before.lastIndexOf("</del>"), before.lastIndexOf("</DEL>"));
+    return Math.max(lastCloseIns, lastCloseDel) < lastOpen;
+  }
+
+  _trackChangeTooltip(revision) {
+    const author = String(revision?.author || "").trim();
+    const date = String(revision?.date || "").trim();
+    if (author && date) return `${author} (${date})`;
+    return author || date;
+  }
+
+  _wrapImportedRevisionMatch(match, revision) {
+    const kind = revision.kind === "delete" ? "delete" : "insert";
+    const tag = kind === "delete" ? "del" : "ins";
+    const tooltip = this._trackChangeTooltip(revision);
+    const authorAttr = revision.author
+      ? ` data-vno-author="${this._escapeHtml(revision.author)}"`
+      : "";
+    const dateAttr = revision.date ? ` data-vno-date="${this._escapeHtml(revision.date)}"` : "";
+    const titleAttr = tooltip ? ` title="${this._escapeHtml(tooltip)}"` : "";
+    const editable = kind === "delete" ? ` contenteditable="false"` : "";
+    return `<${tag} data-vno-change="${kind}"${editable}${authorAttr}${dateAttr}${titleAttr}>${match}</${tag}>`;
+  }
+
+  _applyOoxmlTrackChangesToHtml(html, ooxmlDocumentXml) {
+    const revisions = this._extractOoxmlRevisions(ooxmlDocumentXml);
+    if (!revisions.length) return html;
+    const ordered = [...revisions].sort((a, b) => b.text.length - a.text.length);
+    let next = String(html || "");
+    for (const revision of ordered) {
+      const parts = String(revision.text || "").trim().split(/\s+/).filter(Boolean);
+      if (!parts.length) continue;
+      const pattern = new RegExp(parts.map((part) => this._escapeRegExp(part)).join("\\s+"), "g");
+      next = next.replace(pattern, (matched, offset) => {
+        if (/[<>]/.test(matched)) return matched;
+        if (this._isInsideImportedRevision(next, offset)) return matched;
+        return this._wrapImportedRevisionMatch(matched, revision);
+      });
+    }
+    return next;
+  }
+
+  /**
+   * Map generic HTML `<ins>` / `<del>` (or already-wrapped OOXML overlays) onto
+   * the session Track Changes markers the Writer canvas already styles.
+   */
+  _upgradeImportedTrackChangeMarkup(html) {
+    const upgrade = (full, attrs, kind) => {
+      if (/\bdata-vno-change\s*=/i.test(attrs)) return full;
+      const author = (attrs.match(/\b(?:title|cite|data-author|data-vno-author)\s*=\s*(["'])(.*?)\1/i) || [])[2] || "";
+      const authorAttr = author && !/\bdata-vno-author\s*=/i.test(attrs)
+        ? ` data-vno-author="${this._escapeHtml(author)}"`
+        : "";
+      const titleAttr = author && !/\btitle\s*=/i.test(attrs) ? ` title="${this._escapeHtml(author)}"` : "";
+      const editable = kind === "delete" && !/\bcontenteditable\s*=/i.test(attrs) ? ` contenteditable="false"` : "";
+      const tag = kind === "delete" ? "del" : "ins";
+      return `<${tag}${attrs} data-vno-change="${kind}"${editable}${authorAttr}${titleAttr}>`;
+    };
+    return String(html || "")
+      .replace(/<ins\b([^>]*)>/gi, (full, attrs) => upgrade(full, attrs, "insert"))
+      .replace(/<del\b([^>]*)>/gi, (full, attrs) => upgrade(full, attrs, "delete"));
   }
 
   async _showPageSetupDialog(focusField = "size") {
@@ -3150,7 +3268,7 @@ export class WriterAdapter {
       this.trackChangesEnabled = false;
       this.activeCommentId = null;
       this._renderCommentsPanel();
-      const imported = this._normalizeImportedHtml(result.content || "");
+      const imported = this._normalizeImportedHtml(result.content || "", result.ooxmlDocumentXml);
       if (imported.page) {
         this.pageSetup = {
           size: imported.page.size || this.pageSetup.size,

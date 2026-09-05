@@ -641,5 +641,465 @@ export async function runSlidesFileIoTests() {
     }
   });
 
+  test("SlidesAdapter: serializeToFodp ghi transition slide và animation shape ra SMIL ODF", () => {
+    const adapter = new SlidesAdapter({
+      slides: [{
+        id: 1,
+        title: "Chuyen trang Fade",
+        body: "",
+        layoutType: "title-content",
+        transition: { type: "fade", duration: 500 },
+        shapes: [{
+          id: "rect-fly",
+          type: "rect",
+          x: 76, y: 151, w: 227, h: 95,
+          color: "#2563eb",
+          text: "Bay vao",
+          animation: { type: "flyIn", duration: 800, delay: 200 }
+        }]
+      }, {
+        id: 2,
+        title: "Zoom va Flip",
+        body: "",
+        layoutType: "title-content",
+        transition: { type: "zoom", duration: 800 },
+        shapes: [{
+          id: "rect-fade",
+          type: "rect",
+          x: 10, y: 10, w: 100, h: 40,
+          color: "#0f766e",
+          text: "Fade In",
+          animation: { type: "fadeIn", duration: 300, delay: 0 }
+        }]
+      }, {
+        id: 3,
+        title: "Flip",
+        body: "",
+        layoutType: "title-content",
+        transition: { type: "flip", duration: 1000 },
+        shapes: []
+      }]
+    });
+    const fodp = adapter.serializeToFodp();
+    if (!fodp.includes('xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"')) {
+      throw new Error("Thieu xmlns:smil");
+    }
+    if (!fodp.includes('xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0"')) {
+      throw new Error("Thieu xmlns:anim");
+    }
+    if (!fodp.includes('smil:type="fade"') || !fodp.includes('smil:subtype="crossfade"')) {
+      throw new Error("Khong ghi transition fade/crossfade");
+    }
+    if (!fodp.includes('smil:type="irisWipe"') || !fodp.includes('smil:subtype="rectangle"')) {
+      throw new Error("Khong ghi transition zoom bang irisWipe/rectangle (PPTX-safe)");
+    }
+    if (!fodp.includes('smil:type="fadeOverColor"')) {
+      throw new Error("Khong ghi transition flip bang fadeOverColor (ODF)");
+    }
+    if (!fodp.includes("<anim:transitionFilter")) {
+      throw new Error("Khong ghi anim:transitionFilter (soffice doc duration tai day)");
+    }
+    if (!fodp.includes('presentation:preset-id="ooo-entrance-fly-in"') || !fodp.includes('presentation:preset-sub-type="from-bottom"')) {
+      throw new Error("Khong ghi animation fly-in");
+    }
+    if (!fodp.includes('presentation:preset-id="ooo-entrance-fade-in"')) {
+      throw new Error("Khong ghi animation fade-in");
+    }
+    if (!fodp.includes('smil:begin="0.2s"')) {
+      throw new Error("Khong ghi delay 200ms thanh smil:begin=0.2s");
+    }
+    if (!fodp.includes('smil:dur="0.8s"')) {
+      throw new Error("Khong ghi duration 800ms thanh smil:dur=0.8s");
+    }
+    if (!fodp.includes('smil:targetElement="rect-fly"')) {
+      throw new Error("Animation khong tro draw:id cua shape");
+    }
+    const parsed = adapter.parseFodp(fodp);
+    if (parsed[1].transition?.type !== "zoom" || parsed[1].transition?.duration !== 800) {
+      throw new Error(`irisWipe phai parse lai thanh zoom: ${JSON.stringify(parsed[1].transition)}`);
+    }
+    if (parsed[2].transition?.type !== "flip" || parsed[2].transition?.duration !== 1000) {
+      throw new Error(`fadeOverColor phai parse lai thanh flip (FODP thuan): ${JSON.stringify(parsed[2].transition)}`);
+    }
+  });
+
+  test("SlidesAdapter: serializeToFodp → parseFodp giu transition va animation trong bo nho", () => {
+    const adapter = new SlidesAdapter({
+      slides: [{
+        id: 1,
+        title: "Chuyen trang Fade",
+        body: "Noi dung",
+        layoutType: "title-content",
+        transition: { type: "fade", duration: 500 },
+        shapes: [{
+          id: "rect-fly",
+          type: "rect",
+          x: 76, y: 151, w: 227, h: 95,
+          color: "#2563eb",
+          text: "Bay vao",
+          animation: { type: "flyIn", duration: 800, delay: 200 }
+        }, {
+          id: "plain",
+          type: "ellipse",
+          x: 300, y: 151, w: 80, h: 80,
+          color: "#64748b",
+          text: "Khong hieu ung"
+        }]
+      }, {
+        id: 2,
+        title: "Truot",
+        body: "",
+        layoutType: "title-content",
+        transition: { type: "slide", duration: 300 },
+        shapes: [{
+          id: "r-wipe",
+          type: "rect",
+          x: 20, y: 20, w: 90, h: 40,
+          color: "#dc2626",
+          text: "Wipe",
+          animation: { type: "slideLeft", duration: 1000, delay: 500 }
+        }]
+      }, {
+        id: 3,
+        title: "Khong transition",
+        body: "",
+        layoutType: "title-content",
+        shapes: []
+      }]
+    });
+    const parsed = adapter.parseFodp(adapter.serializeToFodp());
+    if (parsed.length !== 3) throw new Error(`so slide: ${parsed.length}`);
+    if (!parsed[0].transition || parsed[0].transition.type !== "fade" || parsed[0].transition.duration !== 500) {
+      throw new Error(`slide1.transition: ${JSON.stringify(parsed[0].transition)}`);
+    }
+    const byId = Object.fromEntries((parsed[0].shapes || []).map((shape) => [String(shape.id), shape]));
+    const fly = byId["rect-fly"];
+    if (!fly || fly.animation?.type !== "flyIn" || fly.animation.duration !== 800 || fly.animation.delay !== 200) {
+      throw new Error(`rect-fly.animation: ${JSON.stringify(fly?.animation)}`);
+    }
+    if (byId.plain?.animation?.type !== "none") {
+      throw new Error(`shape khong animation phai fallback none: ${JSON.stringify(byId.plain?.animation)}`);
+    }
+    if (parsed[1].transition?.type !== "slide" || parsed[1].transition?.duration !== 300) {
+      throw new Error(`slide2.transition: ${JSON.stringify(parsed[1].transition)}`);
+    }
+    const wipe = (parsed[1].shapes || []).find((shape) => String(shape.id) === "r-wipe");
+    if (wipe?.animation?.type !== "slideLeft" || wipe.animation.duration !== 1000 || wipe.animation.delay !== 500) {
+      throw new Error(`r-wipe.animation: ${JSON.stringify(wipe?.animation)}`);
+    }
+    if (parsed[2].transition) {
+      throw new Error(`slide khong transition van bi gan: ${JSON.stringify(parsed[2].transition)}`);
+    }
+  });
+
+  test("SlidesAdapter: parseFodp doc FODP kieu soffice (drawing-page smil + ooo-entrance + id remap)", () => {
+    const adapter = new SlidesAdapter(null);
+    const sofficeFodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+ xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+ xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+ xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
+ xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0">
+  <office:automatic-styles>
+    <style:style style:name="dp3" style:family="drawing-page">
+      <style:drawing-page-properties presentation:transition-speed="fast" smil:type="fade" smil:subtype="crossfade" smil:fadeColor="#000000"/>
+    </style:style>
+    <style:style style:name="dp4" style:family="drawing-page">
+      <style:drawing-page-properties smil:type="pushWipe" smil:subtype="fromRight"/>
+    </style:style>
+    <style:style style:name="dp5" style:family="drawing-page">
+      <style:drawing-page-properties smil:type="zoom"/>
+    </style:style>
+    <style:style style:name="gr4" style:family="graphic">
+      <style:graphic-properties draw:fill="solid" draw:fill-color="#2563eb"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body><office:presentation>
+    <draw:page draw:name="Fade slide" draw:style-name="dp3" xml:id="id1" draw:id="id1">
+      <draw:frame presentation:class="title" svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
+        <draw:text-box><text:p>Fade slide</text:p></draw:text-box>
+      </draw:frame>
+      <draw:custom-shape draw:name="rect-fly" draw:style-name="gr4" xml:id="id2" draw:id="id2" svg:width="6cm" svg:height="2.5cm" svg:x="2cm" svg:y="4cm">
+        <text:p>Bay vao</text:p>
+        <draw:enhanced-geometry draw:type="ooxml-rect"/>
+      </draw:custom-shape>
+      <anim:par smil:dur="indefinite" presentation:node-type="timing-root">
+        <anim:par smil:begin="id1.begin">
+          <anim:transitionFilter smil:dur="0.5s" smil:type="fade" smil:subtype="crossfade"/>
+        </anim:par>
+        <anim:seq smil:dur="indefinite" presentation:node-type="main-sequence">
+          <anim:par smil:begin="next" smil:fill="hold">
+            <anim:par smil:begin="0.2s" smil:fill="hold" presentation:node-type="on-click" presentation:preset-class="entrance" presentation:preset-id="ooo-entrance-fly-in" presentation:preset-sub-type="from-bottom">
+              <anim:set smil:begin="0s" smil:dur="0.001s" smil:fill="hold" smil:targetElement="id2" smil:attributeName="visibility" smil:to="visible"/>
+              <anim:animate smil:dur="0.8s" smil:fill="hold" smil:targetElement="id2" smil:attributeName="y" smil:values="height;y" smil:keyTimes="0;1"/>
+            </anim:par>
+          </anim:par>
+        </anim:seq>
+      </anim:par>
+    </draw:page>
+    <draw:page draw:name="Push / Fly In" draw:style-name="dp4" xml:id="id3" draw:id="id3">
+      <draw:frame presentation:class="title"><draw:text-box><text:p>Push</text:p></draw:text-box></draw:frame>
+      <draw:rect draw:name="rect-fade" draw:style-name="gr4" xml:id="id4" draw:id="id4" svg:width="6cm" svg:height="2cm" svg:x="2cm" svg:y="6cm">
+        <text:p>Fade In</text:p>
+      </draw:rect>
+      <anim:par presentation:node-type="timing-root">
+        <anim:par smil:begin="id3.begin">
+          <anim:transitionFilter smil:dur="0.3s" smil:type="pushWipe" smil:subtype="fromRight"/>
+        </anim:par>
+        <anim:seq presentation:node-type="main-sequence">
+          <anim:par smil:begin="indefinite">
+            <anim:par smil:begin="0s" smil:fill="hold" presentation:node-type="on-click" presentation:preset-class="entrance" presentation:preset-id="ooo-entrance-fade-in">
+              <anim:set smil:begin="0s" smil:dur="0.001s" smil:fill="hold" smil:targetElement="id4" smil:attributeName="visibility" smil:to="visible"/>
+              <anim:animate smil:dur="0.5s" smil:fill="hold" smil:targetElement="id4" smil:attributeName="opacity" smil:from="0" smil:to="1"/>
+            </anim:par>
+          </anim:par>
+        </anim:seq>
+      </anim:par>
+    </draw:page>
+    <draw:page draw:name="Iris / Zoom In" draw:style-name="dp5">
+      <draw:frame presentation:class="title"><draw:text-box><text:p>Zoom</text:p></draw:text-box></draw:frame>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const parsed = adapter.parseFodp(sofficeFodp);
+    if (parsed.length !== 3) throw new Error(`so slide: ${parsed.length}`);
+    if (parsed[0].transition?.type !== "fade" || parsed[0].transition?.duration !== 500) {
+      throw new Error(`soffice fade transition: ${JSON.stringify(parsed[0].transition)}`);
+    }
+    const fly = (parsed[0].shapes || []).find((shape) => String(shape.id) === "rect-fly");
+    if (!fly) throw new Error("Khong map lai shape theo draw:name sau khi draw:id doi thanh id2");
+    if (fly.animation?.type !== "flyIn" || fly.animation.duration !== 800 || fly.animation.delay !== 200) {
+      throw new Error(`soffice flyIn qua targetElement=id2: ${JSON.stringify(fly.animation)}`);
+    }
+    if (parsed[1].transition?.type !== "slide" || parsed[1].transition?.duration !== 300) {
+      throw new Error(`soffice pushWipe → slide: ${JSON.stringify(parsed[1].transition)}`);
+    }
+    const fadeShape = (parsed[1].shapes || []).find((shape) => String(shape.id) === "rect-fade");
+    if (fadeShape?.animation?.type !== "fadeIn" || fadeShape.animation.duration !== 500) {
+      throw new Error(`soffice fade-in: ${JSON.stringify(fadeShape?.animation)}`);
+    }
+    if (parsed[2].transition?.type !== "zoom") {
+      throw new Error(`soffice smil:type=zoom: ${JSON.stringify(parsed[2].transition)}`);
+    }
+  });
+
+  test("SlidesAdapter: serializeToFodp ghi titleAnimation/bodyAnimation ra SMIL, van giu placeholder class", () => {
+    const adapter = new SlidesAdapter({
+      slides: [{
+        id: 1,
+        title: "Tieu de fade",
+        body: "Noi dung fly",
+        layoutType: "title-content",
+        titleAnimation: { type: "fadeIn", duration: 600, delay: 100 },
+        bodyAnimation: { type: "flyIn", duration: 700, delay: 300 },
+        shapes: []
+      }, {
+        id: 2,
+        title: "Hai cot",
+        body: "Cot mot",
+        body2: "Cot hai",
+        layoutType: "two-content",
+        titleAnimation: { type: "zoomIn", duration: 500, delay: 0 },
+        body2Animation: { type: "bounceIn", duration: 800, delay: 200 },
+        shapes: []
+      }]
+    });
+    const fodp = adapter.serializeToFodp();
+    if (!fodp.includes('presentation:class="title"') || !fodp.includes('presentation:class="outline"')) {
+      throw new Error("Van phai ghi presentation:class title/outline");
+    }
+    if (!fodp.includes('draw:id="title-1"') || !fodp.includes('xml:id="title-1"') || !fodp.includes('draw:name="title"')) {
+      throw new Error("Khung title phai co draw:id/xml:id/draw:name de SMIL tro");
+    }
+    if (!fodp.includes('draw:id="body-1"') || !fodp.includes('draw:name="body"')) {
+      throw new Error("Khung outline body phai co draw:id");
+    }
+    if (!fodp.includes('draw:id="body2-2"') || !fodp.includes('draw:name="body2"')) {
+      throw new Error("Khung outline body2 phai co draw:id rieng");
+    }
+    if (!fodp.includes('smil:targetElement="title-1"') || !fodp.includes('presentation:preset-id="ooo-entrance-fade-in"')) {
+      throw new Error("titleAnimation fadeIn khong tro title-1");
+    }
+    if (!fodp.includes('smil:targetElement="body-1"') || !fodp.includes('presentation:preset-id="ooo-entrance-fly-in"')) {
+      throw new Error("bodyAnimation flyIn khong tro body-1");
+    }
+    if (!fodp.includes('smil:targetElement="body2-2"') || !fodp.includes('presentation:preset-id="ooo-entrance-bounce"')) {
+      throw new Error("body2Animation bounceIn khong tro body2-2");
+    }
+    if (!fodp.includes('smil:begin="0.1s"') || !fodp.includes('smil:dur="0.6s"')) {
+      throw new Error("Khong ghi delay/duration titleAnimation");
+    }
+    const parsed = adapter.parseFodp(fodp);
+    if (parsed[0].title !== "Tieu de fade" || !parsed[0].body.includes("Noi dung fly")) {
+      throw new Error(`Gan id khong duoc pha title/body: title=${parsed[0].title} body=${parsed[0].body}`);
+    }
+    if ((parsed[0].shapes || []).some((shape) => String(shape.id).startsWith("title") || String(shape.id).startsWith("body"))) {
+      throw new Error(`Khung title/body bi parse thanh shape: ${JSON.stringify(parsed[0].shapes)}`);
+    }
+    if (parsed[0].titleAnimation?.type !== "fadeIn" || parsed[0].titleAnimation.duration !== 600 || parsed[0].titleAnimation.delay !== 100) {
+      throw new Error(`titleAnimation parse: ${JSON.stringify(parsed[0].titleAnimation)}`);
+    }
+    if (parsed[0].bodyAnimation?.type !== "flyIn" || parsed[0].bodyAnimation.duration !== 700 || parsed[0].bodyAnimation.delay !== 300) {
+      throw new Error(`bodyAnimation parse: ${JSON.stringify(parsed[0].bodyAnimation)}`);
+    }
+    if (parsed[1].titleAnimation?.type !== "zoomIn") {
+      throw new Error(`slide2 titleAnimation: ${JSON.stringify(parsed[1].titleAnimation)}`);
+    }
+    if (parsed[1].body2Animation?.type !== "bounceIn" || parsed[1].body2Animation.duration !== 800 || parsed[1].body2Animation.delay !== 200) {
+      throw new Error(`body2Animation parse: ${JSON.stringify(parsed[1].body2Animation)}`);
+    }
+    if (parsed[1].body2 !== "Cot hai") {
+      throw new Error(`two-content body2 mat sau khi gan id: ${parsed[1].body2}`);
+    }
+  });
+
+  test("SlidesAdapter: serializeToFodp → parseFodp giu title/body/body2 animation trong bo nho", () => {
+    const adapter = new SlidesAdapter({
+      slides: [{
+        id: 1,
+        title: "Co ca hai",
+        body: "Than bai",
+        layoutType: "title-content",
+        titleAnimation: { type: "fadeIn", duration: 600, delay: 100 },
+        bodyAnimation: { type: "flyIn", duration: 700, delay: 300 },
+        shapes: [{
+          id: "rect-zoom",
+          type: "rect",
+          x: 76, y: 151, w: 100, h: 40,
+          color: "#2563eb",
+          text: "Shape",
+          animation: { type: "zoomIn", duration: 500, delay: 0 }
+        }]
+      }, {
+        id: 2,
+        title: "Chi title",
+        body: "",
+        layoutType: "title-only",
+        titleAnimation: { type: "slideLeft", duration: 1000, delay: 500 },
+        shapes: []
+      }, {
+        id: 3,
+        title: "Khong animation placeholder",
+        body: "Van giu text",
+        layoutType: "title-content",
+        shapes: []
+      }]
+    });
+    const parsed = adapter.parseFodp(adapter.serializeToFodp());
+    if (parsed[0].titleAnimation?.type !== "fadeIn" || parsed[0].titleAnimation.duration !== 600 || parsed[0].titleAnimation.delay !== 100) {
+      throw new Error(`slide1.titleAnimation: ${JSON.stringify(parsed[0].titleAnimation)}`);
+    }
+    if (parsed[0].bodyAnimation?.type !== "flyIn" || parsed[0].bodyAnimation.duration !== 700 || parsed[0].bodyAnimation.delay !== 300) {
+      throw new Error(`slide1.bodyAnimation: ${JSON.stringify(parsed[0].bodyAnimation)}`);
+    }
+    const zoom = (parsed[0].shapes || []).find((shape) => String(shape.id) === "rect-zoom");
+    if (zoom?.animation?.type !== "zoomIn") {
+      throw new Error(`shape animation hoi quy: ${JSON.stringify(zoom?.animation)}`);
+    }
+    if (parsed[1].titleAnimation?.type !== "slideLeft" || parsed[1].titleAnimation.duration !== 1000 || parsed[1].titleAnimation.delay !== 500) {
+      throw new Error(`title-only titleAnimation: ${JSON.stringify(parsed[1].titleAnimation)}`);
+    }
+    if (parsed[1].bodyAnimation) {
+      throw new Error(`title-only khong co body frame nhung van gan bodyAnimation: ${JSON.stringify(parsed[1].bodyAnimation)}`);
+    }
+    if (parsed[2].titleAnimation || parsed[2].bodyAnimation) {
+      throw new Error(`slide khong animation van bi gan: title=${JSON.stringify(parsed[2].titleAnimation)} body=${JSON.stringify(parsed[2].bodyAnimation)}`);
+    }
+    if (parsed[2].title !== "Khong animation placeholder" || parsed[2].body !== "Van giu text") {
+      throw new Error(`slide3 text: title=${parsed[2].title} body=${parsed[2].body}`);
+    }
+  });
+
+  test("SlidesAdapter: parseFodp doc title/body animation kieu soffice (id remap, giu class, khong id)", () => {
+    const adapter = new SlidesAdapter(null);
+    const sofficeFodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+ xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+ xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+ xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
+ xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0">
+  <office:body><office:presentation>
+    <draw:page draw:name="page1" xml:id="id1" draw:id="id1">
+      <draw:frame presentation:class="title" draw:name="title" xml:id="id2" draw:id="id2" svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
+        <draw:text-box><text:p>Tieu de remap</text:p></draw:text-box>
+      </draw:frame>
+      <draw:frame presentation:class="outline" draw:name="body" xml:id="id3" draw:id="id3" svg:x="2cm" svg:y="5.5cm" svg:width="24cm" svg:height="11cm">
+        <draw:text-box><text:p>Noi dung remap</text:p></draw:text-box>
+      </draw:frame>
+      <anim:par presentation:node-type="timing-root">
+        <anim:seq presentation:node-type="main-sequence">
+          <anim:par smil:begin="indefinite">
+            <anim:par smil:begin="0.1s" smil:fill="hold" presentation:node-type="on-click" presentation:preset-class="entrance" presentation:preset-id="ooo-entrance-fade-in">
+              <anim:set smil:begin="0s" smil:dur="0.001s" smil:fill="hold" smil:targetElement="id2" smil:attributeName="visibility" smil:to="visible"/>
+              <anim:animate smil:dur="0.6s" smil:fill="hold" smil:targetElement="id2" smil:attributeName="opacity" smil:from="0" smil:to="1"/>
+            </anim:par>
+          </anim:par>
+          <anim:par smil:begin="indefinite">
+            <anim:par smil:begin="0.3s" smil:fill="hold" presentation:node-type="on-click" presentation:preset-class="entrance" presentation:preset-id="ooo-entrance-fly-in" presentation:preset-sub-type="from-bottom">
+              <anim:set smil:begin="0s" smil:dur="0.001s" smil:fill="hold" smil:targetElement="id3" smil:attributeName="visibility" smil:to="visible"/>
+              <anim:animate smil:dur="0.7s" smil:fill="hold" smil:targetElement="id3" smil:attributeName="y" smil:values="height;y" smil:keyTimes="0;1"/>
+            </anim:par>
+          </anim:par>
+        </anim:seq>
+      </anim:par>
+    </draw:page>
+    <draw:page draw:name="page2">
+      <draw:frame presentation:class="title"><draw:text-box><text:p>Hai cot</text:p></draw:text-box></draw:frame>
+      <draw:frame presentation:class="outline" xml:id="id4" draw:id="id4"><draw:text-box><text:p>Trai</text:p></draw:text-box></draw:frame>
+      <draw:frame presentation:class="outline" xml:id="id5" draw:id="id5"><draw:text-box><text:p>Phai</text:p></draw:text-box></draw:frame>
+      <anim:par presentation:node-type="timing-root">
+        <anim:seq presentation:node-type="main-sequence">
+          <anim:par smil:begin="indefinite">
+            <anim:par smil:begin="0.2s" smil:fill="hold" presentation:node-type="on-click" presentation:preset-class="entrance" presentation:preset-id="ooo-entrance-bounce">
+              <anim:set smil:targetElement="id5" smil:attributeName="visibility" smil:to="visible"/>
+              <anim:animate smil:dur="0.8s" smil:targetElement="id5" smil:attributeName="opacity" smil:from="0" smil:to="1"/>
+            </anim:par>
+          </anim:par>
+        </anim:seq>
+      </anim:par>
+    </draw:page>
+    <draw:page draw:name="page3">
+      <draw:frame presentation:class="title"><draw:text-box><text:p>Khong id van parse</text:p></draw:text-box></draw:frame>
+      <draw:frame presentation:class="outline"><draw:text-box><text:p>Body khong id</text:p></draw:text-box></draw:frame>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const parsed = adapter.parseFodp(sofficeFodp);
+    if (parsed.length !== 3) throw new Error(`so slide: ${parsed.length}`);
+    if (parsed[0].title !== "Tieu de remap" || parsed[0].body !== "Noi dung remap") {
+      throw new Error(`slide1 text sau remap: title=${parsed[0].title} body=${parsed[0].body}`);
+    }
+    if ((parsed[0].shapes || []).length) {
+      throw new Error(`title/outline remap khong duoc thanh shape: ${JSON.stringify(parsed[0].shapes)}`);
+    }
+    if (parsed[0].titleAnimation?.type !== "fadeIn" || parsed[0].titleAnimation.duration !== 600 || parsed[0].titleAnimation.delay !== 100) {
+      throw new Error(`soffice title fadeIn qua id2: ${JSON.stringify(parsed[0].titleAnimation)}`);
+    }
+    if (parsed[0].bodyAnimation?.type !== "flyIn" || parsed[0].bodyAnimation.duration !== 700 || parsed[0].bodyAnimation.delay !== 300) {
+      throw new Error(`soffice body flyIn qua id3: ${JSON.stringify(parsed[0].bodyAnimation)}`);
+    }
+    if (parsed[1].layoutType !== "two-content") {
+      throw new Error(`thieu presentation:layout nhung 2 outline phai suy two-content: ${parsed[1].layoutType}`);
+    }
+    if (parsed[1].body !== "Trai" || parsed[1].body2 !== "Phai") {
+      throw new Error(`two-content khong id name: body=${parsed[1].body} body2=${parsed[1].body2}`);
+    }
+    if (parsed[1].body2Animation?.type !== "bounceIn" || parsed[1].body2Animation.duration !== 800 || parsed[1].body2Animation.delay !== 200) {
+      throw new Error(`outline thu 2 (body2) qua id5: ${JSON.stringify(parsed[1].body2Animation)}`);
+    }
+    if (parsed[2].title !== "Khong id van parse" || parsed[2].body !== "Body khong id") {
+      throw new Error(`placeholder khong id: title=${parsed[2].title} body=${parsed[2].body}`);
+    }
+    if (parsed[2].titleAnimation || parsed[2].bodyAnimation) {
+      throw new Error("File khong animation van bi gan title/body animation");
+    }
+  });
+
   return results;
 }
