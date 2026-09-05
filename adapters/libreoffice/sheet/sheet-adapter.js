@@ -254,6 +254,12 @@ export class SheetAdapter {
       if (args.protect || args.password !== undefined && args.dialog === false) return this.grid.protectSheet(args);
       return this.grid.showProtectSheetDialog ? this.grid.showProtectSheetDialog(args.sheetName) : false;
     });
+    globalCommandBus.bindHandler("sheet.workbook.protect", (args) => {
+      args = args || {};
+      if (args.unprotect) return this.grid.unprotectWorkbook(args);
+      if (args.protect || args.password !== undefined && args.dialog === false) return this.grid.protectWorkbook(args);
+      return this.grid.showProtectWorkbookDialog ? this.grid.showProtectWorkbookDialog() : false;
+    });
     globalCommandBus.bindHandler("sheet.style.formatAsTable", () => {
       return this.grid.showFormatAsTableDialog ? this.grid.showFormatAsTableDialog() : false;
     });
@@ -2263,6 +2269,12 @@ export class SheetAdapter {
         if (args?.unprotect) return this.grid.unprotectSheet(args);
         if (args?.protect) return this.grid.protectSheet(args);
         return this.grid.showProtectSheetDialog ? this.grid.showProtectSheetDialog(args?.sheetName) : false;
+
+      case "sheet.workbook.protect":
+      case ".uno:ToolProtectionDocument":
+        if (args?.unprotect) return this.grid.unprotectWorkbook(args);
+        if (args?.protect) return this.grid.protectWorkbook(args);
+        return this.grid.showProtectWorkbookDialog ? this.grid.showProtectWorkbookDialog() : false;
 
       case "sheet.formula.insertFunction":
       case ".uno:InsertFunction":

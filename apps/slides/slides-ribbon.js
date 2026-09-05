@@ -145,6 +145,31 @@ export const SLIDES_RIBBON_TABS = [
           { type: "button", commandId: "slides.shape.insert", isLarge: true },
           { type: "button", commandId: "slides.image.insert", isLarge: true }
         ]
+      },
+      {
+        id: "editing",
+        label: "Chỉnh sửa",
+        labelKey: "slidesRibbon.group.editing",
+        items: [
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "common.edit.find" },
+              { type: "button", commandId: "common.edit.replace" },
+              {
+                type: "dropdown",
+                id: "slides.edit.select",
+                label: "Chọn",
+                labelKey: "slidesRibbon.editing.select",
+                icon: "selectAll",
+                items: [
+                  { commandId: "slides.edit.selectAll" },
+                  { commandId: "slides.edit.selectObjects" }
+                ]
+              }
+            ]
+          }
+        ]
       }
     ]
   },

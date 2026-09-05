@@ -4,7 +4,7 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
-import { showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
+import { showAlertDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 
@@ -46,12 +46,12 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("common.edit.undo", () => this.canvas.undo ? this.canvas.undo() : false);
     globalCommandBus.bindHandler("common.edit.redo", () => this.canvas.redo ? this.canvas.redo() : false);
     globalCommandBus.bindHandler("common.edit.selectAll", () => {
-      if (typeof document !== "undefined") {
-        document.execCommand("selectAll", false, null);
-        return true;
-      }
-      return false;
+      return this.canvas.selectAllForContext ? this.canvas.selectAllForContext() : false;
     });
+    globalCommandBus.bindHandler("common.edit.find", () => this._showFindReplaceDialog(false));
+    globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
+    globalCommandBus.bindHandler("slides.edit.selectAll", () => this.canvas.selectAllShapes ? this.canvas.selectAllShapes() : false);
+    globalCommandBus.bindHandler("slides.edit.selectObjects", () => this.canvas.selectDrawingObjects ? this.canvas.selectDrawingObjects() : false);
     globalCommandBus.bindHandler("common.edit.pastePlain", () => {
       if (typeof document !== "undefined") {
         document.execCommand("paste", false, null);
@@ -94,6 +94,30 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.view.fitToWindow", () => this.canvas.fitToWindow ? this.canvas.fitToWindow() : false);
     globalCommandBus.bindHandler("slides.view.newWindow", () => this.canvas.newWindow ? this.canvas.newWindow() : false);
     this._bindTextFormatTracking();
+  }
+
+  _showFindReplaceDialog(isReplace = false) {
+    if (!this.canvas) return false;
+    if (typeof document === "undefined" || typeof document.createElement !== "function" || !document.body?.appendChild) {
+      return true;
+    }
+    try {
+      showFindReplaceDialog({
+        isReplace,
+        onFind: (text) => this.canvas.findNext ? this.canvas.findNext(text) : false,
+        onReplace: (findText, replaceText) => {
+          if (!findText) return false;
+          return this.canvas.replaceOne ? this.canvas.replaceOne(findText, replaceText) : false;
+        },
+        onReplaceAll: (findText, replaceText) => {
+          if (!findText) return 0;
+          return this.canvas.replaceAll ? this.canvas.replaceAll(findText, replaceText) : 0;
+        }
+      });
+    } catch (_) {
+      return true;
+    }
+    return true;
   }
 
   _bindFormatPainterRibbon() {
@@ -2793,8 +2817,19 @@ export class SlidesAdapter {
         return true;
 
       case "common.edit.selectAll":
-        if (typeof document !== "undefined") document.execCommand("selectAll", false, null);
-        return true;
+        return this.canvas.selectAllForContext ? this.canvas.selectAllForContext() : false;
+
+      case "common.edit.find":
+        return this._showFindReplaceDialog(false);
+
+      case "common.edit.replace":
+        return this._showFindReplaceDialog(true);
+
+      case "slides.edit.selectAll":
+        return this.canvas.selectAllShapes ? this.canvas.selectAllShapes() : false;
+
+      case "slides.edit.selectObjects":
+        return this.canvas.selectDrawingObjects ? this.canvas.selectDrawingObjects() : false;
 
       case "common.edit.undo":
         return this.canvas.undo ? this.canvas.undo() : false;
