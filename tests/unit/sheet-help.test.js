@@ -229,6 +229,26 @@ export async function runSheetHelpTests() {
     }
   });
 
+  await test("Help Sheet: có bài Ước lượng công thức khớp ribbon tab Công thức", () => {
+    const entry = getHelpEntryById("sheet.formula.evaluateFormula");
+    if (!entry) throw new Error("Thiếu bài sheet.formula.evaluateFormula");
+    if (entry.ribbon?.tab !== "Công thức" || entry.ribbon?.group !== "Kiểm tra công thức") {
+      throw new Error("Bài Evaluate Formula phải ở tab Công thức / nhóm Kiểm tra công thức");
+    }
+    if (!(entry.commandIds || []).includes("sheet.formula.evaluateFormula")) {
+      throw new Error("Bài Evaluate Formula thiếu commandId");
+    }
+    if (entry.steps.length < 3) throw new Error("Bài Evaluate Formula thiếu bước dùng");
+    const blob = [entry.title, entry.summary, ...entry.steps].join(" ");
+    if (!/Ước lượng/.test(blob) || !/gạch chân/.test(blob)) {
+      throw new Error("Bài Evaluate Formula chưa mô tả nút Ước lượng / gạch chân");
+    }
+    const found = searchHelpEntries("ước lượng công thức", { app: "sheet" });
+    if (!found.some((item) => item.id === "sheet.formula.evaluateFormula")) {
+      throw new Error("Không tìm thấy Ước lượng công thức trong catalog");
+    }
+  });
+
   await test("Help Sheet: không làm hỏng catalog Writer", () => {
     const writer = getHelpEntriesForApp("writer");
     if (writer.length < 6) throw new Error("Catalog Writer bị mất bài");
