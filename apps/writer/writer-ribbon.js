@@ -312,6 +312,16 @@ export const WRITER_RIBBON_TABS = [
           { type: "button", commandId: "writer.page.margins", isLarge: true },
           { type: "button", commandId: "writer.page.orientation", isLarge: true },
           { type: "button", commandId: "writer.page.size", isLarge: true },
+          {
+            type: "dropdown", id: "writer.layout.breaks", label: "Ngắt trang", icon: "sectionBreak", items: [
+              { commandId: "writer.page.break" },
+              { commandId: "writer.break.column" },
+              { commandId: "writer.section.nextPage" },
+              { commandId: "writer.section.continuous" },
+              { commandId: "writer.section.evenPage" },
+              { commandId: "writer.section.oddPage" }
+            ]
+          },
           { type: "button", commandId: "writer.page.columns", isLarge: true },
           {
             type: "column",

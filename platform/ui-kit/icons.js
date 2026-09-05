@@ -462,6 +462,8 @@ export const ICONS = {
     <line x1="8" y1="11" x2="16" y2="11" stroke="#94A3B8" stroke-width="1" stroke-linecap="round"/>
     <line x1="8" y1="14" x2="13" y2="14" stroke="#94A3B8" stroke-width="1" stroke-linecap="round"/>
   </svg>`,
+  sectionBreak: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M5 2h14v7H5zM5 15h14v7H5z" fill="#DBEAFE" stroke="#2563EB"/><path d="M2 12h20" stroke="#DC2626" stroke-width="1.5" stroke-dasharray="3 2"/><path d="m10 10 2 2-2 2" stroke="#0F4C81"/></svg>`,
+  columnBreak: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="2" width="18" height="20" rx="2" fill="#F8FAFC" stroke="#64748B"/><path d="M11 5v14M5 8h4M15 8h4M5 12h4M15 12h4" stroke="#2563EB"/><path d="m15 16 2 2 2-2" stroke="#DC2626"/></svg>`,
 
   pageColor: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M6 2h9l4 4v16H6z" fill="#DBEAFE" stroke="#0F4C81"/><path d="M15 2v5h4" stroke="#0F4C81"/><path d="M5 16h14v6H5z" fill="#F59E0B"/><path d="M8 12h8" stroke="#64748B" stroke-width="1.5"/></svg>`,
 

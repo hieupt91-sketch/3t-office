@@ -104,6 +104,9 @@ export class WriterAdapter {
       orientation: "portrait",
       margins: { ...DEFAULT_MARGINS_MM }
     };
+    this.activeSectionId = "section-1";
+    this.sectionPageSetups = { "section-1": JSON.parse(JSON.stringify(this.pageSetup)) };
+    this._sectionSequence = 1;
     this.copiedFormat = null;
     /** @type {Array<{id:string, anchorText:string, content:string, createdAt:string, author?:string}>} */
     this.comments = [];
@@ -262,6 +265,11 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.style.gallery", (args) => this.toggleStyleGallery(args));
     globalCommandBus.bindHandler("writer.page.watermark", (args) => this.openWatermarkDialog(args));
     globalCommandBus.bindHandler("writer.page.color", (args) => this.openPageColorDialog(args));
+    globalCommandBus.bindHandler("writer.break.column", () => this._insertColumnBreak());
+    globalCommandBus.bindHandler("writer.section.nextPage", () => this.insertSectionBreak("nextPage"));
+    globalCommandBus.bindHandler("writer.section.continuous", () => this.insertSectionBreak("continuous"));
+    globalCommandBus.bindHandler("writer.section.evenPage", () => this.insertSectionBreak("evenPage"));
+    globalCommandBus.bindHandler("writer.section.oddPage", () => this.insertSectionBreak("oddPage"));
     globalCommandBus.bindHandler("writer.page.border", (args) => this.openPageBorderDialog(args));
     globalCommandBus.bindHandler("writer.page.columns", (args) => this.openColumnsDialog(args));
     globalCommandBus.bindHandler("writer.page.columns1", () => this.setColumns({ count: 1, gap: 0, rule: false }));
@@ -1130,6 +1138,17 @@ export class WriterAdapter {
     return pageCss;
   }
 
+  _getSectionPageCss() {
+    return Object.entries(this.sectionPageSetups || {}).map(([id, setup]) => {
+      const base = PAGE_SIZES_MM[setup.size] || PAGE_SIZES_MM.a4;
+      const landscape = setup.orientation === "landscape";
+      const width = landscape ? base.h : base.w;
+      const height = landscape ? base.w : base.h;
+      const margins = setup.margins || DEFAULT_MARGINS_MM;
+      return `@page vno-${id} { size:${width}mm ${height}mm; margin:${margins.top}mm ${margins.right}mm ${margins.bottom}mm ${margins.left}mm;${this.pageColor && this.pageColor !== "transparent" ? ` background-color:${this.pageColor};` : ""} } .vno-export-${id} { page:vno-${id}; }`;
+    }).join("\n");
+  }
+
   _lengthToMm(raw) {
     const match = String(raw || "").trim().match(/^([\d.]+)\s*(cm|mm|in)?$/i);
     if (!match) return null;
@@ -1791,6 +1810,7 @@ export class WriterAdapter {
       orientation: newSetup.orientation || this.pageSetup.orientation,
       margins: { ...this.pageSetup.margins, ...(newSetup.margins || {}) }
     };
+    this.sectionPageSetups[this.activeSectionId] = JSON.parse(JSON.stringify(this.pageSetup));
     this._applyPageSetup();
     this.isDirty = true;
     this.recordSnapshot("writer.page.setup");
@@ -1986,6 +2006,18 @@ export class WriterAdapter {
       case "writer.page.break":
         this._insertPageBreak();
         return true;
+
+      case "writer.break.column":
+        return this._insertColumnBreak();
+
+      case "writer.section.nextPage":
+        return this.insertSectionBreak("nextPage");
+      case "writer.section.continuous":
+        return this.insertSectionBreak("continuous");
+      case "writer.section.evenPage":
+        return this.insertSectionBreak("evenPage");
+      case "writer.section.oddPage":
+        return this.insertSectionBreak("oddPage");
 
       case "common.edit.undo":
         return this.undo();
@@ -2731,6 +2763,56 @@ export class WriterAdapter {
     this._applyPageSetup();
     this.isDirty = true;
     this.recordSnapshot("writer.page.color");
+    return true;
+  }
+
+  _insertHtmlAtCaretOrEnd(html) {
+    let inserted = false;
+    if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+      try {
+        const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (sel && sel.rangeCount > 0 && this.bodyDom?.contains?.(sel.anchorNode)) inserted = document.execCommand("insertHTML", false, html);
+      } catch { inserted = false; }
+    }
+    const target = this.bodyDom || this.editorDom;
+    if (!inserted && target) target.innerHTML = (target.innerHTML || "") + html;
+    return inserted || Boolean(target);
+  }
+
+  _insertColumnBreak() {
+    this.flushTyping();
+    this._initZones();
+    this._insertHtmlAtCaretOrEnd('<div data-vno-column-break="true" style="break-before:column;column-break-before:always;border-top:1px dashed #94a3b8;margin:12px 0;color:#64748b;text-align:center;font-size:11px;user-select:none">--- Ngắt cột (Column Break) ---</div><p><br></p>');
+    this.isDirty = true;
+    this.recordSnapshot("writer.break.column");
+    return true;
+  }
+
+  insertSectionBreak(type = "nextPage") {
+    const allowed = new Set(["nextPage", "continuous", "evenPage", "oddPage"]);
+    if (!allowed.has(type)) return false;
+    this.flushTyping();
+    this._initZones();
+    const previousSetup = this.sectionPageSetups[this.activeSectionId] || this.pageSetup;
+    const id = `section-${++this._sectionSequence}`;
+    const labels = { nextPage: "Trang kế tiếp", continuous: "Liên tục", evenPage: "Trang chẵn", oddPage: "Trang lẻ" };
+    const breakStyle = type === "continuous" ? "" : `break-before:${type === "evenPage" ? "left" : type === "oddPage" ? "right" : "page"};page-break-before:always;`;
+    const marker = `<div class="vno-section-break" data-vno-section-break="${type}" data-vno-section-id="${id}" contenteditable="false" style="${breakStyle}border-top:2px double #7c3aed;margin:20px 0;text-align:center;color:#6d28d9;font-size:11px;user-select:none">--- Ngắt mục (${labels[type]}) ---</div><p><br></p>`;
+    this._insertHtmlAtCaretOrEnd(marker);
+    this.sectionPageSetups[id] = JSON.parse(JSON.stringify(previousSetup));
+    this.activeSectionId = id;
+    this.pageSetup = JSON.parse(JSON.stringify(previousSetup));
+    this._applyPageSetup();
+    this.isDirty = true;
+    this.recordSnapshot(`writer.section.${type}`);
+    return id;
+  }
+
+  activateSection(sectionId) {
+    if (!this.sectionPageSetups[sectionId]) return false;
+    this.activeSectionId = sectionId;
+    this.pageSetup = JSON.parse(JSON.stringify(this.sectionPageSetups[sectionId]));
+    this._applyPageSetup();
     return true;
   }
 
@@ -3977,6 +4059,12 @@ export class WriterAdapter {
       bodyHtml = this._stripSessionMarkup(this.editorDom.innerHTML);
     }
 
+    const firstSectionId = Object.keys(this.sectionPageSetups || {})[0] || "section-1";
+    bodyHtml = `<div class="vno-export-section vno-export-${firstSectionId}" data-vno-export-section="${firstSectionId}">` + bodyHtml.replace(
+      /<div\b[^>]*data-vno-section-break=["'](nextPage|continuous|evenPage|oddPage)["'][^>]*data-vno-section-id=["']([^"']+)["'][^>]*>[\s\S]*?<\/div>/gi,
+      (_match, type, id) => `</div><div class="vno-export-section vno-export-${id}" data-vno-export-section="${id}" style="${type === "continuous" ? "" : `break-before:${type === "evenPage" ? "left" : type === "oddPage" ? "right" : "page"};page-break-before:always;`}">`
+    ) + `</div>`;
+
     if (this.footerDom && this.footerDom.innerText?.trim()) {
       footerHtml = `\n<div title="footer">\n${this.footerDom.innerHTML}\n</div>`;
     }
@@ -4004,7 +4092,7 @@ export class WriterAdapter {
     }
 
     const fullHtml = `${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}`;
-    return `<style>${this._getPageSetupCss()}${columnsCss}</style>${fullHtml}`;
+    return `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
   }
 
   _stripCommentMarkup(html) {
@@ -4930,6 +5018,9 @@ export class WriterAdapter {
       headerHtml: this.headerDom ? this.headerDom.innerHTML : null,
       footerHtml: this.footerDom ? this.footerDom.innerHTML : null,
       pageSetup: this.pageSetup ? JSON.parse(JSON.stringify(this.pageSetup)) : null,
+      activeSectionId: this.activeSectionId || "section-1",
+      sectionPageSetups: JSON.parse(JSON.stringify(this.sectionPageSetups || {})),
+      sectionSequence: this._sectionSequence || 1,
       comments: this.comments ? JSON.parse(JSON.stringify(this.comments)) : [],
       watermark: this.watermark ? JSON.parse(JSON.stringify(this.watermark)) : null,
       pageColor: this.pageColor || "transparent",
@@ -4952,6 +5043,8 @@ export class WriterAdapter {
     if (a.headerHtml !== b.headerHtml) return false;
     if (a.footerHtml !== b.footerHtml) return false;
     if (JSON.stringify(a.pageSetup) !== JSON.stringify(b.pageSetup)) return false;
+    if ((a.activeSectionId || "section-1") !== (b.activeSectionId || "section-1")) return false;
+    if (JSON.stringify(a.sectionPageSetups || {}) !== JSON.stringify(b.sectionPageSetups || {})) return false;
     if (JSON.stringify(a.comments) !== JSON.stringify(b.comments)) return false;
     if (JSON.stringify(a.watermark) !== JSON.stringify(b.watermark)) return false;
     if ((a.pageColor || "transparent") !== (b.pageColor || "transparent")) return false;
@@ -4988,6 +5081,9 @@ export class WriterAdapter {
       this.pageSetup = JSON.parse(JSON.stringify(snapshot.pageSetup));
       this._applyPageSetup();
     }
+    if (snapshot.sectionPageSetups) this.sectionPageSetups = JSON.parse(JSON.stringify(snapshot.sectionPageSetups));
+    if (snapshot.activeSectionId) this.activeSectionId = snapshot.activeSectionId;
+    if (snapshot.sectionSequence) this._sectionSequence = snapshot.sectionSequence;
 
     if (snapshot.comments) {
       this.comments = JSON.parse(JSON.stringify(snapshot.comments));

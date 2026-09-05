@@ -5,6 +5,21 @@
 
 export const WRITER_HELP_ENTRIES = [
   {
+    id: "writer.section.breaks",
+    app: "writer",
+    commandIds: ["writer.page.break", "writer.break.column", "writer.section.nextPage", "writer.section.continuous", "writer.section.evenPage", "writer.section.oddPage"],
+    title: "Ngắt trang, ngắt cột và ngắt mục",
+    summary: "Chia tài liệu thành các mục có khổ giấy, hướng giấy và lề riêng. Trang kế tiếp/chẵn/lẻ bắt đầu ở trang phù hợp; Liên tục đặt mốc ngay tại con trỏ.",
+    ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
+    keywords: ["ngắt mục", "section break", "ngắt trang", "ngắt cột", "trang ngang", "trang chẵn", "trang lẻ"],
+    steps: [
+      "Đặt con trỏ tại vị trí cần bắt đầu vùng định dạng mới.",
+      "Mở tab Bố cục, nhóm Thiết lập trang, mở Ngắt trang rồi chọn Trang kế tiếp, Liên tục, Trang chẵn hoặc Trang lẻ trong nhóm Ngắt mục.",
+      "Sau mốc ngắt, chọn Căn lề, Hướng giấy hoặc Khổ giấy trên cùng nhóm. Thay đổi chỉ được lưu cho mục đang hoạt động; mục trước giữ nguyên.",
+      "Ngắt cột chỉ có hiệu lực rõ khi tài liệu đang dùng từ hai cột trở lên. Dùng Ctrl+Z/Ctrl+Y để hoàn tác hoặc làm lại mốc ngắt cùng thiết lập trang."
+    ]
+  },
+  {
     id: "writer.page.color",
     app: "writer",
     commandIds: ["writer.page.color"],

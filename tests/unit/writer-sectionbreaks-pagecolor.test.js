@@ -45,5 +45,28 @@ export async function runWriterSectionBreaksPageColorTests() {
     assert(adapter.pageColor === "#dbeafe", "Redo không phục hồi màu");
   });
 
+  await test("Writer Section Break: Next Page tạo hai vùng có Page Setup độc lập", () => {
+    const { adapter, body } = createAdapter("<p>Mục một</p>");
+    const secondId = adapter.insertSectionBreak("nextPage");
+    adapter.setPageSetup({ orientation: "landscape", margins: { left: 12 } });
+    assert(body.innerHTML.includes('data-vno-section-break="nextPage"'), "Thiếu marker Next Page");
+    assert(adapter.sectionPageSetups["section-1"].orientation === "portrait", "Mục trước bị đổi hướng giấy");
+    assert(adapter.sectionPageSetups[secondId].orientation === "landscape", "Mục sau không có hướng giấy riêng");
+    assert(adapter.sectionPageSetups[secondId].margins.left === 12, "Mục sau không có lề riêng");
+    const exported = adapter._contentForExport();
+    assert(exported.includes("@page vno-section-1") && exported.includes(`@page vno-${secondId}`), "Export thiếu named page styles");
+    assert(exported.includes("size:297mm 210mm"), "Export thiếu landscape thật cho mục sau");
+    assert(adapter.undo(), "Không Undo được Page Setup của mục sau");
+    assert(adapter.sectionPageSetups[secondId].orientation === "portrait", "Undo không phục hồi mục sau");
+  });
+
+  await test("Writer Section Break: ribbon có đủ Page/Column/Next/Continuous/Even/Odd và Help", () => {
+    const layout = WRITER_RIBBON_TABS.find((tab) => tab.id === "layout");
+    const dropdown = layout.groups.flatMap((group) => group.items).find((item) => item.id === "writer.layout.breaks");
+    const ids = dropdown?.items.map((item) => item.commandId) || [];
+    for (const id of ["writer.page.break", "writer.break.column", "writer.section.nextPage", "writer.section.continuous", "writer.section.evenPage", "writer.section.oddPage"]) assert(ids.includes(id), `Dropdown thiếu ${id}`);
+    assert(WRITER_HELP_ENTRIES.some((entry) => entry.id === "writer.section.breaks"), "Thiếu Help Section Breaks");
+  });
+
   return results;
 }
