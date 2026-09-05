@@ -219,5 +219,54 @@ export async function runFormulaEngineTests() {
           engine.evaluate("=PPMT(0.01,13,12,1000)") === "#NUM!"
   });
 
+  // 20. TEXT — các mẫu số, phần trăm, ngày tháng và VNĐ thông dụng.
+  const textCases = [
+    ['=TEXT(1234.5,"0")', "1235"],
+    ['=TEXT(1234.5,"0.0")', "1234.5"],
+    ['=TEXT(1234.5,"0.000")', "1234.500"],
+    ['=TEXT(1234.5,"#,##0.00")', "1,234.50"],
+    ['=TEXT(0.125,"0%")', "13%"],
+    ['=TEXT(0.125,"0.00%")', "12.50%"],
+    ['=TEXT("2024-03-10","mm/dd/yyyy")', "03/10/2024"],
+    ['=TEXT("2024-03-10","dd-mm-yyyy")', "10-03-2024"],
+    ['=TEXT("2024-03-10","yyyy-mm-dd")', "2024-03-10"],
+    ['=TEXT("2024-03-10","dd mmmm yyyy")', "10 tháng Ba 2024"],
+    ['=TEXT(1234.5,"#,##0.00 ₫")', "1,234.50 ₫"]
+  ];
+  results.push({
+    name: "TEXT: hỗ trợ đầy đủ mẫu số, phần trăm, ngày và tiền tệ mới",
+    pass: textCases.every(([formula, expected]) => engine.evaluate(formula) === expected)
+  });
+
+  // 21. TEXT — ba mẫu cũ giữ nguyên đầu ra.
+  results.push({
+    name: "TEXT regression: #,##0, 0.00 và dd/mm/yyyy giữ nguyên hành vi",
+    pass: engine.evaluate('=TEXT(1234.5,"#,##0")') === "1,235" &&
+          engine.evaluate('=TEXT(1234.5,"0.00")') === "1234.50" &&
+          engine.evaluate('=TEXT("2024-03-10","dd/mm/yyyy")') === "10/03/2024"
+  });
+
+  // 22. DATEDIF — phần dư sau năm/tháng đầy đủ, gồm mốc cuối tháng và năm nhuận.
+  const datedifCases = [
+    ['=DATEDIF("2020-01-15","2024-03-10","md")', 24],
+    ['=DATEDIF("2020-01-15","2024-03-10","ym")', 1],
+    ['=DATEDIF("2020-01-15","2024-03-10","yd")', 55],
+    ['=DATEDIF("2001-06-01","2002-08-15","yd")', 75],
+    ['=DATEDIF("2024-01-31","2024-03-01","md")', 1]
+  ];
+  results.push({
+    name: "DATEDIF: md, ym, yd đúng phần dư Excel và xử lý cuối tháng/năm nhuận",
+    pass: datedifCases.every(([formula, expected]) => engine.evaluate(formula) === expected)
+  });
+
+  // 23. DATEDIF — các đơn vị cũ và lỗi cũ không đổi.
+  results.push({
+    name: "DATEDIF regression: d, m, y và validation giữ nguyên hành vi",
+    pass: engine.evaluate('=DATEDIF("2020-01-15","2024-03-10","d")') === 1516 &&
+          engine.evaluate('=DATEDIF("2020-01-15","2024-03-10","m")') === 49 &&
+          engine.evaluate('=DATEDIF("2020-01-15","2024-03-10","y")') === 4 &&
+          engine.evaluate('=DATEDIF("2024-03-10","2020-01-15","md")') === "#NUM!"
+  });
+
   return results;
 }
