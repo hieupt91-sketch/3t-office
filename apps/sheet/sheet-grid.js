@@ -21,6 +21,7 @@ export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
   orientation: "portrait",
   size: "a4",
   scale: Object.freeze({ mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0 }),
+  headerFooter: Object.freeze({ header: Object.freeze({ left: "", center: "", right: "" }), footer: Object.freeze({ left: "", center: "Trang &P / &N", right: "" }) }),
   printTitles: Object.freeze({ rows: "", cols: "" })
 });
 
@@ -37,6 +38,10 @@ function newSheetPageSetup(overrides = {}) {
     orientation: overrides.orientation || DEFAULT_SHEET_PAGE_SETUP.orientation,
     size: overrides.size || DEFAULT_SHEET_PAGE_SETUP.size,
     scale: { ...DEFAULT_SHEET_PAGE_SETUP.scale, ...(overrides.scale || {}) },
+    headerFooter: {
+      header: { ...DEFAULT_SHEET_PAGE_SETUP.headerFooter.header, ...(overrides.headerFooter?.header || {}) },
+      footer: { ...DEFAULT_SHEET_PAGE_SETUP.headerFooter.footer, ...(overrides.headerFooter?.footer || {}) }
+    },
     printTitles: { ...DEFAULT_SHEET_PAGE_SETUP.printTitles, ...(overrides.printTitles || {}) }
   };
 }
@@ -5971,7 +5976,14 @@ export class SheetGridController {
     scale.pagesTall = Number(scale.pagesTall);
     if (!Number.isInteger(scale.percent) || scale.percent < 10 || scale.percent > 400) return false;
     if (![scale.pagesWide, scale.pagesTall].every(value => Number.isInteger(value) && value >= 0 && value <= 1000)) return false;
-    const after = { margins, orientation, size, scale, printTitles };
+    const headerFooter = {
+      header: { ...before.headerFooter.header, ...(changes.headerFooter?.header || {}) },
+      footer: { ...before.headerFooter.footer, ...(changes.headerFooter?.footer || {}) }
+    };
+    for (const section of [headerFooter.header, headerFooter.footer]) {
+      for (const position of ["left", "center", "right"]) section[position] = String(section[position] || "").slice(0, 500);
+    }
+    const after = { margins, orientation, size, scale, headerFooter, printTitles };
     if (JSON.stringify(before) === JSON.stringify(after)) return after;
     this.pageSetupBySheet[this.activeSheet] = after;
     this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "pageSetupBySheet", before, after: structuredClone(after) });
@@ -6017,6 +6029,30 @@ export class SheetGridController {
     });
     const focusIds = { margins: "vno-sheet-margin-preset", orientation: "vno-sheet-orientation", size: "vno-sheet-size", scale: "vno-sheet-scale-percent", printTitles: "vno-sheet-title-rows" };
     overlay.querySelector(`#${focusIds[focusField] || focusIds.margins}`)?.focus();
+    return true;
+  }
+
+  showHeaderFooterDialog() {
+    if (typeof document === "undefined" || !document.body) return false;
+    const current = this.getPageSetup().headerFooter;
+    const fieldset = (kind, title) => `<fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>${title}</legend>
+      <label>Mẫu dùng sẵn<select class="vno-select vno-sheet-hf-preset" data-kind="${kind}" style="width:100%"><option value="custom">Tùy chỉnh</option><option value="page">Trang X</option><option value="sheet">Tên sheet</option><option value="date">Ngày</option><option value="none">Không có</option></select></label>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${["left", "center", "right"].map((position, index) => `<label>${["Trái", "Giữa", "Phải"][index]}<input id="vno-sheet-${kind}-${position}" class="vno-dialog-input" maxlength="500" value="${this._escapeHtml(current[kind][position])}"></label>`).join("")}</div>
+    </fieldset>`;
+    const overlay = this._createSheetDialog("Tiêu đề Đầu/Cuối trang", `${fieldset("header", "Đầu trang")}${fieldset("footer", "Cuối trang")}<p><small>Mã động: &amp;P số trang, &amp;N tổng số trang, &amp;D ngày, &amp;T giờ, &amp;F tên file, &amp;A tên sheet.</small></p><div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelectorAll(".vno-sheet-hf-preset").forEach(select => select.addEventListener("change", event => {
+      const kind = event.target.dataset.kind;
+      const preset = { page: "Trang &P", sheet: "Tên sheet: &A", date: "Ngày: &D", none: "" }[event.target.value];
+      if (preset === undefined) return;
+      ["left", "center", "right"].forEach(position => { overlay.querySelector(`#vno-sheet-${kind}-${position}`).value = position === "center" ? preset : ""; });
+    }));
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const read = kind => Object.fromEntries(["left", "center", "right"].map(position => [position, overlay.querySelector(`#vno-sheet-${kind}-${position}`).value]));
+      if (!this.setPageSetup({ headerFooter: { header: read("header"), footer: read("footer") } })) return;
+      overlay.closeDialog();
+    });
+    overlay.querySelector("#vno-sheet-header-left")?.focus();
     return true;
   }
 

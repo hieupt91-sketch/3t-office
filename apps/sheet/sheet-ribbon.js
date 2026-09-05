@@ -469,6 +469,7 @@ export const SHEET_RIBBON_TABS = [
           { type: "button", commandId: "sheet.page.orientation", label: "Hướng trang", isLarge: true },
           { type: "button", commandId: "sheet.page.size", label: "Khổ giấy", isLarge: true },
           { type: "button", commandId: "sheet.page.scale", label: "Tỷ lệ vừa trang", isLarge: true },
+          { type: "button", commandId: "sheet.page.headerFooter", label: "Tiêu đề Đầu/Cuối trang", isLarge: true },
           { type: "button", commandId: "sheet.page.printTitles", label: "Tiêu đề in", isLarge: true }
         ]
       },
