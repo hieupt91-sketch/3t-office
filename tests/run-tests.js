@@ -75,6 +75,7 @@ import { runSheetPivotImportTests } from "./unit/sheet-pivot-import.test.js";
 import { runSheetPivotSaveFodsTests } from "./unit/sheet-pivot-save-fods.test.js";
 import { runSheetMergeCellsTests } from "./unit/sheet-merge-cells.test.js";
 import { runSheetPasteSpecialTests } from "./unit/sheet-paste-special.test.js";
+import { runSlidesSmartartImportTests } from "./unit/slides-smartart-import.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -157,7 +158,8 @@ async function runAll() {
     { title: "67. Unit Tests — Sheet Pivot Table Import Fidelity (real XLSX DataPilot)", runner: runSheetPivotImportTests },
     { title: "68. Round-trip Tests — Sheet Pivot Table Save FODS", runner: runSheetPivotSaveFodsTests },
     { title: "69. Behavioral Tests — VN Sheet Merge Cells", runner: runSheetMergeCellsTests },
-    { title: "70. Behavioral Tests — VN Sheet Paste Special", runner: runSheetPasteSpecialTests }
+    { title: "70. Behavioral Tests — VN Sheet Paste Special", runner: runSheetPasteSpecialTests },
+    { title: "71. Unit Tests — Slides SmartArt Import Fidelity (real PPTX DrawingML → FODP)", runner: runSlidesSmartartImportTests }
   ];
 
   for (const suite of suites) {

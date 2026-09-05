@@ -12,6 +12,9 @@
  * Sheet validation: LibreOffice FODS→XLSX drops calcext CF and whole-number
  * validation. After soffice convert, inject Excel-native conditionalFormatting
  * / dataValidation so the XLSX matches what Microsoft Excel would store.
+ *
+ * Slides SmartArt: LibreOffice FODP→PPTX does not emit ppt/diagrams/*. Pack
+ * native DrawingML parts from src/smartart-pptx/ (see pack-slides-smartart-pptx.mjs).
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -20,6 +23,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { convertWithSoffice } from "../helpers/soffice-convert.mjs";
 import { createZip } from "../helpers/zip-package.mjs";
+import { packSlidesSmartartPptx } from "./pack-slides-smartart-pptx.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const fixtureDir = path.join(root, "tests", "fixtures", "real-office-samples");
@@ -172,6 +176,8 @@ try {
     if (size < 1000) throw new Error(`${job.name} is suspiciously small (${size} bytes)`);
     console.log(`OK  ${job.src} → ${job.name} (${size} bytes)`);
   }
+  const smartartPptx = packSlidesSmartartPptx(path.join(fixtureDir, "sample-slides-smartart.pptx"));
+  console.log(`OK  src/smartart-pptx/* → sample-slides-smartart.pptx (${fs.statSync(smartartPptx).size} bytes)`);
   console.log(`Wrote OOXML fixtures to ${fixtureDir}`);
 } finally {
   if (!process.env.VNO_KEEP_FIXTURE_TMP) {

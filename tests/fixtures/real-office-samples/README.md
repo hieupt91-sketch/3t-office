@@ -19,6 +19,8 @@ Pivot Table import: `sample-sheet-pivot.xlsx` from `src/sample-sheet-pivot.fods`
 
 Slides comments import: `src/sample-slides-comments.fodp` is handwritten Flat ODF with page-level `<office:annotation>` on `<draw:page>` (not VN `serializeToFodp()`). Live test converts it with soffice to PPTX (`ppt/commentAuthors.xml` + `ppt/comments/comment1.xml`) then back to FODP. LibreOffice rewrites the element to `<officeooo:annotation>` after the hop.
 
+SmartArt import: `sample-slides-smartart.pptx` is a hand-packed OOXML deck with native DrawingML SmartArt (`ppt/diagrams/data1.xml`, `layout1.xml`, `quickStyle1.xml`, `colors1.xml`, `drawing1.xml` plus `dgm:relIds` on the slide). Source parts live in `src/smartart-pptx/`. **Not** produced by VN `serializeToFodp()` — LibreOffice does not emit SmartArt when converting ODF grouped shapes to PPTX. Pack with `node tests/scripts/pack-slides-smartart-pptx.mjs`. Vietnamese node labels: Tiếp nhận hồ sơ, Thẩm định, Phê duyệt, Lưu trữ, Bàn giao.
+
 Regenerate:
 
 ```
