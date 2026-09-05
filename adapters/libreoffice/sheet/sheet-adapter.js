@@ -7,6 +7,7 @@ import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog, showPromptDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { getVnCommand } from "../common/command-dispatch-mapper.js";
+import { SheetChartBuilder } from "../../../apps/sheet/sheet-chart.js";
 
 export class SheetAdapter {
   constructor(gridController) {
@@ -1024,6 +1025,115 @@ export class SheetAdapter {
   }
 
   /**
+   * Nested chart objects inline `table:table name="local-table"`. The table regex
+   * `<table:table\b` also matches `<table:table-row`, so an unstripped chart FODS
+   * leaks a fake worksheet. Strip embedded objects before cell parsing.
+   */
+  _xmlWithoutEmbeddedObjects(xmlText) {
+    return String(xmlText || "").replace(/<draw:object\b([^>]*)>([\s\S]*?)<\/draw:object>/gi, "<draw:object$1/>");
+  }
+
+  _mapOdfChartClass(value) {
+    const raw = String(value || "").replace(/^chart:/i, "").trim().toLowerCase();
+    if (raw === "bar" || raw === "column") return "bar";
+    if (raw === "line") return "line";
+    if (raw === "area") return "area";
+    if (raw === "circle" || raw === "ring" || raw === "pie") return "pie";
+    return null;
+  }
+
+  _unionOdfRanges(ranges, fallbackSheet) {
+    if (!ranges.length) return null;
+    const sheet = ranges.find(item => item.sheet)?.sheet || fallbackSheet || "";
+    let minColumn = Infinity;
+    let maxColumn = -Infinity;
+    let minRow = Infinity;
+    let maxRow = -Infinity;
+    for (const item of ranges) {
+      if (item.sheet && sheet && item.sheet !== sheet) continue;
+      const columns = [this._columnNumber(item.range.start.c), this._columnNumber(item.range.end.c)];
+      const rows = [Number(item.range.start.r), Number(item.range.end.r)];
+      minColumn = Math.min(minColumn, ...columns);
+      maxColumn = Math.max(maxColumn, ...columns);
+      minRow = Math.min(minRow, ...rows);
+      maxRow = Math.max(maxRow, ...rows);
+    }
+    if (!Number.isFinite(minColumn) || minColumn < 1 || !Number.isFinite(minRow) || minRow < 1) return null;
+    return {
+      sheet,
+      range: {
+        start: { c: this._columnName(minColumn), r: minRow },
+        end: { c: this._columnName(maxColumn), r: maxRow }
+      }
+    };
+  }
+
+  _columnsForChartExtract() {
+    if (Array.isArray(this.grid?.cols) && this.grid.cols.length) return this.grid.cols;
+    return Array.from({ length: 26 }, (_, index) => this._columnName(index + 1));
+  }
+
+  /**
+   * Map ODF `<chart:chart>` (LibreOffice Calc / Excel chart after soffice XLSX→FODS)
+   * onto the existing VN Sheet chartsBySheet object:
+   * { id, type, range, title, labels, data }.
+   *
+   * Supported classes: bar/column, line, area, circle/ring/pie — the four SVG types
+   * VN Sheet already renders. First series only (engine is single-series).
+   * Same-sheet source range required because extractRangeData reads one sheet Map.
+   */
+  _attachImportedCharts(workbook, xmlText) {
+    workbook.chartsBySheet = Object.fromEntries((workbook.sheets || []).map(name => [name, []]));
+    let index = 0;
+    String(xmlText || "").replace(/<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi, (_, _attrs, body) => {
+      const chartMatch = body.match(/<chart:chart\b([^>]*)>([\s\S]*?)<\/chart:chart>/i);
+      if (!chartMatch) return "";
+      const type = this._mapOdfChartClass(chartMatch[1].match(/chart:class=["']([^"']+)["']/i)?.[1] || "");
+      const seriesAttrs = [];
+      chartMatch[2].replace(/<chart:series\b([^>]*)(?:\/>|>([\s\S]*?)<\/chart:series>)/gi, (all, attrs) => {
+        seriesAttrs.push(attrs);
+        return "";
+      });
+      if (!type || !seriesAttrs.length) return "";
+      const seriesType = this._mapOdfChartClass(seriesAttrs[0].match(/chart:class=["']([^"']+)["']/i)?.[1] || "") || type;
+      const titleXml = chartMatch[2].match(/<chart:title\b[^>]*>([\s\S]*?)<\/chart:title>/i)?.[1] || "";
+      const title = this._unescapeXml(titleXml.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+      const categoryAttrs = chartMatch[2].match(/<chart:categories\b([^>]*)\/?\s*>/i)?.[1] || "";
+      const ranges = [];
+      const values = this._parseOdfTargetRange(
+        seriesAttrs[0].match(/chart:values-cell-range-address=["']([^"']+)["']/i)?.[1] || "",
+        workbook.sheets[0]
+      );
+      if (values) ranges.push(values);
+      const categories = this._parseOdfTargetRange(
+        categoryAttrs.match(/table:cell-range-address=["']([^"']+)["']/i)?.[1] || "",
+        workbook.sheets[0]
+      );
+      if (categories) ranges.push(categories);
+      const union = this._unionOdfRanges(ranges, workbook.sheets[0]);
+      if (!union?.range || !union.sheet || !workbook.sheets.includes(union.sheet)) return "";
+      const chart = {
+        id: `chart-import-${++index}`,
+        type: seriesType,
+        range: union.range,
+        title: title || `Biểu đồ ${this._a1FromOdfRange(union)}`,
+        labels: [],
+        data: [],
+        imported: true,
+        seriesCount: seriesAttrs.length
+      };
+      const cells = workbook.sheetsData[union.sheet];
+      if (cells instanceof Map) {
+        const extracted = SheetChartBuilder.extractRangeData(cells, chart.range, this._columnsForChartExtract());
+        chart.labels = extracted.labels;
+        chart.data = extracted.data;
+      }
+      workbook.chartsBySheet[union.sheet].push(chart);
+      return "";
+    });
+  }
+
+  /**
    * Map ODF DataPilot (LibreOffice Calc / Excel Pivot Table after soffice XLSX→FODS)
    * onto the existing VN Sheet pivotTablesBySheet object:
    * { id, name, sourceSheet, sourceRange, rows, columns, values[{field,aggregate}], targetSheet }.
@@ -1092,10 +1202,11 @@ export class SheetAdapter {
   parseFods(xmlText) {
     const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, validationHits: [] };
     if (!xmlText) return workbook;
-    const numberStyles = this._parseNumberStyles(xmlText);
+    const tableXml = this._xmlWithoutEmbeddedObjects(xmlText);
+    const numberStyles = this._parseNumberStyles(tableXml);
     const tableBlocks = [];
-    xmlText.replace(/<table:table\b([^>]*)>([\s\S]*?)<\/table:table>/gi, all => { tableBlocks.push(all); return all; });
-    const workbookOnlyXml = tableBlocks.reduce((text, block) => text.replace(block, ""), xmlText);
+    tableXml.replace(/<table:table(?=[\s>/])([^>]*)>([\s\S]*?)<\/table:table>/gi, all => { tableBlocks.push(all); return all; });
+    const workbookOnlyXml = tableBlocks.reduce((text, block) => text.replace(block, ""), tableXml);
     let workbookNameIndex = 0;
     workbookOnlyXml.replace(/<table:named-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
       const range = this._parseNamedRangeElement(attrs, "workbook", "", ++workbookNameIndex);
@@ -1104,11 +1215,12 @@ export class SheetAdapter {
     });
 
     if (typeof DOMParser !== "undefined") {
-      const doc = new DOMParser().parseFromString(xmlText, "text/xml");
+      const doc = new DOMParser().parseFromString(tableXml, "text/xml");
       if (!doc.querySelector("parsererror")) {
         const configItems = Array.from(doc.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:config:1.0", "config-item"));
         workbook.activeSheet = configItems.find(item => item.getAttribute("config:name") === "ActiveTable")?.textContent || "";
-        const tables = Array.from(doc.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "table"));
+        const tables = Array.from(doc.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "table"))
+          .filter(table => table.getAttribute("table:name") !== "local-table");
         tables.forEach((table, tableIndex) => {
           const name = table.getAttribute("table:name") || `Trang tính ${tableIndex + 1}`;
           const printArea = this._parsePrintRangeAddress(table.getAttribute("table:print-ranges"));
@@ -1191,12 +1303,12 @@ export class SheetAdapter {
     }
 
     if (workbook.sheets.length === 0) {
-      const activeMatch = xmlText.match(/<config:config-item[^>]*config:name=["']ActiveTable["'][^>]*>([\s\S]*?)<\/config:config-item>/i);
+      const activeMatch = tableXml.match(/<config:config-item[^>]*config:name=["']ActiveTable["'][^>]*>([\s\S]*?)<\/config:config-item>/i);
       workbook.activeSheet = activeMatch ? this._unescapeXml(activeMatch[1].replace(/<[^>]+>/g, "")) : "";
-      const tableRegex = /<table:table\b([^>]*)>([\s\S]*?)<\/table:table>/gi;
+      const tableRegex = /<table:table(?=[\s>/])([^>]*)>([\s\S]*?)<\/table:table>/gi;
       let tableMatch;
       let tableIndex = 0;
-      while ((tableMatch = tableRegex.exec(xmlText)) !== null) {
+      while ((tableMatch = tableRegex.exec(tableXml)) !== null) {
         tableIndex++;
         const nameMatch = tableMatch[1].match(/table:name=["']([^"']*)["']/i);
         const name = this._unescapeXml(nameMatch?.[1] || `Trang tính ${tableIndex}`);
@@ -1291,8 +1403,9 @@ export class SheetAdapter {
       }
     }
     if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
-    this._attachImportedRules(workbook, xmlText);
+    this._attachImportedRules(workbook, tableXml);
     this._attachImportedPivots(workbook, xmlText);
+    this._attachImportedCharts(workbook, xmlText);
     return workbook;
   }
 
@@ -1323,14 +1436,18 @@ export class SheetAdapter {
     this.grid.conditionalFormattingBySheet = {};
     this.grid.dataValidationsBySheet = {};
     this.grid.pivotTablesBySheet = {};
+    this.grid.chartsBySheet = {};
     for (const sheetName of workbook.sheets) {
       this.grid.conditionalFormattingBySheet[sheetName] = workbook.conditionalFormattingBySheet?.[sheetName] || [];
       this.grid.dataValidationsBySheet[sheetName] = workbook.dataValidationsBySheet?.[sheetName] || [];
       this.grid.pivotTablesBySheet[sheetName] = workbook.pivotTablesBySheet?.[sheetName] || [];
+      this.grid.chartsBySheet[sheetName] = workbook.chartsBySheet?.[sheetName] || [];
     }
     this.grid.undoStack = [];
     this.grid.redoStack = [];
     this.grid._refreshVisibleRuleVisuals?.();
+    this.grid.refreshCharts?.();
+    this.grid.renderCharts?.();
     this.grid.updateStatus?.();
     return true;
   }

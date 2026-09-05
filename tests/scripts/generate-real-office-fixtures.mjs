@@ -156,7 +156,8 @@ const jobs = [
   { src: "sample-writer-footnotes.fodt", ext: "docx", name: "sample-writer-footnotes.docx" },
   { src: "sample-sheet-formulas.fods", ext: "xlsx", name: "sample-sheet-formulas.xlsx" },
   { src: "sample-sheet-validation.fods", ext: "xlsx", name: "sample-sheet-validation.xlsx" },
-  { src: "sample-sheet-pivot.fods", ext: "xlsx", name: "sample-sheet-pivot.xlsx" }
+  { src: "sample-sheet-pivot.fods", ext: "xlsx", name: "sample-sheet-pivot.xlsx" },
+  { src: "sample-sheet-charts.fods", ext: "xlsx", name: "sample-sheet-charts.xlsx" }
 ];
 
 try {
