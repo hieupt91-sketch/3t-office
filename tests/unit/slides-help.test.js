@@ -120,6 +120,53 @@ export async function runSlidesHelpTests() {
     }
   });
 
+  await test("Help Slides Batch 1: có bài trang chiếu, chèn cơ bản, trình chiếu và xem", () => {
+    const ids = SLIDES_HELP_ENTRIES.map((entry) => entry.id);
+    const required = [
+      "slides.slide.manage",
+      "slides.nav.slides",
+      "slides.insert.drawing",
+      "slides.insert.table",
+      "slides.shape.groupUngroup",
+      "slides.show.start",
+      "slides.view.normal",
+      "slides.view.zoom",
+      "slides.notes.toggle"
+    ];
+    for (const id of required) {
+      if (!ids.includes(id)) throw new Error(`Thiếu bài hướng dẫn ${id}`);
+    }
+    const byId = Object.fromEntries(SLIDES_HELP_ENTRIES.map((entry) => [entry.id, entry]));
+    const expectCmds = {
+      "slides.slide.manage": ["slides.slide.new", "slides.layout.apply", "slides.slide.delete"],
+      "slides.nav.slides": ["slides.nav.firstSlide", "slides.nav.nextSlide"],
+      "slides.insert.drawing": ["slides.text.insert", "slides.shape.insert", "slides.image.insert"],
+      "slides.insert.table": ["slides.insert.table"],
+      "slides.shape.groupUngroup": ["slides.shape.group", "slides.shape.ungroup"],
+      "slides.show.start": ["slides.show.startFromBegin", "slides.show.presenterMode"],
+      "slides.view.normal": ["slides.view.normal"],
+      "slides.view.zoom": ["slides.view.zoomIn", "slides.view.fitToWindow"],
+      "slides.notes.toggle": ["slides.notes.toggle"]
+    };
+    for (const [id, cmds] of Object.entries(expectCmds)) {
+      const entry = byId[id];
+      for (const cmd of cmds) {
+        if (!(entry.commandIds || []).includes(cmd)) {
+          throw new Error(`${id} thiếu commandId ${cmd}`);
+        }
+      }
+    }
+    if (byId["slides.slide.manage"].ribbon.group !== "Trang chiếu") {
+      throw new Error("Bài quản lý trang phải trỏ nhóm Trang chiếu");
+    }
+    if (byId["slides.show.start"].ribbon.tab !== "Trình chiếu") {
+      throw new Error("Bài trình chiếu phải ở tab Trình chiếu");
+    }
+    if (byId["slides.view.zoom"].ribbon.group !== "Thu phóng") {
+      throw new Error("Bài thu phóng Slides phải trỏ nhóm Thu phóng");
+    }
+  });
+
   await test("Help Slides: không làm hỏng catalog Writer", () => {
     const writer = getHelpEntriesForApp("writer");
     if (writer.length < 6) throw new Error("Catalog Writer bị mất bài");
