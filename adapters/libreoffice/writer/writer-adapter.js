@@ -3445,7 +3445,7 @@ export class WriterAdapter {
         const reader = new FileReader();
         reader.onload = (evt) => {
           this.flushTyping();
-          const imgHtml = `<img src="${evt.target.result}" style="max-width:100%; height:auto; margin:10pt 0; box-shadow:0 2px 8px rgba(0,0,0,0.15);" /><p><br></p>`;
+          const imgHtml = `<img src="${evt.target.result}" data-vno-wrap="inline" tabindex="0" style="max-width:100%; height:auto; margin:10pt 0; box-shadow:0 2px 8px rgba(0,0,0,0.15); display:inline; float:none; position:static; z-index:auto;" /><p><br></p>`;
           document.execCommand("insertHTML", false, imgHtml);
           this.isDirty = true;
           this.recordSnapshot("writer.image.insert");
@@ -3560,6 +3560,7 @@ export class WriterAdapter {
   _stripSessionMarkup(html) {
     const withoutComments = this._stripCommentMarkup(html);
     return withoutComments
+      .replace(/\s+is-vno-image-selected(?=[\s"'])/gi, "")
       .replace(/<del\b(?=[^>]*\bdata-vno-change=(?:"delete"|'delete'))[^>]*>[\s\S]*?<\/del>/gi, "")
       .replace(/<ins\b(?=[^>]*\bdata-vno-change=(?:"insert"|'insert'))[^>]*>([\s\S]*?)<\/ins>/gi, "$1")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-toc-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")

@@ -323,6 +323,11 @@ export const WRITER_RIBBON_TABS = [
     ]
   },
   {
+    id: "pictureFormat",
+    label: "Định dạng Hình ảnh",
+    groups: []
+  },
+  {
     id: "references",
     label: "Tham chiếu",
     labelKey: "writerRibbon.tab.references",

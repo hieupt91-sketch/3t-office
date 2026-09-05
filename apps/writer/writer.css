@@ -393,10 +393,45 @@
 
 /* Vùng nội dung chính (Body) */
 .vno-writer-body {
+  position: relative;
   min-height: 800px;
   outline: none;
   cursor: text;
 }
+
+#vno-ribbon-tab-pictureFormat[hidden] { display: none; }
+.vno-writer-image-context #vno-ribbon-tab-pictureFormat {
+  color: #7c3aed;
+  border-top: 2px solid #7c3aed;
+}
+.vno-writer-body img.is-vno-image-selected {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+}
+.vno-writer-arrange-group .vno-ribbon-group-items {
+  align-items: center;
+  gap: 8px;
+}
+.vno-writer-arrange-group label {
+  display: grid;
+  gap: 3px;
+  color: #334155;
+  font-size: 11px;
+}
+.vno-writer-arrange-group select,
+.vno-writer-arrange-group button {
+  min-height: 30px;
+  border: 1px solid #94a3b8;
+  border-radius: 4px;
+  background: #fff;
+  color: #0f172a;
+}
+.vno-writer-arrange-group select:focus-visible,
+.vno-writer-arrange-group button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.vno-writer-arrange-buttons { display: grid; grid-template-columns: repeat(2, auto); gap: 4px; }
 
 .vno-spelling-uncertain {
   text-decoration: underline wavy #dc2626 1.5px;
