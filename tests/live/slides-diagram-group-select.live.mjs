@@ -117,13 +117,19 @@ async function run() {
       const canvas = globalUnoBridge.activeDocument.canvas;
       const shapes = canvas.slides[canvas.currentSlideIndex].shapes;
       const last = canvas.undoStack[canvas.undoStack.length - 1];
+      const groupId = canvas.diagramGroupSelectionId;
+      const group = shapes.filter(s => s.diagramGroupId === groupId);
       return {
         shapes: shapes.map(s => ({
           id: s.id, role: s.diagramRole, type: s.type,
           x: s.x, y: s.y, x1: s.x1, y1: s.y1, x2: s.x2, y2: s.y2
         })),
         undoType: last?.type,
-        undoCount: last?.shapes?.length || 0
+        undoCount: last?.shapes?.length || 0,
+        undoIds: (last?.shapes || []).map(s => s.id),
+        groupSize: group.length,
+        groupId,
+        stackTypes: canvas.undoStack.map(item => item.type)
       };
     });
 
@@ -146,8 +152,9 @@ async function run() {
     }));
     assert(connectorDeltas.every(d => d.dx1 === dx0 && d.dy1 === dy0 && d.dx2 === dx0 && d.dy2 === dy0),
       `Connector không dịch cùng offset node: ${JSON.stringify({ dx0, dy0, connectorDeltas })}`);
-    assert(afterDrag.undoType === "diagram-group-move", `Undo type sau kéo phải là diagram-group-move, thực tế ${afterDrag.undoType}`);
-    assert(afterDrag.undoCount === beforeDrag.length, "Một bước Undo phải ghi đủ mọi shape trong nhóm");
+    assert(afterDrag.undoType === "diagram-group-move", `Undo type sau kéo phải là diagram-group-move, thực tế ${JSON.stringify({ type: afterDrag.undoType, stack: afterDrag.stackTypes })}`);
+    assert(afterDrag.undoCount === afterDrag.groupSize && afterDrag.undoCount === beforeDrag.length,
+      `Một bước Undo phải ghi đủ mọi shape trong nhóm: undoCount=${afterDrag.undoCount} groupSize=${afterDrag.groupSize} before=${beforeDrag.length} ids=${JSON.stringify(afterDrag.undoIds)} stack=${JSON.stringify(afterDrag.stackTypes)}`);
 
     await page.keyboard.press("Control+Z");
     const afterMoveUndo = await page.evaluate(async () => {
@@ -179,8 +186,14 @@ async function run() {
 
     const beforeDelete = await page.evaluate(async () => {
       const { globalUnoBridge } = await import("/adapters/libreoffice/common/uno-bridge.js");
-      const shapes = globalUnoBridge.activeDocument.canvas.slides[0].shapes;
-      return { count: shapes.length, positions: shapes.map(s => ({ id: s.id, x: s.x, y: s.y })) };
+      const canvas = globalUnoBridge.activeDocument.canvas;
+      const shapes = canvas.slides[canvas.currentSlideIndex].shapes;
+      return {
+        count: shapes.length,
+        slides: canvas.slides.length,
+        slideIndex: canvas.currentSlideIndex,
+        positions: shapes.map(s => ({ id: s.id, x: s.x, y: s.y }))
+      };
     });
     await third.click();
     await page.keyboard.press("Delete");
@@ -190,13 +203,15 @@ async function run() {
       const canvas = globalUnoBridge.activeDocument.canvas;
       const last = canvas.undoStack[canvas.undoStack.length - 1];
       return {
-        remaining: canvas.slides[0].shapes.length,
+        remaining: canvas.slides[canvas.currentSlideIndex]?.shapes?.length || 0,
         slides: canvas.slides.length,
+        slideIndex: canvas.currentSlideIndex,
         undoType: last?.type,
         undoShapes: last?.shapes?.length || 0
       };
     });
-    assert(afterDelete.slides === 1, "Delete nhóm không được xóa cả trang chiếu");
+    assert(afterDelete.slides === beforeDelete.slides, `Delete nhóm không được xóa trang chiếu (trước ${beforeDelete.slides}, sau ${afterDelete.slides})`);
+    assert(afterDelete.slideIndex === beforeDelete.slideIndex, "Delete nhóm không được đổi slide hiện tại");
     assert(afterDelete.remaining === 0, `Delete phải xóa cả nhóm, còn ${afterDelete.remaining}`);
     assert(afterDelete.undoType === "diagram-group-delete", `Undo type phải là diagram-group-delete, thực tế ${afterDelete.undoType}`);
     assert(afterDelete.undoShapes === beforeDelete.count, "Một bước Undo xóa phải chứa đủ shape");

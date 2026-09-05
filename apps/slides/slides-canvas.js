@@ -1746,6 +1746,10 @@ export class SlidesCanvasController {
       if (event.target?.classList?.contains("vno-shape-delete-btn")) return;
       if (event.target?.classList?.contains("vno-diagram-node-text") && event.target.contentEditable === "true") return;
 
+      if (el.setPointerCapture && event.pointerId != null) {
+        try { el.setPointerCapture(event.pointerId); } catch (_) { /* ignore */ }
+      }
+
       const startX = event.clientX;
       const startY = event.clientY;
 
@@ -1785,8 +1789,9 @@ export class SlidesCanvasController {
         return { shape: s, startX: s.x, startY: s.y, el: shapeEl };
       });
 
+      const groupIdForMove = isDiagramGroupMove ? this.diagramGroupSelectionId : null;
       const groupStartGeometries = isDiagramGroupMove
-        ? new Map(this._getDiagramGroupShapes(this.diagramGroupSelectionId).map(s => [String(s.id), this._captureShapeGeometry(s)]))
+        ? new Map(this._getDiagramGroupShapes(groupIdForMove).map(s => [String(s.id), this._captureShapeGeometry(s)]))
         : null;
 
       const otherShapes = allShapes.filter(s => !shapesToMove.includes(s) && s.type !== "connector");
@@ -1871,9 +1876,9 @@ export class SlidesCanvasController {
 
         this._renderSmartGuides(guideV, guideH);
 
-        if (isDiagramGroupMove && groupStartGeometries) {
-          this._applyDiagramGroupDelta(this.diagramGroupSelectionId, groupStartGeometries, dx, dy);
-          this._syncDiagramGroupDom(this.diagramGroupSelectionId);
+        if (isDiagramGroupMove && groupStartGeometries && groupIdForMove) {
+          this._applyDiagramGroupDelta(groupIdForMove, groupStartGeometries, dx, dy);
+          this._syncDiagramGroupDom(groupIdForMove);
           return;
         }
 
@@ -1895,17 +1900,20 @@ export class SlidesCanvasController {
         document.removeEventListener("pointermove", move);
         document.removeEventListener("pointerup", up);
         if (moved) {
-          if (isDiagramGroupMove && groupStartGeometries) {
-            const groupShapes = this._getDiagramGroupShapes(this.diagramGroupSelectionId);
+          if (isDiagramGroupMove && groupStartGeometries && groupStartGeometries.size) {
+            const slideShapes = this.slides[this.currentSlideIndex]?.shapes || [];
             this.undoStack.push({
               type: "diagram-group-move",
               slideIndex: this.currentSlideIndex,
-              diagramGroupId: this.diagramGroupSelectionId,
-              shapes: groupShapes.map(s => ({
-                id: s.id,
-                from: groupStartGeometries.get(String(s.id)),
-                to: this._captureShapeGeometry(s)
-              }))
+              diagramGroupId: groupIdForMove,
+              shapes: [...groupStartGeometries.keys()].map(id => {
+                const s = slideShapes.find(item => String(item.id) === id);
+                return {
+                  id: s ? s.id : id,
+                  from: groupStartGeometries.get(id),
+                  to: s ? this._captureShapeGeometry(s) : groupStartGeometries.get(id)
+                };
+              })
             });
           } else if (movingEntries.length === 1) {
             this.undoStack.push({
