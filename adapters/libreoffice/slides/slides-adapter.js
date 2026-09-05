@@ -62,6 +62,8 @@ export class SlidesAdapter {
       options = options || {};
       return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
     });
+    globalCommandBus.bindHandler("slides.edit.formatPainter", (args) => this.canvas.toggleFormatPainter ? this.canvas.toggleFormatPainter(args || {}) : false);
+    this._bindFormatPainterRibbon();
     // Command metadata is app-local because this feature is scoped to Slides;
     // bind explicitly instead of requiring a Platform registry change.
     globalCommandBus.bindHandler("slides.insert.chart", (options) => this.canvas.insertChart ? this.canvas.insertChart(options) : false);
@@ -80,6 +82,18 @@ export class SlidesAdapter {
     this._bindTextFormatTracking();
   }
 
+  _bindFormatPainterRibbon() {
+    if (this._formatPainterRibbonBound) return;
+    if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
+    this._formatPainterRibbonBound = true;
+    document.addEventListener("dblclick", (event) => {
+      const btn = event.target?.closest?.('[data-command-id="slides.edit.formatPainter"]');
+      if (!btn) return;
+      event.preventDefault();
+      this.canvas?.toggleFormatPainter?.({ locked: true });
+    }, true);
+  }
+
   _bindTextFormatTracking() {
     if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
     if (this._textFormatSelectionHandler) return;
@@ -90,7 +104,7 @@ export class SlidesAdapter {
     this._textFormatMouseDownHandler = (event) => {
       const host = event.target?.closest?.("[data-command-id]");
       const id = host?.getAttribute?.("data-command-id") || "";
-      if (!/^slides\.(text|font|para|list|color)\./.test(id)) return;
+      if (!/^slides\.(text|font|para|list|color)\./.test(id) && id !== "slides.edit.formatPainter") return;
       this._rememberTextSelection();
       const tag = (event.target?.tagName || host?.tagName || "").toUpperCase();
       if (tag === "SELECT" || tag === "OPTION") return;
@@ -2538,6 +2552,9 @@ export class SlidesAdapter {
 
       case "slides.review.commentInsert":
         return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
+
+      case "slides.edit.formatPainter":
+        return this.canvas.toggleFormatPainter ? this.canvas.toggleFormatPainter(args || {}) : false;
 
       case "slides.insert.table":
         return this.canvas.insertTable ? await this.canvas.insertTable(args) : false;

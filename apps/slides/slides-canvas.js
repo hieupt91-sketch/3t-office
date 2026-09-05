@@ -241,6 +241,9 @@ export class SlidesCanvasController {
     this.body2El = null;
     this.selectedTarget = null; // "title" | "body" | "body2" | shapeId
     this.selectedShapeIds = new Set();
+    this.formatPainter = null;
+    this._formatPainterActivatedAt = 0;
+    this._formatPainterEscHandler = null;
     this.diagramGroupSelectionId = null;
     this.diagramGroupBoundsEl = null;
     this.smartGuidesLayer = null;
@@ -400,6 +403,9 @@ export class SlidesCanvasController {
     this.bodyEl.addEventListener("click", () => this.setSelectedTarget("body"));
     this.body2El.addEventListener("focus", () => this.setSelectedTarget("body2"));
     this.body2El.addEventListener("click", () => this.setSelectedTarget("body2"));
+    this.titleEl.addEventListener("mouseup", () => this._onTextFieldFormatPainter("title"));
+    this.bodyEl.addEventListener("mouseup", () => this._onTextFieldFormatPainter("body"));
+    this.body2El.addEventListener("mouseup", () => this._onTextFieldFormatPainter("body2"));
 
     this.canvasEl.appendChild(this.titleEl);
     this.canvasEl.appendChild(this.bodyRowEl);
@@ -1677,6 +1683,257 @@ export class SlidesCanvasController {
     globalCommandBus.updateState("common.edit.redo", { enabled: this.redoStack.length > 0 });
   }
 
+  _shapeFillEligible(shape) {
+    if (!shape) return false;
+    return !["image", "video", "audio", "table", "chart", "wordart", "connector"].includes(shape.type);
+  }
+
+  _captureTextComputedFormat() {
+    if (typeof window === "undefined" || typeof window.getComputedStyle !== "function") return null;
+    const selection = typeof window.getSelection === "function" ? window.getSelection() : null;
+    let node = selection?.anchorNode || selection?.focusNode;
+    if (node && node.nodeType === 3) node = node.parentNode;
+    const inSlideEditable = (candidate) => {
+      if (!candidate) return false;
+      if (this.titleEl?.contains?.(candidate) || this.bodyEl?.contains?.(candidate) || this.body2El?.contains?.(candidate)) return true;
+      const host = candidate.closest?.("[contenteditable='true'], [contenteditable=true], [contenteditable]");
+      return !!(host && this.canvasEl?.contains?.(host));
+    };
+    if (!inSlideEditable(node)) {
+      let field = null;
+      if (this.selectedTarget === "title") field = this.titleEl;
+      else if (this.selectedTarget === "body") field = this.bodyEl;
+      else if (this.selectedTarget === "body2") field = this.body2El;
+      node = field?.querySelector?.("font, span[style], b, strong, i, em, u") || field || null;
+    }
+    if (!node) return null;
+    try {
+      const style = window.getComputedStyle(node);
+      return {
+        fontWeight: style.fontWeight,
+        fontStyle: style.fontStyle,
+        textDecoration: style.textDecorationLine || style.textDecoration,
+        color: style.color,
+        backgroundColor: style.backgroundColor,
+        fontFamily: style.fontFamily,
+        fontSize: style.fontSize
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  _captureFormatPainterSource() {
+    const slide = this.slides[this.currentSlideIndex];
+    const result = { text: null, shape: null };
+    const target = this.selectedTarget;
+    if (target && target !== "title" && target !== "body" && target !== "body2") {
+      const shape = slide?.shapes?.find((item) => String(item.id) === String(target));
+      if (this._shapeFillEligible(shape)) {
+        result.shape = { color: shape.color || "#3b82f6" };
+      }
+    }
+    const selectedIsText = target === "title" || target === "body" || target === "body2";
+    const textFormat = this._captureTextComputedFormat();
+    if (selectedIsText || textFormat) result.text = textFormat;
+    return result;
+  }
+
+  toggleFormatPainter(opts = {}) {
+    const locked = !!opts.locked;
+    const now = Date.now();
+    if (this.formatPainter) {
+      if (locked) {
+        this.formatPainter.locked = true;
+        this._syncFormatPainterUi();
+        return true;
+      }
+      if (now - (this._formatPainterActivatedAt || 0) < 400) return true;
+      this.cancelFormatPainter();
+      return false;
+    }
+    return this.startFormatPainter({ locked, source: opts.source });
+  }
+
+  startFormatPainter({ locked = false, source = null } = {}) {
+    const captured = source || this._captureFormatPainterSource();
+    if (!captured?.text && !captured?.shape) return false;
+    this.formatPainter = {
+      locked: !!locked,
+      text: captured.text ? { ...captured.text } : null,
+      shape: captured.shape ? { ...captured.shape } : null
+    };
+    this._formatPainterActivatedAt = Date.now();
+    this._bindFormatPainterEscape();
+    this._syncFormatPainterUi();
+    return true;
+  }
+
+  cancelFormatPainter() {
+    if (!this.formatPainter) return false;
+    this.formatPainter = null;
+    this._unbindFormatPainterEscape();
+    this._syncFormatPainterUi();
+    return true;
+  }
+
+  _syncFormatPainterUi() {
+    const active = !!this.formatPainter;
+    const locked = !!this.formatPainter?.locked;
+    this.container?.classList?.toggle?.("vno-format-painter-active", active);
+    this.container?.classList?.toggle?.("vno-format-painter-locked", locked);
+    if (this.container?.dataset) {
+      if (active) this.container.dataset.formatPainter = locked ? "locked" : "on";
+      else delete this.container.dataset.formatPainter;
+    }
+    globalCommandBus?.updateState?.("slides.edit.formatPainter", { checked: active });
+  }
+
+  _bindFormatPainterEscape() {
+    this._unbindFormatPainterEscape();
+    if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
+    this._formatPainterEscHandler = (event) => {
+      if (event.key === "Escape" && this.formatPainter) {
+        event.preventDefault();
+        this.cancelFormatPainter();
+      }
+    };
+    document.addEventListener("keydown", this._formatPainterEscHandler, true);
+  }
+
+  _unbindFormatPainterEscape() {
+    if (this._formatPainterEscHandler && typeof document !== "undefined" && typeof document.removeEventListener === "function") {
+      document.removeEventListener("keydown", this._formatPainterEscHandler, true);
+    }
+    this._formatPainterEscHandler = null;
+  }
+
+  _onTextFieldFormatPainter(field) {
+    if (!this.formatPainter?.text) return;
+    this.applyFormatPainterToTextField(field);
+  }
+
+  _snapshotTextField(field, shapeId) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return { text: "", html: undefined };
+    if (shapeId != null) {
+      const shape = slide.shapes?.find((item) => String(item.id) === String(shapeId));
+      return { text: shape?.text || "", html: shape?.textHtml };
+    }
+    if (field === "title") return { text: slide.title, html: slide.titleHtml };
+    if (field === "body2") return { text: slide.body2, html: slide.body2Html };
+    return { text: slide.body, html: slide.bodyHtml };
+  }
+
+  _restoreTextField(field, snapshot, shapeId) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !snapshot) return;
+    const apply = (target, textKey, htmlKey) => {
+      target[textKey] = snapshot.text;
+      if (snapshot.html) target[htmlKey] = snapshot.html;
+      else delete target[htmlKey];
+    };
+    if (shapeId != null) {
+      const shape = slide.shapes?.find((item) => String(item.id) === String(shapeId));
+      if (shape) apply(shape, "text", "textHtml");
+      return;
+    }
+    if (field === "title") apply(slide, "title", "titleHtml");
+    else if (field === "body2") apply(slide, "body2", "body2Html");
+    else apply(slide, "body", "bodyHtml");
+  }
+
+  _applyCopiedTextFormat(fmt, editable) {
+    if (!fmt || typeof document === "undefined" || typeof document.execCommand !== "function") return false;
+    editable?.focus?.();
+    const selection = typeof window !== "undefined" && typeof window.getSelection === "function" ? window.getSelection() : null;
+    if (selection && editable && (selection.rangeCount === 0 || selection.isCollapsed) && typeof document.createRange === "function") {
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(editable);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      } catch {
+        /* selection host may be detached */
+      }
+    }
+    const isBold = fmt.fontWeight === "bold" || parseInt(fmt.fontWeight, 10) >= 600;
+    const isItalic = fmt.fontStyle === "italic";
+    const deco = String(fmt.textDecoration || "");
+    const isUnderline = deco.includes("underline");
+    if (isBold && !document.queryCommandState("bold")) document.execCommand("bold");
+    if (!isBold && document.queryCommandState("bold")) document.execCommand("bold");
+    if (isItalic && !document.queryCommandState("italic")) document.execCommand("italic");
+    if (!isItalic && document.queryCommandState("italic")) document.execCommand("italic");
+    if (isUnderline && !document.queryCommandState("underline")) document.execCommand("underline");
+    if (!isUnderline && document.queryCommandState("underline")) document.execCommand("underline");
+    if (fmt.color) document.execCommand("foreColor", false, fmt.color);
+    if (fmt.backgroundColor && fmt.backgroundColor !== "transparent" && fmt.backgroundColor !== "rgba(0, 0, 0, 0)") {
+      document.execCommand("hiliteColor", false, fmt.backgroundColor);
+    }
+    if (fmt.fontFamily) document.execCommand("fontName", false, fmt.fontFamily);
+    return true;
+  }
+
+  applyFormatPainterToTextField(field) {
+    if (!this.formatPainter?.text) return false;
+    const el = field === "title" ? this.titleEl : field === "body2" ? this.body2El : this.bodyEl;
+    return this.applyFormatPainterToTextElement(el, { field });
+  }
+
+  applyFormatPainterToTextElement(editable, { field = "body", shapeId = null } = {}) {
+    if (!this.formatPainter?.text) return false;
+    const before = this._snapshotTextField(field, shapeId);
+    const applied = this._applyCopiedTextFormat(this.formatPainter.text, editable);
+    if (shapeId != null) this._syncVisibleSpellcheckText();
+    else this._syncEditableFieldsFromDom();
+    const after = this._snapshotTextField(field, shapeId);
+    this.undoStack.push({
+      type: "text-format",
+      slideIndex: this.currentSlideIndex,
+      field,
+      shapeId,
+      before,
+      after
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderThumbnails?.();
+    if (!this.formatPainter.locked) this.cancelFormatPainter();
+    return applied || true;
+  }
+
+  applyFormatPainterToShape(shape) {
+    if (!this.formatPainter || !shape) return false;
+    if (!this.formatPainter.shape || !this._shapeFillEligible(shape)) return false;
+    const before = { color: shape.color };
+    shape.color = this.formatPainter.shape.color;
+    this.undoStack.push({
+      type: "shape-format",
+      slideIndex: this.currentSlideIndex,
+      shapeId: shape.id,
+      before,
+      after: { color: shape.color }
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderShapesLayer();
+    this._renderThumbnails?.();
+    if (!this.formatPainter.locked) this.cancelFormatPainter();
+    return true;
+  }
+
+  applyFormatPainterToSelection(target = this.selectedTarget) {
+    if (!this.formatPainter) return false;
+    if (target === "title" || target === "body" || target === "body2") {
+      return this.applyFormatPainterToTextField(target);
+    }
+    const slide = this.slides[this.currentSlideIndex];
+    const shape = slide?.shapes?.find((item) => String(item.id) === String(target));
+    if (shape) return this.applyFormatPainterToShape(shape);
+    return false;
+  }
+
   _renderShapesLayer() {
     if (!this.shapesLayer) return;
     this.shapesLayer.innerHTML = "";
@@ -2063,6 +2320,21 @@ export class SlidesCanvasController {
       if (event.target?.classList?.contains("vno-shape-resize-handle")) return;
       if (event.target?.classList?.contains("vno-shape-delete-btn")) return;
       if (event.target?.classList?.contains("vno-diagram-node-text") && event.target.contentEditable === "true") return;
+      if (this.formatPainter) {
+        const editingText = event.target?.closest?.("[contenteditable='true'], [contenteditable=true]");
+        if (editingText && this.formatPainter.text) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.applyFormatPainterToTextElement(editingText, { shapeId: shape.id });
+          return;
+        }
+        if (this.formatPainter.shape && this._shapeFillEligible(shape)) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.applyFormatPainterToShape(shape);
+          return;
+        }
+      }
 
       if (el.setPointerCapture && event.pointerId != null) {
         try { el.setPointerCapture(event.pointerId); } catch (_) { /* ignore */ }
@@ -3263,6 +3535,21 @@ export class SlidesCanvasController {
       if (!shape) return false;
       shape.text = action.before;
       this.redoStack.push(action); this.selectSlide(action.slideIndex); this._renderShapesLayer(); return true;
+    } else if (action.type === "shape-format") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      shape.color = action.before?.color;
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "text-format") {
+      this.currentSlideIndex = action.slideIndex;
+      this._restoreTextField(action.field, action.before, action.shapeId);
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
     } else if (action.type === "chart-edit") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;
@@ -3475,6 +3762,21 @@ export class SlidesCanvasController {
       if (!shape) return false;
       shape.text = action.after;
       this.undoStack.push(action); this.selectSlide(action.slideIndex); this._renderShapesLayer(); return true;
+    } else if (action.type === "shape-format") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      shape.color = action.after?.color;
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "text-format") {
+      this.currentSlideIndex = action.slideIndex;
+      this._restoreTextField(action.field, action.after, action.shapeId);
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
     } else if (action.type === "chart-edit") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;
@@ -5140,6 +5442,7 @@ export class SlidesCanvasController {
    * @param {string} [defaultTitle]
    */
   resetToBlank(defaultTitle = "BẢN TRÌNH CHIẾU MỚI") {
+    this.cancelFormatPainter();
     this.closeSlideSorter();
     this._activeShowCleanup?.();
     this._activePresenterCleanup?.();
@@ -5589,6 +5892,7 @@ export class SlidesCanvasController {
       window.removeEventListener("keydown", this._windowKeyHandler);
       this._windowKeyHandler = null;
     }
+    this.cancelFormatPainter();
     this.spellcheckController?.destroy();
     this.spellcheckController = null;
     this.spellcheckChecker = null;

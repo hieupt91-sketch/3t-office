@@ -33,7 +33,8 @@ export const SLIDES_RIBBON_TABS = [
             type: "column",
             items: [
               { type: "button", commandId: "common.edit.cut" },
-              { type: "button", commandId: "common.edit.copy" }
+              { type: "button", commandId: "common.edit.copy" },
+              { type: "button", commandId: "slides.edit.formatPainter" }
             ]
           }
         ]
