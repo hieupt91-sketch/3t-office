@@ -108,6 +108,7 @@ export const viStrings = {
     "common.edit.copy": { label: "Sao chép", tooltip: "Sao chép vùng chọn (Ctrl+C)" },
     "common.edit.paste": { label: "Dán", tooltip: "Dán nội dung từ bộ nhớ tạm (Ctrl+V)" },
     "common.edit.pastePlain": { label: "Dán văn bản thuần", tooltip: "Dán văn bản không giữ định dạng (Ctrl+Shift+V)" },
+    "sheet.edit.pasteSpecial": { label: "Dán đặc biệt", tooltip: "Chọn cách dán giá trị, công thức, định dạng hoặc chuyển vị (Ctrl+Alt+V)" },
     "common.edit.formatPainter": { label: "Sao chép định dạng", tooltip: "Sao chép định dạng (Ctrl+Shift+C)" },
     "common.edit.selectAll": { label: "Chọn tất cả", tooltip: "Chọn toàn bộ nội dung (Ctrl+A)" },
     "common.edit.find": { label: "Tìm kiếm", tooltip: "Tìm kiếm văn bản (Ctrl+F)" },

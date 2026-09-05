@@ -1678,6 +1678,10 @@ export class SheetGridController {
         e.preventDefault();
         globalCommandBus?.execute?.("common.edit.paste");
         return;
+      } else if (e.ctrlKey && e.altKey && !e.metaKey && (e.key === "v" || e.key === "V")) {
+        e.preventDefault();
+        globalCommandBus?.execute?.("sheet.edit.pasteSpecial");
+        return;
       } else if (e.ctrlKey && !e.altKey && !e.metaKey && (e.key === "x" || e.key === "X")) {
         e.preventDefault();
         globalCommandBus?.execute?.("common.edit.cut");
@@ -3148,6 +3152,80 @@ export class SheetGridController {
         return `${prefix}${colAbs}${nextCol}${rowAbs}${nextRow}`;
       });
     }).join("");
+  }
+
+  applyPasteSpecial(clipboard, mode = "all", destination = this.selectedCoord) {
+    if (!clipboard?.cells?.length || !destination) return false;
+    const sourceRows = clipboard.cells;
+    const transpose = mode === "transpose";
+    const height = transpose ? sourceRows[0].length : sourceRows.length;
+    const width = transpose ? sourceRows.length : sourceRows[0].length;
+    const before = {};
+    const after = {};
+    const sourceStartCol = this._columnNumber(clipboard.range?.start?.c || "A");
+    const sourceStartRow = Number(clipboard.range?.start?.r || 1);
+    const destStartCol = this._columnNumber(destination.c);
+
+    for (let rowOffset = 0; rowOffset < height; rowOffset++) {
+      for (let colOffset = 0; colOffset < width; colOffset++) {
+        const source = structuredClone(transpose ? sourceRows[colOffset][rowOffset] : sourceRows[rowOffset][colOffset]);
+        const destColNumber = destStartCol + colOffset;
+        const destRow = Number(destination.r) + rowOffset;
+        if (destColNumber < 1 || destColNumber > this.cols.length || destRow < 1 || destRow > this.rowCount) continue;
+        const coord = `${this._columnLabel(destColNumber)}${destRow}`;
+        const existing = structuredClone(this.cellsData.get(coord) || { val: "", formula: "", style: {} });
+        before[coord] = existing;
+        let next = structuredClone(existing);
+        if (mode === "formats") {
+          next.style = structuredClone(source.style || {});
+        } else if (mode === "values") {
+          next.val = source.val ?? "";
+          next.formula = "";
+        } else {
+          const sourceColOffset = transpose ? rowOffset : colOffset;
+          const sourceRowOffset = transpose ? colOffset : rowOffset;
+          const formula = source.formula
+            ? this._offsetFormula(source.formula, destColNumber - (sourceStartCol + sourceColOffset), destRow - (sourceStartRow + sourceRowOffset))
+            : "";
+          next.val = mode === "formulas" && !formula ? "" : (source.val ?? "");
+          next.formula = formula;
+          if (mode !== "formulas") next.style = structuredClone(source.style || {});
+        }
+        this.cellsData.set(coord, next);
+        after[coord] = structuredClone(next);
+      }
+    }
+    if (!Object.keys(after).length) return false;
+    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
+    this._recalculateAllFormulas();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.selectCell(destination.c, destination.r);
+    return true;
+  }
+
+  showPasteSpecialDialog(clipboard) {
+    if (typeof document === "undefined" || !clipboard?.cells?.length) return false;
+    const overlay = this._createSheetDialog("Dán đặc biệt", `
+      <form class="vno-paste-special-dialog" aria-label="Dán đặc biệt">
+        <fieldset><legend>Dán</legend>
+          <label><input type="radio" name="paste-special-mode" value="all" checked> Tất cả</label>
+          <label><input type="radio" name="paste-special-mode" value="values"> Chỉ giá trị</label>
+          <label><input type="radio" name="paste-special-mode" value="formulas"> Chỉ công thức</label>
+          <label><input type="radio" name="paste-special-mode" value="formats"> Chỉ định dạng</label>
+          <label><input type="radio" name="paste-special-mode" value="transpose"> Chuyển vị (đổi hàng/cột)</label>
+        </fieldset>
+      </form>`);
+    if (!overlay) return false;
+    const form = overlay.querySelector(".vno-paste-special-dialog");
+    const paste = () => {
+      const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "all";
+      this.applyPasteSpecial(clipboard, mode);
+      overlay.closeDialog();
+    };
+    form.addEventListener("submit", event => { event.preventDefault(); paste(); });
+    overlay.querySelector(".vno-rule-apply")?.addEventListener("click", paste);
+    form.querySelector('input[name="paste-special-mode"]')?.focus();
+    return true;
   }
 
   fillDown(range = null, recordUndo = true) {

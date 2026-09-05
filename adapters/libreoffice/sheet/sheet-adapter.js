@@ -35,6 +35,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("common.edit.cut", () => this._copySelectedCell(true));
     globalCommandBus.bindHandler("common.edit.paste", () => this._pasteIntoSelectedCell());
     globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pasteIntoSelectedCell());
+    globalCommandBus.bindHandler("sheet.edit.pasteSpecial", () => this.grid.showPasteSpecialDialog?.(this._clipboardModel));
     globalCommandBus.bindHandler("common.edit.selectAll", () => this.grid.selectAll ? this.grid.selectAll() : false);
     globalCommandBus.bindHandler("sheet.select.column", () => this.grid.selectCurrentColumn ? this.grid.selectCurrentColumn() : false);
     globalCommandBus.bindHandler("sheet.select.row", () => this.grid.selectCurrentRow ? this.grid.selectCurrentRow() : false);
@@ -1961,6 +1962,9 @@ export class SheetAdapter {
       case "common.edit.pastePlain":
         return await this._pasteIntoSelectedCell();
 
+      case "sheet.edit.pasteSpecial":
+        return this.grid.showPasteSpecialDialog ? this.grid.showPasteSpecialDialog(this._clipboardModel) : false;
+
       case "common.edit.selectAll":
         return this.grid.selectAll ? this.grid.selectAll() : false;
 
@@ -2035,9 +2039,20 @@ export class SheetAdapter {
   async _copySelectedCell(isCut) {
     const coord = this.grid.selectedCoord;
     if (!coord) return false;
-    const key = `${coord.c}${coord.r}`;
-    const item = this.grid.cellsData?.get(key);
-    const text = item ? (item.formula || item.val || "") : "";
+    const range = this.grid._normalizeRange?.(this.grid.selectionRange) || { start: coord, end: coord };
+    const cells = [];
+    const textRows = [];
+    for (let row = range.start.r; row <= range.end.r; row++) {
+      const cellRow = [], textRow = [];
+      for (let col = this.grid._columnNumber(range.start.c); col <= this.grid._columnNumber(range.end.c); col++) {
+        const item = this.grid.cellsData?.get(`${this.grid._columnLabel(col)}${row}`) || { val: "", formula: "", style: {} };
+        cellRow.push(structuredClone(item));
+        textRow.push(String(item.formula || item.val || ""));
+      }
+      cells.push(cellRow); textRows.push(textRow.join("\t"));
+    }
+    this._clipboardModel = { range: structuredClone(range), cells };
+    const text = textRows.join("\n");
 
     this._clipboardText = String(text);
     try {
@@ -2049,7 +2064,7 @@ export class SheetAdapter {
     }
 
     if (isCut && this.grid.setCellValue) {
-      this.grid.setCellValue(coord.c, coord.r, "");
+      for (let row = range.start.r; row <= range.end.r; row++) for (let col = this.grid._columnNumber(range.start.c); col <= this.grid._columnNumber(range.end.c); col++) this.grid.setCellValue(this.grid._columnLabel(col), row, "");
     }
     return true;
   }
@@ -2060,6 +2075,7 @@ export class SheetAdapter {
   async _pasteIntoSelectedCell() {
     const coord = this.grid.selectedCoord;
     if (!coord || !this.grid.setCellValue) return false;
+    if (this._clipboardModel && this.grid.applyPasteSpecial) return this.grid.applyPasteSpecial(this._clipboardModel, "all");
     let text = this._clipboardText || "";
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {
