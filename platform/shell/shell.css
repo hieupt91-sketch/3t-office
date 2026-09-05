@@ -361,20 +361,56 @@ body {
   border-top: 1px solid transparent;
 }
 
-/* Man hinh laptop pho bien VN (1366px va hep hon): giam gap/padding ribbon
-   de giam bot tran ngang - xem docs/VNO-GAPS.md #1, #2. Day la file thuc su
-   co hieu luc cho .vno-ribbon-* (nap sau platform/ribbon/ribbon.css nen
-   thang cascade); phan con lai (neu con) duoc xu ly graceful qua
-   overflow-x:auto tren .vno-ribbon-content. */
-@media (max-width: 1400px) {
+/* Responsive ribbon breakpoint 1: man hinh <= 1650px (bao gom 1600px desktop)
+   Giam nhe padding va ap dung co che responsive thu gon nhan phu trong nhom Styles chuan Office */
+@media (max-width: 1650px) {
   .vno-ribbon-content {
-    padding: 4px 3px;
+    padding: 4px 4px;
   }
   .vno-ribbon-group {
     padding: 0 4px;
   }
   .vno-ribbon-group-items {
     gap: 2px;
+  }
+  /* Nhom Kieu o: Dinh dang bang va Kieu o hien thi dang icon button gon gang */
+  .vno-ribbon-group[data-group-id="styles"] .vno-ribbon-btn-small .vno-btn-label {
+    display: none;
+  }
+}
+
+/* Responsive ribbon breakpoint 2: man hinh <= 1400px (laptop 1366px pho bien tai VN)
+   Giam tiep gap/padding ribbon va ap dung co che responsive thu gon nhan cho
+   nhom O (Cells) va cac nut Merge phu trong nhom Alignment chuan Excel.
+   Moi button van day du 100% trong DOM, giu nguyen data-command-id, tooltip va handler that.
+   Xem docs/VNO-GAPS.md #1. */
+@media (max-width: 1400px) {
+  .vno-ribbon-content {
+    padding: 4px 2px;
+  }
+  .vno-ribbon-group {
+    padding: 0 3px;
+  }
+  .vno-ribbon-group-items {
+    gap: 2px;
+  }
+  /* Nhom O (Cells): Chen hang/cot, Xoa hang/cot thu gon thanh icon buttons */
+  .vno-ribbon-group[data-group-id="cells"] .vno-btn-label {
+    display: none;
+  }
+  /* Nhom Can chinh (Alignment): cac nut merge phu thu gon thanh icon */
+  .vno-ribbon-group[data-group-id="alignment"] button[data-command-id="sheet.cell.mergeAcross"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="alignment"] button[data-command-id="sheet.cell.mergeCells"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="alignment"] button[data-command-id="sheet.cell.unmerge"] .vno-btn-label {
+    display: none;
+  }
+  /* Nut chinh Tron & can giua giu nhan voi padding gon */
+  .vno-ribbon-group[data-group-id="alignment"] button[data-command-id="sheet.cell.mergeCenter"] {
+    padding: 3px 4px;
+  }
+  /* Nhom Chinh sua (Editing): giam nhe padding nut de vua van tren 1366px */
+  .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-small {
+    padding: 3px 4px;
   }
 }
 

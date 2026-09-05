@@ -10,21 +10,23 @@ export const SHEET_RIBBON_TABS = [
     labelKey: "sheetRibbon.tab.home",
     groups: [
       {
+        id: "clipboard",
         label: "Bảng nhớ tạm",
         labelKey: "sheetRibbon.group.clipboard",
         items: [
           { type: "button", commandId: "common.edit.paste", isLarge: true },
-          { type: "button", commandId: "sheet.edit.pasteSpecial" },
           {
             type: "column",
             items: [
               { type: "button", commandId: "common.edit.cut" },
-              { type: "button", commandId: "common.edit.copy" }
+              { type: "button", commandId: "common.edit.copy" },
+              { type: "button", commandId: "sheet.edit.pasteSpecial" }
             ]
           }
         ]
       },
       {
+        id: "font",
         label: "Phông chữ",
         labelKey: "sheetRibbon.group.font",
         items: [
@@ -73,6 +75,7 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
+        id: "alignment",
         label: "Căn chỉnh",
         labelKey: "sheetRibbon.group.alignment",
         items: [
@@ -112,6 +115,7 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
+        id: "number",
         label: "Định dạng số",
         labelKey: "sheetRibbon.group.number",
         launcherCommandId: "sheet.format.cellsDialog",
@@ -150,6 +154,7 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
+        id: "styles",
         label: "Kiểu ô",
         labelKey: "sheetRibbon.group.styles",
         items: [
@@ -164,6 +169,7 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
+        id: "cells",
         label: "Ô",
         labelKey: "sheetRibbon.group.cells",
         items: [
@@ -184,6 +190,7 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
+        id: "editing",
         label: "Chỉnh sửa",
         labelKey: "sheetRibbon.group.editing",
         items: [
