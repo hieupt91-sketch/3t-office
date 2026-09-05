@@ -23,7 +23,12 @@ export async function runVietnameseSpellcheckerTests() {
     }),
     test("Không báo sai câu tiếng Việt có dấu thực tế", () => {
       const checker = new VietnameseSpellChecker(dictionaryLines);
-      const issues = checker.checkText("Giáo viên hướng dẫn học sinh viết chính xác tiếng Việt trong trường học.");
+      const text = "Giáo viên hướng dẫn học sinh đọc sách và viết bài trong lớp học. " +
+        "Nhà trường tổ chức hoạt động trải nghiệm nhằm phát triển kỹ năng giao tiếp. " +
+        "Người dùng soạn thảo văn bản hành chính, báo cáo công việc và kế hoạch giảng dạy. " +
+        "Tiếng Việt có hệ thống dấu thanh phong phú với nhiều nguyên âm như ă, â, ê, ô, ơ và ư. " +
+        "Phần mềm văn phòng cần hoạt động nhanh, ổn định, trực quan và bảo vệ dữ liệu cá nhân.";
+      const issues = checker.checkText(text);
       assert(issues.length === 0, `báo nhầm: ${issues.map(item => item.word).join(", ")}`);
     }),
     test("Phát hiện lỗi rõ ràng và đưa ra gợi ý gần", () => {

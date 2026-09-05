@@ -12,6 +12,7 @@ import { globalShortcutManager } from "../../platform/commands/shortcut-manager.
 import { WriterViewController } from "./writer-view-controller.js";
 import { VietnameseSpellChecker } from "../../platform/text/vi-spellchecker.js";
 import { SpellcheckDomController } from "../../platform/text/spellcheck-dom-controller.js";
+import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -176,7 +177,7 @@ export class WriterApp {
     this._mountStyleGalleryRibbonStrip();
     this._watchRibbonForStyleGalleryStrip();
     this._setupContentObserver();
-    await this._setupVietnameseSpellcheck([header, body, footer]);
+    this._setupVietnameseSpellcheck([header, body, footer]);
     console.log("[WriterApp] Đã khởi tạo VN Writer chuẩn hóa cao cấp.");
   }
 
@@ -224,11 +225,10 @@ export class WriterApp {
     this.spellcheckController = null;
   }
 
-  async _setupVietnameseSpellcheck(editableRoots) {
+  _setupVietnameseSpellcheck(editableRoots) {
     this.canvas.dataset.spellcheckStatus = "loading";
     try {
-      const dictionaryUrl = new URL("../../platform/text/dictionaries/vi_VN.dic", import.meta.url);
-      const checker = await VietnameseSpellChecker.fromUrl(dictionaryUrl);
+      const checker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
       this.spellcheckController = new SpellcheckDomController({ roots: editableRoots, checker, debounceMs: 400 }).attach();
       this.canvas.dataset.spellcheckStatus = "ready";
     } catch (error) {
