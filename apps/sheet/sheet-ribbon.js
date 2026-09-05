@@ -192,6 +192,24 @@ export const SHEET_RIBBON_TABS = [
               { type: "button", commandId: "sheet.row.delete" },
               { type: "button", commandId: "sheet.col.delete" }
             ]
+          },
+          {
+            type: "dropdown",
+            id: "sheet.cells.format",
+            label: "Định dạng",
+            labelKey: "sheetRibbon.cells.format",
+            icon: "sheetFormat",
+            isLarge: true,
+            items: [
+              { commandId: "sheet.row.height" },
+              { commandId: "sheet.row.autoFit" },
+              { commandId: "sheet.col.width" },
+              { commandId: "sheet.col.autoFit" },
+              { commandId: "sheet.row.hide" },
+              { commandId: "sheet.row.unhide" },
+              { commandId: "sheet.col.hide" },
+              { commandId: "sheet.col.unhide" }
+            ]
           }
         ]
       },

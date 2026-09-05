@@ -12,7 +12,7 @@ import { showCellStylesDialog, showFormatAsTableDialog, CELL_STYLE_PRESETS, TABL
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { SheetDataTools } from "./data-tools.js";
-import { showConfirmDialog } from "../../platform/ui-kit/dialogs.js";
+import { showAlertDialog, showConfirmDialog, showPromptDialog } from "../../platform/ui-kit/dialogs.js";
 import { VietnameseSpellChecker, normalizeVietnameseWord, tokenizeVietnamese } from "../../platform/text/vi-spellchecker.js";
 import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
 
@@ -22,6 +22,13 @@ export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
   size: "a4",
   printTitles: Object.freeze({ rows: "", cols: "" })
 });
+
+export const DEFAULT_ROW_HEIGHT_PX = 26;
+export const DEFAULT_COL_WIDTH_PX = 100;
+export const MIN_ROW_HEIGHT_PX = 1;
+export const MAX_ROW_HEIGHT_PX = 409;
+export const MIN_COL_WIDTH_PX = 8;
+export const MAX_COL_WIDTH_PX = 500;
 
 function newSheetPageSetup(overrides = {}) {
   return {
@@ -59,7 +66,8 @@ export class SheetGridController {
     this.options = options;
     this.cols = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
     this.rowCount = 200;
-    this.rowHeight = 26;
+    this.rowHeight = DEFAULT_ROW_HEIGHT_PX;
+    this.defaultColWidth = DEFAULT_COL_WIDTH_PX;
 
     this.sheets = ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"];
     this.activeSheet = "Dự toán chi phí";
@@ -127,6 +135,10 @@ export class SheetGridController {
     this.textBoxesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.outlineGroupsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.rowHeightsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
+    this.colWidthsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
+    this.userHiddenRowsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
+    this.userHiddenColsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
     this.dataTools = new SheetDataTools(this);
 
     // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
@@ -322,30 +334,7 @@ export class SheetGridController {
     trHead.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
     this.cols.forEach(col => {
       const th = document.createElement("th");
-      th.className = "vno-col-header";
-      th.dataset.col = col;
-      th.hidden = this._isOutlineColumnHidden(col);
-      th.innerHTML = `
-        ${this._outlineToggleHtml("col", col)}
-        <span class="vno-col-title">${col}</span>
-        <button class="vno-filter-btn" data-col="${col}" title="Lọc và sắp xếp cột ${col}" style="display:none;">▼</button>
-        <div class="vno-col-resizer" data-col="${col}" title="Nhấp đúp để tự động vừa độ rộng cột ${col}"></div>
-      `;
-      th.addEventListener("click", (e) => {
-        if (e.target.closest(".vno-filter-btn") || e.target.closest(".vno-col-resizer")) return;
-        this.selectCell(col, 1);
-        this.selectCell(col, this.rowCount, true);
-      });
-      th.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        this.selectCell(col, 1);
-        this.selectCell(col, this.rowCount, true);
-        this.showContextMenu(e, "col", col);
-      });
-      th.querySelector(".vno-col-resizer")?.addEventListener("dblclick", (e) => {
-        e.stopPropagation();
-        this.autoFitColumn(col);
-      });
+      this._bindColumnHeader(th, col);
       trHead.appendChild(th);
     });
     thead.appendChild(trHead);
@@ -578,7 +567,185 @@ export class SheetGridController {
     return false;
   }
 
-  autoFitColumn(col) {
+  _ensureRowColLayout(sheetName = this.activeSheet) {
+    this.rowHeightsBySheet ||= {};
+    this.colWidthsBySheet ||= {};
+    this.userHiddenRowsBySheet ||= {};
+    this.userHiddenColsBySheet ||= {};
+    if (!this.rowHeightsBySheet[sheetName]) this.rowHeightsBySheet[sheetName] = new Map();
+    if (!this.colWidthsBySheet[sheetName]) this.colWidthsBySheet[sheetName] = new Map();
+    if (!this.userHiddenRowsBySheet[sheetName]) this.userHiddenRowsBySheet[sheetName] = new Set();
+    if (!this.userHiddenColsBySheet[sheetName]) this.userHiddenColsBySheet[sheetName] = new Set();
+  }
+
+  _rowHeights(sheetName = this.activeSheet) {
+    this._ensureRowColLayout(sheetName);
+    return this.rowHeightsBySheet[sheetName];
+  }
+
+  _colWidths(sheetName = this.activeSheet) {
+    this._ensureRowColLayout(sheetName);
+    return this.colWidthsBySheet[sheetName];
+  }
+
+  _userHiddenRows(sheetName = this.activeSheet) {
+    this._ensureRowColLayout(sheetName);
+    return this.userHiddenRowsBySheet[sheetName];
+  }
+
+  _userHiddenCols(sheetName = this.activeSheet) {
+    this._ensureRowColLayout(sheetName);
+    return this.userHiddenColsBySheet[sheetName];
+  }
+
+  _snapshotRowColLayout(sheetName = this.activeSheet) {
+    this._ensureRowColLayout(sheetName);
+    return {
+      sheetName,
+      rowHeights: [...this._rowHeights(sheetName).entries()],
+      colWidths: [...this._colWidths(sheetName).entries()],
+      userHiddenRows: [...this._userHiddenRows(sheetName)],
+      userHiddenCols: [...this._userHiddenCols(sheetName)]
+    };
+  }
+
+  _restoreRowColLayout(snapshot, { render = true } = {}) {
+    if (!snapshot) return false;
+    const sheetName = snapshot.sheetName || this.activeSheet;
+    this._ensureRowColLayout(sheetName);
+    this.rowHeightsBySheet[sheetName] = new Map(snapshot.rowHeights || []);
+    this.colWidthsBySheet[sheetName] = new Map(snapshot.colWidths || []);
+    this.userHiddenRowsBySheet[sheetName] = new Set(snapshot.userHiddenRows || []);
+    this.userHiddenColsBySheet[sheetName] = new Set(snapshot.userHiddenCols || []);
+    if (render && sheetName === this.activeSheet) {
+      this._renderColumnHeaders();
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    }
+    return true;
+  }
+
+  _selectedRows(range = this.selectionRange) {
+    const area = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
+    const rows = [];
+    for (let row = area.start.r; row <= area.end.r; row++) rows.push(row);
+    return rows;
+  }
+
+  _selectedCols(range = this.selectionRange) {
+    const area = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
+    const start = this._columnNumber(area.start.c);
+    const end = this._columnNumber(area.end.c);
+    const cols = [];
+    for (let number = start; number <= end; number++) cols.push(this._columnLabel(number));
+    return cols;
+  }
+
+  getRowHeight(row, sheetName = this.activeSheet) {
+    const stored = this._rowHeights(sheetName).get(Number(row));
+    return Number.isFinite(stored) ? stored : this.rowHeight;
+  }
+
+  getColumnWidth(col, sheetName = this.activeSheet) {
+    const stored = this._colWidths(sheetName).get(col);
+    return Number.isFinite(stored) ? stored : this.defaultColWidth;
+  }
+
+  isRowUserHidden(row, sheetName = this.activeSheet) {
+    return this._userHiddenRows(sheetName).has(Number(row));
+  }
+
+  isColUserHidden(col, sheetName = this.activeSheet) {
+    return this._userHiddenCols(sheetName).has(col);
+  }
+
+  _isColumnHidden(col) {
+    return this._isOutlineColumnHidden(col) || this.isColUserHidden(col);
+  }
+
+  _isRowSkipped(row) {
+    return this.hiddenRows.has(row) || this._isOutlineRowHidden(row) || this.isRowUserHidden(row);
+  }
+
+  _clampRowHeight(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    return Math.max(MIN_ROW_HEIGHT_PX, Math.min(MAX_ROW_HEIGHT_PX, Math.round(numeric)));
+  }
+
+  _clampColWidth(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    return Math.max(MIN_COL_WIDTH_PX, Math.min(MAX_COL_WIDTH_PX, Math.round(numeric)));
+  }
+
+  _recordRowColLayoutChange(before) {
+    const after = this._snapshotRowColLayout();
+    const same = JSON.stringify(before) === JSON.stringify(after);
+    if (same) return false;
+    this._recordHistory({ type: "row-col-layout", sheet: this.activeSheet, before, after });
+    return true;
+  }
+
+  _refreshRowColLayoutView() {
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+  }
+
+  _moveSelectionOffHidden() {
+    let { c, r } = this.selectedCoord || { c: "A", r: 1 };
+    if (this._isRowSkipped(r)) {
+      let next = r + 1;
+      while (next <= this.rowCount && this._isRowSkipped(next)) next++;
+      if (next > this.rowCount) {
+        next = r - 1;
+        while (next >= 1 && this._isRowSkipped(next)) next--;
+      }
+      if (next >= 1 && next <= this.rowCount) r = next;
+    }
+    if (this._isColumnHidden(c)) {
+      const start = this._columnNumber(c);
+      let next = start + 1;
+      while (next <= this.cols.length && this._isColumnHidden(this._columnLabel(next))) next++;
+      if (next > this.cols.length) {
+        next = start - 1;
+        while (next >= 1 && this._isColumnHidden(this._columnLabel(next))) next--;
+      }
+      if (next >= 1 && next <= this.cols.length) c = this._columnLabel(next);
+    }
+    this.selectCell(c, r);
+  }
+
+  setRowHeights(heightPx, rows = this._selectedRows(), recordUndo = true) {
+    const height = this._clampRowHeight(heightPx);
+    const targets = (rows || []).map(Number).filter(row => Number.isInteger(row) && row >= 1 && row <= this.rowCount);
+    if (height == null || !targets.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    const map = this._rowHeights();
+    for (const row of targets) {
+      if (height === this.rowHeight) map.delete(row);
+      else map.set(row, height);
+    }
+    this._refreshRowColLayoutView();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return height;
+  }
+
+  setColumnWidths(widthPx, cols = this._selectedCols(), recordUndo = true) {
+    const width = this._clampColWidth(widthPx);
+    const targets = (cols || []).filter(col => this.cols.includes(col));
+    if (width == null || !targets.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    const map = this._colWidths();
+    for (const col of targets) {
+      if (width === this.defaultColWidth) map.delete(col);
+      else map.set(col, width);
+    }
+    this._refreshRowColLayoutView();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return width;
+  }
+
+  computeAutoFitColumnWidth(col) {
     let maxLen = 4;
     for (let r = 1; r <= this.rowCount; r++) {
       const itm = this.cellsData.get(`${col}${r}`);
@@ -587,16 +754,10 @@ export class SheetGridController {
         if (text.length > maxLen) maxLen = text.length;
       }
     }
-    const computedWidth = Math.max(64, Math.min(360, Math.round(maxLen * 8.5 + 28)));
-    const th = this.container?.querySelector?.(`.vno-col-header[data-col="${col}"]`);
-    if (th) th.style.width = `${computedWidth}px`;
-    this.container?.querySelectorAll?.(`.vno-grid-cell[data-col="${col}"]`).forEach(td => {
-      td.style.width = `${computedWidth}px`;
-    });
-    return computedWidth;
+    return Math.max(64, Math.min(MAX_COL_WIDTH_PX, Math.round(maxLen * 8.5 + 28)));
   }
 
-  autoFitRow(row) {
+  computeAutoFitRowHeight(row) {
     let maxLines = 1;
     for (const c of this.cols) {
       const itm = this.cellsData.get(`${c}${row}`);
@@ -606,10 +767,201 @@ export class SheetGridController {
         if (lines > maxLines) maxLines = lines;
       }
     }
-    const computedHeight = Math.max(26, Math.min(120, maxLines * 22 + 4));
-    const tr = this.container?.querySelector?.(`tr[data-row="${row}"]`);
-    if (tr) tr.style.height = `${computedHeight}px`;
-    return computedHeight;
+    return Math.max(this.rowHeight, Math.min(MAX_ROW_HEIGHT_PX, maxLines * 22 + 4));
+  }
+
+  autoFitColumn(col, recordUndo = true) {
+    const width = this.computeAutoFitColumnWidth(col);
+    this.setColumnWidths(width, [col], recordUndo);
+    return width;
+  }
+
+  autoFitRow(row, recordUndo = true) {
+    const height = this.computeAutoFitRowHeight(row);
+    this.setRowHeights(height, [row], recordUndo);
+    return height;
+  }
+
+  autoFitSelectedRows(recordUndo = true) {
+    const rows = this._selectedRows();
+    if (!rows.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    for (const row of rows) this.setRowHeights(this.computeAutoFitRowHeight(row), [row], false);
+    this._refreshRowColLayoutView();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return true;
+  }
+
+  autoFitSelectedColumns(recordUndo = true) {
+    const cols = this._selectedCols();
+    if (!cols.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    for (const col of cols) this.setColumnWidths(this.computeAutoFitColumnWidth(col), [col], false);
+    this._refreshRowColLayoutView();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return true;
+  }
+
+  hideRows(rows = this._selectedRows(), recordUndo = true) {
+    const targets = (rows || []).map(Number).filter(row => Number.isInteger(row) && row >= 1 && row <= this.rowCount);
+    if (!targets.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    const hidden = this._userHiddenRows();
+    for (const row of targets) hidden.add(row);
+    this._refreshRowColLayoutView();
+    this._moveSelectionOffHidden();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return true;
+  }
+
+  unhideRows(rows = this._selectedRows(), recordUndo = true) {
+    let targets = (rows || []).map(Number).filter(row => Number.isInteger(row) && row >= 1 && row <= this.rowCount);
+    const hidden = this._userHiddenRows();
+    if (!targets.some(row => hidden.has(row))) {
+      const min = Math.min(...targets);
+      const max = Math.max(...targets);
+      const nearby = [...hidden].filter(row => row >= min - 1 && row <= max + 1);
+      if (nearby.length) targets = nearby;
+    }
+    const toShow = targets.filter(row => hidden.has(row));
+    if (!toShow.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    for (const row of toShow) hidden.delete(row);
+    this._refreshRowColLayoutView();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return true;
+  }
+
+  hideColumns(cols = this._selectedCols(), recordUndo = true) {
+    const targets = (cols || []).filter(col => this.cols.includes(col));
+    if (!targets.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    const hidden = this._userHiddenCols();
+    for (const col of targets) hidden.add(col);
+    this._refreshRowColLayoutView();
+    this._moveSelectionOffHidden();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return true;
+  }
+
+  unhideColumns(cols = this._selectedCols(), recordUndo = true) {
+    let targets = (cols || []).filter(col => this.cols.includes(col));
+    const hidden = this._userHiddenCols();
+    if (!targets.some(col => hidden.has(col))) {
+      const numbers = targets.map(col => this._columnNumber(col));
+      const min = Math.min(...numbers);
+      const max = Math.max(...numbers);
+      const nearby = [...hidden].filter(col => {
+        const number = this._columnNumber(col);
+        return number >= min - 1 && number <= max + 1;
+      });
+      if (nearby.length) targets = nearby;
+    }
+    const toShow = targets.filter(col => hidden.has(col));
+    if (!toShow.length) return false;
+    const before = recordUndo ? this._snapshotRowColLayout() : null;
+    for (const col of toShow) hidden.delete(col);
+    this._refreshRowColLayoutView();
+    if (recordUndo) this._recordRowColLayoutChange(before);
+    return true;
+  }
+
+  async showRowHeightDialog(args = {}) {
+    if (Number.isFinite(Number(args?.height))) {
+      return this.setRowHeights(Number(args.height), args.rows || this._selectedRows());
+    }
+    const rows = this._selectedRows();
+    const current = this.getRowHeight(rows[0] || this.selectedCoord.r);
+    const value = await showPromptDialog({
+      title: t("sheetDialogs.rowHeightTitle", "Chiều cao hàng"),
+      message: t("sheetDialogs.rowHeightMessage", "Chiều cao hàng (pixel):"),
+      defaultValue: String(current),
+      confirmText: t("sheetDialogs.apply", "Áp dụng"),
+      cancelText: t("sheetDialogs.cancel", "Hủy")
+    });
+    if (value == null) return false;
+    const parsed = Number(String(value).trim().replace(",", "."));
+    if (this._clampRowHeight(parsed) == null) {
+      await showAlertDialog({
+        title: t("sheetDialogs.rowHeightTitle", "Chiều cao hàng"),
+        message: t("sheetDialogs.invalidRowColSize", "Vui lòng nhập một số hợp lệ trong khoảng cho phép.")
+      });
+      return false;
+    }
+    return this.setRowHeights(parsed, rows);
+  }
+
+  async showColumnWidthDialog(args = {}) {
+    if (Number.isFinite(Number(args?.width))) {
+      return this.setColumnWidths(Number(args.width), args.cols || this._selectedCols());
+    }
+    const cols = this._selectedCols();
+    const current = this.getColumnWidth(cols[0] || this.selectedCoord.c);
+    const value = await showPromptDialog({
+      title: t("sheetDialogs.colWidthTitle", "Độ rộng cột"),
+      message: t("sheetDialogs.colWidthMessage", "Độ rộng cột (pixel):"),
+      defaultValue: String(current),
+      confirmText: t("sheetDialogs.apply", "Áp dụng"),
+      cancelText: t("sheetDialogs.cancel", "Hủy")
+    });
+    if (value == null) return false;
+    const parsed = Number(String(value).trim().replace(",", "."));
+    if (this._clampColWidth(parsed) == null) {
+      await showAlertDialog({
+        title: t("sheetDialogs.colWidthTitle", "Độ rộng cột"),
+        message: t("sheetDialogs.invalidRowColSize", "Vui lòng nhập một số hợp lệ trong khoảng cho phép.")
+      });
+      return false;
+    }
+    return this.setColumnWidths(parsed, cols);
+  }
+
+  _applyRowColSizeToCell(td, col, row) {
+    if (!td?.style) return;
+    if (!this._isColumnHidden(col)) {
+      const width = this.getColumnWidth(col);
+      td.style.width = `${width}px`;
+      td.style.minWidth = `${width}px`;
+      td.style.maxWidth = `${width}px`;
+    }
+    td.style.height = `${this.getRowHeight(row)}px`;
+  }
+
+  _bindColumnHeader(th, col) {
+    th.className = "vno-col-header";
+    th.dataset.col = col;
+    th.hidden = this._isColumnHidden(col);
+    const width = this.getColumnWidth(col);
+    if (!th.hidden) {
+      th.style.width = `${width}px`;
+      th.style.minWidth = `${width}px`;
+      th.style.maxWidth = `${width}px`;
+    }
+    th.innerHTML = `
+      ${this._outlineToggleHtml("col", col)}
+      <span class="vno-col-title">${col}</span>
+      <button class="vno-filter-btn" data-col="${col}" title="Lọc và sắp xếp cột ${col}" style="display:none;">▼</button>
+      <div class="vno-col-resizer" data-col="${col}" title="Nhấp đúp để tự động vừa độ rộng cột ${col}"></div>
+    `;
+    th.querySelector(".vno-outline-toggle")?.addEventListener("click", event => {
+      event.stopPropagation();
+      this.toggleOutlineGroup(event.currentTarget.dataset.groupId);
+    });
+    th.addEventListener("click", (e) => {
+      if (e.target.closest(".vno-filter-btn") || e.target.closest(".vno-col-resizer")) return;
+      this.selectCell(col, 1);
+      this.selectCell(col, this.rowCount, true);
+    });
+    th.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      this.selectCell(col, 1);
+      this.selectCell(col, this.rowCount, true);
+      this.showContextMenu(e, "col", col);
+    });
+    th.querySelector(".vno-col-resizer")?.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      this.autoFitColumn(col);
+    });
   }
 
   _attachAutofillHandle(td) {
@@ -1047,6 +1399,8 @@ export class SheetGridController {
         { label: "Xóa nội dung cột", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
         { sep: true },
         { label: "Tự vừa khít độ rộng cột", action: () => this.autoFitColumn(target) },
+        { label: "Ẩn cột", action: () => this.hideColumns([target]) },
+        { label: "Hiện cột", action: () => this.unhideColumns([target]) },
         { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") }
       ];
     } else if (type === "row") {
@@ -1060,6 +1414,8 @@ export class SheetGridController {
         { label: "Xóa nội dung hàng", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
         { sep: true },
         { label: "Tự vừa khít chiều cao hàng", action: () => this.autoFitRow(target) },
+        { label: "Ẩn hàng", action: () => this.hideRows([target]) },
+        { label: "Hiện hàng", action: () => this.unhideRows([target]) },
         { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") }
       ];
     }
@@ -1140,6 +1496,10 @@ export class SheetGridController {
     this.imagesBySheet = { [defaultSheetName]: [] };
     this.textBoxesBySheet = { [defaultSheetName]: [] };
     this.pivotTablesBySheet = { [defaultSheetName]: [] };
+    this.rowHeightsBySheet = { [defaultSheetName]: new Map() };
+    this.colWidthsBySheet = { [defaultSheetName]: new Map() };
+    this.userHiddenRowsBySheet = { [defaultSheetName]: new Set() };
+    this.userHiddenColsBySheet = { [defaultSheetName]: new Set() };
     this.isFrozenPanes = false;
     this.isFilterActive = false;
     this.hiddenRows = new Set();
@@ -1208,6 +1568,7 @@ export class SheetGridController {
     if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
     if (!this.pageSetupBySheet[sheetName]) this.pageSetupBySheet[sheetName] = newSheetPageSetup();
     if (!this.mergedRangesBySheet[sheetName]) this.mergedRangesBySheet[sheetName] = [];
+    this._ensureRowColLayout(sheetName);
 
     // 1. Lưu trạng thái sheet hiện tại
     if (this.activeSheet && this.sheetStates) {
@@ -1315,6 +1676,7 @@ export class SheetGridController {
     if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
     if (!this.pageSetupBySheet[sheetName]) this.pageSetupBySheet[sheetName] = newSheetPageSetup();
     if (!this.mergedRangesBySheet[sheetName]) this.mergedRangesBySheet[sheetName] = [];
+    this._ensureRowColLayout(sheetName);
     if (!this.sheetStates) {
       this.sheetStates = {};
     }
@@ -1365,6 +1727,10 @@ export class SheetGridController {
     delete this.pageBreaksBySheet[sheetName];
     delete this.pageSetupBySheet[sheetName];
     delete this.mergedRangesBySheet[sheetName];
+    delete this.rowHeightsBySheet[sheetName];
+    delete this.colWidthsBySheet[sheetName];
+    delete this.userHiddenRowsBySheet[sheetName];
+    delete this.userHiddenColsBySheet[sheetName];
     this.tabBar?.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)?.remove?.();
     if (this.activeSheet === sheetName) {
       this.activeSheet = "";
@@ -1398,14 +1764,17 @@ export class SheetGridController {
 
     const frag = document.createDocumentFragment();
     for (let r = startRow; r <= endRow; r++) {
-      if (this.hiddenRows.has(r) || this._isOutlineRowHidden(r)) continue;
+      if (this._isRowSkipped(r)) continue;
 
       const tr = document.createElement("tr");
       tr.dataset.row = r;
+      const rowHeight = this.getRowHeight(r);
+      tr.style.height = `${rowHeight}px`;
 
       const thRow = document.createElement("th");
       thRow.className = "vno-row-header";
       thRow.dataset.row = r;
+      thRow.style.height = `${rowHeight}px`;
       thRow.innerHTML = `
         ${this._outlineToggleHtml("row", r)}
         <span class="vno-row-title">${r}</span>
@@ -1439,7 +1808,7 @@ export class SheetGridController {
         const mergedRange = this.getMergedRangeForCell(c, r);
         if (mergedRange && (mergedRange.start.c !== c || mergedRange.start.r !== r)) return;
         const td = document.createElement("td");
-        td.hidden = this._isOutlineColumnHidden(c);
+        td.hidden = this._isColumnHidden(c);
         td.className = "vno-grid-cell";
         const coordKey = `${c}${r}`;
         td.dataset.coord = coordKey;
@@ -1454,6 +1823,7 @@ export class SheetGridController {
 
         const itm = this.cellsData.get(coordKey);
         this._renderCellVisual(td, itm, c, r);
+        this._applyRowColSizeToCell(td, c, r);
         this._applyRuleVisuals(td, c, r);
         this._applyAnnotationAndPageVisuals(td, c, r);
 
@@ -4226,6 +4596,8 @@ export class SheetGridController {
       this.selectCell(action.selection.start.c, action.selection.start.r);
     } else if (action.type === "grid-structure") {
       this._restoreGridStructure(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "row-col-layout") {
+      this._restoreRowColLayout(direction === "undo" ? action.before : action.after);
     } else if (action.type === "cell") {
       this.setCellValue(action.col, action.row, action[value], false);
       this.selectCell(action.col, action.row);
@@ -4585,7 +4957,8 @@ export class SheetGridController {
       selectedCoord: { ...(sheetName === this.activeSheet ? this.selectedCoord : (state.selectedCoord || { r: 1, c: "A" })) },
       selectionRange: structuredClone(this.selectionRange),
       outlineGroups: structuredClone(this.outlineGroupsBySheet[sheetName] || [])
-      ,mergedRanges: structuredClone(this.mergedRangesBySheet[sheetName] || [])
+      ,mergedRanges: structuredClone(this.mergedRangesBySheet[sheetName] || []),
+      rowColLayout: this._snapshotRowColLayout(sheetName)
     };
   }
 
@@ -4605,6 +4978,7 @@ export class SheetGridController {
     this.selectionRange = structuredClone(snapshot.selectionRange);
     this.outlineGroupsBySheet[snapshot.sheetName] = structuredClone(snapshot.outlineGroups || []);
     this.mergedRangesBySheet[snapshot.sheetName] = structuredClone(snapshot.mergedRanges || []);
+    if (snapshot.rowColLayout) this._restoreRowColLayout({ ...snapshot.rowColLayout, sheetName: snapshot.sheetName }, { render: false });
     if (this.sheetStates[snapshot.sheetName]) {
       Object.assign(this.sheetStates[snapshot.sheetName], {
         hiddenRows: new Set(this.hiddenRows),
@@ -4662,13 +5036,10 @@ export class SheetGridController {
     const row = this.table?.querySelector?.("thead tr");
     if (row) {
       row.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
+      row.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
       this.cols.forEach(col => {
         const th = document.createElement("th");
-        th.className = "vno-col-header";
-        th.dataset.col = col;
-        th.hidden = this._isOutlineColumnHidden(col);
-        th.innerHTML = `${this._outlineToggleHtml("col", col)}<span class="vno-col-title">${col}</span><button class="vno-filter-btn" data-col="${col}" title="Lọc và sắp xếp cột ${col}" style="display:none;">▼</button>`;
-        th.querySelector(".vno-outline-toggle")?.addEventListener("click", event => { event.stopPropagation(); this.toggleOutlineGroup(event.currentTarget.dataset.groupId); });
+        this._bindColumnHeader(th, col);
         row.appendChild(th);
       });
     }
@@ -4712,6 +5083,32 @@ export class SheetGridController {
 
     this.hiddenRows = new Set([...this.hiddenRows].map(row => axis === "row" && cmp(row) ? row + direction : row));
     if (axis === "col") this.activeFilters = new Map([...this.activeFilters].map(([col, values]) => [cmp(this._columnNumber(col)) ? this._columnLabel(this._columnNumber(col) + direction) : col, values]));
+
+    const shiftKeyedMap = (source, toKey) => {
+      const next = new Map();
+      for (const [key, value] of source.entries()) {
+        const numeric = axis === "row" ? Number(key) : this._columnNumber(key);
+        if (direction < 0 && numeric === insertionPoint) continue;
+        next.set(toKey(cmp(numeric) ? numeric + direction : numeric), value);
+      }
+      return next;
+    };
+    const shiftKeyedSet = (source, toKey) => {
+      const next = new Set();
+      for (const key of source) {
+        const numeric = axis === "row" ? Number(key) : this._columnNumber(key);
+        if (direction < 0 && numeric === insertionPoint) continue;
+        next.add(toKey(cmp(numeric) ? numeric + direction : numeric));
+      }
+      return next;
+    };
+    if (axis === "row") {
+      this.rowHeightsBySheet[sheet] = shiftKeyedMap(this._rowHeights(sheet), value => value);
+      this.userHiddenRowsBySheet[sheet] = shiftKeyedSet(this._userHiddenRows(sheet), value => value);
+    } else {
+      this.colWidthsBySheet[sheet] = shiftKeyedMap(this._colWidths(sheet), value => this._columnLabel(value));
+      this.userHiddenColsBySheet[sheet] = shiftKeyedSet(this._userHiddenCols(sheet), value => this._columnLabel(value));
+    }
   }
 
   insertRow(atRow = this.selectedCoord.r, recordUndo = true) {
@@ -4875,7 +5272,8 @@ export class SheetGridController {
       printArea: this.printAreaBySheet[sheetName] || null,
       pageBreaks: structuredClone(this.pageBreaksBySheet[sheetName] || { rows: [], cols: [] }),
       pageSetup: structuredClone(this.pageSetupBySheet[sheetName] || newSheetPageSetup()),
-      mergedRanges: structuredClone(this.mergedRangesBySheet[sheetName] || [])
+      mergedRanges: structuredClone(this.mergedRangesBySheet[sheetName] || []),
+      rowColLayout: this._snapshotRowColLayout(sheetName)
     };
   }
 
@@ -4901,6 +5299,8 @@ export class SheetGridController {
     this.pageBreaksBySheet[sheetName] = structuredClone(snapshot.pageBreaks || { rows: [], cols: [] });
     this.pageSetupBySheet[sheetName] = newSheetPageSetup(snapshot.pageSetup);
     this.mergedRangesBySheet[sheetName] = structuredClone(snapshot.mergedRanges || []);
+    if (snapshot.rowColLayout) this._restoreRowColLayout({ ...snapshot.rowColLayout, sheetName }, { render: false });
+    else this._ensureRowColLayout(sheetName);
     const tabs = this.tabBar?.querySelector?.("#vno-sheet-tabs-list");
     if (tabs && typeof document !== "undefined" && !this.tabBar.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)) {
       const tab = document.createElement("div");

@@ -195,6 +195,38 @@ export class SheetAdapter {
       options = options || {};
       return this.grid.deleteColumn(options.atCol);
     });
+    globalCommandBus.bindHandler("sheet.row.height", (args) => {
+      args = args || {};
+      return this.grid.showRowHeightDialog ? this.grid.showRowHeightDialog(args) : false;
+    });
+    globalCommandBus.bindHandler("sheet.row.autoFit", (args) => {
+      args = args || {};
+      return this.grid.autoFitSelectedRows ? this.grid.autoFitSelectedRows() : false;
+    });
+    globalCommandBus.bindHandler("sheet.col.width", (args) => {
+      args = args || {};
+      return this.grid.showColumnWidthDialog ? this.grid.showColumnWidthDialog(args) : false;
+    });
+    globalCommandBus.bindHandler("sheet.col.autoFit", (args) => {
+      args = args || {};
+      return this.grid.autoFitSelectedColumns ? this.grid.autoFitSelectedColumns() : false;
+    });
+    globalCommandBus.bindHandler("sheet.row.hide", (args) => {
+      args = args || {};
+      return this.grid.hideRows ? this.grid.hideRows(args.rows) : false;
+    });
+    globalCommandBus.bindHandler("sheet.row.unhide", (args) => {
+      args = args || {};
+      return this.grid.unhideRows ? this.grid.unhideRows(args.rows) : false;
+    });
+    globalCommandBus.bindHandler("sheet.col.hide", (args) => {
+      args = args || {};
+      return this.grid.hideColumns ? this.grid.hideColumns(args.cols) : false;
+    });
+    globalCommandBus.bindHandler("sheet.col.unhide", (args) => {
+      args = args || {};
+      return this.grid.unhideColumns ? this.grid.unhideColumns(args.cols) : false;
+    });
     globalCommandBus.bindHandler("sheet.style.formatAsTable", () => {
       return this.grid.showFormatAsTableDialog ? this.grid.showFormatAsTableDialog() : false;
     });
@@ -279,6 +311,77 @@ export class SheetAdapter {
       result = String.fromCharCode(65 + ((n - 1) % 26)) + result;
     }
     return result;
+  }
+
+  _pxToOdfCm(px) {
+    return (Number(px) / 37.79527559055118).toFixed(3);
+  }
+
+  _odfLengthToPx(value) {
+    const raw = String(value || "").trim();
+    const match = raw.match(/^(-?[\d.]+)\s*(cm|mm|in|pt|pc|px)?$/i);
+    if (!match) return null;
+    const amount = Number(match[1]);
+    if (!Number.isFinite(amount)) return null;
+    const unit = (match[2] || "cm").toLowerCase();
+    const px = unit === "mm" ? amount * 3.779527559055118
+      : unit === "in" ? amount * 96
+      : unit === "pt" ? amount * (96 / 72)
+      : unit === "pc" ? amount * 16
+      : unit === "px" ? amount
+      : amount * 37.79527559055118;
+    return Math.round(px);
+  }
+
+  _asLayoutMap(value, numericKeys = false) {
+    if (!value) return new Map();
+    if (value instanceof Map) return value;
+    return new Map(Object.entries(value).map(([key, item]) => [numericKeys ? Number(key) : key, item]));
+  }
+
+  _asLayoutSet(value, numeric = false) {
+    if (!value) return new Set();
+    if (value instanceof Set) return value;
+    const items = Array.isArray(value) ? value : [...value];
+    return new Set(numeric ? items.map(Number) : items);
+  }
+
+  _sheetRowColLayout(sheetName) {
+    return {
+      rowHeights: this._asLayoutMap(this.grid?.rowHeightsBySheet?.[sheetName], true),
+      colWidths: this._asLayoutMap(this.grid?.colWidthsBySheet?.[sheetName], false),
+      hiddenRows: this._asLayoutSet(this.grid?.userHiddenRowsBySheet?.[sheetName], true),
+      hiddenCols: this._asLayoutSet(this.grid?.userHiddenColsBySheet?.[sheetName], false)
+    };
+  }
+
+  _parseRowColStyles(xmlText) {
+    const columns = new Map();
+    const rows = new Map();
+    String(xmlText || "").replace(/<style:style\b([^>]*?)\s*(?:\/>|>([\s\S]*?)<\/style:style>)/gi, (_, attrs, body = "") => {
+      const name = this._unescapeXml(attrs.match(/style:name=["']([^"']*)["']/i)?.[1] || "");
+      const family = (attrs.match(/style:family=["']([^"']*)["']/i)?.[1] || "").toLowerCase();
+      if (!name) return "";
+      if (family === "table-column") {
+        const widthPx = this._odfLengthToPx(String(body).match(/style:column-width=["']([^"']+)["']/i)?.[1]);
+        if (widthPx != null) columns.set(name, { widthPx });
+      } else if (family === "table-row") {
+        const heightPx = this._odfLengthToPx(String(body).match(/style:row-height=["']([^"']+)["']/i)?.[1]);
+        if (heightPx != null) rows.set(name, { heightPx });
+      }
+      return "";
+    });
+    return { columns, rows };
+  }
+
+  _isCloseToDefault(px, fallback) {
+    return Math.abs(Number(px) - Number(fallback)) <= 1;
+  }
+
+  _tableAttr(element, localName) {
+    return element.getAttribute(`table:${localName}`)
+      || element.getAttributeNS?.("urn:oasis:names:tc:opendocument:xmlns:table:1.0", localName)
+      || "";
   }
 
   _formulaToOdf(formula) {
@@ -549,6 +652,29 @@ export class SheetAdapter {
     const tablePageStyles = [];
     const masterPages = [];
     const pageStyleBySheet = new Map();
+    const dimensionStyles = [];
+    const colStyleNames = new Map();
+    const rowStyleNames = new Map();
+    const defaultRowHeight = this.grid.rowHeight || 26;
+    const defaultColWidth = this.grid.defaultColWidth || 100;
+    const colStyleFor = (px) => {
+      const key = Math.round(Number(px));
+      if (!colStyleNames.has(key)) {
+        const name = `vno-co-${colStyleNames.size + 1}`;
+        colStyleNames.set(key, name);
+        dimensionStyles.push(`<style:style style:name="${name}" style:family="table-column"><style:table-column-properties fo:break-before="auto" style:column-width="${this._pxToOdfCm(key)}cm"/></style:style>`);
+      }
+      return colStyleNames.get(key);
+    };
+    const rowStyleFor = (px) => {
+      const key = Math.round(Number(px));
+      if (!rowStyleNames.has(key)) {
+        const name = `vno-ro-${rowStyleNames.size + 1}`;
+        rowStyleNames.set(key, name);
+        dimensionStyles.push(`<style:style style:name="${name}" style:family="table-row"><style:table-row-properties style:row-height="${this._pxToOdfCm(key)}cm" fo:break-before="auto" style:use-optimal-row-height="false"/></style:style>`);
+      }
+      return rowStyleNames.get(key);
+    };
     const paperSizes = { a4: [21, 29.7], letter: [21.59, 27.94], legal: [21.59, 35.56] };
     sheetNames.forEach((sheetName, index) => {
       const setup = this.grid.pageSetupBySheet?.[sheetName] || {};
@@ -731,6 +857,28 @@ export class SheetAdapter {
         maxRow = Math.max(maxRow, bottom);
       }
 
+      const layout = this._sheetRowColLayout(sheetName);
+      let maxCol = 1;
+      for (const rowCells of rows.values()) {
+        for (const columnNumber of rowCells.keys()) maxCol = Math.max(maxCol, columnNumber);
+      }
+      for (const [rowNumber] of layout.rowHeights) maxRow = Math.max(maxRow, Number(rowNumber) || 0);
+      for (const rowNumber of layout.hiddenRows) maxRow = Math.max(maxRow, Number(rowNumber) || 0);
+      for (const [col] of layout.colWidths) maxCol = Math.max(maxCol, this._columnNumber(col));
+      for (const col of layout.hiddenCols) maxCol = Math.max(maxCol, this._columnNumber(col));
+
+      let columnsXml = "";
+      for (let columnNumber = 1; columnNumber <= Math.max(1, maxCol); columnNumber++) {
+        const colName = this._columnName(columnNumber);
+        const hidden = layout.hiddenCols.has(colName);
+        const width = layout.colWidths.get(colName);
+        const attrs = [];
+        if (Number.isFinite(width)) attrs.push(`table:style-name="${colStyleFor(width)}"`);
+        else if (hidden) attrs.push(`table:style-name="${colStyleFor(defaultColWidth)}"`);
+        if (hidden) attrs.push(`table:visibility="collapse"`);
+        columnsXml += `<table:table-column${attrs.length ? ` ${attrs.join(" ")}` : ""}/>`;
+      }
+
       let rowsXml = "";
       for (let rowNumber = 1; rowNumber <= Math.max(1, maxRow); rowNumber++) {
         const rowCells = rows.get(rowNumber) || new Map();
@@ -789,7 +937,13 @@ export class SheetAdapter {
           }
           previousColumn = columnNumber;
         }
-        rowsXml += `<table:table-row>${cellsXml || "<table:table-cell/>"}</table:table-row>`;
+        const rowHidden = layout.hiddenRows.has(rowNumber);
+        const rowHeight = layout.rowHeights.get(rowNumber);
+        const rowAttrs = [];
+        if (Number.isFinite(rowHeight)) rowAttrs.push(`table:style-name="${rowStyleFor(rowHeight)}"`);
+        else if (rowHidden) rowAttrs.push(`table:style-name="${rowStyleFor(defaultRowHeight)}"`);
+        if (rowHidden) rowAttrs.push(`table:visibility="collapse"`);
+        rowsXml += `<table:table-row${rowAttrs.length ? ` ${rowAttrs.join(" ")}` : ""}>${cellsXml || "<table:table-cell/>"}</table:table-row>`;
       }
       const localNames = (this.grid.namedRangesBySheet?.[sheetName] || []).map(range => this._namedRangeXml(range, sheetName)).join("");
       const printRange = this._printRangeAddress(sheetName, this.grid.printAreaBySheet?.[sheetName]);
@@ -798,7 +952,7 @@ export class SheetAdapter {
       const printTitles = this.grid.pageSetupBySheet?.[sheetName]?.printTitles || {};
       const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
-      return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}>${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}</table:table>`;
+      return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}>${columnsXml}${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}</table:table>`;
     }).join("");
 
     const dataPilotTables = [];
@@ -848,7 +1002,7 @@ export class SheetAdapter {
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
   ${conditionalNamedStyles.length ? `<office:styles>${conditionalNamedStyles.join("")}</office:styles>` : ""}
-  <office:automatic-styles>${pageLayouts.join("")}${tablePageStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${conditionalBaseStyles.join("")}</office:automatic-styles>
+  <office:automatic-styles>${pageLayouts.join("")}${tablePageStyles.join("")}${dimensionStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${conditionalBaseStyles.join("")}</office:automatic-styles>
   <office:master-styles>${masterPages.join("")}</office:master-styles>
   <office:settings>
     <config:config-item-set config:name="ooo:view-settings">
@@ -1248,10 +1402,13 @@ export class SheetAdapter {
 
   /** Parse FODS into every worksheet, including repeated rows/cells emitted by LibreOffice. */
   parseFods(xmlText) {
-    const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, pageSetupBySheet: {}, validationHits: [] };
+    const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, pageSetupBySheet: {}, validationHits: [], rowHeightsBySheet: {}, colWidthsBySheet: {}, userHiddenRowsBySheet: {}, userHiddenColsBySheet: {} };
     if (!xmlText) return workbook;
     const tableXml = this._xmlWithoutEmbeddedObjects(xmlText);
     const numberStyles = this._parseNumberStyles(tableXml);
+    const rowColStyles = this._parseRowColStyles(tableXml);
+    const defaultRowHeight = this.grid?.rowHeight || 26;
+    const defaultColWidth = this.grid?.defaultColWidth || 100;
     const tableBlocks = [];
     tableXml.replace(/<table:table(?=[\s>/])([^>]*)>([\s\S]*?)<\/table:table>/gi, all => { tableBlocks.push(all); return all; });
     const workbookOnlyXml = tableBlocks.reduce((text, block) => text.replace(block, ""), tableXml);
@@ -1292,15 +1449,36 @@ export class SheetAdapter {
             return "";
           });
           const columnStyles = [];
+          const colWidths = new Map();
+          const hiddenCols = new Set();
+          let layoutColumn = 1;
           Array.from(table.children).filter(element => element.localName === "table-column").forEach(column => {
             const repeat = Math.max(1, Number(column.getAttribute("table:number-columns-repeated")) || 1);
-            for (let index = 0; index < repeat; index++) columnStyles.push(column.getAttribute("table:default-cell-style-name") || "");
+            const styleName = this._tableAttr(column, "style-name");
+            const visibility = this._tableAttr(column, "visibility").toLowerCase();
+            const widthPx = rowColStyles.columns.get(styleName)?.widthPx;
+            for (let index = 0; index < repeat; index++) {
+              columnStyles.push(column.getAttribute("table:default-cell-style-name") || "");
+              const colName = this._columnName(layoutColumn);
+              if (Number.isFinite(widthPx) && !this._isCloseToDefault(widthPx, defaultColWidth)) colWidths.set(colName, widthPx);
+              if (visibility === "collapse") hiddenCols.add(colName);
+              layoutColumn++;
+            }
           });
+          const rowHeights = new Map();
+          const hiddenRows = new Set();
           let rowNumber = 1;
           const rowElements = Array.from(table.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "table-row"));
           rowElements.forEach(row => {
             const rowRepeat = Math.max(1, Number(row.getAttribute("table:number-rows-repeated")) || 1);
+            const rowStyleName = this._tableAttr(row, "style-name");
+            const rowVisibility = this._tableAttr(row, "visibility").toLowerCase();
+            const heightPx = rowColStyles.rows.get(rowStyleName)?.heightPx;
             for (let repeatedRow = 0; repeatedRow < rowRepeat; repeatedRow++) {
+              if (rowRepeat <= 32 || rowVisibility === "collapse") {
+                if (Number.isFinite(heightPx) && !this._isCloseToDefault(heightPx, defaultRowHeight)) rowHeights.set(rowNumber, heightPx);
+                if (rowVisibility === "collapse") hiddenRows.add(rowNumber);
+              }
               let columnNumber = 1;
               Array.from(row.children).filter(cell => ["table-cell", "covered-table-cell"].includes(cell.localName)).forEach(cell => {
                 const columnRepeat = Math.max(1, Number(cell.getAttribute("table:number-columns-repeated")) || 1);
@@ -1355,6 +1533,10 @@ export class SheetAdapter {
           workbook.namedRangesBySheet[name] = localRanges;
           workbook.printAreaBySheet[name] = printArea;
           workbook.pageSetupBySheet[name] = pageSetup;
+          workbook.rowHeightsBySheet[name] = rowHeights;
+          workbook.colWidthsBySheet[name] = colWidths;
+          workbook.userHiddenRowsBySheet[name] = hiddenRows;
+          workbook.userHiddenColsBySheet[name] = hiddenCols;
         });
       }
     }
@@ -1392,18 +1574,39 @@ export class SheetAdapter {
           return "";
         });
         const columnStyles = [];
+        const colWidths = new Map();
+        const hiddenCols = new Set();
+        let layoutColumn = 1;
         tableMatch[2].replace(/<table:table-column\b([^>]*)\/?\s*>/gi, (_, attrs) => {
           const repeat = Math.max(1, Number(attrs.match(/table:number-columns-repeated=["'](\d+)["']/i)?.[1]) || 1);
-          const styleName = this._unescapeXml(attrs.match(/table:default-cell-style-name=["']([^"']*)["']/i)?.[1] || "");
-          for (let index = 0; index < repeat; index++) columnStyles.push(styleName);
+          const defaultCellStyle = this._unescapeXml(attrs.match(/table:default-cell-style-name=["']([^"']*)["']/i)?.[1] || "");
+          const styleName = this._unescapeXml(attrs.match(/table:style-name=["']([^"']*)["']/i)?.[1] || "");
+          const visibility = (attrs.match(/table:visibility=["']([^"']*)["']/i)?.[1] || "").toLowerCase();
+          const widthPx = rowColStyles.columns.get(styleName)?.widthPx;
+          for (let index = 0; index < repeat; index++) {
+            columnStyles.push(defaultCellStyle);
+            const colName = this._columnName(layoutColumn);
+            if (Number.isFinite(widthPx) && !this._isCloseToDefault(widthPx, defaultColWidth)) colWidths.set(colName, widthPx);
+            if (visibility === "collapse") hiddenCols.add(colName);
+            layoutColumn++;
+          }
           return "";
         });
+        const rowHeights = new Map();
+        const hiddenRows = new Set();
         let rowNumber = 1;
         const rowRegex = /<table:table-row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/table:table-row>)/gi;
         let rowMatch;
         while ((rowMatch = rowRegex.exec(tableMatch[2])) !== null) {
           const rowRepeat = Math.max(1, Number(rowMatch[1].match(/table:number-rows-repeated=["'](\d+)["']/i)?.[1]) || 1);
+          const rowStyleName = this._unescapeXml(rowMatch[1].match(/table:style-name=["']([^"']*)["']/i)?.[1] || "");
+          const rowVisibility = (rowMatch[1].match(/table:visibility=["']([^"']*)["']/i)?.[1] || "").toLowerCase();
+          const heightPx = rowColStyles.rows.get(rowStyleName)?.heightPx;
           for (let repeatedRow = 0; repeatedRow < rowRepeat; repeatedRow++) {
+            if (rowRepeat <= 32 || rowVisibility === "collapse") {
+              if (Number.isFinite(heightPx) && !this._isCloseToDefault(heightPx, defaultRowHeight)) rowHeights.set(rowNumber, heightPx);
+              if (rowVisibility === "collapse") hiddenRows.add(rowNumber);
+            }
             let columnNumber = 1;
             const cellRegex = /<(?:table:)?(table-cell|covered-table-cell)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:table:)?(?:table-cell|covered-table-cell)>)/gi;
             let cellMatch;
@@ -1467,6 +1670,10 @@ export class SheetAdapter {
         workbook.namedRangesBySheet[name] = localRanges;
         workbook.printAreaBySheet[name] = printArea;
         workbook.pageSetupBySheet[name] = pageSetup;
+        workbook.rowHeightsBySheet[name] = rowHeights;
+        workbook.colWidthsBySheet[name] = colWidths;
+        workbook.userHiddenRowsBySheet[name] = hiddenRows;
+        workbook.userHiddenColsBySheet[name] = hiddenCols;
       }
     }
     if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
@@ -1506,15 +1713,24 @@ export class SheetAdapter {
     this.grid.dataValidationsBySheet = {};
     this.grid.pivotTablesBySheet = {};
     this.grid.chartsBySheet = {};
+    this.grid.rowHeightsBySheet = {};
+    this.grid.colWidthsBySheet = {};
+    this.grid.userHiddenRowsBySheet = {};
+    this.grid.userHiddenColsBySheet = {};
     for (const sheetName of workbook.sheets) {
       this.grid.conditionalFormattingBySheet[sheetName] = workbook.conditionalFormattingBySheet?.[sheetName] || [];
       this.grid.dataValidationsBySheet[sheetName] = workbook.dataValidationsBySheet?.[sheetName] || [];
       this.grid.pivotTablesBySheet[sheetName] = workbook.pivotTablesBySheet?.[sheetName] || [];
       this.grid.chartsBySheet[sheetName] = workbook.chartsBySheet?.[sheetName] || [];
+      this.grid.rowHeightsBySheet[sheetName] = this._asLayoutMap(workbook.rowHeightsBySheet?.[sheetName], true);
+      this.grid.colWidthsBySheet[sheetName] = this._asLayoutMap(workbook.colWidthsBySheet?.[sheetName], false);
+      this.grid.userHiddenRowsBySheet[sheetName] = this._asLayoutSet(workbook.userHiddenRowsBySheet?.[sheetName], true);
+      this.grid.userHiddenColsBySheet[sheetName] = this._asLayoutSet(workbook.userHiddenColsBySheet?.[sheetName], false);
     }
     this.grid.undoStack = [];
     this.grid.redoStack = [];
     this.grid._refreshVisibleRuleVisuals?.();
+    this.grid._refreshRowColLayoutView?.();
     this.grid.refreshCharts?.();
     this.grid.renderCharts?.();
     this.grid.updateStatus?.();
@@ -1933,6 +2149,38 @@ export class SheetAdapter {
 
       case "sheet.col.delete":
         return this.grid.deleteColumn(args?.atCol);
+
+      case "sheet.row.height":
+      case ".uno:RowHeight":
+        return this.grid.showRowHeightDialog ? this.grid.showRowHeightDialog(args || {}) : false;
+
+      case "sheet.row.autoFit":
+      case ".uno:SetOptimalRowHeight":
+        return this.grid.autoFitSelectedRows ? this.grid.autoFitSelectedRows() : false;
+
+      case "sheet.col.width":
+      case ".uno:ColumnWidth":
+        return this.grid.showColumnWidthDialog ? this.grid.showColumnWidthDialog(args || {}) : false;
+
+      case "sheet.col.autoFit":
+      case ".uno:SetOptimalColumnWidth":
+        return this.grid.autoFitSelectedColumns ? this.grid.autoFitSelectedColumns() : false;
+
+      case "sheet.row.hide":
+      case ".uno:HideRow":
+        return this.grid.hideRows ? this.grid.hideRows(args?.rows) : false;
+
+      case "sheet.row.unhide":
+      case ".uno:ShowRow":
+        return this.grid.unhideRows ? this.grid.unhideRows(args?.rows) : false;
+
+      case "sheet.col.hide":
+      case ".uno:HideColumn":
+        return this.grid.hideColumns ? this.grid.hideColumns(args?.cols) : false;
+
+      case "sheet.col.unhide":
+      case ".uno:ShowColumn":
+        return this.grid.unhideColumns ? this.grid.unhideColumns(args?.cols) : false;
 
       case "sheet.formula.insertFunction":
       case ".uno:InsertFunction":

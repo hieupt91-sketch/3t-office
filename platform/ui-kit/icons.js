@@ -739,6 +739,65 @@ export const ICONS = {
     <path d="M16 8 20 14M20 8 16 14" stroke="#DC2626" stroke-width="1.6" stroke-linecap="round"/>
   </svg>`,
 
+  sheetFormat: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="5" width="18" height="22" rx="2" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.4"/>
+    <path d="M3 11h18M9 5v22" stroke="#86EFAC" stroke-width="1.1"/>
+    <rect x="3" y="5" width="18" height="6" fill="#BBF7D0"/>
+    <path d="M19 17.5 26.2 10.3a1.6 1.6 0 0 1 2.3 2.3L21.3 19.8l-3.3.7 1-3Z" fill="#FEF3C7" stroke="#D97706" stroke-width="1.2" stroke-linejoin="round"/>
+  </svg>`,
+
+  rowHeight: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="4" y="5" width="16" height="14" rx="1.5" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.3"/>
+    <path d="M4 10h16M4 14h16" stroke="#CBD5E1"/>
+    <path d="M20.5 7.5v9M18.8 9.2l1.7-1.7 1.7 1.7M18.8 14.8l1.7 1.7 1.7-1.7" stroke="#2563EB" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  colWidth: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="4" y="5" width="16" height="14" rx="1.5" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.3"/>
+    <path d="M4 10h16M10 5v14M14 5v14" stroke="#CBD5E1"/>
+    <path d="M7.5 20.5h9M9.2 18.8 7.5 20.5 9.2 22.2M14.8 18.8 16.5 20.5 14.8 22.2" stroke="#2563EB" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  autoFitRow: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="4" y="5" width="16" height="14" rx="1.5" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.3"/>
+    <path d="M4 12h16" stroke="#CBD5E1"/>
+    <path d="M12 8.2v7.6M10.2 9.8 12 8 13.8 9.8M10.2 14.2 12 16 13.8 14.2" stroke="#16A34A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  autoFitCol: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="4" y="5" width="16" height="14" rx="1.5" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.3"/>
+    <path d="M12 5v14" stroke="#CBD5E1"/>
+    <path d="M8 12h8M9.6 10.2 8 12l1.6 1.8M14.4 10.2 16 12l-1.6 1.8" stroke="#16A34A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  hideRow: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="4" y="4" width="16" height="16" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.3"/>
+    <path d="M4 9h16M4 15h16" stroke="#CBD5E1"/>
+    <rect x="4" y="9" width="16" height="6" fill="#E2E8F0"/>
+    <path d="M8 12h8" stroke="#475569" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+
+  unhideRow: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="4" y="4" width="16" height="16" rx="1.5" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.3"/>
+    <path d="M4 9h16M4 15h16" stroke="#BBF7D0"/>
+    <rect x="4" y="9" width="16" height="6" fill="#DCFCE7"/>
+    <path d="M8 12h8M12 9.5v5" stroke="#16A34A" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+
+  hideCol: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="4" y="4" width="16" height="16" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.3"/>
+    <path d="M9 4v16M15 4v16" stroke="#CBD5E1"/>
+    <rect x="9" y="4" width="6" height="16" fill="#E2E8F0"/>
+    <path d="M12 8v8" stroke="#475569" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+
+  unhideCol: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="4" y="4" width="16" height="16" rx="1.5" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.3"/>
+    <path d="M9 4v16M15 4v16" stroke="#BBF7D0"/>
+    <rect x="9" y="4" width="6" height="16" fill="#DCFCE7"/>
+    <path d="M12 8v8M9.5 12h5" stroke="#16A34A" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+
   cellBorders: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
     <rect x="4" y="4" width="16" height="16" rx="1" fill="#F8FAFC" stroke="#0F172A" stroke-width="2"/>
     <path d="M4 12h16M12 4v16" stroke="#94A3B8" stroke-width="1"/>
