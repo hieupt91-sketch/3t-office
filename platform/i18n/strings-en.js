@@ -260,6 +260,10 @@ export const enStrings = {
     ,"sheet.view.headings": { label: "Headings", tooltip: "Show or hide row and column headings" }
     ,"sheet.review.spellCheck": { label: "Spelling", tooltip: "Check Vietnamese spelling in text cells of the current worksheet (F7)" }
     ,"sheet.review.commentInsert": { label: "New Comment", tooltip: "Add, edit, or delete a comment on the active cell" }
+    ,"sheet.review.commentPrevious": { label: "Previous Comment", tooltip: "Go to the previous comment" }
+    ,"sheet.review.commentNext": { label: "Next Comment", tooltip: "Go to the next comment" }
+    ,"sheet.review.commentDelete": { label: "Delete Comment", tooltip: "Delete the selected comment" }
+    ,"sheet.review.commentResolve": { label: "Resolve Comment", tooltip: "Resolve or reopen the selected comment" }
     ,"sheet.page.setPrintArea": { label: "Set Print Area", tooltip: "Set the selected range as the print area" }
     ,"sheet.page.clearPrintArea": { label: "Clear Print Area", tooltip: "Clear the current worksheet's print area" }
     ,"sheet.page.insertPageBreak": { label: "Insert Page Break", tooltip: "Insert row and column page breaks at the active cell" }
@@ -286,6 +290,10 @@ export const enStrings = {
     ,"sheet.edit.clearFormats": { label: "Clear Formats", tooltip: "Clear cell formatting back to default while keeping contents" }
     ,"sheet.edit.clearContents": { label: "Clear Contents", tooltip: "Clear cell contents and formulas while keeping formatting" }
     ,"slides.review.commentInsert": { label: "New Comment", tooltip: "Add a comment to the current slide" }
+    ,"slides.review.commentPrevious": { label: "Previous Comment", tooltip: "Go to the previous comment" }
+    ,"slides.review.commentNext": { label: "Next Comment", tooltip: "Go to the next comment" }
+    ,"slides.review.commentDelete": { label: "Delete Comment", tooltip: "Delete the selected comment" }
+    ,"slides.review.commentResolve": { label: "Resolve Comment", tooltip: "Resolve or reopen the selected comment" }
     ,"slides.review.spellCheck": { label: "Spelling", tooltip: "Check Vietnamese spelling on the current slide (F7)" }
     ,"slides.edit.formatPainter": { label: "Format Painter", tooltip: "Copy text or shape formatting to another object. Double-click to lock and apply multiple times. Esc to cancel." }
     ,"slides.slide.new": { label: "New Slide", tooltip: "Insert a new slide (Ctrl+M)" }
@@ -409,6 +417,10 @@ export const enStrings = {
     "writer.insert.bookmark": { label: "Bookmark", tooltip: "Mark a location in the document to jump to later" },
     "writer.insert.crossReference": { label: "Cross-reference", tooltip: "Insert an internal link to a heading or bookmark" },
     "writer.comment.insert": { label: "New Comment", tooltip: "Add a comment to the selected text (Ctrl+Alt+M)" },
+    "writer.review.commentPrevious": { label: "Previous Comment", tooltip: "Go to the previous comment" },
+    "writer.review.commentNext": { label: "Next Comment", tooltip: "Go to the next comment" },
+    "writer.review.commentDelete": { label: "Delete Comment", tooltip: "Delete the selected comment" },
+    "writer.review.commentResolve": { label: "Resolve Comment", tooltip: "Resolve or reopen the selected comment" },
     "writer.trackChanges.toggle": { label: "Track Changes", tooltip: "Track changes in the document (Ctrl+Shift+E)" },
     "writer.trackChanges.previous": { label: "Previous Change", tooltip: "Go to the previous tracked change" },
     "writer.trackChanges.next": { label: "Next Change", tooltip: "Go to the next tracked change" },

@@ -139,6 +139,8 @@
   box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.16);
   outline: none;
 }
+.vno-comment-card.is-resolved { opacity:.62; background:#f1f5f9; }
+.vno-comment-card.is-resolved .vno-comment-content { text-decoration:line-through; }
 
 .vno-comment-anchor-preview {
   margin-bottom: 6px;

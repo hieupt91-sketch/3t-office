@@ -161,5 +161,19 @@ export async function runWriterCommentsTests() {
     globalThis.document = originalDocument;
   }
 
+  await test("Writer Comments navigation resolves and retains state", () => {
+    adapter._renderCommentsPanel = () => {};
+    const seed = adapter.comments[0];
+    if (!seed) throw new Error("Missing seed comment");
+    adapter.comments.push({ id: "writer-comment-nav-2", anchorText: "two", content: "Two", createdAt: new Date().toISOString() });
+    adapter.activeCommentId = seed.id;
+    if (!adapter.nextComment() || adapter.activeCommentId !== "writer-comment-nav-2") throw new Error("Next order");
+    adapter.previousComment(); if (adapter.activeCommentId !== seed.id) throw new Error("Previous order");
+    adapter.toggleActiveCommentResolved(); if (!adapter.comments.find(item => item.id === seed.id)?.resolved) throw new Error("Resolve must retain comment");
+    adapter.undo(); if (adapter.comments.find(item => item.id === seed.id)?.resolved) throw new Error("Undo resolve");
+    adapter.redo(); if (!adapter.comments.find(item => item.id === seed.id)?.resolved) throw new Error("Redo resolve");
+    adapter.deleteActiveComment(); if (adapter.comments.some(item => item.id === seed.id)) throw new Error("Delete");
+    adapter.undo(); if (!adapter.comments.some(item => item.id === seed.id)) throw new Error("Undo delete");
+  });
   return results;
 }

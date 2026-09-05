@@ -162,5 +162,14 @@ export async function runSheetCommentsPrintAreaTests() {
       assert(parsed.pageSetupBySheet[first].size === "legal" && parsed.pageSetupBySheet[first].margins.right === 1.5, "FODS parser lost Page Setup");
     });
   } finally { globalThis.document = originalDocument; }
+  await test("Sheet Comments navigation resolves, deletes and uses existing history", () => {
+    const grid = new SheetGridController(container()); grid._refreshPageAndCommentVisuals = () => {};
+    grid.saveComment({ coord: "A1", text: "One" }); grid.saveComment({ coord: "C3", text: "Two" });
+    grid.selectCell = (c, r) => { grid.selectedCoord = { c, r }; }; grid.selectedCoord = { c: "A", r: 1 };
+    assert(grid.nextComment().coord === "C3", "Next order"); assert(grid.previousComment().coord === "A1", "Previous order");
+    assert(grid.toggleCurrentCommentResolved() && grid.commentsBySheet[grid.activeSheet].A1.resolved, "Resolve must retain comment");
+    grid.undo(); assert(!grid.commentsBySheet[grid.activeSheet].A1.resolved, "Undo resolve"); grid.redo(); assert(grid.commentsBySheet[grid.activeSheet].A1.resolved, "Redo resolve");
+    assert(grid.deleteCurrentComment() && !grid.commentsBySheet[grid.activeSheet].A1, "Delete"); grid.undo(); assert(grid.commentsBySheet[grid.activeSheet].A1, "Undo delete");
+  });
   return results;
 }

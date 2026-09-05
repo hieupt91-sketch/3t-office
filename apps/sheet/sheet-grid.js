@@ -5609,6 +5609,7 @@ export class SheetGridController {
     const comment = this.commentsBySheet[this.activeSheet]?.[coord];
     if (comment) {
       cell.classList.add("has-comment");
+      cell.classList.toggle?.("is-comment-resolved", !!comment.resolved);
       const popup = document.createElement("span");
       popup.className = "vno-cell-comment-popup";
       popup.setAttribute("role", "tooltip");
@@ -5666,6 +5667,60 @@ export class SheetGridController {
     this._recordHistory({ type: "comment", sheet: this.activeSheet, coord, before, after: null });
     this._refreshPageAndCommentVisuals();
     return true;
+  }
+
+  _listComments() {
+    const result = [];
+    for (const sheet of this.sheets) {
+      const entries = Object.values(this.commentsBySheet[sheet] || {});
+      entries.sort((a, b) => {
+        const pa = this._parseRange(a.coord)?.start || { r: 0, c: "A" };
+        const pb = this._parseRange(b.coord)?.start || { r: 0, c: "A" };
+        return pa.r - pb.r || this.cols.indexOf(pa.c) - this.cols.indexOf(pb.c);
+      });
+      entries.forEach(comment => result.push({ sheet, comment }));
+    }
+    return result;
+  }
+
+  _focusComment(entry) {
+    if (!entry) return false;
+    if (entry.sheet !== this.activeSheet) this.switchSheet(entry.sheet);
+    const cell = this._parseRange(entry.comment.coord)?.start;
+    if (!cell) return false;
+    this.selectCell(cell.c, cell.r);
+    this.container?.querySelector?.(`.vno-grid-cell[data-coord="${entry.comment.coord}"]`)?.scrollIntoView?.({ block: "center", inline: "center" });
+    return entry.comment;
+  }
+
+  nextComment() {
+    const comments = this._listComments();
+    if (!comments.length) return false;
+    const coord = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const index = comments.findIndex(entry => entry.sheet === this.activeSheet && entry.comment.coord === coord);
+    return this._focusComment(comments[(index + 1) % comments.length]);
+  }
+
+  previousComment() {
+    const comments = this._listComments();
+    if (!comments.length) return false;
+    const coord = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const index = comments.findIndex(entry => entry.sheet === this.activeSheet && entry.comment.coord === coord);
+    return this._focusComment(comments[index <= 0 ? comments.length - 1 : index - 1]);
+  }
+
+  deleteCurrentComment() { return this.deleteComment(); }
+
+  toggleCurrentCommentResolved() {
+    const coord = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const comments = this.commentsBySheet[this.activeSheet] ||= {};
+    const before = comments[coord] ? structuredClone(comments[coord]) : null;
+    if (!before) return false;
+    const after = { ...before, resolved: !before.resolved };
+    comments[coord] = after;
+    this._recordHistory({ type: "comment", sheet: this.activeSheet, coord, before, after: structuredClone(after) });
+    this._refreshPageAndCommentVisuals();
+    return after.resolved;
   }
 
   _ensureSpellChecker() {

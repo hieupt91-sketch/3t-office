@@ -506,7 +506,13 @@ export const SHEET_RIBBON_TABS = [
         id: "comments",
         label: "Ghi chú",
         labelKey: "sheetRibbon.group.comments",
-        items: [{ type: "button", commandId: "sheet.review.commentInsert", isLarge: true }]
+        items: [
+          { type: "button", commandId: "sheet.review.commentInsert", isLarge: true },
+          { type: "button", commandId: "sheet.review.commentPrevious" },
+          { type: "button", commandId: "sheet.review.commentNext" },
+          { type: "button", commandId: "sheet.review.commentDelete" },
+          { type: "button", commandId: "sheet.review.commentResolve" }
+        ]
       }
     ]
   },

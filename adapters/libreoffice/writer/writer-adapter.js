@@ -211,6 +211,10 @@ export class WriterAdapter {
 
     // Bind Review (Ghi chú & Theo dõi thay đổi)
     globalCommandBus.bindHandler("writer.comment.insert", (args) => this.insertComment(args));
+    globalCommandBus.bindHandler("writer.review.commentPrevious", () => this.previousComment());
+    globalCommandBus.bindHandler("writer.review.commentNext", () => this.nextComment());
+    globalCommandBus.bindHandler("writer.review.commentDelete", () => this.deleteActiveComment());
+    globalCommandBus.bindHandler("writer.review.commentResolve", () => this.toggleActiveCommentResolved());
     globalCommandBus.bindHandler("writer.trackChanges.toggle", (args) => this.toggleTrackChanges(args?.enabled));
     globalCommandBus.bindHandler("writer.trackChanges.previous", () => this.previousTrackChange());
     globalCommandBus.bindHandler("writer.trackChanges.next", () => this.nextTrackChange());
@@ -2304,6 +2308,36 @@ export class WriterAdapter {
     return true;
   }
 
+  nextComment() {
+    if (!this.comments.length) return false;
+    const index = this.comments.findIndex(item => item.id === this.activeCommentId);
+    return this.focusComment(this.comments[(index + 1) % this.comments.length].id);
+  }
+
+  previousComment() {
+    if (!this.comments.length) return false;
+    const index = this.comments.findIndex(item => item.id === this.activeCommentId);
+    const previous = index <= 0 ? this.comments.length - 1 : index - 1;
+    return this.focusComment(this.comments[previous].id);
+  }
+
+  deleteActiveComment() {
+    const comment = this.comments.find(item => item.id === this.activeCommentId) || this.comments[0];
+    return comment ? this.deleteComment(comment.id) : false;
+  }
+
+  toggleActiveCommentResolved() {
+    const comment = this.comments.find(item => item.id === this.activeCommentId) || this.comments[0];
+    if (!comment) return false;
+    comment.resolved = !comment.resolved;
+    this.activeCommentId = comment.id;
+    this.isDirty = true;
+    this._renderCommentsPanel();
+    this.focusComment(comment.id);
+    this.recordSnapshot("writer.review.commentResolve");
+    return comment.resolved;
+  }
+
   deleteComment(commentId) {
     const index = this.comments.findIndex((item) => item.id === commentId);
     if (index < 0) return false;
@@ -2335,7 +2369,8 @@ export class WriterAdapter {
 
     for (const comment of this.comments) {
       const card = document.createElement("article");
-      card.className = `vno-comment-card${comment.id === this.activeCommentId ? " is-active" : ""}`;
+      card.className = `vno-comment-card${comment.id === this.activeCommentId ? " is-active" : ""}${comment.resolved ? " is-resolved" : ""}`;
+      if (card.dataset) card.dataset.commentResolved = String(!!comment.resolved);
       card.dataset.commentCard = comment.id;
       card.tabIndex = 0;
 

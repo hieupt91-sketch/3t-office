@@ -259,6 +259,10 @@ export const viStrings = {
     ,"sheet.view.headings": { label: "Tiêu đề", tooltip: "Ẩn hoặc hiện tiêu đề hàng và cột" }
     ,"sheet.review.spellCheck": { label: "Chính tả", tooltip: "Kiểm tra chính tả tiếng Việt trên các ô văn bản của trang tính hiện tại (F7)" }
     ,"sheet.review.commentInsert": { label: "Ghi chú mới", tooltip: "Thêm, sửa hoặc xóa ghi chú của ô đang chọn" }
+    ,"sheet.review.commentPrevious": { label: "Nhận xét trước", tooltip: "Nhảy tới nhận xét trước đó" }
+    ,"sheet.review.commentNext": { label: "Nhận xét sau", tooltip: "Nhảy tới nhận xét tiếp theo" }
+    ,"sheet.review.commentDelete": { label: "Xóa nhận xét", tooltip: "Xóa nhận xét đang chọn" }
+    ,"sheet.review.commentResolve": { label: "Đã xử lý", tooltip: "Đánh dấu hoặc mở lại nhận xét đang chọn" }
     ,"sheet.page.setPrintArea": { label: "Đặt vùng in", tooltip: "Đặt vùng đang chọn làm vùng in" }
     ,"sheet.page.clearPrintArea": { label: "Xóa vùng in", tooltip: "Xóa vùng in của trang tính hiện tại" }
     ,"sheet.page.insertPageBreak": { label: "Chèn ngắt trang", tooltip: "Chèn ngắt hàng và cột tại ô đang chọn" }
@@ -285,6 +289,10 @@ export const viStrings = {
     ,"sheet.edit.clearFormats": { label: "Xóa định dạng", tooltip: "Xóa định dạng ô và đưa về mặc định nhưng giữ nguyên nội dung" }
     ,"sheet.edit.clearContents": { label: "Xóa nội dung", tooltip: "Xóa nội dung và công thức của ô nhưng giữ nguyên định dạng" }
     ,"slides.review.commentInsert": { label: "Nhận xét mới", tooltip: "Thêm nhận xét cho trang chiếu hiện tại" }
+    ,"slides.review.commentPrevious": { label: "Nhận xét trước", tooltip: "Nhảy tới nhận xét trước đó" }
+    ,"slides.review.commentNext": { label: "Nhận xét sau", tooltip: "Nhảy tới nhận xét tiếp theo" }
+    ,"slides.review.commentDelete": { label: "Xóa nhận xét", tooltip: "Xóa nhận xét đang chọn" }
+    ,"slides.review.commentResolve": { label: "Đã xử lý", tooltip: "Đánh dấu hoặc mở lại nhận xét đang chọn" }
     ,"slides.review.spellCheck": { label: "Chính tả", tooltip: "Kiểm tra chính tả tiếng Việt trên trang chiếu hiện tại (F7)" }
     ,"slides.edit.formatPainter": { label: "Sao chép định dạng", tooltip: "Sao chép định dạng chữ hoặc hình đang chọn sang đối tượng khác. Nhấp đúp để khóa và áp dụng nhiều lần. Esc để hủy." }
     ,"slides.slide.new": { label: "Trang mới", tooltip: "Chèn trang chiếu mới (Ctrl+M)" }
@@ -408,6 +416,10 @@ export const viStrings = {
     "writer.insert.bookmark": { label: "Đánh dấu", tooltip: "Đánh dấu vị trí trong tài liệu để nhảy tới sau" },
     "writer.insert.crossReference": { label: "Tham chiếu chéo", tooltip: "Chèn liên kết nội bộ tới tiêu đề hoặc đánh dấu" },
     "writer.comment.insert": { label: "Thêm ghi chú", tooltip: "Thêm ghi chú vào đoạn văn bản đang chọn (Ctrl+Alt+M)" },
+    "writer.review.commentPrevious": { label: "Nhận xét trước", tooltip: "Nhảy tới nhận xét trước đó" },
+    "writer.review.commentNext": { label: "Nhận xét sau", tooltip: "Nhảy tới nhận xét tiếp theo" },
+    "writer.review.commentDelete": { label: "Xóa nhận xét", tooltip: "Xóa nhận xét đang chọn" },
+    "writer.review.commentResolve": { label: "Đã xử lý", tooltip: "Đánh dấu hoặc mở lại nhận xét đang chọn" },
     "writer.trackChanges.toggle": { label: "Theo dõi thay đổi", tooltip: "Bật/tắt đánh dấu nội dung thêm và xóa (Ctrl+Shift+E)" },
     "writer.trackChanges.previous": { label: "Thay đổi trước", tooltip: "Nhảy tới thay đổi trước đó" },
     "writer.trackChanges.next": { label: "Thay đổi sau", tooltip: "Nhảy tới thay đổi tiếp theo" },

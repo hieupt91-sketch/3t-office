@@ -63,6 +63,10 @@ export class SlidesAdapter {
       options = options || {};
       return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
     });
+    globalCommandBus.bindHandler("slides.review.commentPrevious", () => this.canvas.previousComment?.());
+    globalCommandBus.bindHandler("slides.review.commentNext", () => this.canvas.nextComment?.());
+    globalCommandBus.bindHandler("slides.review.commentDelete", () => this.canvas.deleteActiveComment?.());
+    globalCommandBus.bindHandler("slides.review.commentResolve", () => this.canvas.toggleActiveCommentResolved?.());
     globalCommandBus.bindHandler("slides.review.spellCheck", (args) => {
       args = args || {};
       return this.canvas.showSpellcheckDialog ? this.canvas.showSpellcheckDialog(args) : false;
