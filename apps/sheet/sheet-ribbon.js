@@ -188,18 +188,28 @@ export const SHEET_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "sheet.formula.sum", isLarge: true },
           {
-            type: "column",
+            type: "dropdown",
+            id: "sheet.edit.fill",
+            label: "Điền",
+            labelKey: "sheetRibbon.editing.fill",
+            icon: "fillDown",
+            isLarge: true,
             items: [
-              { type: "button", commandId: "sheet.edit.fillDown" },
-              { type: "button", commandId: "sheet.edit.fillRight" }
+              { commandId: "sheet.edit.fillDown" },
+              { commandId: "sheet.edit.fillRight" }
             ]
           },
           {
-            type: "column",
+            type: "dropdown",
+            id: "sheet.edit.clear",
+            label: "Xóa",
+            labelKey: "sheetRibbon.editing.clear",
+            icon: "clearAll",
+            isLarge: true,
             items: [
-              { type: "button", commandId: "sheet.edit.clearAll" },
-              { type: "button", commandId: "sheet.edit.clearFormats" },
-              { type: "button", commandId: "sheet.edit.clearContents" }
+              { commandId: "sheet.edit.clearAll" },
+              { commandId: "sheet.edit.clearFormats" },
+              { commandId: "sheet.edit.clearContents" }
             ]
           },
           {
