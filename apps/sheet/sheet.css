@@ -354,6 +354,30 @@
 .vno-rule-range { margin: 0; padding: 8px; border-radius: 4px; background: var(--vno-bg-muted); color: var(--vno-text-primary); font-size: 12px; }
 .vno-data-preview { margin: 0; padding: 8px; border-radius: 4px; background: var(--vno-bg-muted); color: var(--vno-text-primary); font-size: 12px; }
 .vno-rule-error { min-height: 16px; color: #b91c1c; font-size: 12px; }
+
+.vno-sheet-spellcheck-dialog .vno-dialog-box { width: 460px; }
+.vno-sheet-spellcheck-dialog .vno-spell-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.vno-sheet-spellcheck-dialog .vno-spell-status,
+.vno-sheet-spellcheck-dialog .vno-spell-meta,
+.vno-sheet-spellcheck-dialog .vno-spell-context,
+.vno-sheet-spellcheck-dialog .vno-spell-complete {
+  margin: 0;
+  font-size: 12px;
+  color: var(--vno-text-secondary);
+}
+.vno-sheet-spellcheck-dialog .vno-spell-complete {
+  color: var(--vno-text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.vno-sheet-spellcheck-dialog #vno-spell-suggestions {
+  min-height: 72px;
+}
 #vno-dv-number-row { grid-template-columns: 1fr 1fr; gap: 10px; }
 #vno-dv-number-row:not([hidden]) { display: grid; }
 

@@ -13,6 +13,8 @@ import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { SheetDataTools } from "./data-tools.js";
 import { showConfirmDialog } from "../../platform/ui-kit/dialogs.js";
+import { VietnameseSpellChecker, normalizeVietnameseWord, tokenizeVietnamese } from "../../platform/text/vi-spellchecker.js";
+import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
 
 export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
   margins: Object.freeze({ top: 1.91, bottom: 1.91, left: 1.78, right: 1.78 }),
@@ -140,6 +142,8 @@ export class SheetGridController {
     this.workbookView = "normal"; // "normal" | "pageBreakPreview" | "pageLayout"
     this.formulaBarVisible = true;
     this.formulaBarEl = null;
+    this.spellChecker = null;
+    this._spellcheckOverlay = null;
 
     // Virtual scroll state
     this.currentStartRow = 1;
@@ -470,6 +474,7 @@ export class SheetGridController {
   }
 
   destroy() {
+    this._closeSpellcheckDialog();
     this._closeContextMenu();
     this.autocomplete?.destroy?.();
   }
@@ -5249,6 +5254,256 @@ export class SheetGridController {
     delete comments[coord];
     this._recordHistory({ type: "comment", sheet: this.activeSheet, coord, before, after: null });
     this._refreshPageAndCommentVisuals();
+    return true;
+  }
+
+  _ensureSpellChecker() {
+    if (!this.spellChecker) {
+      this.spellChecker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
+    }
+    return this.spellChecker;
+  }
+
+  isSpellcheckableCell(item) {
+    if (!item) return false;
+    if (String(item.formula || "").startsWith("=")) return false;
+    const val = item.val;
+    if (val == null || val === "") return false;
+    if (typeof val === "number" || typeof val === "boolean") return false;
+    const text = String(val).trim();
+    if (!text || text.startsWith("#")) return false;
+    return /[\p{L}]/u.test(text);
+  }
+
+  _compareCellCoords(left, right) {
+    const [leftCol, leftRow] = this._splitCoord(left);
+    const [rightCol, rightRow] = this._splitCoord(right);
+    if (leftRow !== rightRow) return leftRow - rightRow;
+    return this.cols.indexOf(leftCol) - this.cols.indexOf(rightCol);
+  }
+
+  collectSpellcheckIssues(sheetName = this.activeSheet) {
+    const checker = this._ensureSpellChecker();
+    const map = this.sheetsData?.[sheetName] || this.cellsData;
+    const issues = [];
+    for (const [coord, item] of map.entries()) {
+      if (!this.isSpellcheckableCell(item)) continue;
+      const text = String(item.val ?? "");
+      for (const token of checker.checkText(text)) {
+        issues.push({
+          coord,
+          sheet: sheetName,
+          word: token.word,
+          normalized: token.normalized,
+          start: token.start,
+          end: token.end,
+          text
+        });
+      }
+    }
+    issues.sort((a, b) => this._compareCellCoords(a.coord, b.coord) || a.start - b.start);
+    return issues;
+  }
+
+  suggestSpellcheckWord(word) {
+    return this._ensureSpellChecker().suggest(word);
+  }
+
+  replaceSpellcheckIssue(issue, replacement) {
+    if (!issue?.coord) return false;
+    const item = this.cellsData.get(issue.coord);
+    if (!item || !this.isSpellcheckableCell(item)) return false;
+    const source = String(item.val ?? "");
+    const nextReplacement = String(replacement ?? "");
+    let next;
+    if (source.slice(issue.start, issue.end) === issue.word) {
+      next = source.slice(0, issue.start) + nextReplacement + source.slice(issue.end);
+    } else {
+      const index = source.indexOf(issue.word);
+      if (index < 0) return false;
+      next = source.slice(0, index) + nextReplacement + source.slice(index + issue.word.length);
+    }
+    const [col, row] = this._splitCoord(issue.coord);
+    this.setCellValue(col, row, next, true);
+    return true;
+  }
+
+  replaceAllSpellcheckWord(word, replacement) {
+    const target = normalizeVietnameseWord(word);
+    if (!target) return 0;
+    const nextReplacement = String(replacement ?? "");
+    const coords = [];
+    for (const issue of this.collectSpellcheckIssues()) {
+      if (issue.normalized === target && !coords.includes(issue.coord)) coords.push(issue.coord);
+    }
+    let count = 0;
+    for (const coord of coords) {
+      const item = this.cellsData.get(coord);
+      if (!item || !this.isSpellcheckableCell(item)) continue;
+      const tokens = tokenizeVietnamese(String(item.val ?? ""));
+      let text = String(item.val ?? "");
+      for (let index = tokens.length - 1; index >= 0; index--) {
+        const token = tokens[index];
+        if (token.normalized !== target) continue;
+        text = text.slice(0, token.start) + nextReplacement + text.slice(token.end);
+        count++;
+      }
+      const [col, row] = this._splitCoord(coord);
+      this.setCellValue(col, row, text, true);
+    }
+    return count;
+  }
+
+  _closeSpellcheckDialog() {
+    this._spellcheckOverlay?.closeDialog?.();
+    this._spellcheckOverlay = null;
+  }
+
+  showSpellcheckDialog(options = {}) {
+    options = options || {};
+    const issues = this.collectSpellcheckIssues();
+    if (typeof document === "undefined" || !document.createElement || !document.body) return issues;
+    this._closeSpellcheckDialog();
+
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay vno-sheet-rule-dialog vno-sheet-spellcheck-dialog";
+    overlay.dataset.dialog = "sheet-spellcheck";
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-spell-title" style="width:460px;">
+        <div class="vno-dialog-header">
+          <strong id="vno-spell-title">${this._escapeHtml(t("sheetDialogs.spellcheckTitle", "Chính tả"))}</strong>
+          <button type="button" class="vno-btn vno-rule-close" aria-label="${this._escapeHtml(t("sheetDialogs.close", "Đóng"))}">&times;</button>
+        </div>
+        <div class="vno-dialog-body" id="vno-spell-body"></div>
+        <div class="vno-dialog-footer vno-spell-footer"></div>
+      </div>`;
+
+    const previousActive = document.activeElement;
+    const body = overlay.querySelector("#vno-spell-body");
+    const footer = overlay.querySelector(".vno-spell-footer");
+    let currentIndex = 0;
+    let sessionIssues = issues;
+
+    const close = () => {
+      document.removeEventListener("keydown", onKey);
+      overlay.remove();
+      if (this._spellcheckOverlay === overlay) this._spellcheckOverlay = null;
+      if (previousActive && typeof previousActive.focus === "function") {
+        try { previousActive.focus(); } catch (_) {}
+      }
+    };
+    overlay.closeDialog = close;
+
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close();
+      } else {
+        trapFocus(overlay.querySelector(".vno-dialog-box"), event);
+      }
+    };
+
+    const refreshIssues = () => {
+      sessionIssues = this.collectSpellcheckIssues();
+      if (currentIndex >= sessionIssues.length) currentIndex = Math.max(0, sessionIssues.length - 1);
+    };
+
+    const renderComplete = (messageKey) => {
+      overlay.dataset.spellcheckState = "done";
+      overlay.removeAttribute("data-spell-word");
+      overlay.removeAttribute("data-spell-coord");
+      body.innerHTML = `<p class="vno-spell-complete" role="status">${this._escapeHtml(t(messageKey, "Đã kiểm tra xong toàn bộ trang tính. Không tìm thấy lỗi chính tả."))}</p>`;
+      footer.innerHTML = `<button type="button" class="vno-btn vno-btn-primary" id="vno-spell-close">${this._escapeHtml(t("sheetDialogs.spellcheckClose", "Đóng"))}</button>`;
+      footer.querySelector("#vno-spell-close").addEventListener("click", close);
+      footer.querySelector("#vno-spell-close").focus();
+    };
+
+    const renderIssue = () => {
+      if (!sessionIssues.length) {
+        renderComplete("sheetDialogs.spellcheckComplete");
+        return;
+      }
+      const issue = sessionIssues[currentIndex];
+      const suggestions = this.suggestSpellcheckWord(issue.word);
+      overlay.dataset.spellcheckState = "issue";
+      overlay.dataset.spellWord = issue.word;
+      overlay.dataset.spellCoord = issue.coord;
+      const [col, row] = this._splitCoord(issue.coord);
+      this.selectCell(col, row);
+      const suggestionOptions = suggestions.length
+        ? suggestions.map((word, index) => `<option value="${this._escapeHtml(word)}" ${index === 0 ? "selected" : ""}>${this._escapeHtml(word)}</option>`).join("")
+        : `<option value="">${this._escapeHtml(t("sheetDialogs.spellcheckNoSuggestions", "(Không có gợi ý gần)"))}</option>`;
+      body.innerHTML = `
+        <p class="vno-spell-status" role="status">${this._escapeHtml(t("sheetDialogs.spellcheckStatus", { current: currentIndex + 1, total: sessionIssues.length }))}</p>
+        <label>${this._escapeHtml(t("sheetDialogs.spellcheckNotInDictionary", "Không có trong từ điển:"))}
+          <input id="vno-spell-word" class="vno-dialog-input" value="${this._escapeHtml(issue.word)}" autocomplete="off">
+        </label>
+        <p class="vno-spell-meta">${this._escapeHtml(t("sheetDialogs.spellcheckCell", "Ô"))}: <strong id="vno-spell-coord">${this._escapeHtml(issue.coord)}</strong></p>
+        <p class="vno-spell-context">${this._escapeHtml(t("sheetDialogs.spellcheckContext", "Nội dung ô"))}: <span id="vno-spell-context">${this._escapeHtml(issue.text)}</span></p>
+        <label>${this._escapeHtml(t("sheetDialogs.spellcheckSuggestions", "Gợi ý:"))}
+          <select id="vno-spell-suggestions" class="vno-select" size="${Math.min(5, Math.max(2, suggestions.length || 1))}">${suggestionOptions}</select>
+        </label>`;
+      footer.innerHTML = `
+        <button type="button" class="vno-btn" id="vno-spell-ignore">${this._escapeHtml(t("sheetDialogs.spellcheckIgnore", "Bỏ qua"))}</button>
+        <button type="button" class="vno-btn" id="vno-spell-ignore-all">${this._escapeHtml(t("sheetDialogs.spellcheckIgnoreAll", "Bỏ qua tất cả"))}</button>
+        <button type="button" class="vno-btn" id="vno-spell-add">${this._escapeHtml(t("sheetDialogs.spellcheckAdd", "Thêm vào từ điển"))}</button>
+        <button type="button" class="vno-btn vno-btn-primary" id="vno-spell-replace">${this._escapeHtml(t("sheetDialogs.spellcheckReplace", "Thay thế"))}</button>
+        <button type="button" class="vno-btn" id="vno-spell-replace-all">${this._escapeHtml(t("sheetDialogs.spellcheckReplaceAll", "Thay thế tất cả"))}</button>
+        <button type="button" class="vno-btn" id="vno-spell-close">${this._escapeHtml(t("sheetDialogs.spellcheckClose", "Đóng"))}</button>`;
+
+      const wordInput = body.querySelector("#vno-spell-word");
+      const suggestionList = body.querySelector("#vno-spell-suggestions");
+      suggestionList.addEventListener("change", () => {
+        if (suggestionList.value) wordInput.value = suggestionList.value;
+      });
+      suggestionList.addEventListener("dblclick", () => {
+        if (suggestionList.value) {
+          wordInput.value = suggestionList.value;
+          applyReplace(false);
+        }
+      });
+
+      const skipCurrent = () => {
+        currentIndex += 1;
+        if (currentIndex >= sessionIssues.length) renderComplete("sheetDialogs.spellcheckCompleteRemaining");
+        else renderIssue();
+      };
+
+      const applyReplace = (all) => {
+        const replacement = wordInput.value;
+        if (!replacement) return;
+        if (all) this.replaceAllSpellcheckWord(issue.word, replacement);
+        else this.replaceSpellcheckIssue(issue, replacement);
+        refreshIssues();
+        renderIssue();
+      };
+
+      footer.querySelector("#vno-spell-ignore").addEventListener("click", skipCurrent);
+      footer.querySelector("#vno-spell-ignore-all").addEventListener("click", () => {
+        this._ensureSpellChecker().ignore(issue.word);
+        refreshIssues();
+        renderIssue();
+      });
+      footer.querySelector("#vno-spell-add").addEventListener("click", () => {
+        this._ensureSpellChecker().addToPersonalDictionary(issue.word);
+        refreshIssues();
+        renderIssue();
+      });
+      footer.querySelector("#vno-spell-replace").addEventListener("click", () => applyReplace(false));
+      footer.querySelector("#vno-spell-replace-all").addEventListener("click", () => applyReplace(true));
+      footer.querySelector("#vno-spell-close").addEventListener("click", close);
+      wordInput.focus();
+      wordInput.select();
+    };
+
+    overlay.querySelector(".vno-rule-close").addEventListener("click", close);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close();
+    });
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(overlay);
+    this._spellcheckOverlay = overlay;
+    renderIssue();
     return true;
   }
 

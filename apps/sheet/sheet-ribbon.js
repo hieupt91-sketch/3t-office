@@ -474,7 +474,20 @@ export const SHEET_RIBBON_TABS = [
     id: "review",
     label: "Xem xét",
     labelKey: "sheetRibbon.tab.review",
-    groups: [{ label: "Ghi chú", labelKey: "sheetRibbon.group.comments", items: [{ type: "button", commandId: "sheet.review.commentInsert", isLarge: true }] }]
+    groups: [
+      {
+        id: "proofing",
+        label: "Chứng minh",
+        labelKey: "sheetRibbon.group.proofing",
+        items: [{ type: "button", commandId: "sheet.review.spellCheck", isLarge: true }]
+      },
+      {
+        id: "comments",
+        label: "Ghi chú",
+        labelKey: "sheetRibbon.group.comments",
+        items: [{ type: "button", commandId: "sheet.review.commentInsert", isLarge: true }]
+      }
+    ]
   },
   {
     id: "view",

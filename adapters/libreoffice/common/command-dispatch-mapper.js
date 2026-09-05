@@ -213,6 +213,7 @@ export const VN_TO_UNO_MAP = {
   "sheet.view.newWindow": ".uno:NewWindow",
   "sheet.view.gridlines": ".uno:ViewGridLines",
   "sheet.view.headings": ".uno:ViewRowColumnHeaders",
+  "sheet.review.spellCheck": ".uno:Spelling",
   "sheet.review.commentInsert": ".uno:InsertAnnotation",
   "sheet.page.setPrintArea": ".uno:DefinePrintArea",
   "sheet.page.clearPrintArea": ".uno:DeletePrintArea",
