@@ -492,12 +492,6 @@ export const SHEET_RIBBON_TABS = [
     ]
   },
   {
-    id: "help",
-    label: "Trợ giúp",
-    labelKey: "sheetRibbon.tab.help",
-    groups: [{ label: "Trợ giúp", labelKey: "sheetRibbon.group.help", items: [{ type: "button", commandId: "sheet.help.open", isLarge: true }] }]
-  },
-  {
     id: "review",
     label: "Xem xét",
     labelKey: "sheetRibbon.tab.review",

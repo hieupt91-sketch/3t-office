@@ -270,7 +270,6 @@ export const SHEET_COMMANDS = [
   { id: "sheet.page.removePageBreak", category: "page", label: "Xóa ngắt trang", icon: "removePageBreak", tooltip: "Xóa ngắt hàng và cột tại ô đang chọn" },
   { id: "sheet.page.scale", category: "page", label: "Tỷ lệ vừa trang", icon: "zoomReset", tooltip: "Thu phóng nội dung in theo phần trăm hoặc số trang" },
   { id: "sheet.page.headerFooter", category: "page", label: "Tiêu đề Đầu/Cuối trang", icon: "headerFooter", tooltip: "Đặt đầu trang và cuối trang khi in" },
-  { id: "sheet.help.open", category: "help", label: "Trợ giúp", shortcut: "F1", icon: "help", tooltip: "Mở hướng dẫn sử dụng (F1)", isToggle: true },
 
   // Chèn hàng/cột & Biểu đồ
   { id: "sheet.row.insert", category: "insert", label: "Chèn hàng", shortcut: "Ctrl+Shift+=", icon: "insertRow", tooltip: "Chèn thêm hàng mới (Ctrl+Shift+=)" },
