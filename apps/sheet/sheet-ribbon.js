@@ -14,6 +14,7 @@ export const SHEET_RIBBON_TABS = [
         labelKey: "sheetRibbon.group.clipboard",
         items: [
           { type: "button", commandId: "common.edit.paste", isLarge: true },
+          { type: "button", commandId: "sheet.edit.pasteSpecial" },
           {
             type: "column",
             items: [

@@ -110,6 +110,7 @@ export const enStrings = {
     "common.edit.copy": { label: "Copy", tooltip: "Copy selection (Ctrl+C)" },
     "common.edit.paste": { label: "Paste", tooltip: "Paste from clipboard (Ctrl+V)" },
     "common.edit.pastePlain": { label: "Paste Plain Text", tooltip: "Paste without formatting (Ctrl+Shift+V)" },
+    "sheet.edit.pasteSpecial": { label: "Paste Special", tooltip: "Paste values, formulas, formats, or transpose (Ctrl+Alt+V)" },
     "common.edit.formatPainter": { label: "Format Painter", tooltip: "Copy formatting (Ctrl+Shift+C)" },
     "common.edit.selectAll": { label: "Select All", tooltip: "Select all content (Ctrl+A)" },
     "common.edit.find": { label: "Find", tooltip: "Find text (Ctrl+F)" },
