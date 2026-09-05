@@ -79,18 +79,18 @@ export class FormatCellsDialog {
     ];
 
     overlay.innerHTML = `
-      <div class="vno-dialog-box vno-format-cells-box" role="dialog" aria-modal="true" aria-labelledby="vno-fc-dialog-title" style="width: 600px; max-width: 95vw; background: #ffffff; border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden; display: flex; flex-direction: column;">
+      <div class="vno-dialog-box vno-format-cells-box" role="dialog" aria-modal="true" aria-labelledby="vno-fc-dialog-title" style="width: 600px; max-width: 95vw; border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden; display: flex; flex-direction: column;">
         <!-- Dialog Header -->
-        <div class="vno-dialog-header" style="display:flex; align-items:center; justify-content:space-between; padding: 10px 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
-          <div style="display:flex; align-items:center; gap: 8px; font-weight: 600; font-size: 14px; color: #0f172a;">
-            <span style="display:flex; width:18px; height:18px; color: #0f6d38;" aria-hidden="true">${ICONS.formatCells || ICONS.appSheet || ""}</span>
+        <div class="vno-dialog-header" style="display:flex; align-items:center; justify-content:space-between; padding: 10px 16px;">
+          <div style="display:flex; align-items:center; gap: 8px; font-weight: 600; font-size: 14px; color: var(--vno-text-primary);">
+            <span style="display:flex; width:18px; height:18px; color: var(--vno-sheet-primary);" aria-hidden="true">${ICONS.formatCells || ICONS.appSheet || ""}</span>
             <span id="vno-fc-dialog-title">${t("sheetFormatCells.dialogTitle", "Định dạng ô (Format Cells)")}</span>
           </div>
-          <button class="vno-btn vno-btn-icon-only vno-fc-close-btn" title="Đóng" aria-label="Đóng" style="font-size: 18px; line-height: 1; border:none; background:transparent; cursor:pointer; color:#475569;">&times;</button>
+          <button class="vno-btn vno-btn-icon-only vno-fc-close-btn" title="Đóng" aria-label="Đóng" style="font-size: 18px; line-height: 1; border:none; background:transparent; cursor:pointer; color:var(--vno-text-muted);">&times;</button>
         </div>
 
         <!-- Tabs Header (Number is active) -->
-        <div class="vno-fc-tabs" role="tablist" aria-label="Các thẻ định dạng ô" style="display:flex; background: #f1f5f9; border-bottom: 1px solid #cbd5e1; padding: 0 8px; gap: 4px;">
+        <div class="vno-fc-tabs" role="tablist" aria-label="Các thẻ định dạng ô" style="display:flex; background: var(--vno-bg-muted); border-bottom: 1px solid var(--vno-border-default); padding: 0 8px; gap: 4px;">
           <button type="button" role="tab" aria-selected="true" class="vno-fc-tab is-active">
             ${t("sheetFormatCells.tabNumber", "Số")}
           </button>
@@ -115,10 +115,10 @@ export class FormatCellsDialog {
         <div class="vno-dialog-body" style="display:flex; gap: 16px; padding: 16px; min-height: 320px;">
           <!-- Left Column: Category List -->
           <div style="width: 170px; display:flex; flex-direction:column; gap: 6px;">
-            <label id="vno-fc-cat-lbl" style="font-size: 12px; font-weight: 600; color: #334155;">
+            <label id="vno-fc-cat-lbl" style="font-size: 12px; font-weight: 600; color: var(--vno-text-secondary);">
               ${t("sheetFormatCells.categoryLabel", "Thể loại:")}
             </label>
-            <div class="vno-fc-category-list" role="listbox" aria-labelledby="vno-fc-cat-lbl" tabindex="0" style="border: 1px solid #cbd5e1; border-radius: 4px; overflow-y: auto; height: 280px; background: #ffffff; padding: 2px;">
+            <div class="vno-fc-category-list" role="listbox" aria-labelledby="vno-fc-cat-lbl" tabindex="0" style="border: 1px solid var(--vno-border-default); border-radius: 4px; overflow-y: auto; height: 280px; background: var(--vno-bg-surface); padding: 2px;">
               ${categories.map(cat => `
                 <div class="vno-fc-cat-item ${cat.id === state.category ? 'is-selected' : ''}" data-cat="${cat.id}"
                      role="option" aria-selected="${cat.id === state.category ? 'true' : 'false'}" tabindex="${cat.id === state.category ? '0' : '-1'}">
@@ -132,10 +132,10 @@ export class FormatCellsDialog {
           <div style="flex: 1; display:flex; flex-direction:column; gap: 12px;">
             <!-- Sample Box -->
             <div style="display:flex; flex-direction:column; gap: 4px;">
-              <label id="vno-fc-sample-lbl" style="font-size: 12px; font-weight: 600; color: #334155;">
+              <label id="vno-fc-sample-lbl" style="font-size: 12px; font-weight: 600; color: var(--vno-text-secondary);">
                 ${t("sheetFormatCells.sampleLabel", "Mẫu (Sample):")}
               </label>
-              <div id="vno-fc-sample-box" aria-live="polite" aria-labelledby="vno-fc-sample-lbl" style="height: 38px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc; display:flex; align-items:center; padding: 0 12px; font-size: 13px; font-weight: 600; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <div id="vno-fc-sample-box" aria-live="polite" aria-labelledby="vno-fc-sample-lbl" style="height: 38px; border: 1px solid var(--vno-border-default); border-radius: 4px; background: var(--vno-bg-surface); display:flex; align-items:center; padding: 0 12px; font-size: 13px; font-weight: 600; color: var(--vno-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 <!-- Sample text updated dynamically -->
               </div>
             </div>
@@ -148,11 +148,11 @@ export class FormatCellsDialog {
         </div>
 
         <!-- Dialog Footer -->
-        <div class="vno-dialog-footer" style="display:flex; justify-content:flex-end; gap: 8px; padding: 12px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0;">
-          <button type="button" class="vno-btn vno-fc-cancel-btn" style="padding: 6px 16px; font-size: 13px; border: 1px solid #cbd5e1; border-radius: 4px; background: #ffffff; color: #334155; cursor: pointer;">
+        <div class="vno-dialog-footer" style="display:flex; justify-content:flex-end; gap: 8px; padding: 12px 16px;">
+          <button type="button" class="vno-btn vno-fc-cancel-btn">
             ${t("common.cancel", "Hủy bỏ")}
           </button>
-          <button type="button" class="vno-btn vno-btn-primary vno-fc-ok-btn" style="padding: 6px 20px; font-size: 13px; font-weight: 600; border: none; border-radius: 4px; background: #0f6d38; color: #ffffff; cursor: pointer;">
+          <button type="button" class="vno-btn vno-btn-primary vno-fc-ok-btn">
             ${t("common.ok", "Đồng ý")}
           </button>
         </div>
@@ -184,7 +184,7 @@ export class FormatCellsDialog {
 
       const res = NumberFormatter.formatValue(sampleInput, state);
       sampleBox.textContent = res.text || "";
-      sampleBox.style.color = res.isRed ? "#dc2626" : "#0f172a";
+      sampleBox.style.color = res.isRed ? "#dc2626" : "var(--vno-text-primary)";
       sampleBox.style.textAlign = res.align || "left";
       sampleBox.style.justifyContent = res.align === "right" ? "flex-end" : "flex-start";
     };
@@ -196,7 +196,7 @@ export class FormatCellsDialog {
       switch (state.category) {
         case "general": {
           optionsPanel.innerHTML = `
-            <div style="font-size: 12px; color: #475569; line-height: 1.6; padding-top: 8px;">
+            <div style="font-size: 12px; color: var(--vno-text-muted); line-height: 1.6; padding-top: 8px;">
               ${t("sheetFormatCells.generalDesc", "Các ô định dạng Chung không có định dạng số cụ thể. Số và chữ sẽ được hiển thị như khi nhập.")}
             </div>
           `;
@@ -206,26 +206,26 @@ export class FormatCellsDialog {
         case "number": {
           optionsPanel.innerHTML = `
             <div style="display:flex; align-items:center; gap: 12px;">
-              <label for="vno-fc-decimals" style="font-size: 12px; color: #334155; font-weight: 500;">
+              <label for="vno-fc-decimals" style="font-size: 12px; color: var(--vno-text-secondary); font-weight: 500;">
                 ${t("sheetFormatCells.decimalPlaces", "Số chữ số thập phân:")}
               </label>
               <input type="number" id="vno-fc-decimals" min="0" max="30" value="${state.decimals}" 
                      aria-label="${t("sheetFormatCells.decimalPlaces", "Số chữ số thập phân:")}"
-                     style="width: 70px; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px;">
+                     style="width: 70px; padding: 4px 8px; border: 1px solid var(--vno-border-default); background: var(--vno-bg-surface); color: var(--vno-text-primary); border-radius: 4px; font-size: 12px;">
             </div>
 
             <div style="display:flex; align-items:center; gap: 8px; margin-top: 4px;">
               <input type="checkbox" id="vno-fc-thousands" ${state.useThousands ? "checked" : ""} style="cursor: pointer;">
-              <label for="vno-fc-thousands" style="font-size: 12px; color: #334155; cursor: pointer;">
+              <label for="vno-fc-thousands" style="font-size: 12px; color: var(--vno-text-secondary); cursor: pointer;">
                 ${t("sheetFormatCells.useThousands", "Sử dụng dấu phân cách hàng nghìn (1,000)")}
               </label>
             </div>
 
             <div style="display:flex; flex-direction:column; gap: 4px; margin-top: 6px;">
-              <label id="vno-fc-neg-lbl" style="font-size: 12px; color: #334155; font-weight: 500;">
+              <label id="vno-fc-neg-lbl" style="font-size: 12px; color: var(--vno-text-secondary); font-weight: 500;">
                 ${t("sheetFormatCells.negativeNumbers", "Số âm:")}
               </label>
-              <div id="vno-fc-negative-list" role="listbox" aria-labelledby="vno-fc-neg-lbl" tabindex="0" style="border: 1px solid #cbd5e1; border-radius: 4px; max-height: 120px; overflow-y: auto; background: #ffffff;">
+              <div id="vno-fc-negative-list" role="listbox" aria-labelledby="vno-fc-neg-lbl" tabindex="0" style="border: 1px solid var(--vno-border-default); border-radius: 4px; max-height: 120px; overflow-y: auto; background: var(--vno-bg-surface);">
                 <div class="vno-fc-neg-item ${state.negativeStyle === 0 ? 'is-selected' : ''}" data-neg="0" role="option" aria-selected="${state.negativeStyle === 0 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 0 ? '0' : '-1'}">-1234.10</div>
                 <div class="vno-fc-neg-item ${state.negativeStyle === 1 ? 'is-selected' : ''}" data-neg="1" role="option" aria-selected="${state.negativeStyle === 1 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 1 ? '0' : '-1'}" style="color: #dc2626;">1234.10</div>
                 <div class="vno-fc-neg-item ${state.negativeStyle === 2 ? 'is-selected' : ''}" data-neg="2" role="option" aria-selected="${state.negativeStyle === 2 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 2 ? '0' : '-1'}">(1234.10)</div>
@@ -267,19 +267,19 @@ export class FormatCellsDialog {
         case "currency": {
           optionsPanel.innerHTML = `
             <div style="display:flex; align-items:center; gap: 12px;">
-              <label for="vno-fc-decimals" style="font-size: 12px; color: #334155; font-weight: 500;">
+              <label for="vno-fc-decimals" style="font-size: 12px; color: var(--vno-text-secondary); font-weight: 500;">
                 ${t("sheetFormatCells.decimalPlaces", "Số chữ số thập phân:")}
               </label>
               <input type="number" id="vno-fc-decimals" min="0" max="30" value="${state.decimals}" 
                      aria-label="${t("sheetFormatCells.decimalPlaces", "Số chữ số thập phân:")}"
-                     style="width: 70px; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px;">
+                     style="width: 70px; padding: 4px 8px; border: 1px solid var(--vno-border-default); background: var(--vno-bg-surface); color: var(--vno-text-primary); border-radius: 4px; font-size: 12px;">
             </div>
 
             <div style="display:flex; align-items:center; gap: 12px; margin-top: 4px;">
-              <label for="vno-fc-symbol" style="font-size: 12px; color: #334155; font-weight: 500;">
+              <label for="vno-fc-symbol" style="font-size: 12px; color: var(--vno-text-secondary); font-weight: 500;">
                 ${t("sheetFormatCells.currencySymbol", "Ký hiệu tiền tệ:")}
               </label>
-              <select id="vno-fc-symbol" aria-label="${t("sheetFormatCells.currencySymbol", "Ký hiệu tiền tệ:")}" style="flex: 1; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; background: #ffffff;">
+              <select id="vno-fc-symbol" aria-label="${t("sheetFormatCells.currencySymbol", "Ký hiệu tiền tệ:")}" style="flex: 1; padding: 4px 8px; border: 1px solid var(--vno-border-default); background: var(--vno-bg-surface); color: var(--vno-text-primary); border-radius: 4px; font-size: 12px;">
                 <option value="₫" ${state.currencySymbol === "₫" ? "selected" : ""}>₫ (VNĐ - Việt Nam)</option>
                 <option value="$" ${state.currencySymbol === "$" ? "selected" : ""}>$ ($ USD - Tiếng Anh Hoa Kỳ)</option>
                 <option value="€" ${state.currencySymbol === "€" ? "selected" : ""}>€ (€ EUR - Châu Âu)</option>
@@ -290,10 +290,10 @@ export class FormatCellsDialog {
             </div>
 
             <div style="display:flex; flex-direction:column; gap: 4px; margin-top: 6px;">
-              <label id="vno-fc-neg-curr-lbl" style="font-size: 12px; color: #334155; font-weight: 500;">
+              <label id="vno-fc-neg-curr-lbl" style="font-size: 12px; color: var(--vno-text-secondary); font-weight: 500;">
                 ${t("sheetFormatCells.negativeNumbers", "Số âm:")}
               </label>
-              <div id="vno-fc-negative-list" role="listbox" aria-labelledby="vno-fc-neg-curr-lbl" tabindex="0" style="border: 1px solid #cbd5e1; border-radius: 4px; max-height: 100px; overflow-y: auto; background: #ffffff;">
+              <div id="vno-fc-negative-list" role="listbox" aria-labelledby="vno-fc-neg-curr-lbl" tabindex="0" style="border: 1px solid var(--vno-border-default); border-radius: 4px; max-height: 100px; overflow-y: auto; background: var(--vno-bg-surface);">
                 <div class="vno-fc-neg-item ${state.negativeStyle === 0 ? 'is-selected' : ''}" data-neg="0" role="option" aria-selected="${state.negativeStyle === 0 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 0 ? '0' : '-1'}">-1,234.10 ₫</div>
                 <div class="vno-fc-neg-item ${state.negativeStyle === 1 ? 'is-selected' : ''}" data-neg="1" role="option" aria-selected="${state.negativeStyle === 1 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 1 ? '0' : '-1'}" style="color: #dc2626;">1,234.10 ₫</div>
                 <div class="vno-fc-neg-item ${state.negativeStyle === 2 ? 'is-selected' : ''}" data-neg="2" role="option" aria-selected="${state.negativeStyle === 2 ? 'true' : 'false'}" tabindex="${state.negativeStyle === 2 ? '0' : '-1'}">(1,234.10 ₫)</div>
@@ -335,19 +335,19 @@ export class FormatCellsDialog {
         case "accounting": {
           optionsPanel.innerHTML = `
             <div style="display:flex; align-items:center; gap: 12px;">
-              <label for="vno-fc-decimals" style="font-size: 12px; color: #334155; font-weight: 500;">
+              <label for="vno-fc-decimals" style="font-size: 12px; color: var(--vno-text-secondary); font-weight: 500;">
                 ${t("sheetFormatCells.decimalPlaces", "Số chữ số thập phân:")}
               </label>
               <input type="number" id="vno-fc-decimals" min="0" max="30" value="${state.decimals}" 
                      aria-label="${t("sheetFormatCells.decimalPlaces", "Số chữ số thập phân:")}"
-                     style="width: 70px; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px;">
+                     style="width: 70px; padding: 4px 8px; border: 1px solid var(--vno-border-default); background: var(--vno-bg-surface); color: var(--vno-text-primary); border-radius: 4px; font-size: 12px;">
             </div>
 
             <div style="display:flex; align-items:center; gap: 12px; margin-top: 4px;">
-              <label for="vno-fc-symbol" style="font-size: 12px; color: #334155; font-weight: 500;">
+              <label for="vno-fc-symbol" style="font-size: 12px; color: var(--vno-text-secondary); font-weight: 500;">
                 ${t("sheetFormatCells.currencySymbol", "Ký hiệu tiền tệ:")}
               </label>
-              <select id="vno-fc-symbol" aria-label="${t("sheetFormatCells.currencySymbol", "Ký hiệu tiền tệ:")}" style="flex: 1; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px; background: #ffffff;">
+              <select id="vno-fc-symbol" aria-label="${t("sheetFormatCells.currencySymbol", "Ký hiệu tiền tệ:")}" style="flex: 1; padding: 4px 8px; border: 1px solid var(--vno-border-default); background: var(--vno-bg-surface); color: var(--vno-text-primary); border-radius: 4px; font-size: 12px;">
                 <option value="₫" ${state.currencySymbol === "₫" ? "selected" : ""}>₫ (VNĐ - Việt Nam)</option>
                 <option value="$" ${state.currencySymbol === "$" ? "selected" : ""}>$ ($ USD - Hoa Kỳ)</option>
                 <option value="€" ${state.currencySymbol === "€" ? "selected" : ""}>€ (€ EUR - Châu Âu)</option>
@@ -357,8 +357,8 @@ export class FormatCellsDialog {
               </select>
             </div>
 
-            <div style="font-size: 12px; color: #475569; line-height: 1.6; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; margin-top: 6px;">
-              <strong>${t("sheetFormatCells.accountingTitle", "Đặc điểm định dạng Kế toán:")}</strong><br>
+            <div style="font-size: 12px; color: var(--vno-text-secondary); line-height: 1.6; padding: 10px; background: var(--vno-bg-muted); border: 1px solid var(--vno-border-default); border-radius: 4px; margin-top: 6px;">
+              <strong style="color:var(--vno-text-primary);">${t("sheetFormatCells.accountingTitle", "Đặc điểm định dạng Kế toán:")}</strong><br>
               • ${t("sheetFormatCells.accountingRule1", "Ký hiệu tiền tệ luôn căn sát lề trái ô tính.")}<br>
               • ${t("sheetFormatCells.accountingRule2", "Giá trị số luôn căn sát lề phải để thẳng hàng dấu thập phân.")}<br>
               • ${t("sheetFormatCells.accountingRule3", "Số 0 hiển thị thành dấu gạch ngang (-).")}<br>

@@ -278,12 +278,27 @@
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
+.vno-dialog-input,
+.vno-dialog-box input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+.vno-dialog-box select,
+.vno-dialog-box textarea {
+  background-color: var(--vno-bg-surface);
+  color: var(--vno-text-primary);
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-md);
+  font-family: inherit;
+}
+
 .vno-dialog-input:focus,
-.vno-dialog-input:focus-visible {
+.vno-dialog-input:focus-visible,
+.vno-dialog-box input:focus,
+.vno-dialog-box select:focus,
+.vno-dialog-box textarea:focus {
   border-color: var(--vno-border-focus) !important;
   outline: 2px solid var(--vno-border-focus) !important;
   outline-offset: 1px;
 }
+
 
 /* Dialog & Modal */
 .vno-dialog-overlay {
@@ -336,8 +351,8 @@
   justify-content: center;
 }
 .vno-dialog-close-btn:hover {
-  background-color: #f1f5f9;
-  color: #0f172a;
+  background-color: var(--vno-bg-hover);
+  color: var(--vno-text-primary);
 }
 .vno-dialog-close-btn:active {
   transform: scale(0.92);
