@@ -6,6 +6,7 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
+import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 
 export class SlidesAdapter {
   constructor(canvasController) {
@@ -62,6 +63,14 @@ export class SlidesAdapter {
       options = options || {};
       return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
     });
+    globalCommandBus.bindHandler("slides.review.spellCheck", (args) => {
+      args = args || {};
+      return this.canvas.showSpellcheckDialog ? this.canvas.showSpellcheckDialog(args) : false;
+    });
+    globalShortcutManager.bind("F7", "slides.review.spellCheck", "slides");
+    globalCommandBus.bindHandler("slides.edit.formatPainter", (args) => this.canvas.toggleFormatPainter ? this.canvas.toggleFormatPainter(args || {}) : false);
+    globalCommandBus.bindHandler("slides.design.formatBackground", (args) => this.canvas.showFormatBackgroundDialog ? this.canvas.showFormatBackgroundDialog(args || {}) : false);
+    this._bindFormatPainterRibbon();
     // Command metadata is app-local because this feature is scoped to Slides;
     // bind explicitly instead of requiring a Platform registry change.
     globalCommandBus.bindHandler("slides.insert.chart", (options) => this.canvas.insertChart ? this.canvas.insertChart(options) : false);
@@ -80,6 +89,18 @@ export class SlidesAdapter {
     this._bindTextFormatTracking();
   }
 
+  _bindFormatPainterRibbon() {
+    if (this._formatPainterRibbonBound) return;
+    if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
+    this._formatPainterRibbonBound = true;
+    document.addEventListener("dblclick", (event) => {
+      const btn = event.target?.closest?.('[data-command-id="slides.edit.formatPainter"]');
+      if (!btn) return;
+      event.preventDefault();
+      this.canvas?.toggleFormatPainter?.({ locked: true });
+    }, true);
+  }
+
   _bindTextFormatTracking() {
     if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
     if (this._textFormatSelectionHandler) return;
@@ -90,7 +111,7 @@ export class SlidesAdapter {
     this._textFormatMouseDownHandler = (event) => {
       const host = event.target?.closest?.("[data-command-id]");
       const id = host?.getAttribute?.("data-command-id") || "";
-      if (!/^slides\.(text|font|para|list|color)\./.test(id)) return;
+      if (!/^slides\.(text|font|para|list|color)\./.test(id) && id !== "slides.edit.formatPainter") return;
       this._rememberTextSelection();
       const tag = (event.target?.tagName || host?.tagName || "").toUpperCase();
       if (tag === "SELECT" || tag === "OPTION") return;
@@ -971,8 +992,51 @@ export class SlidesAdapter {
     return null;
   }
 
+  _hasPageBackground(slide) {
+    const bg = slide?.background;
+    return !!(bg && (bg.type === "solid" || bg.type === "gradient" || (bg.type === "picture" && bg.picture)));
+  }
+
   _slideNeedsOwnDrawingStyle(slide) {
-    return !!this._mapVnTransitionToSmil(slide?.transition) || !!slide?.hidden;
+    return !!this._mapVnTransitionToSmil(slide?.transition) || !!slide?.hidden || this._hasPageBackground(slide);
+  }
+
+  _pageBackgroundFillAttrs(slide, idx) {
+    const bg = slide?.background;
+    if (!this._hasPageBackground(slide)) return "";
+    if (bg.type === "solid") {
+      const color = this._cssColorToHex(bg.color || "#ffffff") || bg.color;
+      return ` draw:fill="solid" draw:fill-color="${this._escapeXml(color)}"`;
+    }
+    if (bg.type === "gradient") {
+      return ` draw:fill="gradient" draw:fill-gradient-name="vnoBgGrad${idx + 1}"`;
+    }
+    if (bg.type === "picture") {
+      return ` draw:fill="bitmap" draw:fill-image-name="vnoBgImg${idx + 1}" style:repeat="stretch"`;
+    }
+    return "";
+  }
+
+  _serializeBackgroundResources(slides) {
+    let xml = "";
+    (slides || []).forEach((slide, idx) => {
+      const bg = slide?.background;
+      if (bg?.type === "gradient") {
+        const from = this._cssColorToHex(bg.gradient?.from || "#1e3a8a") || "#1e3a8a";
+        const to = this._cssColorToHex(bg.gradient?.to || "#ffffff") || "#ffffff";
+        const angle = bg.gradient?.direction === "vertical" ? "900" : "0";
+        xml += `
+    <draw:gradient draw:name="vnoBgGrad${idx + 1}" draw:style="linear" draw:angle="${angle}" draw:start-color="${this._escapeXml(from)}" draw:end-color="${this._escapeXml(to)}" draw:start-intensity="100%" draw:end-intensity="100%"/>`;
+      }
+      if (bg?.type === "picture" && bg.picture) {
+        const binary = this._binaryDataXml(bg.picture);
+        if (binary) {
+          xml += `
+    <draw:fill-image draw:name="vnoBgImg${idx + 1}" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad">${binary}</draw:fill-image>`;
+        }
+      }
+    });
+    return xml;
   }
 
   _pageDrawingStyleName(slide, idx) {
@@ -1126,15 +1190,71 @@ export class SlidesAdapter {
       const smilSubtype = match[2].match(/smil:subtype=["']([^"']+)["']/i)?.[1] || "";
       const smilDur = match[2].match(/smil:dur=["']([^"']+)["']/i)?.[1] || "";
       const visibility = match[2].match(/presentation:visibility=["']([^"']+)["']/i)?.[1] || "";
+      const fill = match[2].match(/draw:fill=["']([^"']+)["']/i)?.[1] || "";
+      const fillColor = match[2].match(/draw:fill-color=["']([^"']+)["']/i)?.[1] || "";
+      const gradientName = match[2].match(/draw:fill-gradient-name=["']([^"']+)["']/i)?.[1] || "";
+      const fillImageName = match[2].match(/draw:fill-image-name=["']([^"']+)["']/i)?.[1] || "";
       styles.set(name, {
         smilType,
         smilSubtype,
         duration: this._parseSmilTimeToMs(smilDur),
         vnType: this._mapSmilTransitionToVn(smilType, smilSubtype),
-        hidden: /^hidden$/i.test(visibility)
+        hidden: /^hidden$/i.test(visibility),
+        fill,
+        fillColor,
+        gradientName,
+        fillImageName
       });
     }
     return styles;
+  }
+
+  _parseBackgroundResources(xmlText) {
+    const gradients = new Map();
+    const images = new Map();
+    const gradientRegex = /<draw:gradient\b([^>]*)\/?>/gi;
+    let match;
+    while ((match = gradientRegex.exec(xmlText)) !== null) {
+      const attrs = match[1] || "";
+      const name = this._attr(attrs, "draw:name");
+      if (!name) continue;
+      const angle = Number(this._attr(attrs, "draw:angle") || 0);
+      gradients.set(name, {
+        from: this._attr(attrs, "draw:start-color") || "#1e3a8a",
+        to: this._attr(attrs, "draw:end-color") || "#ffffff",
+        direction: Math.abs(angle) >= 450 ? "vertical" : "horizontal"
+      });
+    }
+    const imageRegex = /<draw:fill-image\b([^>]*)>([\s\S]*?)<\/draw:fill-image>/gi;
+    while ((match = imageRegex.exec(xmlText)) !== null) {
+      const name = this._attr(match[1] || "", "draw:name");
+      const binary = match[2].match(/<office:binary-data[^>]*>([\s\S]*?)<\/office:binary-data>/i)?.[1];
+      if (!name || !binary) continue;
+      images.set(name, `data:image/png;base64,${String(binary).replace(/\s+/g, "")}`);
+    }
+    return { gradients, images };
+  }
+
+  _backgroundFromPageStyle(pageStyle, resources) {
+    if (!pageStyle) return null;
+    const fill = String(pageStyle.fill || "").toLowerCase();
+    if (fill === "solid" && pageStyle.fillColor) {
+      return { type: "solid", color: this._cssColorToHex(pageStyle.fillColor) || pageStyle.fillColor };
+    }
+    if (fill === "gradient" && pageStyle.gradientName) {
+      const gradient = resources?.gradients?.get(pageStyle.gradientName);
+      if (!gradient) return null;
+      return { type: "gradient", gradient: { ...gradient } };
+    }
+    if ((fill === "bitmap" || fill === "image") && pageStyle.fillImageName) {
+      const picture = resources?.images?.get(pageStyle.fillImageName);
+      if (!picture) return null;
+      return { type: "picture", picture };
+    }
+    if (pageStyle.fillColor && !fill) {
+      return { type: "solid", color: this._cssColorToHex(pageStyle.fillColor) || pageStyle.fillColor };
+    }
+    return null;
   }
 
   _parsePageTransition(pageAttrs, pageContent, drawingPageStyles) {
@@ -1274,17 +1394,18 @@ export class SlidesAdapter {
     </style:style>`;
 
     (slides || []).forEach((slide, idx) => {
+      if (!this._slideNeedsOwnDrawingStyle(slide)) return;
       const smil = this._mapVnTransitionToSmil(slide?.transition);
       const hidden = !!slide?.hidden;
-      if (!smil && !hidden) return;
       const name = this._pageDrawingStyleName(slide, idx);
       const smilAttrs = smil
         ? ` smil:type="${smil.type}"${smil.subtype ? ` smil:subtype="${smil.subtype}"` : ""}${smil.dur ? ` smil:dur="${smil.dur}"` : ""}${smil.fadeColor ? ` smil:fadeColor="${smil.fadeColor}"` : ""}`
         : "";
       const visibilityAttr = hidden ? ' presentation:visibility="hidden"' : "";
+      const fillAttrs = this._pageBackgroundFillAttrs(slide, idx);
       xml += `
     <style:style style:name="${name}" style:family="drawing-page">
-      <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true"${smilAttrs}${visibilityAttr}/>
+      <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true"${smilAttrs}${visibilityAttr}${fillAttrs}/>
     </style:style>`;
     });
 
@@ -2038,6 +2159,12 @@ export class SlidesAdapter {
     });
 
     const automaticStyles = this._serializeGraphicStyles(slides) + this._serializeRichTextStyles(richCtx);
+    const backgroundResources = this._serializeBackgroundResources(slides);
+    const officeStyles = backgroundResources
+      ? `
+  <office:styles>${backgroundResources}
+  </office:styles>`
+      : "";
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
@@ -2053,7 +2180,7 @@ export class SlidesAdapter {
                  xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
                  xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0"
                  xmlns:vno="urn:vn-office:slides:1.0"
-                 office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.presentation">
+                 office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.presentation">${officeStyles}
   <office:automatic-styles>${automaticStyles}
   </office:automatic-styles>
   <office:master-styles>
@@ -2076,6 +2203,7 @@ export class SlidesAdapter {
     const parsedSlides = [];
     const graphicStyles = this._parseGraphicFillStyles(xmlText);
     const drawingPageStyles = this._parseDrawingPageStyles(xmlText);
+    const backgroundResources = this._parseBackgroundResources(xmlText);
     this._richMaps = this._parseRichStyleMaps(xmlText);
     const parsedSections = [];
 
@@ -2221,6 +2349,7 @@ export class SlidesAdapter {
       const hidden = !!fromPageStyle.hidden
         || /^hidden$/i.test(pageVisibility)
         || /^(false|0)$/i.test(pageVisibility);
+      const background = this._backgroundFromPageStyle(fromPageStyle, backgroundResources);
       const parsedSlide = {
         id: Date.now() + idx,
         title,
@@ -2232,6 +2361,7 @@ export class SlidesAdapter {
         layoutType: pageLayout,
         shapes,
         notes: notesText,
+        ...(background ? { background } : {}),
         comments: parsedComments.comments,
         hidden,
         ...(sectionId ? { sectionId } : {}),
@@ -2470,6 +2600,9 @@ export class SlidesAdapter {
       case "slides.design.slideSize":
         return this.canvas.showSlideSizeDialog ? this.canvas.showSlideSizeDialog() : false;
 
+      case "slides.design.formatBackground":
+        return this.canvas.showFormatBackgroundDialog ? this.canvas.showFormatBackgroundDialog(args || {}) : false;
+
       case "slides.transition.apply":
         return this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false;
 
@@ -2538,6 +2671,12 @@ export class SlidesAdapter {
 
       case "slides.review.commentInsert":
         return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
+
+      case "slides.review.spellCheck":
+        return this.canvas.showSpellcheckDialog ? this.canvas.showSpellcheckDialog(args || {}) : false;
+
+      case "slides.edit.formatPainter":
+        return this.canvas.toggleFormatPainter ? this.canvas.toggleFormatPainter(args || {}) : false;
 
       case "slides.insert.table":
         return this.canvas.insertTable ? await this.canvas.insertTable(args) : false;

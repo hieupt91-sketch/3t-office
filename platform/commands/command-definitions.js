@@ -297,6 +297,8 @@ export const SHEET_COMMANDS = [
 
 export const SLIDES_COMMANDS = [
   { id: "slides.review.commentInsert", category: "review", label: "Nhận xét mới", icon: "comment", tooltip: "Thêm nhận xét cho trang chiếu hiện tại" },
+  { id: "slides.review.spellCheck", category: "review", label: "Chính tả", icon: "slidesSpellCheck", tooltip: "Kiểm tra chính tả tiếng Việt trên trang chiếu hiện tại (F7)" },
+  { id: "slides.edit.formatPainter", category: "edit", label: "Sao chép định dạng", icon: "formatPainter", tooltip: "Sao chép định dạng chữ hoặc hình đang chọn sang đối tượng khác. Nhấp đúp để khóa và áp dụng nhiều lần. Esc để hủy.", isToggle: true },
   // Quản lý Trang chiếu
   { id: "slides.slide.new", category: "slide", label: "Trang mới", shortcut: "Ctrl+M", icon: "slideNew", tooltip: "Chèn trang chiếu mới (Ctrl+M)" },
   { id: "slides.layout.apply", category: "slide", label: "Bố cục", icon: "slideLayout", tooltip: "Thay đổi bố cục trang chiếu (Tiêu đề, Nội dung, Hai cột, Trống)" },
@@ -322,6 +324,7 @@ export const SLIDES_COMMANDS = [
   // Trình chiếu & Thiết kế
   { id: "slides.design.themeGallery", category: "design", label: "Chủ đề", icon: "themeGallery", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" },
   { id: "slides.design.slideSize", category: "design", label: "Cỡ trang chiếu", icon: "slideSize", tooltip: "Chọn tỷ lệ trang chiếu 16:9 hoặc 4:3" },
+  { id: "slides.design.formatBackground", category: "design", label: "Định dạng nền", icon: "formatBackground", tooltip: "Đổi nền trang chiếu hiện tại hoặc tất cả trang: màu đơn, gradient 2 màu, hoặc ảnh" },
   { id: "slides.master.apply", category: "design", label: "Mẫu Slide Master", icon: "template", tooltip: "Áp dụng mẫu Slide Master đồng bộ font, màu, logo cho toàn bộ trang chiếu" },
   { id: "slides.transition.apply", category: "transition", label: "Chuyển tiếp", icon: "slideTransition", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" },
   { id: "slides.animation.apply", category: "animation", label: "Hiệu ứng đối tượng", icon: "objectAnimation", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" },

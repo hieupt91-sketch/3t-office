@@ -33,7 +33,8 @@ export const SLIDES_RIBBON_TABS = [
             type: "column",
             items: [
               { type: "button", commandId: "common.edit.cut" },
-              { type: "button", commandId: "common.edit.copy" }
+              { type: "button", commandId: "common.edit.copy" },
+              { type: "button", commandId: "slides.edit.formatPainter" }
             ]
           }
         ]
@@ -244,7 +245,8 @@ export const SLIDES_RIBBON_TABS = [
         label: "Tùy chỉnh",
         labelKey: "slidesRibbon.group.customize",
         items: [
-          { type: "button", commandId: "slides.design.slideSize", isLarge: true }
+          { type: "button", commandId: "slides.design.slideSize", isLarge: true },
+          { type: "button", commandId: "slides.design.formatBackground", isLarge: true }
         ]
       }
     ]
@@ -313,6 +315,12 @@ export const SLIDES_RIBBON_TABS = [
     label: "Đánh giá",
     labelKey: "slidesRibbon.tab.review",
     groups: [
+      {
+        id: "proofing",
+        label: "Chứng minh",
+        labelKey: "slidesRibbon.group.proofing",
+        items: [{ type: "button", commandId: "slides.review.spellCheck", isLarge: true }]
+      },
       {
         label: "Nhận xét",
         labelKey: "slidesRibbon.group.comments",

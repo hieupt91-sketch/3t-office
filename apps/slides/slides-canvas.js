@@ -6,7 +6,7 @@ import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t, getLocale } from "../../platform/i18n/i18n.js";
 import { formatDateTime, showDateTimeDialog } from "../../platform/ui-kit/datetime-picker.js";
 import { showSymbolPicker } from "../../platform/ui-kit/symbol-picker.js";
-import { VietnameseSpellChecker } from "../../platform/text/vi-spellchecker.js";
+import { VietnameseSpellChecker, tokenizeVietnamese, normalizeVietnameseWord } from "../../platform/text/vi-spellchecker.js";
 import { SpellcheckDomController } from "../../platform/text/spellcheck-dom-controller.js";
 import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
 import { showSlideTableDialog, showHeaderFooterDialog, showWordArtDialog, resolveWordArtStyle, buildWordArtCss, applyWordArtCss } from "./insert-dialogs.js";
@@ -241,6 +241,9 @@ export class SlidesCanvasController {
     this.body2El = null;
     this.selectedTarget = null; // "title" | "body" | "body2" | shapeId
     this.selectedShapeIds = new Set();
+    this.formatPainter = null;
+    this._formatPainterActivatedAt = 0;
+    this._formatPainterEscHandler = null;
     this.diagramGroupSelectionId = null;
     this.diagramGroupBoundsEl = null;
     this.smartGuidesLayer = null;
@@ -306,6 +309,7 @@ export class SlidesCanvasController {
     this.spellcheckChecker = null;
     this.spellcheckController = null;
     this._onSpellcheckMenuClick = null;
+    this._spellcheckOverlay = null;
   }
 
   mount() {
@@ -400,6 +404,9 @@ export class SlidesCanvasController {
     this.bodyEl.addEventListener("click", () => this.setSelectedTarget("body"));
     this.body2El.addEventListener("focus", () => this.setSelectedTarget("body2"));
     this.body2El.addEventListener("click", () => this.setSelectedTarget("body2"));
+    this.titleEl.addEventListener("mouseup", () => this._onTextFieldFormatPainter("title"));
+    this.bodyEl.addEventListener("mouseup", () => this._onTextFieldFormatPainter("body"));
+    this.body2El.addEventListener("mouseup", () => this._onTextFieldFormatPainter("body2"));
 
     this.canvasEl.appendChild(this.titleEl);
     this.canvasEl.appendChild(this.bodyRowEl);
@@ -550,6 +557,311 @@ export class SlidesCanvasController {
       this.canvasEl.title = "Không thể khởi tạo bộ kiểm tra chính tả tiếng Việt.";
       console.warn("[SlidesCanvasController] Không thể khởi tạo kiểm tra chính tả tiếng Việt:", error);
     }
+  }
+
+  _ensureSpellChecker() {
+    if (!this.spellcheckChecker) {
+      this.spellcheckChecker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
+    }
+    return this.spellcheckChecker;
+  }
+
+  _spellcheckFieldLabel(field) {
+    if (field === "title") return t("slidesDialogs.spellcheckFieldTitle", "Tiêu đề");
+    if (field === "body2") return t("slidesDialogs.spellcheckFieldBody2", "Nội dung cột 2");
+    if (field === "shape") return t("slidesDialogs.spellcheckFieldShape", "Hình");
+    return t("slidesDialogs.spellcheckFieldBody", "Nội dung");
+  }
+
+  _spellcheckFields(slide) {
+    const fields = [
+      { field: "title", text: String(slide?.title || "") },
+      { field: "body", text: String(slide?.body || "") }
+    ];
+    if (slide?.body2 != null && String(slide.body2)) {
+      fields.push({ field: "body2", text: String(slide.body2) });
+    }
+    for (const shape of slide?.shapes || []) {
+      const text = String(shape.text || "");
+      if (!text.trim()) continue;
+      fields.push({ field: "shape", shapeId: shape.id, text });
+    }
+    return fields;
+  }
+
+  collectSpellcheckIssues(slideIndex = this.currentSlideIndex) {
+    const checker = this._ensureSpellChecker();
+    const slide = this.slides[slideIndex];
+    if (!slide) return [];
+    const issues = [];
+    for (const item of this._spellcheckFields(slide)) {
+      for (const token of checker.checkText(item.text)) {
+        issues.push({
+          slideIndex,
+          field: item.field,
+          shapeId: item.shapeId,
+          word: token.word,
+          normalized: token.normalized,
+          start: token.start,
+          end: token.end,
+          text: item.text,
+          label: this._spellcheckFieldLabel(item.field)
+        });
+      }
+    }
+    return issues;
+  }
+
+  suggestSpellcheckWord(word) {
+    return this._ensureSpellChecker().suggest(word);
+  }
+
+  _replaceInField(field, shapeId, fromText, nextText) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    const replaceHtml = (html) => {
+      if (!html) return html;
+      return String(html).replace(fromText, nextText);
+    };
+    if (shapeId != null) {
+      const shape = slide.shapes?.find((item) => String(item.id) === String(shapeId));
+      if (!shape) return false;
+      shape.text = nextText;
+      if (shape.textHtml) shape.textHtml = replaceHtml(shape.textHtml);
+      return true;
+    }
+    if (field === "title") {
+      slide.title = nextText;
+      if (slide.titleHtml) slide.titleHtml = replaceHtml(slide.titleHtml);
+      return true;
+    }
+    if (field === "body2") {
+      slide.body2 = nextText;
+      if (slide.body2Html) slide.body2Html = replaceHtml(slide.body2Html);
+      return true;
+    }
+    slide.body = nextText;
+    if (slide.bodyHtml) slide.bodyHtml = replaceHtml(slide.bodyHtml);
+    return true;
+  }
+
+  replaceSpellcheckIssue(issue, replacement) {
+    if (!issue) return false;
+    const source = String(issue.text ?? "");
+    const nextReplacement = String(replacement ?? "");
+    let next;
+    if (source.slice(issue.start, issue.end) === issue.word) {
+      next = source.slice(0, issue.start) + nextReplacement + source.slice(issue.end);
+    } else {
+      const index = source.indexOf(issue.word);
+      if (index < 0) return false;
+      next = source.slice(0, index) + nextReplacement + source.slice(index + issue.word.length);
+    }
+    const before = this._snapshotTextField(issue.field, issue.shapeId);
+    if (!this._replaceInField(issue.field, issue.shapeId, source, next)) return false;
+    const after = this._snapshotTextField(issue.field, issue.shapeId);
+    this.undoStack.push({
+      type: "text-format",
+      slideIndex: this.currentSlideIndex,
+      field: issue.field,
+      shapeId: issue.shapeId,
+      before,
+      after
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this.selectSlide(this.currentSlideIndex);
+    this._refreshSpellcheckRoots();
+    return true;
+  }
+
+  replaceAllSpellcheckWord(word, replacement) {
+    const target = normalizeVietnameseWord(word);
+    if (!target) return 0;
+    const nextReplacement = String(replacement ?? "");
+    let count = 0;
+    const issues = this.collectSpellcheckIssues();
+    const seen = new Set();
+    for (const issue of issues) {
+      const key = `${issue.field}:${issue.shapeId || ""}`;
+      if (issue.normalized !== target || seen.has(key)) continue;
+      seen.add(key);
+      const tokens = tokenizeVietnamese(String(issue.text ?? ""));
+      let text = String(issue.text ?? "");
+      for (let index = tokens.length - 1; index >= 0; index--) {
+        const token = tokens[index];
+        if (token.normalized !== target) continue;
+        text = text.slice(0, token.start) + nextReplacement + text.slice(token.end);
+        count++;
+      }
+      this._replaceInField(issue.field, issue.shapeId, issue.text, text);
+    }
+    if (count) {
+      this.selectSlide(this.currentSlideIndex);
+      this._refreshSpellcheckRoots();
+    }
+    return count;
+  }
+
+  _closeSpellcheckDialog() {
+    this._spellcheckOverlay?.closeDialog?.();
+    this._spellcheckOverlay = null;
+  }
+
+  showSpellcheckDialog(options = {}) {
+    options = options || {};
+    const issues = this.collectSpellcheckIssues();
+    if (typeof document === "undefined" || !document.createElement || !document.body) return issues;
+    this._closeSpellcheckDialog();
+
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay vno-slides-spellcheck-dialog";
+    overlay.dataset.dialog = "slides-spellcheck";
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-slides-spell-title" style="width:460px;">
+        <div class="vno-dialog-header">
+          <strong id="vno-slides-spell-title">${this._escapeHtml(t("slidesDialogs.spellcheckTitle", "Chính tả"))}</strong>
+          <button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${this._escapeHtml(t("slidesDialogs.close", "Đóng"))}">&times;</button>
+        </div>
+        <div class="vno-dialog-body" id="vno-slides-spell-body"></div>
+        <div class="vno-dialog-footer vno-spell-footer"></div>
+      </div>`;
+
+    const previousActive = document.activeElement;
+    const body = overlay.querySelector("#vno-slides-spell-body");
+    const footer = overlay.querySelector(".vno-spell-footer");
+    let currentIndex = 0;
+    let sessionIssues = issues;
+
+    const close = () => {
+      document.removeEventListener("keydown", onKey);
+      overlay.remove();
+      if (this._spellcheckOverlay === overlay) this._spellcheckOverlay = null;
+      if (previousActive && typeof previousActive.focus === "function") {
+        try { previousActive.focus(); } catch (_) {}
+      }
+    };
+    overlay.closeDialog = close;
+
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close();
+      } else {
+        trapFocus(overlay.querySelector(".vno-dialog-box"), event);
+      }
+    };
+
+    const refreshIssues = () => {
+      sessionIssues = this.collectSpellcheckIssues();
+      if (currentIndex >= sessionIssues.length) currentIndex = Math.max(0, sessionIssues.length - 1);
+    };
+
+    const renderComplete = (messageKey) => {
+      overlay.dataset.spellcheckState = "done";
+      overlay.removeAttribute("data-spell-word");
+      body.innerHTML = `<p class="vno-spell-complete" role="status">${this._escapeHtml(t(messageKey, "Đã kiểm tra xong trang chiếu hiện tại. Không tìm thấy lỗi chính tả."))}</p>`;
+      footer.innerHTML = `<button type="button" class="vno-btn vno-btn-primary" id="vno-slides-spell-close">${this._escapeHtml(t("slidesDialogs.spellcheckClose", "Đóng"))}</button>`;
+      footer.querySelector("#vno-slides-spell-close").addEventListener("click", close);
+      footer.querySelector("#vno-slides-spell-close").focus();
+    };
+
+    const renderIssue = () => {
+      if (!sessionIssues.length) {
+        renderComplete("slidesDialogs.spellcheckComplete");
+        return;
+      }
+      const issue = sessionIssues[currentIndex];
+      const suggestions = this.suggestSpellcheckWord(issue.word);
+      overlay.dataset.spellcheckState = "issue";
+      overlay.dataset.spellWord = issue.word;
+      overlay.dataset.spellField = issue.field;
+      if (issue.field === "title" || issue.field === "body" || issue.field === "body2") {
+        this.setSelectedTarget(issue.field);
+      } else if (issue.shapeId != null) {
+        this.setSelectedTarget(issue.shapeId);
+      }
+      const suggestionOptions = suggestions.length
+        ? suggestions.map((word, index) => `<option value="${this._escapeHtml(word)}" ${index === 0 ? "selected" : ""}>${this._escapeHtml(word)}</option>`).join("")
+        : `<option value="">${this._escapeHtml(t("slidesDialogs.spellcheckNoSuggestions", "(Không có gợi ý gần)"))}</option>`;
+      const changeTo = suggestions[0] || issue.word;
+      body.innerHTML = `
+        <p class="vno-spell-status" role="status">${this._escapeHtml(t("slidesDialogs.spellcheckStatus", { current: currentIndex + 1, total: sessionIssues.length }))}</p>
+        <label>${this._escapeHtml(t("slidesDialogs.spellcheckNotInDictionary", "Không có trong từ điển:"))}
+          <input id="vno-slides-spell-not-in-dict" class="vno-dialog-input" value="${this._escapeHtml(issue.word)}" readonly>
+        </label>
+        <label>${this._escapeHtml(t("slidesDialogs.spellcheckReplace", "Thay thế"))}:
+          <input id="vno-slides-spell-word" class="vno-dialog-input" value="${this._escapeHtml(changeTo)}" autocomplete="off">
+        </label>
+        <p class="vno-spell-meta">${this._escapeHtml(t("slidesDialogs.spellcheckLocation", "Vị trí"))}: <strong id="vno-slides-spell-loc">${this._escapeHtml(issue.label)}</strong></p>
+        <p class="vno-spell-context">${this._escapeHtml(t("slidesDialogs.spellcheckContext", "Nội dung"))}: <span id="vno-slides-spell-context">${this._escapeHtml(issue.text)}</span></p>
+        <label>${this._escapeHtml(t("slidesDialogs.spellcheckSuggestions", "Gợi ý:"))}
+          <select id="vno-slides-spell-suggestions" class="vno-select" size="${Math.min(5, Math.max(2, suggestions.length || 1))}">${suggestionOptions}</select>
+        </label>`;
+      footer.innerHTML = `
+        <button type="button" class="vno-btn" id="vno-slides-spell-ignore">${this._escapeHtml(t("slidesDialogs.spellcheckIgnore", "Bỏ qua"))}</button>
+        <button type="button" class="vno-btn" id="vno-slides-spell-ignore-all">${this._escapeHtml(t("slidesDialogs.spellcheckIgnoreAll", "Bỏ qua tất cả"))}</button>
+        <button type="button" class="vno-btn" id="vno-slides-spell-add">${this._escapeHtml(t("slidesDialogs.spellcheckAdd", "Thêm vào từ điển"))}</button>
+        <button type="button" class="vno-btn vno-btn-primary" id="vno-slides-spell-replace">${this._escapeHtml(t("slidesDialogs.spellcheckReplace", "Thay thế"))}</button>
+        <button type="button" class="vno-btn" id="vno-slides-spell-replace-all">${this._escapeHtml(t("slidesDialogs.spellcheckReplaceAll", "Thay thế tất cả"))}</button>
+        <button type="button" class="vno-btn" id="vno-slides-spell-close">${this._escapeHtml(t("slidesDialogs.spellcheckClose", "Đóng"))}</button>`;
+
+      const wordInput = body.querySelector("#vno-slides-spell-word");
+      const suggestionList = body.querySelector("#vno-slides-spell-suggestions");
+      suggestionList.addEventListener("change", () => {
+        if (suggestionList.value) wordInput.value = suggestionList.value;
+      });
+      suggestionList.addEventListener("dblclick", () => {
+        if (suggestionList.value) {
+          wordInput.value = suggestionList.value;
+          applyReplace(false);
+        }
+      });
+
+      const skipCurrent = () => {
+        currentIndex += 1;
+        if (currentIndex >= sessionIssues.length) renderComplete("slidesDialogs.spellcheckCompleteRemaining");
+        else renderIssue();
+      };
+
+      const applyReplace = (all) => {
+        const replacement = wordInput.value;
+        if (!replacement) return;
+        if (all) this.replaceAllSpellcheckWord(issue.word, replacement);
+        else this.replaceSpellcheckIssue(issue, replacement);
+        refreshIssues();
+        renderIssue();
+      };
+
+      footer.querySelector("#vno-slides-spell-ignore").addEventListener("click", skipCurrent);
+      footer.querySelector("#vno-slides-spell-ignore-all").addEventListener("click", () => {
+        this._ensureSpellChecker().ignore(issue.word);
+        this._refreshSpellcheckRoots();
+        refreshIssues();
+        renderIssue();
+      });
+      footer.querySelector("#vno-slides-spell-add").addEventListener("click", () => {
+        this._ensureSpellChecker().addToPersonalDictionary(issue.word);
+        this._refreshSpellcheckRoots();
+        refreshIssues();
+        renderIssue();
+      });
+      footer.querySelector("#vno-slides-spell-replace").addEventListener("click", () => applyReplace(false));
+      footer.querySelector("#vno-slides-spell-replace-all").addEventListener("click", () => applyReplace(true));
+      footer.querySelector("#vno-slides-spell-close").addEventListener("click", close);
+      wordInput.focus();
+      wordInput.select();
+    };
+
+    overlay.querySelector(".vno-dialog-close-btn").addEventListener("click", close);
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) close();
+    });
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(overlay);
+    this._spellcheckOverlay = overlay;
+    renderIssue();
+    return true;
   }
 
   _captureEditableHtml(el) {
@@ -1677,6 +1989,257 @@ export class SlidesCanvasController {
     globalCommandBus.updateState("common.edit.redo", { enabled: this.redoStack.length > 0 });
   }
 
+  _shapeFillEligible(shape) {
+    if (!shape) return false;
+    return !["image", "video", "audio", "table", "chart", "wordart", "connector"].includes(shape.type);
+  }
+
+  _captureTextComputedFormat() {
+    if (typeof window === "undefined" || typeof window.getComputedStyle !== "function") return null;
+    const selection = typeof window.getSelection === "function" ? window.getSelection() : null;
+    let node = selection?.anchorNode || selection?.focusNode;
+    if (node && node.nodeType === 3) node = node.parentNode;
+    const inSlideEditable = (candidate) => {
+      if (!candidate) return false;
+      if (this.titleEl?.contains?.(candidate) || this.bodyEl?.contains?.(candidate) || this.body2El?.contains?.(candidate)) return true;
+      const host = candidate.closest?.("[contenteditable='true'], [contenteditable=true], [contenteditable]");
+      return !!(host && this.canvasEl?.contains?.(host));
+    };
+    if (!inSlideEditable(node)) {
+      let field = null;
+      if (this.selectedTarget === "title") field = this.titleEl;
+      else if (this.selectedTarget === "body") field = this.bodyEl;
+      else if (this.selectedTarget === "body2") field = this.body2El;
+      node = field?.querySelector?.("font, span[style], b, strong, i, em, u") || field || null;
+    }
+    if (!node) return null;
+    try {
+      const style = window.getComputedStyle(node);
+      return {
+        fontWeight: style.fontWeight,
+        fontStyle: style.fontStyle,
+        textDecoration: style.textDecorationLine || style.textDecoration,
+        color: style.color,
+        backgroundColor: style.backgroundColor,
+        fontFamily: style.fontFamily,
+        fontSize: style.fontSize
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  _captureFormatPainterSource() {
+    const slide = this.slides[this.currentSlideIndex];
+    const result = { text: null, shape: null };
+    const target = this.selectedTarget;
+    if (target && target !== "title" && target !== "body" && target !== "body2") {
+      const shape = slide?.shapes?.find((item) => String(item.id) === String(target));
+      if (this._shapeFillEligible(shape)) {
+        result.shape = { color: shape.color || "#3b82f6" };
+      }
+    }
+    const selectedIsText = target === "title" || target === "body" || target === "body2";
+    const textFormat = this._captureTextComputedFormat();
+    if (selectedIsText || textFormat) result.text = textFormat;
+    return result;
+  }
+
+  toggleFormatPainter(opts = {}) {
+    const locked = !!opts.locked;
+    const now = Date.now();
+    if (this.formatPainter) {
+      if (locked) {
+        this.formatPainter.locked = true;
+        this._syncFormatPainterUi();
+        return true;
+      }
+      if (now - (this._formatPainterActivatedAt || 0) < 400) return true;
+      this.cancelFormatPainter();
+      return false;
+    }
+    return this.startFormatPainter({ locked, source: opts.source });
+  }
+
+  startFormatPainter({ locked = false, source = null } = {}) {
+    const captured = source || this._captureFormatPainterSource();
+    if (!captured?.text && !captured?.shape) return false;
+    this.formatPainter = {
+      locked: !!locked,
+      text: captured.text ? { ...captured.text } : null,
+      shape: captured.shape ? { ...captured.shape } : null
+    };
+    this._formatPainterActivatedAt = Date.now();
+    this._bindFormatPainterEscape();
+    this._syncFormatPainterUi();
+    return true;
+  }
+
+  cancelFormatPainter() {
+    if (!this.formatPainter) return false;
+    this.formatPainter = null;
+    this._unbindFormatPainterEscape();
+    this._syncFormatPainterUi();
+    return true;
+  }
+
+  _syncFormatPainterUi() {
+    const active = !!this.formatPainter;
+    const locked = !!this.formatPainter?.locked;
+    this.container?.classList?.toggle?.("vno-format-painter-active", active);
+    this.container?.classList?.toggle?.("vno-format-painter-locked", locked);
+    if (this.container?.dataset) {
+      if (active) this.container.dataset.formatPainter = locked ? "locked" : "on";
+      else delete this.container.dataset.formatPainter;
+    }
+    globalCommandBus?.updateState?.("slides.edit.formatPainter", { checked: active });
+  }
+
+  _bindFormatPainterEscape() {
+    this._unbindFormatPainterEscape();
+    if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
+    this._formatPainterEscHandler = (event) => {
+      if (event.key === "Escape" && this.formatPainter) {
+        event.preventDefault();
+        this.cancelFormatPainter();
+      }
+    };
+    document.addEventListener("keydown", this._formatPainterEscHandler, true);
+  }
+
+  _unbindFormatPainterEscape() {
+    if (this._formatPainterEscHandler && typeof document !== "undefined" && typeof document.removeEventListener === "function") {
+      document.removeEventListener("keydown", this._formatPainterEscHandler, true);
+    }
+    this._formatPainterEscHandler = null;
+  }
+
+  _onTextFieldFormatPainter(field) {
+    if (!this.formatPainter?.text) return;
+    this.applyFormatPainterToTextField(field);
+  }
+
+  _snapshotTextField(field, shapeId) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return { text: "", html: undefined };
+    if (shapeId != null) {
+      const shape = slide.shapes?.find((item) => String(item.id) === String(shapeId));
+      return { text: shape?.text || "", html: shape?.textHtml };
+    }
+    if (field === "title") return { text: slide.title, html: slide.titleHtml };
+    if (field === "body2") return { text: slide.body2, html: slide.body2Html };
+    return { text: slide.body, html: slide.bodyHtml };
+  }
+
+  _restoreTextField(field, snapshot, shapeId) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !snapshot) return;
+    const apply = (target, textKey, htmlKey) => {
+      target[textKey] = snapshot.text;
+      if (snapshot.html) target[htmlKey] = snapshot.html;
+      else delete target[htmlKey];
+    };
+    if (shapeId != null) {
+      const shape = slide.shapes?.find((item) => String(item.id) === String(shapeId));
+      if (shape) apply(shape, "text", "textHtml");
+      return;
+    }
+    if (field === "title") apply(slide, "title", "titleHtml");
+    else if (field === "body2") apply(slide, "body2", "body2Html");
+    else apply(slide, "body", "bodyHtml");
+  }
+
+  _applyCopiedTextFormat(fmt, editable) {
+    if (!fmt || typeof document === "undefined" || typeof document.execCommand !== "function") return false;
+    editable?.focus?.();
+    const selection = typeof window !== "undefined" && typeof window.getSelection === "function" ? window.getSelection() : null;
+    if (selection && editable && (selection.rangeCount === 0 || selection.isCollapsed) && typeof document.createRange === "function") {
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(editable);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      } catch {
+        /* selection host may be detached */
+      }
+    }
+    const isBold = fmt.fontWeight === "bold" || parseInt(fmt.fontWeight, 10) >= 600;
+    const isItalic = fmt.fontStyle === "italic";
+    const deco = String(fmt.textDecoration || "");
+    const isUnderline = deco.includes("underline");
+    if (isBold && !document.queryCommandState("bold")) document.execCommand("bold");
+    if (!isBold && document.queryCommandState("bold")) document.execCommand("bold");
+    if (isItalic && !document.queryCommandState("italic")) document.execCommand("italic");
+    if (!isItalic && document.queryCommandState("italic")) document.execCommand("italic");
+    if (isUnderline && !document.queryCommandState("underline")) document.execCommand("underline");
+    if (!isUnderline && document.queryCommandState("underline")) document.execCommand("underline");
+    if (fmt.color) document.execCommand("foreColor", false, fmt.color);
+    if (fmt.backgroundColor && fmt.backgroundColor !== "transparent" && fmt.backgroundColor !== "rgba(0, 0, 0, 0)") {
+      document.execCommand("hiliteColor", false, fmt.backgroundColor);
+    }
+    if (fmt.fontFamily) document.execCommand("fontName", false, fmt.fontFamily);
+    return true;
+  }
+
+  applyFormatPainterToTextField(field) {
+    if (!this.formatPainter?.text) return false;
+    const el = field === "title" ? this.titleEl : field === "body2" ? this.body2El : this.bodyEl;
+    return this.applyFormatPainterToTextElement(el, { field });
+  }
+
+  applyFormatPainterToTextElement(editable, { field = "body", shapeId = null } = {}) {
+    if (!this.formatPainter?.text) return false;
+    const before = this._snapshotTextField(field, shapeId);
+    const applied = this._applyCopiedTextFormat(this.formatPainter.text, editable);
+    if (shapeId != null) this._syncVisibleSpellcheckText();
+    else this._syncEditableFieldsFromDom();
+    const after = this._snapshotTextField(field, shapeId);
+    this.undoStack.push({
+      type: "text-format",
+      slideIndex: this.currentSlideIndex,
+      field,
+      shapeId,
+      before,
+      after
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderThumbnails?.();
+    if (!this.formatPainter.locked) this.cancelFormatPainter();
+    return applied || true;
+  }
+
+  applyFormatPainterToShape(shape) {
+    if (!this.formatPainter || !shape) return false;
+    if (!this.formatPainter.shape || !this._shapeFillEligible(shape)) return false;
+    const before = { color: shape.color };
+    shape.color = this.formatPainter.shape.color;
+    this.undoStack.push({
+      type: "shape-format",
+      slideIndex: this.currentSlideIndex,
+      shapeId: shape.id,
+      before,
+      after: { color: shape.color }
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderShapesLayer();
+    this._renderThumbnails?.();
+    if (!this.formatPainter.locked) this.cancelFormatPainter();
+    return true;
+  }
+
+  applyFormatPainterToSelection(target = this.selectedTarget) {
+    if (!this.formatPainter) return false;
+    if (target === "title" || target === "body" || target === "body2") {
+      return this.applyFormatPainterToTextField(target);
+    }
+    const slide = this.slides[this.currentSlideIndex];
+    const shape = slide?.shapes?.find((item) => String(item.id) === String(target));
+    if (shape) return this.applyFormatPainterToShape(shape);
+    return false;
+  }
+
   _renderShapesLayer() {
     if (!this.shapesLayer) return;
     this.shapesLayer.innerHTML = "";
@@ -2063,6 +2626,21 @@ export class SlidesCanvasController {
       if (event.target?.classList?.contains("vno-shape-resize-handle")) return;
       if (event.target?.classList?.contains("vno-shape-delete-btn")) return;
       if (event.target?.classList?.contains("vno-diagram-node-text") && event.target.contentEditable === "true") return;
+      if (this.formatPainter) {
+        const editingText = event.target?.closest?.("[contenteditable='true'], [contenteditable=true]");
+        if (editingText && this.formatPainter.text) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.applyFormatPainterToTextElement(editingText, { shapeId: shape.id });
+          return;
+        }
+        if (this.formatPainter.shape && this._shapeFillEligible(shape)) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.applyFormatPainterToShape(shape);
+          return;
+        }
+      }
 
       if (el.setPointerCapture && event.pointerId != null) {
         try { el.setPointerCapture(event.pointerId); } catch (_) { /* ignore */ }
@@ -2649,7 +3227,7 @@ export class SlidesCanvasController {
 
       item.innerHTML = `
         <span class="vno-slide-thumb-num${slide.hidden ? " is-hidden-number" : ""}">${idx + 1}${slide.hidden ? `<span class="vno-slide-hidden-mark" title="${t("slidesDialogs.hiddenSlideBadge", "Ẩn")}">⊘</span>` : ""}</span>
-        <div class="vno-slide-thumb-card" style="background:${theme.bgColor || "#ffffff"};font-family:${theme.fontFamily || "sans-serif"};">
+        <div class="vno-slide-thumb-card" style="${this._slideSurfaceInlineStyle(slide)};font-family:${theme.fontFamily || "sans-serif"};">
           ${cardInner}
         </div>
       `;
@@ -2708,6 +3286,7 @@ export class SlidesCanvasController {
     }
 
     this._renderHeaderFooter();
+    this._applySlideSurface();
 
     this._renderShapesLayer();
     this._refreshSpellcheckRoots();
@@ -2852,6 +3431,7 @@ export class SlidesCanvasController {
       transition: cur.transition ? { ...cur.transition } : undefined,
       sectionId: cur.sectionId || undefined,
       hidden: !!cur.hidden,
+      background: cur.background ? JSON.parse(JSON.stringify(cur.background)) : undefined,
       comments: (cur.comments || []).map(comment => ({ ...comment, id: `${comment.id}-copy-${Date.now()}` }))
     };
     const targetIdx = this.currentSlideIndex + 1;
@@ -3138,7 +3718,7 @@ export class SlidesCanvasController {
         <div class="vno-slide-sorter-number${slide.hidden ? " is-hidden-number" : ""}">${index + 1}${slide.hidden ? `<span class="vno-slide-sorter-hidden-mark" title="${t("slidesDialogs.hiddenSlideBadge", "Ẩn")}">⊘</span>` : ""}</div>
         ${timingLabel}
         ${commentBadge}
-        <div class="vno-slide-sorter-preview" style="background:${theme.bgColor || "#fff"};font-family:${theme.fontFamily || "sans-serif"}">
+        <div class="vno-slide-sorter-preview" style="${this._slideSurfaceInlineStyle(slide)};font-family:${theme.fontFamily || "sans-serif"}">
           <div class="vno-slide-sorter-accent" style="background:${theme.accentColor || "#b53818"}"></div>
           <div class="vno-slide-sorter-title" style="color:${theme.titleColor || "#0f172a"}">${escapeHtml(slide.title || "Trang chiếu trống")}</div>
           <div class="vno-slide-sorter-body" style="color:${theme.bodyColor || "#475569"}">${escapeHtml(slide.body)}</div>
@@ -3263,6 +3843,21 @@ export class SlidesCanvasController {
       if (!shape) return false;
       shape.text = action.before;
       this.redoStack.push(action); this.selectSlide(action.slideIndex); this._renderShapesLayer(); return true;
+    } else if (action.type === "shape-format") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      shape.color = action.before?.color;
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "text-format") {
+      this.currentSlideIndex = action.slideIndex;
+      this._restoreTextField(action.field, action.before, action.shapeId);
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
     } else if (action.type === "chart-edit") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;
@@ -3406,6 +4001,10 @@ export class SlidesCanvasController {
       this._renderThumbnails();
       if (this.slideSorterOverlay) this._renderSlideSorterGrid();
       return true;
+    } else if (action.type === "slide-background") {
+      this._restoreSlideBackgrounds(action.before);
+      this.redoStack.push(action);
+      return true;
     }
     return false;
   }
@@ -3475,6 +4074,21 @@ export class SlidesCanvasController {
       if (!shape) return false;
       shape.text = action.after;
       this.undoStack.push(action); this.selectSlide(action.slideIndex); this._renderShapesLayer(); return true;
+    } else if (action.type === "shape-format") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      shape.color = action.after?.color;
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "text-format") {
+      this.currentSlideIndex = action.slideIndex;
+      this._restoreTextField(action.field, action.after, action.shapeId);
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
     } else if (action.type === "chart-edit") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;
@@ -3615,6 +4229,10 @@ export class SlidesCanvasController {
       this.selectSlide(action.index);
       this._renderThumbnails();
       if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+      return true;
+    } else if (action.type === "slide-background") {
+      this._restoreSlideBackgrounds(action.after);
+      this.undoStack.push(action);
       return true;
     }
     return false;
@@ -3770,6 +4388,7 @@ export class SlidesCanvasController {
     if (this.canvasEl) {
       this.canvasEl.style.fontFamily = this.masterTheme.fontFamily;
       this.canvasEl.style.backgroundColor = this.masterTheme.bgColor;
+      this._applySlideSurface();
     }
     if (this.titleEl) {
       this.titleEl.style.color = this.masterTheme.titleColor;
@@ -3798,6 +4417,243 @@ export class SlidesCanvasController {
     this._renderThumbnails();
     this._renderSlideSorterGrid();
     return true;
+  }
+
+  _cloneBackground(background) {
+    if (!background) return null;
+    try { return JSON.parse(JSON.stringify(background)); } catch { return { ...background }; }
+  }
+
+  _slideSurfaceCss(slide) {
+    const theme = this.masterTheme || {};
+    const fallback = theme.bgColor || "#ffffff";
+    const bg = slide?.background;
+    if (!bg || bg.type === "none") {
+      return { backgroundColor: fallback, backgroundImage: "none", backgroundSize: "", backgroundPosition: "", backgroundRepeat: "" };
+    }
+    if (bg.type === "solid") {
+      return { backgroundColor: bg.color || fallback, backgroundImage: "none", backgroundSize: "", backgroundPosition: "", backgroundRepeat: "" };
+    }
+    if (bg.type === "gradient") {
+      const from = bg.gradient?.from || "#1e3a8a";
+      const to = bg.gradient?.to || "#ffffff";
+      const angle = bg.gradient?.direction === "vertical" ? 180 : 90;
+      return { backgroundColor: from, backgroundImage: `linear-gradient(${angle}deg, ${from}, ${to})`, backgroundSize: "", backgroundPosition: "", backgroundRepeat: "" };
+    }
+    if (bg.type === "picture" && bg.picture) {
+      return { backgroundColor: fallback, backgroundImage: `url("${bg.picture}")`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" };
+    }
+    return { backgroundColor: fallback, backgroundImage: "none", backgroundSize: "", backgroundPosition: "", backgroundRepeat: "" };
+  }
+
+  _slideSurfaceInlineStyle(slide) {
+    const css = this._slideSurfaceCss(slide);
+    const parts = [`background-color:${css.backgroundColor}`];
+    if (css.backgroundImage && css.backgroundImage !== "none") {
+      parts.push(`background-image:${css.backgroundImage}`);
+      if (css.backgroundSize) parts.push(`background-size:${css.backgroundSize}`);
+      if (css.backgroundPosition) parts.push(`background-position:${css.backgroundPosition}`);
+      if (css.backgroundRepeat) parts.push(`background-repeat:${css.backgroundRepeat}`);
+    }
+    return parts.join(";");
+  }
+
+  _applySurfaceToElement(el, slide) {
+    if (!el?.style) return;
+    const css = this._slideSurfaceCss(slide);
+    el.style.backgroundColor = css.backgroundColor;
+    el.style.backgroundImage = css.backgroundImage;
+    el.style.backgroundSize = css.backgroundSize || "";
+    el.style.backgroundPosition = css.backgroundPosition || "";
+    el.style.backgroundRepeat = css.backgroundRepeat || "";
+  }
+
+  _applySlideSurface() {
+    this._applySurfaceToElement(this.canvasEl, this.slides[this.currentSlideIndex]);
+  }
+
+  _restoreSlideBackgrounds(entries) {
+    for (const item of entries || []) {
+      const slide = this.slides[item.index];
+      if (!slide) continue;
+      if (item.background) slide.background = this._cloneBackground(item.background);
+      else delete slide.background;
+    }
+    this._applySlideSurface();
+    this._renderThumbnails();
+    if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+  }
+
+  applySlideBackground(background, { applyAll = false, recordUndo = true } = {}) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    const next = background && background.type && background.type !== "none" ? this._cloneBackground(background) : null;
+    const indices = applyAll ? this.slides.map((_, index) => index) : [this.currentSlideIndex];
+    const before = indices.map((index) => ({ index, background: this._cloneBackground(this.slides[index]?.background) }));
+    for (const index of indices) {
+      if (!this.slides[index]) continue;
+      if (next) this.slides[index].background = this._cloneBackground(next);
+      else delete this.slides[index].background;
+    }
+    const after = indices.map((index) => ({ index, background: this._cloneBackground(this.slides[index]?.background) }));
+    if (recordUndo) {
+      this.undoStack.push({ type: "slide-background", before, after });
+      this.redoStack = [];
+      this._syncUndoRedoState();
+    }
+    this._applySlideSurface();
+    this._renderThumbnails();
+    if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+    return true;
+  }
+
+  showFormatBackgroundDialog() {
+    if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      const previousFocused = document.activeElement;
+      const current = this._cloneBackground(this.slides[this.currentSlideIndex]?.background) || {
+        type: "solid",
+        color: this.masterTheme?.bgColor || "#f8fafc"
+      };
+      const overlay = document.createElement("div");
+      overlay.className = "vno-dialog-overlay vno-format-background-dialog";
+      overlay.dataset.dialog = "slides-format-background";
+      const solidColor = current.type === "solid" ? (current.color || "#1e3a8a") : "#1e3a8a";
+      const from = current.gradient?.from || "#1e3a8a";
+      const to = current.gradient?.to || "#ffffff";
+      const direction = current.gradient?.direction === "vertical" ? "vertical" : "horizontal";
+      overlay.innerHTML = `
+        <div class="vno-dialog-box" style="width:520px" role="dialog" aria-modal="true" aria-labelledby="vno-format-bg-title">
+          <div class="vno-dialog-header">
+            <span id="vno-format-bg-title">${t("slidesDialogs.formatBackgroundTitle", "Định dạng nền")}</span>
+            <button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}">&times;</button>
+          </div>
+          <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
+            <p style="margin:0;font-size:12px;color:var(--vno-text-secondary)">${t("slidesDialogs.formatBackgroundHint")}</p>
+            <div role="radiogroup" aria-label="${t("slidesDialogs.formatBackgroundTitle")}" style="display:flex;gap:8px;flex-wrap:wrap;">
+              <label><input type="radio" name="vno-bg-type" value="solid" ${current.type !== "gradient" && current.type !== "picture" ? "checked" : ""}> ${t("slidesDialogs.formatBackgroundSolid")}</label>
+              <label><input type="radio" name="vno-bg-type" value="gradient" ${current.type === "gradient" ? "checked" : ""}> ${t("slidesDialogs.formatBackgroundGradient")}</label>
+              <label><input type="radio" name="vno-bg-type" value="picture" ${current.type === "picture" ? "checked" : ""}> ${t("slidesDialogs.formatBackgroundPicture")}</label>
+            </div>
+            <div data-bg-panel="solid" style="display:flex;align-items:center;gap:8px;">
+              <label for="vno-bg-solid">${t("slidesDialogs.formatBackgroundColor")}</label>
+              <input id="vno-bg-solid" type="color" value="${this._escapeHtml(solidColor)}">
+            </div>
+            <div data-bg-panel="gradient" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+              <label>${t("slidesDialogs.formatBackgroundFrom")} <input id="vno-bg-from" type="color" value="${this._escapeHtml(from)}"></label>
+              <label>${t("slidesDialogs.formatBackgroundTo")} <input id="vno-bg-to" type="color" value="${this._escapeHtml(to)}"></label>
+              <label>${t("slidesDialogs.formatBackgroundDirection")}
+                <select id="vno-bg-dir" class="vno-select">
+                  <option value="horizontal" ${direction === "horizontal" ? "selected" : ""}>${t("slidesDialogs.formatBackgroundHorizontal")}</option>
+                  <option value="vertical" ${direction === "vertical" ? "selected" : ""}>${t("slidesDialogs.formatBackgroundVertical")}</option>
+                </select>
+              </label>
+            </div>
+            <div data-bg-panel="picture" style="display:flex;flex-direction:column;gap:8px;">
+              <button type="button" class="vno-btn" id="vno-bg-pick">${t("slidesDialogs.formatBackgroundChoosePicture")}</button>
+              <input id="vno-bg-file" type="file" accept="image/*" hidden>
+              <div id="vno-bg-pic-status" style="font-size:12px;color:var(--vno-text-secondary)">${current.type === "picture" && current.picture ? "✓" : ""}</div>
+            </div>
+            <div id="vno-bg-preview" style="height:72px;border-radius:6px;border:1px solid var(--vno-border-default);"></div>
+            <label><input type="checkbox" id="vno-bg-all"> ${t("slidesDialogs.formatBackgroundApplyAll")}</label>
+          </div>
+          <div class="vno-dialog-footer">
+            <button type="button" class="vno-btn" id="vno-bg-clear">${t("slidesDialogs.formatBackgroundClear")}</button>
+            <button type="button" class="vno-btn" id="vno-bg-cancel">${t("slidesDialogs.cancel")}</button>
+            <button type="button" class="vno-btn vno-btn-primary" id="vno-bg-apply">${t("slidesDialogs.formatBackgroundApplyCurrent")}</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      const dialogBox = overlay.querySelector(".vno-dialog-box");
+      let pictureData = current.type === "picture" ? current.picture : "";
+      const typeInputs = () => [...overlay.querySelectorAll('input[name="vno-bg-type"]')];
+      const selectedType = () => typeInputs().find((item) => item.checked)?.value || "solid";
+      const syncPanels = () => {
+        const type = selectedType();
+        overlay.querySelectorAll("[data-bg-panel]").forEach((panel) => {
+          panel.style.display = panel.getAttribute("data-bg-panel") === type ? "" : "none";
+        });
+        const preview = overlay.querySelector("#vno-bg-preview");
+        const fake = {
+          background: type === "solid"
+            ? { type: "solid", color: overlay.querySelector("#vno-bg-solid").value }
+            : type === "gradient"
+              ? { type: "gradient", gradient: { from: overlay.querySelector("#vno-bg-from").value, to: overlay.querySelector("#vno-bg-to").value, direction: overlay.querySelector("#vno-bg-dir").value } }
+              : { type: "picture", picture: pictureData }
+        };
+        this._applySurfaceToElement(preview, fake);
+      };
+      const readBackground = () => {
+        const type = selectedType();
+        if (type === "gradient") {
+          return { type: "gradient", gradient: { from: overlay.querySelector("#vno-bg-from").value, to: overlay.querySelector("#vno-bg-to").value, direction: overlay.querySelector("#vno-bg-dir").value } };
+        }
+        if (type === "picture") {
+          if (!pictureData) return null;
+          return { type: "picture", picture: pictureData };
+        }
+        return { type: "solid", color: overlay.querySelector("#vno-bg-solid").value };
+      };
+      let closed = false;
+      const close = (value) => {
+        if (closed) return;
+        closed = true;
+        document.removeEventListener("keydown", onKey);
+        overlay.remove();
+        if (previousFocused && typeof previousFocused.focus === "function") {
+          try { previousFocused.focus(); } catch (_) {}
+        }
+        resolve(value);
+      };
+      const onKey = (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          close(false);
+        } else {
+          trapFocus(dialogBox, event);
+        }
+      };
+      document.addEventListener("keydown", onKey);
+      overlay.addEventListener("click", (event) => { if (event.target === overlay) close(false); });
+      overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
+      overlay.querySelector("#vno-bg-cancel")?.addEventListener("click", () => close(false));
+      typeInputs().forEach((input) => input.addEventListener("change", syncPanels));
+      overlay.querySelector("#vno-bg-solid").addEventListener("input", syncPanels);
+      overlay.querySelector("#vno-bg-from").addEventListener("input", syncPanels);
+      overlay.querySelector("#vno-bg-to").addEventListener("input", syncPanels);
+      overlay.querySelector("#vno-bg-dir").addEventListener("change", syncPanels);
+      overlay.querySelector("#vno-bg-pick").addEventListener("click", () => overlay.querySelector("#vno-bg-file").click());
+      overlay.querySelector("#vno-bg-file").addEventListener("change", (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          pictureData = String(reader.result || "");
+          overlay.querySelector("#vno-bg-pic-status").textContent = file.name;
+          const pictureRadio = typeInputs().find((item) => item.value === "picture");
+          if (pictureRadio) pictureRadio.checked = true;
+          syncPanels();
+        };
+        reader.readAsDataURL(file);
+      });
+      overlay.querySelector("#vno-bg-apply").addEventListener("click", () => {
+        const payload = readBackground();
+        if (!payload) return;
+        const applyAll = overlay.querySelector("#vno-bg-all").checked;
+        close(this.applySlideBackground(payload, { applyAll }));
+      });
+      overlay.querySelector("#vno-bg-clear").addEventListener("click", () => {
+        const applyAll = overlay.querySelector("#vno-bg-all").checked;
+        close(this.applySlideBackground(null, { applyAll }));
+      });
+      overlay.querySelector("#vno-bg-all").addEventListener("change", (event) => {
+        overlay.querySelector("#vno-bg-apply").textContent = event.target.checked
+          ? t("slidesDialogs.formatBackgroundApplyAll")
+          : t("slidesDialogs.formatBackgroundApplyCurrent");
+      });
+      syncPanels();
+      overlay.querySelector("#vno-bg-apply")?.focus?.();
+    });
   }
 
   _applySlideSizeToDom() {
@@ -4685,7 +5541,7 @@ export class SlidesCanvasController {
       }
 
       content.style.fontFamily = theme.fontFamily || "sans-serif";
-      content.style.backgroundColor = theme.bgColor || "#ffffff";
+      this._applySurfaceToElement(content, s);
 
       const layout = s.layoutType || "title-content";
       let layoutHtml = "";
@@ -5140,6 +5996,7 @@ export class SlidesCanvasController {
    * @param {string} [defaultTitle]
    */
   resetToBlank(defaultTitle = "BẢN TRÌNH CHIẾU MỚI") {
+    this.cancelFormatPainter();
     this.closeSlideSorter();
     this._activeShowCleanup?.();
     this._activePresenterCleanup?.();
@@ -5589,6 +6446,8 @@ export class SlidesCanvasController {
       window.removeEventListener("keydown", this._windowKeyHandler);
       this._windowKeyHandler = null;
     }
+    this.cancelFormatPainter();
+    this._closeSpellcheckDialog();
     this.spellcheckController?.destroy();
     this.spellcheckController = null;
     this.spellcheckChecker = null;

@@ -68,7 +68,7 @@ export const enStrings = {
   },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", ai: "VN AI Assistant" },
-    group: { slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", aiContent: "AI Presentation Content" }
+    group: { slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", aiContent: "AI Presentation Content" }
   },
   sheetDialogs: {
     close: "Close", cancel: "Cancel", cancelLong: "Cancel", apply: "Apply", range: "Range", rangeLabel: "Range:", value: "Value", save: "Save",
@@ -113,7 +113,9 @@ export const enStrings = {
     exitReadingTitle: "Exit reading mode (Esc)", notesFontDecTitle: "Decrease font size", notesFontIncTitle: "Increase font size",
     exitPresenterAria: "Exit presenter mode (Esc)",
     commentsLabel: "Slide Comments", newComment: "New Comment", commentPlaceholder: "Enter a comment...", addComment: "Add Comment", rehearsalConfirm: "Total slide show time: {time}.\nSave the rehearsal timings for each slide?",
-    diagramTitle: "Insert Diagram", diagramHint: "Choose a diagram type and number of boxes. You can edit text directly after insertion.", diagramNodeCount: "Number of boxes", diagramInsert: "Insert Diagram", diagramProcess: "Step Process", diagramCycle: "Cycle Process", diagramHierarchy: "Organization Hierarchy", diagramList: "Hierarchical List", diagramStep: "Step {number}", diagramItem: "Item {number}", diagramRoot: "Leader", diagramChild: "Department {number}"
+    diagramTitle: "Insert Diagram", diagramHint: "Choose a diagram type and number of boxes. You can edit text directly after insertion.", diagramNodeCount: "Number of boxes", diagramInsert: "Insert Diagram", diagramProcess: "Step Process", diagramCycle: "Cycle Process", diagramHierarchy: "Organization Hierarchy", diagramList: "Hierarchical List", diagramStep: "Step {number}", diagramItem: "Item {number}", diagramRoot: "Leader", diagramChild: "Department {number}",
+    formatBackgroundTitle: "Format Background", formatBackgroundHint: "Change this slide's background. This does not replace the presentation theme.", formatBackgroundSolid: "Solid fill", formatBackgroundGradient: "Two-color gradient", formatBackgroundPicture: "Picture", formatBackgroundColor: "Fill color", formatBackgroundFrom: "Color 1", formatBackgroundTo: "Color 2", formatBackgroundDirection: "Direction", formatBackgroundHorizontal: "Horizontal", formatBackgroundVertical: "Vertical", formatBackgroundChoosePicture: "Choose picture…", formatBackgroundApplyCurrent: "Apply to this slide", formatBackgroundApplyAll: "Apply to all slides", formatBackgroundClear: "Remove custom background",
+    spellcheckTitle: "Spelling", spellcheckNotInDictionary: "Not in Dictionary:", spellcheckLocation: "Location", spellcheckContext: "Text", spellcheckSuggestions: "Suggestions:", spellcheckNoSuggestions: "(No close suggestions)", spellcheckIgnore: "Ignore Once", spellcheckIgnoreAll: "Ignore All", spellcheckAdd: "Add to Dictionary", spellcheckReplace: "Change", spellcheckReplaceAll: "Change All", spellcheckClose: "Close", spellcheckStatus: "Issue {current} of {total}", spellcheckComplete: "The spelling check is complete for this slide. No misspellings were found.", spellcheckCompleteRemaining: "The spelling check is complete. No misspellings remain.", spellcheckFieldTitle: "Title", spellcheckFieldBody: "Body", spellcheckFieldBody2: "Second column", spellcheckFieldShape: "Shape"
   },
   commands: {
     "writer.nav.docStart": { label: "Document Start", tooltip: "Go to the start of the document (Ctrl+Home)" },
@@ -272,6 +274,8 @@ export const enStrings = {
     ,"sheet.edit.clearFormats": { label: "Clear Formats", tooltip: "Clear cell formatting back to default while keeping contents" }
     ,"sheet.edit.clearContents": { label: "Clear Contents", tooltip: "Clear cell contents and formulas while keeping formatting" }
     ,"slides.review.commentInsert": { label: "New Comment", tooltip: "Add a comment to the current slide" }
+    ,"slides.review.spellCheck": { label: "Spelling", tooltip: "Check Vietnamese spelling on the current slide (F7)" }
+    ,"slides.edit.formatPainter": { label: "Format Painter", tooltip: "Copy text or shape formatting to another object. Double-click to lock and apply multiple times. Esc to cancel." }
     ,"slides.slide.new": { label: "New Slide", tooltip: "Insert a new slide (Ctrl+M)" }
     ,"slides.layout.apply": { label: "Layout", tooltip: "Change the slide layout (Title, Content, Two Content, Blank)" }
     ,"slides.layout.select": { label: "Choose Layout", tooltip: "Open the slide layout gallery" }
@@ -293,6 +297,7 @@ export const enStrings = {
     ,"slides.master.apply": { label: "Slide Master", tooltip: "Apply a Slide Master theme across the presentation" }
     ,"slides.design.themeGallery": { label: "Themes", tooltip: "Choose a design theme for the whole presentation" }
     ,"slides.design.slideSize": { label: "Slide Size", tooltip: "Choose a 16:9 or 4:3 slide ratio" }
+    ,"slides.design.formatBackground": { label: "Format Background", tooltip: "Change the current slide or all slides to a solid color, two-color gradient, or picture" }
     ,"slides.transition.apply": { label: "Transitions", tooltip: "Apply a slide transition (Fade, Push, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Animations", tooltip: "Apply an entrance animation to an object" }
     ,"slides.view.normal": { label: "Normal", tooltip: "Normal view for editing slides" }
