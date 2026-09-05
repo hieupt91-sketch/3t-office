@@ -83,6 +83,7 @@ import { runSlidesSpeakernotesImportTests } from "./unit/slides-speakernotes-imp
 import { runSheetChartsImportTests } from "./unit/sheet-charts-import.test.js";
 import { runWriterTablesImportTests } from "./unit/writer-tables-import.test.js";
 import { runSlidesWordArtTests } from "./unit/slides-wordart.test.js";
+import { runSheetFormatPainterTests } from "./unit/sheet-format-painter.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -173,7 +174,8 @@ async function runAll() {
     { title: "75. Unit Tests — Slides Speaker Notes Import Fidelity (real PPTX notesSlides → FODP)", runner: runSlidesSpeakernotesImportTests },
     { title: "76. Unit Tests — Sheet Charts Import Fidelity (real XLSX DrawingML chart → FODS)", runner: runSheetChartsImportTests },
     { title: "77. Unit Tests — Writer Tables Import Fidelity (real DOCX w:tbl merge/border/shading)", runner: runWriterTablesImportTests },
-    { title: "78. Behavioral Tests — VN Slides WordArt (chữ nghệ thuật)", runner: runSlidesWordArtTests }
+    { title: "78. Behavioral Tests — VN Slides WordArt (chữ nghệ thuật)", runner: runSlidesWordArtTests },
+    { title: "79. Behavioral Tests — VN Sheet Format Painter", runner: runSheetFormatPainterTests }
   ];
 
   for (const suite of suites) {

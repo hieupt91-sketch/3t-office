@@ -95,6 +95,9 @@ export class SheetGridController {
     this._isSelectingRange = false;
     this._rangeAnchor = null;
     this._activeContextMenu = null;
+    this.formatPainter = null;
+    this._formatPainterActivatedAt = 0;
+    this._formatPainterEscHandler = null;
 
     // Rules are workbook state, partitioned explicitly by sheet. They are evaluated,
     // never copied into a shared cell style, so switching tabs cannot leak visuals.
@@ -648,6 +651,7 @@ export class SheetGridController {
         window.removeEventListener("mouseup", onUp);
       }
       this._isSelectingRange = false;
+      if (this.formatPainter) this.applyFormatPainterToSelection();
     };
 
     if (typeof window !== "undefined") {
@@ -1449,6 +1453,7 @@ export class SheetGridController {
         });
         td.addEventListener("dblclick", (e) => {
           e.preventDefault();
+          if (this.formatPainter) return;
           this._focusFormulaInputAtEnd();
         });
         td.addEventListener("contextmenu", event => {
@@ -1486,6 +1491,11 @@ export class SheetGridController {
 
   _bindGridKeyboardNavigation() {
     this.container.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && this.formatPainter) {
+        e.preventDefault();
+        this.cancelFormatPainter();
+        return;
+      }
       if (document.activeElement === this.formulaInput) return;
 
       const colIdx = this.cols.indexOf(this.selectedCoord.c);
@@ -3204,6 +3214,119 @@ export class SheetGridController {
     return true;
   }
 
+  toggleFormatPainter(opts = {}) {
+    const locked = !!opts.locked;
+    const now = Date.now();
+    if (this.formatPainter) {
+      if (locked) {
+        this.formatPainter.locked = true;
+        this._syncFormatPainterUi();
+        return true;
+      }
+      if (now - (this._formatPainterActivatedAt || 0) < 400) {
+        return true;
+      }
+      this.cancelFormatPainter();
+      return false;
+    }
+    return this.startFormatPainter({ locked });
+  }
+
+  startFormatPainter({ locked = false } = {}) {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const item = this.cellsData.get(key);
+    this.formatPainter = {
+      locked: !!locked,
+      sourceCoord: key,
+      style: structuredClone(item?.style || {})
+    };
+    this._formatPainterActivatedAt = Date.now();
+    this._bindFormatPainterEscape();
+    this._syncFormatPainterUi();
+    return true;
+  }
+
+  cancelFormatPainter() {
+    if (!this.formatPainter) return false;
+    this.formatPainter = null;
+    this._unbindFormatPainterEscape();
+    this._syncFormatPainterUi();
+    return true;
+  }
+
+  applyFormatPainterToSelection(range = this.selectionRange) {
+    if (!this.formatPainter) return false;
+    const sourceStyle = structuredClone(this.formatPainter.style || {});
+    const norm = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(norm));
+    if (!coords.length) return false;
+
+    const before = {};
+    const after = {};
+    for (const coord of coords) {
+      const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      before[coord] = {
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(existing.style || {})
+      };
+      const next = {
+        ...existing,
+        val: existing.val,
+        formula: existing.formula,
+        style: structuredClone(sourceStyle)
+      };
+      this.cellsData.set(coord, next);
+      after[coord] = {
+        val: next.val,
+        formula: next.formula,
+        style: structuredClone(next.style)
+      };
+      const [c, r] = this._splitCoord(coord);
+      const dom = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        dom.style.cssText = "";
+        this._renderCellVisual(dom, next, c, r);
+        this._applyRuleVisuals?.(dom, c, r);
+      }
+    }
+
+    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
+    if (!this.formatPainter.locked) this.cancelFormatPainter();
+    return true;
+  }
+
+  _syncFormatPainterUi() {
+    const active = !!this.formatPainter;
+    const locked = !!this.formatPainter?.locked;
+    this.container?.classList?.toggle?.("vno-format-painter-active", active);
+    this.container?.classList?.toggle?.("vno-format-painter-locked", locked);
+    if (this.container?.dataset) {
+      if (active) this.container.dataset.formatPainter = locked ? "locked" : "on";
+      else delete this.container.dataset.formatPainter;
+    }
+    globalCommandBus?.updateState?.("sheet.edit.formatPainter", { checked: active });
+  }
+
+  _bindFormatPainterEscape() {
+    this._unbindFormatPainterEscape();
+    if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
+    this._formatPainterEscHandler = (event) => {
+      if (event.key === "Escape" && this.formatPainter) {
+        event.preventDefault();
+        this.cancelFormatPainter();
+      }
+    };
+    document.addEventListener("keydown", this._formatPainterEscHandler, true);
+  }
+
+  _unbindFormatPainterEscape() {
+    if (this._formatPainterEscHandler && typeof document !== "undefined" && typeof document.removeEventListener === "function") {
+      document.removeEventListener("keydown", this._formatPainterEscHandler, true);
+    }
+    this._formatPainterEscHandler = null;
+  }
+
   showPasteSpecialDialog(clipboard) {
     if (typeof document === "undefined" || !clipboard?.cells?.length) return false;
     const title = t("sheetDialogs.pasteSpecialTitle", "Dán đặc biệt");
@@ -3835,6 +3958,7 @@ export class SheetGridController {
     globalCommandBus?.updateState?.("sheet.view.normal", { checked: this.workbookView === "normal" });
     globalCommandBus?.updateState?.("sheet.view.pageBreakPreview", { checked: this.workbookView === "pageBreakPreview" });
     globalCommandBus?.updateState?.("sheet.view.pageLayout", { checked: this.workbookView === "pageLayout" });
+    globalCommandBus?.updateState?.("sheet.edit.formatPainter", { checked: !!this.formatPainter });
   }
 
   _applyViewState() {
@@ -5511,11 +5635,10 @@ export class SheetGridController {
 
   _renderCellVisual(td, itm, col, row) {
     if (!td) return;
+    td.style.cssText = "";
     td.classList?.toggle?.("is-wrap-text", itm?.style?.whiteSpace === "normal");
     if (!itm) {
       td.textContent = "";
-      td.style.color = "";
-      td.style.textAlign = "";
       return;
     }
 
