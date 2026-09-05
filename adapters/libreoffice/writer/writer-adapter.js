@@ -8,7 +8,7 @@ import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { parseCsv, replaceMergeFields, showMailMergeDataSourceDialog, showInsertMergeFieldDialog } from "../../../apps/writer/mail-merge.js";
 import { STYLE_PRESETS, showStyleGalleryDropdown, closeStyleGalleryDropdown, createStyleGalleryStrip } from "../../../apps/writer/style-gallery.js";
-import { showWatermarkDialog, showPageBorderDialog } from "../../../apps/writer/page-decorations.js";
+import { showWatermarkDialog, showPageBorderDialog, showPageColorDialog } from "../../../apps/writer/page-decorations.js";
 import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
 import { showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
@@ -104,6 +104,9 @@ export class WriterAdapter {
       orientation: "portrait",
       margins: { ...DEFAULT_MARGINS_MM }
     };
+    this.activeSectionId = "section-1";
+    this.sectionPageSetups = { "section-1": JSON.parse(JSON.stringify(this.pageSetup)) };
+    this._sectionSequence = 1;
     this.copiedFormat = null;
     /** @type {Array<{id:string, anchorText:string, content:string, createdAt:string, author?:string}>} */
     this.comments = [];
@@ -160,6 +163,7 @@ export class WriterAdapter {
 
     // Watermark & Page Border State
     this.watermark = null;
+    this.pageColor = "transparent";
     this.pageBorder = {
       enabled: false,
       style: "solid",
@@ -260,6 +264,12 @@ export class WriterAdapter {
     this._bindStyleTracking();
     globalCommandBus.bindHandler("writer.style.gallery", (args) => this.toggleStyleGallery(args));
     globalCommandBus.bindHandler("writer.page.watermark", (args) => this.openWatermarkDialog(args));
+    globalCommandBus.bindHandler("writer.page.color", (args) => this.openPageColorDialog(args));
+    globalCommandBus.bindHandler("writer.break.column", () => this._insertColumnBreak());
+    globalCommandBus.bindHandler("writer.section.nextPage", () => this.insertSectionBreak("nextPage"));
+    globalCommandBus.bindHandler("writer.section.continuous", () => this.insertSectionBreak("continuous"));
+    globalCommandBus.bindHandler("writer.section.evenPage", () => this.insertSectionBreak("evenPage"));
+    globalCommandBus.bindHandler("writer.section.oddPage", () => this.insertSectionBreak("oddPage"));
     globalCommandBus.bindHandler("writer.page.border", (args) => this.openPageBorderDialog(args));
     globalCommandBus.bindHandler("writer.page.columns", (args) => this.openColumnsDialog(args));
     globalCommandBus.bindHandler("writer.page.columns1", () => this.setColumns({ count: 1, gap: 0, rule: false }));
@@ -1102,6 +1112,7 @@ export class WriterAdapter {
     this.editorDom.style.padding =
       `${(top * MM_TO_PX).toFixed(1)}px ${(right * MM_TO_PX).toFixed(1)}px ` +
       `${(bottom * MM_TO_PX).toFixed(1)}px ${(left * MM_TO_PX).toFixed(1)}px`;
+    this.editorDom.style.backgroundColor = this.pageColor === "transparent" ? "" : this.pageColor;
     const viewContainer = this.editorDom.closest?.(".vno-writer-container");
     viewContainer?.style?.setProperty("--vno-page-width", (widthMm * MM_TO_PX).toFixed(1) + "px");
     viewContainer?.style?.setProperty("--vno-margin-left", (left * MM_TO_PX).toFixed(1) + "px");
@@ -1119,11 +1130,23 @@ export class WriterAdapter {
     const heightMm = isLandscape ? base.w : base.h;
     const { top, right, bottom, left } = this.pageSetup.margins;
     let pageCss = `@page { size: ${widthMm}mm ${heightMm}mm; margin: ${top}mm ${right}mm ${bottom}mm ${left}mm;`;
+    if (this.pageColor && this.pageColor !== "transparent") pageCss += ` background-color: ${this.pageColor};`;
     if (this.pageBorder && this.pageBorder.enabled && this.pageBorder.style !== "none") {
       pageCss += ` border: ${this.pageBorder.width || 2}pt ${this.pageBorder.style || "solid"} ${this.pageBorder.color || "#0f4c81"};`;
     }
     pageCss += ` }`;
     return pageCss;
+  }
+
+  _getSectionPageCss() {
+    return Object.entries(this.sectionPageSetups || {}).map(([id, setup]) => {
+      const base = PAGE_SIZES_MM[setup.size] || PAGE_SIZES_MM.a4;
+      const landscape = setup.orientation === "landscape";
+      const width = landscape ? base.h : base.w;
+      const height = landscape ? base.w : base.h;
+      const margins = setup.margins || DEFAULT_MARGINS_MM;
+      return `@page vno-${id} { size:${width}mm ${height}mm; margin:${margins.top}mm ${margins.right}mm ${margins.bottom}mm ${margins.left}mm;${this.pageColor && this.pageColor !== "transparent" ? ` background-color:${this.pageColor};` : ""} } .vno-export-${id} { page:vno-${id}; }`;
+    }).join("\n");
   }
 
   _lengthToMm(raw) {
@@ -1787,6 +1810,7 @@ export class WriterAdapter {
       orientation: newSetup.orientation || this.pageSetup.orientation,
       margins: { ...this.pageSetup.margins, ...(newSetup.margins || {}) }
     };
+    this.sectionPageSetups[this.activeSectionId] = JSON.parse(JSON.stringify(this.pageSetup));
     this._applyPageSetup();
     this.isDirty = true;
     this.recordSnapshot("writer.page.setup");
@@ -1983,6 +2007,18 @@ export class WriterAdapter {
         this._insertPageBreak();
         return true;
 
+      case "writer.break.column":
+        return this._insertColumnBreak();
+
+      case "writer.section.nextPage":
+        return this.insertSectionBreak("nextPage");
+      case "writer.section.continuous":
+        return this.insertSectionBreak("continuous");
+      case "writer.section.evenPage":
+        return this.insertSectionBreak("evenPage");
+      case "writer.section.oddPage":
+        return this.insertSectionBreak("oddPage");
+
       case "common.edit.undo":
         return this.undo();
 
@@ -2087,6 +2123,9 @@ export class WriterAdapter {
 
       case "writer.page.watermark":
         return await this.openWatermarkDialog(args);
+
+      case "writer.page.color":
+        return await this.openPageColorDialog(args);
 
       case "writer.page.border":
         return await this.openPageBorderDialog(args);
@@ -2715,6 +2754,74 @@ export class WriterAdapter {
   }
 
   // --- HÌNH MỜ (WATERMARK) ---
+
+  setPageColor(color = "transparent") {
+    const normalized = String(color || "transparent").toLowerCase();
+    if (normalized !== "transparent" && !/^#[0-9a-f]{6}$/.test(normalized)) return false;
+    this.flushTyping();
+    this.pageColor = normalized;
+    this._applyPageSetup();
+    this.isDirty = true;
+    this.recordSnapshot("writer.page.color");
+    return true;
+  }
+
+  _insertHtmlAtCaretOrEnd(html) {
+    let inserted = false;
+    if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+      try {
+        const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (sel && sel.rangeCount > 0 && this.bodyDom?.contains?.(sel.anchorNode)) inserted = document.execCommand("insertHTML", false, html);
+      } catch { inserted = false; }
+    }
+    const target = this.bodyDom || this.editorDom;
+    if (!inserted && target) target.innerHTML = (target.innerHTML || "") + html;
+    return inserted || Boolean(target);
+  }
+
+  _insertColumnBreak() {
+    this.flushTyping();
+    this._initZones();
+    this._insertHtmlAtCaretOrEnd('<div data-vno-column-break="true" style="break-before:column;column-break-before:always;border-top:1px dashed #94a3b8;margin:12px 0;color:#64748b;text-align:center;font-size:11px;user-select:none">--- Ngắt cột (Column Break) ---</div><p><br></p>');
+    this.isDirty = true;
+    this.recordSnapshot("writer.break.column");
+    return true;
+  }
+
+  insertSectionBreak(type = "nextPage") {
+    const allowed = new Set(["nextPage", "continuous", "evenPage", "oddPage"]);
+    if (!allowed.has(type)) return false;
+    this.flushTyping();
+    this._initZones();
+    const previousSetup = this.sectionPageSetups[this.activeSectionId] || this.pageSetup;
+    const id = `section-${++this._sectionSequence}`;
+    const labels = { nextPage: "Trang kế tiếp", continuous: "Liên tục", evenPage: "Trang chẵn", oddPage: "Trang lẻ" };
+    const breakStyle = type === "continuous" ? "" : `break-before:${type === "evenPage" ? "left" : type === "oddPage" ? "right" : "page"};page-break-before:always;`;
+    const marker = `<div class="vno-section-break" data-vno-section-break="${type}" data-vno-section-id="${id}" contenteditable="false" style="${breakStyle}border-top:2px double #7c3aed;margin:20px 0;text-align:center;color:#6d28d9;font-size:11px;user-select:none">--- Ngắt mục (${labels[type]}) ---</div><p><br></p>`;
+    this._insertHtmlAtCaretOrEnd(marker);
+    this.sectionPageSetups[id] = JSON.parse(JSON.stringify(previousSetup));
+    this.activeSectionId = id;
+    this.pageSetup = JSON.parse(JSON.stringify(previousSetup));
+    this._applyPageSetup();
+    this.isDirty = true;
+    this.recordSnapshot(`writer.section.${type}`);
+    return id;
+  }
+
+  activateSection(sectionId) {
+    if (!this.sectionPageSetups[sectionId]) return false;
+    this.activeSectionId = sectionId;
+    this.pageSetup = JSON.parse(JSON.stringify(this.sectionPageSetups[sectionId]));
+    this._applyPageSetup();
+    return true;
+  }
+
+  async openPageColorDialog(color) {
+    if (color) return this.setPageColor(color);
+    const result = await showPageColorDialog(this.pageColor);
+    if (result == null) return false;
+    return this.setPageColor(result);
+  }
 
   setWatermark(watermarkData = null) {
     watermarkData = watermarkData || {};
@@ -3952,6 +4059,20 @@ export class WriterAdapter {
       bodyHtml = this._stripSessionMarkup(this.editorDom.innerHTML);
     }
 
+    const firstSectionId = Object.keys(this.sectionPageSetups || {})[0] || "section-1";
+    bodyHtml = `<div class="vno-export-section vno-export-${firstSectionId}" data-vno-export-section="${firstSectionId}">` + bodyHtml.replace(
+      /<div\b[^>]*data-vno-section-break=["'](nextPage|continuous|evenPage|oddPage)["'][^>]*data-vno-section-id=["']([^"']+)["'][^>]*>[\s\S]*?<\/div>/gi,
+      (_match, type, id) => {
+        // LibreOffice's HTML→Writer import filter only honors page-break-before on a
+        // real <p>, not a wrapping <div> — so a dedicated zero-height marker paragraph
+        // carries the break instead of relying on the section <div>'s own style.
+        const pageBreak = type === "continuous"
+          ? ""
+          : `<p style="page-break-before:always;break-before:${type === "evenPage" ? "left" : type === "oddPage" ? "right" : "page"};margin:0;height:0;overflow:hidden;" aria-hidden="true">&nbsp;</p>`;
+        return `</div>${pageBreak}<div class="vno-export-section vno-export-${id}" data-vno-export-section="${id}">`;
+      }
+    ) + `</div>`;
+
     if (this.footerDom && this.footerDom.innerText?.trim()) {
       footerHtml = `\n<div title="footer">\n${this.footerDom.innerHTML}\n</div>`;
     }
@@ -3979,7 +4100,7 @@ export class WriterAdapter {
     }
 
     const fullHtml = `${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}`;
-    return `<style>${this._getPageSetupCss()}${columnsCss}</style>${fullHtml}`;
+    return `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
   }
 
   _stripCommentMarkup(html) {
@@ -4552,6 +4673,7 @@ export class WriterAdapter {
       sheet.style.minHeight = `${dim.heightPx}px`;
       sheet.style.height = `${dim.heightPx}px`;
       sheet.style.padding = `${dim.topPx}px ${dim.rightPx}px ${dim.bottomPx}px ${dim.leftPx}px`;
+      if (this.pageColor && this.pageColor !== "transparent") sheet.style.backgroundColor = this.pageColor;
 
       let pageFooterHtml = footerHtml;
       if (hasFooter) {
@@ -4904,8 +5026,12 @@ export class WriterAdapter {
       headerHtml: this.headerDom ? this.headerDom.innerHTML : null,
       footerHtml: this.footerDom ? this.footerDom.innerHTML : null,
       pageSetup: this.pageSetup ? JSON.parse(JSON.stringify(this.pageSetup)) : null,
+      activeSectionId: this.activeSectionId || "section-1",
+      sectionPageSetups: JSON.parse(JSON.stringify(this.sectionPageSetups || {})),
+      sectionSequence: this._sectionSequence || 1,
       comments: this.comments ? JSON.parse(JSON.stringify(this.comments)) : [],
       watermark: this.watermark ? JSON.parse(JSON.stringify(this.watermark)) : null,
+      pageColor: this.pageColor || "transparent",
       pageBorder: this.pageBorder ? JSON.parse(JSON.stringify(this.pageBorder)) : null,
       columns: this.columns ? JSON.parse(JSON.stringify(this.columns)) : { count: 1, gap: 10, rule: false },
       shapes: this.shapes ? JSON.parse(JSON.stringify(this.shapes)) : [],
@@ -4925,8 +5051,11 @@ export class WriterAdapter {
     if (a.headerHtml !== b.headerHtml) return false;
     if (a.footerHtml !== b.footerHtml) return false;
     if (JSON.stringify(a.pageSetup) !== JSON.stringify(b.pageSetup)) return false;
+    if ((a.activeSectionId || "section-1") !== (b.activeSectionId || "section-1")) return false;
+    if (JSON.stringify(a.sectionPageSetups || {}) !== JSON.stringify(b.sectionPageSetups || {})) return false;
     if (JSON.stringify(a.comments) !== JSON.stringify(b.comments)) return false;
     if (JSON.stringify(a.watermark) !== JSON.stringify(b.watermark)) return false;
+    if ((a.pageColor || "transparent") !== (b.pageColor || "transparent")) return false;
     if (JSON.stringify(a.pageBorder) !== JSON.stringify(b.pageBorder)) return false;
     if (JSON.stringify(a.columns) !== JSON.stringify(b.columns)) return false;
     if (JSON.stringify(a.shapes || []) !== JSON.stringify(b.shapes || [])) return false;
@@ -4960,6 +5089,9 @@ export class WriterAdapter {
       this.pageSetup = JSON.parse(JSON.stringify(snapshot.pageSetup));
       this._applyPageSetup();
     }
+    if (snapshot.sectionPageSetups) this.sectionPageSetups = JSON.parse(JSON.stringify(snapshot.sectionPageSetups));
+    if (snapshot.activeSectionId) this.activeSectionId = snapshot.activeSectionId;
+    if (snapshot.sectionSequence) this._sectionSequence = snapshot.sectionSequence;
 
     if (snapshot.comments) {
       this.comments = JSON.parse(JSON.stringify(snapshot.comments));
@@ -4968,6 +5100,10 @@ export class WriterAdapter {
 
     if (Object.prototype.hasOwnProperty.call(snapshot, "watermark")) {
       this.watermark = snapshot.watermark ? JSON.parse(JSON.stringify(snapshot.watermark)) : null;
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, "pageColor")) {
+      this.pageColor = snapshot.pageColor || "transparent";
+      this._applyPageSetup();
     }
     if (Object.prototype.hasOwnProperty.call(snapshot, "pageBorder")) {
       this.pageBorder = snapshot.pageBorder ? JSON.parse(JSON.stringify(snapshot.pageBorder)) : { enabled: false };

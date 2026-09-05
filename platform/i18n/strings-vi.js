@@ -474,7 +474,13 @@ export const viStrings = {
     "writer.page.columns1": { label: "1 cột", tooltip: "Định dạng toàn bộ văn bản 1 cột (Normal mặc định)" },
     "writer.page.columns2": { label: "2 cột", tooltip: "Chia nội dung văn bản thành 2 cột đều nhau" },
     "writer.page.columns3": { label: "3 cột", tooltip: "Chia nội dung văn bản thành 3 cột đều nhau" },
+    "writer.break.column": { label: "Ngắt cột", tooltip: "Chuyển nội dung sau con trỏ sang cột kế tiếp" },
+    "writer.section.nextPage": { label: "Ngắt mục — Trang kế tiếp", tooltip: "Bắt đầu mục mới trên trang kế tiếp với thiết lập trang riêng" },
+    "writer.section.continuous": { label: "Ngắt mục — Liên tục", tooltip: "Bắt đầu mục mới tại vị trí hiện tại với thiết lập trang riêng" },
+    "writer.section.evenPage": { label: "Ngắt mục — Trang chẵn", tooltip: "Bắt đầu mục mới trên trang chẵn kế tiếp" },
+    "writer.section.oddPage": { label: "Ngắt mục — Trang lẻ", tooltip: "Bắt đầu mục mới trên trang lẻ kế tiếp" },
     "writer.page.watermark": { label: "Hình mờ", tooltip: "Thiết lập hoặc xóa hình mờ văn bản (Dự thảo, Mật, Khẩn...)" },
+    "writer.page.color": { label: "Màu trang", tooltip: "Đặt màu nền đặc cho trang tài liệu" },
     "writer.page.border": { label: "Viền trang", tooltip: "Thiết lập viền bao quanh trang tài liệu" },
     "writer.file.printPreview": { label: "Xem trước khi in", tooltip: "Xem trước khi in (Ctrl+F2)" },
     "writer.view.printLayout": { label: "Bố trí in", tooltip: "Hiển thị ranh giới trang, đầu trang và chân trang" },
@@ -624,6 +630,15 @@ export const viStrings = {
         blue: "Xanh dương",
         amber: "Vàng hổ phách"
       }
+    },
+    pageColor: {
+      title: "Màu trang",
+      hint: "Chọn màu nền đặc áp dụng cho toàn bộ trang in và vùng soạn thảo.",
+      palette: "Bảng màu trang",
+      noColor: "Không màu",
+      custom: "Màu tùy chỉnh:",
+      cancel: "Hủy",
+      apply: "Áp dụng"
     },
     pageBorder: {
       title: "Viền trang (Page Border)",

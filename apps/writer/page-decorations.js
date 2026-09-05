@@ -44,6 +44,41 @@ export const PAGE_BORDER_COLORS = [
   { label: "Xanh lá cây", value: "#15803d" }
 ];
 
+export const PAGE_COLOR_PALETTE = [
+  "transparent", "#ffffff", "#f8fafc", "#e2e8f0", "#dbeafe", "#dcfce7",
+  "#fef3c7", "#fee2e2", "#ede9fe", "#cffafe", "#1e293b", "#0f4c81"
+];
+
+export async function showPageColorDialog(currentColor = "transparent") {
+  if (typeof document === "undefined" || !document.body) return null;
+  return new Promise((resolve) => {
+    const previousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    overlay.innerHTML = `<div class="vno-dialog vno-page-color-dialog" role="dialog" aria-modal="true" aria-labelledby="vno-page-color-title" style="max-width:420px">
+      <div class="vno-dialog-header"><h2 id="vno-page-color-title">${t("writerDialogs.pageColor.title")}</h2><button class="vno-dialog-close-btn" aria-label="${t("common.close") || "Close"}">×</button></div>
+      <div class="vno-dialog-body"><p>${t("writerDialogs.pageColor.hint")}</p><div class="vno-page-color-grid" role="listbox" aria-label="${t("writerDialogs.pageColor.palette")}" style="display:grid;grid-template-columns:repeat(6,44px);gap:10px">
+      ${PAGE_COLOR_PALETTE.map((color) => `<button type="button" role="option" data-page-color="${color}" aria-label="${color === "transparent" ? t("writerDialogs.pageColor.noColor") : color}" aria-selected="${color === currentColor}" style="width:40px;height:40px;border:2px solid ${color === currentColor ? "#2563eb" : "#94a3b8"};border-radius:6px;background:${color === "transparent" ? "linear-gradient(135deg,#fff 45%,#dc2626 46%,#dc2626 54%,#fff 55%)" : color}"></button>`).join("")}
+      </div><label style="display:flex;gap:10px;align-items:center;margin-top:16px">${t("writerDialogs.pageColor.custom")} <input type="color" value="${currentColor === "transparent" ? "#ffffff" : currentColor}"></label></div>
+      <div class="vno-dialog-footer"><button type="button" data-action="cancel">${t("writerDialogs.pageColor.cancel")}</button><button type="button" class="primary" data-action="apply">${t("writerDialogs.pageColor.apply")}</button></div></div>`;
+    document.body.appendChild(overlay);
+    const box = overlay.querySelector(".vno-dialog");
+    let selected = currentColor;
+    const finish = (value) => { document.removeEventListener("keydown", onKey); overlay.remove(); previousFocused?.focus?.(); resolve(value); };
+    overlay.querySelectorAll("[data-page-color]").forEach((button) => button.addEventListener("click", () => {
+      selected = button.dataset.pageColor;
+      overlay.querySelectorAll("[data-page-color]").forEach((item) => item.setAttribute("aria-selected", String(item === button)));
+    }));
+    overlay.querySelector('input[type="color"]').addEventListener("input", (event) => { selected = event.target.value; });
+    overlay.querySelector('[data-action="apply"]').addEventListener("click", () => finish(selected));
+    overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => finish(null));
+    overlay.querySelector(".vno-dialog-close-btn").addEventListener("click", () => finish(null));
+    const onKey = (event) => { if (event.key === "Escape") finish(null); else trapFocus(box, event); };
+    document.addEventListener("keydown", onKey);
+    overlay.querySelector("[data-page-color]")?.focus();
+  });
+}
+
 function trapFocus(dialogBox, event) {
   if (event.key !== "Tab") return;
   const focusables = Array.from(dialogBox.querySelectorAll(

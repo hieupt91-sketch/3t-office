@@ -5,6 +5,36 @@
 
 export const WRITER_HELP_ENTRIES = [
   {
+    id: "writer.section.breaks",
+    app: "writer",
+    commandIds: ["writer.page.break", "writer.break.column", "writer.section.nextPage", "writer.section.continuous", "writer.section.evenPage", "writer.section.oddPage"],
+    title: "Ngắt trang, ngắt cột và ngắt mục",
+    summary: "Chia tài liệu thành các mục có khổ giấy, hướng giấy và lề riêng. Trang kế tiếp/chẵn/lẻ bắt đầu ở trang phù hợp; Liên tục đặt mốc ngay tại con trỏ.",
+    ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
+    keywords: ["ngắt mục", "section break", "ngắt trang", "ngắt cột", "trang ngang", "trang chẵn", "trang lẻ"],
+    steps: [
+      "Đặt con trỏ tại vị trí cần bắt đầu vùng định dạng mới.",
+      "Mở tab Bố cục, nhóm Thiết lập trang, mở Ngắt trang rồi chọn Trang kế tiếp, Liên tục, Trang chẵn hoặc Trang lẻ trong nhóm Ngắt mục.",
+      "Sau mốc ngắt, chọn Căn lề, Hướng giấy hoặc Khổ giấy trên cùng nhóm. Thay đổi chỉ được lưu cho mục đang hoạt động; mục trước giữ nguyên.",
+      "Ngắt cột chỉ có hiệu lực rõ khi tài liệu đang dùng từ hai cột trở lên. Dùng Ctrl+Z/Ctrl+Y để hoàn tác hoặc làm lại mốc ngắt cùng thiết lập trang."
+    ]
+  },
+  {
+    id: "writer.page.color",
+    app: "writer",
+    commandIds: ["writer.page.color"],
+    title: "Màu trang",
+    summary: "Đặt một màu nền đặc cho toàn bộ trang soạn thảo và trang in. Phiên bản này hỗ trợ màu đặc; chưa hỗ trợ nền chuyển sắc hoặc ảnh nền.",
+    ribbon: { tab: "Thiết kế", tabId: "design", group: "Nền & Viền trang" },
+    keywords: ["màu trang", "page color", "màu nền", "nền trang"],
+    steps: [
+      "Mở tab Thiết kế, trong nhóm Nền & Viền trang nhấn Màu trang.",
+      "Chọn một ô màu có sẵn, hoặc chọn Màu tùy chỉnh để lấy màu khác.",
+      "Nhấn Áp dụng. Màu xuất hiện trên vùng trang soạn thảo và trong Xem trước khi in.",
+      "Chọn ô Không màu để bỏ nền. Dùng Ctrl+Z/Ctrl+Y để hoàn tác hoặc làm lại."
+    ]
+  },
+  {
     id: "writer.review.wordCount",
     app: "writer",
     commandIds: ["writer.review.wordCount"],
