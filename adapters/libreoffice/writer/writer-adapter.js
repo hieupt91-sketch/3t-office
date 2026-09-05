@@ -2370,7 +2370,7 @@ export class WriterAdapter {
     for (const comment of this.comments) {
       const card = document.createElement("article");
       card.className = `vno-comment-card${comment.id === this.activeCommentId ? " is-active" : ""}${comment.resolved ? " is-resolved" : ""}`;
-      card.dataset.commentResolved = String(!!comment.resolved);
+      if (card.dataset) card.dataset.commentResolved = String(!!comment.resolved);
       card.dataset.commentCard = comment.id;
       card.tabIndex = 0;
 

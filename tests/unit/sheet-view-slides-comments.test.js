@@ -111,5 +111,14 @@ export async function runSheetViewSlidesCommentsTests() {
     assert(!slideshow.includes("vno-slide-comment-indicator") && !slideshow.includes("vno-slide-comments-panel"), "Comment bị đưa vào slideshow");
   });
 
+  await test("Slides Comments navigation resolves, deletes and uses existing history", () => {
+    const canvas = slidesCanvas(); canvas.openCommentsPanel = () => true;
+    const one = canvas.addComment("One", "Lan"); canvas.selectSlide(1); const two = canvas.addComment("Two", "Lan");
+    canvas.activeCommentId = one.id;
+    assert(canvas.nextComment().id === two.id, "Next order"); assert(canvas.previousComment().id === one.id, "Previous order");
+    assert(canvas.toggleActiveCommentResolved() && canvas.slides[0].comments[0].resolved, "Resolve must retain comment");
+    canvas.undo(); assert(!canvas.slides[0].comments[0].resolved, "Undo resolve"); canvas.redo(); assert(canvas.slides[0].comments[0].resolved, "Redo resolve");
+    assert(canvas.deleteActiveComment() && !canvas.slides[0].comments.length, "Delete"); canvas.undo(); assert(canvas.slides[0].comments.length === 1, "Undo delete");
+  });
   return results;
 }
