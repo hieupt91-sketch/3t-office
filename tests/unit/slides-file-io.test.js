@@ -520,5 +520,126 @@ export async function runSlidesFileIoTests() {
     }
   });
 
+  test("SlidesAdapter: serialize/parse bảng 3x4 đủ 12 ô (tiếng Việt + số)", () => {
+    const cells = [
+      ["Hạng mục", "Tháng 1", "Tháng 2", "Tháng 3"],
+      ["Doanh thu", "120", "135", "150"],
+      ["Chi phí", "45", "45", "52"]
+    ];
+    const adapter = new SlidesAdapter({
+      slides: [{
+        id: 21,
+        title: "Bảng lớn",
+        body: "",
+        layoutType: "blank",
+        shapes: [
+          { id: "tbl3x4", type: "table", x: 76, y: 151, w: 680, h: 160, rows: 3, cols: 4, cells, color: "transparent" }
+        ]
+      }]
+    });
+    const fodp = adapter.serializeToFodp();
+    if ((fodp.match(/<table:table-row\b/g) || []).length !== 3) {
+      throw new Error("Serializer không ghi 3 hàng");
+    }
+    if ((fodp.match(/<table:table-cell\b/g) || []).length !== 12) {
+      throw new Error("Serializer không ghi 12 ô");
+    }
+    if (!fodp.includes("<text:p>Hạng mục</text:p>") || !fodp.includes("<text:p>120</text:p>")) {
+      throw new Error("Serializer thiếu ô tiếng Việt hoặc số");
+    }
+    const parsed = adapter.parseFodp(fodp);
+    const table = (parsed[0].shapes || []).find((shape) => String(shape.id) === "tbl3x4");
+    if (!table || table.type !== "table") {
+      throw new Error(`3x4 parse sai type: ${JSON.stringify(table)}`);
+    }
+    if (table.rows !== 3 || table.cols !== 4) {
+      throw new Error(`3x4 rows/cols: ${table.rows}x${table.cols}`);
+    }
+    if (JSON.stringify(table.cells) !== JSON.stringify(cells)) {
+      throw new Error(`3x4 cells: ${JSON.stringify(table.cells)}`);
+    }
+  });
+
+  test("SlidesAdapter: parseFodp bung table:number-columns-repeated / number-rows-repeated / ô rỗng tự đóng", () => {
+    const adapter = new SlidesAdapter(null);
+    const sofficeFodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+ xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0">
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:frame presentation:class="title" svg:x="2cm" svg:y="0.5cm" svg:width="24cm" svg:height="2cm">
+        <draw:text-box><text:p>Bảng nén cột</text:p></draw:text-box>
+      </draw:frame>
+      <draw:frame draw:name="tbl-repeat" svg:width="12cm" svg:height="4cm" svg:x="2cm" svg:y="4cm">
+        <table:table>
+          <table:table-column table:number-columns-repeated="4"/>
+          <table:table-row>
+            <table:table-cell><text:p>Hạng mục</text:p></table:table-cell>
+            <table:table-cell><text:p>Tháng 1</text:p></table:table-cell>
+            <table:table-cell><text:p>Tháng 2</text:p></table:table-cell>
+            <table:table-cell><text:p>Tháng 3</text:p></table:table-cell>
+          </table:table-row>
+          <table:table-row>
+            <table:table-cell><text:p>Doanh thu</text:p></table:table-cell>
+            <table:table-cell office:value-type="float" office:value="120"><text:p>120</text:p></table:table-cell>
+            <table:table-cell><text:p>135</text:p></table:table-cell>
+            <table:table-cell><text:p>150</text:p></table:table-cell>
+          </table:table-row>
+          <table:table-row>
+            <table:table-cell><text:p>Chi phí</text:p></table:table-cell>
+            <table:table-cell table:number-columns-repeated="2"><text:p>45</text:p></table:table-cell>
+            <table:table-cell><text:p>52</text:p></table:table-cell>
+          </table:table-row>
+        </table:table>
+      </draw:frame>
+      <draw:frame draw:name="tbl-empty" svg:width="8cm" svg:height="2cm" svg:x="2cm" svg:y="9cm">
+        <table:table>
+          <table:table-row>
+            <table:table-cell><text:p>A</text:p></table:table-cell>
+            <table:table-cell table:number-columns-repeated="2"/>
+            <table:table-cell><text:p>D</text:p></table:table-cell>
+          </table:table-row>
+          <table:table-row table:number-rows-repeated="2">
+            <table:table-cell><text:p>X</text:p></table:table-cell>
+            <table:table-cell office:value-type="float" office:value="7"/>
+          </table:table-row>
+        </table:table>
+      </draw:frame>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const parsed = adapter.parseFodp(sofficeFodp);
+    const byId = Object.fromEntries((parsed[0].shapes || []).map((shape) => [String(shape.id), shape]));
+    const compressed = byId["tbl-repeat"];
+    const expected = [
+      ["Hạng mục", "Tháng 1", "Tháng 2", "Tháng 3"],
+      ["Doanh thu", "120", "135", "150"],
+      ["Chi phí", "45", "45", "52"]
+    ];
+    if (!compressed || compressed.type !== "table") {
+      throw new Error(`tbl-repeat type: ${JSON.stringify(compressed)}`);
+    }
+    if (compressed.rows !== 3 || compressed.cols !== 4) {
+      throw new Error(`tbl-repeat rows/cols (parser cũ đếm thiếu cột khi number-columns-repeated): ${compressed.rows}x${compressed.cols} cells=${JSON.stringify(compressed.cells)}`);
+    }
+    if (JSON.stringify(compressed.cells) !== JSON.stringify(expected)) {
+      throw new Error(`tbl-repeat cells: ${JSON.stringify(compressed.cells)}`);
+    }
+    const empty = byId["tbl-empty"];
+    if (!empty || empty.type !== "table") {
+      throw new Error(`tbl-empty type: ${JSON.stringify(empty)}`);
+    }
+    if (JSON.stringify(empty.cells) !== JSON.stringify([["A", "", "", "D"], ["X", "7"], ["X", "7"]])) {
+      throw new Error(`tbl-empty cells (ô rỗng tự đóng / office:value / number-rows-repeated): ${JSON.stringify(empty.cells)}`);
+    }
+    if (empty.rows !== 3 || empty.cols !== 4) {
+      throw new Error(`tbl-empty rows/cols: ${empty.rows}x${empty.cols}`);
+    }
+  });
+
   return results;
 }
