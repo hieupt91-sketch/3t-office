@@ -77,6 +77,7 @@ import { runSheetMergeCellsTests } from "./unit/sheet-merge-cells.test.js";
 import { runSheetPasteSpecialTests } from "./unit/sheet-paste-special.test.js";
 import { runSlidesSmartartImportTests } from "./unit/slides-smartart-import.test.js";
 import { runWriterHeaderFooterImportTests } from "./unit/writer-headerfooter-import.test.js";
+import { runSlidesDiagramGroupSelectTests } from "./unit/slides-diagram-group-select.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -161,7 +162,8 @@ async function runAll() {
     { title: "69. Behavioral Tests — VN Sheet Merge Cells", runner: runSheetMergeCellsTests },
     { title: "70. Behavioral Tests — VN Sheet Paste Special", runner: runSheetPasteSpecialTests },
     { title: "71. Unit Tests — Slides SmartArt Import Fidelity (real PPTX DrawingML → FODP)", runner: runSlidesSmartartImportTests },
-    { title: "72. Unit Tests — Writer Header/Footer Import Fidelity (real DOCX → StarWriter HTML)", runner: runWriterHeaderFooterImportTests }
+    { title: "72. Unit Tests — Writer Header/Footer Import Fidelity (real DOCX → StarWriter HTML)", runner: runWriterHeaderFooterImportTests },
+    { title: "73. Behavioral Tests — VN Slides Diagram Group Select / Move / Delete", runner: runSlidesDiagramGroupSelectTests }
   ];
 
   for (const suite of suites) {

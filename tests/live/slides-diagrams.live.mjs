@@ -77,7 +77,7 @@ try {
   if (afterMoveUndo.nodeX !== beforeDrag.nodeX || afterMoveUndo.nodeY !== beforeDrag.nodeY || afterMoveUndo.x1 !== beforeDrag.x1 || afterMoveUndo.y1 !== beforeDrag.y1) throw new Error("Undo kéo chưa khôi phục node + connector");
   await page.keyboard.press("Control+Y");
 
-  await firstNode.click();
+  await firstNode.click({ modifiers: ["Control"] });
   await firstNode.locator('.vno-shape-delete-btn').dispatchEvent("click");
   const afterDelete = await page.evaluate(async ({ nodeId }) => {
     const { globalUnoBridge } = await import("/adapters/libreoffice/common/uno-bridge.js");
