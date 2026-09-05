@@ -4454,6 +4454,19 @@ export class SheetGridController {
     const shiftRange = range => this._shiftRange(range, axis, insertionPoint, direction);
     this.conditionalFormattingBySheet[sheet] = (this.conditionalFormattingBySheet[sheet] || []).map(rule => ({ ...rule, range: shiftRange(rule.range) }));
     this.dataValidationsBySheet[sheet] = (this.dataValidationsBySheet[sheet] || []).map(rule => ({ ...rule, range: shiftRange(rule.range) }));
+    this.mergedRangesBySheet[sheet] = (this.mergedRangesBySheet[sheet] || []).flatMap(range => {
+      if (direction > 0) return [shiftRange(range)];
+      const normalized = this._normalizeRange(range);
+      const start = axis === "row" ? normalized.start.r : this._columnNumber(normalized.start.c);
+      const end = axis === "row" ? normalized.end.r : this._columnNumber(normalized.end.c);
+      if (insertionPoint < start) return [shiftRange(normalized)];
+      if (insertionPoint > end) return [normalized];
+      if (start === end) return [];
+      const next = structuredClone(normalized);
+      if (axis === "row") next.end.r--;
+      else next.end.c = this._columnLabel(end - 1);
+      return [next];
+    });
 
     const comments = {};
     for (const [coord, comment] of Object.entries(this.commentsBySheet[sheet] || {})) {

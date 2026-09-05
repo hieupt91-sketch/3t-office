@@ -71,5 +71,25 @@ export async function runSheetMergeCellsTests() {
     assert(await globalCommandBus.execute("sheet.cell.mergeAcross"), "Command mergeAcross phải chạy");
   });
 
+  await test("Insert/Delete hàng và cột mở rộng, thu hẹp, dịch hoặc loại vùng merge", async () => {
+    const grid = new SheetGridController(container());
+    await grid.mergeCells("mergeCells", { start: { c: "B", r: 2 }, end: { c: "D", r: 4 } }, { confirmDataLoss: false });
+    grid.undoStack = [];
+    grid.insertRow(3);
+    assert(grid._rangeLabel(grid.getMergedRanges()[0]) === "B2:D5", "Insert row bên trong phải mở rộng merge");
+    grid.insertColumn("C");
+    assert(grid._rangeLabel(grid.getMergedRanges()[0]) === "B2:E5", "Insert column bên trong phải mở rộng merge");
+    grid.deleteRow(5);
+    assert(grid._rangeLabel(grid.getMergedRanges()[0]) === "B2:E4", "Delete row cuối vùng phải thu hẹp merge");
+    grid.deleteColumn("B");
+    assert(grid._rangeLabel(grid.getMergedRanges()[0]) === "B2:D4", "Delete column đầu vùng phải thu hẹp merge");
+    grid.undo();
+    assert(grid._rangeLabel(grid.getMergedRanges()[0]) === "B2:E4", "Undo delete phải phục hồi merge range");
+
+    await grid.mergeCells("mergeCells", { start: { c: "A", r: 8 }, end: { c: "C", r: 8 } }, { confirmDataLoss: false });
+    grid.deleteRow(8);
+    assert(!grid.getMergedRanges().some(range => range.start.r === 8 && range.end.r === 8), "Delete toàn bộ chiều cao phải xóa merge");
+  });
+
   return results;
 }
