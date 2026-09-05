@@ -134,6 +134,10 @@ export class SheetAdapter {
       args = args || {};
       return this.grid.showCommentDialog(args);
     });
+    globalCommandBus.bindHandler("sheet.review.commentPrevious", () => this.grid.previousComment?.());
+    globalCommandBus.bindHandler("sheet.review.commentNext", () => this.grid.nextComment?.());
+    globalCommandBus.bindHandler("sheet.review.commentDelete", () => this.grid.deleteCurrentComment?.());
+    globalCommandBus.bindHandler("sheet.review.commentResolve", () => this.grid.toggleCurrentCommentResolved?.());
     globalCommandBus.bindHandler("sheet.view.normal", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("normal") : false);
     globalCommandBus.bindHandler("sheet.view.pageBreakPreview", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageBreakPreview") : false);
     globalCommandBus.bindHandler("sheet.view.pageLayout", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageLayout") : false);
