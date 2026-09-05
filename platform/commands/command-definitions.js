@@ -331,7 +331,31 @@ export const SLIDES_COMMANDS = [
   { id: "slides.nav.firstSlide", category: "nav", label: "Trang đầu tiên", shortcut: "Ctrl+Home", icon: "slideNew", tooltip: "Về trang chiếu đầu tiên (Ctrl+Home)" },
   { id: "slides.nav.lastSlide", category: "nav", label: "Trang cuối cùng", shortcut: "Ctrl+End", icon: "slideNew", tooltip: "Đến trang chiếu cuối cùng (Ctrl+End)" },
   { id: "slides.nav.prevSlide", category: "nav", label: "Trang trước", shortcut: "PageUp", icon: "slideNew", tooltip: "Về trang chiếu trước (Page Up)" },
-  { id: "slides.nav.nextSlide", category: "nav", label: "Trang sau", shortcut: "PageDown", icon: "slideNew", tooltip: "Đến trang chiếu sau (Page Down)" }
+  { id: "slides.nav.nextSlide", category: "nav", label: "Trang sau", shortcut: "PageDown", icon: "slideNew", tooltip: "Đến trang chiếu sau (Page Down)" },
+
+  // Định dạng chữ trên slide (Font) — reuse document.execCommand như Writer
+  { id: "slides.text.bold", category: "format", label: "Đậm", shortcut: "Ctrl+B", icon: "bold", tooltip: "Chữ đậm (Ctrl+B)", isToggle: true },
+  { id: "slides.text.italic", category: "format", label: "Nghiêng", shortcut: "Ctrl+I", icon: "italic", tooltip: "Chữ nghiêng (Ctrl+I)", isToggle: true },
+  { id: "slides.text.underline", category: "format", label: "Gạch chân", shortcut: "Ctrl+U", icon: "underline", tooltip: "Gạch chân chữ (Ctrl+U)", isToggle: true },
+  { id: "slides.text.strike", category: "format", label: "Gạch ngang", icon: "strike", tooltip: "Gạch ngang chữ", isToggle: true },
+  { id: "slides.text.clearFormat", category: "format", label: "Xóa định dạng", icon: "clearFormat", tooltip: "Xóa định dạng chữ, giữ nguyên nội dung" },
+  { id: "slides.font.family", category: "format", label: "Phông chữ", tooltip: "Chọn phông chữ" },
+  { id: "slides.font.size", category: "format", label: "Cỡ chữ", tooltip: "Chọn cỡ chữ" },
+  { id: "slides.font.grow", category: "format", label: "Tăng cỡ chữ", icon: "indentInc", tooltip: "Tăng cỡ chữ" },
+  { id: "slides.font.shrink", category: "format", label: "Giảm cỡ chữ", icon: "indentDec", tooltip: "Giảm cỡ chữ" },
+  { id: "slides.color.text", category: "format", label: "Màu chữ", icon: "colorText", tooltip: "Đổi màu chữ" },
+  { id: "slides.color.highlight", category: "format", label: "Màu nền chữ", icon: "colorHighlight", tooltip: "Tô màu nền văn bản" },
+
+  // Đoạn văn trên slide (Paragraph)
+  { id: "slides.list.bullet", category: "paragraph", label: "Dấu đầu dòng", icon: "listBullet", tooltip: "Tạo danh sách dấu đầu dòng", isToggle: true },
+  { id: "slides.list.numbered", category: "paragraph", label: "Đánh số", icon: "listNumber", tooltip: "Tạo danh sách đánh số thứ tự", isToggle: true },
+  { id: "slides.para.alignLeft", category: "paragraph", label: "Căn trái", shortcut: "Ctrl+L", icon: "alignLeft", tooltip: "Căn lề trái (Ctrl+L)", isToggle: true },
+  { id: "slides.para.alignCenter", category: "paragraph", label: "Căn giữa", shortcut: "Ctrl+E", icon: "alignCenter", tooltip: "Căn lề giữa (Ctrl+E)", isToggle: true },
+  { id: "slides.para.alignRight", category: "paragraph", label: "Căn phải", shortcut: "Ctrl+R", icon: "alignRight", tooltip: "Căn lề phải (Ctrl+R)", isToggle: true },
+  { id: "slides.para.justify", category: "paragraph", label: "Căn đều", shortcut: "Ctrl+J", icon: "alignJustify", tooltip: "Căn đều hai bên (Ctrl+J)", isToggle: true },
+  { id: "slides.para.indentInc", category: "paragraph", label: "Thụt lề", icon: "indentInc", tooltip: "Tăng thụt lề đoạn văn" },
+  { id: "slides.para.indentDec", category: "paragraph", label: "Giảm thụt lề", icon: "indentDec", tooltip: "Giảm thụt lề đoạn văn" },
+  { id: "slides.para.lineSpacing", category: "paragraph", label: "Giãn dòng", icon: "alignLeft", tooltip: "Chọn khoảng cách dòng 1.0 / 1.5 / 2.0" }
 ];
 
 export function registerAllStandardCommands(bus) {

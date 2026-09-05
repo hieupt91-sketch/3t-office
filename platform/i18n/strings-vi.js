@@ -66,7 +66,7 @@ export const viStrings = {
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", ai: "Trợ lý VN AI" },
-    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", drawing: "Đối tượng vẽ", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiContent: "Tạo nội dung thuyết trình" }
+    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiContent: "Tạo nội dung thuyết trình" }
   },
   sheetDialogs: {
     close: "Đóng", cancel: "Hủy", cancelLong: "Hủy bỏ", apply: "Áp dụng", range: "Phạm vi", rangeLabel: "Vùng:", value: "Giá trị", save: "Lưu",
@@ -304,6 +304,26 @@ export const viStrings = {
     ,"slides.nav.lastSlide": { label: "Trang cuối cùng", tooltip: "Đến trang chiếu cuối cùng (Ctrl+End)" }
     ,"slides.nav.prevSlide": { label: "Trang trước", tooltip: "Về trang chiếu trước (Page Up)" }
     ,"slides.nav.nextSlide": { label: "Trang sau", tooltip: "Đến trang chiếu sau (Page Down)" }
+    ,"slides.text.bold": { label: "Đậm", tooltip: "Chữ đậm (Ctrl+B)" }
+    ,"slides.text.italic": { label: "Nghiêng", tooltip: "Chữ nghiêng (Ctrl+I)" }
+    ,"slides.text.underline": { label: "Gạch chân", tooltip: "Gạch chân chữ (Ctrl+U)" }
+    ,"slides.text.strike": { label: "Gạch ngang", tooltip: "Gạch ngang chữ" }
+    ,"slides.text.clearFormat": { label: "Xóa định dạng", tooltip: "Xóa định dạng chữ, giữ nguyên nội dung" }
+    ,"slides.font.family": { label: "Phông chữ", tooltip: "Chọn phông chữ" }
+    ,"slides.font.size": { label: "Cỡ chữ", tooltip: "Chọn cỡ chữ" }
+    ,"slides.font.grow": { label: "Tăng cỡ chữ", tooltip: "Tăng cỡ chữ" }
+    ,"slides.font.shrink": { label: "Giảm cỡ chữ", tooltip: "Giảm cỡ chữ" }
+    ,"slides.color.text": { label: "Màu chữ", tooltip: "Đổi màu chữ" }
+    ,"slides.color.highlight": { label: "Màu nền chữ", tooltip: "Tô màu nền văn bản" }
+    ,"slides.list.bullet": { label: "Dấu đầu dòng", tooltip: "Tạo danh sách dấu đầu dòng" }
+    ,"slides.list.numbered": { label: "Đánh số", tooltip: "Tạo danh sách đánh số thứ tự" }
+    ,"slides.para.alignLeft": { label: "Căn trái", tooltip: "Căn lề trái (Ctrl+L)" }
+    ,"slides.para.alignCenter": { label: "Căn giữa", tooltip: "Căn lề giữa (Ctrl+E)" }
+    ,"slides.para.alignRight": { label: "Căn phải", tooltip: "Căn lề phải (Ctrl+R)" }
+    ,"slides.para.justify": { label: "Căn đều", tooltip: "Căn đều hai bên (Ctrl+J)" }
+    ,"slides.para.indentInc": { label: "Thụt lề", tooltip: "Tăng thụt lề đoạn văn" }
+    ,"slides.para.indentDec": { label: "Giảm thụt lề", tooltip: "Giảm thụt lề đoạn văn" }
+    ,"slides.para.lineSpacing": { label: "Giãn dòng", tooltip: "Chọn khoảng cách dòng 1.0 / 1.5 / 2.0" }
 
     ,// VN Writer Commands
     "writer.text.bold": { label: "Đậm", tooltip: "Chữ đậm (Ctrl+B)" },

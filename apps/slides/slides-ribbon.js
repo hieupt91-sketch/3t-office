@@ -39,6 +39,104 @@ export const SLIDES_RIBBON_TABS = [
         ]
       },
       {
+        id: "font",
+        label: "Phông chữ",
+        labelKey: "slidesRibbon.group.font",
+        items: [
+          {
+            type: "column",
+            items: [
+              {
+                type: "row",
+                items: [
+                  {
+                    type: "select",
+                    commandId: "slides.font.family",
+                    defaultValue: "Calibri",
+                    options: [
+                      { value: "Calibri", label: "Calibri" },
+                      { value: "Arial", label: "Arial" },
+                      { value: "Times New Roman", label: "Times New Roman" },
+                      { value: "Be Vietnam Pro", label: "Be Vietnam Pro" },
+                      { value: "Roboto", label: "Roboto" }
+                    ]
+                  },
+                  {
+                    type: "select",
+                    commandId: "slides.font.size",
+                    defaultValue: "5",
+                    options: [
+                      { value: "1", label: "10" },
+                      { value: "2", label: "13" },
+                      { value: "3", label: "16" },
+                      { value: "4", label: "18" },
+                      { value: "5", label: "24" },
+                      { value: "6", label: "32" },
+                      { value: "7", label: "48" }
+                    ]
+                  },
+                  { type: "button", commandId: "slides.font.grow", iconOnly: true },
+                  { type: "button", commandId: "slides.font.shrink", iconOnly: true }
+                ]
+              },
+              {
+                type: "row",
+                items: [
+                  { type: "button", commandId: "slides.text.bold", iconOnly: true },
+                  { type: "button", commandId: "slides.text.italic", iconOnly: true },
+                  { type: "button", commandId: "slides.text.underline", iconOnly: true },
+                  { type: "button", commandId: "slides.text.strike", iconOnly: true },
+                  { type: "button", commandId: "slides.text.clearFormat", iconOnly: true },
+                  { type: "button", commandId: "slides.color.text", iconOnly: true },
+                  { type: "button", commandId: "slides.color.highlight", iconOnly: true }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        id: "paragraph",
+        label: "Đoạn văn",
+        labelKey: "slidesRibbon.group.paragraph",
+        items: [
+          {
+            type: "column",
+            items: [
+              {
+                type: "row",
+                items: [
+                  { type: "button", commandId: "slides.list.bullet", iconOnly: true },
+                  { type: "button", commandId: "slides.list.numbered", iconOnly: true },
+                  { type: "button", commandId: "slides.para.indentDec", iconOnly: true },
+                  { type: "button", commandId: "slides.para.indentInc", iconOnly: true },
+                  {
+                    type: "select",
+                    commandId: "slides.para.lineSpacing",
+                    defaultValue: "1.0",
+                    ariaLabel: "Giãn dòng",
+                    options: [
+                      { value: "1.0", label: "1.0" },
+                      { value: "1.5", label: "1.5" },
+                      { value: "2.0", label: "2.0" }
+                    ]
+                  }
+                ]
+              },
+              {
+                type: "row",
+                items: [
+                  { type: "button", commandId: "slides.para.alignLeft", iconOnly: true },
+                  { type: "button", commandId: "slides.para.alignCenter", iconOnly: true },
+                  { type: "button", commandId: "slides.para.alignRight", iconOnly: true },
+                  { type: "button", commandId: "slides.para.justify", iconOnly: true }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
         label: "Đối tượng vẽ",
         labelKey: "slidesRibbon.group.drawing",
         items: [

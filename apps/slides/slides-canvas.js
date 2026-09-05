@@ -379,17 +379,17 @@ export class SlidesCanvasController {
     this.bodyRowEl.appendChild(this.body2El);
 
     this.titleEl.addEventListener("input", () => {
-      this.slides[this.currentSlideIndex].title = this.titleEl.innerText;
+      this._syncEditableFieldsFromDom();
       this._renderThumbnails();
     });
 
     this.bodyEl.addEventListener("input", () => {
-      this.slides[this.currentSlideIndex].body = this.bodyEl.innerText;
+      this._syncEditableFieldsFromDom();
       this._renderThumbnails();
     });
 
     this.body2El.addEventListener("input", () => {
-      this.slides[this.currentSlideIndex].body2 = this.body2El.innerText;
+      this._syncEditableFieldsFromDom();
       this._renderThumbnails();
     });
 
@@ -551,15 +551,59 @@ export class SlidesCanvasController {
     }
   }
 
+  _captureEditableHtml(el) {
+    if (!el) return "";
+    return String(el.innerHTML || "")
+      .replace(/<span[^>]*data-vno-spelling-uncertain[^>]*>([\s\S]*?)<\/span>/gi, "$1")
+      .replace(/<span[^>]*class="[^"]*vno-spelling-uncertain[^"]*"[^>]*>([\s\S]*?)<\/span>/gi, "$1");
+  }
+
+  _htmlLooksFormatted(html) {
+    const value = String(html || "");
+    return /<(b|strong|i|em|u|s|strike|font|ul|ol|li)\b/i.test(value)
+      || /style\s*=\s*["'][^"']*(font-weight|font-style|text-decoration|color|background|font-family|font-size|text-align|line-height)/i.test(value);
+  }
+
+  _setEditableContent(el, html, plain) {
+    if (!el) return;
+    if (html && this._htmlLooksFormatted(html)) el.innerHTML = html;
+    else el.innerText = plain || "";
+  }
+
+  _syncEditableFieldsFromDom() {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return;
+    if (this.titleEl) {
+      slide.title = this.titleEl.innerText || "";
+      const html = this._captureEditableHtml(this.titleEl);
+      if (this._htmlLooksFormatted(html)) slide.titleHtml = html;
+      else delete slide.titleHtml;
+    }
+    if (this.bodyEl) {
+      slide.body = this.bodyEl.innerText || "";
+      const html = this._captureEditableHtml(this.bodyEl);
+      if (this._htmlLooksFormatted(html)) slide.bodyHtml = html;
+      else delete slide.bodyHtml;
+    }
+    if (this.body2El) {
+      slide.body2 = this.body2El.innerText || "";
+      const html = this._captureEditableHtml(this.body2El);
+      if (this._htmlLooksFormatted(html)) slide.body2Html = html;
+      else delete slide.body2Html;
+    }
+  }
+
   _syncVisibleSpellcheckText() {
     const slide = this.slides[this.currentSlideIndex];
     if (!slide) return;
-    slide.title = this.titleEl?.innerText || "";
-    slide.body = this.bodyEl?.innerText || "";
-    slide.body2 = this.body2El?.innerText || "";
+    this._syncEditableFieldsFromDom();
     for (const root of this.shapesLayer?.querySelectorAll?.("[data-shape-text-id]") || []) {
       const shape = slide.shapes?.find(item => String(item.id) === root.dataset.shapeTextId);
-      if (shape) shape.text = root.textContent || "";
+      if (!shape) continue;
+      shape.text = root.innerText || root.textContent || "";
+      const html = this._captureEditableHtml(root);
+      if (this._htmlLooksFormatted(html)) shape.textHtml = html;
+      else delete shape.textHtml;
     }
     this._renderThumbnails();
   }
@@ -1440,10 +1484,14 @@ export class SlidesCanvasController {
     return `<div class="vno-sorter-shape-node" style="${style}">${this._escapeShapeText(shape.text || "")}</div>`;
   }
 
-  updateShapeText(shapeId, text) {
+  updateShapeText(shapeId, text, html) {
     const shape = this.slides[this.currentSlideIndex]?.shapes?.find(item => String(item.id) === String(shapeId));
     if (!shape || shape.type === "connector") return false;
     shape.text = String(text || "").replace(/\r?\n/g, " ");
+    if (html !== undefined) {
+      if (this._htmlLooksFormatted(html)) shape.textHtml = html;
+      else delete shape.textHtml;
+    }
     this._renderThumbnails();
     if (this.slideSorterOverlay) this._renderSlideSorterGrid();
     return true;
@@ -1682,12 +1730,14 @@ export class SlidesCanvasController {
           (row || []).forEach((cell, c) => {
             const td = document.createElement(r === 0 ? "th" : "td");
             td.contentEditable = "true";
-            td.textContent = cell || "";
+            if (this._htmlLooksFormatted(cell)) td.innerHTML = cell;
+            else td.textContent = cell || "";
             td.style.cssText = "border:1px solid #94a3b8;padding:6px 8px;font-size:13px;background:#fff;font-weight:" + (r === 0 ? "700" : "400") + ";";
             td.addEventListener("mousedown", (event) => event.stopPropagation());
             td.addEventListener("input", () => {
               if (!shape.cells[r]) shape.cells[r] = [];
-              shape.cells[r][c] = td.textContent || "";
+              const html = this._captureEditableHtml(td);
+              shape.cells[r][c] = this._htmlLooksFormatted(html) ? html : (td.textContent || "");
             });
             tr.appendChild(td);
           });
@@ -1702,7 +1752,8 @@ export class SlidesCanvasController {
           const textEl = document.createElement("div");
           textEl.className = "vno-diagram-node-text";
           textEl.dataset.shapeTextId = String(shape.id);
-          textEl.textContent = shape.text || "";
+          if (shape.textHtml && this._htmlLooksFormatted(shape.textHtml)) textEl.innerHTML = shape.textHtml;
+          else textEl.textContent = shape.text || "";
           textEl.contentEditable = "false";
           textEl.setAttribute("role", "textbox");
           textEl.setAttribute("aria-label", shape.text || t("slidesDialogs.diagramItem", { number: 1 }));
@@ -1722,7 +1773,7 @@ export class SlidesCanvasController {
               selection.addRange(range);
             }
           };
-          textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.textContent));
+          textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.innerText || textEl.textContent, this._captureEditableHtml(textEl)));
           textEl.addEventListener("blur", () => {
             textEl.contentEditable = "false";
             const before = textEl.dataset.originalText ?? "";
@@ -2576,9 +2627,9 @@ export class SlidesCanvasController {
 
     this._applyLayoutToDom(layout);
 
-    if (this.titleEl) this.titleEl.innerText = s.title || "";
-    if (this.bodyEl) this.bodyEl.innerText = s.body || "";
-    if (this.body2El) this.body2El.innerText = s.body2 || "";
+    if (this.titleEl) this._setEditableContent(this.titleEl, s.titleHtml, s.title || "");
+    if (this.bodyEl) this._setEditableContent(this.bodyEl, s.bodyHtml, s.body || "");
+    if (this.body2El) this._setEditableContent(this.body2El, s.body2Html, s.body2 || "");
 
     if (this.notesTextarea) {
       this.notesTextarea.value = s.notes || "";
@@ -2716,8 +2767,11 @@ export class SlidesCanvasController {
     const dup = {
       id: Date.now(),
       title: `${cur.title} (Bản sao)`,
+      titleHtml: cur.titleHtml,
       body: cur.body,
+      bodyHtml: cur.bodyHtml,
       body2: cur.body2,
+      body2Html: cur.body2Html,
       layoutType: cur.layoutType || "title-content",
       shapes: (cur.shapes || []).map(s => ({ ...s, animation: s.animation ? { ...s.animation } : undefined })),
       notes: cur.notes || "",
