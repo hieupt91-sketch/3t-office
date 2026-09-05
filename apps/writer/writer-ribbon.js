@@ -248,6 +248,7 @@ export const WRITER_RIBBON_TABS = [
         labelKey: "writerRibbon.group.text",
         items: [
           { type: "button", commandId: "writer.insert.textbox", isLarge: true },
+          { type: "button", commandId: "writer.insert.wordart", isLarge: true },
           {
             type: "column",
             items: [

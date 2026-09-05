@@ -124,5 +124,21 @@ export const WRITER_HELP_ENTRIES = [
       "Sau khi thêm hoặc đổi tiêu đề, nhấn Cập nhật mục lục để làm mới số trang và dòng đề mục.",
       "Nhấp một dòng trong mục lục để nhảy tới tiêu đề tương ứng trong tài liệu."
     ]
+  },
+  {
+    id: "writer.insert.wordart",
+    app: "writer",
+    commandIds: ["writer.insert.wordart"],
+    title: "Chữ nghệ thuật (WordArt)",
+    summary: "Chèn một dòng chữ trang trí (viền, đổ bóng hoặc gradient) ngay tại vị trí con trỏ trong đoạn văn. Khác Hộp văn bản: WordArt nằm trong dòng chữ, không phải khung kéo thả đè lên trang.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
+    keywords: ["chữ nghệ thuật", "wordart", "word art", "tiêu đề", "gradient", "viền", "đổ bóng"],
+    steps: [
+      "Đặt con trỏ vào đoạn văn, chỗ muốn chèn chữ nghệ thuật.",
+      "Mở tab Chèn, nhóm Văn bản, nhấn nút lớn Chữ nghệ thuật (cạnh Hộp văn bản).",
+      "Hộp thoại Chèn chữ nghệ thuật: gõ nội dung (mặc định «VN Office», tối đa 80 ký tự) rồi chọn một mẫu trong lưới (ví dụ Xanh đậm viền trắng, Gradient đại dương, Viền đậm trắng).",
+      "Nhấn Chèn. Khối chữ xuất hiện ngay tại con trỏ. Nhấp một lần để chọn (viền xanh); nhấp đúp để sửa chữ; Delete hoặc Backspace khi đang chọn sẽ xóa cả khối. Ctrl+Z hoàn tác, Ctrl+Y làm lại.",
+      "Cùng nhóm Văn bản còn Hộp văn bản (khung kéo-thả độc lập), Chữ đầu đoạn và Ngày & Giờ."
+    ]
   }
 ];

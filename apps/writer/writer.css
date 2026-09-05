@@ -2001,6 +2001,74 @@ p.vno-style-emphasis {
   border-radius: 4px;
 }
 
+.vno-writer-wordart {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 4px;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  line-height: 1.15;
+  max-width: 100%;
+}
+.vno-writer-wordart.is-selected {
+  outline: 2px solid var(--vno-writer-primary, #0f4c81);
+  outline-offset: 3px;
+}
+.vno-writer-wordart.is-editing {
+  cursor: text;
+  user-select: text;
+}
+.vno-writer-wordart .vno-wordart-text {
+  display: inline-block;
+  paint-order: stroke fill;
+  word-break: break-word;
+  outline: none;
+}
+.vno-writer-wordart.is-editing .vno-wordart-text {
+  box-shadow: inset 0 0 0 2px rgba(15, 76, 129, 0.55);
+  background: rgba(232, 241, 249, 0.45);
+}
+.vno-writer-wordart-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.vno-writer-wordart-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px 6px 10px;
+  border: 1px solid var(--vno-border-default, #cbd5e1);
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 92px;
+}
+.vno-writer-wordart-preset.is-selected,
+.vno-writer-wordart-preset[aria-checked="true"] {
+  outline: 2px solid var(--vno-writer-primary, #0f4c81);
+  outline-offset: 1px;
+}
+.vno-writer-wordart-preset:focus-visible {
+  outline: 2px solid var(--vno-writer-primary, #0f4c81) !important;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.25);
+}
+.vno-writer-wordart-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  pointer-events: none;
+}
+.vno-writer-wordart-preset-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vno-text-muted, #475569);
+  text-align: center;
+}
+
 .vno-bookmark {
   display: inline-block;
   width: 0;
