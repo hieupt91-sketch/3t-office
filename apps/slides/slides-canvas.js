@@ -6,6 +6,9 @@ import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { formatDateTime, showDateTimeDialog } from "../../platform/ui-kit/datetime-picker.js";
 import { showSymbolPicker } from "../../platform/ui-kit/symbol-picker.js";
+import { VietnameseSpellChecker } from "../../platform/text/vi-spellchecker.js";
+import { SpellcheckDomController } from "../../platform/text/spellcheck-dom-controller.js";
+import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
 import { showSlideTableDialog, showHeaderFooterDialog } from "./insert-dialogs.js";
 
 export function trapFocus(dialogBox, event) {
@@ -283,6 +286,9 @@ export class SlidesCanvasController {
     this.rulerVEl = null;
     this.gridlinesLayer = null;
     this.guidesLayer = null;
+    this.spellcheckChecker = null;
+    this.spellcheckController = null;
+    this._onSpellcheckMenuClick = null;
   }
 
   mount() {
@@ -489,8 +495,57 @@ export class SlidesCanvasController {
     this.applySlideMaster(this.masterTheme);
     this._syncUndoRedoState();
     this._setupCanvasEvents();
+    this._setupVietnameseSpellcheck();
     this._applyViewState();
     this._syncCommandStates();
+  }
+
+  _spellcheckRoots() {
+    const fixedRoots = [this.titleEl, this.bodyEl, this.body2El];
+    const shapeRoots = this.shapesLayer?.querySelectorAll?.("[contenteditable]") || [];
+    return [...fixedRoots, ...shapeRoots].filter(root => root?.isConnected);
+  }
+
+  _refreshSpellcheckRoots() {
+    if (!this.spellcheckChecker) return;
+    this.spellcheckController?.destroy();
+    this.spellcheckController = new SpellcheckDomController({
+      roots: this._spellcheckRoots(),
+      checker: this.spellcheckChecker,
+      debounceMs: 400
+    }).attach();
+  }
+
+  _setupVietnameseSpellcheck() {
+    if (!this.canvasEl || typeof document === "undefined") return;
+    this.canvasEl.dataset.spellcheckStatus = "loading";
+    try {
+      this.spellcheckChecker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
+      this._refreshSpellcheckRoots();
+      this._onSpellcheckMenuClick = event => {
+        if (!event.target.closest?.(".vno-spellcheck-menu")) return;
+        queueMicrotask(() => this._syncVisibleSpellcheckText());
+      };
+      document.addEventListener("click", this._onSpellcheckMenuClick);
+      this.canvasEl.dataset.spellcheckStatus = "ready";
+    } catch (error) {
+      this.canvasEl.dataset.spellcheckStatus = "error";
+      this.canvasEl.title = "Không thể khởi tạo bộ kiểm tra chính tả tiếng Việt.";
+      console.warn("[SlidesCanvasController] Không thể khởi tạo kiểm tra chính tả tiếng Việt:", error);
+    }
+  }
+
+  _syncVisibleSpellcheckText() {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return;
+    slide.title = this.titleEl?.innerText || "";
+    slide.body = this.bodyEl?.innerText || "";
+    slide.body2 = this.body2El?.innerText || "";
+    for (const root of this.shapesLayer?.querySelectorAll?.("[data-shape-text-id]") || []) {
+      const shape = slide.shapes?.find(item => String(item.id) === root.dataset.shapeTextId);
+      if (shape) shape.text = root.textContent || "";
+    }
+    this._renderThumbnails();
   }
 
   /**
@@ -1158,6 +1213,7 @@ export class SlidesCanvasController {
         if (shape.text !== undefined) {
           const textEl = document.createElement("div");
           textEl.className = "vno-diagram-node-text";
+          textEl.dataset.shapeTextId = String(shape.id);
           textEl.textContent = shape.text || "";
           textEl.contentEditable = "false";
           textEl.setAttribute("role", "textbox");
@@ -1235,6 +1291,7 @@ export class SlidesCanvasController {
 
     this._updateSelectionUi();
     this._renderThumbnails();
+    this._refreshSpellcheckRoots();
   }
 
   _ensureShapeSelectionHandles(el, shape) {
@@ -1988,6 +2045,7 @@ export class SlidesCanvasController {
     this._renderHeaderFooter();
 
     this._renderShapesLayer();
+    this._refreshSpellcheckRoots();
     this._renderCommentsUi();
 
     if (this.isReadingView) {
@@ -4492,6 +4550,21 @@ export class SlidesCanvasController {
     }
     if (this.slideSorterOverlay) {
       this.closeSlideSorter();
+    }
+    this._activeShowCleanup?.();
+    this._activePresenterCleanup?.();
+    this._activeShowCleanup = null;
+    this._activePresenterCleanup = null;
+    if (typeof window !== "undefined" && this._windowKeyHandler) {
+      window.removeEventListener("keydown", this._windowKeyHandler);
+      this._windowKeyHandler = null;
+    }
+    this.spellcheckController?.destroy();
+    this.spellcheckController = null;
+    this.spellcheckChecker = null;
+    if (typeof document !== "undefined" && this._onSpellcheckMenuClick) {
+      document.removeEventListener("click", this._onSpellcheckMenuClick);
+      this._onSpellcheckMenuClick = null;
     }
   }
 }

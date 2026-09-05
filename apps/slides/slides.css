@@ -208,6 +208,14 @@
   background-color: rgba(254, 242, 242, 0.5);
 }
 
+.vno-slides-studio .vno-spelling-uncertain {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: #dc2626;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
 /* Fullscreen Presentation Mode */
 .vno-slideshow-overlay {
   position: fixed;
