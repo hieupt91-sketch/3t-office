@@ -6,6 +6,7 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog, showPromptDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
+import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { getVnCommand } from "../common/command-dispatch-mapper.js";
 import { SheetChartBuilder } from "../../../apps/sheet/sheet-chart.js";
 
@@ -122,6 +123,11 @@ export class SheetAdapter {
       options = options || {};
       return this.grid.enterArrayFormula(options);
     });
+    globalCommandBus.bindHandler("sheet.review.spellCheck", (args) => {
+      args = args || {};
+      return this.grid.showSpellcheckDialog(args);
+    });
+    globalShortcutManager.bind("F7", "sheet.review.spellCheck", "sheet");
     globalCommandBus.bindHandler("sheet.review.commentInsert", (args) => {
       args = args || {};
       return this.grid.showCommentDialog(args);
@@ -2125,6 +2131,9 @@ export class SheetAdapter {
 
       case "sheet.view.headings":
         return this.grid.toggleHeadings ? this.grid.toggleHeadings() : false;
+
+      case "sheet.review.spellCheck":
+        return this.grid.showSpellcheckDialog ? this.grid.showSpellcheckDialog(args || {}) : false;
 
       case "sheet.review.commentInsert":
         return this.grid.showCommentDialog ? this.grid.showCommentDialog(args || {}) : false;

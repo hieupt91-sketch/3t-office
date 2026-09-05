@@ -249,6 +249,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.view.newWindow", category: "view", label: "Cửa sổ mới", icon: "newWindow", tooltip: "Mở tài liệu bảng tính trong một cửa sổ trình duyệt mới" },
   { id: "sheet.view.gridlines", category: "view", label: "Đường lưới", icon: "gridlines", tooltip: "Ẩn hoặc hiện đường viền ô", isToggle: true },
   { id: "sheet.view.headings", category: "view", label: "Tiêu đề", icon: "headings", tooltip: "Ẩn hoặc hiện tiêu đề hàng và cột", isToggle: true },
+  { id: "sheet.review.spellCheck", category: "review", label: "Chính tả", icon: "sheetSpellCheck", tooltip: "Kiểm tra chính tả tiếng Việt trên các ô văn bản của trang tính hiện tại (F7)" },
   { id: "sheet.review.commentInsert", category: "review", label: "Ghi chú mới", icon: "cellComment", tooltip: "Thêm, sửa hoặc xóa ghi chú của ô đang chọn" },
   { id: "sheet.page.setPrintArea", category: "page", label: "Đặt vùng in", icon: "printArea", tooltip: "Đặt vùng đang chọn làm vùng in" },
   { id: "sheet.page.clearPrintArea", category: "page", label: "Xóa vùng in", icon: "clearPrintArea", tooltip: "Xóa vùng in của trang tính hiện tại" },
