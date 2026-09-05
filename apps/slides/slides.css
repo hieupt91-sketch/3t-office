@@ -630,7 +630,7 @@
   font-size: 13px;
 }
 .vno-presenter-exit-btn {
-  background-color: #ef4444;
+  background-color: #dc2626;
   color: #ffffff;
   border: none;
   font-weight: 600;
@@ -639,7 +639,7 @@
   cursor: pointer;
 }
 .vno-presenter-exit-btn:hover {
-  background-color: #dc2626;
+  background-color: #b91c1c;
 }
 .vno-presenter-body {
   flex: 1;
@@ -677,6 +677,7 @@
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  background-color: #ffffff;
   color: #0f172a;
 }
 .vno-presenter-nav-bar {

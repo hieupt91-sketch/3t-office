@@ -5,7 +5,7 @@
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 
-function trapFocus(dialogBox, event) {
+export function trapFocus(dialogBox, event) {
   if (!dialogBox || event.key !== "Tab") return;
   const focusables = Array.from(dialogBox.querySelectorAll(
     'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +

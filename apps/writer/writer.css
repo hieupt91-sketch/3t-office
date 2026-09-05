@@ -138,7 +138,7 @@
   justify-content: space-between;
   gap: 8px;
   margin-top: 8px;
-  color: #94a3b8;
+  color: #475569;
   font-size: 10px;
 }
 
@@ -171,7 +171,7 @@
 
 /* Dấu sửa đổi chỉ tồn tại trên canvas; serializer Writer loại bỏ trước khi lưu/xuất. */
 .vno-writer-body ins[data-vno-change="insert"] {
-  color: #15803d;
+  color: #166534;
   text-decoration: underline;
   text-decoration-thickness: 1.5px;
   text-underline-offset: 2px;
@@ -179,7 +179,7 @@
 }
 
 .vno-writer-body del[data-vno-change="delete"] {
-  color: #dc2626;
+  color: #b91c1c;
   text-decoration: line-through;
   text-decoration-thickness: 1.5px;
   background: rgba(239, 68, 68, 0.08);
@@ -304,7 +304,7 @@
   top: -14px;
   font-size: 8.5px;
   font-weight: 600;
-  color: #94a3b8;
+  color: #475569;
   letter-spacing: 0.5px;
   pointer-events: none;
   opacity: 0;
@@ -335,7 +335,7 @@
   bottom: -14px;
   font-size: 8.5px;
   font-weight: 600;
-  color: #94a3b8;
+  color: #475569;
   letter-spacing: 0.5px;
   pointer-events: none;
   opacity: 0;
@@ -351,7 +351,7 @@
 .vno-writer-header:empty::before,
 .vno-writer-footer:empty::before {
   content: attr(data-placeholder);
-  color: #94a3b8;
+  color: #475569;
   font-style: italic;
   pointer-events: none;
 }
@@ -478,7 +478,7 @@
   align-items: center;
   gap: 6px;
   padding: 7px 16px;
-  background-color: #0284c7;
+  background-color: #0369a1;
   color: #ffffff;
   border: none;
   border-radius: 6px;
@@ -489,7 +489,7 @@
 }
 
 .vno-print-preview-btn-print:hover {
-  background-color: #0369a1;
+  background-color: #075985;
 }
 
 .vno-print-preview-divider {
@@ -829,13 +829,13 @@
 .vno-toc-btn-delete {
   font-size: 14px;
   padding: 2px 7px;
-  color: #94a3b8;
+  color: #475569;
 }
 
 .vno-toc-btn-delete:hover {
   background: #fee2e2;
   border-color: #fca5a5;
-  color: #dc2626;
+  color: #b91c1c;
 }
 
 .vno-toc-entries {
@@ -1030,7 +1030,7 @@ sup.vno-endnote-ref:hover {
 
 .vno-note-text:empty:before {
   content: attr(data-placeholder);
-  color: #94a3b8;
+  color: #475569;
   font-style: italic;
   pointer-events: none;
 }
@@ -1040,7 +1040,7 @@ sup.vno-endnote-ref:hover {
   opacity: 0;
   border: none;
   background: transparent;
-  color: #94a3b8;
+  color: #475569;
   font-size: 16px;
   cursor: pointer;
   padding: 0 4px;
@@ -1149,7 +1149,7 @@ sup.vno-endnote-ref:hover {
 
 .vno-style-gallery-hint {
   font-size: 11px;
-  color: #94a3b8;
+  color: #475569;
 }
 
 .vno-style-gallery-grid {
@@ -1567,7 +1567,7 @@ p.vno-style-emphasis {
 }
 [data-vno-theme="emerald"] h1 { color: #065f46 !important; }
 [data-vno-theme="emerald"] h2 { color: #047857 !important; }
-[data-vno-theme="emerald"] h3 { color: #059669 !important; }
+[data-vno-theme="emerald"] h3 { color: #047857 !important; }
 [data-vno-theme="emerald"] p {
   margin-bottom: 8pt !important;
   line-height: 1.5 !important;
