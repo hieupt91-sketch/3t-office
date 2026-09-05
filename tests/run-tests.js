@@ -62,6 +62,7 @@ import { runWriterSlidesInsertGapsTests } from "./unit/writer-slides-insert-gaps
 import { runSheetDataToolsTests } from "./unit/sheet-data-tools.test.js";
 import { runSlidesDialogsA11yTests } from "./unit/slides-dialogs-a11y.test.js";
 import { runColorContrastAuditTests } from "./unit/color-contrast-audit.test.js";
+import { runRealOfficeImportFidelityTests } from "./unit/real-office-import-fidelity.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -131,7 +132,8 @@ async function runAll() {
     { title: "54. Behavioral & Unit Tests — Writer/Slides Insert Tab Gaps (Word/PowerPoint)", runner: runWriterSlidesInsertGapsTests },
     { title: "55. Behavioral & Unit Tests — VN Sheet Data Tools & Outline", runner: runSheetDataToolsTests },
     { title: "56. Behavioral & Unit Tests — VN Slides Dialogs & Overlays Accessibility (WCAG 2.1 / ARIA)", runner: runSlidesDialogsA11yTests },
-    { title: "57. Automated Audit — Suite-Wide WCAG 2.1 Color Contrast (AA / AAA)", runner: runColorContrastAuditTests }
+    { title: "57. Automated Audit — Suite-Wide WCAG 2.1 Color Contrast (AA / AAA)", runner: runColorContrastAuditTests },
+    { title: "58. Unit Tests — Real Office File Import Fidelity (DOCX/XLSX/PPTX via soffice HTML/FODS/FODP)", runner: runRealOfficeImportFidelityTests }
   ];
 
   for (const suite of suites) {

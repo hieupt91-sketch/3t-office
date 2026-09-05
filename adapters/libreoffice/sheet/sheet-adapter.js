@@ -591,7 +591,8 @@ export class SheetAdapter {
     const style = {};
     const numFmtAttr = get("vno:number-format");
     const standardFormat = numberStyles.get(get("table:style-name"));
-    if (standardFormat) {
+    const numericTypes = new Set(["float", "percentage", "currency", "date", "time"]);
+    if (standardFormat && (numericTypes.has(valueType) || !valueType)) {
       style.numberFormat = { ...standardFormat };
     } else if (numFmtAttr) {
       try {
