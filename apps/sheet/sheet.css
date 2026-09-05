@@ -580,6 +580,128 @@ tr.is-filtered-out {
 .vno-pivot-field:last-child { border-bottom:0; }
 .vno-name-manager{display:flex;flex-direction:column;gap:12px;min-width:520px}.vno-name-list{border:1px solid var(--vno-border-default);border-radius:6px;max-height:220px;overflow:auto}.vno-name-row{display:grid;grid-template-columns:1.2fr 1fr 1fr;width:100%;padding:8px 10px;border:0;border-bottom:1px solid var(--vno-border-default);background:transparent;text-align:left;cursor:pointer}.vno-name-row:hover,.vno-name-row.is-selected{background:#e7f4ec}.vno-name-actions{display:flex;gap:8px}.vno-name-form{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.vno-name-form label{display:flex;flex-direction:column;gap:4px;font-size:12px}.vno-name-form input,.vno-name-form select{padding:7px;border:1px solid var(--vno-border-default);border-radius:4px}.vno-name-empty{padding:18px;text-align:center;color:var(--vno-text-secondary)}
 
+/* ==========================================================================
+   FORMAT CELLS DIALOG (CTRL+1) MICROINTERACTIONS
+   ========================================================================== */
+.vno-format-cells-box {
+  animation: vnoFormatCellsFadeIn 0.15s ease-out;
+}
+@keyframes vnoFormatCellsFadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.vno-fc-tab {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.vno-fc-tab:hover:not([aria-disabled="true"]) {
+  background-color: #ffffff;
+  color: #0f6d38;
+}
+.vno-fc-tab.is-active {
+  color: #0f6d38 !important;
+  font-weight: 600;
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1;
+  border-bottom-color: #ffffff;
+  margin-bottom: -1px;
+}
+.vno-fc-tab[aria-disabled="true"] {
+  cursor: not-allowed !important;
+  opacity: 0.65;
+}
+.vno-fc-tab[aria-disabled="true"]:hover {
+  background-color: transparent !important;
+  color: #475569 !important;
+}
+
+.vno-fc-cat-item {
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  user-select: none;
+  color: #1e293b;
+  background-color: transparent;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.vno-fc-cat-item:hover:not(.is-selected) {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+.vno-fc-cat-item:active {
+  transform: scale(0.98);
+}
+.vno-fc-cat-item.is-selected {
+  background-color: #e7f4ec;
+  color: #0f6d38;
+  font-weight: 600;
+}
+.vno-fc-cat-item:focus-visible {
+  outline: 2px solid #0f6d38;
+  outline-offset: -1px;
+}
+
+.vno-fc-neg-item,
+.vno-fc-date-item,
+.vno-fc-pattern-item {
+  padding: 5px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 3px;
+  color: #1e293b;
+  background-color: transparent;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.vno-fc-neg-item:hover:not(.is-selected),
+.vno-fc-date-item:hover:not(.is-selected),
+.vno-fc-pattern-item:hover:not(.is-selected) {
+  background-color: #f1f5f9;
+}
+.vno-fc-neg-item:active,
+.vno-fc-date-item:active,
+.vno-fc-pattern-item:active {
+  transform: scale(0.98);
+}
+.vno-fc-neg-item.is-selected,
+.vno-fc-date-item.is-selected,
+.vno-fc-pattern-item.is-selected {
+  background-color: #e7f4ec;
+  color: #0f6d38;
+  font-weight: 600;
+}
+
+.vno-fc-close-btn,
+.vno-fc-cancel-btn,
+.vno-fc-ok-btn {
+  transition: all 0.12s ease-in-out;
+}
+.vno-fc-close-btn:hover {
+  background-color: #fee2e2 !important;
+  color: #b91c1c !important;
+}
+.vno-fc-close-btn:active,
+.vno-fc-cancel-btn:active,
+.vno-fc-ok-btn:active {
+  transform: scale(0.96);
+}
+.vno-fc-cancel-btn:hover {
+  background-color: #f1f5f9 !important;
+}
+.vno-fc-ok-btn:hover {
+  background-color: #0d5c2f !important;
+}
+
 /* In tài liệu (window.print()) — ẩn formula bar & thanh tab sheet, chỉ in lưới dữ liệu */
 @media print {
   .vno-formula-bar,
