@@ -76,7 +76,8 @@ export const SLIDES_RIBBON_TABS = [
         labelKey: "slidesRibbon.group.illustrations",
         items: [
           { type: "button", commandId: "slides.shape.insert", isLarge: true },
-          { type: "button", commandId: "slides.diagram.insert", isLarge: true }
+          { type: "button", commandId: "slides.diagram.insert", isLarge: true },
+          { type: "button", commandId: "slides.insert.chart", label: "Biểu đồ", icon: "chart", isLarge: true }
         ]
       },
       {

@@ -88,6 +88,7 @@ import { runSlidesWordArtTests } from "./unit/slides-wordart.test.js";
 import { runSheetFormatPainterTests } from "./unit/sheet-format-painter.test.js";
 import { runSheetGoalSeekTests } from "./unit/sheet-goal-seek.test.js";
 import { runWriterArrangeTests } from "./unit/writer-arrange.test.js";
+import { runSlidesChartTests } from "./unit/slides-charts.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -183,7 +184,8 @@ async function runAll() {
     { title: "79. Behavioral Tests — VN Sheet Format Painter", runner: runSheetFormatPainterTests },
     { title: "80. Accessibility Audit — Keyboard Navigation for New Features (Paste Special, Merge Cells, Sections, WordArt, SmartArt Group Select, Dark Mode Toggle)", runner: runA11yAuditNewFeaturesTests },
     { title: "81. Behavioral Tests — VN Sheet Goal Seek", runner: runSheetGoalSeekTests },
-    { title: "82. Behavioral Tests — VN Writer Arrange Group", runner: runWriterArrangeTests }
+    { title: "82. Behavioral Tests — VN Writer Arrange Group", runner: runWriterArrangeTests },
+    { title: "83. Behavioral Tests — VN Slides Insert Chart", runner: runSlidesChartTests }
   ];
 
   for (const suite of suites) {
