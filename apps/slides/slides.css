@@ -208,6 +208,50 @@
   background-color: rgba(254, 242, 242, 0.5);
 }
 
+.vno-slides-studio .vno-spelling-uncertain {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: #dc2626;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.vno-spellcheck-menu {
+  position: fixed;
+  z-index: 12000;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .22);
+}
+
+.vno-spellcheck-menu button {
+  display: block;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #1e293b;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.vno-spellcheck-menu button:hover,
+.vno-spellcheck-menu button:focus-visible {
+  background: #fef2f2;
+  outline: 2px solid #b53818;
+}
+
+.vno-spellcheck-menu hr {
+  margin: 5px 3px;
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+}
+
 /* Fullscreen Presentation Mode */
 .vno-slideshow-overlay {
   position: fixed;
