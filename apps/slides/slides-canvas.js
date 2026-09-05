@@ -8,6 +8,31 @@ import { formatDateTime, showDateTimeDialog } from "../../platform/ui-kit/dateti
 import { showSymbolPicker } from "../../platform/ui-kit/symbol-picker.js";
 import { showSlideTableDialog, showHeaderFooterDialog } from "./insert-dialogs.js";
 
+export function trapFocus(dialogBox, event) {
+  if (!dialogBox || event.key !== "Tab") return;
+  const focusables = Array.from(dialogBox.querySelectorAll(
+    'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+
+  if (event.shiftKey) {
+    if (document.activeElement === first || !dialogBox.contains?.(document.activeElement)) {
+      event.preventDefault();
+      last?.focus?.();
+    }
+  } else {
+    if (document.activeElement === last || !dialogBox.contains?.(document.activeElement)) {
+      event.preventDefault();
+      first?.focus?.();
+    }
+  }
+}
+
 export const SLIDE_MASTER_THEMES = [
   {
     id: "modern-blue",
@@ -346,7 +371,7 @@ export class SlidesCanvasController {
     this.commentButtonEl.type = "button";
     this.commentButtonEl.className = "vno-slide-comment-indicator";
     this.commentButtonEl.title = "Mở nhận xét của trang chiếu";
-    this.commentButtonEl.setAttribute("aria-label", "Mở nhận xét của trang chiếu");
+    this.commentButtonEl.setAttribute?.("aria-label", "Mở nhận xét của trang chiếu");
     this.commentButtonEl.innerHTML = `<span aria-hidden="true">◰</span><strong>0</strong>`;
     this.commentButtonEl.addEventListener("click", (event) => {
       event.stopPropagation();
@@ -2036,11 +2061,12 @@ export class SlidesCanvasController {
 
   openSlideSorter() {
     if (this.slideSorterOverlay || typeof document === "undefined") return false;
+    this._slideSorterPreviousFocused = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-slide-sorter-overlay";
-    overlay.setAttribute("role", "dialog");
-    overlay.setAttribute("aria-modal", "true");
-    overlay.setAttribute("aria-label", "Bộ sắp xếp trang chiếu");
+    overlay.setAttribute?.("role", "dialog");
+    overlay.setAttribute?.("aria-modal", "true");
+    overlay.setAttribute?.("aria-label", "Bộ sắp xếp trang chiếu");
     overlay.innerHTML = `
       <header class="vno-slide-sorter-header">
         <div><strong>Bộ sắp xếp trang chiếu</strong><span>Kéo và thả để thay đổi thứ tự</span></div>
@@ -2053,13 +2079,15 @@ export class SlidesCanvasController {
       if (event.key === "Escape") {
         event.preventDefault();
         this.closeSlideSorter();
+      } else if (event.key === "Tab") {
+        trapFocus(overlay, event);
       }
     };
     document.addEventListener("keydown", this._slideSorterKeyHandler);
     document.body.appendChild(overlay);
     this.slideSorterOverlay = overlay;
     this._renderSlideSorterGrid();
-    overlay.querySelector(".vno-slide-sorter-close")?.focus();
+    overlay.querySelector(".vno-slide-sorter-close")?.focus?.();
     return true;
   }
 
@@ -2071,6 +2099,10 @@ export class SlidesCanvasController {
     this.slideSorterOverlay.remove();
     this.slideSorterOverlay = null;
     this._slideSorterKeyHandler = null;
+    if (this._slideSorterPreviousFocused && typeof this._slideSorterPreviousFocused.focus === "function") {
+      try { this._slideSorterPreviousFocused.focus(); } catch (_) {}
+      this._slideSorterPreviousFocused = null;
+    }
     return true;
   }
 
@@ -2091,7 +2123,7 @@ export class SlidesCanvasController {
       item.draggable = true;
       item.dataset.slideIndex = String(index);
       item.tabIndex = 0;
-      item.setAttribute("aria-label", `Trang chiếu ${index + 1}: ${slide.title || "Không có tiêu đề"}`);
+      item.setAttribute?.("aria-label", `Trang chiếu ${index + 1}: ${slide.title || "Không có tiêu đề"}`);
       const timingLabel = typeof slide.rehearsedDuration === "number"
         ? `<div class="vno-slide-sorter-timing" title="Thời gian tập dượt đã lưu">⏱ ${Math.round(slide.rehearsedDuration)}s</div>`
         : "";
@@ -2109,10 +2141,17 @@ export class SlidesCanvasController {
           ${(slide.shapes || []).map(shape => this._shapeSorterHtml(shape)).join("")}
         </div>
         <div class="vno-slide-sorter-actions">
-          <button type="button" data-action="duplicate" title="Nhân đôi trang chiếu ${index + 1}">Nhân đôi</button>
-          <button type="button" data-action="delete" title="Xóa trang chiếu ${index + 1}" ${this.slides.length <= 1 ? "disabled" : ""}>Xóa</button>
+          <button type="button" data-action="duplicate" title="Nhân đôi trang chiếu ${index + 1}" aria-label="Nhân đôi trang chiếu ${index + 1}">Nhân đôi</button>
+          <button type="button" data-action="delete" title="Xóa trang chiếu ${index + 1}" aria-label="Xóa trang chiếu ${index + 1}" ${this.slides.length <= 1 ? "disabled" : ""}>Xóa</button>
         </div>`;
 
+      item.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          this.selectSlide(index);
+          this.closeSlideSorter();
+        }
+      });
       item.addEventListener("dragstart", (event) => {
         event.dataTransfer?.setData("text/plain", String(index));
         if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
@@ -2501,12 +2540,13 @@ export class SlidesCanvasController {
     const panel = document.createElement("aside");
     panel.className = "vno-slide-comments-panel";
     panel.hidden = true;
-    panel.setAttribute("aria-label", t("slidesDialogs.commentsLabel"));
+    panel.setAttribute?.("role", "region");
+    panel.setAttribute?.("aria-label", t("slidesDialogs.commentsLabel"));
     panel.innerHTML = `
       <header><strong>${t("slidesDialogs.commentsLabel")}</strong><button type="button" data-comment-close aria-label="${t("slidesDialogs.close")}">×</button></header>
       <div class="vno-slide-comments-list" aria-live="polite"></div>
       <label class="vno-slide-comment-compose">${t("slidesDialogs.newComment")}
-        <textarea rows="3" placeholder="${t("slidesDialogs.commentPlaceholder")}"></textarea>
+        <textarea rows="3" placeholder="${t("slidesDialogs.commentPlaceholder")}" aria-label="${t("slidesDialogs.newComment")}"></textarea>
       </label>
       <button type="button" class="vno-slide-comment-add">${t("slidesDialogs.addComment")}</button>`;
     panel.querySelector("[data-comment-close]")?.addEventListener("click", () => this.closeCommentsPanel());
@@ -2526,15 +2566,33 @@ export class SlidesCanvasController {
 
   openCommentsPanel(focusInput = true) {
     if (!this.commentPanelEl) return false;
+    this._commentsPreviousFocused = document.activeElement;
     this.commentPanelEl.hidden = false;
     this._renderCommentsUi();
-    if (focusInput) this.commentPanelEl.querySelector("textarea")?.focus();
+    if (focusInput) this.commentPanelEl.querySelector("textarea")?.focus?.();
+    if (!this._commentsEscapeHandler && typeof document !== "undefined") {
+      this._commentsEscapeHandler = (event) => {
+        if (event.key === "Escape" && this.commentPanelEl && !this.commentPanelEl.hidden) {
+          event.preventDefault();
+          this.closeCommentsPanel();
+        }
+      };
+      document.addEventListener("keydown", this._commentsEscapeHandler);
+    }
     return true;
   }
 
   closeCommentsPanel() {
     if (!this.commentPanelEl) return false;
     this.commentPanelEl.hidden = true;
+    if (this._commentsEscapeHandler && typeof document !== "undefined") {
+      document.removeEventListener("keydown", this._commentsEscapeHandler);
+      this._commentsEscapeHandler = null;
+    }
+    if (this._commentsPreviousFocused && typeof this._commentsPreviousFocused.focus === "function") {
+      try { this._commentsPreviousFocused.focus(); } catch (_) {}
+      this._commentsPreviousFocused = null;
+    }
     return true;
   }
 
@@ -2596,7 +2654,7 @@ export class SlidesCanvasController {
         const remove = document.createElement("button");
         remove.type = "button";
         remove.textContent = "Xóa";
-        remove.setAttribute("aria-label", `Xóa nhận xét của ${comment.author}`);
+        remove.setAttribute?.("aria-label", `Xóa nhận xét của ${comment.author}`);
         remove.addEventListener("click", () => this.deleteComment(comment.id));
         meta.append(identity, remove);
         const body = document.createElement("p");
@@ -2716,28 +2774,49 @@ export class SlidesCanvasController {
   showSlideSizeDialog() {
     if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
     return new Promise(resolve => {
+      const previousFocused = document.activeElement;
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay vno-slide-size-dialog";
       overlay.innerHTML = `<div class="vno-dialog-box" style="width:480px" role="dialog" aria-modal="true" aria-labelledby="vno-slide-size-title">
         <div class="vno-dialog-header"><span id="vno-slide-size-title">${t("slidesDialogs.slideSizeTitle")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}">&times;</button></div>
-        <div class="vno-dialog-body"><p style="font-size:12px;color:#64748b">${t("slidesDialogs.slideSizeHint")}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-          <button type="button" class="vno-theme-card" data-slide-size="wide" aria-pressed="${this.slideSize.preset === "wide"}"><span style="display:block;aspect-ratio:16/9;background:#dbeafe;border:2px solid #2563eb"></span><strong>${t("slidesDialogs.slideSizeWide")}</strong><small>16:9 · 960 × 540</small></button>
-          <button type="button" class="vno-theme-card" data-slide-size="standard" aria-pressed="${this.slideSize.preset === "standard"}"><span style="display:block;aspect-ratio:4/3;background:#ffedd5;border:2px solid #f97316"></span><strong>${t("slidesDialogs.slideSizeStandard")}</strong><small>4:3 · 720 × 540</small></button>
+        <div class="vno-dialog-body"><p style="font-size:12px;color:#475569">${t("slidesDialogs.slideSizeHint")}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" role="radiogroup" aria-labelledby="vno-slide-size-title">
+          <button type="button" role="radio" class="vno-theme-card" data-slide-size="wide" aria-checked="${this.slideSize.preset === "wide"}" aria-pressed="${this.slideSize.preset === "wide"}"><span style="display:block;aspect-ratio:16/9;background:#dbeafe;border:2px solid #2563eb" aria-hidden="true"></span><strong>${t("slidesDialogs.slideSizeWide")}</strong><small>16:9 · 960 × 540</small></button>
+          <button type="button" role="radio" class="vno-theme-card" data-slide-size="standard" aria-checked="${this.slideSize.preset === "standard"}" aria-pressed="${this.slideSize.preset === "standard"}"><span style="display:block;aspect-ratio:4/3;background:#ffedd5;border:2px solid #f97316" aria-hidden="true"></span><strong>${t("slidesDialogs.slideSizeStandard")}</strong><small>4:3 · 720 × 540</small></button>
         </div></div></div>`;
       document.body.appendChild(overlay);
+      const dialogBox = overlay.querySelector(".vno-dialog-box");
       let closed = false;
-      const close = value => { if (closed) return; closed = true; document.removeEventListener("keydown", onKey); overlay.remove(); resolve(value); };
-      const onKey = event => { if (event.key === "Escape") close(false); };
+      const close = value => {
+        if (closed) return;
+        closed = true;
+        document.removeEventListener("keydown", onKey);
+        overlay.remove();
+        if (previousFocused && typeof previousFocused.focus === "function") {
+          try { previousFocused.focus(); } catch (_) {}
+        }
+        resolve(value);
+      };
+      const onKey = event => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          close(false);
+        } else if (event.key === "Tab") {
+          trapFocus(dialogBox, event);
+        }
+      };
       document.addEventListener("keydown", onKey);
+      overlay.addEventListener("click", e => { if (e.target === overlay) close(false); });
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
       overlay.querySelectorAll("[data-slide-size]").forEach(button => button.addEventListener("click", () => close(this.setSlideSize({ preset: button.dataset.slideSize }))));
-      overlay.querySelector("[data-slide-size]")?.focus();
+      const activeBtn = overlay.querySelector('[data-slide-size][aria-checked="true"]') || overlay.querySelector("[data-slide-size]");
+      activeBtn?.focus?.();
     });
   }
 
   showThemeGalleryDialog() {
     if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
     return new Promise((resolve) => {
+      const previousFocused = document.activeElement;
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay vno-theme-gallery-dialog";
       const selectedId = this.masterTheme.themeId || "modern-blue";
@@ -2745,11 +2824,11 @@ export class SlidesCanvasController {
         <div class="vno-dialog-box" style="width:720px;max-width:calc(100vw - 32px)" role="dialog" aria-modal="true" aria-labelledby="vno-theme-gallery-title">
           <div class="vno-dialog-header"><span id="vno-theme-gallery-title">${t("slidesDialogs.themeGalleryTitle")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}">&times;</button></div>
           <div class="vno-dialog-body">
-            <p style="font-size:12px;color:#64748b;margin:0 0 12px">${t("slidesDialogs.themeGalleryHint")}</p>
-            <div class="vno-theme-gallery-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+            <p style="font-size:12px;color:#475569;margin:0 0 12px">${t("slidesDialogs.themeGalleryHint")}</p>
+            <div class="vno-theme-gallery-grid" role="radiogroup" aria-labelledby="vno-theme-gallery-title" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
               ${SLIDE_MASTER_THEMES.map(theme => `
-                <button type="button" class="vno-theme-card ${theme.id === selectedId ? "is-selected" : ""}" data-theme-id="${theme.id}" aria-pressed="${theme.id === selectedId}" style="background:${theme.bgColor};text-align:left;min-height:112px">
-                  <span style="display:block;height:7px;background:${theme.accentColor};border-radius:3px"></span>
+                <button type="button" role="radio" class="vno-theme-card ${theme.id === selectedId ? "is-selected" : ""}" data-theme-id="${theme.id}" aria-checked="${theme.id === selectedId}" aria-pressed="${theme.id === selectedId}" style="background:${theme.bgColor};text-align:left;min-height:112px">
+                  <span style="display:block;height:7px;background:${theme.accentColor};border-radius:3px" aria-hidden="true"></span>
                   <strong style="display:block;margin:11px 0 6px;color:${theme.titleColor};font-family:${theme.fontFamily}">${t(theme.nameKey)}</strong>
                   <span style="display:block;color:${theme.bodyColor};font:11px ${theme.fontFamily}">${t("slidesDialogs.themePreviewTitle")}</span>
                   <span style="display:block;margin-top:13px;color:${theme.accentColor};font:9px ${theme.fontFamily}">${theme.logoText}</span>
@@ -2758,16 +2837,28 @@ export class SlidesCanvasController {
           </div>
         </div>`;
       document.body.appendChild(overlay);
+      const dialogBox = overlay.querySelector(".vno-dialog-box");
       let closed = false;
       const close = (value) => {
         if (closed) return;
         closed = true;
         document.removeEventListener("keydown", onKey);
         overlay.remove();
+        if (previousFocused && typeof previousFocused.focus === "function") {
+          try { previousFocused.focus(); } catch (_) {}
+        }
         resolve(value);
       };
-      const onKey = event => { if (event.key === "Escape") close(false); };
+      const onKey = event => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          close(false);
+        } else if (event.key === "Tab") {
+          trapFocus(dialogBox, event);
+        }
+      };
       document.addEventListener("keydown", onKey);
+      overlay.addEventListener("click", e => { if (e.target === overlay) close(false); });
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
       overlay.querySelectorAll("[data-theme-id]").forEach(card => card.addEventListener("click", () => {
         const theme = SLIDE_MASTER_THEMES.find(item => item.id === card.dataset.themeId);
@@ -2775,54 +2866,65 @@ export class SlidesCanvasController {
         this.applySlideMaster({ ...theme, themeId: theme.id }, true);
         close(true);
       }));
-      overlay.querySelector("[data-theme-id]")?.focus();
+      const activeCard = overlay.querySelector(".vno-theme-card.is-selected") || overlay.querySelector("[data-theme-id]");
+      activeCard?.focus?.();
     });
   }
 
   showSlideMasterDialog() {
     if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
     return new Promise((resolve) => {
+      const previousFocused = document.activeElement;
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay";
 
       let selectedId = this.masterTheme.themeId || "modern-blue";
 
       overlay.innerHTML = `
-        <div class="vno-dialog-box" style="width: 540px;" role="dialog" aria-modal="true">
+        <div class="vno-dialog-box" style="width: 540px;" role="dialog" aria-modal="true" aria-labelledby="vno-master-dialog-title">
           <div class="vno-dialog-header">
-            <span>${t("slidesDialogs.masterTitle")}</span>
-            <button class="vno-btn vno-dialog-close-btn" style="font-size:16px;">&times;</button>
+            <span id="vno-master-dialog-title">${t("slidesDialogs.masterTitle")}</span>
+            <button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}" style="font-size:16px;">&times;</button>
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
-            <p style="font-size:12px;color:#64748b;margin:0;">Chọn một mẫu phong cách để đồng bộ màu sắc, phông chữ và logo cho tất cả các trang chiếu:</p>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" id="vno-master-themes-grid">
-              ${SLIDE_MASTER_THEMES.map(t => `
-                <div class="vno-theme-card ${t.id === selectedId ? "is-selected" : ""}" data-theme-id="${t.id}" style="background:${t.bgColor};">
-                  <div style="height:4px;background:${t.accentColor};border-radius:2px;"></div>
-                  <div style="font-weight:bold;font-size:12px;color:${t.titleColor};font-family:${t.fontFamily};">${t.name}</div>
-                  <div style="font-size:10px;color:${t.bodyColor};opacity:0.8;">Logo: ${t.logoText}</div>
-                </div>
+            <p style="font-size:12px;color:#475569;margin:0;">Chọn một mẫu phong cách để đồng bộ màu sắc, phông chữ và logo cho tất cả các trang chiếu:</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" id="vno-master-themes-grid" role="radiogroup" aria-labelledby="vno-master-dialog-title">
+              ${SLIDE_MASTER_THEMES.map(theme => `
+                <button type="button" role="radio" class="vno-theme-card ${theme.id === selectedId ? "is-selected" : ""}" data-theme-id="${theme.id}" aria-checked="${theme.id === selectedId}" aria-pressed="${theme.id === selectedId}" style="background:${theme.bgColor};text-align:left;border:2px solid ${theme.id === selectedId ? "#b53818" : "#cbd5e1"};border-radius:6px;padding:8px;cursor:pointer;">
+                  <div style="height:4px;background:${theme.accentColor};border-radius:2px;" aria-hidden="true"></div>
+                  <div style="font-weight:bold;font-size:12px;color:${theme.titleColor};font-family:${theme.fontFamily};margin-top:6px;">${theme.name}</div>
+                  <div style="font-size:10px;color:${theme.bodyColor};opacity:0.85;">Logo: ${theme.logoText}</div>
+                </button>
               `).join("")}
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;">
-              <label style="font-size:11px;font-weight:600;color:#334155;">Tên đơn vị / Logo chữ góc trang:</label>
-              <input type="text" class="vno-input" id="vno-master-logo-input" value="${this.masterTheme.logoText || "VN OFFICE"}" style="padding:4px 8px;font-size:12px;" />
+              <label for="vno-master-logo-input" style="font-size:11px;font-weight:600;color:#334155;">Tên đơn vị / Logo chữ góc trang:</label>
+              <input type="text" class="vno-input" id="vno-master-logo-input" value="${this.masterTheme.logoText || "VN OFFICE"}" aria-label="Tên đơn vị hoặc logo chữ góc trang" style="padding:4px 8px;font-size:12px;" />
             </div>
           </div>
           <div class="vno-dialog-footer">
-            <button class="vno-btn" id="vno-master-cancel">${t("slidesDialogs.cancel")}</button>
-            <button class="vno-btn vno-btn-primary" id="vno-master-apply">${t("slidesDialogs.applyMaster")}</button>
+            <button type="button" class="vno-btn" id="vno-master-cancel">${t("slidesDialogs.cancel")}</button>
+            <button type="button" class="vno-btn vno-btn-primary" id="vno-master-apply">${t("slidesDialogs.applyMaster")}</button>
           </div>
         </div>
       `;
 
       document.body.appendChild(overlay);
+      const dialogBox = overlay.querySelector(".vno-dialog-box");
 
       const cards = overlay.querySelectorAll(".vno-theme-card");
       cards.forEach(c => {
         c.addEventListener("click", () => {
-          cards.forEach(x => x.classList.remove("is-selected"));
+          cards.forEach(x => {
+            x.classList.remove("is-selected");
+            x.setAttribute("aria-checked", "false");
+            x.setAttribute("aria-pressed", "false");
+            x.style.borderColor = "#cbd5e1";
+          });
           c.classList.add("is-selected");
+          c.setAttribute("aria-checked", "true");
+          c.setAttribute("aria-pressed", "true");
+          c.style.borderColor = "#b53818";
           selectedId = c.dataset.themeId;
           const found = SLIDE_MASTER_THEMES.find(t => t.id === selectedId);
           if (found) {
@@ -2832,17 +2934,27 @@ export class SlidesCanvasController {
         });
       });
 
+      let closed = false;
       const close = () => {
+        if (closed) return;
+        closed = true;
         document.removeEventListener("keydown", onKey);
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        if (previousFocused && typeof previousFocused.focus === "function") {
+          try { previousFocused.focus(); } catch (_) {}
+        }
       };
       const onKey = (e) => {
         if (e.key === "Escape") {
+          e.preventDefault();
           close();
           resolve(false);
+        } else if (e.key === "Tab") {
+          trapFocus(dialogBox, e);
         }
       };
       document.addEventListener("keydown", onKey);
+      overlay.addEventListener("click", e => { if (e.target === overlay) { close(); resolve(false); } });
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => { close(); resolve(false); });
       overlay.querySelector("#vno-master-cancel")?.addEventListener("click", () => { close(); resolve(false); });
 
@@ -2856,12 +2968,16 @@ export class SlidesCanvasController {
         close();
         resolve(true);
       });
+
+      const activeCard = overlay.querySelector(".vno-theme-card.is-selected") || overlay.querySelector(".vno-theme-card");
+      activeCard?.focus?.();
     });
   }
 
   showDiagramDialog() {
     if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
     return new Promise((resolve) => {
+      const previousFocused = document.activeElement;
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay vno-diagram-dialog";
       const types = [
@@ -2874,35 +2990,49 @@ export class SlidesCanvasController {
         <div class="vno-dialog-box" style="width:620px" role="dialog" aria-modal="true" aria-labelledby="vno-diagram-title">
           <div class="vno-dialog-header"><span id="vno-diagram-title">${t("slidesDialogs.diagramTitle")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}">&times;</button></div>
           <div class="vno-dialog-body">
-            <p class="vno-diagram-hint">${t("slidesDialogs.diagramHint")}</p>
-            <div class="vno-diagram-type-grid">${types.map(([id, key, preview], index) => `<button type="button" class="vno-diagram-type ${index === 0 ? "is-selected" : ""}" data-diagram-type="${id}" aria-pressed="${index === 0}"><span class="vno-diagram-type-preview">${preview.replace(/\n/g, "<br>")}</span><strong>${t(`slidesDialogs.${key}`)}</strong></button>`).join("")}</div>
-            <label class="vno-diagram-count">${t("slidesDialogs.diagramNodeCount")}<input id="vno-diagram-count" type="number" min="3" max="6" value="4" /></label>
+            <p class="vno-diagram-hint" style="color:#475569;">${t("slidesDialogs.diagramHint")}</p>
+            <div class="vno-diagram-type-grid" role="radiogroup" aria-labelledby="vno-diagram-title">${types.map(([id, key, preview], index) => `<button type="button" role="radio" class="vno-diagram-type ${index === 0 ? "is-selected" : ""}" data-diagram-type="${id}" aria-checked="${index === 0}" aria-pressed="${index === 0}"><span class="vno-diagram-type-preview" aria-hidden="true">${preview.replace(/\n/g, "<br>")}</span><strong>${t(`slidesDialogs.${key}`)}</strong></button>`).join("")}</div>
+            <label class="vno-diagram-count" for="vno-diagram-count">${t("slidesDialogs.diagramNodeCount")}<input id="vno-diagram-count" aria-label="${t("slidesDialogs.diagramNodeCount")}" type="number" min="3" max="6" value="4" /></label>
           </div>
           <div class="vno-dialog-footer"><button type="button" class="vno-btn" id="vno-diagram-cancel">${t("slidesDialogs.cancel")}</button><button type="button" class="vno-btn vno-btn-primary" id="vno-diagram-insert">${t("slidesDialogs.diagramInsert")}</button></div>
         </div>`;
       document.body.appendChild(overlay);
+      const dialogBox = overlay.querySelector(".vno-dialog-box");
       let selectedType = "process";
       const cards = overlay.querySelectorAll(".vno-diagram-type");
       cards.forEach(card => card.addEventListener("click", () => {
-        cards.forEach(item => { item.classList.remove("is-selected"); item.setAttribute("aria-pressed", "false"); });
-        card.classList.add("is-selected"); card.setAttribute("aria-pressed", "true"); selectedType = card.dataset.diagramType;
+        cards.forEach(item => { item.classList.remove("is-selected"); item.setAttribute("aria-checked", "false"); item.setAttribute("aria-pressed", "false"); });
+        card.classList.add("is-selected"); card.setAttribute("aria-checked", "true"); card.setAttribute("aria-pressed", "true"); selectedType = card.dataset.diagramType;
       }));
+      let closed = false;
       const close = (value) => {
+        if (closed) return;
+        closed = true;
         document.removeEventListener("keydown", onKey);
         overlay.remove();
+        if (previousFocused && typeof previousFocused.focus === "function") {
+          try { previousFocused.focus(); } catch (_) {}
+        }
         resolve(value);
       };
       const onKey = (e) => {
-        if (e.key === "Escape") close(false);
+        if (e.key === "Escape") {
+          e.preventDefault();
+          close(false);
+        } else if (e.key === "Tab") {
+          trapFocus(dialogBox, e);
+        }
       };
       document.addEventListener("keydown", onKey);
+      overlay.addEventListener("click", e => { if (e.target === overlay) close(false); });
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
       overlay.querySelector("#vno-diagram-cancel")?.addEventListener("click", () => close(false));
       overlay.querySelector("#vno-diagram-insert")?.addEventListener("click", () => {
         const count = overlay.querySelector("#vno-diagram-count")?.value || 4;
         close(!!this.insertDiagram(selectedType, count));
       });
-      overlay.querySelector(".vno-diagram-type")?.focus();
+      const activeCard = overlay.querySelector(".vno-diagram-type.is-selected") || overlay.querySelector(".vno-diagram-type");
+      activeCard?.focus?.();
     });
   }
 
@@ -2912,25 +3042,26 @@ export class SlidesCanvasController {
     if (!slide) return Promise.resolve(false);
 
     return new Promise((resolve) => {
+      const previousFocused = document.activeElement;
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay";
 
       let selectedId = slide.layoutType || "title-content";
 
       overlay.innerHTML = `
-        <div class="vno-dialog-box" style="width: 560px;" role="dialog" aria-modal="true">
+        <div class="vno-dialog-box" style="width: 560px;" role="dialog" aria-modal="true" aria-labelledby="vno-layout-dialog-title">
           <div class="vno-dialog-header">
-            <span>${t("slidesDialogs.layoutTitle")}</span>
-            <button class="vno-btn vno-dialog-close-btn" style="font-size:16px;">&times;</button>
+            <span id="vno-layout-dialog-title">${t("slidesDialogs.layoutTitle")}</span>
+            <button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}" style="font-size:16px;">&times;</button>
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px;">
-            <p style="font-size:12px;color:#64748b;margin:0;">
+            <p style="font-size:12px;color:#475569;margin:0;">
               Chọn một bố cục chuẩn để định hình lại cấu trúc nội dung trang chiếu hiện tại:
             </p>
-            <div class="vno-layouts-grid" id="vno-layouts-grid">
+            <div class="vno-layouts-grid" id="vno-layouts-grid" role="radiogroup" aria-labelledby="vno-layout-dialog-title">
               ${SLIDE_LAYOUT_TYPES.map(layout => `
-                <div class="vno-layout-card ${layout.id === selectedId ? "is-selected" : ""}" data-layout-id="${layout.id}">
-                  <div class="vno-layout-card-preview">
+                <button type="button" role="radio" aria-checked="${layout.id === selectedId}" aria-pressed="${layout.id === selectedId}" class="vno-layout-card ${layout.id === selectedId ? "is-selected" : ""}" data-layout-id="${layout.id}" style="text-align:left;">
+                  <div class="vno-layout-card-preview" aria-hidden="true">
                     ${layout.previewSvg}
                   </div>
                   <div class="vno-layout-card-header">
@@ -2938,27 +3069,34 @@ export class SlidesCanvasController {
                     <span class="vno-layout-card-badge">${layout.badge}</span>
                   </div>
                   <div class="vno-layout-card-desc">${layout.description}</div>
-                </div>
+                </button>
               `).join("")}
             </div>
           </div>
           <div class="vno-dialog-footer" style="display:flex;justify-content:space-between;">
-            <button class="vno-btn" id="vno-layout-cancel">${t("slidesDialogs.cancel")}</button>
+            <button type="button" class="vno-btn" id="vno-layout-cancel">${t("slidesDialogs.cancel")}</button>
             <div style="display:flex;gap:8px;">
-              <button class="vno-btn" id="vno-layout-apply-all">${t("slidesDialogs.applyLayout")}</button>
-              <button class="vno-btn vno-btn-primary" id="vno-layout-apply-current">${t("slidesDialogs.applyLayout")}</button>
+              <button type="button" class="vno-btn" id="vno-layout-apply-all">${t("slidesDialogs.applyLayout")}</button>
+              <button type="button" class="vno-btn vno-btn-primary" id="vno-layout-apply-current">${t("slidesDialogs.applyLayout")}</button>
             </div>
           </div>
         </div>
       `;
 
       document.body.appendChild(overlay);
+      const dialogBox = overlay.querySelector(".vno-dialog-box");
 
       const cards = overlay.querySelectorAll(".vno-layout-card");
       cards.forEach((card) => {
         card.addEventListener("click", () => {
-          cards.forEach(c => c.classList.remove("is-selected"));
+          cards.forEach(c => {
+            c.classList.remove("is-selected");
+            c.setAttribute("aria-checked", "false");
+            c.setAttribute("aria-pressed", "false");
+          });
           card.classList.add("is-selected");
+          card.setAttribute("aria-checked", "true");
+          card.setAttribute("aria-pressed", "true");
           selectedId = card.dataset.layoutId;
         });
         card.addEventListener("dblclick", () => {
@@ -2969,17 +3107,27 @@ export class SlidesCanvasController {
         });
       });
 
+      let closed = false;
       const close = () => {
+        if (closed) return;
+        closed = true;
         document.removeEventListener("keydown", onKey);
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        if (previousFocused && typeof previousFocused.focus === "function") {
+          try { previousFocused.focus(); } catch (_) {}
+        }
       };
       const onKey = (e) => {
         if (e.key === "Escape") {
+          e.preventDefault();
           close();
           resolve(false);
+        } else if (e.key === "Tab") {
+          trapFocus(dialogBox, e);
         }
       };
       document.addEventListener("keydown", onKey);
+      overlay.addEventListener("click", e => { if (e.target === overlay) { close(); resolve(false); } });
 
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => {
         close();
@@ -3007,6 +3155,9 @@ export class SlidesCanvasController {
         close();
         resolve(true);
       });
+
+      const activeLayout = overlay.querySelector(".vno-layout-card.is-selected") || overlay.querySelector(".vno-layout-card");
+      activeLayout?.focus?.();
     });
   }
 
@@ -3027,6 +3178,7 @@ export class SlidesCanvasController {
   showTransitionDialog() {
     if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
     return new Promise((resolve) => {
+      const previousFocused = document.activeElement;
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay";
 
@@ -3034,15 +3186,15 @@ export class SlidesCanvasController {
       const currentDuration = this.transitionConfig.duration || 500;
 
       overlay.innerHTML = `
-        <div class="vno-dialog-box" style="width: 460px;" role="dialog" aria-modal="true">
+        <div class="vno-dialog-box" style="width: 460px;" role="dialog" aria-modal="true" aria-labelledby="vno-trans-dialog-title">
           <div class="vno-dialog-header">
-            <span>${t("slidesDialogs.transitionTitle")}</span>
-            <button class="vno-btn vno-dialog-close-btn" style="font-size:16px;">&times;</button>
+            <span id="vno-trans-dialog-title">${t("slidesDialogs.transitionTitle")}</span>
+            <button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}" style="font-size:16px;">&times;</button>
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <label style="font-size:12px;font-weight:600;color:#334155;">Kiểu chuyển trang:</label>
-              <select class="vno-select" id="vno-trans-type-select">
+              <label for="vno-trans-type-select" style="font-size:12px;font-weight:600;color:#334155;">Kiểu chuyển trang:</label>
+              <select class="vno-select" id="vno-trans-type-select" aria-label="Kiểu chuyển trang">
                 <option value="fade" ${currentType === "fade" ? "selected" : ""}>Mờ dần (Fade)</option>
                 <option value="slide" ${currentType === "slide" ? "selected" : ""}>Trượt ngang (Slide)</option>
                 <option value="zoom" ${currentType === "zoom" ? "selected" : ""}>Thu phóng (Zoom)</option>
@@ -3050,8 +3202,8 @@ export class SlidesCanvasController {
               </select>
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <label style="font-size:12px;font-weight:600;color:#334155;">Thời gian hiệu ứng:</label>
-              <select class="vno-select" id="vno-trans-duration-select">
+              <label for="vno-trans-duration-select" style="font-size:12px;font-weight:600;color:#334155;">Thời gian hiệu ứng:</label>
+              <select class="vno-select" id="vno-trans-duration-select" aria-label="Thời gian hiệu ứng chuyển trang">
                 <option value="300" ${currentDuration === 300 ? "selected" : ""}>Nhanh (0.3 giây)</option>
                 <option value="500" ${currentDuration === 500 ? "selected" : ""}>Tiêu chuẩn (0.5 giây)</option>
                 <option value="800" ${currentDuration === 800 ? "selected" : ""}>Chậm (0.8 giây)</option>
@@ -3062,20 +3214,21 @@ export class SlidesCanvasController {
               <div id="vno-trans-preview-box" style="font-size:16px;font-weight:bold;color:#b53818;padding:12px;background:#ffffff;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                 Trang Chiếu Mẫu
               </div>
-              <button class="vno-btn" id="vno-trans-preview-btn" style="margin-top:8px;font-size:11px;">▶ Xem thử hiệu ứng</button>
+              <button type="button" class="vno-btn" id="vno-trans-preview-btn" style="margin-top:8px;font-size:11px;">▶ Xem thử hiệu ứng</button>
             </div>
           </div>
           <div class="vno-dialog-footer" style="display:flex;justify-content:space-between;">
-              <button class="vno-btn" id="vno-trans-cancel">${t("slidesDialogs.cancel")}</button>
+              <button type="button" class="vno-btn" id="vno-trans-cancel">${t("slidesDialogs.cancel")}</button>
             <div style="display:flex;gap:6px;">
-              <button class="vno-btn" id="vno-trans-apply-current">${t("slidesDialogs.applyTransition")}</button>
-              <button class="vno-btn vno-btn-primary" id="vno-trans-apply-all">${t("slidesDialogs.applyTransition")}</button>
+              <button type="button" class="vno-btn" id="vno-trans-apply-current">${t("slidesDialogs.applyTransition")}</button>
+              <button type="button" class="vno-btn vno-btn-primary" id="vno-trans-apply-all">${t("slidesDialogs.applyTransition")}</button>
             </div>
           </div>
         </div>
       `;
 
       document.body.appendChild(overlay);
+      const dialogBox = overlay.querySelector(".vno-dialog-box");
 
       const previewBox = overlay.querySelector("#vno-trans-preview-box");
       const typeSelect = overlay.querySelector("#vno-trans-type-select");
@@ -3094,18 +3247,27 @@ export class SlidesCanvasController {
       overlay.querySelector("#vno-trans-preview-btn")?.addEventListener("click", runPreview);
       typeSelect?.addEventListener("change", runPreview);
 
+      let closed = false;
       const close = () => {
+        if (closed) return;
+        closed = true;
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
         document.removeEventListener("keydown", onKeyDown);
+        if (previousFocused && typeof previousFocused.focus === "function") {
+          try { previousFocused.focus(); } catch (_) {}
+        }
       };
       const onKeyDown = (e) => {
         if (e.key === "Escape") {
           e.preventDefault();
           close();
           resolve(false);
+        } else if (e.key === "Tab") {
+          trapFocus(dialogBox, e);
         }
       };
       document.addEventListener("keydown", onKeyDown);
+      overlay.addEventListener("click", e => { if (e.target === overlay) { close(); resolve(false); } });
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => { close(); resolve(false); });
       overlay.querySelector("#vno-trans-cancel")?.addEventListener("click", () => { close(); resolve(false); });
 
@@ -3120,6 +3282,8 @@ export class SlidesCanvasController {
         close();
         resolve(true);
       });
+
+      typeSelect?.focus?.();
     });
   }
 
@@ -3129,6 +3293,7 @@ export class SlidesCanvasController {
     if (!slide) return Promise.resolve(false);
 
     return new Promise((resolve) => {
+      const previousFocused = document.activeElement;
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay";
 
@@ -3160,21 +3325,21 @@ export class SlidesCanvasController {
       let currentAnim = this.getObjectAnimation(initialTarget);
 
       overlay.innerHTML = `
-        <div class="vno-dialog-box" style="width: 500px;" role="dialog" aria-modal="true">
+        <div class="vno-dialog-box" style="width: 500px;" role="dialog" aria-modal="true" aria-labelledby="vno-anim-dialog-title">
           <div class="vno-dialog-header">
-            <span>${t("slidesDialogs.animationTitle")}</span>
-            <button class="vno-btn vno-dialog-close-btn" style="font-size:16px;">&times;</button>
+            <span id="vno-anim-dialog-title">${t("slidesDialogs.animationTitle")}</span>
+            <button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}" style="font-size:16px;">&times;</button>
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <label style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationTarget")}</label>
-              <select class="vno-select" id="vno-anim-target-select">
+              <label for="vno-anim-target-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationTarget")}</label>
+              <select class="vno-select" id="vno-anim-target-select" aria-label="${t("slidesDialogs.animationTarget")}">
                 ${targetOptions.map(t => `<option value="${t.id}" ${t.id === initialTarget ? "selected" : ""}>${t.label}</option>`).join("")}
               </select>
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <label style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationType")}</label>
-              <select class="vno-select" id="vno-anim-type-select">
+              <label for="vno-anim-type-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationType")}</label>
+              <select class="vno-select" id="vno-anim-type-select" aria-label="${t("slidesDialogs.animationType")}">
                 <option value="none" ${currentAnim.type === "none" ? "selected" : ""}>${t("slidesDialogs.noAnimation")}</option>
                 <option value="fadeIn" ${currentAnim.type === "fadeIn" || currentAnim.type === "fade" ? "selected" : ""}>Mờ dần xuất hiện (Fade In)</option>
                 <option value="flyIn" ${currentAnim.type === "flyIn" || currentAnim.type === "fly" ? "selected" : ""}>Bay từ dưới lên (Fly In)</option>
@@ -3185,8 +3350,8 @@ export class SlidesCanvasController {
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
               <div style="display:flex;flex-direction:column;gap:4px;">
-                <label style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationDuration")}</label>
-                <select class="vno-select" id="vno-anim-duration-select">
+                <label for="vno-anim-duration-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationDuration")}</label>
+                <select class="vno-select" id="vno-anim-duration-select" aria-label="${t("slidesDialogs.animationDuration")}">
                   <option value="300" ${currentAnim.duration === 300 ? "selected" : ""}>Rất nhanh (0.3s)</option>
                   <option value="500" ${currentAnim.duration === 500 ? "selected" : ""}>Tiêu chuẩn (0.5s)</option>
                   <option value="800" ${currentAnim.duration === 800 ? "selected" : ""}>Chậm (0.8s)</option>
@@ -3194,8 +3359,8 @@ export class SlidesCanvasController {
                 </select>
               </div>
               <div style="display:flex;flex-direction:column;gap:4px;">
-                <label style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationDelay")}</label>
-                <select class="vno-select" id="vno-anim-delay-select">
+                <label for="vno-anim-delay-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationDelay")}</label>
+                <select class="vno-select" id="vno-anim-delay-select" aria-label="${t("slidesDialogs.animationDelay")}">
                   <option value="0" ${currentAnim.delay === 0 ? "selected" : ""}>${t("slidesDialogs.immediate")}</option>
                   <option value="200" ${currentAnim.delay === 200 ? "selected" : ""}>Sau 0.2s</option>
                   <option value="500" ${currentAnim.delay === 500 ? "selected" : ""}>Sau 0.5s</option>
@@ -3208,21 +3373,22 @@ export class SlidesCanvasController {
                 ${t("slidesDialogs.previewObject")}
               </div>
               <div>
-                <button class="vno-btn" id="vno-anim-preview-btn" style="margin-top:10px;font-size:11px;">${t("slidesDialogs.previewAnimation")}</button>
+                <button type="button" class="vno-btn" id="vno-anim-preview-btn" style="margin-top:10px;font-size:11px;">${t("slidesDialogs.previewAnimation")}</button>
               </div>
             </div>
           </div>
           <div class="vno-dialog-footer" style="display:flex;justify-content:space-between;">
-            <button class="vno-btn" id="vno-anim-cancel">${t("slidesDialogs.cancel")}</button>
+            <button type="button" class="vno-btn" id="vno-anim-cancel">${t("slidesDialogs.cancel")}</button>
             <div style="display:flex;gap:6px;">
-              <button class="vno-btn" id="vno-anim-clear" style="color:#ef4444;">${t("slidesDialogs.removeAnimation")}</button>
-              <button class="vno-btn vno-btn-primary" id="vno-anim-apply">${t("slidesDialogs.applyAnimation")}</button>
+              <button type="button" class="vno-btn" id="vno-anim-clear" style="color:#ef4444;">${t("slidesDialogs.removeAnimation")}</button>
+              <button type="button" class="vno-btn vno-btn-primary" id="vno-anim-apply">${t("slidesDialogs.applyAnimation")}</button>
             </div>
           </div>
         </div>
       `;
 
       document.body.appendChild(overlay);
+      const dialogBox = overlay.querySelector(".vno-dialog-box");
 
       const targetSelect = overlay.querySelector("#vno-anim-target-select");
       const typeSelect = overlay.querySelector("#vno-anim-type-select");
@@ -3261,18 +3427,27 @@ export class SlidesCanvasController {
       delaySelect?.addEventListener("change", runPreview);
       overlay.querySelector("#vno-anim-preview-btn")?.addEventListener("click", runPreview);
 
+      let closed = false;
       const close = () => {
+        if (closed) return;
+        closed = true;
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
         document.removeEventListener("keydown", onKeyDown);
+        if (previousFocused && typeof previousFocused.focus === "function") {
+          try { previousFocused.focus(); } catch (_) {}
+        }
       };
       const onKeyDown = (e) => {
         if (e.key === "Escape") {
           e.preventDefault();
           close();
           resolve(false);
+        } else if (e.key === "Tab") {
+          trapFocus(dialogBox, e);
         }
       };
       document.addEventListener("keydown", onKeyDown);
+      overlay.addEventListener("click", e => { if (e.target === overlay) { close(); resolve(false); } });
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => { close(); resolve(false); });
       overlay.querySelector("#vno-anim-cancel")?.addEventListener("click", () => { close(); resolve(false); });
 
@@ -3291,18 +3466,25 @@ export class SlidesCanvasController {
         close();
         resolve(true);
       });
+
+      targetSelect?.focus?.();
     });
   }
 
   startSlideShow(startIndex, options = {}) {
     if (typeof document === "undefined" || !document.createElement) return false;
     options = options || {};
+    const previousFocused = document.activeElement;
     const rehearsing = !!options.rehearsal;
     const idx = startIndex !== undefined ? startIndex : this.currentSlideIndex;
     let currentShowIdx = idx;
 
     const overlay = document.createElement("div");
     overlay.className = "vno-slideshow-overlay";
+    overlay.setAttribute?.("role", "dialog");
+    overlay.setAttribute?.("aria-modal", "true");
+    overlay.setAttribute?.("aria-label", rehearsing ? "Tập dượt thời gian trình chiếu" : "Trình chiếu trang chiếu");
+    overlay.setAttribute?.("tabindex", "-1");
 
     const content = document.createElement("div");
     content.className = "vno-slideshow-content";
@@ -3339,6 +3521,9 @@ export class SlidesCanvasController {
     if (rehearsing) {
       rehearseTimerBox = document.createElement("div");
       rehearseTimerBox.className = "vno-rehearse-timer-box";
+      rehearseTimerBox.setAttribute?.("role", "timer");
+      rehearseTimerBox.setAttribute?.("aria-live", "off");
+      rehearseTimerBox.setAttribute?.("aria-label", "Đồng hồ tập dượt thời gian");
       overlay.appendChild(rehearseTimerBox);
       rehearseTotalStart = performance.now();
       rehearseSlideStart = performance.now();
@@ -3435,7 +3620,7 @@ export class SlidesCanvasController {
         <div class="vno-slide-master-accent" style="background:${theme.accentColor || "#b53818"};"></div>
         <div class="vno-slide-master-logo" style="color:${theme.accentColor || "#b53818"};">${theme.logoText || "VN OFFICE"}</div>
         ${layoutHtml}
-        <div class="vno-slide-master-footer" style="color:${theme.bodyColor || "#64748b"};">
+        <div class="vno-slide-master-footer" style="color:${theme.bodyColor || "#475569"};">
           <span>${theme.footerText || "Tài liệu thuyết trình VN Office"}</span>
           <span>Trang ${currentShowIdx + 1} / ${this.slides.length}</span>
           <span>Phím Space hoặc Click để tiếp tục | Esc để thoát</span>
@@ -3472,6 +3657,9 @@ export class SlidesCanvasController {
       }
       document.removeEventListener("keydown", keyHandler);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        try { previousFocused.focus(); } catch (_) {}
+      }
       if (this._activeShowCleanup === cleanupShow) this._activeShowCleanup = null;
       return saved;
     };
@@ -3490,6 +3678,8 @@ export class SlidesCanvasController {
         if (currentShowIdx > 0) {
           goToSlide(currentShowIdx - 1);
         }
+      } else if (e.key === "Tab") {
+        trapFocus(overlay, e);
       }
     };
 
@@ -3504,6 +3694,8 @@ export class SlidesCanvasController {
         closeShow();
       }
     });
+
+    overlay.focus?.();
 
     return rehearsing ? {
       close: closeShow,
@@ -3524,6 +3716,7 @@ export class SlidesCanvasController {
 
   startPresenterMode(startIndex) {
     if (typeof document === "undefined" || !document.createElement) return false;
+    const previousFocused = document.activeElement;
     const idx = startIndex !== undefined ? startIndex : this.currentSlideIndex;
     let currentShowIdx = idx;
     let secondsElapsed = 0;
@@ -3531,6 +3724,10 @@ export class SlidesCanvasController {
 
     const overlay = document.createElement("div");
     overlay.className = "vno-presenter-overlay";
+    overlay.setAttribute?.("role", "dialog");
+    overlay.setAttribute?.("aria-modal", "true");
+    overlay.setAttribute?.("aria-label", "Chế độ người thuyết trình");
+    overlay.setAttribute?.("tabindex", "-1");
 
     const formatTime = (secs) => {
       const h = String(Math.floor(secs / 3600)).padStart(2, "0");
@@ -3551,16 +3748,16 @@ export class SlidesCanvasController {
           <span style="font-size:11px;opacity:0.7;margin-left:8px;">• VN Slides</span>
         </div>
         <div class="vno-presenter-clocks">
-          <div class="vno-presenter-timer-box" title="Thời gian thuyết trình">
+          <div class="vno-presenter-timer-box" title="Thời gian thuyết trình" role="timer" aria-label="Thời gian thuyết trình">
             <span style="font-size:11px;opacity:0.7;">ĐÃ THUYẾT TRÌNH:</span>
             <strong id="vno-presenter-timer">00:00:00</strong>
           </div>
-          <div class="vno-presenter-clock-box" title="Đồng hồ thực tế">
+          <div class="vno-presenter-clock-box" title="Đồng hồ thực tế" role="timer" aria-label="Đồng hồ thực tế">
             <span style="font-size:11px;opacity:0.7;">ĐỒNG HỒ:</span>
             <strong id="vno-presenter-clock">${getClockTime()}</strong>
           </div>
         </div>
-        <button class="vno-btn vno-btn-sm vno-presenter-exit-btn" id="vno-presenter-close">✕ Thoát (Esc)</button>
+        <button type="button" class="vno-btn vno-btn-sm vno-presenter-exit-btn" id="vno-presenter-close" aria-label="Thoát chế độ người thuyết trình (Esc)">✕ Thoát (Esc)</button>
       </div>
 
       <div class="vno-presenter-body">
@@ -3568,9 +3765,9 @@ export class SlidesCanvasController {
         <div class="vno-presenter-left-col">
           <div class="vno-presenter-slide-viewport" id="vno-presenter-slide-view"></div>
           <div class="vno-presenter-nav-bar">
-            <button class="vno-btn" id="vno-presenter-prev" title="Trang trước (←)">◄ Trang trước</button>
+            <button type="button" class="vno-btn" id="vno-presenter-prev" title="Trang trước (←)" aria-label="Trang trước (←)">◄ Trang trước</button>
             <span class="vno-presenter-counter" id="vno-presenter-counter">Trang ${currentShowIdx + 1} / ${this.slides.length}</span>
-            <button class="vno-btn vno-btn-primary" id="vno-presenter-next" title="Trang tiếp (Space hoặc →)">Trang tiếp ►</button>
+            <button type="button" class="vno-btn vno-btn-primary" id="vno-presenter-next" title="Trang tiếp (Space hoặc →)" aria-label="Trang tiếp (Space hoặc →)">Trang tiếp ►</button>
           </div>
         </div>
 
@@ -3581,8 +3778,8 @@ export class SlidesCanvasController {
             <div class="vno-presenter-box-header">
               <span>📝 Ghi chú người thuyết trình</span>
               <div class="vno-presenter-font-controls">
-                <button class="vno-btn vno-btn-sm" id="vno-notes-font-dec" title="Thu nhỏ chữ">A-</button>
-                <button class="vno-btn vno-btn-sm" id="vno-notes-font-inc" title="Phóng to chữ">A+</button>
+                <button type="button" class="vno-btn vno-btn-sm" id="vno-notes-font-dec" title="Thu nhỏ chữ" aria-label="Thu nhỏ cỡ chữ ghi chú">A-</button>
+                <button type="button" class="vno-btn vno-btn-sm" id="vno-notes-font-inc" title="Phóng to chữ" aria-label="Phóng to cỡ chữ ghi chú">A+</button>
               </div>
             </div>
             <div class="vno-presenter-notes-text" id="vno-presenter-notes-text"></div>
@@ -3660,7 +3857,7 @@ export class SlidesCanvasController {
             <div class="vno-slide-master-accent" style="background:${theme.accentColor || "#b53818"};"></div>
             <div style="font-size:10px;font-weight:700;color:${theme.accentColor || "#b53818"};margin-bottom:8px;">${theme.logoText || "VN OFFICE"}</div>
             ${cardBodyHtml}
-            <div style="font-size:9px;color:${theme.bodyColor || "#64748b"};display:flex;justify-content:space-between;border-top:1px solid #e2e8f0;padding-top:4px;margin-top:auto;">
+            <div style="font-size:9px;color:${theme.bodyColor || "#475569"};display:flex;justify-content:space-between;border-top:1px solid #e2e8f0;padding-top:4px;margin-top:auto;">
               <span>${theme.footerText || "Tài liệu thuyết trình"}</span>
               <span>Trang ${currentShowIdx + 1} / ${this.slides.length}</span>
             </div>
@@ -3714,6 +3911,9 @@ export class SlidesCanvasController {
       if (timerInterval) clearInterval(timerInterval);
       document.removeEventListener("keydown", keyHandler);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        try { previousFocused.focus(); } catch (_) {}
+      }
       if (this._activePresenterCleanup === closePresenter) this._activePresenterCleanup = null;
     };
 
@@ -3756,12 +3956,15 @@ export class SlidesCanvasController {
         nextSlide();
       } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
         prevSlide();
+      } else if (e.key === "Tab") {
+        trapFocus(overlay, e);
       }
     };
 
     document.addEventListener("keydown", keyHandler);
     this._activePresenterCleanup?.();
     this._activePresenterCleanup = closePresenter;
+    overlay.querySelector("#vno-presenter-next")?.focus?.();
     return true;
   }
 

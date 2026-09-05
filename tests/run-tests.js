@@ -60,6 +60,8 @@ import { runRibbonGapsRealOfficeTests } from "./unit/ribbon-gaps-real-office.tes
 import { runSlidesMouseShortcutsTests } from "./unit/slides-mouse-shortcuts.test.js";
 import { runWriterSlidesInsertGapsTests } from "./unit/writer-slides-insert-gaps.test.js";
 import { runSheetDataToolsTests } from "./unit/sheet-data-tools.test.js";
+import { runSlidesDialogsA11yTests } from "./unit/slides-dialogs-a11y.test.js";
+import { runColorContrastAuditTests } from "./unit/color-contrast-audit.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -127,7 +129,9 @@ async function runAll() {
     { title: "52. Behavioral & Unit Tests — Real Office Home Ribbon Gaps", runner: runRibbonGapsRealOfficeTests },
     { title: "53. Behavioral & Unit Tests — VN Slides Mouse Interactions & Office Parity Shortcuts", runner: runSlidesMouseShortcutsTests },
     { title: "54. Behavioral & Unit Tests — Writer/Slides Insert Tab Gaps (Word/PowerPoint)", runner: runWriterSlidesInsertGapsTests },
-    { title: "55. Behavioral & Unit Tests — VN Sheet Data Tools & Outline", runner: runSheetDataToolsTests }
+    { title: "55. Behavioral & Unit Tests — VN Sheet Data Tools & Outline", runner: runSheetDataToolsTests },
+    { title: "56. Behavioral & Unit Tests — VN Slides Dialogs & Overlays Accessibility (WCAG 2.1 / ARIA)", runner: runSlidesDialogsA11yTests },
+    { title: "57. Automated Audit — Suite-Wide WCAG 2.1 Color Contrast (AA / AAA)", runner: runColorContrastAuditTests }
   ];
 
   for (const suite of suites) {

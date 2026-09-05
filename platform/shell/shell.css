@@ -153,7 +153,7 @@ body {
   color: var(--vno-text-muted);
 }
 .vno-tab-close:hover {
-  background-color: #ef4444;
+  background-color: #dc2626;
   color: #ffffff;
 }
 
