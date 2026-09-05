@@ -62,7 +62,9 @@ export const WRITER_RIBBON_TABS = [
                       { value: "5", label: "18 pt" },
                       { value: "6", label: "24 pt" }
                     ]
-                  }
+                  },
+                  { type: "button", commandId: "writer.font.grow", iconOnly: true },
+                  { type: "button", commandId: "writer.font.shrink", iconOnly: true }
                 ]
               },
               {
@@ -110,6 +112,17 @@ export const WRITER_RIBBON_TABS = [
                   { type: "button", commandId: "writer.para.alignCenter", iconOnly: true },
                   { type: "button", commandId: "writer.para.alignRight", iconOnly: true },
                   { type: "button", commandId: "writer.para.justify", iconOnly: true },
+                  {
+                    type: "dropdown",
+                    id: "writer.para.lineSpacing",
+                    label: "Giãn dòng",
+                    icon: "lineSpacing",
+                    items: [
+                      { commandId: "writer.para.spacing1" },
+                      { commandId: "writer.para.spacing15" },
+                      { commandId: "writer.para.spacing2" }
+                    ]
+                  },
                   { type: "button", commandId: "writer.para.shading", iconOnly: true },
                   {
                     type: "select",
