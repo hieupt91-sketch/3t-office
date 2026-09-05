@@ -250,6 +250,14 @@ export class SlidesCanvasController {
     this._windowKeyHandler = null;
     this.commentButtonEl = null;
     this.commentPanelEl = null;
+    this.animationPaneEl = null;
+    this.isAnimationPaneVisible = false;
+    this._animationPaneEscapeHandler = null;
+    this.slideShowSettings = {
+      loopUntilEsc: false,
+      showWithoutNarration: false,
+      pointerColor: "#DC2626"
+    };
 
     // Speaker Notes State
     this.isNotesVisible = false;
@@ -514,6 +522,7 @@ export class SlidesCanvasController {
     this.container.appendChild(stage);
 
     this._createCommentsPanel(stage);
+    this._createAnimationPane(stage);
 
     this.selectSlide(0);
     this.applySlideMaster(this.masterTheme);
@@ -1324,11 +1333,19 @@ export class SlidesCanvasController {
   setObjectAnimation(target, animationConfig) {
     const slide = this.slides[this.currentSlideIndex];
     if (!slide) return false;
+    const previous = this._getAnimationConfig(slide, target) || {};
     const cfg = {
       type: animationConfig?.type || "none",
       duration: parseInt(animationConfig?.duration, 10) || 500,
       delay: parseInt(animationConfig?.delay, 10) || 0
     };
+    const start = this._normalizeAnimationStart(animationConfig?.start ?? previous.start);
+    if (start) cfg.start = start;
+    if (cfg.type !== "none") {
+      cfg.order = Number.isFinite(animationConfig?.order)
+        ? animationConfig.order
+        : (Number.isFinite(previous.order) ? previous.order : this._nextAnimationOrder(slide, target));
+    }
 
     if (target === "title") {
       slide.titleAnimation = cfg;
@@ -1345,6 +1362,7 @@ export class SlidesCanvasController {
       }
     }
     this._renderShapesLayer();
+    this._renderAnimationPane();
     return true;
   }
 
@@ -1364,6 +1382,386 @@ export class SlidesCanvasController {
       const shape = (slide.shapes || []).find(s => String(s.id) === String(target));
       return (shape && shape.animation) || { type: "none", duration: 500, delay: 0 };
     }
+  }
+
+  _isActiveAnimation(animation) {
+    return !!(animation && animation.type && animation.type !== "none");
+  }
+
+  _normalizeAnimationStart(value) {
+    if (value === "withPrevious" || value === "with-previous") return "withPrevious";
+    if (value === "afterPrevious" || value === "after-previous") return "afterPrevious";
+    if (value === "onClick" || value === "on-click") return "onClick";
+    return "onClick";
+  }
+
+  _getAnimationConfig(slide, target) {
+    if (!slide) return null;
+    if (target === "title") return slide.titleAnimation || null;
+    if (target === "body") return slide.bodyAnimation || null;
+    if (target === "body2") return slide.body2Animation || null;
+    const shape = (slide.shapes || []).find((item) => String(item.id) === String(target));
+    return shape?.animation || null;
+  }
+
+  _nextAnimationOrder(slide, exceptTarget) {
+    const max = this.collectSlideAnimations(slide)
+      .filter((item) => String(item.target) !== String(exceptTarget))
+      .reduce((acc, item) => Math.max(acc, Number.isFinite(item.order) ? item.order : acc), -1);
+    return max + 1;
+  }
+
+  _animationTypeLabel(type) {
+    switch (type) {
+      case "fadeIn":
+      case "fade":
+        return t("slidesDialogs.animFadeIn", "Mờ dần xuất hiện (Fade In)");
+      case "flyIn":
+      case "fly":
+        return t("slidesDialogs.animFlyIn", "Bay từ dưới lên (Fly In)");
+      case "zoomIn":
+      case "zoom":
+        return t("slidesDialogs.animZoomIn", "Thu phóng xuất hiện (Zoom In)");
+      case "bounceIn":
+      case "bounce":
+        return t("slidesDialogs.animBounceIn", "Nảy nhẹ xuất hiện (Bounce In)");
+      case "slideLeft":
+      case "slide":
+        return t("slidesDialogs.animSlideLeft", "Trượt từ trái sang (Slide Left)");
+      default:
+        return type || t("slidesDialogs.noAnimation", "Không có hiệu ứng");
+    }
+  }
+
+  _animationObjectLabel(slide, target) {
+    const clip = (text) => String(text || "").replace(/\s+/g, " ").trim().substring(0, 28);
+    if (target === "title") {
+      const preview = clip(slide?.title);
+      return preview
+        ? `${t("slidesDialogs.targetTitle", "Tiêu đề")} ("${preview}")`
+        : t("slidesDialogs.targetTitle", "Tiêu đề");
+    }
+    if (target === "body") {
+      const preview = clip(slide?.body);
+      const base = (slide?.layoutType === "two-content")
+        ? t("slidesDialogs.targetCol1", "Nội dung cột 1")
+        : t("slidesDialogs.targetBody", "Nội dung");
+      return preview ? `${base} ("${preview}")` : base;
+    }
+    if (target === "body2") {
+      const preview = clip(slide?.body2);
+      const base = t("slidesDialogs.targetCol2", "Nội dung cột 2");
+      return preview ? `${base} ("${preview}")` : base;
+    }
+    const shapes = slide?.shapes || [];
+    const shape = shapes.find((item) => String(item.id) === String(target));
+    if (!shape) return String(target);
+    const preview = clip(shape.text || shape.title);
+    if (preview) return preview;
+    const idx = shapes.indexOf(shape) + 1;
+    if (shape.type === "image") return `${t("slidesDialogs.shapeImage", "Hình ảnh")} #${idx}`;
+    if (shape.type === "ellipse") return `${t("slidesDialogs.shapeEllipse", "Hình elip")} #${idx}`;
+    if (shape.type === "wordart") return t("slidesDialogs.shapeWordArt", "Chữ nghệ thuật");
+    if (shape.type === "chart") return t("slidesDialogs.shapeChart", "Biểu đồ");
+    if (shape.type === "table") return t("slidesDialogs.shapeTable", "Bảng");
+    if (shape.type === "textbox" || shape.type === "text") return t("slidesDialogs.shapeTextBox", "Hộp văn bản");
+    return `${t("slidesDialogs.shapeRectangle", "Hình chữ nhật")} #${idx}`;
+  }
+
+  /**
+   * Danh sách hiệu ứng đang gắn trên một trang, theo thứ tự chạy.
+   * Model hiện có lưu animation trên từng đối tượng (title/body/body2/shape),
+   * không có mảng slide.animations — pane dựng list từ các trường đó.
+   */
+  collectSlideAnimations(slide) {
+    const current = slide || this.slides[this.currentSlideIndex];
+    if (!current) return [];
+    const layout = current.layoutType || "title-content";
+    const slots = [];
+    if (layout !== "blank" && this._isActiveAnimation(current.titleAnimation)) {
+      slots.push({ target: "title", animation: current.titleAnimation, defaultIndex: 0 });
+    }
+    if (layout !== "blank" && layout !== "title-only" && this._isActiveAnimation(current.bodyAnimation)) {
+      slots.push({ target: "body", animation: current.bodyAnimation, defaultIndex: 1 });
+    }
+    if (layout === "two-content" && this._isActiveAnimation(current.body2Animation)) {
+      slots.push({ target: "body2", animation: current.body2Animation, defaultIndex: 2 });
+    }
+    (current.shapes || []).forEach((shape, idx) => {
+      if (!this._isActiveAnimation(shape.animation) || shape.type === "connector") return;
+      slots.push({ target: shape.id, animation: shape.animation, defaultIndex: 100 + idx });
+    });
+    slots.sort((a, b) => {
+      const orderA = Number.isFinite(a.animation.order) ? a.animation.order : a.defaultIndex;
+      const orderB = Number.isFinite(b.animation.order) ? b.animation.order : b.defaultIndex;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.defaultIndex - b.defaultIndex;
+    });
+    return slots.map((slot, index) => ({
+      index,
+      target: slot.target,
+      type: slot.animation.type,
+      duration: parseInt(slot.animation.duration, 10) || 500,
+      delay: parseInt(slot.animation.delay, 10) || 0,
+      start: this._normalizeAnimationStart(slot.animation.start),
+      order: Number.isFinite(slot.animation.order) ? slot.animation.order : index,
+      label: this._animationObjectLabel(current, slot.target),
+      typeLabel: this._animationTypeLabel(slot.animation.type)
+    }));
+  }
+
+  /**
+   * Timeline chạy thật khi F5: delay CSS được tính từ thứ tự + kiểu bắt đầu,
+   * không chỉ thứ tự hiển thị trong pane.
+   */
+  getAnimationTimeline(slide) {
+    const list = this.collectSlideAnimations(slide);
+    let cursor = 0;
+    let previousDuration = 0;
+    return list.map((item, index) => {
+      let playDelay;
+      if (index === 0) {
+        playDelay = item.delay || 0;
+      } else if (item.start === "withPrevious") {
+        playDelay = cursor;
+      } else {
+        playDelay = cursor + previousDuration;
+      }
+      cursor = playDelay;
+      previousDuration = item.duration || 500;
+      return { ...item, playDelay };
+    });
+  }
+
+  _timelineByTarget(slide) {
+    const map = new Map();
+    for (const item of this.getAnimationTimeline(slide)) {
+      map.set(String(item.target), item);
+    }
+    return map;
+  }
+
+  _animationInlineStyle(animation, playDelay) {
+    if (!this._isActiveAnimation(animation)) return "";
+    const kf = this._getKeyframeName(animation.type);
+    const dur = animation.duration || 500;
+    const del = playDelay != null ? playDelay : (animation.delay || 0);
+    return `opacity:0;animation:${kf} ${dur}ms ease-out ${del}ms forwards;`;
+  }
+
+  _snapshotSlideAnimations(slide) {
+    return {
+      titleAnimation: slide?.titleAnimation ? { ...slide.titleAnimation } : undefined,
+      bodyAnimation: slide?.bodyAnimation ? { ...slide.bodyAnimation } : undefined,
+      body2Animation: slide?.body2Animation ? { ...slide.body2Animation } : undefined,
+      shapes: (slide?.shapes || []).map((shape) => ({
+        id: shape.id,
+        animation: shape.animation ? { ...shape.animation } : undefined
+      }))
+    };
+  }
+
+  _restoreSlideAnimations(slide, snapshot) {
+    if (!slide || !snapshot) return;
+    slide.titleAnimation = snapshot.titleAnimation ? { ...snapshot.titleAnimation } : undefined;
+    slide.bodyAnimation = snapshot.bodyAnimation ? { ...snapshot.bodyAnimation } : undefined;
+    slide.body2Animation = snapshot.body2Animation ? { ...snapshot.body2Animation } : undefined;
+    const byId = new Map((snapshot.shapes || []).map((item) => [String(item.id), item.animation]));
+    (slide.shapes || []).forEach((shape) => {
+      const saved = byId.get(String(shape.id));
+      shape.animation = saved ? { ...saved } : undefined;
+    });
+  }
+
+  _pushAnimationUndo(before) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return;
+    this.undoStack.push({
+      type: "animations",
+      slideIndex: this.currentSlideIndex,
+      before,
+      after: this._snapshotSlideAnimations(slide)
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+  }
+
+  _assignAnimationOrders(slide, orderedTargets) {
+    orderedTargets.forEach((target, index) => {
+      const cfg = this._getAnimationConfig(slide, target);
+      if (cfg) cfg.order = index;
+    });
+  }
+
+  moveSlideAnimation(index, direction) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    const list = this.collectSlideAnimations(slide);
+    const next = index + direction;
+    if (next < 0 || next >= list.length) return false;
+    const before = this._snapshotSlideAnimations(slide);
+    const reordered = list.map((item) => item.target);
+    const swapped = reordered[index];
+    reordered[index] = reordered[next];
+    reordered[next] = swapped;
+    this._assignAnimationOrders(slide, reordered);
+    this._pushAnimationUndo(before);
+    this._renderAnimationPane();
+    this._renderShapesLayer();
+    return true;
+  }
+
+  removeSlideAnimation(index) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    const list = this.collectSlideAnimations(slide);
+    const item = list[index];
+    if (!item) return false;
+    const before = this._snapshotSlideAnimations(slide);
+    const cleared = { type: "none", duration: 500, delay: 0 };
+    if (item.target === "title") slide.titleAnimation = cleared;
+    else if (item.target === "body") slide.bodyAnimation = cleared;
+    else if (item.target === "body2") slide.body2Animation = cleared;
+    else {
+      const shape = (slide.shapes || []).find((entry) => String(entry.id) === String(item.target));
+      if (shape) shape.animation = cleared;
+    }
+    this._assignAnimationOrders(slide, this.collectSlideAnimations(slide).map((entry) => entry.target));
+    this._pushAnimationUndo(before);
+    this._renderAnimationPane();
+    this._renderShapesLayer();
+    return true;
+  }
+
+  setSlideAnimationStart(index, start) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    const list = this.collectSlideAnimations(slide);
+    const item = list[index];
+    const cfg = item ? this._getAnimationConfig(slide, item.target) : null;
+    if (!cfg) return false;
+    const normalized = this._normalizeAnimationStart(start);
+    if (cfg.start === normalized) return true;
+    const before = this._snapshotSlideAnimations(slide);
+    cfg.start = normalized;
+    this._pushAnimationUndo(before);
+    this._renderAnimationPane();
+    return true;
+  }
+
+  toggleAnimationPane(forceState) {
+    const next = forceState === undefined ? !this.isAnimationPaneVisible : !!forceState;
+    this.isAnimationPaneVisible = next;
+    if (!this.animationPaneEl && next && this.stageEl) this._createAnimationPane(this.stageEl);
+    if (this.animationPaneEl) this.animationPaneEl.hidden = !next;
+    if (next) {
+      this._renderAnimationPane();
+      this.animationPaneEl?.querySelector?.(".vno-anim-pane-close")?.focus?.();
+      if (!this._animationPaneEscapeHandler && typeof document !== "undefined") {
+        this._animationPaneEscapeHandler = (event) => {
+          if (event.key === "Escape" && this.isAnimationPaneVisible) {
+            event.preventDefault();
+            this.toggleAnimationPane(false);
+          }
+        };
+        document.addEventListener("keydown", this._animationPaneEscapeHandler);
+      }
+    } else if (this._animationPaneEscapeHandler && typeof document !== "undefined") {
+      document.removeEventListener("keydown", this._animationPaneEscapeHandler);
+      this._animationPaneEscapeHandler = null;
+    }
+    this._syncCommandStates();
+    return this.isAnimationPaneVisible;
+  }
+
+  _createAnimationPane(stage) {
+    if (typeof document === "undefined" || !document.createElement) return;
+    if (this.animationPaneEl) return;
+    const panel = document.createElement("aside");
+    panel.className = "vno-animation-pane";
+    panel.hidden = !this.isAnimationPaneVisible;
+    panel.setAttribute?.("role", "region");
+    panel.setAttribute?.("aria-label", t("slidesDialogs.animationPaneTitle", "Ngăn hoạt hình"));
+    panel.innerHTML = `
+      <header>
+        <strong id="vno-anim-pane-title">${t("slidesDialogs.animationPaneTitle", "Ngăn hoạt hình")}</strong>
+        <button type="button" class="vno-anim-pane-close" aria-label="${t("slidesDialogs.close", "Đóng")}">×</button>
+      </header>
+      <p class="vno-anim-pane-hint">${t("slidesDialogs.animationPaneHint", "Danh sách hiệu ứng trên trang đang chọn. Đổi thứ tự bằng nút lên/xuống, chọn cách bắt đầu, hoặc xóa hiệu ứng (không xóa đối tượng).")}</p>
+      <div class="vno-anim-pane-list" role="list" aria-live="polite"></div>`;
+    panel.querySelector(".vno-anim-pane-close")?.addEventListener("click", () => this.toggleAnimationPane(false));
+    panel.addEventListener("click", (event) => {
+      const button = event.target?.closest?.("[data-anim-action]");
+      if (!button) return;
+      const index = parseInt(button.getAttribute("data-anim-index"), 10);
+      const action = button.getAttribute("data-anim-action");
+      if (action === "up") this.moveSlideAnimation(index, -1);
+      else if (action === "down") this.moveSlideAnimation(index, 1);
+      else if (action === "remove") this.removeSlideAnimation(index);
+    });
+    panel.addEventListener("change", (event) => {
+      const select = event.target?.closest?.("[data-anim-start]");
+      if (!select) return;
+      const index = parseInt(select.getAttribute("data-anim-index"), 10);
+      this.setSlideAnimationStart(index, select.value);
+    });
+    (stage || this.stageEl || this.container)?.appendChild?.(panel);
+    this.animationPaneEl = panel;
+  }
+
+  _renderAnimationPane() {
+    const panel = this.animationPaneEl;
+    if (!panel || panel.hidden) return;
+    const listEl = panel.querySelector(".vno-anim-pane-list");
+    if (!listEl) return;
+    const items = this.collectSlideAnimations();
+    if (!items.length) {
+      listEl.innerHTML = `<div class="vno-anim-pane-empty">${t("slidesDialogs.animationPaneEmpty", "Trang này chưa có hiệu ứng. Dùng Hiệu ứng đối tượng trên tab Hoạt hình để gắn hiệu ứng, rồi mở lại ngăn này để sắp xếp.")}</div>`;
+      return;
+    }
+    const startOptions = (selected) => [
+      ["onClick", t("slidesDialogs.animStartOnClick", "Khi click")],
+      ["withPrevious", t("slidesDialogs.animStartWithPrevious", "Cùng với trước đó")],
+      ["afterPrevious", t("slidesDialogs.animStartAfterPrevious", "Sau trước đó")]
+    ].map(([value, label]) => `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`).join("");
+    listEl.innerHTML = items.map((item) => `
+      <div class="vno-anim-pane-item" role="listitem" data-anim-index="${item.index}" data-anim-target="${this._escapeShapeText(String(item.target))}">
+        <span class="vno-anim-pane-order" aria-hidden="true">${item.index + 1}</span>
+        <div class="vno-anim-pane-meta">
+          <strong class="vno-anim-pane-object">${this._escapeShapeText(item.label)}</strong>
+          <span class="vno-anim-pane-type">${this._escapeShapeText(item.typeLabel)}</span>
+          <label class="vno-anim-pane-start">
+            <span>${t("slidesDialogs.animStartLabel", "Bắt đầu")}</span>
+            <select data-anim-start data-anim-index="${item.index}" aria-label="${t("slidesDialogs.animStartLabel", "Bắt đầu")} ${item.index + 1}">
+              ${startOptions(item.start)}
+            </select>
+          </label>
+        </div>
+        <div class="vno-anim-pane-actions">
+          <button type="button" data-anim-action="up" data-anim-index="${item.index}" ${item.index === 0 ? "disabled" : ""} aria-label="${t("slidesDialogs.animMoveUp", "Đưa lên")}">${t("slidesDialogs.animMoveUpShort", "↑")}</button>
+          <button type="button" data-anim-action="down" data-anim-index="${item.index}" ${item.index === items.length - 1 ? "disabled" : ""} aria-label="${t("slidesDialogs.animMoveDown", "Đưa xuống")}">${t("slidesDialogs.animMoveDownShort", "↓")}</button>
+          <button type="button" data-anim-action="remove" data-anim-index="${item.index}" aria-label="${t("slidesDialogs.animRemove", "Xóa hiệu ứng")}">${t("slidesDialogs.animRemoveShort", "Xóa")}</button>
+        </div>
+      </div>`).join("");
+  }
+
+  getSlideShowSettings() {
+    const current = this.slideShowSettings || {};
+    return {
+      loopUntilEsc: !!current.loopUntilEsc,
+      showWithoutNarration: !!current.showWithoutNarration,
+      pointerColor: current.pointerColor || "#DC2626"
+    };
+  }
+
+  applySlideShowSettings(settings = {}) {
+    const next = {
+      loopUntilEsc: !!settings.loopUntilEsc,
+      showWithoutNarration: !!settings.showWithoutNarration,
+      pointerColor: String(settings.pointerColor || "#DC2626")
+    };
+    this.slideShowSettings = next;
+    return next;
   }
 
   _getKeyframeName(type) {
@@ -1768,21 +2166,25 @@ export class SlidesCanvasController {
     }
     const pos = `position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;`;
     let animStyle = "";
+    let animAttrs = "";
     if (!options.suppressAnimation && shape.animation?.type && shape.animation.type !== "none") {
-      animStyle = `opacity:0;animation:${this._getKeyframeName(shape.animation.type)} ${shape.animation.duration || 500}ms ease-out ${shape.animation.delay || 0}ms forwards;`;
+      const timelineItem = options.timeline?.get?.(String(shape.id));
+      const playDelay = timelineItem ? timelineItem.playDelay : (shape.animation.delay || 0);
+      animStyle = this._animationInlineStyle(shape.animation, playDelay);
+      animAttrs = ` data-vno-anim-target="${shapeId}" data-vno-anim-order="${timelineItem ? timelineItem.index : ""}" data-vno-anim-delay="${playDelay}" data-vno-anim-type="${this._escapeShapeText(shape.animation.type)}"`;
     }
-    if (shape.type === "image" && shape.src) return `<img src="${shape.src}"${morphAttrs} style="${pos}${animStyle}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,.15)" />`;
-    if (shape.type === "video" && shape.src) return `<video src="${shape.src}"${morphAttrs} controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,.15)"></video>`;
-    if (shape.type === "audio" && shape.src) return `<audio src="${shape.src}"${morphAttrs} controls style="${pos}${animStyle}"></audio>`;
-    if (shape.type === "chart") return `<div class="vno-show-shape vno-show-chart"${morphAttrs} style="${pos}${animStyle}background:#fff;overflow:hidden">${generateSlidesChartSvg(shape)}</div>`;
+    if (shape.type === "image" && shape.src) return `<img src="${shape.src}"${morphAttrs}${animAttrs} style="${pos}${animStyle}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,.15)" />`;
+    if (shape.type === "video" && shape.src) return `<video src="${shape.src}"${morphAttrs}${animAttrs} controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,.15)"></video>`;
+    if (shape.type === "audio" && shape.src) return `<audio src="${shape.src}"${morphAttrs}${animAttrs} controls style="${pos}${animStyle}"></audio>`;
+    if (shape.type === "chart") return `<div class="vno-show-shape vno-show-chart"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:#fff;overflow:hidden">${generateSlidesChartSvg(shape)}</div>`;
     if (shape.type === "wordart") {
       const textCss = buildWordArtCss(shape);
       const text = `<span class="vno-wordart-text" data-vno-wordart="true" data-vno-wordart-preset="${this._escapeShapeText(shape.presetId || "")}" style="${textCss}">${this._escapeShapeText(shape.text)}</span>`;
-      return `<div class="vno-show-shape vno-show-wordart"${morphAttrs} style="${pos}${animStyle}background:transparent;display:flex;align-items:center;justify-content:center;overflow:visible">${text}</div>`;
+      return `<div class="vno-show-shape vno-show-wordart"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:transparent;display:flex;align-items:center;justify-content:center;overflow:visible">${text}</div>`;
     }
     const radius = shape.type === "ellipse" ? "50%" : "6px";
     const text = shape.text !== undefined ? `<span class="vno-show-shape-text">${this._escapeShapeText(shape.text)}</span>` : "";
-    return `<div class="vno-show-shape"${morphAttrs} style="${pos}${animStyle}background:${shape.color || "#3b82f6"};opacity:.9;border-radius:${radius}">${text}</div>`;
+    return `<div class="vno-show-shape"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:${shape.color || "#3b82f6"};opacity:.9;border-radius:${radius}">${text}</div>`;
   }
 
   _getMorphMatches(fromSlide, toSlide) {
@@ -3291,6 +3693,7 @@ export class SlidesCanvasController {
     this._renderShapesLayer();
     this._refreshSpellcheckRoots();
     this._renderCommentsUi();
+    this._renderAnimationPane();
 
     if (this.isReadingView) {
       this._renderReadingSlide();
@@ -4008,6 +4411,15 @@ export class SlidesCanvasController {
       this._restoreSlideBackgrounds(action.before);
       this.redoStack.push(action);
       return true;
+    } else if (action.type === "animations") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      this._restoreSlideAnimations(slide, action.before);
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      this._renderAnimationPane();
+      return true;
     }
     return false;
   }
@@ -4239,6 +4651,15 @@ export class SlidesCanvasController {
     } else if (action.type === "slide-background") {
       this._restoreSlideBackgrounds(action.after);
       this.undoStack.push(action);
+      return true;
+    } else if (action.type === "animations") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      this._restoreSlideAnimations(slide, action.after);
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      this._renderAnimationPane();
       return true;
     }
     return false;
@@ -5475,6 +5896,89 @@ export class SlidesCanvasController {
     });
   }
 
+  showSetupShowDialog() {
+    if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      const previousFocused = document.activeElement;
+      const current = this.getSlideShowSettings();
+      const overlay = document.createElement("div");
+      overlay.className = "vno-dialog-overlay";
+      overlay.innerHTML = `
+        <div class="vno-dialog-box" style="width: 460px;" role="dialog" aria-modal="true" aria-labelledby="vno-setup-show-title">
+          <div class="vno-dialog-header">
+            <span id="vno-setup-show-title">${t("slidesDialogs.setupShowTitle", "Thiết lập trình chiếu")}</span>
+            <button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close", "Đóng")}" style="font-size:16px;">&times;</button>
+          </div>
+          <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px;">
+            <p style="margin:0;font-size:12px;color:#475569;">${t("slidesDialogs.setupShowHint", "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút/laser được lưu cho tính năng tương lai — VN Slides chưa có bút/laser trên màn hình chiếu.")}</p>
+            <label class="vno-setup-show-check" style="display:flex;align-items:flex-start;gap:8px;font-size:13px;">
+              <input type="checkbox" id="vno-setup-loop" ${current.loopUntilEsc ? "checked" : ""}>
+              <span>${t("slidesDialogs.setupShowLoop", "Lặp lại liên tục cho đến khi nhấn Esc")}</span>
+            </label>
+            <label class="vno-setup-show-check" style="display:flex;align-items:flex-start;gap:8px;font-size:13px;">
+              <input type="checkbox" id="vno-setup-narration" ${current.showWithoutNarration ? "checked" : ""}>
+              <span>${t("slidesDialogs.setupShowNoNarration", "Trình chiếu không có thuyết minh")}</span>
+            </label>
+            <p style="margin:0 0 0 24px;font-size:11px;color:#64748b;">${t("slidesDialogs.setupShowNoNarrationHint", "Chưa có thuyết minh/audio narration trong VN Slides — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.")}</p>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <label for="vno-setup-pointer-color" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.setupShowPointerColor", "Màu con trỏ bút / laser")}</label>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <input type="color" id="vno-setup-pointer-color" value="${this._escapeShapeText(current.pointerColor)}" aria-label="${t("slidesDialogs.setupShowPointerColor", "Màu con trỏ bút / laser")}" style="width:44px;height:32px;padding:0;border:1px solid #cbd5e1;border-radius:4px;background:#fff;cursor:pointer;">
+                <span id="vno-setup-pointer-hex" style="font-size:12px;color:#334155;">${this._escapeShapeText(current.pointerColor)}</span>
+              </div>
+            </div>
+          </div>
+          <div class="vno-dialog-footer" style="display:flex;justify-content:flex-end;gap:8px;">
+            <button type="button" class="vno-btn" id="vno-setup-cancel">${t("slidesDialogs.cancel", "Hủy bỏ")}</button>
+            <button type="button" class="vno-btn vno-btn-primary" id="vno-setup-ok">${t("slidesDialogs.apply", "Áp dụng")}</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      const dialogBox = overlay.querySelector(".vno-dialog-box");
+      const loopEl = overlay.querySelector("#vno-setup-loop");
+      const narrationEl = overlay.querySelector("#vno-setup-narration");
+      const colorEl = overlay.querySelector("#vno-setup-pointer-color");
+      const hexEl = overlay.querySelector("#vno-setup-pointer-hex");
+      colorEl?.addEventListener("input", () => {
+        if (hexEl) hexEl.textContent = colorEl.value;
+      });
+
+      let closed = false;
+      const close = (applied) => {
+        if (closed) return;
+        closed = true;
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        document.removeEventListener("keydown", onKeyDown);
+        if (previousFocused && typeof previousFocused.focus === "function") {
+          try { previousFocused.focus(); } catch (_) {}
+        }
+        resolve(!!applied);
+      };
+      const onKeyDown = (e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          close(false);
+        } else if (e.key === "Tab") {
+          trapFocus(dialogBox, e);
+        }
+      };
+      document.addEventListener("keydown", onKeyDown);
+      overlay.addEventListener("click", (e) => { if (e.target === overlay) close(false); });
+      overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
+      overlay.querySelector("#vno-setup-cancel")?.addEventListener("click", () => close(false));
+      overlay.querySelector("#vno-setup-ok")?.addEventListener("click", () => {
+        this.applySlideShowSettings({
+          loopUntilEsc: !!loopEl?.checked,
+          showWithoutNarration: !!narrationEl?.checked,
+          pointerColor: colorEl?.value || "#DC2626"
+        });
+        close(true);
+      });
+      loopEl?.focus?.();
+    });
+  }
+
   startSlideShow(startIndex, options = {}) {
     if (typeof document === "undefined" || !document.createElement) return false;
     options = options || {};
@@ -5571,31 +6075,22 @@ export class SlidesCanvasController {
       const activeSection = this.sections.find(section => section.id === s.sectionId);
       const transition = s.transition || this.transitionConfig || { type: "fade", duration: 500 };
       const isMorph = transition.type === "morph";
-      const shapesHtml = (s.shapes || []).map(shape => this._shapePresentationHtml(shape, { suppressAnimation: isMorph })).join("");
-
-      let titleAnimStyle = "";
-      if (s.titleAnimation && s.titleAnimation.type && s.titleAnimation.type !== "none") {
-        const kf = this._getKeyframeName(s.titleAnimation.type);
-        const dur = s.titleAnimation.duration || 500;
-        const del = s.titleAnimation.delay || 0;
-        titleAnimStyle = `opacity:0;animation:${kf} ${dur}ms ease-out ${del}ms forwards;`;
-      }
-
-      let bodyAnimStyle = "";
-      if (s.bodyAnimation && s.bodyAnimation.type && s.bodyAnimation.type !== "none") {
-        const kf = this._getKeyframeName(s.bodyAnimation.type);
-        const dur = s.bodyAnimation.duration || 500;
-        const del = s.bodyAnimation.delay || 0;
-        bodyAnimStyle = `opacity:0;animation:${kf} ${dur}ms ease-out ${del}ms forwards;`;
-      }
-
-      let body2AnimStyle = "";
-      if (s.body2Animation && s.body2Animation.type && s.body2Animation.type !== "none") {
-        const kf = this._getKeyframeName(s.body2Animation.type);
-        const dur = s.body2Animation.duration || 500;
-        const del = s.body2Animation.delay || 0;
-        body2AnimStyle = `opacity:0;animation:${kf} ${dur}ms ease-out ${del}ms forwards;`;
-      }
+      const timelineMap = this._timelineByTarget(s);
+      const shapesHtml = (s.shapes || []).map(shape => this._shapePresentationHtml(shape, { suppressAnimation: isMorph, timeline: timelineMap })).join("");
+      const animAttr = (target) => {
+        const item = timelineMap.get(String(target));
+        if (!item) return "";
+        return ` data-vno-anim-target="${this._escapeShapeText(String(target))}" data-vno-anim-order="${item.index}" data-vno-anim-delay="${item.playDelay}" data-vno-anim-type="${this._escapeShapeText(item.type)}"`;
+      };
+      const titleItem = timelineMap.get("title");
+      const bodyItem = timelineMap.get("body");
+      const body2Item = timelineMap.get("body2");
+      const titleAnimStyle = titleItem ? this._animationInlineStyle(s.titleAnimation, titleItem.playDelay) : "";
+      const bodyAnimStyle = bodyItem ? this._animationInlineStyle(s.bodyAnimation, bodyItem.playDelay) : "";
+      const body2AnimStyle = body2Item ? this._animationInlineStyle(s.body2Animation, body2Item.playDelay) : "";
+      const titleAnimAttrs = animAttr("title");
+      const bodyAnimAttrs = animAttr("body");
+      const body2AnimAttrs = animAttr("body2");
 
       content.style.fontFamily = theme.fontFamily || "sans-serif";
       this._applySurfaceToElement(content, s);
@@ -5612,17 +6107,17 @@ export class SlidesCanvasController {
       } else if (layout === "title-only") {
         layoutHtml = `
           <div style="position:relative;flex:1;display:flex;align-items:center;justify-content:center;text-align:center;">
-            <h1 style="font-size:52px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin:0;${titleAnimStyle}">${s.title}</h1>
+            <h1${titleAnimAttrs} style="font-size:52px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin:0;${titleAnimStyle}">${s.title}</h1>
             ${shapesHtml}
           </div>
         `;
       } else if (layout === "two-content") {
         layoutHtml = `
           <div style="position:relative;flex:1;display:flex;flex-direction:column;padding-top:20px;">
-            <h1 style="font-size:44px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin-bottom:28px;${titleAnimStyle}">${s.title}</h1>
+            <h1${titleAnimAttrs} style="font-size:44px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin-bottom:28px;${titleAnimStyle}">${s.title}</h1>
             <div style="display:flex;gap:40px;flex:1;">
-              <div style="flex:1;font-size:24px;line-height:1.7;color:${theme.bodyColor || "#334155"};white-space:pre-line;${bodyAnimStyle}">${s.body}</div>
-              <div style="flex:1;font-size:24px;line-height:1.7;color:${theme.bodyColor || "#334155"};white-space:pre-line;${body2AnimStyle}">${s.body2 || ""}</div>
+              <div${bodyAnimAttrs} style="flex:1;font-size:24px;line-height:1.7;color:${theme.bodyColor || "#334155"};white-space:pre-line;${bodyAnimStyle}">${s.body}</div>
+              <div${body2AnimAttrs} style="flex:1;font-size:24px;line-height:1.7;color:${theme.bodyColor || "#334155"};white-space:pre-line;${body2AnimStyle}">${s.body2 || ""}</div>
             </div>
             ${shapesHtml}
           </div>
@@ -5631,8 +6126,8 @@ export class SlidesCanvasController {
         // title-content (default)
         layoutHtml = `
           <div style="position:relative;flex:1;padding-top:20px;">
-            <h1 style="font-size:44px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin-bottom:36px;${titleAnimStyle}">${s.title}</h1>
-            <div style="font-size:26px;line-height:1.7;color:${theme.bodyColor || "#334155"};white-space:pre-line;${bodyAnimStyle}">${s.body}</div>
+            <h1${titleAnimAttrs} style="font-size:44px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin-bottom:36px;${titleAnimStyle}">${s.title}</h1>
+            <div${bodyAnimAttrs} style="font-size:26px;line-height:1.7;color:${theme.bodyColor || "#334155"};white-space:pre-line;${bodyAnimStyle}">${s.body}</div>
             ${shapesHtml}
           </div>
         `;
@@ -5709,8 +6204,16 @@ export class SlidesCanvasController {
         return;
       }
       const n = nextVisible();
-      if (n >= 0) goToSlide(n);
-      else closeShow();
+      if (n >= 0) {
+        goToSlide(n);
+        return;
+      }
+      if (this.getSlideShowSettings().loopUntilEsc) {
+        const first = this._firstVisibleSlideIndex();
+        if (first >= 0) goToSlide(first);
+        return;
+      }
+      closeShow();
     };
 
     const rewindShow = () => {
@@ -5747,6 +6250,7 @@ export class SlidesCanvasController {
       prev: rewindShow,
       getIndex: () => currentShowIdx,
       getTitle: () => this.slides[currentShowIdx]?.title || "",
+      getTimeline: () => this.getAnimationTimeline(this.slides[currentShowIdx]),
       isEmpty: currentShowIdx < 0,
       overlay
     };
@@ -5980,6 +6484,14 @@ export class SlidesCanvasController {
       if (n >= 0) {
         currentShowIdx = n;
         renderPresenterState();
+        return;
+      }
+      if (this.getSlideShowSettings().loopUntilEsc) {
+        const first = this._firstVisibleSlideIndex();
+        if (first >= 0) {
+          currentShowIdx = first;
+          renderPresenterState();
+        }
       }
     };
 
@@ -6077,6 +6589,12 @@ export class SlidesCanvasController {
     this.undoStack = [];
     this.redoStack = [];
     this.selectedTarget = null;
+    this.slideShowSettings = {
+      loopUntilEsc: false,
+      showWithoutNarration: false,
+      pointerColor: "#DC2626"
+    };
+    this.toggleAnimationPane(false);
     this.masterTheme = {
       themeId: "modern-blue",
       fontFamily: "Inter, 'Segoe UI', sans-serif",
@@ -6141,6 +6659,7 @@ export class SlidesCanvasController {
     globalCommandBus.updateState("slides.slide.toggleHidden", {
       checked: !!this.slides[this.currentSlideIndex]?.hidden
     });
+    globalCommandBus.updateState("slides.animation.pane", { checked: !!this.isAnimationPaneVisible });
   }
 
   _applyViewState() {

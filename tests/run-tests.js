@@ -103,6 +103,7 @@ import { runWriterHelpTests } from "./unit/writer-help.test.js";
 import { runSheetHelpTests } from "./unit/sheet-help.test.js";
 import { runSlidesHelpTests } from "./unit/slides-help.test.js";
 import { runWriterWordArtTests } from "./unit/writer-wordart.test.js";
+import { runSlidesAnimationPaneSetupShowTests } from "./unit/slides-animation-pane-setup-show.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -213,7 +214,8 @@ async function runAll() {
     { title: "93. Behavioral Tests — VN Writer In-app Help", runner: runWriterHelpTests },
     { title: "94. Behavioral Tests — VN Sheet In-app Help", runner: runSheetHelpTests },
     { title: "95. Behavioral Tests — VN Slides In-app Help", runner: runSlidesHelpTests },
-    { title: "96. Behavioral Tests — VN Writer WordArt (chữ nghệ thuật)", runner: runWriterWordArtTests }
+    { title: "96. Behavioral Tests — VN Writer WordArt (chữ nghệ thuật)", runner: runWriterWordArtTests },
+    { title: "98. Behavioral Tests — VN Slides Animation Pane & Set Up Slide Show", runner: runSlidesAnimationPaneSetupShowTests }
   ];
 
   for (const suite of suites) {

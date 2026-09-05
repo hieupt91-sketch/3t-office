@@ -274,6 +274,8 @@ export const VN_TO_UNO_MAP = {
   "slides.design.formatBackground": ".uno:FormatPage",
   "slides.transition.apply": ".uno:SlideTransition",
   "slides.animation.apply": ".uno:CustomAnimation",
+  "slides.animation.pane": ".uno:AnimationPane",
+  "slides.show.setupShow": ".uno:PresentationDialog",
   "slides.notes.toggle": ".uno:InsertAnnotation",
   "slides.view.normal": ".uno:NormalMode",
   "slides.view.slideSorter": ".uno:DiaMode",
