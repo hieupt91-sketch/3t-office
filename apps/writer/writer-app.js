@@ -4,6 +4,7 @@
 
 import { AppShell } from "../../platform/shell/app-shell.js";
 import { WRITER_RIBBON_TABS, applyLocaleToWriterRibbon } from "./writer-ribbon.js";
+import { WriterArrangeController } from "./writer-arrange.js";
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
 import { bootstrapPlatform } from "../../platform/bootstrap.js";
 import { createStyleGalleryStrip } from "./style-gallery.js";
@@ -165,6 +166,12 @@ export class WriterApp {
     this.adapter.setCommentsPanel(commentsPanel);
     this.adapter.setShell(this.shell);
     this.adapter.attach();
+    this.arrangeController = new WriterArrangeController({
+      body,
+      adapter: this.adapter,
+      ribbonHost: this.shell.ribbonHost,
+      mountElement: this.mountElement
+    }).attach();
 
     this.viewController = new WriterViewController({
       container,
@@ -221,6 +228,8 @@ export class WriterApp {
     this._lifecycleObserver = null;
     this._styleGalleryObserver?.disconnect();
     this._styleGalleryObserver = null;
+    this.arrangeController?.destroy();
+    this.arrangeController = null;
     this.spellcheckController?.destroy();
     this.spellcheckController = null;
   }
