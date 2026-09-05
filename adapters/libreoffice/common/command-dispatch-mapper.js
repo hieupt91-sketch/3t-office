@@ -259,6 +259,7 @@ export const VN_TO_UNO_MAP = {
   "slides.master.apply": ".uno:MasterLayouts",
   "slides.design.themeGallery": ".uno:MasterLayouts",
   "slides.design.slideSize": ".uno:PageSetup",
+  "slides.design.formatBackground": ".uno:FormatPage",
   "slides.transition.apply": ".uno:SlideTransition",
   "slides.animation.apply": ".uno:CustomAnimation",
   "slides.notes.toggle": ".uno:InsertAnnotation",

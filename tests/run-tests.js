@@ -95,6 +95,7 @@ import { runSlidesFontParagraphTests } from "./unit/slides-font-paragraph.test.j
 import { runWriterCaptionsTests } from "./unit/writer-captions.test.js";
 import { runSlidesFormatPainterTests } from "./unit/slides-format-painter.test.js";
 import { runSlidesSpellcheckRibbonTests } from "./unit/slides-spellcheck-ribbon.test.js";
+import { runSlidesFormatBackgroundTests } from "./unit/slides-format-background.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -197,7 +198,8 @@ async function runAll() {
     { title: "86. Behavioral Tests — VN Slides Font & Paragraph (Home tab)", runner: runSlidesFontParagraphTests },
     { title: "87. Behavioral Tests — VN Writer Captions & Table of Figures", runner: runWriterCaptionsTests },
     { title: "88. Behavioral Tests — VN Slides Format Painter", runner: runSlidesFormatPainterTests },
-    { title: "89. Behavioral Tests — VN Slides Review Spellcheck Ribbon", runner: runSlidesSpellcheckRibbonTests }
+    { title: "89. Behavioral Tests — VN Slides Review Spellcheck Ribbon", runner: runSlidesSpellcheckRibbonTests },
+    { title: "90. Behavioral Tests — VN Slides Format Background", runner: runSlidesFormatBackgroundTests }
   ];
 
   for (const suite of suites) {
