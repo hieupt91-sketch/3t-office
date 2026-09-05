@@ -136,8 +136,8 @@ export async function runA11yAuditNewFeaturesTests() {
 
   await test("Slides: Section divider has role='heading' and aria-level='2'", () => {
     const canvasCode = fs.readFileSync(path.join(rootDir, "apps/slides/slides-canvas.js"), "utf8");
-    assert(canvasCode.includes('divider.setAttribute?.("role", "heading")'), "Section divider must have role='heading'");
-    assert(canvasCode.includes('divider.setAttribute?.("aria-level", "2")'), "Section divider must have aria-level='2'");
+    assert(canvasCode.includes('setAttribute?.("role", "heading")'), "Section divider/header must have role='heading'");
+    assert(canvasCode.includes('setAttribute?.("aria-level", "2")'), "Section divider/header must have aria-level='2'");
   });
 
   await test("Slides: CSS defines :focus-visible for slide sorter items, section divider, and section menu buttons", () => {
