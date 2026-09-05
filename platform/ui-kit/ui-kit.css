@@ -194,6 +194,33 @@
   font-size: var(--vno-text-md);
   background-color: #fafafa;
 }
+.vno-dialog-close-btn {
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 8px;
+  min-width: 28px;
+  min-height: 28px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.12s ease, color 0.12s ease, transform 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.vno-dialog-close-btn:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+.vno-dialog-close-btn:active {
+  transform: scale(0.92);
+}
+.vno-dialog-close-btn:focus-visible {
+  outline: 2px solid var(--vno-primary, #2563eb);
+  outline-offset: 1px;
+}
 .vno-dialog-body {
   padding: 20px;
   font-size: var(--vno-text-base);
