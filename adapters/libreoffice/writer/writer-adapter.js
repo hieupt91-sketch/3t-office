@@ -2501,7 +2501,11 @@ export class WriterAdapter {
   _insertPageBreak() {
     this.flushTyping();
     this._initZones();
-    const html = `<div style="page-break-before:always; border-top:2px dashed #94a3b8; margin:24px 0; text-align:center; color:#94a3b8; font-size:11px; user-select:none;">--- Phân tách trang (Page Break) ---</div><p><br></p>`;
+    // <p>, not <div>: LibreOffice's Writer HTML-import filter only honors
+    // page-break-before on a real <p> element, so exporting this marker as a
+    // <div> would silently produce zero real page breaks in DOCX/PDF (same
+    // bug class found/fixed for Section Breaks and Labels).
+    const html = `<p style="page-break-before:always; break-before:page; border-top:2px dashed #94a3b8; margin:24px 0; text-align:center; color:#94a3b8; font-size:11px; user-select:none;">--- Phân tách trang (Page Break) ---</p><p><br></p>`;
     let inserted = false;
     if (typeof document !== "undefined" && typeof document.execCommand === "function") {
       try {
@@ -7908,7 +7912,10 @@ export class WriterAdapter {
     // Bảo đảm snapshot trước khi trộn chứa template nguyên bản với field markers để Undo khôi phục chuẩn
     this._lastSnapshot = this._createSnapshot("Template Before Merge");
 
-    const PAGE_BREAK_HTML = `<div style="page-break-before:always; border-top:2px dashed #94a3b8; margin:24px 0; text-align:center; color:#94a3b8; font-size:11px; user-select:none;">--- Phân tách trang (Page Break) ---</div>`;
+    // <p>, not <div>: see _insertPageBreak() for why - a <div> marker here
+    // would silently produce zero real page breaks between merged records
+    // in real DOCX/PDF export.
+    const PAGE_BREAK_HTML = `<p style="page-break-before:always; break-before:page; border-top:2px dashed #94a3b8; margin:24px 0; text-align:center; color:#94a3b8; font-size:11px; user-select:none;">--- Phân tách trang (Page Break) ---</p>`;
 
     const copies = records.map((record) => {
       return replaceMergeFields(templateHtml, record);
