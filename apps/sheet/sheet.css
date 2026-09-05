@@ -745,6 +745,10 @@ tr.is-filtered-out {
 .vno-pivot-fields { max-height:300px; overflow:auto; border:1px solid var(--vno-border-default); border-radius:6px; padding:8px; }
 .vno-pivot-field { display:grid; grid-template-columns:minmax(120px,1fr) repeat(3,auto) 105px; gap:10px; align-items:center; padding:7px; border-bottom:1px solid var(--vno-border-default); }
 .vno-pivot-field:last-child { border-bottom:0; }
+.vno-scenario-manager { display:grid; gap:10px; min-width:520px; }
+.vno-scenario-manager > label { display:grid; gap:5px; font-weight:600; }
+.vno-scenario-manager input, .vno-scenario-manager select { padding:7px 9px; border:1px solid var(--vno-border-default); border-radius:5px; background:var(--vno-bg-primary); color:var(--vno-text-primary); }
+.vno-scenario-actions { display:flex; gap:8px; flex-wrap:wrap; }
 .vno-name-manager{display:flex;flex-direction:column;gap:12px;min-width:520px}.vno-name-list{border:1px solid var(--vno-border-default);border-radius:6px;max-height:220px;overflow:auto}.vno-name-row{display:grid;grid-template-columns:1.2fr 1fr 1fr;width:100%;padding:8px 10px;border:0;border-bottom:1px solid var(--vno-border-default);background:transparent;text-align:left;cursor:pointer}.vno-name-row:hover,.vno-name-row.is-selected{background:var(--vno-sheet-light);color:var(--vno-text-primary)}.vno-name-actions{display:flex;gap:8px}.vno-name-form{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.vno-name-form label{display:flex;flex-direction:column;gap:4px;font-size:12px}.vno-name-form input,.vno-name-form select{background-color:var(--vno-bg-surface);color:var(--vno-text-primary);padding:7px;border:1px solid var(--vno-border-default);border-radius:4px}.vno-name-empty{padding:18px;text-align:center;color:var(--vno-text-secondary)}
 
 /* ==========================================================================

@@ -65,8 +65,9 @@ export async function runSheetGoalSeekTests() {
 
   await test("Goal Seek: ribbon và SheetAdapter nối đúng command", async () => {
     const dataTab = SHEET_RIBBON_TABS.find(tab => tab.id === "data");
-    const goalItem = dataTab?.groups.flatMap(group => group.items).find(item => item.commandId === "sheet.data.goalSeek");
-    assert(goalItem?.icon?.includes("<svg") && goalItem.label === "Dò tìm mục tiêu", "Thiếu nút/SVG Goal Seek trên tab Dữ liệu");
+    const whatIf = dataTab?.groups.flatMap(group => group.items).find(item => item.id === "sheet-what-if-analysis");
+    const goalItem = whatIf?.items?.find(item => item.commandId === "sheet.data.goalSeek");
+    assert(whatIf?.type === "dropdown" && whatIf.icon === "whatIfAnalysis" && goalItem, "Thiếu Goal Seek trong dropdown What-If trên tab Dữ liệu");
     let calls = 0;
     const mock = new Proxy({}, { get(target, key) { if (key in target) return target[key]; return () => { if (key === "showGoalSeekDialog") calls++; return true; }; } });
     new SheetAdapter(mock).attach();

@@ -156,6 +156,22 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.data.whatIfAnalysis",
+    app: "sheet",
+    commandIds: ["sheet.data.goalSeek", "sheet.data.dataTable", "sheet.data.scenarioManager"],
+    title: "Phân tích What-If: Bảng dữ liệu và Kịch bản",
+    summary: "Thử nhiều giá trị đầu vào cho một công thức hoặc lưu các bộ giả định có tên để so sánh kết quả mà không phải nhập lại thủ công.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Công cụ dữ liệu" },
+    keywords: ["what-if", "bảng dữ liệu", "data table", "kịch bản", "scenario manager", "giả định"],
+    steps: [
+      "Mở tab Dữ liệu, nhóm Công cụ dữ liệu, nhấn Phân tích What-If rồi chọn Dò tìm mục tiêu, Bảng dữ liệu hoặc Trình quản lý kịch bản.",
+      "Bảng dữ liệu: đặt công thức gốc ở ô góc trên-trái của vùng; đặt các giá trị thử ngang hàng trên và/hoặc dọc cột trái. Bôi toàn bộ vùng, mở Bảng dữ liệu và nhập Ô đầu vào theo hàng, theo cột, hoặc cả hai rồi nhấn Áp dụng.",
+      "Với một biến, chỉ nhập đúng một ô đầu vào. Với hai biến, giá trị hàng thay cho Ô đầu vào theo hàng, giá trị cột thay cho Ô đầu vào theo cột; VN Sheet điền kết quả vào phần thân bảng nhưng giữ nguyên công thức gốc.",
+      "Trình quản lý kịch bản: nhập Tên, danh sách Các ô thay đổi (ví dụ B2, B3) và cùng số Giá trị; nhấn Thêm. Chọn một kịch bản để Sửa/Xóa hoặc nhấn Hiển thị để ghi bộ giá trị vào các ô thật.",
+      "Nhấn Ctrl+Z/Ctrl+Y để hoàn tác/làm lại kết quả Bảng dữ liệu, thao tác quản lý kịch bản hoặc bộ giá trị vừa Hiển thị."
+    ]
+  },
+  {
     id: "sheet.edit.formatPainter",
     app: "sheet",
     commandIds: ["sheet.edit.formatPainter"],

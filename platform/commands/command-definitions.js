@@ -252,6 +252,8 @@ export const SHEET_COMMANDS = [
   { id: "sheet.data.group", category: "data", label: "Nhóm", icon: "indentInc", tooltip: "Nhóm các hàng hoặc cột liên tiếp đang chọn" },
   { id: "sheet.data.ungroup", category: "data", label: "Bỏ nhóm", icon: "indentDec", tooltip: "Bỏ nhóm hàng hoặc cột đang chọn" },
   { id: "sheet.data.subtotal", category: "data", label: "Tổng phụ", icon: "autoSum", tooltip: "Chèn tổng phụ theo nhóm và tổng cộng cuối bảng" },
+  { id: "sheet.data.dataTable", category: "data", label: "Bảng dữ liệu", icon: "dataTable", tooltip: "Tính công thức với một hoặc hai dãy giá trị đầu vào thay thế" },
+  { id: "sheet.data.scenarioManager", category: "data", label: "Trình quản lý kịch bản", icon: "scenarioManager", tooltip: "Lưu và chuyển đổi nhiều bộ giá trị giả định có tên" },
   { id: "sheet.data.pivotTable", category: "data", label: "Bảng tổng hợp", icon: "pivotTable", tooltip: "Tạo Pivot Table từ vùng dữ liệu đang chọn" },
   { id: "sheet.data.pivotRefresh", category: "data", label: "Làm mới Pivot", icon: "refreshTable", tooltip: "Tính lại Pivot Table từ dữ liệu nguồn" },
   { id: "sheet.view.normal", category: "view", label: "Bình thường", icon: "sheetNormalView", tooltip: "Xem bảng tính ở chế độ bình thường", isToggle: true },

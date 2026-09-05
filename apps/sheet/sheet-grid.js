@@ -6,6 +6,7 @@ import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { SheetChartBuilder } from "./sheet-chart.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
 import { PivotTableEngine } from "./pivot-table.js";
+import { WhatIfAnalysisEngine } from "./what-if-analysis.js";
 import { NumberFormatter } from "./number-formatter.js";
 import { FormatCellsDialog } from "./format-cells-dialog.js";
 import { showCellStylesDialog, showFormatAsTableDialog, CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "./cell-styles.js";
@@ -148,6 +149,7 @@ export class SheetGridController {
     this.imagesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.textBoxesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.scenariosBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.outlineGroupsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.rowHeightsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
     this.colWidthsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
@@ -1566,6 +1568,7 @@ export class SheetGridController {
     if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
     if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
+    if (!this.scenariosBySheet[sheetName]) this.scenariosBySheet[sheetName] = [];
     if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
     if (!(sheetName in this.printAreaBySheet)) this.printAreaBySheet[sheetName] = null;
@@ -1677,6 +1680,7 @@ export class SheetGridController {
     if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
     if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
+    if (!this.scenariosBySheet[sheetName]) this.scenariosBySheet[sheetName] = [];
     if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
     if (!(sheetName in this.printAreaBySheet)) this.printAreaBySheet[sheetName] = null;
@@ -1719,6 +1723,7 @@ export class SheetGridController {
     delete this.imagesBySheet[sheetName];
     delete this.textBoxesBySheet[sheetName];
     delete this.pivotTablesBySheet[sheetName];
+    delete this.scenariosBySheet[sheetName];
     delete this.namedRangesBySheet[sheetName];
     delete this.commentsBySheet[sheetName];
     delete this.printAreaBySheet[sheetName];
@@ -2088,6 +2093,7 @@ export class SheetGridController {
     this.imagesBySheet[targetName] = structuredClone(this.imagesBySheet[sourceName] || []);
     this.textBoxesBySheet[targetName] = structuredClone(this.textBoxesBySheet[sourceName] || []);
     this.pivotTablesBySheet[targetName] = structuredClone(this.pivotTablesBySheet[sourceName] || []);
+    this.scenariosBySheet[targetName] = structuredClone(this.scenariosBySheet[sourceName] || []);
     this.namedRangesBySheet[targetName] = structuredClone(this.namedRangesBySheet[sourceName] || []);
     this.commentsBySheet[targetName] = structuredClone(this.commentsBySheet[sourceName] || {});
     this.printAreaBySheet[targetName] = structuredClone(this.printAreaBySheet[sourceName] || null);
@@ -5228,6 +5234,10 @@ export class SheetGridController {
       this._restoreCells(direction === "undo" ? action.before : action.after);
     } else if (action.type === "pivot-refresh") {
       this._restoreCells(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "what-if-cells") {
+      this._restoreCells(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "scenario-state") {
+      this.scenariosBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
     } else if (action.type === "collection") {
       const collection = this[action.collection][action.sheet] ||= [];
       const shouldInsert = (action.operation === "insert") === (direction === "redo");
@@ -5843,6 +5853,7 @@ export class SheetGridController {
       images: structuredClone(this.imagesBySheet[sheetName] || []),
       textBoxes: structuredClone(this.textBoxesBySheet[sheetName] || []),
       pivotTables: structuredClone(this.pivotTablesBySheet[sheetName] || []),
+      scenarios: structuredClone(this.scenariosBySheet[sheetName] || []),
       namedRanges: structuredClone(this.namedRangesBySheet[sheetName] || []),
       comments: structuredClone(this.commentsBySheet[sheetName] || {}),
       printArea: this.printAreaBySheet[sheetName] || null,
@@ -5870,6 +5881,7 @@ export class SheetGridController {
     this.imagesBySheet[sheetName] = structuredClone(snapshot.images || []);
     this.textBoxesBySheet[sheetName] = structuredClone(snapshot.textBoxes || []);
     this.pivotTablesBySheet[sheetName] = structuredClone(snapshot.pivotTables || []);
+    this.scenariosBySheet[sheetName] = structuredClone(snapshot.scenarios || []);
     this.namedRangesBySheet[sheetName] = structuredClone(snapshot.namedRanges || []);
     this.commentsBySheet[sheetName] = structuredClone(snapshot.comments || {});
     this.printAreaBySheet[sheetName] = snapshot.printArea || null;
@@ -6953,6 +6965,129 @@ export class SheetGridController {
     const result = this.findGoalSeekSolution(config);
     if (result.success && config.apply !== false) this.applyGoalSeekResult(config.changingCell, result.value);
     return result;
+  }
+
+  calculateDataTable({ range = this.selectionRange, rowInputCell = "", columnInputCell = "" } = {}, recordUndo = true) {
+    const rowInput = rowInputCell ? WhatIfAnalysisEngine.normalizeCoord(rowInputCell) : "";
+    const columnInput = columnInputCell ? WhatIfAnalysisEngine.normalizeCoord(columnInputCell) : "";
+    if (!rowInput && !columnInput) throw new Error(t("sheetDialogs.dataTableNeedsInput", "Hãy chọn ô đầu vào theo hàng hoặc theo cột."));
+    if (rowInput && columnInput && rowInput === columnInput) throw new Error(t("sheetDialogs.dataTableDistinctInputs", "Hai ô đầu vào phải khác nhau."));
+    const grid = WhatIfAnalysisEngine.rangeCoords(this._normalizeRange(range), this.cols);
+    if (grid.length < 2 || grid[0].length < 2) throw new Error(t("sheetDialogs.dataTableRangeSize", "Vùng Bảng dữ liệu phải có ít nhất 2 hàng và 2 cột."));
+    const formulaCoord = grid[0][0];
+    if (!this.cellsData.get(formulaCoord)?.formula) throw new Error(t("sheetDialogs.dataTableFormulaCorner", "Ô góc trên bên trái phải chứa công thức gốc."));
+    const before = this._snapshotCells();
+    const original = new Map(before.map(([coord, item]) => [coord, structuredClone(item)]));
+    const output = [];
+    const assignTrial = (coord, value) => {
+      const current = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      this.cellsData.set(coord, { ...current, val: value, formula: "" });
+    };
+    const evaluate = (rowValue, columnValue) => {
+      if (rowInput) assignTrial(rowInput, rowValue);
+      if (columnInput) assignTrial(columnInput, columnValue);
+      this._recalculateAllFormulas(undefined, true);
+      return structuredClone(this.cellsData.get(formulaCoord)?.val ?? "");
+    };
+    try {
+      if (rowInput && columnInput) {
+        const rowValues = grid[0].slice(1).map(coord => original.get(coord)?.val ?? "");
+        const columnValues = grid.slice(1).map(row => original.get(row[0])?.val ?? "");
+        columnValues.forEach((columnValue, rowIndex) => rowValues.forEach((rowValue, colIndex) => output.push([grid[rowIndex + 1][colIndex + 1], evaluate(rowValue, columnValue)])));
+      } else if (rowInput) {
+        const values = grid[0].slice(1).map(coord => original.get(coord)?.val ?? "");
+        values.forEach((value, index) => output.push([grid[1][index + 1], evaluate(value, undefined)]));
+      } else {
+        const values = grid.slice(1).map(row => original.get(row[0])?.val ?? "");
+        values.forEach((value, index) => output.push([grid[index + 1][1], evaluate(undefined, value)]));
+      }
+    } finally {
+      this.sheetsData[this.activeSheet] = new Map(before.map(([coord, item]) => [coord, structuredClone(item)]));
+    }
+    for (const [coord, value] of output) {
+      const current = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      this.cellsData.set(coord, { ...current, val: value, formula: "" });
+    }
+    this._recalculateAllFormulas(undefined, true);
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    if (recordUndo) this._recordHistory({ type: "what-if-cells", sheet: this.activeSheet, before, after: this._snapshotCells() });
+    return { formulaCell: formulaCoord, results: Object.fromEntries(output) };
+  }
+
+  getScenarios(sheetName = this.activeSheet) { return structuredClone(this.scenariosBySheet[sheetName] || []); }
+
+  saveScenario(config, editingId = null, recordUndo = true) {
+    const validated = WhatIfAnalysisEngine.validateScenario(config?.name, config?.changingCells, config?.values);
+    const scenarios = this.scenariosBySheet[this.activeSheet] ||= [];
+    if (scenarios.some(item => item.id !== editingId && item.name.toLocaleLowerCase() === validated.name.toLocaleLowerCase())) throw new Error(t("sheetDialogs.scenarioNameExists", "Tên kịch bản đã tồn tại."));
+    const before = structuredClone(scenarios);
+    const index = editingId ? scenarios.findIndex(item => item.id === editingId) : -1;
+    const scenario = { id: editingId || `scenario-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, ...validated };
+    if (index >= 0) scenarios.splice(index, 1, scenario); else scenarios.push(scenario);
+    if (recordUndo) this._recordHistory({ type: "scenario-state", sheet: this.activeSheet, before, after: structuredClone(scenarios) });
+    return structuredClone(scenario);
+  }
+
+  deleteScenario(id, recordUndo = true) {
+    const scenarios = this.scenariosBySheet[this.activeSheet] ||= [];
+    const index = scenarios.findIndex(item => item.id === id);
+    if (index < 0) return false;
+    const before = structuredClone(scenarios);
+    scenarios.splice(index, 1);
+    if (recordUndo) this._recordHistory({ type: "scenario-state", sheet: this.activeSheet, before, after: structuredClone(scenarios) });
+    return true;
+  }
+
+  applyScenario(id, recordUndo = true) {
+    const scenario = (this.scenariosBySheet[this.activeSheet] || []).find(item => item.id === id);
+    if (!scenario) return false;
+    const before = this._snapshotCells();
+    scenario.changingCells.forEach((coord, index) => {
+      const current = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      this.cellsData.set(coord, { ...current, val: scenario.values[index], formula: "" });
+    });
+    this._recalculateAllFormulas(undefined, true);
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.refreshCharts();
+    if (recordUndo) this._recordHistory({ type: "what-if-cells", sheet: this.activeSheet, before, after: this._snapshotCells() });
+    return structuredClone(scenario);
+  }
+
+  showDataTableDialog() {
+    const overlay = this._createSheetDialog(t("sheetDialogs.dataTableTitle", "Bảng dữ liệu"), `
+      <p>${t("sheetDialogs.dataTableRange", "Vùng đã chọn")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <p>${t("sheetDialogs.dataTableHint", "Đặt công thức gốc ở ô góc trên-trái; giá trị thay thế ở hàng trên và/hoặc cột trái.")}</p>
+      <label>${t("sheetDialogs.rowInputCell", "Ô đầu vào theo hàng")}<input id="vno-data-table-row-input" autocomplete="off"></label>
+      <label>${t("sheetDialogs.columnInputCell", "Ô đầu vào theo cột")}<input id="vno-data-table-column-input" autocomplete="off"></label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      try { this.calculateDataTable({ rowInputCell: overlay.querySelector("#vno-data-table-row-input").value, columnInputCell: overlay.querySelector("#vno-data-table-column-input").value }); overlay.closeDialog(); }
+      catch (error) { overlay.querySelector(".vno-rule-error").textContent = error.message; }
+    });
+    return true;
+  }
+
+  showScenarioManagerDialog() {
+    const overlay = this._createSheetDialog(t("sheetDialogs.scenarioManagerTitle", "Trình quản lý kịch bản"), `
+      <div class="vno-scenario-manager"><label>${t("sheetDialogs.scenarios", "Kịch bản")}<select id="vno-scenario-list" size="5"></select></label>
+      <label>${t("sheetDialogs.scenarioName", "Tên kịch bản")}<input id="vno-scenario-name" autocomplete="off"></label>
+      <label>${t("sheetDialogs.changingCells", "Các ô thay đổi")}<input id="vno-scenario-cells" placeholder="B2, B3" autocomplete="off"></label>
+      <label>${t("sheetDialogs.scenarioValues", "Các giá trị (cách nhau bằng dấu phẩy)")}<input id="vno-scenario-values" placeholder="100, 0.08" autocomplete="off"></label>
+      <div class="vno-scenario-actions"><button type="button" class="vno-btn" data-scenario-add>${t("sheetDialogs.add", "Thêm")}</button><button type="button" class="vno-btn" data-scenario-edit>${t("sheetDialogs.edit", "Sửa")}</button><button type="button" class="vno-btn" data-scenario-delete>${t("sheetDialogs.delete", "Xóa")}</button></div><div class="vno-rule-error" role="alert"></div></div>`);
+    if (!overlay) return false;
+    const list = overlay.querySelector("#vno-scenario-list"), error = overlay.querySelector(".vno-rule-error");
+    const render = selectedId => { list.innerHTML = this.getScenarios().map(item => `<option value="${item.id}"${item.id === selectedId ? " selected" : ""}>${this._escapeHtml(item.name)}</option>`).join(""); list.dispatchEvent(new Event("change")); };
+    list.addEventListener("change", () => { const item = this.getScenarios().find(value => value.id === list.value); if (!item) return; overlay.querySelector("#vno-scenario-name").value = item.name; overlay.querySelector("#vno-scenario-cells").value = item.changingCells.join(", "); overlay.querySelector("#vno-scenario-values").value = item.values.join(", "); });
+    const values = () => ({ name: overlay.querySelector("#vno-scenario-name").value, changingCells: overlay.querySelector("#vno-scenario-cells").value, values: overlay.querySelector("#vno-scenario-values").value });
+    const save = editing => { try { const item = this.saveScenario(values(), editing ? list.value : null); error.textContent = ""; render(item.id); } catch (err) { error.textContent = err.message; } };
+    overlay.querySelector("[data-scenario-add]").addEventListener("click", () => save(false));
+    overlay.querySelector("[data-scenario-edit]").addEventListener("click", () => save(true));
+    overlay.querySelector("[data-scenario-delete]").addEventListener("click", () => { if (this.deleteScenario(list.value)) render(); });
+    overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.showScenario", "Hiển thị");
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => { if (this.applyScenario(list.value)) overlay.closeDialog(); else error.textContent = t("sheetDialogs.selectScenario", "Hãy chọn một kịch bản."); });
+    render();
+    return true;
   }
 
   showGoalSeekDialog() {
