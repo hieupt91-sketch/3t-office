@@ -4260,6 +4260,301 @@ export class WriterAdapter {
     });
   }
 
+  _fodtError(detail) {
+    const error = new Error(`Writer FODT Phase A không hỗ trợ nội dung này: ${detail}`);
+    error.code = "WRITER_FODT_UNSUPPORTED_CONTENT";
+    return error;
+  }
+
+  _fodtEscapeXml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
+  _fodtUnescapeXml(value) {
+    return String(value ?? "")
+      .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+      .replace(/&#(\d+);/g, (_, number) => String.fromCodePoint(Number(number)))
+      .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+      .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  }
+
+  _fodtParseAttributes(source) {
+    const attrs = {};
+    String(source || "").replace(/([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g, (_, name, doubleValue, singleValue) => {
+      attrs[name.toLowerCase()] = this._fodtUnescapeXml(doubleValue ?? singleValue ?? "");
+      return "";
+    });
+    return attrs;
+  }
+
+  _fodtParseMarkup(markup, kind) {
+    const root = { name: "#root", attrs: {}, children: [] };
+    const stack = [root];
+    const source = String(markup || "").replace(/<!--[\s\S]*?-->/g, "");
+    const tokens = source.match(/<[^>]*>|[^<]+/g) || [];
+    for (const token of tokens) {
+      if (!token.startsWith("<")) {
+        stack[stack.length - 1].children.push({ name: "#text", text: this._fodtUnescapeXml(token) });
+        continue;
+      }
+      if (/^<\?xml\b|^<!DOCTYPE\b/i.test(token)) continue;
+      const close = token.match(/^<\/\s*([^\s>]+)\s*>$/);
+      if (close) {
+        const name = close[1].toLowerCase();
+        if (stack.length === 1 || stack[stack.length - 1].name !== name) {
+          throw this._fodtError(`${kind} không cân bằng tại </${name}>`);
+        }
+        stack.pop();
+        continue;
+      }
+      const open = token.match(/^<\s*([^\s/>]+)([\s\S]*?)\/?\s*>$/);
+      if (!open) throw this._fodtError(`${kind} không hợp lệ`);
+      const node = { name: open[1].toLowerCase(), attrs: this._fodtParseAttributes(open[2]), children: [] };
+      stack[stack.length - 1].children.push(node);
+      if (!/\/>$/.test(token) && !["br", "text:s", "text:tab", "text:line-break"].includes(node.name)) stack.push(node);
+    }
+    if (stack.length !== 1) throw this._fodtError(`${kind} không cân bằng tại <${stack[stack.length - 1].name}>`);
+    return root;
+  }
+
+  _fodtCssMap(styleText) {
+    const result = {};
+    for (const declaration of String(styleText || "").split(";")) {
+      if (!declaration.trim()) continue;
+      const colon = declaration.indexOf(":");
+      if (colon < 1) throw this._fodtError(`khai báo CSS không hợp lệ: ${declaration.trim()}`);
+      const name = declaration.slice(0, colon).trim().toLowerCase();
+      const value = declaration.slice(colon + 1).trim();
+      const aliases = { "background": "background-color", "font": "font" };
+      const normalized = aliases[name] || name;
+      if (!["font-weight", "font-style", "text-decoration", "text-decoration-line", "color", "background-color", "font-family", "font-size", "text-align"].includes(normalized)) {
+        throw this._fodtError(`thuộc tính CSS '${name}'`);
+      }
+      if (normalized === "font") throw this._fodtError("CSS shorthand 'font'");
+      result[normalized] = value;
+    }
+    return result;
+  }
+
+  _fodtNormalizeColor(value) {
+    const color = String(value || "").trim().toLowerCase();
+    const shortHex = color.match(/^#([0-9a-f]{3})$/i);
+    if (shortHex) return `#${[...shortHex[1]].map(ch => ch + ch).join("")}`;
+    const rgb = color.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,[^)]*)?\)$/i);
+    if (rgb) return `#${rgb.slice(1, 4).map(part => Math.min(255, Number(part)).toString(16).padStart(2, "0")).join("")}`;
+    return color;
+  }
+
+  _fodtNormalizeFontSize(value) {
+    const match = String(value || "").trim().toLowerCase().match(/^(\d+(?:\.\d+)?)(pt|px)$/);
+    if (!match) throw this._fodtError(`cỡ chữ '${value}' (chỉ nhận pt/px trong Phase A)`);
+    const points = match[2] === "px" ? Number(match[1]) * 0.75 : Number(match[1]);
+    return `${Number(points.toFixed(3))}pt`;
+  }
+
+  _fodtInlineStyle(node, inherited = {}) {
+    const style = { ...inherited };
+    if (["b", "strong"].includes(node.name)) style.bold = true;
+    if (["i", "em"].includes(node.name)) style.italic = true;
+    if (node.name === "u") style.underline = true;
+    if (node.name === "font") {
+      if (node.attrs.color) style.color = this._fodtNormalizeColor(node.attrs.color);
+      if (node.attrs.face) style.fontFamily = node.attrs.face.trim();
+      if (node.attrs.size) throw this._fodtError("thuộc tính HTML font size legacy");
+    }
+    const css = this._fodtCssMap(node.attrs.style);
+    if (/^(bold|[6-9]00)$/i.test(css["font-weight"] || "")) style.bold = true;
+    if (/^(normal|[1-5]00)$/i.test(css["font-weight"] || "")) delete style.bold;
+    if (/^italic$/i.test(css["font-style"] || "")) style.italic = true;
+    if (/^normal$/i.test(css["font-style"] || "")) delete style.italic;
+    if (/underline/i.test(css["text-decoration"] || css["text-decoration-line"] || "")) style.underline = true;
+    if (/^none$/i.test(css["text-decoration"] || css["text-decoration-line"] || "")) delete style.underline;
+    if (css.color) style.color = this._fodtNormalizeColor(css.color);
+    if (css["background-color"] && css["background-color"] !== "transparent") style.backgroundColor = this._fodtNormalizeColor(css["background-color"]);
+    if (css["font-family"]) style.fontFamily = css["font-family"].replace(/^['"]|['"]$/g, "").trim();
+    if (css["font-size"]) style.fontSize = this._fodtNormalizeFontSize(css["font-size"]);
+    return style;
+  }
+
+  _fodtTextXml(value) {
+    const parts = String(value ?? "").split(/(\t|\r?\n| {2,})/);
+    return parts.map(part => {
+      if (part === "\t") return "<text:tab/>";
+      if (/^\r?\n$/.test(part)) return "<text:line-break/>";
+      if (/^ {2,}$/.test(part)) return `<text:s text:c="${part.length}"/>`;
+      return this._fodtEscapeXml(part);
+    }).join("");
+  }
+
+  /**
+   * Serialize the supported Phase A Writer HTML subset as Flat ODF Text.
+   * This is additive: save()/exportPdf() deliberately keep using HTML until cutover approval.
+   */
+  serializeToFodt() {
+    this._initZones();
+    const html = this.bodyDom?.innerHTML ?? this.editorDom?.innerHTML ?? "";
+    if (/\bdata-vno-[\w-]+\s*=/i.test(html)) throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A");
+    const tree = this._fodtParseMarkup(html, "HTML");
+    const textStyles = new Map();
+    const paragraphStyles = new Map();
+    const styleName = (registry, prefix, value) => {
+      const key = JSON.stringify(Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))));
+      if (!registry.has(key)) registry.set(key, `${prefix}${registry.size + 1}`);
+      return registry.get(key);
+    };
+    const inlineXml = (nodes, inherited = {}) => nodes.map(node => {
+      if (node.name === "#text") {
+        const text = this._fodtTextXml(node.text);
+        if (!text) return "";
+        const props = Object.fromEntries(Object.entries(inherited).filter(([, value]) => value !== undefined && value !== false && value !== ""));
+        return Object.keys(props).length ? `<text:span text:style-name="${styleName(textStyles, "T", props)}">${text}</text:span>` : text;
+      }
+      if (node.name === "br") return "<text:line-break/>";
+      if (!["span", "b", "strong", "i", "em", "u", "font"].includes(node.name)) throw this._fodtError(`phần tử inline <${node.name}>`);
+      const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "color", "face"].includes(name));
+      if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <${node.name}>`);
+      return inlineXml(node.children, this._fodtInlineStyle(node, inherited));
+    }).join("");
+    const paragraphXml = (node) => {
+      const css = this._fodtCssMap(node.attrs.style);
+      const unexpected = Object.keys(node.attrs).filter(name => !["style", "class"].includes(name));
+      if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <${node.name}>`);
+      const align = String(css["text-align"] || "left").toLowerCase();
+      if (!["left", "center", "right", "justify", "start", "end"].includes(align)) throw this._fodtError(`căn đoạn '${align}'`);
+      const normalizedAlign = align === "start" ? "left" : align === "end" ? "right" : align;
+      const pStyle = normalizedAlign === "left" ? "" : ` text:style-name="${styleName(paragraphStyles, "P", { textAlign: normalizedAlign })}"`;
+      const headingMatch = node.name.match(/^h([1-6])$/);
+      const tag = headingMatch ? `text:h text:outline-level="${headingMatch[1]}"` : "text:p";
+      return `<${tag}${pStyle}>${inlineXml(node.children, this._fodtInlineStyle(node))}</${headingMatch ? "text:h" : "text:p"}>`;
+    };
+    const listXml = (node) => {
+      const ordered = node.name === "ol";
+      const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "type", "start"].includes(name));
+      if (unexpected.length || node.attrs.start || (node.attrs.type && node.attrs.type !== "1")) throw this._fodtError("thuộc tính danh sách nâng cao");
+      this._fodtCssMap(node.attrs.style);
+      const items = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
+      if (items.some(child => child.name !== "li")) throw this._fodtError(`nội dung trực tiếp trong <${node.name}>`);
+      return `<text:list text:style-name="${ordered ? "LNumber" : "LBullet"}">${items.map(item => {
+        const content = [];
+        const nested = [];
+        for (const child of item.children) (["ul", "ol"].includes(child.name) ? nested : content).push(child);
+        return `<text:list-item><text:p>${inlineXml(content)}</text:p>${nested.map(listXml).join("")}</text:list-item>`;
+      }).join("")}</text:list>`;
+    };
+    const body = tree.children.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
+      if (/^(p|h[1-6])$/.test(node.name)) return paragraphXml(node);
+      if (["ul", "ol"].includes(node.name)) return listXml(node);
+      throw this._fodtError(`phần tử block <${node.name}>`);
+    }).join("");
+    const textStyleXml = [...textStyles.entries()].map(([key, name]) => {
+      const value = JSON.parse(key);
+      const attrs = [];
+      if (value.bold) attrs.push('fo:font-weight="bold"', 'style:font-weight-asian="bold"', 'style:font-weight-complex="bold"');
+      if (value.italic) attrs.push('fo:font-style="italic"', 'style:font-style-asian="italic"', 'style:font-style-complex="italic"');
+      if (value.underline) attrs.push('style:text-underline-style="solid"', 'style:text-underline-width="auto"', 'style:text-underline-color="font-color"');
+      if (value.color) attrs.push(`fo:color="${this._fodtEscapeXml(value.color)}"`);
+      if (value.backgroundColor) attrs.push(`fo:background-color="${this._fodtEscapeXml(value.backgroundColor)}"`);
+      if (value.fontFamily) attrs.push(`fo:font-family="${this._fodtEscapeXml(value.fontFamily)}"`, `style:font-family-asian="${this._fodtEscapeXml(value.fontFamily)}"`, `style:font-family-complex="${this._fodtEscapeXml(value.fontFamily)}"`);
+      if (value.fontSize) attrs.push(`fo:font-size="${value.fontSize}"`, `style:font-size-asian="${value.fontSize}"`, `style:font-size-complex="${value.fontSize}"`);
+      return `<style:style style:name="${name}" style:family="text"><style:text-properties ${attrs.join(" ")}/></style:style>`;
+    }).join("");
+    const paragraphStyleXml = [...paragraphStyles.entries()].map(([key, name]) => {
+      const value = JSON.parse(key);
+      return `<style:style style:name="${name}" style:family="paragraph"><style:paragraph-properties fo:text-align="${value.textAlign}"/></style:style>`;
+    }).join("");
+    const listStyles = '<text:list-style style:name="LBullet"><text:list-level-style-bullet text:level="1" text:bullet-char="•"><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-bullet></text:list-style><text:list-style style:name="LNumber"><text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix="."><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-number></text:list-style>';
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text"><office:automatic-styles>${listStyles}${paragraphStyleXml}${textStyleXml}</office:automatic-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
+  }
+
+  /** Parse the Phase A FODT subset back to canonical Writer HTML. */
+  parseFodt(fodtXml) {
+    const xml = String(fodtXml || "");
+    if (!/<office:document\b[^>]*office:mimetype=["']application\/vnd\.oasis\.opendocument\.text["']/i.test(xml)) {
+      throw this._fodtError("FODT thiếu office:document/MIME text hợp lệ");
+    }
+    const bodyMatch = xml.match(/<office:text\b[^>]*>([\s\S]*?)<\/office:text>/i);
+    if (!bodyMatch) throw this._fodtError("FODT thiếu office:body/office:text");
+    const textStyles = new Map();
+    const paragraphStyles = new Map();
+    xml.replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrsText, content) => {
+      const attrs = this._fodtParseAttributes(attrsText);
+      const name = attrs["style:name"];
+      const family = attrs["style:family"];
+      if (!name) return "";
+      if (family === "text") {
+        const propMatch = content.match(/<style:text-properties\b([^>]*)\/?\s*>/i);
+        const props = this._fodtParseAttributes(propMatch?.[1] || "");
+        const style = {};
+        if (props["fo:font-weight"] === "bold") style.bold = true;
+        if (props["fo:font-style"] === "italic") style.italic = true;
+        if (props["style:text-underline-style"] && props["style:text-underline-style"] !== "none") style.underline = true;
+        if (props["fo:color"]) style.color = this._fodtNormalizeColor(props["fo:color"]);
+        if (props["fo:background-color"] && props["fo:background-color"] !== "transparent") style.backgroundColor = this._fodtNormalizeColor(props["fo:background-color"]);
+        if (props["fo:font-family"]) style.fontFamily = props["fo:font-family"];
+        if (props["fo:font-size"]) style.fontSize = this._fodtNormalizeFontSize(props["fo:font-size"]);
+        textStyles.set(name, style);
+      } else if (family === "paragraph") {
+        const propMatch = content.match(/<style:paragraph-properties\b([^>]*)\/?\s*>/i);
+        const props = this._fodtParseAttributes(propMatch?.[1] || "");
+        paragraphStyles.set(name, { textAlign: props["fo:text-align"] || "left" });
+      }
+      return "";
+    });
+    const tree = this._fodtParseMarkup(bodyMatch[1], "FODT office:text");
+    const htmlStyle = style => {
+      const rules = [];
+      if (style.bold) rules.push("font-weight:bold");
+      if (style.italic) rules.push("font-style:italic");
+      if (style.underline) rules.push("text-decoration:underline");
+      if (style.color) rules.push(`color:${style.color}`);
+      if (style.backgroundColor) rules.push(`background-color:${style.backgroundColor}`);
+      if (style.fontFamily) rules.push(`font-family:${style.fontFamily}`);
+      if (style.fontSize) rules.push(`font-size:${style.fontSize}`);
+      return rules.join(";");
+    };
+    const inlineHtml = nodes => nodes.map(node => {
+      if (node.name === "#text") return this._escapeHtml(node.text);
+      if (node.name === "text:s") return " ".repeat(Math.max(1, Number(node.attrs["text:c"]) || 1));
+      if (node.name === "text:tab") return "\t";
+      if (node.name === "text:line-break") return "<br>";
+      if (node.name !== "text:span") throw this._fodtError(`phần tử FODT inline <${node.name}>`);
+      const name = node.attrs["text:style-name"];
+      if (!name || !textStyles.has(name)) throw this._fodtError(`text:span tham chiếu style không biết '${name || ""}'`);
+      return `<span style="${this._escapeHtml(htmlStyle(textStyles.get(name)))}">${inlineHtml(node.children)}</span>`;
+    }).join("");
+    const listHtml = (node) => {
+      const name = node.attrs["text:style-name"];
+      if (!["LBullet", "LNumber"].includes(name)) throw this._fodtError(`list style '${name || ""}'`);
+      const tag = name === "LNumber" ? "ol" : "ul";
+      const items = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
+      if (items.some(child => child.name !== "text:list-item")) throw this._fodtError("nội dung text:list ngoài text:list-item");
+      return `<${tag}>${items.map(item => {
+        const children = item.children.filter(child => !(child.name === "#text" && !child.text.trim()));
+        if (!children.length || children[0].name !== "text:p" || children.slice(1).some(child => child.name !== "text:list")) throw this._fodtError("cấu trúc text:list-item nâng cao");
+        return `<li>${inlineHtml(children[0].children)}${children.slice(1).map(listHtml).join("")}</li>`;
+      }).join("")}</${tag}>`;
+    };
+    const html = tree.children.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
+      if (node.name === "text:list") return listHtml(node);
+      if (!["text:p", "text:h"].includes(node.name)) throw this._fodtError(`phần tử FODT block <${node.name}>`);
+      const level = node.name === "text:h" ? Math.min(6, Math.max(1, Number(node.attrs["text:outline-level"]) || 1)) : 0;
+      const tag = level ? `h${level}` : "p";
+      const pStyleName = node.attrs["text:style-name"];
+      const pStyle = pStyleName ? paragraphStyles.get(pStyleName) : null;
+      if (pStyleName && !pStyle) throw this._fodtError(`paragraph style không biết '${pStyleName}'`);
+      const styleAttr = pStyle?.textAlign && pStyle.textAlign !== "left" ? ` style="text-align:${this._escapeHtml(pStyle.textAlign)}"` : "";
+      return `<${tag}${styleAttr}>${inlineHtml(node.children)}</${tag}>`;
+    }).join("");
+    this._initZones();
+    if (this.bodyDom) this.bodyDom.innerHTML = html;
+    return html;
+  }
+
   /**
    * Nội dung HTML thật sự gửi cho LibreOffice để lưu/xuất — có kèm `@page` CSS của
    * Page Setup hiện tại, để khổ giấy/lề trong DOCX/PDF xuất ra khớp với canvas.
