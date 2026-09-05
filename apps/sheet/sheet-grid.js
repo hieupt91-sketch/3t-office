@@ -33,6 +33,9 @@ export const MIN_ROW_HEIGHT_PX = 1;
 export const MAX_ROW_HEIGHT_PX = 409;
 export const MIN_COL_WIDTH_PX = 8;
 export const MAX_COL_WIDTH_PX = 500;
+export const MAX_SHEET_NAME_LENGTH = 31;
+export const INVALID_SHEET_NAME_CHARS = /[/\\?*\[\]:]/;
+export const SHEET_MOVE_TO_END = "__end__";
 
 function newSheetPageSetup(overrides = {}) {
   return {
@@ -150,6 +153,7 @@ export class SheetGridController {
     this.colWidthsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
     this.userHiddenRowsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
     this.userHiddenColsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
+    this.protectionBySheet = Object.fromEntries(this.sheets.map(name => [name, { enabled: false, password: "" }]));
     this.dataTools = new SheetDataTools(this);
 
     // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
@@ -234,6 +238,13 @@ export class SheetGridController {
     this.autocomplete.mount();
 
     this.formulaInput.addEventListener("input", (e) => {
+      if (this.isSheetProtected()) {
+        e.target.value = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.formula
+          || this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val
+          || "";
+        this._notifySheetProtected();
+        return;
+      }
       this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, e.target.value, true, { coalesce: true });
       this.autocomplete.handleInput(e.target.value, this.formulaInput.selectionStart);
     });
@@ -414,20 +425,7 @@ export class SheetGridController {
     this.tabBar = tabBar;
 
     const tabsListEl = tabBar.querySelector("#vno-sheet-tabs-list");
-    this.sheets.forEach(s => {
-      const isActive = s === this.activeSheet;
-      const tab = document.createElement("div");
-      tab.className = `vno-sheet-tab-item ${isActive ? "is-active" : ""}`;
-      tab.dataset.sheet = s;
-      tab.textContent = s;
-      tab.setAttribute("role", "tab");
-      tab.setAttribute("aria-selected", isActive ? "true" : "false");
-      tab.setAttribute("tabindex", isActive ? "0" : "-1");
-      tab.addEventListener("click", () => {
-        this.switchSheet(s);
-      });
-      tabsListEl.appendChild(tab);
-    });
+    this._renderSheetTabs();
 
     if (tabsListEl) {
       tabsListEl.addEventListener("keydown", (e) => {
@@ -727,6 +725,7 @@ export class SheetGridController {
   }
 
   setRowHeights(heightPx, rows = this._selectedRows(), recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     const height = this._clampRowHeight(heightPx);
     const targets = (rows || []).map(Number).filter(row => Number.isInteger(row) && row >= 1 && row <= this.rowCount);
     if (height == null || !targets.length) return false;
@@ -742,6 +741,7 @@ export class SheetGridController {
   }
 
   setColumnWidths(widthPx, cols = this._selectedCols(), recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     const width = this._clampColWidth(widthPx);
     const targets = (cols || []).filter(col => this.cols.includes(col));
     if (width == null || !targets.length) return false;
@@ -794,6 +794,7 @@ export class SheetGridController {
   }
 
   autoFitSelectedRows(recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     const rows = this._selectedRows();
     if (!rows.length) return false;
     const before = recordUndo ? this._snapshotRowColLayout() : null;
@@ -804,6 +805,7 @@ export class SheetGridController {
   }
 
   autoFitSelectedColumns(recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     const cols = this._selectedCols();
     if (!cols.length) return false;
     const before = recordUndo ? this._snapshotRowColLayout() : null;
@@ -814,6 +816,7 @@ export class SheetGridController {
   }
 
   hideRows(rows = this._selectedRows(), recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     const targets = (rows || []).map(Number).filter(row => Number.isInteger(row) && row >= 1 && row <= this.rowCount);
     if (!targets.length) return false;
     const before = recordUndo ? this._snapshotRowColLayout() : null;
@@ -826,6 +829,7 @@ export class SheetGridController {
   }
 
   unhideRows(rows = this._selectedRows(), recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     let targets = (rows || []).map(Number).filter(row => Number.isInteger(row) && row >= 1 && row <= this.rowCount);
     const hidden = this._userHiddenRows();
     if (!targets.some(row => hidden.has(row))) {
@@ -844,6 +848,7 @@ export class SheetGridController {
   }
 
   hideColumns(cols = this._selectedCols(), recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     const targets = (cols || []).filter(col => this.cols.includes(col));
     if (!targets.length) return false;
     const before = recordUndo ? this._snapshotRowColLayout() : null;
@@ -856,6 +861,7 @@ export class SheetGridController {
   }
 
   unhideColumns(cols = this._selectedCols(), recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     let targets = (cols || []).filter(col => this.cols.includes(col));
     const hidden = this._userHiddenCols();
     if (!targets.some(col => hidden.has(col))) {
@@ -1511,6 +1517,7 @@ export class SheetGridController {
     this.colWidthsBySheet = { [defaultSheetName]: new Map() };
     this.userHiddenRowsBySheet = { [defaultSheetName]: new Set() };
     this.userHiddenColsBySheet = { [defaultSheetName]: new Set() };
+    this.protectionBySheet = { [defaultSheetName]: { enabled: false, password: "" } };
     this.isFrozenPanes = false;
     this.isFilterActive = false;
     this.hiddenRows = new Set();
@@ -1521,21 +1528,7 @@ export class SheetGridController {
     if (this.chartLayer) this.chartLayer.innerHTML = "";
     if (this.imageLayer) this.imageLayer.innerHTML = "";
 
-    if (this.tabBar && typeof this.tabBar.querySelector === "function") {
-      const tabsListEl = this.tabBar.querySelector("#vno-sheet-tabs-list");
-      if (tabsListEl && typeof document !== "undefined") {
-        tabsListEl.innerHTML = "";
-        const tab = document.createElement("div");
-        tab.className = "vno-sheet-tab-item is-active";
-        tab.dataset.sheet = defaultSheetName;
-        tab.textContent = defaultSheetName;
-        tab.setAttribute("role", "tab");
-        tab.setAttribute("aria-selected", "true");
-        tab.setAttribute("tabindex", "0");
-        tab.addEventListener("click", () => this.switchSheet(defaultSheetName));
-        tabsListEl.appendChild(tab);
-      }
-    }
+    this._renderSheetTabs();
 
     if (this.container && typeof this.container.querySelectorAll === "function") {
       this.container.querySelectorAll(".vno-grid-cell").forEach((td) => {
@@ -1579,6 +1572,8 @@ export class SheetGridController {
     if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
     if (!this.pageSetupBySheet[sheetName]) this.pageSetupBySheet[sheetName] = newSheetPageSetup();
     if (!this.mergedRangesBySheet[sheetName]) this.mergedRangesBySheet[sheetName] = [];
+    if (!this.protectionBySheet) this.protectionBySheet = {};
+    if (!this.protectionBySheet[sheetName]) this.protectionBySheet[sheetName] = { enabled: false, password: "" };
     this._ensureRowColLayout(sheetName);
 
     // 1. Lưu trạng thái sheet hiện tại
@@ -1658,6 +1653,7 @@ export class SheetGridController {
     // 7. Cập nhật ô chọn và thanh công thức
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
     this._syncCommandStates();
+    this._applyProtectionUi();
 
     return true;
   }
@@ -1687,6 +1683,8 @@ export class SheetGridController {
     if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
     if (!this.pageSetupBySheet[sheetName]) this.pageSetupBySheet[sheetName] = newSheetPageSetup();
     if (!this.mergedRangesBySheet[sheetName]) this.mergedRangesBySheet[sheetName] = [];
+    if (!this.protectionBySheet) this.protectionBySheet = {};
+    if (!this.protectionBySheet[sheetName]) this.protectionBySheet[sheetName] = { enabled: false, password: "" };
     this._ensureRowColLayout(sheetName);
     if (!this.sheetStates) {
       this.sheetStates = {};
@@ -1701,18 +1699,7 @@ export class SheetGridController {
       };
     }
 
-    if (this.tabBar && typeof this.tabBar.querySelector === "function") {
-      const tabsListEl = this.tabBar.querySelector("#vno-sheet-tabs-list");
-      if (tabsListEl && typeof document !== "undefined" && typeof document.createElement === "function") {
-        const tab = document.createElement("div");
-        tab.className = "vno-sheet-tab-item";
-        tab.dataset.sheet = sheetName;
-        tab.textContent = sheetName;
-        tab.addEventListener("click", () => this.switchSheet(sheetName));
-        tabsListEl.appendChild(tab);
-      }
-    }
-
+    this._renderSheetTabs();
     this.switchSheet(sheetName);
     if (recordUndo && isNewSheet) this._recordHistory({ type: "sheet-add", sheet: previousSheet, sheetName, previousSheet, snapshot: this._snapshotSheet(sheetName) });
     return sheetName;
@@ -1742,13 +1729,556 @@ export class SheetGridController {
     delete this.colWidthsBySheet[sheetName];
     delete this.userHiddenRowsBySheet[sheetName];
     delete this.userHiddenColsBySheet[sheetName];
-    this.tabBar?.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)?.remove?.();
+    if (this.protectionBySheet) delete this.protectionBySheet[sheetName];
+    if (this.outlineGroupsBySheet) delete this.outlineGroupsBySheet[sheetName];
+    this._renderSheetTabs();
     if (this.activeSheet === sheetName) {
       this.activeSheet = "";
       this.switchSheet(nextSheet);
     }
     this._recalculateAllFormulas();
     if (recordUndo) this._recordHistory({ type: "sheet-delete", sheet: sheetName, index, snapshot, nextSheet });
+    return true;
+  }
+
+  _sheetKeyedCollections() {
+    return [
+      "sheetsData", "sheetStates", "namedRangesBySheet", "commentsBySheet",
+      "printAreaBySheet", "pageBreaksBySheet", "pageSetupBySheet", "mergedRangesBySheet",
+      "conditionalFormattingBySheet", "dataValidationsBySheet", "chartsBySheet",
+      "imagesBySheet", "textBoxesBySheet", "pivotTablesBySheet", "outlineGroupsBySheet",
+      "rowHeightsBySheet", "colWidthsBySheet", "userHiddenRowsBySheet", "userHiddenColsBySheet",
+      "protectionBySheet"
+    ];
+  }
+
+  _flushActiveSheetState() {
+    if (!this.activeSheet) return;
+    if (!this.sheetStates) this.sheetStates = {};
+    this.sheetStates[this.activeSheet] = {
+      hiddenRows: new Set(this.hiddenRows || []),
+      activeFilters: new Map(this.activeFilters || []),
+      isFilterActive: !!this.isFilterActive,
+      isFrozenPanes: !!this.isFrozenPanes,
+      selectedCoord: { ...(this.selectedCoord || { r: 1, c: "A" }) }
+    };
+  }
+
+  _renderSheetTabs() {
+    const tabsListEl = this.tabBar?.querySelector?.("#vno-sheet-tabs-list");
+    if (!tabsListEl || typeof document === "undefined" || typeof document.createElement !== "function") return;
+    tabsListEl.innerHTML = "";
+    this.sheets.forEach(sheetName => {
+      const isActive = sheetName === this.activeSheet;
+      const protectedSheet = this.isSheetProtected(sheetName);
+      const tab = document.createElement("div");
+      tab.className = `vno-sheet-tab-item${isActive ? " is-active" : ""}${protectedSheet ? " is-protected" : ""}`;
+      tab.dataset.sheet = sheetName;
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", isActive ? "true" : "false");
+      tab.setAttribute("tabindex", isActive ? "0" : "-1");
+      tab.title = protectedSheet
+        ? t("sheetDialogs.sheetTabProtectedTitle", { name: sheetName })
+        : sheetName;
+      tab.setAttribute("aria-label", protectedSheet
+        ? t("sheetDialogs.sheetTabProtectedAria", { name: sheetName })
+        : sheetName);
+      const label = document.createElement("span");
+      label.className = "vno-sheet-tab-label";
+      label.textContent = sheetName;
+      tab.appendChild(label);
+      tab.addEventListener("click", () => this.switchSheet(sheetName));
+      tab.addEventListener("dblclick", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        this.switchSheet(sheetName);
+        this.showRenameSheetDialog(sheetName);
+      });
+      tab.addEventListener("contextmenu", event => {
+        event.preventDefault();
+        this.switchSheet(sheetName);
+        this._showSheetTabContextMenu(event, sheetName);
+      });
+      tabsListEl.appendChild(tab);
+    });
+  }
+
+  _showSheetTabContextMenu(event, sheetName) {
+    this._closeContextMenu();
+    if (typeof document === "undefined") return;
+    const menu = document.createElement("div");
+    menu.className = "vno-sheet-context-menu";
+    const items = [
+      { label: t("sheetDialogs.renameSheetMenu", "Đổi tên trang tính..."), action: () => this.showRenameSheetDialog(sheetName) },
+      { label: t("sheetDialogs.moveCopyMenu", "Di chuyển hoặc Sao chép trang tính..."), action: () => this.showMoveCopySheetDialog(sheetName) },
+      { label: this.isSheetProtected(sheetName)
+        ? t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính...")
+        : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."), action: () => this.showProtectSheetDialog(sheetName) }
+    ];
+    items.forEach(item => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "vno-sheet-context-item";
+      btn.textContent = item.label;
+      btn.addEventListener("click", () => {
+        this._closeContextMenu();
+        item.action();
+      });
+      menu.appendChild(btn);
+    });
+    menu.style.position = "fixed";
+    menu.style.left = `${event.clientX}px`;
+    menu.style.top = `${event.clientY}px`;
+    menu.style.zIndex = "80";
+    document.body.appendChild(menu);
+    this._activeContextMenu = menu;
+    const onDoc = ev => {
+      if (!menu.contains(ev.target)) {
+        this._closeContextMenu();
+        document.removeEventListener("mousedown", onDoc);
+      }
+    };
+    setTimeout(() => document.addEventListener("mousedown", onDoc), 0);
+  }
+
+  validateSheetName(name, options = {}) {
+    const exclude = options.excludeName;
+    const trimmed = String(name ?? "").trim();
+    if (!trimmed) {
+      return { ok: false, error: t("sheetDialogs.sheetNameEmpty", "Tên trang tính không được để trống.") };
+    }
+    if (trimmed.length > MAX_SHEET_NAME_LENGTH) {
+      return { ok: false, error: t("sheetDialogs.sheetNameTooLong", { max: String(MAX_SHEET_NAME_LENGTH) }) };
+    }
+    if (INVALID_SHEET_NAME_CHARS.test(trimmed) || trimmed.includes("'")) {
+      return { ok: false, error: t("sheetDialogs.sheetNameInvalidChars", "Tên không được chứa các ký tự / \\ ? * [ ] : hoặc dấu nháy đơn.") };
+    }
+    const duplicate = this.sheets.some(existing =>
+      existing.localeCompare(trimmed, undefined, { sensitivity: "accent" }) === 0 && existing !== exclude
+    );
+    if (duplicate) {
+      return { ok: false, error: t("sheetDialogs.sheetNameDuplicate", "Đã có trang tính cùng tên trong workbook này.") };
+    }
+    return { ok: true, name: trimmed };
+  }
+
+  _quoteSheetName(name) {
+    return `'${String(name).replace(/'/g, "''")}'`;
+  }
+
+  _sheetNameNeedsQuotes(name) {
+    return !/^[A-Za-z_][A-Za-z0-9_.]*$/.test(String(name));
+  }
+
+  _rewriteSheetNameInText(text, oldName, newName) {
+    if (!text || typeof text !== "string" || oldName === newName) return text;
+    let out = "";
+    let i = 0;
+    const source = text;
+    while (i < source.length) {
+      if (source[i] === '"') {
+        out += source[i++];
+        while (i < source.length) {
+          out += source[i];
+          if (source[i] === '"') {
+            if (source[i + 1] === '"') {
+              out += source[++i];
+              i++;
+              continue;
+            }
+            i++;
+            break;
+          }
+          i++;
+        }
+        continue;
+      }
+      if (source[i] === "'") {
+        let j = i + 1;
+        let inner = "";
+        while (j < source.length) {
+          if (source[j] === "'" && source[j + 1] === "'") {
+            inner += "'";
+            j += 2;
+            continue;
+          }
+          if (source[j] === "'") {
+            j++;
+            break;
+          }
+          inner += source[j++];
+        }
+        const rewritten = inner.split(":").map(part => (part === oldName ? newName : part)).join(":");
+        out += `'${rewritten.replace(/'/g, "''")}'`;
+        i = j;
+        continue;
+      }
+      if (/[A-Za-z_]/.test(source[i])) {
+        let j = i;
+        while (j < source.length && /[A-Za-z0-9_.]/.test(source[j])) j++;
+        const ident = source.slice(i, j);
+        if (ident === oldName && (source[j] === "!" || source[j] === ":")) {
+          out += this._sheetNameNeedsQuotes(newName) ? this._quoteSheetName(newName) : newName;
+          i = j;
+          continue;
+        }
+        out += ident;
+        i = j;
+        continue;
+      }
+      out += source[i++];
+    }
+    return out;
+  }
+
+  _rewriteWorkbookSheetName(oldName, newName) {
+    if (oldName === newName) return;
+    for (const sheetName of this.sheets) {
+      const map = this.sheetsData?.[sheetName];
+      if (!map) continue;
+      for (const item of map.values()) {
+        if (item?.formula) item.formula = this._rewriteSheetNameInText(item.formula, oldName, newName);
+      }
+    }
+    const rewriteNamed = collection => {
+      (collection || []).forEach(item => {
+        if (item.sheet === oldName) item.sheet = newName;
+        if (item.ref) item.ref = this._rewriteSheetNameInText(item.ref, oldName, newName);
+      });
+    };
+    rewriteNamed(this.namedRangesWorkbook);
+    Object.values(this.namedRangesBySheet || {}).forEach(rewriteNamed);
+    Object.values(this.pivotTablesBySheet || {}).forEach(list => {
+      (list || []).forEach(pivot => {
+        if (pivot.sourceSheet === oldName) pivot.sourceSheet = newName;
+        if (pivot.targetSheet === oldName) pivot.targetSheet = newName;
+      });
+    });
+  }
+
+  _renameSheetKey(oldName, newName) {
+    if (oldName === newName) return;
+    for (const key of this._sheetKeyedCollections()) {
+      const bag = this[key];
+      if (!bag || typeof bag !== "object") continue;
+      if (Object.prototype.hasOwnProperty.call(bag, oldName)) {
+        bag[newName] = bag[oldName];
+        delete bag[oldName];
+      }
+    }
+  }
+
+  renameSheet(oldName, newName, recordUndo = true) {
+    const from = oldName || this.activeSheet;
+    if (!this.sheets.includes(from)) return false;
+    const validated = this.validateSheetName(newName, { excludeName: from });
+    if (!validated.ok) return false;
+    const to = validated.name;
+    if (to === from) return to;
+    this._flushActiveSheetState();
+    const index = this.sheets.indexOf(from);
+    this.sheets.splice(index, 1, to);
+    this._renameSheetKey(from, to);
+    this._rewriteWorkbookSheetName(from, to);
+    if (this.activeSheet === from) this.activeSheet = to;
+    this._renderSheetTabs();
+    this._recalculateAllFormulas();
+    if (recordUndo) this._recordHistory({ type: "sheet-rename", sheet: to, oldName: from, newName: to });
+    return to;
+  }
+
+  async showRenameSheetDialog(sheetName = this.activeSheet) {
+    const target = sheetName || this.activeSheet;
+    if (!this.sheets.includes(target)) return false;
+    if (typeof document === "undefined") return false;
+    const overlay = this._createSheetDialog(t("sheetDialogs.renameSheetTitle", "Đổi tên trang tính"), `
+      <label>${t("sheetDialogs.renameSheetMessage", "Tên trang tính:")}
+        <input id="vno-rename-sheet" class="vno-dialog-input" maxlength="${MAX_SHEET_NAME_LENGTH}" value="${this._escapeHtml(target)}" autocomplete="off">
+      </label>
+      <p class="vno-dialog-hint">${t("sheetDialogs.renameSheetHint", "Tối đa 31 ký tự. Không trùng tên trang khác và không chứa / \\ ? * [ ] :")}</p>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").textContent = t("common.ok", "Đồng ý");
+    const input = overlay.querySelector("#vno-rename-sheet");
+    input?.focus();
+    input?.select?.();
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const validated = this.validateSheetName(input.value, { excludeName: target });
+      if (!validated.ok) {
+        overlay.querySelector(".vno-rule-error").textContent = validated.error;
+        input.focus();
+        return;
+      }
+      this.renameSheet(target, validated.name);
+      overlay.closeDialog();
+    });
+    input?.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        overlay.querySelector(".vno-rule-apply").click();
+      }
+    });
+    return true;
+  }
+
+  _moveSheetToIndex(sheetName, index) {
+    const from = this.sheets.indexOf(sheetName);
+    if (from < 0) return false;
+    const bounded = Math.max(0, Math.min(this.sheets.length - 1, Number(index)));
+    if (from === bounded) return true;
+    this.sheets.splice(from, 1);
+    this.sheets.splice(bounded, 0, sheetName);
+    this._renderSheetTabs();
+    return true;
+  }
+
+  moveSheet(sheetName, beforeName, recordUndo = true) {
+    const name = sheetName || this.activeSheet;
+    const from = this.sheets.indexOf(name);
+    if (from < 0) return false;
+    const others = this.sheets.filter(item => item !== name);
+    let to;
+    if (beforeName == null || beforeName === SHEET_MOVE_TO_END) to = others.length;
+    else {
+      const beforeIndex = others.indexOf(beforeName);
+      to = beforeIndex < 0 ? others.length : beforeIndex;
+    }
+    if (from === to) return true;
+    this.sheets.splice(from, 1);
+    this.sheets.splice(to, 0, name);
+    this._renderSheetTabs();
+    if (recordUndo) this._recordHistory({ type: "sheet-move", sheet: name, name, fromIndex: from, toIndex: to });
+    return true;
+  }
+
+  _nextCopiedSheetName(sourceName) {
+    const match = String(sourceName).match(/^(.*) \((\d+)\)$/);
+    const base = match ? match[1] : sourceName;
+    let n = match ? Number(match[2]) + 1 : 2;
+    let candidate = `${base} (${n})`;
+    while (this.sheets.includes(candidate)) {
+      n += 1;
+      candidate = `${base} (${n})`;
+    }
+    if (candidate.length > MAX_SHEET_NAME_LENGTH) {
+      const trimmedBase = base.slice(0, Math.max(1, MAX_SHEET_NAME_LENGTH - ` (${n})`.length));
+      candidate = `${trimmedBase} (${n})`;
+      while (this.sheets.includes(candidate)) {
+        n += 1;
+        candidate = `${trimmedBase} (${n})`;
+      }
+    }
+    return candidate;
+  }
+
+  _cloneSheetCollections(sourceName, targetName) {
+    const cells = this.sheetsData[sourceName] || new Map();
+    this.sheetsData[targetName] = new Map([...cells.entries()].map(([key, value]) => [key, structuredClone(value)]));
+    const state = this.sheetStates[sourceName] || {};
+    this.sheetStates[targetName] = {
+      hiddenRows: new Set(state.hiddenRows || []),
+      activeFilters: new Map([...(state.activeFilters || [])].map(([key, values]) => [key, new Set(values)])),
+      isFilterActive: !!state.isFilterActive,
+      isFrozenPanes: !!state.isFrozenPanes,
+      selectedCoord: { ...(state.selectedCoord || { r: 1, c: "A" }) }
+    };
+    this.conditionalFormattingBySheet[targetName] = structuredClone(this.conditionalFormattingBySheet[sourceName] || []);
+    this.dataValidationsBySheet[targetName] = structuredClone(this.dataValidationsBySheet[sourceName] || []);
+    this.chartsBySheet[targetName] = structuredClone(this.chartsBySheet[sourceName] || []);
+    this.imagesBySheet[targetName] = structuredClone(this.imagesBySheet[sourceName] || []);
+    this.textBoxesBySheet[targetName] = structuredClone(this.textBoxesBySheet[sourceName] || []);
+    this.pivotTablesBySheet[targetName] = structuredClone(this.pivotTablesBySheet[sourceName] || []);
+    this.namedRangesBySheet[targetName] = structuredClone(this.namedRangesBySheet[sourceName] || []);
+    this.commentsBySheet[targetName] = structuredClone(this.commentsBySheet[sourceName] || {});
+    this.printAreaBySheet[targetName] = structuredClone(this.printAreaBySheet[sourceName] || null);
+    this.pageBreaksBySheet[targetName] = structuredClone(this.pageBreaksBySheet[sourceName] || { rows: [], cols: [] });
+    this.pageSetupBySheet[targetName] = newSheetPageSetup(this.pageSetupBySheet[sourceName] || {});
+    this.mergedRangesBySheet[targetName] = structuredClone(this.mergedRangesBySheet[sourceName] || []);
+    this.outlineGroupsBySheet[targetName] = structuredClone(this.outlineGroupsBySheet[sourceName] || []);
+    this.rowHeightsBySheet[targetName] = new Map(this.rowHeightsBySheet[sourceName] || []);
+    this.colWidthsBySheet[targetName] = new Map(this.colWidthsBySheet[sourceName] || []);
+    this.userHiddenRowsBySheet[targetName] = new Set(this.userHiddenRowsBySheet[sourceName] || []);
+    this.userHiddenColsBySheet[targetName] = new Set(this.userHiddenColsBySheet[sourceName] || []);
+    this.protectionBySheet[targetName] = structuredClone(this.protectionBySheet[sourceName] || { enabled: false, password: "" });
+  }
+
+  copySheet(sourceName, beforeName, recordUndo = true) {
+    const source = sourceName || this.activeSheet;
+    if (!this.sheets.includes(source)) return false;
+    this._flushActiveSheetState();
+    const newName = this._nextCopiedSheetName(source);
+    this._cloneSheetCollections(source, newName);
+    const others = [...this.sheets];
+    let insertAt;
+    if (beforeName == null || beforeName === SHEET_MOVE_TO_END) insertAt = others.length;
+    else {
+      const beforeIndex = others.indexOf(beforeName);
+      insertAt = beforeIndex < 0 ? others.length : beforeIndex;
+    }
+    this.sheets.splice(insertAt, 0, newName);
+    this._renderSheetTabs();
+    this.switchSheet(newName);
+    if (recordUndo) this._recordHistory({ type: "sheet-add", sheet: source, sheetName: newName, previousSheet: source, snapshot: this._snapshotSheet(newName) });
+    return newName;
+  }
+
+  async showMoveCopySheetDialog(sheetName = this.activeSheet) {
+    const target = sheetName || this.activeSheet;
+    if (!this.sheets.includes(target)) return false;
+    if (typeof document === "undefined") return false;
+    const options = this.sheets.map(name =>
+      `<option value="${this._escapeHtml(name)}"${name === target ? " selected" : ""}>${this._escapeHtml(name)}</option>`
+    ).join("");
+    const overlay = this._createSheetDialog(t("sheetDialogs.moveCopyTitle", "Di chuyển hoặc Sao chép"), `
+      <p>${t("sheetDialogs.moveCopyIntro", { name: this._escapeHtml(target) })}</p>
+      <label>${t("sheetDialogs.moveCopyBefore", "Chèn trước trang tính:")}
+        <select id="vno-move-before" class="vno-dialog-input">${options}
+          <option value="${SHEET_MOVE_TO_END}">${t("sheetDialogs.moveCopyToEnd", "(chuyển đến cuối)")}</option>
+        </select>
+      </label>
+      <label class="vno-dialog-check">
+        <input type="checkbox" id="vno-move-copy">
+        ${t("sheetDialogs.moveCopyCreateCopy", "Tạo một bản sao")}
+      </label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").textContent = t("common.ok", "Đồng ý");
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const before = overlay.querySelector("#vno-move-before").value;
+      const createCopy = overlay.querySelector("#vno-move-copy").checked;
+      const beforeArg = before === SHEET_MOVE_TO_END ? SHEET_MOVE_TO_END : before;
+      if (createCopy) this.copySheet(target, beforeArg);
+      else this.moveSheet(target, beforeArg);
+      overlay.closeDialog();
+    });
+    return true;
+  }
+
+  isSheetProtected(sheetName = this.activeSheet) {
+    return !!this.protectionBySheet?.[sheetName || this.activeSheet]?.enabled;
+  }
+
+  getSheetProtection(sheetName = this.activeSheet) {
+    return this.protectionBySheet?.[sheetName || this.activeSheet] || { enabled: false, password: "" };
+  }
+
+  _notifySheetProtected() {
+    if (typeof document === "undefined" || !document.body) return;
+    showAlertDialog({
+      title: t("sheetDialogs.protectSheet", "Bảo vệ trang tính"),
+      message: t("sheetDialogs.sheetProtectedEdit", "Trang tính đang được bảo vệ. Không thể sửa nội dung ô, định dạng, hay xóa hàng/cột. Chọn Bỏ bảo vệ trang tính để mở khóa (chỉ là khóa giao diện, không phải bảo mật thật)."),
+      type: "warning"
+    });
+  }
+
+  _guardProtectedMutation() {
+    if (!this.isSheetProtected()) return false;
+    this._notifySheetProtected();
+    return true;
+  }
+
+  _applyProtectionUi({ renderTabs = false } = {}) {
+    const locked = this.isSheetProtected();
+    this.container?.classList?.toggle?.("vno-sheet-protected", locked);
+    if (this.formulaInput) {
+      this.formulaInput.readOnly = locked;
+      this.formulaInput.title = locked
+        ? t("sheetDialogs.sheetProtectedEdit", "Trang tính đang được bảo vệ.")
+        : "";
+    }
+    globalCommandBus?.updateState?.("sheet.sheet.protect", {
+      label: locked
+        ? t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính...")
+        : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."),
+      tooltip: locked
+        ? t("sheetDialogs.unprotectSheetTooltip", "Tắt khóa giao diện của trang tính hiện tại")
+        : t("sheetDialogs.protectSheetTooltip", "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)")
+    });
+    if (renderTabs) this._renderSheetTabs();
+  }
+
+  protectSheet(options = {}, recordUndo = false) {
+    const sheetName = options.sheetName || this.activeSheet;
+    if (!this.sheets.includes(sheetName)) return false;
+    if (!this.protectionBySheet) this.protectionBySheet = {};
+    this.protectionBySheet[sheetName] = {
+      enabled: true,
+      password: String(options.password || "")
+    };
+    if (sheetName === this.activeSheet) this._applyProtectionUi({ renderTabs: true });
+    else this._renderSheetTabs();
+    this._syncCommandStates();
+    return true;
+  }
+
+  unprotectSheet(options = {}, recordUndo = false) {
+    const sheetName = options.sheetName || this.activeSheet;
+    const current = this.getSheetProtection(sheetName);
+    if (!current.enabled) return true;
+    const supplied = options.password == null ? "" : String(options.password);
+    if (current.password && supplied !== current.password) return false;
+    this.protectionBySheet[sheetName] = { enabled: false, password: "" };
+    if (sheetName === this.activeSheet) this._applyProtectionUi({ renderTabs: true });
+    else this._renderSheetTabs();
+    this._syncCommandStates();
+    return true;
+  }
+
+  async showProtectSheetDialog(sheetName = this.activeSheet) {
+    const target = sheetName || this.activeSheet;
+    if (!this.sheets.includes(target)) return false;
+    if (this.isSheetProtected(target)) {
+      const current = this.getSheetProtection(target);
+      if (!current.password) return this.unprotectSheet({ sheetName: target });
+      if (typeof document === "undefined") return false;
+      const overlay = this._createSheetDialog(t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính"), `
+        <p>${t("sheetDialogs.unprotectPasswordMessage", "Nhập mật khẩu để bỏ bảo vệ trang tính (khóa giao diện, không phải bảo mật thật).")}</p>
+        <label>${t("sheetDialogs.protectPassword", "Mật khẩu")}
+          <input id="vno-unprotect-password" class="vno-dialog-input" type="password" autocomplete="off">
+        </label>
+        <div class="vno-rule-error" role="alert"></div>`);
+      if (!overlay) return false;
+      overlay.querySelector(".vno-rule-apply").textContent = t("common.ok", "Đồng ý");
+      overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+        const ok = this.unprotectSheet({ sheetName: target, password: overlay.querySelector("#vno-unprotect-password").value });
+        if (!ok) {
+          overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.unprotectPasswordWrong", "Mật khẩu không đúng.");
+          return;
+        }
+        overlay.closeDialog();
+      });
+      return true;
+    }
+    if (typeof document === "undefined") return false;
+    const overlay = this._createSheetDialog(t("sheetDialogs.protectSheetTitle", "Bảo vệ trang tính"), `
+      <label class="vno-dialog-check">
+        <input type="checkbox" id="vno-protect-enable" checked>
+        ${t("sheetDialogs.protectSheetCheckbox", "Bảo vệ trang tính và nội dung các ô bị khóa")}
+      </label>
+      <p class="vno-dialog-hint">${t("sheetDialogs.protectSheetHint", "Khi bật: không sửa nội dung ô, không đổi định dạng, không chèn/xóa hàng hoặc cột. Đây là khóa giao diện, mật khẩu lưu dạng chữ thường trong phiên làm việc — không phải bảo mật thật.")}</p>
+      <label>${t("sheetDialogs.protectPassword", "Mật khẩu (tùy chọn)")}
+        <input id="vno-protect-password" class="vno-dialog-input" type="password" autocomplete="new-password">
+      </label>
+      <label>${t("sheetDialogs.protectPasswordConfirm", "Nhập lại mật khẩu")}
+        <input id="vno-protect-password2" class="vno-dialog-input" type="password" autocomplete="new-password">
+      </label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").textContent = t("common.ok", "Đồng ý");
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      if (!overlay.querySelector("#vno-protect-enable").checked) {
+        overlay.closeDialog();
+        return;
+      }
+      const password = overlay.querySelector("#vno-protect-password").value;
+      const confirm = overlay.querySelector("#vno-protect-password2").value;
+      if (password !== confirm) {
+        overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.protectPasswordMismatch", "Hai mật khẩu không khớp.");
+        return;
+      }
+      this.protectSheet({ sheetName: target, password });
+      overlay.closeDialog();
+    });
     return true;
   }
 
@@ -1861,6 +2391,7 @@ export class SheetGridController {
         td.addEventListener("dblclick", (e) => {
           e.preventDefault();
           if (this.formatPainter) return;
+          if (this._guardProtectedMutation()) return;
           this._focusFormulaInputAtEnd();
         });
         td.addEventListener("contextmenu", event => {
@@ -2052,6 +2583,7 @@ export class SheetGridController {
         nextCol = e.shiftKey ? this.cols[Math.max(0, colIdx - 1)] : this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
       } else if (e.key === "F2") {
         e.preventDefault();
+        if (this._guardProtectedMutation()) return;
         const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
         const cur = this.cellsData.get(key);
         this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
@@ -2059,6 +2591,7 @@ export class SheetGridController {
         return;
       } else if (e.key === "=" && !e.ctrlKey && !e.altKey && !e.metaKey) {
         e.preventDefault();
+        if (this._guardProtectedMutation()) return;
         const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
         const cur = this.cellsData.get(key);
         this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
@@ -2072,6 +2605,7 @@ export class SheetGridController {
       } else if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.altKey && !e.metaKey) {
         // Xóa nội dung ô hoặc vùng đang chọn ngay, đúng hành vi Excel thật
         e.preventDefault();
+        if (this._guardProtectedMutation()) return;
         if (this.selectionRange && (this.selectionRange.start.c !== this.selectionRange.end.c || this.selectionRange.start.r !== this.selectionRange.end.r)) {
           const cells = this.formulaEngine.expandRange(this.getSelectedRangeLabel());
           cells.forEach(coord => {
@@ -2115,6 +2649,7 @@ export class SheetGridController {
         // Gõ TRỰC TIẾP bất kỳ ký tự in được nào khi đang chọn ô (không bấm F2 trước) phải
         // THAY THẾ nội dung ô đó và vào chế độ sửa — đúng hành vi cơ bản nhất của Excel.
         e.preventDefault();
+        if (this._guardProtectedMutation()) return;
         const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
         const cur = this.cellsData.get(key);
         this._cellValueBeforeEdit = cur ? (cur.formula || cur.val || "") : "";
@@ -2295,6 +2830,7 @@ export class SheetGridController {
   }
 
   setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     const key = `${col}${row}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
 
@@ -2345,6 +2881,7 @@ export class SheetGridController {
     }
     this.refreshCharts();
     this._updateWatchWindow?.();
+    return true;
   }
 
   _recalculateAllFormulas(excludeKey, force = false) {
@@ -3767,6 +4304,7 @@ export class SheetGridController {
   }
 
   fillDown(range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     const rawRange = range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord };
     const norm = this._normalizeRange(rawRange);
     const minColNum = this._columnNumber(norm.start.c);
@@ -3843,6 +4381,7 @@ export class SheetGridController {
   }
 
   fillRight(range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     const rawRange = range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord };
     const norm = this._normalizeRange(rawRange);
     const minColNum = this._columnNumber(norm.start.c);
@@ -3920,6 +4459,7 @@ export class SheetGridController {
   }
 
   clearAll(range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
     const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
 
@@ -4013,6 +4553,7 @@ export class SheetGridController {
   }
 
   clearContents(range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
     const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
 
@@ -4179,6 +4720,7 @@ export class SheetGridController {
   }
 
   setStyle(prop, val, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
     const prevVal = item.style[prop] || "";
@@ -4274,6 +4816,7 @@ export class SheetGridController {
   }
 
   async mergeCells(mode = "mergeCenter", range = this.selectionRange, { confirmDataLoss = true } = {}) {
+    if (this._guardProtectedMutation()) return false;
     const normalized = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
     const width = this._columnNumber(normalized.end.c) - this._columnNumber(normalized.start.c) + 1;
     const height = normalized.end.r - normalized.start.r + 1;
@@ -4372,6 +4915,15 @@ export class SheetGridController {
     globalCommandBus?.updateState?.("sheet.view.pageBreakPreview", { checked: this.workbookView === "pageBreakPreview" });
     globalCommandBus?.updateState?.("sheet.view.pageLayout", { checked: this.workbookView === "pageLayout" });
     globalCommandBus?.updateState?.("sheet.edit.formatPainter", { checked: !!this.formatPainter });
+    const locked = this.isSheetProtected();
+    globalCommandBus?.updateState?.("sheet.sheet.protect", {
+      label: locked
+        ? t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính...")
+        : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."),
+      tooltip: locked
+        ? t("sheetDialogs.unprotectSheetTooltip", "Tắt khóa giao diện của trang tính hiện tại")
+        : t("sheetDialogs.protectSheetTooltip", "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)")
+    });
   }
 
   _applyViewState() {
@@ -4596,6 +5148,15 @@ export class SheetGridController {
         return true;
       }
       return this.deleteSheet(action.sheet, false);
+    }
+    if (action.type === "sheet-rename") {
+      const from = direction === "undo" ? action.newName : action.oldName;
+      const to = direction === "undo" ? action.oldName : action.newName;
+      return !!this.renameSheet(from, to, false);
+    }
+    if (action.type === "sheet-move") {
+      const index = direction === "undo" ? action.fromIndex : action.toIndex;
+      return this._moveSheetToIndex(action.name, index);
     }
     if (action.sheet && action.sheet !== this.activeSheet) this.switchSheet(action.sheet);
     const value = direction === "undo" ? "prevVal" : "nextVal";
@@ -5123,6 +5684,7 @@ export class SheetGridController {
   }
 
   insertRow(atRow = this.selectedCoord.r, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     atRow = Number(atRow);
     if (!Number.isInteger(atRow) || atRow < 1 || atRow > this.rowCount) return false;
     const before = this._snapshotGridStructure();
@@ -5148,6 +5710,7 @@ export class SheetGridController {
   }
 
   insertColumn(atCol = this.selectedCoord.c, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     const atColumnNumber = typeof atCol === "number" ? atCol : this._columnNumber(atCol);
     if (!Number.isInteger(atColumnNumber) || atColumnNumber < 1 || atColumnNumber > this.cols.length) return false;
     const before = this._snapshotGridStructure();
@@ -5175,6 +5738,7 @@ export class SheetGridController {
   }
 
   deleteRow(atRow = this.selectedCoord.r, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     atRow = Number(atRow);
     if (!Number.isInteger(atRow) || atRow < 1 || atRow > this.rowCount || this.rowCount <= 1) return false;
     const before = this._snapshotGridStructure();
@@ -5201,6 +5765,7 @@ export class SheetGridController {
   }
 
   deleteColumn(atCol = this.selectedCoord.c, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
     const atColumnNumber = typeof atCol === "number" ? atCol : this._columnNumber(atCol);
     if (!Number.isInteger(atColumnNumber) || atColumnNumber < 1 || atColumnNumber > this.cols.length || this.cols.length <= 1) return false;
     const before = this._snapshotGridStructure();
@@ -5284,7 +5849,8 @@ export class SheetGridController {
       pageBreaks: structuredClone(this.pageBreaksBySheet[sheetName] || { rows: [], cols: [] }),
       pageSetup: structuredClone(this.pageSetupBySheet[sheetName] || newSheetPageSetup()),
       mergedRanges: structuredClone(this.mergedRangesBySheet[sheetName] || []),
-      rowColLayout: this._snapshotRowColLayout(sheetName)
+      rowColLayout: this._snapshotRowColLayout(sheetName),
+      protection: structuredClone(this.protectionBySheet?.[sheetName] || { enabled: false, password: "" })
     };
   }
 
@@ -5310,17 +5876,11 @@ export class SheetGridController {
     this.pageBreaksBySheet[sheetName] = structuredClone(snapshot.pageBreaks || { rows: [], cols: [] });
     this.pageSetupBySheet[sheetName] = newSheetPageSetup(snapshot.pageSetup);
     this.mergedRangesBySheet[sheetName] = structuredClone(snapshot.mergedRanges || []);
+    if (!this.protectionBySheet) this.protectionBySheet = {};
+    this.protectionBySheet[sheetName] = structuredClone(snapshot.protection || { enabled: false, password: "" });
     if (snapshot.rowColLayout) this._restoreRowColLayout({ ...snapshot.rowColLayout, sheetName }, { render: false });
     else this._ensureRowColLayout(sheetName);
-    const tabs = this.tabBar?.querySelector?.("#vno-sheet-tabs-list");
-    if (tabs && typeof document !== "undefined" && !this.tabBar.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)) {
-      const tab = document.createElement("div");
-      tab.className = "vno-sheet-tab-item";
-      tab.dataset.sheet = sheetName;
-      tab.textContent = sheetName;
-      tab.addEventListener("click", () => this.switchSheet(sheetName));
-      tabs.appendChild(tab);
-    }
+    this._renderSheetTabs();
   }
 
   _deleteCollectionItem(collectionName, itemId, sheetName, recordUndo) {

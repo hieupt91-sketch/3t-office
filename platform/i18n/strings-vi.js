@@ -100,7 +100,32 @@ export const viStrings = {
     formatAsTableTitle: "Định dạng theo bảng (Format as Table)", formatAsTableHint: "Chọn kiểu bảng để áp dụng màu tiêu đề và hàng xen kẽ (banded rows):",
     rowHeightTitle: "Chiều cao hàng", rowHeightMessage: "Chiều cao hàng (pixel):",
     colWidthTitle: "Độ rộng cột", colWidthMessage: "Độ rộng cột (pixel):",
-    invalidRowColSize: "Vui lòng nhập một số hợp lệ trong khoảng cho phép."
+    invalidRowColSize: "Vui lòng nhập một số hợp lệ trong khoảng cho phép.",
+    renameSheetTitle: "Đổi tên trang tính", renameSheetMenu: "Đổi tên trang tính...", renameSheetMessage: "Tên trang tính:",
+    renameSheetHint: "Tối đa 31 ký tự. Không trùng tên trang khác và không chứa / \\ ? * [ ] :",
+    sheetNameEmpty: "Tên trang tính không được để trống.",
+    sheetNameTooLong: "Tên trang tính tối đa {max} ký tự.",
+    sheetNameInvalidChars: "Tên không được chứa các ký tự / \\ ? * [ ] : hoặc dấu nháy đơn.",
+    sheetNameDuplicate: "Đã có trang tính cùng tên trong workbook này.",
+    moveCopyTitle: "Di chuyển hoặc Sao chép", moveCopyMenu: "Di chuyển hoặc Sao chép trang tính...",
+    moveCopyIntro: "Chọn vị trí chèn cho trang tính «{name}».",
+    moveCopyBefore: "Chèn trước trang tính:",
+    moveCopyToEnd: "(chuyển đến cuối)",
+    moveCopyCreateCopy: "Tạo một bản sao",
+    protectSheet: "Bảo vệ trang tính...", unprotectSheet: "Bỏ bảo vệ trang tính...",
+    protectSheetTitle: "Bảo vệ trang tính",
+    protectSheetCheckbox: "Bảo vệ trang tính và nội dung các ô bị khóa",
+    protectSheetHint: "Khi bật: không sửa nội dung ô, không đổi định dạng, không chèn/xóa hàng hoặc cột. Đây là khóa giao diện, mật khẩu lưu dạng chữ thường trong phiên làm việc — không phải bảo mật thật.",
+    protectSheetTooltip: "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)",
+    unprotectSheetTooltip: "Tắt khóa giao diện của trang tính hiện tại",
+    protectPassword: "Mật khẩu (tùy chọn)",
+    protectPasswordConfirm: "Nhập lại mật khẩu",
+    protectPasswordMismatch: "Hai mật khẩu không khớp.",
+    unprotectPasswordMessage: "Nhập mật khẩu để bỏ bảo vệ trang tính (khóa giao diện, không phải bảo mật thật).",
+    unprotectPasswordWrong: "Mật khẩu không đúng.",
+    sheetProtectedEdit: "Trang tính đang được bảo vệ. Không thể sửa nội dung ô, định dạng, hay xóa hàng/cột. Chọn Bỏ bảo vệ trang tính để mở khóa (chỉ là khóa giao diện, không phải bảo mật thật).",
+    sheetTabProtectedTitle: "{name} (đã bảo vệ)",
+    sheetTabProtectedAria: "{name}, đã bảo vệ"
   },
   slidesDialogs: {
     close: "Đóng", cancel: "Hủy bỏ", apply: "Áp dụng", preview: "Xem thử", delete: "Xóa",
@@ -275,6 +300,9 @@ export const viStrings = {
     ,"sheet.row.unhide": { label: "Hiện hàng", tooltip: "Hiện các hàng đã ẩn trong vùng chọn" }
     ,"sheet.col.hide": { label: "Ẩn cột", tooltip: "Ẩn các cột đang chọn" }
     ,"sheet.col.unhide": { label: "Hiện cột", tooltip: "Hiện các cột đã ẩn trong vùng chọn" }
+    ,"sheet.sheet.rename": { label: "Đổi tên trang tính...", tooltip: "Đổi tên trang tính hiện tại (cùng hộp thoại với nhấp đúp tab dưới lưới)" }
+    ,"sheet.sheet.moveOrCopy": { label: "Di chuyển hoặc Sao chép trang tính...", tooltip: "Đổi thứ tự tab hoặc tạo bản sao trang tính (dữ liệu, định dạng, Page Setup)" }
+    ,"sheet.sheet.protect": { label: "Bảo vệ trang tính...", tooltip: "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)" }
     ,"sheet.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ phân tích dữ liệu" }
     ,"sheet.insert.image": { label: "Chèn ảnh", tooltip: "Chèn ảnh vào ô đang chọn" }
     ,"sheet.style.formatAsTable": { label: "Định dạng bảng", tooltip: "Định dạng vùng chọn theo kiểu bảng có màu xen kẽ" }

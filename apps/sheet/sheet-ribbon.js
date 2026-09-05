@@ -209,7 +209,10 @@ export const SHEET_RIBBON_TABS = [
               { commandId: "sheet.row.hide" },
               { commandId: "sheet.row.unhide" },
               { commandId: "sheet.col.hide" },
-              { commandId: "sheet.col.unhide" }
+              { commandId: "sheet.col.unhide" },
+              { commandId: "sheet.sheet.rename" },
+              { commandId: "sheet.sheet.moveOrCopy" },
+              { commandId: "sheet.sheet.protect" }
             ]
           }
         ]

@@ -101,7 +101,32 @@ export const enStrings = {
     formatAsTableTitle: "Format as Table", formatAsTableHint: "Select a table style to apply header colors and banded rows:",
     rowHeightTitle: "Row Height", rowHeightMessage: "Row height (pixels):",
     colWidthTitle: "Column Width", colWidthMessage: "Column width (pixels):",
-    invalidRowColSize: "Please enter a valid number in the allowed range."
+    invalidRowColSize: "Please enter a valid number in the allowed range.",
+    renameSheetTitle: "Rename Sheet", renameSheetMenu: "Rename Sheet...", renameSheetMessage: "Sheet name:",
+    renameSheetHint: "Up to 31 characters. Must be unique in this workbook and cannot contain / \\ ? * [ ] :",
+    sheetNameEmpty: "The sheet name cannot be empty.",
+    sheetNameTooLong: "Sheet names can be at most {max} characters.",
+    sheetNameInvalidChars: "A sheet name cannot contain / \\ ? * [ ] : or an apostrophe.",
+    sheetNameDuplicate: "A sheet with that name already exists in this workbook.",
+    moveCopyTitle: "Move or Copy", moveCopyMenu: "Move or Copy Sheet...",
+    moveCopyIntro: "Choose where to place the sheet «{name}».",
+    moveCopyBefore: "Before sheet:",
+    moveCopyToEnd: "(move to end)",
+    moveCopyCreateCopy: "Create a copy",
+    protectSheet: "Protect Sheet...", unprotectSheet: "Unprotect Sheet...",
+    protectSheetTitle: "Protect Sheet",
+    protectSheetCheckbox: "Protect worksheet and contents of locked cells",
+    protectSheetHint: "When on: cell edits, formatting, and inserting/deleting rows or columns are blocked. This is a UI lock; the optional password is stored in plain text for this session — not real security.",
+    protectSheetTooltip: "Lock cell edits, formatting, and row/column deletion on the current sheet (UI lock, not real security)",
+    unprotectSheetTooltip: "Turn off the UI lock on the current sheet",
+    protectPassword: "Password (optional)",
+    protectPasswordConfirm: "Reenter password",
+    protectPasswordMismatch: "The passwords do not match.",
+    unprotectPasswordMessage: "Enter the password to unprotect this sheet (UI lock, not real security).",
+    unprotectPasswordWrong: "The password is incorrect.",
+    sheetProtectedEdit: "The sheet is protected. You cannot edit cells, change formatting, or delete rows/columns. Choose Unprotect Sheet to unlock (UI lock only, not real security).",
+    sheetTabProtectedTitle: "{name} (protected)",
+    sheetTabProtectedAria: "{name}, protected"
   },
   slidesDialogs: {
     close: "Close", cancel: "Cancel", apply: "Apply", preview: "Preview", delete: "Delete",
@@ -276,6 +301,9 @@ export const enStrings = {
     ,"sheet.row.unhide": { label: "Unhide Rows", tooltip: "Unhide hidden rows in the selection" }
     ,"sheet.col.hide": { label: "Hide Columns", tooltip: "Hide the selected columns" }
     ,"sheet.col.unhide": { label: "Unhide Columns", tooltip: "Unhide hidden columns in the selection" }
+    ,"sheet.sheet.rename": { label: "Rename Sheet...", tooltip: "Rename the current worksheet (same dialog as double-clicking the sheet tab)" }
+    ,"sheet.sheet.moveOrCopy": { label: "Move or Copy Sheet...", tooltip: "Reorder tabs or duplicate a worksheet (data, formatting, Page Setup)" }
+    ,"sheet.sheet.protect": { label: "Protect Sheet...", tooltip: "Lock cell edits, formatting, and row/column deletion on the current sheet (UI lock, not real security)" }
     ,"sheet.chart.insert": { label: "Chart", tooltip: "Insert a chart to visualize data" }
     ,"sheet.insert.image": { label: "Pictures", tooltip: "Insert a picture at the selected cell" }
     ,"sheet.style.formatAsTable": { label: "Format as Table", tooltip: "Format selected range as a styled table with alternating rows" }
