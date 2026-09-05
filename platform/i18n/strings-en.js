@@ -410,6 +410,9 @@ export const enStrings = {
     "writer.reference.citationInsert": { label: "Insert Citation", tooltip: "Insert a citation from the source list" },
     "writer.reference.sourcesManage": { label: "Manage Sources", tooltip: "Add, edit, or delete document sources" },
     "writer.reference.bibliographyInsert": { label: "Bibliography", tooltip: "Insert a bibliography from cited sources" },
+    "writer.reference.captionInsert": { label: "Insert Caption", tooltip: "Insert an auto-numbered caption for a picture, table, or equation" },
+    "writer.reference.tofInsert": { label: "Insert Table of Figures", tooltip: "Insert a table of figures or tables from existing captions" },
+    "writer.reference.tofUpdate": { label: "Update Table of Figures", tooltip: "Refresh the table of figures from captions in the document" },
     "writer.mailMerge.open": { label: "Select Recipients", tooltip: "Set up mail merge data source (CSV)" },
     "writer.mailMerge.insertField": { label: "Insert Merge Field", tooltip: "Insert a mail merge field" },
     "writer.mailMerge.preview": { label: "Preview Results", tooltip: "Preview merged records" },
@@ -451,6 +454,7 @@ export const enStrings = {
       tableOfContents: "Table of Contents",
       footnotes: "Footnotes",
       citationsBibliography: "Citations & Bibliography",
+      captions: "Captions",
       startMerge: "Start Mail Merge",
       writeInsert: "Write & Insert Fields",
       previewResults: "Preview Results",
@@ -551,6 +555,22 @@ export const enStrings = {
         adminRed: "Official Red",
         green: "Green"
       }
+    },
+    caption: {
+      title: "Insert Caption",
+      label: "Label",
+      position: "Position",
+      text: "Caption",
+      insert: "Insert",
+      deleteTooltip: "Delete caption"
+    },
+    tof: {
+      title: "Insert Table of Figures",
+      captionLabel: "Caption label",
+      updateBtn: "Update",
+      updateTooltip: "Update table of figures",
+      deleteTooltip: "Delete table of figures",
+      empty: "No captions in the document yet. Insert picture or table captions, then update the list."
     },
     mailMerge: {
       dataSourceTitle: "Mail Merge — Data Source (CSV)",

@@ -1074,6 +1074,210 @@ sup.vno-endnote-ref:hover {
 .vno-source-row small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .vno-citation-error { color:#b91c1c; }
 
+/* ==========================================================================
+   Captions & Table of Figures (Chú thích ảnh / Danh mục hình — Word Parity)
+   ========================================================================== */
+.vno-caption {
+  margin: 4pt 0 14pt;
+  padding: 2px 4px 2px 0;
+  font-size: 11pt;
+  font-style: italic;
+  color: #334155;
+  text-align: center;
+  position: relative;
+}
+
+.vno-caption .vno-caption-label,
+.vno-caption .vno-caption-number,
+.vno-caption .vno-caption-separator {
+  font-weight: 700;
+  font-style: italic;
+  color: #0f4c81;
+}
+
+.vno-caption .vno-caption-text {
+  font-style: italic;
+  outline: none;
+  min-width: 1ch;
+}
+
+.vno-caption .vno-caption-text:focus {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.vno-caption-delete-btn {
+  margin-left: 8px;
+  padding: 0 6px;
+  font-size: 14px;
+  line-height: 1.2;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #64748b;
+  border-radius: 4px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.vno-caption-delete-btn:hover,
+.vno-caption-delete-btn:focus {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+.vno-tof-block {
+  margin: 18pt 0;
+  padding: 16px 20px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  user-select: text;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.vno-tof-block:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.vno-tof-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid #0f4c81;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.vno-tof-title {
+  font-size: 14pt;
+  font-weight: 700;
+  color: #0f4c81;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.vno-tof-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vno-tof-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+}
+
+.vno-tof-btn:hover,
+.vno-tof-btn:focus {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.vno-tof-btn-delete:hover,
+.vno-tof-btn-delete:focus {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+.vno-tof-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vno-tof-item {
+  display: flex;
+  align-items: baseline;
+  width: 100%;
+}
+
+.vno-tof-link {
+  display: flex;
+  align-items: baseline;
+  width: 100%;
+  color: #1e293b;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.vno-tof-link:hover,
+.vno-tof-link:focus {
+  background-color: #e2e8f0;
+  color: #0f4c81;
+}
+
+.vno-tof-link:hover .vno-tof-text,
+.vno-tof-link:focus .vno-tof-text {
+  text-decoration: underline;
+}
+
+.vno-tof-text {
+  flex-shrink: 0;
+  max-width: 75%;
+}
+
+.vno-tof-leader {
+  flex: 1;
+  border-bottom: 1px dotted #94a3b8;
+  margin: 0 8px;
+  min-width: 24px;
+  align-self: baseline;
+  transform: translateY(-3px);
+}
+
+.vno-tof-page {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 11pt;
+  color: #475569;
+}
+
+.vno-tof-empty {
+  padding: 12px 8px;
+  font-style: italic;
+  color: #64748b;
+  font-size: 11pt;
+  text-align: center;
+}
+
+.vno-caption-dialog .vno-dialog-body { padding: 16px; min-width: 420px; }
+.vno-caption-dialog .vno-dialog-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; }
+.vno-caption-form { display: flex; flex-direction: column; gap: 10px; }
+.vno-caption-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 500; }
+.vno-caption-dialog input,
+.vno-caption-dialog select { min-height: 34px; padding: 5px 8px; border: 1px solid var(--vno-border-default); border-radius: 4px; }
+.vno-caption-preview {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 4px;
+  font-style: italic;
+  color: #0f4c81;
+}
+.vno-caption-hint { margin: 0; font-size: 12px; color: #64748b; }
+.vno-caption-marker,
+.vno-tof-marker,
+.vno-caption-metadata {
+  display: none !important;
+}
+
 sup.vno-endnote-ref {
   color: #b53818;
 }
@@ -1535,10 +1739,14 @@ p.vno-style-emphasis {
 .vno-writer-body.vno-columns-active table,
 .vno-writer-body.vno-columns-active img,
 .vno-writer-body.vno-columns-active [data-vno-toc="true"],
+.vno-writer-body.vno-columns-active [data-vno-tof="true"],
+.vno-writer-body.vno-columns-active .vno-caption,
 .vno-writer-body.vno-columns-active blockquote,
 .vno-print-preview-body.vno-columns-active table,
 .vno-print-preview-body.vno-columns-active img,
 .vno-print-preview-body.vno-columns-active [data-vno-toc="true"],
+.vno-print-preview-body.vno-columns-active [data-vno-tof="true"],
+.vno-print-preview-body.vno-columns-active .vno-caption,
 .vno-print-preview-body.vno-columns-active blockquote {
   break-inside: avoid;
   page-break-inside: avoid;

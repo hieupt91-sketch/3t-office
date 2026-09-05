@@ -409,6 +409,9 @@ export const viStrings = {
     "writer.reference.citationInsert": { label: "Chèn trích dẫn", tooltip: "Chèn trích dẫn từ danh sách nguồn" },
     "writer.reference.sourcesManage": { label: "Quản lý nguồn", tooltip: "Thêm, sửa hoặc xóa nguồn tài liệu" },
     "writer.reference.bibliographyInsert": { label: "Thư mục tài liệu", tooltip: "Chèn danh mục từ các nguồn đã dùng" },
+    "writer.reference.captionInsert": { label: "Chèn chú thích ảnh", tooltip: "Chèn chú thích tự đánh số cho hình ảnh, bảng hoặc phương trình" },
+    "writer.reference.tofInsert": { label: "Danh mục hình ảnh", tooltip: "Chèn danh mục hình ảnh/bảng tự động từ các chú thích đã chèn" },
+    "writer.reference.tofUpdate": { label: "Cập nhật danh mục", tooltip: "Cập nhật lại danh mục hình ảnh/bảng từ các chú thích hiện có" },
     "writer.mailMerge.open": { label: "Nguồn dữ liệu", tooltip: "Mở bảng nhập dữ liệu trộn thư (CSV)" },
     "writer.mailMerge.insertField": { label: "Chèn trường", tooltip: "Chèn trường trộn thư tại vị trí con trỏ" },
     "writer.mailMerge.preview": { label: "Xem trước kết quả", tooltip: "Bật/tắt xem trước bản ghi trộn thư" },
@@ -450,6 +453,7 @@ export const viStrings = {
       tableOfContents: "Mục lục",
       footnotes: "Chú thích",
       citationsBibliography: "Trích dẫn & Thư mục tài liệu",
+      captions: "Chú thích ảnh",
       startMerge: "Bắt đầu trộn",
       writeInsert: "Viết & Chèn trường",
       previewResults: "Xem trước kết quả",
@@ -550,6 +554,22 @@ export const viStrings = {
         adminRed: "Đỏ hành chính",
         green: "Xanh lá cây"
       }
+    },
+    caption: {
+      title: "Chèn chú thích ảnh",
+      label: "Nhãn",
+      position: "Vị trí",
+      text: "Nội dung chú thích",
+      insert: "Chèn",
+      deleteTooltip: "Xóa chú thích ảnh"
+    },
+    tof: {
+      title: "Chèn danh mục hình ảnh",
+      captionLabel: "Nhãn chú thích",
+      updateBtn: "Cập nhật",
+      updateTooltip: "Cập nhật danh mục hình ảnh",
+      deleteTooltip: "Xóa danh mục hình ảnh",
+      empty: "Chưa có chú thích nào trong tài liệu. Hãy chèn chú thích ảnh hoặc bảng rồi cập nhật lại danh mục."
     },
     mailMerge: {
       dataSourceTitle: "Trộn thư — Nguồn dữ liệu (CSV)",

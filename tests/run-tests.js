@@ -92,6 +92,7 @@ import { runSlidesHideSlideTests } from "./unit/slides-hide-slide.test.js";
 import { runSlidesChartTests } from "./unit/slides-charts.test.js";
 import { runWriterCitationsTests } from "./unit/writer-citations.test.js";
 import { runSlidesFontParagraphTests } from "./unit/slides-font-paragraph.test.js";
+import { runWriterCaptionsTests } from "./unit/writer-captions.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -191,7 +192,8 @@ async function runAll() {
     { title: "83. Behavioral Tests — VN Slides Hide Slide (Ẩn trang chiếu)", runner: runSlidesHideSlideTests },
     { title: "84. Behavioral Tests — VN Slides Insert Chart", runner: runSlidesChartTests },
     { title: "85. Behavioral Tests — VN Writer Citations & Bibliography", runner: runWriterCitationsTests },
-    { title: "86. Behavioral Tests — VN Slides Font & Paragraph (Home tab)", runner: runSlidesFontParagraphTests }
+    { title: "86. Behavioral Tests — VN Slides Font & Paragraph (Home tab)", runner: runSlidesFontParagraphTests },
+    { title: "87. Behavioral Tests — VN Writer Captions & Table of Figures", runner: runWriterCaptionsTests }
   ];
 
   for (const suite of suites) {

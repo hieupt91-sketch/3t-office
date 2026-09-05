@@ -981,6 +981,34 @@ export const ICONS = {
   sourcesManage: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V4z" fill="#F8FAFC" stroke="#0F4C81"/><path d="M8 8h7M8 12h7M8 16h4" stroke="#64748B"/><circle cx="18" cy="17" r="3" fill="#DBEAFE" stroke="#2563EB"/><path d="M18 15.5v3M16.5 17h3" stroke="#2563EB"/></svg>`,
   bibliographyInsert: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H12v18H7.5A3.5 3.5 0 0 0 4 23V5.5zM20 5.5A3.5 3.5 0 0 0 16.5 2H12v18h4.5A3.5 3.5 0 0 1 20 23V5.5z" fill="#EFF6FF" stroke="#0F4C81"/><path d="M7 7h3M7 11h3M14 7h3M14 11h3" stroke="#2563EB"/></svg>`,
 
+  captionInsert: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="3" width="18" height="12" rx="1.5" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/>
+    <path d="M6 12.5l3.2-3.4 2.2 2.3 3-3.6 4.6 4.7" fill="#BFDBFE" stroke="#2563EB" stroke-width="1.2" stroke-linejoin="round"/>
+    <circle cx="8.2" cy="6.6" r="1.3" fill="#93C5FD" stroke="#2563EB"/>
+    <line x1="5" y1="18" x2="12" y2="18" stroke="#0F4C81" stroke-width="1.6" stroke-linecap="round"/>
+    <line x1="5" y1="21" x2="19" y2="21" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
+  tofInsert: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="2" width="18" height="20" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.5"/>
+    <rect x="6" y="5" width="5" height="4" rx="0.6" fill="#DBEAFE" stroke="#2563EB"/>
+    <line x1="13" y1="6.5" x2="18" y2="6.5" stroke="#0F4C81" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="13" y1="9" x2="17" y2="9" stroke="#94A3B8" stroke-width="1.2" stroke-linecap="round"/>
+    <rect x="6" y="12" width="5" height="4" rx="0.6" fill="#DBEAFE" stroke="#2563EB"/>
+    <line x1="13" y1="13.5" x2="18" y2="13.5" stroke="#0F4C81" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="13" y1="16" x2="17" y2="16" stroke="#94A3B8" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`,
+
+  tofUpdate: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="3" y="2" width="18" height="20" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.5"/>
+    <rect x="6" y="5" width="4" height="3.2" rx="0.5" fill="#DBEAFE" stroke="#2563EB"/>
+    <line x1="12" y1="6.2" x2="16.5" y2="6.2" stroke="#0F4C81" stroke-width="1.4" stroke-linecap="round"/>
+    <rect x="6" y="10" width="4" height="3.2" rx="0.5" fill="#DBEAFE" stroke="#2563EB"/>
+    <line x1="12" y1="11.2" x2="15.5" y2="11.2" stroke="#64748B" stroke-width="1.3" stroke-linecap="round"/>
+    <circle cx="16" cy="16.5" r="4.2" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.2"/>
+    <path d="M14.2 16.5A1.8 1.8 0 1 1 16 18.2M16 18.2L15.1 19.6M16 18.2L14.6 17.3" stroke="#2563EB" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
   calculateSheet: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
     <rect x="4" y="3" width="16" height="18" rx="2" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.2"/>
     <path d="M7 7h10M7 11h5" stroke="#94A3B8" stroke-width="1.2"/>
