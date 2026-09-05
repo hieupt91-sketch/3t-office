@@ -139,7 +139,21 @@ export const enStrings = {
     protectWorkbookTooltip: "Lock workbook structure: no adding, deleting, renaming, moving, or copying sheets. Does not lock cell contents (UI lock, not real security)",
     unprotectWorkbookTooltip: "Turn off the workbook structure lock (add/delete/rename/move/copy sheets)",
     unprotectWorkbookPasswordMessage: "Enter the password to unprotect workbook structure (UI lock, not real security).",
-    workbookProtectedStructure: "The workbook structure is protected. You cannot add, delete, rename, move, or copy sheets. Cell contents stay editable. Choose Unprotect Workbook to unlock (UI lock only, not real security)."
+    workbookProtectedStructure: "The workbook structure is protected. You cannot add, delete, rename, move, or copy sheets. Cell contents stay editable. Choose Unprotect Workbook to unlock (UI lock only, not real security).",
+    evaluateFormulaTitle: "Evaluate Formula",
+    evaluateFormulaRef: "Reference: {sheet}!{coord}",
+    evaluateFormulaHint: "The underlined italic part is evaluated next.",
+    evaluateFormulaEvaluate: "Evaluate",
+    evaluateFormulaStepIn: "Step In",
+    evaluateFormulaStepOut: "Step Out",
+    evaluateFormulaRestart: "Restart",
+    evaluateFormulaClose: "Close",
+    evaluateFormulaNoFormula: "The selected cell does not contain a formula. Select a cell that starts with = and open Evaluate Formula again.",
+    evaluateFormulaStepResult: "Just evaluated: {value}",
+    evaluateFormulaCellValue: "Current cell value: {value}",
+    evaluateFormulaDone: "Evaluation complete. Final result: {value}",
+    evaluateFormulaDoneMatch: "The result matches the cell value.",
+    evaluateFormulaDoneMismatch: "The stepped result differs from the current cell value ({value})."
   },
   slidesDialogs: {
     close: "Close", cancel: "Cancel", apply: "Apply", preview: "Preview", delete: "Delete",
@@ -266,6 +280,7 @@ export const enStrings = {
     ,"sheet.formula.showFormulas": { label: "Show Formulas", tooltip: "Display formula expressions instead of results in cells (Ctrl+`)" }
     ,"sheet.formula.errorChecking": { label: "Error Checking", tooltip: "Scan for formula calculation errors across the worksheet" }
     ,"sheet.formula.watchWindow": { label: "Watch Window", tooltip: "Monitor values of critical cells in a floating window" }
+    ,"sheet.formula.evaluateFormula": { label: "Evaluate Formula", tooltip: "Step through the selected formula and inspect intermediate values" }
     ,"sheet.calc.calculationOptions": { label: "Calculation Options", tooltip: "Choose automatic or manual calculation mode" }
     ,"sheet.calc.modeAutomatic": { label: "Automatic", tooltip: "Recalculate formulas automatically when values change" }
     ,"sheet.calc.modeManual": { label: "Manual", tooltip: "Recalculate formulas only when you press Calculate Now (F9)" }

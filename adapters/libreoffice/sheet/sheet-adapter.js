@@ -119,6 +119,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.formula.showFormulas", () => this.grid.toggleShowFormulas ? this.grid.toggleShowFormulas() : false);
     globalCommandBus.bindHandler("sheet.formula.errorChecking", () => this.grid.showErrorCheckingDialog ? this.grid.showErrorCheckingDialog() : false);
     globalCommandBus.bindHandler("sheet.formula.watchWindow", () => this.grid.showWatchWindow ? this.grid.showWatchWindow() : false);
+    globalCommandBus.bindHandler("sheet.formula.evaluateFormula", () => this.grid.showEvaluateFormulaDialog ? this.grid.showEvaluateFormulaDialog() : false);
     globalCommandBus.bindHandler("sheet.calc.calculationOptions", (args) => this.grid.setCalculationMode ? this.grid.setCalculationMode(args) : false);
     globalCommandBus.bindHandler("sheet.calc.modeAutomatic", () => this.grid.setCalculationMode ? this.grid.setCalculationMode("automatic") : false);
     globalCommandBus.bindHandler("sheet.calc.modeManual", () => this.grid.setCalculationMode ? this.grid.setCalculationMode("manual") : false);
@@ -2365,6 +2366,10 @@ export class SheetAdapter {
       case "sheet.formula.watchWindow":
       case ".uno:WatchWindow":
         return this.grid.showWatchWindow ? this.grid.showWatchWindow() : false;
+
+      case "sheet.formula.evaluateFormula":
+      case ".uno:EvaluateFormula":
+        return this.grid.showEvaluateFormulaDialog ? this.grid.showEvaluateFormulaDialog() : false;
 
       case "sheet.calc.calculationOptions":
       case ".uno:CalculationMode":

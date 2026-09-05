@@ -138,7 +138,21 @@ export const viStrings = {
     protectWorkbookTooltip: "Khóa cấu trúc workbook: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Không khóa nội dung ô (khóa giao diện, không phải bảo mật thật)",
     unprotectWorkbookTooltip: "Tắt khóa cấu trúc workbook (thêm/xóa/đổi tên/di chuyển/sao chép trang tính)",
     unprotectWorkbookPasswordMessage: "Nhập mật khẩu để bỏ bảo vệ cấu trúc workbook (khóa giao diện, không phải bảo mật thật).",
-    workbookProtectedStructure: "Workbook đang được bảo vệ cấu trúc. Không thể thêm, xóa, đổi tên, di chuyển hoặc sao chép trang tính. Nội dung ô vẫn sửa được. Chọn Bỏ bảo vệ workbook để mở khóa (chỉ là khóa giao diện, không phải bảo mật thật)."
+    workbookProtectedStructure: "Workbook đang được bảo vệ cấu trúc. Không thể thêm, xóa, đổi tên, di chuyển hoặc sao chép trang tính. Nội dung ô vẫn sửa được. Chọn Bỏ bảo vệ workbook để mở khóa (chỉ là khóa giao diện, không phải bảo mật thật).",
+    evaluateFormulaTitle: "Ước lượng công thức",
+    evaluateFormulaRef: "Tham chiếu: {sheet}!{coord}",
+    evaluateFormulaHint: "Phần được gạch chân và in nghiêng sẽ được tính ở bước tiếp theo.",
+    evaluateFormulaEvaluate: "Ước lượng",
+    evaluateFormulaStepIn: "Bước vào",
+    evaluateFormulaStepOut: "Bước ra",
+    evaluateFormulaRestart: "Khởi động lại",
+    evaluateFormulaClose: "Đóng",
+    evaluateFormulaNoFormula: "Ô đang chọn không chứa công thức. Hãy chọn một ô bắt đầu bằng dấu = rồi mở lại Ước lượng công thức.",
+    evaluateFormulaStepResult: "Giá trị vừa tính: {value}",
+    evaluateFormulaCellValue: "Giá trị hiện tại của ô: {value}",
+    evaluateFormulaDone: "Đã ước lượng xong. Kết quả cuối: {value}",
+    evaluateFormulaDoneMatch: "Kết quả khớp giá trị ô.",
+    evaluateFormulaDoneMismatch: "Kết quả bước ước lượng khác giá trị ô hiện tại ({value})."
   },
   slidesDialogs: {
     close: "Đóng", cancel: "Hủy bỏ", apply: "Áp dụng", preview: "Xem thử", delete: "Xóa",
@@ -265,6 +279,7 @@ export const viStrings = {
     ,"sheet.formula.showFormulas": { label: "Hiện công thức", tooltip: "Hiển thị công thức thay vì kết quả trong toàn bộ sheet (Ctrl+`)" }
     ,"sheet.formula.errorChecking": { label: "Kiểm tra lỗi", tooltip: "Quét và kiểm tra các ô có công thức bị lỗi trong bảng tính" }
     ,"sheet.formula.watchWindow": { label: "Cửa sổ theo dõi", tooltip: "Mở cửa sổ theo dõi giá trị các ô quan trọng khi cuộn bảng tính" }
+    ,"sheet.formula.evaluateFormula": { label: "Ước lượng công thức", tooltip: "Ước lượng từng phần của công thức đang chọn để xem giá trị trung gian" }
     ,"sheet.calc.calculationOptions": { label: "Tùy chọn tính toán", tooltip: "Chọn chế độ tính toán tự động hoặc thủ công" }
     ,"sheet.calc.modeAutomatic": { label: "Tự động", tooltip: "Tự động tính lại công thức khi dữ liệu thay đổi" }
     ,"sheet.calc.modeManual": { label: "Thủ công", tooltip: "Chỉ tính lại công thức khi nhấn Tính lại (F9)" }

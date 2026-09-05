@@ -241,6 +241,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.formula.showFormulas", category: "formula", label: "Hiện công thức", icon: "showFormulas", tooltip: "Hiển thị công thức thay vì kết quả trong toàn bộ sheet (Ctrl+`)", isToggle: true },
   { id: "sheet.formula.errorChecking", category: "formula", label: "Kiểm tra lỗi", icon: "errorChecking", tooltip: "Quét và kiểm tra các ô có công thức bị lỗi trong bảng tính" },
   { id: "sheet.formula.watchWindow", category: "formula", label: "Cửa sổ theo dõi", icon: "watchWindow", tooltip: "Mở cửa sổ theo dõi giá trị các ô quan trọng khi cuộn bảng tính" },
+  { id: "sheet.formula.evaluateFormula", category: "formula", label: "Ước lượng công thức", icon: "evaluateFormula", tooltip: "Ước lượng từng phần của công thức đang chọn để xem giá trị trung gian" },
   { id: "sheet.calc.calculationOptions", category: "formula", label: "Tùy chọn tính toán", icon: "calculationOptions", tooltip: "Chọn chế độ tính toán tự động hoặc thủ công" },
   { id: "sheet.calc.modeAutomatic", category: "formula", label: "Tự động", icon: "calculationOptions", tooltip: "Tự động tính lại công thức khi dữ liệu thay đổi" },
   { id: "sheet.calc.modeManual", category: "formula", label: "Thủ công", icon: "calculationOptions", tooltip: "Chỉ tính lại công thức khi nhấn Tính lại (F9)" },

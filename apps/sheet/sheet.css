@@ -379,6 +379,46 @@
 .vno-data-preview { margin: 0; padding: 8px; border-radius: 4px; background: var(--vno-bg-muted); color: var(--vno-text-primary); font-size: 12px; }
 .vno-rule-error { min-height: 16px; color: #b91c1c; font-size: 12px; }
 
+.vno-evaluate-formula-dialog .vno-dialog-box { width: 560px; }
+.vno-evaluate-formula-dialog .vno-dialog-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.vno-eval-dialog { display: flex; flex-direction: column; gap: 10px; }
+.vno-eval-ref, .vno-eval-hint, .vno-eval-step-value, .vno-eval-final {
+  margin: 0;
+  font-size: 12px;
+  color: var(--vno-text-secondary);
+}
+.vno-eval-formula-box {
+  font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  min-height: 76px;
+  padding: 12px 14px;
+  border: 1px solid var(--vno-border-default);
+  border-radius: 4px;
+  background: var(--vno-bg-muted, #f8fafc);
+  color: var(--vno-text-primary);
+  word-break: break-word;
+}
+.vno-eval-underline {
+  font-style: italic;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: var(--vno-color-primary, #0f6d38);
+}
+.vno-eval-error {
+  margin: 0;
+  min-height: 16px;
+  color: #b91c1c;
+  font-size: 12px;
+}
+.vno-eval-final { font-weight: 600; color: var(--vno-text-primary); }
+
 .vno-sheet-spellcheck-dialog .vno-dialog-box { width: 460px; }
 .vno-sheet-spellcheck-dialog .vno-spell-footer {
   display: flex;

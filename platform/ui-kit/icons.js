@@ -1119,6 +1119,13 @@ export const ICONS = {
     <path d="M4 4l4 0 0 4z" fill="#10B981"/>
   </svg>`,
 
+  evaluateFormula: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="3" fill="#ECFDF5" stroke="#0F6D38" stroke-width="1.3"/>
+    <path d="M7 8h4M7 12h6" stroke="#0F6D38" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M7 16h8" stroke="#0F6D38" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="M16 7.5l3 2.5-3 2.5" stroke="#2563EB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
   watchWindow: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="3" y="5" width="26" height="22" rx="3" fill="#F8FAFC" stroke="#64748B" stroke-width="1.4"/>
     <path d="M3 11h26M10 5v22M20 5v22M3 18h26" stroke="#E2E8F0" stroke-width="1.2"/>
