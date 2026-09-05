@@ -22,6 +22,18 @@ export class SheetAdapter {
     this.shell = shell;
   }
 
+  _bindFormatPainterRibbon() {
+    if (this._formatPainterRibbonBound) return;
+    if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
+    this._formatPainterRibbonBound = true;
+    document.addEventListener("dblclick", (event) => {
+      const btn = event.target?.closest?.('[data-command-id="sheet.edit.formatPainter"]');
+      if (!btn) return;
+      event.preventDefault();
+      this.grid?.toggleFormatPainter?.({ locked: true });
+    }, true);
+  }
+
   attach() {
     globalUnoBridge.attachDocument(this);
     // common.edit.undo/redo dùng chung 1 handler toàn Suite qua Command Bus — mỗi app
@@ -37,6 +49,8 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("common.edit.paste", () => this._pasteIntoSelectedCell());
     globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pasteIntoSelectedCell());
     globalCommandBus.bindHandler("sheet.edit.pasteSpecial", () => this.grid.showPasteSpecialDialog?.(this._clipboardModel));
+    globalCommandBus.bindHandler("sheet.edit.formatPainter", (args) => this.grid.toggleFormatPainter?.(args || {}));
+    this._bindFormatPainterRibbon();
     globalCommandBus.bindHandler("common.edit.selectAll", () => this.grid.selectAll ? this.grid.selectAll() : false);
     globalCommandBus.bindHandler("sheet.select.column", () => this.grid.selectCurrentColumn ? this.grid.selectCurrentColumn() : false);
     globalCommandBus.bindHandler("sheet.select.row", () => this.grid.selectCurrentRow ? this.grid.selectCurrentRow() : false);
@@ -2150,6 +2164,9 @@ export class SheetAdapter {
 
       case "sheet.edit.pasteSpecial":
         return this.grid.showPasteSpecialDialog ? this.grid.showPasteSpecialDialog(this._clipboardModel) : false;
+
+      case "sheet.edit.formatPainter":
+        return this.grid.toggleFormatPainter ? this.grid.toggleFormatPainter(args || {}) : false;
 
       case "common.edit.selectAll":
         return this.grid.selectAll ? this.grid.selectAll() : false;

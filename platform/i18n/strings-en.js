@@ -133,6 +133,7 @@ export const enStrings = {
     "common.edit.paste": { label: "Paste", tooltip: "Paste from clipboard (Ctrl+V)" },
     "common.edit.pastePlain": { label: "Paste Plain Text", tooltip: "Paste without formatting (Ctrl+Shift+V)" },
     "sheet.edit.pasteSpecial": { label: "Paste Special", tooltip: "Paste values, formulas, formats, or transpose (Ctrl+Alt+V)" },
+    "sheet.edit.formatPainter": { label: "Format Painter", tooltip: "Copy cell formatting to another cell or range. Double-click to lock and apply multiple times. Esc to cancel." },
     "common.edit.formatPainter": { label: "Format Painter", tooltip: "Copy formatting (Ctrl+Shift+C)" },
     "common.edit.selectAll": { label: "Select All", tooltip: "Select all content (Ctrl+A)" },
     "common.edit.find": { label: "Find", tooltip: "Find text (Ctrl+F)" },

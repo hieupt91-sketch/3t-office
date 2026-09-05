@@ -20,7 +20,13 @@ export const SHEET_RIBBON_TABS = [
             items: [
               { type: "button", commandId: "common.edit.cut" },
               { type: "button", commandId: "common.edit.copy" },
-              { type: "button", commandId: "sheet.edit.pasteSpecial" }
+              {
+                type: "row",
+                items: [
+                  { type: "button", commandId: "sheet.edit.pasteSpecial" },
+                  { type: "button", commandId: "sheet.edit.formatPainter", iconOnly: true }
+                ]
+              }
             ]
           }
         ]

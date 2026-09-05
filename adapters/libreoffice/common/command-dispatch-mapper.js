@@ -23,6 +23,7 @@ export const VN_TO_UNO_MAP = {
   "common.edit.paste": ".uno:Paste",
   "common.edit.pastePlain": ".uno:PasteUnformatted",
   "sheet.edit.pasteSpecial": ".uno:PasteSpecial",
+  "sheet.edit.formatPainter": ".uno:FormatPaintbrush",
   "common.edit.formatPainter": ".uno:FormatPainter",
   "common.edit.selectAll": ".uno:SelectAll",
   "common.edit.find": ".uno:SearchDialog",

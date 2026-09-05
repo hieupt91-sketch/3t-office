@@ -151,6 +151,7 @@ export const WRITER_COMMANDS = [
 
 export const SHEET_COMMANDS = [
   { id: "sheet.edit.pasteSpecial", category: "edit", label: "Dán đặc biệt", shortcut: "Ctrl+Alt+V", icon: "paste", tooltip: "Chọn cách dán giá trị, công thức, định dạng hoặc chuyển vị (Ctrl+Alt+V)" },
+  { id: "sheet.edit.formatPainter", category: "edit", label: "Sao chép định dạng", icon: "formatPainter", tooltip: "Sao chép định dạng ô nguồn sang ô hoặc vùng đích. Nhấp đúp để khóa và áp dụng nhiều lần. Esc để hủy.", isToggle: true },
   { id: "sheet.nav.home", category: "nav", label: "Ô đầu tiên", shortcut: "Ctrl+Home", icon: "table", tooltip: "Đến ô A1 của trang tính (Ctrl+Home)" },
   { id: "sheet.nav.end", category: "nav", label: "Ô cuối có dữ liệu", shortcut: "Ctrl+End", icon: "table", tooltip: "Đến ô cuối cùng có dữ liệu (Ctrl+End)" },
   // Ô và phạm vi (Cell & Range)
