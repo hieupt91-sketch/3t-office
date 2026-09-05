@@ -12,6 +12,7 @@ import { createEmptyState } from "../ui-kit/components.js";
 import { LocalAiService, ApiKeyManager } from "../ai/ai-service.js";
 import { showAlertDialog } from "../ui-kit/dialogs.js";
 import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
+import { getPlatformLaunchContext } from "../bootstrap.js";
 
 export class AppShell {
   /**
@@ -20,12 +21,14 @@ export class AppShell {
    * @param {string} options.appTitle
    * @param {string} [options.documentName="Tài liệu chưa đặt tên"]
    * @param {Function} [options.onSwitchApp]
+   * @param {boolean} [options.singleAppMode=false]
    */
   constructor(options) {
     this.appName = options.appName;
     this.appTitle = options.appTitle;
     this.documentName = options.documentName || "Tài liệu 1";
-    this.onSwitchApp = options.onSwitchApp || null;
+    this.singleAppMode = options.singleAppMode ?? getPlatformLaunchContext().singleAppMode;
+    this._onSwitchApp = options.onSwitchApp || null;
     this.zoomLevel = 100;
     this.isAiOpen = false;
     this._aiRequestController = null;
@@ -33,6 +36,20 @@ export class AppShell {
     this.rootEl = null;
     this.ribbonHost = null;
     this.editorContainer = null;
+  }
+
+  set onSwitchApp(callback) {
+    this._onSwitchApp = typeof callback === "function" ? callback : null;
+  }
+
+  get onSwitchApp() {
+    return (appType, options) => this.requestAppSwitch(appType, options);
+  }
+
+  requestAppSwitch(appType, options) {
+    if (this.singleAppMode && appType !== this.appName) return false;
+    if (!this._onSwitchApp) return false;
+    return this._onSwitchApp(appType, options);
   }
 
   mount(targetElement) {
@@ -54,9 +71,10 @@ export class AppShell {
     const bar = document.createElement("header");
     bar.className = "vno-topbar";
 
-    bar.innerHTML = `
-      <div class="vno-topbar-left">
-        <!-- Brand & App Switcher Dropdown -->
+    const appIdentity = this.singleAppMode ? `
+        <div class="vno-app-brand" aria-label="${this.appTitle}" style="display:flex;align-items:center;gap:8px;padding:0 8px;">
+          ${ICONS.brandLogo}<span>${this.appTitle}</span>
+        </div>` : `
         <div style="position:relative;">
           <button class="vno-app-switcher-btn" id="vno-switcher-toggle"
                   aria-haspopup="true" aria-expanded="false" aria-controls="vno-switcher-menu"
@@ -66,21 +84,19 @@ export class AppShell {
             <span>${this.appTitle}</span>
             <span style="display:flex;margin-left:2px;" aria-hidden="true">${ICONS.chevronDown}</span>
           </button>
-          
           <div id="vno-switcher-menu" role="menu" aria-label="Bộ ứng dụng VN Office"
                style="display:none; position:absolute; top:36px; left:0; background:#ffffff; border:1px solid var(--vno-border-default); border-radius:var(--vno-radius-md); box-shadow:var(--vno-shadow-lg); width:230px; z-index:200; padding:6px 0;">
             <div style="padding:6px 14px; font-size:11px; font-weight:bold; color:var(--vno-text-muted); text-transform:uppercase;" role="presentation">Bộ ứng dụng VN Office</div>
-            <div class="vno-switcher-item" data-switch="writer" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">
-              ${ICONS.appWriter} <span>VN Writer (Soạn thảo)</span>
-            </div>
-            <div class="vno-switcher-item" data-switch="sheet" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">
-              ${ICONS.appSheet} <span>VN Sheet (Bảng tính)</span>
-            </div>
-            <div class="vno-switcher-item" data-switch="slides" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">
-              ${ICONS.appSlides} <span>VN Slides (Trình chiếu)</span>
-            </div>
+            <div class="vno-switcher-item" data-switch="writer" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appWriter} <span>VN Writer (Soạn thảo)</span></div>
+            <div class="vno-switcher-item" data-switch="sheet" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSheet} <span>VN Sheet (Bảng tính)</span></div>
+            <div class="vno-switcher-item" data-switch="slides" role="menuitem" tabindex="0" style="display:flex; align-items:center; gap:10px; padding:8px 14px; cursor:pointer; font-size:13px; font-weight:500;">${ICONS.appSlides} <span>VN Slides (Trình chiếu)</span></div>
           </div>
-        </div>
+        </div>`;
+
+    bar.innerHTML = `
+      <div class="vno-topbar-left">
+        <!-- Brand & App Switcher Dropdown -->
+        ${appIdentity}
 
         <!-- Quick Access Toolbar -->
         <div class="vno-quick-tools" role="toolbar" aria-label="Thanh công cụ truy cập nhanh">
@@ -138,17 +154,19 @@ export class AppShell {
     const switcherItems = Array.from(bar.querySelectorAll(".vno-switcher-item"));
 
     const openSwitcher = () => {
+      if (!switcherMenu || !switcherToggle) return;
       switcherMenu.style.display = "block";
       switcherToggle.setAttribute("aria-expanded", "true");
       if (switcherItems[0]) switcherItems[0].focus();
     };
 
     const closeSwitcher = () => {
+      if (!switcherMenu || !switcherToggle) return;
       switcherMenu.style.display = "none";
       switcherToggle.setAttribute("aria-expanded", "false");
     };
 
-    switcherToggle.addEventListener("click", (e) => {
+    switcherToggle?.addEventListener("click", (e) => {
       e.stopPropagation();
       if (switcherMenu.style.display === "none" || !switcherMenu.style.display) {
         openSwitcher();
@@ -167,7 +185,7 @@ export class AppShell {
       item.addEventListener("click", () => {
         const appType = item.getAttribute("data-switch");
         closeSwitcher();
-        if (this.onSwitchApp) this.onSwitchApp(appType);
+        this.requestAppSwitch(appType);
       });
       item.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -184,7 +202,7 @@ export class AppShell {
         } else if (e.key === "Escape") {
           e.preventDefault();
           closeSwitcher();
-          switcherToggle.focus();
+          switcherToggle?.focus();
         }
       });
     });
@@ -506,7 +524,10 @@ export class AppShell {
     modal.setAttribute("aria-label", t("backstage.home"));
 
     // 1. Render Template Cards dynamically
-    const templateCardsHtml = OFFICE_TEMPLATES.map(t => {
+    const visibleTemplates = this.singleAppMode
+      ? OFFICE_TEMPLATES.filter(template => template.app === "current" || template.app === this.appName)
+      : OFFICE_TEMPLATES;
+    const templateCardsHtml = visibleTemplates.map(t => {
       const badgeHtml = t.badge ? `<span style="font-size:10px;background:var(--vno-bg-subtle);color:var(--vno-text-secondary);padding:2px 6px;border-radius:4px;border:1px solid var(--vno-border-default);font-weight:600;">${t.badge}</span>` : "";
       return `
         <div class="vno-template-card" role="button" tabindex="0" aria-label="${t.title}: ${t.desc}" data-template-id="${t.id}" data-template-app="${t.app}">
@@ -523,7 +544,9 @@ export class AppShell {
     }).join("");
 
     // 2. Render Real Recent Files or Empty State
-    const recentFiles = RecentFilesManager.getRecentFiles();
+    const recentFiles = RecentFilesManager.getRecentFiles().filter(
+      file => !this.singleAppMode || file.app === this.appName
+    );
     let recentSectionHtml = "";
 
     if (recentFiles.length === 0) {
@@ -639,8 +662,8 @@ export class AppShell {
       const activateRecent = () => {
         const app = row.getAttribute("data-recent-app");
         closeModal();
-        if (app !== this.appName && this.onSwitchApp) {
-          this.onSwitchApp(app);
+        if (app !== this.appName) {
+          this.requestAppSwitch(app);
         }
       };
       row.addEventListener("click", activateRecent);
@@ -662,9 +685,7 @@ export class AppShell {
         if (tmplApp === "current" || tmplApp === this.appName) {
           this.applyTemplate(tmplId);
         } else {
-          if (this.onSwitchApp) {
-            this.onSwitchApp(tmplApp, { templateId: tmplId });
-          } else {
+          if (!this.requestAppSwitch(tmplApp, { templateId: tmplId })) {
             showAlertDialog({
               title: "Mẫu tài liệu",
               message: `Mẫu này dành cho ứng dụng VN ${tmplApp.toUpperCase()}. Vui lòng chuyển sang ứng dụng đó để sử dụng.`

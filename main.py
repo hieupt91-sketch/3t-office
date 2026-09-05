@@ -13,6 +13,7 @@ import tempfile
 import threading
 import platform
 from pathlib import Path
+from urllib.parse import urlencode
 
 import webview
 
@@ -20,6 +21,18 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML = os.path.join(ROOT_DIR, "index.html")
 
 APP_DATA_DIR_NAME = "VNOffice"
+VALID_APP_KINDS = ("writer", "sheet", "slides")
+APP_TITLES = {
+    "writer": "VN Writer — Soạn thảo văn bản",
+    "sheet": "VN Sheet — Bảng tính",
+    "slides": "VN Slides — Trình chiếu",
+}
+SUITE_TITLE = "VN Office — Bộ Ứng Dụng Văn Phòng Việt"
+FILE_APP_KINDS = {
+    ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer",
+    ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet",
+    ".pptx": "slides", ".ppt": "slides", ".odp": "slides",
+}
 
 
 def _user_data_dir() -> Path:
@@ -104,8 +117,10 @@ class DocumentEngineError(Exception):
     pass
 
 
-def _profile_uri() -> str:
-    profile_dir = _user_data_dir() / "lo-profile"
+def _profile_uri(app_kind: str | None = None) -> str:
+    """Return the LibreOffice profile dedicated to this desktop app kind."""
+    profile_kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
+    profile_dir = _user_data_dir() / f"lo-profile-{profile_kind}"
     profile_dir.mkdir(parents=True, exist_ok=True)
     return profile_dir.as_uri()
 
@@ -139,7 +154,7 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
         "--nolockcheck",
         "--nologo",
         "--norestore",
-        f"-env:UserInstallation={_profile_uri()}",
+        f"-env:UserInstallation={_profile_uri(app_kind)}",
         "--convert-to",
         convert_to,
         "--outdir",
@@ -196,6 +211,10 @@ def _active_window():
 class VnOfficeApi:
     """Python API phơi ra cho JavaScript giao tiếp (Bridge) — cầu nối thật tới LibreOffice."""
 
+    def __init__(self, app_kind: str | None = None, initial_file: str | None = None):
+        self._app_kind = app_kind
+        self._initial_file = initial_file
+
     def engine_status(self):
         """Cho UI biết document engine thật có sẵn sàng hay không (không giả vờ)."""
         return {"available": SOFFICE_PATH is not None, "path": SOFFICE_PATH or ""}
@@ -203,19 +222,25 @@ class VnOfficeApi:
     def open_document_dialog(self, app_kind="writer"):
         """Mở hộp thoại chọn tệp NATIVE thật của hệ điều hành, chuyển đổi tệp thật sang
         định dạng trung gian mà UI có thể hiển thị."""
-        window = _active_window()
-        if not window:
-            return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
+        if self._initial_file:
+            if self._app_kind and app_kind != self._app_kind:
+                return {"status": "error", "message": "Tệp khởi động không thuộc ứng dụng hiện tại."}
+            src_path = self._initial_file
+            self._initial_file = None
+        else:
+            window = _active_window()
+            if not window:
+                return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
 
-        file_types = OPEN_FILE_TYPES.get(app_kind, ("Tất cả tệp (*.*)",))
-        try:
-            result = window.create_file_dialog(webview.OPEN_DIALOG, file_types=file_types)
-        except Exception as exc:  # lỗi hệ thống khi mở hộp thoại
-            return {"status": "error", "message": f"Không mở được hộp thoại: {exc}"}
+            file_types = OPEN_FILE_TYPES.get(app_kind, ("Tất cả tệp (*.*)",))
+            try:
+                result = window.create_file_dialog(webview.OPEN_DIALOG, file_types=file_types)
+            except Exception as exc:  # lỗi hệ thống khi mở hộp thoại
+                return {"status": "error", "message": f"Không mở được hộp thoại: {exc}"}
 
-        if not result:
-            return {"status": "cancelled"}
-        src_path = result[0]
+            if not result:
+                return {"status": "cancelled"}
+            src_path = result[0]
 
         if app_kind == "writer":
             target_ext = "html"
@@ -292,12 +317,51 @@ class VnOfficeApi:
         )
 
 
-def main():
-    api = VnOfficeApi()
+def parse_launch_args(argv: list[str]) -> tuple[str | None, str | None]:
+    """Parse the app shortcut or Explorer file-association launch arguments."""
+    app_kind = None
+    file_path = None
+    for arg in argv:
+        if arg.startswith("--app="):
+            candidate = arg.split("=", 1)[1].lower()
+            if candidate not in VALID_APP_KINDS:
+                raise ValueError(f"Ứng dụng không hợp lệ: {candidate}")
+            app_kind = candidate
+        elif not arg.startswith("-") and file_path is None:
+            file_path = str(Path(arg).expanduser().resolve())
+
+    if file_path:
+        inferred_app = FILE_APP_KINDS.get(Path(file_path).suffix.lower())
+        if not inferred_app:
+            raise ValueError(f"Định dạng tệp chưa được hỗ trợ: {Path(file_path).suffix or '(không có)'}")
+        if app_kind and app_kind != inferred_app:
+            raise ValueError("Tham số --app không khớp với định dạng tệp.")
+        app_kind = inferred_app
+
+    return app_kind, file_path
+
+
+def build_launch_url(app_kind: str | None, initial_file: str | None) -> str:
+    if not app_kind:
+        return "http://localhost:8080"
+    query = {"app": app_kind, "singleApp": "1"}
+    if initial_file:
+        query["openFile"] = "1"
+    return f"http://localhost:8080/?{urlencode(query)}"
+
+
+def main(argv: list[str] | None = None):
+    try:
+        app_kind, initial_file = parse_launch_args(list(sys.argv[1:] if argv is None else argv))
+    except ValueError as exc:
+        print(f"[VN Office] {exc}", file=sys.stderr)
+        return 2
+
+    api = VnOfficeApi(app_kind=app_kind, initial_file=initial_file)
 
     window = webview.create_window(
-        title="VN Office — Bộ Ứng Dụng Văn Phòng Việt",
-        url="http://localhost:8080",
+        title=APP_TITLES.get(app_kind, SUITE_TITLE),
+        url=build_launch_url(app_kind, initial_file),
         width=1366,
         height=820,
         min_size=(960, 640),
