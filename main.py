@@ -8,6 +8,7 @@ cho các thao tác Mở/Lưu/Xuất PDF — cross-platform: Windows, Linux, macO
 import os
 import sys
 import base64
+import csv
 import html
 import re
 import shutil
@@ -121,6 +122,59 @@ class DocumentEngineError(Exception):
     pass
 
 
+_CSV_DELIMITER_CODES = {",": 44, ";": 59, "\t": 9}
+_CSV_UTF8_CODE = 76
+_CSV_CP1258_CODE = 40
+_CSV_SAMPLE_BYTES = 64 * 1024
+
+
+def _detect_csv_import_options(src_path: str) -> tuple[str, str]:
+    """Detect delimiter/encoding and return (encoding name, LO FilterOptions).
+
+    UTF-8 is validated strictly (with or without BOM). Files that are not valid
+    UTF-8 use Windows-1258, the ANSI code page used by Vietnamese Windows/Excel.
+    """
+    try:
+        sample_bytes = Path(src_path).read_bytes()[:_CSV_SAMPLE_BYTES]
+    except OSError as exc:
+        raise DocumentEngineError(f"Không đọc được tệp CSV: {exc}") from exc
+
+    if sample_bytes.startswith(b"\xef\xbb\xbf"):
+        encoding = "utf-8-sig"
+        charset_code = _CSV_UTF8_CODE
+    else:
+        try:
+            sample_bytes.decode("utf-8", errors="strict")
+            encoding = "utf-8"
+            charset_code = _CSV_UTF8_CODE
+        except UnicodeDecodeError:
+            encoding = "cp1258"
+            charset_code = _CSV_CP1258_CODE
+
+    try:
+        sample_text = sample_bytes.decode(encoding, errors="strict")
+    except UnicodeDecodeError as exc:
+        raise DocumentEngineError(
+            "Tệp CSV không phải UTF-8 hợp lệ và cũng không giải mã được bằng Windows-1258."
+        ) from exc
+
+    delimiter = ","
+    nonempty_lines = [line for line in sample_text.splitlines() if line.strip()][:20]
+    if nonempty_lines:
+        try:
+            delimiter = csv.Sniffer().sniff("\n".join(nonempty_lines), delimiters=",;\t").delimiter
+        except csv.Error:
+            # A one-column or malformed sample has no reliable separator signal.
+            delimiter = ","
+
+    # LibreOffice CSV import tokens: field separator, text delimiter, charset,
+    # first row, column formats, language (vi-VN), quoted-as-text, detect numbers.
+    filter_options = (
+        f"{_CSV_DELIMITER_CODES[delimiter]},34,{charset_code},1,,1066,false,true"
+    )
+    return encoding, filter_options
+
+
 def _profile_uri(app_kind: str | None = None) -> str:
     """Return the LibreOffice profile dedicated to this desktop app kind."""
     profile_kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
@@ -159,12 +213,21 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
         "--nologo",
         "--norestore",
         f"-env:UserInstallation={_profile_uri(app_kind)}",
+    ]
+
+    if Path(src_path).suffix.lower() == ".csv":
+        _, csv_filter_options = _detect_csv_import_options(src_path)
+        cmd.extend([
+            f"--infilter=Text - txt - csv (StarCalc):{csv_filter_options}",
+        ])
+
+    cmd.extend([
         "--convert-to",
         convert_to,
         "--outdir",
         out_dir,
         src_path,
-    ]
+    ])
 
     # LibreOffice chỉ cho phép một tiến trình dùng chung một profile tại một thời điểm.
     with _convert_lock:

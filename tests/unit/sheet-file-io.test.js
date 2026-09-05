@@ -123,6 +123,21 @@ export async function runSheetFileIoTests() {
     }
   });
 
+  test("SheetAdapter: parseCsv tự nhận dấu chấm phẩy/tab và bỏ UTF-8 BOM", () => {
+    const adapter = new SheetAdapter(null);
+    const semicolon = adapter.parseCsv("\uFEFFMã;Tên hàng;Thành tiền\r\nSP01;Cà phê;1.234,56");
+    const tab = adapter.parseCsv("Mã\tTên hàng\tSố lượng\nSP02\tBánh mì\t12");
+    if (semicolon[0].join("|") !== "Mã|Tên hàng|Thành tiền") {
+      throw new Error(`CSV dấu chấm phẩy/BOM parse sai: ${JSON.stringify(semicolon)}`);
+    }
+    if (semicolon[1][2] !== "1.234,56") {
+      throw new Error(`Số vi-VN bị tách sai: ${JSON.stringify(semicolon[1])}`);
+    }
+    if (tab[1].join("|") !== "SP02|Bánh mì|12") {
+      throw new Error(`TSV parse sai: ${JSON.stringify(tab)}`);
+    }
+  });
+
   test("SheetAdapter: loadFromCsv nạp chính xác các ô vào gridController", () => {
     const grid = new MockGridController();
     const adapter = new SheetAdapter(grid);
@@ -141,6 +156,15 @@ export async function runSheetFileIoTests() {
     }
     if (grid.selectedCell !== "A1") {
       throw new Error(`Chưa select lại A1 sau khi nạp: ${grid.selectedCell}`);
+    }
+  });
+
+  test("SheetAdapter: loadFromCsv chuyển số vi-VN thành number", () => {
+    const grid = new MockGridController();
+    const adapter = new SheetAdapter(grid);
+    adapter.loadFromCsv("Mã;Thành tiền\nSP01;1.234,56");
+    if (grid.cellsData.get("B2")?.val !== 1234.56) {
+      throw new Error(`Số vi-VN chưa thành number: ${grid.cellsData.get("B2")?.val}`);
     }
   });
 
