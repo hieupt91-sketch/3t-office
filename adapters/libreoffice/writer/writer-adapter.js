@@ -10,7 +10,7 @@ import { parseCsv, replaceMergeFields, showMailMergeDataSourceDialog, showInsert
 import { STYLE_PRESETS, showStyleGalleryDropdown, closeStyleGalleryDropdown, createStyleGalleryStrip } from "../../../apps/writer/style-gallery.js";
 import { showWatermarkDialog, showPageBorderDialog, showPageColorDialog } from "../../../apps/writer/page-decorations.js";
 import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
-import { showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
+import { SHAPE_TYPES, showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
 import { showSymbolPicker } from "../../../platform/ui-kit/symbol-picker.js";
 import { formatDateTime, showDateTimeDialog } from "../../../platform/ui-kit/datetime-picker.js";
@@ -275,9 +275,9 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.page.columns1", () => this.setColumns({ count: 1, gap: 0, rule: false }));
     globalCommandBus.bindHandler("writer.page.columns2", () => this.setColumns({ count: 2, gap: 10, rule: false }));
     globalCommandBus.bindHandler("writer.page.columns3", () => this.setColumns({ count: 3, gap: 10, rule: false }));
-    globalCommandBus.bindHandler("writer.shape.insert", (args) => this.insertShape(args));
-    globalCommandBus.bindHandler("writer.diagram.insert", (args) => this.insertDiagram(args));
-    globalCommandBus.bindHandler("writer.chart.insert", (args) => this.insertChart(args));
+    globalCommandBus.bindHandler("writer.shape.insert", (args) => this.insertShapeFromCommand(args));
+    globalCommandBus.bindHandler("writer.diagram.insert", (args) => this.insertDiagramFromCommand(args));
+    globalCommandBus.bindHandler("writer.chart.insert", (args) => this.insertChartFromCommand(args));
     globalCommandBus.bindHandler("writer.design.themeGallery", (args) => this.openThemeGalleryDialog(args));
     globalCommandBus.bindHandler("writer.insert.textbox", (args) => this.insertTextBox(args));
     globalCommandBus.bindHandler("writer.insert.wordart", (args) => this.insertWordArt(args));
@@ -2143,13 +2143,13 @@ export class WriterAdapter {
         return this.setColumns({ count: 3, gap: 10, rule: false });
 
       case "writer.shape.insert":
-        return await this.insertShape(args);
+        return await this.insertShapeFromCommand(args);
 
       case "writer.diagram.insert":
-        return await this.insertDiagram(args);
+        return await this.insertDiagramFromCommand(args);
 
       case "writer.chart.insert":
-        return await this.insertChart(args);
+        return await this.insertChartFromCommand(args);
 
       case "writer.insert.textbox":
         return this.insertTextBox(args);
@@ -2981,14 +2981,56 @@ export class WriterAdapter {
 
   // --- HÌNH KHỐI (SHAPES) ---
 
+  /**
+   * Ribbon/command path: mở hộp chọn nếu chưa có type tường minh.
+   * insertShape/insertDiagram/insertChart vẫn là API chèn trực tiếp.
+   */
+  _hasExplicitIllustrationChoice(args, keys) {
+    if (!args || typeof args !== "object") return false;
+    return keys.some((key) => {
+      const value = args[key];
+      if (value == null || value === "") return false;
+      if (Array.isArray(value)) return value.length > 0;
+      return true;
+    });
+  }
+
+  async insertShapeFromCommand(args = null) {
+    if (this._hasExplicitIllustrationChoice(args, ["type", "shapeType"])) {
+      return this.insertShape(args);
+    }
+    const picked = await showShapeDialog(args);
+    if (!picked) return null;
+    return this.insertShape(picked);
+  }
+
+  async insertDiagramFromCommand(args = null) {
+    if (this._hasExplicitIllustrationChoice(args, ["type", "diagramType"])) {
+      return this.insertDiagram(args);
+    }
+    const picked = await showDiagramDialog(args);
+    if (!picked) return null;
+    return this.insertDiagram(picked);
+  }
+
+  async insertChartFromCommand(args = null) {
+    if (this._hasExplicitIllustrationChoice(args, ["type", "chartType", "labels", "data", "categories", "values"])) {
+      return this.insertChart(args);
+    }
+    const picked = await showChartDialog(args);
+    if (!picked) return null;
+    return this.insertChart(picked);
+  }
+
   insertShape(options = null) {
     options = options || {};
     this.flushTyping();
     this._initZones();
 
     const shapeType = options.shapeType || options.type || "rectangle";
-    const width = typeof options.width === "number" ? options.width : (typeof options.w === "number" ? options.w : 140);
-    const height = typeof options.height === "number" ? options.height : (typeof options.h === "number" ? options.h : 80);
+    const shapeDef = SHAPE_TYPES.find((item) => item.id === shapeType);
+    const width = typeof options.width === "number" ? options.width : (typeof options.w === "number" ? options.w : (shapeDef?.defaultW || 140));
+    const height = typeof options.height === "number" ? options.height : (typeof options.h === "number" ? options.h : (shapeDef?.defaultH || 80));
     const fill = options.fill || (shapeType === "line" ? "none" : shapeType === "circle" ? "#0ea5e9" : shapeType === "arrow" ? "#f59e0b" : "#2563eb");
     const stroke = options.stroke || (shapeType === "line" ? "#0f172a" : shapeType === "circle" ? "#0284c7" : shapeType === "arrow" ? "#d97706" : "#1d4ed8");
     const strokeWidth = options.strokeWidth || (shapeType === "line" ? 3 : 2);

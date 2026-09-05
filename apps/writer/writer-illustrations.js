@@ -88,8 +88,16 @@ function trapFocus(dialogBox, event) {
  * @param {Object} [currentOptions]
  * @returns {Promise<{type:string, w:number, h:number}|null>}
  */
+function canHostIllustrationDialog() {
+  if (typeof document === "undefined" || !document.body || typeof document.createElement !== "function") {
+    return false;
+  }
+  const probe = document.createElement("div");
+  return typeof probe.querySelector === "function" && typeof probe.querySelectorAll === "function";
+}
+
 export async function showShapeDialog(currentOptions = null) {
-  if (typeof document === "undefined" || !document.body) return null;
+  if (!canHostIllustrationDialog()) return null;
 
   return new Promise((resolve) => {
     const previousFocused = document.activeElement;
@@ -211,13 +219,14 @@ export function generateDiagramHtml(options = {}) {
   const type = options.diagramType || options.type || "process";
   const colors = ["#2563eb", "#0f6d38", "#d97706", "#dc2626", "#7c3aed", "#0891b2"];
 
-  const defaultNodes = isEn
-    ? ["Step 1", "Step 2", "Step 3", "Step 4"]
-    : ["Bước 1", "Bước 2", "Bước 3", "Bước 4"];
+  const count = Math.min(6, Math.max(3, Number(options.count) || 4));
+  const defaultNodes = Array.from({ length: count }, (_, index) => (
+    isEn ? `Step ${index + 1}` : `Bước ${index + 1}`
+  ));
   const rawNodes = options.nodes || options.items;
   const nodes = Array.isArray(rawNodes) && rawNodes.length > 0
     ? rawNodes
-    : defaultNodes.slice(0, Math.min(6, Math.max(3, Number(options.count) || 4)));
+    : defaultNodes;
   const num = nodes.length;
 
   let inner = "";
@@ -322,7 +331,7 @@ export function generateDiagramHtml(options = {}) {
  * @returns {Promise<{type:string, count:number}|null>}
  */
 export async function showDiagramDialog(currentOptions = null) {
-  if (typeof document === "undefined" || !document.body) return null;
+  if (!canHostIllustrationDialog()) return null;
 
   return new Promise((resolve) => {
     const previousFocused = document.activeElement;
@@ -555,7 +564,7 @@ export function generateChartHtml(options) {
  * @returns {Promise<{type:string, title:string, labels:string[], data:number[]}|null>}
  */
 export async function showChartDialog(currentOptions = null) {
-  if (typeof document === "undefined" || !document.body) return null;
+  if (!canHostIllustrationDialog()) return null;
 
   return new Promise((resolve) => {
     const previousFocused = document.activeElement;
