@@ -17,6 +17,8 @@ Comments import: `sample-writer-comments.docx` from `src/sample-writer-comments.
 
 Header/Footer import: `sample-writer-headerfooter.docx` from `src/sample-writer-headerfooter.fodt` (ODF `<style:header>` / `<style:footer>` on the master page, company name + `text:page-number` / `text:page-count`). LibreOffice writes native `word/header1.xml` + `word/footer1.xml` referenced from `w:sectPr` — **not** inside `word/document.xml`. Not produced by VN Office.
 
+Footnotes/Endnotes import: `sample-writer-footnotes.docx` from `src/sample-writer-footnotes.fodt` (ODF `<text:note text:note-class="footnote|endnote">` with `<text:note-citation>` + `<text:note-body>`). LibreOffice writes native `word/footnotes.xml` + `word/endnotes.xml` referenced from `w:footnoteReference` / `w:endnoteReference` in `word/document.xml` — note bodies are **not** inside `word/document.xml`. Not produced by VN Office.
+
 Pivot Table import: `sample-sheet-pivot.xlsx` from `src/sample-sheet-pivot.fods` (hand-written ODF `<table:database-range>` + `<table:data-pilot-tables>` / `<table:data-pilot-table>` / `<table:data-pilot-field>`). LibreOffice writes native `xl/pivotCache/*` and `xl/pivotTables/pivotTable1.xml`. Not produced by VN Office.
 
 Slides comments import: `src/sample-slides-comments.fodp` is handwritten Flat ODF with page-level `<office:annotation>` on `<draw:page>` (not VN `serializeToFodp()`). Live test converts it with soffice to PPTX (`ppt/commentAuthors.xml` + `ppt/comments/comment1.xml`) then back to FODP. LibreOffice rewrites the element to `<officeooo:annotation>` after the hop.
