@@ -145,6 +145,10 @@ export const enStrings = {
     ,"sheet.cell.alignCenter": { label: "Center", tooltip: "Center cell contents" }
     ,"sheet.cell.alignRight": { label: "Align Right", tooltip: "Align cell contents to the right" }
     ,"sheet.cell.merge": { label: "Merge & Center", tooltip: "Merge the selected cells and center the contents" }
+    ,"sheet.cell.mergeCenter": { label: "Merge & Center", tooltip: "Merge the selected cells and center the contents" }
+    ,"sheet.cell.mergeAcross": { label: "Merge Across", tooltip: "Merge each row in the selection separately" }
+    ,"sheet.cell.mergeCells": { label: "Merge Cells", tooltip: "Merge the selection and keep its current alignment" }
+    ,"sheet.cell.unmerge": { label: "Unmerge Cells", tooltip: "Split merged cells" }
     ,"sheet.cell.borders": { label: "Borders", tooltip: "Apply borders to the selected cells" }
     ,"sheet.cell.fillColor": { label: "Fill Color", tooltip: "Change the background color of selected cells" }
     ,"sheet.cell.textColor": { label: "Font Color", tooltip: "Change the text color in selected cells" }

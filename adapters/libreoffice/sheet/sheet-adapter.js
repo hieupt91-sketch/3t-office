@@ -55,6 +55,10 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.cell.wrapText", () => this.grid.toggleWrapText());
     globalCommandBus.bindHandler("sheet.cell.indentIncrease", () => this.grid.adjustIndent(1));
     globalCommandBus.bindHandler("sheet.cell.indentDecrease", () => this.grid.adjustIndent(-1));
+    globalCommandBus.bindHandler("sheet.cell.mergeCenter", () => this.grid.mergeCells("mergeCenter"));
+    globalCommandBus.bindHandler("sheet.cell.mergeAcross", () => this.grid.mergeCells("mergeAcross"));
+    globalCommandBus.bindHandler("sheet.cell.mergeCells", () => this.grid.mergeCells("mergeCells"));
+    globalCommandBus.bindHandler("sheet.cell.unmerge", () => this.grid.unmergeCells());
     globalCommandBus.bindHandler("sheet.format.quickCategory", (value) => this.grid.applyQuickNumberCategory(value));
     globalCommandBus.bindHandler("sheet.format.increaseDecimal", () => this.grid.adjustDecimalPlaces(1));
     globalCommandBus.bindHandler("sheet.format.decreaseDecimal", () => this.grid.adjustDecimalPlaces(-1));
@@ -1599,7 +1603,14 @@ export class SheetAdapter {
         return this.grid.adjustIndent(-1);
 
       case "sheet.cell.merge":
-        return this.grid.toggleStyle("backgroundColor", "#e2e8f0", "transparent");
+      case "sheet.cell.mergeCenter":
+        return this.grid.mergeCells("mergeCenter");
+      case "sheet.cell.mergeAcross":
+        return this.grid.mergeCells("mergeAcross");
+      case "sheet.cell.mergeCells":
+        return this.grid.mergeCells("mergeCells");
+      case "sheet.cell.unmerge":
+        return this.grid.unmergeCells();
 
       case "sheet.cell.borders":
         return this.grid.setStyle("border", "2px solid #0f172a");

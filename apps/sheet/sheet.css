@@ -224,6 +224,7 @@
 }
 
 .vno-grid-cell.is-range-selected { background-image: linear-gradient(rgba(15, 109, 56, 0.08), rgba(15, 109, 56, 0.08)); }
+.vno-grid-cell.is-merged-cell { position: relative; background-color: var(--vno-surface, #fff); border: 1px solid var(--vno-border, #d1d5db); }
 
 .vno-grid-cell.has-comment::after { content:""; position:absolute; top:0; right:0; border-top:8px solid #dc2626; border-left:8px solid transparent; z-index:7; }
 .vno-cell-comment-popup { display:none; position:fixed; transform:translate(12px, 18px); z-index:80; min-width:180px; max-width:320px; padding:8px 10px; white-space:normal; color:#1e293b; background:#fffbea; border:1px solid #d6b656; border-radius:4px; box-shadow:0 4px 12px rgba(15,23,42,.2); font-size:12px; pointer-events:none; }
