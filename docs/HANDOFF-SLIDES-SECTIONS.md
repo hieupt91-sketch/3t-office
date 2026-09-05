@@ -1,66 +1,90 @@
 # Agent Handoff
 
-TASK: VN Slides — PowerPoint-style Sections (group consecutive slides under a named heading)
-AGENT/ROLE: Codex (Slides canvas/adapter implementation); finished/verified by Claude after Codex's session hit its usage limit mid-task (real, tested work was left both committed and uncommitted, both preserved and completed — same "finish dropped agent work" pattern used elsewhere this session)
+TASK: VN Slides — PowerPoint-style Sections (nhóm trang chiếu liên tiếp)
+AGENT/ROLE: Grok / Slides implementation and verification
 BRANCH: `feature/slides-sections`
-WORKTREE: `E:\VNOffice-codex-slides-sections`
-OBJECTIVE: Add PowerPoint's Sections feature — group consecutive slides under a named heading in Slide Sorter, with add/rename/remove and drag-to-reassign — confirmed missing entirely before starting (`grep section apps/slides/slides-canvas.js` found nothing).
+WORKTREE: `E:\VNOffice-grok-slides-sections`
+BASE: `main` @ `94119c8` (Consolidate merged, 1081/1081 PASS)
+OBJECTIVE: Thêm Sections kiểu PowerPoint — nhóm slide liên tiếp thành phần có tên, lệnh ribbon Home > Trang chiếu, thanh tiêu đề + thu gọn/mở rộng trên dải thumbnail và Slide Sorter, move cả nhóm, Undo/Redo. Không merge vào main.
+
+## FINDINGS (đọc trước khi thiết kế — bắt buộc)
+
+### Xác nhận: đây KHÔNG phải vấn đề vị trí/discoverability
+
+`docs/PLAN-RIBBON-GAPS-ROUND3.md` ghi chú Low: “Sections were built in an earlier task per project history but may not be exposed at this specific location” — **phỏng đoán sai**.
+
+Đã grep lại `platform/commands/command-definitions.js` trên `main` trước khi code:
+
+- **Không có** lệnh `slides.section.*` nào.
+- Chỉ có `writer.section.nextPage` / `continuous` / `evenPage` / `oddPage` — đó là ngắt mục trang của Writer, không liên quan.
+
+Vậy từ góc command/ribbon/Help, **Sections của Slides hoàn toàn chưa có**, không phải “đã có nhưng đặt nhầm chỗ”.
+
+### Cấu trúc render panel hiện có (đọc trước khi thêm nhóm)
+
+- Model: `SlidesCanvasController.slides[]` — mỗi phần tử là một trang (title/body/layout/shapes/…).
+- Dải thumbnail trái: `mount()` tạo `.vno-slide-navigator` + `slideListContainer`; `_renderThumbnails()` lặp `slides.forEach` và append `.vno-slide-thumb-item` (số thứ tự + thẻ xem trước). Kéo-thả gọi `moveSlide`. **Không có thanh nhóm.**
+- Slide Sorter: overlay `.vno-slide-sorter-overlay` / grid `.vno-slide-sorter-grid`; `_renderSlideSorterGrid()` append `.vno-slide-sorter-item`.
+- Undo: `undoStack` / `redoStack` trên canvas, `common.edit.undo`/`redo`.
+
+Trên canvas còn **mảnh** từ task Codex trước (`this.sections = [{id, name}]` + `slide.sectionId`, `addSection`/`renameSection`/`removeSection`, divider Sorter, menu chuột phải). **Không** có: lệnh `slides.section.*`, ribbon Home, collapse/expand, move cả nhóm, header thumbnail, Undo cho add/rename/remove. Không rewrite model — reuse catalogue + `sectionId` (tương đương `{id, name, startSlideIndex}`) rồi bổ sung đủ phạm vi task.
 
 ## IMPLEMENTATION SUMMARY
 
-- `SlidesCanvasController.sections` — presentation-level catalogue `[{ id, name }]`; slides reference an entry via `slide.sectionId`.
-- `addSection(slideIndex, name)` — creates a section starting at the chosen slide, absorbing all following slides up to (not including) the next slide that already has its own section boundary.
-- `renameSection(sectionId, name)` / `removeSection(sectionId)` — remove keeps the slides, only drops the catalogue entry and clears `sectionId` on member slides (matches PowerPoint's "Remove Section" — never deletes slides).
-- Slide Sorter grid (`_renderSlideSorterGrid`) renders a `.vno-slide-section-divider` heading (`role="heading"`) immediately before the first slide of each section.
-- Right-click on a Slide Sorter item opens a small context menu (`_openSlideSectionMenu`) with Add/Rename/Remove Section, using the existing `showPromptDialog()` for name entry (no new dialog primitive).
-- Drag-and-drop between sections (`moveSlide(from, to, recordUndo, targetSectionId)`) reassigns `sectionId` to the drop target's section; Undo/Redo carry `oldSectionId`/`newSectionId` through the existing `move` action type so a moved slide's section membership reverts/reapplies symmetrically with its position.
-- F5 full-screen slideshow shows a small "current section" badge (top-left) when the active slide belongs to a section.
-
-## FODP PERSISTENCE — MEASURED, NOT ASSUMED
-
-Real PowerPoint Sections are stored as `p:sectionLst` in `ppt/presentation.xml` — a presentation-level list, structurally unrelated to individual slide XML, with no ODF equivalent. Given that, this stores section membership as custom `vno:section-id`/`vno:section-name` attributes directly on each `<draw:page>` in `serializeToFodp()`/`parseFodp()`, the same pattern already accepted for Morph transitions elsewhere in this codebase.
-
-Measured directly with a real `soffice` probe (hand-written FODP fixture, 3 slides, 2 sections) before writing this section, not assumed from the Morph precedent alone:
-
-| Hop | Result |
-| --- | --- |
-| Native FODP (this adapter's own output) | Has `vno:section-id`/`vno:section-name` |
-| FODP → PPTX via real soffice | `ppt/presentation.xml` has **no** `p:sectionLst` and **no** `vno:section*` trace anywhere |
-| PPTX → FODP via real soffice | `vno:section-id`/`vno:section-name` **absent** |
-| FODP → FODP via real soffice (no format change at all) | `vno:section-id`/`vno:section-name` **absent** — LibreOffice strips the unrecognized `vno:` attributes on its own re-serialization pass, independent of any PPTX hop |
-
-Internal (no-soffice) round-trip works correctly: `tests/unit/slides-sorter-view.test.js`'s new test calls this adapter's own `serializeToFodp()` then `parseFodp()` directly and confirms the section catalogue, names, and per-slide `sectionId` all survive — this is the path VN Office's own session Save/Open uses without invoking a LibreOffice re-serialize of the whole document.
-
-**Honest limitation**: any Save that funnels through an actual LibreOffice conversion pass (Save As PPTX/ODP, or any process that re-emits FODP via soffice rather than this adapter's own serializer) will silently drop section membership on the next Open — sections are a VN-Office-session-only construct once real LibreOffice touches the file, exactly like the already-disclosed Morph transition limitation. Not fixable without either a native `p:sectionLst` writer (a much larger, format-specific task) or persisting section membership completely outside the FODP file (a design change out of this task's scope).
+- Model tương đương: `presentation.sections[] = [{id, name, startSlideIndex}]` + `slide.sectionId`. Mỗi phần là biên bắt đầu; phần kế (hoặc hết slide) là biên kết thúc. `startSlideIndex` được refresh sau mọi thay đổi.
+- `slides.section.add` — Home > Trang chiếu > dropdown **Phần**, cạnh Trang mới / Bố cục / Nhân đôi / Xóa trang. Dialog tên mặc định `Phần 1`, `Phần 2`, … (EN: `Section N`). Phần bắt đầu từ slide đang chọn, chạy tới biên phần kế.
+- `slides.section.rename` / `remove` (bỏ nhóm, **không** xóa slide) / `moveUp` / `moveDown` (đổi chỗ cả khối, giữ thứ tự trong nhóm).
+- Thumbnail trái và Slide Sorter: thanh tiêu đề (tên + số trang) trước nhóm; nút ▾/▸ thu gọn/mở rộng — thu gọn ẩn thumbnail trong nhóm, giữ thanh tiêu đề.
+- Undo/Redo: action `section-state` trên stack hiện có (không stack riêng). Collapse chỉ là trạng thái xem.
+- Help mới `slides.section.groups` (tiếng Việt, khớp UI).
+- FODP: giữ `vno:section-id` / `vno:section-name` trên `<draw:page>` như mảnh trước (round-trip adapter; soffice vẫn có thể strip — hạn chế đã đo ở task trước).
 
 ## FILES CHANGED
 
-- `apps/slides/slides-canvas.js`
-- `adapters/libreoffice/slides/slides-adapter.js`
-- `tests/unit/slides-sorter-view.test.js`
+- `apps/slides/slides-canvas.js` — helper range/start, add/rename/remove/move, collapse, header thumbnail + sorter, undo `section-state`
+- `apps/slides/slides-ribbon.js` — dropdown Phần trên Home > Trang chiếu
+- `apps/slides/slides.css` — header thumbnail, nút thu gọn, focus-visible
+- `adapters/libreoffice/slides/slides-adapter.js` — bindHandler + handleDispatch 5 lệnh
+- `platform/commands/command-definitions.js` — chỉ thêm `slides.section.*`
+- `platform/i18n/strings-vi.js`, `platform/i18n/strings-en.js`
+- `platform/ui-kit/icons.js` — `slideSection`, `slideSectionUp`, `slideSectionDown`
+- `platform/help/entries-slides.js` — entry mới
+- `tests/unit/slides-sections.test.js` (mới)
+- `tests/unit/slides-sorter-view.test.js`, `tests/unit/slides-help.test.js`, `tests/unit/a11y-audit-new-features.test.js`
 - `tests/live/slides-sections.playwright.mjs`
+- `tests/run-tests.js`
+- `docs/HANDOFF-SLIDES-SECTIONS.md` — tài liệu này
 
-Not touched: Writer, Sheet, any adapter other than Slides.
+Không đụng Writer/Sheet source.
+
+## COMMANDS RUN
+
+- `node --check` các file JS mới/sửa
+- `node tests/run-tests.js` — **1092/1092 PASS, 0 FAIL**, ~70.0s (< 90s)
+- `node tests/live/slides-sections.playwright.mjs` — **PASS** (Edge, không SendKeys)
 
 ## TEST RESULTS
 
-- `node tests/run-tests.js`: **786/786 PASS, 0 FAIL**, well under 60s.
-- `node tests/live/slides-sections.playwright.mjs`: **PASS** — real browser session: right-click → Add Section (twice), section divider headings render with the correct names and order; drag-and-drop a slide into another section's range updates its `sectionId` to match the drop target; right-click → Rename Section updates the rendered heading; right-click → Remove Section clears the catalogue entry while slide count stays unchanged (3 slides, down to 1 section); F5 full-screen shows the correct "current section" badge text for the active slide. Zero browser console errors.
-- Real-soffice FODP/PPTX compatibility probe (see table above): run directly against `soffice.exe`, not simulated.
+- PASS — `node tests/run-tests.js`: **1092/1092 PASS | 0 FAIL** (~70.02s)
+- PASS — unit 6 slide: phần 1 = trang 1–3, phần 2 = trang 4–6; rename; remove giữ slide; moveDown đổi thành 4-5-6 rồi 1-2-3 (thứ tự trong nhóm nguyên); collapse ẩn đúng 3 thumbnail index 0–2, expand hiện lại; Undo/Redo rename/remove/move
+- PASS — live Playwright: ribbon Home > Phần > Thêm phần (2 lần), DOM thumbnail collapse/expand bằng click thật, Sorter collapse/expand, ribbon Chuyển phần xuống đổi thứ tự slide thật. Zero pageerror
 
 ## KNOWN FAILURES
 
-None in this task's scope. (A prior interrupted run of this same task had hit 5 unrelated failures, all traced to a `const t = transition` TDZ-shadowing bug in `apps/slides/slides-canvas.js`'s `renderShow()` predating this feature — that bug has since been fixed directly on `main`, and this branch's own copy of the same line has been corrected identically, confirmed via `node tests/run-tests.js` returning 786/786.)
+None in this task’s scope.
+
+Hạn chế FODP/soffice (không đổi trong task này): LibreOffice re-serialize có thể strip `vno:section-*`. Save/Open nội bộ qua `serializeToFodp`/`parseFodp` vẫn giữ.
 
 ## RISKS
 
-- Sections is a flat, non-nested concept — same as real PowerPoint. No risk of infinite nesting since the model has no parent/child section relationship.
-- `addSection` absorbing "until the next existing boundary" means adding a section in the middle of an existing one splits it correctly, matching PowerPoint's own behavior, but this specific edge case (section-splitting) has only indirect test coverage via the model logic, not a dedicated split-specific assertion — flagged rather than silently assumed fully covered.
+- Sections phẳng, không lồng nhau — giống PowerPoint.
+- `addSection` giữa một phần sẽ tách phần tại slide đang chọn; phần cũ rỗng bị prune.
+- Collapse không vào Undo (cố ý — trạng thái xem).
 
 ## DEPENDENCIES/BLOCKERS
 
-None. No new dependency, no paid library, no LibreOffice Core patch.
+None. Không thư viện trả phí, không Core patch.
 
 ## NEXT ACTION
 
-Ready for review and merge through the normal maintainer workflow. Not merged into `main` by this agent.
+Sẵn sàng review. **Không merge vào `main`.**
