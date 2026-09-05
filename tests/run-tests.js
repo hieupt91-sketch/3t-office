@@ -65,6 +65,7 @@ import { runColorContrastAuditTests } from "./unit/color-contrast-audit.test.js"
 import { runRealOfficeImportFidelityTests } from "./unit/real-office-import-fidelity.test.js";
 import { runVietnameseSpellcheckerTests } from "./unit/vi-spellchecker.test.js";
 import { runSheetSlidesViewTabTests } from "./unit/sheet-slides-view-tab.test.js";
+import { runSlidesSpellcheckViTests } from "./unit/slides-spellcheck-vi.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -137,7 +138,8 @@ async function runAll() {
     { title: "57. Automated Audit — Suite-Wide WCAG 2.1 Color Contrast (AA / AAA)", runner: runColorContrastAuditTests },
     { title: "58. Unit Tests — Real Office File Import Fidelity (DOCX/XLSX/PPTX via soffice HTML/FODS/FODP)", runner: runRealOfficeImportFidelityTests },
     { title: "59. Unit Tests — Vietnamese Writer Spellchecker", runner: runVietnameseSpellcheckerTests },
-    { title: "60. Behavioral & Unit Tests — VN Sheet & VN Slides Real View Tabs", runner: runSheetSlidesViewTabTests }
+    { title: "60. Behavioral & Unit Tests — VN Sheet & VN Slides Real View Tabs", runner: runSheetSlidesViewTabTests },
+    { title: "61. Behavioral & Unit Tests — Vietnamese Slides Spellchecker", runner: runSlidesSpellcheckViTests }
   ];
 
   for (const suite of suites) {
