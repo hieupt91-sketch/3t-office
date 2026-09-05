@@ -72,6 +72,9 @@ export class VietnameseSpellChecker {
   isKnown(word) {
     const normalized = normalizeVietnameseWord(word);
     if (!normalized || normalized.length === 1 || /\d/.test(normalized)) return true;
+    // Unknown capitalized tokens are commonly names, brands or acronyms. Treat them as
+    // uncertain-but-not-actionable to avoid noisy false positives in normal documents.
+    if (/^\p{Lu}[\p{Ll}\p{M}]+$/u.test(word) || /^\p{Lu}{2,}$/u.test(word)) return true;
     return this.words.has(normalized) || this.personalWords.has(normalized) || this.ignoredWords.has(normalized);
   }
 
@@ -109,4 +112,3 @@ export class VietnameseSpellChecker {
       .map(item => item.word);
   }
 }
-

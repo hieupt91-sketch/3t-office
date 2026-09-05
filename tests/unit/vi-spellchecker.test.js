@@ -41,8 +41,8 @@ export async function runVietnameseSpellcheckerTests() {
     test("Từ cá nhân được lưu và lần khởi tạo sau không còn báo", () => {
       const values = new Map();
       const storage = { getItem: key => values.get(key) || null, setItem: (key, value) => values.set(key, value) };
-      new VietnameseSpellChecker(dictionaryLines, { storage }).addToPersonalDictionary("Codexx");
-      assert(new VietnameseSpellChecker(dictionaryLines, { storage }).checkText("Codexx").length === 0, "không khôi phục từ cá nhân");
+      new VietnameseSpellChecker(dictionaryLines, { storage }).addToPersonalDictionary("codexx");
+      assert(new VietnameseSpellChecker(dictionaryLines, { storage }).checkText("codexx").length === 0, "không khôi phục từ cá nhân");
     })
   ];
 }
