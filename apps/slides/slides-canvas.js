@@ -10,6 +10,7 @@ import { VietnameseSpellChecker } from "../../platform/text/vi-spellchecker.js";
 import { SpellcheckDomController } from "../../platform/text/spellcheck-dom-controller.js";
 import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
 import { showSlideTableDialog, showHeaderFooterDialog, showWordArtDialog, resolveWordArtStyle, buildWordArtCss, applyWordArtCss } from "./insert-dialogs.js";
+import { generateSlidesChartSvg, normalizeSlidesChart, showSlidesChartDialog } from "./slides-chart.js";
 import { showPromptDialog } from "../../platform/ui-kit/dialogs.js";
 
 export function trapFocus(dialogBox, event) {
@@ -1153,6 +1154,58 @@ export class SlidesCanvasController {
     return newShape;
   }
 
+  async insertChart(options = null) {
+    const picked = options && (options.chartType || options.labels || options.data)
+      ? normalizeSlidesChart(options)
+      : await showSlidesChartDialog();
+    if (!picked) return false;
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    slide.shapes ||= [];
+    const offset = (slide.shapes.length * 18) % 72;
+    const newShape = {
+      id: `chart-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      type: "chart",
+      x: 150 + offset,
+      y: 105 + offset,
+      w: 660,
+      h: 350,
+      color: "transparent",
+      ...picked,
+      animation: { type: "none", duration: 500, delay: 0 }
+    };
+    slide.shapes.push(newShape);
+    this.undoStack.push({ type: "shape-add", slideIndex: this.currentSlideIndex, shape: this._cloneShapes([newShape])[0] });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this.setSelectedTarget(newShape.id);
+    this._renderShapesLayer();
+    return newShape;
+  }
+
+  updateChart(shapeId, values = {}, recordHistory = true) {
+    const shape = this.slides[this.currentSlideIndex]?.shapes?.find((item) => String(item.id) === String(shapeId));
+    if (!shape || shape.type !== "chart") return false;
+    const before = normalizeSlidesChart(shape);
+    Object.assign(shape, normalizeSlidesChart(values));
+    const after = normalizeSlidesChart(shape);
+    if (recordHistory && JSON.stringify(before) !== JSON.stringify(after)) {
+      this.undoStack.push({ type: "chart-edit", slideIndex: this.currentSlideIndex, shapeId: shape.id, before, after });
+      this.redoStack = [];
+      this._syncUndoRedoState();
+    }
+    this._renderShapesLayer();
+    if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+    return shape;
+  }
+
+  async editChart(shapeId = this.selectedTarget) {
+    const shape = this.slides[this.currentSlideIndex]?.shapes?.find((item) => String(item.id) === String(shapeId));
+    if (!shape || shape.type !== "chart") return false;
+    const picked = await showSlidesChartDialog({ ...shape });
+    return picked ? this.updateChart(shape.id, picked, true) : false;
+  }
+
   _renderHeaderFooter() {
     if (!this.masterFooterEl) return;
     const slide = this.slides[this.currentSlideIndex];
@@ -1365,6 +1418,7 @@ export class SlidesCanvasController {
     if (shape.type === "image" && shape.src) return `<img src="${shape.src}"${morphAttrs} style="${pos}${animStyle}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,.15)" />`;
     if (shape.type === "video" && shape.src) return `<video src="${shape.src}"${morphAttrs} controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,.15)"></video>`;
     if (shape.type === "audio" && shape.src) return `<audio src="${shape.src}"${morphAttrs} controls style="${pos}${animStyle}"></audio>`;
+    if (shape.type === "chart") return `<div class="vno-show-shape vno-show-chart"${morphAttrs} style="${pos}${animStyle}background:#fff;overflow:hidden">${generateSlidesChartSvg(shape)}</div>`;
     if (shape.type === "wordart") {
       const textCss = buildWordArtCss(shape);
       const text = `<span class="vno-wordart-text" data-vno-wordart="true" data-vno-wordart-preset="${this._escapeShapeText(shape.presetId || "")}" style="${textCss}">${this._escapeShapeText(shape.text)}</span>`;
@@ -1434,6 +1488,10 @@ export class SlidesCanvasController {
     if (shape.type === "wordart") {
       const box = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:transparent;display:flex;align-items:center;justify-content:center;overflow:hidden`;
       return `<div class="vno-sorter-shape-node vno-sorter-wordart" style="${box}"><span class="vno-wordart-text" data-vno-wordart="true" style="${buildWordArtCss(shape, { fontScale: 0.22 })}">${this._escapeShapeText(shape.text || "")}</span></div>`;
+    }
+    if (shape.type === "chart") {
+      const box = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:#fff;overflow:hidden`;
+      return `<div class="vno-sorter-shape-node vno-sorter-chart" data-chart-type="${this._escapeShapeText(shape.chartType)}" style="${box}">${generateSlidesChartSvg(shape)}</div>`;
     }
     if (shape.type !== "rect" && shape.type !== "ellipse") return "";
     const style = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:${shape.color || "#3b82f6"};border-radius:${shape.type === "ellipse" ? "50%" : "4px"}`;
@@ -1610,6 +1668,19 @@ export class SlidesCanvasController {
         audio.controls = true;
         audio.style.cssText = "width:100%;height:100%;";
         el.appendChild(audio);
+      } else if (shape.type === "chart") {
+        el.classList.add("is-chart");
+        el.style.backgroundColor = "#ffffff";
+        el.style.opacity = "1";
+        el.style.overflow = "hidden";
+        el.innerHTML = generateSlidesChartSvg(shape);
+        el.tabIndex = 0;
+        el.setAttribute("aria-label", `Biểu đồ: ${shape.title || "Biểu đồ dữ liệu"}. Nhấn Enter để sửa dữ liệu.`);
+        el.addEventListener("dblclick", (event) => { event.stopPropagation(); this.editChart(shape.id); });
+        el.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); this.editChart(shape.id); }
+          else if (event.key === "Delete" || event.key === "Backspace") { event.preventDefault(); event.stopPropagation(); this.deleteSelectedShapes(); }
+        });
       } else if (shape.type === "wordart") {
         el.classList.add("is-wordart");
         el.style.backgroundColor = "transparent";
@@ -3138,6 +3209,11 @@ export class SlidesCanvasController {
       if (!shape) return false;
       shape.text = action.before;
       this.redoStack.push(action); this.selectSlide(action.slideIndex); this._renderShapesLayer(); return true;
+    } else if (action.type === "chart-edit") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      Object.assign(shape, this._cloneShapes([action.before])[0]);
+      this.redoStack.push(action); this.selectSlide(action.slideIndex); this._renderShapesLayer(); return true;
     } else if (action.type === "diagram-node-move") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;
@@ -3344,6 +3420,11 @@ export class SlidesCanvasController {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;
       shape.text = action.after;
+      this.undoStack.push(action); this.selectSlide(action.slideIndex); this._renderShapesLayer(); return true;
+    } else if (action.type === "chart-edit") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      Object.assign(shape, this._cloneShapes([action.after])[0]);
       this.undoStack.push(action); this.selectSlide(action.slideIndex); this._renderShapesLayer(); return true;
     } else if (action.type === "diagram-node-move") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));

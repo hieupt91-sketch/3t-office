@@ -1388,3 +1388,39 @@
 .vno-slides-reading-close-btn:hover {
   background-color: #991b1b;
 }
+
+.vno-slide-shape-item.is-chart {
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.14);
+}
+
+.vno-slide-shape-item.is-chart > svg,
+.vno-show-chart > svg,
+.vno-sorter-chart > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.vno-chart-dialog .vno-dialog-box { width: min(920px, 96vw); }
+.vno-chart-dialog-body { display: flex; flex-direction: column; gap: 12px; }
+.vno-chart-dialog-body > label { display: grid; gap: 5px; font-size: 13px; font-weight: 600; }
+.vno-chart-dialog-body input { box-sizing: border-box; width: 100%; padding: 7px 9px; border: 1px solid var(--vno-border-default, #cbd5e1); border-radius: 5px; }
+.vno-chart-type-grid { display: flex; gap: 8px; }
+.vno-chart-type { min-width: 78px; padding: 8px 12px; border: 1px solid var(--vno-border-default, #cbd5e1); border-radius: 6px; background: var(--vno-surface, #fff); cursor: pointer; }
+.vno-chart-type.is-selected { color: #fff; border-color: #0f6d38; background: #0f6d38; }
+.vno-chart-dialog-columns { display: grid; grid-template-columns: minmax(260px, .85fr) minmax(360px, 1.4fr); gap: 16px; align-items: start; }
+.vno-chart-data-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+.vno-chart-data-table th { text-align: left; font-size: 12px; color: #475569; }
+.vno-chart-data-table td, .vno-chart-data-table th { padding: 4px; }
+.vno-chart-data-table td:last-child { width: 28px; }
+.vno-chart-data-table [data-chart-remove-row] { border: 0; background: transparent; color: #b91c1c; cursor: pointer; font-size: 18px; }
+.vno-chart-preview { height: 315px; border: 1px solid var(--vno-border-default, #cbd5e1); border-radius: 6px; overflow: hidden; background: #fff; }
+.vno-chart-preview svg { width: 100%; height: 100%; }
+.vno-chart-error { min-height: 18px; margin: 6px 0 0; color: #b91c1c; font-size: 12px; }
+
+@media (max-width: 760px) {
+  .vno-chart-dialog-columns { grid-template-columns: 1fr; }
+  .vno-chart-preview { height: 240px; }
+}
