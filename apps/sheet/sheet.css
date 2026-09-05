@@ -618,6 +618,12 @@ tr.is-filtered-out {
   padding: 6px 14px;
   cursor: pointer;
   transition: background 80ms;
+  background: none;
+  border: none;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
 }
 .vno-sheet-context-item:hover {
   background: var(--vno-bg-hover);
@@ -666,6 +672,9 @@ tr.is-filtered-out {
 }
 
 .vno-sheet-tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 4px 14px;
   background-color: var(--vno-bg-muted);
   border-top-left-radius: var(--vno-radius-sm);
@@ -677,6 +686,16 @@ tr.is-filtered-out {
   border-bottom: 2px solid transparent;
   transition: all 0.15s;
 }
+.vno-sheet-tab-item.is-protected::before {
+  content: "";
+  width: 7px;
+  height: 8px;
+  border: 1.4px solid currentColor;
+  border-radius: 1px;
+  box-shadow: 0 -3px 0 -1.6px currentColor;
+  opacity: 0.8;
+  flex: 0 0 auto;
+}
 .vno-sheet-tab-item:hover {
   background-color: var(--vno-bg-hover);
   color: var(--vno-text-primary);
@@ -687,6 +706,19 @@ tr.is-filtered-out {
   font-weight: 700;
   border-bottom-color: var(--vno-sheet-primary);
   box-shadow: var(--vno-shadow-xs);
+}
+
+.vno-dialog-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--vno-text-muted);
+}
+.vno-dialog-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
 }
 
 .vno-sheet-add-btn {

@@ -838,6 +838,26 @@ export const ICONS = {
     <path d="M12 8v8M9.5 12h5" stroke="#16A34A" stroke-width="1.6" stroke-linecap="round"/>
   </svg>`,
 
+  renameSheet: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="6" width="18" height="13" rx="1.5" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.3"/>
+    <path d="M3 10h18" stroke="#BBF7D0"/>
+    <rect x="3" y="6" width="7" height="4" fill="#BBF7D0"/>
+    <path d="M14.2 13.2 18.6 8.8a1.2 1.2 0 0 1 1.7 1.7l-4.4 4.4-2.2.5 0.5-2.2Z" fill="#FEF3C7" stroke="#D97706" stroke-width="1.1" stroke-linejoin="round"/>
+  </svg>`,
+
+  moveCopySheet: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="3" y="5" width="11" height="14" rx="1.4" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.3"/>
+    <path d="M3 9h11M7 5v14" stroke="#86EFAC"/>
+    <rect x="10" y="8" width="11" height="14" rx="1.4" fill="#ECFDF5" stroke="#2563EB" stroke-width="1.3"/>
+    <path d="M10 12h11M14 8v14" stroke="#93C5FD"/>
+  </svg>`,
+
+  protectSheet: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="5" y="11" width="14" height="10" rx="1.6" fill="#FEF3C7" stroke="#D97706" stroke-width="1.3"/>
+    <path d="M8 11V8.2a4 4 0 0 1 8 0V11" stroke="#0F6D38" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="12" cy="16" r="1.5" fill="#0F6D38"/>
+  </svg>`,
+
   cellBorders: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
     <rect x="4" y="4" width="16" height="16" rx="1" fill="#F8FAFC" stroke="#0F172A" stroke-width="2"/>
     <path d="M4 12h16M12 4v16" stroke="#94A3B8" stroke-width="1"/>

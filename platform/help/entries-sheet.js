@@ -88,6 +88,7 @@ export const SHEET_HELP_ENTRIES = [
       "Mở tab Trang đầu, nhóm Ô (bên phải Kiểu ô). Nhấn nút lớn Định dạng để mở menu.",
       "Chiều cao hàng... / Độ rộng cột... hiện hộp thoại nhập số pixel rồi OK. Tự động vừa chiều cao hàng / Tự động vừa độ rộng cột co giãn theo nội dung.",
       "Ẩn hàng / Ẩn cột giấu các hàng hoặc cột đang chọn. Để hiện lại: bôi vùng gồm cả hàng/cột đã ẩn rồi chọn Hiện hàng hoặc Hiện cột trong cùng menu.",
+      "Cuối menu còn Đổi tên trang tính..., Di chuyển hoặc Sao chép trang tính... và Bảo vệ trang tính... — xem các bài hướng dẫn riêng.",
       "Cùng nhóm Ô còn Chèn hàng, Chèn cột, Xóa hàng, Xóa cột — không nằm trong menu Định dạng."
     ]
   },
@@ -224,6 +225,54 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Ghi chú" },
     keywords: ["nhận xét", "ghi chú ô", "trước", "sau", "xử lý", "resolve", "xóa"],
     steps: ["Mở tab Đánh giá, nhóm Ghi chú.", "Nhấn Nhận xét trước hoặc Nhận xét sau; VN Sheet chọn ô có ghi chú và tự chuyển sheet khi cần, rồi quay vòng ở cuối danh sách.", "Nhấn Đã xử lý để đổi dấu góc sang màu xám nhưng vẫn giữ ghi chú; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa ghi chú ở ô đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
+  },
+  {
+    id: "sheet.sheet.rename",
+    app: "sheet",
+    commandIds: ["sheet.sheet.rename"],
+    title: "Đổi tên trang tính",
+    summary: "Đặt tên mới cho trang tính hiện tại. Tên phải duy nhất trong workbook, tối đa 31 ký tự, không chứa / \\ ? * [ ] :. Công thức dạng 'TênSheet'!A1 được cập nhật theo tên mới.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Ô" },
+    keywords: ["đổi tên", "rename sheet", "tên trang tính", "tab sheet", "nhấp đúp"],
+    steps: [
+      "Mở tab Trang đầu, nhóm Ô, nhấn nút lớn Định dạng, chọn Đổi tên trang tính...",
+      "Hoặc nhấp đúp tab trang tính ở thanh dưới lưới, hoặc chuột phải tab rồi chọn Đổi tên trang tính...",
+      "Hộp thoại điền sẵn tên hiện tại. Gõ tên mới rồi Đồng ý. Tên trống, trùng, quá 31 ký tự, hoặc chứa / \\ ? * [ ] : sẽ hiện lỗi ngay trong hộp thoại.",
+      "VN Sheet đổi khóa mọi dữ liệu theo tên mới và sửa công thức tham chiếu 'TênCũ'!A1 thành 'TênMới'!A1, kể cả named range và nguồn Pivot. Chuỗi chữ trong dấu \"...\" không đổi.",
+      "Hoàn tác bằng Ctrl+Z. Thanh tab dưới lưới hiện tên mới ngay."
+    ]
+  },
+  {
+    id: "sheet.sheet.moveOrCopy",
+    app: "sheet",
+    commandIds: ["sheet.sheet.moveOrCopy"],
+    title: "Di chuyển hoặc Sao chép trang tính",
+    summary: "Đổi thứ tự tab trang tính, hoặc tạo bản sao giống hệt (dữ liệu, định dạng, Page Setup, quy tắc) với tên dạng «Tên gốc (2)» rồi chèn vào vị trí đã chọn.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Ô" },
+    keywords: ["di chuyển", "sao chép", "move or copy", "duplicate sheet", "đổi thứ tự tab", "bản sao"],
+    steps: [
+      "Chọn trang tính cần xử lý (bấm tab dưới lưới). Mở tab Trang đầu, nhóm Ô, nhấn Định dạng, chọn Di chuyển hoặc Sao chép trang tính...",
+      "Hoặc chuột phải tab trang tính rồi chọn cùng lệnh. Hộp thoại liệt kê các trang tính hiện có.",
+      "Ở Chèn trước trang tính, chọn trang sẽ đứng sau vị trí mới, hoặc (chuyển đến cuối) để đặt tab ra sau cùng.",
+      "Để nhân bản: đánh dấu Tạo một bản sao rồi Đồng ý. Trang mới tên «Tên gốc (2)» (rồi (3), (4)…) nhận đủ dữ liệu, định dạng, Page Setup, định dạng có điều kiện. Không đánh dấu thì chỉ đổi thứ tự tab.",
+      "Hoàn tác thêm bản sao hoặc đổi thứ tự bằng Ctrl+Z."
+    ]
+  },
+  {
+    id: "sheet.sheet.protect",
+    app: "sheet",
+    commandIds: ["sheet.sheet.protect"],
+    title: "Bảo vệ trang tính (khóa giao diện)",
+    summary: "Khóa sửa nội dung ô, đổi định dạng, chèn/xóa hàng hoặc cột trên trang hiện tại. Có thể đặt mật khẩu tùy chọn lưu dạng chữ thường trong phiên — đây không phải bảo mật thật.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Ô" },
+    keywords: ["bảo vệ", "protect sheet", "khóa sheet", "mật khẩu", "unprotect", "bỏ bảo vệ"],
+    steps: [
+      "Mở tab Trang đầu, nhóm Ô, nhấn Định dạng. Mục cuối là Bảo vệ trang tính... — khi trang đã khóa, cùng mục đổi thành Bỏ bảo vệ trang tính...",
+      "Hoặc chuột phải tab trang tính. Hộp thoại có ô «Bảo vệ trang tính và nội dung các ô bị khóa». Có thể nhập mật khẩu rồi nhập lại để xác nhận (để trống nếu không cần).",
+      "Khi đã bảo vệ: không gõ vào ô, không F2, không xóa nội dung, không đổi định dạng, không chèn/xóa hàng cột. Tab có ký hiệu khóa. Có thể đổi tên, di chuyển tab, sao chép và chọn ô.",
+      "Bỏ bảo vệ: chọn lại cùng mục. Nếu đã đặt mật khẩu, nhập đúng mật khẩu. Sai mật khẩu hiện lỗi trong hộp thoại.",
+      "Đây là khóa giao diện giống Excel/LibreOffice tự làm trên máy, mật khẩu không mã hóa, không chống người cố tình sửa file. Trạng thái khóa không đi vào Undo."
+    ]
   }
 ];
 

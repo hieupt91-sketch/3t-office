@@ -234,6 +234,23 @@ export class SheetAdapter {
       args = args || {};
       return this.grid.unhideColumns ? this.grid.unhideColumns(args.cols) : false;
     });
+    globalCommandBus.bindHandler("sheet.sheet.rename", (args) => {
+      args = args || {};
+      if (args.newName) return this.grid.renameSheet(args.oldName || this.grid.activeSheet, args.newName);
+      return this.grid.showRenameSheetDialog ? this.grid.showRenameSheetDialog(args.sheetName) : false;
+    });
+    globalCommandBus.bindHandler("sheet.sheet.moveOrCopy", (args) => {
+      args = args || {};
+      if (args.copy) return this.grid.copySheet(args.sheetName, args.beforeName);
+      if (args.move || args.beforeName !== undefined) return this.grid.moveSheet(args.sheetName, args.beforeName);
+      return this.grid.showMoveCopySheetDialog ? this.grid.showMoveCopySheetDialog(args.sheetName) : false;
+    });
+    globalCommandBus.bindHandler("sheet.sheet.protect", (args) => {
+      args = args || {};
+      if (args.unprotect) return this.grid.unprotectSheet(args);
+      if (args.protect || args.password !== undefined && args.dialog === false) return this.grid.protectSheet(args);
+      return this.grid.showProtectSheetDialog ? this.grid.showProtectSheetDialog(args.sheetName) : false;
+    });
     globalCommandBus.bindHandler("sheet.style.formatAsTable", () => {
       return this.grid.showFormatAsTableDialog ? this.grid.showFormatAsTableDialog() : false;
     });
@@ -2226,6 +2243,23 @@ export class SheetAdapter {
       case "sheet.col.unhide":
       case ".uno:ShowColumn":
         return this.grid.unhideColumns ? this.grid.unhideColumns(args?.cols) : false;
+
+      case "sheet.sheet.rename":
+      case ".uno:RenameTable":
+        if (args?.newName) return this.grid.renameSheet(args.oldName || this.grid.activeSheet, args.newName);
+        return this.grid.showRenameSheetDialog ? this.grid.showRenameSheetDialog(args?.sheetName) : false;
+
+      case "sheet.sheet.moveOrCopy":
+      case ".uno:Move":
+        if (args?.copy) return this.grid.copySheet(args.sheetName, args.beforeName);
+        if (args?.move || args?.beforeName !== undefined) return this.grid.moveSheet(args.sheetName, args.beforeName);
+        return this.grid.showMoveCopySheetDialog ? this.grid.showMoveCopySheetDialog(args?.sheetName) : false;
+
+      case "sheet.sheet.protect":
+      case ".uno:Protect":
+        if (args?.unprotect) return this.grid.unprotectSheet(args);
+        if (args?.protect) return this.grid.protectSheet(args);
+        return this.grid.showProtectSheetDialog ? this.grid.showProtectSheetDialog(args?.sheetName) : false;
 
       case "sheet.formula.insertFunction":
       case ".uno:InsertFunction":
