@@ -44,6 +44,17 @@ export const COMMON_COMMANDS = [
 ];
 
 export const WRITER_COMMANDS = [
+  { id: "writer.view.printLayout", category: "view", label: "Bố trí in", icon: "writerPrintLayout", tooltip: "Hiển thị ranh giới trang, đầu trang và chân trang", isToggle: true },
+  { id: "writer.view.webLayout", category: "view", label: "Bố trí Web", icon: "writerWebLayout", tooltip: "Hiển thị nội dung liên tục theo chiều rộng cửa sổ", isToggle: true },
+  { id: "writer.view.readMode", category: "view", label: "Chế độ đọc", icon: "writerReadMode", tooltip: "Ẩn ribbon và mở rộng vùng đọc; nhấn Esc để thoát", isToggle: true },
+  { id: "writer.view.ruler", category: "view", label: "Thước", icon: "writerRuler", tooltip: "Ẩn hoặc hiện thước ngang theo thiết lập trang", isToggle: true },
+  { id: "writer.view.gridlines", category: "view", label: "Đường lưới", icon: "gridlines", tooltip: "Ẩn hoặc hiện lưới căn chỉnh không in", isToggle: true },
+  { id: "writer.view.zoomIn", category: "view", label: "Phóng to", icon: "zoomIn", tooltip: "Tăng tỉ lệ hiển thị tài liệu" },
+  { id: "writer.view.zoomOut", category: "view", label: "Thu nhỏ", icon: "zoomOut", tooltip: "Giảm tỉ lệ hiển thị tài liệu" },
+  { id: "writer.view.zoomReset", category: "view", label: "Đặt lại", icon: "zoomReset", tooltip: "Đặt lại tỉ lệ hiển thị 100%" },
+  { id: "writer.view.zoom100", category: "view", label: "100%", icon: "zoomReset", tooltip: "Hiển thị tài liệu ở tỉ lệ 100%" },
+  { id: "writer.view.pageWidth", category: "view", label: "Chiều rộng trang", icon: "writerPageWidth", tooltip: "Thu phóng để trang vừa chiều rộng vùng làm việc" },
+  { id: "writer.view.newWindow", category: "view", label: "Cửa sổ mới", icon: "writerNewWindow", tooltip: "Mở tài liệu trong một cửa sổ trình duyệt mới" },
   { id: "writer.nav.docStart", category: "nav", label: "Đầu tài liệu", shortcut: "Ctrl+Home", icon: "pageBreak", tooltip: "Đến đầu tài liệu (Ctrl+Home)" },
   { id: "writer.nav.docEnd", category: "nav", label: "Cuối tài liệu", shortcut: "Ctrl+End", icon: "pageBreak", tooltip: "Đến cuối tài liệu (Ctrl+End)" },
   // Định dạng ký tự (Font / Character)

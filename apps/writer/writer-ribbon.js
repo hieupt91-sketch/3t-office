@@ -401,6 +401,50 @@ export const WRITER_RIBBON_TABS = [
     ]
   },
   {
+    id: "view",
+    label: "Chế độ xem",
+    labelKey: "writerRibbon.tab.view",
+    groups: [
+      {
+        label: "Dạng xem",
+        labelKey: "writerRibbon.group.views",
+        items: [
+          { type: "button", commandId: "writer.view.readMode", isLarge: true },
+          { type: "button", commandId: "writer.view.printLayout", isLarge: true },
+          { type: "button", commandId: "writer.view.webLayout", isLarge: true }
+        ]
+      },
+      {
+        label: "Hiển thị",
+        labelKey: "writerRibbon.group.show",
+        items: [
+          { type: "button", commandId: "writer.view.ruler", isLarge: true },
+          { type: "button", commandId: "writer.view.gridlines", isLarge: true }
+        ]
+      },
+      {
+        label: "Thu phóng",
+        labelKey: "writerRibbon.group.zoom",
+        items: [
+          { type: "button", commandId: "writer.view.zoomIn", isLarge: true },
+          { type: "column", items: [
+            { type: "button", commandId: "writer.view.zoomOut" },
+            { type: "button", commandId: "writer.view.zoomReset" }
+          ] },
+          { type: "column", items: [
+            { type: "button", commandId: "writer.view.zoom100" },
+            { type: "button", commandId: "writer.view.pageWidth" }
+          ] }
+        ]
+      },
+      {
+        label: "Cửa sổ",
+        labelKey: "writerRibbon.group.window",
+        items: [{ type: "button", commandId: "writer.view.newWindow", isLarge: true }]
+      }
+    ]
+  },
+  {
     id: "ai",
     label: "Trợ lý VN AI",
     labelKey: "writerRibbon.tab.ai",
