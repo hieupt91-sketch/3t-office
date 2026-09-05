@@ -1136,6 +1136,7 @@ export class SlidesAdapter {
    */
   serializeToFodp() {
     const slides = (this.canvas && this.canvas.slides) || [];
+    const sections = (this.canvas && this.canvas.sections) || [];
     let pagesXml = "";
 
     slides.forEach((slide, idx) => {
@@ -1222,8 +1223,12 @@ export class SlidesAdapter {
       const commentsXml = this._serializePageCommentsXml(slide.comments);
 
       const vnTransitionAttr = slide.transition?.type === "morph" ? ' vno:transition="morph"' : "";
+      const section = sections.find(item => item.id === slide.sectionId);
+      const vnSectionAttrs = section
+        ? ` vno:section-id="${this._escapeXml(section.id)}" vno:section-name="${this._escapeXml(section.name)}"`
+        : "";
       pagesXml += `
-      <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="Standard" presentation:layout="${layoutType}" xml:id="${pageXmlId}" draw:id="${pageXmlId}"${vnTransitionAttr}>
+      <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="Standard" presentation:layout="${layoutType}" xml:id="${pageXmlId}" draw:id="${pageXmlId}"${vnTransitionAttr}${vnSectionAttrs}>
         ${framesXml}${shapesXml}${animXml}${notesXml}${commentsXml}
       </draw:page>`;
     });
@@ -1267,6 +1272,7 @@ export class SlidesAdapter {
     const parsedSlides = [];
     const graphicStyles = this._parseGraphicFillStyles(xmlText);
     const drawingPageStyles = this._parseDrawingPageStyles(xmlText);
+    const parsedSections = [];
 
     // Negative lookahead: do not match draw:page-thumbnail / page-number placeholders.
     const pageRegex = /<draw:page(?![-a-zA-Z])([^>]*)>([\s\S]*?)<\/draw:page>/gi;
@@ -1275,6 +1281,11 @@ export class SlidesAdapter {
     while ((pageMatch = pageRegex.exec(xmlText)) !== null) {
       idx++;
       const fullPageTag = pageMatch[1] || "";
+      const sectionId = this._unescapeXml(this._attr(fullPageTag, "vno:section-id"));
+      const sectionName = this._unescapeXml(this._attr(fullPageTag, "vno:section-name"));
+      if (sectionId && !parsedSections.some(section => section.id === sectionId)) {
+        parsedSections.push({ id: sectionId, name: sectionName || "Phần không tên" });
+      }
       const layoutMatch = fullPageTag.match(/presentation:layout=["']([^"']+)["']/i);
       let pageLayout = layoutMatch ? layoutMatch[1] : "";
       const originalPageXml = pageMatch[2];
@@ -1400,6 +1411,7 @@ export class SlidesAdapter {
         shapes,
         notes: notesText,
         comments: parsedComments.comments,
+        ...(sectionId ? { sectionId } : {}),
         ...(pageTransition ? { transition: pageTransition } : {})
       };
       this._applyPlaceholderAnimations(
@@ -1410,6 +1422,7 @@ export class SlidesAdapter {
       parsedSlides.push(parsedSlide);
     }
 
+    Object.defineProperty(parsedSlides, "sections", { value: parsedSections, enumerable: false });
     return parsedSlides;
   }
 
@@ -1421,6 +1434,7 @@ export class SlidesAdapter {
     const newSlides = this.parseFodp(fodpText);
     if (newSlides && newSlides.length > 0) {
       this.canvas.slides = newSlides;
+      this.canvas.sections = [...(newSlides.sections || [])];
       if (typeof this.canvas.selectSlide === "function") {
         this.canvas.selectSlide(0);
       }

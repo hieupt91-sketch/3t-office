@@ -135,6 +135,56 @@ export async function runSlidesSorterViewTests() {
     if (!result || !opened) throw new Error("Adapter không gọi openSlideSorter");
   });
 
+  await test("Sections: tạo nhóm liên tiếp và Slide Sorter render thanh chia đúng tên", () => {
+    const canvas = createController();
+    const sectionId = canvas.addSection(1, "Phần 2: Nội dung chính");
+    if (!sectionId || canvas.sections.length !== 1) throw new Error("Không tạo được section ở cấp presentation");
+    if (canvas.slides[0].sectionId || canvas.slides[1].sectionId !== sectionId || canvas.slides[2].sectionId !== sectionId) {
+      throw new Error("Section không gán đúng dải slide liên tiếp từ slide được chọn");
+    }
+    canvas.openSlideSorter();
+    const grid = canvas.slideSorterOverlay.querySelector(".vno-slide-sorter-grid");
+    const dividers = grid.children.filter(child => child.classList.contains("vno-slide-section-divider"));
+    if (dividers.length !== 1 || dividers[0].textContent !== "Phần 2: Nội dung chính") {
+      throw new Error("Slide Sorter không hiện đúng thanh chia/tên section");
+    }
+  });
+
+  await test("Sections: kéo slide sang nhóm khác cập nhật sectionId; xóa section vẫn giữ slide", () => {
+    const canvas = createController();
+    const firstSection = canvas.addSection(0, "Giới thiệu");
+    const secondSection = canvas.addSection(2, "Kết luận");
+    canvas.openSlideSorter();
+    const items = canvas.slideSorterOverlay.querySelector(".vno-slide-sorter-grid").children
+      .filter(child => child.classList.contains("vno-slide-sorter-item"));
+    const transfer = { setData(_type, value) { this.value = value; }, getData() { return this.value; } };
+    items[0].dispatchEvent({ type: "dragstart", dataTransfer: transfer });
+    items[2].dispatchEvent({ type: "drop", dataTransfer: transfer, preventDefault() {} });
+    if (canvas.slides[2].sectionId !== secondSection) throw new Error("Drop không cập nhật sectionId theo section đích");
+    const idsBeforeRemove = canvas.slides.map(slide => slide.id).join(",");
+    if (!canvas.removeSection(firstSection)) throw new Error("Không xóa được section");
+    if (canvas.slides.map(slide => slide.id).join(",") !== idsBeforeRemove || canvas.slides.some(slide => slide.sectionId === firstSection)) {
+      throw new Error("Xóa section đã xóa/reorder slide hoặc còn sectionId mồ côi");
+    }
+  });
+
+  await test("Sections FODP: serialize rồi load giữ catalogue, tên và sectionId", () => {
+    const canvas = createController();
+    const sectionId = canvas.addSection(1, "Nội dung & Kết luận");
+    const xml = new SlidesAdapter(canvas).serializeToFodp();
+    if (!xml.includes('vno:section-id=') || !xml.includes('vno:section-name="Nội dung &amp; Kết luận"')) {
+      throw new Error("FODP thiếu custom section metadata hoặc escape XML sai");
+    }
+    const loadedCanvas = createController();
+    new SlidesAdapter(loadedCanvas).loadFromFodp(xml);
+    if (loadedCanvas.sections.length !== 1 || loadedCanvas.sections[0].name !== "Nội dung & Kết luận") {
+      throw new Error("Load FODP không khôi phục catalogue section");
+    }
+    if (loadedCanvas.slides[1].sectionId !== sectionId || loadedCanvas.slides[2].sectionId !== sectionId) {
+      throw new Error("Load FODP không khôi phục sectionId trên slides");
+    }
+  });
+
   if (originalDocument === undefined) delete globalThis.document;
   else globalThis.document = originalDocument;
   return results;

@@ -10,6 +10,7 @@ import { VietnameseSpellChecker } from "../../platform/text/vi-spellchecker.js";
 import { SpellcheckDomController } from "../../platform/text/spellcheck-dom-controller.js";
 import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
 import { showSlideTableDialog, showHeaderFooterDialog } from "./insert-dialogs.js";
+import { showPromptDialog } from "../../platform/ui-kit/dialogs.js";
 
 export function trapFocus(dialogBox, event) {
   if (!dialogBox || event.key !== "Tab") return;
@@ -220,6 +221,8 @@ export class SlidesCanvasController {
       }
     ];
     this.currentSlideIndex = 0;
+    // Presentation-level section catalogue. Slides reference entries by sectionId.
+    this.sections = [];
     this.undoStack = [];
     this.redoStack = [];
     this.slideSorterOverlay = null;
@@ -2537,6 +2540,7 @@ export class SlidesCanvasController {
       bodyAnimation: cur.bodyAnimation ? { ...cur.bodyAnimation } : undefined,
       body2Animation: cur.body2Animation ? { ...cur.body2Animation } : undefined,
       transition: cur.transition ? { ...cur.transition } : undefined,
+      sectionId: cur.sectionId || undefined,
       comments: (cur.comments || []).map(comment => ({ ...comment, id: `${comment.id}-copy-${Date.now()}` }))
     };
     const targetIdx = this.currentSlideIndex + 1;
@@ -2570,16 +2574,18 @@ export class SlidesCanvasController {
   /**
    * Di chuyển một slide trong mảng dữ liệu thật và ghi lịch sử hoàn tác.
    */
-  moveSlide(fromIndex, toIndex, recordUndo = true) {
+  moveSlide(fromIndex, toIndex, recordUndo = true, targetSectionId = undefined) {
     if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex) ||
         fromIndex < 0 || fromIndex >= this.slides.length ||
         toIndex < 0 || toIndex >= this.slides.length || fromIndex === toIndex) return false;
 
     const selectedSlide = this.slides[this.currentSlideIndex];
     const [movedSlide] = this.slides.splice(fromIndex, 1);
+    const oldSectionId = movedSlide.sectionId || null;
+    if (targetSectionId !== undefined) movedSlide.sectionId = targetSectionId || undefined;
     this.slides.splice(toIndex, 0, movedSlide);
     if (recordUndo) {
-      this.undoStack.push({ type: "move", fromIndex, toIndex });
+      this.undoStack.push({ type: "move", fromIndex, toIndex, oldSectionId, newSectionId: movedSlide.sectionId || null });
       this.redoStack = [];
       this._syncUndoRedoState();
     }
@@ -2589,11 +2595,86 @@ export class SlidesCanvasController {
     return true;
   }
 
+  addSection(slideIndex, name) {
+    const slide = this.slides[slideIndex];
+    const cleanName = String(name || "").trim();
+    if (!slide || !cleanName) return false;
+    const id = `section-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    this.sections.push({ id, name: cleanName });
+    // A section begins at the chosen slide and ends at the next existing boundary.
+    for (let index = slideIndex; index < this.slides.length; index++) {
+      if (index > slideIndex && this.slides[index].sectionId) break;
+      this.slides[index].sectionId = id;
+    }
+    this.sections.sort((left, right) => {
+      const leftIndex = this.slides.findIndex(item => item.sectionId === left.id);
+      const rightIndex = this.slides.findIndex(item => item.sectionId === right.id);
+      return leftIndex - rightIndex;
+    });
+    this._renderSlideSorterGrid();
+    return id;
+  }
+
+  renameSection(sectionId, name) {
+    const section = this.sections.find(item => item.id === sectionId);
+    const cleanName = String(name || "").trim();
+    if (!section || !cleanName) return false;
+    section.name = cleanName;
+    this._renderSlideSorterGrid();
+    return true;
+  }
+
+  removeSection(sectionId) {
+    const index = this.sections.findIndex(item => item.id === sectionId);
+    if (index < 0) return false;
+    this.sections.splice(index, 1);
+    this.slides.forEach(slide => {
+      if (slide.sectionId === sectionId) delete slide.sectionId;
+    });
+    this._renderSlideSorterGrid();
+    return true;
+  }
+
+  async _promptAddSection(slideIndex) {
+    const name = await showPromptDialog({ title: "Thêm Phần", message: "Tên Phần", defaultValue: `Phần ${this.sections.length + 1}`, confirmText: "Thêm" });
+    return name === null ? false : this.addSection(slideIndex, name);
+  }
+
+  async _promptRenameSection(sectionId) {
+    const section = this.sections.find(item => item.id === sectionId);
+    if (!section) return false;
+    const name = await showPromptDialog({ title: "Đổi tên Phần", message: "Tên mới", defaultValue: section.name, confirmText: "Đổi tên" });
+    return name === null ? false : this.renameSection(sectionId, name);
+  }
+
+  _openSlideSectionMenu(slideIndex, clientX, clientY) {
+    document.querySelector?.(".vno-slide-section-menu")?.remove?.();
+    const slide = this.slides[slideIndex];
+    if (!slide) return false;
+    const section = this.sections.find(item => item.id === slide.sectionId);
+    const menu = document.createElement("div");
+    menu.className = "vno-slide-section-menu";
+    menu.setAttribute?.("role", "menu");
+    menu.style.cssText = `position:fixed;left:${clientX}px;top:${clientY}px;z-index:10040;min-width:180px;padding:6px;background:#fff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
+    menu.innerHTML = `<button type="button" data-section-action="add" role="menuitem">Thêm Phần</button>${section ? `<button type="button" data-section-action="rename" role="menuitem">Đổi tên Phần</button><button type="button" data-section-action="remove" role="menuitem">Xóa Phần (giữ slide)</button>` : ""}`;
+    for (const button of menu.querySelectorAll?.("button") || []) button.style.cssText = "display:block;width:100%;padding:8px;text-align:left;border:0;background:#fff;cursor:pointer";
+    const close = () => menu.remove();
+    menu.querySelector('[data-section-action="add"]')?.addEventListener("click", () => { close(); this._promptAddSection(slideIndex); });
+    menu.querySelector('[data-section-action="rename"]')?.addEventListener("click", () => { close(); this._promptRenameSection(section.id); });
+    menu.querySelector('[data-section-action="remove"]')?.addEventListener("click", () => { close(); this.removeSection(section.id); });
+    menu.addEventListener("keydown", event => { if (event.key === "Escape") close(); });
+    document.body.appendChild(menu);
+    menu.querySelector("button")?.focus?.();
+    return true;
+  }
+
   openSlideSorter() {
     if (this.slideSorterOverlay || typeof document === "undefined") return false;
     this._slideSorterPreviousFocused = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-slide-sorter-overlay";
+    // Keep shared dialogs (z-index 1000) interactive when opened from the sorter.
+    overlay.style.zIndex = "900";
     overlay.setAttribute?.("role", "dialog");
     overlay.setAttribute?.("aria-modal", "true");
     overlay.setAttribute?.("aria-label", "Bộ sắp xếp trang chiếu");
@@ -2652,6 +2733,18 @@ export class SlidesCanvasController {
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#39;");
     this.slides.forEach((slide, index) => {
+      const section = this.sections.find(item => item.id === slide.sectionId);
+      const previousSectionId = index > 0 ? this.slides[index - 1].sectionId : null;
+      if (section && section.id !== previousSectionId) {
+        const divider = document.createElement("div");
+        divider.className = "vno-slide-section-divider";
+        divider.dataset.sectionId = section.id;
+        divider.setAttribute?.("role", "heading");
+        divider.setAttribute?.("aria-level", "2");
+        divider.style.cssText = "grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:5px 4px;border-bottom:3px solid #b53818;color:#7c2d12;font-size:15px;font-weight:800";
+        divider.textContent = section.name;
+        grid.appendChild(divider);
+      }
       const item = document.createElement("article");
       item.className = `vno-slide-sorter-item ${index === this.currentSlideIndex ? "is-current" : ""}`;
       item.draggable = true;
@@ -2692,6 +2785,10 @@ export class SlidesCanvasController {
         item.classList.add("is-dragging");
       });
       item.addEventListener("dragend", () => item.classList.remove("is-dragging"));
+      item.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        this._openSlideSectionMenu(index, event.clientX || 0, event.clientY || 0);
+      });
       item.addEventListener("dragover", (event) => {
         event.preventDefault();
         if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
@@ -2699,7 +2796,7 @@ export class SlidesCanvasController {
       item.addEventListener("drop", (event) => {
         event.preventDefault();
         const fromIndex = Number(event.dataTransfer?.getData("text/plain"));
-        this.moveSlide(fromIndex, index);
+        this.moveSlide(fromIndex, index, true, slide.sectionId || null);
       });
       item.addEventListener("dblclick", () => {
         this.selectSlide(index);
@@ -2754,7 +2851,7 @@ export class SlidesCanvasController {
         return true;
       }
     } else if (action.type === "move") {
-      this.moveSlide(action.toIndex, action.fromIndex, false);
+      this.moveSlide(action.toIndex, action.fromIndex, false, action.oldSectionId);
       this.redoStack.push(action);
       return true;
     } else if (action.type === "comment-add" || action.type === "comment-delete") {
@@ -2951,7 +3048,7 @@ export class SlidesCanvasController {
         return true;
       }
     } else if (action.type === "move") {
-      this.moveSlide(action.fromIndex, action.toIndex, false);
+      this.moveSlide(action.fromIndex, action.toIndex, false, action.newSectionId);
       this.undoStack.push(action);
       return true;
     } else if (action.type === "comment-add" || action.type === "comment-delete") {
@@ -4134,6 +4231,7 @@ export class SlidesCanvasController {
 
     const renderShow = (previousSlide = null) => {
       const s = this.slides[currentShowIdx];
+      const activeSection = this.sections.find(section => section.id === s.sectionId);
       const transition = s.transition || this.transitionConfig || { type: "fade", duration: 500 };
       const isMorph = transition.type === "morph";
       const shapesHtml = (s.shapes || []).map(shape => this._shapePresentationHtml(shape, { suppressAnimation: isMorph })).join("");
@@ -4205,6 +4303,7 @@ export class SlidesCanvasController {
 
       content.innerHTML = `
         <div class="vno-slide-master-accent" style="background:${theme.accentColor || "#b53818"};"></div>
+        ${activeSection ? `<div class="vno-slideshow-section" style="position:absolute;top:18px;left:32px;z-index:4;padding:5px 10px;border-radius:4px;background:rgba(15,23,42,.78);color:#fff;font-size:14px;font-weight:700">${String(activeSection.name).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</div>` : ""}
         <div class="vno-slide-master-logo" style="color:${theme.accentColor || "#b53818"};">${theme.logoText || "VN OFFICE"}</div>
         ${layoutHtml}
         <div class="vno-slide-master-footer" style="color:${theme.bodyColor || "#475569"};">
