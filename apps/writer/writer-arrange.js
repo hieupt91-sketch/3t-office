@@ -131,8 +131,8 @@ export class WriterArrangeController {
     this.adapter?.flushTyping?.();
     image.style.position = image.style.position === "absolute" ? "absolute" : "relative";
     image.style.zIndex = String(this._zIndex(image) + 1);
-    const sibling = this._nextImageSibling(image);
-    if (sibling) sibling.after(image);
+    const sibling = this._adjacentImage(image, 1);
+    if (sibling) this._stackingNode(sibling).after(this._stackingNode(image));
     this._commit("writer.image.bringForward");
     return true;
   }
@@ -143,8 +143,8 @@ export class WriterArrangeController {
     this.adapter?.flushTyping?.();
     image.style.position = image.style.position === "absolute" ? "absolute" : "relative";
     image.style.zIndex = String(this._zIndex(image) - 1);
-    const sibling = this._previousImageSibling(image);
-    if (sibling) sibling.before(image);
+    const sibling = this._adjacentImage(image, -1);
+    if (sibling) this._stackingNode(sibling).before(this._stackingNode(image));
     this._commit("writer.image.sendBackward");
     return true;
   }
@@ -200,6 +200,19 @@ export class WriterArrangeController {
   _previousImageSibling(image) {
     let node = image.previousElementSibling;
     while (node && node.tagName !== "IMG") node = node.previousElementSibling;
+    return node;
+  }
+
+  _adjacentImage(image, step) {
+    const all = this.body?.querySelectorAll ? [...this.body.querySelectorAll("img")] : [];
+    const index = all.indexOf(image);
+    if (index >= 0 && all[index + step]) return all[index + step];
+    return step > 0 ? this._nextImageSibling(image) : this._previousImageSibling(image);
+  }
+
+  _stackingNode(image) {
+    let node = image;
+    while (node.parentElement && node.parentElement !== this.body) node = node.parentElement;
     return node;
   }
 
