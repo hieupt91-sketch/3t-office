@@ -274,6 +274,7 @@ export const VN_TO_UNO_MAP = {
   "slides.view.fitToWindow": ".uno:ZoomPage",
   "slides.view.newWindow": ".uno:NewWindow",
   "slides.review.commentInsert": ".uno:InsertAnnotation",
+  "slides.review.spellCheck": ".uno:Spelling",
   "slides.edit.formatPainter": ".uno:FormatPaintbrush",
   "slides.show.startFromBegin": ".uno:StartPresentation",
   "slides.show.startFromCurrent": ".uno:StartPresentation",

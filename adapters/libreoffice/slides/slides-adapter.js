@@ -6,6 +6,7 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
+import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 
 export class SlidesAdapter {
   constructor(canvasController) {
@@ -62,6 +63,11 @@ export class SlidesAdapter {
       options = options || {};
       return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
     });
+    globalCommandBus.bindHandler("slides.review.spellCheck", (args) => {
+      args = args || {};
+      return this.canvas.showSpellcheckDialog ? this.canvas.showSpellcheckDialog(args) : false;
+    });
+    globalShortcutManager.bind("F7", "slides.review.spellCheck", "slides");
     globalCommandBus.bindHandler("slides.edit.formatPainter", (args) => this.canvas.toggleFormatPainter ? this.canvas.toggleFormatPainter(args || {}) : false);
     this._bindFormatPainterRibbon();
     // Command metadata is app-local because this feature is scoped to Slides;
@@ -2552,6 +2558,9 @@ export class SlidesAdapter {
 
       case "slides.review.commentInsert":
         return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
+
+      case "slides.review.spellCheck":
+        return this.canvas.showSpellcheckDialog ? this.canvas.showSpellcheckDialog(args || {}) : false;
 
       case "slides.edit.formatPainter":
         return this.canvas.toggleFormatPainter ? this.canvas.toggleFormatPainter(args || {}) : false;

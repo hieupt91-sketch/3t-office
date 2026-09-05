@@ -289,6 +289,7 @@ export const SHEET_COMMANDS = [
 
 export const SLIDES_COMMANDS = [
   { id: "slides.review.commentInsert", category: "review", label: "Nhận xét mới", icon: "comment", tooltip: "Thêm nhận xét cho trang chiếu hiện tại" },
+  { id: "slides.review.spellCheck", category: "review", label: "Chính tả", icon: "slidesSpellCheck", tooltip: "Kiểm tra chính tả tiếng Việt trên trang chiếu hiện tại (F7)" },
   { id: "slides.edit.formatPainter", category: "edit", label: "Sao chép định dạng", icon: "formatPainter", tooltip: "Sao chép định dạng chữ hoặc hình đang chọn sang đối tượng khác. Nhấp đúp để khóa và áp dụng nhiều lần. Esc để hủy.", isToggle: true },
   // Quản lý Trang chiếu
   { id: "slides.slide.new", category: "slide", label: "Trang mới", shortcut: "Ctrl+M", icon: "slideNew", tooltip: "Chèn trang chiếu mới (Ctrl+M)" },

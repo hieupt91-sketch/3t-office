@@ -315,6 +315,12 @@ export const SLIDES_RIBBON_TABS = [
     labelKey: "slidesRibbon.tab.review",
     groups: [
       {
+        id: "proofing",
+        label: "Chứng minh",
+        labelKey: "slidesRibbon.group.proofing",
+        items: [{ type: "button", commandId: "slides.review.spellCheck", isLarge: true }]
+      },
+      {
         label: "Nhận xét",
         labelKey: "slidesRibbon.group.comments",
         items: [{ type: "button", commandId: "slides.review.commentInsert", isLarge: true }]

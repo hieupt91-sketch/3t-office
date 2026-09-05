@@ -94,6 +94,7 @@ import { runWriterCitationsTests } from "./unit/writer-citations.test.js";
 import { runSlidesFontParagraphTests } from "./unit/slides-font-paragraph.test.js";
 import { runWriterCaptionsTests } from "./unit/writer-captions.test.js";
 import { runSlidesFormatPainterTests } from "./unit/slides-format-painter.test.js";
+import { runSlidesSpellcheckRibbonTests } from "./unit/slides-spellcheck-ribbon.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -195,7 +196,8 @@ async function runAll() {
     { title: "85. Behavioral Tests — VN Writer Citations & Bibliography", runner: runWriterCitationsTests },
     { title: "86. Behavioral Tests — VN Slides Font & Paragraph (Home tab)", runner: runSlidesFontParagraphTests },
     { title: "87. Behavioral Tests — VN Writer Captions & Table of Figures", runner: runWriterCaptionsTests },
-    { title: "88. Behavioral Tests — VN Slides Format Painter", runner: runSlidesFormatPainterTests }
+    { title: "88. Behavioral Tests — VN Slides Format Painter", runner: runSlidesFormatPainterTests },
+    { title: "89. Behavioral Tests — VN Slides Review Spellcheck Ribbon", runner: runSlidesSpellcheckRibbonTests }
   ];
 
   for (const suite of suites) {
