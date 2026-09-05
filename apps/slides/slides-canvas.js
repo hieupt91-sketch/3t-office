@@ -226,6 +226,8 @@ export class SlidesCanvasController {
     this.body2El = null;
     this.selectedTarget = null; // "title" | "body" | "body2" | shapeId
     this.selectedShapeIds = new Set();
+    this.diagramGroupSelectionId = null;
+    this.diagramGroupBoundsEl = null;
     this.smartGuidesLayer = null;
     this._windowKeyHandler = null;
     this.commentButtonEl = null;
@@ -593,6 +595,7 @@ export class SlidesCanvasController {
   setSelectedTarget(target, extraTargets = []) {
     this.selectedTarget = target;
     if (!this.selectedShapeIds) this.selectedShapeIds = new Set();
+    this.diagramGroupSelectionId = null;
     if (target === "title" || target === "body" || target === "body2" || target == null) {
       this.selectedShapeIds.clear();
     } else {
@@ -609,7 +612,297 @@ export class SlidesCanvasController {
     if (!this.selectedShapeIds) this.selectedShapeIds = new Set();
     this.selectedShapeIds = new Set((shapeIds || []).map(String));
     this.selectedTarget = (shapeIds && shapeIds.length > 0) ? shapeIds[0] : null;
+    this.diagramGroupSelectionId = null;
     this._updateSelectionUi();
+  }
+
+  _getDiagramGroupShapes(groupId) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !groupId) return [];
+    return (slide.shapes || []).filter(shape => shape.diagramGroupId && shape.diagramGroupId === groupId);
+  }
+
+  getDiagramGroupBounds(groupId) {
+    const shapes = this._getDiagramGroupShapes(groupId);
+    if (!shapes.length) return null;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const shape of shapes) {
+      const x = Number.isFinite(shape.x) ? shape.x : 0;
+      const y = Number.isFinite(shape.y) ? shape.y : 0;
+      const w = Number.isFinite(shape.w) ? shape.w : 0;
+      const h = Number.isFinite(shape.h) ? shape.h : 0;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + w);
+      maxY = Math.max(maxY, y + h);
+    }
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }
+
+  /**
+   * Chọn toàn bộ sơ đồ cùng diagramGroupId (node + connector) như một đối tượng.
+   * @param {string} groupId
+   * @param {string|number} [primaryShapeId]
+   */
+  selectDiagramGroup(groupId, primaryShapeId = null) {
+    const shapes = this._getDiagramGroupShapes(groupId);
+    if (!shapes.length) return false;
+    const ids = shapes.map(shape => String(shape.id));
+    this.diagramGroupSelectionId = groupId;
+    this.selectedShapeIds = new Set(ids);
+    const primary = primaryShapeId && ids.includes(String(primaryShapeId))
+      ? String(primaryShapeId)
+      : (shapes.find(shape => shape.diagramRole === "node" || shape.type !== "connector")?.id || ids[0]);
+    this.selectedTarget = primary;
+    this._updateSelectionUi();
+    return true;
+  }
+
+  /**
+   * Click thường trên shape có diagramGroupId → chọn cả nhóm.
+   * Ctrl/Shift+Click → chọn lẻ một shape trong nhóm (chỉnh vị trí từng node).
+   */
+  selectShapeFromUserClick(shape, event = {}) {
+    if (!shape || shape.type === "connector") return false;
+    if ((event.ctrlKey || event.metaKey) && shape.diagramGroupId) {
+      this.diagramGroupSelectionId = null;
+      this.selectedShapeIds = new Set([String(shape.id)]);
+      this.selectedTarget = String(shape.id);
+      this._updateSelectionUi();
+      return true;
+    }
+    if (event.shiftKey || event.ctrlKey || event.metaKey) {
+      this.diagramGroupSelectionId = null;
+      const id = String(shape.id);
+      const set = new Set(this.selectedShapeIds || []);
+      if (set.has(id)) set.delete(id); else set.add(id);
+      this.selectedShapeIds = set;
+      this.selectedTarget = Array.from(set)[0] || null;
+      this._updateSelectionUi();
+      return true;
+    }
+    if (shape.diagramGroupId) {
+      return this.selectDiagramGroup(shape.diagramGroupId, shape.id);
+    }
+    this.setSelectedTarget(shape.id);
+    return true;
+  }
+
+  _captureShapeGeometry(shape) {
+    const geo = { x: shape.x, y: shape.y, w: shape.w, h: shape.h };
+    if (Number.isFinite(shape.x1)) {
+      geo.x1 = shape.x1;
+      geo.y1 = shape.y1;
+      geo.x2 = shape.x2;
+      geo.y2 = shape.y2;
+    }
+    return geo;
+  }
+
+  _applyShapeGeometry(shape, geo) {
+    if (!shape || !geo) return;
+    for (const key of ["x", "y", "w", "h", "x1", "y1", "x2", "y2"]) {
+      if (Number.isFinite(geo[key])) shape[key] = geo[key];
+    }
+  }
+
+  _clampGroupDelta(movable, startGeometries, dx, dy) {
+    let adjX = dx;
+    let adjY = dy;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxR = -Infinity;
+    let maxB = -Infinity;
+    for (const shape of movable) {
+      const start = startGeometries.get(String(shape.id));
+      if (!start) continue;
+      const w = Number.isFinite(shape.w) ? shape.w : 0;
+      const h = Number.isFinite(shape.h) ? shape.h : 0;
+      minX = Math.min(minX, start.x + dx);
+      minY = Math.min(minY, start.y + dy);
+      maxR = Math.max(maxR, start.x + w + dx);
+      maxB = Math.max(maxB, start.y + h + dy);
+    }
+    if (minX < 0) adjX += -minX;
+    else if (maxR > this.slideSize.width) adjX += this.slideSize.width - maxR;
+    if (minY < 0) adjY += -minY;
+    else if (maxB > this.slideSize.height) adjY += this.slideSize.height - maxB;
+    return { dx: adjX, dy: adjY };
+  }
+
+  _applyDiagramGroupDelta(groupId, startGeometries, dx, dy) {
+    const shapes = this._getDiagramGroupShapes(groupId);
+    if (!shapes.length) return { dx: 0, dy: 0 };
+    const movable = shapes.filter(shape => shape.type !== "connector");
+    const clamped = this._clampGroupDelta(movable, startGeometries, dx, dy);
+    for (const shape of shapes) {
+      const start = startGeometries.get(String(shape.id));
+      if (!start) continue;
+      if (shape.type === "connector" && shape.sourceId && shape.targetId) continue;
+      shape.x = start.x + clamped.dx;
+      shape.y = start.y + clamped.dy;
+      if (Number.isFinite(start.x1)) {
+        shape.x1 = start.x1 + clamped.dx;
+        shape.y1 = start.y1 + clamped.dy;
+        shape.x2 = start.x2 + clamped.dx;
+        shape.y2 = start.y2 + clamped.dy;
+        shape.x = Math.min(shape.x1, shape.x2);
+        shape.y = Math.min(shape.y1, shape.y2);
+        shape.w = Math.max(1, Math.abs(shape.x2 - shape.x1));
+        shape.h = Math.max(1, Math.abs(shape.y2 - shape.y1));
+      }
+    }
+    for (const shape of movable) {
+      if (shape.diagramRole === "node" || shape.diagramGroupId) {
+        this._updateDiagramConnectorsForNode(shape);
+      }
+    }
+    return clamped;
+  }
+
+  _syncDiagramGroupDom(groupId) {
+    if (!this.shapesLayer) return;
+    const shapes = this._getDiagramGroupShapes(groupId);
+    for (const shape of shapes) {
+      const el = this.shapesLayer.querySelector?.(`[data-shape-id="${shape.id}"]`)
+        || Array.from(this.shapesLayer.children || []).find(item => item.dataset?.shapeId === String(shape.id));
+      if (!el) continue;
+      if (shape.type === "connector") this._renderDiagramConnectorElement(el, shape);
+      else {
+        el.style.left = `${shape.x}px`;
+        el.style.top = `${shape.y}px`;
+      }
+    }
+    this._updateDiagramGroupBoundsUi();
+  }
+
+  /**
+   * Di chuyển cả nhóm sơ đồ một offset, một bước Undo/Redo.
+   */
+  moveDiagramGroupBy(groupId, dx, dy) {
+    const shapes = this._getDiagramGroupShapes(groupId);
+    if (!shapes.length) return false;
+    const startGeometries = new Map(shapes.map(shape => [String(shape.id), this._captureShapeGeometry(shape)]));
+    const applied = this._applyDiagramGroupDelta(groupId, startGeometries, dx, dy);
+    if (!applied || (applied.dx === 0 && applied.dy === 0)) return false;
+    this.undoStack.push({
+      type: "diagram-group-move",
+      slideIndex: this.currentSlideIndex,
+      diagramGroupId: groupId,
+      shapes: shapes.map(shape => ({
+        id: shape.id,
+        from: startGeometries.get(String(shape.id)),
+        to: this._captureShapeGeometry(shape)
+      }))
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._syncDiagramGroupDom(groupId);
+    this._renderThumbnails();
+    return true;
+  }
+
+  deleteDiagramGroup(groupId) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !groupId) return false;
+    const removed = (slide.shapes || [])
+      .map((shape, index) => ({ shape, index }))
+      .filter(item => item.shape.diagramGroupId === groupId);
+    if (!removed.length) return false;
+    const ids = new Set(removed.map(item => String(item.shape.id)));
+    slide.shapes = slide.shapes.filter(shape => !ids.has(String(shape.id)));
+    this.undoStack.push({
+      type: "diagram-group-delete",
+      slideIndex: this.currentSlideIndex,
+      diagramGroupId: groupId,
+      shapes: this._cloneShapes(removed)
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this.diagramGroupSelectionId = null;
+    this.selectedShapeIds = new Set();
+    this.selectedTarget = null;
+    this._removeDiagramGroupBounds();
+    this._renderShapesLayer();
+    return true;
+  }
+
+  deleteSelectedShapes() {
+    if (this.diagramGroupSelectionId) {
+      return this.deleteDiagramGroup(this.diagramGroupSelectionId);
+    }
+    if (!this.selectedShapeIds || this.selectedShapeIds.size === 0) return false;
+    if (this.selectedShapeIds.size === 1) {
+      return this.deleteShape(Array.from(this.selectedShapeIds)[0]);
+    }
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    const selectedIds = new Set(this.selectedShapeIds);
+    const extraConnectorIds = new Set();
+    for (const shape of slide.shapes || []) {
+      if (shape.diagramRole === "connector" && (
+        selectedIds.has(String(shape.sourceId)) || selectedIds.has(String(shape.targetId))
+      )) extraConnectorIds.add(String(shape.id));
+    }
+    const toRemove = new Set([...selectedIds, ...extraConnectorIds]);
+    const removed = (slide.shapes || []).filter(shape => toRemove.has(String(shape.id)));
+    if (!removed.length) return false;
+    slide.shapes = slide.shapes.filter(shape => !toRemove.has(String(shape.id)));
+    this.undoStack.push({
+      type: "shapes-delete",
+      slideIndex: this.currentSlideIndex,
+      shapes: this._cloneShapes(removed)
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this.selectedShapeIds = new Set();
+    this.selectedTarget = null;
+    this._renderShapesLayer();
+    return true;
+  }
+
+  _removeDiagramGroupBounds() {
+    const el = this.diagramGroupBoundsEl;
+    if (el?.parentNode) el.parentNode.removeChild(el);
+    this.diagramGroupBoundsEl = null;
+    const host = this.canvasEl || this.shapesLayer;
+    if (host?.querySelectorAll) {
+      host.querySelectorAll(".vno-diagram-group-bounds").forEach(node => {
+        if (node.parentNode) node.parentNode.removeChild(node);
+      });
+    }
+  }
+
+  _updateDiagramGroupBoundsUi() {
+    this._removeDiagramGroupBounds();
+    if (!this.diagramGroupSelectionId) return;
+    const host = this.canvasEl || this.shapesLayer;
+    if (!host || typeof document === "undefined" || !document.createElement) return;
+    const bounds = this.getDiagramGroupBounds(this.diagramGroupSelectionId);
+    if (!bounds) return;
+    const pad = 8;
+    const box = document.createElement("div");
+    box.className = "vno-diagram-group-bounds";
+    box.dataset.diagramGroupId = String(this.diagramGroupSelectionId);
+    box.setAttribute?.("aria-label", "Nhóm sơ đồ đang chọn");
+    box.style.cssText = `position:absolute;left:${bounds.x - pad}px;top:${bounds.y - pad}px;width:${bounds.w + pad * 2}px;height:${bounds.h + pad * 2}px;border:2px dashed #16a34a;background:rgba(22,163,74,0.06);pointer-events:none;z-index:24;box-sizing:border-box;border-radius:6px;`;
+    const delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "vno-shape-delete-btn vno-diagram-group-delete-btn";
+    delBtn.title = "Xóa cả nhóm sơ đồ";
+    delBtn.setAttribute?.("aria-label", "Xóa cả nhóm sơ đồ");
+    delBtn.textContent = "×";
+    delBtn.style.cssText = "pointer-events:auto;left:-10px;top:-10px;";
+    delBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      this.deleteDiagramGroup(this.diagramGroupSelectionId);
+    });
+    box.appendChild(delBtn);
+    host.appendChild(box);
+    this.diagramGroupBoundsEl = box;
   }
 
   _updateSelectionUi() {
@@ -626,21 +919,30 @@ export class SlidesCanvasController {
       else this.body2El.classList.remove("is-selected");
     }
     if (this.shapesLayer) {
-      const items = this.shapesLayer.querySelectorAll(".vno-slide-shape-item");
+      const items = this.shapesLayer.querySelectorAll?.(".vno-slide-shape-item") || [];
       const slide = this.slides[this.currentSlideIndex];
       const shapes = (slide && slide.shapes) || [];
+      const groupSelected = !!this.diagramGroupSelectionId;
       items.forEach((item, idx) => {
         const sh = shapes[idx];
         const isSel = sh && (this.selectedShapeIds?.has(String(sh.id)) || String(this.selectedTarget) === String(sh.id));
         if (isSel) {
           item.classList.add("is-selected");
-          this._ensureShapeSelectionHandles(item, sh);
+          if (groupSelected && sh.diagramGroupId === this.diagramGroupSelectionId) {
+            item.classList.add("is-diagram-group-member");
+            this._removeShapeSelectionHandles(item);
+          } else {
+            item.classList.remove("is-diagram-group-member");
+            this._ensureShapeSelectionHandles(item, sh);
+          }
         } else {
           item.classList.remove("is-selected");
+          item.classList.remove("is-diagram-group-member");
           this._removeShapeSelectionHandles(item);
         }
       });
     }
+    this._updateDiagramGroupBoundsUi();
   }
 
   /**
@@ -977,7 +1279,9 @@ export class SlidesCanvasController {
     this.undoStack.push({ type: "diagram-insert", slideIndex: this.currentSlideIndex, shapes: this._cloneShapes(insertedShapes), diagramGroupId: groupId });
     this.redoStack = [];
     this._syncUndoRedoState();
-    this.setSelectedTarget(nodes[0]?.id || null);
+    this.diagramGroupSelectionId = groupId;
+    this.selectedShapeIds = new Set(insertedShapes.map(shape => String(shape.id)));
+    this.selectedTarget = nodes[0]?.id || null;
     this._renderShapesLayer();
     return { diagramGroupId: groupId, shapes: insertedShapes };
   }
@@ -1325,16 +1629,7 @@ export class SlidesCanvasController {
 
       el.addEventListener("click", (e) => {
         e.stopPropagation();
-        if (!isConnector && (e.shiftKey || e.ctrlKey)) {
-          const id = String(shape.id);
-          const set = new Set(this.selectedShapeIds || []);
-          if (set.has(id)) set.delete(id); else set.add(id);
-          this.selectedShapeIds = set;
-          this.selectedTarget = Array.from(set)[0] || null;
-          this._updateSelectionUi();
-        } else {
-          this.setSelectedTarget(shape.id);
-        }
+        if (!isConnector) this.selectShapeFromUserClick(shape, e);
         el.focus?.();
       });
 
@@ -1505,16 +1800,27 @@ export class SlidesCanvasController {
       if (event.target?.classList?.contains("vno-shape-delete-btn")) return;
       if (event.target?.classList?.contains("vno-diagram-node-text") && event.target.contentEditable === "true") return;
 
+      if (el.setPointerCapture && event.pointerId != null) {
+        try { el.setPointerCapture(event.pointerId); } catch (_) { /* ignore */ }
+      }
+
       const startX = event.clientX;
       const startY = event.clientY;
 
       if (!this.selectedShapeIds) this.selectedShapeIds = new Set();
-      if (!this.selectedShapeIds.has(String(shape.id)) && !event.shiftKey && !event.ctrlKey) {
-        this.setSelectedTarget(shape.id);
+      if (!event.shiftKey && !event.ctrlKey && !event.metaKey) {
+        if (shape.diagramGroupId) {
+          if (this.diagramGroupSelectionId !== shape.diagramGroupId) {
+            this.selectDiagramGroup(shape.diagramGroupId, shape.id);
+          }
+        } else if (!this.selectedShapeIds.has(String(shape.id))) {
+          this.setSelectedTarget(shape.id);
+        }
       }
 
       const slide = this.slides[this.currentSlideIndex];
       const allShapes = (slide && slide.shapes) || [];
+      const isDiagramGroupMove = !!(this.diagramGroupSelectionId && shape.diagramGroupId === this.diagramGroupSelectionId);
 
       const activeGroupIds = new Set();
       this.selectedShapeIds.forEach(id => {
@@ -1522,18 +1828,25 @@ export class SlidesCanvasController {
         if (s?.groupId) activeGroupIds.add(s.groupId);
       });
 
-      const shapesToMove = allShapes.filter(s => {
-        if (s.type === "connector") return false;
-        if (this.selectedShapeIds.has(String(s.id))) return true;
-        if (s.groupId && activeGroupIds.has(s.groupId)) return true;
-        if (String(s.id) === String(shape.id)) return true;
-        return false;
-      });
+      const shapesToMove = isDiagramGroupMove
+        ? allShapes.filter(s => s.diagramGroupId === this.diagramGroupSelectionId && s.type !== "connector")
+        : allShapes.filter(s => {
+          if (s.type === "connector") return false;
+          if (this.selectedShapeIds.has(String(s.id))) return true;
+          if (s.groupId && activeGroupIds.has(s.groupId)) return true;
+          if (String(s.id) === String(shape.id)) return true;
+          return false;
+        });
 
       const movingEntries = shapesToMove.map(s => {
         const shapeEl = this.shapesLayer?.querySelector(`[data-shape-id="${s.id}"]`);
         return { shape: s, startX: s.x, startY: s.y, el: shapeEl };
       });
+
+      const groupIdForMove = isDiagramGroupMove ? this.diagramGroupSelectionId : null;
+      const groupStartGeometries = isDiagramGroupMove
+        ? new Map(this._getDiagramGroupShapes(groupIdForMove).map(s => [String(s.id), this._captureShapeGeometry(s)]))
+        : null;
 
       const otherShapes = allShapes.filter(s => !shapesToMove.includes(s) && s.type !== "connector");
 
@@ -1617,6 +1930,12 @@ export class SlidesCanvasController {
 
         this._renderSmartGuides(guideV, guideH);
 
+        if (isDiagramGroupMove && groupStartGeometries && groupIdForMove) {
+          this._applyDiagramGroupDelta(groupIdForMove, groupStartGeometries, dx, dy);
+          this._syncDiagramGroupDom(groupIdForMove);
+          return;
+        }
+
         movingEntries.forEach(m => {
           m.shape.x = Math.max(0, Math.min(this.slideSize.width - m.shape.w, m.startX + dx));
           m.shape.y = Math.max(0, Math.min(this.slideSize.height - m.shape.h, m.startY + dy));
@@ -1635,7 +1954,22 @@ export class SlidesCanvasController {
         document.removeEventListener("pointermove", move);
         document.removeEventListener("pointerup", up);
         if (moved) {
-          if (movingEntries.length === 1) {
+          if (isDiagramGroupMove && groupStartGeometries && groupStartGeometries.size) {
+            const slideShapes = this.slides[this.currentSlideIndex]?.shapes || [];
+            this.undoStack.push({
+              type: "diagram-group-move",
+              slideIndex: this.currentSlideIndex,
+              diagramGroupId: groupIdForMove,
+              shapes: [...groupStartGeometries.keys()].map(id => {
+                const s = slideShapes.find(item => String(item.id) === id);
+                return {
+                  id: s ? s.id : id,
+                  from: groupStartGeometries.get(id),
+                  to: s ? this._captureShapeGeometry(s) : groupStartGeometries.get(id)
+                };
+              })
+            });
+          } else if (movingEntries.length === 1) {
             this.undoStack.push({
               type: "shape-move",
               slideIndex: this.currentSlideIndex,
@@ -1777,6 +2111,13 @@ export class SlidesCanvasController {
           this.nudgeSelected(dx, dy);
         }
       }
+
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (this.selectedShapeIds && this.selectedShapeIds.size > 0) {
+          e.preventDefault();
+          this.deleteSelectedShapes();
+        }
+      }
     };
 
     if (typeof window !== "undefined") {
@@ -1830,6 +2171,9 @@ export class SlidesCanvasController {
   }
 
   nudgeSelected(dx, dy) {
+    if (this.diagramGroupSelectionId) {
+      return this.moveDiagramGroupBy(this.diagramGroupSelectionId, dx, dy);
+    }
     const slide = this.slides[this.currentSlideIndex];
     if (!slide || !this.selectedShapeIds || this.selectedShapeIds.size === 0) return false;
     const allShapes = slide.shapes || [];
@@ -2199,6 +2543,9 @@ export class SlidesCanvasController {
   }
 
   deleteCurrentSlide(recordUndo = true) {
+    if (!this.slideSorterOverlay && this.selectedShapeIds && this.selectedShapeIds.size > 0) {
+      return this.deleteSelectedShapes();
+    }
     if (this.slides.length <= 1) return false;
     const delIdx = this.currentSlideIndex;
     const [deleted] = this.slides.splice(delIdx, 1);
@@ -2451,6 +2798,28 @@ export class SlidesCanvasController {
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
       return true;
+    } else if (action.type === "diagram-group-move") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      for (const item of action.shapes || []) {
+        const shape = slide.shapes?.find(s => String(s.id) === String(item.id));
+        if (shape) this._applyShapeGeometry(shape, item.from);
+      }
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this.selectDiagramGroup(action.diagramGroupId);
+      return true;
+    } else if (action.type === "diagram-group-delete") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      slide.shapes ||= [];
+      for (const item of [...action.shapes].sort((a, b) => a.index - b.index)) {
+        slide.shapes.splice(Math.min(item.index, slide.shapes.length), 0, this._cloneShapes([item.shape])[0]);
+      }
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this.selectDiagramGroup(action.diagramGroupId);
+      return true;
     } else if (action.type === "shape-add" || action.type === "shape-delete") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -2624,6 +2993,28 @@ export class SlidesCanvasController {
       this.undoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
+      return true;
+    } else if (action.type === "diagram-group-move") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      for (const item of action.shapes || []) {
+        const shape = slide.shapes?.find(s => String(s.id) === String(item.id));
+        if (shape) this._applyShapeGeometry(shape, item.to);
+      }
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this.selectDiagramGroup(action.diagramGroupId);
+      return true;
+    } else if (action.type === "diagram-group-delete") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      const ids = new Set(action.shapes.map(item => String(item.shape.id)));
+      slide.shapes = (slide.shapes || []).filter(item => !ids.has(String(item.id)));
+      this.undoStack.push(action);
+      this.diagramGroupSelectionId = null;
+      this.selectedShapeIds = new Set();
+      this.selectedTarget = null;
+      this.selectSlide(action.slideIndex);
       return true;
     } else if (action.type === "shape-add" || action.type === "shape-delete") {
       const slide = this.slides[action.slideIndex];
