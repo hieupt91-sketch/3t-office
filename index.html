@@ -31,12 +31,15 @@
     import { SheetApp } from "./apps/sheet/sheet-app.js";
     import { SlidesApp } from "./apps/slides/slides-app.js";
     import { themeManager } from "./platform/theme/theme-manager.js";
-    import { bootstrapPlatform } from "./platform/bootstrap.js";
+    import { globalCommandBus } from "./platform/commands/command-bus.js";
+    import { bootstrapPlatform, configurePlatformLaunchContext, resolveLaunchContext } from "./platform/bootstrap.js";
 
     const mountEl = document.getElementById("vno-app-root");
     let currentAppInstance = null;
+    const launchContext = configurePlatformLaunchContext(resolveLaunchContext(window.location.search));
 
-    async function switchApp(appType, options) {
+    async function switchApp(appType, options = {}) {
+      if (launchContext.singleAppMode && appType !== launchContext.appKind) return false;
       themeManager.setApp(appType);
 
       if (appType === "writer") {
@@ -47,17 +50,22 @@
         currentAppInstance = new SlidesApp(mountEl);
       }
 
-      await currentAppInstance.init(options);
+      await currentAppInstance.init({ ...options, singleApp: launchContext.singleAppMode });
 
       // Cập nhật callback chuyển đổi app vào shell hiện tại
       if (currentAppInstance.shell) {
         currentAppInstance.shell.onSwitchApp = (nextApp, opt) => switchApp(nextApp, opt);
       }
+      return true;
     }
 
     // Bootstrap suite tập trung một lần duy nhất rồi khởi động VN Writer
     await bootstrapPlatform();
-    switchApp("writer");
+    const initialApp = launchContext.appKind || "writer";
+    await switchApp(initialApp, { singleApp: launchContext.singleAppMode });
+    if (launchContext.openInitialFile) {
+      await globalCommandBus.execute("common.file.open");
+    }
   </script>
 </body>
 </html>

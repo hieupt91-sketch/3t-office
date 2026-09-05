@@ -256,6 +256,31 @@ export async function runHtmlSmokeTests() {
         });
       }
 
+      const webSwitcherVisible = renderedDom.includes('id="vno-switcher-toggle"') && renderedDom.includes('data-switch="sheet"');
+      results.push({
+        name: `Browser Headless (${browserName}): Web suite mode vẫn render app switcher đầy đủ`,
+        pass: webSwitcherVisible,
+        ...(!webSwitcherVisible ? { error: "Không tìm thấy switcher trong web mode mặc định" } : {})
+      });
+
+      const sheetProc = spawnSync(browserBinary, [
+        "--headless=new",
+        "--allow-file-access-from-files",
+        "--virtual-time-budget=3000",
+        "--dump-dom",
+        `${fileUrl}?app=sheet&singleApp=1`
+      ], { encoding: "utf8", timeout: 15000, windowsHide: true });
+      const sheetDom = sheetProc.stdout || "";
+      const sheetSingleAppPassed = sheetProc.status === 0 &&
+        sheetDom.includes('data-app="sheet"') &&
+        !sheetDom.includes('id="vno-switcher-toggle"') &&
+        !sheetDom.includes('class="vno-app-switcher-btn"');
+      results.push({
+        name: `Browser Headless (${browserName}): ?app=sheet mount Sheet và loại switcher khỏi DOM trong single-app mode`,
+        pass: sheetSingleAppPassed,
+        ...(!sheetSingleAppPassed ? { error: "Sheet không mount hoặc switcher vẫn còn trong DOM" } : {})
+      });
+
       const tempTrackChangesPath = path.join(ROOT_DIR, "tests", "smoke", "temp-writer-track-changes.html");
       const trackChangesHtml = `<!DOCTYPE html><html><body>
         <div id="page"><div class="vno-writer-body" contenteditable="true">abc</div></div>

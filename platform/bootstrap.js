@@ -10,6 +10,31 @@ import { globalUnoBridge } from "../adapters/libreoffice/common/uno-bridge.js";
 
 let _isBootstrapped = false;
 let _bootstrapPromise = null;
+let _launchContext = Object.freeze({ appKind: null, singleAppMode: false, openInitialFile: false });
+
+export function resolveLaunchContext(search = "") {
+  const params = new URLSearchParams(search);
+  const requestedApp = params.get("app");
+  const appKind = ["writer", "sheet", "slides"].includes(requestedApp) ? requestedApp : null;
+  return Object.freeze({
+    appKind,
+    singleAppMode: Boolean(appKind && params.get("singleApp") === "1"),
+    openInitialFile: Boolean(appKind && params.get("openFile") === "1")
+  });
+}
+
+export function configurePlatformLaunchContext(context = {}) {
+  _launchContext = Object.freeze({
+    appKind: ["writer", "sheet", "slides"].includes(context.appKind) ? context.appKind : null,
+    singleAppMode: context.singleAppMode === true,
+    openInitialFile: context.openInitialFile === true
+  });
+  return _launchContext;
+}
+
+export function getPlatformLaunchContext() {
+  return _launchContext;
+}
 
 /**
  * Bootstrap toàn bộ hệ thống VN Office.
