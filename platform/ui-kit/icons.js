@@ -319,6 +319,11 @@ export const ICONS = {
     <text x="7" y="17" font-size="14" font-weight="bold" fill="#1D4ED8" font-family="serif">A</text>
   </svg>`,
 
+  wordArt: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="2" y="4" width="20" height="16" rx="3" fill="#0F172A"/>
+    <text x="5" y="17" font-size="13" font-weight="800" fill="#38BDF8" stroke="#0C4A6E" stroke-width="0.8" font-family="Arial, sans-serif">Aa</text>
+  </svg>`,
+
   // Utilities
   aiSparkle: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
     <path d="M12 2L14.5 7.5L20 10L14.5 12.5L12 18L9.5 12.5L4 10L9.5 7.5L12 2Z" fill="#F5B800" stroke="#D97706" stroke-width="0.8"/>

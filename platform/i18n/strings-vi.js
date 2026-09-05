@@ -271,6 +271,7 @@ export const viStrings = {
     ,"slides.insert.dateTime": { label: "Ngày & Giờ", tooltip: "Chèn placeholder ngày giờ tự cập nhật" }
     ,"slides.insert.slideNumber": { label: "Số trang chiếu", tooltip: "Chèn placeholder số trang chiếu tự cập nhật" }
     ,"slides.insert.symbol": { label: "Ký hiệu", tooltip: "Chèn ký tự đặc biệt vào khung văn bản đang chọn" }
+    ,"slides.insert.wordart": { label: "Chữ nghệ thuật", tooltip: "Chèn chữ nghệ thuật với viền, đổ bóng hoặc gradient" }
     ,"slides.master.apply": { label: "Mẫu Slide Master", tooltip: "Áp dụng mẫu Slide Master đồng bộ font, màu, logo cho toàn bộ trang chiếu" }
     ,"slides.design.themeGallery": { label: "Chủ đề", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" }
     ,"slides.design.slideSize": { label: "Cỡ trang chiếu", tooltip: "Chọn tỷ lệ trang chiếu 16:9 hoặc 4:3" }

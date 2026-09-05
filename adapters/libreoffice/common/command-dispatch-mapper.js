@@ -252,6 +252,7 @@ export const VN_TO_UNO_MAP = {
   "slides.insert.dateTime": ".uno:InsertDateField",
   "slides.insert.slideNumber": ".uno:InsertPageNumber",
   "slides.insert.symbol": ".uno:InsertSymbol",
+  "slides.insert.wordart": ".uno:FontworkGalleryFloater",
   "slides.master.apply": ".uno:MasterLayouts",
   "slides.design.themeGallery": ".uno:MasterLayouts",
   "slides.design.slideSize": ".uno:PageSetup",

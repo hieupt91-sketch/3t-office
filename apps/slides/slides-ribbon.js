@@ -93,6 +93,7 @@ export const SLIDES_RIBBON_TABS = [
         labelKey: "slidesRibbon.group.text",
         items: [
           { type: "button", commandId: "slides.text.insert", isLarge: true },
+          { type: "button", commandId: "slides.insert.wordart", isLarge: true },
           {
             type: "column",
             items: [

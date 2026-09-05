@@ -9,7 +9,7 @@ import { showSymbolPicker } from "../../platform/ui-kit/symbol-picker.js";
 import { VietnameseSpellChecker } from "../../platform/text/vi-spellchecker.js";
 import { SpellcheckDomController } from "../../platform/text/spellcheck-dom-controller.js";
 import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
-import { showSlideTableDialog, showHeaderFooterDialog } from "./insert-dialogs.js";
+import { showSlideTableDialog, showHeaderFooterDialog, showWordArtDialog, resolveWordArtStyle, buildWordArtCss, applyWordArtCss } from "./insert-dialogs.js";
 import { showPromptDialog } from "../../platform/ui-kit/dialogs.js";
 
 export function trapFocus(dialogBox, event) {
@@ -1108,6 +1108,48 @@ export class SlidesCanvasController {
     return newShape;
   }
 
+  /**
+   * Chèn WordArt — shape type=wordart với hiệu ứng CSS thật (fill/gradient, outline, shadow).
+   * Tái dùng undo shape-add, kéo-thả và sửa chữ của shape thường.
+   */
+  async insertWordArt(options = null) {
+    options = options || {};
+    const hasExplicit = options.text != null || options.presetId != null || options.styleId != null;
+    const picked = hasExplicit ? options : await showWordArtDialog(options);
+    if (!picked) return false;
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    if (!Array.isArray(slide.shapes)) slide.shapes = [];
+    const style = resolveWordArtStyle(picked);
+    const offset = slide.shapes.length * 18;
+    const newShape = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      type: "wordart",
+      x: 200 + (offset % 80),
+      y: 160 + offset,
+      w: 560,
+      h: 120,
+      color: "transparent",
+      text: String(picked.text || "VN Office"),
+      presetId: style.id,
+      fontFamily: style.fontFamily,
+      fontSize: style.fontSize,
+      fillColor: style.fillColor,
+      gradient: style.gradient,
+      strokeColor: style.strokeColor,
+      strokeWidth: style.strokeWidth,
+      shadow: style.shadow,
+      animation: { type: "none", duration: 500, delay: 0 }
+    };
+    slide.shapes.push(newShape);
+    this.undoStack.push({ type: "shape-add", slideIndex: this.currentSlideIndex, shape: this._cloneShapes([newShape])[0] });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this.setSelectedTarget(newShape.id);
+    this._renderShapesLayer();
+    return newShape;
+  }
+
   _renderHeaderFooter() {
     if (!this.masterFooterEl) return;
     const slide = this.slides[this.currentSlideIndex];
@@ -1320,6 +1362,11 @@ export class SlidesCanvasController {
     if (shape.type === "image" && shape.src) return `<img src="${shape.src}"${morphAttrs} style="${pos}${animStyle}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,.15)" />`;
     if (shape.type === "video" && shape.src) return `<video src="${shape.src}"${morphAttrs} controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,.15)"></video>`;
     if (shape.type === "audio" && shape.src) return `<audio src="${shape.src}"${morphAttrs} controls style="${pos}${animStyle}"></audio>`;
+    if (shape.type === "wordart") {
+      const textCss = buildWordArtCss(shape);
+      const text = `<span class="vno-wordart-text" data-vno-wordart="true" data-vno-wordart-preset="${this._escapeShapeText(shape.presetId || "")}" style="${textCss}">${this._escapeShapeText(shape.text)}</span>`;
+      return `<div class="vno-show-shape vno-show-wordart"${morphAttrs} style="${pos}${animStyle}background:transparent;display:flex;align-items:center;justify-content:center;overflow:visible">${text}</div>`;
+    }
     const radius = shape.type === "ellipse" ? "50%" : "6px";
     const text = shape.text !== undefined ? `<span class="vno-show-shape-text">${this._escapeShapeText(shape.text)}</span>` : "";
     return `<div class="vno-show-shape"${morphAttrs} style="${pos}${animStyle}background:${shape.color || "#3b82f6"};opacity:.9;border-radius:${radius}">${text}</div>`;
@@ -1380,6 +1427,10 @@ export class SlidesCanvasController {
   _shapeSorterHtml(shape) {
     if (shape.type === "connector") {
       return `<svg class="vno-sorter-shape" viewBox="0 0 ${this.slideSize.width} ${this.slideSize.height}" preserveAspectRatio="none"><line x1="${shape.x1}" y1="${shape.y1}" x2="${shape.x2}" y2="${shape.y2}" stroke="${shape.color || "#475569"}" stroke-width="8"/></svg>`;
+    }
+    if (shape.type === "wordart") {
+      const box = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:transparent;display:flex;align-items:center;justify-content:center;overflow:hidden`;
+      return `<div class="vno-sorter-shape-node vno-sorter-wordart" style="${box}"><span class="vno-wordart-text" data-vno-wordart="true" style="${buildWordArtCss(shape, { fontScale: 0.22 })}">${this._escapeShapeText(shape.text || "")}</span></div>`;
     }
     if (shape.type !== "rect" && shape.type !== "ellipse") return "";
     const style = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:${shape.color || "#3b82f6"};border-radius:${shape.type === "ellipse" ? "50%" : "4px"}`;
@@ -1550,6 +1601,59 @@ export class SlidesCanvasController {
         audio.controls = true;
         audio.style.cssText = "width:100%;height:100%;";
         el.appendChild(audio);
+      } else if (shape.type === "wordart") {
+        el.classList.add("is-wordart");
+        el.style.backgroundColor = "transparent";
+        el.style.opacity = "1";
+        el.style.overflow = "visible";
+        const textEl = document.createElement("div");
+        textEl.className = "vno-wordart-text";
+        textEl.dataset.shapeTextId = String(shape.id);
+        textEl.dataset.vnoWordart = "true";
+        if (shape.presetId) textEl.dataset.vnoWordartPreset = String(shape.presetId);
+        textEl.textContent = shape.text || "";
+        textEl.contentEditable = "false";
+        textEl.setAttribute("role", "textbox");
+        textEl.setAttribute("aria-label", shape.text || "WordArt");
+        applyWordArtCss(textEl, shape);
+        const startEditing = (initialText) => {
+          if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
+          textEl.contentEditable = "true";
+          if (initialText !== undefined) textEl.textContent = initialText;
+          textEl.focus();
+          if (initialText !== undefined) {
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(textEl);
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
+        };
+        textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.textContent));
+        textEl.addEventListener("blur", () => {
+          textEl.contentEditable = "false";
+          const before = textEl.dataset.originalText ?? "";
+          const after = shape.text || "";
+          if (before !== after) {
+            this.undoStack.push({ type: "shape-text-edit", slideIndex: this.currentSlideIndex, shapeId: shape.id, before, after });
+            this.redoStack = [];
+            this._syncUndoRedoState();
+          }
+        });
+        textEl.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") { event.preventDefault(); textEl.blur(); }
+          event.stopPropagation();
+        });
+        el.addEventListener("dblclick", (event) => { event.stopPropagation(); startEditing(); });
+        el.tabIndex = 0;
+        el.addEventListener("keydown", (event) => {
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1) {
+            event.preventDefault(); event.stopPropagation(); startEditing(event.key);
+            this.updateShapeText(shape.id, event.key);
+          }
+        });
+        el.appendChild(textEl);
       } else if (shape.type === "table") {
         el.style.backgroundColor = "#ffffff";
         el.style.opacity = "1";
