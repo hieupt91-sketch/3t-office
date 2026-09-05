@@ -75,6 +75,8 @@ export class SlidesAdapter {
     globalShortcutManager.bind("F1", "slides.help.open", "slides");
     globalCommandBus.bindHandler("slides.edit.formatPainter", (args) => this.canvas.toggleFormatPainter ? this.canvas.toggleFormatPainter(args || {}) : false);
     globalCommandBus.bindHandler("slides.design.formatBackground", (args) => this.canvas.showFormatBackgroundDialog ? this.canvas.showFormatBackgroundDialog(args || {}) : false);
+    globalCommandBus.bindHandler("slides.animation.pane", () => this.canvas.toggleAnimationPane ? this.canvas.toggleAnimationPane() : false);
+    globalCommandBus.bindHandler("slides.show.setupShow", () => this.canvas.showSetupShowDialog ? this.canvas.showSetupShowDialog() : false);
     this._bindFormatPainterRibbon();
     // Command metadata is app-local because this feature is scoped to Slides;
     // bind explicitly instead of requiring a Platform registry change.
@@ -1142,9 +1144,14 @@ export class SlidesAdapter {
       animates += `
                 <anim:animate smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="opacity" smil:from="0" smil:to="1"/>`;
     }
+    const nodeType = animation?.start === "withPrevious"
+      ? "with-previous"
+      : animation?.start === "afterPrevious"
+        ? "after-previous"
+        : "on-click";
     return `
             <anim:par smil:begin="indefinite">
-              <anim:par smil:begin="${preset.begin}" smil:fill="hold" presentation:node-type="on-click" presentation:preset-class="entrance" presentation:preset-id="${this._escapeXml(preset.presetId)}"${sub}>${animates}
+              <anim:par smil:begin="${preset.begin}" smil:fill="hold" presentation:node-type="${nodeType}" presentation:preset-class="entrance" presentation:preset-id="${this._escapeXml(preset.presetId)}"${sub}>${animates}
               </anim:par>
             </anim:par>`;
   }
@@ -1153,16 +1160,35 @@ export class SlidesAdapter {
     return this._serializeEntranceAnimation(shape?.animation, drawId);
   }
 
+  _orderedAnimationSlots(slide, placeholderIds, shapeIds) {
+    const slots = [];
+    const push = (animation, drawId, defaultIndex) => {
+      if (!animation || !drawId || !animation.type || animation.type === "none") return;
+      slots.push({
+        animation,
+        drawId,
+        defaultIndex,
+        order: Number.isFinite(animation.order) ? animation.order : defaultIndex
+      });
+    };
+    push(slide?.titleAnimation, placeholderIds?.title, 0);
+    push(slide?.bodyAnimation, placeholderIds?.body, 1);
+    push(slide?.body2Animation, placeholderIds?.body2, 2);
+    (slide?.shapes || []).forEach((shape, index) => {
+      push(shape.animation, shapeIds?.get?.(String(shape.id)), 100 + index);
+    });
+    slots.sort((a, b) => a.order - b.order || a.defaultIndex - b.defaultIndex);
+    return slots;
+  }
+
   _serializePageAnimXml(pageXmlId, slide, idMap, placeholderIds) {
     const smil = this._mapVnTransitionToSmil(slide?.transition);
     const placeholders = placeholderIds || {};
     const shapeIds = idMap || new Map();
-    const effectXml = [
-      this._serializeEntranceAnimation(slide?.titleAnimation, placeholders.title),
-      this._serializeEntranceAnimation(slide?.bodyAnimation, placeholders.body),
-      this._serializeEntranceAnimation(slide?.body2Animation, placeholders.body2),
-      ...((slide?.shapes || []).map((shape) => this._serializeShapeAnimation(shape, shapeIds.get(String(shape.id)))))
-    ].filter(Boolean).join("");
+    const effectXml = this._orderedAnimationSlots(slide, placeholders, shapeIds)
+      .map((slot) => this._serializeEntranceAnimation(slot.animation, slot.drawId))
+      .filter(Boolean)
+      .join("");
     if (!smil && !effectXml) return "";
     let transXml = "";
     if (smil) {
@@ -1310,7 +1336,13 @@ export class SlidesAdapter {
         ? Math.max(...animateDurs)
         : (this._parseSmilTimeToMs(this._attr(attrs, "smil:dur")) || 500);
       const delay = this._parseSmilTimeToMs(this._attr(attrs, "smil:begin")) || 0;
-      byTarget.set(target, { type: vnType, duration, delay });
+      const nodeType = String(this._attr(attrs, "presentation:node-type") || "").toLowerCase();
+      const start = nodeType === "with-previous"
+        ? "withPrevious"
+        : nodeType === "after-previous"
+          ? "afterPrevious"
+          : "onClick";
+      byTarget.set(target, { type: vnType, duration, delay, order: byTarget.size, start });
     }
     return byTarget;
   }
@@ -2192,7 +2224,7 @@ export class SlidesAdapter {
     <style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"/>
   </office:master-styles>
   <office:body>
-    <office:presentation>${pagesXml}
+    <office:presentation>${pagesXml}${this._serializePresentationSettings()}
     </office:presentation>
   </office:body>
 </office:document>`;
@@ -2381,7 +2413,37 @@ export class SlidesAdapter {
     }
 
     Object.defineProperty(parsedSlides, "sections", { value: parsedSections, enumerable: false });
+    Object.defineProperty(parsedSlides, "slideShowSettings", { value: this._parsePresentationSettings(xmlText), enumerable: false });
     return parsedSlides;
+  }
+
+  _serializePresentationSettings() {
+    const settings = this.canvas?.getSlideShowSettings
+      ? this.canvas.getSlideShowSettings()
+      : (this.canvas?.slideShowSettings || {});
+    const attrs = [];
+    if (settings.loopUntilEsc) attrs.push('presentation:endless="true"');
+    if (settings.showWithoutNarration) attrs.push('vno:without-narration="true"');
+    if (settings.pointerColor && settings.pointerColor !== "#DC2626") {
+      attrs.push(`vno:pointer-color="${this._escapeXml(settings.pointerColor)}"`);
+    }
+    if (!attrs.length) return "";
+    return `
+      <presentation:settings ${attrs.join(" ")}/>`;
+  }
+
+  _parsePresentationSettings(xmlText) {
+    const match = String(xmlText || "").match(/<presentation:settings\b([^>]*)\/?>/i);
+    if (!match) {
+      return { loopUntilEsc: false, showWithoutNarration: false, pointerColor: "#DC2626" };
+    }
+    const attrs = match[1] || "";
+    const pointer = this._attr(attrs, "vno:pointer-color") || "#DC2626";
+    return {
+      loopUntilEsc: /presentation:endless=["']true["']/i.test(attrs),
+      showWithoutNarration: /vno:without-narration=["']true["']/i.test(attrs),
+      pointerColor: pointer
+    };
   }
 
   /**
@@ -2393,6 +2455,11 @@ export class SlidesAdapter {
     if (newSlides && newSlides.length > 0) {
       this.canvas.slides = newSlides;
       this.canvas.sections = [...(newSlides.sections || [])];
+      if (newSlides.slideShowSettings && this.canvas.applySlideShowSettings) {
+        this.canvas.applySlideShowSettings(newSlides.slideShowSettings);
+      } else if (newSlides.slideShowSettings) {
+        this.canvas.slideShowSettings = { ...newSlides.slideShowSettings };
+      }
       if (typeof this.canvas.selectSlide === "function") {
         this.canvas.selectSlide(0);
       }
@@ -2613,6 +2680,14 @@ export class SlidesAdapter {
 
       case "slides.animation.apply":
         return this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false;
+
+      case "slides.animation.pane":
+      case ".uno:AnimationPane":
+        return this.canvas.toggleAnimationPane ? this.canvas.toggleAnimationPane() : false;
+
+      case "slides.show.setupShow":
+      case ".uno:PresentationDialog":
+        return this.canvas.showSetupShowDialog ? this.canvas.showSetupShowDialog() : false;
 
       case "slides.view.normal":
       case ".uno:NormalMultiPaneGUI":

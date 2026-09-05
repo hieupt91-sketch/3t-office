@@ -913,6 +913,23 @@ export const ICONS = {
     <circle cx="14" cy="14" r="2.2" fill="#B53818"/>
   </svg>`,
 
+  animationPane: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="5" width="16" height="22" rx="2" fill="#FFF7ED" stroke="#B53818" stroke-width="1.4"/>
+    <rect x="21" y="5" width="8" height="22" rx="1.5" fill="#1E293B" stroke="#0F172A" stroke-width="1.2"/>
+    <path d="M6 10h10M6 15h8M6 20h6" stroke="#EA580C" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="25" cy="11" r="1.6" fill="#F59E0B"/>
+    <circle cx="25" cy="16.5" r="1.6" fill="#38BDF8"/>
+    <circle cx="25" cy="22" r="1.6" fill="#86EFAC"/>
+  </svg>`,
+
+  setupShow: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="6" width="26" height="16" rx="2" fill="#1E293B" stroke="#0F172A" stroke-width="1.2"/>
+    <polygon points="12,10 21,14 12,18" fill="#F59E0B"/>
+    <circle cx="10" cy="26" r="3.2" fill="#FEE2E2" stroke="#DC2626" stroke-width="1.3"/>
+    <path d="M16 25.2h12" stroke="#94A3B8" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M22 23.2l2 2-2 2" stroke="#0F6D38" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
   slideTransition: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="3" y="6" width="14" height="10" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
     <rect x="13" y="14" width="16" height="12" rx="1.5" fill="#1E293B" stroke="#0F172A" stroke-width="1.2"/>

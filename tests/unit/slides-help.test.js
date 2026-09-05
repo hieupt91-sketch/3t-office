@@ -39,6 +39,8 @@ export async function runSlidesHelpTests() {
       "slides.design.formatBackground",
       "slides.view.slideSorter",
       "slides.animation.apply",
+      "slides.animation.pane",
+      "slides.show.setupShow",
       "slides.transition.apply"
     ];
     for (const id of required) {

@@ -159,7 +159,22 @@ export const SLIDES_HELP_ENTRIES = [
       "Chọn đối tượng trên slide (tiêu đề, nội dung, hình) hoặc để trống — hộp thoại vẫn cho chọn đối tượng. Tab Hoạt hình, nhóm Hiệu ứng đối tượng, nhấn Hiệu ứng đối tượng.",
       "Đối tượng áp dụng: Tiêu đề, Nội dung (hoặc cột 1/cột 2 nếu bố cục hai cột), hoặc từng hình. Kiểu: Không có hiệu ứng, Mờ dần xuất hiện, Bay từ dưới lên, Thu phóng xuất hiện, Nảy nhẹ, Trượt từ trái sang.",
       "Chọn Thời gian hiệu ứng (0.3s–1.0s) và Độ trễ xuất hiện (ngay, 0.2s, 0.5s, 1.0s). Nhấn ▶ Xem thử hiệu ứng nếu muốn, rồi Áp dụng hiệu ứng.",
-      "Xóa hiệu ứng: mở lại hộp thoại, chọn Không có hiệu ứng hoặc nút Xóa hiệu ứng. Khi trình chiếu, hiệu ứng chạy theo thứ tự đối tượng trên trang."
+      "Xóa hiệu ứng: mở lại hộp thoại, chọn Không có hiệu ứng hoặc nút Xóa hiệu ứng. Khi trình chiếu, hiệu ứng chạy theo thứ tự đối tượng trên trang. Để xem và sắp xếp nhiều hiệu ứng cùng lúc, dùng Ngăn hoạt hình cạnh nút này."
+    ]
+  },
+  {
+    id: "slides.animation.pane",
+    app: "slides",
+    commandIds: ["slides.animation.pane"],
+    title: "Ngăn hoạt hình (Animation Pane)",
+    summary: "Liệt kê mọi hiệu ứng trên trang đang chọn theo thứ tự chạy: tên đối tượng, kiểu hiệu ứng, số thứ tự. Đổi thứ tự bằng nút lên/xuống, chọn Bắt đầu (Khi click / Cùng với trước đó / Sau trước đó), hoặc xóa hiệu ứng khỏi đối tượng mà không xóa đối tượng.",
+    ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Hiệu ứng đối tượng" },
+    keywords: ["ngăn hoạt hình", "animation pane", "thứ tự hiệu ứng", "bắt đầu", "khi click", "cùng với trước đó", "sau trước đó", "xóa hiệu ứng"],
+    steps: [
+      "Gắn hiệu ứng cho từng đối tượng bằng nút Hiệu ứng đối tượng (cùng nhóm). Tab Hoạt hình, nhóm Hiệu ứng đối tượng, nhấn Ngăn hoạt hình — bảng hiện bên phải canvas.",
+      "Mỗi dòng: số thứ tự, tên đối tượng (hoặc đoạn chữ nếu là hộp văn bản), kiểu hiệu ứng (Fade In, Fly In…). Chọn dòng rồi nhấn ↑ hoặc ↓ để đổi thứ tự chạy thật khi F5, không chỉ thứ tự trên danh sách.",
+      "Cột Bắt đầu: Khi click (chạy sau hiệu ứng trước), Cùng với trước đó (cùng lúc), Sau trước đó (chờ hiệu ứng trước kết thúc rồi mới chạy). Xóa: nút Xóa trên dòng — đối tượng vẫn còn, chỉ bỏ hiệu ứng.",
+      "Ctrl+Z / Ctrl+Y hoàn tác hoặc làm lại đổi thứ tự, đổi Bắt đầu và xóa hiệu ứng. Esc hoặc nút × đóng ngăn. Trang khác có danh sách riêng; chuyển trang thì ngăn cập nhật theo trang đang chọn."
     ]
   },
   {
@@ -185,6 +200,21 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Nhận xét" },
     keywords: ["nhận xét", "trang chiếu", "trước", "sau", "xử lý", "resolve", "xóa"],
     steps: ["Mở tab Đánh giá, nhóm Nhận xét.", "Nhấn Nhận xét trước hoặc Nhận xét sau; VN Slides chuyển tới đúng trang, mở bảng nhận xét, tô sáng mục và quay vòng ở cuối.", "Nhấn Đã xử lý để làm mờ và gạch nội dung nhưng vẫn giữ nhận xét; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa mục đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
+  },
+  {
+    id: "slides.show.setupShow",
+    app: "slides",
+    commandIds: ["slides.show.setupShow"],
+    title: "Thiết lập trình chiếu (Set Up Slide Show)",
+    summary: "Hộp thoại trên tab Trình chiếu, nhóm Thiết lập: lặp liên tục đến Esc, trình chiếu không thuyết minh, và màu con trỏ bút/laser. Lặp liên tục quay về trang 1 sau trang cuối thay vì thoát.",
+    ribbon: { tab: "Trình chiếu", tabId: "slideshow", group: "Thiết lập" },
+    keywords: ["thiết lập trình chiếu", "set up slide show", "lặp liên tục", "loop", "thuyết minh", "narration", "bút", "laser", "màu con trỏ"],
+    steps: [
+      "Tab Trình chiếu, nhóm Thiết lập, nhấn Thiết lập trình chiếu (cạnh Ẩn trang chiếu).",
+      "Đánh dấu Lặp lại liên tục cho đến khi nhấn Esc nếu muốn hết trang cuối thì quay lại trang đầu (trang không ẩn đầu tiên). Không đánh dấu thì hết trang cuối F5 thoát như trước. Esc luôn thoát.",
+      "Trình chiếu không có thuyết minh: lưu cờ cho bản trình chiếu. VN Slides chưa có audio thuyết minh — đánh dấu không tắt âm thanh nào lúc này.",
+      "Màu con trỏ bút / laser: chọn màu bằng ô màu. VN Slides chưa vẽ bút hay laser trên màn hình chiếu; màu được lưu (kể cả khi lưu FODP) để dùng khi tính năng đó có. Nhấn Áp dụng để giữ, Hủy hoặc Esc để bỏ."
+    ]
   }
 ];
 

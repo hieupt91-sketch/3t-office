@@ -278,7 +278,8 @@ export const SLIDES_RIBBON_TABS = [
         label: "Hiệu ứng đối tượng",
         labelKey: "slidesRibbon.group.animations",
         items: [
-          { type: "button", commandId: "slides.animation.apply", isLarge: true }
+          { type: "button", commandId: "slides.animation.apply", isLarge: true },
+          { type: "button", commandId: "slides.animation.pane", isLarge: true }
         ]
       }
     ]
@@ -309,6 +310,7 @@ export const SLIDES_RIBBON_TABS = [
         label: "Thiết lập",
         labelKey: "slidesRibbon.group.setup",
         items: [
+          { type: "button", commandId: "slides.show.setupShow", isLarge: true },
           { type: "button", commandId: "slides.slide.toggleHidden", isLarge: true }
         ]
       }
