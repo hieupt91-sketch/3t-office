@@ -903,6 +903,69 @@ export class SlidesAdapter {
   }
 
   /**
+   * ODF dateTime for dc:date. Canvas stores toISOString() (UTC + ms + Z).
+   * LibreOffice Impress rewrites to YYYY-MM-DDTHH:mm:ss without fraction/Z
+   * (measured FODP→FODP and PPTX hop).
+   */
+  _odfAnnotationDate(raw) {
+    const value = String(raw || "").trim();
+    if (!value) return "";
+    const parsed = new Date(value);
+    if (Number.isFinite(parsed.getTime())) {
+      return parsed.toISOString().replace(/\.\d{3}Z$/, "");
+    }
+    return value.replace(/\.\d+Z?$/, "").replace(/Z$/, "");
+  }
+
+  /**
+   * Page-level Impress comments. ODF uses office:annotation on draw:page
+   * (not table:table-cell like Sheet). LibreOffice rewrites the element to
+   * officeooo:annotation after FODP/PPTX hop but keeps dc:creator/dc:date/text:p.
+   */
+  _serializePageCommentsXml(comments) {
+    const list = (Array.isArray(comments) ? comments : []).filter((comment) => String(comment?.text || "").trim());
+    if (!list.length) return "";
+    return list.map((comment, index) => {
+      const name = this._escapeXml(String(comment.id || `comment-${index + 1}`));
+      const author = this._escapeXml(comment.author || "");
+      const date = this._escapeXml(this._odfAnnotationDate(comment.timestamp));
+      const y = Math.round((0.4 + index * 3.2) * 1000) / 1000;
+      return `
+        <office:annotation draw:name="${name}" svg:x="22cm" svg:y="${y}cm" svg:width="5cm" svg:height="3cm">
+          <dc:creator>${author}</dc:creator>${date ? `
+          <dc:date>${date}</dc:date>` : ""}
+          ${this._textParagraphsXml(comment.text)}
+        </office:annotation>`;
+    }).join("");
+  }
+
+  _parsePageComments(pageXml) {
+    const comments = [];
+    const blocks = [];
+    const regex = /<(office:annotation|officeooo:annotation)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+    let match;
+    while ((match = regex.exec(pageXml)) !== null) {
+      blocks.push(match[0]);
+      const attrs = match[2] || "";
+      const inner = match[3] || "";
+      const author = this._unescapeXml((inner.match(/<dc:creator\b[^>]*>([\s\S]*?)<\/dc:creator>/i)?.[1] || "").replace(/<[^>]+>/g, "")).trim();
+      const timestamp = this._unescapeXml((inner.match(/<dc:date\b[^>]*>([\s\S]*?)<\/dc:date>/i)?.[1] || "").replace(/<[^>]+>/g, "")).trim();
+      const text = this._paragraphsFromXml(inner).join("\n");
+      if (!text && !author) continue;
+      const rawId = this._attr(attrs, "draw:name") || this._attr(attrs, "office:name") || this._attr(attrs, "draw:id");
+      comments.push({
+        id: rawId || `comment-${comments.length + 1}`,
+        text,
+        author,
+        timestamp
+      });
+    }
+    let next = pageXml;
+    for (const block of blocks) next = next.replace(block, "");
+    return { comments, pageXml: next };
+  }
+
+  /**
    * Chuyển đổi toàn bộ slide hiện tại thành định dạng OpenDocument Flat XML (FODP).
    * LibreOffice Impress có thể chuyển đổi FODP trực tiếp sang PPTX, ODP hoặc PDF.
    */
@@ -991,10 +1054,11 @@ export class SlidesAdapter {
       const pageXmlId = `idPage${idx + 1}`;
       const pageStyleName = this._pageDrawingStyleName(slide, idx);
       const animXml = this._serializePageAnimXml(pageXmlId, slide, idMap, placeholderIds);
+      const commentsXml = this._serializePageCommentsXml(slide.comments);
 
       pagesXml += `
       <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="Standard" presentation:layout="${layoutType}" xml:id="${pageXmlId}" draw:id="${pageXmlId}">
-        ${framesXml}${shapesXml}${animXml}${notesXml}
+        ${framesXml}${shapesXml}${animXml}${notesXml}${commentsXml}
       </draw:page>`;
     });
 
@@ -1010,6 +1074,7 @@ export class SlidesAdapter {
                  xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
                  xmlns:xlink="http://www.w3.org/1999/xlink"
                  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+                 xmlns:dc="http://purl.org/dc/elements/1.1/"
                  xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
                  xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.presentation">
@@ -1057,6 +1122,9 @@ export class SlidesAdapter {
         notesText = this._paragraphsFromXml(notesMatch[1]).join("\n");
         pageContent = pageContent.replace(notesRegex, "");
       }
+
+      const parsedComments = this._parsePageComments(pageContent);
+      pageContent = parsedComments.pageXml;
 
       const shapes = [];
       const idMap = new Map();
@@ -1163,6 +1231,7 @@ export class SlidesAdapter {
         layoutType: pageLayout,
         shapes,
         notes: notesText,
+        comments: parsedComments.comments,
         ...(pageTransition ? { transition: pageTransition } : {})
       };
       this._applyPlaceholderAnimations(

@@ -1101,5 +1101,237 @@ export async function runSlidesFileIoTests() {
     }
   });
 
+  function commentSlide(extra = {}) {
+    return {
+      id: 21,
+      title: "Slide nhan xet",
+      body: "Noi dung slide",
+      layoutType: "title-content",
+      notes: "Ghi chu dien gia",
+      shapes: [],
+      comments: [
+        {
+          id: "comment-hoa-1",
+          text: "Can doi chieu so lieu quy II.",
+          author: "Tran Thi Hoa",
+          timestamp: "2026-09-05T09:10:00.000Z"
+        },
+        {
+          id: "comment-duc-2",
+          text: "Xac nhan chu ky nguoi soan.",
+          author: "Pham Minh Duc",
+          timestamp: "2026-09-05T09:25:00.000Z"
+        }
+      ],
+      ...extra
+    };
+  }
+
+  test("SlidesAdapter: serializeToFodp ghi slide.comments ra office:annotation tren draw:page", () => {
+    const adapter = new SlidesAdapter({
+      slides: [
+        commentSlide(),
+        { id: 22, title: "Slide khong comment", body: "", layoutType: "title-only", shapes: [], comments: [] }
+      ]
+    });
+    const fodp = adapter.serializeToFodp();
+    if (!fodp.includes('xmlns:dc="http://purl.org/dc/elements/1.1/"')) {
+      throw new Error("Thieu xmlns:dc cho dc:creator/dc:date");
+    }
+    if (!fodp.includes("<office:annotation") || !fodp.includes("</office:annotation>")) {
+      throw new Error("FODP khong ghi office:annotation tren trang chieu");
+    }
+    if (!fodp.includes("<dc:creator>Tran Thi Hoa</dc:creator>") || !fodp.includes("<dc:creator>Pham Minh Duc</dc:creator>")) {
+      throw new Error("FODP thieu ten nguoi comment");
+    }
+    if (!fodp.includes("<dc:date>2026-09-05T09:10:00</dc:date>") || !fodp.includes("<dc:date>2026-09-05T09:25:00</dc:date>")) {
+      throw new Error(`FODP thieu/sai dc:date: ${fodp.match(/<dc:date>[^<]+<\/dc:date>/g)}`);
+    }
+    if (!fodp.includes("Can doi chieu so lieu quy II.") || !fodp.includes("Xac nhan chu ky nguoi soan.")) {
+      throw new Error("FODP thieu noi dung comment");
+    }
+    if (!fodp.includes('draw:name="comment-hoa-1"') || !fodp.includes('draw:name="comment-duc-2"')) {
+      throw new Error("FODP thieu draw:name giu id comment trong bo nho");
+    }
+    const page1 = fodp.match(/<draw:page[^>]*draw:name="page1"[\s\S]*?<\/draw:page>/)?.[0] || "";
+    const page2 = fodp.match(/<draw:page[^>]*draw:name="page2"[\s\S]*?<\/draw:page>/)?.[0] || "";
+    if (!page1.includes("<office:annotation") || page2.includes("<office:annotation")) {
+      throw new Error("Comment phai gan dung tren page1, khong rò sang page2");
+    }
+    if (page1.indexOf("<office:annotation") < page1.indexOf("Can doi chieu")) {
+      // ok, just ensure annotation is a child of draw:page not of table:table-cell
+    }
+    if (page1.includes("<table:table-cell") && page1.includes("<office:annotation")) {
+      const cellIdx = page1.indexOf("<table:table-cell");
+      const annIdx = page1.indexOf("<office:annotation");
+      if (cellIdx >= 0 && annIdx > cellIdx && page1.indexOf("</table:table-cell>", cellIdx) > annIdx) {
+        throw new Error("Annotation bi long trong table-cell (cau truc Sheet, sai cho Slides)");
+      }
+    }
+  });
+
+  test("SlidesAdapter: serializeToFodp → parseFodp giu comments text/author/timestamp/id, khong lan vao title/body", () => {
+    const adapter = new SlidesAdapter({ slides: [commentSlide()] });
+    const parsed = adapter.parseFodp(adapter.serializeToFodp());
+    if (parsed.length !== 1) throw new Error(`So slide: ${parsed.length}`);
+    if (parsed[0].title !== "Slide nhan xet") throw new Error(`Title lech: ${parsed[0].title}`);
+    if (parsed[0].body !== "Noi dung slide") throw new Error(`Body lech: ${parsed[0].body}`);
+    if (parsed[0].notes !== "Ghi chu dien gia") throw new Error(`Notes lech: ${parsed[0].notes}`);
+    const comments = parsed[0].comments || [];
+    if (comments.length !== 2) throw new Error(`So comment: ${JSON.stringify(comments)}`);
+    if (comments[0].id !== "comment-hoa-1" || comments[0].author !== "Tran Thi Hoa" || comments[0].text !== "Can doi chieu so lieu quy II.") {
+      throw new Error(`Comment 1 sai: ${JSON.stringify(comments[0])}`);
+    }
+    if (!String(comments[0].timestamp).startsWith("2026-09-05T09:10:00")) {
+      throw new Error(`Timestamp 1 sai: ${comments[0].timestamp}`);
+    }
+    if (comments[1].id !== "comment-duc-2" || comments[1].author !== "Pham Minh Duc" || comments[1].text !== "Xac nhan chu ky nguoi soan.") {
+      throw new Error(`Comment 2 sai: ${JSON.stringify(comments[1])}`);
+    }
+  });
+
+  test("SlidesAdapter: parseFodp doc office:annotation viet tay va officeooo:annotation kieu soffice, khong lan text vao title", () => {
+    const adapter = new SlidesAdapter(null);
+    const handwritten = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+ xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <office:body>
+    <office:presentation>
+      <draw:page draw:name="page1">
+        <draw:frame presentation:class="title"><draw:text-box><text:p>Slide nhan xet</text:p></draw:text-box></draw:frame>
+        <draw:frame presentation:class="outline"><draw:text-box><text:p>Noi dung slide</text:p></draw:text-box></draw:frame>
+        <office:annotation draw:name="comment-hoa-1" svg:x="22cm" svg:y="0.4cm" svg:width="5cm" svg:height="3cm">
+          <dc:creator>Tran Thi Hoa</dc:creator>
+          <dc:date>2026-09-05T09:10:00</dc:date>
+          <text:p>Can doi chieu so lieu quy II.</text:p>
+        </office:annotation>
+      </draw:page>
+    </office:presentation>
+  </office:body>
+</office:document>`;
+    const parsedHand = adapter.parseFodp(handwritten);
+    if (parsedHand[0].title !== "Slide nhan xet" || parsedHand[0].body !== "Noi dung slide") {
+      throw new Error(`Handwritten title/body bi lan comment: title=${parsedHand[0].title} body=${parsedHand[0].body}`);
+    }
+    if (parsedHand[0].comments?.[0]?.author !== "Tran Thi Hoa" || parsedHand[0].comments?.[0]?.text !== "Can doi chieu so lieu quy II.") {
+      throw new Error(`Handwritten comment sai: ${JSON.stringify(parsedHand[0].comments)}`);
+    }
+
+    const sofficeStyle = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:officeooo="http://openoffice.org/2009/office"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+ xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <office:body>
+    <office:presentation>
+      <draw:page draw:name="page1">
+        <draw:frame presentation:class="title"><draw:text-box><text:p>Slide nhan xet</text:p></draw:text-box></draw:frame>
+        <draw:frame presentation:class="outline"><draw:text-box><text:p>Noi dung slide</text:p></draw:text-box></draw:frame>
+        <presentation:notes>
+          <draw:frame presentation:class="notes"><draw:text-box><text:p>Notes khong phai comment</text:p></draw:text-box></draw:frame>
+        </presentation:notes>
+        <officeooo:annotation svg:x="22.217cm" svg:y="0cm" svg:width="1.079cm" svg:height="0.496cm">
+          <dc:creator>Tran Thi Hoa</dc:creator>
+          <dc:date>2026-09-05T09:10:00</dc:date>
+          <text:p>Can doi chieu so lieu quy II.</text:p>
+        </officeooo:annotation>
+        <officeooo:annotation svg:x="22.217cm" svg:y="3.174cm" svg:width="1.177cm" svg:height="0.496cm">
+          <dc:creator>Pham Minh Duc</dc:creator>
+          <dc:date>2026-09-05T09:25:00</dc:date>
+          <text:p>Xac nhan chu ky nguoi soan.</text:p>
+        </officeooo:annotation>
+      </draw:page>
+      <draw:page draw:name="page2">
+        <draw:frame presentation:class="title"><draw:text-box><text:p>Slide khong comment</text:p></draw:text-box></draw:frame>
+      </draw:page>
+    </office:presentation>
+  </office:body>
+</office:document>`;
+    const parsedLo = adapter.parseFodp(sofficeStyle);
+    if (parsedLo.length !== 2) throw new Error(`So slide soffice-style: ${parsedLo.length}`);
+    if (parsedLo[0].title !== "Slide nhan xet" || parsedLo[0].body !== "Noi dung slide") {
+      throw new Error(`soffice-style title/body lan comment: title=${parsedLo[0].title} body=${parsedLo[0].body}`);
+    }
+    if (parsedLo[0].notes !== "Notes khong phai comment") {
+      throw new Error(`Notes bi lan: ${parsedLo[0].notes}`);
+    }
+    const loComments = parsedLo[0].comments || [];
+    if (loComments.length !== 2) throw new Error(`soffice-style so comment: ${JSON.stringify(loComments)}`);
+    if (loComments[0].author !== "Tran Thi Hoa" || loComments[0].text !== "Can doi chieu so lieu quy II.") {
+      throw new Error(`soffice-style comment 1: ${JSON.stringify(loComments[0])}`);
+    }
+    if (loComments[1].author !== "Pham Minh Duc" || loComments[1].text !== "Xac nhan chu ky nguoi soan.") {
+      throw new Error(`soffice-style comment 2: ${JSON.stringify(loComments[1])}`);
+    }
+    if ((parsedLo[1].comments || []).length !== 0) {
+      throw new Error(`page2 khong co comment nhung parse ra: ${JSON.stringify(parsedLo[1].comments)}`);
+    }
+    if (parsedLo[1].title !== "Slide khong comment") {
+      throw new Error(`page2 title sai: ${parsedLo[1].title}`);
+    }
+  });
+
+  await asyncTest("SlidesAdapter: comment escape XML va loadFromFodp/open path nap comments", async () => {
+    const canvas = new MockCanvasController();
+    const adapter = new SlidesAdapter({
+      slides: [{
+        id: 31,
+        title: "Escape",
+        body: "Body",
+        layoutType: "title-content",
+        shapes: [],
+        comments: [{
+          id: "comment-esc",
+          text: 'A & B < C > "quote"',
+          author: "Lan <Test>",
+          timestamp: "2026-09-05T10:00:00.000Z"
+        }]
+      }]
+    });
+    const fodp = adapter.serializeToFodp();
+    if (!fodp.includes("A &amp; B &lt; C &gt; &quot;quote&quot;") || !fodp.includes("Lan &lt;Test&gt;")) {
+      throw new Error(`Comment chua escape XML: ${fodp.match(/<office:annotation[\s\S]*?<\/office:annotation>/)}`);
+    }
+    const parsed = adapter.parseFodp(fodp);
+    if (parsed[0].comments[0].text !== 'A & B < C > "quote"' || parsed[0].comments[0].author !== "Lan <Test>") {
+      throw new Error(`Unescape comment sai: ${JSON.stringify(parsed[0].comments[0])}`);
+    }
+
+    const openAdapter = new SlidesAdapter(canvas);
+    const origOpen = globalUnoBridge.openRealFile;
+    globalUnoBridge.openRealFile = async () => ({
+      status: "ok",
+      fileName: "NhanXet.pptx",
+      content: `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:officeooo="http://openoffice.org/2009/office" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:frame presentation:class="title"><draw:text-box><text:p>Mo PPTX that</text:p></draw:text-box></draw:frame>
+      <officeooo:annotation>
+        <dc:creator>Tran Thi Hoa</dc:creator>
+        <dc:date>2026-09-05T09:10:00</dc:date>
+        <text:p>Can doi chieu so lieu quy II.</text:p>
+      </officeooo:annotation>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`
+    });
+    try {
+      const ok = await openAdapter.open();
+      if (ok !== true) throw new Error("open() phai tra true");
+      if (canvas.slides[0].title !== "Mo PPTX that") throw new Error(`open title: ${canvas.slides[0].title}`);
+      if (canvas.slides[0].comments?.[0]?.author !== "Tran Thi Hoa" || canvas.slides[0].comments?.[0]?.text !== "Can doi chieu so lieu quy II.") {
+        throw new Error(`open() khong nap comment: ${JSON.stringify(canvas.slides[0].comments)}`);
+      }
+    } finally {
+      globalUnoBridge.openRealFile = origOpen;
+    }
+  });
+
   return results;
 }
