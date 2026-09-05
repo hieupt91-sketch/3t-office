@@ -694,14 +694,16 @@ export class SheetAdapter {
       const scale = { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(setup.scale || {}) };
       const headerFooter = { header: { left: "", center: "", right: "", ...(setup.headerFooter?.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(setup.headerFooter?.footer || {}) } };
       const centerOnPage = { horizontal: false, vertical: false, ...(setup.centerOnPage || {}) };
+      const printOptions = { gridlines: false, headings: false, ...(setup.printOptions || {}) };
+      const printTokens = ["objects", "charts", "drawings", "zero-values", printOptions.gridlines ? "grid" : "", printOptions.headings ? "headers" : ""].filter(Boolean).join(" ");
       const tableCentering = centerOnPage.horizontal && centerOnPage.vertical ? "both" : centerOnPage.horizontal ? "horizontal" : centerOnPage.vertical ? "vertical" : "none";
       const scaleAttribute = scale.mode === "pages"
         ? ` style:scale-to-pages="${Math.max(1, scale.pagesWide || scale.pagesTall || 1)}"`
         : ` style:scale-to="${Math.min(400, Math.max(10, scale.percent || 100))}%"`;
       const suffix = index + 1;
-      pageStyleBySheet.set(sheetName, { tableStyle: `vno-table-page-${suffix}`, size, orientation, margins, scale, headerFooter, centerOnPage });
+      pageStyleBySheet.set(sheetName, { tableStyle: `vno-table-page-${suffix}`, size, orientation, margins, scale, headerFooter, centerOnPage, printOptions });
       pageLayouts.push(`<style:page-layout style:name="vno-page-layout-${suffix}"><style:page-layout-properties fo:page-width="${width}cm" fo:page-height="${height}cm" style:print-orientation="${orientation}" fo:margin-top="${margins.top}cm" fo:margin-bottom="${margins.bottom}cm" fo:margin-left="${margins.left}cm" fo:margin-right="${margins.right}cm" style:table-centering="${tableCentering}"${scaleAttribute}/></style:page-layout>`);
-      tablePageStyles.push(`<style:style style:name="vno-table-page-${suffix}" style:family="table" style:master-page-name="vno-master-page-${suffix}"/>`);
+      tablePageStyles.push(`<style:style style:name="vno-table-page-${suffix}" style:family="table" style:master-page-name="vno-master-page-${suffix}"><style:table-properties style:print="${printTokens}"/></style:style>`);
       masterPages.push(`<style:master-page style:name="vno-master-page-${suffix}" style:page-layout-name="vno-page-layout-${suffix}">${headerFooterXml("header", headerFooter.header)}${headerFooterXml("footer", headerFooter.footer)}</style:master-page>`);
     });
     const odfAddress = (sheetName, cell) => `'${String(sheetName).replace(/'/g, "''")}'.${cell}`;
@@ -964,7 +966,7 @@ export class SheetAdapter {
       const printRangeAttr = printRange ? ` table:print-ranges="${this._escapeXml(printRange)}"` : "";
       const pageStyle = pageStyleBySheet.get(sheetName);
       const printTitles = this.grid.pageSetupBySheet?.[sheetName]?.printTitles || {};
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"`;
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}>${columnsXml}${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}</table:table>`;
     }).join("");
@@ -1451,6 +1453,8 @@ export class SheetAdapter {
           try { pageHeaderFooter = JSON.parse(table.getAttribute("vno:page-header-footer") || "{}"); } catch (_) { pageHeaderFooter = {}; }
           let pageCentering = {};
           try { pageCentering = JSON.parse(table.getAttribute("vno:page-centering") || "{}"); } catch (_) { pageCentering = {}; }
+          let pagePrintOptions = {};
+          try { pagePrintOptions = JSON.parse(table.getAttribute("vno:page-print-options") || "{}"); } catch (_) { pagePrintOptions = {}; }
           const pageSetup = {
             size: table.getAttribute("vno:page-size") || "a4",
             orientation: table.getAttribute("vno:page-orientation") || "portrait",
@@ -1458,6 +1462,7 @@ export class SheetAdapter {
             scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...pageScale },
             headerFooter: { header: { left: "", center: "", right: "", ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(pageHeaderFooter.footer || {}) } },
             centerOnPage: { horizontal: false, vertical: false, ...pageCentering },
+            printOptions: { gridlines: false, headings: false, ...pagePrintOptions },
             printTitles: { rows: table.getAttribute("vno:print-title-rows") || "", cols: table.getAttribute("vno:print-title-cols") || "" }
           };
           const data = new Map();
@@ -1585,6 +1590,8 @@ export class SheetAdapter {
         try { pageHeaderFooter = JSON.parse(pageAttr("vno:page-header-footer") || "{}"); } catch (_) { pageHeaderFooter = {}; }
         let pageCentering = {};
         try { pageCentering = JSON.parse(pageAttr("vno:page-centering") || "{}"); } catch (_) { pageCentering = {}; }
+        let pagePrintOptions = {};
+        try { pagePrintOptions = JSON.parse(pageAttr("vno:page-print-options") || "{}"); } catch (_) { pagePrintOptions = {}; }
         const pageSetup = {
           size: pageAttr("vno:page-size") || "a4",
           orientation: pageAttr("vno:page-orientation") || "portrait",
@@ -1592,6 +1599,7 @@ export class SheetAdapter {
           scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...pageScale },
           headerFooter: { header: { left: "", center: "", right: "", ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(pageHeaderFooter.footer || {}) } },
           centerOnPage: { horizontal: false, vertical: false, ...pageCentering },
+          printOptions: { gridlines: false, headings: false, ...pagePrintOptions },
           printTitles: { rows: pageAttr("vno:print-title-rows"), cols: pageAttr("vno:print-title-cols") }
         };
         const data = new Map();

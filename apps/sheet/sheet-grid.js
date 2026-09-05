@@ -23,6 +23,7 @@ export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
   scale: Object.freeze({ mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0 }),
   headerFooter: Object.freeze({ header: Object.freeze({ left: "", center: "", right: "" }), footer: Object.freeze({ left: "", center: "Trang &P / &N", right: "" }) }),
   centerOnPage: Object.freeze({ horizontal: false, vertical: false }),
+  printOptions: Object.freeze({ gridlines: false, headings: false }),
   printTitles: Object.freeze({ rows: "", cols: "" })
 });
 
@@ -44,6 +45,7 @@ function newSheetPageSetup(overrides = {}) {
       footer: { ...DEFAULT_SHEET_PAGE_SETUP.headerFooter.footer, ...(overrides.headerFooter?.footer || {}) }
     },
     centerOnPage: { ...DEFAULT_SHEET_PAGE_SETUP.centerOnPage, ...(overrides.centerOnPage || {}) },
+    printOptions: { ...DEFAULT_SHEET_PAGE_SETUP.printOptions, ...(overrides.printOptions || {}) },
     printTitles: { ...DEFAULT_SHEET_PAGE_SETUP.printTitles, ...(overrides.printTitles || {}) }
   };
 }
@@ -5988,7 +5990,10 @@ export class SheetGridController {
     const centerOnPage = { ...before.centerOnPage, ...(changes.centerOnPage || {}) };
     centerOnPage.horizontal = Boolean(centerOnPage.horizontal);
     centerOnPage.vertical = Boolean(centerOnPage.vertical);
-    const after = { margins, orientation, size, scale, headerFooter, centerOnPage, printTitles };
+    const printOptions = { ...before.printOptions, ...(changes.printOptions || {}) };
+    printOptions.gridlines = Boolean(printOptions.gridlines);
+    printOptions.headings = Boolean(printOptions.headings);
+    const after = { margins, orientation, size, scale, headerFooter, centerOnPage, printOptions, printTitles };
     if (JSON.stringify(before) === JSON.stringify(after)) return after;
     this.pageSetupBySheet[this.activeSheet] = after;
     this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "pageSetupBySheet", before, after: structuredClone(after) });
@@ -6015,6 +6020,7 @@ export class SheetGridController {
         <label><input type="radio" name="vno-sheet-scale-mode" value="pages" ${setup.scale.mode === "pages" ? "checked" : ""}> Vừa trong <input id="vno-sheet-scale-wide" type="number" min="0" max="1000" value="${setup.scale.pagesWide}" class="vno-dialog-input" style="width:64px"> trang ngang × <input id="vno-sheet-scale-tall" type="number" min="0" max="1000" value="${setup.scale.pagesTall}" class="vno-dialog-input" style="width:64px"> trang dọc <small>(0 = tự động)</small></label>
       </fieldset>
       <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Căn giữa trang khi in</legend><label><input id="vno-sheet-center-horizontal" type="checkbox" ${setup.centerOnPage.horizontal ? "checked" : ""}> Theo chiều ngang</label><label><input id="vno-sheet-center-vertical" type="checkbox" ${setup.centerOnPage.vertical ? "checked" : ""}> Theo chiều dọc</label></fieldset>
+      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Tùy chọn in</legend><label><input id="vno-sheet-print-gridlines" type="checkbox" ${setup.printOptions.gridlines ? "checked" : ""}> In đường kẻ ô</label><label><input id="vno-sheet-print-headings" type="checkbox" ${setup.printOptions.headings ? "checked" : ""}> In tiêu đề hàng và cột</label></fieldset>
       <div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
     const presets = { normal: [1.91, 1.91, 1.78, 1.78], wide: [2.54, 2.54, 5.08, 5.08], narrow: [1.27, 1.27, 1.27, 1.27] };
@@ -6029,6 +6035,7 @@ export class SheetGridController {
         size: overlay.querySelector("#vno-sheet-size").value,
         scale: { mode: overlay.querySelector('[name="vno-sheet-scale-mode"]:checked').value, percent: overlay.querySelector("#vno-sheet-scale-percent").value, pagesWide: overlay.querySelector("#vno-sheet-scale-wide").value, pagesTall: overlay.querySelector("#vno-sheet-scale-tall").value },
         centerOnPage: { horizontal: overlay.querySelector("#vno-sheet-center-horizontal").checked, vertical: overlay.querySelector("#vno-sheet-center-vertical").checked },
+        printOptions: { gridlines: overlay.querySelector("#vno-sheet-print-gridlines").checked, headings: overlay.querySelector("#vno-sheet-print-headings").checked },
         printTitles: { rows: overlay.querySelector("#vno-sheet-title-rows").value, cols: overlay.querySelector("#vno-sheet-title-cols").value }
       });
       if (!result) { overlay.querySelector(".vno-rule-error").textContent = "Giá trị lề hoặc tiêu đề in không hợp lệ."; return; }
