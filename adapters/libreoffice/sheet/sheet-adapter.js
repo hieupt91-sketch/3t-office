@@ -621,6 +621,8 @@ export class SheetAdapter {
       const comments = this.grid.commentsBySheet?.[sheetName] || {};
       const cellValidations = validationsByCell.get(sheetName) || new Map();
       const cellConditionalBases = conditionalBaseByCell.get(sheetName) || new Map();
+      const mergeAnchors = new Map();
+      const coveredCells = new Set();
       let maxRow = 0;
       const rows = new Map();
       for (const [coordinate, item] of cells.entries()) {
@@ -659,6 +661,29 @@ export class SheetAdapter {
         if (!rows.get(rowNumber).has(columnNumber)) rows.get(rowNumber).set(columnNumber, { val: "", formula: "", style: {} });
         maxRow = Math.max(maxRow, rowNumber);
       }
+      for (const range of this.grid.mergedRangesBySheet?.[sheetName] || []) {
+        const startColumn = this._columnNumber(range?.start?.c);
+        const endColumn = this._columnNumber(range?.end?.c);
+        const startRow = Number(range?.start?.r);
+        const endRow = Number(range?.end?.r);
+        if (![startColumn, endColumn, startRow, endRow].every(Number.isInteger)) continue;
+        const left = Math.min(startColumn, endColumn);
+        const right = Math.max(startColumn, endColumn);
+        const top = Math.min(startRow, endRow);
+        const bottom = Math.max(startRow, endRow);
+        if (left < 1 || top < 1 || (left === right && top === bottom)) continue;
+        const anchor = `${this._columnName(left)}${top}`;
+        mergeAnchors.set(anchor, { columns: right - left + 1, rows: bottom - top + 1 });
+        for (let row = top; row <= bottom; row++) {
+          if (!rows.has(row)) rows.set(row, new Map());
+          for (let column = left; column <= right; column++) {
+            const coordinate = `${this._columnName(column)}${row}`;
+            if (!rows.get(row).has(column)) rows.get(row).set(column, null);
+            if (coordinate !== anchor) coveredCells.add(coordinate);
+          }
+        }
+        maxRow = Math.max(maxRow, bottom);
+      }
 
       let rowsXml = "";
       for (let rowNumber = 1; rowNumber <= Math.max(1, maxRow); rowNumber++) {
@@ -671,8 +696,14 @@ export class SheetAdapter {
           if (gap === 1) cellsXml += "<table:table-cell/>";
           else if (gap > 1) cellsXml += `<table:table-cell table:number-columns-repeated="${gap}"/>`;
 
-          const item = rowCells.get(columnNumber);
           const coordinate = `${this._columnName(columnNumber)}${rowNumber}`;
+          if (coveredCells.has(coordinate)) {
+            cellsXml += "<table:covered-table-cell/>";
+            previousColumn = columnNumber;
+            continue;
+          }
+          const storedItem = rowCells.get(columnNumber);
+          const item = storedItem || { val: "", formula: "", style: {} };
           const arrayFormula = this._arrayFormulaInfo(coordinate, item);
           const formula = (!arrayFormula || arrayFormula.isAnchor) && item.formula && String(item.formula).startsWith("=") ? String(item.formula) : "";
           const formulaAttrs = formula
@@ -695,10 +726,16 @@ export class SheetAdapter {
           }
           const validationName = cellValidations.get(coordinate);
           const validationAttr = validationName ? ` table:content-validation-name="${validationName}"` : "";
-          const cellAttrs = `${formulaAttrs}${matrixAttrs}${numFmtAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}`;
+          const merge = mergeAnchors.get(coordinate);
+          const mergeAttrs = merge
+            ? ` table:number-columns-spanned="${merge.columns}" table:number-rows-spanned="${merge.rows}"`
+            : "";
+          const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}`;
           const comment = comments[coordinate];
           const annotationXml = comment ? `<office:annotation><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
-          if (typeof item.val === "number" && Number.isFinite(item.val)) {
+          if (!storedItem && !comment && !validationName && !conditionalBase) {
+            cellsXml += `<table:table-cell${cellAttrs}/>`;
+          } else if (typeof item.val === "number" && Number.isFinite(item.val)) {
             cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
           } else {
             const text = item.val === undefined || item.val === null ? "" : String(item.val);
@@ -1052,7 +1089,7 @@ export class SheetAdapter {
 
   /** Parse FODS into every worksheet, including repeated rows/cells emitted by LibreOffice. */
   parseFods(xmlText) {
-    const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, validationHits: [] };
+    const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, validationHits: [] };
     if (!xmlText) return workbook;
     const numberStyles = this._parseNumberStyles(xmlText);
     const tableBlocks = [];
@@ -1076,6 +1113,7 @@ export class SheetAdapter {
           const printArea = this._parsePrintRangeAddress(table.getAttribute("table:print-ranges"));
           const data = new Map();
           const comments = {};
+          const mergedRanges = [];
           const localRanges = [];
           const arrayFormulas = [];
           let localNameIndex = 0;
@@ -1098,12 +1136,23 @@ export class SheetAdapter {
               Array.from(row.children).filter(cell => ["table-cell", "covered-table-cell"].includes(cell.localName)).forEach(cell => {
                 const columnRepeat = Math.max(1, Number(cell.getAttribute("table:number-columns-repeated")) || 1);
                 const attributes = Object.fromEntries(Array.from(cell.attributes).map(attr => [attr.name, attr.value]));
+                const isCovered = cell.localName === "covered-table-cell";
+                const mergedColumns = Math.max(1, Number(attributes["table:number-columns-spanned"]) || 1);
+                const mergedRows = Math.max(1, Number(attributes["table:number-rows-spanned"]) || 1);
+                if (!isCovered && (mergedColumns > 1 || mergedRows > 1)) {
+                  for (let repeat = 0; repeat < columnRepeat; repeat++) {
+                    mergedRanges.push({
+                      start: { c: this._columnName(columnNumber + repeat), r: rowNumber },
+                      end: { c: this._columnName(columnNumber + repeat + mergedColumns - 1), r: rowNumber + mergedRows - 1 }
+                    });
+                  }
+                }
                 if (!attributes["table:style-name"] && columnStyles[columnNumber - 1]) attributes["table:style-name"] = columnStyles[columnNumber - 1];
                 const annotation = Array.from(cell.children).find(child => child.localName === "annotation");
                 const paragraphs = Array.from(cell.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p")).filter(paragraph => !annotation?.contains(paragraph));
                 const text = paragraphs.map(paragraph => paragraph.textContent || "").join("\n");
                 const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"];
-                if (hasValue) {
+                if (hasValue && !isCovered) {
                   const item = this._cellFromFodsAttributes(attributes, text, numberStyles);
                   const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);
                   const matrixRows = Math.max(1, Number(attributes["table:number-matrix-rows-spanned"]) || 1);
@@ -1133,6 +1182,7 @@ export class SheetAdapter {
           workbook.sheets.push(name);
           workbook.sheetsData[name] = data;
           workbook.commentsBySheet[name] = comments;
+          workbook.mergedRangesBySheet[name] = mergedRanges;
           workbook.namedRangesBySheet[name] = localRanges;
           workbook.printAreaBySheet[name] = printArea;
         });
@@ -1153,6 +1203,7 @@ export class SheetAdapter {
         const printArea = this._parsePrintRangeAddress(this._unescapeXml(printRangeMatch?.[1] || ""));
         const data = new Map();
         const comments = {};
+        const mergedRanges = [];
         const localRanges = [];
         const arrayFormulas = [];
         let localNameIndex = 0;
@@ -1175,21 +1226,32 @@ export class SheetAdapter {
           const rowRepeat = Math.max(1, Number(rowMatch[1].match(/table:number-rows-repeated=["'](\d+)["']/i)?.[1]) || 1);
           for (let repeatedRow = 0; repeatedRow < rowRepeat; repeatedRow++) {
             let columnNumber = 1;
-            const cellRegex = /<(?:table:)?(?:table-cell|covered-table-cell)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:table:)?(?:table-cell|covered-table-cell)>)/gi;
+            const cellRegex = /<(?:table:)?(table-cell|covered-table-cell)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:table:)?(?:table-cell|covered-table-cell)>)/gi;
             let cellMatch;
             while ((cellMatch = cellRegex.exec(rowMatch[2] || "")) !== null) {
               const attributes = {};
-              cellMatch[1].replace(/([\w:-]+)=["']([^"']*)["']/g, (_, key, value) => { attributes[key] = this._unescapeXml(value); return ""; });
+              cellMatch[2].replace(/([\w:-]+)=["']([^"']*)["']/g, (_, key, value) => { attributes[key] = this._unescapeXml(value); return ""; });
               const columnRepeat = Math.max(1, Number(attributes["table:number-columns-repeated"]) || 1);
+              const isCovered = cellMatch[1].toLowerCase() === "covered-table-cell";
+              const mergedColumns = Math.max(1, Number(attributes["table:number-columns-spanned"]) || 1);
+              const mergedRows = Math.max(1, Number(attributes["table:number-rows-spanned"]) || 1);
+              if (!isCovered && (mergedColumns > 1 || mergedRows > 1)) {
+                for (let repeat = 0; repeat < columnRepeat; repeat++) {
+                  mergedRanges.push({
+                    start: { c: this._columnName(columnNumber + repeat), r: rowNumber },
+                    end: { c: this._columnName(columnNumber + repeat + mergedColumns - 1), r: rowNumber + mergedRows - 1 }
+                  });
+                }
+              }
               if (!attributes["table:style-name"] && columnStyles[columnNumber - 1]) attributes["table:style-name"] = columnStyles[columnNumber - 1];
-              const content = String(cellMatch[2] || "");
+              const content = String(cellMatch[3] || "");
               const annotationMatch = content.match(/<office:annotation\b([^>]*)>([\s\S]*?)<\/office:annotation>/i);
               const valueContent = annotationMatch ? content.replace(annotationMatch[0], "") : content;
               const paragraphs = [];
               valueContent.replace(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi, (_, value) => { paragraphs.push(this._unescapeXml(value.replace(/<[^>]+>/g, ""))); return ""; });
               const text = paragraphs.join("\n");
               const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotationMatch || attributes["table:content-validation-name"];
-              if (hasValue) {
+              if (hasValue && !isCovered) {
                 const item = this._cellFromFodsAttributes(attributes, text, numberStyles);
                 const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);
                 const matrixRows = Math.max(1, Number(attributes["table:number-matrix-rows-spanned"]) || 1);
@@ -1222,6 +1284,7 @@ export class SheetAdapter {
         workbook.sheets.push(name);
         workbook.sheetsData[name] = data;
         workbook.commentsBySheet[name] = comments;
+        workbook.mergedRangesBySheet[name] = mergedRanges;
         workbook.namedRangesBySheet[name] = localRanges;
         workbook.printAreaBySheet[name] = printArea;
       }
@@ -1241,6 +1304,7 @@ export class SheetAdapter {
     this.grid.sheets = [firstSheet];
     this.grid.sheetsData = { [firstSheet]: workbook.sheetsData[firstSheet] };
     this.grid.commentsBySheet = { [firstSheet]: workbook.commentsBySheet[firstSheet] || {} };
+    this.grid.mergedRangesBySheet = { [firstSheet]: workbook.mergedRangesBySheet[firstSheet] || [] };
     this.grid.namedRangesWorkbook = workbook.namedRangesWorkbook || [];
     this.grid.namedRangesBySheet = { [firstSheet]: workbook.namedRangesBySheet[firstSheet] || [] };
     this.grid.printAreaBySheet = { [firstSheet]: workbook.printAreaBySheet[firstSheet] || null };
@@ -1249,6 +1313,7 @@ export class SheetAdapter {
       else this.grid.sheets.push(sheetName);
       this.grid.sheetsData[sheetName] = workbook.sheetsData[sheetName];
       this.grid.commentsBySheet[sheetName] = workbook.commentsBySheet[sheetName] || {};
+      this.grid.mergedRangesBySheet[sheetName] = workbook.mergedRangesBySheet[sheetName] || [];
       this.grid.namedRangesBySheet[sheetName] = workbook.namedRangesBySheet[sheetName] || [];
       this.grid.printAreaBySheet[sheetName] = workbook.printAreaBySheet[sheetName] || null;
     }
