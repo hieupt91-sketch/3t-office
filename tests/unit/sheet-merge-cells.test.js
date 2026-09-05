@@ -91,5 +91,32 @@ export async function runSheetMergeCellsTests() {
     assert(!grid.getMergedRanges().some(range => range.start.r === 8 && range.end.r === 8), "Delete toàn bộ chiều cao phải xóa merge");
   });
 
+  await test("FODS internal round-trip preserves per-sheet merges without covered-cell data", async () => {
+    const first = "Tong hop";
+    const second = "Chi tiet";
+    const grid = {
+      sheets: [first, second], activeSheet: first,
+      sheetsData: {
+        [first]: new Map([["B2", { val: "Title", formula: "", style: {} }]]),
+        [second]: new Map()
+      },
+      mergedRangesBySheet: {
+        [first]: [{ start: { c: "B", r: 2 }, end: { c: "D", r: 3 } }],
+        [second]: [{ start: { c: "A", r: 1 }, end: { c: "A", r: 4 } }]
+      },
+      commentsBySheet: { [first]: {}, [second]: {} },
+      namedRangesBySheet: { [first]: [], [second]: [] }, namedRangesWorkbook: [],
+      printAreaBySheet: { [first]: null, [second]: null }
+    };
+    const xml = new SheetAdapter(grid).serializeToFods();
+    assert(/table:number-columns-spanned="3" table:number-rows-spanned="2"/.test(xml), "B2 anchor must carry a 3x2 ODF span");
+    assert((xml.match(/<table:covered-table-cell\/>/g) || []).length === 8, "Both merges must emit all eight covered cells");
+    const parsed = new SheetAdapter(null).parseFods(xml);
+    assert(JSON.stringify(parsed.mergedRangesBySheet) === JSON.stringify(grid.mergedRangesBySheet), `Parsed merge ranges differ: ${JSON.stringify(parsed.mergedRangesBySheet)}`);
+    assert(parsed.sheetsData[first].get("B2")?.val === "Title", "Merge anchor must retain its data");
+    for (const coordinate of ["C2", "D2", "B3", "C3", "D3"]) assert(!parsed.sheetsData[first].has(coordinate), `${coordinate} covered cell must remain absent`);
+    for (const coordinate of ["A1", "A2", "A3", "A4"]) assert(!parsed.sheetsData[second].has(coordinate), `${coordinate} in an empty merge must not create fake data`);
+  });
+
   return results;
 }
