@@ -361,6 +361,23 @@ body {
   border-top: 1px solid transparent;
 }
 
+/* Man hinh laptop pho bien VN (1366px va hep hon): giam gap/padding ribbon
+   de giam bot tran ngang - xem docs/VNO-GAPS.md #1, #2. Day la file thuc su
+   co hieu luc cho .vno-ribbon-* (nap sau platform/ribbon/ribbon.css nen
+   thang cascade); phan con lai (neu con) duoc xu ly graceful qua
+   overflow-x:auto tren .vno-ribbon-content. */
+@media (max-width: 1400px) {
+  .vno-ribbon-content {
+    padding: 4px 3px;
+  }
+  .vno-ribbon-group {
+    padding: 0 4px;
+  }
+  .vno-ribbon-group-items {
+    gap: 2px;
+  }
+}
+
 /* ==========================================================================
    3. WORKSPACE CONTAINER
    ========================================================================== */

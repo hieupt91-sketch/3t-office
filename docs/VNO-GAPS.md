@@ -15,8 +15,8 @@ Sau khi 1 agent xử lý xong 1 mục: xoá comment marker khỏi code, đánh d
 
 | # | Loại | Vị trí | Mô tả | Trạng thái |
 |---|---|---|---|---|
-| 1 | UI | `platform/ribbon/ribbon.css` `.vno-ribbon-group-items`/`.vno-ribbon-group` | Sheet tab Home (nhóm "Chỉnh sửa") tràn ngang ~189px ở độ phân giải 1366px (laptop phổ biến VN) — ribbon có `overflow-x:auto` nên không vỡ layout nhưng phải cuộn ngang mới thấy hết nút Sort/Find. Cần giảm gap/padding responsive ở `<=1400px` hoặc đổi 1 phần nhóm Editing (Fill/Clear) sang dropdown gọn hơn giống Excel thật. | [ ] |
-| 2 | UI | `apps/sheet/sheet-ribbon.js` tab `formulas` | Formulas tab tràn nhẹ ~22px ở 1366px — mức độ nhỏ, ưu tiên thấp hơn #1. | [ ] |
+| 1 | UI | `apps/sheet/sheet-ribbon.js` nhóm "Chỉnh sửa" (Editing) trong tab Home | Sheet tab Home tràn ngang ở độ phân giải 1366px (laptop phổ biến VN) — ribbon có `overflow-x:auto` nên không vỡ layout, chỉ cần cuộn ngang. Claude đã giảm CSS gap/padding responsive (`platform/shell/shell.css` — LƯU Ý: đây mới là file thực sự có hiệu lực cho `.vno-ribbon-*`, nạp sau `platform/ribbon/ribbon.css` nên thắng cascade, `ribbon.css` gần như code chết cho phần ribbon layout) giảm được ~41px (1557→1516), còn dư khoảng 150px. Phần còn lại cần quyết định UX: gộp nhóm Fill Down/Fill Right và Clear All/Formats/Contents thành 1-2 dropdown gọn giống Excel thật thay vì hiện hết dạng cột nút rời — đây là thay đổi cấu trúc UI cần agy quyết định/thực hiện, không chỉ CSS thuần. | [ ] còn ~150px, cần agy |
+| 2 | UI | `apps/sheet/sheet-ribbon.js` tab `formulas` | Formulas tab tràn nhẹ ~22px ở 1366px | [x] Claude đã sửa xong qua CSS responsive trong `shell.css`, hết tràn hoàn toàn |
 
 ## Cách rà soát tiếp (cho Claude ở phiên sau, hoặc tự chạy lại)
 
