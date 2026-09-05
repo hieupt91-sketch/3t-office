@@ -475,6 +475,22 @@ export function showWordArtDialog(options = {}) {
         selectedPreset = button.dataset.wordartPreset;
       });
     });
+    const gallery = overlay.querySelector("#vno-wordart-gallery");
+    gallery?.addEventListener("keydown", (event) => {
+      if (["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(event.key)) {
+        event.preventDefault();
+        const buttons = Array.from(presetButtons);
+        const curIdx = buttons.indexOf(document.activeElement);
+        let nextIdx;
+        if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+          nextIdx = curIdx === -1 ? 0 : (curIdx + 1) % buttons.length;
+        } else {
+          nextIdx = curIdx === -1 ? buttons.length - 1 : (curIdx - 1 + buttons.length) % buttons.length;
+        }
+        buttons[nextIdx]?.click();
+        buttons[nextIdx]?.focus();
+      }
+    });
     textInput.focus();
     textInput.select?.();
 

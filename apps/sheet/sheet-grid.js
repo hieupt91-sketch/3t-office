@@ -3225,6 +3225,12 @@ export class SheetGridController {
       overlay.closeDialog();
     };
     form.addEventListener("submit", event => { event.preventDefault(); paste(); });
+    form.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        paste();
+      }
+    });
     overlay.querySelector(".vno-rule-apply")?.addEventListener("click", paste);
     form.querySelector('input[name="paste-special-mode"]')?.focus();
     return true;

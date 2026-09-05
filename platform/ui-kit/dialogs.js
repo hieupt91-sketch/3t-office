@@ -170,9 +170,13 @@ export function showConfirmDialog({
       resolve(result);
     };
 
-    overlay.querySelector(".vno-dialog-confirm-btn").addEventListener("click", () => finish(true));
-    overlay.querySelector(".vno-dialog-cancel-btn").addEventListener("click", () => finish(false));
-    overlay.querySelector(".vno-dialog-close-btn").addEventListener("click", () => finish(false));
+    const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+    const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+    const confirmBtn = overlay.querySelector(".vno-dialog-confirm-btn");
+
+    confirmBtn.addEventListener("click", () => finish(true));
+    cancelBtn.addEventListener("click", () => finish(false));
+    closeBtn.addEventListener("click", () => finish(false));
 
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) finish(false);
@@ -184,13 +188,17 @@ export function showConfirmDialog({
         finish(false);
       } else if (e.key === "Enter") {
         e.preventDefault();
-        finish(true);
+        if (document.activeElement === cancelBtn || document.activeElement === closeBtn) {
+          finish(false);
+        } else {
+          finish(true);
+        }
       } else if (e.key === "Tab") {
         trapFocus(dialogBox, e);
       }
     };
     document.addEventListener("keydown", onKeyDown);
-    overlay.querySelector(".vno-dialog-confirm-btn").focus();
+    confirmBtn.focus();
   });
 }
 
@@ -258,9 +266,13 @@ export function showPromptDialog({
       resolve(val);
     };
 
-    overlay.querySelector(".vno-dialog-ok-btn").addEventListener("click", () => finish(input.value));
-    overlay.querySelector(".vno-dialog-cancel-btn").addEventListener("click", () => finish(null));
-    overlay.querySelector(".vno-dialog-close-btn").addEventListener("click", () => finish(null));
+    const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+    const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+    const okBtn = overlay.querySelector(".vno-dialog-ok-btn");
+
+    okBtn.addEventListener("click", () => finish(input.value));
+    cancelBtn.addEventListener("click", () => finish(null));
+    closeBtn.addEventListener("click", () => finish(null));
 
     overlay.addEventListener("click", (e) => {
       if (e.target === overlay) finish(null);
@@ -272,7 +284,11 @@ export function showPromptDialog({
         finish(null);
       } else if (e.key === "Enter") {
         e.preventDefault();
-        finish(input.value);
+        if (document.activeElement === cancelBtn || document.activeElement === closeBtn) {
+          finish(null);
+        } else {
+          finish(input.value);
+        }
       } else if (e.key === "Tab") {
         trapFocus(dialogBox, e);
       }
