@@ -141,6 +141,7 @@ export async function runSheetCommentsPrintAreaTests() {
       assert(grid.getPageSetup().size === "legal" && grid.getPageSetup().printTitles.rows === "1:2", "First-sheet Page Setup was lost");
       assert(grid.getPageSetup().scale.mode === "pages" && grid.getPageSetup().scale.pagesWide === 1, "Scale to Fit was lost");
       grid.setPageSetup({ headerFooter: { header: { left: "&F", center: "Tên sheet: &A", right: "&D" }, footer: { center: "Trang &P / &N" } } });
+      grid.setPageSetup({ centerOnPage: { horizontal: true, vertical: true } });
       assert(grid.getPageSetup().headerFooter.header.center === "Tên sheet: &A", "Header/Footer model was lost");
       assert(grid.setPageSetup({ scale: { mode: "percent", percent: 9 } }) === false, "Invalid print scale was accepted");
     });
@@ -154,6 +155,7 @@ export async function runSheetCommentsPrintAreaTests() {
       assert(xml.includes("style:master-page-name=") && xml.includes("table:style-name="), "Worksheet is not connected to a master page");
       assert(xml.includes('style:scale-to-pages="1"'), "Native ODF Scale to Fit is missing");
       assert(xml.includes("<style:header>") && xml.includes("<text:sheet-name/>") && xml.includes("<text:page-number>1</text:page-number>"), "Native ODF Header/Footer fields are missing");
+      assert(xml.includes('style:table-centering="both"'), "Native ODF page centering is missing");
       const parsed = adapter.parseFods(xml);
       assert(parsed.pageSetupBySheet[first].size === "legal" && parsed.pageSetupBySheet[first].margins.right === 1.5, "FODS parser lost Page Setup");
     });
