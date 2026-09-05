@@ -122,7 +122,7 @@ export class SlidesAdapter {
 
   _isTransparentFill(shape) {
     const type = shape?.type;
-    return type === "textbox" || type === "text" || type === "table"
+    return type === "textbox" || type === "text" || type === "table" || type === "wordart"
       || !shape?.color || shape.color === "transparent";
   }
 
@@ -189,6 +189,93 @@ export class SlidesAdapter {
     if (shape.type === "image" || shape.type === "video" || shape.type === "audio") return "grImage";
     if (this._isTransparentFill(shape)) return "grNone";
     return `gr${this._styleKey(shape.color)}`;
+  }
+
+  _wordArtTextStyleName(shape) {
+    return `vnoWa${this._styleKey(shape?.presetId || shape?.id || "wordart")}`;
+  }
+
+  _serializeWordArtGradient(gradient) {
+    if (!gradient?.from || !gradient?.to) return "";
+    const angle = Number.isFinite(Number(gradient.angle)) ? Number(gradient.angle) : 90;
+    return `${gradient.from};${gradient.to};${angle}`;
+  }
+
+  _serializeWordArtShadow(shadow) {
+    if (!shadow) return "";
+    return `${Number(shadow.offsetX) || 0};${Number(shadow.offsetY) || 0};${Number(shadow.blur) || 0};${shadow.color || "rgba(0,0,0,0.4)"}`;
+  }
+
+  _wordArtCustomAttrs(shape) {
+    const preset = this._escapeXml(shape.presetId || "navy-outline");
+    const font = this._escapeXml(shape.fontFamily || "Arial, Helvetica, sans-serif");
+    const size = Number(shape.fontSize) > 0 ? Number(shape.fontSize) : 48;
+    const fill = this._escapeXml(shape.fillColor || "#1e3a8a");
+    const stroke = this._escapeXml(shape.strokeColor || "");
+    const strokeWidth = Number(shape.strokeWidth) || 0;
+    const gradient = this._escapeXml(this._serializeWordArtGradient(shape.gradient));
+    const shadow = this._escapeXml(this._serializeWordArtShadow(shape.shadow));
+    let attrs = ` vno:wordart="true" vno:wordart-preset="${preset}" vno:wordart-font="${font}" vno:wordart-size="${size}" vno:wordart-fill="${fill}"`;
+    if (gradient) attrs += ` vno:wordart-gradient="${gradient}"`;
+    if (stroke) attrs += ` vno:wordart-stroke="${stroke}" vno:wordart-stroke-width="${strokeWidth}"`;
+    if (shadow) attrs += ` vno:wordart-shadow="${shadow}"`;
+    return attrs;
+  }
+
+  _parseWordArtAttrs(attrs) {
+    if (this._attr(attrs, "vno:wordart").toLowerCase() !== "true") return null;
+    const gradientRaw = this._unescapeXml(this._attr(attrs, "vno:wordart-gradient"));
+    let gradient = null;
+    if (gradientRaw) {
+      const [from, to, angle] = gradientRaw.split(";");
+      if (from && to) gradient = { from, to, angle: Number(angle) || 90 };
+    }
+    const shadowRaw = this._unescapeXml(this._attr(attrs, "vno:wordart-shadow"));
+    let shadow = null;
+    if (shadowRaw) {
+      const parts = shadowRaw.split(";");
+      shadow = {
+        offsetX: Number(parts[0]) || 0,
+        offsetY: Number(parts[1]) || 0,
+        blur: Number(parts[2]) || 0,
+        color: parts.slice(3).join(";") || "rgba(0,0,0,0.4)"
+      };
+    }
+    return {
+      type: "wordart",
+      color: "transparent",
+      presetId: this._unescapeXml(this._attr(attrs, "vno:wordart-preset")) || "navy-outline",
+      fontFamily: this._unescapeXml(this._attr(attrs, "vno:wordart-font")) || "Arial, Helvetica, sans-serif",
+      fontSize: Number(this._attr(attrs, "vno:wordart-size")) || 48,
+      fillColor: this._unescapeXml(this._attr(attrs, "vno:wordart-fill")) || "#1e3a8a",
+      gradient,
+      strokeColor: this._unescapeXml(this._attr(attrs, "vno:wordart-stroke")) || "",
+      strokeWidth: Number(this._attr(attrs, "vno:wordart-stroke-width")) || 0,
+      shadow
+    };
+  }
+
+  _serializeWordArtTextStyles(slides) {
+    const seen = new Set();
+    let xml = "";
+    for (const slide of slides || []) {
+      for (const shape of slide.shapes || []) {
+        if (shape.type !== "wordart") continue;
+        const name = this._wordArtTextStyleName(shape);
+        if (seen.has(name)) continue;
+        seen.add(name);
+        const color = this._escapeXml(shape.fillColor || shape.gradient?.to || "#1e3a8a");
+        const size = Number(shape.fontSize) > 0 ? Number(shape.fontSize) : 48;
+        const family = this._escapeXml(String(shape.fontFamily || "Arial").split(",")[0].replace(/['"]/g, "").trim() || "Arial");
+        const outline = Number(shape.strokeWidth) > 0 ? ' style:text-outline="true"' : "";
+        const shadow = shape.shadow ? ' fo:text-shadow="1pt 1pt"' : "";
+        xml += `
+    <style:style style:name="${name}" style:family="text">
+      <style:text-properties fo:color="${color}" fo:font-size="${size}pt" fo:font-weight="bold" fo:font-family="${family}" style:font-name="${family}"${outline}${shadow}/>
+    </style:style>`;
+      }
+    }
+    return xml;
   }
 
   _noneAnimation() {
@@ -589,6 +676,7 @@ export class SlidesAdapter {
       <style:graphic-properties draw:stroke="none" draw:fill="none"/>
     </style:style>`;
     }
+    xml += this._serializeWordArtTextStyles(slides);
     return xml;
   }
 
@@ -655,6 +743,18 @@ export class SlidesAdapter {
             <table:table-column table:number-columns-repeated="${cols}"/>
             ${rowsXml}
           </table:table>
+        </draw:frame>`;
+    }
+
+    if (type === "wordart") {
+      const styleName = this._wordArtTextStyleName(shape);
+      const wordartAttrs = this._wordArtCustomAttrs(shape);
+      const spanText = this._escapeXml(shape.text || "");
+      return `
+        <draw:frame ${geom}${wordartAttrs}>
+          <draw:text-box>
+            <text:p><text:span text:style-name="${styleName}">${spanText}</text:span></text:p>
+          </draw:text-box>
         </draw:frame>`;
     }
 
@@ -886,6 +986,14 @@ export class SlidesAdapter {
     }
 
     const hasId = get("draw:id") || get("xml:id") || get("draw:name");
+    const wordart = this._parseWordArtAttrs(attrs);
+    if (wordart) {
+      return {
+        ...base,
+        ...wordart,
+        text: this._paragraphsFromXml(inner).join("\n")
+      };
+    }
     if (/<draw:text-box\b/i.test(inner) && hasId) {
       return {
         ...base,
@@ -1726,6 +1834,9 @@ export class SlidesAdapter {
 
       case "slides.insert.symbol":
         return this.canvas.insertSymbol ? await this.canvas.insertSymbol(args) : false;
+
+      case "slides.insert.wordart":
+        return this.canvas.insertWordArt ? await this.canvas.insertWordArt(args) : false;
 
       case "common.edit.cut":
         if (typeof document !== "undefined") document.execCommand("cut", false, null);

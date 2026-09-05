@@ -299,6 +299,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.insert.dateTime", category: "insert", label: "Ngày & Giờ", icon: "dateTime", tooltip: "Chèn placeholder ngày giờ tự cập nhật" },
   { id: "slides.insert.slideNumber", category: "insert", label: "Số trang chiếu", icon: "slideNumber", tooltip: "Chèn placeholder số trang chiếu tự cập nhật" },
   { id: "slides.insert.symbol", category: "insert", label: "Ký hiệu", icon: "symbol", tooltip: "Chèn ký tự đặc biệt vào khung văn bản đang chọn" },
+  { id: "slides.insert.wordart", category: "insert", label: "Chữ nghệ thuật", icon: "wordArt", tooltip: "Chèn chữ nghệ thuật với viền, đổ bóng hoặc gradient" },
 
   // Trình chiếu & Thiết kế
   { id: "slides.design.themeGallery", category: "design", label: "Chủ đề", icon: "themeGallery", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" },

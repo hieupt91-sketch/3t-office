@@ -444,6 +444,67 @@
   line-height: 1.25; font-weight: 700; text-align: center; word-break: break-word;
   user-select: text; cursor: text; outline: none;
 }
+.vno-slide-shape-item.is-wordart {
+  background: transparent !important;
+  overflow: visible;
+}
+.vno-wordart-text {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  font-weight: 800;
+  text-align: center;
+  word-break: break-word;
+  user-select: text;
+  cursor: text;
+  outline: none;
+  overflow: visible;
+  paint-order: stroke fill;
+}
+.vno-wordart-text[contenteditable="true"] {
+  box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.7);
+  background: rgba(255, 255, 255, 0.08);
+}
+.vno-show-wordart {
+  background: transparent !important;
+}
+.vno-sorter-wordart {
+  overflow: hidden;
+}
+.vno-wordart-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.vno-wordart-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px 6px 10px;
+  border: 1px solid var(--vno-border-default, #cbd5e1);
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 92px;
+}
+.vno-wordart-preset.is-selected,
+.vno-wordart-preset[aria-checked="true"] {
+  outline: 2px solid var(--vno-slides-primary, #b53818);
+  outline-offset: 1px;
+}
+.vno-wordart-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  pointer-events: none;
+}
+.vno-wordart-preset-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vno-text-muted, #475569);
+  text-align: center;
+}
 .vno-diagram-node-text[contenteditable="true"], .vno-shape-text[contenteditable="true"] { background: rgba(255,255,255,.16); box-shadow: inset 0 0 0 2px rgba(255,255,255,.8); }
 .vno-shape-text.is-textbox-text {
   color: #1e293b;

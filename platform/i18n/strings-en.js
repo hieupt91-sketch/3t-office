@@ -272,6 +272,7 @@ export const enStrings = {
     ,"slides.insert.dateTime": { label: "Date & Time", tooltip: "Insert an auto-updating date and time placeholder" }
     ,"slides.insert.slideNumber": { label: "Slide Number", tooltip: "Insert an auto-updating slide number placeholder" }
     ,"slides.insert.symbol": { label: "Symbol", tooltip: "Insert a special character into the selected text box" }
+    ,"slides.insert.wordart": { label: "WordArt", tooltip: "Insert stylized title text with outline, shadow, or gradient fill" }
     ,"slides.master.apply": { label: "Slide Master", tooltip: "Apply a Slide Master theme across the presentation" }
     ,"slides.design.themeGallery": { label: "Themes", tooltip: "Choose a design theme for the whole presentation" }
     ,"slides.design.slideSize": { label: "Slide Size", tooltip: "Choose a 16:9 or 4:3 slide ratio" }
