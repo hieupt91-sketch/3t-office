@@ -66,7 +66,7 @@ export const viStrings = {
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", ai: "Trợ lý VN AI" },
-    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", drawing: "Đối tượng vẽ", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", comments: "Nhận xét", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiContent: "Tạo nội dung thuyết trình" }
+    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", drawing: "Đối tượng vẽ", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiContent: "Tạo nội dung thuyết trình" }
   },
   sheetDialogs: {
     close: "Đóng", cancel: "Hủy", cancelLong: "Hủy bỏ", apply: "Áp dụng", range: "Phạm vi", rangeLabel: "Vùng:", value: "Giá trị", save: "Lưu",
@@ -101,6 +101,7 @@ export const viStrings = {
     presenterTitle: "Chế độ người thuyết trình", presenterHeader: "CHẾ ĐỘ NGƯỜI THUYẾT TRÌNH (PRESENTER VIEW)", elapsedTime: "Thời gian thuyết trình", elapsedLabel: "ĐÃ THUYẾT TRÌNH:", actualClock: "Đồng hồ thực tế", clockLabel: "ĐỒNG HỒ:", presenterExit: "✕ Thoát (Esc)", prevSlide: "◄ Trang trước", nextSlide: "Trang tiếp ►", slideCounter: "Trang {current} / {total}", speakerNotesTitle: "📝 Ghi chú người thuyết trình", notesFontDec: "Thu nhỏ cỡ chữ ghi chú", notesFontInc: "Phóng to cỡ chữ ghi chú", nextSlideTitle: "⏭ Trang tiếp theo", noNotes: "(Chưa có ghi chú cho trang chiếu này. Bạn có thể nhập ghi chú ở bảng Ghi chú dưới canvas khi biên tập).", endOfShow: "Đây là trang chiếu cuối cùng.",
     readingViewTitle: "Dạng xem Đọc (Reading View)", readingToolbar: "Thanh điều hướng Đọc", prevSlideShort: "Trang trước", nextSlideShort: "Trang tiếp", readingClose: "Thoát chế độ đọc",
     rehearseTitle: "Tập dượt thời gian trình chiếu", slideshowTitle: "Trình chiếu trang chiếu", rehearseClockAria: "Đồng hồ tập dượt thời gian", slideshowHint: "Phím Space hoặc Click để tiếp tục | Esc để thoát",
+    allHiddenTitle: "Không có trang chiếu để trình chiếu", allHiddenMessage: "Tất cả trang chiếu đang bị ẩn. Hiện ít nhất một trang trong Slide Sorter hoặc tab Trình chiếu rồi thử lại.", hiddenSlideAria: "Trang chiếu ẩn", hiddenSlideBadge: "Ẩn",
     slideElapsed: "Trang", totalElapsed: "Tổng", footerDoc: "Tài liệu thuyết trình VN Office",
     prevSlideTitle: "Trang trước (←)", nextSlideTitle: "Trang tiếp (Space hoặc →)",
     prevSlideReadingTitle: "Trang trước (Mũi tên trái)", nextSlideReadingTitle: "Trang tiếp (Mũi tên phải)",
@@ -263,6 +264,7 @@ export const viStrings = {
     ,"slides.layout.select": { label: "Chọn bố cục", tooltip: "Mở hộp thoại chọn bố cục trang chiếu" }
     ,"slides.slide.duplicate": { label: "Nhân đôi", tooltip: "Nhân đôi trang chiếu đang chọn (Ctrl+D)" }
     ,"slides.slide.delete": { label: "Xóa trang", tooltip: "Xóa trang chiếu đang chọn (Delete)" }
+    ,"slides.slide.toggleHidden": { label: "Ẩn trang chiếu", tooltip: "Ẩn hoặc hiện trang chiếu đang chọn khi trình chiếu F5. Trang vẫn còn trong tệp và Slide Sorter." }
     ,"slides.text.insert": { label: "Hộp văn bản", tooltip: "Chèn khung văn bản mới" }
     ,"slides.shape.insert": { label: "Hình khối", tooltip: "Chèn hình chữ nhật, tròn, mũi tên" }
     ,"slides.diagram.insert": { label: "Sơ đồ", tooltip: "Chèn sơ đồ quy trình, chu kỳ hoặc phân cấp" }

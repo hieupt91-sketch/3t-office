@@ -337,8 +337,12 @@ export class SlidesAdapter {
     return null;
   }
 
+  _slideNeedsOwnDrawingStyle(slide) {
+    return !!this._mapVnTransitionToSmil(slide?.transition) || !!slide?.hidden;
+  }
+
   _pageDrawingStyleName(slide, idx) {
-    return this._mapVnTransitionToSmil(slide?.transition) ? `dp${idx + 2}` : "dp1";
+    return this._slideNeedsOwnDrawingStyle(slide) ? `dp${idx + 2}` : "dp1";
   }
 
   _mapVnAnimationToPreset(animation) {
@@ -487,11 +491,13 @@ export class SlidesAdapter {
       const smilType = match[2].match(/smil:type=["']([^"']+)["']/i)?.[1] || "";
       const smilSubtype = match[2].match(/smil:subtype=["']([^"']+)["']/i)?.[1] || "";
       const smilDur = match[2].match(/smil:dur=["']([^"']+)["']/i)?.[1] || "";
+      const visibility = match[2].match(/presentation:visibility=["']([^"']+)["']/i)?.[1] || "";
       styles.set(name, {
         smilType,
         smilSubtype,
         duration: this._parseSmilTimeToMs(smilDur),
-        vnType: this._mapSmilTransitionToVn(smilType, smilSubtype)
+        vnType: this._mapSmilTransitionToVn(smilType, smilSubtype),
+        hidden: /^hidden$/i.test(visibility)
       });
     }
     return styles;
@@ -635,14 +641,16 @@ export class SlidesAdapter {
 
     (slides || []).forEach((slide, idx) => {
       const smil = this._mapVnTransitionToSmil(slide?.transition);
-      if (!smil) return;
+      const hidden = !!slide?.hidden;
+      if (!smil && !hidden) return;
       const name = this._pageDrawingStyleName(slide, idx);
-      const sub = smil.subtype ? ` smil:subtype="${smil.subtype}"` : "";
-      const fade = smil.fadeColor ? ` smil:fadeColor="${smil.fadeColor}"` : "";
-      const dur = smil.dur ? ` smil:dur="${smil.dur}"` : "";
+      const smilAttrs = smil
+        ? ` smil:type="${smil.type}"${smil.subtype ? ` smil:subtype="${smil.subtype}"` : ""}${smil.dur ? ` smil:dur="${smil.dur}"` : ""}${smil.fadeColor ? ` smil:fadeColor="${smil.fadeColor}"` : ""}`
+        : "";
+      const visibilityAttr = hidden ? ' presentation:visibility="hidden"' : "";
       xml += `
     <style:style style:name="${name}" style:family="drawing-page">
-      <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true" smil:type="${smil.type}"${sub}${dur}${fade}/>
+      <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true"${smilAttrs}${visibilityAttr}/>
     </style:style>`;
     });
 
@@ -1523,6 +1531,12 @@ export class SlidesAdapter {
         body = pageLayout === "title-only" ? "" : (paragraphs.length > 1 ? paragraphs.slice(1).join("\n") : "");
       }
 
+      const styleName = this._attr(fullPageTag, "draw:style-name");
+      const fromPageStyle = drawingPageStyles.get(styleName) || {};
+      const pageVisibility = this._attr(fullPageTag, "presentation:visibility") || this._attr(fullPageTag, "presentation:visible");
+      const hidden = !!fromPageStyle.hidden
+        || /^hidden$/i.test(pageVisibility)
+        || /^(false|0)$/i.test(pageVisibility);
       const parsedSlide = {
         id: Date.now() + idx,
         title,
@@ -1532,6 +1546,7 @@ export class SlidesAdapter {
         shapes,
         notes: notesText,
         comments: parsedComments.comments,
+        hidden,
         ...(sectionId ? { sectionId } : {}),
         ...(pageTransition ? { transition: pageTransition } : {})
       };
@@ -1689,6 +1704,16 @@ export class SlidesAdapter {
 
       case "slides.slide.delete":
         return this.canvas.deleteCurrentSlide();
+
+      case "slides.slide.toggleHidden":
+      case ".uno:HideSlide":
+      case ".uno:ShowSlide":
+        if (!this.canvas.toggleCurrentSlideHidden) return false;
+        if (cmd === ".uno:ShowSlide") return this.canvas.toggleCurrentSlideHidden(true, false);
+        if (cmd === ".uno:HideSlide" && vnCmdId !== "slides.slide.toggleHidden") {
+          return this.canvas.toggleCurrentSlideHidden(true, true);
+        }
+        return this.canvas.toggleCurrentSlideHidden();
 
       case "slides.shape.group":
         return this.canvas.groupSelectedShapes ? this.canvas.groupSelectedShapes() : false;

@@ -199,6 +199,13 @@ export const SLIDES_RIBBON_TABS = [
           { type: "button", commandId: "slides.notes.toggle", isLarge: true },
           { type: "button", commandId: "slides.show.rehearseTimings", isLarge: true }
         ]
+      },
+      {
+        label: "Thiết lập",
+        labelKey: "slidesRibbon.group.setup",
+        items: [
+          { type: "button", commandId: "slides.slide.toggleHidden", isLarge: true }
+        ]
       }
     ]
   },

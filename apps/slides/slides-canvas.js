@@ -197,7 +197,8 @@ export class SlidesCanvasController {
         comments: [],
         notes: "Giới thiệu tổng quan về bộ ứng dụng VN Office, nhấn mạnh tính độc lập công nghệ và bảo mật dữ liệu theo tiêu chuẩn quốc gia.",
         titleAnimation: { type: "fadeIn", duration: 600, delay: 100 },
-        bodyAnimation: { type: "flyIn", duration: 700, delay: 300 }
+        bodyAnimation: { type: "flyIn", duration: 700, delay: 300 },
+        hidden: false
       },
       {
         id: 2,
@@ -207,7 +208,8 @@ export class SlidesCanvasController {
         shapes: [],
         comments: [],
         notes: "Làm rõ vai trò của UNO Bridge kết nối giữa tầng giao diện web và tầng lõi LibreOffice C++ headless mà không phát sinh chi phí bản quyền.",
-        titleAnimation: { type: "fadeIn", duration: 500, delay: 0 }
+        titleAnimation: { type: "fadeIn", duration: 500, delay: 0 },
+        hidden: false
       },
       {
         id: 3,
@@ -217,7 +219,8 @@ export class SlidesCanvasController {
         shapes: [],
         comments: [],
         notes: "Nhấn mạnh khả năng tương thích định dạng DOCX/XLSX/PPTX và tuân thủ Nghị định 30/2020/NĐ-CP về thể thức văn bản hành chính.",
-        titleAnimation: { type: "zoomIn", duration: 600, delay: 200 }
+        titleAnimation: { type: "zoomIn", duration: 600, delay: 200 },
+        hidden: false
       }
     ];
     this.currentSlideIndex = 0;
@@ -2487,7 +2490,7 @@ export class SlidesCanvasController {
     const theme = this.masterTheme || {};
     this.slides.forEach((slide, idx) => {
       const item = document.createElement("div");
-      item.className = `vno-slide-thumb-item ${idx === this.currentSlideIndex ? "is-active" : ""}`;
+      item.className = `vno-slide-thumb-item ${idx === this.currentSlideIndex ? "is-active" : ""}${slide.hidden ? " is-hidden" : ""}`;
       const layout = slide.layoutType || "title-content";
 
       let cardInner = "";
@@ -2523,11 +2526,14 @@ export class SlidesCanvasController {
       }
 
       item.innerHTML = `
-        <span class="vno-slide-thumb-num">${idx + 1}</span>
+        <span class="vno-slide-thumb-num${slide.hidden ? " is-hidden-number" : ""}">${idx + 1}${slide.hidden ? `<span class="vno-slide-hidden-mark" title="${t("slidesDialogs.hiddenSlideBadge", "Ẩn")}">⊘</span>` : ""}</span>
         <div class="vno-slide-thumb-card" style="background:${theme.bgColor || "#ffffff"};font-family:${theme.fontFamily || "sans-serif"};">
           ${cardInner}
         </div>
       `;
+      if (slide.hidden) {
+        item.setAttribute("aria-label", `${t("slidesDialogs.hiddenSlideAria", "Trang chiếu ẩn")} ${idx + 1}: ${slide.title || ""}`);
+      }
 
       item.setAttribute("draggable", "true");
       item.dataset.slideIndex = String(idx);
@@ -2592,6 +2598,7 @@ export class SlidesCanvasController {
     if (this.options.onChange) {
       this.options.onChange(this.currentSlideIndex + 1, this.slides.length);
     }
+    this._syncCommandStates();
   }
 
   applySlideLayout(layoutType, recordUndo = true) {
@@ -2630,6 +2637,55 @@ export class SlidesCanvasController {
     return (s && s.layoutType) || "title-content";
   }
 
+  _isSlideHidden(slideOrIndex) {
+    const slide = typeof slideOrIndex === "number" ? this.slides[slideOrIndex] : slideOrIndex;
+    return !!slide?.hidden;
+  }
+
+  _findVisibleSlideIndex(fromIndex, direction) {
+    const n = this.slides.length;
+    if (!n) return -1;
+    const step = direction < 0 ? -1 : 1;
+    for (let i = fromIndex; i >= 0 && i < n; i += step) {
+      if (!this._isSlideHidden(i)) return i;
+    }
+    return -1;
+  }
+
+  _firstVisibleSlideIndex() {
+    return this._findVisibleSlideIndex(0, 1);
+  }
+
+  _resolveShowStartIndex(startIndex) {
+    const idx = Number.isInteger(startIndex) ? startIndex : this.currentSlideIndex;
+    const clamped = Math.max(0, Math.min(idx, Math.max(0, this.slides.length - 1)));
+    const forward = this._findVisibleSlideIndex(clamped, 1);
+    if (forward >= 0) return forward;
+    return this._findVisibleSlideIndex(clamped, -1);
+  }
+
+  toggleCurrentSlideHidden(recordUndo = true, forceState) {
+    const index = this.currentSlideIndex;
+    const slide = this.slides[index];
+    if (!slide) return false;
+    const before = !!slide.hidden;
+    const after = forceState === undefined ? !before : !!forceState;
+    if (before === after) {
+      this._syncCommandStates();
+      return true;
+    }
+    slide.hidden = after;
+    if (recordUndo) {
+      this.undoStack.push({ type: "hidden", index, before, after });
+      this.redoStack = [];
+      this._syncUndoRedoState();
+    }
+    this._renderThumbnails();
+    if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+    this._syncCommandStates();
+    return true;
+  }
+
   addNewSlide(recordUndo = true, layoutType = "title-content") {
     const newSlide = {
       id: Date.now(),
@@ -2640,6 +2696,7 @@ export class SlidesCanvasController {
       shapes: [],
       notes: "",
       comments: [],
+      hidden: false,
       headerFooter: this.headerFooter?.applyToAll !== false ? { ...(this.headerFooter || {}) } : undefined
     };
     this.slides.push(newSlide);
@@ -2669,6 +2726,7 @@ export class SlidesCanvasController {
       body2Animation: cur.body2Animation ? { ...cur.body2Animation } : undefined,
       transition: cur.transition ? { ...cur.transition } : undefined,
       sectionId: cur.sectionId || undefined,
+      hidden: !!cur.hidden,
       comments: (cur.comments || []).map(comment => ({ ...comment, id: `${comment.id}-copy-${Date.now()}` }))
     };
     const targetIdx = this.currentSlideIndex + 1;
@@ -2938,11 +2996,13 @@ export class SlidesCanvasController {
         grid.appendChild(divider);
       }
       const item = document.createElement("article");
-      item.className = `vno-slide-sorter-item ${index === this.currentSlideIndex ? "is-current" : ""}`;
+      item.className = `vno-slide-sorter-item ${index === this.currentSlideIndex ? "is-current" : ""}${slide.hidden ? " is-hidden" : ""}`;
       item.draggable = true;
       item.dataset.slideIndex = String(index);
+      item.dataset.hidden = slide.hidden ? "true" : "false";
       item.tabIndex = 0;
-      item.setAttribute?.("aria-label", `Trang chiếu ${index + 1}: ${slide.title || "Không có tiêu đề"}`);
+      const hiddenAria = slide.hidden ? `, ${t("slidesDialogs.hiddenSlideAria", "Trang chiếu ẩn")}` : "";
+      item.setAttribute?.("aria-label", `Trang chiếu ${index + 1}: ${slide.title || "Không có tiêu đề"}${hiddenAria}`);
       const timingLabel = typeof slide.rehearsedDuration === "number"
         ? `<div class="vno-slide-sorter-timing" title="Thời gian tập dượt đã lưu">⏱ ${Math.round(slide.rehearsedDuration)}s</div>`
         : "";
@@ -2950,7 +3010,7 @@ export class SlidesCanvasController {
         ? `<div class="vno-slide-sorter-comments" title="${slide.comments.length} nhận xét">💬 ${slide.comments.length}</div>`
         : "";
       item.innerHTML = `
-        <div class="vno-slide-sorter-number">${index + 1}</div>
+        <div class="vno-slide-sorter-number${slide.hidden ? " is-hidden-number" : ""}">${index + 1}${slide.hidden ? `<span class="vno-slide-sorter-hidden-mark" title="${t("slidesDialogs.hiddenSlideBadge", "Ẩn")}">⊘</span>` : ""}</div>
         ${timingLabel}
         ${commentBadge}
         <div class="vno-slide-sorter-preview" style="background:${theme.bgColor || "#fff"};font-family:${theme.fontFamily || "sans-serif"}">
@@ -3207,6 +3267,15 @@ export class SlidesCanvasController {
       this._restoreSlideSize(action.before);
       this.redoStack.push(action);
       return true;
+    } else if (action.type === "hidden") {
+      const slide = this.slides[action.index];
+      if (!slide) return false;
+      slide.hidden = action.before;
+      this.redoStack.push(action);
+      this.selectSlide(action.index);
+      this._renderThumbnails();
+      if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+      return true;
     }
     return false;
   }
@@ -3402,6 +3471,15 @@ export class SlidesCanvasController {
     } else if (action.type === "slide-size") {
       this._restoreSlideSize(action.after);
       this.undoStack.push(action);
+      return true;
+    } else if (action.type === "hidden") {
+      const slide = this.slides[action.index];
+      if (!slide) return false;
+      slide.hidden = action.after;
+      this.undoStack.push(action);
+      this.selectSlide(action.index);
+      this._renderThumbnails();
+      if (this.slideSorterOverlay) this._renderSlideSorterGrid();
       return true;
     }
     return false;
@@ -4355,7 +4433,7 @@ export class SlidesCanvasController {
     const previousFocused = document.activeElement;
     const rehearsing = !!options.rehearsal;
     const idx = startIndex !== undefined ? startIndex : this.currentSlideIndex;
-    let currentShowIdx = idx;
+    let currentShowIdx = this._resolveShowStartIndex(idx);
 
     const overlay = document.createElement("div");
     overlay.className = "vno-slideshow-overlay";
@@ -4425,8 +4503,23 @@ export class SlidesCanvasController {
       return shouldSave;
     };
 
+    const renderEmptyShow = () => {
+      content.style.fontFamily = theme.fontFamily || "sans-serif";
+      content.style.backgroundColor = theme.bgColor || "#ffffff";
+      content.innerHTML = `
+        <div class="vno-slideshow-empty-hidden" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px;gap:12px;">
+          <h1 style="font-size:32px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin:0;">${this._escapeHtml(t("slidesDialogs.allHiddenTitle", "Không có trang chiếu để trình chiếu"))}</h1>
+          <p style="font-size:18px;line-height:1.6;color:${theme.bodyColor || "#334155"};max-width:36em;margin:0;">${this._escapeHtml(t("slidesDialogs.allHiddenMessage", "Tất cả trang chiếu đang bị ẩn. Hiện ít nhất một trang rồi thử lại."))}</p>
+        </div>
+      `;
+    };
+
     const renderShow = (previousSlide = null) => {
       const s = this.slides[currentShowIdx];
+      if (!s) {
+        renderEmptyShow();
+        return;
+      }
       const activeSection = this.sections.find(section => section.id === s.sectionId);
       const transition = s.transition || this.transitionConfig || { type: "fade", duration: 500 };
       const isMorph = transition.type === "morph";
@@ -4526,11 +4619,13 @@ export class SlidesCanvasController {
       }
     };
 
-    renderShow();
+    if (currentShowIdx < 0) renderEmptyShow();
+    else renderShow();
     overlay.appendChild(content);
     document.body.appendChild(overlay);
 
     const goToSlide = (nextIdx) => {
+      if (nextIdx < 0) return;
       if (rehearsing) {
         captureSlideTiming();
         rehearseSlideStart = performance.now();
@@ -4539,6 +4634,9 @@ export class SlidesCanvasController {
       currentShowIdx = nextIdx;
       renderShow(previousSlide);
     };
+
+    const nextVisible = () => this._findVisibleSlideIndex(currentShowIdx + 1, 1);
+    const prevVisible = () => this._findVisibleSlideIndex(currentShowIdx - 1, -1);
 
     const closeShow = (discardRehearsal = false) => {
       let saved;
@@ -4557,19 +4655,29 @@ export class SlidesCanvasController {
     };
     const cleanupShow = () => closeShow(true);
 
+    const advanceShow = () => {
+      if (currentShowIdx < 0) {
+        closeShow();
+        return;
+      }
+      const n = nextVisible();
+      if (n >= 0) goToSlide(n);
+      else closeShow();
+    };
+
+    const rewindShow = () => {
+      if (currentShowIdx < 0) return;
+      const n = prevVisible();
+      if (n >= 0) goToSlide(n);
+    };
+
     const keyHandler = (e) => {
       if (e.key === "Escape") {
         closeShow();
       } else if (e.key === " " || e.key === "ArrowRight" || e.key === "PageDown") {
-        if (currentShowIdx < this.slides.length - 1) {
-          goToSlide(currentShowIdx + 1);
-        } else {
-          closeShow();
-        }
+        advanceShow();
       } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
-        if (currentShowIdx > 0) {
-          goToSlide(currentShowIdx - 1);
-        }
+        rewindShow();
       } else if (e.key === "Tab") {
         trapFocus(overlay, e);
       }
@@ -4580,21 +4688,22 @@ export class SlidesCanvasController {
     this._activeShowCleanup = cleanupShow;
     overlay.addEventListener("click", (e) => {
       if (e.target && e.target.closest && e.target.closest("video, audio, .vno-rehearse-timer-box")) return;
-      if (currentShowIdx < this.slides.length - 1) {
-        goToSlide(currentShowIdx + 1);
-      } else {
-        closeShow();
-      }
+      advanceShow();
     });
 
     overlay.focus?.();
 
-    return rehearsing ? {
+    const handle = {
       close: closeShow,
-      next: () => { if (currentShowIdx < this.slides.length - 1) goToSlide(currentShowIdx + 1); },
-      prev: () => { if (currentShowIdx > 0) goToSlide(currentShowIdx - 1); },
-      getTimings: () => rehearseTimings.slice()
-    } : true;
+      next: advanceShow,
+      prev: rewindShow,
+      getIndex: () => currentShowIdx,
+      getTitle: () => this.slides[currentShowIdx]?.title || "",
+      isEmpty: currentShowIdx < 0,
+      overlay
+    };
+    if (rehearsing) handle.getTimings = () => rehearseTimings.slice();
+    return handle;
   }
 
   /**
@@ -4610,7 +4719,7 @@ export class SlidesCanvasController {
     if (typeof document === "undefined" || !document.createElement) return false;
     const previousFocused = document.activeElement;
     const idx = startIndex !== undefined ? startIndex : this.currentSlideIndex;
-    let currentShowIdx = idx;
+    let currentShowIdx = this._resolveShowStartIndex(idx);
     let secondsElapsed = 0;
     let timerInterval = null;
 
@@ -4702,6 +4811,14 @@ export class SlidesCanvasController {
     const renderPresenterState = () => {
       const s = this.slides[currentShowIdx];
       const theme = this.masterTheme || {};
+      if (!s) {
+        if (slideViewEl) {
+          slideViewEl.innerHTML = `<div class="vno-slideshow-empty-hidden" style="padding:32px;text-align:center;">${this._escapeHtml(t("slidesDialogs.allHiddenMessage", "Tất cả trang chiếu đang bị ẩn."))}</div>`;
+        }
+        if (counterEl) counterEl.textContent = t("slidesDialogs.slideCounter", { current: 0, total: this.slides.length });
+        if (nextPreviewEl) nextPreviewEl.innerHTML = "";
+        return;
+      }
 
       const shapesHtml = (s.shapes || []).map((shape) => {
         const pos = `position:absolute;left:${shape.x * 0.7}px;top:${shape.y * 0.7}px;width:${shape.w * 0.7}px;height:${shape.h * 0.7}px;`;
@@ -4775,10 +4892,11 @@ export class SlidesCanvasController {
       }
 
       if (nextPreviewEl) {
-        if (currentShowIdx < this.slides.length - 1) {
-          const nextSlide = this.slides[currentShowIdx + 1];
+        const nextIdx = this._findVisibleSlideIndex(currentShowIdx + 1, 1);
+        if (nextIdx >= 0) {
+          const nextSlide = this.slides[nextIdx];
           nextPreviewEl.innerHTML = `
-            <div style="font-weight:700;font-size:13px;color:#38bdf8;margin-bottom:4px;">${t("slidesDialogs.slideElapsed", "Trang")} ${currentShowIdx + 2}: ${nextSlide.title}</div>
+            <div style="font-weight:700;font-size:13px;color:#38bdf8;margin-bottom:4px;">${t("slidesDialogs.slideElapsed", "Trang")} ${nextIdx + 1}: ${nextSlide.title}</div>
             <div style="font-size:11px;color:#cbd5e1;line-height:1.4;white-space:pre-line;">${(nextSlide.body || "").substring(0, 120)}...</div>
           `;
         } else {
@@ -4810,15 +4928,17 @@ export class SlidesCanvasController {
     };
 
     const nextSlide = () => {
-      if (currentShowIdx < this.slides.length - 1) {
-        currentShowIdx++;
+      const n = this._findVisibleSlideIndex(currentShowIdx + 1, 1);
+      if (n >= 0) {
+        currentShowIdx = n;
         renderPresenterState();
       }
     };
 
     const prevSlide = () => {
-      if (currentShowIdx > 0) {
-        currentShowIdx--;
+      const n = this._findVisibleSlideIndex(currentShowIdx - 1, -1);
+      if (n >= 0) {
+        currentShowIdx = n;
         renderPresenterState();
       }
     };
@@ -4857,7 +4977,15 @@ export class SlidesCanvasController {
     this._activePresenterCleanup?.();
     this._activePresenterCleanup = closePresenter;
     overlay.querySelector("#vno-presenter-next")?.focus?.();
-    return true;
+    return {
+      close: closePresenter,
+      next: nextSlide,
+      prev: prevSlide,
+      getIndex: () => currentShowIdx,
+      getTitle: () => this.slides[currentShowIdx]?.title || "",
+      isEmpty: currentShowIdx < 0,
+      overlay
+    };
   }
 
   destroy() {
@@ -4892,7 +5020,8 @@ export class SlidesCanvasController {
         shapes: [],
         comments: [],
         notes: "",
-        titleAnimation: { type: "none", duration: 500, delay: 0 }
+        titleAnimation: { type: "none", duration: 500, delay: 0 },
+        hidden: false
       }
     ];
     this.currentSlideIndex = 0;
@@ -4960,6 +5089,9 @@ export class SlidesCanvasController {
     globalCommandBus.updateState("slides.view.ruler", { checked: !!this.rulerVisible });
     globalCommandBus.updateState("slides.view.gridlines", { checked: !!this.gridlinesVisible });
     globalCommandBus.updateState("slides.view.guides", { checked: !!this.guidesVisible });
+    globalCommandBus.updateState("slides.slide.toggleHidden", {
+      checked: !!this.slides[this.currentSlideIndex]?.hidden
+    });
   }
 
   _applyViewState() {

@@ -288,6 +288,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.layout.select", category: "slide", label: "Chọn bố cục", icon: "slideLayout", tooltip: "Mở hộp thoại chọn bố cục trang chiếu" },
   { id: "slides.slide.duplicate", category: "slide", label: "Nhân đôi", shortcut: "Ctrl+D", icon: "copy", tooltip: "Nhân đôi trang chiếu đang chọn (Ctrl+D)" },
   { id: "slides.slide.delete", category: "slide", label: "Xóa trang", shortcut: "Delete", icon: "close", tooltip: "Xóa trang chiếu đang chọn (Delete)" },
+  { id: "slides.slide.toggleHidden", category: "show", label: "Ẩn trang chiếu", icon: "hideSlide", tooltip: "Ẩn hoặc hiện trang chiếu đang chọn khi trình chiếu F5. Trang vẫn còn trong tệp và Slide Sorter.", isToggle: true },
 
   // Chèn đối tượng
   { id: "slides.text.insert", category: "insert", label: "Hộp văn bản", icon: "textBox", tooltip: "Chèn khung văn bản mới" },
