@@ -154,7 +154,7 @@ export async function runSheetCommentsPrintAreaTests() {
       assert(xml.includes("style:page-layout-properties") && xml.includes('style:print-orientation="landscape"'), "Native landscape page layout is missing");
       assert(xml.includes('fo:page-width="35.56cm"') && xml.includes('fo:margin-top="2.2cm"'), "Legal page size or margins are missing");
       assert(xml.includes("style:master-page-name=") && xml.includes("table:style-name="), "Worksheet is not connected to a master page");
-      assert(xml.includes('style:scale-to-pages="1"'), "Native ODF Scale to Fit is missing");
+      assert(xml.includes('style:scale-to-X="1"') && xml.includes('style:scale-to-Y="0"'), "Native ODF Scale to Fit axes are missing");
       assert(xml.includes("<style:header>") && xml.includes("<text:sheet-name/>") && xml.includes("<text:page-number>1</text:page-number>"), "Native ODF Header/Footer fields are missing");
       assert(xml.includes('style:table-centering="both"'), "Native ODF page centering is missing");
       assert(/style:print="[^"]*grid[^"]*headers/.test(xml), "Native ODF print gridlines/headings are missing");

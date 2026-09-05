@@ -698,7 +698,7 @@ export class SheetAdapter {
       const printTokens = ["objects", "charts", "drawings", "zero-values", printOptions.gridlines ? "grid" : "", printOptions.headings ? "headers" : ""].filter(Boolean).join(" ");
       const tableCentering = centerOnPage.horizontal && centerOnPage.vertical ? "both" : centerOnPage.horizontal ? "horizontal" : centerOnPage.vertical ? "vertical" : "none";
       const scaleAttribute = scale.mode === "pages"
-        ? ` style:scale-to-pages="${Math.max(1, scale.pagesWide || scale.pagesTall || 1)}"`
+        ? ` style:scale-to-X="${Math.max(0, scale.pagesWide)}" style:scale-to-Y="${Math.max(0, scale.pagesTall)}"`
         : ` style:scale-to="${Math.min(400, Math.max(10, scale.percent || 100))}%"`;
       const suffix = index + 1;
       pageStyleBySheet.set(sheetName, { tableStyle: `vno-table-page-${suffix}`, size, orientation, margins, scale, headerFooter, centerOnPage, printOptions });

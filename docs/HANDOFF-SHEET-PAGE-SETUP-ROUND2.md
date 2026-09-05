@@ -10,7 +10,7 @@
 
 ## ODF / LibreOffice
 
-- `style:scale-to` cho phần trăm và `style:scale-to-pages` cho chế độ vừa trang; metadata VN giữ đầy đủ lựa chọn ngang/dọc khi round-trip nội bộ.
+- `style:scale-to` cho phần trăm và cặp `style:scale-to-X` / `style:scale-to-Y` cho chế độ vừa trang theo từng trục (0 là tự động); metadata VN giữ đầy đủ lựa chọn khi round-trip nội bộ.
 - `style:master-page` chứa `style:header/footer`, ba region và field ODF động `text:page-number`, `text:page-count`, `text:date`, `text:time`, `text:file-name`, `text:sheet-name`.
 - `style:table-centering` nhận `none`, `horizontal`, `vertical`, `both`.
 - `style:table-properties style:print` nhận token ODF `grid` và `headers` bên cạnh các đối tượng in mặc định.
