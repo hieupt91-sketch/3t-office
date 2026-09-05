@@ -435,7 +435,8 @@ export const WRITER_RIBBON_TABS = [
         label: "Chính tả & Ngữ pháp",
         labelKey: "writerRibbon.group.proofread",
         items: [
-          { type: "button", commandId: "ai.assistant.grammarCheck", isLarge: true }
+          { type: "button", commandId: "ai.assistant.grammarCheck", isLarge: true },
+          { type: "button", commandId: "writer.review.wordCount", isLarge: true }
         ]
       },
       {

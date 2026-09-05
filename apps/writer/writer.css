@@ -220,6 +220,31 @@
   user-select: text;
 }
 
+.vno-status-wordcount {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0 2px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.vno-status-wordcount:hover {
+  opacity: 0.9;
+}
+.vno-status-wordcount:focus-visible {
+  outline: 2px solid #f5b800;
+  outline-offset: 2px;
+}
+
+.vno-wordcount-dialog .vno-wordcount-table th {
+  color: var(--vno-text-primary);
+}
+.vno-wordcount-dialog .vno-wordcount-table td {
+  color: var(--vno-text-primary);
+}
+
 /* Trang giấy A4 chuẩn mực */
 .vno-writer-page {
   width: 794px; /* A4 width */

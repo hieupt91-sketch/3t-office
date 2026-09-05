@@ -10,6 +10,7 @@ import { bootstrapPlatform } from "../../platform/bootstrap.js";
 import { createStyleGalleryStrip } from "./style-gallery.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
+import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { WriterViewController } from "./writer-view-controller.js";
 import { VietnameseSpellChecker } from "../../platform/text/vi-spellchecker.js";
 import { SpellcheckDomController } from "../../platform/text/spellcheck-dom-controller.js";
@@ -280,10 +281,9 @@ export class WriterApp {
 
   _setupContentObserver() {
     const updateStats = () => {
-      const text = (this.canvas.innerText || "").trim();
-      const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
-      const chars = text.replace(/[\r\n]/g, "").length;
-      const paragraphs = text ? text.split(/\n+/).filter(p => p.trim().length > 0).length : 0;
+      const stats = this.adapter?.getWordCountStats?.({ preferSelection: false }) || {
+        words: 0
+      };
       // Số trang thật do WriterAdapter._recomputeLivePagination() đo và tính (dựa trên
       // chiều cao thật của nội dung, không phải chỉ đếm ngắt trang thủ công như trước).
       // Debounce 250ms nên ngay sau khi gõ có thể còn số cũ trong chốc lát — sự kiện
@@ -291,12 +291,45 @@ export class WriterApp {
       const totalPages = Math.max(1, this.adapter?._livePageCount || 1);
 
       this.shell.setStatus(
-        `Trang 1 / ${totalPages}  |  ${words} từ  |  ${chars} ký tự  |  ${paragraphs} đoạn  |  Tiếng Việt (NĐ 30/2020/NĐ-CP)`
+        `Trang 1 / ${totalPages}  |  Tiếng Việt (NĐ 30/2020/NĐ-CP)`
       );
+      this._renderWordCountStatus(stats);
     };
 
     this.canvas.addEventListener("input", updateStats);
     this.canvas.addEventListener("vno-pagination-updated", updateStats);
     updateStats();
+  }
+
+  _renderWordCountStatus(stats) {
+    const left = this.mountElement?.querySelector?.(".vno-statusbar-left");
+    if (!left) return;
+    let chip = left.querySelector("#vno-status-wordcount");
+    if (!chip) {
+      chip = document.createElement("button");
+      chip.type = "button";
+      chip.id = "vno-status-wordcount";
+      chip.className = "vno-status-wordcount";
+      chip.addEventListener("click", () => globalCommandBus.execute("writer.review.wordCount"));
+      const first = left.firstElementChild;
+      if (first && first.nextSibling) {
+        left.insertBefore(chip, first.nextSibling);
+      } else {
+        left.appendChild(chip);
+      }
+      const sep = document.createElement("span");
+      sep.setAttribute("aria-hidden", "true");
+      sep.textContent = "|";
+      left.insertBefore(sep, chip.nextSibling);
+    }
+    const count = Number(stats?.words) || 0;
+    const template = t("writerDialogs.wordCount.statusLabel", { count: String(count) });
+    chip.textContent = template && template !== "writerDialogs.wordCount.statusLabel"
+      ? template
+      : `${count} từ`;
+    chip.title = t("writerDialogs.wordCount.title") === "writerDialogs.wordCount.title"
+      ? "Nhấp để xem thống kê đếm từ"
+      : t("writerDialogs.wordCount.title");
+    chip.setAttribute("aria-label", chip.textContent);
   }
 }

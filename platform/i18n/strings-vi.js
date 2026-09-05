@@ -397,6 +397,7 @@ export const viStrings = {
     "writer.trackChanges.toggle": { label: "Theo dõi thay đổi", tooltip: "Bật/tắt đánh dấu nội dung thêm và xóa (Ctrl+Shift+E)" },
     "writer.trackChanges.acceptAll": { label: "Chấp nhận thay đổi", tooltip: "Chấp nhận toàn bộ thay đổi trong tài liệu" },
     "writer.trackChanges.rejectAll": { label: "Từ chối thay đổi", tooltip: "Từ chối toàn bộ thay đổi trong tài liệu" },
+    "writer.review.wordCount": { label: "Đếm từ", tooltip: "Xem số từ, ký tự, đoạn văn và dòng của tài liệu" },
     "writer.page.margins": { label: "Căn lề", tooltip: "Thiết lập lề tiêu chuẩn văn bản Việt Nam" },
     "writer.page.orientation": { label: "Hướng giấy", tooltip: "Khổ giấy dọc hoặc ngang" },
     "writer.page.size": { label: "Khổ giấy", tooltip: "Chọn khổ A4, Letter, v.v." },
@@ -499,6 +500,17 @@ export const viStrings = {
       apply: "Áp dụng",
       cancel: "Hủy bỏ",
       close: "Đóng"
+    },
+    wordCount: {
+      title: "Đếm từ",
+      scopeDocument: "Thống kê cho toàn bộ tài liệu",
+      scopeSelection: "Thống kê cho vùng đang chọn",
+      words: "Từ",
+      charsNoSpaces: "Ký tự (không khoảng trắng)",
+      charsWithSpaces: "Ký tự (có khoảng trắng)",
+      paragraphs: "Đoạn văn",
+      lines: "Dòng",
+      statusLabel: "{count} từ"
     },
     columns: {
       title: "Chia cột văn bản (Columns)",

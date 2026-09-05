@@ -119,6 +119,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.trackChanges.toggle", category: "review", label: "Theo dõi thay đổi", shortcut: "Ctrl+Shift+E", icon: "trackChanges", tooltip: "Bật/tắt đánh dấu nội dung thêm và xóa (Ctrl+Shift+E)", isToggle: true },
   { id: "writer.trackChanges.acceptAll", category: "review", label: "Chấp nhận thay đổi", icon: "redo", tooltip: "Chấp nhận toàn bộ thay đổi trong tài liệu" },
   { id: "writer.trackChanges.rejectAll", category: "review", label: "Từ chối thay đổi", icon: "close", tooltip: "Từ chối toàn bộ thay đổi trong tài liệu" },
+  { id: "writer.review.wordCount", category: "review", label: "Đếm từ", icon: "wordCount", tooltip: "Xem số từ, ký tự, đoạn văn và dòng của tài liệu" },
 
   // Bố trí trang (Layout)
   { id: "writer.page.margins", category: "layout", label: "Căn lề", icon: "margins", tooltip: "Thiết lập lề tiêu chuẩn văn bản Việt Nam" },

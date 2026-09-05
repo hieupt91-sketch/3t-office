@@ -398,6 +398,7 @@ export const enStrings = {
     "writer.trackChanges.toggle": { label: "Track Changes", tooltip: "Track changes in the document (Ctrl+Shift+E)" },
     "writer.trackChanges.acceptAll": { label: "Accept All Changes", tooltip: "Accept all changes in document" },
     "writer.trackChanges.rejectAll": { label: "Reject All Changes", tooltip: "Reject all changes in document" },
+    "writer.review.wordCount": { label: "Word Count", tooltip: "Show words, characters, paragraphs and lines in the document" },
     "writer.page.margins": { label: "Margins", tooltip: "Adjust document margins" },
     "writer.page.orientation": { label: "Orientation", tooltip: "Switch page orientation between portrait and landscape" },
     "writer.page.size": { label: "Size", tooltip: "Choose page size (A4, Letter, etc.)" },
@@ -500,6 +501,17 @@ export const enStrings = {
       apply: "Apply",
       cancel: "Cancel",
       close: "Close"
+    },
+    wordCount: {
+      title: "Word Count",
+      scopeDocument: "Statistics for the whole document",
+      scopeSelection: "Statistics for the current selection",
+      words: "Words",
+      charsNoSpaces: "Characters (no spaces)",
+      charsWithSpaces: "Characters (with spaces)",
+      paragraphs: "Paragraphs",
+      lines: "Lines",
+      statusLabel: "{count} words"
     },
     columns: {
       title: "Columns",

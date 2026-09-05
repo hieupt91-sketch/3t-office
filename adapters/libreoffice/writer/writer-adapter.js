@@ -33,6 +33,7 @@ import {
   tableOfFiguresTitle,
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
+import { countBlockParagraphs, countDocumentStats, showWordCountDialog } from "../../../apps/writer/word-count.js";
 
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
 const PAGE_SIZES_MM = {
@@ -210,6 +211,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.trackChanges.toggle", (args) => this.toggleTrackChanges(args?.enabled));
     globalCommandBus.bindHandler("writer.trackChanges.acceptAll", () => this.acceptAllTrackChanges());
     globalCommandBus.bindHandler("writer.trackChanges.rejectAll", () => this.rejectAllTrackChanges());
+    globalCommandBus.bindHandler("writer.review.wordCount", () => this.openWordCountDialog());
 
     // Bind undo/redo listeners & command handlers
     this._bindUndoRedo();
@@ -773,6 +775,53 @@ export class WriterAdapter {
     globalCommandBus.updateState("writer.trackChanges.toggle", { checked: this.trackChangesEnabled });
     globalCommandBus.updateState("writer.trackChanges.acceptAll", { enabled: hasChanges });
     globalCommandBus.updateState("writer.trackChanges.rejectAll", { enabled: hasChanges });
+  }
+
+  /**
+   * Thống kê đếm từ trên thân tài liệu (không gồm đầu/chân trang).
+   * Nếu có vùng chọn không rỗng trong body thì đếm vùng chọn.
+   */
+  getWordCountStats(options = {}) {
+    this._initZones();
+    const preferSelection = options.preferSelection !== false;
+    const body = this.bodyDom;
+    if (!body) {
+      return {
+        words: 0,
+        charactersWithSpaces: 0,
+        charactersNoSpaces: 0,
+        paragraphs: 0,
+        lines: 0,
+        scope: "document"
+      };
+    }
+
+    let selectedText = "";
+    if (preferSelection && typeof window !== "undefined" && window.getSelection) {
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const ancestor = range.commonAncestorContainer;
+        const inBody = ancestor === body || body.contains?.(ancestor);
+        if (inBody) selectedText = selection.toString() || "";
+      }
+    }
+
+    if (selectedText.trim()) {
+      return countDocumentStats(selectedText, { scope: "selection" });
+    }
+
+    const text = body.innerText != null ? body.innerText : (body.textContent || "");
+    const paragraphCount = countBlockParagraphs(body);
+    return countDocumentStats(text, {
+      scope: "document",
+      paragraphCount: paragraphCount || undefined
+    });
+  }
+
+  openWordCountDialog() {
+    const stats = this.getWordCountStats({ preferSelection: true });
+    return showWordCountDialog(stats);
   }
 
   /**
@@ -1610,6 +1659,7 @@ export class WriterAdapter {
     if (vnCmdId === "writer.trackChanges.toggle") return this.toggleTrackChanges(args?.enabled);
     if (vnCmdId === "writer.trackChanges.acceptAll") return this.acceptAllTrackChanges();
     if (vnCmdId === "writer.trackChanges.rejectAll") return this.rejectAllTrackChanges();
+    if (vnCmdId === "writer.review.wordCount") return this.openWordCountDialog();
 
     if (vnCmdId !== "common.edit.undo" && vnCmdId !== "common.edit.redo") {
       this.flushTyping();
