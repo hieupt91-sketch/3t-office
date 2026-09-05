@@ -86,6 +86,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.data.group", () => this.grid.groupSelection());
     globalCommandBus.bindHandler("sheet.data.ungroup", () => this.grid.ungroupSelection());
     globalCommandBus.bindHandler("sheet.data.subtotal", () => this.grid.showSubtotalDialog());
+    globalCommandBus.bindHandler("sheet.data.goalSeek", () => this.grid.showGoalSeekDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
     globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this.grid.refreshPivotTable());
     globalCommandBus.bindHandler("sheet.formula.nameManager", (args) => {
@@ -2053,6 +2054,7 @@ export class SheetAdapter {
       case "sheet.data.group": return this.grid.groupSelection();
       case "sheet.data.ungroup": return this.grid.ungroupSelection();
       case "sheet.data.subtotal": return this.grid.showSubtotalDialog();
+      case "sheet.data.goalSeek": return this.grid.showGoalSeekDialog();
 
       case "sheet.data.pivotTable":
         return this.grid.showPivotTableDialog();

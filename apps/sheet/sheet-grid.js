@@ -5503,6 +5503,166 @@ export class SheetGridController {
     return true;
   }
 
+  /**
+   * Find a numeric input which makes a formula cell reach the requested value.
+   * Trial values never enter history. The sheet is restored before this method
+   * returns; callers explicitly commit result.value through applyGoalSeekResult().
+   */
+  findGoalSeekSolution({ setCell, targetValue, changingCell, tolerance = 0.001, maxIterations = 100 } = {}) {
+    const normalizeCoord = value => String(value || "").trim().replace(/^\$/, "").replace(/\$/g, "").toUpperCase();
+    const setKey = normalizeCoord(setCell);
+    const changingKey = normalizeCoord(changingCell);
+    const fail = error => ({ success: false, error });
+    if (!/^[A-Z]+[1-9]\d*$/.test(setKey) || !/^[A-Z]+[1-9]\d*$/.test(changingKey)) {
+      return fail("Địa chỉ ô không hợp lệ.");
+    }
+    if (setKey === changingKey) return fail("Ô đặt và ô thay đổi phải khác nhau.");
+    const targetCell = this.cellsData.get(setKey);
+    const inputCell = this.cellsData.get(changingKey);
+    if (!targetCell?.formula) return fail("Ô đặt phải chứa công thức.");
+    if (inputCell?.formula) return fail("Ô thay đổi phải là ô giá trị, không được chứa công thức.");
+    const target = Number(targetValue);
+    const originalInput = structuredClone(inputCell || null);
+    const initial = Number(this.formulaEngine.getCellValue(changingKey));
+    if (!Number.isFinite(target)) return fail("Giá trị mục tiêu phải là một số hợp lệ.");
+    if (!Number.isFinite(initial)) return fail("Ô thay đổi phải chứa giá trị số.");
+
+    const evaluateAt = value => {
+      const item = this.cellsData.get(changingKey) || { val: "", formula: "", style: {} };
+      item.formula = "";
+      item.val = value;
+      this.cellsData.set(changingKey, item);
+      // Repeat to settle indirect dependencies regardless of Map insertion order.
+      const formulaCount = [...this.cellsData.values()].filter(cell => cell?.formula).length;
+      for (let pass = 0; pass < Math.max(1, formulaCount); pass++) {
+        for (const cell of this.cellsData.values()) {
+          if (cell?.formula) cell.val = this.formulaEngine.evaluate(cell.formula);
+        }
+      }
+      const output = Number(this.cellsData.get(setKey)?.val);
+      return Number.isFinite(output) ? output - target : NaN;
+    };
+    const restore = () => {
+      if (originalInput) this.cellsData.set(changingKey, structuredClone(originalInput));
+      else this.cellsData.delete(changingKey);
+      this._recalculateAllFormulas(undefined, true);
+    };
+
+    let iterations = 0;
+    let best = { x: initial, error: Infinity };
+    let left = null;
+    let right = null;
+    const samples = [];
+    const sample = x => {
+      const fx = evaluateAt(x);
+      iterations++;
+      if (Number.isFinite(fx) && Math.abs(fx) < best.error) best = { x, error: Math.abs(fx) };
+      if (!left) {
+        for (const point of samples) {
+          if (Number.isFinite(fx) && point.fx * fx < 0) {
+            left = point.x < x ? point : { x, fx };
+            right = point.x < x ? { x, fx } : point;
+            break;
+          }
+        }
+      }
+      samples.push({ x, fx });
+      return fx;
+    };
+
+    try {
+      let x0 = initial;
+      let f0 = sample(x0);
+      if (Number.isFinite(f0) && Math.abs(f0) <= tolerance) return { success: true, value: x0, residual: Math.abs(f0), iterations };
+      let step = Math.max(1, Math.abs(initial) * 0.1);
+      let x1 = initial + step;
+      let f1 = sample(x1);
+      for (let probe = 0; probe < 20 && !left && iterations < maxIterations; probe++) {
+        if (Number.isFinite(f1) && Math.abs(f1) <= tolerance) return { success: true, value: x1, residual: Math.abs(f1), iterations };
+        step *= 2;
+        const x = initial + (probe % 2 === 0 ? -step : step);
+        const fx = sample(x);
+        if (Number.isFinite(fx) && Math.abs(fx) <= tolerance) return { success: true, value: x, residual: Math.abs(fx), iterations };
+        if (Number.isFinite(fx) && (!Number.isFinite(f1) || fx !== f1)) { x0 = x1; f0 = f1; x1 = x; f1 = fx; }
+      }
+
+      while (iterations < maxIterations) {
+        let next;
+        if (left && right) {
+          next = (left.x + right.x) / 2;
+        } else if (Number.isFinite(f0) && Number.isFinite(f1) && Math.abs(f1 - f0) > Number.EPSILON) {
+          next = x1 - f1 * (x1 - x0) / (f1 - f0);
+        } else break;
+        if (!Number.isFinite(next)) break;
+        const fn = sample(next);
+        if (Number.isFinite(fn) && Math.abs(fn) <= tolerance) return { success: true, value: next, residual: Math.abs(fn), iterations };
+        if (left && right && Number.isFinite(fn)) {
+          if (left.fx * fn <= 0) right = { x: next, fx: fn };
+          else left = { x: next, fx: fn };
+        }
+        x0 = x1; f0 = f1; x1 = next; f1 = fn;
+      }
+      return fail("Goal Seek không tìm được đáp án phù hợp.");
+    } finally {
+      restore();
+    }
+  }
+
+  applyGoalSeekResult(changingCell, value) {
+    const match = /^([A-Z]+)([1-9]\d*)$/.exec(String(changingCell || "").trim().replace(/\$/g, "").toUpperCase());
+    if (!match || !Number.isFinite(Number(value))) return false;
+    this.setCellValue(match[1], Number(match[2]), Number(value), true);
+    return true;
+  }
+
+  goalSeek(config = {}) {
+    const result = this.findGoalSeekSolution(config);
+    if (result.success && config.apply !== false) this.applyGoalSeekResult(config.changingCell, result.value);
+    return result;
+  }
+
+  showGoalSeekDialog() {
+    const selected = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const overlay = this._createSheetDialog("Dò tìm mục tiêu", `
+      <label for="vno-goal-set-cell">Ô đặt<input id="vno-goal-set-cell" value="${this._escapeHtml(selected)}" autocomplete="off"></label>
+      <label for="vno-goal-value">Đến giá trị<input id="vno-goal-value" type="number" step="any" autocomplete="off"></label>
+      <label for="vno-goal-changing-cell">Bằng cách đổi ô<input id="vno-goal-changing-cell" autocomplete="off"></label>
+      <div class="vno-rule-error" role="alert" aria-live="assertive"></div>
+      <div class="vno-goal-result" role="status" aria-live="polite" hidden></div>`);
+    if (!overlay) return false;
+    const apply = overlay.querySelector(".vno-rule-apply");
+    const error = overlay.querySelector(".vno-rule-error");
+    const resultBox = overlay.querySelector(".vno-goal-result");
+    let pending = null;
+    apply.textContent = "Tìm kết quả";
+    apply.addEventListener("click", () => {
+      if (pending) {
+        this.applyGoalSeekResult(pending.changingCell, pending.value);
+        overlay.closeDialog();
+        return;
+      }
+      const config = {
+        setCell: overlay.querySelector("#vno-goal-set-cell").value,
+        targetValue: overlay.querySelector("#vno-goal-value").value,
+        changingCell: overlay.querySelector("#vno-goal-changing-cell").value,
+        apply: false
+      };
+      const result = this.findGoalSeekSolution(config);
+      if (!result.success) {
+        error.textContent = result.error;
+        resultBox.hidden = true;
+        return;
+      }
+      error.textContent = "";
+      pending = { changingCell: config.changingCell, value: result.value };
+      resultBox.hidden = false;
+      resultBox.textContent = `Đã tìm thấy ${config.changingCell.toUpperCase()} = ${NumberFormatter.formatGeneralNumber(result.value)} (sai số ${result.residual.toPrecision(3)}). Chọn OK để áp dụng.`;
+      apply.textContent = "OK";
+      overlay.querySelectorAll("input").forEach(input => { input.disabled = true; });
+    });
+    return true;
+  }
+
   showTextToColumnsDialog() {
     const preview = value => this.dataTools.splitText(this.dataTools.value(this.selectedCoord.c, this.selectedCoord.r), value).join(" | ");
     const overlay = this._createSheetDialog(t("sheetDialogs.textToColumnsTitle", "Tách văn bản thành cột"), `
