@@ -83,6 +83,7 @@ function trapFocus(element, event) {
   const first = items[0], last = items.at(-1);
   if ((event.shiftKey && document.activeElement === first) || (!event.shiftKey && document.activeElement === last)) {
     event.preventDefault();
+    event.stopPropagation();
     (event.shiftKey ? last : first).focus();
   }
 }
@@ -100,7 +101,7 @@ export function showSlidesChartDialog(initial = {}) {
       <div class="vno-dialog-header"><span id="vno-slides-chart-title">${initial.id ? "Sửa biểu đồ" : "Chèn biểu đồ"}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="Đóng">×</button></div>
       <div class="vno-dialog-body vno-chart-dialog-body">
         <label>Tiêu đề<input data-chart-title-input maxlength="80" value="${esc(defaults.title)}"></label>
-        <div class="vno-chart-type-grid" role="radiogroup" aria-label="Kiểu biểu đồ">${SLIDES_CHART_TYPES.map((type) => `<button type="button" role="radio" data-chart-type="${type}" aria-checked="${type === defaults.chartType}" class="vno-chart-type${type === defaults.chartType ? " is-selected" : ""}">${typeNames[type]}</button>`).join("")}</div>
+        <div class="vno-chart-type-grid" role="radiogroup" aria-label="Kiểu biểu đồ">${SLIDES_CHART_TYPES.map((type) => `<button type="button" role="radio" data-chart-type="${type}" aria-checked="${type === defaults.chartType}" tabindex="${type === defaults.chartType ? "0" : "-1"}" class="vno-chart-type${type === defaults.chartType ? " is-selected" : ""}">${typeNames[type]}</button>`).join("")}</div>
         <div class="vno-chart-dialog-columns"><div><table class="vno-chart-data-table"><thead><tr><th>Nhãn</th><th>Giá trị</th><th></th></tr></thead><tbody></tbody></table><button type="button" class="vno-btn" data-chart-add-row>+ Thêm dòng</button><p class="vno-chart-error" role="alert" aria-live="polite"></p></div><div class="vno-chart-preview" aria-live="polite"></div></div>
       </div><div class="vno-dialog-footer"><button type="button" class="vno-btn" data-chart-cancel>Hủy</button><button type="button" class="vno-btn vno-btn-primary" data-chart-apply>${initial.id ? "Cập nhật" : "Chèn"}</button></div></div>`;
     document.body.appendChild(overlay);
@@ -117,12 +118,49 @@ export function showSlidesChartDialog(initial = {}) {
     const read = () => ({ chartType, title: overlay.querySelector("[data-chart-title-input]").value.trim() || "Biểu đồ dữ liệu", labels: [...tbody.querySelectorAll("[data-chart-label]")].map((input) => input.value.trim()), data: [...tbody.querySelectorAll("[data-chart-value]")].map((input) => numeric(input.value)) });
     function render() { overlay.querySelector(".vno-chart-preview").innerHTML = generateSlidesChartSvg(read()); error.textContent = ""; }
     overlay.querySelector("[data-chart-title-input]").addEventListener("input", render);
-    overlay.querySelectorAll("[data-chart-type]").forEach((button) => button.addEventListener("click", () => { chartType = button.dataset.chartType; overlay.querySelectorAll("[data-chart-type]").forEach((item) => { const selected = item === button; item.classList.toggle("is-selected", selected); item.setAttribute("aria-checked", String(selected)); }); render(); }));
+    const typeButtons = Array.from(overlay.querySelectorAll("[data-chart-type]"));
+    const selectType = (button) => {
+      chartType = button.dataset.chartType;
+      typeButtons.forEach((item) => {
+        const selected = item === button;
+        item.classList.toggle("is-selected", selected);
+        item.setAttribute("aria-checked", String(selected));
+        item.setAttribute("tabindex", selected ? "0" : "-1");
+      });
+      render();
+    };
+    typeButtons.forEach((button) => button.addEventListener("click", () => selectType(button)));
+    const typeGrid = overlay.querySelector(".vno-chart-type-grid");
+    typeGrid?.addEventListener("keydown", (event) => {
+      if (["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(event.key)) {
+        event.preventDefault();
+        event.stopPropagation();
+        const curIdx = typeButtons.indexOf(document.activeElement);
+        let nextIdx;
+        if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+          nextIdx = curIdx === -1 ? 0 : (curIdx + 1) % typeButtons.length;
+        } else {
+          nextIdx = curIdx === -1 ? typeButtons.length - 1 : (curIdx - 1 + typeButtons.length) % typeButtons.length;
+        }
+        selectType(typeButtons[nextIdx]);
+        typeButtons[nextIdx]?.focus();
+      }
+    });
     overlay.querySelector("[data-chart-add-row]").addEventListener("click", () => { addRow(`Mục ${tbody.rows.length + 1}`, 0); render(); tbody.querySelector("tr:last-child input")?.focus(); });
     let closed = false;
     const close = (value) => { if (closed) return; closed = true; document.removeEventListener("keydown", onKey); overlay.remove(); previousFocused?.focus?.(); resolve(value); };
     const commit = () => { const value = read(); if (!value.labels.some(Boolean)) { error.textContent = "Hãy nhập ít nhất một nhãn dữ liệu."; return; } close(value); };
-    const onKey = (event) => { if (event.key === "Escape") { event.preventDefault(); close(null); } else trapFocus(box, event); };
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        close(null);
+      } else if (event.key === "Enter" && !event.shiftKey && event.target?.tagName === "INPUT") {
+        event.preventDefault();
+        event.stopPropagation();
+        commit();
+      } else trapFocus(box, event);
+    };
     document.addEventListener("keydown", onKey);
     overlay.querySelector(".vno-dialog-close-btn").addEventListener("click", () => close(null));
     overlay.querySelector("[data-chart-cancel]").addEventListener("click", () => close(null));

@@ -348,8 +348,8 @@ export const SLIDES_COMMANDS = [
   { id: "slides.text.clearFormat", category: "format", label: "Xóa định dạng", icon: "clearFormat", tooltip: "Xóa định dạng chữ, giữ nguyên nội dung" },
   { id: "slides.font.family", category: "format", label: "Phông chữ", tooltip: "Chọn phông chữ" },
   { id: "slides.font.size", category: "format", label: "Cỡ chữ", tooltip: "Chọn cỡ chữ" },
-  { id: "slides.font.grow", category: "format", label: "Tăng cỡ chữ", icon: "indentInc", tooltip: "Tăng cỡ chữ" },
-  { id: "slides.font.shrink", category: "format", label: "Giảm cỡ chữ", icon: "indentDec", tooltip: "Giảm cỡ chữ" },
+  { id: "slides.font.grow", category: "format", label: "Tăng cỡ chữ", icon: "fontGrow", tooltip: "Tăng cỡ chữ" },
+  { id: "slides.font.shrink", category: "format", label: "Giảm cỡ chữ", icon: "fontShrink", tooltip: "Giảm cỡ chữ" },
   { id: "slides.color.text", category: "format", label: "Màu chữ", icon: "colorText", tooltip: "Đổi màu chữ" },
   { id: "slides.color.highlight", category: "format", label: "Màu nền chữ", icon: "colorHighlight", tooltip: "Tô màu nền văn bản" },
 
