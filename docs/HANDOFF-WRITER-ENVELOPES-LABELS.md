@@ -72,6 +72,14 @@ Hệ quả:
 - Tài liệu **trộn A4 + phong bì**: PDF **không** giữ hai khổ khác nhau. Sửa thật cần `w:sectPr` / ODF section properties sau convert — ngoài phạm vi.
 - **Nhãn** dùng A4 nên in/PDF khớp lưới trên canvas.
 
+### Lỗi thật tìm thêm và đã sửa trong quá trình review (Claude, không phải Grok)
+
+`buildLabelSheetHtml()` đặt CSS ngắt trang (`pageBreak: index > 0`) trên `<div class="vno-label-sheet">` bọc ngoài — **đúng lỗi giống hệt** đã tìm/sửa ở Section Breaks: LibreOffice HTML-import chỉ tôn trọng `page-break-before` trên `<p>`, không phải `<div>`. Đo bằng nội dung siêu nhỏ (1 ô, không thể tự tràn trang do chiều cao) để loại trừ khả năng trùng hợp: kết quả PDF thật ban đầu là **1 trang** dù `pageBreak:true` — nghĩa là khi Mail Merge cho ra nhiều tờ nhãn **nhỏ** (không tự nhiên tràn trang như Avery L7160 gần đầy A4), các tờ sẽ bị dồn chung 1 trang thật trong file xuất, dù trên canvas nhìn đúng.
+
+Đã sửa: chèn `<p style="page-break-before:always;...">` marker riêng trước mỗi tờ nhãn thứ 2 trở đi, thay vì dựa vào style của `<div>` bọc ngoài. Xác nhận lại bằng cùng phép đo (nội dung siêu nhỏ): PDF thật ra đúng 2 trang. Thêm assertion thật (`node:assert`) vào `tests/live/writer-envelopes-labels-real-conversion.mjs` (`LABELS_MULTIPAGE_REAL_BREAK_PAGES`) để giữ hồi quy.
+
+**Lưu ý quan trọng:** kết quả `LABELS_PAGES: 2` trong bảng trên (dùng nội dung Avery L7160 đầy 21 ô) **không đủ để chứng minh** ngắt trang hoạt động, vì 1 tờ Avery L7160 gần như tự tràn sang trang 2 do chiều cao bảng (~267mm trên A4 297mm) — đây chính là lý do cần phép đo cô lập bằng nội dung siêu nhỏ ở trên.
+
 Probe: `node tests/live/writer-envelopes-labels-real-conversion.mjs` (không nằm trong `run-tests.js`).
 
 ---

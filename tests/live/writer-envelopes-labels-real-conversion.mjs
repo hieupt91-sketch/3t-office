@@ -3,11 +3,13 @@
  * Not part of node tests/run-tests.js. Documents the known HTML-filter limit:
  * mixed envelope + A4 page sizes do not survive LibreOffice HTML import.
  */
+import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { convertWithSoffice, findSoffice } from "../helpers/soffice-convert.mjs";
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
+import { buildLabelSheetHtml } from "../../apps/writer/envelopes-labels.js";
 
 function createAdapter(html) {
   const body = {
@@ -96,4 +98,18 @@ const labBoxes = pdfMediaBoxes(labPdf).map((b) => ({
 }));
 console.log("LABELS_PAGES", labBoxes.length, JSON.stringify(labBoxes));
 console.log("LABELS_DEFAULT_PAGE", (labHtml.match(/@page \{[^}]+\}/) || [""])[0]);
+
+// Isolated real-page-break check for multi-sheet label runs: tiny content
+// (no natural table-height overflow possible) so a real second PDF page can
+// only come from the pageBreak:true marker actually working, not coincidence.
+const tinyLayout = { id: "tiny", cols: 1, rows: 1, cellW: 20, cellH: 10, pageW: 210, hGap: 0, vGap: 0 };
+const tinySheet1 = buildLabelSheetHtml({ layout: tinyLayout, contents: ["Sheet1"], pageBreak: false });
+const tinySheet2 = buildLabelSheetHtml({ layout: tinyLayout, contents: ["Sheet2"], pageBreak: true });
+const tinyHtml = `<html><body>${tinySheet1}${tinySheet2}</body></html>`;
+fs.writeFileSync(path.join(temp, "labels-tiny.html"), tinyHtml, "utf8");
+const tinyPdf = convertWithSoffice(path.join(temp, "labels-tiny.html"), "pdf", path.join(temp, "tiny-pdf"), { appKind: "writer" });
+const tinyPageCount = tinyPdf ? pdfMediaBoxes(tinyPdf).length : 0;
+assert.equal(tinyPageCount, 2, `Multi-sheet Labels must produce a real second PDF page from tiny content (no overflow), got ${tinyPageCount} — page-break-before on the label sheet <div> would be silently ignored by LibreOffice's HTML filter (same bug class as Section Breaks)`);
+console.log("LABELS_MULTIPAGE_REAL_BREAK_PAGES", tinyPageCount, "(PASS: real page break confirmed independent of content height)");
+
 console.log("TEMP", temp);

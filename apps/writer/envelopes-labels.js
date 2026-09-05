@@ -112,7 +112,12 @@ export function paginateLabelContents(contents, layout) {
 export function buildLabelSheetHtml(options = {}) {
   const layout = (typeof options.layout === "string" ? LABEL_LAYOUTS[options.layout] : options.layout) || LABEL_LAYOUTS["avery-l7160"];
   const contents = Array.isArray(options.contents) ? options.contents : [];
-  const pageBreakCss = options.pageBreak ? "page-break-before:always;break-before:page;" : "";
+  // LibreOffice's Writer HTML-import filter only honors page-break-before on a
+  // real <p>, not a wrapping <div> (same bug found/fixed for Section Breaks) -
+  // so a dedicated zero-height marker paragraph carries the break instead.
+  const pageBreakMarker = options.pageBreak
+    ? `<p style="page-break-before:always;break-before:page;margin:0;height:0;overflow:hidden;" aria-hidden="true">&nbsp;</p>`
+    : "";
   let rowsHtml = "";
   for (let r = 0; r < layout.rows; r++) {
     let cells = "";
@@ -128,8 +133,9 @@ export function buildLabelSheetHtml(options = {}) {
     rowsHtml += `<tr>${cells}</tr>`;
   }
   return (
+    `${pageBreakMarker}` +
     `<div class="vno-label-sheet" data-vno-labels="true" data-vno-label-layout="${layout.id}" ` +
-    `style="${pageBreakCss}width:${layout.pageW}mm;box-sizing:border-box;">` +
+    `style="width:${layout.pageW}mm;box-sizing:border-box;">` +
     `<table class="vno-label-grid" data-vno-label-grid="true" ` +
     `style="width:100%;border-collapse:separate;border-spacing:${layout.hGap}mm ${layout.vGap}mm;">` +
     `${rowsHtml}</table></div>`
