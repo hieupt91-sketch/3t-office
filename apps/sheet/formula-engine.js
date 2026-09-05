@@ -1,3 +1,5 @@
+import { NumberFormatter } from "./number-formatter.js";
+
 /**
  * VN Sheet — Enterprise Spreadsheet Formula Calculation Engine
  * Tương thích 100% cú pháp và hàm tính toán Microsoft Excel & LibreOffice Calc (sc)
@@ -1090,11 +1092,46 @@ export class FormulaEngine {
       case "TEXT": {
         const value = this._resolveSingleValue(args[0]);
         const format = String(this._resolveSingleValue(args[1]) || "").toLowerCase();
-        if (format === "#,##0") return Number(value).toLocaleString("en-US", { maximumFractionDigits: 0 });
-        if (format === "0.00") return Number(value).toFixed(2);
-        if (format === "dd/mm/yyyy") {
+        const numberFormats = {
+          "0": { decimals: 0, useThousands: false },
+          "0.0": { decimals: 1, useThousands: false },
+          "0.00": { decimals: 2, useThousands: false },
+          "0.000": { decimals: 3, useThousands: false },
+          "#,##0": { decimals: 0, useThousands: true },
+          "#,##0.00": { decimals: 2, useThousands: true }
+        };
+        if (numberFormats[format]) {
+          const parsed = NumberFormatter.parseNumber(value);
+          return parsed === null ? "#VALUE!" : NumberFormatter.formatNumber(parsed, numberFormats[format]).text;
+        }
+        if (format === "0%" || format === "0.00%") {
+          const parsed = NumberFormatter.parseNumber(value);
+          if (parsed === null) return "#VALUE!";
+          return NumberFormatter.formatPercentage(parsed, { decimals: format === "0%" ? 0 : 2 }).text;
+        }
+        if (format.includes("₫")) {
+          const numericPattern = format.replace(/₫/g, "").trim();
+          const config = numberFormats[numericPattern];
+          const parsed = NumberFormatter.parseNumber(value);
+          if (!config || parsed === null) return "#VALUE!";
+          return NumberFormatter.formatCurrency(parsed, {
+            ...config,
+            currencySymbol: "₫",
+            symbolPosition: format.indexOf("₫") > format.search(/[#0]/) ? "after" : "before"
+          }).text;
+        }
+        const dateFormats = new Set(["dd/mm/yyyy", "mm/dd/yyyy", "dd-mm-yyyy", "yyyy-mm-dd", "dd mmmm yyyy"]);
+        if (dateFormats.has(format)) {
           const date = this._parseDate(value);
-          return date ? this._formatDate(date) : "#VALUE!";
+          if (!date) return "#VALUE!";
+          if (format === "dd mmmm yyyy") {
+            const vietnameseMonths = ["tháng Một", "tháng Hai", "tháng Ba", "tháng Tư", "tháng Năm", "tháng Sáu", "tháng Bảy", "tháng Tám", "tháng Chín", "tháng Mười", "tháng Mười Một", "tháng Mười Hai"];
+            return `${String(date.getDate()).padStart(2, "0")} ${vietnameseMonths[date.getMonth()]} ${date.getFullYear()}`;
+          }
+          if (format === "mm/dd/yyyy") {
+            return `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${date.getFullYear()}`;
+          }
+          return NumberFormatter.formatDate(date, { dateFormat: format }).text;
         }
         return String(value);
       }
@@ -1202,6 +1239,14 @@ export class FormulaEngine {
         if (end.getDate() < start.getDate()) count--;
         if (unit === "m") return count;
         if (unit === "y") return Math.floor(count / 12);
+        if (unit === "ym") return ((count % 12) + 12) % 12;
+        if (unit === "md" || unit === "yd") {
+          const monthsToAdd = unit === "md" ? count : Math.floor(count / 12) * 12;
+          const anchor = new Date(start.getFullYear(), start.getMonth() + monthsToAdd + 1, 0);
+          anchor.setDate(Math.min(start.getDate(), anchor.getDate()));
+          const utcDay = date => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000;
+          return utcDay(end) - utcDay(anchor);
+        }
         return "#NUM!";
       }
 
@@ -1350,7 +1395,13 @@ export class FormulaEngine {
 
   _parseDate(value) {
     if (value instanceof Date && !Number.isNaN(value.getTime())) return new Date(value);
-    const match = String(value).trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    const text = String(value).trim();
+    const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (isoMatch) {
+      const date = new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+      return date.getFullYear() === Number(isoMatch[1]) && date.getMonth() === Number(isoMatch[2]) - 1 && date.getDate() === Number(isoMatch[3]) ? date : null;
+    }
+    const match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
     if (!match) return null;
     const date = new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]));
     return date.getFullYear() === Number(match[3]) && date.getMonth() === Number(match[2]) - 1 && date.getDate() === Number(match[1]) ? date : null;
