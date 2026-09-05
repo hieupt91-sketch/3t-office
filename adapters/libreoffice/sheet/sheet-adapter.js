@@ -1390,6 +1390,24 @@ export class SheetAdapter {
    */
   parseCsv(text) {
     if (!text) return [];
+    text = String(text).replace(/^\uFEFF/, "");
+    const candidates = [",", ";", "\t"];
+    const firstRecord = text.split(/\r?\n/, 1)[0];
+    const counts = new Map(candidates.map((candidate) => [candidate, 0]));
+    let detectingQuotes = false;
+    for (let i = 0; i < firstRecord.length; i++) {
+      const ch = firstRecord[i];
+      if (ch === '"') {
+        if (detectingQuotes && firstRecord[i + 1] === '"') i++;
+        else detectingQuotes = !detectingQuotes;
+      } else if (!detectingQuotes && counts.has(ch)) {
+        counts.set(ch, counts.get(ch) + 1);
+      }
+    }
+    const delimiter = candidates.reduce((best, candidate) => (
+      counts.get(candidate) > counts.get(best) ? candidate : best
+    ), ",");
+
     const rows = [];
     let row = [];
     let current = "";
@@ -1409,7 +1427,7 @@ export class SheetAdapter {
       } else {
         if (ch === '"') {
           inQuotes = true;
-        } else if (ch === ',') {
+        } else if (ch === delimiter) {
           row.push(current);
           current = "";
         } else if (ch === '\r' && next === '\n') {
@@ -1463,7 +1481,10 @@ export class SheetAdapter {
       for (let c = 0; c < rowCells.length; c++) {
         if (c >= cols.length) break;
         const colLetter = cols[c];
-        const val = rowCells[c];
+        let val = rowCells[c];
+        if (/^[+-]?(?:\d{1,3}(?:\.\d{3})+|\d+),\d+$/.test(val)) {
+          val = Number(val.replace(/\./g, "").replace(",", "."));
+        }
         if (val !== undefined && val !== "") {
           this.grid.setCellValue(colLetter, rowNum, val, false);
         }
