@@ -72,6 +72,32 @@ export class SheetAdapter {
       args = args || {};
       return this.grid.showNameManager(args);
     });
+    globalCommandBus.bindHandler("sheet.formula.insertFunction", (category) => this.grid.showFunctionDialog ? this.grid.showFunctionDialog(category) : false);
+    globalCommandBus.bindHandler("sheet.formula.sum", () => this.grid.insertFormula ? this.grid.insertFormula("SUM") : false);
+    globalCommandBus.bindHandler("sheet.formula.average", () => this.grid.insertFormula ? this.grid.insertFormula("AVERAGE") : false);
+    globalCommandBus.bindHandler("sheet.formula.countNumbers", () => this.grid.insertFormula ? this.grid.insertFormula("COUNT") : false);
+    globalCommandBus.bindHandler("sheet.formula.max", () => this.grid.insertFormula ? this.grid.insertFormula("MAX") : false);
+    globalCommandBus.bindHandler("sheet.formula.min", () => this.grid.insertFormula ? this.grid.insertFormula("MIN") : false);
+    globalCommandBus.bindHandler("sheet.formula.categoryFinancial", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Tài chính") : false);
+    globalCommandBus.bindHandler("sheet.formula.categoryLogical", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Logic") : false);
+    globalCommandBus.bindHandler("sheet.formula.categoryText", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Văn bản") : false);
+    globalCommandBus.bindHandler("sheet.formula.categoryDateTime", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Ngày tháng") : false);
+    globalCommandBus.bindHandler("sheet.formula.categoryLookup", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Tra cứu") : false);
+    globalCommandBus.bindHandler("sheet.formula.categoryMath", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Toán học") : false);
+    globalCommandBus.bindHandler("sheet.formula.categoryMore", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Thống kê") : false);
+    globalCommandBus.bindHandler("sheet.formula.defineName", () => this.grid.showDefineNameDialog ? this.grid.showDefineNameDialog() : false);
+    globalCommandBus.bindHandler("sheet.formula.useInFormula", () => this.grid.showUseInFormulaDialog ? this.grid.showUseInFormulaDialog() : false);
+    globalCommandBus.bindHandler("sheet.formula.createFromSelection", () => this.grid.createNamesFromSelection ? this.grid.createNamesFromSelection() : false);
+    globalCommandBus.bindHandler("sheet.formula.tracePrecedents", () => this.grid.tracePrecedents ? this.grid.tracePrecedents() : false);
+    globalCommandBus.bindHandler("sheet.formula.traceDependents", () => this.grid.traceDependents ? this.grid.traceDependents() : false);
+    globalCommandBus.bindHandler("sheet.formula.removeArrows", () => this.grid.removeArrows ? this.grid.removeArrows() : false);
+    globalCommandBus.bindHandler("sheet.formula.showFormulas", () => this.grid.toggleShowFormulas ? this.grid.toggleShowFormulas() : false);
+    globalCommandBus.bindHandler("sheet.formula.errorChecking", () => this.grid.showErrorCheckingDialog ? this.grid.showErrorCheckingDialog() : false);
+    globalCommandBus.bindHandler("sheet.formula.watchWindow", () => this.grid.showWatchWindow ? this.grid.showWatchWindow() : false);
+    globalCommandBus.bindHandler("sheet.calc.calculationOptions", (args) => this.grid.setCalculationMode ? this.grid.setCalculationMode(args) : false);
+    globalCommandBus.bindHandler("sheet.calc.modeAutomatic", () => this.grid.setCalculationMode ? this.grid.setCalculationMode("automatic") : false);
+    globalCommandBus.bindHandler("sheet.calc.modeManual", () => this.grid.setCalculationMode ? this.grid.setCalculationMode("manual") : false);
+    globalCommandBus.bindHandler("sheet.calc.calculateSheet", () => this.grid.calculateSheet ? this.grid.calculateSheet() : false);
     globalCommandBus.bindHandler("sheet.formula.arrayEnter", (options) => {
       options = options || {};
       return this.grid.enterArrayFormula(options);
@@ -1203,14 +1229,116 @@ export class SheetAdapter {
       case "sheet.col.delete":
         return this.grid.deleteColumn(args?.atCol);
 
+      case "sheet.formula.insertFunction":
+      case ".uno:InsertFunction":
+        return this.grid.showFunctionDialog ? this.grid.showFunctionDialog(args) : false;
+
       case "sheet.formula.sum":
-        return this.grid.insertFormula("SUM");
+      case ".uno:AutoSum":
+        return this.grid.insertFormula ? this.grid.insertFormula("SUM") : false;
 
       case "sheet.formula.average":
-        return this.grid.insertFormula("AVERAGE");
+        return this.grid.insertFormula ? this.grid.insertFormula("AVERAGE") : false;
+
+      case "sheet.formula.countNumbers":
+      case ".uno:AutoCount":
+        return this.grid.insertFormula ? this.grid.insertFormula("COUNT") : false;
+
+      case "sheet.formula.max":
+      case ".uno:AutoMax":
+        return this.grid.insertFormula ? this.grid.insertFormula("MAX") : false;
+
+      case "sheet.formula.min":
+      case ".uno:AutoMin":
+        return this.grid.insertFormula ? this.grid.insertFormula("MIN") : false;
+
+      case "sheet.formula.categoryFinancial":
+      case ".uno:FinancialFunctions":
+        return this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Tài chính") : false;
+
+      case "sheet.formula.categoryLogical":
+      case ".uno:LogicalFunctions":
+        return this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Logic") : false;
+
+      case "sheet.formula.categoryText":
+      case ".uno:TextFunctions":
+        return this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Văn bản") : false;
+
+      case "sheet.formula.categoryDateTime":
+      case ".uno:DateTimeFunctions":
+        return this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Ngày tháng") : false;
+
+      case "sheet.formula.categoryLookup":
+      case ".uno:LookupFunctions":
+        return this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Tra cứu") : false;
+
+      case "sheet.formula.categoryMath":
+      case ".uno:MathFunctions":
+        return this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Toán học") : false;
+
+      case "sheet.formula.categoryMore":
+      case ".uno:MoreFunctions":
+        return this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Thống kê") : false;
 
       case "sheet.formula.nameManager":
-        return this.grid.showNameManager(args || {});
+      case ".uno:DefineName":
+        return this.grid.showNameManager ? this.grid.showNameManager(args || {}) : false;
+
+      case "sheet.formula.defineName":
+      case ".uno:AddName":
+        return this.grid.showDefineNameDialog ? this.grid.showDefineNameDialog() : false;
+
+      case "sheet.formula.useInFormula":
+      case ".uno:InsertName":
+        return this.grid.showUseInFormulaDialog ? this.grid.showUseInFormulaDialog() : false;
+
+      case "sheet.formula.createFromSelection":
+      case ".uno:CreateNames":
+        return this.grid.createNamesFromSelection ? this.grid.createNamesFromSelection() : false;
+
+      case "sheet.formula.tracePrecedents":
+      case ".uno:ShowPrecedents":
+        return this.grid.tracePrecedents ? this.grid.tracePrecedents() : false;
+
+      case "sheet.formula.traceDependents":
+      case ".uno:ShowDependents":
+        return this.grid.traceDependents ? this.grid.traceDependents() : false;
+
+      case "sheet.formula.removeArrows":
+      case ".uno:ClearArrows":
+        return this.grid.removeArrows ? this.grid.removeArrows() : false;
+
+      case "sheet.formula.showFormulas":
+        return this.grid.toggleShowFormulas ? this.grid.toggleShowFormulas() : false;
+
+      case "sheet.formula.errorChecking":
+      case ".uno:ErrorChecking":
+        return this.grid.showErrorCheckingDialog ? this.grid.showErrorCheckingDialog() : false;
+
+      case "sheet.formula.watchWindow":
+      case ".uno:WatchWindow":
+        return this.grid.showWatchWindow ? this.grid.showWatchWindow() : false;
+
+      case "sheet.calc.calculationOptions":
+      case ".uno:CalculationMode":
+        return this.grid.setCalculationMode ? this.grid.setCalculationMode(args) : false;
+
+      case "sheet.calc.modeAutomatic":
+      case ".uno:AutomaticCalculation":
+        return this.grid.setCalculationMode ? this.grid.setCalculationMode("automatic") : false;
+
+      case "sheet.calc.modeManual":
+      case ".uno:ManualCalculation":
+        return this.grid.setCalculationMode ? this.grid.setCalculationMode("manual") : false;
+
+      case "sheet.calc.calculateNow":
+      case "sheet.formula.recalculate":
+      case ".uno:Calculate":
+        return this.grid.recalculateAll ? this.grid.recalculateAll() : false;
+
+      case "sheet.calc.calculateSheet":
+      case ".uno:CalculateHard":
+        return this.grid.calculateSheet ? this.grid.calculateSheet() : false;
 
       case "sheet.formula.arrayEnter":
         return this.grid.enterArrayFormula(args || {});

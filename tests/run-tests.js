@@ -66,6 +66,7 @@ import { runRealOfficeImportFidelityTests } from "./unit/real-office-import-fide
 import { runVietnameseSpellcheckerTests } from "./unit/vi-spellchecker.test.js";
 import { runSheetSlidesViewTabTests } from "./unit/sheet-slides-view-tab.test.js";
 import { runSlidesSpellcheckViTests } from "./unit/slides-spellcheck-vi.test.js";
+import { runSheetFormulasTabTests } from "./unit/sheet-formulas-tab.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -139,7 +140,8 @@ async function runAll() {
     { title: "58. Unit Tests — Real Office File Import Fidelity (DOCX/XLSX/PPTX via soffice HTML/FODS/FODP)", runner: runRealOfficeImportFidelityTests },
     { title: "59. Unit Tests — Vietnamese Writer Spellchecker", runner: runVietnameseSpellcheckerTests },
     { title: "60. Behavioral & Unit Tests — VN Sheet & VN Slides Real View Tabs", runner: runSheetSlidesViewTabTests },
-    { title: "61. Behavioral & Unit Tests — Vietnamese Slides Spellchecker", runner: runSlidesSpellcheckViTests }
+    { title: "61. Behavioral & Unit Tests — Vietnamese Slides Spellchecker", runner: runSlidesSpellcheckViTests },
+    { title: "62. Behavioral & Unit Tests — VN Sheet Real Formulas Tab (Function Library, Defined Names, Auditing, Calculation Mode)", runner: runSheetFormulasTabTests }
   ];
 
   for (const suite of suites) {

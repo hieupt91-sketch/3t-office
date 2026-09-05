@@ -81,6 +81,9 @@ export class SheetGridController {
     this.selectedCoord = { r: 1, c: "A" };
     this.selectionRange = { start: { r: 1, c: "A" }, end: { r: 1, c: "A" } };
     this.showFormulas = false;
+    this.calculationMode = "automatic"; // "automatic" | "manual"
+    this.auditArrows = [];
+    this.watchedCells = new Set();
     this._isAutofilling = false;
     this._autofillSource = null;
     this._autofillTarget = null;
@@ -279,6 +282,7 @@ export class SheetGridController {
     vp.addEventListener("scroll", () => {
       this.autocomplete.updatePosition();
       this._onViewportScroll();
+      this.renderAuditArrows?.();
     });
 
     const table = document.createElement("table");
@@ -361,6 +365,11 @@ export class SheetGridController {
     textBoxLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:8";
     this.textBoxLayer = textBoxLayer;
     vp.appendChild(textBoxLayer);
+    const auditLayer = document.createElement("div");
+    auditLayer.className = "vno-sheet-audit-layer";
+    auditLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:9";
+    this.auditLayer = auditLayer;
+    vp.appendChild(auditLayer);
     this.container.appendChild(vp);
 
     // 3. Sheet Tab Bar dưới đáy
@@ -477,9 +486,54 @@ export class SheetGridController {
     return timeStr;
   }
 
-  recalculateAll() {
-    this._recalculateAllFormulas();
+  setCalculationMode(mode = "automatic") {
+    if (!["automatic", "manual"].includes(mode)) return false;
+    const prev = this.calculationMode;
+    this.calculationMode = mode;
+    if (prev === "manual" && mode === "automatic") {
+      this.recalculateAll();
+    }
+    return this.calculationMode;
+  }
+
+  calculateSheet(sheetName = this.activeSheet) {
+    const map = this.sheetsData[sheetName];
+    if (!map) return false;
+    const prevActive = this.activeSheet;
+    this.activeSheet = sheetName;
+    for (const [k, itm] of map.entries()) {
+      if (itm.formula) {
+        let res;
+        if (itm.isArrayFormula && itm.arrayRange) {
+          const results = this.formulaEngine.evaluateArray(itm.formula);
+          const coords = this.formulaEngine.expandRange(itm.arrayRange);
+          res = Array.isArray(results) ? results[coords.indexOf(k)] : results;
+        } else {
+          res = this.formulaEngine.evaluate(itm.formula);
+        }
+        if (typeof res === "number" && !itm.formula.toLowerCase().includes("count") && !itm.formula.toLowerCase().includes("len")) {
+          itm.val = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(res);
+        } else {
+          itm.val = res;
+        }
+        const dom = sheetName === prevActive ? this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`) : null;
+        if (dom) {
+          const [cCoord, rCoord] = this._splitCoord(k);
+          this._renderCellVisual(dom, itm, cCoord, rCoord);
+          this._applyRuleVisuals(dom, cCoord, rCoord);
+        }
+      }
+    }
+    this.activeSheet = prevActive;
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._updateWatchWindow?.();
+    return true;
+  }
+
+  recalculateAll() {
+    this._recalculateAllFormulas(undefined, true);
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._updateWatchWindow?.();
     return true;
   }
 
@@ -1404,6 +1458,7 @@ export class SheetGridController {
     }
 
     this.tbody.insertBefore(frag, this.bottomSpacer);
+    this.renderAuditArrows?.();
   }
 
   _onViewportScroll() {
@@ -1844,12 +1899,16 @@ export class SheetGridController {
       this._applyRuleVisuals(cell, col, row);
     }
 
-    // Tự động tính toán lại các ô có công thức khác
-    this._recalculateAllFormulas(key);
+    // Tự động tính toán lại các ô có công thức khác (trừ khi ở chế độ Manual)
+    if (this.calculationMode !== "manual") {
+      this._recalculateAllFormulas(key);
+    }
     this.refreshCharts();
+    this._updateWatchWindow?.();
   }
 
-  _recalculateAllFormulas(excludeKey) {
+  _recalculateAllFormulas(excludeKey, force = false) {
+    if (this.calculationMode === "manual" && !force) return;
     const activeSheet = this.activeSheet;
     for (const sheetName of this.sheets) {
       const map = this.sheetsData[sheetName];
@@ -1939,78 +1998,157 @@ export class SheetGridController {
     return true;
   }
 
-  showFunctionDialog() {
+  showFunctionDialog(categoryFilter = null) {
+    if (typeof document === "undefined") return false;
     const modal = document.createElement("div");
-    modal.className = "vno-dialog-overlay";
+    modal.className = "vno-dialog-overlay vno-func-dialog";
 
-    let selectedCat = t("sheetDialogs.allCategory");
+    let selectedCat = categoryFilter || t("sheetDialogs.allCategory");
+    let searchQuery = "";
     let selectedFunc = FUNCTION_CATALOG[0];
+
+    const getFilteredFunctions = () => {
+      return FUNCTION_CATALOG.filter(f => {
+        const matchCat = (selectedCat === t("sheetDialogs.allCategory") || selectedCat === "Tất cả")
+          ? true
+          : (f.category.toLowerCase().includes(selectedCat.toLowerCase()) || selectedCat.toLowerCase().includes(f.category.toLowerCase()));
+        if (!matchCat) return false;
+        if (!searchQuery) return true;
+        const q = searchQuery.toLowerCase();
+        return f.name.toLowerCase().includes(q) || f.desc.toLowerCase().includes(q) || f.category.toLowerCase().includes(q);
+      });
+    };
 
     const renderFuncList = () => {
       const listEl = modal.querySelector("#vno-func-list");
+      if (!listEl) return;
       listEl.innerHTML = "";
 
-      const filtered = selectedCat === t("sheetDialogs.allCategory")
-        ? FUNCTION_CATALOG 
-        : FUNCTION_CATALOG.filter(f => f.category === selectedCat);
+      const filtered = getFilteredFunctions();
+      if (filtered.length === 0) {
+        listEl.innerHTML = `<div style="padding:12px;color:#94a3b8;font-size:12px;text-align:center;">Không tìm thấy hàm phù hợp.</div>`;
+        return;
+      }
 
-      filtered.forEach((f, idx) => {
+      if (!filtered.some(f => f.name === selectedFunc?.name)) {
+        selectedFunc = filtered[0];
+      }
+
+      filtered.forEach(f => {
+        const isSel = f.name === selectedFunc?.name;
         const item = document.createElement("div");
-        item.className = `vno-func-item ${f.name === selectedFunc.name ? "is-selected" : ""}`;
-        item.style.cssText = `padding:6px 12px; cursor:pointer; font-size:12px; font-weight:600; font-family:monospace; border-radius:3px; background:${f.name === selectedFunc.name ? "#e7f4ec" : "transparent"}; color:${f.name === selectedFunc.name ? "#0f6d38" : "#0f172a"};`;
-        item.textContent = f.name;
+        item.className = `vno-func-item ${isSel ? "is-selected" : ""}`;
+        item.dataset.funcName = f.name;
+        item.style.cssText = `padding:6px 10px; cursor:pointer; font-size:12px; font-weight:600; font-family:monospace; border-radius:3px; display:flex; justify-content:space-between; align-items:center; background:${isSel ? "#e7f4ec" : "transparent"}; color:${isSel ? "#0f6d38" : "#0f172a"};`;
+        item.innerHTML = `<span>${f.name}</span><span style="font-size:10px;color:${isSel ? "#0f6d38" : "#94a3b8"};font-family:sans-serif;font-weight:400;">${f.category}</span>`;
 
         item.addEventListener("click", () => {
           selectedFunc = f;
           renderFuncList();
           renderDesc();
         });
+        item.addEventListener("dblclick", () => {
+          selectedFunc = f;
+          insertChosenFunction();
+        });
         listEl.appendChild(item);
       });
     };
 
     const renderDesc = () => {
-      modal.querySelector("#vno-func-syntax").textContent = `=${selectedFunc.syntax}`;
-      modal.querySelector("#vno-func-desc").textContent = selectedFunc.desc;
+      const syntaxEl = modal.querySelector("#vno-func-syntax");
+      const descEl = modal.querySelector("#vno-func-desc");
+      const catEl = modal.querySelector("#vno-func-cat-badge");
+      if (syntaxEl && selectedFunc) syntaxEl.textContent = `=${selectedFunc.syntax}`;
+      if (descEl && selectedFunc) descEl.textContent = selectedFunc.desc;
+      if (catEl && selectedFunc) catEl.textContent = `Nhóm: ${selectedFunc.category}`;
+    };
+
+    const insertChosenFunction = () => {
+      close();
+      if (!selectedFunc) return;
+      let formulaText;
+      if (this.formulaInput && document.activeElement === this.formulaInput) {
+        const start = this.formulaInput.selectionStart || 0;
+        const end = this.formulaInput.selectionEnd || 0;
+        const cur = this.formulaInput.value;
+        const insertStr = cur.startsWith("=") ? `${selectedFunc.name}()` : `=${selectedFunc.name}()`;
+        formulaText = cur.slice(0, start) + insertStr + cur.slice(end);
+      } else {
+        formulaText = `=${selectedFunc.syntax.replace(/\s*\[.*?\]/g, "")}`;
+      }
+      this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, formulaText);
+      if (this.formulaInput) this.formulaInput.value = formulaText;
+      this.focusFormulaInput();
     };
 
     modal.innerHTML = `
-      <div class="vno-dialog-box" style="width:580px;">
+      <div class="vno-dialog-box" style="width:620px;">
         <div class="vno-dialog-header">
-          <span>${t("sheetDialogs.functionTitle")}</span>
+          <span>${t("sheetDialogs.functionTitle") || "Chèn Hàm (Insert Function fx)"}</span>
           <button class="vno-btn" id="vno-fx-close" style="font-size:16px;">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <label style="font-size:12px;font-weight:600;color:#334155;">${t("sheetDialogs.searchFunction") || "Tìm kiếm hàm:"}</label>
+            <input id="vno-func-search" class="vno-input" autocomplete="off" placeholder="${t("sheetDialogs.searchPlaceholder") || "Gõ tên hàm hoặc mô tả để tìm kiếm..."}" style="padding:6px 10px;font-size:12px;border:1px solid #cbd5e1;border-radius:4px;">
+          </div>
+
           <div style="display:flex;align-items:center;gap:10px;">
-            <span style="font-size:12px;font-weight:600;">${t("sheetDialogs.functionCategory")}</span>
+            <span style="font-size:12px;font-weight:600;color:#334155;">${t("sheetDialogs.functionCategory") || "Danh mục hàm:"}</span>
             <select class="vno-select" id="vno-func-cat-select" style="flex:1;">
-              <option value="${t("sheetDialogs.allCategory")}">${t("sheetDialogs.allFunctions")}</option>
-              <option value="Toán học">${t("sheetDialogs.mathFunctions")}</option>
-              <option value="Thống kê">${t("sheetDialogs.statsFunctions")}</option>
-              <option value="Logic">${t("sheetDialogs.logicFunctions")}</option>
-              <option value="Văn bản">${t("sheetDialogs.textFunctions")}</option>
-              <option value="Ngày tháng">${t("sheetDialogs.dateFunctions")}</option>
+              <option value="${t("sheetDialogs.allCategory")}">${t("sheetDialogs.allFunctions") || "Tất cả các hàm"}</option>
+              <option value="Tài chính">${t("sheetDialogs.financialFunctions") || "Tài chính (PMT, FV, PV...)"}</option>
+              <option value="Logic">${t("sheetDialogs.logicFunctions") || "Logic (IF, AND, OR...)"}</option>
+              <option value="Văn bản">${t("sheetDialogs.textFunctions") || "Văn bản (CONCAT, LEN...)"}</option>
+              <option value="Ngày tháng">${t("sheetDialogs.dateFunctions") || "Ngày & Giờ (TODAY, NOW...)"}</option>
+              <option value="Tra cứu">${t("sheetDialogs.lookupFunctions") || "Tra cứu & Tham chiếu (VLOOKUP, INDEX...)"}</option>
+              <option value="Toán học">${t("sheetDialogs.mathFunctions") || "Toán học & Lượng giác"}</option>
+              <option value="Thống kê">${t("sheetDialogs.statsFunctions") || "Thống kê (AVERAGE, COUNT...)"}</option>
             </select>
           </div>
 
-          <div style="display:flex;gap:12px;height:180px;">
-            <div id="vno-func-list" style="width:180px;border:1px solid #cbd5e1;border-radius:4px;overflow-y:auto;padding:4px;"></div>
-            <div style="flex:1;background:#f8fafc;border:1px solid #cbd5e1;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:8px;">
-              <strong id="vno-func-syntax" style="font-family:monospace;color:#0f6d38;font-size:13px;"></strong>
-              <p id="vno-func-desc" style="font-size:12px;color:#334155;line-height:1.5;"></p>
+          <div style="display:flex;gap:12px;height:220px;">
+            <div id="vno-func-list" style="width:230px;border:1px solid #cbd5e1;border-radius:4px;overflow-y:auto;padding:4px;"></div>
+            <div style="flex:1;background:#f8fafc;border:1px solid #cbd5e1;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;">
+              <div id="vno-func-cat-badge" style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;"></div>
+              <strong id="vno-func-syntax" style="font-family:monospace;color:#0f6d38;font-size:13px;word-break:break-all;"></strong>
+              <p id="vno-func-desc" style="font-size:12px;color:#334155;line-height:1.5;margin:0;"></p>
             </div>
           </div>
         </div>
         <div class="vno-dialog-footer">
-          <button class="vno-btn" id="vno-fx-cancel-btn">${t("sheetDialogs.cancelLong")}</button>
-          <button class="vno-btn vno-btn-primary" id="vno-fx-insert-btn">${t("sheetDialogs.insertFunction")}</button>
+          <button class="vno-btn" id="vno-fx-cancel-btn">${t("sheetDialogs.cancelLong") || "Hủy bỏ"}</button>
+          <button class="vno-btn vno-btn-primary" id="vno-fx-insert-btn">${t("sheetDialogs.insertFunction") || "Chèn hàm vào ô"}</button>
         </div>
       </div>
     `;
 
     document.body.appendChild(modal);
+
+    if (categoryFilter) {
+      const select = modal.querySelector("#vno-func-cat-select");
+      if (select) {
+        for (const opt of select.options) {
+          if (opt.value.toLowerCase() === categoryFilter.toLowerCase() || categoryFilter.toLowerCase().includes(opt.value.toLowerCase())) {
+            select.value = opt.value;
+            selectedCat = opt.value;
+            break;
+          }
+        }
+      }
+    }
+
     renderFuncList();
     renderDesc();
+
+    const searchInput = modal.querySelector("#vno-func-search");
+    searchInput?.focus();
+    searchInput?.addEventListener("input", (e) => {
+      searchQuery = e.target.value.trim();
+      renderFuncList();
+      renderDesc();
+    });
 
     const close = () => { if (modal.parentNode) modal.parentNode.removeChild(modal); };
     modal.querySelector("#vno-fx-close").addEventListener("click", close);
@@ -2018,20 +2156,492 @@ export class SheetGridController {
 
     modal.querySelector("#vno-func-cat-select").addEventListener("change", (e) => {
       selectedCat = e.target.value;
-      const filtered = selectedCat === t("sheetDialogs.allCategory")
-        ? FUNCTION_CATALOG 
-        : FUNCTION_CATALOG.filter(f => f.category === selectedCat);
-      if (filtered[0]) selectedFunc = filtered[0];
       renderFuncList();
       renderDesc();
     });
 
-    modal.querySelector("#vno-fx-insert-btn").addEventListener("click", () => {
-      close();
-      const template = `=${selectedFunc.syntax.replace(/\s*\[.*?\]/g, "")}`;
-      this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, template);
-      this.focusFormulaInput();
+    modal.querySelector("#vno-fx-insert-btn").addEventListener("click", insertChosenFunction);
+    return true;
+  }
+
+  showDefineNameDialog() {
+    if (typeof document === "undefined") return false;
+    const currentRef = this.getSelectedRangeLabel();
+    const overlay = this._createSheetDialog(
+      t("sheetDialogs.defineNameTitle") || "Đặt tên vùng (Define Name)",
+      `<div class="vno-define-name-form" style="display:flex;flex-direction:column;gap:12px;min-width:360px;">
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;">
+          ${t("sheetDialogs.nameLabel") || "Tên:"}
+          <input id="vno-defname-name" class="vno-input" autocomplete="off" placeholder="Ví dụ: BangLuong, DonGia" style="padding:6px;font-size:12px;border:1px solid #cbd5e1;border-radius:4px;">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;">
+          Phạm vi:
+          <select id="vno-defname-scope" class="vno-select" style="padding:6px;font-size:12px;">
+            <option value="workbook">Workbook (Toàn bảng tính)</option>
+            <option value="sheet">Sheet (${this._escapeHtml(this.activeSheet)})</option>
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;">
+          ${t("sheetDialogs.refersTo") || "Tham chiếu đến:"}
+          <input id="vno-defname-ref" class="vno-input" value="${this._escapeHtml(currentRef)}" style="padding:6px;font-size:12px;border:1px solid #cbd5e1;border-radius:4px;">
+        </label>
+        <div class="vno-rule-error" role="alert" style="color:#dc2626;font-size:11px;"></div>
+      </div>`
+    );
+    if (!overlay) return false;
+    const nameInput = overlay.querySelector("#vno-defname-name");
+    nameInput?.focus();
+
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const name = overlay.querySelector("#vno-defname-name").value.trim();
+      const ref = overlay.querySelector("#vno-defname-ref").value.trim();
+      const scope = overlay.querySelector("#vno-defname-scope").value;
+      const res = this.saveNamedRange({ name, ref, scope, sheet: this.activeSheet });
+      if (!res) {
+        overlay.querySelector(".vno-rule-error").textContent = "Tên không hợp lệ hoặc đã tồn tại.";
+        return;
+      }
+      overlay.remove();
     });
+    return true;
+  }
+
+  showUseInFormulaDialog() {
+    if (typeof document === "undefined") return false;
+    const names = [...(this.namedRangesWorkbook || []), ...(this.namedRangesBySheet?.[this.activeSheet] || [])];
+    if (names.length === 0) {
+      this.showNameManager();
+      return false;
+    }
+
+    const overlay = this._createSheetDialog(
+      t("sheetDialogs.useInFormulaTitle") || "Dùng tên trong công thức (Paste Name)",
+      `<div class="vno-use-in-formula-dialog" style="min-width:320px;display:flex;flex-direction:column;gap:10px;">
+        <p style="font-size:12px;color:#475569;margin:0;">Chọn một tên để chèn vào công thức:</p>
+        <div style="max-height:180px;overflow-y:auto;border:1px solid #cbd5e1;border-radius:4px;padding:4px;">
+          ${names.map((item, idx) => `
+            <div class="vno-paste-name-item ${idx === 0 ? "is-selected" : ""}" data-name="${this._escapeHtml(item.name)}" style="padding:6px 10px;cursor:pointer;font-size:12px;border-radius:3px;display:flex;justify-content:space-between;background:${idx === 0 ? "#e7f4ec" : "transparent"};">
+              <strong style="color:#0f6d38;">${this._escapeHtml(item.name)}</strong>
+              <span style="color:#64748b;font-family:monospace;">${this._escapeHtml(item.ref)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>`
+    );
+    if (!overlay) return false;
+
+    let selectedName = names[0]?.name;
+    const items = overlay.querySelectorAll(".vno-paste-name-item");
+    items.forEach(item => {
+      item.addEventListener("click", () => {
+        items.forEach(i => i.style.backgroundColor = "transparent");
+        item.style.backgroundColor = "#e7f4ec";
+        selectedName = item.dataset.name;
+      });
+      item.addEventListener("dblclick", () => {
+        selectedName = item.dataset.name;
+        applyName();
+      });
+    });
+
+    const applyName = () => {
+      if (!selectedName) return;
+      overlay.remove();
+      if (this.formulaInput) {
+        const start = this.formulaInput.selectionStart || 0;
+        const end = this.formulaInput.selectionEnd || 0;
+        const cur = this.formulaInput.value;
+        const nextVal = cur ? cur.slice(0, start) + selectedName + cur.slice(end) : `=${selectedName}`;
+        this.formulaInput.value = nextVal;
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, nextVal);
+        this.focusFormulaInput();
+      } else {
+        this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, `=${selectedName}`);
+      }
+    };
+
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", applyName);
+    return true;
+  }
+
+  createNamesFromSelection() {
+    const range = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const startRow = range.start.r;
+    const endRow = range.end.r;
+    const startCol = range.start.c;
+    const endCol = range.end.c;
+
+    if (endRow <= startRow) return false;
+
+    let createdCount = 0;
+    const startColIdx = this.cols.indexOf(startCol);
+    const endColIdx = this.cols.indexOf(endCol);
+
+    for (let c = startColIdx; c <= endColIdx; c++) {
+      const colLetter = this.cols[c];
+      const headerCell = this.cellsData.get(`${colLetter}${startRow}`);
+      const rawHeader = headerCell?.val || "";
+      const cleanName = String(rawHeader).trim().replace(/[^\w]/g, "_").replace(/^[^A-Za-z_]+/, "");
+      if (cleanName && cleanName.length >= 1) {
+        const refRange = `${colLetter}${startRow + 1}:${colLetter}${endRow}`;
+        this.saveNamedRange({ name: cleanName, ref: refRange, scope: "workbook", sheet: this.activeSheet });
+        createdCount++;
+      }
+    }
+    return createdCount > 0;
+  }
+
+  extractFormulaReferences(formula) {
+    if (!formula || typeof formula !== "string" || !formula.startsWith("=")) return [];
+    const text = formula.substring(1).trim();
+    const refs = new Set();
+    // Range references: A1:B10 or Sheet1!A1:B10
+    const rangeRegex = /(?:(?:'[^']+'|[A-Za-z0-9_]+)!)?\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)/gi;
+    let match;
+    while ((match = rangeRegex.exec(text)) !== null) {
+      const rangeStr = `${match[1].toUpperCase()}${match[2]}:${match[3].toUpperCase()}${match[4]}`;
+      try {
+        const coords = this.formulaEngine.expandRange(rangeStr);
+        for (const c of coords) refs.add(c.toUpperCase());
+      } catch (_) {}
+    }
+    const stripped = text.replace(rangeRegex, " ");
+    // Single cell references: A1, $A$1, etc.
+    const singleRegex = /(?:(?:'[^']+'|[A-Za-z0-9_]+)!)?\$?([A-Z]+)\$?(\d+)/gi;
+    while ((match = singleRegex.exec(stripped)) !== null) {
+      refs.add(`${match[1].toUpperCase()}${match[2]}`);
+    }
+    // Also resolve named ranges if any
+    const names = [...(this.namedRangesWorkbook || []), ...(this.namedRangesBySheet?.[this.activeSheet] || [])];
+    for (const nr of names) {
+      if (new RegExp(`\\b${nr.name}\\b`, "i").test(text)) {
+        try {
+          const coords = this.formulaEngine.expandRange(nr.ref);
+          for (const c of coords) refs.add(c.toUpperCase());
+        } catch (_) {}
+      }
+    }
+    return Array.from(refs);
+  }
+
+  tracePrecedents() {
+    const coordKey = `${this.selectedCoord.c}${this.selectedCoord.r}`.toUpperCase();
+    const item = this.cellsData.get(coordKey);
+    if (!item || !item.formula) {
+      return { type: "precedents", target: coordKey, cells: [] };
+    }
+    const precedents = this.extractFormulaReferences(item.formula);
+    if (!this.auditArrows) this.auditArrows = [];
+    this.auditArrows = this.auditArrows.filter(a => !(a.type === "precedents" && a.target === coordKey));
+    this.auditArrows.push({ type: "precedents", target: coordKey, cells: precedents });
+    this.renderAuditArrows();
+    for (const c of precedents) {
+      const el = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${c}"]`);
+      if (el?.classList) el.classList.add("vno-cell-precedent");
+    }
+    return { type: "precedents", target: coordKey, cells: precedents };
+  }
+
+  traceDependents() {
+    const coordKey = `${this.selectedCoord.c}${this.selectedCoord.r}`.toUpperCase();
+    const dependents = [];
+    for (const [k, itm] of this.cellsData.entries()) {
+      if (k !== coordKey && itm && itm.formula) {
+        const refs = this.extractFormulaReferences(itm.formula);
+        if (refs.includes(coordKey)) {
+          dependents.push(k);
+        }
+      }
+    }
+    if (!this.auditArrows) this.auditArrows = [];
+    this.auditArrows = this.auditArrows.filter(a => !(a.type === "dependents" && a.source === coordKey));
+    this.auditArrows.push({ type: "dependents", source: coordKey, cells: dependents });
+    this.renderAuditArrows();
+    for (const c of dependents) {
+      const el = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${c}"]`);
+      if (el?.classList) el.classList.add("vno-cell-dependent");
+    }
+    return { type: "dependents", source: coordKey, cells: dependents };
+  }
+
+  removeArrows() {
+    this.auditArrows = [];
+    if (this.auditLayer) this.auditLayer.innerHTML = "";
+    if (this.container?.querySelectorAll) {
+      this.container.querySelectorAll(".vno-cell-precedent, .vno-cell-dependent").forEach(el => {
+        el.classList?.remove?.("vno-cell-precedent", "vno-cell-dependent");
+      });
+    }
+    return true;
+  }
+
+  renderAuditArrows() {
+    if (!this.auditLayer || typeof document === "undefined" || typeof document.createElementNS !== "function") return;
+    this.auditLayer.innerHTML = "";
+    if (!this.auditArrows || !this.auditArrows.length) return;
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "vno-audit-svg");
+    svg.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible;";
+
+    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    defs.innerHTML = `
+      <marker id="vno-arrow-precedent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#2563EB"/>
+      </marker>
+      <marker id="vno-arrow-dependent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#0F6D38"/>
+      </marker>
+    `;
+    svg.appendChild(defs);
+
+    const getCellCenter = (coord) => {
+      const [c, r] = this._splitCoord(coord);
+      const colIdx = this.cols.indexOf(c);
+      const rNum = parseInt(r, 10);
+      const cellEl = this.container?.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (cellEl && this.viewport) {
+        const rect = cellEl.getBoundingClientRect();
+        const vpRect = this.viewport.getBoundingClientRect();
+        return {
+          x: rect.left - vpRect.left + this.viewport.scrollLeft + rect.width / 2,
+          y: rect.top - vpRect.top + this.viewport.scrollTop + rect.height / 2
+        };
+      }
+      return {
+        x: 46 + Math.max(0, colIdx) * 100 + 50,
+        y: 28 + Math.max(0, rNum - 1) * this.rowHeight + this.rowHeight / 2
+      };
+    };
+
+    for (const audit of this.auditArrows) {
+      if (audit.type === "precedents") {
+        const targetPt = getCellCenter(audit.target);
+        for (const cellCoord of audit.cells) {
+          const fromPt = getCellCenter(cellCoord);
+          const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          circle.setAttribute("cx", fromPt.x);
+          circle.setAttribute("cy", fromPt.y);
+          circle.setAttribute("r", "4");
+          circle.setAttribute("fill", "#2563EB");
+          circle.setAttribute("stroke", "#FFFFFF");
+          circle.setAttribute("stroke-width", "1");
+          svg.appendChild(circle);
+
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", fromPt.x);
+          line.setAttribute("y1", fromPt.y);
+          line.setAttribute("x2", targetPt.x);
+          line.setAttribute("y2", targetPt.y);
+          line.setAttribute("stroke", "#2563EB");
+          line.setAttribute("stroke-width", "2");
+          line.setAttribute("marker-end", "url(#vno-arrow-precedent)");
+          svg.appendChild(line);
+        }
+      } else if (audit.type === "dependents") {
+        const fromPt = getCellCenter(audit.source);
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", fromPt.x);
+        circle.setAttribute("cy", fromPt.y);
+        circle.setAttribute("r", "4");
+        circle.setAttribute("fill", "#0F6D38");
+        circle.setAttribute("stroke", "#FFFFFF");
+        circle.setAttribute("stroke-width", "1");
+        svg.appendChild(circle);
+
+        for (const cellCoord of audit.cells) {
+          const targetPt = getCellCenter(cellCoord);
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", fromPt.x);
+          line.setAttribute("y1", fromPt.y);
+          line.setAttribute("x2", targetPt.x);
+          line.setAttribute("y2", targetPt.y);
+          line.setAttribute("stroke", "#0F6D38");
+          line.setAttribute("stroke-width", "2");
+          line.setAttribute("marker-end", "url(#vno-arrow-dependent)");
+          svg.appendChild(line);
+        }
+      }
+    }
+
+    this.auditLayer.appendChild(svg);
+  }
+
+  showErrorCheckingDialog() {
+    if (typeof document === "undefined") return false;
+    const errors = [];
+    for (const [k, itm] of this.cellsData.entries()) {
+      if (itm && this.formulaEngine && this.formulaEngine._isError(itm.val)) {
+        errors.push({ coord: k, val: String(itm.val), formula: itm.formula || "" });
+      }
+    }
+
+    const overlay = this._createSheetDialog(
+      t("sheetDialogs.errorCheckingTitle") || "Kiểm tra lỗi công thức (Error Checking)",
+      `<div class="vno-error-checking-dialog" style="min-width:480px;display:flex;flex-direction:column;gap:12px;">
+        ${errors.length === 0 ? `
+          <div style="padding:16px;text-align:center;color:#0f6d38;font-size:13px;font-weight:600;">
+            ✓ ${t("sheetDialogs.noErrorsFound") || "Kiểm tra hoàn tất. Không tìm thấy ô nào có giá trị lỗi trong trang tính."}
+          </div>
+        ` : `
+          <p style="font-size:12px;color:#475569;margin:0;">Phát hiện <strong>${errors.length}</strong> ô có lỗi công thức trong trang tính hiện tại:</p>
+          <div style="max-height:220px;overflow-y:auto;border:1px solid #cbd5e1;border-radius:4px;">
+            <table class="vno-dialog-table" style="width:100%;border-collapse:collapse;font-size:12px;">
+              <thead>
+                <tr style="background:#f1f5f9;border-bottom:1px solid #cbd5e1;text-align:left;">
+                  <th style="padding:6px 10px;">Ô</th>
+                  <th style="padding:6px 10px;">Mã lỗi</th>
+                  <th style="padding:6px 10px;">Công thức</th>
+                  <th style="padding:6px 10px;">Nguyên nhân</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${errors.map((err, i) => {
+                  let reason = "Lỗi tính toán";
+                  if (err.val.includes("DIV/0")) reason = "Chia cho số 0 hoặc ô trống";
+                  else if (err.val.includes("REF")) reason = "Tham chiếu ô không hợp lệ";
+                  else if (err.val.includes("VALUE")) reason = "Sai kiểu dữ liệu (số vs chữ)";
+                  else if (err.val.includes("N/A")) reason = "Giá trị không tồn tại";
+                  else if (err.val.includes("NAME")) reason = "Tên hàm/vùng không xác định";
+                  else if (err.val.includes("NUM")) reason = "Giá trị số ngoài phạm vi";
+                  return `
+                    <tr class="vno-error-row" data-coord="${err.coord}" style="cursor:pointer;border-bottom:1px solid #f1f5f9;${i % 2 === 1 ? "background:#f8fafc;" : ""}">
+                      <td style="padding:6px 10px;font-weight:700;color:#0f6d38;">${err.coord}</td>
+                      <td style="padding:6px 10px;color:#dc2626;font-weight:700;">${this._escapeHtml(err.val)}</td>
+                      <td style="padding:6px 10px;font-family:monospace;">${this._escapeHtml(err.formula || "")}</td>
+                      <td style="padding:6px 10px;color:#64748b;">${reason}</td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        `}
+      </div>`
+    );
+    if (!overlay) return false;
+    const applyBtn = overlay.querySelector(".vno-rule-apply");
+    if (applyBtn) applyBtn.style.display = "none";
+    const cancelBtn = overlay.querySelector(".vno-rule-cancel");
+    if (cancelBtn) cancelBtn.textContent = "Đóng";
+
+    overlay.querySelectorAll(".vno-error-row").forEach(row => {
+      row.addEventListener("click", () => {
+        const coord = row.dataset.coord;
+        if (coord) {
+          const [c, r] = this._splitCoord(coord);
+          this.selectCell(c, r);
+          overlay.remove();
+        }
+      });
+    });
+    return true;
+  }
+
+  showWatchWindow() {
+    if (typeof document === "undefined" || typeof document.querySelector !== "function") return false;
+    let win = document.querySelector("#vno-watch-window");
+    if (win) {
+      win.style.display = win.style.display === "none" ? "flex" : "none";
+      if (win.style.display !== "none") this._updateWatchWindow();
+      return true;
+    }
+
+    if (!this.watchedCells) this.watchedCells = new Set();
+    const coordKey = `${this.activeSheet}!${this.selectedCoord.c}${this.selectedCoord.r}`;
+    if (this.watchedCells.size === 0) {
+      this.watchedCells.add(coordKey);
+    }
+
+    win = document.createElement("div");
+    win.id = "vno-watch-window";
+    win.className = "vno-watch-window";
+    win.style.cssText = `
+      position:fixed;right:24px;bottom:36px;width:420px;height:240px;background:#ffffff;border:1px solid #0f6d38;
+      border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,0.18);z-index:9999;display:flex;flex-direction:column;font-size:12px;
+    `;
+
+    win.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#0f6d38;color:#ffffff;font-weight:700;border-radius:5px 5px 0 0;">
+        <span>${t("sheetDialogs.watchWindowTitle") || "Cửa sổ theo dõi (Watch Window)"}</span>
+        <button id="vno-watch-close" type="button" style="background:none;border:none;color:#ffffff;font-size:16px;cursor:pointer;line-height:1;">&times;</button>
+      </div>
+      <div style="display:flex;gap:8px;padding:6px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+        <button id="vno-watch-add" type="button" class="vno-btn" style="font-size:11px;padding:3px 8px;">+ ${t("sheetDialogs.addWatch") || "Thêm ô theo dõi"}</button>
+        <button id="vno-watch-del" type="button" class="vno-btn" style="font-size:11px;padding:3px 8px;">- ${t("sheetDialogs.deleteWatch") || "Xóa"}</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:4px 8px;">
+        <table class="vno-watch-table" style="width:100%;border-collapse:collapse;font-size:11px;">
+          <thead>
+            <tr style="border-bottom:1px solid #cbd5e1;text-align:left;color:#475569;">
+              <th style="padding:4px;">Sheet</th>
+              <th style="padding:4px;">Ô</th>
+              <th style="padding:4px;">Giá trị</th>
+              <th style="padding:4px;">Công thức</th>
+            </tr>
+          </thead>
+          <tbody id="vno-watch-tbody"></tbody>
+        </table>
+      </div>
+    `;
+
+    document.body.appendChild(win);
+
+    win.querySelector("#vno-watch-close").addEventListener("click", () => {
+      win.style.display = "none";
+    });
+
+    win.querySelector("#vno-watch-add").addEventListener("click", () => {
+      const cKey = `${this.activeSheet}!${this.selectedCoord.c}${this.selectedCoord.r}`;
+      this.watchedCells.add(cKey);
+      this._updateWatchWindow();
+    });
+
+    win.querySelector("#vno-watch-del").addEventListener("click", () => {
+      const selectedRow = win.querySelector(".vno-watch-row.is-selected");
+      if (selectedRow) {
+        this.watchedCells.delete(selectedRow.dataset.watchKey);
+        this._updateWatchWindow();
+      }
+    });
+
+    this._updateWatchWindow();
+    return true;
+  }
+
+  _updateWatchWindow() {
+    if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
+    const tbody = document.querySelector("#vno-watch-tbody");
+    if (!tbody || !this.watchedCells) return;
+    tbody.innerHTML = "";
+    if (this.watchedCells.size === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:12px;color:#94a3b8;">Chưa có ô theo dõi nào.</td></tr>`;
+      return;
+    }
+
+    for (const key of this.watchedCells) {
+      const [sheetName, coord] = key.split("!");
+      const map = this.sheetsData?.[sheetName] || (sheetName === this.activeSheet ? this.cellsData : null);
+      const itm = map?.get(coord);
+      const val = itm ? (itm.val ?? "") : "";
+      const formula = itm ? (itm.formula || "") : "";
+
+      const tr = document.createElement("tr");
+      tr.className = "vno-watch-row";
+      tr.dataset.watchKey = key;
+      tr.style.cssText = "border-bottom:1px solid #f1f5f9;cursor:pointer;";
+      tr.innerHTML = `
+        <td style="padding:4px;font-weight:600;">${this._escapeHtml(sheetName)}</td>
+        <td style="padding:4px;font-weight:700;color:#0f6d38;">${this._escapeHtml(coord)}</td>
+        <td style="padding:4px;">${this._escapeHtml(String(val))}</td>
+        <td style="padding:4px;font-family:monospace;color:#64748b;">${this._escapeHtml(formula)}</td>
+      `;
+      tr.addEventListener("click", () => {
+        tbody.querySelectorAll(".vno-watch-row").forEach(r => r.classList.remove("is-selected"));
+        tr.classList.add("is-selected");
+      });
+      tbody.appendChild(tr);
+    }
   }
 
   openChartBuilder() {

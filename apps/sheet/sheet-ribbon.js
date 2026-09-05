@@ -227,14 +227,114 @@ export const SHEET_RIBBON_TABS = [
         label: "Hàm tính toán",
         labelKey: "sheetRibbon.group.functionLibrary",
         items: [
-          { type: "button", commandId: "sheet.formula.sum", isLarge: true },
-          { type: "button", commandId: "sheet.formula.average", isLarge: true }
+          { type: "button", commandId: "sheet.formula.insertFunction", isLarge: true },
+          {
+            type: "column",
+            items: [
+              {
+                type: "row",
+                items: [
+                  { type: "button", commandId: "sheet.formula.sum" },
+                  { type: "button", commandId: "sheet.formula.average" },
+                  { type: "button", commandId: "sheet.formula.countNumbers" }
+                ]
+              },
+              {
+                type: "row",
+                items: [
+                  { type: "button", commandId: "sheet.formula.max" },
+                  { type: "button", commandId: "sheet.formula.min" }
+                ]
+              }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              {
+                type: "row",
+                items: [
+                  { type: "button", commandId: "sheet.formula.categoryFinancial" },
+                  { type: "button", commandId: "sheet.formula.categoryLogical" },
+                  { type: "button", commandId: "sheet.formula.categoryText" }
+                ]
+              },
+              {
+                type: "row",
+                items: [
+                  { type: "button", commandId: "sheet.formula.categoryDateTime" },
+                  { type: "button", commandId: "sheet.formula.categoryLookup" },
+                  { type: "button", commandId: "sheet.formula.categoryMath" }
+                ]
+              },
+              {
+                type: "row",
+                items: [
+                  { type: "button", commandId: "sheet.formula.categoryMore" }
+                ]
+              }
+            ]
+          }
         ]
       },
       {
         label: "Tên đã xác định",
         labelKey: "sheetRibbon.group.definedNames",
-        items: [{ type: "button", commandId: "sheet.formula.nameManager", isLarge: true }]
+        items: [
+          { type: "button", commandId: "sheet.formula.nameManager", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.formula.defineName" },
+              { type: "button", commandId: "sheet.formula.useInFormula" },
+              { type: "button", commandId: "sheet.formula.createFromSelection" }
+            ]
+          }
+        ]
+      },
+      {
+        label: "Kiểm tra công thức",
+        labelKey: "sheetRibbon.group.formulaAuditing",
+        items: [
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.formula.tracePrecedents" },
+              { type: "button", commandId: "sheet.formula.traceDependents" },
+              { type: "button", commandId: "sheet.formula.removeArrows" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.formula.showFormulas" },
+              { type: "button", commandId: "sheet.formula.errorChecking" },
+              { type: "button", commandId: "sheet.formula.watchWindow" }
+            ]
+          }
+        ]
+      },
+      {
+        label: "Tính toán",
+        labelKey: "sheetRibbon.group.calculation",
+        items: [
+          {
+            type: "column",
+            items: [
+              {
+                type: "select",
+                commandId: "sheet.calc.calculationOptions",
+                defaultValue: "automatic",
+                options: [
+                  { value: "automatic", label: "Tự động (Automatic)" },
+                  { value: "manual", label: "Thủ công (Manual)" }
+                ]
+              },
+              { type: "button", commandId: "sheet.formula.recalculate" },
+              { type: "button", commandId: "sheet.calc.calculateSheet" }
+            ]
+          }
+        ]
       }
     ]
   },

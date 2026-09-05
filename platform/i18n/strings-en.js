@@ -59,7 +59,7 @@ export const enStrings = {
   },
   sheetRibbon: {
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", ai: "VN AI Assistant" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", comments: "Comments", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", aiAnalysis: "AI Data Analysis" }
+    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", comments: "Comments", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", aiAnalysis: "AI Data Analysis" }
   },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", ai: "VN AI Assistant" },
@@ -67,7 +67,9 @@ export const enStrings = {
   },
   sheetDialogs: {
     close: "Close", cancel: "Cancel", cancelLong: "Cancel", apply: "Apply", range: "Range", value: "Value",
-    functionTitle: "Insert Function", functionCategory: "Function category:", allCategory: "All", allFunctions: "All functions", mathFunctions: "Math & Trig", statsFunctions: "Statistical (AVERAGE, COUNT...)", logicFunctions: "Logical (IF, AND, OR...)", textFunctions: "Text (CONCAT, LEN...)", dateFunctions: "Date & Time (TODAY, NOW...)", insertFunction: "Insert Function",
+    functionTitle: "Insert Function", functionCategory: "Function category:", allCategory: "All", allFunctions: "All functions", mathFunctions: "Math & Trig", statsFunctions: "Statistical (AVERAGE, COUNT...)", logicFunctions: "Logical (IF, AND, OR...)", textFunctions: "Text (CONCAT, LEN...)", dateFunctions: "Date & Time (TODAY, NOW...)", financialFunctions: "Financial (PMT, FV, PV...)", lookupFunctions: "Lookup & Reference (VLOOKUP, INDEX...)", searchFunction: "Search for a function:", searchPlaceholder: "Type a brief description or function name...", insertFunction: "Insert Function",
+    errorCheckingTitle: "Error Checking", noErrorsFound: "The error check is complete for the entire sheet. No errors were found.",
+    watchWindowTitle: "Watch Window", addWatch: "Add Watch", deleteWatch: "Delete Watch", defineNameTitle: "Define Name", nameLabel: "Name:", refersTo: "Refers to:", useInFormulaTitle: "Paste Name",
     newComment: "New Comment {coord}", editComment: "Edit Comment {coord}", commentContent: "Comment", commentPlaceholder: "Enter a comment for {coord}", author: "Author", defaultAuthor: "VN Office User", saveChanges: "Save Changes", addComment: "Add Comment", deleteComment: "Delete Comment", emptyComment: "Comment text cannot be empty.",
     conditionalFormatting: "Conditional Formatting", rule: "Rule", greaterThan: "Greater Than", lessThan: "Less Than", blankCell: "Blanks", fillColor: "Fill Color", invalidNumber: "Enter a valid number.",
     dataValidation: "Data Validation", allow: "Allow", list: "List", numberRange: "Whole number range", listValues: "Source values (comma-separated)", listPlaceholder: "Approved, Rejected, In progress", minimum: "Minimum", maximum: "Maximum", invalidValidation: "The data validation settings are not valid.",
@@ -152,9 +154,33 @@ export const enStrings = {
     ,"sheet.format.standard": { label: "Comma Style", tooltip: "Apply number format with thousands separators (Ctrl+Shift+1)" }
     ,"sheet.insert.date": { label: "Current Date", tooltip: "Insert the current date (Ctrl+;)" }
     ,"sheet.insert.time": { label: "Current Time", tooltip: "Insert the current time (Ctrl+Shift+;)" }
+    ,"sheet.formula.insertFunction": { label: "Insert Function", tooltip: "Open the Insert Function fx dialog (Shift+F3)" }
     ,"sheet.formula.sum": { label: "AutoSum", tooltip: "Insert an AutoSum formula (Alt+=)" }
     ,"sheet.formula.average": { label: "Average", tooltip: "Insert an AVERAGE formula" }
+    ,"sheet.formula.countNumbers": { label: "Count Numbers", tooltip: "Insert a COUNT formula" }
+    ,"sheet.formula.max": { label: "Max", tooltip: "Insert a MAX formula" }
+    ,"sheet.formula.min": { label: "Min", tooltip: "Insert a MIN formula" }
+    ,"sheet.formula.categoryFinancial": { label: "Financial", tooltip: "Browse financial functions (PMT, FV, PV, NPV, IRR...)" }
+    ,"sheet.formula.categoryLogical": { label: "Logical", tooltip: "Browse logical functions (IF, AND, OR...)" }
+    ,"sheet.formula.categoryText": { label: "Text", tooltip: "Browse text functions (CONCAT, LEN, MID...)" }
+    ,"sheet.formula.categoryDateTime": { label: "Date & Time", tooltip: "Browse date and time functions (TODAY, NOW, DATE...)" }
+    ,"sheet.formula.categoryLookup": { label: "Lookup & Reference", tooltip: "Browse lookup and reference functions (VLOOKUP, INDEX, MATCH...)" }
+    ,"sheet.formula.categoryMath": { label: "Math & Trig", tooltip: "Browse math and trigonometry functions (ROUND, SUMPRODUCT...)" }
+    ,"sheet.formula.categoryMore": { label: "More Functions", tooltip: "Browse statistical and additional functions" }
     ,"sheet.formula.nameManager": { label: "Name Manager", tooltip: "Create, edit, and delete defined names" }
+    ,"sheet.formula.defineName": { label: "Define Name", tooltip: "Define a name for the selected cells" }
+    ,"sheet.formula.useInFormula": { label: "Use in Formula", tooltip: "Paste a defined name into the active formula" }
+    ,"sheet.formula.createFromSelection": { label: "Create from Selection", tooltip: "Automatically generate names from selected row/column labels (Ctrl+Shift+F3)" }
+    ,"sheet.formula.tracePrecedents": { label: "Trace Precedents", tooltip: "Show arrows pointing to cells that provide values to the active cell" }
+    ,"sheet.formula.traceDependents": { label: "Trace Dependents", tooltip: "Show arrows pointing to cells that depend on the active cell" }
+    ,"sheet.formula.removeArrows": { label: "Remove Arrows", tooltip: "Remove all formula auditing arrows" }
+    ,"sheet.formula.showFormulas": { label: "Show Formulas", tooltip: "Display formula expressions instead of results in cells (Ctrl+`)" }
+    ,"sheet.formula.errorChecking": { label: "Error Checking", tooltip: "Scan for formula calculation errors across the worksheet" }
+    ,"sheet.formula.watchWindow": { label: "Watch Window", tooltip: "Monitor values of critical cells in a floating window" }
+    ,"sheet.calc.calculationOptions": { label: "Calculation Options", tooltip: "Choose automatic or manual calculation mode" }
+    ,"sheet.calc.modeAutomatic": { label: "Automatic", tooltip: "Recalculate formulas automatically when values change" }
+    ,"sheet.calc.modeManual": { label: "Manual", tooltip: "Recalculate formulas only when you press Calculate Now (F9)" }
+    ,"sheet.calc.calculateSheet": { label: "Calculate Sheet", tooltip: "Recalculate formulas in the active worksheet (Shift+F9)" }
     ,"sheet.formula.arrayEnter": { label: "Enter Array Formula", tooltip: "Enter an array formula for the selected range (Ctrl+Shift+Enter)" }
     ,"sheet.formula.recalculate": { label: "Calculate Now", tooltip: "Recalculate all formulas in workbook (F9)" }
     ,"sheet.data.sortAsc": { label: "Sort A to Z", tooltip: "Sort data in ascending order" }

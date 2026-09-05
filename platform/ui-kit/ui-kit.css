@@ -421,3 +421,25 @@
   outline-offset: 1px;
 }
 
+/* Formula Auditing & Watch Window */
+.vno-cell-precedent {
+  outline: 2px dashed #2563eb !important;
+  outline-offset: -2px;
+  background-color: rgba(37, 99, 235, 0.08) !important;
+}
+
+.vno-cell-dependent {
+  outline: 2px dashed #0f6d38 !important;
+  outline-offset: -2px;
+  background-color: rgba(15, 109, 56, 0.08) !important;
+}
+
+.vno-watch-window .vno-watch-row:hover {
+  background-color: #f1f5f9;
+}
+
+.vno-watch-window .vno-watch-row.is-selected {
+  background-color: #e7f4ec !important;
+}
+
+
