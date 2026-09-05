@@ -249,6 +249,26 @@ export async function runSheetHelpTests() {
     }
   });
 
+  await test("Help Sheet: có bài Hợp nhất dữ liệu khớp ribbon tab Dữ liệu", () => {
+    const entry = getHelpEntryById("sheet.data.consolidate");
+    if (!entry) throw new Error("Thiếu bài sheet.data.consolidate");
+    if (entry.ribbon?.tab !== "Dữ liệu" || entry.ribbon?.group !== "Công cụ dữ liệu") {
+      throw new Error("Bài Consolidate phải ở tab Dữ liệu / nhóm Công cụ dữ liệu");
+    }
+    if (!(entry.commandIds || []).includes("sheet.data.consolidate")) {
+      throw new Error("Bài Consolidate thiếu commandId");
+    }
+    if (entry.steps.length < 3) throw new Error("Bài Consolidate thiếu bước dùng");
+    const blob = [entry.title, entry.summary, ...entry.steps].join(" ");
+    if (!/Hợp nhất/.test(blob) || !/Duyệt/.test(blob) || !/Nhãn ở hàng trên/.test(blob)) {
+      throw new Error("Bài Consolidate chưa mô tả nút Hợp nhất / Duyệt / nhãn hàng trên");
+    }
+    const found = searchHelpEntries("hợp nhất dữ liệu", { app: "sheet" });
+    if (!found.some((item) => item.id === "sheet.data.consolidate")) {
+      throw new Error("Không tìm thấy Hợp nhất dữ liệu trong catalog");
+    }
+  });
+
   await test("Help Sheet: không làm hỏng catalog Writer", () => {
     const writer = getHelpEntriesForApp("writer");
     if (writer.length < 6) throw new Error("Catalog Writer bị mất bài");

@@ -84,6 +84,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.data.textToColumns", () => this.grid.showTextToColumnsDialog());
     globalCommandBus.bindHandler("sheet.data.flashFill", () => this.grid.runFlashFill());
     globalCommandBus.bindHandler("sheet.data.removeDuplicates", () => this.grid.showRemoveDuplicatesDialog());
+    globalCommandBus.bindHandler("sheet.data.consolidate", () => this.grid.showConsolidateDialog());
     globalCommandBus.bindHandler("sheet.data.group", () => this.grid.groupSelection());
     globalCommandBus.bindHandler("sheet.data.ungroup", () => this.grid.ungroupSelection());
     globalCommandBus.bindHandler("sheet.data.subtotal", () => this.grid.showSubtotalDialog());
@@ -2404,6 +2405,9 @@ export class SheetAdapter {
       case "sheet.data.textToColumns": return this.grid.showTextToColumnsDialog();
       case "sheet.data.flashFill": return this.grid.runFlashFill();
       case "sheet.data.removeDuplicates": return this.grid.showRemoveDuplicatesDialog();
+      case "sheet.data.consolidate":
+      case ".uno:DataConsolidate":
+        return this.grid.showConsolidateDialog();
       case "sheet.data.group": return this.grid.groupSelection();
       case "sheet.data.ungroup": return this.grid.ungroupSelection();
       case "sheet.data.subtotal": return this.grid.showSubtotalDialog();

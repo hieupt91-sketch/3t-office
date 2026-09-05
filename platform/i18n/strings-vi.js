@@ -152,7 +152,30 @@ export const viStrings = {
     evaluateFormulaCellValue: "Giá trị hiện tại của ô: {value}",
     evaluateFormulaDone: "Đã ước lượng xong. Kết quả cuối: {value}",
     evaluateFormulaDoneMatch: "Kết quả khớp giá trị ô.",
-    evaluateFormulaDoneMismatch: "Kết quả bước ước lượng khác giá trị ô hiện tại ({value})."
+    evaluateFormulaDoneMismatch: "Kết quả bước ước lượng khác giá trị ô hiện tại ({value}).",
+    consolidateTitle: "Hợp nhất dữ liệu",
+    consolidateHint: "Gộp nhiều vùng (có thể từ các trang tính khác nhau) thành một bảng tại ô đang chọn. Kết quả là giá trị tĩnh; hoàn tác bằng Ctrl+Z.",
+    consolidateDest: "Ô đích: {sheet}!{coord}",
+    consolidateFunction: "Hàm",
+    consolidateReference: "Tham chiếu",
+    consolidateAllRefs: "Tất cả tham chiếu",
+    consolidateAdd: "Thêm",
+    consolidateDelete: "Xóa",
+    consolidateBrowse: "Duyệt",
+    consolidateTopRow: "Nhãn ở hàng trên",
+    consolidateLeftCol: "Nhãn ở cột trái",
+    consolidatePickLabel: "Chọn vùng trên lưới",
+    consolidatePickOk: "Chọn",
+    consolidateNeedRefs: "Hãy thêm ít nhất một tham chiếu nguồn.",
+    consolidateBadRef: "Tham chiếu không hợp lệ. Dùng dạng TênTrang!A1:B10 và bảo đảm trang tính tồn tại.",
+    consolidateDuplicateRef: "Tham chiếu này đã có trong danh sách.",
+    consolidateSizeMismatch: "Khi gộp theo vị trí, mọi vùng nguồn phải cùng số hàng và số cột.",
+    consolidateSizeMismatchRows: "Khi chỉ dùng nhãn hàng trên, các vùng phải có cùng số hàng dữ liệu.",
+    consolidateSizeMismatchCols: "Khi chỉ dùng nhãn cột trái, các vùng phải có cùng số cột dữ liệu.",
+    consolidateNoData: "Không đọc được dữ liệu số sau hàng/cột nhãn. Kiểm tra vùng nguồn.",
+    consolidateBadFunction: "Chọn hàm SUM, AVERAGE, COUNT, MAX hoặc MIN.",
+    consolidateNoOutput: "Không ghi được kết quả vào lưới. Chọn ô đích còn chỗ trống trong trang.",
+    consolidateFailed: "Không hợp nhất được dữ liệu."
   },
   slidesDialogs: {
     close: "Đóng", cancel: "Hủy bỏ", apply: "Áp dụng", preview: "Xem thử", delete: "Xóa",
@@ -294,6 +317,7 @@ export const viStrings = {
     ,"sheet.data.textToColumns": { label: "Tách văn bản", tooltip: "Tách một cột theo dấu phân cách hoặc độ rộng cố định" }
     ,"sheet.data.flashFill": { label: "Điền nhanh", tooltip: "Điền theo mẫu từ ví dụ ở cột kế bên" }
     ,"sheet.data.removeDuplicates": { label: "Xóa trùng lặp", tooltip: "Xóa hàng trùng theo các cột được chọn" }
+    ,"sheet.data.consolidate": { label: "Hợp nhất dữ liệu", tooltip: "Gộp dữ liệu từ nhiều vùng hoặc trang tính thành một bảng tổng hợp" }
     ,"sheet.data.group": { label: "Nhóm", tooltip: "Nhóm các hàng hoặc cột liên tiếp đang chọn" }
     ,"sheet.data.ungroup": { label: "Bỏ nhóm", tooltip: "Bỏ nhóm hàng hoặc cột đang chọn" }
     ,"sheet.data.subtotal": { label: "Tổng phụ", tooltip: "Chèn tổng phụ theo nhóm và tổng cộng cuối bảng" }

@@ -14,6 +14,7 @@ import { showCellStylesDialog, showFormatAsTableDialog, CELL_STYLE_PRESETS, TABL
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { SheetDataTools } from "./data-tools.js";
+import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
 import { showAlertDialog, showConfirmDialog, showPromptDialog } from "../../platform/ui-kit/dialogs.js";
 import { VietnameseSpellChecker, normalizeVietnameseWord, tokenizeVietnamese } from "../../platform/text/vi-spellchecker.js";
 import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
@@ -7117,6 +7118,47 @@ export class SheetGridController {
   applyTextToColumns(options) { return this.dataTools.textToColumns(options); }
   applyFlashFill(options) { return this.dataTools.flashFill(options); }
 
+  applyConsolidate(options = {}) {
+    if (this._guardProtectedMutation()) return { ok: false, error: "protected" };
+    const dest = options.destination || { ...this.selectedCoord };
+    const destSheet = options.destinationSheet || this.activeSheet;
+    if (destSheet !== this.activeSheet) this.switchSheet(destSheet);
+    const computed = computeConsolidate({
+      engine: this.formulaEngine,
+      functionName: options.functionName,
+      references: options.references,
+      topRow: !!options.topRow,
+      leftColumn: !!options.leftColumn,
+      fallbackSheet: destSheet
+    });
+    if (!computed.ok) return computed;
+    const startCol = this._columnNumber(dest.c);
+    const startRow = Number(dest.r);
+    const before = {};
+    const after = {};
+    for (const cell of computed.cells) {
+      const colNumber = startCol + cell.colOffset;
+      const row = startRow + cell.rowOffset;
+      if (colNumber < 1 || colNumber > this.cols.length || row < 1 || row > this.rowCount) continue;
+      const coord = `${this._columnLabel(colNumber)}${row}`;
+      const existing = this.cellsData.get(coord);
+      before[coord] = existing ? structuredClone(existing) : null;
+      const next = {
+        val: cell.value === "" || cell.value == null ? "" : cell.value,
+        formula: "",
+        style: structuredClone(existing?.style || {})
+      };
+      this.cellsData.set(coord, next);
+      after[coord] = structuredClone(next);
+    }
+    if (!Object.keys(after).length) return { ok: false, error: "no-output" };
+    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
+    this._recalculateAllFormulas();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.selectCell(dest.c, dest.r);
+    return { ...computed, ok: true, destination: { ...dest }, destinationSheet: this.activeSheet };
+  }
+
   showRemoveDuplicatesDialog() {
     const area = this._normalizeRange(this.selectionRange);
     const columns = this.dataTools.columns(area);
@@ -7458,6 +7500,172 @@ export class SheetGridController {
     const result = this.applyFlashFill();
     this._showDataNotice(result ? (t("sheetDialogs.flashFillSuccess", { filled: result.filled, pattern: result.pattern }) || `Flash Fill đã điền ${result.filled} ô (${result.pattern}).`) : t("sheetDialogs.flashFillFailure", "Không nhận diện được mẫu. Hãy nhập 1–2 ví dụ ở cột kết quả kế bên dữ liệu nguồn."));
     return result;
+  }
+
+  showConsolidateDialog() {
+    if (typeof document === "undefined") return false;
+    const destSheet = this.activeSheet;
+    const destCell = { ...this.selectedCoord };
+    const title = t("sheetDialogs.consolidateTitle", "Hợp nhất dữ liệu");
+    const functionOptions = CONSOLIDATE_FUNCTIONS.map(name => `<option value="${name}">${name}</option>`).join("");
+    const overlay = this._createSheetDialog(title, `
+      <div class="vno-consolidate-main">
+        <p class="vno-consolidate-hint">${this._escapeHtml(t("sheetDialogs.consolidateHint", "Gộp nhiều vùng (có thể từ các trang tính khác nhau) thành một bảng tại ô đang chọn. Kết quả là giá trị tĩnh; hoàn tác bằng Ctrl+Z."))}</p>
+        <p class="vno-consolidate-dest">${this._escapeHtml(t("sheetDialogs.consolidateDest", { sheet: destSheet, coord: `${destCell.c}${destCell.r}` }))}</p>
+        <label for="vno-consolidate-function">${t("sheetDialogs.consolidateFunction", "Hàm")}
+          <select id="vno-consolidate-function">${functionOptions}</select>
+        </label>
+        <label for="vno-consolidate-ref">${t("sheetDialogs.consolidateReference", "Tham chiếu")}
+          <div class="vno-consolidate-ref-row">
+            <input id="vno-consolidate-ref" type="text" autocomplete="off" spellcheck="false" placeholder="TrangTinh!A1:B10">
+            <button type="button" class="vno-btn vno-consolidate-add">${t("sheetDialogs.consolidateAdd", "Thêm")}</button>
+            <button type="button" class="vno-btn vno-consolidate-browse">${t("sheetDialogs.consolidateBrowse", "Duyệt")}</button>
+          </div>
+        </label>
+        <label for="vno-consolidate-list">${t("sheetDialogs.consolidateAllRefs", "Tất cả tham chiếu")}
+          <select id="vno-consolidate-list" size="6"></select>
+        </label>
+        <div class="vno-consolidate-list-actions">
+          <button type="button" class="vno-btn vno-consolidate-delete">${t("sheetDialogs.consolidateDelete", "Xóa")}</button>
+        </div>
+        <div class="vno-consolidate-flags">
+          <label class="vno-consolidate-check"><input id="vno-consolidate-top-row" type="checkbox"> ${t("sheetDialogs.consolidateTopRow", "Nhãn ở hàng trên")}</label>
+          <label class="vno-consolidate-check"><input id="vno-consolidate-left-col" type="checkbox"> ${t("sheetDialogs.consolidateLeftCol", "Nhãn ở cột trái")}</label>
+        </div>
+        <div class="vno-rule-error" role="alert" aria-live="assertive"></div>
+      </div>
+      <div class="vno-consolidate-pick-bar">
+        <label class="vno-consolidate-pick-label">${t("sheetDialogs.consolidatePickLabel", "Chọn vùng trên lưới")}
+          <input id="vno-consolidate-pick-ref" type="text" autocomplete="off" spellcheck="false">
+        </label>
+        <button type="button" class="vno-btn vno-btn-primary vno-consolidate-pick-ok">${t("sheetDialogs.consolidatePickOk", "Chọn")}</button>
+        <button type="button" class="vno-btn vno-consolidate-pick-cancel">${t("common.cancel", "Hủy bỏ")}</button>
+      </div>`);
+    if (!overlay) return false;
+    overlay.classList.add("vno-consolidate-dialog");
+    const applyBtn = overlay.querySelector(".vno-rule-apply");
+    if (applyBtn) applyBtn.textContent = t("common.ok", "Đồng ý");
+    const errorEl = overlay.querySelector(".vno-rule-error");
+    const refInput = overlay.querySelector("#vno-consolidate-ref");
+    const listEl = overlay.querySelector("#vno-consolidate-list");
+    const pickInput = overlay.querySelector("#vno-consolidate-pick-ref");
+    const setError = message => { if (errorEl) errorEl.textContent = message || ""; };
+    const currentSelectionRef = () => formatSheetRange(this.activeSheet, this.getSelectedRangeLabel());
+    if (refInput && !refInput.value) refInput.value = currentSelectionRef();
+
+    const addReference = raw => {
+      const text = String(raw || "").trim() || currentSelectionRef();
+      const parsed = parseConsolidateReference(this.formulaEngine, text, this.activeSheet);
+      if (parsed.error) {
+        setError(t("sheetDialogs.consolidateBadRef", "Tham chiếu không hợp lệ. Dùng dạng TênTrang!A1:B10 và bảo đảm trang tính tồn tại."));
+        return false;
+      }
+      const display = parsed.display;
+      const existing = Array.from(listEl.options).map(option => option.value);
+      if (existing.includes(display)) {
+        setError(t("sheetDialogs.consolidateDuplicateRef", "Tham chiếu này đã có trong danh sách."));
+        return false;
+      }
+      const option = document.createElement("option");
+      option.value = display;
+      option.textContent = display;
+      listEl.appendChild(option);
+      option.selected = true;
+      refInput.value = "";
+      setError("");
+      return true;
+    };
+
+    overlay.querySelector(".vno-consolidate-add").addEventListener("click", () => addReference(refInput.value));
+    overlay.querySelector(".vno-consolidate-delete").addEventListener("click", () => {
+      Array.from(listEl.selectedOptions).forEach(option => option.remove());
+      setError("");
+    });
+    refInput.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        addReference(refInput.value);
+      }
+    });
+
+    let picking = false;
+    const onGridMouseUp = () => {
+      if (!picking) return;
+      const value = currentSelectionRef();
+      if (pickInput) pickInput.value = value;
+      if (refInput) refInput.value = value;
+    };
+    const endPick = accept => {
+      if (!picking) return;
+      picking = false;
+      overlay.classList.remove("is-picking-range");
+      this.container?.removeEventListener?.("mouseup", onGridMouseUp);
+      if (accept && pickInput?.value) refInput.value = pickInput.value;
+      refInput?.focus();
+    };
+    overlay.querySelector(".vno-consolidate-browse").addEventListener("click", () => {
+      picking = true;
+      overlay.classList.add("is-picking-range");
+      if (pickInput) pickInput.value = currentSelectionRef();
+      this.container?.addEventListener?.("mouseup", onGridMouseUp);
+      pickInput?.focus();
+      pickInput?.select();
+    });
+    overlay.querySelector(".vno-consolidate-pick-ok").addEventListener("click", () => endPick(true));
+    overlay.querySelector(".vno-consolidate-pick-cancel").addEventListener("click", () => endPick(false));
+    overlay.addEventListener("click", event => {
+      if (overlay.classList.contains("is-picking-range") && event.target === overlay) {
+        event.stopImmediatePropagation();
+      }
+    }, true);
+    const pickKey = event => {
+      if (!overlay.classList.contains("is-picking-range")) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        endPick(false);
+      } else if (event.key === "Enter" && document.activeElement !== pickInput) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        endPick(true);
+      }
+    };
+    document.addEventListener("keydown", pickKey, true);
+    const originalClose = overlay.closeDialog;
+    overlay.closeDialog = () => {
+      endPick(false);
+      document.removeEventListener("keydown", pickKey, true);
+      originalClose();
+    };
+
+    applyBtn?.addEventListener("click", () => {
+      const references = Array.from(listEl.options).map(option => option.value);
+      const result = this.applyConsolidate({
+        functionName: overlay.querySelector("#vno-consolidate-function").value,
+        references,
+        topRow: overlay.querySelector("#vno-consolidate-top-row").checked,
+        leftColumn: overlay.querySelector("#vno-consolidate-left-col").checked,
+        destination: destCell,
+        destinationSheet: destSheet
+      });
+      if (!result?.ok) {
+        const messages = {
+          "no-references": t("sheetDialogs.consolidateNeedRefs", "Hãy thêm ít nhất một tham chiếu nguồn."),
+          "bad-reference": t("sheetDialogs.consolidateBadRef", "Tham chiếu không hợp lệ. Dùng dạng TênTrang!A1:B10 và bảo đảm trang tính tồn tại."),
+          "size-mismatch": t("sheetDialogs.consolidateSizeMismatch", "Khi gộp theo vị trí, mọi vùng nguồn phải cùng số hàng và số cột."),
+          "size-mismatch-rows": t("sheetDialogs.consolidateSizeMismatchRows", "Khi chỉ dùng nhãn hàng trên, các vùng phải có cùng số hàng dữ liệu."),
+          "size-mismatch-cols": t("sheetDialogs.consolidateSizeMismatchCols", "Khi chỉ dùng nhãn cột trái, các vùng phải có cùng số cột dữ liệu."),
+          "no-data": t("sheetDialogs.consolidateNoData", "Không đọc được dữ liệu số sau hàng/cột nhãn. Kiểm tra vùng nguồn."),
+          "bad-function": t("sheetDialogs.consolidateBadFunction", "Chọn hàm SUM, AVERAGE, COUNT, MAX hoặc MIN."),
+          "protected": t("sheetDialogs.sheetProtectedEdit", "Trang tính đang được bảo vệ."),
+          "no-output": t("sheetDialogs.consolidateNoOutput", "Không ghi được kết quả vào lưới. Chọn ô đích còn chỗ trống trong trang.")
+        };
+        setError(messages[result?.error] || t("sheetDialogs.consolidateFailed", "Không hợp nhất được dữ liệu."));
+        return;
+      }
+      overlay.closeDialog();
+    });
+    return true;
   }
 
   _showDataNotice(message) {

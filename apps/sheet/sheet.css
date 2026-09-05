@@ -419,6 +419,67 @@
 }
 .vno-eval-final { font-weight: 600; color: var(--vno-text-primary); }
 
+.vno-consolidate-dialog .vno-dialog-box { width: 520px; }
+.vno-consolidate-hint, .vno-consolidate-dest {
+  margin: 0;
+  font-size: 12px;
+  color: var(--vno-text-secondary);
+  font-weight: 500;
+}
+.vno-consolidate-dest { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; color: var(--vno-text-primary); }
+.vno-consolidate-ref-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.vno-consolidate-ref-row input { flex: 1; min-width: 0; }
+.vno-consolidate-list-actions { display: flex; justify-content: flex-end; }
+.vno-consolidate-dialog #vno-consolidate-list {
+  min-height: 108px;
+  font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+  font-size: 12px;
+}
+.vno-consolidate-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+.vno-consolidate-check {
+  display: flex !important;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.vno-consolidate-check input { width: auto; margin: 0; }
+.vno-consolidate-pick-bar {
+  display: none;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 8px 0 0;
+}
+.vno-consolidate-pick-bar .vno-consolidate-pick-label { flex: 1; min-width: 0; }
+.vno-consolidate-dialog.is-picking-range {
+  background: transparent;
+  backdrop-filter: none;
+  pointer-events: none;
+  align-items: flex-end;
+  padding-bottom: 28px;
+}
+.vno-consolidate-dialog.is-picking-range .vno-dialog-box {
+  pointer-events: auto;
+  width: min(560px, 92vw);
+  min-width: 0;
+}
+.vno-consolidate-dialog.is-picking-range .vno-dialog-header,
+.vno-consolidate-dialog.is-picking-range .vno-consolidate-main,
+.vno-consolidate-dialog.is-picking-range .vno-dialog-footer {
+  display: none;
+}
+.vno-consolidate-dialog.is-picking-range .vno-consolidate-pick-bar {
+  display: flex;
+}
+
 .vno-sheet-spellcheck-dialog .vno-dialog-box { width: 460px; }
 .vno-sheet-spellcheck-dialog .vno-spell-footer {
   display: flex;

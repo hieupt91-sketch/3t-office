@@ -153,7 +153,30 @@ export const enStrings = {
     evaluateFormulaCellValue: "Current cell value: {value}",
     evaluateFormulaDone: "Evaluation complete. Final result: {value}",
     evaluateFormulaDoneMatch: "The result matches the cell value.",
-    evaluateFormulaDoneMismatch: "The stepped result differs from the current cell value ({value})."
+    evaluateFormulaDoneMismatch: "The stepped result differs from the current cell value ({value}).",
+    consolidateTitle: "Consolidate",
+    consolidateHint: "Combine ranges (including from other sheets in this workbook) into one table at the active cell. Results are static values; undo with Ctrl+Z.",
+    consolidateDest: "Destination: {sheet}!{coord}",
+    consolidateFunction: "Function",
+    consolidateReference: "Reference",
+    consolidateAllRefs: "All references",
+    consolidateAdd: "Add",
+    consolidateDelete: "Delete",
+    consolidateBrowse: "Browse",
+    consolidateTopRow: "Top row labels",
+    consolidateLeftCol: "Left column labels",
+    consolidatePickLabel: "Select a range on the grid",
+    consolidatePickOk: "Select",
+    consolidateNeedRefs: "Add at least one source reference.",
+    consolidateBadRef: "Invalid reference. Use SheetName!A1:B10 and make sure the sheet exists.",
+    consolidateDuplicateRef: "That reference is already in the list.",
+    consolidateSizeMismatch: "When consolidating by position, every source range must have the same number of rows and columns.",
+    consolidateSizeMismatchRows: "When using only top-row labels, source ranges must have the same number of data rows.",
+    consolidateSizeMismatchCols: "When using only left-column labels, source ranges must have the same number of data columns.",
+    consolidateNoData: "No data found after the label row/column. Check the source ranges.",
+    consolidateBadFunction: "Choose SUM, AVERAGE, COUNT, MAX, or MIN.",
+    consolidateNoOutput: "Could not write the result to the grid. Choose a destination cell with room on the sheet.",
+    consolidateFailed: "Could not consolidate the data."
   },
   slidesDialogs: {
     close: "Close", cancel: "Cancel", apply: "Apply", preview: "Preview", delete: "Delete",
@@ -295,6 +318,7 @@ export const enStrings = {
     ,"sheet.data.textToColumns": { label: "Text to Columns", tooltip: "Split one column by delimiter or fixed width" }
     ,"sheet.data.flashFill": { label: "Flash Fill", tooltip: "Fill values from examples in the adjacent output column" }
     ,"sheet.data.removeDuplicates": { label: "Remove Duplicates", tooltip: "Remove duplicate rows using selected columns" }
+    ,"sheet.data.consolidate": { label: "Consolidate", tooltip: "Combine data from multiple ranges or sheets into one summary table" }
     ,"sheet.data.group": { label: "Group", tooltip: "Group selected consecutive rows or columns" }
     ,"sheet.data.ungroup": { label: "Ungroup", tooltip: "Remove the selected row or column group" }
     ,"sheet.data.subtotal": { label: "Subtotal", tooltip: "Insert subtotals and a final grand total" }

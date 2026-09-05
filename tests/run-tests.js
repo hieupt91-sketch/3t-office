@@ -111,6 +111,7 @@ import { runWriterWordArtTests } from "./unit/writer-wordart.test.js";
 import { runSlidesAnimationPaneSetupShowTests } from "./unit/slides-animation-pane-setup-show.test.js";
 import { runWriterIllustrationDialogTests } from "./unit/writer-illustration-dialogs.test.js";
 import { runSheetEvaluateFormulaTests } from "./unit/sheet-evaluate-formula.test.js";
+import { runSheetConsolidateTests } from "./unit/sheet-consolidate.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -229,7 +230,8 @@ async function runAll() {
     { title: "96. Behavioral Tests — VN Writer WordArt (chữ nghệ thuật)", runner: runWriterWordArtTests },
     { title: "98. Behavioral Tests — VN Slides Animation Pane & Set Up Slide Show", runner: runSlidesAnimationPaneSetupShowTests },
     { title: "101. Behavioral Tests — VN Writer Illustration Dialogs (Shape/Diagram/Chart pickers)", runner: runWriterIllustrationDialogTests },
-    { title: "102. Behavioral Tests — VN Sheet Evaluate Formula", runner: runSheetEvaluateFormulaTests }
+    { title: "102. Behavioral Tests — VN Sheet Evaluate Formula", runner: runSheetEvaluateFormulaTests },
+    { title: "103. Behavioral Tests — VN Sheet Consolidate (Hợp nhất dữ liệu)", runner: runSheetConsolidateTests }
   ];
 
   for (const suite of suites) {

@@ -1119,6 +1119,14 @@ export const ICONS = {
     <path d="M4 4l4 0 0 4z" fill="#10B981"/>
   </svg>`,
 
+  consolidate: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="2.5" y="3.5" width="8" height="6.5" rx="1.2" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.2"/>
+    <rect x="2.5" y="13.5" width="8" height="6.5" rx="1.2" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.2"/>
+    <rect x="13.5" y="6" width="8" height="12" rx="1.2" fill="#F0FDF4" stroke="#0F6D38" stroke-width="1.2"/>
+    <path d="M11 6.5h2M11 16.5h2M13 6.5v10" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M15.5 9.5h4M15.5 12h4M15.5 14.5h4" stroke="#0F6D38" stroke-width="1.3" stroke-linecap="round"/>
+  </svg>`,
+
   evaluateFormula: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
     <rect x="3" y="3" width="18" height="18" rx="3" fill="#ECFDF5" stroke="#0F6D38" stroke-width="1.3"/>
     <path d="M7 8h4M7 12h6" stroke="#0F6D38" stroke-width="1.5" stroke-linecap="round"/>
