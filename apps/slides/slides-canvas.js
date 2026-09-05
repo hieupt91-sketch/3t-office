@@ -225,8 +225,11 @@ export class SlidesCanvasController {
       }
     ];
     this.currentSlideIndex = 0;
-    // Presentation-level section catalogue. Slides reference entries by sectionId.
+    // Presentation-level section catalogue. Equivalent to [{id, name, startSlideIndex}]:
+    // each entry is a named start boundary; the next section (or end of deck) is the end.
+    // Slides also keep sectionId so FODP round-trip and contiguous grouping stay in sync.
     this.sections = [];
+    this.collapsedSectionIds = new Set();
     this.undoStack = [];
     this.redoStack = [];
     this.slideSorterOverlay = null;
@@ -3804,6 +3807,11 @@ export class SlidesCanvasController {
     this.slideListContainer.innerHTML = "";
     const theme = this.masterTheme || {};
     this.slides.forEach((slide, idx) => {
+      if (this._isSectionStart(idx)) {
+        const section = this._sectionAtSlide(idx);
+        if (section) this.slideListContainer.appendChild(this._createSectionHeaderEl(section, "thumb"));
+      }
+      if (slide.sectionId && this.collapsedSectionIds.has(slide.sectionId)) return;
       const item = document.createElement("div");
       item.className = `vno-slide-thumb-item ${idx === this.currentSlideIndex ? "is-active" : ""}${slide.hidden ? " is-hidden" : ""}`;
       const layout = slide.layoutType || "title-content";
@@ -3879,6 +3887,10 @@ export class SlidesCanvasController {
       });
 
       item.addEventListener("click", () => this.selectSlide(idx));
+      item.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        this._openSlideSectionMenu(idx, event.clientX || 0, event.clientY || 0);
+      });
       this.slideListContainer.appendChild(item);
     });
   }
@@ -3915,6 +3927,7 @@ export class SlidesCanvasController {
     if (this.options.onChange) {
       this.options.onChange(this.currentSlideIndex + 1, this.slides.length);
     }
+    this._renderThumbnails();
     this._syncCommandStates();
   }
 
@@ -4018,6 +4031,8 @@ export class SlidesCanvasController {
     };
     this.slides.push(newSlide);
     const newIdx = this.slides.length - 1;
+    const previous = this.slides[newIdx - 1];
+    if (previous?.sectionId) newSlide.sectionId = previous.sectionId;
     if (recordUndo) {
       this.undoStack.push({ type: "add", index: newIdx, slide: newSlide });
       this.redoStack = [];
@@ -4102,55 +4117,306 @@ export class SlidesCanvasController {
     return true;
   }
 
-  addSection(slideIndex, name) {
-    const slide = this.slides[slideIndex];
-    const cleanName = String(name || "").trim();
-    if (!slide || !cleanName) return false;
-    const id = `section-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    this.sections.push({ id, name: cleanName });
-    // A section begins at the chosen slide and ends at the next existing boundary.
-    for (let index = slideIndex; index < this.slides.length; index++) {
-      if (index > slideIndex && this.slides[index].sectionId) break;
-      this.slides[index].sectionId = id;
-    }
-    this.sections.sort((left, right) => {
-      const leftIndex = this.slides.findIndex(item => item.sectionId === left.id);
-      const rightIndex = this.slides.findIndex(item => item.sectionId === right.id);
-      return leftIndex - rightIndex;
-    });
-    this._renderSlideSorterGrid();
-    return id;
+  _defaultSectionName() {
+    const n = this.sections.length + 1;
+    return getLocale() === "en" ? `Section ${n}` : `Phần ${n}`;
   }
 
-  renameSection(sectionId, name) {
-    const section = this.sections.find(item => item.id === sectionId);
-    const cleanName = String(name || "").trim();
-    if (!section || !cleanName) return false;
-    section.name = cleanName;
-    this._renderSlideSorterGrid();
+  _sectionAtSlide(index) {
+    const id = this.slides[index]?.sectionId;
+    if (!id) return null;
+    return this.sections.find(item => item.id === id) || null;
+  }
+
+  getSectionForSlide(index) {
+    return this._sectionAtSlide(index);
+  }
+
+  getSectionRange(sectionId) {
+    let start = -1;
+    let end = -1;
+    this.slides.forEach((slide, index) => {
+      if (slide.sectionId === sectionId) {
+        if (start < 0) start = index;
+        end = index + 1;
+      }
+    });
+    if (start < 0) return null;
+    return { start, end, count: end - start };
+  }
+
+  _isSectionStart(index) {
+    const slide = this.slides[index];
+    if (!slide?.sectionId) return false;
+    if (index === 0) return true;
+    return this.slides[index - 1].sectionId !== slide.sectionId;
+  }
+
+  _refreshSectionStarts() {
+    for (const section of this.sections) {
+      const range = this.getSectionRange(section.id);
+      section.startSlideIndex = range ? range.start : -1;
+    }
+    this.sections.sort((left, right) => {
+      const leftIndex = left.startSlideIndex < 0 ? Number.POSITIVE_INFINITY : left.startSlideIndex;
+      const rightIndex = right.startSlideIndex < 0 ? Number.POSITIVE_INFINITY : right.startSlideIndex;
+      return leftIndex - rightIndex;
+    });
+  }
+
+  _orderedSectionRanges() {
+    return this.sections
+      .map(section => ({ section, range: this.getSectionRange(section.id) }))
+      .filter(item => item.range)
+      .sort((a, b) => a.range.start - b.range.start);
+  }
+
+  _captureSectionState() {
+    return {
+      sections: this.sections.map(section => ({
+        id: section.id,
+        name: section.name,
+        startSlideIndex: section.startSlideIndex
+      })),
+      membership: this.slides.map(slide => slide.sectionId || null),
+      slideIds: this.slides.map(slide => slide.id),
+      currentSlideIndex: this.currentSlideIndex
+    };
+  }
+
+  _restoreSectionState(state) {
+    if (!state) return false;
+    const byId = new Map(this.slides.map(slide => [slide.id, slide]));
+    if (Array.isArray(state.slideIds) && state.slideIds.length === this.slides.length) {
+      const restored = state.slideIds.map(id => byId.get(id)).filter(Boolean);
+      if (restored.length === this.slides.length) this.slides = restored;
+    }
+    this.sections = (state.sections || []).map(section => ({ ...section }));
+    this.slides.forEach((slide, index) => {
+      const sectionId = state.membership?.[index];
+      if (sectionId) slide.sectionId = sectionId;
+      else delete slide.sectionId;
+    });
+    this._refreshSectionStarts();
+    const nextIndex = Number.isInteger(state.currentSlideIndex)
+      ? Math.max(0, Math.min(state.currentSlideIndex, Math.max(0, this.slides.length - 1)))
+      : this.currentSlideIndex;
+    this.currentSlideIndex = nextIndex;
+    this._refreshSectionUi(false);
+    if (typeof this.selectSlide === "function") this.selectSlide(nextIndex);
     return true;
   }
 
-  removeSection(sectionId) {
+  _recordSectionUndo(before) {
+    this.undoStack.push({
+      type: "section-state",
+      before,
+      after: this._captureSectionState()
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+  }
+
+  _refreshSectionUi(syncCommands = true) {
+    this._refreshSectionStarts();
+    this._renderThumbnails();
+    if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+    if (syncCommands) this._syncCommandStates();
+  }
+
+  isSectionCollapsed(sectionId) {
+    return this.collapsedSectionIds.has(sectionId);
+  }
+
+  toggleSectionCollapsed(sectionId) {
+    if (!this.sections.some(section => section.id === sectionId)) return false;
+    if (this.collapsedSectionIds.has(sectionId)) this.collapsedSectionIds.delete(sectionId);
+    else this.collapsedSectionIds.add(sectionId);
+    this._renderThumbnails();
+    if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+    return true;
+  }
+
+  _createSectionHeaderEl(section, variant) {
+    const range = this.getSectionRange(section.id);
+    const count = range?.count || 0;
+    const collapsed = this.collapsedSectionIds.has(section.id);
+    const header = document.createElement("div");
+    header.className = variant === "sorter" ? "vno-slide-section-divider" : "vno-slide-section-header";
+    header.dataset.sectionId = section.id;
+    header.dataset.collapsed = collapsed ? "true" : "false";
+    header.setAttribute?.("role", "heading");
+    header.setAttribute?.("aria-level", "2");
+    header.tabIndex = 0;
+    if (variant === "sorter") {
+      header.style.cssText = "grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:5px 4px;border-bottom:3px solid var(--vno-app-current, #b53818);color:var(--vno-app-current-fg, #7c2d12);font-size:15px;font-weight:800";
+    }
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "vno-slide-section-toggle";
+    toggle.dataset.sectionToggle = "true";
+    toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    toggle.setAttribute("aria-label", collapsed
+      ? t("slidesDialogs.sectionExpand", "Mở rộng phần")
+      : t("slidesDialogs.sectionCollapse", "Thu gọn phần"));
+    toggle.title = collapsed
+      ? t("slidesDialogs.sectionExpand", "Mở rộng phần")
+      : t("slidesDialogs.sectionCollapse", "Thu gọn phần");
+    toggle.textContent = collapsed ? "▸" : "▾";
+    toggle.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.toggleSectionCollapsed(section.id);
+    });
+    const nameEl = document.createElement("span");
+    nameEl.className = "vno-slide-section-name";
+    nameEl.textContent = section.name;
+    const countEl = document.createElement("span");
+    countEl.className = "vno-slide-section-count";
+    countEl.textContent = `(${count})`;
+    header.appendChild(toggle);
+    header.appendChild(nameEl);
+    header.appendChild(countEl);
+    header.addEventListener("click", (event) => {
+      if (event.target === toggle || toggle.contains?.(event.target)) return;
+      if (range) this.selectSlide(range.start);
+    });
+    header.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      if (range) this._openSlideSectionMenu(range.start, event.clientX || 0, event.clientY || 0);
+    });
+    header.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        this.toggleSectionCollapsed(section.id);
+      }
+    });
+    return header;
+  }
+
+  addSection(slideIndex, name, recordUndo = true) {
+    const slide = this.slides[slideIndex];
+    const cleanName = String(name || "").trim();
+    if (!slide || !cleanName) return false;
+    const before = recordUndo ? this._captureSectionState() : null;
+    const id = `section-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    this.sections.push({ id, name: cleanName, startSlideIndex: slideIndex });
+    const originalId = slide.sectionId || null;
+    for (let index = slideIndex; index < this.slides.length; index++) {
+      if (index > slideIndex) {
+        const sid = this.slides[index].sectionId || null;
+        if (sid && sid !== originalId) break;
+        if (originalId && !sid) break;
+      }
+      this.slides[index].sectionId = id;
+    }
+    this._refreshSectionStarts();
+    this.sections = this.sections.filter(section => section.id === id || this.getSectionRange(section.id));
+    this._refreshSectionStarts();
+    if (recordUndo) this._recordSectionUndo(before);
+    this._refreshSectionUi();
+    return id;
+  }
+
+  renameSection(sectionId, name, recordUndo = true) {
+    const section = this.sections.find(item => item.id === sectionId);
+    const cleanName = String(name || "").trim();
+    if (!section || !cleanName) return false;
+    if (section.name === cleanName) return true;
+    const before = recordUndo ? this._captureSectionState() : null;
+    section.name = cleanName;
+    if (recordUndo) this._recordSectionUndo(before);
+    this._refreshSectionUi();
+    return true;
+  }
+
+  removeSection(sectionId, recordUndo = true) {
     const index = this.sections.findIndex(item => item.id === sectionId);
     if (index < 0) return false;
+    const before = recordUndo ? this._captureSectionState() : null;
     this.sections.splice(index, 1);
     this.slides.forEach(slide => {
       if (slide.sectionId === sectionId) delete slide.sectionId;
     });
-    this._renderSlideSorterGrid();
+    this.collapsedSectionIds.delete(sectionId);
+    if (recordUndo) this._recordSectionUndo(before);
+    this._refreshSectionUi();
     return true;
   }
 
+  moveSection(sectionId, direction, recordUndo = true) {
+    const dir = direction < 0 ? -1 : 1;
+    const ordered = this._orderedSectionRanges();
+    const idx = ordered.findIndex(item => item.section.id === sectionId);
+    if (idx < 0) return false;
+    const neighbor = ordered[idx + dir];
+    if (!neighbor) return false;
+    const range = ordered[idx].range;
+    const selectedId = this.slides[this.currentSlideIndex]?.id;
+    const before = recordUndo ? this._captureSectionState() : null;
+    const block = this.slides.splice(range.start, range.count);
+    const insertAt = dir < 0
+      ? neighbor.range.start
+      : neighbor.range.start - range.count + neighbor.range.count;
+    this.slides.splice(insertAt, 0, ...block);
+    this._refreshSectionStarts();
+    if (selectedId != null) {
+      const next = this.slides.findIndex(slide => slide.id === selectedId);
+      if (next >= 0) this.currentSlideIndex = next;
+    }
+    if (recordUndo) this._recordSectionUndo(before);
+    this.selectSlide(this.currentSlideIndex);
+    this._refreshSectionUi();
+    return true;
+  }
+
+  promptAddCurrentSection() {
+    return this._promptAddSection(this.currentSlideIndex);
+  }
+
+  promptRenameCurrentSection() {
+    const section = this._sectionAtSlide(this.currentSlideIndex);
+    if (!section) return false;
+    return this._promptRenameSection(section.id);
+  }
+
+  removeCurrentSection() {
+    const section = this._sectionAtSlide(this.currentSlideIndex);
+    if (!section) return false;
+    return this.removeSection(section.id);
+  }
+
+  moveCurrentSectionUp() {
+    const section = this._sectionAtSlide(this.currentSlideIndex);
+    if (!section) return false;
+    return this.moveSection(section.id, -1);
+  }
+
+  moveCurrentSectionDown() {
+    const section = this._sectionAtSlide(this.currentSlideIndex);
+    if (!section) return false;
+    return this.moveSection(section.id, 1);
+  }
+
   async _promptAddSection(slideIndex) {
-    const name = await showPromptDialog({ title: "Thêm Phần", message: "Tên Phần", defaultValue: `Phần ${this.sections.length + 1}`, confirmText: "Thêm" });
+    const name = await showPromptDialog({
+      title: t("slidesDialogs.sectionAddTitle", "Thêm phần"),
+      message: t("slidesDialogs.sectionAddMessage", "Tên phần"),
+      defaultValue: this._defaultSectionName(),
+      confirmText: t("slidesDialogs.sectionAddConfirm", "Thêm")
+    });
     return name === null ? false : this.addSection(slideIndex, name);
   }
 
   async _promptRenameSection(sectionId) {
     const section = this.sections.find(item => item.id === sectionId);
     if (!section) return false;
-    const name = await showPromptDialog({ title: "Đổi tên Phần", message: "Tên mới", defaultValue: section.name, confirmText: "Đổi tên" });
+    const name = await showPromptDialog({
+      title: t("slidesDialogs.sectionRenameTitle", "Đổi tên phần"),
+      message: t("slidesDialogs.sectionRenameMessage", "Tên mới"),
+      defaultValue: section.name,
+      confirmText: t("slidesDialogs.sectionRenameConfirm", "Đổi tên")
+    });
     return name === null ? false : this.renameSection(sectionId, name);
   }
 
@@ -4304,18 +4570,11 @@ export class SlidesCanvasController {
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#39;");
     this.slides.forEach((slide, index) => {
-      const section = this.sections.find(item => item.id === slide.sectionId);
-      const previousSectionId = index > 0 ? this.slides[index - 1].sectionId : null;
-      if (section && section.id !== previousSectionId) {
-        const divider = document.createElement("div");
-        divider.className = "vno-slide-section-divider";
-        divider.dataset.sectionId = section.id;
-        divider.setAttribute?.("role", "heading");
-        divider.setAttribute?.("aria-level", "2");
-        divider.style.cssText = "grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:5px 4px;border-bottom:3px solid var(--vno-app-current, #b53818);color:var(--vno-app-current-fg, #7c2d12);font-size:15px;font-weight:800";
-        divider.textContent = section.name;
-        grid.appendChild(divider);
+      if (this._isSectionStart(index)) {
+        const section = this._sectionAtSlide(index);
+        if (section) grid.appendChild(this._createSectionHeaderEl(section, "sorter"));
       }
+      if (slide.sectionId && this.collapsedSectionIds.has(slide.sectionId)) return;
       const item = document.createElement("article");
       item.className = `vno-slide-sorter-item ${index === this.currentSlideIndex ? "is-current" : ""}${slide.hidden ? " is-hidden" : ""}`;
       item.draggable = true;
@@ -4637,6 +4896,10 @@ export class SlidesCanvasController {
       this._restoreAllSlideTexts(action.before);
       this.redoStack.push(action);
       return true;
+    } else if (action.type === "section-state") {
+      this._restoreSectionState(action.before);
+      this.redoStack.push(action);
+      return true;
     }
     return false;
   }
@@ -4880,6 +5143,10 @@ export class SlidesCanvasController {
       return true;
     } else if (action.type === "find-replace") {
       this._restoreAllSlideTexts(action.after);
+      this.undoStack.push(action);
+      return true;
+    } else if (action.type === "section-state") {
+      this._restoreSectionState(action.after);
       this.undoStack.push(action);
       return true;
     }
@@ -6807,6 +7074,8 @@ export class SlidesCanvasController {
       }
     ];
     this.currentSlideIndex = 0;
+    this.sections = [];
+    this.collapsedSectionIds = new Set();
     this.undoStack = [];
     this.redoStack = [];
     this.selectedTarget = null;
@@ -6881,6 +7150,16 @@ export class SlidesCanvasController {
       checked: !!this.slides[this.currentSlideIndex]?.hidden
     });
     globalCommandBus.updateState("slides.animation.pane", { checked: !!this.isAnimationPaneVisible });
+    const currentSection = this._sectionAtSlide(this.currentSlideIndex);
+    const ordered = this._orderedSectionRanges();
+    const sectionPos = currentSection ? ordered.findIndex(item => item.section.id === currentSection.id) : -1;
+    globalCommandBus.updateState("slides.section.add", { enabled: this.slides.length > 0 });
+    globalCommandBus.updateState("slides.section.rename", { enabled: !!currentSection });
+    globalCommandBus.updateState("slides.section.remove", { enabled: !!currentSection });
+    globalCommandBus.updateState("slides.section.moveUp", { enabled: sectionPos > 0 });
+    globalCommandBus.updateState("slides.section.moveDown", {
+      enabled: sectionPos >= 0 && sectionPos < ordered.length - 1
+    });
   }
 
   _applyViewState() {

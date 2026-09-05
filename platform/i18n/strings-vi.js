@@ -78,7 +78,8 @@ export const viStrings = {
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý VN AI" },
     group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Chứng minh", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
-    editing: { select: "Chọn" }
+    editing: { select: "Chọn" },
+    section: "Phần"
   },
   sheetDialogs: {
     close: "Đóng", cancel: "Hủy", cancelLong: "Hủy bỏ", apply: "Áp dụng", range: "Phạm vi", rangeLabel: "Vùng:", value: "Giá trị", save: "Lưu",
@@ -190,6 +191,9 @@ export const viStrings = {
     readingViewTitle: "Dạng xem Đọc (Reading View)", readingToolbar: "Thanh điều hướng Đọc", prevSlideShort: "Trang trước", nextSlideShort: "Trang tiếp", readingClose: "Thoát chế độ đọc",
     rehearseTitle: "Tập dượt thời gian trình chiếu", slideshowTitle: "Trình chiếu trang chiếu", rehearseClockAria: "Đồng hồ tập dượt thời gian", slideshowHint: "Phím Space hoặc Click để tiếp tục | Esc để thoát",
     allHiddenTitle: "Không có trang chiếu để trình chiếu", allHiddenMessage: "Tất cả trang chiếu đang bị ẩn. Hiện ít nhất một trang trong Slide Sorter hoặc tab Trình chiếu rồi thử lại.", hiddenSlideAria: "Trang chiếu ẩn", hiddenSlideBadge: "Ẩn",
+    sectionAddTitle: "Thêm phần", sectionAddMessage: "Tên phần", sectionAddConfirm: "Thêm",
+    sectionRenameTitle: "Đổi tên phần", sectionRenameMessage: "Tên mới", sectionRenameConfirm: "Đổi tên",
+    sectionCollapse: "Thu gọn phần", sectionExpand: "Mở rộng phần",
     slideElapsed: "Trang", totalElapsed: "Tổng", footerDoc: "Tài liệu thuyết trình VN Office",
     prevSlideTitle: "Trang trước (←)", nextSlideTitle: "Trang tiếp (Space hoặc →)",
     prevSlideReadingTitle: "Trang trước (Mũi tên trái)", nextSlideReadingTitle: "Trang tiếp (Mũi tên phải)",
@@ -389,6 +393,11 @@ export const viStrings = {
     ,"slides.slide.duplicate": { label: "Nhân đôi", tooltip: "Nhân đôi trang chiếu đang chọn (Ctrl+D)" }
     ,"slides.slide.delete": { label: "Xóa trang", tooltip: "Xóa trang chiếu đang chọn (Delete)" }
     ,"slides.slide.toggleHidden": { label: "Ẩn trang chiếu", tooltip: "Ẩn hoặc hiện trang chiếu đang chọn khi trình chiếu F5. Trang vẫn còn trong tệp và Slide Sorter." }
+    ,"slides.section.add": { label: "Thêm phần", tooltip: "Thêm phần bắt đầu từ trang đang chọn để nhóm các trang chiếu liên tiếp" }
+    ,"slides.section.rename": { label: "Đổi tên phần", tooltip: "Đổi tên phần chứa trang chiếu đang chọn" }
+    ,"slides.section.remove": { label: "Xóa phần", tooltip: "Bỏ nhóm phần — không xóa các trang chiếu bên trong" }
+    ,"slides.section.moveUp": { label: "Chuyển phần lên", tooltip: "Di chuyển cả nhóm trang của phần lên trên phần kề trước, giữ thứ tự trang bên trong" }
+    ,"slides.section.moveDown": { label: "Chuyển phần xuống", tooltip: "Di chuyển cả nhóm trang của phần xuống dưới phần kề sau, giữ thứ tự trang bên trong" }
     ,"slides.text.insert": { label: "Hộp văn bản", tooltip: "Chèn khung văn bản mới" }
     ,"slides.shape.insert": { label: "Hình khối", tooltip: "Chèn hình chữ nhật, tròn, mũi tên" }
     ,"slides.diagram.insert": { label: "Sơ đồ", tooltip: "Chèn sơ đồ quy trình, chu kỳ hoặc phân cấp" }

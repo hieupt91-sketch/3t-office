@@ -281,6 +281,26 @@ export const ICONS = {
     <line x1="18.5" y1="21" x2="22.5" y2="21" stroke="#94A3B8" stroke-width="1" stroke-linecap="round"/>
   </svg>`,
 
+  slideSection: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="5" width="24" height="7" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
+    <path d="M8 8.5H24" stroke="#B53818" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="6" y="14" width="20" height="5.5" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="6" y="21.5" width="20" height="5.5" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+  </svg>`,
+  slideSectionUp: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="5" y="14" width="22" height="13" rx="2" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
+    <path d="M16 24V18" stroke="#B53818" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M12.5 20.5L16 17L19.5 20.5" stroke="#B53818" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M8 8H24" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/>
+    <path d="M16 4V8" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+  slideSectionDown: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="5" y="5" width="22" height="13" rx="2" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
+    <path d="M16 8V14" stroke="#B53818" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M12.5 11.5L16 15L19.5 11.5" stroke="#B53818" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M8 24H24" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/>
+    <path d="M16 28V24" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
   slideSorter: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="3" y="4" width="11" height="8" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
     <rect x="18" y="4" width="11" height="8" rx="1.5" fill="#F8FAFC" stroke="#B53818" stroke-width="1.5"/>

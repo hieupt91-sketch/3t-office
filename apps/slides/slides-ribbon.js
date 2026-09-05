@@ -21,6 +21,21 @@ export const SLIDES_RIBBON_TABS = [
               { type: "button", commandId: "slides.slide.duplicate" },
               { type: "button", commandId: "slides.slide.delete" }
             ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.section.menu",
+            label: "Phần",
+            labelKey: "slidesRibbon.section",
+            icon: "slideSection",
+            isLarge: true,
+            items: [
+              { commandId: "slides.section.add" },
+              { commandId: "slides.section.rename" },
+              { commandId: "slides.section.remove" },
+              { commandId: "slides.section.moveUp" },
+              { commandId: "slides.section.moveDown" }
+            ]
           }
         ]
       },

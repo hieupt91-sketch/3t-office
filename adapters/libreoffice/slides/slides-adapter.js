@@ -93,6 +93,11 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.view.zoomReset", () => this.canvas.zoomReset ? this.canvas.zoomReset() : false);
     globalCommandBus.bindHandler("slides.view.fitToWindow", () => this.canvas.fitToWindow ? this.canvas.fitToWindow() : false);
     globalCommandBus.bindHandler("slides.view.newWindow", () => this.canvas.newWindow ? this.canvas.newWindow() : false);
+    globalCommandBus.bindHandler("slides.section.add", () => this.canvas.promptAddCurrentSection ? this.canvas.promptAddCurrentSection() : false);
+    globalCommandBus.bindHandler("slides.section.rename", () => this.canvas.promptRenameCurrentSection ? this.canvas.promptRenameCurrentSection() : false);
+    globalCommandBus.bindHandler("slides.section.remove", () => this.canvas.removeCurrentSection ? this.canvas.removeCurrentSection() : false);
+    globalCommandBus.bindHandler("slides.section.moveUp", () => this.canvas.moveCurrentSectionUp ? this.canvas.moveCurrentSectionUp() : false);
+    globalCommandBus.bindHandler("slides.section.moveDown", () => this.canvas.moveCurrentSectionDown ? this.canvas.moveCurrentSectionDown() : false);
     this._bindTextFormatTracking();
   }
 
@@ -2621,6 +2626,21 @@ export class SlidesAdapter {
 
       case "slides.slide.delete":
         return this.canvas.deleteCurrentSlide();
+
+      case "slides.section.add":
+        return this.canvas.promptAddCurrentSection ? this.canvas.promptAddCurrentSection() : false;
+
+      case "slides.section.rename":
+        return this.canvas.promptRenameCurrentSection ? this.canvas.promptRenameCurrentSection() : false;
+
+      case "slides.section.remove":
+        return this.canvas.removeCurrentSection ? this.canvas.removeCurrentSection() : false;
+
+      case "slides.section.moveUp":
+        return this.canvas.moveCurrentSectionUp ? this.canvas.moveCurrentSectionUp() : false;
+
+      case "slides.section.moveDown":
+        return this.canvas.moveCurrentSectionDown ? this.canvas.moveCurrentSectionDown() : false;
 
       case "slides.slide.toggleHidden":
       case ".uno:HideSlide":
