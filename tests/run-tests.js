@@ -90,6 +90,7 @@ import { runSheetGoalSeekTests } from "./unit/sheet-goal-seek.test.js";
 import { runWriterArrangeTests } from "./unit/writer-arrange.test.js";
 import { runSlidesHideSlideTests } from "./unit/slides-hide-slide.test.js";
 import { runSlidesChartTests } from "./unit/slides-charts.test.js";
+import { runWriterCitationsTests } from "./unit/writer-citations.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -187,7 +188,8 @@ async function runAll() {
     { title: "81. Behavioral Tests — VN Sheet Goal Seek", runner: runSheetGoalSeekTests },
     { title: "82. Behavioral Tests — VN Writer Arrange Group", runner: runWriterArrangeTests },
     { title: "83. Behavioral Tests — VN Slides Hide Slide (Ẩn trang chiếu)", runner: runSlidesHideSlideTests },
-    { title: "84. Behavioral Tests — VN Slides Insert Chart", runner: runSlidesChartTests }
+    { title: "84. Behavioral Tests — VN Slides Insert Chart", runner: runSlidesChartTests },
+    { title: "85. Behavioral Tests — VN Writer Citations & Bibliography", runner: runWriterCitationsTests }
   ];
 
   for (const suite of suites) {

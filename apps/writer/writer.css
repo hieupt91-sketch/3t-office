@@ -1060,6 +1060,20 @@ sup.vno-endnote-ref:hover {
   color: #1d4ed8;
 }
 
+.vno-citation-field { display:inline-block; padding:0 3px; border-radius:3px; background:#eef5ff; color:#123f70; cursor:default; user-select:all; }
+.vno-citation-field:hover, .vno-citation-field:focus { outline:2px solid #60a5fa; }
+.vno-bibliography { margin:18px 0; padding:12px 16px; border-left:3px solid #0f4c81; background:#f8fafc; }
+.vno-bibliography h2 { margin:0 0 10px; font-size:16pt; }
+.vno-bibliography-entry { margin:0 0 7px; padding-left:24px; text-indent:-24px; }
+.vno-citation-dialog .vno-dialog-body { padding:16px; min-width:440px; }
+.vno-citation-dialog .vno-dialog-footer { display:flex; justify-content:flex-end; gap:8px; padding:12px 16px; }
+.vno-citation-dialog label, .vno-citation-form { display:flex; flex-direction:column; gap:8px; }
+.vno-citation-dialog input, .vno-citation-dialog select { min-height:34px; padding:5px 8px; border:1px solid var(--vno-border-default); border-radius:4px; }
+.vno-source-row { display:grid; grid-template-columns:1fr auto auto; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid var(--vno-border-default); }
+.vno-source-row span { display:flex; flex-direction:column; min-width:0; }
+.vno-source-row small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.vno-citation-error { color:#b91c1c; }
+
 sup.vno-endnote-ref {
   color: #b53818;
 }
