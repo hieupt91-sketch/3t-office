@@ -258,18 +258,32 @@ DEFAULT_SAVE_FORMAT = {
 }
 
 
-def _read_docx_document_xml(src_path: str) -> str | None:
-    """Read word/document.xml from a real .docx. StarWriter HTML drops w:ins/w:del;
-    the Writer adapter overlays those revision marks onto the imported HTML.
+def _read_docx_zip_entry(src_path: str, entry_name: str) -> str | None:
+    """Read one XML member from a real .docx (OOXML zip).
+
+    StarWriter HTML drops w:ins/w:del, comment ranges, and comment authors;
+    the Writer adapter overlays those from word/document.xml + word/comments.xml.
     Missing/corrupt packages return None so File → Mở still loads the HTML body.
     """
     if not src_path or not str(src_path).lower().endswith(".docx"):
         return None
+    if not entry_name or ".." in entry_name or entry_name.startswith(("/", "\\")):
+        return None
     try:
         with zipfile.ZipFile(src_path) as package:
-            return package.read("word/document.xml").decode("utf-8", errors="replace")
+            return package.read(entry_name).decode("utf-8", errors="replace")
     except (OSError, zipfile.BadZipFile, KeyError, UnicodeError):
         return None
+
+
+def _read_docx_document_xml(src_path: str) -> str | None:
+    """Read word/document.xml (revision marks + commentRange/commentReference)."""
+    return _read_docx_zip_entry(src_path, "word/document.xml")
+
+
+def _read_docx_comments_xml(src_path: str) -> str | None:
+    """Read word/comments.xml (comment author, date, and body)."""
+    return _read_docx_zip_entry(src_path, "word/comments.xml")
 
 
 def _active_window():
@@ -347,6 +361,9 @@ class VnOfficeApi:
             ooxml = _read_docx_document_xml(src_path)
             if ooxml:
                 payload["ooxmlDocumentXml"] = ooxml
+            comments_xml = _read_docx_comments_xml(src_path)
+            if comments_xml:
+                payload["ooxmlCommentsXml"] = comments_xml
         return payload
 
     def save_document_dialog(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu"):
