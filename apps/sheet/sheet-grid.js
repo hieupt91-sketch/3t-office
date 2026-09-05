@@ -14,6 +14,22 @@ import { t } from "../../platform/i18n/i18n.js";
 import { SheetDataTools } from "./data-tools.js";
 import { showConfirmDialog } from "../../platform/ui-kit/dialogs.js";
 
+export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
+  margins: Object.freeze({ top: 1.91, bottom: 1.91, left: 1.78, right: 1.78 }),
+  orientation: "portrait",
+  size: "a4",
+  printTitles: Object.freeze({ rows: "", cols: "" })
+});
+
+function newSheetPageSetup(overrides = {}) {
+  return {
+    margins: { ...DEFAULT_SHEET_PAGE_SETUP.margins, ...(overrides.margins || {}) },
+    orientation: overrides.orientation || DEFAULT_SHEET_PAGE_SETUP.orientation,
+    size: overrides.size || DEFAULT_SHEET_PAGE_SETUP.size,
+    printTitles: { ...DEFAULT_SHEET_PAGE_SETUP.printTitles, ...(overrides.printTitles || {}) }
+  };
+}
+
 function trapFocus(element, event) {
   if (event.key !== "Tab") return;
   const focusables = element.querySelectorAll(
@@ -65,6 +81,7 @@ export class SheetGridController {
     this.commentsBySheet = Object.fromEntries(this.sheets.map(name => [name, {}]));
     this.printAreaBySheet = Object.fromEntries(this.sheets.map(name => [name, null]));
     this.pageBreaksBySheet = Object.fromEntries(this.sheets.map(name => [name, { rows: [], cols: [] }]));
+    this.pageSetupBySheet = Object.fromEntries(this.sheets.map(name => [name, newSheetPageSetup()]));
     this.mergedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.formulaEngine = new FormulaEngine(
       () => this.cellsData,
@@ -1107,6 +1124,7 @@ export class SheetGridController {
     this.commentsBySheet = { [defaultSheetName]: {} };
     this.printAreaBySheet = { [defaultSheetName]: null };
     this.pageBreaksBySheet = { [defaultSheetName]: { rows: [], cols: [] } };
+    this.pageSetupBySheet = { [defaultSheetName]: newSheetPageSetup() };
     this.conditionalFormattingBySheet = { [defaultSheetName]: [] };
     this.dataValidationsBySheet = { [defaultSheetName]: [] };
     this.chartsBySheet = { [defaultSheetName]: [] };
@@ -1179,6 +1197,7 @@ export class SheetGridController {
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
     if (!(sheetName in this.printAreaBySheet)) this.printAreaBySheet[sheetName] = null;
     if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
+    if (!this.pageSetupBySheet[sheetName]) this.pageSetupBySheet[sheetName] = newSheetPageSetup();
     if (!this.mergedRangesBySheet[sheetName]) this.mergedRangesBySheet[sheetName] = [];
 
     // 1. Lưu trạng thái sheet hiện tại
@@ -1285,6 +1304,7 @@ export class SheetGridController {
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
     if (!(sheetName in this.printAreaBySheet)) this.printAreaBySheet[sheetName] = null;
     if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
+    if (!this.pageSetupBySheet[sheetName]) this.pageSetupBySheet[sheetName] = newSheetPageSetup();
     if (!this.mergedRangesBySheet[sheetName]) this.mergedRangesBySheet[sheetName] = [];
     if (!this.sheetStates) {
       this.sheetStates = {};
@@ -1334,6 +1354,7 @@ export class SheetGridController {
     delete this.commentsBySheet[sheetName];
     delete this.printAreaBySheet[sheetName];
     delete this.pageBreaksBySheet[sheetName];
+    delete this.pageSetupBySheet[sheetName];
     delete this.mergedRangesBySheet[sheetName];
     this.tabBar?.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)?.remove?.();
     if (this.activeSheet === sheetName) {
@@ -4156,7 +4177,8 @@ export class SheetGridController {
     } else if (action.type === "sheet-page-layout") {
       const desired = structuredClone(action[direction === "undo" ? "before" : "after"]);
       if (action.property === "printAreaBySheet") this.printAreaBySheet[action.sheet] = desired;
-      else this.pageBreaksBySheet[action.sheet] = desired;
+      else if (action.property === "pageBreaksBySheet") this.pageBreaksBySheet[action.sheet] = desired;
+      else this.pageSetupBySheet[action.sheet] = desired;
       this._refreshPageAndCommentVisuals();
     } else if (action.type === "freeze") {
       this._setFreezePanes(action[value], false);
@@ -4422,6 +4444,7 @@ export class SheetGridController {
       comments: structuredClone(this.commentsBySheet[sheetName] || {}),
       printArea: this.printAreaBySheet[sheetName] || null,
       pageBreaks: structuredClone(this.pageBreaksBySheet[sheetName] || { rows: [], cols: [] }),
+      pageSetup: structuredClone(this.pageSetupBySheet[sheetName] || newSheetPageSetup()),
       hiddenRows: [...(sheetName === this.activeSheet ? this.hiddenRows : (state.hiddenRows || []))],
       activeFilters: Array.from(sheetName === this.activeSheet ? this.activeFilters : (state.activeFilters || []), ([col, values]) => [col, [...values]]),
       selectedCoord: { ...(sheetName === this.activeSheet ? this.selectedCoord : (state.selectedCoord || { r: 1, c: "A" })) },
@@ -4440,6 +4463,7 @@ export class SheetGridController {
     this.commentsBySheet[snapshot.sheetName] = structuredClone(snapshot.comments);
     this.printAreaBySheet[snapshot.sheetName] = snapshot.printArea;
     this.pageBreaksBySheet[snapshot.sheetName] = structuredClone(snapshot.pageBreaks);
+    this.pageSetupBySheet[snapshot.sheetName] = newSheetPageSetup(snapshot.pageSetup);
     this.hiddenRows = new Set(snapshot.hiddenRows);
     this.activeFilters = new Map(snapshot.activeFilters.map(([col, values]) => [col, new Set(values)]));
     this.selectedCoord = { ...snapshot.selectedCoord };
@@ -4715,6 +4739,7 @@ export class SheetGridController {
       comments: structuredClone(this.commentsBySheet[sheetName] || {}),
       printArea: this.printAreaBySheet[sheetName] || null,
       pageBreaks: structuredClone(this.pageBreaksBySheet[sheetName] || { rows: [], cols: [] }),
+      pageSetup: structuredClone(this.pageSetupBySheet[sheetName] || newSheetPageSetup()),
       mergedRanges: structuredClone(this.mergedRangesBySheet[sheetName] || [])
     };
   }
@@ -4739,6 +4764,7 @@ export class SheetGridController {
     this.commentsBySheet[sheetName] = structuredClone(snapshot.comments || {});
     this.printAreaBySheet[sheetName] = snapshot.printArea || null;
     this.pageBreaksBySheet[sheetName] = structuredClone(snapshot.pageBreaks || { rows: [], cols: [] });
+    this.pageSetupBySheet[sheetName] = newSheetPageSetup(snapshot.pageSetup);
     this.mergedRangesBySheet[sheetName] = structuredClone(snapshot.mergedRanges || []);
     const tabs = this.tabBar?.querySelector?.("#vno-sheet-tabs-list");
     if (tabs && typeof document !== "undefined" && !this.tabBar.querySelector?.(`.vno-sheet-tab-item[data-sheet="${sheetName}"]`)) {
@@ -5121,6 +5147,77 @@ export class SheetGridController {
       overlay.closeDialog();
     });
     overlay.querySelector("#vno-comment-text")?.focus();
+    return true;
+  }
+
+  getPageSetup(sheetName = this.activeSheet) {
+    return structuredClone(this.pageSetupBySheet[sheetName] || newSheetPageSetup());
+  }
+
+  setPageSetup(changes = {}) {
+    const before = this.getPageSetup();
+    const presets = {
+      normal: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78 },
+      wide: { top: 2.54, bottom: 2.54, left: 5.08, right: 5.08 },
+      narrow: { top: 1.27, bottom: 1.27, left: 1.27, right: 1.27 }
+    };
+    const marginInput = presets[changes.marginPreset] || changes.margins || {};
+    const margins = { ...before.margins };
+    for (const side of ["top", "bottom", "left", "right"]) {
+      if (marginInput[side] === undefined) continue;
+      const value = Number(marginInput[side]);
+      if (!Number.isFinite(value) || value < 0 || value > 25) return false;
+      margins[side] = Math.round(value * 1000) / 1000;
+    }
+    const orientation = changes.orientation || before.orientation;
+    const size = changes.size || before.size;
+    if (!["portrait", "landscape"].includes(orientation) || !["a4", "letter", "legal"].includes(size)) return false;
+    const printTitles = { ...before.printTitles, ...(changes.printTitles || {}) };
+    printTitles.rows = String(printTitles.rows || "").trim();
+    printTitles.cols = String(printTitles.cols || "").trim().toUpperCase();
+    if (printTitles.rows && !/^\d+(?::\d+)?$/.test(printTitles.rows)) return false;
+    if (printTitles.cols && !/^[A-Z]+(?::[A-Z]+)?$/.test(printTitles.cols)) return false;
+    const after = { margins, orientation, size, printTitles };
+    if (JSON.stringify(before) === JSON.stringify(after)) return after;
+    this.pageSetupBySheet[this.activeSheet] = after;
+    this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "pageSetupBySheet", before, after: structuredClone(after) });
+    return structuredClone(after);
+  }
+
+  showPageSetupDialog(focusField = "margins") {
+    if (typeof document === "undefined" || !document.body) return false;
+    const setup = this.getPageSetup();
+    const overlay = this._createSheetDialog("Thiết lập trang", `
+      <label>Kiểu lề
+        <select id="vno-sheet-margin-preset" class="vno-select" style="width:100%;margin-top:4px">
+          <option value="custom">Tùy chỉnh</option><option value="normal">Thường</option><option value="wide">Rộng</option><option value="narrow">Hẹp</option>
+        </select>
+      </label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        ${["top", "bottom", "left", "right"].map(side => `<label>${({ top: "Trên", bottom: "Dưới", left: "Trái", right: "Phải" })[side]} (cm)<input id="vno-sheet-margin-${side}" type="number" min="0" max="25" step="0.01" value="${setup.margins[side]}" class="vno-dialog-input" style="width:100%;box-sizing:border-box"></label>`).join("")}
+      </div>
+      <label>Hướng trang<select id="vno-sheet-orientation" class="vno-select" style="width:100%;margin-top:4px"><option value="portrait" ${setup.orientation === "portrait" ? "selected" : ""}>Dọc</option><option value="landscape" ${setup.orientation === "landscape" ? "selected" : ""}>Ngang</option></select></label>
+      <label>Khổ giấy<select id="vno-sheet-size" class="vno-select" style="width:100%;margin-top:4px"><option value="a4" ${setup.size === "a4" ? "selected" : ""}>A4</option><option value="letter" ${setup.size === "letter" ? "selected" : ""}>Letter</option><option value="legal" ${setup.size === "legal" ? "selected" : ""}>Legal</option></select></label>
+      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Tiêu đề in (tùy chọn)</legend><label>Hàng lặp lại (ví dụ 1:2)<input id="vno-sheet-title-rows" value="${this._escapeHtml(setup.printTitles.rows)}" class="vno-dialog-input"></label><label>Cột lặp lại (ví dụ A:B)<input id="vno-sheet-title-cols" value="${this._escapeHtml(setup.printTitles.cols)}" class="vno-dialog-input"></label></fieldset>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    const presets = { normal: [1.91, 1.91, 1.78, 1.78], wide: [2.54, 2.54, 5.08, 5.08], narrow: [1.27, 1.27, 1.27, 1.27] };
+    overlay.querySelector("#vno-sheet-margin-preset").addEventListener("change", event => {
+      const values = presets[event.target.value];
+      if (values) ["top", "bottom", "left", "right"].forEach((side, index) => { overlay.querySelector(`#vno-sheet-margin-${side}`).value = values[index]; });
+    });
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const result = this.setPageSetup({
+        margins: Object.fromEntries(["top", "bottom", "left", "right"].map(side => [side, overlay.querySelector(`#vno-sheet-margin-${side}`).value])),
+        orientation: overlay.querySelector("#vno-sheet-orientation").value,
+        size: overlay.querySelector("#vno-sheet-size").value,
+        printTitles: { rows: overlay.querySelector("#vno-sheet-title-rows").value, cols: overlay.querySelector("#vno-sheet-title-cols").value }
+      });
+      if (!result) { overlay.querySelector(".vno-rule-error").textContent = "Giá trị lề hoặc tiêu đề in không hợp lệ."; return; }
+      overlay.closeDialog();
+    });
+    const focusIds = { margins: "vno-sheet-margin-preset", orientation: "vno-sheet-orientation", size: "vno-sheet-size", printTitles: "vno-sheet-title-rows" };
+    overlay.querySelector(`#${focusIds[focusField] || focusIds.margins}`)?.focus();
     return true;
   }
 

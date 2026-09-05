@@ -154,6 +154,10 @@ export class SheetAdapter {
       args = args || {};
       return this.grid.removePageBreak(args);
     });
+    globalCommandBus.bindHandler("sheet.page.margins", () => this.grid.showPageSetupDialog?.("margins") || false);
+    globalCommandBus.bindHandler("sheet.page.orientation", () => this.grid.showPageSetupDialog?.("orientation") || false);
+    globalCommandBus.bindHandler("sheet.page.size", () => this.grid.showPageSetupDialog?.("size") || false);
+    globalCommandBus.bindHandler("sheet.page.printTitles", () => this.grid.showPageSetupDialog?.("printTitles") || false);
     globalCommandBus.bindHandler("sheet.row.insert", (options) => {
       options = options || {};
       return this.grid.insertRow(options.atRow);
@@ -520,6 +524,25 @@ export class SheetAdapter {
     const conditionalBaseByCell = new Map();
     const validationDefinitions = [];
     const validationsByCell = new Map();
+    const pageLayouts = [];
+    const tablePageStyles = [];
+    const masterPages = [];
+    const pageStyleBySheet = new Map();
+    const paperSizes = { a4: [21, 29.7], letter: [21.59, 27.94], legal: [21.59, 35.56] };
+    sheetNames.forEach((sheetName, index) => {
+      const setup = this.grid.pageSetupBySheet?.[sheetName] || {};
+      const size = paperSizes[setup.size] ? setup.size : "a4";
+      const orientation = setup.orientation === "landscape" ? "landscape" : "portrait";
+      const base = paperSizes[size];
+      const width = orientation === "landscape" ? base[1] : base[0];
+      const height = orientation === "landscape" ? base[0] : base[1];
+      const margins = { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(setup.margins || {}) };
+      const suffix = index + 1;
+      pageStyleBySheet.set(sheetName, { tableStyle: `vno-table-page-${suffix}`, size, orientation, margins });
+      pageLayouts.push(`<style:page-layout style:name="vno-page-layout-${suffix}"><style:page-layout-properties fo:page-width="${width}cm" fo:page-height="${height}cm" style:print-orientation="${orientation}" fo:margin-top="${margins.top}cm" fo:margin-bottom="${margins.bottom}cm" fo:margin-left="${margins.left}cm" fo:margin-right="${margins.right}cm"/></style:page-layout>`);
+      tablePageStyles.push(`<style:style style:name="vno-table-page-${suffix}" style:family="table" style:master-page-name="vno-master-page-${suffix}"/>`);
+      masterPages.push(`<style:master-page style:name="vno-master-page-${suffix}" style:page-layout-name="vno-page-layout-${suffix}"/>`);
+    });
     const odfAddress = (sheetName, cell) => `'${String(sheetName).replace(/'/g, "''")}'.${cell}`;
     const rangeAddress = (sheetName, range) => `${odfAddress(sheetName, `${range.start.c}${range.start.r}`)}:${odfAddress(sheetName, `${range.end.c}${range.end.r}`)}`;
     const usedRange = sheetName => {
@@ -750,8 +773,11 @@ export class SheetAdapter {
       const localNames = (this.grid.namedRangesBySheet?.[sheetName] || []).map(range => this._namedRangeXml(range, sheetName)).join("");
       const printRange = this._printRangeAddress(sheetName, this.grid.printAreaBySheet?.[sheetName]);
       const printRangeAttr = printRange ? ` table:print-ranges="${this._escapeXml(printRange)}"` : "";
+      const pageStyle = pageStyleBySheet.get(sheetName);
+      const printTitles = this.grid.pageSetupBySheet?.[sheetName]?.printTitles || {};
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
-      return `<table:table table:name="${this._escapeXml(sheetName)}"${printRangeAttr}>${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}</table:table>`;
+      return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}>${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}</table:table>`;
     }).join("");
 
     const dataPilotTables = [];
@@ -801,7 +827,8 @@ export class SheetAdapter {
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
   ${conditionalNamedStyles.length ? `<office:styles>${conditionalNamedStyles.join("")}</office:styles>` : ""}
-  <office:automatic-styles>${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${conditionalBaseStyles.join("")}</office:automatic-styles>
+  <office:automatic-styles>${pageLayouts.join("")}${tablePageStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${conditionalBaseStyles.join("")}</office:automatic-styles>
+  <office:master-styles>${masterPages.join("")}</office:master-styles>
   <office:settings>
     <config:config-item-set config:name="ooo:view-settings">
       <config:config-item-map-indexed config:name="Views"><config:config-item-map-entry>
@@ -1200,7 +1227,7 @@ export class SheetAdapter {
 
   /** Parse FODS into every worksheet, including repeated rows/cells emitted by LibreOffice. */
   parseFods(xmlText) {
-    const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, validationHits: [] };
+    const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, pageSetupBySheet: {}, validationHits: [] };
     if (!xmlText) return workbook;
     const tableXml = this._xmlWithoutEmbeddedObjects(xmlText);
     const numberStyles = this._parseNumberStyles(tableXml);
@@ -1224,6 +1251,14 @@ export class SheetAdapter {
         tables.forEach((table, tableIndex) => {
           const name = table.getAttribute("table:name") || `Trang tính ${tableIndex + 1}`;
           const printArea = this._parsePrintRangeAddress(table.getAttribute("table:print-ranges"));
+          let pageMargins = {};
+          try { pageMargins = JSON.parse(table.getAttribute("vno:page-margins") || "{}"); } catch (_) { pageMargins = {}; }
+          const pageSetup = {
+            size: table.getAttribute("vno:page-size") || "a4",
+            orientation: table.getAttribute("vno:page-orientation") || "portrait",
+            margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...pageMargins },
+            printTitles: { rows: table.getAttribute("vno:print-title-rows") || "", cols: table.getAttribute("vno:print-title-cols") || "" }
+          };
           const data = new Map();
           const comments = {};
           const mergedRanges = [];
@@ -1298,6 +1333,7 @@ export class SheetAdapter {
           workbook.mergedRangesBySheet[name] = mergedRanges;
           workbook.namedRangesBySheet[name] = localRanges;
           workbook.printAreaBySheet[name] = printArea;
+          workbook.pageSetupBySheet[name] = pageSetup;
         });
       }
     }
@@ -1314,6 +1350,15 @@ export class SheetAdapter {
         const name = this._unescapeXml(nameMatch?.[1] || `Trang tính ${tableIndex}`);
         const printRangeMatch = tableMatch[1].match(/table:print-ranges=["']([^"']*)["']/i);
         const printArea = this._parsePrintRangeAddress(this._unescapeXml(printRangeMatch?.[1] || ""));
+        const pageAttr = key => this._unescapeXml(tableMatch[1].match(new RegExp(`${key}=["']([^"']*)["']`, "i"))?.[1] || "");
+        let pageMargins = {};
+        try { pageMargins = JSON.parse(pageAttr("vno:page-margins") || "{}"); } catch (_) { pageMargins = {}; }
+        const pageSetup = {
+          size: pageAttr("vno:page-size") || "a4",
+          orientation: pageAttr("vno:page-orientation") || "portrait",
+          margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...pageMargins },
+          printTitles: { rows: pageAttr("vno:print-title-rows"), cols: pageAttr("vno:print-title-cols") }
+        };
         const data = new Map();
         const comments = {};
         const mergedRanges = [];
@@ -1400,6 +1445,7 @@ export class SheetAdapter {
         workbook.mergedRangesBySheet[name] = mergedRanges;
         workbook.namedRangesBySheet[name] = localRanges;
         workbook.printAreaBySheet[name] = printArea;
+        workbook.pageSetupBySheet[name] = pageSetup;
       }
     }
     if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
@@ -1422,6 +1468,7 @@ export class SheetAdapter {
     this.grid.namedRangesWorkbook = workbook.namedRangesWorkbook || [];
     this.grid.namedRangesBySheet = { [firstSheet]: workbook.namedRangesBySheet[firstSheet] || [] };
     this.grid.printAreaBySheet = { [firstSheet]: workbook.printAreaBySheet[firstSheet] || null };
+    this.grid.pageSetupBySheet = { [firstSheet]: workbook.pageSetupBySheet[firstSheet] };
     for (const sheetName of workbook.sheets.slice(1)) {
       if (typeof this.grid.addSheet === "function") this.grid.addSheet(sheetName, false);
       else this.grid.sheets.push(sheetName);
@@ -1430,6 +1477,7 @@ export class SheetAdapter {
       this.grid.mergedRangesBySheet[sheetName] = workbook.mergedRangesBySheet[sheetName] || [];
       this.grid.namedRangesBySheet[sheetName] = workbook.namedRangesBySheet[sheetName] || [];
       this.grid.printAreaBySheet[sheetName] = workbook.printAreaBySheet[sheetName] || null;
+      this.grid.pageSetupBySheet[sheetName] = workbook.pageSetupBySheet[sheetName];
     }
     if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet);
     else this.grid.activeSheet = workbook.activeSheet;

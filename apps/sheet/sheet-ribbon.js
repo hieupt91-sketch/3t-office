@@ -430,6 +430,15 @@ export const SHEET_RIBBON_TABS = [
     labelKey: "sheetRibbon.tab.pageLayout",
     groups: [
       {
+        label: "Thiết lập trang",
+        items: [
+          { type: "button", commandId: "sheet.page.margins", label: "Lề trang", isLarge: true },
+          { type: "button", commandId: "sheet.page.orientation", label: "Hướng trang", isLarge: true },
+          { type: "button", commandId: "sheet.page.size", label: "Khổ giấy", isLarge: true },
+          { type: "button", commandId: "sheet.page.printTitles", label: "Tiêu đề in", isLarge: true }
+        ]
+      },
+      {
         label: "Vùng in",
         labelKey: "sheetRibbon.group.printArea",
         items: [
