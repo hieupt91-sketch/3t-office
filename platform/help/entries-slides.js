@@ -400,6 +400,136 @@ export const SLIDES_HELP_ENTRIES = [
       "Nhấn lại nút (hoặc «▼ Thu gọn ghi chú») để đóng, lấy chỗ canvas. Ghi chú vẫn được lưu theo trang, kể cả khi thu gọn.",
       "Khi chiếu F5/Shift+F5 khán giả không thấy ghi chú. Muốn đọc ghi chú lúc nói chuyện: Alt+F5 (Chế độ Presenter). Ghi chú được lưu trong file FODP."
     ]
+  },
+  {
+    id: "slides.review.commentInsertHelp",
+    app: "slides",
+    commandIds: ["slides.review.commentInsert"],
+    title: "Thêm nhận xét cho trang chiếu",
+    summary: "Mở panel nhận xét của trang đang mở — lệnh không chèn sẵn một nhận xét. Gõ rồi Thêm nhận xét hoặc Ctrl+Enter. Nhận xét gắn theo trang, không neo vào hình.",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Nhận xét" },
+    keywords: ["nhận xét", "ghi chú trang", "comment", "thêm nhận xét", "ctrl+enter"],
+    steps: [
+      "Tab Đánh giá, nhóm Nhận xét, nút lớn Nhận xét mới — cùng nút trên tab Chèn, nhóm Nhận xét. Không có Ctrl+Alt+M như Writer.",
+      "Panel «Nhận xét trang chiếu» mở bên cạnh. Ô «Nhận xét mới», gợi ý «Nhập nội dung nhận xét...», nút Thêm nhận xét. Trang chưa có nhận xét hiện «Trang chiếu này chưa có nhận xét.» Gửi bằng nút hoặc Ctrl+Enter (Cmd+Enter). Tác giả mặc định «Người dùng», kèm giờ vi-VN.",
+      "Mỗi mục có nút Xóa. Đã xử lý nằm nút ribbon riêng (bài duyệt nhận xét). Esc đóng panel. Huy hiệu ◰ + số trên canvas; Bộ sắp xếp trang hiện 💬 N.",
+      "Ctrl+Z hoàn tác lần thêm/xóa. Nhận xét theo trang, không theo vùng chữ hay hình như PowerPoint."
+    ]
+  },
+  {
+    id: "slides.review.spellCheckHelp",
+    app: "slides",
+    commandIds: ["slides.review.spellCheck"],
+    title: "Kiểm tra chính tả tiếng Việt trên trang chiếu",
+    summary: "F7 (khi đang Slides) hoặc nút Chính tả quét tiêu đề, nội dung, cột 2 và chữ trên hình của trang hiện tại — không quét ghi chú thuyết trình. Có gạch sóng khi gõ.",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Chứng minh" },
+    keywords: ["chính tả", "spell check", "f7", "từ điển", "tiếng việt", "gạch sóng"],
+    steps: [
+      "Tab Đánh giá, nhóm Chứng minh, nút lớn Chính tả — hoặc F7 khi Slides đang active (F7 Writer vẫn là Soát lỗi AI; F7 Sheet/Slides là chính tả).",
+      "Hộp «Chính tả» quét trang đang mở: Tiêu đề, Nội dung, Nội dung cột 2, Hình. Hiện «Không có trong từ điển», vị trí, nội dung, gợi ý. Nút Bỏ qua / Bỏ qua tất cả / Thêm vào từ điển / Thay thế / Thay thế tất cả / Đóng. Esc đóng.",
+      "Hết lỗi: «Đã kiểm tra xong trang chiếu hiện tại. Không tìm thấy lỗi chính tả.» Từ điển cá nhân dùng chung Writer/Sheet (vno-spellcheck-vi-personal). Không quét khung ghi chú thuyết trình.",
+      "Khi soạn, chữ sai trên tiêu đề/nội dung/hình được gạch sóng (trễ ~400 ms). Chỉ từ điển tiếng Việt."
+    ]
+  },
+  {
+    id: "slides.media.insert",
+    app: "slides",
+    commandIds: ["slides.media.insertVideo", "slides.media.insertAudio"],
+    title: "Chèn video và âm thanh từ máy tính",
+    summary: "Chọn tệp video/* hoặc audio/* trên máy, nhúng Data URL thành đối tượng trên trang. Video mặc định 320×200 px, âm thanh 260×40 px, có nút điều khiển. Tệp >10 MB chỉ cảnh báo, không chặn.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Đa phương tiện" },
+    keywords: ["video", "âm thanh", "audio", "chèn video", "media", "mp4", "mp3"],
+    steps: [
+      "Mở trang đích. Tab Chèn, nhóm Đa phương tiện: Video và Âm thanh (hai nút lớn). Hộp chọn tệp hệ thống, lọc video/* hoặc audio/*.",
+      "Video chèn hình 320×200 px tại ~100+(số hình×24); âm thanh thanh 260×40 px. Cả hai có controls HTML. Nhiều lần chèn lệch vị trí 24 px. × khi đang chọn để xóa («Xóa đối tượng này»).",
+      "Tệp lớn hơn 10 MB vẫn chèn, console cảnh báo có thể làm chậm lưu/mở vì nhúng Data URL. Không có video YouTube, cắt đoạn, hay phát xuyên trang.",
+      "Khi chiếu F5, bấm vào video/audio không sang trang (để xem/nghe). Ctrl+Z gỡ đối tượng vừa chèn."
+    ]
+  },
+  {
+    id: "slides.insert.headerFooterHelp",
+    app: "slides",
+    commandIds: [
+      "slides.insert.headerFooter",
+      "slides.insert.dateTime",
+      "slides.insert.slideNumber"
+    ],
+    title: "Ngày tháng, số trang và chân trang",
+    summary: "Ba nút nhóm Văn bản điều khiển một thanh chân trang (không có đầu trang riêng): ngày, chữ chân trang, «Trang n / N». Ngày & Giờ chọn định dạng; Số trang chiếu bật ngay cho mọi trang.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
+    keywords: ["đầu trang", "chân trang", "số trang chiếu", "ngày giờ", "header footer", "trang n / n"],
+    steps: [
+      "Tab Chèn, nhóm Văn bản, cột nhỏ: Đầu trang & Chân trang, Ngày & Giờ, Số trang chiếu (dưới Hộp văn bản / Chữ nghệ thuật).",
+      "Đầu trang & Chân trang mở hộp cùng tên: tick Ngày tháng, Số trang chiếu (mặc định bật), Chân trang (mặc định bật, chữ mẫu «Tài liệu trình chiếu tiêu chuẩn VN Office»), Áp dụng cho mọi trang chiếu (mặc định bật). Áp dụng / Hủy bỏ. Thanh dưới sân khấu: ngày | chữ chân | «Trang n / N».",
+      "Ngày & Giờ mở hộp «Ngày & Giờ»: 5 mẫu dd/MM/yyyy (mặc định), dd/MM/yyyy HH:mm, «6 tháng 9 năm 2026», yyyy-MM-dd, HH:mm — giá trị lúc bấm, tự lấy Date mới mỗi lần vẽ. Chèn bật ngày cho mọi trang (trừ khi tắt Áp dụng cho mọi trang). Số trang chiếu không hỏi, bật «Trang n / N» cho mọi trang ngay.",
+      "Không có vùng đầu trang riêng, không «ẩn trên trang tiêu đề». Khi chiếu F5, overlay dùng chữ chân mẫu chủ đạo + bộ đếm riêng, không đọc hết tùy chọn hộp này."
+    ]
+  },
+  {
+    id: "slides.insert.symbolHelp",
+    app: "slides",
+    commandIds: ["slides.insert.symbol"],
+    title: "Chèn ký hiệu trên trang chiếu",
+    summary: "Cùng bộ ký tự Writer: Thường dùng, Toán học, Mũi tên. Nhấp ký tự là chèn rồi đóng. Ký tự được nối vào hình đang chọn, hoặc tiêu đề, hoặc nội dung — không cắm đúng vị trí con trỏ.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Ký hiệu" },
+    keywords: ["ký hiệu", "symbol", "copyright", "đồng", "mũi tên", "©", "₫"],
+    steps: [
+      "Chọn khung chữ (tiêu đề, nội dung, hoặc hình có chữ). Tab Chèn, nhóm Ký hiệu, nút lớn Ký hiệu.",
+      "Hộp «Ký hiệu»: Thường dùng (© ® ™ ° ± § ¶ • … – — € £ ¥ ₫), Toán học (× ÷ ≈ ≠ ≤ ≥ ∞ √ ∑ ∏ ∫ ∂ ∆ π µ), Mũi tên (← → ↑ ↓ ↔ ⇒ ⇐ ⇔). Nhấp một ký tự để chèn và đóng. Hủy bỏ đóng không chèn.",
+      "Nếu đang chọn hình có thuộc tính chữ: ký tự nối cuối chữ hình. Đang chọn tiêu đề: nối vào tiêu đề. Còn lại: nối vào nội dung trang. Không chèn giữa từ dù gợi ý nói «tại vị trí con trỏ».",
+      "Ctrl+Z xóa ký tự vừa thêm."
+    ]
+  },
+  {
+    id: "slides.design.themeAndSize",
+    app: "slides",
+    commandIds: ["slides.design.themeGallery", "slides.design.slideSize", "slides.master.apply"],
+    title: "Chủ đề, mẫu chủ đạo và cỡ trang chiếu",
+    summary: "Sáu chủ đề màu/phông/logo áp cả bộ. Mẫu Slide Master cùng 6 bộ, thêm ô logo chữ. Cỡ: Màn hình rộng 16:9 (960×540, mặc định) hoặc Tiêu chuẩn 4:3 (720×540) — hình sẵn có bị co theo.",
+    ribbon: { tab: "Thiết kế", tabId: "design", group: "Chủ đề" },
+    keywords: ["chủ đề", "theme", "slide master", "cỡ trang chiếu", "16:9", "4:3", "960x540", "logo"],
+    steps: [
+      "Tab Thiết kế, nhóm Chủ đề: nút lớn Chủ đề. Hộp «Thư viện Chủ đề» — nhấp thẻ là áp ngay cả bộ (không nút Áp dụng). Sáu mẫu: Xanh Doanh Nghiệp (Inter, mặc định modern-blue), Terracotta Ấm Áp (Times New Roman), Xanh Lá Thiên Nhiên, Than Chì Hiện Đại, Đơn Sắc Tối Giản (Arial), Cam Năng Động (Verdana). Mỗi mẫu có logo chữ kiểu «VN OFFICE • DOANH NGHIỆP». Ctrl+Z hoàn tác lần chọn chủ đề.",
+      "Nhóm Mẫu chủ đạo: Mẫu Slide Master. Hộp «Mẫu Slide Master» cùng 6 bộ, thêm ô «Tên đơn vị / Logo chữ góc trang» (mặc định «VN OFFICE» hoặc logo đang dùng). Chọn thẻ điền sẵn logo của mẫu. Hủy bỏ / Áp dụng mẫu. Khác thư viện Chủ đề: lần Áp dụng mẫu không đẩy Undo.",
+      "Nhóm Tùy chỉnh: Cỡ trang chiếu. Hộp «Kích thước trang chiếu»: Màn hình rộng 16:9 · 960 × 540, hoặc Tiêu chuẩn 4:3 · 720 × 540. Nhấp thẻ áp ngay; mọi hình bị co x,y,w,h theo khung mới. Cùng preset thì không đổi. Ctrl+Z hoàn tác đổi cỡ.",
+      "Không có dạng xem Master (không sửa khung chữ sẵn của từng bố cục). Không có cỡ tùy chỉnh / 16:10."
+    ]
+  },
+  {
+    id: "slides.view.readingAndGuides",
+    app: "slides",
+    commandIds: [
+      "slides.view.reading",
+      "slides.view.ruler",
+      "slides.view.gridlines",
+      "slides.view.guides",
+      "slides.view.newWindow"
+    ],
+    title: "Chế độ đọc, thước, lưới, đường gióng và cửa sổ mới",
+    summary: "Chế độ đọc overlay toàn cửa sổ, chỉ hiện tiêu đề + nội dung chữ. Thước px (vạch 10 px). Lưới 20×20 px không hút. Hai đường gióng kéo được, mặc định giữa 480×270. Cửa sổ mới mở tab trình duyệt.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem bản trình chiếu" },
+    keywords: ["chế độ đọc", "reading view", "thước", "đường lưới", "đường hướng dẫn", "guides", "cửa sổ mới"],
+    steps: [
+      "Tab Chế độ xem, nhóm Dạng xem bản trình chiếu: Chế độ đọc (nút lớn, cạnh Bình thường / Bộ sắp xếp / Ghi chú). Overlay «Dạng xem Đọc (Reading View)»: ‹ › đổi trang, «Trang n / N», ✕ Đóng. Esc thoát; ← / PageUp trước; → / PageDown / Space sau. Chỉ hiện tiêu đề và nội dung chữ đã thoát HTML — không hình, media, biểu đồ, cột 2, chân trang, hiệu ứng.",
+      "Nhóm Hiển thị: Thước, Đường lưới, Đường hướng dẫn (ba nút bật/tắt, mặc định tắt). Thước SVG ngang+dọc, vạch 10 px, số 0 / 100 / 200… theo pixel (không phải cm). Lưới ô 20×20 px, không bắt dính hình.",
+      "Đường hướng dẫn: đúng hai đường (dọc + ngang), mặc định tâm 480×270 trên khung 960×540. Kéo tay cầm «Kéo để chỉnh đường gióng dọc/ngang»; tooltip X/Y px, kẹp trong khổ trang. Không thêm/bớt đường, không tự căn lại khi đổi 4:3.",
+      "Nhóm Cửa sổ: Cửa sổ mới mở tab cùng URL. Bị chặn pop-up: «Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho VN Office.»"
+    ]
+  },
+  {
+    id: "slides.show.rehearseTimingsHelp",
+    app: "slides",
+    commandIds: ["slides.show.rehearseTimings"],
+    title: "Tập dượt hẹn giờ",
+    summary: "Chiếu từ trang đang mở, đồng hồ «Trang: MM:SS» và «Tổng: MM:SS». Esc (hoặc hết trang) hỏi có lưu thời gian từng trang không. Thời gian lưu chỉ để tham khảo — F5 không tự chuyển trang theo mốc này.",
+    ribbon: { tab: "Trình chiếu", tabId: "slideshow", group: "Người thuyết trình" },
+    keywords: ["tập dượt", "hẹn giờ", "rehearse timings", "đồng hồ", "thời gian trang"],
+    steps: [
+      "Mở trang muốn bắt đầu tập. Tab Trình chiếu, nhóm Người thuyết trình: Tập dượt hẹn giờ (nút lớn, cạnh Ghi chú thuyết trình).",
+      "Overlay «Tập dượt thời gian trình chiếu» với đồng hồ «Trang: MM:SS» và «Tổng: MM:SS» (cập nhật 250 ms). Space / → / PageDown / click (trừ video/audio/đồng hồ) sang trang; ← / PageUp lùi; Esc kết thúc. Trang ẩn bị bỏ qua. Bắt đầu từ trang đang mở, không phải trang 1.",
+      "Hết (Esc hoặc trang cuối, trừ khi đang lặp liên tục): hộp xác nhận «Tổng thời gian trình chiếu: {time}. Lưu thời gian tập dượt cho từng trang?» Đồng ý ghi rehearsedDuration (1 chữ số thập phân); Bộ sắp xếp trang hiện ⏱ Ns.",
+      "Mốc đã lưu không tự chạy khi F5 — chỉ để xem lại. Muốn lặp không dừng: tab Trình chiếu → Thiết lập trình chiếu."
+    ]
   }
 ];
 

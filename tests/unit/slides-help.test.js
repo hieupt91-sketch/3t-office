@@ -167,6 +167,51 @@ export async function runSlidesHelpTests() {
     }
   });
 
+  await test("Help Slides Batch 2: có bài nhận xét, media, chân trang, chủ đề và tập dượt", () => {
+    const ids = SLIDES_HELP_ENTRIES.map((entry) => entry.id);
+    const required = [
+      "slides.review.commentInsertHelp",
+      "slides.review.spellCheckHelp",
+      "slides.media.insert",
+      "slides.insert.headerFooterHelp",
+      "slides.insert.symbolHelp",
+      "slides.design.themeAndSize",
+      "slides.view.readingAndGuides",
+      "slides.show.rehearseTimingsHelp"
+    ];
+    for (const id of required) {
+      if (!ids.includes(id)) throw new Error(`Thiếu bài hướng dẫn ${id}`);
+    }
+    const byId = Object.fromEntries(SLIDES_HELP_ENTRIES.map((entry) => [entry.id, entry]));
+    const expectCmds = {
+      "slides.review.commentInsertHelp": ["slides.review.commentInsert"],
+      "slides.review.spellCheckHelp": ["slides.review.spellCheck"],
+      "slides.media.insert": ["slides.media.insertVideo", "slides.media.insertAudio"],
+      "slides.insert.headerFooterHelp": ["slides.insert.headerFooter", "slides.insert.dateTime", "slides.insert.slideNumber"],
+      "slides.insert.symbolHelp": ["slides.insert.symbol"],
+      "slides.design.themeAndSize": ["slides.design.themeGallery", "slides.design.slideSize", "slides.master.apply"],
+      "slides.view.readingAndGuides": ["slides.view.reading", "slides.view.guides", "slides.view.newWindow"],
+      "slides.show.rehearseTimingsHelp": ["slides.show.rehearseTimings"]
+    };
+    for (const [id, cmds] of Object.entries(expectCmds)) {
+      const entry = byId[id];
+      for (const cmd of cmds) {
+        if (!(entry.commandIds || []).includes(cmd)) {
+          throw new Error(`${id} thiếu commandId ${cmd}`);
+        }
+      }
+    }
+    if (byId["slides.media.insert"].ribbon.group !== "Đa phương tiện") {
+      throw new Error("Bài media phải trỏ nhóm Đa phương tiện");
+    }
+    if (byId["slides.design.themeAndSize"].ribbon.tab !== "Thiết kế") {
+      throw new Error("Bài chủ đề phải ở tab Thiết kế");
+    }
+    if (byId["slides.show.rehearseTimingsHelp"].ribbon.tab !== "Trình chiếu") {
+      throw new Error("Bài tập dượt phải ở tab Trình chiếu");
+    }
+  });
+
   await test("Help Slides: không làm hỏng catalog Writer", () => {
     const writer = getHelpEntriesForApp("writer");
     if (writer.length < 6) throw new Error("Catalog Writer bị mất bài");
