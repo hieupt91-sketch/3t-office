@@ -10,6 +10,8 @@ import { createStyleGalleryStrip } from "./style-gallery.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { WriterViewController } from "./writer-view-controller.js";
+import { VietnameseSpellChecker } from "../../platform/text/vi-spellchecker.js";
+import { SpellcheckDomController } from "../../platform/text/spellcheck-dom-controller.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -19,6 +21,7 @@ export class WriterApp {
     this.canvas = null;
     this._lifecycleObserver = null;
     this.viewController = null;
+    this.spellcheckController = null;
   }
 
   async init(options = {}) {
@@ -173,6 +176,7 @@ export class WriterApp {
     this._mountStyleGalleryRibbonStrip();
     this._watchRibbonForStyleGalleryStrip();
     this._setupContentObserver();
+    await this._setupVietnameseSpellcheck([header, body, footer]);
     console.log("[WriterApp] Đã khởi tạo VN Writer chuẩn hóa cao cấp.");
   }
 
@@ -216,6 +220,22 @@ export class WriterApp {
     this._lifecycleObserver = null;
     this._styleGalleryObserver?.disconnect();
     this._styleGalleryObserver = null;
+    this.spellcheckController?.destroy();
+    this.spellcheckController = null;
+  }
+
+  async _setupVietnameseSpellcheck(editableRoots) {
+    this.canvas.dataset.spellcheckStatus = "loading";
+    try {
+      const dictionaryUrl = new URL("../../platform/text/dictionaries/vi_VN.dic", import.meta.url);
+      const checker = await VietnameseSpellChecker.fromUrl(dictionaryUrl);
+      this.spellcheckController = new SpellcheckDomController({ roots: editableRoots, checker, debounceMs: 400 }).attach();
+      this.canvas.dataset.spellcheckStatus = "ready";
+    } catch (error) {
+      this.canvas.dataset.spellcheckStatus = "error";
+      this.canvas.title = "Không thể tải bộ kiểm tra chính tả tiếng Việt.";
+      console.warn("[WriterApp] Không thể khởi tạo kiểm tra chính tả tiếng Việt:", error);
+    }
   }
 
   _mountStyleGalleryRibbonStrip() {
