@@ -1,7 +1,9 @@
 /**
- * Minimal ZIP writer (no third-party library). Used only to pack ODT and
- * patch OOXML independently of VN Office serializers.
+ * Minimal ZIP writer/reader (no third-party library). Used to pack ODT,
+ * patch OOXML, and read word/document.xml from a real .docx independently
+ * of VN Office serializers.
  */
+import fs from "node:fs";
 import zlib from "node:zlib";
 
 function crc32(buffer) {
@@ -91,4 +93,48 @@ export function createZip(entries) {
     u16(0)
   ]);
   return Buffer.concat([...locals, centralDir, eocd]);
+}
+
+/**
+ * Read one named entry from a ZIP (deflate or store). Used to inspect
+ * `word/document.xml` inside a real .docx without a third-party library.
+ * @param {string|Buffer} zipPathOrBuffer
+ * @param {string} entryName
+ * @returns {Buffer|null}
+ */
+export function readZipEntry(zipPathOrBuffer, entryName) {
+  const buffer = Buffer.isBuffer(zipPathOrBuffer) ? zipPathOrBuffer : fs.readFileSync(zipPathOrBuffer);
+  let eocd = -1;
+  const searchFrom = Math.max(0, buffer.length - 22 - 65535);
+  for (let index = buffer.length - 22; index >= searchFrom; index--) {
+    if (buffer.readUInt32LE(index) === 0x06054b50) {
+      eocd = index;
+      break;
+    }
+  }
+  if (eocd < 0) throw new Error("ZIP end of central directory not found");
+  const cdOffset = buffer.readUInt32LE(eocd + 16);
+  const cdEntries = buffer.readUInt16LE(eocd + 10);
+  let offset = cdOffset;
+  for (let index = 0; index < cdEntries; index++) {
+    if (buffer.readUInt32LE(offset) !== 0x02014b50) throw new Error("Invalid ZIP central directory");
+    const method = buffer.readUInt16LE(offset + 10);
+    const compSize = buffer.readUInt32LE(offset + 20);
+    const nameLen = buffer.readUInt16LE(offset + 28);
+    const extraLen = buffer.readUInt16LE(offset + 30);
+    const commentLen = buffer.readUInt16LE(offset + 32);
+    const localOffset = buffer.readUInt32LE(offset + 42);
+    const name = buffer.slice(offset + 46, offset + 46 + nameLen).toString("utf8");
+    if (name === entryName) {
+      const nameLenLocal = buffer.readUInt16LE(localOffset + 26);
+      const extraLenLocal = buffer.readUInt16LE(localOffset + 28);
+      const dataStart = localOffset + 30 + nameLenLocal + extraLenLocal;
+      const compressed = buffer.slice(dataStart, dataStart + compSize);
+      if (method === 0) return compressed;
+      if (method === 8) return zlib.inflateRawSync(compressed);
+      throw new Error(`Unsupported ZIP compression method ${method} for ${entryName}`);
+    }
+    offset += 46 + nameLen + extraLen + commentLen;
+  }
+  return null;
 }
