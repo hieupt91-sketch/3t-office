@@ -942,6 +942,11 @@ export class WriterAdapter {
    * HTML comments; authors are dropped). When the desktop bridge forwards
    * `word/document.xml` and `word/comments.xml`, wrap those runs back into
    * `<ins>` / `<del>` / `<mark data-comment-id>` before the body is mounted.
+   *
+   * Header/Footer are different: StarWriter keeps them as
+   * `<div title="header|footer">` (the same markers VN Writer already emits
+   * on save). PAGE/NUMPAGES become `<sdfield>` plus a gray span — unwrap so
+   * Print Preview can still replace `Trang N / M`.
    */
   _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml) {
     let html = String(raw || "");
@@ -971,14 +976,29 @@ export class WriterAdapter {
     let header = "";
     let footer = "";
     if (headerMatch) {
-      header = headerMatch[1].trim();
+      header = this._normalizeImportedHeaderFooterHtml(headerMatch[1]);
       html = html.replace(headerMatch[0], "");
     }
     if (footerMatch) {
-      footer = footerMatch[1].trim();
+      footer = this._normalizeImportedHeaderFooterHtml(footerMatch[1]);
       html = html.replace(footerMatch[0], "");
     }
     return { body: html.trim(), header, footer, page, comments };
+  }
+
+  /**
+   * Unwrap StarWriter PAGE/NUMPAGES fields. They are not valid HTML and the
+   * gray `<span>` wrapping them prevents Print Preview from matching
+   * `Trang N / M` (the replacement lives on the footer innerHTML string).
+   */
+  _normalizeImportedHeaderFooterHtml(html) {
+    let out = String(html || "");
+    out = out.replace(/<sdfield\b[^>]*>([\s\S]*?)<\/sdfield>/gi, "$1");
+    out = out.replace(
+      /<span\b[^>]*\bstyle=["'][^"']*background:\s*#c0c0c0[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi,
+      "$1"
+    );
+    return out.trim();
   }
 
   /**
