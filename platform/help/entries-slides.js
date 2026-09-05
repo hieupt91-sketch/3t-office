@@ -245,6 +245,161 @@ export const SLIDES_HELP_ENTRIES = [
       "Chọn đối tượng: chỉ các hình vẽ, bỏ đường nối (connector). Dùng khi cần kéo/xóa nhóm hình mà không kéo đường nối kèm theo.",
       "Khi đang gõ trong tiêu đề hoặc nội dung, Ctrl+A vẫn chọn hết chữ trong khung đó; ngoài khung chữ, Ctrl+A chọn tất cả hình trên trang."
     ]
+  },
+  {
+    id: "slides.slide.manage",
+    app: "slides",
+    commandIds: [
+      "slides.slide.new",
+      "slides.slide.duplicate",
+      "slides.slide.delete",
+      "slides.layout.apply",
+      "slides.layout.select"
+    ],
+    title: "Thêm, nhân đôi, xóa trang và đổi bố cục",
+    summary: "Trang mới (Ctrl+M) chèn trang kiểu Tiêu đề + Nội dung. Nhân đôi (Ctrl+D) tạo bản sao ngay sau trang đang mở. Xóa trang không xóa trang cuối cùng. Bố cục mở lưới 4 mẫu: Tiêu đề, Tiêu đề + Nội dung, Hai nội dung, Trống.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Trang chiếu" },
+    keywords: ["trang mới", "nhân đôi", "xóa trang", "bố cục", "layout", "ctrl+m", "ctrl+d", "hai cột", "trang trống"],
+    steps: [
+      "Tab Trang đầu, nhóm Trang chiếu: Trang mới (Ctrl+M, nút lớn), Bố cục (nút lớn), cột Nhân đôi (Ctrl+D) / Xóa trang. Nút + trên dải thumbnail trái cũng thêm trang. Bố cục còn có trên tab Thiết kế, nhóm Bố cục trang.",
+      "Trang mới dùng bố cục Tiêu đề + Nội dung: tiêu đề «Tiêu đề trang chiếu mới», hai dòng đầu dòng mẫu. Nhân đôi copy tiêu đề (thêm « (Bản sao)»), nội dung, hình, ghi chú, hiệu ứng, nền — chèn ngay sau trang hiện tại và chuyển tới bản sao.",
+      "Xóa trang: không xóa được nếu chỉ còn 1 trang. Nếu đang chọn hình trên canvas, lệnh Xóa trang / phím Delete sẽ xóa hình chứ không xóa trang — bấm ra ngoài hình, hoặc xóa từ dải thumbnail / Bộ sắp xếp trang.",
+      "Bố cục (và lệnh Chọn bố cục, cùng hộp thoại): lưới 4 thẻ — Tiêu đề (chữ lớn giữa trang), Tiêu đề + Nội dung (mặc định), Hai nội dung (cột trái/phải độc lập), Trống (canvas trắng). Nhấp đúp thẻ để áp dụng ngay, hoặc chọn rồi Áp dụng cho trang này / Áp dụng tất cả. Ctrl+Z hoàn tác."
+    ]
+  },
+  {
+    id: "slides.nav.slides",
+    app: "slides",
+    commandIds: [
+      "slides.nav.firstSlide",
+      "slides.nav.lastSlide",
+      "slides.nav.prevSlide",
+      "slides.nav.nextSlide"
+    ],
+    title: "Di chuyển giữa các trang chiếu",
+    summary: "Bốn lệnh bàn phím, không có nút riêng trên ribbon: Ctrl+Home trang đầu, Ctrl+End trang cuối, Page Up trang trước, Page Down trang sau. Dải thumbnail trái và Bộ sắp xếp trang cũng chuyển trang bằng chuột.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Trang chiếu" },
+    keywords: ["trang trước", "trang sau", "trang đầu", "trang cuối", "page up", "page down", "ctrl+home", "ctrl+end", "điều hướng"],
+    steps: [
+      "Không có bốn nút này trên ribbon. Dùng phím: Page Down trang sau, Page Up trang trước, Ctrl+Home trang đầu tiên, Ctrl+End trang cuối cùng.",
+      "Cách khác: nhấp thumbnail trên dải trái, hoặc mở Bộ sắp xếp trang (tab Chế độ xem) rồi nhấp trang.",
+      "Khi đang trình chiếu F5 / Shift+F5 / Alt+F5: phím mũi tên, Space, Page Up/Down cũng chuyển trang; Esc thoát.",
+      "Chuyển trang không sửa nội dung. Trang đang ẩn vẫn chọn được khi soạn, nhưng bị bỏ qua lúc chiếu."
+    ]
+  },
+  {
+    id: "slides.insert.drawing",
+    app: "slides",
+    commandIds: ["slides.text.insert", "slides.shape.insert", "slides.image.insert"],
+    title: "Chèn hộp chữ, hình khối và hình ảnh",
+    summary: "Ba nút trên nhóm Đối tượng vẽ (Trang đầu) và lặp lại trên tab Chèn. Hình khối chèn chữ nhật xanh kéo-thả được. Hình ảnh mở hộp chọn tệp. Hộp văn bản thêm một dòng đầu dòng vào nội dung trang.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Đối tượng vẽ" },
+    keywords: ["hộp văn bản", "hình khối", "hình ảnh", "shape", "chèn ảnh", "chữ nhật", "đối tượng vẽ"],
+    steps: [
+      "Tab Trang đầu, nhóm Đối tượng vẽ: Hộp văn bản, Hình khối, Hình ảnh (ba nút lớn). Cùng lệnh còn trên tab Chèn: Hộp văn bản ở nhóm Văn bản, Hình khối ở Minh họa, Hình ảnh ở nhóm Hình ảnh.",
+      "Hình khối: chèn chữ nhật xanh (~200×120 px) lên canvas, lệch dần nếu chèn nhiều cái. Kéo để đặt, kéo góc để đổi cỡ, Delete khi đang chọn để xóa. Ctrl+Z gỡ hình vừa chèn.",
+      "Hình ảnh: hộp chọn tệp trên máy, ảnh thành đối tượng trên slide (kéo/đổi cỡ như hình khối).",
+      "Hộp văn bản: thêm dòng «• Khung văn bản mới bổ sung» vào nội dung (body) của trang đang mở — không tạo khung kéo-thả riêng. Muốn khung độc lập, chèn Hình khối rồi gõ chữ trên hình, hoặc dùng Chữ nghệ thuật (tab Chèn, nhóm Văn bản)."
+    ]
+  },
+  {
+    id: "slides.insert.table",
+    app: "slides",
+    commandIds: ["slides.insert.table"],
+    title: "Chèn bảng trên trang chiếu",
+    summary: "Hộp thoại nhập số hàng và số cột (1–12, mặc định 3×3). Bảng là đối tượng kéo-thả trên canvas; hàng đầu điền sẵn «Cột 1», «Cột 2»…",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Bảng" },
+    keywords: ["bảng", "table", "chèn bảng", "hàng", "cột", "cột 1"],
+    steps: [
+      "Mở trang đích. Tab Chèn, nhóm Bảng, nhấn nút lớn Bảng.",
+      "Hộp «Chèn bảng»: Số hàng và Số cột, mỗi ô 1–12, mặc định 3 và 3. Nhấn Chèn (hoặc Enter). Esc / Hủy bỏ.",
+      "Bảng hiện trên canvas, kéo để đặt, kéo góc để đổi cỡ. Hàng đầu là «Cột 1», «Cột 2»…; ô dưới trống — nhấp để gõ.",
+      "Ctrl+Z gỡ cả bảng vừa chèn. Delete khi đang chọn bảng cũng xóa."
+    ]
+  },
+  {
+    id: "slides.shape.groupUngroup",
+    app: "slides",
+    commandIds: ["slides.shape.group", "slides.shape.ungroup"],
+    title: "Nhóm và bỏ nhóm đối tượng",
+    summary: "Chọn từ hai hình trở lên rồi Ctrl+G để nhóm thành một khối (kéo/xóa cùng lúc). Ctrl+Shift+G tách nhóm. Đường nối (connector) không được đưa vào nhóm. Không có nút riêng trên ribbon.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Đối tượng vẽ" },
+    keywords: ["nhóm", "bỏ nhóm", "group", "ungroup", "ctrl+g", "ctrl+shift+g", "khối hình"],
+    steps: [
+      "Chọn nhiều hình trên trang: giữ Shift rồi nhấp từng hình, hoặc tab Trang đầu → nhóm Chỉnh sửa → Chọn → Chọn tất cả / Chọn đối tượng.",
+      "Ctrl+G nhóm. Cần ít nhất hai hình (không tính đường nối). Sau khi nhóm, chọn một thành viên là chọn cả khối.",
+      "Ctrl+Shift+G bỏ nhóm đối tượng đang chọn. Hình vẫn còn, chỉ mất liên kết nhóm.",
+      "Hai lệnh không có nút trên ribbon — chỉ phím tắt. Ctrl+Z / Ctrl+Y hoàn tác hoặc làm lại nhóm/bỏ nhóm."
+    ]
+  },
+  {
+    id: "slides.show.start",
+    app: "slides",
+    commandIds: [
+      "slides.show.startFromBegin",
+      "slides.show.startFromCurrent",
+      "slides.show.presenterMode"
+    ],
+    title: "Bắt đầu trình chiếu và chế độ Người thuyết trình",
+    summary: "F5 chiếu từ trang không ẩn đầu tiên; Shift+F5 từ trang đang mở; Alt+F5 mở màn Người thuyết trình (ghi chú, trang kế, đồng hồ) trong cùng cửa sổ. Esc thoát. Trang ẩn bị bỏ qua.",
+    ribbon: { tab: "Trình chiếu", tabId: "slideshow", group: "Khởi động chiếu" },
+    keywords: ["trình chiếu", "f5", "shift+f5", "alt+f5", "presenter", "người thuyết trình", "chiếu từ đầu", "slideshow"],
+    steps: [
+      "Tab Trình chiếu, nhóm Khởi động chiếu: Từ đầu (F5), Từ trang này (Shift+F5), Chế độ Presenter (Alt+F5).",
+      "Từ đầu / Từ trang này: toàn màn hình cho khán giả, không hiện ghi chú. Space hoặc → trang sau; ← trang trước; Esc thoát. Trang đã Ẩn trang chiếu bị nhảy qua. Mọi trang đều ẩn thì hộp thoại báo «Tất cả trang chiếu đang bị ẩn».",
+      "Chế độ Presenter: overlay trong cùng cửa sổ (không tách màn hình 2). Cột trái: trang hiện tại, nút Trang trước / Trang tiếp, bộ đếm. Cột phải: ghi chú (A+/A− đổi cỡ chữ) và xem trước trang kế. Đồng hồ «ĐÃ THUYẾT TRÌNH» và đồng hồ máy. Esc hoặc ✕ Thoát.",
+      "Cấu hình lặp liên tục / màu con trỏ: tab Trình chiếu → Thiết lập → Thiết lập trình chiếu (bài riêng)."
+    ]
+  },
+  {
+    id: "slides.view.normal",
+    app: "slides",
+    commandIds: ["slides.view.normal"],
+    title: "Dạng xem bình thường",
+    summary: "Quay về soạn từng trang: dải thumbnail trái và sân khấu canvas giữa. Dùng sau khi đóng Bộ sắp xếp trang hoặc Chế độ đọc.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem bản trình chiếu" },
+    keywords: ["bình thường", "normal view", "soạn trang", "thumbnail", "canvas"],
+    steps: [
+      "Tab Chế độ xem, nhóm Dạng xem bản trình chiếu, nhấn Bình thường (nút lớn đầu nhóm).",
+      "Giao diện soạn thảo: thumbnail trái để chọn trang, canvas giữa để sửa tiêu đề, nội dung và hình. Thanh ghi chú dưới canvas nếu đang bật.",
+      "Bộ sắp xếp trang và Chế độ đọc cũng nằm cùng nhóm — Bình thường là cách về màn hình soạn. Esc trong Bộ sắp xếp / Chế độ đọc cũng về Bình thường.",
+      "Chế độ này không đổi nội dung trang, chỉ đổi cách nhìn."
+    ]
+  },
+  {
+    id: "slides.view.zoom",
+    app: "slides",
+    commandIds: [
+      "slides.view.zoomIn",
+      "slides.view.zoomOut",
+      "slides.view.zoomReset",
+      "slides.view.fitToWindow"
+    ],
+    title: "Thu phóng sân khấu trang chiếu",
+    summary: "Phóng to / thu nhỏ sân khấu theo bước 10%. Đặt lại về 100%. Vừa cửa sổ co sân khấu khớp khung làm việc (khoảng 30%–200%), trừ chỗ ghi chú nếu đang mở.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Thu phóng" },
+    keywords: ["thu phóng", "phóng to", "thu nhỏ", "vừa cửa sổ", "fit to window", "zoom", "100%", "sân khấu"],
+    steps: [
+      "Tab Chế độ xem, nhóm Thu phóng: Phóng to (nút lớn) tăng 10%, Thu nhỏ giảm 10%, Đặt lại về 100%, Vừa cửa sổ.",
+      "Vừa cửa sổ lấy chiều rộng/cao khung stage so với cỡ trang (mặc định 960×540), kẹp khoảng 30%–200%. Nếu khung ghi chú đang mở, chiều cao tính trừ phần ghi chú.",
+      "Zoom chỉ đổi hiển thị lúc soạn, không đổi cỡ trang khi chiếu F5. Cỡ trang thật: tab Thiết kế → Cỡ trang chiếu.",
+      "Nhóm Cửa sổ cạnh đó có Cửa sổ mới (mở tab/cửa sổ trình duyệt khác)."
+    ]
+  },
+  {
+    id: "slides.notes.toggle",
+    app: "slides",
+    commandIds: ["slides.notes.toggle"],
+    title: "Ghi chú người thuyết trình",
+    summary: "Bật/tắt khung ghi chú dưới canvas. Mỗi trang có ghi chú riêng, không lẫn sang trang khác. F5 không hiện ghi chú cho khán giả — chỉ thấy trong khung này và trong Chế độ Presenter (Alt+F5).",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem bản trình chiếu" },
+    keywords: ["ghi chú", "speaker notes", "thuyết trình", "ghi chú trang", "notes"],
+    steps: [
+      "Tab Chế độ xem, nhóm Dạng xem bản trình chiếu, nhấn Ghi chú thuyết trình — hoặc tab Trình chiếu, nhóm Người thuyết trình, cùng nút. Khung dưới canvas mở rộng; nút trên khung đổi thành «▼ Thu gọn ghi chú».",
+      "Gõ ghi chú cho trang đang mở. Chuyển thumbnail thì khung nạp ghi chú của trang mới, không mang chữ trang cũ. Có bộ đếm ký tự trên khung.",
+      "Nhấn lại nút (hoặc «▼ Thu gọn ghi chú») để đóng, lấy chỗ canvas. Ghi chú vẫn được lưu theo trang, kể cả khi thu gọn.",
+      "Khi chiếu F5/Shift+F5 khán giả không thấy ghi chú. Muốn đọc ghi chú lúc nói chuyện: Alt+F5 (Chế độ Presenter). Ghi chú được lưu trong file FODP."
+    ]
   }
 ];
 

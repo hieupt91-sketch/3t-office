@@ -119,6 +119,58 @@ export async function runSheetHelpTests() {
     }
   });
 
+  await test("Help Sheet Batch 1: có bài định dạng ô, dữ liệu, xem trang, hàng/cột và chèn cơ bản", () => {
+    const ids = SHEET_HELP_ENTRIES.map((entry) => entry.id);
+    const required = [
+      "sheet.cell.font",
+      "sheet.cell.alignment",
+      "sheet.data.sortFilter",
+      "sheet.data.toolsBasic",
+      "sheet.data.outline",
+      "sheet.view.workbookViews",
+      "sheet.view.show",
+      "sheet.view.zoom",
+      "sheet.cells.insertDelete",
+      "sheet.insert.image",
+      "sheet.insert.hyperlink",
+      "sheet.insert.textbox",
+      "sheet.insert.dateTime"
+    ];
+    for (const id of required) {
+      if (!ids.includes(id)) throw new Error(`Thiếu bài hướng dẫn ${id}`);
+    }
+    const byId = Object.fromEntries(SHEET_HELP_ENTRIES.map((entry) => [entry.id, entry]));
+    const expectCmds = {
+      "sheet.cell.font": ["sheet.cell.bold", "sheet.font.family", "sheet.cell.fillColor"],
+      "sheet.cell.alignment": ["sheet.cell.mergeCenter", "sheet.cell.wrapText", "sheet.cell.alignMiddle"],
+      "sheet.data.sortFilter": ["sheet.data.sortAsc", "sheet.data.filter"],
+      "sheet.data.toolsBasic": ["sheet.data.textToColumns", "sheet.data.flashFill", "sheet.data.removeDuplicates"],
+      "sheet.data.outline": ["sheet.data.group", "sheet.data.subtotal"],
+      "sheet.view.workbookViews": ["sheet.view.normal", "sheet.view.pageBreakPreview", "sheet.view.pageLayout"],
+      "sheet.view.show": ["sheet.view.formulaBar", "sheet.view.gridlines", "sheet.view.headings"],
+      "sheet.view.zoom": ["sheet.view.zoomIn", "sheet.view.zoomReset"],
+      "sheet.cells.insertDelete": ["sheet.row.insert", "sheet.col.delete"],
+      "sheet.insert.image": ["sheet.insert.image"],
+      "sheet.insert.hyperlink": ["sheet.insert.hyperlink"],
+      "sheet.insert.textbox": ["sheet.insert.textbox"],
+      "sheet.insert.dateTime": ["sheet.insert.date", "sheet.insert.time"]
+    };
+    for (const [id, cmds] of Object.entries(expectCmds)) {
+      const entry = byId[id];
+      for (const cmd of cmds) {
+        if (!(entry.commandIds || []).includes(cmd)) {
+          throw new Error(`${id} thiếu commandId ${cmd}`);
+        }
+      }
+    }
+    if (byId["sheet.cell.alignment"].ribbon.group !== "Căn chỉnh") {
+      throw new Error("Bài căn chỉnh/trộn ô phải trỏ nhóm Căn chỉnh");
+    }
+    if (byId["sheet.data.sortFilter"].ribbon.tab !== "Dữ liệu") {
+      throw new Error("Bài sắp xếp/lọc phải ở tab Dữ liệu");
+    }
+  });
+
   await test("Help Sheet: không làm hỏng catalog Writer", () => {
     const writer = getHelpEntriesForApp("writer");
     if (writer.length < 6) throw new Error("Catalog Writer bị mất bài");

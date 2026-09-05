@@ -320,6 +320,225 @@ export const SHEET_HELP_ENTRIES = [
       "Bỏ bảo vệ: nhấn lại Bỏ bảo vệ workbook... Nếu đã đặt mật khẩu, nhập đúng mật khẩu. Sai mật khẩu hiện lỗi trong hộp thoại.",
       "Đây là khóa giao diện giống Excel, mật khẩu không mã hóa, không chống người cố tình sửa file. Trạng thái khóa không đi vào Undo và không ghi vào FODS."
     ]
+  },
+  {
+    id: "sheet.cell.font",
+    app: "sheet",
+    commandIds: [
+      "sheet.font.family",
+      "sheet.font.size",
+      "sheet.font.grow",
+      "sheet.font.shrink",
+      "sheet.cell.bold",
+      "sheet.cell.italic",
+      "sheet.cell.underline",
+      "sheet.cell.borders",
+      "sheet.cell.fillColor",
+      "sheet.cell.textColor"
+    ],
+    title: "Định dạng chữ và màu ô",
+    summary: "Đổi phông, cỡ chữ, đậm/nghiêng/gạch chân cho ô đang chọn; kẻ viền đậm; tô vàng nền ô hoặc đổi chữ sang đỏ. Áp dụng cho một ô hoặc cả vùng bôi.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+    keywords: ["đậm", "nghiêng", "gạch chân", "phông chữ", "cỡ chữ", "màu nền", "màu chữ", "viền ô", "bold", "font", "fill", "border", "ctrl+b"],
+    steps: [
+      "Chọn ô hoặc bôi vùng. Tab Trang đầu, nhóm Phông chữ: hàng trên là hộp Phông chữ / Cỡ chữ và Tăng/Giảm cỡ; hàng dưới là Đậm, Nghiêng, Gạch chân, Viền ô, Màu nền, Màu chữ.",
+      "Phông: Times New Roman, Be Vietnam Pro, Arial, Calibri (mặc định), Roboto. Cỡ: 8, 9, 10, 11 (mặc định), 12, 14, 16, 18, 20, 24, 28, 36, 48, 72. Tăng/Giảm cỡ nhảy theo các nấc đó.",
+      "Đậm Ctrl+B, Nghiêng Ctrl+I, Gạch chân Ctrl+U — nhấn lại để tắt. Viền ô kẻ khung 2px xám đậm (#0f172a) cho vùng chọn. Màu nền tô vàng (#FFF200). Màu chữ đổi sang đỏ (#DC2626).",
+      "Muốn kiểu số (tiền, %, ngày): dùng nhóm Định dạng số bên phải, hoặc Ctrl+1. Ctrl+Z hoàn tác từng bước định dạng."
+    ]
+  },
+  {
+    id: "sheet.cell.alignment",
+    app: "sheet",
+    commandIds: [
+      "sheet.cell.alignTop",
+      "sheet.cell.alignMiddle",
+      "sheet.cell.alignBottom",
+      "sheet.cell.alignLeft",
+      "sheet.cell.alignCenter",
+      "sheet.cell.alignRight",
+      "sheet.cell.wrapText",
+      "sheet.cell.indentDecrease",
+      "sheet.cell.indentIncrease",
+      "sheet.cell.mergeCenter",
+      "sheet.cell.mergeAcross",
+      "sheet.cell.mergeCells",
+      "sheet.cell.unmerge"
+    ],
+    title: "Căn chỉnh, ngắt dòng và trộn ô",
+    summary: "Căn ngang/dọc nội dung trong ô, tự xuống dòng theo độ rộng cột, tăng/giảm thụt lề, và trộn vùng chọn (cả khối, theo hàng, hoặc tách lại). Trộn nhiều ô có dữ liệu sẽ hỏi xác nhận — chỉ giữ ô trên-trái.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Căn chỉnh" },
+    keywords: ["căn giữa", "căn trái", "căn phải", "căn trên", "ngắt dòng", "wrap", "thụt lề", "trộn ô", "merge", "unmerge", "hợp nhất"],
+    steps: [
+      "Chọn ô hoặc vùng. Tab Trang đầu, nhóm Căn chỉnh: hàng trên Căn trên / Căn giữa dọc / Căn dưới; hàng giữa Căn trái / giữa / phải, Ngắt dòng tự động, Giảm/Tăng thụt lề; hàng dưới bốn nút trộn ô.",
+      "Ngắt dòng tự động cho chữ dài xuống dòng trong ô và tăng chiều cao hàng. Tăng thụt lề thêm 12 px (tối đa 56 px); Giảm thụt lề hạ dần về 8 px.",
+      "Bôi ít nhất 2 ô rồi: Trộn & căn giữa gộp thành một ô và căn giữa; Trộn ô gộp nhưng giữ căn đang có; Trộn theo hàng gộp riêng từng hàng trong vùng. Nếu nhiều ô có dữ liệu, hộp «Trộn ô» cảnh báo chỉ giữ ô trên cùng bên trái — chọn Tiếp tục gộp hoặc Hủy.",
+      "Tách ô hoàn tác vùng đã trộn (dữ liệu đã mất khi gộp không tự hiện lại, trừ khi Ctrl+Z ngay). Không trộn đè lên vùng đã trộn sẵn."
+    ]
+  },
+  {
+    id: "sheet.data.sortFilter",
+    app: "sheet",
+    commandIds: ["sheet.data.sortAsc", "sheet.data.sortDesc", "sheet.data.filter"],
+    title: "Sắp xếp và bộ lọc",
+    summary: "Sắp xếp A–Z hoặc Z–A theo cột đang chọn (ưu tiên đúng vùng bôi). Bộ lọc (Ctrl+Shift+L) hiện nút trên tiêu đề cột để lọc theo giá trị hoặc sắp xếp từ menu cột.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Sắp xếp & Lọc" },
+    keywords: ["sắp xếp", "a-z", "z-a", "bộ lọc", "autofilter", "lọc", "sort", "filter", "ctrl+shift+l"],
+    steps: [
+      "Bôi bảng (gồm hàng tiêu đề nếu có) hoặc đứng trên một ô trong cột khóa. Tab Dữ liệu, nhóm Sắp xếp & Lọc — ba nút lớn: Sắp xếp A-Z, Sắp xếp Z-A, Bộ lọc. Cùng lệnh cũng có trên tab Trang đầu, nhóm Chỉnh sửa.",
+      "A–Z / Z–A sắp cả hàng theo cột đang chọn. Số so sánh như số; chữ theo locale vi-VN. Hàng «Tổng» (chữ Tổng hoặc công thức SUM) được bỏ qua khi không bôi vùng. Cần ít nhất 2 hàng dữ liệu.",
+      "Bộ lọc (Ctrl+Shift+L) bật/tắt AutoFilter: nút lọc hiện trên tiêu đề cột. Nhấn nút cột để mở menu: ▲ Sắp xếp tăng dần, ▼ Sắp xếp giảm dần, rồi danh sách giá trị kèm Tất cả / Bỏ chọn / Áp dụng.",
+      "Tắt Bộ lọc gỡ điều kiện và hiện lại mọi hàng đã ẩn vì lọc. Ctrl+Z hoàn tác lần sắp hoặc lần bật/tắt lọc."
+    ]
+  },
+  {
+    id: "sheet.data.toolsBasic",
+    app: "sheet",
+    commandIds: ["sheet.data.textToColumns", "sheet.data.flashFill", "sheet.data.removeDuplicates"],
+    title: "Tách văn bản, Điền nhanh và Xóa trùng lặp",
+    summary: "Tách một cột theo dấu phẩy/chấm phẩy/khoảng trắng/tab hoặc độ rộng cố định; điền cột kế bên theo mẫu nối/cắt đã gõ ví dụ; xóa hàng trùng theo cột đánh dấu.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Công cụ dữ liệu" },
+    keywords: ["tách văn bản", "text to columns", "điền nhanh", "flash fill", "xóa trùng", "remove duplicates", "dấu phẩy"],
+    steps: [
+      "Bôi đúng một cột chữ dính nhau (ví dụ «Nam,Hà Nội»). Tab Dữ liệu, nhóm Công cụ dữ liệu, nhấn Tách văn bản. Kiểu tách: Dấu phân cách (phẩy, chấm phẩy, khoảng trắng, Tab, hoặc ký tự tùy chọn) hoặc Độ rộng cố định (nhập các độ rộng cách nhau bằng phẩy, mặc định 5,5). Xem trước rồi Áp dụng. Chỉ chọn một cột — nhiều cột sẽ báo lỗi.",
+      "Điền nhanh: cột trái là nguồn, cột đang chọn là kết quả. Gõ 1–2 ô ví dụ (nối hai cột bằng khoảng trắng / dấu - / không dấu, hoặc cắt 1–12 ký tự đầu/cuối), bôi cả cột kết quả rồi nhấn Điền nhanh. Không nhận diện được mẫu thì hộp Kết quả báo «Hãy nhập 1–2 ví dụ…» — không điền bừa.",
+      "Xóa trùng lặp: bôi bảng, nhấn Xóa trùng lặp. Đánh dấu «Dữ liệu có hàng tiêu đề», chọn cột dùng để xét trùng, Áp dụng. Hộp Kết quả báo số hàng đã xóa và còn lại. Phải chọn ít nhất một cột.",
+      "Cả ba lệnh hoàn tác bằng Ctrl+Z (một bước). Cùng nhóm còn Kiểm tra dữ liệu và Phân tích What-If — xem bài riêng."
+    ]
+  },
+  {
+    id: "sheet.data.outline",
+    app: "sheet",
+    commandIds: ["sheet.data.group", "sheet.data.ungroup", "sheet.data.subtotal"],
+    title: "Nhóm hàng/cột và Tổng phụ",
+    summary: "Nhóm các hàng hoặc cột liên tiếp đang chọn (nút − / + trên tiêu đề để thu/mở). Tổng phụ chèn hàng SUM/COUNT/AVERAGE mỗi khi khóa nhóm đổi, rồi hàng Grand Total — cần sắp xếp trước theo cột nhóm.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Dàn bài" },
+    keywords: ["nhóm", "bỏ nhóm", "group", "ungroup", "tổng phụ", "subtotal", "dàn bài", "outline", "grand total"],
+    steps: [
+      "Chọn nguyên hàng (bấm số hàng rồi kéo) hoặc nguyên cột (bấm chữ cột). Tab Dữ liệu, nhóm Dàn bài, nhấn Nhóm. Nút − hiện trên tiêu đề nhóm; nhấn để thu (đổi thành +). Bỏ nhóm gỡ nhóm chồng lên vùng đang chọn.",
+      "Không chọn trọn hàng hoặc trọn cột thì Nhóm không chạy. Không tạo trùng một nhóm cùng biên.",
+      "Tổng phụ: bôi bảng đã có hàng tiêu đề, nên Sắp xếp A–Z theo cột nhóm trước. Nhấn Tổng phụ. «Mỗi khi thay đổi ở»: chọn cột khóa. Hàm: SUM, COUNT hoặc AVERAGE. «Cộng tổng vào»: đánh dấu các cột số. Áp dụng chèn hàng «… Total» mỗi nhóm và «Grand Total» cuối.",
+      "Nếu chưa sắp xếp, mỗi đoạn khóa liên tiếp được coi là một nhóm riêng. Ctrl+Z gỡ cả lần nhóm hoặc cả khối tổng phụ vừa chèn."
+    ]
+  },
+  {
+    id: "sheet.view.workbookViews",
+    app: "sheet",
+    commandIds: ["sheet.view.normal", "sheet.view.pageBreakPreview", "sheet.view.pageLayout"],
+    title: "Chế độ xem bảng tính",
+    summary: "Bình thường là lưới soạn thảo. Xem ngắt trang hiện đường chia trang và làm mờ vùng ngoài khổ in. Bố trí trang xem như tờ giấy, có dải đầu trang 3 ngăn.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Chế độ xem bảng tính" },
+    keywords: ["bình thường", "xem ngắt trang", "bố trí trang", "page break preview", "page layout", "normal view", "trang in"],
+    steps: [
+      "Tab Chế độ xem, nhóm Chế độ xem bảng tính — ba nút lớn: Bình thường, Xem ngắt trang, Bố trí trang.",
+      "Bình thường: lưới ô tiêu chuẩn để nhập liệu. Đây là mặc định.",
+      "Xem ngắt trang: đường chia trang xanh đậm, vùng ngoài khổ in bị phủ tối, số «Trang 1» mờ trên nền. Dùng để chỉnh chỗ ngắt trước khi in (tab Bố trí trang, nhóm Ngắt trang).",
+      "Bố trí trang: xem như giấy in, có dải đầu trang 3 ngăn. Không đổi dữ liệu ô. Quay lại Bình thường bất cứ lúc nào."
+    ]
+  },
+  {
+    id: "sheet.view.show",
+    app: "sheet",
+    commandIds: ["sheet.view.formulaBar", "sheet.view.gridlines", "sheet.view.headings"],
+    title: "Hiện thanh công thức, đường lưới và tiêu đề",
+    summary: "Ba nút bật/tắt trên nhóm Hiển thị: ẩn thanh công thức để lấy chỗ lưới; ẩn đường kẻ ô; ẩn chữ cột A, B, C… và số hàng 1, 2, 3…",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Hiển thị" },
+    keywords: ["thanh công thức", "đường lưới", "tiêu đề hàng cột", "gridlines", "headings", "formula bar", "ẩn lưới"],
+    steps: [
+      "Tab Chế độ xem, nhóm Hiển thị. Thanh công thức, Đường lưới, Tiêu đề đều là nút bật/tắt (nhấn lại để hiện).",
+      "Ẩn Thanh công thức thu gọn khoảng trên lưới — tiện màn hình thấp. Vẫn sửa ô bằng F2 hoặc nhấp đúp.",
+      "Đường lưới ẩn kẻ ô trên màn hình (không đổi viền đã định dạng). Tiêu đề ẩn A, B, C và 1, 2, 3 — chọn ô bằng chuột trên lưới vẫn được.",
+      "Ba tùy chọn chỉ đổi hiển thị, không đổi dữ liệu hay file."
+    ]
+  },
+  {
+    id: "sheet.view.zoom",
+    app: "sheet",
+    commandIds: ["sheet.view.zoomIn", "sheet.view.zoomOut", "sheet.view.zoomReset"],
+    title: "Thu phóng bảng tính",
+    summary: "Phóng to / thu nhỏ lưới theo bước 10% trong khoảng 50%–200%. Nút 100% đặt lại tỉ lệ gốc. Chỉ đổi hiển thị, không đổi kích thước ô khi in.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Thu phóng" },
+    keywords: ["thu phóng", "phóng to", "thu nhỏ", "zoom", "100%", "tỉ lệ lưới"],
+    steps: [
+      "Tab Chế độ xem, nhóm Thu phóng. Phóng to (nút lớn) tăng 10%; Thu nhỏ giảm 10%; 100% về tỉ lệ 1:1. Giới hạn 50%–200%.",
+      "Cùng nhóm còn Vừa vùng chọn — co giãn để vừa khung nhìn với ô/vùng đang bôi (cũng kẹp 50%–200%).",
+      "Zoom dùng phóng CSS trên bảng, tọa độ ô logic không đổi. In và khổ giấy vẫn theo tab Bố trí trang."
+    ]
+  },
+  {
+    id: "sheet.cells.insertDelete",
+    app: "sheet",
+    commandIds: ["sheet.row.insert", "sheet.col.insert", "sheet.row.delete", "sheet.col.delete"],
+    title: "Chèn và xóa hàng, cột",
+    summary: "Chèn hàng tại hàng đang chọn (dữ liệu bên dưới dịch xuống); chèn cột tại cột đang chọn (dữ liệu bên phải dịch sang). Xóa hàng/cột chứa ô đang chọn. Công thức A1 trên cùng sheet được dịch theo.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Ô" },
+    keywords: ["chèn hàng", "chèn cột", "xóa hàng", "xóa cột", "insert row", "insert column", "ctrl+shift+=", "dịch ô"],
+    steps: [
+      "Chọn một ô (hoặc bấm số hàng / chữ cột). Tab Trang đầu, nhóm Ô: cột trái Chèn hàng / Chèn cột; cột giữa Xóa hàng / Xóa cột. Chèn hàng còn phím Ctrl+Shift+=.",
+      "Chèn hàng: hàng mới trống ngay tại vị trí chọn; hàng cũ và ghi chú / quy tắc định dạng / kiểm tra dữ liệu / vùng in / ngắt trang dịch xuống. Công thức cùng sheet dạng A1 được sửa theo.",
+      "Chèn cột tương tự, dịch sang phải; tiêu đề cột cuối tăng (ví dụ Z → AA). Xóa hàng/cột làm ngược lại — mất dữ liệu trên hàng/cột đó.",
+      "Chuột phải tiêu đề hàng/cột cũng có Xóa hàng. Ctrl+Z hoàn tác cả khối dịch chuyển. Named range, nguồn biểu đồ và nguồn Pivot chưa tự dịch khi chèn."
+    ]
+  },
+  {
+    id: "sheet.insert.image",
+    app: "sheet",
+    commandIds: ["sheet.insert.image"],
+    title: "Chèn ảnh vào ô",
+    summary: "Mở hộp chọn tệp ảnh trên máy rồi gắn ảnh vào ô đang chọn. Ảnh nằm trong ô, không phải lớp nổi độc lập.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
+    keywords: ["chèn ảnh", "hình ảnh", "image", "picture", "minh họa", "ảnh ô"],
+    steps: [
+      "Chọn ô đích. Tab Chèn, nhóm Minh họa, nhấn nút lớn Chèn ảnh.",
+      "Chọn file ảnh trên máy rồi Mở. Ảnh được gắn vào ô đang chọn.",
+      "Cùng tab Chèn còn Biểu đồ (biểu đồ lớn) và Biểu đồ thu nhỏ (sparkline trong ô) — khác với ảnh.",
+      "Ctrl+Z gỡ ảnh vừa chèn."
+    ]
+  },
+  {
+    id: "sheet.insert.hyperlink",
+    app: "sheet",
+    commandIds: ["sheet.insert.hyperlink"],
+    title: "Chèn liên kết vào ô",
+    summary: "Gắn URL http(s) hoặc mailto: vào ô đang chọn. Ô trống sẽ hiện chính địa chỉ; ô đã có chữ giữ nguyên chữ và trở thành liên kết. Phím tắt chung Ctrl+K.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Liên kết" },
+    keywords: ["liên kết", "hyperlink", "url", "ctrl+k", "mailto", "chèn link"],
+    steps: [
+      "Chọn ô. Tab Chèn, nhóm Liên kết, nhấn Liên kết — hoặc Ctrl+K (lệnh dùng chung common.edit.hyperlink, Sheet chuyển vào cùng hộp).",
+      "Hộp «Chèn liên kết»: nhập địa chỉ bắt đầu bằng https://, http:// hoặc mailto:. Mặc định gợi ý https://. Xác nhận.",
+      "Địa chỉ không hợp lệ (thiếu http/mailto) bị từ chối, không ghi vào ô. Ô trống nhận luôn URL làm chữ hiển thị.",
+      "Ctrl+Z gỡ liên kết vừa gắn."
+    ]
+  },
+  {
+    id: "sheet.insert.textbox",
+    app: "sheet",
+    commandIds: ["sheet.insert.textbox"],
+    title: "Chèn hộp văn bản nổi",
+    summary: "Hộp chữ nổi neo theo ô đang chọn, gõ được, kéo góc trình duyệt để đổi cỡ. Không xoay, không kéo đổi vị trí độc lập — vị trí theo ô neo.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
+    keywords: ["hộp văn bản", "textbox", "chú thích nổi", "khung chữ", "ghi chú ô"],
+    steps: [
+      "Chọn ô neo (góc trên-trái hộp sẽ bám ô này). Tab Chèn, nhóm Văn bản, nhấn Hộp văn bản.",
+      "Hộp «Chèn hộp văn bản» hỏi nội dung. Nhập chữ rồi xác nhận. Hộp trắng, viền xám, tối thiểu khoảng 180×54 px, hiện trên lớp nổi của sheet.",
+      "Nhấp vào hộp để sửa chữ. Kéo góc (resize trình duyệt) để đổi cỡ. Xóa hộp bằng hoàn tác Ctrl+Z ngay sau khi chèn.",
+      "Mỗi trang tính có danh sách hộp riêng. Hộp không đi cùng khi in như một đối tượng Excel đầy đủ — dùng cho chú thích trên màn hình."
+    ]
+  },
+  {
+    id: "sheet.insert.dateTime",
+    app: "sheet",
+    commandIds: ["sheet.insert.date", "sheet.insert.time"],
+    title: "Chèn ngày và giờ hiện tại",
+    summary: "Hai lệnh bàn phím, không có nút riêng trên ribbon: Ctrl+; ghi ngày hôm nay dạng dd/MM/yyyy vào ô đang chọn; Ctrl+Shift+; ghi giờ hiện tại dạng HH:mm:ss.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
+    keywords: ["chèn ngày", "chèn giờ", "ctrl+;", "hôm nay", "today", "now", "dd/mm/yyyy", "giờ hiện tại"],
+    steps: [
+      "Chọn ô trống (hoặc ô muốn ghi đè). Không có nút Ngày/Giờ trên ribbon Sheet — dùng phím tắt.",
+      "Ctrl+; (Ctrl và phím chấm phẩy) chèn ngày máy tính, ví dụ 06/09/2026. Đây là chữ/ngày tĩnh, không tự đổi ngày mai.",
+      "Ctrl+Shift+; chèn giờ máy tính, ví dụ 14:05:09, đồng thời hiện trên thanh công thức.",
+      "Muốn hiển thị kiểu Ngày trong Định dạng số: bôi ô rồi tab Trang đầu → Định dạng số → Ngày, hoặc Ctrl+1. Ctrl+Z xóa giá trị vừa chèn."
+    ]
   }
 ];
 

@@ -109,6 +109,50 @@ export async function runWriterHelpTests() {
     }
   });
 
+  await test("Help Writer Batch 1: có bài định dạng chữ, căn lề, chèn cơ bản và xem trang", () => {
+    const ids = WRITER_HELP_ENTRIES.map((entry) => entry.id);
+    const required = [
+      "writer.text.basicFormat",
+      "writer.para.alignAndList",
+      "writer.table.insert",
+      "writer.image.insert",
+      "writer.headerFooter",
+      "writer.insert.textObjects",
+      "writer.insert.symbol",
+      "writer.view.layouts",
+      "writer.view.zoom"
+    ];
+    for (const id of required) {
+      if (!ids.includes(id)) throw new Error(`Thiếu bài hướng dẫn ${id}`);
+    }
+    const byId = Object.fromEntries(WRITER_HELP_ENTRIES.map((entry) => [entry.id, entry]));
+    const expectCmds = {
+      "writer.text.basicFormat": ["writer.text.bold", "writer.text.italic", "writer.font.family", "writer.color.text"],
+      "writer.para.alignAndList": ["writer.para.alignLeft", "writer.list.bullet", "writer.para.spacing15"],
+      "writer.table.insert": ["writer.table.insert"],
+      "writer.image.insert": ["writer.image.insert"],
+      "writer.headerFooter": ["writer.header.insert", "writer.footer.insert"],
+      "writer.insert.textObjects": ["writer.insert.textbox", "writer.insert.dateTime"],
+      "writer.insert.symbol": ["writer.insert.symbol"],
+      "writer.view.layouts": ["writer.view.printLayout", "writer.view.readMode"],
+      "writer.view.zoom": ["writer.view.zoomIn", "writer.view.zoom100"]
+    };
+    for (const [id, cmds] of Object.entries(expectCmds)) {
+      const entry = byId[id];
+      for (const cmd of cmds) {
+        if (!(entry.commandIds || []).includes(cmd)) {
+          throw new Error(`${id} thiếu commandId ${cmd}`);
+        }
+      }
+    }
+    if (byId["writer.text.basicFormat"].ribbon.group !== "Phông chữ") {
+      throw new Error("Bài định dạng chữ phải trỏ nhóm Phông chữ");
+    }
+    if (byId["writer.view.layouts"].ribbon.tab !== "Chế độ xem") {
+      throw new Error("Bài dạng xem phải ở tab Chế độ xem");
+    }
+  });
+
   await test("Help: registerHelpEntries cho phép app khác bổ sung sau này", () => {
     const before = HELP_ENTRIES.length;
     registerHelpEntries([{
