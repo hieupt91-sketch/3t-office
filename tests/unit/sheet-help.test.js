@@ -171,6 +171,64 @@ export async function runSheetHelpTests() {
     }
   });
 
+  await test("Help Sheet Batch 2: có bài công thức nâng cao, dán đặc biệt, in và kiểu ô", () => {
+    const ids = SHEET_HELP_ENTRIES.map((entry) => entry.id);
+    const required = [
+      "sheet.formula.functionCategories",
+      "sheet.formula.namedRanges",
+      "sheet.formula.auditing",
+      "sheet.formula.calculation",
+      "sheet.edit.pasteSpecialHelp",
+      "sheet.nav.keyboardSelect",
+      "sheet.view.zoomWindowExtra",
+      "sheet.review.spellCheck",
+      "sheet.review.commentInsert",
+      "sheet.page.printAreaBreaks",
+      "sheet.insert.sparklines",
+      "sheet.style.tableAndCells",
+      "sheet.edit.fillAndClear"
+    ];
+    for (const id of required) {
+      if (!ids.includes(id)) throw new Error(`Thiếu bài hướng dẫn ${id}`);
+    }
+    const byId = Object.fromEntries(SHEET_HELP_ENTRIES.map((entry) => [entry.id, entry]));
+    const expectCmds = {
+      "sheet.formula.functionCategories": ["sheet.formula.categoryFinancial", "sheet.formula.categoryMore", "sheet.formula.categoryLookup"],
+      "sheet.formula.namedRanges": ["sheet.formula.nameManager", "sheet.formula.createFromSelection", "sheet.formula.useInFormula"],
+      "sheet.formula.auditing": ["sheet.formula.tracePrecedents", "sheet.formula.watchWindow", "sheet.view.toggleFormulas"],
+      "sheet.formula.calculation": ["sheet.calc.modeManual", "sheet.formula.recalculate", "sheet.formula.arrayEnter"],
+      "sheet.edit.pasteSpecialHelp": ["sheet.edit.pasteSpecial"],
+      "sheet.nav.keyboardSelect": ["sheet.nav.home", "sheet.cell.edit", "sheet.select.column"],
+      "sheet.view.zoomWindowExtra": ["sheet.view.zoomToSelection", "sheet.view.newWindow"],
+      "sheet.review.spellCheck": ["sheet.review.spellCheck"],
+      "sheet.review.commentInsert": ["sheet.review.commentInsert"],
+      "sheet.page.printAreaBreaks": ["sheet.page.setPrintArea", "sheet.page.insertPageBreak"],
+      "sheet.insert.sparklines": ["sheet.insert.sparklineLine", "sheet.insert.sparklineColumn"],
+      "sheet.style.tableAndCells": ["sheet.style.formatAsTable", "sheet.style.cellStyles"],
+      "sheet.edit.fillAndClear": ["sheet.edit.fillDown", "sheet.edit.clearContents"]
+    };
+    for (const [id, cmds] of Object.entries(expectCmds)) {
+      const entry = byId[id];
+      for (const cmd of cmds) {
+        if (!(entry.commandIds || []).includes(cmd)) {
+          throw new Error(`${id} thiếu commandId ${cmd}`);
+        }
+      }
+    }
+    if (byId["sheet.formula.namedRanges"].ribbon.group !== "Tên đã xác định") {
+      throw new Error("Bài named range phải trỏ nhóm Tên đã xác định");
+    }
+    if (byId["sheet.formula.auditing"].ribbon.tab !== "Công thức") {
+      throw new Error("Bài kiểm tra công thức phải ở tab Công thức");
+    }
+    if (byId["sheet.review.spellCheck"].ribbon.tab !== "Xem xét") {
+      throw new Error("Bài chính tả Sheet phải ở tab Xem xét");
+    }
+    if (byId["sheet.page.printAreaBreaks"].ribbon.group !== "Vùng in") {
+      throw new Error("Bài vùng in phải trỏ nhóm Vùng in");
+    }
+  });
+
   await test("Help Sheet: không làm hỏng catalog Writer", () => {
     const writer = getHelpEntriesForApp("writer");
     if (writer.length < 6) throw new Error("Catalog Writer bị mất bài");

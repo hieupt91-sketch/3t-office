@@ -539,6 +539,246 @@ export const SHEET_HELP_ENTRIES = [
       "Ctrl+Shift+; chèn giờ máy tính, ví dụ 14:05:09, đồng thời hiện trên thanh công thức.",
       "Muốn hiển thị kiểu Ngày trong Định dạng số: bôi ô rồi tab Trang đầu → Định dạng số → Ngày, hoặc Ctrl+1. Ctrl+Z xóa giá trị vừa chèn."
     ]
+  },
+  {
+    id: "sheet.formula.functionCategories",
+    app: "sheet",
+    commandIds: [
+      "sheet.formula.categoryFinancial",
+      "sheet.formula.categoryLogical",
+      "sheet.formula.categoryText",
+      "sheet.formula.categoryDateTime",
+      "sheet.formula.categoryLookup",
+      "sheet.formula.categoryMath",
+      "sheet.formula.categoryMore"
+    ],
+    title: "Thư viện hàm theo danh mục",
+    summary: "Bảy nút trên tab Công thức mở cùng hộp «Chèn Hàm (Insert Function fx)» đã lọc sẵn một nhóm: Tài chính, Logic, Văn bản, Ngày & Giờ, Tra cứu, Toán học, hoặc Thống kê (nút Thêm hàm). Catalog hiện có 96 hàm thật.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
+    keywords: ["thư viện hàm", "tài chính", "pmt", "if", "vlookup", "today", "round", "thống kê", "danh mục hàm", "fx", "category"],
+    steps: [
+      "Tab Công thức, nhóm Hàm tính toán: sau AutoSum là bốn cột nút nhỏ — Tài chính / Logic / Văn bản; Ngày & Giờ / Tra cứu & Tham chiếu / Toán & Lượng giác; Thêm hàm (cùng cột Lớn nhất / Nhỏ nhất). Mỗi nút mở hộp 620 px «Chèn Hàm (Insert Function fx)» với danh mục tương ứng đã chọn sẵn.",
+      "Tài chính (11 hàm): PMT, FV, PV, NPV, IRR, RATE, NPER, IPMT, PPMT, SLN, DB. Logic (11): IF, AND, OR, NOT, IFERROR, IFNA, ISBLANK, ISNUMBER, ISTEXT, ISERROR, ISNA. Văn bản (18): CONCAT, CONCATENATE, LEFT/RIGHT/MID, LEN, UPPER/LOWER/PROPER, TRIM, TEXT, VALUE, SUBSTITUTE, REPLACE không có — dùng SUBSTITUTE; FIND (phân biệt hoa thường), SEARCH (không phân biệt), TEXTJOIN, REPT, EXACT.",
+      "Ngày tháng (13): TODAY, NOW, DATE, YEAR/MONTH/DAY, DATEDIF, EDATE, EOMONTH, WEEKDAY, DAYS, NETWORKDAYS, WORKDAY. Tra cứu (9): VLOOKUP, HLOOKUP, INDEX, MATCH, XLOOKUP, LOOKUP, CHOOSE, INDIRECT, OFFSET. Toán học (15): SUM, PRODUCT, ABS, ROUND/ROUNDUP/ROUNDDOWN, INT, MOD, SQRT, POWER, CEILING, FLOOR, TRUNC, SIGN, SUMPRODUCT. Thêm hàm mở nhóm Thống kê (19): AVERAGE, COUNT/COUNTA/COUNTBLANK, MIN/MAX, COUNTIF(S), SUMIF(S), AVERAGEIF(S), MEDIAN, RANK, RANK.EQ, LARGE, SMALL, STDEV, VAR.",
+      "Trong hộp: ô «Tìm kiếm hàm» lọc theo tên hoặc mô tả; khung phải hiện cú pháp (=VLOOKUP(...)) và mô tả tiếng Việt. Nhấp đúp hoặc «Chèn hàm vào ô» chèn =TÊN_HÀM(...) vào ô đang chọn. Hủy bỏ / Esc đóng. Cùng hộp cũng mở bằng Chèn hàm (Shift+F3) hoặc nút fx trên thanh công thức — bài «Công thức và hàm cơ bản»."
+    ]
+  },
+  {
+    id: "sheet.formula.namedRanges",
+    app: "sheet",
+    commandIds: [
+      "sheet.formula.nameManager",
+      "sheet.formula.defineName",
+      "sheet.formula.useInFormula",
+      "sheet.formula.createFromSelection"
+    ],
+    title: "Đặt tên vùng và dùng tên trong công thức",
+    summary: "Đặt tên cho ô/vùng (ví dụ BangLuong) rồi dùng =SUM(BangLuong) thay cho A2:A100. Quản lý tên thêm/sửa/xóa; Tạo từ vùng chọn (Ctrl+Shift+F3) lấy tiêu đề hàng trên làm tên cột.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Tên đã xác định" },
+    keywords: ["quản lý tên", "name manager", "đặt tên vùng", "named range", "ctrl+shift+f3", "dùng trong công thức", "tạo từ vùng chọn"],
+    steps: [
+      "Tab Công thức, nhóm Tên đã xác định: nút lớn Quản lý tên; cột Đặt tên vùng / Dùng trong công thức / Tạo từ vùng chọn (Ctrl+Shift+F3). Quản lý tên không có phím tắt riêng trên ribbon này.",
+      "Đặt tên vùng: hộp «Đặt tên vùng (Define Name)» — Tên (ví dụ BangLuong, DonGia), Phạm vi Workbook (toàn bảng) hoặc Sheet hiện tại, Tham chiếu đến (điền sẵn vùng đang bôi, dạng A1 hoặc A1:B10). Tên chỉ gồm chữ, số, gạch dưới, bắt đầu bằng chữ hoặc _; không được trùng địa chỉ ô kiểu A1; không dấu cách. Tên hoặc vùng không hợp lệ / trùng hiện «Tên không hợp lệ hoặc đã tồn tại.»",
+      "Quản lý tên («Trình quản lý tên»): danh sách tên + vùng + phạm vi. Thêm mới / Sửa / Xóa. Form có Tên, Vùng tham chiếu, Phạm vi (không đổi phạm vi khi sửa). Lưu. Danh sách trống hiện «Chưa có vùng được đặt tên.»",
+      "Dùng trong công thức: nếu chưa có tên nào thì mở luôn Trình quản lý tên. Có tên thì hộp «Dùng tên trong công thức (Paste Name)» — chọn tên rồi chèn vào thanh công thức (ô trống thành =TenVung). Tạo từ vùng chọn: bôi bảng gồm hàng tiêu đề trên; mỗi cột lấy chữ hàng đầu, bỏ ký tự lạ thành _, đặt tên Workbook cho dải dưới tiêu đề (B1 «Don gia» → Don_gia = B2:B10). Cần ít nhất 2 hàng. Dùng tên trong công thức: =SUM(Don_gia). Ctrl+Z hoàn tác lần lưu/xóa."
+    ]
+  },
+  {
+    id: "sheet.formula.auditing",
+    app: "sheet",
+    commandIds: [
+      "sheet.formula.tracePrecedents",
+      "sheet.formula.traceDependents",
+      "sheet.formula.removeArrows",
+      "sheet.formula.showFormulas",
+      "sheet.formula.errorChecking",
+      "sheet.formula.watchWindow",
+      "sheet.view.toggleFormulas"
+    ],
+    title: "Kiểm tra công thức: mũi tên, lỗi và cửa sổ theo dõi",
+    summary: "Vẽ mũi tên tới ô tiền lệ (xanh dương) hoặc ô phụ thuộc (xanh lá), hiện chuỗi công thức thay vì kết quả (Ctrl+`), quét lỗi #DIV/0! / #REF!…, và ghim cửa sổ theo dõi giá trị ô khi cuộn.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Kiểm tra công thức" },
+    keywords: ["trace", "tiền lệ", "phụ thuộc", "precedents", "dependents", "mũi tên", "hiện công thức", "ctrl+`", "kiểm tra lỗi", "watch window", "cửa sổ theo dõi"],
+    steps: [
+      "Chọn ô có công thức. Tab Công thức, nhóm Kiểm tra công thức: cột Tìm ô tiền lệ / Tìm ô phụ thuộc / Xóa mũi tên; cột Hiện công thức / Kiểm tra lỗi; nút lớn Cửa sổ theo dõi.",
+      "Tìm ô tiền lệ phân tích công thức (ô đơn, dải A1:B10, named range) rồi vẽ mũi tên SVG xanh dương (#2563EB) từ ô nguồn tới ô đang chọn, viền nét đứt class precedent. Tìm ô phụ thuộc quét cả sheet, mũi tên xanh lá (#0F6D38) tới các ô công thức đang tham chiếu ô này. Ô không có công thức thì tiền lệ trả danh sách rỗng. Xóa mũi tên gỡ mọi đường và viền.",
+      "Hiện công thức (cùng lệnh với phím Ctrl+` — sheet.view.toggleFormulas, không có nút riêng trên tab Chế độ xem) bật/tắt lớp is-formula-view-mode: ô hiện chuỗi =SUM(...) thay vì kết quả. Nhấn lại để về giá trị.",
+      "Kiểm tra lỗi: hộp «Kiểm tra lỗi công thức (Error Checking)» quét mã #DIV/0! (chia 0/ô trống), #REF!, #VALUE! (sai kiểu), #N/A, #NAME?, #NUM!. Không lỗi thì báo «Không tìm thấy ô nào có giá trị lỗi». Có lỗi: bảng Ô / Mã lỗi / Công thức / Nguyên nhân — nhấp hàng để nhảy tới ô. Cửa sổ theo dõi: khung cố định 440×250 px góc dưới phải, cột Sheet / Ô / Giá trị / Công thức; lần đầu tự thêm ô đang chọn. + Thêm ô theo dõi / − Xóa hàng đang chọn / × ẩn cửa sổ. Giá trị cập nhật khi ô đổi hoặc khi Tính lại."
+    ]
+  },
+  {
+    id: "sheet.formula.calculation",
+    app: "sheet",
+    commandIds: [
+      "sheet.calc.calculationOptions",
+      "sheet.calc.modeAutomatic",
+      "sheet.calc.modeManual",
+      "sheet.calc.calculateSheet",
+      "sheet.formula.recalculate",
+      "sheet.formula.arrayEnter"
+    ],
+    title: "Chế độ tính toán, F9 và công thức mảng",
+    summary: "Mặc định Tự động: sửa ô nguồn là tính lại ngay. Thủ công giữ nguyên kết quả cũ cho tới F9 (toàn workbook) hoặc Shift+F9 (trang hiện tại). Ctrl+Shift+Enter nhập công thức mảng cho vùng đã bôi.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Tính toán" },
+    keywords: ["tính toán", "tự động", "thủ công", "manual", "f9", "shift+f9", "công thức mảng", "ctrl+shift+enter", "array formula", "tính lại"],
+    steps: [
+      "Tab Công thức, nhóm Tính toán: hộp chọn Tự động (Automatic) / Thủ công (Manual), nút Tính lại toàn bộ (F9), Tính trang hiện tại (Shift+F9). Hai lệnh modeAutomatic / modeManual không có nút riêng — chúng là giá trị của hộp Tùy chọn tính toán.",
+      "Tự động (mặc định): mỗi lần setCellValue chạy tính lại phụ thuộc. Thủ công: sửa A1 không đổi ô =A1*2 cho tới khi nhấn F9 (mọi sheet) hoặc Shift+F9 (chỉ sheet đang mở). Chuyển từ Thủ công về Tự động sẽ tính lại toàn bộ ngay.",
+      "Công thức mảng không có nút ribbon: bôi vùng kết quả, gõ công thức bắt đầu bằng = trên thanh công thức, nhấn Ctrl+Shift+Enter. Engine evaluateArray; số phần tử kết quả phải khớp số ô đã bôi — lệch thì lệnh không ghi. Mỗi ô mang cờ isArrayFormula và arrayRange chung.",
+      "F9 / Shift+F9 dùng cả khi đang Tự động (ép tính lại). Ctrl+Z hoàn tác lần nhập mảng. Công thức thường (không mảng) xác nhận bằng Enter."
+    ]
+  },
+  {
+    id: "sheet.edit.pasteSpecialHelp",
+    app: "sheet",
+    commandIds: ["sheet.edit.pasteSpecial"],
+    title: "Dán đặc biệt",
+    summary: "Sau khi Copy, Ctrl+Alt+V (hoặc nút Dán đặc biệt trên nhóm Bảng nhớ tạm) mở hộp chọn: Tất cả, Chỉ giá trị, Chỉ công thức, Chỉ định dạng, hoặc Chuyển vị hàng/cột.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["dán đặc biệt", "paste special", "ctrl+alt+v", "chỉ giá trị", "công thức", "định dạng", "chuyển vị", "transpose"],
+    steps: [
+      "Bôi vùng nguồn, Copy (Ctrl+C) hoặc Cut. Chọn ô đích. Tab Trang đầu, nhóm Bảng nhớ tạm: nút Dán đặc biệt nằm hàng dưới Cut/Copy, cạnh Sao chép định dạng — hoặc Ctrl+Alt+V.",
+      "Hộp «Dán đặc biệt», nhóm Dán: Tất cả (mặc định), Chỉ giá trị (bỏ công thức, giữ số/chữ đã tính), Chỉ công thức, Chỉ định dạng, Chuyển vị (đổi hàng/cột). Enter hoặc nút áp dụng để dán. Esc hủy.",
+      "Chưa Copy thì hộp không mở (cần clipboard nội bộ có cells). Chuyển vị dán hàng thành cột và ngược lại.",
+      "Ctrl+Z hoàn tác lần dán. Dán thường (Ctrl+V) vẫn dán tất cả, không hỏi."
+    ]
+  },
+  {
+    id: "sheet.nav.keyboardSelect",
+    app: "sheet",
+    commandIds: [
+      "sheet.nav.home",
+      "sheet.nav.end",
+      "sheet.cell.edit",
+      "sheet.select.column",
+      "sheet.select.row"
+    ],
+    title: "Phím tắt: về A1, ô cuối, sửa ô, chọn hàng/cột",
+    summary: "Năm lệnh không có nút ribbon: Ctrl+Home về A1, Ctrl+End tới ô cuối có dữ liệu, F2 sửa ô trên thanh công thức, Ctrl+Space chọn cả cột, Shift+Space chọn cả hàng.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Ô" },
+    keywords: ["ctrl+home", "ctrl+end", "f2", "ctrl+space", "shift+space", "chọn cột", "chọn hàng", "sửa ô", "ô a1"],
+    steps: [
+      "Không có năm nút này trên ribbon — chỉ phím tắt (và chuột: nhấp chữ cột / số hàng).",
+      "Ctrl+Home chọn A1 và kéo thanh cuộn về trái. Ctrl+End nhảy tới ô xa nhất vừa có giá trị vừa có công thức trên sheet đang mở (không tính ô trống).",
+      "F2 đưa con trỏ vào thanh công thức, đặt caret cuối chuỗi — sửa công thức/giá trị rồi Enter xác nhận, Esc hủy.",
+      "Ctrl+Space chọn từ hàng 1 tới hàng cuối lưới của cột đang đứng. Shift+Space chọn từ cột A tới cột cuối của hàng đang đứng. Dùng trước Điền xuống / Xóa / định dạng cả hàng."
+    ]
+  },
+  {
+    id: "sheet.view.zoomWindowExtra",
+    app: "sheet",
+    commandIds: ["sheet.view.zoomToSelection", "sheet.view.newWindow"],
+    title: "Thu phóng vừa vùng chọn và cửa sổ mới",
+    summary: "Vừa vùng chọn co/giãn lưới 50%–200% để khối ô đang bôi khớp khung nhìn. Cửa sổ mới mở thêm tab/cửa sổ trình duyệt cùng URL; trình duyệt chặn pop-up thì báo trên thanh trạng thái.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Thu phóng" },
+    keywords: ["vừa vùng chọn", "zoom to selection", "cửa sổ mới", "new window", "pop-up", "thu phóng vùng"],
+    steps: [
+      "Bôi một ô hoặc một khối. Tab Chế độ xem, nhóm Thu phóng, nhấn Thu phóng vùng chọn (cạnh 100%). Tỉ lệ = min(rộng khung, cao khung) so với khối (mỗi cột ~85 px + 40, mỗi hàng ~26 px + 30), kẹp 50%–200%, làm tròn 0.1.",
+      "Cùng tab, nhóm Cửa sổ: Cửa sổ mới (nút lớn, cạnh Cố định hàng/cột) gọi window.open cùng địa chỉ VN Sheet. Nếu trình duyệt chặn: thanh trạng thái «Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho VN Office.»",
+      "Cửa sổ mới là phiên bản độc lập trên tab khác, không nhân bản undo của cửa sổ cũ.",
+      "Phóng to / thu nhỏ / 100% nằm cùng nhóm Thu phóng — bài «Thu phóng bảng tính»."
+    ]
+  },
+  {
+    id: "sheet.review.spellCheck",
+    app: "sheet",
+    commandIds: ["sheet.review.spellCheck"],
+    title: "Kiểm tra chính tả tiếng Việt trên trang tính",
+    summary: "F7 (khi đang ở Sheet) hoặc nút Chính tả quét các ô chữ của sheet hiện tại — bỏ qua số, công thức, ô trống. Hộp thoại Bỏ qua / Thay thế / Thêm vào từ điển, dùng chung từ điển cá nhân với Writer và Slides.",
+    ribbon: { tab: "Xem xét", tabId: "review", group: "Chứng minh" },
+    keywords: ["chính tả", "spell check", "f7", "từ điển", "tiếng việt", "bỏ qua", "thay thế"],
+    steps: [
+      "Tab Xem xét, nhóm Chứng minh, nhấn nút lớn Chính tả — hoặc F7 khi cửa sổ Sheet đang active (F7 không ghi trong command-definitions vì Writer dùng F7 cho Soát lỗi AI).",
+      "Hộp «Chính tả» (460 px) quét ô có chữ cái, không phải công thức (=...), không phải số/boolean, không bắt đầu bằng #. Thứ tự A1. Hiện từ không có trong từ điển, tọa độ ô, nội dung ô, danh sách gợi ý.",
+      "Bỏ qua, Bỏ qua tất cả (phiên hiện tại), Thêm vào từ điển (localStorage chung Writer/Slides: vno-spellcheck-vi-personal), Thay thế, Thay thế tất cả, Đóng. Esc đóng. Thay thế đi qua setCellValue nên Ctrl+Z hoàn tác.",
+      "Không gạch chân realtime từng ô (khác Writer). Hết lỗi: «Đã kiểm tra xong toàn bộ trang tính. Không tìm thấy lỗi chính tả.» Chỉ quét sheet đang mở."
+    ]
+  },
+  {
+    id: "sheet.review.commentInsert",
+    app: "sheet",
+    commandIds: ["sheet.review.commentInsert"],
+    title: "Thêm hoặc sửa ghi chú ô",
+    summary: "Gắn ghi chú (tối đa 2000 ký tự) vào ô đang chọn. Ô đã có ghi chú thì hộp mở ở chế độ sửa, có nút Xóa. Chuột phải ô → Thêm ghi chú (Shift+F2).",
+    ribbon: { tab: "Xem xét", tabId: "review", group: "Ghi chú" },
+    keywords: ["ghi chú", "nhận xét", "comment", "shift+f2", "ghi chú ô", "tác giả"],
+    steps: [
+      "Chọn ô. Tab Xem xét, nhóm Ghi chú, nhấn nút lớn Ghi chú mới — cùng lệnh cũng có trên tab Chèn, nhóm Ghi chú. Chuột phải ô → Thêm ghi chú (Shift+F2).",
+      "Ô trống: hộp «Ghi chú mới A1» — Nội dung ghi chú (bắt buộc, tối đa 2000 ký tự), Tác giả (mặc định «Người dùng VN Office», tối đa 100). Thêm ghi chú. Để trống nội dung bị báo «Nội dung ghi chú không được để trống.»",
+      "Ô đã có ghi chú: hộp «Sửa ghi chú A1», nút Lưu thay đổi và Xóa ghi chú. Ô có ghi chú hiện dấu góc; Đã xử lý đổi dấu xám — bài «Duyệt và xử lý nhận xét ô».",
+      "Ctrl+Z hoàn tác thêm/sửa/xóa. Ghi chú theo từng sheet, lưu trong file."
+    ]
+  },
+  {
+    id: "sheet.page.printAreaBreaks",
+    app: "sheet",
+    commandIds: [
+      "sheet.page.setPrintArea",
+      "sheet.page.clearPrintArea",
+      "sheet.page.insertPageBreak",
+      "sheet.page.removePageBreak"
+    ],
+    title: "Vùng in và ngắt trang",
+    summary: "Đặt khối đang bôi làm vùng in (chỉ phần đó ra giấy/PDF); xóa vùng in để in theo dữ liệu. Chèn ngắt trang ghi cả ngắt hàng và ngắt cột tại ô đang chọn — thấy rõ ở Xem ngắt trang.",
+    ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Vùng in" },
+    keywords: ["vùng in", "print area", "ngắt trang", "page break", "xóa vùng in", "in excel"],
+    steps: [
+      "Bôi vùng cần in. Tab Bố trí trang, nhóm Vùng in: Đặt vùng in (nút lớn) ghi nhãn vùng (ví dụ A1:G40) theo sheet; Xóa vùng in gỡ vùng (không làm gì nếu chưa đặt).",
+      "Nhóm Ngắt trang cạnh đó: Chèn ngắt trang (nút lớn) thêm ngắt tại hàng và cột của ô đang chọn (ví dụ đứng C15 → ngắt trước hàng 15 và trước cột C). Xóa ngắt trang gỡ đúng cặp hàng/cột đó. Trùng ngắt đã có thì lệnh không thêm lần nữa.",
+      "Xem đường chia: tab Chế độ xem → Xem ngắt trang (đường xanh, vùng ngoài khổ in tối). Ctrl+Z hoàn tác lần đặt vùng / chèn ngắt.",
+      "Lề, hướng, khổ giấy, tỷ lệ vừa trang: nhóm Thiết lập trang — bài «Thiết lập trang in nâng cao»."
+    ]
+  },
+  {
+    id: "sheet.insert.sparklines",
+    app: "sheet",
+    commandIds: ["sheet.insert.sparklineLine", "sheet.insert.sparklineColumn"],
+    title: "Biểu đồ thu nhỏ trong ô (sparkline)",
+    summary: "Bôi dải số rồi chèn sparkline Đường hoặc Cột vào ô đang active. Mini-chart nằm trong ô, lấy các giá trị số của vùng nguồn; vùng không có số thì không chèn.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Biểu đồ thu nhỏ" },
+    keywords: ["sparkline", "biểu đồ thu nhỏ", "biểu đồ mini", "đường", "cột", "xu hướng"],
+    steps: [
+      "Bôi dải số (một hàng hoặc một cột, ví dụ B2:G2). Ô active (ô neo, thường là góc) là nơi vẽ sparkline — muốn sparkline ở H2 thì bôi B2:G2 rồi Shift-nhấp H2, hoặc chọn H2 sau khi copy vùng nguồn. Tab Chèn, nhóm Biểu đồ thu nhỏ: nút lớn Đường hoặc Cột.",
+      "Đường vẽ sparkline type line; Cột type column. Chỉ lấy ô có số hữu hạn (bỏ ₫, %, khoảng trắng). Không có số → không chèn.",
+      "Sparkline gắn vào ô neo, không phải đối tượng nổi. Khác Biểu đồ lớn ở nhóm Biểu đồ cùng tab Chèn.",
+      "Ctrl+Z gỡ sparkline vừa chèn. Xóa nội dung ô cũng mất sparkline nếu dùng Xóa tất cả."
+    ]
+  },
+  {
+    id: "sheet.style.tableAndCells",
+    app: "sheet",
+    commandIds: ["sheet.style.formatAsTable", "sheet.style.cellStyles"],
+    title: "Định dạng bảng và kiểu ô",
+    summary: "Định dạng bảng tô hàng tiêu đề đậm + hàng xen kẽ (5 mẫu màu). Kiểu ô áp một preset lên vùng chọn: Tốt/Kém/Trung tính, Tiêu đề 1/2, Ô nhập liệu, Tiền tệ ₫, Tổng cộng, Điểm nhấn.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu ô" },
+    keywords: ["định dạng bảng", "format as table", "kiểu ô", "cell styles", "tốt", "kém", "banded rows", "tiền tệ"],
+    steps: [
+      "Bôi vùng. Tab Trang đầu, nhóm Kiểu ô: Định dạng có điều kiện (nút lớn, bài riêng) rồi cột Định dạng bảng / Kiểu ô.",
+      "Định dạng bảng — hộp «Định dạng theo bảng (Format as Table)» (650 px) hiện «Vùng áp dụng bảng: A1:D10» (nhãn vùng đang bôi) và 5 mẫu: Bảng Xanh Lam (#2563eb), Xanh Lá (#16a34a), Xám Đậm (#334155), Cam Ấm (#ea580c), Tím Hiện Đại (#7c3aed). Hàng đầu chữ trắng nền màu; hàng chẵn/lẻ xen kẽ. Nhấp mẫu để áp ngay. Esc / × đóng.",
+      "Kiểu ô — hộp «Thư viện kiểu ô (Cell Styles)» (720 px), lưới 2 cột: Bình thường (xóa màu, chữ #0f172a 13px), Tốt (nền #c6efce chữ #006100), Kém / Xấu (#ffc7ce / #9c0006), Trung tính (#ffeb9c / #9c6500), Tiêu đề 1 (16px đậm #1e3a8a, gạch dưới 2px), Tiêu đề 2 (14px, gạch 1px), Ô nhập liệu (nền #fff2cc), Tiền tệ (căn phải, ký hiệu ₫ sau số, 0 thập phân), Tổng cộng (viền trên đơn, dưới đôi), Điểm nhấn (nền #dbeafe). Nhấp thẻ áp ngay cho vùng chọn.",
+      "Đây là tô kiểu, không tạo đối tượng Table Excel (không auto-filter riêng). Ctrl+Z hoàn tác. Xóa định dạng (menu Xóa) gỡ màu/kiểu, giữ số."
+    ]
+  },
+  {
+    id: "sheet.edit.fillAndClear",
+    app: "sheet",
+    commandIds: [
+      "sheet.edit.fillDown",
+      "sheet.edit.fillRight",
+      "sheet.edit.clearAll",
+      "sheet.edit.clearFormats",
+      "sheet.edit.clearContents"
+    ],
+    title: "Điền xuống/phải và xóa nội dung hay định dạng",
+    summary: "Ctrl+D sao chép ô trên xuống (công thức tự lệch hàng); Ctrl+R sao chép sang phải (lệch cột). Menu Xóa: Tất cả, chỉ định dạng, hoặc chỉ nội dung (giữ kiểu).",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["điền xuống", "điền phải", "ctrl+d", "ctrl+r", "xóa tất cả", "xóa định dạng", "xóa nội dung", "fill down", "clear"],
+    steps: [
+      "Tab Trang đầu, nhóm Chỉnh sửa: menu Điền (nút lớn) gồm Điền xuống (Ctrl+D) và Điền phải (Ctrl+R); menu Xóa gồm Xóa tất cả / Xóa định dạng / Xóa nội dung. Chuột phải ô cũng có Xóa nội dung (Delete).",
+      "Điền xuống: bôi từ ô nguồn xuống các ô đích — ô đầu là nguồn, các ô dưới nhận bản sao; công thức =A1 thành =A2, =A3… (lệch hàng). Nếu chỉ chọn 1 hàng, nguồn là hàng ngay phía trên (hàng 1 thì không điền được). Điền phải tương tự theo cột; chọn 1 cột thì lấy cột bên trái.",
+      "Xóa tất cả: xóa giá trị, công thức và style. Xóa định dạng: giữ số/công thức, bỏ màu/viền/cỡ chữ. Xóa nội dung: xóa chữ và công thức, giữ style. Sheet đang bảo vệ thì Xóa tất cả / Xóa nội dung / Điền bị chặn.",
+      "Ctrl+Z hoàn tác cả khối điền hoặc xóa. Delete mặc định gần với xóa nội dung, không xóa định dạng."
+    ]
   }
 ];
 

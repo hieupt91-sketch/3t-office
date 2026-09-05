@@ -153,6 +153,65 @@ export async function runWriterHelpTests() {
     }
   });
 
+  await test("Help Writer Batch 2: có bài kiểu, bố cục trang, chú thích và chèn nâng cao", () => {
+    const ids = WRITER_HELP_ENTRIES.map((entry) => entry.id);
+    const required = [
+      "writer.view.showAndWindow",
+      "writer.nav.documentBounds",
+      "writer.style.galleryAndNormal",
+      "writer.design.themes",
+      "writer.text.changeCaseHelp",
+      "writer.para.advanced",
+      "writer.insert.illustrationsExtra",
+      "writer.format.dropCapHelp",
+      "writer.insert.equationBookmark",
+      "writer.comment.insertHelp",
+      "writer.page.setup",
+      "writer.page.columnsHelp",
+      "writer.page.watermarkBorder",
+      "writer.file.printPreviewHelp",
+      "writer.reference.notes"
+    ];
+    for (const id of required) {
+      if (!ids.includes(id)) throw new Error(`Thiếu bài hướng dẫn ${id}`);
+    }
+    const byId = Object.fromEntries(WRITER_HELP_ENTRIES.map((entry) => [entry.id, entry]));
+    const expectCmds = {
+      "writer.view.showAndWindow": ["writer.view.ruler", "writer.view.pageWidth", "writer.view.newWindow"],
+      "writer.nav.documentBounds": ["writer.nav.docStart", "writer.nav.docEnd"],
+      "writer.style.galleryAndNormal": ["writer.style.gallery", "writer.style.normal", "writer.style.apply"],
+      "writer.design.themes": ["writer.design.themeGallery"],
+      "writer.text.changeCaseHelp": ["writer.text.changeCase"],
+      "writer.para.advanced": ["writer.para.sort", "writer.para.shading", "writer.para.moveUp"],
+      "writer.insert.illustrationsExtra": ["writer.shape.insert", "writer.diagram.insert", "writer.chart.insert"],
+      "writer.format.dropCapHelp": ["writer.format.dropCap"],
+      "writer.insert.equationBookmark": ["writer.insert.equation", "writer.insert.bookmark", "writer.insert.crossReference"],
+      "writer.comment.insertHelp": ["writer.comment.insert"],
+      "writer.page.setup": ["writer.page.margins", "writer.page.orientation", "writer.page.size"],
+      "writer.page.columnsHelp": ["writer.page.columns", "writer.page.columns2", "writer.page.columns3"],
+      "writer.page.watermarkBorder": ["writer.page.watermark", "writer.page.border"],
+      "writer.file.printPreviewHelp": ["writer.file.printPreview"],
+      "writer.reference.notes": ["writer.reference.footnoteInsert", "writer.reference.endnoteInsert"]
+    };
+    for (const [id, cmds] of Object.entries(expectCmds)) {
+      const entry = byId[id];
+      for (const cmd of cmds) {
+        if (!(entry.commandIds || []).includes(cmd)) {
+          throw new Error(`${id} thiếu commandId ${cmd}`);
+        }
+      }
+    }
+    if (byId["writer.page.setup"].ribbon.tab !== "Bố cục") {
+      throw new Error("Bài thiết lập trang phải ở tab Bố cục");
+    }
+    if (byId["writer.page.columnsHelp"].ribbon.group !== "Thiết lập trang") {
+      throw new Error("Bài chia cột phải trỏ nhóm Thiết lập trang");
+    }
+    if (byId["writer.reference.notes"].ribbon.tab !== "Tham chiếu") {
+      throw new Error("Bài chú thích phải ở tab Tham chiếu");
+    }
+  });
+
   await test("Help: registerHelpEntries cho phép app khác bổ sung sau này", () => {
     const before = HELP_ENTRIES.length;
     registerHelpEntries([{
