@@ -3815,11 +3815,14 @@ export class SlidesCanvasController {
       this.moveSlide(action.toIndex, action.fromIndex, false, action.oldSectionId);
       this.redoStack.push(action);
       return true;
-    } else if (action.type === "comment-add" || action.type === "comment-delete") {
+    } else if (action.type === "comment-add" || action.type === "comment-delete" || action.type === "comment-resolve") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
       slide.comments ||= [];
-      if (action.type === "comment-add") {
+      if (action.type === "comment-resolve") {
+        const comment = slide.comments.find(item => item.id === action.commentId);
+        if (comment) comment.resolved = action.before;
+      } else if (action.type === "comment-add") {
         const idx = slide.comments.findIndex(comment => comment.id === action.comment.id);
         if (idx >= 0) slide.comments.splice(idx, 1);
       } else {
@@ -4045,11 +4048,14 @@ export class SlidesCanvasController {
       this.moveSlide(action.fromIndex, action.toIndex, false, action.newSectionId);
       this.undoStack.push(action);
       return true;
-    } else if (action.type === "comment-add" || action.type === "comment-delete") {
+    } else if (action.type === "comment-add" || action.type === "comment-delete" || action.type === "comment-resolve") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
       slide.comments ||= [];
-      if (action.type === "comment-add") {
+      if (action.type === "comment-resolve") {
+        const comment = slide.comments.find(item => item.id === action.commentId);
+        if (comment) comment.resolved = action.after;
+      } else if (action.type === "comment-add") {
         slide.comments.splice(Math.min(action.commentIndex, slide.comments.length), 0, { ...action.comment });
       } else {
         const idx = slide.comments.findIndex(comment => comment.id === action.comment.id);
@@ -4330,6 +4336,54 @@ export class SlidesCanvasController {
     return true;
   }
 
+  _listComments() {
+    return this.slides.flatMap((slide, slideIndex) => (slide.comments || []).map(comment => ({ slideIndex, comment })));
+  }
+
+  focusComment(entry) {
+    if (!entry) return false;
+    this.selectSlide(entry.slideIndex);
+    this.activeCommentId = entry.comment.id;
+    this.openCommentsPanel(false);
+    this._renderCommentsUi();
+    this.commentPanelEl?.querySelector?.(`[data-comment-id="${entry.comment.id}"]`)?.scrollIntoView?.({ block: "nearest" });
+    return entry.comment;
+  }
+
+  nextComment() {
+    const comments = this._listComments();
+    if (!comments.length) return false;
+    const index = comments.findIndex(entry => entry.comment.id === this.activeCommentId);
+    return this.focusComment(comments[(index + 1) % comments.length]);
+  }
+
+  previousComment() {
+    const comments = this._listComments();
+    if (!comments.length) return false;
+    const index = comments.findIndex(entry => entry.comment.id === this.activeCommentId);
+    return this.focusComment(comments[index <= 0 ? comments.length - 1 : index - 1]);
+  }
+
+  deleteActiveComment() {
+    const entry = this._listComments().find(item => item.comment.id === this.activeCommentId) || this._listComments()[0];
+    if (!entry) return false;
+    if (entry.slideIndex !== this.currentSlideIndex) this.selectSlide(entry.slideIndex);
+    return this.deleteComment(entry.comment.id);
+  }
+
+  toggleActiveCommentResolved() {
+    const entry = this._listComments().find(item => item.comment.id === this.activeCommentId) || this._listComments()[0];
+    if (!entry) return false;
+    const before = !!entry.comment.resolved;
+    entry.comment.resolved = !before;
+    this.activeCommentId = entry.comment.id;
+    this.undoStack.push({ type: "comment-resolve", slideIndex: entry.slideIndex, commentId: entry.comment.id, before, after: !before });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this.focusComment(entry);
+    return entry.comment.resolved;
+  }
+
   _renderCommentsUi() {
     const comments = this.slides[this.currentSlideIndex]?.comments || [];
     if (this.commentButtonEl) {
@@ -4348,7 +4402,10 @@ export class SlidesCanvasController {
       }
       comments.forEach(comment => {
         const item = document.createElement("article");
-        item.className = "vno-slide-comment-item";
+        item.className = `vno-slide-comment-item${comment.id === this.activeCommentId ? " is-active" : ""}${comment.resolved ? " is-resolved" : ""}`;
+        item.dataset.commentId = comment.id;
+        item.tabIndex = 0;
+        item.addEventListener("click", () => { this.activeCommentId = comment.id; this._renderCommentsUi(); });
         const meta = document.createElement("div");
         meta.className = "vno-slide-comment-meta";
         const identity = document.createElement("span");

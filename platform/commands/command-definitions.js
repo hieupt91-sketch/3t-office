@@ -315,6 +315,10 @@ export const SHEET_COMMANDS = [
 
 export const SLIDES_COMMANDS = [
   { id: "slides.review.commentInsert", category: "review", label: "Nhận xét mới", icon: "comment", tooltip: "Thêm nhận xét cho trang chiếu hiện tại" },
+  { id: "slides.review.commentPrevious", category: "review", label: "Nhận xét trước", icon: "commentPrevious", tooltip: "Nhảy tới nhận xét trước đó" },
+  { id: "slides.review.commentNext", category: "review", label: "Nhận xét sau", icon: "commentNext", tooltip: "Nhảy tới nhận xét tiếp theo" },
+  { id: "slides.review.commentDelete", category: "review", label: "Xóa nhận xét", icon: "commentDelete", tooltip: "Xóa nhận xét đang chọn" },
+  { id: "slides.review.commentResolve", category: "review", label: "Đã xử lý", icon: "commentResolve", tooltip: "Đánh dấu hoặc mở lại nhận xét đang chọn" },
   { id: "slides.review.spellCheck", category: "review", label: "Chính tả", icon: "slidesSpellCheck", tooltip: "Kiểm tra chính tả tiếng Việt trên trang chiếu hiện tại (F7)" },
   { id: "slides.edit.formatPainter", category: "edit", label: "Sao chép định dạng", icon: "formatPainter", tooltip: "Sao chép định dạng chữ hoặc hình đang chọn sang đối tượng khác. Nhấp đúp để khóa và áp dụng nhiều lần. Esc để hủy.", isToggle: true },
   // Quản lý Trang chiếu

@@ -184,7 +184,11 @@ export const SLIDES_RIBBON_TABS = [
         label: "Nhận xét",
         labelKey: "slidesRibbon.group.comments",
         items: [
-          { type: "button", commandId: "slides.review.commentInsert", isLarge: true }
+          { type: "button", commandId: "slides.review.commentInsert", isLarge: true },
+          { type: "button", commandId: "slides.review.commentPrevious" },
+          { type: "button", commandId: "slides.review.commentNext" },
+          { type: "button", commandId: "slides.review.commentDelete" },
+          { type: "button", commandId: "slides.review.commentResolve" }
         ]
       },
       {
@@ -324,7 +328,13 @@ export const SLIDES_RIBBON_TABS = [
       {
         label: "Nhận xét",
         labelKey: "slidesRibbon.group.comments",
-        items: [{ type: "button", commandId: "slides.review.commentInsert", isLarge: true }]
+        items: [
+          { type: "button", commandId: "slides.review.commentInsert", isLarge: true },
+          { type: "button", commandId: "slides.review.commentPrevious" },
+          { type: "button", commandId: "slides.review.commentNext" },
+          { type: "button", commandId: "slides.review.commentDelete" },
+          { type: "button", commandId: "slides.review.commentResolve" }
+        ]
       }
     ]
   },
