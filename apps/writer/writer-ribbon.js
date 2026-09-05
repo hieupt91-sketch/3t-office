@@ -231,7 +231,11 @@ export const WRITER_RIBBON_TABS = [
         label: "Ghi chú",
         labelKey: "writerRibbon.group.comments",
         items: [
-          { type: "button", commandId: "writer.comment.insert", isLarge: true }
+          { type: "button", commandId: "writer.comment.insert", isLarge: true },
+          { type: "button", commandId: "writer.review.commentPrevious" },
+          { type: "button", commandId: "writer.review.commentNext" },
+          { type: "button", commandId: "writer.review.commentDelete" },
+          { type: "button", commandId: "writer.review.commentResolve" }
         ]
       },
       {
@@ -444,7 +448,11 @@ export const WRITER_RIBBON_TABS = [
         label: "Ghi chú",
         labelKey: "writerRibbon.group.comments",
         items: [
-          { type: "button", commandId: "writer.comment.insert", isLarge: true }
+          { type: "button", commandId: "writer.comment.insert", isLarge: true },
+          { type: "button", commandId: "writer.review.commentPrevious" },
+          { type: "button", commandId: "writer.review.commentNext" },
+          { type: "button", commandId: "writer.review.commentDelete" },
+          { type: "button", commandId: "writer.review.commentResolve" }
         ]
       },
       {
