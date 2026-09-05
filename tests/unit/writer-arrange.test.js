@@ -29,8 +29,8 @@ function fixture(images = [image()]) {
 export async function runWriterArrangeTests() {
   const results = [];
   const test = (name, fn) => {
-    try { fn(); results.push({ name, passed: true }); }
-    catch (error) { results.push({ name, passed: false, error: error.message }); }
+    try { fn(); results.push({ name, pass: true }); }
+    catch (error) { results.push({ name, pass: false, error: error.message }); }
   };
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
 
