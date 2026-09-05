@@ -915,6 +915,88 @@ export class SheetAdapter {
     delete workbook.validationHits;
   }
 
+  _mapDataPilotFunction(fn) {
+    const raw = String(fn || "sum").trim().toLowerCase();
+    if (raw === "count" || raw === "countnums") return "COUNT";
+    if (raw === "average") return "AVERAGE";
+    if (raw === "min") return "MIN";
+    if (raw === "max") return "MAX";
+    if (raw === "sum" || raw === "auto" || raw === "") return "SUM";
+    return null;
+  }
+
+  _a1FromOdfRange(parsed) {
+    if (!parsed?.range) return "";
+    const start = `${parsed.range.start.c}${parsed.range.start.r}`;
+    const end = `${parsed.range.end.c}${parsed.range.end.r}`;
+    return start === end ? start : `${start}:${end}`;
+  }
+
+  /**
+   * Map ODF DataPilot (LibreOffice Calc / Excel Pivot Table after soffice XLSX→FODS)
+   * onto the existing VN Sheet pivotTablesBySheet object:
+   * { id, name, sourceSheet, sourceRange, rows, columns, values[{field,aggregate}], targetSheet }.
+   *
+   * Only cell-range DataPilots with a value field using SUM/COUNT/AVERAGE/MIN/MAX.
+   * Page/hidden/data-layout fields are skipped. Same-sheet output is skipped because
+   * refreshPivotTable() replaces the whole target sheet and would wipe the source.
+   */
+  _attachImportedPivots(workbook, xmlText) {
+    workbook.pivotTablesBySheet = Object.fromEntries((workbook.sheets || []).map(name => [name, []]));
+    let index = 0;
+    String(xmlText || "").replace(/<table:data-pilot-table\b([^>]*)>([\s\S]*?)<\/table:data-pilot-table>/gi, (_, attrs, body) => {
+      const name = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      const target = this._parseOdfTargetRange(
+        attrs.match(/table:target-range-address=["']([^"']*)["']/i)?.[1] || "",
+        workbook.sheets[0]
+      );
+      const sourceMatch = body.match(/<table:source-cell-range\b([^>]*)\/?\s*>/i);
+      const source = this._parseOdfTargetRange(
+        sourceMatch?.[1]?.match(/table:cell-range-address=["']([^"']*)["']/i)?.[1] || "",
+        workbook.sheets[0]
+      );
+      if (!source?.sheet || !source.range) return "";
+      const sourceRange = this._a1FromOdfRange(source);
+      if (!sourceRange.includes(":")) return "";
+
+      const rows = [];
+      const columns = [];
+      const values = [];
+      body.replace(/<table:data-pilot-field\b([^>]*)(?:\/>|>([\s\S]*?)<\/table:data-pilot-field>)/gi, (all, fieldAttrs) => {
+        if (/table:is-data-layout-field=["']true["']/i.test(fieldAttrs)) return "";
+        const fieldName = this._unescapeXml(fieldAttrs.match(/table:source-field-name=["']([^"']*)["']/i)?.[1] || "").trim();
+        const orientation = (fieldAttrs.match(/table:orientation=["']([^"']*)["']/i)?.[1] || "").trim().toLowerCase();
+        if (!fieldName || orientation === "hidden" || orientation === "page") return "";
+        if (orientation === "row") rows.push(fieldName);
+        else if (orientation === "column") columns.push(fieldName);
+        else if (orientation === "data") {
+          const aggregate = this._mapDataPilotFunction(fieldAttrs.match(/table:function=["']([^"']*)["']/i)?.[1] || "sum");
+          if (aggregate) values.push({ field: fieldName, aggregate });
+        }
+        return "";
+      });
+      if (!values.length) return "";
+
+      const targetSheet = target?.sheet || source.sheet;
+      if (!workbook.sheets.includes(source.sheet) || !workbook.sheets.includes(targetSheet)) return "";
+      if (targetSheet === source.sheet) return "";
+
+      if (!workbook.pivotTablesBySheet[targetSheet]) workbook.pivotTablesBySheet[targetSheet] = [];
+      workbook.pivotTablesBySheet[targetSheet].push({
+        id: `pivot-import-${++index}`,
+        name: name || `pivot-import-${index}`,
+        sourceSheet: source.sheet,
+        sourceRange,
+        rows,
+        columns,
+        values,
+        targetSheet,
+        imported: true
+      });
+      return "";
+    });
+  }
+
   /** Parse FODS into every worksheet, including repeated rows/cells emitted by LibreOffice. */
   parseFods(xmlText) {
     const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, validationHits: [] };
@@ -1093,6 +1175,7 @@ export class SheetAdapter {
     }
     if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
     this._attachImportedRules(workbook, xmlText);
+    this._attachImportedPivots(workbook, xmlText);
     return workbook;
   }
 
@@ -1120,9 +1203,11 @@ export class SheetAdapter {
     else this.grid.activeSheet = workbook.activeSheet;
     this.grid.conditionalFormattingBySheet = {};
     this.grid.dataValidationsBySheet = {};
+    this.grid.pivotTablesBySheet = {};
     for (const sheetName of workbook.sheets) {
       this.grid.conditionalFormattingBySheet[sheetName] = workbook.conditionalFormattingBySheet?.[sheetName] || [];
       this.grid.dataValidationsBySheet[sheetName] = workbook.dataValidationsBySheet?.[sheetName] || [];
+      this.grid.pivotTablesBySheet[sheetName] = workbook.pivotTablesBySheet?.[sheetName] || [];
     }
     this.grid.undoStack = [];
     this.grid.redoStack = [];
