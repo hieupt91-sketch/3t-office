@@ -153,6 +153,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 
 ### Tier 3
 - [x] Morph-style transition — F5 match shape đơn giản theo cùng `id` + cùng loại, dùng CSS FLIP transform để di chuyển/resize và đổi màu mượt; không có match rõ ràng thì crossfade an toàn. Đây không phải thuật toán matching đầy đủ của PowerPoint. FODP VN lưu `vno:transition="morph"` kèm SMIL Fade fallback; LibreOffice 26.2.1 loại metadata custom và không đọc/ghi `p159:morph` qua PPTX, đã đo thật. Xem `docs/HANDOFF-SLIDES-MORPH-TRANSITION.md`.
+- [x] WordArt (chữ nghệ thuật) — lệnh `slides.insert.wordart` trên tab **Chèn** mở dialog 8 mẫu (viền màu + đổ bóng, gradient, outline đậm). Shape `type=wordart` render CSS thật (`text-shadow`, `-webkit-text-stroke`, `background-clip:text`) trên canvas, F5 và Slide Sorter; chọn/kéo/sửa chữ/xóa/Undo-Redo tái dùng shape thường. FODP VN ghi `draw:frame`/`draw:text-box` + `vno:wordart-*`; LibreOffice rewrite/PPTX giữ chữ thường, mất CSS effect (đo thật). Xem `docs/HANDOFF-SLIDES-WORDART.md`.
 - [ ] Co-authoring
 
 ---
