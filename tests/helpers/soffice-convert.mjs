@@ -70,3 +70,33 @@ export function convertWithSoffice(sourcePath, targetExt, outDir, { profileDir, 
   }
   return outPath;
 }
+
+/**
+ * LibreOffice HTML (StarWriter) writes images as sidecar files next to the
+ * .html. main.py currently returns only the HTML string and then deletes the
+ * temp directory, so production File→Mở loses those bytes. Live tests inline
+ * the sidecar (or a file:// path) as a data URI so the adapter/UI is checked
+ * against the image that soffice actually exported.
+ */
+export function inlineHtmlImages(html, htmlPath) {
+  const dir = path.dirname(htmlPath);
+  return String(html || "").replace(/<img\b([^>]*?)(\s*\/?)>/gi, (all, attrs) => {
+    const srcMatch = attrs.match(/\bsrc=["']([^"']+)["']/i);
+    if (!srcMatch) return all;
+    const src = srcMatch[1];
+    if (/^data:/i.test(src)) return `<img${attrs}>`;
+    const decoded = src.replace(/&amp;/g, "&");
+    const candidates = [
+      path.join(dir, decoded),
+      decoded.replace(/^\/([A-Za-z]:)/, "$1"),
+      decoded.replace(/^file:\/\/\//i, "")
+    ];
+    const filePath = candidates.find(candidate => candidate && fs.existsSync(candidate) && fs.statSync(candidate).isFile());
+    if (!filePath) return `<img${attrs}>`;
+    const ext = path.extname(filePath).toLowerCase();
+    const mime = ext === ".jpg" || ext === ".jpeg" ? "image/jpeg" : ext === ".gif" ? "image/gif" : "image/png";
+    const dataUri = `data:${mime};base64,${fs.readFileSync(filePath).toString("base64")}`;
+    const nextAttrs = attrs.replace(/\bsrc=["'][^"']*["']/i, `src="${dataUri}"`);
+    return `<img${nextAttrs}>`;
+  });
+}
