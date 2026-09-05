@@ -80,6 +80,7 @@ import { runWriterHeaderFooterImportTests } from "./unit/writer-headerfooter-imp
 import { runWriterFootnotesImportTests } from "./unit/writer-footnotes-import.test.js";
 import { runSlidesDiagramGroupSelectTests } from "./unit/slides-diagram-group-select.test.js";
 import { runSlidesSpeakernotesImportTests } from "./unit/slides-speakernotes-import.test.js";
+import { runSheetChartsImportTests } from "./unit/sheet-charts-import.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -167,7 +168,8 @@ async function runAll() {
     { title: "72. Unit Tests — Writer Header/Footer Import Fidelity (real DOCX → StarWriter HTML)", runner: runWriterHeaderFooterImportTests },
     { title: "73. Behavioral Tests — VN Slides Diagram Group Select / Move / Delete", runner: runSlidesDiagramGroupSelectTests },
     { title: "74. Unit Tests — Writer Footnotes/Endnotes Import Fidelity (real DOCX → StarWriter HTML)", runner: runWriterFootnotesImportTests },
-    { title: "75. Unit Tests — Slides Speaker Notes Import Fidelity (real PPTX notesSlides → FODP)", runner: runSlidesSpeakernotesImportTests }
+    { title: "75. Unit Tests — Slides Speaker Notes Import Fidelity (real PPTX notesSlides → FODP)", runner: runSlidesSpeakernotesImportTests },
+    { title: "76. Unit Tests — Sheet Charts Import Fidelity (real XLSX DrawingML chart → FODS)", runner: runSheetChartsImportTests }
   ];
 
   for (const suite of suites) {
