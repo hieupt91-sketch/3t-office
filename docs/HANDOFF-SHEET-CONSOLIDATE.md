@@ -105,4 +105,4 @@ Commits:
 
 - `4c854d6` feat(sheet): add Consolidate dialog on Data tab to merge ranges across sheets
 - `ff586ea` test(sheet): cover Consolidate SUM/AVERAGE/MAX, Undo/Redo, labels, and live UI
-- (commit handoff này)
+- `a6e5228` docs(sheet): handoff for Consolidate (Hợp nhất dữ liệu)
