@@ -219,11 +219,43 @@ export const SLIDES_RIBBON_TABS = [
     labelKey: "slidesRibbon.tab.view",
     groups: [
       {
+        id: "presentationViews",
         label: "Dạng xem bản trình chiếu",
         labelKey: "slidesRibbon.group.presentationViews",
         items: [
+          { type: "button", commandId: "slides.view.normal", isLarge: true },
           { type: "button", commandId: "slides.view.slideSorter", isLarge: true },
-          { type: "button", commandId: "slides.notes.toggle", isLarge: true }
+          { type: "button", commandId: "slides.notes.toggle", isLarge: true },
+          { type: "button", commandId: "slides.view.reading", isLarge: true }
+        ]
+      },
+      {
+        id: "show",
+        label: "Hiển thị",
+        labelKey: "slidesRibbon.group.show",
+        items: [
+          { type: "button", commandId: "slides.view.ruler", isLarge: true },
+          { type: "button", commandId: "slides.view.gridlines", isLarge: true },
+          { type: "button", commandId: "slides.view.guides", isLarge: true }
+        ]
+      },
+      {
+        id: "zoom",
+        label: "Thu phóng",
+        labelKey: "slidesRibbon.group.zoom",
+        items: [
+          { type: "button", commandId: "slides.view.zoomIn", isLarge: true },
+          { type: "button", commandId: "slides.view.zoomOut" },
+          { type: "button", commandId: "slides.view.zoomReset" },
+          { type: "button", commandId: "slides.view.fitToWindow" }
+        ]
+      },
+      {
+        id: "window",
+        label: "Cửa sổ",
+        labelKey: "slidesRibbon.group.window",
+        items: [
+          { type: "button", commandId: "slides.view.newWindow", isLarge: true }
         ]
       }
     ]

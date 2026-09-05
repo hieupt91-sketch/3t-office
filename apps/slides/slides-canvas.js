@@ -264,6 +264,25 @@ export class SlidesCanvasController {
       type: "fade", // "fade" | "slide" | "zoom" | "flip"
       duration: 500 // ms
     };
+
+    // View Tab State (Chế độ xem, Thước kẻ, Lưới, Đường gióng, Thu phóng)
+    this.presentationView = "normal"; // "normal" | "slideSorter" | "reading"
+    this.isReadingView = false;
+    this.readingOverlay = null;
+    this._readingKeyHandler = null;
+    this.zoomLevel = 1.0;
+    this.rulerVisible = false;
+    this.gridlinesVisible = false;
+    this.guidesVisible = false;
+    this.guideCoords = { x: 480, y: 270 };
+    this.stageEl = null;
+    this.workspaceEl = null;
+    this.canvasViewport = null;
+    this.rulerCornerEl = null;
+    this.rulerHEl = null;
+    this.rulerVEl = null;
+    this.gridlinesLayer = null;
+    this.guidesLayer = null;
   }
 
   mount() {
@@ -291,6 +310,25 @@ export class SlidesCanvasController {
     // 2. Stage & Canvas
     const stage = document.createElement("div");
     stage.className = "vno-slide-stage";
+    this.stageEl = stage;
+
+    this.workspaceEl = document.createElement("div");
+    this.workspaceEl.className = "vno-slide-workspace";
+
+    this.rulerCornerEl = document.createElement("div");
+    this.rulerCornerEl.className = "vno-slide-ruler-corner";
+    this.rulerCornerEl.style.display = "none";
+
+    this.rulerHEl = document.createElement("div");
+    this.rulerHEl.className = "vno-slide-ruler-h";
+    this.rulerHEl.style.display = "none";
+
+    this.rulerVEl = document.createElement("div");
+    this.rulerVEl.className = "vno-slide-ruler-v";
+    this.rulerVEl.style.display = "none";
+
+    this.canvasViewport = document.createElement("div");
+    this.canvasViewport.className = "vno-slide-canvas-viewport";
 
     this.canvasEl = document.createElement("div");
     this.canvasEl.className = "vno-slide-canvas";
@@ -379,7 +417,25 @@ export class SlidesCanvasController {
     });
     this.canvasEl.appendChild(this.commentButtonEl);
 
-    stage.appendChild(this.canvasEl);
+    // Gridlines overlay
+    this.gridlinesLayer = document.createElement("div");
+    this.gridlinesLayer.className = "vno-slide-gridlines-overlay";
+    this.gridlinesLayer.style.display = "none";
+    this.canvasEl.appendChild(this.gridlinesLayer);
+
+    // Guides layer
+    this.guidesLayer = document.createElement("div");
+    this.guidesLayer.className = "vno-slide-guides-layer";
+    this.guidesLayer.style.display = "none";
+    this.canvasEl.appendChild(this.guidesLayer);
+    this._renderGuidesLayer();
+
+    this.canvasViewport.appendChild(this.canvasEl);
+    this.workspaceEl.appendChild(this.rulerCornerEl);
+    this.workspaceEl.appendChild(this.rulerHEl);
+    this.workspaceEl.appendChild(this.rulerVEl);
+    this.workspaceEl.appendChild(this.canvasViewport);
+    stage.appendChild(this.workspaceEl);
 
     // Speaker Notes Panel (Dưới canvas, có thể thu gọn / mở rộng)
     this.notesPanelEl = document.createElement("div");
@@ -433,6 +489,8 @@ export class SlidesCanvasController {
     this.applySlideMaster(this.masterTheme);
     this._syncUndoRedoState();
     this._setupCanvasEvents();
+    this._applyViewState();
+    this._syncCommandStates();
   }
 
   /**
@@ -470,6 +528,7 @@ export class SlidesCanvasController {
         this.notesToggleBtn.textContent = "▲ Mở ghi chú";
       }
     }
+    this._syncCommandStates();
     return this.isNotesVisible;
   }
 
@@ -1931,6 +1990,10 @@ export class SlidesCanvasController {
     this._renderShapesLayer();
     this._renderCommentsUi();
 
+    if (this.isReadingView) {
+      this._renderReadingSlide();
+    }
+
     if (this.options.onChange) {
       this.options.onChange(this.currentSlideIndex + 1, this.slides.length);
     }
@@ -2086,6 +2149,8 @@ export class SlidesCanvasController {
     document.addEventListener("keydown", this._slideSorterKeyHandler);
     document.body.appendChild(overlay);
     this.slideSorterOverlay = overlay;
+    this.presentationView = "slideSorter";
+    this._syncCommandStates();
     this._renderSlideSorterGrid();
     overlay.querySelector(".vno-slide-sorter-close")?.focus?.();
     return true;
@@ -2099,6 +2164,8 @@ export class SlidesCanvasController {
     this.slideSorterOverlay.remove();
     this.slideSorterOverlay = null;
     this._slideSorterKeyHandler = null;
+    this.presentationView = "normal";
+    this._syncCommandStates();
     if (this._slideSorterPreviousFocused && typeof this._slideSorterPreviousFocused.focus === "function") {
       try { this._slideSorterPreviousFocused.focus(); } catch (_) {}
       this._slideSorterPreviousFocused = null;
@@ -2723,6 +2790,10 @@ export class SlidesCanvasController {
     this.canvasEl.dataset.slideSize = this.slideSize.preset;
     this.container?.style?.setProperty?.("--vno-slide-aspect", `${this.slideSize.width} / ${this.slideSize.height}`);
     if (this.notesPanelEl) this.notesPanelEl.style.width = `${this.slideSize.width}px`;
+    if (this.rulerVisible) {
+      this._renderRulerH?.();
+      this._renderRulerV?.();
+    }
   }
 
   _captureSlideGeometry() {
@@ -4039,6 +4110,388 @@ export class SlidesCanvasController {
       this._renderThumbnails();
       this.applySlideMaster(this.masterTheme);
       this._syncUndoRedoState();
+      this._applyViewState();
+      this._syncCommandStates();
+    }
+  }
+
+  // =========================================================================
+  // VIEW TAB METHODS (Chế độ xem, Hiển thị, Thu phóng, Cửa sổ mới)
+  // =========================================================================
+
+  _escapeHtml(value) {
+    if (value === undefined || value === null) return "";
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  _syncCommandStates() {
+    if (typeof globalCommandBus === "undefined" || !globalCommandBus?.updateState) return;
+    this._syncUndoRedoState();
+    globalCommandBus.updateState("slides.view.normal", { checked: this.presentationView === "normal" });
+    globalCommandBus.updateState("slides.view.slideSorter", { checked: this.presentationView === "slideSorter" });
+    globalCommandBus.updateState("slides.view.reading", { checked: this.presentationView === "reading" });
+    globalCommandBus.updateState("slides.notes.toggle", { checked: !!this.isNotesVisible });
+    globalCommandBus.updateState("slides.view.ruler", { checked: !!this.rulerVisible });
+    globalCommandBus.updateState("slides.view.gridlines", { checked: !!this.gridlinesVisible });
+    globalCommandBus.updateState("slides.view.guides", { checked: !!this.guidesVisible });
+  }
+
+  _applyViewState() {
+    if (this.canvasEl?.style) {
+      this.canvasEl.style.transform = `scale(${this.zoomLevel})`;
+      this.canvasEl.style.transformOrigin = "center center";
+      if (this.canvasEl.dataset) {
+        this.canvasEl.dataset.zoom = String(this.zoomLevel);
+      }
+    }
+    if (this.rulerCornerEl?.style) {
+      this.rulerCornerEl.style.display = this.rulerVisible ? "block" : "none";
+    }
+    if (this.rulerHEl?.style) {
+      this.rulerHEl.style.display = this.rulerVisible ? "block" : "none";
+      if (this.rulerVisible) this._renderRulerH();
+    }
+    if (this.rulerVEl?.style) {
+      this.rulerVEl.style.display = this.rulerVisible ? "block" : "none";
+      if (this.rulerVisible) this._renderRulerV();
+    }
+    if (this.gridlinesLayer?.style) {
+      this.gridlinesLayer.style.display = this.gridlinesVisible ? "block" : "none";
+    }
+    if (this.guidesLayer?.style) {
+      this.guidesLayer.style.display = this.guidesVisible ? "block" : "none";
+      if (this.guidesVisible) this._renderGuidesLayer();
+    }
+    if (this.container?.classList?.toggle) {
+      this.container.classList.toggle("vno-slides-ruler-visible", !!this.rulerVisible);
+      this.container.classList.toggle("vno-slides-gridlines-visible", !!this.gridlinesVisible);
+      this.container.classList.toggle("vno-slides-guides-visible", !!this.guidesVisible);
+    }
+  }
+
+  _renderRulerH() {
+    if (!this.rulerHEl || typeof document === "undefined") return;
+    const w = this.slideSize?.width || 960;
+    let ticks = "";
+    for (let x = 0; x <= w; x += 10) {
+      if (x % 100 === 0) {
+        ticks += `<line x1="${x}" y1="8" x2="${x}" y2="20" stroke="#94a3b8" stroke-width="1"/>`;
+        ticks += `<text x="${x + 2}" y="7" font-size="8" fill="#475569" font-family="monospace">${x}</text>`;
+      } else if (x % 50 === 0) {
+        ticks += `<line x1="${x}" y1="12" x2="${x}" y2="20" stroke="#cbd5e1" stroke-width="1"/>`;
+      } else {
+        ticks += `<line x1="${x}" y1="16" x2="${x}" y2="20" stroke="#e2e8f0" stroke-width="1"/>`;
+      }
+    }
+    this.rulerHEl.innerHTML = `
+      <svg width="${w}" height="20" viewBox="0 0 ${w} 20" style="display:block;">
+        <rect width="${w}" height="20" fill="#f8fafc"/>
+        ${ticks}
+      </svg>
+    `;
+  }
+
+  _renderRulerV() {
+    if (!this.rulerVEl || typeof document === "undefined") return;
+    const h = this.slideSize?.height || 540;
+    let ticks = "";
+    for (let y = 0; y <= h; y += 10) {
+      if (y % 100 === 0) {
+        ticks += `<line x1="8" y1="${y}" x2="20" y2="${y}" stroke="#94a3b8" stroke-width="1"/>`;
+        ticks += `<text x="2" y="${y + 8}" font-size="8" fill="#475569" font-family="monospace">${y}</text>`;
+      } else if (y % 50 === 0) {
+        ticks += `<line x1="12" y1="${y}" x2="20" y2="${y}" stroke="#cbd5e1" stroke-width="1"/>`;
+      } else {
+        ticks += `<line x1="16" y1="${y}" x2="20" y2="${y}" stroke="#e2e8f0" stroke-width="1"/>`;
+      }
+    }
+    this.rulerVEl.innerHTML = `
+      <svg width="20" height="${h}" viewBox="0 0 20 ${h}" style="display:block;">
+        <rect width="20" height="${h}" fill="#f8fafc"/>
+        ${ticks}
+      </svg>
+    `;
+  }
+
+  toggleRuler() {
+    this.rulerVisible = !this.rulerVisible;
+    this._applyViewState();
+    this._syncCommandStates();
+    return this.rulerVisible;
+  }
+
+  toggleGridlines() {
+    this.gridlinesVisible = !this.gridlinesVisible;
+    this._applyViewState();
+    this._syncCommandStates();
+    return this.gridlinesVisible;
+  }
+
+  _renderGuidesLayer() {
+    if (!this.guidesLayer || typeof document === "undefined") return;
+    this.guidesLayer.innerHTML = `
+      <div class="vno-slide-guide vno-slide-guide-v" style="left: ${this.guideCoords.x}px;">
+        <div class="vno-slide-guide-handle" title="Kéo để chỉnh đường gióng dọc"></div>
+        <div class="vno-slide-guide-tooltip">X: ${this.guideCoords.x}px</div>
+      </div>
+      <div class="vno-slide-guide vno-slide-guide-h" style="top: ${this.guideCoords.y}px;">
+        <div class="vno-slide-guide-handle" title="Kéo để chỉnh đường gióng ngang"></div>
+        <div class="vno-slide-guide-tooltip">Y: ${this.guideCoords.y}px</div>
+      </div>
+    `;
+    this._setupGuidesDrag();
+  }
+
+  _setupGuidesDrag() {
+    if (!this.guidesLayer || typeof document === "undefined") return;
+    const vGuide = this.guidesLayer.querySelector(".vno-slide-guide-v");
+    const hGuide = this.guidesLayer.querySelector(".vno-slide-guide-h");
+    const vTooltip = vGuide?.querySelector(".vno-slide-guide-tooltip");
+    const hTooltip = hGuide?.querySelector(".vno-slide-guide-tooltip");
+
+    if (vGuide) {
+      const onMousedownV = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (vTooltip) vTooltip.style.display = "block";
+        const onMousemoveV = (moveEvt) => {
+          if (!this.canvasEl) return;
+          const rect = this.canvasEl.getBoundingClientRect?.() || { left: 0, width: 960 };
+          const scale = this.zoomLevel || 1.0;
+          let newX = Math.round((moveEvt.clientX - (rect.left || 0)) / scale);
+          const maxW = this.slideSize?.width || 960;
+          newX = Math.max(0, Math.min(newX, maxW));
+          this.guideCoords.x = newX;
+          vGuide.style.left = `${newX}px`;
+          if (vTooltip) vTooltip.textContent = `X: ${newX}px`;
+        };
+        const onMouseupV = () => {
+          if (vTooltip) vTooltip.style.display = "none";
+          window.removeEventListener("mousemove", onMousemoveV);
+          window.removeEventListener("mouseup", onMouseupV);
+        };
+        window.addEventListener("mousemove", onMousemoveV);
+        window.addEventListener("mouseup", onMouseupV);
+      };
+      vGuide.addEventListener("mousedown", onMousedownV);
+    }
+
+    if (hGuide) {
+      const onMousedownH = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (hTooltip) hTooltip.style.display = "block";
+        const onMousemoveH = (moveEvt) => {
+          if (!this.canvasEl) return;
+          const rect = this.canvasEl.getBoundingClientRect?.() || { top: 0, height: 540 };
+          const scale = this.zoomLevel || 1.0;
+          let newY = Math.round((moveEvt.clientY - (rect.top || 0)) / scale);
+          const maxH = this.slideSize?.height || 540;
+          newY = Math.max(0, Math.min(newY, maxH));
+          this.guideCoords.y = newY;
+          hGuide.style.top = `${newY}px`;
+          if (hTooltip) hTooltip.textContent = `Y: ${newY}px`;
+        };
+        const onMouseupH = () => {
+          if (hTooltip) hTooltip.style.display = "none";
+          window.removeEventListener("mousemove", onMousemoveH);
+          window.removeEventListener("mouseup", onMouseupH);
+        };
+        window.addEventListener("mousemove", onMousemoveH);
+        window.addEventListener("mouseup", onMouseupH);
+      };
+      hGuide.addEventListener("mousedown", onMousedownH);
+    }
+  }
+
+  toggleGuides() {
+    this.guidesVisible = !this.guidesVisible;
+    this._applyViewState();
+    this._syncCommandStates();
+    return this.guidesVisible;
+  }
+
+  setNormalView() {
+    if (this.slideSorterOverlay) {
+      this.closeSlideSorter();
+    }
+    if (this.isReadingView) {
+      this.exitReadingView();
+    }
+    this.presentationView = "normal";
+    this._applyViewState();
+    this._syncCommandStates();
+    return "normal";
+  }
+
+  enterReadingView() {
+    if (this.isReadingView || typeof document === "undefined" || typeof document.createElement !== "function") return false;
+    if (this.slideSorterOverlay) {
+      this.closeSlideSorter();
+    }
+    this.isReadingView = true;
+    this.presentationView = "reading";
+
+    const overlay = document.createElement("div");
+    overlay.className = "vno-slides-reading-mode";
+    overlay.setAttribute?.("role", "dialog");
+    overlay.setAttribute?.("aria-modal", "true");
+    overlay.setAttribute?.("aria-label", "Dạng xem Đọc (Reading View)");
+
+    overlay.innerHTML = `
+      <div class="vno-slides-reading-stage">
+        <div class="vno-slides-reading-slide-container" id="vno-reading-slide-host"></div>
+      </div>
+      <div class="vno-slides-reading-bar" role="toolbar" aria-label="Thanh điều hướng Đọc">
+        <button type="button" class="vno-slides-reading-btn" id="vno-reading-prev" aria-label="Trang trước" title="Trang trước (Mũi tên trái)">‹</button>
+        <span class="vno-slides-reading-counter" id="vno-reading-counter">Trang ${this.currentSlideIndex + 1} / ${this.slides.length}</span>
+        <button type="button" class="vno-slides-reading-btn" id="vno-reading-next" aria-label="Trang tiếp" title="Trang tiếp (Mũi tên phải)">›</button>
+        <div style="flex:1;"></div>
+        <button type="button" class="vno-slides-reading-close-btn" id="vno-reading-close" aria-label="Thoát chế độ đọc" title="Thoát chế độ đọc (Esc)">✕ Thoát</button>
+      </div>
+    `;
+
+    document.body?.appendChild?.(overlay);
+    this.readingOverlay = overlay;
+
+    this._renderReadingSlide();
+
+    overlay.querySelector("#vno-reading-prev")?.addEventListener("click", () => {
+      if (this.currentSlideIndex > 0) {
+        this.selectSlide(this.currentSlideIndex - 1);
+        this._renderReadingSlide();
+      }
+    });
+    overlay.querySelector("#vno-reading-next")?.addEventListener("click", () => {
+      if (this.currentSlideIndex < this.slides.length - 1) {
+        this.selectSlide(this.currentSlideIndex + 1);
+        this._renderReadingSlide();
+      }
+    });
+    overlay.querySelector("#vno-reading-close")?.addEventListener("click", () => {
+      this.exitReadingView();
+    });
+
+    this._readingKeyHandler = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        this.exitReadingView();
+      } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+        e.preventDefault();
+        if (this.currentSlideIndex > 0) {
+          this.selectSlide(this.currentSlideIndex - 1);
+          this._renderReadingSlide();
+        }
+      } else if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") {
+        e.preventDefault();
+        if (this.currentSlideIndex < this.slides.length - 1) {
+          this.selectSlide(this.currentSlideIndex + 1);
+          this._renderReadingSlide();
+        }
+      }
+    };
+    document.addEventListener("keydown", this._readingKeyHandler);
+
+    this._applyViewState();
+    this._syncCommandStates();
+    return true;
+  }
+
+  exitReadingView() {
+    if (!this.isReadingView) return false;
+    this.isReadingView = false;
+    this.presentationView = "normal";
+    if (this._readingKeyHandler && typeof document !== "undefined") {
+      document.removeEventListener("keydown", this._readingKeyHandler);
+      this._readingKeyHandler = null;
+    }
+    if (this.readingOverlay) {
+      this.readingOverlay.remove?.();
+      this.readingOverlay = null;
+    }
+    this._applyViewState();
+    this._syncCommandStates();
+    return true;
+  }
+
+  toggleReadingView() {
+    return this.isReadingView ? this.exitReadingView() : this.enterReadingView();
+  }
+
+  _renderReadingSlide() {
+    if (!this.readingOverlay || typeof document === "undefined") return;
+    const host = this.readingOverlay.querySelector("#vno-reading-slide-host");
+    const counter = this.readingOverlay.querySelector("#vno-reading-counter");
+    if (counter) {
+      counter.textContent = `Trang ${this.currentSlideIndex + 1} / ${this.slides.length}`;
+    }
+    if (!host) return;
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return;
+
+    const slideW = this.slideSize?.width || 960;
+    const slideH = this.slideSize?.height || 540;
+    const theme = this.masterTheme || {};
+    host.innerHTML = `
+      <div class="vno-slides-reading-card" style="
+        width: ${slideW}px;
+        height: ${slideH}px;
+        background-color: ${theme.bgColor || "#ffffff"};
+        color: ${theme.bodyColor || "#334155"};
+        font-family: ${theme.fontFamily || "sans-serif"};
+      ">
+        <h2 style="color:${theme.titleColor || "#1e3a8a"};margin-bottom:20px;font-size:26px;">${this._escapeHtml(slide.title)}</h2>
+        <div style="font-size:16px;white-space:pre-wrap;line-height:1.6;">${this._escapeHtml(slide.body)}</div>
+      </div>
+    `;
+  }
+
+  setZoom(level) {
+    const next = Math.min(2.5, Math.max(0.2, Math.round(Number(level) * 10) / 10));
+    if (!Number.isFinite(next)) return false;
+    this.zoomLevel = next;
+    this._applyViewState();
+    this._syncCommandStates();
+    return this.zoomLevel;
+  }
+
+  zoomIn() { return this.setZoom(this.zoomLevel + 0.1); }
+  zoomOut() { return this.setZoom(this.zoomLevel - 0.1); }
+  zoomReset() { return this.setZoom(1.0); }
+
+  fitToWindow() {
+    if (!this.stageEl || !this.canvasEl) return this.setZoom(1.0);
+    const stageW = (this.stageEl.clientWidth || 960) - 64;
+    const stageH = (this.stageEl.clientHeight || 600) - (this.isNotesVisible ? 200 : 80);
+    const canvasW = this.slideSize?.width || 960;
+    const canvasH = this.slideSize?.height || 540;
+    if (stageW <= 0 || stageH <= 0) return this.setZoom(1.0);
+    const scale = Math.min(2.0, Math.max(0.3, Math.floor(Math.min(stageW / canvasW, stageH / canvasH) * 10) / 10));
+    return this.setZoom(scale);
+  }
+
+  newWindow() {
+    if (typeof window === "undefined") return false;
+    const opened = window.open?.(window.location.href, "_blank");
+    if (!opened) {
+      this.options?.shell?.setStatus?.("Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho VN Office.");
+      return false;
+    }
+    try { opened.opener = null; } catch (_) {}
+    return true;
+  }
+
+  destroy() {
+    if (this.isReadingView) {
+      this.exitReadingView();
+    }
+    if (this.slideSorterOverlay) {
+      this.closeSlideSorter();
     }
   }
 }
