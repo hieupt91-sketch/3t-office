@@ -255,7 +255,23 @@ export const SHEET_RIBBON_TABS = [
       {
         label: "Công cụ dữ liệu",
         labelKey: "sheetRibbon.group.dataTools",
-        items: [{ type: "button", commandId: "sheet.data.validation", isLarge: true }]
+        items: [
+          { type: "button", commandId: "sheet.data.textToColumns", isLarge: true, icon: `<svg viewBox="0 0 32 32" fill="none"><rect x="3" y="5" width="12" height="22" rx="2" fill="#DCFCE7" stroke="#0F6D38"/><path d="M9 9v14M19 7v18M27 7v18M15 16h14M12 13l4 3-4 3" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>` },
+          { type: "column", items: [
+            { type: "button", commandId: "sheet.data.flashFill", icon: `<svg viewBox="0 0 24 24" fill="none"><path d="m13 2-7 11h6l-1 9 7-12h-6l1-8Z" fill="#FBBF24" stroke="#B45309" stroke-width="1.3"/></svg>` },
+            { type: "button", commandId: "sheet.data.removeDuplicates", icon: `<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="14" height="14" rx="2" fill="#DCFCE7" stroke="#0F6D38"/><circle cx="17" cy="17" r="5" fill="#DC2626"/><path d="m15 15 4 4m0-4-4 4" stroke="white" stroke-width="1.6"/></svg>` },
+            { type: "button", commandId: "sheet.data.validation" }
+          ] }
+        ]
+      },
+      {
+        label: "Dàn bài",
+        labelKey: "sheetRibbon.group.outline",
+        items: [{ type: "column", items: [
+          { type: "button", commandId: "sheet.data.group", icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M5 4v16M5 8h4M5 16h4" stroke="#0F6D38" stroke-width="2"/><rect x="10" y="5" width="11" height="14" rx="2" fill="#DCFCE7" stroke="#0F6D38"/><path d="M13 12h5" stroke="#0F6D38" stroke-width="2"/></svg>` },
+          { type: "button", commandId: "sheet.data.ungroup", icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M5 4v16" stroke="#64748B" stroke-width="2" stroke-dasharray="2 2"/><rect x="10" y="5" width="11" height="14" rx="2" stroke="#64748B"/><path d="M13 12h5M15.5 9.5v5" stroke="#0F6D38" stroke-width="1.8"/></svg>` },
+          { type: "button", commandId: "sheet.data.subtotal", icon: `<svg viewBox="0 0 24 24" fill="none"><path d="M4 4h16M4 9h10M4 14h10M4 20h16" stroke="#334155" stroke-width="1.6"/><path d="M17 9v6m-3-3h6" stroke="#0F6D38" stroke-width="2"/></svg>` }
+        ] }]
       },
       {
         label: "Bảng tổng hợp",

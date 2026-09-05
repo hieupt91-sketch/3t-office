@@ -59,6 +59,12 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.format.decreaseDecimal", () => this.grid.adjustDecimalPlaces(-1));
     globalCommandBus.bindHandler("sheet.format.conditional", () => this.grid.showConditionalFormattingDialog());
     globalCommandBus.bindHandler("sheet.data.validation", () => this.grid.showDataValidationDialog());
+    globalCommandBus.bindHandler("sheet.data.textToColumns", () => this.grid.showTextToColumnsDialog());
+    globalCommandBus.bindHandler("sheet.data.flashFill", () => this.grid.runFlashFill());
+    globalCommandBus.bindHandler("sheet.data.removeDuplicates", () => this.grid.showRemoveDuplicatesDialog());
+    globalCommandBus.bindHandler("sheet.data.group", () => this.grid.groupSelection());
+    globalCommandBus.bindHandler("sheet.data.ungroup", () => this.grid.ungroupSelection());
+    globalCommandBus.bindHandler("sheet.data.subtotal", () => this.grid.showSubtotalDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
     globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this.grid.refreshPivotTable());
     globalCommandBus.bindHandler("sheet.formula.nameManager", (args) => {
@@ -1153,6 +1159,13 @@ export class SheetAdapter {
 
       case "sheet.data.validation":
         return this.grid.showDataValidationDialog();
+
+      case "sheet.data.textToColumns": return this.grid.showTextToColumnsDialog();
+      case "sheet.data.flashFill": return this.grid.runFlashFill();
+      case "sheet.data.removeDuplicates": return this.grid.showRemoveDuplicatesDialog();
+      case "sheet.data.group": return this.grid.groupSelection();
+      case "sheet.data.ungroup": return this.grid.ungroupSelection();
+      case "sheet.data.subtotal": return this.grid.showSubtotalDialog();
 
       case "sheet.data.pivotTable":
         return this.grid.showPivotTableDialog();

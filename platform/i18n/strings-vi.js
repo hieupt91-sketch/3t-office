@@ -58,7 +58,7 @@ export const viStrings = {
   },
   sheetRibbon: {
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", ai: "Trợ lý VN AI" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", pivotTable: "Bảng tổng hợp", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", comments: "Ghi chú", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiAnalysis: "Phân tích dữ liệu AI" }
+    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", comments: "Ghi chú", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiAnalysis: "Phân tích dữ liệu AI" }
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", ai: "Trợ lý VN AI" },
@@ -161,6 +161,12 @@ export const viStrings = {
     ,"sheet.data.filter": { label: "Bộ lọc", tooltip: "Bật/tắt chế độ lọc AutoFilter (Ctrl+Shift+L)" }
     ,"sheet.format.conditional": { label: "Định dạng có điều kiện", tooltip: "Tô nổi bật các ô theo giá trị hoặc trạng thái trống" }
     ,"sheet.data.validation": { label: "Kiểm tra dữ liệu", tooltip: "Tạo danh sách lựa chọn hoặc giới hạn số trong khoảng" }
+    ,"sheet.data.textToColumns": { label: "Tách văn bản", tooltip: "Tách một cột theo dấu phân cách hoặc độ rộng cố định" }
+    ,"sheet.data.flashFill": { label: "Điền nhanh", tooltip: "Điền theo mẫu từ ví dụ ở cột kế bên" }
+    ,"sheet.data.removeDuplicates": { label: "Xóa trùng lặp", tooltip: "Xóa hàng trùng theo các cột được chọn" }
+    ,"sheet.data.group": { label: "Nhóm", tooltip: "Nhóm các hàng hoặc cột liên tiếp đang chọn" }
+    ,"sheet.data.ungroup": { label: "Bỏ nhóm", tooltip: "Bỏ nhóm hàng hoặc cột đang chọn" }
+    ,"sheet.data.subtotal": { label: "Tổng phụ", tooltip: "Chèn tổng phụ theo nhóm và tổng cộng cuối bảng" }
     ,"sheet.data.pivotTable": { label: "Bảng tổng hợp", tooltip: "Tạo Pivot Table từ vùng dữ liệu đang chọn" }
     ,"sheet.data.pivotRefresh": { label: "Làm mới Pivot", tooltip: "Tính lại Pivot Table từ dữ liệu nguồn" }
     ,"sheet.view.toggleFormulas": { label: "Hiện công thức", tooltip: "Hiển thị công thức thay vì kết quả (Ctrl+`)" }

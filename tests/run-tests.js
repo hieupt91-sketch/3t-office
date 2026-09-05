@@ -59,6 +59,7 @@ import { runWriterMouseShortcutsTests } from "./unit/writer-mouse-shortcuts.test
 import { runRibbonGapsRealOfficeTests } from "./unit/ribbon-gaps-real-office.test.js";
 import { runSlidesMouseShortcutsTests } from "./unit/slides-mouse-shortcuts.test.js";
 import { runWriterSlidesInsertGapsTests } from "./unit/writer-slides-insert-gaps.test.js";
+import { runSheetDataToolsTests } from "./unit/sheet-data-tools.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -125,7 +126,8 @@ async function runAll() {
     { title: "51. Behavioral & Unit Tests — VN Writer Mouse Interactions & Office Parity Shortcuts", runner: runWriterMouseShortcutsTests },
     { title: "52. Behavioral & Unit Tests — Real Office Home Ribbon Gaps", runner: runRibbonGapsRealOfficeTests },
     { title: "53. Behavioral & Unit Tests — VN Slides Mouse Interactions & Office Parity Shortcuts", runner: runSlidesMouseShortcutsTests },
-    { title: "54. Behavioral & Unit Tests — Writer/Slides Insert Tab Gaps (Word/PowerPoint)", runner: runWriterSlidesInsertGapsTests }
+    { title: "54. Behavioral & Unit Tests — Writer/Slides Insert Tab Gaps (Word/PowerPoint)", runner: runWriterSlidesInsertGapsTests },
+    { title: "55. Behavioral & Unit Tests — VN Sheet Data Tools & Outline", runner: runSheetDataToolsTests }
   ];
 
   for (const suite of suites) {
