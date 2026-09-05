@@ -20,6 +20,7 @@ Phát triển VN Office thành một suite thống nhất gồm VN Writer, VN Sh
 - Không gửi nội dung tài liệu ra AI/cloud âm thầm.
 - Không làm UI chỉ “chạy được”; phải trực quan, keyboard-usable, có states và error handling.
 - Không sao chép tài sản/branding độc quyền của sản phẩm khác.
+- Mỗi tính năng mới cho Writer/Sheet/Slides PHẢI kèm nội dung Hướng dẫn sử dụng (tiếng Việt) trong ứng dụng — không chỉ code tính năng rồi coi là xong (xem mục 10).
 
 ## 3. Mandatory decision order
 Khi cần feature:
@@ -101,7 +102,14 @@ Cấm disable test, swallow exception hoặc đổi expected output chỉ để 
 ## 9. Agent completion
 Mỗi task kết thúc bằng handoff chuẩn trong `/09-templates/AGENT-HANDOFF.md`.
 
-## 10. Stop and ask
+## 10. Hướng dẫn sử dụng trong ứng dụng (bắt buộc)
+Người dùng chuyển từ Microsoft Word/Excel/PowerPoint thật sang VN Office sẽ bỡ ngỡ nếu không có tài liệu hướng dẫn ngay trong ứng dụng. Yêu cầu:
+- Mọi task thêm tính năng mới (bất kể agent nào, Claude/Codex/Grok/agy) phải kèm theo nội dung hướng dẫn sử dụng bằng tiếng Việt cho tính năng đó: tính năng làm gì, truy cập ở đâu (tab/nhóm ribbon nào), các bước sử dụng cơ bản. Không dùng placeholder/nội dung chung chung — phải hướng dẫn thật, cụ thể theo đúng UI hiện có.
+- Cần một cơ chế Trợ giúp/Hướng dẫn thống nhất trong app (ví dụ: tab hoặc menu "Trợ giúp" giống Help của Office thật, panel tra cứu theo tên tính năng, hoặc tooltip/link ngữ cảnh dẫn tới nội dung đầy đủ hơn) — agent nhận task đầu tiên về hướng dẫn sử dụng cần đề xuất cơ chế cụ thể, tham khảo cách Word/Excel/PowerPoint thật tổ chức Help (F1/tab Trợ giúp) để người dùng quen thuộc.
+- Cần một đợt rà soát bổ sung hướng dẫn cho TẤT CẢ tính năng đã có sẵn (đã liệt kê trong các file docs/HANDOFF-*.md) — không chỉ tính năng mới từ nay trở đi.
+- Áp dụng cho cả VN Writer, VN Sheet và VN Slides.
+
+## 11. Stop and ask
 Dừng và xin quyết định khi:
 - đổi framework UI
 - đổi build system
