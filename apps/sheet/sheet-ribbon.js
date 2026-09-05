@@ -231,48 +231,33 @@ export const SHEET_RIBBON_TABS = [
           {
             type: "column",
             items: [
-              {
-                type: "row",
-                items: [
-                  { type: "button", commandId: "sheet.formula.sum" },
-                  { type: "button", commandId: "sheet.formula.average" },
-                  { type: "button", commandId: "sheet.formula.countNumbers" }
-                ]
-              },
-              {
-                type: "row",
-                items: [
-                  { type: "button", commandId: "sheet.formula.max" },
-                  { type: "button", commandId: "sheet.formula.min" }
-                ]
-              }
+              { type: "button", commandId: "sheet.formula.sum" },
+              { type: "button", commandId: "sheet.formula.average" },
+              { type: "button", commandId: "sheet.formula.countNumbers" }
             ]
           },
           {
             type: "column",
             items: [
-              {
-                type: "row",
-                items: [
-                  { type: "button", commandId: "sheet.formula.categoryFinancial" },
-                  { type: "button", commandId: "sheet.formula.categoryLogical" },
-                  { type: "button", commandId: "sheet.formula.categoryText" }
-                ]
-              },
-              {
-                type: "row",
-                items: [
-                  { type: "button", commandId: "sheet.formula.categoryDateTime" },
-                  { type: "button", commandId: "sheet.formula.categoryLookup" },
-                  { type: "button", commandId: "sheet.formula.categoryMath" }
-                ]
-              },
-              {
-                type: "row",
-                items: [
-                  { type: "button", commandId: "sheet.formula.categoryMore" }
-                ]
-              }
+              { type: "button", commandId: "sheet.formula.categoryFinancial" },
+              { type: "button", commandId: "sheet.formula.categoryLogical" },
+              { type: "button", commandId: "sheet.formula.categoryText" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.formula.categoryDateTime" },
+              { type: "button", commandId: "sheet.formula.categoryLookup" },
+              { type: "button", commandId: "sheet.formula.categoryMath" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.formula.categoryMore" },
+              { type: "button", commandId: "sheet.formula.max" },
+              { type: "button", commandId: "sheet.formula.min" }
             ]
           }
         ]
@@ -308,10 +293,10 @@ export const SHEET_RIBBON_TABS = [
             type: "column",
             items: [
               { type: "button", commandId: "sheet.formula.showFormulas" },
-              { type: "button", commandId: "sheet.formula.errorChecking" },
-              { type: "button", commandId: "sheet.formula.watchWindow" }
+              { type: "button", commandId: "sheet.formula.errorChecking" }
             ]
-          }
+          },
+          { type: "button", commandId: "sheet.formula.watchWindow", isLarge: true }
         ]
       },
       {
@@ -467,9 +452,9 @@ export const SHEET_RIBBON_TABS = [
         label: "Hiển thị",
         labelKey: "sheetRibbon.group.show",
         items: [
-          { type: "button", commandId: "sheet.view.formulaBar", isLarge: true },
-          { type: "button", commandId: "sheet.view.gridlines", isLarge: true },
-          { type: "button", commandId: "sheet.view.headings", isLarge: true }
+          { type: "button", commandId: "sheet.view.formulaBar" },
+          { type: "button", commandId: "sheet.view.gridlines" },
+          { type: "button", commandId: "sheet.view.headings" }
         ]
       },
       {

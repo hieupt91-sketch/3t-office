@@ -116,6 +116,7 @@ export class RibbonHost {
     currentTab.groups.forEach(group => {
       const groupEl = document.createElement("div");
       groupEl.className = "vno-ribbon-group";
+      if (group.id) groupEl.dataset.groupId = group.id;
       groupEl.setAttribute("role", "group");
       groupEl.setAttribute("aria-label", group.label);
 

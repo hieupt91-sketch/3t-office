@@ -2039,8 +2039,8 @@ export class SheetGridController {
         const item = document.createElement("div");
         item.className = `vno-func-item ${isSel ? "is-selected" : ""}`;
         item.dataset.funcName = f.name;
-        item.style.cssText = `padding:6px 10px; cursor:pointer; font-size:12px; font-weight:600; font-family:monospace; border-radius:3px; display:flex; justify-content:space-between; align-items:center; background:${isSel ? "#e7f4ec" : "transparent"}; color:${isSel ? "#0f6d38" : "#0f172a"};`;
-        item.innerHTML = `<span>${f.name}</span><span style="font-size:10px;color:${isSel ? "#0f6d38" : "#94a3b8"};font-family:sans-serif;font-weight:400;">${f.category}</span>`;
+        item.style.cssText = `padding:5px 8px; cursor:pointer; font-size:12px; font-weight:600; font-family:var(--vno-font-ui, sans-serif); border-radius:3px; display:flex; justify-content:space-between; align-items:center; background:${isSel ? "#e7f4ec" : "transparent"}; color:${isSel ? "#0f6d38" : "#0f172a"}; transition:background-color 0.1s;`;
+        item.innerHTML = `<span>${f.name}</span><span style="font-size:10px;color:${isSel ? "#0f6d38" : "#94a3b8"};font-weight:400;">${f.category}</span>`;
 
         item.addEventListener("click", () => {
           selectedFunc = f;
@@ -2086,12 +2086,12 @@ export class SheetGridController {
       <div class="vno-dialog-box" style="width:620px;">
         <div class="vno-dialog-header">
           <span>${t("sheetDialogs.functionTitle") || "Chèn Hàm (Insert Function fx)"}</span>
-          <button class="vno-btn" id="vno-fx-close" style="font-size:16px;">&times;</button>
+          <button class="vno-dialog-close-btn" id="vno-fx-close" aria-label="${t("sheetDialogs.close") || "Đóng"}">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
           <div style="display:flex;flex-direction:column;gap:6px;">
             <label style="font-size:12px;font-weight:600;color:#334155;">${t("sheetDialogs.searchFunction") || "Tìm kiếm hàm:"}</label>
-            <input id="vno-func-search" class="vno-input" autocomplete="off" placeholder="${t("sheetDialogs.searchPlaceholder") || "Gõ tên hàm hoặc mô tả để tìm kiếm..."}" style="padding:6px 10px;font-size:12px;border:1px solid #cbd5e1;border-radius:4px;">
+            <input id="vno-func-search" class="vno-input" autocomplete="off" placeholder="${t("sheetDialogs.searchPlaceholder") || "Gõ tên hàm hoặc mô tả để tìm kiếm..."}" style="padding:6px 10px;font-size:12px;border:1px solid #cbd5e1;border-radius:4px;outline:none;">
           </div>
 
           <div style="display:flex;align-items:center;gap:10px;">
@@ -2109,10 +2109,10 @@ export class SheetGridController {
           </div>
 
           <div style="display:flex;gap:12px;height:220px;">
-            <div id="vno-func-list" style="width:230px;border:1px solid #cbd5e1;border-radius:4px;overflow-y:auto;padding:4px;"></div>
+            <div id="vno-func-list" style="width:230px;border:1px solid #cbd5e1;border-radius:4px;overflow-y:auto;padding:4px;background:#ffffff;"></div>
             <div style="flex:1;background:#f8fafc;border:1px solid #cbd5e1;border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;">
               <div id="vno-func-cat-badge" style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;"></div>
-              <strong id="vno-func-syntax" style="font-family:monospace;color:#0f6d38;font-size:13px;word-break:break-all;"></strong>
+              <strong id="vno-func-syntax" style="font-family:Consolas, monospace;color:#0f6d38;font-size:13px;word-break:break-all;"></strong>
               <p id="vno-func-desc" style="font-size:12px;color:#334155;line-height:1.5;margin:0;"></p>
             </div>
           </div>
@@ -2557,27 +2557,27 @@ export class SheetGridController {
     win.id = "vno-watch-window";
     win.className = "vno-watch-window";
     win.style.cssText = `
-      position:fixed;right:24px;bottom:36px;width:420px;height:240px;background:#ffffff;border:1px solid #0f6d38;
-      border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,0.18);z-index:9999;display:flex;flex-direction:column;font-size:12px;
+      position:fixed;right:24px;bottom:36px;width:440px;height:250px;background:#ffffff;border:1px solid #cbd5e1;
+      border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,0.16);z-index:9999;display:flex;flex-direction:column;font-size:12px;overflow:hidden;
     `;
 
     win.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#0f6d38;color:#ffffff;font-weight:700;border-radius:5px 5px 0 0;">
-        <span>${t("sheetDialogs.watchWindowTitle") || "Cửa sổ theo dõi (Watch Window)"}</span>
-        <button id="vno-watch-close" type="button" style="background:none;border:none;color:#ffffff;font-size:16px;cursor:pointer;line-height:1;">&times;</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f1f5f9;color:#0f172a;font-weight:600;border-bottom:1px solid #cbd5e1;">
+        <span style="font-size:12px;display:flex;align-items:center;gap:6px;">${t("sheetDialogs.watchWindowTitle") || "Cửa sổ theo dõi (Watch Window)"}</span>
+        <button id="vno-watch-close" type="button" class="vno-dialog-close-btn" style="width:22px;height:22px;min-width:22px;min-height:22px;padding:0;font-size:16px;">&times;</button>
       </div>
       <div style="display:flex;gap:8px;padding:6px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-        <button id="vno-watch-add" type="button" class="vno-btn" style="font-size:11px;padding:3px 8px;">+ ${t("sheetDialogs.addWatch") || "Thêm ô theo dõi"}</button>
-        <button id="vno-watch-del" type="button" class="vno-btn" style="font-size:11px;padding:3px 8px;">- ${t("sheetDialogs.deleteWatch") || "Xóa"}</button>
+        <button id="vno-watch-add" type="button" class="vno-btn" style="font-size:11px;padding:3px 10px;height:24px;background:#ffffff;border:1px solid #cbd5e1;border-radius:3px;font-weight:500;">+ ${t("sheetDialogs.addWatch") || "Thêm ô theo dõi"}</button>
+        <button id="vno-watch-del" type="button" class="vno-btn" style="font-size:11px;padding:3px 10px;height:24px;background:#ffffff;border:1px solid #cbd5e1;border-radius:3px;font-weight:500;">- ${t("sheetDialogs.deleteWatch") || "Xóa"}</button>
       </div>
-      <div style="flex:1;overflow-y:auto;padding:4px 8px;">
+      <div style="flex:1;overflow-y:auto;padding:0;">
         <table class="vno-watch-table" style="width:100%;border-collapse:collapse;font-size:11px;">
           <thead>
-            <tr style="border-bottom:1px solid #cbd5e1;text-align:left;color:#475569;">
-              <th style="padding:4px;">Sheet</th>
-              <th style="padding:4px;">Ô</th>
-              <th style="padding:4px;">Giá trị</th>
-              <th style="padding:4px;">Công thức</th>
+            <tr style="background:#f8fafc;border-bottom:1px solid #cbd5e1;text-align:left;color:#475569;">
+              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">Sheet</th>
+              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">Ô</th>
+              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">Giá trị</th>
+              <th style="padding:5px 8px;font-weight:600;">Công thức</th>
             </tr>
           </thead>
           <tbody id="vno-watch-tbody"></tbody>
@@ -2615,7 +2615,7 @@ export class SheetGridController {
     if (!tbody || !this.watchedCells) return;
     tbody.innerHTML = "";
     if (this.watchedCells.size === 0) {
-      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:12px;color:#94a3b8;">Chưa có ô theo dõi nào.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:16px;color:#94a3b8;">Chưa có ô theo dõi nào.</td></tr>`;
       return;
     }
 
@@ -2629,12 +2629,12 @@ export class SheetGridController {
       const tr = document.createElement("tr");
       tr.className = "vno-watch-row";
       tr.dataset.watchKey = key;
-      tr.style.cssText = "border-bottom:1px solid #f1f5f9;cursor:pointer;";
+      tr.style.cssText = "border-bottom:1px solid #f1f5f9;cursor:pointer;transition:background-color 0.1s;";
       tr.innerHTML = `
-        <td style="padding:4px;font-weight:600;">${this._escapeHtml(sheetName)}</td>
-        <td style="padding:4px;font-weight:700;color:#0f6d38;">${this._escapeHtml(coord)}</td>
-        <td style="padding:4px;">${this._escapeHtml(String(val))}</td>
-        <td style="padding:4px;font-family:monospace;color:#64748b;">${this._escapeHtml(formula)}</td>
+        <td style="padding:5px 8px;font-weight:600;border-right:1px solid #f1f5f9;">${this._escapeHtml(sheetName)}</td>
+        <td style="padding:5px 8px;font-weight:700;color:#0f6d38;border-right:1px solid #f1f5f9;">${this._escapeHtml(coord)}</td>
+        <td style="padding:5px 8px;border-right:1px solid #f1f5f9;">${this._escapeHtml(String(val))}</td>
+        <td style="padding:5px 8px;font-family:Consolas, monospace;color:#64748b;">${this._escapeHtml(formula)}</td>
       `;
       tr.addEventListener("click", () => {
         tbody.querySelectorAll(".vno-watch-row").forEach(r => r.classList.remove("is-selected"));

@@ -415,11 +415,12 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "show",
         label: "Hiển thị",
         labelKey: "writerRibbon.group.show",
         items: [
-          { type: "button", commandId: "writer.view.ruler", isLarge: true },
-          { type: "button", commandId: "writer.view.gridlines", isLarge: true }
+          { type: "button", commandId: "writer.view.ruler" },
+          { type: "button", commandId: "writer.view.gridlines" }
         ]
       },
       {
