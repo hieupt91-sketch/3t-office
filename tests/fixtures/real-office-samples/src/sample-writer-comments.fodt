@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document
+  xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+  xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+  xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"
+  office:version="1.3"
+  office:mimetype="application/vnd.oasis.opendocument.text">
+  <office:styles>
+    <style:style style:name="Standard" style:family="paragraph" style:class="text">
+      <style:text-properties fo:font-size="12pt" style:font-name="Liberation Serif"/>
+    </style:style>
+    <style:style style:name="Heading" style:family="paragraph" style:parent-style-name="Standard" style:next-style-name="Text_20_body" style:class="text">
+      <style:paragraph-properties fo:keep-with-next="always"/>
+      <style:text-properties fo:font-weight="bold"/>
+    </style:style>
+    <style:style style:name="Heading_20_1" style:display-name="Heading 1" style:family="paragraph" style:parent-style-name="Heading" style:next-style-name="Text_20_body" style:default-outline-level="1" style:class="text">
+      <style:paragraph-properties fo:margin-top="0.423cm" fo:margin-bottom="0.212cm"/>
+      <style:text-properties fo:font-size="18pt" fo:font-weight="bold" style:font-size-asian="18pt" style:font-weight-asian="bold"/>
+    </style:style>
+    <style:style style:name="Text_20_body" style:display-name="Text body" style:family="paragraph" style:parent-style-name="Standard" style:class="text">
+      <style:paragraph-properties fo:margin-top="0cm" fo:margin-bottom="0.212cm" fo:line-height="115%"/>
+    </style:style>
+  </office:styles>
+  <office:automatic-styles>
+    <style:page-layout style:name="pmA4">
+      <style:page-layout-properties
+        fo:page-width="21.001cm"
+        fo:page-height="29.7cm"
+        style:num-format="1"
+        style:print-orientation="portrait"
+        fo:margin-top="2cm"
+        fo:margin-bottom="2cm"
+        fo:margin-left="2.5cm"
+        fo:margin-right="2cm"
+        fo:background-color="transparent"
+        style:writing-mode="lr-tb"/>
+    </style:page-layout>
+  </office:automatic-styles>
+  <office:master-styles>
+    <style:master-page style:name="Standard" style:page-layout-name="pmA4"/>
+  </office:master-styles>
+  <office:body>
+    <office:text>
+      <text:h text:style-name="Heading_20_1" text:outline-level="1">Công văn thẩm định dự toán năm 2026</text:h>
+      <text:p text:style-name="Text_20_body">Kính gửi Ban Giám đốc. Đề nghị phê duyệt <office:annotation office:name="__Annotation__du-toan-2026"><dc:creator>Tran Thi Hoa</dc:creator><dc:date>2026-09-05T09:10:00</dc:date><text:p>Cần đối chiếu số liệu quý II trước khi trình.</text:p></office:annotation>dự toán năm 2026<office:annotation-end office:name="__Annotation__du-toan-2026"/> theo phương án đã thống nhất.</text:p>
+      <text:p text:style-name="Text_20_body">Người soạn: <office:annotation office:name="__Annotation__nguoi-soan"><dc:creator>Pham Minh Duc</dc:creator><dc:date>2026-09-05T09:25:00</dc:date><text:p>Xác nhận chữ ký người soạn.</text:p></office:annotation>Lê Văn Cường<office:annotation-end office:name="__Annotation__nguoi-soan"/>. Ngày soạn: 05/09/2026.</text:p>
+    </office:text>
+  </office:body>
+</office:document>
