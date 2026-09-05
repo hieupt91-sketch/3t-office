@@ -159,7 +159,7 @@ Trạng thái: `[ ]` chưa làm · `[~]` đang làm · `[x]` xong (đã test th�
 - [x] Phím tắt chuẩn Excel/PowerPoint đầy đủ — 100% shortcut áp dụng cho tập command hiện có đã audit; bổ sung Insert Row `Ctrl+Shift+=`, xác nhận AutoSum `Alt+=`, Filter `Ctrl+Shift+L`, New Slide `Ctrl+M`, Duplicate Slide `Ctrl+D`, F5/Shift+F5; suite 34 kiểm tra không trùng trong từng app và không đè `common.*`.
 - [ ] Milestone 6: AI Assistant backend thật (hiện chỉ xử lý cục bộ đơn giản)
 - [ ] Accessibility đầy đủ: screen reader labels, contrast audit (03-ui-ux/ACCESSIBILITY.md)
-- [ ] Spell-check tiếng Việt thật (hiện `spellcheck="false"` bị tắt)
+- [x] Spell-check tiếng Việt thật (từ điển LibreOffice offline, gạch chân realtime và từ điển cá nhân)
 - [ ] Cloud/Account sync (theo AI-ARCHITECTURE.md — cần consent rõ ràng)
 
 ---
