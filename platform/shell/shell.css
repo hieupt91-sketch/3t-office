@@ -414,6 +414,62 @@ body {
   }
 }
 
+/* Responsive ribbon breakpoint 3: man hinh <= 1300px (laptop cu / may chieu 1280px pho bien tai VN)
+   Giam nhe padding nhom va thu gon cac nut it dung/phu thanh icon + tooltip tren cac tab de bi tran.
+   Bao toan 100% button DOM, commandId, aria-label, tooltip title va click handlers. */
+@media (max-width: 1300px) {
+  .vno-ribbon-content {
+    padding: 4px 2px;
+  }
+  .vno-ribbon-group {
+    padding: 0 2px;
+  }
+  .vno-ribbon-group-items {
+    gap: 2px;
+  }
+
+  /* Sheet Home - Nhom Chinh sua (Editing): Sap xep A-Z, Sap xep Z-A, Loc thu gon thanh icon buttons */
+  .vno-ribbon-group[data-group-id="editing"] button[data-command-id="sheet.data.sortAsc"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="editing"] button[data-command-id="sheet.data.sortDesc"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="editing"] button[data-command-id="sheet.data.filter"] .vno-btn-label {
+    display: none;
+  }
+  .vno-ribbon-group[data-group-id="editing"] button[data-command-id="sheet.data.sortAsc"],
+  .vno-ribbon-group[data-group-id="editing"] button[data-command-id="sheet.data.sortDesc"],
+  .vno-ribbon-group[data-group-id="editing"] button[data-command-id="sheet.data.filter"] {
+    padding: 2px 5px;
+    justify-content: center;
+  }
+
+  /* Sheet Formulas - Nhom Kiem tra cong thuc (Formula Auditing): Tim o tien le, Tim o phu thuoc, Xoa mui ten thu gon thanh icon */
+  .vno-ribbon-group[data-group-id="formulaAuditing"] button[data-command-id="sheet.formula.tracePrecedents"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="formulaAuditing"] button[data-command-id="sheet.formula.traceDependents"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="formulaAuditing"] button[data-command-id="sheet.formula.removeArrows"] .vno-btn-label {
+    display: none;
+  }
+  .vno-ribbon-group[data-group-id="formulaAuditing"] button[data-command-id="sheet.formula.tracePrecedents"],
+  .vno-ribbon-group[data-group-id="formulaAuditing"] button[data-command-id="sheet.formula.traceDependents"],
+  .vno-ribbon-group[data-group-id="formulaAuditing"] button[data-command-id="sheet.formula.removeArrows"] {
+    padding: 2px 5px;
+    justify-content: center;
+  }
+
+  /* Sheet Formulas - Nhom Ten da xac dinh (Defined Names): Tao tu vung chon thu gon thanh icon */
+  .vno-ribbon-group[data-group-id="definedNames"] button[data-command-id="sheet.formula.createFromSelection"] .vno-btn-label {
+    display: none;
+  }
+  .vno-ribbon-group[data-group-id="definedNames"] button[data-command-id="sheet.formula.createFromSelection"] {
+    padding: 2px 5px;
+    justify-content: center;
+  }
+
+  /* Sheet Formulas - Nhom Ham tinh toan (Function Library): padding gon gang cho cac nut danh muc */
+  .vno-ribbon-group[data-group-id="functionLibrary"] .vno-ribbon-btn-small {
+    padding: 2px 3px;
+    font-size: 10.5px;
+  }
+}
+
 /* Ribbon Dropdown Button & Menu (Fill, Clear, etc.) */
 .vno-ribbon-btn-dropdown {
   position: relative;
