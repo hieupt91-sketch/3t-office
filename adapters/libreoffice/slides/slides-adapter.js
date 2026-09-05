@@ -911,6 +911,142 @@ export class SlidesAdapter {
     return next;
   }
 
+  /**
+   * LibreOffice Impress flattens PPTX DrawingML SmartArt to <draw:g> of
+   * custom-shapes (measured: not a bitmap). Stamp diagramGroupId so canvas
+   * treats the imported boxes as one diagram; drop the empty background
+   * rect LO adds as the first child.
+   */
+  _diagramGroupIdFromAttrs(attrs, index) {
+    const raw = this._attr(attrs, "draw:name") || this._attr(attrs, "draw:id") || this._attr(attrs, "xml:id") || "";
+    const slug = String(raw).trim().replace(/\s+/g, "-");
+    return slug || `diagram-import-${index}`;
+  }
+
+  _parseDrawTranslate(attrs) {
+    const transform = this._attr(attrs, "draw:transform") || this._attr(attrs, "svg:transform");
+    const match = String(transform || "").match(/translate\(\s*([^,)\s]+)\s*[, ]\s*([^,)\s]+)\s*\)/i);
+    if (match) {
+      return { x: this._odfLengthToPx(match[1]), y: this._odfLengthToPx(match[2]) };
+    }
+    return {
+      x: this._odfLengthToPx(this._attr(attrs, "svg:x")),
+      y: this._odfLengthToPx(this._attr(attrs, "svg:y"))
+    };
+  }
+
+  _shapeArea(shape) {
+    return Math.max(0, Number(shape?.w) || 0) * Math.max(0, Number(shape?.h) || 0);
+  }
+
+  _omitGroupBackground(shapes) {
+    if (!Array.isArray(shapes) || shapes.length < 2) return shapes || [];
+    let backgroundIndex = -1;
+    let backgroundArea = 0;
+    for (let index = 0; index < shapes.length; index++) {
+      const shape = shapes[index];
+      if (shape.type === "connector") continue;
+      if (String(shape.text || "").trim()) continue;
+      const area = this._shapeArea(shape);
+      if (area > backgroundArea) {
+        backgroundArea = area;
+        backgroundIndex = index;
+      }
+    }
+    if (backgroundIndex < 0) return shapes;
+    const others = shapes.filter((shape, index) => index !== backgroundIndex && shape.type !== "connector");
+    if (!others.length) return shapes;
+    const maxOther = Math.max(...others.map((shape) => this._shapeArea(shape)));
+    if (backgroundArea > maxOther * 2.5) {
+      return shapes.filter((_, index) => index !== backgroundIndex);
+    }
+    return shapes;
+  }
+
+  _applyGroupOffset(shapes, groupX, groupY) {
+    if (!groupX && !groupY) return;
+    const xs = shapes.map((shape) => shape.x).filter((value) => Number.isFinite(value));
+    const ys = shapes.map((shape) => shape.y).filter((value) => Number.isFinite(value));
+    if (!xs.length) return;
+    // soffice FODP for SmartArt writes absolute svg:x/y on children (measured).
+    // Only add the group origin when children look relative (near 0,0).
+    if (Math.min(...xs) >= 24 || Math.min(...ys) >= 24) return;
+    for (const shape of shapes) {
+      if (Number.isFinite(shape.x)) shape.x += groupX;
+      if (Number.isFinite(shape.y)) shape.y += groupY;
+      if (Number.isFinite(shape.x1)) shape.x1 += groupX;
+      if (Number.isFinite(shape.x2)) shape.x2 += groupX;
+      if (Number.isFinite(shape.y1)) shape.y1 += groupY;
+      if (Number.isFinite(shape.y2)) shape.y2 += groupY;
+    }
+  }
+
+  _parseInnerDrawShapes(xml, graphicStyles, idMap) {
+    const shapes = [];
+    let rest = xml;
+    rest = this._extractTaggedShapes(rest, ["rect", "ellipse", "circle", "custom-shape", "polygon"], (tagName, attrs, inner) => {
+      const shape = this._parseDrawShape(tagName, attrs, inner, graphicStyles);
+      this._recordShapeId(attrs, shape, idMap);
+      shapes.push(shape);
+    });
+    rest = this._extractTaggedShapes(rest, ["connector", "line"], (tagName, attrs, inner) => {
+      const shape = this._parseConnectorShape(attrs, inner, graphicStyles);
+      if (tagName === "line" && !shape.sourceId && !shape.targetId) shape.type = "connector";
+      this._recordShapeId(attrs, shape, idMap);
+      shapes.push(shape);
+    });
+    this._extractShapeFrames(rest, shapes, graphicStyles, idMap);
+    return shapes;
+  }
+
+  _stampImportedDiagramGroup(children, groupId, idMap) {
+    const kept = this._omitGroupBackground(children);
+    let nodeIndex = 0;
+    let connectorIndex = 0;
+    for (const shape of kept) {
+      shape.diagramGroupId = groupId;
+      const previousId = shape.id;
+      const generatedId = typeof previousId === "number";
+      if (shape.type === "connector") {
+        shape.diagramRole = "connector";
+        if (generatedId) shape.id = `${groupId}-connector-${++connectorIndex}`;
+      } else {
+        shape.diagramRole = "node";
+        if (shape.diagramLevel == null) shape.diagramLevel = 0;
+        if (generatedId) shape.id = `${groupId}-node-${++nodeIndex}`;
+      }
+      if (idMap && generatedId && previousId !== shape.id) {
+        for (const [key, value] of idMap) {
+          if (value === previousId) idMap.set(key, shape.id);
+        }
+        idMap.set(String(shape.id), shape.id);
+      }
+    }
+    return kept;
+  }
+
+  _extractDrawGroups(pageContent, shapes, graphicStyles, idMap) {
+    const regex = /<draw:g\b([^>]*)>([\s\S]*?)<\/draw:g>/gi;
+    const blocks = [];
+    let match;
+    let groupIndex = 0;
+    while ((match = regex.exec(pageContent)) !== null) {
+      blocks.push(match[0]);
+      groupIndex += 1;
+      const attrs = match[1] || "";
+      const inner = match[2] || "";
+      const groupId = this._diagramGroupIdFromAttrs(attrs, groupIndex);
+      const origin = this._parseDrawTranslate(attrs);
+      const children = this._parseInnerDrawShapes(inner, graphicStyles, idMap);
+      this._applyGroupOffset(children, origin.x, origin.y);
+      const grouped = this._stampImportedDiagramGroup(children, groupId, idMap);
+      for (const shape of grouped) shapes.push(shape);
+    }
+    let next = pageContent;
+    for (const block of blocks) next = next.replace(block, "");
+    return next;
+  }
+
   _frameBlocksByClass(pageXml, className) {
     const frames = [];
     const regex = /<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi;
@@ -1148,6 +1284,7 @@ export class SlidesAdapter {
 
       const shapes = [];
       const idMap = new Map();
+      pageContent = this._extractDrawGroups(pageContent, shapes, graphicStyles, idMap);
       pageContent = this._extractTaggedShapes(pageContent, ["rect", "ellipse", "circle", "custom-shape", "polygon"], (tagName, attrs, inner) => {
         const shape = this._parseDrawShape(tagName, attrs, inner, graphicStyles);
         this._recordShapeId(attrs, shape, idMap);
