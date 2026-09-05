@@ -88,8 +88,11 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.data.ungroup", () => this.grid.ungroupSelection());
     globalCommandBus.bindHandler("sheet.data.subtotal", () => this.grid.showSubtotalDialog());
     globalCommandBus.bindHandler("sheet.data.goalSeek", () => this.grid.showGoalSeekDialog());
+    globalCommandBus.bindHandler("sheet.data.dataTable", () => this.grid.showDataTableDialog());
+    globalCommandBus.bindHandler("sheet.data.scenarioManager", () => this.grid.showScenarioManagerDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
     globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this.grid.refreshPivotTable());
+    globalCommandBus.bindHandler("sheet.chart.pivotChart", () => this.grid.openPivotChartBuilder());
     globalCommandBus.bindHandler("sheet.formula.nameManager", (args) => {
       args = args || {};
       return this.grid.showNameManager(args);
@@ -2388,6 +2391,8 @@ export class SheetAdapter {
       case "sheet.data.ungroup": return this.grid.ungroupSelection();
       case "sheet.data.subtotal": return this.grid.showSubtotalDialog();
       case "sheet.data.goalSeek": return this.grid.showGoalSeekDialog();
+      case "sheet.data.dataTable": return this.grid.showDataTableDialog();
+      case "sheet.data.scenarioManager": return this.grid.showScenarioManagerDialog();
 
       case "sheet.data.pivotTable":
         return this.grid.showPivotTableDialog();
@@ -2422,6 +2427,8 @@ export class SheetAdapter {
       case "sheet.chart.insert":
         this.grid.openChartBuilder();
         return true;
+      case "sheet.chart.pivotChart":
+        return this.grid.openPivotChartBuilder();
 
       case "sheet.insert.sparklineLine":
         return this.grid.insertSparkline("line");

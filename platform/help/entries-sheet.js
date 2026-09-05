@@ -156,6 +156,22 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.data.whatIfAnalysis",
+    app: "sheet",
+    commandIds: ["sheet.data.goalSeek", "sheet.data.dataTable", "sheet.data.scenarioManager"],
+    title: "Phân tích What-If: Bảng dữ liệu và Kịch bản",
+    summary: "Thử nhiều giá trị đầu vào cho một công thức hoặc lưu các bộ giả định có tên để so sánh kết quả mà không phải nhập lại thủ công.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Công cụ dữ liệu" },
+    keywords: ["what-if", "bảng dữ liệu", "data table", "kịch bản", "scenario manager", "giả định"],
+    steps: [
+      "Mở tab Dữ liệu, nhóm Công cụ dữ liệu, nhấn Phân tích What-If rồi chọn Dò tìm mục tiêu, Bảng dữ liệu hoặc Trình quản lý kịch bản.",
+      "Bảng dữ liệu: đặt công thức gốc ở ô góc trên-trái của vùng; đặt các giá trị thử ngang hàng trên và/hoặc dọc cột trái. Bôi toàn bộ vùng, mở Bảng dữ liệu và nhập Ô đầu vào theo hàng, theo cột, hoặc cả hai rồi nhấn Áp dụng.",
+      "Với một biến, chỉ nhập đúng một ô đầu vào. Với hai biến, giá trị hàng thay cho Ô đầu vào theo hàng, giá trị cột thay cho Ô đầu vào theo cột; VN Sheet điền kết quả vào phần thân bảng nhưng giữ nguyên công thức gốc.",
+      "Trình quản lý kịch bản: nhập Tên, danh sách Các ô thay đổi (ví dụ B2, B3) và cùng số Giá trị; nhấn Thêm. Chọn một kịch bản để Sửa/Xóa hoặc nhấn Hiển thị để ghi bộ giá trị vào các ô thật.",
+      "Nhấn Ctrl+Z/Ctrl+Y để hoàn tác/làm lại kết quả Bảng dữ liệu, thao tác quản lý kịch bản hoặc bộ giá trị vừa Hiển thị."
+    ]
+  },
+  {
     id: "sheet.edit.formatPainter",
     app: "sheet",
     commandIds: ["sheet.edit.formatPainter"],
@@ -184,6 +200,21 @@ export const SHEET_HELP_ENTRIES = [
       "Hộp thoại Chèn biểu đồ từ «vùng» có bốn kiểu: Cột, Đường, Tròn, Miền. Chọn kiểu để xem trước. Biểu đồ tròn cần giá trị dương.",
       "Nhấn Chèn vào bảng tính. Biểu đồ nằm trên lưới, dùng dữ liệu của vùng đã chọn. Đổi số trong vùng nguồn rồi biểu đồ cập nhật theo dữ liệu sheet.",
       "Cùng tab Chèn còn Biểu đồ thu nhỏ (Đường / Cột sparkline) — đó là mini-chart trong ô, khác biểu đồ lớn này."
+    ]
+  },
+  {
+    id: "sheet.chart.pivotChart",
+    app: "sheet",
+    commandIds: ["sheet.chart.pivotChart", "sheet.data.pivotRefresh"],
+    title: "Biểu đồ Pivot (PivotChart)",
+    summary: "Tạo biểu đồ Cột hoặc Tròn từ kết quả đã tổng hợp của Pivot Table và giữ liên kết để cập nhật khi làm mới Pivot.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Biểu đồ" },
+    keywords: ["pivotchart", "biểu đồ pivot", "pivot table", "cột", "tròn", "làm mới"],
+    steps: [
+      "Tạo Pivot Table trước. Đứng trên trang Pivot; hoặc đứng ở trang dữ liệu nguồn đã có Pivot liên kết rồi mở tab Chèn, nhóm Biểu đồ, nhấn Biểu đồ Pivot cạnh nút Biểu đồ thường.",
+      "Trong hộp xem trước, chọn Cột để so sánh các hạng mục hoặc Tròn để xem tỷ trọng, rồi nhấn Chèn vào bảng tính. PivotChart chỉ dùng bảng kết quả đã tổng hợp, không đọc trực tiếp dữ liệu thô.",
+      "Khi dữ liệu nguồn thay đổi, mở trang Pivot và vào tab Dữ liệu, nhóm Bảng tổng hợp, nhấn Làm mới Pivot. Bảng và PivotChart liên kết được cập nhật cùng nhau.",
+      "Dùng nút × trên góc biểu đồ để xóa. Chèn/xóa PivotChart và Làm mới Pivot đều dùng Ctrl+Z/Ctrl+Y của VN Sheet."
     ]
   },
   {

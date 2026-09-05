@@ -396,13 +396,11 @@ export const SHEET_RIBBON_TABS = [
             { type: "button", commandId: "sheet.data.removeDuplicates", icon: `<svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="14" height="14" rx="2" fill="#DCFCE7" stroke="#0F6D38"/><circle cx="17" cy="17" r="5" fill="#DC2626"/><path d="m15 15 4 4m0-4-4 4" stroke="white" stroke-width="1.6"/></svg>` },
             { type: "button", commandId: "sheet.data.validation" }
           ] },
-          {
-            type: "button",
-            commandId: "sheet.data.goalSeek",
-            label: "Dò tìm mục tiêu",
-            isLarge: true,
-            icon: `<svg viewBox="0 0 32 32" fill="none"><circle cx="14" cy="14" r="10" fill="#DCFCE7" stroke="#0F6D38" stroke-width="2"/><circle cx="14" cy="14" r="5" stroke="#0F6D38" stroke-width="2"/><circle cx="14" cy="14" r="1.8" fill="#0F6D38"/><path d="M21.5 21.5 29 29M24 26h5v-5" stroke="#0F6D38" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-          }
+          { type: "dropdown", id: "sheet-what-if-analysis", label: "Phân tích What-If", labelKey: "sheetRibbon.whatIfAnalysis", icon: "whatIfAnalysis", isLarge: true, items: [
+            { commandId: "sheet.data.goalSeek" },
+            { commandId: "sheet.data.dataTable" },
+            { commandId: "sheet.data.scenarioManager" }
+          ] }
         ]
       },
       {
@@ -437,7 +435,7 @@ export const SHEET_RIBBON_TABS = [
       {
         label: "Biểu đồ",
         labelKey: "sheetRibbon.group.charts",
-        items: [{ type: "button", commandId: "sheet.chart.insert", isLarge: true }]
+        items: [{ type: "button", commandId: "sheet.chart.insert", isLarge: true }, { type: "button", commandId: "sheet.chart.pivotChart", isLarge: true }]
       },
       {
         label: "Biểu đồ thu nhỏ",

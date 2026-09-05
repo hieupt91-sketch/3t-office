@@ -87,6 +87,8 @@ import { runA11yAuditNewFeaturesTests } from "./unit/a11y-audit-new-features.tes
 import { runSlidesWordArtTests } from "./unit/slides-wordart.test.js";
 import { runSheetFormatPainterTests } from "./unit/sheet-format-painter.test.js";
 import { runSheetGoalSeekTests } from "./unit/sheet-goal-seek.test.js";
+import { runSheetWhatIfAnalysisTests } from "./unit/sheet-what-if-analysis.test.js";
+import { runSheetPivotChartTests } from "./unit/sheet-pivot-chart.test.js";
 import { runWriterArrangeTests } from "./unit/writer-arrange.test.js";
 import { runSlidesHideSlideTests } from "./unit/slides-hide-slide.test.js";
 import { runSlidesChartTests } from "./unit/slides-charts.test.js";
@@ -198,6 +200,8 @@ async function runAll() {
     { title: "79. Behavioral Tests — VN Sheet Format Painter", runner: runSheetFormatPainterTests },
     { title: "80. Accessibility Audit — Keyboard Navigation for New Features (Paste Special, Merge Cells, Sections, WordArt, SmartArt Group Select, Dark Mode Toggle)", runner: runA11yAuditNewFeaturesTests },
     { title: "81. Behavioral Tests — VN Sheet Goal Seek", runner: runSheetGoalSeekTests },
+    { title: "81b. Behavioral Tests — VN Sheet What-If Analysis", runner: runSheetWhatIfAnalysisTests },
+    { title: "81c. Behavioral Tests — VN Sheet PivotChart", runner: runSheetPivotChartTests },
     { title: "82. Behavioral Tests — VN Writer Arrange Group", runner: runWriterArrangeTests },
     { title: "83. Behavioral Tests — VN Slides Hide Slide (Ẩn trang chiếu)", runner: runSlidesHideSlideTests },
     { title: "84. Behavioral Tests — VN Slides Insert Chart", runner: runSlidesChartTests },

@@ -7,7 +7,9 @@ function numberValue(value) {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
   const raw = String(value ?? "").trim();
   if (!raw) return null;
-  const parsed = Number(raw.replace(/\s/g, "").replace(/[₫%]/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", ".").replace(/[^\d.+-]/g, ""));
+  const normalized = raw.replace(/\s/g, "").replace(/[₫%]/g, "").replace(/\.(?=\d{3}(?:\D|$))/g, "").replace(",", ".").replace(/[^\d.+-]/g, "");
+  if (!normalized || !/\d/.test(normalized)) return null;
+  const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -117,7 +119,9 @@ export class SheetChartBuilder {
     const labels = dataItems.map(item => item.label), data = dataItems.map(item => item.value);
     let currentType = "bar";
     const range = options.rangeLabel || t("sheetDialogs.selectedRange");
-    const chartTypes = [["bar", "chartColumn"], ["line", "chartLine"], ["pie", "chartPie"], ["area", "chartArea"]];
+    const allChartTypes = [["bar", "chartColumn"], ["line", "chartLine"], ["pie", "chartPie"], ["area", "chartArea"]];
+    const chartTypes = allChartTypes.filter(([kind]) => !options.types || options.types.includes(kind));
+    currentType = chartTypes[0]?.[0] || "bar";
     modal.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-chart-title" style="width:760px;max-width:95vw"><div class="vno-dialog-header"><span id="vno-chart-title">${esc(t("sheetDialogs.chartInsertFrom", { range }))}</span><button class="vno-btn" data-chart-close aria-label="${esc(t("sheetDialogs.close"))}">×</button></div><div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px"><div role="group" aria-label="${esc(t("sheetDialogs.chartType"))}" style="display:flex;gap:8px">${chartTypes.map(([kind, key]) => `<button class="vno-btn${kind === "bar" ? " is-checked" : ""}" data-chart-type="${kind}" aria-pressed="${kind === "bar"}">${esc(t(`sheetDialogs.${key}`))}</button>`).join("")}</div><div data-chart-preview aria-hidden="true" style="height:340px;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden"></div></div><div class="vno-dialog-footer"><button class="vno-btn" data-chart-cancel>${esc(t("sheetDialogs.cancel"))}</button><button class="vno-btn vno-btn-primary" data-chart-apply>${esc(t("sheetDialogs.insertIntoSheet"))}</button></div></div>`;
     const render = () => { modal.querySelector("[data-chart-preview]").innerHTML = this.generateSvg({ type: currentType, title: options.title || t("sheetDialogs.chartDefaultTitle"), labels, data }); };
     const onKeyDown = event => {
@@ -140,7 +144,7 @@ export class SheetChartBuilder {
     modal.querySelector("[data-chart-cancel]").addEventListener("click", close);
     modal.querySelector("[data-chart-apply]").addEventListener("click", () => { onInsert?.(currentType); close(); });
     document.addEventListener("keydown", onKeyDown);
-    document.body.appendChild(modal); render(); modal.querySelector('[data-chart-type="bar"]').focus();
+    document.body.appendChild(modal); render(); modal.querySelector("[data-chart-type]")?.focus();
     return modal;
   }
 }
