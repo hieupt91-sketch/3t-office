@@ -793,6 +793,14 @@ export const ICONS = {
     <polygon points="18,17 26,20 18,23" fill="#F59E0B"/>
   </svg>`,
 
+  hideSlide: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="3" y="5" width="26" height="16" rx="2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.3"/>
+    <path d="M7 10h18M7 14h12" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M8 24.5c1.6-2.6 4.5-4.2 8-4.2s6.4 1.6 8 4.2" stroke="#B53818" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="16" cy="21.2" r="2.2" fill="#FFF7ED" stroke="#B53818" stroke-width="1.3"/>
+    <path d="M7 27.5L25 8.5" stroke="#991B1B" stroke-width="2.1" stroke-linecap="round"/>
+  </svg>`,
+
   slidePlayFromBegin: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="3" y="4" width="26" height="18" rx="2" fill="#1E293B" stroke="#0F172A" stroke-width="1.2"/>
     <polygon points="12,8 21,13 12,18" fill="#F59E0B"/>

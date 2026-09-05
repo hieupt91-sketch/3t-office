@@ -86,6 +86,26 @@
   box-shadow: 0 0 0 2px rgba(181, 56, 24, 0.25);
 }
 
+.vno-slide-thumb-item.is-hidden .vno-slide-thumb-card {
+  opacity: 0.38;
+}
+
+.vno-slide-thumb-num.is-hidden-number {
+  text-decoration: line-through;
+  color: var(--vno-text-muted, #94a3b8);
+  position: relative;
+}
+
+.vno-slide-hidden-mark,
+.vno-slide-sorter-hidden-mark {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 0.95em;
+  text-decoration: none;
+  color: var(--vno-app-current, #b53818);
+  font-weight: 800;
+}
+
 /* Stage Canvas (Sân khấu trung tâm) */
 .vno-slide-stage {
   flex: 1;
@@ -1046,7 +1066,9 @@
 .vno-slide-sorter-item { position: relative; min-width: 0; cursor: grab; border-radius: 8px; padding: 8px; border: 2px solid transparent; }
 .vno-slide-sorter-item:focus-visible, .vno-slide-sorter-item.is-current { border-color: var(--vno-app-current, #b53818); outline: none; background: var(--vno-bg-hover, rgba(255,255,255,.65)); }
 .vno-slide-sorter-item.is-dragging { opacity: .45; cursor: grabbing; }
+.vno-slide-sorter-item.is-hidden .vno-slide-sorter-preview { opacity: .38; }
 .vno-slide-sorter-number { margin: 0 0 6px 2px; color: var(--vno-text-muted, #475569); font-size: 13px; font-weight: 700; }
+.vno-slide-sorter-number.is-hidden-number { text-decoration: line-through; color: var(--vno-text-muted, #94a3b8); }
 .vno-slide-sorter-preview {
   position: relative; aspect-ratio: var(--vno-slide-aspect, 16 / 9); overflow: hidden; border-radius: 5px;
   padding: 24px 26px; border: 1px solid var(--vno-border-default, #bcc7d5); box-shadow: 0 5px 14px rgba(15,23,42,.16);
