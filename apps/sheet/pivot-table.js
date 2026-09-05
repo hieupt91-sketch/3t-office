@@ -78,5 +78,11 @@ export class PivotTableEngine {
     table.forEach((row, rowIndex) => row.forEach((value, colIndex) => cells.set(`${this.columnName(colIndex)}${rowIndex + 1}`, { val: value, formula: "", style: rowIndex === 0 ? { fontWeight: "bold", backgroundColor: "#E7F4EC" } : {} })));
     return cells;
   }
+
+  static resultRange(table) {
+    const rowCount = Math.max(1, table?.length || 0);
+    const columnCount = Math.max(1, ...(table || []).map(row => row.length));
+    return { start: { c: "A", r: 1 }, end: { c: this.columnName(columnCount - 1), r: rowCount } };
+  }
 }
 import { t } from "../../platform/i18n/i18n.js";

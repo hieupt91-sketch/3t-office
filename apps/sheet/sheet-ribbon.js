@@ -435,7 +435,7 @@ export const SHEET_RIBBON_TABS = [
       {
         label: "Biểu đồ",
         labelKey: "sheetRibbon.group.charts",
-        items: [{ type: "button", commandId: "sheet.chart.insert", isLarge: true }]
+        items: [{ type: "button", commandId: "sheet.chart.insert", isLarge: true }, { type: "button", commandId: "sheet.chart.pivotChart", isLarge: true }]
       },
       {
         label: "Biểu đồ thu nhỏ",

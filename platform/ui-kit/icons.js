@@ -535,6 +535,7 @@ export const ICONS = {
     <polyline points="4 9 11 5 18 2" stroke="#DC2626" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="18" cy="2" r="1.5" fill="#DC2626"/>
   </svg>`,
+  pivotChart: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none"><rect x="3" y="4" width="12" height="10" rx="2" fill="#DCFCE7" stroke="#0F6D38"/><path d="M3 9h12M8 4v10" stroke="#0F6D38"/><path d="M6 27V19h4v8M14 27V16h4v11M22 27V11h4v16" fill="#BBF7D0" stroke="#0F6D38" stroke-width="1.5"/><path d="M4 27h24" stroke="#334155" stroke-width="1.5"/></svg>`,
 
   themeGallery: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
     <rect x="2" y="2" width="20" height="20" rx="3" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.4"/>

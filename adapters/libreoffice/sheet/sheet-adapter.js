@@ -92,6 +92,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.data.scenarioManager", () => this.grid.showScenarioManagerDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
     globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this.grid.refreshPivotTable());
+    globalCommandBus.bindHandler("sheet.chart.pivotChart", () => this.grid.openPivotChartBuilder());
     globalCommandBus.bindHandler("sheet.formula.nameManager", (args) => {
       args = args || {};
       return this.grid.showNameManager(args);
@@ -2426,6 +2427,8 @@ export class SheetAdapter {
       case "sheet.chart.insert":
         this.grid.openChartBuilder();
         return true;
+      case "sheet.chart.pivotChart":
+        return this.grid.openPivotChartBuilder();
 
       case "sheet.insert.sparklineLine":
         return this.grid.insertSparkline("line");

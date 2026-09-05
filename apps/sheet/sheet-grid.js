@@ -1515,6 +1515,7 @@ export class SheetGridController {
     this.imagesBySheet = { [defaultSheetName]: [] };
     this.textBoxesBySheet = { [defaultSheetName]: [] };
     this.pivotTablesBySheet = { [defaultSheetName]: [] };
+    this.scenariosBySheet = { [defaultSheetName]: [] };
     this.rowHeightsBySheet = { [defaultSheetName]: new Map() };
     this.colWidthsBySheet = { [defaultSheetName]: new Map() };
     this.userHiddenRowsBySheet = { [defaultSheetName]: new Set() };
@@ -3639,6 +3640,36 @@ export class SheetGridController {
     });
   }
 
+  openPivotChartBuilder() {
+    let targetSheet = this.activeSheet;
+    let pivot = this.pivotTablesBySheet[targetSheet]?.[0];
+    if (!pivot) {
+      const linked = Object.entries(this.pivotTablesBySheet).find(([, items]) => items?.some(item => item.sourceSheet === this.activeSheet));
+      if (linked) { targetSheet = linked[0]; pivot = linked[1][0]; }
+    }
+    if (!pivot || !this.sheetsData[targetSheet]) { this._showDataNotice(t("sheetDialogs.pivotChartNeedsPivot", "Hãy chọn một trang Pivot hoặc tạo Pivot Table trước.")); return false; }
+    if (targetSheet !== this.activeSheet) this.switchSheet(targetSheet);
+    const range = pivot.resultRange || this._usedRangeForCells(this.cellsData);
+    const extracted = SheetChartBuilder.extractRangeData(this.cellsData, range, this.cols);
+    const dataItems = extracted.labels.map((label, index) => ({ label, value: extracted.data[index] }));
+    return SheetChartBuilder.showChartModal(dataItems, type => this.insertPivotChart(type, pivot, range), { rangeLabel: this._rangeLabel(range), title: t("sheetDialogs.pivotChartTitle", "Biểu đồ Pivot"), types: ["bar", "pie"] });
+  }
+
+  _usedRangeForCells(cells) {
+    let maxCol = 0, maxRow = 1;
+    for (const coord of cells.keys()) { const [col, row] = this._splitCoord(coord); maxCol = Math.max(maxCol, this.cols.indexOf(col)); maxRow = Math.max(maxRow, row); }
+    return { start: { c: "A", r: 1 }, end: { c: this.cols[Math.max(0, maxCol)], r: maxRow } };
+  }
+
+  insertPivotChart(type, pivot = this.pivotTablesBySheet[this.activeSheet]?.[0], range = pivot?.resultRange, recordUndo = true) {
+    if (!pivot || !["bar", "pie"].includes(type)) return false;
+    const chart = this.insertChart(type, range || this._usedRangeForCells(this.cellsData), false);
+    chart.kind = "pivot"; chart.pivotId = pivot.id; chart.pivotSheet = pivot.targetSheet || this.activeSheet; chart.title = t("sheetDialogs.pivotChartTitle", "Biểu đồ Pivot");
+    this._updateChartData(chart, chart.pivotSheet); this.renderCharts();
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "chartsBySheet", operation: "insert", index: this.chartsBySheet[this.activeSheet].length - 1, item: structuredClone(chart) });
+    return chart;
+  }
+
   insertChart(type, range = this.selectionRange, recordUndo = true) {
     if (!SheetChartBuilder.supportedTypes.includes(type)) return false;
     const normalizedRange = this._normalizeRange(range);
@@ -3678,16 +3709,16 @@ export class SheetGridController {
     return first === last ? first : `${first}:${last}`;
   }
 
-  _updateChartData(chart) {
-    const extracted = SheetChartBuilder.extractRangeData(this.cellsData, chart.range, this.cols);
+  _updateChartData(chart, sheetName = this.activeSheet) {
+    const extracted = SheetChartBuilder.extractRangeData(this.sheetsData[sheetName] || this.cellsData, chart.range, this.cols);
     chart.labels = extracted.labels;
     chart.data = extracted.data;
     return chart;
   }
 
-  refreshCharts() {
-    for (const chart of this.chartsBySheet[this.activeSheet] || []) this._updateChartData(chart);
-    this.renderCharts();
+  refreshCharts(sheetName = this.activeSheet) {
+    for (const chart of this.chartsBySheet[sheetName] || []) this._updateChartData(chart, sheetName);
+    if (sheetName === this.activeSheet) this.renderCharts();
   }
 
   renderCharts() {
@@ -7267,7 +7298,7 @@ export class SheetGridController {
     const previousSheet = this.activeSheet;
     this.addSheet(targetSheet, false);
     this.sheetsData[targetSheet] = PivotTableEngine.toCells(table);
-    const pivot = { ...structuredClone(config), id: config.id || `pivot-${Date.now()}`, sourceSheet, targetSheet };
+    const pivot = { ...structuredClone(config), id: config.id || `pivot-${Date.now()}`, sourceSheet, targetSheet, resultRange: PivotTableEngine.resultRange(table) };
     this.pivotTablesBySheet[targetSheet] = [pivot];
     this._renderVirtualRows(1, Math.min(40, this.rowCount));
     this.selectCell("A", 1);
@@ -7283,6 +7314,9 @@ export class SheetGridController {
     const before = this._snapshotCells(sheetName);
     const table = PivotTableEngine.aggregate(sourceCells, pivot);
     this.sheetsData[sheetName] = PivotTableEngine.toCells(table);
+    pivot.resultRange = PivotTableEngine.resultRange(table);
+    for (const chart of this.chartsBySheet[sheetName] || []) if (chart.kind === "pivot" && chart.pivotId === pivot.id) chart.range = structuredClone(pivot.resultRange);
+    this.refreshCharts(sheetName);
     if (sheetName === this.activeSheet) {
       this._renderVirtualRows(1, Math.min(40, this.rowCount));
       this.selectCell("A", 1);

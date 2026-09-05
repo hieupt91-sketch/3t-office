@@ -203,6 +203,21 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.chart.pivotChart",
+    app: "sheet",
+    commandIds: ["sheet.chart.pivotChart", "sheet.data.pivotRefresh"],
+    title: "Biểu đồ Pivot (PivotChart)",
+    summary: "Tạo biểu đồ Cột hoặc Tròn từ kết quả đã tổng hợp của Pivot Table và giữ liên kết để cập nhật khi làm mới Pivot.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Biểu đồ" },
+    keywords: ["pivotchart", "biểu đồ pivot", "pivot table", "cột", "tròn", "làm mới"],
+    steps: [
+      "Tạo Pivot Table trước. Đứng trên trang Pivot; hoặc đứng ở trang dữ liệu nguồn đã có Pivot liên kết rồi mở tab Chèn, nhóm Biểu đồ, nhấn Biểu đồ Pivot cạnh nút Biểu đồ thường.",
+      "Trong hộp xem trước, chọn Cột để so sánh các hạng mục hoặc Tròn để xem tỷ trọng, rồi nhấn Chèn vào bảng tính. PivotChart chỉ dùng bảng kết quả đã tổng hợp, không đọc trực tiếp dữ liệu thô.",
+      "Khi dữ liệu nguồn thay đổi, mở trang Pivot và vào tab Dữ liệu, nhóm Bảng tổng hợp, nhấn Làm mới Pivot. Bảng và PivotChart liên kết được cập nhật cùng nhau.",
+      "Dùng nút × trên góc biểu đồ để xóa. Chèn/xóa PivotChart và Làm mới Pivot đều dùng Ctrl+Z/Ctrl+Y của VN Sheet."
+    ]
+  },
+  {
     id: "sheet.view.freezePanes",
     app: "sheet",
     commandIds: ["sheet.view.freezePanes"],
