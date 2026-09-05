@@ -347,6 +347,18 @@ export const WRITER_RIBBON_TABS = [
           { type: "button", commandId: "writer.reference.footnoteInsert", isLarge: true },
           { type: "button", commandId: "writer.reference.endnoteInsert", isLarge: true }
         ]
+      },
+      {
+        label: "Trích dẫn & Thư mục tài liệu",
+        labelKey: "writerRibbon.group.citationsBibliography",
+        items: [
+          { type: "column", items: [
+            { type: "row", items: [{ type: "select", commandId: "writer.reference.citationStyle", defaultValue: "apa", ariaLabel: "Kiểu trích dẫn", options: [{ value: "apa", label: "APA" }, { value: "mla", label: "MLA" }] }] },
+            { type: "row", items: [{ type: "button", commandId: "writer.reference.sourcesManage" }] }
+          ] },
+          { type: "button", commandId: "writer.reference.citationInsert", isLarge: true },
+          { type: "button", commandId: "writer.reference.bibliographyInsert", isLarge: true }
+        ]
       }
     ]
   },

@@ -16,6 +16,7 @@ import { showSymbolPicker } from "../../../platform/ui-kit/symbol-picker.js";
 import { formatDateTime, showDateTimeDialog } from "../../../platform/ui-kit/datetime-picker.js";
 import { showEquationDialog, showBookmarkDialog, showCrossReferenceDialog, slugBookmarkName } from "../../../apps/writer/insert-dialogs.js";
 import { t } from "../../../platform/i18n/i18n.js";
+import { CITATION_STYLES, authorSortKey, citationMetadataHtml, formatBibliographyEntry, formatInTextCitation, normalizeSource, parseCitationMetadata, showInsertCitationDialog, showSourceManagerDialog } from "../../../apps/writer/citations.js";
 
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
 const PAGE_SIZES_MM = {
@@ -104,6 +105,8 @@ export class WriterAdapter {
     this._resetInlineFormattingOnNextInput = null;
     this._normalizeParagraphAfterHeading = false;
     this._referenceClickHandler = null;
+    this.citationStyle = "apa";
+    this.citationSources = [];
     this.printPreviewOverlay = null;
     this.currentPreviewPage = 1;
     this.previewTotalPages = 1;
@@ -203,6 +206,10 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.reference.tocUpdate", () => this.updateTableOfContents());
     globalCommandBus.bindHandler("writer.reference.footnoteInsert", (args) => this.insertFootnote(args));
     globalCommandBus.bindHandler("writer.reference.endnoteInsert", (args) => this.insertEndnote(args));
+    globalCommandBus.bindHandler("writer.reference.citationStyle", (style) => this.setCitationStyle(style));
+    globalCommandBus.bindHandler("writer.reference.citationInsert", (args) => this.openInsertCitationDialog(args));
+    globalCommandBus.bindHandler("writer.reference.sourcesManage", (args) => this.openSourceManagerDialog(args));
+    globalCommandBus.bindHandler("writer.reference.bibliographyInsert", () => this.insertBibliography());
 
     // Bind Mail Merge (Trộn thư)
     globalCommandBus.bindHandler("writer.mailMerge.open", (args) => this.openMailMergeDataSourceDialog(args));
@@ -3654,6 +3661,8 @@ export class WriterAdapter {
         this._renderCommentsPanel();
       }
 
+      this._hydrateCitationsFromDom(result.content || imported.body);
+
       this.documentContent = this.editorDom ? this.editorDom.innerHTML : raw;
       this.sourceFileName = (result.fileName || "TaiLieu").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
@@ -3690,6 +3699,8 @@ export class WriterAdapter {
 
     this.mailMergeData = { fields: [], records: [], rawCsv: "" };
     this.mailMergePreview = { enabled: false, recordIndex: 0 };
+    this.citationStyle = "apa";
+    this.citationSources = [];
     this._updateMailMergeCommandStates?.();
 
     this.documentContent = this.editorDom ? this.editorDom.innerHTML : "";
@@ -4535,6 +4546,13 @@ export class WriterAdapter {
     }
     if (snapshot.documentTheme) {
       this.applyDocumentTheme(snapshot.documentTheme, false);
+    }
+    if (typeof this._hydrateCitationsFromDom === "function") {
+      const citationState = this._hydrateCitationsFromDom();
+      if (!citationState) {
+        this.citationStyle = "apa";
+        this.citationSources = [];
+      }
     }
     this._applyDecorations();
     this._syncActiveStyleUI?.();
@@ -5989,6 +6007,159 @@ export class WriterAdapter {
    * @param {Object} [options={}]
    * @returns {Promise<{ fields: string[], records: Array<Record<string, string>> }|null>}
    */
+  _hydrateCitationsFromDom(fallbackHtml = "") {
+    this._initZones();
+    const metadataEl = this.bodyDom?.querySelector?.('[data-vno-citation-metadata="true"]');
+    const parsed = parseCitationMetadata(metadataEl?.textContent || fallbackHtml || this.bodyDom?.innerHTML || "");
+    if (parsed) {
+      this.citationStyle = parsed.style;
+      this.citationSources = parsed.sources;
+      this._syncCitationMetadata();
+      this._refreshCitationFields();
+    }
+    return parsed;
+  }
+
+  _syncCitationMetadata() {
+    this._initZones();
+    if (!this.bodyDom) return;
+    const html = citationMetadataHtml({ style: this.citationStyle, sources: this.citationSources });
+    const existing = this.bodyDom.querySelector?.('[data-vno-citation-metadata="true"]');
+    if (existing?.remove) existing.remove();
+    if (typeof this.bodyDom.insertAdjacentHTML === "function") this.bodyDom.insertAdjacentHTML("beforeend", html);
+    else this.bodyDom.innerHTML = `${this.bodyDom.innerHTML || ""}${html}`;
+  }
+
+  _captureCitationRange() {
+    if (typeof window === "undefined" || !window.getSelection) return null;
+    const selection = window.getSelection();
+    if (!selection?.rangeCount) return null;
+    const range = selection.getRangeAt(0);
+    return this.bodyDom?.contains?.(range.commonAncestorContainer) ? range.cloneRange() : null;
+  }
+
+  _insertCitationHtmlAtRange(html, range = null) {
+    this._initZones();
+    if (!this.bodyDom) return false;
+    if (range && typeof document !== "undefined") {
+      try {
+        const holder = document.createElement("div");
+        holder.innerHTML = html;
+        const node = holder.firstElementChild;
+        range.collapse(false);
+        range.insertNode(node);
+        return true;
+      } catch {}
+    }
+    const metadata = this.bodyDom.querySelector?.('[data-vno-citation-metadata="true"]');
+    if (metadata?.insertAdjacentHTML) metadata.insertAdjacentHTML("beforebegin", html);
+    else if (typeof this.bodyDom.insertAdjacentHTML === "function") this.bodyDom.insertAdjacentHTML("beforeend", html);
+    else this.bodyDom.innerHTML = `${this.bodyDom.innerHTML || ""}${html}`;
+    return true;
+  }
+
+  _refreshCitationFields() {
+    this._initZones();
+    const sources = new Map(this.citationSources.map(source => [source.id, source]));
+    this.bodyDom?.querySelectorAll?.('[data-vno-citation-source-id]').forEach(field => {
+      const source = sources.get(field.getAttribute("data-vno-citation-source-id"));
+      if (source) field.textContent = formatInTextCitation(source, this.citationStyle);
+    });
+    this.bodyDom?.querySelectorAll?.('[data-vno-bibliography="true"]').forEach(block => {
+      const usedIds = this._usedCitationSourceIds();
+      block.innerHTML = this._bibliographyInnerHtml(usedIds);
+    });
+  }
+
+  _usedCitationSourceIds() {
+    const ids = [];
+    this.bodyDom?.querySelectorAll?.('[data-vno-citation-source-id]').forEach(field => {
+      const id = field.getAttribute("data-vno-citation-source-id");
+      if (id && !ids.includes(id)) ids.push(id);
+    });
+    if (!ids.length && typeof this.bodyDom?.innerHTML === "string") {
+      for (const match of this.bodyDom.innerHTML.matchAll(/data-vno-citation-source-id=["']([^"']+)["']/gi)) if (!ids.includes(match[1])) ids.push(match[1]);
+    }
+    return ids;
+  }
+
+  _bibliographyInnerHtml(usedIds = this._usedCitationSourceIds()) {
+    const used = new Set(usedIds);
+    const entries = this.citationSources.filter(source => used.has(source.id)).sort((a, b) => authorSortKey(a).localeCompare(authorSortKey(b), "vi"));
+    return `<h2 contenteditable="false">${this.citationStyle === "mla" ? "Works Cited" : "Tài liệu tham khảo"}</h2>${entries.map(source => `<p class="vno-bibliography-entry" data-vno-source-id="${this._escapeHtml(source.id)}">${formatBibliographyEntry(source, this.citationStyle)}</p>`).join("")}`;
+  }
+
+  setCitationStyle(style) {
+    if (!CITATION_STYLES.includes(style)) return false;
+    this.flushTyping();
+    this.citationStyle = style;
+    this._syncCitationMetadata();
+    this._refreshCitationFields();
+    this.recordSnapshot("writer.reference.citationStyle");
+    return true;
+  }
+
+  addOrUpdateCitationSource(source, recordHistory = true) {
+    this.flushTyping();
+    const normalized = normalizeSource(source);
+    const index = this.citationSources.findIndex(item => item.id === normalized.id);
+    if (index >= 0) this.citationSources[index] = normalized;
+    else this.citationSources.push(normalized);
+    this._syncCitationMetadata();
+    this._refreshCitationFields();
+    if (recordHistory) {
+      this.recordSnapshot(index >= 0 ? "writer.reference.sourceUpdate" : "writer.reference.sourceAdd");
+    }
+    return normalized;
+  }
+
+  insertCitation(source, range = null) {
+    const normalized = this.addOrUpdateCitationSource(source, false);
+    const text = formatInTextCitation(normalized, this.citationStyle);
+    const html = `<span class="vno-citation-field" data-vno-citation-source-id="${this._escapeHtml(normalized.id)}" contenteditable="false" role="note" aria-label="Trích dẫn ${this._escapeHtml(text)}">${this._escapeHtml(text)}</span>`;
+    this._insertCitationHtmlAtRange(html, range);
+    this._syncCitationMetadata();
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.citationInsert");
+    return normalized.id;
+  }
+
+  async openInsertCitationDialog(options = {}) {
+    options = options || {};
+    const range = this._captureCitationRange();
+    const source = options.source || await showInsertCitationDialog(this.citationSources, { style: this.citationStyle, ...options });
+    if (!source) return null;
+    return this.insertCitation(source, range);
+  }
+
+  async openSourceManagerDialog(options = {}) {
+    options = options || {};
+    const updated = options.sources || await showSourceManagerDialog(this.citationSources, {
+      isSourceUsed: id => this._usedCitationSourceIds().includes(id), ...options
+    });
+    if (!updated) return false;
+    this.flushTyping();
+    const kept = new Set(updated.map(source => source.id));
+    this.bodyDom?.querySelectorAll?.('[data-vno-citation-source-id]').forEach(field => {
+      if (!kept.has(field.getAttribute("data-vno-citation-source-id"))) field.removeAttribute("data-vno-citation-source-id");
+    });
+    this.citationSources = updated.map(normalizeSource);
+    this._syncCitationMetadata();
+    this._refreshCitationFields();
+    this.recordSnapshot("writer.reference.sourcesManage");
+    return true;
+  }
+
+  insertBibliography(range = null) {
+    this.flushTyping();
+    const html = `<section class="vno-bibliography" data-vno-bibliography="true" contenteditable="false">${this._bibliographyInnerHtml()}</section>`;
+    this._insertCitationHtmlAtRange(html, range || this._captureCitationRange());
+    this._syncCitationMetadata();
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.bibliographyInsert");
+    return true;
+  }
+
   async openMailMergeDataSourceDialog(options = {}) {
     options = options || {};
     const csvInput = options.csv !== undefined ? options.csv : options.csvText;

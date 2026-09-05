@@ -973,6 +973,11 @@ export const ICONS = {
     <path d="M15 17h2" stroke="#0F6D38" stroke-width="1.5" stroke-linecap="round"/>
   </svg>`,
 
+  citationStyle: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M6 5h12M6 10h8M6 15h10" stroke="#0F4C81" stroke-width="1.7" stroke-linecap="round"/><path d="M17 9l2 2 3-4" stroke="#16A34A" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  citationInsert: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M5 5h14v14H5z" fill="#EFF6FF" stroke="#0F4C81"/><path d="M8 9h3v4H8c0 2 1 3 3 3M14 9h3v4h-3c0 2 1 3 3 3" stroke="#2563EB" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
+  sourcesManage: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V4z" fill="#F8FAFC" stroke="#0F4C81"/><path d="M8 8h7M8 12h7M8 16h4" stroke="#64748B"/><circle cx="18" cy="17" r="3" fill="#DBEAFE" stroke="#2563EB"/><path d="M18 15.5v3M16.5 17h3" stroke="#2563EB"/></svg>`,
+  bibliographyInsert: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H12v18H7.5A3.5 3.5 0 0 0 4 23V5.5zM20 5.5A3.5 3.5 0 0 0 16.5 2H12v18h4.5A3.5 3.5 0 0 1 20 23V5.5z" fill="#EFF6FF" stroke="#0F4C81"/><path d="M7 7h3M7 11h3M14 7h3M14 11h3" stroke="#2563EB"/></svg>`,
+
   calculateSheet: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
     <rect x="4" y="3" width="16" height="18" rx="2" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.2"/>
     <path d="M7 7h10M7 11h5" stroke="#94A3B8" stroke-width="1.2"/>

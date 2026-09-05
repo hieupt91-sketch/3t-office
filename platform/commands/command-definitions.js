@@ -139,6 +139,10 @@ export const WRITER_COMMANDS = [
   { id: "writer.reference.tocUpdate", category: "reference", label: "Cập nhật mục lục", icon: "tocUpdate", tooltip: "Cập nhật lại mục lục tài liệu" },
   { id: "writer.reference.footnoteInsert", category: "reference", label: "Chú thích trang", shortcut: "Ctrl+Alt+F", icon: "footnoteInsert", tooltip: "Chèn chú thích cuối trang (Footnote) (Ctrl+Alt+F)" },
   { id: "writer.reference.endnoteInsert", category: "reference", label: "Chú thích cuối", shortcut: "Ctrl+Alt+D", icon: "endnoteInsert", tooltip: "Chèn chú thích cuối tài liệu (Endnote) (Ctrl+Alt+D)" },
+  { id: "writer.reference.citationStyle", category: "reference", label: "Kiểu trích dẫn", icon: "citationStyle", tooltip: "Chọn kiểu trích dẫn APA hoặc MLA" },
+  { id: "writer.reference.citationInsert", category: "reference", label: "Chèn trích dẫn", icon: "citationInsert", tooltip: "Chèn trích dẫn từ danh sách nguồn" },
+  { id: "writer.reference.sourcesManage", category: "reference", label: "Quản lý nguồn", icon: "sourcesManage", tooltip: "Thêm, sửa hoặc xóa nguồn tài liệu" },
+  { id: "writer.reference.bibliographyInsert", category: "reference", label: "Thư mục tài liệu", icon: "bibliographyInsert", tooltip: "Chèn danh mục tự động từ các nguồn đã trích dẫn" },
 
   // Trộn thư (Mail Merge)
   { id: "writer.mailMerge.open", category: "mailmerge", label: "Nguồn dữ liệu", icon: "mailMerge", tooltip: "Mở bảng nhập dữ liệu trộn thư (CSV)" },
