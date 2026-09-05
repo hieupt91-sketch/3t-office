@@ -431,6 +431,7 @@ export const SHEET_RIBBON_TABS = [
     groups: [
       {
         label: "Thiết lập trang",
+        labelKey: "writerRibbon.group.pageSetup",
         items: [
           { type: "button", commandId: "sheet.page.margins", label: "Lề trang", isLarge: true },
           { type: "button", commandId: "sheet.page.orientation", label: "Hướng trang", isLarge: true },
