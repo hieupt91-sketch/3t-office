@@ -2807,7 +2807,10 @@ export class WriterAdapter {
   _insertColumnBreak() {
     this.flushTyping();
     this._initZones();
-    this._insertHtmlAtCaretOrEnd('<div data-vno-column-break="true" style="break-before:column;column-break-before:always;border-top:1px dashed #94a3b8;margin:12px 0;color:#64748b;text-align:center;font-size:11px;user-select:none">--- Ngắt cột (Column Break) ---</div><p><br></p>');
+    // <p>, not <div>: LibreOffice's Writer HTML-import filter only honors
+    // break-before on a real <p> (same bug class fixed for Page Break /
+    // Section Breaks / Labels / Mail Merge).
+    this._insertHtmlAtCaretOrEnd('<p data-vno-column-break="true" style="break-before:column;margin:12px 0;border-top:1px dashed #94a3b8;color:#64748b;text-align:center;font-size:11px;user-select:none">--- Ngắt cột (Column Break) ---</p><p><br></p>');
     this.isDirty = true;
     this.recordSnapshot("writer.break.column");
     return true;
