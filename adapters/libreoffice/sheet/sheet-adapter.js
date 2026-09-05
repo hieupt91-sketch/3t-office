@@ -642,9 +642,163 @@ export class SheetAdapter {
     return { val: value, formula, style };
   }
 
+  _parseCellStyleColors(xmlText) {
+    const colors = new Map();
+    String(xmlText || "").replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrs, body) => {
+      const name = this._unescapeXml(attrs.match(/style:name=["']([^"']*)["']/i)?.[1] || "");
+      const display = this._unescapeXml(attrs.match(/style:display-name=["']([^"']*)["']/i)?.[1] || "");
+      const color = (body.match(/fo:background-color=["']([^"']+)["']/i)?.[1] || "").trim().toLowerCase();
+      if (name && color && color !== "transparent") {
+        colors.set(name, color);
+        if (display) colors.set(display, color);
+      }
+      return "";
+    });
+    return colors;
+  }
+
+  _parseOdfTargetRange(address, fallbackSheet) {
+    const raw = this._unescapeXml(String(address || "")).trim();
+    if (!raw) return null;
+    const parsePart = token => {
+      const text = String(token || "").trim();
+      const quoted = text.match(/^'([^']+)'\.(.+)$/);
+      if (quoted) return { sheet: quoted[1], cell: quoted[2].replace(/\$/g, "").toUpperCase() };
+      const dotted = text.match(/^([^'.]+)\.(.+)$/);
+      if (dotted && /[A-Z]+\d+/i.test(dotted[2])) {
+        return { sheet: dotted[1], cell: dotted[2].replace(/\$/g, "").toUpperCase() };
+      }
+      return { sheet: fallbackSheet, cell: text.replace(/\$/g, "").toUpperCase() };
+    };
+    const parts = raw.split(":").map(part => part.trim()).filter(Boolean);
+    const start = parsePart(parts[0]);
+    const end = parts[1] ? parsePart(parts[1]) : start;
+    const startCell = start.cell.match(/^([A-Z]+)(\d+)$/i);
+    const endCell = end.cell.match(/^([A-Z]+)(\d+)$/i);
+    if (!startCell || !endCell) return null;
+    return {
+      sheet: start.sheet || fallbackSheet || "",
+      range: {
+        start: { c: startCell[1].toUpperCase(), r: Number(startCell[2]) },
+        end: { c: endCell[1].toUpperCase(), r: Number(endCell[2]) }
+      }
+    };
+  }
+
+  _parseConditionalCondition(value, styleName, colors) {
+    const raw = this._unescapeXml(String(value || "")).trim();
+    const color = colors.get(styleName) || colors.get(String(styleName || "").replace(/_5f_/g, "_")) || "#fff2cc";
+    const greater = raw.match(/^(?:cell-content\(\)\s*)?>\s*([+-]?\d+(?:\.\d+)?)$/i);
+    if (greater) return { type: "greaterThan", value: Number(greater[1]), color };
+    const less = raw.match(/^(?:cell-content\(\)\s*)?<\s*([+-]?\d+(?:\.\d+)?)$/i);
+    if (less) return { type: "lessThan", value: Number(less[1]), color };
+    if (/empty|blank|LEN\s*\(\s*TRIM|cell-content\(\)\s*=\s*""/i.test(raw)) {
+      return { type: "blank", value: null, color };
+    }
+    return null;
+  }
+
+  _parseValidationCondition(condition) {
+    const raw = this._unescapeXml(String(condition || ""));
+    const listMatch = raw.match(/cell-content-is-in-list\((.+)\)\s*$/i);
+    if (listMatch) {
+      const inner = listMatch[1];
+      const parts = inner.includes(";") ? inner.split(";") : inner.split(",");
+      const values = parts.map(part => part.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
+      return values.length ? { type: "list", values } : null;
+    }
+    const between = raw.match(/cell-content-is-between\(\s*([+-]?\d+(?:\.\d+)?)\s*[,;]\s*([+-]?\d+(?:\.\d+)?)\s*\)/i);
+    if (between) return { type: "numberRange", min: Number(between[1]), max: Number(between[2]) };
+    return null;
+  }
+
+  _rangeFromCoords(coords) {
+    if (!coords.length) return null;
+    const parsed = coords.map(coord => {
+      const match = String(coord).match(/^([A-Z]+)(\d+)$/i);
+      return match ? { c: match[1].toUpperCase(), r: Number(match[2]) } : null;
+    }).filter(Boolean);
+    if (!parsed.length) return null;
+    const colNumber = name => this._columnNumber(name);
+    parsed.sort((a, b) => colNumber(a.c) - colNumber(b.c) || a.r - b.r);
+    const cols = parsed.map(item => item.c).sort((a, b) => colNumber(a) - colNumber(b));
+    const rows = parsed.map(item => item.r);
+    return { start: { c: cols[0], r: Math.min(...rows) }, end: { c: cols[cols.length - 1], r: Math.max(...rows) } };
+  }
+
+  _attachImportedRules(workbook, xmlText) {
+    const colors = this._parseCellStyleColors(xmlText);
+    workbook.conditionalFormattingBySheet = Object.fromEntries((workbook.sheets || []).map(name => [name, []]));
+    workbook.dataValidationsBySheet = Object.fromEntries((workbook.sheets || []).map(name => [name, []]));
+
+    let cfIndex = 0;
+    String(xmlText || "").replace(/<calcext:conditional-format\b([^>]*)>([\s\S]*?)<\/calcext:conditional-format>/gi, (_, attrs, body) => {
+      const target = this._parseOdfTargetRange(attrs.match(/calcext:target-range-address=["']([^"']*)["']/i)?.[1] || "", workbook.sheets[0]);
+      if (!target?.range || !workbook.conditionalFormattingBySheet[target.sheet]) return "";
+      body.replace(/<calcext:condition\b([^>]*)\/?\s*>/gi, (all, conditionAttrs) => {
+        const styleName = this._unescapeXml(conditionAttrs.match(/calcext:apply-style-name=["']([^"']*)["']/i)?.[1] || "");
+        const value = this._unescapeXml(conditionAttrs.match(/calcext:value=["']([^"']*)["']/i)?.[1] || "");
+        const parsed = this._parseConditionalCondition(value, styleName, colors);
+        if (!parsed) return "";
+        workbook.conditionalFormattingBySheet[target.sheet].push({
+          id: `cf-import-${++cfIndex}`,
+          range: target.range,
+          type: parsed.type,
+          value: parsed.value,
+          color: parsed.color
+        });
+        return "";
+      });
+      return "";
+    });
+
+    const definitions = new Map();
+    String(xmlText || "").replace(/<table:content-validation\b([^>]*)\/?\s*>/gi, (_, attrs) => {
+      const name = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      if (!name) return "";
+      definitions.set(name, {
+        condition: this._unescapeXml(attrs.match(/table:condition=["']([^"']*)["']/i)?.[1] || ""),
+        base: this._unescapeXml(attrs.match(/table:base-cell-address=["']([^"']*)["']/i)?.[1] || "")
+      });
+      return "";
+    });
+
+    const hitsByName = new Map();
+    for (const hit of workbook.validationHits || []) {
+      if (!hitsByName.has(hit.name)) hitsByName.set(hit.name, []);
+      hitsByName.get(hit.name).push(hit);
+    }
+
+    let dvIndex = 0;
+    for (const [name, definition] of definitions.entries()) {
+      const parsed = this._parseValidationCondition(definition.condition);
+      if (!parsed) continue;
+      const hits = hitsByName.get(name) || [];
+      const bySheet = new Map();
+      for (const hit of hits) {
+        if (!bySheet.has(hit.sheet)) bySheet.set(hit.sheet, []);
+        bySheet.get(hit.sheet).push(hit.coord);
+      }
+      if (!bySheet.size && definition.base) {
+        const target = this._parseOdfTargetRange(definition.base, workbook.sheets[0]);
+        if (target?.sheet) bySheet.set(target.sheet, [`${target.range.start.c}${target.range.start.r}`]);
+      }
+      for (const [sheet, coords] of bySheet.entries()) {
+        const range = this._rangeFromCoords(coords);
+        if (!range || !workbook.dataValidationsBySheet[sheet]) continue;
+        workbook.dataValidationsBySheet[sheet].push({
+          id: `dv-import-${++dvIndex}`,
+          range,
+          ...parsed
+        });
+      }
+    }
+    delete workbook.validationHits;
+  }
+
   /** Parse FODS into every worksheet, including repeated rows/cells emitted by LibreOffice. */
   parseFods(xmlText) {
-    const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {} };
+    const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, validationHits: [] };
     if (!xmlText) return workbook;
     const numberStyles = this._parseNumberStyles(xmlText);
     const tableBlocks = [];
@@ -705,6 +859,9 @@ export class SheetAdapter {
                   for (let repeat = 0; repeat < columnRepeat; repeat++) {
                     const coord = `${this._columnName(columnNumber + repeat)}${rowNumber}`;
                     data.set(coord, { ...item });
+                    if (attributes["table:content-validation-name"]) {
+                      workbook.validationHits.push({ sheet: name, coord, name: attributes["table:content-validation-name"] });
+                    }
                     if (annotation) comments[coord] = {
                       coord,
                       text: Array.from(annotation.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p")).map(p => p.textContent || "").join("\n"),
@@ -788,6 +945,9 @@ export class SheetAdapter {
                 for (let repeat = 0; repeat < columnRepeat; repeat++) {
                   const coord = `${this._columnName(columnNumber + repeat)}${rowNumber}`;
                   data.set(coord, { ...item });
+                  if (attributes["table:content-validation-name"]) {
+                    workbook.validationHits.push({ sheet: name, coord, name: attributes["table:content-validation-name"] });
+                  }
                   if (annotationMatch) {
                     const annotationBody = annotationMatch[2];
                     comments[coord] = {
@@ -813,6 +973,7 @@ export class SheetAdapter {
       }
     }
     if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
+    this._attachImportedRules(workbook, xmlText);
     return workbook;
   }
 
@@ -838,8 +999,15 @@ export class SheetAdapter {
     }
     if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet);
     else this.grid.activeSheet = workbook.activeSheet;
+    this.grid.conditionalFormattingBySheet = {};
+    this.grid.dataValidationsBySheet = {};
+    for (const sheetName of workbook.sheets) {
+      this.grid.conditionalFormattingBySheet[sheetName] = workbook.conditionalFormattingBySheet?.[sheetName] || [];
+      this.grid.dataValidationsBySheet[sheetName] = workbook.dataValidationsBySheet?.[sheetName] || [];
+    }
     this.grid.undoStack = [];
     this.grid.redoStack = [];
+    this.grid._refreshVisibleRuleVisuals?.();
     this.grid.updateStatus?.();
     return true;
   }
