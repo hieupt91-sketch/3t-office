@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document
+  xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+  xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+  xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+  office:version="1.3"
+  office:mimetype="application/vnd.oasis.opendocument.text">
+  <office:styles>
+    <style:style style:name="Standard" style:family="paragraph" style:class="text">
+      <style:text-properties fo:font-size="12pt" style:font-name="Liberation Serif"/>
+    </style:style>
+    <style:style style:name="Heading" style:family="paragraph" style:parent-style-name="Standard" style:next-style-name="Text_20_body" style:class="text">
+      <style:paragraph-properties fo:keep-with-next="always"/>
+      <style:text-properties fo:font-weight="bold"/>
+    </style:style>
+    <style:style style:name="Heading_20_1" style:display-name="Heading 1" style:family="paragraph" style:parent-style-name="Heading" style:next-style-name="Text_20_body" style:default-outline-level="1" style:class="text">
+      <style:paragraph-properties fo:margin-top="0.423cm" fo:margin-bottom="0.212cm"/>
+      <style:text-properties fo:font-size="18pt" fo:font-weight="bold" style:font-size-asian="18pt" style:font-weight-asian="bold"/>
+    </style:style>
+    <style:style style:name="Text_20_body" style:display-name="Text body" style:family="paragraph" style:parent-style-name="Standard" style:class="text">
+      <style:paragraph-properties fo:margin-top="0cm" fo:margin-bottom="0.212cm" fo:line-height="115%"/>
+    </style:style>
+    <style:style style:name="Table_20_Contents" style:display-name="Table Contents" style:family="paragraph" style:parent-style-name="Standard" style:class="extra">
+      <style:paragraph-properties fo:margin-top="0cm" fo:margin-bottom="0cm"/>
+    </style:style>
+    <style:style style:name="Table_20_Heading" style:display-name="Table Heading" style:family="paragraph" style:parent-style-name="Table_20_Contents" style:class="extra">
+      <style:paragraph-properties fo:text-align="center" style:justify-single-word="false"/>
+      <style:text-properties fo:font-weight="bold"/>
+    </style:style>
+  </office:styles>
+  <office:automatic-styles>
+    <style:page-layout style:name="pmA4">
+      <style:page-layout-properties
+        fo:page-width="21.001cm"
+        fo:page-height="29.7cm"
+        style:num-format="1"
+        style:print-orientation="portrait"
+        fo:margin-top="2cm"
+        fo:margin-bottom="2cm"
+        fo:margin-left="2.5cm"
+        fo:margin-right="2cm"
+        fo:background-color="transparent"
+        style:writing-mode="lr-tb"/>
+    </style:page-layout>
+    <style:style style:name="TableComplex" style:family="table">
+      <style:table-properties table:align="margins" style:rel-width="100%" fo:margin-top="0.3cm" fo:margin-bottom="0.3cm"/>
+    </style:style>
+    <style:style style:name="TableComplex.A" style:family="table-column">
+      <style:table-column-properties style:rel-column-width="24000*"/>
+    </style:style>
+    <style:style style:name="TableComplex.B" style:family="table-column">
+      <style:table-column-properties style:rel-column-width="21000*"/>
+    </style:style>
+    <style:style style:name="TableComplex.C" style:family="table-column">
+      <style:table-column-properties style:rel-column-width="21000*"/>
+    </style:style>
+    <!-- Rowspan cell: amber shading, thicker left border -->
+    <style:style style:name="CellRowSpan" style:family="table-cell">
+      <style:table-cell-properties
+        fo:background-color="#fef3c7"
+        fo:padding="0.15cm"
+        fo:border-top="0.5pt solid #b45309"
+        fo:border-bottom="0.5pt solid #b45309"
+        fo:border-left="2.25pt solid #b45309"
+        fo:border-right="0.5pt solid #b45309"/>
+    </style:style>
+    <!-- Colspan header: blue shading, blue top border thicker -->
+    <style:style style:name="CellColSpan" style:family="table-cell">
+      <style:table-cell-properties
+        fo:background-color="#dbeafe"
+        fo:padding="0.15cm"
+        fo:border-top="1.5pt solid #1d4ed8"
+        fo:border-bottom="0.5pt solid #1d4ed8"
+        fo:border-left="0.5pt solid #1d4ed8"
+        fo:border-right="0.5pt solid #1d4ed8"/>
+    </style:style>
+    <!-- Subheader kế hoạch: green left border -->
+    <style:style style:name="CellSubPlan" style:family="table-cell">
+      <style:table-cell-properties
+        fo:padding="0.12cm"
+        fo:border-top="0.5pt solid #15803d"
+        fo:border-bottom="0.5pt solid #15803d"
+        fo:border-left="1.5pt solid #15803d"
+        fo:border-right="0.5pt solid #15803d"/>
+    </style:style>
+    <!-- Subheader thực hiện: red right border -->
+    <style:style style:name="CellSubActual" style:family="table-cell">
+      <style:table-cell-properties
+        fo:padding="0.12cm"
+        fo:border-top="0.5pt solid #b91c1c"
+        fo:border-bottom="0.5pt solid #b91c1c"
+        fo:border-left="0.5pt solid #b91c1c"
+        fo:border-right="1.5pt solid #b91c1c"/>
+    </style:style>
+    <!-- Data label cell -->
+    <style:style style:name="CellLabel" style:family="table-cell">
+      <style:table-cell-properties
+        fo:padding="0.12cm"
+        fo:border="0.5pt solid #64748b"/>
+    </style:style>
+    <!-- Green shading (kế hoạch DA-001) -->
+    <style:style style:name="CellShadeGreen" style:family="table-cell">
+      <style:table-cell-properties
+        fo:background-color="#dcfce7"
+        fo:padding="0.12cm"
+        fo:border="0.5pt solid #15803d"/>
+    </style:style>
+    <!-- Per-edge colored borders (thực hiện DA-001) -->
+    <style:style style:name="CellPerEdge" style:family="table-cell">
+      <style:table-cell-properties
+        fo:padding="0.12cm"
+        fo:border-top="1.5pt solid #1d4ed8"
+        fo:border-bottom="1.5pt solid #6d28d9"
+        fo:border-left="1.5pt solid #15803d"
+        fo:border-right="1.5pt solid #b91c1c"/>
+    </style:style>
+    <!-- Pink/red shading (thực hiện DA-002) -->
+    <style:style style:name="CellShadePink" style:family="table-cell">
+      <style:table-cell-properties
+        fo:background-color="#fecaca"
+        fo:padding="0.12cm"
+        fo:border="0.5pt solid #b91c1c"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:master-styles>
+    <style:master-page style:name="Standard" style:page-layout-name="pmA4"/>
+  </office:master-styles>
+  <office:body>
+    <office:text>
+      <text:h text:style-name="Heading_20_1" text:outline-level="1">Bảng phân bổ vốn đầu tư công 2026</text:h>
+      <text:p text:style-name="Text_20_body">Đơn vị lập biểu Phòng Kế hoạch. Số liệu đối chiếu với quyết định giao vốn.</text:p>
+      <table:table table:name="BangPhanBoVon" table:style-name="TableComplex">
+        <table:table-column table:style-name="TableComplex.A"/>
+        <table:table-column table:style-name="TableComplex.B"/>
+        <table:table-column table:style-name="TableComplex.C"/>
+        <table:table-row>
+          <table:table-cell table:style-name="CellRowSpan" table:number-rows-spanned="2" office:value-type="string">
+            <text:p text:style-name="Table_20_Heading">Nhóm dự án thủy lợi</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="CellColSpan" table:number-columns-spanned="2" office:value-type="string">
+            <text:p text:style-name="Table_20_Heading">Phân bổ ngân sách năm 2026</text:p>
+          </table:table-cell>
+          <table:covered-table-cell/>
+        </table:table-row>
+        <table:table-row>
+          <table:covered-table-cell/>
+          <table:table-cell table:style-name="CellSubPlan" office:value-type="string">
+            <text:p text:style-name="Table_20_Heading">Kế hoạch</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="CellSubActual" office:value-type="string">
+            <text:p text:style-name="Table_20_Heading">Thực hiện</text:p>
+          </table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="CellLabel" office:value-type="string">
+            <text:p text:style-name="Table_20_Contents">DA-001 Đăk Bla</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="CellShadeGreen" office:value-type="string">
+            <text:p text:style-name="Table_20_Contents">1.250.000.000</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="CellPerEdge" office:value-type="string">
+            <text:p text:style-name="Table_20_Contents">980.000.000</text:p>
+          </table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell table:style-name="CellLabel" office:value-type="string">
+            <text:p text:style-name="Table_20_Contents">DA-002 Đường huyện</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="CellLabel" office:value-type="string">
+            <text:p text:style-name="Table_20_Contents">850.000.000 KH</text:p>
+          </table:table-cell>
+          <table:table-cell table:style-name="CellShadePink" office:value-type="string">
+            <text:p text:style-name="Table_20_Contents">850.000.000 TH</text:p>
+          </table:table-cell>
+        </table:table-row>
+      </table:table>
+      <text:p text:style-name="Text_20_body">Ghi chú: ô gộp ngang là tiêu đề năm, ô gộp dọc là nhóm dự án.</text:p>
+    </office:text>
+  </office:body>
+</office:document>
