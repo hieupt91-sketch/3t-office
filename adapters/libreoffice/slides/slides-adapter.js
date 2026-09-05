@@ -758,16 +758,16 @@ export class SlidesAdapter {
       const vnAttrs = ` vno:chart="true" vno:chart-type="${chartType}" vno:chart-title="${title}" vno:chart-labels="${this._escapeXml(JSON.stringify(labels))}" vno:chart-data="${this._escapeXml(JSON.stringify(data))}"`;
       const rows = Array.from({ length: count }, (_, index) => `<table:table-row><table:table-cell office:value-type="string"><text:p>${this._escapeXml(labels[index] || `Mục ${index + 1}`)}</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="${data[index] ?? 0}"><text:p>${data[index] ?? 0}</text:p></table:table-cell></table:table-row>`).join("");
       const endRow = Math.max(2, count + 1);
-      const axes = chartType === "pie" ? "" : `<chart:axis chart:dimension="x" chart:name="primary-x"><chart:categories table:cell-range-address="local-table.A2:local-table.A${endRow}"/></chart:axis><chart:axis chart:dimension="y" chart:name="primary-y"><chart:grid chart:class="major"/></chart:axis>`;
+      const axes = chartType === "pie" ? "" : `<chart:axis chart:dimension="x" chart:name="primary-x"><chart:categories table:cell-range-address="local-table.$A$2:.$A$${endRow}"/></chart:axis><chart:axis chart:dimension="y" chart:name="primary-y"><chart:grid chart:class="major"/></chart:axis>`;
       return `
         <draw:frame ${geom}${vnAttrs}>
           <draw:object>
             <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.chart">
               <office:body><office:chart>
-                <chart:chart svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}" chart:class="chart:${chartType}">
+                <chart:chart svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}" xlink:href="." xlink:type="simple" chart:class="chart:${chartType}">
                   <chart:title><text:p>${title}</text:p></chart:title><chart:legend chart:legend-position="end"/>
-                  <chart:plot-area table:cell-range-address="local-table.A1:local-table.B${endRow}" chart:data-source-has-labels="both">${axes}<chart:series chart:values-cell-range-address="local-table.B2:local-table.B${endRow}" chart:label-cell-address="local-table.B1" chart:class="chart:${chartType}">${Array.from({ length: count }, () => "<chart:data-point/>").join("")}</chart:series></chart:plot-area>
-                  <table:table table:name="local-table"><table:table-column table:number-columns-repeated="2"/><table:table-row><table:table-cell office:value-type="string"><text:p>Nhãn</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>${title}</text:p></table:table-cell></table:table-row>${rows}</table:table>
+                  <chart:plot-area>${axes}<chart:series chart:values-cell-range-address="local-table.$B$2:.$B$${endRow}" chart:label-cell-address="local-table.$B$1" chart:class="chart:${chartType}">${Array.from({ length: count }, () => "<chart:data-point/>").join("")}</chart:series></chart:plot-area>
+                  <table:table table:name="local-table"><table:table-header-columns><table:table-column/></table:table-header-columns><table:table-columns><table:table-column/></table:table-columns><table:table-header-rows><table:table-row><table:table-cell/><table:table-cell office:value-type="string"><text:p>${title}</text:p></table:table-cell></table:table-row></table:table-header-rows><table:table-rows>${rows}</table:table-rows></table:table>
                 </chart:chart>
               </office:chart></office:body>
             </office:document>
