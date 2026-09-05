@@ -347,8 +347,8 @@ export async function runSlidesFileIoTests() {
       }]
     });
     const fodp = adapter.serializeToFodp();
-    if (!fodp.includes('draw:type="arrow"') || !fodp.includes("Mũi tên")) {
-      throw new Error("Arrow chưa được ghi thành custom-shape");
+    if (!fodp.includes('draw:type="right-arrow"') || !fodp.includes("Mũi tên")) {
+      throw new Error("Arrow chưa được ghi thành custom-shape right-arrow (PPTX-safe)");
     }
     if (!fodp.includes("<table:table") || !fodp.includes("<table:table-cell") || !fodp.includes("<text:p>A</text:p>")) {
       throw new Error("Bảng không ghi table:table / ô A");
@@ -361,8 +361,18 @@ export async function runSlidesFileIoTests() {
     if (!byId.arr1 || byId.arr1.type !== "arrow" || byId.arr1.text !== "Mũi tên") {
       throw new Error(`Arrow parse sai: ${JSON.stringify(byId.arr1)}`);
     }
-    if (!byId.tbl1 || byId.tbl1.type !== "table" || byId.tbl1.cells?.[0]?.[0] !== "A" || byId.tbl1.cells?.[1]?.[1] !== "2") {
-      throw new Error(`Table parse sai: ${JSON.stringify(byId.tbl1)}`);
+    if (!approxPx(byId.arr1.x, 40) || !approxPx(byId.arr1.w, 120) || String(byId.arr1.color).toLowerCase() !== "#dc2626") {
+      throw new Error(`Arrow vị trí/màu sai: ${JSON.stringify(byId.arr1)}`);
+    }
+    const table = byId.tbl1;
+    if (!table || table.type !== "table") {
+      throw new Error(`Table parse sai type: ${JSON.stringify(table)}`);
+    }
+    if (table.rows !== 2 || table.cols !== 2 || JSON.stringify(table.cells) !== JSON.stringify([["A", "B"], ["1", "2"]])) {
+      throw new Error(`Table cells/rows/cols sai: ${JSON.stringify(table)}`);
+    }
+    if (table.cells[0][0] !== "A" || table.cells[0][1] !== "B" || table.cells[1][0] !== "1" || table.cells[1][1] !== "2") {
+      throw new Error(`Từng ô bảng sai: ${JSON.stringify(table.cells)}`);
     }
     if (!byId.vid1 || byId.vid1.type !== "video" || !String(byId.vid1.src).startsWith("data:video/mp4;base64,")) {
       throw new Error(`Video parse sai: ${JSON.stringify(byId.vid1)}`);
@@ -434,6 +444,79 @@ export async function runSlidesFileIoTests() {
     }
     if (!byId.img1 || byId.img1.type !== "image" || !String(byId.img1.src).includes("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")) {
       throw new Error(`Image binary-data có xuống dòng parse sai: ${JSON.stringify(byId.img1 && { type: byId.img1.type, src: (byId.img1.src || "").slice(0, 80) })}`);
+    }
+  });
+
+  test("SlidesAdapter: parseFodp đọc bảng soffice (table:table + draw:image preview) và ooxml-rightArrow", () => {
+    const adapter = new SlidesAdapter(null);
+    const sofficeFodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+ xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+ xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0">
+  <office:automatic-styles>
+    <style:style style:name="gr4" style:family="graphic">
+      <style:graphic-properties draw:fill="solid" draw:fill-color="#dc2626"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:frame presentation:class="title" svg:x="2cm" svg:y="0.5cm" svg:width="24cm" svg:height="2cm">
+        <draw:text-box><text:p>Slide bảng và mũi tên</text:p></draw:text-box>
+      </draw:frame>
+      <draw:frame draw:name="tbl1" svg:width="12.011cm" svg:height="3.015cm" svg:x="2.011cm" svg:y="3.995cm">
+        <table:table>
+          <table:table-column table:style-name="co1"/>
+          <table:table-column table:style-name="co1"/>
+          <table:table-row>
+            <table:table-cell><text:p><text:span>Sản phẩm</text:span></text:p></table:table-cell>
+            <table:table-cell><text:p><text:span>Số lượng</text:span></text:p></table:table-cell>
+          </table:table-row>
+          <table:table-row>
+            <table:table-cell><text:p><text:span>VN Writer</text:span></text:p></table:table-cell>
+            <table:table-cell><text:p><text:span>120</text:span></text:p></table:table-cell>
+          </table:table-row>
+        </table:table>
+        <draw:image>
+          <office:binary-data>AAAA</office:binary-data>
+        </draw:image>
+      </draw:frame>
+      <draw:custom-shape draw:name="arr1" draw:style-name="gr4" svg:width="5.291cm" svg:height="2.116cm" svg:x="15.028cm" svg:y="5.001cm">
+        <text:p><text:span>Mũi tên phải</text:span></text:p>
+        <draw:enhanced-geometry draw:type="ooxml-rightArrow" svg:viewBox="0 0 21600 21600"/>
+      </draw:custom-shape>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const parsed = adapter.parseFodp(sofficeFodp);
+    if (parsed[0].title !== "Slide bảng và mũi tên") throw new Error(`Title: ${parsed[0].title}`);
+    const byId = Object.fromEntries((parsed[0].shapes || []).map((shape) => [String(shape.id), shape]));
+    const table = byId.tbl1;
+    if (!table || table.type !== "table") {
+      throw new Error(`tbl1 phải là table, không phải image preview: ${JSON.stringify(table)}`);
+    }
+    if (table.rows !== 2 || table.cols !== 2) {
+      throw new Error(`rows/cols: ${table.rows}x${table.cols}`);
+    }
+    const expected = [["Sản phẩm", "Số lượng"], ["VN Writer", "120"]];
+    if (JSON.stringify(table.cells) !== JSON.stringify(expected)) {
+      throw new Error(`cells: ${JSON.stringify(table.cells)}`);
+    }
+    if (!approxPx(table.x, 76, 2) || !approxPx(table.y, 151, 2)) {
+      throw new Error(`table geom: ${JSON.stringify({ x: table.x, y: table.y, w: table.w, h: table.h })}`);
+    }
+    const arrow = byId.arr1;
+    if (!arrow || arrow.type !== "arrow" || arrow.text !== "Mũi tên phải") {
+      throw new Error(`ooxml-rightArrow phải parse thành arrow: ${JSON.stringify(arrow)}`);
+    }
+    if (String(arrow.color).toLowerCase() !== "#dc2626") {
+      throw new Error(`arrow color: ${arrow.color}`);
+    }
+    if ((parsed[0].shapes || []).some((shape) => shape.type === "image" && String(shape.id) === "tbl1")) {
+      throw new Error("draw:image preview của bảng bị nhận nhầm thành shape image");
     }
   });
 
