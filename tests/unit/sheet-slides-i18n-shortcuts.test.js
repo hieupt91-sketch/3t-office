@@ -24,6 +24,39 @@ export async function runSheetSlidesI18nShortcutTests() {
     setLocale("en"); if (t("sheetDialogs.pivotTitle") !== "Create PivotTable" || t("slidesDialogs.animationTitle") !== "Object Animations") throw new Error("Dialog EN sai");
     setLocale("vi"); if (t("sheetDialogs.pivotTitle") !== "Tạo Bảng tổng hợp" || t("slidesDialogs.animationTitle") !== "Hiệu Ứng Đối Tượng (Object Animations)") throw new Error("Dialog VI sai");
   });
+  await test("Sheet/Slides i18n gap audit: Paste Special, Merge Cells, Data tools, Slides presenter dialog keys", () => {
+    try {
+      setLocale("en");
+      if (t("sheetDialogs.pasteSpecialTitle") !== "Paste Special") throw new Error("pasteSpecialTitle EN sai");
+      if (t("sheetDialogs.pasteSpecialValues") !== "Values") throw new Error("pasteSpecialValues EN sai");
+      if (t("sheetDialogs.mergeConfirmTitle") !== "Merge cells") throw new Error("mergeConfirmTitle EN sai");
+      if (t("sheetDialogs.nameManagerTitle") !== "Name Manager") throw new Error("nameManagerTitle EN sai");
+      if (t("sheetDialogs.removeDuplicatesTitle") !== "Remove Duplicates") throw new Error("removeDuplicatesTitle EN sai");
+      if (t("sheetDialogs.subtotalTitle") !== "Subtotal") throw new Error("subtotalTitle EN sai");
+      if (t("sheetDialogs.textToColumnsTitle") !== "Convert Text to Columns") throw new Error("textToColumnsTitle EN sai");
+      if (t("slidesDialogs.presenterTitle") !== "Presenter View") throw new Error("presenterTitle EN sai");
+      if (t("slidesDialogs.readingViewTitle") !== "Reading View") throw new Error("readingViewTitle EN sai");
+      if (t("slidesDialogs.rehearseTitle") !== "Rehearse Timings") throw new Error("rehearseTitle EN sai");
+      if (t("slidesDialogs.transFade") !== "Fade") throw new Error("transFade EN sai");
+      if (t("slidesDialogs.animFadeIn") !== "Fade In") throw new Error("animFadeIn EN sai");
+
+      setLocale("vi");
+      if (t("sheetDialogs.pasteSpecialTitle") !== "Dán đặc biệt") throw new Error("pasteSpecialTitle VI sai");
+      if (t("sheetDialogs.pasteSpecialValues") !== "Chỉ giá trị") throw new Error("pasteSpecialValues VI sai");
+      if (t("sheetDialogs.mergeConfirmTitle") !== "Trộn ô") throw new Error("mergeConfirmTitle VI sai");
+      if (t("sheetDialogs.nameManagerTitle") !== "Trình quản lý tên") throw new Error("nameManagerTitle VI sai");
+      if (t("sheetDialogs.removeDuplicatesTitle") !== "Xóa trùng lặp") throw new Error("removeDuplicatesTitle VI sai");
+      if (t("sheetDialogs.subtotalTitle") !== "Tổng phụ") throw new Error("subtotalTitle VI sai");
+      if (t("sheetDialogs.textToColumnsTitle") !== "Tách văn bản thành cột") throw new Error("textToColumnsTitle VI sai");
+      if (t("slidesDialogs.presenterTitle") !== "Chế độ người thuyết trình") throw new Error("presenterTitle VI sai");
+      if (t("slidesDialogs.readingViewTitle") !== "Dạng xem Đọc (Reading View)") throw new Error("readingViewTitle VI sai");
+      if (t("slidesDialogs.rehearseTitle") !== "Tập dượt thời gian trình chiếu") throw new Error("rehearseTitle VI sai");
+      if (t("slidesDialogs.transFade") !== "Mờ dần (Fade)") throw new Error("transFade VI sai");
+      if (t("slidesDialogs.animFadeIn") !== "Mờ dần xuất hiện (Fade In)") throw new Error("animFadeIn VI sai");
+    } finally {
+      setLocale("vi");
+    }
+  });
   const assertUnique = (name, commands) => { const seen = new Map(); for (const command of [...COMMON_COMMANDS, ...commands]) { if (!command.shortcut) continue; const key = command.shortcut.toLowerCase(); if (seen.has(key)) throw new Error(`${name}: ${command.shortcut}: ${seen.get(key)} / ${command.id}`); seen.set(key, command.id); } };
   await test("Sheet shortcuts: không trùng trong app hoặc common", () => assertUnique("Sheet", SHEET_COMMANDS));
   await test("Slides shortcuts: không trùng trong app hoặc common", () => assertUnique("Slides", SLIDES_COMMANDS));
