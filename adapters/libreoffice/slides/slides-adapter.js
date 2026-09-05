@@ -325,10 +325,12 @@ export class SlidesAdapter {
     }
 
     if (type === "arrow") {
+      // LibreOffice PPTX filter maps classic ODF draw:type="arrow" to prst=rect.
+      // draw:type="right-arrow" maps to prst=rightArrow and returns as ooxml-rightArrow.
       return `
         <draw:custom-shape ${geom}>
           ${textXml}
-          <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="arrow" draw:enhanced-path="M 0 7640 L 13955 7640 13955 3890 21600 10800 13955 17710 13955 13960 0 13960 Z"/>
+          <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="right-arrow" draw:enhanced-path="M 0 7640 L 13955 7640 13955 3890 21600 10800 13955 17710 13955 13960 0 13960 Z"/>
         </draw:custom-shape>`;
     }
 
@@ -475,14 +477,8 @@ export class SlidesAdapter {
       animation: { type: "none", duration: 500, delay: 0 }
     };
 
-    if (/<draw:image\b/i.test(inner)) {
-      return { ...base, type: "image", src: this._parseEmbeddedSrc(inner, "image/png"), color: "transparent" };
-    }
-    if (/<draw:plugin\b/i.test(inner)) {
-      const mime = inner.match(/draw:mime-type=["']([^"']+)["']/i)?.[1] || "";
-      const type = /^audio\//i.test(mime) ? "audio" : "video";
-      return { ...base, type, src: this._parseEmbeddedSrc(inner, type === "audio" ? "audio/mpeg" : "video/mp4"), color: "transparent" };
-    }
+    // soffice PPTX hop keeps <table:table> but injects a sibling <draw:image> preview
+    // (WMF/bitmap). Table must win or the shape is misread as type "image".
     if (/<table:table\b/i.test(inner)) {
       const cells = this._parseTableCells(inner);
       return {
@@ -494,6 +490,14 @@ export class SlidesAdapter {
         color: get("draw:fill-color") || style.fill || "transparent",
         text: ""
       };
+    }
+    if (/<draw:image\b/i.test(inner)) {
+      return { ...base, type: "image", src: this._parseEmbeddedSrc(inner, "image/png"), color: "transparent" };
+    }
+    if (/<draw:plugin\b/i.test(inner)) {
+      const mime = inner.match(/draw:mime-type=["']([^"']+)["']/i)?.[1] || "";
+      const type = /^audio\//i.test(mime) ? "audio" : "video";
+      return { ...base, type, src: this._parseEmbeddedSrc(inner, type === "audio" ? "audio/mpeg" : "video/mp4"), color: "transparent" };
     }
 
     const hasId = get("draw:id") || get("xml:id") || get("draw:name");
