@@ -35,16 +35,16 @@ export class WriterViewController {
     bind("writer.view.zoom100", () => this.zoomReset());
     bind("writer.view.pageWidth", () => this.pageWidth());
     bind("writer.view.newWindow", () => this.newWindow());
-    document?.addEventListener?.("keydown", this._escapeHandler);
-    window?.addEventListener?.("resize", this._resizeHandler);
+    if (typeof document !== "undefined") document.addEventListener?.("keydown", this._escapeHandler);
+    if (typeof window !== "undefined") window.addEventListener?.("resize", this._resizeHandler);
     this._applyViewState();
     this._syncCommandStates();
     return this;
   }
 
   destroy() {
-    document?.removeEventListener?.("keydown", this._escapeHandler);
-    window?.removeEventListener?.("resize", this._resizeHandler);
+    if (typeof document !== "undefined") document.removeEventListener?.("keydown", this._escapeHandler);
+    if (typeof window !== "undefined") window.removeEventListener?.("resize", this._resizeHandler);
   }
 
   setMode(mode) {
@@ -106,11 +106,13 @@ export class WriterViewController {
   }
 
   newWindow() {
-    const opened = window?.open?.(window.location.href, "_blank", "noopener");
+    if (typeof window === "undefined") return false;
+    const opened = window.open?.(window.location.href, "_blank");
     if (!opened) {
       this.shell?.setStatus?.("Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho VN Office.");
       return false;
     }
+    try { opened.opener = null; } catch (_) { /* Cross-origin window: noopener assignment is optional. */ }
     return true;
   }
 
