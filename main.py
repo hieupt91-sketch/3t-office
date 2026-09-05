@@ -15,6 +15,7 @@ import subprocess
 import tempfile
 import threading
 import platform
+import zipfile
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -257,6 +258,20 @@ DEFAULT_SAVE_FORMAT = {
 }
 
 
+def _read_docx_document_xml(src_path: str) -> str | None:
+    """Read word/document.xml from a real .docx. StarWriter HTML drops w:ins/w:del;
+    the Writer adapter overlays those revision marks onto the imported HTML.
+    Missing/corrupt packages return None so File → Mở still loads the HTML body.
+    """
+    if not src_path or not str(src_path).lower().endswith(".docx"):
+        return None
+    try:
+        with zipfile.ZipFile(src_path) as package:
+            return package.read("word/document.xml").decode("utf-8", errors="replace")
+    except (OSError, zipfile.BadZipFile, KeyError, UnicodeError):
+        return None
+
+
 def _active_window():
     """Lấy cửa sổ pywebview hiện tại qua danh sách module-level `webview.windows`.
 
@@ -321,13 +336,18 @@ class VnOfficeApi:
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
 
-        return {
+        payload = {
             "status": "ok",
             "sourcePath": src_path,
             "fileName": Path(src_path).name,
             "format": target_ext,
             "content": content,
         }
+        if app_kind == "writer":
+            ooxml = _read_docx_document_xml(src_path)
+            if ooxml:
+                payload["ooxmlDocumentXml"] = ooxml
+        return payload
 
     def save_document_dialog(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu"):
         """Mở hộp thoại lưu tệp NATIVE thật, chuyển đổi nội dung soạn thảo hiện tại
