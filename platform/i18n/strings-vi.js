@@ -58,11 +58,11 @@ export const viStrings = {
   },
   sheetRibbon: {
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", ai: "Trợ lý VN AI" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", comments: "Ghi chú", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiAnalysis: "Phân tích dữ liệu AI" }
+    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", comments: "Ghi chú", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiAnalysis: "Phân tích dữ liệu AI" }
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", ai: "Trợ lý VN AI" },
-    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", drawing: "Đối tượng vẽ", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", comments: "Nhận xét", presentationViews: "Dạng xem bản trình chiếu", aiContent: "Tạo nội dung thuyết trình" }
+    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", drawing: "Đối tượng vẽ", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", comments: "Nhận xét", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", aiContent: "Tạo nội dung thuyết trình" }
   },
   sheetDialogs: {
     close: "Đóng", cancel: "Hủy", cancelLong: "Hủy bỏ", apply: "Áp dụng", range: "Phạm vi", value: "Giá trị",
@@ -169,11 +169,17 @@ export const viStrings = {
     ,"sheet.data.subtotal": { label: "Tổng phụ", tooltip: "Chèn tổng phụ theo nhóm và tổng cộng cuối bảng" }
     ,"sheet.data.pivotTable": { label: "Bảng tổng hợp", tooltip: "Tạo Pivot Table từ vùng dữ liệu đang chọn" }
     ,"sheet.data.pivotRefresh": { label: "Làm mới Pivot", tooltip: "Tính lại Pivot Table từ dữ liệu nguồn" }
+    ,"sheet.view.normal": { label: "Bình thường", tooltip: "Xem bảng tính ở chế độ bình thường" }
+    ,"sheet.view.pageBreakPreview": { label: "Xem ngắt trang", tooltip: "Hiển thị vị trí các ngắt trang và vùng in" }
+    ,"sheet.view.pageLayout": { label: "Bố trí trang", tooltip: "Xem bảng tính như khi in ra giấy kèm đầu/chân trang" }
+    ,"sheet.view.formulaBar": { label: "Thanh công thức", tooltip: "Ẩn hoặc hiện thanh công thức" }
     ,"sheet.view.toggleFormulas": { label: "Hiện công thức", tooltip: "Hiển thị công thức thay vì kết quả (Ctrl+`)" }
     ,"sheet.view.freezePanes": { label: "Cố định hàng/cột", tooltip: "Cố định hàng 1 và cột A khi cuộn (Freeze Panes)" }
     ,"sheet.view.zoomIn": { label: "Phóng to", tooltip: "Tăng tỉ lệ hiển thị bảng tính" }
     ,"sheet.view.zoomOut": { label: "Thu nhỏ", tooltip: "Giảm tỉ lệ hiển thị bảng tính" }
     ,"sheet.view.zoomReset": { label: "100%", tooltip: "Đặt lại tỉ lệ hiển thị 100%" }
+    ,"sheet.view.zoomToSelection": { label: "Thu phóng vùng chọn", tooltip: "Thu phóng bảng tính để vừa khít vùng ô đang chọn" }
+    ,"sheet.view.newWindow": { label: "Cửa sổ mới", tooltip: "Mở tài liệu bảng tính trong một cửa sổ trình duyệt mới" }
     ,"sheet.view.gridlines": { label: "Đường lưới", tooltip: "Ẩn hoặc hiện đường viền ô" }
     ,"sheet.view.headings": { label: "Tiêu đề", tooltip: "Ẩn hoặc hiện tiêu đề hàng và cột" }
     ,"sheet.review.commentInsert": { label: "Ghi chú mới", tooltip: "Thêm, sửa hoặc xóa ghi chú của ô đang chọn" }
@@ -216,8 +222,18 @@ export const viStrings = {
     ,"slides.design.slideSize": { label: "Cỡ trang chiếu", tooltip: "Chọn tỷ lệ trang chiếu 16:9 hoặc 4:3" }
     ,"slides.transition.apply": { label: "Chuyển tiếp", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Hiệu ứng đối tượng", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" }
-    ,"slides.notes.toggle": { label: "Ghi chú thuyết trình", tooltip: "Bật/tắt khung ghi chú người thuyết trình dưới trang chiếu" }
+    ,"slides.view.normal": { label: "Bình thường", tooltip: "Dạng xem bình thường để chỉnh sửa từng trang chiếu" }
     ,"slides.view.slideSorter": { label: "Bộ sắp xếp trang", tooltip: "Xem toàn bộ trang chiếu dạng lưới và kéo thả để sắp xếp" }
+    ,"slides.notes.toggle": { label: "Ghi chú thuyết trình", tooltip: "Bật/tắt khung ghi chú người thuyết trình dưới trang chiếu" }
+    ,"slides.view.reading": { label: "Chế độ đọc", tooltip: "Xem toàn bộ trang chiếu để đọc thuận tiện; nhấn Esc để thoát" }
+    ,"slides.view.ruler": { label: "Thước", tooltip: "Ẩn hoặc hiện thước căn chỉnh trang chiếu" }
+    ,"slides.view.gridlines": { label: "Đường lưới", tooltip: "Ẩn hoặc hiện đường lưới căn chỉnh" }
+    ,"slides.view.guides": { label: "Đường hướng dẫn", tooltip: "Ẩn hoặc hiện các đường hướng dẫn căn chỉnh shape kéo được" }
+    ,"slides.view.zoomIn": { label: "Phóng to", tooltip: "Tăng tỉ lệ hiển thị trang chiếu" }
+    ,"slides.view.zoomOut": { label: "Thu nhỏ", tooltip: "Giảm tỉ lệ hiển thị trang chiếu" }
+    ,"slides.view.zoomReset": { label: "100%", tooltip: "Đặt lại tỉ lệ hiển thị 100%" }
+    ,"slides.view.fitToWindow": { label: "Vừa cửa sổ", tooltip: "Thu phóng trang chiếu vừa khít cửa sổ làm việc" }
+    ,"slides.view.newWindow": { label: "Cửa sổ mới", tooltip: "Mở tài liệu trình chiếu trong cửa sổ mới" }
     ,"slides.show.startFromBegin": { label: "Từ đầu", tooltip: "Bắt đầu trình chiếu từ trang đầu tiên (F5)" }
     ,"slides.show.startFromCurrent": { label: "Từ trang này", tooltip: "Trình chiếu từ trang hiện tại (Shift+F5)" }
     ,"slides.show.presenterMode": { label: "Chế độ Presenter", tooltip: "Trình chiếu chế độ Người thuyết trình kèm ghi chú và đồng hồ (Alt+F5)" }

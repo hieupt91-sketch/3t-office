@@ -353,26 +353,44 @@ export const SHEET_RIBBON_TABS = [
     labelKey: "sheetRibbon.tab.view",
     groups: [
       {
+        id: "workbookViews",
+        label: "Chế độ xem bảng tính",
+        labelKey: "sheetRibbon.group.workbookViews",
+        items: [
+          { type: "button", commandId: "sheet.view.normal", isLarge: true },
+          { type: "button", commandId: "sheet.view.pageBreakPreview", isLarge: true },
+          { type: "button", commandId: "sheet.view.pageLayout", isLarge: true }
+        ]
+      },
+      {
+        id: "show",
         label: "Hiển thị",
         labelKey: "sheetRibbon.group.show",
         items: [
+          { type: "button", commandId: "sheet.view.formulaBar", isLarge: true },
           { type: "button", commandId: "sheet.view.gridlines", isLarge: true },
           { type: "button", commandId: "sheet.view.headings", isLarge: true }
         ]
       },
       {
+        id: "zoom",
         label: "Thu phóng",
         labelKey: "sheetRibbon.group.zoom",
         items: [
           { type: "button", commandId: "sheet.view.zoomIn", isLarge: true },
           { type: "button", commandId: "sheet.view.zoomOut" },
-          { type: "button", commandId: "sheet.view.zoomReset" }
+          { type: "button", commandId: "sheet.view.zoomReset" },
+          { type: "button", commandId: "sheet.view.zoomToSelection" }
         ]
       },
       {
+        id: "window",
         label: "Cửa sổ",
         labelKey: "sheetRibbon.group.window",
-        items: [{ type: "button", commandId: "sheet.view.freezePanes", isLarge: true }]
+        items: [
+          { type: "button", commandId: "sheet.view.newWindow", isLarge: true },
+          { type: "button", commandId: "sheet.view.freezePanes", isLarge: true }
+        ]
       }
     ]
   },

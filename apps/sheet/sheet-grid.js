@@ -112,6 +112,9 @@ export class SheetGridController {
     this.zoomLevel = 1;
     this.gridlinesVisible = true;
     this.headingsVisible = true;
+    this.workbookView = "normal"; // "normal" | "pageBreakPreview" | "pageLayout"
+    this.formulaBarVisible = true;
+    this.formulaBarEl = null;
 
     // Virtual scroll state
     this.currentStartRow = 1;
@@ -158,6 +161,9 @@ export class SheetGridController {
 
     // 1. Formula Bar
     const fBar = document.createElement("div");
+    this.formulaBarEl = fBar;
+    this.formulaBarVisible = true;
+    this.workbookView = "normal";
     fBar.className = "vno-formula-bar";
     fBar.setAttribute("role", "region");
     fBar.setAttribute("aria-label", "Thanh công thức");
@@ -3034,6 +3040,10 @@ export class SheetGridController {
     globalCommandBus?.updateState?.("sheet.data.filter", { checked: !!this.isFilterActive });
     globalCommandBus?.updateState?.("sheet.view.gridlines", { checked: this.gridlinesVisible });
     globalCommandBus?.updateState?.("sheet.view.headings", { checked: this.headingsVisible });
+    globalCommandBus?.updateState?.("sheet.view.formulaBar", { checked: this.formulaBarVisible });
+    globalCommandBus?.updateState?.("sheet.view.normal", { checked: this.workbookView === "normal" });
+    globalCommandBus?.updateState?.("sheet.view.pageBreakPreview", { checked: this.workbookView === "pageBreakPreview" });
+    globalCommandBus?.updateState?.("sheet.view.pageLayout", { checked: this.workbookView === "pageLayout" });
   }
 
   _applyViewState() {
@@ -3044,6 +3054,30 @@ export class SheetGridController {
     }
     this.container?.classList.toggle("vno-hide-gridlines", !this.gridlinesVisible);
     this.container?.classList.toggle("vno-hide-headings", !this.headingsVisible);
+    this.container?.classList.toggle("vno-hide-formula-bar", !this.formulaBarVisible);
+    this.container?.classList.toggle("vno-sheet-page-break-preview", this.workbookView === "pageBreakPreview");
+    this.container?.classList.toggle("vno-sheet-page-layout", this.workbookView === "pageLayout");
+    if (this.formulaBarEl) {
+      this.formulaBarEl.style.display = this.formulaBarVisible ? "" : "none";
+    }
+    this._renderPageBreakPreviewOverlay();
+    this._renderPageLayoutChrome();
+  }
+
+  setWorkbookView(viewMode) {
+    if (!["normal", "pageBreakPreview", "pageLayout"].includes(viewMode)) return false;
+    this.workbookView = viewMode;
+    this._applyViewState();
+    this._refreshPageAndCommentVisuals();
+    this._syncCommandStates();
+    return this.workbookView;
+  }
+
+  toggleFormulaBar() {
+    this.formulaBarVisible = !this.formulaBarVisible;
+    this._applyViewState();
+    this._syncCommandStates();
+    return this.formulaBarVisible;
   }
 
   setZoom(level) {
@@ -3057,6 +3091,128 @@ export class SheetGridController {
   zoomIn() { return this.setZoom(this.zoomLevel + 0.1); }
   zoomOut() { return this.setZoom(this.zoomLevel - 0.1); }
   zoomReset() { return this.setZoom(1); }
+
+  zoomToSelection() {
+    const range = this.selectedRange || {
+      start: { c: this.selectedCoord.c, r: this.selectedCoord.r },
+      end: { c: this.selectedCoord.c, r: this.selectedCoord.r }
+    };
+    const startColIdx = Math.min(this.cols.indexOf(range.start.c), this.cols.indexOf(range.end.c));
+    const endColIdx = Math.max(this.cols.indexOf(range.start.c), this.cols.indexOf(range.end.c));
+    const startRow = Math.min(range.start.r, range.end.r);
+    const endRow = Math.max(range.start.r, range.end.r);
+
+    const numCols = Math.max(1, endColIdx - startColIdx + 1);
+    const numRows = Math.max(1, endRow - startRow + 1);
+
+    const selWidth = numCols * 85 + 40;
+    const selHeight = numRows * 26 + 30;
+
+    const vpWidth = this.viewport?.clientWidth || 800;
+    const vpHeight = this.viewport?.clientHeight || 600;
+
+    const scale = Math.min(2.0, Math.max(0.5, Math.round(Math.min((vpWidth - 60) / selWidth, (vpHeight - 60) / selHeight) * 10) / 10));
+    this.setZoom(scale);
+    this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
+    return scale;
+  }
+
+  newWindow() {
+    if (typeof window === "undefined") return false;
+    const opened = window.open?.(window.location.href, "_blank");
+    if (!opened) {
+      this.options?.shell?.setStatus?.("Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho VN Office.");
+      return false;
+    }
+    try { opened.opener = null; } catch (_) {}
+    return true;
+  }
+
+  _getEffectivePrintArea() {
+    const explicit = this.printAreaBySheet[this.activeSheet];
+    if (explicit) return this._parseRange(explicit);
+    const sheetData = this.cellsData;
+    let minColIdx = this.cols.length - 1;
+    let maxColIdx = 0;
+    let minRow = this.rowCount;
+    let maxRow = 1;
+    let hasData = false;
+
+    if (sheetData && typeof sheetData.forEach === "function") {
+      sheetData.forEach((cell, coord) => {
+        if (cell && ((cell.val !== "" && cell.val !== null && cell.val !== undefined) || cell.formula)) {
+          const parsed = this._splitCoord(coord);
+          if (parsed) {
+            const colIdx = this.cols.indexOf(parsed[0]);
+            const row = parsed[1];
+            if (colIdx >= 0 && row >= 1) {
+              hasData = true;
+              if (colIdx < minColIdx) minColIdx = colIdx;
+              if (colIdx > maxColIdx) maxColIdx = colIdx;
+              if (row < minRow) minRow = row;
+              if (row > maxRow) maxRow = row;
+            }
+          }
+        }
+      });
+    }
+
+    if (!hasData) {
+      minColIdx = 0;
+      maxColIdx = Math.min(9, this.cols.length - 1);
+      minRow = 1;
+      maxRow = Math.min(30, this.rowCount);
+    } else {
+      minColIdx = 0;
+      maxColIdx = Math.max(maxColIdx, Math.min(7, this.cols.length - 1));
+      minRow = 1;
+      maxRow = Math.max(maxRow, Math.min(25, this.rowCount));
+    }
+
+    return {
+      start: { c: this.cols[minColIdx], r: minRow },
+      end: { c: this.cols[maxColIdx], r: maxRow }
+    };
+  }
+
+  _renderPageBreakPreviewOverlay() {
+    if (!this.viewport || typeof document === "undefined") return;
+    let watermark = this.viewport.querySelector?.(".vno-sheet-page-break-watermark");
+    if (this.workbookView === "pageBreakPreview") {
+      if (!watermark && typeof document.createElement === "function") {
+        watermark = document.createElement("div");
+        watermark.className = "vno-sheet-page-break-watermark";
+        watermark.setAttribute?.("aria-hidden", "true");
+        watermark.textContent = "Trang 1";
+        this.viewport.appendChild?.(watermark);
+      }
+      if (watermark?.style) watermark.style.display = "block";
+    } else if (watermark?.style) {
+      watermark.style.display = "none";
+    }
+  }
+
+  _renderPageLayoutChrome() {
+    if (!this.viewport || typeof document === "undefined") return;
+    let chrome = this.viewport.querySelector?.(".vno-sheet-page-layout-chrome");
+    if (this.workbookView === "pageLayout") {
+      if (!chrome && typeof document.createElement === "function") {
+        chrome = document.createElement("div");
+        chrome.className = "vno-sheet-page-layout-chrome";
+        chrome.innerHTML = `
+          <div class="vno-sheet-page-header-band" role="region" aria-label="Đầu trang">
+            <div class="vno-sheet-page-header-cell">Bấm để thêm đầu trang (trái)</div>
+            <div class="vno-sheet-page-header-cell">Bấm để thêm đầu trang (giữa)</div>
+            <div class="vno-sheet-page-header-cell">Bấm để thêm đầu trang (phải)</div>
+          </div>
+        `;
+        this.viewport.insertBefore?.(chrome, this.table);
+      }
+      if (chrome?.style) chrome.style.display = "block";
+    } else if (chrome?.style) {
+      chrome.style.display = "none";
+    }
+  }
 
   toggleGridlines() {
     this.gridlinesVisible = !this.gridlinesVisible;
@@ -4060,6 +4216,9 @@ export class SheetGridController {
   }
 
   _applyAnnotationAndPageVisuals(cell, col, row) {
+    if (typeof cell?.classList?.remove === "function") {
+      cell.classList.remove("is-outside-print-area", "is-print-area-top", "is-print-area-bottom", "is-print-area-left", "is-print-area-right", "has-page-break-row", "has-page-break-col");
+    }
     const coord = `${col}${row}`;
     const comment = this.commentsBySheet[this.activeSheet]?.[coord];
     if (comment) {
@@ -4071,15 +4230,24 @@ export class SheetGridController {
       cell.appendChild(popup);
     }
 
-    const area = this._parseRange(this.printAreaBySheet[this.activeSheet]);
-    if (area && this._rangeContains(area, col, row)) {
-      if (row === Math.min(area.start.r, area.end.r)) cell.classList.add("is-print-area-top");
-      if (row === Math.max(area.start.r, area.end.r)) cell.classList.add("is-print-area-bottom");
-      const startCol = this.cols.indexOf(area.start.c);
-      const endCol = this.cols.indexOf(area.end.c);
-      const colIndex = this.cols.indexOf(col);
-      if (colIndex === Math.min(startCol, endCol)) cell.classList.add("is-print-area-left");
-      if (colIndex === Math.max(startCol, endCol)) cell.classList.add("is-print-area-right");
+    const isPageBreakPreview = this.workbookView === "pageBreakPreview";
+    const area = this.printAreaBySheet[this.activeSheet]
+      ? this._parseRange(this.printAreaBySheet[this.activeSheet])
+      : (isPageBreakPreview ? this._getEffectivePrintArea() : null);
+
+    if (area) {
+      const inArea = this._rangeContains(area, col, row);
+      if (inArea) {
+        if (row === Math.min(area.start.r, area.end.r)) cell.classList.add("is-print-area-top");
+        if (row === Math.max(area.start.r, area.end.r)) cell.classList.add("is-print-area-bottom");
+        const startCol = this.cols.indexOf(area.start.c);
+        const endCol = this.cols.indexOf(area.end.c);
+        const colIndex = this.cols.indexOf(col);
+        if (colIndex === Math.min(startCol, endCol)) cell.classList.add("is-print-area-left");
+        if (colIndex === Math.max(startCol, endCol)) cell.classList.add("is-print-area-right");
+      } else if (isPageBreakPreview) {
+        cell.classList.add("is-outside-print-area");
+      }
     }
 
     const breaks = this.pageBreaksBySheet[this.activeSheet] || { rows: [], cols: [] };

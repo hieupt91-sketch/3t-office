@@ -62,6 +62,18 @@ export class SlidesAdapter {
       options = options || {};
       return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
     });
+    globalCommandBus.bindHandler("slides.view.normal", () => this.canvas.setNormalView ? this.canvas.setNormalView() : false);
+    globalCommandBus.bindHandler("slides.view.slideSorter", () => this.canvas.openSlideSorter ? this.canvas.openSlideSorter() : false);
+    globalCommandBus.bindHandler("slides.notes.toggle", () => this.canvas.toggleNotes ? this.canvas.toggleNotes() : false);
+    globalCommandBus.bindHandler("slides.view.reading", () => this.canvas.toggleReadingView ? this.canvas.toggleReadingView() : false);
+    globalCommandBus.bindHandler("slides.view.ruler", () => this.canvas.toggleRuler ? this.canvas.toggleRuler() : false);
+    globalCommandBus.bindHandler("slides.view.gridlines", () => this.canvas.toggleGridlines ? this.canvas.toggleGridlines() : false);
+    globalCommandBus.bindHandler("slides.view.guides", () => this.canvas.toggleGuides ? this.canvas.toggleGuides() : false);
+    globalCommandBus.bindHandler("slides.view.zoomIn", () => this.canvas.zoomIn ? this.canvas.zoomIn() : false);
+    globalCommandBus.bindHandler("slides.view.zoomOut", () => this.canvas.zoomOut ? this.canvas.zoomOut() : false);
+    globalCommandBus.bindHandler("slides.view.zoomReset", () => this.canvas.zoomReset ? this.canvas.zoomReset() : false);
+    globalCommandBus.bindHandler("slides.view.fitToWindow", () => this.canvas.fitToWindow ? this.canvas.fitToWindow() : false);
+    globalCommandBus.bindHandler("slides.view.newWindow", () => this.canvas.newWindow ? this.canvas.newWindow() : false);
   }
 
   _escapeXml(str) {
@@ -1010,11 +1022,53 @@ export class SlidesAdapter {
       case "slides.animation.apply":
         return this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false;
 
+      case "slides.view.normal":
+      case ".uno:NormalMultiPaneGUI":
+        return this.canvas.setNormalView ? this.canvas.setNormalView() : false;
+
       case "slides.notes.toggle":
+      case ".uno:NotesMode":
         return this.canvas.toggleNotes ? this.canvas.toggleNotes() : false;
 
       case "slides.view.slideSorter":
+      case ".uno:DiaMode":
         return this.canvas.openSlideSorter ? this.canvas.openSlideSorter() : false;
+
+      case "slides.view.reading":
+      case ".uno:SlideShow":
+        return this.canvas.toggleReadingView ? this.canvas.toggleReadingView() : false;
+
+      case "slides.view.ruler":
+      case ".uno:Ruler":
+        return this.canvas.toggleRuler ? this.canvas.toggleRuler() : false;
+
+      case "slides.view.gridlines":
+      case ".uno:GridUse":
+        return this.canvas.toggleGridlines ? this.canvas.toggleGridlines() : false;
+
+      case "slides.view.guides":
+      case ".uno:HelplinesUse":
+        return this.canvas.toggleGuides ? this.canvas.toggleGuides() : false;
+
+      case "slides.view.zoomIn":
+      case ".uno:ZoomIn":
+        return this.canvas.zoomIn ? this.canvas.zoomIn() : false;
+
+      case "slides.view.zoomOut":
+      case ".uno:ZoomOut":
+        return this.canvas.zoomOut ? this.canvas.zoomOut() : false;
+
+      case "slides.view.zoomReset":
+      case ".uno:Zoom100Percent":
+        return this.canvas.zoomReset ? this.canvas.zoomReset() : false;
+
+      case "slides.view.fitToWindow":
+      case ".uno:ZoomOptimal":
+        return this.canvas.fitToWindow ? this.canvas.fitToWindow() : false;
+
+      case "slides.view.newWindow":
+      case ".uno:NewWindow":
+        return this.canvas.newWindow ? this.canvas.newWindow() : false;
 
       case "slides.show.presenterMode":
         return this.canvas.startPresenterMode ? this.canvas.startPresenterMode() : false;

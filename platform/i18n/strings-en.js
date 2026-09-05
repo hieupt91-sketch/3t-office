@@ -59,11 +59,11 @@ export const enStrings = {
   },
   sheetRibbon: {
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", ai: "VN AI Assistant" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", comments: "Comments", show: "Show", zoom: "Zoom", window: "Window", aiAnalysis: "AI Data Analysis" }
+    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", comments: "Comments", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", aiAnalysis: "AI Data Analysis" }
   },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", ai: "VN AI Assistant" },
-    group: { slides: "Slides", clipboard: "Clipboard", drawing: "Drawing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", comments: "Comments", presentationViews: "Presentation Views", aiContent: "AI Presentation Content" }
+    group: { slides: "Slides", clipboard: "Clipboard", drawing: "Drawing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", comments: "Comments", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", aiContent: "AI Presentation Content" }
   },
   sheetDialogs: {
     close: "Close", cancel: "Cancel", cancelLong: "Cancel", apply: "Apply", range: "Range", value: "Value",
@@ -170,11 +170,17 @@ export const enStrings = {
     ,"sheet.data.subtotal": { label: "Subtotal", tooltip: "Insert subtotals and a final grand total" }
     ,"sheet.data.pivotTable": { label: "PivotTable", tooltip: "Create a PivotTable from the selected data range" }
     ,"sheet.data.pivotRefresh": { label: "Refresh PivotTable", tooltip: "Refresh the PivotTable from its source data" }
+    ,"sheet.view.normal": { label: "Normal", tooltip: "View worksheet in normal view" }
+    ,"sheet.view.pageBreakPreview": { label: "Page Break Preview", tooltip: "Show where page breaks will occur in worksheet" }
+    ,"sheet.view.pageLayout": { label: "Page Layout", tooltip: "View sheet as printed on paper with headers and footers" }
+    ,"sheet.view.formulaBar": { label: "Formula Bar", tooltip: "Show or hide the formula bar" }
     ,"sheet.view.toggleFormulas": { label: "Show Formulas", tooltip: "Show formulas in cells instead of calculated values (Ctrl+`)" }
     ,"sheet.view.freezePanes": { label: "Freeze Panes", tooltip: "Keep row 1 and column A visible while scrolling" }
     ,"sheet.view.zoomIn": { label: "Zoom In", tooltip: "Increase the worksheet zoom level" }
     ,"sheet.view.zoomOut": { label: "Zoom Out", tooltip: "Decrease the worksheet zoom level" }
     ,"sheet.view.zoomReset": { label: "100%", tooltip: "Reset the worksheet zoom level to 100%" }
+    ,"sheet.view.zoomToSelection": { label: "Zoom to Selection", tooltip: "Zoom worksheet to fit selected range" }
+    ,"sheet.view.newWindow": { label: "New Window", tooltip: "Open a new window for the spreadsheet document" }
     ,"sheet.view.gridlines": { label: "Gridlines", tooltip: "Show or hide worksheet gridlines" }
     ,"sheet.view.headings": { label: "Headings", tooltip: "Show or hide row and column headings" }
     ,"sheet.review.commentInsert": { label: "New Comment", tooltip: "Add, edit, or delete a comment on the active cell" }
@@ -217,8 +223,18 @@ export const enStrings = {
     ,"slides.design.slideSize": { label: "Slide Size", tooltip: "Choose a 16:9 or 4:3 slide ratio" }
     ,"slides.transition.apply": { label: "Transitions", tooltip: "Apply a slide transition (Fade, Push, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Animations", tooltip: "Apply an entrance animation to an object" }
-    ,"slides.notes.toggle": { label: "Speaker Notes", tooltip: "Show or hide the speaker notes pane" }
+    ,"slides.view.normal": { label: "Normal", tooltip: "Normal view for editing slides" }
     ,"slides.view.slideSorter": { label: "Slide Sorter", tooltip: "View all slides in a grid and drag to reorder them" }
+    ,"slides.notes.toggle": { label: "Speaker Notes", tooltip: "Show or hide the speaker notes pane" }
+    ,"slides.view.reading": { label: "Reading View", tooltip: "Read presentation with simplified controls; press Esc to exit" }
+    ,"slides.view.ruler": { label: "Ruler", tooltip: "Show or hide alignment rulers" }
+    ,"slides.view.gridlines": { label: "Gridlines", tooltip: "Show or hide alignment gridlines" }
+    ,"slides.view.guides": { label: "Guides", tooltip: "Show or hide draggable alignment guidelines" }
+    ,"slides.view.zoomIn": { label: "Zoom In", tooltip: "Increase presentation zoom level" }
+    ,"slides.view.zoomOut": { label: "Zoom Out", tooltip: "Decrease presentation zoom level" }
+    ,"slides.view.zoomReset": { label: "100%", tooltip: "Reset presentation zoom level to 100%" }
+    ,"slides.view.fitToWindow": { label: "Fit to Window", tooltip: "Fit presentation slide to current window size" }
+    ,"slides.view.newWindow": { label: "New Window", tooltip: "Open a new window for the presentation document" }
     ,"slides.show.startFromBegin": { label: "From Beginning", tooltip: "Start the slide show from the first slide (F5)" }
     ,"slides.show.startFromCurrent": { label: "From Current Slide", tooltip: "Start the slide show from the current slide (Shift+F5)" }
     ,"slides.show.presenterMode": { label: "Presenter View", tooltip: "Start Presenter View with notes and a timer (Alt+F5)" }

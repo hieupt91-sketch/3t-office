@@ -6,6 +6,7 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog, showPromptDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
+import { getVnCommand } from "../common/command-dispatch-mapper.js";
 
 export class SheetAdapter {
   constructor(gridController) {
@@ -79,6 +80,12 @@ export class SheetAdapter {
       args = args || {};
       return this.grid.showCommentDialog(args);
     });
+    globalCommandBus.bindHandler("sheet.view.normal", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("normal") : false);
+    globalCommandBus.bindHandler("sheet.view.pageBreakPreview", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageBreakPreview") : false);
+    globalCommandBus.bindHandler("sheet.view.pageLayout", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageLayout") : false);
+    globalCommandBus.bindHandler("sheet.view.formulaBar", () => this.grid.toggleFormulaBar ? this.grid.toggleFormulaBar() : false);
+    globalCommandBus.bindHandler("sheet.view.zoomToSelection", () => this.grid.zoomToSelection ? this.grid.zoomToSelection() : false);
+    globalCommandBus.bindHandler("sheet.view.newWindow", () => this.grid.newWindow ? this.grid.newWindow() : false);
     globalCommandBus.bindHandler("sheet.view.zoomIn", (options) => {
       options = options || {};
       return this.grid.zoomIn();
@@ -161,6 +168,7 @@ export class SheetAdapter {
       return this.grid.showFindDialog ? this.grid.showFindDialog() : false;
     });
   }
+
 
   _insertImageDialog(options) {
     options = options || {};
@@ -1027,8 +1035,60 @@ export class SheetAdapter {
 
   async handleDispatch(unoUrl, args, vnCmdId) {
     if (!this.grid) return false;
+    const cmd = vnCmdId || (unoUrl ? getVnCommand(unoUrl) : null) || unoUrl;
 
-    switch (vnCmdId) {
+    switch (cmd) {
+      case "sheet.view.normal":
+      case ".uno:NormalViewMode":
+        return this.grid.setWorkbookView ? this.grid.setWorkbookView("normal") : false;
+
+      case "sheet.view.pageBreakPreview":
+      case ".uno:PagebreakMode":
+      case ".uno:PageBreakPreview":
+        return this.grid.setWorkbookView ? this.grid.setWorkbookView("pageBreakPreview") : false;
+
+      case "sheet.view.pageLayout":
+      case ".uno:PageView":
+      case ".uno:PrintLayout":
+        return this.grid.setWorkbookView ? this.grid.setWorkbookView("pageLayout") : false;
+
+      case "sheet.view.formulaBar":
+      case ".uno:InputLineVisible":
+      case ".uno:ToggleFormulaBar":
+        return this.grid.toggleFormulaBar ? this.grid.toggleFormulaBar() : false;
+
+      case "sheet.view.zoomToSelection":
+      case ".uno:ZoomOptimal":
+        return this.grid.zoomToSelection ? this.grid.zoomToSelection() : false;
+
+      case "sheet.view.newWindow":
+      case ".uno:NewWindow":
+        return this.grid.newWindow ? this.grid.newWindow() : false;
+
+      case "sheet.view.zoomIn":
+      case ".uno:ZoomIn":
+      case ".uno:ZoomPlus":
+        return this.grid.zoomIn ? this.grid.zoomIn() : false;
+
+      case "sheet.view.zoomOut":
+      case ".uno:ZoomOut":
+      case ".uno:ZoomMinus":
+        return this.grid.zoomOut ? this.grid.zoomOut() : false;
+
+      case "sheet.view.zoomReset":
+      case ".uno:Zoom100Percent":
+        return this.grid.zoomReset ? this.grid.zoomReset() : false;
+
+      case "sheet.view.gridlines":
+      case ".uno:ToggleGrid":
+      case ".uno:ViewGridLines":
+        return this.grid.toggleGridlines ? this.grid.toggleGridlines() : false;
+
+      case "sheet.view.headings":
+      case ".uno:ToggleHeadings":
+      case ".uno:ViewRowColumnHeaders":
+        return this.grid.toggleHeadings ? this.grid.toggleHeadings() : false;
+
       case "sheet.nav.home":
         return this.grid.navigateHome();
 
