@@ -290,8 +290,7 @@ export class SlidesAdapter {
     return null;
   }
 
-  _collectShapeIdMap(shapes) {
-    const used = new Set();
+  _collectShapeIdMap(shapes, used = new Set()) {
     const idMap = new Map();
     for (const shape of shapes || []) {
       idMap.set(String(shape.id), this._sanitizeDrawId(shape.id, used));
@@ -299,8 +298,37 @@ export class SlidesAdapter {
     return idMap;
   }
 
-  _serializeShapeAnimation(shape, drawId) {
-    const preset = this._mapVnAnimationToPreset(shape?.animation);
+  _allocPlaceholderIds(slide, pageIndex, used) {
+    const layout = slide?.layoutType || "title-content";
+    const ids = {};
+    if (layout === "blank") return ids;
+    ids.title = this._sanitizeDrawId(`title-${pageIndex + 1}`, used);
+    if (layout !== "title-only") {
+      ids.body = this._sanitizeDrawId(`body-${pageIndex + 1}`, used);
+      if (layout === "two-content") {
+        ids.body2 = this._sanitizeDrawId(`body2-${pageIndex + 1}`, used);
+      }
+    }
+    return ids;
+  }
+
+  _placeholderIdAttrs(role, drawId) {
+    if (!drawId) return "";
+    const id = this._escapeXml(drawId);
+    const name = this._escapeXml(role);
+    return ` draw:id="${id}" xml:id="${id}" draw:name="${name}"`;
+  }
+
+  _placeholderRoleFromName(name) {
+    const raw = String(name || "");
+    if (/^title(-\d+)?$/i.test(raw)) return "title";
+    if (/^body2(-\d+)?$/i.test(raw)) return "body2";
+    if (/^body(-\d+)?$/i.test(raw)) return "body";
+    return null;
+  }
+
+  _serializeEntranceAnimation(animation, drawId) {
+    const preset = this._mapVnAnimationToPreset(animation);
     if (!preset || !drawId) return "";
     const target = this._escapeXml(drawId);
     const sub = preset.subType ? ` presentation:preset-sub-type="${this._escapeXml(preset.subType)}"` : "";
@@ -325,12 +353,20 @@ export class SlidesAdapter {
             </anim:par>`;
   }
 
-  _serializePageAnimXml(pageXmlId, transition, shapes, idMap) {
-    const smil = this._mapVnTransitionToSmil(transition);
-    const effectXml = (shapes || [])
-      .map((shape) => this._serializeShapeAnimation(shape, idMap.get(String(shape.id))))
-      .filter(Boolean)
-      .join("");
+  _serializeShapeAnimation(shape, drawId) {
+    return this._serializeEntranceAnimation(shape?.animation, drawId);
+  }
+
+  _serializePageAnimXml(pageXmlId, slide, idMap, placeholderIds) {
+    const smil = this._mapVnTransitionToSmil(slide?.transition);
+    const placeholders = placeholderIds || {};
+    const shapeIds = idMap || new Map();
+    const effectXml = [
+      this._serializeEntranceAnimation(slide?.titleAnimation, placeholders.title),
+      this._serializeEntranceAnimation(slide?.bodyAnimation, placeholders.body),
+      this._serializeEntranceAnimation(slide?.body2Animation, placeholders.body2),
+      ...((slide?.shapes || []).map((shape) => this._serializeShapeAnimation(shape, shapeIds.get(String(shape.id)))))
+    ].filter(Boolean).join("");
     if (!smil && !effectXml) return "";
     let transXml = "";
     if (smil) {
@@ -399,7 +435,11 @@ export class SlidesAdapter {
       const attrs = match[1];
       const vnType = this._mapPresetToVnAnimation(this._attr(attrs, "presentation:preset-id"));
       if (!vnType) continue;
-      const chunk = pageXml.slice(match.index, match.index + 2500);
+      const afterOpen = pageXml.indexOf(">", match.index);
+      const close = afterOpen >= 0 ? pageXml.indexOf("</anim:par>", afterOpen) : -1;
+      const chunk = close >= 0
+        ? pageXml.slice(match.index, close)
+        : pageXml.slice(match.index, match.index + 2500);
       const target = chunk.match(/smil:targetElement=["']([^"']+)["']/i)?.[1];
       if (!target) continue;
       const animateDurs = [...chunk.matchAll(/<anim:animate\b([^>]*?)(?:\/>|>)/gi)]
@@ -420,6 +460,43 @@ export class SlidesAdapter {
       const restored = idMap.has(target) ? idMap.get(target) : target;
       const shape = (shapes || []).find((item) => String(item.id) === String(restored) || String(item.id) === String(target));
       if (shape) shape.animation = { ...animation };
+    }
+  }
+
+  _collectPlaceholderTargets(pageXml) {
+    const map = new Map();
+    const regex = /<draw:frame\b([^>]*)>/gi;
+    let match;
+    let outlineIndex = 0;
+    while ((match = regex.exec(pageXml || "")) !== null) {
+      const attrs = match[1];
+      const cls = this._attr(attrs, "presentation:class");
+      if (this._isLayoutPresentationClass(cls) && !/^(title|outline)$/i.test(cls)) continue;
+      const name = this._attr(attrs, "draw:name");
+      let role = this._placeholderRoleFromName(name);
+      if (!role) {
+        if (cls === "title") role = "title";
+        else if (cls === "outline") role = outlineIndex++ === 0 ? "body" : "body2";
+      } else if (cls === "outline") {
+        outlineIndex = Math.max(outlineIndex, role === "body2" ? 2 : 1);
+      }
+      if (!role) continue;
+      const drawId = this._attr(attrs, "draw:id");
+      const xmlId = this._attr(attrs, "xml:id");
+      if (drawId) map.set(drawId, role);
+      if (xmlId) map.set(xmlId, role);
+      if (name) map.set(name, role);
+    }
+    return map;
+  }
+
+  _applyPlaceholderAnimations(slide, placeholderTargets, animByTarget) {
+    if (!slide || !placeholderTargets || !animByTarget || animByTarget.size === 0) return;
+    const fields = { title: "titleAnimation", body: "bodyAnimation", body2: "body2Animation" };
+    for (const [target, animation] of animByTarget) {
+      const role = placeholderTargets.get(target);
+      if (!role || !fields[role]) continue;
+      slide[fields[role]] = { ...animation };
     }
   }
 
@@ -599,10 +676,10 @@ export class SlidesAdapter {
         </draw:rect>`;
   }
 
-  _serializeSlideShapes(shapes) {
+  _serializeSlideShapes(shapes, idMap) {
     if (!Array.isArray(shapes) || shapes.length === 0) return "";
-    const idMap = this._collectShapeIdMap(shapes);
-    return shapes.map((shape) => this._serializeShape(shape, idMap.get(String(shape.id)), idMap)).join("");
+    const map = idMap || this._collectShapeIdMap(shapes);
+    return shapes.map((shape) => this._serializeShape(shape, map.get(String(shape.id)), map)).join("");
   }
 
   _parseGraphicFillStyles(xmlText) {
@@ -847,12 +924,19 @@ export class SlidesAdapter {
           </draw:frame>
         </presentation:notes>` : "";
 
+      const usedIds = new Set();
+      const placeholderIds = this._allocPlaceholderIds(slide, idx, usedIds);
+      const idMap = this._collectShapeIdMap(slide.shapes || [], usedIds);
+      const titleIds = this._placeholderIdAttrs("title", placeholderIds.title);
+      const bodyIds = this._placeholderIdAttrs("body", placeholderIds.body);
+      const body2Ids = this._placeholderIdAttrs("body2", placeholderIds.body2);
+
       let framesXml = "";
       if (layoutType === "blank") {
         framesXml = "";
       } else if (layoutType === "title-only") {
         framesXml = `
-        <draw:frame presentation:style-name="prTitle" presentation:class="title" svg:x="2cm" svg:y="6cm" svg:width="24cm" svg:height="6cm">
+        <draw:frame presentation:style-name="prTitle" presentation:class="title"${titleIds} svg:x="2cm" svg:y="6cm" svg:width="24cm" svg:height="6cm">
           <draw:text-box>
             <text:p>${titleEscaped}</text:p>
           </draw:text-box>
@@ -868,17 +952,17 @@ export class SlidesAdapter {
           .join("");
 
         framesXml = `
-        <draw:frame presentation:style-name="prTitle" presentation:class="title" svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
+        <draw:frame presentation:style-name="prTitle" presentation:class="title"${titleIds} svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
           <draw:text-box>
             <text:p>${titleEscaped}</text:p>
           </draw:text-box>
         </draw:frame>
-        <draw:frame presentation:style-name="prBody" presentation:class="outline" svg:x="2cm" svg:y="5.5cm" svg:width="11.5cm" svg:height="11cm">
+        <draw:frame presentation:style-name="prBody" presentation:class="outline"${bodyIds} svg:x="2cm" svg:y="5.5cm" svg:width="11.5cm" svg:height="11cm">
           <draw:text-box>
             ${bodyParasXml}
           </draw:text-box>
         </draw:frame>
-        <draw:frame presentation:style-name="prBody" presentation:class="outline" svg:x="14.5cm" svg:y="5.5cm" svg:width="11.5cm" svg:height="11cm">
+        <draw:frame presentation:style-name="prBody" presentation:class="outline"${body2Ids} svg:x="14.5cm" svg:y="5.5cm" svg:width="11.5cm" svg:height="11cm">
           <draw:text-box>
             ${body2ParasXml}
           </draw:text-box>
@@ -891,23 +975,22 @@ export class SlidesAdapter {
           .join("");
 
         framesXml = `
-        <draw:frame presentation:style-name="prTitle" presentation:class="title" svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
+        <draw:frame presentation:style-name="prTitle" presentation:class="title"${titleIds} svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
           <draw:text-box>
             <text:p>${titleEscaped}</text:p>
           </draw:text-box>
         </draw:frame>
-        <draw:frame presentation:style-name="prBody" presentation:class="outline" svg:x="2cm" svg:y="5.5cm" svg:width="24cm" svg:height="11cm">
+        <draw:frame presentation:style-name="prBody" presentation:class="outline"${bodyIds} svg:x="2cm" svg:y="5.5cm" svg:width="24cm" svg:height="11cm">
           <draw:text-box>
             ${bodyParasXml}
           </draw:text-box>
         </draw:frame>`;
       }
 
-      const idMap = this._collectShapeIdMap(slide.shapes || []);
-      const shapesXml = this._serializeSlideShapes(slide.shapes || []);
+      const shapesXml = this._serializeSlideShapes(slide.shapes || [], idMap);
       const pageXmlId = `idPage${idx + 1}`;
       const pageStyleName = this._pageDrawingStyleName(slide, idx);
-      const animXml = this._serializePageAnimXml(pageXmlId, slide.transition, slide.shapes || [], idMap);
+      const animXml = this._serializePageAnimXml(pageXmlId, slide, idMap, placeholderIds);
 
       pagesXml += `
       <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="Standard" presentation:layout="${layoutType}" xml:id="${pageXmlId}" draw:id="${pageXmlId}">
@@ -961,7 +1044,7 @@ export class SlidesAdapter {
       idx++;
       const fullPageTag = pageMatch[1] || "";
       const layoutMatch = fullPageTag.match(/presentation:layout=["']([^"']+)["']/i);
-      const pageLayout = layoutMatch ? layoutMatch[1] : "title-content";
+      let pageLayout = layoutMatch ? layoutMatch[1] : "";
       const originalPageXml = pageMatch[2];
       const pageTransition = this._parsePageTransition(fullPageTag, originalPageXml, drawingPageStyles);
       const animByTarget = this._parsePageAnimations(originalPageXml);
@@ -1003,6 +1086,14 @@ export class SlidesAdapter {
       const outlineParas = this._frameParagraphsByClass(pageContent, "outline");
       const outlineBlocks = this._frameBlocksByClass(pageContent, "outline");
       const hasPlaceholderClasses = titleParas.length > 0 || subtitleParas.length > 0 || outlineParas.length > 0;
+      // PPTX hop drops presentation:layout; restore two-content / title-only from remaining placeholders.
+      if (pageLayout !== "blank") {
+        if (outlineBlocks.length > 1) pageLayout = "two-content";
+        else if (!pageLayout && hasPlaceholderClasses && titleParas.length && outlineBlocks.length === 0 && subtitleParas.length === 0) {
+          pageLayout = "title-only";
+        }
+      }
+      if (!pageLayout) pageLayout = "title-content";
 
       let title = `Trang chiếu ${idx}`;
       let body = "";
@@ -1064,7 +1155,7 @@ export class SlidesAdapter {
         body = pageLayout === "title-only" ? "" : (paragraphs.length > 1 ? paragraphs.slice(1).join("\n") : "");
       }
 
-      parsedSlides.push({
+      const parsedSlide = {
         id: Date.now() + idx,
         title,
         body,
@@ -1073,7 +1164,13 @@ export class SlidesAdapter {
         shapes,
         notes: notesText,
         ...(pageTransition ? { transition: pageTransition } : {})
-      });
+      };
+      this._applyPlaceholderAnimations(
+        parsedSlide,
+        this._collectPlaceholderTargets(originalPageXml),
+        animByTarget
+      );
+      parsedSlides.push(parsedSlide);
     }
 
     return parsedSlides;
