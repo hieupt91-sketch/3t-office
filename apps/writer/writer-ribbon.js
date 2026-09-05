@@ -141,6 +141,28 @@ export const WRITER_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "writer.style.gallery", isLarge: true }
         ]
+      },
+      {
+        id: "editing",
+        label: "Chỉnh sửa",
+        items: [
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "common.edit.find" },
+              { type: "button", commandId: "common.edit.replace" },
+              {
+                type: "dropdown",
+                id: "writer.edit.select",
+                label: "Chọn",
+                icon: "search",
+                items: [
+                  { commandId: "common.edit.selectAll" }
+                ]
+              }
+            ]
+          }
+        ]
       }
       // Nhóm "Chèn nhanh" (Table/Image/Page Break) đã gỡ khỏi Home: cùng lệnh đã có
       // trên tab Chèn, vi phạm one-feature-one-display và làm Home thêm dày.
