@@ -8,7 +8,7 @@ import { showPromptDialog, showFindReplaceDialog, showAlertDialog } from "../../
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { parseCsv, replaceMergeFields, showMailMergeDataSourceDialog, showInsertMergeFieldDialog } from "../../../apps/writer/mail-merge.js";
 import { STYLE_PRESETS, showStyleGalleryDropdown, closeStyleGalleryDropdown, createStyleGalleryStrip } from "../../../apps/writer/style-gallery.js";
-import { showWatermarkDialog, showPageBorderDialog } from "../../../apps/writer/page-decorations.js";
+import { showWatermarkDialog, showPageBorderDialog, showPageColorDialog } from "../../../apps/writer/page-decorations.js";
 import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
 import { showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
@@ -160,6 +160,7 @@ export class WriterAdapter {
 
     // Watermark & Page Border State
     this.watermark = null;
+    this.pageColor = "transparent";
     this.pageBorder = {
       enabled: false,
       style: "solid",
@@ -260,6 +261,7 @@ export class WriterAdapter {
     this._bindStyleTracking();
     globalCommandBus.bindHandler("writer.style.gallery", (args) => this.toggleStyleGallery(args));
     globalCommandBus.bindHandler("writer.page.watermark", (args) => this.openWatermarkDialog(args));
+    globalCommandBus.bindHandler("writer.page.color", (args) => this.openPageColorDialog(args));
     globalCommandBus.bindHandler("writer.page.border", (args) => this.openPageBorderDialog(args));
     globalCommandBus.bindHandler("writer.page.columns", (args) => this.openColumnsDialog(args));
     globalCommandBus.bindHandler("writer.page.columns1", () => this.setColumns({ count: 1, gap: 0, rule: false }));
@@ -1102,6 +1104,7 @@ export class WriterAdapter {
     this.editorDom.style.padding =
       `${(top * MM_TO_PX).toFixed(1)}px ${(right * MM_TO_PX).toFixed(1)}px ` +
       `${(bottom * MM_TO_PX).toFixed(1)}px ${(left * MM_TO_PX).toFixed(1)}px`;
+    this.editorDom.style.backgroundColor = this.pageColor === "transparent" ? "" : this.pageColor;
     const viewContainer = this.editorDom.closest?.(".vno-writer-container");
     viewContainer?.style?.setProperty("--vno-page-width", (widthMm * MM_TO_PX).toFixed(1) + "px");
     viewContainer?.style?.setProperty("--vno-margin-left", (left * MM_TO_PX).toFixed(1) + "px");
@@ -1119,6 +1122,7 @@ export class WriterAdapter {
     const heightMm = isLandscape ? base.w : base.h;
     const { top, right, bottom, left } = this.pageSetup.margins;
     let pageCss = `@page { size: ${widthMm}mm ${heightMm}mm; margin: ${top}mm ${right}mm ${bottom}mm ${left}mm;`;
+    if (this.pageColor && this.pageColor !== "transparent") pageCss += ` background-color: ${this.pageColor};`;
     if (this.pageBorder && this.pageBorder.enabled && this.pageBorder.style !== "none") {
       pageCss += ` border: ${this.pageBorder.width || 2}pt ${this.pageBorder.style || "solid"} ${this.pageBorder.color || "#0f4c81"};`;
     }
@@ -2088,6 +2092,9 @@ export class WriterAdapter {
       case "writer.page.watermark":
         return await this.openWatermarkDialog(args);
 
+      case "writer.page.color":
+        return await this.openPageColorDialog(args);
+
       case "writer.page.border":
         return await this.openPageBorderDialog(args);
 
@@ -2715,6 +2722,24 @@ export class WriterAdapter {
   }
 
   // --- HÌNH MỜ (WATERMARK) ---
+
+  setPageColor(color = "transparent") {
+    const normalized = String(color || "transparent").toLowerCase();
+    if (normalized !== "transparent" && !/^#[0-9a-f]{6}$/.test(normalized)) return false;
+    this.flushTyping();
+    this.pageColor = normalized;
+    this._applyPageSetup();
+    this.isDirty = true;
+    this.recordSnapshot("writer.page.color");
+    return true;
+  }
+
+  async openPageColorDialog(color) {
+    if (color) return this.setPageColor(color);
+    const result = await showPageColorDialog(this.pageColor);
+    if (result == null) return false;
+    return this.setPageColor(result);
+  }
 
   setWatermark(watermarkData = null) {
     watermarkData = watermarkData || {};
@@ -4552,6 +4577,7 @@ export class WriterAdapter {
       sheet.style.minHeight = `${dim.heightPx}px`;
       sheet.style.height = `${dim.heightPx}px`;
       sheet.style.padding = `${dim.topPx}px ${dim.rightPx}px ${dim.bottomPx}px ${dim.leftPx}px`;
+      if (this.pageColor && this.pageColor !== "transparent") sheet.style.backgroundColor = this.pageColor;
 
       let pageFooterHtml = footerHtml;
       if (hasFooter) {
@@ -4906,6 +4932,7 @@ export class WriterAdapter {
       pageSetup: this.pageSetup ? JSON.parse(JSON.stringify(this.pageSetup)) : null,
       comments: this.comments ? JSON.parse(JSON.stringify(this.comments)) : [],
       watermark: this.watermark ? JSON.parse(JSON.stringify(this.watermark)) : null,
+      pageColor: this.pageColor || "transparent",
       pageBorder: this.pageBorder ? JSON.parse(JSON.stringify(this.pageBorder)) : null,
       columns: this.columns ? JSON.parse(JSON.stringify(this.columns)) : { count: 1, gap: 10, rule: false },
       shapes: this.shapes ? JSON.parse(JSON.stringify(this.shapes)) : [],
@@ -4927,6 +4954,7 @@ export class WriterAdapter {
     if (JSON.stringify(a.pageSetup) !== JSON.stringify(b.pageSetup)) return false;
     if (JSON.stringify(a.comments) !== JSON.stringify(b.comments)) return false;
     if (JSON.stringify(a.watermark) !== JSON.stringify(b.watermark)) return false;
+    if ((a.pageColor || "transparent") !== (b.pageColor || "transparent")) return false;
     if (JSON.stringify(a.pageBorder) !== JSON.stringify(b.pageBorder)) return false;
     if (JSON.stringify(a.columns) !== JSON.stringify(b.columns)) return false;
     if (JSON.stringify(a.shapes || []) !== JSON.stringify(b.shapes || [])) return false;
@@ -4968,6 +4996,10 @@ export class WriterAdapter {
 
     if (Object.prototype.hasOwnProperty.call(snapshot, "watermark")) {
       this.watermark = snapshot.watermark ? JSON.parse(JSON.stringify(snapshot.watermark)) : null;
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, "pageColor")) {
+      this.pageColor = snapshot.pageColor || "transparent";
+      this._applyPageSetup();
     }
     if (Object.prototype.hasOwnProperty.call(snapshot, "pageBorder")) {
       this.pageBorder = snapshot.pageBorder ? JSON.parse(JSON.stringify(snapshot.pageBorder)) : { enabled: false };

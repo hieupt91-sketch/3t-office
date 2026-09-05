@@ -294,6 +294,7 @@ export const WRITER_RIBBON_TABS = [
         labelKey: "writerRibbon.group.pageBackground",
         items: [
           { type: "button", commandId: "writer.page.watermark", isLarge: true },
+          { type: "button", commandId: "writer.page.color", isLarge: true },
           { type: "button", commandId: "writer.page.border", isLarge: true }
         ]
       }

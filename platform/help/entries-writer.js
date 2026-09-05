@@ -5,6 +5,21 @@
 
 export const WRITER_HELP_ENTRIES = [
   {
+    id: "writer.page.color",
+    app: "writer",
+    commandIds: ["writer.page.color"],
+    title: "Màu trang",
+    summary: "Đặt một màu nền đặc cho toàn bộ trang soạn thảo và trang in. Phiên bản này hỗ trợ màu đặc; chưa hỗ trợ nền chuyển sắc hoặc ảnh nền.",
+    ribbon: { tab: "Thiết kế", tabId: "design", group: "Nền & Viền trang" },
+    keywords: ["màu trang", "page color", "màu nền", "nền trang"],
+    steps: [
+      "Mở tab Thiết kế, trong nhóm Nền & Viền trang nhấn Màu trang.",
+      "Chọn một ô màu có sẵn, hoặc chọn Màu tùy chỉnh để lấy màu khác.",
+      "Nhấn Áp dụng. Màu xuất hiện trên vùng trang soạn thảo và trong Xem trước khi in.",
+      "Chọn ô Không màu để bỏ nền. Dùng Ctrl+Z/Ctrl+Y để hoàn tác hoặc làm lại."
+    ]
+  },
+  {
     id: "writer.review.wordCount",
     app: "writer",
     commandIds: ["writer.review.wordCount"],

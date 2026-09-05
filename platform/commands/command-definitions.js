@@ -140,6 +140,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.page.columns2", category: "layout", label: "2 cột", icon: "columnsTwo", tooltip: "Chia nội dung văn bản thành 2 cột đều nhau" },
   { id: "writer.page.columns3", category: "layout", label: "3 cột", icon: "columnsThree", tooltip: "Chia nội dung văn bản thành 3 cột đều nhau" },
   { id: "writer.page.watermark", category: "layout", label: "Hình mờ", icon: "pageWatermark", tooltip: "Thiết lập hoặc xóa hình mờ văn bản (Dự thảo, Mật, Khẩn...)" },
+  { id: "writer.page.color", category: "layout", label: "Màu trang", icon: "pageColor", tooltip: "Đặt màu nền đặc cho trang tài liệu" },
   { id: "writer.page.border", category: "layout", label: "Viền trang", icon: "pageBorder", tooltip: "Thiết lập viền bao quanh trang tài liệu" },
 
   // In ấn & Xem trước (Print & Preview)

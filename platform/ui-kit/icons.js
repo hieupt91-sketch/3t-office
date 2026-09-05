@@ -463,6 +463,8 @@ export const ICONS = {
     <line x1="8" y1="14" x2="13" y2="14" stroke="#94A3B8" stroke-width="1" stroke-linecap="round"/>
   </svg>`,
 
+  pageColor: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M6 2h9l4 4v16H6z" fill="#DBEAFE" stroke="#0F4C81"/><path d="M15 2v5h4" stroke="#0F4C81"/><path d="M5 16h14v6H5z" fill="#F59E0B"/><path d="M8 12h8" stroke="#64748B" stroke-width="1.5"/></svg>`,
+
   // Chia cột văn bản (Columns)
   pageColumns: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
     <rect x="3" y="2" width="18" height="20" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.4"/>

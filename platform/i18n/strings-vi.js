@@ -475,6 +475,7 @@ export const viStrings = {
     "writer.page.columns2": { label: "2 cột", tooltip: "Chia nội dung văn bản thành 2 cột đều nhau" },
     "writer.page.columns3": { label: "3 cột", tooltip: "Chia nội dung văn bản thành 3 cột đều nhau" },
     "writer.page.watermark": { label: "Hình mờ", tooltip: "Thiết lập hoặc xóa hình mờ văn bản (Dự thảo, Mật, Khẩn...)" },
+    "writer.page.color": { label: "Màu trang", tooltip: "Đặt màu nền đặc cho trang tài liệu" },
     "writer.page.border": { label: "Viền trang", tooltip: "Thiết lập viền bao quanh trang tài liệu" },
     "writer.file.printPreview": { label: "Xem trước khi in", tooltip: "Xem trước khi in (Ctrl+F2)" },
     "writer.view.printLayout": { label: "Bố trí in", tooltip: "Hiển thị ranh giới trang, đầu trang và chân trang" },
@@ -624,6 +625,15 @@ export const viStrings = {
         blue: "Xanh dương",
         amber: "Vàng hổ phách"
       }
+    },
+    pageColor: {
+      title: "Màu trang",
+      hint: "Chọn màu nền đặc áp dụng cho toàn bộ trang in và vùng soạn thảo.",
+      palette: "Bảng màu trang",
+      noColor: "Không màu",
+      custom: "Màu tùy chỉnh:",
+      cancel: "Hủy",
+      apply: "Áp dụng"
     },
     pageBorder: {
       title: "Viền trang (Page Border)",

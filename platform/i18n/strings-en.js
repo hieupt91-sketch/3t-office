@@ -476,6 +476,7 @@ export const enStrings = {
     "writer.page.columns2": { label: "Two Columns", tooltip: "Split text into two columns" },
     "writer.page.columns3": { label: "Three Columns", tooltip: "Split text into three columns" },
     "writer.page.watermark": { label: "Watermark", tooltip: "Add or remove a background watermark" },
+    "writer.page.color": { label: "Page Color", tooltip: "Set a solid page background color" },
     "writer.page.border": { label: "Page Borders", tooltip: "Add or change border around the page" },
     "writer.file.printPreview": { label: "Print Preview", tooltip: "Preview document before printing (Ctrl+F2)" },
     "writer.view.printLayout": { label: "Print Layout", tooltip: "Show page boundaries, headers, and footers" },
@@ -625,6 +626,15 @@ export const enStrings = {
         blue: "Blue",
         amber: "Amber"
       }
+    },
+    pageColor: {
+      title: "Page Color",
+      hint: "Choose a solid background for the editing canvas and printed page.",
+      palette: "Page color palette",
+      noColor: "No Color",
+      custom: "Custom color:",
+      cancel: "Cancel",
+      apply: "Apply"
     },
     pageBorder: {
       title: "Page Border",
