@@ -606,8 +606,8 @@ export async function showChartDialog(currentOptions = null) {
             <div id="vno-chart-data-rows" style="display:flex; flex-direction:column; gap:6px; max-height:110px; overflow-y:auto; padding-right:4px;">
               ${currentLabels.map((lbl, i) => `
                 <div class="vno-chart-row" style="display:flex; gap:8px; align-items:center;">
-                  <input type="text" class="vno-chart-lbl" value="${escHtml(lbl)}" placeholder="Nhãn" aria-label="${isEn ? `Label ${i + 1}` : `Nhãn ${i + 1}`}" style="flex:1; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;" />
-                  <input type="number" class="vno-chart-val" value="${currentData[i] ?? 0}" placeholder="Giá trị" aria-label="${isEn ? `Value ${i + 1}` : `Giá trị ${i + 1}`}" style="width:100px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;" />
+                  <input type="text" class="vno-chart-lbl" value="${escHtml(lbl)}" placeholder="${isEn ? "Label" : "Nhãn"}" aria-label="${isEn ? `Label ${i + 1}` : `Nhãn ${i + 1}`}" style="flex:1; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;" />
+                  <input type="number" class="vno-chart-val" value="${currentData[i] ?? 0}" placeholder="${isEn ? "Value" : "Giá trị"}" aria-label="${isEn ? `Value ${i + 1}` : `Giá trị ${i + 1}`}" style="width:100px; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px;" />
                 </div>
               `).join("")}
             </div>

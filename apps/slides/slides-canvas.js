@@ -3,7 +3,7 @@
  */
 
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
-import { t } from "../../platform/i18n/i18n.js";
+import { t, getLocale } from "../../platform/i18n/i18n.js";
 import { formatDateTime, showDateTimeDialog } from "../../platform/ui-kit/datetime-picker.js";
 import { showSymbolPicker } from "../../platform/ui-kit/symbol-picker.js";
 import { VietnameseSpellChecker } from "../../platform/text/vi-spellchecker.js";
@@ -120,7 +120,9 @@ export const SLIDE_LAYOUT_TYPES = [
     name: "Tiêu đề",
     nameEn: "Title Slide",
     description: "Chỉ hiển thị tiêu đề lớn ở trung tâm trang chiếu",
+    descEn: "Title slide with centered text",
     badge: "Độc lập",
+    badgeEn: "Stand-alone",
     previewSvg: `<svg viewBox="0 0 120 68" width="100%" height="56" fill="none">
       <rect width="120" height="68" rx="4" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5"/>
       <rect x="20" y="24" width="80" height="12" rx="2" fill="#B53818"/>
@@ -132,7 +134,9 @@ export const SLIDE_LAYOUT_TYPES = [
     name: "Tiêu đề + Nội dung",
     nameEn: "Title and Content",
     description: "Tiêu đề ở trên và một vùng nội dung chính bên dưới",
+    descEn: "Title on top and a main content area below",
     badge: "Mặc định",
+    badgeEn: "Default",
     previewSvg: `<svg viewBox="0 0 120 68" width="100%" height="56" fill="none">
       <rect width="120" height="68" rx="4" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5"/>
       <rect x="12" y="10" width="60" height="8" rx="1.5" fill="#B53818"/>
@@ -147,7 +151,9 @@ export const SLIDE_LAYOUT_TYPES = [
     name: "Hai nội dung",
     nameEn: "Two Content",
     description: "Tiêu đề ở trên và hai cột nội dung song song cạnh nhau",
+    descEn: "Title on top and two side-by-side content columns",
     badge: "2 cột",
+    badgeEn: "2 Columns",
     previewSvg: `<svg viewBox="0 0 120 68" width="100%" height="56" fill="none">
       <rect width="120" height="68" rx="4" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5"/>
       <rect x="12" y="10" width="60" height="8" rx="1.5" fill="#B53818"/>
@@ -166,7 +172,9 @@ export const SLIDE_LAYOUT_TYPES = [
     name: "Trống",
     nameEn: "Blank",
     description: "Trang chiếu trắng hoàn toàn, tự do chèn hình khối và hình ảnh",
+    descEn: "Blank slide for freely inserting shapes and images",
     badge: "Tự do",
+    badgeEn: "Freeform",
     previewSvg: `<svg viewBox="0 0 120 68" width="100%" height="56" fill="none">
       <rect width="120" height="68" rx="4" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="1.5"/>
       <rect x="25" y="18" width="70" height="32" rx="2" fill="none" stroke="#CBD5E1" stroke-width="1" stroke-dasharray="3 3"/>
@@ -3016,19 +3024,19 @@ export class SlidesCanvasController {
             <button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}" style="font-size:16px;">&times;</button>
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
-            <p style="font-size:12px;color:#475569;margin:0;">Chọn một mẫu phong cách để đồng bộ màu sắc, phông chữ và logo cho tất cả các trang chiếu:</p>
+            <p style="font-size:12px;color:#475569;margin:0;">${t("slidesDialogs.masterHint", "Chọn một mẫu phong cách để đồng bộ màu sắc, phông chữ và logo cho tất cả các trang chiếu:")}</p>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" id="vno-master-themes-grid" role="radiogroup" aria-labelledby="vno-master-dialog-title">
               ${SLIDE_MASTER_THEMES.map(theme => `
                 <button type="button" role="radio" class="vno-theme-card ${theme.id === selectedId ? "is-selected" : ""}" data-theme-id="${theme.id}" aria-checked="${theme.id === selectedId}" aria-pressed="${theme.id === selectedId}" style="background:${theme.bgColor};text-align:left;border:2px solid ${theme.id === selectedId ? "#b53818" : "#cbd5e1"};border-radius:6px;padding:8px;cursor:pointer;">
                   <div style="height:4px;background:${theme.accentColor};border-radius:2px;" aria-hidden="true"></div>
-                  <div style="font-weight:bold;font-size:12px;color:${theme.titleColor};font-family:${theme.fontFamily};margin-top:6px;">${theme.name}</div>
+                  <div style="font-weight:bold;font-size:12px;color:${theme.titleColor};font-family:${theme.fontFamily};margin-top:6px;">${t(theme.nameKey, theme.name)}</div>
                   <div style="font-size:10px;color:${theme.bodyColor};opacity:0.85;">Logo: ${theme.logoText}</div>
                 </button>
               `).join("")}
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;">
-              <label for="vno-master-logo-input" style="font-size:11px;font-weight:600;color:#334155;">Tên đơn vị / Logo chữ góc trang:</label>
-              <input type="text" class="vno-input" id="vno-master-logo-input" value="${this.masterTheme.logoText || "VN OFFICE"}" aria-label="Tên đơn vị hoặc logo chữ góc trang" style="padding:4px 8px;font-size:12px;" />
+              <label for="vno-master-logo-input" style="font-size:11px;font-weight:600;color:#334155;">${t("slidesDialogs.masterLogoLabel", "Tên đơn vị / Logo chữ góc trang:")}</label>
+              <input type="text" class="vno-input" id="vno-master-logo-input" value="${this.masterTheme.logoText || "VN OFFICE"}" aria-label="${t("slidesDialogs.masterLogoAria", "Tên đơn vị hoặc logo chữ góc trang")}" style="padding:4px 8px;font-size:12px;" />
             </div>
           </div>
           <div class="vno-dialog-footer">
@@ -3185,7 +3193,7 @@ export class SlidesCanvasController {
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px;">
             <p style="font-size:12px;color:#475569;margin:0;">
-              Chọn một bố cục chuẩn để định hình lại cấu trúc nội dung trang chiếu hiện tại:
+              ${t("slidesDialogs.layoutHint", "Chọn một bố cục chuẩn để định hình lại cấu trúc nội dung trang chiếu hiện tại:")}
             </p>
             <div class="vno-layouts-grid" id="vno-layouts-grid" role="radiogroup" aria-labelledby="vno-layout-dialog-title">
               ${SLIDE_LAYOUT_TYPES.map(layout => `
@@ -3194,10 +3202,10 @@ export class SlidesCanvasController {
                     ${layout.previewSvg}
                   </div>
                   <div class="vno-layout-card-header">
-                    <span class="vno-layout-card-name">${layout.name}</span>
-                    <span class="vno-layout-card-badge">${layout.badge}</span>
+                    <span class="vno-layout-card-name">${getLocale() === "en" ? (layout.nameEn || layout.name) : layout.name}</span>
+                    <span class="vno-layout-card-badge">${getLocale() === "en" ? (layout.badgeEn || layout.badge) : layout.badge}</span>
                   </div>
-                  <div class="vno-layout-card-desc">${layout.description}</div>
+                  <div class="vno-layout-card-desc">${getLocale() === "en" ? (layout.descEn || layout.description) : layout.description}</div>
                 </button>
               `).join("")}
             </div>
@@ -3205,8 +3213,8 @@ export class SlidesCanvasController {
           <div class="vno-dialog-footer" style="display:flex;justify-content:space-between;">
             <button type="button" class="vno-btn" id="vno-layout-cancel">${t("slidesDialogs.cancel")}</button>
             <div style="display:flex;gap:8px;">
-              <button type="button" class="vno-btn" id="vno-layout-apply-all">${t("slidesDialogs.applyLayout")}</button>
-              <button type="button" class="vno-btn vno-btn-primary" id="vno-layout-apply-current">${t("slidesDialogs.applyLayout")}</button>
+              <button type="button" class="vno-btn" id="vno-layout-apply-all">${t("slidesDialogs.applyLayoutAll", "Áp dụng cho tất cả")}</button>
+              <button type="button" class="vno-btn vno-btn-primary" id="vno-layout-apply-current">${t("slidesDialogs.applyLayoutCurrent", "Áp dụng")}</button>
             </div>
           </div>
         </div>
@@ -3322,35 +3330,35 @@ export class SlidesCanvasController {
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <label for="vno-trans-type-select" style="font-size:12px;font-weight:600;color:#334155;">Kiểu chuyển trang:</label>
-              <select class="vno-select" id="vno-trans-type-select" aria-label="Kiểu chuyển trang">
-                <option value="fade" ${currentType === "fade" ? "selected" : ""}>Mờ dần (Fade)</option>
-                <option value="slide" ${currentType === "slide" ? "selected" : ""}>Trượt ngang (Slide)</option>
-                <option value="zoom" ${currentType === "zoom" ? "selected" : ""}>Thu phóng (Zoom)</option>
-                <option value="flip" ${currentType === "flip" ? "selected" : ""}>Lật trang 3D (Flip)</option>
+              <label for="vno-trans-type-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.transitionTypeLabel", "Kiểu chuyển trang:")}</label>
+              <select class="vno-select" id="vno-trans-type-select" aria-label="${t("slidesDialogs.transitionTypeLabel", "Kiểu chuyển trang:")}">
+                <option value="fade" ${currentType === "fade" ? "selected" : ""}>${t("slidesDialogs.transFade", "Mờ dần (Fade)")}</option>
+                <option value="slide" ${currentType === "slide" ? "selected" : ""}>${t("slidesDialogs.transSlide", "Trượt ngang (Slide)")}</option>
+                <option value="zoom" ${currentType === "zoom" ? "selected" : ""}>${t("slidesDialogs.transZoom", "Thu phóng (Zoom)")}</option>
+                <option value="flip" ${currentType === "flip" ? "selected" : ""}>${t("slidesDialogs.transFlip", "Lật trang 3D (Flip)")}</option>
               </select>
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <label for="vno-trans-duration-select" style="font-size:12px;font-weight:600;color:#334155;">Thời gian hiệu ứng:</label>
-              <select class="vno-select" id="vno-trans-duration-select" aria-label="Thời gian hiệu ứng chuyển trang">
-                <option value="300" ${currentDuration === 300 ? "selected" : ""}>Nhanh (0.3 giây)</option>
-                <option value="500" ${currentDuration === 500 ? "selected" : ""}>Tiêu chuẩn (0.5 giây)</option>
-                <option value="800" ${currentDuration === 800 ? "selected" : ""}>Chậm (0.8 giây)</option>
-                <option value="1000" ${currentDuration === 1000 ? "selected" : ""}>Rất chậm (1.0 giây)</option>
+              <label for="vno-trans-duration-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationDuration", "Thời gian hiệu ứng:")}</label>
+              <select class="vno-select" id="vno-trans-duration-select" aria-label="${t("slidesDialogs.animationDuration", "Thời gian hiệu ứng:")}">
+                <option value="300" ${currentDuration === 300 ? "selected" : ""}>${t("slidesDialogs.durationFast", "Nhanh (0.3 giây)")}</option>
+                <option value="500" ${currentDuration === 500 ? "selected" : ""}>${t("slidesDialogs.durationNormal", "Tiêu chuẩn (0.5 giây)")}</option>
+                <option value="800" ${currentDuration === 800 ? "selected" : ""}>${t("slidesDialogs.durationSlow", "Chậm (0.8 giây)")}</option>
+                <option value="1000" ${currentDuration === 1000 ? "selected" : ""}>${t("slidesDialogs.durationVerySlow", "Rất chậm (1.0 giây)")}</option>
               </select>
             </div>
             <div style="padding:16px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:4px;text-align:center;overflow:hidden;">
               <div id="vno-trans-preview-box" style="font-size:16px;font-weight:bold;color:#b53818;padding:12px;background:#ffffff;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                Trang Chiếu Mẫu
+                ${t("slidesDialogs.sampleSlide", "Trang Chiếu Mẫu")}
               </div>
-              <button type="button" class="vno-btn" id="vno-trans-preview-btn" style="margin-top:8px;font-size:11px;">▶ Xem thử hiệu ứng</button>
+              <button type="button" class="vno-btn" id="vno-trans-preview-btn" style="margin-top:8px;font-size:11px;">${t("slidesDialogs.previewTransition", "▶ Xem thử hiệu ứng")}</button>
             </div>
           </div>
           <div class="vno-dialog-footer" style="display:flex;justify-content:space-between;">
               <button type="button" class="vno-btn" id="vno-trans-cancel">${t("slidesDialogs.cancel")}</button>
             <div style="display:flex;gap:6px;">
-              <button type="button" class="vno-btn" id="vno-trans-apply-current">${t("slidesDialogs.applyTransition")}</button>
-              <button type="button" class="vno-btn vno-btn-primary" id="vno-trans-apply-all">${t("slidesDialogs.applyTransition")}</button>
+              <button type="button" class="vno-btn" id="vno-trans-apply-current">${t("slidesDialogs.applyTransitionCurrent", "Áp dụng")}</button>
+              <button type="button" class="vno-btn vno-btn-primary" id="vno-trans-apply-all">${t("slidesDialogs.applyTransitionAll", "Áp dụng cho tất cả")}</button>
             </div>
           </div>
         </div>
@@ -3429,20 +3437,20 @@ export class SlidesCanvasController {
       const targetOptions = [];
       const layout = slide.layoutType || "title-content";
       if (layout !== "blank") {
-        targetOptions.push({ id: "title", label: `Tiêu đề ("${(slide.title || "").substring(0, 20)}...")` });
+        targetOptions.push({ id: "title", label: `${t("slidesDialogs.targetTitle", "Tiêu đề")} ("${(slide.title || "").substring(0, 20)}...")` });
       }
       if (layout !== "blank" && layout !== "title-only") {
-        targetOptions.push({ id: "body", label: layout === "two-content" ? `Nội dung cột 1 ("${(slide.body || "").substring(0, 20)}...")` : `Nội dung ("${(slide.body || "").substring(0, 20)}...")` });
+        targetOptions.push({ id: "body", label: layout === "two-content" ? `${t("slidesDialogs.targetCol1", "Nội dung cột 1")} ("${(slide.body || "").substring(0, 20)}...")` : `${t("slidesDialogs.targetBody", "Nội dung")} ("${(slide.body || "").substring(0, 20)}...")` });
       }
       if (layout === "two-content") {
-        targetOptions.push({ id: "body2", label: `Nội dung cột 2 ("${(slide.body2 || "").substring(0, 20)}...")` });
+        targetOptions.push({ id: "body2", label: `${t("slidesDialogs.targetCol2", "Nội dung cột 2")} ("${(slide.body2 || "").substring(0, 20)}...")` });
       }
       (slide.shapes || []).forEach((sh, idx) => {
-        const typeName = sh.type === "image" ? "Hình ảnh" : (sh.type === "ellipse" ? "Hình elip" : "Hình chữ nhật");
+        const typeName = sh.type === "image" ? t("slidesDialogs.shapeImage", "Hình ảnh") : (sh.type === "ellipse" ? t("slidesDialogs.shapeEllipse", "Hình elip") : t("slidesDialogs.shapeRectangle", "Hình chữ nhật"));
         targetOptions.push({ id: String(sh.id), label: `${typeName} #${idx + 1}` });
       });
       if (targetOptions.length === 0) {
-        targetOptions.push({ id: "title", label: "Tiêu đề" });
+        targetOptions.push({ id: "title", label: t("slidesDialogs.targetTitle", "Tiêu đề") });
       }
 
       let initialTarget = "title";
@@ -3470,30 +3478,30 @@ export class SlidesCanvasController {
               <label for="vno-anim-type-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationType")}</label>
               <select class="vno-select" id="vno-anim-type-select" aria-label="${t("slidesDialogs.animationType")}">
                 <option value="none" ${currentAnim.type === "none" ? "selected" : ""}>${t("slidesDialogs.noAnimation")}</option>
-                <option value="fadeIn" ${currentAnim.type === "fadeIn" || currentAnim.type === "fade" ? "selected" : ""}>Mờ dần xuất hiện (Fade In)</option>
-                <option value="flyIn" ${currentAnim.type === "flyIn" || currentAnim.type === "fly" ? "selected" : ""}>Bay từ dưới lên (Fly In)</option>
-                <option value="zoomIn" ${currentAnim.type === "zoomIn" || currentAnim.type === "zoom" ? "selected" : ""}>Thu phóng xuất hiện (Zoom In)</option>
-                <option value="bounceIn" ${currentAnim.type === "bounceIn" || currentAnim.type === "bounce" ? "selected" : ""}>Nảy nhẹ xuất hiện (Bounce In)</option>
-                <option value="slideLeft" ${currentAnim.type === "slideLeft" || currentAnim.type === "slide" ? "selected" : ""}>Trượt từ trái sang (Slide Left)</option>
+                <option value="fadeIn" ${currentAnim.type === "fadeIn" || currentAnim.type === "fade" ? "selected" : ""}>${t("slidesDialogs.animFadeIn", "Mờ dần xuất hiện (Fade In)")}</option>
+                <option value="flyIn" ${currentAnim.type === "flyIn" || currentAnim.type === "fly" ? "selected" : ""}>${t("slidesDialogs.animFlyIn", "Bay từ dưới lên (Fly In)")}</option>
+                <option value="zoomIn" ${currentAnim.type === "zoomIn" || currentAnim.type === "zoom" ? "selected" : ""}>${t("slidesDialogs.animZoomIn", "Thu phóng xuất hiện (Zoom In)")}</option>
+                <option value="bounceIn" ${currentAnim.type === "bounceIn" || currentAnim.type === "bounce" ? "selected" : ""}>${t("slidesDialogs.animBounceIn", "Nảy nhẹ xuất hiện (Bounce In)")}</option>
+                <option value="slideLeft" ${currentAnim.type === "slideLeft" || currentAnim.type === "slide" ? "selected" : ""}>${t("slidesDialogs.animSlideLeft", "Trượt từ trái sang (Slide Left)")}</option>
               </select>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
               <div style="display:flex;flex-direction:column;gap:4px;">
                 <label for="vno-anim-duration-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationDuration")}</label>
                 <select class="vno-select" id="vno-anim-duration-select" aria-label="${t("slidesDialogs.animationDuration")}">
-                  <option value="300" ${currentAnim.duration === 300 ? "selected" : ""}>Rất nhanh (0.3s)</option>
-                  <option value="500" ${currentAnim.duration === 500 ? "selected" : ""}>Tiêu chuẩn (0.5s)</option>
-                  <option value="800" ${currentAnim.duration === 800 ? "selected" : ""}>Chậm (0.8s)</option>
-                  <option value="1000" ${currentAnim.duration === 1000 ? "selected" : ""}>1.0 giây</option>
+                  <option value="300" ${currentAnim.duration === 300 ? "selected" : ""}>${t("slidesDialogs.durationVeryFast", "Rất nhanh (0.3s)")}</option>
+                  <option value="500" ${currentAnim.duration === 500 ? "selected" : ""}>${t("slidesDialogs.durationNormal", "Tiêu chuẩn (0.5s)")}</option>
+                  <option value="800" ${currentAnim.duration === 800 ? "selected" : ""}>${t("slidesDialogs.durationSlow", "Chậm (0.8s)")}</option>
+                  <option value="1000" ${currentAnim.duration === 1000 ? "selected" : ""}>${t("slidesDialogs.duration1s", "1.0 giây")}</option>
                 </select>
               </div>
               <div style="display:flex;flex-direction:column;gap:4px;">
                 <label for="vno-anim-delay-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationDelay")}</label>
                 <select class="vno-select" id="vno-anim-delay-select" aria-label="${t("slidesDialogs.animationDelay")}">
                   <option value="0" ${currentAnim.delay === 0 ? "selected" : ""}>${t("slidesDialogs.immediate")}</option>
-                  <option value="200" ${currentAnim.delay === 200 ? "selected" : ""}>Sau 0.2s</option>
-                  <option value="500" ${currentAnim.delay === 500 ? "selected" : ""}>Sau 0.5s</option>
-                  <option value="1000" ${currentAnim.delay === 1000 ? "selected" : ""}>Sau 1.0s</option>
+                  <option value="200" ${currentAnim.delay === 200 ? "selected" : ""}>${t("slidesDialogs.delay200", "Sau 0.2s")}</option>
+                  <option value="500" ${currentAnim.delay === 500 ? "selected" : ""}>${t("slidesDialogs.delay500", "Sau 0.5s")}</option>
+                  <option value="1000" ${currentAnim.delay === 1000 ? "selected" : ""}>${t("slidesDialogs.delay1000", "Sau 1.0s")}</option>
                 </select>
               </div>
             </div>
@@ -3612,7 +3620,7 @@ export class SlidesCanvasController {
     overlay.className = "vno-slideshow-overlay";
     overlay.setAttribute?.("role", "dialog");
     overlay.setAttribute?.("aria-modal", "true");
-    overlay.setAttribute?.("aria-label", rehearsing ? "Tập dượt thời gian trình chiếu" : "Trình chiếu trang chiếu");
+    overlay.setAttribute?.("aria-label", rehearsing ? t("slidesDialogs.rehearseTitle", "Tập dượt thời gian trình chiếu") : t("slidesDialogs.slideshowTitle", "Trình chiếu trang chiếu"));
     overlay.setAttribute?.("tabindex", "-1");
 
     const content = document.createElement("div");
@@ -3639,7 +3647,7 @@ export class SlidesCanvasController {
       if (!rehearseTimerBox) return;
       const totalElapsed = (performance.now() - rehearseTotalStart) / 1000;
       const slideElapsed = (performance.now() - rehearseSlideStart) / 1000;
-      rehearseTimerBox.innerHTML = `<span>Trang: ${formatSeconds(slideElapsed)}</span> <span style="opacity:0.7;margin-left:10px;">Tổng: ${formatSeconds(totalElapsed)}</span>`;
+      rehearseTimerBox.innerHTML = `<span>${t("slidesDialogs.slideElapsed", "Trang")}: ${formatSeconds(slideElapsed)}</span> <span style="opacity:0.7;margin-left:10px;">${t("slidesDialogs.totalElapsed", "Tổng")}: ${formatSeconds(totalElapsed)}</span>`;
     };
 
     const captureSlideTiming = () => {
@@ -3652,7 +3660,7 @@ export class SlidesCanvasController {
       rehearseTimerBox.className = "vno-rehearse-timer-box";
       rehearseTimerBox.setAttribute?.("role", "timer");
       rehearseTimerBox.setAttribute?.("aria-live", "off");
-      rehearseTimerBox.setAttribute?.("aria-label", "Đồng hồ tập dượt thời gian");
+      rehearseTimerBox.setAttribute?.("aria-label", t("slidesDialogs.rehearseClockAria", "Đồng hồ tập dượt thời gian"));
       overlay.appendChild(rehearseTimerBox);
       rehearseTotalStart = performance.now();
       rehearseSlideStart = performance.now();
@@ -3750,18 +3758,18 @@ export class SlidesCanvasController {
         <div class="vno-slide-master-logo" style="color:${theme.accentColor || "#b53818"};">${theme.logoText || "VN OFFICE"}</div>
         ${layoutHtml}
         <div class="vno-slide-master-footer" style="color:${theme.bodyColor || "#475569"};">
-          <span>${theme.footerText || "Tài liệu thuyết trình VN Office"}</span>
-          <span>Trang ${currentShowIdx + 1} / ${this.slides.length}</span>
-          <span>Phím Space hoặc Click để tiếp tục | Esc để thoát</span>
+          <span>${theme.footerText || t("slidesDialogs.footerDoc", "Tài liệu thuyết trình VN Office")}</span>
+          <span>${t("slidesDialogs.slideCounter", { current: currentShowIdx + 1, total: this.slides.length })}</span>
+          <span>${t("slidesDialogs.slideshowHint")}</span>
         </div>
       `;
 
       // Áp dụng Transition Animation thật
-      const t = s.transition || this.transitionConfig || { type: "fade", duration: 500 };
-      const animName = `vnoTransition${t.type.charAt(0).toUpperCase() + t.type.slice(1)}`;
+      const trans = s.transition || this.transitionConfig || { type: "fade", duration: 500 };
+      const animName = `vnoTransition${trans.type.charAt(0).toUpperCase() + trans.type.slice(1)}`;
       content.style.animation = "none";
       void content.offsetWidth;
-      content.style.animation = `${animName} ${t.duration}ms ease-out forwards`;
+      content.style.animation = `${animName} ${trans.duration}ms ease-out forwards`;
     };
 
     renderShow();
@@ -3855,7 +3863,7 @@ export class SlidesCanvasController {
     overlay.className = "vno-presenter-overlay";
     overlay.setAttribute?.("role", "dialog");
     overlay.setAttribute?.("aria-modal", "true");
-    overlay.setAttribute?.("aria-label", "Chế độ người thuyết trình");
+    overlay.setAttribute?.("aria-label", t("slidesDialogs.presenterTitle", "Chế độ người thuyết trình"));
     overlay.setAttribute?.("tabindex", "-1");
 
     const formatTime = (secs) => {
@@ -3873,20 +3881,20 @@ export class SlidesCanvasController {
     overlay.innerHTML = `
       <div class="vno-presenter-header">
         <div class="vno-presenter-brand">
-          <strong>CHẾ ĐỘ NGƯỜI THUYẾT TRÌNH (PRESENTER VIEW)</strong>
+          <strong>${t("slidesDialogs.presenterHeader", "CHẾ ĐỘ NGƯỜI THUYẾT TRÌNH (PRESENTER VIEW)")}</strong>
           <span style="font-size:11px;opacity:0.7;margin-left:8px;">• VN Slides</span>
         </div>
         <div class="vno-presenter-clocks">
-          <div class="vno-presenter-timer-box" title="Thời gian thuyết trình" role="timer" aria-label="Thời gian thuyết trình">
-            <span style="font-size:11px;opacity:0.7;">ĐÃ THUYẾT TRÌNH:</span>
+          <div class="vno-presenter-timer-box" title="${t("slidesDialogs.elapsedTime", "Thời gian thuyết trình")}" role="timer" aria-label="${t("slidesDialogs.elapsedTime", "Thời gian thuyết trình")}">
+            <span style="font-size:11px;opacity:0.7;">${t("slidesDialogs.elapsedLabel", "ĐÃ THUYẾT TRÌNH:")}</span>
             <strong id="vno-presenter-timer">00:00:00</strong>
           </div>
-          <div class="vno-presenter-clock-box" title="Đồng hồ thực tế" role="timer" aria-label="Đồng hồ thực tế">
-            <span style="font-size:11px;opacity:0.7;">ĐỒNG HỒ:</span>
+          <div class="vno-presenter-clock-box" title="${t("slidesDialogs.actualClock", "Đồng hồ thực tế")}" role="timer" aria-label="${t("slidesDialogs.actualClock", "Đồng hồ thực tế")}">
+            <span style="font-size:11px;opacity:0.7;">${t("slidesDialogs.clockLabel", "ĐỒNG HỒ:")}</span>
             <strong id="vno-presenter-clock">${getClockTime()}</strong>
           </div>
         </div>
-        <button type="button" class="vno-btn vno-btn-sm vno-presenter-exit-btn" id="vno-presenter-close" aria-label="Thoát chế độ người thuyết trình (Esc)">✕ Thoát (Esc)</button>
+        <button type="button" class="vno-btn vno-btn-sm vno-presenter-exit-btn" id="vno-presenter-close" aria-label="${t("slidesDialogs.exitPresenterAria", "Thoát chế độ người thuyết trình (Esc)")}">${t("slidesDialogs.presenterExit", "✕ Thoát (Esc)")}</button>
       </div>
 
       <div class="vno-presenter-body">
@@ -3894,9 +3902,9 @@ export class SlidesCanvasController {
         <div class="vno-presenter-left-col">
           <div class="vno-presenter-slide-viewport" id="vno-presenter-slide-view"></div>
           <div class="vno-presenter-nav-bar">
-            <button type="button" class="vno-btn" id="vno-presenter-prev" title="Trang trước (←)" aria-label="Trang trước (←)">◄ Trang trước</button>
-            <span class="vno-presenter-counter" id="vno-presenter-counter">Trang ${currentShowIdx + 1} / ${this.slides.length}</span>
-            <button type="button" class="vno-btn vno-btn-primary" id="vno-presenter-next" title="Trang tiếp (Space hoặc →)" aria-label="Trang tiếp (Space hoặc →)">Trang tiếp ►</button>
+            <button type="button" class="vno-btn" id="vno-presenter-prev" title="${t("slidesDialogs.prevSlideTitle", "Trang trước (←)")}" aria-label="${t("slidesDialogs.prevSlideTitle", "Trang trước (←)")}">${t("slidesDialogs.prevSlide", "◄ Trang trước")}</button>
+            <span class="vno-presenter-counter" id="vno-presenter-counter">${t("slidesDialogs.slideCounter", { current: currentShowIdx + 1, total: this.slides.length })}</span>
+            <button type="button" class="vno-btn vno-btn-primary" id="vno-presenter-next" title="${t("slidesDialogs.nextSlideTitle", "Trang tiếp (Space hoặc →)")}" aria-label="${t("slidesDialogs.nextSlideTitle", "Trang tiếp (Space hoặc →)")}">${t("slidesDialogs.nextSlide", "Trang tiếp ►")}</button>
           </div>
         </div>
 
@@ -3905,10 +3913,10 @@ export class SlidesCanvasController {
           <!-- Ghi chú -->
           <div class="vno-presenter-notes-box">
             <div class="vno-presenter-box-header">
-              <span>📝 Ghi chú người thuyết trình</span>
+              <span>${t("slidesDialogs.speakerNotesTitle", "📝 Ghi chú người thuyết trình")}</span>
               <div class="vno-presenter-font-controls">
-                <button type="button" class="vno-btn vno-btn-sm" id="vno-notes-font-dec" title="Thu nhỏ chữ" aria-label="Thu nhỏ cỡ chữ ghi chú">A-</button>
-                <button type="button" class="vno-btn vno-btn-sm" id="vno-notes-font-inc" title="Phóng to chữ" aria-label="Phóng to cỡ chữ ghi chú">A+</button>
+                <button type="button" class="vno-btn vno-btn-sm" id="vno-notes-font-dec" title="${t("slidesDialogs.notesFontDecTitle", "Thu nhỏ chữ")}" aria-label="${t("slidesDialogs.notesFontDec", "Thu nhỏ cỡ chữ ghi chú")}">A-</button>
+                <button type="button" class="vno-btn vno-btn-sm" id="vno-notes-font-inc" title="${t("slidesDialogs.notesFontIncTitle", "Phóng to chữ")}" aria-label="${t("slidesDialogs.notesFontInc", "Phóng to cỡ chữ ghi chú")}">A+</button>
               </div>
             </div>
             <div class="vno-presenter-notes-text" id="vno-presenter-notes-text"></div>
@@ -3917,7 +3925,7 @@ export class SlidesCanvasController {
           <!-- Trang kế tiếp -->
           <div class="vno-presenter-next-box">
             <div class="vno-presenter-box-header">
-              <span>⏭ Trang tiếp theo</span>
+              <span>${t("slidesDialogs.nextSlideTitle", "⏭ Trang tiếp theo")}</span>
             </div>
             <div class="vno-presenter-next-preview" id="vno-presenter-next-preview"></div>
           </div>
@@ -3987,15 +3995,15 @@ export class SlidesCanvasController {
             <div style="font-size:10px;font-weight:700;color:${theme.accentColor || "#b53818"};margin-bottom:8px;">${theme.logoText || "VN OFFICE"}</div>
             ${cardBodyHtml}
             <div style="font-size:9px;color:${theme.bodyColor || "#475569"};display:flex;justify-content:space-between;border-top:1px solid #e2e8f0;padding-top:4px;margin-top:auto;">
-              <span>${theme.footerText || "Tài liệu thuyết trình"}</span>
-              <span>Trang ${currentShowIdx + 1} / ${this.slides.length}</span>
+              <span>${theme.footerText || t("slidesDialogs.footerDoc", "Tài liệu thuyết trình")}</span>
+              <span>${t("slidesDialogs.slideCounter", { current: currentShowIdx + 1, total: this.slides.length })}</span>
             </div>
           </div>
         `;
       }
 
       if (counterEl) {
-        counterEl.textContent = `Trang ${currentShowIdx + 1} / ${this.slides.length}`;
+        counterEl.textContent = t("slidesDialogs.slideCounter", { current: currentShowIdx + 1, total: this.slides.length });
       }
 
       if (notesTextEl) {
@@ -4004,7 +4012,7 @@ export class SlidesCanvasController {
           notesTextEl.style.fontStyle = "normal";
           notesTextEl.style.color = "#f1f5f9";
         } else {
-          notesTextEl.textContent = "(Chưa có ghi chú cho trang chiếu này. Bạn có thể nhập ghi chú ở bảng Ghi chú dưới canvas khi biên tập).";
+          notesTextEl.textContent = t("slidesDialogs.noNotes", "(Chưa có ghi chú cho trang chiếu này. Bạn có thể nhập ghi chú ở bảng Ghi chú dưới canvas khi biên tập).");
           notesTextEl.style.fontStyle = "italic";
           notesTextEl.style.color = "#94a3b8";
         }
@@ -4015,13 +4023,13 @@ export class SlidesCanvasController {
         if (currentShowIdx < this.slides.length - 1) {
           const nextSlide = this.slides[currentShowIdx + 1];
           nextPreviewEl.innerHTML = `
-            <div style="font-weight:700;font-size:13px;color:#38bdf8;margin-bottom:4px;">Trang ${currentShowIdx + 2}: ${nextSlide.title}</div>
+            <div style="font-weight:700;font-size:13px;color:#38bdf8;margin-bottom:4px;">${t("slidesDialogs.slideElapsed", "Trang")} ${currentShowIdx + 2}: ${nextSlide.title}</div>
             <div style="font-size:11px;color:#cbd5e1;line-height:1.4;white-space:pre-line;">${(nextSlide.body || "").substring(0, 120)}...</div>
           `;
         } else {
           nextPreviewEl.innerHTML = `
             <div style="font-size:12px;color:#94a3b8;font-style:italic;padding:12px 0;">
-              Đây là trang chiếu cuối cùng.
+              ${t("slidesDialogs.endOfShow", "Đây là trang chiếu cuối cùng.")}
             </div>
           `;
         }
@@ -4399,18 +4407,18 @@ export class SlidesCanvasController {
     overlay.className = "vno-slides-reading-mode";
     overlay.setAttribute?.("role", "dialog");
     overlay.setAttribute?.("aria-modal", "true");
-    overlay.setAttribute?.("aria-label", "Dạng xem Đọc (Reading View)");
+    overlay.setAttribute?.("aria-label", t("slidesDialogs.readingViewTitle", "Dạng xem Đọc (Reading View)"));
 
     overlay.innerHTML = `
       <div class="vno-slides-reading-stage">
         <div class="vno-slides-reading-slide-container" id="vno-reading-slide-host"></div>
       </div>
-      <div class="vno-slides-reading-bar" role="toolbar" aria-label="Thanh điều hướng Đọc">
-        <button type="button" class="vno-slides-reading-btn" id="vno-reading-prev" aria-label="Trang trước" title="Trang trước (Mũi tên trái)">‹</button>
-        <span class="vno-slides-reading-counter" id="vno-reading-counter">Trang ${this.currentSlideIndex + 1} / ${this.slides.length}</span>
-        <button type="button" class="vno-slides-reading-btn" id="vno-reading-next" aria-label="Trang tiếp" title="Trang tiếp (Mũi tên phải)">›</button>
+      <div class="vno-slides-reading-bar" role="toolbar" aria-label="${t("slidesDialogs.readingToolbar", "Thanh điều hướng Đọc")}">
+        <button type="button" class="vno-slides-reading-btn" id="vno-reading-prev" aria-label="${t("slidesDialogs.prevSlideShort", "Trang trước")}" title="${t("slidesDialogs.prevSlideReadingTitle", "Trang trước (Mũi tên trái)")}">‹</button>
+        <span class="vno-slides-reading-counter" id="vno-reading-counter">${t("slidesDialogs.slideCounter", { current: this.currentSlideIndex + 1, total: this.slides.length })}</span>
+        <button type="button" class="vno-slides-reading-btn" id="vno-reading-next" aria-label="${t("slidesDialogs.nextSlideShort", "Trang tiếp")}" title="${t("slidesDialogs.nextSlideReadingTitle", "Trang tiếp (Mũi tên phải)")}">›</button>
         <div style="flex:1;"></div>
-        <button type="button" class="vno-slides-reading-close-btn" id="vno-reading-close" aria-label="Thoát chế độ đọc" title="Thoát chế độ đọc (Esc)">✕ Thoát</button>
+        <button type="button" class="vno-slides-reading-close-btn" id="vno-reading-close" aria-label="${t("slidesDialogs.readingClose", "Thoát chế độ đọc")}" title="${t("slidesDialogs.exitReadingTitle", "Thoát chế độ đọc (Esc)")}">✕ ${t("slidesDialogs.close", "Thoát")}</button>
       </div>
     `;
 
@@ -4486,7 +4494,7 @@ export class SlidesCanvasController {
     const host = this.readingOverlay.querySelector("#vno-reading-slide-host");
     const counter = this.readingOverlay.querySelector("#vno-reading-counter");
     if (counter) {
-      counter.textContent = `Trang ${this.currentSlideIndex + 1} / ${this.slides.length}`;
+      counter.textContent = t("slidesDialogs.slideCounter", { current: this.currentSlideIndex + 1, total: this.slides.length });
     }
     if (!host) return;
     const slide = this.slides[this.currentSlideIndex];

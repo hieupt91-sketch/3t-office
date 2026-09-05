@@ -320,7 +320,7 @@ export async function runWriterRefMailAuditTests() {
 
   // TEST 9: i18n đa ngôn ngữ cho TOC và Footnotes/Endnotes
   await test("Writer Ref/Mail Audit: Hỗ trợ i18n chuyển đổi ngôn ngữ cho TOC, Footnotes, Endnotes", async () => {
-    const origLocale = getLocale;
+    const origLocale = getLocale();
     try {
       setLocale("vi");
       const viEmpty = t("writerDialogs.toc.empty");
