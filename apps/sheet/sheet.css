@@ -159,6 +159,24 @@
   left: 0;
   z-index: 9;
 }
+
+.vno-outline-toggle {
+  width: 18px;
+  height: 18px;
+  margin: 0 3px 0 1px;
+  padding: 0;
+  border: 1px solid #64748b;
+  border-radius: 3px;
+  background: #fff;
+  color: #0f6d38;
+  font-weight: 800;
+  line-height: 15px;
+  cursor: pointer;
+}
+
+.vno-sheet-rule-dialog fieldset { display: grid; gap: 6px; max-height: 180px; overflow: auto; margin: 10px 0; }
+.vno-sheet-rule-dialog fieldset label { display: flex; align-items: center; gap: 7px; }
+.vno-data-preview { margin-top: 10px; padding: 10px; border: 1px solid #bbf7d0; background: #f0fdf4; font-family: Consolas, monospace; }
 .vno-row-header:hover {
   background-color: var(--vno-sheet-light);
   color: var(--vno-sheet-primary);

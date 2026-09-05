@@ -11,6 +11,7 @@ import { FormatCellsDialog } from "./format-cells-dialog.js";
 import { showCellStylesDialog, showFormatAsTableDialog, CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "./cell-styles.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
+import { SheetDataTools } from "./data-tools.js";
 
 function trapFocus(element, event) {
   if (event.key !== "Tab") return;
@@ -98,6 +99,8 @@ export class SheetGridController {
     this.imagesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.textBoxesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.outlineGroupsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.dataTools = new SheetDataTools(this);
 
     // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
     this.isFrozenPanes = false;
@@ -285,7 +288,9 @@ export class SheetGridController {
       const th = document.createElement("th");
       th.className = "vno-col-header";
       th.dataset.col = col;
+      th.hidden = this._isOutlineColumnHidden(col);
       th.innerHTML = `
+        ${this._outlineToggleHtml("col", col)}
         <span class="vno-col-title">${col}</span>
         <button class="vno-filter-btn" data-col="${col}" title="Lọc và sắp xếp cột ${col}" style="display:none;">▼</button>
         <div class="vno-col-resizer" data-col="${col}" title="Nhấp đúp để tự động vừa độ rộng cột ${col}"></div>
@@ -1302,7 +1307,7 @@ export class SheetGridController {
 
     const frag = document.createDocumentFragment();
     for (let r = startRow; r <= endRow; r++) {
-      if (this.hiddenRows.has(r)) continue;
+      if (this.hiddenRows.has(r) || this._isOutlineRowHidden(r)) continue;
 
       const tr = document.createElement("tr");
       tr.dataset.row = r;
@@ -1311,9 +1316,14 @@ export class SheetGridController {
       thRow.className = "vno-row-header";
       thRow.dataset.row = r;
       thRow.innerHTML = `
+        ${this._outlineToggleHtml("row", r)}
         <span class="vno-row-title">${r}</span>
         <div class="vno-row-resizer" data-row="${r}" title="Nhấp đúp để tự động vừa chiều cao hàng ${r}"></div>
       `;
+      thRow.querySelector(".vno-outline-toggle")?.addEventListener("click", event => {
+        event.stopPropagation();
+        this.toggleOutlineGroup(event.currentTarget.dataset.groupId);
+      });
       thRow.addEventListener("click", (e) => {
         if (e.target.closest(".vno-row-resizer")) return;
         this.selectCell(this.cols[0], r);
@@ -1336,6 +1346,7 @@ export class SheetGridController {
 
       this.cols.forEach(c => {
         const td = document.createElement("td");
+        td.hidden = this._isOutlineColumnHidden(c);
         td.className = "vno-grid-cell";
         const coordKey = `${c}${r}`;
         td.dataset.coord = coordKey;
@@ -3461,7 +3472,8 @@ export class SheetGridController {
       hiddenRows: [...(sheetName === this.activeSheet ? this.hiddenRows : (state.hiddenRows || []))],
       activeFilters: Array.from(sheetName === this.activeSheet ? this.activeFilters : (state.activeFilters || []), ([col, values]) => [col, [...values]]),
       selectedCoord: { ...(sheetName === this.activeSheet ? this.selectedCoord : (state.selectedCoord || { r: 1, c: "A" })) },
-      selectionRange: structuredClone(this.selectionRange)
+      selectionRange: structuredClone(this.selectionRange),
+      outlineGroups: structuredClone(this.outlineGroupsBySheet[sheetName] || [])
     };
   }
 
@@ -3478,6 +3490,7 @@ export class SheetGridController {
     this.activeFilters = new Map(snapshot.activeFilters.map(([col, values]) => [col, new Set(values)]));
     this.selectedCoord = { ...snapshot.selectedCoord };
     this.selectionRange = structuredClone(snapshot.selectionRange);
+    this.outlineGroupsBySheet[snapshot.sheetName] = structuredClone(snapshot.outlineGroups || []);
     if (this.sheetStates[snapshot.sheetName]) {
       Object.assign(this.sheetStates[snapshot.sheetName], {
         hiddenRows: new Set(this.hiddenRows),
@@ -3539,7 +3552,9 @@ export class SheetGridController {
         const th = document.createElement("th");
         th.className = "vno-col-header";
         th.dataset.col = col;
-        th.innerHTML = `<span class="vno-col-title">${col}</span><button class="vno-filter-btn" data-col="${col}" title="Lọc và sắp xếp cột ${col}" style="display:none;">▼</button>`;
+        th.hidden = this._isOutlineColumnHidden(col);
+        th.innerHTML = `${this._outlineToggleHtml("col", col)}<span class="vno-col-title">${col}</span><button class="vno-filter-btn" data-col="${col}" title="Lọc và sắp xếp cột ${col}" style="display:none;">▼</button>`;
+        th.querySelector(".vno-outline-toggle")?.addEventListener("click", event => { event.stopPropagation(); this.toggleOutlineGroup(event.currentTarget.dataset.groupId); });
         row.appendChild(th);
       });
     }
@@ -4179,6 +4194,132 @@ export class SheetGridController {
     this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "pageBreaksBySheet", before, after });
     this._refreshPageAndCommentVisuals();
     return true;
+  }
+
+  _outlineGroups() { return this.outlineGroupsBySheet[this.activeSheet] ||= []; }
+
+  _isOutlineRowHidden(row) {
+    return this._outlineGroups().some(group => group.axis === "row" && group.collapsed && row > group.start && row <= group.end);
+  }
+
+  _isOutlineColumnHidden(col) {
+    const number = this._columnNumber(col);
+    return this._outlineGroups().some(group => group.axis === "col" && group.collapsed && number > group.start && number <= group.end);
+  }
+
+  _outlineToggleHtml(axis, value) {
+    const numeric = axis === "row" ? Number(value) : this._columnNumber(value);
+    const group = this._outlineGroups().find(item => item.axis === axis && item.start === numeric);
+    return group ? `<button type="button" class="vno-outline-toggle" data-group-id="${group.id}" aria-label="${group.collapsed ? "Mở rộng" : "Thu gọn"} nhóm">${group.collapsed ? "+" : "−"}</button>` : "";
+  }
+
+  groupSelection() {
+    const area = this._normalizeRange(this.selectionRange);
+    const wholeRows = area.start.c === this.cols[0] && area.end.c === this.cols[this.cols.length - 1];
+    const wholeCols = area.start.r === 1 && area.end.r === this.rowCount;
+    const axis = wholeCols ? "col" : "row";
+    const start = axis === "row" ? area.start.r : this._columnNumber(area.start.c);
+    const end = axis === "row" ? area.end.r : this._columnNumber(area.end.c);
+    if (end <= start || (!wholeRows && !wholeCols)) return false;
+    if (this._outlineGroups().some(group => group.axis === axis && group.start === start && group.end === end)) return false;
+    const before = this._snapshotGridStructure();
+    this._outlineGroups().push({ id: `outline-${Date.now()}`, axis, start, end, collapsed: false });
+    this._renderColumnHeaders(); this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  ungroupSelection() {
+    const area = this._normalizeRange(this.selectionRange);
+    const before = this._snapshotGridStructure();
+    const previous = this._outlineGroups();
+    const remaining = previous.filter(group => group.axis === "row"
+      ? group.end < area.start.r || group.start > area.end.r
+      : group.end < this._columnNumber(area.start.c) || group.start > this._columnNumber(area.end.c));
+    if (remaining.length === previous.length) return false;
+    this.outlineGroupsBySheet[this.activeSheet] = remaining;
+    this._renderColumnHeaders(); this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  toggleOutlineGroup(id) {
+    const group = this._outlineGroups().find(item => item.id === id);
+    if (!group) return false;
+    group.collapsed = !group.collapsed;
+    this._renderColumnHeaders(); this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    return group.collapsed;
+  }
+
+  removeDuplicates(options) { return this.dataTools.removeDuplicates(options); }
+  createSubtotal(options) { return this.dataTools.subtotal(options); }
+  applyTextToColumns(options) { return this.dataTools.textToColumns(options); }
+  applyFlashFill(options) { return this.dataTools.flashFill(options); }
+
+  showRemoveDuplicatesDialog() {
+    const area = this._normalizeRange(this.selectionRange);
+    const columns = this.dataTools.columns(area);
+    const overlay = this._createSheetDialog("Xóa trùng lặp", `
+      <p>Vùng: <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <label><input id="vno-rd-header" type="checkbox" checked> Dữ liệu có hàng tiêu đề</label>
+      <fieldset><legend>Cột dùng để xét trùng</legend>${columns.map(col => `<label><input class="vno-rd-col" type="checkbox" value="${col}" checked> ${col}: ${String(this.dataTools.value(col, area.start.r))}</label>`).join("")}</fieldset>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const selected = [...overlay.querySelectorAll(".vno-rd-col:checked")].map(input => input.value);
+      if (!selected.length) { overlay.querySelector(".vno-rule-error").textContent = "Hãy chọn ít nhất một cột."; return; }
+      const result = this.removeDuplicates({ hasHeader: overlay.querySelector("#vno-rd-header").checked, columns: selected });
+      if (!result) return;
+      overlay.closeDialog();
+      this._showDataNotice(`Đã xóa ${result.removed} hàng trùng lặp; còn ${result.remaining} hàng dữ liệu.`);
+    });
+    return true;
+  }
+
+  showSubtotalDialog() {
+    const area = this._normalizeRange(this.selectionRange), columns = this.dataTools.columns(area);
+    const overlay = this._createSheetDialog("Tổng phụ", `
+      <p>Vùng đã chọn phải có tiêu đề và được sắp xếp theo cột nhóm.</p>
+      <label>Mỗi khi thay đổi ở<select id="vno-st-group">${columns.map(col => `<option value="${col}">${col}: ${String(this.dataTools.value(col, area.start.r))}</option>`).join("")}</select></label>
+      <label>Hàm<select id="vno-st-op"><option>SUM</option><option>COUNT</option><option>AVERAGE</option></select></label>
+      <fieldset><legend>Cộng tổng vào</legend>${columns.slice(1).map(col => `<label><input class="vno-st-col" type="checkbox" value="${col}" checked> ${col}: ${String(this.dataTools.value(col, area.start.r))}</label>`).join("")}</fieldset>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const valueColumns = [...overlay.querySelectorAll(".vno-st-col:checked")].map(input => input.value);
+      const result = this.createSubtotal({ groupColumn: overlay.querySelector("#vno-st-group").value, valueColumns, operation: overlay.querySelector("#vno-st-op").value });
+      if (!result) { overlay.querySelector(".vno-rule-error").textContent = "Hãy chọn vùng và ít nhất một cột giá trị."; return; }
+      overlay.closeDialog(); this._showDataNotice(`Đã chèn ${result.groups} nhóm tổng phụ và hàng tổng cộng.`);
+    });
+    return true;
+  }
+
+  showTextToColumnsDialog() {
+    const preview = value => this.dataTools.splitText(this.dataTools.value(this.selectedCoord.c, this.selectedCoord.r), value).join(" | ");
+    const overlay = this._createSheetDialog("Tách văn bản thành cột", `
+      <label>Kiểu tách<select id="vno-ttc-mode"><option value="delimiter">Dấu phân cách</option><option value="fixed">Độ rộng cố định</option></select></label>
+      <label id="vno-ttc-del-row">Dấu phân cách<select id="vno-ttc-del"><option value=",">Dấu phẩy</option><option value=";">Dấu chấm phẩy</option><option value="space">Khoảng trắng</option><option value="tab">Tab</option><option value="custom">Tùy chọn</option></select></label>
+      <label id="vno-ttc-custom-row" hidden>Ký tự tùy chọn<input id="vno-ttc-custom" maxlength="3"></label>
+      <label id="vno-ttc-width-row" hidden>Độ rộng (cách nhau bằng dấu phẩy)<input id="vno-ttc-width" value="5,5"></label>
+      <div class="vno-data-preview" role="status"></div><div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    const options = () => { const mode = overlay.querySelector("#vno-ttc-mode").value; const selected = overlay.querySelector("#vno-ttc-del").value; return { mode, delimiter: selected === "custom" ? overlay.querySelector("#vno-ttc-custom").value : selected, widths: overlay.querySelector("#vno-ttc-width").value.split(",") }; };
+    const update = () => { const config = options(); overlay.querySelector("#vno-ttc-del-row").hidden = config.mode !== "delimiter"; overlay.querySelector("#vno-ttc-width-row").hidden = config.mode !== "fixed"; overlay.querySelector("#vno-ttc-custom-row").hidden = overlay.querySelector("#vno-ttc-del").value !== "custom" || config.mode !== "delimiter"; overlay.querySelector(".vno-data-preview").textContent = `Xem trước: ${preview(config)}`; };
+    overlay.querySelectorAll("select,input").forEach(input => input.addEventListener("input", update)); update();
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => { const result = this.applyTextToColumns(options()); if (!result) { overlay.querySelector(".vno-rule-error").textContent = "Chỉ chọn dữ liệu trong một cột."; return; } overlay.closeDialog(); });
+    return true;
+  }
+
+  runFlashFill() {
+    const result = this.applyFlashFill();
+    this._showDataNotice(result ? `Flash Fill đã điền ${result.filled} ô (${result.pattern}).` : "Không nhận diện được mẫu. Hãy nhập 1–2 ví dụ ở cột kết quả kế bên dữ liệu nguồn.");
+    return result;
+  }
+
+  _showDataNotice(message) {
+    if (typeof document === "undefined") return;
+    const overlay = this._createSheetDialog("Kết quả", `<p class="vno-data-result" role="status">${message}</p>`);
+    overlay?.querySelector(".vno-rule-apply")?.addEventListener("click", () => overlay.closeDialog());
   }
 
   _createSheetDialog(title, bodyHtml) {

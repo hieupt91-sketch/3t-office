@@ -59,7 +59,7 @@ export const enStrings = {
   },
   sheetRibbon: {
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", ai: "VN AI Assistant" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", sortFilter: "Sort & Filter", dataTools: "Data Tools", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", comments: "Comments", show: "Show", zoom: "Zoom", window: "Window", aiAnalysis: "AI Data Analysis" }
+    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", comments: "Comments", show: "Show", zoom: "Zoom", window: "Window", aiAnalysis: "AI Data Analysis" }
   },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", ai: "VN AI Assistant" },
@@ -162,6 +162,12 @@ export const enStrings = {
     ,"sheet.data.filter": { label: "Filter", tooltip: "Turn AutoFilter on or off (Ctrl+Shift+L)" }
     ,"sheet.format.conditional": { label: "Conditional Formatting", tooltip: "Highlight cells based on values or blank status" }
     ,"sheet.data.validation": { label: "Data Validation", tooltip: "Create a drop-down list or restrict values to a number range" }
+    ,"sheet.data.textToColumns": { label: "Text to Columns", tooltip: "Split one column by delimiter or fixed width" }
+    ,"sheet.data.flashFill": { label: "Flash Fill", tooltip: "Fill values from examples in the adjacent output column" }
+    ,"sheet.data.removeDuplicates": { label: "Remove Duplicates", tooltip: "Remove duplicate rows using selected columns" }
+    ,"sheet.data.group": { label: "Group", tooltip: "Group selected consecutive rows or columns" }
+    ,"sheet.data.ungroup": { label: "Ungroup", tooltip: "Remove the selected row or column group" }
+    ,"sheet.data.subtotal": { label: "Subtotal", tooltip: "Insert subtotals and a final grand total" }
     ,"sheet.data.pivotTable": { label: "PivotTable", tooltip: "Create a PivotTable from the selected data range" }
     ,"sheet.data.pivotRefresh": { label: "Refresh PivotTable", tooltip: "Refresh the PivotTable from its source data" }
     ,"sheet.view.toggleFormulas": { label: "Show Formulas", tooltip: "Show formulas in cells instead of calculated values (Ctrl+`)" }
