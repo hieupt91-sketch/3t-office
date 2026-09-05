@@ -134,8 +134,8 @@ export function runContrastAudit() {
         // Bỏ qua shape text trên canvas vì text nằm trên vector shape có màu riêng
         if (selector.includes("shape-text") || selector.includes("shape-node") || selector.includes("diagram-node-text")) continue;
 
-        // Nhận diện ngữ cảnh nền của các overlay (Presenter mode, Print preview toolbar/sheet, Backstage, Topbar, Statusbar)
-        if (selector.includes("presenter-") || selector.includes("backstage-") || selector.includes("print-preview-") || selector.includes("zoom-slider")) {
+        // Nhận diện ngữ cảnh nền của các overlay (Presenter mode, Print preview toolbar/sheet, Backstage, Topbar, Statusbar, Read Mode toolbar)
+        if (selector.includes("presenter-") || selector.includes("backstage-") || selector.includes("print-preview-") || selector.includes("zoom-slider") || selector.includes("writer-read-toolbar")) {
           // Các thành phần nằm trên tờ giấy in A4 có nền trắng #ffffff
           if (selector.includes("print-preview-header") || selector.includes("print-preview-footer") || selector.includes("print-preview-body") || selector.includes("print-preview-footnotes") || selector.includes("print-preview-endnote") || selector.includes("print-preview-sheet")) {
             resolvedBg = "#ffffff";
@@ -152,6 +152,8 @@ export function runContrastAudit() {
             } else if (selector.includes("backstage-")) {
               resolvedBg = "#0f4c81";
             } else if (selector.includes("zoom-slider")) {
+              resolvedBg = "#0f4c81";
+            } else if (selector.includes("writer-read-toolbar")) {
               resolvedBg = "#0f4c81";
             }
           }
