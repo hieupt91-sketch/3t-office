@@ -85,6 +85,7 @@ import { runWriterTablesImportTests } from "./unit/writer-tables-import.test.js"
 import { runA11yAuditNewFeaturesTests } from "./unit/a11y-audit-new-features.test.js";
 import { runSlidesWordArtTests } from "./unit/slides-wordart.test.js";
 import { runSheetFormatPainterTests } from "./unit/sheet-format-painter.test.js";
+import { runSheetGoalSeekTests } from "./unit/sheet-goal-seek.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -177,7 +178,8 @@ async function runAll() {
     { title: "77. Unit Tests — Writer Tables Import Fidelity (real DOCX w:tbl merge/border/shading)", runner: runWriterTablesImportTests },
     { title: "78. Behavioral Tests — VN Slides WordArt (chữ nghệ thuật)", runner: runSlidesWordArtTests },
     { title: "79. Behavioral Tests — VN Sheet Format Painter", runner: runSheetFormatPainterTests },
-    { title: "80. Accessibility Audit — Keyboard Navigation for New Features (Paste Special, Merge Cells, Sections, WordArt, SmartArt Group Select, Dark Mode Toggle)", runner: runA11yAuditNewFeaturesTests }
+    { title: "80. Accessibility Audit — Keyboard Navigation for New Features (Paste Special, Merge Cells, Sections, WordArt, SmartArt Group Select, Dark Mode Toggle)", runner: runA11yAuditNewFeaturesTests },
+    { title: "81. Behavioral Tests — VN Sheet Goal Seek", runner: runSheetGoalSeekTests }
   ];
 
   for (const suite of suites) {
