@@ -27,6 +27,8 @@ Slides comments import: `src/sample-slides-comments.fodp` is handwritten Flat OD
 
 SmartArt import: `sample-slides-smartart.pptx` is a hand-packed OOXML deck with native DrawingML SmartArt (`ppt/diagrams/data1.xml`, `layout1.xml`, `quickStyle1.xml`, `colors1.xml`, `drawing1.xml` plus `dgm:relIds` on the slide). Source parts live in `src/smartart-pptx/`. **Not** produced by VN `serializeToFodp()` — LibreOffice does not emit SmartArt when converting ODF grouped shapes to PPTX. Pack with `node tests/scripts/pack-slides-smartart-pptx.mjs`. Vietnamese node labels: Tiếp nhận hồ sơ, Thẩm định, Phê duyệt, Lưu trữ, Bàn giao.
 
+Tables import: `sample-writer-tables.docx` from `src/sample-writer-tables.fodt` (hand-written ODF `<table:table>` with `table:number-columns-spanned`, `table:number-rows-spanned`, `table:covered-table-cell`, per-edge `fo:border-*` colours, and `fo:background-color` shading). LibreOffice writes native `w:tbl` / `w:gridSpan` / `w:vMerge` / `w:tcBorders` / `w:shd`. **Not** produced by VN Office HTML save.
+
 Speaker Notes import: `sample-slides-notes.pptx` from `src/sample-slides-notes.fodp` (hand-written ODF `<presentation:notes>` with `presentation:class="notes"`). LibreOffice writes native `ppt/notesSlides/notesSlide1.xml` + `notesSlide3.xml` referenced from `ppt/slides/_rels/slideN.xml.rels`. Slide 2 has no notes part. **Not** produced by VN `serializeToFodp()`. Vietnamese notes: “Nhấn mạnh số liệu quý 4…”, “Tỷ giá ngoại tệ không được đọc trước khán giả.”, “Gợi ý chuyển slide: dừng 5 giây tại sơ đồ kiến trúc.”
 
 Regenerate:

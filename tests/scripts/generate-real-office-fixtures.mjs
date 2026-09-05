@@ -18,6 +18,9 @@
  *
  * Slides Speaker Notes: handwritten FODP with <presentation:notes> converts
  * to native ppt/notesSlides/notesSlideN.xml + slideN.xml.rels (measured).
+ *
+ * Writer tables: handwritten FODT with colspan/rowspan + per-edge borders +
+ * cell shading converts to native w:tbl / w:gridSpan / w:vMerge / w:tcBorders / w:shd.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -154,6 +157,7 @@ const jobs = [
   { src: "sample-writer-comments.fodt", ext: "docx", name: "sample-writer-comments.docx" },
   { src: "sample-writer-headerfooter.fodt", ext: "docx", name: "sample-writer-headerfooter.docx" },
   { src: "sample-writer-footnotes.fodt", ext: "docx", name: "sample-writer-footnotes.docx" },
+  { src: "sample-writer-tables.fodt", ext: "docx", name: "sample-writer-tables.docx" },
   { src: "sample-sheet-formulas.fods", ext: "xlsx", name: "sample-sheet-formulas.xlsx" },
   { src: "sample-sheet-validation.fods", ext: "xlsx", name: "sample-sheet-validation.xlsx" },
   { src: "sample-sheet-pivot.fods", ext: "xlsx", name: "sample-sheet-pivot.xlsx" },
