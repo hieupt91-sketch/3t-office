@@ -137,6 +137,102 @@
   height: 16px;
 }
 
+/* Ribbon Dropdown Button */
+.vno-ribbon-btn-dropdown {
+  position: relative;
+  cursor: pointer;
+}
+.vno-ribbon-btn-dropdown .vno-btn-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.vno-ribbon-btn-dropdown .vno-btn-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  vertical-align: middle;
+}
+.vno-ribbon-btn-dropdown .vno-btn-arrow svg {
+  width: 10px;
+  height: 10px;
+  transition: transform 0.15s ease;
+}
+.vno-ribbon-btn-dropdown[aria-expanded="true"] .vno-btn-arrow svg {
+  transform: rotate(180deg);
+}
+.vno-ribbon-btn-dropdown.is-active,
+.vno-ribbon-btn-dropdown[aria-expanded="true"] {
+  background-color: var(--vno-app-current-light, #e7f4ec) !important;
+  color: var(--vno-app-current, #0f6d38) !important;
+}
+
+/* Ribbon Dropdown Menu Popup */
+.vno-ribbon-dropdown-menu {
+  position: fixed;
+  z-index: 10000;
+  background: #ffffff;
+  border: 1px solid var(--vno-border-default, #cbd5e1);
+  border-radius: var(--vno-radius-md, 6px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  min-width: 175px;
+  font-family: var(--vno-font-ui, system-ui, sans-serif);
+  animation: vnoDropdownFadeIn 0.1s ease-out;
+}
+@keyframes vnoDropdownFadeIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.vno-ribbon-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--vno-text-primary, #1e293b);
+  border-radius: var(--vno-radius-sm, 4px);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+.vno-ribbon-dropdown-item:hover,
+.vno-ribbon-dropdown-item:focus,
+.vno-ribbon-dropdown-item.is-focused {
+  background-color: var(--vno-app-current-light, #e7f4ec);
+  color: var(--vno-app-current, #0f6d38);
+  outline: none;
+}
+.vno-ribbon-dropdown-item.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+.vno-ribbon-dropdown-item .vno-menu-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.vno-ribbon-dropdown-item .vno-menu-item-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.vno-ribbon-dropdown-item .vno-menu-item-label {
+  flex: 1;
+  white-space: nowrap;
+}
+.vno-ribbon-dropdown-item .vno-menu-item-shortcut {
+  margin-left: 14px;
+  font-size: 11px;
+  color: var(--vno-text-muted, #64748b);
+  flex-shrink: 0;
+}
+
 /* Ribbon Small Icon-Only Button */
 .vno-btn-icon-only {
   width: 26px !important;

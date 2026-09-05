@@ -94,14 +94,14 @@ try {
 
   const styleGroupBtn = page.locator('[data-command-id="sheet.style.cellStyles"]');
   const tableGroupBtn = page.locator('[data-command-id="sheet.style.formatAsTable"]');
-  const fillDownBtn = page.locator('[data-command-id="sheet.edit.fillDown"]');
-  const clearFormatsBtn = page.locator('[data-command-id="sheet.edit.clearFormats"]');
+  const fillDropdownBtn = page.locator('[data-dropdown-id="sheet.edit.fill"]');
+  const clearDropdownBtn = page.locator('[data-dropdown-id="sheet.edit.clear"]');
 
   await styleGroupBtn.waitFor({ state: "visible", timeout: 3000 });
   await tableGroupBtn.waitFor({ state: "visible", timeout: 3000 });
-  await fillDownBtn.waitFor({ state: "visible", timeout: 3000 });
-  await clearFormatsBtn.waitFor({ state: "visible", timeout: 3000 });
-  console.log("  ✓ Các nút trong nhóm Styles và Editing đã hiển thị chuẩn xác trên Ribbon Trang đầu");
+  await fillDropdownBtn.waitFor({ state: "visible", timeout: 3000 });
+  await clearDropdownBtn.waitFor({ state: "visible", timeout: 3000 });
+  console.log("  ✓ Các nút trong nhóm Styles và Editing (kèm dropdown Fill/Clear) đã hiển thị chuẩn xác trên Ribbon Trang đầu");
 
   // 3. Test Cell Styles Dialog và áp dụng style lên DOM thật
   await clickCell("B2");
@@ -194,8 +194,10 @@ try {
   console.log(`  ✓ Ô G4 sau Fill Down: "${g4Text}" (mong đợi: 600)`);
 
   // 6. Test Clear Formats và Clear Contents qua Ribbon
-  console.log("  -> Kiểm tra Clear Formats trên ô B2...");
+  console.log("  -> Kiểm tra Clear Formats trên ô B2 qua dropdown Xóa...");
   await clickCell("B2");
+  await page.locator('[data-dropdown-id="sheet.edit.clear"]').click();
+  await page.locator('[data-command-id="sheet.edit.clearFormats"]').waitFor({ state: "visible", timeout: 2000 });
   await page.locator('[data-command-id="sheet.edit.clearFormats"]').click();
   await page.waitForTimeout(100);
 
