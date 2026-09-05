@@ -68,6 +68,16 @@
   background-color: var(--vno-bg-surface);
 }
 
+/* Nút thu gọn/mở rộng Ribbon — đẩy sát góc phải, giống chevron Word/Excel thật */
+.vno-ribbon-collapse-btn {
+  margin-left: auto;
+  color: var(--vno-text-secondary);
+}
+.vno-ribbon-collapse-btn:hover {
+  color: var(--vno-text-primary);
+  background-color: var(--vno-bg-hover);
+}
+
 /* Ribbon Tab Content Panel */
 .vno-ribbon-content {
   display: flex;

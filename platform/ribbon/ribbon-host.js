@@ -72,6 +72,13 @@ export class RibbonHost {
       tabBtn.tabIndex = isActive ? 0 : -1;
 
       tabBtn.addEventListener("click", () => this.selectTab(tab.id));
+      // Nhấp đúp vào tab (giống Word/Excel thật) thu gọn/mở rộng Ribbon —
+      // dùng chung lệnh common.view.ribbonToggle với nút Ctrl+F1 đã có,
+      // tránh có 2 cơ chế bật/tắt lệch trạng thái nhau.
+      tabBtn.addEventListener("dblclick", (e) => {
+        e.preventDefault();
+        globalCommandBus.execute("common.view.ribbonToggle");
+      });
 
       // Hỗ trợ phím mũi tên điều hướng giữa các tab chuẩn WAI-ARIA
       tabBtn.addEventListener("keydown", (e) => {
@@ -102,6 +109,14 @@ export class RibbonHost {
 
       tabsBar.appendChild(tabBtn);
     });
+
+    // Nút thu gọn/mở rộng Ribbon rõ ràng (giống chevron góc phải Word/Excel
+    // thật) — cùng lệnh với Ctrl+F1 và nhấp đúp tab, để người dùng bàn phím/
+    // không biết mẹo nhấp đúp vẫn thấy và bật/tắt được.
+    const collapseBtn = createCommandButton({ commandId: "common.view.ribbonToggle", iconOnly: true });
+    collapseBtn.classList.add("vno-ribbon-collapse-btn");
+    collapseBtn.setAttribute("aria-expanded", String(!this.isCollapsed));
+    tabsBar.appendChild(collapseBtn);
 
     this.container.appendChild(tabsBar);
 
