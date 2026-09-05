@@ -210,6 +210,14 @@ export async function runWriterHelpTests() {
     if (byId["writer.reference.notes"].ribbon.tab !== "Tham chiếu") {
       throw new Error("Bài chú thích phải ở tab Tham chiếu");
     }
+    const illustrations = byId["writer.insert.illustrationsExtra"];
+    const illustrationsBlob = [illustrations.summary, ...(illustrations.steps || [])].join(" ");
+    if (/không mở hộp|chèn ngay đối tượng mặc định|Nhấn là chèn ngay, không hộp thoại/i.test(illustrationsBlob)) {
+      throw new Error("Bài writer.insert.illustrationsExtra vẫn mô tả hành vi cũ (chèn mặc định, không mở dialog)");
+    }
+    if (!/hộp thoại/.test(illustrationsBlob) || !/Hình tròn/.test(illustrationsBlob) || !/Chèn sơ đồ SmartArt/.test(illustrationsBlob) || !/Chèn biểu đồ minh họa/.test(illustrationsBlob)) {
+      throw new Error("Bài writer.insert.illustrationsExtra chưa mô tả hộp thoại chọn hình/sơ đồ/biểu đồ thật");
+    }
   });
 
   await test("Help: registerHelpEntries cho phép app khác bổ sung sau này", () => {
