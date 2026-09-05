@@ -463,16 +463,27 @@ export class SlidesAdapter {
 
   _parseTableCells(inner) {
     const rows = [];
-    const rowRegex = /<table:table-row\b[^>]*>([\s\S]*?)<\/table:table-row>/gi;
+    // soffice FODP may compress identical consecutive cells/rows
+    // (table:number-columns-repeated / table:number-rows-repeated) and may emit
+    // empty cells as self-closing. Count each logical cell, not each XML tag.
+    const rowRegex = /<table:table-row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/table:table-row>)/gi;
     let rowMatch;
     while ((rowMatch = rowRegex.exec(inner)) !== null) {
+      const rowRepeat = Math.max(1, Number(this._attr(rowMatch[1], "table:number-rows-repeated")) || 1);
       const cells = [];
-      const cellRegex = /<table:table-cell\b[^>]*>([\s\S]*?)<\/table:table-cell>/gi;
+      const cellRegex = /<(?:table:)?(?:table-cell|covered-table-cell)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:table:)?(?:table-cell|covered-table-cell)>)/gi;
       let cellMatch;
-      while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
-        cells.push(this._paragraphsFromXml(cellMatch[1]).join("\n"));
+      while ((cellMatch = cellRegex.exec(rowMatch[2] || "")) !== null) {
+        const colRepeat = Math.max(1, Number(this._attr(cellMatch[1], "table:number-columns-repeated")) || 1);
+        const isCovered = /^<(?:table:)?covered-table-cell\b/i.test(cellMatch[0]);
+        const text = isCovered ? "" : this._paragraphsFromXml(cellMatch[2] || "").join("\n");
+        const fallback = isCovered
+          ? ""
+          : this._unescapeXml(this._attr(cellMatch[1], "office:value") || this._attr(cellMatch[1], "office:string-value") || "");
+        const cellText = text || fallback;
+        for (let index = 0; index < colRepeat; index++) cells.push(cellText);
       }
-      rows.push(cells);
+      for (let index = 0; index < rowRepeat; index++) rows.push(cells.slice());
     }
     return rows;
   }
