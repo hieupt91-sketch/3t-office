@@ -150,6 +150,7 @@ export const SHEET_RIBBON_TABS = [
                 items: [
                   { type: "button", commandId: "sheet.format.currencyVND", iconOnly: true },
                   { type: "button", commandId: "sheet.format.percent", iconOnly: true },
+                  { type: "button", commandId: "sheet.format.standard", iconOnly: true },
                   { type: "button", commandId: "sheet.format.increaseDecimal", iconOnly: true },
                   { type: "button", commandId: "sheet.format.decreaseDecimal", iconOnly: true }
                 ]
