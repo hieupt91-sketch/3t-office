@@ -376,6 +376,20 @@ export const SLIDES_RIBBON_TABS = [
     ]
   },
   {
+    id: "help",
+    label: "Trợ giúp",
+    labelKey: "slidesRibbon.tab.help",
+    groups: [
+      {
+        label: "Trợ giúp",
+        labelKey: "slidesRibbon.group.help",
+        items: [
+          { type: "button", commandId: "slides.help.open", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
     id: "ai",
     label: "Trợ lý VN AI",
     labelKey: "slidesRibbon.tab.ai",

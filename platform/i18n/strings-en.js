@@ -70,14 +70,14 @@ export const enStrings = {
     findReplace: "Find and Replace"
   },
   sheetRibbon: {
-    tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", ai: "VN AI Assistant" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", proofing: "Proofing", comments: "Comments", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", aiAnalysis: "AI Data Analysis" },
+    tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "VN AI Assistant" },
+    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", proofing: "Proofing", comments: "Comments", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", help: "Help", aiAnalysis: "AI Data Analysis" },
     editing: { fill: "Fill", clear: "Clear" },
     cells: { format: "Format" }
   },
   slidesRibbon: {
-    tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", ai: "VN AI Assistant" },
-    group: { slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", aiContent: "AI Presentation Content" }
+    tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "VN AI Assistant" },
+    group: { slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", help: "Help", aiContent: "AI Presentation Content" }
   },
   sheetDialogs: {
     close: "Close", cancel: "Cancel", cancelLong: "Cancel", apply: "Apply", range: "Range", rangeLabel: "Range:", value: "Value", save: "Save",
@@ -282,6 +282,7 @@ export const enStrings = {
     ,"sheet.edit.clearAll": { label: "Clear All", tooltip: "Clear all contents, formulas, and formatting from selected cells" }
     ,"sheet.edit.clearFormats": { label: "Clear Formats", tooltip: "Clear cell formatting back to default while keeping contents" }
     ,"sheet.edit.clearContents": { label: "Clear Contents", tooltip: "Clear cell contents and formulas while keeping formatting" }
+    ,"sheet.help.open": { label: "Help", tooltip: "Open the in-app user guide (F1)" }
     ,"slides.review.commentInsert": { label: "New Comment", tooltip: "Add a comment to the current slide" }
     ,"slides.review.spellCheck": { label: "Spelling", tooltip: "Check Vietnamese spelling on the current slide (F7)" }
     ,"slides.edit.formatPainter": { label: "Format Painter", tooltip: "Copy text or shape formatting to another object. Double-click to lock and apply multiple times. Esc to cancel." }
@@ -351,6 +352,7 @@ export const enStrings = {
     ,"slides.para.indentInc": { label: "Increase Indent", tooltip: "Increase paragraph indent" }
     ,"slides.para.indentDec": { label: "Decrease Indent", tooltip: "Decrease paragraph indent" }
     ,"slides.para.lineSpacing": { label: "Line Spacing", tooltip: "Set line spacing to 1.0, 1.5, or 2.0" }
+    ,"slides.help.open": { label: "Help", tooltip: "Open the in-app user guide (F1)" }
 
     ,// VN Writer Commands
     "writer.text.bold": { label: "Bold", tooltip: "Bold (Ctrl+B)" },

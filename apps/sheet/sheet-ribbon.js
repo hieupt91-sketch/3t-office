@@ -556,6 +556,20 @@ export const SHEET_RIBBON_TABS = [
     ]
   },
   {
+    id: "help",
+    label: "Trợ giúp",
+    labelKey: "sheetRibbon.tab.help",
+    groups: [
+      {
+        label: "Trợ giúp",
+        labelKey: "sheetRibbon.group.help",
+        items: [
+          { type: "button", commandId: "sheet.help.open", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
     id: "ai",
     label: "Trợ lý VN AI",
     labelKey: "sheetRibbon.tab.ai",

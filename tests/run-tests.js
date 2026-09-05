@@ -99,6 +99,8 @@ import { runSlidesSpellcheckRibbonTests } from "./unit/slides-spellcheck-ribbon.
 import { runSlidesFormatBackgroundTests } from "./unit/slides-format-background.test.js";
 import { runWriterWordCountTests } from "./unit/writer-word-count.test.js";
 import { runWriterHelpTests } from "./unit/writer-help.test.js";
+import { runSheetHelpTests } from "./unit/sheet-help.test.js";
+import { runSlidesHelpTests } from "./unit/slides-help.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -205,7 +207,9 @@ async function runAll() {
     { title: "90. Behavioral Tests — VN Slides Review Spellcheck Ribbon", runner: runSlidesSpellcheckRibbonTests },
     { title: "91. Behavioral Tests — VN Slides Format Background", runner: runSlidesFormatBackgroundTests },
     { title: "92. Behavioral Tests — VN Writer Word Count", runner: runWriterWordCountTests },
-    { title: "93. Behavioral Tests — VN Writer In-app Help", runner: runWriterHelpTests }
+    { title: "93. Behavioral Tests — VN Writer In-app Help", runner: runWriterHelpTests },
+    { title: "94. Behavioral Tests — VN Sheet In-app Help", runner: runSheetHelpTests },
+    { title: "95. Behavioral Tests — VN Slides In-app Help", runner: runSlidesHelpTests }
   ];
 
   for (const suite of suites) {

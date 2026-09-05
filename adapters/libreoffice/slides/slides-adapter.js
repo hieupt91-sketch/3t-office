@@ -68,6 +68,7 @@ export class SlidesAdapter {
       return this.canvas.showSpellcheckDialog ? this.canvas.showSpellcheckDialog(args) : false;
     });
     globalShortcutManager.bind("F7", "slides.review.spellCheck", "slides");
+    globalShortcutManager.bind("F1", "slides.help.open", "slides");
     globalCommandBus.bindHandler("slides.edit.formatPainter", (args) => this.canvas.toggleFormatPainter ? this.canvas.toggleFormatPainter(args || {}) : false);
     globalCommandBus.bindHandler("slides.design.formatBackground", (args) => this.canvas.showFormatBackgroundDialog ? this.canvas.showFormatBackgroundDialog(args || {}) : false);
     this._bindFormatPainterRibbon();

@@ -9,6 +9,9 @@ import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js"
 import { bootstrapPlatform } from "../../platform/bootstrap.js";
 import { applyLocaleToTabs } from "../../platform/i18n/i18n.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
+import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { HelpPanel } from "../../platform/help/index.js";
+import "../../platform/help/entries-sheet.js";
 
 export class SheetApp {
   constructor(mountElement) {
@@ -16,6 +19,7 @@ export class SheetApp {
     this.shell = null;
     this.grid = null;
     this.adapter = null;
+    this.helpPanel = null;
     this._lifecycleObserver = null;
   }
 
@@ -32,9 +36,15 @@ export class SheetApp {
     this._watchLifecycle();
     this.shell.ribbonHost.setStructure(applyLocaleToTabs(SHEET_RIBBON_TABS), "home");
 
+    const workspace = document.createElement("div");
+    workspace.className = "vno-sheet-workspace";
+
     const gridWrap = document.createElement("div");
-    gridWrap.style.width = "100%";
+    gridWrap.style.flex = "1 1 auto";
+    gridWrap.style.minWidth = "0";
+    gridWrap.style.minHeight = "0";
     gridWrap.style.height = "100%";
+    workspace.appendChild(gridWrap);
 
     this.grid = new SheetGridController(gridWrap, {
       onSelect: (coord, data, stats) => {
@@ -51,7 +61,14 @@ export class SheetApp {
       if (tabEl) tabEl.textContent = "Bảng tính 1.xlsx";
     }
 
-    this.shell.setEditorCanvas(gridWrap);
+    this.helpPanel = new HelpPanel({ app: "sheet" });
+    this.helpPanel.mount(workspace);
+    globalCommandBus.bindHandler("sheet.help.open", (args) => {
+      if (args?.entryId || args?.query != null) return this.helpPanel.open(args);
+      return this.helpPanel.toggle();
+    });
+
+    this.shell.setEditorCanvas(workspace);
 
     this.adapter = new SheetAdapter(this.grid);
     this.adapter.setShell(this.shell);
@@ -73,6 +90,8 @@ export class SheetApp {
   destroy() {
     this._lifecycleObserver?.disconnect();
     this._lifecycleObserver = null;
+    this.helpPanel?.destroy();
+    this.helpPanel = null;
     this.grid?.destroy?.();
   }
 }
