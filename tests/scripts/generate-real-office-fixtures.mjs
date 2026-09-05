@@ -148,6 +148,7 @@ const jobs = [
   { src: "sample-writer-image.fodt", ext: "docx", name: "sample-writer-image.docx" },
   { src: "sample-writer-trackchanges.fodt", ext: "docx", name: "sample-writer-trackchanges.docx" },
   { src: "sample-writer-comments.fodt", ext: "docx", name: "sample-writer-comments.docx" },
+  { src: "sample-writer-headerfooter.fodt", ext: "docx", name: "sample-writer-headerfooter.docx" },
   { src: "sample-sheet-formulas.fods", ext: "xlsx", name: "sample-sheet-formulas.xlsx" },
   { src: "sample-sheet-validation.fods", ext: "xlsx", name: "sample-sheet-validation.xlsx" },
   { src: "sample-sheet-pivot.fods", ext: "xlsx", name: "sample-sheet-pivot.xlsx" }
