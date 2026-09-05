@@ -618,11 +618,16 @@ export class SlidesAdapter {
     if (type === "video" || type === "audio") {
       const parts = this._dataUrlParts(shape.src);
       const mime = this._escapeXml(parts?.mime || (type === "audio" ? "audio/mpeg" : "video/mp4"));
-      const href = parts ? "" : this._escapeXml(shape.src || "");
+      // soffice PPTX hop ignores office:binary-data inside draw:plugin (not in ODF
+      // schema). Measured: empty href → media dropped; xlink:href="data:..." is
+      // copied into ppt/slides/_rels and survives PPTX→FODP with original bytes.
+      const href = this._escapeXml(shape.src || "");
       return `
         <draw:frame ${geom}>
-          <draw:plugin xlink:href="${href}" xlink:type="simple" xlink:show="embed" draw:mime-type="${mime}">
+          <draw:plugin xlink:href="${href}" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad" draw:mime-type="${mime}">
             ${this._binaryDataXml(shape.src)}
+            <draw:param draw:name="Loop" draw:value="false"/>
+            <draw:param draw:name="Mute" draw:value="false"/>
           </draw:plugin>
         </draw:frame>`;
     }
@@ -772,13 +777,26 @@ export class SlidesAdapter {
   }
 
   _parseEmbeddedSrc(inner, fallbackMime) {
+    const href = this._unescapeXml(inner.match(/xlink:href=["']([^"']*)["']/i)?.[1] || "");
+    // Prefer a data: href: soffice PPTX hop keeps media bytes there and may also
+    // inject a sibling <draw:image> poster whose office:binary-data is a PNG.
+    if (/^data:/i.test(href)) return href.replace(/\s+/g, "");
     const mime = inner.match(/draw:mime-type=["']([^"']+)["']/i)?.[1] || fallbackMime;
     const binary = inner.match(/<office:binary-data[^>]*>([\s\S]*?)<\/office:binary-data>/i)?.[1];
     if (binary && binary.replace(/\s+/g, "")) {
       return `data:${mime};base64,${binary.replace(/\s+/g, "")}`;
     }
-    const href = inner.match(/xlink:href=["']([^"']*)["']/i)?.[1];
-    return href || "";
+    return href;
+  }
+
+  _pluginMediaType(inner) {
+    const mime = inner.match(/draw:mime-type=["']([^"']+)["']/i)?.[1] || "";
+    const href = this._unescapeXml(inner.match(/<draw:plugin\b[^>]*xlink:href=["']([^"']*)["']/i)?.[1]
+      || inner.match(/xlink:href=["']([^"']*)["']/i)?.[1]
+      || "");
+    const dataMime = href.match(/^data:([^;,]+)/i)?.[1] || "";
+    if (/^audio\//i.test(mime) || /^audio\//i.test(dataMime)) return "audio";
+    return "video";
   }
 
   _parseTableCells(inner) {
@@ -834,13 +852,15 @@ export class SlidesAdapter {
         text: ""
       };
     }
+    // Same poster-image trap for media: plugin + draw:image preview. Plugin wins.
+    if (/<draw:plugin\b/i.test(inner)) {
+      const type = this._pluginMediaType(inner);
+      const pluginMatch = inner.match(/<draw:plugin\b([^>]*)>([\s\S]*?)<\/draw:plugin>/i);
+      const pluginXml = pluginMatch ? pluginMatch[0] : inner;
+      return { ...base, type, src: this._parseEmbeddedSrc(pluginXml, type === "audio" ? "audio/mpeg" : "video/mp4"), color: "transparent" };
+    }
     if (/<draw:image\b/i.test(inner)) {
       return { ...base, type: "image", src: this._parseEmbeddedSrc(inner, "image/png"), color: "transparent" };
-    }
-    if (/<draw:plugin\b/i.test(inner)) {
-      const mime = inner.match(/draw:mime-type=["']([^"']+)["']/i)?.[1] || "";
-      const type = /^audio\//i.test(mime) ? "audio" : "video";
-      return { ...base, type, src: this._parseEmbeddedSrc(inner, type === "audio" ? "audio/mpeg" : "video/mp4"), color: "transparent" };
     }
 
     const hasId = get("draw:id") || get("xml:id") || get("draw:name");

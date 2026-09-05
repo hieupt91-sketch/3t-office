@@ -96,6 +96,41 @@ export function createZip(entries) {
 }
 
 /**
+ * List ZIP central-directory entries (name + sizes). Used to inspect
+ * `ppt/media/` inside a real .pptx without a third-party library.
+ * @param {string|Buffer} zipPathOrBuffer
+ * @returns {{ name: string, compressedSize: number, uncompressedSize: number }[]}
+ */
+export function listZipEntries(zipPathOrBuffer) {
+  const buffer = Buffer.isBuffer(zipPathOrBuffer) ? zipPathOrBuffer : fs.readFileSync(zipPathOrBuffer);
+  let eocd = -1;
+  const searchFrom = Math.max(0, buffer.length - 22 - 65535);
+  for (let index = buffer.length - 22; index >= searchFrom; index--) {
+    if (buffer.readUInt32LE(index) === 0x06054b50) {
+      eocd = index;
+      break;
+    }
+  }
+  if (eocd < 0) throw new Error("ZIP end of central directory not found");
+  const cdOffset = buffer.readUInt32LE(eocd + 16);
+  const cdEntries = buffer.readUInt16LE(eocd + 10);
+  const entries = [];
+  let offset = cdOffset;
+  for (let index = 0; index < cdEntries; index++) {
+    if (buffer.readUInt32LE(offset) !== 0x02014b50) throw new Error("Invalid ZIP central directory");
+    const compSize = buffer.readUInt32LE(offset + 20);
+    const uncompSize = buffer.readUInt32LE(offset + 24);
+    const nameLen = buffer.readUInt16LE(offset + 28);
+    const extraLen = buffer.readUInt16LE(offset + 30);
+    const commentLen = buffer.readUInt16LE(offset + 32);
+    const name = buffer.slice(offset + 46, offset + 46 + nameLen).toString("utf8");
+    entries.push({ name, compressedSize: compSize, uncompressedSize: uncompSize });
+    offset += 46 + nameLen + extraLen + commentLen;
+  }
+  return entries;
+}
+
+/**
  * Read one named entry from a ZIP (deflate or store). Used to inspect
  * `word/document.xml` inside a real .docx without a third-party library.
  * @param {string|Buffer} zipPathOrBuffer
