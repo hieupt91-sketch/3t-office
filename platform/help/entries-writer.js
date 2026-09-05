@@ -340,5 +340,247 @@ export const WRITER_HELP_ENTRIES = [
       "Cùng nhóm còn Vừa khổ trang (tính theo chiều rộng cửa sổ). Thanh trạng thái có thể hiện tỉ lệ đang dùng.",
       "Zoom dùng phóng CSS trên trang, không đổi cỡ chữ khi in hay khi xuất file."
     ]
+  },
+  {
+    id: "writer.view.showAndWindow",
+    app: "writer",
+    commandIds: [
+      "writer.view.ruler",
+      "writer.view.gridlines",
+      "writer.view.pageWidth",
+      "writer.view.newWindow"
+    ],
+    title: "Thước, đường lưới, vừa khổ trang và cửa sổ mới",
+    summary: "Thước ngang mặc định bật, đánh dấu lề 30 mm trái / 15 mm phải (NĐ 30). Đường lưới 5 mm chỉ để căn, không in. Vừa khổ trang co 50%–200% theo chiều rộng cửa sổ. Cửa sổ mới mở tab trình duyệt cùng URL.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Hiển thị" },
+    keywords: ["thước", "đường lưới", "vừa khổ trang", "chiều rộng trang", "cửa sổ mới", "nđ 30", "lề 30mm"],
+    steps: [
+      "Tab Chế độ xem, nhóm Hiển thị: Thước và Đường lưới (nút bật/tắt). Nhóm Thu phóng cạnh đó có Chiều rộng trang (cùng cột với 100%). Nhóm Cửa sổ có nút lớn Cửa sổ mới.",
+      "Thước là thanh ngang 22 px trên trang, mặc định hiện. Nhấn để ẩn. Vạch trái ghi «Lề trái: 30mm (NĐ 30/2020/NĐ-CP)», vạch phải «Lề phải: 15mm». Không kéo được để đổi lề — đổi lề ở tab Bố cục → Căn lề. Chế độ đọc cũng ẩn thước.",
+      "Đường lưới mặc định tắt. Bật thì phủ lưới 18.8976 px (~5 mm), màu xanh rất nhạt — chỉ trên màn hình, không in, không xuất file. Chiều rộng trang tính (viewport − 40) / bề rộng giấy (A4 ~794 px), kẹp 50%–200%, tự chỉnh khi đổi cỡ cửa sổ.",
+      "Cửa sổ mới gọi window.open cùng địa chỉ. Trình duyệt chặn pop-up thì thanh trạng thái: «Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho VN Office.» Tab mới là phiên độc lập, không chia undo."
+    ]
+  },
+  {
+    id: "writer.nav.documentBounds",
+    app: "writer",
+    commandIds: ["writer.nav.docStart", "writer.nav.docEnd"],
+    title: "Nhảy tới đầu hoặc cuối tài liệu",
+    summary: "Hai lệnh bàn phím, không có nút ribbon: Ctrl+Home đưa con trỏ về đầu thân tài liệu, Ctrl+End xuống cuối. Vùng đầu trang / chân trang không nằm trên đường đi này.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem" },
+    keywords: ["đầu tài liệu", "cuối tài liệu", "ctrl+home", "ctrl+end", "điều hướng"],
+    steps: [
+      "Không có nút Đầu / Cuối tài liệu trên ribbon — dùng phím tắt.",
+      "Ctrl+Home đặt con trỏ vào đầu nội dung thân (body) và cuộn vào tầm nhìn. Ctrl+End đặt con trỏ sau khối cuối cùng của thân.",
+      "Đầu trang và chân trang không được lệnh này chọn. Muốn vào đó: tab Chèn → Đầu trang / Chân trang.",
+      "Hai lệnh không sửa chữ, chỉ di chuyển con trỏ."
+    ]
+  },
+  {
+    id: "writer.style.galleryAndNormal",
+    app: "writer",
+    commandIds: ["writer.style.gallery", "writer.style.normal", "writer.style.apply"],
+    title: "Thư viện kiểu và kiểu Thường",
+    summary: "Dải Quick Styles trên tab Trang đầu và nút Thư viện kiểu áp Normal, Tiêu đề 1/2/3, Trích dẫn, Nhấn mạnh. Ctrl+Shift+N luôn về Normal. writer.style.apply không còn dropdown trên ribbon (tránh trùng dải thẻ).",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu dáng" },
+    keywords: ["thư viện kiểu", "styles gallery", "normal", "tiêu đề 1", "heading", "ctrl+shift+n", "trích dẫn", "nhấn mạnh"],
+    steps: [
+      "Tab Trang đầu, nhóm Kiểu dáng: nút lớn Thư viện kiểu, kèm dải thẻ nhanh (Normal, Tiêu đề 1/2/3…) ngay trên ribbon. Không còn hộp chọn Kiểu dáng riêng — lệnh apply vẫn chạy nội bộ khi nhấp thẻ.",
+      "Thư viện kiểu mở hộp «Thư viện Kiểu dáng (Styles Gallery)», gợi ý «Nhấp để áp dụng ngay». Sáu thẻ: Normal (văn bản thường, 14 pt Times New Roman), Tiêu đề 1 (chữ hoa, căn giữa), Tiêu đề 2 (14 pt đậm), Tiêu đề 3 (13 pt đậm nghiêng), Trích dẫn (blockquote, viền trái), Nhấn mạnh (đậm nghiêng màu #b45309). Esc hoặc nhấp ra ngoài đóng.",
+      "Ctrl+Shift+N (Kiểu Thường) — không có nút riêng — đặt đoạn đang đứng về Normal, gỡ lớp trích dẫn/nhấn mạnh. Đặt con trỏ trong đoạn rồi chọn thẻ, không cần bôi cả đoạn.",
+      "Chỉ có sáu kiểu sẵn, không tạo/sửa kiểu tùy chỉnh như Word. Ctrl+Z hoàn tác lần áp kiểu."
+    ]
+  },
+  {
+    id: "writer.design.themes",
+    app: "writer",
+    commandIds: ["writer.design.themeGallery"],
+    title: "Chủ đề văn bản",
+    summary: "Sáu bộ chủ đề đổi đồng loạt phông, màu tiêu đề và giãn dòng cho cả tài liệu. Mặc định Tiêu chuẩn (Office) — Times New Roman. Có bộ Hành chính Việt Nam (NĐ 30).",
+    ribbon: { tab: "Thiết kế", tabId: "design", group: "Định dạng tài liệu" },
+    keywords: ["chủ đề", "theme", "nđ 30", "hành chính", "office", "be vietnam pro", "georgia"],
+    steps: [
+      "Tab Thiết kế, nhóm Định dạng tài liệu, nhấn nút lớn Chủ đề văn bản.",
+      "Hộp «Thư viện Kiểu & Chủ đề tài liệu»: chọn bộ rồi Áp dụng kiểu. Sáu mẫu — Tiêu chuẩn (Office, Times New Roman), Hành chính Việt Nam (NĐ 30, TNR chữ đen), Hiện đại (Be Vietnam Pro), Trang nhã (Georgia), Tối giản (Arial), Sáng tạo Emerald (Calibri).",
+      "Áp dụng gán phông/màu/giãn dòng lên toàn bộ tài liệu (thuộc tính data-vno-theme). Không phải file theme XML của Word — không có Variants.",
+      "Esc / Hủy bỏ đóng không đổi. Ctrl+Z hoàn tác lần áp chủ đề."
+    ]
+  },
+  {
+    id: "writer.text.changeCaseHelp",
+    app: "writer",
+    commandIds: ["writer.text.changeCase"],
+    title: "Đổi chữ hoa / thường",
+    summary: "Shift+F3 (hoặc nút trên nhóm Phông chữ) xoay vòng hoa/thường/tiêu đề cho vùng đang bôi; nếu chưa bôi thì lấy cả từ tại con trỏ.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+    keywords: ["đổi chữ hoa", "chữ thường", "title case", "shift+f3", "change case", "in hoa"],
+    steps: [
+      "Bôi chữ (hoặc đặt con trỏ trong một từ). Tab Trang đầu, nhóm Phông chữ, nút Đổi chữ hoa/thường (hàng icon, cạnh Gạch ngang) — hoặc Shift+F3.",
+      "Chu kỳ: đang viết HOA TOÀN BỘ → Title Case (Hoa Chữ Đầu); đang thường hết → HOA TOÀN BỘ; hỗn hợp hoặc Title Case → chữ thường.",
+      "Không có menu Sentence case / tOGGLE CASE như Word. Nhấn lại Shift+F3 để vòng tiếp.",
+      "Ctrl+Z hoàn tác lần đổi."
+    ]
+  },
+  {
+    id: "writer.para.advanced",
+    app: "writer",
+    commandIds: [
+      "writer.para.moveUp",
+      "writer.para.moveDown",
+      "writer.para.sort",
+      "writer.para.showFormattingMarks",
+      "writer.para.shading",
+      "writer.para.borders"
+    ],
+    title: "Sắp xếp đoạn, dấu định dạng, tô nền và viền",
+    summary: "Alt+Shift+↑/↓ đổi chỗ đoạn với đoạn kề. Sắp xếp A–Z không hộp thoại. Hiện dấu ¶ · ↵. Tô nền vàng #FFF2CC. Viền: dưới / tất cả / không.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },
+    keywords: ["sắp xếp đoạn", "dấu định dạng", "tô nền", "viền đoạn", "alt+shift", "move paragraph", "formatting marks"],
+    steps: [
+      "Tab Trang đầu, nhóm Đoạn văn: Sắp xếp và Hiện/ẩn ký tự định dạng trên hàng danh sách; Tô nền đoạn và hộp Viền đoạn trên hàng căn lề. Di chuyển đoạn lên/xuống không có nút — Alt+Shift+↑ / Alt+Shift+↓.",
+      "Sắp xếp cần ít nhất 2 khối kề nhau; so sánh chữ đã cắt khoảng trắng, locale số thông minh, không phân biệt hoa thường. Con trỏ trong danh sách thì sắp mọi mục li. Chỉ A–Z, không hộp chọn cột/thứ tự.",
+      "Hiện dấu định dạng: ¶ cuối đoạn, ↵ xuống dòng, · khoảng trắng. Chỉ trên màn hình. Tô nền đoạn luôn vàng kem #FFF2CC (không bảng màu) — nhấn không tự tắt, muốn bỏ thì Xóa định dạng (Ctrl+Space) hoặc tô lại bằng cách khác.",
+      "Hộp Viền đoạn: Viền dưới (mặc định, 1px #334155), Tất cả viền, Không viền. Alt+Shift+↑/↓ hoán đổi khối hiện tại với khối trước/sau trong thân tài liệu. Ctrl+Z hoàn tác."
+    ]
+  },
+  {
+    id: "writer.insert.illustrationsExtra",
+    app: "writer",
+    commandIds: ["writer.shape.insert", "writer.diagram.insert", "writer.chart.insert"],
+    title: "Chèn hình khối, sơ đồ và biểu đồ",
+    summary: "Ba nút lớn nhóm Minh họa chèn ngay đối tượng mặc định — không mở hộp chọn kiểu. Hình khối: chữ nhật xanh 140×80 px. Sơ đồ: quy trình 4 bước. Biểu đồ: khung cột trống «Không có dữ liệu».",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
+    keywords: ["hình khối", "sơ đồ", "biểu đồ", "shape", "smartart", "chart", "chữ nhật", "quy trình"],
+    steps: [
+      "Tab Chèn, nhóm Minh họa: Hình khối, Sơ đồ, Biểu đồ (ba nút lớn, cạnh Hình ảnh). Nhấn là chèn ngay, không hộp thoại.",
+      "Hình khối: chữ nhật 140×80 px, nền #2563eb, viền #1d4ed8, lớp nổi tại x=100, y lệch dần 160+(n×25). Kéo để đặt; nút Xóa hình khối khi đang chọn. Không mở gallery tròn/mũi tên trên lần bấm ribbon.",
+      "Sơ đồ: khối HTML «Sơ đồ quy trình (Process)» với 4 nút «Bước 1»…«Bước 4», chữ trong nút sửa được. Nút Xóa sơ đồ. Không phải SmartArt Word.",
+      "Biểu đồ: SVG tiêu đề «Biểu đồ dữ liệu», trạng thái «Không có dữ liệu» (kiểu cột, chưa gắn bảng số). Ctrl+Z gỡ đối tượng vừa chèn. Hình ảnh cùng nhóm là bài riêng."
+    ]
+  },
+  {
+    id: "writer.format.dropCapHelp",
+    app: "writer",
+    commandIds: ["writer.format.dropCap"],
+    title: "Chữ đầu đoạn (Drop Cap)",
+    summary: "Phóng chữ cái đầu đoạn đang đứng thành khối nổi 3 dòng, phông Times New Roman đậm xanh #0f4c81. Nhấn lại để gỡ. Không có hộp chọn số dòng hay vị trí lề.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
+    keywords: ["chữ đầu đoạn", "drop cap", "chữ cái lớn", "đầu đoạn"],
+    steps: [
+      "Đặt con trỏ trong đoạn có chữ. Tab Chèn, nhóm Văn bản, cột nhỏ Chữ đầu đoạn (cạnh Ngày & Giờ, dưới Hộp văn bản / Chữ nghệ thuật).",
+      "Chữ cái đầu tiên (A–Z, có dấu tiếng Việt, hoặc số) được bọc class vno-drop-cap, nổi trái, cỡ 3.1 em, Times New Roman đậm màu #0f4c81, cao 3 dòng.",
+      "Nhấn lại cùng nút trên đoạn đó để gỡ chữ đầu đoạn. Đoạn trống hoặc không có ký tự chữ/số thì không đổi.",
+      "Không có hộp Dropped / In margin như Word. Ctrl+Z hoàn tác."
+    ]
+  },
+  {
+    id: "writer.insert.equationBookmark",
+    app: "writer",
+    commandIds: ["writer.insert.equation", "writer.insert.bookmark", "writer.insert.crossReference"],
+    title: "Công thức chữ, đánh dấu và tham chiếu chéo",
+    summary: "Công thức là hộp chữ toán (mặc định E = mc²), không phải trình soạn phương trình. Đánh dấu tạo mỏ neo nội bộ; Tham chiếu chéo chèn liên kết tới tiêu đề hoặc đánh dấu đã có.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Ký hiệu" },
+    keywords: ["công thức", "equation", "đánh dấu", "bookmark", "tham chiếu chéo", "cross reference", "e = mc"],
+    steps: [
+      "Công thức: tab Chèn, nhóm Ký hiệu, nút lớn Công thức (cạnh Ký hiệu). Hộp «Công thức» ghi rõ bản rút gọn — dạng chữ, không soạn đồ họa. Ô Biểu thức mặc định E = mc²; mẫu sẵn a² + b² = c², nghiệm phương trình bậc hai, trung bình ∑. Chèn → span phông Cambria Math, khung nét đứt xanh.",
+      "Đánh dấu: cùng tab, nhóm Liên kết, nút Đánh dấu. Hộp «Đánh dấu», Tên đánh dấu mặc định bookmark1. Tên được bỏ dấu, ký tự lạ thành -, trùng thì thêm -2, -3… Tạo thẻ neo ẩn tại con trỏ.",
+      "Tham chiếu chéo: nút ngay dưới Đánh dấu. Hộp «Tham chiếu chéo» — nếu chưa có tiêu đề (Heading) hay đánh dấu thì báo «Chưa có tiêu đề hoặc đánh dấu nào.» và khóa Chèn. Có rồi: chọn H tiêu đề hoặc ⚑ đánh dấu, chèn liên kết nội bộ hiện tên đó.",
+      "Không có số trang / «phía trên» như Word. Ctrl+Z gỡ hộp hoặc liên kết vừa chèn. Ký hiệu đặc biệt là bài riêng cùng nhóm Ký hiệu."
+    ]
+  },
+  {
+    id: "writer.comment.insertHelp",
+    app: "writer",
+    commandIds: ["writer.comment.insert"],
+    title: "Thêm ghi chú vào đoạn đã bôi",
+    summary: "Ctrl+Alt+M yêu cầu đã bôi chữ trong thân tài liệu. Hộp nhập ghi chú, neo vàng trên chữ đã chọn. Duyệt / xóa / đánh dấu xử lý nằm bài «Duyệt nhận xét».",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Ghi chú" },
+    keywords: ["ghi chú", "nhận xét", "comment", "ctrl+alt+m", "bôi đen"],
+    steps: [
+      "Bôi đoạn chữ trong thân tài liệu (không phải đầu/chân trang). Tab Đánh giá, nhóm Ghi chú, nút lớn Thêm ghi chú — hoặc tab Chèn, nhóm Ghi chú — hoặc Ctrl+Alt+M.",
+      "Chưa bôi: cảnh báo «Chưa chọn văn bản» / «Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm ghi chú.» Đã bôi: hộp «Thêm ghi chú» hiện đoạn trích (tối đa 80 ký tự), ô nhập, nút Thêm ghi chú.",
+      "Chữ được bọc mark vàng (neo ghi chú). Panel bên «Ghi chú tài liệu» liệt kê các ghi chú. Không thêm được khi con trỏ chỉ nhấp, khác Word.",
+      "Ctrl+Z gỡ ghi chú vừa thêm. Nhận xét trước/sau, xóa, đã xử lý: bài «Duyệt nhận xét»."
+    ]
+  },
+  {
+    id: "writer.page.setup",
+    app: "writer",
+    commandIds: ["writer.page.margins", "writer.page.orientation", "writer.page.size"],
+    title: "Lề, hướng giấy và khổ giấy",
+    summary: "Ba nút mở cùng hộp «Thiết lập trang». Mặc định A4 dọc, lề trên/dưới 20 mm, trái 30 mm, phải 15 mm (NĐ 30). Khổ: A4, Letter, Legal. Hướng: Dọc / Ngang. Lề 0–100 mm.",
+    ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
+    keywords: ["căn lề", "lề trang", "hướng giấy", "khổ giấy", "a4", "nđ 30", "portrait", "landscape", "thiết lập trang"],
+    steps: [
+      "Tab Bố cục, nhóm Thiết lập trang: Căn lề, Hướng giấy, Khổ giấy (ba nút lớn). Cả ba mở hộp «Thiết lập trang» — Hướng giấy đặt focus vào hướng; Căn lề và Khổ giấy đặt focus vào khổ.",
+      "Khổ giấy: A4 (210 × 297 mm, mặc định), Letter (216 × 279 mm), Legal (216 × 356 mm). Hướng: Dọc (Portrait) hoặc Ngang (Landscape).",
+      "Lề trên / dưới / trái / phải (mm), mỗi ô 0–100. Mặc định trên 20, dưới 20, trái 30, phải 15 — đúng lề văn bản hành chính NĐ 30. Áp dụng / Hủy bỏ.",
+      "Không có gallery Narrow/Wide như Word — chỉ số mm. Thước trên tab Chế độ xem phản ánh lề trái/phải sau khi áp dụng. Ctrl+Z hoàn tác."
+    ]
+  },
+  {
+    id: "writer.page.columnsHelp",
+    app: "writer",
+    commandIds: [
+      "writer.page.columns",
+      "writer.page.columns1",
+      "writer.page.columns2",
+      "writer.page.columns3"
+    ],
+    title: "Chia cột văn bản",
+    summary: "Nút Cột mở hộp 1–4 cột, khe 0–50 mm, tùy chọn đường kẻ giữa. Ba nút tắt 1 / 2 / 3 cột (khe 10 mm, không kẻ). Áp dụng cho cả thân tài liệu.",
+    ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
+    keywords: ["chia cột", "columns", "hai cột", "ba cột", "đường kẻ cột", "khe cột"],
+    steps: [
+      "Tab Bố cục, nhóm Thiết lập trang: nút lớn Cột, rồi cột 1 cột / 2 cột / 3 cột.",
+      "1 cột: một luồng, khe 0, không kẻ. 2 cột / 3 cột: count 2 hoặc 3, khe 10 mm, không kẻ. Áp ngay, không hỏi.",
+      "Nút Cột mở hộp «Chia cột văn bản (Columns)»: mẫu Một cột / Hai cột / Ba cột; Số cột 1–4; Khoảng cách giữa các cột 0–50 mm; tick Đường kẻ phân cách cột; khung Xem trước. Đang chia nhiều cột thì có Bỏ chia cột (1 cột). Áp dụng.",
+      "Chia cột CSS trên toàn bộ thân, không theo vùng bôi hay từng section. Ngắt cột (menu Ngắt trang cùng nhóm) đẩy chữ sau con trỏ sang cột kế. Ctrl+Z hoàn tác."
+    ]
+  },
+  {
+    id: "writer.page.watermarkBorder",
+    app: "writer",
+    commandIds: ["writer.page.watermark", "writer.page.border"],
+    title: "Hình mờ và viền trang",
+    summary: "Hình mờ chữ chéo (mặc định DỰ THẢO, đỏ #dc2626, 45°, mờ 0.2, cỡ 72). Viền trang nét liền/đứt/đôi, dày 1–6 pt, mặc định 2 pt xanh #0f4c81. Cả hai hiện khi in và xem trước.",
+    ribbon: { tab: "Thiết kế", tabId: "design", group: "Nền & Viền trang" },
+    keywords: ["hình mờ", "watermark", "dự thảo", "mật", "khẩn", "viền trang", "page border", "nét đôi"],
+    steps: [
+      "Tab Thiết kế, nhóm Nền & Viền trang: Hình mờ, Màu trang (bài riêng), Viền trang — ba nút lớn. Cùng Hình mờ / Viền trang còn trên tab Bố cục, nhóm Nền & Viền trang.",
+      "Hình mờ (440 px): chip DỰ THẢO, MẬT, TUYỆT MẬT, KHẨN, BẢN SAO; hoặc gõ chữ. Màu: Đỏ nhạt #dc2626 (mặc định), Xám, Xanh dương, Vàng hổ phách. Góc: Chéo 45° (chuẩn), −45°, Nằm ngang 0°. Độ mờ 0.05–0.60 (bước 0.05), mặc định 0.2. Cỡ chữ cố định 72. Áp dụng. Đã có hình mờ thì thêm Xóa hình mờ.",
+      "Viền trang: nét Liền / Đứt / Đôi / Không có viền; dày 1, 1.5, 2 (mặc định), 3, 4.5, 6 pt; màu Xanh VN Office #0f4c81, Đen than, Xám, Đỏ hành chính, Xanh lá. Xem trước khung. Đang có viền thì Xóa viền trang.",
+      "Hình mờ và viền phủ overlay soạn thảo và mỗi tờ khi Xem trước khi in. Không có hình mờ ảnh. Ctrl+Z hoàn tác."
+    ]
+  },
+  {
+    id: "writer.file.printPreviewHelp",
+    app: "writer",
+    commandIds: ["writer.file.printPreview"],
+    title: "Xem trước khi in",
+    summary: "Ctrl+F2 mở overlay phân trang thật: khổ/hướng/lề trên thanh công cụ, lật trang, thu phóng 30%–200%. In tài liệu gọi hộp in trình duyệt (Ctrl+P). Esc đóng.",
+    ribbon: { tab: "Bố cục", tabId: "layout", group: "In ấn" },
+    keywords: ["xem trước khi in", "print preview", "ctrl+f2", "phân trang", "in tài liệu"],
+    steps: [
+      "Tab Bố cục, nhóm In ấn: Xem trước khi in (nút lớn, cạnh In tài liệu) — hoặc Ctrl+F2.",
+      "Thanh công cụ: In tài liệu (Ctrl+P → window.print), huy hiệu «Khổ: A4 · Dọc (Portrait) · Lề: T20 D20 T30 P15 mm» (số theo thiết lập trang), ◀ Trang trước / Trang sau ▶, ô số trang / tổng, − Thu nhỏ / + Phóng to (bước 0.15, kẹp 0.3–2.0), Vừa trang (0.35–1.2 theo chiều cao).",
+      "Mỗi tờ lặp đầu trang / chân trang, hình mờ, viền trang. Chú thích cuối trang theo tờ có mốc; chú thích cuối tài liệu nằm tờ cuối. Phím: Esc đóng, ← / PageUp tờ trước, → / PageDown tờ sau, Ctrl+P in.",
+      "Đây là xem HTML đã chia trang, không phải Backstage Word. Đóng bằng × hoặc Esc về soạn thảo."
+    ]
+  },
+  {
+    id: "writer.reference.notes",
+    app: "writer",
+    commandIds: ["writer.reference.footnoteInsert", "writer.reference.endnoteInsert"],
+    title: "Chú thích cuối trang và chú thích cuối tài liệu",
+    summary: "Ctrl+Alt+F chèn footnote đánh số 1, 2, 3… Ctrl+Alt+D chèn endnote số la mã i, ii, iii… Nhấp số siêu ký tự để nhảy tới nội dung chú thích.",
+    ribbon: { tab: "Tham chiếu", tabId: "references", group: "Chú thích" },
+    keywords: ["chú thích cuối trang", "footnote", "endnote", "chú thích cuối", "ctrl+alt+f", "ctrl+alt+d"],
+    steps: [
+      "Đặt con trỏ chỗ cần mốc. Tab Tham chiếu, nhóm Chú thích: Chú thích trang (Ctrl+Alt+F) và Chú thích cuối (Ctrl+Alt+D) — hai nút lớn. Không còn trên tab Chèn.",
+      "Chú thích trang: số Ả Rập trên chữ (sup), danh sách cuối thân với ô «Nhập nội dung chú thích...», nút Xóa chú thích và Chuyển tới vị trí tham chiếu. Đánh lại số tự động khi xóa. Khi xem trước/in, ghi chú nằm cuối tờ chứa mốc.",
+      "Chú thích cuối: số la mã thường i, ii, iii…, tiêu đề mục «CHÚ THÍCH CUỐI TÀI LIỆU», ô «Nhập nội dung chú thích cuối...». Khi in, cả khối nằm trang cuối.",
+      "Nhấp số trên chữ để nhảy xuống ghi chú. Không có hộp đổi kiểu đánh số / chuyển footnote↔endnote như Word. Ctrl+Z gỡ mốc vừa chèn."
+    ]
   }
 ];
