@@ -62,6 +62,9 @@ export class SlidesAdapter {
       options = options || {};
       return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
     });
+    // Command metadata is app-local because this feature is scoped to Slides;
+    // bind explicitly instead of requiring a Platform registry change.
+    globalCommandBus.bindHandler("slides.insert.chart", (options) => this.canvas.insertChart ? this.canvas.insertChart(options) : false);
     globalCommandBus.bindHandler("slides.view.normal", () => this.canvas.setNormalView ? this.canvas.setNormalView() : false);
     globalCommandBus.bindHandler("slides.view.slideSorter", () => this.canvas.openSlideSorter ? this.canvas.openSlideSorter() : false);
     globalCommandBus.bindHandler("slides.notes.toggle", () => this.canvas.toggleNotes ? this.canvas.toggleNotes() : false);
