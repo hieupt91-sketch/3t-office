@@ -253,5 +253,193 @@ export async function runRealOfficeImportFidelityTests() {
     }
   });
 
+  const PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAFAAAAAoCAIAAADmAupWAAAARUlEQVR4nO3PQQ0AAAgEoOtka7MYyhb6YaMAmeRFqn8ICwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwvfWrnJYNfTtrHkAAAAAElFTkSuQmCC";
+  const SOFFICE_WRITER_IMAGE_HTML = `<!DOCTYPE html>
+<html><head><style type="text/css">
+@page { size: 21cm 29.7cm; margin-left: 2.5cm; margin-right: 2cm; margin-top: 2cm; margin-bottom: 2cm }
+</style></head>
+<body>
+<ol><li><h1 class="western">Logo đơn vị nhúng trong văn bản</h1></li></ol>
+<p>Ảnh dưới đây là PNG 80×40 pixel.</p>
+<p><img src="data:image/png;base64,${PNG_B64}" name="LogoDonVi" align="left" width="192" height="96" border="0"><br clear="left"/></img></p>
+<p>Chú thích ảnh: logo đỏ-xanh dùng để đối chiếu nội dung nhúng sau khi mở DOCX thật.</p>
+</body></html>`;
+
+  const SOFFICE_SHEET_FORMULAS_FODS = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2"
+ office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+  <office:body><office:spreadsheet>
+    <table:table table:name="Danh mục">
+      <table:table-row>
+        <table:table-cell office:value-type="string"><text:p>Mã SP</text:p></table:table-cell>
+        <table:table-cell office:value-type="string"><text:p>Tên</text:p></table:table-cell>
+        <table:table-cell office:value-type="string"><text:p>Đơn giá</text:p></table:table-cell>
+      </table:table-row>
+      <table:table-row>
+        <table:table-cell office:value-type="string"><text:p>SP02</text:p></table:table-cell>
+        <table:table-cell office:value-type="string"><text:p>Vở</text:p></table:table-cell>
+        <table:table-cell office:value-type="float" office:value="12000"><text:p>12000</text:p></table:table-cell>
+      </table:table-row>
+    </table:table>
+    <table:table table:name="Công thức">
+      <table:table-row>
+        <table:table-cell office:value-type="string"><text:p>Hệ số</text:p></table:table-cell>
+        <table:table-cell office:value-type="string"><text:p>Mã tra</text:p></table:table-cell>
+      </table:table-row>
+      <table:table-row>
+        <table:table-cell office:value-type="float" office:value="1.1"><text:p>1.1</text:p></table:table-cell>
+        <table:table-cell office:value-type="string"><text:p>SP02</text:p></table:table-cell>
+        <table:table-cell table:formula="of:=VLOOKUP([.B2];[$&apos;Danh mục&apos;.A2:.C4];2;0)" office:value-type="string" office:string-value="Vở"><text:p>Vở</text:p></table:table-cell>
+        <table:table-cell table:formula="of:=VLOOKUP([.B2];[$&apos;Danh mục&apos;.A2:.C4];3;0)" office:value-type="float" office:value="12000"><text:p>12000</text:p></table:table-cell>
+        <table:table-cell office:value-type="float" office:value="80"><text:p>80</text:p></table:table-cell>
+        <table:table-cell table:formula="of:=[.$A$2]*[.E2]" office:value-type="float" office:value="88"><text:p>88</text:p></table:table-cell>
+        <table:table-cell table:formula="of:=IF([.E2]&gt;=100;&quot;Cao&quot;;IF([.E2]&gt;=50;&quot;Trung bình&quot;;&quot;Thấp&quot;))" office:value-type="string" office:string-value="Trung bình"><text:p>Trung bình</text:p></table:table-cell>
+      </table:table-row>
+    </table:table>
+  </office:spreadsheet></office:body>
+</office:document>`;
+
+  const SOFFICE_SHEET_VALIDATION_FODS = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+ xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+ xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0"
+ office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+  <office:automatic-styles>
+    <style:style style:name="ConditionalStyle_5f_1" style:display-name="ConditionalStyle_1" style:family="table-cell">
+      <style:table-cell-properties fo:background-color="#c6efce"/>
+    </style:style>
+    <style:style style:name="ConditionalStyle_5f_2" style:display-name="ConditionalStyle_2" style:family="table-cell">
+      <style:table-cell-properties fo:background-color="#ffc7ce"/>
+    </style:style>
+    <style:style style:name="ConditionalStyle_5f_3" style:display-name="ConditionalStyle_3" style:family="table-cell">
+      <style:table-cell-properties fo:background-color="#fff2cc"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body><office:spreadsheet>
+    <table:content-validations>
+      <table:content-validation table:name="val1" table:condition="of:cell-content-is-in-list(&quot;Đạt&quot;;&quot;Không đạt&quot;;&quot;Đang xử lý&quot;)" table:base-cell-address="&apos;Kiểm tra&apos;.B2"/>
+      <table:content-validation table:name="val2" table:condition="of:cell-content-is-whole-number() and cell-content-is-between(0,10)" table:base-cell-address="&apos;Kiểm tra&apos;.C2"/>
+    </table:content-validations>
+    <table:table table:name="Kiểm tra">
+      <table:table-row>
+        <table:table-cell office:value-type="string"><text:p>Điểm</text:p></table:table-cell>
+        <table:table-cell office:value-type="string"><text:p>Trạng thái</text:p></table:table-cell>
+        <table:table-cell office:value-type="string"><text:p>Điểm phụ</text:p></table:table-cell>
+      </table:table-row>
+      <table:table-row>
+        <table:table-cell office:value-type="float" office:value="95"><text:p>95</text:p></table:table-cell>
+        <table:table-cell table:content-validation-name="val1" office:value-type="string"><text:p>Đạt</text:p></table:table-cell>
+        <table:table-cell table:content-validation-name="val2" office:value-type="float" office:value="8"><text:p>8</text:p></table:table-cell>
+      </table:table-row>
+      <table:table-row>
+        <table:table-cell office:value-type="float" office:value="45"><text:p>45</text:p></table:table-cell>
+        <table:table-cell table:content-validation-name="val1" office:value-type="string"><text:p>Sai giá trị</text:p></table:table-cell>
+        <table:table-cell table:content-validation-name="val2" office:value-type="float" office:value="15"><text:p>15</text:p></table:table-cell>
+      </table:table-row>
+      <table:table-row>
+        <table:table-cell/>
+        <table:table-cell table:content-validation-name="val1" office:value-type="string"><text:p>Đang xử lý</text:p></table:table-cell>
+        <table:table-cell table:content-validation-name="val2" office:value-type="float" office:value="3"><text:p>3</text:p></table:table-cell>
+      </table:table-row>
+      <calcext:conditional-formats>
+        <calcext:conditional-format calcext:target-range-address="&apos;Kiểm tra&apos;.A2:&apos;Kiểm tra&apos;.A4">
+          <calcext:condition calcext:apply-style-name="ConditionalStyle_1" calcext:value="&gt;80" calcext:base-cell-address="&apos;Kiểm tra&apos;.A2"/>
+          <calcext:condition calcext:apply-style-name="ConditionalStyle_2" calcext:value="&lt;50" calcext:base-cell-address="&apos;Kiểm tra&apos;.A2"/>
+          <calcext:condition calcext:apply-style-name="ConditionalStyle_3" calcext:value="formula-is(LEN(TRIM([.A2]))=0)" calcext:base-cell-address="&apos;Kiểm tra&apos;.A2"/>
+        </calcext:conditional-format>
+      </calcext:conditional-formats>
+    </table:table>
+  </office:spreadsheet></office:body>
+</office:document>`;
+
+  test("Writer: ảnh nhúng soffice HTML giữ data URI, tên, width/height", () => {
+    const imported = new WriterAdapter(null)._normalizeImportedHtml(SOFFICE_WRITER_IMAGE_HTML);
+    const img = imported.body.match(/<img\b[^>]*>/i)?.[0] || "";
+    if (!img.includes(`src="data:image/png;base64,${PNG_B64}"`)) {
+      throw new Error(`Mất nội dung ảnh base64: ${img.slice(0, 180)}`);
+    }
+    if (!/width="192"/i.test(img) || !/height="96"/i.test(img)) {
+      throw new Error(`Kích thước ảnh sai (cần 192×96 px = 5,08×2,54 cm): ${img}`);
+    }
+    if (!/name="LogoDonVi"/i.test(img)) throw new Error(`Mất name LogoDonVi: ${img}`);
+    if (/<\/img>/i.test(imported.body)) throw new Error("Thẻ </img> thừa chưa được gỡ");
+  });
+
+  await asyncTest("Writer: common.file.open nạp ảnh nhúng vào body", async () => {
+    const { editor, body } = makeWriterDom();
+    const adapter = new WriterAdapter(editor);
+    const orig = globalUnoBridge.openRealFile;
+    globalUnoBridge.openRealFile = async () => ({ status: "ok", content: SOFFICE_WRITER_IMAGE_HTML, fileName: "sample-writer-image.docx" });
+    try {
+      const ok = await adapter.open();
+      if (!ok) throw new Error("open() trả về false");
+      if (!body.innerHTML.includes("data:image/png;base64,") || !body.innerHTML.includes("LogoDonVi")) {
+        throw new Error(`Body sau open() mất ảnh: ${body.innerHTML.slice(0, 220)}`);
+      }
+      if (!body.innerHTML.includes("width=\"192\"")) throw new Error("Mất width ảnh sau open()");
+    } finally {
+      globalUnoBridge.openRealFile = orig;
+    }
+  });
+
+  test("Sheet: FODS soffice giữ VLOOKUP, IF lồng, tham chiếu tuyệt đối — không flatten", () => {
+    const workbook = new SheetAdapter(null).parseFods(SOFFICE_SHEET_FORMULAS_FODS);
+    if (workbook.sheets.join("|") !== "Danh mục|Công thức") {
+      throw new Error(`Sheets: ${workbook.sheets.join("|")}`);
+    }
+    const sheet = workbook.sheetsData["Công thức"];
+    const nameLookup = sheet.get("C2");
+    const priceLookup = sheet.get("D2");
+    const absProduct = sheet.get("F2");
+    const nestedIf = sheet.get("G2");
+    if (!String(nameLookup?.formula || "").includes("VLOOKUP") || nameLookup.val !== "Vở") {
+      throw new Error(`VLOOKUP tên bị flatten/sai: ${JSON.stringify(nameLookup)}`);
+    }
+    if (!String(priceLookup?.formula || "").includes("VLOOKUP") || priceLookup.val !== 12000) {
+      throw new Error(`VLOOKUP giá bị flatten/sai: ${JSON.stringify(priceLookup)}`);
+    }
+    if (absProduct?.formula !== "=$A$2*E2" || absProduct.val !== 88) {
+      throw new Error(`Tham chiếu tuyệt đối sai: ${JSON.stringify(absProduct)}`);
+    }
+    if (!String(nestedIf?.formula || "").startsWith("=IF(") || !String(nestedIf.formula).includes("IF(E2>=50") || nestedIf.val !== "Trung bình") {
+      throw new Error(`IF lồng sai: ${JSON.stringify(nestedIf)}`);
+    }
+  });
+
+  test("Sheet: FODS soffice giữ Conditional Formatting và Data Validation", () => {
+    const workbook = new SheetAdapter(null).parseFods(SOFFICE_SHEET_VALIDATION_FODS);
+    const rules = workbook.conditionalFormattingBySheet["Kiểm tra"] || [];
+    const validations = workbook.dataValidationsBySheet["Kiểm tra"] || [];
+    const greater = rules.find(rule => rule.type === "greaterThan");
+    const less = rules.find(rule => rule.type === "lessThan");
+    const blank = rules.find(rule => rule.type === "blank");
+    if (!greater || greater.value !== 80 || greater.color !== "#c6efce") {
+      throw new Error(`CF >80 sai: ${JSON.stringify(rules)}`);
+    }
+    if (!less || less.value !== 50 || less.color !== "#ffc7ce") {
+      throw new Error(`CF <50 sai: ${JSON.stringify(rules)}`);
+    }
+    if (!blank || blank.color !== "#fff2cc") {
+      throw new Error(`CF blank sai: ${JSON.stringify(rules)}`);
+    }
+    if (greater.range.start.c !== "A" || greater.range.end.r !== 4) {
+      throw new Error(`CF range sai: ${JSON.stringify(greater.range)}`);
+    }
+    const list = validations.find(item => item.type === "list");
+    const numeric = validations.find(item => item.type === "numberRange");
+    if (!list || list.values.join("|") !== "Đạt|Không đạt|Đang xử lý" || list.range.start.c !== "B") {
+      throw new Error(`List validation sai: ${JSON.stringify(validations)}`);
+    }
+    if (!numeric || numeric.min !== 0 || numeric.max !== 10 || numeric.range.start.c !== "C") {
+      throw new Error(`Number validation sai: ${JSON.stringify(validations)}`);
+    }
+  });
+
   return results;
 }

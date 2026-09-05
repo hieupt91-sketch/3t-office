@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document
+  xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+  xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+  xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2"
+  office:version="1.3"
+  office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+  <office:body>
+    <office:spreadsheet>
+      <table:table table:name="Danh mục">
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="Mã SP"><text:p>Mã SP</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Tên"><text:p>Tên</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Đơn giá"><text:p>Đơn giá</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="SP01"><text:p>SP01</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Bút bi"><text:p>Bút bi</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="5000"><text:p>5000</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="SP02"><text:p>SP02</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Vở"><text:p>Vở</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="12000"><text:p>12000</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="SP03"><text:p>SP03</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Thước"><text:p>Thước</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="8000"><text:p>8000</text:p></table:table-cell>
+        </table:table-row>
+      </table:table>
+      <table:table table:name="Công thức">
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="Hệ số"><text:p>Hệ số</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Mã tra"><text:p>Mã tra</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Tên (VLOOKUP)"><text:p>Tên (VLOOKUP)</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Giá (VLOOKUP)"><text:p>Giá (VLOOKUP)</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Số lượng"><text:p>Số lượng</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Thành tiền ($A$2)"><text:p>Thành tiền ($A$2)</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="Xếp loại (IF lồng)"><text:p>Xếp loại (IF lồng)</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="float" office:value="1.1"><text:p>1.1</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="SP02"><text:p>SP02</text:p></table:table-cell>
+          <table:table-cell table:formula="of:=VLOOKUP([.B2];['Danh mục'.A2:'Danh mục'.C4];2;0)" office:value-type="string" office:string-value="Vở"><text:p>Vở</text:p></table:table-cell>
+          <table:table-cell table:formula="of:=VLOOKUP([.B2];['Danh mục'.A2:'Danh mục'.C4];3;0)" office:value-type="float" office:value="12000"><text:p>12000</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="80"><text:p>80</text:p></table:table-cell>
+          <table:table-cell table:formula="of:=[.$A$2]*[.E2]" office:value-type="float" office:value="88"><text:p>88</text:p></table:table-cell>
+          <table:table-cell table:formula="of:=IF([.E2]&gt;=100;&quot;Cao&quot;;IF([.E2]&gt;=50;&quot;Trung bình&quot;;&quot;Thấp&quot;))" office:value-type="string" office:string-value="Trung bình"><text:p>Trung bình</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value=""><text:p></text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="SP01"><text:p>SP01</text:p></table:table-cell>
+          <table:table-cell table:formula="of:=VLOOKUP([.B3];['Danh mục'.A2:'Danh mục'.C4];2;0)" office:value-type="string" office:string-value="Bút bi"><text:p>Bút bi</text:p></table:table-cell>
+          <table:table-cell table:formula="of:=VLOOKUP([.B3];['Danh mục'.A2:'Danh mục'.C4];3;0)" office:value-type="float" office:value="5000"><text:p>5000</text:p></table:table-cell>
+          <table:table-cell office:value-type="float" office:value="120"><text:p>120</text:p></table:table-cell>
+          <table:table-cell table:formula="of:=[.$A$2]*[.E3]" office:value-type="float" office:value="132"><text:p>132</text:p></table:table-cell>
+          <table:table-cell table:formula="of:=IF([.E3]&gt;=100;&quot;Cao&quot;;IF([.E3]&gt;=50;&quot;Trung bình&quot;;&quot;Thấp&quot;))" office:value-type="string" office:string-value="Cao"><text:p>Cao</text:p></table:table-cell>
+        </table:table-row>
+      </table:table>
+    </office:spreadsheet>
+  </office:body>
+</office:document>

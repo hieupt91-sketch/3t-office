@@ -947,6 +947,8 @@ export class WriterAdapter {
       /<(ol|ul)\b[^>]*>\s*<li\b[^>]*>\s*(<h[1-6]\b[^>]*>[\s\S]*?<\/h[1-6]>)\s*<\/li>\s*<\/\1>/gi,
       "$2"
     );
+    html = html.replace(/<\/img>/gi, "");
+    html = html.replace(/<br\s+clear=["']left["']\s*\/?>/gi, "");
 
     const headerMatch = html.match(/<div\s+title=["']header["'][^>]*>([\s\S]*?)<\/div>/i);
     const footerMatch = html.match(/<div\s+title=["']footer["'][^>]*>([\s\S]*?)<\/div>/i);
