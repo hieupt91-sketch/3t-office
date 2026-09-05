@@ -277,10 +277,12 @@
   animation: vnoGalleryModalFadeIn 0.15s ease-out;
 }
 .vno-sheet-rule-dialog .vno-dialog-body { display: grid; gap: 12px; }
-.vno-sheet-rule-dialog label { display: grid; gap: 5px; color: #334155; font-size: 12px; font-weight: 600; }
+.vno-sheet-rule-dialog label { display: grid; gap: 5px; color: var(--vno-text-secondary); font-size: 12px; font-weight: 600; }
 .vno-sheet-rule-dialog input,
 .vno-sheet-rule-dialog select {
-  border: 1px solid #94a3b8;
+  background-color: var(--vno-bg-surface);
+  color: var(--vno-text-primary);
+  border: 1px solid var(--vno-border-default);
   border-radius: 4px;
   padding: 7px 8px;
   font: inherit;
@@ -310,8 +312,8 @@
   transition: background-color 0.12s ease, color 0.12s ease, transform 0.1s ease;
 }
 .vno-sheet-rule-dialog .vno-rule-close:hover {
-  background-color: #e2e8f0;
-  color: #0f172a;
+  background-color: var(--vno-bg-hover);
+  color: var(--vno-text-primary);
 }
 .vno-sheet-rule-dialog .vno-rule-close:active {
   transform: scale(0.92);
@@ -322,7 +324,19 @@
 .vno-sheet-rule-dialog .vno-dialog-footer .vno-btn:active:not(:disabled) {
   transform: scale(0.96);
 }
-.vno-rule-range { margin: 0; padding: 8px; border-radius: 4px; background: #f1f5f9; font-size: 12px; }
+.vno-sheet-rule-dialog fieldset {
+  border: 1px solid var(--vno-border-default);
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+.vno-sheet-rule-dialog legend {
+  color: var(--vno-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 4px;
+}
+.vno-rule-range { margin: 0; padding: 8px; border-radius: 4px; background: var(--vno-bg-muted); color: var(--vno-text-primary); font-size: 12px; }
+.vno-data-preview { margin: 0; padding: 8px; border-radius: 4px; background: var(--vno-bg-muted); color: var(--vno-text-primary); font-size: 12px; }
 .vno-rule-error { min-height: 16px; color: #b91c1c; font-size: 12px; }
 #vno-dv-number-row { grid-template-columns: 1fr 1fr; gap: 10px; }
 #vno-dv-number-row:not([hidden]) { display: grid; }
@@ -633,9 +647,9 @@ tr.is-filtered-out {
 .vno-pivot-dialog > label { display:flex; flex-direction:column; gap:5px; font-weight:600; }
 .vno-pivot-dialog input { padding:7px 9px; border:1px solid var(--vno-border-default); border-radius:5px; }
 .vno-pivot-fields { max-height:300px; overflow:auto; border:1px solid var(--vno-border-default); border-radius:6px; padding:8px; }
-.vno-pivot-field { display:grid; grid-template-columns:minmax(120px,1fr) repeat(3,auto) 105px; gap:10px; align-items:center; padding:7px; border-bottom:1px solid #e2e8f0; }
+.vno-pivot-field { display:grid; grid-template-columns:minmax(120px,1fr) repeat(3,auto) 105px; gap:10px; align-items:center; padding:7px; border-bottom:1px solid var(--vno-border-default); }
 .vno-pivot-field:last-child { border-bottom:0; }
-.vno-name-manager{display:flex;flex-direction:column;gap:12px;min-width:520px}.vno-name-list{border:1px solid var(--vno-border-default);border-radius:6px;max-height:220px;overflow:auto}.vno-name-row{display:grid;grid-template-columns:1.2fr 1fr 1fr;width:100%;padding:8px 10px;border:0;border-bottom:1px solid var(--vno-border-default);background:transparent;text-align:left;cursor:pointer}.vno-name-row:hover,.vno-name-row.is-selected{background:#e7f4ec}.vno-name-actions{display:flex;gap:8px}.vno-name-form{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.vno-name-form label{display:flex;flex-direction:column;gap:4px;font-size:12px}.vno-name-form input,.vno-name-form select{padding:7px;border:1px solid var(--vno-border-default);border-radius:4px}.vno-name-empty{padding:18px;text-align:center;color:var(--vno-text-secondary)}
+.vno-name-manager{display:flex;flex-direction:column;gap:12px;min-width:520px}.vno-name-list{border:1px solid var(--vno-border-default);border-radius:6px;max-height:220px;overflow:auto}.vno-name-row{display:grid;grid-template-columns:1.2fr 1fr 1fr;width:100%;padding:8px 10px;border:0;border-bottom:1px solid var(--vno-border-default);background:transparent;text-align:left;cursor:pointer}.vno-name-row:hover,.vno-name-row.is-selected{background:var(--vno-sheet-light);color:var(--vno-text-primary)}.vno-name-actions{display:flex;gap:8px}.vno-name-form{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.vno-name-form label{display:flex;flex-direction:column;gap:4px;font-size:12px}.vno-name-form input,.vno-name-form select{background-color:var(--vno-bg-surface);color:var(--vno-text-primary);padding:7px;border:1px solid var(--vno-border-default);border-radius:4px}.vno-name-empty{padding:18px;text-align:center;color:var(--vno-text-secondary)}
 
 /* ==========================================================================
    FORMAT CELLS DIALOG (CTRL+1) MICROINTERACTIONS
@@ -652,7 +666,7 @@ tr.is-filtered-out {
   padding: 8px 14px;
   font-size: 12px;
   font-weight: 500;
-  color: #475569;
+  color: var(--vno-text-muted);
   background: transparent;
   border: 1px solid transparent;
   border-bottom: none;
@@ -662,15 +676,15 @@ tr.is-filtered-out {
   user-select: none;
 }
 .vno-fc-tab:hover:not([aria-disabled="true"]) {
-  background-color: #ffffff;
-  color: #0f6d38;
+  background-color: var(--vno-bg-surface);
+  color: var(--vno-sheet-primary);
 }
 .vno-fc-tab.is-active {
-  color: #0f6d38 !important;
+  color: var(--vno-sheet-primary) !important;
   font-weight: 600;
-  background-color: #ffffff !important;
-  border: 1px solid #cbd5e1;
-  border-bottom-color: #ffffff;
+  background-color: var(--vno-bg-window) !important;
+  border: 1px solid var(--vno-border-default);
+  border-bottom-color: var(--vno-bg-window);
   margin-bottom: -1px;
 }
 .vno-fc-tab[aria-disabled="true"] {
@@ -679,7 +693,7 @@ tr.is-filtered-out {
 }
 .vno-fc-tab[aria-disabled="true"]:hover {
   background-color: transparent !important;
-  color: #475569 !important;
+  color: var(--vno-text-muted) !important;
 }
 
 .vno-fc-cat-item {
@@ -688,24 +702,24 @@ tr.is-filtered-out {
   cursor: pointer;
   border-radius: 4px;
   user-select: none;
-  color: #1e293b;
+  color: var(--vno-text-primary);
   background-color: transparent;
   transition: background-color 0.12s ease, color 0.12s ease;
 }
 .vno-fc-cat-item:hover:not(.is-selected) {
-  background-color: #f1f5f9;
-  color: #0f172a;
+  background-color: var(--vno-bg-hover);
+  color: var(--vno-text-primary);
 }
 .vno-fc-cat-item:active {
   transform: scale(0.98);
 }
 .vno-fc-cat-item.is-selected {
-  background-color: #e7f4ec;
-  color: #0f6d38;
+  background-color: var(--vno-sheet-light);
+  color: var(--vno-sheet-primary);
   font-weight: 600;
 }
 .vno-fc-cat-item:focus-visible {
-  outline: 2px solid #0f6d38;
+  outline: 2px solid var(--vno-sheet-primary);
   outline-offset: -1px;
 }
 
@@ -716,14 +730,14 @@ tr.is-filtered-out {
   font-size: 12px;
   cursor: pointer;
   border-radius: 3px;
-  color: #1e293b;
+  color: var(--vno-text-primary);
   background-color: transparent;
   transition: background-color 0.12s ease, color 0.12s ease;
 }
 .vno-fc-neg-item:hover:not(.is-selected),
 .vno-fc-date-item:hover:not(.is-selected),
 .vno-fc-pattern-item:hover:not(.is-selected) {
-  background-color: #f1f5f9;
+  background-color: var(--vno-bg-hover);
 }
 .vno-fc-neg-item:active,
 .vno-fc-date-item:active,
@@ -733,8 +747,8 @@ tr.is-filtered-out {
 .vno-fc-neg-item.is-selected,
 .vno-fc-date-item.is-selected,
 .vno-fc-pattern-item.is-selected {
-  background-color: #e7f4ec;
-  color: #0f6d38;
+  background-color: var(--vno-sheet-light);
+  color: var(--vno-sheet-primary);
   font-weight: 600;
 }
 
@@ -753,7 +767,7 @@ tr.is-filtered-out {
   transform: scale(0.96);
 }
 .vno-fc-cancel-btn:hover {
-  background-color: #f1f5f9 !important;
+  background-color: var(--vno-bg-hover) !important;
 }
 .vno-fc-ok-btn:hover {
   background-color: #0d5c2f !important;
