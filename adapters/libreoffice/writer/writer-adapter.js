@@ -892,6 +892,73 @@ export class WriterAdapter {
     return pageCss;
   }
 
+  _lengthToMm(raw) {
+    const match = String(raw || "").trim().match(/^([\d.]+)\s*(cm|mm|in)?$/i);
+    if (!match) return null;
+    const value = Number(match[1]);
+    if (!Number.isFinite(value)) return null;
+    const unit = (match[2] || "mm").toLowerCase();
+    if (unit === "cm") return value * 10;
+    if (unit === "in") return value * 25.4;
+    return value;
+  }
+
+  _pageSetupFromImportedCss(html) {
+    const block = String(html || "").match(/@page\s*\{([^}]+)\}/i)?.[1];
+    if (!block) return null;
+    const setup = { margins: {} };
+    const sizeMatch = block.match(/size:\s*([\d.]+(?:cm|mm|in))\s+([\d.]+(?:cm|mm|in))/i);
+    if (sizeMatch) {
+      const widthMm = this._lengthToMm(sizeMatch[1]);
+      const heightMm = this._lengthToMm(sizeMatch[2]);
+      if (widthMm && heightMm) {
+        setup.orientation = widthMm > heightMm ? "landscape" : "portrait";
+        const portraitW = setup.orientation === "landscape" ? heightMm : widthMm;
+        const portraitH = setup.orientation === "landscape" ? widthMm : heightMm;
+        if (Math.abs(portraitW - 210) < 8 && Math.abs(portraitH - 297) < 8) setup.size = "a4";
+        else if (Math.abs(portraitW - 216) < 8 && Math.abs(portraitH - 279) < 8) setup.size = "letter";
+        else if (Math.abs(portraitW - 216) < 8 && Math.abs(portraitH - 356) < 8) setup.size = "legal";
+      }
+    }
+    const marginMap = { top: /margin-top:\s*([^;]+)/i, bottom: /margin-bottom:\s*([^;]+)/i, left: /margin-left:\s*([^;]+)/i, right: /margin-right:\s*([^;]+)/i };
+    for (const [side, regex] of Object.entries(marginMap)) {
+      const mm = this._lengthToMm(block.match(regex)?.[1]);
+      if (mm != null) setup.margins[side] = Math.round(mm);
+    }
+    return setup;
+  }
+
+  /**
+   * LibreOffice HTML (StarWriter) emits a full HTML document. Outline-level
+   * Heading 1 is also wrapped as `<ol><li><h1>` — unwrap so Writer keeps h1
+   * instead of a numbered list / Normal paragraph.
+   */
+  _normalizeImportedHtml(raw) {
+    let html = String(raw || "");
+    const page = this._pageSetupFromImportedCss(html);
+    const bodyMatch = html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
+    if (bodyMatch) html = bodyMatch[1];
+
+    html = html.replace(
+      /<(ol|ul)\b[^>]*>\s*<li\b[^>]*>\s*(<h[1-6]\b[^>]*>[\s\S]*?<\/h[1-6]>)\s*<\/li>\s*<\/\1>/gi,
+      "$2"
+    );
+
+    const headerMatch = html.match(/<div\s+title=["']header["'][^>]*>([\s\S]*?)<\/div>/i);
+    const footerMatch = html.match(/<div\s+title=["']footer["'][^>]*>([\s\S]*?)<\/div>/i);
+    let header = "";
+    let footer = "";
+    if (headerMatch) {
+      header = headerMatch[1].trim();
+      html = html.replace(headerMatch[0], "");
+    }
+    if (footerMatch) {
+      footer = footerMatch[1].trim();
+      html = html.replace(footerMatch[0], "");
+    }
+    return { body: html.trim(), header, footer, page };
+  }
+
   async _showPageSetupDialog(focusField = "size") {
     if (typeof document === "undefined" || !document.body) return null;
 
@@ -3077,29 +3144,24 @@ export class WriterAdapter {
       this.trackChangesEnabled = false;
       this.activeCommentId = null;
       this._renderCommentsPanel();
-      const raw = result.content || "";
-      const headerMatch = raw.match(/<div\s+title=["']header["'][^>]*>([\s\S]*?)<\/div>/i);
-      const footerMatch = raw.match(/<div\s+title=["']footer["'][^>]*>([\s\S]*?)<\/div>/i);
-
-      let bodyContent = raw;
-      let headerContent = "";
-      let footerContent = "";
-
-      if (headerMatch) {
-        headerContent = headerMatch[1].trim();
-        bodyContent = bodyContent.replace(headerMatch[0], "");
-      }
-      if (footerMatch) {
-        footerContent = footerMatch[1].trim();
-        bodyContent = bodyContent.replace(footerMatch[0], "");
+      const imported = this._normalizeImportedHtml(result.content || "");
+      if (imported.page) {
+        this.pageSetup = {
+          size: imported.page.size || this.pageSetup.size,
+          orientation: imported.page.orientation || this.pageSetup.orientation,
+          margins: { ...this.pageSetup.margins, ...imported.page.margins }
+        };
+        this._applyPageSetup();
       }
 
       if (this.headerDom && this.bodyDom && this.footerDom) {
-        this.headerDom.innerHTML = headerContent;
-        this.bodyDom.innerHTML = bodyContent;
-        this.footerDom.innerHTML = footerContent;
+        this.headerDom.innerHTML = imported.header;
+        this.bodyDom.innerHTML = imported.body;
+        this.footerDom.innerHTML = imported.footer;
+      } else if (this.bodyDom) {
+        this.bodyDom.innerHTML = imported.body;
       } else if (this.editorDom) {
-        this.editorDom.innerHTML = raw;
+        this.editorDom.innerHTML = imported.body;
       }
 
       this.documentContent = this.editorDom ? this.editorDom.innerHTML : raw;

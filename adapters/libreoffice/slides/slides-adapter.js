@@ -84,6 +84,74 @@ export class SlidesAdapter {
       .replace(/&amp;/g, "&");
   }
 
+  _odfLengthToPx(raw) {
+    const match = String(raw || "").trim().match(/^(-?[\d.]+)\s*(cm|mm|in|pt|px)?$/i);
+    if (!match) return 0;
+    const value = Number(match[1]);
+    if (!Number.isFinite(value)) return 0;
+    const unit = (match[2] || "cm").toLowerCase();
+    const pxPerUnit = { cm: 37.795275591, mm: 3.7795275591, in: 96, pt: 96 / 72, px: 1 };
+    return Math.round(value * (pxPerUnit[unit] || pxPerUnit.cm));
+  }
+
+  _parseGraphicFillStyles(xmlText) {
+    const styles = new Map();
+    const regex = /<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi;
+    let match;
+    while ((match = regex.exec(xmlText)) !== null) {
+      if (!/style:family=["']graphic["']/i.test(match[1])) continue;
+      const name = match[1].match(/style:name=["']([^"']+)["']/i)?.[1];
+      if (!name) continue;
+      const fill = match[2].match(/draw:fill-color=["']([^"']+)["']/i)?.[1];
+      const fillKind = match[2].match(/draw:fill=["']([^"']+)["']/i)?.[1];
+      styles.set(name, fillKind === "none" ? "transparent" : (fill || "#3b82f6"));
+    }
+    return styles;
+  }
+
+  _paragraphsFromXml(xml) {
+    const paragraphs = [];
+    const regex = /<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi;
+    let match;
+    while ((match = regex.exec(xml)) !== null) {
+      const clean = this._unescapeXml(match[1].replace(/<[^>]+>/g, "")).trim();
+      if (clean && clean !== "<number>" && !clean.startsWith("<")) paragraphs.push(clean);
+    }
+    return paragraphs;
+  }
+
+  _frameParagraphsByClass(pageXml, className) {
+    const frames = [];
+    const regex = /<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi;
+    let match;
+    while ((match = regex.exec(pageXml)) !== null) {
+      const cls = match[1].match(/presentation:class=["']([^"']+)["']/i)?.[1];
+      if (cls === className) frames.push(this._paragraphsFromXml(match[2]));
+    }
+    return frames.flat();
+  }
+
+  _parseDrawShape(tagName, attrs, inner, graphicStyles) {
+    const get = (name) => attrs.match(new RegExp(`${name}=["']([^"']*)["']`, "i"))?.[1] || "";
+    const geomType = inner.match(/draw:type=["']([^"']+)["']/i)?.[1] || tagName;
+    let type = "rect";
+    if (/ellipse|circle/i.test(geomType) || tagName === "ellipse" || tagName === "circle") type = "ellipse";
+    else if (/arrow/i.test(geomType)) type = "arrow";
+    const styleName = get("draw:style-name");
+    const color = get("draw:fill-color") || graphicStyles.get(styleName) || "#3b82f6";
+    return {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      type,
+      x: this._odfLengthToPx(get("svg:x")),
+      y: this._odfLengthToPx(get("svg:y")),
+      w: this._odfLengthToPx(get("svg:width")) || 200,
+      h: this._odfLengthToPx(get("svg:height")) || 120,
+      color,
+      text: this._paragraphsFromXml(inner).join("\n"),
+      animation: { type: "none", duration: 500, delay: 0 }
+    };
+  }
+
   /**
    * Chuyển đổi toàn bộ slide hiện tại thành định dạng OpenDocument Flat XML (FODP).
    * LibreOffice Impress có thể chuyển đổi FODP trực tiếp sang PPTX, ODP hoặc PDF.
@@ -184,115 +252,47 @@ export class SlidesAdapter {
 
   /**
    * Phân tích nội dung FODP XML thành danh sách slide.
-   * Hỗ trợ cả trình duyệt (DOMParser) và môi trường Node.js (regex fallback).
+   * Dùng parser chuỗi thống nhất (Node và trình duyệt) vì CSS selector của
+   * DOMParser dễ khớp nhầm `draw:page-thumbnail` và placeholder master-page.
    */
   parseFodp(xmlText) {
     if (!xmlText) return [];
     const parsedSlides = [];
+    const graphicStyles = this._parseGraphicFillStyles(xmlText);
 
-    // 1. Phân tích qua DOMParser nếu có (môi trường Browser / WebView2)
-    if (typeof DOMParser !== "undefined") {
-      try {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(xmlText, "text/xml");
-        const pages = doc.querySelectorAll("page, draw\\:page");
-        if (pages && pages.length > 0) {
-          pages.forEach((page, idx) => {
-            const pageLayout = page.getAttribute("presentation:layout") || "title-content";
-            let notesText = "";
-            const notesEl = page.querySelector("presentation\\:notes, notes");
-            if (notesEl) {
-              const notesParas = [];
-              notesEl.querySelectorAll("p, text\\:p").forEach((p) => {
-                const txt = (p.textContent || "").trim();
-                if (txt && !txt.startsWith("<")) notesParas.push(txt);
-              });
-              notesText = notesParas.join("\n");
-              notesEl.parentNode?.removeChild(notesEl);
-            }
-
-            const frames = page.querySelectorAll("draw\\:frame, frame");
-            let title = `Trang chiếu ${idx + 1}`;
-            let body = "";
-            let body2 = undefined;
-
-            if (pageLayout === "blank") {
-              title = "";
-              body = "";
-            } else if (pageLayout === "title-only") {
-              const pEls = page.querySelectorAll("p, text\\:p");
-              if (pEls.length > 0) title = (pEls[0].textContent || "").trim();
-              body = "";
-            } else if (pageLayout === "two-content" && frames.length >= 3) {
-              const f0Paras = [];
-              frames[0].querySelectorAll("p, text\\:p").forEach(p => f0Paras.push((p.textContent || "").trim()));
-              title = f0Paras.filter(Boolean).join(" ") || `Trang chiếu ${idx + 1}`;
-
-              const f1Paras = [];
-              frames[1].querySelectorAll("p, text\\:p").forEach(p => f1Paras.push((p.textContent || "").trim()));
-              body = f1Paras.filter(Boolean).join("\n");
-
-              const f2Paras = [];
-              frames[2].querySelectorAll("p, text\\:p").forEach(p => f2Paras.push((p.textContent || "").trim()));
-              body2 = f2Paras.filter(Boolean).join("\n");
-            } else {
-              const paragraphs = [];
-              const pEls = page.querySelectorAll("p, text\\:p");
-              pEls.forEach((p) => {
-                const txt = (p.textContent || "").trim();
-                if (txt && !txt.startsWith("<")) {
-                  paragraphs.push(txt);
-                }
-              });
-              title = paragraphs.length > 0 ? paragraphs[0] : `Trang chiếu ${idx + 1}`;
-              body = paragraphs.length > 1 ? paragraphs.slice(1).join("\n") : "";
-            }
-
-            parsedSlides.push({
-              id: Date.now() + idx,
-              title,
-              body,
-              body2,
-              layoutType: pageLayout,
-              shapes: [],
-              notes: notesText
-            });
-          });
-          if (parsedSlides.length > 0) return parsedSlides;
-        }
-      } catch (e) {
-        console.warn("[SlidesAdapter] Lỗi phân tích DOMParser, chuyển sang regex fallback:", e);
-      }
-    }
-
-    // 2. Fallback regex parser (hoạt động tốt cả trong Node test runner)
-    const pageRegex = /<draw:page[^>]*>([\s\S]*?)<\/draw:page>/gi;
+    // Negative lookahead: do not match draw:page-thumbnail / page-number placeholders.
+    const pageRegex = /<draw:page(?![-a-zA-Z])([^>]*)>([\s\S]*?)<\/draw:page>/gi;
     let pageMatch;
     let idx = 0;
     while ((pageMatch = pageRegex.exec(xmlText)) !== null) {
       idx++;
-      const fullPageTag = pageMatch[0].match(/<draw:page[^>]*>/i)?.[0] || "";
+      const fullPageTag = pageMatch[1] || "";
       const layoutMatch = fullPageTag.match(/presentation:layout=["']([^"']+)["']/i);
       const pageLayout = layoutMatch ? layoutMatch[1] : "title-content";
-      let pageContent = pageMatch[1];
+      let pageContent = pageMatch[2];
 
       let notesText = "";
       const notesRegex = /<presentation:notes[^>]*>([\s\S]*?)<\/presentation:notes>/i;
       const notesMatch = notesRegex.exec(pageContent);
       if (notesMatch) {
-        const notesContent = notesMatch[1];
-        const npRegex = /<text:p[^>]*>([\s\S]*?)<\/text:p>/gi;
-        const nParas = [];
-        let npm;
-        while ((npm = npRegex.exec(notesContent)) !== null) {
-          const cleanText = npm[1].replace(/<[^>]+>/g, "").trim();
-          if (cleanText && !cleanText.startsWith("<")) {
-            nParas.push(this._unescapeXml(cleanText));
-          }
-        }
-        notesText = nParas.join("\n");
+        notesText = this._paragraphsFromXml(notesMatch[1]).join("\n");
         pageContent = pageContent.replace(notesRegex, "");
       }
+
+      const shapes = [];
+      const shapeRegex = /<draw:(rect|ellipse|circle|custom-shape|polygon)\b([^>]*)>([\s\S]*?)<\/draw:\1>/gi;
+      let shapeMatch;
+      const shapeBlocks = [];
+      while ((shapeMatch = shapeRegex.exec(pageContent)) !== null) {
+        shapes.push(this._parseDrawShape(shapeMatch[1], shapeMatch[2], shapeMatch[3], graphicStyles));
+        shapeBlocks.push(shapeMatch[0]);
+      }
+      for (const block of shapeBlocks) pageContent = pageContent.replace(block, "");
+
+      const titleParas = this._frameParagraphsByClass(pageContent, "title");
+      const subtitleParas = this._frameParagraphsByClass(pageContent, "subtitle");
+      const outlineParas = this._frameParagraphsByClass(pageContent, "outline");
+      const hasPlaceholderClasses = titleParas.length > 0 || subtitleParas.length > 0 || outlineParas.length > 0;
 
       let title = `Trang chiếu ${idx}`;
       let body = "";
@@ -301,6 +301,9 @@ export class SlidesAdapter {
       if (pageLayout === "blank") {
         title = "";
         body = "";
+      } else if (hasPlaceholderClasses) {
+        title = titleParas.filter(Boolean).join(" ");
+        body = subtitleParas.length ? subtitleParas.join("\n") : outlineParas.join("\n");
       } else if (pageLayout === "two-content") {
         const frameRegex = /<draw:frame[^>]*>([\s\S]*?)<\/draw:frame>/gi;
         const frames = [];
@@ -352,7 +355,7 @@ export class SlidesAdapter {
         body,
         body2,
         layoutType: pageLayout,
-        shapes: [],
+        shapes,
         notes: notesText
       });
     }
