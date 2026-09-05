@@ -513,11 +513,7 @@ export class SheetGridController {
         } else {
           res = this.formulaEngine.evaluate(itm.formula);
         }
-        if (typeof res === "number" && !itm.formula.toLowerCase().includes("count") && !itm.formula.toLowerCase().includes("len")) {
-          itm.val = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(res);
-        } else {
-          itm.val = res;
-        }
+        itm.val = res;
         const dom = sheetName === prevActive ? this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`) : null;
         if (dom) {
           const [cCoord, rCoord] = this._splitCoord(k);
@@ -1903,12 +1899,16 @@ export class SheetGridController {
 
     if (typeof val === "string" && val.startsWith("=")) {
       item.formula = val;
-      const calculated = this.formulaEngine.evaluate(val);
-      if (typeof calculated === "number" && !val.toLowerCase().includes("count") && !val.toLowerCase().includes("len")) {
-        item.val = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(calculated);
-      } else {
-        item.val = calculated;
-      }
+      // Store the raw computed value (number, string, or #ERROR!). Do NOT
+      // pre-format as VNĐ currency text here: that both destroys precision
+      // for non-money formulas (percentages, ratios, statistics...) and
+      // corrupts any later formula that references this cell, because
+      // getCellValue()'s Vietnamese-currency-string parser strips "." as a
+      // thousands separator - which mangles a formatted decimal string back
+      // into the wrong number. Display formatting belongs solely to
+      // NumberFormatter at render time, driven by the cell's actual
+      // numberFormat (General by default, Currency only if the user set it).
+      item.val = this.formulaEngine.evaluate(val);
     } else {
       item.formula = "";
       item.val = NumberFormatter.normalizeInputForFormat(val, item.style?.numberFormat);
@@ -1944,11 +1944,12 @@ export class SheetGridController {
           const coords = this.formulaEngine.expandRange(itm.arrayRange);
           res = Array.isArray(results) ? results[coords.indexOf(k)] : results;
         } else res = this.formulaEngine.evaluate(itm.formula);
-        if (typeof res === "number" && !itm.formula.toLowerCase().includes("count")) {
-          itm.val = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(res);
-        } else {
-          itm.val = res;
-        }
+        // Store the raw computed value - see setCellValue() for why
+        // auto-formatting a formula result as VNĐ currency text here is
+        // wrong (destroys precision and corrupts any formula chain that
+        // references this cell). Display formatting is NumberFormatter's
+        // job at render time, driven by the cell's actual numberFormat.
+        itm.val = res;
         const dom = sheetName === activeSheet ? this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`) : null;
         if (dom) {
           const [cCoord, rCoord] = this._splitCoord(k);
@@ -3269,12 +3270,7 @@ export class SheetGridController {
 
         if (sourceCell.formula && sourceCell.formula.startsWith("=")) {
           newFormula = this._offsetFormula(sourceCell.formula, 0, deltaRow);
-          const calculated = this.formulaEngine.evaluate(newFormula);
-          if (typeof calculated === "number" && !newFormula.toLowerCase().includes("count") && !newFormula.toLowerCase().includes("len")) {
-            newVal = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(calculated);
-          } else {
-            newVal = calculated;
-          }
+          newVal = this.formulaEngine.evaluate(newFormula);
         } else {
           newFormula = "";
           newVal = sourceCell.val;
@@ -3351,12 +3347,7 @@ export class SheetGridController {
 
         if (sourceCell.formula && sourceCell.formula.startsWith("=")) {
           newFormula = this._offsetFormula(sourceCell.formula, deltaCol, 0);
-          const calculated = this.formulaEngine.evaluate(newFormula);
-          if (typeof calculated === "number" && !newFormula.toLowerCase().includes("count") && !newFormula.toLowerCase().includes("len")) {
-            newVal = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(calculated);
-          } else {
-            newVal = calculated;
-          }
+          newVal = this.formulaEngine.evaluate(newFormula);
         } else {
           newFormula = "";
           newVal = sourceCell.val;
@@ -5569,7 +5560,7 @@ export class SheetGridController {
         else if (itm.style?.textAlign) td.style.textAlign = itm.style.textAlign;
       }
     } else {
-      td.textContent = itm.val ?? "";
+      td.textContent = typeof itm.val === "number" ? NumberFormatter.formatGeneralNumber(itm.val) : (itm.val ?? "");
     }
   }
 }

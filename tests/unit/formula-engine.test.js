@@ -268,5 +268,39 @@ export async function runFormulaEngineTests() {
           engine.evaluate('=DATEDIF("2024-03-10","2020-01-15","md")') === "#NUM!"
   });
 
+  // 24. Bug thật đã sửa: kết quả công thức KHÔNG được làm tròn 2 chữ số
+  // thập phân ở tầng tính toán (trước đây _evaluateArithmetic/AVERAGE tự
+  // Math.round(x*100)/100, cắt cụt 1/3 thành 0.33 và làm sai mọi công thức
+  // tham chiếu tiếp). Excel giữ nguyên độ chính xác double đầy đủ khi tính,
+  // nên (1/3)*3 phải ra đúng 1, không phải 0.99 hay giá trị bị khuếch đại.
+  results.push({
+    name: "Bug thật: giá trị công thức giữ nguyên độ chính xác double, không bị làm tròn 2 chữ số ở tầng tính toán",
+    pass: (() => {
+      const chainCells = new Map();
+      chainCells.set("Z1", { val: "", formula: "=1/3", style: {} });
+      const chainEngine = new FormulaEngine(chainCells);
+      const z1 = chainEngine.evaluate("=1/3");
+      chainCells.get("Z1").val = z1; // mô phỏng đúng luồng setCellValue lưu kết quả thô
+      const z2 = chainEngine.evaluate("=Z1*3");
+      return z1 === 1 / 3 && z2 === 1 &&
+        chainEngine.evaluate("=123.456789") === 123.456789 &&
+        chainEngine.evaluate("=AVERAGE(0.1,0.2)") === (0.1 + 0.2) / 2;
+    })()
+  });
+
+  // 25. Bug thật đã sửa: getCellValue() không được coi số thực (vd 0.333...)
+  // là chuỗi tiền tệ VNĐ rồi xóa dấu "." tưởng là dấu phân cách hàng nghìn
+  // (0.333333333333333 -> "0333333333333333" -> 333333333333333).
+  results.push({
+    name: "Bug thật: getCellValue không hiểu nhầm dấu chấm thập phân của số là dấu phân cách hàng nghìn VNĐ",
+    pass: (() => {
+      const numCells = new Map();
+      numCells.set("Y1", { val: 0.333333333333333, formula: "", style: {} });
+      const numEngine = new FormulaEngine(numCells);
+      return numEngine.getCellValue("Y1") === 0.333333333333333 &&
+        numEngine.evaluate("=Y1*3") > 0.99 && numEngine.evaluate("=Y1*3") < 1.01;
+    })()
+  });
+
   return results;
 }

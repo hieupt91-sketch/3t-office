@@ -157,6 +157,12 @@ export class FormulaEngine {
       return textVal;
     }
 
+    // Giá trị đã là số (thường do công thức tính ra) - KHÔNG được đi qua bước
+    // "làm sạch chuỗi tiền tệ" bên dưới: chuyển số thành chuỗi rồi xóa dấu "."
+    // sẽ hiểu nhầm dấu chấm thập phân là dấu phân cách hàng nghìn (0.333 ->
+    // "0333" -> 333), phá hỏng mọi công thức tham chiếu tới ô này.
+    if (typeof raw === "number") return raw;
+
     // Xử lý chuỗi tiền tệ VNĐ (vd: "25.000.000 ₫" -> loại bỏ dấu chấm hàng nghìn -> 25000000)
     const cleaned = raw.toString().replace(/\./g, "").replace(/[^\d-]/g, "");
     if (cleaned && !isNaN(Number(cleaned))) {
@@ -485,7 +491,7 @@ export class FormulaEngine {
         const nums = this.collectNumericValues(args);
         if (nums.length === 0) return 0;
         const sum = nums.reduce((acc, v) => acc + v, 0);
-        return Math.round((sum / nums.length) * 100) / 100;
+        return sum / nums.length;
       }
 
       case "MIN": {
@@ -1501,7 +1507,14 @@ export class FormulaEngine {
       try {
         // eslint-disable-next-line no-new-func
         const result = Function(`"use strict"; return (${jsExpr})`)();
-        return typeof result === "number" ? (raw ? result : Math.round(result * 100) / 100) : result;
+        // Store/return full native double precision - Excel itself does the
+        // same internally, which is exactly why (1/3)*3 evaluates to a true
+        // 1 in real Excel (and in native JS: (1/3)*3 === 1). Rounding here
+        // would only look "cleaner" for a single cell while silently
+        // corrupting any formula that references this result. Cosmetic
+        // clean-up of floating-point noise (0.1+0.2 -> "0.3") belongs solely
+        // at render time - see NumberFormatter.formatGeneralNumber().
+        return result;
       } catch {
         return "#VALUE!";
       }

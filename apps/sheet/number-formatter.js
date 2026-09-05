@@ -6,6 +6,23 @@
 
 export class NumberFormatter {
   /**
+   * Định dạng "General" chuẩn Excel: giữ nguyên độ chính xác thật của phép
+   * tính (không cắt cứng về 2 chữ số thập phân), chỉ dọn sai số biểu diễn
+   * dấu phẩy động nhị phân (vd 0.1+0.2 -> 0.30000000000000004) bằng cách
+   * giới hạn 12 chữ số có nghĩa - cùng cấp độ chính xác General format của
+   * Excel hiển thị trên cột đủ rộng, không phải làm tròn kế toán.
+   * @param {any} rawVal
+   * @returns {string}
+   */
+  static formatGeneralNumber(rawVal) {
+    if (typeof rawVal !== "number" || !Number.isFinite(rawVal)) {
+      return String(rawVal ?? "");
+    }
+    if (Number.isInteger(rawVal)) return String(rawVal);
+    return String(parseFloat(rawVal.toPrecision(12)));
+  }
+
+  /**
    * Định dạng giá trị hiển thị dựa trên cấu hình numberFormat của ô
    * @param {any} rawVal Giá trị thô của ô (số, chuỗi, Date)
    * @param {Object} [formatConfig] Cấu hình định dạng ô
@@ -17,7 +34,7 @@ export class NumberFormatter {
     }
 
     if (!formatConfig || !formatConfig.category || formatConfig.category === "general") {
-      return { text: String(rawVal) };
+      return { text: this.formatGeneralNumber(rawVal) };
     }
 
     const { category } = formatConfig;
@@ -330,7 +347,7 @@ export class NumberFormatter {
   static formatCustom(val, config = {}) {
     const pattern = config.customPattern || "General";
     if (pattern === "General") {
-      return { text: String(val) };
+      return { text: this.formatGeneralNumber(val) };
     }
 
     const num = this.parseNumber(val);

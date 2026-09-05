@@ -380,5 +380,19 @@ export async function runSheetFormulasTabTests() {
     }
   });
 
+  await test("Bug thật đã sửa: setCellValue lưu kết quả công thức thô, không tự ý format thành chuỗi tiền tệ VNĐ", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.setCellValue("A", 1, "=1/3");
+    const a1 = grid.cellsData.get("A1");
+    assert(typeof a1.val === "number", `A1 phải lưu số thô, không phải chuỗi đã format: ${JSON.stringify(a1.val)}`);
+    assert(Math.abs(a1.val - 1 / 3) < 1e-12, `A1 =1/3 phải giữ đúng độ chính xác, hiện: ${a1.val}`);
+
+    // Công thức tham chiếu tiếp phải tính đúng dây chuyền (trước đây bị
+    // getCellValue hiểu nhầm số thập phân là chuỗi tiền tệ, phá vỡ chuỗi).
+    grid.setCellValue("B", 1, "=A1*3");
+    const b1 = grid.cellsData.get("B1");
+    assert(Math.abs(b1.val - 1) < 1e-9, `B1 =A1*3 phải ra đúng 1 (khớp Excel/JS double), hiện: ${b1.val}`);
+  });
+
   return results;
 }
