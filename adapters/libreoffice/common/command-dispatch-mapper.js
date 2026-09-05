@@ -199,6 +199,7 @@ export const VN_TO_UNO_MAP = {
   "sheet.data.textToColumns": ".uno:TextToColumns",
   "sheet.data.flashFill": ".uno:FillSeries",
   "sheet.data.removeDuplicates": ".uno:DataFilterRemoveFilter",
+  "sheet.data.consolidate": ".uno:DataConsolidate",
   "sheet.data.group": ".uno:Group",
   "sheet.data.ungroup": ".uno:Ungroup",
   "sheet.data.subtotal": ".uno:DataSubTotals",

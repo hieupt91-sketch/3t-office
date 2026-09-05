@@ -794,6 +794,21 @@ export const SHEET_HELP_ENTRIES = [
       "Nếu phần đang gạch chân là một ô khác có công thức riêng, nút Bước vào mở công thức của ô đó. Bước ra trở về công thức đang ước lượng. Khởi động lại đưa về công thức gốc. Đóng hoặc Esc tắt hộp — không ghi gì vào ô, không tạo Undo.",
       "Dòng «Giá trị hiện tại của ô» dùng để đối chiếu: khi ước lượng xong, kết quả cuối phải khớp giá trị đang hiện trên lưới. Ô không có công thức thì hộp báo «Ô đang chọn không chứa công thức» và chỉ còn nút Đóng. Độ chi tiết: bước theo nhóm hàm/so sánh/nhánh IF/phép toán, không thay từng token ô lẻ như Excel đầy đủ."
     ]
+  },
+  {
+    id: "sheet.data.consolidate",
+    app: "sheet",
+    commandIds: ["sheet.data.consolidate"],
+    title: "Hợp nhất dữ liệu (Consolidate)",
+    summary: "Gộp nhiều vùng số từ các trang tính khác nhau trong cùng workbook thành một bảng tổng hợp tại ô đang chọn, dùng SUM / AVERAGE / COUNT / MAX / MIN. Có thể gộp theo vị trí (cùng offset) hoặc theo nhãn hàng trên / cột trái.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Công cụ dữ liệu" },
+    keywords: ["hợp nhất", "consolidate", "gộp dữ liệu", "tổng hợp nhiều sheet", "sum nhiều trang", "nhãn hàng trên", "cột trái", "dữ liệu"],
+    steps: [
+      "Chuẩn bị dữ liệu nguồn trên ít nhất hai trang tính (ví dụ «Dự toán chi phí» A1:B5 và «Kế hoạch Q3» A1:B5). Chuyển sang trang đích, chọn ô góc trên-trái nơi muốn đặt bảng tổng (ví dụ «Nhân sự»!A1).",
+      "Mở tab Dữ liệu, nhóm Công cụ dữ liệu — nút Hợp nhất dữ liệu nằm cạnh Tách văn bản, Điền nhanh và Xóa trùng lặp. Hộp «Hợp nhất dữ liệu» hiện hàm (mặc định SUM), ô nhập Tham chiếu, danh sách Tất cả tham chiếu, và hai hộp nhãn.",
+      "Nhập vùng dạng TênTrang!A1:B5 rồi nhấn Thêm (hoặc Enter). Có thể lấy từ trang khác: nhấn Duyệt, hộp thu nhỏ, bấm chọn ô thật trên lưới (được phép đổi tab trang tính), nhấn Chọn, rồi Thêm. Xóa bỏ tham chiếu đang chọn trong danh sách bằng nút Xóa. Lặp cho từng vùng nguồn.",
+      "Không tick nhãn: gộp theo vị trí — mọi vùng phải cùng số hàng và số cột; ô cùng offset được đưa vào hàm. Tick «Nhãn ở hàng trên» và/hoặc «Nhãn ở cột trái»: gộp theo nhãn (không phân biệt hoa thường sau khi xóa khoảng trắng); trục không có nhãn vẫn theo vị trí và yêu cầu cùng kích thước. Nhấn Đồng ý: engine tính SUM/AVERAGE/COUNT/MAX/MIN thật rồi ghi giá trị tĩnh vào ô đích. Ctrl+Z / Ctrl+Y hoàn tác hoặc làm lại cả khối. Không gộp file workbook khác; không tạo liên kết công thức về nguồn."
+    ]
   }
 ];
 

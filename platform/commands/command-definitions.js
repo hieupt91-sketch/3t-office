@@ -256,6 +256,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.data.textToColumns", category: "data", label: "Tách văn bản", icon: "table", tooltip: "Tách một cột theo dấu phân cách hoặc độ rộng cố định" },
   { id: "sheet.data.flashFill", category: "data", label: "Điền nhanh", icon: "autoSum", tooltip: "Điền theo mẫu từ ví dụ ở cột kế bên" },
   { id: "sheet.data.removeDuplicates", category: "data", label: "Xóa trùng lặp", icon: "clearFormat", tooltip: "Xóa hàng trùng theo các cột được chọn" },
+  { id: "sheet.data.consolidate", category: "data", label: "Hợp nhất dữ liệu", icon: "consolidate", tooltip: "Gộp dữ liệu từ nhiều vùng hoặc trang tính thành một bảng tổng hợp" },
   { id: "sheet.data.group", category: "data", label: "Nhóm", icon: "indentInc", tooltip: "Nhóm các hàng hoặc cột liên tiếp đang chọn" },
   { id: "sheet.data.ungroup", category: "data", label: "Bỏ nhóm", icon: "indentDec", tooltip: "Bỏ nhóm hàng hoặc cột đang chọn" },
   { id: "sheet.data.subtotal", category: "data", label: "Tổng phụ", icon: "autoSum", tooltip: "Chèn tổng phụ theo nhóm và tổng cộng cuối bảng" },
