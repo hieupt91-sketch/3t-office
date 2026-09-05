@@ -32,7 +32,7 @@
   z-index: 10;
 }
 .vno-ruler-track {
-  width: 794px;
+  width: var(--vno-page-width, 794px);
   height: 100%;
   background-color: #ffffff;
   border-left: 1px solid #94a3b8;
@@ -48,7 +48,7 @@
 }
 .vno-ruler-marker-left {
   position: absolute;
-  left: 113px; /* Lề trái 30mm (~113px) */
+  left: var(--vno-margin-left, 113px);
   top: 0;
   width: 0;
   height: 0;
@@ -58,7 +58,7 @@
 }
 .vno-ruler-marker-right {
   position: absolute;
-  right: 56px; /* Lề phải 15mm (~56px) */
+  right: var(--vno-margin-right, 56px);
   top: 0;
   width: 0;
   height: 0;
@@ -78,6 +78,27 @@
   align-items: center;
   gap: 30px;
 }
+
+.vno-writer-viewport::after { content: ""; flex: 0 0 max(0px, calc(var(--vno-writer-scaled-height, 1123px) - 1123px)); }
+.vno-writer-gridlines .vno-writer-page {
+  background-image: linear-gradient(rgba(37, 99, 235, 0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(37, 99, 235, 0.09) 1px, transparent 1px);
+  background-size: 18.8976px 18.8976px;
+}
+.vno-writer-web-layout .vno-writer-ruler { display: none; }
+.vno-writer-web-layout .vno-writer-viewport { padding: 0; align-items: stretch; }
+.vno-writer-web-layout .vno-writer-page { width: 100% !important; min-height: 100%; padding: 38px clamp(32px, 8vw, 128px) !important; box-shadow: none; border-radius: 0; }
+.vno-writer-web-layout .vno-page-auto-gap,
+.vno-writer-web-layout .vno-writer-header,
+.vno-writer-web-layout .vno-writer-footer,
+.vno-writer-web-layout .vno-writer-page::before,
+.vno-writer-web-layout .vno-writer-page::after { display: none; }
+.vno-writer-read-toolbar { height: 42px; flex: 0 0 42px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; color: #fff; background: #0f4c81; font: 600 13px/1 "Segoe UI", sans-serif; }
+.vno-writer-read-toolbar button { border: 1px solid rgba(255,255,255,.55); border-radius: 4px; padding: 5px 10px; color: #fff; background: transparent; cursor: pointer; }
+.vno-writer-read-toolbar button:focus-visible { outline: 2px solid #f5b800; outline-offset: 2px; }
+.vno-writer-read-mode > .vno-topbar,
+.vno-writer-read-mode .vno-ribbon,
+.vno-writer-read-mode > .vno-statusbar { display: none !important; }
+.vno-writer-read-layout .vno-writer-viewport { padding-top: 18px; }
 
 /* Ghi chú lề trang — panel riêng, không dùng chung state/UI với AI Sidebar. */
 .vno-writer-comments-panel {

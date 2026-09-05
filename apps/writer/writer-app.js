@@ -9,6 +9,7 @@ import { bootstrapPlatform } from "../../platform/bootstrap.js";
 import { createStyleGalleryStrip } from "./style-gallery.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
+import { WriterViewController } from "./writer-view-controller.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -17,6 +18,7 @@ export class WriterApp {
     this.adapter = null;
     this.canvas = null;
     this._lifecycleObserver = null;
+    this.viewController = null;
   }
 
   async init(options = {}) {
@@ -159,6 +161,14 @@ export class WriterApp {
     this.adapter.setCommentsPanel(commentsPanel);
     this.adapter.setShell(this.shell);
     this.adapter.attach();
+
+    this.viewController = new WriterViewController({
+      container,
+      viewport,
+      page: this.canvas,
+      ruler,
+      shell: this.shell
+    }).attach();
 
     this._mountStyleGalleryRibbonStrip();
     this._watchRibbonForStyleGalleryStrip();

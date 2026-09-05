@@ -872,6 +872,10 @@ export class WriterAdapter {
     this.editorDom.style.padding =
       `${(top * MM_TO_PX).toFixed(1)}px ${(right * MM_TO_PX).toFixed(1)}px ` +
       `${(bottom * MM_TO_PX).toFixed(1)}px ${(left * MM_TO_PX).toFixed(1)}px`;
+    const viewContainer = this.editorDom.closest?.(".vno-writer-container");
+    viewContainer?.style?.setProperty("--vno-page-width", (widthMm * MM_TO_PX).toFixed(1) + "px");
+    viewContainer?.style?.setProperty("--vno-margin-left", (left * MM_TO_PX).toFixed(1) + "px");
+    viewContainer?.style?.setProperty("--vno-margin-right", (right * MM_TO_PX).toFixed(1) + "px");
   }
 
   /**

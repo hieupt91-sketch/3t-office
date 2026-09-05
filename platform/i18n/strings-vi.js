@@ -294,6 +294,17 @@ export const viStrings = {
     "writer.page.watermark": { label: "Hình mờ", tooltip: "Thiết lập hoặc xóa hình mờ văn bản (Dự thảo, Mật, Khẩn...)" },
     "writer.page.border": { label: "Viền trang", tooltip: "Thiết lập viền bao quanh trang tài liệu" },
     "writer.file.printPreview": { label: "Xem trước khi in", tooltip: "Xem trước khi in (Ctrl+F2)" },
+    "writer.view.printLayout": { label: "Bố trí in", tooltip: "Hiển thị ranh giới trang, đầu trang và chân trang" },
+    "writer.view.webLayout": { label: "Bố trí Web", tooltip: "Hiển thị nội dung liên tục theo chiều rộng cửa sổ" },
+    "writer.view.readMode": { label: "Chế độ đọc", tooltip: "Ẩn ribbon và mở rộng vùng đọc; nhấn Esc để thoát" },
+    "writer.view.ruler": { label: "Thước", tooltip: "Ẩn hoặc hiện thước ngang theo thiết lập trang" },
+    "writer.view.gridlines": { label: "Đường lưới", tooltip: "Ẩn hoặc hiện lưới căn chỉnh không in" },
+    "writer.view.zoomIn": { label: "Phóng to", tooltip: "Tăng tỉ lệ hiển thị tài liệu" },
+    "writer.view.zoomOut": { label: "Thu nhỏ", tooltip: "Giảm tỉ lệ hiển thị tài liệu" },
+    "writer.view.zoomReset": { label: "Đặt lại", tooltip: "Đặt lại tỉ lệ hiển thị 100%" },
+    "writer.view.zoom100": { label: "100%", tooltip: "Hiển thị tài liệu ở tỉ lệ 100%" },
+    "writer.view.pageWidth": { label: "Chiều rộng trang", tooltip: "Thu phóng để trang vừa chiều rộng vùng làm việc" },
+    "writer.view.newWindow": { label: "Cửa sổ mới", tooltip: "Mở tài liệu trong một cửa sổ trình duyệt mới" },
     "writer.reference.tocInsert": { label: "Mục lục tự động", tooltip: "Chèn mục lục tự động từ các tiêu đề Heading" },
     "writer.reference.tocUpdate": { label: "Cập nhật mục lục", tooltip: "Cập nhật lại mục lục tài liệu" },
     "writer.reference.footnoteInsert": { label: "Chú thích trang", tooltip: "Chèn chú thích cuối trang (Footnote) (Ctrl+Alt+F)" },
@@ -314,6 +325,7 @@ export const viStrings = {
       references: "Tham chiếu",
       mailings: "Trộn thư",
       review: "Đánh giá",
+      view: "Chế độ xem",
       ai: "Trợ lý VN AI"
     },
     group: {
@@ -344,6 +356,10 @@ export const viStrings = {
       proofread: "Chính tả & Ngữ pháp",
       comments: "Ghi chú",
       tracking: "Theo dõi thay đổi",
+      views: "Dạng xem",
+      show: "Hiển thị",
+      zoom: "Thu phóng",
+      window: "Cửa sổ",
       aiFeatures: "Tính năng AI thuần Việt"
     }
   },

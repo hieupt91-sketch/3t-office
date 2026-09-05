@@ -35,6 +35,19 @@ export const VN_TO_UNO_MAP = {
   "common.view.zoomReset": ".uno:Zoom100Percent",
   "common.view.fullScreen": ".uno:FullScreen",
 
+  // Writer / View
+  "writer.view.printLayout": ".uno:PrintLayout",
+  "writer.view.webLayout": ".uno:BrowseView",
+  "writer.view.readMode": ".uno:FullScreen",
+  "writer.view.ruler": ".uno:ShowRuler",
+  "writer.view.gridlines": ".uno:GridVisible",
+  "writer.view.zoomIn": ".uno:ZoomPlus",
+  "writer.view.zoomOut": ".uno:ZoomMinus",
+  "writer.view.zoomReset": ".uno:Zoom100Percent",
+  "writer.view.zoom100": ".uno:Zoom100Percent",
+  "writer.view.pageWidth": ".uno:ZoomPageWidth",
+  "writer.view.newWindow": ".uno:NewWindow",
+
   // Writer / Text Formatting
   "writer.text.bold": ".uno:Bold",
   "writer.nav.docStart": ".uno:StartOfDocument",

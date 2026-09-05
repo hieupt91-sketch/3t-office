@@ -295,6 +295,17 @@ export const enStrings = {
     "writer.page.watermark": { label: "Watermark", tooltip: "Add or remove a background watermark" },
     "writer.page.border": { label: "Page Borders", tooltip: "Add or change border around the page" },
     "writer.file.printPreview": { label: "Print Preview", tooltip: "Preview document before printing (Ctrl+F2)" },
+    "writer.view.printLayout": { label: "Print Layout", tooltip: "Show page boundaries, headers, and footers" },
+    "writer.view.webLayout": { label: "Web Layout", tooltip: "Flow document content continuously across the window" },
+    "writer.view.readMode": { label: "Read Mode", tooltip: "Hide the ribbon and expand the reading area; press Esc to exit" },
+    "writer.view.ruler": { label: "Ruler", tooltip: "Show or hide the ruler based on page setup" },
+    "writer.view.gridlines": { label: "Gridlines", tooltip: "Show or hide non-printing alignment gridlines" },
+    "writer.view.zoomIn": { label: "Zoom In", tooltip: "Increase document zoom" },
+    "writer.view.zoomOut": { label: "Zoom Out", tooltip: "Decrease document zoom" },
+    "writer.view.zoomReset": { label: "Reset", tooltip: "Reset document zoom to 100%" },
+    "writer.view.zoom100": { label: "100%", tooltip: "Show the document at 100%" },
+    "writer.view.pageWidth": { label: "Page Width", tooltip: "Fit the page width to the workspace" },
+    "writer.view.newWindow": { label: "New Window", tooltip: "Open the document in a new browser window" },
     "writer.reference.tocInsert": { label: "Table of Contents", tooltip: "Insert a table of contents" },
     "writer.reference.tocUpdate": { label: "Update Table", tooltip: "Update the table of contents" },
     "writer.reference.footnoteInsert": { label: "Insert Footnote", tooltip: "Add a note at the bottom of the page (Ctrl+Alt+F)" },
@@ -315,6 +326,7 @@ export const enStrings = {
       references: "References",
       mailings: "Mailings",
       review: "Review",
+      view: "View",
       ai: "VN AI Assistant"
     },
     group: {
@@ -345,6 +357,10 @@ export const enStrings = {
       proofread: "Proofing",
       comments: "Comments",
       tracking: "Tracking",
+      views: "Views",
+      show: "Show",
+      zoom: "Zoom",
+      window: "Window",
       aiFeatures: "Vietnamese AI Features"
     }
   },
