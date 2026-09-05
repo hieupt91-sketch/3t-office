@@ -702,6 +702,69 @@ tr.is-filtered-out {
   background-color: #0d5c2f !important;
 }
 
+/* ==========================================================================
+   CELL STYLES & TABLE STYLES GALLERY MICROINTERACTIONS
+   ========================================================================== */
+.vno-cell-styles-dialog .vno-dialog-box,
+.vno-format-table-dialog .vno-dialog-box {
+  animation: vnoGalleryModalFadeIn 0.15s ease-out;
+}
+@keyframes vnoGalleryModalFadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.vno-cell-style-card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  user-select: none;
+}
+.vno-cell-style-card:hover {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 3px 10px rgba(59, 130, 246, 0.16) !important;
+  transform: translateY(-1px);
+}
+.vno-cell-style-card:active {
+  transform: translateY(0) scale(0.98);
+}
+.vno-cell-style-card:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.vno-table-style-card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  user-select: none;
+}
+.vno-table-style-card:hover {
+  border-color: #2563eb !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.14) !important;
+  transform: translateY(-1px);
+}
+.vno-table-style-card:active {
+  transform: translateY(0) scale(0.98);
+}
+.vno-table-style-card:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+
 /* In tài liệu (window.print()) — ẩn formula bar & thanh tab sheet, chỉ in lưới dữ liệu */
 @media print {
   .vno-formula-bar,

@@ -323,7 +323,7 @@ export function showCellStylesDialog(gridController) {
               ].filter(Boolean).join("; ");
 
               return `
-                <button type="button" class="vno-cell-style-card" data-style-id="${preset.id}" style="display: flex; flex-direction: column; text-align: left; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 6px; background: #ffffff; cursor: pointer; transition: all 0.15s ease;" onmouseover="this.style.borderColor='#3b82f6';this.style.boxShadow='0 2px 8px rgba(59,130,246,0.15)'" onmouseout="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'">
+                <button type="button" class="vno-cell-style-card" data-style-id="${preset.id}">
                   <div style="font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 4px; text-transform: uppercase;">${name}</div>
                   <div style="padding: 6px 10px; border-radius: 4px; margin-bottom: 4px; ${cssInline}">
                     ${preset.previewText}
@@ -412,7 +412,7 @@ export function showFormatAsTableDialog(gridController) {
             ${TABLE_STYLE_PRESETS.map(preset => {
               const name = (typeof t === "function" && t(preset.nameKey) !== preset.nameKey) ? t(preset.nameKey) : preset.defaultName;
               return `
-                <button type="button" class="vno-table-style-card" data-table-id="${preset.id}" style="display: flex; flex-direction: column; text-align: left; padding: 12px; border: 1px solid #e2e8f0; border-radius: 6px; background: #ffffff; cursor: pointer; transition: all 0.15s ease;" onmouseover="this.style.borderColor='${preset.primaryColor}';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" onmouseout="this.style.borderColor='#e2e8f0';this.style.boxShadow='none'">
+                <button type="button" class="vno-table-style-card" data-table-id="${preset.id}">
                   <div style="font-size: 12px; font-weight: 600; color: #1e293b; margin-bottom: 8px;">${name}</div>
                   <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
                     <thead>
