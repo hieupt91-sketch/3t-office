@@ -954,6 +954,14 @@ export class WriterAdapter {
    * existing VN Writer `data-vno-footnote-ref` / `data-vno-endnote-ref`
    * containers so session click-to-jump, renumber, and Print Preview work.
    * No OOXML sidecar is required for this path.
+   *
+   * Complex Word tables (LibreOffice 26.2 measured): StarWriter keeps
+   * `<table>` with `rowspan` / `colspan`, per-edge `border-*` and
+   * `background` / `bgcolor` as **inline styles on td/th**. Those survive
+   * the `<body>` extract below (head CSS is only paragraph/heading). Do
+   * not flatten tables. Canvas `.vno-writer-page td` default border is a
+   * stylesheet shorthand; inline per-edge borders win, so no OOXML sidecar
+   * is required. Diagonal borders / theme-table styles are HTML limits.
    */
   _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml) {
     let html = String(raw || "");
