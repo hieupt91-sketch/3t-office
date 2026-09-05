@@ -15,6 +15,9 @@
  *
  * Slides SmartArt: LibreOffice FODP→PPTX does not emit ppt/diagrams/*. Pack
  * native DrawingML parts from src/smartart-pptx/ (see pack-slides-smartart-pptx.mjs).
+ *
+ * Slides Speaker Notes: handwritten FODP with <presentation:notes> converts
+ * to native ppt/notesSlides/notesSlideN.xml + slideN.xml.rels (measured).
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -145,6 +148,7 @@ const jobs = [
   { src: "sample-writer.fodt", ext: "docx", name: "sample-writer.docx" },
   { src: "sample-sheet.fods", ext: "xlsx", name: "sample-sheet.xlsx" },
   { src: "sample-slides.fodp", ext: "pptx", name: "sample-slides.pptx" },
+  { src: "sample-slides-notes.fodp", ext: "pptx", name: "sample-slides-notes.pptx" },
   { src: "sample-writer-image.fodt", ext: "docx", name: "sample-writer-image.docx" },
   { src: "sample-writer-trackchanges.fodt", ext: "docx", name: "sample-writer-trackchanges.docx" },
   { src: "sample-writer-comments.fodt", ext: "docx", name: "sample-writer-comments.docx" },

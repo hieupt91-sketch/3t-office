@@ -728,6 +728,19 @@ export class SlidesAdapter {
     return paragraphs;
   }
 
+  /**
+   * Speaker notes body is presentation:class="notes". soffice PPTX→FODP also
+   * emits page-thumbnail + header/footer/date-time/page-number on the notes
+   * master (sometimes inlined on the page). Those must not become slide.notes.
+   */
+  _parseNotesText(notesXml) {
+    if (!notesXml) return "";
+    if (/presentation:class=["']notes["']/i.test(notesXml)) {
+      return this._frameParagraphsByClass(notesXml, "notes").join("\n");
+    }
+    return this._paragraphsFromXml(notesXml).join("\n");
+  }
+
   _frameParagraphsByClass(pageXml, className) {
     const frames = [];
     const regex = /<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi;
@@ -1297,7 +1310,7 @@ export class SlidesAdapter {
       const notesRegex = /<presentation:notes[^>]*>([\s\S]*?)<\/presentation:notes>/i;
       const notesMatch = notesRegex.exec(pageContent);
       if (notesMatch) {
-        notesText = this._paragraphsFromXml(notesMatch[1]).join("\n");
+        notesText = this._parseNotesText(notesMatch[1]);
         pageContent = pageContent.replace(notesRegex, "");
       }
 
