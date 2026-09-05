@@ -94,6 +94,260 @@ export class SlidesAdapter {
     return Math.round(value * (pxPerUnit[unit] || pxPerUnit.cm));
   }
 
+  _pxToOdf(px) {
+    const value = Number(px);
+    if (!Number.isFinite(value)) return "0cm";
+    return `${Math.round((value / 37.795275591) * 1000) / 1000}cm`;
+  }
+
+  _attr(attrs, name) {
+    return String(attrs || "").match(new RegExp(`${name}=["']([^"']*)["']`, "i"))?.[1] || "";
+  }
+
+  _styleKey(color) {
+    return String(color || "3b82f6").replace(/[^A-Za-z0-9]/g, "").toLowerCase() || "3b82f6";
+  }
+
+  _isTransparentFill(shape) {
+    const type = shape?.type;
+    return type === "textbox" || type === "text" || type === "table"
+      || !shape?.color || shape.color === "transparent";
+  }
+
+  _sanitizeDrawId(raw, used) {
+    let id = String(raw ?? "").replace(/[^A-Za-z0-9._-]/g, "-");
+    if (!/^[A-Za-z_]/.test(id)) id = `shape-${id}`;
+    if (!id || id === "shape-") id = `shape-${used.size + 1}`;
+    let unique = id;
+    let n = 2;
+    while (used.has(unique)) unique = `${id}-${n++}`;
+    used.add(unique);
+    return unique;
+  }
+
+  _restoreShapeId(attrs, fallback) {
+    const name = this._attr(attrs, "draw:name");
+    const drawId = this._attr(attrs, "draw:id") || this._attr(attrs, "xml:id");
+    if (name && !/^PlaceHolder\b/i.test(name)) {
+      return /^\d+$/.test(name) ? Number(name) : name;
+    }
+    if (drawId) {
+      const numeric = drawId.match(/^shape-(\d+)$/);
+      return numeric ? Number(numeric[1]) : drawId;
+    }
+    return fallback ?? (Date.now() + Math.floor(Math.random() * 1000));
+  }
+
+  _recordShapeId(attrs, shape, idMap) {
+    const restored = shape.id;
+    const drawId = this._attr(attrs, "draw:id") || this._attr(attrs, "xml:id");
+    const name = this._attr(attrs, "draw:name");
+    if (drawId) idMap.set(drawId, restored);
+    if (name) idMap.set(name, restored);
+    if (restored != null) idMap.set(String(restored), restored);
+  }
+
+  _mapConnectorRef(raw, idMap) {
+    if (!raw) return raw;
+    if (idMap.has(raw)) return idMap.get(raw);
+    if (idMap.has(String(raw))) return idMap.get(String(raw));
+    return raw;
+  }
+
+  _textParagraphsXml(text) {
+    const lines = String(text ?? "").split("\n");
+    if (lines.length === 1 && lines[0] === "") return "<text:p/>";
+    return lines.map((line) => `<text:p>${this._escapeXml(line)}</text:p>`).join("");
+  }
+
+  _dataUrlParts(src) {
+    const match = String(src || "").match(/^data:([^;,]+)?(;base64)?,(.*)$/s);
+    if (!match) return null;
+    return { mime: match[1] || "application/octet-stream", isBase64: !!match[2], data: match[3] };
+  }
+
+  _binaryDataXml(src) {
+    const parts = this._dataUrlParts(src);
+    if (!parts?.isBase64 || !parts.data) return "";
+    return `<office:binary-data>${parts.data.replace(/\s+/g, "")}</office:binary-data>`;
+  }
+
+  _shapeStyleName(shape) {
+    if (shape.type === "connector") return "grConnector";
+    if (shape.type === "image" || shape.type === "video" || shape.type === "audio") return "grImage";
+    if (this._isTransparentFill(shape)) return "grNone";
+    return `gr${this._styleKey(shape.color)}`;
+  }
+
+  _shapeGeomAttrs(shape, drawId) {
+    const name = this._escapeXml(String(shape.id ?? drawId));
+    const styleName = this._shapeStyleName(shape);
+    const fill = this._isTransparentFill(shape) ? "" : ` draw:fill-color="${this._escapeXml(shape.color)}"`;
+    return `draw:id="${this._escapeXml(drawId)}" draw:name="${name}" draw:style-name="${styleName}" svg:x="${this._pxToOdf(shape.x)}" svg:y="${this._pxToOdf(shape.y)}" svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}"${fill}`;
+  }
+
+  _serializeGraphicStyles(slides) {
+    const fills = new Map();
+    let needsConnector = false;
+    let needsMedia = false;
+    for (const slide of slides) {
+      for (const shape of slide.shapes || []) {
+        if (shape.type === "connector") {
+          needsConnector = true;
+          continue;
+        }
+        if (shape.type === "image" || shape.type === "video" || shape.type === "audio") {
+          needsMedia = true;
+          continue;
+        }
+        if (this._isTransparentFill(shape)) {
+          fills.set("none", null);
+        } else {
+          fills.set(this._styleKey(shape.color), shape.color);
+        }
+      }
+    }
+
+    let xml = `
+    <style:page-layout style:name="PM1">
+      <style:page-layout-properties fo:page-width="28cm" fo:page-height="15.75cm" style:print-orientation="landscape"/>
+    </style:page-layout>
+    <style:style style:name="dp1" style:family="drawing-page">
+      <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true"/>
+    </style:style>
+    <style:style style:name="prTitle" style:family="presentation">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+    </style:style>
+    <style:style style:name="prBody" style:family="presentation">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+    </style:style>
+    <style:style style:name="grNone" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+    </style:style>`;
+
+    for (const [key, color] of fills) {
+      if (key === "none" || !color) continue;
+      xml += `
+    <style:style style:name="gr${key}" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="solid" draw:fill-color="${this._escapeXml(color)}"/>
+    </style:style>`;
+    }
+    if (needsConnector) {
+      xml += `
+    <style:style style:name="grConnector" style:family="graphic">
+      <style:graphic-properties draw:stroke="solid" svg:stroke-color="#475569" svg:stroke-width="0.08cm" draw:fill="none"/>
+    </style:style>`;
+    }
+    if (needsMedia) {
+      xml += `
+    <style:style style:name="grImage" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+    </style:style>`;
+    }
+    return xml;
+  }
+
+  _serializeShape(shape, drawId, idMap) {
+    const type = shape?.type || "rect";
+    const geom = this._shapeGeomAttrs(shape, drawId);
+    const textXml = this._textParagraphsXml(shape.text);
+
+    if (type === "connector") {
+      const start = this._escapeXml(String(idMap.get(String(shape.sourceId)) || shape.sourceId || ""));
+      const end = this._escapeXml(String(idMap.get(String(shape.targetId)) || shape.targetId || ""));
+      const x1 = this._pxToOdf(shape.x1 ?? shape.x);
+      const y1 = this._pxToOdf(shape.y1 ?? shape.y);
+      const x2 = this._pxToOdf(shape.x2 ?? (Number(shape.x) + Number(shape.w) || 0));
+      const y2 = this._pxToOdf(shape.y2 ?? (Number(shape.y) + Number(shape.h) || 0));
+      const stroke = shape.color && shape.color !== "transparent" ? ` svg:stroke-color="${this._escapeXml(shape.color)}"` : "";
+      const marker = shape.arrowEnd ? ' draw:marker-end="arrow"' : "";
+      return `
+        <draw:connector ${geom} draw:type="line" svg:x1="${x1}" svg:y1="${y1}" svg:x2="${x2}" svg:y2="${y2}" draw:start-shape="${start}" draw:end-shape="${end}"${stroke}${marker}>
+          <text:p/>
+        </draw:connector>`;
+    }
+
+    if (type === "image") {
+      const parts = this._dataUrlParts(shape.src);
+      const mime = this._escapeXml(parts?.mime || "image/png");
+      const href = parts ? "" : this._escapeXml(shape.src || "");
+      return `
+        <draw:frame ${geom}>
+          <draw:image xlink:href="${href}" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad" draw:mime-type="${mime}">
+            ${this._binaryDataXml(shape.src)}
+          </draw:image>
+        </draw:frame>`;
+    }
+
+    if (type === "video" || type === "audio") {
+      const parts = this._dataUrlParts(shape.src);
+      const mime = this._escapeXml(parts?.mime || (type === "audio" ? "audio/mpeg" : "video/mp4"));
+      const href = parts ? "" : this._escapeXml(shape.src || "");
+      return `
+        <draw:frame ${geom}>
+          <draw:plugin xlink:href="${href}" xlink:type="simple" xlink:show="embed" draw:mime-type="${mime}">
+            ${this._binaryDataXml(shape.src)}
+          </draw:plugin>
+        </draw:frame>`;
+    }
+
+    if (type === "table") {
+      const rows = Array.isArray(shape.cells) ? shape.cells : [];
+      const cols = Math.max(1, Number(shape.cols) || rows.reduce((max, row) => Math.max(max, (row || []).length), 1));
+      const rowsXml = rows.map((row) => {
+        const cells = Array.from({ length: cols }, (_, index) => row?.[index] ?? "");
+        const cellsXml = cells.map((cell) => `<table:table-cell office:value-type="string">${this._textParagraphsXml(cell)}</table:table-cell>`).join("");
+        return `<table:table-row>${cellsXml}</table:table-row>`;
+      }).join("");
+      return `
+        <draw:frame ${geom}>
+          <table:table table:name="${this._escapeXml(String(shape.id ?? drawId))}">
+            <table:table-column table:number-columns-repeated="${cols}"/>
+            ${rowsXml}
+          </table:table>
+        </draw:frame>`;
+    }
+
+    if (type === "textbox" || type === "text") {
+      return `
+        <draw:frame ${geom}>
+          <draw:text-box>
+            ${textXml}
+          </draw:text-box>
+        </draw:frame>`;
+    }
+
+    if (type === "ellipse") {
+      return `
+        <draw:ellipse ${geom}>
+          ${textXml}
+        </draw:ellipse>`;
+    }
+
+    if (type === "arrow") {
+      return `
+        <draw:custom-shape ${geom}>
+          ${textXml}
+          <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="arrow" draw:enhanced-path="M 0 7640 L 13955 7640 13955 3890 21600 10800 13955 17710 13955 13960 0 13960 Z"/>
+        </draw:custom-shape>`;
+    }
+
+    return `
+        <draw:rect ${geom}>
+          ${textXml}
+        </draw:rect>`;
+  }
+
+  _serializeSlideShapes(shapes) {
+    if (!Array.isArray(shapes) || shapes.length === 0) return "";
+    const used = new Set();
+    const idMap = new Map();
+    for (const shape of shapes) {
+      idMap.set(String(shape.id), this._sanitizeDrawId(shape.id, used));
+    }
+    return shapes.map((shape) => this._serializeShape(shape, idMap.get(String(shape.id)), idMap)).join("");
+  }
+
   _parseGraphicFillStyles(xmlText) {
     const styles = new Map();
     const regex = /<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi;
@@ -104,7 +358,13 @@ export class SlidesAdapter {
       if (!name) continue;
       const fill = match[2].match(/draw:fill-color=["']([^"']+)["']/i)?.[1];
       const fillKind = match[2].match(/draw:fill=["']([^"']+)["']/i)?.[1];
-      styles.set(name, fillKind === "none" ? "transparent" : (fill || "#3b82f6"));
+      const stroke = match[2].match(/svg:stroke-color=["']([^"']+)["']/i)?.[1];
+      const markerEnd = match[2].match(/draw:marker-end=["']([^"']+)["']/i)?.[1];
+      styles.set(name, {
+        fill: fillKind === "none" ? "transparent" : (fill || null),
+        stroke: stroke || null,
+        markerEnd: markerEnd || null
+      });
     }
     return styles;
   }
@@ -132,15 +392,16 @@ export class SlidesAdapter {
   }
 
   _parseDrawShape(tagName, attrs, inner, graphicStyles) {
-    const get = (name) => attrs.match(new RegExp(`${name}=["']([^"']*)["']`, "i"))?.[1] || "";
+    const get = (name) => this._attr(attrs, name);
     const geomType = inner.match(/draw:type=["']([^"']+)["']/i)?.[1] || tagName;
     let type = "rect";
     if (/ellipse|circle/i.test(geomType) || tagName === "ellipse" || tagName === "circle") type = "ellipse";
     else if (/arrow/i.test(geomType)) type = "arrow";
     const styleName = get("draw:style-name");
-    const color = get("draw:fill-color") || graphicStyles.get(styleName) || "#3b82f6";
+    const style = graphicStyles.get(styleName) || {};
+    const color = get("draw:fill-color") || style.fill || "#3b82f6";
     return {
-      id: Date.now() + Math.floor(Math.random() * 1000),
+      id: this._restoreShapeId(attrs),
       type,
       x: this._odfLengthToPx(get("svg:x")),
       y: this._odfLengthToPx(get("svg:y")),
@@ -150,6 +411,148 @@ export class SlidesAdapter {
       text: this._paragraphsFromXml(inner).join("\n"),
       animation: { type: "none", duration: 500, delay: 0 }
     };
+  }
+
+  _parseConnectorShape(attrs, inner, graphicStyles) {
+    const get = (name) => this._attr(attrs, name);
+    const style = graphicStyles.get(get("draw:style-name")) || {};
+    const x1 = this._odfLengthToPx(get("svg:x1"));
+    const y1 = this._odfLengthToPx(get("svg:y1"));
+    const x2 = this._odfLengthToPx(get("svg:x2"));
+    const y2 = this._odfLengthToPx(get("svg:y2"));
+    const x = this._odfLengthToPx(get("svg:x")) || Math.min(x1, x2);
+    const y = this._odfLengthToPx(get("svg:y")) || Math.min(y1, y2);
+    const w = this._odfLengthToPx(get("svg:width")) || Math.max(1, Math.abs(x2 - x1));
+    const h = this._odfLengthToPx(get("svg:height")) || Math.max(1, Math.abs(y2 - y1));
+    return {
+      id: this._restoreShapeId(attrs),
+      type: "connector",
+      x, y, w, h, x1, y1, x2, y2,
+      color: get("svg:stroke-color") || style.stroke || "#475569",
+      arrowEnd: !!(get("draw:marker-end") || style.markerEnd),
+      sourceId: get("draw:start-shape") || null,
+      targetId: get("draw:end-shape") || null,
+      diagramRole: "connector",
+      animation: { type: "none", duration: 500, delay: 0 }
+    };
+  }
+
+  _parseEmbeddedSrc(inner, fallbackMime) {
+    const mime = inner.match(/draw:mime-type=["']([^"']+)["']/i)?.[1] || fallbackMime;
+    const binary = inner.match(/<office:binary-data[^>]*>([\s\S]*?)<\/office:binary-data>/i)?.[1];
+    if (binary && binary.replace(/\s+/g, "")) {
+      return `data:${mime};base64,${binary.replace(/\s+/g, "")}`;
+    }
+    const href = inner.match(/xlink:href=["']([^"']*)["']/i)?.[1];
+    return href || "";
+  }
+
+  _parseTableCells(inner) {
+    const rows = [];
+    const rowRegex = /<table:table-row\b[^>]*>([\s\S]*?)<\/table:table-row>/gi;
+    let rowMatch;
+    while ((rowMatch = rowRegex.exec(inner)) !== null) {
+      const cells = [];
+      const cellRegex = /<table:table-cell\b[^>]*>([\s\S]*?)<\/table:table-cell>/gi;
+      let cellMatch;
+      while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
+        cells.push(this._paragraphsFromXml(cellMatch[1]).join("\n"));
+      }
+      rows.push(cells);
+    }
+    return rows;
+  }
+
+  _parseFrameShape(attrs, inner, graphicStyles) {
+    const get = (name) => this._attr(attrs, name);
+    const style = graphicStyles.get(get("draw:style-name")) || {};
+    const base = {
+      id: this._restoreShapeId(attrs),
+      x: this._odfLengthToPx(get("svg:x")),
+      y: this._odfLengthToPx(get("svg:y")),
+      w: this._odfLengthToPx(get("svg:width")) || 200,
+      h: this._odfLengthToPx(get("svg:height")) || 120,
+      animation: { type: "none", duration: 500, delay: 0 }
+    };
+
+    if (/<draw:image\b/i.test(inner)) {
+      return { ...base, type: "image", src: this._parseEmbeddedSrc(inner, "image/png"), color: "transparent" };
+    }
+    if (/<draw:plugin\b/i.test(inner)) {
+      const mime = inner.match(/draw:mime-type=["']([^"']+)["']/i)?.[1] || "";
+      const type = /^audio\//i.test(mime) ? "audio" : "video";
+      return { ...base, type, src: this._parseEmbeddedSrc(inner, type === "audio" ? "audio/mpeg" : "video/mp4"), color: "transparent" };
+    }
+    if (/<table:table\b/i.test(inner)) {
+      const cells = this._parseTableCells(inner);
+      return {
+        ...base,
+        type: "table",
+        cells,
+        rows: cells.length,
+        cols: cells.reduce((max, row) => Math.max(max, row.length), 0),
+        color: get("draw:fill-color") || style.fill || "transparent",
+        text: ""
+      };
+    }
+
+    const hasId = get("draw:id") || get("xml:id") || get("draw:name");
+    if (/<draw:text-box\b/i.test(inner) && hasId) {
+      return {
+        ...base,
+        type: "textbox",
+        color: get("draw:fill-color") || style.fill || "transparent",
+        text: this._paragraphsFromXml(inner).join("\n")
+      };
+    }
+    return null;
+  }
+
+  _isLayoutPresentationClass(className) {
+    return /^(title|subtitle|outline|notes|header|footer|page-number|date-time|page)$/i.test(className || "");
+  }
+
+  _extractTaggedShapes(pageContent, tagNames, handler) {
+    const names = tagNames.join("|");
+    const regex = new RegExp(`<draw:(${names})\\b([^>]*?)(?:/>|>([\\s\\S]*?)</draw:\\1>)`, "gi");
+    const blocks = [];
+    let match;
+    while ((match = regex.exec(pageContent)) !== null) {
+      handler(match[1], match[2] || "", match[3] || "");
+      blocks.push(match[0]);
+    }
+    let next = pageContent;
+    for (const block of blocks) next = next.replace(block, "");
+    return next;
+  }
+
+  _extractShapeFrames(pageContent, shapes, graphicStyles, idMap) {
+    const regex = /<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi;
+    const blocks = [];
+    let match;
+    while ((match = regex.exec(pageContent)) !== null) {
+      const cls = this._attr(match[1], "presentation:class");
+      if (this._isLayoutPresentationClass(cls)) continue;
+      const shape = this._parseFrameShape(match[1], match[2], graphicStyles);
+      if (!shape) continue;
+      this._recordShapeId(match[1], shape, idMap);
+      shapes.push(shape);
+      blocks.push(match[0]);
+    }
+    let next = pageContent;
+    for (const block of blocks) next = next.replace(block, "");
+    return next;
+  }
+
+  _frameBlocksByClass(pageXml, className) {
+    const frames = [];
+    const regex = /<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi;
+    let match;
+    while ((match = regex.exec(pageXml)) !== null) {
+      const cls = match[1].match(/presentation:class=["']([^"']+)["']/i)?.[1];
+      if (cls === className) frames.push(this._paragraphsFromXml(match[2]).join("\n"));
+    }
+    return frames;
   }
 
   /**
@@ -167,7 +570,7 @@ export class SlidesAdapter {
 
       const notesXml = slide.notes ? `
         <presentation:notes>
-          <draw:frame svg:x="2cm" svg:y="2cm" svg:width="20cm" svg:height="15cm">
+          <draw:frame presentation:class="notes" svg:x="2cm" svg:y="2cm" svg:width="20cm" svg:height="15cm">
             <draw:text-box>
               ${slide.notes.split("\n").map((line) => `<text:p>${this._escapeXml(line)}</text:p>`).join("")}
             </draw:text-box>
@@ -179,7 +582,7 @@ export class SlidesAdapter {
         framesXml = "";
       } else if (layoutType === "title-only") {
         framesXml = `
-        <draw:frame svg:x="2cm" svg:y="6cm" svg:width="24cm" svg:height="6cm">
+        <draw:frame presentation:style-name="prTitle" presentation:class="title" svg:x="2cm" svg:y="6cm" svg:width="24cm" svg:height="6cm">
           <draw:text-box>
             <text:p>${titleEscaped}</text:p>
           </draw:text-box>
@@ -195,17 +598,17 @@ export class SlidesAdapter {
           .join("");
 
         framesXml = `
-        <draw:frame svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
+        <draw:frame presentation:style-name="prTitle" presentation:class="title" svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
           <draw:text-box>
             <text:p>${titleEscaped}</text:p>
           </draw:text-box>
         </draw:frame>
-        <draw:frame svg:x="2cm" svg:y="5.5cm" svg:width="11.5cm" svg:height="11cm">
+        <draw:frame presentation:style-name="prBody" presentation:class="outline" svg:x="2cm" svg:y="5.5cm" svg:width="11.5cm" svg:height="11cm">
           <draw:text-box>
             ${bodyParasXml}
           </draw:text-box>
         </draw:frame>
-        <draw:frame svg:x="14.5cm" svg:y="5.5cm" svg:width="11.5cm" svg:height="11cm">
+        <draw:frame presentation:style-name="prBody" presentation:class="outline" svg:x="14.5cm" svg:y="5.5cm" svg:width="11.5cm" svg:height="11cm">
           <draw:text-box>
             ${body2ParasXml}
           </draw:text-box>
@@ -218,23 +621,27 @@ export class SlidesAdapter {
           .join("");
 
         framesXml = `
-        <draw:frame svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
+        <draw:frame presentation:style-name="prTitle" presentation:class="title" svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
           <draw:text-box>
             <text:p>${titleEscaped}</text:p>
           </draw:text-box>
         </draw:frame>
-        <draw:frame svg:x="2cm" svg:y="5.5cm" svg:width="24cm" svg:height="11cm">
+        <draw:frame presentation:style-name="prBody" presentation:class="outline" svg:x="2cm" svg:y="5.5cm" svg:width="24cm" svg:height="11cm">
           <draw:text-box>
             ${bodyParasXml}
           </draw:text-box>
         </draw:frame>`;
       }
 
+      const shapesXml = this._serializeSlideShapes(slide.shapes || []);
+
       pagesXml += `
-      <draw:page draw:name="${pageName}" presentation:layout="${layoutType}">
-        ${framesXml}${notesXml}
+      <draw:page draw:name="${pageName}" draw:style-name="dp1" draw:master-page-name="Standard" presentation:layout="${layoutType}">
+        ${framesXml}${shapesXml}${notesXml}
       </draw:page>`;
     });
+
+    const automaticStyles = this._serializeGraphicStyles(slides);
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
@@ -242,7 +649,16 @@ export class SlidesAdapter {
                  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
                  xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
                  xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+                 xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+                 xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+                 xmlns:xlink="http://www.w3.org/1999/xlink"
+                 xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.presentation">
+  <office:automatic-styles>${automaticStyles}
+  </office:automatic-styles>
+  <office:master-styles>
+    <style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"/>
+  </office:master-styles>
   <office:body>
     <office:presentation>${pagesXml}
     </office:presentation>
@@ -280,18 +696,31 @@ export class SlidesAdapter {
       }
 
       const shapes = [];
-      const shapeRegex = /<draw:(rect|ellipse|circle|custom-shape|polygon)\b([^>]*)>([\s\S]*?)<\/draw:\1>/gi;
-      let shapeMatch;
-      const shapeBlocks = [];
-      while ((shapeMatch = shapeRegex.exec(pageContent)) !== null) {
-        shapes.push(this._parseDrawShape(shapeMatch[1], shapeMatch[2], shapeMatch[3], graphicStyles));
-        shapeBlocks.push(shapeMatch[0]);
+      const idMap = new Map();
+      pageContent = this._extractTaggedShapes(pageContent, ["rect", "ellipse", "circle", "custom-shape", "polygon"], (tagName, attrs, inner) => {
+        const shape = this._parseDrawShape(tagName, attrs, inner, graphicStyles);
+        this._recordShapeId(attrs, shape, idMap);
+        shapes.push(shape);
+      });
+      pageContent = this._extractTaggedShapes(pageContent, ["connector", "line"], (tagName, attrs, inner) => {
+        const shape = this._parseConnectorShape(attrs, inner, graphicStyles);
+        if (tagName === "line" && !shape.sourceId && !shape.targetId) {
+          shape.type = "connector";
+        }
+        this._recordShapeId(attrs, shape, idMap);
+        shapes.push(shape);
+      });
+      pageContent = this._extractShapeFrames(pageContent, shapes, graphicStyles, idMap);
+      for (const shape of shapes) {
+        if (shape.type !== "connector") continue;
+        shape.sourceId = this._mapConnectorRef(shape.sourceId, idMap);
+        shape.targetId = this._mapConnectorRef(shape.targetId, idMap);
       }
-      for (const block of shapeBlocks) pageContent = pageContent.replace(block, "");
 
       const titleParas = this._frameParagraphsByClass(pageContent, "title");
       const subtitleParas = this._frameParagraphsByClass(pageContent, "subtitle");
       const outlineParas = this._frameParagraphsByClass(pageContent, "outline");
+      const outlineBlocks = this._frameBlocksByClass(pageContent, "outline");
       const hasPlaceholderClasses = titleParas.length > 0 || subtitleParas.length > 0 || outlineParas.length > 0;
 
       let title = `Trang chiếu ${idx}`;
@@ -303,7 +732,12 @@ export class SlidesAdapter {
         body = "";
       } else if (hasPlaceholderClasses) {
         title = titleParas.filter(Boolean).join(" ");
-        body = subtitleParas.length ? subtitleParas.join("\n") : outlineParas.join("\n");
+        if (pageLayout === "two-content") {
+          body = outlineBlocks[0] || "";
+          body2 = outlineBlocks.length > 1 ? outlineBlocks.slice(1).join("\n") : undefined;
+        } else {
+          body = subtitleParas.length ? subtitleParas.join("\n") : outlineParas.join("\n");
+        }
       } else if (pageLayout === "two-content") {
         const frameRegex = /<draw:frame[^>]*>([\s\S]*?)<\/draw:frame>/gi;
         const frames = [];
