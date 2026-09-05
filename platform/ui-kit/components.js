@@ -117,6 +117,9 @@ export function createCommandButton({ commandId, isLarge = false, iconOnly = fal
       btn.setAttribute("aria-pressed", "false");
     }
   }
+  if (def && def.isToggle && !btn.hasAttribute("aria-pressed")) {
+    btn.setAttribute("aria-pressed", state && state.checked ? "true" : "false");
+  }
 
   // Click handler
   btn.addEventListener("click", () => {

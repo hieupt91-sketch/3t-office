@@ -69,11 +69,40 @@ export function citationMetadataHtml(state) {
   return `<span class="vno-citation-metadata" data-vno-citation-metadata="true" contenteditable="false" aria-hidden="true" style="display:none">${serializeCitationMetadata(state)}</span>`;
 }
 
-function dialogShell(title, body, footer) {
+function trapFocus(element, event) {
+  if (event.key !== "Tab") return;
+  const items = [...element.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')];
+  if (!items.length) return;
+  const first = items[0], last = items.at(-1);
+  if ((event.shiftKey && document.activeElement === first) || (!event.shiftKey && document.activeElement === last)) {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.shiftKey ? last : first).focus();
+  }
+}
+
+function dialogShell(title, body, footer, onCancel) {
+  const previousFocused = (typeof document !== "undefined" && document.activeElement) || null;
   const overlay = document.createElement("div");
   overlay.className = "vno-dialog-overlay vno-citation-dialog-overlay";
   overlay.innerHTML = `<div class="vno-dialog-box vno-citation-dialog" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="vno-dialog-header"><strong>${esc(title)}</strong><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${esc(t("common.close"))}">×</button></div><div class="vno-dialog-body">${body}</div><div class="vno-dialog-footer">${footer}</div></div>`;
   document.body.appendChild(overlay);
+  const box = overlay.querySelector(".vno-dialog-box");
+  const onKey = (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof onCancel === "function") onCancel();
+    } else {
+      trapFocus(box, event);
+    }
+  };
+  document.addEventListener("keydown", onKey);
+  overlay._destroy = () => {
+    document.removeEventListener("keydown", onKey);
+    overlay.remove();
+    previousFocused?.focus?.();
+  };
   return overlay;
 }
 
@@ -83,14 +112,20 @@ export function showSourceEditorDialog(source = {}, options = {}) {
   return new Promise((resolve) => {
     const fields = [["type", "Loại", "select"], ["author", "Tác giả"], ["title", "Tiêu đề"], ["year", "Năm"], ["publisher", "Nhà xuất bản"], ["url", "URL"]];
     const body = `<div class="vno-citation-form">${fields.map(([name, label, kind]) => `<label>${label}${kind === "select" ? `<select name="type">${SOURCE_TYPES.map(v => `<option value="${v}" ${src.type === v ? "selected" : ""}>${({book:"Sách",article:"Bài báo",website:"Website",other:"Khác"})[v]}</option>`).join("")}</select>` : `<input name="${name}" value="${esc(src[name])}">`}</label>`).join("")}<div class="vno-citation-error" role="alert" hidden>Nhập ít nhất tác giả hoặc tiêu đề.</div></div>`;
-    const overlay = dialogShell(source.id ? "Sửa nguồn" : "Thêm nguồn mới", body, `<button type="button" class="vno-btn vno-cancel">Hủy</button><button type="button" class="vno-btn vno-btn-primary vno-save-source">Lưu</button>`);
-    const finish = (value) => { overlay.remove(); resolve(value); };
+    let closed = false;
+    let overlay;
+    const finish = (value) => { if (closed) return; closed = true; overlay?._destroy?.(); resolve(value); };
+    overlay = dialogShell(source.id ? "Sửa nguồn" : "Thêm nguồn mới", body, `<button type="button" class="vno-btn vno-cancel">Hủy</button><button type="button" class="vno-btn vno-btn-primary vno-save-source">Lưu</button>`, () => finish(null));
     overlay.querySelectorAll(".vno-cancel,.vno-dialog-close-btn").forEach(b => b.addEventListener("click", () => finish(null)));
-    overlay.querySelector(".vno-save-source").addEventListener("click", () => {
+    const commit = () => {
       const value = normalizeSource(Object.fromEntries(fields.map(([name]) => [name, overlay.querySelector(`[name="${name}"]`).value])));
       value.id = src.id;
       if (!value.author && !value.title) { overlay.querySelector(".vno-citation-error").hidden = false; return; }
       finish(value);
+    };
+    overlay.querySelector(".vno-save-source").addEventListener("click", commit);
+    overlay.querySelector(".vno-dialog-box").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); e.stopPropagation(); commit(); }
     });
     overlay.querySelector('[name="author"]').focus();
   });
@@ -100,12 +135,18 @@ export function showInsertCitationDialog(sources = [], options = {}) {
   if (typeof document === "undefined" || !document.body) return Promise.resolve(options.headlessSource || sources[0] || null);
   return new Promise((resolve) => {
     const choices = sources.map(s => `<option value="${esc(s.id)}">${esc(formatInTextCitation(s, options.style))} — ${esc(s.title)}</option>`).join("");
-    const overlay = dialogShell("Chèn trích dẫn", choices ? `<label>Nguồn tài liệu<select class="vno-source-select">${choices}</select></label>` : `<p class="vno-empty-sources">Chưa có nguồn tài liệu.</p>`, `<button type="button" class="vno-btn vno-new-source">Thêm nguồn mới</button><button type="button" class="vno-btn vno-cancel">Hủy</button><button type="button" class="vno-btn vno-btn-primary vno-insert-citation" ${choices ? "" : "disabled"}>Chèn</button>`);
-    const finish = value => { overlay.remove(); resolve(value); };
+    let closed = false;
+    let overlay;
+    const finish = value => { if (closed) return; closed = true; overlay?._destroy?.(); resolve(value); };
+    overlay = dialogShell("Chèn trích dẫn", choices ? `<label>Nguồn tài liệu<select class="vno-source-select">${choices}</select></label>` : `<p class="vno-empty-sources">Chưa có nguồn tài liệu.</p>`, `<button type="button" class="vno-btn vno-new-source">Thêm nguồn mới</button><button type="button" class="vno-btn vno-cancel">Hủy</button><button type="button" class="vno-btn vno-btn-primary vno-insert-citation" ${choices ? "" : "disabled"}>Chèn</button>`, () => finish(null));
     overlay.querySelectorAll(".vno-cancel,.vno-dialog-close-btn").forEach(b => b.addEventListener("click", () => finish(null)));
-    overlay.querySelector(".vno-insert-citation").addEventListener("click", () => finish(sources.find(s => s.id === overlay.querySelector(".vno-source-select")?.value) || null));
+    const commit = () => finish(sources.find(s => s.id === overlay.querySelector(".vno-source-select")?.value) || null);
+    overlay.querySelector(".vno-insert-citation").addEventListener("click", commit);
     overlay.querySelector(".vno-new-source").addEventListener("click", async () => { const added = await showSourceEditorDialog({}); if (added) finish({ ...added, isNew: true }); });
-    overlay.querySelector(".vno-source-select")?.focus();
+    overlay.querySelector(".vno-dialog-box").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && choices) { e.preventDefault(); e.stopPropagation(); commit(); }
+    });
+    (overlay.querySelector(".vno-source-select") || overlay.querySelector(".vno-new-source"))?.focus();
   });
 }
 
@@ -113,12 +154,14 @@ export function showSourceManagerDialog(sources = [], options = {}) {
   if (typeof document === "undefined" || !document.body) return Promise.resolve(options.headlessActions || []);
   return new Promise((resolve) => {
     const draft = sources.map(normalizeSource);
-    const overlay = dialogShell("Quản lý nguồn", `<div class="vno-source-list"></div>`, `<button type="button" class="vno-btn vno-add-source">Thêm</button><button type="button" class="vno-btn vno-cancel">Hủy</button><button type="button" class="vno-btn vno-btn-primary vno-apply-sources">Áp dụng</button>`);
-    const render = () => { overlay.querySelector(".vno-source-list").innerHTML = draft.length ? draft.map(s => `<div class="vno-source-row" data-source-id="${esc(s.id)}"><span><b>${esc(s.author || "Khuyết danh")}</b><small>${esc(s.title)} · ${esc(s.year)}</small></span><button type="button" class="vno-edit-source">Sửa</button><button type="button" class="vno-delete-source">Xóa</button></div>`).join("") : `<p>Chưa có nguồn tài liệu.</p>`; };
+    let closed = false;
+    let overlay;
+    const finish = value => { if (closed) return; closed = true; overlay?._destroy?.(); resolve(value); };
+    overlay = dialogShell("Quản lý nguồn", `<div class="vno-source-list"></div>`, `<button type="button" class="vno-btn vno-add-source">Thêm</button><button type="button" class="vno-btn vno-cancel">Hủy</button><button type="button" class="vno-btn vno-btn-primary vno-apply-sources">Áp dụng</button>`, () => finish(null));
+    const render = () => { overlay.querySelector(".vno-source-list").innerHTML = draft.length ? draft.map(s => `<div class="vno-source-row" data-source-id="${esc(s.id)}"><span><b>${esc(s.author || "Khuyết danh")}</b><small>${esc(s.title)} · ${esc(s.year)}</small></span><button type="button" class="vno-btn vno-btn-sm vno-edit-source">Sửa</button><button type="button" class="vno-btn vno-btn-sm vno-delete-source">Xóa</button></div>`).join("") : `<p class="vno-empty-sources">Chưa có nguồn tài liệu.</p>`; };
     render();
     overlay.querySelector(".vno-source-list").addEventListener("click", async e => { const row = e.target.closest(".vno-source-row"); if (!row) return; const i = draft.findIndex(s => s.id === row.dataset.sourceId); if (e.target.closest(".vno-edit-source")) { const edited = await showSourceEditorDialog(draft[i]); if (edited) draft[i] = edited; } else if (e.target.closest(".vno-delete-source")) { if (!options.isSourceUsed?.(draft[i].id) || window.confirm("Nguồn đang được trích dẫn. Xóa nguồn và giữ trích dẫn hiện tại dưới dạng văn bản đóng băng?")) draft.splice(i, 1); } render(); });
     overlay.querySelector(".vno-add-source").addEventListener("click", async () => { const added = await showSourceEditorDialog({}); if (added) { draft.push(added); render(); } });
-    const finish = value => { overlay.remove(); resolve(value); };
     overlay.querySelectorAll(".vno-cancel,.vno-dialog-close-btn").forEach(b => b.addEventListener("click", () => finish(null)));
     overlay.querySelector(".vno-apply-sources").addEventListener("click", () => finish(draft));
   });

@@ -102,8 +102,15 @@
   margin-left: 4px;
   font-size: 0.95em;
   text-decoration: none;
-  color: var(--vno-app-current, #b53818);
+  color: var(--vno-app-current-fg, var(--vno-app-current, #b53818));
   font-weight: 800;
+}
+[data-theme="dark"] .vno-slide-hidden-mark,
+[data-theme="dark"] .vno-slide-sorter-hidden-mark {
+  /* Giá trị cứng thay vì var(--vno-app-current-fg): biến này còn phân giải ra
+     #0f4c81 (chỉ 1.88:1 trên nền tối #1e1e1e) trong ngữ cảnh này thay vì override
+     tối #fb923c mong muốn — dùng thẳng màu đã đo đạt 7.37:1 để chắc chắn đạt AA. */
+  color: #fb923c;
 }
 
 /* Stage Canvas (Sân khấu trung tâm) */
@@ -1405,20 +1412,60 @@
 
 .vno-chart-dialog .vno-dialog-box { width: min(920px, 96vw); }
 .vno-chart-dialog-body { display: flex; flex-direction: column; gap: 12px; }
-.vno-chart-dialog-body > label { display: grid; gap: 5px; font-size: 13px; font-weight: 600; }
+.vno-chart-dialog-body > label { display: grid; gap: 5px; font-size: 13px; font-weight: 600; color: var(--vno-text-primary, #0f172a); }
 .vno-chart-dialog-body input { box-sizing: border-box; width: 100%; padding: 7px 9px; border: 1px solid var(--vno-border-default, #cbd5e1); border-radius: 5px; }
 .vno-chart-type-grid { display: flex; gap: 8px; }
-.vno-chart-type { min-width: 78px; padding: 8px 12px; border: 1px solid var(--vno-border-default, #cbd5e1); border-radius: 6px; background: var(--vno-surface, #fff); cursor: pointer; }
-.vno-chart-type.is-selected { color: #fff; border-color: #0f6d38; background: #0f6d38; }
+.vno-chart-type {
+  min-width: 78px;
+  padding: 8px 12px;
+  border: 1px solid var(--vno-border-default, #cbd5e1);
+  border-radius: 6px;
+  background-color: var(--vno-bg-surface, #ffffff);
+  color: var(--vno-text-primary, #0f172a);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.vno-chart-type:hover {
+  background-color: var(--vno-bg-hover, #f1f5f9);
+  border-color: var(--vno-border-strong, #94a3b8);
+}
+.vno-chart-type:focus-visible {
+  outline: 2px solid var(--vno-border-focus, #3b82f6);
+  outline-offset: 1px;
+}
+.vno-chart-type.is-selected {
+  color: #ffffff;
+  border-color: var(--vno-app-current, #ea580c);
+  background-color: var(--vno-app-current, #ea580c);
+}
 .vno-chart-dialog-columns { display: grid; grid-template-columns: minmax(260px, .85fr) minmax(360px, 1.4fr); gap: 16px; align-items: start; }
 .vno-chart-data-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-.vno-chart-data-table th { text-align: left; font-size: 12px; color: #475569; }
+.vno-chart-data-table th { text-align: left; font-size: 12px; color: var(--vno-text-secondary, #475569); }
 .vno-chart-data-table td, .vno-chart-data-table th { padding: 4px; }
 .vno-chart-data-table td:last-child { width: 28px; }
-.vno-chart-data-table [data-chart-remove-row] { border: 0; background: transparent; color: #b91c1c; cursor: pointer; font-size: 18px; }
+.vno-chart-data-table [data-chart-remove-row] {
+  border: 0;
+  background: transparent;
+  color: var(--vno-brand-red, #dc2626);
+  cursor: pointer;
+  font-size: 18px;
+  border-radius: 4px;
+  line-height: 1;
+  padding: 2px 6px;
+  transition: background-color 0.12s;
+}
+.vno-chart-data-table [data-chart-remove-row]:hover {
+  background-color: var(--vno-bg-hover, rgba(0, 0, 0, 0.06));
+}
+.vno-chart-data-table [data-chart-remove-row]:focus-visible {
+  outline: 2px solid var(--vno-border-focus, #3b82f6);
+  outline-offset: 1px;
+}
 .vno-chart-preview { height: 315px; border: 1px solid var(--vno-border-default, #cbd5e1); border-radius: 6px; overflow: hidden; background: #fff; }
 .vno-chart-preview svg { width: 100%; height: 100%; }
-.vno-chart-error { min-height: 18px; margin: 6px 0 0; color: #b91c1c; font-size: 12px; }
+.vno-chart-error { min-height: 18px; margin: 6px 0 0; color: var(--vno-brand-red, #dc2626); font-size: 12px; }
 
 @media (max-width: 760px) {
   .vno-chart-dialog-columns { grid-template-columns: 1fr; }

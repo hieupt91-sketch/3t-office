@@ -1,0 +1,362 @@
+[
+  {
+    "category": "Slides.Font",
+    "title": "Toggle button aria-pressed initial",
+    "details": {
+      "boldPressed": "false",
+      "italicPressed": "false",
+      "underlinePressed": "false"
+    }
+  },
+  {
+    "category": "Slides.Font",
+    "title": "Font Grow / Shrink icon inspection",
+    "details": {
+      "growHasPolyline": false,
+      "shrinkHasPolyline": false,
+      "growHasPath": true,
+      "isUsingIndentIcons": false
+    }
+  },
+  {
+    "category": "Slides.Chart",
+    "title": "Chart dialog computed styles",
+    "details": {
+      "boxBg": "rgb(255, 255, 255)",
+      "boxColor": "rgb(15, 23, 42)",
+      "firstTypeBg": "rgb(255, 255, 255)",
+      "firstTypeColor": "rgb(15, 23, 42)",
+      "selectedTypeBg": "rgb(181, 56, 24)",
+      "selectedTypeColor": "rgb(255, 255, 255)",
+      "selectedTypeBorder": "rgb(181, 56, 24)",
+      "thColor": "rgb(51, 65, 85)",
+      "inputsSample": [
+        {
+          "name": "title",
+          "bg": "rgb(255, 255, 255)",
+          "color": "rgb(15, 23, 42)"
+        },
+        {
+          "name": "title",
+          "bg": "rgb(255, 255, 255)",
+          "color": "rgb(15, 23, 42)"
+        },
+        {
+          "name": "title",
+          "bg": "rgb(255, 255, 255)",
+          "color": "rgb(15, 23, 42)"
+        }
+      ],
+      "radiogroup": [
+        {
+          "text": "Cột",
+          "tabIndex": "0",
+          "ariaChecked": "true",
+          "role": "radio"
+        },
+        {
+          "text": "Đường",
+          "tabIndex": "-1",
+          "ariaChecked": "false",
+          "role": "radio"
+        },
+        {
+          "text": "Tròn",
+          "tabIndex": "-1",
+          "ariaChecked": "false",
+          "role": "radio"
+        },
+        {
+          "text": "Miền",
+          "tabIndex": "-1",
+          "ariaChecked": "false",
+          "role": "radio"
+        }
+      ],
+      "previewBg": "rgb(255, 255, 255)",
+      "removeBtnColor": "rgb(192, 30, 23)"
+    }
+  },
+  {
+    "category": "Slides.Chart",
+    "title": "Escape closes dialog",
+    "details": {
+      "closed": true
+    }
+  },
+  {
+    "category": "Slides.HideSlide",
+    "title": "Slide Sorter styles",
+    "details": {
+      "hasHiddenItem": true,
+      "numColor": "rgb(71, 85, 105)",
+      "badgeColor": "rgb(181, 56, 24)"
+    }
+  },
+  {
+    "category": "Slides.HideSlide",
+    "title": "Toggle button and filmstrip",
+    "details": {
+      "hideBtnPressedBefore": "false",
+      "hideBtnPressedAfter": "true",
+      "filmstripDetails": {
+        "hasIsHidden": true,
+        "numColor": "rgb(71, 85, 105)",
+        "numDecoration": "line-through",
+        "badgeColor": "rgb(181, 56, 24)",
+        "badgeText": "⊘"
+      }
+    }
+  },
+  {
+    "category": "Writer.Citations",
+    "title": "Insert Citation dialog styles",
+    "details": {
+      "boxBg": "rgb(255, 255, 255)",
+      "boxColor": "rgb(15, 23, 42)",
+      "selectBg": null,
+      "selectColor": null,
+      "emptyPColor": "rgb(51, 65, 85)"
+    }
+  },
+  {
+    "category": "Writer.Citations",
+    "title": "Escape closes Insert Citation dialog",
+    "details": {
+      "closed": true
+    }
+  },
+  {
+    "category": "Writer.Citations",
+    "title": "Source Editor dialog styles",
+    "details": {
+      "boxBg": "rgb(255, 255, 255)",
+      "boxColor": "rgb(15, 23, 42)",
+      "inputsSample": [
+        {
+          "tag": "SELECT",
+          "name": "type",
+          "bg": "rgb(255, 255, 255)",
+          "color": "rgb(15, 23, 42)"
+        },
+        {
+          "tag": "INPUT",
+          "name": "author",
+          "bg": "rgb(255, 255, 255)",
+          "color": "rgb(15, 23, 42)"
+        },
+        {
+          "tag": "INPUT",
+          "name": "title",
+          "bg": "rgb(255, 255, 255)",
+          "color": "rgb(15, 23, 42)"
+        }
+      ]
+    }
+  },
+  {
+    "category": "Writer.Citations",
+    "title": "Source Manager row button styles",
+    "details": {
+      "rowBorder": "rgb(226, 232, 240)",
+      "smallColor": "rgb(51, 65, 85)",
+      "editBtnClass": "vno-btn vno-btn-sm vno-edit-source",
+      "editBtnBg": "rgb(255, 255, 255)",
+      "editBtnColor": "rgb(15, 23, 42)",
+      "deleteBtnClass": "vno-btn vno-btn-sm vno-delete-source",
+      "deleteBtnBg": "rgb(255, 255, 255)",
+      "deleteBtnColor": "rgb(192, 30, 23)"
+    }
+  },
+  {
+    "category": "Writer.Citations",
+    "title": "Document Citation Field & Bibliography styles",
+    "details": {
+      "fieldBg": "rgb(232, 241, 249)",
+      "fieldColor": "rgb(15, 76, 129)",
+      "bibBg": "rgb(248, 250, 252)",
+      "bibColor": "rgb(15, 23, 42)",
+      "bibBorder": "rgb(147, 197, 253)"
+    }
+  },
+  {
+    "category": "Slides.Font",
+    "title": "Toggle button aria-pressed initial",
+    "details": {
+      "boldPressed": "false",
+      "italicPressed": "false",
+      "underlinePressed": "false"
+    }
+  },
+  {
+    "category": "Slides.Font",
+    "title": "Font Grow / Shrink icon inspection",
+    "details": {
+      "growHasPolyline": false,
+      "shrinkHasPolyline": false,
+      "growHasPath": true,
+      "isUsingIndentIcons": false
+    }
+  },
+  {
+    "category": "Slides.Chart",
+    "title": "Chart dialog computed styles",
+    "details": {
+      "boxBg": "rgb(30, 30, 30)",
+      "boxColor": "rgb(241, 245, 249)",
+      "firstTypeBg": "rgb(37, 37, 38)",
+      "firstTypeColor": "rgb(241, 245, 249)",
+      "selectedTypeBg": "rgb(181, 56, 24)",
+      "selectedTypeColor": "rgb(255, 255, 255)",
+      "selectedTypeBorder": "rgb(181, 56, 24)",
+      "thColor": "rgb(203, 213, 225)",
+      "inputsSample": [
+        {
+          "name": "title",
+          "bg": "rgb(37, 37, 38)",
+          "color": "rgb(241, 245, 249)"
+        },
+        {
+          "name": "title",
+          "bg": "rgb(37, 37, 38)",
+          "color": "rgb(241, 245, 249)"
+        },
+        {
+          "name": "title",
+          "bg": "rgb(37, 37, 38)",
+          "color": "rgb(241, 245, 249)"
+        }
+      ],
+      "radiogroup": [
+        {
+          "text": "Cột",
+          "tabIndex": "0",
+          "ariaChecked": "true",
+          "role": "radio"
+        },
+        {
+          "text": "Đường",
+          "tabIndex": "-1",
+          "ariaChecked": "false",
+          "role": "radio"
+        },
+        {
+          "text": "Tròn",
+          "tabIndex": "-1",
+          "ariaChecked": "false",
+          "role": "radio"
+        },
+        {
+          "text": "Miền",
+          "tabIndex": "-1",
+          "ariaChecked": "false",
+          "role": "radio"
+        }
+      ],
+      "previewBg": "rgb(255, 255, 255)",
+      "removeBtnColor": "rgb(192, 30, 23)"
+    }
+  },
+  {
+    "category": "Slides.Chart",
+    "title": "Escape closes dialog",
+    "details": {
+      "closed": true
+    }
+  },
+  {
+    "category": "Slides.HideSlide",
+    "title": "Slide Sorter styles",
+    "details": {
+      "hasHiddenItem": true,
+      "numColor": "rgb(148, 163, 184)",
+      "badgeColor": "rgb(251, 146, 60)"
+    }
+  },
+  {
+    "category": "Slides.HideSlide",
+    "title": "Toggle button and filmstrip",
+    "details": {
+      "hideBtnPressedBefore": "false",
+      "hideBtnPressedAfter": "true",
+      "filmstripDetails": {
+        "hasIsHidden": true,
+        "numColor": "rgb(148, 163, 184)",
+        "numDecoration": "line-through",
+        "badgeColor": "rgb(181, 56, 24)",
+        "badgeText": "⊘"
+      }
+    }
+  },
+  {
+    "category": "Writer.Citations",
+    "title": "Insert Citation dialog styles",
+    "details": {
+      "boxBg": "rgb(30, 30, 30)",
+      "boxColor": "rgb(241, 245, 249)",
+      "selectBg": null,
+      "selectColor": null,
+      "emptyPColor": "rgb(203, 213, 225)"
+    }
+  },
+  {
+    "category": "Writer.Citations",
+    "title": "Escape closes Insert Citation dialog",
+    "details": {
+      "closed": true
+    }
+  },
+  {
+    "category": "Writer.Citations",
+    "title": "Source Editor dialog styles",
+    "details": {
+      "boxBg": "rgb(30, 30, 30)",
+      "boxColor": "rgb(241, 245, 249)",
+      "inputsSample": [
+        {
+          "tag": "SELECT",
+          "name": "type",
+          "bg": "rgb(37, 37, 38)",
+          "color": "rgb(241, 245, 249)"
+        },
+        {
+          "tag": "INPUT",
+          "name": "author",
+          "bg": "rgb(37, 37, 38)",
+          "color": "rgb(241, 245, 249)"
+        },
+        {
+          "tag": "INPUT",
+          "name": "title",
+          "bg": "rgb(37, 37, 38)",
+          "color": "rgb(241, 245, 249)"
+        }
+      ]
+    }
+  },
+  {
+    "category": "Writer.Citations",
+    "title": "Source Manager row button styles",
+    "details": {
+      "rowBorder": "rgb(62, 62, 66)",
+      "smallColor": "rgb(203, 213, 225)",
+      "editBtnClass": "vno-btn vno-btn-sm vno-edit-source",
+      "editBtnBg": "rgb(37, 37, 38)",
+      "editBtnColor": "rgb(241, 245, 249)",
+      "deleteBtnClass": "vno-btn vno-btn-sm vno-delete-source",
+      "deleteBtnBg": "rgb(37, 37, 38)",
+      "deleteBtnColor": "rgb(192, 30, 23)"
+    }
+  },
+  {
+    "category": "Writer.Citations",
+    "title": "Document Citation Field & Bibliography styles",
+    "details": {
+      "fieldBg": "rgba(96, 165, 250, 0.18)",
+      "fieldColor": "rgb(147, 197, 253)",
+      "bibBg": "rgb(31, 31, 31)",
+      "bibColor": "rgb(241, 245, 249)",
+      "bibBorder": "rgb(15, 76, 129)"
+    }
+  }
+]
