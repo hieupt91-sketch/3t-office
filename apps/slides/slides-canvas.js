@@ -1045,6 +1045,9 @@ export class SlidesCanvasController {
       if (!matchedIds.has(String(node.dataset?.vnoShapeId || ""))) node.classList?.add("vno-morph-enter");
     }
 
+    // Commit the FLIP start state before moving to the target state; this is required for a real CSS transition.
+    for (const match of matches) void nodeById.get(match.id)?.offsetWidth;
+
     const start = () => {
       for (const match of matches) {
         const node = nodeById.get(match.id);
@@ -1055,8 +1058,7 @@ export class SlidesCanvasController {
         node.style.opacity = "0.9";
       }
     };
-    if (typeof requestAnimationFrame === "function") requestAnimationFrame(() => requestAnimationFrame(start));
-    else setTimeout(start, 0);
+    setTimeout(start, 32);
     return true;
   }
 

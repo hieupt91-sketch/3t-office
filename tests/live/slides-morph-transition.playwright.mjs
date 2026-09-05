@@ -40,15 +40,28 @@ try {
       { id: 1, title: "From", body: "", layoutType: "blank", shapes: [
         { id: "hero", type: "rect", x: 80, y: 90, w: 120, h: 70, color: "#dc2626", text: "Morph" }
       ] },
-      { id: 2, title: "To", body: "", layoutType: "blank", transition: { type: "morph", duration: 1000 }, shapes: [
+      { id: 2, title: "To", body: "", layoutType: "blank", shapes: [
         { id: hasMatch ? "hero" : "different", type: "rect", x: 480, y: 260, w: 260, h: 150, color: "#2563eb", text: "Morph" }
       ] }
     ];
-    canvas.currentSlideIndex = 0;
-    canvas.selectSlide(0);
+    canvas.currentSlideIndex = 1;
+    canvas.selectSlide(1);
   }, matched);
 
+  const chooseMorphInUi = async () => {
+    await page.locator("#vno-ribbon-tab-transitions").click();
+    await page.locator('[data-command-id="slides.transition.apply"]').click();
+    await page.locator("#vno-trans-type-select").selectOption("morph");
+    await page.locator("#vno-trans-duration-select").selectOption("1000");
+    await page.locator("#vno-trans-apply-current").click();
+    await page.evaluate(async () => {
+      const { globalUnoBridge } = await import("/adapters/libreoffice/common/uno-bridge.js");
+      globalUnoBridge.activeDocument.canvas.selectSlide(0);
+    });
+  };
+
   await seed(true);
+  await chooseMorphInUi();
   await page.keyboard.press("F5");
   await page.locator(".vno-slideshow-overlay").waitFor();
   await page.keyboard.press("ArrowRight");
@@ -58,16 +71,18 @@ try {
     transition: node.style.transition,
     transform: getComputedStyle(node).transform,
     background: getComputedStyle(node).backgroundColor,
-    mode: node.closest(".vno-slideshow-content")?.dataset.vnoTransition
+    mode: node.closest(".vno-slideshow-content")?.dataset.vnoTransition,
+    animations: node.getAnimations().map(animation => ({ currentTime: animation.currentTime, playState: animation.playState }))
   }));
   assert(running.mode === "morph", `F5 did not enter Morph path: ${JSON.stringify(running)}`);
   assert(running.state === "running", `Morph shape is not running: ${JSON.stringify(running)}`);
   assert(running.transition.includes("transform 1000ms"), `Real CSS transform transition missing: ${running.transition}`);
-  assert(running.transform !== "none" && running.transform !== "matrix(1, 0, 0, 1, 0, 0)", `Transform is not mid-flight: ${running.transform}`);
+  assert(running.transform !== "none" && running.transform !== "matrix(1, 0, 0, 1, 0, 0)", `Transform is not mid-flight: ${JSON.stringify(running)}`);
   console.log("PASS: F5 Morph runs a measurable same-id transform/resize/color CSS transition");
 
   await page.keyboard.press("Escape");
   await seed(false);
+  await chooseMorphInUi();
   await page.keyboard.press("F5");
   await page.locator(".vno-slideshow-overlay").waitFor();
   await page.keyboard.press("ArrowRight");
