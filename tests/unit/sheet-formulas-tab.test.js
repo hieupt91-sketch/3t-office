@@ -97,6 +97,7 @@ export async function runSheetFormulasTabTests() {
       "sheet.formula.removeArrows",
       "sheet.formula.showFormulas",
       "sheet.formula.errorChecking",
+      "sheet.formula.evaluateFormula",
       "sheet.formula.watchWindow"
     ];
     for (const cmd of auditCmds) {
@@ -139,6 +140,7 @@ export async function runSheetFormulasTabTests() {
       "sheet.formula.removeArrows",
       "sheet.formula.showFormulas",
       "sheet.formula.errorChecking",
+      "sheet.formula.evaluateFormula",
       "sheet.formula.watchWindow",
       "sheet.calc.calculationOptions",
       "sheet.calc.modeAutomatic",
@@ -336,6 +338,7 @@ export async function runSheetFormulasTabTests() {
       removeArrows() { calls.push(["removeArrows"]); return true; },
       toggleShowFormulas() { calls.push(["toggleShowFormulas"]); return true; },
       showErrorCheckingDialog() { calls.push(["showErrorCheckingDialog"]); return true; },
+      showEvaluateFormulaDialog() { calls.push(["showEvaluateFormulaDialog"]); return true; },
       showWatchWindow() { calls.push(["showWatchWindow"]); return true; },
       setCalculationMode(mode) { calls.push(["setCalculationMode", mode]); return true; },
       calculateSheet() { calls.push(["calculateSheet"]); return true; },
@@ -365,6 +368,7 @@ export async function runSheetFormulasTabTests() {
       ["sheet.formula.removeArrows", "removeArrows"],
       ["sheet.formula.showFormulas", "toggleShowFormulas"],
       ["sheet.formula.errorChecking", "showErrorCheckingDialog"],
+      ["sheet.formula.evaluateFormula", "showEvaluateFormulaDialog"],
       ["sheet.formula.watchWindow", "showWatchWindow"],
       ["sheet.calc.modeAutomatic", "setCalculationMode"],
       ["sheet.calc.modeManual", "setCalculationMode"],

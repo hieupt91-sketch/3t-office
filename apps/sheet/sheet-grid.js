@@ -3,6 +3,7 @@
  */
 
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
+import { createEvaluateFormulaSessionFromGrid, formatFormulaValue, renderFormulaHtml } from "./evaluate-formula.js";
 import { SheetChartBuilder } from "./sheet-chart.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
 import { PivotTableEngine } from "./pivot-table.js";
@@ -3762,6 +3763,135 @@ export class SheetGridController {
       });
       tbody.appendChild(tr);
     }
+  }
+
+  showEvaluateFormulaDialog() {
+    if (typeof document === "undefined") return false;
+    const coord = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const session = createEvaluateFormulaSessionFromGrid(this);
+    const title = t("sheetDialogs.evaluateFormulaTitle", "Ước lượng công thức");
+    const overlay = this._createSheetDialog(title, `
+      <div class="vno-eval-dialog" id="vno-eval-dialog">
+        <p class="vno-eval-ref" id="vno-eval-ref"></p>
+        <p class="vno-eval-hint">${this._escapeHtml(t("sheetDialogs.evaluateFormulaHint", "Phần được gạch chân và in nghiêng sẽ được tính ở bước tiếp theo."))}</p>
+        <div class="vno-eval-formula-box" id="vno-eval-formula" role="status" aria-live="polite"></div>
+        <p class="vno-eval-step-value" id="vno-eval-step-value" role="status" aria-live="polite"></p>
+        <p class="vno-eval-final" id="vno-eval-final"></p>
+        <p class="vno-eval-error" id="vno-eval-error" role="alert"></p>
+      </div>`);
+    if (!overlay) return false;
+    overlay.classList.add("vno-evaluate-formula-dialog");
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    if (dialogBox) dialogBox.setAttribute("aria-label", title);
+
+    const footer = overlay.querySelector(".vno-dialog-footer");
+    const applyBtn = overlay.querySelector(".vno-rule-apply");
+    const cancelBtn = overlay.querySelector(".vno-rule-cancel");
+    if (applyBtn) applyBtn.remove();
+    if (cancelBtn) cancelBtn.textContent = t("sheetDialogs.evaluateFormulaClose", t("sheetDialogs.close", "Đóng"));
+    const evaluateBtn = document.createElement("button");
+    evaluateBtn.type = "button";
+    evaluateBtn.className = "vno-btn vno-btn-primary vno-eval-btn-evaluate";
+    evaluateBtn.textContent = t("sheetDialogs.evaluateFormulaEvaluate", "Ước lượng");
+    const stepInBtn = document.createElement("button");
+    stepInBtn.type = "button";
+    stepInBtn.className = "vno-btn vno-eval-btn-step-in";
+    stepInBtn.textContent = t("sheetDialogs.evaluateFormulaStepIn", "Bước vào");
+    const stepOutBtn = document.createElement("button");
+    stepOutBtn.type = "button";
+    stepOutBtn.className = "vno-btn vno-eval-btn-step-out";
+    stepOutBtn.textContent = t("sheetDialogs.evaluateFormulaStepOut", "Bước ra");
+    const restartBtn = document.createElement("button");
+    restartBtn.type = "button";
+    restartBtn.className = "vno-btn vno-eval-btn-restart";
+    restartBtn.textContent = t("sheetDialogs.evaluateFormulaRestart", "Khởi động lại");
+    if (footer) {
+      footer.prepend(restartBtn);
+      footer.prepend(stepOutBtn);
+      footer.prepend(stepInBtn);
+      footer.prepend(evaluateBtn);
+    }
+
+    const render = () => {
+      const state = session.getState();
+      const refEl = overlay.querySelector("#vno-eval-ref");
+      const formulaEl = overlay.querySelector("#vno-eval-formula");
+      const stepEl = overlay.querySelector("#vno-eval-step-value");
+      const finalEl = overlay.querySelector("#vno-eval-final");
+      const errorEl = overlay.querySelector("#vno-eval-error");
+      if (refEl) {
+        refEl.textContent = t("sheetDialogs.evaluateFormulaRef", {
+          sheet: state.sheetName || this.activeSheet,
+          coord: state.coord || coord
+        });
+      }
+      if (state.error === "not-formula") {
+        if (formulaEl) formulaEl.innerHTML = "";
+        if (stepEl) stepEl.textContent = "";
+        if (errorEl) errorEl.textContent = t("sheetDialogs.evaluateFormulaNoFormula", "Ô đang chọn không chứa công thức. Hãy chọn một ô bắt đầu bằng dấu = rồi mở lại Ước lượng công thức.");
+        if (finalEl) finalEl.textContent = "";
+        evaluateBtn.disabled = true;
+        stepInBtn.disabled = true;
+        stepOutBtn.disabled = true;
+        restartBtn.disabled = true;
+        cancelBtn?.focus();
+        return;
+      }
+      if (errorEl) errorEl.textContent = "";
+      if (formulaEl) formulaEl.innerHTML = renderFormulaHtml(state.formula, state.underline);
+      const last = state.steps[state.steps.length - 1];
+      if (stepEl) {
+        stepEl.textContent = last
+          ? t("sheetDialogs.evaluateFormulaStepResult", { value: formatFormulaValue(last.value) })
+          : "";
+      }
+      const cellText = formatFormulaValue(state.cellValue);
+      if (state.done) {
+        const finalText = formatFormulaValue(state.finalValue);
+        const match = String(finalText) === String(cellText) || Number(finalText) === Number(state.cellValue);
+        if (finalEl) {
+          finalEl.textContent = `${t("sheetDialogs.evaluateFormulaDone", { value: finalText })} ${
+            match
+              ? t("sheetDialogs.evaluateFormulaDoneMatch", "Kết quả khớp giá trị ô.")
+              : t("sheetDialogs.evaluateFormulaDoneMismatch", { value: cellText })
+          }`;
+        }
+      } else if (finalEl) {
+        finalEl.textContent = t("sheetDialogs.evaluateFormulaCellValue", { value: cellText });
+      }
+      evaluateBtn.disabled = !state.canEvaluate;
+      stepInBtn.disabled = !state.canStepIn;
+      stepOutBtn.disabled = !state.canStepOut;
+      restartBtn.disabled = false;
+      if (state.canEvaluate) evaluateBtn.focus();
+    };
+
+    evaluateBtn.addEventListener("click", () => {
+      session.evaluate();
+      render();
+    });
+    stepInBtn.addEventListener("click", () => {
+      session.stepIn();
+      render();
+    });
+    stepOutBtn.addEventListener("click", () => {
+      session.stepOut();
+      render();
+    });
+    restartBtn.addEventListener("click", () => {
+      session.restart();
+      render();
+    });
+    overlay.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      if (document.activeElement === cancelBtn) return;
+      if (evaluateBtn.disabled) return;
+      event.preventDefault();
+      session.evaluate();
+      render();
+    });
+    render();
+    return true;
   }
 
   openChartBuilder() {

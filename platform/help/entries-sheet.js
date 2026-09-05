@@ -779,6 +779,21 @@ export const SHEET_HELP_ENTRIES = [
       "Xóa tất cả: xóa giá trị, công thức và style. Xóa định dạng: giữ số/công thức, bỏ màu/viền/cỡ chữ. Xóa nội dung: xóa chữ và công thức, giữ style. Sheet đang bảo vệ thì Xóa tất cả / Xóa nội dung / Điền bị chặn.",
       "Ctrl+Z hoàn tác cả khối điền hoặc xóa. Delete mặc định gần với xóa nội dung, không xóa định dạng."
     ]
+  },
+  {
+    id: "sheet.formula.evaluateFormula",
+    app: "sheet",
+    commandIds: ["sheet.formula.evaluateFormula"],
+    title: "Ước lượng công thức (Evaluate Formula)",
+    summary: "Mở hộp thoại xem từng bước tính của công thức đang chọn: phần sắp được tính được gạch chân và in nghiêng; mỗi lần nhấn Ước lượng thay phần đó bằng giá trị trung gian thật do engine tính. Chỉ xem, không sửa ô.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Kiểm tra công thức" },
+    keywords: ["ước lượng công thức", "evaluate formula", "debug công thức", "bước vào", "step in", "giá trị trung gian", "công thức lồng nhau"],
+    steps: [
+      "Chọn ô đang chứa công thức (ô bắt đầu bằng dấu =, ví dụ F1 =IF(SUM(A1:A3)>10,B1*C1,D1+E1)). Mở tab Công thức, nhóm Kiểm tra công thức — nút Ước lượng công thức nằm cột Hiện công thức / Kiểm tra lỗi, ngay trên Cửa sổ theo dõi.",
+      "Hộp «Ước lượng công thức» hiện tham chiếu Sheet!Ô, khung công thức monospace, và phần sắp tính được gạch chân + in nghiêng. Ví dụ bước 1 gạch chân SUM(A1:A3). Nhấn Ước lượng (hoặc Enter): engine tính thật phần đó rồi thay bằng giá trị (SUM thành 12 nếu A1:A3 là 5,4,3). Bước tiếp gạch chân 12>10, rồi nhánh IF được chọn (B1*C1), rồi kết quả cuối. Nhánh không được chọn không bị tính.",
+      "Nếu phần đang gạch chân là một ô khác có công thức riêng, nút Bước vào mở công thức của ô đó. Bước ra trở về công thức đang ước lượng. Khởi động lại đưa về công thức gốc. Đóng hoặc Esc tắt hộp — không ghi gì vào ô, không tạo Undo.",
+      "Dòng «Giá trị hiện tại của ô» dùng để đối chiếu: khi ước lượng xong, kết quả cuối phải khớp giá trị đang hiện trên lưới. Ô không có công thức thì hộp báo «Ô đang chọn không chứa công thức» và chỉ còn nút Đóng. Độ chi tiết: bước theo nhóm hàm/so sánh/nhánh IF/phép toán, không thay từng token ô lẻ như Excel đầy đủ."
+    ]
   }
 ];
 

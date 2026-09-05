@@ -187,6 +187,7 @@ export const VN_TO_UNO_MAP = {
   "sheet.formula.showFormulas": ".uno:ShowFormulas",
   "sheet.formula.errorChecking": ".uno:ErrorChecking",
   "sheet.formula.watchWindow": ".uno:WatchWindow",
+  "sheet.formula.evaluateFormula": ".uno:EvaluateFormula",
   "sheet.calc.calculationOptions": ".uno:CalculationMode",
   "sheet.calc.modeAutomatic": ".uno:AutomaticCalculation",
   "sheet.calc.modeManual": ".uno:ManualCalculation",

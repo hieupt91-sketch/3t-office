@@ -342,7 +342,8 @@ export const SHEET_RIBBON_TABS = [
             type: "column",
             items: [
               { type: "button", commandId: "sheet.formula.showFormulas" },
-              { type: "button", commandId: "sheet.formula.errorChecking" }
+              { type: "button", commandId: "sheet.formula.errorChecking" },
+              { type: "button", commandId: "sheet.formula.evaluateFormula" }
             ]
           },
           { type: "button", commandId: "sheet.formula.watchWindow", isLarge: true }
