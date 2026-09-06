@@ -264,6 +264,25 @@
   background: rgba(37, 99, 235, 0.16);
 }
 
+[data-theme="dark"] .vno-writer-body ins[data-vno-change="insert"] {
+  color: #4ade80;
+  text-decoration-color: #4ade80;
+  background: transparent;
+}
+
+[data-theme="dark"] .vno-writer-body del[data-vno-change="delete"] {
+  color: #f87171;
+  text-decoration-color: #f87171;
+  background: transparent;
+}
+
+
+[data-theme="dark"] .vno-writer-body [data-vno-change].is-vno-change-active {
+  outline: 2px solid #60a5fa;
+  background: rgba(96, 165, 250, 0.2);
+}
+
+
 .vno-status-wordcount {
   background: transparent;
   border: none;
@@ -379,6 +398,21 @@
   padding: 6pt 10pt;
 }
 
+[data-theme="dark"] .vno-writer-page td,
+[data-theme="dark"] .vno-writer-page th {
+  border-color: #52525b;
+}
+
+.vno-writer-page td:focus-within,
+.vno-writer-page th:focus-within {
+  outline: 1px solid var(--vno-writer-primary, #0f4c81);
+}
+
+[data-theme="dark"] .vno-writer-page td:focus-within,
+[data-theme="dark"] .vno-writer-page th:focus-within {
+  outline: 1px solid #60a5fa;
+}
+
 /* Vùng Đầu trang (Header) và Chân trang (Footer) tách biệt chuẩn Word */
 .vno-writer-header,
 .vno-writer-footer {
@@ -388,6 +422,7 @@
   outline: none;
   position: relative;
   box-sizing: border-box;
+  caret-color: var(--vno-text-primary);
 }
 
 .vno-writer-header {
@@ -466,6 +501,7 @@
   min-height: 800px;
   outline: none;
   cursor: text;
+  caret-color: var(--vno-text-primary);
 }
 
 #vno-ribbon-tab-pictureFormat[hidden] { display: none; }
@@ -507,6 +543,11 @@
   text-underline-offset: 3px;
   cursor: text;
 }
+
+[data-theme="dark"] .vno-spelling-uncertain {
+  text-decoration-color: #f87171;
+}
+
 
 .vno-spellcheck-menu {
   position: fixed;
@@ -2080,11 +2121,21 @@ p.vno-style-emphasis {
   outline-offset: 2px;
 }
 
+[data-theme="dark"] .vno-writer-shape-item.is-selected {
+  outline-color: #60a5fa;
+}
+
 .vno-writer-textbox {
   background: #ffffff;
   border: 1.5px solid #2563eb;
   box-shadow: 0 1px 4px rgba(15, 76, 129, 0.12);
   user-select: text;
+}
+
+[data-theme="dark"] .vno-writer-textbox {
+  background: var(--vno-bg-surface, #252526);
+  border-color: #60a5fa;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 .vno-writer-textbox-body {
@@ -2098,7 +2149,13 @@ p.vno-style-emphasis {
   color: #0f172a;
   cursor: text;
   outline: none;
+  caret-color: var(--vno-text-primary);
 }
+
+[data-theme="dark"] .vno-writer-textbox-body {
+  color: var(--vno-text-primary, #f1f5f9);
+}
+
 
 .vno-drop-cap {
   float: left;
