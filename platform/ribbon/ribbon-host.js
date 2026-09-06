@@ -181,6 +181,8 @@ export class RibbonHost {
                     labelKey: rowItem.labelKey,
                     icon: rowItem.icon,
                     isLarge: rowItem.isLarge,
+                    iconOnly: rowItem.iconOnly,
+                    ariaLabel: rowItem.ariaLabel,
                     items: rowItem.items
                   }));
                 } else {

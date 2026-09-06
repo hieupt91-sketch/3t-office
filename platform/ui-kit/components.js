@@ -35,6 +35,7 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("alignright")) return ICONS.alignRight;
   if (idLower.includes("justify")) return ICONS.alignJustify;
   if (idLower.includes("bullet")) return ICONS.listBullet;
+  if (idLower.includes("multilevel")) return ICONS.listMultilevel;
   if (idLower.includes("numbered") || idLower.includes("number")) return ICONS.listNumber;
   if (idLower.includes("indentinc")) return ICONS.indentInc;
   if (idLower.includes("indentdec")) return ICONS.indentDec;
@@ -471,6 +472,7 @@ export function createDropdownButton({
   labelKey,
   icon,
   isLarge = false,
+  iconOnly = false,
   items = [],
   ariaLabel
 }) {
@@ -504,6 +506,12 @@ export function createDropdownButton({
         <span class="vno-btn-text">${displayLabel}</span>
         ${arrowSvg}
       </span>
+    `;
+  } else if (iconOnly) {
+    btn.className = "vno-btn vno-ribbon-btn-small vno-btn-icon-only vno-ribbon-btn-dropdown";
+    btn.innerHTML = `
+      <span class="vno-btn-icon" aria-hidden="true">${iconSvg}</span>
+      ${arrowSvg}
     `;
   } else {
     btn.className = "vno-btn vno-ribbon-btn-small vno-ribbon-btn-dropdown";

@@ -99,6 +99,19 @@ export const WRITER_RIBBON_TABS = [
                 items: [
                   { type: "button", commandId: "writer.list.bullet", iconOnly: true },
                   { type: "button", commandId: "writer.list.numbered", iconOnly: true },
+                  {
+                    type: "dropdown",
+                    id: "writer.para.multilevelList",
+                    label: "Đa cấp",
+                    icon: "listMultilevel",
+                    iconOnly: true,
+                    ariaLabel: "Danh sách đa cấp",
+                    items: [
+                      { commandId: "writer.para.multilevelList", args: "decimal", label: "1. / 1.1. / 1.1.1." },
+                      { commandId: "writer.para.multilevelList", args: "letter", label: "1. / a. / i." },
+                      { commandId: "writer.para.multilevelList", args: "nd30", label: "Điều 1. / 1. / a)" }
+                    ]
+                  },
                   { type: "button", commandId: "writer.para.indentDec", iconOnly: true },
                   { type: "button", commandId: "writer.para.indentInc", iconOnly: true },
                   { type: "button", commandId: "writer.para.sort", iconOnly: true },
