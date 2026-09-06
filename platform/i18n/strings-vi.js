@@ -461,6 +461,15 @@ export const viStrings = {
     ,"slides.file.printPreview": { label: "Xem trước khi in", tooltip: "Xem trước khi in (Ctrl+F2)" }
     ,"slides.shape.group": { label: "Nhóm đối tượng", tooltip: "Nhóm các đối tượng đang chọn thành một khối (Ctrl+G)" }
     ,"slides.shape.ungroup": { label: "Bỏ nhóm", tooltip: "Tách nhóm đối tượng đang chọn (Ctrl+Shift+G)" }
+    ,"slides.arrange.alignLeft": { label: "Căn trái", tooltip: "Căn các đối tượng đang chọn theo mép trái" }
+    ,"slides.arrange.alignCenter": { label: "Căn giữa (ngang)", tooltip: "Căn các đối tượng đang chọn giữa theo chiều ngang" }
+    ,"slides.arrange.alignRight": { label: "Căn phải", tooltip: "Căn các đối tượng đang chọn theo mép phải" }
+    ,"slides.arrange.alignTop": { label: "Căn trên", tooltip: "Căn các đối tượng đang chọn theo mép trên" }
+    ,"slides.arrange.alignMiddle": { label: "Căn giữa (dọc)", tooltip: "Căn các đối tượng đang chọn giữa theo chiều dọc" }
+    ,"slides.arrange.alignBottom": { label: "Căn dưới", tooltip: "Căn các đối tượng đang chọn theo mép dưới" }
+    ,"slides.arrange.distributeHorizontal": { label: "Phân phối đều ngang", tooltip: "Chia đều khoảng cách ngang giữa các đối tượng (từ 3 đối tượng trở lên)" }
+    ,"slides.arrange.distributeVertical": { label: "Phân phối đều dọc", tooltip: "Chia đều khoảng cách dọc giữa các đối tượng (từ 3 đối tượng trở lên)" }
+    ,"slides.arrange.alignToSlide": { label: "Căn theo trang chiếu", tooltip: "Bật: căn theo toàn bộ khung trang chiếu. Tắt: căn theo khung các đối tượng đang chọn" }
     ,"slides.nav.firstSlide": { label: "Trang đầu tiên", tooltip: "Về trang chiếu đầu tiên (Ctrl+Home)" }
     ,"slides.nav.lastSlide": { label: "Trang cuối cùng", tooltip: "Đến trang chiếu cuối cùng (Ctrl+End)" }
     ,"slides.nav.prevSlide": { label: "Trang trước", tooltip: "Về trang chiếu trước (Page Up)" }

@@ -426,6 +426,54 @@ export const ICONS = {
     <path d="M10 19H5.5V14.5M5.5 19L10.5 14" stroke="#DC2626" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
+  alignObjLeft: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <line x1="4" y1="2" x2="4" y2="22" stroke="#DC2626" stroke-width="1.6"/>
+    <rect x="4" y="4" width="12" height="6" rx="1" fill="#3B82F6"/>
+    <rect x="4" y="14" width="7" height="6" rx="1" fill="#10B981"/>
+  </svg>`,
+  alignObjCenter: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <line x1="12" y1="2" x2="12" y2="22" stroke="#DC2626" stroke-width="1.6"/>
+    <rect x="6" y="4" width="12" height="6" rx="1" fill="#3B82F6"/>
+    <rect x="8.5" y="14" width="7" height="6" rx="1" fill="#10B981"/>
+  </svg>`,
+  alignObjRight: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <line x1="20" y1="2" x2="20" y2="22" stroke="#DC2626" stroke-width="1.6"/>
+    <rect x="8" y="4" width="12" height="6" rx="1" fill="#3B82F6"/>
+    <rect x="13" y="14" width="7" height="6" rx="1" fill="#10B981"/>
+  </svg>`,
+  alignObjTop: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <line x1="2" y1="4" x2="22" y2="4" stroke="#DC2626" stroke-width="1.6"/>
+    <rect x="4" y="4" width="6" height="12" rx="1" fill="#3B82F6"/>
+    <rect x="14" y="4" width="6" height="7" rx="1" fill="#10B981"/>
+  </svg>`,
+  alignObjMiddle: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <line x1="2" y1="12" x2="22" y2="12" stroke="#DC2626" stroke-width="1.6"/>
+    <rect x="4" y="6" width="6" height="12" rx="1" fill="#3B82F6"/>
+    <rect x="14" y="8.5" width="6" height="7" rx="1" fill="#10B981"/>
+  </svg>`,
+  alignObjBottom: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <line x1="2" y1="20" x2="22" y2="20" stroke="#DC2626" stroke-width="1.6"/>
+    <rect x="4" y="8" width="6" height="12" rx="1" fill="#3B82F6"/>
+    <rect x="14" y="13" width="6" height="7" rx="1" fill="#10B981"/>
+  </svg>`,
+  distributeH: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="2" y="9" width="4" height="6" rx="1" fill="#3B82F6"/>
+    <rect x="10" y="9" width="4" height="6" rx="1" fill="#10B981"/>
+    <rect x="18" y="9" width="4" height="6" rx="1" fill="#3B82F6"/>
+    <path d="M7 12h2M15 12h2" stroke="#DC2626" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+  distributeV: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="9" y="2" width="6" height="4" rx="1" fill="#3B82F6"/>
+    <rect x="9" y="10" width="6" height="4" rx="1" fill="#10B981"/>
+    <rect x="9" y="18" width="6" height="4" rx="1" fill="#3B82F6"/>
+    <path d="M12 7v2M12 15v2" stroke="#DC2626" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+  alignToSlide: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="2.5" y="2.5" width="19" height="19" rx="1.5" stroke="#64748B" stroke-width="1.4" stroke-dasharray="2 2"/>
+    <rect x="6" y="6" width="6" height="5" rx="1" fill="#3B82F6"/>
+    <path d="M15 15l4 4m0 0v-3.5m0 3.5h-3.5" stroke="#DC2626" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
   diagram: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="3" y="5" width="9" height="7" rx="2" fill="#2563EB"/>
     <rect x="20" y="5" width="9" height="7" rx="2" fill="#10B981"/>

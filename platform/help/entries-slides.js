@@ -344,16 +344,22 @@ export const SLIDES_HELP_ENTRIES = [
   {
     id: "slides.shape.groupUngroup",
     app: "slides",
-    commandIds: ["slides.shape.group", "slides.shape.ungroup"],
-    title: "Nhóm và bỏ nhóm đối tượng",
-    summary: "Chọn từ hai hình trở lên rồi Ctrl+G để nhóm thành một khối (kéo/xóa cùng lúc). Ctrl+Shift+G tách nhóm. Đường nối (connector) không được đưa vào nhóm. Không có nút riêng trên ribbon.",
+    commandIds: [
+      "slides.shape.group", "slides.shape.ungroup",
+      "slides.arrange.alignLeft", "slides.arrange.alignCenter", "slides.arrange.alignRight",
+      "slides.arrange.alignTop", "slides.arrange.alignMiddle", "slides.arrange.alignBottom",
+      "slides.arrange.distributeHorizontal", "slides.arrange.distributeVertical", "slides.arrange.alignToSlide"
+    ],
+    title: "Sắp xếp: căn chỉnh, phân phối đều, nhóm và bỏ nhóm đối tượng",
+    summary: "Tab Trang đầu, nhóm Đối tượng vẽ, nút thả xuống Sắp xếp gồm đầy đủ Căn trái/giữa/phải/trên/giữa dọc/dưới, Phân phối đều ngang/dọc, Căn theo trang chiếu, và Nhóm/Bỏ nhóm (Ctrl+G / Ctrl+Shift+G) — đúng bố cục Arrange > Align của PowerPoint thật.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Đối tượng vẽ" },
-    keywords: ["nhóm", "bỏ nhóm", "group", "ungroup", "ctrl+g", "ctrl+shift+g", "khối hình"],
+    keywords: ["nhóm", "bỏ nhóm", "group", "ungroup", "ctrl+g", "ctrl+shift+g", "khối hình", "căn chỉnh", "align", "phân phối đều", "distribute", "căn theo trang chiếu", "align to slide", "sắp xếp", "arrange"],
     steps: [
-      "Chọn nhiều hình trên trang: giữ Shift rồi nhấp từng hình, hoặc tab Trang đầu → nhóm Chỉnh sửa → Chọn → Chọn tất cả / Chọn đối tượng.",
-      "Ctrl+G nhóm. Cần ít nhất hai hình (không tính đường nối). Sau khi nhóm, chọn một thành viên là chọn cả khối.",
-      "Ctrl+Shift+G bỏ nhóm đối tượng đang chọn. Hình vẫn còn, chỉ mất liên kết nhóm.",
-      "Hai lệnh không có nút trên ribbon — chỉ phím tắt. Ctrl+Z / Ctrl+Y hoàn tác hoặc làm lại nhóm/bỏ nhóm."
+      "Chọn từ hai hình trở lên: giữ Shift rồi nhấp từng hình, hoặc tab Trang đầu → nhóm Chỉnh sửa → Chọn → Chọn tất cả / Chọn đối tượng.",
+      "Tab Trang đầu, nhóm Đối tượng vẽ, nút thả xuống Sắp xếp: Căn trái/Căn giữa (ngang)/Căn phải canh theo trục ngang; Căn trên/Căn giữa (dọc)/Căn dưới canh theo trục dọc. Mặc định canh theo đúng khung bao quanh các đối tượng đang chọn (giống PowerPoint khi tắt Align to Slide).",
+      "Phân phối đều ngang/dọc chia đều khoảng TRỐNG giữa các đối tượng (giữ nguyên hình đầu và cuối theo trục đang phân phối) — cần ít nhất 3 đối tượng để thấy hiệu quả rõ ràng.",
+      "Bật Căn theo trang chiếu để mọi lệnh Căn/Phân phối tiếp theo dùng toàn bộ khung trang chiếu làm mốc thay vì khung các đối tượng đang chọn — giống PowerPoint thật.",
+      "Ctrl+G nhóm (cần ít nhất hai hình, không tính đường nối); Ctrl+Shift+G bỏ nhóm. Mọi thao tác Căn/Phân phối/Nhóm/Bỏ nhóm đều hoàn tác được bằng Ctrl+Z."
     ]
   },
   {
