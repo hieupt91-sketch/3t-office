@@ -396,6 +396,7 @@ export const WRITER_RIBBON_TABS = [
     labelKey: "writerRibbon.tab.references",
     groups: [
       {
+        id: "tableOfContents",
         label: "Mục lục",
         labelKey: "writerRibbon.group.tableOfContents",
         items: [
@@ -404,6 +405,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "footnotes",
         label: "Chú thích",
         labelKey: "writerRibbon.group.footnotes",
         items: [
@@ -412,24 +414,35 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "citationsBibliography",
         label: "Trích dẫn & Thư mục tài liệu",
         labelKey: "writerRibbon.group.citationsBibliography",
         items: [
-          { type: "column", items: [
-            { type: "row", items: [{ type: "select", commandId: "writer.reference.citationStyle", defaultValue: "apa", ariaLabel: "Kiểu trích dẫn", options: [{ value: "apa", label: "APA" }, { value: "mla", label: "MLA" }] }] },
-            { type: "row", items: [{ type: "button", commandId: "writer.reference.sourcesManage" }] }
-          ] },
           { type: "button", commandId: "writer.reference.citationInsert", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "row", items: [{ type: "button", commandId: "writer.reference.sourcesManage" }] },
+              { type: "row", items: [{ type: "select", commandId: "writer.reference.citationStyle", defaultValue: "apa", ariaLabel: "Kiểu trích dẫn", options: [{ value: "apa", label: "APA" }, { value: "mla", label: "MLA" }] }] }
+            ]
+          },
           { type: "button", commandId: "writer.reference.bibliographyInsert", isLarge: true }
         ]
       },
       {
+        id: "captions",
         label: "Chú thích ảnh",
         labelKey: "writerRibbon.group.captions",
         items: [
           { type: "button", commandId: "writer.reference.captionInsert", isLarge: true },
-          { type: "button", commandId: "writer.reference.tofInsert", isLarge: true },
-          { type: "button", commandId: "writer.reference.tofUpdate", isLarge: true }
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.reference.tofInsert" },
+              { type: "button", commandId: "writer.reference.tofUpdate" },
+              { type: "button", commandId: "writer.insert.crossReference" }
+            ]
+          }
         ]
       }
     ]
