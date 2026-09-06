@@ -217,10 +217,31 @@ Verification thật:
 - Microsoft Word thật (Start-Process thụ động): hình mờ chữ mờ, xoay chéo, nằm sau nội dung.
 - `node tests/run-tests.js`: **1230/1230 PASS** (1220 baseline @ `fbf56d7` + 10 test Phase E.2).
 
-### 7c. Phase E.3 — WordArt, shape/chart/diagram (đề xuất, chưa làm)
+### 7c. Phase E.3 — WordArt (hoàn thành); Chart/Diagram để E.4
 
-- WordArt, shape nâng cao, chart, diagram qua FODT, sau probe DOCX fidelity.
-- Mỗi capability chỉ được đánh dấu hỗ trợ khi có fixture import, VN round-trip và LibreOffice real conversion assertion.
+Phạm vi WordArt đã làm (Grok, worktree `E:\VNOffice-grok-writer-fodt-phase-e3`):
+
+- Writer WordArt là **span inline** `data-vno-wordart` trong `bodyDom` (8 preset CSS), không phải `this.shapes`.
+- Đo trước code (`docs/HANDOFF-WRITER-FODT-PHASE-E3-FINDINGS.md`): `draw:custom-shape` Fontwork trong `text:p` (sibling bị LO nuốt). `fontwork-plain-text` → DOCX VML-only `o:spt="136"` — Microsoft Word Compatibility Mode **không sơn**. `fontwork-fade-right` → `w:drawing` + `a:prstTxWarp prst="textFadeRight"` + VML fallback — **Word vẽ được** (đo bằng mắt).
+- `serializeToFodt()`: Fontwork `fontwork-fade-right` neo `as-char`, `draw:name="WordArt-<presetId>"`, fill từ `fillColor`/`gradient.from`, `draw:stroke="none"`. Parse Fontwork body → `buildWriterWordArtHtml`, **không** `this.shapes`. Header WordArt throw.
+- `save()` / `exportPdf()` / `_contentForExport()` không đổi (cutover gate).
+
+Verification thật:
+
+- Unit: `tests/unit/writer-fodt-phase-e3-wordart.test.js` — 10 test: cấu trúc Fontwork, gradient.from, idempotence, parse Fontwork Word, fail-closed header/preset lạ/star6, không đụng arrow B.2.
+- Live soffice: `tests/live/writer-fodt-phase-e3-wordart-real-conversion.mjs` — FODT → DOCX có `w:drawing`, `prstTxWarp textFadeRight`, `w:t KHAI_GIANG`, Impact, `w:color 1E3A8A`, `v:textpath` fallback.
+- Microsoft Word thật (Start-Process thụ động): chữ **KHAI GIANG** navy lớn, hiệu ứng fade-right, nằm giữa câu.
+- `node tests/run-tests.js`: **1240/1240 PASS** (1230 baseline @ `7f610ca` + 10 test WordArt).
+
+**Chưa làm trong E.3 (để Phase E.4), lý do đo được:**
+
+- **Chart:** probe C1–C3 FODT `draw:frame`+`draw:object`+`chart:chart` as-char **đã** ra `word/charts/chart1.xml` native (`c:barChart`/`c:lineChart`/`c:pieChart`). Sibling `text:p` bị nuốt. Writer UI là `<div data-vno-chart>` + SVG, chưa serialize. Không làm dở.
+- **SmartArt/Diagram:** probe D1–D3 ra shape Word rời / `wpg:wgp`, **không** `word/diagrams/` hay `dgm:`. Writer HTML 4 layout không ánh xạ 1-1 fail-closed. `data-vno-diagram` vẫn throw.
+
+### 7d. Phase E.4 — Chart native và SmartArt/Diagram (đề xuất)
+
+- Chart: tái dùng pattern C1 (local-table + `chart:class` bar/line/circle/area) trong `text:p` as-char; parse `draw:object` → `generateChartHtml`.
+- Diagram: cần thiết kế riêng (không giả SmartArt Word từ nhóm shape); chỉ đánh dấu hỗ trợ khi có fixture + Word visual + idempotence.
 
 ## 8. Chiến lược cutover
 
