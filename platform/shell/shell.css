@@ -476,6 +476,18 @@ body {
     gap: 2px;
   }
 
+  /* Sheet Home - Nhom Bang nho tam (Clipboard): Dan dac biet thu gon thanh icon button */
+  .vno-ribbon-group[data-group-id="clipboard"] button[data-command-id="sheet.edit.pasteSpecial"] .vno-btn-label {
+    display: none;
+  }
+  .vno-ribbon-group[data-group-id="clipboard"] button[data-command-id="sheet.edit.pasteSpecial"] {
+    padding: 2px 5px;
+    justify-content: center;
+  }
+  .vno-ribbon-group[data-group-id="cells"] .vno-ribbon-btn-small {
+    padding: 2px 4px;
+  }
+
   /* Sheet Home - Nhom Chinh sua (Editing): Sap xep A-Z, Sap xep Z-A, Loc thu gon thanh icon buttons */
   .vno-ribbon-group[data-group-id="editing"] button[data-command-id="sheet.data.sortAsc"] .vno-btn-label,
   .vno-ribbon-group[data-group-id="editing"] button[data-command-id="sheet.data.sortDesc"] .vno-btn-label,
