@@ -284,9 +284,11 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
     custom namespace. We add it in-place on the existing element.
 
     Slides PPTX: FODP already has the master-page logo (vno:master-theme +
-    draw:frame). LibreOffice drops that shape and only keeps placeholders.
-    PowerPoint's slot is a p:sp without p:ph on slideMaster1.xml. We insert
-    that DrawingML shape; no custom namespace.
+    draw:frame) and named sections (vno:section-* on draw:page). LibreOffice
+    drops the logo (placeholders only) and does not emit p14:sectionLst.
+    PowerPoint's slots are a p:sp without p:ph on slideMaster1.xml, and
+    p:extLst/p14:sectionLst in ppt/presentation.xml (Microsoft 2010
+    extension, not a custom namespace).
     """
     fmt = str(target_format).lower()
     if app_kind == "sheet" and fmt == "xlsx":
@@ -318,7 +320,7 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
             with open(src_path, "r", encoding="utf-8", errors="replace") as handle:
                 fodp = handle.read()
             patcher = _ooxml_zip_patch()
-            if not patcher.fodp_has_master_logo(fodp):
+            if not patcher.fodp_has_master_logo(fodp) and not patcher.fodp_has_sections(fodp):
                 return
             with open(out_path, "rb") as handle:
                 original = handle.read()
@@ -330,7 +332,7 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
             raise
         except Exception as exc:
             raise DocumentEngineError(
-                f"Không bổ sung được logo Slide Master vào PPTX: {exc}"
+                f"Không bổ sung được thuộc tính native PPTX (logo / Sections): {exc}"
             ) from exc
 
 
