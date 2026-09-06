@@ -2957,7 +2957,7 @@ export class SlidesCanvasController {
 
       if (!isConnector) {
         el.tabIndex = 0;
-        el.setAttribute("role", "button");
+        el.setAttribute?.("role", "button");
         el.addEventListener("focus", () => {
           if (!this.selectedShapeIds?.has(String(shape.id))) {
             this.setSelectedTarget(shape.id);
@@ -3012,7 +3012,7 @@ export class SlidesCanvasController {
         el.style.overflow = "hidden";
         el.innerHTML = generateSlidesChartSvg(shape);
         el.tabIndex = 0;
-        el.setAttribute("aria-label", `Biểu đồ: ${shape.title || "Biểu đồ dữ liệu"}. Nhấn Enter để sửa dữ liệu.`);
+        el.setAttribute?.("aria-label", `Biểu đồ: ${shape.title || "Biểu đồ dữ liệu"}. Nhấn Enter để sửa dữ liệu.`);
         el.addEventListener("dblclick", (event) => { event.stopPropagation(); this.editChart(shape.id); });
         el.addEventListener("keydown", (event) => {
           if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); this.editChart(shape.id); }
@@ -3030,8 +3030,8 @@ export class SlidesCanvasController {
         if (shape.presetId) textEl.dataset.vnoWordartPreset = String(shape.presetId);
         textEl.textContent = shape.text || "";
         textEl.contentEditable = "false";
-        textEl.setAttribute("role", "textbox");
-        textEl.setAttribute("aria-label", shape.text || "WordArt");
+        textEl.setAttribute?.("role", "textbox");
+        textEl.setAttribute?.("aria-label", shape.text || "WordArt");
         applyWordArtCss(textEl, shape);
         const startEditing = (initialText) => {
           if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
@@ -3135,8 +3135,8 @@ export class SlidesCanvasController {
           if (shape.textHtml && this._htmlLooksFormatted(shape.textHtml)) textEl.innerHTML = shape.textHtml;
           else textEl.textContent = shape.text || "";
           textEl.contentEditable = "false";
-          textEl.setAttribute("role", "textbox");
-          textEl.setAttribute("aria-label", shape.text || t("slidesDialogs.diagramItem", { number: 1 }));
+          textEl.setAttribute?.("role", "textbox");
+          textEl.setAttribute?.("aria-label", shape.text || t("slidesDialogs.diagramItem", { number: 1 }));
           const startEditing = (initialText) => {
             if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
             textEl.contentEditable = "true";

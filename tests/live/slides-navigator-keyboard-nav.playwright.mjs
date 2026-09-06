@@ -51,17 +51,9 @@ async function run() {
     assert(totalThumbs >= 3, `Phải có ít nhất 3 thumbnail slide, hiện có: ${totalThumbs}`);
 
     // Focus thumbnail đầu tiên
-    const beforeFocusInfo = await page.evaluate(() => {
-      const first = document.querySelector('.vno-slide-thumb-item[data-slide-index="0"]');
-      first?.focus();
-      return {
-        foundFirst: !!first,
-        tag: document.activeElement?.tagName,
-        className: document.activeElement?.className,
-        tabIndex: first?.tabIndex
-      };
+    await page.evaluate(() => {
+      document.querySelector('.vno-slide-thumb-item[data-slide-index="0"]')?.focus();
     });
-    console.log("DEBUG beforeFocusInfo:", beforeFocusInfo);
     await page.waitForTimeout(150);
 
     // 1. Phím ArrowDown di chuyển sang slide 1
@@ -69,13 +61,7 @@ async function run() {
     await page.waitForTimeout(150);
     let currentIdx = await page.evaluate(async () => (await import("/adapters/libreoffice/common/uno-bridge.js")).globalUnoBridge.activeDocument?.canvas?.currentSlideIndex);
     assert(currentIdx === 1, `ArrowDown phải chuyển sang slide index 1, hiện là ${currentIdx}`);
-    const activeInfo = await page.evaluate(() => ({
-      tag: document.activeElement?.tagName,
-      className: document.activeElement?.className,
-      slideIndex: document.activeElement?.getAttribute?.("data-slide-index")
-    }));
-    console.log("DEBUG activeInfo:", activeInfo);
-    let activeFocusedIdx = activeInfo.slideIndex;
+    let activeFocusedIdx = await page.evaluate(() => document.activeElement?.getAttribute?.("data-slide-index"));
     assert(activeFocusedIdx === "1", `Focus phải chuyển sang thumbnail slide 1, hiện là ${activeFocusedIdx}`);
     console.log("PASS: ArrowDown di chuyển sang slide tiếp theo và duy trì focus thumbnail");
 
