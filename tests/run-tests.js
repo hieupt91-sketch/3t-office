@@ -121,6 +121,7 @@ import { runSheetXlsxNativeOpenOverlayTests } from "./unit/sheet-xlsx-native-ope
 import { runSlidesPptxMasterLogoTests } from "./unit/slides-pptx-master-logo.test.js";
 import { runWriterFodtPhaseBTests } from "./unit/writer-fodt-phase-b.test.js";
 import { runSlidesPptxSectionListTests } from "./unit/slides-pptx-section-list.test.js";
+import { runSlidesPptxSectionsOpenOverlayTests } from "./unit/slides-pptx-sections-open-overlay.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -249,7 +250,8 @@ async function runAll() {
     { title: "109. Unit Tests — Sheet native XLSX open overlay (lockStructure → structure-protected)", runner: runSheetXlsxNativeOpenOverlayTests },
     { title: "110. Unit Tests — Slides native PPTX post-process (Slide Master logo p:sp)", runner: runSlidesPptxMasterLogoTests },
     { title: "111. Unit Tests — Writer FODT Phase B (table, image)", runner: runWriterFodtPhaseBTests },
-    { title: "112. Unit Tests — Slides native PPTX post-process (p14:sectionLst)", runner: runSlidesPptxSectionListTests }
+    { title: "112. Unit Tests — Slides native PPTX post-process (p14:sectionLst)", runner: runSlidesPptxSectionListTests },
+    { title: "113. Unit Tests — Slides native PPTX open overlay (p14:sectionLst → vno:section-*)", runner: runSlidesPptxSectionsOpenOverlayTests }
   ];
 
   for (const suite of suites) {

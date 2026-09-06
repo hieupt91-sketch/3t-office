@@ -12,6 +12,7 @@ main.py calls:
   - postprocess_sheet_xlsx() after soffice FODS→XLSX (File → Lưu)
   - overlay_sheet_xlsx_fods() after soffice XLSX→FODS (File → Mở)
   - postprocess_slides_pptx() after soffice FODP→PPTX (File → Lưu)
+  - overlay_slides_pptx_fodp() after soffice PPTX→FODP (File → Mở)
 
 Keep the XML transform in lock step with the JS helpers.
 """
@@ -38,6 +39,11 @@ PRESENTATION_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
 SECTION_LIST_URI = "{521415D9-36F7-43E2-AB2F-B90AF26B5E84}"
 DEFAULT_SECTION_NAME = "Default Section"
 SECTION_GUID_NAME_PREFIX = "urn:vn-office:slides:section:"
+VNO_NS = "urn:vn-office:slides:1.0"
+_BRACED_GUID_RE = re.compile(
+    r"^\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}$"
+)
+_OFFICE_DOCUMENT_OPEN_RE = re.compile(r"<office:document\b([^>]*)>", re.IGNORECASE)
 
 _PROTECTION_OPEN_RE = re.compile(
     r"<((?:[\w]+:)?workbookProtection)\b([^>]*?)(/?)\s*>",
@@ -550,10 +556,23 @@ def master_has_logo_shape(master_xml: str | None, logo_text: str | None = None) 
     return True
 
 
+def is_braced_guid(value: str | None) -> bool:
+    return bool(_BRACED_GUID_RE.match((value or "").strip()))
+
+
 def section_guid_from_id(section_id: str | None) -> str:
     """UUID v5 (NAMESPACE_URL) matching JS sectionGuidFromId, braced + upper."""
     name = f"{SECTION_GUID_NAME_PREFIX}{section_id or ''}"
     return "{" + str(uuid.uuid5(uuid.NAMESPACE_URL, name)).upper() + "}"
+
+
+def _resolve_section_guid(section: dict) -> str:
+    if section.get("guid"):
+        return str(section["guid"])
+    source_id = section.get("sourceId") or ""
+    if is_braced_guid(source_id):
+        return source_id.strip().upper()
+    return section_guid_from_id(source_id or section.get("name") or "")
 
 
 def parse_fodp_pages(fodp_xml: str | None) -> list[dict[str, str]]:
@@ -658,7 +677,7 @@ def _build_section_ext_xml(presentation_xml: str, sections: list[dict]) -> str:
     parts: list[str] = []
     for section in sections:
         name = _escape_xml(section.get("name") or "")
-        guid = section.get("guid") or section_guid_from_id(section.get("sourceId") or section.get("name") or "")
+        guid = _resolve_section_guid(section)
         ids = "".join(
             f'<{_qualify(p14, "sldId")} id="{_escape_xml(str(slide_id))}"/>'
             for slide_id in (section.get("slideIds") or [])
@@ -723,6 +742,106 @@ def apply_section_list_from_fodp(presentation_xml: str, fodp_xml: str | None) ->
         for group in groups
     ]
     return apply_section_list(presentation_xml, sections)
+
+
+def ensure_vno_xmlns(fodp_xml: str) -> str:
+    xml = fodp_xml or ""
+    if re.search(r"xmlns:vno\s*=", xml, re.IGNORECASE):
+        return xml
+    match = _OFFICE_DOCUMENT_OPEN_RE.search(xml)
+    if not match:
+        return xml
+    attrs = match.group(1) or ""
+    next_tag = f'<office:document{attrs} xmlns:vno="{VNO_NS}">'
+    return xml[: match.start()] + next_tag + xml[match.end() :]
+
+
+def apply_fodp_section_attrs(fodp_xml: str, page_sections: list | None) -> str:
+    """Stamp vno:section-id / vno:section-name onto draw:page by index."""
+    xml = fodp_xml or ""
+    specs = list(page_sections or [])
+    index = 0
+
+    def replace_page(match: re.Match) -> str:
+        nonlocal index
+        spec = specs[index] if index < len(specs) else None
+        index += 1
+        if not spec or not spec.get("id"):
+            return match.group(0)
+        raw = match.group(1) or ""
+        self_close = bool(re.search(r"/\s*$", raw))
+        if self_close:
+            raw = re.sub(r"/\s*$", "", raw)
+        if _SECTION_ID_ATTR_RE.search(raw):
+            raw = _SECTION_ID_ATTR_RE.sub(
+                f'vno:section-id="{_escape_xml(spec["id"])}"', raw
+            )
+        else:
+            raw = f'{raw.rstrip()} vno:section-id="{_escape_xml(spec["id"])}"'
+        if _SECTION_NAME_ATTR_RE.search(raw):
+            raw = _SECTION_NAME_ATTR_RE.sub(
+                f'vno:section-name="{_escape_xml(spec.get("name") or "")}"', raw
+            )
+        else:
+            raw = f'{raw.rstrip()} vno:section-name="{_escape_xml(spec.get("name") or "")}"'
+        if raw and not raw.startswith(" "):
+            raw = f" {raw}"
+        return f"<draw:page{raw}/>" if self_close else f"<draw:page{raw}>"
+
+    next_xml = _PAGE_OPEN_RE.sub(replace_page, xml)
+    if index != len(specs):
+        raise ValueError(
+            f"Số draw:page FODP ({index}) không khớp danh sách overlay ({len(specs)}) — không đoán ánh xạ phần"
+        )
+    return ensure_vno_xmlns(next_xml)
+
+
+def overlay_fodp_sections(fodp_xml: str, presentation_xml: str | None) -> str:
+    """Inject vno:section-* when original PPTX has p14:sectionLst.
+
+    Mapping is p:sldIdLst order ↔ draw:page order. Count mismatch throws.
+    """
+    xml = fodp_xml or ""
+    if not presentation_has_section_list(presentation_xml):
+        return xml
+    slide_ids = parse_presentation_slide_ids(presentation_xml)
+    pages = parse_fodp_pages(xml)
+    if len(slide_ids) != len(pages):
+        raise ValueError(
+            f"PPTX sldIdLst ({len(slide_ids)}) không khớp số draw:page FODP ({len(pages)}) — không đoán ánh xạ phần"
+        )
+    sections = parse_section_list(presentation_xml)
+    if not sections:
+        raise ValueError(
+            "PPTX có p14:sectionLst nhưng không đọc được phần — không đoán ánh xạ phần"
+        )
+    by_id: dict[str, dict[str, str]] = {}
+    seen: set[str] = set()
+    for section in sections:
+        section_id = str(section.get("id") or "").strip()
+        section_name = str(section.get("name") or "").strip()
+        slide_list = section.get("slideIds") or []
+        if not slide_list:
+            continue
+        if not section_id and not section_name:
+            raise ValueError(
+                "p14:section có slide nhưng thiếu name và id — không đoán ánh xạ phần"
+            )
+        ident = section_id or f"section:{section_name}"
+        name = section_name or "Phần không tên"
+        for sld_id in slide_list:
+            if sld_id not in slide_ids:
+                raise ValueError(
+                    f'p14:sldId id="{sld_id}" không có trong p:sldIdLst — không đoán ánh xạ phần'
+                )
+            if sld_id in seen:
+                raise ValueError(
+                    f'p14:sldId id="{sld_id}" thuộc hai phần — không đoán ánh xạ phần'
+                )
+            seen.add(sld_id)
+            by_id[sld_id] = {"id": ident, "name": name}
+    page_sections = [by_id.get(sld_id) for sld_id in slide_ids]
+    return apply_fodp_section_attrs(xml, page_sections)
 
 
 def postprocess_slides_pptx(
@@ -825,6 +944,38 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     return overlay_fods_structure_protection(xml, workbook_xml)
 
 
+def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
+    """Read ppt/presentation.xml from the original PPTX and overlay FODP.
+
+    LibreOffice PPTX→FODP drops p14:sectionLst. Production File → Mở must
+    restore vno:section-* before SlidesAdapter.parseFodp().
+    """
+    xml = fodp_xml or ""
+    current = read_zip_entry(pptx_bytes, PPTX_PRESENTATION_ENTRY)
+    if not current:
+        raise ValueError("PPTX thiếu ppt/presentation.xml — không thể khôi phục Phần (Sections)")
+    presentation_xml = current.decode("utf-8", errors="replace")
+    return overlay_fodp_sections(xml, presentation_xml)
+
+
+def overlay_slides_pptx_fodp_file(
+    pptx_path: str,
+    fodp_path: str,
+    *,
+    out_path: str | None = None,
+) -> str:
+    with open(pptx_path, "rb") as handle:
+        pptx_bytes = handle.read()
+    with open(fodp_path, "r", encoding="utf-8", errors="replace") as handle:
+        fodp_xml = handle.read()
+    overlaid = overlay_slides_pptx_fodp(pptx_bytes, fodp_xml)
+    dest = out_path or fodp_path
+    if overlaid != fodp_xml or dest != fodp_path:
+        with open(dest, "w", encoding="utf-8", newline="") as handle:
+            handle.write(overlaid)
+    return dest
+
+
 def overlay_sheet_xlsx_fods_file(
     xlsx_path: str,
     fods_path: str,
@@ -872,7 +1023,8 @@ def postprocess_sheet_xlsx_file(
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Patch native OOXML after soffice convert: XLSX lockStructure, "
-        "PPTX Slide Master logo / p14:sectionLst, or overlay FODS from original XLSX (File → Mở)."
+        "PPTX Slide Master logo / p14:sectionLst, overlay FODS from original XLSX, "
+        "or overlay FODP from original PPTX p14:sectionLst (File → Mở)."
     )
     parser.add_argument("--xlsx", help="Input .xlsx path")
     parser.add_argument("--pptx", help="Input .pptx path")
@@ -887,11 +1039,20 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--overlay-fods",
         help="Input FODS to overlay from --xlsx lockStructure (File → Mở path)",
     )
+    parser.add_argument(
+        "--overlay-fodp",
+        help="Input FODP to overlay from --pptx p14:sectionLst (File → Mở path)",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
+    if args.overlay_fodp:
+        if not args.pptx:
+            raise SystemExit("--overlay-fodp requires --pptx")
+        overlay_slides_pptx_fodp_file(args.pptx, args.overlay_fodp, out_path=args.out)
+        return 0
     if args.pptx:
         postprocess_slides_pptx_file(args.pptx, fodp_path=args.fodp, out_path=args.out)
         return 0
