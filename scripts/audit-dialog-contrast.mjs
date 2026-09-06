@@ -1,4 +1,4 @@
-﻿import { getContrastRatio, meetsWcagAA } from "../platform/ui-kit/contrast-checker.js";
+import { getContrastRatio, meetsWcagAA } from "../platform/ui-kit/contrast-checker.js";
 
 const pairs = [
   // Sheet Dialogs
@@ -12,6 +12,11 @@ const pairs = [
   { dialog: "Sheet - Evaluate Formula", label: "Underline green in dark mode (#4ade80 on #2d2d2d)", fg: "#4ade80", bg: "#2d2d2d", isLarge: false },
   { dialog: "Sheet - Consolidate", label: "Destination code font on white", fg: "#0f172a", bg: "#ffffff", isLarge: false },
   { dialog: "Sheet - Consolidate", label: "Destination code font on dark window", fg: "#f1f5f9", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Sheet - Rule Dialog", label: "Close button text in dark mode (#94a3b8 on #1e1e1e)", fg: "#94a3b8", bg: "#1e1e1e", isLarge: true },
+  { dialog: "Sheet - AutoFilter", label: "Popover item text on white", fg: "#0f172a", bg: "#ffffff", isLarge: false },
+  { dialog: "Sheet - AutoFilter", label: "Popover item text on dark surface", fg: "#f1f5f9", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Sheet - AutoFilter", label: "Popover section label on white", fg: "#475569", bg: "#ffffff", isLarge: false },
+  { dialog: "Sheet - AutoFilter", label: "Popover section label on dark surface", fg: "#94a3b8", bg: "#1e1e1e", isLarge: false },
   
   // Slides Dialogs
   { dialog: "Slides - Animation Pane", label: "Header title on white", fg: "#0f172a", bg: "#ffffff", isLarge: false },
