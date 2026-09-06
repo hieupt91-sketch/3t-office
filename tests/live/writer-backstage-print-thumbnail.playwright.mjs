@@ -120,7 +120,80 @@ try {
   const printCalls = await page.evaluate(() => window.__printCalls);
   assert(printCalls >= 1, "Bấm 'In ngay' trong Writer Backstage phải kích hoạt window.print", String(printCalls));
 
-  console.log("PASS: Writer Backstage Print Live Preview Thumbnail — render trang in A4 thật, điều hướng chuẩn, và 'In ngay' kích hoạt in thật thành công!");
+  // --- KỊCH BẢN 4: Chèn Footnote & Endnote thật qua nút Ribbon Tham chiếu, so sánh Backstage với Overlay Ctrl+F2 thật ---
+  // Chuyển sang tab Tham chiếu
+  await page.locator('#vno-ribbon-tab-references, .vno-ribbon-tab[data-tab-id="references"]').first().click();
+  await page.waitForTimeout(200);
+
+  // Chèn Footnote thật
+  await page.locator(".vno-writer-body p").first().click();
+  const fnBtn = page.locator('button[data-command-id="writer.reference.footnoteInsert"]');
+  await fnBtn.click();
+  await page.waitForTimeout(300);
+  const fnInput = page.locator('.vno-footnote-item .vno-note-text').first();
+  await fnInput.evaluate((el) => {
+    el.textContent = "Chú thích chân trang mẫu số 01.";
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
+  // Chèn Endnote thật
+  await page.locator(".vno-writer-body p").first().click();
+  const enBtn = page.locator('button[data-command-id="writer.reference.endnoteInsert"]');
+  await enBtn.click();
+  await page.waitForTimeout(300);
+  const enInput = page.locator('.vno-endnote-item .vno-note-text').first();
+  await enInput.evaluate((el) => {
+    el.textContent = "Nghị định số 30/2020/NĐ-CP về công tác văn thư lưu trữ.";
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+
+  // 1. Mở Overlay Xem trước khi in THẬT (Ctrl+F2) để lấy nội dung chuẩn
+  await page.keyboard.press("Control+F2");
+  const overlay = page.locator(".vno-print-preview-overlay");
+  await overlay.waitFor({ state: "visible", timeout: 5000 });
+
+  const overlayFootnotesEl = overlay.locator(".vno-print-preview-footnotes");
+  await overlayFootnotesEl.waitFor({ state: "visible", timeout: 5000 });
+  const overlayFootnotesHtml = (await overlayFootnotesEl.innerHTML()).trim();
+  const overlayFootnotesText = await overlayFootnotesEl.innerText();
+  assert(overlayFootnotesText.includes("Chú thích chân trang mẫu số 01"), "Overlay Ctrl+F2 phải chứa nội dung Footnote", overlayFootnotesText);
+
+  const overlayEndnotesEl = overlay.locator(".vno-print-preview-endnotes");
+  await overlayEndnotesEl.waitFor({ state: "visible", timeout: 5000 });
+  const overlayEndnotesHtml = (await overlayEndnotesEl.innerHTML()).trim();
+  const overlayEndnotesText = await overlayEndnotesEl.innerText();
+  assert(overlayEndnotesText.includes("CHÚ THÍCH CUỐI TÀI LIỆU"), "Overlay Ctrl+F2 phải chứa tiêu đề CHÚ THÍCH CUỐI TÀI LIỆU", overlayEndnotesText);
+  assert(overlayEndnotesText.includes("Nghị định số 30/2020/NĐ-CP"), "Overlay Ctrl+F2 phải chứa nội dung Endnote", overlayEndnotesText);
+
+  // Đóng overlay Ctrl+F2
+  await page.keyboard.press("Escape");
+  await overlay.waitFor({ state: "hidden", timeout: 5000 });
+
+  // 2. Mở Backstage -> In ấn và kiểm tra khung xem trước
+  await page.locator(".vno-ribbon-tab-file").click();
+  await modal.waitFor({ state: "visible", timeout: 5000 });
+  await printNavBtn.click();
+  await printView.waitFor({ state: "visible", timeout: 5000 });
+
+  // 3. Kiểm tra Footnote & Endnote trong khung xem trước Backstage
+  const backstageFootnotesEl = page.locator(".vno-backstage-print-panel .vno-print-preview-footnotes");
+  await backstageFootnotesEl.waitFor({ state: "visible", timeout: 5000 });
+  const backstageFootnotesHtml = (await backstageFootnotesEl.innerHTML()).trim();
+  const backstageFootnotesText = await backstageFootnotesEl.innerText();
+  assert(backstageFootnotesText.includes("Chú thích chân trang mẫu số 01"), "Khung xem trước Backstage phải có nội dung Footnote", backstageFootnotesText);
+
+  const backstageEndnotesEl = page.locator(".vno-backstage-print-panel .vno-print-preview-endnotes");
+  await backstageEndnotesEl.waitFor({ state: "visible", timeout: 5000 });
+  const backstageEndnotesHtml = (await backstageEndnotesEl.innerHTML()).trim();
+  const backstageEndnotesText = await backstageEndnotesEl.innerText();
+  assert(backstageEndnotesText.includes("CHÚ THÍCH CUỐI TÀI LIỆU"), "Khung xem trước Backstage phải có tiêu đề CHÚ THÍCH CUỐI TÀI LIỆU", backstageEndnotesText);
+  assert(backstageEndnotesText.includes("Nghị định số 30/2020/NĐ-CP"), "Khung xem trước Backstage phải có nội dung Endnote", backstageEndnotesText);
+
+  // 4. So sánh khớp 100% giữa Backstage xem trước và Overlay Ctrl+F2 thật
+  assert(backstageFootnotesHtml === overlayFootnotesHtml, "Nội dung Footnote trong Backstage Print Thumbnail phải KHỚP 100% với Overlay Ctrl+F2 thật", `Backstage:\n${backstageFootnotesHtml}\nvs Overlay:\n${overlayFootnotesHtml}`);
+  assert(backstageEndnotesHtml === overlayEndnotesHtml, "Nội dung Endnote trong Backstage Print Thumbnail phải KHỚP 100% với Overlay Ctrl+F2 thật", `Backstage:\n${backstageEndnotesHtml}\nvs Overlay:\n${overlayEndnotesHtml}`);
+
+  console.log("PASS: Writer Backstage Print Live Preview Thumbnail — render trang in A4 thật, điều hướng chuẩn, 'In ngay' kích hoạt in thật, và Endnote/Footnote khớp 100% với Overlay Ctrl+F2 thật!");
 } finally {
   await browser?.close();
   server.close();
