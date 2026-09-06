@@ -49,10 +49,29 @@ export const SHEET_RIBBON_TABS = [
                     defaultValue: "Calibri",
                     options: [
                       { value: "Times New Roman", label: "Times New Roman" },
-                      { value: "Be Vietnam Pro", label: "Be Vietnam Pro" },
-                      { value: "Arial", label: "Arial" },
                       { value: "Calibri", label: "Calibri" },
-                      { value: "Roboto", label: "Roboto" }
+                      { value: "Arial", label: "Arial" },
+                      { value: "Be Vietnam Pro", label: "Be Vietnam Pro" },
+                      { value: "Roboto", label: "Roboto" },
+                      { value: "Book Antiqua", label: "Book Antiqua" },
+                      { value: "Cambria", label: "Cambria" },
+                      { value: "Candara", label: "Candara" },
+                      { value: "Century Gothic", label: "Century Gothic" },
+                      { value: "Comic Sans MS", label: "Comic Sans MS" },
+                      { value: "Consolas", label: "Consolas" },
+                      { value: "Constantia", label: "Constantia" },
+                      { value: "Corbel", label: "Corbel" },
+                      { value: "Courier New", label: "Courier New" },
+                      { value: "Franklin Gothic Medium", label: "Franklin Gothic Medium" },
+                      { value: "Garamond", label: "Garamond" },
+                      { value: "Georgia", label: "Georgia" },
+                      { value: "Impact", label: "Impact" },
+                      { value: "Lucida Console", label: "Lucida Console" },
+                      { value: "Palatino Linotype", label: "Palatino Linotype" },
+                      { value: "Segoe UI", label: "Segoe UI" },
+                      { value: "Tahoma", label: "Tahoma" },
+                      { value: "Trebuchet MS", label: "Trebuchet MS" },
+                      { value: "Verdana", label: "Verdana" }
                     ]
                   },
                   {

@@ -5217,7 +5217,13 @@ export class SheetGridController {
   }
 
   setFontFamily(family) {
-    const allowed = ["Times New Roman", "Be Vietnam Pro", "Arial", "Calibri", "Roboto"];
+    const allowed = [
+      "Times New Roman", "Calibri", "Arial", "Be Vietnam Pro", "Roboto",
+      "Book Antiqua", "Cambria", "Candara", "Century Gothic", "Comic Sans MS",
+      "Consolas", "Constantia", "Corbel", "Courier New", "Franklin Gothic Medium",
+      "Garamond", "Georgia", "Impact", "Lucida Console", "Palatino Linotype",
+      "Segoe UI", "Tahoma", "Trebuchet MS", "Verdana"
+    ];
     return allowed.includes(family) ? this.setStyle("fontFamily", family) : false;
   }
 
