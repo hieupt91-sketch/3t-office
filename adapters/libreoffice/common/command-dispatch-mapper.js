@@ -127,6 +127,7 @@ export const VN_TO_UNO_MAP = {
   "writer.page.border": ".uno:BorderDialog",
   "writer.file.printPreview": ".uno:PrintPreview",
   "sheet.file.printPreview": ".uno:PrintPreview",
+  "slides.file.printPreview": ".uno:PrintPreview",
 
   // Writer / References
   "writer.reference.tocInsert": ".uno:InsertMultiIndex",

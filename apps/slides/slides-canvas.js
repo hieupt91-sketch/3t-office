@@ -2728,6 +2728,189 @@ export class SlidesCanvasController {
     return `<div class="vno-sorter-shape-node" style="${style}">${this._escapeShapeText(shape.text || "")}</div>`;
   }
 
+  /**
+   * Danh sách trang sẽ in - mặc định "Full Page Slides" của PowerPoint thật:
+   * mỗi trang chiếu KHÔNG ẩn là một trang in. Trang chiếu ẩn (Hide Slide)
+   * không được in mặc định, đúng hành vi PowerPoint thật (Print Hidden Slides
+   * phải bật riêng - VN Slides chưa có tùy chọn đó, xem GAP trong handoff).
+   */
+  computePrintPages() {
+    const pages = [];
+    this.slides.forEach((slide, index) => {
+      if (slide.hidden) return;
+      pages.push({ slide, index });
+    });
+    return { pages, totalPages: pages.length, slideWidth: this.slideSize.width, slideHeight: this.slideSize.height };
+  }
+
+  /** Cùng công thức &P/&N/ngày mà _renderHeaderFooter() dùng cho slide ĐANG active, áp dụng cho MỘT slide bất kỳ theo index thật của nó. */
+  _computeSlideFooterTexts(slide, index) {
+    const hf = slide?.headerFooter || this.headerFooter || {};
+    const dateText = hf.showDate ? formatDateTime(new Date(), hf.dateFormat || "dd/MM/yyyy") : "";
+    const footerText = hf.showFooter !== false ? (hf.footerText ?? this.masterTheme?.footerText ?? "") : "";
+    const pageText = hf.showSlideNumber !== false ? `Trang ${index + 1} / ${this.slides.length}` : "";
+    return { dateText, footerText, pageText };
+  }
+
+  /** Dựng một trang in THẬT cho một slide - tái sử dụng _slideSurfaceInlineStyle()/_shapeSorterHtml() (đã dùng cho Slide Sorter) để nội dung khớp với những gì các nơi khác của app đã hiển thị, không vẽ lại từ đầu. */
+  _renderSlidePrintPage(slide, index) {
+    const theme = this.masterTheme || {};
+    const surface = document.createElement("div");
+    surface.className = "vno-slides-print-surface";
+    surface.style.cssText = `${this._slideSurfaceInlineStyle(slide)};font-family:${theme.fontFamily || "sans-serif"}`;
+
+    const accent = document.createElement("div");
+    accent.className = "vno-slides-print-accent";
+    accent.style.background = theme.accentColor || "#b53818";
+    surface.appendChild(accent);
+
+    const title = document.createElement("div");
+    title.className = "vno-slides-print-title";
+    title.style.color = theme.titleColor || "#0f172a";
+    title.textContent = slide.title || "";
+    surface.appendChild(title);
+
+    const body = document.createElement("div");
+    body.className = "vno-slides-print-body";
+    body.style.color = theme.bodyColor || "#475569";
+    body.textContent = slide.body || "";
+    surface.appendChild(body);
+
+    const shapesHost = document.createElement("div");
+    shapesHost.className = "vno-slides-print-shapes";
+    shapesHost.innerHTML = (slide.shapes || []).map(shape => this._shapeSorterHtml(shape)).join("");
+    surface.appendChild(shapesHost);
+
+    const { dateText, footerText, pageText } = this._computeSlideFooterTexts(slide, index);
+    if (dateText || footerText || pageText) {
+      const footer = document.createElement("div");
+      footer.className = "vno-slides-print-footer";
+      footer.innerHTML =
+        `<span class="vno-slides-print-hf-date">${this._escapeShapeText(dateText)}</span>` +
+        `<span class="vno-slides-print-hf-footer">${this._escapeShapeText(footerText)}</span>` +
+        `<span class="vno-slides-print-hf-number">${this._escapeShapeText(pageText)}</span>`;
+      surface.appendChild(footer);
+    }
+    return surface;
+  }
+
+  /** Dựng vùng DOM CHỈ-DÙNG-ĐỂ-IN cho toàn bộ slide KHÔNG ẩn, ẩn khi xem thường và chỉ hiện trong @media print - canvas sống chỉ có 1 slide đang active trong DOM, không thể in trực tiếp toàn bộ deck. */
+  _syncSlidesPrintOnlyDom() {
+    if (typeof document === "undefined") return null;
+    const result = this.computePrintPages();
+    let container = document.querySelector("#vno-slides-print-only");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "vno-slides-print-only";
+      container.className = "vno-slides-print-only";
+      if (typeof container.setAttribute === "function") container.setAttribute("id", "vno-slides-print-only");
+      document.body.appendChild(container);
+    }
+    container.innerHTML = "";
+    result.pages.forEach(({ slide, index }, order) => {
+      const pageDiv = document.createElement("div");
+      pageDiv.className = "vno-slides-print-page";
+      if (order < result.pages.length - 1) pageDiv.style.pageBreakAfter = "always";
+      pageDiv.appendChild(this._renderSlidePrintPage(slide, index));
+      container.appendChild(pageDiv);
+    });
+    return { container, result };
+  }
+
+  /** In thật: dựng lại toàn bộ deck (khác với canvas chỉ có 1 slide active) rồi gọi window.print(). */
+  print() {
+    if (typeof document === "undefined") return true;
+    this._syncSlidesPrintOnlyDom();
+    if (typeof window !== "undefined" && typeof window.print === "function") {
+      window.print();
+    }
+    return true;
+  }
+
+  closePrintPreview() {
+    if (typeof document === "undefined") return false;
+    const overlay = document.querySelector(".vno-slides-print-preview-overlay");
+    if (overlay) {
+      document.removeEventListener("keydown", overlay._onKey);
+      overlay.remove();
+      if (this._printPreviewPrevFocus && typeof this._printPreviewPrevFocus.focus === "function") {
+        try { this._printPreviewPrevFocus.focus(); } catch (_) {}
+      }
+      this._printPreviewPrevFocus = null;
+      return true;
+    }
+    return false;
+  }
+
+  /** Mở overlay Xem trước khi in THẬT - dùng chung _renderSlidePrintPage() với print() nên Preview và bản in luôn khớp nhau. */
+  openPrintPreview() {
+    if (typeof document === "undefined") return null;
+    this.closePrintPreview();
+    this._previewPageIndex = 0;
+
+    const result = this.computePrintPages();
+    const totalPages = result.totalPages;
+
+    this._printPreviewPrevFocus = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-slides-print-preview-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", t("slidesDialogs.printPreview.title", "Xem trước khi in"));
+
+    const printLabel = t("slidesDialogs.printPreview.printBtn", "In tài liệu");
+    const prevLabel = t("slidesDialogs.printPreview.prevPage", "◀ Trang trước");
+    const nextLabel = t("slidesDialogs.printPreview.nextPage", "Trang sau ▶");
+    const pagePrefix = t("slidesDialogs.printPreview.pagePrefix", "Trang ");
+    const closeLabel = t("slidesDialogs.printPreview.closeTooltip", "Đóng xem trước (Esc)");
+
+    overlay.innerHTML = `
+      <header class="vno-slides-print-preview-toolbar" role="toolbar" aria-label="${t("slidesDialogs.printPreview.title", "Xem trước khi in")}">
+        <button type="button" class="vno-btn vno-btn-primary vno-slides-pp-print" title="${printLabel} (Ctrl+P)">${printLabel}</button>
+        <div class="vno-slides-pp-info">${this.slideSize.width}x${this.slideSize.height} · ${totalPages} slide</div>
+        <div class="vno-slides-pp-nav">
+          <button type="button" class="vno-btn vno-slides-pp-prev" ${totalPages <= 1 ? "disabled" : ""} title="${prevLabel}">${prevLabel}</button>
+          <div class="vno-slides-pp-page-indicator">${pagePrefix}<span class="vno-slides-pp-current">1</span> / <span class="vno-slides-pp-total">${totalPages}</span></div>
+          <button type="button" class="vno-btn vno-slides-pp-next" ${totalPages <= 1 ? "disabled" : ""} title="${nextLabel}">${nextLabel}</button>
+        </div>
+        <button type="button" class="vno-btn vno-btn-icon-only vno-slides-pp-close" title="${closeLabel}" aria-label="${closeLabel}">&times;</button>
+      </header>
+      <main class="vno-slides-print-preview-viewport"></main>
+    `;
+
+    const viewport = overlay.querySelector(".vno-slides-print-preview-viewport");
+    const renderPage = (index) => {
+      this._previewPageIndex = Math.max(0, Math.min(totalPages - 1, index));
+      viewport.innerHTML = "";
+      const pageDiv = document.createElement("div");
+      pageDiv.className = "vno-slides-print-preview-page";
+      const entry = result.pages[this._previewPageIndex] || result.pages[0];
+      if (entry) pageDiv.appendChild(this._renderSlidePrintPage(entry.slide, entry.index));
+      viewport.appendChild(pageDiv);
+      overlay.querySelector(".vno-slides-pp-current").textContent = String(this._previewPageIndex + 1);
+      overlay.querySelector(".vno-slides-pp-prev").disabled = this._previewPageIndex <= 0;
+      overlay.querySelector(".vno-slides-pp-next").disabled = this._previewPageIndex >= totalPages - 1;
+    };
+
+    overlay.querySelector(".vno-slides-pp-print").addEventListener("click", () => this.print());
+    overlay.querySelector(".vno-slides-pp-prev").addEventListener("click", () => renderPage(this._previewPageIndex - 1));
+    overlay.querySelector(".vno-slides-pp-next").addEventListener("click", () => renderPage(this._previewPageIndex + 1));
+    overlay.querySelector(".vno-slides-pp-close").addEventListener("click", () => this.closePrintPreview());
+
+    const onKey = (event) => {
+      if (event.key === "Escape") { this.closePrintPreview(); }
+      else if (event.key === "ArrowRight") { renderPage(this._previewPageIndex + 1); }
+      else if (event.key === "ArrowLeft") { renderPage(this._previewPageIndex - 1); }
+    };
+    overlay._onKey = onKey;
+    document.addEventListener("keydown", onKey);
+
+    document.body.appendChild(overlay);
+    renderPage(0);
+    overlay.querySelector(".vno-slides-pp-close")?.focus();
+    return overlay;
+  }
+
   updateShapeText(shapeId, text, html) {
     const shape = this.slides[this.currentSlideIndex]?.shapes?.find(item => String(item.id) === String(shapeId));
     if (!shape || shape.type === "connector") return false;

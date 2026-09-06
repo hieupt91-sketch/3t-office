@@ -382,6 +382,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.transition.apply", category: "transition", label: "Chuyển tiếp", icon: "slideTransition", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" },
   { id: "slides.animation.apply", category: "animation", label: "Hiệu ứng đối tượng", icon: "objectAnimation", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" },
   { id: "slides.animation.pane", category: "animation", label: "Ngăn hoạt hình", icon: "animationPane", tooltip: "Hiện danh sách mọi hiệu ứng trên trang đang chọn, đổi thứ tự, cách bắt đầu hoặc xóa hiệu ứng", isToggle: true },
+  { id: "slides.file.printPreview", category: "file", label: "Xem trước khi in", shortcut: "Ctrl+F2", icon: "printPreview", tooltip: "Xem trước khi in (Ctrl+F2)" },
   { id: "slides.view.normal", category: "view", label: "Bình thường", icon: "slidesNormalView", tooltip: "Dạng xem bình thường để chỉnh sửa từng trang chiếu", isToggle: true },
   { id: "slides.view.slideSorter", category: "view", label: "Bộ sắp xếp trang", icon: "slideSorter", tooltip: "Xem toàn bộ trang chiếu dạng lưới và kéo thả để sắp xếp" },
   { id: "slides.notes.toggle", category: "view", label: "Ghi chú thuyết trình", icon: "speakerNotes", tooltip: "Bật/tắt khung ghi chú người thuyết trình dưới trang chiếu", isToggle: true },

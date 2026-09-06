@@ -191,6 +191,14 @@ export const viStrings = {
   },
   slidesDialogs: {
     close: "Đóng", cancel: "Hủy bỏ", apply: "Áp dụng", preview: "Xem thử", delete: "Xóa",
+    printPreview: {
+      title: "Xem trước khi in",
+      printBtn: "In tài liệu",
+      prevPage: "◀ Trang trước",
+      nextPage: "Trang sau ▶",
+      pagePrefix: "Trang ",
+      closeTooltip: "Đóng xem trước (Esc)"
+    },
     masterTitle: "Mẫu Slide Master", themeGalleryTitle: "Thư viện Chủ đề", themeGalleryHint: "Chọn một chủ đề để áp dụng ngay cho toàn bộ bản trình chiếu.", themePreviewTitle: "Tiêu đề bản trình chiếu", themeCorporateBlue: "Xanh Doanh Nghiệp", themeWarmTerracotta: "Terracotta Ấm Áp", themeMinimalMonochrome: "Đơn Sắc Tối Giản", themeNaturalGreen: "Xanh Lá Thiên Nhiên", themeModernCharcoal: "Than Chì Hiện Đại", themeEnergeticOrange: "Cam Năng Động", slideSizeTitle: "Kích thước trang chiếu", slideSizeHint: "Chọn tỷ lệ mới. Mọi hình và đối tượng hiện có sẽ được co giãn theo khung.", slideSizeWide: "Màn hình rộng", slideSizeStandard: "Tiêu chuẩn", layoutTitle: "Chọn Bố Cục Trang Chiếu", transitionTitle: "Hiệu Ứng Chuyển Trang", animationTitle: "Hiệu Ứng Đối Tượng (Object Animations)",
     applyMaster: "Áp dụng mẫu", applyLayout: "Áp dụng bố cục", applyTransition: "Áp dụng chuyển tiếp", applyAnimation: "Áp dụng hiệu ứng", removeTransition: "Xóa chuyển tiếp", removeAnimation: "Xóa hiệu ứng", previewTransition: "▶ Xem thử chuyển tiếp", previewAnimation: "▶ Xem thử hiệu ứng", previewObject: "Đối tượng xem thử",
     layoutHint: "Chọn một bố cục chuẩn để định hình lại cấu trúc nội dung trang chiếu hiện tại:", applyLayoutAll: "Áp dụng cho tất cả", applyLayoutCurrent: "Áp dụng",
@@ -448,6 +456,7 @@ export const viStrings = {
     ,"slides.show.presenterMode": { label: "Chế độ Presenter", tooltip: "Trình chiếu chế độ Người thuyết trình kèm ghi chú và đồng hồ (Alt+F5)" }
     ,"slides.show.rehearseTimings": { label: "Tập dượt hẹn giờ", tooltip: "Trình chiếu và đo thời gian thật ở mỗi trang, có thể lưu lại làm mốc thời gian" }
     ,"slides.show.setupShow": { label: "Thiết lập trình chiếu", tooltip: "Lặp liên tục đến Esc, trình chiếu không thuyết minh, màu bút/laser" }
+    ,"slides.file.printPreview": { label: "Xem trước khi in", tooltip: "Xem trước khi in (Ctrl+F2)" }
     ,"slides.shape.group": { label: "Nhóm đối tượng", tooltip: "Nhóm các đối tượng đang chọn thành một khối (Ctrl+G)" }
     ,"slides.shape.ungroup": { label: "Bỏ nhóm", tooltip: "Tách nhóm đối tượng đang chọn (Ctrl+Shift+G)" }
     ,"slides.nav.firstSlide": { label: "Trang đầu tiên", tooltip: "Về trang chiếu đầu tiên (Ctrl+Home)" }
