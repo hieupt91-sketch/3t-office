@@ -9,7 +9,7 @@ Nguyên tắc:
 3. VN Office **mở lại ZIP**, patch XML entry bằng cấu trúc **OOXML chuẩn** (không namespace `vno:`), đóng gói lại.
 4. Chỉ patch khi OOXML thật sự có chỗ chuẩn. Nếu là giới hạn kiến trúc PowerPoint/Excel — ghi rõ, không làm giả.
 
-Phase 1 đã merge `main`. Phase 2a **không merge vào `main`** cho đến khi người phụ trách review.
+Phase 1 và Phase 2a đã merge `main`. Phase 2b **không merge vào `main`** cho đến khi người phụ trách review.
 
 ---
 
@@ -72,7 +72,11 @@ tests/live  → convertWithSoffice → postProcessSheetXlsx() [JS]
 | `adapters/libreoffice/sheet/xlsx-workbook-protection.js` | XML thuần, browser-safe |
 | `adapters/libreoffice/sheet/xlsx-native-postprocess.js` | Node: patch XLSX sau soffice |
 | `adapters/libreoffice/sheet/sheet-adapter.js` | `wantsNativeXlsxWorkbookProtection()`; serialize FODS giữ nguyên |
-| `main.py` | Gọi post-process sau convert, trước copyfile |
+| `main.py` | Gọi post-process sau convert, trước copyfile (Sheet XLSX + Slides PPTX) |
+| `adapters/libreoffice/slides/pptx-master-logo.js` | XML thuần: chèn `p:sp` không `p:ph` lên slide master |
+| `adapters/libreoffice/slides/pptx-native-postprocess.js` | Node: patch PPTX sau soffice |
+| `tests/unit/slides-pptx-master-logo.test.js` | Suite 110 |
+| `tests/live/slides-pptx-master-logo-native-export.mjs` | soffice thật FODP→PPTX→patch→FODP/PDF |
 | `tests/helpers/zip-package.mjs` | Re-export production ZIP patcher |
 | `tests/unit/sheet-xlsx-native-postprocess.test.js` | Suite 107 |
 | `tests/live/sheet-xlsx-workbook-protection-native-export.mjs` | soffice thật |
@@ -136,28 +140,30 @@ Kết quả đo: Lưu XLSX (Phase 1 `lockStructure=1`) → soffice XLSX→FODS *
 
 Handoff: `docs/HANDOFF-SHEET-NATIVE-EXPORT-PHASE2A.md`.
 
-### 2b. Slide Master logo / footer bằng DrawingML chuẩn — độ phức tạp: trung bình-cao
+### 2b. Slide Master logo bằng DrawingML chuẩn — **HOÀN THÀNH** (trung bình-cao)
 
-**Không phải giới hạn kiến trúc PowerPoint.** Probe Phase 1:
+**Không phải giới hạn kiến trúc PowerPoint.** Probe Phase 1 + lặp lại Phase 2b trên `main` @ `5867e5b`:
 
-- `ppt/slideMasters/slideMaster1.xml` tồn tại, có `p:spTree`.
-- 5 shape, **toàn placeholder**: `title`, `body`, `dt`, `ftr`, `sldNum`.
-- Logo text `"VN OFFICE • SANG TAO"` **không** có trong master sau hop.
-- `vno:master-theme` mất (custom ns — đúng, không patch ns giả vào PPTX).
+- `ppt/slideMasters/slideMaster1.xml` ~14 KB, `p:sldSz cx="10080625" cy="5670550"` (28cm × 15.75cm).
+- 5 `p:sp`, **toàn placeholder**: `title` `id=2`, `body` `id=3`, `dt` `id=4`, `ftr` `id=5`, `sldNum` `id=6`. Group `id=1`.
+- Logo text `"VN OFFICE • SANG TAO"` **không** có. `vno:master-theme` mất.
 
-Chỗ chuẩn:
+Chỗ chuẩn đã vá (hậu-kỳ, tái sử dụng `ooxml_zip_patch`):
 
-- Logo chữ: `p:sp` **không** có `p:ph` trên `slideMaster1.xml` (hình trang trí master, hiện trên mọi slide).
-- Footer: có placeholder `ftr`, nhưng text footer PowerPoint thường đi qua `p:hf` / notes master — phải đo trước khi ghi vào `a:t` của placeholder.
+- Chèn một `p:sp` **không** `p:ph`, `p:cNvPr id="7" name="VNOfficeMasterLogo"`, `p:nvSpPr/p:spPr/p:txBody` đúng ECMA-376 `CT_Shape`.
+- Tọa độ EMU: dải trên, dưới `title.y` (probe title `y=226080`) — AABB không đè 5 placeholder.
+- Nguồn chữ/màu/font: `vno:master-theme` trên FODP nguồn (fallback `draw:frame grMasterLogo`).
+- Hook `main.py` `_apply_native_export_postprocess` khi `app_kind=="slides"` và `target_format=="pptx"`.
 
-Vì sao **không** làm trong Phase 1:
+Kết quả đo (soffice thật):
 
-- Cần `p:cNvPr id` duy nhất (master đã dùng 1–5).
-- Tọa độ EMU phụ thuộc cỡ slide (`p:sldSz`).
-- Dễ đụng placeholder, làm hỏng layout.
-- soffice phải mở lại được; PowerPoint phải hiện logo.
+- Convert thuần: logo **mất**. Sau JS + Python patch: `slideMaster1.xml` có chữ, không `p:ph`.
+- soffice PPTX→FODP **giữ** chữ trên `<style:master-page>` (`loRoundTripLogoOnMasterPage=true`). File không hỏng (FODP + PDF).
+- `parseFodp().masterTheme.logoText` vẫn `null` — LO không phát `vno:master-theme` / `grMasterLogo`. File → Mở PPTX trên canvas VN Slides **chưa** khôi phục ô logo (cần overlay import, không làm ở 2b).
+- PDF scrape không thấy chuỗi ASCII — không kết luận logo mất; FODP đã chứng minh soffice đọc shape.
+- Footer `ftr` / `p:hf` **không** vá ở 2b.
 
-Điều kiện vào Phase 2: fixture PPTX tối thiểu (một `p:sp` text trên master) → soffice mở + PowerPoint (nếu có) hiện chữ. Không dùng `vno:`.
+Handoff: `docs/HANDOFF-SLIDES-MASTER-LOGO-PHASE2B.md`.
 
 ### 2c. Theme màu/font native — độ phức tạp: trung bình
 
@@ -210,7 +216,7 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 |---|---|---|---|---|
 | 1 | XLSX `lockStructure` | Thấp | Nhỏ | Xong |
 | 2a | Overlay lock khi Mở XLSX | Thấp | Nhỏ | **Xong** |
-| 2b | Master logo `p:sp` | Trung bình-cao | Trung bình | Probe DrawingML |
+| 2b | Master logo `p:sp` | Trung bình-cao | Trung bình | **Xong** |
 | 2c | `theme1.xml` scheme | Trung bình | Trung bình | Probe theme |
 | 3a | `p14:sectionLst` | Trung bình-cao | Trung bình | LO có nuốt ext không |
 | 3b | showPr / pointer | Thấp, có mục không làm được | Nhỏ | Schema + quyết định product |
@@ -223,6 +229,7 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 - Hai bản JS/Python có thể lệch — live test chạy **cả hai**.
 - Patch sai schema → Excel Repair. Phase 1 chỉ thêm attribute trên element LO đã viết.
 - Import XLSX overlay Phase 2a: File → Mở XLSX có `lockStructure` gắn lại `table:structure-protected` trước parseFods. Mật khẩu phiên vẫn không round-trip (không có hash OOXML).
+- Phase 2b DrawingML: id/`p:sldSz`/EMU sai có thể làm PowerPoint Repair. Probe + unit bắt overlap placeholder; live soffice mở lại FODP+PDF PASS. PowerPoint desktop không có trên máy đo.
 
 ## Test plan (mọi phase)
 
@@ -233,11 +240,13 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 
 ## Rollback
 
-Revert commit phase tương ứng. `main.py` chỉ gọi post-process khi `app_kind=="sheet"` và `target_format=="xlsx"`; tắt hook là file lại giống convert thuần LibreOffice.
+Revert commit phase tương ứng. `main.py` gọi post-process khi Sheet XLSX (`lockStructure`) hoặc Slides PPTX (master logo); tắt nhánh tương ứng là file lại giống convert thuần LibreOffice.
 
 ## Decision log
 
 - **Có** sửa `main.py`: đây là chỗ convert + ghi file. Ghi rõ trong handoff.
-- **Không** patch Slide Master ở Phase 1: có chỗ chuẩn nhưng rủi ro DrawingML cao.
+- **Không** patch Slide Master ở Phase 1: có chỗ chuẩn nhưng rủi ro DrawingML cao. Phase 2b đã vá `p:sp` không `p:ph`.
+- **Không** vá footer `ftr` / `p:hf` ở 2b — placeholder `ftr` vẫn trống sau hop.
+- **Không** overlay import PPTX→FODP cho `masterTheme.logoText` ở 2b (canvas VN Slides khi Mở PPTX).
 - **Không** core patch.
 - **Không** merge `main`.

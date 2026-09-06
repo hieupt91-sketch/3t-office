@@ -512,6 +512,7 @@ export const SLIDES_HELP_ENTRIES = [
     steps: [
       "Tab Thiết kế, nhóm Chủ đề: nút lớn Chủ đề. Hộp «Thư viện Chủ đề» — nhấp thẻ là áp ngay cả bộ (không nút Áp dụng). Sáu mẫu: Xanh Doanh Nghiệp (Inter, mặc định modern-blue), Terracotta Ấm Áp (Times New Roman), Xanh Lá Thiên Nhiên, Than Chì Hiện Đại, Đơn Sắc Tối Giản (Arial), Cam Năng Động (Verdana). Mỗi mẫu có logo chữ kiểu «VN OFFICE • DOANH NGHIỆP». Ctrl+Z hoàn tác lần chọn chủ đề.",
       "Nhóm Mẫu chủ đạo: Mẫu Slide Master. Hộp «Mẫu Slide Master» cùng 6 bộ, thêm ô «Tên đơn vị / Logo chữ góc trang» (mặc định «VN OFFICE» hoặc logo đang dùng). Chọn thẻ điền sẵn logo của mẫu. Hủy bỏ / Áp dụng mẫu. Khác thư viện Chủ đề: lần Áp dụng mẫu không đẩy Undo.",
+      "File → Lưu dạng PowerPoint (*.pptx): sau khi LibreOffice chuyển FODP, VN Office gắn logo chữ vào Slide Master bằng một hình DrawingML chuẩn (p:sp không phải ô kế thừa title/body/chân trang). Logo lấy đúng ô «Tên đơn vị / Logo chữ góc trang», đặt ở dải trên của master, không đè khung chữ sẵn. Mở PPTX bằng PowerPoint hoặc LibreOffice vẫn thấy chữ logo. Lưu FODP/ODP giữ master-page ODF như trước; không có logo thì File → Lưu PPTX không vá thêm hình.",
       "Nhóm Tùy chỉnh: Cỡ trang chiếu. Hộp «Kích thước trang chiếu»: Màn hình rộng 16:9 · 960 × 540, hoặc Tiêu chuẩn 4:3 · 720 × 540. Nhấp thẻ áp ngay; mọi hình bị co x,y,w,h theo khung mới. Cùng preset thì không đổi. Ctrl+Z hoàn tác đổi cỡ.",
       "Không có dạng xem Master (không sửa khung chữ sẵn của từng bố cục). Không có cỡ tùy chỉnh / 16:10."
     ]
