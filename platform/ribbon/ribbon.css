@@ -158,6 +158,9 @@
   border-color: var(--vno-border-focus);
   outline: 1px solid var(--vno-border-focus);
 }
+.vno-ribbon select[data-command-id$="font.family"] {
+  max-width: 125px;
+}
 
 .vno-ribbon-group-column {
   display: flex;
