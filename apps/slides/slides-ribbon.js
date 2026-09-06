@@ -268,6 +268,7 @@ export const SLIDES_RIBBON_TABS = [
         ]
       },
       {
+        id: "media",
         label: "Đa phương tiện",
         labelKey: "slidesRibbon.group.media",
         items: [
