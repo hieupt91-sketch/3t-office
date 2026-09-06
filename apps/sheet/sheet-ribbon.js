@@ -1,6 +1,7 @@
 /**
  * VN Sheet — Enterprise Ribbon Structure
  * Cấu hình đầy đủ Icon Vector chuẩn Office Suite
+ * Parity Round 1: Home, Insert, Page Layout, Formulas
  */
 
 export const SHEET_RIBBON_TABS = [
@@ -93,7 +94,8 @@ export const SHEET_RIBBON_TABS = [
                 items: [
                   { type: "button", commandId: "sheet.cell.alignTop", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.alignMiddle", iconOnly: true },
-                  { type: "button", commandId: "sheet.cell.alignBottom", iconOnly: true }
+                  { type: "button", commandId: "sheet.cell.alignBottom", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.wrapText", iconOnly: true }
                 ]
               },
               {
@@ -102,7 +104,6 @@ export const SHEET_RIBBON_TABS = [
                   { type: "button", commandId: "sheet.cell.alignLeft", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.alignCenter", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.alignRight", iconOnly: true },
-                  { type: "button", commandId: "sheet.cell.wrapText", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.indentDecrease", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.indentIncrease", iconOnly: true }
                 ]
@@ -430,6 +431,14 @@ export const SHEET_RIBBON_TABS = [
     labelKey: "sheetRibbon.tab.insert",
     groups: [
       {
+        id: "tables",
+        label: "Bảng",
+        labelKey: "sheetRibbon.group.tables",
+        items: [
+          { type: "button", commandId: "sheet.data.pivotTable", isLarge: true }
+        ]
+      },
+      {
         label: "Minh họa",
         labelKey: "sheetRibbon.group.illustrations",
         items: [{ type: "button", commandId: "sheet.insert.image", isLarge: true }]
@@ -437,7 +446,10 @@ export const SHEET_RIBBON_TABS = [
       {
         label: "Biểu đồ",
         labelKey: "sheetRibbon.group.charts",
-        items: [{ type: "button", commandId: "sheet.chart.insert", isLarge: true }, { type: "button", commandId: "sheet.chart.pivotChart", isLarge: true }]
+        items: [
+          { type: "button", commandId: "sheet.chart.insert", isLarge: true },
+          { type: "button", commandId: "sheet.chart.pivotChart", isLarge: true }
+        ]
       },
       {
         label: "Biểu đồ thu nhỏ",
@@ -455,7 +467,10 @@ export const SHEET_RIBBON_TABS = [
       {
         label: "Văn bản",
         labelKey: "sheetRibbon.group.text",
-        items: [{ type: "button", commandId: "sheet.insert.textbox", isLarge: true }]
+        items: [
+          { type: "button", commandId: "sheet.insert.textbox", isLarge: true },
+          { type: "button", commandId: "sheet.page.headerFooter", isLarge: true }
+        ]
       }
     ]
   },
@@ -465,31 +480,50 @@ export const SHEET_RIBBON_TABS = [
     labelKey: "sheetRibbon.tab.pageLayout",
     groups: [
       {
+        id: "pageSetup",
         label: "Thiết lập trang",
-        labelKey: "writerRibbon.group.pageSetup",
+        labelKey: "sheetRibbon.group.pageSetup",
         items: [
-          { type: "button", commandId: "sheet.page.margins", label: "Lề trang", isLarge: true },
-          { type: "button", commandId: "sheet.page.orientation", label: "Hướng trang", isLarge: true },
-          { type: "button", commandId: "sheet.page.size", label: "Khổ giấy", isLarge: true },
-          { type: "button", commandId: "sheet.page.scale", label: "Tỷ lệ vừa trang", isLarge: true },
-          { type: "button", commandId: "sheet.page.headerFooter", label: "Tiêu đề Đầu/Cuối trang", isLarge: true },
-          { type: "button", commandId: "sheet.page.printTitles", label: "Tiêu đề in", isLarge: true }
+          { type: "button", commandId: "sheet.page.margins", isLarge: true },
+          { type: "button", commandId: "sheet.page.orientation", isLarge: true },
+          { type: "button", commandId: "sheet.page.size", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.page.setPrintArea" },
+              { type: "button", commandId: "sheet.page.clearPrintArea" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.page.insertPageBreak" },
+              { type: "button", commandId: "sheet.page.removePageBreak" }
+            ]
+          },
+          { type: "button", commandId: "sheet.page.printTitles", isLarge: true }
         ]
       },
       {
-        label: "Vùng in",
-        labelKey: "sheetRibbon.group.printArea",
+        id: "scaleToFit",
+        label: "Vừa trang",
+        labelKey: "sheetRibbon.group.scaleToFit",
         items: [
-          { type: "button", commandId: "sheet.page.setPrintArea", isLarge: true },
-          { type: "button", commandId: "sheet.page.clearPrintArea" }
+          { type: "button", commandId: "sheet.page.scale", isLarge: true }
         ]
       },
       {
-        label: "Ngắt trang",
-        labelKey: "sheetRibbon.group.pageBreaks",
+        id: "sheetOptions",
+        label: "Tùy chọn trang tính",
+        labelKey: "sheetRibbon.group.sheetOptions",
         items: [
-          { type: "button", commandId: "sheet.page.insertPageBreak", isLarge: true },
-          { type: "button", commandId: "sheet.page.removePageBreak" }
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.view.gridlines" },
+              { type: "button", commandId: "sheet.view.headings" }
+            ]
+          }
         ]
       }
     ]
