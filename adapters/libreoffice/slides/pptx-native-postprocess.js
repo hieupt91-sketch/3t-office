@@ -34,7 +34,8 @@ import {
   PPTX_PRESPROPS_ENTRY,
   applyShowProperties,
   applyShowPropertiesFromFodp,
-  fodpHasShowSetupPatch
+  fodpHasShowSetupPatch,
+  overlayFodpShowProperties
 } from "./pptx-show-properties.js";
 
 function asBuffer(zipPathOrBuffer) {
@@ -157,6 +158,7 @@ export function postProcessSlidesPptx(pptxPathOrBuffer, options = {}) {
  *
  * 1. p14:sectionLst → vno:section-* (Phase 3a-open)
  * 2. p:sp name="VNOfficeMasterLogo" → vno:master-theme (Phase 2b-open)
+ * 3. p:showPr showNarration=0 / p:penClr → vno:* (Phase 3b-open; not @loop)
  *
  * @param {string|Buffer} pptxPathOrBuffer original PPTX
  * @param {string} fodpXml soffice PPTX→FODP output
@@ -164,19 +166,38 @@ export function postProcessSlidesPptx(pptxPathOrBuffer, options = {}) {
  */
 export function overlaySlidesPptxFodp(pptxPathOrBuffer, fodpXml) {
   const source = asBuffer(pptxPathOrBuffer);
-  const current = readZipEntry(source, PPTX_PRESENTATION_ENTRY);
+  let current;
+  let listed;
+  try {
+    listed = listZipEntries(source);
+    current = readZipEntry(source, PPTX_PRESENTATION_ENTRY);
+  } catch (error) {
+    throw new Error(
+      `PPTX ZIP hỏng — không thể khôi phục thuộc tính native: ${error.message || error}`
+    );
+  }
   if (!current) {
     throw new Error("PPTX thiếu ppt/presentation.xml — không thể khôi phục Phần (Sections)");
   }
   let xml = overlayFodpSections(fodpXml, current.toString("utf8"));
   const masters = [];
-  for (const listed of listZipEntries(source)) {
-    if (!SLIDE_MASTER_ENTRY_RE.test(listed.name)) continue;
-    const entry = readZipEntry(source, listed.name);
+  for (const item of listed) {
+    if (!SLIDE_MASTER_ENTRY_RE.test(item.name)) continue;
+    const entry = readZipEntry(source, item.name);
     if (!entry) {
-      throw new Error(`PPTX thiếu ${listed.name} — không đoán logo master`);
+      throw new Error(`PPTX thiếu ${item.name} — không đoán logo master`);
     }
     masters.push(entry.toString("utf8"));
   }
-  return overlayFodpMasterLogo(xml, masters);
+  xml = overlayFodpMasterLogo(xml, masters);
+  let props;
+  try {
+    props = readZipEntry(source, PPTX_PRESPROPS_ENTRY);
+  } catch (error) {
+    throw new Error(
+      `PPTX ZIP hỏng — không thể khôi phục thuộc tính native: ${error.message || error}`
+    );
+  }
+  if (!props) return xml;
+  return overlayFodpShowProperties(xml, props.toString("utf8"));
 }

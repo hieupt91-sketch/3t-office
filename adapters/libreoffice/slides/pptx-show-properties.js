@@ -14,8 +14,16 @@
  * It does not invent kiosk/present/browse or sldRg (VN UI does not store them).
  * It does not put a custom namespace in the PPTX.
  *
+ * File → Mở overlay (this module): LibreOffice PPTX→FODP keeps
+ * presentation:endless (loop) but drops vno:without-narration /
+ * vno:pointer-color, so parseFodp() returns the dialog defaults.
+ * Overlay reads p:showPr from the original PPTX ZIP and stamps the two
+ * vno:* flags before parseFodp. It does NOT overlay @loop.
+ *
  * Browser-safe: no Node APIs. SlidesAdapter may import this file.
  */
+
+import { ensureVnoXmlns } from "./pptx-section-list.js";
 
 export const PPTX_PRESPROPS_ENTRY = "ppt/presProps.xml";
 export const PRESENTATION_NS = "http://schemas.openxmlformats.org/presentationml/2006/main";
@@ -23,6 +31,9 @@ export const DRAWINGML_NS = "http://schemas.openxmlformats.org/drawingml/2006/ma
 export const DEFAULT_POINTER_COLOR = "#DC2626";
 
 const SETTINGS_OPEN_RE = /<presentation:settings\b([^>]*)\/?>/i;
+const SETTINGS_TAG_RE = /<presentation:settings\b([^>]*?)(\/?)\s*>/i;
+const WITHOUT_ATTR_RE = /\bvno:without-narration\s*=\s*["'][^"']*["']/i;
+const OFFICE_PRESENTATION_CLOSE_RE = /<\/office:presentation\s*>/i;
 const PRESPROPS_CLOSE_RE = /<\/(?:[\w]+:)?presentationPr\s*>/i;
 const PRESPROPS_OPEN_RE = /<((?:[\w]+:)?presentationPr)\b([^>]*)>/i;
 const SHOW_PR_RE = /<(?:[\w]+:)?showPr\b([^>]*?)(\/>|>([\s\S]*?)<\/(?:[\w]+:)?showPr\s*>)/i;
@@ -40,6 +51,14 @@ function unescapeXml(value) {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&amp;/g, "&");
+}
+
+function escapeXml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 function nsPrefix(xml, uri, fallback) {
@@ -209,4 +228,90 @@ export function applyShowPropertiesFromFodp(presPropsXml, fodpXml) {
   const settings = parseShowSettingsFromFodp(fodpXml);
   if (!fodpHasShowSetupPatch(fodpXml)) return presPropsXml;
   return applyShowProperties(presPropsXml, settings);
+}
+
+/**
+ * Map original p:showPr → the two vno:* flags File → Mở needs.
+ * Invalid / missing values become no-op fields — never invent defaults.
+ * Does not read @loop (LibreOffice already maps presentation:endless).
+ */
+export function overlayShowSettingsFromPresProps(presPropsXml) {
+  const xml = String(presPropsXml || "");
+  const match = xml.match(SHOW_PR_RE);
+  if (!match) return { showWithoutNarration: false, pointerColor: "" };
+  const attrs = match[1] || "";
+  const inner = match[2] === "/>" ? "" : (match[3] || "");
+  const narrationRaw = String(getAttr(attrs, "showNarration") || "").trim();
+  const showWithoutNarration = /^(0|false)$/i.test(narrationRaw);
+  const pen = inner.match(PEN_CLR_RE)?.[0] || "";
+  const rgb = String(pen.match(SRGB_RE)?.[1] || "")
+    .trim()
+    .replace(/^#/, "");
+  const pointerColor = HEX6_RE.test(rgb) ? `#${rgb.toLowerCase()}` : "";
+  return { showWithoutNarration, pointerColor };
+}
+
+/**
+ * Stamp vno:without-narration / vno:pointer-color onto presentation:settings.
+ * Keeps presentation:endless / pause / mouse-visible LibreOffice already wrote.
+ * Throws if FODP has no office:presentation — never invent a presentation body.
+ */
+export function applyFodpShowSettingsAttrs(fodpXml, settings = {}) {
+  const xml = String(fodpXml || "");
+  const without = !!settings.showWithoutNarration;
+  const pointer = String(settings.pointerColor || "").trim();
+  if (!without && !pointer) return xml;
+
+  const match = xml.match(SETTINGS_TAG_RE);
+  if (match) {
+    let raw = match[1] || "";
+    const selfClose = match[2] === "/" || /\/\s*$/.test(raw);
+    if (selfClose) raw = raw.replace(/\/\s*$/, "");
+    if (without) {
+      if (WITHOUT_ATTR_RE.test(raw)) {
+        raw = raw.replace(WITHOUT_ATTR_RE, 'vno:without-narration="true"');
+      } else {
+        raw = `${raw.trimEnd()} vno:without-narration="true"`;
+      }
+    }
+    if (pointer) {
+      const encoded = escapeXml(pointer);
+      if (POINTER_ATTR_RE.test(raw)) {
+        raw = raw.replace(POINTER_ATTR_RE, `vno:pointer-color="${encoded}"`);
+      } else {
+        raw = `${raw.trimEnd()} vno:pointer-color="${encoded}"`;
+      }
+    }
+    if (raw.length && !raw.startsWith(" ")) raw = ` ${raw}`;
+    const nextTag = selfClose
+      ? `<presentation:settings${raw}/>`
+      : `<presentation:settings${raw}>`;
+    const next = xml.slice(0, match.index) + nextTag + xml.slice(match.index + match[0].length);
+    return ensureVnoXmlns(next);
+  }
+
+  if (!OFFICE_PRESENTATION_CLOSE_RE.test(xml)) {
+    throw new Error("FODP thiếu office:presentation — không gắn Thiết lập trình chiếu");
+  }
+  const attrs = [];
+  if (without) attrs.push('vno:without-narration="true"');
+  if (pointer) attrs.push(`vno:pointer-color="${escapeXml(pointer)}"`);
+  const tag = `\n      <presentation:settings ${attrs.join(" ")}/>`;
+  return ensureVnoXmlns(xml.replace(OFFICE_PRESENTATION_CLOSE_RE, (close) => `${tag}${close}`));
+}
+
+/**
+ * Phase 3b-open overlay: LibreOffice PPTX→FODP drops vno:without-narration /
+ * vno:pointer-color, so stamp them from the original ppt/presProps.xml p:showPr.
+ * No p:showPr or invalid values → no-op. Does not overlay @loop.
+ *
+ * @param {string} fodpXml soffice PPTX→FODP output
+ * @param {string} [presPropsXml] ppt/presProps.xml from the original PPTX
+ * @returns {string}
+ */
+export function overlayFodpShowProperties(fodpXml, presPropsXml) {
+  const xml = String(fodpXml || "");
+  const settings = overlayShowSettingsFromPresProps(presPropsXml);
+  if (!settings.showWithoutNarration && !settings.pointerColor) return xml;
+  return applyFodpShowSettingsAttrs(xml, settings);
 }

@@ -410,14 +410,38 @@ def _read_pptx_slide_master_xml(src_path: str) -> str | None:
         return None
 
 
+def _read_pptx_pres_props_xml(src_path: str) -> str | None:
+    """Read ppt/presProps.xml from the original .pptx.
+
+    File → Mở already overlays vno:without-narration / vno:pointer-color in
+    Python. The adapter still receives the original presProps so loadFromFodp
+    can overlay again (belt-and-suspenders).
+    """
+    if not src_path or not str(src_path).lower().endswith(".pptx"):
+        return None
+    try:
+        with open(src_path, "rb") as handle:
+            package = handle.read()
+        entry = _ooxml_zip_patch().read_zip_entry(package, "ppt/presProps.xml")
+        if not entry:
+            return None
+        return entry.decode("utf-8", errors="replace")
+    except (OSError, UnicodeError, DocumentEngineError):
+        return None
+    except Exception:
+        return None
+
+
 def _apply_native_import_overlay(src_path: str, fods: str, app_kind: str | None) -> str:
     """After soffice convert, restore native flags LibreOffice dropped.
 
     Sheet XLSX: lockStructure → table:structure-protected. Failures return
     the original FODS so open still succeeds (optional UI lock).
 
-    Slides PPTX: p14:sectionLst → vno:section-* on draw:page, and
-    VNOfficeMasterLogo → vno:master-theme on style:master-page. Count
+    Slides PPTX: p14:sectionLst → vno:section-* on draw:page,
+    VNOfficeMasterLogo → vno:master-theme on style:master-page, and
+    p:showPr showNarration=0 / p:penClr → vno:without-narration /
+    vno:pointer-color on presentation:settings (not @loop). Count
     mismatch / ambiguous logo shapes raise DocumentEngineError — never guess.
     """
     if app_kind == "sheet":
@@ -442,7 +466,7 @@ def _apply_native_import_overlay(src_path: str, fods: str, app_kind: str | None)
             raise DocumentEngineError(str(exc)) from exc
         except Exception as exc:
             raise DocumentEngineError(
-                f"Không khôi phục được thuộc tính native PPTX (logo / Sections) từ PPTX gốc: {exc}"
+                f"Không khôi phục được thuộc tính native PPTX (logo / Sections / Set Up Show) từ PPTX gốc: {exc}"
             ) from exc
     return fods
 
@@ -612,8 +636,9 @@ class VnOfficeApi:
                     content = _apply_native_import_overlay(src_path, content, app_kind)
                 elif app_kind == "slides":
                     # Overlay BEFORE the FODP leaves this process — SlidesAdapter.parseFodp
-                    # must see vno:section-* and vno:master-theme when the original PPTX
-                    # has p14:sectionLst / VNOfficeMasterLogo.
+                    # must see vno:section-*, vno:master-theme, and Set Up Show vno:*
+                    # when the original PPTX has p14:sectionLst / VNOfficeMasterLogo /
+                    # p:showPr showNarration=0 or p:penClr.
                     content = _apply_native_import_overlay(src_path, content, app_kind)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
@@ -643,6 +668,9 @@ class VnOfficeApi:
             slide_master_xml = _read_pptx_slide_master_xml(src_path)
             if slide_master_xml:
                 payload["ooxmlSlideMasterXml"] = slide_master_xml
+            pres_props_xml = _read_pptx_pres_props_xml(src_path)
+            if pres_props_xml:
+                payload["ooxmlPresPropsXml"] = pres_props_xml
         return payload
 
     def save_document_dialog(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu"):
