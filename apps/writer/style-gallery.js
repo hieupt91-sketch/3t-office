@@ -163,7 +163,7 @@ export function showStyleGalleryDropdown(options = {}) {
   }
 
   // Gắn sự kiện click chọn preset
-  const cards = dropdown.querySelectorAll(".vno-style-card");
+  const cards = [...dropdown.querySelectorAll(".vno-style-card")];
   cards.forEach((card) => {
     card.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -184,14 +184,35 @@ export function showStyleGalleryDropdown(options = {}) {
   };
 
   const onKeyDown = (e) => {
+    const focused = document.activeElement;
+    const idx = cards.indexOf(focused);
     if (e.key === "Escape") {
       e.preventDefault();
       closeStyleGalleryDropdown();
+      if (targetEl && typeof targetEl.focus === "function") targetEl.focus();
       onClose();
+    } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      const next = cards[(idx + 1) % cards.length];
+      if (next) next.focus();
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const prev = cards[(idx - 1 + cards.length) % cards.length];
+      if (prev) prev.focus();
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      if (cards[0]) cards[0].focus();
+    } else if (e.key === "End") {
+      e.preventDefault();
+      if (cards.length) cards[cards.length - 1].focus();
     }
   };
 
+  // Focus vào card đang active khi mở dropdown
   setTimeout(() => {
+    const activeCard = dropdown.querySelector(".vno-style-card.is-active") || cards[0];
+    if (activeCard && typeof activeCard.focus === "function") activeCard.focus();
+
     if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
       document.addEventListener("click", onDocClick);
       document.addEventListener("keydown", onKeyDown);
@@ -245,7 +266,9 @@ export function createStyleGalleryStrip(options = {}) {
   strip.setAttribute("role", "toolbar");
   strip.setAttribute("aria-label", stripAriaLabel);
 
-  STYLE_PRESETS.forEach((preset) => {
+  const items = [];
+
+  STYLE_PRESETS.forEach((preset, idx) => {
     const { label, desc } = getPresetStrings(preset);
     const isActive = (preset.id === activeStyle) || (preset.id === "normal" && activeStyle === "p");
     const item = document.createElement("button");
@@ -255,6 +278,8 @@ export function createStyleGalleryStrip(options = {}) {
     item.title = `${label}: ${desc}`;
     item.setAttribute("aria-label", `${label}: ${desc}`);
     item.setAttribute("aria-pressed", String(isActive));
+    // Roving tabindex: chỉ 1 button nhận Tab focus, còn lại tabIndex=-1
+    item.tabIndex = (isActive || idx === 0) ? 0 : -1;
     item.innerHTML = `
       <div class="vno-style-strip-preview" style="${preset.previewCss}">${preset.previewSample}</div>
       <div class="vno-style-strip-label">${label}</div>
@@ -263,6 +288,32 @@ export function createStyleGalleryStrip(options = {}) {
       onSelectStyle(preset.id);
     });
     strip.appendChild(item);
+    items.push(item);
+  });
+
+  // ArrowLeft/Right để điều hướng giữa các style item (WAI-ARIA toolbar pattern)
+  strip.addEventListener("keydown", (e) => {
+    const focused = document.activeElement;
+    const idx = items.indexOf(focused);
+    if (idx === -1) return;
+    let targetIdx = -1;
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      targetIdx = (idx + 1) % items.length;
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      targetIdx = (idx - 1 + items.length) % items.length;
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      targetIdx = 0;
+    } else if (e.key === "End") {
+      e.preventDefault();
+      targetIdx = items.length - 1;
+    }
+    if (targetIdx !== -1) {
+      items.forEach((it, i) => { it.tabIndex = i === targetIdx ? 0 : -1; });
+      items[targetIdx].focus();
+    }
   });
 
   return strip;
