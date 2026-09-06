@@ -396,6 +396,7 @@ export const WRITER_RIBBON_TABS = [
     labelKey: "writerRibbon.tab.references",
     groups: [
       {
+        id: "tableOfContents",
         label: "Mục lục",
         labelKey: "writerRibbon.group.tableOfContents",
         items: [
@@ -404,6 +405,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "footnotes",
         label: "Chú thích",
         labelKey: "writerRibbon.group.footnotes",
         items: [
@@ -412,24 +414,35 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "citationsBibliography",
         label: "Trích dẫn & Thư mục tài liệu",
         labelKey: "writerRibbon.group.citationsBibliography",
         items: [
-          { type: "column", items: [
-            { type: "row", items: [{ type: "select", commandId: "writer.reference.citationStyle", defaultValue: "apa", ariaLabel: "Kiểu trích dẫn", options: [{ value: "apa", label: "APA" }, { value: "mla", label: "MLA" }] }] },
-            { type: "row", items: [{ type: "button", commandId: "writer.reference.sourcesManage" }] }
-          ] },
           { type: "button", commandId: "writer.reference.citationInsert", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "row", items: [{ type: "button", commandId: "writer.reference.sourcesManage" }] },
+              { type: "row", items: [{ type: "select", commandId: "writer.reference.citationStyle", defaultValue: "apa", ariaLabel: "Kiểu trích dẫn", options: [{ value: "apa", label: "APA" }, { value: "mla", label: "MLA" }] }] }
+            ]
+          },
           { type: "button", commandId: "writer.reference.bibliographyInsert", isLarge: true }
         ]
       },
       {
+        id: "captions",
         label: "Chú thích ảnh",
         labelKey: "writerRibbon.group.captions",
         items: [
           { type: "button", commandId: "writer.reference.captionInsert", isLarge: true },
-          { type: "button", commandId: "writer.reference.tofInsert", isLarge: true },
-          { type: "button", commandId: "writer.reference.tofUpdate", isLarge: true }
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.reference.tofInsert" },
+              { type: "button", commandId: "writer.reference.tofUpdate" },
+              { type: "button", commandId: "writer.insert.crossReference" }
+            ]
+          }
         ]
       }
     ]
@@ -440,6 +453,7 @@ export const WRITER_RIBBON_TABS = [
     labelKey: "writerRibbon.tab.mailings",
     groups: [
       {
+        id: "createMailings",
         label: "Tạo",
         labelKey: "writerRibbon.group.createMailings",
         items: [
@@ -448,6 +462,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "startMerge",
         label: "Bắt đầu trộn",
         labelKey: "writerRibbon.group.startMerge",
         items: [
@@ -455,6 +470,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "writeInsert",
         label: "Viết & Chèn trường",
         labelKey: "writerRibbon.group.writeInsert",
         items: [
@@ -462,6 +478,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "previewResults",
         label: "Xem trước kết quả",
         labelKey: "writerRibbon.group.previewResults",
         items: [
@@ -476,6 +493,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "finishMerge",
         label: "Hoàn tất",
         labelKey: "writerRibbon.group.finishMerge",
         items: [
@@ -490,6 +508,7 @@ export const WRITER_RIBBON_TABS = [
     labelKey: "writerRibbon.tab.review",
     groups: [
       {
+        id: "proofread",
         label: "Chính tả & Ngữ pháp",
         labelKey: "writerRibbon.group.proofread",
         items: [
@@ -498,17 +517,29 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "comments",
         label: "Ghi chú",
         labelKey: "writerRibbon.group.comments",
         items: [
           { type: "button", commandId: "writer.comment.insert", isLarge: true },
-          { type: "button", commandId: "writer.review.commentPrevious" },
-          { type: "button", commandId: "writer.review.commentNext" },
-          { type: "button", commandId: "writer.review.commentDelete" },
-          { type: "button", commandId: "writer.review.commentResolve" }
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.review.commentDelete" },
+              { type: "button", commandId: "writer.review.commentResolve" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.review.commentPrevious" },
+              { type: "button", commandId: "writer.review.commentNext" }
+            ]
+          }
         ]
       },
       {
+        id: "tracking",
         label: "Theo dõi thay đổi",
         labelKey: "writerRibbon.group.tracking",
         items: [
@@ -516,22 +547,22 @@ export const WRITER_RIBBON_TABS = [
           {
             type: "column",
             items: [
+              { type: "button", commandId: "writer.trackChanges.acceptOne" },
+              { type: "button", commandId: "writer.trackChanges.acceptAll" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.trackChanges.rejectOne" },
+              { type: "button", commandId: "writer.trackChanges.rejectAll" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
               { type: "button", commandId: "writer.trackChanges.previous" },
               { type: "button", commandId: "writer.trackChanges.next" }
-            ]
-          },
-          {
-            type: "column",
-            items: [
-              { type: "button", commandId: "writer.trackChanges.acceptOne" },
-              { type: "button", commandId: "writer.trackChanges.rejectOne" }
-            ]
-          },
-          {
-            type: "column",
-            items: [
-              { type: "button", commandId: "writer.trackChanges.acceptAll" },
-              { type: "button", commandId: "writer.trackChanges.rejectAll" }
             ]
           }
         ]
@@ -544,6 +575,7 @@ export const WRITER_RIBBON_TABS = [
     labelKey: "writerRibbon.tab.view",
     groups: [
       {
+        id: "views",
         label: "Dạng xem",
         labelKey: "writerRibbon.group.views",
         items: [
@@ -562,21 +594,24 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "zoom",
         label: "Thu phóng",
         labelKey: "writerRibbon.group.zoom",
         items: [
           { type: "button", commandId: "writer.view.zoomIn", isLarge: true },
-          { type: "column", items: [
-            { type: "button", commandId: "writer.view.zoomOut" },
-            { type: "button", commandId: "writer.view.zoomReset" }
-          ] },
-          { type: "column", items: [
-            { type: "button", commandId: "writer.view.zoom100" },
-            { type: "button", commandId: "writer.view.pageWidth" }
-          ] }
+          { type: "button", commandId: "writer.view.zoom100", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.view.zoomOut" },
+              { type: "button", commandId: "writer.view.pageWidth" },
+              { type: "button", commandId: "writer.view.zoomReset" }
+            ]
+          }
         ]
       },
       {
+        id: "window",
         label: "Cửa sổ",
         labelKey: "writerRibbon.group.window",
         items: [{ type: "button", commandId: "writer.view.newWindow", isLarge: true }]
