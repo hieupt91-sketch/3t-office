@@ -317,6 +317,15 @@ export const ICONS = {
     <line x1="18.5" y1="21" x2="22.5" y2="21" stroke="#94A3B8" stroke-width="1" stroke-linecap="round"/>
   </svg>`,
 
+  slideDuplicate: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="9" y="4" width="19" height="15" rx="2" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.4"/>
+    <rect x="9" y="4" width="19" height="4" fill="#E2E8F0"/>
+    <rect x="4" y="11" width="19" height="15" rx="2" fill="#F8FAFC" stroke="#B53818" stroke-width="1.6"/>
+    <rect x="4" y="11" width="19" height="4" fill="#FAEEE8"/>
+    <line x1="7" y1="18.5" x2="14" y2="18.5" stroke="#B53818" stroke-width="1.3" stroke-linecap="round"/>
+    <line x1="7" y1="21.5" x2="19" y2="21.5" stroke="#94A3B8" stroke-width="1.1" stroke-linecap="round"/>
+  </svg>`,
+
   slideSection: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="4" y="5" width="24" height="7" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
     <path d="M8 8.5H24" stroke="#B53818" stroke-width="1.6" stroke-linecap="round"/>
@@ -336,6 +345,30 @@ export const ICONS = {
     <path d="M12.5 11.5L16 15L19.5 11.5" stroke="#B53818" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M8 24H24" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/>
     <path d="M16 28V24" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+  slideSectionAdd: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="5" width="24" height="7" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
+    <path d="M8 8.5H24" stroke="#B53818" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="6" y="14" width="13" height="5.5" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="6" y="21.5" width="13" height="5.5" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <circle cx="23" cy="22" r="6" fill="#10B981"/>
+    <path d="M23 19V25M20 22H26" stroke="#FFF" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`,
+  slideSectionRename: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="5" width="24" height="7" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
+    <path d="M8 8.5H24" stroke="#B53818" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="6" y="14" width="13" height="5.5" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="6" y="21.5" width="13" height="5.5" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <circle cx="23" cy="22" r="6" fill="#F59E0B"/>
+    <path d="M20.5 24L24.5 20L25.5 21L21.5 25L20 25.5L20.5 24Z" fill="#FFF"/>
+  </svg>`,
+  slideSectionRemove: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="5" width="24" height="7" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
+    <path d="M8 8.5H24" stroke="#B53818" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="6" y="14" width="13" height="5.5" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="6" y="21.5" width="13" height="5.5" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <circle cx="23" cy="22" r="6" fill="#DC2626"/>
+    <line x1="20" y1="22" x2="26" y2="22" stroke="#FFF" stroke-width="1.8" stroke-linecap="round"/>
   </svg>`,
   slideSorter: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="3" y="4" width="11" height="8" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
@@ -374,6 +407,23 @@ export const ICONS = {
     <rect x="2" y="3" width="9" height="9" rx="1.5" fill="#3B82F6"/>
     <circle cx="17" cy="7" r="5" fill="#10B981"/>
     <polygon points="12,14 18,22 6,22" fill="#F59E0B"/>
+  </svg>`,
+
+  shapeGroup: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="2.5" y="2.5" width="19" height="19" rx="1.5" stroke="#64748B" stroke-width="1" stroke-dasharray="2 2"/>
+    <rect x="2" y="2" width="2" height="2" fill="#2563EB"/>
+    <rect x="20" y="2" width="2" height="2" fill="#2563EB"/>
+    <rect x="2" y="20" width="2" height="2" fill="#2563EB"/>
+    <rect x="20" y="20" width="2" height="2" fill="#2563EB"/>
+    <rect x="5.5" y="5.5" width="7.5" height="7.5" rx="1" fill="#3B82F6"/>
+    <circle cx="15" cy="14.5" r="4.5" fill="#10B981"/>
+  </svg>`,
+
+  shapeUngroup: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="2.5" y="2.5" width="8" height="8" rx="1" fill="#3B82F6" stroke="#2563EB" stroke-width="0.8"/>
+    <circle cx="16.5" cy="16.5" r="4.5" fill="#10B981" stroke="#059669" stroke-width="0.8"/>
+    <path d="M14 5H18.5V9.5M18.5 5L13.5 10" stroke="#DC2626" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M10 19H5.5V14.5M5.5 19L10.5 14" stroke="#DC2626" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
   diagram: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">

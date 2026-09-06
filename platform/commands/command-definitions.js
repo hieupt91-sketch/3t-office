@@ -350,12 +350,12 @@ export const SLIDES_COMMANDS = [
   { id: "slides.slide.new", category: "slide", label: "Trang mới", shortcut: "Ctrl+M", icon: "slideNew", tooltip: "Chèn trang chiếu mới (Ctrl+M)" },
   { id: "slides.layout.apply", category: "slide", label: "Bố cục", icon: "slideLayout", tooltip: "Thay đổi bố cục trang chiếu (Tiêu đề, Nội dung, Hai cột, Trống)" },
   { id: "slides.layout.select", category: "slide", label: "Chọn bố cục", icon: "slideLayout", tooltip: "Mở hộp thoại chọn bố cục trang chiếu" },
-  { id: "slides.slide.duplicate", category: "slide", label: "Nhân đôi", shortcut: "Ctrl+D", icon: "copy", tooltip: "Nhân đôi trang chiếu đang chọn (Ctrl+D)" },
+  { id: "slides.slide.duplicate", category: "slide", label: "Nhân đôi", shortcut: "Ctrl+D", icon: "slideDuplicate", tooltip: "Nhân đôi trang chiếu đang chọn (Ctrl+D)" },
   { id: "slides.slide.delete", category: "slide", label: "Xóa trang", shortcut: "Delete", icon: "close", tooltip: "Xóa trang chiếu đang chọn (Delete)" },
   { id: "slides.slide.toggleHidden", category: "show", label: "Ẩn trang chiếu", icon: "hideSlide", tooltip: "Ẩn hoặc hiện trang chiếu đang chọn khi trình chiếu F5. Trang vẫn còn trong tệp và Slide Sorter.", isToggle: true },
-  { id: "slides.section.add", category: "slide", label: "Thêm phần", icon: "slideSection", tooltip: "Thêm phần bắt đầu từ trang đang chọn để nhóm các trang chiếu liên tiếp" },
-  { id: "slides.section.rename", category: "slide", label: "Đổi tên phần", icon: "slideSection", tooltip: "Đổi tên phần chứa trang chiếu đang chọn" },
-  { id: "slides.section.remove", category: "slide", label: "Xóa phần", icon: "slideSection", tooltip: "Bỏ nhóm phần — không xóa các trang chiếu bên trong" },
+  { id: "slides.section.add", category: "slide", label: "Thêm phần", icon: "slideSectionAdd", tooltip: "Thêm phần bắt đầu từ trang đang chọn để nhóm các trang chiếu liên tiếp" },
+  { id: "slides.section.rename", category: "slide", label: "Đổi tên phần", icon: "slideSectionRename", tooltip: "Đổi tên phần chứa trang chiếu đang chọn" },
+  { id: "slides.section.remove", category: "slide", label: "Xóa phần", icon: "slideSectionRemove", tooltip: "Bỏ nhóm phần — không xóa các trang chiếu bên trong" },
   { id: "slides.section.moveUp", category: "slide", label: "Chuyển phần lên", icon: "slideSectionUp", tooltip: "Di chuyển cả nhóm trang của phần lên trên phần kề trước, giữ thứ tự trang bên trong" },
   { id: "slides.section.moveDown", category: "slide", label: "Chuyển phần xuống", icon: "slideSectionDown", tooltip: "Di chuyển cả nhóm trang của phần xuống dưới phần kề sau, giữ thứ tự trang bên trong" },
 
@@ -398,8 +398,8 @@ export const SLIDES_COMMANDS = [
   { id: "slides.show.presenterMode", category: "show", label: "Chế độ Presenter", shortcut: "Alt+F5", icon: "presenterMode", tooltip: "Trình chiếu chế độ Người thuyết trình kèm ghi chú và đồng hồ (Alt+F5)" },
   { id: "slides.show.rehearseTimings", category: "show", label: "Tập dượt hẹn giờ", icon: "rehearseTimings", tooltip: "Trình chiếu và đo thời gian thật ở mỗi trang, có thể lưu lại làm mốc thời gian" },
   { id: "slides.show.setupShow", category: "show", label: "Thiết lập trình chiếu", icon: "setupShow", tooltip: "Lặp liên tục đến Esc, trình chiếu không thuyết minh, màu bút/laser" },
-  { id: "slides.shape.group", category: "arrange", label: "Nhóm đối tượng", shortcut: "Ctrl+G", icon: "shape", tooltip: "Nhóm các đối tượng đang chọn thành một khối (Ctrl+G)" },
-  { id: "slides.shape.ungroup", category: "arrange", label: "Bỏ nhóm", shortcut: "Ctrl+Shift+G", icon: "shape", tooltip: "Tách nhóm đối tượng đang chọn (Ctrl+Shift+G)" },
+  { id: "slides.shape.group", category: "arrange", label: "Nhóm đối tượng", shortcut: "Ctrl+G", icon: "shapeGroup", tooltip: "Nhóm các đối tượng đang chọn thành một khối (Ctrl+G)" },
+  { id: "slides.shape.ungroup", category: "arrange", label: "Bỏ nhóm", shortcut: "Ctrl+Shift+G", icon: "shapeUngroup", tooltip: "Tách nhóm đối tượng đang chọn (Ctrl+Shift+G)" },
   { id: "slides.nav.firstSlide", category: "nav", label: "Trang đầu tiên", shortcut: "Ctrl+Home", icon: "slideNew", tooltip: "Về trang chiếu đầu tiên (Ctrl+Home)" },
   { id: "slides.nav.lastSlide", category: "nav", label: "Trang cuối cùng", shortcut: "Ctrl+End", icon: "slideNew", tooltip: "Đến trang chiếu cuối cùng (Ctrl+End)" },
   { id: "slides.nav.prevSlide", category: "nav", label: "Trang trước", shortcut: "PageUp", icon: "slideNew", tooltip: "Về trang chiếu trước (Page Up)" },
@@ -427,7 +427,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.para.justify", category: "paragraph", label: "Căn đều", shortcut: "Ctrl+J", icon: "alignJustify", tooltip: "Căn đều hai bên (Ctrl+J)", isToggle: true },
   { id: "slides.para.indentInc", category: "paragraph", label: "Thụt lề", icon: "indentInc", tooltip: "Tăng thụt lề đoạn văn" },
   { id: "slides.para.indentDec", category: "paragraph", label: "Giảm thụt lề", icon: "indentDec", tooltip: "Giảm thụt lề đoạn văn" },
-  { id: "slides.para.lineSpacing", category: "paragraph", label: "Giãn dòng", icon: "alignLeft", tooltip: "Chọn khoảng cách dòng 1.0 / 1.5 / 2.0" },
+  { id: "slides.para.lineSpacing", category: "paragraph", label: "Giãn dòng", icon: "lineSpacing", tooltip: "Chọn khoảng cách dòng 1.0 / 1.5 / 2.0" },
   { id: "slides.help.open", category: "help", label: "Trợ giúp", shortcut: "F1", icon: "help", tooltip: "Mở hướng dẫn sử dụng (F1)", isToggle: true }
 ];
 
