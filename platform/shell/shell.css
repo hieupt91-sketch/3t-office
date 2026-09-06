@@ -19,6 +19,18 @@ body {
   user-select: none;
 }
 
+::selection {
+  background-color: var(--vno-bg-selected, #dbeafe);
+  color: var(--vno-text-primary, #0f172a);
+}
+
+[data-theme="dark"] ::selection,
+:root[data-theme="dark"] ::selection {
+  background-color: #1d4ed8;
+  color: #ffffff;
+}
+
+
 .vno-shell {
   display: flex;
   flex-direction: column;

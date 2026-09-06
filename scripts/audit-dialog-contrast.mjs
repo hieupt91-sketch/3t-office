@@ -72,8 +72,27 @@ const pairs = [
   { dialog: "Chrome - Sheet Tab Bar", label: "Active tab text in dark mode (#4ade80 on #1e1e1e)", fg: "#4ade80", bg: "#1e1e1e", isLarge: false },
   { dialog: "Chrome - Slides Navigator", label: "Active thumbnail outline in dark mode (#fb923c on #1e1e1e)", fg: "#fb923c", bg: "#1e1e1e", isLarge: true },
   { dialog: "Chrome - Context Menu", label: "Sheet context item hover in dark mode (#4ade80 on #2a2d2e)", fg: "#4ade80", bg: "#2a2d2e", isLarge: false },
-  { dialog: "Chrome - Context Menu", label: "Writer spellcheck hover in dark mode (#60a5fa on #2a2d2e)", fg: "#60a5fa", bg: "#2a2d2e", isLarge: false }
+  { dialog: "Chrome - Context Menu", label: "Writer spellcheck hover in dark mode (#60a5fa on #2a2d2e)", fg: "#60a5fa", bg: "#2a2d2e", isLarge: false },
+
+  // Canvas Editing Surface UI Polish (Writer, Sheet, Slides)
+  { dialog: "Writer - Canvas Caret", label: "Caret/Text primary in dark mode (#f1f5f9 on #1e1e1e)", fg: "#f1f5f9", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Writer - Text Selection", label: "Selection text in dark mode (#ffffff on #1d4ed8)", fg: "#ffffff", bg: "#1d4ed8", isLarge: false },
+  { dialog: "Writer - Track Changes", label: "Insert marker green in dark mode (#4ade80 on #1e1e1e)", fg: "#4ade80", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Writer - Track Changes", label: "Delete marker red in dark mode (#f87171 on #1e1e1e)", fg: "#f87171", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Writer - Spellcheck", label: "Squiggly underline in dark mode (#f87171 on #1e1e1e)", fg: "#f87171", bg: "#1e1e1e", isLarge: true },
+  { dialog: "Writer - Table Focus", label: "Cell focus outline in dark mode (#60a5fa on #1e1e1e)", fg: "#60a5fa", bg: "#1e1e1e", isLarge: true },
+  { dialog: "Sheet - Cell Selection", label: "Selection border in dark mode (#4ade80 on #1e1e1e)", fg: "#4ade80", bg: "#1e1e1e", isLarge: true },
+  { dialog: "Sheet - Freeze Pane", label: "Divider line in dark mode (#64748b on #1e1e1e)", fg: "#64748b", bg: "#1e1e1e", isLarge: true },
+  { dialog: "Sheet - Formula In-Cell", label: "Autocomplete active item in dark mode (#4ade80 on #052e16)", fg: "#4ade80", bg: "#052e16", isLarge: false },
+  { dialog: "Sheet - Formula In-Cell", label: "Syntax param active in dark mode (#4ade80 on #052e16)", fg: "#4ade80", bg: "#052e16", isLarge: false },
+  { dialog: "Slides - Shape Selection", label: "Selection outline in dark mode (#60a5fa on #1e1e1e)", fg: "#60a5fa", bg: "#1e1e1e", isLarge: true },
+  { dialog: "Slides - Shape Focus", label: "Focus outline in dark mode (#fb923c on #1e1e1e)", fg: "#fb923c", bg: "#1e1e1e", isLarge: true },
+  { dialog: "Slides - Resize Handle", label: "Handle outline on dark canvas (#60a5fa on #1e1e1e)", fg: "#60a5fa", bg: "#1e1e1e", isLarge: true },
+  { dialog: "Slides - Resize Handle", label: "Handle border on light handle fill (#2563eb on #ffffff)", fg: "#2563eb", bg: "#ffffff", isLarge: true },
+  { dialog: "Slides - Smart Guide", label: "Guide line in dark mode (#f87171 on #1e1e1e)", fg: "#f87171", bg: "#1e1e1e", isLarge: true },
+  { dialog: "Slides - Textbox Text", label: "Textbox text in dark mode (#f1f5f9 on #1e1e1e)", fg: "#f1f5f9", bg: "#1e1e1e", isLarge: false }
 ];
+
 
 console.log("=== BẮT ĐẦU ĐO ĐỘ TƯƠNG PHẢN THỰC TẾ (WCAG 2.1 AA) ===\n");
 let allPass = true;

@@ -245,6 +245,11 @@
   color: var(--vno-text-primary);
 }
 
+[data-theme="dark"] .vno-grid-cell {
+  border-right-color: #3e3e42;
+  border-bottom-color: #3e3e42;
+}
+
 .vno-grid-cell.is-wrap-text {
   height: auto;
   min-height: 26px;
@@ -261,6 +266,16 @@
 }
 
 .vno-grid-cell.is-range-selected { background-image: linear-gradient(rgba(15, 109, 56, 0.08), rgba(15, 109, 56, 0.08)); }
+
+[data-theme="dark"] .vno-grid-cell.is-selected {
+  outline-color: var(--vno-sheet-primary-fg, #4ade80);
+  background-color: rgba(74, 222, 128, 0.16) !important;
+}
+
+[data-theme="dark"] .vno-grid-cell.is-range-selected {
+  background-image: linear-gradient(rgba(74, 222, 128, 0.16), rgba(74, 222, 128, 0.16));
+}
+
 .vno-grid-cell.is-merged-cell { position: relative; background-color: var(--vno-surface, #fff); border: 1px solid var(--vno-border, #d1d5db); }
 
 .vno-grid-cell.has-comment::after { content:""; position:absolute; top:0; right:0; border-top:8px solid #dc2626; border-left:8px solid transparent; z-index:7; }
@@ -542,20 +557,22 @@
   left: 44px;
   top: 0;
   z-index: 25;
+  border-right: 2px solid #94a3b8;
   box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.2);
 }
 .vno-freeze-panes td[data-col="A"] {
   position: sticky;
   left: 44px;
   z-index: 8;
-  background-color: #ffffff;
+  background-color: var(--vno-bg-window, #ffffff);
+  border-right: 2px solid #94a3b8;
   box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.2);
 }
 .vno-freeze-panes tr[data-row="1"] td {
   position: sticky;
   top: 24px;
   z-index: 8;
-  background-color: #f8fafc;
+  background-color: var(--vno-bg-window, #f8fafc);
   border-bottom: 2px solid #94a3b8;
 }
 .vno-freeze-panes tr[data-row="1"] th.vno-row-header {
@@ -563,7 +580,7 @@
   top: 24px;
   left: 0;
   z-index: 18;
-  background-color: #e2e8f0;
+  background-color: var(--vno-bg-subtle, #e2e8f0);
   border-bottom: 2px solid #94a3b8;
 }
 .vno-freeze-panes tr[data-row="1"] td[data-col="A"] {
@@ -571,10 +588,27 @@
   top: 24px;
   left: 44px;
   z-index: 19;
-  background-color: #f1f5f9;
+  background-color: var(--vno-bg-window, #f1f5f9);
   border-bottom: 2px solid #94a3b8;
+  border-right: 2px solid #94a3b8;
   box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.2);
 }
+
+[data-theme="dark"] .vno-freeze-panes th.vno-col-header[data-col="A"],
+[data-theme="dark"] .vno-freeze-panes td[data-col="A"] {
+  border-right-color: #64748b;
+}
+
+[data-theme="dark"] .vno-freeze-panes tr[data-row="1"] td,
+[data-theme="dark"] .vno-freeze-panes tr[data-row="1"] th.vno-row-header,
+[data-theme="dark"] .vno-freeze-panes tr[data-row="1"] td[data-col="A"] {
+  border-bottom-color: #64748b;
+}
+
+[data-theme="dark"] .vno-freeze-panes tr[data-row="1"] td[data-col="A"] {
+  border-right-color: #64748b;
+}
+
 
 /* Sort & Filter UI */
 .vno-filter-btn {
@@ -741,6 +775,26 @@ tr.is-filtered-out {
 .vno-row-resizer:hover {
   background-color: var(--vno-sheet-primary);
 }
+
+[data-theme="dark"] .vno-cell-autofill-handle {
+  background-color: var(--vno-sheet-primary-fg, #4ade80);
+  border-color: #1e1e1e;
+}
+[data-theme="dark"] .vno-cell-autofill-handle:hover {
+  box-shadow: 0 0 0 1px #4ade80;
+}
+[data-theme="dark"] .vno-grid-cell.is-autofill-preview {
+  outline-color: var(--vno-sheet-primary-fg, #4ade80) !important;
+  background-color: rgba(74, 222, 128, 0.22) !important;
+}
+[data-theme="dark"] .vno-cell-move-handle:hover {
+  background-color: rgba(74, 222, 128, 0.4);
+}
+[data-theme="dark"] .vno-col-resizer:hover,
+[data-theme="dark"] .vno-row-resizer:hover {
+  background-color: var(--vno-sheet-primary-fg, #4ade80);
+}
+
 
 /* Context Menu chuẩn Excel */
 .vno-sheet-context-menu {
