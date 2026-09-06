@@ -596,8 +596,8 @@ export const SHEET_RIBBON_TABS = [
         label: "Hiển thị",
         labelKey: "sheetRibbon.group.show",
         items: [
-          { type: "button", commandId: "sheet.view.formulaBar" },
           { type: "button", commandId: "sheet.view.gridlines" },
+          { type: "button", commandId: "sheet.view.formulaBar" },
           { type: "button", commandId: "sheet.view.headings" }
         ]
       },
@@ -607,9 +607,9 @@ export const SHEET_RIBBON_TABS = [
         labelKey: "sheetRibbon.group.zoom",
         items: [
           { type: "button", commandId: "sheet.view.zoomIn", isLarge: true },
-          { type: "button", commandId: "sheet.view.zoomOut" },
-          { type: "button", commandId: "sheet.view.zoomReset" },
-          { type: "button", commandId: "sheet.view.zoomToSelection" }
+          { type: "button", commandId: "sheet.view.zoomReset", isLarge: true },
+          { type: "button", commandId: "sheet.view.zoomToSelection", isLarge: true },
+          { type: "button", commandId: "sheet.view.zoomOut" }
         ]
       },
       {
