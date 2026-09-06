@@ -54,7 +54,10 @@ const pairs = [
   { dialog: "Writer - Illustrations", label: "Shape/Diagram card title dark (#f1f5f9 on #252526)", fg: "#f1f5f9", bg: "#252526", isLarge: false },
   { dialog: "Writer - Illustrations", label: "Shape/Diagram card title dark selected (#f1f5f9 on #172554)", fg: "#f1f5f9", bg: "#172554", isLarge: false },
   { dialog: "Writer - Illustrations", label: "Chart preview label light (#334155 on #ffffff)", fg: "#334155", bg: "#ffffff", isLarge: false },
-  { dialog: "Writer - Illustrations", label: "Chart preview label dark (#cbd5e1 on #1e1e1e)", fg: "#cbd5e1", bg: "#1e1e1e", isLarge: false }
+  { dialog: "Writer - Illustrations", label: "Chart preview label dark (#cbd5e1 on #1e1e1e)", fg: "#cbd5e1", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Writer - Comments Panel", label: "Comment author/text in dark mode (#f1f5f9 on #252526)", fg: "#f1f5f9", bg: "#252526", isLarge: false },
+  { dialog: "Writer - Comments Panel", label: "Comment meta text in dark mode (#94a3b8 on #252526)", fg: "#94a3b8", bg: "#252526", isLarge: false },
+  { dialog: "Writer - Comments Panel", label: "Comment delete button in dark mode (#fca5a5 on #252526)", fg: "#fca5a5", bg: "#252526", isLarge: false }
 ];
 
 console.log("=== BẮT ĐẦU ĐO ĐỘ TƯƠNG PHẢN THỰC TẾ (WCAG 2.1 AA) ===\n");

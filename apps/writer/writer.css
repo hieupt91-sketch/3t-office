@@ -205,6 +205,42 @@
   box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.28);
 }
 
+[data-theme="dark"] .vno-comment-card {
+  background: var(--vno-bg-surface, #252526);
+  border-color: var(--vno-border-default, #3f3f46);
+  color: var(--vno-text-primary, #f1f5f9);
+}
+[data-theme="dark"] .vno-comment-card.is-resolved {
+  background: var(--vno-bg-muted, #1f1f1f);
+  opacity: 0.65;
+}
+[data-theme="dark"] .vno-comment-anchor-preview {
+  color: var(--vno-text-secondary, #94a3b8);
+}
+[data-theme="dark"] .vno-comment-meta {
+  color: var(--vno-text-secondary, #94a3b8);
+}
+[data-theme="dark"] .vno-comment-author {
+  color: var(--vno-text-primary, #f1f5f9);
+}
+[data-theme="dark"] .vno-comment-delete {
+  color: #fca5a5;
+}
+[data-theme="dark"] .vno-comment-delete:hover,
+[data-theme="dark"] .vno-comment-delete:focus {
+  background: rgba(239, 68, 68, 0.2);
+  outline-color: rgba(248, 113, 113, 0.4);
+}
+[data-theme="dark"] .vno-comment-anchor {
+  background: rgba(234, 179, 8, 0.25);
+  border-bottom-color: #facc15;
+  color: inherit;
+}
+[data-theme="dark"] .vno-comment-anchor.is-active {
+  background: rgba(234, 179, 8, 0.45);
+  box-shadow: 0 0 0 2px rgba(250, 204, 21, 0.4);
+}
+
 /* Dấu sửa đổi chỉ tồn tại trên canvas; serializer Writer loại bỏ trước khi lưu/xuất. */
 .vno-writer-body ins[data-vno-change="insert"] {
   color: #166534;
