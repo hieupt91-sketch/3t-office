@@ -9,7 +9,7 @@ Nguyên tắc:
 3. VN Office **mở lại ZIP**, patch XML entry bằng cấu trúc **OOXML chuẩn** (không namespace `vno:`), đóng gói lại.
 4. Chỉ patch khi OOXML thật sự có chỗ chuẩn. Nếu là giới hạn kiến trúc PowerPoint/Excel — ghi rõ, không làm giả.
 
-Phase 1, 2a, 2b, 3a (`p14:sectionLst` lúc Lưu) và 3a-open (overlay Sections lúc Mở) đã merge `main`. Overlay File → Mở PPTX cho Slide Master logo (`vno:master-theme`) là phase riêng trên branch `feature/slides-masterlogo-open-overlay` — **không merge vào `main`** cho đến khi người phụ trách review.
+Phase 1, 2a, 2b, 3a (`p14:sectionLst` lúc Lưu), 3a-open (overlay Sections lúc Mở) và overlay File → Mở logo (`vno:master-theme`) đã merge `main`. Phase 3b Set Up Show (`p:showPr` trên `ppt/presProps.xml`) nằm trên branch `feature/slides-setup-show-native-export` — **không merge vào `main`** cho đến khi người phụ trách review.
 
 ---
 
@@ -30,7 +30,7 @@ Giới hạn đã xác nhận (audit trước):
 | Protect Workbook `table:structure-protected` | Còn | Mất khóa structure trên XLSX | **OOXML có** `<workbookProtection lockStructure>` |
 | Slide Master logo / `vno:master-theme` | Còn | Mất qua PPTX; nền fill còn | Cần chỗ DrawingML chuẩn |
 | Slide Sections `vno:section-*` | Còn | Mất qua PPTX (LO không sinh `p14:sectionLst`) | **Phase 3a vá** extension PowerPoint 2010 |
-| Set Up Show `vno:pointer-color` / `vno:without-narration` | Còn | Mất; `presentation:endless` giữ | Một phần có thể không có trong file format |
+| Set Up Show `vno:pointer-color` / `vno:without-narration` | Còn | **Phase 3b vá** `p:showPr` trên `ppt/presProps.xml` (`showNarration=0` / `p:penClr`); `endless` LO đã giữ | Kiosk / start–end: VN UI chưa lưu |
 | Color Scale / Data Bar / Icon Set CF | Chưa serialize | — | Chưa có UI |
 | Transition `flip` | Có trong FODP | Mất qua PPTX | Đã ghi từ trước |
 | Number format category=text | Style ODF | Mất `number:text-style` | Cùng fail trên `main` |
@@ -75,7 +75,8 @@ tests/live  → convertWithSoffice → postProcessSheetXlsx() [JS]
 | `main.py` | Gọi post-process sau convert, trước copyfile (Sheet XLSX + Slides PPTX) |
 | `adapters/libreoffice/slides/pptx-master-logo.js` | XML thuần: chèn `p:sp` không `p:ph` lên slide master |
 | `adapters/libreoffice/slides/pptx-section-list.js` | XML thuần: chèn `p14:sectionLst` vào `ppt/presentation.xml` |
-| `adapters/libreoffice/slides/pptx-native-postprocess.js` | Node: patch PPTX sau soffice (logo + sections); overlay FODP lúc Mở |
+| `adapters/libreoffice/slides/pptx-show-properties.js` | XML thuần: vá `p:showPr` trên `ppt/presProps.xml` (không phải presentation.xml) |
+| `adapters/libreoffice/slides/pptx-native-postprocess.js` | Node: patch PPTX sau soffice (logo + sections + showPr); overlay FODP lúc Mở |
 | `tests/unit/slides-pptx-master-logo.test.js` | Suite 110 |
 | `tests/unit/slides-pptx-masterlogo-open-overlay.test.js` | Suite 114 — overlay FODP từ `VNOfficeMasterLogo` |
 | `tests/live/slides-pptx-master-logo-native-export.mjs` | soffice thật FODP→PPTX→patch→FODP/PDF |
@@ -84,6 +85,8 @@ tests/live  → convertWithSoffice → postProcessSheetXlsx() [JS]
 | `tests/live/slides-pptx-sections-native-export.mjs` | soffice thật FODP sections → PPTX → patch → FODP/PDF |
 | `tests/unit/slides-pptx-sections-open-overlay.test.js` | Suite 113 — overlay FODP từ `p14:sectionLst` |
 | `tests/live/slides-pptx-sections-native-open.mjs` | soffice thật Lưu PPTX → Mở FODP overlay |
+| `tests/unit/slides-pptx-show-properties.test.js` | Suite 115 |
+| `tests/live/slides-pptx-setup-show-native-export.mjs` | soffice thật FODP Set Up Show → PPTX → patch `presProps.xml` |
 | `tests/helpers/zip-package.mjs` | Re-export production ZIP patcher |
 | `tests/unit/sheet-xlsx-native-postprocess.test.js` | Suite 107 |
 | `tests/live/sheet-xlsx-workbook-protection-native-export.mjs` | soffice thật |
@@ -246,13 +249,38 @@ Kết quả đo: Lưu PPTX (Phase 3a `p14:sectionLst`) → soffice PPTX→FODP *
 
 Handoff: `docs/HANDOFF-SLIDES-SECTIONS-OPEN-OVERLAY.md`. Findings đo trước code: `docs/HANDOFF-SLIDES-SECTIONS-OPEN-OVERLAY-FINDINGS.md`.
 
-### 3b. Set Up Slide Show còn lại — độ phức tạp: thấp-trung bình, nhiều mục có thể **không sửa được**
+### 3b. Set Up Slide Show — **HOÀN THÀNH** (thấp-trung bình)
 
-| Cờ VN | Ứng viên OOXML | Khả năng |
-|---|---|---|
-| `presentation:endless` | Đã sống qua PPTX | Không làm |
-| `vno:without-narration` | `p:showPr showNarration="0"`? | Đo schema `CT_ShowProperties` |
-| `vno:pointer-color` | Thường là **cài UI runtime** PowerPoint, không có trong file | Nếu không có chỗ chuẩn: **ghi rõ không sửa**, giữ FODP |
+**Không phải giới hạn kiến trúc PowerPoint** cho narration/pen. Probe `tests/scripts/probe-slides-setup-show-pptx.mjs` trên `main` @ `77398d7`:
+
+- Chỗ chuẩn là `ppt/presProps.xml` / `p:presentationPr` / `p:showPr` (ECMA-376 `CT_ShowProperties`). **`ppt/presentation.xml` không chứa showPr.**
+- LibreOffice **đã ghi** `<p:showPr loop="1" showNarration="1"></p:showPr>` khi FODP có `presentation:endless`. Loop round-trip PPTX→FODP **PASS**.
+- LibreOffice **luôn** `showNarration="1"` — không đọc `vno:without-narration`.
+- LibreOffice **không** sinh `p:penClr` từ `vno:pointer-color` (cũng không từ `presentation:mouse-as-pen` ODF).
+- VN UI hiện tại **chỉ** lưu 3 trường (`loopUntilEsc` / `showWithoutNarration` / `pointerColor`). Không kiosk, không start/end. Không bịa `p:kiosk` / `p:sldRg`.
+
+Chỗ chuẩn đã vá (hậu-kỳ, tái sử dụng `ooxml_zip_patch`):
+
+- `showNarration="0"` khi FODP có `vno:without-narration="true"`.
+- `p:penClr/a:srgbClr` khi FODP có `vno:pointer-color`.
+- Giữ `@loop` và `p:sldRg` LibreOffice đã viết. Không nhét `vno:*` vào PPTX.
+- Hook `main.py` nới: bài chỉ Set Up Show (không logo, không phần) vẫn vá.
+
+Kết quả đo (soffice thật):
+
+- Convert thuần: `showNarration=true`, không `penClr`. Sau JS + Python patch: `showNarration=false`, `penRgb=112233`, `loop=true`.
+- soffice PPTX→FODP và PPTX→PDF **không lỗi**. `presentation:endless` còn. `vno:*` **không** round-trip (`loRoundTripVno=false`). Overlay File → Mở = phase sau.
+- **Đây là tính năng OOXML/PowerPoint thật** (`showNarration` / `penClr`), không giả.
+
+Giới hạn thật (không làm giả):
+
+| Mục | Lý do |
+|---|---|
+| Loop | LO đã map `presentation:endless` → `@loop` |
+| Kiosk / presenter / browse | VN UI không lưu; LO không map ODF đã thử thành `p:kiosk` |
+| Slide start/end | VN không serialize `presentation:start-page`; LO **đã** map sang `p:sldRg` nếu ODF có |
+
+Handoff: `docs/HANDOFF-SLIDES-SETUP-SHOW-NATIVE-EXPORT.md`. Findings đo trước code: `docs/HANDOFF-SLIDES-SETUP-SHOW-NATIVE-FINDINGS.md`.
 
 ### 3c. Color Scale / Data Bar / Icon Set CF — độ phức tạp: cao
 
@@ -282,7 +310,7 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 | 2c | `theme1.xml` scheme | Trung bình | Trung bình | Probe theme |
 | 3a | `p14:sectionLst` | Trung bình-cao | Trung bình | **Xong** (soffice mở lại PASS; không round-trip FODP) |
 | 3a-open | Overlay section khi Mở PPTX | Thấp-trung bình | Nhỏ | **Xong** |
-| 3b | showPr / pointer | Thấp, có mục không làm được | Nhỏ | Schema + quyết định product |
+| 3b | showPr `showNarration` / `penClr` | Thấp | Nhỏ | **Xong** (soffice mở lại PASS; `vno:*` không round-trip FODP) |
 | 3c | CF colorScale… | Cao | Lớn | UI trước |
 | 4 | password hash, SmartArt, … | Cao | Lớn | Quyết định product |
 
@@ -296,6 +324,7 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 - Phase 3a `p14:sectionLst`: lệch `p:sldId/@id` so với thứ tự `draw:page` sẽ gán sai nhóm. Patch **ném** khi số id ≠ số trang, không đoán. soffice mở lại PASS; PowerPoint desktop chưa đo Repair.
 - Overlay Mở PPTX (Sections): cùng quy tắc ném khi số `p:sldId` ≠ số `draw:page`, khi `p14:sldId` lạ, hoặc một id thuộc hai phần. File → Mở báo lỗi thay vì canvas sai nhóm. Probe fixture 6 trang: thứ tự `p:sldIdLst` khớp thứ tự `draw:page` sau soffice.
 - Overlay Mở PPTX (logo): nhận diện **chỉ** `name="VNOfficeMasterLogo"`. Ném khi nhiều shape trùng tên, shape mang `p:ph`, thiếu `a:t`, hoặc hai master khác chữ/màu/font. Không đoán `p:sp` khác. Probe: soffice đổi shape thành `draw:custom-shape` cùng tên nhưng parser VN không đọc class đó.
+- Phase 3b `p:showPr`: vá nhầm `@loop` sẽ phá round-trip endless đã PASS. Patch **không** đụng loop; chỉ `showNarration` + `penClr`. Hex không 6 chữ thì **ném**. PowerPoint desktop chưa đo Repair. File → Mở VN Slides vẫn mất `vno:*` (overlay chưa làm).
 
 ## Test plan (mọi phase)
 
@@ -306,7 +335,7 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 
 ## Rollback
 
-Revert commit phase tương ứng. `main.py` gọi post-process khi Sheet XLSX (`lockStructure`) hoặc Slides PPTX (master logo / `p14:sectionLst`); overlay File → Mở khi Sheet XLSX hoặc Slides PPTX (sections / logo). Tắt nhánh tương ứng là file lại giống convert thuần LibreOffice.
+Revert commit phase tương ứng. `main.py` gọi post-process khi Sheet XLSX (`lockStructure`) hoặc Slides PPTX (master logo / `p14:sectionLst` / `p:showPr`); overlay File → Mở khi Sheet XLSX hoặc Slides PPTX (sections / logo). Tắt nhánh tương ứng là file lại giống convert thuần LibreOffice.
 
 ## Decision log
 
@@ -316,5 +345,7 @@ Revert commit phase tương ứng. `main.py` gọi post-process khi Sheet XLSX (
 - **Không** overlay import PPTX→FODP cho `masterTheme.logoText` **ở 2b**. Overlay đó là 2b-open, đã làm: đọc `p:sp name="VNOfficeMasterLogo"` từ ZIP gốc, gắn `vno:master-theme` trước `parseFodp`, ném khi không nhận diện được chính xác.
 - **Không** overlay import PPTX→FODP cho `vno:section-*` **ở 3a** (canvas mất thanh phần). Overlay đó là 3a-open, đã làm: đọc `p14:sectionLst` gốc, gắn `vno:section-*` trước `parseFodp`, ném khi không map được chính xác.
 - **Có** vá `p14:sectionLst`: đo thật LO không sinh extension; soffice mở file đã vá **không lỗi**. Tính năng PowerPoint 2010 thật, không giả.
+- **Có** vá `p:showPr` trên `ppt/presProps.xml` (không phải `presentation.xml`): đo thật LO đã ghi element nhưng `showNarration` luôn `"1"` và không có `p:penClr`. Loop **không** vá. Kiosk/sldRg **không** vá vì VN UI chưa lưu.
+- **Không** overlay import PPTX→FODP cho `vno:without-narration` / `vno:pointer-color` **ở 3b** (File → Mở mất cờ trên canvas). Overlay đó là phase sau, cùng pattern 3a-open.
 - **Không** core patch.
 - **Không** merge `main`.
