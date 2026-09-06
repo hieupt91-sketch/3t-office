@@ -392,6 +392,47 @@
   text-align: justify;
 }
 
+/* Multilevel list canvas markers (3 levels). Class is the persist key; FODT uses LMulti*. */
+.vno-writer-page ol.vno-ml-decimal,
+.vno-writer-page ol.vno-ml-letter,
+.vno-writer-page ol.vno-ml-nd30 {
+  margin: 0 0 6pt 0;
+  padding-left: 2em;
+}
+.vno-writer-page ol.vno-ml-decimal ol,
+.vno-writer-page ol.vno-ml-letter ol,
+.vno-writer-page ol.vno-ml-nd30 ol {
+  margin: 0;
+  padding-left: 1.6em;
+}
+
+.vno-writer-page ol.vno-ml-decimal {
+  list-style: none;
+  counter-reset: vno-ml1;
+}
+.vno-writer-page ol.vno-ml-decimal > li { counter-increment: vno-ml1; }
+.vno-writer-page ol.vno-ml-decimal > li::before { content: counter(vno-ml1) ". "; font-weight: 600; margin-right: 0.25em; }
+.vno-writer-page ol.vno-ml-decimal ol { list-style: none; counter-reset: vno-ml2; }
+.vno-writer-page ol.vno-ml-decimal ol > li { counter-increment: vno-ml2; }
+.vno-writer-page ol.vno-ml-decimal ol > li::before { content: counter(vno-ml1) "." counter(vno-ml2) ". "; font-weight: 600; margin-right: 0.25em; }
+.vno-writer-page ol.vno-ml-decimal ol ol { counter-reset: vno-ml3; }
+.vno-writer-page ol.vno-ml-decimal ol ol > li { counter-increment: vno-ml3; }
+.vno-writer-page ol.vno-ml-decimal ol ol > li::before { content: counter(vno-ml1) "." counter(vno-ml2) "." counter(vno-ml3) ". "; font-weight: 600; margin-right: 0.25em; }
+
+.vno-writer-page ol.vno-ml-letter { list-style-type: decimal; }
+.vno-writer-page ol.vno-ml-letter ol { list-style-type: lower-alpha; }
+.vno-writer-page ol.vno-ml-letter ol ol { list-style-type: lower-roman; }
+
+.vno-writer-page ol.vno-ml-nd30 { list-style: none; counter-reset: vno-nd1; }
+.vno-writer-page ol.vno-ml-nd30 > li { counter-increment: vno-nd1; }
+.vno-writer-page ol.vno-ml-nd30 > li::before { content: "Điều " counter(vno-nd1) ". "; font-weight: 600; margin-right: 0.25em; }
+.vno-writer-page ol.vno-ml-nd30 ol { list-style: none; counter-reset: vno-nd2; }
+.vno-writer-page ol.vno-ml-nd30 ol > li { counter-increment: vno-nd2; }
+.vno-writer-page ol.vno-ml-nd30 ol > li::before { content: counter(vno-nd2) ". "; font-weight: 600; margin-right: 0.25em; }
+.vno-writer-page ol.vno-ml-nd30 ol ol { counter-reset: vno-nd3; }
+.vno-writer-page ol.vno-ml-nd30 ol ol > li { counter-increment: vno-nd3; }
+.vno-writer-page ol.vno-ml-nd30 ol ol > li::before { content: counter(vno-nd3, lower-alpha) ") "; font-weight: 600; margin-right: 0.25em; }
+
 .vno-writer-page h1 {
   font-size: 16pt;
   font-weight: bold;

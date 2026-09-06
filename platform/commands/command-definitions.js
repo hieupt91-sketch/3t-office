@@ -90,6 +90,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.para.spacingAfter", category: "paragraph", label: "Khoảng sau đoạn", icon: "lineSpacing", tooltip: "Khoảng cách sau đoạn văn (đơn vị pt)" },
   { id: "writer.list.bullet", category: "paragraph", label: "Dấu đầu dòng", icon: "listBullet", tooltip: "Tạo danh sách dấu chấm tròn", isToggle: true },
   { id: "writer.list.numbered", category: "paragraph", label: "Đánh số", icon: "listNumber", tooltip: "Tạo danh sách đánh số thứ tự", isToggle: true },
+  { id: "writer.para.multilevelList", category: "paragraph", label: "Danh sách đa cấp", icon: "listMultilevel", tooltip: "Danh sách nhiều cấp (1. / 1.1. / 1.1.1., 1. / a. / i., Điều / Khoản / Điểm)" },
   { id: "writer.para.indentInc", category: "paragraph", label: "Thụt lề", shortcut: "Ctrl+M", icon: "indentInc", tooltip: "Tăng khoảng cách thụt lề đoạn văn (Ctrl+M)" },
   { id: "writer.para.indentDec", category: "paragraph", label: "Giảm thụt lề", shortcut: "Ctrl+Shift+M", icon: "indentDec", tooltip: "Giảm khoảng cách thụt lề đoạn văn (Ctrl+Shift+M)" },
   { id: "writer.para.moveUp", category: "paragraph", label: "Di chuyển đoạn lên", shortcut: "Alt+Shift+Up", icon: "indentInc", tooltip: "Di chuyển đoạn văn lên trên (Alt+Shift+Up)" },

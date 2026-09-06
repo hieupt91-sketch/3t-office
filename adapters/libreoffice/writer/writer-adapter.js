@@ -108,6 +108,50 @@ function trapFocus(dialogBox, event) {
   }
 }
 
+const WRITER_MULTILEVEL_PRESETS = {
+  decimal: { className: "vno-ml-decimal", styleName: "LMultiDecimal" },
+  letter: { className: "vno-ml-letter", styleName: "LMultiLetter" },
+  nd30: { className: "vno-ml-nd30", styleName: "LMultiNd30" }
+};
+const WRITER_MULTILEVEL_BY_CLASS = Object.fromEntries(
+  Object.values(WRITER_MULTILEVEL_PRESETS).map((preset) => [preset.className, preset.styleName])
+);
+const WRITER_MULTILEVEL_BY_STYLE = Object.fromEntries(
+  Object.values(WRITER_MULTILEVEL_PRESETS).map((preset) => [preset.styleName, preset.className])
+);
+const WRITER_LIST_STYLE_NAMES = new Set(["LBullet", "LNumber", ...Object.keys(WRITER_MULTILEVEL_BY_STYLE)]);
+const WRITER_MULTILEVEL_MAX_DEPTH = 3;
+
+function fodtListLevelNumberXml({ level, format, suffix = ".", prefix = "", displayLevels, spaceBeforeCm }) {
+  const attrs = [`text:level="${level}"`, `style:num-format="${format}"`];
+  if (prefix) attrs.push(`style:num-prefix="${prefix}"`);
+  if (suffix !== "") attrs.push(`style:num-suffix="${suffix}"`);
+  if (displayLevels) attrs.push(`text:display-levels="${displayLevels}"`);
+  return `<text:list-level-style-number ${attrs.join(" ")}><style:list-level-properties text:space-before="${spaceBeforeCm}cm" text:min-label-width="0.635cm"/></text:list-level-style-number>`;
+}
+
+function fodtMultilevelListStyleXml(styleName) {
+  const space = [0.635, 1.27, 1.905];
+  if (styleName === "LMultiDecimal") {
+    return `<text:list-style style:name="LMultiDecimal">${fodtListLevelNumberXml({ level: 1, format: "1", suffix: ".", spaceBeforeCm: space[0] })}${fodtListLevelNumberXml({ level: 2, format: "1", suffix: ".", displayLevels: 2, spaceBeforeCm: space[1] })}${fodtListLevelNumberXml({ level: 3, format: "1", suffix: ".", displayLevels: 3, spaceBeforeCm: space[2] })}</text:list-style>`;
+  }
+  if (styleName === "LMultiLetter") {
+    return `<text:list-style style:name="LMultiLetter">${fodtListLevelNumberXml({ level: 1, format: "1", suffix: ".", spaceBeforeCm: space[0] })}${fodtListLevelNumberXml({ level: 2, format: "a", suffix: ".", spaceBeforeCm: space[1] })}${fodtListLevelNumberXml({ level: 3, format: "i", suffix: ".", spaceBeforeCm: space[2] })}</text:list-style>`;
+  }
+  if (styleName === "LMultiNd30") {
+    return `<text:list-style style:name="LMultiNd30">${fodtListLevelNumberXml({ level: 1, format: "1", prefix: "Điều ", suffix: ".", spaceBeforeCm: space[0] })}${fodtListLevelNumberXml({ level: 2, format: "1", suffix: ".", spaceBeforeCm: space[1] })}${fodtListLevelNumberXml({ level: 3, format: "a", suffix: ")", spaceBeforeCm: space[2] })}</text:list-style>`;
+  }
+  return "";
+}
+
+function multilevelStyleFromClass(className) {
+  const tokens = String(className || "").split(/\s+/);
+  for (const token of tokens) {
+    if (WRITER_MULTILEVEL_BY_CLASS[token]) return WRITER_MULTILEVEL_BY_CLASS[token];
+  }
+  return "";
+}
+
 export class WriterAdapter {
   constructor(editorDom) {
     this.editorDom = editorDom;
@@ -380,21 +424,29 @@ export class WriterAdapter {
       const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
       const anchor = selection?.anchorNode?.nodeType === 1 ? selection.anchorNode : selection?.anchorNode?.parentElement;
       const cell = anchor?.closest?.("td,th");
-      if (!cell || !this.bodyDom.contains(cell)) return;
+      if (cell && this.bodyDom.contains(cell)) {
+        const table = cell.closest("table");
+        const cells = [...(table?.querySelectorAll?.("td,th") || [])];
+        const currentIndex = cells.indexOf(cell);
+        const nextIndex = currentIndex + (event.shiftKey ? -1 : 1);
+        if (nextIndex < 0 || nextIndex >= cells.length) return;
 
-      const table = cell.closest("table");
-      const cells = [...(table?.querySelectorAll?.("td,th") || [])];
-      const currentIndex = cells.indexOf(cell);
-      const nextIndex = currentIndex + (event.shiftKey ? -1 : 1);
-      if (nextIndex < 0 || nextIndex >= cells.length) return;
+        event.preventDefault();
+        event.stopPropagation();
+        this.bodyDom.focus?.({ preventScroll: true });
+        const range = document.createRange();
+        range.selectNodeContents(cells[nextIndex]);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        return;
+      }
 
+      const listItem = anchor?.closest?.("li");
+      if (!listItem || !this.bodyDom.contains(listItem)) return;
       event.preventDefault();
       event.stopPropagation();
-      this.bodyDom.focus?.({ preventScroll: true });
-      const range = document.createRange();
-      range.selectNodeContents(cells[nextIndex]);
-      selection.removeAllRanges();
-      selection.addRange(range);
+      if (event.shiftKey) this.changeListLevel(-1);
+      else this.changeListLevel(1);
     };
     this.bodyDom.addEventListener("keydown", this._workflowKeydownHandler);
   }
@@ -667,6 +719,354 @@ export class WriterAdapter {
     const pt = this._parseParagraphSpacingPt(args);
     if (pt == null) return false;
     return this._applyParagraphVisualStyle({ marginBottom: `${pt}pt` }, "writer.para.spacingAfter");
+  }
+
+  applyMultilevelList(preset) {
+    const spec = WRITER_MULTILEVEL_PRESETS[String(preset || "")];
+    if (!spec) return false;
+    this.flushTyping();
+    if (typeof document !== "undefined" && typeof document.createElement === "function" && this.bodyDom?.querySelectorAll) {
+      let blocks = this._getSelectedParagraphBlocks();
+      if (!blocks.length) {
+        blocks = Array.from(this.bodyDom.children || []).filter((node) => node.tagName && !node.hasAttribute?.("data-vno-auto-page-gap"));
+      }
+      if (blocks.length) this._convertBlocksToMultilevel(blocks, spec.className);
+      else document.execCommand?.("insertOrderedList", false, null);
+      this._stampMultilevelOnLists(spec.className);
+    } else if (this.bodyDom && typeof this.bodyDom.innerHTML === "string") {
+      this.bodyDom.innerHTML = this._applyMultilevelListToHtml(this.bodyDom.innerHTML, spec.className);
+    } else {
+      return false;
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.para.multilevelList");
+    return true;
+  }
+
+  changeListLevel(delta, itemText) {
+    const step = Number(delta) > 0 ? 1 : Number(delta) < 0 ? -1 : 0;
+    if (!step || !this.bodyDom) return false;
+    this.flushTyping();
+    if (typeof document !== "undefined" && typeof document.createElement === "function" && this.bodyDom.querySelectorAll) {
+      const listItem = itemText
+        ? [...this.bodyDom.querySelectorAll("li")].find((node) => (node.textContent || "").includes(itemText))
+        : this._caretListItem();
+      if (!listItem) {
+        document.execCommand(step > 0 ? "indent" : "outdent", false, null);
+        this._propagateMultilevelClasses();
+        this.isDirty = true;
+        this.recordSnapshot(step > 0 ? "writer.para.indentInc" : "writer.para.indentDec");
+        return true;
+      }
+      const changed = this._changeListItemLevelDom(listItem, step);
+      if (changed) {
+        this._propagateMultilevelClasses();
+        this.isDirty = true;
+        this.recordSnapshot(step > 0 ? "writer.para.indentInc" : "writer.para.indentDec");
+      }
+      return changed;
+    }
+    if (typeof this.bodyDom.innerHTML === "string" && itemText) {
+      const next = this._changeListItemLevelHtml(this.bodyDom.innerHTML, itemText, step);
+      if (next === this.bodyDom.innerHTML) return false;
+      this.bodyDom.innerHTML = next;
+      this.isDirty = true;
+      this.recordSnapshot(step > 0 ? "writer.para.indentInc" : "writer.para.indentDec");
+      return true;
+    }
+    return false;
+  }
+
+  _caretListItem() {
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    const anchor = selection?.anchorNode?.nodeType === 1 ? selection.anchorNode : selection?.anchorNode?.parentElement;
+    const listItem = anchor?.closest?.("li");
+    return listItem && this.bodyDom?.contains?.(listItem) ? listItem : null;
+  }
+
+  _listDepth(listItem) {
+    let depth = 0;
+    let node = listItem?.parentElement;
+    while (node && node !== this.bodyDom) {
+      if (/^(OL|UL)$/i.test(node.tagName)) depth += 1;
+      node = node.parentElement;
+    }
+    return depth;
+  }
+
+  _multilevelClassOf(listEl) {
+    const tokens = String(listEl?.className || listEl?.getAttribute?.("class") || "").split(/\s+/);
+    return tokens.find((token) => WRITER_MULTILEVEL_BY_CLASS[token]) || "";
+  }
+
+  _copyMultilevelClass(fromList, toList) {
+    const className = this._multilevelClassOf(fromList);
+    if (!className || !toList) return;
+    if (toList.classList?.add) toList.classList.add(className);
+    else toList.className = `${String(toList.className || "").replace(/vno-ml-(?:decimal|letter|nd30)/g, "").trim()} ${className}`.trim();
+  }
+
+  _stampMultilevelOnLists(className) {
+    if (!this.bodyDom?.querySelectorAll) return;
+    this.bodyDom.querySelectorAll("ol,ul").forEach((list) => {
+      const current = this._multilevelClassOf(list);
+      if (current && list.classList?.remove) list.classList.remove(current);
+      if (list.classList?.add) list.classList.add(className);
+      else list.className = `${String(list.className || "").replace(/vno-ml-(?:decimal|letter|nd30)/g, "").trim()} ${className}`.trim();
+    });
+  }
+
+  _propagateMultilevelClasses() {
+    if (!this.bodyDom?.querySelectorAll) return;
+    this.bodyDom.querySelectorAll("ol,ul").forEach((list) => {
+      const parentItem = list.parentElement?.closest?.("li");
+      const parentList = parentItem?.parentElement;
+      if (!parentList || !/^(OL|UL)$/i.test(parentList.tagName)) return;
+      this._copyMultilevelClass(parentList, list);
+    });
+  }
+
+  _convertBlocksToMultilevel(blocks, className) {
+    if (!blocks?.length || typeof document === "undefined" || !document.createElement) return;
+    const listItems = blocks.filter((node) => node.tagName === "LI");
+    if (listItems.length === blocks.length) {
+      const root = listItems[0].closest?.("ol,ul") || listItems[0].parentElement;
+      if (root && /^(OL|UL)$/i.test(root.tagName)) this._stampMultilevelOnLists(className);
+      return;
+    }
+    const parent = blocks[0].parentNode;
+    if (!parent) return;
+    const list = document.createElement("ol");
+    list.className = className;
+    parent.insertBefore(list, blocks[0]);
+    blocks.forEach((block) => {
+      const item = document.createElement("li");
+      if (/^(P|H[1-6]|DIV)$/i.test(block.tagName)) {
+        while (block.firstChild) item.appendChild(block.firstChild);
+        block.remove();
+      } else {
+        item.appendChild(block);
+      }
+      list.appendChild(item);
+    });
+  }
+
+  _mergeMultilevelClassAttr(attrs, className) {
+    const match = /\bclass\s*=\s*["']([^"']*)["']/.exec(attrs || "");
+    let cls = match ? match[1] : "";
+    cls = cls.replace(/vno-ml-(?:decimal|letter|nd30)/g, "").replace(/\s+/g, " ").trim();
+    cls = `${cls} ${className}`.trim();
+    if (match) return String(attrs || "").replace(/\bclass\s*=\s*["'][^"']*["']/, `class="${cls}"`);
+    return ` class="${className}"${attrs || ""}`;
+  }
+
+  _applyMultilevelListToHtml(html, className) {
+    let out = String(html || "");
+    if (/<[ou]l\b/i.test(out)) {
+      out = out.replace(/<ul\b([^>]*)>/gi, (_, attrs) => `<ol${this._mergeMultilevelClassAttr(attrs, className)}>`);
+      out = out.replace(/<\/ul>/gi, "</ol>");
+      out = out.replace(/<ol\b([^>]*)>/gi, (_, attrs) => `<ol${this._mergeMultilevelClassAttr(attrs, className)}>`);
+      return out;
+    }
+    const items = [];
+    out.replace(/<p\b[^>]*>([\s\S]*?)<\/p>/gi, (_, inner) => {
+      items.push(inner);
+      return "";
+    });
+    if (!items.length) return html;
+    return `<ol class="${className}">${items.map((inner) => `<li>${inner}</li>`).join("")}</ol>`;
+  }
+
+  _changeListItemLevelDom(listItem, delta) {
+    const parentList = listItem.parentElement;
+    if (!parentList || !/^(OL|UL)$/i.test(parentList.tagName)) return false;
+    if (delta > 0) {
+      if (this._listDepth(listItem) >= WRITER_MULTILEVEL_MAX_DEPTH) return false;
+      const previous = listItem.previousElementSibling;
+      let nested;
+      if (previous && previous.tagName === "LI") {
+        nested = [...previous.children].reverse().find((node) => /^(OL|UL)$/i.test(node.tagName));
+        if (!nested) {
+          nested = document.createElement(parentList.tagName);
+          this._copyMultilevelClass(parentList, nested);
+          previous.appendChild(nested);
+        }
+        nested.appendChild(listItem);
+        return true;
+      }
+      nested = document.createElement(parentList.tagName);
+      this._copyMultilevelClass(parentList, nested);
+      const wrapper = document.createElement("li");
+      parentList.insertBefore(wrapper, listItem);
+      wrapper.appendChild(nested);
+      nested.appendChild(listItem);
+      return true;
+    }
+    const parentItem = parentList.parentElement;
+    if (parentItem && parentItem.tagName === "LI") {
+      const outerList = parentItem.parentElement;
+      if (!outerList) return false;
+      if (parentItem.nextSibling) outerList.insertBefore(listItem, parentItem.nextSibling);
+      else outerList.appendChild(listItem);
+      if (!parentList.children.length) parentList.remove();
+      if (!parentItem.childNodes.length) parentItem.remove();
+      return true;
+    }
+    const paragraph = document.createElement("p");
+    const nestedLists = [...listItem.children].filter((node) => /^(OL|UL)$/i.test(node.tagName));
+    while (listItem.firstChild && !/^(OL|UL)$/i.test(listItem.firstChild.tagName || "")) {
+      paragraph.appendChild(listItem.firstChild);
+    }
+    parentList.parentNode?.insertBefore(paragraph, parentList);
+    nestedLists.forEach((nested) => parentList.parentNode?.insertBefore(nested, parentList));
+    listItem.remove();
+    if (!parentList.children.length) parentList.remove();
+    return true;
+  }
+
+  _listItemOwnText(node) {
+    return (node.children || []).filter((child) => child.name !== "ol" && child.name !== "ul")
+      .map((child) => (child.name === "#text" ? child.text || "" : this._listItemOwnText(child)))
+      .join("");
+  }
+
+  _findListItemNode(nodes, itemText, trail = []) {
+    const items = (nodes || []).filter((child) => !(child.name === "#text" && !String(child.text || "").trim()));
+    for (const node of items) {
+      if (node.name === "li") {
+        const nextTrail = [...trail, { parentItems: items, node }];
+        const nested = this._findListItemNode(node.children, itemText, nextTrail);
+        if (nested) return nested;
+        if (this._listItemOwnText(node).includes(itemText)) return nextTrail[nextTrail.length - 1];
+      } else {
+        const nested = this._findListItemNode(node.children, itemText, trail);
+        if (nested) return nested;
+      }
+    }
+    return null;
+  }
+
+  _changeListItemLevelHtml(html, itemText, delta) {
+    const tree = this._fodtParseMarkup(html, "HTML");
+    const found = this._findListItemNode(tree.children, itemText);
+    if (!found) return html;
+    const siblings = found.parentItems;
+    const index = siblings.indexOf(found.node);
+    const parentList = this._findParentListOfItem(tree, found.node);
+    if (!parentList) return html;
+    if (delta > 0) {
+      const depth = this._htmlListDepth(tree, found.node);
+      if (depth >= WRITER_MULTILEVEL_MAX_DEPTH) return html;
+      const previous = index > 0 ? siblings[index - 1] : null;
+      if (previous?.name === "li") {
+        let nested = [...(previous.children || [])].reverse().find((child) => child.name === "ol" || child.name === "ul");
+        if (!nested) {
+          nested = { name: parentList.name, attrs: { ...parentList.attrs }, children: [] };
+          previous.children = [...(previous.children || []), nested];
+        }
+        siblings.splice(index, 1);
+        nested.children = [...(nested.children || []).filter((child) => !(child.name === "#text" && !String(child.text || "").trim())), found.node];
+      } else {
+        const nested = { name: parentList.name, attrs: { ...parentList.attrs }, children: [found.node] };
+        const wrapper = { name: "li", attrs: {}, children: [nested] };
+        siblings.splice(index, 1, wrapper);
+      }
+    } else {
+      const parentItem = this._findParentListItemOfList(tree, parentList);
+      if (parentItem) {
+        const outerSiblings = this._parentItemsOf(tree, parentItem);
+        const outerIndex = outerSiblings.indexOf(parentItem);
+        const inner = (parentList.children || []).filter((child) => !(child.name === "#text" && !String(child.text || "").trim()));
+        const innerIndex = inner.indexOf(found.node);
+        if (innerIndex >= 0) inner.splice(innerIndex, 1);
+        parentList.children = inner;
+        outerSiblings.splice(outerIndex + 1, 0, found.node);
+        if (!inner.length) {
+          parentItem.children = (parentItem.children || []).filter((child) => child !== parentList);
+        }
+      } else {
+        const inner = (parentList.children || []).filter((child) => !(child.name === "#text" && !String(child.text || "").trim()));
+        const innerIndex = inner.indexOf(found.node);
+        if (innerIndex < 0) return html;
+        inner.splice(innerIndex, 1);
+        parentList.children = inner;
+        const paragraph = { name: "p", attrs: {}, children: (found.node.children || []).filter((child) => child.name !== "ol" && child.name !== "ul") };
+        const nested = (found.node.children || []).filter((child) => child.name === "ol" || child.name === "ul");
+        const container = this._parentItemsOf(tree, parentList);
+        const listIndex = container.indexOf(parentList);
+        container.splice(listIndex, 0, paragraph, ...nested);
+        if (!inner.length) container.splice(container.indexOf(parentList), 1);
+      }
+    }
+    return this._fodtNodesToHtml(tree.children);
+  }
+
+  _htmlListDepth(root, listItem) {
+    let depth = 0;
+    const walk = (nodes, current) => {
+      for (const node of nodes || []) {
+        if (node === listItem) return current;
+        if (node.name === "ol" || node.name === "ul") {
+          const found = walk(node.children, current + 1);
+          if (found != null) return found;
+        } else {
+          const found = walk(node.children, current);
+          if (found != null) return found;
+        }
+      }
+      return null;
+    };
+    return walk(root.children, 0) || 0;
+  }
+
+  _findParentListOfItem(root, listItem) {
+    const walk = (node) => {
+      const children = node.children || [];
+      if ((node.name === "ol" || node.name === "ul") && children.includes(listItem)) return node;
+      for (const child of children) {
+        const found = walk(child);
+        if (found) return found;
+      }
+      return null;
+    };
+    return walk(root);
+  }
+
+  _findParentListItemOfList(root, listNode) {
+    const walk = (node) => {
+      if (node.name === "li" && (node.children || []).includes(listNode)) return node;
+      for (const child of node.children || []) {
+        const found = walk(child);
+        if (found) return found;
+      }
+      return null;
+    };
+    return walk(root);
+  }
+
+  _parentItemsOf(root, target) {
+    const walk = (node) => {
+      const children = node.children || [];
+      if (children.includes(target)) return children;
+      for (const child of children) {
+        const found = walk(child);
+        if (found) return found;
+      }
+      return null;
+    };
+    return walk(root) || root.children;
+  }
+
+  _fodtNodesToHtml(nodes) {
+    return (nodes || []).map((node) => {
+      if (node.name === "#text") return this._escapeHtml(node.text || "");
+      if (node.name === "br") return "<br>";
+      const attrs = Object.entries(node.attrs || {})
+        .map(([name, value]) => ` ${name}="${this._escapeHtml(String(value ?? ""))}"`)
+        .join("");
+      if (["br", "img"].includes(node.name)) return `<${node.name}${attrs}>`;
+      return `<${node.name}${attrs}>${this._fodtNodesToHtml(node.children || [])}</${node.name}>`;
+    }).join("");
   }
 
   moveParagraph(direction = "up") {
@@ -2029,13 +2429,18 @@ export class WriterAdapter {
         dispatchResult = true;
         break;
 
+      case "writer.para.multilevelList":
+        return this.applyMultilevelList(args);
+
       case "writer.para.indentInc":
         document.execCommand("indent", false, null);
+        this._propagateMultilevelClasses();
         dispatchResult = true;
         break;
 
       case "writer.para.indentDec":
         document.execCommand("outdent", false, null);
+        this._propagateMultilevelClasses();
         dispatchResult = true;
         break;
 
@@ -5694,18 +6099,23 @@ export class WriterAdapter {
       const tag = headingMatch ? `text:h text:outline-level="${headingMatch[1]}"` : "text:p";
       return `<${tag}${pStyle}>${inlineXml(node.children, this._fodtInlineStyle(node))}</${headingMatch ? "text:h" : "text:p"}>`;
     };
-    const listXml = (node) => {
+    const usedListStyles = new Set();
+    const listXml = (node, inheritedStyle) => {
       const ordered = node.name === "ol";
       const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "type", "start"].includes(name));
-      if (unexpected.length || node.attrs.start || (node.attrs.type && node.attrs.type !== "1")) throw this._fodtError("thuộc tính danh sách nâng cao");
+      if (unexpected.length || node.attrs.start || (node.attrs.type && !["1", "a", "A", "i", "I"].includes(node.attrs.type))) {
+        throw this._fodtError("thuộc tính danh sách nâng cao");
+      }
       this._fodtCssMap(node.attrs.style);
+      const styleNameForList = multilevelStyleFromClass(node.attrs.class) || inheritedStyle || (ordered ? "LNumber" : "LBullet");
+      usedListStyles.add(styleNameForList);
       const items = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
       if (items.some(child => child.name !== "li")) throw this._fodtError(`nội dung trực tiếp trong <${node.name}>`);
-      return `<text:list text:style-name="${ordered ? "LNumber" : "LBullet"}">${items.map(item => {
+      return `<text:list text:style-name="${styleNameForList}">${items.map(item => {
         const content = [];
         const nested = [];
         for (const child of item.children) (["ul", "ol"].includes(child.name) ? nested : content).push(child);
-        return `<text:list-item><text:p>${inlineXml(content)}</text:p>${nested.map(listXml).join("")}</text:list-item>`;
+        return `<text:list-item><text:p>${inlineXml(content)}</text:p>${nested.map(child => listXml(child, styleNameForList)).join("")}</text:list-item>`;
       }).join("")}</text:list>`;
     };
     const tableCellXml = (node, spanAttrs = "") => {
@@ -6081,7 +6491,11 @@ export class WriterAdapter {
       attrs.push('style:wrap="none"', 'style:vertical-pos="from-top"', 'style:vertical-rel="paragraph"', 'style:horizontal-pos="from-left"', 'style:horizontal-rel="paragraph"');
       return `<style:style style:name="${name}" style:family="graphic"><style:graphic-properties ${attrs.join(" ")}/></style:style>`;
     }).join("");
-    const listStyles = '<text:list-style style:name="LBullet"><text:list-level-style-bullet text:level="1" text:bullet-char="•"><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-bullet></text:list-style><text:list-style style:name="LNumber"><text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix="."><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-number></text:list-style>';
+    const multilevelStyleXml = ["LMultiDecimal", "LMultiLetter", "LMultiNd30"]
+      .filter((name) => usedListStyles.has(name))
+      .map((name) => fodtMultilevelListStyleXml(name))
+      .join("");
+    const listStyles = '<text:list-style style:name="LBullet"><text:list-level-style-bullet text:level="1" text:bullet-char="•"><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-bullet></text:list-style><text:list-style style:name="LNumber"><text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix="."><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-number></text:list-style>' + multilevelStyleXml;
     const pageLayoutXml = [...layoutNames.entries()].map(([signature, name]) => this._fodtPageLayoutXml(name, JSON.parse(signature))).join("");
     const headerWithWatermark = `${watermarkHeaderXml}${headerXml}`;
     const masterPageXml = masters.map(master => this._fodtMasterPageXml(master.name, master.layoutName, headerWithWatermark, footerXml)).join("");
@@ -6328,16 +6742,18 @@ export class WriterAdapter {
       if (!base64) throw this._fodtError("office:binary-data rỗng");
       return `<img src="data:${this._escapeHtml(mime)};base64,${base64}" width="${width}" height="${height}" data-vno-wrap="inline" style="max-width:100%;height:auto;">`;
     };
-    const listHtml = (node) => {
-      const name = node.attrs["text:style-name"];
-      if (!["LBullet", "LNumber"].includes(name)) throw this._fodtError(`list style '${name || ""}'`);
-      const tag = name === "LNumber" ? "ol" : "ul";
+    const listHtml = (node, inheritedStyle) => {
+      const name = node.attrs["text:style-name"] || inheritedStyle;
+      if (!WRITER_LIST_STYLE_NAMES.has(name)) throw this._fodtError(`list style '${name || ""}'`);
+      const className = WRITER_MULTILEVEL_BY_STYLE[name];
+      const tag = name === "LBullet" ? "ul" : "ol";
+      const classAttr = className ? ` class="${className}"` : "";
       const items = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
       if (items.some(child => child.name !== "text:list-item")) throw this._fodtError("nội dung text:list ngoài text:list-item");
-      return `<${tag}>${items.map(item => {
+      return `<${tag}${classAttr}>${items.map(item => {
         const children = item.children.filter(child => !(child.name === "#text" && !child.text.trim()));
         if (!children.length || children[0].name !== "text:p" || children.slice(1).some(child => child.name !== "text:list")) throw this._fodtError("cấu trúc text:list-item nâng cao");
-        return `<li>${inlineHtml(children[0].children)}${children.slice(1).map(listHtml).join("")}</li>`;
+        return `<li>${inlineHtml(children[0].children)}${children.slice(1).map(child => listHtml(child, name)).join("")}</li>`;
       }).join("")}</${tag}>`;
     };
     const tableHtml = (node) => {

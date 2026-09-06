@@ -83,6 +83,7 @@ export const VN_TO_UNO_MAP = {
   "writer.para.spacingAfter": ".uno:ParSpaceAfter",
   "writer.list.bullet": ".uno:DefaultBullet",
   "writer.list.numbered": ".uno:DefaultNumbering",
+  "writer.para.multilevelList": ".uno:OutlineBullet",
   "writer.para.indentInc": ".uno:IncrementIndent",
   "writer.para.indentDec": ".uno:DecrementIndent",
   "writer.para.moveUp": ".uno:MoveUp",

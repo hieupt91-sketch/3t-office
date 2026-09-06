@@ -251,6 +251,16 @@
   width: 16px;
   height: 16px;
 }
+.vno-btn-icon-only.vno-ribbon-btn-dropdown {
+  width: auto !important;
+  min-width: 32px !important;
+  padding: 2px 3px !important;
+  gap: 0;
+}
+.vno-btn-icon-only.vno-ribbon-btn-dropdown .vno-btn-arrow {
+  margin-left: 0;
+  width: 10px;
+}
 
 /* Select / Dropdown Inputs */
 .vno-select {
