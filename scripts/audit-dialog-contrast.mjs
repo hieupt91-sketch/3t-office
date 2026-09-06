@@ -34,6 +34,13 @@ const pairs = [
   { dialog: "Slides - Set Up Show", label: "Hint text on dark (#94a3b8 on #1e1e1e)", fg: "#94a3b8", bg: "#1e1e1e", isLarge: false },
   { dialog: "Slides - Set Up Show", label: "Label text on white (#334155 on #ffffff)", fg: "#334155", bg: "#ffffff", isLarge: false },
   { dialog: "Slides - Set Up Show", label: "Label text on dark (#cbd5e1 on #1e1e1e)", fg: "#cbd5e1", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Slides - Transition", label: "Preview sample card text on white (#b53818 on #ffffff)", fg: "#b53818", bg: "#ffffff", isLarge: true },
+  { dialog: "Slides - Transition", label: "Preview sample card text in dark mode (#fdba74 on #252526)", fg: "#fdba74", bg: "#252526", isLarge: true },
+  { dialog: "Slides - Diagram", label: "Card title in dark mode (#f1f5f9 on #252526)", fg: "#f1f5f9", bg: "#252526", isLarge: false },
+  { dialog: "Slides - Diagram", label: "Card title selected in dark mode (#f1f5f9 on #431407)", fg: "#f1f5f9", bg: "#431407", isLarge: false },
+  { dialog: "Slides - Diagram", label: "Preview symbol in dark mode (#60a5fa on #252526)", fg: "#60a5fa", bg: "#252526", isLarge: true },
+  { dialog: "Slides - Presenter View", label: "Console button text (#f8fafc on #334155)", fg: "#f8fafc", bg: "#334155", isLarge: false },
+  { dialog: "Slides - Chart", label: "Error message in dark mode (#f87171 on #1e1e1e)", fg: "#f87171", bg: "#1e1e1e", isLarge: false },
 
   // Writer Dialogs
   { dialog: "Writer - Page Color", label: "Palette border active (#2563eb on #ffffff)", fg: "#2563eb", bg: "#ffffff", isLarge: true },
