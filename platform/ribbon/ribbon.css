@@ -62,7 +62,7 @@
 }
 
 .vno-ribbon-tab.is-active {
-  color: var(--vno-app-current);
+  color: var(--vno-app-current-fg, var(--vno-app-current));
   font-weight: 600;
   border-bottom-color: var(--vno-app-current);
   background-color: var(--vno-bg-surface);
@@ -135,7 +135,7 @@
 
 .vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small.is-checked {
   background-color: var(--vno-app-current-light, #e7f4ec) !important;
-  color: var(--vno-app-current, #0f6d38) !important;
+  color: var(--vno-app-current-fg, var(--vno-app-current)) !important;
   border-color: transparent !important;
   font-weight: 600;
 }
@@ -155,8 +155,8 @@
   background-color: var(--vno-bg-hover);
 }
 .vno-ribbon .vno-select:focus-visible {
-  border-color: var(--vno-app-current, #0f6d38);
-  outline: 1px solid var(--vno-app-current, #0f6d38);
+  border-color: var(--vno-border-focus);
+  outline: 1px solid var(--vno-border-focus);
 }
 
 .vno-ribbon-group-column {

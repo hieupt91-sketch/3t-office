@@ -1674,14 +1674,14 @@ sup.vno-endnote-ref:hover {
    ========================================================================== */
 
 .vno-style-gallery-dropdown {
-  background: #ffffff;
-  border: 1px solid var(--vno-border-default, #cbd5e1);
-  border-radius: 8px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  background: var(--vno-bg-surface);
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-lg);
+  box-shadow: var(--vno-shadow-lg);
   padding: 12px;
   width: 360px;
   box-sizing: border-box;
-  font-family: var(--vno-font-sans, system-ui, sans-serif);
+  font-family: var(--vno-font-ui);
   animation: vnoFadeIn 0.15s ease-out;
 }
 
@@ -1691,18 +1691,18 @@ sup.vno-endnote-ref:hover {
   align-items: baseline;
   margin-bottom: 10px;
   padding-bottom: 6px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--vno-border-subtle);
 }
 
 .vno-style-gallery-title {
   font-size: 13px;
   font-weight: 700;
-  color: #0f4c81;
+  color: var(--vno-app-current-fg, var(--vno-writer-primary));
 }
 
 .vno-style-gallery-hint {
   font-size: 11px;
-  color: #475569;
+  color: var(--vno-text-muted);
 }
 
 .vno-style-gallery-grid {
@@ -1712,9 +1712,9 @@ sup.vno-endnote-ref:hover {
 }
 
 .vno-style-card {
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  background: #ffffff;
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-md);
+  background: var(--vno-bg-window);
   padding: 8px 10px;
   cursor: pointer;
   text-align: left;
@@ -1726,15 +1726,15 @@ sup.vno-endnote-ref:hover {
 }
 
 .vno-style-card:hover {
-  border-color: #0f4c81;
-  background: #f8fafc;
-  box-shadow: 0 2px 6px rgba(15, 76, 129, 0.12);
+  border-color: var(--vno-app-current-border, var(--vno-writer-border));
+  background: var(--vno-bg-hover);
+  box-shadow: var(--vno-shadow-sm);
 }
 
 .vno-style-card.is-active {
-  border-color: #0f4c81;
-  background: #eff6ff;
-  box-shadow: 0 0 0 2px rgba(15, 76, 129, 0.2);
+  border-color: var(--vno-app-current-fg, var(--vno-writer-primary));
+  background: var(--vno-app-current-light);
+  box-shadow: 0 0 0 2px var(--vno-app-current-light);
 }
 
 .vno-style-card-preview {
@@ -1754,12 +1754,12 @@ sup.vno-endnote-ref:hover {
 .vno-style-card-name {
   font-size: 12px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--vno-text-primary);
 }
 
 .vno-style-card-tag {
   font-size: 10px;
-  color: #64748b;
+  color: var(--vno-text-muted);
 }
 
 .vno-style-card-check {
@@ -1768,7 +1768,7 @@ sup.vno-endnote-ref:hover {
   right: 6px;
   font-size: 12px;
   font-weight: bold;
-  color: #0f4c81;
+  color: var(--vno-app-current-fg, var(--vno-writer-primary));
 }
 
 /* Dải chọn kiểu ngang (Quick Styles Ribbon Strip) */
@@ -1783,9 +1783,9 @@ sup.vno-endnote-ref:hover {
 }
 
 .vno-style-strip-item {
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  background: #ffffff;
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-sm);
+  background: var(--vno-bg-window);
   padding: 3px 6px;
   cursor: pointer;
   display: flex;
@@ -1801,14 +1801,14 @@ sup.vno-endnote-ref:hover {
 }
 
 .vno-style-strip-item:hover {
-  border-color: #0f4c81;
-  background: #f8fafc;
+  border-color: var(--vno-app-current-border, var(--vno-writer-border));
+  background: var(--vno-bg-hover);
 }
 
 .vno-style-strip-item.is-active {
-  border-color: #0f4c81;
-  background: #eff6ff;
-  box-shadow: 0 0 0 1.5px #0f4c81;
+  border-color: var(--vno-app-current-fg, var(--vno-writer-primary));
+  background: var(--vno-app-current-light);
+  box-shadow: 0 0 0 1.5px var(--vno-app-current-fg, var(--vno-writer-primary));
 }
 
 .vno-style-strip-preview {
@@ -1822,8 +1822,65 @@ sup.vno-endnote-ref:hover {
 .vno-style-strip-label {
   font-size: 10px;
   font-weight: 600;
-  color: #334155;
+  color: var(--vno-text-secondary);
   white-space: nowrap;
+}
+
+[data-theme="dark"] .vno-style-card-preview [style*="color:#1e293b"],
+[data-theme="dark"] .vno-style-strip-preview [style*="color:#1e293b"],
+[data-theme="dark"] .vno-style-card-preview [style*="color: #1e293b"],
+[data-theme="dark"] .vno-style-strip-preview [style*="color: #1e293b"] {
+  color: var(--vno-text-primary) !important;
+}
+[data-theme="dark"] .vno-style-card-preview [style*="color:#0f4c81"],
+[data-theme="dark"] .vno-style-strip-preview [style*="color:#0f4c81"],
+[data-theme="dark"] .vno-style-card-preview [style*="color: #0f4c81"],
+[data-theme="dark"] .vno-style-strip-preview [style*="color: #0f4c81"] {
+  color: var(--vno-app-current-fg) !important;
+}
+[data-theme="dark"] .vno-style-card-preview [style*="color:#334155"],
+[data-theme="dark"] .vno-style-strip-preview [style*="color:#334155"],
+[data-theme="dark"] .vno-style-card-preview [style*="color: #334155"],
+[data-theme="dark"] .vno-style-strip-preview [style*="color: #334155"] {
+  color: var(--vno-text-secondary) !important;
+}
+[data-theme="dark"] .vno-style-card-preview [style*="color:#475569"],
+[data-theme="dark"] .vno-style-strip-preview [style*="color:#475569"] {
+  color: var(--vno-text-muted) !important;
+}
+[data-theme="dark"] .vno-style-card-preview [style*="color:#b45309"],
+[data-theme="dark"] .vno-style-strip-preview [style*="color:#b45309"] {
+  color: #fbbf24 !important;
+}
+
+/* Thẻ chọn chủ đề tài liệu (Theme Gallery Cards) */
+.vno-theme-card {
+  border: 2px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-lg);
+  background: var(--vno-bg-window);
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  outline: none;
+  transition: all 0.15s ease;
+}
+.vno-theme-card:hover {
+  background: var(--vno-bg-hover);
+  border-color: var(--vno-border-strong);
+}
+.vno-theme-card.is-selected {
+  border-color: var(--vno-border-focus);
+  background: var(--vno-app-current-light);
+}
+.vno-theme-card:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 1px;
+}
+[data-theme="dark"] .vno-theme-card strong {
+  filter: brightness(1.4);
 }
 
 /* Kiểu đoạn văn đặc biệt trong văn bản soạn thảo */

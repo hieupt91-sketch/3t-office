@@ -526,7 +526,7 @@ body {
 .vno-ribbon-btn-dropdown.is-active,
 .vno-ribbon-btn-dropdown[aria-expanded="true"] {
   background-color: var(--vno-app-current-light, #e7f4ec) !important;
-  color: var(--vno-app-current, #0f6d38) !important;
+  color: var(--vno-app-current-fg, var(--vno-app-current)) !important;
 }
 
 .vno-ribbon-dropdown-menu {
@@ -561,7 +561,7 @@ body {
 .vno-ribbon-dropdown-item:focus,
 .vno-ribbon-dropdown-item.is-focused {
   background-color: var(--vno-app-current-light, #e7f4ec);
-  color: var(--vno-app-current, #0f6d38);
+  color: var(--vno-app-current-fg, var(--vno-app-current));
   outline: none;
 }
 .vno-ribbon-dropdown-item.is-disabled {

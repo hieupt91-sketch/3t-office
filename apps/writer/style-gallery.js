@@ -125,7 +125,7 @@ export function showStyleGalleryDropdown(options = {}) {
         const { label, sublabel, desc } = getPresetStrings(preset);
         const isActive = (preset.id === activeStyle) || (preset.id === "normal" && activeStyle === "p");
         return `
-          <button type="button" class="vno-style-card ${isActive ? "is-active" : ""}" data-style-id="${preset.id}" title="${desc}">
+          <button type="button" class="vno-style-card ${isActive ? "is-active" : ""}" data-style-id="${preset.id}" title="${desc}" aria-label="${label}: ${desc}" aria-pressed="${String(isActive)}">
             <div class="vno-style-card-preview">
               <span style="${preset.previewCss}">${preset.previewSample}</span>
             </div>
@@ -253,6 +253,8 @@ export function createStyleGalleryStrip(options = {}) {
     item.className = `vno-style-strip-item ${isActive ? "is-active" : ""}`;
     item.setAttribute("data-style-id", preset.id);
     item.title = `${label}: ${desc}`;
+    item.setAttribute("aria-label", `${label}: ${desc}`);
+    item.setAttribute("aria-pressed", String(isActive));
     item.innerHTML = `
       <div class="vno-style-strip-preview" style="${preset.previewCss}">${preset.previewSample}</div>
       <div class="vno-style-strip-label">${label}</div>
