@@ -4904,6 +4904,173 @@ export class WriterAdapter {
     return buildWriterWordArtHtml(text, { presetId });
   }
 
+  _fodtIsChartHtmlNode(node) {
+    return node?.name === "div" && (
+      node.attrs["data-vno-chart"] === "true" ||
+      /\bvno-writer-chart\b/.test(node.attrs.class || "")
+    );
+  }
+
+  _fodtFindNodeByName(node, name) {
+    if (!node || node.name === "#text") return null;
+    if (node.name === name) return node;
+    for (const child of node.children || []) {
+      const found = this._fodtFindNodeByName(child, name);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  _fodtCollectNodesByName(node, name, acc = []) {
+    if (!node || node.name === "#text") return acc;
+    if (node.name === name) acc.push(node);
+    for (const child of node.children || []) this._fodtCollectNodesByName(child, name, acc);
+    return acc;
+  }
+
+  _fodtUiChartTypeToOdf(type) {
+    if (type === "bar") return "bar";
+    if (type === "line") return "line";
+    if (type === "pie") return "circle";
+    if (type === "area") return "area";
+    throw this._fodtError(`kiểu biểu đồ '${type}'`);
+  }
+
+  _fodtOdfChartClassToUi(raw) {
+    const cls = String(raw || "").replace(/^chart:/i, "").trim().toLowerCase();
+    if (cls === "bar" || cls === "column") return "bar";
+    if (cls === "line") return "line";
+    if (cls === "circle" || cls === "pie") return "pie";
+    if (cls === "area") return "area";
+    throw this._fodtError(`chart:class '${raw || ""}'`);
+  }
+
+  _fodtChartHtmlFromData({ type, title, labels, data }) {
+    const html = generateChartHtml({
+      type,
+      chartType: type,
+      title,
+      labels,
+      data,
+      values: data
+    });
+    return String(html).replace(/\s*<p>\s*<br\s*\/?>\s*<\/p>\s*$/i, "").trim();
+  }
+
+  _fodtChartDataFromHtmlNode(node) {
+    const walkChrome = (nodes) => {
+      for (const child of nodes || []) {
+        if (child.name === "#text") continue;
+        if (child.name === "button" && /\bvno-chart-delete-btn\b/.test(child.attrs.class || "")) continue;
+        if (child.name === "div") {
+          walkChrome(child.children);
+          continue;
+        }
+        if (child.name === "svg") continue;
+        throw this._fodtError(`nội dung biểu đồ <${child.name}>`);
+      }
+    };
+    walkChrome(node.children);
+    const svg = this._fodtFindNodeByName(node, "svg");
+    if (!svg) throw this._fodtError("biểu đồ thiếu svg");
+    const type = String(svg.attrs["data-chart-type"] || "").trim();
+    if (!["bar", "line", "pie", "area"].includes(type)) {
+      throw this._fodtError(`kiểu biểu đồ '${type || ""}'`);
+    }
+    const titleEl = (svg.children || []).find(child => child.name === "text");
+    const title = titleEl ? this._fodtPlainLoose(titleEl.children).trim() : "";
+    if (!title) throw this._fodtError("biểu đồ thiếu tiêu đề");
+    const labels = [];
+    const data = [];
+    for (const titleNode of this._fodtCollectNodesByName(svg, "title")) {
+      const text = this._fodtPlainLoose(titleNode.children).trim();
+      const match = text.match(/^(.*):\s*(-?\d+(?:\.\d+)?)$/);
+      if (!match) throw this._fodtError(`nhãn/giá trị biểu đồ không đọc được '${text}'`);
+      labels.push(match[1]);
+      data.push(Number(match[2]));
+    }
+    if (!labels.length) {
+      throw this._fodtError("biểu đồ không có dữ liệu gốc (SVG rỗng hoặc thiếu title)");
+    }
+    return { type, title, labels, data };
+  }
+
+  _fodtChartFrameXml(data, styleName, drawName) {
+    const chartClass = `chart:${this._fodtUiChartTypeToOdf(data.type)}`;
+    const count = data.labels.length;
+    const endRow = count + 1;
+    const title = this._fodtEscapeXml(data.title);
+    const rows = data.labels.map((label, index) => {
+      const value = Number.isFinite(Number(data.data[index])) ? Number(data.data[index]) : 0;
+      return `<table:table-row><table:table-cell office:value-type="string"><text:p>${this._fodtEscapeXml(label)}</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="${value}"><text:p>${value}</text:p></table:table-cell></table:table-row>`;
+    }).join("");
+    const axes = data.type === "pie"
+      ? ""
+      : `<chart:axis chart:dimension="x" chart:name="primary-x"><chart:categories table:cell-range-address="local-table.$A$2:.$A$${endRow}"/></chart:axis><chart:axis chart:dimension="y" chart:name="primary-y"><chart:grid chart:class="major"/></chart:axis>`;
+    const points = Array.from({ length: count }, () => "<chart:data-point/>").join("");
+    return `<draw:frame draw:style-name="${styleName}" draw:name="${this._fodtEscapeXml(drawName)}" text:anchor-type="as-char" svg:width="12cm" svg:height="7cm"><draw:object><office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.chart"><office:body><office:chart><chart:chart svg:width="12cm" svg:height="7cm" xlink:href="." xlink:type="simple" chart:class="${chartClass}"><chart:title><text:p>${title}</text:p></chart:title><chart:legend chart:legend-position="end"/><chart:plot-area>${axes}<chart:series chart:values-cell-range-address="local-table.$B$2:.$B$${endRow}" chart:label-cell-address="local-table.$B$1" chart:class="${chartClass}">${points}</chart:series></chart:plot-area><table:table table:name="local-table"><table:table-header-columns><table:table-column/></table:table-header-columns><table:table-columns><table:table-column/></table:table-columns><table:table-header-rows><table:table-row><table:table-cell/><table:table-cell office:value-type="string"><text:p>${title}</text:p></table:table-cell></table:table-row></table:table-header-rows><table:table-rows>${rows}</table:table-rows></table:table></chart:chart></office:chart></office:body></office:document></draw:object></draw:frame>`;
+  }
+
+  _fodtFrameIsChart(node) {
+    if (node?.name !== "draw:frame") return false;
+    const children = (node.children || []).filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
+    const objectNode = children.find(child => child.name === "draw:object");
+    if (!objectNode) return false;
+    return Boolean(this._fodtFindNodeByName(objectNode, "chart:chart"));
+  }
+
+  _fodtChartHtmlFromFrame(node) {
+    if (node.attrs["text:anchor-type"] && node.attrs["text:anchor-type"] !== "as-char") {
+      throw this._fodtError(`draw:frame chart anchor-type '${node.attrs["text:anchor-type"]}' (Phase E.4 chỉ hỗ trợ as-char)`);
+    }
+    const children = (node.children || []).filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
+    const objectNode = children.find(child => child.name === "draw:object");
+    if (!objectNode) throw this._fodtError("draw:frame chart thiếu draw:object");
+    const unexpected = children.filter(child => child !== objectNode && child.name !== "draw:image");
+    if (unexpected.length) throw this._fodtError(`draw:frame chart chứa <${unexpected[0].name}>`);
+    const chartNode = this._fodtFindNodeByName(objectNode, "chart:chart");
+    if (!chartNode) throw this._fodtError("draw:object không chứa chart:chart");
+    const type = this._fodtOdfChartClassToUi(chartNode.attrs["chart:class"]);
+    const series = this._fodtCollectNodesByName(chartNode, "chart:series");
+    if (series.length !== 1) {
+      throw this._fodtError(`biểu đồ ${series.length} series (Phase E.4 chỉ một series)`);
+    }
+    if (series[0].attrs["chart:class"]) {
+      const seriesType = this._fodtOdfChartClassToUi(series[0].attrs["chart:class"]);
+      if (seriesType !== type) throw this._fodtError("chart:series class khác chart:chart");
+    }
+    const titleNode = this._fodtFindNodeByName(chartNode, "chart:title");
+    const title = titleNode ? this._fodtPlainLoose(titleNode.children).trim() : "";
+    if (!title) throw this._fodtError("chart:chart thiếu chart:title");
+    const tables = this._fodtCollectNodesByName(chartNode, "table:table")
+      .filter(table => table.attrs["table:name"] === "local-table");
+    if (tables.length !== 1) throw this._fodtError("chart:chart thiếu table:name=\"local-table\"");
+    const { labels, data } = this._fodtChartTableData(tables[0]);
+    return this._fodtChartHtmlFromData({ type, title, labels, data });
+  }
+
+  _fodtChartTableData(tableNode) {
+    const rowsWrap = (tableNode.children || []).find(child => child.name === "table:table-rows");
+    if (!rowsWrap) throw this._fodtError("local-table thiếu table:table-rows");
+    const rowNodes = (rowsWrap.children || []).filter(child => child.name === "table:table-row");
+    const labels = [];
+    const data = [];
+    for (const row of rowNodes) {
+      const cells = (row.children || []).filter(child => child.name === "table:table-cell");
+      if (cells.length < 2) throw this._fodtError("local-table hàng thiếu nhãn/giá trị");
+      const label = this._fodtPlainLoose(cells[0].children).trim();
+      const valueAttr = cells[1].attrs["office:value"];
+      const valueText = this._fodtPlainLoose(cells[1].children).trim();
+      if (valueAttr === "NaN" || valueText === "NaN") throw this._fodtError("local-table giá trị NaN");
+      const value = valueAttr !== undefined && valueAttr !== "" ? Number(valueAttr) : Number(valueText);
+      if (!Number.isFinite(value)) throw this._fodtError(`local-table giá trị '${valueAttr || valueText}'`);
+      labels.push(label);
+      data.push(value);
+    }
+    if (!labels.length) throw this._fodtError("local-table không có hàng dữ liệu");
+    return { labels, data };
+  }
+
   _fodtTextBoxFromFrame(node, textBox, graphicStyles) {
     const graphic = this._fodtGraphicFromStyle(node.attrs["draw:style-name"], graphicStyles);
     const paras = textBox.children.filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
@@ -5225,8 +5392,8 @@ export class WriterAdapter {
   serializeToFodt() {
     this._initZones();
     const html = this.bodyDom?.innerHTML ?? this.editorDom?.innerHTML ?? "";
-    if (/\bdata-vno-(?!wrap=["']inline["']|section-break=|section-id=|footnote-ref=|endnote-ref=|footnotes=|endnotes=|footnote-id=|endnote-id=|toc=|comment-author=|change=|author=|date=|wordart=|wordart-preset=|wordart-text=|wordart-style=)[\w-]+\s*=/i.test(html)) {
-      throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A/B/C/D/E.1/E.3");
+    if (/\bdata-vno-(?!wrap=["']inline["']|section-break=|section-id=|footnote-ref=|endnote-ref=|footnotes=|endnotes=|footnote-id=|endnote-id=|toc=|comment-author=|change=|author=|date=|wordart=|wordart-preset=|wordart-text=|wordart-style=|chart=)[\w-]+\s*=/i.test(html)) {
+      throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A/B/C/D/E.1/E.3/E.4");
     }
     const tree = this._fodtParseMarkup(html, "HTML");
     const footnoteBodies = this._fodtCollectNoteBodies(tree.children, "data-vno-footnote-id");
@@ -5240,6 +5407,8 @@ export class WriterAdapter {
     const trackedRegions = [];
     let allowTrackChanges = true;
     let allowWordArt = true;
+    let allowChart = true;
+    let chartSequence = 0;
     const styleName = (registry, prefix, value) => {
       const key = JSON.stringify(Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))));
       if (!registry.has(key)) registry.set(key, `${prefix}${registry.size + 1}`);
@@ -5267,6 +5436,10 @@ export class WriterAdapter {
       if (this._fodtIsWordArtHtmlNode(node)) {
         if (!allowWordArt) throw this._fodtError("WordArt trong header/footer chưa hỗ trợ");
         return wordArtXml(node);
+      }
+      if (this._fodtIsChartHtmlNode(node)) {
+        if (!allowChart) throw this._fodtError("biểu đồ trong header/footer chưa hỗ trợ");
+        return chartXml(node);
       }
       if (node.name === "sup") {
         const footnoteId = node.attrs["data-vno-footnote-ref"];
@@ -5535,14 +5708,31 @@ export class WriterAdapter {
       // fontwork-fade-right → w:drawing + a:prstTxWarp prst="textFadeRight" (measured visible).
       return `<draw:custom-shape draw:style-name="${graphicName}" draw:name="${nameAttr}" text:anchor-type="as-char" svg:width="12cm" svg:height="2.8cm"><text:p><text:span text:style-name="${textName}">${this._fodtTextXml(text)}</text:span></text:p><draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:text-path="true" draw:text-path-allowed="true" draw:text-path-mode="shape" draw:type="fontwork-fade-right" draw:enhanced-path="M 0 10800 L 21600 10800 Z N"/></draw:custom-shape>`;
     };
+    const chartXml = (node) => {
+      const data = this._fodtChartDataFromHtmlNode(node);
+      const graphicName = styleName(graphicStyles, "gr", {
+        fill: "none",
+        fillColor: "",
+        stroke: "none",
+        strokeColor: "",
+        strokeWidth: "",
+        oleDrawAspect: "1"
+      });
+      return this._fodtChartFrameXml(data, graphicName, `Chart${++chartSequence}`);
+    };
     const zoneBlocksXml = (zoneHtml, zoneName) => {
       const previousAllow = allowTrackChanges;
       const previousWordArt = allowWordArt;
+      const previousChart = allowChart;
       allowTrackChanges = false;
       allowWordArt = false;
+      allowChart = false;
       try {
         const zoneTree = this._fodtParseMarkup(zoneHtml, `HTML ${zoneName}`);
         return zoneTree.children.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
+          if (this._fodtIsChartHtmlNode(node) || this._fodtIsWordArtHtmlNode(node)) {
+            throw this._fodtError(`${zoneName}: WordArt/biểu đồ trong header/footer chưa hỗ trợ`);
+          }
           if (/^(p|h[1-6])$/.test(node.name)) return paragraphXml(node);
           if (["ul", "ol"].includes(node.name)) return listXml(node);
           throw this._fodtError(`${zoneName}: phần tử block <${node.name}> chưa hỗ trợ`);
@@ -5550,6 +5740,7 @@ export class WriterAdapter {
       } finally {
         allowTrackChanges = previousAllow;
         allowWordArt = previousWordArt;
+        allowChart = previousChart;
       }
     };
     const canvasBoxCss = ["margin", "margin-top", "margin-right", "margin-bottom", "margin-left", "padding", "padding-top", "padding-right", "padding-bottom", "padding-left"];
@@ -5627,6 +5818,10 @@ export class WriterAdapter {
         throw this._fodtError("đổi khổ trang (master-page) phải bắt đầu bằng đoạn văn hoặc tiêu đề");
       }
       if (this._fodtIsTocBlock(node)) return this._fodtTocXml(node);
+      if (this._fodtIsChartHtmlNode(node)) {
+        if (!allowChart) throw this._fodtError("biểu đồ trong header/footer chưa hỗ trợ");
+        return `<text:p>${chartXml(node)}</text:p>`;
+      }
       if (["ul", "ol"].includes(node.name)) return listXml(node);
       if (node.name === "table") return tableXml(node);
       if (node.name === "img") return `<text:p>${imageXml(node)}</text:p>`;
@@ -5701,6 +5896,7 @@ export class WriterAdapter {
       attrs.push(`draw:stroke="${value.stroke}"`);
       if (value.strokeColor) attrs.push(`svg:stroke-color="${this._fodtEscapeXml(value.strokeColor)}"`);
       if (value.strokeWidth) attrs.push(`svg:stroke-width="${value.strokeWidth}"`);
+      if (value.oleDrawAspect) attrs.push(`draw:ole-draw-aspect="${this._fodtEscapeXml(value.oleDrawAspect)}"`);
       attrs.push('style:wrap="none"', 'style:vertical-pos="from-top"', 'style:vertical-rel="paragraph"', 'style:horizontal-pos="from-left"', 'style:horizontal-rel="paragraph"');
       return `<style:style style:name="${name}" style:family="graphic"><style:graphic-properties ${attrs.join(" ")}/></style:style>`;
     }).join("");
@@ -5712,8 +5908,9 @@ export class WriterAdapter {
     const dcNs = (/<office:annotation[\s>]/.test(body) || /<text:tracked-changes[\s>]/.test(body))
       ? ' xmlns:dc="http://purl.org/dc/elements/1.1/"'
       : "";
+    const chartNs = /<chart:chart[\s>]/.test(body) ? ' xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0"' : "";
     const tocStyleXml = /<text:table-of-content[\s>]/.test(body) ? this._fodtTocStylesXml() : "";
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"${dcNs} office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">${officeStyles}<office:automatic-styles>${pageLayoutXml}${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}${graphicStyleXml}${watermarkGraphicXml}${tocStyleXml}</office:automatic-styles><office:master-styles>${masterPageXml}</office:master-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"${chartNs}${dcNs} office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">${officeStyles}<office:automatic-styles>${pageLayoutXml}${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}${graphicStyleXml}${watermarkGraphicXml}${tocStyleXml}</office:automatic-styles><office:master-styles>${masterPageXml}</office:master-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
   }
 
   /** Parse the Phase A FODT subset back to canonical Writer HTML. */
@@ -5779,7 +5976,8 @@ export class WriterAdapter {
           stroke: props["draw:stroke"] || "solid",
           strokeColor: props["svg:stroke-color"] ? this._fodtNormalizeColor(props["svg:stroke-color"]) : "",
           strokeWidthCm: props["svg:stroke-width"] || "",
-          opacity: props["draw:opacity"] || ""
+          opacity: props["draw:opacity"] || "",
+          oleDrawAspect: props["draw:ole-draw-aspect"] || ""
         });
       }
       return "";
@@ -5920,6 +6118,7 @@ export class WriterAdapter {
       return html;
     };
     const frameHtml = (node) => {
+      if (this._fodtFrameIsChart(node)) return this._fodtChartHtmlFromFrame(node);
       const children = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
       if (children.length === 1 && children[0].name === "draw:text-box") {
         parsedShapes.push(this._fodtTextBoxFromFrame(node, children[0], graphicStyles));
@@ -5996,6 +6195,10 @@ export class WriterAdapter {
     };
     const paragraphBlockHtml = (node, { allowMasterSwitch = false } = {}) => {
       if (!["text:p", "text:h"].includes(node.name)) throw this._fodtError(`phần tử FODT block <${node.name}>`);
+      const onlyChart = (node.children || []).filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
+      if (node.name === "text:p" && onlyChart.length === 1 && this._fodtFrameIsChart(onlyChart[0])) {
+        return this._fodtChartHtmlFromFrame(onlyChart[0]);
+      }
       const level = node.name === "text:h" ? Math.min(6, Math.max(1, Number(node.attrs["text:outline-level"]) || 1)) : 0;
       const tag = level ? `h${level}` : "p";
       const pStyleName = node.attrs["text:style-name"];
