@@ -1395,7 +1395,10 @@ export class SheetGridController {
   showContextMenu(e, type, target) {
     this._closeContextMenu();
     if (typeof document === "undefined") return;
-    this._contextMenuPreviousFocus = document.activeElement;
+    const active = document.activeElement;
+    this._contextMenuPreviousFocus = (active && active !== document.body && active !== document.documentElement && (this.container === active || this.container?.contains?.(active)))
+      ? active
+      : this.container;
 
     const menu = document.createElement("div");
     menu.className = "vno-sheet-context-menu";
@@ -1488,6 +1491,7 @@ export class SheetGridController {
     const keyHandler = (evt) => {
       if (evt.key === "Escape") {
         evt.preventDefault();
+        evt.stopPropagation();
         this._closeContextMenu();
       } else if (evt.key === "ArrowDown" || evt.key === "ArrowUp") {
         evt.preventDefault();
@@ -1503,15 +1507,23 @@ export class SheetGridController {
         actionItems[nextIdx]?.focus();
       }
     };
+
+    document.addEventListener("keydown", keyHandler);
+    menu.querySelector(".vno-sheet-context-item")?.focus();
+
+    let mousedownTimer = setTimeout(() => {
+      mousedownTimer = null;
+      document.addEventListener("mousedown", closeHandler);
+    }, 10);
+
     menu._vnoCleanup = () => {
+      if (mousedownTimer) {
+        clearTimeout(mousedownTimer);
+        mousedownTimer = null;
+      }
       document.removeEventListener("mousedown", closeHandler);
       document.removeEventListener("keydown", keyHandler);
     };
-    setTimeout(() => {
-      document.addEventListener("mousedown", closeHandler);
-      document.addEventListener("keydown", keyHandler);
-      menu.querySelector(".vno-sheet-context-item")?.focus();
-    }, 10);
   }
 
   _closeContextMenu() {
@@ -1524,8 +1536,10 @@ export class SheetGridController {
       // hoạt động cho đến khi người dùng click chuột lại (đo được qua Shift+F10 → Escape).
       const previousFocus = this._contextMenuPreviousFocus;
       this._contextMenuPreviousFocus = null;
-      if (previousFocus && document.contains(previousFocus) && typeof previousFocus.focus === "function") {
+      if (previousFocus && document.contains(previousFocus) && previousFocus !== document.body && previousFocus !== document.documentElement && typeof previousFocus.focus === "function") {
         try { previousFocus.focus(); } catch (_) { /* noop */ }
+      } else if (this.container && typeof this.container.focus === "function") {
+        try { this.container.focus({ preventScroll: true }); } catch (_) { /* noop */ }
       }
     }
   }
@@ -5876,12 +5890,19 @@ export class SheetGridController {
       popover.style.left = `${Math.min((window.innerWidth || 800) - 220, Math.max(10, rect.left + (window.scrollX || 0) - 80))}px`;
     }
 
+    let docClickTimer = null;
     const closeMenu = () => {
+      if (docClickTimer) {
+        clearTimeout(docClickTimer);
+        docClickTimer = null;
+      }
       document.removeEventListener("keydown", onPopoverKey);
       document.removeEventListener("click", onDocClick);
       popover.remove();
-      if (anchorBtn && typeof anchorBtn.focus === "function") {
+      if (anchorBtn && document.contains(anchorBtn) && typeof anchorBtn.focus === "function") {
         try { anchorBtn.focus(); } catch (_) {}
+      } else if (this.container && typeof this.container.focus === "function") {
+        try { this.container.focus({ preventScroll: true }); } catch (_) {}
       }
     };
 
@@ -5949,13 +5970,17 @@ export class SheetGridController {
       }
     };
     document.addEventListener("keydown", onPopoverKey);
+    popover.querySelector("#vno-filter-sort-asc")?.focus();
 
     const onDocClick = (e) => {
       if (!popover.contains(e.target) && e.target !== anchorBtn) {
         closeMenu();
       }
     };
-    setTimeout(() => document.addEventListener("click", onDocClick), 10);
+    docClickTimer = setTimeout(() => {
+      docClickTimer = null;
+      document.addEventListener("click", onDocClick);
+    }, 10);
   }
 
   applyFilter(col, allowedSet, recordUndo = true) {
