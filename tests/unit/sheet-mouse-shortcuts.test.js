@@ -133,5 +133,22 @@ export async function runSheetMouseShortcutsTests() {
     assert(def && def.shortcut === "F4", "Lệnh repeat phải được định nghĩa với phím tắt F4");
   });
 
+  await test("Sheet Parity: _startRangeSelect với shiftKey mở rộng range, không shift thì reset về 1 ô", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.selectCell("G", 2, false);
+    assert(grid.getSelectedRangeLabel() === "G2", "Ban đầu phải là G2");
+
+    grid._startRangeSelect({ shiftKey: true, button: 0 }, "G", 4);
+    grid._isSelectingRange = false;
+    grid.selectCell("G", 4, true);
+    assert(grid.getSelectedRangeLabel() === "G2:G4", `_startRangeSelect Shift+G4 phải ra G2:G4, nhận: ${grid.getSelectedRangeLabel()}`);
+    assert(grid.selectedCoord.c === "G" && grid.selectedCoord.r === 2, "Neo selectedCoord phải giữ G2");
+
+    grid._startRangeSelect({ shiftKey: false, button: 0 }, "G", 4);
+    grid._isSelectingRange = false;
+    grid.selectCell("G", 4, false);
+    assert(grid.getSelectedRangeLabel() === "G4", `Click không Shift phải reset về G4, nhận: ${grid.getSelectedRangeLabel()}`);
+  });
+
   return results;
 }

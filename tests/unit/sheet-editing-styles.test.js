@@ -308,6 +308,73 @@ export async function runSheetEditingStylesTests() {
     assert(c1.formula === "=C2*2", `C1 formula phải dịch thành =C2*2, nhận: ${c1.formula}`);
   });
 
+  function createBareContainer() {
+    return {
+      setAttribute() {},
+      focus() {},
+      querySelector() { return null; },
+      querySelectorAll() { return []; },
+      classList: { add() {}, remove() {}, toggle() {} }
+    };
+  }
+
+  function simulateClick(grid, col, row, shiftKey = false) {
+    grid._startRangeSelect({ shiftKey: !!shiftKey, button: 0 }, col, row);
+    grid._isSelectingRange = false;
+    grid.selectCell(col, row, !!shiftKey);
+  }
+
+  // TEST 10b: Bug thật — Shift+Click chuột (mousedown) rồi Ctrl+D Fill Down
+  test("Behavioral: Shift+Click 3 ô (chuỗi mousedown/click) rồi Fill Down dịch công thức tương đối", () => {
+    const grid = new SheetGridController(createBareContainer());
+    grid.setCellValue("F", 2, "100");
+    grid.setCellValue("F", 3, "200");
+    grid.setCellValue("F", 4, "300");
+    grid.setCellValue("G", 2, "=F2*2");
+
+    simulateClick(grid, "G", 2, false);
+    simulateClick(grid, "G", 4, true);
+
+    assert(grid.getSelectedRangeLabel() === "G2:G4", `Shift+Click G2→G4 phải chọn G2:G4, nhận: ${grid.getSelectedRangeLabel()}`);
+    assert(grid.selectionRange.start.c === "G" && grid.selectionRange.start.r === 2, "Neo start phải giữ G2");
+    assert(grid.selectionRange.end.c === "G" && grid.selectionRange.end.r === 4, "End phải là G4");
+    assert(grid.selectedCoord.c === "G" && grid.selectedCoord.r === 2, "selectedCoord phải giữ neo G2");
+
+    grid.fillDown();
+
+    const g3 = grid.cellsData.get("G3");
+    const g4 = grid.cellsData.get("G4");
+    assert(g3, "G3 phải được điền sau Fill Down");
+    assert(g3.formula === "=F3*2", `G3 formula phải là =F3*2, nhận: ${g3.formula}`);
+    assert(String(g3.val) === "400", `G3 val phải là 400, nhận: ${g3.val}`);
+    assert(g4, "G4 phải được điền sau Fill Down");
+    assert(g4.formula === "=F4*2", `G4 formula phải là =F4*2, nhận: ${g4.formula}`);
+    assert(String(g4.val) === "600", `G4 val phải là 600, nhận: ${g4.val}`);
+  });
+
+  // TEST 11b: Cùng root cause — Shift+Click rồi Fill Right
+  test("Behavioral: Shift+Click 3 ô (chuỗi mousedown/click) rồi Fill Right dịch công thức tương đối", () => {
+    const grid = new SheetGridController(createBareContainer());
+    grid.setCellValue("F", 2, "100");
+    grid.setCellValue("G", 2, "200");
+    grid.setCellValue("H", 2, "300");
+    grid.setCellValue("F", 3, "=F2*2");
+
+    simulateClick(grid, "F", 3, false);
+    simulateClick(grid, "H", 3, true);
+
+    assert(grid.getSelectedRangeLabel() === "F3:H3", `Shift+Click F3→H3 phải chọn F3:H3, nhận: ${grid.getSelectedRangeLabel()}`);
+
+    grid.fillRight();
+
+    const g3 = grid.cellsData.get("G3");
+    const h3 = grid.cellsData.get("H3");
+    assert(g3?.formula === "=G2*2", `G3 formula phải là =G2*2, nhận: ${g3?.formula}`);
+    assert(String(g3?.val) === "400", `G3 val phải là 400, nhận: ${g3?.val}`);
+    assert(h3?.formula === "=H2*2", `H3 formula phải là =H2*2, nhận: ${h3?.formula}`);
+    assert(String(h3?.val) === "600", `H3 val phải là 600, nhận: ${h3?.val}`);
+  });
+
   // TEST 12: Behavioral — Clear All, Clear Formats, Clear Contents
   test("Behavioral: Clear All, Clear Formats và Clear Contents phân biệt rõ ràng nội dung vs định dạng", () => {
     const grid = new SheetGridController(createMockContainer());

@@ -1017,8 +1017,13 @@ export class SheetGridController {
   _startRangeSelect(e, col, row) {
     if (this._isSelectingRange) return;
     this._isSelectingRange = true;
-    this._rangeAnchor = { c: col, r: row };
-    this.selectCell(col, row, false);
+    // mousedown chạy trước click: nếu Shift đang giữ thì mở rộng từ neo hiện có,
+    // không reset vùng chọn về 1 ô (nếu không Shift+Click chuột thật không bao giờ tạo range).
+    const extendRange = !!(e && e.shiftKey && this.selectionRange);
+    this._rangeAnchor = extendRange
+      ? { c: this.selectedCoord?.c ?? this.selectionRange.start.c, r: this.selectedCoord?.r ?? this.selectionRange.start.r }
+      : { c: col, r: row };
+    this.selectCell(col, row, extendRange);
 
     const onMove = (moveEvt) => {
       if (!this._isSelectingRange) return;

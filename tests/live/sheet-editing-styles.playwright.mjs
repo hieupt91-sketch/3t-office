@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -182,16 +183,25 @@ try {
   await clickCell("G4");
   await page.keyboard.up("Shift");
 
+  const rangeBeforeFill = await page.evaluate(async () => {
+    const { globalUnoBridge } = await import("/adapters/libreoffice/common/uno-bridge.js");
+    const grid = globalUnoBridge.activeDocument.grid;
+    return grid.getSelectedRangeLabel();
+  });
+  assert.strictEqual(rangeBeforeFill, "G2:G4", `Shift+Click G2→G4 phải chọn G2:G4 trước Ctrl+D, nhận: ${rangeBeforeFill}`);
+
   // Nhấn Ctrl+D
   console.log("  -> Nhấn phím tắt Ctrl+D (Fill Down)...");
   await page.keyboard.press("Control+d");
   await page.waitForTimeout(150);
 
   // Kiểm tra ô G3 và G4 sau Fill Down
-  const g3Text = await page.locator('.vno-grid-cell[data-coord="G3"]').textContent();
-  const g4Text = await page.locator('.vno-grid-cell[data-coord="G4"]').textContent();
+  const g3Text = (await page.locator('.vno-grid-cell[data-coord="G3"]').textContent() || "").trim();
+  const g4Text = (await page.locator('.vno-grid-cell[data-coord="G4"]').textContent() || "").trim();
   console.log(`  ✓ Ô G3 sau Fill Down: "${g3Text}" (mong đợi: 400)`);
   console.log(`  ✓ Ô G4 sau Fill Down: "${g4Text}" (mong đợi: 600)`);
+  assert.strictEqual(g3Text, "400", `G3 sau Fill Down phải là 400, nhận: "${g3Text}"`);
+  assert.strictEqual(g4Text, "600", `G4 sau Fill Down phải là 600, nhận: "${g4Text}"`);
 
   // 6. Test Clear Formats và Clear Contents qua Ribbon
   console.log("  -> Kiểm tra Clear Formats trên ô B2 qua dropdown Xóa...");
