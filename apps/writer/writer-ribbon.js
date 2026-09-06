@@ -508,6 +508,7 @@ export const WRITER_RIBBON_TABS = [
     labelKey: "writerRibbon.tab.review",
     groups: [
       {
+        id: "proofread",
         label: "Chính tả & Ngữ pháp",
         labelKey: "writerRibbon.group.proofread",
         items: [
@@ -516,17 +517,29 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "comments",
         label: "Ghi chú",
         labelKey: "writerRibbon.group.comments",
         items: [
           { type: "button", commandId: "writer.comment.insert", isLarge: true },
-          { type: "button", commandId: "writer.review.commentPrevious" },
-          { type: "button", commandId: "writer.review.commentNext" },
-          { type: "button", commandId: "writer.review.commentDelete" },
-          { type: "button", commandId: "writer.review.commentResolve" }
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.review.commentDelete" },
+              { type: "button", commandId: "writer.review.commentResolve" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.review.commentPrevious" },
+              { type: "button", commandId: "writer.review.commentNext" }
+            ]
+          }
         ]
       },
       {
+        id: "tracking",
         label: "Theo dõi thay đổi",
         labelKey: "writerRibbon.group.tracking",
         items: [
@@ -534,22 +547,22 @@ export const WRITER_RIBBON_TABS = [
           {
             type: "column",
             items: [
+              { type: "button", commandId: "writer.trackChanges.acceptOne" },
+              { type: "button", commandId: "writer.trackChanges.acceptAll" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.trackChanges.rejectOne" },
+              { type: "button", commandId: "writer.trackChanges.rejectAll" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
               { type: "button", commandId: "writer.trackChanges.previous" },
               { type: "button", commandId: "writer.trackChanges.next" }
-            ]
-          },
-          {
-            type: "column",
-            items: [
-              { type: "button", commandId: "writer.trackChanges.acceptOne" },
-              { type: "button", commandId: "writer.trackChanges.rejectOne" }
-            ]
-          },
-          {
-            type: "column",
-            items: [
-              { type: "button", commandId: "writer.trackChanges.acceptAll" },
-              { type: "button", commandId: "writer.trackChanges.rejectAll" }
             ]
           }
         ]
