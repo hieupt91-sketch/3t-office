@@ -771,9 +771,12 @@ tr.is-filtered-out {
   color: inherit;
   text-align: left;
 }
-.vno-sheet-context-item:hover {
+.vno-sheet-context-item:hover,
+.vno-sheet-context-item:focus,
+.vno-sheet-context-item.is-focused {
   background: var(--vno-bg-hover);
   color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
+  outline: none;
 }
 .vno-sheet-context-item .shortcut {
   color: var(--vno-text-muted);
