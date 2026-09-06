@@ -14,20 +14,20 @@ function numberValue(value) {
 }
 
 function trapFocus(element, event) {
-  if (event.key !== "Tab") return;
-  const focusables = element.querySelectorAll(
-    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-  );
+  if (event.key !== "Tab" || !element) return;
+  const focusables = Array.from(element.querySelectorAll(
+    'button:not([disabled]), [href], input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
   if (!focusables || focusables.length === 0) return;
   const first = focusables[0];
   const last = focusables[focusables.length - 1];
   if (event.shiftKey) {
-    if (document.activeElement === first) {
+    if (document.activeElement === first || !element.contains(document.activeElement)) {
       event.preventDefault();
       last.focus();
     }
   } else {
-    if (document.activeElement === last) {
+    if (document.activeElement === last || !element.contains(document.activeElement)) {
       event.preventDefault();
       first.focus();
     }
@@ -122,11 +122,17 @@ export class SheetChartBuilder {
     const allChartTypes = [["bar", "chartColumn"], ["line", "chartLine"], ["pie", "chartPie"], ["area", "chartArea"]];
     const chartTypes = allChartTypes.filter(([kind]) => !options.types || options.types.includes(kind));
     currentType = chartTypes[0]?.[0] || "bar";
-    modal.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-chart-title" style="width:760px;max-width:95vw"><div class="vno-dialog-header"><span id="vno-chart-title">${esc(t("sheetDialogs.chartInsertFrom", { range }))}</span><button class="vno-btn" data-chart-close aria-label="${esc(t("sheetDialogs.close"))}">×</button></div><div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px"><div role="group" aria-label="${esc(t("sheetDialogs.chartType"))}" style="display:flex;gap:8px">${chartTypes.map(([kind, key]) => `<button class="vno-btn${kind === "bar" ? " is-checked" : ""}" data-chart-type="${kind}" aria-pressed="${kind === "bar"}">${esc(t(`sheetDialogs.${key}`))}</button>`).join("")}</div><div data-chart-preview aria-hidden="true" style="height:340px;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden"></div></div><div class="vno-dialog-footer"><button class="vno-btn" data-chart-cancel>${esc(t("sheetDialogs.cancel"))}</button><button class="vno-btn vno-btn-primary" data-chart-apply>${esc(t("sheetDialogs.insertIntoSheet"))}</button></div></div>`;
+    modal.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-chart-title" style="width:760px;max-width:calc(100vw - 32px)"><div class="vno-dialog-header"><span id="vno-chart-title" class="vno-dialog-title" style="font-weight:700;">${esc(t("sheetDialogs.chartInsertFrom", { range }))}</span><button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" data-chart-close title="${esc(t("sheetDialogs.close", "Đóng"))}" aria-label="${esc(t("sheetDialogs.close", "Đóng"))}">&times;</button></div><div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px"><div role="group" aria-label="${esc(t("sheetDialogs.chartType", "Kiểu biểu đồ"))}" style="display:flex;gap:8px;flex-wrap:wrap">${chartTypes.map(([kind, key]) => `<button type="button" class="vno-btn${kind === "bar" ? " is-checked" : ""}" data-chart-type="${kind}" aria-pressed="${kind === "bar"}">${esc(t(`sheetDialogs.${key}`))}</button>`).join("")}</div><div data-chart-preview aria-hidden="true" style="height:340px;border:1px solid var(--vno-border-default);background:var(--vno-bg-surface);border-radius:6px;overflow:hidden"></div></div><div class="vno-dialog-footer"><button type="button" class="vno-btn" data-chart-cancel>${esc(t("sheetDialogs.cancel", "Hủy bỏ"))}</button><button type="button" class="vno-btn vno-btn-primary" data-chart-apply>${esc(t("sheetDialogs.insertIntoSheet", "Chèn vào trang tính"))}</button></div></div>`;
     const render = () => { modal.querySelector("[data-chart-preview]").innerHTML = this.generateSvg({ type: currentType, title: options.title || t("sheetDialogs.chartDefaultTitle"), labels, data }); };
     const onKeyDown = event => {
       if (event.key === "Escape") close();
-      else if (event.key === "Tab") trapFocus(modal.querySelector(".vno-dialog-box"), event);
+      else if (event.key === "Enter") {
+        if (event.target && !event.target.matches("[data-chart-cancel], [data-chart-close]")) {
+          event.preventDefault();
+          onInsert?.(currentType);
+          close();
+        }
+      } else if (event.key === "Tab") trapFocus(modal.querySelector(".vno-dialog-box"), event);
     };
     const close = () => {
       document.removeEventListener("keydown", onKeyDown);
