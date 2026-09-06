@@ -54,10 +54,10 @@ export async function runWriterFodtPhaseATests() {
     assert.match(html, /Khoảng  trắng\tvà<br>dòng mới &amp; đúng\./);
   });
 
-  await test("Writer FODT Phase A refuses unsupported Writer content without silent loss", () => {
+  await test("Writer FODT Phase A/B refuses out-of-scope Writer content without silent loss", () => {
     for (const html of [
-      "<table><tr><td>Dữ liệu</td></tr></table>",
-      '<p><img src="data:image/png;base64,AA=="></p>',
+      '<table><tr><td colspan="2">Dữ liệu</td></tr></table>',
+      '<p><img src="data:image/jpeg;base64,AAAA"></p>',
       '<p>Nội dung<sup data-vno-footnote-ref="fn-1">1</sup></p>'
     ]) {
       const { adapter } = adapterWithBody(html);

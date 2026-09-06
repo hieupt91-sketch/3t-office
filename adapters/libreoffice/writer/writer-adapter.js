@@ -4316,13 +4316,13 @@ export class WriterAdapter {
       if (!open) throw this._fodtError(`${kind} không hợp lệ`);
       const node = { name: open[1].toLowerCase(), attrs: this._fodtParseAttributes(open[2]), children: [] };
       stack[stack.length - 1].children.push(node);
-      if (!/\/>$/.test(token) && !["br", "text:s", "text:tab", "text:line-break"].includes(node.name)) stack.push(node);
+      if (!/\/>$/.test(token) && !["br", "img", "text:s", "text:tab", "text:line-break"].includes(node.name)) stack.push(node);
     }
     if (stack.length !== 1) throw this._fodtError(`${kind} không cân bằng tại <${stack[stack.length - 1].name}>`);
     return root;
   }
 
-  _fodtCssMap(styleText) {
+  _fodtCssMap(styleText, allowed = ["font-weight", "font-style", "text-decoration", "text-decoration-line", "color", "background-color", "font-family", "font-size", "text-align"]) {
     const result = {};
     for (const declaration of String(styleText || "").split(";")) {
       if (!declaration.trim()) continue;
@@ -4332,13 +4332,84 @@ export class WriterAdapter {
       const value = declaration.slice(colon + 1).trim();
       const aliases = { "background": "background-color", "font": "font" };
       const normalized = aliases[name] || name;
-      if (!["font-weight", "font-style", "text-decoration", "text-decoration-line", "color", "background-color", "font-family", "font-size", "text-align"].includes(normalized)) {
+      if (!allowed.includes(normalized)) {
         throw this._fodtError(`thuộc tính CSS '${name}'`);
       }
       if (normalized === "font") throw this._fodtError("CSS shorthand 'font'");
       result[normalized] = value;
     }
     return result;
+  }
+
+  /** Phase B: table cell CSS is a distinct domain from text/paragraph formatting. */
+  _fodtCellCssMap(styleText) {
+    return this._fodtCssMap(styleText, ["border", "border-top", "border-right", "border-bottom", "border-left", "background-color", "text-align"]);
+  }
+
+  /** "1px solid #94a3b8" -> ODF fo:border length ("0.75pt solid #94a3b8"). */
+  _fodtNormalizeBorder(value) {
+    const match = String(value || "").trim().match(/^(\d+(?:\.\d+)?)(px|pt)\s+(solid|dashed|dotted|double)\s+(#[0-9a-f]{3,6}|[a-z]+)$/i);
+    if (!match) throw this._fodtError(`viền ô '${value}' (chỉ nhận '<số>px|pt <kiểu> <màu>' trong Phase B)`);
+    const widthPt = match[2].toLowerCase() === "px" ? Number(match[1]) * 0.75 : Number(match[1]);
+    return `${Number(widthPt.toFixed(3))}pt ${match[3].toLowerCase()} ${this._fodtNormalizeColor(match[4])}`;
+  }
+
+  /** Dependency-free base64 -> byte array (must work in both browser and Node test runs). */
+  _fodtBase64ToBytes(base64) {
+    const clean = String(base64 || "").replace(/\s+/g, "");
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const lookup = new Map([...alphabet].map((ch, i) => [ch, i]));
+    const bytes = [];
+    let buffer = 0;
+    let bits = 0;
+    for (const ch of clean) {
+      if (ch === "=") break;
+      const value = lookup.get(ch);
+      if (value === undefined) throw this._fodtError("dữ liệu base64 của ảnh không hợp lệ");
+      buffer = (buffer << 6) | value;
+      bits += 6;
+      if (bits >= 8) {
+        bits -= 8;
+        bytes.push((buffer >> bits) & 0xff);
+      }
+    }
+    return bytes;
+  }
+
+  /**
+   * Real pixel size straight from the PNG IHDR chunk (bytes 16-23), not from
+   * CSS (Writer's <img> uses max-width:100%/height:auto, so there is no
+   * reliable CSS size to trust). Phase B only supports PNG; anything else
+   * fails closed instead of guessing a size that would render wrong in a
+   * real DOCX/PDF export.
+   */
+  _fodtPngDimensionsPx(base64) {
+    const bytes = this._fodtBase64ToBytes(base64);
+    const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    if (bytes.length < 24 || !signature.every((byte, index) => bytes[index] === byte)) {
+      throw this._fodtError("ảnh không phải PNG hợp lệ (Phase B chỉ hỗ trợ PNG)");
+    }
+    const readUint32 = (offset) => ((bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]) >>> 0;
+    const width = readUint32(16);
+    const height = readUint32(20);
+    if (!width || !height) throw this._fodtError("PNG thiếu kích thước IHDR hợp lệ");
+    return { width, height };
+  }
+
+  _fodtPxToCm(px) {
+    return `${Number((px / 96 * 2.54).toFixed(3))}cm`;
+  }
+
+  _fodtCmToPx(cm) {
+    const match = String(cm || "").trim().match(/^(\d+(?:\.\d+)?)cm$/);
+    if (!match) throw this._fodtError(`kích thước ảnh '${cm}' không phải cm hợp lệ`);
+    return Math.round((Number(match[1]) / 2.54) * 96);
+  }
+
+  _fodtDataUrlParts(src) {
+    const match = String(src || "").match(/^data:([^;,]+)?(;base64)?,(.*)$/s);
+    if (!match) return null;
+    return { mime: match[1] || "application/octet-stream", isBase64: !!match[2], data: match[3] };
   }
 
   _fodtNormalizeColor(value) {
@@ -4398,14 +4469,27 @@ export class WriterAdapter {
   serializeToFodt() {
     this._initZones();
     const html = this.bodyDom?.innerHTML ?? this.editorDom?.innerHTML ?? "";
-    if (/\bdata-vno-[\w-]+\s*=/i.test(html)) throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A");
+    if (/\bdata-vno-(?!wrap=["']inline["'])[\w-]+\s*=/i.test(html)) throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A/B");
     const tree = this._fodtParseMarkup(html, "HTML");
     const textStyles = new Map();
     const paragraphStyles = new Map();
+    const cellStyles = new Map();
+    let imageSequence = 0;
+    let tableSequence = 0;
     const styleName = (registry, prefix, value) => {
       const key = JSON.stringify(Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))));
       if (!registry.has(key)) registry.set(key, `${prefix}${registry.size + 1}`);
       return registry.get(key);
+    };
+    const imageXml = (node) => {
+      const unexpected = Object.keys(node.attrs).filter(name => !["src", "style", "class", "data-vno-wrap", "tabindex", "alt", "width", "height"].includes(name));
+      if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <img>`);
+      const parts = this._fodtDataUrlParts(node.attrs.src);
+      if (!parts?.isBase64 || !parts.data) throw this._fodtError("ảnh phải là data URI base64 nhúng sẵn");
+      if (String(parts.mime).toLowerCase() !== "image/png") throw this._fodtError(`định dạng ảnh '${parts.mime}' (Phase B chỉ hỗ trợ PNG)`);
+      const { width, height } = this._fodtPngDimensionsPx(parts.data);
+      const name = `Image${++imageSequence}`;
+      return `<draw:frame draw:name="${this._fodtEscapeXml(name)}" text:anchor-type="as-char" svg:width="${this._fodtPxToCm(width)}" svg:height="${this._fodtPxToCm(height)}"><draw:image xlink:href="" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad" draw:mime-type="image/png"><office:binary-data>${parts.data.replace(/\s+/g, "")}</office:binary-data></draw:image></draw:frame>`;
     };
     const inlineXml = (nodes, inherited = {}) => nodes.map(node => {
       if (node.name === "#text") {
@@ -4415,6 +4499,7 @@ export class WriterAdapter {
         return Object.keys(props).length ? `<text:span text:style-name="${styleName(textStyles, "T", props)}">${text}</text:span>` : text;
       }
       if (node.name === "br") return "<text:line-break/>";
+      if (node.name === "img") return imageXml(node);
       if (!["span", "b", "strong", "i", "em", "u", "font"].includes(node.name)) throw this._fodtError(`phần tử inline <${node.name}>`);
       const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "color", "face"].includes(name));
       if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <${node.name}>`);
@@ -4446,9 +4531,70 @@ export class WriterAdapter {
         return `<text:list-item><text:p>${inlineXml(content)}</text:p>${nested.map(listXml).join("")}</text:list-item>`;
       }).join("")}</text:list>`;
     };
+    const tableCellXml = (node) => {
+      if (!["td", "th"].includes(node.name)) throw this._fodtError(`nội dung trực tiếp trong <tr> (mong đợi <td>/<th>)`);
+      const unexpected = Object.keys(node.attrs).filter(name => !["style", "class"].includes(name));
+      if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <${node.name}> (colspan/rowspan chưa hỗ trợ ở Phase B)`);
+      const css = this._fodtCellCssMap(node.attrs.style);
+      const align = css["text-align"] ? String(css["text-align"]).toLowerCase() : "";
+      if (align && !["left", "center", "right", "justify", "start", "end"].includes(align)) throw this._fodtError(`căn ô '${align}'`);
+      const cellProps = {};
+      const borderSides = ["border-top", "border-right", "border-bottom", "border-left"];
+      if (css.border) {
+        const normalized = this._fodtNormalizeBorder(css.border);
+        for (const side of borderSides) cellProps[side] = normalized;
+      }
+      for (const side of borderSides) if (css[side]) cellProps[side] = this._fodtNormalizeBorder(css[side]);
+      if (css["background-color"] && css["background-color"] !== "transparent") cellProps.backgroundColor = this._fodtNormalizeColor(css["background-color"]);
+      const hasCellStyle = Object.keys(cellProps).length > 0;
+      const cellStyleAttr = hasCellStyle ? ` table:style-name="${styleName(cellStyles, "TC", cellProps)}"` : "";
+      const normalizedAlign = align === "start" ? "left" : align === "end" ? "right" : align;
+      const pStyle = normalizedAlign && normalizedAlign !== "left" ? ` text:style-name="${styleName(paragraphStyles, "P", { textAlign: normalizedAlign })}"` : "";
+      const content = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
+      if (content.some(child => /^(p|h[1-6]|ul|ol|table)$/.test(child.name))) throw this._fodtError("nội dung khối (bảng/danh sách lồng) trong ô bảng chưa hỗ trợ ở Phase B");
+      const cellBody = `<text:p${pStyle}>${inlineXml(content)}</text:p>`;
+      return `<table:table-cell office:value-type="string"${cellStyleAttr}>${cellBody}</table:table-cell>`;
+    };
+    const tableXml = (node) => {
+      const unexpected = Object.keys(node.attrs).filter(name => !["style", "class"].includes(name));
+      if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <table>`);
+      this._fodtCssMap(node.attrs.style, ["text-align"]);
+      const sections = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
+      const rowNodes = [];
+      for (const section of sections) {
+        if (section.name === "tbody" || section.name === "thead" || section.name === "tfoot") {
+          const unexpectedSection = Object.keys(section.attrs).filter(name => !["style", "class"].includes(name));
+          if (unexpectedSection.length) throw this._fodtError(`thuộc tính ${unexpectedSection[0]} trên <${section.name}>`);
+          for (const row of section.children.filter(child => !(child.name === "#text" && !child.text.trim()))) rowNodes.push(row);
+        } else if (section.name === "tr") {
+          rowNodes.push(section);
+        } else {
+          throw this._fodtError(`phần tử <${section.name}> trực tiếp trong <table>`);
+        }
+      }
+      if (!rowNodes.length) throw this._fodtError("<table> không có hàng nào");
+      const rows = rowNodes.map(row => {
+        if (row.name !== "tr") throw this._fodtError(`phần tử <${row.name}> thay cho <tr>`);
+        const unexpectedRow = Object.keys(row.attrs).filter(name => !["style", "class"].includes(name));
+        if (unexpectedRow.length) throw this._fodtError(`thuộc tính ${unexpectedRow[0]} trên <tr>`);
+        this._fodtCssMap(row.attrs.style, ["background-color"]);
+        const cells = row.children.filter(child => !(child.name === "#text" && !child.text.trim()));
+        return cells;
+      });
+      const columnCount = rows[0]?.length || 0;
+      if (!columnCount) throw this._fodtError("<tr> đầu tiên không có ô nào");
+      if (rows.some(cells => cells.length !== columnCount)) {
+        throw this._fodtError("các hàng có số ô khác nhau (colspan/rowspan chưa hỗ trợ ở Phase B)");
+      }
+      const rowsXml = rows.map(cells => `<table:table-row>${cells.map(tableCellXml).join("")}</table:table-row>`).join("");
+      const name = `Table${++tableSequence}`;
+      return `<table:table table:name="${this._fodtEscapeXml(name)}"><table:table-column table:number-columns-repeated="${columnCount}"/>${rowsXml}</table:table>`;
+    };
     const body = tree.children.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
       if (/^(p|h[1-6])$/.test(node.name)) return paragraphXml(node);
       if (["ul", "ol"].includes(node.name)) return listXml(node);
+      if (node.name === "table") return tableXml(node);
+      if (node.name === "img") return `<text:p>${imageXml(node)}</text:p>`;
       throw this._fodtError(`phần tử block <${node.name}>`);
     }).join("");
     const textStyleXml = [...textStyles.entries()].map(([key, name]) => {
@@ -4467,8 +4613,18 @@ export class WriterAdapter {
       const value = JSON.parse(key);
       return `<style:style style:name="${name}" style:family="paragraph"><style:paragraph-properties fo:text-align="${value.textAlign}"/></style:style>`;
     }).join("");
+    const cellStyleXml = [...cellStyles.entries()].map(([key, name]) => {
+      const value = JSON.parse(key);
+      const attrs = [];
+      if (value["border-top"]) attrs.push(`fo:border-top="${value["border-top"]}"`);
+      if (value["border-right"]) attrs.push(`fo:border-right="${value["border-right"]}"`);
+      if (value["border-bottom"]) attrs.push(`fo:border-bottom="${value["border-bottom"]}"`);
+      if (value["border-left"]) attrs.push(`fo:border-left="${value["border-left"]}"`);
+      if (value.backgroundColor) attrs.push(`fo:background-color="${this._fodtEscapeXml(value.backgroundColor)}"`);
+      return `<style:style style:name="${name}" style:family="table-cell"><style:table-cell-properties ${attrs.join(" ")}/></style:style>`;
+    }).join("");
     const listStyles = '<text:list-style style:name="LBullet"><text:list-level-style-bullet text:level="1" text:bullet-char="•"><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-bullet></text:list-style><text:list-style style:name="LNumber"><text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix="."><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-number></text:list-style>';
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text"><office:automatic-styles>${listStyles}${paragraphStyleXml}${textStyleXml}</office:automatic-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text"><office:automatic-styles>${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}</office:automatic-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
   }
 
   /** Parse the Phase A FODT subset back to canonical Writer HTML. */
@@ -4481,6 +4637,7 @@ export class WriterAdapter {
     if (!bodyMatch) throw this._fodtError("FODT thiếu office:body/office:text");
     const textStyles = new Map();
     const paragraphStyles = new Map();
+    const cellStyles = new Map();
     xml.replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrsText, content) => {
       const attrs = this._fodtParseAttributes(attrsText);
       const name = attrs["style:name"];
@@ -4502,6 +4659,16 @@ export class WriterAdapter {
         const propMatch = content.match(/<style:paragraph-properties\b([^>]*)\/?\s*>/i);
         const props = this._fodtParseAttributes(propMatch?.[1] || "");
         paragraphStyles.set(name, { textAlign: props["fo:text-align"] || "left" });
+      } else if (family === "table-cell") {
+        const propMatch = content.match(/<style:table-cell-properties\b([^>]*)\/?\s*>/i);
+        const props = this._fodtParseAttributes(propMatch?.[1] || "");
+        const style = {};
+        if (props["fo:border-top"]) style.borderTop = props["fo:border-top"];
+        if (props["fo:border-right"]) style.borderRight = props["fo:border-right"];
+        if (props["fo:border-bottom"]) style.borderBottom = props["fo:border-bottom"];
+        if (props["fo:border-left"]) style.borderLeft = props["fo:border-left"];
+        if (props["fo:background-color"] && props["fo:background-color"] !== "transparent") style.backgroundColor = this._fodtNormalizeColor(props["fo:background-color"]);
+        cellStyles.set(name, style);
       }
       return "";
     });
@@ -4522,11 +4689,26 @@ export class WriterAdapter {
       if (node.name === "text:s") return " ".repeat(Math.max(1, Number(node.attrs["text:c"]) || 1));
       if (node.name === "text:tab") return "\t";
       if (node.name === "text:line-break") return "<br>";
+      if (node.name === "draw:frame") return imageHtml(node);
       if (node.name !== "text:span") throw this._fodtError(`phần tử FODT inline <${node.name}>`);
       const name = node.attrs["text:style-name"];
       if (!name || !textStyles.has(name)) throw this._fodtError(`text:span tham chiếu style không biết '${name || ""}'`);
       return `<span style="${this._escapeHtml(htmlStyle(textStyles.get(name)))}">${inlineHtml(node.children)}</span>`;
     }).join("");
+    const imageHtml = (node) => {
+      if (node.attrs["text:anchor-type"] !== "as-char") throw this._fodtError(`draw:frame anchor-type '${node.attrs["text:anchor-type"] || ""}' (Phase B chỉ hỗ trợ as-char)`);
+      const width = this._fodtCmToPx(node.attrs["svg:width"]);
+      const height = this._fodtCmToPx(node.attrs["svg:height"]);
+      const images = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
+      if (images.length !== 1 || images[0].name !== "draw:image") throw this._fodtError("draw:frame phải chứa đúng một draw:image (Phase B)");
+      const image = images[0];
+      if (String(image.attrs["draw:mime-type"] || "").toLowerCase() !== "image/png") throw this._fodtError(`draw:image mime-type '${image.attrs["draw:mime-type"] || ""}' (Phase B chỉ hỗ trợ PNG)`);
+      const binaryNode = image.children.find(child => child.name === "office:binary-data");
+      if (!binaryNode) throw this._fodtError("draw:image thiếu office:binary-data (Phase B không hỗ trợ xlink:href ngoài)");
+      const base64 = binaryNode.children.map(child => child.name === "#text" ? child.text : "").join("").replace(/\s+/g, "");
+      if (!base64) throw this._fodtError("office:binary-data rỗng");
+      return `<img src="data:image/png;base64,${base64}" width="${width}" height="${height}" data-vno-wrap="inline" style="max-width:100%;height:auto;">`;
+    };
     const listHtml = (node) => {
       const name = node.attrs["text:style-name"];
       if (!["LBullet", "LNumber"].includes(name)) throw this._fodtError(`list style '${name || ""}'`);
@@ -4539,8 +4721,39 @@ export class WriterAdapter {
         return `<li>${inlineHtml(children[0].children)}${children.slice(1).map(listHtml).join("")}</li>`;
       }).join("")}</${tag}>`;
     };
+    const tableHtml = (node) => {
+      const rows = node.children.filter(child => !(child.name === "#text" && !child.text.trim()) && child.name !== "table:table-column");
+      if (!rows.length || rows.some(row => row.name !== "table:table-row")) throw this._fodtError("cấu trúc table:table ngoài table:table-row (Phase B)");
+      const rowsHtml = rows.map(row => {
+        const cells = row.children.filter(child => !(child.name === "#text" && !child.text.trim()));
+        if (!cells.length) throw this._fodtError("table:table-row không có ô nào (Phase B)");
+        if (cells.some(cell => cell.name !== "table:table-cell")) throw this._fodtError("table:table-row chứa phần tử khác table:table-cell (Phase B)");
+        const cellsHtml = cells.map(cell => {
+          const cellStyleName = cell.attrs["table:style-name"];
+          const cellStyle = cellStyleName ? cellStyles.get(cellStyleName) : null;
+          if (cellStyleName && !cellStyle) throw this._fodtError(`table-cell style không biết '${cellStyleName}'`);
+          const cssRules = [];
+          if (cellStyle?.borderTop) cssRules.push(`border-top:${cellStyle.borderTop}`);
+          if (cellStyle?.borderRight) cssRules.push(`border-right:${cellStyle.borderRight}`);
+          if (cellStyle?.borderBottom) cssRules.push(`border-bottom:${cellStyle.borderBottom}`);
+          if (cellStyle?.borderLeft) cssRules.push(`border-left:${cellStyle.borderLeft}`);
+          if (cellStyle?.backgroundColor) cssRules.push(`background-color:${cellStyle.backgroundColor}`);
+          const content = cell.children.filter(child => !(child.name === "#text" && !child.text.trim()));
+          if (content.length !== 1 || content[0].name !== "text:p") throw this._fodtError("table:table-cell phải có đúng một text:p (Phase B)");
+          const pStyleName = content[0].attrs["text:style-name"];
+          const pStyle = pStyleName ? paragraphStyles.get(pStyleName) : null;
+          if (pStyleName && !pStyle) throw this._fodtError(`paragraph style không biết '${pStyleName}'`);
+          if (pStyle?.textAlign && pStyle.textAlign !== "left") cssRules.push(`text-align:${pStyle.textAlign}`);
+          const styleAttr = cssRules.length ? ` style="${this._escapeHtml(cssRules.join(";"))}"` : "";
+          return `<td${styleAttr}>${inlineHtml(content[0].children)}</td>`;
+        }).join("");
+        return `<tr>${cellsHtml}</tr>`;
+      }).join("");
+      return `<table><tbody>${rowsHtml}</tbody></table>`;
+    };
     const html = tree.children.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
       if (node.name === "text:list") return listHtml(node);
+      if (node.name === "table:table") return tableHtml(node);
       if (!["text:p", "text:h"].includes(node.name)) throw this._fodtError(`phần tử FODT block <${node.name}>`);
       const level = node.name === "text:h" ? Math.min(6, Math.max(1, Number(node.attrs["text:outline-level"]) || 1)) : 0;
       const tag = level ? `h${level}` : "p";

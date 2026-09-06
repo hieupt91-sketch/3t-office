@@ -119,6 +119,7 @@ import { runWriterFodtPhaseATests } from "./unit/writer-fodt-phase-a.test.js";
 import { runSheetXlsxNativePostprocessTests } from "./unit/sheet-xlsx-native-postprocess.test.js";
 import { runSheetXlsxNativeOpenOverlayTests } from "./unit/sheet-xlsx-native-open-overlay.test.js";
 import { runSlidesPptxMasterLogoTests } from "./unit/slides-pptx-master-logo.test.js";
+import { runWriterFodtPhaseBTests } from "./unit/writer-fodt-phase-b.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -245,7 +246,8 @@ async function runAll() {
     { title: "107. Unit Tests — Writer FODT Phase A serialize/parse", runner: runWriterFodtPhaseATests },
     { title: "108. Unit Tests — Sheet native XLSX post-process (workbookProtection lockStructure)", runner: runSheetXlsxNativePostprocessTests },
     { title: "109. Unit Tests — Sheet native XLSX open overlay (lockStructure → structure-protected)", runner: runSheetXlsxNativeOpenOverlayTests },
-    { title: "110. Unit Tests — Slides native PPTX post-process (Slide Master logo p:sp)", runner: runSlidesPptxMasterLogoTests }
+    { title: "110. Unit Tests — Slides native PPTX post-process (Slide Master logo p:sp)", runner: runSlidesPptxMasterLogoTests },
+    { title: "111. Unit Tests — Writer FODT Phase B (table, image)", runner: runWriterFodtPhaseBTests }
   ];
 
   for (const suite of suites) {
