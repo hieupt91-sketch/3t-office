@@ -73,13 +73,13 @@ export const WRITER_RIBBON_TABS = [
                   { type: "button", commandId: "writer.text.bold", iconOnly: true },
                   { type: "button", commandId: "writer.text.italic", iconOnly: true },
                   { type: "button", commandId: "writer.text.underline", iconOnly: true },
+                  { type: "button", commandId: "writer.text.strike", iconOnly: true },
                   { type: "button", commandId: "writer.text.subscript", iconOnly: true },
                   { type: "button", commandId: "writer.text.superscript", iconOnly: true },
-                  { type: "button", commandId: "writer.text.strike", iconOnly: true },
                   { type: "button", commandId: "writer.text.changeCase", iconOnly: true },
                   { type: "button", commandId: "writer.text.clearFormat", iconOnly: true },
-                  { type: "button", commandId: "writer.color.text", iconOnly: true },
-                  { type: "button", commandId: "writer.color.highlight", iconOnly: true }
+                  { type: "button", commandId: "writer.color.highlight", iconOnly: true },
+                  { type: "button", commandId: "writer.color.text", iconOnly: true }
                 ]
               }
             ]
@@ -99,10 +99,10 @@ export const WRITER_RIBBON_TABS = [
                 items: [
                   { type: "button", commandId: "writer.list.bullet", iconOnly: true },
                   { type: "button", commandId: "writer.list.numbered", iconOnly: true },
-                  { type: "button", commandId: "writer.para.sort", iconOnly: true },
-                  { type: "button", commandId: "writer.para.showFormattingMarks", iconOnly: true },
                   { type: "button", commandId: "writer.para.indentDec", iconOnly: true },
-                  { type: "button", commandId: "writer.para.indentInc", iconOnly: true }
+                  { type: "button", commandId: "writer.para.indentInc", iconOnly: true },
+                  { type: "button", commandId: "writer.para.sort", iconOnly: true },
+                  { type: "button", commandId: "writer.para.showFormattingMarks", iconOnly: true }
                 ]
               },
               {
