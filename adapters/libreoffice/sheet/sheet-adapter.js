@@ -381,6 +381,111 @@ export class SheetAdapter {
       .replace(/&amp;/g, "&");
   }
 
+  /** Đọc mọi thuộc tính trong một đoạn mở-thẻ XML (vd 'style:name="ta1" style:master-page-name="X"') thành object, không phụ thuộc thứ tự. */
+  _parseTagAttrs(tagInner) {
+    const attrs = {};
+    String(tagInner || "").replace(/([\w:.-]+)=["']([^"']*)["']/g, (_, key, value) => { attrs[key] = this._unescapeXml(value); return ""; });
+    return attrs;
+  }
+
+  /** Tìm thẻ mở đầu tiên có tagName khớp và một thuộc tính bằng đúng giá trị cho trước, trả về mọi thuộc tính của thẻ đó. */
+  _findTagAttrsByAttr(xml, tagName, attrName, attrValue) {
+    if (!attrValue) return null;
+    const escapedTag = tagName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`<${escapedTag}\\b([^>]*)>`, "gi");
+    let match;
+    while ((match = re.exec(xml)) !== null) {
+      const attrs = this._parseTagAttrs(match[1]);
+      if (attrs[attrName] === attrValue) return attrs;
+    }
+    return null;
+  }
+
+  /** Quy đổi một độ dài ODF (vd "2.5cm", "0.75in", "10pt") về cm - LibreOffice luôn ghi cm trong FODS nhưng file từ nguồn khác có thể dùng đơn vị khác. */
+  _odfLengthToCm(raw) {
+    const match = String(raw || "").match(/^(-?[\d.]+)\s*(cm|mm|in|pt|px)?$/i);
+    if (!match) return null;
+    const value = parseFloat(match[1]);
+    if (!Number.isFinite(value)) return null;
+    const factors = { cm: 1, mm: 0.1, in: 2.54, pt: 2.54 / 72, px: 2.54 / 96 };
+    const unit = (match[2] || "cm").toLowerCase();
+    return Math.round(value * (factors[unit] ?? 1) * 1000) / 1000;
+  }
+
+  /**
+   * Đọc Page Setup chuẩn ODF thật (style:page-layout-properties) qua chuỗi liên kết
+   * table:style-name -> style:style[master-page-name] -> style:master-page[page-layout-name]
+   * -> style:page-layout[style:name]. Đây là cách MỌI file ODF/FODS thật (kể cả file do
+   * chính LibreOffice/Excel thật tạo ra, không đi qua các thuộc tính vno:* riêng của app)
+   * lưu Page Setup - dùng làm fallback khi thuộc tính vno:page-* (chỉ tồn tại khi FODS này
+   * do chính VN Office ghi ra và chưa qua bất kỳ vòng chuyển đổi thật nào) không có sẵn.
+   */
+  _parseStandardOdfPageLayout(xml, tableStyleName) {
+    if (!tableStyleName) return null;
+    const tableStyleAttrs = this._findTagAttrsByAttr(xml, "style:style", "style:name", tableStyleName);
+    const masterPageName = tableStyleAttrs?.["style:master-page-name"];
+    if (!masterPageName) return null;
+    const masterPageAttrs = this._findTagAttrsByAttr(xml, "style:master-page", "style:name", masterPageName);
+    const pageLayoutName = masterPageAttrs?.["style:page-layout-name"];
+    if (!pageLayoutName) return null;
+    const escapedLayoutName = pageLayoutName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const blockMatch = xml.match(new RegExp(`<style:page-layout\\b[^>]*style:name=["']${escapedLayoutName}["'][^>]*>([\\s\\S]*?)<\\/style:page-layout>`, "i"));
+    if (!blockMatch) return null;
+    const propsMatch = blockMatch[1].match(/<style:page-layout-properties\b([^>]*)\/?>/i);
+    if (!propsMatch) return null;
+    const props = this._parseTagAttrs(propsMatch[1]);
+
+    const orientation = props["style:print-orientation"] === "landscape" ? "landscape" : "portrait";
+    const widthCm = this._odfLengthToCm(props["fo:page-width"]);
+    const heightCm = this._odfLengthToCm(props["fo:page-height"]);
+    let size = "a4";
+    if (Number.isFinite(widthCm) && Number.isFinite(heightCm)) {
+      const longCm = Math.max(widthCm, heightCm);
+      const shortCm = Math.min(widthCm, heightCm);
+      const candidates = [
+        { key: "a4", w: 21.0, h: 29.7 },
+        { key: "letter", w: 21.59, h: 27.94 },
+        { key: "legal", w: 21.59, h: 35.56 }
+      ];
+      let best = null;
+      let bestDelta = Infinity;
+      for (const candidate of candidates) {
+        const delta = Math.abs(shortCm - candidate.w) + Math.abs(longCm - candidate.h);
+        if (delta < bestDelta) { bestDelta = delta; best = candidate.key; }
+      }
+      if (best && bestDelta < 1.5) size = best;
+    }
+
+    const printTokens = (props["style:print"] || "").split(/\s+/).filter(Boolean);
+    const centering = props["style:table-centering"] || "none";
+    const scalePercent = parseInt(props["style:scale-to"], 10);
+
+    return {
+      size,
+      orientation,
+      margins: {
+        top: this._odfLengthToCm(props["fo:margin-top"]) ?? 1.91,
+        bottom: this._odfLengthToCm(props["fo:margin-bottom"]) ?? 1.91,
+        left: this._odfLengthToCm(props["fo:margin-left"]) ?? 1.78,
+        right: this._odfLengthToCm(props["fo:margin-right"]) ?? 1.78
+      },
+      scale: {
+        mode: "percent",
+        percent: Number.isFinite(scalePercent) && scalePercent > 0 ? scalePercent : 100,
+        pagesWide: 1,
+        pagesTall: 0
+      },
+      centerOnPage: {
+        horizontal: centering === "horizontal" || centering === "both",
+        vertical: centering === "vertical" || centering === "both"
+      },
+      printOptions: {
+        gridlines: printTokens.includes("grid"),
+        headings: printTokens.includes("headers")
+      }
+    };
+  }
+
   _columnNumber(columnName) {
     return String(columnName || "").split("").reduce((total, char) => total * 26 + char.charCodeAt(0) - 64, 0);
   }
@@ -1967,14 +2072,19 @@ export class SheetAdapter {
           try { pageCentering = JSON.parse(table.getAttribute("vno:page-centering") || "{}"); } catch (_) { pageCentering = {}; }
           let pagePrintOptions = {};
           try { pagePrintOptions = JSON.parse(table.getAttribute("vno:page-print-options") || "{}"); } catch (_) { pagePrintOptions = {}; }
+          // Thuộc tính vno:page-* chỉ tồn tại khi chính VN Office ghi ra và CHƯA từng qua vòng
+          // chuyển đổi thật nào (LibreOffice/Excel không giữ lại thuộc tính lạ khi convert).
+          // Với file thật (mở lần đầu từ Excel/LibreOffice, hoặc đã convert qua lại), phải đọc
+          // Page Setup chuẩn ODF thật (style:page-layout-properties) làm nguồn dự phòng.
+          const standardLayout = this._parseStandardOdfPageLayout(tableXml, table.getAttribute("table:style-name"));
           const pageSetup = {
-            size: table.getAttribute("vno:page-size") || "a4",
-            orientation: table.getAttribute("vno:page-orientation") || "portrait",
-            margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...pageMargins },
-            scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...pageScale },
+            size: table.getAttribute("vno:page-size") || standardLayout?.size || "a4",
+            orientation: table.getAttribute("vno:page-orientation") || standardLayout?.orientation || "portrait",
+            margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(standardLayout?.margins || {}), ...pageMargins },
+            scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(standardLayout?.scale || {}), ...pageScale },
             headerFooter: { header: { left: "", center: "", right: "", ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(pageHeaderFooter.footer || {}) } },
-            centerOnPage: { horizontal: false, vertical: false, ...pageCentering },
-            printOptions: { gridlines: false, headings: false, ...pagePrintOptions },
+            centerOnPage: { horizontal: false, vertical: false, ...(standardLayout?.centerOnPage || {}), ...pageCentering },
+            printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
             printTitles: { rows: table.getAttribute("vno:print-title-rows") || "", cols: table.getAttribute("vno:print-title-cols") || "" }
           };
           const data = new Map();
@@ -2104,14 +2214,18 @@ export class SheetAdapter {
         try { pageCentering = JSON.parse(pageAttr("vno:page-centering") || "{}"); } catch (_) { pageCentering = {}; }
         let pagePrintOptions = {};
         try { pagePrintOptions = JSON.parse(pageAttr("vno:page-print-options") || "{}"); } catch (_) { pagePrintOptions = {}; }
+        // Xem chú thích ở nhánh DOM phía trên: vno:page-* chỉ có khi VN Office ghi ra và chưa
+        // qua vòng chuyển đổi thật nào; file thật cần đọc style:page-layout-properties chuẩn ODF.
+        const tableStyleMatch = tableMatch[1].match(/table:style-name=["']([^"']*)["']/i);
+        const standardLayout = this._parseStandardOdfPageLayout(tableXml, this._unescapeXml(tableStyleMatch?.[1] || ""));
         const pageSetup = {
-          size: pageAttr("vno:page-size") || "a4",
-          orientation: pageAttr("vno:page-orientation") || "portrait",
-          margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...pageMargins },
-          scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...pageScale },
+          size: pageAttr("vno:page-size") || standardLayout?.size || "a4",
+          orientation: pageAttr("vno:page-orientation") || standardLayout?.orientation || "portrait",
+          margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(standardLayout?.margins || {}), ...pageMargins },
+          scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(standardLayout?.scale || {}), ...pageScale },
           headerFooter: { header: { left: "", center: "", right: "", ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(pageHeaderFooter.footer || {}) } },
-          centerOnPage: { horizontal: false, vertical: false, ...pageCentering },
-          printOptions: { gridlines: false, headings: false, ...pagePrintOptions },
+          centerOnPage: { horizontal: false, vertical: false, ...(standardLayout?.centerOnPage || {}), ...pageCentering },
+          printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
           printTitles: { rows: pageAttr("vno:print-title-rows"), cols: pageAttr("vno:print-title-cols") }
         };
         const data = new Map();
