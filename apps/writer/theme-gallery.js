@@ -185,18 +185,52 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
     document.body.appendChild(overlay);
     const dialogBox = overlay.querySelector(".vno-dialog-box");
 
-    const cards = overlay.querySelectorAll(".vno-theme-card");
+    const cards = [...overlay.querySelectorAll(".vno-theme-card")];
+
+    // Roving tabindex: chỉ card selected (hoặc đầu tiên) nhận Tab focus
+    cards.forEach((card, i) => {
+      const isSel = card.dataset.themeId === selectedThemeId;
+      card.tabIndex = (isSel || (i === 0 && !overlay.querySelector(".vno-theme-card.is-selected"))) ? 0 : -1;
+    });
+
     cards.forEach(card => {
       card.addEventListener("click", () => {
         cards.forEach(c => {
           c.classList.remove("is-selected");
           c.setAttribute("aria-checked", "false");
+          c.tabIndex = -1;
         });
         card.classList.add("is-selected");
         card.setAttribute("aria-checked", "true");
+        card.tabIndex = 0;
         selectedThemeId = card.getAttribute("data-theme-id");
       });
+
+      // Arrow key navigation trong radiogroup (WAI-ARIA pattern)
+      card.addEventListener("keydown", (e) => {
+        const idx = cards.indexOf(card);
+        let targetIdx = -1;
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+          e.preventDefault();
+          targetIdx = (idx + 1) % cards.length;
+        } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+          e.preventDefault();
+          targetIdx = (idx - 1 + cards.length) % cards.length;
+        } else if (e.key === "Home") {
+          e.preventDefault();
+          targetIdx = 0;
+        } else if (e.key === "End") {
+          e.preventDefault();
+          targetIdx = cards.length - 1;
+        }
+        if (targetIdx !== -1) {
+          // Di chuyển focus (không chọn - chỉ focus) theo pattern roving tabindex
+          cards.forEach((c, i) => { c.tabIndex = i === targetIdx ? 0 : -1; });
+          cards[targetIdx].focus();
+        }
+      });
     });
+
 
     const cleanup = (result) => {
       document.removeEventListener("keydown", onKeyDown);
