@@ -2168,6 +2168,10 @@ export class SlidesAdapter {
     };
     const logo = this._escapeXml(theme.logoText || "");
     const footer = this._escapeXml(theme.footerText || "");
+    // FODP keeps the logo on style:master-page. LibreOffice FODP→PPTX drops it
+    // (placeholders only). File → Lưu PPTX post-process inserts a DrawingML
+    // p:sp without p:ph onto ppt/slideMasters/slideMaster1.xml — see
+    // pptx-master-logo.js / ooxml_zip_patch.postprocess_slides_pptx.
     return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1" vno:master-theme="${this._escapeXml(JSON.stringify(payload))}">
       <draw:rect draw:style-name="grMasterAccent" svg:x="0cm" svg:y="0cm" svg:width="28cm" svg:height="0.25cm"/>
       <draw:frame draw:style-name="grMasterLogo" svg:x="0.6cm" svg:y="0.4cm" svg:width="16cm" svg:height="0.8cm">
