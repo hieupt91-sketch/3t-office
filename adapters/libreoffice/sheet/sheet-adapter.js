@@ -163,6 +163,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.review.commentNext", () => this.grid.nextComment?.());
     globalCommandBus.bindHandler("sheet.review.commentDelete", () => this.grid.deleteCurrentComment?.());
     globalCommandBus.bindHandler("sheet.review.commentResolve", () => this.grid.toggleCurrentCommentResolved?.());
+    globalCommandBus.bindHandler("sheet.file.printPreview", () => Boolean(this.grid.openPrintPreview ? this.grid.openPrintPreview() : false));
     globalCommandBus.bindHandler("sheet.view.normal", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("normal") : false);
     globalCommandBus.bindHandler("sheet.view.pageBreakPreview", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageBreakPreview") : false);
     globalCommandBus.bindHandler("sheet.view.pageLayout", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageLayout") : false);
@@ -2533,6 +2534,7 @@ export class SheetAdapter {
   }
 
   print() {
+    if (this.grid?.print) return this.grid.print();
     if (typeof window !== "undefined" && typeof window.print === "function") {
       window.print();
     }
@@ -2544,6 +2546,10 @@ export class SheetAdapter {
     const cmd = vnCmdId || (unoUrl ? getVnCommand(unoUrl) : null) || unoUrl;
 
     switch (cmd) {
+      case "sheet.file.printPreview":
+      case ".uno:PrintPreview":
+        return Boolean(this.grid.openPrintPreview ? this.grid.openPrintPreview() : false);
+
       case "sheet.view.normal":
       case ".uno:NormalViewMode":
         return this.grid.setWorkbookView ? this.grid.setWorkbookView("normal") : false;

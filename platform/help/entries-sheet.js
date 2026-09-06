@@ -427,16 +427,17 @@ export const SHEET_HELP_ENTRIES = [
   {
     id: "sheet.view.workbookViews",
     app: "sheet",
-    commandIds: ["sheet.view.normal", "sheet.view.pageBreakPreview", "sheet.view.pageLayout"],
+    commandIds: ["sheet.view.normal", "sheet.view.pageBreakPreview", "sheet.view.pageLayout", "sheet.file.printPreview"],
     title: "Chế độ xem bảng tính",
-    summary: "Bình thường là lưới soạn thảo. Xem ngắt trang hiện đường chia trang và làm mờ vùng ngoài khổ in. Bố trí trang xem như tờ giấy, có dải đầu trang 3 ngăn.",
+    summary: "Bình thường là lưới soạn thảo. Xem ngắt trang hiện đường chia trang và làm mờ vùng ngoài khổ in. Bố trí trang xem như tờ giấy, có dải đầu trang 3 ngăn. Xem trước khi in (Ctrl+F2) dựng đúng các trang sẽ được in thật, theo Khổ giấy/Lề/Tỷ lệ/Tiêu đề lặp lại đang đặt ở Bố trí trang, kể cả khi khổ giấy khiến dữ liệu tràn sang nhiều trang.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Chế độ xem bảng tính" },
-    keywords: ["bình thường", "xem ngắt trang", "bố trí trang", "page break preview", "page layout", "normal view", "trang in"],
+    keywords: ["bình thường", "xem ngắt trang", "bố trí trang", "page break preview", "page layout", "normal view", "trang in", "xem trước khi in", "print preview", "in tài liệu", "ctrl+f2"],
     steps: [
-      "Tab Chế độ xem, nhóm Chế độ xem bảng tính — ba nút lớn: Bình thường, Xem ngắt trang, Bố trí trang.",
+      "Tab Chế độ xem, nhóm Chế độ xem bảng tính — bốn nút lớn: Bình thường, Xem ngắt trang, Bố trí trang, Xem trước khi in.",
       "Bình thường: lưới ô tiêu chuẩn để nhập liệu. Đây là mặc định.",
       "Xem ngắt trang: đường chia trang xanh đậm, vùng ngoài khổ in bị phủ tối, số «Trang 1» mờ trên nền. Dùng để chỉnh chỗ ngắt trước khi in (tab Bố trí trang, nhóm Ngắt trang).",
-      "Bố trí trang: xem như giấy in, có dải đầu trang 3 ngăn. Không đổi dữ liệu ô. Quay lại Bình thường bất cứ lúc nào."
+      "Bố trí trang: xem như giấy in, có dải đầu trang 3 ngăn. Không đổi dữ liệu ô. Quay lại Bình thường bất cứ lúc nào.",
+      "Xem trước khi in (Ctrl+F2): mở overlay hiển thị đúng từng trang sẽ in — có điều hướng Trang trước/sau nếu vùng in trải nhiều trang, và nút In tài liệu (Ctrl+P) để in ngay từ đây. Đóng bằng Esc hoặc nút ×."
     ]
   },
   {

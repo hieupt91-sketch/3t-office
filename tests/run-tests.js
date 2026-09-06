@@ -136,6 +136,7 @@ import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.
 import { runWriterLineNumbersTests } from "./unit/writer-line-numbers.test.js";
 import { runSheetCellOrientationTests } from "./unit/sheet-cell-orientation.test.js";
 import { runWriterMultilevelListTests } from "./unit/writer-multilevel-list.test.js";
+import { runSheetPrintPreviewTests } from "./unit/sheet-print-preview.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -279,7 +280,8 @@ async function runAll() {
     { title: "117. Unit Tests — Writer paragraph spacing before/after (pt)", runner: runWriterParagraphSpacingTests },
     { title: "118. Unit Tests — Writer line numbers (FODT linenumbering-configuration)", runner: runWriterLineNumbersTests },
     { title: "119. Unit Tests — VN Sheet cell text orientation (FODS rotation + XLSX textRotation)", runner: runSheetCellOrientationTests },
-    { title: "120. Unit Tests — Writer multilevel list (3 presets × 3 levels)", runner: runWriterMultilevelListTests }
+    { title: "120. Unit Tests — Writer multilevel list (3 presets × 3 levels)", runner: runWriterMultilevelListTests },
+    { title: "121. Unit & Behavioral Tests — VN Sheet Print Preview (Ctrl+F2) + in thật (Ctrl+P)", runner: runSheetPrintPreviewTests }
   ];
 
   for (const suite of suites) {

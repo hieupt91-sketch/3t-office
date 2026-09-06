@@ -126,6 +126,7 @@ export const VN_TO_UNO_MAP = {
   "writer.page.watermark": ".uno:Watermark",
   "writer.page.border": ".uno:BorderDialog",
   "writer.file.printPreview": ".uno:PrintPreview",
+  "sheet.file.printPreview": ".uno:PrintPreview",
 
   // Writer / References
   "writer.reference.tocInsert": ".uno:InsertMultiIndex",

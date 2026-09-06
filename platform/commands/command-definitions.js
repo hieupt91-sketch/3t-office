@@ -291,6 +291,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.review.commentNext", category: "review", label: "Nhận xét sau", icon: "commentNext", tooltip: "Nhảy tới nhận xét tiếp theo" },
   { id: "sheet.review.commentDelete", category: "review", label: "Xóa nhận xét", icon: "commentDelete", tooltip: "Xóa nhận xét tại ô đang chọn" },
   { id: "sheet.review.commentResolve", category: "review", label: "Đã xử lý", icon: "commentResolve", tooltip: "Đánh dấu hoặc mở lại nhận xét tại ô đang chọn" },
+  { id: "sheet.file.printPreview", category: "file", label: "Xem trước khi in", shortcut: "Ctrl+F2", icon: "printPreview", tooltip: "Xem trước khi in (Ctrl+F2)" },
   { id: "sheet.page.setPrintArea", category: "page", label: "Đặt vùng in", icon: "printArea", tooltip: "Đặt vùng đang chọn làm vùng in" },
   { id: "sheet.page.clearPrintArea", category: "page", label: "Xóa vùng in", icon: "clearPrintArea", tooltip: "Xóa vùng in của trang tính hiện tại" },
   { id: "sheet.page.insertPageBreak", category: "page", label: "Chèn ngắt trang", icon: "sheetPageBreak", tooltip: "Chèn ngắt hàng và cột tại ô đang chọn" },
