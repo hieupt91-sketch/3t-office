@@ -9,7 +9,7 @@ Nguyên tắc:
 3. VN Office **mở lại ZIP**, patch XML entry bằng cấu trúc **OOXML chuẩn** (không namespace `vno:`), đóng gói lại.
 4. Chỉ patch khi OOXML thật sự có chỗ chuẩn. Nếu là giới hạn kiến trúc PowerPoint/Excel — ghi rõ, không làm giả.
 
-Phase 1, 2a, 2b và 3a (`p14:sectionLst` lúc Lưu) đã merge `main`. Overlay File → Mở PPTX (`vno:section-*`) là phase riêng trên branch `feature/slides-sections-open-overlay` — **không merge vào `main`** cho đến khi người phụ trách review.
+Phase 1, 2a, 2b, 3a (`p14:sectionLst` lúc Lưu) và 3a-open (overlay Sections lúc Mở) đã merge `main`. Overlay File → Mở PPTX cho Slide Master logo (`vno:master-theme`) là phase riêng trên branch `feature/slides-masterlogo-open-overlay` — **không merge vào `main`** cho đến khi người phụ trách review.
 
 ---
 
@@ -75,9 +75,11 @@ tests/live  → convertWithSoffice → postProcessSheetXlsx() [JS]
 | `main.py` | Gọi post-process sau convert, trước copyfile (Sheet XLSX + Slides PPTX) |
 | `adapters/libreoffice/slides/pptx-master-logo.js` | XML thuần: chèn `p:sp` không `p:ph` lên slide master |
 | `adapters/libreoffice/slides/pptx-section-list.js` | XML thuần: chèn `p14:sectionLst` vào `ppt/presentation.xml` |
-| `adapters/libreoffice/slides/pptx-native-postprocess.js` | Node: patch PPTX sau soffice (logo + sections) |
+| `adapters/libreoffice/slides/pptx-native-postprocess.js` | Node: patch PPTX sau soffice (logo + sections); overlay FODP lúc Mở |
 | `tests/unit/slides-pptx-master-logo.test.js` | Suite 110 |
+| `tests/unit/slides-pptx-masterlogo-open-overlay.test.js` | Suite 114 — overlay FODP từ `VNOfficeMasterLogo` |
 | `tests/live/slides-pptx-master-logo-native-export.mjs` | soffice thật FODP→PPTX→patch→FODP/PDF |
+| `tests/live/slides-pptx-masterlogo-native-open.mjs` | soffice thật Lưu PPTX logo → Mở FODP overlay |
 | `tests/unit/slides-pptx-section-list.test.js` | Suite 112 |
 | `tests/live/slides-pptx-sections-native-export.mjs` | soffice thật FODP sections → PPTX → patch → FODP/PDF |
 | `tests/unit/slides-pptx-sections-open-overlay.test.js` | Suite 113 — overlay FODP từ `p14:sectionLst` |
@@ -164,11 +166,32 @@ Kết quả đo (soffice thật):
 
 - Convert thuần: logo **mất**. Sau JS + Python patch: `slideMaster1.xml` có chữ, không `p:ph`.
 - soffice PPTX→FODP **giữ** chữ trên `<style:master-page>` (`loRoundTripLogoOnMasterPage=true`). File không hỏng (FODP + PDF).
-- `parseFodp().masterTheme.logoText` vẫn `null` — LO không phát `vno:master-theme` / `grMasterLogo`. File → Mở PPTX trên canvas VN Slides **chưa** khôi phục ô logo (cần overlay import, không làm ở 2b).
+- `parseFodp().masterTheme.logoText` vẫn `null` sau hop thuần — LO không phát `vno:master-theme` / `grMasterLogo`. Overlay File → Mở = mục 2b-open ngay dưới.
 - PDF scrape không thấy chuỗi ASCII — không kết luận logo mất; FODP đã chứng minh soffice đọc shape.
 - Footer `ftr` / `p:hf` **không** vá ở 2b.
 
 Handoff: `docs/HANDOFF-SLIDES-MASTER-LOGO-PHASE2B.md`.
+
+### 2b-open. Overlay Slide Master logo khi Mở PPTX — **HOÀN THÀNH** (thấp-trung bình)
+
+LibreOffice convert PPTX→FODP **giữ** chữ logo trên `<style:master-page>` dưới dạng `draw:custom-shape draw:name="VNOfficeMasterLogo"` nhưng **bỏ** `vno:master-theme` / `grMasterLogo`, nên File → Mở file vừa Lưu mất ô logo trên canvas VN Slides dù PowerPoint/Impress vẫn thấy chữ trên master.
+
+Sections 3a-open đã có pattern: đọc OOXML gốc sau soffice, overlay FODP trước `parseFodp()`. Overlay này làm tương tự cho logo:
+
+1. soffice PPTX→FODP
+2. Đọc `ppt/slideMasters/slideMaster*.xml` của PPTX **gốc** qua `ooxml_zip_patch.read_zip_entry` (không viết lại ZIP)
+3. Tìm `p:sp` **chỉ** theo `name="VNOfficeMasterLogo"` (Phase 2b). 0 shape → no-op. >1 trên một master, hai master khác chữ/màu/font, shape mang `p:ph`, hoặc thiếu `a:t` → **ném**, không đoán `p:sp` khác.
+4. Lấy `a:t` → `logoText`, `a:srgbClr` → `accentColor` (`B53818` → `#b53818`), `a:latin/@typeface` → `fontFamily` (`Times New Roman`)
+5. Gắn `vno:master-theme` JSON lên `<style:master-page>` **trước** `SlidesAdapter.parseFodp()`
+6. Thêm `xmlns:vno` trên `<office:document>` nếu thiếu
+
+Hai twin: JS `overlayFodpMasterLogo` / `overlaySlidesPptxFodp`; Python `overlay_fodp_master_logo` / `overlay_slides_pptx_fodp` (cùng hook Sections). `SlidesAdapter.loadFromFodp(fodp, ooxmlPresentationXml, ooxmlSlideMasterXml)` overlay **trước** `parseFodp` (belt-and-suspenders).
+
+Không đọc `draw:custom-shape` FODP soffice làm nguồn — nguồn sự thật là ZIP gốc, giống Sections đọc `p14:sectionLst`.
+
+Kết quả đo: Lưu PPTX (Phase 2b `VNOfficeMasterLogo`) → soffice PPTX→FODP **không** còn `vno:master-theme` / `grMasterLogo` (`parseFodp().masterTheme=null`) → overlay → `logoText="VN OFFICE • SANG TAO"`, `accentColor="#b53818"`, `fontFamily="Times New Roman"` → `canvas.applySlideMaster` hiện lại ô logo. Live soffice + `open_document_dialog` PASS. Hai shape trùng tên / mang `p:ph` → File → Mở `status=error`.
+
+Handoff: `docs/HANDOFF-SLIDES-MASTERLOGO-OPEN-OVERLAY.md`. Findings đo trước code: `docs/HANDOFF-SLIDES-MASTERLOGO-OPEN-OVERLAY-FINDINGS.md`.
 
 ### 2c. Theme màu/font native — độ phức tạp: trung bình
 
@@ -255,6 +278,7 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 | 1 | XLSX `lockStructure` | Thấp | Nhỏ | Xong |
 | 2a | Overlay lock khi Mở XLSX | Thấp | Nhỏ | **Xong** |
 | 2b | Master logo `p:sp` | Trung bình-cao | Trung bình | **Xong** |
+| 2b-open | Overlay logo khi Mở PPTX | Thấp-trung bình | Nhỏ | **Xong** |
 | 2c | `theme1.xml` scheme | Trung bình | Trung bình | Probe theme |
 | 3a | `p14:sectionLst` | Trung bình-cao | Trung bình | **Xong** (soffice mở lại PASS; không round-trip FODP) |
 | 3a-open | Overlay section khi Mở PPTX | Thấp-trung bình | Nhỏ | **Xong** |
@@ -270,7 +294,8 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 - Import XLSX overlay Phase 2a: File → Mở XLSX có `lockStructure` gắn lại `table:structure-protected` trước parseFods. Mật khẩu phiên vẫn không round-trip (không có hash OOXML).
 - Phase 2b DrawingML: id/`p:sldSz`/EMU sai có thể làm PowerPoint Repair. Probe + unit bắt overlap placeholder; live soffice mở lại FODP+PDF PASS. PowerPoint desktop không có trên máy đo.
 - Phase 3a `p14:sectionLst`: lệch `p:sldId/@id` so với thứ tự `draw:page` sẽ gán sai nhóm. Patch **ném** khi số id ≠ số trang, không đoán. soffice mở lại PASS; PowerPoint desktop chưa đo Repair.
-- Overlay Mở PPTX: cùng quy tắc ném khi số `p:sldId` ≠ số `draw:page`, khi `p14:sldId` lạ, hoặc một id thuộc hai phần. File → Mở báo lỗi thay vì canvas sai nhóm. Probe fixture 6 trang: thứ tự `p:sldIdLst` khớp thứ tự `draw:page` sau soffice.
+- Overlay Mở PPTX (Sections): cùng quy tắc ném khi số `p:sldId` ≠ số `draw:page`, khi `p14:sldId` lạ, hoặc một id thuộc hai phần. File → Mở báo lỗi thay vì canvas sai nhóm. Probe fixture 6 trang: thứ tự `p:sldIdLst` khớp thứ tự `draw:page` sau soffice.
+- Overlay Mở PPTX (logo): nhận diện **chỉ** `name="VNOfficeMasterLogo"`. Ném khi nhiều shape trùng tên, shape mang `p:ph`, thiếu `a:t`, hoặc hai master khác chữ/màu/font. Không đoán `p:sp` khác. Probe: soffice đổi shape thành `draw:custom-shape` cùng tên nhưng parser VN không đọc class đó.
 
 ## Test plan (mọi phase)
 
@@ -281,14 +306,14 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 
 ## Rollback
 
-Revert commit phase tương ứng. `main.py` gọi post-process khi Sheet XLSX (`lockStructure`) hoặc Slides PPTX (master logo / `p14:sectionLst`); tắt nhánh tương ứng là file lại giống convert thuần LibreOffice.
+Revert commit phase tương ứng. `main.py` gọi post-process khi Sheet XLSX (`lockStructure`) hoặc Slides PPTX (master logo / `p14:sectionLst`); overlay File → Mở khi Sheet XLSX hoặc Slides PPTX (sections / logo). Tắt nhánh tương ứng là file lại giống convert thuần LibreOffice.
 
 ## Decision log
 
 - **Có** sửa `main.py`: đây là chỗ convert + ghi file. Ghi rõ trong handoff.
 - **Không** patch Slide Master ở Phase 1: có chỗ chuẩn nhưng rủi ro DrawingML cao. Phase 2b đã vá `p:sp` không `p:ph`.
 - **Không** vá footer `ftr` / `p:hf` ở 2b — placeholder `ftr` vẫn trống sau hop.
-- **Không** overlay import PPTX→FODP cho `masterTheme.logoText` ở 2b (canvas VN Slides khi Mở PPTX).
+- **Không** overlay import PPTX→FODP cho `masterTheme.logoText` **ở 2b**. Overlay đó là 2b-open, đã làm: đọc `p:sp name="VNOfficeMasterLogo"` từ ZIP gốc, gắn `vno:master-theme` trước `parseFodp`, ném khi không nhận diện được chính xác.
 - **Không** overlay import PPTX→FODP cho `vno:section-*` **ở 3a** (canvas mất thanh phần). Overlay đó là 3a-open, đã làm: đọc `p14:sectionLst` gốc, gắn `vno:section-*` trước `parseFodp`, ném khi không map được chính xác.
 - **Có** vá `p14:sectionLst`: đo thật LO không sinh extension; soffice mở file đã vá **không lỗi**. Tính năng PowerPoint 2010 thật, không giả.
 - **Không** core patch.

@@ -129,6 +129,7 @@ import { runWriterFodtPhaseE3WordArtTests } from "./unit/writer-fodt-phase-e3-wo
 import { runWriterFodtPhaseE4ChartTests } from "./unit/writer-fodt-phase-e4-chart.test.js";
 import { runSlidesPptxSectionListTests } from "./unit/slides-pptx-section-list.test.js";
 import { runSlidesPptxSectionsOpenOverlayTests } from "./unit/slides-pptx-sections-open-overlay.test.js";
+import { runSlidesPptxMasterLogoOpenOverlayTests } from "./unit/slides-pptx-masterlogo-open-overlay.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -265,7 +266,8 @@ async function runAll() {
     { title: "111g. Unit Tests — Writer FODT Phase E.3 (WordArt Fontwork)", runner: runWriterFodtPhaseE3WordArtTests },
     { title: "111h. Unit Tests — Writer FODT Phase E.4 (Chart native)", runner: runWriterFodtPhaseE4ChartTests },
     { title: "112. Unit Tests — Slides native PPTX post-process (p14:sectionLst)", runner: runSlidesPptxSectionListTests },
-    { title: "113. Unit Tests — Slides native PPTX open overlay (p14:sectionLst → vno:section-*)", runner: runSlidesPptxSectionsOpenOverlayTests }
+    { title: "113. Unit Tests — Slides native PPTX open overlay (p14:sectionLst → vno:section-*)", runner: runSlidesPptxSectionsOpenOverlayTests },
+    { title: "114. Unit Tests — Slides native PPTX open overlay (VNOfficeMasterLogo → vno:master-theme)", runner: runSlidesPptxMasterLogoOpenOverlayTests }
   ];
 
   for (const suite of suites) {

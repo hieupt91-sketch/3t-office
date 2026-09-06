@@ -12,8 +12,15 @@
  * and drops the master-page logo text plus vno:master-theme. Phase 2b inserts
  * one standard shape after soffice convert. No custom namespace.
  *
- * Browser-safe: no Node APIs. SlidesAdapter may import this file.
+ * File → Mở overlay (this module): LibreOffice PPTX→FODP keeps the lettering
+ * as draw:custom-shape name="VNOfficeMasterLogo" but drops vno:master-theme
+ * and grMasterLogo, so parseFodp() returns masterTheme=null. Overlay reads
+ * the named p:sp from the original PPTX ZIP and stamps vno:master-theme
+ * before parseFodp. Identify ONLY by name="VNOfficeMasterLogo" — never guess
+ * among other p:sp. Browser-safe: no Node APIs. SlidesAdapter may import.
  */
+
+import { ensureVnoXmlns } from "./pptx-section-list.js";
 
 export const MASTER_LOGO_SHAPE_NAME = "VNOfficeMasterLogo";
 export const SLIDE_MASTER_ENTRY_RE = /^ppt\/slideMasters\/slideMaster\d+\.xml$/i;
@@ -25,12 +32,16 @@ const DEFAULT_SLIDE_CY = Math.round(15.75 * CM_EMU);
 const LOGO_NAME_ATTR = `name="${MASTER_LOGO_SHAPE_NAME}"`;
 
 const MASTER_PAGE_OPEN_RE = /<style:master-page\b([^>]*)>/i;
+const MASTER_PAGE_OPEN_GI_RE = /<style:master-page\b([^>]*?)(\/?)\s*>/gi;
 const THEME_ATTR_RE = /\bvno:master-theme\s*=\s*["']([^"']*)["']/i;
 const LOGO_FRAME_RE = /<draw:frame\b[^>]*grMasterLogo[\s\S]*?<text:p\b[^>]*>([\s\S]*?)<\/text:p>/i;
 const SLD_SZ_RE = /<(?:[\w]+:)?sldSz\b([^>]*)\/?\s*>/i;
 const CNVPR_ID_RE = /<(?:[\w]+:)?cNvPr\b[^>]*\bid=["'](\d+)["']/gi;
 const SP_TREE_CLOSE_RE = /<\/(?:[\w]+:)?spTree\s*>/i;
 const SP_BLOCK_RE = /<(?:[\w]+:)?sp\b[\s\S]*?<\/(?:[\w]+:)?sp>/gi;
+const LOGO_NAME_RE = new RegExp(`\\bname\\s*=\\s*["']${MASTER_LOGO_SHAPE_NAME}["']`);
+const SRGB_RE = /<(?:[\w]+:)?srgbClr\b[^>]*\bval=["']([^"']+)["']/i;
+const LATIN_RE = /<(?:[\w]+:)?latin\b[^>]*\btypeface=["']([^"']+)["']/i;
 
 function unescapeXml(value) {
   return String(value || "")
@@ -262,13 +273,156 @@ function buildLogoShapeXml(masterXml, { logoText, accentColor, fontFamily, box, 
   );
 }
 
-function findNamedShape(masterXml) {
+function collectSpBlocks(masterXml) {
   const xml = String(masterXml || "");
-  const blocks = xml.match(SP_BLOCK_RE) || [];
-  for (const sp of blocks) {
-    if (sp.includes(LOGO_NAME_ATTR) || sp.includes(`name='${MASTER_LOGO_SHAPE_NAME}'`)) return sp;
+  const blocks = [];
+  const re = /<(?:[\w]+:)?sp\b[\s\S]*?<\/(?:[\w]+:)?sp>/gi;
+  let match;
+  while ((match = re.exec(xml))) blocks.push(match[0]);
+  return blocks;
+}
+
+export function findNamedLogoShapes(masterXml) {
+  return collectSpBlocks(masterXml).filter((sp) => LOGO_NAME_RE.test(sp));
+}
+
+function findNamedShape(masterXml) {
+  return findNamedLogoShapes(masterXml)[0] || "";
+}
+
+/**
+ * Read logoText / accentColor / fontFamily from a p:sp that is already known
+ * to be named VNOfficeMasterLogo. Throws instead of guessing.
+ */
+export function parseMasterLogoFromNamedShape(shapeXml) {
+  const sp = String(shapeXml || "");
+  if (!sp) {
+    throw new Error("Shape VNOfficeMasterLogo rỗng — không đoán logo");
   }
-  return "";
+  if (/<(?:[\w]+:)?ph\b/i.test(sp)) {
+    throw new Error("Shape VNOfficeMasterLogo mang p:ph — không đoán logo");
+  }
+  const texts = [];
+  let match;
+  const re = /<(?:[\w]+:)?t\b[^>]*>([\s\S]*?)<\/(?:[\w]+:)?t>/gi;
+  while ((match = re.exec(sp))) texts.push(unescapeXml(match[1] || ""));
+  const logoText = normalizeLogoText(texts.join(""));
+  if (!logoText) {
+    throw new Error("Shape VNOfficeMasterLogo thiếu chữ a:t — không đoán logo");
+  }
+  const rgb = String(sp.match(SRGB_RE)?.[1] || "")
+    .trim()
+    .replace(/^#/, "");
+  const face = unescapeXml(sp.match(LATIN_RE)?.[1] || "");
+  return {
+    logoText,
+    accentColor: /^[0-9a-fA-F]{3,8}$/.test(rgb) ? `#${rgb.toLowerCase()}` : "",
+    fontFamily: face
+  };
+}
+
+/**
+ * Parse one slideMaster XML. 0 named shapes → null (no-op). >1 → throw.
+ * @returns {{ logoText: string, accentColor: string, fontFamily: string } | null}
+ */
+export function parseMasterLogoFromSlideMaster(masterXml) {
+  const shapes = findNamedLogoShapes(masterXml);
+  if (!shapes.length) return null;
+  if (shapes.length > 1) {
+    throw new Error(
+      `PPTX có ${shapes.length} shape tên ${MASTER_LOGO_SHAPE_NAME} trên một slide master — không đoán logo`
+    );
+  }
+  return parseMasterLogoFromNamedShape(shapes[0]);
+}
+
+function logosEqual(a, b) {
+  return a.logoText === b.logoText && a.accentColor === b.accentColor && a.fontFamily === b.fontFamily;
+}
+
+/**
+ * Combine named logos from every slideMaster*.xml. Conflicting values throw.
+ * @param {string|string[]} masterXml
+ * @returns {{ logoText: string, accentColor: string, fontFamily: string } | null}
+ */
+export function parseMasterLogoFromSlideMasters(masterXml) {
+  const list = Array.isArray(masterXml) ? masterXml : masterXml != null && masterXml !== "" ? [masterXml] : [];
+  const found = [];
+  for (const xml of list) {
+    const parsed = parseMasterLogoFromSlideMaster(xml);
+    if (parsed) found.push(parsed);
+  }
+  if (!found.length) return null;
+  const first = found[0];
+  for (const item of found.slice(1)) {
+    if (!logosEqual(item, first)) {
+      throw new Error(
+        "Hai slide master có VNOfficeMasterLogo khác chữ/màu/font — không đoán logo"
+      );
+    }
+  }
+  return first;
+}
+
+function mergeMasterThemePayload(existingRaw, logo) {
+  let theme = {};
+  const raw = String(existingRaw || "").trim();
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") theme = parsed;
+    } catch {
+      /* malformed vno:master-theme — replace with logo fields */
+    }
+  }
+  theme.logoText = logo.logoText;
+  if (logo.accentColor) theme.accentColor = logo.accentColor;
+  if (logo.fontFamily) theme.fontFamily = logo.fontFamily;
+  return theme;
+}
+
+/**
+ * Stamp vno:master-theme onto every style:master-page. Throws if FODP has
+ * none — never invent a master-page.
+ */
+export function applyFodpMasterThemeAttrs(fodpXml, logo) {
+  const xml = String(fodpXml || "");
+  if (!logo || !normalizeLogoText(logo.logoText)) return xml;
+  let index = 0;
+  const next = xml.replace(MASTER_PAGE_OPEN_GI_RE, (full, attrs, slash) => {
+    index += 1;
+    let raw = attrs || "";
+    const selfClose = slash === "/" || /\/\s*$/.test(raw);
+    if (selfClose) raw = raw.replace(/\/\s*$/, "");
+    const existing = unescapeXml(raw.match(THEME_ATTR_RE)?.[1] || "");
+    const encoded = escapeXml(JSON.stringify(mergeMasterThemePayload(existing, logo)));
+    if (THEME_ATTR_RE.test(raw)) {
+      raw = raw.replace(THEME_ATTR_RE, `vno:master-theme="${encoded}"`);
+    } else {
+      raw = `${raw.trimEnd()} vno:master-theme="${encoded}"`;
+    }
+    if (raw.length && !raw.startsWith(" ")) raw = ` ${raw}`;
+    return selfClose ? `<style:master-page${raw}/>` : `<style:master-page${raw}>`;
+  });
+  if (index === 0) {
+    throw new Error("FODP thiếu style:master-page — không gắn logo master");
+  }
+  return ensureVnoXmlns(next);
+}
+
+/**
+ * Phase 2b-open overlay: LibreOffice PPTX→FODP drops vno:master-theme, so
+ * stamp it from the original slideMaster p:sp named VNOfficeMasterLogo.
+ *
+ * @param {string} fodpXml soffice PPTX→FODP output
+ * @param {string|string[]} [masterXml] ppt/slideMasters/slideMaster*.xml from the original PPTX
+ * @returns {string}
+ */
+export function overlayFodpMasterLogo(fodpXml, masterXml) {
+  const xml = String(fodpXml || "");
+  const logo = parseMasterLogoFromSlideMasters(masterXml);
+  if (!logo) return xml;
+  return applyFodpMasterThemeAttrs(xml, logo);
 }
 
 /**
