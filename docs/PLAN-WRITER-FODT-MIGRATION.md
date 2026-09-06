@@ -217,7 +217,7 @@ Verification thật:
 - Microsoft Word thật (Start-Process thụ động): hình mờ chữ mờ, xoay chéo, nằm sau nội dung.
 - `node tests/run-tests.js`: **1230/1230 PASS** (1220 baseline @ `fbf56d7` + 10 test Phase E.2).
 
-### 7c. Phase E.3 — WordArt (hoàn thành); Chart/Diagram để E.4
+### 7c. Phase E.3 — WordArt (hoàn thành)
 
 Phạm vi WordArt đã làm (Grok, worktree `E:\VNOffice-grok-writer-fodt-phase-e3`):
 
@@ -233,15 +233,28 @@ Verification thật:
 - Microsoft Word thật (Start-Process thụ động): chữ **KHAI GIANG** navy lớn, hiệu ứng fade-right, nằm giữa câu.
 - `node tests/run-tests.js`: **1240/1240 PASS** (1230 baseline @ `7f610ca` + 10 test WordArt).
 
-**Chưa làm trong E.3 (để Phase E.4), lý do đo được:**
+**Chưa làm trong E.3 (Chart đã xong ở E.4; Diagram vẫn để lại), lý do đo được:**
 
-- **Chart:** probe C1–C3 FODT `draw:frame`+`draw:object`+`chart:chart` as-char **đã** ra `word/charts/chart1.xml` native (`c:barChart`/`c:lineChart`/`c:pieChart`). Sibling `text:p` bị nuốt. Writer UI là `<div data-vno-chart>` + SVG, chưa serialize. Không làm dở.
+- **Chart:** xem 7d — đã làm Phase E.4.
 - **SmartArt/Diagram:** probe D1–D3 ra shape Word rời / `wpg:wgp`, **không** `word/diagrams/` hay `dgm:`. Writer HTML 4 layout không ánh xạ 1-1 fail-closed. `data-vno-diagram` vẫn throw.
 
-### 7d. Phase E.4 — Chart native và SmartArt/Diagram (đề xuất)
+### 7d. Phase E.4 — Chart native (hoàn thành); SmartArt/Diagram vẫn để lại
 
-- Chart: tái dùng pattern C1 (local-table + `chart:class` bar/line/circle/area) trong `text:p` as-char; parse `draw:object` → `generateChartHtml`.
-- Diagram: cần thiết kế riêng (không giả SmartArt Word từ nhóm shape); chỉ đánh dấu hỗ trợ khi có fixture + Word visual + idempotence.
+Phạm vi Chart đã làm (Grok, worktree `E:\VNOffice-grok-writer-fodt-phase-e4`):
+
+- Writer Chart là **khối** `<div data-vno-chart>` + SVG (`bar`/`line`/`pie`/`area`). **Không** có JSON labels/values — serializer đọc `data-chart-type`, `<text>` tiêu đề đầu SVG, và `<title>Nhãn: số</title>` (đo `generateChartSvg`). SVG rỗng / thiếu title → throw, không bịa từ path/rect.
+- Đo lại trước code (`docs/HANDOFF-WRITER-FODT-PHASE-E4-FINDINGS.md`): local-table **thiếu** `table:table-header-columns`/`table:table-columns` (pattern C1 E.3) → DOCX `c:barChart` đúng loại nhưng cat rỗng và `numCache` không có `<c:pt>` (canonical `office:value="NaN"`). Local-table **đủ cột** (như Slides FODP) → cat `Q1–Q4` và val `120/190/300/250` thật.
+- `serializeToFodt()`: `draw:frame` as-char trong `text:p` + nested `office:chart`, map `bar→chart:bar`, `line→chart:line`, `pie→chart:circle`, `area→chart:area`. Parse `draw:object`/`chart:chart` → `generateChartHtml` (cắt `<p><br></p>` đuôi). Hai series / stock / header → `WRITER_FODT_UNSUPPORTED_CONTENT`.
+- `save()` / `exportPdf()` / `_contentForExport()` không đổi (cutover gate).
+
+Verification thật:
+
+- Unit: `tests/unit/writer-fodt-phase-e4-chart.test.js` — 10 test: cấu trúc local-table, map 4 loại, idempotence, parse circle→pie, fail-closed rỗng/header/2 series/stock/diagram.
+- Live soffice: `tests/live/writer-fodt-phase-e4-chart-real-conversion.mjs` — FODT → DOCX `word/charts/chart1.xml` có `c:barChart`/`c:lineChart`/`c:pieChart`/`c:areaChart`, cat `Q1 Q2 Q3 Q4`, val `120 190 300 250`.
+- Microsoft Word thật (Start-Process thụ động): cột 4 thanh đúng tỉ lệ 120<190<300>250; đường/miền cùng hình; pie 4 lát + legend Q1–Q4 (lát màu đen — style LO, không phải mất dữ liệu).
+- `node tests/run-tests.js`: **1250/1250 PASS** (1240 baseline @ `6012075` + 10 test Phase E.4).
+
+**Chưa làm (Diagram/SmartArt):** không phải lười — probe E.3 D1–D3 không ra SmartArt Word; HTML 4 layout sẽ mất nếu flatten `draw:rect`. `data-vno-diagram` vẫn throw.
 
 ## 8. Chiến lược cutover
 
