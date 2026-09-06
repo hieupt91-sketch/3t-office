@@ -370,6 +370,9 @@ export class SlidesCanvasController {
 
     this.canvasEl = document.createElement("div");
     this.canvasEl.className = "vno-slide-canvas";
+    this.canvasEl.tabIndex = -1;
+    this.canvasEl.setAttribute("role", "region");
+    this.canvasEl.setAttribute("aria-label", "Vùng trình chiếu slide");
     this._applySlideSizeToDom();
 
     this.titleEl = document.createElement("div");
@@ -407,6 +410,37 @@ export class SlidesCanvasController {
     this.body2El.addEventListener("input", () => {
       this._syncEditableFieldsFromDom();
       this._renderThumbnails();
+    });
+
+    this.titleEl.addEventListener("keydown", (e) => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        this.selectNextObject(e.shiftKey);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this.titleEl.blur();
+        this.canvasEl?.focus();
+      }
+    });
+    this.bodyEl.addEventListener("keydown", (e) => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        this.selectNextObject(e.shiftKey);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this.bodyEl.blur();
+        this.canvasEl?.focus();
+      }
+    });
+    this.body2El.addEventListener("keydown", (e) => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        this.selectNextObject(e.shiftKey);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this.body2El.blur();
+        this.canvasEl?.focus();
+      }
     });
 
     this.titleEl.addEventListener("focus", () => this.setSelectedTarget("title"));
@@ -1457,6 +1491,41 @@ export class SlidesCanvasController {
     this.selectedShapeIds = new Set();
     this.selectedTarget = null;
     this._renderShapesLayer();
+    const remaining = (slide.shapes || []).filter(s => s.type !== "connector");
+    if (remaining.length > 0) {
+      const nextShape = remaining[0];
+      this.setSelectedTarget(nextShape.id);
+      const nextEl = this.shapesLayer?.querySelector(`[data-shape-id="${nextShape.id}"]`);
+      nextEl?.focus?.();
+    } else {
+      this.canvasEl?.focus?.();
+    }
+    return true;
+  }
+
+  duplicateSelectedShapes() {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !this.selectedShapeIds || this.selectedShapeIds.size === 0) return false;
+    const allShapes = slide.shapes || [];
+    const selected = allShapes.filter(s => this.selectedShapeIds.has(String(s.id)) && s.type !== "connector");
+    if (!selected.length) return false;
+
+    const clones = this._cloneShapes(selected);
+    const newIds = [];
+    clones.forEach((clone) => {
+      clone.id = Date.now() + Math.floor(Math.random() * 10000);
+      clone.x = Math.min(this.slideSize.width - (clone.w || 50), (clone.x || 0) + 20);
+      clone.y = Math.min(this.slideSize.height - (clone.h || 50), (clone.y || 0) + 20);
+      newIds.push(clone.id);
+      slide.shapes.push(clone);
+      this.undoStack.push({ type: "shape-add", slideIndex: this.currentSlideIndex, shape: { ...clone } });
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this.setSelectedShapes(newIds);
+    this._renderShapesLayer();
+    const firstNew = this.shapesLayer?.querySelector(`[data-shape-id="${newIds[0]}"]`);
+    firstNew?.focus?.();
     return true;
   }
 
@@ -2038,6 +2107,8 @@ export class SlidesCanvasController {
 
     this.setSelectedTarget(newShape.id);
     this._renderShapesLayer();
+    const newEl = this.shapesLayer?.querySelector(`[data-shape-id="${newShape.id}"]`);
+    newEl?.focus?.();
     return true;
   }
 
@@ -2878,6 +2949,28 @@ export class SlidesCanvasController {
       }
       el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${isConnector ? "default" : "move"};z-index:${isConnector ? 0 : 1};`;
 
+      if (!isConnector) {
+        el.tabIndex = 0;
+        el.setAttribute("role", "button");
+        el.addEventListener("focus", () => {
+          if (!this.selectedShapeIds?.has(String(shape.id))) {
+            this.setSelectedTarget(shape.id);
+          }
+        });
+        el.addEventListener("keydown", (event) => {
+          if (event.defaultPrevented) return;
+          if (event.key === "Delete" || event.key === "Backspace") {
+            event.preventDefault();
+            event.stopPropagation();
+            this.deleteSelectedShapes();
+          } else if ((event.ctrlKey || event.metaKey) && (event.key === "d" || event.key === "D")) {
+            event.preventDefault();
+            event.stopPropagation();
+            this.duplicateSelectedShapes();
+          }
+        });
+      }
+
       if (isConnector) {
         this._renderDiagramConnectorElement(el, shape);
       } else if (shape.type === "image" && shape.src) {
@@ -2951,16 +3044,36 @@ export class SlidesCanvasController {
           }
         });
         textEl.addEventListener("keydown", (event) => {
-          if (event.key === "Enter") { event.preventDefault(); textEl.blur(); }
+          if (event.key === "Enter" || event.key === "Escape") {
+            event.preventDefault();
+            textEl.blur();
+            el.focus?.();
+          } else if (event.key === "Tab") {
+            event.preventDefault();
+            textEl.blur();
+            this.selectNextObject(event.shiftKey);
+          }
           event.stopPropagation();
         });
         el.addEventListener("dblclick", (event) => { event.stopPropagation(); startEditing(); });
         el.tabIndex = 0;
         el.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === "F2") {
+            event.preventDefault();
+            event.stopPropagation();
+            startEditing();
+            return;
+          }
           if (event.key === "Delete" || event.key === "Backspace") {
             event.preventDefault();
             event.stopPropagation();
             this.deleteSelectedShapes();
+            return;
+          }
+          if ((event.ctrlKey || event.metaKey) && (event.key === "d" || event.key === "D")) {
+            event.preventDefault();
+            event.stopPropagation();
+            this.duplicateSelectedShapes();
             return;
           }
           if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1 && event.key !== " ") {
@@ -3037,7 +3150,15 @@ export class SlidesCanvasController {
             }
           });
           textEl.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") { event.preventDefault(); textEl.blur(); }
+            if (event.key === "Enter" || event.key === "Escape") {
+              event.preventDefault();
+              textEl.blur();
+              el.focus?.();
+            } else if (event.key === "Tab") {
+              event.preventDefault();
+              textEl.blur();
+              this.selectNextObject(event.shiftKey);
+            }
             event.stopPropagation();
           });
           el.addEventListener("dblclick", (event) => { event.stopPropagation(); startEditing(); });
@@ -3049,10 +3170,22 @@ export class SlidesCanvasController {
               this.selectDiagramGroup(shape.diagramGroupId, shape.id);
               return;
             }
+            if (!shape.diagramGroupId && (event.key === "Enter" || event.key === "F2")) {
+              event.preventDefault();
+              event.stopPropagation();
+              startEditing();
+              return;
+            }
             if (event.key === "Delete" || event.key === "Backspace") {
               event.preventDefault();
               event.stopPropagation();
               this.deleteSelectedShapes();
+              return;
+            }
+            if ((event.ctrlKey || event.metaKey) && (event.key === "d" || event.key === "D")) {
+              event.preventDefault();
+              event.stopPropagation();
+              this.duplicateSelectedShapes();
               return;
             }
             if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1 && event.key !== " ") {
@@ -3562,6 +3695,14 @@ export class SlidesCanvasController {
         }
       }
 
+      if (e.altKey && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        if (this.canvasEl && (document.activeElement === document.body || this.container?.contains(activeEl))) {
+          e.preventDefault();
+          this.selectNextObject(e.key === "ArrowUp" || e.key === "ArrowLeft");
+          return;
+        }
+      }
+
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
         if (this.selectedShapeIds && this.selectedShapeIds.size > 0) {
           e.preventDefault();
@@ -3569,6 +3710,9 @@ export class SlidesCanvasController {
           const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
           const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
           this.nudgeSelected(dx, dy);
+        } else if (activeEl === this.canvasEl || (activeEl && this.container?.contains(activeEl))) {
+          e.preventDefault();
+          this.selectNextObject(e.key === "ArrowUp" || e.key === "ArrowLeft");
         }
       }
 
@@ -3576,6 +3720,15 @@ export class SlidesCanvasController {
         if (this.selectedShapeIds && this.selectedShapeIds.size > 0) {
           e.preventDefault();
           this.deleteSelectedShapes();
+        }
+      }
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === "d" || e.key === "D")) {
+        if (this.selectedShapeIds && this.selectedShapeIds.size > 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.duplicateSelectedShapes();
+          return;
         }
       }
     };
@@ -4043,6 +4196,9 @@ export class SlidesCanvasController {
   }
 
   duplicateCurrentSlide(recordUndo = true) {
+    if (!this.slideSorterOverlay && this.selectedShapeIds && this.selectedShapeIds.size > 0) {
+      return this.duplicateSelectedShapes();
+    }
     const cur = this.slides[this.currentSlideIndex];
     if (!cur) return false;
     const dup = {
