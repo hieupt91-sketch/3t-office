@@ -453,6 +453,7 @@ export const WRITER_RIBBON_TABS = [
     labelKey: "writerRibbon.tab.mailings",
     groups: [
       {
+        id: "createMailings",
         label: "Tạo",
         labelKey: "writerRibbon.group.createMailings",
         items: [
@@ -461,6 +462,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "startMerge",
         label: "Bắt đầu trộn",
         labelKey: "writerRibbon.group.startMerge",
         items: [
@@ -468,6 +470,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "writeInsert",
         label: "Viết & Chèn trường",
         labelKey: "writerRibbon.group.writeInsert",
         items: [
@@ -475,6 +478,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "previewResults",
         label: "Xem trước kết quả",
         labelKey: "writerRibbon.group.previewResults",
         items: [
@@ -489,6 +493,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "finishMerge",
         label: "Hoàn tất",
         labelKey: "writerRibbon.group.finishMerge",
         items: [
