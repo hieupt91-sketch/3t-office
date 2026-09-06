@@ -56,7 +56,7 @@ export async function runWriterFodtPhaseATests() {
 
   await test("Writer FODT Phase A/B refuses out-of-scope Writer content without silent loss", () => {
     for (const html of [
-      '<table><tr><td colspan="2">Dữ liệu</td></tr></table>',
+      '<table><tr><td><table><tr><td>Bảng lồng</td></tr></table></td></tr></table>',
       '<p><img src="data:image/jpeg;base64,AAAA"></p>',
       '<p>Nội dung<sup data-vno-footnote-ref="fn-1">1</sup></p>'
     ]) {

@@ -70,7 +70,12 @@ const html = [
   '<tr><td style="border:1px solid #94a3b8; background-color:#fef3c7"><strong>TIEU_DE_BANG</strong></td><td style="border:1px solid #94a3b8; background-color:#fef3c7">CỘT_HAI</td></tr>',
   '<tr><td>O_MOT_MOT</td><td style="text-align:right">O_MOT_HAI</td></tr>',
   "</tbody></table>",
-  `<p>ANH_NHUNG: <img src="data:image/png;base64,${pngBase64}" data-vno-wrap="inline" style="max-width:100%;height:auto;"></p>`
+  `<p>ANH_NHUNG: <img src="data:image/png;base64,${pngBase64}" data-vno-wrap="inline" style="max-width:100%;height:auto;"></p>`,
+  // Phase B.1: real ODF occupancy grid (colspan header row + rowspan side cell).
+  '<table><tbody>',
+  '<tr><td colspan="2">TIEU_DE_GOP_HAI_COT</td><td rowspan="2">GOP_DOC_HAI_HANG</td></tr>',
+  '<tr><td>HANG_HAI_MOT</td><td>HANG_HAI_HAI</td></tr>',
+  '</tbody></table>'
 ].join("");
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "vno-writer-fodt-phase-b-"));
@@ -104,6 +109,14 @@ try {
   const matchesOriginal = mediaBytes.some(bytes => bytes && bytes.equals(pngBuffer));
   assert.ok(matchesOriginal, "Embedded image bytes in the real DOCX must exactly match the original PNG bytes (no re-encoding/corruption)");
   assert.match(documentXml, /<w:drawing>/, "Image must be a real native DOCX drawing, not flattened text");
+
+  // Phase B.1: colspan/rowspan must become real OOXML w:gridSpan / w:vMerge, not just a visual guess.
+  for (const expected of ["TIEU_DE_GOP_HAI_COT", "GOP_DOC_HAI_HANG", "HANG_HAI_MOT", "HANG_HAI_HAI"]) {
+    assert.match(text, new RegExp(expected), `Real DOCX must contain ${expected}`);
+  }
+  assert.match(documentXml, /<w:gridSpan\b[^>]*w:val="2"/, "Colspan must become a real native DOCX w:gridSpan");
+  assert.match(documentXml, /<w:vMerge\b[^>]*w:val="restart"/, "Rowspan origin must become a real native DOCX w:vMerge restart");
+  assert.match(documentXml, /<w:vMerge\b[^>]*w:val="continue"/, "Rowspan continuation must become a real native DOCX w:vMerge continue");
 
   const parsedAdapter = createAdapter("");
   parsedAdapter.parseFodt(fodt);
