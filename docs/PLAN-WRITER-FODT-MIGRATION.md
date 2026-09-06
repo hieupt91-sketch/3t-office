@@ -178,11 +178,29 @@ Phase A là additive. Rollback chỉ cần revert các commit Phase A; pipeline 
 - Microsoft Word thật (Start-Process thụ động): footnote số mũ 1, endnote i + body cuối tài liệu; comment panel Review «Tran Thi Hoa» + body; TOC «MỤC LỤC» phân cấp 1/2/3 và Navigation pane nhận outline.
 - `node tests/run-tests.js`: **1210/1210 PASS** (1198 baseline @ `9f05f15` + 12 test Phase D).
 
-## 7. Phase E — drawing nâng cao và thay đổi tài liệu (đề xuất)
+## 7. Phase E — drawing nâng cao và thay đổi tài liệu
 
-- WordArt, shape, chart, diagram.
+### 7a. Phase E.1 — Track Changes native (hoàn thành)
+
+Phạm vi đã làm (Grok, worktree `E:\VNOffice-grok-writer-fodt-phase-e1`):
+
+- `<ins data-vno-change="insert">` → `text:changed-region`/`text:insertion` + `text:change-start`/`text:change-end` quanh chữ trong body.
+- `<del data-vno-change="delete">` → `text:changed-region`/`text:deletion` (nội dung trong `text:p` của region) + empty `<text:change/>` tại chỗ xóa. **Không** bọc del bằng start/end trong body (đo LO 26.2.5: pattern đó nhân đôi chữ).
+- `office:change-info`: `dc:creator` khi có `data-vno-author`; `dc:date` bắt buộc (LO nuốt region nếu thiếu date). Phiên không có date dùng sentinel deterministic `1970-01-01T00:00:00`.
+- Parser khôi phục `<ins>`/`<del>` + author/date. `text:format-change` / start-end trỏ deletion → `WRITER_FODT_UNSUPPORTED_CONTENT`.
+- `save()` / `exportPdf()` / `_contentForExport()` không đổi (vẫn strip ins/del trên đường HTML).
+
+Verification thật:
+
+- Unit: `tests/unit/writer-fodt-phase-e1.test.js` — 10 test: cấu trúc insert/delete, author/date, idempotence phiên và import, inline đậm/nghiêng, fail-closed format-change/lồng/header.
+- Live soffice: `tests/live/writer-fodt-phase-e1-real-conversion.mjs` — FODT serializer → DOCX; `word/document.xml` có `<w:del w:author="Nguyen Van An" w:date="…Z">` + `w:delText`, `<w:ins w:author=… w:date=…>`; `word/settings.xml` có `w:trackRevisions`.
+- Microsoft Word thật (Start-Process thụ động): Simple Markup — vạch đỏ lề trái, chữ xóa không còn trên trang, chữ chèn nằm trong câu (không phải chữ màu tĩnh).
+- `node tests/run-tests.js`: **1220/1220 PASS** (1210 baseline @ `4cae9a3` + 10 test Phase E.1).
+
+### 7b. Phase E.2 — WordArt, shape/chart/diagram, watermark (đề xuất, chưa làm)
+
+- WordArt, shape nâng cao, chart, diagram.
 - Watermark bằng background image hoặc anchored drawing trên master page sau probe DOCX fidelity.
-- Track Changes bằng `text:changed-region` và change markers.
 - Mỗi capability chỉ được đánh dấu hỗ trợ khi có fixture import, VN round-trip và LibreOffice real conversion assertion.
 
 ## 8. Chiến lược cutover
