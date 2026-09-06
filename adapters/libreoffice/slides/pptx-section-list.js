@@ -24,6 +24,9 @@ export const PRESENTATION_NS = "http://schemas.openxmlformats.org/presentationml
 export const SECTION_LIST_URI = "{521415D9-36F7-43E2-AB2F-B90AF26B5E84}";
 export const DEFAULT_SECTION_NAME = "Default Section";
 export const SECTION_GUID_NAME_PREFIX = "urn:vn-office:slides:section:";
+export const VNO_NS = "urn:vn-office:slides:1.0";
+const BRACED_GUID_RE = /^\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}$/;
+const OFFICE_DOCUMENT_OPEN_RE = /<office:document\b([^>]*)>/i;
 
 const PAGE_OPEN_RE = /<draw:page(?![-a-zA-Z])([^>]*)>/gi;
 const SECTION_ID_ATTR_RE = /\bvno:section-id\s*=\s*["']([^"']*)["']/i;
@@ -170,6 +173,10 @@ function toHex(bytes, start, end) {
  * UUID v5 (RFC 4122) matching Python uuid.uuid5(uuid.NAMESPACE_URL, name).
  * PowerPoint section @id is a braced GUID.
  */
+export function isBracedGuid(value) {
+  return BRACED_GUID_RE.test(String(value || "").trim());
+}
+
 export function sectionGuidFromId(sectionId) {
   const name = `${SECTION_GUID_NAME_PREFIX}${String(sectionId || "")}`;
   const nameBytes = utf8Bytes(name);
@@ -289,13 +296,20 @@ function qualify(prefix, local) {
   return prefix ? `${prefix}:${local}` : local;
 }
 
+function resolveSectionGuid(section) {
+  if (section.guid) return section.guid;
+  const sourceId = section.sourceId || "";
+  if (isBracedGuid(sourceId)) return String(sourceId).trim().toUpperCase();
+  return sectionGuidFromId(sourceId || section.name || "");
+}
+
 function buildSectionExtXml(presentationXml, sections) {
   const p = nsPrefix(presentationXml, PRESENTATION_NS, "p");
   const p14 = nsPrefix(presentationXml, P14_NS, "p14");
   const sectionXml = sections
     .map((section) => {
       const name = escapeXml(section.name || "");
-      const guid = section.guid || sectionGuidFromId(section.sourceId || section.name || "");
+      const guid = resolveSectionGuid(section);
       const ids = (section.slideIds || [])
         .map((id) => `<${qualify(p14, "sldId")} id="${escapeXml(String(id))}"/>`)
         .join("");
@@ -359,4 +373,107 @@ export function applySectionListFromFodp(presentationXml, fodpXml) {
     slideIds: group.pageIndexes.map((index) => slideIds[index])
   }));
   return applySectionList(presentationXml, sections);
+}
+
+export function ensureVnoXmlns(fodpXml) {
+  const xml = String(fodpXml || "");
+  if (/xmlns:vno\s*=/i.test(xml)) return xml;
+  const match = xml.match(OFFICE_DOCUMENT_OPEN_RE);
+  if (!match) return xml;
+  const attrs = match[1] || "";
+  const nextTag = `<office:document${attrs} xmlns:vno="${VNO_NS}">`;
+  return xml.slice(0, match.index) + nextTag + xml.slice(match.index + match[0].length);
+}
+
+/**
+ * Stamp vno:section-id / vno:section-name onto draw:page open tags by index.
+ * pageSections[i] is { id, name } or null/undefined to leave that page alone.
+ * Throws if the number of draw:page tags ≠ pageSections.length — never guess.
+ */
+export function applyFodpSectionAttrs(fodpXml, pageSections) {
+  const xml = String(fodpXml || "");
+  const specs = Array.isArray(pageSections) ? pageSections : [];
+  const re = /<draw:page(?![-a-zA-Z])([^>]*)>/gi;
+  let index = 0;
+  const next = xml.replace(re, (full, attrs) => {
+    const spec = index < specs.length ? specs[index] : null;
+    index += 1;
+    if (!spec || !spec.id) return full;
+    let raw = attrs || "";
+    const selfClose = /\/\s*$/.test(raw);
+    if (selfClose) raw = raw.replace(/\/\s*$/, "");
+    if (SECTION_ID_ATTR_RE.test(raw)) {
+      raw = raw.replace(SECTION_ID_ATTR_RE, `vno:section-id="${escapeXml(spec.id)}"`);
+    } else {
+      raw = `${raw.trimEnd()} vno:section-id="${escapeXml(spec.id)}"`;
+    }
+    if (SECTION_NAME_ATTR_RE.test(raw)) {
+      raw = raw.replace(SECTION_NAME_ATTR_RE, `vno:section-name="${escapeXml(spec.name || "")}"`);
+    } else {
+      raw = `${raw.trimEnd()} vno:section-name="${escapeXml(spec.name || "")}"`;
+    }
+    if (raw.length && !raw.startsWith(" ")) raw = ` ${raw}`;
+    return selfClose ? `<draw:page${raw}/>` : `<draw:page${raw}>`;
+  });
+  if (index !== specs.length) {
+    throw new Error(
+      `Số draw:page FODP (${index}) không khớp danh sách overlay (${specs.length}) — không đoán ánh xạ phần`
+    );
+  }
+  return ensureVnoXmlns(next);
+}
+
+/**
+ * Phase 3a-open overlay: LibreOffice PPTX→FODP drops p14:sectionLst, so
+ * stamp vno:section-* onto draw:page from the original presentation.xml.
+ *
+ * Mapping is p:sldIdLst order ↔ draw:page order (probe: counts match; names
+ * do not — draw:name becomes the slide title). Never guess on mismatch.
+ *
+ * @param {string} fodpXml soffice PPTX→FODP output
+ * @param {string} [presentationXml] ppt/presentation.xml from the original PPTX
+ * @returns {string}
+ */
+export function overlayFodpSections(fodpXml, presentationXml) {
+  const xml = String(fodpXml || "");
+  if (!presentationHasSectionList(presentationXml)) return xml;
+  const slideIds = parsePresentationSlideIds(presentationXml);
+  const pages = parseFodpPages(xml);
+  if (slideIds.length !== pages.length) {
+    throw new Error(
+      `PPTX sldIdLst (${slideIds.length}) không khớp số draw:page FODP (${pages.length}) — không đoán ánh xạ phần`
+    );
+  }
+  const sections = parseSectionList(presentationXml);
+  if (!sections.length) {
+    throw new Error("PPTX có p14:sectionLst nhưng không đọc được phần — không đoán ánh xạ phần");
+  }
+  const byId = new Map();
+  const seen = new Set();
+  for (const section of sections) {
+    const sectionId = String(section.id || "").trim();
+    const sectionName = String(section.name || "").trim();
+    if (!section.slideIds.length) continue;
+    if (!sectionId && !sectionName) {
+      throw new Error("p14:section có slide nhưng thiếu name và id — không đoán ánh xạ phần");
+    }
+    const id = sectionId || `section:${sectionName}`;
+    const name = sectionName || "Phần không tên";
+    for (const sldId of section.slideIds) {
+      if (!slideIds.includes(sldId)) {
+        throw new Error(
+          `p14:sldId id="${sldId}" không có trong p:sldIdLst — không đoán ánh xạ phần`
+        );
+      }
+      if (seen.has(sldId)) {
+        throw new Error(
+          `p14:sldId id="${sldId}" thuộc hai phần — không đoán ánh xạ phần`
+        );
+      }
+      seen.add(sldId);
+      byId.set(sldId, { id, name });
+    }
+  }
+  const pageSections = slideIds.map((sldId) => byId.get(sldId) || null);
+  return applyFodpSectionAttrs(xml, pageSections);
 }

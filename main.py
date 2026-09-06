@@ -359,24 +359,63 @@ def _read_xlsx_workbook_xml(src_path: str) -> str | None:
         return None
 
 
-def _apply_native_import_overlay(src_path: str, fods: str, app_kind: str | None) -> str:
-    """After soffice XLSX→FODS, restore table:structure-protected from the original XLSX.
+def _read_pptx_presentation_xml(src_path: str) -> str | None:
+    """Read ppt/presentation.xml from the original .pptx via the shared ZIP helper.
 
-    LibreOffice does not map workbookProtection lockStructure back to
-    table:structure-protected. Overlay the FODS here — before JS
-    SheetAdapter.parseFods() — so File → Mở shows the real structure lock.
-    Failures return the original FODS so open still succeeds.
+    Sheet forwards xl/workbook.xml as ooxmlWorkbookXml. Slides does the same
+    for presentation.xml so the adapter can overlay p14:sectionLst if the
+    FODP path missed it. Missing/corrupt packages return None so File → Mở
+    still loads the soffice FODP body when overlay already ran in Python.
     """
-    if app_kind != "sheet":
-        return fods
-    if not src_path or not str(src_path).lower().endswith(".xlsx"):
-        return fods
+    if not src_path or not str(src_path).lower().endswith(".pptx"):
+        return None
     try:
         with open(src_path, "rb") as handle:
-            original = handle.read()
-        return _ooxml_zip_patch().overlay_sheet_xlsx_fods(original, fods)
+            package = handle.read()
+        entry = _ooxml_zip_patch().read_zip_entry(package, "ppt/presentation.xml")
+        if not entry:
+            return None
+        return entry.decode("utf-8", errors="replace")
+    except (OSError, UnicodeError, DocumentEngineError):
+        return None
     except Exception:
-        return fods
+        return None
+
+
+def _apply_native_import_overlay(src_path: str, fods: str, app_kind: str | None) -> str:
+    """After soffice convert, restore native flags LibreOffice dropped.
+
+    Sheet XLSX: lockStructure → table:structure-protected. Failures return
+    the original FODS so open still succeeds (optional UI lock).
+
+    Slides PPTX: p14:sectionLst → vno:section-* on draw:page. Count mismatch
+    raises DocumentEngineError — never guess a mapping onto the wrong page.
+    """
+    if app_kind == "sheet":
+        if not src_path or not str(src_path).lower().endswith(".xlsx"):
+            return fods
+        try:
+            with open(src_path, "rb") as handle:
+                original = handle.read()
+            return _ooxml_zip_patch().overlay_sheet_xlsx_fods(original, fods)
+        except Exception:
+            return fods
+    if app_kind == "slides":
+        if not src_path or not str(src_path).lower().endswith(".pptx"):
+            return fods
+        try:
+            with open(src_path, "rb") as handle:
+                original = handle.read()
+            return _ooxml_zip_patch().overlay_slides_pptx_fodp(original, fods)
+        except DocumentEngineError:
+            raise
+        except ValueError as exc:
+            raise DocumentEngineError(str(exc)) from exc
+        except Exception as exc:
+            raise DocumentEngineError(
+                f"Không khôi phục được Phần (Sections) từ PPTX gốc: {exc}"
+            ) from exc
+    return fods
 
 
 _IMG_TAG_RE = re.compile(r"<img\b([^>]*?)(\s*/?)>", re.IGNORECASE)
@@ -542,6 +581,10 @@ class VnOfficeApi:
                     # Overlay BEFORE the FODS leaves this process — SheetAdapter.parseFods
                     # must see table:structure-protected when the original XLSX is locked.
                     content = _apply_native_import_overlay(src_path, content, app_kind)
+                elif app_kind == "slides":
+                    # Overlay BEFORE the FODP leaves this process — SlidesAdapter.parseFodp
+                    # must see vno:section-* when the original PPTX has p14:sectionLst.
+                    content = _apply_native_import_overlay(src_path, content, app_kind)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
 
@@ -563,6 +606,10 @@ class VnOfficeApi:
             workbook_xml = _read_xlsx_workbook_xml(src_path)
             if workbook_xml:
                 payload["ooxmlWorkbookXml"] = workbook_xml
+        elif app_kind == "slides":
+            presentation_xml = _read_pptx_presentation_xml(src_path)
+            if presentation_xml:
+                payload["ooxmlPresentationXml"] = presentation_xml
         return payload
 
     def save_document_dialog(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu"):

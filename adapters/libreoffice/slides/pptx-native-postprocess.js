@@ -25,7 +25,8 @@ import {
 import {
   applySectionList,
   applySectionListFromFodp,
-  fodpHasSections
+  fodpHasSections,
+  overlayFodpSections
 } from "./pptx-section-list.js";
 
 function asBuffer(zipPathOrBuffer) {
@@ -116,4 +117,22 @@ export function postProcessSlidesPptx(pptxPathOrBuffer, options = {}) {
 
   if (!Object.keys(replacements).length) return source;
   return patchOoxmlZip(source, replacements);
+}
+
+/**
+ * Phase 3a-open File → Mở: read ppt/presentation.xml from the original PPTX
+ * ZIP (via ooxml-zip-patch.js, not a rewritten ZIP reader) and overlay FODP
+ * before SlidesAdapter.parseFodp().
+ *
+ * @param {string|Buffer} pptxPathOrBuffer original PPTX
+ * @param {string} fodpXml soffice PPTX→FODP output (usually missing vno:section-*)
+ * @returns {string} FODP with vno:section-id/name when p14:sectionLst is set
+ */
+export function overlaySlidesPptxFodp(pptxPathOrBuffer, fodpXml) {
+  const source = asBuffer(pptxPathOrBuffer);
+  const current = readZipEntry(source, PPTX_PRESENTATION_ENTRY);
+  if (!current) {
+    throw new Error("PPTX thiếu ppt/presentation.xml — không thể khôi phục Phần (Sections)");
+  }
+  return overlayFodpSections(fodpXml, current.toString("utf8"));
 }
