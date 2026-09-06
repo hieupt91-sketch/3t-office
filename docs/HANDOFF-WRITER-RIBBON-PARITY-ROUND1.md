@@ -1,108 +1,90 @@
-﻿# BÁO CÁO BÀN GIAO: VN WRITER RIBBON PARITY — ROUND 1 (4 TAB ĐẦU)
+# BAO CAO BAN GIAO: VN WRITER RIBBON PARITY - ROUND 1 (4 TAB DAU)
 
-> **Nhánh**: ix/writer-ribbon-parity-round1 (tách từ main, KHÔNG merge vào main)  
-> **Worktree**: E:\VNOffice-agy-writer-ribbon-parity-r1  
-> **Tác giả**: agy (UI/Design Agent)  
-> **Trạng thái**: Hoàn tất 4/4 tab (Home, Insert, Design, Layout)  
-> **Kiểm thử chất lượng**:  
-> - 
-ode tests/run-tests.js: **1259/1259 PASS (100%)**  
-> - 
-ode tests/live/ribbon-audit-1280.playwright.mjs: **104/104 PASS (0px tràn ngang tại 1280px ở cả Tiếng Việt & Tiếng Anh)**  
-> - Live browser interactive test: **PASS (100% nút hoạt động, 0 lỗi DOM/runtime)**
+- **Nhanh**: fix/writer-ribbon-parity-round1 (tach tu main, KHONG merge vao main)
+- **Worktree**: E:\VNOffice-agy-writer-ribbon-parity-r1
+- **Tac gia**: agy (UI/Design Agent)
+- **Trang thai**: Hoan tat 4/4 tab (Home, Insert, Design, Layout)
+- **Kiem thu chat luong**:
+  - node tests/run-tests.js: 1259/1259 PASS (100%)
+  - node tests/live/ribbon-audit-1280.playwright.mjs: 104/104 PASS (0px tran ngang tai 1280px o ca Tieng Viet & Tieng Anh)
+  - Live browser interactive test: PASS (100% nut hoat dong, 0 loi DOM/runtime)
 
 ---
 
-## 1. TỔNG QUAN VÀ CHIẾN LƯỢC SẮP XẾP
+## 1. Tong quan va chien luoc sap xep
 
-Đợt này tập trung vào việc **sắp xếp lại cấu trúc nhóm lệnh và thứ tự các nút** trên 4 tab đầu tiên của VN Writer (**Home, Insert, Design, Layout**) để tương đương với **Microsoft Word thật**, đặc biệt là quy trình thiết lập trang/bố cục và in ấn.
+Dot nay tap trung vao viec sap xep lai cau truc nhom lenh va thu tu cac nut tren 4 tab dau tien cua VN Writer (Home, Insert, Design, Layout) de tuong duong voi Microsoft Word that, dac biet la quy trinh thiet lap trang/bo cuc va in an.
 
-Nguyên tắc tuân thủ nghiêm ngặt:
-1. **Chỉ làm UI/Thiết kế**: Không sửa logic tính toán, xử lý lệnh, hoặc serializer ODF/OOXML.
-2. **Không bịa lệnh giả**: Các tính năng Word có mà engine VN Writer chưa hỗ trợ được ghi nhận chi tiết thành danh sách GAP cho Grok/Codex, tuyệt đối không tạo command rỗng.
-3. **Tái sử dụng command thật**: Các lệnh Paragraph (thụt lề, giãn dòng) đã có trong engine được đưa thêm vào tab Layout đúng chuẩn Word.
-4. **Bảo toàn 0px tràn ngang tại 1280px**: Mọi thay đổi đều được đo đạc thật bằng Playwright tại 1280x800 và 1280x720, đảm bảo không có thanh cuộn ngang.
-5. **Commit độc lập từng tab**: Mỗi tab được kiểm thử và commit riêng rẽ ngay sau khi hoàn thành.
+Nguyen tac tuan thu nghiem ngat:
+1. Chi lam UI/Thiet ke - Khong sua logic tinh toan, xu ly lenh, hoac serializer ODF/OOXML.
+2. Khong bia lenh gia - Cac tinh nang Word co ma engine VN Writer chua ho tro duoc ghi nhan chi tiet thanh danh sach GAP cho Grok/Codex, tuyet doi khong tao command rong.
+3. Tai su dung command that - Cac lenh Paragraph (thut le, gian dong) da co trong engine duoc dua them vao tab Layout dung chuan Word.
+4. Bao toan 0px tran ngang tai 1280px - Moi thay doi deu duoc do dac that bang Playwright tai 1280x800 va 1280x720, dam bao khong co thanh cuon ngang.
+5. Commit doc lap tung tab - Moi tab duoc kiem thu va commit rieng re ngay sau khi hoan thanh.
 
 ---
 
-## 2. BẢNG ĐỐI CHIẾU CHI TIẾT TỪNG TAB
+## 2. Bang doi chieu chi tiet tung tab
 
-### 2.1. Tab Trang đầu (Home)
+### 2.1. Tab Trang dau (Home)
 
-| Thành phần | Chuẩn Microsoft Word | Hiện trạng VN Writer trước đợt | Đã sắp xếp / xử lý trong đợt này | GAP còn lại cần Grok / Codex |
+| Thanh phan | Chuan Microsoft Word | Hien trang VN Writer truoc dot | Da sap xep / xu ly trong dot nay | GAP con lai can Grok / Codex |
 |---|---|---|---|---|
-| **Bảng nhớ tạm (Clipboard)** | Paste, Cut, Copy, Format Painter | Đã có Paste (large), Cut, Copy, Format Painter | Giữ nguyên vì đã chuẩn 100% | Không có |
-| **Phông chữ (Font) — Dòng 1** | Font Family, Font Size, Grow, Shrink, Change Case, Clear All Formatting | Family, Size, Grow, Shrink | Giữ cân đối kích thước dòng 1 (~270px) tránh phình ngang làm tràn Home tab ở 1280px | Text Effects & Typography (chưa có trong engine) |
-| **Phông chữ (Font) — Dòng 2** | Bold, Italic, Underline, Strikethrough, Subscript, Superscript, Text Effects, Highlight, Font Color | Bold, Italic, Underline, Subscript, Superscript, Strike, Change Case, Clear Format, Text Color, Highlight | Sắp xếp lại thứ tự: Bold → Italic → Underline → **Strikethrough** → Subscript → Superscript → Change Case → Clear Format → **Highlight** → **Text Color** (chuẩn vị trí Word) | Đã đồng bộ |
-| **Đoạn văn (Paragraph) — Dòng 1** | Bullets, Numbering, Multilevel List, Decrease Indent, Increase Indent, Sort, Show/Hide Marks (¶) | Bullets, Numbering, Sort, Show Marks, Indent Dec, Indent Inc | Đổi vị trí: Đưa **Decrease Indent & Increase Indent** lên ngay sau Bullets/Numbering, sau đó mới đến **Sort** và **Show Formatting Marks (¶)** | Multilevel List (danh sách đa cấp — cần engine danh sách số) |
-| **Đoạn văn (Paragraph) — Dòng 2** | Align Left, Center, Right, Justify, Line Spacing, Shading, Borders | Align Left, Center, Right, Justify, Line Spacing (1.0/1.5/2.0), Shading, Borders | Chuẩn vị trí Word, giữ nguyên | Borders dialog nâng cao |
-| **Kiểu dáng (Styles)** | Quick Styles Gallery Strip + Thư viện kiểu dáng | Style Gallery (large) + Quick Styles Strip (6 style chuẩn) | Giữ nguyên (đã chuẩn Word, tuân thủ one-feature-one-display) | Tùy biến tạo Style mới |
-| **Chỉnh sửa (Editing)** | Find, Replace, Select (Select All, Select Objects) | Find, Replace, Select dropdown (Select All) | Giữ nguyên, đầy đủ 3 chức năng | Select Objects (chọn đối tượng hình) |
+| Bang nho tam (Clipboard) | Paste, Cut, Copy, Format Painter | Da co Paste (large), Cut, Copy, Format Painter | Giu nguyen vi da chuan 100% | Khong co |
+| Phong chu (Font) - Dong 1 | Font Family, Font Size, Grow, Shrink, Change Case, Clear All Formatting | Family, Size, Grow, Shrink | Giu can doi kich thuoc dong 1 (~270px) tranh phinh ngang lam tran Home tab o 1280px | Text Effects & Typography (chua co trong engine) |
+| Phong chu (Font) - Dong 2 | Bold, Italic, Underline, Strikethrough, Subscript, Superscript, Text Effects, Highlight, Font Color | Bold, Italic, Underline, Subscript, Superscript, Strike, Change Case, Clear Format, Text Color, Highlight | Sap xep lai thu tu: Bold - Italic - Underline - Strikethrough - Subscript - Superscript - Change Case - Clear Format - Highlight - Text Color (chuan vi tri Word) | Da dong bo |
+| Doan van (Paragraph) - Dong 1 | Bullets, Numbering, Multilevel List, Decrease Indent, Increase Indent, Sort, Show/Hide Marks | Bullets, Numbering, Sort, Show Marks, Indent Dec, Indent Inc | Doi vi tri: dua Decrease/Increase Indent len ngay sau Bullets/Numbering, sau do moi den Sort va Show Formatting Marks | Multilevel List (danh sach da cap - can engine danh sach so) |
+| Doan van (Paragraph) - Dong 2 | Align Left, Center, Right, Justify, Line Spacing, Shading, Borders | Align Left, Center, Right, Justify, Line Spacing (1.0/1.5/2.0), Shading, Borders | Chuan vi tri Word, giu nguyen | Borders dialog nang cao |
+| Kieu dang (Styles) | Quick Styles Gallery Strip + Thu vien kieu dang | Style Gallery (large) + Quick Styles Strip (6 style chuan) | Giu nguyen (da chuan Word) | Tuy bien tao Style moi |
+| Chinh sua (Editing) | Find, Replace, Select (Select All, Select Objects) | Find, Replace, Select dropdown (Select All) | Giu nguyen, day du 3 chuc nang | Select Objects (chon doi tuong hinh) |
 
----
+### 2.2. Tab Chen (Insert)
 
-### 2.2. Tab Chèn (Insert)
-
-| Thành phần | Chuẩn Microsoft Word | Hiện trạng VN Writer trước đợt | Đã sắp xếp / xử lý trong đợt này | GAP còn lại cần Grok / Codex |
+| Thanh phan | Chuan Microsoft Word | Hien trang VN Writer truoc dot | Da sap xep / xu ly trong dot nay | GAP con lai can Grok / Codex |
 |---|---|---|---|---|
-| **Trang văn bản (Pages)** | Cover Page, Blank Page, Page Break | Page Break (large) | Chuẩn hóa id: "pages" | Cover Page (Trang bìa mẫu), Blank Page (Trang trắng) |
-| **Bảng biểu (Tables)** | Table | Table (large) | Chuẩn hóa id: "tables" | Quick Tables (Bảng mẫu định dạng sẵn) |
-| **Minh họa (Illustrations)** | Pictures, Shapes, Icons, SmartArt, Chart, Screenshot | Image, Shape, Diagram, Chart | Giữ nguyên 4 nút vector lớn theo đúng thứ tự | Icons (SVG library), Screenshot (chụp màn hình) |
-| **Liên kết (Links)** | Hyperlink, Bookmark, Cross-reference | Hyperlink (large), Bookmark, Cross-reference | Giữ nguyên (đầy đủ cả 3) | Không có |
-| **Ghi chú (Comments)** | Comment | Comment (large) | Giữ nguyên | Không có |
-| **Đầu/Chân trang (Header & Footer)** | Header, Footer, Page Number | Header (large), Footer (large) | Chuẩn hóa id: "headerFooter" | Page Number menu riêng (hiện đang chèn qua template footer) |
-| **Văn bản (Text)** | Text Box, Quick Parts, WordArt, Drop Cap, Signature Line, Date & Time, Object | Text Box (large), WordArt (large), Drop Cap, Date & Time | Giữ nguyên cấu trúc | Quick Parts / AutoText, Signature Line, Object OLE |
-| **Ký hiệu (Symbols)** | Equation, Symbol | Equation (large), Symbol (large) | Giữ nguyên đầy đủ | Equation Builder nâng cao |
+| Trang van ban (Pages) | Cover Page, Blank Page, Page Break | Page Break (large) | Chuan hoa id: pages | Cover Page, Blank Page |
+| Bang bieu (Tables) | Table | Table (large) | Chuan hoa id: tables | Quick Tables |
+| Minh hoa (Illustrations) | Pictures, Shapes, Icons, SmartArt, Chart, Screenshot | Image, Shape, Diagram, Chart | Giu nguyen 4 nut vector lon theo dung thu tu | Icons (SVG library), Screenshot |
+| Lien ket (Links) | Hyperlink, Bookmark, Cross-reference | Hyperlink (large), Bookmark, Cross-reference | Giu nguyen (day du ca 3) | Khong co |
+| Ghi chu (Comments) | Comment | Comment (large) | Giu nguyen | Khong co |
+| Dau/Chan trang (Header & Footer) | Header, Footer, Page Number | Header (large), Footer (large) | Chuan hoa id: headerFooter | Page Number menu rieng |
+| Van ban (Text) | Text Box, Quick Parts, WordArt, Drop Cap, Signature Line, Date & Time, Object | Text Box (large), WordArt (large), Drop Cap, Date & Time | Giu nguyen cau truc | Quick Parts/AutoText, Signature Line, Object OLE |
+| Ky hieu (Symbols) | Equation, Symbol | Equation (large), Symbol (large) | Giu nguyen day du | Equation Builder nang cao |
 
----
+### 2.3. Tab Thiet ke (Design)
 
-### 2.3. Tab Thiết kế (Design)
-
-| Thành phần | Chuẩn Microsoft Word | Hiện trạng VN Writer trước đợt | Đã sắp xếp / xử lý trong đợt này | GAP còn lại cần Grok / Codex |
+| Thanh phan | Chuan Microsoft Word | Hien trang VN Writer truoc dot | Da sap xep / xu ly trong dot nay | GAP con lai can Grok / Codex |
 |---|---|---|---|---|
-| **Định dạng tài liệu (Document Formatting)** | Themes / Style Set gallery, Colors, Fonts, Paragraph Spacing, Effects, Set as Default | Theme Gallery (large) bao gồm font, màu, giãn dòng | Giữ nguyên nút writer.design.themeGallery chuẩn | Bộ chọn màu theme riêng rẽ (Color Palette picker), Font picker theo theme |
-| **Nền & Viền trang (Page Background)** | Watermark, Page Color, Page Borders | Watermark, Page Color, Page Border | Chuẩn hóa id: "pageBackground", giữ đúng thứ tự: Watermark → Page Color → Page Border | Tùy biến Picture Watermark (hiện đã hỗ trợ Text Watermark) |
+| Dinh dang tai lieu (Document Formatting) | Themes/Style Set gallery, Colors, Fonts, Paragraph Spacing, Effects, Set as Default | Theme Gallery (large) bao gom font, mau, gian dong | Giu nguyen nut writer.design.themeGallery chuan | Color Palette picker rieng, Font picker theo theme |
+| Nen & Vien trang (Page Background) | Watermark, Page Color, Page Borders | Watermark, Page Color, Page Border | Chuan hoa id: pageBackground, giu dung thu tu: Watermark - Page Color - Page Border | Picture Watermark tuy bien |
 
----
+### 2.4. Tab Bo cuc (Layout)
 
-### 2.4. Tab Bố cục (Layout)
-
-| Thành phần | Chuẩn Microsoft Word | Hiện trạng VN Writer trước đợt | Đã sắp xếp / xử lý trong đợt này | GAP còn lại cần Grok / Codex |
+| Thanh phan | Chuan Microsoft Word | Hien trang VN Writer truoc dot | Da sap xep / xu ly trong dot nay | GAP con lai can Grok / Codex |
 |---|---|---|---|---|
-| **Thiết lập trang (Page Setup)** | Margins, Orientation, Size, Columns, Breaks, Line Numbers, Hyphenation | Margins, Orientation, Size, Breaks dropdown, Columns, Columns 1/2/3 | Sắp xếp lại thứ tự đúng chuẩn Word: **Margins → Orientation → Size → Columns (kèm chọn nhanh 1/2/3) → Breaks (dropdown cỡ lớn)** | Line Numbers (Đánh số dòng — engine chưa có logic), Hyphenation (Gạch nối từ — engine chưa có logic) |
-| **Đoạn văn (Paragraph)** | Indent Left, Indent Right, Spacing Before, Spacing After | Chưa có trên tab Layout | **ĐÃ BỔ SUNG** nhóm paragraph trên Layout gồm: Giảm thụt lề (writer.para.indentDec), Thụt lề (writer.para.indentInc) và Dropdown Giãn dòng (writer.para.lineSpacingLayout 1.0, 1.5, 2.0) | Spinbox đo lường khoảng cách Before/After theo point (pt) |
-| **Nền & Viền trang (Page Background)** | Word để ở tab Design (nhưng Writer giữ ở cả Layout để in ấn tiện lợi và tương thích ngược) | Watermark, Border | Giữ nguyên trên Layout theo yêu cầu tương thích ngược & tiện lợi in ấn | Đã đồng bộ |
-| **In ấn (Print)** | Word đưa vào Backstage (nhưng VN Writer đưa lên ribbon Layout để in ấn/soát trang nhanh) | In tài liệu (Print), Xem trước khi in (Print Preview) | Chuẩn hóa id: "print", đặt ở cuối tab Layout sau thiết lập trang | Đã đồng bộ |
-| **Sắp xếp đối tượng (Arrange)** | Position, Wrap Text, Bring Forward, Send Backward, Selection Pane, Align, Group, Rotate | Hiện nằm trên tab ngữ cảnh pictureFormat (Định dạng Hình ảnh) kích hoạt khi nhấp chọn ảnh | Giữ nguyên trên tab ngữ cảnh pictureFormat cho ảnh đang chọn (đúng logic Word) | Selection Pane (Bảng quản lý danh sách layer đối tượng), Group/Rotate shape trong Writer |
+| Thiet lap trang (Page Setup) | Margins, Orientation, Size, Columns, Breaks, Line Numbers, Hyphenation | Margins, Orientation, Size, Breaks dropdown, Columns, Columns 1/2/3 | Sap xep lai dung thu tu chuan Word: Margins - Orientation - Size - Columns (kem chon nhanh 1/2/3) - Breaks (dropdown co lon) | Line Numbers (engine chua co logic), Hyphenation (engine chua co logic) |
+| Doan van (Paragraph) | Indent Left, Indent Right, Spacing Before, Spacing After | Chua co tren tab Layout | Da bo sung nhom paragraph tren Layout gom: Giam thut le (writer.para.indentDec), Thut le (writer.para.indentInc) va Dropdown Gian dong (writer.para.spacing1/15/2, tai su dung command da co) | Spinbox do khoang cach Before/After theo point (pt) |
+| Nen & Vien trang (Page Background) | Word de o tab Design (Writer giu o ca Layout de in an tien loi va tuong thich nguoc) | Watermark, Border | Giu nguyen tren Layout theo yeu cau tuong thich nguoc & tien loi in an | Da dong bo |
+| In an (Print) | Word dua vao Backstage (VN Writer dua len ribbon Layout de in an/soat trang nhanh) | In tai lieu (Print), Xem truoc khi in (Print Preview) | Chuan hoa id: print, dat o cuoi tab Layout sau thiet lap trang | Da dong bo |
+| Sap xep doi tuong (Arrange) | Position, Wrap Text, Bring Forward, Send Backward, Selection Pane, Align, Group, Rotate | Hien nam tren tab ngu canh pictureFormat (kich hoat khi chon anh) | Giu nguyen tren tab ngu canh pictureFormat cho anh dang chon (dung logic Word) | Selection Pane, Group/Rotate shape trong Writer |
 
 ---
 
-## 3. LỊCH SỬ COMMIT TRÊN BRANCH ix/writer-ribbon-parity-round1
+## 3. Lich su commit tren branch fix/writer-ribbon-parity-round1
 
-1. ca596a1: ix(writer/ribbon): sap xep tab Home theo chuan Microsoft Word (Font va Paragraph)
-2. 69cb7e4: ix(writer/ribbon): chuan hoa id va cau truc nhom tab Insert theo Microsoft Word
-3. 41db4df: ix(writer/ribbon): chuan hoa id nhom pageBackground tab Design theo Microsoft Word
-4. cb99246: ix(writer/ribbon): sap xep tab Layout theo chuan Microsoft Word (Page Setup, Paragraph, Page Background, Print)
+1. ca596a1: fix(writer/ribbon): sap xep tab Home theo chuan Microsoft Word (Font va Paragraph)
+2. 69cb7e4: fix(writer/ribbon): chuan hoa id va cau truc nhom tab Insert theo Microsoft Word
+3. 41db4df: fix(writer/ribbon): chuan hoa id nhom pageBackground tab Design theo Microsoft Word
+4. cb99246: fix(writer/ribbon): sap xep tab Layout theo chuan Microsoft Word (Page Setup, Paragraph, Page Background, Print)
 
 ---
 
-## 4. DANH SÁCH GAP KỸ THUẬT BÀN GIAO CHO GROK / CODEX
+## 4. Danh sach GAP ky thuat ban giao cho Grok / Codex
 
-Dưới đây là các tính năng chuẩn Microsoft Word mà VN Writer **chưa có engine/command xử lý ngầm** (không thuộc phạm vi UI-only):
+Cac tinh nang chuan Microsoft Word ma VN Writer chua co engine/command xu ly ngam (khong thuoc pham vi UI-only):
 
-1. **Line Numbers (Đánh số dòng)**:
-   - *Mô tả*: Cho phép đánh số từng dòng văn bản (Continuous, Restart Each Page, Restart Each Section).
-   - *Yêu cầu Grok/Codex*: Cần engine phân trang live đếm dòng thật và render số dòng ở lề trái, serialize vào FODT/DOCX <w:lnNumType>.
-2. **Hyphenation (Ngắt nối từ tự động)**:
-   - *Mô tả*: Tự động chèn dấu gạch nối ngắt từ ở cuối dòng để căn đều đẹp mắt.
-   - *Yêu cầu Grok/Codex*: Cần từ điển âm tiết tiếng Việt/tiếng Anh và thuật toán hyphenation trên canvas text rendering.
-3. **Selection Pane (Ngăn chọn đối tượng)**:
-   - *Mô tả*: Sidebar hiển thị danh sách tất cả hình ảnh, sơ đồ, biểu đồ, shape trên trang để ẩn/hiện hoặc đổi thứ tự z-index.
-   - *Yêu cầu Grok/Codex*: Quản lý danh sách ID đối tượng trong WriterAdapter.shapes và img elements.
-4. **Spacing Before / Spacing After Spinboxes**:
-   - *Mô tả*: Nhập thông số giãn đoạn trước/sau theo đơn vị pt.
-   - *Yêu cầu Grok/Codex*: Hiện tại Writer mới hỗ trợ line spacing (giãn dòng 1.0, 1.5, 2.0); cần bổ sung margin-top / margin-bottom paragraph property và lưu vào FODT o:margin-top, o:margin-bottom.
-5. **Multilevel List (Danh sách đa cấp)**:
-   - *Mô tả*: Đánh số 1., 1.1., 1.1.1., a., b. theo chuẩn phân cấp Nghị định 30.
-   - *Yêu cầu Grok/Codex*: Bổ sung engine đếm cấp thẻ danh sách có counter CSS / LibreOffice list styles.
+1. **Line Numbers (Danh so dong)**: cho phep danh so tung dong van ban (Continuous, Restart Each Page, Restart Each Section). Can engine phan trang live dem dong that va render so dong o le trai, serialize vao FODT/DOCX.
+2. **Hyphenation (Ngat noi tu tu dong)**: tu dong chen dau gach noi ngat tu o cuoi dong. Can tu dien am tiet tieng Viet/tieng Anh va thuat toan hyphenation tren canvas text rendering.
+3. **Selection Pane (Ngan chon doi tuong)**: sidebar hien thi danh sach tat ca hinh anh/so do/bieu do/shape tren trang de an-hien hoac doi thu tu z-index. Can quan ly danh sach ID doi tuong trong WriterAdapter.shapes va img elements.
+4. **Spacing Before/After Spinboxes**: nhap thong so gian doan truoc/sau theo don vi pt. Hien Writer moi ho tro line spacing (1.0/1.5/2.0); can bo sung margin-top/margin-bottom paragraph property va luu vao FODT.
+5. **Multilevel List (Danh sach da cap)**: danh so 1., 1.1., 1.1.1., a., b. theo chuan phan cap. Can bo sung engine dem cap the danh sach co counter CSS/LibreOffice list styles.
