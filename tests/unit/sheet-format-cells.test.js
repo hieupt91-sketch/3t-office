@@ -309,5 +309,36 @@ export async function runSheetFormatCellsTests() {
     assert(restoredA1.style?.numberFormat?.currencySymbol === "₫", "Khôi phục đúng ký hiệu tiền tệ ₫");
   });
 
+  // 11. Unit Test: Format Cells Dialog Alignment Parity & Launcher Command
+  test("Sheet Alignment Dialog: Khai báo lệnh sheet.format.alignmentDialog và ánh xạ UNO", () => {
+    const cmd = SHEET_COMMANDS.find(c => c.id === "sheet.format.alignmentDialog");
+    assert(cmd, "Lệnh sheet.format.alignmentDialog phải được khai báo trong SHEET_COMMANDS");
+    assert(cmd.category === "format", "Category của lệnh phải là format");
+    assert(!cmd.shortcut, "Không gán shortcut xung đột với Ctrl+1");
+    assert(VN_TO_UNO_MAP["sheet.format.alignmentDialog"] === ".uno:FormatCellDialog",
+      "Lệnh sheet.format.alignmentDialog phải ánh xạ sang .uno:FormatCellDialog");
+  });
+
+  test("Sheet Alignment Dialog: Ribbon nhóm Căn chỉnh có launcherCommandId trỏ tới sheet.format.alignmentDialog", () => {
+    const homeTab = SHEET_RIBBON_TABS.find(t => t.id === "home");
+    const alignGroup = homeTab.groups.find(g => g.labelKey === "sheetRibbon.group.alignment");
+    assert(alignGroup, "Phải có nhóm Căn chỉnh (alignment)");
+    assert(alignGroup.launcherCommandId === "sheet.format.alignmentDialog",
+      "Nhóm alignment phải có launcherCommandId = sheet.format.alignmentDialog");
+    assert(alignGroup.launcherTooltip, "Nhóm alignment phải có launcherTooltip");
+  });
+
+  test("Sheet Alignment Dialog: i18n VI và EN đầy đủ cho các trường Căn chỉnh ô", () => {
+    assert(viStrings.commands["sheet.format.alignmentDialog"], "Bản dịch VI cho sheet.format.alignmentDialog phải tồn tại");
+    assert(enStrings.commands["sheet.format.alignmentDialog"], "Bản dịch EN cho sheet.format.alignmentDialog phải tồn tại");
+    assert(viStrings.sheetFormatCells?.tabAlignment, "Bản dịch VI tab alignment phải tồn tại");
+    assert(viStrings.sheetFormatCells?.textAlignment, "Bản dịch VI textAlignment phải tồn tại");
+    assert(viStrings.sheetFormatCells?.horizontal, "Bản dịch VI horizontal phải tồn tại");
+    assert(viStrings.sheetFormatCells?.vertical, "Bản dịch VI vertical phải tồn tại");
+    assert(viStrings.sheetFormatCells?.indent, "Bản dịch VI indent phải tồn tại");
+    assert(viStrings.sheetFormatCells?.textControl, "Bản dịch VI textControl phải tồn tại");
+    assert(viStrings.sheetFormatCells?.orientation, "Bản dịch VI orientation phải tồn tại");
+  });
+
   return results;
 }

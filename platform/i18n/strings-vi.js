@@ -282,6 +282,7 @@ export const viStrings = {
     ,"sheet.cell.fillColor": { label: "Màu nền", tooltip: "Tô màu nền ô tính" }
     ,"sheet.cell.textColor": { label: "Màu chữ", tooltip: "Đổi màu chữ trong ô" }
     ,"sheet.format.cellsDialog": { label: "Định dạng ô...", tooltip: "Mở hộp thoại định dạng ô (Ctrl+1)" }
+    ,"sheet.format.alignmentDialog": { label: "Căn chỉnh ô...", tooltip: "Mở hộp thoại Định dạng ô - thẻ Căn chỉnh" }
     ,"sheet.format.currencyVND": { label: "Tiền tệ VNĐ", tooltip: "Định dạng tiền tệ VNĐ (Ctrl+Shift+4 hoặc Ctrl+Shift+$)" }
     ,"sheet.format.percent": { label: "Phần trăm", tooltip: "Định dạng phần trăm % (Ctrl+Shift+5)" }
     ,"sheet.format.standard": { label: "Phân cách hàng nghìn", tooltip: "Dấu phẩy phân cách hàng nghìn (Ctrl+Shift+1)" }
@@ -891,6 +892,35 @@ export const viStrings = {
     dateLocale: "Vùng/Ngôn ngữ: Tiếng Việt (Việt Nam)",
     percentageDesc: "Định dạng Phần trăm nhân giá trị ô với 100 và hiển thị kết quả kèm ký hiệu %. Giá trị lưu trữ gốc không đổi (ví dụ: 0.5 hiển thị là 50%). Khi gõ số mới vào ô đã định dạng %, số đó tự động chia cho 100.",
     textDesc: "Các ô định dạng Văn bản được xử lý như chuỗi ký tự thô, ngay cả khi ô chứa số. Ô sẽ được căn lề trái tự nhiên và các hàm tính toán tổng số học như SUM sẽ bỏ qua ô này giống chuẩn Excel.",
-    customType: "Mã định dạng (Type):"
+    customType: "Mã định dạng (Type):",
+    textAlignment: "Căn chỉnh văn bản",
+    horizontal: "Chiều ngang:",
+    vertical: "Chiều dọc:",
+    indent: "Thụt lề (Indent):",
+    textControl: "Điều khiển văn bản",
+    wrapText: "Ngắt dòng tự động (Wrap text)",
+    shrinkToFit: "Thu nhỏ vừa ô (Shrink to fit)",
+    mergeCells: "Hợp nhất ô (Merge cells)",
+    rightToLeft: "Hướng văn bản (Right-to-left)",
+    textDirection: "Hướng văn bản:",
+    directionContext: "Theo ngữ cảnh (Context) - GAP",
+    directionLtr: "Trái sang phải (Left-to-Right)",
+    directionRtl: "Phải sang trái (Right-to-Left)",
+    orientation: "Hướng xoay (Orientation)",
+    orientationDegrees: "Độ xoay:",
+    alignGeneral: "Chung (General)",
+    alignLeft: "Căn trái (Thụt lề)",
+    alignCenter: "Căn giữa (Center)",
+    alignRight: "Căn phải (Thụt lề)",
+    alignJustify: "Căn đều (Justify)",
+    alignFillGap: "Lấp đầy / Fill (GAP)",
+    alignCenterContinuousGap: "Giữa qua vùng chọn (GAP)",
+    alignDistributedGap: "Phân phối đều / Distributed (GAP)",
+    alignTop: "Căn trên (Top)",
+    alignMiddle: "Căn giữa (Center)",
+    alignBottom: "Căn dưới (Bottom)",
+    alignJustifyVGap: "Căn đều dọc / Justify (GAP)",
+    alignDistributedVGap: "Phân phối đều / Distributed (GAP)",
+    gapNotSupported: "Tính năng chưa được hỗ trợ (GAP)"
   }
 };
