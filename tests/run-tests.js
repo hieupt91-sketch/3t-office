@@ -121,6 +121,7 @@ import { runSheetXlsxNativeOpenOverlayTests } from "./unit/sheet-xlsx-native-ope
 import { runSlidesPptxMasterLogoTests } from "./unit/slides-pptx-master-logo.test.js";
 import { runWriterFodtPhaseBTests } from "./unit/writer-fodt-phase-b.test.js";
 import { runWriterFodtPhaseB2Tests } from "./unit/writer-fodt-phase-b2.test.js";
+import { runWriterFodtPhaseCTests } from "./unit/writer-fodt-phase-c.test.js";
 import { runSlidesPptxSectionListTests } from "./unit/slides-pptx-section-list.test.js";
 import { runSlidesPptxSectionsOpenOverlayTests } from "./unit/slides-pptx-sections-open-overlay.test.js";
 
@@ -252,6 +253,7 @@ async function runAll() {
     { title: "110. Unit Tests — Slides native PPTX post-process (Slide Master logo p:sp)", runner: runSlidesPptxMasterLogoTests },
     { title: "111. Unit Tests — Writer FODT Phase B (table, image)", runner: runWriterFodtPhaseBTests },
     { title: "111b. Unit Tests — Writer FODT Phase B.2 (JPEG/GIF/WEBP, Text Box/shape)", runner: runWriterFodtPhaseB2Tests },
+    { title: "111c. Unit Tests — Writer FODT Phase C (page-layout, header/footer, section geometry)", runner: runWriterFodtPhaseCTests },
     { title: "112. Unit Tests — Slides native PPTX post-process (p14:sectionLst)", runner: runSlidesPptxSectionListTests },
     { title: "113. Unit Tests — Slides native PPTX open overlay (p14:sectionLst → vno:section-*)", runner: runSlidesPptxSectionsOpenOverlayTests }
   ];

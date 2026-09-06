@@ -140,12 +140,22 @@ Phase A là additive. Rollback chỉ cần revert các commit Phase A; pipeline 
 - **Mở Microsoft Word thật** (Start-Process thụ động): JPEG đỏ 16×10 và GIF xanh 12×8 hiện đúng; 6 shape (chữ nhật, bo tròn, tròn, đường, mũi tên, hộp văn bản «Hộp văn bản VN Writer») hiện native.
 - `node tests/run-tests.js`: **1184/1184 PASS** (1170 baseline @ `4b5a297` + 14 test Phase B.2).
 
-## 5. Phase C — page, header/footer và section geometry (đề xuất)
+## 5. Phase C — page, header/footer và section geometry (hoàn thành)
 
-- Page size, margin, orientation qua `style:page-layout`.
-- Header/footer qua `style:master-page` thật.
-- Nhiều page-layout/master-page và section/style transition để giữ geometry riêng từng vùng.
-- Đây là hướng sửa tận gốc mixed A4/envelope và section geometry; không tiếp tục vá named CSS `@page`.
+### Phạm vi đã làm (Grok, worktree `E:\VNOffice-grok-writer-fodt-phase-c`)
+
+- Page size / margin 4 cạnh / orientation từ `this.pageSetup` thành `style:page-layout` (`fo:page-width/height`, `fo:margin-*`, `style:print-orientation`) + `style:master-page` tên `Standard`.
+- Header/footer từ `headerDom`/`footerDom` thành `style:header`/`style:footer` — tái dùng `paragraphXml`/`inlineXml`/`listXml` hiện có, không viết serializer riêng. `margin`/`padding` canvas trên header mặc định Writer bị bỏ (chrome, không phải nội dung).
+- Nhiều geometry (A4 + envelope xen giữa): mỗi mục một `style:page-layout`/`style:master-page`; đổi vùng bằng **paragraph style** `style:master-page-name` + `fo:break-before="page"` trên `text:p` đầu vùng. Đo thật: attribute `style:master-page-name` trên chính `text:p` và `text:section` **không** đổi khổ khi ra DOCX/PDF.
+- Parser khôi phục `pageSetup`, `sectionPageSetups`, header/footer. Header/footer khác nhau giữa các master-page → `WRITER_FODT_UNSUPPORTED_CONTENT` (Writer chỉ có một cặp HF).
+- `save()` / `exportPdf()` / `_contentForExport()` không đổi (cùng cutover gate Phase A/B).
+
+### Verification thật
+
+- Unit: `tests/unit/writer-fodt-phase-c.test.js` — 11 test: A4 mặc định, Letter landscape, envelope portrait (w>h không bị suy ra landscape), header/footer, idempotence, mixed A4+DL, fail-closed bảng/field trong header.
+- Live soffice: `tests/live/writer-fodt-phase-c-real-conversion.mjs` — A4 `w:pgSz` 11906×16838 + `headerReference`/`footerReference` + part XML đúng chữ; Letter `w:orient="landscape"`; mixed **hai** `w:sectPr` (A4 + DL 12472×6236) và **hai** PDF MediaBox.
+- Microsoft Word thật (Start-Process thụ động): trang 1 A4, header «Công ty TNHH Sao Việt — Đầu trang», thân A4 hiện native.
+- `node tests/run-tests.js`: **1198/1198 PASS** (1187 baseline @ `420c4a4` + 11 test Phase C).
 
 ## 6. Phase D — cấu trúc tham chiếu native (đề xuất)
 

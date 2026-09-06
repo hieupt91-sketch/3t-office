@@ -4266,6 +4266,120 @@ export class WriterAdapter {
     return error;
   }
 
+  _fodtMmToCm(mm) {
+    const value = Number(mm);
+    if (!Number.isFinite(value)) throw this._fodtError(`kích thước trang '${mm}' không phải số mm`);
+    return `${Number((value / 10).toFixed(3))}cm`;
+  }
+
+  _fodtPageBox(setup) {
+    const base = PAGE_SIZES_MM[setup?.size] || PAGE_SIZES_MM.a4;
+    const isLandscape = setup?.orientation === "landscape";
+    const margins = setup?.margins || DEFAULT_MARGINS_MM;
+    return {
+      width: this._fodtMmToCm(isLandscape ? base.h : base.w),
+      height: this._fodtMmToCm(isLandscape ? base.w : base.h),
+      orientation: isLandscape ? "landscape" : "portrait",
+      top: this._fodtMmToCm(margins.top ?? DEFAULT_MARGINS_MM.top),
+      bottom: this._fodtMmToCm(margins.bottom ?? DEFAULT_MARGINS_MM.bottom),
+      left: this._fodtMmToCm(margins.left ?? DEFAULT_MARGINS_MM.left),
+      right: this._fodtMmToCm(margins.right ?? DEFAULT_MARGINS_MM.right)
+    };
+  }
+
+  _fodtPageLayoutXml(name, setup) {
+    const box = this._fodtPageBox(setup);
+    return `<style:page-layout style:name="${this._fodtEscapeXml(name)}"><style:page-layout-properties fo:page-width="${box.width}" fo:page-height="${box.height}" fo:margin-top="${box.top}" fo:margin-bottom="${box.bottom}" fo:margin-left="${box.left}" fo:margin-right="${box.right}" style:print-orientation="${box.orientation}"/><style:header-style><style:header-footer-properties fo:min-height="0.6cm" fo:margin-left="0cm" fo:margin-right="0cm" fo:margin-bottom="0.3cm"/></style:header-style><style:footer-style><style:header-footer-properties fo:min-height="0.6cm" fo:margin-left="0cm" fo:margin-right="0cm" fo:margin-top="0.3cm"/></style:footer-style></style:page-layout>`;
+  }
+
+  _fodtMasterPageXml(name, layoutName, headerXml = "", footerXml = "") {
+    const header = headerXml ? `<style:header>${headerXml}</style:header>` : "";
+    const footer = footerXml ? `<style:footer>${footerXml}</style:footer>` : "";
+    return `<style:master-page style:name="${this._fodtEscapeXml(name)}" style:page-layout-name="${this._fodtEscapeXml(layoutName)}">${header}${footer}</style:master-page>`;
+  }
+
+  _fodtPageSetupFromLayoutProps(props) {
+    const widthMm = this._lengthToMm(props["fo:page-width"]);
+    const heightMm = this._lengthToMm(props["fo:page-height"]);
+    if (widthMm == null || heightMm == null) throw this._fodtError("style:page-layout thiếu fo:page-width/height");
+    const orientation = String(props["style:print-orientation"] || "portrait").toLowerCase();
+    if (orientation !== "portrait" && orientation !== "landscape") {
+      throw this._fodtError(`style:print-orientation '${orientation}'`);
+    }
+    const portraitW = orientation === "landscape" ? heightMm : widthMm;
+    const portraitH = orientation === "landscape" ? widthMm : heightMm;
+    let size = null;
+    for (const [key, dim] of Object.entries(PAGE_SIZES_MM)) {
+      if (Math.abs(portraitW - dim.w) < 8 && Math.abs(portraitH - dim.h) < 8) {
+        size = key;
+        break;
+      }
+    }
+    if (!size) throw this._fodtError(`khổ giấy ${widthMm}×${heightMm} mm chưa hỗ trợ`);
+    const marginOr = (side, fallback) => {
+      const mm = this._lengthToMm(props[`fo:margin-${side}`]);
+      return mm == null ? fallback : Math.round(mm);
+    };
+    return {
+      size,
+      orientation,
+      margins: {
+        top: marginOr("top", DEFAULT_MARGINS_MM.top),
+        bottom: marginOr("bottom", DEFAULT_MARGINS_MM.bottom),
+        left: marginOr("left", DEFAULT_MARGINS_MM.left),
+        right: marginOr("right", DEFAULT_MARGINS_MM.right)
+      }
+    };
+  }
+
+  _fodtParsePageLayouts(xml) {
+    const layouts = new Map();
+    String(xml || "").replace(/<style:page-layout\b([^>]*)>([\s\S]*?)<\/style:page-layout>/gi, (_, attrsText, content) => {
+      const attrs = this._fodtParseAttributes(attrsText);
+      const name = attrs["style:name"];
+      if (!name) return "";
+      const propMatch = content.match(/<style:page-layout-properties\b([^>]*)\/?\s*>/i);
+      layouts.set(name, this._fodtPageSetupFromLayoutProps(this._fodtParseAttributes(propMatch?.[1] || "")));
+      return "";
+    });
+    return layouts;
+  }
+
+  _fodtParseMasterPages(xml) {
+    const masters = [];
+    const masterStyles = String(xml || "").match(/<office:master-styles\b[^>]*>([\s\S]*?)<\/office:master-styles>/i)?.[1] || "";
+    masterStyles.replace(/<style:master-page\b([^>]*)(?:\/>|>([\s\S]*?)<\/style:master-page>)/gi, (_, attrsText, content) => {
+      const attrs = this._fodtParseAttributes(attrsText);
+      const name = attrs["style:name"];
+      if (!name) throw this._fodtError("style:master-page thiếu style:name");
+      const layoutName = attrs["style:page-layout-name"];
+      if (!layoutName) throw this._fodtError(`style:master-page '${name}' thiếu style:page-layout-name`);
+      const inner = content || "";
+      const header = inner.match(/<style:header\b[^>]*>([\s\S]*?)<\/style:header>/i)?.[1] || "";
+      const footer = inner.match(/<style:footer\b[^>]*>([\s\S]*?)<\/style:footer>/i)?.[1] || "";
+      if (/<style:header-left\b|<style:footer-left\b|<style:header-first\b|<style:footer-first\b/i.test(inner)) {
+        throw this._fodtError("header/footer left/first trên master-page chưa hỗ trợ");
+      }
+      masters.push({ name, layoutName, headerXml: header.trim(), footerXml: footer.trim() });
+      return "";
+    });
+    return masters;
+  }
+
+  _fodtLayoutSignature(setup) {
+    const margins = setup?.margins || DEFAULT_MARGINS_MM;
+    return JSON.stringify({
+      size: setup?.size || "a4",
+      orientation: setup?.orientation === "landscape" ? "landscape" : "portrait",
+      margins: {
+        top: margins.top,
+        bottom: margins.bottom,
+        left: margins.left,
+        right: margins.right
+      }
+    });
+  }
+
   _fodtEscapeXml(value) {
     return String(value ?? "")
       .replace(/&/g, "&amp;")
@@ -4324,6 +4438,7 @@ export class WriterAdapter {
 
   _fodtCssMap(styleText, allowed = ["font-weight", "font-style", "text-decoration", "text-decoration-line", "color", "background-color", "font-family", "font-size", "text-align"]) {
     const result = {};
+    const ignored = this._fodtCssIgnoreNames || [];
     for (const declaration of String(styleText || "").split(";")) {
       if (!declaration.trim()) continue;
       const colon = declaration.indexOf(":");
@@ -4332,6 +4447,7 @@ export class WriterAdapter {
       const value = declaration.slice(colon + 1).trim();
       const aliases = { "background": "background-color", "font": "font" };
       const normalized = aliases[name] || name;
+      if (ignored.includes(normalized) || ignored.includes(name)) continue;
       if (!allowed.includes(normalized)) {
         throw this._fodtError(`thuộc tính CSS '${name}'`);
       }
@@ -4667,7 +4783,9 @@ export class WriterAdapter {
   serializeToFodt() {
     this._initZones();
     const html = this.bodyDom?.innerHTML ?? this.editorDom?.innerHTML ?? "";
-    if (/\bdata-vno-(?!wrap=["']inline["'])[\w-]+\s*=/i.test(html)) throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A/B");
+    if (/\bdata-vno-(?!wrap=["']inline["']|section-break=|section-id=)[\w-]+\s*=/i.test(html)) {
+      throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A/B/C");
+    }
     const tree = this._fodtParseMarkup(html, "HTML");
     const textStyles = new Map();
     const paragraphStyles = new Map();
@@ -4704,14 +4822,18 @@ export class WriterAdapter {
       if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <${node.name}>`);
       return inlineXml(node.children, this._fodtInlineStyle(node, inherited));
     }).join("");
-    const paragraphXml = (node) => {
+    const paragraphXml = (node, extra = {}) => {
       const css = this._fodtCssMap(node.attrs.style);
       const unexpected = Object.keys(node.attrs).filter(name => !["style", "class"].includes(name));
       if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <${node.name}>`);
       const align = String(css["text-align"] || "left").toLowerCase();
       if (!["left", "center", "right", "justify", "start", "end"].includes(align)) throw this._fodtError(`căn đoạn '${align}'`);
       const normalizedAlign = align === "start" ? "left" : align === "end" ? "right" : align;
-      const pStyle = normalizedAlign === "left" ? "" : ` text:style-name="${styleName(paragraphStyles, "P", { textAlign: normalizedAlign })}"`;
+      const props = {};
+      if (normalizedAlign !== "left") props.textAlign = normalizedAlign;
+      if (extra.masterPageName) props.masterPageName = extra.masterPageName;
+      if (extra.breakBefore) props.breakBefore = extra.breakBefore;
+      const pStyle = Object.keys(props).length ? ` text:style-name="${styleName(paragraphStyles, "P", props)}"` : "";
       const headingMatch = node.name.match(/^h([1-6])$/);
       const tag = headingMatch ? `text:h text:outline-level="${headingMatch[1]}"` : "text:p";
       return `<${tag}${pStyle}>${inlineXml(node.children, this._fodtInlineStyle(node))}</${headingMatch ? "text:h" : "text:p"}>`;
@@ -4863,13 +4985,107 @@ export class WriterAdapter {
       }
       throw this._fodtError(`hình khối '${type}' (Phase B.2 chỉ hỗ trợ rectangle/round-rect/circle/line/arrow/textbox)`);
     };
-    let body = tree.children.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
-      if (/^(p|h[1-6])$/.test(node.name)) return paragraphXml(node);
+    const zoneBlocksXml = (zoneHtml, zoneName) => {
+      const zoneTree = this._fodtParseMarkup(zoneHtml, `HTML ${zoneName}`);
+      return zoneTree.children.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
+        if (/^(p|h[1-6])$/.test(node.name)) return paragraphXml(node);
+        if (["ul", "ol"].includes(node.name)) return listXml(node);
+        throw this._fodtError(`${zoneName}: phần tử block <${node.name}> chưa hỗ trợ`);
+      }).join("");
+    };
+    const canvasBoxCss = ["margin", "margin-top", "margin-right", "margin-bottom", "margin-left", "padding", "padding-top", "padding-right", "padding-bottom", "padding-left"];
+    const previousIgnore = this._fodtCssIgnoreNames;
+    this._fodtCssIgnoreNames = canvasBoxCss;
+    let headerXml = "";
+    let footerXml = "";
+    try {
+      const zoneText = (dom) => {
+        if (!dom) return "";
+        if (typeof dom.innerText === "string") return dom.innerText;
+        return String(dom.innerHTML || "").replace(/<[^>]+>/g, " ");
+      };
+      const headerHtml = zoneText(this.headerDom).trim() ? this.headerDom.innerHTML : "";
+      const footerHtml = zoneText(this.footerDom).trim() ? this.footerDom.innerHTML : "";
+      if (headerHtml) headerXml = zoneBlocksXml(headerHtml, "header");
+      if (footerHtml) footerXml = zoneBlocksXml(footerHtml, "footer");
+    } finally {
+      this._fodtCssIgnoreNames = previousIgnore;
+    }
+    const isSectionBreak = (node) => {
+      if (node.name !== "div") return false;
+      const type = node.attrs["data-vno-section-break"];
+      const id = node.attrs["data-vno-section-id"];
+      if (!type && !id) return false;
+      if (!["nextPage", "continuous", "evenPage", "oddPage"].includes(type)) {
+        throw this._fodtError(`data-vno-section-break '${type || ""}'`);
+      }
+      if (!id) throw this._fodtError("data-vno-section-break thiếu data-vno-section-id");
+      const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "data-vno-section-break", "data-vno-section-id", "contenteditable", "aria-hidden"].includes(name));
+      if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên ngắt mục`);
+      return true;
+    };
+    const topLevel = tree.children.filter(node => !(node.name === "#text" && !node.text.trim()));
+    const firstSectionId = Object.keys(this.sectionPageSetups || {})[0] || this.activeSectionId || "section-1";
+    const orderedSectionIds = [];
+    const seenSections = new Set();
+    const addSection = (id) => {
+      if (!id || seenSections.has(id)) return;
+      seenSections.add(id);
+      orderedSectionIds.push(id);
+    };
+    addSection(firstSectionId);
+    for (const node of topLevel) {
+      if (isSectionBreak(node)) addSection(node.attrs["data-vno-section-id"]);
+    }
+    const layoutNames = new Map();
+    const masters = [];
+    for (const sectionId of orderedSectionIds) {
+      const setup = this.sectionPageSetups?.[sectionId] || this.pageSetup;
+      const signature = this._fodtLayoutSignature(setup);
+      if (!layoutNames.has(signature)) layoutNames.set(signature, `pm${layoutNames.size + 1}`);
+      const masterName = masters.length === 0 ? "Standard" : sectionId;
+      masters.push({ name: masterName, sectionId, layoutName: layoutNames.get(signature), setup });
+    }
+    if (!masters.length) {
+      const setup = this.pageSetup;
+      layoutNames.set(this._fodtLayoutSignature(setup), "pm1");
+      masters.push({ name: "Standard", sectionId: firstSectionId, layoutName: "pm1", setup });
+    }
+    const masterBySection = new Map(masters.map(master => [master.sectionId, master]));
+    let pendingMaster = null;
+    const blockXml = (node, extra) => {
+      if (/^(p|h[1-6])$/.test(node.name)) return paragraphXml(node, extra);
+      if (extra.masterPageName) {
+        throw this._fodtError("đổi khổ trang (master-page) phải bắt đầu bằng đoạn văn hoặc tiêu đề");
+      }
       if (["ul", "ol"].includes(node.name)) return listXml(node);
       if (node.name === "table") return tableXml(node);
       if (node.name === "img") return `<text:p>${imageXml(node)}</text:p>`;
       throw this._fodtError(`phần tử block <${node.name}>`);
-    }).join("");
+    };
+    const bodyParts = [];
+    for (const node of topLevel) {
+      if (isSectionBreak(node)) {
+        const master = masterBySection.get(node.attrs["data-vno-section-id"]);
+        if (!master) throw this._fodtError(`ngắt mục '${node.attrs["data-vno-section-id"]}' không có page setup`);
+        pendingMaster = master.name === "Standard" ? null : { name: master.name };
+        continue;
+      }
+      const extra = {};
+      if (pendingMaster) {
+        extra.masterPageName = pendingMaster.name;
+        extra.breakBefore = "page";
+        pendingMaster = null;
+      }
+      bodyParts.push(blockXml(node, extra));
+    }
+    if (pendingMaster) {
+      bodyParts.push(paragraphXml({ name: "p", attrs: {}, children: [] }, {
+        masterPageName: pendingMaster.name,
+        breakBefore: "page"
+      }));
+    }
+    let body = bodyParts.join("");
     const shapesXml = (this.shapes || []).map(shapeXml).join("");
     if (shapesXml) {
       const injected = body.replace(/<(text:p|text:h)\b[^>]*>/, open => `${open}${shapesXml}`);
@@ -4889,7 +5105,13 @@ export class WriterAdapter {
     }).join("");
     const paragraphStyleXml = [...paragraphStyles.entries()].map(([key, name]) => {
       const value = JSON.parse(key);
-      return `<style:style style:name="${name}" style:family="paragraph"><style:paragraph-properties fo:text-align="${value.textAlign}"/></style:style>`;
+      const styleAttrs = [`style:name="${name}"`, 'style:family="paragraph"'];
+      if (value.masterPageName) styleAttrs.push(`style:master-page-name="${this._fodtEscapeXml(value.masterPageName)}"`);
+      const paraProps = [];
+      if (value.textAlign) paraProps.push(`fo:text-align="${value.textAlign}"`);
+      if (value.breakBefore) paraProps.push(`fo:break-before="${value.breakBefore}"`);
+      const paraXml = paraProps.length ? `<style:paragraph-properties ${paraProps.join(" ")}/>` : "";
+      return `<style:style ${styleAttrs.join(" ")}>${paraXml}</style:style>`;
     }).join("");
     const cellStyleXml = [...cellStyles.entries()].map(([key, name]) => {
       const value = JSON.parse(key);
@@ -4912,7 +5134,9 @@ export class WriterAdapter {
       return `<style:style style:name="${name}" style:family="graphic"><style:graphic-properties ${attrs.join(" ")}/></style:style>`;
     }).join("");
     const listStyles = '<text:list-style style:name="LBullet"><text:list-level-style-bullet text:level="1" text:bullet-char="•"><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-bullet></text:list-style><text:list-style style:name="LNumber"><text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix="."><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-number></text:list-style>';
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text"><office:automatic-styles>${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}${graphicStyleXml}</office:automatic-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
+    const pageLayoutXml = [...layoutNames.entries()].map(([signature, name]) => this._fodtPageLayoutXml(name, JSON.parse(signature))).join("");
+    const masterPageXml = masters.map(master => this._fodtMasterPageXml(master.name, master.layoutName, headerXml, footerXml)).join("");
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text"><office:automatic-styles>${pageLayoutXml}${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}${graphicStyleXml}</office:automatic-styles><office:master-styles>${masterPageXml}</office:master-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
   }
 
   /** Parse the Phase A FODT subset back to canonical Writer HTML. */
@@ -4948,7 +5172,13 @@ export class WriterAdapter {
       } else if (family === "paragraph") {
         const propMatch = content.match(/<style:paragraph-properties\b([^>]*)\/?\s*>/i);
         const props = this._fodtParseAttributes(propMatch?.[1] || "");
-        paragraphStyles.set(name, { textAlign: props["fo:text-align"] || "left" });
+        const breakBefore = props["fo:break-before"] || "";
+        if (breakBefore && breakBefore !== "page") throw this._fodtError(`fo:break-before '${breakBefore}'`);
+        paragraphStyles.set(name, {
+          textAlign: props["fo:text-align"] || "left",
+          masterPageName: attrs["style:master-page-name"] || "",
+          breakBefore
+        });
       } else if (family === "table-cell") {
         const propMatch = content.match(/<style:table-cell-properties\b([^>]*)\/?\s*>/i);
         const props = this._fodtParseAttributes(propMatch?.[1] || "");
@@ -5074,21 +5304,83 @@ export class WriterAdapter {
       }).join("");
       return `<table><tbody>${rowsHtml}</tbody></table>`;
     };
-    const html = tree.children.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
-      if (node.name === "text:list") return listHtml(node);
-      if (node.name === "table:table") return tableHtml(node);
+    const paragraphBlockHtml = (node, { allowMasterSwitch = false } = {}) => {
       if (!["text:p", "text:h"].includes(node.name)) throw this._fodtError(`phần tử FODT block <${node.name}>`);
       const level = node.name === "text:h" ? Math.min(6, Math.max(1, Number(node.attrs["text:outline-level"]) || 1)) : 0;
       const tag = level ? `h${level}` : "p";
       const pStyleName = node.attrs["text:style-name"];
       const pStyle = pStyleName ? paragraphStyles.get(pStyleName) : null;
       if (pStyleName && !pStyle) throw this._fodtError(`paragraph style không biết '${pStyleName}'`);
+      if (pStyle?.masterPageName && !allowMasterSwitch) {
+        throw this._fodtError("style:master-page-name trong header/footer chưa hỗ trợ");
+      }
       const styleAttr = pStyle?.textAlign && pStyle.textAlign !== "left" ? ` style="text-align:${this._escapeHtml(pStyle.textAlign)}"` : "";
-      return `<${tag}${styleAttr}>${inlineHtml(node.children)}</${tag}>`;
+      const paragraph = `<${tag}${styleAttr}>${inlineHtml(node.children)}</${tag}>`;
+      if (!pStyle?.masterPageName) return paragraph;
+      const master = masterByName.get(pStyle.masterPageName);
+      if (!master) throw this._fodtError(`paragraph style tham chiếu master-page '${pStyle.masterPageName}' không biết`);
+      const sectionId = master.sectionId;
+      return `${this._buildSectionBreakMarker("nextPage", sectionId)}${paragraph}`;
+    };
+    const blocksHtml = (nodes, options = {}) => nodes.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
+      if (options.zone && (node.name === "table:table" || node.name.startsWith("draw:"))) {
+        throw this._fodtError(`${options.zone}: phần tử <${node.name}> chưa hỗ trợ`);
+      }
+      if (node.name === "text:list") return listHtml(node);
+      if (node.name === "table:table") return tableHtml(node);
+      return paragraphBlockHtml(node, options);
     }).join("");
+    const pageLayouts = this._fodtParsePageLayouts(xml);
+    const masterPages = this._fodtParseMasterPages(xml);
+    const masterByName = new Map();
+    const restoredSections = {};
+    let restoredSequence = this._sectionSequence || 1;
+    masterPages.forEach((master, index) => {
+      const setup = pageLayouts.get(master.layoutName);
+      if (!setup) throw this._fodtError(`master-page '${master.name}' tham chiếu page-layout '${master.layoutName}' không biết`);
+      const id = index === 0 ? "section-1" : (/^section-\d+$/.test(master.name) ? master.name : `section-${index + 1}`);
+      restoredSections[id] = JSON.parse(JSON.stringify(setup));
+      master.sectionId = id;
+      masterByName.set(master.name, master);
+      const numeric = Number(String(id).replace(/^section-/, ""));
+      if (Number.isFinite(numeric)) restoredSequence = Math.max(restoredSequence, numeric);
+    });
+    if (masterPages.length > 1) {
+      const firstHeader = masterPages[0].headerXml;
+      const firstFooter = masterPages[0].footerXml;
+      for (const master of masterPages.slice(1)) {
+        if (master.headerXml !== firstHeader || master.footerXml !== firstFooter) {
+          throw this._fodtError("header/footer khác nhau giữa các master-page (Writer chỉ có một cặp đầu/chân trang)");
+        }
+      }
+    }
+    let headerHtml = "";
+    let footerHtml = "";
+    if (masterPages[0]?.headerXml) {
+      if (/<(draw:|table:|text:note|text:page-number|text:page-count)\b/i.test(masterPages[0].headerXml)) {
+        throw this._fodtError("header chứa bảng/ảnh/shape/ghi chú/số trang field chưa hỗ trợ");
+      }
+      headerHtml = blocksHtml(this._fodtParseMarkup(masterPages[0].headerXml, "FODT style:header").children, { zone: "header" });
+    }
+    if (masterPages[0]?.footerXml) {
+      if (/<(draw:|table:|text:note|text:page-number|text:page-count)\b/i.test(masterPages[0].footerXml)) {
+        throw this._fodtError("footer chứa bảng/ảnh/shape/ghi chú/số trang field chưa hỗ trợ");
+      }
+      footerHtml = blocksHtml(this._fodtParseMarkup(masterPages[0].footerXml, "FODT style:footer").children, { zone: "footer" });
+    }
+    const html = blocksHtml(tree.children, { allowMasterSwitch: true });
     this._initZones();
     if (this.bodyDom) this.bodyDom.innerHTML = html;
+    if (this.headerDom) this.headerDom.innerHTML = headerHtml;
+    if (this.footerDom) this.footerDom.innerHTML = footerHtml;
     this.shapes = parsedShapes;
+    if (masterPages.length) {
+      const firstSetup = restoredSections["section-1"] || masterPages[0] && pageLayouts.get(masterPages[0].layoutName);
+      if (firstSetup) this.pageSetup = JSON.parse(JSON.stringify(firstSetup));
+      this.sectionPageSetups = restoredSections;
+      this.activeSectionId = Object.keys(restoredSections).slice(-1)[0] || "section-1";
+      this._sectionSequence = restoredSequence;
+    }
     return html;
   }
 
