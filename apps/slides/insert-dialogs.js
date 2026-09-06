@@ -126,7 +126,7 @@ export function showHeaderFooterDialog(current = {}) {
     overlay.className = "vno-dialog-overlay";
     overlay.dataset.vnoDialog = "header-footer";
     overlay.innerHTML = `
-      <div class="vno-dialog-box" style="width: 460px;" role="dialog" aria-modal="true" aria-labelledby="vno-hf-title">
+      <div class="vno-dialog-box" style="width: 460px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-hf-title">
         <div class="vno-dialog-header">
           <span id="vno-hf-title">${isEn ? "Header and Footer" : "Đầu trang & Chân trang"}</span>
           <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
@@ -146,7 +146,8 @@ export function showHeaderFooterDialog(current = {}) {
           </label>
           <input id="vno-hf-text" type="text" value="${String(defaults.footerText).replace(/"/g, "&quot;")}"
             placeholder="${isEn ? "Footer text" : "Nội dung chân trang"}"
-            style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:6px;" />
+            aria-label="${isEn ? "Footer text" : "Nội dung chân trang"}"
+            style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:6px;background:var(--vno-bg-surface);color:var(--vno-text-primary);" />
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
             <input type="checkbox" id="vno-hf-all" ${defaults.applyToAll ? "checked" : ""} />
             ${isEn ? "Apply to all slides" : "Áp dụng cho mọi trang chiếu"}

@@ -5715,6 +5715,9 @@ export class SheetGridController {
 
     const popover = document.createElement("div");
     popover.className = "vno-filter-popover";
+    popover.setAttribute("role", "dialog");
+    popover.setAttribute("aria-label", `Lọc và sắp xếp cột ${col}`);
+    popover.setAttribute("tabindex", "-1");
 
     const valuesSet = new Set();
     for (const [k, itm] of this.cellsData.entries()) {
@@ -5730,29 +5733,29 @@ export class SheetGridController {
     const currentAllowed = this.activeFilters.get(col) || new Set(uniqueVals);
 
     popover.innerHTML = `
-      <div class="vno-filter-popover-item" id="vno-filter-sort-asc">
+      <div class="vno-filter-popover-item" id="vno-filter-sort-asc" role="button" tabindex="0" aria-label="Sắp xếp tăng dần A-Z">
         <span>▲ Sắp xếp tăng dần (A-Z)</span>
       </div>
-      <div class="vno-filter-popover-item" id="vno-filter-sort-desc">
+      <div class="vno-filter-popover-item" id="vno-filter-sort-desc" role="button" tabindex="0" aria-label="Sắp xếp giảm dần Z-A">
         <span>▼ Sắp xếp giảm dần (Z-A)</span>
       </div>
-      <div style="height:1px;background:#e2e8f0;margin:2px 0;"></div>
-      <div style="font-weight:600;font-size:11px;color:#475569;">Lọc theo giá trị:</div>
-      <div class="vno-filter-values-list">
+      <div class="vno-filter-divider"></div>
+      <div class="vno-filter-label">Lọc theo giá trị:</div>
+      <div class="vno-filter-values-list" role="group" aria-label="Danh sách giá trị cần lọc">
         ${uniqueVals.map(val => `
           <label class="vno-filter-value-row">
-            <input type="checkbox" value="${val}" ${currentAllowed.has(val) ? "checked" : ""} />
+            <input type="checkbox" value="${val}" ${currentAllowed.has(val) ? "checked" : ""} aria-label="${val}" />
             <span>${val}</span>
           </label>
         `).join("")}
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:4px;">
-        <button class="vno-btn" id="vno-filter-select-all" style="font-size:10px;padding:2px 6px;">Tất cả</button>
-        <button class="vno-btn" id="vno-filter-clear-all" style="font-size:10px;padding:2px 6px;">Bỏ chọn</button>
+        <button type="button" class="vno-btn" id="vno-filter-select-all" style="font-size:10px;padding:2px 6px;">Tất cả</button>
+        <button type="button" class="vno-btn" id="vno-filter-clear-all" style="font-size:10px;padding:2px 6px;">Bỏ chọn</button>
       </div>
       <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end;">
-        <button class="vno-btn" id="vno-filter-cancel" style="padding:4px 8px;font-size:11px;">Hủy</button>
-        <button class="vno-btn vno-btn-primary" id="vno-filter-apply" style="padding:4px 8px;font-size:11px;">Áp dụng</button>
+        <button type="button" class="vno-btn" id="vno-filter-cancel" style="padding:4px 8px;font-size:11px;">Hủy</button>
+        <button type="button" class="vno-btn vno-btn-primary" id="vno-filter-apply" style="padding:4px 8px;font-size:11px;">Áp dụng</button>
       </div>
     `;
 
@@ -5764,13 +5767,44 @@ export class SheetGridController {
       popover.style.left = `${Math.min((window.innerWidth || 800) - 220, Math.max(10, rect.left + (window.scrollX || 0) - 80))}px`;
     }
 
+    const closeMenu = () => {
+      document.removeEventListener("keydown", onPopoverKey);
+      document.removeEventListener("click", onDocClick);
+      popover.remove();
+      if (anchorBtn && typeof anchorBtn.focus === "function") {
+        try { anchorBtn.focus(); } catch (_) {}
+      }
+    };
+
+    const applyFilterAndClose = () => {
+      const allowed = new Set();
+      popover.querySelectorAll(".vno-filter-value-row input:checked").forEach(cb => allowed.add(cb.value));
+      this.applyFilter(col, allowed);
+      closeMenu();
+    };
+
     popover.querySelector("#vno-filter-sort-asc")?.addEventListener("click", () => {
       this.sort(col, true);
-      popover.remove();
+      closeMenu();
     });
+    popover.querySelector("#vno-filter-sort-asc")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        this.sort(col, true);
+        closeMenu();
+      }
+    });
+
     popover.querySelector("#vno-filter-sort-desc")?.addEventListener("click", () => {
       this.sort(col, false);
-      popover.remove();
+      closeMenu();
+    });
+    popover.querySelector("#vno-filter-sort-desc")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        this.sort(col, false);
+        closeMenu();
+      }
     });
 
     popover.querySelector("#vno-filter-select-all")?.addEventListener("click", () => {
@@ -5780,19 +5814,36 @@ export class SheetGridController {
       popover.querySelectorAll(".vno-filter-value-row input").forEach(cb => cb.checked = false);
     });
 
-    popover.querySelector("#vno-filter-cancel")?.addEventListener("click", () => popover.remove());
+    popover.querySelector("#vno-filter-cancel")?.addEventListener("click", closeMenu);
+    popover.querySelector("#vno-filter-apply")?.addEventListener("click", applyFilterAndClose);
 
-    popover.querySelector("#vno-filter-apply")?.addEventListener("click", () => {
-      const allowed = new Set();
-      popover.querySelectorAll(".vno-filter-value-row input:checked").forEach(cb => allowed.add(cb.value));
-      this.applyFilter(col, allowed);
-      popover.remove();
-    });
+    const onPopoverKey = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeMenu();
+      } else if (e.key === "Enter" && e.target?.tagName !== "BUTTON" && !e.target?.classList?.contains("vno-filter-popover-item")) {
+        e.preventDefault();
+        applyFilterAndClose();
+      } else if (e.key === "Tab") {
+        const focusables = Array.from(popover.querySelectorAll('button:not([disabled]), input:not([disabled]), [tabindex="0"]')).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+        if (focusables.length > 0) {
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (e.shiftKey && (document.activeElement === first || !popover.contains(document.activeElement))) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && (document.activeElement === last || !popover.contains(document.activeElement))) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener("keydown", onPopoverKey);
 
     const onDocClick = (e) => {
       if (!popover.contains(e.target) && e.target !== anchorBtn) {
-        popover.remove();
-        document.removeEventListener("click", onDocClick);
+        closeMenu();
       }
     };
     setTimeout(() => document.addEventListener("click", onDocClick), 10);
@@ -7752,9 +7803,9 @@ export class SheetGridController {
   showConditionalFormattingDialog() {
     const overlay = this._createSheetDialog(t("sheetDialogs.conditionalFormatting"), `
       <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
-      <label>${t("sheetDialogs.rule")}<select id="vno-cf-type"><option value="greaterThan">${t("sheetDialogs.greaterThan")}</option><option value="lessThan">${t("sheetDialogs.lessThan")}</option><option value="blank">${t("sheetDialogs.blankCell")}</option></select></label>
-      <label id="vno-cf-value-row">${t("sheetDialogs.value")}<input id="vno-cf-value" type="number" value="0"></label>
-      <label>${t("sheetDialogs.fillColor")}<input id="vno-cf-color" type="color" value="#fff2cc"></label>
+      <label>${t("sheetDialogs.rule")}<select id="vno-cf-type" aria-label="${t("sheetDialogs.rule")}"><option value="greaterThan">${t("sheetDialogs.greaterThan")}</option><option value="lessThan">${t("sheetDialogs.lessThan")}</option><option value="blank">${t("sheetDialogs.blankCell")}</option></select></label>
+      <label id="vno-cf-value-row">${t("sheetDialogs.value")}<input id="vno-cf-value" type="number" value="0" aria-label="${t("sheetDialogs.value")}"></label>
+      <label>${t("sheetDialogs.fillColor")}<input id="vno-cf-color" type="color" value="#fff2cc" aria-label="${t("sheetDialogs.fillColor")}"></label>
       <div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
     const type = overlay.querySelector("#vno-cf-type");
@@ -7775,9 +7826,9 @@ export class SheetGridController {
   showDataValidationDialog() {
     const overlay = this._createSheetDialog(t("sheetDialogs.dataValidation"), `
       <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
-      <label>${t("sheetDialogs.allow")}<select id="vno-dv-type"><option value="list">${t("sheetDialogs.list")}</option><option value="numberRange">${t("sheetDialogs.numberRange")}</option></select></label>
-      <label id="vno-dv-list-row">${t("sheetDialogs.listValues")}<input id="vno-dv-list" type="text" placeholder="${t("sheetDialogs.listPlaceholder")}"></label>
-      <div id="vno-dv-number-row" hidden><label>${t("sheetDialogs.minimum")}<input id="vno-dv-min" type="number" value="0"></label><label>${t("sheetDialogs.maximum")}<input id="vno-dv-max" type="number" value="100"></label></div>
+      <label>${t("sheetDialogs.allow")}<select id="vno-dv-type" aria-label="${t("sheetDialogs.allow")}"><option value="list">${t("sheetDialogs.list")}</option><option value="numberRange">${t("sheetDialogs.numberRange")}</option></select></label>
+      <label id="vno-dv-list-row">${t("sheetDialogs.listValues")}<input id="vno-dv-list" type="text" placeholder="${t("sheetDialogs.listPlaceholder")}" aria-label="${t("sheetDialogs.listValues")}"></label>
+      <div id="vno-dv-number-row" hidden><label>${t("sheetDialogs.minimum")}<input id="vno-dv-min" type="number" value="0" aria-label="${t("sheetDialogs.minimum")}"></label><label>${t("sheetDialogs.maximum")}<input id="vno-dv-max" type="number" value="100" aria-label="${t("sheetDialogs.maximum")}"></label></div>
       <div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
     const type = overlay.querySelector("#vno-dv-type");

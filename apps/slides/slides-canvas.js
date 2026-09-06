@@ -5489,7 +5489,7 @@ export class SlidesCanvasController {
       const to = current.gradient?.to || "#ffffff";
       const direction = current.gradient?.direction === "vertical" ? "vertical" : "horizontal";
       overlay.innerHTML = `
-        <div class="vno-dialog-box" style="width:520px" role="dialog" aria-modal="true" aria-labelledby="vno-format-bg-title">
+        <div class="vno-dialog-box" style="width:520px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-format-bg-title">
           <div class="vno-dialog-header">
             <span id="vno-format-bg-title">${t("slidesDialogs.formatBackgroundTitle", "Định dạng nền")}</span>
             <button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}">&times;</button>
@@ -5503,13 +5503,13 @@ export class SlidesCanvasController {
             </div>
             <div data-bg-panel="solid" style="display:flex;align-items:center;gap:8px;">
               <label for="vno-bg-solid">${t("slidesDialogs.formatBackgroundColor")}</label>
-              <input id="vno-bg-solid" type="color" value="${this._escapeHtml(solidColor)}">
+              <input id="vno-bg-solid" type="color" value="${this._escapeHtml(solidColor)}" aria-label="${t("slidesDialogs.formatBackgroundColor")}">
             </div>
             <div data-bg-panel="gradient" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
-              <label>${t("slidesDialogs.formatBackgroundFrom")} <input id="vno-bg-from" type="color" value="${this._escapeHtml(from)}"></label>
-              <label>${t("slidesDialogs.formatBackgroundTo")} <input id="vno-bg-to" type="color" value="${this._escapeHtml(to)}"></label>
+              <label>${t("slidesDialogs.formatBackgroundFrom")} <input id="vno-bg-from" type="color" value="${this._escapeHtml(from)}" aria-label="${t("slidesDialogs.formatBackgroundFrom")}"></label>
+              <label>${t("slidesDialogs.formatBackgroundTo")} <input id="vno-bg-to" type="color" value="${this._escapeHtml(to)}" aria-label="${t("slidesDialogs.formatBackgroundTo")}"></label>
               <label>${t("slidesDialogs.formatBackgroundDirection")}
-                <select id="vno-bg-dir" class="vno-select">
+                <select id="vno-bg-dir" class="vno-select" aria-label="${t("slidesDialogs.formatBackgroundDirection")}">
                   <option value="horizontal" ${direction === "horizontal" ? "selected" : ""}>${t("slidesDialogs.formatBackgroundHorizontal")}</option>
                   <option value="vertical" ${direction === "vertical" ? "selected" : ""}>${t("slidesDialogs.formatBackgroundVertical")}</option>
                 </select>
@@ -5517,11 +5517,11 @@ export class SlidesCanvasController {
             </div>
             <div data-bg-panel="picture" style="display:flex;flex-direction:column;gap:8px;">
               <button type="button" class="vno-btn" id="vno-bg-pick">${t("slidesDialogs.formatBackgroundChoosePicture")}</button>
-              <input id="vno-bg-file" type="file" accept="image/*" hidden>
+              <input id="vno-bg-file" type="file" accept="image/*" hidden aria-label="${t("slidesDialogs.formatBackgroundChoosePicture")}">
               <div id="vno-bg-pic-status" style="font-size:12px;color:var(--vno-text-secondary)">${current.type === "picture" && current.picture ? "✓" : ""}</div>
             </div>
-            <div id="vno-bg-preview" style="height:72px;border-radius:6px;border:1px solid var(--vno-border-default);"></div>
-            <label><input type="checkbox" id="vno-bg-all"> ${t("slidesDialogs.formatBackgroundApplyAll")}</label>
+            <div id="vno-bg-preview" style="height:72px;border-radius:6px;border:1px solid var(--vno-border-default);" role="img" aria-label="Xem trước màu nền"></div>
+            <label><input type="checkbox" id="vno-bg-all" aria-label="${t("slidesDialogs.formatBackgroundApplyAll")}"> ${t("slidesDialogs.formatBackgroundApplyAll")}</label>
           </div>
           <div class="vno-dialog-footer">
             <button type="button" class="vno-btn" id="vno-bg-clear">${t("slidesDialogs.formatBackgroundClear")}</button>
@@ -5575,6 +5575,12 @@ export class SlidesCanvasController {
         if (event.key === "Escape") {
           event.preventDefault();
           close(false);
+        } else if (event.key === "Enter" && event.target?.tagName !== "BUTTON") {
+          event.preventDefault();
+          const payload = readBackground();
+          if (!payload) return;
+          const applyAll = overlay.querySelector("#vno-bg-all").checked;
+          close(this.applySlideBackground(payload, { applyAll }));
         } else {
           trapFocus(dialogBox, event);
         }
@@ -5897,11 +5903,11 @@ export class SlidesCanvasController {
         ["list", "diagramList", "1\n  2\n    3"]
       ];
       overlay.innerHTML = `
-        <div class="vno-dialog-box" style="width:620px" role="dialog" aria-modal="true" aria-labelledby="vno-diagram-title">
+        <div class="vno-dialog-box" style="width:620px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-diagram-title">
           <div class="vno-dialog-header"><span id="vno-diagram-title">${t("slidesDialogs.diagramTitle")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}">&times;</button></div>
           <div class="vno-dialog-body">
-            <p class="vno-diagram-hint" style="color:#475569;">${t("slidesDialogs.diagramHint")}</p>
-            <div class="vno-diagram-type-grid" role="radiogroup" aria-labelledby="vno-diagram-title">${types.map(([id, key, preview], index) => `<button type="button" role="radio" class="vno-diagram-type ${index === 0 ? "is-selected" : ""}" data-diagram-type="${id}" aria-checked="${index === 0}" aria-pressed="${index === 0}"><span class="vno-diagram-type-preview" aria-hidden="true">${preview.replace(/\n/g, "<br>")}</span><strong>${t(`slidesDialogs.${key}`)}</strong></button>`).join("")}</div>
+            <p class="vno-diagram-hint" style="color:var(--vno-text-secondary, #475569);">${t("slidesDialogs.diagramHint")}</p>
+            <div class="vno-diagram-type-grid" role="radiogroup" aria-labelledby="vno-diagram-title">${types.map(([id, key, preview], index) => `<button type="button" role="radio" class="vno-diagram-type ${index === 0 ? "is-selected" : ""}" data-diagram-type="${id}" aria-checked="${index === 0}" aria-pressed="${index === 0}" tabindex="${index === 0 ? "0" : "-1"}"><span class="vno-diagram-type-preview" aria-hidden="true">${preview.replace(/\n/g, "<br>")}</span><strong>${t(`slidesDialogs.${key}`)}</strong></button>`).join("")}</div>
             <label class="vno-diagram-count" for="vno-diagram-count">${t("slidesDialogs.diagramNodeCount")}<input id="vno-diagram-count" aria-label="${t("slidesDialogs.diagramNodeCount")}" type="number" min="3" max="6" value="4" /></label>
           </div>
           <div class="vno-dialog-footer"><button type="button" class="vno-btn" id="vno-diagram-cancel">${t("slidesDialogs.cancel")}</button><button type="button" class="vno-btn vno-btn-primary" id="vno-diagram-insert">${t("slidesDialogs.diagramInsert")}</button></div>
@@ -5910,10 +5916,35 @@ export class SlidesCanvasController {
       const dialogBox = overlay.querySelector(".vno-dialog-box");
       let selectedType = "process";
       const cards = overlay.querySelectorAll(".vno-diagram-type");
-      cards.forEach(card => card.addEventListener("click", () => {
-        cards.forEach(item => { item.classList.remove("is-selected"); item.setAttribute("aria-checked", "false"); item.setAttribute("aria-pressed", "false"); });
-        card.classList.add("is-selected"); card.setAttribute("aria-checked", "true"); card.setAttribute("aria-pressed", "true"); selectedType = card.dataset.diagramType;
-      }));
+      const selectCard = (card) => {
+        cards.forEach(item => {
+          const isTarget = item === card;
+          item.classList.toggle("is-selected", isTarget);
+          item.setAttribute("aria-checked", String(isTarget));
+          item.setAttribute("aria-pressed", String(isTarget));
+          item.setAttribute("tabindex", isTarget ? "0" : "-1");
+        });
+        selectedType = card.dataset.diagramType;
+      };
+      cards.forEach(card => card.addEventListener("click", () => selectCard(card)));
+
+      const typeGrid = overlay.querySelector(".vno-diagram-type-grid");
+      typeGrid?.addEventListener("keydown", (e) => {
+        if (["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(e.key)) {
+          e.preventDefault();
+          const cardList = Array.from(cards);
+          const curIdx = cardList.indexOf(document.activeElement);
+          let nextIdx = 0;
+          if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+            nextIdx = curIdx === -1 ? 0 : (curIdx + 1) % cardList.length;
+          } else {
+            nextIdx = curIdx === -1 ? cardList.length - 1 : (curIdx - 1 + cardList.length) % cardList.length;
+          }
+          selectCard(cardList[nextIdx]);
+          cardList[nextIdx]?.focus();
+        }
+      });
+
       let closed = false;
       const close = (value) => {
         if (closed) return;
@@ -5929,6 +5960,10 @@ export class SlidesCanvasController {
         if (e.key === "Escape") {
           e.preventDefault();
           close(false);
+        } else if (e.key === "Enter" && e.target?.id !== "vno-diagram-cancel") {
+          e.preventDefault();
+          const count = overlay.querySelector("#vno-diagram-count")?.value || 4;
+          close(!!this.insertDiagram(selectedType, count));
         } else if (e.key === "Tab") {
           trapFocus(dialogBox, e);
         }
@@ -6096,14 +6131,14 @@ export class SlidesCanvasController {
       const currentDuration = this.transitionConfig.duration || 500;
 
       overlay.innerHTML = `
-        <div class="vno-dialog-box" style="width: 460px;" role="dialog" aria-modal="true" aria-labelledby="vno-trans-dialog-title">
+        <div class="vno-dialog-box" style="width: 460px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-trans-dialog-title">
           <div class="vno-dialog-header">
             <span id="vno-trans-dialog-title">${t("slidesDialogs.transitionTitle")}</span>
             <button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}" style="font-size:16px;">&times;</button>
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;">
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <label for="vno-trans-type-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.transitionTypeLabel", "Kiểu chuyển trang:")}</label>
+              <label for="vno-trans-type-select" style="font-size:12px;font-weight:600;color:var(--vno-text-secondary, #475569);">${t("slidesDialogs.transitionTypeLabel", "Kiểu chuyển trang:")}</label>
               <select class="vno-select" id="vno-trans-type-select" aria-label="${t("slidesDialogs.transitionTypeLabel", "Kiểu chuyển trang:")}">
                 <option value="fade" ${currentType === "fade" ? "selected" : ""}>${t("slidesDialogs.transFade", "Mờ dần (Fade)")}</option>
                 <option value="slide" ${currentType === "slide" ? "selected" : ""}>${t("slidesDialogs.transSlide", "Trượt ngang (Slide)")}</option>
@@ -6113,7 +6148,7 @@ export class SlidesCanvasController {
               </select>
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <label for="vno-trans-duration-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationDuration", "Thời gian hiệu ứng:")}</label>
+              <label for="vno-trans-duration-select" style="font-size:12px;font-weight:600;color:var(--vno-text-secondary, #475569);">${t("slidesDialogs.animationDuration", "Thời gian hiệu ứng:")}</label>
               <select class="vno-select" id="vno-trans-duration-select" aria-label="${t("slidesDialogs.animationDuration", "Thời gian hiệu ứng:")}">
                 <option value="300" ${currentDuration === 300 ? "selected" : ""}>${t("slidesDialogs.durationFast", "Nhanh (0.3 giây)")}</option>
                 <option value="500" ${currentDuration === 500 ? "selected" : ""}>${t("slidesDialogs.durationNormal", "Tiêu chuẩn (0.5 giây)")}</option>
@@ -6121,8 +6156,8 @@ export class SlidesCanvasController {
                 <option value="1000" ${currentDuration === 1000 ? "selected" : ""}>${t("slidesDialogs.durationVerySlow", "Rất chậm (1.0 giây)")}</option>
               </select>
             </div>
-            <div style="padding:16px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:4px;text-align:center;overflow:hidden;">
-              <div id="vno-trans-preview-box" style="font-size:16px;font-weight:bold;color:#b53818;padding:12px;background:#ffffff;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+            <div style="padding:16px;background:var(--vno-bg-muted, #f8fafc);border:1px dashed var(--vno-border-default, #cbd5e1);border-radius:4px;text-align:center;overflow:hidden;">
+              <div id="vno-trans-preview-box" style="font-size:16px;font-weight:bold;color:var(--vno-slides-primary, #b53818);padding:12px;background:var(--vno-bg-surface, #ffffff);border:1px solid var(--vno-border-default, #cbd5e1);border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                 ${t("slidesDialogs.sampleSlide", "Trang Chiếu Mẫu")}
               </div>
               <button type="button" class="vno-btn" id="vno-trans-preview-btn" style="margin-top:8px;font-size:11px;">${t("slidesDialogs.previewTransition", "▶ Xem thử hiệu ứng")}</button>
@@ -6175,6 +6210,11 @@ export class SlidesCanvasController {
           e.preventDefault();
           close();
           resolve(false);
+        } else if (e.key === "Enter" && e.target?.id !== "vno-trans-cancel") {
+          e.preventDefault();
+          this.setTransition(typeSelect.value, durationSelect.value, true);
+          close();
+          resolve(true);
         } else if (e.key === "Tab") {
           trapFocus(dialogBox, e);
         }
