@@ -284,6 +284,7 @@ export const SLIDES_RIBBON_TABS = [
     labelKey: "slidesRibbon.tab.design",
     groups: [
       {
+        id: "themes",
         label: "Chủ đề",
         labelKey: "slidesRibbon.group.themes",
         items: [
@@ -291,6 +292,7 @@ export const SLIDES_RIBBON_TABS = [
         ]
       },
       {
+        id: "master",
         label: "Mẫu chủ đạo",
         labelKey: "slidesRibbon.group.master",
         items: [
@@ -298,6 +300,7 @@ export const SLIDES_RIBBON_TABS = [
         ]
       },
       {
+        id: "customize",
         label: "Tùy chỉnh",
         labelKey: "slidesRibbon.group.customize",
         items: [
