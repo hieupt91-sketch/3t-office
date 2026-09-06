@@ -97,7 +97,15 @@
 ---
 
 ## Khu vuc 4 — Ribbon Slides (Arrow nav tab & gallery dropdowns)
-*(Dang thuc hien tiep theo)*
+*(Chua lam trong dot nay)* agy da viet mot phien ban cho Theme/Layout/
+Transition gallery (them keyboard nav + mot luoi the moi cho Transition
+dialog) nhung KHONG kip commit truoc khi het thoi gian phien lam viec.
+Nguoi phu trach (Claude) da doc lai va CHAY THU bai test tu viet kem
+theo (`slides-ribbon-keyboard-nav.playwright.mjs`) - that bai ngay o
+buoc dau tien (ArrowRight chuyen tab Ribbon khong hoat dong, focus bi
+mat). Vi khong the xac nhan code do dung, da BO (khong commit) thay vi
+merge mot tinh nang chua duoc kiem chung. Khu vuc 4 de lai cho lan sau,
+lam lai tu dau voi do that ky hon truoc khi sua Ribbon.
 
 ---
 
@@ -108,6 +116,11 @@
 
 ## Kiem tra da chay
 - `node scripts/check-syntax.js`: 87/87 PASS.
+- `node tests/run-tests.js`: phat hien 2 regression that (`el.setAttribute
+  is not a function` trong `_renderShapesLayer` khi chay qua
+  `FakeElement` stub cua unit test) - da sua bang cach dung `?.()`
+  nhat quan voi cac dong lan can trong cung ham (xem commit sua loi).
+  Sau khi sua: 1230/1230 PASS.
 - `node tests/live/slides-mouse-shortcuts.playwright.mjs`: PASS 100%.
 - `node tests/live/slides-canvas-keyboard-nav.playwright.mjs`: PASS 100%.
 - `node tests/live/slides-navigator-keyboard-nav.playwright.mjs`: PASS 100%.
