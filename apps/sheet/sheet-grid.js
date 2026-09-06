@@ -2767,6 +2767,45 @@ export class SheetGridController {
         e.preventDefault();
         this.nextSheet();
         return;
+      } else if (e.key === "PageUp" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // PageUp không Ctrl: di chuyển ô lên ~15 hàng (giống Excel thật),
+        // cuộn viewport tương ứng
+        e.preventDefault();
+        const pageRows = Math.max(1, Math.floor((this.viewport?.clientHeight || 390) / this.rowHeight) - 1);
+        nextRow = Math.max(1, nextRow - pageRows);
+        extendRange = e.shiftKey;
+        if (this.viewport) this.viewport.scrollTop = Math.max(0, (nextRow - 1) * this.rowHeight);
+        this.selectCell(nextCol, nextRow, extendRange);
+        return;
+      } else if (e.key === "PageDown" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // PageDown không Ctrl: di chuyển ô xuống ~15 hàng (giống Excel thật),
+        // cuộn viewport tương ứng
+        e.preventDefault();
+        const pageRows = Math.max(1, Math.floor((this.viewport?.clientHeight || 390) / this.rowHeight) - 1);
+        nextRow = Math.min(this.rowCount, nextRow + pageRows);
+        extendRange = e.shiftKey;
+        if (this.viewport) this.viewport.scrollTop = Math.max(0, (nextRow - 1) * this.rowHeight);
+        this.selectCell(nextCol, nextRow, extendRange);
+        return;
+      } else if ((e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Shift+F10 hoặc ContextMenu key: mở context menu trên ô đang chọn
+        // (giống chuột phải) mà không cần chuột — chuẩn accessibility
+        e.preventDefault();
+        const cellSelector = `.vno-grid-cell[data-coord="${this.selectedCoord.c}${this.selectedCoord.r}"]`;
+        const cellEl = this.container.querySelector(cellSelector);
+        let clientX = 8;
+        let clientY = 80;
+        if (cellEl) {
+          const rect = cellEl.getBoundingClientRect();
+          clientX = rect.left + 4;
+          clientY = rect.bottom - 2;
+        }
+        this.showContextMenu(
+          { clientX, clientY, preventDefault: () => {} },
+          "cell",
+          `${this.selectedCoord.c}${this.selectedCoord.r}`
+        );
+        return;
       } else if (e.key === " " && e.ctrlKey) {
         e.preventDefault();
         this.selectCurrentColumn();
