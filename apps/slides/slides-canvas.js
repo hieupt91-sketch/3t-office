@@ -256,6 +256,8 @@ export class SlidesCanvasController {
     this.animationPaneEl = null;
     this.isAnimationPaneVisible = false;
     this._animationPaneEscapeHandler = null;
+    this._activeAnimationIndex = 0;
+    this._animationPaneTriggerEl = null;
     this.slideShowSettings = {
       loopUntilEsc: false,
       showWithoutNarration: false,
@@ -1897,7 +1899,7 @@ export class SlidesCanvasController {
     reordered[next] = swapped;
     this._assignAnimationOrders(slide, reordered);
     this._pushAnimationUndo(before);
-    this._renderAnimationPane();
+    this._renderAnimationPane(next);
     this._renderShapesLayer();
     return true;
   }
@@ -1917,9 +1919,11 @@ export class SlidesCanvasController {
       const shape = (slide.shapes || []).find((entry) => String(entry.id) === String(item.target));
       if (shape) shape.animation = cleared;
     }
+    const remainingCount = list.length - 1;
+    const nextFocus = remainingCount > 0 ? Math.min(index, remainingCount - 1) : "close";
     this._assignAnimationOrders(slide, this.collectSlideAnimations(slide).map((entry) => entry.target));
     this._pushAnimationUndo(before);
-    this._renderAnimationPane();
+    this._renderAnimationPane(nextFocus);
     this._renderShapesLayer();
     return true;
   }
@@ -1946,20 +1950,40 @@ export class SlidesCanvasController {
     if (!this.animationPaneEl && next && this.stageEl) this._createAnimationPane(this.stageEl);
     if (this.animationPaneEl) this.animationPaneEl.hidden = !next;
     if (next) {
+      this._animationPaneTriggerEl = (typeof document !== "undefined" && document.activeElement && document.activeElement !== document.body)
+        ? document.activeElement
+        : null;
+      if (this._activeAnimationIndex == null || this._activeAnimationIndex < 0) {
+        this._activeAnimationIndex = 0;
+      }
       this._renderAnimationPane();
-      this.animationPaneEl?.querySelector?.(".vno-anim-pane-close")?.focus?.();
+      const firstItem = this.animationPaneEl?.querySelector?.('.vno-anim-pane-item[tabindex="0"]');
+      if (firstItem && typeof firstItem.focus === "function") {
+        firstItem.focus();
+      } else {
+        this.animationPaneEl?.querySelector?.(".vno-anim-pane-close")?.focus?.();
+      }
       if (!this._animationPaneEscapeHandler && typeof document !== "undefined") {
         this._animationPaneEscapeHandler = (event) => {
           if (event.key === "Escape" && this.isAnimationPaneVisible) {
-            event.preventDefault();
+            event.preventDefault?.();
             this.toggleAnimationPane(false);
           }
         };
-        document.addEventListener("keydown", this._animationPaneEscapeHandler);
+        document.addEventListener?.("keydown", this._animationPaneEscapeHandler);
       }
-    } else if (this._animationPaneEscapeHandler && typeof document !== "undefined") {
-      document.removeEventListener("keydown", this._animationPaneEscapeHandler);
-      this._animationPaneEscapeHandler = null;
+    } else {
+      if (this._animationPaneEscapeHandler && typeof document !== "undefined") {
+        document.removeEventListener?.("keydown", this._animationPaneEscapeHandler);
+        this._animationPaneEscapeHandler = null;
+      }
+      const trigger = this._animationPaneTriggerEl;
+      this._animationPaneTriggerEl = null;
+      if (trigger && typeof trigger.focus === "function" && trigger.isConnected) {
+        trigger.focus();
+      } else {
+        this.canvasEl?.focus?.();
+      }
     }
     this._syncCommandStates();
     return this.isAnimationPaneVisible;
@@ -1973,50 +1997,199 @@ export class SlidesCanvasController {
     panel.hidden = !this.isAnimationPaneVisible;
     panel.setAttribute?.("role", "region");
     panel.setAttribute?.("aria-label", t("slidesDialogs.animationPaneTitle", "Ngăn hoạt hình"));
+    panel.setAttribute?.("tabindex", "-1");
     panel.innerHTML = `
       <header>
         <strong id="vno-anim-pane-title">${t("slidesDialogs.animationPaneTitle", "Ngăn hoạt hình")}</strong>
         <button type="button" class="vno-anim-pane-close" title="${t("slidesDialogs.close", "Đóng")}" aria-label="${t("slidesDialogs.close", "Đóng")}">×</button>
       </header>
       <p class="vno-anim-pane-hint">${t("slidesDialogs.animationPaneHint", "Danh sách hiệu ứng trên trang đang chọn. Đổi thứ tự bằng nút lên/xuống, chọn cách bắt đầu, hoặc xóa hiệu ứng (không xóa đối tượng).")}</p>
-      <div class="vno-anim-pane-list" role="list" aria-live="polite"></div>`;
-    panel.querySelector(".vno-anim-pane-close")?.addEventListener("click", () => this.toggleAnimationPane(false));
-    panel.addEventListener("click", (event) => {
+      <div class="vno-anim-pane-list" role="listbox" aria-label="${t("slidesDialogs.animationPaneTitle", "Ngăn hoạt hình")}" aria-live="polite"></div>`;
+    panel.querySelector?.(".vno-anim-pane-close")?.addEventListener?.("click", () => this.toggleAnimationPane(false));
+    panel.addEventListener?.("click", (event) => {
       const button = event.target?.closest?.("[data-anim-action]");
-      if (!button) return;
-      const index = parseInt(button.getAttribute("data-anim-index"), 10);
-      const action = button.getAttribute("data-anim-action");
-      if (action === "up") this.moveSlideAnimation(index, -1);
-      else if (action === "down") this.moveSlideAnimation(index, 1);
-      else if (action === "remove") this.removeSlideAnimation(index);
+      if (button) {
+        const index = parseInt(button.getAttribute?.("data-anim-index"), 10);
+        const action = button.getAttribute?.("data-anim-action");
+        if (action === "up") this.moveSlideAnimation(index, -1);
+        else if (action === "down") this.moveSlideAnimation(index, 1);
+        else if (action === "remove") this.removeSlideAnimation(index);
+        return;
+      }
+      const itemEl = event.target?.closest?.(".vno-anim-pane-item");
+      if (itemEl && event.target?.tagName !== "SELECT") {
+        const index = parseInt(itemEl.getAttribute?.("data-anim-index"), 10);
+        if (!Number.isNaN(index)) {
+          this._selectAnimationPaneItem(index, true);
+        }
+      }
     });
-    panel.addEventListener("change", (event) => {
+    panel.addEventListener?.("change", (event) => {
       const select = event.target?.closest?.("[data-anim-start]");
       if (!select) return;
-      const index = parseInt(select.getAttribute("data-anim-index"), 10);
+      const index = parseInt(select.getAttribute?.("data-anim-index"), 10);
       this.setSlideAnimationStart(index, select.value);
     });
+    panel.addEventListener?.("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        this.toggleAnimationPane(false);
+        return;
+      }
+
+      const activeItemEl = event.target?.closest?.(".vno-anim-pane-item");
+      if (!activeItemEl && event.target !== panel) return;
+
+      const items = this.collectSlideAnimations();
+      if (!items.length) return;
+
+      const currentIndex = activeItemEl
+        ? parseInt(activeItemEl.getAttribute?.("data-anim-index"), 10)
+        : (this._activeAnimationIndex ?? 0);
+
+      const isUp = event.key === "ArrowUp" || event.key === "Up";
+      const isDown = event.key === "ArrowDown" || event.key === "Down";
+      const isMoveUp = (event.altKey && event.shiftKey && isUp) || (event.ctrlKey && event.shiftKey && isUp);
+      const isMoveDown = (event.altKey && event.shiftKey && isDown) || (event.ctrlKey && event.shiftKey && isDown);
+      const isDelete = event.key === "Delete" || event.key === "Del";
+
+      // Alt+Shift+Up (PowerPoint standard) or Ctrl+Shift+Up to move animation earlier
+      if (isMoveUp) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        if (currentIndex > 0) {
+          this.moveSlideAnimation(currentIndex, -1);
+        }
+        return;
+      }
+
+      // Alt+Shift+Down (PowerPoint standard) or Ctrl+Shift+Down to move animation later
+      if (isMoveDown) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        if (currentIndex < items.length - 1) {
+          this.moveSlideAnimation(currentIndex, 1);
+        }
+        return;
+      }
+
+      // Delete key removes animation from pane
+      if (isDelete) {
+        const tag = event.target?.tagName;
+        if (tag !== "INPUT" && tag !== "TEXTAREA" && !event.target?.isContentEditable) {
+          event.preventDefault?.();
+          event.stopPropagation?.();
+          this.removeSlideAnimation(currentIndex);
+          return;
+        }
+      }
+
+      // Do NOT intercept arrow keys on native select dropdowns
+      if (event.target?.tagName === "SELECT") {
+        return;
+      }
+
+      if (isDown) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const nextIndex = Math.min(items.length - 1, currentIndex + 1);
+        this._selectAnimationPaneItem(nextIndex, true);
+        return;
+      }
+
+      if (isUp) {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        const prevIndex = Math.max(0, currentIndex - 1);
+        this._selectAnimationPaneItem(prevIndex, true);
+        return;
+      }
+
+      if (event.key === "Home") {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        this._selectAnimationPaneItem(0, true);
+        return;
+      }
+
+      if (event.key === "End") {
+        event.preventDefault?.();
+        event.stopPropagation?.();
+        this._selectAnimationPaneItem(items.length - 1, true);
+        return;
+      }
+    });
+
     (stage || this.stageEl || this.container)?.appendChild?.(panel);
     this.animationPaneEl = panel;
   }
 
-  _renderAnimationPane() {
+  _selectAnimationPaneItem(index, shouldFocus = false) {
+    const panel = this.animationPaneEl;
+    if (!panel) return;
+    const items = panel.querySelectorAll?.(".vno-anim-pane-item") || [];
+    if (!items.length) return;
+    const clampedIndex = Math.max(0, Math.min(index, items.length - 1));
+    this._activeAnimationIndex = clampedIndex;
+
+    items.forEach?.((el, idx) => {
+      const isSelected = idx === clampedIndex;
+      el.setAttribute?.("tabindex", isSelected ? "0" : "-1");
+      el.setAttribute?.("aria-selected", isSelected ? "true" : "false");
+      if (isSelected) {
+        el.classList?.add?.("is-selected");
+        if (shouldFocus && typeof el.focus === "function") {
+          el.focus();
+        }
+      } else {
+        el.classList?.remove?.("is-selected");
+      }
+    });
+
+    const animList = this.collectSlideAnimations();
+    const current = animList[clampedIndex];
+    if (current && current.target != null) {
+      this.selectedTarget = current.target;
+      this.shapesLayer?.querySelectorAll?.(".vno-slide-shape-item")?.forEach?.((el) => {
+        const shapeId = el.dataset?.shapeId || el.getAttribute?.("data-shape-id");
+        const isShapeSelected = String(shapeId) === String(current.target);
+        el.classList?.[isShapeSelected ? "add" : "remove"]?.("is-selected");
+      });
+    }
+  }
+
+  _renderAnimationPane(focusIndex) {
     const panel = this.animationPaneEl;
     if (!panel || panel.hidden) return;
-    const listEl = panel.querySelector(".vno-anim-pane-list");
+    const listEl = panel.querySelector?.(".vno-anim-pane-list");
     if (!listEl) return;
     const items = this.collectSlideAnimations();
     if (!items.length) {
-      listEl.innerHTML = `<div class="vno-anim-pane-empty">${t("slidesDialogs.animationPaneEmpty", "Trang này chưa có hiệu ứng. Dùng Hiệu ứng đối tượng trên tab Hoạt hình để gắn hiệu ứng, rồi mở lại ngăn này để sắp xếp.")}</div>`;
+      this._activeAnimationIndex = -1;
+      listEl.innerHTML = `<div class="vno-anim-pane-empty" tabindex="0">${t("slidesDialogs.animationPaneEmpty", "Trang này chưa có hiệu ứng. Dùng Hiệu ứng đối tượng trên tab Hoạt hình để gắn hiệu ứng, rồi mở lại ngăn này để sắp xếp.")}</div>`;
+      if (focusIndex === "close") {
+        panel.querySelector?.(".vno-anim-pane-close")?.focus?.();
+      }
       return;
     }
+
+    if (focusIndex != null && typeof focusIndex === "number") {
+      this._activeAnimationIndex = Math.max(0, Math.min(focusIndex, items.length - 1));
+    } else if (this._activeAnimationIndex == null || this._activeAnimationIndex < 0 || this._activeAnimationIndex >= items.length) {
+      this._activeAnimationIndex = 0;
+    }
+
     const startOptions = (selected) => [
       ["onClick", t("slidesDialogs.animStartOnClick", "Khi click")],
       ["withPrevious", t("slidesDialogs.animStartWithPrevious", "Cùng với trước đó")],
       ["afterPrevious", t("slidesDialogs.animStartAfterPrevious", "Sau trước đó")]
     ].map(([value, label]) => `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`).join("");
-    listEl.innerHTML = items.map((item) => `
-      <div class="vno-anim-pane-item" role="listitem" data-anim-index="${item.index}" data-anim-target="${this._escapeShapeText(String(item.target))}">
+
+    listEl.innerHTML = items.map((item) => {
+      const isSelected = item.index === this._activeAnimationIndex;
+      return `
+      <div class="vno-anim-pane-item${isSelected ? " is-selected" : ""}" role="option" aria-selected="${isSelected ? "true" : "false"}" tabindex="${isSelected ? "0" : "-1"}" data-anim-index="${item.index}" data-anim-target="${this._escapeShapeText(String(item.target))}" aria-label="${item.index + 1}. ${this._escapeShapeText(item.label)}, ${this._escapeShapeText(item.typeLabel)}">
         <span class="vno-anim-pane-order" aria-hidden="true">${item.index + 1}</span>
         <div class="vno-anim-pane-meta">
           <strong class="vno-anim-pane-object">${this._escapeShapeText(item.label)}</strong>
@@ -2033,7 +2206,13 @@ export class SlidesCanvasController {
           <button type="button" data-anim-action="down" data-anim-index="${item.index}" ${item.index === items.length - 1 ? "disabled" : ""} aria-label="${t("slidesDialogs.animMoveDown", "Đưa xuống")}">${t("slidesDialogs.animMoveDownShort", "↓")}</button>
           <button type="button" data-anim-action="remove" data-anim-index="${item.index}" aria-label="${t("slidesDialogs.animRemove", "Xóa hiệu ứng")}">${t("slidesDialogs.animRemoveShort", "Xóa")}</button>
         </div>
-      </div>`).join("");
+      </div>`;
+    }).join("");
+
+    if (focusIndex != null && typeof focusIndex === "number") {
+      const targetItem = listEl.querySelector?.(`.vno-anim-pane-item[data-anim-index="${this._activeAnimationIndex}"]`);
+      targetItem?.focus?.();
+    }
   }
 
   getSlideShowSettings() {
@@ -3702,7 +3881,7 @@ export class SlidesCanvasController {
         return;
       }
       // Don't intercept when focus is in thumbnail navigator, animation pane, dialogs, or context menus
-      if (activeEl?.closest?.(".vno-slide-nav, .vno-slide-thumb-item, .vno-dialog-overlay, .vno-context-menu, .vno-slides-anim-pane")) {
+      if (activeEl?.closest?.(".vno-slide-nav, .vno-slide-thumb-item, .vno-dialog-overlay, .vno-context-menu, .vno-animation-pane, .vno-slides-anim-pane")) {
         return;
       }
 
@@ -6424,8 +6603,10 @@ export class SlidesCanvasController {
               ${t("slidesDialogs.layoutHint", "Chọn một bố cục chuẩn để định hình lại cấu trúc nội dung trang chiếu hiện tại:")}
             </p>
             <div class="vno-layouts-grid" id="vno-layouts-grid" role="radiogroup" aria-labelledby="vno-layout-dialog-title">
-              ${SLIDE_LAYOUT_TYPES.map(layout => `
-                <button type="button" role="radio" aria-checked="${layout.id === selectedId}" aria-pressed="${layout.id === selectedId}" class="vno-layout-card ${layout.id === selectedId ? "is-selected" : ""}" data-layout-id="${layout.id}" style="text-align:left;">
+              ${SLIDE_LAYOUT_TYPES.map(layout => {
+                const isSelected = layout.id === selectedId;
+                return `
+                <button type="button" role="radio" aria-checked="${isSelected}" aria-pressed="${isSelected}" tabindex="${isSelected ? "0" : "-1"}" class="vno-layout-card ${isSelected ? "is-selected" : ""}" data-layout-id="${layout.id}" style="text-align:left;">
                   <div class="vno-layout-card-preview" aria-hidden="true">
                     ${layout.previewSvg}
                   </div>
@@ -6435,7 +6616,7 @@ export class SlidesCanvasController {
                   </div>
                   <div class="vno-layout-card-desc">${getLocale() === "en" ? (layout.descEn || layout.description) : layout.description}</div>
                 </button>
-              `).join("")}
+              `;}).join("")}
             </div>
           </div>
           <div class="vno-dialog-footer" style="display:flex;justify-content:space-between;">
@@ -6451,24 +6632,59 @@ export class SlidesCanvasController {
       document.body.appendChild(overlay);
       const dialogBox = overlay.querySelector(".vno-dialog-box");
 
-      const cards = overlay.querySelectorAll(".vno-layout-card");
-      cards.forEach((card) => {
+      const cards = Array.from(overlay.querySelectorAll(".vno-layout-card"));
+      const selectCardByIndex = (idx, shouldFocus = false) => {
+        if (!cards.length) return;
+        const clamped = Math.max(0, Math.min(idx, cards.length - 1));
+        cards.forEach((c, i) => {
+          const isSel = i === clamped;
+          c.classList[isSel ? "add" : "remove"]("is-selected");
+          c.setAttribute("aria-checked", isSel ? "true" : "false");
+          c.setAttribute("aria-pressed", isSel ? "true" : "false");
+          c.setAttribute("tabindex", isSel ? "0" : "-1");
+          if (isSel) {
+            selectedId = c.dataset.layoutId;
+            if (shouldFocus) c.focus?.();
+          }
+        });
+      };
+
+      cards.forEach((card, idx) => {
         card.addEventListener("click", () => {
-          cards.forEach(c => {
-            c.classList.remove("is-selected");
-            c.setAttribute("aria-checked", "false");
-            c.setAttribute("aria-pressed", "false");
-          });
-          card.classList.add("is-selected");
-          card.setAttribute("aria-checked", "true");
-          card.setAttribute("aria-pressed", "true");
-          selectedId = card.dataset.layoutId;
+          selectCardByIndex(idx, false);
         });
         card.addEventListener("dblclick", () => {
           selectedId = card.dataset.layoutId;
           this.applySlideLayout(selectedId, true);
           close();
           resolve(true);
+        });
+        card.addEventListener("keydown", (e) => {
+          const currentIdx = cards.indexOf(card);
+          if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+            e.preventDefault();
+            e.stopPropagation();
+            selectCardByIndex(currentIdx + 1, true);
+          } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+            e.preventDefault();
+            e.stopPropagation();
+            selectCardByIndex(currentIdx - 1, true);
+          } else if (e.key === "Home") {
+            e.preventDefault();
+            e.stopPropagation();
+            selectCardByIndex(0, true);
+          } else if (e.key === "End") {
+            e.preventDefault();
+            e.stopPropagation();
+            selectCardByIndex(cards.length - 1, true);
+          } else if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+            selectedId = card.dataset.layoutId;
+            this.applySlideLayout(selectedId, true);
+            close();
+            resolve(true);
+          }
         });
       });
 
@@ -6478,8 +6694,10 @@ export class SlidesCanvasController {
         closed = true;
         document.removeEventListener("keydown", onKey);
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        if (previousFocused && typeof previousFocused.focus === "function") {
+        if (previousFocused && typeof previousFocused.focus === "function" && previousFocused.isConnected !== false && previousFocused !== document.body) {
           try { previousFocused.focus(); } catch (_) {}
+        } else {
+          document.querySelector?.('[data-command-id="slides.layout.apply"]')?.focus?.();
         }
       };
       const onKey = (e) => {
@@ -6621,8 +6839,10 @@ export class SlidesCanvasController {
         closed = true;
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
         document.removeEventListener("keydown", onKeyDown);
-        if (previousFocused && typeof previousFocused.focus === "function") {
+        if (previousFocused && typeof previousFocused.focus === "function" && previousFocused.isConnected !== false && previousFocused !== document.body) {
           try { previousFocused.focus(); } catch (_) {}
+        } else {
+          document.querySelector?.('[data-command-id="slides.transition.apply"]')?.focus?.();
         }
       };
       const onKeyDown = (e) => {

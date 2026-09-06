@@ -277,6 +277,30 @@
   border: 1px solid #fed7aa;
   border-radius: 6px;
   background: #fff7ed;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
+}
+.vno-anim-pane-item:hover {
+  border-color: #fdba74;
+  background: #ffedd5;
+}
+.vno-anim-pane-item.is-selected,
+.vno-anim-pane-item[aria-selected="true"] {
+  border-color: #f97316;
+  background: #ffedd5;
+  box-shadow: 0 0 0 1px #f97316;
+}
+.vno-anim-pane-item:focus-visible,
+.vno-anim-pane-item.is-focused {
+  outline: 2px solid var(--vno-border-focus, #2563eb);
+  outline-offset: 1px;
+}
+.vno-animation-pane header button:focus-visible,
+.vno-anim-pane-start select:focus-visible,
+.vno-anim-pane-actions button:focus-visible {
+  outline: 2px solid var(--vno-border-focus, #2563eb);
+  outline-offset: 1px;
 }
 .vno-anim-pane-order {
   width: 24px;
@@ -351,6 +375,16 @@
 [data-theme="dark"] .vno-anim-pane-item {
   border-color: var(--vno-border-default);
   background: var(--vno-bg-surface);
+}
+[data-theme="dark"] .vno-anim-pane-item:hover {
+  border-color: #fb923c;
+  background: rgba(251, 146, 60, 0.1);
+}
+[data-theme="dark"] .vno-anim-pane-item.is-selected,
+[data-theme="dark"] .vno-anim-pane-item[aria-selected="true"] {
+  border-color: #ea580c;
+  background: rgba(234, 88, 12, 0.18);
+  box-shadow: 0 0 0 1px #ea580c;
 }
 [data-theme="dark"] .vno-anim-pane-object {
   color: var(--vno-text-primary);

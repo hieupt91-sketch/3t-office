@@ -133,6 +133,19 @@ export class ShortcutManager {
     // Tạo chuỗi tổ hợp phím
     const combo = `${e.ctrlKey || e.metaKey ? "CTRL+" : ""}${e.altKey ? "ALT+" : ""}${e.shiftKey ? "SHIFT+" : ""}${keyName}`;
 
+    // Guard: single keys without modifier in text inputs or contenteditable must type/delete naturally
+    const target = e.target;
+    const isInput = target && (target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA");
+    if (isInput && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      return;
+    }
+    // Guard: Animation Pane handles its own Delete and Alt+Shift reorder
+    if (target?.closest?.(".vno-animation-pane")) {
+      if (keyName === "DELETE" || (e.altKey && e.shiftKey)) {
+        return;
+      }
+    }
+
     let cmdId = this._shortcuts.get(combo);
     if (!cmdId && (e.shiftKey || keyName === ":")) {
       cmdId = this._shortcuts.get(combo.replace(":", ";"));

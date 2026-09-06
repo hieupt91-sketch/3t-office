@@ -101,9 +101,11 @@ export class RibbonHost {
         }
 
         if (targetIndex !== -1 && this.tabs[targetIndex]) {
-          this.selectTab(this.tabs[targetIndex].id);
-          const updatedButtons = tabsBar.querySelectorAll(".vno-ribbon-tab");
-          if (updatedButtons[targetIndex]) updatedButtons[targetIndex].focus();
+          const targetTabId = this.tabs[targetIndex].id;
+          this.selectTab(targetTabId);
+          const newTabBtn = this.container.querySelector?.(`#vno-ribbon-tab-${targetTabId}`)
+            || this.container.querySelectorAll?.(".vno-ribbon-tab")?.[targetIndex];
+          newTabBtn?.focus?.();
         }
       });
 
