@@ -98,6 +98,14 @@ export const enStrings = {
     dataValidation: "Data Validation", allow: "Allow", list: "List", numberRange: "Whole number range", listValues: "Source values (comma-separated)", listPlaceholder: "Approved, Rejected, In progress", minimum: "Minimum", maximum: "Maximum", invalidValidation: "The data validation settings are not valid.", chooseOption: "-- Select --", selectCellValue: "Select value for cell {col}{row}",
     removeDuplicatesTitle: "Remove Duplicates", myHeaderRow: "My data has headers", columnsToCompare: "Columns to compare", selectAtLeastOneColumn: "Select at least one column.", duplicatesRemovedResult: "{removed} duplicate values found and removed; {remaining} unique values remain.",
     customSortTitle: "Sort", addLevel: "Add Level", removeLevel: "Delete Level", sortBy: "Sort by", thenBy: "Then by", sortByColumn: "Sort column", sortOrder: "Order", sortAtoZ: "A to Z", sortZtoA: "Z to A",
+    printPreview: {
+      title: "Print Preview",
+      printBtn: "Print",
+      prevPage: "◀ Previous Page",
+      nextPage: "Next Page ▶",
+      pagePrefix: "Page ",
+      closeTooltip: "Close Preview (Esc)"
+    },
     subtotalTitle: "Subtotal", subtotalHint: "The selected range must contain headers and be sorted by the group column.", atEachChangeIn: "At each change in:", useFunction: "Use function:", addToSubtotal: "Add subtotal to:", selectRangeAndCol: "Please select a range and at least one value column.", subtotalResult: "Inserted {groups} subtotal groups and a grand total row.",
     textToColumnsTitle: "Convert Text to Columns", ttcMode: "Original data type", ttcDelimited: "Delimited", ttcFixedWidth: "Fixed width", ttcComma: "Comma", ttcSemicolon: "Semicolon", ttcSpace: "Space", ttcCustom: "Other", ttcCustomChar: "Other character", ttcWidths: "Column widths (comma-separated)", ttcPreview: "Preview: ", selectSingleCol: "Select data in a single column only.",
     resultTitle: "Result", flashFillSuccess: "Flash Fill filled {filled} cells ({pattern}).", flashFillFailure: "We couldn't recognize a pattern. Please provide 1-2 examples next to your source data.",
@@ -354,6 +362,7 @@ export const enStrings = {
     ,"sheet.review.commentNext": { label: "Next Comment", tooltip: "Go to the next comment" }
     ,"sheet.review.commentDelete": { label: "Delete Comment", tooltip: "Delete the selected comment" }
     ,"sheet.review.commentResolve": { label: "Resolve Comment", tooltip: "Resolve or reopen the selected comment" }
+    ,"sheet.file.printPreview": { label: "Print Preview", tooltip: "Print Preview (Ctrl+F2)" }
     ,"sheet.page.setPrintArea": { label: "Set Print Area", tooltip: "Set the selected range as the print area" }
     ,"sheet.page.clearPrintArea": { label: "Clear Print Area", tooltip: "Clear the current worksheet's print area" }
     ,"sheet.page.insertPageBreak": { label: "Insert Page Break", tooltip: "Insert row and column page breaks at the active cell" }

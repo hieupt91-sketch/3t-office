@@ -1158,16 +1158,105 @@ tr.is-filtered-out {
 }
 
 
-/* In tài liệu (window.print()) — ẩn formula bar & thanh tab sheet, chỉ in lưới dữ liệu */
+/* In tài liệu (window.print()) — lưới sống dùng ảo hóa hàng nên KHÔNG thể in trực tiếp
+   (chỉ vài chục hàng quanh vị trí cuộn thực sự có trong DOM). print() dựng lại toàn bộ
+   nội dung theo đúng Page Setup vào #vno-sheet-print-only rồi mới gọi window.print();
+   ở đây chỉ cần ẩn lưới sống/preview và hiện vùng in thật. */
 @media print {
-  .vno-formula-bar,
-  .vno-sheet-tab-bar {
+  .vno-sheet-container,
+  .vno-sheet-print-preview-overlay {
     display: none !important;
   }
-  .vno-sheet-container {
-    overflow: visible !important;
-    height: auto !important;
+  .vno-sheet-print-only {
+    display: block !important;
   }
+}
+
+.vno-sheet-print-only {
+  display: none;
+}
+.vno-sheet-print-page {
+  background: #fff;
+  box-sizing: border-box;
+}
+.vno-sheet-print-header,
+.vno-sheet-print-footer {
+  text-align: center;
+  font-size: 10px;
+  color: #64748b;
+  padding: 2px 0;
+}
+.vno-sheet-print-table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+.vno-sheet-print-table td,
+.vno-sheet-print-table th {
+  overflow: hidden;
+  padding: 2px 4px;
+  font-size: 11px;
+  vertical-align: middle;
+  border: none;
+}
+.vno-sheet-print-table.has-gridlines td,
+.vno-sheet-print-table.has-gridlines th {
+  border: 1px solid #cbd5e1;
+}
+.vno-sheet-print-heading-row th {
+  background: #f1f5f9;
+  font-weight: 600;
+  text-align: center;
+  border: 1px solid #cbd5e1;
+}
+
+/* Overlay Xem trước khi in (Ctrl+F2) — kiến trúc tương tự Writer nhưng CSS riêng cho Sheet */
+.vno-sheet-print-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #64748b;
+  display: flex;
+  flex-direction: column;
+}
+.vno-sheet-print-preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+.vno-sheet-pp-info {
+  color: #475569;
+  font-size: 12px;
+}
+.vno-sheet-pp-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.vno-sheet-pp-page-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #1e293b;
+}
+.vno-sheet-print-preview-viewport {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+.vno-sheet-print-preview-page {
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 /* ==========================================================================

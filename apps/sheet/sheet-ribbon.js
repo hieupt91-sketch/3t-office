@@ -604,7 +604,8 @@ export const SHEET_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "sheet.view.normal", isLarge: true },
           { type: "button", commandId: "sheet.view.pageBreakPreview", isLarge: true },
-          { type: "button", commandId: "sheet.view.pageLayout", isLarge: true }
+          { type: "button", commandId: "sheet.view.pageLayout", isLarge: true },
+          { type: "button", commandId: "sheet.file.printPreview", isLarge: true }
         ]
       },
       {

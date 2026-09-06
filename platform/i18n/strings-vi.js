@@ -97,6 +97,14 @@ export const viStrings = {
     dataValidation: "Kiểm tra dữ liệu", allow: "Cho phép", list: "Danh sách lựa chọn", numberRange: "Số trong khoảng", listValues: "Các giá trị (cách nhau bằng dấu phẩy)", listPlaceholder: "Đạt, Chưa đạt, Đang xử lý", minimum: "Tối thiểu", maximum: "Tối đa", invalidValidation: "Thông tin kiểm tra dữ liệu chưa hợp lệ.", chooseOption: "-- Chọn --", selectCellValue: "Chọn giá trị cho ô {col}{row}",
     removeDuplicatesTitle: "Xóa trùng lặp", myHeaderRow: "Dữ liệu có hàng tiêu đề", columnsToCompare: "Cột dùng để xét trùng", selectAtLeastOneColumn: "Hãy chọn ít nhất một cột.", duplicatesRemovedResult: "Đã xóa {removed} hàng trùng lặp; còn {remaining} hàng dữ liệu.",
     customSortTitle: "Sắp xếp", addLevel: "Thêm cấp", removeLevel: "Xóa cấp", sortBy: "Sắp xếp theo", thenBy: "Sau đó theo", sortByColumn: "Cột sắp xếp", sortOrder: "Thứ tự", sortAtoZ: "A → Z", sortZtoA: "Z → A",
+    printPreview: {
+      title: "Xem trước khi in",
+      printBtn: "In tài liệu",
+      prevPage: "◀ Trang trước",
+      nextPage: "Trang sau ▶",
+      pagePrefix: "Trang ",
+      closeTooltip: "Đóng xem trước (Esc)"
+    },
     subtotalTitle: "Tổng phụ", subtotalHint: "Vùng đã chọn phải có tiêu đề và được sắp xếp theo cột nhóm.", atEachChangeIn: "Mỗi khi thay đổi ở", useFunction: "Hàm", addToSubtotal: "Cộng tổng vào", selectRangeAndCol: "Hãy chọn vùng và ít nhất một cột giá trị.", subtotalResult: "Đã chèn {groups} nhóm tổng phụ và hàng tổng cộng.",
     textToColumnsTitle: "Tách văn bản thành cột", ttcMode: "Kiểu tách", ttcDelimited: "Dấu phân cách", ttcFixedWidth: "Độ rộng cố định", ttcComma: "Dấu phẩy", ttcSemicolon: "Dấu chấm phẩy", ttcSpace: "Khoảng trắng", ttcCustom: "Tùy chọn", ttcCustomChar: "Ký tự tùy chọn", ttcWidths: "Độ rộng (cách nhau bằng dấu phẩy)", ttcPreview: "Xem trước: ", selectSingleCol: "Chỉ chọn dữ liệu trong một cột.",
     resultTitle: "Kết quả", flashFillSuccess: "Flash Fill đã điền {filled} ô ({pattern}).", flashFillFailure: "Không nhận diện được mẫu. Hãy nhập 1–2 ví dụ ở cột kết quả kế bên dữ liệu nguồn.",
@@ -353,6 +361,7 @@ export const viStrings = {
     ,"sheet.review.commentNext": { label: "Nhận xét sau", tooltip: "Nhảy tới nhận xét tiếp theo" }
     ,"sheet.review.commentDelete": { label: "Xóa nhận xét", tooltip: "Xóa nhận xét đang chọn" }
     ,"sheet.review.commentResolve": { label: "Đã xử lý", tooltip: "Đánh dấu hoặc mở lại nhận xét đang chọn" }
+    ,"sheet.file.printPreview": { label: "Xem trước khi in", tooltip: "Xem trước khi in (Ctrl+F2)" }
     ,"sheet.page.setPrintArea": { label: "Đặt vùng in", tooltip: "Đặt vùng đang chọn làm vùng in" }
     ,"sheet.page.clearPrintArea": { label: "Xóa vùng in", tooltip: "Xóa vùng in của trang tính hiện tại" }
     ,"sheet.page.insertPageBreak": { label: "Chèn ngắt trang", tooltip: "Chèn ngắt hàng và cột tại ô đang chọn" }

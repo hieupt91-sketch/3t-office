@@ -40,6 +40,17 @@ export const MAX_SHEET_NAME_LENGTH = 31;
 export const INVALID_SHEET_NAME_CHARS = /[/\\?*\[\]:]/;
 export const SHEET_MOVE_TO_END = "__end__";
 
+// Cùng bảng khổ giấy (mm) và hệ số quy đổi 96dpi mà Writer đã dùng cho Print Preview,
+// để 3 app có cùng một kích thước A4/Letter/Legal thực tế khi in.
+export const SHEET_PAGE_SIZES_MM = Object.freeze({
+  a4: Object.freeze({ label: "A4 (210 × 297 mm)", w: 210, h: 297 }),
+  letter: Object.freeze({ label: "Letter (216 × 279 mm)", w: 216, h: 279 }),
+  legal: Object.freeze({ label: "Legal (216 × 356 mm)", w: 216, h: 356 })
+});
+export const SHEET_MM_TO_PX = 3.7795275591; // 96dpi
+// Lề trong pageSetupBySheet lưu bằng CM (xem showPageSetupDialog: input "(cm)"), khác mm.
+export const SHEET_CM_TO_PX = SHEET_MM_TO_PX * 10;
+
 function newSheetPageSetup(overrides = {}) {
   return {
     margins: { ...DEFAULT_SHEET_PAGE_SETUP.margins, ...(overrides.margins || {}) },
@@ -5511,6 +5522,407 @@ export class SheetGridController {
       start: { c: this.cols[minColIdx], r: minRow },
       end: { c: this.cols[maxColIdx], r: maxRow }
     };
+  }
+
+  /** Đọc "Hàng lặp lại" của Print Titles (vd "1" hoặc "1:2") thành {start, end} hoặc null. */
+  _parsePrintTitleRows(setup) {
+    const raw = String(setup?.printTitles?.rows || "").trim();
+    const m = raw.match(/^(\d+)(?::(\d+))?$/);
+    if (!m) return null;
+    const a = parseInt(m[1], 10);
+    const b = m[2] ? parseInt(m[2], 10) : a;
+    return { start: Math.min(a, b), end: Math.max(a, b) };
+  }
+
+  /** Đọc "Cột lặp lại" của Print Titles (vd "A" hoặc "A:B") thành {start, end} (số cột) hoặc null. */
+  _parsePrintTitleCols(setup) {
+    const raw = String(setup?.printTitles?.cols || "").trim().toUpperCase();
+    const m = raw.match(/^([A-Z]+)(?::([A-Z]+))?$/);
+    if (!m) return null;
+    const a = this._columnNumber(m[1]);
+    const b = m[2] ? this._columnNumber(m[2]) : a;
+    return { start: Math.min(a, b), end: Math.max(a, b) };
+  }
+
+  /**
+   * Tính toán phân trang in THẬT dựa trên Page Setup (khổ giấy, lề, hướng, tỷ lệ,
+   * tiêu đề lặp lại) và Vùng in hiệu lực hiện tại. Dùng chung cho cả Print Preview
+   * và in thật (window.print()) để đảm bảo WYSIWYG - Preview thấy gì thì in ra đúng vậy.
+   * Hàng/cột ẩn (thủ công hoặc outline) không được đưa vào trang in, giống Excel thật.
+   */
+  computePrintPages(sheetName = this.activeSheet) {
+    const setup = this.getPageSetup(sheetName);
+    const area = this._getEffectivePrintArea();
+    const startColIdx = this._columnNumber(area.start.c);
+    const endColIdx = this._columnNumber(area.end.c);
+    const startRow = area.start.r;
+    const endRow = area.end.r;
+
+    const base = SHEET_PAGE_SIZES_MM[setup.size] || SHEET_PAGE_SIZES_MM.a4;
+    const isLandscape = setup.orientation === "landscape";
+    const widthMm = isLandscape ? base.h : base.w;
+    const heightMm = isLandscape ? base.w : base.h;
+    const { top, right, bottom, left } = setup.margins;
+    const pageWidthPx = Math.round(widthMm * SHEET_MM_TO_PX);
+    const pageHeightPx = Math.round(heightMm * SHEET_MM_TO_PX);
+    const hasHeaderText = Boolean(setup.headerFooter?.header?.left || setup.headerFooter?.header?.center || setup.headerFooter?.header?.right);
+    const hasFooterText = Boolean(setup.headerFooter?.footer?.left || setup.headerFooter?.footer?.center || setup.headerFooter?.footer?.right);
+    const printableWidthPx = Math.max(100, pageWidthPx - Math.round((left + right) * SHEET_CM_TO_PX));
+    const printableHeightPx = Math.max(100,
+      pageHeightPx - Math.round((top + bottom) * SHEET_CM_TO_PX) - (hasHeaderText ? 34 : 0) - (hasFooterText ? 34 : 0));
+
+    const titleRowRange = this._parsePrintTitleRows(setup);
+    const titleColRange = this._parsePrintTitleCols(setup);
+    const titleRowNums = [];
+    if (titleRowRange) {
+      for (let r = titleRowRange.start; r <= titleRowRange.end; r++) {
+        if (!this._isRowSkipped(r)) titleRowNums.push(r);
+      }
+    }
+    const titleColNums = [];
+    if (titleColRange) {
+      for (let c = titleColRange.start; c <= titleColRange.end; c++) {
+        if (!this._isColumnHidden(this._columnLabel(c))) titleColNums.push(c);
+      }
+    }
+    const titleRowSet = new Set(titleRowNums);
+    const titleColSet = new Set(titleColNums);
+
+    const bodyRowNums = [];
+    for (let r = startRow; r <= endRow; r++) {
+      if (titleRowSet.has(r) || this._isRowSkipped(r)) continue;
+      bodyRowNums.push(r);
+    }
+    const bodyColNums = [];
+    for (let c = startColIdx; c <= endColIdx; c++) {
+      if (titleColSet.has(c) || this._isColumnHidden(this._columnLabel(c))) continue;
+      bodyColNums.push(c);
+    }
+
+    const naturalHeight = (r) => this.getRowHeight(r, sheetName);
+    const naturalWidth = (c) => this.getColumnWidth(this._columnLabel(c), sheetName);
+    const titleRowsHeightPx = titleRowNums.reduce((sum, r) => sum + naturalHeight(r), 0);
+    const titleColsWidthPx = titleColNums.reduce((sum, c) => sum + naturalWidth(c), 0);
+    const bodyWidthPx = bodyColNums.reduce((sum, c) => sum + naturalWidth(c), 0);
+    const bodyHeightPx = bodyRowNums.reduce((sum, r) => sum + naturalHeight(r), 0);
+
+    // Xác định tỷ lệ hiển thị/in: "percent" (nhập tay) hoặc "pages" (vừa N trang rộng x M trang cao).
+    // Với "pages", đây là một phép tính gần đúng một bước (không lặp lại như Excel thật):
+    // không tính riêng chi phí tiêu đề lặp lại trên MỖI trang, coi như chỉ tốn một lần.
+    let scale;
+    if (setup.scale?.mode === "pages" && (setup.scale.pagesWide > 0 || setup.scale.pagesTall > 0)) {
+      const pagesWide = setup.scale.pagesWide || 0;
+      const pagesTall = setup.scale.pagesTall || 0;
+      const totalWidthPx = titleColsWidthPx + bodyWidthPx || 1;
+      const totalHeightPx = titleRowsHeightPx + bodyHeightPx || 1;
+      const widthScale = pagesWide > 0 ? (printableWidthPx * pagesWide) / totalWidthPx : Infinity;
+      const heightScale = pagesTall > 0 ? (printableHeightPx * pagesTall) / totalHeightPx : Infinity;
+      scale = Math.min(widthScale, heightScale, 4);
+      if (!Number.isFinite(scale) || scale <= 0) scale = 1;
+      scale = Math.max(0.1, scale);
+    } else {
+      scale = Math.max(0.1, Math.min(4, (setup.scale?.percent || 100) / 100));
+    }
+
+    const scaledHeight = (r) => naturalHeight(r) * scale;
+    const scaledWidth = (c) => naturalWidth(c) * scale;
+    const titleRowsHeightScaledPx = titleRowNums.reduce((sum, r) => sum + scaledHeight(r), 0);
+    const titleColsWidthScaledPx = titleColNums.reduce((sum, c) => sum + scaledWidth(c), 0);
+    const availableHeightForBody = Math.max(20, printableHeightPx - titleRowsHeightScaledPx);
+    const availableWidthForBody = Math.max(20, printableWidthPx - titleColsWidthScaledPx);
+
+    const groupByCapacity = (nums, sizeOf, capacity) => {
+      const groups = [];
+      let current = [];
+      let currentSize = 0;
+      for (const n of nums) {
+        const size = sizeOf(n);
+        if (current.length > 0 && currentSize + size > capacity) {
+          groups.push(current);
+          current = [];
+          currentSize = 0;
+        }
+        current.push(n);
+        currentSize += size;
+      }
+      if (current.length > 0) groups.push(current);
+      if (groups.length === 0) groups.push([]);
+      return groups;
+    };
+
+    const rowGroups = groupByCapacity(bodyRowNums, scaledHeight, availableHeightForBody);
+    const colGroups = groupByCapacity(bodyColNums, scaledWidth, availableWidthForBody);
+
+    // Thứ tự trang mặc định của Excel thật: "Xuống, rồi qua" (Down, then Over).
+    const pages = [];
+    let pageNumber = 1;
+    for (const colGroup of colGroups) {
+      for (const rowGroup of rowGroups) {
+        pages.push({
+          pageNumber: pageNumber++,
+          rowNums: [...titleRowNums, ...rowGroup],
+          colNums: [...titleColNums, ...colGroup],
+          titleRowCount: titleRowNums.length,
+          titleColCount: titleColNums.length
+        });
+      }
+    }
+
+    return {
+      pages,
+      totalPages: pages.length,
+      scale,
+      pageWidthPx,
+      pageHeightPx,
+      printableWidthPx,
+      printableHeightPx,
+      orientation: setup.orientation,
+      sizeKey: setup.size,
+      sizeLabel: base.label,
+      margins: setup.margins,
+      headerFooter: setup.headerFooter,
+      printOptions: setup.printOptions,
+      centerOnPage: setup.centerOnPage
+    };
+  }
+
+  /**
+   * Thay &P (số trang hiện tại), &N (tổng số trang) và &D (ngày) trong chuỗi
+   * header/footer của Page Setup - đúng cú pháp mã Excel thật dùng.
+   */
+  _formatSheetHeaderFooterText(template, pageNumber, totalPages) {
+    if (!template) return "";
+    return String(template)
+      .replace(/&P/g, String(pageNumber))
+      .replace(/&N/g, String(totalPages))
+      .replace(/&D/g, new Date().toLocaleDateString("vi-VN"));
+  }
+
+  /** Dựng một bảng <table> DOM thật cho một trang in, dùng lại _renderCellVisual để đảm bảo hiển thị giống hệt lưới sống. */
+  _renderPrintPageTable(page) {
+    const table = document.createElement("table");
+    table.className = "vno-sheet-print-table";
+    if (this.pageSetupBySheet?.[this.activeSheet]?.printOptions?.gridlines) {
+      table.classList.add("has-gridlines");
+    }
+    const showHeadings = Boolean(this.getPageSetup().printOptions?.headings);
+    const tbody = document.createElement("tbody");
+
+    if (showHeadings) {
+      const headRow = document.createElement("tr");
+      headRow.className = "vno-sheet-print-heading-row";
+      const corner = document.createElement("th");
+      headRow.appendChild(corner);
+      for (const c of page.colNums) {
+        const th = document.createElement("th");
+        th.textContent = this._columnLabel(c);
+        th.style.width = `${this.getColumnWidth(this._columnLabel(c)) * this._lastPrintScale}px`;
+        headRow.appendChild(th);
+      }
+      tbody.appendChild(headRow);
+    }
+
+    const renderedMerges = new Set();
+    for (const r of page.rowNums) {
+      const tr = document.createElement("tr");
+      if (showHeadings) {
+        const th = document.createElement("th");
+        th.textContent = String(r);
+        th.style.height = `${this.getRowHeight(r) * this._lastPrintScale}px`;
+        tr.appendChild(th);
+      }
+      for (const c of page.colNums) {
+        const colLabel = this._columnLabel(c);
+        const key = `${colLabel}${r}`;
+        if (renderedMerges.has(key)) continue;
+        const mergedRange = this.getMergedRangeForCell(colLabel, r);
+        const td = document.createElement("td");
+        if (mergedRange && (mergedRange.start.c !== colLabel || mergedRange.start.r !== r)) {
+          continue;
+        }
+        if (mergedRange) {
+          const pageColSet = new Set(page.colNums);
+          const pageRowSet = new Set(page.rowNums);
+          let colSpan = 0;
+          for (let cc = this._columnNumber(mergedRange.start.c); cc <= this._columnNumber(mergedRange.end.c); cc++) {
+            if (pageColSet.has(cc)) { colSpan++; renderedMerges.add(`${this._columnLabel(cc)}${r}`); }
+          }
+          let rowSpan = 0;
+          for (let rr = mergedRange.start.r; rr <= mergedRange.end.r; rr++) {
+            if (pageRowSet.has(rr)) rowSpan++;
+          }
+          if (colSpan > 1) td.colSpan = colSpan;
+          if (rowSpan > 1) td.rowSpan = rowSpan;
+          for (let rr = mergedRange.start.r; rr <= mergedRange.end.r; rr++) {
+            for (let cc = this._columnNumber(mergedRange.start.c); cc <= this._columnNumber(mergedRange.end.c); cc++) {
+              if (rr === r && cc === this._columnNumber(colLabel)) continue;
+              renderedMerges.add(`${this._columnLabel(cc)}${rr}`);
+            }
+          }
+        }
+        const itm = this.cellsData.get(key);
+        this._renderCellVisual(td, itm, colLabel, r);
+        td.style.width = `${this.getColumnWidth(colLabel) * this._lastPrintScale}px`;
+        td.style.height = `${this.getRowHeight(r) * this._lastPrintScale}px`;
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    return table;
+  }
+
+  /** Dựng (hoặc cập nhật) vùng DOM CHỈ-DÙNG-ĐỂ-IN, ẩn khi xem bình thường và chỉ hiện trong @media print.
+   * Vì lưới sống dùng ảo hóa hàng (row virtualization), không thể in trực tiếp DOM đang hiển thị -
+   * nó chỉ chứa vài chục hàng quanh vị trí cuộn hiện tại. Vùng in thật phải dựng lại từ cellsData. */
+  _syncSheetPrintOnlyDom() {
+    if (typeof document === "undefined") return null;
+    const result = this.computePrintPages();
+    this._lastPrintScale = result.scale;
+
+    let container = document.querySelector("#vno-sheet-print-only");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "vno-sheet-print-only";
+      container.className = "vno-sheet-print-only";
+      if (typeof container.setAttribute === "function") container.setAttribute("id", "vno-sheet-print-only");
+      document.body.appendChild(container);
+    }
+    container.innerHTML = "";
+
+    result.pages.forEach((page, index) => {
+      const pageDiv = document.createElement("div");
+      pageDiv.className = "vno-sheet-print-page";
+      pageDiv.style.width = `${result.pageWidthPx}px`;
+      pageDiv.style.minHeight = `${result.pageHeightPx}px`;
+      pageDiv.style.padding =
+        `${Math.round(result.margins.top * SHEET_CM_TO_PX)}px ${Math.round(result.margins.right * SHEET_CM_TO_PX)}px ` +
+        `${Math.round(result.margins.bottom * SHEET_CM_TO_PX)}px ${Math.round(result.margins.left * SHEET_CM_TO_PX)}px`;
+      if (index < result.pages.length - 1) pageDiv.style.pageBreakAfter = "always";
+
+      const headerText = this._formatSheetHeaderFooterText(result.headerFooter?.header?.center, page.pageNumber, result.totalPages);
+      if (headerText) {
+        const header = document.createElement("div");
+        header.className = "vno-sheet-print-header";
+        header.textContent = headerText;
+        pageDiv.appendChild(header);
+      }
+
+      const table = this._renderPrintPageTable(page);
+      pageDiv.appendChild(table);
+
+      const footerText = this._formatSheetHeaderFooterText(result.headerFooter?.footer?.center, page.pageNumber, result.totalPages);
+      if (footerText) {
+        const footer = document.createElement("div");
+        footer.className = "vno-sheet-print-footer";
+        footer.textContent = footerText;
+        pageDiv.appendChild(footer);
+      }
+
+      container.appendChild(pageDiv);
+    });
+
+    return { container, result };
+  }
+
+  /** In thật: dựng lại toàn bộ nội dung theo Page Setup (khác với lưới ảo hóa trên màn hình) rồi gọi window.print(). */
+  print() {
+    if (typeof document === "undefined") return true;
+    this._syncSheetPrintOnlyDom();
+    if (typeof window !== "undefined" && typeof window.print === "function") {
+      window.print();
+    }
+    return true;
+  }
+
+  closePrintPreview() {
+    if (typeof document === "undefined") return false;
+    const overlay = document.querySelector(".vno-sheet-print-preview-overlay");
+    if (overlay) {
+      document.removeEventListener("keydown", overlay._onKey);
+      overlay.remove();
+      if (this._printPreviewPrevFocus && typeof this._printPreviewPrevFocus.focus === "function") {
+        try { this._printPreviewPrevFocus.focus(); } catch (_) {}
+      }
+      this._printPreviewPrevFocus = null;
+      return true;
+    }
+    return false;
+  }
+
+  /** Mở overlay Xem trước khi in THẬT - render đúng những trang sẽ được in, dùng chung logic phân trang với print(). */
+  openPrintPreview() {
+    if (typeof document === "undefined") return null;
+    this.closePrintPreview();
+    this._previewPageIndex = 0;
+
+    const result = this.computePrintPages();
+    this._lastPrintScale = result.scale;
+    const totalPages = result.totalPages;
+
+    this._printPreviewPrevFocus = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-sheet-print-preview-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", t("sheetDialogs.printPreview.title", "Xem trước khi in"));
+
+    const printLabel = t("sheetDialogs.printPreview.printBtn", "In tài liệu");
+    const prevLabel = t("sheetDialogs.printPreview.prevPage", "◀ Trang trước");
+    const nextLabel = t("sheetDialogs.printPreview.nextPage", "Trang sau ▶");
+    const pagePrefix = t("sheetDialogs.printPreview.pagePrefix", "Trang ");
+    const closeLabel = t("sheetDialogs.printPreview.closeTooltip", "Đóng xem trước (Esc)");
+
+    overlay.innerHTML = `
+      <header class="vno-sheet-print-preview-toolbar" role="toolbar" aria-label="${t("sheetDialogs.printPreview.title", "Xem trước khi in")}">
+        <button type="button" class="vno-btn vno-btn-primary vno-sheet-pp-print" title="${printLabel} (Ctrl+P)">${printLabel}</button>
+        <div class="vno-sheet-pp-info">${result.sizeLabel} · ${result.orientation === "landscape" ? "Ngang" : "Dọc"} · ${Math.round(result.scale * 100)}%</div>
+        <div class="vno-sheet-pp-nav">
+          <button type="button" class="vno-btn vno-sheet-pp-prev" ${totalPages <= 1 ? "disabled" : ""} title="${prevLabel}">${prevLabel}</button>
+          <div class="vno-sheet-pp-page-indicator">${pagePrefix}<span class="vno-sheet-pp-current">1</span> / <span class="vno-sheet-pp-total">${totalPages}</span></div>
+          <button type="button" class="vno-btn vno-sheet-pp-next" ${totalPages <= 1 ? "disabled" : ""} title="${nextLabel}">${nextLabel}</button>
+        </div>
+        <button type="button" class="vno-btn vno-btn-icon-only vno-sheet-pp-close" title="${closeLabel}" aria-label="${closeLabel}">&times;</button>
+      </header>
+      <main class="vno-sheet-print-preview-viewport"></main>
+    `;
+
+    const viewport = overlay.querySelector(".vno-sheet-print-preview-viewport");
+    const renderPage = (index) => {
+      this._previewPageIndex = Math.max(0, Math.min(totalPages - 1, index));
+      viewport.innerHTML = "";
+      const pageDiv = document.createElement("div");
+      pageDiv.className = "vno-sheet-print-preview-page";
+      pageDiv.style.width = `${result.pageWidthPx}px`;
+      pageDiv.style.minHeight = `${result.pageHeightPx}px`;
+      pageDiv.style.padding =
+        `${Math.round(result.margins.top * SHEET_CM_TO_PX)}px ${Math.round(result.margins.right * SHEET_CM_TO_PX)}px ` +
+        `${Math.round(result.margins.bottom * SHEET_CM_TO_PX)}px ${Math.round(result.margins.left * SHEET_CM_TO_PX)}px`;
+      const page = result.pages[this._previewPageIndex] || result.pages[0];
+      if (page) pageDiv.appendChild(this._renderPrintPageTable(page));
+      viewport.appendChild(pageDiv);
+      overlay.querySelector(".vno-sheet-pp-current").textContent = String(this._previewPageIndex + 1);
+      overlay.querySelector(".vno-sheet-pp-prev").disabled = this._previewPageIndex <= 0;
+      overlay.querySelector(".vno-sheet-pp-next").disabled = this._previewPageIndex >= totalPages - 1;
+    };
+
+    overlay.querySelector(".vno-sheet-pp-print").addEventListener("click", () => this.print());
+    overlay.querySelector(".vno-sheet-pp-prev").addEventListener("click", () => renderPage(this._previewPageIndex - 1));
+    overlay.querySelector(".vno-sheet-pp-next").addEventListener("click", () => renderPage(this._previewPageIndex + 1));
+    overlay.querySelector(".vno-sheet-pp-close").addEventListener("click", () => this.closePrintPreview());
+
+    const onKey = (event) => {
+      if (event.key === "Escape") { this.closePrintPreview(); }
+      else if (event.key === "ArrowRight") { renderPage(this._previewPageIndex + 1); }
+      else if (event.key === "ArrowLeft") { renderPage(this._previewPageIndex - 1); }
+    };
+    overlay._onKey = onKey;
+    document.addEventListener("keydown", onKey);
+
+    document.body.appendChild(overlay);
+    renderPage(0);
+    overlay.querySelector(".vno-sheet-pp-close")?.focus();
+    return overlay;
   }
 
   _renderPageBreakPreviewOverlay() {
