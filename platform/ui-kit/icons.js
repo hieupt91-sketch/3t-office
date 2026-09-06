@@ -64,6 +64,17 @@ export const ICONS = {
     <path d="M18 16H24M18 20H24M18 24H21" stroke="#FFF" stroke-width="1.5" stroke-linecap="round"/>
   </svg>`,
 
+  pasteSpecial: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="5" y="3" width="14" height="18" rx="1.5" fill="#94A3B8"/>
+    <rect x="7" y="5" width="10" height="14" rx="1" fill="#FFFFFF"/>
+    <rect x="9" y="2" width="6" height="2.5" rx="0.5" fill="#64748B"/>
+    <path d="M3 9h9v12H3z" fill="#EFF6FF" stroke="#0F6D38" stroke-width="1.2"/>
+    <line x1="5" y1="12" x2="10" y2="12" stroke="#0F6D38" stroke-width="1.2"/>
+    <line x1="5" y1="15" x2="10" y2="15" stroke="#0F6D38" stroke-width="1.2"/>
+    <circle cx="17" cy="17" r="4.5" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.2"/>
+    <path d="M15 17h4M17 15v4" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
   cut: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
     <circle cx="6" cy="6" r="3" stroke="#DC2626" stroke-width="1.75"/>
     <circle cx="6" cy="18" r="3" stroke="#DC2626" stroke-width="1.75"/>
@@ -225,8 +236,20 @@ export const ICONS = {
     <polyline points="9 10 7 12 9 14" stroke="#0F6D38" stroke-width="1.5"/>
     <polyline points="15 10 17 12 15 14" stroke="#0F6D38" stroke-width="1.5"/>
   </svg>`,
+  mergeCenter: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="5" width="18" height="14" rx="2" fill="#E7F4EC" stroke="#0F6D38" stroke-width="1.5"/>
+    <path d="M5 12h3M16 12h3M7 10l-2 2 2 2M17 10l2 2-2 2" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="12" y="14.5" text-anchor="middle" font-size="7" font-weight="700" font-family="sans-serif" fill="#0F6D38">a</text>
+  </svg>`,
   mergeAcross: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="3" y="5" width="18" height="6" rx="1" fill="#E7F4EC" stroke="#0F6D38"/><rect x="3" y="13" width="18" height="6" rx="1" fill="#E7F4EC" stroke="#0F6D38"/><path d="M7 8h10M7 16h10" stroke="#0F6D38" stroke-width="1.5"/></svg>`,
   unmergeCells: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" fill="#FFF7ED" stroke="#C2410C"/><path d="M12 5v14M3 12h18" stroke="#C2410C"/><path d="m8 9-3 3 3 3m8-6 3 3-3 3" stroke="#C2410C" stroke-width="1.5"/></svg>`,
+  textToColumns: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="2" y="4" width="9" height="16" rx="1.5" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.3"/><path d="M6 7v10M14 5v14M20 5v14M11 12h10M9 10l2 2-2 2" stroke="#0F6D38" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  flashFill: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#FEF3C7" stroke="#D97706" stroke-width="1.2"/><path d="m13 4-6 8h5l-1 8 7-9h-5l1-7Z" fill="#F59E0B" stroke="#B45309" stroke-width="1.2" stroke-linejoin="round"/></svg>`,
+  removeDuplicates: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"><rect x="2" y="3" width="14" height="14" rx="1.5" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.2"/><path d="M2 8h14M7 3v14" stroke="#0F6D38" stroke-width="1"/><circle cx="16.5" cy="16.5" r="5" fill="#FEE2E2" stroke="#DC2626" stroke-width="1.2"/><path d="m14.5 14.5 4 4m0-4-4 4" stroke="#DC2626" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  sheetGroup: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M4 4v16M4 8h4M4 16h4" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round"/><rect x="9" y="5" width="12" height="14" rx="1.5" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.2"/><path d="M12 12h6" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+  sheetUngroup: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M4 4v16" stroke="#64748B" stroke-width="1.8" stroke-dasharray="2 2"/><rect x="9" y="5" width="12" height="14" rx="1.5" stroke="#64748B" stroke-width="1.2"/><path d="M12 12h6M15 9v6" stroke="#0F6D38" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  subtotal: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M3 4h18M3 9h10M3 14h10M3 20h18" stroke="#334155" stroke-width="1.6" stroke-linecap="round"/><path d="M15 11h4l-3 3 3 3h-4" stroke="#0F6D38" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  pageScale: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#F0FDF4" stroke="#0F6D38" stroke-width="1.3"/><rect x="7" y="7" width="10" height="10" rx="1" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.2" stroke-dasharray="2 2"/><path d="M5 5l4 4M5 5h3M5 5v3M19 5l-4 4M19 5h-3M19 5v3M5 19l4-4M5 19h3M5 19v-3M19 19l-4-4M19 19h-3M19 19v-3" stroke="#0F6D38" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 
   currencyVND: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <circle cx="16" cy="16" r="13" fill="#F5B800" stroke="#D97706" stroke-width="1.5"/>
