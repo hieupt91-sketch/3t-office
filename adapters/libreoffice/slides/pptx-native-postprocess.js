@@ -19,6 +19,7 @@ import {
   SLIDE_MASTER_ENTRY_RE,
   applyMasterLogoShape,
   fodpHasMasterLogo,
+  overlayFodpMasterLogo,
   parseMasterLogoFromFodp,
   parseSlideSize
 } from "./pptx-master-logo.js";
@@ -120,13 +121,15 @@ export function postProcessSlidesPptx(pptxPathOrBuffer, options = {}) {
 }
 
 /**
- * Phase 3a-open File → Mở: read ppt/presentation.xml from the original PPTX
- * ZIP (via ooxml-zip-patch.js, not a rewritten ZIP reader) and overlay FODP
- * before SlidesAdapter.parseFodp().
+ * File → Mở: read OOXML from the original PPTX ZIP (via ooxml-zip-patch.js,
+ * not a rewritten ZIP reader) and overlay FODP before SlidesAdapter.parseFodp().
+ *
+ * 1. p14:sectionLst → vno:section-* (Phase 3a-open)
+ * 2. p:sp name="VNOfficeMasterLogo" → vno:master-theme (Phase 2b-open)
  *
  * @param {string|Buffer} pptxPathOrBuffer original PPTX
- * @param {string} fodpXml soffice PPTX→FODP output (usually missing vno:section-*)
- * @returns {string} FODP with vno:section-id/name when p14:sectionLst is set
+ * @param {string} fodpXml soffice PPTX→FODP output
+ * @returns {string} FODP with native flags restored from the original ZIP
  */
 export function overlaySlidesPptxFodp(pptxPathOrBuffer, fodpXml) {
   const source = asBuffer(pptxPathOrBuffer);
@@ -134,5 +137,15 @@ export function overlaySlidesPptxFodp(pptxPathOrBuffer, fodpXml) {
   if (!current) {
     throw new Error("PPTX thiếu ppt/presentation.xml — không thể khôi phục Phần (Sections)");
   }
-  return overlayFodpSections(fodpXml, current.toString("utf8"));
+  let xml = overlayFodpSections(fodpXml, current.toString("utf8"));
+  const masters = [];
+  for (const listed of listZipEntries(source)) {
+    if (!SLIDE_MASTER_ENTRY_RE.test(listed.name)) continue;
+    const entry = readZipEntry(source, listed.name);
+    if (!entry) {
+      throw new Error(`PPTX thiếu ${listed.name} — không đoán logo master`);
+    }
+    masters.push(entry.toString("utf8"));
+  }
+  return overlayFodpMasterLogo(xml, masters);
 }

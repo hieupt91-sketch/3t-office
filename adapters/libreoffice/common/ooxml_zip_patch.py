@@ -75,7 +75,14 @@ _LOCK_STRUCTURE_TRUE_RE = re.compile(
     re.IGNORECASE,
 )
 _MASTER_PAGE_OPEN_RE = re.compile(r"<style:master-page\b([^>]*)>", re.IGNORECASE)
+_MASTER_PAGE_OPEN_GI_RE = re.compile(r"<style:master-page\b([^>]*?)(/?)\s*>", re.IGNORECASE)
 _THEME_ATTR_RE = re.compile(r'\bvno:master-theme\s*=\s*["\']([^"\']*)["\']', re.IGNORECASE)
+_LOGO_NAME_RE = re.compile(
+    rf"""\bname\s*=\s*(['"]){re.escape(MASTER_LOGO_SHAPE_NAME)}\1"""
+)
+_T_TEXT_RE = re.compile(r"<(?:[\w]+:)?t\b[^>]*>([\s\S]*?)</(?:[\w]+:)?t>", re.IGNORECASE)
+_SRGB_RE = re.compile(r"""<(?:[\w]+:)?srgbClr\b[^>]*\bval=["']([^"']+)["']""", re.IGNORECASE)
+_LATIN_RE = re.compile(r"""<(?:[\w]+:)?latin\b[^>]*\btypeface=["']([^"']+)["']""", re.IGNORECASE)
 _LOGO_FRAME_RE = re.compile(
     r"<draw:frame\b[^>]*grMasterLogo[\s\S]*?<text:p\b[^>]*>([\s\S]*?)</text:p>",
     re.IGNORECASE,
@@ -443,13 +450,13 @@ def next_cnvpr_id(master_xml: str | None) -> int:
     return max_id + 1
 
 
+def find_named_logo_shapes(master_xml: str | None) -> list[str]:
+    return [sp for sp in _SP_BLOCK_RE.findall(master_xml or "") if _LOGO_NAME_RE.search(sp)]
+
+
 def _find_named_shape(master_xml: str) -> str:
-    name_attr = f'name="{MASTER_LOGO_SHAPE_NAME}"'
-    alt_attr = f"name='{MASTER_LOGO_SHAPE_NAME}'"
-    for sp in _SP_BLOCK_RE.findall(master_xml or ""):
-        if name_attr in sp or alt_attr in sp:
-            return sp
-    return ""
+    shapes = find_named_logo_shapes(master_xml)
+    return shapes[0] if shapes else ""
 
 
 def _build_logo_shape_xml(
@@ -844,6 +851,125 @@ def overlay_fodp_sections(fodp_xml: str, presentation_xml: str | None) -> str:
     return apply_fodp_section_attrs(xml, page_sections)
 
 
+def parse_master_logo_from_named_shape(shape_xml: str | None) -> dict[str, str]:
+    sp = shape_xml or ""
+    if not sp:
+        raise ValueError("Shape VNOfficeMasterLogo rỗng — không đoán logo")
+    if _PH_RE.search(sp):
+        raise ValueError("Shape VNOfficeMasterLogo mang p:ph — không đoán logo")
+    texts = [_unescape_xml(match.group(1) or "") for match in _T_TEXT_RE.finditer(sp)]
+    logo_text = _normalize_logo_text("".join(texts))
+    if not logo_text:
+        raise ValueError("Shape VNOfficeMasterLogo thiếu chữ a:t — không đoán logo")
+    rgb_match = _SRGB_RE.search(sp)
+    rgb = (rgb_match.group(1) if rgb_match else "").strip().lstrip("#")
+    face_match = _LATIN_RE.search(sp)
+    face = _unescape_xml(face_match.group(1) if face_match else "")
+    accent = f"#{rgb.lower()}" if re.fullmatch(r"[0-9a-fA-F]{3,8}", rgb) else ""
+    return {"logoText": logo_text, "accentColor": accent, "fontFamily": face}
+
+
+def parse_master_logo_from_slide_master(master_xml: str | None) -> dict[str, str] | None:
+    shapes = find_named_logo_shapes(master_xml)
+    if not shapes:
+        return None
+    if len(shapes) > 1:
+        raise ValueError(
+            f"PPTX có {len(shapes)} shape tên {MASTER_LOGO_SHAPE_NAME} trên một slide master — không đoán logo"
+        )
+    return parse_master_logo_from_named_shape(shapes[0])
+
+
+def parse_master_logo_from_slide_masters(master_xml: str | list[str] | None) -> dict[str, str] | None:
+    if master_xml is None or master_xml == "":
+        items: list[str] = []
+    elif isinstance(master_xml, list):
+        items = master_xml
+    else:
+        items = [master_xml]
+    found: list[dict[str, str]] = []
+    for xml in items:
+        parsed = parse_master_logo_from_slide_master(xml)
+        if parsed:
+            found.append(parsed)
+    if not found:
+        return None
+    first = found[0]
+    for item in found[1:]:
+        if (
+            item["logoText"] != first["logoText"]
+            or item["accentColor"] != first["accentColor"]
+            or item["fontFamily"] != first["fontFamily"]
+        ):
+            raise ValueError(
+                "Hai slide master có VNOfficeMasterLogo khác chữ/màu/font — không đoán logo"
+            )
+    return first
+
+
+def _merge_master_theme_payload(existing_raw: str, logo: dict[str, str]) -> dict:
+    theme: dict = {}
+    raw = (existing_raw or "").strip()
+    if raw:
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            parsed = None
+        if isinstance(parsed, dict):
+            theme = parsed
+    theme["logoText"] = logo["logoText"]
+    if logo.get("accentColor"):
+        theme["accentColor"] = logo["accentColor"]
+    if logo.get("fontFamily"):
+        theme["fontFamily"] = logo["fontFamily"]
+    return theme
+
+
+def apply_fodp_master_theme_attrs(fodp_xml: str, logo: dict | None) -> str:
+    xml = fodp_xml or ""
+    if not logo or not _normalize_logo_text(str(logo.get("logoText") or "")):
+        return xml
+    index = 0
+
+    def replace_master(match: re.Match[str]) -> str:
+        nonlocal index
+        index += 1
+        raw = match.group(1) or ""
+        self_close = match.group(2) == "/" or bool(re.search(r"/\s*$", raw))
+        if self_close:
+            raw = re.sub(r"/\s*$", "", raw)
+        theme_match = _THEME_ATTR_RE.search(raw)
+        existing = _unescape_xml(theme_match.group(1) if theme_match else "")
+        encoded = _escape_xml(
+            json.dumps(_merge_master_theme_payload(existing, logo), ensure_ascii=False, separators=(",", ":"))
+        )
+        if _THEME_ATTR_RE.search(raw):
+            raw = _THEME_ATTR_RE.sub(f'vno:master-theme="{encoded}"', raw)
+        else:
+            raw = f'{raw.rstrip()} vno:master-theme="{encoded}"'
+        if raw and not raw.startswith(" "):
+            raw = f" {raw}"
+        return f"<style:master-page{raw}/>" if self_close else f"<style:master-page{raw}>"
+
+    next_xml = _MASTER_PAGE_OPEN_GI_RE.sub(replace_master, xml)
+    if index == 0:
+        raise ValueError("FODP thiếu style:master-page — không gắn logo master")
+    return ensure_vno_xmlns(next_xml)
+
+
+def overlay_fodp_master_logo(fodp_xml: str, master_xml: str | list[str] | None) -> str:
+    """Inject vno:master-theme from p:sp name=VNOfficeMasterLogo.
+
+    Identification is by shape name only. Missing name is a no-op.
+    Ambiguous named shapes throw — never guess among similar p:sp.
+    """
+    xml = fodp_xml or ""
+    logo = parse_master_logo_from_slide_masters(master_xml)
+    if not logo:
+        return xml
+    return apply_fodp_master_theme_attrs(xml, logo)
+
+
 def postprocess_slides_pptx(
     pptx_bytes: bytes,
     *,
@@ -945,17 +1071,26 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
 
 
 def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
-    """Read ppt/presentation.xml from the original PPTX and overlay FODP.
+    """Read original PPTX ZIP and overlay FODP.
 
-    LibreOffice PPTX→FODP drops p14:sectionLst. Production File → Mở must
-    restore vno:section-* before SlidesAdapter.parseFodp().
+    LibreOffice PPTX→FODP drops p14:sectionLst and vno:master-theme.
+    Production File → Mở must restore both before SlidesAdapter.parseFodp().
     """
     xml = fodp_xml or ""
     current = read_zip_entry(pptx_bytes, PPTX_PRESENTATION_ENTRY)
     if not current:
         raise ValueError("PPTX thiếu ppt/presentation.xml — không thể khôi phục Phần (Sections)")
     presentation_xml = current.decode("utf-8", errors="replace")
-    return overlay_fodp_sections(xml, presentation_xml)
+    xml = overlay_fodp_sections(xml, presentation_xml)
+    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+        master_names = [name for name in package.namelist() if SLIDE_MASTER_ENTRY_RE.match(name)]
+    masters: list[str] = []
+    for name in master_names:
+        entry = read_zip_entry(pptx_bytes, name)
+        if not entry:
+            raise ValueError(f"PPTX thiếu {name} — không đoán logo master")
+        masters.append(entry.decode("utf-8", errors="replace"))
+    return overlay_fodp_master_logo(xml, masters)
 
 
 def overlay_slides_pptx_fodp_file(
@@ -1041,7 +1176,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--overlay-fodp",
-        help="Input FODP to overlay from --pptx p14:sectionLst (File → Mở path)",
+        help="Input FODP to overlay from --pptx p14:sectionLst / VNOfficeMasterLogo (File → Mở path)",
     )
     return parser.parse_args(argv)
 
