@@ -58,6 +58,8 @@ const PAGE_SIZES_MM = {
 // Lề mặc định theo Nghị định 30/2020/NĐ-CP: Trên 20mm, Dưới 20mm, Trái 30mm, Phải 15mm
 const DEFAULT_MARGINS_MM = { top: 20, bottom: 20, left: 30, right: 15 };
 const MM_TO_PX = 3.7795275591; // 96dpi
+/** LibreOffice 26.2.5 drops tracked-changes unless office:change-info has a date. Session canvas markers have none. */
+const FODT_TRACK_CHANGE_SENTINEL_DATE = "1970-01-01T00:00:00";
 
 /**
  * Chuyển đổi số nguyên dương sang chữ số La Mã (dành cho Endnotes chuẩn Word)
@@ -4931,6 +4933,81 @@ export class WriterAdapter {
     return `<mark class="vno-comment-anchor" data-comment-id="${this._escapeHtml(comment.id)}" tabindex="0" role="button"${authorAttr}${titleAttr} aria-label="${this._escapeHtml(label)}">${innerHtml}</mark>`;
   }
 
+  _fodtChangeInfoXml(author, date) {
+    const creatorXml = author ? `<dc:creator>${this._fodtEscapeXml(author)}</dc:creator>` : "";
+    return `<office:change-info>${creatorXml}<dc:date>${this._fodtEscapeXml(date)}</dc:date></office:change-info>`;
+  }
+
+  _fodtTrackedChangesXml(regions) {
+    if (!regions.length) return "";
+    const regionsXml = regions.map(region => {
+      const info = this._fodtChangeInfoXml(region.author, region.date);
+      const id = this._fodtEscapeXml(region.id);
+      if (region.kind === "insert") {
+        return `<text:changed-region xml:id="${id}" text:id="${id}"><text:insertion>${info}</text:insertion></text:changed-region>`;
+      }
+      return `<text:changed-region xml:id="${id}" text:id="${id}"><text:deletion>${info}<text:p>${region.contentXml}</text:p></text:deletion></text:changed-region>`;
+    }).join("");
+    return `<text:tracked-changes>${regionsXml}</text:tracked-changes>`;
+  }
+
+  _fodtTrackChangeMarkHtml(kind, region, innerHtml) {
+    const author = String(region?.author || "").trim();
+    const date = String(region?.date || "").trim();
+    const restoreDate = date && !(date === FODT_TRACK_CHANGE_SENTINEL_DATE && !author);
+    const tooltip = this._trackChangeTooltip({ author, date: restoreDate ? date : "" });
+    const authorAttr = author ? ` data-vno-author="${this._escapeHtml(author)}"` : "";
+    const dateAttr = restoreDate ? ` data-vno-date="${this._escapeHtml(date)}"` : "";
+    const titleAttr = tooltip ? ` title="${this._escapeHtml(tooltip)}"` : "";
+    if (kind === "delete") {
+      return `<del data-vno-change="delete" contenteditable="false"${authorAttr}${dateAttr}${titleAttr}>${innerHtml}</del>`;
+    }
+    return `<ins data-vno-change="insert"${authorAttr}${dateAttr}${titleAttr}>${innerHtml}</ins>`;
+  }
+
+  _fodtLoadTrackedChanges(node, map) {
+    const regions = (node.children || []).filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
+    for (const region of regions) {
+      if (region.name !== "text:changed-region") throw this._fodtError(`text:tracked-changes chứa <${region.name}>`);
+      const id = region.attrs["text:id"] || region.attrs["xml:id"];
+      if (!id) throw this._fodtError("text:changed-region thiếu text:id");
+      if (map.has(id)) throw this._fodtError(`text:changed-region trùng id '${id}'`);
+      const payload = (region.children || []).filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
+      if (payload.length !== 1) throw this._fodtError("text:changed-region phải có đúng một insertion/deletion");
+      const kindNode = payload[0];
+      if (kindNode.name === "text:format-change") throw this._fodtError("text:format-change chưa hỗ trợ");
+      if (kindNode.name !== "text:insertion" && kindNode.name !== "text:deletion") {
+        throw this._fodtError(`text:changed-region chứa <${kindNode.name}>`);
+      }
+      const kind = kindNode.name === "text:insertion" ? "insert" : "delete";
+      const kindChildren = (kindNode.children || []).filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
+      const infoNode = kindChildren.find(child => child.name === "office:change-info");
+      if (!infoNode) throw this._fodtError(`${kindNode.name} thiếu office:change-info`);
+      const infoChildren = (infoNode.children || []).filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
+      const creatorNode = infoChildren.find(child => child.name === "dc:creator");
+      const dateNode = infoChildren.find(child => child.name === "dc:date");
+      const unexpectedInfo = infoChildren.filter(child => child !== creatorNode && child !== dateNode);
+      if (unexpectedInfo.length) throw this._fodtError(`office:change-info chứa <${unexpectedInfo[0].name}>`);
+      const rest = kindChildren.filter(child => child !== infoNode);
+      let deletionNodes = [];
+      if (kind === "insert") {
+        if (rest.length) throw this._fodtError("text:insertion chỉ được chứa office:change-info");
+      } else {
+        if (rest.length !== 1 || rest[0].name !== "text:p") {
+          throw this._fodtError("text:deletion phải có đúng một text:p");
+        }
+        deletionNodes = rest[0].children || [];
+      }
+      map.set(id, {
+        id,
+        kind,
+        author: this._fodtPlainLoose(creatorNode?.children || []).trim(),
+        date: this._fodtPlainLoose(dateNode?.children || []).trim(),
+        deletionNodes
+      });
+    }
+  }
+
   _fodtNoteContainerHtml(kind, notes) {
     if (!notes.length) return "";
     if (kind === "endnote") {
@@ -4948,8 +5025,8 @@ export class WriterAdapter {
   serializeToFodt() {
     this._initZones();
     const html = this.bodyDom?.innerHTML ?? this.editorDom?.innerHTML ?? "";
-    if (/\bdata-vno-(?!wrap=["']inline["']|section-break=|section-id=|footnote-ref=|endnote-ref=|footnotes=|endnotes=|footnote-id=|endnote-id=|toc=|comment-author=)[\w-]+\s*=/i.test(html)) {
-      throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A/B/C/D");
+    if (/\bdata-vno-(?!wrap=["']inline["']|section-break=|section-id=|footnote-ref=|endnote-ref=|footnotes=|endnotes=|footnote-id=|endnote-id=|toc=|comment-author=|change=|author=|date=)[\w-]+\s*=/i.test(html)) {
+      throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A/B/C/D/E.1");
     }
     const tree = this._fodtParseMarkup(html, "HTML");
     const footnoteBodies = this._fodtCollectNoteBodies(tree.children, "data-vno-footnote-id");
@@ -4960,6 +5037,8 @@ export class WriterAdapter {
     const graphicStyles = new Map();
     let imageSequence = 0;
     let tableSequence = 0;
+    const trackedRegions = [];
+    let allowTrackChanges = true;
     const styleName = (registry, prefix, value) => {
       const key = JSON.stringify(Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))));
       if (!registry.has(key)) registry.set(key, `${prefix}${registry.size + 1}`);
@@ -5008,6 +5087,34 @@ export class WriterAdapter {
         const creator = this._fodtEscapeXml(comment.author || "");
         const date = this._fodtEscapeXml(comment.createdAt || "");
         return `<office:annotation office:name="${name}"><dc:creator>${creator}</dc:creator><dc:date>${date}</dc:date><text:p>${this._fodtTextXml(comment.content || "")}</text:p></office:annotation>${inlineXml(node.children, inherited)}<office:annotation-end office:name="${name}"/>`;
+      }
+      if (node.name === "ins" || node.name === "del") {
+        if (!allowTrackChanges) throw this._fodtError("Track Changes trong header/footer chưa hỗ trợ");
+        const expected = node.name === "ins" ? "insert" : "delete";
+        if (node.attrs["data-vno-change"] !== expected) {
+          throw this._fodtError(`<${node.name}> thiếu data-vno-change="${expected}"`);
+        }
+        const allowed = ["data-vno-change", "data-vno-author", "data-vno-date", "contenteditable", "title", "class"];
+        const unexpected = Object.keys(node.attrs).filter(name => !allowed.includes(name));
+        if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <${node.name}>`);
+        const walkForbidden = (nodes) => {
+          for (const child of nodes || []) {
+            if (["ins", "del", "sup", "mark", "img"].includes(child.name)) {
+              throw this._fodtError("Track Changes lồng <ins>/<del>/chú thích/ảnh chưa hỗ trợ");
+            }
+            walkForbidden(child.children);
+          }
+        };
+        walkForbidden(node.children);
+        const id = `ct${trackedRegions.length + 1}`;
+        const author = String(node.attrs["data-vno-author"] || "").trim();
+        const date = String(node.attrs["data-vno-date"] || "").trim() || FODT_TRACK_CHANGE_SENTINEL_DATE;
+        if (node.name === "ins") {
+          trackedRegions.push({ id, kind: "insert", author, date });
+          return `<text:change-start text:change-id="${id}"/>${inlineXml(node.children, inherited)}<text:change-end text:change-id="${id}"/>`;
+        }
+        trackedRegions.push({ id, kind: "delete", author, date, contentXml: inlineXml(node.children, inherited) });
+        return `<text:change text:change-id="${id}"/>`;
       }
       if (!["span", "b", "strong", "i", "em", "u", "font"].includes(node.name)) throw this._fodtError(`phần tử inline <${node.name}>`);
       const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "color", "face"].includes(name));
@@ -5178,12 +5285,18 @@ export class WriterAdapter {
       throw this._fodtError(`hình khối '${type}' (Phase B.2 chỉ hỗ trợ rectangle/round-rect/circle/line/arrow/textbox)`);
     };
     const zoneBlocksXml = (zoneHtml, zoneName) => {
-      const zoneTree = this._fodtParseMarkup(zoneHtml, `HTML ${zoneName}`);
-      return zoneTree.children.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
-        if (/^(p|h[1-6])$/.test(node.name)) return paragraphXml(node);
-        if (["ul", "ol"].includes(node.name)) return listXml(node);
-        throw this._fodtError(`${zoneName}: phần tử block <${node.name}> chưa hỗ trợ`);
-      }).join("");
+      const previousAllow = allowTrackChanges;
+      allowTrackChanges = false;
+      try {
+        const zoneTree = this._fodtParseMarkup(zoneHtml, `HTML ${zoneName}`);
+        return zoneTree.children.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
+          if (/^(p|h[1-6])$/.test(node.name)) return paragraphXml(node);
+          if (["ul", "ol"].includes(node.name)) return listXml(node);
+          throw this._fodtError(`${zoneName}: phần tử block <${node.name}> chưa hỗ trợ`);
+        }).join("");
+      } finally {
+        allowTrackChanges = previousAllow;
+      }
     };
     const canvasBoxCss = ["margin", "margin-top", "margin-right", "margin-bottom", "margin-left", "padding", "padding-top", "padding-right", "padding-bottom", "padding-left"];
     const previousIgnore = this._fodtCssIgnoreNames;
@@ -5285,6 +5398,7 @@ export class WriterAdapter {
       const injected = body.replace(/<(text:p|text:h)\b[^>]*>/, open => `${open}${shapesXml}`);
       body = injected === body ? `<text:p>${shapesXml}</text:p>${body}` : injected;
     }
+    body = this._fodtTrackedChangesXml(trackedRegions) + body;
     const textStyleXml = [...textStyles.entries()].map(([key, name]) => {
       const value = JSON.parse(key);
       const attrs = [];
@@ -5331,7 +5445,9 @@ export class WriterAdapter {
     const pageLayoutXml = [...layoutNames.entries()].map(([signature, name]) => this._fodtPageLayoutXml(name, JSON.parse(signature))).join("");
     const masterPageXml = masters.map(master => this._fodtMasterPageXml(master.name, master.layoutName, headerXml, footerXml)).join("");
     const officeStyles = /<text:note[\s>]/.test(body) ? this._fodtNotesConfigurationXml() : "";
-    const dcNs = /<office:annotation[\s>]/.test(body) ? ' xmlns:dc="http://purl.org/dc/elements/1.1/"' : "";
+    const dcNs = (/<office:annotation[\s>]/.test(body) || /<text:tracked-changes[\s>]/.test(body))
+      ? ' xmlns:dc="http://purl.org/dc/elements/1.1/"'
+      : "";
     const tocStyleXml = /<text:table-of-content[\s>]/.test(body) ? this._fodtTocStylesXml() : "";
     return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"${dcNs} office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">${officeStyles}<office:automatic-styles>${pageLayoutXml}${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}${graphicStyleXml}${tocStyleXml}</office:automatic-styles><office:master-styles>${masterPageXml}</office:master-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
   }
@@ -5352,6 +5468,7 @@ export class WriterAdapter {
     const parsedFootnotes = [];
     const parsedEndnotes = [];
     const parsedComments = [];
+    const trackedById = new Map();
     xml.replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrsText, content) => {
       const attrs = this._fodtParseAttributes(attrsText);
       const name = attrs["style:name"];
@@ -5496,6 +5613,42 @@ export class WriterAdapter {
         if (node.name === "office:annotation-end") {
           throw this._fodtError("office:annotation-end không có office:annotation tương ứng");
         }
+        if (node.name === "text:change-start") {
+          const changeId = node.attrs["text:change-id"];
+          const region = trackedById.get(changeId);
+          if (!region) throw this._fodtError(`text:change-start id '${changeId || ""}' không có changed-region`);
+          if (region.kind !== "insert") throw this._fodtError("text:change-start/end chỉ hỗ trợ text:insertion");
+          const range = [];
+          let foundEnd = false;
+          let cursor = index + 1;
+          while (cursor < nodes.length) {
+            const next = nodes[cursor];
+            if (next.name === "text:change-end" && next.attrs["text:change-id"] === changeId) {
+              foundEnd = true;
+              break;
+            }
+            if (next.name === "text:change-start" || next.name === "text:change-end" || next.name === "text:change") {
+              throw this._fodtError("text:change-start lồng nhau hoặc thiếu text:change-end");
+            }
+            range.push(next);
+            cursor++;
+          }
+          if (!foundEnd) throw this._fodtError(`text:change-start '${changeId}' thiếu text:change-end`);
+          html += this._fodtTrackChangeMarkHtml("insert", region, inlineHtml(range));
+          index = cursor;
+          continue;
+        }
+        if (node.name === "text:change-end") {
+          throw this._fodtError("text:change-end không có text:change-start tương ứng");
+        }
+        if (node.name === "text:change") {
+          const changeId = node.attrs["text:change-id"];
+          const region = trackedById.get(changeId);
+          if (!region) throw this._fodtError(`text:change id '${changeId || ""}' không có changed-region`);
+          if (region.kind !== "delete") throw this._fodtError("text:change rỗng chỉ hỗ trợ text:deletion");
+          html += this._fodtTrackChangeMarkHtml("delete", region, inlineHtml(region.deletionNodes));
+          continue;
+        }
         html += inlineNodeHtml(node);
       }
       return html;
@@ -5594,9 +5747,10 @@ export class WriterAdapter {
       return `${this._buildSectionBreakMarker("nextPage", sectionId)}${paragraph}`;
     };
     const blocksHtml = (nodes, options = {}) => nodes.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
-      if (options.zone && (node.name === "table:table" || node.name.startsWith("draw:") || node.name === "text:table-of-content")) {
+      if (options.zone && (node.name === "table:table" || node.name.startsWith("draw:") || node.name === "text:table-of-content" || node.name === "text:tracked-changes" || node.name === "text:change")) {
         throw this._fodtError(`${options.zone}: phần tử <${node.name}> chưa hỗ trợ`);
       }
+      if (node.name === "text:tracked-changes") throw this._fodtError("text:tracked-changes không đứng đầu office:text");
       if (node.name === "text:table-of-content") return this._fodtTocHtml(node);
       if (node.name === "text:list") return listHtml(node);
       if (node.name === "table:table") return tableHtml(node);
@@ -5629,18 +5783,27 @@ export class WriterAdapter {
     let headerHtml = "";
     let footerHtml = "";
     if (masterPages[0]?.headerXml) {
-      if (/<(draw:|table:|text:note|text:page-number|text:page-count)\b/i.test(masterPages[0].headerXml)) {
-        throw this._fodtError("header chứa bảng/ảnh/shape/ghi chú/số trang field chưa hỗ trợ");
+      if (/<(draw:|table:|text:note|text:page-number|text:page-count|text:tracked-changes|text:change)\b/i.test(masterPages[0].headerXml)) {
+        throw this._fodtError("header chứa bảng/ảnh/shape/ghi chú/số trang field/Track Changes chưa hỗ trợ");
       }
       headerHtml = blocksHtml(this._fodtParseMarkup(masterPages[0].headerXml, "FODT style:header").children, { zone: "header" });
     }
     if (masterPages[0]?.footerXml) {
-      if (/<(draw:|table:|text:note|text:page-number|text:page-count)\b/i.test(masterPages[0].footerXml)) {
-        throw this._fodtError("footer chứa bảng/ảnh/shape/ghi chú/số trang field chưa hỗ trợ");
+      if (/<(draw:|table:|text:note|text:page-number|text:page-count|text:tracked-changes|text:change)\b/i.test(masterPages[0].footerXml)) {
+        throw this._fodtError("footer chứa bảng/ảnh/shape/ghi chú/số trang field/Track Changes chưa hỗ trợ");
       }
       footerHtml = blocksHtml(this._fodtParseMarkup(masterPages[0].footerXml, "FODT style:footer").children, { zone: "footer" });
     }
-    let html = blocksHtml(tree.children, { allowMasterSwitch: true });
+    const bodyNodes = [];
+    for (const node of tree.children) {
+      if (node.name === "#text" && !String(node.text || "").trim()) continue;
+      if (node.name === "text:tracked-changes") {
+        this._fodtLoadTrackedChanges(node, trackedById);
+        continue;
+      }
+      bodyNodes.push(node);
+    }
+    let html = blocksHtml(bodyNodes, { allowMasterSwitch: true });
     html += this._fodtNoteContainerHtml("footnote", parsedFootnotes);
     html += this._fodtNoteContainerHtml("endnote", parsedEndnotes);
     this._initZones();
