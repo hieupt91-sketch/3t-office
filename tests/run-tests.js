@@ -124,6 +124,7 @@ import { runWriterFodtPhaseB2Tests } from "./unit/writer-fodt-phase-b2.test.js";
 import { runWriterFodtPhaseCTests } from "./unit/writer-fodt-phase-c.test.js";
 import { runWriterFodtPhaseDTests } from "./unit/writer-fodt-phase-d.test.js";
 import { runWriterFodtPhaseE1Tests } from "./unit/writer-fodt-phase-e1.test.js";
+import { runWriterFodtPhaseE2Tests } from "./unit/writer-fodt-phase-e2.test.js";
 import { runSlidesPptxSectionListTests } from "./unit/slides-pptx-section-list.test.js";
 import { runSlidesPptxSectionsOpenOverlayTests } from "./unit/slides-pptx-sections-open-overlay.test.js";
 
@@ -258,6 +259,7 @@ async function runAll() {
     { title: "111c. Unit Tests — Writer FODT Phase C (page-layout, header/footer, section geometry)", runner: runWriterFodtPhaseCTests },
     { title: "111d. Unit Tests — Writer FODT Phase D (footnote/endnote, comment, TOC)", runner: runWriterFodtPhaseDTests },
     { title: "111e. Unit Tests — Writer FODT Phase E.1 (Track Changes)", runner: runWriterFodtPhaseE1Tests },
+    { title: "111f. Unit Tests — Writer FODT Phase E.2 (Watermark)", runner: runWriterFodtPhaseE2Tests },
     { title: "112. Unit Tests — Slides native PPTX post-process (p14:sectionLst)", runner: runSlidesPptxSectionListTests },
     { title: "113. Unit Tests — Slides native PPTX open overlay (p14:sectionLst → vno:section-*)", runner: runSlidesPptxSectionsOpenOverlayTests }
   ];

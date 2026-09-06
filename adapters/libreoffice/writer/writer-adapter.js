@@ -3090,9 +3090,10 @@ export class WriterAdapter {
         const wmEl = (typeof document !== "undefined" && document.createElement)
           ? document.createElement("div")
           : null;
-        if (wmEl) {
+        if (wmEl && typeof this.editorDom.appendChild === "function") {
           wmEl.className = "vno-page-watermark";
-          wmEl.dataset.vnoWatermark = "true";
+          if (wmEl.dataset) wmEl.dataset.vnoWatermark = "true";
+          else if (typeof wmEl.setAttribute === "function") wmEl.setAttribute("data-vno-watermark", "true");
           wmEl.innerHTML = `<div class="vno-watermark-text" style="transform:rotate(-${angle}deg); color:${color}; opacity:${opacity}; font-size:${fontSize}px;">${text}</div>`;
           this.editorDom.appendChild(wmEl);
         }
@@ -4315,6 +4316,160 @@ export class WriterAdapter {
     return `<style:master-page style:name="${this._fodtEscapeXml(name)}" style:page-layout-name="${this._fodtEscapeXml(layoutName)}">${header}${footer}</style:master-page>`;
   }
 
+  _fodtWatermarkRotateAttr(angle) {
+    const deg = Number(angle);
+    if (!Number.isFinite(deg) || deg === 0) return "";
+    return ` draw:transform="rotate (${(deg * Math.PI / 180).toFixed(15)})"`;
+  }
+
+  _fodtWatermarkRotateToAngle(transform) {
+    const match = String(transform || "").match(/rotate\s*\(\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*\)/i);
+    if (!match) return 0;
+    return Math.round(Number(match[1]) * 180 / Math.PI);
+  }
+
+  _fodtWatermarkOpacityPercent(opacity) {
+    const value = typeof opacity === "number" && Number.isFinite(opacity) ? opacity : 0.2;
+    return `${Math.round(Math.min(1, Math.max(0, value)) * 100)}%`;
+  }
+
+  _fodtParseOpacity(raw) {
+    if (raw == null || raw === "") return null;
+    const text = String(raw).trim();
+    const percent = text.match(/^(\d+(?:\.\d+)?)%$/);
+    if (percent) return Math.round(Number(percent[1])) / 100;
+    const number = Number(text);
+    if (!Number.isFinite(number)) return null;
+    return number > 1 ? number / 100 : number;
+  }
+
+  _fodtWatermarkFontSizeNumber(fontSize) {
+    const match = String(fontSize || "").trim().match(/^(\d+(?:\.\d+)?)pt$/i);
+    if (!match) return null;
+    const points = Number(match[1]);
+    if (!Number.isFinite(points) || points <= 1) return null;
+    return Math.round(points);
+  }
+
+  _fodtWatermarkGraphicStyleXml(opacityPercent) {
+    return `<style:style style:name="grWm" style:family="graphic"><style:graphic-properties draw:stroke="none" draw:fill="none" draw:opacity="${this._fodtEscapeXml(opacityPercent)}" style:wrap="run-through" style:number-wrapped-paragraphs="no-limit" style:vertical-pos="middle" style:vertical-rel="page" style:horizontal-pos="center" style:horizontal-rel="page" style:flow-with-text="false" style:run-through="background" fo:padding="0cm" draw:textarea-horizontal-align="center" draw:textarea-vertical-align="middle"/></style:style>`;
+  }
+
+  _fodtWatermarkFrameXml(textStyleName) {
+    const wm = this.watermark;
+    const text = this._fodtEscapeXml(wm.text);
+    const span = textStyleName
+      ? `<text:span text:style-name="${this._fodtEscapeXml(textStyleName)}">${text}</text:span>`
+      : text;
+    return `<text:p><draw:frame draw:style-name="grWm" draw:name="Watermark" text:anchor-type="paragraph" svg:width="16cm" svg:height="6cm" svg:x="2.5cm" svg:y="10cm"${this._fodtWatermarkRotateAttr(wm.angle)}><draw:text-box><text:p>${span}</text:p></draw:text-box></draw:frame></text:p>`;
+  }
+
+  _fodtIsWatermarkDrawing(node) {
+    if (!node || (node.name !== "draw:frame" && node.name !== "draw:custom-shape")) return false;
+    const name = String(node.attrs["draw:name"] || "");
+    if (/^(Watermark|WatermarkFontwork)$/i.test(name)) return true;
+    if (/PowerPlusWaterMark/i.test(name) || /WordPictureWatermark/i.test(name)) return true;
+    return false;
+  }
+
+  _fodtFindTextStyleProps(nodes, textStyles) {
+    const found = {};
+    const walk = (list) => {
+      for (const node of list || []) {
+        if (!node || node.name === "#text") continue;
+        const styleName = node.attrs?.["text:style-name"];
+        if (styleName && textStyles.has(styleName)) {
+          const style = textStyles.get(styleName);
+          if (style.color && !found.color) found.color = style.color;
+          if (style.fontSize && !found.fontSize) found.fontSize = style.fontSize;
+        }
+        walk(node.children);
+      }
+    };
+    walk(nodes);
+    return found;
+  }
+
+  _fodtWatermarkFromDrawing(node, graphicStyles, textStyles) {
+    const graphic = graphicStyles.get(node.attrs["draw:style-name"]) || {};
+    const contentNodes = (node.children || []).filter(child => child.name !== "draw:enhanced-geometry");
+    let text = "";
+    if (node.name === "draw:frame") {
+      const textBox = contentNodes.find(child => child.name === "draw:text-box");
+      if (!textBox) throw this._fodtError("draw:frame watermark thiếu draw:text-box");
+      text = this._fodtPlainLoose(textBox.children).trim();
+    } else {
+      text = this._fodtPlainLoose(contentNodes).trim();
+    }
+    if (!text) throw this._fodtError("watermark trong header không có chữ");
+    const textProps = this._fodtFindTextStyleProps(contentNodes, textStyles);
+    const color = textProps.color || graphic.fillColor || "#dc2626";
+    const fontSize = this._fodtWatermarkFontSizeNumber(textProps.fontSize) || 72;
+    const opacity = this._fodtParseOpacity(graphic.opacity);
+    return {
+      text,
+      color: this._fodtNormalizeColor(color),
+      opacity: opacity == null ? 0.2 : opacity,
+      angle: this._fodtWatermarkRotateToAngle(node.attrs["draw:transform"]),
+      fontSize
+    };
+  }
+
+  _fodtWatermarkSignature(watermark) {
+    if (!watermark || !String(watermark.text || "").trim()) return "";
+    return JSON.stringify({
+      text: String(watermark.text).trim(),
+      color: this._fodtNormalizeColor(watermark.color || "#dc2626"),
+      opacity: typeof watermark.opacity === "number" ? watermark.opacity : 0.2,
+      angle: Number(watermark.angle) || 0,
+      fontSize: Number(watermark.fontSize) || 72
+    });
+  }
+
+  _fodtExtractHeaderWatermark(headerXml, graphicStyles, textStyles) {
+    if (!String(headerXml || "").trim()) {
+      return { watermark: null, remainderNodes: [] };
+    }
+    const tree = this._fodtParseMarkup(headerXml, "FODT style:header");
+    const watermarks = [];
+    const remainderNodes = [];
+    const takeDrawings = (nodes) => {
+      const rest = [];
+      for (const child of nodes || []) {
+        if (child.name === "#text" && !String(child.text || "").trim()) continue;
+        if (this._fodtIsWatermarkDrawing(child)) {
+          watermarks.push(this._fodtWatermarkFromDrawing(child, graphicStyles, textStyles));
+          continue;
+        }
+        if (String(child.name || "").startsWith("draw:")) {
+          throw this._fodtError("header chứa bảng/ảnh/shape/ghi chú/số trang field/Track Changes chưa hỗ trợ");
+        }
+        rest.push(child);
+      }
+      return rest;
+    };
+    for (const node of tree.children) {
+      if (node.name === "#text" && !String(node.text || "").trim()) continue;
+      if (node.name === "text:p" || node.name === "text:h") {
+        const rest = takeDrawings(node.children);
+        if (rest.length) remainderNodes.push({ ...node, children: rest });
+        continue;
+      }
+      if (this._fodtIsWatermarkDrawing(node)) {
+        watermarks.push(this._fodtWatermarkFromDrawing(node, graphicStyles, textStyles));
+        continue;
+      }
+      remainderNodes.push(node);
+    }
+    if (watermarks.length > 1) {
+      const first = this._fodtWatermarkSignature(watermarks[0]);
+      if (watermarks.some(item => this._fodtWatermarkSignature(item) !== first)) {
+        throw this._fodtError("nhiều watermark khác nhau trên một master-page chưa hỗ trợ");
+      }
+    }
+    return { watermark: watermarks[0] || null, remainderNodes };
+  }
+
   _fodtPageSetupFromLayoutProps(props) {
     const widthMm = this._lengthToMm(props["fo:page-width"]);
     const heightMm = this._lengthToMm(props["fo:page-height"]);
@@ -4355,6 +4510,9 @@ export class WriterAdapter {
       const attrs = this._fodtParseAttributes(attrsText);
       const name = attrs["style:name"];
       if (!name) return "";
+      if (/<style:background-image\b/i.test(content)) {
+        throw this._fodtError("style:background-image trên page-layout (watermark ảnh) chưa hỗ trợ");
+      }
       const propMatch = content.match(/<style:page-layout-properties\b([^>]*)\/?\s*>/i);
       layouts.set(name, this._fodtPageSetupFromLayoutProps(this._fodtParseAttributes(propMatch?.[1] || "")));
       return "";
@@ -5316,6 +5474,15 @@ export class WriterAdapter {
     } finally {
       this._fodtCssIgnoreNames = previousIgnore;
     }
+    let watermarkHeaderXml = "";
+    let watermarkGraphicXml = "";
+    if (this.watermark && String(this.watermark.text || "").trim()) {
+      const wmColor = this._fodtNormalizeColor(this.watermark.color || "#dc2626");
+      const wmSize = this._fodtNormalizeFontSize(`${Number(this.watermark.fontSize) || 72}pt`);
+      const wmTextStyle = styleName(textStyles, "T", { bold: true, color: wmColor, fontSize: wmSize });
+      watermarkHeaderXml = this._fodtWatermarkFrameXml(wmTextStyle);
+      watermarkGraphicXml = this._fodtWatermarkGraphicStyleXml(this._fodtWatermarkOpacityPercent(this.watermark.opacity));
+    }
     const isSectionBreak = (node) => {
       if (node.name !== "div") return false;
       const type = node.attrs["data-vno-section-break"];
@@ -5443,13 +5610,14 @@ export class WriterAdapter {
     }).join("");
     const listStyles = '<text:list-style style:name="LBullet"><text:list-level-style-bullet text:level="1" text:bullet-char="•"><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-bullet></text:list-style><text:list-style style:name="LNumber"><text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix="."><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-number></text:list-style>';
     const pageLayoutXml = [...layoutNames.entries()].map(([signature, name]) => this._fodtPageLayoutXml(name, JSON.parse(signature))).join("");
-    const masterPageXml = masters.map(master => this._fodtMasterPageXml(master.name, master.layoutName, headerXml, footerXml)).join("");
+    const headerWithWatermark = `${watermarkHeaderXml}${headerXml}`;
+    const masterPageXml = masters.map(master => this._fodtMasterPageXml(master.name, master.layoutName, headerWithWatermark, footerXml)).join("");
     const officeStyles = /<text:note[\s>]/.test(body) ? this._fodtNotesConfigurationXml() : "";
     const dcNs = (/<office:annotation[\s>]/.test(body) || /<text:tracked-changes[\s>]/.test(body))
       ? ' xmlns:dc="http://purl.org/dc/elements/1.1/"'
       : "";
     const tocStyleXml = /<text:table-of-content[\s>]/.test(body) ? this._fodtTocStylesXml() : "";
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"${dcNs} office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">${officeStyles}<office:automatic-styles>${pageLayoutXml}${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}${graphicStyleXml}${tocStyleXml}</office:automatic-styles><office:master-styles>${masterPageXml}</office:master-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"${dcNs} office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">${officeStyles}<office:automatic-styles>${pageLayoutXml}${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}${graphicStyleXml}${watermarkGraphicXml}${tocStyleXml}</office:automatic-styles><office:master-styles>${masterPageXml}</office:master-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
   }
 
   /** Parse the Phase A FODT subset back to canonical Writer HTML. */
@@ -5514,7 +5682,8 @@ export class WriterAdapter {
           fillColor: props["draw:fill-color"] ? this._fodtNormalizeColor(props["draw:fill-color"]) : "",
           stroke: props["draw:stroke"] || "solid",
           strokeColor: props["svg:stroke-color"] ? this._fodtNormalizeColor(props["svg:stroke-color"]) : "",
-          strokeWidthCm: props["svg:stroke-width"] || ""
+          strokeWidthCm: props["svg:stroke-width"] || "",
+          opacity: props["draw:opacity"] || ""
         });
       }
       return "";
@@ -5771,22 +5940,29 @@ export class WriterAdapter {
       const numeric = Number(String(id).replace(/^section-/, ""));
       if (Number.isFinite(numeric)) restoredSequence = Math.max(restoredSequence, numeric);
     });
+    const headerExtracts = masterPages.map(master => this._fodtExtractHeaderWatermark(master.headerXml, graphicStyles, textStyles));
     if (masterPages.length > 1) {
-      const firstHeader = masterPages[0].headerXml;
+      const firstHeader = headerExtracts[0].remainderNodes;
       const firstFooter = masterPages[0].footerXml;
-      for (const master of masterPages.slice(1)) {
-        if (master.headerXml !== firstHeader || master.footerXml !== firstFooter) {
+      const firstWatermark = this._fodtWatermarkSignature(headerExtracts[0].watermark);
+      for (let index = 1; index < masterPages.length; index++) {
+        if (JSON.stringify(headerExtracts[index].remainderNodes) !== JSON.stringify(firstHeader)
+          || masterPages[index].footerXml !== firstFooter) {
           throw this._fodtError("header/footer khác nhau giữa các master-page (Writer chỉ có một cặp đầu/chân trang)");
+        }
+        if (this._fodtWatermarkSignature(headerExtracts[index].watermark) !== firstWatermark) {
+          throw this._fodtError("watermark khác nhau giữa các master-page (Writer chỉ có một hình mờ)");
         }
       }
     }
     let headerHtml = "";
     let footerHtml = "";
-    if (masterPages[0]?.headerXml) {
-      if (/<(draw:|table:|text:note|text:page-number|text:page-count|text:tracked-changes|text:change)\b/i.test(masterPages[0].headerXml)) {
+    if (headerExtracts[0]?.remainderNodes?.length) {
+      const remainderXmlProbe = headerExtracts[0].remainderNodes.map(node => node.name).join(" ");
+      if (/\b(table:|text:note|text:page-number|text:page-count|text:tracked-changes|text:change)\b/i.test(remainderXmlProbe)) {
         throw this._fodtError("header chứa bảng/ảnh/shape/ghi chú/số trang field/Track Changes chưa hỗ trợ");
       }
-      headerHtml = blocksHtml(this._fodtParseMarkup(masterPages[0].headerXml, "FODT style:header").children, { zone: "header" });
+      headerHtml = blocksHtml(headerExtracts[0].remainderNodes, { zone: "header" });
     }
     if (masterPages[0]?.footerXml) {
       if (/<(draw:|table:|text:note|text:page-number|text:page-count|text:tracked-changes|text:change)\b/i.test(masterPages[0].footerXml)) {
@@ -5794,6 +5970,7 @@ export class WriterAdapter {
       }
       footerHtml = blocksHtml(this._fodtParseMarkup(masterPages[0].footerXml, "FODT style:footer").children, { zone: "footer" });
     }
+    const parsedWatermark = headerExtracts[0]?.watermark || null;
     const bodyNodes = [];
     for (const node of tree.children) {
       if (node.name === "#text" && !String(node.text || "").trim()) continue;
@@ -5812,6 +5989,8 @@ export class WriterAdapter {
     if (this.footerDom) this.footerDom.innerHTML = footerHtml;
     this.shapes = parsedShapes;
     this.comments = parsedComments;
+    this.watermark = parsedWatermark;
+    this._applyWatermark();
     if (masterPages.length) {
       const firstSetup = restoredSections["section-1"] || masterPages[0] && pageLayouts.get(masterPages[0].layoutName);
       if (firstSetup) this.pageSetup = JSON.parse(JSON.stringify(firstSetup));
