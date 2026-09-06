@@ -331,6 +331,7 @@ export const SLIDES_RIBBON_TABS = [
     labelKey: "slidesRibbon.tab.animations",
     groups: [
       {
+        id: "animations",
         label: "Hiệu ứng đối tượng",
         labelKey: "slidesRibbon.group.animations",
         items: [
