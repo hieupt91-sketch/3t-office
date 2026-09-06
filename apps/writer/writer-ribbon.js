@@ -575,6 +575,7 @@ export const WRITER_RIBBON_TABS = [
     labelKey: "writerRibbon.tab.view",
     groups: [
       {
+        id: "views",
         label: "Dạng xem",
         labelKey: "writerRibbon.group.views",
         items: [
@@ -593,21 +594,24 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "zoom",
         label: "Thu phóng",
         labelKey: "writerRibbon.group.zoom",
         items: [
           { type: "button", commandId: "writer.view.zoomIn", isLarge: true },
-          { type: "column", items: [
-            { type: "button", commandId: "writer.view.zoomOut" },
-            { type: "button", commandId: "writer.view.zoomReset" }
-          ] },
-          { type: "column", items: [
-            { type: "button", commandId: "writer.view.zoom100" },
-            { type: "button", commandId: "writer.view.pageWidth" }
-          ] }
+          { type: "button", commandId: "writer.view.zoom100", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.view.zoomOut" },
+              { type: "button", commandId: "writer.view.pageWidth" },
+              { type: "button", commandId: "writer.view.zoomReset" }
+            ]
+          }
         ]
       },
       {
+        id: "window",
         label: "Cửa sổ",
         labelKey: "writerRibbon.group.window",
         items: [{ type: "button", commandId: "writer.view.newWindow", isLarge: true }]
