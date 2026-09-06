@@ -140,6 +140,7 @@ import { runSheetPrintPreviewTests } from "./unit/sheet-print-preview.test.js";
 import { runSlidesPrintPreviewTests } from "./unit/slides-print-preview.test.js";
 import { runSheetPagesetupRealFileImportTests } from "./unit/sheet-pagesetup-real-file-import.test.js";
 import { runWriterFodtRealDocxParsingTests } from "./unit/writer-fodt-real-docx-parsing.test.js";
+import { runBackstagePrintThumbnailTests } from "./unit/backstage-print-thumbnail.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -287,7 +288,8 @@ async function runAll() {
     { title: "121. Unit & Behavioral Tests — VN Sheet Print Preview (Ctrl+F2) + in thật (Ctrl+P)", runner: runSheetPrintPreviewTests },
     { title: "122. Unit & Behavioral Tests — VN Slides Print Preview (Ctrl+F2) + in thật (Ctrl+P)", runner: runSlidesPrintPreviewTests },
     { title: "123. Unit Tests — VN Sheet Page Setup: đọc đúng file ODF thật (không phụ thuộc thuộc tính riêng vno:page-*)", runner: runSheetPagesetupRealFileImportTests },
-    { title: "124. Unit Tests — Writer parseFodt(): đọc đúng file FODT thật từ vòng chuyển đổi DOCX (page-layout regex + text:sequence-decls)", runner: runWriterFodtRealDocxParsingTests }
+    { title: "124. Unit Tests — Writer parseFodt(): đọc đúng file FODT thật từ vòng chuyển đổi DOCX (page-layout regex + text:sequence-decls)", runner: runWriterFodtRealDocxParsingTests },
+    { title: "125. Unit & Behavioral Tests — VN Office Backstage Print Thumbnail & Live Preview", runner: runBackstagePrintThumbnailTests }
   ];
 
   for (const suite of suites) {

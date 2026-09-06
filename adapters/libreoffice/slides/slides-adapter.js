@@ -22,6 +22,10 @@ export class SlidesAdapter {
   /** Gắn tham chiếu AppShell — xem chú thích trong WriterAdapter.setShell(). */
   setShell(shell) {
     this.shell = shell;
+    if (shell) {
+      shell.adapter = this;
+      if (this.canvas) shell.canvas = this.canvas;
+    }
   }
 
   newDocument() {

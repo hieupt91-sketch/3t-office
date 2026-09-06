@@ -1432,6 +1432,9 @@ export class WriterAdapter {
    */
   setShell(shell) {
     this.shell = shell;
+    if (shell) {
+      shell.adapter = this;
+    }
   }
 
   setCommentsPanel(panelDom) {
