@@ -187,6 +187,7 @@ export const WRITER_RIBBON_TABS = [
     labelKey: "writerRibbon.tab.insert",
     groups: [
       {
+        id: "pages",
         label: "Trang văn bản",
         labelKey: "writerRibbon.group.pages",
         items: [
@@ -194,6 +195,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "tables",
         label: "Bảng biểu",
         labelKey: "writerRibbon.group.tables",
         items: [
@@ -235,6 +237,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "headerFooter",
         label: "Đầu trang / Chân trang",
         labelKey: "writerRibbon.group.headerFooter",
         items: [
