@@ -782,6 +782,21 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.edit.findReplace",
+    app: "sheet",
+    commandIds: ["common.edit.find", "common.edit.replace"],
+    title: "Tìm và thay thế trong bảng tính",
+    summary: "Tìm chuỗi trong giá trị hoặc công thức của ô (Ctrl+F). Thay thế (Ctrl+H) mở cùng hộp thoại với ô «Thay thế bằng» và nút Thay thế / Thay thế tất cả — thay trên ô thật, không phải HTML.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["tìm", "thay thế", "find", "replace", "ctrl+f", "ctrl+h", "tìm kiếm"],
+    steps: [
+      "Tab Trang đầu, nhóm Chỉnh sửa (cột cuối, cạnh Sắp xếp): nút Tìm kiếm (Ctrl+F) và Thay thế (Ctrl+H). Cùng hộp «Tìm kiếm và Thay thế» dùng chung Writer/Slides.",
+      "Tìm kiếm: nhập chuỗi vào «Tìm kiếm», nhấn Tìm tiếp hoặc Enter. Ô khớp (giá trị hiển thị hoặc công thức, không phân biệt hoa/thường) được chọn. Tìm tiếp vòng quanh các ô đã có dữ liệu trên sheet đang mở.",
+      "Thay thế: Ctrl+H hoặc nút Thay thế — ô «Thay thế bằng» và nút Thay thế / Thay thế tất cả hiện sẵn (checkbox «Hiển thị tùy chọn thay thế» cũng bật được từ chế độ Tìm). Thay thế đổi lần khớp tại ô đang chọn, hoặc nhảy tới ô khớp tiếp rồi đổi. Thay thế tất cả đổi mọi lần khớp trên sheet, một bước Undo (Ctrl+Z) hoàn tác cả khối.",
+      "Công thức bắt đầu bằng = được sửa trong công thức rồi tính lại; ô thường sửa giá trị. Ô công thức mảng và sparkline bị bỏ qua. Sheet đang bảo vệ thì Thay thế bị chặn."
+    ]
+  },
+  {
     id: "sheet.formula.evaluateFormula",
     app: "sheet",
     commandIds: ["sheet.formula.evaluateFormula"],

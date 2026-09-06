@@ -4,7 +4,7 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
-import { showAlertDialog, showPromptDialog } from "../../../platform/ui-kit/dialogs.js";
+import { showAlertDialog, showPromptDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { getVnCommand } from "../common/command-dispatch-mapper.js";
@@ -307,9 +307,32 @@ export class SheetAdapter {
       options = options || {};
       return this.grid.clearContents ? this.grid.clearContents(options.range) : false;
     });
-    globalCommandBus.bindHandler("common.edit.find", () => {
-      return this.grid.showFindDialog ? this.grid.showFindDialog() : false;
-    });
+    globalCommandBus.bindHandler("common.edit.find", () => this._showFindReplaceDialog(false));
+    globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
+  }
+
+  _showFindReplaceDialog(isReplace = false) {
+    if (!this.grid) return false;
+    if (typeof document === "undefined" || typeof document.createElement !== "function" || !document.body?.appendChild) {
+      return true;
+    }
+    try {
+      showFindReplaceDialog({
+        isReplace: !!isReplace,
+        onFind: (text) => this.grid.findNext ? this.grid.findNext(text) : false,
+        onReplace: (findText, replaceText) => {
+          if (!findText) return false;
+          return this.grid.replaceOne ? this.grid.replaceOne(findText, replaceText) : false;
+        },
+        onReplaceAll: (findText, replaceText) => {
+          if (!findText) return 0;
+          return this.grid.replaceAll ? this.grid.replaceAll(findText, replaceText) : 0;
+        }
+      });
+    } catch (_) {
+      return true;
+    }
+    return true;
   }
 
 
@@ -2833,7 +2856,10 @@ export class SheetAdapter {
         return this.grid.clearContents ? this.grid.clearContents(args?.range) : false;
 
       case "common.edit.find":
-        return this.grid.showFindDialog ? this.grid.showFindDialog() : false;
+        return this._showFindReplaceDialog(false);
+
+      case "common.edit.replace":
+        return this._showFindReplaceDialog(true);
 
       case "sheet.chart.insert":
         this.grid.openChartBuilder();

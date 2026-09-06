@@ -10,6 +10,7 @@ import { globalShortcutManager } from "../../platform/commands/shortcut-manager.
 import { mapVnCommandToUno, getVnCommand } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "../../apps/sheet/cell-styles.js";
 import { viStrings } from "../../platform/i18n/strings-vi.js";
 import { enStrings } from "../../platform/i18n/strings-en.js";
@@ -424,6 +425,41 @@ export async function runSheetEditingStylesTests() {
     item = grid.cellsData.get("A1");
     assert(item.val === "Dữ liệu thử nghiệm", "Undo Clear All phải phục hồi giá trị");
     assert(item.style.backgroundColor === "#fca5a5", "Undo Clear All phải phục hồi style");
+  });
+
+  test("Sheet Find/Replace: tìm tiếp, thay một ô, thay tất cả và Undo", () => {
+    const grid = new SheetGridController(createMockContainer());
+    grid.setCellValue("A", 1, "chi phí quý 1");
+    grid.setCellValue("B", 1, "chi phí nhân sự");
+    grid.setCellValue("C", 1, "=A1");
+    grid.setCellValue("D", 1, "không khớp");
+
+    const first = grid.findNext("chi phí");
+    assert(first === "A1", `findNext phải ra A1, nhận: ${first}`);
+    const second = grid.findNext("chi phí");
+    assert(second === "B1", `findNext lần 2 phải ra B1, nhận: ${second}`);
+
+    grid.selectCell("A", 1);
+    assert(grid.replaceOne("chi phí", "ngân sách") === true, "replaceOne thất bại");
+    assert(grid.cellsData.get("A1").val === "ngân sách quý 1", `A1 sau replaceOne: ${grid.cellsData.get("A1").val}`);
+    assert(grid.cellsData.get("B1").val === "chi phí nhân sự", "replaceOne không được đụng B1");
+
+    const count = grid.replaceAll("chi phí", "ngân sách");
+    assert(count >= 1, `replaceAll phải đổi ít nhất 1 lần, nhận: ${count}`);
+    assert(grid.cellsData.get("B1").val === "ngân sách nhân sự", `B1 sau replaceAll: ${grid.cellsData.get("B1").val}`);
+    assert(String(grid.cellsData.get("C1").formula).includes("A1"), "Công thức =A1 không chứa 'chi phí' phải giữ nguyên");
+    assert(grid.cellsData.get("D1").val === "không khớp", "Ô không khớp phải giữ nguyên");
+
+    assert(grid.undo() === true, "Undo replaceAll");
+    assert(grid.cellsData.get("B1").val === "chi phí nhân sự", `Undo replaceAll phải trả B1, nhận: ${grid.cellsData.get("B1").val}`);
+  });
+
+  test("Sheet Adapter: bind và dispatch common.edit.replace", () => {
+    const grid = new SheetGridController(createMockContainer());
+    const adapter = new SheetAdapter(grid);
+    adapter.attach();
+    assert(adapter._showFindReplaceDialog(false) === true, "find dialog");
+    assert(adapter._showFindReplaceDialog(true) === true, "replace dialog");
   });
 
   return results;
