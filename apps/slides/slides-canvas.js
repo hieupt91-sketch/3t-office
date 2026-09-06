@@ -1901,7 +1901,7 @@ export class SlidesCanvasController {
     panel.innerHTML = `
       <header>
         <strong id="vno-anim-pane-title">${t("slidesDialogs.animationPaneTitle", "Ngăn hoạt hình")}</strong>
-        <button type="button" class="vno-anim-pane-close" aria-label="${t("slidesDialogs.close", "Đóng")}">×</button>
+        <button type="button" class="vno-anim-pane-close" title="${t("slidesDialogs.close", "Đóng")}" aria-label="${t("slidesDialogs.close", "Đóng")}">×</button>
       </header>
       <p class="vno-anim-pane-hint">${t("slidesDialogs.animationPaneHint", "Danh sách hiệu ứng trên trang đang chọn. Đổi thứ tự bằng nút lên/xuống, chọn cách bắt đầu, hoặc xóa hiệu ứng (không xóa đối tượng).")}</p>
       <div class="vno-anim-pane-list" role="list" aria-live="polite"></div>`;
@@ -6392,13 +6392,13 @@ export class SlidesCanvasController {
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay";
       overlay.innerHTML = `
-        <div class="vno-dialog-box" style="width: 460px;" role="dialog" aria-modal="true" aria-labelledby="vno-setup-show-title">
+        <div class="vno-dialog-box" style="width: 460px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-setup-show-title">
           <div class="vno-dialog-header">
             <span id="vno-setup-show-title">${t("slidesDialogs.setupShowTitle", "Thiết lập trình chiếu")}</span>
-            <button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close", "Đóng")}" style="font-size:16px;">&times;</button>
+            <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("slidesDialogs.close", "Đóng")}" aria-label="${t("slidesDialogs.close", "Đóng")}" style="font-size:16px;">&times;</button>
           </div>
           <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px;">
-            <p style="margin:0;font-size:12px;color:#475569;">${t("slidesDialogs.setupShowHint", "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút/laser được lưu cho tính năng tương lai — VN Slides chưa có bút/laser trên màn hình chiếu.")}</p>
+            <p style="margin:0;font-size:12px;color:var(--vno-text-secondary);">${t("slidesDialogs.setupShowHint", "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút/laser được lưu cho tính năng tương lai — VN Slides chưa có bút/laser trên màn hình chiếu.")}</p>
             <label class="vno-setup-show-check" style="display:flex;align-items:flex-start;gap:8px;font-size:13px;">
               <input type="checkbox" id="vno-setup-loop" ${current.loopUntilEsc ? "checked" : ""}>
               <span>${t("slidesDialogs.setupShowLoop", "Lặp lại liên tục cho đến khi nhấn Esc")}</span>
@@ -6407,12 +6407,12 @@ export class SlidesCanvasController {
               <input type="checkbox" id="vno-setup-narration" ${current.showWithoutNarration ? "checked" : ""}>
               <span>${t("slidesDialogs.setupShowNoNarration", "Trình chiếu không có thuyết minh")}</span>
             </label>
-            <p style="margin:0 0 0 24px;font-size:11px;color:#64748b;">${t("slidesDialogs.setupShowNoNarrationHint", "Chưa có thuyết minh/audio narration trong VN Slides — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.")}</p>
+            <p style="margin:0 0 0 24px;font-size:11px;color:var(--vno-text-muted);">${t("slidesDialogs.setupShowNoNarrationHint", "Chưa có thuyết minh/audio narration trong VN Slides — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.")}</p>
             <div style="display:flex;flex-direction:column;gap:6px;">
-              <label for="vno-setup-pointer-color" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.setupShowPointerColor", "Màu con trỏ bút / laser")}</label>
+              <label for="vno-setup-pointer-color" style="font-size:12px;font-weight:600;color:var(--vno-text-primary);">${t("slidesDialogs.setupShowPointerColor", "Màu con trỏ bút / laser")}</label>
               <div style="display:flex;align-items:center;gap:10px;">
-                <input type="color" id="vno-setup-pointer-color" value="${this._escapeShapeText(current.pointerColor)}" aria-label="${t("slidesDialogs.setupShowPointerColor", "Màu con trỏ bút / laser")}" style="width:44px;height:32px;padding:0;border:1px solid #cbd5e1;border-radius:4px;background:#fff;cursor:pointer;">
-                <span id="vno-setup-pointer-hex" style="font-size:12px;color:#334155;">${this._escapeShapeText(current.pointerColor)}</span>
+                <input type="color" id="vno-setup-pointer-color" value="${this._escapeShapeText(current.pointerColor)}" aria-label="${t("slidesDialogs.setupShowPointerColor", "Màu con trỏ bút / laser")}" style="width:44px;height:32px;padding:0;border:1px solid var(--vno-border-default);border-radius:4px;background:var(--vno-bg-surface);cursor:pointer;">
+                <span id="vno-setup-pointer-hex" style="font-size:12px;color:var(--vno-text-secondary);">${this._escapeShapeText(current.pointerColor)}</span>
               </div>
             </div>
           </div>
@@ -6447,6 +6447,9 @@ export class SlidesCanvasController {
         if (e.key === "Escape") {
           e.preventDefault();
           close(false);
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          overlay.querySelector("#vno-setup-ok")?.click();
         } else if (e.key === "Tab") {
           trapFocus(dialogBox, e);
         }
