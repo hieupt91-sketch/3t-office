@@ -3015,6 +3015,9 @@ export class SheetAdapter {
       case "sheet.data.filter":
         return this.grid.toggleFilter ? this.grid.toggleFilter() : false;
 
+      case "sheet.data.customSort":
+        return this.grid.showCustomSortDialog ? this.grid.showCustomSortDialog() : false;
+
       case "common.edit.cut":
         return await this._copySelectedCell(true);
 

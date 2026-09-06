@@ -201,6 +201,7 @@ export const VN_TO_UNO_MAP = {
   "sheet.data.sortAsc": ".uno:Sortup",
   "sheet.data.sortDesc": ".uno:Sortdown",
   "sheet.data.filter": ".uno:DataFilterAutoFilter",
+  "sheet.data.customSort": ".uno:DataSort",
   "sheet.data.textToColumns": ".uno:TextToColumns",
   "sheet.data.flashFill": ".uno:FillSeries",
   "sheet.data.removeDuplicates": ".uno:DataFilterRemoveFilter",

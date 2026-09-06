@@ -7331,6 +7331,7 @@ export class SheetGridController {
 
   removeDuplicates(options) { return this.dataTools.removeDuplicates(options); }
   createSubtotal(options) { return this.dataTools.subtotal(options); }
+  sortMultiLevel(options) { return this.dataTools.sortMultiLevel(options); }
   applyTextToColumns(options) { return this.dataTools.textToColumns(options); }
   applyFlashFill(options) { return this.dataTools.flashFill(options); }
 
@@ -7409,6 +7410,74 @@ export class SheetGridController {
       const result = this.createSubtotal({ groupColumn: overlay.querySelector("#vno-st-group").value, valueColumns, operation: overlay.querySelector("#vno-st-op").value });
       if (!result) { overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.selectRangeAndCol", "Hãy chọn vùng và ít nhất một cột giá trị."); return; }
       overlay.closeDialog(); this._showDataNotice(t("sheetDialogs.subtotalResult", { groups: result.groups }) || `Đã chèn ${result.groups} nhóm tổng phụ và hàng tổng cộng.`);
+    });
+    return true;
+  }
+
+  showCustomSortDialog() {
+    const area = this._normalizeRange(this.selectionRange);
+    const columns = this.dataTools.columns(area);
+    if (columns.length < 1 || area.end.r <= area.start.r) return false;
+    const columnLabel = col => {
+      const preview = String(this.dataTools.value(col, area.start.r) ?? "").trim();
+      return preview ? `${col}: ${preview}` : col;
+    };
+    const overlay = this._createSheetDialog(t("sheetDialogs.customSortTitle", "Sắp xếp"), `
+      <p>${t("sheetDialogs.rangeLabel", "Vùng:")} <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <label><input id="vno-cs-header" type="checkbox" checked> ${t("sheetDialogs.myHeaderRow", "Dữ liệu có hàng tiêu đề")}</label>
+      <div id="vno-cs-levels" class="vno-cs-levels"></div>
+      <button type="button" class="vno-btn vno-cs-add-level">+ ${t("sheetDialogs.addLevel", "Thêm cấp")}</button>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+
+    const levelsContainer = overlay.querySelector("#vno-cs-levels");
+    const state = [{ col: columns[0], ascending: true }];
+    if (columns.length > 1) state.push({ col: columns[1], ascending: true });
+
+    const renderLevels = () => {
+      levelsContainer.innerHTML = state.map((level, index) => `
+        <div class="vno-cs-level" data-index="${index}" style="display:flex;gap:6px;align-items:center;margin:6px 0;">
+          <span style="min-width:88px;">${index === 0 ? t("sheetDialogs.sortBy", "Sắp xếp theo") : t("sheetDialogs.thenBy", "Sau đó theo")}</span>
+          <select class="vno-cs-col" aria-label="${t("sheetDialogs.sortByColumn", "Cột sắp xếp")}">${columns.map(col => `<option value="${col}" ${col === level.col ? "selected" : ""}>${columnLabel(col)}</option>`).join("")}</select>
+          <select class="vno-cs-order" aria-label="${t("sheetDialogs.sortOrder", "Thứ tự")}">
+            <option value="asc" ${level.ascending ? "selected" : ""}>${t("sheetDialogs.sortAtoZ", "A → Z")}</option>
+            <option value="desc" ${!level.ascending ? "selected" : ""}>${t("sheetDialogs.sortZtoA", "Z → A")}</option>
+          </select>
+          ${state.length > 1 ? `<button type="button" class="vno-btn vno-btn-icon-only vno-cs-remove-level" title="${t("sheetDialogs.removeLevel", "Xóa cấp")}" aria-label="${t("sheetDialogs.removeLevel", "Xóa cấp")}">&times;</button>` : ""}
+        </div>`).join("");
+      overlay.querySelector(".vno-cs-add-level").disabled = state.length >= Math.min(columns.length, 4);
+    };
+    renderLevels();
+
+    levelsContainer.addEventListener("change", (event) => {
+      const row = event.target.closest(".vno-cs-level");
+      if (!row) return;
+      const index = Number(row.dataset.index);
+      if (event.target.classList.contains("vno-cs-col")) state[index].col = event.target.value;
+      else if (event.target.classList.contains("vno-cs-order")) state[index].ascending = event.target.value === "asc";
+    });
+    levelsContainer.addEventListener("click", (event) => {
+      const removeBtn = event.target.closest(".vno-cs-remove-level");
+      if (!removeBtn) return;
+      const row = removeBtn.closest(".vno-cs-level");
+      state.splice(Number(row.dataset.index), 1);
+      renderLevels();
+    });
+    overlay.querySelector(".vno-cs-add-level").addEventListener("click", () => {
+      const usedCols = new Set(state.map(level => level.col));
+      const nextCol = columns.find(col => !usedCols.has(col)) || columns[0];
+      state.push({ col: nextCol, ascending: true });
+      renderLevels();
+    });
+
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const hasHeader = overlay.querySelector("#vno-cs-header").checked;
+      const result = this.sortMultiLevel({ range: area, hasHeader, levels: state });
+      if (result === false) {
+        overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.selectRangeAndCol", "Hãy chọn vùng và ít nhất một cột giá trị.");
+        return;
+      }
+      overlay.closeDialog();
     });
     return true;
   }

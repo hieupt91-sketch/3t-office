@@ -264,6 +264,11 @@ export const ICONS = {
     <path d="M15 5V19M15 19L11 15M15 19L19 15" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/>
   </svg>`,
 
+  sortCustom: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <path d="M4 6h13M4 12h9M4 18h5" stroke="#0F172A" stroke-width="2" stroke-linecap="round"/>
+    <path d="M19 9V19M19 19L16 16M19 19L22 16" stroke="#0F6D38" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
   // Slides / Impress Controls
   slideNew: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="3" y="5" width="26" height="18" rx="2" fill="#F8FAFC" stroke="#B53818" stroke-width="1.5"/>

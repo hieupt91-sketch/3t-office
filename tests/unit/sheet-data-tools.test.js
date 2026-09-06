@@ -61,6 +61,63 @@ export async function runSheetDataToolsTests() {
     assert(grid.applyFlashFill().pattern === "first:3" && grid.cellsData.get("E2").val === "XYZ", "Cắt đầu sai");
   });
 
+  await test("Custom Sort command: có mapping UNO thật và dispatch mở đúng dialog trên grid", async () => {
+    assert(VN_TO_UNO_MAP["sheet.data.customSort"], "Thiếu mapper cho sheet.data.customSort");
+    registerAllStandardCommands(globalCommandBus);
+    const calls = [];
+    const mock = new Proxy({ selectedCoord: { c: "A" } }, { get(target, key) { if (key in target) return target[key]; return (...args) => { calls.push(key); return true; }; } });
+    new SheetAdapter(mock).attach();
+    assert(await globalCommandBus.execute("sheet.data.customSort") !== false, "execute(sheet.data.customSort) thất bại");
+    assert(calls.includes("showCustomSortDialog"), "Dispatch không gọi tới grid.showCustomSortDialog");
+  });
+
+  await test("Custom Sort: sắp theo nhiều cấp (Team A-Z, rồi Amount Z-A), giữ header, Undo/Redo", () => {
+    const grid = new SheetGridController(container());
+    [
+      ["A1","Team"],["B1","Amount"],
+      ["A2","B"],["B2",5],
+      ["A3","A"],["B3",10],
+      ["A4","A"],["B4",20],
+      ["A5","B"],["B5",1]
+    ].forEach(([c,v]) => put(grid,c,v));
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "B", r: 5 } };
+    const result = grid.sortMultiLevel({ hasHeader: true, levels: [{ col: "A", ascending: true }, { col: "B", ascending: false }] });
+    assert(result && result.sorted === 4, "Phải báo đã sắp 4 hàng dữ liệu");
+    assert(grid.cellsData.get("A1").val === "Team", "Header không được động vào khi hasHeader=true");
+    const teamOrder = [2,3,4,5].map(r => grid.cellsData.get(`A${r}`).val).join(",");
+    const amountOrder = [2,3,4,5].map(r => grid.cellsData.get(`B${r}`).val).join(",");
+    assert(teamOrder === "A,A,B,B", `Cấp 1 (Team A-Z) sai thứ tự: ${teamOrder}`);
+    assert(amountOrder === "20,10,5,1", `Cấp 2 (Amount Z-A trong từng nhóm Team) sai thứ tự: ${amountOrder}`);
+    assert(grid.undo() && grid.cellsData.get("A2").val === "B" && grid.cellsData.get("B2").val === 5, "Undo phải khôi phục đúng thứ tự gốc");
+    assert(grid.redo() && grid.cellsData.get("A2").val === "A" && grid.cellsData.get("B2").val === 20, "Redo phải áp lại đúng kết quả sắp xếp");
+  });
+
+  await test("Custom Sort: hasHeader=false sắp cả hàng đầu; cấp trỏ tới cột ngoài vùng bị bỏ qua chứ không ném lỗi", () => {
+    const grid = new SheetGridController(container());
+    [["A1","B"],["A2","A"],["A3","C"]].forEach(([c,v]) => put(grid,c,v));
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "A", r: 3 } };
+    const result = grid.sortMultiLevel({ hasHeader: false, levels: [{ col: "Z", ascending: true }, { col: "A", ascending: true }] });
+    assert(result && result.sorted === 3, "Phải sắp cả 3 hàng khi không có header");
+    const order = [1,2,3].map(r => grid.cellsData.get(`A${r}`).val).join(",");
+    assert(order === "A,B,C", `Cấp hợp lệ duy nhất (cột A) phải quyết định thứ tự: ${order}`);
+  });
+
+  await test("Custom Sort: không có cấp hợp lệ nào (mọi cột đều ngoài vùng) thì trả về false, không sửa gì", () => {
+    const grid = new SheetGridController(container());
+    [["A1","B"],["A2","A"]].forEach(([c,v]) => put(grid,c,v));
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "A", r: 2 } };
+    assert(grid.sortMultiLevel({ hasHeader: false, levels: [{ col: "Z", ascending: true }] }) === false, "Không có cấp nào trỏ tới cột trong vùng thì phải false");
+  });
+
+  await test("Custom Sort: một hàng dữ liệu (không header) là no-op an toàn, không báo lỗi và không đổi dữ liệu", () => {
+    const grid = new SheetGridController(container());
+    put(grid, "A1", "Chỉ một hàng");
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "A", r: 1 } };
+    const result = grid.sortMultiLevel({ hasHeader: false, levels: [{ col: "A", ascending: true }] });
+    assert(result && result.sorted === 0, "Một hàng thì không có gì đổi thứ tự, nhưng vẫn phải là no-op hợp lệ chứ không phải lỗi");
+    assert(grid.cellsData.get("A1").val === "Chỉ một hàng", "Dữ liệu không được thay đổi");
+  });
+
   await test("Outline: Group/Ungroup hàng và collapse state", () => {
     const grid = new SheetGridController(container());
     grid.selectionRange = { start: { c: "A", r: 2 }, end: { c: "Z", r: 5 } };
