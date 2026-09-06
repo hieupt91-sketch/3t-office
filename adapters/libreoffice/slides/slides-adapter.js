@@ -84,6 +84,7 @@ export class SlidesAdapter {
     // Command metadata is app-local because this feature is scoped to Slides;
     // bind explicitly instead of requiring a Platform registry change.
     globalCommandBus.bindHandler("slides.insert.chart", (options) => this.canvas.insertChart ? this.canvas.insertChart(options) : false);
+    globalCommandBus.bindHandler("slides.file.printPreview", () => Boolean(this.canvas.openPrintPreview ? this.canvas.openPrintPreview() : false));
     globalCommandBus.bindHandler("slides.view.normal", () => this.canvas.setNormalView ? this.canvas.setNormalView() : false);
     globalCommandBus.bindHandler("slides.view.slideSorter", () => this.canvas.openSlideSorter ? this.canvas.openSlideSorter() : false);
     globalCommandBus.bindHandler("slides.notes.toggle", () => this.canvas.toggleNotes ? this.canvas.toggleNotes() : false);
@@ -2645,6 +2646,7 @@ export class SlidesAdapter {
   }
 
   print() {
+    if (this.canvas?.print) return this.canvas.print();
     if (typeof window !== "undefined" && typeof window.print === "function") {
       window.print();
     }
@@ -2833,6 +2835,10 @@ export class SlidesAdapter {
       case "slides.show.setupShow":
       case ".uno:PresentationDialog":
         return this.canvas.showSetupShowDialog ? this.canvas.showSetupShowDialog() : false;
+
+      case "slides.file.printPreview":
+      case ".uno:PrintPreview":
+        return Boolean(this.canvas.openPrintPreview ? this.canvas.openPrintPreview() : false);
 
       case "slides.view.normal":
       case ".uno:NormalMultiPaneGUI":

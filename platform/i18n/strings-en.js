@@ -192,6 +192,14 @@ export const enStrings = {
   },
   slidesDialogs: {
     close: "Close", cancel: "Cancel", apply: "Apply", preview: "Preview", delete: "Delete",
+    printPreview: {
+      title: "Print Preview",
+      printBtn: "Print",
+      prevPage: "◀ Previous Page",
+      nextPage: "Next Page ▶",
+      pagePrefix: "Page ",
+      closeTooltip: "Close Preview (Esc)"
+    },
     masterTitle: "Slide Master", themeGalleryTitle: "Theme Gallery", themeGalleryHint: "Choose a theme to apply it immediately to the whole presentation.", themePreviewTitle: "Presentation title", themeCorporateBlue: "Corporate Blue", themeWarmTerracotta: "Warm Terracotta", themeMinimalMonochrome: "Minimal Monochrome", themeNaturalGreen: "Natural Green", themeModernCharcoal: "Modern Charcoal", themeEnergeticOrange: "Energetic Orange", slideSizeTitle: "Slide Size", slideSizeHint: "Choose a new aspect ratio. Existing shapes and objects will be scaled to fit.", slideSizeWide: "Widescreen", slideSizeStandard: "Standard", layoutTitle: "Choose a Slide Layout", transitionTitle: "Transitions", animationTitle: "Object Animations",
     applyMaster: "Apply Theme", applyLayout: "Apply Layout", applyTransition: "Apply Transition", applyAnimation: "Apply Animation", removeTransition: "Remove Transition", removeAnimation: "Remove Animation", previewTransition: "▶ Preview Transition", previewAnimation: "▶ Preview Animation", previewObject: "Preview Object",
     layoutHint: "Choose a layout to reshape the current slide's content structure:", applyLayoutAll: "Apply to All", applyLayoutCurrent: "Apply",
@@ -449,6 +457,7 @@ export const enStrings = {
     ,"slides.show.presenterMode": { label: "Presenter View", tooltip: "Start Presenter View with notes and a timer (Alt+F5)" }
     ,"slides.show.rehearseTimings": { label: "Rehearse Timings", tooltip: "Practice the slide show and record the time spent on each slide" }
     ,"slides.show.setupShow": { label: "Set Up Slide Show", tooltip: "Loop until Esc, show without narration, and pen/laser pointer color" }
+    ,"slides.file.printPreview": { label: "Print Preview", tooltip: "Print Preview (Ctrl+F2)" }
     ,"slides.shape.group": { label: "Group", tooltip: "Group the selected objects together (Ctrl+G)" }
     ,"slides.shape.ungroup": { label: "Ungroup", tooltip: "Ungroup the selected objects (Ctrl+Shift+G)" }
     ,"slides.nav.firstSlide": { label: "First Slide", tooltip: "Go to the first slide (Ctrl+Home)" }
