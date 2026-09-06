@@ -306,22 +306,13 @@ export const WRITER_RIBBON_TABS = [
     labelKey: "writerRibbon.tab.layout",
     groups: [
       {
+        id: "pageSetup",
         label: "Thiết lập trang",
         labelKey: "writerRibbon.group.pageSetup",
         items: [
           { type: "button", commandId: "writer.page.margins", isLarge: true },
           { type: "button", commandId: "writer.page.orientation", isLarge: true },
           { type: "button", commandId: "writer.page.size", isLarge: true },
-          {
-            type: "dropdown", id: "writer.layout.breaks", label: "Ngắt trang", icon: "sectionBreak", items: [
-              { commandId: "writer.page.break" },
-              { commandId: "writer.break.column" },
-              { commandId: "writer.section.nextPage" },
-              { commandId: "writer.section.continuous" },
-              { commandId: "writer.section.evenPage" },
-              { commandId: "writer.section.oddPage" }
-            ]
-          },
           { type: "button", commandId: "writer.page.columns", isLarge: true },
           {
             type: "column",
@@ -330,10 +321,52 @@ export const WRITER_RIBBON_TABS = [
               { type: "button", commandId: "writer.page.columns2" },
               { type: "button", commandId: "writer.page.columns3" }
             ]
+          },
+          {
+            type: "dropdown",
+            id: "writer.layout.breaks",
+            label: "Ngắt trang",
+            icon: "sectionBreak",
+            isLarge: true,
+            items: [
+              { commandId: "writer.page.break" },
+              { commandId: "writer.break.column" },
+              { commandId: "writer.section.nextPage" },
+              { commandId: "writer.section.continuous" },
+              { commandId: "writer.section.evenPage" },
+              { commandId: "writer.section.oddPage" }
+            ]
           }
         ]
       },
       {
+        id: "paragraph",
+        label: "Đoạn văn",
+        labelKey: "writerRibbon.group.paragraph",
+        items: [
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.para.indentDec" },
+              { type: "button", commandId: "writer.para.indentInc" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "writer.para.lineSpacingLayout",
+            label: "Giãn dòng",
+            icon: "lineSpacing",
+            isLarge: true,
+            items: [
+              { commandId: "writer.para.spacing1" },
+              { commandId: "writer.para.spacing15" },
+              { commandId: "writer.para.spacing2" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "pageBackground",
         label: "Nền & Viền trang",
         labelKey: "writerRibbon.group.pageBackground",
         items: [
@@ -342,6 +375,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "print",
         label: "In ấn",
         labelKey: "writerRibbon.group.print",
         items: [
