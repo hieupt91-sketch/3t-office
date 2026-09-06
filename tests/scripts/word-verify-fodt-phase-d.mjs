@@ -51,6 +51,17 @@ const commentDocx = convertWithSoffice(commentFodt, "docx", path.join(outDir, "c
 const commentOut = path.join(outDir, "phase-d-comments.docx");
 fs.copyFileSync(commentDocx, commentOut);
 
+const tocFodt = path.join(outDir, "phase-d-toc.fodt");
+fs.writeFileSync(tocFodt, adapterWithZones({
+  body: `<div data-vno-toc="true" class="vno-toc-block" contenteditable="false"><div class="vno-toc-header"><span class="vno-toc-title">MỤC LỤC</span></div><div class="vno-toc-entries"><div class="vno-toc-item vno-toc-level-1"><a class="vno-toc-link"><span class="vno-toc-text">Báo cáo thẩm định</span><span class="vno-toc-page">1</span></a></div><div class="vno-toc-item vno-toc-level-2"><a class="vno-toc-link"><span class="vno-toc-text">Căn cứ pháp lý</span><span class="vno-toc-page">1</span></a></div><div class="vno-toc-item vno-toc-level-3"><a class="vno-toc-link"><span class="vno-toc-text">Nghị định 15/2021</span><span class="vno-toc-page">1</span></a></div></div></div><h1>Báo cáo thẩm định</h1><p>Đoạn mở đầu.</p><h2>Căn cứ pháp lý</h2><p>Đoạn căn cứ.</p><h3>Nghị định 15/2021</h3><p>Đoạn nghị định.</p>`
+}).serializeToFodt(), "utf8");
+const tocDocx = convertWithSoffice(tocFodt, "docx", path.join(outDir, "toc-docx"), {
+  appKind: "writer", profileDir: path.join(outDir, "profile-toc")
+});
+const tocOut = path.join(outDir, "phase-d-toc.docx");
+fs.copyFileSync(tocDocx, tocOut);
+
 console.log(`WORD_DIR=${outDir}`);
 console.log(`NOTES_DOCX=${notesOut}`);
 console.log(`COMMENTS_DOCX=${commentOut}`);
+console.log(`TOC_DOCX=${tocOut}`);

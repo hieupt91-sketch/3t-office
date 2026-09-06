@@ -4799,6 +4799,91 @@ export class WriterAdapter {
     );
   }
 
+  _fodtIsTocBlock(node) {
+    return node?.name === "div" && node.attrs["data-vno-toc"] === "true";
+  }
+
+  _fodtFindByClass(node, className) {
+    if (!node || node.name === "#text") return null;
+    if (new RegExp(`\\b${className}\\b`).test(node.attrs.class || "")) return node;
+    for (const child of node.children || []) {
+      const found = this._fodtFindByClass(child, className);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  _fodtCollectByClass(node, className, acc = []) {
+    if (!node || node.name === "#text") return acc;
+    if (new RegExp(`\\b${className}\\b`).test(node.attrs.class || "")) acc.push(node);
+    for (const child of node.children || []) this._fodtCollectByClass(child, className, acc);
+    return acc;
+  }
+
+  _fodtTocStylesXml() {
+    return '<style:style style:name="Contents_20_Heading" style:family="paragraph"><style:paragraph-properties fo:margin-bottom="0.4cm"/><style:text-properties fo:font-size="16pt" fo:font-weight="bold"/></style:style><style:style style:name="Contents_20_1" style:family="paragraph"><style:paragraph-properties fo:margin-left="0cm"/></style:style><style:style style:name="Contents_20_2" style:family="paragraph"><style:paragraph-properties fo:margin-left="0.5cm"/></style:style><style:style style:name="Contents_20_3" style:family="paragraph"><style:paragraph-properties fo:margin-left="1cm"/></style:style>';
+  }
+
+  _fodtTocEntryTemplateXml(level) {
+    return `<text:table-of-content-entry-template text:outline-level="${level}" text:style-name="Contents_20_${level}"><text:index-entry-chapter/><text:index-entry-text/><text:index-entry-tab-stop style:type="right" style:leader-char="."/><text:index-entry-page-number/></text:table-of-content-entry-template>`;
+  }
+
+  _fodtTocXml(node) {
+    const titleNode = this._fodtFindByClass(node, "vno-toc-title");
+    const title = this._fodtPlainLoose(titleNode ? titleNode.children : []).trim() || "MỤC LỤC";
+    const items = this._fodtCollectByClass(node, "vno-toc-item");
+    const entriesXml = items.map(item => {
+      const className = item.attrs.class || "";
+      const levelMatch = className.match(/\bvno-toc-level-([123])\b/);
+      const level = levelMatch ? levelMatch[1] : "1";
+      const textNode = this._fodtFindByClass(item, "vno-toc-text");
+      const pageNode = this._fodtFindByClass(item, "vno-toc-page");
+      const text = this._fodtPlainLoose(textNode ? textNode.children : item.children).trim();
+      const page = this._fodtPlainLoose(pageNode ? pageNode.children : []).trim() || "1";
+      return `<text:p text:style-name="Contents_20_${level}">${this._fodtTextXml(text)}<text:tab/>${this._fodtEscapeXml(page)}</text:p>`;
+    }).join("");
+    return `<text:table-of-content text:name="Table of Contents1"><text:table-of-content-source text:outline-level="3"><text:index-title-template text:style-name="Contents_20_Heading">${this._fodtEscapeXml(title)}</text:index-title-template>${this._fodtTocEntryTemplateXml(1)}${this._fodtTocEntryTemplateXml(2)}${this._fodtTocEntryTemplateXml(3)}</text:table-of-content-source><text:index-body><text:index-title text:name="Table of Contents1_Head"><text:p text:style-name="Contents_20_Heading">${this._fodtEscapeXml(title)}</text:p></text:index-title>${entriesXml}</text:index-body></text:table-of-content>`;
+  }
+
+  _fodtTocHtml(node) {
+    const children = (node.children || []).filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
+    const unexpected = children.filter(child => child.name !== "text:table-of-content-source" && child.name !== "text:index-body");
+    if (unexpected.length) throw this._fodtError(`text:table-of-content chứa <${unexpected[0].name}>`);
+    const source = children.find(child => child.name === "text:table-of-content-source");
+    const body = children.find(child => child.name === "text:index-body");
+    if (!source || !body) throw this._fodtError("text:table-of-content thiếu text:table-of-content-source/text:index-body");
+    const bodyChildren = body.children.filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
+    const indexTitle = bodyChildren.find(child => child.name === "text:index-title");
+    let title = "MỤC LỤC";
+    if (indexTitle) {
+      const titleP = (indexTitle.children || []).find(child => child.name === "text:p");
+      const fromBody = titleP ? this._fodtPlainLoose(titleP.children).trim() : "";
+      if (fromBody) title = fromBody;
+    }
+    if (title === "MỤC LỤC") {
+      const template = (source.children || []).find(child => child.name === "text:index-title-template");
+      const fromTemplate = template ? this._fodtPlainLoose(template.children).trim() : "";
+      if (fromTemplate) title = fromTemplate;
+    }
+    const entryNodes = bodyChildren.filter(child => child.name === "text:p");
+    let entriesHtml;
+    if (!entryNodes.length) {
+      entriesHtml = "<div class=\"vno-toc-empty\">Chưa có tiêu đề nào trong tài liệu. Hãy định dạng các đoạn văn bằng Kiểu dáng Heading 1, 2 hoặc 3 rồi cập nhật lại mục lục.</div>";
+    } else {
+      entriesHtml = entryNodes.map(entry => {
+        const styleName = entry.attrs["text:style-name"] || "";
+        const levelMatch = styleName.match(/contents_20_([123])$/i);
+        const level = levelMatch ? levelMatch[1] : "1";
+        const plain = this._fodtPlainLoose(entry.children);
+        const tabAt = plain.lastIndexOf("\t");
+        const text = (tabAt >= 0 ? plain.slice(0, tabAt) : plain).trim();
+        const page = (tabAt >= 0 ? plain.slice(tabAt + 1) : "1").trim() || "1";
+        return `<div class="vno-toc-item vno-toc-level-${level}"><a class="vno-toc-link"><span class="vno-toc-text">${this._escapeHtml(text)}</span><span class="vno-toc-leader"></span><span class="vno-toc-page">${this._escapeHtml(page)}</span></a></div>`;
+      }).join("");
+    }
+    return `<div data-vno-toc="true" class="vno-toc-block" contenteditable="false"><div class="vno-toc-header"><span class="vno-toc-title">${this._escapeHtml(title)}</span><div class="vno-toc-actions"><button type="button" class="vno-toc-btn vno-toc-btn-update" title="Cập nhật mục lục">🔄 Cập nhật</button><button type="button" class="vno-toc-btn vno-toc-btn-delete" title="Xóa mục lục">&times;</button></div></div><div class="vno-toc-entries">${entriesHtml}</div></div>`;
+  }
+
   _fodtCitationText(nodes) {
     return (nodes || []).map(node => {
       if (node.name === "#text") return node.text || "";
@@ -5150,6 +5235,7 @@ export class WriterAdapter {
       if (extra.masterPageName) {
         throw this._fodtError("đổi khổ trang (master-page) phải bắt đầu bằng đoạn văn hoặc tiêu đề");
       }
+      if (this._fodtIsTocBlock(node)) return this._fodtTocXml(node);
       if (["ul", "ol"].includes(node.name)) return listXml(node);
       if (node.name === "table") return tableXml(node);
       if (node.name === "img") return `<text:p>${imageXml(node)}</text:p>`;
@@ -5231,7 +5317,8 @@ export class WriterAdapter {
     const masterPageXml = masters.map(master => this._fodtMasterPageXml(master.name, master.layoutName, headerXml, footerXml)).join("");
     const officeStyles = /<text:note[\s>]/.test(body) ? this._fodtNotesConfigurationXml() : "";
     const dcNs = /<office:annotation[\s>]/.test(body) ? ' xmlns:dc="http://purl.org/dc/elements/1.1/"' : "";
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"${dcNs} office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">${officeStyles}<office:automatic-styles>${pageLayoutXml}${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}${graphicStyleXml}</office:automatic-styles><office:master-styles>${masterPageXml}</office:master-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
+    const tocStyleXml = /<text:table-of-content[\s>]/.test(body) ? this._fodtTocStylesXml() : "";
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"${dcNs} office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">${officeStyles}<office:automatic-styles>${pageLayoutXml}${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}${graphicStyleXml}${tocStyleXml}</office:automatic-styles><office:master-styles>${masterPageXml}</office:master-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
   }
 
   /** Parse the Phase A FODT subset back to canonical Writer HTML. */
@@ -5492,9 +5579,10 @@ export class WriterAdapter {
       return `${this._buildSectionBreakMarker("nextPage", sectionId)}${paragraph}`;
     };
     const blocksHtml = (nodes, options = {}) => nodes.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
-      if (options.zone && (node.name === "table:table" || node.name.startsWith("draw:"))) {
+      if (options.zone && (node.name === "table:table" || node.name.startsWith("draw:") || node.name === "text:table-of-content")) {
         throw this._fodtError(`${options.zone}: phần tử <${node.name}> chưa hỗ trợ`);
       }
+      if (node.name === "text:table-of-content") return this._fodtTocHtml(node);
       if (node.name === "text:list") return listHtml(node);
       if (node.name === "table:table") return tableHtml(node);
       return paragraphBlockHtml(node, options);

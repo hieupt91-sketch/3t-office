@@ -170,5 +170,29 @@ export async function runWriterFodtPhaseDTests() {
     assert.throws(() => adapter.serializeToFodt(), error => error?.code === "WRITER_FODT_UNSUPPORTED_CONTENT");
   });
 
+  await test("Writer FODT Phase D serializes TOC as text:table-of-content with filled index-body", () => {
+    const body = `<div data-vno-toc="true" class="vno-toc-block" contenteditable="false"><div class="vno-toc-header"><span class="vno-toc-title">MỤC LỤC</span><div class="vno-toc-actions"><button type="button" class="vno-toc-btn vno-toc-btn-update" title="Cập nhật mục lục">🔄 Cập nhật</button><button type="button" class="vno-toc-btn vno-toc-btn-delete" title="Xóa mục lục">&times;</button></div></div><div class="vno-toc-entries"><div class="vno-toc-item vno-toc-level-1"><a href="#h1" class="vno-toc-link" data-target-id="h1"><span class="vno-toc-text">Báo cáo thẩm định</span><span class="vno-toc-leader"></span><span class="vno-toc-page">1</span></a></div><div class="vno-toc-item vno-toc-level-2"><a href="#h2" class="vno-toc-link" data-target-id="h2"><span class="vno-toc-text">Căn cứ pháp lý</span><span class="vno-toc-leader"></span><span class="vno-toc-page">1</span></a></div><div class="vno-toc-item vno-toc-level-3"><a href="#h3" class="vno-toc-link" data-target-id="h3"><span class="vno-toc-text">Nghị định 15/2021</span><span class="vno-toc-leader"></span><span class="vno-toc-page">1</span></a></div></div></div><h1>Báo cáo thẩm định</h1><p>Đoạn mở đầu.</p><h2>Căn cứ pháp lý</h2><p>Đoạn căn cứ.</p><h3>Nghị định 15/2021</h3><p>Đoạn nghị định.</p>`;
+    const { adapter } = adapterWithZones({ body });
+    const fodt = adapter.serializeToFodt();
+    assert.match(fodt, /<text:table-of-content text:name="Table of Contents1">/);
+    assert.match(fodt, /<text:table-of-content-source text:outline-level="3">/);
+    assert.match(fodt, /<text:index-title-template text:style-name="Contents_20_Heading">MỤC LỤC<\/text:index-title-template>/);
+    assert.match(fodt, /<text:index-body><text:index-title text:name="Table of Contents1_Head"><text:p text:style-name="Contents_20_Heading">MỤC LỤC<\/text:p><\/text:index-title><text:p text:style-name="Contents_20_1">Báo cáo thẩm định<text:tab\/>1<\/text:p><text:p text:style-name="Contents_20_2">Căn cứ pháp lý<text:tab\/>1<\/text:p><text:p text:style-name="Contents_20_3">Nghị định 15\/2021<text:tab\/>1<\/text:p><\/text:index-body>/);
+    assert.match(fodt, /<text:h text:outline-level="1">Báo cáo thẩm định<\/text:h>/);
+    assert.doesNotMatch(fodt, /vno-toc-btn/);
+  });
+
+  await test("Writer FODT Phase D TOC round-trip is exactly idempotent", () => {
+    const body = `<div data-vno-toc="true" class="vno-toc-block" contenteditable="false"><div class="vno-toc-header"><span class="vno-toc-title">MỤC LỤC</span><div class="vno-toc-actions"><button type="button" class="vno-toc-btn vno-toc-btn-update" title="Cập nhật mục lục">🔄 Cập nhật</button><button type="button" class="vno-toc-btn vno-toc-btn-delete" title="Xóa mục lục">&times;</button></div></div><div class="vno-toc-entries"><div class="vno-toc-item vno-toc-level-1"><a class="vno-toc-link"><span class="vno-toc-text">Báo cáo thẩm định</span><span class="vno-toc-leader"></span><span class="vno-toc-page">1</span></a></div><div class="vno-toc-item vno-toc-level-2"><a class="vno-toc-link"><span class="vno-toc-text">Căn cứ pháp lý</span><span class="vno-toc-leader"></span><span class="vno-toc-page">1</span></a></div></div></div><h1>Báo cáo thẩm định</h1><h2>Căn cứ pháp lý</h2>`;
+    const initial = adapterWithZones({ body });
+    const first = initial.adapter.serializeToFodt();
+    const parsed = adapterWithZones({ body: "<p>không giữ</p>" });
+    parsed.adapter.parseFodt(first);
+    assert.match(parsed.body.innerHTML, /data-vno-toc="true"/);
+    assert.match(parsed.body.innerHTML, /vno-toc-level-1/);
+    assert.match(parsed.body.innerHTML, /Báo cáo thẩm định/);
+    assert.equal(parsed.adapter.serializeToFodt(), first);
+  });
+
   return results;
 }

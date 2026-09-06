@@ -102,6 +102,28 @@ try {
   assert.equal(commentParsed.serializeToFodt(), commentFodt);
   console.log("PASS writer-fodt-phase-d-real-conversion comments");
   console.log(`COMMENTS_DOCX=${commentDocx}`);
+
+  const tocBody = `<div data-vno-toc="true" class="vno-toc-block" contenteditable="false"><div class="vno-toc-header"><span class="vno-toc-title">MỤC LỤC</span><div class="vno-toc-actions"><button type="button" class="vno-toc-btn vno-toc-btn-update">🔄 Cập nhật</button><button type="button" class="vno-toc-btn vno-toc-btn-delete">&times;</button></div></div><div class="vno-toc-entries"><div class="vno-toc-item vno-toc-level-1"><a class="vno-toc-link"><span class="vno-toc-text">Báo cáo thẩm định</span><span class="vno-toc-leader"></span><span class="vno-toc-page">1</span></a></div><div class="vno-toc-item vno-toc-level-2"><a class="vno-toc-link"><span class="vno-toc-text">Căn cứ pháp lý</span><span class="vno-toc-leader"></span><span class="vno-toc-page">1</span></a></div><div class="vno-toc-item vno-toc-level-3"><a class="vno-toc-link"><span class="vno-toc-text">Nghị định 15/2021</span><span class="vno-toc-leader"></span><span class="vno-toc-page">1</span></a></div></div></div><h1>Báo cáo thẩm định</h1><p>Đoạn mở đầu TOC_BODY_INTRO.</p><h2>Căn cứ pháp lý</h2><p>Đoạn căn cứ TOC_BODY_LEGAL.</p><h3>Nghị định 15/2021</h3><p>Đoạn nghị định TOC_BODY_DECREE.</p>`;
+  const tocAdapter = adapterWithZones({ body: tocBody });
+  const tocFodtXml = tocAdapter.serializeToFodt();
+  const tocPath = path.join(tempRoot, "toc.fodt");
+  fs.writeFileSync(tocPath, tocFodtXml, "utf8");
+  const tocDocx = convertWithSoffice(tocPath, "docx", path.join(tempRoot, "toc-docx"), {
+    appKind: "writer", profileDir: path.join(tempRoot, "profile-toc-docx")
+  });
+  const tocDocumentXml = readZipEntry(tocDocx, "word/document.xml")?.toString("utf8") || "";
+  assert.match(tocDocumentXml, /<w:sdt>/);
+  assert.match(tocDocumentXml, /<w:docPartGallery w:val="Table of Contents"\/>/);
+  assert.match(tocDocumentXml, /<w:instrText[^>]*>\s*TOC\b/);
+  assert.match(xmlText(tocDocumentXml), /MỤC LỤC/);
+  assert.match(xmlText(tocDocumentXml), /Báo cáo thẩm định/);
+  assert.match(xmlText(tocDocumentXml), /Căn cứ pháp lý/);
+  assert.match(xmlText(tocDocumentXml), /Nghị định 15\/2021/);
+  const tocParsed = adapterWithZones({ body: "<p>x</p>" });
+  tocParsed.parseFodt(tocFodtXml);
+  assert.equal(tocParsed.serializeToFodt(), tocFodtXml);
+  console.log("PASS writer-fodt-phase-d-real-conversion toc");
+  console.log(`TOC_DOCX=${tocDocx}`);
 } finally {
   // Keep temp dir for Word visual check scripts; tests/scripts copies out.
 }
