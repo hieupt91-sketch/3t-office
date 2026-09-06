@@ -543,6 +543,7 @@ export const enStrings = {
     "writer.section.continuous": { label: "Section Break — Continuous", tooltip: "Start a new section at the current position" },
     "writer.section.evenPage": { label: "Section Break — Even Page", tooltip: "Start a new section on the next even page" },
     "writer.section.oddPage": { label: "Section Break — Odd Page", tooltip: "Start a new section on the next odd page" },
+    "writer.layout.lineNumbers": { label: "Line Numbers", tooltip: "Line numbers for Word/LibreOffice: None, Continuous, Restart each page, Restart each section" },
     "writer.page.watermark": { label: "Watermark", tooltip: "Add or remove a background watermark" },
     "writer.page.color": { label: "Page Color", tooltip: "Set a solid page background color" },
     "writer.page.border": { label: "Page Borders", tooltip: "Add or change border around the page" },

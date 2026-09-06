@@ -542,6 +542,7 @@ export const viStrings = {
     "writer.section.continuous": { label: "Ngắt mục — Liên tục", tooltip: "Bắt đầu mục mới tại vị trí hiện tại với thiết lập trang riêng" },
     "writer.section.evenPage": { label: "Ngắt mục — Trang chẵn", tooltip: "Bắt đầu mục mới trên trang chẵn kế tiếp" },
     "writer.section.oddPage": { label: "Ngắt mục — Trang lẻ", tooltip: "Bắt đầu mục mới trên trang lẻ kế tiếp" },
+    "writer.layout.lineNumbers": { label: "Danh số dòng", tooltip: "Bật danh số dòng xuất ra Word/LibreOffice: Không có, Liên tục, Mỗi trang, Mỗi mục" },
     "writer.page.watermark": { label: "Hình mờ", tooltip: "Thiết lập hoặc xóa hình mờ văn bản (Dự thảo, Mật, Khẩn...)" },
     "writer.page.color": { label: "Màu trang", tooltip: "Đặt màu nền đặc cho trang tài liệu" },
     "writer.page.border": { label: "Viền trang", tooltip: "Thiết lập viền bao quanh trang tài liệu" },

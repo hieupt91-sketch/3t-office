@@ -336,6 +336,18 @@ export const WRITER_RIBBON_TABS = [
               { commandId: "writer.section.evenPage" },
               { commandId: "writer.section.oddPage" }
             ]
+          },
+          {
+            type: "select",
+            commandId: "writer.layout.lineNumbers",
+            defaultValue: "none",
+            ariaLabel: "Danh số dòng",
+            options: [
+              { value: "none", label: "Số dòng: Không có" },
+              { value: "continuous", label: "Số dòng: Liên tục" },
+              { value: "restartPage", label: "Số dòng: Mỗi trang" },
+              { value: "restartSection", label: "Số dòng: Mỗi mục" }
+            ]
           }
         ]
       },

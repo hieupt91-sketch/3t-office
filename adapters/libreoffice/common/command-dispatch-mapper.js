@@ -121,6 +121,7 @@ export const VN_TO_UNO_MAP = {
   "writer.page.columns2": ".uno:FormatColumns",
   "writer.page.columns3": ".uno:FormatColumns",
   "writer.page.columns": ".uno:FormatColumns",
+  "writer.layout.lineNumbers": ".uno:LineNumberingDialog",
   "writer.page.watermark": ".uno:Watermark",
   "writer.page.border": ".uno:BorderDialog",
   "writer.file.printPreview": ".uno:PrintPreview",
