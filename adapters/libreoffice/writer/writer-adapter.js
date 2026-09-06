@@ -4776,6 +4776,50 @@ export class WriterAdapter {
     }).join("");
   }
 
+  _fodtCollectNoteBodies(nodes, idAttr) {
+    const map = new Map();
+    const walk = (node) => {
+      if (!node || node.name === "#text") return;
+      if (node.name === "div" && node.attrs[idAttr]) {
+        const textSpan = (node.children || []).find(child =>
+          child.name === "span" && /\bvno-note-text\b/.test(child.attrs.class || "")
+        );
+        map.set(node.attrs[idAttr], textSpan ? textSpan.children : []);
+      }
+      for (const child of node.children || []) walk(child);
+    };
+    for (const node of nodes || []) walk(node);
+    return map;
+  }
+
+  _fodtIsNoteContainer(node) {
+    return node?.name === "div" && (
+      node.attrs["data-vno-footnotes"] === "true" ||
+      node.attrs["data-vno-endnotes"] === "true"
+    );
+  }
+
+  _fodtCitationText(nodes) {
+    return (nodes || []).map(node => {
+      if (node.name === "#text") return node.text || "";
+      throw this._fodtError(`số mũ chú thích chứa <${node.name}>`);
+    }).join("");
+  }
+
+  _fodtNotesConfigurationXml() {
+    return "<office:styles><text:notes-configuration text:note-class=\"footnote\" style:num-format=\"1\" text:start-value=\"0\" text:footnotes-position=\"page\" text:start-numbering-at=\"document\"/><text:notes-configuration text:note-class=\"endnote\" style:num-format=\"i\" text:start-value=\"0\"/></office:styles>";
+  }
+
+  _fodtNoteContainerHtml(kind, notes) {
+    if (!notes.length) return "";
+    if (kind === "endnote") {
+      const items = notes.map(note => `<div class="vno-endnote-item" data-vno-endnote-id="${this._escapeHtml(note.id)}"><span class="vno-note-num" title="Chuyển tới vị trí tham chiếu">${this._escapeHtml(note.citation)}</span><span class="vno-note-text" contenteditable="true">${note.html}</span><button type="button" class="vno-note-delete-btn" title="Xóa chú thích">&times;</button></div>`).join("");
+      return `<div data-vno-endnotes="true" class="vno-writer-endnotes-container" contenteditable="false"><div class="vno-notes-separator"></div><div class="vno-notes-title">CHÚ THÍCH CUỐI TÀI LIỆU</div>${items}</div>`;
+    }
+    const items = notes.map(note => `<div class="vno-footnote-item" data-vno-footnote-id="${this._escapeHtml(note.id)}"><span class="vno-note-num" title="Chuyển tới vị trí tham chiếu">${this._escapeHtml(note.citation)}</span><span class="vno-note-text" contenteditable="true">${note.html}</span><button type="button" class="vno-note-delete-btn" title="Xóa chú thích">&times;</button></div>`).join("");
+    return `<div data-vno-footnotes="true" class="vno-writer-footnotes-container" contenteditable="false"><div class="vno-notes-separator"></div>${items}</div>`;
+  }
+
   /**
    * Serialize the supported Phase A Writer HTML subset as Flat ODF Text.
    * This is additive: save()/exportPdf() deliberately keep using HTML until cutover approval.
@@ -4783,10 +4827,12 @@ export class WriterAdapter {
   serializeToFodt() {
     this._initZones();
     const html = this.bodyDom?.innerHTML ?? this.editorDom?.innerHTML ?? "";
-    if (/\bdata-vno-(?!wrap=["']inline["']|section-break=|section-id=)[\w-]+\s*=/i.test(html)) {
-      throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A/B/C");
+    if (/\bdata-vno-(?!wrap=["']inline["']|section-break=|section-id=|footnote-ref=|endnote-ref=|footnotes=|endnotes=|footnote-id=|endnote-id=|toc=|comment-author=)[\w-]+\s*=/i.test(html)) {
+      throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A/B/C/D");
     }
     const tree = this._fodtParseMarkup(html, "HTML");
+    const footnoteBodies = this._fodtCollectNoteBodies(tree.children, "data-vno-footnote-id");
+    const endnoteBodies = this._fodtCollectNoteBodies(tree.children, "data-vno-endnote-id");
     const textStyles = new Map();
     const paragraphStyles = new Map();
     const cellStyles = new Map();
@@ -4817,6 +4863,19 @@ export class WriterAdapter {
       }
       if (node.name === "br") return "<text:line-break/>";
       if (node.name === "img") return imageXml(node);
+      if (node.name === "sup") {
+        const footnoteId = node.attrs["data-vno-footnote-ref"];
+        const endnoteId = node.attrs["data-vno-endnote-ref"];
+        if (!footnoteId && !endnoteId) throw this._fodtError("phần tử inline <sup> (chỉ hỗ trợ chú thích)");
+        const kind = footnoteId ? "footnote" : "endnote";
+        const id = footnoteId || endnoteId;
+        const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "contenteditable", "title", "data-vno-footnote-ref", "data-vno-endnote-ref"].includes(name));
+        if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <sup>`);
+        const bodies = footnoteId ? footnoteBodies : endnoteBodies;
+        if (!bodies.has(id)) throw this._fodtError(`${kind} '${id}' không có nội dung`);
+        const citation = this._fodtCitationText(node.children) || (kind === "endnote" ? "i" : "1");
+        return `<text:note text:id="${this._fodtEscapeXml(id)}" text:note-class="${kind}"><text:note-citation>${this._fodtEscapeXml(citation)}</text:note-citation><text:note-body><text:p>${inlineXml(bodies.get(id))}</text:p></text:note-body></text:note>`;
+      }
       if (!["span", "b", "strong", "i", "em", "u", "font"].includes(node.name)) throw this._fodtError(`phần tử inline <${node.name}>`);
       const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "color", "face"].includes(name));
       if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <${node.name}>`);
@@ -5065,6 +5124,7 @@ export class WriterAdapter {
     };
     const bodyParts = [];
     for (const node of topLevel) {
+      if (this._fodtIsNoteContainer(node)) continue;
       if (isSectionBreak(node)) {
         const master = masterBySection.get(node.attrs["data-vno-section-id"]);
         if (!master) throw this._fodtError(`ngắt mục '${node.attrs["data-vno-section-id"]}' không có page setup`);
@@ -5136,7 +5196,9 @@ export class WriterAdapter {
     const listStyles = '<text:list-style style:name="LBullet"><text:list-level-style-bullet text:level="1" text:bullet-char="•"><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-bullet></text:list-style><text:list-style style:name="LNumber"><text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix="."><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-number></text:list-style>';
     const pageLayoutXml = [...layoutNames.entries()].map(([signature, name]) => this._fodtPageLayoutXml(name, JSON.parse(signature))).join("");
     const masterPageXml = masters.map(master => this._fodtMasterPageXml(master.name, master.layoutName, headerXml, footerXml)).join("");
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text"><office:automatic-styles>${pageLayoutXml}${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}${graphicStyleXml}</office:automatic-styles><office:master-styles>${masterPageXml}</office:master-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
+    const officeStyles = /<text:note[\s>]/.test(body) ? this._fodtNotesConfigurationXml() : "";
+    const dcNs = /<office:annotation[\s>]/.test(body) ? ' xmlns:dc="http://purl.org/dc/elements/1.1/"' : "";
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"${dcNs} office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">${officeStyles}<office:automatic-styles>${pageLayoutXml}${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}${graphicStyleXml}</office:automatic-styles><office:master-styles>${masterPageXml}</office:master-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
   }
 
   /** Parse the Phase A FODT subset back to canonical Writer HTML. */
@@ -5152,6 +5214,8 @@ export class WriterAdapter {
     const cellStyles = new Map();
     const graphicStyles = new Map();
     const parsedShapes = [];
+    const parsedFootnotes = [];
+    const parsedEndnotes = [];
     xml.replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrsText, content) => {
       const attrs = this._fodtParseAttributes(attrsText);
       const name = attrs["style:name"];
@@ -5223,6 +5287,31 @@ export class WriterAdapter {
       if (["draw:rect", "draw:ellipse", "draw:circle", "draw:line", "draw:custom-shape"].includes(node.name)) {
         parsedShapes.push(this._fodtShapeFromNode(node, graphicStyles));
         return "";
+      }
+      if (node.name === "text:note") {
+        const noteClass = node.attrs["text:note-class"];
+        if (noteClass !== "footnote" && noteClass !== "endnote") {
+          throw this._fodtError(`text:note-class '${noteClass || ""}'`);
+        }
+        const id = node.attrs["text:id"] || `${noteClass === "endnote" ? "edn" : "ftn"}${parsedFootnotes.length + parsedEndnotes.length + 1}`;
+        const children = node.children.filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
+        const citationNode = children.find(child => child.name === "text:note-citation");
+        const bodyNode = children.find(child => child.name === "text:note-body");
+        if (!bodyNode) throw this._fodtError("text:note thiếu text:note-body");
+        const unexpected = children.filter(child => child !== citationNode && child !== bodyNode);
+        if (unexpected.length) throw this._fodtError(`text:note chứa <${unexpected[0].name}>`);
+        const bodyBlocks = bodyNode.children.filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
+        if (bodyBlocks.length !== 1 || bodyBlocks[0].name !== "text:p") {
+          throw this._fodtError("text:note-body phải có đúng một text:p");
+        }
+        const bodyHtml = inlineHtml(bodyBlocks[0].children);
+        const citation = this._fodtCitationText(citationNode?.children || []) || (noteClass === "endnote" ? "i" : "1");
+        if (noteClass === "endnote") parsedEndnotes.push({ id, citation, html: bodyHtml });
+        else parsedFootnotes.push({ id, citation, html: bodyHtml });
+        const title = noteClass === "endnote" ? "Nhấp để chuyển đến chú thích cuối" : "Nhấp để chuyển đến chú thích";
+        const refAttr = noteClass === "endnote" ? "data-vno-endnote-ref" : "data-vno-footnote-ref";
+        const cls = noteClass === "endnote" ? "vno-endnote-ref" : "vno-footnote-ref";
+        return `<sup ${refAttr}="${this._escapeHtml(id)}" class="${cls}" contenteditable="false" title="${title}">${this._escapeHtml(citation)}</sup>`;
       }
       if (node.name !== "text:span") throw this._fodtError(`phần tử FODT inline <${node.name}>`);
       const name = node.attrs["text:style-name"];
@@ -5368,7 +5457,9 @@ export class WriterAdapter {
       }
       footerHtml = blocksHtml(this._fodtParseMarkup(masterPages[0].footerXml, "FODT style:footer").children, { zone: "footer" });
     }
-    const html = blocksHtml(tree.children, { allowMasterSwitch: true });
+    let html = blocksHtml(tree.children, { allowMasterSwitch: true });
+    html += this._fodtNoteContainerHtml("footnote", parsedFootnotes);
+    html += this._fodtNoteContainerHtml("endnote", parsedEndnotes);
     this._initZones();
     if (this.bodyDom) this.bodyDom.innerHTML = html;
     if (this.headerDom) this.headerDom.innerHTML = headerHtml;

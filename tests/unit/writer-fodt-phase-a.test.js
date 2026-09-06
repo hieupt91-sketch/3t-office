@@ -58,7 +58,7 @@ export async function runWriterFodtPhaseATests() {
     for (const html of [
       '<table><tr><td><table><tr><td>Bảng lồng</td></tr></table></td></tr></table>',
       '<p><img src="data:image/bmp;base64,Qk02AAAAAAAAADYAAAAoAAAAAQAAAAEAAAABACAAAAAAAAAAAADEDgAAxA4AAAAAAAAAAAAA/wAAAA=="></p>',
-      '<p>Nội dung<sup data-vno-footnote-ref="fn-1">1</sup></p>'
+      '<p>Nội dung<sup>không phải chú thích</sup></p>'
     ]) {
       const { adapter } = adapterWithBody(html);
       assert.throws(() => adapter.serializeToFodt(), error => error?.code === "WRITER_FODT_UNSUPPORTED_CONTENT");
