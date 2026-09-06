@@ -158,6 +158,7 @@ export const VN_TO_UNO_MAP = {
   "sheet.cell.mergeCells": ".uno:MergeCells",
   "sheet.cell.unmerge": ".uno:SplitCell",
   "sheet.cell.wrapText": ".uno:WrapText",
+  "sheet.cell.orientation": ".uno:ChangeRotation",
   "sheet.cell.borders": ".uno:FormatCellBorders",
   "sheet.cell.fillColor": ".uno:BackgroundColor",
   "sheet.cell.textColor": ".uno:Color",

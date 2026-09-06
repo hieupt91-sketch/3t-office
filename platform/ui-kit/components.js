@@ -586,7 +586,7 @@ export function createDropdownButton({
       itemEl.addEventListener("click", (e) => {
         e.stopPropagation();
         closeMenu();
-        globalCommandBus.execute(subItem.commandId);
+        globalCommandBus.execute(subItem.commandId, subItem.args);
       });
 
       itemEl.addEventListener("mouseenter", () => {

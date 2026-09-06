@@ -988,7 +988,7 @@ export class SheetGridController {
   }
 
   _attachAutofillHandle(td) {
-    if (!td || typeof document === "undefined" || td.querySelector?.(".vno-cell-autofill-handle")) return;
+    if (!td || typeof document?.createElement !== "function" || td.querySelector?.(".vno-cell-autofill-handle")) return;
     const handle = document.createElement("div");
     handle.className = "vno-cell-autofill-handle";
     handle.title = "Kéo để tự động điền (AutoFill)";
@@ -1001,7 +1001,7 @@ export class SheetGridController {
   }
 
   _attachMoveHandles(td) {
-    if (!td || typeof document === "undefined" || td.querySelector?.(".vno-cell-move-handle")) return;
+    if (!td || typeof document?.createElement !== "function" || td.querySelector?.(".vno-cell-move-handle")) return;
     for (const side of ["top", "bottom", "left", "right"]) {
       const mh = document.createElement("div");
       mh.className = `vno-cell-move-handle ${side}`;
@@ -5219,6 +5219,18 @@ export class SheetGridController {
     return this.setFontSize(next);
   }
 
+  setCellOrientation(value) {
+    const allowed = new Set([0, 45, -45, 90, -90, 255]);
+    const rotation = Number(value);
+    if (!allowed.has(rotation)) return false;
+    const result = this.setStyle("textRotation", rotation);
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const cell = this.container.querySelector?.('.vno-grid-cell[data-coord="' + key + '"]');
+    const item = this.cellsData.get(key);
+    if (cell && item) this._renderCellVisual(cell, item, this.selectedCoord.c, this.selectedCoord.r);
+    return result;
+  }
+
   toggleWrapText() {
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const current = this.cellsData.get(key)?.style?.whiteSpace;
@@ -8111,9 +8123,23 @@ export class SheetGridController {
   _applyStylesToDom(dom, styles) {
     if (!dom || !styles) return;
     for (const [k, v] of Object.entries(styles)) {
-      if (k === "numberFormat") continue;
+      if (k === "numberFormat" || k === "textRotation") continue;
       dom.style[k] = v;
     }
+    this._applyTextRotationToDom(dom, styles.textRotation);
+  }
+
+  _applyTextRotationToDom(dom, rotation) {
+    if (!dom) return;
+    const rot = Number(rotation);
+    if (!Number.isFinite(rot) || rot === 0) return;
+    if (rot === 255) {
+      dom.style.writingMode = "vertical-rl";
+      dom.style.textOrientation = "upright";
+      return;
+    }
+    dom.style.transform = `rotate(${-rot}deg)`;
+    dom.style.transformOrigin = "center center";
   }
 
   _renderCellVisual(td, itm, col, row) {

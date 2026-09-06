@@ -359,6 +359,7 @@ export const SHEET_HELP_ENTRIES = [
       "sheet.cell.alignCenter",
       "sheet.cell.alignRight",
       "sheet.cell.wrapText",
+      "sheet.cell.orientation",
       "sheet.cell.indentDecrease",
       "sheet.cell.indentIncrease",
       "sheet.cell.mergeCenter",
@@ -367,12 +368,12 @@ export const SHEET_HELP_ENTRIES = [
       "sheet.cell.unmerge"
     ],
     title: "Căn chỉnh, ngắt dòng và trộn ô",
-    summary: "Căn ngang/dọc nội dung trong ô, tự xuống dòng theo độ rộng cột, tăng/giảm thụt lề, và trộn vùng chọn (cả khối, theo hàng, hoặc tách lại). Trộn nhiều ô có dữ liệu sẽ hỏi xác nhận — chỉ giữ ô trên-trái.",
+    summary: "Căn ngang/dọc nội dung trong ô, xoay chữ (0°/45°/-45°/90°/-90° hoặc dọc từ dưới lên), tự xuống dòng theo độ rộng cột, tăng/giảm thụt lề, và trộn vùng chọn (cả khối, theo hàng, hoặc tách lại). Trộn nhiều ô có dữ liệu sẽ hỏi xác nhận — chỉ giữ ô trên-trái.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Căn chỉnh" },
-    keywords: ["căn giữa", "căn trái", "căn phải", "căn trên", "ngắt dòng", "wrap", "thụt lề", "trộn ô", "merge", "unmerge", "hợp nhất"],
+    keywords: ["căn giữa", "căn trái", "căn phải", "căn trên", "ngắt dòng", "wrap", "thụt lề", "trộn ô", "merge", "unmerge", "hợp nhất", "xoay chữ", "orientation", "hướng chữ"],
     steps: [
-      "Chọn ô hoặc vùng. Tab Trang đầu, nhóm Căn chỉnh: hàng trên Căn trên / Căn giữa dọc / Căn dưới; hàng giữa Căn trái / giữa / phải, Ngắt dòng tự động, Giảm/Tăng thụt lề; hàng dưới bốn nút trộn ô.",
-      "Ngắt dòng tự động cho chữ dài xuống dòng trong ô và tăng chiều cao hàng. Tăng thụt lề thêm 12 px (tối đa 56 px); Giảm thụt lề hạ dần về 8 px.",
+      "Chọn ô hoặc vùng. Tab Trang đầu, nhóm Căn chỉnh: hàng trên Căn trên / Căn giữa dọc / Căn dưới / Ngắt dòng tự động / Hướng chữ (dropdown); hàng giữa Căn trái / giữa / phải, Giảm/Tăng thụt lề; hàng dưới bốn nút trộn ô.",
+      "Hướng chữ: mở dropdown chọn 0° (ngang), 45°, -45°, 90° (xoay lên), -90° (xoay xuống), hoặc «Dọc từ dưới lên» (chữ xếp dọc, Excel textRotation 255). Góc lưu trong kiểu ô và khi Lưu ra file thật (FODS/XLSX). Ngắt dòng tự động cho chữ dài xuống dòng trong ô và tăng chiều cao hàng. Tăng thụt lề thêm 12 px (tối đa 56 px); Giảm thụt lề hạ dần về 8 px.",
       "Bôi ít nhất 2 ô rồi: Trộn & căn giữa gộp thành một ô và căn giữa; Trộn ô gộp nhưng giữ căn đang có; Trộn theo hàng gộp riêng từng hàng trong vùng. Nếu nhiều ô có dữ liệu, hộp «Trộn ô» cảnh báo chỉ giữ ô trên cùng bên trái — chọn Tiếp tục gộp hoặc Hủy.",
       "Tách ô hoàn tác vùng đã trộn (dữ liệu đã mất khi gộp không tự hiện lại, trừ khi Ctrl+Z ngay). Không trộn đè lên vùng đã trộn sẵn."
     ]

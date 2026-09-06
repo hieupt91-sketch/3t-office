@@ -142,7 +142,7 @@ export async function runSheetHelpTests() {
     const byId = Object.fromEntries(SHEET_HELP_ENTRIES.map((entry) => [entry.id, entry]));
     const expectCmds = {
       "sheet.cell.font": ["sheet.cell.bold", "sheet.font.family", "sheet.cell.fillColor"],
-      "sheet.cell.alignment": ["sheet.cell.mergeCenter", "sheet.cell.wrapText", "sheet.cell.alignMiddle"],
+      "sheet.cell.alignment": ["sheet.cell.mergeCenter", "sheet.cell.wrapText", "sheet.cell.alignMiddle", "sheet.cell.orientation"],
       "sheet.data.sortFilter": ["sheet.data.sortAsc", "sheet.data.filter"],
       "sheet.data.toolsBasic": ["sheet.data.textToColumns", "sheet.data.flashFill", "sheet.data.removeDuplicates"],
       "sheet.data.outline": ["sheet.data.group", "sheet.data.subtotal"],
