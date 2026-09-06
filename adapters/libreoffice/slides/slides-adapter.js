@@ -2526,6 +2526,9 @@ export class SlidesAdapter {
   }
 
   _serializePresentationSettings() {
+    // Loop = ODF presentation:endless (LibreOffice already maps to p:showPr @loop).
+    // Narration/pointer have no ODF slot LO maps — File → Lưu PPTX patches
+    // ppt/presProps.xml via pptx-show-properties.js / ooxml_zip_patch.
     const settings = this.canvas?.getSlideShowSettings
       ? this.canvas.getSlideShowSettings()
       : (this.canvas?.slideShowSettings || {});

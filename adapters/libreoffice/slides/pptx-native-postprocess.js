@@ -11,6 +11,7 @@
  * Patches (independent, same ZIP rewrite):
  *   1. Slide Master logo p:sp (Phase 2b)
  *   2. p14:sectionLst from vno:section-* (Phase 3a / p14)
+ *   3. p:showPr on ppt/presProps.xml (Phase 3b Set Up Show)
  */
 import fs from "node:fs";
 import { listZipEntries, patchOoxmlZip, readZipEntry } from "../common/ooxml-zip-patch.js";
@@ -29,6 +30,12 @@ import {
   fodpHasSections,
   overlayFodpSections
 } from "./pptx-section-list.js";
+import {
+  PPTX_PRESPROPS_ENTRY,
+  applyShowProperties,
+  applyShowPropertiesFromFodp,
+  fodpHasShowSetupPatch
+} from "./pptx-show-properties.js";
 
 function asBuffer(zipPathOrBuffer) {
   return Buffer.isBuffer(zipPathOrBuffer) ? zipPathOrBuffer : fs.readFileSync(zipPathOrBuffer);
@@ -62,6 +69,11 @@ function wantsSections(options = {}) {
   return fodpHasSections(options.sourceFodp);
 }
 
+function wantsShowSetup(options = {}) {
+  if (options.showWithoutNarration || options.pointerColor) return true;
+  return fodpHasShowSetupPatch(options.sourceFodp);
+}
+
 /**
  * @param {string|Buffer} pptxPathOrBuffer
  * @param {{
@@ -70,7 +82,9 @@ function wantsSections(options = {}) {
  *   accentColor?: string,
  *   fontFamily?: string,
  *   enabled?: boolean,
- *   sections?: { name: string, sourceId?: string, slideIds: string[] }[]
+ *   sections?: { name: string, sourceId?: string, slideIds: string[] }[],
+ *   showWithoutNarration?: boolean,
+ *   pointerColor?: string
  * }} [options]
  * @returns {Buffer} original bytes when no patch is needed
  */
@@ -80,7 +94,8 @@ export function postProcessSlidesPptx(pptxPathOrBuffer, options = {}) {
   const logo = resolveLogoOptions(options);
   const applyLogo = wantsLogo(logo, options);
   const applySections = wantsSections(options);
-  if (!applyLogo && !applySections) return source;
+  const applyShow = wantsShowSetup(options);
+  if (!applyLogo && !applySections && !applyShow) return source;
 
   const presentation = readZipEntry(source, PPTX_PRESENTATION_ENTRY);
   const presentationXml = presentation ? presentation.toString("utf8") : "";
@@ -114,6 +129,22 @@ export function postProcessSlidesPptx(pptxPathOrBuffer, options = {}) {
       ? applySectionList(presentationXml, options.sections)
       : applySectionListFromFodp(presentationXml, options.sourceFodp);
     if (next !== presentationXml) replacements[PPTX_PRESENTATION_ENTRY] = next;
+  }
+
+  if (applyShow) {
+    const current = readZipEntry(source, PPTX_PRESPROPS_ENTRY);
+    if (!current) {
+      throw new Error("PPTX thiếu ppt/presProps.xml — không thể bổ sung p:showPr");
+    }
+    const propsXml = current.toString("utf8");
+    const next = (options.showWithoutNarration || options.pointerColor)
+      ? applyShowProperties(propsXml, {
+        showWithoutNarration: !!options.showWithoutNarration,
+        pointerColor: options.pointerColor || "",
+        loopUntilEsc: !!options.loopUntilEsc
+      })
+      : applyShowPropertiesFromFodp(propsXml, options.sourceFodp);
+    if (next !== propsXml) replacements[PPTX_PRESPROPS_ENTRY] = next;
   }
 
   if (!Object.keys(replacements).length) return source;
