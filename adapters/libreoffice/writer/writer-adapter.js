@@ -1102,11 +1102,26 @@ export class WriterAdapter {
       };
       this.commentsPanel.addEventListener("click", this._commentPanelClickHandler);
       this._commentPanelKeyHandler = (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
         const card = event.target?.closest?.("[data-comment-card]");
-        if (card && !event.target?.closest?.("button")) {
-          event.preventDefault?.();
-          this.focusComment(card.dataset.commentCard);
+        if (event.key === "Enter" || event.key === " ") {
+          if (card && !event.target?.closest?.("button")) {
+            event.preventDefault?.();
+            this.focusComment(card.dataset.commentCard);
+          }
+        } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          // Di chuyển focus giữa các comment card bằng phím mũi tên
+          const cards = [...(this.commentsPanel?.querySelectorAll?.("[data-comment-card]") || [])];
+          if (!cards.length) return;
+          const idx = cards.indexOf(card || document.activeElement?.closest?.("[data-comment-card]"));
+          let targetIdx = -1;
+          if (event.key === "ArrowDown") {
+            event.preventDefault?.();
+            targetIdx = idx < 0 ? 0 : (idx + 1) % cards.length;
+          } else {
+            event.preventDefault?.();
+            targetIdx = idx <= 0 ? cards.length - 1 : idx - 1;
+          }
+          cards[targetIdx]?.focus();
         }
       };
       this.commentsPanel.addEventListener("keydown", this._commentPanelKeyHandler);
