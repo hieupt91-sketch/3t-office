@@ -6603,8 +6603,10 @@ export class SlidesCanvasController {
               ${t("slidesDialogs.layoutHint", "Chọn một bố cục chuẩn để định hình lại cấu trúc nội dung trang chiếu hiện tại:")}
             </p>
             <div class="vno-layouts-grid" id="vno-layouts-grid" role="radiogroup" aria-labelledby="vno-layout-dialog-title">
-              ${SLIDE_LAYOUT_TYPES.map(layout => `
-                <button type="button" role="radio" aria-checked="${layout.id === selectedId}" aria-pressed="${layout.id === selectedId}" class="vno-layout-card ${layout.id === selectedId ? "is-selected" : ""}" data-layout-id="${layout.id}" style="text-align:left;">
+              ${SLIDE_LAYOUT_TYPES.map(layout => {
+                const isSelected = layout.id === selectedId;
+                return `
+                <button type="button" role="radio" aria-checked="${isSelected}" aria-pressed="${isSelected}" tabindex="${isSelected ? "0" : "-1"}" class="vno-layout-card ${isSelected ? "is-selected" : ""}" data-layout-id="${layout.id}" style="text-align:left;">
                   <div class="vno-layout-card-preview" aria-hidden="true">
                     ${layout.previewSvg}
                   </div>
@@ -6614,7 +6616,7 @@ export class SlidesCanvasController {
                   </div>
                   <div class="vno-layout-card-desc">${getLocale() === "en" ? (layout.descEn || layout.description) : layout.description}</div>
                 </button>
-              `).join("")}
+              `;}).join("")}
             </div>
           </div>
           <div class="vno-dialog-footer" style="display:flex;justify-content:space-between;">
@@ -6630,24 +6632,59 @@ export class SlidesCanvasController {
       document.body.appendChild(overlay);
       const dialogBox = overlay.querySelector(".vno-dialog-box");
 
-      const cards = overlay.querySelectorAll(".vno-layout-card");
-      cards.forEach((card) => {
+      const cards = Array.from(overlay.querySelectorAll(".vno-layout-card"));
+      const selectCardByIndex = (idx, shouldFocus = false) => {
+        if (!cards.length) return;
+        const clamped = Math.max(0, Math.min(idx, cards.length - 1));
+        cards.forEach((c, i) => {
+          const isSel = i === clamped;
+          c.classList[isSel ? "add" : "remove"]("is-selected");
+          c.setAttribute("aria-checked", isSel ? "true" : "false");
+          c.setAttribute("aria-pressed", isSel ? "true" : "false");
+          c.setAttribute("tabindex", isSel ? "0" : "-1");
+          if (isSel) {
+            selectedId = c.dataset.layoutId;
+            if (shouldFocus) c.focus?.();
+          }
+        });
+      };
+
+      cards.forEach((card, idx) => {
         card.addEventListener("click", () => {
-          cards.forEach(c => {
-            c.classList.remove("is-selected");
-            c.setAttribute("aria-checked", "false");
-            c.setAttribute("aria-pressed", "false");
-          });
-          card.classList.add("is-selected");
-          card.setAttribute("aria-checked", "true");
-          card.setAttribute("aria-pressed", "true");
-          selectedId = card.dataset.layoutId;
+          selectCardByIndex(idx, false);
         });
         card.addEventListener("dblclick", () => {
           selectedId = card.dataset.layoutId;
           this.applySlideLayout(selectedId, true);
           close();
           resolve(true);
+        });
+        card.addEventListener("keydown", (e) => {
+          const currentIdx = cards.indexOf(card);
+          if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+            e.preventDefault();
+            e.stopPropagation();
+            selectCardByIndex(currentIdx + 1, true);
+          } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+            e.preventDefault();
+            e.stopPropagation();
+            selectCardByIndex(currentIdx - 1, true);
+          } else if (e.key === "Home") {
+            e.preventDefault();
+            e.stopPropagation();
+            selectCardByIndex(0, true);
+          } else if (e.key === "End") {
+            e.preventDefault();
+            e.stopPropagation();
+            selectCardByIndex(cards.length - 1, true);
+          } else if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.stopPropagation();
+            selectedId = card.dataset.layoutId;
+            this.applySlideLayout(selectedId, true);
+            close();
+            resolve(true);
+          }
         });
       });
 
@@ -6657,8 +6694,10 @@ export class SlidesCanvasController {
         closed = true;
         document.removeEventListener("keydown", onKey);
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        if (previousFocused && typeof previousFocused.focus === "function") {
+        if (previousFocused && typeof previousFocused.focus === "function" && previousFocused.isConnected !== false && previousFocused !== document.body) {
           try { previousFocused.focus(); } catch (_) {}
+        } else {
+          document.querySelector?.('[data-command-id="slides.layout.apply"]')?.focus?.();
         }
       };
       const onKey = (e) => {
@@ -6800,8 +6839,10 @@ export class SlidesCanvasController {
         closed = true;
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
         document.removeEventListener("keydown", onKeyDown);
-        if (previousFocused && typeof previousFocused.focus === "function") {
+        if (previousFocused && typeof previousFocused.focus === "function" && previousFocused.isConnected !== false && previousFocused !== document.body) {
           try { previousFocused.focus(); } catch (_) {}
+        } else {
+          document.querySelector?.('[data-command-id="slides.transition.apply"]')?.focus?.();
         }
       };
       const onKeyDown = (e) => {
