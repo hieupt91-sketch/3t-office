@@ -314,6 +314,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.para.showFormattingMarks", () => this.toggleFormattingMarks());
     globalCommandBus.bindHandler("writer.para.shading", (args) => this.applyParagraphShading(args));
     globalCommandBus.bindHandler("writer.para.borders", (args) => this.applyParagraphBorders(args));
+    globalCommandBus.bindHandler("writer.para.spacingBefore", (args) => this.applyParagraphSpacingBefore(args));
+    globalCommandBus.bindHandler("writer.para.spacingAfter", (args) => this.applyParagraphSpacingAfter(args));
     globalCommandBus.bindHandler("writer.para.moveUp", () => this.moveParagraph("up"));
     globalCommandBus.bindHandler("writer.para.moveDown", () => this.moveParagraph("down"));
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
@@ -641,6 +643,27 @@ export class WriterAdapter {
       none: { border: "none", borderBottom: "none" }
     };
     return borders[style] ? this._applyParagraphVisualStyle(borders[style], "writer.para.borders") : false;
+  }
+
+  _parseParagraphSpacingPt(args) {
+    const raw = args && typeof args === "object" && args.pt != null ? args.pt : args;
+    const match = String(raw ?? "").trim().match(/^(\d+(?:\.\d+)?)(?:\s*pt)?$/i);
+    if (!match) return null;
+    const pt = Number(match[1]);
+    if (!Number.isFinite(pt) || pt < 0 || pt > 240) return null;
+    return Number(pt.toFixed(3));
+  }
+
+  applyParagraphSpacingBefore(args) {
+    const pt = this._parseParagraphSpacingPt(args);
+    if (pt == null) return false;
+    return this._applyParagraphVisualStyle({ marginTop: `${pt}pt` }, "writer.para.spacingBefore");
+  }
+
+  applyParagraphSpacingAfter(args) {
+    const pt = this._parseParagraphSpacingPt(args);
+    if (pt == null) return false;
+    return this._applyParagraphVisualStyle({ marginBottom: `${pt}pt` }, "writer.para.spacingAfter");
   }
 
   moveParagraph(direction = "up") {
@@ -1971,6 +1994,12 @@ export class WriterAdapter {
 
       case "writer.para.borders":
         return this.applyParagraphBorders(args);
+
+      case "writer.para.spacingBefore":
+        return this.applyParagraphSpacingBefore(args);
+
+      case "writer.para.spacingAfter":
+        return this.applyParagraphSpacingAfter(args);
 
       case "writer.para.spacing1":
         this._setLineHeight("1.0");
@@ -4611,7 +4640,7 @@ export class WriterAdapter {
     return root;
   }
 
-  _fodtCssMap(styleText, allowed = ["font-weight", "font-style", "text-decoration", "text-decoration-line", "color", "background-color", "font-family", "font-size", "text-align"]) {
+  _fodtCssMap(styleText, allowed = ["font-weight", "font-style", "text-decoration", "text-decoration-line", "color", "background-color", "font-family", "font-size", "text-align", "margin-top", "margin-bottom"]) {
     const result = {};
     const ignored = this._fodtCssIgnoreNames || [];
     for (const declaration of String(styleText || "").split(";")) {
@@ -5126,6 +5155,19 @@ export class WriterAdapter {
     return `${Number(points.toFixed(3))}pt`;
   }
 
+  _fodtNormalizeLengthToPt(value, kind = "độ dài") {
+    const match = String(value || "").trim().toLowerCase().match(/^(\d+(?:\.\d+)?)(pt|px|cm|mm|in)$/);
+    if (!match) throw this._fodtError(`${kind} '${value}' (chỉ nhận pt/px/cm/mm/in)`);
+    const amount = Number(match[1]);
+    const unit = match[2];
+    let points = amount;
+    if (unit === "px") points = amount * 0.75;
+    else if (unit === "in") points = amount * 72;
+    else if (unit === "cm") points = amount * 72 / 2.54;
+    else if (unit === "mm") points = amount * 72 / 25.4;
+    return `${Number(points.toFixed(3))}pt`;
+  }
+
   _fodtInlineStyle(node, inherited = {}) {
     const style = { ...inherited };
     if (["b", "strong"].includes(node.name)) style.bold = true;
@@ -5510,6 +5552,8 @@ export class WriterAdapter {
       if (normalizedAlign !== "left") props.textAlign = normalizedAlign;
       if (extra.masterPageName) props.masterPageName = extra.masterPageName;
       if (extra.breakBefore) props.breakBefore = extra.breakBefore;
+      if (css["margin-top"] !== undefined) props.marginTop = this._fodtNormalizeLengthToPt(css["margin-top"], "khoảng trước đoạn");
+      if (css["margin-bottom"] !== undefined) props.marginBottom = this._fodtNormalizeLengthToPt(css["margin-bottom"], "khoảng sau đoạn");
       const pStyle = Object.keys(props).length ? ` text:style-name="${styleName(paragraphStyles, "P", props)}"` : "";
       const headingMatch = node.name.match(/^h([1-6])$/);
       const tag = headingMatch ? `text:h text:outline-level="${headingMatch[1]}"` : "text:p";
@@ -5876,6 +5920,8 @@ export class WriterAdapter {
       const paraProps = [];
       if (value.textAlign) paraProps.push(`fo:text-align="${value.textAlign}"`);
       if (value.breakBefore) paraProps.push(`fo:break-before="${value.breakBefore}"`);
+      if (value.marginTop) paraProps.push(`fo:margin-top="${value.marginTop}"`);
+      if (value.marginBottom) paraProps.push(`fo:margin-bottom="${value.marginBottom}"`);
       const paraXml = paraProps.length ? `<style:paragraph-properties ${paraProps.join(" ")}/>` : "";
       return `<style:style ${styleAttrs.join(" ")}>${paraXml}</style:style>`;
     }).join("");
@@ -5955,7 +6001,9 @@ export class WriterAdapter {
         paragraphStyles.set(name, {
           textAlign: props["fo:text-align"] || "left",
           masterPageName: attrs["style:master-page-name"] || "",
-          breakBefore
+          breakBefore,
+          marginTop: props["fo:margin-top"] ? this._fodtNormalizeLengthToPt(props["fo:margin-top"], "khoảng trước đoạn") : "",
+          marginBottom: props["fo:margin-bottom"] ? this._fodtNormalizeLengthToPt(props["fo:margin-bottom"], "khoảng sau đoạn") : ""
         });
       } else if (family === "table-cell") {
         const propMatch = content.match(/<style:table-cell-properties\b([^>]*)\/?\s*>/i);
@@ -6207,7 +6255,11 @@ export class WriterAdapter {
       if (pStyle?.masterPageName && !allowMasterSwitch) {
         throw this._fodtError("style:master-page-name trong header/footer chưa hỗ trợ");
       }
-      const styleAttr = pStyle?.textAlign && pStyle.textAlign !== "left" ? ` style="text-align:${this._escapeHtml(pStyle.textAlign)}"` : "";
+      const cssRules = [];
+      if (pStyle?.textAlign && pStyle.textAlign !== "left") cssRules.push(`text-align:${pStyle.textAlign}`);
+      if (pStyle?.marginTop) cssRules.push(`margin-top:${pStyle.marginTop}`);
+      if (pStyle?.marginBottom) cssRules.push(`margin-bottom:${pStyle.marginBottom}`);
+      const styleAttr = cssRules.length ? ` style="${this._escapeHtml(cssRules.join(";"))}"` : "";
       const paragraph = `<${tag}${styleAttr}>${inlineHtml(node.children)}</${tag}>`;
       if (!pStyle?.masterPageName) return paragraph;
       const master = masterByName.get(pStyle.masterPageName);

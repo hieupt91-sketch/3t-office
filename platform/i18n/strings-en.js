@@ -487,6 +487,8 @@ export const enStrings = {
     "writer.para.spacing1": { label: "Line Spacing 1.0", tooltip: "Single line spacing (Ctrl+1)" },
     "writer.para.spacing15": { label: "Line Spacing 1.5", tooltip: "1.5 line spacing (Ctrl+5)" },
     "writer.para.spacing2": { label: "Line Spacing 2.0", tooltip: "Double line spacing (Ctrl+2)" },
+    "writer.para.spacingBefore": { label: "Spacing Before", tooltip: "Space before paragraph (pt)" },
+    "writer.para.spacingAfter": { label: "Spacing After", tooltip: "Space after paragraph (pt)" },
     "writer.list.bullet": { label: "Bullets", tooltip: "Create a bulleted list" },
     "writer.list.numbered": { label: "Numbering", tooltip: "Create a numbered list" },
     "writer.para.indentInc": { label: "Increase Indent", tooltip: "Increase indent (Ctrl+M)" },

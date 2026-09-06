@@ -132,6 +132,7 @@ import { runSlidesPptxSectionsOpenOverlayTests } from "./unit/slides-pptx-sectio
 import { runSlidesPptxMasterLogoOpenOverlayTests } from "./unit/slides-pptx-masterlogo-open-overlay.test.js";
 import { runSlidesPptxShowPropertiesTests } from "./unit/slides-pptx-show-properties.test.js";
 import { runSlidesPptxSetupShowOpenOverlayTests } from "./unit/slides-pptx-setup-show-open-overlay.test.js";
+import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -271,7 +272,8 @@ async function runAll() {
     { title: "113. Unit Tests — Slides native PPTX open overlay (p14:sectionLst → vno:section-*)", runner: runSlidesPptxSectionsOpenOverlayTests },
     { title: "114. Unit Tests — Slides native PPTX open overlay (VNOfficeMasterLogo → vno:master-theme)", runner: runSlidesPptxMasterLogoOpenOverlayTests },
     { title: "115. Unit Tests — Slides native PPTX post-process (p:showPr Set Up Show)", runner: runSlidesPptxShowPropertiesTests },
-    { title: "116. Unit Tests — Slides native PPTX open overlay (p:showPr → vno Set Up Show)", runner: runSlidesPptxSetupShowOpenOverlayTests }
+    { title: "116. Unit Tests — Slides native PPTX open overlay (p:showPr → vno Set Up Show)", runner: runSlidesPptxSetupShowOpenOverlayTests },
+    { title: "117. Unit Tests — Writer paragraph spacing before/after (pt)", runner: runWriterParagraphSpacingTests }
   ];
 
   for (const suite of suites) {

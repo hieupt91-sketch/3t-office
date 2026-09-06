@@ -79,6 +79,8 @@ export const VN_TO_UNO_MAP = {
   "writer.para.spacing1": ".uno:SpacePara1",
   "writer.para.spacing15": ".uno:SpacePara15",
   "writer.para.spacing2": ".uno:SpacePara2",
+  "writer.para.spacingBefore": ".uno:ParSpaceBefore",
+  "writer.para.spacingAfter": ".uno:ParSpaceAfter",
   "writer.list.bullet": ".uno:DefaultBullet",
   "writer.list.numbered": ".uno:DefaultNumbering",
   "writer.para.indentInc": ".uno:IncrementIndent",
