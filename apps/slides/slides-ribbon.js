@@ -347,6 +347,7 @@ export const SLIDES_RIBBON_TABS = [
     labelKey: "slidesRibbon.tab.slideshow",
     groups: [
       {
+        id: "startSlideshow",
         label: "Khởi động chiếu",
         labelKey: "slidesRibbon.group.startSlideshow",
         items: [
@@ -356,19 +357,21 @@ export const SLIDES_RIBBON_TABS = [
         ]
       },
       {
-        label: "Người thuyết trình",
-        labelKey: "slidesRibbon.group.presenter",
-        items: [
-          { type: "button", commandId: "slides.notes.toggle", isLarge: true },
-          { type: "button", commandId: "slides.show.rehearseTimings", isLarge: true }
-        ]
-      },
-      {
+        id: "setup",
         label: "Thiết lập",
         labelKey: "slidesRibbon.group.setup",
         items: [
           { type: "button", commandId: "slides.show.setupShow", isLarge: true },
-          { type: "button", commandId: "slides.slide.toggleHidden", isLarge: true }
+          { type: "button", commandId: "slides.slide.toggleHidden", isLarge: true },
+          { type: "button", commandId: "slides.show.rehearseTimings", isLarge: true }
+        ]
+      },
+      {
+        id: "presenter",
+        label: "Người thuyết trình",
+        labelKey: "slidesRibbon.group.presenter",
+        items: [
+          { type: "button", commandId: "slides.notes.toggle", isLarge: true }
         ]
       }
     ]
