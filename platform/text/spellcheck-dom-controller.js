@@ -46,6 +46,7 @@ export class SpellcheckDomController {
     this.debounceMs = debounceMs;
     this.timer = null;
     this.menu = null;
+    this._focusBeforeMenu = null;
     this._onInput = () => this.schedule();
     this._onContextMenu = event => this._handleContextMenu(event);
     this._onDocumentPointer = event => {
@@ -54,9 +55,24 @@ export class SpellcheckDomController {
   }
 
   attach() {
+    this._onShiftF10 = (event) => {
+      if (event.key === "F10" && event.shiftKey) {
+        // Tìm marker tại vị trí con trỏ hiện tại (nếu có)
+        const selection = globalThis.getSelection?.();
+        if (!selection?.rangeCount) return;
+        const node = selection.anchorNode;
+        const marker = node?.parentElement?.closest?.(MARKER_SELECTOR);
+        if (!marker) return;
+        event.preventDefault();
+        this._focusBeforeMenu = document.activeElement;
+        const rect = marker.getBoundingClientRect();
+        this.openMenu(marker, rect.left, rect.bottom + 2);
+      }
+    };
     for (const root of this.roots) {
       root.addEventListener("input", this._onInput);
       root.addEventListener("contextmenu", this._onContextMenu);
+      root.addEventListener("keydown", this._onShiftF10);
     }
     document.addEventListener("pointerdown", this._onDocumentPointer);
     this.schedule(0);
@@ -68,6 +84,7 @@ export class SpellcheckDomController {
     for (const root of this.roots) {
       root.removeEventListener("input", this._onInput);
       root.removeEventListener("contextmenu", this._onContextMenu);
+      root.removeEventListener("keydown", this._onShiftF10);
     }
     document.removeEventListener("pointerdown", this._onDocumentPointer);
     this.closeMenu();
@@ -114,6 +131,7 @@ export class SpellcheckDomController {
     const marker = event.target.closest?.(MARKER_SELECTOR);
     if (!marker) return;
     event.preventDefault();
+    this._focusBeforeMenu = document.activeElement;
     this.openMenu(marker, event.clientX, event.clientY);
   }
 
@@ -148,9 +166,26 @@ export class SpellcheckDomController {
     menu.style.left = `${clampedX}px`;
     menu.style.top = `${clampedY}px`;
     menu.addEventListener("keydown", (e) => {
+      const items = [...menu.querySelectorAll("button[role='menuitem']")];
+      const focused = document.activeElement;
+      const idx = items.indexOf(focused);
       if (e.key === "Escape") {
         e.preventDefault();
         this.closeMenu();
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const next = items[(idx + 1) % items.length];
+        if (next) next.focus();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const prev = items[(idx - 1 + items.length) % items.length];
+        if (prev) prev.focus();
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        if (items[0]) items[0].focus();
+      } else if (e.key === "End") {
+        e.preventDefault();
+        if (items.length) items[items.length - 1].focus();
       }
     });
     document.body.append(menu);
@@ -171,5 +206,10 @@ export class SpellcheckDomController {
   closeMenu() {
     this.menu?.remove();
     this.menu = null;
+    // Trả focus về vùng soạn thảo trước khi mở menu để phím mũi tên hoạt động lại
+    if (this._focusBeforeMenu && typeof this._focusBeforeMenu.focus === "function") {
+      try { this._focusBeforeMenu.focus(); } catch (_) { /* ignore */ }
+    }
+    this._focusBeforeMenu = null;
   }
 }
