@@ -97,6 +97,7 @@ export const enStrings = {
     conditionalFormatting: "Conditional Formatting", rule: "Rule", greaterThan: "Greater Than", lessThan: "Less Than", blankCell: "Blanks", fillColor: "Fill Color", invalidNumber: "Enter a valid number.",
     dataValidation: "Data Validation", allow: "Allow", list: "List", numberRange: "Whole number range", listValues: "Source values (comma-separated)", listPlaceholder: "Approved, Rejected, In progress", minimum: "Minimum", maximum: "Maximum", invalidValidation: "The data validation settings are not valid.", chooseOption: "-- Select --", selectCellValue: "Select value for cell {col}{row}",
     removeDuplicatesTitle: "Remove Duplicates", myHeaderRow: "My data has headers", columnsToCompare: "Columns to compare", selectAtLeastOneColumn: "Select at least one column.", duplicatesRemovedResult: "{removed} duplicate values found and removed; {remaining} unique values remain.",
+    customSortTitle: "Sort", addLevel: "Add Level", removeLevel: "Delete Level", sortBy: "Sort by", thenBy: "Then by", sortByColumn: "Sort column", sortOrder: "Order", sortAtoZ: "A to Z", sortZtoA: "Z to A",
     subtotalTitle: "Subtotal", subtotalHint: "The selected range must contain headers and be sorted by the group column.", atEachChangeIn: "At each change in:", useFunction: "Use function:", addToSubtotal: "Add subtotal to:", selectRangeAndCol: "Please select a range and at least one value column.", subtotalResult: "Inserted {groups} subtotal groups and a grand total row.",
     textToColumnsTitle: "Convert Text to Columns", ttcMode: "Original data type", ttcDelimited: "Delimited", ttcFixedWidth: "Fixed width", ttcComma: "Comma", ttcSemicolon: "Semicolon", ttcSpace: "Space", ttcCustom: "Other", ttcCustomChar: "Other character", ttcWidths: "Column widths (comma-separated)", ttcPreview: "Preview: ", selectSingleCol: "Select data in a single column only.",
     resultTitle: "Result", flashFillSuccess: "Flash Fill filled {filled} cells ({pattern}).", flashFillFailure: "We couldn't recognize a pattern. Please provide 1-2 examples next to your source data.",
@@ -320,6 +321,7 @@ export const enStrings = {
     ,"sheet.data.sortAsc": { label: "Sort A to Z", tooltip: "Sort data in ascending order" }
     ,"sheet.data.sortDesc": { label: "Sort Z to A", tooltip: "Sort data in descending order" }
     ,"sheet.data.filter": { label: "Filter", tooltip: "Turn AutoFilter on or off (Ctrl+Shift+L)" }
+    ,"sheet.data.customSort": { label: "Custom Sort", tooltip: "Sort by multiple columns (Sort by Column, Then by Column...)" }
     ,"sheet.format.conditional": { label: "Conditional Formatting", tooltip: "Highlight cells based on values or blank status" }
     ,"sheet.data.validation": { label: "Data Validation", tooltip: "Create a drop-down list or restrict values to a number range" }
     ,"sheet.data.textToColumns": { label: "Text to Columns", tooltip: "Split one column by delimiter or fixed width" }

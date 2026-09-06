@@ -105,6 +105,64 @@ export class SheetDataTools {
     });
   }
 
+  /**
+   * Multi-column sort (Excel "Sort" dialog / Data > Sort): sort by up to
+   * a few columns in priority order, each with its own direction. Reuses
+   * the same value-comparison rule as the single-column sortAsc/sortDesc
+   * ribbon buttons (sheet-grid.js#sort) so results stay consistent
+   * whichever entry point the user picks.
+   */
+  sortMultiLevel({ range = this.grid.selectionRange, hasHeader = true, levels = [] } = {}) {
+    const area = this.range(range);
+    const allColumns = this.columns(area);
+    const validLevels = levels.filter(level => allColumns.includes(level.col)).slice(0, 4);
+    const firstDataRow = area.start.r + (hasHeader ? 1 : 0);
+    if (!validLevels.length || firstDataRow > area.end.r) return false;
+
+    const compareOne = (a, b, ascending) => {
+      const numA = typeof a === "number" ? a : parseFloat(String(a).replace(/\./g, "").replace(/[^\d-]/g, ""));
+      const numB = typeof b === "number" ? b : parseFloat(String(b).replace(/\./g, "").replace(/[^\d-]/g, ""));
+      if (!isNaN(numA) && !isNaN(numB) && String(a).trim() !== "" && String(b).trim() !== "") {
+        return ascending ? numA - numB : numB - numA;
+      }
+      return ascending
+        ? String(a).localeCompare(String(b), "vi-VN")
+        : String(b).localeCompare(String(a), "vi-VN");
+    };
+
+    const sourceRows = [];
+    for (let row = firstDataRow; row <= area.end.r; row++) sourceRows.push(row);
+    const sortedRows = [...sourceRows].sort((rowA, rowB) => {
+      for (const level of validLevels) {
+        const cmp = compareOne(this.value(level.col, rowA), this.value(level.col, rowB), level.ascending !== false);
+        if (cmp !== 0) return cmp;
+      }
+      return 0;
+    });
+
+    if (sortedRows.every((row, index) => row === sourceRows[index])) return { sorted: 0 };
+
+    return this.snapshotMutation(() => {
+      const rowSnapshots = sortedRows.map(sourceRow => {
+        const rowData = {};
+        this.grid.cols.forEach(col => {
+          const item = this.grid.cellsData.get(`${col}${sourceRow}`);
+          if (item) rowData[col] = structuredClone(item);
+        });
+        return rowData;
+      });
+      rowSnapshots.forEach((rowData, index) => {
+        const targetRow = firstDataRow + index;
+        this.grid.cols.forEach(col => {
+          const key = `${col}${targetRow}`;
+          if (rowData[col]) this.grid.cellsData.set(key, rowData[col]);
+          else this.grid.cellsData.delete(key);
+        });
+      });
+      return { sorted: sortedRows.length };
+    });
+  }
+
   splitText(value, { mode = "delimiter", delimiter = ",", widths = [] } = {}) {
     const text = String(value ?? "");
     if (mode === "fixed") {

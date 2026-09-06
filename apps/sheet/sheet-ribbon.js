@@ -401,7 +401,8 @@ export const SHEET_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "sheet.data.sortAsc", isLarge: true },
           { type: "button", commandId: "sheet.data.sortDesc", isLarge: true },
-          { type: "button", commandId: "sheet.data.filter", isLarge: true }
+          { type: "button", commandId: "sheet.data.filter", isLarge: true },
+          { type: "button", commandId: "sheet.data.customSort", iconOnly: true }
         ]
       },
       {

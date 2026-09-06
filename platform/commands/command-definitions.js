@@ -258,6 +258,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.data.sortAsc", category: "data", label: "Sắp xếp A-Z", icon: "sortAsc", tooltip: "Sắp xếp dữ liệu tăng dần" },
   { id: "sheet.data.sortDesc", category: "data", label: "Sắp xếp Z-A", icon: "sortDesc", tooltip: "Sắp xếp dữ liệu giảm dần" },
   { id: "sheet.data.filter", category: "data", label: "Bộ lọc", shortcut: "Ctrl+Shift+L", icon: "filter", tooltip: "Bật/tắt chế độ lọc AutoFilter (Ctrl+Shift+L)", isToggle: true },
+  { id: "sheet.data.customSort", category: "data", label: "Sắp xếp tùy chỉnh", icon: "sortCustom", tooltip: "Sắp xếp theo nhiều cột (Sort by Column, Then by Column...)" },
   { id: "sheet.format.conditional", category: "format", label: "Định dạng có điều kiện", icon: "conditionalFormat", tooltip: "Tô nổi bật các ô theo giá trị hoặc trạng thái trống" },
   { id: "sheet.data.validation", category: "data", label: "Kiểm tra dữ liệu", icon: "dataValidation", tooltip: "Tạo danh sách lựa chọn hoặc giới hạn số trong khoảng" },
   { id: "sheet.data.textToColumns", category: "data", label: "Tách văn bản", icon: "table", tooltip: "Tách một cột theo dấu phân cách hoặc độ rộng cố định" },

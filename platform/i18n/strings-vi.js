@@ -96,6 +96,7 @@ export const viStrings = {
     conditionalFormatting: "Định dạng có điều kiện", rule: "Quy tắc", greaterThan: "Giá trị lớn hơn", lessThan: "Giá trị nhỏ hơn", blankCell: "Ô trống", fillColor: "Màu nền", invalidNumber: "Vui lòng nhập một giá trị số hợp lệ.",
     dataValidation: "Kiểm tra dữ liệu", allow: "Cho phép", list: "Danh sách lựa chọn", numberRange: "Số trong khoảng", listValues: "Các giá trị (cách nhau bằng dấu phẩy)", listPlaceholder: "Đạt, Chưa đạt, Đang xử lý", minimum: "Tối thiểu", maximum: "Tối đa", invalidValidation: "Thông tin kiểm tra dữ liệu chưa hợp lệ.", chooseOption: "-- Chọn --", selectCellValue: "Chọn giá trị cho ô {col}{row}",
     removeDuplicatesTitle: "Xóa trùng lặp", myHeaderRow: "Dữ liệu có hàng tiêu đề", columnsToCompare: "Cột dùng để xét trùng", selectAtLeastOneColumn: "Hãy chọn ít nhất một cột.", duplicatesRemovedResult: "Đã xóa {removed} hàng trùng lặp; còn {remaining} hàng dữ liệu.",
+    customSortTitle: "Sắp xếp", addLevel: "Thêm cấp", removeLevel: "Xóa cấp", sortBy: "Sắp xếp theo", thenBy: "Sau đó theo", sortByColumn: "Cột sắp xếp", sortOrder: "Thứ tự", sortAtoZ: "A → Z", sortZtoA: "Z → A",
     subtotalTitle: "Tổng phụ", subtotalHint: "Vùng đã chọn phải có tiêu đề và được sắp xếp theo cột nhóm.", atEachChangeIn: "Mỗi khi thay đổi ở", useFunction: "Hàm", addToSubtotal: "Cộng tổng vào", selectRangeAndCol: "Hãy chọn vùng và ít nhất một cột giá trị.", subtotalResult: "Đã chèn {groups} nhóm tổng phụ và hàng tổng cộng.",
     textToColumnsTitle: "Tách văn bản thành cột", ttcMode: "Kiểu tách", ttcDelimited: "Dấu phân cách", ttcFixedWidth: "Độ rộng cố định", ttcComma: "Dấu phẩy", ttcSemicolon: "Dấu chấm phẩy", ttcSpace: "Khoảng trắng", ttcCustom: "Tùy chọn", ttcCustomChar: "Ký tự tùy chọn", ttcWidths: "Độ rộng (cách nhau bằng dấu phẩy)", ttcPreview: "Xem trước: ", selectSingleCol: "Chỉ chọn dữ liệu trong một cột.",
     resultTitle: "Kết quả", flashFillSuccess: "Flash Fill đã điền {filled} ô ({pattern}).", flashFillFailure: "Không nhận diện được mẫu. Hãy nhập 1–2 ví dụ ở cột kết quả kế bên dữ liệu nguồn.",
@@ -319,6 +320,7 @@ export const viStrings = {
     ,"sheet.data.sortAsc": { label: "Sắp xếp A-Z", tooltip: "Sắp xếp dữ liệu tăng dần" }
     ,"sheet.data.sortDesc": { label: "Sắp xếp Z-A", tooltip: "Sắp xếp dữ liệu giảm dần" }
     ,"sheet.data.filter": { label: "Bộ lọc", tooltip: "Bật/tắt chế độ lọc AutoFilter (Ctrl+Shift+L)" }
+    ,"sheet.data.customSort": { label: "Sắp xếp tùy chỉnh", tooltip: "Sắp xếp theo nhiều cột (Sort by Column, Then by Column...)" }
     ,"sheet.format.conditional": { label: "Định dạng có điều kiện", tooltip: "Tô nổi bật các ô theo giá trị hoặc trạng thái trống" }
     ,"sheet.data.validation": { label: "Kiểm tra dữ liệu", tooltip: "Tạo danh sách lựa chọn hoặc giới hạn số trong khoảng" }
     ,"sheet.data.textToColumns": { label: "Tách văn bản", tooltip: "Tách một cột theo dấu phân cách hoặc độ rộng cố định" }
