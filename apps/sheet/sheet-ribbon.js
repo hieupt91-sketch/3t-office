@@ -549,10 +549,20 @@ export const SHEET_RIBBON_TABS = [
         labelKey: "sheetRibbon.group.comments",
         items: [
           { type: "button", commandId: "sheet.review.commentInsert", isLarge: true },
-          { type: "button", commandId: "sheet.review.commentPrevious" },
-          { type: "button", commandId: "sheet.review.commentNext" },
-          { type: "button", commandId: "sheet.review.commentDelete" },
-          { type: "button", commandId: "sheet.review.commentResolve" }
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.review.commentDelete" },
+              { type: "button", commandId: "sheet.review.commentResolve" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.review.commentPrevious" },
+              { type: "button", commandId: "sheet.review.commentNext" }
+            ]
+          }
         ]
       },
       {
