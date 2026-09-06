@@ -10,6 +10,23 @@ export const SLIDES_RIBBON_TABS = [
     labelKey: "slidesRibbon.tab.home",
     groups: [
       {
+        id: "clipboard",
+        label: "Bảng nhớ tạm",
+        labelKey: "slidesRibbon.group.clipboard",
+        items: [
+          { type: "button", commandId: "common.edit.paste", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "common.edit.cut" },
+              { type: "button", commandId: "common.edit.copy" },
+              { type: "button", commandId: "slides.edit.formatPainter" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "slides",
         label: "Trang chiếu",
         labelKey: "slidesRibbon.group.slides",
         items: [
@@ -35,21 +52,6 @@ export const SLIDES_RIBBON_TABS = [
               { commandId: "slides.section.remove" },
               { commandId: "slides.section.moveUp" },
               { commandId: "slides.section.moveDown" }
-            ]
-          }
-        ]
-      },
-      {
-        label: "Bảng nhớ tạm",
-        labelKey: "slidesRibbon.group.clipboard",
-        items: [
-          { type: "button", commandId: "common.edit.paste", isLarge: true },
-          {
-            type: "column",
-            items: [
-              { type: "button", commandId: "common.edit.cut" },
-              { type: "button", commandId: "common.edit.copy" },
-              { type: "button", commandId: "slides.edit.formatPainter" }
             ]
           }
         ]
@@ -153,12 +155,25 @@ export const SLIDES_RIBBON_TABS = [
         ]
       },
       {
+        id: "drawing",
         label: "Đối tượng vẽ",
         labelKey: "slidesRibbon.group.drawing",
         items: [
           { type: "button", commandId: "slides.text.insert", isLarge: true },
           { type: "button", commandId: "slides.shape.insert", isLarge: true },
-          { type: "button", commandId: "slides.image.insert", isLarge: true }
+          { type: "button", commandId: "slides.image.insert", isLarge: true },
+          {
+            type: "dropdown",
+            id: "slides.drawing.arrange",
+            label: "Sắp xếp",
+            labelKey: "slidesRibbon.drawing.arrange",
+            icon: "shape",
+            isLarge: true,
+            items: [
+              { commandId: "slides.shape.group" },
+              { commandId: "slides.shape.ungroup" }
+            ]
+          }
         ]
       },
       {
