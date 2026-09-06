@@ -486,6 +486,8 @@ export const viStrings = {
     "writer.para.spacing1": { label: "Giãn dòng 1.0", tooltip: "Khoảng cách dòng 1.0 (Ctrl+1)" },
     "writer.para.spacing15": { label: "Giãn dòng 1.5", tooltip: "Khoảng cách dòng 1.5 (Ctrl+5)" },
     "writer.para.spacing2": { label: "Giãn dòng 2.0", tooltip: "Khoảng cách dòng 2.0 (Ctrl+2)" },
+    "writer.para.spacingBefore": { label: "Khoảng trước đoạn", tooltip: "Khoảng cách trước đoạn văn (đơn vị pt)" },
+    "writer.para.spacingAfter": { label: "Khoảng sau đoạn", tooltip: "Khoảng cách sau đoạn văn (đơn vị pt)" },
     "writer.list.bullet": { label: "Dấu đầu dòng", tooltip: "Tạo danh sách dấu chấm tròn" },
     "writer.list.numbered": { label: "Đánh số", tooltip: "Tạo danh sách đánh số thứ tự" },
     "writer.para.indentInc": { label: "Thụt lề", tooltip: "Tăng khoảng cách thụt lề đoạn văn (Ctrl+M)" },

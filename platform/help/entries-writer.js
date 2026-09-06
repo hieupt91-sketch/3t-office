@@ -269,6 +269,21 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.para.spacingBeforeAfter",
+    app: "writer",
+    commandIds: ["writer.para.spacingBefore", "writer.para.spacingAfter"],
+    title: "Khoảng cách trước và sau đoạn văn",
+    summary: "Đặt khoảng trống phía trước và phía sau mỗi đoạn, tính bằng point (pt). Khác giãn dòng 1.0/1.5/2.0 — giãn dòng là khoảng cách giữa các dòng trong một đoạn; khoảng trước/sau là lề dọc giữa các đoạn, ảnh hưởng in ấn.",
+    ribbon: { tab: "Bố cục", tabId: "layout", group: "Đoạn văn" },
+    keywords: ["khoảng trước đoạn", "khoảng sau đoạn", "spacing before", "spacing after", "giãn đoạn", "paragraph spacing", "pt", "point"],
+    steps: [
+      "Đặt con trỏ trong đoạn cần chỉnh (hoặc bôi nhiều đoạn). Mở tab Bố cục, nhóm Đoạn văn — bên cạnh nút thụt lề và menu Giãn dòng có hai hộp chọn «Trước: … pt» và «Sau: … pt».",
+      "Hộp Trước đặt margin phía trên đoạn; hộp Sau đặt margin phía dưới đoạn. Năm nấc: 0 pt, 6 pt, 8 pt, 12 pt, 18 pt. 0 pt khít đoạn kề; 6 pt khớp khoảng mặc định đang thấy trên trang soạn thảo; 8 pt giống kiểu Normal của Word; 12/18 pt dùng khi cần tách đoạn rõ hơn trước khi in.",
+      "Chọn một nấc — khoảng cách áp ngay lên đoạn đang chọn trên canvas. Muốn vừa trước vừa sau thì chọn lần lượt hai hộp. Không nhầm với menu Giãn dòng 1.0/1.5/2.0 trên cùng nhóm (và trên tab Trang đầu): menu đó đổi chiều cao dòng, không đổi khoảng giữa các đoạn.",
+      "Lưu tài liệu để khoảng trước/sau đi theo file (FODT/DOCX). Ctrl+Z hoàn tác lần chọn vừa rồi."
+    ]
+  },
+  {
     id: "writer.table.insert",
     app: "writer",
     commandIds: ["writer.table.insert"],

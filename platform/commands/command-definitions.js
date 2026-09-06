@@ -86,6 +86,8 @@ export const WRITER_COMMANDS = [
   { id: "writer.para.spacing1", category: "paragraph", label: "Giãn dòng 1.0", shortcut: "Ctrl+1", icon: "lineSpacing", tooltip: "Khoảng cách dòng 1.0 (Ctrl+1)" },
   { id: "writer.para.spacing15", category: "paragraph", label: "Giãn dòng 1.5", shortcut: "Ctrl+5", icon: "lineSpacing", tooltip: "Khoảng cách dòng 1.5 (Ctrl+5)" },
   { id: "writer.para.spacing2", category: "paragraph", label: "Giãn dòng 2.0", shortcut: "Ctrl+2", icon: "lineSpacing", tooltip: "Khoảng cách dòng 2.0 (Ctrl+2)" },
+  { id: "writer.para.spacingBefore", category: "paragraph", label: "Khoảng trước đoạn", icon: "lineSpacing", tooltip: "Khoảng cách trước đoạn văn (đơn vị pt)" },
+  { id: "writer.para.spacingAfter", category: "paragraph", label: "Khoảng sau đoạn", icon: "lineSpacing", tooltip: "Khoảng cách sau đoạn văn (đơn vị pt)" },
   { id: "writer.list.bullet", category: "paragraph", label: "Dấu đầu dòng", icon: "listBullet", tooltip: "Tạo danh sách dấu chấm tròn", isToggle: true },
   { id: "writer.list.numbered", category: "paragraph", label: "Đánh số", icon: "listNumber", tooltip: "Tạo danh sách đánh số thứ tự", isToggle: true },
   { id: "writer.para.indentInc", category: "paragraph", label: "Thụt lề", shortcut: "Ctrl+M", icon: "indentInc", tooltip: "Tăng khoảng cách thụt lề đoạn văn (Ctrl+M)" },

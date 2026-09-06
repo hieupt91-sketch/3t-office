@@ -362,6 +362,37 @@ export const WRITER_RIBBON_TABS = [
               { commandId: "writer.para.spacing15" },
               { commandId: "writer.para.spacing2" }
             ]
+          },
+          {
+            type: "column",
+            items: [
+              {
+                type: "select",
+                commandId: "writer.para.spacingBefore",
+                defaultValue: "0",
+                ariaLabel: "Khoảng trước đoạn",
+                options: [
+                  { value: "0", label: "Trước: 0 pt" },
+                  { value: "6", label: "Trước: 6 pt" },
+                  { value: "8", label: "Trước: 8 pt" },
+                  { value: "12", label: "Trước: 12 pt" },
+                  { value: "18", label: "Trước: 18 pt" }
+                ]
+              },
+              {
+                type: "select",
+                commandId: "writer.para.spacingAfter",
+                defaultValue: "0",
+                ariaLabel: "Khoảng sau đoạn",
+                options: [
+                  { value: "0", label: "Sau: 0 pt" },
+                  { value: "6", label: "Sau: 6 pt" },
+                  { value: "8", label: "Sau: 8 pt" },
+                  { value: "12", label: "Sau: 12 pt" },
+                  { value: "18", label: "Sau: 18 pt" }
+                ]
+              }
+            ]
           }
         ]
       },
