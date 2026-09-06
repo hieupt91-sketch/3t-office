@@ -97,9 +97,18 @@ body {
   background-color: var(--vno-bg-hover);
   color: var(--vno-text-primary);
 }
+.vno-quick-btn:active {
+  background-color: var(--vno-bg-active);
+}
 .vno-quick-btn:focus-visible {
   outline: 2px solid var(--vno-border-focus);
   outline-offset: 1px;
+}
+.vno-quick-btn:disabled,
+.vno-quick-btn[disabled] {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* Document Tabs Bar */
@@ -526,7 +535,7 @@ body {
 .vno-ribbon-btn-dropdown.is-active,
 .vno-ribbon-btn-dropdown[aria-expanded="true"] {
   background-color: var(--vno-app-current-light, #e7f4ec) !important;
-  color: var(--vno-app-current, #0f6d38) !important;
+  color: var(--vno-app-current-fg, var(--vno-app-current)) !important;
 }
 
 .vno-ribbon-dropdown-menu {
@@ -561,7 +570,7 @@ body {
 .vno-ribbon-dropdown-item:focus,
 .vno-ribbon-dropdown-item.is-focused {
   background-color: var(--vno-app-current-light, #e7f4ec);
-  color: var(--vno-app-current, #0f6d38);
+  color: var(--vno-app-current-fg, var(--vno-app-current));
   outline: none;
 }
 .vno-ribbon-dropdown-item.is-disabled {
@@ -736,10 +745,21 @@ body {
   align-items: center;
   justify-content: center;
   outline: none;
+  transition: background-color 0.15s ease;
+}
+.vno-zoom-slider button:hover {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+.vno-zoom-slider button:active {
+  background-color: rgba(255, 255, 255, 0.28);
 }
 .vno-zoom-slider button:focus-visible {
   outline: 2px solid #ffffff;
   outline-offset: 1px;
+}
+
+[data-theme="dark"] .vno-statusbar {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 .vno-zoom-slider input[type="range"] {
   width: 90px;
@@ -861,7 +881,22 @@ body {
   outline: 2px solid var(--vno-border-focus);
   outline-offset: 2px;
 }
+.vno-recent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vno-border-default);
+  cursor: pointer;
+  background-color: transparent;
+  transition: background-color 0.15s ease;
+  outline: none;
+}
+.vno-recent-row:hover {
+  background-color: var(--vno-bg-hover);
+}
 .vno-recent-row:focus-visible {
+  background-color: var(--vno-bg-hover);
   outline: 2px solid var(--vno-border-focus);
   outline-offset: -2px;
 }

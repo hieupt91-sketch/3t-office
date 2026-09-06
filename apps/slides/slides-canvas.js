@@ -4430,12 +4430,13 @@ export class SlidesCanvasController {
       clientX = Math.round(rect.left + 24);
       clientY = Math.round(rect.top + 24);
     }
-    const section = this.sections.find(item => item.id === slide.sectionId);
+    const clampedX = Math.max(10, Math.min(clientX || 100, (typeof window !== "undefined" ? window.innerWidth : 1200) - 220));
+    const clampedY = Math.max(10, Math.min(clientY || 100, (typeof window !== "undefined" ? window.innerHeight : 800) - 160));
     const menu = document.createElement("div");
     menu.className = "vno-slide-section-menu";
     menu.setAttribute?.("role", "menu");
     menu.setAttribute?.("aria-label", "Tùy chọn Phần trang chiếu");
-    menu.style.cssText = `position:fixed;left:${clientX || 100}px;top:${clientY || 100}px;z-index:10040;min-width:180px;padding:6px;background:var(--vno-bg-surface);color:var(--vno-text-primary);border:1px solid var(--vno-border-default);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
+    menu.style.cssText = `position:fixed;left:${clampedX}px;top:${clampedY}px;z-index:10040;min-width:180px;padding:6px;background:var(--vno-bg-surface);color:var(--vno-text-primary);border:1px solid var(--vno-border-default);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
     menu.innerHTML = `<button type="button" data-section-action="add" role="menuitem" tabindex="0">Thêm Phần</button>${section ? `<button type="button" data-section-action="rename" role="menuitem" tabindex="-1">Đổi tên Phần</button><button type="button" data-section-action="remove" role="menuitem" tabindex="-1">Xóa Phần (giữ slide)</button>` : ""}`;
     for (const button of menu.querySelectorAll?.("button") || []) {
       button.style.cssText = "display:block;width:100%;padding:8px;text-align:left;border:0;background:transparent;color:inherit;cursor:pointer;border-radius:4px;font-size:13px;";

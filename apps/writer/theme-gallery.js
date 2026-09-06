@@ -147,7 +147,7 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
           <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
         </div>
         <div class="vno-dialog-body" style="overflow-y:auto; display:flex; flex-direction:column; gap:14px; padding:16px;">
-          <p style="margin:0; font-size:13px; color:#64748b;">
+          <p style="margin:0; font-size:13px; color:var(--vno-text-muted);">
             ${isEn
               ? "Choose a document formatting style set (updates font family, heading palette, and spacing across the entire document):"
               : "Chọn bộ kiểu định dạng tài liệu (thay đổi đồng bộ phông chữ, bảng màu tiêu đề và dãn dòng trên toàn bộ tài liệu):"}
@@ -158,8 +158,7 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
               const isSel = theme.id === selectedThemeId;
               const name = isEn ? theme.nameEn : theme.nameVi;
               return `
-                <button type="button" role="radio" aria-checked="${isSel}" aria-label="${name}" class="vno-theme-card ${isSel ? "is-selected" : ""}" data-theme-id="${theme.id}"
-                  style="border:2px solid ${isSel ? "#2563eb" : "#cbd5e1"}; border-radius:8px; background:${isSel ? "#eff6ff" : "#fff"}; padding:12px; text-align:left; cursor:pointer; display:flex; flex-direction:column; gap:8px; outline:none; transition:all 0.15s ease;">
+                <button type="button" role="radio" aria-checked="${isSel}" aria-label="${name}" class="vno-theme-card ${isSel ? "is-selected" : ""}" data-theme-id="${theme.id}">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
                     <strong style="font-size:13px; color:${theme.h1Color}; font-family:${theme.fontFamily};">${name}</strong>
                     <div style="display:flex; gap:3px;" aria-hidden="true">
@@ -168,8 +167,8 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
                       <span style="width:10px; height:10px; border-radius:50%; background:${theme.h3Color};"></span>
                     </div>
                   </div>
-                  <div style="font-size:11px; font-style:italic; color:#64748b; font-family:${theme.fontFamily};">${theme.previewSample}</div>
-                  <p style="margin:0; font-size:11px; color:#475569; line-height:1.4;">${theme.description}</p>
+                  <div style="font-size:11px; font-style:italic; color:var(--vno-text-muted); font-family:${theme.fontFamily};">${theme.previewSample}</div>
+                  <p style="margin:0; font-size:11px; color:var(--vno-text-secondary); line-height:1.4;">${theme.description}</p>
                 </button>
               `;
             }).join("")}
@@ -192,13 +191,9 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
         cards.forEach(c => {
           c.classList.remove("is-selected");
           c.setAttribute("aria-checked", "false");
-          c.style.borderColor = "#cbd5e1";
-          c.style.background = "#fff";
         });
         card.classList.add("is-selected");
         card.setAttribute("aria-checked", "true");
-        card.style.borderColor = "#2563eb";
-        card.style.background = "#eff6ff";
         selectedThemeId = card.getAttribute("data-theme-id");
       });
     });

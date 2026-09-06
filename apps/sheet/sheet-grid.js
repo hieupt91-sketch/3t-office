@@ -231,9 +231,9 @@ export class SheetGridController {
     fBar.innerHTML = `
       <div class="vno-name-box" id="vno-cell-name" role="status" aria-label="Hộp tên ô">A1</div>
       <div class="vno-formula-actions" role="toolbar" aria-label="Thao tác công thức">
-        <button class="vno-formula-btn" title="Hủy bỏ (Esc)" aria-label="Hủy bỏ (Esc)" id="vno-fx-cancel">✕</button>
-        <button class="vno-formula-btn" title="Nhập (Enter)" aria-label="Nhập (Enter)" id="vno-fx-ok">✓</button>
-        <button class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm tính toán (fx)" aria-label="Chèn hàm tính toán (fx)" id="vno-fx-insert">fx</button>
+        <button type="button" class="vno-formula-btn" title="Hủy bỏ (Esc)" aria-label="Hủy bỏ (Esc)" id="vno-fx-cancel">✕</button>
+        <button type="button" class="vno-formula-btn" title="Nhập (Enter)" aria-label="Nhập (Enter)" id="vno-fx-ok">✓</button>
+        <button type="button" class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm tính toán (fx)" aria-label="Chèn hàm tính toán (fx)" id="vno-fx-insert">fx</button>
       </div>
       <input type="text" class="vno-formula-input" id="vno-formula-val" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)" />
     `;
@@ -1392,6 +1392,8 @@ export class SheetGridController {
 
     const menu = document.createElement("div");
     menu.className = "vno-sheet-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Menu ngữ cảnh bảng tính");
 
     let items = [];
     if (type === "cell") {
@@ -1446,11 +1448,15 @@ export class SheetGridController {
       if (item.sep) {
         const sep = document.createElement("div");
         sep.className = "vno-sheet-context-sep";
+        sep.setAttribute("role", "separator");
         menu.appendChild(sep);
         return;
       }
-      const el = document.createElement("div");
+      const el = document.createElement("button");
+      el.type = "button";
       el.className = "vno-sheet-context-item";
+      el.setAttribute("role", "menuitem");
+      el.setAttribute("tabindex", "-1");
       el.innerHTML = `<span>${item.label}</span>${item.shortcut ? `<span class="shortcut">${item.shortcut}</span>` : ""}`;
       el.addEventListener("click", () => {
         this._closeContextMenu();
@@ -1462,8 +1468,8 @@ export class SheetGridController {
     document.body.appendChild(menu);
     this._activeContextMenu = menu;
 
-    const x = Math.min(e.clientX, (window.innerWidth || 1200) - 230);
-    const y = Math.min(e.clientY, (window.innerHeight || 800) - 320);
+    const x = Math.min(e.clientX, (window.innerWidth || 1200) - 240);
+    const y = Math.min(e.clientY, (window.innerHeight || 800) - 380);
     menu.style.left = `${Math.max(10, x)}px`;
     menu.style.top = `${Math.max(10, y)}px`;
 
@@ -1472,16 +1478,32 @@ export class SheetGridController {
         this._closeContextMenu();
       }
     };
-    const escHandler = (evt) => {
-      if (evt.key === "Escape") this._closeContextMenu();
+    const keyHandler = (evt) => {
+      if (evt.key === "Escape") {
+        evt.preventDefault();
+        this._closeContextMenu();
+      } else if (evt.key === "ArrowDown" || evt.key === "ArrowUp") {
+        evt.preventDefault();
+        const actionItems = Array.from(menu.querySelectorAll(".vno-sheet-context-item"));
+        if (!actionItems.length) return;
+        const currentIdx = actionItems.indexOf(document.activeElement);
+        let nextIdx;
+        if (evt.key === "ArrowDown") {
+          nextIdx = currentIdx < actionItems.length - 1 ? currentIdx + 1 : 0;
+        } else {
+          nextIdx = currentIdx > 0 ? currentIdx - 1 : actionItems.length - 1;
+        }
+        actionItems[nextIdx]?.focus();
+      }
     };
     menu._vnoCleanup = () => {
       document.removeEventListener("mousedown", closeHandler);
-      document.removeEventListener("keydown", escHandler);
+      document.removeEventListener("keydown", keyHandler);
     };
     setTimeout(() => {
       document.addEventListener("mousedown", closeHandler);
-      document.addEventListener("keydown", escHandler);
+      document.addEventListener("keydown", keyHandler);
+      menu.querySelector(".vno-sheet-context-item")?.focus();
     }, 10);
   }
 
@@ -1820,6 +1842,8 @@ export class SheetGridController {
     if (typeof document === "undefined") return;
     const menu = document.createElement("div");
     menu.className = "vno-sheet-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Tùy chọn trang tính");
     const items = [
       { label: t("sheetDialogs.renameSheetMenu", "Đổi tên trang tính..."), action: () => this.showRenameSheetDialog(sheetName) },
       { label: t("sheetDialogs.moveCopyMenu", "Di chuyển hoặc Sao chép trang tính..."), action: () => this.showMoveCopySheetDialog(sheetName) },
@@ -1831,6 +1855,8 @@ export class SheetGridController {
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "vno-sheet-context-item";
+      btn.setAttribute("role", "menuitem");
+      btn.setAttribute("tabindex", "-1");
       btn.textContent = item.label;
       btn.addEventListener("click", () => {
         this._closeContextMenu();
@@ -1839,18 +1865,46 @@ export class SheetGridController {
       menu.appendChild(btn);
     });
     menu.style.position = "fixed";
-    menu.style.left = `${event.clientX}px`;
-    menu.style.top = `${event.clientY}px`;
+    const x = Math.min(event.clientX, (window.innerWidth || 1200) - 240);
+    const y = Math.min(event.clientY, (window.innerHeight || 800) - 150);
+    menu.style.left = `${Math.max(10, x)}px`;
+    menu.style.top = `${Math.max(10, y)}px`;
     menu.style.zIndex = "80";
     document.body.appendChild(menu);
     this._activeContextMenu = menu;
+
     const onDoc = ev => {
       if (!menu.contains(ev.target)) {
         this._closeContextMenu();
-        document.removeEventListener("mousedown", onDoc);
       }
     };
-    setTimeout(() => document.addEventListener("mousedown", onDoc), 0);
+    const keyHandler = evt => {
+      if (evt.key === "Escape") {
+        evt.preventDefault();
+        this._closeContextMenu();
+      } else if (evt.key === "ArrowDown" || evt.key === "ArrowUp") {
+        evt.preventDefault();
+        const actionItems = Array.from(menu.querySelectorAll(".vno-sheet-context-item"));
+        if (!actionItems.length) return;
+        const currentIdx = actionItems.indexOf(document.activeElement);
+        let nextIdx;
+        if (evt.key === "ArrowDown") {
+          nextIdx = currentIdx < actionItems.length - 1 ? currentIdx + 1 : 0;
+        } else {
+          nextIdx = currentIdx > 0 ? currentIdx - 1 : actionItems.length - 1;
+        }
+        actionItems[nextIdx]?.focus();
+      }
+    };
+    menu._vnoCleanup = () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", keyHandler);
+    };
+    setTimeout(() => {
+      document.addEventListener("mousedown", onDoc);
+      document.addEventListener("keydown", keyHandler);
+      menu.querySelector(".vno-sheet-context-item")?.focus();
+    }, 10);
   }
 
   validateSheetName(name, options = {}) {

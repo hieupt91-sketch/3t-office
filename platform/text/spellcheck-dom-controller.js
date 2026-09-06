@@ -143,8 +143,16 @@ export class SpellcheckDomController {
       this.closeMenu();
       this.refresh();
     }, "vno-spellcheck-add");
-    menu.style.left = `${Math.max(4, x)}px`;
-    menu.style.top = `${Math.max(4, y)}px`;
+    const clampedX = Math.max(4, Math.min(x, (typeof window !== "undefined" ? window.innerWidth : 1200) - 220));
+    const clampedY = Math.max(4, Math.min(y, (typeof window !== "undefined" ? window.innerHeight : 800) - 180));
+    menu.style.left = `${clampedX}px`;
+    menu.style.top = `${clampedY}px`;
+    menu.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        this.closeMenu();
+      }
+    });
     document.body.append(menu);
     this.menu = menu;
     menu.querySelector("button")?.focus();

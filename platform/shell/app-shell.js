@@ -587,9 +587,7 @@ export class AppShell {
         });
         return `
           <div class="vno-recent-row" role="button" tabindex="0" aria-label="${file.name}, sửa đổi: ${timeStr}, định dạng: ${file.format}"
-               data-recent-app="${file.app}" data-recent-name="${file.name}"
-               style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--vno-border-default);cursor:pointer;"
-               onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+               data-recent-app="${file.app}" data-recent-name="${file.name}">
             <div>
               <strong style="font-size:13px;color:var(--vno-text-primary);">${file.name}</strong>
               <div style="font-size:11px;color:var(--vno-text-muted);margin-top:2px;">Sửa đổi: ${timeStr}</div>
@@ -600,8 +598,8 @@ export class AppShell {
       }).join("");
 
       recentSectionHtml = `
-        <div style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);overflow:hidden;background:#ffffff;">
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--vno-border-default);background:#fafafa;font-size:12px;font-weight:bold;color:var(--vno-text-muted);">
+        <div class="vno-recent-table" style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);overflow:hidden;background:var(--vno-bg-window);">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--vno-border-default);background:var(--vno-bg-subtle);font-size:12px;font-weight:bold;color:var(--vno-text-muted);">
             <span>${t("backstage.recentColName")}</span>
             <div style="display:flex;align-items:center;gap:12px;">
               <span>${t("backstage.recentColFormat")}</span>
@@ -656,6 +654,28 @@ export class AppShell {
       if (e.key === "Escape") {
         e.preventDefault();
         closeModal();
+      } else if (e.key === "Tab") {
+        const focusables = Array.from(modal.querySelectorAll(
+          'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+          'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+          'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first || !modal.contains(document.activeElement)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last || !modal.contains(document.activeElement)) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
       }
     };
     document.addEventListener("keydown", onBackstageKeyDown);
