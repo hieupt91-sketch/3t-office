@@ -4377,23 +4377,221 @@ export class WriterAdapter {
   }
 
   /**
-   * Real pixel size straight from the PNG IHDR chunk (bytes 16-23), not from
-   * CSS (Writer's <img> uses max-width:100%/height:auto, so there is no
-   * reliable CSS size to trust). Phase B only supports PNG; anything else
-   * fails closed instead of guessing a size that would render wrong in a
-   * real DOCX/PDF export.
+   * Real pixel size from the image bitstream, never from CSS (Writer's <img>
+   * is always max-width:100%/height:auto). Each format has its own header:
+   * PNG IHDR, JPEG SOF0/SOF2, GIF logical screen, WEBP VP8/VP8L/VP8X.
    */
+  _fodtImageDimensionsPx(mime, base64) {
+    const normalized = String(mime || "").toLowerCase();
+    if (normalized === "image/png") return this._fodtPngDimensionsPx(base64);
+    if (normalized === "image/jpeg") return this._fodtJpegDimensionsPx(base64);
+    if (normalized === "image/gif") return this._fodtGifDimensionsPx(base64);
+    if (normalized === "image/webp") return this._fodtWebpDimensionsPx(base64);
+    throw this._fodtError(`định dạng ảnh '${mime}' (Phase B.2 chỉ hỗ trợ PNG/JPEG/GIF/WEBP)`);
+  }
+
   _fodtPngDimensionsPx(base64) {
     const bytes = this._fodtBase64ToBytes(base64);
     const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
     if (bytes.length < 24 || !signature.every((byte, index) => bytes[index] === byte)) {
-      throw this._fodtError("ảnh không phải PNG hợp lệ (Phase B chỉ hỗ trợ PNG)");
+      throw this._fodtError("ảnh không phải PNG hợp lệ");
     }
     const readUint32 = (offset) => ((bytes[offset] << 24) | (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]) >>> 0;
     const width = readUint32(16);
     const height = readUint32(20);
     if (!width || !height) throw this._fodtError("PNG thiếu kích thước IHDR hợp lệ");
     return { width, height };
+  }
+
+  /** JPEG SOF0 (0xFFC0 baseline) or SOF2 (0xFFC2 progressive). Other SOF markers fail closed. */
+  _fodtJpegDimensionsPx(base64) {
+    const bytes = this._fodtBase64ToBytes(base64);
+    if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+      throw this._fodtError("ảnh không phải JPEG hợp lệ");
+    }
+    let index = 2;
+    while (index + 1 < bytes.length) {
+      if (bytes[index] !== 0xff) {
+        index += 1;
+        continue;
+      }
+      while (index < bytes.length && bytes[index] === 0xff) index += 1;
+      if (index >= bytes.length) break;
+      const marker = bytes[index++];
+      if (marker === 0xd8 || marker === 0xd9 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue;
+      if (index + 1 >= bytes.length) break;
+      const segmentLength = (bytes[index] << 8) | bytes[index + 1];
+      if (segmentLength < 2) throw this._fodtError("JPEG segment không hợp lệ");
+      if (marker === 0xc0 || marker === 0xc2) {
+        if (index + 6 >= bytes.length) throw this._fodtError("JPEG SOF thiếu kích thước");
+        const height = (bytes[index + 3] << 8) | bytes[index + 4];
+        const width = (bytes[index + 5] << 8) | bytes[index + 6];
+        if (!width || !height) throw this._fodtError("JPEG thiếu kích thước SOF hợp lệ");
+        return { width, height };
+      }
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        throw this._fodtError(`JPEG SOF 0x${marker.toString(16)} chưa hỗ trợ (chỉ SOF0/SOF2)`);
+      }
+      index += segmentLength;
+    }
+    throw this._fodtError("JPEG không có marker SOF0/SOF2");
+  }
+
+  /** GIF87a/GIF89a logical screen descriptor: width/height little-endian at bytes 6-9. */
+  _fodtGifDimensionsPx(base64) {
+    const bytes = this._fodtBase64ToBytes(base64);
+    if (bytes.length < 10) throw this._fodtError("ảnh không phải GIF hợp lệ");
+    const header = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5]);
+    if (header !== "GIF87a" && header !== "GIF89a") throw this._fodtError("ảnh không phải GIF hợp lệ");
+    const width = bytes[6] | (bytes[7] << 8);
+    const height = bytes[8] | (bytes[9] << 8);
+    if (!width || !height) throw this._fodtError("GIF thiếu kích thước header hợp lệ");
+    return { width, height };
+  }
+
+  _fodtU16LE(bytes, offset) {
+    return bytes[offset] | (bytes[offset + 1] << 8);
+  }
+
+  _fodtU24LE(bytes, offset) {
+    return bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16);
+  }
+
+  _fodtU32LE(bytes, offset) {
+    return (bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)) >>> 0;
+  }
+
+  /**
+   * WEBP is a RIFF container. Dimensions are read from the first image chunk
+   * after "WEBP": VP8X canvas, VP8 frame header, or VP8L bitstream — each
+   * variant has its own layout (measured separately; not one formula for all).
+   */
+  _fodtWebpDimensionsPx(base64) {
+    const bytes = this._fodtBase64ToBytes(base64);
+    const fourcc = (offset) => String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+    if (bytes.length < 20 || fourcc(0) !== "RIFF" || fourcc(8) !== "WEBP") {
+      throw this._fodtError("ảnh không phải WEBP hợp lệ");
+    }
+    let offset = 12;
+    while (offset + 8 <= bytes.length) {
+      const chunk = fourcc(offset);
+      const size = this._fodtU32LE(bytes, offset + 4);
+      const payload = offset + 8;
+      if (chunk === "VP8X") {
+        if (payload + 10 > bytes.length) throw this._fodtError("WEBP VP8X thiếu canvas size");
+        const width = this._fodtU24LE(bytes, payload + 4) + 1;
+        const height = this._fodtU24LE(bytes, payload + 7) + 1;
+        if (!width || !height) throw this._fodtError("WEBP VP8X canvas không hợp lệ");
+        return { width, height };
+      }
+      if (chunk === "VP8 ") {
+        if (payload + 10 > bytes.length || bytes[payload + 3] !== 0x9d || bytes[payload + 4] !== 0x01 || bytes[payload + 5] !== 0x2a) {
+          throw this._fodtError("WEBP VP8 thiếu start code 0x9d012a");
+        }
+        const width = this._fodtU16LE(bytes, payload + 6) & 0x3fff;
+        const height = this._fodtU16LE(bytes, payload + 8) & 0x3fff;
+        if (!width || !height) throw this._fodtError("WEBP VP8 thiếu kích thước");
+        return { width, height };
+      }
+      if (chunk === "VP8L") {
+        if (payload + 5 > bytes.length || bytes[payload] !== 0x2f) throw this._fodtError("WEBP VP8L thiếu signature 0x2F");
+        const b0 = bytes[payload + 1];
+        const b1 = bytes[payload + 2];
+        const b2 = bytes[payload + 3];
+        const b3 = bytes[payload + 4];
+        const width = (b0 | ((b1 & 0x3f) << 8)) + 1;
+        const height = ((b1 >> 6) | (b2 << 2) | ((b3 & 0x0f) << 10)) + 1;
+        if (!width || !height) throw this._fodtError("WEBP VP8L thiếu kích thước");
+        return { width, height };
+      }
+      offset += 8 + size + (size & 1);
+    }
+    throw this._fodtError("WEBP không có chunk VP8/VP8L/VP8X");
+  }
+
+  _fodtPlainFromNodes(nodes) {
+    return nodes.map(node => {
+      if (node.name === "#text") return node.text || "";
+      if (node.name === "text:s") return " ".repeat(Math.max(1, Number(node.attrs["text:c"]) || 1));
+      if (node.name === "text:tab") return "\t";
+      if (node.name === "text:line-break") return "\n";
+      throw this._fodtError(`nội dung Text Box/shape <${node.name}>`);
+    }).join("");
+  }
+
+  _fodtGraphicFromStyle(styleName, graphicStyles) {
+    if (!styleName) return { fill: "none", fillColor: "", strokeColor: "#000000", strokeWidth: 2 };
+    const style = graphicStyles.get(styleName);
+    if (!style) throw this._fodtError(`graphic style không biết '${styleName}'`);
+    return {
+      fill: style.fill === "solid" ? (style.fillColor || "#2563eb") : "none",
+      fillColor: style.fillColor || "",
+      strokeColor: style.strokeColor || "#000000",
+      strokeWidth: style.strokeWidthCm ? this._fodtCmToPx(style.strokeWidthCm) : 2
+    };
+  }
+
+  _fodtShapeFromNode(node, graphicStyles) {
+    const graphic = this._fodtGraphicFromStyle(node.attrs["draw:style-name"], graphicStyles);
+    const x = node.attrs["svg:x"] ? this._fodtCmToPx(node.attrs["svg:x"]) : 0;
+    const y = node.attrs["svg:y"] ? this._fodtCmToPx(node.attrs["svg:y"]) : 0;
+    const w = node.attrs["svg:width"] ? this._fodtCmToPx(node.attrs["svg:width"]) : 0;
+    const h = node.attrs["svg:height"] ? this._fodtCmToPx(node.attrs["svg:height"]) : 0;
+    const id = node.attrs["draw:name"] || `shape-${graphicStyles.size + 1}`;
+    const base = {
+      id,
+      x, y, w, h, width: w, height: h,
+      fill: graphic.fill,
+      stroke: graphic.strokeColor,
+      strokeWidth: graphic.strokeWidth
+    };
+    if (node.name === "draw:line") {
+      const x1 = this._fodtCmToPx(node.attrs["svg:x1"] || "0cm");
+      const y1 = this._fodtCmToPx(node.attrs["svg:y1"] || "0cm");
+      const x2 = this._fodtCmToPx(node.attrs["svg:x2"] || "0cm");
+      const y2 = this._fodtCmToPx(node.attrs["svg:y2"] || "0cm");
+      const width = Math.abs(x2 - x1);
+      const height = Math.abs(y2 - y1);
+      return { ...base, type: "line", shapeType: "line", x: x1, y: y1, w: width, h: height, width, height, fill: "none" };
+    }
+    if (node.name === "draw:ellipse" || node.name === "draw:circle") {
+      return { ...base, type: "circle", shapeType: "circle" };
+    }
+    if (node.name === "draw:rect") {
+      const type = node.attrs["draw:corner-radius"] ? "round-rect" : "rectangle";
+      return { ...base, type, shapeType: type };
+    }
+    if (node.name === "draw:custom-shape") {
+      const geom = node.children.find(child => child.name === "draw:enhanced-geometry");
+      if (!geom || geom.attrs["draw:type"] !== "right-arrow") {
+        throw this._fodtError(`draw:custom-shape type '${geom?.attrs["draw:type"] || ""}' (Phase B.2 chỉ hỗ trợ right-arrow)`);
+      }
+      return { ...base, type: "arrow", shapeType: "arrow" };
+    }
+    throw this._fodtError(`phần tử FODT drawing <${node.name}>`);
+  }
+
+  _fodtTextBoxFromFrame(node, textBox, graphicStyles) {
+    const graphic = this._fodtGraphicFromStyle(node.attrs["draw:style-name"], graphicStyles);
+    const paras = textBox.children.filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
+    if (!paras.length || paras.some(child => child.name !== "text:p")) {
+      throw this._fodtError("draw:text-box phải chứa text:p (Phase B.2)");
+    }
+    return {
+      id: node.attrs["draw:name"] || "TextBox1",
+      type: "textbox",
+      shapeType: "textbox",
+      x: node.attrs["svg:x"] ? this._fodtCmToPx(node.attrs["svg:x"]) : 0,
+      y: node.attrs["svg:y"] ? this._fodtCmToPx(node.attrs["svg:y"]) : 0,
+      w: this._fodtCmToPx(node.attrs["svg:width"] || "0cm"),
+      h: this._fodtCmToPx(node.attrs["svg:height"] || "0cm"),
+      width: this._fodtCmToPx(node.attrs["svg:width"] || "0cm"),
+      height: this._fodtCmToPx(node.attrs["svg:height"] || "0cm"),
+      fill: "transparent",
+      stroke: graphic.strokeColor,
+      strokeWidth: graphic.strokeWidth,
+      text: paras.map(para => this._fodtPlainFromNodes(para.children)).join("\n")
+    };
   }
 
   _fodtPxToCm(px) {
@@ -4474,6 +4672,7 @@ export class WriterAdapter {
     const textStyles = new Map();
     const paragraphStyles = new Map();
     const cellStyles = new Map();
+    const graphicStyles = new Map();
     let imageSequence = 0;
     let tableSequence = 0;
     const styleName = (registry, prefix, value) => {
@@ -4486,10 +4685,10 @@ export class WriterAdapter {
       if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <img>`);
       const parts = this._fodtDataUrlParts(node.attrs.src);
       if (!parts?.isBase64 || !parts.data) throw this._fodtError("ảnh phải là data URI base64 nhúng sẵn");
-      if (String(parts.mime).toLowerCase() !== "image/png") throw this._fodtError(`định dạng ảnh '${parts.mime}' (Phase B chỉ hỗ trợ PNG)`);
-      const { width, height } = this._fodtPngDimensionsPx(parts.data);
+      const mime = String(parts.mime).toLowerCase();
+      const { width, height } = this._fodtImageDimensionsPx(mime, parts.data);
       const name = `Image${++imageSequence}`;
-      return `<draw:frame draw:name="${this._fodtEscapeXml(name)}" text:anchor-type="as-char" svg:width="${this._fodtPxToCm(width)}" svg:height="${this._fodtPxToCm(height)}"><draw:image xlink:href="" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad" draw:mime-type="image/png"><office:binary-data>${parts.data.replace(/\s+/g, "")}</office:binary-data></draw:image></draw:frame>`;
+      return `<draw:frame draw:name="${this._fodtEscapeXml(name)}" text:anchor-type="as-char" svg:width="${this._fodtPxToCm(width)}" svg:height="${this._fodtPxToCm(height)}"><draw:image xlink:href="" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad" draw:mime-type="${this._fodtEscapeXml(mime)}"><office:binary-data>${parts.data.replace(/\s+/g, "")}</office:binary-data></draw:image></draw:frame>`;
     };
     const inlineXml = (nodes, inherited = {}) => nodes.map(node => {
       if (node.name === "#text") {
@@ -4624,13 +4823,58 @@ export class WriterAdapter {
       const name = `Table${++tableSequence}`;
       return `<table:table table:name="${this._fodtEscapeXml(name)}"><table:table-column table:number-columns-repeated="${columnCount}"/>${rowsXml}</table:table>`;
     };
-    const body = tree.children.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
+    const shapeXml = (shape) => {
+      const type = shape?.type || shape?.shapeType || "rectangle";
+      const x = Number(shape.x) || 0;
+      const y = Number(shape.y) || 0;
+      const w = Number(shape.w ?? shape.width) || 0;
+      const h = Number(shape.h ?? shape.height) || 0;
+      const fill = shape.fill;
+      const fillNone = !fill || fill === "none" || fill === "transparent";
+      const stroke = shape.stroke || "#000000";
+      const strokeWidth = Number(shape.strokeWidth) || (type === "line" ? 3 : 2);
+      const id = shape.id || `Shape${graphicStyles.size + 1}`;
+      const graphicName = styleName(graphicStyles, "gr", {
+        fill: fillNone ? "none" : "solid",
+        fillColor: fillNone ? "" : this._fodtNormalizeColor(fill),
+        stroke: "solid",
+        strokeColor: this._fodtNormalizeColor(stroke),
+        strokeWidth: this._fodtPxToCm(strokeWidth)
+      });
+      const nameAttr = this._fodtEscapeXml(id);
+      const paraGeom = `draw:style-name="${graphicName}" draw:name="${nameAttr}" text:anchor-type="paragraph" svg:x="${this._fodtPxToCm(x)}" svg:y="${this._fodtPxToCm(y)}"`;
+      if (type === "textbox") {
+        return `<draw:frame ${paraGeom} svg:width="${this._fodtPxToCm(w)}" svg:height="${this._fodtPxToCm(h)}"><draw:text-box><text:p>${this._fodtTextXml(shape.text || "")}</text:p></draw:text-box></draw:frame>`;
+      }
+      if (type === "line") {
+        return `<draw:line draw:style-name="${graphicName}" draw:name="${nameAttr}" text:anchor-type="paragraph" svg:x1="${this._fodtPxToCm(x)}" svg:y1="${this._fodtPxToCm(y)}" svg:x2="${this._fodtPxToCm(x + w)}" svg:y2="${this._fodtPxToCm(y)}"><text:p/></draw:line>`;
+      }
+      if (type === "circle") {
+        return `<draw:ellipse ${paraGeom} svg:width="${this._fodtPxToCm(w)}" svg:height="${this._fodtPxToCm(h)}"><text:p/></draw:ellipse>`;
+      }
+      if (type === "round-rect" || type === "roundRect") {
+        return `<draw:rect ${paraGeom} svg:width="${this._fodtPxToCm(w)}" svg:height="${this._fodtPxToCm(h)}" draw:corner-radius="${this._fodtPxToCm(Math.min(w, h) * 0.08)}"><text:p/></draw:rect>`;
+      }
+      if (type === "arrow") {
+        return `<draw:custom-shape ${paraGeom} svg:width="${this._fodtPxToCm(w)}" svg:height="${this._fodtPxToCm(h)}"><text:p/><draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="right-arrow" draw:enhanced-path="M 0 7640 L 13955 7640 13955 3890 21600 10800 13955 17710 13955 13960 0 13960 Z"/></draw:custom-shape>`;
+      }
+      if (type === "rectangle") {
+        return `<draw:rect ${paraGeom} svg:width="${this._fodtPxToCm(w)}" svg:height="${this._fodtPxToCm(h)}"><text:p/></draw:rect>`;
+      }
+      throw this._fodtError(`hình khối '${type}' (Phase B.2 chỉ hỗ trợ rectangle/round-rect/circle/line/arrow/textbox)`);
+    };
+    let body = tree.children.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
       if (/^(p|h[1-6])$/.test(node.name)) return paragraphXml(node);
       if (["ul", "ol"].includes(node.name)) return listXml(node);
       if (node.name === "table") return tableXml(node);
       if (node.name === "img") return `<text:p>${imageXml(node)}</text:p>`;
       throw this._fodtError(`phần tử block <${node.name}>`);
     }).join("");
+    const shapesXml = (this.shapes || []).map(shapeXml).join("");
+    if (shapesXml) {
+      const injected = body.replace(/<(text:p|text:h)\b[^>]*>/, open => `${open}${shapesXml}`);
+      body = injected === body ? `<text:p>${shapesXml}</text:p>${body}` : injected;
+    }
     const textStyleXml = [...textStyles.entries()].map(([key, name]) => {
       const value = JSON.parse(key);
       const attrs = [];
@@ -4657,8 +4901,18 @@ export class WriterAdapter {
       if (value.backgroundColor) attrs.push(`fo:background-color="${this._fodtEscapeXml(value.backgroundColor)}"`);
       return `<style:style style:name="${name}" style:family="table-cell"><style:table-cell-properties ${attrs.join(" ")}/></style:style>`;
     }).join("");
+    const graphicStyleXml = [...graphicStyles.entries()].map(([key, name]) => {
+      const value = JSON.parse(key);
+      const attrs = [`draw:fill="${value.fill}"`];
+      if (value.fill === "solid" && value.fillColor) attrs.push(`draw:fill-color="${this._fodtEscapeXml(value.fillColor)}"`);
+      attrs.push(`draw:stroke="${value.stroke}"`);
+      if (value.strokeColor) attrs.push(`svg:stroke-color="${this._fodtEscapeXml(value.strokeColor)}"`);
+      if (value.strokeWidth) attrs.push(`svg:stroke-width="${value.strokeWidth}"`);
+      attrs.push('style:wrap="none"', 'style:vertical-pos="from-top"', 'style:vertical-rel="paragraph"', 'style:horizontal-pos="from-left"', 'style:horizontal-rel="paragraph"');
+      return `<style:style style:name="${name}" style:family="graphic"><style:graphic-properties ${attrs.join(" ")}/></style:style>`;
+    }).join("");
     const listStyles = '<text:list-style style:name="LBullet"><text:list-level-style-bullet text:level="1" text:bullet-char="•"><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-bullet></text:list-style><text:list-style style:name="LNumber"><text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix="."><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-number></text:list-style>';
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text"><office:automatic-styles>${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}</office:automatic-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text"><office:automatic-styles>${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}${graphicStyleXml}</office:automatic-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
   }
 
   /** Parse the Phase A FODT subset back to canonical Writer HTML. */
@@ -4672,6 +4926,8 @@ export class WriterAdapter {
     const textStyles = new Map();
     const paragraphStyles = new Map();
     const cellStyles = new Map();
+    const graphicStyles = new Map();
+    const parsedShapes = [];
     xml.replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrsText, content) => {
       const attrs = this._fodtParseAttributes(attrsText);
       const name = attrs["style:name"];
@@ -4703,6 +4959,16 @@ export class WriterAdapter {
         if (props["fo:border-left"]) style.borderLeft = props["fo:border-left"];
         if (props["fo:background-color"] && props["fo:background-color"] !== "transparent") style.backgroundColor = this._fodtNormalizeColor(props["fo:background-color"]);
         cellStyles.set(name, style);
+      } else if (family === "graphic") {
+        const propMatch = content.match(/<style:graphic-properties\b([^>]*)\/?\s*>/i);
+        const props = this._fodtParseAttributes(propMatch?.[1] || "");
+        graphicStyles.set(name, {
+          fill: props["draw:fill"] || "solid",
+          fillColor: props["draw:fill-color"] ? this._fodtNormalizeColor(props["draw:fill-color"]) : "",
+          stroke: props["draw:stroke"] || "solid",
+          strokeColor: props["svg:stroke-color"] ? this._fodtNormalizeColor(props["svg:stroke-color"]) : "",
+          strokeWidthCm: props["svg:stroke-width"] || ""
+        });
       }
       return "";
     });
@@ -4723,25 +4989,40 @@ export class WriterAdapter {
       if (node.name === "text:s") return " ".repeat(Math.max(1, Number(node.attrs["text:c"]) || 1));
       if (node.name === "text:tab") return "\t";
       if (node.name === "text:line-break") return "<br>";
-      if (node.name === "draw:frame") return imageHtml(node);
+      if (node.name === "draw:frame") return frameHtml(node);
+      if (["draw:rect", "draw:ellipse", "draw:circle", "draw:line", "draw:custom-shape"].includes(node.name)) {
+        parsedShapes.push(this._fodtShapeFromNode(node, graphicStyles));
+        return "";
+      }
       if (node.name !== "text:span") throw this._fodtError(`phần tử FODT inline <${node.name}>`);
       const name = node.attrs["text:style-name"];
       if (!name || !textStyles.has(name)) throw this._fodtError(`text:span tham chiếu style không biết '${name || ""}'`);
       return `<span style="${this._escapeHtml(htmlStyle(textStyles.get(name)))}">${inlineHtml(node.children)}</span>`;
     }).join("");
+    const frameHtml = (node) => {
+      const children = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
+      if (children.length === 1 && children[0].name === "draw:text-box") {
+        parsedShapes.push(this._fodtTextBoxFromFrame(node, children[0], graphicStyles));
+        return "";
+      }
+      return imageHtml(node);
+    };
     const imageHtml = (node) => {
       if (node.attrs["text:anchor-type"] !== "as-char") throw this._fodtError(`draw:frame anchor-type '${node.attrs["text:anchor-type"] || ""}' (Phase B chỉ hỗ trợ as-char)`);
       const width = this._fodtCmToPx(node.attrs["svg:width"]);
       const height = this._fodtCmToPx(node.attrs["svg:height"]);
       const images = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
-      if (images.length !== 1 || images[0].name !== "draw:image") throw this._fodtError("draw:frame phải chứa đúng một draw:image (Phase B)");
+      if (images.length !== 1 || images[0].name !== "draw:image") throw this._fodtError("draw:frame phải chứa đúng một draw:image hoặc draw:text-box (Phase B.2)");
       const image = images[0];
-      if (String(image.attrs["draw:mime-type"] || "").toLowerCase() !== "image/png") throw this._fodtError(`draw:image mime-type '${image.attrs["draw:mime-type"] || ""}' (Phase B chỉ hỗ trợ PNG)`);
+      const mime = String(image.attrs["draw:mime-type"] || "").toLowerCase();
+      if (!["image/png", "image/jpeg", "image/gif", "image/webp"].includes(mime)) {
+        throw this._fodtError(`draw:image mime-type '${image.attrs["draw:mime-type"] || ""}' (Phase B.2 chỉ hỗ trợ PNG/JPEG/GIF/WEBP)`);
+      }
       const binaryNode = image.children.find(child => child.name === "office:binary-data");
       if (!binaryNode) throw this._fodtError("draw:image thiếu office:binary-data (Phase B không hỗ trợ xlink:href ngoài)");
       const base64 = binaryNode.children.map(child => child.name === "#text" ? child.text : "").join("").replace(/\s+/g, "");
       if (!base64) throw this._fodtError("office:binary-data rỗng");
-      return `<img src="data:image/png;base64,${base64}" width="${width}" height="${height}" data-vno-wrap="inline" style="max-width:100%;height:auto;">`;
+      return `<img src="data:${this._escapeHtml(mime)};base64,${base64}" width="${width}" height="${height}" data-vno-wrap="inline" style="max-width:100%;height:auto;">`;
     };
     const listHtml = (node) => {
       const name = node.attrs["text:style-name"];
@@ -4807,6 +5088,7 @@ export class WriterAdapter {
     }).join("");
     this._initZones();
     if (this.bodyDom) this.bodyDom.innerHTML = html;
+    this.shapes = parsedShapes;
     return html;
   }
 

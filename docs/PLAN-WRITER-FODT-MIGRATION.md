@@ -121,11 +121,24 @@ Phase A là additive. Rollback chỉ cần revert các commit Phase A; pipeline 
 - **Mở bằng Microsoft Word thật, xác nhận bằng mắt**: hàng tiêu đề gộp 3 cột hiện đúng 1 ô rộng có nền xanh căn giữa; cột "Miền Bắc" gộp dọc đúng 2 hàng dữ liệu thành 1 ô duy nhất; số liệu căn phải đúng.
 - `node tests/run-tests.js`: 1151/1151 PASS (1138 sau Phase B + 13 test Phase B.1 mới, gồm cả 2 test Phase A được viết lại vì colspan giờ đã hợp lệ nên không còn là ví dụ "ngoài phạm vi").
 
-## 4c. Phase B.2 — Text Box, shape, định dạng ảnh khác (đề xuất, chưa làm)
+## 4c. Phase B.2 — Text Box, shape, định dạng ảnh khác (hoàn thành)
 
-- Ảnh JPEG/GIF/WEBP (đọc kích thước thật theo từng định dạng, không đoán).
-- Text Box và shape cơ bản qua drawing primitives.
-- Mỗi loại có import fixture độc lập và real DOCX/PDF round-trip, kèm mở bằng Microsoft Word thật để xác nhận bằng mắt như Phase A/B/B.1 đã làm.
+### Phạm vi đã làm (Grok, worktree `E:\VNOffice-grok-writer-fodt-phase-b2`)
+
+- Ảnh JPEG/GIF/WEBP: kích thước đọc từ header thật, không từ CSS `max-width/height:auto`.
+  - JPEG: SOF0 `0xFFC0` và SOF2 `0xFFC2` (GDI+ trên máy đo ra SOF0; SOF2 có unit test header ghép).
+  - GIF: logical screen bytes 6–9 little-endian, nhận `GIF87a` và `GIF89a`.
+  - WEBP: ba biến thể RIFF đo riêng — `VP8 ` (start code `9d012a`), `VP8L` (signature `0x2F`), `VP8X` (canvas 24-bit, **không** lấy size từ inner VP8).
+  - `draw:mime-type` đúng `image/jpeg|gif|webp`.
+- Text Box và 6 loại shape UI Writer hiện có (`rectangle`, `round-rect`, `circle`, `line`, `arrow`, `textbox`) qua primitive ODF đã convert được: `draw:rect` / `draw:rect+corner-radius` / `draw:ellipse` / `draw:line` / `draw:custom-shape right-arrow` / `draw:frame+draw:text-box`. Drawing **bắt buộc nằm trong `text:p`** (sibling của paragraph bị LibreOffice nuốt — đo thật). Neo `paragraph` + `svg:x/y` khớp overlay `this.shapes`.
+- BMP/TIFF vẫn bị từ chối rõ `WRITER_FODT_UNSUPPORTED_CONTENT`.
+
+### Verification thật
+
+- Unit: `tests/unit/writer-fodt-phase-b2.test.js` — SOF0/SOF2, GIF89a/GIF87a, VP8/VP8L/VP8X (canvas ≠ inner), idempotence từng loại, reject BMP/TIFF, 6 shape UI + Text Box idempotence.
+- Live soffice: `tests/live/writer-fodt-phase-b2-real-conversion.mjs` — JPEG/GIF `word/media/imageN.jpeg|gif` **Buffer.equals** bytes gốc; WEBP (LibreOffice 26.2.5) **re-encode PNG** (không equals gốc — sự thật engine, không giả byte-exact); shape DOCX có `w:drawing` + `prstGeom` `rect/roundRect/ellipse/line/rightArrow` + txbx chữ `HOP_VAN_BAN`.
+- **Mở Microsoft Word thật** (Start-Process thụ động): JPEG đỏ 16×10 và GIF xanh 12×8 hiện đúng; 6 shape (chữ nhật, bo tròn, tròn, đường, mũi tên, hộp văn bản «Hộp văn bản VN Writer») hiện native.
+- `node tests/run-tests.js`: **1184/1184 PASS** (1170 baseline @ `4b5a297` + 14 test Phase B.2).
 
 ## 5. Phase C — page, header/footer và section geometry (đề xuất)
 

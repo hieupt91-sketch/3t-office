@@ -174,7 +174,7 @@ export async function runWriterFodtPhaseBTests() {
   });
 
   await test("Writer FODT Phase B rejects non-PNG images and invalid PNG bytes", () => {
-    for (const src of ["data:image/jpeg;base64,AAAA", "data:image/png;base64,AA==", "not-a-data-uri.png"]) {
+    for (const src of ["data:image/bmp;base64,Qk02AAAAAAAAADYAAAAoAAAAAQAAAAEAAAABACAAAAAAAAAAAADEDgAAxA4AAAAAAAAAAAAA/wAAAA==", "data:image/png;base64,AA==", "not-a-data-uri.png"]) {
       const { adapter } = adapterWithBody(`<img src="${src}">`);
       assert.throws(() => adapter.serializeToFodt(), error => error?.code === "WRITER_FODT_UNSUPPORTED_CONTENT");
     }
