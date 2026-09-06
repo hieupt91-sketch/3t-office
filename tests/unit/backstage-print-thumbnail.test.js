@@ -6,6 +6,7 @@
 import { AppShell } from "../../platform/shell/app-shell.js";
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
+import { SlidesCanvasController } from "../../apps/slides/slides-canvas.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 
 const assert = (value, message) => { if (!value) throw new Error(message); };
@@ -374,6 +375,69 @@ export async function runBackstagePrintThumbnailTests() {
       assert(stage2 && stage2.querySelector(".vno-sheet-print-table"), "Render lại bình thường khi quay lại In");
 
       modal.remove();
+    });
+
+    await test("Slides Backstage In: hiển thị panel xem trước THẬT với layout slide và loại bỏ slide ẩn", () => {
+      const canvas = new SlidesCanvasController(fakeContainer());
+      canvas.slides = [
+        { id: 1, title: "Giới thiệu VN Office", body: "Giải pháp văn phòng Việt", layoutType: "title-content", shapes: [] },
+        { id: 2, title: "Slide nháp bí mật", body: "Không in trang này", layoutType: "title-content", shapes: [], hidden: true },
+        { id: 3, title: "Lộ trình triển khai", body: "Quý 3/2026", layoutType: "title-content", shapes: [] }
+      ];
+
+      const shell = new AppShell({ appName: "slides", appTitle: "VN Slides", canvas });
+      shell.showBackstageMenu();
+      const modal = fakeDoc.body.querySelector(".vno-backstage-overlay");
+      modal.querySelector("#vno-backstage-nav-print").click();
+
+      const printView = modal.querySelector("#vno-backstage-print-view");
+      assert(printView && printView.style.display !== "none", "Panel In phải hiển thị");
+
+      // Khung xem trước slide thật
+      const surface = printView.querySelector(".vno-slides-print-surface");
+      assert(surface, "Panel xem trước phải render đúng .vno-slides-print-surface thật");
+      assert(surface.textContent.includes("Giới thiệu VN Office"), "Thumbnail phải hiển thị tiêu đề slide 1");
+
+      // Tổng số trang in phải là 2 (đã bỏ qua slide 2 bị ẩn)
+      const totalPagesEl = modal.querySelector("#vno-backstage-print-total-pages");
+      assert(totalPagesEl && totalPagesEl.textContent === "2", "Tổng số trang in phải là 2 vì slide 2 bị ẩn");
+
+      // Bấm Trang sau phải chuyển sang slide 3 (bỏ qua slide 2)
+      const nextBtn = modal.querySelector("#vno-backstage-print-next");
+      nextBtn.click();
+      const stage = modal.querySelector("#vno-backstage-print-stage");
+      assert(stage.textContent.includes("Lộ trình triển khai"), "Trang 2 phải hiển thị slide 3 thật");
+      assert(!stage.textContent.includes("Slide nháp bí mật"), "Không được xuất hiện nội dung của slide ẩn");
+
+      modal.remove();
+    });
+
+    await test("Slides Backstage In: 1 slide ẩn thanh điều hướng, nút In ngay thực thi lệnh in và đóng modal", () => {
+      const canvas = new SlidesCanvasController(fakeContainer());
+      canvas.slides = [
+        { id: 1, title: "Slide đơn", body: "Chỉ có 1 trang", layoutType: "title-content", shapes: [] }
+      ];
+
+      let printTriggered = false;
+      const unbind = globalCommandBus.bindHandler("common.file.print", () => {
+        printTriggered = true;
+        return true;
+      });
+
+      const shell = new AppShell({ appName: "slides", appTitle: "VN Slides", canvas });
+      shell.showBackstageMenu();
+      const modal = fakeDoc.body.querySelector(".vno-backstage-overlay");
+      modal.querySelector("#vno-backstage-nav-print").click();
+
+      const navControls = modal.querySelector("#vno-backstage-print-nav-controls");
+      assert(navControls && navControls.style.display === "none", "Deck 1 slide phải ẩn thanh điều hướng trang");
+
+      const printNowBtn = modal.querySelector("#vno-backstage-btn-print-now");
+      assert(printNowBtn, "Phải có nút In ngay");
+      printNowBtn.click();
+
+      assert(printTriggered === true, "Bấm In ngay phải kích hoạt lệnh common.file.print");
+      assert(fakeDoc.body.querySelector(".vno-backstage-overlay") === null, "Modal phải đóng sau khi bấm In ngay");
     });
 
   } finally {

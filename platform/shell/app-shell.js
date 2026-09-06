@@ -870,6 +870,29 @@ export class AppShell {
         ]
       };
     }
+    if (this.appName === "slides") {
+      const canvas = this.canvas || this.adapter?.canvas || globalUnoBridge?.activeDocument?.canvas;
+      if (!canvas || typeof canvas.computePrintPages !== "function") return null;
+      return {
+        type: "slides",
+        computePages: () => canvas.computePrintPages(),
+        renderPage: (printResult, pageIndex) => {
+          const entry = printResult.pages[pageIndex] || printResult.pages[0];
+          const pageDiv = document.createElement("div");
+          pageDiv.className = "vno-slides-print-preview-page vno-backstage-slides-page";
+          if (entry && typeof canvas._renderSlidePrintPage === "function") {
+            const surface = canvas._renderSlidePrintPage(entry.slide, entry.index);
+            pageDiv.appendChild(surface);
+          }
+          return pageDiv;
+        },
+        getInfo: (printResult) => [
+          { label: "Kích thước slide", val: `${canvas.slideSize?.width || 960}x${canvas.slideSize?.height || 540}` },
+          { label: "Tỷ lệ khung hình", val: "16:9 HD" },
+          { label: "Tổng số slide in", val: String(printResult.totalPages || 1) }
+        ]
+      };
+    }
     return null;
   }
 
