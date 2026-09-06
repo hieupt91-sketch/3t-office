@@ -1,13 +1,15 @@
-"""Shared OOXML ZIP patcher + Sheet XLSX native-export post-process.
+"""Shared OOXML ZIP patcher + Sheet XLSX native export/import overlay.
 
 Python twin of:
   adapters/libreoffice/common/ooxml-zip-patch.js
   adapters/libreoffice/sheet/xlsx-workbook-protection.js
   adapters/libreoffice/sheet/xlsx-native-postprocess.js
 
-main.py calls postprocess_sheet_xlsx() after soffice FODS→XLSX, before the
-bytes are copied to the path the user picked. Keep the XML transform in lock
-step with the JS helpers (same element, same schema slot).
+main.py calls:
+  - postprocess_sheet_xlsx() after soffice FODS→XLSX (File → Lưu)
+  - overlay_sheet_xlsx_fods() after soffice XLSX→FODS (File → Mở)
+
+Keep the XML transform in lock step with the JS helpers.
 """
 
 from __future__ import annotations
@@ -37,10 +39,58 @@ _FODS_STRUCTURE_RE = re.compile(
     r"<office:spreadsheet\b[^>]*table:structure-protected\s*=\s*['\"]true['\"]",
     re.IGNORECASE,
 )
+_SPREADSHEET_OPEN_RE = re.compile(
+    r"<office:spreadsheet\b([^>]*?)(/?)\s*>",
+    re.IGNORECASE,
+)
+_STRUCTURE_ATTR_RE = re.compile(
+    r"\btable:structure-protected\s*=\s*(['\"])[^'\"]*\1",
+    re.IGNORECASE,
+)
+_LOCK_STRUCTURE_TRUE_RE = re.compile(
+    r"\blockStructure\s*=\s*(['\"]?)(1|true)\1",
+    re.IGNORECASE,
+)
 
 
 def fods_has_structure_protection(fods_xml: str | None) -> bool:
     return bool(_FODS_STRUCTURE_RE.search(fods_xml or ""))
+
+
+def workbook_has_structure_lock(workbook_xml: str | None) -> bool:
+    match = _PROTECTION_OPEN_RE.search(workbook_xml or "")
+    if not match:
+        return False
+    attrs = match.group(2) or ""
+    return bool(_LOCK_STRUCTURE_TRUE_RE.search(attrs))
+
+
+def apply_fods_structure_protection(fods_xml: str) -> str:
+    """Ensure office:spreadsheet carries table:structure-protected='true'."""
+    xml = fods_xml or ""
+    if not xml:
+        return xml
+    match = _SPREADSHEET_OPEN_RE.search(xml)
+    if not match:
+        return xml
+    attrs = match.group(1) or ""
+    self_close = match.group(2) == "/"
+    if _STRUCTURE_ATTR_RE.search(attrs):
+        attrs = _STRUCTURE_ATTR_RE.sub('table:structure-protected="true"', attrs)
+    else:
+        attrs = f"{attrs.rstrip()} table:structure-protected=\"true\""
+    if attrs and not attrs.startswith(" "):
+        attrs = f" {attrs}"
+    next_tag = f"<office:spreadsheet{attrs}/>" if self_close else f"<office:spreadsheet{attrs}>"
+    return xml[: match.start()] + next_tag + xml[match.end() :]
+
+
+def overlay_fods_structure_protection(fods_xml: str, workbook_xml: str | None) -> str:
+    """Inject table:structure-protected when original XLSX has lockStructure."""
+    xml = fods_xml or ""
+    if not workbook_has_structure_lock(workbook_xml):
+        return xml
+    return apply_fods_structure_protection(xml)
 
 
 def apply_workbook_protection_lock_structure(workbook_xml: str) -> str:
@@ -116,6 +166,46 @@ def _read_zip_entry(zip_bytes: bytes, entry_name: str) -> bytes:
         return package.read(entry_name)
 
 
+def read_zip_entry(zip_bytes: bytes, entry_name: str) -> bytes | None:
+    """Public ZIP read used by File → Mở overlay. Returns None when missing."""
+    try:
+        return _read_zip_entry(zip_bytes, entry_name)
+    except (KeyError, zipfile.BadZipFile, OSError, ValueError):
+        return None
+
+
+def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
+    """Read xl/workbook.xml from the original XLSX and overlay FODS.
+
+    LibreOffice XLSX→FODS drops lockStructure. Production File → Mở must
+    restore table:structure-protected before SheetAdapter.parseFods().
+    """
+    xml = fods_xml or ""
+    current = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+    if not current:
+        return xml
+    workbook_xml = current.decode("utf-8", errors="replace")
+    return overlay_fods_structure_protection(xml, workbook_xml)
+
+
+def overlay_sheet_xlsx_fods_file(
+    xlsx_path: str,
+    fods_path: str,
+    *,
+    out_path: str | None = None,
+) -> str:
+    with open(xlsx_path, "rb") as handle:
+        xlsx_bytes = handle.read()
+    with open(fods_path, "r", encoding="utf-8", errors="replace") as handle:
+        fods_xml = handle.read()
+    overlaid = overlay_sheet_xlsx_fods(xlsx_bytes, fods_xml)
+    dest = out_path or fods_path
+    if overlaid != fods_xml or dest != fods_path:
+        with open(dest, "w", encoding="utf-8", newline="") as handle:
+            handle.write(overlaid)
+    return dest
+
+
 def postprocess_sheet_xlsx_file(
     xlsx_path: str,
     *,
@@ -144,17 +234,25 @@ def postprocess_sheet_xlsx_file(
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Patch xl/workbook.xml lockStructure after soffice FODS→XLSX."
+        description="Patch xl/workbook.xml lockStructure after soffice FODS→XLSX, "
+        "or overlay FODS from original XLSX lockStructure (File → Mở)."
     )
     parser.add_argument("--xlsx", required=True, help="Input .xlsx path")
     parser.add_argument("--fods", help="Source .fods used to detect table:structure-protected")
     parser.add_argument("--enable", action="store_true", help="Force lockStructure even without FODS")
-    parser.add_argument("--out", help="Output .xlsx (default: overwrite --xlsx)")
+    parser.add_argument("--out", help="Output path (default: overwrite --xlsx or --overlay-fods)")
+    parser.add_argument(
+        "--overlay-fods",
+        help="Input FODS to overlay from --xlsx lockStructure (File → Mở path)",
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
+    if args.overlay_fods:
+        overlay_sheet_xlsx_fods_file(args.xlsx, args.overlay_fods, out_path=args.out)
+        return 0
     enabled = True if args.enable else None
     postprocess_sheet_xlsx_file(
         args.xlsx, fods_path=args.fods, enabled=enabled, out_path=args.out

@@ -9,6 +9,7 @@ import fs from "node:fs";
 import { patchOoxmlZip, readZipEntry } from "../common/ooxml-zip-patch.js";
 import {
   applyWorkbookProtectionLockStructure,
+  overlayFodsStructureProtection,
   resolveWorkbookProtectionEnabled
 } from "./xlsx-workbook-protection.js";
 
@@ -39,4 +40,20 @@ export function postProcessSheetXlsx(xlsxPathOrBuffer, options = {}) {
   const next = applyWorkbookProtectionLockStructure(xml);
   if (next === xml) return source;
   return patchOoxmlZip(source, { [XLSX_WORKBOOK_ENTRY]: next });
+}
+
+/**
+ * Phase 2a File → Mở: read xl/workbook.xml from the original XLSX ZIP
+ * (via ooxml-zip-patch.js, not a rewritten ZIP reader) and overlay FODS
+ * before SheetAdapter.parseFods().
+ *
+ * @param {string|Buffer} xlsxPathOrBuffer original XLSX, before or after convert
+ * @param {string} fodsXml soffice XLSX→FODS output (usually missing structure-protected)
+ * @returns {string} FODS with table:structure-protected when lockStructure is set
+ */
+export function overlaySheetXlsxFods(xlsxPathOrBuffer, fodsXml) {
+  const source = asBuffer(xlsxPathOrBuffer);
+  const current = readZipEntry(source, XLSX_WORKBOOK_ENTRY);
+  if (!current) return String(fodsXml || "");
+  return overlayFodsStructureProtection(fodsXml, current.toString("utf8"));
 }
