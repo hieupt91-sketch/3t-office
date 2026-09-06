@@ -284,6 +284,29 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.para.alignmentSpacing",
+    app: "writer",
+    commandIds: [
+      "writer.para.alignLeft",
+      "writer.para.alignCenter",
+      "writer.para.alignRight",
+      "writer.para.justify",
+      "writer.para.spacing1",
+      "writer.para.spacing15",
+      "writer.para.spacing2"
+    ],
+    title: "Căn lề đoạn văn và khoảng cách dòng",
+    summary: "Căn lề văn bản (trái, giữa, phải, đều hai bên) và chọn khoảng cách giữa các dòng (1.0, 1.5, 2.0). Các điều khiển bố trí trực tiếp trên ribbon Trang đầu và Bố cục giúp thao tác nhanh và an toàn tuyệt đối cho định dạng ODF chuẩn.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },
+    keywords: ["căn lề", "căn đoạn", "căn trái", "căn giữa", "căn phải", "căn đều", "giãn dòng", "line spacing", "paragraph alignment"],
+    steps: [
+      "Bôi đen một hoặc nhiều đoạn văn bản cần định dạng, hoặc đặt con trỏ chuột bên trong đoạn văn đó.",
+      "Tại tab Trang đầu, nhóm Đoạn văn: nhấn Căn trái (Ctrl+L), Căn giữa (Ctrl+E), Căn phải (Ctrl+R), hoặc Căn đều (Ctrl+J) để đổi lề đoạn văn ngay tức thì.",
+      "Nhấp vào menu Giãn dòng để chọn các tỷ lệ dòng chuẩn: 1.0 (chuẩn đơn), 1.5 (chuẩn phổ biến cho văn bản hành chính theo NĐ 30/2020), hoặc 2.0 (chuẩn dòng đôi). Thao tác tương tự có thể thực hiện tại tab Bố cục.",
+      "Tất cả thuộc tính căn lề và giãn dòng được lưu trữ trực tiếp vào ODF fo:text-align và fo:line-height, tương thích hoàn toàn khi mở lại trên LibreOffice và Microsoft Word."
+    ]
+  },
+  {
     id: "writer.para.spacingBeforeAfter",
     app: "writer",
     commandIds: ["writer.para.spacingBefore", "writer.para.spacingAfter"],
