@@ -1,4 +1,4 @@
-﻿# HANDOFF: Keyboard Navigation — VN Slides
+# HANDOFF: Keyboard Navigation — VN Slides
 
 **Branch:** `fix/keyboard-navigation-slides`
 **Worktree:** `E:\VNOffice-agy-keyboard-nav-slides`
@@ -40,12 +40,39 @@
 ---
 
 ## Khu vuc 2 — Slide Navigator (Filmstrip / dai thumbnail)
-*(Dang thuc hien tiep theo)*
+
+**File sua:** `apps/slides/slides-canvas.js`, `platform/text/spellcheck-dom-controller.js`
+**Test:** `tests/live/slides-navigator-keyboard-nav.playwright.mjs` (Live Edge Playwright PASS 100%)
+
+### Hien trang truoc khi sua:
+- Các thumbnail trong slideListContainer không có roving `tabindex`, không có ARIA role tab/tablist.
+- Không thể dùng phím mũi tên ArrowUp/ArrowDown để chuyển đổi slide từ dải thumbnail.
+- Phím Enter/Space không kích hoạt chuyển focus vào vùng soạn thảo của slide (Title placeholder / Canvas).
+- Khi xóa slide (Delete/Backspace), focus bị rơi về `document.body`.
+- Phát hiện thêm bug: `restoreSelection` trong `SpellcheckDomController` khi debounce chạy đã tự động kích hoạt focus trở lại `titleEl` ngay cả khi người dùng đang focus ở thumbnail bên ngoài, cướp focus của người dùng bàn phím.
+
+### Da thuc hien:
+1. **Roving tabindex & ARIA semantics:**
+   - Dải thumbnail `slideListContainer` gắn `role="tablist"`, `aria-orientation="vertical"`, `aria-label="Danh sách trang chiếu"`.
+   - Mỗi thumbnail item gắn `role="tab"`, `aria-selected`, `aria-label="Trang chiếu N: Tiêu đề"` và roving tabindex (`tabindex="0"` cho slide đang chọn, `-1` cho các slide còn lại).
+2. **Dieu huong ban phim tren thumbnail:**
+   - `ArrowDown` / `ArrowRight`: Chuyển sang slide tiếp theo và duy trì focus trên thumbnail mới.
+   - `ArrowUp` / `ArrowLeft`: Chuyển về slide trước đó và duy trì focus trên thumbnail mới.
+   - `Home`: Nhảy về slide đầu tiên (index 0) và focus thumbnail đầu.
+   - `End`: Nhảy về slide cuối cùng và focus thumbnail cuối.
+   - `Enter` / `Space`: Nhảy vào bên trong slide (focus vào tiêu đề `titleEl` hoặc vùng vẽ `canvasEl`).
+   - `Delete` / `Backspace`: Xóa slide đang chọn (nếu có > 1 slide) và tự động chuyển focus về thumbnail kế tiếp.
+   - `Ctrl+D`: Nhân đôi slide đang chọn và focus thumbnail bản sao mới.
+   - `ContextMenu` / `Shift+F10`: Mở menu ngữ cảnh section/slide tại vị trí thumbnail.
+3. **Sua bug cuop focus cua bo kiem tra chinh ta (`SpellcheckDomController`):**
+   - Trong `platform/text/spellcheck-dom-controller.js`, bổ sung kiểm tra `selectionOffset(root)` và `restoreSelection(root, offset)`: nếu `document.activeElement` không nằm trong `root`, không khôi phục selection để tránh việc `addRange` cướp focus từ thumbnail hoặc các thành phần UI khác.
+4. **Bao toan focus trong `deleteCurrentSlide` & `duplicateCurrentSlide`:**
+   - Sau khi xóa hoặc nhân đôi slide, tự động tìm và gọi `.focus()` trên thumbnail của slide đang chọn, đảm bảo focus không bị rơi về `document.body`.
 
 ---
 
 ## Khu vuc 3 — Menu ngu canh Slides (Context menu & focus tra ve sau Escape)
-*(Chua thuc hien)*
+*(Dang thuc hien tiep theo)*
 
 ---
 
@@ -63,3 +90,4 @@
 - `node scripts/check-syntax.js`: 87/87 PASS.
 - `node tests/live/slides-mouse-shortcuts.playwright.mjs`: PASS 100%.
 - `node tests/live/slides-canvas-keyboard-nav.playwright.mjs`: PASS 100%.
+- `node tests/live/slides-navigator-keyboard-nav.playwright.mjs`: PASS 100%.

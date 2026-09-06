@@ -335,9 +335,15 @@ export class SlidesCanvasController {
     navHeader.className = "vno-slide-nav-header";
     navHeader.innerHTML = `<button class="vno-slide-new-btn" id="vno-new-slide-btn" title="Thêm trang chiếu mới (Ctrl+M)">+ Thêm trang chiếu mới</button>`;
     navHeader.querySelector("#vno-new-slide-btn").addEventListener("click", () => this.addNewSlide());
+    this.navEl.setAttribute("role", "region");
+    this.navEl.setAttribute("aria-label", "Điều hướng trang chiếu");
     this.navEl.appendChild(navHeader);
 
     this.slideListContainer = document.createElement("div");
+    this.slideListContainer.className = "vno-slide-thumb-list";
+    this.slideListContainer.setAttribute("role", "tablist");
+    this.slideListContainer.setAttribute("aria-label", "Danh sách trang chiếu");
+    this.slideListContainer.setAttribute("aria-orientation", "vertical");
     this.slideListContainer.style.display = "flex";
     this.slideListContainer.style.flexDirection = "column";
     this.slideListContainer.style.gap = "10px";
@@ -3686,9 +3692,17 @@ export class SlidesCanvasController {
       if (activeEl && (activeEl.isContentEditable || activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) {
         return;
       }
+      // Don't intercept when focus is in thumbnail navigator, animation pane, dialogs, or context menus
+      if (activeEl?.closest?.(".vno-slide-nav, .vno-slide-thumb-item, .vno-dialog-overlay, .vno-context-menu, .vno-slides-anim-pane")) {
+        return;
+      }
+
+      const isCanvasFocus = !activeEl || activeEl === document.body ||
+        activeEl === this.canvasEl ||
+        !!activeEl.closest?.(".vno-slide-canvas, .vno-slide-shape-item, .vno-slide-title, .vno-slide-body");
 
       if (e.key === "Tab") {
-        if (this.canvasEl && (document.activeElement === document.body || this.container?.contains(activeEl))) {
+        if (this.canvasEl && isCanvasFocus) {
           e.preventDefault();
           this.selectNextObject(e.shiftKey);
           return;
@@ -3696,7 +3710,7 @@ export class SlidesCanvasController {
       }
 
       if (e.altKey && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
-        if (this.canvasEl && (document.activeElement === document.body || this.container?.contains(activeEl))) {
+        if (this.canvasEl && isCanvasFocus) {
           e.preventDefault();
           this.selectNextObject(e.key === "ArrowUp" || e.key === "ArrowLeft");
           return;
@@ -3710,7 +3724,7 @@ export class SlidesCanvasController {
           const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
           const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
           this.nudgeSelected(dx, dy);
-        } else if (activeEl === this.canvasEl || (activeEl && this.container?.contains(activeEl))) {
+        } else if (isCanvasFocus) {
           e.preventDefault();
           this.selectNextObject(e.key === "ArrowUp" || e.key === "ArrowLeft");
         }
@@ -4007,9 +4021,11 @@ export class SlidesCanvasController {
           ${cardInner}
         </div>
       `;
-      if (slide.hidden) {
-        item.setAttribute("aria-label", `${t("slidesDialogs.hiddenSlideAria", "Trang chiếu ẩn")} ${idx + 1}: ${slide.title || ""}`);
-      }
+      item.tabIndex = idx === this.currentSlideIndex ? 0 : -1;
+      item.setAttribute("role", "tab");
+      item.setAttribute("aria-selected", idx === this.currentSlideIndex ? "true" : "false");
+      const hiddenAria = slide.hidden ? `, ${t("slidesDialogs.hiddenSlideAria", "Trang chiếu ẩn")}` : "";
+      item.setAttribute("aria-label", `Trang chiếu ${idx + 1}: ${slide.title || "Không có tiêu đề"}${hiddenAria}`);
 
       item.setAttribute("draggable", "true");
       item.dataset.slideIndex = String(idx);
@@ -4044,12 +4060,73 @@ export class SlidesCanvasController {
         event.preventDefault();
         this._openSlideSectionMenu(idx, event.clientX || 0, event.clientY || 0);
       });
+      item.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+          event.preventDefault();
+          event.stopPropagation();
+          const nextIdx = Math.min(this.slides.length - 1, idx + 1);
+          if (nextIdx !== idx) {
+            this.selectSlide(nextIdx);
+            this.slideListContainer?.querySelector(`[data-slide-index="${nextIdx}"]`)?.focus();
+          }
+        } else if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+          event.preventDefault();
+          event.stopPropagation();
+          const prevIdx = Math.max(0, idx - 1);
+          if (prevIdx !== idx) {
+            this.selectSlide(prevIdx);
+            this.slideListContainer?.querySelector(`[data-slide-index="${prevIdx}"]`)?.focus();
+          }
+        } else if (event.key === "Home") {
+          event.preventDefault();
+          event.stopPropagation();
+          if (this.slides.length > 0) {
+            this.selectSlide(0);
+            this.slideListContainer?.querySelector('[data-slide-index="0"]')?.focus();
+          }
+        } else if (event.key === "End") {
+          event.preventDefault();
+          event.stopPropagation();
+          const lastIdx = this.slides.length - 1;
+          if (lastIdx >= 0) {
+            this.selectSlide(lastIdx);
+            this.slideListContainer?.querySelector(`[data-slide-index="${lastIdx}"]`)?.focus();
+          }
+        } else if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          event.stopPropagation();
+          this.selectSlide(idx);
+          if (this.titleEl) {
+            this.titleEl.focus();
+          } else if (this.canvasEl) {
+            this.canvasEl.focus();
+          }
+        } else if (event.key === "Delete" || event.key === "Backspace") {
+          event.preventDefault();
+          event.stopPropagation();
+          if (this.slides.length > 1) {
+            this.deleteCurrentSlide();
+          }
+        } else if ((event.ctrlKey || event.metaKey) && (event.key === "d" || event.key === "D")) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.duplicateCurrentSlide();
+          this.slideListContainer?.querySelector(`[data-slide-index="${this.currentSlideIndex}"]`)?.focus();
+        } else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+          event.preventDefault();
+          event.stopPropagation();
+          const rect = item.getBoundingClientRect?.() || { left: 100, top: 100 };
+          this._openSlideSectionMenu(idx, (rect.left || 0) + 24, (rect.top || 0) + 24);
+        }
+      });
       this.slideListContainer.appendChild(item);
     });
   }
 
   selectSlide(index) {
     if (index < 0 || index >= this.slides.length) return;
+    this.selectedShapeIds = new Set();
+    this.selectedTarget = null;
     this.currentSlideIndex = index;
     const s = this.slides[index];
     const layout = s.layoutType || "title-content";
@@ -4229,6 +4306,7 @@ export class SlidesCanvasController {
       this._syncUndoRedoState();
     }
     this.selectSlide(targetIdx);
+    this.slideListContainer?.querySelector(`[data-slide-index="${this.currentSlideIndex}"]`)?.focus?.();
     return true;
   }
 
@@ -4246,6 +4324,7 @@ export class SlidesCanvasController {
     }
     const nextIdx = Math.max(0, delIdx - 1);
     this.selectSlide(nextIdx);
+    this.slideListContainer?.querySelector(`[data-slide-index="${this.currentSlideIndex}"]`)?.focus?.();
     return true;
   }
 

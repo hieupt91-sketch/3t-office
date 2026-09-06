@@ -1,6 +1,9 @@
 const MARKER_SELECTOR = "[data-vno-spelling-uncertain]";
 
 function selectionOffset(root) {
+  if (typeof document !== "undefined" && document.activeElement !== root && !root.contains(document.activeElement)) {
+    return null;
+  }
   const selection = globalThis.getSelection?.();
   if (!selection?.rangeCount || !root.contains(selection.anchorNode)) return null;
   const range = document.createRange();
@@ -11,6 +14,9 @@ function selectionOffset(root) {
 
 function restoreSelection(root, offset) {
   if (offset === null) return;
+  if (typeof document !== "undefined" && document.activeElement !== root && !root.contains(document.activeElement)) {
+    return;
+  }
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let remaining = offset;
   let node;
