@@ -316,6 +316,7 @@ export const SLIDES_RIBBON_TABS = [
     labelKey: "slidesRibbon.tab.transitions",
     groups: [
       {
+        id: "transitions",
         label: "Hiệu ứng chuyển trang",
         labelKey: "slidesRibbon.group.transitions",
         items: [
