@@ -26,7 +26,7 @@ export async function runRibbonGapsRealOfficeTests() {
     const groups = SHEET_RIBBON_TABS[0].groups;
     const alignment = flatten(groups.find(item => item.labelKey === "sheetRibbon.group.alignment").items).map(item => item.commandId);
     const number = flatten(groups.find(item => item.labelKey === "sheetRibbon.group.number").items).map(item => item.commandId);
-    ["sheet.cell.alignTop", "sheet.cell.alignMiddle", "sheet.cell.alignBottom", "sheet.cell.wrapText", "sheet.cell.indentIncrease", "sheet.cell.indentDecrease"]
+    ["sheet.cell.alignTop", "sheet.cell.alignMiddle", "sheet.cell.alignBottom", "sheet.cell.wrapText", "sheet.cell.orientation", "sheet.cell.indentIncrease", "sheet.cell.indentDecrease"]
       .forEach(id => assert(alignment.includes(id), `Thiếu ${id}`));
     ["sheet.format.quickCategory", "sheet.format.increaseDecimal", "sheet.format.decreaseDecimal"]
       .forEach(id => assert(number.includes(id), `Thiếu ${id}`));

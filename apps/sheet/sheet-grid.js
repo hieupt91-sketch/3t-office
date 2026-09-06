@@ -15,7 +15,7 @@ import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { SheetDataTools } from "./data-tools.js";
 import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
-import { showAlertDialog, showConfirmDialog, showPromptDialog } from "../../platform/ui-kit/dialogs.js";
+import { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } from "../../platform/ui-kit/dialogs.js";
 import { VietnameseSpellChecker, normalizeVietnameseWord, tokenizeVietnamese } from "../../platform/text/vi-spellchecker.js";
 import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
 
@@ -988,7 +988,7 @@ export class SheetGridController {
   }
 
   _attachAutofillHandle(td) {
-    if (!td || td.querySelector?.(".vno-cell-autofill-handle")) return;
+    if (!td || typeof document?.createElement !== "function" || td.querySelector?.(".vno-cell-autofill-handle")) return;
     const handle = document.createElement("div");
     handle.className = "vno-cell-autofill-handle";
     handle.title = "Kéo để tự động điền (AutoFill)";
@@ -1001,7 +1001,7 @@ export class SheetGridController {
   }
 
   _attachMoveHandles(td) {
-    if (!td || td.querySelector?.(".vno-cell-move-handle")) return;
+    if (!td || typeof document?.createElement !== "function" || td.querySelector?.(".vno-cell-move-handle")) return;
     for (const side of ["top", "bottom", "left", "right"]) {
       const mh = document.createElement("div");
       mh.className = `vno-cell-move-handle ${side}`;
@@ -5026,121 +5026,142 @@ export class SheetGridController {
     return true;
   }
 
-  showFindDialog() {
-    if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
+  _cellTextMatchesFind(item, needleLower) {
+    if (!item || !needleLower) return false;
+    if (item.sparkline || item.isArrayFormula) return false;
+    const valStr = String(item.val ?? "").toLowerCase();
+    const formulaStr = String(item.formula ?? "").toLowerCase();
+    return valStr.includes(needleLower) || formulaStr.includes(needleLower);
+  }
 
-    return new Promise(resolve => {
-      const overlay = document.createElement("div");
-      overlay.className = "vno-dialog-overlay vno-find-dialog";
-      const titleText = (typeof t === "function" && t("commonDialogs.findTitle") !== "commonDialogs.findTitle")
-        ? t("commonDialogs.findTitle")
-        : "Tìm kiếm trong bảng tính";
+  _replaceIgnoreCase(source, findText, replaceText, all) {
+    const src = String(source ?? "");
+    const find = String(findText ?? "");
+    if (!find) return { text: src, count: 0 };
+    const findLower = find.toLowerCase();
+    const replacement = String(replaceText ?? "");
+    const lower = src.toLowerCase();
+    if (!all) {
+      const idx = lower.indexOf(findLower);
+      if (idx < 0) return { text: src, count: 0 };
+      return { text: src.slice(0, idx) + replacement + src.slice(idx + find.length), count: 1 };
+    }
+    let out = "";
+    let i = 0;
+    let count = 0;
+    while (i < src.length) {
+      const idx = lower.indexOf(findLower, i);
+      if (idx < 0) {
+        out += src.slice(i);
+        break;
+      }
+      out += src.slice(i, idx) + replacement;
+      i = idx + find.length;
+      count++;
+    }
+    return { text: out, count };
+  }
 
-      overlay.innerHTML = `
-        <div class="vno-dialog-box" style="width: 380px;" role="dialog" aria-modal="true" aria-labelledby="vno-find-title">
-          <div class="vno-dialog-header">
-            <span id="vno-find-title" style="font-weight:600;font-size:14px;color:#0f172a;">${titleText}</span>
-            <button type="button" class="vno-btn vno-dialog-close-btn" aria-label="Đóng">&times;</button>
-          </div>
-          <div class="vno-dialog-body" style="padding:16px;">
-            <div style="margin-bottom:12px;">
-              <label for="vno-find-query-input" style="display:block;font-size:12px;font-weight:500;color:#334155;margin-bottom:4px;">Nội dung cần tìm:</label>
-              <input type="text" id="vno-find-query-input" class="vno-input" style="width:100%;box-sizing:border-box;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;" placeholder="Nhập từ khóa hoặc số..." />
-            </div>
-            <div id="vno-find-status" style="font-size:12px;color:#64748b;min-height:18px;margin-bottom:8px;"></div>
-            <div style="display:flex;justify-content:flex-end;gap:8px;">
-              <button type="button" class="vno-btn" id="vno-find-cancel-btn" style="padding:6px 12px;">Đóng</button>
-              <button type="button" class="vno-btn vno-btn-primary" id="vno-find-next-btn" style="padding:6px 14px;background:#0f6d38;color:#fff;border-radius:4px;border:none;cursor:pointer;">Tìm tiếp</button>
-            </div>
-          </div>
-        </div>
-      `;
+  _replaceCellMatch(item, findText, replaceText, all) {
+    if (!item || item.sparkline || item.isArrayFormula) return null;
+    const formula = String(item.formula ?? "");
+    if (formula) {
+      const next = this._replaceIgnoreCase(formula, findText, replaceText, all);
+      if (!next.count) return null;
+      return { formula: next.text, count: next.count };
+    }
+    const valStr = String(item.val ?? "");
+    const next = this._replaceIgnoreCase(valStr, findText, replaceText, all);
+    if (!next.count) return null;
+    return { val: next.text, count: next.count };
+  }
 
-      document.body.appendChild(overlay);
+  findNext(query) {
+    const needle = String(query ?? "").trim();
+    if (!needle) return false;
+    const needleLower = needle.toLowerCase();
+    const entries = Array.from(this.cellsData.entries());
+    if (!entries.length) return false;
+    if (this._findLastQuery !== needleLower) {
+      this._findLastCoord = null;
+      this._findLastQuery = needleLower;
+    }
+    let startIndex = 0;
+    if (this._findLastCoord) {
+      const idx = entries.findIndex(([coord]) => coord === this._findLastCoord);
+      if (idx >= 0) startIndex = idx + 1;
+    }
+    for (let i = 0; i < entries.length; i++) {
+      const [coord, item] = entries[(startIndex + i) % entries.length];
+      if (!this._cellTextMatchesFind(item, needleLower)) continue;
+      this._findLastCoord = coord;
+      const [col, row] = this._splitCoord(coord);
+      this.selectCell(col, row);
+      return coord;
+    }
+    return false;
+  }
 
-      const input = overlay.querySelector("#vno-find-query-input");
-      const status = overlay.querySelector("#vno-find-status");
-      const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
-      const cancelBtn = overlay.querySelector("#vno-find-cancel-btn");
-      const nextBtn = overlay.querySelector("#vno-find-next-btn");
+  replaceOne(findText, replaceText) {
+    if (this._guardProtectedMutation()) return false;
+    const needle = String(findText ?? "").trim();
+    if (!needle) return false;
+    const entries = Array.from(this.cellsData.entries());
+    if (!entries.length) return false;
+    const selectedKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const startIndex = Math.max(0, entries.findIndex(([coord]) => coord === selectedKey));
+    for (let i = 0; i < entries.length; i++) {
+      const [coord, item] = entries[(startIndex + i) % entries.length];
+      const patch = this._replaceCellMatch(item, needle, replaceText, false);
+      if (!patch) continue;
+      const [col, row] = this._splitCoord(coord);
+      this.setCellValue(col, row, patch.formula != null ? patch.formula : patch.val, true);
+      this._findLastCoord = coord;
+      this._findLastQuery = needle.toLowerCase();
+      this.selectCell(col, row);
+      return true;
+    }
+    return false;
+  }
 
-      let lastFoundCoord = null;
+  replaceAll(findText, replaceText) {
+    if (this._guardProtectedMutation()) return 0;
+    const needle = String(findText ?? "").trim();
+    if (!needle) return 0;
+    const before = {};
+    const after = {};
+    let total = 0;
+    for (const [coord, item] of [...this.cellsData.entries()]) {
+      const patch = this._replaceCellMatch(item, needle, replaceText, true);
+      if (!patch) continue;
+      before[coord] = structuredClone(item);
+      const [col, row] = this._splitCoord(coord);
+      this.setCellValue(col, row, patch.formula != null ? patch.formula : patch.val, false);
+      after[coord] = structuredClone(this.cellsData.get(coord));
+      total += patch.count;
+    }
+    if (!total) return 0;
+    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
+    return total;
+  }
 
-      const doFind = () => {
-        const query = (input?.value || "").trim().toLowerCase();
-        if (!query) {
-          if (status) {
-            status.textContent = "Vui lòng nhập nội dung cần tìm";
-            status.style.color = "#dc2626";
-          }
-          return;
-        }
-
-        const entries = Array.from(this.cellsData.entries());
-        if (entries.length === 0) {
-          if (status) {
-            status.textContent = "Bảng tính hiện chưa có dữ liệu";
-            status.style.color = "#dc2626";
-          }
-          return;
-        }
-
-        let startIndex = 0;
-        if (lastFoundCoord) {
-          const idx = entries.findIndex(([c]) => c === lastFoundCoord);
-          if (idx >= 0) startIndex = idx + 1;
-        }
-
-        let found = null;
-        for (let i = 0; i < entries.length; i++) {
-          const checkIdx = (startIndex + i) % entries.length;
-          const [coord, item] = entries[checkIdx];
-          const valStr = String(item.val ?? "").toLowerCase();
-          const formulaStr = String(item.formula ?? "").toLowerCase();
-          if (valStr.includes(query) || formulaStr.includes(query)) {
-            found = coord;
-            break;
-          }
-        }
-
-        if (found) {
-          lastFoundCoord = found;
-          const [c, r] = this._splitCoord(found);
-          this.selectCell(c, r);
-          if (status) {
-            status.textContent = `Đã tìm thấy tại ô ${found}`;
-            status.style.color = "#0f6d38";
-          }
-        } else {
-          if (status) {
-            status.textContent = `Không tìm thấy "${query}"`;
-            status.style.color = "#dc2626";
-          }
-        }
-      };
-
-      const close = () => {
-        document.removeEventListener("keydown", onKey);
-        overlay.remove();
-        this.container?.focus?.();
-        resolve(true);
-      };
-
-      const onKey = e => {
-        if (e.key === "Escape") close();
-        if (e.key === "Enter" && e.target === input) {
-          e.preventDefault();
-          doFind();
-        }
-        trapFocus(overlay, e);
-      };
-
-      document.addEventListener("keydown", onKey);
-      closeBtn?.addEventListener("click", close);
-      cancelBtn?.addEventListener("click", close);
-      nextBtn?.addEventListener("click", doFind);
-      input?.focus();
+  showFindDialog(isReplace = false) {
+    if (typeof document === "undefined" || typeof document.createElement !== "function" || !document.body?.appendChild) {
+      return true;
+    }
+    showFindReplaceDialog({
+      isReplace: !!isReplace,
+      onFind: (text) => this.findNext(text),
+      onReplace: (findText, replaceText) => {
+        if (!findText) return false;
+        return this.replaceOne(findText, replaceText);
+      },
+      onReplaceAll: (findText, replaceText) => {
+        if (!findText) return 0;
+        return this.replaceAll(findText, replaceText);
+      }
     });
+    return true;
   }
 
   setStyle(prop, val, recordUndo = true) {
@@ -5196,6 +5217,18 @@ export class SheetGridController {
       ? (steps.find(size => size > current) || steps[steps.length - 1])
       : ([...steps].reverse().find(size => size < current) || steps[0]);
     return this.setFontSize(next);
+  }
+
+  setCellOrientation(value) {
+    const allowed = new Set([0, 45, -45, 90, -90, 255]);
+    const rotation = Number(value);
+    if (!allowed.has(rotation)) return false;
+    const result = this.setStyle("textRotation", rotation);
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const cell = this.container.querySelector?.('.vno-grid-cell[data-coord="' + key + '"]');
+    const item = this.cellsData.get(key);
+    if (cell && item) this._renderCellVisual(cell, item, this.selectedCoord.c, this.selectedCoord.r);
+    return result;
   }
 
   toggleWrapText() {
@@ -8090,9 +8123,23 @@ export class SheetGridController {
   _applyStylesToDom(dom, styles) {
     if (!dom || !styles) return;
     for (const [k, v] of Object.entries(styles)) {
-      if (k === "numberFormat") continue;
+      if (k === "numberFormat" || k === "textRotation") continue;
       dom.style[k] = v;
     }
+    this._applyTextRotationToDom(dom, styles.textRotation);
+  }
+
+  _applyTextRotationToDom(dom, rotation) {
+    if (!dom) return;
+    const rot = Number(rotation);
+    if (!Number.isFinite(rot) || rot === 0) return;
+    if (rot === 255) {
+      dom.style.writingMode = "vertical-rl";
+      dom.style.textOrientation = "upright";
+      return;
+    }
+    dom.style.transform = `rotate(${-rot}deg)`;
+    dom.style.transformOrigin = "center center";
   }
 
   _renderCellVisual(td, itm, col, row) {

@@ -4,7 +4,7 @@
  */
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
-import { showAlertDialog, showPromptDialog } from "../../../platform/ui-kit/dialogs.js";
+import { showAlertDialog, showPromptDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { getVnCommand } from "../common/command-dispatch-mapper.js";
@@ -89,6 +89,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.cell.alignMiddle", () => this.grid.setStyle("verticalAlign", "middle"));
     globalCommandBus.bindHandler("sheet.cell.alignBottom", () => this.grid.setStyle("verticalAlign", "bottom"));
     globalCommandBus.bindHandler("sheet.cell.wrapText", () => this.grid.toggleWrapText());
+    globalCommandBus.bindHandler("sheet.cell.orientation", (value) => this.grid.setCellOrientation(value));
     globalCommandBus.bindHandler("sheet.cell.indentIncrease", () => this.grid.adjustIndent(1));
     globalCommandBus.bindHandler("sheet.cell.indentDecrease", () => this.grid.adjustIndent(-1));
     globalCommandBus.bindHandler("sheet.cell.mergeCenter", () => this.grid.mergeCells("mergeCenter"));
@@ -307,9 +308,32 @@ export class SheetAdapter {
       options = options || {};
       return this.grid.clearContents ? this.grid.clearContents(options.range) : false;
     });
-    globalCommandBus.bindHandler("common.edit.find", () => {
-      return this.grid.showFindDialog ? this.grid.showFindDialog() : false;
-    });
+    globalCommandBus.bindHandler("common.edit.find", () => this._showFindReplaceDialog(false));
+    globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
+  }
+
+  _showFindReplaceDialog(isReplace = false) {
+    if (!this.grid) return false;
+    if (typeof document === "undefined" || typeof document.createElement !== "function" || !document.body?.appendChild) {
+      return true;
+    }
+    try {
+      showFindReplaceDialog({
+        isReplace: !!isReplace,
+        onFind: (text) => this.grid.findNext ? this.grid.findNext(text) : false,
+        onReplace: (findText, replaceText) => {
+          if (!findText) return false;
+          return this.grid.replaceOne ? this.grid.replaceOne(findText, replaceText) : false;
+        },
+        onReplaceAll: (findText, replaceText) => {
+          if (!findText) return 0;
+          return this.grid.replaceAll ? this.grid.replaceAll(findText, replaceText) : 0;
+        }
+      });
+    } catch (_) {
+      return true;
+    }
+    return true;
   }
 
 
@@ -711,7 +735,66 @@ export class SheetAdapter {
     if (!item) return false;
     if (item.formula) return true;
     if (item.sparkline) return true;
+    if (this._normalizedTextRotation(item.style?.textRotation) != null) return true;
     return item.val !== "" && item.val !== undefined && item.val !== null;
+  }
+
+  _normalizedTextRotation(value) {
+    const rotation = Number(value);
+    if (rotation === 255) return 255;
+    if ([45, -45, 90, -90].includes(rotation)) return rotation;
+    return null;
+  }
+
+  _odfRotationAttrs(textRotation) {
+    if (textRotation === 255) return 'style:direction="ttb" style:rotation-angle="0"';
+    const signed = Number(textRotation);
+    const angle = signed < 0 ? 360 + signed : signed;
+    return `style:rotation-angle="${angle}"`;
+  }
+
+  _rotationCellStyleXml(styleName, textRotation, dataStyleName = "") {
+    const dataAttr = dataStyleName ? ` style:data-style-name="${this._escapeXml(dataStyleName)}"` : "";
+    return `<style:style style:name="${this._escapeXml(styleName)}" style:family="table-cell"${dataAttr}><style:table-cell-properties ${this._odfRotationAttrs(textRotation)}/></style:style>`;
+  }
+
+  _collectRotationStyles(sheetNames) {
+    const rotations = new Map();
+    for (const sheetName of sheetNames) {
+      const cells = this.grid.sheetsData?.[sheetName] || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null) || new Map();
+      for (const item of cells.values()) {
+        const rotation = this._normalizedTextRotation(item?.style?.textRotation);
+        if (rotation == null) continue;
+        const key = String(rotation);
+        if (!rotations.has(key)) {
+          rotations.set(key, { textRotation: rotation, styleName: `ceRot${rotations.size + 1}` });
+        }
+      }
+    }
+    return rotations;
+  }
+
+  _textRotationFromOdf(direction, angleRaw) {
+    if (String(direction || "").toLowerCase() === "ttb") return 255;
+    if (angleRaw == null || angleRaw === "") return null;
+    const angle = Number(String(angleRaw).replace(/deg$/i, ""));
+    if (!Number.isFinite(angle) || angle === 0) return null;
+    const signed = angle > 180 ? angle - 360 : angle;
+    return this._normalizedTextRotation(signed);
+  }
+
+  _parseRotationStyles(xmlText) {
+    const rotations = new Map();
+    String(xmlText || "").replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrs, body) => {
+      const name = this._unescapeXml(attrs.match(/style:name=["']([^"']+)["']/i)?.[1] || "");
+      if (!name) return "";
+      const direction = body.match(/style:direction=["']([^"']+)["']/i)?.[1];
+      const angleRaw = body.match(/style:rotation-angle=["']([^"']+)["']/i)?.[1];
+      const rotation = this._textRotationFromOdf(direction, angleRaw);
+      if (rotation != null) rotations.set(name, rotation);
+      return "";
+    });
+    return rotations;
   }
 
   _chartSeriesPlan(sheetName, chart) {
@@ -1022,6 +1105,8 @@ export class SheetAdapter {
     if (sheetNames.length === 0) sheetNames.push(this.grid.activeSheet || "Trang tính 1");
 
     const numberFormats = this._collectNumberFormats(sheetNames);
+    const rotationStyles = this._collectRotationStyles(sheetNames);
+    const rotationCombinedStyles = [];
     const conditionalNamedStyles = [];
     const conditionalBaseStyles = [];
     const conditionalStyleNames = new Map();
@@ -1324,6 +1409,21 @@ export class SheetAdapter {
               conditionalBaseStyles.push(`<style:style style:name="${cellStyleName}" style:family="table-cell" style:data-style-name="${formatStyle.dataStyle}">${conditionalBase.maps}</style:style>`);
             }
           }
+          const rotation = this._normalizedTextRotation(item.style?.textRotation);
+          const rotStyle = rotation != null ? rotationStyles.get(String(rotation)) : null;
+          if (rotStyle) {
+            if (cellStyleName) {
+              const combined = `${cellStyleName}_${rotStyle.styleName}`;
+              const dataAttr = formatStyle ? ` style:data-style-name="${formatStyle.dataStyle}"` : "";
+              const maps = conditionalBase?.maps || "";
+              if (!rotationCombinedStyles.some(style => style.includes(`style:name="${combined}"`))) {
+                rotationCombinedStyles.push(`<style:style style:name="${combined}" style:family="table-cell"${dataAttr}>${maps}<style:table-cell-properties ${this._odfRotationAttrs(rotStyle.textRotation)}/></style:style>`);
+              }
+              cellStyleName = combined;
+            } else {
+              cellStyleName = rotStyle.styleName;
+            }
+          }
           const validationName = cellValidations.get(coordinate);
           const validationAttr = validationName ? ` table:content-validation-name="${validationName}"` : "";
           const merge = mergeAnchors.get(coordinate);
@@ -1421,7 +1521,7 @@ export class SheetAdapter {
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
   ${conditionalNamedStyles.length ? `<office:styles>${conditionalNamedStyles.join("")}</office:styles>` : ""}
-  <office:automatic-styles>${pageLayouts.join("")}${tablePageStyles.join("")}${dimensionStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${conditionalBaseStyles.join("")}</office:automatic-styles>
+  <office:automatic-styles>${pageLayouts.join("")}${tablePageStyles.join("")}${dimensionStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${[...rotationStyles.values()].map(style => this._rotationCellStyleXml(style.styleName, style.textRotation)).join("")}${rotationCombinedStyles.join("")}${conditionalBaseStyles.join("")}</office:automatic-styles>
   <office:master-styles>${masterPages.join("")}</office:master-styles>
   <office:settings>
     <config:config-item-set config:name="ooo:view-settings">
@@ -1436,7 +1536,7 @@ export class SheetAdapter {
 </office:document>`;
   }
 
-  _cellFromFodsAttributes(attributes, text, numberStyles = new Map()) {
+  _cellFromFodsAttributes(attributes, text, numberStyles = new Map(), rotationStyles = new Map()) {
     const get = name => attributes[name] ?? "";
     const valueType = get("office:value-type");
     let value = text;
@@ -1466,6 +1566,8 @@ export class SheetAdapter {
     } else if (valueType === "currency") {
       style.numberFormat = { category: "currency", currencySymbol: "₫", decimals: 0, useThousands: true };
     }
+    const rotation = rotationStyles.get(get("table:style-name"));
+    if (rotation != null) style.textRotation = rotation;
     return { val: value, formula, style };
   }
 
@@ -1829,6 +1931,7 @@ export class SheetAdapter {
     if (!xmlText) return workbook;
     const tableXml = this._xmlWithoutEmbeddedObjects(xmlText);
     const numberStyles = this._parseNumberStyles(tableXml);
+    const rotationStyles = this._parseRotationStyles(tableXml);
     const rowColStyles = this._parseRowColStyles(tableXml);
     const defaultRowHeight = this.grid?.rowHeight || 26;
     const defaultColWidth = this.grid?.defaultColWidth || 100;
@@ -1935,7 +2038,7 @@ export class SheetAdapter {
                 const text = paragraphs.map(paragraph => paragraph.textContent || "").join("\n");
                 const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"];
                 if (hasValue && !isCovered) {
-                  const item = this._cellFromFodsAttributes(attributes, text, numberStyles);
+                  const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles);
                   const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);
                   const matrixRows = Math.max(1, Number(attributes["table:number-matrix-rows-spanned"]) || 1);
                   if ((attributes["table:number-matrix-columns-spanned"] || attributes["table:number-matrix-rows-spanned"]) && item.formula) {
@@ -2081,7 +2184,7 @@ export class SheetAdapter {
               const text = paragraphs.join("\n");
               const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotationMatch || attributes["table:content-validation-name"];
               if (hasValue && !isCovered) {
-                const item = this._cellFromFodsAttributes(attributes, text, numberStyles);
+                const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles);
                 const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);
                 const matrixRows = Math.max(1, Number(attributes["table:number-matrix-rows-spanned"]) || 1);
                 if ((attributes["table:number-matrix-columns-spanned"] || attributes["table:number-matrix-rows-spanned"]) && item.formula) {
@@ -2548,6 +2651,9 @@ export class SheetAdapter {
       case "sheet.cell.wrapText":
         return this.grid.toggleWrapText();
 
+      case "sheet.cell.orientation":
+        return this.grid.setCellOrientation ? this.grid.setCellOrientation(args) : false;
+
       case "sheet.cell.indentIncrease":
         return this.grid.adjustIndent(1);
 
@@ -2833,7 +2939,10 @@ export class SheetAdapter {
         return this.grid.clearContents ? this.grid.clearContents(args?.range) : false;
 
       case "common.edit.find":
-        return this.grid.showFindDialog ? this.grid.showFindDialog() : false;
+        return this._showFindReplaceDialog(false);
+
+      case "common.edit.replace":
+        return this._showFindReplaceDialog(true);
 
       case "sheet.chart.insert":
         this.grid.openChartBuilder();

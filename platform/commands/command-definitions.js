@@ -201,6 +201,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.cell.alignMiddle", category: "format", label: "Căn giữa dọc", icon: "alignMiddle", tooltip: "Căn nội dung vào giữa ô theo chiều dọc", isToggle: true },
   { id: "sheet.cell.alignBottom", category: "format", label: "Căn dưới", icon: "alignBottom", tooltip: "Căn nội dung xuống dưới ô", isToggle: true },
   { id: "sheet.cell.wrapText", category: "format", label: "Ngắt dòng tự động", icon: "wrapText", tooltip: "Tự động xuống dòng theo độ rộng cột", isToggle: true },
+  { id: "sheet.cell.orientation", category: "format", label: "Hướng chữ", icon: "textOrientation", tooltip: "Xoay chữ trong ô (0°, 45°, -45°, 90°, -90° hoặc dọc từ dưới lên)" },
   { id: "sheet.cell.indentIncrease", category: "format", label: "Tăng thụt lề", icon: "indentInc", tooltip: "Tăng thụt lề nội dung ô" },
   { id: "sheet.cell.indentDecrease", category: "format", label: "Giảm thụt lề", icon: "indentDec", tooltip: "Giảm thụt lề nội dung ô" },
   { id: "sheet.cell.mergeCenter", category: "cell", label: "Trộn & căn giữa", icon: "mergeCells", tooltip: "Trộn vùng chọn thành một ô và căn giữa" },

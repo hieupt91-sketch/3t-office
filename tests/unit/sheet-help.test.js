@@ -142,7 +142,7 @@ export async function runSheetHelpTests() {
     const byId = Object.fromEntries(SHEET_HELP_ENTRIES.map((entry) => [entry.id, entry]));
     const expectCmds = {
       "sheet.cell.font": ["sheet.cell.bold", "sheet.font.family", "sheet.cell.fillColor"],
-      "sheet.cell.alignment": ["sheet.cell.mergeCenter", "sheet.cell.wrapText", "sheet.cell.alignMiddle"],
+      "sheet.cell.alignment": ["sheet.cell.mergeCenter", "sheet.cell.wrapText", "sheet.cell.alignMiddle", "sheet.cell.orientation"],
       "sheet.data.sortFilter": ["sheet.data.sortAsc", "sheet.data.filter"],
       "sheet.data.toolsBasic": ["sheet.data.textToColumns", "sheet.data.flashFill", "sheet.data.removeDuplicates"],
       "sheet.data.outline": ["sheet.data.group", "sheet.data.subtotal"],
@@ -186,7 +186,8 @@ export async function runSheetHelpTests() {
       "sheet.page.printAreaBreaks",
       "sheet.insert.sparklines",
       "sheet.style.tableAndCells",
-      "sheet.edit.fillAndClear"
+      "sheet.edit.fillAndClear",
+      "sheet.edit.findReplace"
     ];
     for (const id of required) {
       if (!ids.includes(id)) throw new Error(`Thiếu bài hướng dẫn ${id}`);
@@ -205,7 +206,8 @@ export async function runSheetHelpTests() {
       "sheet.page.printAreaBreaks": ["sheet.page.setPrintArea", "sheet.page.insertPageBreak"],
       "sheet.insert.sparklines": ["sheet.insert.sparklineLine", "sheet.insert.sparklineColumn"],
       "sheet.style.tableAndCells": ["sheet.style.formatAsTable", "sheet.style.cellStyles"],
-      "sheet.edit.fillAndClear": ["sheet.edit.fillDown", "sheet.edit.clearContents"]
+      "sheet.edit.fillAndClear": ["sheet.edit.fillDown", "sheet.edit.clearContents"],
+      "sheet.edit.findReplace": ["common.edit.find", "common.edit.replace"]
     };
     for (const [id, cmds] of Object.entries(expectCmds)) {
       const entry = byId[id];
@@ -226,6 +228,9 @@ export async function runSheetHelpTests() {
     }
     if (byId["sheet.page.printAreaBreaks"].ribbon.group !== "Vùng in") {
       throw new Error("Bài vùng in phải trỏ nhóm Vùng in");
+    }
+    if (byId["sheet.edit.findReplace"].ribbon.group !== "Chỉnh sửa") {
+      throw new Error("Bài Tìm/Thay thế phải trỏ nhóm Chỉnh sửa");
     }
   });
 

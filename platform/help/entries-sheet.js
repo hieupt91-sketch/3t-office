@@ -359,6 +359,7 @@ export const SHEET_HELP_ENTRIES = [
       "sheet.cell.alignCenter",
       "sheet.cell.alignRight",
       "sheet.cell.wrapText",
+      "sheet.cell.orientation",
       "sheet.cell.indentDecrease",
       "sheet.cell.indentIncrease",
       "sheet.cell.mergeCenter",
@@ -367,12 +368,12 @@ export const SHEET_HELP_ENTRIES = [
       "sheet.cell.unmerge"
     ],
     title: "Căn chỉnh, ngắt dòng và trộn ô",
-    summary: "Căn ngang/dọc nội dung trong ô, tự xuống dòng theo độ rộng cột, tăng/giảm thụt lề, và trộn vùng chọn (cả khối, theo hàng, hoặc tách lại). Trộn nhiều ô có dữ liệu sẽ hỏi xác nhận — chỉ giữ ô trên-trái.",
+    summary: "Căn ngang/dọc nội dung trong ô, xoay chữ (0°/45°/-45°/90°/-90° hoặc dọc từ dưới lên), tự xuống dòng theo độ rộng cột, tăng/giảm thụt lề, và trộn vùng chọn (cả khối, theo hàng, hoặc tách lại). Trộn nhiều ô có dữ liệu sẽ hỏi xác nhận — chỉ giữ ô trên-trái.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Căn chỉnh" },
-    keywords: ["căn giữa", "căn trái", "căn phải", "căn trên", "ngắt dòng", "wrap", "thụt lề", "trộn ô", "merge", "unmerge", "hợp nhất"],
+    keywords: ["căn giữa", "căn trái", "căn phải", "căn trên", "ngắt dòng", "wrap", "thụt lề", "trộn ô", "merge", "unmerge", "hợp nhất", "xoay chữ", "orientation", "hướng chữ"],
     steps: [
-      "Chọn ô hoặc vùng. Tab Trang đầu, nhóm Căn chỉnh: hàng trên Căn trên / Căn giữa dọc / Căn dưới; hàng giữa Căn trái / giữa / phải, Ngắt dòng tự động, Giảm/Tăng thụt lề; hàng dưới bốn nút trộn ô.",
-      "Ngắt dòng tự động cho chữ dài xuống dòng trong ô và tăng chiều cao hàng. Tăng thụt lề thêm 12 px (tối đa 56 px); Giảm thụt lề hạ dần về 8 px.",
+      "Chọn ô hoặc vùng. Tab Trang đầu, nhóm Căn chỉnh: hàng trên Căn trên / Căn giữa dọc / Căn dưới / Ngắt dòng tự động / Hướng chữ (dropdown); hàng giữa Căn trái / giữa / phải, Giảm/Tăng thụt lề; hàng dưới bốn nút trộn ô.",
+      "Hướng chữ: mở dropdown chọn 0° (ngang), 45°, -45°, 90° (xoay lên), -90° (xoay xuống), hoặc «Dọc từ dưới lên» (chữ xếp dọc, Excel textRotation 255). Góc lưu trong kiểu ô và khi Lưu ra file thật (FODS/XLSX). Ngắt dòng tự động cho chữ dài xuống dòng trong ô và tăng chiều cao hàng. Tăng thụt lề thêm 12 px (tối đa 56 px); Giảm thụt lề hạ dần về 8 px.",
       "Bôi ít nhất 2 ô rồi: Trộn & căn giữa gộp thành một ô và căn giữa; Trộn ô gộp nhưng giữ căn đang có; Trộn theo hàng gộp riêng từng hàng trong vùng. Nếu nhiều ô có dữ liệu, hộp «Trộn ô» cảnh báo chỉ giữ ô trên cùng bên trái — chọn Tiếp tục gộp hoặc Hủy.",
       "Tách ô hoàn tác vùng đã trộn (dữ liệu đã mất khi gộp không tự hiện lại, trừ khi Ctrl+Z ngay). Không trộn đè lên vùng đã trộn sẵn."
     ]
@@ -779,6 +780,21 @@ export const SHEET_HELP_ENTRIES = [
       "Điền xuống: bôi từ ô nguồn xuống các ô đích — ô đầu là nguồn, các ô dưới nhận bản sao; công thức =A1 thành =A2, =A3… (lệch hàng). Nếu chỉ chọn 1 hàng, nguồn là hàng ngay phía trên (hàng 1 thì không điền được). Điền phải tương tự theo cột; chọn 1 cột thì lấy cột bên trái.",
       "Xóa tất cả: xóa giá trị, công thức và style. Xóa định dạng: giữ số/công thức, bỏ màu/viền/cỡ chữ. Xóa nội dung: xóa chữ và công thức, giữ style. Sheet đang bảo vệ thì Xóa tất cả / Xóa nội dung / Điền bị chặn.",
       "Ctrl+Z hoàn tác cả khối điền hoặc xóa. Delete mặc định gần với xóa nội dung, không xóa định dạng."
+    ]
+  },
+  {
+    id: "sheet.edit.findReplace",
+    app: "sheet",
+    commandIds: ["common.edit.find", "common.edit.replace"],
+    title: "Tìm và thay thế trong bảng tính",
+    summary: "Tìm chuỗi trong giá trị hoặc công thức của ô (Ctrl+F). Thay thế (Ctrl+H) mở cùng hộp thoại với ô «Thay thế bằng» và nút Thay thế / Thay thế tất cả — thay trên ô thật, không phải HTML.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["tìm", "thay thế", "find", "replace", "ctrl+f", "ctrl+h", "tìm kiếm"],
+    steps: [
+      "Tab Trang đầu, nhóm Chỉnh sửa (cột cuối, cạnh Sắp xếp): nút Tìm kiếm (Ctrl+F) và Thay thế (Ctrl+H). Cùng hộp «Tìm kiếm và Thay thế» dùng chung Writer/Slides.",
+      "Tìm kiếm: nhập chuỗi vào «Tìm kiếm», nhấn Tìm tiếp hoặc Enter. Ô khớp (giá trị hiển thị hoặc công thức, không phân biệt hoa/thường) được chọn. Tìm tiếp vòng quanh các ô đã có dữ liệu trên sheet đang mở.",
+      "Thay thế: Ctrl+H hoặc nút Thay thế — ô «Thay thế bằng» và nút Thay thế / Thay thế tất cả hiện sẵn (checkbox «Hiển thị tùy chọn thay thế» cũng bật được từ chế độ Tìm). Thay thế đổi lần khớp tại ô đang chọn, hoặc nhảy tới ô khớp tiếp rồi đổi. Thay thế tất cả đổi mọi lần khớp trên sheet, một bước Undo (Ctrl+Z) hoàn tác cả khối.",
+      "Công thức bắt đầu bằng = được sửa trong công thức rồi tính lại; ô thường sửa giá trị. Ô công thức mảng và sparkline bị bỏ qua. Sheet đang bảo vệ thì Thay thế bị chặn."
     ]
   },
   {

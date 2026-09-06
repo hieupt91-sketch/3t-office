@@ -74,6 +74,7 @@ export const enStrings = {
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "VN AI Assistant" },
     group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", help: "Help", aiAnalysis: "AI Data Analysis" },
     editing: { fill: "Fill", clear: "Clear" },
+    alignment: { orientation: "Orientation" },
     cells: { format: "Format" }
   },
   slidesRibbon: {
@@ -260,6 +261,7 @@ export const enStrings = {
     ,"sheet.cell.alignMiddle": { label: "Middle Align", tooltip: "Center content vertically in the cell" }
     ,"sheet.cell.alignBottom": { label: "Bottom Align", tooltip: "Align content to the bottom of the cell" }
     ,"sheet.cell.wrapText": { label: "Wrap Text", tooltip: "Wrap content to fit the column width" }
+    ,"sheet.cell.orientation": { label: "Orientation", tooltip: "Rotate cell text: 0°, 45°, -45°, 90°, -90°, or stacked vertical" }
     ,"sheet.cell.indentIncrease": { label: "Increase Indent", tooltip: "Increase cell content indentation" }
     ,"sheet.cell.indentDecrease": { label: "Decrease Indent", tooltip: "Decrease cell content indentation" }
     ,"sheet.format.quickCategory": { label: "Number Format", tooltip: "Choose a number format category" }

@@ -134,6 +134,7 @@ import { runSlidesPptxShowPropertiesTests } from "./unit/slides-pptx-show-proper
 import { runSlidesPptxSetupShowOpenOverlayTests } from "./unit/slides-pptx-setup-show-open-overlay.test.js";
 import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.test.js";
 import { runWriterLineNumbersTests } from "./unit/writer-line-numbers.test.js";
+import { runSheetCellOrientationTests } from "./unit/sheet-cell-orientation.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -275,7 +276,8 @@ async function runAll() {
     { title: "115. Unit Tests — Slides native PPTX post-process (p:showPr Set Up Show)", runner: runSlidesPptxShowPropertiesTests },
     { title: "116. Unit Tests — Slides native PPTX open overlay (p:showPr → vno Set Up Show)", runner: runSlidesPptxSetupShowOpenOverlayTests },
     { title: "117. Unit Tests — Writer paragraph spacing before/after (pt)", runner: runWriterParagraphSpacingTests },
-    { title: "118. Unit Tests — Writer line numbers (FODT linenumbering-configuration)", runner: runWriterLineNumbersTests }
+    { title: "118. Unit Tests — Writer line numbers (FODT linenumbering-configuration)", runner: runWriterLineNumbersTests },
+    { title: "119. Unit Tests — VN Sheet cell text orientation (FODS rotation + XLSX textRotation)", runner: runSheetCellOrientationTests }
   ];
 
   for (const suite of suites) {
