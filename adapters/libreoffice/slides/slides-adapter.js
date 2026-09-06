@@ -2285,6 +2285,10 @@ export class SlidesAdapter {
 
       const vnTransitionAttr = slide.transition?.type === "morph" ? ' vno:transition="morph"' : "";
       const section = sections.find(item => item.id === slide.sectionId);
+      // FODP keeps the group on draw:page. LibreOffice FODP→PPTX drops
+      // vno:section-* (probe: no p:extLst). File → Lưu PPTX post-process
+      // inserts p14:sectionLst into ppt/presentation.xml — see
+      // pptx-section-list.js / ooxml_zip_patch.postprocess_slides_pptx.
       const vnSectionAttrs = section
         ? ` vno:section-id="${this._escapeXml(section.id)}" vno:section-name="${this._escapeXml(section.name)}"`
         : "";

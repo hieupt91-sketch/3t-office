@@ -5,6 +5,7 @@ Python twin of:
   adapters/libreoffice/sheet/xlsx-workbook-protection.js
   adapters/libreoffice/sheet/xlsx-native-postprocess.js
   adapters/libreoffice/slides/pptx-master-logo.js
+  adapters/libreoffice/slides/pptx-section-list.js
   adapters/libreoffice/slides/pptx-native-postprocess.js
 
 main.py calls:
@@ -22,6 +23,7 @@ import io
 import json
 import re
 import sys
+import uuid
 import zipfile
 
 XLSX_WORKBOOK_ENTRY = "xl/workbook.xml"
@@ -31,6 +33,11 @@ SLIDE_MASTER_ENTRY_RE = re.compile(r"^ppt/slideMasters/slideMaster\d+\.xml$", re
 CM_EMU = 360000
 DEFAULT_SLIDE_CX = 28 * CM_EMU
 DEFAULT_SLIDE_CY = round(15.75 * CM_EMU)
+P14_NS = "http://schemas.microsoft.com/office/powerpoint/2010/main"
+PRESENTATION_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
+SECTION_LIST_URI = "{521415D9-36F7-43E2-AB2F-B90AF26B5E84}"
+DEFAULT_SECTION_NAME = "Default Section"
+SECTION_GUID_NAME_PREFIX = "urn:vn-office:slides:section:"
 
 _PROTECTION_OPEN_RE = re.compile(
     r"<((?:[\w]+:)?workbookProtection)\b([^>]*?)(/?)\s*>",
@@ -72,6 +79,32 @@ _CNVPR_ID_RE = re.compile(r"<(?:[\w]+:)?cNvPr\b[^>]*\bid=[\"'](\d+)[\"']", re.IG
 _SP_TREE_CLOSE_RE = re.compile(r"</(?:[\w]+:)?spTree\s*>", re.IGNORECASE)
 _SP_BLOCK_RE = re.compile(r"<(?:[\w]+:)?sp\b[\s\S]*?</(?:[\w]+:)?sp>", re.IGNORECASE)
 _PH_RE = re.compile(r"<(?:[\w]+:)?ph\b", re.IGNORECASE)
+_PAGE_OPEN_RE = re.compile(r"<draw:page(?![-a-zA-Z])([^>]*)>", re.IGNORECASE)
+_SECTION_ID_ATTR_RE = re.compile(r'\bvno:section-id\s*=\s*["\']([^"\']*)["\']', re.IGNORECASE)
+_SECTION_NAME_ATTR_RE = re.compile(r'\bvno:section-name\s*=\s*["\']([^"\']*)["\']', re.IGNORECASE)
+_PRESENTATION_CLOSE_RE = re.compile(r"</(?:[\w]+:)?presentation\s*>", re.IGNORECASE)
+_EXTLST_RE = re.compile(
+    r"<(?:[\w]+:)?extLst\b([^>]*)(?:/>|>([\s\S]*?)</(?:[\w]+:)?extLst\s*>)",
+    re.IGNORECASE,
+)
+_SECTION_EXT_RE = re.compile(
+    r"<(?:[\w]+:)?ext\b[^>]*\buri\s*=\s*[\"']\{?521415D9-36F7-43E2-AB2F-B90AF26B5E84\}?[\"'][^>]*>"
+    r"[\s\S]*?</(?:[\w]+:)?ext\s*>",
+    re.IGNORECASE,
+)
+_SLD_SZ_OR_LATER_RE = re.compile(
+    r"<(?:[\w]+:)?(?:sldSz|notesSz|embeddedFontLst|custShowLst|defaultTextStyle|extLst)\b",
+    re.IGNORECASE,
+)
+_SLD_ID_LST_RE = re.compile(
+    r"<(?:[\w]+:)?sldIdLst\b[^>]*>([\s\S]*?)</(?:[\w]+:)?sldIdLst>",
+    re.IGNORECASE,
+)
+_SLD_ID_RE = re.compile(r"<(?:[\w]+:)?sldId\b([^>]*)/?\s*>", re.IGNORECASE)
+_SECTION_BLOCK_RE = re.compile(
+    r"<(?:[\w]+:)?section\b([^>]*)>([\s\S]*?)</(?:[\w]+:)?section\s*>",
+    re.IGNORECASE,
+)
 _OFF_TAG_RE = re.compile(r"<(?:[\w]+:)?off\b[^>]*>", re.IGNORECASE)
 _EXT_TAG_RE = re.compile(r"<(?:[\w]+:)?ext\b[^>]*>", re.IGNORECASE)
 _XMLNS_PREFIX_RE_CACHE: dict[str, re.Pattern[str]] = {}
@@ -517,6 +550,181 @@ def master_has_logo_shape(master_xml: str | None, logo_text: str | None = None) 
     return True
 
 
+def section_guid_from_id(section_id: str | None) -> str:
+    """UUID v5 (NAMESPACE_URL) matching JS sectionGuidFromId, braced + upper."""
+    name = f"{SECTION_GUID_NAME_PREFIX}{section_id or ''}"
+    return "{" + str(uuid.uuid5(uuid.NAMESPACE_URL, name)).upper() + "}"
+
+
+def parse_fodp_pages(fodp_xml: str | None) -> list[dict[str, str]]:
+    pages: list[dict[str, str]] = []
+    for match in _PAGE_OPEN_RE.finditer(fodp_xml or ""):
+        attrs = match.group(1) or ""
+        id_match = _SECTION_ID_ATTR_RE.search(attrs)
+        name_match = _SECTION_NAME_ATTR_RE.search(attrs)
+        pages.append(
+            {
+                "sectionId": _unescape_xml(id_match.group(1) if id_match else "").strip(),
+                "sectionName": _unescape_xml(name_match.group(1) if name_match else "").strip(),
+            }
+        )
+    return pages
+
+
+def fodp_has_sections(fodp_xml: str | None) -> bool:
+    return any(page["sectionId"] for page in parse_fodp_pages(fodp_xml))
+
+
+def parse_sections_from_fodp(fodp_xml: str | None) -> list[dict]:
+    pages = parse_fodp_pages(fodp_xml)
+    if not any(page["sectionId"] for page in pages):
+        return []
+    groups: list[dict] = []
+    used_ids: set[str] = set()
+    for index, page in enumerate(pages):
+        key = page["sectionId"] or ""
+        if groups and groups[-1]["_key"] == key:
+            groups[-1]["pageIndexes"].append(index)
+            continue
+        ident = key or f"__default__:{len(groups)}"
+        if ident in used_ids:
+            n = 2
+            while f"{key}#{n}" in used_ids:
+                n += 1
+            ident = f"{key}#{n}"
+        used_ids.add(ident)
+        groups.append(
+            {
+                "id": ident,
+                "_key": key,
+                "name": (page["sectionName"] or "Phần không tên") if key else DEFAULT_SECTION_NAME,
+                "pageIndexes": [index],
+            }
+        )
+    return [
+        {"id": group["id"], "name": group["name"], "pageIndexes": group["pageIndexes"]}
+        for group in groups
+    ]
+
+
+def parse_presentation_slide_ids(presentation_xml: str | None) -> list[str]:
+    xml = presentation_xml or ""
+    cut = _SLD_SZ_OR_LATER_RE.search(xml)
+    head = xml[: cut.start()] if cut else xml
+    lst = _SLD_ID_LST_RE.search(head)
+    if not lst:
+        return []
+    ids: list[str] = []
+    for match in _SLD_ID_RE.finditer(lst.group(1) or ""):
+        id_match = re.search(r'\bid\s*=\s*["\']([^"\']+)["\']', match.group(1) or "", re.IGNORECASE)
+        if id_match:
+            ids.append(id_match.group(1))
+    return ids
+
+
+def presentation_has_section_list(presentation_xml: str | None) -> bool:
+    xml = presentation_xml or ""
+    return bool(re.search(r"<(?:[\w]+:)?sectionLst\b", xml, re.IGNORECASE)) and (
+        "521415D9-36F7-43E2-AB2F-B90AF26B5E84" in xml.upper()
+    )
+
+
+def parse_section_list(presentation_xml: str | None) -> list[dict]:
+    sections: list[dict] = []
+    for match in _SECTION_BLOCK_RE.finditer(presentation_xml or ""):
+        attrs = match.group(1) or ""
+        body = match.group(2) or ""
+        name_match = re.search(r'\bname\s*=\s*["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+        id_match = re.search(r'\bid\s*=\s*["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+        slide_ids: list[str] = []
+        for sld in _SLD_ID_RE.finditer(body):
+            sld_id = re.search(r'\bid\s*=\s*["\']([^"\']+)["\']', sld.group(1) or "", re.IGNORECASE)
+            if sld_id:
+                slide_ids.append(sld_id.group(1))
+        name = _unescape_xml(name_match.group(1) if name_match else "")
+        ident = _unescape_xml(id_match.group(1) if id_match else "")
+        if name or slide_ids:
+            sections.append({"name": name, "id": ident, "slideIds": slide_ids})
+    return sections
+
+
+def _qualify(prefix: str, local: str) -> str:
+    return f"{prefix}:{local}" if prefix else local
+
+
+def _build_section_ext_xml(presentation_xml: str, sections: list[dict]) -> str:
+    p = _ns_prefix(presentation_xml, PRESENTATION_NS, "p")
+    p14 = _ns_prefix(presentation_xml, P14_NS, "p14")
+    parts: list[str] = []
+    for section in sections:
+        name = _escape_xml(section.get("name") or "")
+        guid = section.get("guid") or section_guid_from_id(section.get("sourceId") or section.get("name") or "")
+        ids = "".join(
+            f'<{_qualify(p14, "sldId")} id="{_escape_xml(str(slide_id))}"/>'
+            for slide_id in (section.get("slideIds") or [])
+        )
+        parts.append(
+            f'<{_qualify(p14, "section")} name="{name}" id="{guid}">'
+            f'<{_qualify(p14, "sldIdLst")}>{ids}</{_qualify(p14, "sldIdLst")}>'
+            f'</{_qualify(p14, "section")}>'
+        )
+    inner = "".join(parts)
+    return (
+        f'<{_qualify(p, "ext")} uri="{SECTION_LIST_URI}">'
+        f'<{_qualify(p14, "sectionLst")} xmlns:{p14}="{P14_NS}">{inner}</{_qualify(p14, "sectionLst")}>'
+        f'</{_qualify(p, "ext")}>'
+    )
+
+
+def _wrap_ext_lst(presentation_xml: str, ext_xml: str) -> str:
+    p = _ns_prefix(presentation_xml, PRESENTATION_NS, "p")
+    return f"<{_qualify(p, 'extLst')}>{ext_xml}</{_qualify(p, 'extLst')}>"
+
+
+def apply_section_list(presentation_xml: str, sections: list[dict] | None) -> str:
+    xml = presentation_xml or ""
+    listing = [
+        section
+        for section in (sections or [])
+        if section and section.get("slideIds")
+    ]
+    if not xml or not listing:
+        return xml
+    ext_xml = _build_section_ext_xml(xml, listing)
+    if _SECTION_EXT_RE.search(xml):
+        return _SECTION_EXT_RE.sub(ext_xml, xml, count=1)
+    ext_lst = _EXTLST_RE.search(xml)
+    if ext_lst:
+        inner = ext_lst.group(2) or ""
+        replacement = _wrap_ext_lst(xml, f"{inner}{ext_xml}")
+        return xml[: ext_lst.start()] + replacement + xml[ext_lst.end() :]
+    close = _PRESENTATION_CLOSE_RE.search(xml)
+    if not close:
+        return xml
+    return xml[: close.start()] + _wrap_ext_lst(xml, ext_xml) + xml[close.start() :]
+
+
+def apply_section_list_from_fodp(presentation_xml: str, fodp_xml: str | None) -> str:
+    groups = parse_sections_from_fodp(fodp_xml)
+    if not groups:
+        return presentation_xml
+    slide_ids = parse_presentation_slide_ids(presentation_xml)
+    page_count = len(parse_fodp_pages(fodp_xml))
+    if len(slide_ids) != page_count:
+        raise ValueError(
+            f"PPTX sldIdLst ({len(slide_ids)}) không khớp số draw:page FODP ({page_count}) — không đoán id"
+        )
+    sections = [
+        {
+            "name": group["name"],
+            "sourceId": group["id"],
+            "slideIds": [slide_ids[index] for index in group["pageIndexes"]],
+        }
+        for group in groups
+    ]
+    return apply_section_list(presentation_xml, sections)
+
+
 def postprocess_slides_pptx(
     pptx_bytes: bytes,
     *,
@@ -525,8 +733,9 @@ def postprocess_slides_pptx(
     accent_color: str | None = None,
     font_family: str | None = None,
     enabled: bool | None = None,
+    sections: list[dict] | None = None,
 ) -> bytes:
-    """Return patched PPTX bytes, or the original buffer when no logo is needed."""
+    """Return patched PPTX bytes, or the original buffer when no patch is needed."""
     if enabled is False:
         return pptx_bytes
     logo = {"logoText": "", "accentColor": accent_color or "", "fontFamily": font_family or ""}
@@ -537,28 +746,43 @@ def postprocess_slides_pptx(
         logo["logoText"] = parsed["logoText"]
         logo["accentColor"] = logo["accentColor"] or parsed["accentColor"]
         logo["fontFamily"] = logo["fontFamily"] or parsed["fontFamily"]
-    if not logo["logoText"]:
+    apply_logo = bool(logo["logoText"])
+    if apply_logo and source_fodp and not fodp_has_master_logo(source_fodp) and logo_text is None:
+        apply_logo = False
+    apply_sections = bool(sections) if sections is not None else fodp_has_sections(source_fodp)
+    if not apply_logo and not apply_sections:
         return pptx_bytes
     presentation = read_zip_entry(pptx_bytes, PPTX_PRESENTATION_ENTRY)
-    size = parse_slide_size(presentation.decode("utf-8", errors="replace") if presentation else "")
+    presentation_xml = presentation.decode("utf-8", errors="replace") if presentation else ""
     replacements: dict[str, str] = {}
-    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
-        master_names = [name for name in package.namelist() if SLIDE_MASTER_ENTRY_RE.match(name)]
-    if not master_names:
-        raise ValueError("PPTX thiếu ppt/slideMasters/slideMaster*.xml — không thể bổ sung logo")
-    for name in master_names:
-        current = _read_zip_entry(pptx_bytes, name)
-        xml = current.decode("utf-8")
-        next_xml = apply_master_logo_shape(
-            xml,
-            logo_text=logo["logoText"],
-            accent_color=logo["accentColor"],
-            font_family=logo["fontFamily"],
-            slide_cx=size["cx"],
-            slide_cy=size["cy"],
-        )
-        if next_xml != xml:
-            replacements[name] = next_xml
+    if apply_logo:
+        size = parse_slide_size(presentation_xml)
+        with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+            master_names = [name for name in package.namelist() if SLIDE_MASTER_ENTRY_RE.match(name)]
+        if not master_names:
+            raise ValueError("PPTX thiếu ppt/slideMasters/slideMaster*.xml — không thể bổ sung logo")
+        for name in master_names:
+            current = _read_zip_entry(pptx_bytes, name)
+            xml = current.decode("utf-8")
+            next_xml = apply_master_logo_shape(
+                xml,
+                logo_text=logo["logoText"],
+                accent_color=logo["accentColor"],
+                font_family=logo["fontFamily"],
+                slide_cx=size["cx"],
+                slide_cy=size["cy"],
+            )
+            if next_xml != xml:
+                replacements[name] = next_xml
+    if apply_sections:
+        if not presentation_xml:
+            raise ValueError("PPTX thiếu ppt/presentation.xml — không thể bổ sung p14:sectionLst")
+        if sections is not None:
+            next_xml = apply_section_list(presentation_xml, sections)
+        else:
+            next_xml = apply_section_list_from_fodp(presentation_xml, source_fodp)
+        if next_xml != presentation_xml:
+            replacements[PPTX_PRESENTATION_ENTRY] = next_xml
     if not replacements:
         return pptx_bytes
     return patch_ooxml_zip(pptx_bytes, replacements)
@@ -647,13 +871,16 @@ def postprocess_sheet_xlsx_file(
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Patch native OOXML after soffice convert: XLSX lockStructure "
-        "or PPTX Slide Master logo, or overlay FODS from original XLSX (File → Mở)."
+        description="Patch native OOXML after soffice convert: XLSX lockStructure, "
+        "PPTX Slide Master logo / p14:sectionLst, or overlay FODS from original XLSX (File → Mở)."
     )
     parser.add_argument("--xlsx", help="Input .xlsx path")
     parser.add_argument("--pptx", help="Input .pptx path")
     parser.add_argument("--fods", help="Source .fods used to detect table:structure-protected")
-    parser.add_argument("--fodp", help="Source .fodp used to read vno:master-theme logo")
+    parser.add_argument(
+        "--fodp",
+        help="Source .fodp used to read vno:master-theme logo and vno:section-* groups",
+    )
     parser.add_argument("--enable", action="store_true", help="Force lockStructure even without FODS")
     parser.add_argument("--out", help="Output path (default: overwrite --xlsx/--pptx or --overlay-fods)")
     parser.add_argument(

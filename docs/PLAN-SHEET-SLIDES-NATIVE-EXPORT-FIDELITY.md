@@ -9,7 +9,7 @@ Nguyên tắc:
 3. VN Office **mở lại ZIP**, patch XML entry bằng cấu trúc **OOXML chuẩn** (không namespace `vno:`), đóng gói lại.
 4. Chỉ patch khi OOXML thật sự có chỗ chuẩn. Nếu là giới hạn kiến trúc PowerPoint/Excel — ghi rõ, không làm giả.
 
-Phase 1 và Phase 2a đã merge `main`. Phase 2b **không merge vào `main`** cho đến khi người phụ trách review.
+Phase 1, 2a và 2b đã merge `main`. Phase 3a (`p14:sectionLst`) **không merge vào `main`** cho đến khi người phụ trách review.
 
 ---
 
@@ -29,7 +29,7 @@ Giới hạn đã xác nhận (audit trước):
 |---|---|---|---|
 | Protect Workbook `table:structure-protected` | Còn | Mất khóa structure trên XLSX | **OOXML có** `<workbookProtection lockStructure>` |
 | Slide Master logo / `vno:master-theme` | Còn | Mất qua PPTX; nền fill còn | Cần chỗ DrawingML chuẩn |
-| Slide Sections `vno:section-*` | Còn | Mất qua PPTX | Cần nghiên cứu `p14:sectionLst` |
+| Slide Sections `vno:section-*` | Còn | Mất qua PPTX (LO không sinh `p14:sectionLst`) | **Phase 3a vá** extension PowerPoint 2010 |
 | Set Up Show `vno:pointer-color` / `vno:without-narration` | Còn | Mất; `presentation:endless` giữ | Một phần có thể không có trong file format |
 | Color Scale / Data Bar / Icon Set CF | Chưa serialize | — | Chưa có UI |
 | Transition `flip` | Có trong FODP | Mất qua PPTX | Đã ghi từ trước |
@@ -74,9 +74,12 @@ tests/live  → convertWithSoffice → postProcessSheetXlsx() [JS]
 | `adapters/libreoffice/sheet/sheet-adapter.js` | `wantsNativeXlsxWorkbookProtection()`; serialize FODS giữ nguyên |
 | `main.py` | Gọi post-process sau convert, trước copyfile (Sheet XLSX + Slides PPTX) |
 | `adapters/libreoffice/slides/pptx-master-logo.js` | XML thuần: chèn `p:sp` không `p:ph` lên slide master |
-| `adapters/libreoffice/slides/pptx-native-postprocess.js` | Node: patch PPTX sau soffice |
+| `adapters/libreoffice/slides/pptx-section-list.js` | XML thuần: chèn `p14:sectionLst` vào `ppt/presentation.xml` |
+| `adapters/libreoffice/slides/pptx-native-postprocess.js` | Node: patch PPTX sau soffice (logo + sections) |
 | `tests/unit/slides-pptx-master-logo.test.js` | Suite 110 |
 | `tests/live/slides-pptx-master-logo-native-export.mjs` | soffice thật FODP→PPTX→patch→FODP/PDF |
+| `tests/unit/slides-pptx-section-list.test.js` | Suite 112 |
+| `tests/live/slides-pptx-sections-native-export.mjs` | soffice thật FODP sections → PPTX → patch → FODP/PDF |
 | `tests/helpers/zip-package.mjs` | Re-export production ZIP patcher |
 | `tests/unit/sheet-xlsx-native-postprocess.test.js` | Suite 107 |
 | `tests/live/sheet-xlsx-workbook-protection-native-export.mjs` | soffice thật |
@@ -173,17 +176,30 @@ Handoff: `docs/HANDOFF-SLIDES-MASTER-LOGO-PHASE2B.md`.
 
 ## Phase 3 — đề xuất (cao / cần nghiên cứu)
 
-### 3a. Slide Sections qua PPTX — độ phức tạp: trung bình-cao; **không** kết luận “OOXML không có”
+### 3a. Slide Sections qua PPTX — **HOÀN THÀNH** (trung bình-cao)
 
-Audit trước ghi “không có tương đương OOXML”. Cần kiểm lại: PowerPoint 2010+ dùng extension
+**Không phải giới hạn kiến trúc PowerPoint.** Probe trên `main` @ `462ab51` (script `tests/scripts/probe-slides-sections-pptx.mjs`):
 
-`p:extLst` / `p14:sectionLst` (`uri={521415D9-36F7-43E2-AB2F-B90AF26B5E84}`) trong `ppt/presentation.xml`.
+- FODP 6 `draw:page`, 2 phần (`vno:section-id` / `vno:section-name`) serialize đúng.
+- Sau `soffice --convert-to pptx`: `ppt/presentation.xml` **877 byte**, `p:sldIdLst` = 256–261, **không** có `p:extLst`, **không** có `p14:sectionLst`, tên phần mất.
+- LibreOffice **đã khai báo** `xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main"` trên `<p:presentation>` nhưng không dùng.
 
-Không nằm ISO strict. Excel/PowerPoint đọc được. LibreOffice có thể bỏ qua.
+Chỗ chuẩn đã vá (hậu-kỳ, tái sử dụng `ooxml_zip_patch`):
 
-Trước khi patch: tạo PPTX tay có `p14:sectionLst`, cho soffice mở, xem có giữ không. Nếu LO xóa extension khi mở lại — file vẫn hợp lệ với PowerPoint. Nếu LO **hỏng file** — không patch.
+- Chèn `p:extLst` / `p:ext uri="{521415D9-36F7-43E2-AB2F-B90AF26B5E84}"` / `p14:sectionLst`.
+- Mỗi `p14:section` có `name` + GUID v5 ổn định từ `vno:section-id`; `p14:sldId/@id` = id **thật** trong `p:sldIdLst` (không đoán 256, 257, …).
+- Hook `main.py` chạy khi FODP có logo **hoặc** có phần (bài chỉ có phần, không logo, vẫn vá).
+
+Kết quả đo (soffice thật):
+
+- Convert thuần: `p14:sectionLst` **không có**. Sau JS + Python patch: 2 phần, id 256–258 / 259–261, đúng tên.
+- soffice PPTX→FODP và PPTX→PDF **không lỗi** (`sofficeReopenFodpOk=true`, `sofficeReopenPdfOk=true`). File không hỏng.
+- soffice PPTX→FODP **không** map ngược `p14:sectionLst` → `vno:section-*` (`loRoundTripSectionInFodp=false`). File → Mở PPTX trên canvas VN Slides **chưa** khôi phục thanh phần (cần overlay import, không làm ở 3a).
+- **Đây là tính năng OOXML/PowerPoint thật**, không phải giả định. LibreOffice filter **không sinh** extension khi FODP→PPTX, nhưng **chấp nhận** file đã vá khi mở lại.
 
 Không nhét `vno:section-*` vào PPTX.
+
+Handoff: `docs/HANDOFF-SLIDES-SECTIONS-NATIVE-EXPORT.md`.
 
 ### 3b. Set Up Slide Show còn lại — độ phức tạp: thấp-trung bình, nhiều mục có thể **không sửa được**
 
@@ -218,7 +234,7 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 | 2a | Overlay lock khi Mở XLSX | Thấp | Nhỏ | **Xong** |
 | 2b | Master logo `p:sp` | Trung bình-cao | Trung bình | **Xong** |
 | 2c | `theme1.xml` scheme | Trung bình | Trung bình | Probe theme |
-| 3a | `p14:sectionLst` | Trung bình-cao | Trung bình | LO có nuốt ext không |
+| 3a | `p14:sectionLst` | Trung bình-cao | Trung bình | **Xong** (soffice mở lại PASS; không round-trip FODP) |
 | 3b | showPr / pointer | Thấp, có mục không làm được | Nhỏ | Schema + quyết định product |
 | 3c | CF colorScale… | Cao | Lớn | UI trước |
 | 4 | password hash, SmartArt, … | Cao | Lớn | Quyết định product |
@@ -230,6 +246,7 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 - Patch sai schema → Excel Repair. Phase 1 chỉ thêm attribute trên element LO đã viết.
 - Import XLSX overlay Phase 2a: File → Mở XLSX có `lockStructure` gắn lại `table:structure-protected` trước parseFods. Mật khẩu phiên vẫn không round-trip (không có hash OOXML).
 - Phase 2b DrawingML: id/`p:sldSz`/EMU sai có thể làm PowerPoint Repair. Probe + unit bắt overlap placeholder; live soffice mở lại FODP+PDF PASS. PowerPoint desktop không có trên máy đo.
+- Phase 3a `p14:sectionLst`: lệch `p:sldId/@id` so với thứ tự `draw:page` sẽ gán sai nhóm. Patch **ném** khi số id ≠ số trang, không đoán. soffice mở lại PASS; PowerPoint desktop chưa đo Repair.
 
 ## Test plan (mọi phase)
 
@@ -240,7 +257,7 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 
 ## Rollback
 
-Revert commit phase tương ứng. `main.py` gọi post-process khi Sheet XLSX (`lockStructure`) hoặc Slides PPTX (master logo); tắt nhánh tương ứng là file lại giống convert thuần LibreOffice.
+Revert commit phase tương ứng. `main.py` gọi post-process khi Sheet XLSX (`lockStructure`) hoặc Slides PPTX (master logo / `p14:sectionLst`); tắt nhánh tương ứng là file lại giống convert thuần LibreOffice.
 
 ## Decision log
 
@@ -248,5 +265,7 @@ Revert commit phase tương ứng. `main.py` gọi post-process khi Sheet XLSX (
 - **Không** patch Slide Master ở Phase 1: có chỗ chuẩn nhưng rủi ro DrawingML cao. Phase 2b đã vá `p:sp` không `p:ph`.
 - **Không** vá footer `ftr` / `p:hf` ở 2b — placeholder `ftr` vẫn trống sau hop.
 - **Không** overlay import PPTX→FODP cho `masterTheme.logoText` ở 2b (canvas VN Slides khi Mở PPTX).
+- **Không** overlay import PPTX→FODP cho `vno:section-*` ở 3a (canvas VN Slides khi Mở PPTX mất thanh phần dù file PPTX còn `p14:sectionLst`).
+- **Có** vá `p14:sectionLst`: đo thật LO không sinh extension; soffice mở file đã vá **không lỗi**. Tính năng PowerPoint 2010 thật, không giả.
 - **Không** core patch.
 - **Không** merge `main`.
