@@ -52,7 +52,7 @@
   width: 100%;
   padding: 8px;
   background-color: var(--vno-bg-window);
-  border: 1px dashed var(--vno-slides-primary);
+  border: 1px dashed var(--vno-slides-primary-fg, var(--vno-slides-primary));
   color: var(--vno-slides-primary-fg, var(--vno-slides-primary));
   border-radius: var(--vno-radius-md);
   font-weight: 700;
@@ -63,9 +63,14 @@
   justify-content: center;
   gap: 6px;
   transition: all 0.15s;
+  outline: none;
 }
 .vno-slide-new-btn:hover {
   background-color: var(--vno-slides-light);
+}
+.vno-slide-new-btn:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 1px;
 }
 
 .vno-slide-thumb-item {
@@ -73,6 +78,12 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  outline: none;
+}
+.vno-slide-thumb-item:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 2px;
+  border-radius: var(--vno-radius-sm);
 }
 
 .vno-slide-thumb-num {
@@ -101,9 +112,9 @@
 }
 
 .vno-slide-thumb-item.is-active .vno-slide-thumb-card {
-  outline: 2px solid var(--vno-slides-primary);
+  outline: 2px solid var(--vno-slides-primary-fg, var(--vno-slides-primary));
   border-color: transparent;
-  box-shadow: 0 0 0 2px rgba(181, 56, 24, 0.25);
+  box-shadow: 0 0 0 2px var(--vno-slides-light);
 }
 
 .vno-slide-thumb-item.is-hidden .vno-slide-thumb-card {
@@ -824,9 +835,9 @@
   opacity: 0.4;
 }
 .vno-slide-thumb-item.is-drag-over {
-  outline: 2px dashed var(--vno-slides-primary, #b53818);
+  outline: 2px dashed var(--vno-slides-primary-fg, var(--vno-slides-primary));
   outline-offset: 3px;
-  background-color: rgba(181, 56, 24, 0.08);
+  background-color: var(--vno-slides-light);
   border-radius: var(--vno-radius-sm, 4px);
 }
 

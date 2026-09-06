@@ -80,6 +80,10 @@
   background-color: var(--vno-bg-hover);
   color: var(--vno-text-primary);
 }
+.vno-formula-btn:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 1px;
+}
 .vno-formula-btn-fx {
   font-weight: bold;
   font-style: italic;
@@ -101,7 +105,7 @@
   color: var(--vno-text-primary);
 }
 .vno-formula-input:focus {
-  border-color: var(--vno-sheet-primary);
+  border-color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
   box-shadow: 0 0 0 2px var(--vno-sheet-light);
 }
 
@@ -846,8 +850,12 @@ tr.is-filtered-out {
   background-color: var(--vno-bg-window);
   color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
   font-weight: 700;
-  border-bottom-color: var(--vno-sheet-primary);
+  border-bottom-color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
   box-shadow: var(--vno-shadow-xs);
+}
+.vno-sheet-tab-item:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: -1px;
 }
 
 .vno-dialog-hint {
@@ -876,10 +884,16 @@ tr.is-filtered-out {
   color: var(--vno-text-muted);
   cursor: pointer;
   border-radius: var(--vno-radius-sm);
+  outline: none;
 }
 .vno-sheet-add-btn:hover {
   background-color: var(--vno-bg-hover);
-  color: var(--vno-sheet-primary);
+  color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
+}
+.vno-sheet-scroll-btn:focus-visible,
+.vno-sheet-add-btn:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 1px;
 }
 .vno-sheet-add-btn:disabled,
 .vno-workbook-protected .vno-sheet-add-btn {

@@ -231,9 +231,9 @@ export class SheetGridController {
     fBar.innerHTML = `
       <div class="vno-name-box" id="vno-cell-name" role="status" aria-label="Hộp tên ô">A1</div>
       <div class="vno-formula-actions" role="toolbar" aria-label="Thao tác công thức">
-        <button class="vno-formula-btn" title="Hủy bỏ (Esc)" aria-label="Hủy bỏ (Esc)" id="vno-fx-cancel">✕</button>
-        <button class="vno-formula-btn" title="Nhập (Enter)" aria-label="Nhập (Enter)" id="vno-fx-ok">✓</button>
-        <button class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm tính toán (fx)" aria-label="Chèn hàm tính toán (fx)" id="vno-fx-insert">fx</button>
+        <button type="button" class="vno-formula-btn" title="Hủy bỏ (Esc)" aria-label="Hủy bỏ (Esc)" id="vno-fx-cancel">✕</button>
+        <button type="button" class="vno-formula-btn" title="Nhập (Enter)" aria-label="Nhập (Enter)" id="vno-fx-ok">✓</button>
+        <button type="button" class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm tính toán (fx)" aria-label="Chèn hàm tính toán (fx)" id="vno-fx-insert">fx</button>
       </div>
       <input type="text" class="vno-formula-input" id="vno-formula-val" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)" />
     `;

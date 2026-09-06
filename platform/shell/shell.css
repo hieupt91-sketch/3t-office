@@ -97,9 +97,18 @@ body {
   background-color: var(--vno-bg-hover);
   color: var(--vno-text-primary);
 }
+.vno-quick-btn:active {
+  background-color: var(--vno-bg-active);
+}
 .vno-quick-btn:focus-visible {
   outline: 2px solid var(--vno-border-focus);
   outline-offset: 1px;
+}
+.vno-quick-btn:disabled,
+.vno-quick-btn[disabled] {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* Document Tabs Bar */
