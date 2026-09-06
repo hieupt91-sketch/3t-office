@@ -9,7 +9,7 @@ Nguyên tắc:
 3. VN Office **mở lại ZIP**, patch XML entry bằng cấu trúc **OOXML chuẩn** (không namespace `vno:`), đóng gói lại.
 4. Chỉ patch khi OOXML thật sự có chỗ chuẩn. Nếu là giới hạn kiến trúc PowerPoint/Excel — ghi rõ, không làm giả.
 
-Phase 1, 2a, 2b, 3a (`p14:sectionLst` lúc Lưu), 3a-open (overlay Sections lúc Mở) và overlay File → Mở logo (`vno:master-theme`) đã merge `main`. Phase 3b Set Up Show (`p:showPr` trên `ppt/presProps.xml`) nằm trên branch `feature/slides-setup-show-native-export` — **không merge vào `main`** cho đến khi người phụ trách review.
+Phase 1, 2a, 2b, 2b-open, 3a (`p14:sectionLst` lúc Lưu), 3a-open (overlay Sections lúc Mở) và Phase 3b Set Up Show (`p:showPr` trên `ppt/presProps.xml`) đã merge `main`. Overlay File → Mở Set Up Show (`vno:without-narration` / `vno:pointer-color`) nằm trên branch `feature/slides-setup-show-open-overlay` — **không merge vào `main`** cho đến khi người phụ trách review.
 
 ---
 
@@ -87,6 +87,8 @@ tests/live  → convertWithSoffice → postProcessSheetXlsx() [JS]
 | `tests/live/slides-pptx-sections-native-open.mjs` | soffice thật Lưu PPTX → Mở FODP overlay |
 | `tests/unit/slides-pptx-show-properties.test.js` | Suite 115 |
 | `tests/live/slides-pptx-setup-show-native-export.mjs` | soffice thật FODP Set Up Show → PPTX → patch `presProps.xml` |
+| `tests/unit/slides-pptx-setup-show-open-overlay.test.js` | Suite 116 — overlay FODP từ `p:showPr` |
+| `tests/live/slides-pptx-setup-show-native-open.mjs` | soffice thật Lưu PPTX Set Up Show → Mở FODP overlay |
 | `tests/helpers/zip-package.mjs` | Re-export production ZIP patcher |
 | `tests/unit/sheet-xlsx-native-postprocess.test.js` | Suite 107 |
 | `tests/live/sheet-xlsx-workbook-protection-native-export.mjs` | soffice thật |
@@ -269,7 +271,7 @@ Chỗ chuẩn đã vá (hậu-kỳ, tái sử dụng `ooxml_zip_patch`):
 Kết quả đo (soffice thật):
 
 - Convert thuần: `showNarration=true`, không `penClr`. Sau JS + Python patch: `showNarration=false`, `penRgb=112233`, `loop=true`.
-- soffice PPTX→FODP và PPTX→PDF **không lỗi**. `presentation:endless` còn. `vno:*` **không** round-trip (`loRoundTripVno=false`). Overlay File → Mở = phase sau.
+- soffice PPTX→FODP và PPTX→PDF **không lỗi**. `presentation:endless` còn. `vno:*` **không** round-trip (`loRoundTripVno=false`). Overlay File → Mở = mục 3b-open ngay dưới.
 - **Đây là tính năng OOXML/PowerPoint thật** (`showNarration` / `penClr`), không giả.
 
 Giới hạn thật (không làm giả):
@@ -281,6 +283,25 @@ Giới hạn thật (không làm giả):
 | Slide start/end | VN không serialize `presentation:start-page`; LO **đã** map sang `p:sldRg` nếu ODF có |
 
 Handoff: `docs/HANDOFF-SLIDES-SETUP-SHOW-NATIVE-EXPORT.md`. Findings đo trước code: `docs/HANDOFF-SLIDES-SETUP-SHOW-NATIVE-FINDINGS.md`.
+
+### 3b-open. Overlay Set Up Show khi Mở PPTX — **HOÀN THÀNH** (thấp)
+
+LibreOffice convert PPTX→FODP **giữ** `presentation:endless` (`loRoundTripEndless=true`) nhưng **bỏ** `vno:without-narration` / `vno:pointer-color` (`loRoundTripVno=false`), nên File → Mở file vừa Lưu mất hai cờ trên dialog Set Up Show dù PowerPoint vẫn thấy `showNarration=0` / `p:penClr`.
+
+Sections 3a-open / Master-logo 2b-open đã có pattern: đọc OOXML gốc sau soffice, overlay FODP trước `parseFodp()`. Overlay này làm tương tự cho Set Up Show:
+
+1. soffice PPTX→FODP
+2. Đọc `ppt/presProps.xml` của PPTX **gốc** qua `ooxml_zip_patch.read_zip_entry` (không viết lại ZIP)
+3. Parse `p:showPr`. Không có `showPr` → no-op. `showNarration` không phải `"0"`/`false` → không gắn `vno:without-narration`. `p:penClr` / `srgbClr/@val` không hex 6 chữ → không gắn `vno:pointer-color`. ZIP hỏng → **ném**.
+4. Gắn `vno:without-narration="true"` / `vno:pointer-color="#rrggbb"` lên `<presentation:settings>` **trước** `SlidesAdapter.parseFodp()` (giữ `endless` / `pause` / `mouse-visible` LO đã viết)
+5. Thêm `xmlns:vno` trên `<office:document>` nếu thiếu
+6. **Không** overlay `@loop` / `presentation:endless`
+
+Hai twin: JS `overlayFodpShowProperties` / `overlaySlidesPptxFodp`; Python `overlay_fodp_show_properties` / `overlay_slides_pptx_fodp` (cùng hook Sections/logo). `SlidesAdapter.loadFromFodp(..., ooxmlPresPropsXml)` overlay **trước** `parseFodp` (belt-and-suspenders).
+
+Kết quả đo: Lưu PPTX (Phase 3b `showNarration=0` / `penClr=112233`) → soffice PPTX→FODP **không** còn `vno:*` (`parseFodp().slideShowSettings.showWithoutNarration=false`, `pointerColor="#DC2626"`) nhưng `endless` còn → overlay → `showWithoutNarration=true`, `pointerColor="#112233"`, `loopUntilEsc=true` → dialog Set Up Show hiện lại đúng. Live soffice + `open_document_dialog` PASS. ZIP hỏng → File → Mở `status=error`.
+
+Handoff: `docs/HANDOFF-SLIDES-SETUP-SHOW-OPEN-OVERLAY.md`. Findings đo trước code: `docs/HANDOFF-SLIDES-SETUP-SHOW-OPEN-OVERLAY-FINDINGS.md`.
 
 ### 3c. Color Scale / Data Bar / Icon Set CF — độ phức tạp: cao
 
@@ -311,6 +332,7 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 | 3a | `p14:sectionLst` | Trung bình-cao | Trung bình | **Xong** (soffice mở lại PASS; không round-trip FODP) |
 | 3a-open | Overlay section khi Mở PPTX | Thấp-trung bình | Nhỏ | **Xong** |
 | 3b | showPr `showNarration` / `penClr` | Thấp | Nhỏ | **Xong** (soffice mở lại PASS; `vno:*` không round-trip FODP) |
+| 3b-open | Overlay Set Up Show khi Mở PPTX | Thấp | Nhỏ | **Xong** |
 | 3c | CF colorScale… | Cao | Lớn | UI trước |
 | 4 | password hash, SmartArt, … | Cao | Lớn | Quyết định product |
 
@@ -324,7 +346,8 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 - Phase 3a `p14:sectionLst`: lệch `p:sldId/@id` so với thứ tự `draw:page` sẽ gán sai nhóm. Patch **ném** khi số id ≠ số trang, không đoán. soffice mở lại PASS; PowerPoint desktop chưa đo Repair.
 - Overlay Mở PPTX (Sections): cùng quy tắc ném khi số `p:sldId` ≠ số `draw:page`, khi `p14:sldId` lạ, hoặc một id thuộc hai phần. File → Mở báo lỗi thay vì canvas sai nhóm. Probe fixture 6 trang: thứ tự `p:sldIdLst` khớp thứ tự `draw:page` sau soffice.
 - Overlay Mở PPTX (logo): nhận diện **chỉ** `name="VNOfficeMasterLogo"`. Ném khi nhiều shape trùng tên, shape mang `p:ph`, thiếu `a:t`, hoặc hai master khác chữ/màu/font. Không đoán `p:sp` khác. Probe: soffice đổi shape thành `draw:custom-shape` cùng tên nhưng parser VN không đọc class đó.
-- Phase 3b `p:showPr`: vá nhầm `@loop` sẽ phá round-trip endless đã PASS. Patch **không** đụng loop; chỉ `showNarration` + `penClr`. Hex không 6 chữ thì **ném**. PowerPoint desktop chưa đo Repair. File → Mở VN Slides vẫn mất `vno:*` (overlay chưa làm).
+- Phase 3b `p:showPr`: vá nhầm `@loop` sẽ phá round-trip endless đã PASS. Patch **không** đụng loop; chỉ `showNarration` + `penClr`. Hex không 6 chữ thì **ném**. PowerPoint desktop chưa đo Repair.
+- Overlay Mở PPTX (Set Up Show): đọc `ppt/presProps.xml` gốc. Chỉ gắn `vno:without-narration` khi `@showNarration` là `"0"`/`false`; chỉ gắn `vno:pointer-color` khi hex 6 chữ. Không overlay loop. ZIP hỏng → File → Mở lỗi rõ. Probe: soffice PPTX→FODP giữ `presentation:endless`, bỏ `vno:*`.
 
 ## Test plan (mọi phase)
 
@@ -335,7 +358,7 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 
 ## Rollback
 
-Revert commit phase tương ứng. `main.py` gọi post-process khi Sheet XLSX (`lockStructure`) hoặc Slides PPTX (master logo / `p14:sectionLst` / `p:showPr`); overlay File → Mở khi Sheet XLSX hoặc Slides PPTX (sections / logo). Tắt nhánh tương ứng là file lại giống convert thuần LibreOffice.
+Revert commit phase tương ứng. `main.py` gọi post-process khi Sheet XLSX (`lockStructure`) hoặc Slides PPTX (master logo / `p14:sectionLst` / `p:showPr`); overlay File → Mở khi Sheet XLSX hoặc Slides PPTX (sections / logo / Set Up Show). Tắt nhánh tương ứng là file lại giống convert thuần LibreOffice.
 
 ## Decision log
 
@@ -346,6 +369,6 @@ Revert commit phase tương ứng. `main.py` gọi post-process khi Sheet XLSX (
 - **Không** overlay import PPTX→FODP cho `vno:section-*` **ở 3a** (canvas mất thanh phần). Overlay đó là 3a-open, đã làm: đọc `p14:sectionLst` gốc, gắn `vno:section-*` trước `parseFodp`, ném khi không map được chính xác.
 - **Có** vá `p14:sectionLst`: đo thật LO không sinh extension; soffice mở file đã vá **không lỗi**. Tính năng PowerPoint 2010 thật, không giả.
 - **Có** vá `p:showPr` trên `ppt/presProps.xml` (không phải `presentation.xml`): đo thật LO đã ghi element nhưng `showNarration` luôn `"1"` và không có `p:penClr`. Loop **không** vá. Kiosk/sldRg **không** vá vì VN UI chưa lưu.
-- **Không** overlay import PPTX→FODP cho `vno:without-narration` / `vno:pointer-color` **ở 3b** (File → Mở mất cờ trên canvas). Overlay đó là phase sau, cùng pattern 3a-open.
+- **Không** overlay import PPTX→FODP cho `vno:without-narration` / `vno:pointer-color` **ở 3b** (File → Mở mất cờ trên canvas). Overlay đó là 3b-open, đã làm: đọc `ppt/presProps.xml` gốc, gắn `vno:*` trước `parseFodp`, no-op khi thiếu `showPr` / giá trị lệch, ném khi ZIP hỏng. Không overlay loop.
 - **Không** core patch.
 - **Không** merge `main`.
