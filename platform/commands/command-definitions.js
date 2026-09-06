@@ -146,6 +146,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.section.continuous", category: "layout", label: "Ngắt mục — Liên tục", icon: "sectionBreak", tooltip: "Bắt đầu mục mới tại vị trí hiện tại với Page Setup riêng" },
   { id: "writer.section.evenPage", category: "layout", label: "Ngắt mục — Trang chẵn", icon: "sectionBreak", tooltip: "Bắt đầu mục mới trên trang chẵn kế tiếp" },
   { id: "writer.section.oddPage", category: "layout", label: "Ngắt mục — Trang lẻ", icon: "sectionBreak", tooltip: "Bắt đầu mục mới trên trang lẻ kế tiếp" },
+  { id: "writer.layout.lineNumbers", category: "layout", label: "Danh số dòng", icon: "lineNumbers", tooltip: "Bật danh số dòng cho file Word/LibreOffice (Không có, Liên tục, Mỗi trang, Mỗi mục)" },
   { id: "writer.page.watermark", category: "layout", label: "Hình mờ", icon: "pageWatermark", tooltip: "Thiết lập hoặc xóa hình mờ văn bản (Dự thảo, Mật, Khẩn...)" },
   { id: "writer.page.color", category: "layout", label: "Màu trang", icon: "pageColor", tooltip: "Đặt màu nền đặc cho trang tài liệu" },
   { id: "writer.page.border", category: "layout", label: "Viền trang", icon: "pageBorder", tooltip: "Thiết lập viền bao quanh trang tài liệu" },

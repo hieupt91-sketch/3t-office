@@ -566,6 +566,21 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.layout.lineNumbers",
+    app: "writer",
+    commandIds: ["writer.layout.lineNumbers"],
+    title: "Danh số dòng",
+    summary: "Bật cấu hình danh số dòng (Không có / Liên tục / Mỗi trang / Mỗi mục) để file FODT/DOCX mở bằng Word hoặc LibreOffice tự vẽ số ở lề trái. Canvas VN Writer không vẽ số trên từng dòng — chỉ hiện trạng thái bật.",
+    ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
+    keywords: ["danh số dòng", "line numbers", "số dòng", "lề trái", "trích dẫn dòng", "continuous", "restart each page"],
+    steps: [
+      "Mở tab Bố cục, nhóm Thiết lập trang. Hộp «Danh số dòng» nằm ngay sau menu Ngắt trang (đúng chỗ Line Numbers trên Word).",
+      "Chọn Liên tục để đánh số 1, 2, 3… suốt tài liệu; Mỗi trang để số bắt đầu lại từ 1 ở mỗi trang; Mỗi mục để canvas VN Writer ghi nhận restart theo ngắt mục; Không có để tắt.",
+      "Canvas VN Writer hiện khung chữ ở lề trái: «Danh số dòng: … Số hiện ở lề trái khi mở bằng Word hoặc LibreOffice — canvas VN Writer không vẽ số.» Đây là cấu hình xuất file, không phải số đã in trên trang soạn thảo (engine trình duyệt không tách dòng visual như Word).",
+      "Lưu FODT: bật thì ghi text:linenumbering-configuration (increment=1). Mở file bằng Microsoft Word hoặc LibreOffice Writer sẽ thấy số ở lề trái. «Mỗi mục» chỉ giữ trên VN Writer/FODT; DOCX qua LibreOffice thành Liên tục vì ODF không có restart-each-section. Ctrl+Z hoàn tác."
+    ]
+  },
+  {
     id: "writer.page.columnsHelp",
     app: "writer",
     commandIds: [

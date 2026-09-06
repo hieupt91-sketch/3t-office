@@ -190,6 +190,7 @@ export class WriterAdapter {
       gap: 10,
       rule: false
     };
+    this.lineNumbers = { enabled: false, countBy: 1, restart: "continuous" };
     this.shapes = [];
     this.selectedShapeId = null;
     this.selectedWordArtEl = null;
@@ -276,6 +277,7 @@ export class WriterAdapter {
 
     // Áp dụng trang trí trang (Hình mờ & Viền trang)
     this._applyDecorations();
+    this._applyLineNumbersIndicator();
 
     // Bind Thư viện Kiểu & Trang trí trang (Watermark & Page Border)
     this._bindStyleTracking();
@@ -292,6 +294,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.page.columns1", () => this.setColumns({ count: 1, gap: 0, rule: false }));
     globalCommandBus.bindHandler("writer.page.columns2", () => this.setColumns({ count: 2, gap: 10, rule: false }));
     globalCommandBus.bindHandler("writer.page.columns3", () => this.setColumns({ count: 3, gap: 10, rule: false }));
+    globalCommandBus.bindHandler("writer.layout.lineNumbers", (args) => this.setLineNumbers(args));
     globalCommandBus.bindHandler("writer.shape.insert", (args) => this.insertShapeFromCommand(args));
     globalCommandBus.bindHandler("writer.diagram.insert", (args) => this.insertDiagramFromCommand(args));
     globalCommandBus.bindHandler("writer.chart.insert", (args) => this.insertChartFromCommand(args));
@@ -2203,6 +2206,9 @@ export class WriterAdapter {
       case "writer.page.columns3":
         return this.setColumns({ count: 3, gap: 10, rule: false });
 
+      case "writer.layout.lineNumbers":
+        return this.setLineNumbers(args);
+
       case "writer.shape.insert":
         return await this.insertShapeFromCommand(args);
 
@@ -4072,6 +4078,88 @@ export class WriterAdapter {
     return this.setColumns({ count: 1, gap: 0, rule: false });
   }
 
+  _defaultLineNumbers() {
+    return { enabled: false, countBy: 1, restart: "continuous" };
+  }
+
+  _cloneLineNumbers(value) {
+    const base = this._defaultLineNumbers();
+    const source = value && typeof value === "object" ? value : {};
+    const countBy = Number(source.countBy);
+    const restart = source.restart === "page" || source.restart === "section" ? source.restart : "continuous";
+    return {
+      enabled: Boolean(source.enabled),
+      countBy: Number.isFinite(countBy) && countBy >= 1 ? Math.floor(countBy) : 1,
+      restart
+    };
+  }
+
+  _lineNumbersMode(config = this.lineNumbers) {
+    const current = this._cloneLineNumbers(config);
+    if (!current.enabled) return "none";
+    if (current.restart === "page") return "restartPage";
+    if (current.restart === "section") return "restartSection";
+    return "continuous";
+  }
+
+  _lineNumbersFromMode(mode, previous = this.lineNumbers) {
+    const key = typeof mode === "string"
+      ? mode
+      : (mode && typeof mode === "object" ? (mode.mode || mode.value || "") : "");
+    const normalized = String(key || "").trim();
+    const countBy = this._cloneLineNumbers(previous).countBy || 1;
+    if (normalized === "none" || normalized === "off") return this._defaultLineNumbers();
+    if (normalized === "continuous") return { enabled: true, countBy, restart: "continuous" };
+    if (normalized === "restartPage" || normalized === "page") return { enabled: true, countBy, restart: "page" };
+    if (normalized === "restartSection" || normalized === "section") return { enabled: true, countBy, restart: "section" };
+    return null;
+  }
+
+  setLineNumbers(args) {
+    const next = this._lineNumbersFromMode(args);
+    if (!next) return false;
+    this.flushTyping();
+    this.lineNumbers = next;
+    this._applyLineNumbersIndicator();
+    this.isDirty = true;
+    this.recordSnapshot("writer.layout.lineNumbers");
+    return true;
+  }
+
+  _syncLineNumbersSelect() {
+    const root = typeof document !== "undefined" ? document : null;
+    const select = root?.querySelector?.('select[data-command-id="writer.layout.lineNumbers"]');
+    if (select) select.value = this._lineNumbersMode();
+  }
+
+  _applyLineNumbersIndicator() {
+    this._syncLineNumbersSelect();
+    const host = this.editorDom;
+    if (!host || typeof host.appendChild !== "function" || typeof document === "undefined") return;
+    if (typeof host.querySelector !== "function") return;
+    const enabled = Boolean(this.lineNumbers?.enabled);
+    host.classList?.toggle?.("vno-line-numbers-on", enabled);
+    let badge = host.querySelector(".vno-line-numbers-indicator");
+    if (!enabled) {
+      badge?.remove?.();
+      return;
+    }
+    if (!badge) {
+      badge = document.createElement("div");
+      badge.className = "vno-line-numbers-indicator";
+      badge.setAttribute("contenteditable", "false");
+      badge.setAttribute("aria-live", "polite");
+      host.insertBefore(badge, host.firstChild);
+    }
+    const restart = this.lineNumbers.restart;
+    const modeLabel = restart === "page" ? "Mỗi trang" : restart === "section" ? "Mỗi mục" : "Liên tục";
+    const sectionNote = restart === "section"
+      ? " File Word/LibreOffice ghi Liên tục vì ODF không có restart-each-section."
+      : "";
+    badge.textContent = `Danh số dòng: ${modeLabel}. Số hiện ở lề trái khi mở bằng Word hoặc LibreOffice — canvas VN Writer không vẽ số.${sectionNote}`;
+    badge.setAttribute("title", badge.textContent);
+  }
+
   async openColumnsDialog(options = null) {
     options = options || {};
     if (options.count !== undefined && !options.openDialog) {
@@ -5318,7 +5406,54 @@ export class WriterAdapter {
   }
 
   _fodtNotesConfigurationXml() {
-    return "<office:styles><text:notes-configuration text:note-class=\"footnote\" style:num-format=\"1\" text:start-value=\"0\" text:footnotes-position=\"page\" text:start-numbering-at=\"document\"/><text:notes-configuration text:note-class=\"endnote\" style:num-format=\"i\" text:start-value=\"0\"/></office:styles>";
+    return "<text:notes-configuration text:note-class=\"footnote\" style:num-format=\"1\" text:start-value=\"0\" text:footnotes-position=\"page\" text:start-numbering-at=\"document\"/><text:notes-configuration text:note-class=\"endnote\" style:num-format=\"i\" text:start-value=\"0\"/>";
+  }
+
+  _fodtLineNumberingConfigurationXml() {
+    const config = this._cloneLineNumbers(this.lineNumbers);
+    if (!config.enabled) return "";
+    const countBy = Math.max(1, config.countBy || 1);
+    const attrs = [
+      'text:number-lines="true"',
+      `text:increment="${countBy}"`,
+      'text:number-position="left"',
+      'style:num-format="1"'
+    ];
+    if (config.restart === "page") attrs.splice(2, 0, 'text:restart-on-page="true"');
+    return `<text:linenumbering-configuration ${attrs.join(" ")}/>`;
+  }
+
+  _fodtOfficeStylesXml(body) {
+    const children = [];
+    if (/<text:note[\s>]/.test(body || "")) children.push(this._fodtNotesConfigurationXml());
+    const lineXml = this._fodtLineNumberingConfigurationXml();
+    if (lineXml) children.push(lineXml);
+    return children.length ? `<office:styles>${children.join("")}</office:styles>` : "";
+  }
+
+  _fodtLineNumbersMetaXml() {
+    const config = this._cloneLineNumbers(this.lineNumbers);
+    if (!config.enabled || config.restart !== "section") return "";
+    return '<office:meta><meta:user-defined meta:name="vnd.vn-office.line-numbers-restart">section</meta:user-defined></office:meta>';
+  }
+
+  _fodtParseLineNumbers(xml) {
+    const result = this._defaultLineNumbers();
+    const match = String(xml || "").match(/<text:linenumbering-configuration\b([^>]*)\/?\s*>/i);
+    if (!match) return result;
+    const attrs = this._fodtParseAttributes(match[1]);
+    if (String(attrs["text:number-lines"] || "").toLowerCase() === "false") return result;
+    result.enabled = true;
+    const increment = Number(attrs["text:increment"]);
+    result.countBy = Number.isFinite(increment) && increment >= 1 ? Math.floor(increment) : 5;
+    if (String(attrs["text:restart-on-page"] || "").toLowerCase() === "true") {
+      result.restart = "page";
+    }
+    const meta = String(xml || "").match(/<meta:user-defined\b[^>]*meta:name=["']vnd\.vn-office\.line-numbers-restart["'][^>]*>([\s\S]*?)<\/meta:user-defined>/i);
+    if (meta && String(meta[1]).trim() === "section" && result.restart !== "page") {
+      result.restart = "section";
+    }
+    return result;
   }
 
   _fodtPlainLoose(nodes) {
@@ -5950,13 +6085,15 @@ export class WriterAdapter {
     const pageLayoutXml = [...layoutNames.entries()].map(([signature, name]) => this._fodtPageLayoutXml(name, JSON.parse(signature))).join("");
     const headerWithWatermark = `${watermarkHeaderXml}${headerXml}`;
     const masterPageXml = masters.map(master => this._fodtMasterPageXml(master.name, master.layoutName, headerWithWatermark, footerXml)).join("");
-    const officeStyles = /<text:note[\s>]/.test(body) ? this._fodtNotesConfigurationXml() : "";
+    const officeStyles = this._fodtOfficeStylesXml(body);
+    const officeMeta = this._fodtLineNumbersMetaXml();
+    const metaNs = officeMeta ? ' xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"' : "";
     const dcNs = (/<office:annotation[\s>]/.test(body) || /<text:tracked-changes[\s>]/.test(body))
       ? ' xmlns:dc="http://purl.org/dc/elements/1.1/"'
       : "";
     const chartNs = /<chart:chart[\s>]/.test(body) ? ' xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0"' : "";
     const tocStyleXml = /<text:table-of-content[\s>]/.test(body) ? this._fodtTocStylesXml() : "";
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"${chartNs}${dcNs} office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">${officeStyles}<office:automatic-styles>${pageLayoutXml}${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}${graphicStyleXml}${watermarkGraphicXml}${tocStyleXml}</office:automatic-styles><office:master-styles>${masterPageXml}</office:master-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink"${chartNs}${dcNs}${metaNs} office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">${officeMeta}${officeStyles}<office:automatic-styles>${pageLayoutXml}${listStyles}${paragraphStyleXml}${textStyleXml}${cellStyleXml}${graphicStyleXml}${watermarkGraphicXml}${tocStyleXml}</office:automatic-styles><office:master-styles>${masterPageXml}</office:master-styles><office:body><office:text>${body}</office:text></office:body></office:document>`;
   }
 
   /** Parse the Phase A FODT subset back to canonical Writer HTML. */
@@ -6350,6 +6487,8 @@ export class WriterAdapter {
       this.activeSectionId = Object.keys(restoredSections).slice(-1)[0] || "section-1";
       this._sectionSequence = restoredSequence;
     }
+    this.lineNumbers = this._fodtParseLineNumbers(xml);
+    this._applyLineNumbersIndicator();
     return html;
   }
 
@@ -7370,6 +7509,7 @@ export class WriterAdapter {
       pageColor: this.pageColor || "transparent",
       pageBorder: this.pageBorder ? JSON.parse(JSON.stringify(this.pageBorder)) : null,
       columns: this.columns ? JSON.parse(JSON.stringify(this.columns)) : { count: 1, gap: 10, rule: false },
+      lineNumbers: this._cloneLineNumbers(this.lineNumbers),
       shapes: this.shapes ? JSON.parse(JSON.stringify(this.shapes)) : [],
       documentTheme: this.documentTheme || "office",
       description,
@@ -7394,6 +7534,7 @@ export class WriterAdapter {
     if ((a.pageColor || "transparent") !== (b.pageColor || "transparent")) return false;
     if (JSON.stringify(a.pageBorder) !== JSON.stringify(b.pageBorder)) return false;
     if (JSON.stringify(a.columns) !== JSON.stringify(b.columns)) return false;
+    if (JSON.stringify(a.lineNumbers || {}) !== JSON.stringify(b.lineNumbers || {})) return false;
     if (JSON.stringify(a.shapes || []) !== JSON.stringify(b.shapes || [])) return false;
     if ((a.documentTheme || "office") !== (b.documentTheme || "office")) return false;
     return true;
@@ -7446,6 +7587,10 @@ export class WriterAdapter {
     }
     if (Object.prototype.hasOwnProperty.call(snapshot, "columns")) {
       this.columns = snapshot.columns ? JSON.parse(JSON.stringify(snapshot.columns)) : { count: 1, gap: 10, rule: false };
+    }
+    if (Object.prototype.hasOwnProperty.call(snapshot, "lineNumbers")) {
+      this.lineNumbers = this._cloneLineNumbers(snapshot.lineNumbers);
+      this._applyLineNumbersIndicator();
     }
     if (Object.prototype.hasOwnProperty.call(snapshot, "shapes")) {
       this.shapes = snapshot.shapes ? JSON.parse(JSON.stringify(snapshot.shapes)) : [];
