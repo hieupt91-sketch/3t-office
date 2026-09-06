@@ -57,7 +57,22 @@ const pairs = [
   { dialog: "Writer - Illustrations", label: "Chart preview label dark (#cbd5e1 on #1e1e1e)", fg: "#cbd5e1", bg: "#1e1e1e", isLarge: false },
   { dialog: "Writer - Comments Panel", label: "Comment author/text in dark mode (#f1f5f9 on #252526)", fg: "#f1f5f9", bg: "#252526", isLarge: false },
   { dialog: "Writer - Comments Panel", label: "Comment meta text in dark mode (#94a3b8 on #252526)", fg: "#94a3b8", bg: "#252526", isLarge: false },
-  { dialog: "Writer - Comments Panel", label: "Comment delete button in dark mode (#fca5a5 on #252526)", fg: "#fca5a5", bg: "#252526", isLarge: false }
+  { dialog: "Writer - Comments Panel", label: "Comment delete button in dark mode (#fca5a5 on #252526)", fg: "#fca5a5", bg: "#252526", isLarge: false },
+
+  // App Chrome UI Polish (Ribbon, Statusbar, Backstage, Panels, Context Menu)
+  { dialog: "Chrome - Ribbon Active Button", label: "Writer active button in dark mode (#60a5fa on #172554)", fg: "#60a5fa", bg: "#172554", isLarge: false },
+  { dialog: "Chrome - Ribbon Active Button", label: "Sheet active button in dark mode (#4ade80 on #052e16)", fg: "#4ade80", bg: "#052e16", isLarge: false },
+  { dialog: "Chrome - Ribbon Active Button", label: "Slides active button in dark mode (#fb923c on #431407)", fg: "#fb923c", bg: "#431407", isLarge: false },
+  { dialog: "Chrome - Status Bar", label: "Status text on Writer navy (#ffffff on #0f4c81)", fg: "#ffffff", bg: "#0f4c81", isLarge: false },
+  { dialog: "Chrome - Status Bar", label: "Status text on Sheet green (#ffffff on #0f6d38)", fg: "#ffffff", bg: "#0f6d38", isLarge: false },
+  { dialog: "Chrome - Status Bar", label: "Status text on Slides amber (#ffffff on #b53818)", fg: "#ffffff", bg: "#b53818", isLarge: false },
+  { dialog: "Chrome - Backstage", label: "Nav button active in dark mode (#60a5fa on #1e1e1e)", fg: "#60a5fa", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Chrome - Backstage", label: "Recent row hover text in dark mode (#f1f5f9 on #2a2d2e)", fg: "#f1f5f9", bg: "#2a2d2e", isLarge: false },
+  { dialog: "Chrome - Sheet Formula Bar", label: "Formula input focus border in dark mode (#4ade80 on #1e1e1e)", fg: "#4ade80", bg: "#1e1e1e", isLarge: true },
+  { dialog: "Chrome - Sheet Tab Bar", label: "Active tab text in dark mode (#4ade80 on #1e1e1e)", fg: "#4ade80", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Chrome - Slides Navigator", label: "Active thumbnail outline in dark mode (#fb923c on #1e1e1e)", fg: "#fb923c", bg: "#1e1e1e", isLarge: true },
+  { dialog: "Chrome - Context Menu", label: "Sheet context item hover in dark mode (#4ade80 on #2a2d2e)", fg: "#4ade80", bg: "#2a2d2e", isLarge: false },
+  { dialog: "Chrome - Context Menu", label: "Writer spellcheck hover in dark mode (#60a5fa on #2a2d2e)", fg: "#60a5fa", bg: "#2a2d2e", isLarge: false }
 ];
 
 console.log("=== BẮT ĐẦU ĐO ĐỘ TƯƠNG PHẢN THỰC TẾ (WCAG 2.1 AA) ===\n");
