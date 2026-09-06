@@ -9,6 +9,7 @@ import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { overlayFodpMasterLogo } from "./pptx-master-logo.js";
 import { overlayFodpSections } from "./pptx-section-list.js";
+import { overlayFodpShowProperties } from "./pptx-show-properties.js";
 
 export class SlidesAdapter {
   constructor(canvasController) {
@@ -2559,15 +2560,17 @@ export class SlidesAdapter {
 
   /**
    * Nạp danh sách slide từ nội dung FODP vào Canvas hiện tại.
-   * Optional ooxmlPresentationXml / ooxmlSlideMasterXml overlay p14:sectionLst
-   * and VNOfficeMasterLogo onto FODP before parseFodp (belt-and-suspenders;
-   * production File → Mở already overlays in main.py).
+   * Optional ooxmlPresentationXml / ooxmlSlideMasterXml / ooxmlPresPropsXml
+   * overlay p14:sectionLst, VNOfficeMasterLogo, and p:showPr onto FODP
+   * before parseFodp (belt-and-suspenders; production File → Mở already
+   * overlays in main.py).
    */
-  loadFromFodp(fodpText, ooxmlPresentationXml, ooxmlSlideMasterXml) {
+  loadFromFodp(fodpText, ooxmlPresentationXml, ooxmlSlideMasterXml, ooxmlPresPropsXml) {
     if (!this.canvas) return;
     let xml = fodpText;
     if (ooxmlPresentationXml) xml = overlayFodpSections(xml, ooxmlPresentationXml);
     if (ooxmlSlideMasterXml) xml = overlayFodpMasterLogo(xml, ooxmlSlideMasterXml);
+    if (ooxmlPresPropsXml) xml = overlayFodpShowProperties(xml, ooxmlPresPropsXml);
     const newSlides = this.parseFodp(xml);
     if (newSlides && newSlides.length > 0) {
       this.canvas.slides = newSlides;
@@ -2614,7 +2617,12 @@ export class SlidesAdapter {
   async open() {
     const result = await globalUnoBridge.openRealFile("slides");
     if (result.status === "ok") {
-      this.loadFromFodp(result.content, result.ooxmlPresentationXml, result.ooxmlSlideMasterXml);
+      this.loadFromFodp(
+        result.content,
+        result.ooxmlPresentationXml,
+        result.ooxmlSlideMasterXml,
+        result.ooxmlPresPropsXml
+      );
       this.sourceFileName = (result.fileName || "TrinhChieu").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
       return true;

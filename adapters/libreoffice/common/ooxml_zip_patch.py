@@ -125,6 +125,11 @@ _SECTION_BLOCK_RE = re.compile(
 _OFF_TAG_RE = re.compile(r"<(?:[\w]+:)?off\b[^>]*>", re.IGNORECASE)
 _EXT_TAG_RE = re.compile(r"<(?:[\w]+:)?ext\b[^>]*>", re.IGNORECASE)
 _SETTINGS_OPEN_RE = re.compile(r"<presentation:settings\b([^>]*)/?>", re.IGNORECASE)
+_SETTINGS_TAG_RE = re.compile(r"<presentation:settings\b([^>]*?)(/?)\s*>", re.IGNORECASE)
+_WITHOUT_ATTR_RE = re.compile(
+    r"""\bvno:without-narration\s*=\s*["'][^"']*["']""", re.IGNORECASE
+)
+_OFFICE_PRESENTATION_CLOSE_RE = re.compile(r"</office:presentation\s*>", re.IGNORECASE)
 _PRESPROPS_CLOSE_RE = re.compile(r"</(?:[\w]+:)?presentationPr\s*>", re.IGNORECASE)
 _PRESPROPS_OPEN_RE = re.compile(r"<((?:[\w]+:)?presentationPr)\b([^>]*)>", re.IGNORECASE)
 _SHOW_PR_RE = re.compile(
@@ -787,6 +792,82 @@ def apply_show_properties_from_fodp(pres_props_xml: str, fodp_xml: str | None) -
     return apply_show_properties(pres_props_xml, parse_show_settings_from_fodp(fodp_xml))
 
 
+def overlay_show_settings_from_pres_props(pres_props_xml: str | None) -> dict:
+    """Map original p:showPr → vno flags. Invalid values become no-op fields."""
+    xml = pres_props_xml or ""
+    match = _SHOW_PR_RE.search(xml)
+    if not match:
+        return {"showWithoutNarration": False, "pointerColor": ""}
+    attrs = match.group(1) or ""
+    inner = "" if match.group(2) == "/>" else (match.group(3) or "")
+    narration_raw = (_show_get_attr(attrs, "showNarration") or "").strip()
+    show_without = bool(re.fullmatch(r"(0|false)", narration_raw, re.IGNORECASE))
+    pen = _PEN_CLR_RE.search(inner)
+    rgb_match = _SHOW_SRGB_RE.search(pen.group(0) if pen else "")
+    rgb = (rgb_match.group(1) if rgb_match else "").strip().lstrip("#")
+    pointer = f"#{rgb.lower()}" if _HEX6_RE.fullmatch(rgb) else ""
+    return {"showWithoutNarration": show_without, "pointerColor": pointer}
+
+
+def apply_fodp_show_settings_attrs(fodp_xml: str, settings: dict | None = None) -> str:
+    xml = fodp_xml or ""
+    options = settings or {}
+    without = bool(options.get("showWithoutNarration"))
+    pointer = str(options.get("pointerColor") or "").strip()
+    if not without and not pointer:
+        return xml
+    match = _SETTINGS_TAG_RE.search(xml)
+    if match:
+        raw = match.group(1) or ""
+        self_close = match.group(2) == "/" or bool(re.search(r"/\s*$", raw))
+        if self_close:
+            raw = re.sub(r"/\s*$", "", raw)
+        if without:
+            if _WITHOUT_ATTR_RE.search(raw):
+                raw = _WITHOUT_ATTR_RE.sub('vno:without-narration="true"', raw)
+            else:
+                raw = f'{raw.rstrip()} vno:without-narration="true"'
+        if pointer:
+            encoded = _escape_xml(pointer)
+            if _POINTER_ATTR_RE.search(raw):
+                raw = _POINTER_ATTR_RE.sub(f'vno:pointer-color="{encoded}"', raw)
+            else:
+                raw = f'{raw.rstrip()} vno:pointer-color="{encoded}"'
+        if raw and not raw.startswith(" "):
+            raw = f" {raw}"
+        next_tag = (
+            f"<presentation:settings{raw}/>"
+            if self_close
+            else f"<presentation:settings{raw}>"
+        )
+        next_xml = xml[: match.start()] + next_tag + xml[match.end() :]
+        return ensure_vno_xmlns(next_xml)
+    if not _OFFICE_PRESENTATION_CLOSE_RE.search(xml):
+        raise ValueError("FODP thiếu office:presentation — không gắn Thiết lập trình chiếu")
+    attrs: list[str] = []
+    if without:
+        attrs.append('vno:without-narration="true"')
+    if pointer:
+        attrs.append(f'vno:pointer-color="{_escape_xml(pointer)}"')
+    tag = f'\n      <presentation:settings {" ".join(attrs)}/>'
+    next_xml = _OFFICE_PRESENTATION_CLOSE_RE.sub(
+        lambda close: tag + close.group(0), xml, count=1
+    )
+    return ensure_vno_xmlns(next_xml)
+
+
+def overlay_fodp_show_properties(fodp_xml: str, pres_props_xml: str | None) -> str:
+    """Inject vno Set Up Show flags from original p:showPr.
+
+    Missing showPr or invalid values are a no-op. Does not overlay loop.
+    """
+    xml = fodp_xml or ""
+    settings = overlay_show_settings_from_pres_props(pres_props_xml)
+    if not settings["showWithoutNarration"] and not settings["pointerColor"]:
+        return xml
+    return apply_fodp_show_settings_attrs(xml, settings)
+
+
 def parse_sections_from_fodp(fodp_xml: str | None) -> list[dict]:
     pages = parse_fodp_pages(fodp_xml)
     if not any(page["sectionId"] for page in pages):
@@ -1279,10 +1360,16 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
 def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
     """Read original PPTX ZIP and overlay FODP.
 
-    LibreOffice PPTX→FODP drops p14:sectionLst and vno:master-theme.
-    Production File → Mở must restore both before SlidesAdapter.parseFodp().
+    LibreOffice PPTX→FODP drops p14:sectionLst, vno:master-theme, and
+    vno:without-narration / vno:pointer-color. Production File → Mở must
+    restore them before SlidesAdapter.parseFodp(). Broken ZIP raises.
     """
     xml = fodp_xml or ""
+    try:
+        with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+            package.namelist()
+    except zipfile.BadZipFile as exc:
+        raise ValueError("PPTX ZIP hỏng — không thể khôi phục thuộc tính native") from exc
     current = read_zip_entry(pptx_bytes, PPTX_PRESENTATION_ENTRY)
     if not current:
         raise ValueError("PPTX thiếu ppt/presentation.xml — không thể khôi phục Phần (Sections)")
@@ -1296,7 +1383,11 @@ def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
         if not entry:
             raise ValueError(f"PPTX thiếu {name} — không đoán logo master")
         masters.append(entry.decode("utf-8", errors="replace"))
-    return overlay_fodp_master_logo(xml, masters)
+    xml = overlay_fodp_master_logo(xml, masters)
+    props = read_zip_entry(pptx_bytes, PPTX_PRESPROPS_ENTRY)
+    if not props:
+        return xml
+    return overlay_fodp_show_properties(xml, props.decode("utf-8", errors="replace"))
 
 
 def overlay_slides_pptx_fodp_file(
@@ -1365,7 +1456,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Patch native OOXML after soffice convert: XLSX lockStructure, "
         "PPTX Slide Master logo / p14:sectionLst / p:showPr, overlay FODS from original XLSX, "
-        "or overlay FODP from original PPTX p14:sectionLst (File → Mở)."
+        "or overlay FODP from original PPTX p14:sectionLst / VNOfficeMasterLogo / p:showPr (File → Mở)."
     )
     parser.add_argument("--xlsx", help="Input .xlsx path")
     parser.add_argument("--pptx", help="Input .pptx path")
@@ -1383,7 +1474,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--overlay-fodp",
-        help="Input FODP to overlay from --pptx p14:sectionLst / VNOfficeMasterLogo (File → Mở path)",
+        help="Input FODP to overlay from --pptx p14:sectionLst / VNOfficeMasterLogo / p:showPr (File → Mở path)",
     )
     return parser.parse_args(argv)
 

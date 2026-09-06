@@ -213,7 +213,8 @@ export const SLIDES_HELP_ENTRIES = [
       "Tab Trình chiếu, nhóm Thiết lập, nhấn Thiết lập trình chiếu (cạnh Ẩn trang chiếu).",
       "Đánh dấu Lặp lại liên tục cho đến khi nhấn Esc nếu muốn hết trang cuối thì quay lại trang đầu (trang không ẩn đầu tiên). Không đánh dấu thì hết trang cuối F5 thoát như trước. Esc luôn thoát. Lưu PPTX: LibreOffice đã ghi p:showPr loop trên ppt/presProps.xml — VN không vá thêm cờ này.",
       "Trình chiếu không có thuyết minh: lưu cờ cho bản trình chiếu (FODP: vno:without-narration). VN Slides chưa có audio thuyết minh trên màn hình chiếu. Khi Lưu PPTX, VN ghi showNarration=\"0\" vào p:showPr (LibreOffice luôn để \"1\" nếu không vá).",
-      "Màu con trỏ bút / laser: chọn màu bằng ô màu. VN Slides chưa vẽ bút hay laser trên màn hình chiếu; màu được lưu FODP (vno:pointer-color) và khi Lưu PPTX được ghi p:penClr/a:srgbClr chuẩn PowerPoint. Nhấn Áp dụng để giữ, Hủy hoặc Esc để bỏ."
+      "Màu con trỏ bút / laser: chọn màu bằng ô màu. VN Slides chưa vẽ bút hay laser trên màn hình chiếu; màu được lưu FODP (vno:pointer-color) và khi Lưu PPTX được ghi p:penClr/a:srgbClr chuẩn PowerPoint. Nhấn Áp dụng để giữ, Hủy hoặc Esc để bỏ.",
+      "File → Mở một .pptx đã có Thiết lập trình chiếu (file vừa Lưu, hoặc file PowerPoint có p:showPr showNarration=\"0\" / p:penClr trên ppt/presProps.xml): LibreOffice chuyển PPTX→FODP giữ Lặp lại liên tục (presentation:endless) nhưng bỏ cờ không thuyết minh và màu bút. VN Office đọc ppt/presProps.xml của file gốc rồi gắn lại vno:without-narration / vno:pointer-color lên presentation:settings trước khi mở canvas — hộp thoại Thiết lập trình chiếu hiện lại đúng hai giá trị đó. Lặp liên tục không cần overlay (LibreOffice đã map). File không có p:showPr, hoặc giá trị không hợp lệ, thì không bịa cờ. File ZIP hỏng thì hộp thoại Mở báo lỗi rõ. File .odp/.fodp không đi overlay này — chúng giữ vno:* sẵn có."
     ]
   },
   {
