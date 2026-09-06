@@ -88,6 +88,23 @@ draw:enhanced-path="M 0 10800 L 21600 10800 Z N"
 
 Đây **là** WordArt VML Word (`o:spt="136"` + `v:textpath`), cùng họ reverse watermark E.2 nhưng **trong body**, không header.
 
+### 1.1b Word visual — `fontwork-plain-text` không vẽ trên Microsoft Word thật
+
+Mở DOCX W1/`fontwork-plain-text` bằng Word (Compatibility Mode, Start-Process thụ động): câu body hiện, **chữ Fontwork không có trên trang**. XML vẫn có `v:textpath string`. Word hiện tại **không sơn** VML-only spt 136.
+
+Đo thêm 6 `draw:type` trên một FODT (`tests/scripts/probe-e3-fontwork-types.mjs`) rồi mở Word:
+
+| `draw:type` | DOCX | Word bằng mắt |
+|---|---|---|
+| `fontwork-plain-text` | `w:pict` VML only, **0** `w:drawing` | **Không hiện** |
+| `fontwork-slant-up` | VML only | **Không hiện** |
+| `fontwork-wave` | `w:drawing` + `prstTxWarp textWave1` | Hiện, uốn sóng |
+| `fontwork-arch-up` | `w:drawing` | Hiện, xếp chồng ARCH-UP |
+| `fontwork-fade-right` | `w:drawing` + `prstTxWarp textFadeRight` + VML fallback spt 168 | **Hiện**, chữ trang trí gần thẳng, fill navy |
+| `fontwork-chevron-up` | `w:drawing` + `textChevron` | Hiện, chevron |
+
+**Serializer VN phải emit `fontwork-fade-right`** (không `fontwork-plain-text`) thì Microsoft Word mới vẽ được. Parser vẫn nhận mọi `fontwork-*`. `draw:stroke="none"`: fill graphic = màu chữ; stroke trắng + weight LO lớn có thể che fill.
+
 PDF W1/W5 hợp lệ `%PDF-` / MediaBox A4; chuỗi ASCII `KHAI_GIANG` **không** nằm text stream (chữ nằm drawing) — không dùng PDF text extraction làm bằng chứng.
 
 ### 1.2 `fontwork-wave` — cũng convert, ra thêm DrawingML warp
@@ -187,8 +204,9 @@ Writer diagram là HTML nhiều `div` + màu + layout flex. Ánh xạ sang `draw
 - Fill: `fillColor` (nếu có `gradient.from` thì dùng `from`, không bịa gradient ODF chưa đo).
 - Stroke: `strokeColor` + `strokeWidth` px→cm.
 - Text style: `fo:font-weight="bold"`, `fo:font-family` (Impact/Georgia/Arial từ preset), `fo:font-size` từ preset (pt). LO sẽ fitshape khi canonicalize — VN vẫn emit cỡ Writer.
-- Geometry cố định path plain-text như W1 (đã ra `o:spt="136"`).
-- Không `fontwork-wave`. Không text-box giả WordArt. Không sibling `office:text`. Không giả id gallery Microsoft.
+- Geometry: `draw:type="fontwork-fade-right"` + path `M 0 10800 L 21600 10800 Z N` (đo: Word vẽ `prstTxWarp textFadeRight`; `fontwork-plain-text` Word không sơn).
+- Graphic `draw:stroke="none"` — màu chữ đi `draw:fill-color`.
+- Không `fontwork-plain-text` trên đường emit VN. Không text-box giả WordArt. Không sibling `office:text`. Không giả id gallery Microsoft.
 - Header/footer: throw nếu có WordArt.
 
 **Parse:** trong `inlineNodeHtml`, `draw:custom-shape` có `draw:type` bắt đầu `fontwork-` → dựng `buildWriterWordArtHtml(text, { presetId })`, **không** `parsedShapes`. Preset lấy suffix `WordArt-<id>` nếu thuộc 8 mẫu; không thì `navy-outline`. `right-arrow` vẫn Phase B.2. Type custom khác → throw.
