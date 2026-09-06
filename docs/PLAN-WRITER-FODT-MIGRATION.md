@@ -197,10 +197,29 @@ Verification thật:
 - Microsoft Word thật (Start-Process thụ động): Simple Markup — vạch đỏ lề trái, chữ xóa không còn trên trang, chữ chèn nằm trong câu (không phải chữ màu tĩnh).
 - `node tests/run-tests.js`: **1220/1220 PASS** (1210 baseline @ `4cae9a3` + 10 test Phase E.1).
 
-### 7b. Phase E.2 — WordArt, shape/chart/diagram, watermark (đề xuất, chưa làm)
+### 7b. Phase E.2 — Watermark native (hoàn thành)
 
-- WordArt, shape nâng cao, chart, diagram.
-- Watermark bằng background image hoặc anchored drawing trên master page sau probe DOCX fidelity.
+Phạm vi đã làm (Grok, worktree `E:\VNOffice-grok-writer-fodt-phase-e2`):
+
+- Writer watermark là **chữ** trên `this.watermark` `{text, color, opacity, angle, fontSize}` — overlay CSS canvas, không nằm body/header DOM.
+- Đo hai hướng ODF trước code (`docs/HANDOFF-WRITER-FODT-PHASE-E2-FINDINGS.md`):
+  - `style:background-image` trên page-layout → DOCX `w:background` (nền trang), **không** phải watermark header. Không dùng. Parse throw.
+  - `draw:frame` + `draw:text-box` trong `style:header` → DOCX `word/header1.xml` có `mc:AlternateContent` + `wp:anchor behindDoc="1"` + VML `v:shape` xoay. **Dùng hướng này.**
+  - Reverse Word VML `PowerPlusWaterMarkObject` → FODT `draw:custom-shape` Fontwork trong header. Parser đọc được; serializer VN **không** giả tên gallery Word (mất `fontSize` Writer nếu emit Fontwork).
+- `serializeToFodt()`: frame `draw:name="Watermark"` trên mọi master-page (tái dùng `_fodtMasterPageXml`), `draw:transform="rotate (radians)"` = `angle * π/180` (0 → không transform). Graphic `grWm` wrap run-through / behind. Sống chung header user.
+- `parseFodt()`: tách frame/Fontwork watermark khỏi header trước khi dựng `headerDom`; khôi phục `this.watermark`. Nhiều watermark khác nhau / watermark ảnh / `draw:` lạ trong header → `WRITER_FODT_UNSUPPORTED_CONTENT`.
+- `save()` / `exportPdf()` / `_contentForExport()` không đổi (cutover gate). Đường HTML vẫn CSS `position:fixed`.
+
+Verification thật:
+
+- Unit: `tests/unit/writer-fodt-phase-e2.test.js` — 10 test: cấu trúc frame/góc/màu/opacity, idempotence, header user, fail-closed background-image / shape lạ / watermark khác master, parse Fontwork Word.
+- Live soffice: `tests/live/writer-fodt-phase-e2-real-conversion.mjs` — FODT serializer → DOCX; `word/header1.xml` có `behindDoc="1"`, `rotation:315` (angle 45), chữ `DỰ THẢO`, header user; không `w:background`.
+- Microsoft Word thật (Start-Process thụ động): hình mờ chữ mờ, xoay chéo, nằm sau nội dung.
+- `node tests/run-tests.js`: **1230/1230 PASS** (1220 baseline @ `fbf56d7` + 10 test Phase E.2).
+
+### 7c. Phase E.3 — WordArt, shape/chart/diagram (đề xuất, chưa làm)
+
+- WordArt, shape nâng cao, chart, diagram qua FODT, sau probe DOCX fidelity.
 - Mỗi capability chỉ được đánh dấu hỗ trợ khi có fixture import, VN round-trip và LibreOffice real conversion assertion.
 
 ## 8. Chiến lược cutover
