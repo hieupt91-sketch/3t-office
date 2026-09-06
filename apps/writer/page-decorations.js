@@ -55,14 +55,14 @@ export async function showPageColorDialog(currentColor = "transparent") {
     const previousFocused = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
-    overlay.innerHTML = `<div class="vno-dialog vno-page-color-dialog" role="dialog" aria-modal="true" aria-labelledby="vno-page-color-title" style="max-width:420px">
-      <div class="vno-dialog-header"><h2 id="vno-page-color-title">${t("writerDialogs.pageColor.title")}</h2><button class="vno-dialog-close-btn" aria-label="${t("common.close") || "Close"}">×</button></div>
-      <div class="vno-dialog-body"><p>${t("writerDialogs.pageColor.hint")}</p><div class="vno-page-color-grid" role="listbox" aria-label="${t("writerDialogs.pageColor.palette")}" style="display:grid;grid-template-columns:repeat(6,44px);gap:10px">
-      ${PAGE_COLOR_PALETTE.map((color) => `<button type="button" role="option" data-page-color="${color}" aria-label="${color === "transparent" ? t("writerDialogs.pageColor.noColor") : color}" aria-selected="${color === currentColor}" style="width:40px;height:40px;border:2px solid ${color === currentColor ? "#2563eb" : "#94a3b8"};border-radius:6px;background:${color === "transparent" ? "linear-gradient(135deg,#fff 45%,#dc2626 46%,#dc2626 54%,#fff 55%)" : color}"></button>`).join("")}
-      </div><label style="display:flex;gap:10px;align-items:center;margin-top:16px">${t("writerDialogs.pageColor.custom")} <input type="color" value="${currentColor === "transparent" ? "#ffffff" : currentColor}"></label></div>
-      <div class="vno-dialog-footer"><button type="button" data-action="cancel">${t("writerDialogs.pageColor.cancel")}</button><button type="button" class="primary" data-action="apply">${t("writerDialogs.pageColor.apply")}</button></div></div>`;
+    overlay.innerHTML = `<div class="vno-dialog-box vno-page-color-dialog" role="dialog" aria-modal="true" aria-labelledby="vno-page-color-title" style="width:420px;max-width:calc(100vw - 32px);">
+      <div class="vno-dialog-header"><span id="vno-page-color-title" style="font-weight:700;">${t("writerDialogs.pageColor.title")}</span><button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close") || "Close"}" aria-label="${t("common.close") || "Close"}">×</button></div>
+      <div class="vno-dialog-body"><p style="margin:0 0 12px;font-size:13px;color:var(--vno-text-secondary);line-height:1.45;">${t("writerDialogs.pageColor.hint")}</p><div class="vno-page-color-grid" role="listbox" aria-label="${t("writerDialogs.pageColor.palette")}" style="display:grid;grid-template-columns:repeat(6,44px);gap:10px">
+      ${PAGE_COLOR_PALETTE.map((color) => `<button type="button" role="option" data-page-color="${color}" aria-label="${color === "transparent" ? t("writerDialogs.pageColor.noColor") : color}" aria-selected="${color === currentColor}" style="width:40px;height:40px;border:2px solid ${color === currentColor ? "var(--vno-border-focus, #2563eb)" : "var(--vno-border-default, #94a3b8)"};border-radius:6px;cursor:pointer;background:${color === "transparent" ? "linear-gradient(135deg,#fff 45%,#dc2626 46%,#dc2626 54%,#fff 55%)" : color}"></button>`).join("")}
+      </div><label style="display:flex;gap:10px;align-items:center;margin-top:16px;font-size:13px;color:var(--vno-text-primary);cursor:pointer;">${t("writerDialogs.pageColor.custom")} <input type="color" value="${currentColor === "transparent" ? "#ffffff" : currentColor}" style="width:40px;height:32px;padding:0;border:1px solid var(--vno-border-default);border-radius:4px;background:var(--vno-bg-surface);cursor:pointer;"></label></div>
+      <div class="vno-dialog-footer"><button type="button" class="vno-btn" data-action="cancel">${t("writerDialogs.pageColor.cancel")}</button><button type="button" class="vno-btn vno-btn-primary" data-action="apply">${t("writerDialogs.pageColor.apply")}</button></div></div>`;
     document.body.appendChild(overlay);
-    const box = overlay.querySelector(".vno-dialog");
+    const box = overlay.querySelector(".vno-dialog-box");
     let selected = currentColor;
     const finish = (value) => { document.removeEventListener("keydown", onKey); overlay.remove(); previousFocused?.focus?.(); resolve(value); };
     overlay.querySelectorAll("[data-page-color]").forEach((button) => button.addEventListener("click", () => {
@@ -73,7 +73,7 @@ export async function showPageColorDialog(currentColor = "transparent") {
     overlay.querySelector('[data-action="apply"]').addEventListener("click", () => finish(selected));
     overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => finish(null));
     overlay.querySelector(".vno-dialog-close-btn").addEventListener("click", () => finish(null));
-    const onKey = (event) => { if (event.key === "Escape") finish(null); else trapFocus(box, event); };
+    const onKey = (event) => { if (event.key === "Escape") finish(null); else if (event.key === "Enter") finish(selected); else trapFocus(box, event); };
     document.addEventListener("keydown", onKey);
     overlay.querySelector("[data-page-color]")?.focus();
   });
@@ -136,14 +136,14 @@ export async function showWatermarkDialog(currentWatermark = null) {
     };
 
     overlay.innerHTML = `
-      <div class="vno-dialog-box vno-watermark-dialog" style="width: 440px;" role="dialog" aria-modal="true" aria-labelledby="vno-wm-dialog-title">
+      <div class="vno-dialog-box vno-watermark-dialog" style="width: 440px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-wm-dialog-title">
         <div class="vno-dialog-header">
           <span id="vno-wm-dialog-title">${t("writerDialogs.watermark.title")}</span>
           <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:flex; flex-direction:column; gap:14px;">
           <div>
-            <label style="font-size:12px; font-weight:600; color:#334155; display:block; margin-bottom:4px;">
+            <label style="font-size:12px; font-weight:600; color:var(--vno-text-secondary); display:block; margin-bottom:4px;">
               ${t("writerDialogs.watermark.suggestionsTitle")}
             </label>
             <div style="display:flex; flex-wrap:wrap; gap:6px;">
@@ -184,7 +184,7 @@ export async function showWatermarkDialog(currentWatermark = null) {
           <div>
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
               <label for="vno-wm-opacity" style="font-size:12px; font-weight:600;">${t("writerDialogs.watermark.opacityLabel")}</label>
-              <span id="vno-wm-opacity-val" style="font-size:12px; font-weight:bold; color:#0f4c81;">${Math.round(activeOpacity * 100)}%</span>
+              <span id="vno-wm-opacity-val" style="font-size:12px; font-weight:bold; color:var(--vno-app-current-fg, #0f4c81);">${Math.round(activeOpacity * 100)}%</span>
             </div>
             <input type="range" id="vno-wm-opacity" min="0.05" max="0.6" step="0.05" value="${activeOpacity}" aria-label="${t("writerDialogs.watermark.opacityLabel")}" aria-valuemin="5" aria-valuemax="60" aria-valuenow="${Math.round(activeOpacity * 100)}" style="width:100%;" />
           </div>
@@ -192,7 +192,7 @@ export async function showWatermarkDialog(currentWatermark = null) {
 
         <div class="vno-dialog-footer" style="display:flex; justify-content:space-between; align-items:center;">
           <div>
-            ${hasWatermark ? `<button type="button" class="vno-btn vno-btn-danger vno-wm-btn-remove" style="color:#dc2626; border-color:#fca5a5;">${t("writerDialogs.watermark.removeWatermark")}</button>` : `<span></span>`}
+            ${hasWatermark ? `<button type="button" class="vno-btn vno-btn-danger vno-wm-btn-remove" style="color:var(--vno-brand-red, #dc2626); border-color:#fca5a5;">${t("writerDialogs.watermark.removeWatermark")}</button>` : `<span></span>`}
           </div>
           <div style="display:flex; gap:8px;">
             <button type="button" class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
@@ -267,7 +267,7 @@ export async function showWatermarkDialog(currentWatermark = null) {
       if (e.key === "Escape") {
         e.preventDefault();
         cleanup(null);
-      } else if (e.key === "Enter" && e.target === txtInput) {
+      } else if (e.key === "Enter") {
         e.preventDefault();
         overlay.querySelector(".vno-dialog-ok-btn")?.click();
       } else if (e.key === "Tab") {
@@ -320,7 +320,7 @@ export async function showPageBorderDialog(currentBorder = null) {
     };
 
     overlay.innerHTML = `
-      <div class="vno-dialog-box vno-page-border-dialog" style="width: 460px;" role="dialog" aria-modal="true" aria-labelledby="vno-pb-dialog-title">
+      <div class="vno-dialog-box vno-page-border-dialog" style="width: 460px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-pb-dialog-title">
         <div class="vno-dialog-header">
           <span id="vno-pb-dialog-title">${t("writerDialogs.pageBorder.title")}</span>
           <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
@@ -358,7 +358,7 @@ export async function showPageBorderDialog(currentBorder = null) {
 
             <!-- Khung xem trước trực quan (Live Preview) -->
             <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;" aria-hidden="true">
-              <span style="font-size:11px; color:#64748b; margin-bottom:6px; font-weight:600;">${t("writerDialogs.pageBorder.previewTitle")}</span>
+              <span style="font-size:11px; color:var(--vno-text-secondary); margin-bottom:6px; font-weight:600;">${t("writerDialogs.pageBorder.previewTitle")}</span>
               <div id="vno-border-preview-sheet" style="width:110px; height:140px; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.15); border-radius:2px; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:10px; box-sizing:border-box;">
                 <div id="vno-border-preview-inner" style="position:absolute; inset:6px; pointer-events:none; border: 2px solid #0f4c81; box-sizing:border-box;"></div>
                 <div style="font-size:8px; color:#94a3b8; line-height:1.4; text-align:center;">
@@ -371,7 +371,7 @@ export async function showPageBorderDialog(currentBorder = null) {
 
         <div class="vno-dialog-footer" style="display:flex; justify-content:space-between; align-items:center;">
           <div>
-            ${isEnabled ? `<button type="button" class="vno-btn vno-btn-danger vno-border-btn-remove" style="color:#dc2626; border-color:#fca5a5;">${t("writerDialogs.pageBorder.removeBorder")}</button>` : `<span></span>`}
+            ${isEnabled ? `<button type="button" class="vno-btn vno-btn-danger vno-border-btn-remove" style="color:var(--vno-brand-red, #dc2626); border-color:#fca5a5;">${t("writerDialogs.pageBorder.removeBorder")}</button>` : `<span></span>`}
           </div>
           <div style="display:flex; gap:8px;">
             <button type="button" class="vno-btn vno-dialog-cancel-btn">${t("common.cancel")}</button>
@@ -444,6 +444,9 @@ export async function showPageBorderDialog(currentBorder = null) {
       if (e.key === "Escape") {
         e.preventDefault();
         cleanup(null);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        overlay.querySelector(".vno-dialog-ok-btn")?.click();
       } else if (e.key === "Tab") {
         trapFocus(dialogBox, e);
       }

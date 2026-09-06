@@ -215,6 +215,7 @@
   right: 18px;
   z-index: 82;
   width: 340px;
+  max-width: calc(100% - 36px);
   max-height: calc(100% - 36px);
   overflow: auto;
   padding: 12px;
@@ -253,7 +254,7 @@
 .vno-anim-pane-empty {
   padding: 16px 8px;
   font-size: 12px;
-  color: #64748b;
+  color: var(--vno-text-secondary, #475569);
   font-style: italic;
 }
 .vno-anim-pane-item {
@@ -329,6 +330,39 @@
 .vno-anim-pane-actions button[data-anim-action="remove"] {
   color: #b91c1c;
   border-color: #fecaca;
+}
+[data-theme="dark"] .vno-animation-pane header button {
+  color: #fb923c;
+}
+[data-theme="dark"] .vno-anim-pane-empty {
+  color: var(--vno-text-secondary);
+}
+[data-theme="dark"] .vno-anim-pane-item {
+  border-color: var(--vno-border-default);
+  background: var(--vno-bg-surface);
+}
+[data-theme="dark"] .vno-anim-pane-object {
+  color: var(--vno-text-primary);
+}
+[data-theme="dark"] .vno-anim-pane-type {
+  color: #fdba74;
+}
+[data-theme="dark"] .vno-anim-pane-start {
+  color: var(--vno-text-secondary);
+}
+[data-theme="dark"] .vno-anim-pane-start select {
+  border-color: var(--vno-border-default);
+  background: var(--vno-bg-surface);
+  color: var(--vno-text-primary);
+}
+[data-theme="dark"] .vno-anim-pane-actions button {
+  border-color: var(--vno-border-default);
+  background: var(--vno-bg-surface);
+  color: #fdba74;
+}
+[data-theme="dark"] .vno-anim-pane-actions button[data-anim-action="remove"] {
+  color: #f87171;
+  border-color: #7f1d1d;
 }
 .vno-slide-sorter-comments { position:absolute;top:32px;right:10px;z-index:4;padding:3px 7px;border-radius:12px;background:#fffbeb;color:#92400e;font-size:11px;font-weight:700;border:1px solid #f59e0b; }
 

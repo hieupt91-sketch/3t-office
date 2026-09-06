@@ -1,0 +1,59 @@
+﻿import { getContrastRatio, meetsWcagAA } from "../platform/ui-kit/contrast-checker.js";
+
+const pairs = [
+  // Sheet Dialogs
+  { dialog: "Sheet - General", label: "Dialog hint text on white window", fg: "#475569", bg: "#ffffff", isLarge: false },
+  { dialog: "Sheet - General", label: "Dialog hint text on dark window", fg: "#94a3b8", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Sheet - General", label: "Label secondary text on white window", fg: "#334155", bg: "#ffffff", isLarge: false },
+  { dialog: "Sheet - General", label: "Label secondary text on dark window", fg: "#cbd5e1", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Sheet - General", label: "Dialog error text on white window", fg: "#b91c1c", bg: "#ffffff", isLarge: false },
+  { dialog: "Sheet - General", label: "Dialog error text in dark mode (#f87171 on #1e1e1e)", fg: "#f87171", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Sheet - Evaluate Formula", label: "Underline green on light muted (#0f6d38 on #f8fafc)", fg: "#0f6d38", bg: "#f8fafc", isLarge: false },
+  { dialog: "Sheet - Evaluate Formula", label: "Underline green in dark mode (#4ade80 on #2d2d2d)", fg: "#4ade80", bg: "#2d2d2d", isLarge: false },
+  { dialog: "Sheet - Consolidate", label: "Destination code font on white", fg: "#0f172a", bg: "#ffffff", isLarge: false },
+  { dialog: "Sheet - Consolidate", label: "Destination code font on dark window", fg: "#f1f5f9", bg: "#1e1e1e", isLarge: false },
+  
+  // Slides Dialogs
+  { dialog: "Slides - Animation Pane", label: "Header title on white", fg: "#0f172a", bg: "#ffffff", isLarge: false },
+  { dialog: "Slides - Animation Pane", label: "Header title on dark window", fg: "#f1f5f9", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Slides - Animation Pane", label: "Header close button on white (#b53818)", fg: "#b53818", bg: "#ffffff", isLarge: true },
+  { dialog: "Slides - Animation Pane", label: "Header close button on dark (#fdba74)", fg: "#fdba74", bg: "#1e1e1e", isLarge: true },
+  { dialog: "Slides - Animation Pane", label: "Order badge text (#ffffff on #b53818)", fg: "#ffffff", bg: "#b53818", isLarge: false },
+  { dialog: "Slides - Animation Pane", label: "Item object label on light orange (#0f172a on #fff7ed)", fg: "#0f172a", bg: "#fff7ed", isLarge: false },
+  { dialog: "Slides - Animation Pane", label: "Item object label in dark mode (#f1f5f9 on #431407)", fg: "#f1f5f9", bg: "#431407", isLarge: false },
+  { dialog: "Slides - Animation Pane", label: "Item type label on light orange (#9a3412 on #fff7ed)", fg: "#9a3412", bg: "#fff7ed", isLarge: false },
+  { dialog: "Slides - Animation Pane", label: "Item type label in dark mode (#fdba74 on #431407)", fg: "#fdba74", bg: "#431407", isLarge: false },
+  { dialog: "Slides - Animation Pane", label: "Remove button on white (#b91c1c on #ffffff)", fg: "#b91c1c", bg: "#ffffff", isLarge: false },
+  { dialog: "Slides - Animation Pane", label: "Remove button in dark mode (#fca5a5 on #252526)", fg: "#fca5a5", bg: "#252526", isLarge: false },
+  { dialog: "Slides - Set Up Show", label: "Hint text on white (#475569 on #ffffff)", fg: "#475569", bg: "#ffffff", isLarge: false },
+  { dialog: "Slides - Set Up Show", label: "Hint text on dark (#94a3b8 on #1e1e1e)", fg: "#94a3b8", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Slides - Set Up Show", label: "Label text on white (#334155 on #ffffff)", fg: "#334155", bg: "#ffffff", isLarge: false },
+  { dialog: "Slides - Set Up Show", label: "Label text on dark (#cbd5e1 on #1e1e1e)", fg: "#cbd5e1", bg: "#1e1e1e", isLarge: false },
+
+  // Writer Dialogs
+  { dialog: "Writer - Page Color", label: "Palette border active (#2563eb on #ffffff)", fg: "#2563eb", bg: "#ffffff", isLarge: true },
+  { dialog: "Writer - Page Color", label: "Palette border inactive (#64748b on #ffffff)", fg: "#64748b", bg: "#ffffff", isLarge: true },
+  { dialog: "Writer - Envelopes & Labels", label: "Dialog header icon light (#0f4c81 on #f8fafc)", fg: "#0f4c81", bg: "#f8fafc", isLarge: true },
+  { dialog: "Writer - Envelopes & Labels", label: "Dialog header icon dark (#93c5fd on #1f1f1f)", fg: "#93c5fd", bg: "#1f1f1f", isLarge: true },
+  { dialog: "Writer - Envelopes & Labels", label: "Size option text light (#0f172a on #ffffff)", fg: "#0f172a", bg: "#ffffff", isLarge: false },
+  { dialog: "Writer - Envelopes & Labels", label: "Size option text dark (#f1f5f9 on #1e1e1e)", fg: "#f1f5f9", bg: "#1e1e1e", isLarge: false },
+  { dialog: "Writer - Illustrations", label: "Shape/Diagram card title light (#1e293b on #ffffff)", fg: "#1e293b", bg: "#ffffff", isLarge: false },
+  { dialog: "Writer - Illustrations", label: "Shape/Diagram card title light selected (#1e293b on #eff6ff)", fg: "#1e293b", bg: "#eff6ff", isLarge: false },
+  { dialog: "Writer - Illustrations", label: "Shape/Diagram card title dark (#f1f5f9 on #252526)", fg: "#f1f5f9", bg: "#252526", isLarge: false },
+  { dialog: "Writer - Illustrations", label: "Shape/Diagram card title dark selected (#f1f5f9 on #172554)", fg: "#f1f5f9", bg: "#172554", isLarge: false },
+  { dialog: "Writer - Illustrations", label: "Chart preview label light (#334155 on #ffffff)", fg: "#334155", bg: "#ffffff", isLarge: false },
+  { dialog: "Writer - Illustrations", label: "Chart preview label dark (#cbd5e1 on #1e1e1e)", fg: "#cbd5e1", bg: "#1e1e1e", isLarge: false }
+];
+
+console.log("=== BẮT ĐẦU ĐO ĐỘ TƯƠNG PHẢN THỰC TẾ (WCAG 2.1 AA) ===\n");
+let allPass = true;
+for (const p of pairs) {
+  const ratio = getContrastRatio(p.fg, p.bg);
+  const pass = meetsWcagAA(p.fg, p.bg, p.isLarge);
+  const req = p.isLarge ? 3.0 : 4.5;
+  if (!pass) allPass = false;
+  console.log(`[${pass ? "PASS" : "FAIL"}] [${p.dialog}] ${p.label}`);
+  console.log(`       FG: ${p.fg} | BG: ${p.bg} | Ratio: ${ratio}:1 (Yêu cầu: >= ${req}:1)\n`);
+}
+
+console.log(allPass ? "TẤT CẢ CÁC CẶP MÀU ĐỀU ĐẠT CHUẨN WCAG 2.1 AA!" : "CẢNH BÁO: CÓ CẶP MÀU CHƯA ĐẠT CHUẨN WCAG AA!");

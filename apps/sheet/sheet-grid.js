@@ -2006,7 +2006,7 @@ export class SheetGridController {
     if (!this.sheets.includes(target)) return false;
     if (typeof document === "undefined") return false;
     const overlay = this._createSheetDialog(t("sheetDialogs.renameSheetTitle", "Đổi tên trang tính"), `
-      <label>${t("sheetDialogs.renameSheetMessage", "Tên trang tính:")}
+      <label for="vno-rename-sheet">${t("sheetDialogs.renameSheetMessage", "Tên trang tính:")}
         <input id="vno-rename-sheet" class="vno-dialog-input" maxlength="${MAX_SHEET_NAME_LENGTH}" value="${this._escapeHtml(target)}" autocomplete="off">
       </label>
       <p class="vno-dialog-hint">${t("sheetDialogs.renameSheetHint", "Tối đa 31 ký tự. Không trùng tên trang khác và không chứa / \\ ? * [ ] :")}</p>
@@ -2148,13 +2148,13 @@ export class SheetGridController {
       `<option value="${this._escapeHtml(name)}"${name === target ? " selected" : ""}>${this._escapeHtml(name)}</option>`
     ).join("");
     const overlay = this._createSheetDialog(t("sheetDialogs.moveCopyTitle", "Di chuyển hoặc Sao chép"), `
-      <p>${t("sheetDialogs.moveCopyIntro", { name: this._escapeHtml(target) })}</p>
-      <label>${t("sheetDialogs.moveCopyBefore", "Chèn trước trang tính:")}
+      <p style="margin:0 0 6px;font-size:13px;">${t("sheetDialogs.moveCopyIntro", { name: this._escapeHtml(target) })}</p>
+      <label for="vno-move-before">${t("sheetDialogs.moveCopyBefore", "Chèn trước trang tính:")}
         <select id="vno-move-before" class="vno-dialog-input">${options}
           <option value="${SHEET_MOVE_TO_END}">${t("sheetDialogs.moveCopyToEnd", "(chuyển đến cuối)")}</option>
         </select>
       </label>
-      <label class="vno-dialog-check">
+      <label class="vno-dialog-check" for="vno-move-copy">
         <input type="checkbox" id="vno-move-copy">
         ${t("sheetDialogs.moveCopyCreateCopy", "Tạo một bản sao")}
       </label>
@@ -2251,8 +2251,8 @@ export class SheetGridController {
       if (!current.password) return this.unprotectSheet({ sheetName: target });
       if (typeof document === "undefined") return false;
       const overlay = this._createSheetDialog(t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính"), `
-        <p>${t("sheetDialogs.unprotectPasswordMessage", "Nhập mật khẩu để bỏ bảo vệ trang tính (khóa giao diện, không phải bảo mật thật).")}</p>
-        <label>${t("sheetDialogs.protectPassword", "Mật khẩu")}
+        <p style="margin:0 0 6px;font-size:13px;">${t("sheetDialogs.unprotectPasswordMessage", "Nhập mật khẩu để bỏ bảo vệ trang tính (khóa giao diện, không phải bảo mật thật).")}</p>
+        <label for="vno-unprotect-password">${t("sheetDialogs.protectPassword", "Mật khẩu")}
           <input id="vno-unprotect-password" class="vno-dialog-input" type="password" autocomplete="off">
         </label>
         <div class="vno-rule-error" role="alert"></div>`);
@@ -2270,15 +2270,15 @@ export class SheetGridController {
     }
     if (typeof document === "undefined") return false;
     const overlay = this._createSheetDialog(t("sheetDialogs.protectSheetTitle", "Bảo vệ trang tính"), `
-      <label class="vno-dialog-check">
+      <label class="vno-dialog-check" for="vno-protect-enable">
         <input type="checkbox" id="vno-protect-enable" checked>
         ${t("sheetDialogs.protectSheetCheckbox", "Bảo vệ trang tính và nội dung các ô bị khóa")}
       </label>
       <p class="vno-dialog-hint">${t("sheetDialogs.protectSheetHint", "Khi bật: không sửa nội dung ô, không đổi định dạng, không chèn/xóa hàng hoặc cột. Đây là khóa giao diện, mật khẩu lưu dạng chữ thường trong phiên làm việc — không phải bảo mật thật.")}</p>
-      <label>${t("sheetDialogs.protectPassword", "Mật khẩu (tùy chọn)")}
+      <label for="vno-protect-password">${t("sheetDialogs.protectPassword", "Mật khẩu (tùy chọn)")}
         <input id="vno-protect-password" class="vno-dialog-input" type="password" autocomplete="new-password">
       </label>
-      <label>${t("sheetDialogs.protectPasswordConfirm", "Nhập lại mật khẩu")}
+      <label for="vno-protect-password2">${t("sheetDialogs.protectPasswordConfirm", "Nhập lại mật khẩu")}
         <input id="vno-protect-password2" class="vno-dialog-input" type="password" autocomplete="new-password">
       </label>
       <div class="vno-rule-error" role="alert"></div>`);
@@ -2376,8 +2376,8 @@ export class SheetGridController {
       if (!current.password) return this.unprotectWorkbook();
       if (typeof document === "undefined") return false;
       const overlay = this._createSheetDialog(t("sheetDialogs.unprotectWorkbook", "Bỏ bảo vệ workbook"), `
-        <p>${t("sheetDialogs.unprotectWorkbookPasswordMessage", "Nhập mật khẩu để bỏ bảo vệ cấu trúc workbook (khóa giao diện, không phải bảo mật thật).")}</p>
-        <label>${t("sheetDialogs.protectPassword", "Mật khẩu")}
+        <p style="margin:0 0 6px;font-size:13px;">${t("sheetDialogs.unprotectWorkbookPasswordMessage", "Nhập mật khẩu để bỏ bảo vệ cấu trúc workbook (khóa giao diện, không phải bảo mật thật).")}</p>
+        <label for="vno-unprotect-wb-password">${t("sheetDialogs.protectPassword", "Mật khẩu")}
           <input id="vno-unprotect-wb-password" class="vno-dialog-input" type="password" autocomplete="off">
         </label>
         <div class="vno-rule-error" role="alert"></div>`);
@@ -2395,15 +2395,15 @@ export class SheetGridController {
     }
     if (typeof document === "undefined") return false;
     const overlay = this._createSheetDialog(t("sheetDialogs.protectWorkbookTitle", "Bảo vệ workbook"), `
-      <label class="vno-dialog-check">
+      <label class="vno-dialog-check" for="vno-protect-wb-enable">
         <input type="checkbox" id="vno-protect-wb-enable" checked>
         ${t("sheetDialogs.protectWorkbookCheckbox", "Bảo vệ cấu trúc workbook (trang tính)")}
       </label>
       <p class="vno-dialog-hint">${t("sheetDialogs.protectWorkbookHint", "Khi bật: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Nội dung ô vẫn sửa được — khác Bảo vệ trang tính. Đây là khóa giao diện, mật khẩu lưu dạng chữ thường trong phiên làm việc — không phải bảo mật thật.")}</p>
-      <label>${t("sheetDialogs.protectPassword", "Mật khẩu (tùy chọn)")}
+      <label for="vno-protect-wb-password">${t("sheetDialogs.protectPassword", "Mật khẩu (tùy chọn)")}
         <input id="vno-protect-wb-password" class="vno-dialog-input" type="password" autocomplete="new-password">
       </label>
-      <label>${t("sheetDialogs.protectPasswordConfirm", "Nhập lại mật khẩu")}
+      <label for="vno-protect-wb-password2">${t("sheetDialogs.protectPasswordConfirm", "Nhập lại mật khẩu")}
         <input id="vno-protect-wb-password2" class="vno-dialog-input" type="password" autocomplete="new-password">
       </label>
       <div class="vno-rule-error" role="alert"></div>`);
@@ -3807,10 +3807,8 @@ export class SheetGridController {
     restartBtn.className = "vno-btn vno-eval-btn-restart";
     restartBtn.textContent = t("sheetDialogs.evaluateFormulaRestart", "Khởi động lại");
     if (footer) {
-      footer.prepend(restartBtn);
-      footer.prepend(stepOutBtn);
-      footer.prepend(stepInBtn);
-      footer.prepend(evaluateBtn);
+      footer.innerHTML = "";
+      footer.append(evaluateBtn, stepInBtn, stepOutBtn, restartBtn, cancelBtn);
     }
 
     const render = () => {
@@ -7403,10 +7401,14 @@ export class SheetGridController {
 
   showDataTableDialog() {
     const overlay = this._createSheetDialog(t("sheetDialogs.dataTableTitle", "Bảng dữ liệu"), `
-      <p>${t("sheetDialogs.dataTableRange", "Vùng đã chọn")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
-      <p>${t("sheetDialogs.dataTableHint", "Đặt công thức gốc ở ô góc trên-trái; giá trị thay thế ở hàng trên và/hoặc cột trái.")}</p>
-      <label>${t("sheetDialogs.rowInputCell", "Ô đầu vào theo hàng")}<input id="vno-data-table-row-input" autocomplete="off"></label>
-      <label>${t("sheetDialogs.columnInputCell", "Ô đầu vào theo cột")}<input id="vno-data-table-column-input" autocomplete="off"></label>
+      <p style="margin:0 0 4px;font-size:13px;">${t("sheetDialogs.dataTableRange", "Vùng đã chọn")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <p class="vno-dialog-hint">${t("sheetDialogs.dataTableHint", "Đặt công thức gốc ở ô góc trên-trái; giá trị thay thế ở hàng trên và/hoặc cột trái.")}</p>
+      <label for="vno-data-table-row-input">${t("sheetDialogs.rowInputCell", "Ô đầu vào theo hàng")}
+        <input id="vno-data-table-row-input" autocomplete="off" placeholder="ví dụ: A1">
+      </label>
+      <label for="vno-data-table-column-input">${t("sheetDialogs.columnInputCell", "Ô đầu vào theo cột")}
+        <input id="vno-data-table-column-input" autocomplete="off" placeholder="ví dụ: A2">
+      </label>
       <div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
     overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
@@ -7418,11 +7420,26 @@ export class SheetGridController {
 
   showScenarioManagerDialog() {
     const overlay = this._createSheetDialog(t("sheetDialogs.scenarioManagerTitle", "Trình quản lý kịch bản"), `
-      <div class="vno-scenario-manager"><label>${t("sheetDialogs.scenarios", "Kịch bản")}<select id="vno-scenario-list" size="5"></select></label>
-      <label>${t("sheetDialogs.scenarioName", "Tên kịch bản")}<input id="vno-scenario-name" autocomplete="off"></label>
-      <label>${t("sheetDialogs.changingCells", "Các ô thay đổi")}<input id="vno-scenario-cells" placeholder="B2, B3" autocomplete="off"></label>
-      <label>${t("sheetDialogs.scenarioValues", "Các giá trị (cách nhau bằng dấu phẩy)")}<input id="vno-scenario-values" placeholder="100, 0.08" autocomplete="off"></label>
-      <div class="vno-scenario-actions"><button type="button" class="vno-btn" data-scenario-add>${t("sheetDialogs.add", "Thêm")}</button><button type="button" class="vno-btn" data-scenario-edit>${t("sheetDialogs.edit", "Sửa")}</button><button type="button" class="vno-btn" data-scenario-delete>${t("sheetDialogs.delete", "Xóa")}</button></div><div class="vno-rule-error" role="alert"></div></div>`);
+      <div class="vno-scenario-manager">
+        <label for="vno-scenario-list">${t("sheetDialogs.scenarios", "Kịch bản")}
+          <select id="vno-scenario-list" size="5" aria-label="${t("sheetDialogs.scenarios", "Kịch bản")}"></select>
+        </label>
+        <label for="vno-scenario-name">${t("sheetDialogs.scenarioName", "Tên kịch bản")}
+          <input id="vno-scenario-name" autocomplete="off">
+        </label>
+        <label for="vno-scenario-cells">${t("sheetDialogs.changingCells", "Các ô thay đổi")}
+          <input id="vno-scenario-cells" placeholder="B2, B3" autocomplete="off">
+        </label>
+        <label for="vno-scenario-values">${t("sheetDialogs.scenarioValues", "Các giá trị (cách nhau bằng dấu phẩy)")}
+          <input id="vno-scenario-values" placeholder="100, 0.08" autocomplete="off">
+        </label>
+        <div class="vno-scenario-actions">
+          <button type="button" class="vno-btn" data-scenario-add>${t("sheetDialogs.add", "Thêm")}</button>
+          <button type="button" class="vno-btn" data-scenario-edit>${t("sheetDialogs.edit", "Sửa")}</button>
+          <button type="button" class="vno-btn" data-scenario-delete>${t("sheetDialogs.delete", "Xóa")}</button>
+        </div>
+        <div class="vno-rule-error" role="alert"></div>
+      </div>`);
     if (!overlay) return false;
     const list = overlay.querySelector("#vno-scenario-list"), error = overlay.querySelector(".vno-rule-error");
     const render = selectedId => { list.innerHTML = this.getScenarios().map(item => `<option value="${item.id}"${item.id === selectedId ? " selected" : ""}>${this._escapeHtml(item.name)}</option>`).join(""); list.dispatchEvent(new Event("change")); };
@@ -7512,31 +7529,28 @@ export class SheetGridController {
       <div class="vno-consolidate-main">
         <p class="vno-consolidate-hint">${this._escapeHtml(t("sheetDialogs.consolidateHint", "Gộp nhiều vùng (có thể từ các trang tính khác nhau) thành một bảng tại ô đang chọn. Kết quả là giá trị tĩnh; hoàn tác bằng Ctrl+Z."))}</p>
         <p class="vno-consolidate-dest">${this._escapeHtml(t("sheetDialogs.consolidateDest", { sheet: destSheet, coord: `${destCell.c}${destCell.r}` }))}</p>
-        <label for="vno-consolidate-function">${t("sheetDialogs.consolidateFunction", "Hàm")}
-          <select id="vno-consolidate-function">${functionOptions}</select>
-        </label>
-        <label for="vno-consolidate-ref">${t("sheetDialogs.consolidateReference", "Tham chiếu")}
-          <div class="vno-consolidate-ref-row">
-            <input id="vno-consolidate-ref" type="text" autocomplete="off" spellcheck="false" placeholder="TrangTinh!A1:B10">
-            <button type="button" class="vno-btn vno-consolidate-add">${t("sheetDialogs.consolidateAdd", "Thêm")}</button>
-            <button type="button" class="vno-btn vno-consolidate-browse">${t("sheetDialogs.consolidateBrowse", "Duyệt")}</button>
-          </div>
-        </label>
-        <label for="vno-consolidate-list">${t("sheetDialogs.consolidateAllRefs", "Tất cả tham chiếu")}
-          <select id="vno-consolidate-list" size="6"></select>
-        </label>
+        <label for="vno-consolidate-function">${t("sheetDialogs.consolidateFunction", "Hàm")}</label>
+        <select id="vno-consolidate-function">${functionOptions}</select>
+        <label for="vno-consolidate-ref">${t("sheetDialogs.consolidateReference", "Tham chiếu")}</label>
+        <div class="vno-consolidate-ref-row">
+          <input id="vno-consolidate-ref" type="text" autocomplete="off" spellcheck="false" placeholder="TrangTinh!A1:B10" aria-label="${t("sheetDialogs.consolidateReference", "Tham chiếu")}">
+          <button type="button" class="vno-btn vno-consolidate-add">${t("sheetDialogs.consolidateAdd", "Thêm")}</button>
+          <button type="button" class="vno-btn vno-consolidate-browse">${t("sheetDialogs.consolidateBrowse", "Duyệt")}</button>
+        </div>
+        <label for="vno-consolidate-list">${t("sheetDialogs.consolidateAllRefs", "Tất cả tham chiếu")}</label>
+        <select id="vno-consolidate-list" size="6" aria-label="${t("sheetDialogs.consolidateAllRefs", "Tất cả tham chiếu")}"></select>
         <div class="vno-consolidate-list-actions">
           <button type="button" class="vno-btn vno-consolidate-delete">${t("sheetDialogs.consolidateDelete", "Xóa")}</button>
         </div>
         <div class="vno-consolidate-flags">
-          <label class="vno-consolidate-check"><input id="vno-consolidate-top-row" type="checkbox"> ${t("sheetDialogs.consolidateTopRow", "Nhãn ở hàng trên")}</label>
-          <label class="vno-consolidate-check"><input id="vno-consolidate-left-col" type="checkbox"> ${t("sheetDialogs.consolidateLeftCol", "Nhãn ở cột trái")}</label>
+          <label class="vno-consolidate-check" for="vno-consolidate-top-row"><input id="vno-consolidate-top-row" type="checkbox"> ${t("sheetDialogs.consolidateTopRow", "Nhãn ở hàng trên")}</label>
+          <label class="vno-consolidate-check" for="vno-consolidate-left-col"><input id="vno-consolidate-left-col" type="checkbox"> ${t("sheetDialogs.consolidateLeftCol", "Nhãn ở cột trái")}</label>
         </div>
         <div class="vno-rule-error" role="alert" aria-live="assertive"></div>
       </div>
       <div class="vno-consolidate-pick-bar">
-        <label class="vno-consolidate-pick-label">${t("sheetDialogs.consolidatePickLabel", "Chọn vùng trên lưới")}
-          <input id="vno-consolidate-pick-ref" type="text" autocomplete="off" spellcheck="false">
+        <label for="vno-consolidate-pick-ref" class="vno-consolidate-pick-label">${t("sheetDialogs.consolidatePickLabel", "Chọn vùng trên lưới")}
+          <input id="vno-consolidate-pick-ref" type="text" autocomplete="off" spellcheck="false" aria-label="${t("sheetDialogs.consolidatePickLabel", "Chọn vùng trên lưới")}">
         </label>
         <button type="button" class="vno-btn vno-btn-primary vno-consolidate-pick-ok">${t("sheetDialogs.consolidatePickOk", "Chọn")}</button>
         <button type="button" class="vno-btn vno-consolidate-pick-cancel">${t("common.cancel", "Hủy bỏ")}</button>
@@ -7679,17 +7693,29 @@ export class SheetGridController {
     const previousActive = document.activeElement;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay vno-sheet-rule-dialog";
-    overlay.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-label="${title}">
-      <div class="vno-dialog-header"><strong>${title}</strong><button class="vno-btn vno-rule-close" aria-label="${t("sheetDialogs.close")}">&times;</button></div>
+    const titleId = `vno-sheet-dlg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    overlay.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+      <div class="vno-dialog-header"><strong id="${titleId}" class="vno-dialog-title">${title}</strong><button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn vno-rule-close" title="${t("sheetDialogs.close", "Đóng")}" aria-label="${t("sheetDialogs.close", "Đóng")}">&times;</button></div>
       <div class="vno-dialog-body">${bodyHtml}</div>
-      <div class="vno-dialog-footer"><button class="vno-btn vno-rule-cancel">${t("sheetDialogs.cancel")}</button><button class="vno-btn vno-btn-primary vno-rule-apply">${t("sheetDialogs.apply")}</button></div>
+      <div class="vno-dialog-footer"><button type="button" class="vno-btn vno-rule-cancel">${t("sheetDialogs.cancel", "Hủy bỏ")}</button><button type="button" class="vno-btn vno-btn-primary vno-rule-apply">${t("sheetDialogs.apply", "Đồng ý")}</button></div>
     </div>`;
     const onKey = (event) => {
       if (event.key === "Escape") {
         close();
+      } else if (event.key === "Enter") {
+        const target = event.target;
+        if (target && target.tagName !== "TEXTAREA" && !target.classList.contains("vno-rule-cancel") && !target.classList.contains("vno-rule-close")) {
+          if (target.tagName !== "BUTTON" || target.classList.contains("vno-rule-apply")) {
+            const applyBtn = overlay.querySelector(".vno-rule-apply");
+            if (applyBtn && !applyBtn.disabled && (applyBtn.offsetParent !== null || applyBtn.offsetWidth > 0)) {
+              event.preventDefault();
+              applyBtn.click();
+            }
+          }
+        }
       } else if (event.key === "Tab") {
         const dialogBox = overlay.querySelector(".vno-dialog-box");
-        const focusables = dialogBox ? Array.from(dialogBox.querySelectorAll('button:not([disabled]), select:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0) : [];
+        const focusables = dialogBox ? Array.from(dialogBox.querySelectorAll('button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), select:not([disabled]), input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])')).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0) : [];
         if (focusables.length > 0) {
           const first = focusables[0];
           const last = focusables[focusables.length - 1];
@@ -7718,7 +7744,8 @@ export class SheetGridController {
     });
     document.addEventListener("keydown", onKey);
     document.body.appendChild(overlay);
-    overlay.querySelector("select, input")?.focus();
+    const initialFocus = overlay.querySelector("input:not([disabled]):not([type='hidden']), select:not([disabled]), textarea:not([disabled]), .vno-btn-primary");
+    initialFocus?.focus();
     return overlay;
   }
 

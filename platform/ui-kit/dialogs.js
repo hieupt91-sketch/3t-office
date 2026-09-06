@@ -320,29 +320,29 @@ export function showFindReplaceDialog({
   const titleId = `vno-dialog-title-${++dialogIdCounter}`;
 
   overlay.innerHTML = `
-    <div class="vno-dialog-box" style="width: 500px;" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+    <div class="vno-dialog-box" style="width: 500px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
       <div class="vno-dialog-header">
         <div style="display:flex;gap:12px;align-items:center;">
           <span id="${titleId}" style="font-weight:700;">Tìm kiếm và Thay thế</span>
         </div>
-        <button class="vno-btn vno-btn-icon-only vno-fr-close" title="Đóng" aria-label="Đóng">&times;</button>
+        <button class="vno-btn vno-btn-icon-only vno-fr-close vno-dialog-close-btn" title="Đóng" aria-label="Đóng">&times;</button>
       </div>
       <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:14px;">
         <div style="display:flex;flex-direction:column;gap:4px;">
           <label for="vno-fr-find-input" style="font-size:12px;font-weight:600;color:var(--vno-text-secondary);">Tìm kiếm:</label>
-          <input type="text" id="vno-fr-find-input" placeholder="Nhập từ hoặc cụm từ cần tìm..."
-                 style="padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;width:100%;box-sizing:border-box;" />
+          <input type="text" id="vno-fr-find-input" class="vno-dialog-input" placeholder="Nhập từ hoặc cụm từ cần tìm..."
+                 style="padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;width:100%;box-sizing:border-box;background:var(--vno-bg-surface);color:var(--vno-text-primary);" />
         </div>
 
         <div id="vno-fr-replace-group" style="display:${isReplace ? "flex" : "none"};flex-direction:column;gap:4px;">
           <label for="vno-fr-replace-input" style="font-size:12px;font-weight:600;color:var(--vno-text-secondary);">Thay thế bằng:</label>
-          <input type="text" id="vno-fr-replace-input" placeholder="Nhập nội dung thay thế..."
-                 style="padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;width:100%;box-sizing:border-box;" />
+          <input type="text" id="vno-fr-replace-input" class="vno-dialog-input" placeholder="Nhập nội dung thay thế..."
+                 style="padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);font-size:13px;width:100%;box-sizing:border-box;background:var(--vno-bg-surface);color:var(--vno-text-primary);" />
         </div>
 
         <div style="display:flex;align-items:center;gap:8px;">
           <input type="checkbox" id="vno-fr-toggle-replace" ${isReplace ? "checked" : ""} />
-          <label for="vno-fr-toggle-replace" style="font-size:12px;color:var(--vno-text-secondary);cursor:pointer;">Hiển thị tùy chọn thay thế</label>
+          <label for="vno-fr-toggle-replace" style="font-size:12px;color:var(--vno-text-secondary);cursor:pointer;user-select:none;">Hiển thị tùy chọn thay thế</label>
         </div>
       </div>
       <div class="vno-dialog-footer">

@@ -201,7 +201,7 @@ export function showEnvelopeDialog(options = {}) {
       <div class="vno-dialog-box vno-envelope-dialog" style="width:560px;max-width:calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-envelope-title">
         <div class="vno-dialog-header">
           <div style="display:flex;align-items:center;gap:8px;">
-            <span style="display:flex;color:#0f4c81;" aria-hidden="true">${ICONS.envelope || ""}</span>
+            <span style="display:flex;color:var(--vno-app-current-fg, #0f4c81);" aria-hidden="true">${ICONS.envelope || ""}</span>
             <span id="vno-envelope-title">${dialogT("writerDialogs.envelopes.title", "Phong bì")}</span>
           </div>
           <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${dialogT("common.close", "Đóng")}" aria-label="${dialogT("common.close", "Đóng")}">&times;</button>
@@ -228,7 +228,7 @@ export function showEnvelopeDialog(options = {}) {
             <label><input type="radio" name="vno-envelope-position" value="start" ${(defaults.position || "end") === "start" ? "checked" : ""}> ${dialogT("writerDialogs.envelopes.positionStart", "Đầu tài liệu")}</label>
             <label><input type="radio" name="vno-envelope-position" value="end" ${(defaults.position || "end") !== "start" ? "checked" : ""}> ${dialogT("writerDialogs.envelopes.positionEnd", "Cuối tài liệu")}</label>
           </div>
-          <div id="vno-envelope-error" style="display:none;font-size:12px;color:#dc2626;" role="alert"></div>
+          <div id="vno-envelope-error" style="display:none;font-size:12px;color:var(--vno-brand-red, #dc2626);" role="alert"></div>
         </div>
         <div class="vno-dialog-footer">
           <button type="button" class="vno-btn vno-dialog-cancel-btn">${dialogT("common.cancel", "Hủy")}</button>
@@ -304,6 +304,9 @@ export function showEnvelopeDialog(options = {}) {
       if (event.key === "Escape") {
         event.preventDefault();
         cleanup(null);
+      } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey || event.target.tagName !== "TEXTAREA")) {
+        event.preventDefault();
+        finishAdd();
       } else if (event.key === "Tab") {
         trapFocus(dialogBox, event);
       }
@@ -343,7 +346,7 @@ export function showLabelsDialog(options = {}) {
       <div class="vno-dialog-box vno-labels-dialog" style="width:540px;max-width:calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-labels-title">
         <div class="vno-dialog-header">
           <div style="display:flex;align-items:center;gap:8px;">
-            <span style="display:flex;color:#0f4c81;" aria-hidden="true">${ICONS.labels || ""}</span>
+            <span style="display:flex;color:var(--vno-app-current-fg, #0f4c81);" aria-hidden="true">${ICONS.labels || ""}</span>
             <span id="vno-labels-title">${dialogT("writerDialogs.labels.title", "Nhãn")}</span>
           </div>
           <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${dialogT("common.close", "Đóng")}" aria-label="${dialogT("common.close", "Đóng")}">&times;</button>
@@ -357,7 +360,7 @@ export function showLabelsDialog(options = {}) {
           <select id="vno-labels-layout" class="vno-dialog-input" style="width:100%;box-sizing:border-box;padding:8px 12px;font-size:13px;">
             ${layoutOptions}
           </select>
-          <div id="vno-labels-error" style="display:none;font-size:12px;color:#dc2626;" role="alert"></div>
+          <div id="vno-labels-error" style="display:none;font-size:12px;color:var(--vno-brand-red, #dc2626);" role="alert"></div>
         </div>
         <div class="vno-dialog-footer">
           <button type="button" class="vno-btn vno-dialog-cancel-btn">${dialogT("common.cancel", "Hủy")}</button>
@@ -418,6 +421,9 @@ export function showLabelsDialog(options = {}) {
       if (event.key === "Escape") {
         event.preventDefault();
         cleanup(null);
+      } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey || event.target.tagName !== "TEXTAREA")) {
+        event.preventDefault();
+        finishCreate();
       } else if (event.key === "Tab") {
         trapFocus(dialogBox, event);
       }
