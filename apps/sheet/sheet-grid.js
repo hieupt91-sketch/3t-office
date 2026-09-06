@@ -139,6 +139,7 @@ export class SheetGridController {
     this._isSelectingRange = false;
     this._rangeAnchor = null;
     this._activeContextMenu = null;
+    this._contextMenuPreviousFocus = null;
     this.formatPainter = null;
     this._formatPainterActivatedAt = 0;
     this._formatPainterEscHandler = null;
@@ -1394,6 +1395,7 @@ export class SheetGridController {
   showContextMenu(e, type, target) {
     this._closeContextMenu();
     if (typeof document === "undefined") return;
+    this._contextMenuPreviousFocus = document.activeElement;
 
     const menu = document.createElement("div");
     menu.className = "vno-sheet-context-menu";
@@ -1517,6 +1519,14 @@ export class SheetGridController {
       this._activeContextMenu._vnoCleanup?.();
       this._activeContextMenu.remove();
       this._activeContextMenu = null;
+      // Trả focus về nơi đã mở menu (thường là lưới) — nếu không, focus rơi vào
+      // <body> sau khi menu bị xóa khỏi DOM và điều hướng bàn phím trên lưới sẽ ngừng
+      // hoạt động cho đến khi người dùng click chuột lại (đo được qua Shift+F10 → Escape).
+      const previousFocus = this._contextMenuPreviousFocus;
+      this._contextMenuPreviousFocus = null;
+      if (previousFocus && document.contains(previousFocus) && typeof previousFocus.focus === "function") {
+        try { previousFocus.focus(); } catch (_) { /* noop */ }
+      }
     }
   }
 
@@ -1845,6 +1855,7 @@ export class SheetGridController {
   _showSheetTabContextMenu(event, sheetName) {
     this._closeContextMenu();
     if (typeof document === "undefined") return;
+    this._contextMenuPreviousFocus = document.activeElement;
     const menu = document.createElement("div");
     menu.className = "vno-sheet-context-menu";
     menu.setAttribute("role", "menu");
