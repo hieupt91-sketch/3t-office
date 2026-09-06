@@ -273,38 +273,65 @@ def _ooxml_zip_patch():
 def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str | None, target_format: str) -> None:
     """Patch native OOXML that LibreOffice omitted, after soffice convert.
 
-    Why here (main.py), not SheetAdapter: File → Lưu serializes FODS in JS, then
-    this process converts FODS→XLSX and writes the dest path. The JS adapter
-    never receives XLSX bytes. The post-process must run on the converted ZIP
-    before shutil.copyfile.
+    Why here (main.py), not the JS adapters: File → Lưu serializes FODS/FODP in
+    JS, then this process converts and writes the dest path. The JS adapter
+    never receives XLSX/PPTX bytes. The post-process must run on the converted
+    ZIP before shutil.copyfile.
 
     Sheet XLSX: FODS already has table:structure-protected. LibreOffice writes
     <workbookProtection lockWindows="false"/> but not lockStructure="1".
     Excel's Protect Workbook structure lock IS that standard attribute — not a
     custom namespace. We add it in-place on the existing element.
+
+    Slides PPTX: FODP already has the master-page logo (vno:master-theme +
+    draw:frame). LibreOffice drops that shape and only keeps placeholders.
+    PowerPoint's slot is a p:sp without p:ph on slideMaster1.xml. We insert
+    that DrawingML shape; no custom namespace.
     """
-    if app_kind != "sheet" or str(target_format).lower() != "xlsx":
-        return
-    if not src_path or not str(src_path).lower().endswith(".fods"):
-        return
-    try:
-        with open(src_path, "r", encoding="utf-8", errors="replace") as handle:
-            fods = handle.read()
-        patcher = _ooxml_zip_patch()
-        if not patcher.fods_has_structure_protection(fods):
+    fmt = str(target_format).lower()
+    if app_kind == "sheet" and fmt == "xlsx":
+        if not src_path or not str(src_path).lower().endswith(".fods"):
             return
-        with open(out_path, "rb") as handle:
-            original = handle.read()
-        patched = patcher.postprocess_sheet_xlsx(original, source_fods=fods, enabled=True)
-        if patched != original:
-            with open(out_path, "wb") as handle:
-                handle.write(patched)
-    except DocumentEngineError:
-        raise
-    except Exception as exc:
-        raise DocumentEngineError(
-            f"Không bổ sung được khóa cấu trúc workbook vào XLSX: {exc}"
-        ) from exc
+        try:
+            with open(src_path, "r", encoding="utf-8", errors="replace") as handle:
+                fods = handle.read()
+            patcher = _ooxml_zip_patch()
+            if not patcher.fods_has_structure_protection(fods):
+                return
+            with open(out_path, "rb") as handle:
+                original = handle.read()
+            patched = patcher.postprocess_sheet_xlsx(original, source_fods=fods, enabled=True)
+            if patched != original:
+                with open(out_path, "wb") as handle:
+                    handle.write(patched)
+        except DocumentEngineError:
+            raise
+        except Exception as exc:
+            raise DocumentEngineError(
+                f"Không bổ sung được khóa cấu trúc workbook vào XLSX: {exc}"
+            ) from exc
+        return
+    if app_kind == "slides" and fmt == "pptx":
+        if not src_path or not str(src_path).lower().endswith(".fodp"):
+            return
+        try:
+            with open(src_path, "r", encoding="utf-8", errors="replace") as handle:
+                fodp = handle.read()
+            patcher = _ooxml_zip_patch()
+            if not patcher.fodp_has_master_logo(fodp):
+                return
+            with open(out_path, "rb") as handle:
+                original = handle.read()
+            patched = patcher.postprocess_slides_pptx(original, source_fodp=fodp)
+            if patched != original:
+                with open(out_path, "wb") as handle:
+                    handle.write(patched)
+        except DocumentEngineError:
+            raise
+        except Exception as exc:
+            raise DocumentEngineError(
+                f"Không bổ sung được logo Slide Master vào PPTX: {exc}"
+            ) from exc
 
 
 def _read_xlsx_workbook_xml(src_path: str) -> str | None:
