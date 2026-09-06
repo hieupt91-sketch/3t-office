@@ -72,12 +72,32 @@
 ---
 
 ## Khu vuc 3 — Menu ngu canh Slides (Context menu & focus tra ve sau Escape)
-*(Dang thuc hien tiep theo)*
+
+**File sua:** `apps/slides/slides-canvas.js`
+**Test:** `tests/live/slides-context-menu-keyboard-nav.playwright.mjs` (Live Edge Playwright PASS 100%)
+
+### Hien trang truoc khi sua:
+- Trong `_openSlideSectionMenu`, biến `section` không được khai báo (`const section = this._sectionAtSlide(slideIndex)` bị thiếu), dẫn tới `ReferenceError` khi mở menu.
+- Khi đóng menu ngữ cảnh thumbnail/section bằng phím Escape, nếu menu mở bằng chuột phải (hoặc `document.activeElement` là body), focus không được đảm bảo trả về đúng thumbnail trigger mà bị lạc về body.
+- Thiếu menu ngữ cảnh (Context Menu) cho hình vẽ (shape) trên canvas khi người dùng chuột phải hoặc nhấn phím `ContextMenu` / `Shift+F10`.
+- Các nút trong menu chưa hỗ trợ phím `Home` (về đầu) và `End` (về cuối).
+
+### Da thuc hien:
+1. **Sua loi va hoan thien Slide/Section Context Menu (`_openSlideSectionMenu`):**
+   - Khai báo đúng `const section = this._sectionAtSlide(slideIndex)`.
+   - Xác định `triggerEl` chuẩn xác: ưu tiên phần tử focus trước đó nếu nằm trong DOM, hoặc fallback về thumbnail item tương ứng `[data-slide-index="${slideIndex}"]`.
+   - Bổ sung các tùy chọn chuẩn Office: "Trang mới", "Nhân đôi trang", "Xóa trang" (disable khi chỉ có 1 slide), "Thêm Phần", "Đổi tên Phần", "Xóa Phần".
+   - Bàn phím: `ArrowDown` / `ArrowUp` di chuyển vòng tròn với roving tabindex, `Home` / `End` nhảy nhanh, `Escape` đóng menu và phục hồi focus ngay lập tức về `triggerEl`.
+2. **Tao moi Shape Context Menu (`_openShapeContextMenu`):**
+   - Hỗ trợ mở menu ngữ cảnh cho hình vẽ qua chuột phải (`contextmenu`) hoặc bàn phím (`ContextMenu` / `Shift+F10`).
+   - Cung cấp các thao tác nhanh: "Nhân đôi (Ctrl+D)", "Xóa hình vẽ (Delete)", "Chỉnh sửa biểu đồ..." (nếu là biểu đồ), "Xóa nhóm sơ đồ" (nếu là SmartArt node).
+   - Khi đóng bằng `Escape` hoặc click ra ngoài, focus được khôi phục 100% về shape ban đầu.
+   - Sau khi thoát menu, các phím mũi tên tiếp tục nudge shape mượt mà, không bị kẹt hay mất focus.
 
 ---
 
 ## Khu vuc 4 — Ribbon Slides (Arrow nav tab & gallery dropdowns)
-*(Chua thuc hien)*
+*(Dang thuc hien tiep theo)*
 
 ---
 
@@ -91,3 +111,4 @@
 - `node tests/live/slides-mouse-shortcuts.playwright.mjs`: PASS 100%.
 - `node tests/live/slides-canvas-keyboard-nav.playwright.mjs`: PASS 100%.
 - `node tests/live/slides-navigator-keyboard-nav.playwright.mjs`: PASS 100%.
+- `node tests/live/slides-context-menu-keyboard-nav.playwright.mjs`: PASS 100%.

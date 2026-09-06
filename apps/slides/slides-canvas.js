@@ -2963,6 +2963,10 @@ export class SlidesCanvasController {
             this.setSelectedTarget(shape.id);
           }
         });
+        el.addEventListener("contextmenu", (event) => {
+          event.preventDefault();
+          this._openShapeContextMenu(shape.id, event.clientX || 0, event.clientY || 0);
+        });
         el.addEventListener("keydown", (event) => {
           if (event.defaultPrevented) return;
           if (event.key === "Delete" || event.key === "Backspace") {
@@ -2973,6 +2977,11 @@ export class SlidesCanvasController {
             event.preventDefault();
             event.stopPropagation();
             this.duplicateSelectedShapes();
+          } else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+            event.preventDefault();
+            event.stopPropagation();
+            const rect = el.getBoundingClientRect?.() || { left: 100, top: 100 };
+            this._openShapeContextMenu(shape.id, (rect.left || 0) + 24, (rect.top || 0) + 24);
           }
         });
       }
@@ -4659,32 +4668,47 @@ export class SlidesCanvasController {
     document.querySelector?.(".vno-slide-section-menu")?.remove?.();
     const slide = this.slides[slideIndex];
     if (!slide) return false;
+    const section = this._sectionAtSlide(slideIndex);
     const previousFocused = typeof document !== "undefined" ? document.activeElement : null;
-    if ((!clientX && !clientY) && previousFocused?.getBoundingClientRect) {
-      const rect = previousFocused.getBoundingClientRect();
+    const triggerEl = (previousFocused && previousFocused !== document.body && document.body.contains(previousFocused))
+      ? previousFocused
+      : (this.slideListContainer?.querySelector(`[data-slide-index="${slideIndex}"]`) || this.canvasEl);
+
+    if ((!clientX && !clientY) && triggerEl?.getBoundingClientRect) {
+      const rect = triggerEl.getBoundingClientRect();
       clientX = Math.round(rect.left + 24);
       clientY = Math.round(rect.top + 24);
     }
     const clampedX = Math.max(10, Math.min(clientX || 100, (typeof window !== "undefined" ? window.innerWidth : 1200) - 220));
-    const clampedY = Math.max(10, Math.min(clientY || 100, (typeof window !== "undefined" ? window.innerHeight : 800) - 160));
+    const clampedY = Math.max(10, Math.min(clientY || 100, (typeof window !== "undefined" ? window.innerHeight : 800) - 200));
     const menu = document.createElement("div");
-    menu.className = "vno-slide-section-menu";
+    menu.className = "vno-slide-section-menu vno-context-menu";
     menu.setAttribute?.("role", "menu");
-    menu.setAttribute?.("aria-label", "Tùy chọn Phần trang chiếu");
-    menu.style.cssText = `position:fixed;left:${clampedX}px;top:${clampedY}px;z-index:10040;min-width:180px;padding:6px;background:var(--vno-bg-surface);color:var(--vno-text-primary);border:1px solid var(--vno-border-default);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
-    menu.innerHTML = `<button type="button" data-section-action="add" role="menuitem" tabindex="0">Thêm Phần</button>${section ? `<button type="button" data-section-action="rename" role="menuitem" tabindex="-1">Đổi tên Phần</button><button type="button" data-section-action="remove" role="menuitem" tabindex="-1">Xóa Phần (giữ slide)</button>` : ""}`;
+    menu.setAttribute?.("aria-label", "Tùy chọn trang chiếu và phần");
+    menu.style.cssText = `position:fixed;left:${clampedX}px;top:${clampedY}px;z-index:10040;min-width:190px;padding:6px;background:var(--vno-bg-surface,#ffffff);color:var(--vno-text-primary,#0f172a);border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
+    
+    let menuHtml = `
+      <button type="button" data-slide-action="new" role="menuitem" tabindex="0">Trang mới</button>
+      <button type="button" data-slide-action="duplicate" role="menuitem" tabindex="-1">Nhân đôi trang</button>
+      <button type="button" data-slide-action="delete" role="menuitem" tabindex="-1"${this.slides.length <= 1 ? " disabled style='opacity:0.5;cursor:not-allowed;'" : ""}>Xóa trang</button>
+      <div style="height:1px;background:var(--vno-border-default,#cbd5e1);margin:4px 0;"></div>
+      <button type="button" data-section-action="add" role="menuitem" tabindex="-1">Thêm Phần</button>
+      ${section ? `<button type="button" data-section-action="rename" role="menuitem" tabindex="-1">Đổi tên Phần</button><button type="button" data-section-action="remove" role="menuitem" tabindex="-1">Xóa Phần (giữ slide)</button>` : ""}
+    `;
+    menu.innerHTML = menuHtml;
+
     for (const button of menu.querySelectorAll?.("button") || []) {
       button.style.cssText = "display:block;width:100%;padding:8px;text-align:left;border:0;background:transparent;color:inherit;cursor:pointer;border-radius:4px;font-size:13px;";
-      button.addEventListener("mouseenter", () => { button.style.backgroundColor = "var(--vno-bg-hover)"; });
+      button.addEventListener("mouseenter", () => { button.style.backgroundColor = "var(--vno-bg-hover,#f1f5f9)"; });
       button.addEventListener("mouseleave", () => { if (document.activeElement !== button) button.style.backgroundColor = "transparent"; });
-      button.addEventListener("focus", () => { button.style.backgroundColor = "var(--vno-bg-hover)"; });
+      button.addEventListener("focus", () => { button.style.backgroundColor = "var(--vno-bg-hover,#f1f5f9)"; });
       button.addEventListener("blur", () => { button.style.backgroundColor = "transparent"; });
     }
     const close = (restoreFocus = true) => {
       document.removeEventListener("click", onDocClick);
       menu.remove();
-      if (restoreFocus && previousFocused && typeof previousFocused.focus === "function") {
-        try { previousFocused.focus(); } catch (_) {}
+      if (restoreFocus && triggerEl && typeof triggerEl.focus === "function") {
+        try { triggerEl.focus(); } catch (_) {}
       }
     };
     const onDocClick = (e) => {
@@ -4694,23 +4718,37 @@ export class SlidesCanvasController {
       if (typeof document !== "undefined") document.addEventListener("click", onDocClick);
     }, 0);
 
+    menu.querySelector('[data-slide-action="new"]')?.addEventListener("click", () => {
+      close(false);
+      this.addNewSlide();
+    });
+    menu.querySelector('[data-slide-action="duplicate"]')?.addEventListener("click", () => {
+      close(false);
+      this.selectSlide(slideIndex);
+      this.duplicateCurrentSlide();
+    });
+    menu.querySelector('[data-slide-action="delete"]')?.addEventListener("click", () => {
+      close(false);
+      this.selectSlide(slideIndex);
+      this.deleteCurrentSlide();
+    });
     menu.querySelector('[data-section-action="add"]')?.addEventListener("click", async () => {
       close(false);
       await this._promptAddSection(slideIndex);
-      if (previousFocused && typeof previousFocused.focus === "function") {
-        try { previousFocused.focus(); } catch (_) {}
+      if (triggerEl && typeof triggerEl.focus === "function") {
+        try { triggerEl.focus(); } catch (_) {}
       }
     });
     menu.querySelector('[data-section-action="rename"]')?.addEventListener("click", async () => {
       close(false);
-      await this._promptRenameSection(section.id);
-      if (previousFocused && typeof previousFocused.focus === "function") {
-        try { previousFocused.focus(); } catch (_) {}
+      if (section) await this._promptRenameSection(section.id);
+      if (triggerEl && typeof triggerEl.focus === "function") {
+        try { triggerEl.focus(); } catch (_) {}
       }
     });
     menu.querySelector('[data-section-action="remove"]')?.addEventListener("click", () => {
       close(true);
-      this.removeSection(section.id);
+      if (section) this.removeSection(section.id);
     });
     menu.addEventListener("keydown", event => {
       if (event.key === "Escape") {
@@ -4723,7 +4761,7 @@ export class SlidesCanvasController {
       } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         event.stopPropagation();
-        const buttons = Array.from(menu.querySelectorAll("button"));
+        const buttons = Array.from(menu.querySelectorAll("button:not([disabled])"));
         if (!buttons.length) return;
         const curIdx = buttons.indexOf(document.activeElement);
         let nextIdx;
@@ -4734,10 +4772,156 @@ export class SlidesCanvasController {
         }
         buttons.forEach((b, i) => b.setAttribute("tabindex", i === nextIdx ? "0" : "-1"));
         buttons[nextIdx]?.focus();
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        event.stopPropagation();
+        const buttons = Array.from(menu.querySelectorAll("button:not([disabled])"));
+        if (buttons[0]) {
+          buttons.forEach((b, i) => b.setAttribute("tabindex", i === 0 ? "0" : "-1"));
+          buttons[0].focus();
+        }
+      } else if (event.key === "End") {
+        event.preventDefault();
+        event.stopPropagation();
+        const buttons = Array.from(menu.querySelectorAll("button:not([disabled])"));
+        const last = buttons[buttons.length - 1];
+        if (last) {
+          buttons.forEach((b, i) => b.setAttribute("tabindex", i === buttons.length - 1 ? "0" : "-1"));
+          last.focus();
+        }
       }
     });
     document.body.appendChild(menu);
-    menu.querySelector("button")?.focus?.();
+    menu.querySelector("button:not([disabled])")?.focus?.();
+    return true;
+  }
+
+  _openShapeContextMenu(shapeId, clientX, clientY) {
+    document.querySelector?.(".vno-shape-context-menu")?.remove?.();
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    const shape = (slide.shapes || []).find(s => String(s.id) === String(shapeId));
+    if (!shape) return false;
+
+    this.setSelectedTarget(shape.id);
+    const shapeEl = this.shapesLayer?.querySelector(`[data-shape-id="${shape.id}"]`);
+    const previousFocused = shapeEl || (typeof document !== "undefined" ? document.activeElement : null);
+
+    if ((!clientX && !clientY) && previousFocused?.getBoundingClientRect) {
+      const rect = previousFocused.getBoundingClientRect();
+      clientX = Math.round(rect.left + 24);
+      clientY = Math.round(rect.top + 24);
+    }
+    const clampedX = Math.max(10, Math.min(clientX || 100, (typeof window !== "undefined" ? window.innerWidth : 1200) - 220));
+    const clampedY = Math.max(10, Math.min(clientY || 100, (typeof window !== "undefined" ? window.innerHeight : 800) - 180));
+
+    const menu = document.createElement("div");
+    menu.className = "vno-shape-context-menu vno-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", `Tùy chọn hình vẽ ${shape.text || ""}`);
+    menu.style.cssText = `position:fixed;left:${clampedX}px;top:${clampedY}px;z-index:10040;min-width:180px;padding:6px;background:var(--vno-bg-surface,#ffffff);color:var(--vno-text-primary,#0f172a);border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
+
+    let itemsHtml = `
+      <button type="button" data-action="duplicate" role="menuitem" tabindex="0">Nhân đôi (Ctrl+D)</button>
+      <button type="button" data-action="delete" role="menuitem" tabindex="-1">Xóa hình vẽ (Delete)</button>
+    `;
+    if (shape.type === "chart") {
+      itemsHtml += `<button type="button" data-action="edit-chart" role="menuitem" tabindex="-1">Chỉnh sửa biểu đồ...</button>`;
+    }
+    if (shape.diagramGroupId) {
+      itemsHtml += `<button type="button" data-action="delete-group" role="menuitem" tabindex="-1">Xóa nhóm sơ đồ</button>`;
+    }
+    menu.innerHTML = itemsHtml;
+
+    for (const button of menu.querySelectorAll("button")) {
+      button.style.cssText = "display:block;width:100%;padding:8px;text-align:left;border:0;background:transparent;color:inherit;cursor:pointer;border-radius:4px;font-size:13px;";
+      button.addEventListener("mouseenter", () => { button.style.backgroundColor = "var(--vno-bg-hover,#f1f5f9)"; });
+      button.addEventListener("mouseleave", () => { if (document.activeElement !== button) button.style.backgroundColor = "transparent"; });
+      button.addEventListener("focus", () => { button.style.backgroundColor = "var(--vno-bg-hover,#f1f5f9)"; });
+      button.addEventListener("blur", () => { button.style.backgroundColor = "transparent"; });
+    }
+
+    const close = (restoreFocus = true) => {
+      document.removeEventListener("click", onDocClick);
+      menu.remove();
+      if (restoreFocus) {
+        try {
+          if (shapeEl && typeof shapeEl.focus === "function") {
+            shapeEl.focus();
+          } else if (previousFocused && typeof previousFocused.focus === "function") {
+            previousFocused.focus();
+          }
+        } catch (_) {}
+      }
+    };
+    const onDocClick = (e) => {
+      if (!menu.contains(e.target)) close(true);
+    };
+    setTimeout(() => {
+      if (typeof document !== "undefined") document.addEventListener("click", onDocClick);
+    }, 0);
+
+    menu.querySelector('[data-action="duplicate"]')?.addEventListener("click", () => {
+      close(false);
+      this.duplicateSelectedShapes();
+    });
+    menu.querySelector('[data-action="delete"]')?.addEventListener("click", () => {
+      close(false);
+      this.deleteSelectedShapes();
+    });
+    menu.querySelector('[data-action="edit-chart"]')?.addEventListener("click", () => {
+      close(false);
+      this.editChart(shape.id);
+    });
+    menu.querySelector('[data-action="delete-group"]')?.addEventListener("click", () => {
+      close(false);
+      this.deleteDiagramGroup(shape.diagramGroupId);
+    });
+
+    menu.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        close(true);
+      } else if (event.key === "Tab") {
+        event.stopPropagation();
+        trapFocus(menu, event);
+      } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        event.stopPropagation();
+        const buttons = Array.from(menu.querySelectorAll("button:not([disabled])"));
+        if (!buttons.length) return;
+        const curIdx = buttons.indexOf(document.activeElement);
+        let nextIdx;
+        if (event.key === "ArrowDown") {
+          nextIdx = curIdx === -1 ? 0 : (curIdx + 1) % buttons.length;
+        } else {
+          nextIdx = curIdx === -1 ? buttons.length - 1 : (curIdx - 1 + buttons.length) % buttons.length;
+        }
+        buttons.forEach((b, i) => b.setAttribute("tabindex", i === nextIdx ? "0" : "-1"));
+        buttons[nextIdx]?.focus();
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        event.stopPropagation();
+        const buttons = Array.from(menu.querySelectorAll("button:not([disabled])"));
+        if (buttons[0]) {
+          buttons.forEach((b, i) => b.setAttribute("tabindex", i === 0 ? "0" : "-1"));
+          buttons[0].focus();
+        }
+      } else if (event.key === "End") {
+        event.preventDefault();
+        event.stopPropagation();
+        const buttons = Array.from(menu.querySelectorAll("button:not([disabled])"));
+        const last = buttons[buttons.length - 1];
+        if (last) {
+          buttons.forEach((b, i) => b.setAttribute("tabindex", i === buttons.length - 1 ? "0" : "-1"));
+          last.focus();
+        }
+      }
+    });
+
+    document.body.appendChild(menu);
+    menu.querySelector("button:not([disabled])")?.focus?.();
     return true;
   }
 
