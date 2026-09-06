@@ -5890,12 +5890,19 @@ export class SheetGridController {
       popover.style.left = `${Math.min((window.innerWidth || 800) - 220, Math.max(10, rect.left + (window.scrollX || 0) - 80))}px`;
     }
 
+    let docClickTimer = null;
     const closeMenu = () => {
+      if (docClickTimer) {
+        clearTimeout(docClickTimer);
+        docClickTimer = null;
+      }
       document.removeEventListener("keydown", onPopoverKey);
       document.removeEventListener("click", onDocClick);
       popover.remove();
-      if (anchorBtn && typeof anchorBtn.focus === "function") {
+      if (anchorBtn && document.contains(anchorBtn) && typeof anchorBtn.focus === "function") {
         try { anchorBtn.focus(); } catch (_) {}
+      } else if (this.container && typeof this.container.focus === "function") {
+        try { this.container.focus({ preventScroll: true }); } catch (_) {}
       }
     };
 
@@ -5963,13 +5970,17 @@ export class SheetGridController {
       }
     };
     document.addEventListener("keydown", onPopoverKey);
+    popover.querySelector("#vno-filter-sort-asc")?.focus();
 
     const onDocClick = (e) => {
       if (!popover.contains(e.target) && e.target !== anchorBtn) {
         closeMenu();
       }
     };
-    setTimeout(() => document.addEventListener("click", onDocClick), 10);
+    docClickTimer = setTimeout(() => {
+      docClickTimer = null;
+      document.addEventListener("click", onDocClick);
+    }, 10);
   }
 
   applyFilter(col, allowedSet, recordUndo = true) {
