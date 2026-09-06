@@ -7,6 +7,7 @@ import { AppShell } from "../../platform/shell/app-shell.js";
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { SlidesCanvasController } from "../../apps/slides/slides-canvas.js";
+import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 
 const assert = (value, message) => { if (!value) throw new Error(message); };
@@ -437,6 +438,62 @@ export async function runBackstagePrintThumbnailTests() {
       printNowBtn.click();
 
       assert(printTriggered === true, "Bấm In ngay phải kích hoạt lệnh common.file.print");
+      assert(fakeDoc.body.querySelector(".vno-backstage-overlay") === null, "Modal phải đóng sau khi bấm In ngay");
+    });
+
+    await test("Writer Backstage In: hiển thị panel xem trước THẬT với trang văn bản Writer chuẩn", () => {
+      const pageEl = fakeDoc.createElement("div");
+      pageEl.className = "vno-writer-page";
+      const bodyEl = fakeDoc.createElement("div");
+      bodyEl.className = "vno-writer-body";
+      bodyEl.innerHTML = "<p>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p><p>Độc lập - Tự do - Hạnh phúc</p>";
+      pageEl.appendChild(bodyEl);
+
+      const adapter = new WriterAdapter(pageEl);
+      const shell = new AppShell({ appName: "writer", appTitle: "VN Writer", adapter });
+      adapter.setShell(shell);
+
+      shell.showBackstageMenu();
+      const modal = fakeDoc.body.querySelector(".vno-backstage-overlay");
+      modal.querySelector("#vno-backstage-nav-print").click();
+
+      const printView = modal.querySelector("#vno-backstage-print-view");
+      assert(printView && printView.style.display !== "none", "Panel In phải hiển thị");
+
+      const sheet = printView.querySelector(".vno-print-preview-sheet");
+      assert(sheet, "Phải render trang in .vno-print-preview-sheet");
+      assert(sheet.textContent.includes("CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM"), "Thumbnail phải chứa nội dung văn bản thật của Writer");
+
+      modal.remove();
+    });
+
+    await test("Writer Backstage In: nút In ngay đóng modal và kích hoạt lệnh common.file.print thật", () => {
+      const pageEl = fakeDoc.createElement("div");
+      pageEl.className = "vno-writer-page";
+      const bodyEl = fakeDoc.createElement("div");
+      bodyEl.className = "vno-writer-body";
+      bodyEl.innerHTML = "<p>Nội dung in Writer</p>";
+      pageEl.appendChild(bodyEl);
+
+      const adapter = new WriterAdapter(pageEl);
+      const shell = new AppShell({ appName: "writer", appTitle: "VN Writer", adapter });
+      adapter.setShell(shell);
+
+      let printTriggered = false;
+      const unbind = globalCommandBus.bindHandler("common.file.print", () => {
+        printTriggered = true;
+        return true;
+      });
+
+      shell.showBackstageMenu();
+      const modal = fakeDoc.body.querySelector(".vno-backstage-overlay");
+      modal.querySelector("#vno-backstage-nav-print").click();
+
+      const printNowBtn = modal.querySelector("#vno-backstage-btn-print-now");
+      assert(printNowBtn, "Phải có nút In ngay");
+      printNowBtn.click();
+
+      assert(printTriggered === true, "Bấm In ngay phải kích hoạt common.file.print");
       assert(fakeDoc.body.querySelector(".vno-backstage-overlay") === null, "Modal phải đóng sau khi bấm In ngay");
     });
 

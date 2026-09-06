@@ -893,6 +893,60 @@ export class AppShell {
         ]
       };
     }
+    if (this.appName === "writer") {
+      const adapter = this.adapter || globalUnoBridge?.activeDocument;
+      if (!adapter || typeof adapter.paginateContent !== "function" || typeof adapter.getPageDimensions !== "function") return null;
+      return {
+        type: "writer",
+        computePages: () => {
+          adapter._initZones?.();
+          const dim = adapter.getPageDimensions();
+          let headerHtml = "";
+          if (adapter.headerDom && adapter.headerDom.innerText?.trim()) headerHtml = adapter.headerDom.innerHTML;
+          let footerHtml = "";
+          if (adapter.footerDom && adapter.footerDom.innerText?.trim()) footerHtml = adapter.footerDom.innerHTML;
+          let rawBody = "";
+          if (adapter.bodyDom) rawBody = adapter._stripCommentMarkup ? adapter._stripCommentMarkup(adapter.bodyDom.innerHTML) : adapter.bodyDom.innerHTML;
+          else if (adapter.editorDom) rawBody = adapter._stripCommentMarkup ? adapter._stripCommentMarkup(adapter.editorDom.innerHTML) : adapter.editorDom.innerHTML;
+          const availableBodyHeightPx = adapter._getUsablePageHeight ? adapter._getUsablePageHeight(dim) : (dim.heightPx - dim.topPx - dim.bottomPx);
+          const notesData = adapter._extractNotesForPreview ? adapter._extractNotesForPreview(rawBody) : { cleanHtml: rawBody, footnotes: new Map(), endnotes: new Map() };
+          const bodyForPagination = adapter._stripAutoPageGaps ? adapter._stripAutoPageGaps(notesData.cleanHtml) : notesData.cleanHtml;
+          const pageBodies = adapter.paginateContent(bodyForPagination, availableBodyHeightPx, dim.printableWidthPx, adapter.columns);
+          const totalPages = Math.max(1, pageBodies.length);
+          return { dim, headerHtml, footerHtml, pageBodies, totalPages };
+        },
+        renderPage: (printResult, pageIndex) => {
+          const { dim, headerHtml, footerHtml, pageBodies, totalPages } = printResult;
+          const pageNum = pageIndex + 1;
+          const sheet = document.createElement("div");
+          sheet.className = "vno-print-preview-sheet is-active";
+          sheet.style.width = `${dim.widthPx}px`;
+          sheet.style.minHeight = `${dim.heightPx}px`;
+          sheet.style.padding = `${dim.topPx}px ${dim.rightPx}px ${dim.bottomPx}px ${dim.leftPx}px`;
+          if (adapter.pageColor && adapter.pageColor !== "transparent") sheet.style.backgroundColor = adapter.pageColor;
+          let pageFooterHtml = footerHtml;
+          if (footerHtml) {
+            pageFooterHtml = footerHtml.replace(/Trang\s+\d+(\s*\/\s*\d+)?/gi, `Trang ${pageNum} / ${totalPages}`);
+          }
+          const hasColumns = Boolean(adapter.columns && adapter.columns.count > 1);
+          const colCount = hasColumns ? adapter.columns.count : 1;
+          const colGap = hasColumns ? (typeof adapter.columns.gap === "number" ? `${adapter.columns.gap}mm` : (adapter.columns.gap || "10mm")) : "";
+          const colRule = hasColumns && adapter.columns.rule ? (typeof adapter.columns.rule === "string" ? adapter.columns.rule : "1px solid #94a3b8") : "";
+          const colStyleAttr = hasColumns ? `column-count:${colCount}; -webkit-column-count:${colCount}; column-gap:${colGap}; -webkit-column-gap:${colGap}; ${colRule ? `column-rule:${colRule}; -webkit-column-rule:${colRule};` : ''}` : "";
+          sheet.innerHTML = `
+            ${headerHtml ? `<div class="vno-print-preview-header">${headerHtml}</div>` : ""}
+            <div class="vno-print-preview-body${hasColumns ? ` vno-columns-active vno-columns-${colCount}` : ""}" style="${colStyleAttr}">${pageBodies[pageIndex] || "<p><br></p>"}</div>
+            ${pageFooterHtml ? `<div class="vno-print-preview-footer">${pageFooterHtml}</div>` : ""}
+          `;
+          return sheet;
+        },
+        getInfo: (printResult) => [
+          { label: "Khổ giấy", val: printResult.dim?.sizeKey?.toUpperCase() || "A4" },
+          { label: "Hướng in", val: printResult.dim?.orientation === "landscape" ? "Ngang" : "Dọc" },
+          { label: "Tổng số trang", val: String(printResult.totalPages || 1) }
+        ]
+      };
+    }
     return null;
   }
 
