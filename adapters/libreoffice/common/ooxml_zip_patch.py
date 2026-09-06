@@ -6,6 +6,7 @@ Python twin of:
   adapters/libreoffice/sheet/xlsx-native-postprocess.js
   adapters/libreoffice/slides/pptx-master-logo.js
   adapters/libreoffice/slides/pptx-section-list.js
+  adapters/libreoffice/slides/pptx-show-properties.js
   adapters/libreoffice/slides/pptx-native-postprocess.js
 
 main.py calls:
@@ -29,6 +30,7 @@ import zipfile
 
 XLSX_WORKBOOK_ENTRY = "xl/workbook.xml"
 PPTX_PRESENTATION_ENTRY = "ppt/presentation.xml"
+PPTX_PRESPROPS_ENTRY = "ppt/presProps.xml"
 MASTER_LOGO_SHAPE_NAME = "VNOfficeMasterLogo"
 SLIDE_MASTER_ENTRY_RE = re.compile(r"^ppt/slideMasters/slideMaster\d+\.xml$", re.IGNORECASE)
 CM_EMU = 360000
@@ -36,6 +38,8 @@ DEFAULT_SLIDE_CX = 28 * CM_EMU
 DEFAULT_SLIDE_CY = round(15.75 * CM_EMU)
 P14_NS = "http://schemas.microsoft.com/office/powerpoint/2010/main"
 PRESENTATION_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
+DRAWINGML_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+DEFAULT_POINTER_COLOR = "#DC2626"
 SECTION_LIST_URI = "{521415D9-36F7-43E2-AB2F-B90AF26B5E84}"
 DEFAULT_SECTION_NAME = "Default Section"
 SECTION_GUID_NAME_PREFIX = "urn:vn-office:slides:section:"
@@ -120,6 +124,25 @@ _SECTION_BLOCK_RE = re.compile(
 )
 _OFF_TAG_RE = re.compile(r"<(?:[\w]+:)?off\b[^>]*>", re.IGNORECASE)
 _EXT_TAG_RE = re.compile(r"<(?:[\w]+:)?ext\b[^>]*>", re.IGNORECASE)
+_SETTINGS_OPEN_RE = re.compile(r"<presentation:settings\b([^>]*)/?>", re.IGNORECASE)
+_PRESPROPS_CLOSE_RE = re.compile(r"</(?:[\w]+:)?presentationPr\s*>", re.IGNORECASE)
+_PRESPROPS_OPEN_RE = re.compile(r"<((?:[\w]+:)?presentationPr)\b([^>]*)>", re.IGNORECASE)
+_SHOW_PR_RE = re.compile(
+    r"<(?:[\w]+:)?showPr\b([^>]*?)(/>|>([\s\S]*?)</(?:[\w]+:)?showPr\s*>)",
+    re.IGNORECASE,
+)
+_PEN_CLR_RE = re.compile(
+    r"<(?:[\w]+:)?penClr\b[\s\S]*?</(?:[\w]+:)?penClr\s*>",
+    re.IGNORECASE,
+)
+_SHOW_EXTLST_RE = re.compile(r"<(?:[\w]+:)?extLst\b", re.IGNORECASE)
+_SLD_RG_RE = re.compile(r"<(?:[\w]+:)?sldRg\b([^>]*)/?\s*>", re.IGNORECASE)
+_SHOW_SRGB_RE = re.compile(
+    r"""<(?:[\w]+:)?srgbClr\b[^>]*\bval\s*=\s*["']([^"']+)["']""",
+    re.IGNORECASE,
+)
+_POINTER_ATTR_RE = re.compile(r"""\bvno:pointer-color\s*=\s*["']([^"']*)["']""", re.IGNORECASE)
+_HEX6_RE = re.compile(r"^[0-9A-Fa-f]{6}$")
 _XMLNS_PREFIX_RE_CACHE: dict[str, re.Pattern[str]] = {}
 
 
@@ -601,6 +624,169 @@ def fodp_has_sections(fodp_xml: str | None) -> bool:
     return any(page["sectionId"] for page in parse_fodp_pages(fodp_xml))
 
 
+def _show_set_attr(attrs: str, name: str, value: str) -> str:
+    pattern = re.compile(rf"""\b{name}\s*=\s*(['"])[^'"]*\1""", re.IGNORECASE)
+    if pattern.search(attrs or ""):
+        return pattern.sub(f'{name}="{value}"', attrs, count=1)
+    trimmed = (attrs or "").rstrip()
+    return f'{trimmed} {name}="{value}"' if trimmed else f' {name}="{value}"'
+
+
+def _show_get_attr(attrs: str, name: str) -> str:
+    match = re.search(rf"""\b{name}\s*=\s*(['"])([^'"]*)\1""", attrs or "", re.IGNORECASE)
+    return match.group(2) if match else ""
+
+
+def _show_attr_true(value: str) -> bool:
+    return str(value or "").strip().lower() in ("1", "true")
+
+
+def normalize_pen_rgb(color: str | None) -> str:
+    raw = _unescape_xml(str(color or "")).strip()
+    if not raw:
+        return ""
+    hex_value = raw[1:] if raw.startswith("#") else raw
+    hex_value = hex_value.upper()
+    if not _HEX6_RE.match(hex_value):
+        raise ValueError(f"Màu bút không phải hex 6 chữ: {raw}")
+    return hex_value
+
+
+def parse_show_settings_from_fodp(fodp_xml: str | None) -> dict:
+    match = _SETTINGS_OPEN_RE.search(fodp_xml or "")
+    if not match:
+        return {"loopUntilEsc": False, "showWithoutNarration": False, "pointerColor": ""}
+    attrs = match.group(1) or ""
+    pointer_match = _POINTER_ATTR_RE.search(attrs)
+    return {
+        "loopUntilEsc": bool(re.search(r"""presentation:endless\s*=\s*["']true["']""", attrs, re.I)),
+        "showWithoutNarration": bool(
+            re.search(r"""vno:without-narration\s*=\s*["']true["']""", attrs, re.I)
+        ),
+        "pointerColor": _unescape_xml(pointer_match.group(1)).strip() if pointer_match else "",
+    }
+
+
+def fodp_has_show_setup_patch(fodp_xml: str | None) -> bool:
+    settings = parse_show_settings_from_fodp(fodp_xml)
+    return bool(settings["showWithoutNarration"] or settings["pointerColor"])
+
+
+def parse_show_properties(pres_props_xml: str | None) -> dict:
+    xml = pres_props_xml or ""
+    match = _SHOW_PR_RE.search(xml)
+    if not match:
+        return {
+            "loop": None,
+            "showNarration": None,
+            "penRgb": "",
+            "hasSldRg": False,
+            "sldRg": None,
+        }
+    attrs = match.group(1) or ""
+    inner = "" if match.group(2) == "/>" else (match.group(3) or "")
+    loop_raw = _show_get_attr(attrs, "loop")
+    narration_raw = _show_get_attr(attrs, "showNarration")
+    sld_rg = _SLD_RG_RE.search(inner)
+    pen = _PEN_CLR_RE.search(inner)
+    rgb_match = _SHOW_SRGB_RE.search(pen.group(0) if pen else "")
+    return {
+        "loop": None if loop_raw == "" else _show_attr_true(loop_raw),
+        "showNarration": None if narration_raw == "" else _show_attr_true(narration_raw),
+        "penRgb": (rgb_match.group(1) if rgb_match else "").upper(),
+        "hasSldRg": bool(sld_rg),
+        "sldRg": (
+            {
+                "st": _show_get_attr(sld_rg.group(1) or "", "st"),
+                "end": _show_get_attr(sld_rg.group(1) or "", "end"),
+            }
+            if sld_rg
+            else None
+        ),
+    }
+
+
+def _ensure_drawingml_ns(xml: str, prefix: str) -> str:
+    pfx = prefix or "a"
+    if re.search(rf"xmlns:{re.escape(pfx)}\s*=", xml, re.IGNORECASE):
+        return xml
+    open_match = _PRESPROPS_OPEN_RE.search(xml)
+    if not open_match:
+        return xml
+    name = open_match.group(1)
+    attrs = open_match.group(2) or ""
+    next_tag = f'<{name}{attrs} xmlns:{pfx}="{DRAWINGML_NS}">'
+    return xml[: open_match.start()] + next_tag + xml[open_match.end() :]
+
+
+def _build_pen_clr(xml: str, rgb: str) -> str:
+    p = _ns_prefix(xml, PRESENTATION_NS, "p")
+    a = _ns_prefix(xml, DRAWINGML_NS, "a")
+    p_pen = f"{p}:penClr" if p else "penClr"
+    a_srgb = f"{a}:srgbClr" if a else "srgbClr"
+    return f'<{p_pen}><{a_srgb} val="{rgb}"/></{p_pen}>'
+
+
+def _merge_show_inner(inner: str, pen_xml: str) -> str:
+    body = inner or ""
+    if _PEN_CLR_RE.search(body):
+        return _PEN_CLR_RE.sub(pen_xml, body, count=1)
+    ext = _SHOW_EXTLST_RE.search(body)
+    if ext:
+        return body[: ext.start()] + pen_xml + body[ext.start() :]
+    return f"{body}{pen_xml}"
+
+
+def _build_show_pr(xml: str, attrs: str, inner: str) -> str:
+    p = _ns_prefix(xml, PRESENTATION_NS, "p")
+    name = f"{p}:showPr" if p else "showPr"
+    attr_text = attrs if attrs.startswith(" ") or not attrs.strip() else f" {attrs.strip()}"
+    if not attrs.strip():
+        attr_text = ""
+    elif not attr_text.startswith(" "):
+        attr_text = f" {attr_text.strip()}"
+    if not inner:
+        return f"<{name}{attr_text}></{name}>"
+    return f"<{name}{attr_text}>{inner}</{name}>"
+
+
+def apply_show_properties(pres_props_xml: str, settings: dict | None = None) -> str:
+    xml = pres_props_xml or ""
+    options = settings or {}
+    if not xml:
+        return xml
+    without_narration = bool(options.get("showWithoutNarration"))
+    pointer_rgb = (
+        normalize_pen_rgb(options.get("pointerColor")) if options.get("pointerColor") else ""
+    )
+    if not without_narration and not pointer_rgb:
+        return xml
+    xml = _ensure_drawingml_ns(xml, _ns_prefix(xml, DRAWINGML_NS, "a"))
+    match = _SHOW_PR_RE.search(xml)
+    attrs = match.group(1) if match else ""
+    inner = ""
+    if match and match.group(2) != "/>":
+        inner = match.group(3) or ""
+    if without_narration:
+        attrs = _show_set_attr(attrs, "showNarration", "0")
+    if options.get("loopUntilEsc") and not _show_get_attr(attrs, "loop"):
+        attrs = _show_set_attr(attrs, "loop", "1")
+    if pointer_rgb:
+        inner = _merge_show_inner(inner, _build_pen_clr(xml, pointer_rgb))
+    next_tag = _build_show_pr(xml, attrs, inner)
+    if match:
+        return xml[: match.start()] + next_tag + xml[match.end() :]
+    if not _PRESPROPS_CLOSE_RE.search(xml):
+        return xml
+    return _PRESPROPS_CLOSE_RE.sub(lambda close: next_tag + close.group(0), xml, count=1)
+
+
+def apply_show_properties_from_fodp(pres_props_xml: str, fodp_xml: str | None) -> str:
+    if not fodp_has_show_setup_patch(fodp_xml):
+        return pres_props_xml
+    return apply_show_properties(pres_props_xml, parse_show_settings_from_fodp(fodp_xml))
+
+
 def parse_sections_from_fodp(fodp_xml: str | None) -> list[dict]:
     pages = parse_fodp_pages(fodp_xml)
     if not any(page["sectionId"] for page in pages):
@@ -979,6 +1165,8 @@ def postprocess_slides_pptx(
     font_family: str | None = None,
     enabled: bool | None = None,
     sections: list[dict] | None = None,
+    show_without_narration: bool | None = None,
+    pointer_color: str | None = None,
 ) -> bytes:
     """Return patched PPTX bytes, or the original buffer when no patch is needed."""
     if enabled is False:
@@ -995,7 +1183,8 @@ def postprocess_slides_pptx(
     if apply_logo and source_fodp and not fodp_has_master_logo(source_fodp) and logo_text is None:
         apply_logo = False
     apply_sections = bool(sections) if sections is not None else fodp_has_sections(source_fodp)
-    if not apply_logo and not apply_sections:
+    apply_show = bool(show_without_narration or pointer_color) or fodp_has_show_setup_patch(source_fodp)
+    if not apply_logo and not apply_sections and not apply_show:
         return pptx_bytes
     presentation = read_zip_entry(pptx_bytes, PPTX_PRESENTATION_ENTRY)
     presentation_xml = presentation.decode("utf-8", errors="replace") if presentation else ""
@@ -1028,6 +1217,23 @@ def postprocess_slides_pptx(
             next_xml = apply_section_list_from_fodp(presentation_xml, source_fodp)
         if next_xml != presentation_xml:
             replacements[PPTX_PRESENTATION_ENTRY] = next_xml
+    if apply_show:
+        current_props = read_zip_entry(pptx_bytes, PPTX_PRESPROPS_ENTRY)
+        if not current_props:
+            raise ValueError("PPTX thiếu ppt/presProps.xml — không thể bổ sung p:showPr")
+        props_xml = current_props.decode("utf-8")
+        if show_without_narration or pointer_color:
+            next_props = apply_show_properties(
+                props_xml,
+                {
+                    "showWithoutNarration": bool(show_without_narration),
+                    "pointerColor": pointer_color or "",
+                },
+            )
+        else:
+            next_props = apply_show_properties_from_fodp(props_xml, source_fodp)
+        if next_props != props_xml:
+            replacements[PPTX_PRESPROPS_ENTRY] = next_props
     if not replacements:
         return pptx_bytes
     return patch_ooxml_zip(pptx_bytes, replacements)
@@ -1158,7 +1364,7 @@ def postprocess_sheet_xlsx_file(
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Patch native OOXML after soffice convert: XLSX lockStructure, "
-        "PPTX Slide Master logo / p14:sectionLst, overlay FODS from original XLSX, "
+        "PPTX Slide Master logo / p14:sectionLst / p:showPr, overlay FODS from original XLSX, "
         "or overlay FODP from original PPTX p14:sectionLst (File → Mở)."
     )
     parser.add_argument("--xlsx", help="Input .xlsx path")
@@ -1166,7 +1372,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--fods", help="Source .fods used to detect table:structure-protected")
     parser.add_argument(
         "--fodp",
-        help="Source .fodp used to read vno:master-theme logo and vno:section-* groups",
+        help="Source .fodp used to read vno:master-theme logo, vno:section-* groups, "
+        "and Set Up Show vno:without-narration / vno:pointer-color",
     )
     parser.add_argument("--enable", action="store_true", help="Force lockStructure even without FODS")
     parser.add_argument("--out", help="Output path (default: overwrite --xlsx/--pptx or --overlay-fods)")

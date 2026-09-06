@@ -284,11 +284,13 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
     custom namespace. We add it in-place on the existing element.
 
     Slides PPTX: FODP already has the master-page logo (vno:master-theme +
-    draw:frame) and named sections (vno:section-* on draw:page). LibreOffice
-    drops the logo (placeholders only) and does not emit p14:sectionLst.
-    PowerPoint's slots are a p:sp without p:ph on slideMaster1.xml, and
-    p:extLst/p14:sectionLst in ppt/presentation.xml (Microsoft 2010
-    extension, not a custom namespace).
+    draw:frame), named sections (vno:section-* on draw:page), and Set Up
+    Show flags (presentation:endless + vno:without-narration /
+    vno:pointer-color). LibreOffice drops the logo, does not emit
+    p14:sectionLst, and writes p:showPr in ppt/presProps.xml with
+    showNarration="1" and no p:penClr. PowerPoint's slots are a p:sp
+    without p:ph on slideMaster1.xml, p:extLst/p14:sectionLst in
+    ppt/presentation.xml, and CT_ShowProperties on presentationPr.
     """
     fmt = str(target_format).lower()
     if app_kind == "sheet" and fmt == "xlsx":
@@ -320,7 +322,11 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
             with open(src_path, "r", encoding="utf-8", errors="replace") as handle:
                 fodp = handle.read()
             patcher = _ooxml_zip_patch()
-            if not patcher.fodp_has_master_logo(fodp) and not patcher.fodp_has_sections(fodp):
+            if (
+                not patcher.fodp_has_master_logo(fodp)
+                and not patcher.fodp_has_sections(fodp)
+                and not patcher.fodp_has_show_setup_patch(fodp)
+            ):
                 return
             with open(out_path, "rb") as handle:
                 original = handle.read()
@@ -332,7 +338,7 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
             raise
         except Exception as exc:
             raise DocumentEngineError(
-                f"Không bổ sung được thuộc tính native PPTX (logo / Sections): {exc}"
+                f"Không bổ sung được thuộc tính native PPTX (logo / Sections / Set Up Show): {exc}"
             ) from exc
 
 

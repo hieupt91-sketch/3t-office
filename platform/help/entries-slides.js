@@ -206,14 +206,14 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.show.setupShow"],
     title: "Thiết lập trình chiếu (Set Up Slide Show)",
-    summary: "Hộp thoại trên tab Trình chiếu, nhóm Thiết lập: lặp liên tục đến Esc, trình chiếu không thuyết minh, và màu con trỏ bút/laser. Lặp liên tục quay về trang 1 sau trang cuối thay vì thoát.",
+    summary: "Hộp thoại trên tab Trình chiếu, nhóm Thiết lập: lặp liên tục đến Esc, trình chiếu không thuyết minh, và màu con trỏ bút/laser. Lặp liên tục quay về trang 1 sau trang cuối thay vì thoát. Lưu PPTX ghi p:showPr chuẩn (showNarration / penClr) vào file PowerPoint.",
     ribbon: { tab: "Trình chiếu", tabId: "slideshow", group: "Thiết lập" },
-    keywords: ["thiết lập trình chiếu", "set up slide show", "lặp liên tục", "loop", "thuyết minh", "narration", "bút", "laser", "màu con trỏ"],
+    keywords: ["thiết lập trình chiếu", "set up slide show", "lặp liên tục", "loop", "thuyết minh", "narration", "bút", "laser", "màu con trỏ", "pptx", "showPr"],
     steps: [
       "Tab Trình chiếu, nhóm Thiết lập, nhấn Thiết lập trình chiếu (cạnh Ẩn trang chiếu).",
-      "Đánh dấu Lặp lại liên tục cho đến khi nhấn Esc nếu muốn hết trang cuối thì quay lại trang đầu (trang không ẩn đầu tiên). Không đánh dấu thì hết trang cuối F5 thoát như trước. Esc luôn thoát.",
-      "Trình chiếu không có thuyết minh: lưu cờ cho bản trình chiếu. VN Slides chưa có audio thuyết minh — đánh dấu không tắt âm thanh nào lúc này.",
-      "Màu con trỏ bút / laser: chọn màu bằng ô màu. VN Slides chưa vẽ bút hay laser trên màn hình chiếu; màu được lưu (kể cả khi lưu FODP) để dùng khi tính năng đó có. Nhấn Áp dụng để giữ, Hủy hoặc Esc để bỏ."
+      "Đánh dấu Lặp lại liên tục cho đến khi nhấn Esc nếu muốn hết trang cuối thì quay lại trang đầu (trang không ẩn đầu tiên). Không đánh dấu thì hết trang cuối F5 thoát như trước. Esc luôn thoát. Lưu PPTX: LibreOffice đã ghi p:showPr loop trên ppt/presProps.xml — VN không vá thêm cờ này.",
+      "Trình chiếu không có thuyết minh: lưu cờ cho bản trình chiếu (FODP: vno:without-narration). VN Slides chưa có audio thuyết minh trên màn hình chiếu. Khi Lưu PPTX, VN ghi showNarration=\"0\" vào p:showPr (LibreOffice luôn để \"1\" nếu không vá).",
+      "Màu con trỏ bút / laser: chọn màu bằng ô màu. VN Slides chưa vẽ bút hay laser trên màn hình chiếu; màu được lưu FODP (vno:pointer-color) và khi Lưu PPTX được ghi p:penClr/a:srgbClr chuẩn PowerPoint. Nhấn Áp dụng để giữ, Hủy hoặc Esc để bỏ."
     ]
   },
   {
