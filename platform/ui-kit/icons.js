@@ -64,6 +64,17 @@ export const ICONS = {
     <path d="M18 16H24M18 20H24M18 24H21" stroke="#FFF" stroke-width="1.5" stroke-linecap="round"/>
   </svg>`,
 
+  pasteSpecial: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="5" y="3" width="14" height="18" rx="1.5" fill="#94A3B8"/>
+    <rect x="7" y="5" width="10" height="14" rx="1" fill="#FFFFFF"/>
+    <rect x="9" y="2" width="6" height="2.5" rx="0.5" fill="#64748B"/>
+    <path d="M3 9h9v12H3z" fill="#EFF6FF" stroke="#0F6D38" stroke-width="1.2"/>
+    <line x1="5" y1="12" x2="10" y2="12" stroke="#0F6D38" stroke-width="1.2"/>
+    <line x1="5" y1="15" x2="10" y2="15" stroke="#0F6D38" stroke-width="1.2"/>
+    <circle cx="17" cy="17" r="4.5" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.2"/>
+    <path d="M15 17h4M17 15v4" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
   cut: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
     <circle cx="6" cy="6" r="3" stroke="#DC2626" stroke-width="1.75"/>
     <circle cx="6" cy="18" r="3" stroke="#DC2626" stroke-width="1.75"/>
@@ -88,6 +99,7 @@ export const ICONS = {
   zoomIn: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M10.5 7.5v6M7.5 10.5h6"/></svg>`,
   zoomOut: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M7.5 10.5h6"/></svg>`,
   zoomReset: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"><path d="M4 8a8 8 0 1 1-1 7M4 3v5h5"/><text x="8" y="15" fill="#2563EB" stroke="none" font-size="7" font-weight="700">100</text></svg>`,
+  zoom100: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="4" y="2.5" width="16" height="19" rx="2" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/><text x="12" y="14" text-anchor="middle" fill="#2563EB" font-size="6" font-weight="800" font-family="system-ui, -apple-system, sans-serif">100%</text></svg>`,
   gridlines: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0F6D38" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>`,
   headings: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0F6D38" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M8 3v18M3 8h18"/><path d="m11 6 1.5-3L14 6M5 11v6M4 12l1-1 1 1"/></svg>`,
   writerPrintLayout: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="5" y="2.5" width="14" height="19" rx="1.5" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.5"/><path d="M8 7h8M8 10h8M8 13h6M8 17h8" stroke="#60A5FA" stroke-width="1.4" stroke-linecap="round"/></svg>`,
@@ -142,6 +154,11 @@ export const ICONS = {
   fontGrow: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none"><text x="0" y="14" font-size="12" font-weight="700" fill="#334155" font-family="Arial,sans-serif">A</text><text x="10" y="19" font-size="7" font-weight="700" fill="#334155" font-family="Arial,sans-serif">A</text><polyline points="16 9 19 5 22 9" stroke="#2563EB" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><line x1="19" y1="5" x2="19" y2="12" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round"/></svg>`,
   fontShrink: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none"><text x="0" y="14" font-size="12" font-weight="700" fill="#334155" font-family="Arial,sans-serif">A</text><text x="10" y="19" font-size="7" font-weight="700" fill="#334155" font-family="Arial,sans-serif">A</text><polyline points="16 8 19 12 22 8" stroke="#2563EB" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><line x1="19" y1="12" x2="19" y2="5" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round"/></svg>`,
   lineSpacing: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none"><line x1="9" y1="5" x2="21" y2="5" stroke="#334155" stroke-width="1.8"/><line x1="9" y1="12" x2="21" y2="12" stroke="#334155" stroke-width="1.8"/><line x1="9" y1="19" x2="21" y2="19" stroke="#334155" stroke-width="1.8"/><polyline points="2 8 5 5 8 8" stroke="#2563EB" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><polyline points="2 16 5 19 8 16" stroke="#2563EB" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/><line x1="5" y1="5" x2="5" y2="19" stroke="#2563EB" stroke-width="1.8"/></svg>`,
+  lineSpacing1: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M4 8l2-2.5L8 8M4 16l2 2.5L8 16M6 6v12" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="11" y1="6" x2="22" y2="6" stroke="#334155" stroke-width="1.6"/><line x1="11" y1="10" x2="22" y2="10" stroke="#334155" stroke-width="1.6"/><line x1="11" y1="14" x2="22" y2="14" stroke="#334155" stroke-width="1.6"/><line x1="11" y1="18" x2="22" y2="18" stroke="#334155" stroke-width="1.6"/></svg>`,
+  lineSpacing15: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M4 8l2-2.5L8 8M4 16l2 2.5L8 16M6 6v12" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="11" y1="6" x2="22" y2="6" stroke="#334155" stroke-width="1.8"/><line x1="11" y1="12" x2="22" y2="12" stroke="#334155" stroke-width="1.8"/><line x1="11" y1="18" x2="22" y2="18" stroke="#334155" stroke-width="1.8"/></svg>`,
+  lineSpacing2: `<svg viewBox="0 0 24 24" width="15" height="15" fill="none"><path d="M4 8l2-2.5L8 8M4 16l2 2.5L8 16M6 6v12" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="11" y1="6" x2="22" y2="6" stroke="#334155" stroke-width="2"/><line x1="11" y1="18" x2="22" y2="18" stroke="#334155" stroke-width="2"/></svg>`,
+  spacingBefore: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"><line x1="3" y1="3" x2="21" y2="3" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="2 2"/><path d="M6.5 11V5m-2.5 2.5L6.5 5 9 7.5" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="11" x2="21" y2="11" stroke="#334155" stroke-width="1.8"/><line x1="12" y1="15" x2="21" y2="15" stroke="#334155" stroke-width="1.8"/><line x1="12" y1="19" x2="18" y2="19" stroke="#334155" stroke-width="1.8"/></svg>`,
+  spacingAfter: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"><line x1="12" y1="5" x2="21" y2="5" stroke="#334155" stroke-width="1.8"/><line x1="12" y1="9" x2="21" y2="9" stroke="#334155" stroke-width="1.8"/><line x1="12" y1="13" x2="18" y2="13" stroke="#334155" stroke-width="1.8"/><path d="M6.5 13v6m-2.5-2.5L6.5 19 9 16.5" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><line x1="3" y1="21" x2="21" y2="21" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="2 2"/></svg>`,
   fontGrow: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M3.5 19 9 5h2.2l5.5 14h-2.5l-1.35-3.65H7.3L5.95 19H3.5Zm4.55-5.75h4.05L10.08 7.7l-2.03 5.55Z" fill="#334155"/><path d="M18.5 11V4.5m-3.25 3.25 3.25-3.25 3.25 3.25" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   fontShrink: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M3.5 19 9 5h2.2l5.5 14h-2.5l-1.35-3.65H7.3L5.95 19H3.5Zm4.55-5.75h4.05L10.08 7.7l-2.03 5.55Z" fill="#334155"/><path d="M18.5 4.5V11m-3.25-3.25L18.5 11l3.25-3.25" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   changeCase: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M2.5 18 7.7 5h2.15l5.2 13h-2.4l-1.2-3.25H6.1L4.9 18H2.5Zm4.35-5.3h3.85L8.78 7.45 6.85 12.7Z" fill="#334155"/><path d="M15.2 11.4c.85-.55 1.82-.82 2.9-.82 2.05 0 3.4 1.04 3.4 3.08V18h-1.95v-.9c-.68.72-1.52 1.08-2.52 1.08-1.55 0-2.63-.9-2.63-2.25 0-1.45 1.18-2.32 3.23-2.32h1.92v-.18c0-.82-.58-1.25-1.72-1.25-.72 0-1.4.2-2.05.62l-.58-1.4Zm4.35 3.45h-1.67c-.98 0-1.48.32-1.48.95 0 .58.45.88 1.18.88.9 0 1.97-.58 1.97-1.55v-.28Z" fill="#0F4C81"/></svg>`,
@@ -219,8 +236,20 @@ export const ICONS = {
     <polyline points="9 10 7 12 9 14" stroke="#0F6D38" stroke-width="1.5"/>
     <polyline points="15 10 17 12 15 14" stroke="#0F6D38" stroke-width="1.5"/>
   </svg>`,
+  mergeCenter: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="5" width="18" height="14" rx="2" fill="#E7F4EC" stroke="#0F6D38" stroke-width="1.5"/>
+    <path d="M5 12h3M16 12h3M7 10l-2 2 2 2M17 10l2 2-2 2" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="12" y="14.5" text-anchor="middle" font-size="7" font-weight="700" font-family="sans-serif" fill="#0F6D38">a</text>
+  </svg>`,
   mergeAcross: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="3" y="5" width="18" height="6" rx="1" fill="#E7F4EC" stroke="#0F6D38"/><rect x="3" y="13" width="18" height="6" rx="1" fill="#E7F4EC" stroke="#0F6D38"/><path d="M7 8h10M7 16h10" stroke="#0F6D38" stroke-width="1.5"/></svg>`,
   unmergeCells: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" fill="#FFF7ED" stroke="#C2410C"/><path d="M12 5v14M3 12h18" stroke="#C2410C"/><path d="m8 9-3 3 3 3m8-6 3 3-3 3" stroke="#C2410C" stroke-width="1.5"/></svg>`,
+  textToColumns: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none"><rect x="2" y="4" width="9" height="16" rx="1.5" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.3"/><path d="M6 7v10M14 5v14M20 5v14M11 12h10M9 10l2 2-2 2" stroke="#0F6D38" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  flashFill: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#FEF3C7" stroke="#D97706" stroke-width="1.2"/><path d="m13 4-6 8h5l-1 8 7-9h-5l1-7Z" fill="#F59E0B" stroke="#B45309" stroke-width="1.2" stroke-linejoin="round"/></svg>`,
+  removeDuplicates: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"><rect x="2" y="3" width="14" height="14" rx="1.5" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.2"/><path d="M2 8h14M7 3v14" stroke="#0F6D38" stroke-width="1"/><circle cx="16.5" cy="16.5" r="5" fill="#FEE2E2" stroke="#DC2626" stroke-width="1.2"/><path d="m14.5 14.5 4 4m0-4-4 4" stroke="#DC2626" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  sheetGroup: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M4 4v16M4 8h4M4 16h4" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round"/><rect x="9" y="5" width="12" height="14" rx="1.5" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.2"/><path d="M12 12h6" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round"/></svg>`,
+  sheetUngroup: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M4 4v16" stroke="#64748B" stroke-width="1.8" stroke-dasharray="2 2"/><rect x="9" y="5" width="12" height="14" rx="1.5" stroke="#64748B" stroke-width="1.2"/><path d="M12 12h6M15 9v6" stroke="#0F6D38" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  subtotal: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none"><path d="M3 4h18M3 9h10M3 14h10M3 20h18" stroke="#334155" stroke-width="1.6" stroke-linecap="round"/><path d="M15 11h4l-3 3 3 3h-4" stroke="#0F6D38" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  pageScale: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#F0FDF4" stroke="#0F6D38" stroke-width="1.3"/><rect x="7" y="7" width="10" height="10" rx="1" fill="#DCFCE7" stroke="#0F6D38" stroke-width="1.2" stroke-dasharray="2 2"/><path d="M5 5l4 4M5 5h3M5 5v3M19 5l-4 4M19 5h-3M19 5v3M5 19l4-4M5 19h3M5 19v-3M19 19l-4-4M19 19h-3M19 19v-3" stroke="#0F6D38" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
 
   currencyVND: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <circle cx="16" cy="16" r="13" fill="#F5B800" stroke="#D97706" stroke-width="1.5"/>
@@ -288,6 +317,15 @@ export const ICONS = {
     <line x1="18.5" y1="21" x2="22.5" y2="21" stroke="#94A3B8" stroke-width="1" stroke-linecap="round"/>
   </svg>`,
 
+  slideDuplicate: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="9" y="4" width="19" height="15" rx="2" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1.4"/>
+    <rect x="9" y="4" width="19" height="4" fill="#E2E8F0"/>
+    <rect x="4" y="11" width="19" height="15" rx="2" fill="#F8FAFC" stroke="#B53818" stroke-width="1.6"/>
+    <rect x="4" y="11" width="19" height="4" fill="#FAEEE8"/>
+    <line x1="7" y1="18.5" x2="14" y2="18.5" stroke="#B53818" stroke-width="1.3" stroke-linecap="round"/>
+    <line x1="7" y1="21.5" x2="19" y2="21.5" stroke="#94A3B8" stroke-width="1.1" stroke-linecap="round"/>
+  </svg>`,
+
   slideSection: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="4" y="5" width="24" height="7" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
     <path d="M8 8.5H24" stroke="#B53818" stroke-width="1.6" stroke-linecap="round"/>
@@ -307,6 +345,30 @@ export const ICONS = {
     <path d="M12.5 11.5L16 15L19.5 11.5" stroke="#B53818" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M8 24H24" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/>
     <path d="M16 28V24" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+  slideSectionAdd: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="5" width="24" height="7" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
+    <path d="M8 8.5H24" stroke="#B53818" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="6" y="14" width="13" height="5.5" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="6" y="21.5" width="13" height="5.5" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <circle cx="23" cy="22" r="6" fill="#10B981"/>
+    <path d="M23 19V25M20 22H26" stroke="#FFF" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`,
+  slideSectionRename: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="5" width="24" height="7" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
+    <path d="M8 8.5H24" stroke="#B53818" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="6" y="14" width="13" height="5.5" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="6" y="21.5" width="13" height="5.5" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <circle cx="23" cy="22" r="6" fill="#F59E0B"/>
+    <path d="M20.5 24L24.5 20L25.5 21L21.5 25L20 25.5L20.5 24Z" fill="#FFF"/>
+  </svg>`,
+  slideSectionRemove: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="5" width="24" height="7" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
+    <path d="M8 8.5H24" stroke="#B53818" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="6" y="14" width="13" height="5.5" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <rect x="6" y="21.5" width="13" height="5.5" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2"/>
+    <circle cx="23" cy="22" r="6" fill="#DC2626"/>
+    <line x1="20" y1="22" x2="26" y2="22" stroke="#FFF" stroke-width="1.8" stroke-linecap="round"/>
   </svg>`,
   slideSorter: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="3" y="4" width="11" height="8" rx="1.5" fill="#FAEEE8" stroke="#B53818" stroke-width="1.5"/>
@@ -345,6 +407,23 @@ export const ICONS = {
     <rect x="2" y="3" width="9" height="9" rx="1.5" fill="#3B82F6"/>
     <circle cx="17" cy="7" r="5" fill="#10B981"/>
     <polygon points="12,14 18,22 6,22" fill="#F59E0B"/>
+  </svg>`,
+
+  shapeGroup: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="2.5" y="2.5" width="19" height="19" rx="1.5" stroke="#64748B" stroke-width="1" stroke-dasharray="2 2"/>
+    <rect x="2" y="2" width="2" height="2" fill="#2563EB"/>
+    <rect x="20" y="2" width="2" height="2" fill="#2563EB"/>
+    <rect x="2" y="20" width="2" height="2" fill="#2563EB"/>
+    <rect x="20" y="20" width="2" height="2" fill="#2563EB"/>
+    <rect x="5.5" y="5.5" width="7.5" height="7.5" rx="1" fill="#3B82F6"/>
+    <circle cx="15" cy="14.5" r="4.5" fill="#10B981"/>
+  </svg>`,
+
+  shapeUngroup: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+    <rect x="2.5" y="2.5" width="8" height="8" rx="1" fill="#3B82F6" stroke="#2563EB" stroke-width="0.8"/>
+    <circle cx="16.5" cy="16.5" r="4.5" fill="#10B981" stroke="#059669" stroke-width="0.8"/>
+    <path d="M14 5H18.5V9.5M18.5 5L13.5 10" stroke="#DC2626" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M10 19H5.5V14.5M5.5 19L10.5 14" stroke="#DC2626" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
   diagram: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
@@ -506,6 +585,9 @@ export const ICONS = {
     <line x1="8" y1="14" x2="13" y2="14" stroke="#94A3B8" stroke-width="1" stroke-linecap="round"/>
   </svg>`,
   sectionBreak: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M5 2h14v7H5zM5 15h14v7H5z" fill="#DBEAFE" stroke="#2563EB"/><path d="M2 12h20" stroke="#DC2626" stroke-width="1.5" stroke-dasharray="3 2"/><path d="m10 10 2 2-2 2" stroke="#0F4C81"/></svg>`,
+  sectionContinuous: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="4" y="2" width="16" height="20" rx="1.5" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.4"/><line x1="2" y1="12" x2="22" y2="12" stroke="#DC2626" stroke-width="1.5" stroke-dasharray="2 2"/><path d="M8 7h8M8 9.5h5M8 15h8M8 17.5h6" stroke="#94A3B8" stroke-width="1.2" stroke-linecap="round"/><path d="M16 10.5l2 1.5-2 1.5" stroke="#DC2626" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  sectionEvenPage: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="2" y="3" width="9" height="13" rx="1" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.2"/><rect x="13" y="3" width="9" height="13" rx="1" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.4"/><line x1="1" y1="19" x2="23" y2="19" stroke="#DC2626" stroke-width="1.4" stroke-dasharray="2 2"/><text x="17.5" y="11" text-anchor="middle" font-size="6.5" font-weight="800" font-family="sans-serif" fill="#2563EB">2</text><path d="M8 8h3l2-3" stroke="#DC2626" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  sectionOddPage: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="2" y="3" width="9" height="13" rx="1" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.2"/><rect x="13" y="3" width="9" height="13" rx="1" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.4"/><line x1="1" y1="19" x2="23" y2="19" stroke="#DC2626" stroke-width="1.4" stroke-dasharray="2 2"/><text x="17.5" y="11" text-anchor="middle" font-size="6.5" font-weight="800" font-family="sans-serif" fill="#2563EB">1</text><path d="M8 8h3l2-3" stroke="#DC2626" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   lineNumbers: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
     <rect x="3" y="2" width="18" height="20" rx="2" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.2"/>
     <text x="5.2" y="8.2" fill="#2563EB" font-size="5.2" font-weight="700" font-family="sans-serif">1</text>
@@ -766,6 +848,18 @@ export const ICONS = {
   trackChangeReject: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
     <rect x="3" y="3" width="18" height="18" rx="2" fill="#FEF2F2" stroke="#DC2626" stroke-width="1.2"/>
     <path d="M9 9l6 6M15 9l-6 6" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  trackChangeAcceptAll: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="6" y="2" width="15" height="15" rx="1.8" fill="#DCFCE7" stroke="#16A34A" stroke-width="1.2"/>
+    <rect x="3" y="5" width="15" height="15" rx="1.8" fill="#F0FDF4" stroke="#16A34A" stroke-width="1.2"/>
+    <path d="M6.5 13l2.5 2.5L14.5 10" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  trackChangeRejectAll: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+    <rect x="6" y="2" width="15" height="15" rx="1.8" fill="#FEE2E2" stroke="#DC2626" stroke-width="1.2"/>
+    <rect x="3" y="5" width="15" height="15" rx="1.8" fill="#FEF2F2" stroke="#DC2626" stroke-width="1.2"/>
+    <path d="M7.5 10.5l5 5M12.5 10.5l-5 5" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/>
   </svg>`,
 
   help: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none">
