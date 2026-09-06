@@ -591,7 +591,19 @@ export function createDropdownButton({
         itemEl.setAttribute("aria-disabled", "true");
       }
 
+      if (def && def.isToggle) {
+        itemEl.setAttribute("role", "menuitemcheckbox");
+        const isChecked = Boolean(state && state.checked);
+        itemEl.setAttribute("aria-checked", String(isChecked));
+        if (isChecked) itemEl.classList.add("is-checked");
+      }
+
+      itemEl.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+      });
+
       itemEl.addEventListener("click", (e) => {
+        e.preventDefault();
         e.stopPropagation();
         closeMenu();
         globalCommandBus.execute(subItem.commandId, subItem.args);

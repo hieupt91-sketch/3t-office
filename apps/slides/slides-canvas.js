@@ -1580,15 +1580,15 @@ export class SlidesCanvasController {
   }
 
   _updateSelectionUi() {
-    if (this.titleEl) {
+    if (this.titleEl?.classList) {
       if (this.selectedTarget === "title") this.titleEl.classList.add("is-selected");
       else this.titleEl.classList.remove("is-selected");
     }
-    if (this.bodyEl) {
+    if (this.bodyEl?.classList) {
       if (this.selectedTarget === "body") this.bodyEl.classList.add("is-selected");
       else this.bodyEl.classList.remove("is-selected");
     }
-    if (this.body2El) {
+    if (this.body2El?.classList) {
       if (this.selectedTarget === "body2") this.body2El.classList.add("is-selected");
       else this.body2El.classList.remove("is-selected");
     }
@@ -3321,7 +3321,12 @@ export class SlidesCanvasController {
       if (!isConnector) {
         el.tabIndex = 0;
         el.setAttribute?.("role", "button");
+        el.addEventListener("pointerdown", () => {
+          this._pointerFocusingShape = true;
+          setTimeout(() => { this._pointerFocusingShape = false; }, 120);
+        });
         el.addEventListener("focus", () => {
+          if (this._pointerFocusingShape) return;
           if (!this.selectedShapeIds?.has(String(shape.id))) {
             this.setSelectedTarget(shape.id);
           }
@@ -4279,6 +4284,9 @@ export class SlidesCanvasController {
   /** GAP-SLIDES-03: bật/tắt căn theo toàn bộ trang chiếu thay vì theo khung các đối tượng đang chọn. */
   toggleAlignToSlide() {
     this.alignToSlideMode = !this.alignToSlideMode;
+    if (typeof globalCommandBus !== "undefined" && globalCommandBus?.updateState) {
+      globalCommandBus.updateState("slides.arrange.alignToSlide", { checked: this.alignToSlideMode });
+    }
     return this.alignToSlideMode;
   }
 
@@ -5718,7 +5726,12 @@ export class SlidesCanvasController {
         }
       });
       this.redoStack.push(action);
+      const prevSelected = new Set(this.selectedShapeIds || []);
       this.selectSlide(action.slideIndex);
+      const restored = prevSelected.size > 0 ? prevSelected : new Set(action.moves.map(m => String(m.shapeId)));
+      this.selectedShapeIds = restored;
+      this.selectedTarget = Array.from(restored)[0] || null;
+      this._updateSelectionUi();
       this._renderShapesLayer();
       return true;
     } else if (action.type === "shape-resize") {
@@ -5967,7 +5980,12 @@ export class SlidesCanvasController {
         }
       });
       this.undoStack.push(action);
+      const prevSelected = new Set(this.selectedShapeIds || []);
       this.selectSlide(action.slideIndex);
+      const restored = prevSelected.size > 0 ? prevSelected : new Set(action.moves.map(m => String(m.shapeId)));
+      this.selectedShapeIds = restored;
+      this.selectedTarget = Array.from(restored)[0] || null;
+      this._updateSelectionUi();
       this._renderShapesLayer();
       return true;
     } else if (action.type === "shape-resize") {
@@ -8130,6 +8148,7 @@ export class SlidesCanvasController {
       checked: !!this.slides[this.currentSlideIndex]?.hidden
     });
     globalCommandBus.updateState("slides.animation.pane", { checked: !!this.isAnimationPaneVisible });
+    globalCommandBus.updateState("slides.arrange.alignToSlide", { checked: !!this.alignToSlideMode });
     const currentSection = this._sectionAtSlide(this.currentSlideIndex);
     const ordered = this._orderedSectionRanges();
     const sectionPos = currentSection ? ordered.findIndex(item => item.section.id === currentSection.id) : -1;
