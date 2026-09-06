@@ -189,6 +189,15 @@ export const SLIDES_RIBBON_TABS = [
             icon: "shape",
             isLarge: true,
             items: [
+              { commandId: "slides.arrange.alignLeft" },
+              { commandId: "slides.arrange.alignCenter" },
+              { commandId: "slides.arrange.alignRight" },
+              { commandId: "slides.arrange.alignTop" },
+              { commandId: "slides.arrange.alignMiddle" },
+              { commandId: "slides.arrange.alignBottom" },
+              { commandId: "slides.arrange.distributeHorizontal" },
+              { commandId: "slides.arrange.distributeVertical" },
+              { commandId: "slides.arrange.alignToSlide" },
               { commandId: "slides.shape.group" },
               { commandId: "slides.shape.ungroup" }
             ]

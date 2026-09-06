@@ -92,6 +92,7 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.view.normal", () => this.canvas.setNormalView ? this.canvas.setNormalView() : false);
     globalCommandBus.bindHandler("slides.view.slideSorter", () => this.canvas.openSlideSorter ? this.canvas.openSlideSorter() : false);
     globalCommandBus.bindHandler("slides.notes.toggle", () => this.canvas.toggleNotes ? this.canvas.toggleNotes() : false);
+    globalCommandBus.bindHandler("slides.arrange.alignToSlide", () => this.canvas.toggleAlignToSlide ? this.canvas.toggleAlignToSlide() : false);
     globalCommandBus.bindHandler("slides.view.reading", () => this.canvas.toggleReadingView ? this.canvas.toggleReadingView() : false);
     globalCommandBus.bindHandler("slides.view.ruler", () => this.canvas.toggleRuler ? this.canvas.toggleRuler() : false);
     globalCommandBus.bindHandler("slides.view.gridlines", () => this.canvas.toggleGridlines ? this.canvas.toggleGridlines() : false);
@@ -2764,6 +2765,41 @@ export class SlidesAdapter {
 
       case "slides.shape.ungroup":
         return this.canvas.ungroupSelectedShapes ? this.canvas.ungroupSelectedShapes() : false;
+
+      case "slides.arrange.alignLeft":
+      case ".uno:ObjectAlignLeft":
+        return this.canvas.alignShapes ? this.canvas.alignShapes("left", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+
+      case "slides.arrange.alignCenter":
+      case ".uno:AlignCenter":
+        return this.canvas.alignShapes ? this.canvas.alignShapes("center", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+
+      case "slides.arrange.alignRight":
+      case ".uno:ObjectAlignRight":
+        return this.canvas.alignShapes ? this.canvas.alignShapes("right", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+
+      case "slides.arrange.alignTop":
+      case ".uno:AlignUp":
+        return this.canvas.alignShapes ? this.canvas.alignShapes("top", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+
+      case "slides.arrange.alignMiddle":
+      case ".uno:AlignMiddle":
+        return this.canvas.alignShapes ? this.canvas.alignShapes("middle", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+
+      case "slides.arrange.alignBottom":
+      case ".uno:AlignDown":
+        return this.canvas.alignShapes ? this.canvas.alignShapes("bottom", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+
+      case "slides.arrange.distributeHorizontal":
+      case ".uno:DistributeSelectionHorizontal":
+        return this.canvas.distributeShapes ? this.canvas.distributeShapes("horizontal", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+
+      case "slides.arrange.distributeVertical":
+      case ".uno:DistributeSelectionVertical":
+        return this.canvas.distributeShapes ? this.canvas.distributeShapes("vertical", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+
+      case "slides.arrange.alignToSlide":
+        return this.canvas.toggleAlignToSlide ? this.canvas.toggleAlignToSlide() : false;
 
       case "slides.nav.firstSlide":
         this.canvas.selectSlide(0);

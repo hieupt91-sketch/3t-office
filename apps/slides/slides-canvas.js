@@ -244,6 +244,7 @@ export class SlidesCanvasController {
     this.body2El = null;
     this.selectedTarget = null; // "title" | "body" | "body2" | shapeId
     this.selectedShapeIds = new Set();
+    this.alignToSlideMode = false; // false = căn theo khung các đối tượng đang chọn (mặc định thật của PowerPoint), true = căn theo toàn bộ trang chiếu
     this.formatPainter = null;
     this._formatPainterActivatedAt = 0;
     this._formatPainterEscHandler = null;
@@ -4166,6 +4167,119 @@ export class SlidesCanvasController {
     this._syncUndoRedoState();
     this._renderShapesLayer();
     return true;
+  }
+
+  /**
+   * Căn chỉnh nhiều hình khối đang chọn - GAP-SLIDES-01/03 từ đợt audit Alignment
+   * Parity trước đó. Tái sử dụng đúng cơ chế undo "shapes-move" đã có sẵn cho
+   * nudgeSelected()/nhiều-hình-di-chuyển-cùng-lúc, nên một lần Ctrl+Z hoàn tác
+   * TRỌN VẸN cả thao tác căn chỉnh, không phải từng hình một.
+   * @param {"left"|"center"|"right"|"top"|"middle"|"bottom"} mode
+   * @param {"selection"|"slide"} alignTo - Căn theo khung các hình đang chọn (mặc định,
+   *   giống PowerPoint khi tắt Align to Slide) hoặc theo toàn bộ khung trang chiếu.
+   */
+  alignShapes(mode, alignTo = "selection") {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !this.selectedShapeIds || this.selectedShapeIds.size < 2) return false;
+    const targets = (slide.shapes || []).filter(s => this.selectedShapeIds.has(String(s.id)) && s.type !== "connector");
+    if (targets.length < 2) return false;
+
+    let refLeft, refRight, refTop, refBottom;
+    if (alignTo === "slide") {
+      refLeft = 0; refRight = this.slideSize.width;
+      refTop = 0; refBottom = this.slideSize.height;
+    } else {
+      refLeft = Math.min(...targets.map(s => s.x));
+      refRight = Math.max(...targets.map(s => s.x + s.w));
+      refTop = Math.min(...targets.map(s => s.y));
+      refBottom = Math.max(...targets.map(s => s.y + s.h));
+    }
+
+    const moves = [];
+    targets.forEach(s => {
+      const from = { x: s.x, y: s.y };
+      if (mode === "left") s.x = refLeft;
+      else if (mode === "center") s.x = refLeft + (refRight - refLeft) / 2 - s.w / 2;
+      else if (mode === "right") s.x = refRight - s.w;
+      else if (mode === "top") s.y = refTop;
+      else if (mode === "middle") s.y = refTop + (refBottom - refTop) / 2 - s.h / 2;
+      else if (mode === "bottom") s.y = refBottom - s.h;
+      const to = { x: s.x, y: s.y };
+      if (from.x === to.x && from.y === to.y) return;
+      const shapeEl = this.shapesLayer?.querySelector(`[data-shape-id="${s.id}"]`);
+      if (shapeEl) { shapeEl.style.left = `${s.x}px`; shapeEl.style.top = `${s.y}px`; }
+      if (s.diagramRole === "node") this._updateDiagramConnectorsForNode(s);
+      moves.push({ shapeId: s.id, from, to });
+    });
+
+    if (moves.length === 0) return { aligned: 0 };
+    this.undoStack.push({ type: "shapes-move", slideIndex: this.currentSlideIndex, moves });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderThumbnails();
+    return { aligned: moves.length };
+  }
+
+  /**
+   * Phân phối đều khoảng cách giữa các hình - GAP-SLIDES-02. Giữ nguyên hình
+   * đầu và cuối (theo trục đang phân phối), chia đều khoảng TRỐNG giữa các
+   * hình còn lại - đúng cách PowerPoint thật làm (Distribute Horizontally/
+   * Vertically), không phải chia đều khoảng cách tâm-tới-tâm.
+   * @param {"horizontal"|"vertical"} axis
+   */
+  distributeShapes(axis, alignTo = "selection") {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !this.selectedShapeIds || this.selectedShapeIds.size < 2) return false;
+    const targets = (slide.shapes || []).filter(s => this.selectedShapeIds.has(String(s.id)) && s.type !== "connector");
+    if (targets.length < 2) return false;
+
+    const isH = axis === "horizontal";
+    const sizeOf = s => isH ? s.w : s.h;
+    const posOf = s => isH ? s.x : s.y;
+    const sorted = [...targets].sort((a, b) => posOf(a) - posOf(b));
+
+    let spanStart, spanEnd;
+    if (alignTo === "slide") {
+      spanStart = 0;
+      spanEnd = isH ? this.slideSize.width : this.slideSize.height;
+    } else {
+      spanStart = posOf(sorted[0]);
+      spanEnd = posOf(sorted[sorted.length - 1]) + sizeOf(sorted[sorted.length - 1]);
+    }
+
+    const totalSize = sorted.reduce((sum, s) => sum + sizeOf(s), 0);
+    const gapCount = sorted.length - 1;
+    if (gapCount <= 0) return { distributed: 0 };
+    const gap = (spanEnd - spanStart - totalSize) / gapCount;
+
+    const moves = [];
+    let cursor = spanStart;
+    sorted.forEach((s, index) => {
+      const from = { x: s.x, y: s.y };
+      if (alignTo === "slide" || (index > 0 && index < sorted.length - 1)) {
+        if (isH) s.x = Math.round(cursor); else s.y = Math.round(cursor);
+      }
+      cursor += sizeOf(s) + gap;
+      const to = { x: s.x, y: s.y };
+      if (from.x === to.x && from.y === to.y) return;
+      const shapeEl = this.shapesLayer?.querySelector(`[data-shape-id="${s.id}"]`);
+      if (shapeEl) { shapeEl.style.left = `${s.x}px`; shapeEl.style.top = `${s.y}px`; }
+      if (s.diagramRole === "node") this._updateDiagramConnectorsForNode(s);
+      moves.push({ shapeId: s.id, from, to });
+    });
+
+    if (moves.length === 0) return { distributed: 0 };
+    this.undoStack.push({ type: "shapes-move", slideIndex: this.currentSlideIndex, moves });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderThumbnails();
+    return { distributed: moves.length };
+  }
+
+  /** GAP-SLIDES-03: bật/tắt căn theo toàn bộ trang chiếu thay vì theo khung các đối tượng đang chọn. */
+  toggleAlignToSlide() {
+    this.alignToSlideMode = !this.alignToSlideMode;
+    return this.alignToSlideMode;
   }
 
   nudgeSelected(dx, dy) {

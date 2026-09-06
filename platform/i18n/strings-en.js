@@ -462,6 +462,15 @@ export const enStrings = {
     ,"slides.file.printPreview": { label: "Print Preview", tooltip: "Print Preview (Ctrl+F2)" }
     ,"slides.shape.group": { label: "Group", tooltip: "Group the selected objects together (Ctrl+G)" }
     ,"slides.shape.ungroup": { label: "Ungroup", tooltip: "Ungroup the selected objects (Ctrl+Shift+G)" }
+    ,"slides.arrange.alignLeft": { label: "Align Left", tooltip: "Align the selected objects to the left edge" }
+    ,"slides.arrange.alignCenter": { label: "Align Center", tooltip: "Align the selected objects to the horizontal center" }
+    ,"slides.arrange.alignRight": { label: "Align Right", tooltip: "Align the selected objects to the right edge" }
+    ,"slides.arrange.alignTop": { label: "Align Top", tooltip: "Align the selected objects to the top edge" }
+    ,"slides.arrange.alignMiddle": { label: "Align Middle", tooltip: "Align the selected objects to the vertical middle" }
+    ,"slides.arrange.alignBottom": { label: "Align Bottom", tooltip: "Align the selected objects to the bottom edge" }
+    ,"slides.arrange.distributeHorizontal": { label: "Distribute Horizontally", tooltip: "Evenly space the objects horizontally (3 or more objects)" }
+    ,"slides.arrange.distributeVertical": { label: "Distribute Vertically", tooltip: "Evenly space the objects vertically (3 or more objects)" }
+    ,"slides.arrange.alignToSlide": { label: "Align to Slide", tooltip: "On: align relative to the whole slide. Off: align relative to the selected objects" }
     ,"slides.nav.firstSlide": { label: "First Slide", tooltip: "Go to the first slide (Ctrl+Home)" }
     ,"slides.nav.lastSlide": { label: "Last Slide", tooltip: "Go to the last slide (Ctrl+End)" }
     ,"slides.nav.prevSlide": { label: "Previous Slide", tooltip: "Go to the previous slide (Page Up)" }
