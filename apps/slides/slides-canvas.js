@@ -335,9 +335,15 @@ export class SlidesCanvasController {
     navHeader.className = "vno-slide-nav-header";
     navHeader.innerHTML = `<button class="vno-slide-new-btn" id="vno-new-slide-btn" title="Thêm trang chiếu mới (Ctrl+M)">+ Thêm trang chiếu mới</button>`;
     navHeader.querySelector("#vno-new-slide-btn").addEventListener("click", () => this.addNewSlide());
+    this.navEl.setAttribute("role", "region");
+    this.navEl.setAttribute("aria-label", "Điều hướng trang chiếu");
     this.navEl.appendChild(navHeader);
 
     this.slideListContainer = document.createElement("div");
+    this.slideListContainer.className = "vno-slide-thumb-list";
+    this.slideListContainer.setAttribute("role", "tablist");
+    this.slideListContainer.setAttribute("aria-label", "Danh sách trang chiếu");
+    this.slideListContainer.setAttribute("aria-orientation", "vertical");
     this.slideListContainer.style.display = "flex";
     this.slideListContainer.style.flexDirection = "column";
     this.slideListContainer.style.gap = "10px";
@@ -370,6 +376,9 @@ export class SlidesCanvasController {
 
     this.canvasEl = document.createElement("div");
     this.canvasEl.className = "vno-slide-canvas";
+    this.canvasEl.tabIndex = -1;
+    this.canvasEl.setAttribute("role", "region");
+    this.canvasEl.setAttribute("aria-label", "Vùng trình chiếu slide");
     this._applySlideSizeToDom();
 
     this.titleEl = document.createElement("div");
@@ -407,6 +416,37 @@ export class SlidesCanvasController {
     this.body2El.addEventListener("input", () => {
       this._syncEditableFieldsFromDom();
       this._renderThumbnails();
+    });
+
+    this.titleEl.addEventListener("keydown", (e) => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        this.selectNextObject(e.shiftKey);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this.titleEl.blur();
+        this.canvasEl?.focus();
+      }
+    });
+    this.bodyEl.addEventListener("keydown", (e) => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        this.selectNextObject(e.shiftKey);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this.bodyEl.blur();
+        this.canvasEl?.focus();
+      }
+    });
+    this.body2El.addEventListener("keydown", (e) => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        this.selectNextObject(e.shiftKey);
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this.body2El.blur();
+        this.canvasEl?.focus();
+      }
     });
 
     this.titleEl.addEventListener("focus", () => this.setSelectedTarget("title"));
@@ -1457,6 +1497,41 @@ export class SlidesCanvasController {
     this.selectedShapeIds = new Set();
     this.selectedTarget = null;
     this._renderShapesLayer();
+    const remaining = (slide.shapes || []).filter(s => s.type !== "connector");
+    if (remaining.length > 0) {
+      const nextShape = remaining[0];
+      this.setSelectedTarget(nextShape.id);
+      const nextEl = this.shapesLayer?.querySelector(`[data-shape-id="${nextShape.id}"]`);
+      nextEl?.focus?.();
+    } else {
+      this.canvasEl?.focus?.();
+    }
+    return true;
+  }
+
+  duplicateSelectedShapes() {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !this.selectedShapeIds || this.selectedShapeIds.size === 0) return false;
+    const allShapes = slide.shapes || [];
+    const selected = allShapes.filter(s => this.selectedShapeIds.has(String(s.id)) && s.type !== "connector");
+    if (!selected.length) return false;
+
+    const clones = this._cloneShapes(selected);
+    const newIds = [];
+    clones.forEach((clone) => {
+      clone.id = Date.now() + Math.floor(Math.random() * 10000);
+      clone.x = Math.min(this.slideSize.width - (clone.w || 50), (clone.x || 0) + 20);
+      clone.y = Math.min(this.slideSize.height - (clone.h || 50), (clone.y || 0) + 20);
+      newIds.push(clone.id);
+      slide.shapes.push(clone);
+      this.undoStack.push({ type: "shape-add", slideIndex: this.currentSlideIndex, shape: { ...clone } });
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this.setSelectedShapes(newIds);
+    this._renderShapesLayer();
+    const firstNew = this.shapesLayer?.querySelector(`[data-shape-id="${newIds[0]}"]`);
+    firstNew?.focus?.();
     return true;
   }
 
@@ -2038,6 +2113,8 @@ export class SlidesCanvasController {
 
     this.setSelectedTarget(newShape.id);
     this._renderShapesLayer();
+    const newEl = this.shapesLayer?.querySelector(`[data-shape-id="${newShape.id}"]`);
+    newEl?.focus?.();
     return true;
   }
 
@@ -2878,6 +2955,37 @@ export class SlidesCanvasController {
       }
       el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${isConnector ? "default" : "move"};z-index:${isConnector ? 0 : 1};`;
 
+      if (!isConnector) {
+        el.tabIndex = 0;
+        el.setAttribute?.("role", "button");
+        el.addEventListener("focus", () => {
+          if (!this.selectedShapeIds?.has(String(shape.id))) {
+            this.setSelectedTarget(shape.id);
+          }
+        });
+        el.addEventListener("contextmenu", (event) => {
+          event.preventDefault();
+          this._openShapeContextMenu(shape.id, event.clientX || 0, event.clientY || 0);
+        });
+        el.addEventListener("keydown", (event) => {
+          if (event.defaultPrevented) return;
+          if (event.key === "Delete" || event.key === "Backspace") {
+            event.preventDefault();
+            event.stopPropagation();
+            this.deleteSelectedShapes();
+          } else if ((event.ctrlKey || event.metaKey) && (event.key === "d" || event.key === "D")) {
+            event.preventDefault();
+            event.stopPropagation();
+            this.duplicateSelectedShapes();
+          } else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+            event.preventDefault();
+            event.stopPropagation();
+            const rect = el.getBoundingClientRect?.() || { left: 100, top: 100 };
+            this._openShapeContextMenu(shape.id, (rect.left || 0) + 24, (rect.top || 0) + 24);
+          }
+        });
+      }
+
       if (isConnector) {
         this._renderDiagramConnectorElement(el, shape);
       } else if (shape.type === "image" && shape.src) {
@@ -2904,7 +3012,7 @@ export class SlidesCanvasController {
         el.style.overflow = "hidden";
         el.innerHTML = generateSlidesChartSvg(shape);
         el.tabIndex = 0;
-        el.setAttribute("aria-label", `Biểu đồ: ${shape.title || "Biểu đồ dữ liệu"}. Nhấn Enter để sửa dữ liệu.`);
+        el.setAttribute?.("aria-label", `Biểu đồ: ${shape.title || "Biểu đồ dữ liệu"}. Nhấn Enter để sửa dữ liệu.`);
         el.addEventListener("dblclick", (event) => { event.stopPropagation(); this.editChart(shape.id); });
         el.addEventListener("keydown", (event) => {
           if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); this.editChart(shape.id); }
@@ -2922,8 +3030,8 @@ export class SlidesCanvasController {
         if (shape.presetId) textEl.dataset.vnoWordartPreset = String(shape.presetId);
         textEl.textContent = shape.text || "";
         textEl.contentEditable = "false";
-        textEl.setAttribute("role", "textbox");
-        textEl.setAttribute("aria-label", shape.text || "WordArt");
+        textEl.setAttribute?.("role", "textbox");
+        textEl.setAttribute?.("aria-label", shape.text || "WordArt");
         applyWordArtCss(textEl, shape);
         const startEditing = (initialText) => {
           if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
@@ -2951,16 +3059,36 @@ export class SlidesCanvasController {
           }
         });
         textEl.addEventListener("keydown", (event) => {
-          if (event.key === "Enter") { event.preventDefault(); textEl.blur(); }
+          if (event.key === "Enter" || event.key === "Escape") {
+            event.preventDefault();
+            textEl.blur();
+            el.focus?.();
+          } else if (event.key === "Tab") {
+            event.preventDefault();
+            textEl.blur();
+            this.selectNextObject(event.shiftKey);
+          }
           event.stopPropagation();
         });
         el.addEventListener("dblclick", (event) => { event.stopPropagation(); startEditing(); });
         el.tabIndex = 0;
         el.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === "F2") {
+            event.preventDefault();
+            event.stopPropagation();
+            startEditing();
+            return;
+          }
           if (event.key === "Delete" || event.key === "Backspace") {
             event.preventDefault();
             event.stopPropagation();
             this.deleteSelectedShapes();
+            return;
+          }
+          if ((event.ctrlKey || event.metaKey) && (event.key === "d" || event.key === "D")) {
+            event.preventDefault();
+            event.stopPropagation();
+            this.duplicateSelectedShapes();
             return;
           }
           if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1 && event.key !== " ") {
@@ -3007,8 +3135,8 @@ export class SlidesCanvasController {
           if (shape.textHtml && this._htmlLooksFormatted(shape.textHtml)) textEl.innerHTML = shape.textHtml;
           else textEl.textContent = shape.text || "";
           textEl.contentEditable = "false";
-          textEl.setAttribute("role", "textbox");
-          textEl.setAttribute("aria-label", shape.text || t("slidesDialogs.diagramItem", { number: 1 }));
+          textEl.setAttribute?.("role", "textbox");
+          textEl.setAttribute?.("aria-label", shape.text || t("slidesDialogs.diagramItem", { number: 1 }));
           const startEditing = (initialText) => {
             if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
             textEl.contentEditable = "true";
@@ -3037,7 +3165,15 @@ export class SlidesCanvasController {
             }
           });
           textEl.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") { event.preventDefault(); textEl.blur(); }
+            if (event.key === "Enter" || event.key === "Escape") {
+              event.preventDefault();
+              textEl.blur();
+              el.focus?.();
+            } else if (event.key === "Tab") {
+              event.preventDefault();
+              textEl.blur();
+              this.selectNextObject(event.shiftKey);
+            }
             event.stopPropagation();
           });
           el.addEventListener("dblclick", (event) => { event.stopPropagation(); startEditing(); });
@@ -3049,10 +3185,22 @@ export class SlidesCanvasController {
               this.selectDiagramGroup(shape.diagramGroupId, shape.id);
               return;
             }
+            if (!shape.diagramGroupId && (event.key === "Enter" || event.key === "F2")) {
+              event.preventDefault();
+              event.stopPropagation();
+              startEditing();
+              return;
+            }
             if (event.key === "Delete" || event.key === "Backspace") {
               event.preventDefault();
               event.stopPropagation();
               this.deleteSelectedShapes();
+              return;
+            }
+            if ((event.ctrlKey || event.metaKey) && (event.key === "d" || event.key === "D")) {
+              event.preventDefault();
+              event.stopPropagation();
+              this.duplicateSelectedShapes();
               return;
             }
             if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1 && event.key !== " ") {
@@ -3553,11 +3701,27 @@ export class SlidesCanvasController {
       if (activeEl && (activeEl.isContentEditable || activeEl.tagName === "INPUT" || activeEl.tagName === "TEXTAREA")) {
         return;
       }
+      // Don't intercept when focus is in thumbnail navigator, animation pane, dialogs, or context menus
+      if (activeEl?.closest?.(".vno-slide-nav, .vno-slide-thumb-item, .vno-dialog-overlay, .vno-context-menu, .vno-slides-anim-pane")) {
+        return;
+      }
+
+      const isCanvasFocus = !activeEl || activeEl === document.body ||
+        activeEl === this.canvasEl ||
+        !!activeEl.closest?.(".vno-slide-canvas, .vno-slide-shape-item, .vno-slide-title, .vno-slide-body");
 
       if (e.key === "Tab") {
-        if (this.canvasEl && (document.activeElement === document.body || this.container?.contains(activeEl))) {
+        if (this.canvasEl && isCanvasFocus) {
           e.preventDefault();
           this.selectNextObject(e.shiftKey);
+          return;
+        }
+      }
+
+      if (e.altKey && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        if (this.canvasEl && isCanvasFocus) {
+          e.preventDefault();
+          this.selectNextObject(e.key === "ArrowUp" || e.key === "ArrowLeft");
           return;
         }
       }
@@ -3569,6 +3733,9 @@ export class SlidesCanvasController {
           const dx = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
           const dy = e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
           this.nudgeSelected(dx, dy);
+        } else if (isCanvasFocus) {
+          e.preventDefault();
+          this.selectNextObject(e.key === "ArrowUp" || e.key === "ArrowLeft");
         }
       }
 
@@ -3576,6 +3743,15 @@ export class SlidesCanvasController {
         if (this.selectedShapeIds && this.selectedShapeIds.size > 0) {
           e.preventDefault();
           this.deleteSelectedShapes();
+        }
+      }
+
+      if ((e.ctrlKey || e.metaKey) && (e.key === "d" || e.key === "D")) {
+        if (this.selectedShapeIds && this.selectedShapeIds.size > 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.duplicateSelectedShapes();
+          return;
         }
       }
     };
@@ -3854,9 +4030,11 @@ export class SlidesCanvasController {
           ${cardInner}
         </div>
       `;
-      if (slide.hidden) {
-        item.setAttribute("aria-label", `${t("slidesDialogs.hiddenSlideAria", "Trang chiếu ẩn")} ${idx + 1}: ${slide.title || ""}`);
-      }
+      item.tabIndex = idx === this.currentSlideIndex ? 0 : -1;
+      item.setAttribute("role", "tab");
+      item.setAttribute("aria-selected", idx === this.currentSlideIndex ? "true" : "false");
+      const hiddenAria = slide.hidden ? `, ${t("slidesDialogs.hiddenSlideAria", "Trang chiếu ẩn")}` : "";
+      item.setAttribute("aria-label", `Trang chiếu ${idx + 1}: ${slide.title || "Không có tiêu đề"}${hiddenAria}`);
 
       item.setAttribute("draggable", "true");
       item.dataset.slideIndex = String(idx);
@@ -3891,12 +4069,73 @@ export class SlidesCanvasController {
         event.preventDefault();
         this._openSlideSectionMenu(idx, event.clientX || 0, event.clientY || 0);
       });
+      item.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+          event.preventDefault();
+          event.stopPropagation();
+          const nextIdx = Math.min(this.slides.length - 1, idx + 1);
+          if (nextIdx !== idx) {
+            this.selectSlide(nextIdx);
+            this.slideListContainer?.querySelector(`[data-slide-index="${nextIdx}"]`)?.focus();
+          }
+        } else if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+          event.preventDefault();
+          event.stopPropagation();
+          const prevIdx = Math.max(0, idx - 1);
+          if (prevIdx !== idx) {
+            this.selectSlide(prevIdx);
+            this.slideListContainer?.querySelector(`[data-slide-index="${prevIdx}"]`)?.focus();
+          }
+        } else if (event.key === "Home") {
+          event.preventDefault();
+          event.stopPropagation();
+          if (this.slides.length > 0) {
+            this.selectSlide(0);
+            this.slideListContainer?.querySelector('[data-slide-index="0"]')?.focus();
+          }
+        } else if (event.key === "End") {
+          event.preventDefault();
+          event.stopPropagation();
+          const lastIdx = this.slides.length - 1;
+          if (lastIdx >= 0) {
+            this.selectSlide(lastIdx);
+            this.slideListContainer?.querySelector(`[data-slide-index="${lastIdx}"]`)?.focus();
+          }
+        } else if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          event.stopPropagation();
+          this.selectSlide(idx);
+          if (this.titleEl) {
+            this.titleEl.focus();
+          } else if (this.canvasEl) {
+            this.canvasEl.focus();
+          }
+        } else if (event.key === "Delete" || event.key === "Backspace") {
+          event.preventDefault();
+          event.stopPropagation();
+          if (this.slides.length > 1) {
+            this.deleteCurrentSlide();
+          }
+        } else if ((event.ctrlKey || event.metaKey) && (event.key === "d" || event.key === "D")) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.duplicateCurrentSlide();
+          this.slideListContainer?.querySelector(`[data-slide-index="${this.currentSlideIndex}"]`)?.focus();
+        } else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+          event.preventDefault();
+          event.stopPropagation();
+          const rect = item.getBoundingClientRect?.() || { left: 100, top: 100 };
+          this._openSlideSectionMenu(idx, (rect.left || 0) + 24, (rect.top || 0) + 24);
+        }
+      });
       this.slideListContainer.appendChild(item);
     });
   }
 
   selectSlide(index) {
     if (index < 0 || index >= this.slides.length) return;
+    this.selectedShapeIds = new Set();
+    this.selectedTarget = null;
     this.currentSlideIndex = index;
     const s = this.slides[index];
     const layout = s.layoutType || "title-content";
@@ -4043,6 +4282,9 @@ export class SlidesCanvasController {
   }
 
   duplicateCurrentSlide(recordUndo = true) {
+    if (!this.slideSorterOverlay && this.selectedShapeIds && this.selectedShapeIds.size > 0) {
+      return this.duplicateSelectedShapes();
+    }
     const cur = this.slides[this.currentSlideIndex];
     if (!cur) return false;
     const dup = {
@@ -4073,6 +4315,7 @@ export class SlidesCanvasController {
       this._syncUndoRedoState();
     }
     this.selectSlide(targetIdx);
+    this.slideListContainer?.querySelector(`[data-slide-index="${this.currentSlideIndex}"]`)?.focus?.();
     return true;
   }
 
@@ -4090,6 +4333,7 @@ export class SlidesCanvasController {
     }
     const nextIdx = Math.max(0, delIdx - 1);
     this.selectSlide(nextIdx);
+    this.slideListContainer?.querySelector(`[data-slide-index="${this.currentSlideIndex}"]`)?.focus?.();
     return true;
   }
 
@@ -4424,32 +4668,47 @@ export class SlidesCanvasController {
     document.querySelector?.(".vno-slide-section-menu")?.remove?.();
     const slide = this.slides[slideIndex];
     if (!slide) return false;
+    const section = this._sectionAtSlide(slideIndex);
     const previousFocused = typeof document !== "undefined" ? document.activeElement : null;
-    if ((!clientX && !clientY) && previousFocused?.getBoundingClientRect) {
-      const rect = previousFocused.getBoundingClientRect();
+    const triggerEl = (previousFocused && previousFocused !== document.body && document.body.contains(previousFocused))
+      ? previousFocused
+      : (this.slideListContainer?.querySelector(`[data-slide-index="${slideIndex}"]`) || this.canvasEl);
+
+    if ((!clientX && !clientY) && triggerEl?.getBoundingClientRect) {
+      const rect = triggerEl.getBoundingClientRect();
       clientX = Math.round(rect.left + 24);
       clientY = Math.round(rect.top + 24);
     }
     const clampedX = Math.max(10, Math.min(clientX || 100, (typeof window !== "undefined" ? window.innerWidth : 1200) - 220));
-    const clampedY = Math.max(10, Math.min(clientY || 100, (typeof window !== "undefined" ? window.innerHeight : 800) - 160));
+    const clampedY = Math.max(10, Math.min(clientY || 100, (typeof window !== "undefined" ? window.innerHeight : 800) - 200));
     const menu = document.createElement("div");
-    menu.className = "vno-slide-section-menu";
+    menu.className = "vno-slide-section-menu vno-context-menu";
     menu.setAttribute?.("role", "menu");
-    menu.setAttribute?.("aria-label", "Tùy chọn Phần trang chiếu");
-    menu.style.cssText = `position:fixed;left:${clampedX}px;top:${clampedY}px;z-index:10040;min-width:180px;padding:6px;background:var(--vno-bg-surface);color:var(--vno-text-primary);border:1px solid var(--vno-border-default);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
-    menu.innerHTML = `<button type="button" data-section-action="add" role="menuitem" tabindex="0">Thêm Phần</button>${section ? `<button type="button" data-section-action="rename" role="menuitem" tabindex="-1">Đổi tên Phần</button><button type="button" data-section-action="remove" role="menuitem" tabindex="-1">Xóa Phần (giữ slide)</button>` : ""}`;
+    menu.setAttribute?.("aria-label", "Tùy chọn trang chiếu và phần");
+    menu.style.cssText = `position:fixed;left:${clampedX}px;top:${clampedY}px;z-index:10040;min-width:190px;padding:6px;background:var(--vno-bg-surface,#ffffff);color:var(--vno-text-primary,#0f172a);border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
+    
+    let menuHtml = `
+      <button type="button" data-slide-action="new" role="menuitem" tabindex="0">Trang mới</button>
+      <button type="button" data-slide-action="duplicate" role="menuitem" tabindex="-1">Nhân đôi trang</button>
+      <button type="button" data-slide-action="delete" role="menuitem" tabindex="-1"${this.slides.length <= 1 ? " disabled style='opacity:0.5;cursor:not-allowed;'" : ""}>Xóa trang</button>
+      <div style="height:1px;background:var(--vno-border-default,#cbd5e1);margin:4px 0;"></div>
+      <button type="button" data-section-action="add" role="menuitem" tabindex="-1">Thêm Phần</button>
+      ${section ? `<button type="button" data-section-action="rename" role="menuitem" tabindex="-1">Đổi tên Phần</button><button type="button" data-section-action="remove" role="menuitem" tabindex="-1">Xóa Phần (giữ slide)</button>` : ""}
+    `;
+    menu.innerHTML = menuHtml;
+
     for (const button of menu.querySelectorAll?.("button") || []) {
       button.style.cssText = "display:block;width:100%;padding:8px;text-align:left;border:0;background:transparent;color:inherit;cursor:pointer;border-radius:4px;font-size:13px;";
-      button.addEventListener("mouseenter", () => { button.style.backgroundColor = "var(--vno-bg-hover)"; });
+      button.addEventListener("mouseenter", () => { button.style.backgroundColor = "var(--vno-bg-hover,#f1f5f9)"; });
       button.addEventListener("mouseleave", () => { if (document.activeElement !== button) button.style.backgroundColor = "transparent"; });
-      button.addEventListener("focus", () => { button.style.backgroundColor = "var(--vno-bg-hover)"; });
+      button.addEventListener("focus", () => { button.style.backgroundColor = "var(--vno-bg-hover,#f1f5f9)"; });
       button.addEventListener("blur", () => { button.style.backgroundColor = "transparent"; });
     }
     const close = (restoreFocus = true) => {
       document.removeEventListener("click", onDocClick);
       menu.remove();
-      if (restoreFocus && previousFocused && typeof previousFocused.focus === "function") {
-        try { previousFocused.focus(); } catch (_) {}
+      if (restoreFocus && triggerEl && typeof triggerEl.focus === "function") {
+        try { triggerEl.focus(); } catch (_) {}
       }
     };
     const onDocClick = (e) => {
@@ -4459,23 +4718,37 @@ export class SlidesCanvasController {
       if (typeof document !== "undefined") document.addEventListener("click", onDocClick);
     }, 0);
 
+    menu.querySelector('[data-slide-action="new"]')?.addEventListener("click", () => {
+      close(false);
+      this.addNewSlide();
+    });
+    menu.querySelector('[data-slide-action="duplicate"]')?.addEventListener("click", () => {
+      close(false);
+      this.selectSlide(slideIndex);
+      this.duplicateCurrentSlide();
+    });
+    menu.querySelector('[data-slide-action="delete"]')?.addEventListener("click", () => {
+      close(false);
+      this.selectSlide(slideIndex);
+      this.deleteCurrentSlide();
+    });
     menu.querySelector('[data-section-action="add"]')?.addEventListener("click", async () => {
       close(false);
       await this._promptAddSection(slideIndex);
-      if (previousFocused && typeof previousFocused.focus === "function") {
-        try { previousFocused.focus(); } catch (_) {}
+      if (triggerEl && typeof triggerEl.focus === "function") {
+        try { triggerEl.focus(); } catch (_) {}
       }
     });
     menu.querySelector('[data-section-action="rename"]')?.addEventListener("click", async () => {
       close(false);
-      await this._promptRenameSection(section.id);
-      if (previousFocused && typeof previousFocused.focus === "function") {
-        try { previousFocused.focus(); } catch (_) {}
+      if (section) await this._promptRenameSection(section.id);
+      if (triggerEl && typeof triggerEl.focus === "function") {
+        try { triggerEl.focus(); } catch (_) {}
       }
     });
     menu.querySelector('[data-section-action="remove"]')?.addEventListener("click", () => {
       close(true);
-      this.removeSection(section.id);
+      if (section) this.removeSection(section.id);
     });
     menu.addEventListener("keydown", event => {
       if (event.key === "Escape") {
@@ -4488,7 +4761,7 @@ export class SlidesCanvasController {
       } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         event.stopPropagation();
-        const buttons = Array.from(menu.querySelectorAll("button"));
+        const buttons = Array.from(menu.querySelectorAll("button:not([disabled])"));
         if (!buttons.length) return;
         const curIdx = buttons.indexOf(document.activeElement);
         let nextIdx;
@@ -4499,10 +4772,156 @@ export class SlidesCanvasController {
         }
         buttons.forEach((b, i) => b.setAttribute("tabindex", i === nextIdx ? "0" : "-1"));
         buttons[nextIdx]?.focus();
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        event.stopPropagation();
+        const buttons = Array.from(menu.querySelectorAll("button:not([disabled])"));
+        if (buttons[0]) {
+          buttons.forEach((b, i) => b.setAttribute("tabindex", i === 0 ? "0" : "-1"));
+          buttons[0].focus();
+        }
+      } else if (event.key === "End") {
+        event.preventDefault();
+        event.stopPropagation();
+        const buttons = Array.from(menu.querySelectorAll("button:not([disabled])"));
+        const last = buttons[buttons.length - 1];
+        if (last) {
+          buttons.forEach((b, i) => b.setAttribute("tabindex", i === buttons.length - 1 ? "0" : "-1"));
+          last.focus();
+        }
       }
     });
     document.body.appendChild(menu);
-    menu.querySelector("button")?.focus?.();
+    menu.querySelector("button:not([disabled])")?.focus?.();
+    return true;
+  }
+
+  _openShapeContextMenu(shapeId, clientX, clientY) {
+    document.querySelector?.(".vno-shape-context-menu")?.remove?.();
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    const shape = (slide.shapes || []).find(s => String(s.id) === String(shapeId));
+    if (!shape) return false;
+
+    this.setSelectedTarget(shape.id);
+    const shapeEl = this.shapesLayer?.querySelector(`[data-shape-id="${shape.id}"]`);
+    const previousFocused = shapeEl || (typeof document !== "undefined" ? document.activeElement : null);
+
+    if ((!clientX && !clientY) && previousFocused?.getBoundingClientRect) {
+      const rect = previousFocused.getBoundingClientRect();
+      clientX = Math.round(rect.left + 24);
+      clientY = Math.round(rect.top + 24);
+    }
+    const clampedX = Math.max(10, Math.min(clientX || 100, (typeof window !== "undefined" ? window.innerWidth : 1200) - 220));
+    const clampedY = Math.max(10, Math.min(clientY || 100, (typeof window !== "undefined" ? window.innerHeight : 800) - 180));
+
+    const menu = document.createElement("div");
+    menu.className = "vno-shape-context-menu vno-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", `Tùy chọn hình vẽ ${shape.text || ""}`);
+    menu.style.cssText = `position:fixed;left:${clampedX}px;top:${clampedY}px;z-index:10040;min-width:180px;padding:6px;background:var(--vno-bg-surface,#ffffff);color:var(--vno-text-primary,#0f172a);border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
+
+    let itemsHtml = `
+      <button type="button" data-action="duplicate" role="menuitem" tabindex="0">Nhân đôi (Ctrl+D)</button>
+      <button type="button" data-action="delete" role="menuitem" tabindex="-1">Xóa hình vẽ (Delete)</button>
+    `;
+    if (shape.type === "chart") {
+      itemsHtml += `<button type="button" data-action="edit-chart" role="menuitem" tabindex="-1">Chỉnh sửa biểu đồ...</button>`;
+    }
+    if (shape.diagramGroupId) {
+      itemsHtml += `<button type="button" data-action="delete-group" role="menuitem" tabindex="-1">Xóa nhóm sơ đồ</button>`;
+    }
+    menu.innerHTML = itemsHtml;
+
+    for (const button of menu.querySelectorAll("button")) {
+      button.style.cssText = "display:block;width:100%;padding:8px;text-align:left;border:0;background:transparent;color:inherit;cursor:pointer;border-radius:4px;font-size:13px;";
+      button.addEventListener("mouseenter", () => { button.style.backgroundColor = "var(--vno-bg-hover,#f1f5f9)"; });
+      button.addEventListener("mouseleave", () => { if (document.activeElement !== button) button.style.backgroundColor = "transparent"; });
+      button.addEventListener("focus", () => { button.style.backgroundColor = "var(--vno-bg-hover,#f1f5f9)"; });
+      button.addEventListener("blur", () => { button.style.backgroundColor = "transparent"; });
+    }
+
+    const close = (restoreFocus = true) => {
+      document.removeEventListener("click", onDocClick);
+      menu.remove();
+      if (restoreFocus) {
+        try {
+          if (shapeEl && typeof shapeEl.focus === "function") {
+            shapeEl.focus();
+          } else if (previousFocused && typeof previousFocused.focus === "function") {
+            previousFocused.focus();
+          }
+        } catch (_) {}
+      }
+    };
+    const onDocClick = (e) => {
+      if (!menu.contains(e.target)) close(true);
+    };
+    setTimeout(() => {
+      if (typeof document !== "undefined") document.addEventListener("click", onDocClick);
+    }, 0);
+
+    menu.querySelector('[data-action="duplicate"]')?.addEventListener("click", () => {
+      close(false);
+      this.duplicateSelectedShapes();
+    });
+    menu.querySelector('[data-action="delete"]')?.addEventListener("click", () => {
+      close(false);
+      this.deleteSelectedShapes();
+    });
+    menu.querySelector('[data-action="edit-chart"]')?.addEventListener("click", () => {
+      close(false);
+      this.editChart(shape.id);
+    });
+    menu.querySelector('[data-action="delete-group"]')?.addEventListener("click", () => {
+      close(false);
+      this.deleteDiagramGroup(shape.diagramGroupId);
+    });
+
+    menu.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        close(true);
+      } else if (event.key === "Tab") {
+        event.stopPropagation();
+        trapFocus(menu, event);
+      } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        event.stopPropagation();
+        const buttons = Array.from(menu.querySelectorAll("button:not([disabled])"));
+        if (!buttons.length) return;
+        const curIdx = buttons.indexOf(document.activeElement);
+        let nextIdx;
+        if (event.key === "ArrowDown") {
+          nextIdx = curIdx === -1 ? 0 : (curIdx + 1) % buttons.length;
+        } else {
+          nextIdx = curIdx === -1 ? buttons.length - 1 : (curIdx - 1 + buttons.length) % buttons.length;
+        }
+        buttons.forEach((b, i) => b.setAttribute("tabindex", i === nextIdx ? "0" : "-1"));
+        buttons[nextIdx]?.focus();
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        event.stopPropagation();
+        const buttons = Array.from(menu.querySelectorAll("button:not([disabled])"));
+        if (buttons[0]) {
+          buttons.forEach((b, i) => b.setAttribute("tabindex", i === 0 ? "0" : "-1"));
+          buttons[0].focus();
+        }
+      } else if (event.key === "End") {
+        event.preventDefault();
+        event.stopPropagation();
+        const buttons = Array.from(menu.querySelectorAll("button:not([disabled])"));
+        const last = buttons[buttons.length - 1];
+        if (last) {
+          buttons.forEach((b, i) => b.setAttribute("tabindex", i === buttons.length - 1 ? "0" : "-1"));
+          last.focus();
+        }
+      }
+    });
+
+    document.body.appendChild(menu);
+    menu.querySelector("button:not([disabled])")?.focus?.();
     return true;
   }
 
