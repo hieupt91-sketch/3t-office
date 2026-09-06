@@ -71,6 +71,37 @@ try {
   console.log("PASS writer-fodt-phase-d-real-conversion notes");
   console.log(`NOTES_DOCX=${notesDocx}`);
   console.log(`NOTES_PDF=${notesPdf}`);
+
+  const commentAdapter = adapterWithZones({
+    body: '<p>Đề nghị phê duyệt <mark class="vno-comment-anchor" data-comment-id="writer-comment-1" tabindex="0" role="button" data-vno-comment-author="Tran Thi Hoa" title="Tran Thi Hoa" aria-label="Mở ghi chú cho: dự toán năm 2026">dự toán năm 2026</mark> theo phương án đã thống nhất.</p>',
+    comments: [{
+      id: "writer-comment-1",
+      anchorText: "dự toán năm 2026",
+      content: "COMMENT_BODY đối chiếu số liệu quý II.",
+      createdAt: "2026-09-05T09:10:00",
+      author: "Tran Thi Hoa"
+    }]
+  });
+  const commentFodt = commentAdapter.serializeToFodt();
+  const commentPath = path.join(tempRoot, "comments.fodt");
+  fs.writeFileSync(commentPath, commentFodt, "utf8");
+  const commentDocx = convertWithSoffice(commentPath, "docx", path.join(tempRoot, "comments-docx"), {
+    appKind: "writer", profileDir: path.join(tempRoot, "profile-comments-docx")
+  });
+  const commentZip = listZipEntries(commentDocx).map(entry => entry.name);
+  assert.ok(commentZip.includes("word/comments.xml"), "DOCX must contain word/comments.xml");
+  const commentDocumentXml = readZipEntry(commentDocx, "word/document.xml")?.toString("utf8") || "";
+  const commentsXml = readZipEntry(commentDocx, "word/comments.xml")?.toString("utf8") || "";
+  assert.match(commentDocumentXml, /<w:commentRangeStart w:id="0"\/>/);
+  assert.match(commentDocumentXml, /<w:commentRangeEnd w:id="0"\/>/);
+  assert.match(commentDocumentXml, /<w:commentReference w:id="0"\/>/);
+  assert.match(commentsXml, /w:author="Tran Thi Hoa"/);
+  assert.match(xmlText(commentsXml), /COMMENT_BODY đối chiếu số liệu quý II/);
+  const commentParsed = adapterWithZones({ body: "<p>x</p>" });
+  commentParsed.parseFodt(commentFodt);
+  assert.equal(commentParsed.serializeToFodt(), commentFodt);
+  console.log("PASS writer-fodt-phase-d-real-conversion comments");
+  console.log(`COMMENTS_DOCX=${commentDocx}`);
 } finally {
   // Keep temp dir for Word visual check scripts; tests/scripts copies out.
 }

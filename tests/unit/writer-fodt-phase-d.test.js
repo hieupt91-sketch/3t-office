@@ -123,5 +123,52 @@ export async function runWriterFodtPhaseDTests() {
     assert.equal(body.innerHTML, "<p>Giữ nguyên</p>");
   });
 
+  await test("Writer FODT Phase D serializes comment range as office:annotation plus annotation-end", () => {
+    const { adapter } = adapterWithZones({
+      body: '<p>Đề nghị phê duyệt <mark class="vno-comment-anchor" data-comment-id="writer-comment-1" tabindex="0" role="button" data-vno-comment-author="Tran Thi Hoa" title="Tran Thi Hoa" aria-label="Mở ghi chú cho: dự toán năm 2026">dự toán năm 2026</mark> theo phương án đã thống nhất.</p>',
+      comments: [{
+        id: "writer-comment-1",
+        anchorText: "dự toán năm 2026",
+        content: "Cần đối chiếu số liệu quý II trước khi trình.",
+        createdAt: "2026-09-05T09:10:00",
+        author: "Tran Thi Hoa"
+      }]
+    });
+    const fodt = adapter.serializeToFodt();
+    assert.match(fodt, /xmlns:dc="http:\/\/purl.org\/dc\/elements\/1.1\/"/);
+    assert.match(fodt, /<office:annotation office:name="writer-comment-1"><dc:creator>Tran Thi Hoa<\/dc:creator><dc:date>2026-09-05T09:10:00<\/dc:date><text:p>Cần đối chiếu số liệu quý II trước khi trình\.<\/text:p><\/office:annotation>dự toán năm 2026<office:annotation-end office:name="writer-comment-1"\/>/);
+  });
+
+  await test("Writer FODT Phase D comment round-trip is exactly idempotent and restores this.comments", () => {
+    const comments = [{
+      id: "writer-comment-1",
+      anchorText: "dự toán năm 2026",
+      content: "Cần đối chiếu số liệu quý II trước khi trình.",
+      createdAt: "2026-09-05T09:10:00",
+      author: "Tran Thi Hoa"
+    }];
+    const initial = adapterWithZones({
+      body: '<p>Đề nghị phê duyệt <mark class="vno-comment-anchor" data-comment-id="writer-comment-1" tabindex="0" role="button" data-vno-comment-author="Tran Thi Hoa" title="Tran Thi Hoa" aria-label="Mở ghi chú cho: dự toán năm 2026">dự toán năm 2026</mark> theo phương án đã thống nhất.</p>',
+      comments
+    });
+    const first = initial.adapter.serializeToFodt();
+    const parsed = adapterWithZones({ body: "<p>không giữ</p>", comments: [] });
+    parsed.adapter.parseFodt(first);
+    assert.equal(parsed.adapter.comments.length, 1);
+    assert.equal(parsed.adapter.comments[0].id, "writer-comment-1");
+    assert.equal(parsed.adapter.comments[0].content, "Cần đối chiếu số liệu quý II trước khi trình.");
+    assert.equal(parsed.adapter.comments[0].author, "Tran Thi Hoa");
+    assert.equal(parsed.adapter.comments[0].createdAt, "2026-09-05T09:10:00");
+    assert.match(parsed.body.innerHTML, /data-comment-id="writer-comment-1"/);
+    assert.equal(parsed.adapter.serializeToFodt(), first);
+  });
+
+  await test("Writer FODT Phase D rejects comment mark without this.comments entry", () => {
+    const { adapter } = adapterWithZones({
+      body: '<p><mark class="vno-comment-anchor" data-comment-id="missing">neo</mark></p>'
+    });
+    assert.throws(() => adapter.serializeToFodt(), error => error?.code === "WRITER_FODT_UNSUPPORTED_CONTENT");
+  });
+
   return results;
 }

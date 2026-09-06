@@ -4810,6 +4810,27 @@ export class WriterAdapter {
     return "<office:styles><text:notes-configuration text:note-class=\"footnote\" style:num-format=\"1\" text:start-value=\"0\" text:footnotes-position=\"page\" text:start-numbering-at=\"document\"/><text:notes-configuration text:note-class=\"endnote\" style:num-format=\"i\" text:start-value=\"0\"/></office:styles>";
   }
 
+  _fodtPlainLoose(nodes) {
+    return (nodes || []).map(node => {
+      if (!node) return "";
+      if (node.name === "#text") return node.text || "";
+      if (node.name === "text:s") return " ".repeat(Math.max(1, Number(node.attrs["text:c"]) || 1));
+      if (node.name === "text:tab") return "\t";
+      if (node.name === "text:line-break") return "\n";
+      if (node.name === "br") return "\n";
+      return this._fodtPlainLoose(node.children);
+    }).join("");
+  }
+
+  _fodtCommentMarkHtml(comment, innerHtml) {
+    const authorAttr = comment.author
+      ? ` data-vno-comment-author="${this._escapeHtml(comment.author)}"`
+      : "";
+    const titleAttr = comment.author ? ` title="${this._escapeHtml(comment.author)}"` : "";
+    const label = `Mở ghi chú cho: ${String(comment.anchorText || "").slice(0, 80)}`;
+    return `<mark class="vno-comment-anchor" data-comment-id="${this._escapeHtml(comment.id)}" tabindex="0" role="button"${authorAttr}${titleAttr} aria-label="${this._escapeHtml(label)}">${innerHtml}</mark>`;
+  }
+
   _fodtNoteContainerHtml(kind, notes) {
     if (!notes.length) return "";
     if (kind === "endnote") {
@@ -4875,6 +4896,18 @@ export class WriterAdapter {
         if (!bodies.has(id)) throw this._fodtError(`${kind} '${id}' không có nội dung`);
         const citation = this._fodtCitationText(node.children) || (kind === "endnote" ? "i" : "1");
         return `<text:note text:id="${this._fodtEscapeXml(id)}" text:note-class="${kind}"><text:note-citation>${this._fodtEscapeXml(citation)}</text:note-citation><text:note-body><text:p>${inlineXml(bodies.get(id))}</text:p></text:note-body></text:note>`;
+      }
+      if (node.name === "mark") {
+        const commentId = node.attrs["data-comment-id"];
+        if (!commentId) throw this._fodtError("phần tử inline <mark> (chỉ hỗ trợ ghi chú)");
+        const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "data-comment-id", "tabindex", "role", "aria-label", "title", "data-vno-comment-author"].includes(name));
+        if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <mark>`);
+        const comment = (this.comments || []).find(item => item.id === commentId);
+        if (!comment) throw this._fodtError(`ghi chú '${commentId}' không có nội dung trong this.comments`);
+        const name = this._fodtEscapeXml(commentId);
+        const creator = this._fodtEscapeXml(comment.author || "");
+        const date = this._fodtEscapeXml(comment.createdAt || "");
+        return `<office:annotation office:name="${name}"><dc:creator>${creator}</dc:creator><dc:date>${date}</dc:date><text:p>${this._fodtTextXml(comment.content || "")}</text:p></office:annotation>${inlineXml(node.children, inherited)}<office:annotation-end office:name="${name}"/>`;
       }
       if (!["span", "b", "strong", "i", "em", "u", "font"].includes(node.name)) throw this._fodtError(`phần tử inline <${node.name}>`);
       const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "color", "face"].includes(name));
@@ -5216,6 +5249,7 @@ export class WriterAdapter {
     const parsedShapes = [];
     const parsedFootnotes = [];
     const parsedEndnotes = [];
+    const parsedComments = [];
     xml.replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrsText, content) => {
       const attrs = this._fodtParseAttributes(attrsText);
       const name = attrs["style:name"];
@@ -5278,7 +5312,7 @@ export class WriterAdapter {
       if (style.fontSize) rules.push(`font-size:${style.fontSize}`);
       return rules.join(";");
     };
-    const inlineHtml = nodes => nodes.map(node => {
+    const inlineNodeHtml = (node) => {
       if (node.name === "#text") return this._escapeHtml(node.text);
       if (node.name === "text:s") return " ".repeat(Math.max(1, Number(node.attrs["text:c"]) || 1));
       if (node.name === "text:tab") return "\t";
@@ -5317,7 +5351,53 @@ export class WriterAdapter {
       const name = node.attrs["text:style-name"];
       if (!name || !textStyles.has(name)) throw this._fodtError(`text:span tham chiếu style không biết '${name || ""}'`);
       return `<span style="${this._escapeHtml(htmlStyle(textStyles.get(name)))}">${inlineHtml(node.children)}</span>`;
-    }).join("");
+    };
+    const inlineHtml = (nodes) => {
+      let html = "";
+      for (let index = 0; index < nodes.length; index++) {
+        const node = nodes[index];
+        if (node.name === "office:annotation") {
+          const annotationName = node.attrs["office:name"] || `writer-comment-${parsedComments.length + 1}`;
+          const metaChildren = node.children.filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
+          const creatorNode = metaChildren.find(child => child.name === "dc:creator");
+          const dateNode = metaChildren.find(child => child.name === "dc:date");
+          const bodyNodes = metaChildren.filter(child => child.name === "text:p");
+          const unexpected = metaChildren.filter(child => child !== creatorNode && child !== dateNode && !bodyNodes.includes(child) && child.name !== "meta:creator" && child.name !== "meta:date");
+          if (unexpected.length) throw this._fodtError(`office:annotation chứa <${unexpected[0].name}>`);
+          if (bodyNodes.length !== 1) throw this._fodtError("office:annotation phải có đúng một text:p");
+          const range = [];
+          let foundEnd = false;
+          let cursor = index + 1;
+          while (cursor < nodes.length) {
+            const next = nodes[cursor];
+            if (next.name === "office:annotation-end" && (!next.attrs["office:name"] || next.attrs["office:name"] === annotationName)) {
+              foundEnd = true;
+              break;
+            }
+            if (next.name === "office:annotation") throw this._fodtError("office:annotation lồng nhau chưa hỗ trợ");
+            range.push(next);
+            cursor++;
+          }
+          const innerHtml = foundEnd ? inlineHtml(range) : "";
+          const comment = {
+            id: annotationName,
+            anchorText: this._fodtPlainLoose(foundEnd ? range : []).replace(/\s+/g, " ").trim(),
+            content: this._fodtPlainLoose(bodyNodes[0].children).trim(),
+            createdAt: this._fodtPlainLoose(dateNode?.children || "").trim(),
+            author: this._fodtPlainLoose(creatorNode?.children || "").trim()
+          };
+          parsedComments.push(comment);
+          html += this._fodtCommentMarkHtml(comment, innerHtml);
+          if (foundEnd) index = cursor;
+          continue;
+        }
+        if (node.name === "office:annotation-end") {
+          throw this._fodtError("office:annotation-end không có office:annotation tương ứng");
+        }
+        html += inlineNodeHtml(node);
+      }
+      return html;
+    };
     const frameHtml = (node) => {
       const children = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
       if (children.length === 1 && children[0].name === "draw:text-box") {
@@ -5465,6 +5545,7 @@ export class WriterAdapter {
     if (this.headerDom) this.headerDom.innerHTML = headerHtml;
     if (this.footerDom) this.footerDom.innerHTML = footerHtml;
     this.shapes = parsedShapes;
+    this.comments = parsedComments;
     if (masterPages.length) {
       const firstSetup = restoredSections["section-1"] || masterPages[0] && pageLayouts.get(masterPages[0].layoutName);
       if (firstSetup) this.pageSetup = JSON.parse(JSON.stringify(firstSetup));

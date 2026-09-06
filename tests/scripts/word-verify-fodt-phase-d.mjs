@@ -34,5 +34,23 @@ const notesDocx = convertWithSoffice(notesFodt, "docx", path.join(outDir, "notes
 const notesOut = path.join(outDir, "phase-d-notes.docx");
 fs.copyFileSync(notesDocx, notesOut);
 
+const commentFodt = path.join(outDir, "phase-d-comments.fodt");
+fs.writeFileSync(commentFodt, adapterWithZones({
+  body: '<p>Đề nghị phê duyệt <mark class="vno-comment-anchor" data-comment-id="writer-comment-1" tabindex="0" role="button" data-vno-comment-author="Tran Thi Hoa" title="Tran Thi Hoa" aria-label="Mở ghi chú cho: dự toán năm 2026">dự toán năm 2026</mark> theo phương án đã thống nhất.</p>',
+  comments: [{
+    id: "writer-comment-1",
+    anchorText: "dự toán năm 2026",
+    content: "Cần đối chiếu số liệu quý II trước khi trình.",
+    createdAt: "2026-09-05T09:10:00",
+    author: "Tran Thi Hoa"
+  }]
+}).serializeToFodt(), "utf8");
+const commentDocx = convertWithSoffice(commentFodt, "docx", path.join(outDir, "comments-docx"), {
+  appKind: "writer", profileDir: path.join(outDir, "profile-comments")
+});
+const commentOut = path.join(outDir, "phase-d-comments.docx");
+fs.copyFileSync(commentDocx, commentOut);
+
 console.log(`WORD_DIR=${outDir}`);
 console.log(`NOTES_DOCX=${notesOut}`);
+console.log(`COMMENTS_DOCX=${commentOut}`);
