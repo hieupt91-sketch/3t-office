@@ -16,6 +16,8 @@ const LOCK_STRUCTURE_RE = /\blockStructure\s*=\s*(["'])[^"']*\1/i;
 const BEFORE_SIBLING_RE = /<(?:[\w]+:)?(?:bookViews|sheets)\b/i;
 const WORKBOOK_CLOSE_RE = /<\/(?:[\w]+:)?workbook\s*>/i;
 const FODS_STRUCTURE_RE = /<office:spreadsheet\b[^>]*table:structure-protected\s*=\s*["']true["']/i;
+const SPREADSHEET_OPEN_RE = /<office:spreadsheet\b([^>]*?)(\/?)\s*>/i;
+const STRUCTURE_ATTR_RE = /\btable:structure-protected\s*=\s*(["'])[^"']*\1/i;
 
 export function fodsHasStructureProtection(fodsXml) {
   return FODS_STRUCTURE_RE.test(String(fodsXml || ""));
@@ -78,4 +80,46 @@ export function resolveWorkbookProtectionEnabled(options = {}) {
   }
   if (options.sourceFods) return fodsHasStructureProtection(options.sourceFods);
   return false;
+}
+
+/**
+ * Phase 2a import overlay: LibreOffice XLSX→FODS drops lockStructure, so
+ * inject table:structure-protected="true" onto <office:spreadsheet> when the
+ * original XLSX has workbookProtection lockStructure=1|true.
+ *
+ * Call this AFTER soffice convert and BEFORE SheetAdapter.parseFods().
+ *
+ * @param {string} fodsXml
+ * @param {string} [workbookXml] xl/workbook.xml from the original XLSX
+ * @returns {string}
+ */
+export function overlayFodsStructureProtection(fodsXml, workbookXml) {
+  const xml = String(fodsXml || "");
+  if (!workbookHasStructureLock(workbookXml)) return xml;
+  return applyFodsStructureProtection(xml);
+}
+
+/**
+ * Ensure office:spreadsheet carries table:structure-protected="true".
+ * Updates an existing attribute in place; inserts only when missing.
+ *
+ * @param {string} fodsXml
+ * @returns {string}
+ */
+export function applyFodsStructureProtection(fodsXml) {
+  const xml = String(fodsXml || "");
+  if (!xml) return xml;
+  const match = xml.match(SPREADSHEET_OPEN_RE);
+  if (!match) return xml;
+  const full = match[0];
+  let attrs = match[1] || "";
+  const selfClose = match[2] === "/";
+  if (STRUCTURE_ATTR_RE.test(attrs)) {
+    attrs = attrs.replace(STRUCTURE_ATTR_RE, 'table:structure-protected="true"');
+  } else {
+    attrs = `${attrs.trimEnd()} table:structure-protected="true"`;
+  }
+  if (attrs.length && !attrs.startsWith(" ")) attrs = ` ${attrs}`;
+  const nextTag = selfClose ? `<office:spreadsheet${attrs}/>` : `<office:spreadsheet${attrs}>`;
+  return xml.slice(0, match.index) + nextTag + xml.slice(match.index + full.length);
 }

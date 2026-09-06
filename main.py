@@ -307,6 +307,49 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
         ) from exc
 
 
+def _read_xlsx_workbook_xml(src_path: str) -> str | None:
+    """Read xl/workbook.xml from the original .xlsx via the shared ZIP helper.
+
+    Writer's File → Mở forwards word/document.xml as ooxmlDocumentXml. Sheet
+    does the same for workbook.xml so the adapter can overlay lockStructure
+    if the FODS path missed it. Missing/corrupt packages return None so
+    File → Mở still loads the soffice FODS body.
+    """
+    if not src_path or not str(src_path).lower().endswith(".xlsx"):
+        return None
+    try:
+        with open(src_path, "rb") as handle:
+            package = handle.read()
+        entry = _ooxml_zip_patch().read_zip_entry(package, "xl/workbook.xml")
+        if not entry:
+            return None
+        return entry.decode("utf-8", errors="replace")
+    except (OSError, UnicodeError, DocumentEngineError):
+        return None
+    except Exception:
+        return None
+
+
+def _apply_native_import_overlay(src_path: str, fods: str, app_kind: str | None) -> str:
+    """After soffice XLSX→FODS, restore table:structure-protected from the original XLSX.
+
+    LibreOffice does not map workbookProtection lockStructure back to
+    table:structure-protected. Overlay the FODS here — before JS
+    SheetAdapter.parseFods() — so File → Mở shows the real structure lock.
+    Failures return the original FODS so open still succeeds.
+    """
+    if app_kind != "sheet":
+        return fods
+    if not src_path or not str(src_path).lower().endswith(".xlsx"):
+        return fods
+    try:
+        with open(src_path, "rb") as handle:
+            original = handle.read()
+        return _ooxml_zip_patch().overlay_sheet_xlsx_fods(original, fods)
+    except Exception:
+        return fods
+
+
 _IMG_TAG_RE = re.compile(r"<img\b([^>]*?)(\s*/?)>", re.IGNORECASE)
 _SRC_ATTR_RE = re.compile(r"""\bsrc=["']([^"']+)["']""", re.IGNORECASE)
 _SRC_ATTR_REPLACE_RE = re.compile(r"""\bsrc=["'][^"']*["']""", re.IGNORECASE)
@@ -466,6 +509,10 @@ class VnOfficeApi:
                     content = f.read()
                 if app_kind == "writer":
                     content = _inline_html_images(content, out_path)
+                elif app_kind == "sheet":
+                    # Overlay BEFORE the FODS leaves this process — SheetAdapter.parseFods
+                    # must see table:structure-protected when the original XLSX is locked.
+                    content = _apply_native_import_overlay(src_path, content, app_kind)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
 
@@ -483,6 +530,10 @@ class VnOfficeApi:
             comments_xml = _read_docx_comments_xml(src_path)
             if comments_xml:
                 payload["ooxmlCommentsXml"] = comments_xml
+        elif app_kind == "sheet":
+            workbook_xml = _read_xlsx_workbook_xml(src_path)
+            if workbook_xml:
+                payload["ooxmlWorkbookXml"] = workbook_xml
         return payload
 
     def save_document_dialog(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu"):

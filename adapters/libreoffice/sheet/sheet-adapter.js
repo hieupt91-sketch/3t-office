@@ -9,6 +9,7 @@ import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { getVnCommand } from "../common/command-dispatch-mapper.js";
 import { SheetChartBuilder } from "../../../apps/sheet/sheet-chart.js";
+import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
 
 export class SheetAdapter {
   constructor(gridController) {
@@ -26,6 +27,14 @@ export class SheetAdapter {
    */
   wantsNativeXlsxWorkbookProtection() {
     return !!this.grid?.workbookProtection?.enabled;
+  }
+
+  /**
+   * Grid-model Protect Workbook flag after File → Mở / loadFromFods.
+   * Tests assert this is true when the original XLSX has lockStructure.
+   */
+  get workbookProtection() {
+    return this.grid?.workbookProtection || { enabled: false, password: "" };
   }
 
   /** Gắn tham chiếu AppShell — xem chú thích trong WriterAdapter.setShell(). */
@@ -2125,9 +2134,10 @@ export class SheetAdapter {
     return workbook;
   }
 
-  loadFromFods(fodsText) {
+  loadFromFods(fodsText, ooxmlWorkbookXml) {
     if (!this.grid) return false;
-    const workbook = this.parseFods(fodsText);
+    const xml = overlayFodsStructureProtection(fodsText, ooxmlWorkbookXml);
+    const workbook = this.parseFods(xml);
     if (workbook.sheets.length === 0) return false;
     const firstSheet = workbook.sheets[0];
     if (typeof this.grid.resetToBlank === "function") this.grid.resetToBlank(firstSheet);
@@ -2394,7 +2404,10 @@ export class SheetAdapter {
   async open() {
     const result = await globalUnoBridge.openRealFile("sheet");
     if (result.status === "ok") {
-      this.loadFromFods(result.content);
+      // Overlay lockStructure from original XLSX onto FODS before parseFods.
+      // Production File → Mở already overlays in main.py; this is the Writer-like
+      // belt-and-suspenders path (ooxmlWorkbookXml) plus tests that stub the bridge.
+      this.loadFromFods(result.content, result.ooxmlWorkbookXml);
       this.sourceFileName = (result.fileName || "BangTinh").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
       return true;

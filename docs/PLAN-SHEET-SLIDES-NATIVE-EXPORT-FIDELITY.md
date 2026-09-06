@@ -9,7 +9,7 @@ Nguyên tắc:
 3. VN Office **mở lại ZIP**, patch XML entry bằng cấu trúc **OOXML chuẩn** (không namespace `vno:`), đóng gói lại.
 4. Chỉ patch khi OOXML thật sự có chỗ chuẩn. Nếu là giới hạn kiến trúc PowerPoint/Excel — ghi rõ, không làm giả.
 
-**Không merge vào `main` từ Phase 1.**
+Phase 1 đã merge `main`. Phase 2a **không merge vào `main`** cho đến khi người phụ trách review.
 
 ---
 
@@ -119,13 +119,22 @@ Không ghi password hash OOXML (`workbookAlgorithmName` / `hashValue` / `saltVal
 
 Làm **từng mục**, mỗi mục một worktree/branch.
 
-### 2a. Overlay Protect Workbook khi Mở XLSX — độ phức tạp: thấp-trung bình
+### 2a. Overlay Protect Workbook khi Mở XLSX — **HOÀN THÀNH** (thấp-trung bình)
 
-LibreOffice convert XLSX→FODS **bỏ** `lockStructure`, nên File → Mở file vừa Lưu có thể mất khóa trên canvas VN Sheet dù Excel vẫn thấy khóa.
+LibreOffice convert XLSX→FODS **bỏ** `lockStructure`, nên File → Mở file vừa Lưu mất khóa trên canvas VN Sheet dù Excel vẫn thấy khóa.
 
-Pattern đã có ở Writer: `main.py` đọc `word/document.xml` khi mở DOCX, adapter overlay. Làm tương tự: đọc `xl/workbook.xml`, nếu `lockStructure` bật thì set `grid.workbookProtection.enabled`.
+Writer **có thật** pattern `ooxmlDocumentXml`: `main.py` đọc `word/document.xml` từ DOCX gốc, adapter overlay sau convert. Phase 2a làm tương tự cho Sheet, nhưng overlay **FODS** (không phải HTML):
 
-Rủi ro thấp. Cần sửa `open_document_dialog` (main.py) + `sheet-adapter.loadFromFods` — **plan gate** vì đụng main.py lần nữa.
+1. soffice XLSX→FODS
+2. Đọc `xl/workbook.xml` của XLSX **gốc** qua `ooxml_zip_patch.read_zip_entry` (không viết lại ZIP)
+3. Nếu `lockStructure="1"|true`, chèn `table:structure-protected="true"` vào `<office:spreadsheet>` **trước** `SheetAdapter.parseFods()`
+4. `loadFromFods` gán `grid.workbookProtection.enabled` → `_applyProtectionUi` → canvas khóa thật (nút Review, chặn thêm/xóa/đổi tên trang)
+
+Hai twin: JS `overlayFodsStructureProtection` / `overlaySheetXlsxFods`; Python `overlay_fods_structure_protection` / `overlay_sheet_xlsx_fods`. `SheetAdapter.open()` còn overlay từ `ooxmlWorkbookXml` (belt-and-suspenders, giống Writer).
+
+Kết quả đo: Lưu XLSX (Phase 1 `lockStructure=1`) → soffice XLSX→FODS **không** còn `structure-protected` → overlay → `SheetAdapter.workbookProtection.enabled === true` và `grid.isWorkbookProtected() === true`. Live soffice + `open_document_dialog` PASS.
+
+Handoff: `docs/HANDOFF-SHEET-NATIVE-EXPORT-PHASE2A.md`.
 
 ### 2b. Slide Master logo / footer bằng DrawingML chuẩn — độ phức tạp: trung bình-cao
 
@@ -200,7 +209,7 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 | Phase | Mục | Rủi ro | Effort | Phụ thuộc |
 |---|---|---|---|---|
 | 1 | XLSX `lockStructure` | Thấp | Nhỏ | Xong |
-| 2a | Overlay lock khi Mở XLSX | Thấp | Nhỏ | main.py open path |
+| 2a | Overlay lock khi Mở XLSX | Thấp | Nhỏ | **Xong** |
 | 2b | Master logo `p:sp` | Trung bình-cao | Trung bình | Probe DrawingML |
 | 2c | `theme1.xml` scheme | Trung bình | Trung bình | Probe theme |
 | 3a | `p14:sectionLst` | Trung bình-cao | Trung bình | LO có nuốt ext không |
@@ -213,7 +222,7 @@ Blocked: **chưa có UI**. Thứ tự bắt buộc: UI Sheet → serialize ODF `
 - Rewrite ZIP bằng `createZip` / `zipfile` mất extra field / compression gốc. Probe: soffice mở lại FODS+PDF **PASS**.
 - Hai bản JS/Python có thể lệch — live test chạy **cả hai**.
 - Patch sai schema → Excel Repair. Phase 1 chỉ thêm attribute trên element LO đã viết.
-- Import XLSX chưa overlay (Phase 2a): canvas VN có thể không khóa dù Excel khóa.
+- Import XLSX overlay Phase 2a: File → Mở XLSX có `lockStructure` gắn lại `table:structure-protected` trước parseFods. Mật khẩu phiên vẫn không round-trip (không có hash OOXML).
 
 ## Test plan (mọi phase)
 
