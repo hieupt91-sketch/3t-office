@@ -85,12 +85,35 @@ Empty wrapper/markup trình duyệt vô hại được chuẩn hóa an toàn; m�
 
 Phase A là additive. Rollback chỉ cần revert các commit Phase A; pipeline HTML đang chạy không đổi. Không cần migration dữ liệu vì FODT chưa là format lưu mặc định.
 
-## 4. Phase B — bảng và đối tượng cơ bản (đề xuất)
+## 4. Phase B — bảng và ảnh cơ bản (hoàn thành, xem Phase B.1 bên dưới cho phần còn lại)
 
-- `table:table`, row/cell, span/merge, border/shading/alignment.
-- Image bằng `draw:frame` + `draw:image`, có chiến lược nhúng binary/data URI cho flat XML.
+### Phạm vi đã làm (Claude, sau khi Codex/Grok hết quota)
+
+- `table:table` / `table:table-column` (`table:number-columns-repeated`) / `table:table-row` / `table:table-cell`: bảng lưới đơn giản, số ô mỗi hàng phải bằng nhau.
+- Viền ô (`border`/`border-top/right/bottom/left`, dạng `<số>px|pt <kiểu> <màu>`) và nền ô (`background-color`) qua `style:table-cell-properties` tự động, dùng registry style deterministic giống text/paragraph.
+- Căn lề nội dung ô (`text-align` trên `<td>`) tái dùng registry paragraph style sẵn có.
+- Ảnh PNG nhúng qua `draw:frame` (`text:anchor-type="as-char"`) + `draw:image` + `office:binary-data`, đúng pattern đã được xác nhận thật ở Slides (`xlink:href=""`, `xlink:show="embed"`). Kích thước thật (svg:width/height, cm) đọc trực tiếp từ IHDR của PNG (không suy đoán từ CSS, vì `<img>` của Writer luôn là `max-width:100%;height:auto`, không có kích thước CSS đáng tin).
+
+### Chính sách "ngoài phạm vi" bổ sung cho Phase B (throw rõ ràng, không mất dữ liệu âm thầm)
+
+- `colspan`/`rowspan` và bảng có số ô mỗi hàng khác nhau: **chưa hỗ trợ**, throw `WRITER_FODT_UNSUPPORTED_CONTENT` rõ ràng (cần theo dõi occupancy grid thật để sinh `table:covered-table-cell` đúng chuẩn ODF — để Phase B.1).
+- Nội dung khối (bảng/danh sách lồng) bên trong ô bảng: chưa hỗ trợ.
+- Ảnh không phải PNG (JPEG/GIF/WEBP/...): chưa hỗ trợ — cần bộ đọc kích thước riêng cho từng định dạng để không đoán sai kích thước thật.
+- Ảnh không phải data URI base64 nhúng sẵn (link ngoài): chưa hỗ trợ.
+
+### Verification thật đã làm (không chỉ tin bản thân)
+
+- Unit: `tests/unit/writer-fodt-phase-b.test.js` — cấu trúc XML, idempotence bảng/ảnh, từ chối colspan/rowspan, từ chối ảnh không PNG/PNG hỏng, từ chối cấu trúc FODT nhập vào ngoài phạm vi mà không sửa `bodyDom`.
+- Live thật qua soffice: `tests/live/writer-fodt-phase-b-real-conversion.mjs` — tạo PNG thật bằng zlib (không dùng file mẫu), serialize FODT thật, convert DOCX thật qua soffice, xác nhận bằng byte: bảng ra `w:tbl`/`w:tc` native (không phải ảnh chụp), tô nền/căn phải giữ nguyên là thuộc tính DOCX gốc, ảnh nhúng trong `word/media/` **khớp byte-for-byte** với PNG gốc (không bị mã hóa lại/hỏng), ảnh là `w:drawing` native.
+- **Mở file DOCX thật bằng Microsoft Word thật** (Start-Process thụ động, chụp màn hình xác nhận bằng mắt): bảng hiện đúng viền/tô nền vàng/căn phải cột số, ảnh gradient hiện đúng ngay dưới đoạn văn — đúng tiêu chuẩn "tài liệu chuyển sang Microsoft Office phải hiển thị đúng" mà người phụ trách yêu cầu.
+- `node tests/run-tests.js`: 1138/1138 PASS (1130 trước Phase B + 8 test Phase B mới).
+
+## 4b. Phase B.1 — bảng nâng cao, Text Box, shape (đề xuất, chưa làm)
+
+- `colspan`/`rowspan` thật qua `table:number-columns-spanned`/`table:number-rows-spanned` + `table:covered-table-cell` (cần occupancy grid đúng chuẩn ODF).
+- Ảnh JPEG/GIF/WEBP (đọc kích thước thật theo từng định dạng, không đoán).
 - Text Box và shape cơ bản qua drawing primitives.
-- Mỗi loại có import fixture độc lập và real DOCX/PDF round-trip.
+- Mỗi loại có import fixture độc lập và real DOCX/PDF round-trip, kèm mở bằng Microsoft Word thật để xác nhận bằng mắt như Phase A/B đã làm.
 
 ## 5. Phase C — page, header/footer và section geometry (đề xuất)
 
