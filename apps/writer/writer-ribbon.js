@@ -289,6 +289,7 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "pageBackground",
         label: "Nền & Viền trang",
         labelKey: "writerRibbon.group.pageBackground",
         items: [
