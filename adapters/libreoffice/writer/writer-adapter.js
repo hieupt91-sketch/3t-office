@@ -5028,7 +5028,15 @@ export class WriterAdapter {
 
   _fodtParsePageLayouts(xml) {
     const layouts = new Map();
-    String(xml || "").replace(/<style:page-layout\b([^>]*)>([\s\S]*?)<\/style:page-layout>/gi, (_, attrsText, content) => {
+    // (?=[\s>/]) chứ không phải \b: JS coi dấu "-" là ranh giới từ, nên \b sau
+    // "page-layout" vẫn khớp nhầm với <style:page-layout-properties> (thẻ con
+    // đứng lẻ trước block pm* thật, có thật trong FODT do LibreOffice tạo ra
+    // khi chuyển đổi DOCX thật). Khi đó phần nội dung [\s\S]*? sẽ "nuốt" trọn
+    // block <style:page-layout style:name="..."> thật phía sau làm nội dung
+    // của thẻ page-layout-properties bị nhận nhầm, khiến layout thật biến mất
+    // khỏi Map và master-page tham chiếu tới nó bị báo "không biết" dù file
+    // hoàn toàn hợp lệ - lỗi thật, phát hiện qua vòng chuyển đổi DOCX thật.
+    String(xml || "").replace(/<style:page-layout(?=[\s>/])([^>]*)>([\s\S]*?)<\/style:page-layout>/gi, (_, attrsText, content) => {
       const attrs = this._fodtParseAttributes(attrsText);
       const name = attrs["style:name"];
       if (!name) return "";
@@ -6879,6 +6887,12 @@ export class WriterAdapter {
     const bodyNodes = [];
     for (const node of tree.children) {
       if (node.name === "#text" && !String(node.text || "").trim()) continue;
+      // LibreOffice luôn ghi text:sequence-decls (khai báo nhóm đánh số chú thích
+      // Illustration/Table/Text/Drawing/Figure) làm con đầu tiên của office:text
+      // khi CHUYỂN ĐỔI THẬT (vd DOCX -> FODT), kể cả tài liệu không hề dùng chú
+      // thích nào - đây là khai báo thuần, không mang nội dung người dùng, an
+      // toàn để bỏ qua thay vì báo lỗi "chưa hỗ trợ" như mọi phần tử lạ khác.
+      if (node.name === "text:sequence-decls") continue;
       if (node.name === "text:tracked-changes") {
         this._fodtLoadTrackedChanges(node, trackedById);
         continue;
