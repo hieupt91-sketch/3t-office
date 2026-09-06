@@ -157,11 +157,26 @@ Phase A là additive. Rollback chỉ cần revert các commit Phase A; pipeline 
 - Microsoft Word thật (Start-Process thụ động): trang 1 A4, header «Công ty TNHH Sao Việt — Đầu trang», thân A4 hiện native.
 - `node tests/run-tests.js`: **1198/1198 PASS** (1187 baseline @ `420c4a4` + 11 test Phase C).
 
-## 6. Phase D — cấu trúc tham chiếu native (đề xuất)
+## 6. Phase D — cấu trúc tham chiếu native (hoàn thành)
 
-- Footnote/endnote bằng `text:note`, `text:note-citation`, `text:note-body` và notes configuration.
-- TOC bằng `text:table-of-content` thay static block khi đủ parity.
-- Comment bằng `office:annotation`; citation được thiết kế riêng sau probe interoperability.
+### Phạm vi đã làm (Grok, worktree `E:\VNOffice-grok-writer-fodt-phase-d`)
+
+- Footnote/endnote: HTML Writer `sup[data-vno-footnote-ref|endnote-ref]` + container cuối body → ODF `text:note` / `text:note-citation` / `text:note-body` (một `text:p`, tái dùng `inlineXml`). `text:notes-configuration` trong `office:styles` khi có note: footnote `style:num-format="1"`, endnote `"i"`. Parser dựng lại số mũ + đúng một container mỗi loại; nút xóa/separator là chrome, không emit.
+- Comment: `<mark data-comment-id>` + `this.comments[]` → `office:annotation` (dc:creator / dc:date / `text:p`) + chữ neo + `office:annotation-end`. `xmlns:dc` chỉ khi có annotation. Parser khôi phục mark + `this.comments`. Point annotation (không end) vẫn hydrate panel, không bọc chữ.
+- TOC: khối tĩnh `data-vno-toc` (Heading 1–3, leader, số trang heuristic) → `text:table-of-content` + `text:table-of-content-source` outline-level 3 + `text:index-body` **điền sẵn** (đo: index-body rỗng → Word field TOC trống). Heading `text:h` giữ Phase A.
+
+### Chính sách ngoài phạm vi
+
+- `<sup>` không phải note, mark không có entry `this.comments`, note-body không đúng một `text:p`, TOC/note/comment trong header, annotation lồng → `WRITER_FODT_UNSUPPORTED_CONTENT`.
+- Citation vẫn ngoài Phase D.
+- `save()` / `exportPdf()` / `_contentForExport()` không đổi (cutover gate). Đường HTML vẫn strip `<mark data-comment-id>`.
+
+### Verification thật
+
+- Unit: `tests/unit/writer-fodt-phase-d.test.js` — 12 test: cấu trúc note/comment/TOC, idempotence, reuse inline trong note-body, fail-closed.
+- Live soffice: `tests/live/writer-fodt-phase-d-real-conversion.mjs` — footnote → `word/footnotes.xml` + `w:footnoteReference`; endnote → `word/endnotes.xml` + `w:endnoteReference` + `w:numFmt="lowerRoman"`; comment → `word/comments.xml` + `commentRangeStart/End` + `commentReference`; TOC → `w:sdt` `docPartGallery="Table of Contents"` + `instrText` `TOC \f \o "1-3"`.
+- Microsoft Word thật (Start-Process thụ động): footnote số mũ 1, endnote i + body cuối tài liệu; comment panel Review «Tran Thi Hoa» + body; TOC «MỤC LỤC» phân cấp 1/2/3 và Navigation pane nhận outline.
+- `node tests/run-tests.js`: **1210/1210 PASS** (1198 baseline @ `9f05f15` + 12 test Phase D).
 
 ## 7. Phase E — drawing nâng cao và thay đổi tài liệu (đề xuất)
 
