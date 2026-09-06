@@ -24,7 +24,7 @@ import { SHAPE_TYPES, showShapeDialog, renderShapeSvg, showDiagramDialog, genera
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
 import { showSymbolPicker } from "../../../platform/ui-kit/symbol-picker.js";
 import { formatDateTime, showDateTimeDialog } from "../../../platform/ui-kit/datetime-picker.js";
-import { showEquationDialog, showBookmarkDialog, showCrossReferenceDialog, slugBookmarkName, showWordArtDialog, buildWriterWordArtHtml, applyWordArtCss, parseWordArtStyleAttr, resolveWordArtStyle } from "../../../apps/writer/insert-dialogs.js";
+import { showEquationDialog, showBookmarkDialog, showCrossReferenceDialog, slugBookmarkName, showWordArtDialog, buildWriterWordArtHtml, applyWordArtCss, parseWordArtStyleAttr, resolveWordArtStyle, WORDART_PRESETS } from "../../../apps/writer/insert-dialogs.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import { CITATION_STYLES, authorSortKey, citationMetadataHtml, formatBibliographyEntry, formatInTextCitation, normalizeSource, parseCitationMetadata, showInsertCitationDialog, showSourceManagerDialog } from "../../../apps/writer/citations.js";
 import {
@@ -4854,12 +4854,54 @@ export class WriterAdapter {
     }
     if (node.name === "draw:custom-shape") {
       const geom = node.children.find(child => child.name === "draw:enhanced-geometry");
-      if (!geom || geom.attrs["draw:type"] !== "right-arrow") {
-        throw this._fodtError(`draw:custom-shape type '${geom?.attrs["draw:type"] || ""}' (Phase B.2 chỉ hỗ trợ right-arrow)`);
+      const type = geom?.attrs["draw:type"] || "";
+      if (String(type).startsWith("fontwork-")) {
+        throw this._fodtError("Fontwork WordArt không thuộc this.shapes");
+      }
+      if (type !== "right-arrow") {
+        throw this._fodtError(`draw:custom-shape type '${type}' (Phase B.2 chỉ hỗ trợ right-arrow; Phase E.3 Fontwork WordArt đi HTML)`);
       }
       return { ...base, type: "arrow", shapeType: "arrow" };
     }
     throw this._fodtError(`phần tử FODT drawing <${node.name}>`);
+  }
+
+  _fodtIsWordArtHtmlNode(node) {
+    return node?.name === "span" && (
+      node.attrs["data-vno-wordart"] === "true" ||
+      /\bvno-writer-wordart\b/.test(node.attrs.class || "")
+    );
+  }
+
+  _fodtWordArtPresetId(raw) {
+    const id = String(raw || "").trim();
+    if (!WORDART_PRESETS.some(item => item.id === id)) {
+      throw this._fodtError(`WordArt preset '${id}'`);
+    }
+    return id;
+  }
+
+  _fodtWordArtPrimaryFont(fontFamily) {
+    const first = String(fontFamily || "Impact").split(",")[0].trim().replace(/^['"]|['"]$/g, "");
+    if (!first) throw this._fodtError("WordArt thiếu font");
+    return first;
+  }
+
+  _fodtIsFontworkShape(node) {
+    if (node?.name !== "draw:custom-shape") return false;
+    const geom = (node.children || []).find(child => child.name === "draw:enhanced-geometry");
+    return String(geom?.attrs["draw:type"] || "").startsWith("fontwork-");
+  }
+
+  _fodtWordArtHtmlFromNode(node) {
+    const paras = (node.children || []).filter(child => child.name === "text:p");
+    if (!paras.length) throw this._fodtError("Fontwork WordArt thiếu text:p");
+    const text = paras.map(para => this._fodtPlainLoose(para.children)).join("").trim();
+    if (!text) throw this._fodtError("Fontwork WordArt không có chữ");
+    const name = String(node.attrs["draw:name"] || "");
+    const match = name.match(/^WordArt-(.+)$/);
+    const presetId = WORDART_PRESETS.some(item => item.id === match?.[1]) ? match[1] : "navy-outline";
+    return buildWriterWordArtHtml(text, { presetId });
   }
 
   _fodtTextBoxFromFrame(node, textBox, graphicStyles) {
@@ -5183,8 +5225,8 @@ export class WriterAdapter {
   serializeToFodt() {
     this._initZones();
     const html = this.bodyDom?.innerHTML ?? this.editorDom?.innerHTML ?? "";
-    if (/\bdata-vno-(?!wrap=["']inline["']|section-break=|section-id=|footnote-ref=|endnote-ref=|footnotes=|endnotes=|footnote-id=|endnote-id=|toc=|comment-author=|change=|author=|date=)[\w-]+\s*=/i.test(html)) {
-      throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A/B/C/D/E.1");
+    if (/\bdata-vno-(?!wrap=["']inline["']|section-break=|section-id=|footnote-ref=|endnote-ref=|footnotes=|endnotes=|footnote-id=|endnote-id=|toc=|comment-author=|change=|author=|date=|wordart=|wordart-preset=|wordart-text=|wordart-style=)[\w-]+\s*=/i.test(html)) {
+      throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A/B/C/D/E.1/E.3");
     }
     const tree = this._fodtParseMarkup(html, "HTML");
     const footnoteBodies = this._fodtCollectNoteBodies(tree.children, "data-vno-footnote-id");
@@ -5197,6 +5239,7 @@ export class WriterAdapter {
     let tableSequence = 0;
     const trackedRegions = [];
     let allowTrackChanges = true;
+    let allowWordArt = true;
     const styleName = (registry, prefix, value) => {
       const key = JSON.stringify(Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))));
       if (!registry.has(key)) registry.set(key, `${prefix}${registry.size + 1}`);
@@ -5221,6 +5264,10 @@ export class WriterAdapter {
       }
       if (node.name === "br") return "<text:line-break/>";
       if (node.name === "img") return imageXml(node);
+      if (this._fodtIsWordArtHtmlNode(node)) {
+        if (!allowWordArt) throw this._fodtError("WordArt trong header/footer chưa hỗ trợ");
+        return wordArtXml(node);
+      }
       if (node.name === "sup") {
         const footnoteId = node.attrs["data-vno-footnote-ref"];
         const endnoteId = node.attrs["data-vno-endnote-ref"];
@@ -5442,9 +5489,57 @@ export class WriterAdapter {
       }
       throw this._fodtError(`hình khối '${type}' (Phase B.2 chỉ hỗ trợ rectangle/round-rect/circle/line/arrow/textbox)`);
     };
+    const wordArtXml = (node) => {
+      const allowed = [
+        "style", "class", "data-vno-wordart", "data-vno-wordart-preset", "data-vno-wordart-text",
+        "data-vno-wordart-style", "contenteditable", "role", "aria-label", "tabindex"
+      ];
+      const unexpected = Object.keys(node.attrs).filter(name => !allowed.includes(name));
+      if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên WordArt`);
+      const stored = parseWordArtStyleAttr(node.attrs["data-vno-wordart-style"]);
+      const presetId = this._fodtWordArtPresetId(
+        node.attrs["data-vno-wordart-preset"] || stored?.presetId || stored?.id
+      );
+      const style = resolveWordArtStyle({ ...(stored || {}), presetId });
+      const text = String(node.attrs["data-vno-wordart-text"] || this._fodtPlainLoose(node.children) || "").trim();
+      if (!text) throw this._fodtError("WordArt không có chữ");
+      const walkForbidden = (nodes) => {
+        for (const child of nodes || []) {
+          if (child.name === "#text") continue;
+          if (child.name === "span" && /\bvno-wordart-text\b/.test(child.attrs.class || "")) {
+            walkForbidden(child.children);
+            continue;
+          }
+          throw this._fodtError(`nội dung WordArt <${child.name}>`);
+        }
+      };
+      walkForbidden(node.children);
+      const fillColor = this._fodtNormalizeColor(style.gradient?.from || style.fillColor);
+      const graphicName = styleName(graphicStyles, "gr", {
+        fill: "solid",
+        fillColor,
+        stroke: "none",
+        strokeColor: "",
+        strokeWidth: ""
+      });
+      const fontFamily = this._fodtWordArtPrimaryFont(style.fontFamily);
+      const fontSize = this._fodtNormalizeFontSize(`${Number(style.fontSize) || 48}px`);
+      const textName = styleName(textStyles, "T", {
+        bold: true,
+        color: fillColor,
+        fontFamily,
+        fontSize
+      });
+      const nameAttr = this._fodtEscapeXml(`WordArt-${presetId}`);
+      // fontwork-plain-text → DOCX VML-only; Word (Compatibility Mode) does not paint it.
+      // fontwork-fade-right → w:drawing + a:prstTxWarp prst="textFadeRight" (measured visible).
+      return `<draw:custom-shape draw:style-name="${graphicName}" draw:name="${nameAttr}" text:anchor-type="as-char" svg:width="12cm" svg:height="2.8cm"><text:p><text:span text:style-name="${textName}">${this._fodtTextXml(text)}</text:span></text:p><draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:text-path="true" draw:text-path-allowed="true" draw:text-path-mode="shape" draw:type="fontwork-fade-right" draw:enhanced-path="M 0 10800 L 21600 10800 Z N"/></draw:custom-shape>`;
+    };
     const zoneBlocksXml = (zoneHtml, zoneName) => {
       const previousAllow = allowTrackChanges;
+      const previousWordArt = allowWordArt;
       allowTrackChanges = false;
+      allowWordArt = false;
       try {
         const zoneTree = this._fodtParseMarkup(zoneHtml, `HTML ${zoneName}`);
         return zoneTree.children.filter(node => !(node.name === "#text" && !node.text.trim())).map(node => {
@@ -5454,6 +5549,7 @@ export class WriterAdapter {
         }).join("");
       } finally {
         allowTrackChanges = previousAllow;
+        allowWordArt = previousWordArt;
       }
     };
     const canvasBoxCss = ["margin", "margin-top", "margin-right", "margin-bottom", "margin-left", "padding", "padding-top", "padding-right", "padding-bottom", "padding-left"];
@@ -5707,6 +5803,7 @@ export class WriterAdapter {
       if (node.name === "text:line-break") return "<br>";
       if (node.name === "draw:frame") return frameHtml(node);
       if (["draw:rect", "draw:ellipse", "draw:circle", "draw:line", "draw:custom-shape"].includes(node.name)) {
+        if (this._fodtIsFontworkShape(node)) return this._fodtWordArtHtmlFromNode(node);
         parsedShapes.push(this._fodtShapeFromNode(node, graphicStyles));
         return "";
       }
