@@ -52,6 +52,7 @@ export const enStrings = {
     save: "Save (Ctrl+S)",
     saveAs: "Save As (F12)",
     print: "Print (Ctrl+P)",
+    printNow: "Print Now",
     exportPdf: "Export PDF",
     about: "About VN Office",
     templateTitle: "Standard Vietnamese Document Templates",

@@ -51,6 +51,7 @@ export const viStrings = {
     save: "Lưu tài liệu (Ctrl+S)",
     saveAs: "Lưu bản sao (F12)",
     print: "In ấn (Ctrl+P)",
+    printNow: "In ngay",
     exportPdf: "Xuất tệp PDF",
     about: "Giới thiệu VN Office",
     templateTitle: "Mẫu văn bản tiêu chuẩn Việt Nam",

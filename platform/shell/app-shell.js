@@ -14,6 +14,7 @@ import { showAlertDialog } from "../ui-kit/dialogs.js";
 import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
 import { getPlatformLaunchContext } from "../bootstrap.js";
 import { themeManager } from "../theme/theme-manager.js";
+import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 
 export class AppShell {
   /**
@@ -33,6 +34,9 @@ export class AppShell {
     this.zoomLevel = 100;
     this.isAiOpen = false;
     this._aiRequestController = null;
+    this.adapter = options.adapter || null;
+    this.grid = options.grid || null;
+    this.canvas = options.canvas || null;
 
     this.rootEl = null;
     this.ribbonHost = null;
@@ -616,33 +620,43 @@ export class AppShell {
         <button type="button" class="vno-backstage-back-btn" id="vno-backstage-back" aria-label="Quay lại tài liệu">
           <span aria-hidden="true">←</span> <span>Quay lại</span>
         </button>
-        <button type="button" class="vno-backstage-nav-btn is-active">${t("backstage.home")}</button>
+        <button type="button" class="vno-backstage-nav-btn is-active" data-backstage-tab="home" id="vno-backstage-nav-home">${t("backstage.home")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.new">${t("backstage.new")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.open">${t("backstage.open")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.save">${t("backstage.save")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.saveAs">${t("backstage.saveAs")}</button>
-        <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.print">${t("backstage.print")}</button>
+        <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="print" id="vno-backstage-nav-print">${t("backstage.print")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.exportPdf">${t("backstage.exportPdf")}</button>
         <div style="flex:1;"></div>
         <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-about">${t("backstage.about")}</button>
       </div>
 
       <div class="vno-backstage-content" role="main" aria-label="Nội dung menu tệp">
-        <h1 style="font-size:24px;font-weight:700;margin-bottom:8px;color:var(--vno-text-primary);">${t("backstage.templateTitle")}</h1>
-        <p style="color:var(--vno-text-muted);font-size:13px;margin-bottom:24px;">${t("backstage.templateSubtitle")}</p>
+        <div class="vno-backstage-tab-content" id="vno-backstage-home-view">
+          <h1 style="font-size:24px;font-weight:700;margin-bottom:8px;color:var(--vno-text-primary);">${t("backstage.templateTitle")}</h1>
+          <p style="color:var(--vno-text-muted);font-size:13px;margin-bottom:24px;">${t("backstage.templateSubtitle")}</p>
 
-        <div class="vno-template-grid" role="region" aria-label="Danh sách mẫu tài liệu">
-          ${templateCardsHtml}
+          <div class="vno-template-grid" role="region" aria-label="Danh sách mẫu tài liệu">
+            ${templateCardsHtml}
+          </div>
+
+          <h2 style="font-size:18px;font-weight:700;margin-top:36px;margin-bottom:16px;color:var(--vno-text-primary);">${t("backstage.recentTitle")}</h2>
+          ${recentSectionHtml}
         </div>
 
-        <h2 style="font-size:18px;font-weight:700;margin-top:36px;margin-bottom:16px;color:var(--vno-text-primary);">${t("backstage.recentTitle")}</h2>
-        ${recentSectionHtml}
+        <div class="vno-backstage-tab-content" id="vno-backstage-print-view" style="display:none;"></div>
       </div>
     `;
 
     document.body.appendChild(modal);
 
+    let printPanelCleanup = null;
+
     const closeModal = () => {
+      if (typeof printPanelCleanup === "function") {
+        printPanelCleanup();
+        printPanelCleanup = null;
+      }
       document.removeEventListener("keydown", onBackstageKeyDown);
       if (modal.parentNode) modal.parentNode.removeChild(modal);
       if (previousFocused && typeof previousFocused.focus === "function") {
@@ -760,6 +774,42 @@ export class AppShell {
       });
     });
 
+    const homeNavBtn = modal.querySelector("#vno-backstage-nav-home");
+    const printNavBtn = modal.querySelector("#vno-backstage-nav-print");
+    const homeView = modal.querySelector("#vno-backstage-home-view");
+    const printView = modal.querySelector("#vno-backstage-print-view");
+
+    const showTab = (tabName) => {
+      if (tabName === "print") {
+        homeNavBtn?.classList.remove("is-active");
+        printNavBtn?.classList.add("is-active");
+        if (homeView) homeView.style.display = "none";
+        if (printView) {
+          printView.style.display = "block";
+          if (typeof printPanelCleanup === "function") {
+            printPanelCleanup();
+            printPanelCleanup = null;
+          }
+          printPanelCleanup = this._renderBackstagePrintPanel(printView, closeModal);
+        }
+      } else {
+        printNavBtn?.classList.remove("is-active");
+        homeNavBtn?.classList.add("is-active");
+        if (printView) {
+          printView.style.display = "none";
+          if (typeof printPanelCleanup === "function") {
+            printPanelCleanup();
+            printPanelCleanup = null;
+          }
+          printView.innerHTML = "";
+        }
+        if (homeView) homeView.style.display = "block";
+      }
+    };
+
+    homeNavBtn?.addEventListener("click", () => showTab("home"));
+    printNavBtn?.addEventListener("click", () => showTab("print"));
+
     modal.querySelectorAll("[data-backstage-cmd]").forEach(btn => {
       btn.addEventListener("click", () => {
         const cmd = btn.getAttribute("data-backstage-cmd");
@@ -770,6 +820,182 @@ export class AppShell {
 
     // Tự động focus nút Quay lại khi mở
     modal.querySelector("#vno-backstage-back")?.focus();
+  }
+
+  _getPrintPreviewProvider() {
+    if (this.appName === "sheet") {
+      const grid = this.grid || this.adapter?.grid || globalUnoBridge?.activeDocument?.grid;
+      if (!grid || typeof grid.computePrintPages !== "function") return null;
+      return {
+        type: "sheet",
+        computePages: () => grid.computePrintPages(),
+        renderPage: (printResult, pageIndex) => {
+          const page = printResult.pages[pageIndex] || printResult.pages[0];
+          const pageDiv = document.createElement("div");
+          pageDiv.className = "vno-sheet-print-preview-page vno-backstage-sheet-page";
+          pageDiv.style.width = `${printResult.pageWidthPx}px`;
+          pageDiv.style.minHeight = `${printResult.pageHeightPx}px`;
+          pageDiv.style.padding =
+            `${Math.round(printResult.margins.top * (960 / 25.4))}px ${Math.round(printResult.margins.right * (960 / 25.4))}px ` +
+            `${Math.round(printResult.margins.bottom * (960 / 25.4))}px ${Math.round(printResult.margins.left * (960 / 25.4))}px`;
+
+          const headerText = grid._formatSheetHeaderFooterText?.(printResult.headerFooter?.header?.center, pageIndex + 1, printResult.totalPages);
+          if (headerText) {
+            const headerEl = document.createElement("div");
+            headerEl.className = "vno-sheet-print-header";
+            headerEl.textContent = headerText;
+            pageDiv.appendChild(headerEl);
+          }
+
+          if (page && typeof grid._renderPrintPageTable === "function") {
+            const table = grid._renderPrintPageTable(page);
+            pageDiv.appendChild(table);
+          }
+
+          const footerText = grid._formatSheetHeaderFooterText?.(printResult.headerFooter?.footer?.center, pageIndex + 1, printResult.totalPages);
+          if (footerText) {
+            const footerEl = document.createElement("div");
+            footerEl.className = "vno-sheet-print-footer";
+            footerEl.textContent = footerText;
+            pageDiv.appendChild(footerEl);
+          }
+
+          return pageDiv;
+        },
+        getInfo: (printResult) => [
+          { label: "Khổ giấy", val: printResult.sizeLabel || "A4" },
+          { label: "Hướng in", val: printResult.orientation === "landscape" ? "Ngang" : "Dọc" },
+          { label: "Tỷ lệ in", val: `${Math.round((printResult.scale || 1) * 100)}%` },
+          { label: "Tổng số trang", val: String(printResult.totalPages || 1) }
+        ]
+      };
+    }
+    return null;
+  }
+
+  _renderBackstagePrintPanel(container, closeModal) {
+    container.innerHTML = "";
+
+    const provider = this._getPrintPreviewProvider();
+    if (!provider) {
+      container.innerHTML = `
+        <div class="vno-backstage-print-panel">
+          <div class="vno-backstage-print-controls">
+            <button type="button" class="vno-btn vno-btn-primary vno-backstage-print-now-btn" id="vno-backstage-btn-print-now" aria-label="${t("backstage.printNow", "In ngay")}">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true" style="margin-right:8px;"><rect x="6" y="2" width="12" height="6" rx="1" fill="#E2E8F0" stroke="#475569" stroke-width="1.2"/><rect x="3" y="7" width="18" height="10" rx="2" fill="#0F4C81"/><rect x="6" y="13" width="12" height="8" rx="1" fill="#FFFFFF" stroke="#475569" stroke-width="1.2"/><line x1="8" y1="16" x2="16" y2="16" stroke="#94A3B8" stroke-width="1.2"/><line x1="8" y1="18" x2="14" y2="18" stroke="#94A3B8" stroke-width="1.2"/><circle cx="18" cy="10" r="1" fill="#10B981"/></svg>
+              <span>${t("backstage.printNow", "In ngay")}</span>
+            </button>
+          </div>
+          <div class="vno-backstage-print-preview-viewport">
+            <p style="color:var(--vno-text-muted);font-size:14px;padding:24px;">Không thể tải bản xem trước trang in cho ứng dụng này.</p>
+          </div>
+        </div>
+      `;
+      const btn = container.querySelector("#vno-backstage-btn-print-now");
+      btn?.addEventListener("click", () => {
+        closeModal();
+        globalCommandBus.execute("common.file.print");
+      });
+      return () => { container.innerHTML = ""; };
+    }
+
+    const printResult = provider.computePages();
+    const totalPages = (printResult?.pages?.length) || printResult?.totalPages || 1;
+    let currentPreviewIndex = 0;
+
+    const infoList = provider.getInfo ? provider.getInfo(printResult) : [];
+    const infoRowsHtml = infoList.map(item => `
+      <div class="vno-backstage-print-info-row">
+        <span class="vno-backstage-print-info-label">${item.label}</span>
+        <span class="vno-backstage-print-info-val">${item.val}</span>
+      </div>
+    `).join("");
+
+    container.innerHTML = `
+      <div class="vno-backstage-print-panel" role="region" aria-label="Bản xem trước khi in và điều khiển">
+        <div class="vno-backstage-print-controls">
+          <button type="button" class="vno-btn vno-btn-primary vno-backstage-print-now-btn" id="vno-backstage-btn-print-now" aria-label="${t("backstage.printNow", "In ngay")}">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true" style="margin-right:8px;"><rect x="6" y="2" width="12" height="6" rx="1" fill="#E2E8F0" stroke="#475569" stroke-width="1.2"/><rect x="3" y="7" width="18" height="10" rx="2" fill="#0F4C81"/><rect x="6" y="13" width="12" height="8" rx="1" fill="#FFFFFF" stroke="#475569" stroke-width="1.2"/><line x1="8" y1="16" x2="16" y2="16" stroke="#94A3B8" stroke-width="1.2"/><line x1="8" y1="18" x2="14" y2="18" stroke="#94A3B8" stroke-width="1.2"/><circle cx="18" cy="10" r="1" fill="#10B981"/></svg>
+            <span>${t("backstage.printNow", "In ngay")}</span>
+          </button>
+
+          <div class="vno-backstage-print-nav" id="vno-backstage-print-nav-controls" style="${totalPages <= 1 ? 'display: none;' : 'display: flex;'}">
+            <button type="button" class="vno-backstage-print-prev-btn" id="vno-backstage-print-prev" title="${t("sheetDialogs.printPreview.prevPage", "Trang trước")}" aria-label="${t("sheetDialogs.printPreview.prevPage", "Trang trước")}" disabled>
+              ◀ ${t("sheetDialogs.printPreview.prevPage", "Trang trước")}
+            </button>
+            <div class="vno-backstage-print-page-indicator" aria-live="polite">
+              Trang <span id="vno-backstage-print-current-page">1</span> / <span id="vno-backstage-print-total-pages">${totalPages}</span>
+            </div>
+            <button type="button" class="vno-backstage-print-next-btn" id="vno-backstage-print-next" title="${t("sheetDialogs.printPreview.nextPage", "Trang sau")}" aria-label="${t("sheetDialogs.printPreview.nextPage", "Trang sau")}" ${totalPages <= 1 ? 'disabled' : ''}>
+              ${t("sheetDialogs.printPreview.nextPage", "Trang sau")} ▶
+            </button>
+          </div>
+
+          <div class="vno-backstage-print-info">
+            <div class="vno-backstage-print-info-title">Thiết lập bản in</div>
+            <div class="vno-backstage-print-info-row">
+              <span class="vno-backstage-print-info-label">Tài liệu</span>
+              <span class="vno-backstage-print-info-val">${this.documentName}</span>
+            </div>
+            ${infoRowsHtml}
+          </div>
+        </div>
+
+        <div class="vno-backstage-print-preview-viewport" id="vno-backstage-print-viewport" role="region" aria-label="Khung xem trước trang in">
+          <div class="vno-backstage-print-stage" id="vno-backstage-print-stage"></div>
+        </div>
+      </div>
+    `;
+
+    const printNowBtn = container.querySelector("#vno-backstage-btn-print-now");
+    const prevBtn = container.querySelector("#vno-backstage-print-prev");
+    const nextBtn = container.querySelector("#vno-backstage-print-next");
+    const curPageEl = container.querySelector("#vno-backstage-print-current-page");
+    const stage = container.querySelector("#vno-backstage-print-stage");
+
+    const renderPage = (index) => {
+      currentPreviewIndex = Math.max(0, Math.min(totalPages - 1, index));
+      if (curPageEl) curPageEl.textContent = String(currentPreviewIndex + 1);
+      if (prevBtn) prevBtn.disabled = currentPreviewIndex <= 0;
+      if (nextBtn) nextBtn.disabled = currentPreviewIndex >= totalPages - 1;
+
+      if (stage) {
+        stage.innerHTML = "";
+        const pageEl = provider.renderPage(printResult, currentPreviewIndex);
+        if (pageEl) stage.appendChild(pageEl);
+      }
+    };
+
+    const onPrintNowClick = () => {
+      closeModal();
+      globalCommandBus.execute("common.file.print");
+    };
+
+    const onPrevClick = () => {
+      if (currentPreviewIndex > 0) {
+        renderPage(currentPreviewIndex - 1);
+      }
+    };
+
+    const onNextClick = () => {
+      if (currentPreviewIndex < totalPages - 1) {
+        renderPage(currentPreviewIndex + 1);
+      }
+    };
+
+    printNowBtn?.addEventListener("click", onPrintNowClick);
+    prevBtn?.addEventListener("click", onPrevClick);
+    nextBtn?.addEventListener("click", onNextClick);
+
+    renderPage(0);
+
+    return () => {
+      printNowBtn?.removeEventListener("click", onPrintNowClick);
+      prevBtn?.removeEventListener("click", onPrevClick);
+      nextBtn?.removeEventListener("click", onNextClick);
+      if (stage) stage.innerHTML = "";
+      container.innerHTML = "";
+    };
   }
 
   applyTemplate(templateId) {

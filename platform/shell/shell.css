@@ -942,6 +942,163 @@ body {
 }
 
 /* ==========================================================================
+   5.1. BACKSTAGE PRINT PANEL (Xem trước khi in trong Backstage)
+   ========================================================================== */
+.vno-backstage-tab-content {
+  height: 100%;
+}
+
+.vno-backstage-print-panel {
+  display: flex;
+  gap: 32px;
+  height: 100%;
+  min-height: 520px;
+  box-sizing: border-box;
+}
+
+.vno-backstage-print-controls {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.vno-backstage-print-now-btn {
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: var(--vno-radius-md);
+  background-color: var(--vno-app-current);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--vno-shadow-md);
+  transition: all 0.15s ease;
+  outline: none;
+}
+.vno-backstage-print-now-btn:hover {
+  filter: brightness(1.1);
+  box-shadow: var(--vno-shadow-lg);
+}
+.vno-backstage-print-now-btn:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 2px;
+}
+.vno-backstage-print-now-btn:active {
+  transform: translateY(1px);
+}
+
+.vno-backstage-print-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: var(--vno-bg-subtle);
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-md);
+}
+
+.vno-backstage-print-nav button {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-sm, 4px);
+  background: var(--vno-bg-window);
+  color: var(--vno-text-primary);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s;
+}
+.vno-backstage-print-nav button:hover:not(:disabled) {
+  background-color: var(--vno-bg-hover);
+  border-color: var(--vno-border-strong, #94a3b8);
+}
+.vno-backstage-print-nav button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.vno-backstage-print-nav button:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+}
+
+.vno-backstage-print-page-indicator {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vno-text-primary);
+  white-space: nowrap;
+}
+
+.vno-backstage-print-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  background-color: var(--vno-bg-subtle);
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-md);
+  font-size: 13px;
+}
+.vno-backstage-print-info-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--vno-text-muted);
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--vno-border-default);
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+}
+.vno-backstage-print-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.vno-backstage-print-info-label {
+  color: var(--vno-text-muted);
+  font-size: 12px;
+}
+.vno-backstage-print-info-val {
+  color: var(--vno-text-primary);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.vno-backstage-print-preview-viewport {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  min-height: 520px;
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 28px;
+  background: var(--vno-bg-subtle);
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-md);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
+}
+
+.vno-backstage-print-stage {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  transform: scale(0.78);
+  transform-origin: top center;
+  margin-bottom: 28px;
+}
+
+/* ==========================================================================
    6. IN TÀI LIỆU (window.print()) — ẩn toàn bộ khung ứng dụng dùng chung
    ========================================================================== */
 /* `common.file.print` gọi thẳng `window.print()` của trình duyệt/WebView2 — nếu
@@ -954,6 +1111,7 @@ body {
   .vno-ribbon,
   .vno-statusbar,
   .vno-ai-sidebar,
+  .vno-backstage-overlay,
   .vno-backstage-modal,
   #vno-keytips-overlay {
     display: none !important;

@@ -173,6 +173,8 @@ export function runContrastAudit() {
               resolvedBg = "#1e293b";
             } else if (selector.includes("print-preview-")) {
               resolvedBg = "#0f172a";
+            } else if (selector.includes("backstage-print-")) {
+              resolvedBg = "#ffffff";
             } else if (selector.includes("backstage-nav-btn")) {
               const blended = blendAlpha(parseColor("rgba(255, 255, 255, 0.12)"), parseColor("#0f4c81"));
               resolvedBg = `rgb(${blended.r}, ${blended.g}, ${blended.b})`;

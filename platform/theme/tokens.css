@@ -107,10 +107,14 @@
   --vno-color-border-strong: var(--vno-border-strong);
   --vno-color-border-focus: var(--vno-border-focus);
 
+  --vno-app-current: var(--vno-writer-primary);
+  --vno-app-current-hover: var(--vno-writer-hover);
+  --vno-app-current-light: var(--vno-writer-light);
+  --vno-app-current-fg: var(--vno-writer-primary);
+
   --vno-color-accent: var(--vno-app-current);
   --vno-color-accent-hover: var(--vno-app-current-hover);
   --vno-color-accent-light: var(--vno-app-current-light);
-  --vno-app-current-fg: var(--vno-writer-primary);
 }
 
 [data-app="writer"] {

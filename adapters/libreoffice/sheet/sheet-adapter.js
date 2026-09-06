@@ -40,6 +40,10 @@ export class SheetAdapter {
   /** Gắn tham chiếu AppShell — xem chú thích trong WriterAdapter.setShell(). */
   setShell(shell) {
     this.shell = shell;
+    if (shell) {
+      shell.adapter = this;
+      if (this.grid) shell.grid = this.grid;
+    }
   }
 
   _bindFormatPainterRibbon() {
