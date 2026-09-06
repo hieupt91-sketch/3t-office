@@ -78,6 +78,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.formula.recalculate", () => this.grid.recalculateAll ? this.grid.recalculateAll() : false);
     globalCommandBus.bindHandler("sheet.view.toggleFormulas", () => this.grid.toggleShowFormulas ? this.grid.toggleShowFormulas() : false);
     globalCommandBus.bindHandler("sheet.format.cellsDialog", () => this.grid.showFormatCellsDialog());
+    globalCommandBus.bindHandler("sheet.format.alignmentDialog", () => this.grid.showFormatCellsDialog("alignment"));
     globalCommandBus.bindHandler("sheet.format.currencyVND", () => this.grid.formatCurrentCellCurrencyVND());
     globalCommandBus.bindHandler("sheet.format.percent", () => this.grid.formatCurrentCellPercent());
     globalCommandBus.bindHandler("sheet.format.standard", () => this.grid.formatCurrentCellStandard());
@@ -2691,6 +2692,9 @@ export class SheetAdapter {
 
       case "sheet.format.cellsDialog":
         return this.grid.showFormatCellsDialog();
+
+      case "sheet.format.alignmentDialog":
+        return this.grid.showFormatCellsDialog("alignment");
 
       case "sheet.format.currencyVND":
         return this.grid.formatCurrentCellCurrencyVND();

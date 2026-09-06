@@ -85,6 +85,8 @@ export const SHEET_RIBBON_TABS = [
         id: "alignment",
         label: "Căn chỉnh",
         labelKey: "sheetRibbon.group.alignment",
+        launcherCommandId: "sheet.format.alignmentDialog",
+        launcherTooltip: "Căn chỉnh ô (Ctrl+1)",
         items: [
           {
             type: "column",

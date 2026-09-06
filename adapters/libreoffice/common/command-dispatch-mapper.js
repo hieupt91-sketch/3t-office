@@ -166,6 +166,7 @@ export const VN_TO_UNO_MAP = {
   "sheet.cell.fillColor": ".uno:BackgroundColor",
   "sheet.cell.textColor": ".uno:Color",
   "sheet.format.cellsDialog": ".uno:FormatCellDialog",
+  "sheet.format.alignmentDialog": ".uno:FormatCellDialog",
   "sheet.format.currencyVND": ".uno:NumberFormatCurrency",
   "sheet.format.percent": ".uno:NumberFormatPercent",
   "sheet.format.standard": ".uno:NumberFormatStandard",

@@ -4253,14 +4253,21 @@ export class SheetGridController {
     return true;
   }
 
-  showFormatCellsDialog() {
+  showFormatCellsDialog(initialTab = "number") {
     const activeKey = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const item = this.cellsData.get(activeKey);
+    const tabName = typeof initialTab === "string" ? initialTab : (initialTab?.tab || "number");
     FormatCellsDialog.show({
+      grid: this,
+      initialTab: tabName,
       currentConfig: item?.style?.numberFormat,
+      currentStyle: item?.style,
+      isMerged: Boolean(this.getMergedRangeForCell(this.selectedCoord.c, this.selectedCoord.r)),
       sampleValue: item?.val,
       onApply: (config) => {
-        this.applyNumberFormat(config);
+        if (config && config.category) {
+          this.applyNumberFormat(config);
+        }
         if (typeof this.container?.focus === "function") {
           this.container.focus({ preventScroll: true });
         }

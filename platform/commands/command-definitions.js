@@ -212,6 +212,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.cell.borders", category: "cell", label: "Viền ô", icon: "cellBorders", tooltip: "Kẻ đường viền khung ô" },
   { id: "sheet.cell.fillColor", category: "format", label: "Màu nền", icon: "colorHighlight", tooltip: "Tô màu nền ô tính" },
   { id: "sheet.cell.textColor", category: "format", label: "Màu chữ", icon: "colorText", tooltip: "Đổi màu chữ trong ô" },
+  { id: "sheet.format.alignmentDialog", category: "format", label: "Căn chỉnh ô...", icon: "formatCells", tooltip: "Mở hộp thoại Định dạng ô - thẻ Căn chỉnh" },
 
   // Định dạng số & Tiền tệ (Number Format Shortcuts)
   { id: "sheet.format.cellsDialog", category: "number", label: "Định dạng ô...", shortcut: "Ctrl+1", icon: "formatCells", tooltip: "Mở hộp thoại định dạng ô (Ctrl+1)" },

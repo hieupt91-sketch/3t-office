@@ -299,6 +299,7 @@ export const enStrings = {
     ,"sheet.cell.fillColor": { label: "Fill Color", tooltip: "Change the background color of selected cells" }
     ,"sheet.cell.textColor": { label: "Font Color", tooltip: "Change the text color in selected cells" }
     ,"sheet.format.cellsDialog": { label: "Format Cells...", tooltip: "Open the Format Cells dialog (Ctrl+1)" }
+    ,"sheet.format.alignmentDialog": { label: "Cell Alignment...", tooltip: "Open Format Cells dialog - Alignment tab" }
     ,"sheet.format.currencyVND": { label: "VND Currency", tooltip: "Apply VND currency format (Ctrl+Shift+4 hoặc Ctrl+Shift+$)" }
     ,"sheet.format.percent": { label: "Percent Style", tooltip: "Apply percentage format (Ctrl+Shift+5)" }
     ,"sheet.format.standard": { label: "Comma Style", tooltip: "Apply number format with thousands separators (Ctrl+Shift+1)" }
@@ -910,6 +911,35 @@ export const enStrings = {
     dateLocale: "Locale: Vietnamese (Vietnam)",
     percentageDesc: "Percentage formats multiply the cell value by 100 and display the result with a percent symbol. Raw cell value remains unchanged. Typing numbers into a percentage-formatted cell will automatically divide by 100.",
     textDesc: "Text format cells are treated as text even when a number is in the cell. The cell is displayed exactly as entered and mathematical sum formulas ignore these cells.",
-    customType: "Type:"
+    customType: "Type:",
+    textAlignment: "Text alignment",
+    horizontal: "Horizontal:",
+    vertical: "Vertical:",
+    indent: "Indent:",
+    textControl: "Text control",
+    wrapText: "Wrap text",
+    shrinkToFit: "Shrink to fit",
+    mergeCells: "Merge cells",
+    rightToLeft: "Right-to-left",
+    textDirection: "Text direction:",
+    directionContext: "Context - GAP",
+    directionLtr: "Left-to-Right",
+    directionRtl: "Right-to-Left",
+    orientation: "Orientation",
+    orientationDegrees: "Degrees:",
+    alignGeneral: "General",
+    alignLeft: "Left (Indent)",
+    alignCenter: "Center",
+    alignRight: "Right (Indent)",
+    alignJustify: "Justify",
+    alignFillGap: "Fill (GAP)",
+    alignCenterContinuousGap: "Center Across Selection (GAP)",
+    alignDistributedGap: "Distributed (GAP)",
+    alignTop: "Top",
+    alignMiddle: "Center",
+    alignBottom: "Bottom",
+    alignJustifyVGap: "Justify (GAP)",
+    alignDistributedVGap: "Distributed (GAP)",
+    gapNotSupported: "Feature not yet supported (GAP)"
   }
 };
