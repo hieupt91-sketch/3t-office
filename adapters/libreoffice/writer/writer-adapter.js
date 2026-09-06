@@ -4531,10 +4531,10 @@ export class WriterAdapter {
         return `<text:list-item><text:p>${inlineXml(content)}</text:p>${nested.map(listXml).join("")}</text:list-item>`;
       }).join("")}</text:list>`;
     };
-    const tableCellXml = (node) => {
+    const tableCellXml = (node, spanAttrs = "") => {
       if (!["td", "th"].includes(node.name)) throw this._fodtError(`nội dung trực tiếp trong <tr> (mong đợi <td>/<th>)`);
-      const unexpected = Object.keys(node.attrs).filter(name => !["style", "class"].includes(name));
-      if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <${node.name}> (colspan/rowspan chưa hỗ trợ ở Phase B)`);
+      const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "colspan", "rowspan"].includes(name));
+      if (unexpected.length) throw this._fodtError(`thuộc tính ${unexpected[0]} trên <${node.name}>`);
       const css = this._fodtCellCssMap(node.attrs.style);
       const align = css["text-align"] ? String(css["text-align"]).toLowerCase() : "";
       if (align && !["left", "center", "right", "justify", "start", "end"].includes(align)) throw this._fodtError(`căn ô '${align}'`);
@@ -4553,7 +4553,7 @@ export class WriterAdapter {
       const content = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
       if (content.some(child => /^(p|h[1-6]|ul|ol|table)$/.test(child.name))) throw this._fodtError("nội dung khối (bảng/danh sách lồng) trong ô bảng chưa hỗ trợ ở Phase B");
       const cellBody = `<text:p${pStyle}>${inlineXml(content)}</text:p>`;
-      return `<table:table-cell office:value-type="string"${cellStyleAttr}>${cellBody}</table:table-cell>`;
+      return `<table:table-cell office:value-type="string"${cellStyleAttr}${spanAttrs}>${cellBody}</table:table-cell>`;
     };
     const tableXml = (node) => {
       const unexpected = Object.keys(node.attrs).filter(name => !["style", "class"].includes(name));
@@ -4581,12 +4581,46 @@ export class WriterAdapter {
         const cells = row.children.filter(child => !(child.name === "#text" && !child.text.trim()));
         return cells;
       });
-      const columnCount = rows[0]?.length || 0;
+      const spanInt = (raw, attrName) => {
+        if (raw === undefined) return 1;
+        if (!/^[1-9]\d*$/.test(String(raw).trim())) throw this._fodtError(`${attrName} phải là số nguyên dương`);
+        return Number(raw);
+      };
+      const columnCount = rows[0].reduce((sum, cell) => sum + spanInt(cell.attrs.colspan, "colspan"), 0);
       if (!columnCount) throw this._fodtError("<tr> đầu tiên không có ô nào");
-      if (rows.some(cells => cells.length !== columnCount)) {
-        throw this._fodtError("các hàng có số ô khác nhau (colspan/rowspan chưa hỗ trợ ở Phase B)");
-      }
-      const rowsXml = rows.map(cells => `<table:table-row>${cells.map(tableCellXml).join("")}</table:table-row>`).join("");
+      // Real ODF table:covered-table-cell occupancy grid - not a guess. Each
+      // slot is either the origin cell (carries table:number-columns/rows-
+      // spanned) or a covered placeholder consumed by a prior colspan/rowspan.
+      const grid = rows.map(() => new Array(columnCount).fill(null));
+      rows.forEach((cells, r) => {
+        let queueIndex = 0;
+        for (let c = 0; c < columnCount; c++) {
+          if (grid[r][c] !== null) continue;
+          if (queueIndex >= cells.length) throw this._fodtError(`hàng ${r + 1} thiếu ô so với colspan/rowspan tổng thể`);
+          const cellNode = cells[queueIndex++];
+          const colspan = spanInt(cellNode.attrs.colspan, "colspan");
+          const rowspan = spanInt(cellNode.attrs.rowspan, "rowspan");
+          if (c + colspan > columnCount) throw this._fodtError(`hàng ${r + 1} có colspan vượt quá số cột bảng`);
+          if (r + rowspan > rows.length) throw this._fodtError(`hàng ${r + 1} có rowspan vượt quá số hàng bảng`);
+          for (let dr = 0; dr < rowspan; dr++) {
+            for (let dc = 0; dc < colspan; dc++) {
+              if (grid[r + dr][c + dc] !== null) throw this._fodtError(`hàng ${r + 1} có colspan/rowspan chồng lấn ô khác`);
+              grid[r + dr][c + dc] = (dr === 0 && dc === 0) ? { node: cellNode, colspan, rowspan } : { covered: true };
+            }
+          }
+        }
+        if (queueIndex !== cells.length) throw this._fodtError(`hàng ${r + 1} có ô thừa không khớp lưới colspan/rowspan`);
+      });
+      const rowsXml = grid.map(gridRow => {
+        const cellsXml = gridRow.map(slot => {
+          if (slot.covered) return "<table:covered-table-cell/>";
+          const spanAttrs = [];
+          if (slot.colspan > 1) spanAttrs.push(`table:number-columns-spanned="${slot.colspan}"`);
+          if (slot.rowspan > 1) spanAttrs.push(`table:number-rows-spanned="${slot.rowspan}"`);
+          return tableCellXml(slot.node, spanAttrs.length ? ` ${spanAttrs.join(" ")}` : "");
+        }).join("");
+        return `<table:table-row>${cellsXml}</table:table-row>`;
+      }).join("");
       const name = `Table${++tableSequence}`;
       return `<table:table table:name="${this._fodtEscapeXml(name)}"><table:table-column table:number-columns-repeated="${columnCount}"/>${rowsXml}</table:table>`;
     };
@@ -4725,10 +4759,18 @@ export class WriterAdapter {
       const rows = node.children.filter(child => !(child.name === "#text" && !child.text.trim()) && child.name !== "table:table-column");
       if (!rows.length || rows.some(row => row.name !== "table:table-row")) throw this._fodtError("cấu trúc table:table ngoài table:table-row (Phase B)");
       const rowsHtml = rows.map(row => {
-        const cells = row.children.filter(child => !(child.name === "#text" && !child.text.trim()));
-        if (!cells.length) throw this._fodtError("table:table-row không có ô nào (Phase B)");
-        if (cells.some(cell => cell.name !== "table:table-cell")) throw this._fodtError("table:table-row chứa phần tử khác table:table-cell (Phase B)");
+        const slots = row.children.filter(child => !(child.name === "#text" && !child.text.trim()));
+        if (!slots.length) throw this._fodtError("table:table-row không có ô nào (Phase B)");
+        if (slots.some(slot => !["table:table-cell", "table:covered-table-cell"].includes(slot.name))) {
+          throw this._fodtError("table:table-row chứa phần tử khác table:table-cell/table:covered-table-cell (Phase B)");
+        }
+        // table:covered-table-cell marks a slot consumed by a prior colspan/rowspan -
+        // HTML doesn't need a placeholder there, the origin <td>'s colspan/rowspan already covers it.
+        const cells = slots.filter(slot => slot.name === "table:table-cell");
         const cellsHtml = cells.map(cell => {
+          const colspan = Number(cell.attrs["table:number-columns-spanned"]) || 1;
+          const rowspan = Number(cell.attrs["table:number-rows-spanned"]) || 1;
+          const spanAttr = `${colspan > 1 ? ` colspan="${colspan}"` : ""}${rowspan > 1 ? ` rowspan="${rowspan}"` : ""}`;
           const cellStyleName = cell.attrs["table:style-name"];
           const cellStyle = cellStyleName ? cellStyles.get(cellStyleName) : null;
           if (cellStyleName && !cellStyle) throw this._fodtError(`table-cell style không biết '${cellStyleName}'`);
@@ -4745,7 +4787,7 @@ export class WriterAdapter {
           if (pStyleName && !pStyle) throw this._fodtError(`paragraph style không biết '${pStyleName}'`);
           if (pStyle?.textAlign && pStyle.textAlign !== "left") cssRules.push(`text-align:${pStyle.textAlign}`);
           const styleAttr = cssRules.length ? ` style="${this._escapeHtml(cssRules.join(";"))}"` : "";
-          return `<td${styleAttr}>${inlineHtml(content[0].children)}</td>`;
+          return `<td${spanAttr}${styleAttr}>${inlineHtml(content[0].children)}</td>`;
         }).join("");
         return `<tr>${cellsHtml}</tr>`;
       }).join("");

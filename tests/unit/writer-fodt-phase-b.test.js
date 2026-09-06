@@ -93,15 +93,59 @@ export async function runWriterFodtPhaseBTests() {
     assert.equal(second, first);
   });
 
-  await test("Writer FODT Phase B rejects tables with mismatched row lengths (colspan/rowspan out of scope)", () => {
+  await test("Writer FODT Phase B.1 rejects tables with a genuine cell-count mismatch (no span explains it)", () => {
     const { adapter } = adapterWithBody('<table><tbody><tr><td>A</td><td>B</td></tr><tr><td>C</td></tr></tbody></table>');
     assert.throws(() => adapter.serializeToFodt(), error => error?.code === "WRITER_FODT_UNSUPPORTED_CONTENT");
   });
 
-  await test("Writer FODT Phase B rejects colspan/rowspan attributes explicitly", () => {
+  await test("Writer FODT Phase B.1 serializes colspan as table:number-columns-spanned + table:covered-table-cell", () => {
+    const { adapter } = adapterWithBody('<table><tbody><tr><td colspan="2">Tiêu đề gộp</td></tr><tr><td>A</td><td>B</td></tr></tbody></table>');
+    const fodt = adapter.serializeToFodt();
+    assert.match(fodt, /<table:table-column table:number-columns-repeated="2"\/>/);
+    assert.match(fodt, /<table:table-cell office:value-type="string" table:number-columns-spanned="2">/);
+    assert.match(fodt, /<table:covered-table-cell\/>/);
+  });
+
+  await test("Writer FODT Phase B.1 serializes rowspan as table:number-rows-spanned + table:covered-table-cell", () => {
+    const { adapter } = adapterWithBody('<table><tbody><tr><td rowspan="2">Gộp dọc</td><td>A</td></tr><tr><td>B</td></tr></tbody></table>');
+    const fodt = adapter.serializeToFodt();
+    const rows = fodt.match(/<table:table-row>[\s\S]*?<\/table:table-row>/g);
+    assert.equal(rows.length, 2);
+    assert.match(rows[0], /table:number-rows-spanned="2"/);
+    assert.match(rows[1], /<table:covered-table-cell\/>/);
+  });
+
+  await test("Writer FODT Phase B.1 colspan/rowspan round-trip is exactly idempotent and matches a hand-built occupancy grid", () => {
+    // 3x3 grid: (0,0) spans 2 cols; (0,2) spans 2 rows -> real ODF occupancy:
+    // row0: [origin cs=2][covered][origin rs=2]
+    // row1: [A][B][covered]
+    // row2: [C][D][E]
+    const initial = adapterWithBody(
+      '<table><tbody>' +
+      '<tr><td colspan="2">TOP</td><td rowspan="2">SIDE</td></tr>' +
+      '<tr><td>A</td><td>B</td></tr>' +
+      '<tr><td>C</td><td>D</td><td>E</td></tr>' +
+      '</tbody></table>'
+    );
+    const first = initial.adapter.serializeToFodt();
+    const rows = first.match(/<table:table-row>[\s\S]*?<\/table:table-row>/g);
+    assert.equal(rows.length, 3);
+    assert.match(rows[0], /table:number-columns-spanned="2"[^>]*>[\s\S]*?TOP/);
+    assert.match(rows[0], /table:number-rows-spanned="2"[^>]*>[\s\S]*?SIDE/);
+    assert.equal((rows[0].match(/table:covered-table-cell/g) || []).length, 1, "row 0 must have exactly one covered slot (from the colspan)");
+    assert.equal((rows[1].match(/table:covered-table-cell/g) || []).length, 1, "row 1 must have exactly one covered slot (from the rowspan carried down)");
+    assert.equal((rows[2].match(/table:covered-table-cell/g) || []).length, 0, "row 2 has no spans reaching into it");
+    const parsed = adapterWithBody("<p>không giữ</p>");
+    parsed.adapter.parseFodt(first);
+    const second = parsed.adapter.serializeToFodt();
+    assert.equal(second, first, "serialize -> parse -> serialize must be exactly idempotent for spanned tables");
+  });
+
+  await test("Writer FODT Phase B.1 rejects invalid or overlapping spans", () => {
     for (const html of [
-      '<table><tbody><tr><td colspan="2">A</td></tr></tbody></table>',
-      '<table><tbody><tr><td rowspan="2">A</td></tr></tbody></table>'
+      '<table><tbody><tr><td colspan="0">A</td></tr></tbody></table>',
+      '<table><tbody><tr><td>A</td><td>B</td></tr><tr><td colspan="3">C</td></tr></tbody></table>',
+      '<table><tbody><tr><td rowspan="5">A</td></tr></tbody></table>'
     ]) {
       const { adapter } = adapterWithBody(html);
       assert.throws(() => adapter.serializeToFodt(), error => error?.code === "WRITER_FODT_UNSUPPORTED_CONTENT");

@@ -96,24 +96,36 @@ Phase A là additive. Rollback chỉ cần revert các commit Phase A; pipeline 
 
 ### Chính sách "ngoài phạm vi" bổ sung cho Phase B (throw rõ ràng, không mất dữ liệu âm thầm)
 
-- `colspan`/`rowspan` và bảng có số ô mỗi hàng khác nhau: **chưa hỗ trợ**, throw `WRITER_FODT_UNSUPPORTED_CONTENT` rõ ràng (cần theo dõi occupancy grid thật để sinh `table:covered-table-cell` đúng chuẩn ODF — để Phase B.1).
 - Nội dung khối (bảng/danh sách lồng) bên trong ô bảng: chưa hỗ trợ.
 - Ảnh không phải PNG (JPEG/GIF/WEBP/...): chưa hỗ trợ — cần bộ đọc kích thước riêng cho từng định dạng để không đoán sai kích thước thật.
 - Ảnh không phải data URI base64 nhúng sẵn (link ngoài): chưa hỗ trợ.
 
 ### Verification thật đã làm (không chỉ tin bản thân)
 
-- Unit: `tests/unit/writer-fodt-phase-b.test.js` — cấu trúc XML, idempotence bảng/ảnh, từ chối colspan/rowspan, từ chối ảnh không PNG/PNG hỏng, từ chối cấu trúc FODT nhập vào ngoài phạm vi mà không sửa `bodyDom`.
+- Unit: `tests/unit/writer-fodt-phase-b.test.js` — cấu trúc XML, idempotence bảng/ảnh, từ chối ảnh không PNG/PNG hỏng, từ chối cấu trúc FODT nhập vào ngoài phạm vi mà không sửa `bodyDom`.
 - Live thật qua soffice: `tests/live/writer-fodt-phase-b-real-conversion.mjs` — tạo PNG thật bằng zlib (không dùng file mẫu), serialize FODT thật, convert DOCX thật qua soffice, xác nhận bằng byte: bảng ra `w:tbl`/`w:tc` native (không phải ảnh chụp), tô nền/căn phải giữ nguyên là thuộc tính DOCX gốc, ảnh nhúng trong `word/media/` **khớp byte-for-byte** với PNG gốc (không bị mã hóa lại/hỏng), ảnh là `w:drawing` native.
 - **Mở file DOCX thật bằng Microsoft Word thật** (Start-Process thụ động, chụp màn hình xác nhận bằng mắt): bảng hiện đúng viền/tô nền vàng/căn phải cột số, ảnh gradient hiện đúng ngay dưới đoạn văn — đúng tiêu chuẩn "tài liệu chuyển sang Microsoft Office phải hiển thị đúng" mà người phụ trách yêu cầu.
-- `node tests/run-tests.js`: 1138/1138 PASS (1130 trước Phase B + 8 test Phase B mới).
 
-## 4b. Phase B.1 — bảng nâng cao, Text Box, shape (đề xuất, chưa làm)
+## 4b. Phase B.1 — colspan/rowspan thật (hoàn thành)
 
-- `colspan`/`rowspan` thật qua `table:number-columns-spanned`/`table:number-rows-spanned` + `table:covered-table-cell` (cần occupancy grid đúng chuẩn ODF).
+### Phạm vi đã làm (Claude, cùng phiên với Phase B)
+
+- `colspan`/`rowspan` thật qua occupancy grid đầy đủ chuẩn ODF: xây lưới `[hàng][cột]` đầy đủ, ô gốc mang `table:number-columns-spanned`/`table:number-rows-spanned`, mọi ô bị chiếm bởi span (cùng hàng lẫn hàng sau) phát ra `<table:covered-table-cell/>` đúng vị trí.
+- Từ chối rõ ràng (không đoán/không lặng lẽ sai): colspan/rowspan không phải số nguyên dương, colspan vượt số cột bảng, rowspan vượt số hàng bảng, span chồng lấn ô khác, hàng thiếu/thừa ô so với lưới tổng thể.
+- Chiều ngược (parse): `table:covered-table-cell` bị bỏ qua khi dựng lại HTML (HTML tự nhiên không cần placeholder — `colspan`/`rowspan` trên `<td>` gốc đã đủ diễn đạt), `table:number-columns/rows-spanned` được đọc lại thành thuộc tính `colspan`/`rowspan` HTML.
+
+### Verification thật
+
+- Unit: cấu trúc XML cho cả colspan riêng, rowspan riêng, và 1 lưới 3×3 phối hợp cả hai (kiểm tra bằng tay số lượng `table:covered-table-cell` đúng vị trí từng hàng) + idempotence chính xác; 3 ca từ chối (colspan=0, colspan vượt cột, rowspan vượt hàng).
+- Real soffice: colspan → `<w:gridSpan w:val="2">` thật trong DOCX; rowspan → `<w:vMerge w:val="restart">` (ô gốc) + `<w:vMerge w:val="continue">` (ô bị chiếm) thật — đo trực tiếp bằng byte, sửa lại giả định ban đầu (đã đoán sai là `w:vMerge` không có `w:val` khi continue — LibreOffice thực ra ghi `w:val="continue"` tường minh).
+- **Mở bằng Microsoft Word thật, xác nhận bằng mắt**: hàng tiêu đề gộp 3 cột hiện đúng 1 ô rộng có nền xanh căn giữa; cột "Miền Bắc" gộp dọc đúng 2 hàng dữ liệu thành 1 ô duy nhất; số liệu căn phải đúng.
+- `node tests/run-tests.js`: 1151/1151 PASS (1138 sau Phase B + 13 test Phase B.1 mới, gồm cả 2 test Phase A được viết lại vì colspan giờ đã hợp lệ nên không còn là ví dụ "ngoài phạm vi").
+
+## 4c. Phase B.2 — Text Box, shape, định dạng ảnh khác (đề xuất, chưa làm)
+
 - Ảnh JPEG/GIF/WEBP (đọc kích thước thật theo từng định dạng, không đoán).
 - Text Box và shape cơ bản qua drawing primitives.
-- Mỗi loại có import fixture độc lập và real DOCX/PDF round-trip, kèm mở bằng Microsoft Word thật để xác nhận bằng mắt như Phase A/B đã làm.
+- Mỗi loại có import fixture độc lập và real DOCX/PDF round-trip, kèm mở bằng Microsoft Word thật để xác nhận bằng mắt như Phase A/B/B.1 đã làm.
 
 ## 5. Phase C — page, header/footer và section geometry (đề xuất)
 
