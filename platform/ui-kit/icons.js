@@ -473,6 +473,38 @@ export const ICONS = {
     <rect x="6" y="6" width="6" height="5" rx="1" fill="#3B82F6"/>
     <path d="M15 15l4 4m0 0v-3.5m0 3.5h-3.5" stroke="#DC2626" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
+  textVAlignTop: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="2.5" y="2.5" width="19" height="19" rx="1.5" stroke="#64748B" stroke-width="1.4"/>
+    <path d="M6 6h12M6 9h8M6 12h9" stroke="#3B82F6" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+  textVAlignMiddle: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="2.5" y="2.5" width="19" height="19" rx="1.5" stroke="#64748B" stroke-width="1.4"/>
+    <path d="M6 9.5h12M6 12.5h8M6 15.5h9" stroke="#3B82F6" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+  textVAlignBottom: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="2.5" y="2.5" width="19" height="19" rx="1.5" stroke="#64748B" stroke-width="1.4"/>
+    <path d="M6 12h9M6 15h8M6 18h12" stroke="#3B82F6" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+  textDirectionHorizontal: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="2.5" y="2.5" width="19" height="19" rx="1.5" stroke="#64748B" stroke-width="1.4"/>
+    <path d="M6 8h12M6 12h12M6 16h8" stroke="#3B82F6" stroke-width="1.6" stroke-linecap="round"/>
+  </svg>`,
+  textDirectionVertical: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="2.5" y="2.5" width="19" height="19" rx="1.5" stroke="#64748B" stroke-width="1.4"/>
+    <path d="M9 6v12M12 6v12M15 6v8" stroke="#3B82F6" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M9 6l-1.5 1.5M9 6l1.5 1.5" stroke="#DC2626" stroke-width="1.3" stroke-linecap="round"/>
+  </svg>`,
+  textDirectionVertical270: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="2.5" y="2.5" width="19" height="19" rx="1.5" stroke="#64748B" stroke-width="1.4"/>
+    <path d="M9 6v12M12 6v12M15 8v10" stroke="#3B82F6" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M9 18l-1.5-1.5M9 18l1.5-1.5" stroke="#DC2626" stroke-width="1.3" stroke-linecap="round"/>
+  </svg>`,
+  textDirectionStacked: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="2.5" y="2.5" width="19" height="19" rx="1.5" stroke="#64748B" stroke-width="1.4"/>
+    <text x="12" y="9" font-size="6" font-weight="700" fill="#3B82F6" text-anchor="middle">A</text>
+    <text x="12" y="15" font-size="6" font-weight="700" fill="#3B82F6" text-anchor="middle">B</text>
+    <text x="12" y="21" font-size="6" font-weight="700" fill="#3B82F6" text-anchor="middle">C</text>
+  </svg>`,
 
   diagram: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="3" y="5" width="9" height="7" rx="2" fill="#2563EB"/>

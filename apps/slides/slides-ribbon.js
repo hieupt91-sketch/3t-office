@@ -166,7 +166,34 @@ export const SLIDES_RIBBON_TABS = [
                   { type: "button", commandId: "slides.para.alignLeft", iconOnly: true },
                   { type: "button", commandId: "slides.para.alignCenter", iconOnly: true },
                   { type: "button", commandId: "slides.para.alignRight", iconOnly: true },
-                  { type: "button", commandId: "slides.para.justify", iconOnly: true }
+                  { type: "button", commandId: "slides.para.justify", iconOnly: true },
+                  {
+                    type: "dropdown",
+                    id: "slides.text.vAlign",
+                    label: "Căn lề văn bản",
+                    labelKey: "slidesRibbon.paragraph.vAlign",
+                    icon: "textVAlignMiddle",
+                    iconOnly: true,
+                    items: [
+                      { commandId: "slides.text.vAlignTop" },
+                      { commandId: "slides.text.vAlignMiddle" },
+                      { commandId: "slides.text.vAlignBottom" }
+                    ]
+                  },
+                  {
+                    type: "dropdown",
+                    id: "slides.text.direction",
+                    label: "Hướng văn bản",
+                    labelKey: "slidesRibbon.paragraph.direction",
+                    icon: "textDirectionHorizontal",
+                    iconOnly: true,
+                    items: [
+                      { commandId: "slides.text.directionHorizontal" },
+                      { commandId: "slides.text.directionVertical" },
+                      { commandId: "slides.text.directionVertical270" },
+                      { commandId: "slides.text.directionStacked" }
+                    ]
+                  }
                 ]
               }
             ]

@@ -3317,6 +3317,10 @@ export class SlidesCanvasController {
         el.setAttribute?.("aria-label", shape.text || (shape.type === "wordart" ? "Chữ nghệ thuật" : "Hình vẽ"));
       }
       el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${isConnector ? "default" : "move"};z-index:${isConnector ? 0 : 1};`;
+      if (!isConnector && this._textStyleEligible(shape)) {
+        const vAlign = shape.textVAlign || "middle";
+        el.style.alignItems = vAlign === "top" ? "flex-start" : vAlign === "bottom" ? "flex-end" : "center";
+      }
 
       if (!isConnector) {
         el.tabIndex = 0;
@@ -3500,6 +3504,7 @@ export class SlidesCanvasController {
           const textEl = document.createElement("div");
           textEl.className = "vno-diagram-node-text";
           textEl.dataset.shapeTextId = String(shape.id);
+          textEl.style.cssText = this._textDirectionCss(shape.textDirection);
           if (shape.textHtml && this._htmlLooksFormatted(shape.textHtml)) textEl.innerHTML = shape.textHtml;
           else textEl.textContent = shape.text || "";
           textEl.contentEditable = "false";
@@ -4279,6 +4284,69 @@ export class SlidesCanvasController {
     this._syncUndoRedoState();
     this._renderThumbnails();
     return { distributed: moves.length };
+  }
+
+  /** GAP-SLIDES-05/06: hình có khung chữ hợp lệ để căn lề dọc / xoay hướng chữ (loại trừ media, biểu đồ, bảng, WordArt đã có định dạng riêng). */
+  _textStyleEligible(shape) {
+    if (!shape) return false;
+    if (["connector", "image", "video", "audio", "chart", "table", "wordart"].includes(shape.type)) return false;
+    return shape.text !== undefined;
+  }
+
+  /** Trả về CSS writing-mode cho các tùy chọn Hướng văn bản (GAP-SLIDES-06), khớp 4 lựa chọn thật của PowerPoint. */
+  _textDirectionCss(direction) {
+    if (direction === "vertical") return "writing-mode:vertical-rl;text-orientation:mixed;";
+    if (direction === "vertical270") return "writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);";
+    if (direction === "stacked") return "writing-mode:vertical-lr;text-orientation:upright;";
+    return "";
+  }
+
+  _targetShapesForTextStyle(explicitIds) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return [];
+    const ids = explicitIds
+      || (this.selectedShapeIds && this.selectedShapeIds.size ? this.selectedShapeIds : (this.selectedTarget ? new Set([String(this.selectedTarget)]) : new Set()));
+    return (slide.shapes || []).filter(s => ids.has(String(s.id)) && this._textStyleEligible(s));
+  }
+
+  /** GAP-SLIDES-05: Căn lề dọc khung chữ (Top/Middle/Bottom) - a:bodyPr anchor thật của PowerPoint. */
+  setTextVerticalAlign(align, explicitIds = null) {
+    const targets = this._targetShapesForTextStyle(explicitIds);
+    if (targets.length === 0) return false;
+    const changes = [];
+    targets.forEach(s => {
+      if ((s.textVAlign || "middle") === align) return;
+      const before = { textVAlign: s.textVAlign };
+      s.textVAlign = align;
+      changes.push({ shapeId: s.id, before, after: { textVAlign: align } });
+    });
+    if (changes.length === 0) return { changed: 0 };
+    this.undoStack.push({ type: "shapes-text-style", slideIndex: this.currentSlideIndex, changes });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderShapesLayer();
+    this._renderThumbnails();
+    return { changed: changes.length };
+  }
+
+  /** GAP-SLIDES-06: Xoay hướng chữ trong khung (Horizontal/Rotate 90°/Rotate 270°/Stacked) - a:bodyPr vert thật của PowerPoint. */
+  setTextDirection(direction, explicitIds = null) {
+    const targets = this._targetShapesForTextStyle(explicitIds);
+    if (targets.length === 0) return false;
+    const changes = [];
+    targets.forEach(s => {
+      if ((s.textDirection || "horizontal") === direction) return;
+      const before = { textDirection: s.textDirection };
+      s.textDirection = direction;
+      changes.push({ shapeId: s.id, before, after: { textDirection: direction } });
+    });
+    if (changes.length === 0) return { changed: 0 };
+    this.undoStack.push({ type: "shapes-text-style", slideIndex: this.currentSlideIndex, changes });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderShapesLayer();
+    this._renderThumbnails();
+    return { changed: changes.length };
   }
 
   /** GAP-SLIDES-03: bật/tắt căn theo toàn bộ trang chiếu thay vì theo khung các đối tượng đang chọn. */
@@ -5734,6 +5802,17 @@ export class SlidesCanvasController {
       this._updateSelectionUi();
       this._renderShapesLayer();
       return true;
+    } else if (action.type === "shapes-text-style") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      action.changes.forEach(c => {
+        const s = slide.shapes?.find(item => String(item.id) === String(c.shapeId));
+        if (s) Object.assign(s, c.before);
+      });
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
     } else if (action.type === "shape-resize") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;
@@ -5986,6 +6065,17 @@ export class SlidesCanvasController {
       this.selectedShapeIds = restored;
       this.selectedTarget = Array.from(restored)[0] || null;
       this._updateSelectionUi();
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shapes-text-style") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      action.changes.forEach(c => {
+        const s = slide.shapes?.find(item => String(item.id) === String(c.shapeId));
+        if (s) Object.assign(s, c.after);
+      });
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
       return true;
     } else if (action.type === "shape-resize") {
