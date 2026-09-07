@@ -27,6 +27,11 @@ MINIMAL_PNG = base64.b64decode(
 )
 
 
+def _minimal_gif(width: int, height: int) -> bytes:
+    import struct
+    return b"GIF89a" + struct.pack("<HH", width, height) + b"\x00\x00\x00\x3b"
+
+
 def _data_uri_payload(html_text: str, mime: str = "image/png") -> bytes:
     match = re.search(rf"src=\"(data:{re.escape(mime)};base64,[^\"]+)\"", html_text)
     if not match:
@@ -106,6 +111,35 @@ class InlineHtmlImagesUnitTests(unittest.TestCase):
             result = main._inline_html_images(html, html_path)
         self.assertIn("data:image/gif;base64,", result)
         self.assertNotIn(encoded_src, result)
+        self.assertEqual(_data_uri_payload(result, "image/gif"), gif_bytes)
+
+    def test_decorative_hairline_gif_is_dropped_not_inlined(self):
+        # Loi that phat hien qua file .docx that ("1. QD thanh lap TO MUA
+        # SAM.docx"): duong ke ngang trang tri 126x1 that su voi align="left"
+        # nam GIUA chu "P" va "HONG" trong "<b>P<img ...>HONG...</b>", lam vo
+        # dong chu nhin thay duoc. Anh nay khong mang thong tin gi - phai bi
+        # bo qua hoan toan, khong nhung thanh data URI.
+        with tempfile.TemporaryDirectory(prefix="vno_inline_hairline_") as tmp:
+            html_path = os.path.join(tmp, "doc.html")
+            gif_path = os.path.join(tmp, "hairline.gif")
+            with open(gif_path, "wb") as handle:
+                handle.write(_minimal_gif(126, 1))
+            html = '<b>P<img src="hairline.gif" name="Shape1" align="left" width="125">HÒNG</b>'
+            result = main._inline_html_images(html, html_path)
+        self.assertEqual(result, "<b>PHÒNG</b>")
+        self.assertNotIn("data:image", result)
+
+    def test_small_square_gif_is_still_inlined_not_treated_as_hairline(self):
+        # Anh vuong nho (icon that su, vi du 16x16) KHONG duoc coi la duong
+        # ke trang tri - phai van nhung binh thuong, tranh xoa nham anh that.
+        with tempfile.TemporaryDirectory(prefix="vno_inline_smallicon_") as tmp:
+            html_path = os.path.join(tmp, "doc.html")
+            gif_path = os.path.join(tmp, "icon.gif")
+            gif_bytes = _minimal_gif(16, 16)
+            with open(gif_path, "wb") as handle:
+                handle.write(gif_bytes)
+            html = '<img src="icon.gif" name="Icon1">'
+            result = main._inline_html_images(html, html_path)
         self.assertEqual(_data_uri_payload(result, "image/gif"), gif_bytes)
 
     def test_jpeg_and_gif_mime_from_extension(self):
