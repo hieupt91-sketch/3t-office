@@ -2680,6 +2680,10 @@ export class SheetAdapter {
       this.loadFromFods(result.content, result.ooxmlWorkbookXml);
       this.sourceFileName = (result.fileName || "BangTinh").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
+      // Lỗi thật đã xác nhận: dữ liệu nạp đúng nhưng nhãn tên tệp trên tab
+      // (đầu cửa sổ) vẫn giữ nguyên tên demo cũ vì resetDocumentChrome() chỉ
+      // được gọi ở File > Mới/Đóng, chưa bao giờ gọi sau khi Mở tệp thật.
+      this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx");
       return true;
     }
     if (result.status === "cancelled") return false;

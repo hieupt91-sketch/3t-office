@@ -2721,6 +2721,10 @@ export class SlidesAdapter {
       );
       this.sourceFileName = (result.fileName || "TrinhChieu").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
+      // Lỗi thật đã xác nhận: nội dung nạp đúng nhưng nhãn tên tệp trên tab
+      // vẫn giữ nguyên tên demo cũ vì resetDocumentChrome() chỉ được gọi ở
+      // File > Mới/Đóng, chưa bao giờ gọi sau khi Mở tệp thật.
+      this.shell?.resetDocumentChrome?.(result.fileName || "Bản trình chiếu 1.pptx");
       return true;
     }
     if (result.status === "cancelled") return false;
