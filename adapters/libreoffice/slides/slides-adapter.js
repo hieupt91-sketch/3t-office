@@ -1795,11 +1795,16 @@ export class SlidesAdapter {
     const styleName = get("draw:style-name");
     const style = graphicStyles.get(styleName) || {};
     const color = get("draw:fill-color") || style.fill || "#3b82f6";
+    // Cùng lỗi thật đã sửa cho _parseFrameShape() (ảnh): hình rect/ellipse/
+    // custom-shape bị XOAY trong PPTX thật cũng được soffice ghi vị trí qua
+    // draw:transform="rotate(...) translate(...)" thay vì svg:x/svg:y —
+    // dùng _parseDrawTranslate() để xử lý đúng cả 2 trường hợp.
+    const origin = this._parseDrawTranslate(attrs);
     const shape = {
       id: this._restoreShapeId(attrs),
       type,
-      x: this._odfLengthToPx(get("svg:x")),
-      y: this._odfLengthToPx(get("svg:y")),
+      x: origin.x,
+      y: origin.y,
       w: this._odfLengthToPx(get("svg:width")) || 200,
       h: this._odfLengthToPx(get("svg:height")) || 120,
       color,

@@ -97,5 +97,34 @@ export async function runSlidesRotatedShapePositionTests() {
     assert(Math.abs(image.y - expectedY) <= 2, `y không xoay phải ~${expectedY}px, thực tế: ${image.y}`);
   });
 
+  // Cùng lỗi thật, nhưng xảy ra ĐỘC LẬP trong _parseDrawShape() (rect/
+  // ellipse/custom-shape) — hàm khác với _parseFrameShape() (ảnh/bảng/
+  // chart/wordart/textbox), không dùng chung base object nên phải sửa
+  // riêng. Rất phổ biến trong sơ đồ/biểu trình bày thật (hình chữ nhật/
+  // mũi tên xoay). Đoạn draw:custom-shape capture từ probe soffice thật
+  // (07/09/2026): hình chữ nhật xoay -30°, offset x=1500000 y=800000 EMU.
+  const SOFFICE_ROTATED_RECT_FODP = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0">
+<office:body><office:presentation>
+<draw:page draw:name="Slide1">
+<draw:custom-shape draw:name="Rectangle 1" draw:style-name="gr3" svg:width="5.555cm" svg:height="2.777cm" draw:transform="rotate (-0.523598775598299) translate (5.233cm 1.019cm)">
+<text:p>Hop xoay</text:p>
+<draw:enhanced-geometry draw:type="ooxml-rect"/>
+</draw:custom-shape>
+</draw:page>
+</office:presentation></office:body>
+</office:document>`;
+
+  test("parseFodp(): hình chữ nhật/custom-shape bị xoay (_parseDrawShape, KHÁC hàm ảnh) cũng phải lấy đúng vị trí, không rơi về (0,0)", () => {
+    const slides = new SlidesAdapter(null).parseFodp(SOFFICE_ROTATED_RECT_FODP);
+    const shapes = slides[0]?.shapes || [];
+    const rect = shapes.find(s => s.text === "Hop xoay");
+    assert(rect, "Phải parse được hình chữ nhật xoay");
+    const expectedX = Math.round(5.233 * 96 / 2.54);
+    const expectedY = Math.round(1.019 * 96 / 2.54);
+    assert(Math.abs(rect.x - expectedX) <= 2, `x phải ~${expectedX}px, thực tế: ${rect.x} (0 nghĩa là bug _parseDrawShape chưa sửa)`);
+    assert(Math.abs(rect.y - expectedY) <= 2, `y phải ~${expectedY}px, thực tế: ${rect.y}`);
+  });
+
   return results;
 }
