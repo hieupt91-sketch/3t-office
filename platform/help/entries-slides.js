@@ -590,6 +590,7 @@ export const SLIDES_HELP_ENTRIES = [
       "Nhấp chọn một hình khối hoặc hình ảnh trên trang chiếu canvas. Xung quanh đối tượng sẽ xuất hiện 8 tay cầm co giãn, nút xóa màu đỏ ở góc trên-trái và một tay cầm xoay hình tròn nhỏ màu xanh dương ở phía trên đỉnh (nối bằng cần mảnh).",
       "Rê chuột vào tay cầm xoay tròn: con trỏ chuyển thành hình bàn tay nắm (grab). Nhấn giữ chuột và kéo xoay quanh tâm đối tượng theo chiều kim đồng hồ hoặc ngược chiều kim đồng hồ.",
       "Xoay từng bước 15° chuẩn xác: nhấn giữ phím Shift trong lúc kéo chuột để góc xoay tự động bắt dính vào các bội số 15° (15°, 30°, 45°, 60°, 90°...), tương tự như trong Microsoft PowerPoint.",
+      "Con trỏ co giãn thông minh và nút xóa trực quan: Khi hình xoay ở bất kỳ góc nào, con trỏ chuột của 8 tay cầm tự động định hướng theo góc nhìn thực tế trên màn hình (ví dụ: tay cầm ở cạnh bên luôn hiển thị con trỏ kéo ngang ew-resize), và nút xóa tròn đỏ luôn giữ tư thế thẳng đứng dễ nhận biết.",
       "Kéo tay cầm về vị trí thẳng đứng ban đầu (hoặc gần 0°), góc xoay sẽ tự động đưa về mặc định không xoay.",
       "Đặt lại góc xoay về 0° nhanh chóng: nhấp chuột phải vào hình vẽ đã xoay để mở trình đơn ngữ cảnh, chọn «Đặt lại góc xoay (0°)».",
       "Hoàn tác thao tác xoay: nhấn phím Ctrl+Z để quay về góc xoay trước đó; nhấn Ctrl+Y để làm lại."
