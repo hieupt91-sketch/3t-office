@@ -153,6 +153,7 @@ import { runWriterFodtRotatedShapePositionTests } from "./unit/writer-fodt-rotat
 import { runSlidesShapeRotationHandleTests } from "./unit/slides-shape-rotation-handle.test.js";
 import { runSlidesShapeRotationSerializeTests } from "./unit/slides-shape-rotation-serialize.test.js";
 import { runSlidesShapeRotatedResizeTests } from "./unit/slides-shape-rotated-resize.test.js";
+import { runWriterFodtRealFileGapsBatch2Tests } from "./unit/writer-fodt-real-file-gaps-batch2.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -313,7 +314,8 @@ async function runAll() {
     { title: "132. Unit Tests — VN Sheet thanh trạng thái Sum/Average/Count: chỉ tính vùng đang chọn, không xén dấu thập phân", runner: runSheetStatusBarSumTests },
     { title: "133. Unit Tests — VN Slides Tay Cầm Xoay Tương Tác (Rotation Handle & Undo/Redo)", runner: runSlidesShapeRotationHandleTests },
     { title: "134. Unit Tests — VN Slides Serialize Góc Xoay Hình (shape.rotation → draw:transform FODP)", runner: runSlidesShapeRotationSerializeTests },
-    { title: "135. Unit Tests — VN Slides Co Giãn Hình Đã Xoay (Rotated Shape Resize Math & Anchor Invariance)", runner: runSlidesShapeRotatedResizeTests }
+    { title: "135. Unit Tests — VN Slides Co Giãn Hình Đã Xoay (Rotated Shape Resize Math & Anchor Invariance)", runner: runSlidesShapeRotatedResizeTests },
+    { title: "136. Unit Tests — Writer parseFodt(): 3 lỗi thật từ file .doc người dùng (header/footer diff, table multi-p, draw:connector)", runner: runWriterFodtRealFileGapsBatch2Tests }
   ];
 
   for (const suite of suites) {

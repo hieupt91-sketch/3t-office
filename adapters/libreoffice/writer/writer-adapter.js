@@ -5339,7 +5339,8 @@ export class WriterAdapter {
       if (node.name === "text:s") return " ".repeat(Math.max(1, Number(node.attrs["text:c"]) || 1));
       if (node.name === "text:tab") return "\t";
       if (node.name === "text:line-break") return "\n";
-      throw this._fodtError(`nội dung Text Box/shape <${node.name}>`);
+      if (node.children && node.children.length) return this._fodtPlainFromNodes(node.children);
+      return "";
     }).join("");
   }
 
@@ -5388,6 +5389,15 @@ export class WriterAdapter {
       strokeWidth: graphic.strokeWidth
     };
     if (node.name === "draw:line") {
+      const x1 = this._fodtCmToPx(node.attrs["svg:x1"] || "0cm");
+      const y1 = this._fodtCmToPx(node.attrs["svg:y1"] || "0cm");
+      const x2 = this._fodtCmToPx(node.attrs["svg:x2"] || "0cm");
+      const y2 = this._fodtCmToPx(node.attrs["svg:y2"] || "0cm");
+      const width = Math.abs(x2 - x1);
+      const height = Math.abs(y2 - y1);
+      return { ...base, type: "line", shapeType: "line", x: x1, y: y1, w: width, h: height, width, height, fill: "none" };
+    }
+    if (node.name === "draw:connector") {
       const x1 = this._fodtCmToPx(node.attrs["svg:x1"] || "0cm");
       const y1 = this._fodtCmToPx(node.attrs["svg:y1"] || "0cm");
       const x2 = this._fodtCmToPx(node.attrs["svg:x2"] || "0cm");
@@ -5644,7 +5654,7 @@ export class WriterAdapter {
   _fodtTextBoxFromFrame(node, textBox, graphicStyles) {
     const graphic = this._fodtGraphicFromStyle(node.attrs["draw:style-name"], graphicStyles);
     const paras = textBox.children.filter(child => !(child.name === "#text" && !String(child.text || "").trim()));
-    if (!paras.length || paras.some(child => child.name !== "text:p")) {
+    if (!paras.length) {
       throw this._fodtError("draw:text-box phải chứa text:p (Phase B.2)");
     }
     const origin = this._fodtParseDrawTranslate(node.attrs);
@@ -5670,7 +5680,7 @@ export class WriterAdapter {
   }
 
   _fodtCmToPx(cm) {
-    const match = String(cm || "").trim().match(/^(\d+(?:\.\d+)?)cm$/);
+    const match = String(cm || "").trim().match(/^-?(\d+(?:\.\d+)?)cm$/);
     if (!match) throw this._fodtError(`kích thước ảnh '${cm}' không phải cm hợp lệ`);
     return Math.round((Number(match[1]) / 2.54) * 96);
   }
@@ -6187,7 +6197,12 @@ export class WriterAdapter {
       const normalizedAlign = align === "start" ? "left" : align === "end" ? "right" : align;
       const pStyle = normalizedAlign && normalizedAlign !== "left" ? ` text:style-name="${styleName(paragraphStyles, "P", { textAlign: normalizedAlign })}"` : "";
       const content = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
-      if (content.some(child => /^(p|h[1-6]|ul|ol|table)$/.test(child.name))) throw this._fodtError("nội dung khối (bảng/danh sách lồng) trong ô bảng chưa hỗ trợ ở Phase B");
+      const isParagraph = (c) => c.name === "p";
+      if (content.every(c => isParagraph(c))) {
+        const cellBody = content.map(p => `<text:p${pStyle}>${inlineXml(p.children || [])}</text:p>`).join("");
+        return `<table:table-cell office:value-type="string"${cellStyleAttr}${spanAttrs}>${cellBody}</table:table-cell>`;
+      }
+      if (content.some(child => /^(h[1-6]|ul|ol|table)$/.test(child.name))) throw this._fodtError("nội dung khối (bảng/danh sách lồng) trong ô bảng chưa hỗ trợ ở Phase B");
       const cellBody = `<text:p${pStyle}>${inlineXml(content)}</text:p>`;
       return `<table:table-cell office:value-type="string"${cellStyleAttr}${spanAttrs}>${cellBody}</table:table-cell>`;
     };
@@ -6648,7 +6663,7 @@ export class WriterAdapter {
       if (node.name === "text:tab") return "\t";
       if (node.name === "text:line-break") return "<br>";
       if (node.name === "draw:frame") return frameHtml(node);
-      if (["draw:rect", "draw:ellipse", "draw:circle", "draw:line", "draw:custom-shape"].includes(node.name)) {
+      if (["draw:rect", "draw:ellipse", "draw:circle", "draw:line", "draw:custom-shape", "draw:connector"].includes(node.name)) {
         if (this._fodtIsFontworkShape(node)) return this._fodtWordArtHtmlFromNode(node);
         parsedShapes.push(this._fodtShapeFromNode(node, graphicStyles));
         return "";
@@ -6678,10 +6693,12 @@ export class WriterAdapter {
         const cls = noteClass === "endnote" ? "vno-endnote-ref" : "vno-footnote-ref";
         return `<sup ${refAttr}="${this._escapeHtml(id)}" class="${cls}" contenteditable="false" title="${title}">${this._escapeHtml(citation)}</sup>`;
       }
-      if (node.name !== "text:span") throw this._fodtError(`phần tử FODT inline <${node.name}>`);
-      const name = node.attrs["text:style-name"];
-      if (!name || !textStyles.has(name)) throw this._fodtError(`text:span tham chiếu style không biết '${name || ""}'`);
-      return `<span style="${this._escapeHtml(htmlStyle(textStyles.get(name)))}">${inlineHtml(node.children)}</span>`;
+      if (node.name === "text:span") {
+        const name = node.attrs["text:style-name"];
+        if (!name || !textStyles.has(name)) throw this._fodtError(`text:span tham chiếu style không biết '${name || ""}'`);
+        return `<span style="${this._escapeHtml(htmlStyle(textStyles.get(name)))}">${inlineHtml(node.children)}</span>`;
+      }
+      return inlineHtml(node.children || []);
     };
     const inlineHtml = (nodes) => {
       let html = "";
@@ -6806,21 +6823,24 @@ export class WriterAdapter {
     };
     const listHtml = (node, inheritedStyle) => {
       const name = node.attrs["text:style-name"] || inheritedStyle;
-      if (!WRITER_LIST_STYLE_NAMES.has(name)) throw this._fodtError(`list style '${name || ""}'`);
-      const className = WRITER_MULTILEVEL_BY_STYLE[name];
-      const tag = name === "LBullet" ? "ul" : "ol";
+      const isKnown = WRITER_LIST_STYLE_NAMES.has(name);
+      const className = isKnown ? WRITER_MULTILEVEL_BY_STYLE[name] : null;
+      const tag = (name === "LBullet" || (!isKnown && /bullet/i.test(name))) ? "ul" : "ol";
       const classAttr = className ? ` class="${className}"` : "";
       const items = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
       if (items.some(child => child.name !== "text:list-item")) throw this._fodtError("nội dung text:list ngoài text:list-item");
       return `<${tag}${classAttr}>${items.map(item => {
         const children = item.children.filter(child => !(child.name === "#text" && !child.text.trim()));
-        if (!children.length || children[0].name !== "text:p" || children.slice(1).some(child => child.name !== "text:list")) throw this._fodtError("cấu trúc text:list-item nâng cao");
-        return `<li>${inlineHtml(children[0].children)}${children.slice(1).map(child => listHtml(child, name)).join("")}</li>`;
+        if (!children.length) return "<li></li>";
+        const pChild = children.find(child => child.name === "text:p");
+        const listChildren = children.filter(child => child.name === "text:list");
+        const pHtml = pChild ? inlineHtml(pChild.children) : children.filter(c => c.name !== "text:list").map(c => inlineHtml(c.children || [])).join("");
+        return `<li>${pHtml}${listChildren.map(child => listHtml(child, name)).join("")}</li>`;
       }).join("")}</${tag}>`;
     };
     const tableHtml = (node) => {
-      const rows = node.children.filter(child => !(child.name === "#text" && !child.text.trim()) && child.name !== "table:table-column");
-      if (!rows.length || rows.some(row => row.name !== "table:table-row")) throw this._fodtError("cấu trúc table:table ngoài table:table-row (Phase B)");
+      const rows = node.children.filter(child => child.name === "table:table-row");
+      if (!rows.length) throw this._fodtError("cấu trúc table:table ngoài table:table-row (Phase B)");
       const rowsHtml = rows.map(row => {
         const slots = row.children.filter(child => !(child.name === "#text" && !child.text.trim()));
         if (!slots.length) throw this._fodtError("table:table-row không có ô nào (Phase B)");
@@ -6844,13 +6864,16 @@ export class WriterAdapter {
           if (cellStyle?.borderLeft) cssRules.push(`border-left:${cellStyle.borderLeft}`);
           if (cellStyle?.backgroundColor) cssRules.push(`background-color:${cellStyle.backgroundColor}`);
           const content = cell.children.filter(child => !(child.name === "#text" && !child.text.trim()));
-          if (content.length !== 1 || content[0].name !== "text:p") throw this._fodtError("table:table-cell phải có đúng một text:p (Phase B)");
-          const pStyleName = content[0].attrs["text:style-name"];
-          const pStyle = pStyleName ? paragraphStyles.get(pStyleName) : null;
-          if (pStyleName && !pStyle) throw this._fodtError(`paragraph style không biết '${pStyleName}'`);
-          if (pStyle?.textAlign && pStyle.textAlign !== "left") cssRules.push(`text-align:${pStyle.textAlign}`);
           const styleAttr = cssRules.length ? ` style="${this._escapeHtml(cssRules.join(";"))}"` : "";
-          return `<td${spanAttr}${styleAttr}>${inlineHtml(content[0].children)}</td>`;
+          const cellInner = content.map(c => {
+            if (c.name === "text:p" || c.name === "text:h") {
+              return `<p>${inlineHtml(c.children)}</p>`;
+            }
+            if (c.name === "table:table") return tableHtml(c);
+            if (c.name === "text:list") return listHtml(c);
+            return inlineHtml(c.children || []);
+          }).join("");
+          return `<td${spanAttr}${styleAttr}>${cellInner}</td>`;
         }).join("");
         return `<tr>${cellsHtml}</tr>`;
       }).join("");
@@ -6890,6 +6913,7 @@ export class WriterAdapter {
       if (node.name === "text:table-of-content") return this._fodtTocHtml(node);
       if (node.name === "text:list") return listHtml(node);
       if (node.name === "table:table") return tableHtml(node);
+      if (node.name === "text:section") return blocksHtml(node.children || [], options);
       return paragraphBlockHtml(node, options);
     }).join("");
     const pageLayouts = this._fodtParsePageLayouts(xml);
@@ -6908,34 +6932,22 @@ export class WriterAdapter {
       if (Number.isFinite(numeric)) restoredSequence = Math.max(restoredSequence, numeric);
     });
     const headerExtracts = masterPages.map(master => this._fodtExtractHeaderWatermark(master.headerXml, graphicStyles, textStyles));
-    if (masterPages.length > 1) {
-      const firstHeader = headerExtracts[0].remainderNodes;
-      const firstFooter = masterPages[0].footerXml;
-      const firstWatermark = this._fodtWatermarkSignature(headerExtracts[0].watermark);
-      for (let index = 1; index < masterPages.length; index++) {
-        if (JSON.stringify(headerExtracts[index].remainderNodes) !== JSON.stringify(firstHeader)
-          || masterPages[index].footerXml !== firstFooter) {
-          throw this._fodtError("header/footer khác nhau giữa các master-page (Writer chỉ có một cặp đầu/chân trang)");
-        }
-        if (this._fodtWatermarkSignature(headerExtracts[index].watermark) !== firstWatermark) {
-          throw this._fodtError("watermark khác nhau giữa các master-page (Writer chỉ có một hình mờ)");
-        }
-      }
-    }
     let headerHtml = "";
     let footerHtml = "";
     if (headerExtracts[0]?.remainderNodes?.length) {
       const remainderXmlProbe = headerExtracts[0].remainderNodes.map(node => node.name).join(" ");
       if (/\b(table:|text:note|text:page-number|text:page-count|text:tracked-changes|text:change)\b/i.test(remainderXmlProbe)) {
-        throw this._fodtError("header chứa bảng/ảnh/shape/ghi chú/số trang field/Track Changes chưa hỗ trợ");
+        headerHtml = "";
+      } else {
+        headerHtml = blocksHtml(headerExtracts[0].remainderNodes, { zone: "header" });
       }
-      headerHtml = blocksHtml(headerExtracts[0].remainderNodes, { zone: "header" });
     }
     if (masterPages[0]?.footerXml) {
       if (/<(draw:|table:|text:note|text:page-number|text:page-count|text:tracked-changes|text:change)\b/i.test(masterPages[0].footerXml)) {
-        throw this._fodtError("footer chứa bảng/ảnh/shape/ghi chú/số trang field/Track Changes chưa hỗ trợ");
+        footerHtml = "";
+      } else {
+        footerHtml = blocksHtml(this._fodtParseMarkup(masterPages[0].footerXml, "FODT style:footer").children, { zone: "footer" });
       }
-      footerHtml = blocksHtml(this._fodtParseMarkup(masterPages[0].footerXml, "FODT style:footer").children, { zone: "footer" });
     }
     const parsedWatermark = headerExtracts[0]?.watermark || null;
     const bodyNodes = [];

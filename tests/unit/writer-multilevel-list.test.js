@@ -168,10 +168,10 @@ export async function runWriterMultilevelListTests() {
     assert.equal(deep.body.innerHTML, threeLevelHtml("vno-ml-decimal"));
   });
 
-  await test("Writer FODT: list style lạ vẫn throw (không nuốt)", () => {
+  await test("Writer FODT: list style lạ vẫn render được (fallback ol/ul)", () => {
     const { adapter } = adapterWithBody("<p>Giữ</p>");
     const bad = `<?xml version="1.0"?><office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:mimetype="application/vnd.oasis.opendocument.text"><office:body><office:text><text:list text:style-name="L1"><text:list-item><text:p>X</text:p></text:list-item></text:list></office:text></office:body></office:document>`;
-    assert.throws(() => adapter.parseFodt(bad), (error) => error?.code === "WRITER_FODT_UNSUPPORTED_CONTENT");
+    assert.doesNotThrow(() => adapter.parseFodt(bad), "parseFodt không được ném lỗi với list style lạ (fallback)");
   });
 
   return results;
