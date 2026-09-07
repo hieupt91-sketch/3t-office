@@ -272,6 +272,16 @@ export async function runWriterFodtPhaseB2Tests() {
     assert.equal(diamond.adapter.shapes[0].type, "diamond");
   });
 
+  await test("Writer FODT Phase B.2 chấp nhận \"ooxml-straightConnector1\" và \"mso-spt32\" (đường nối thẳng) -> \"line\"", () => {
+    const connector = adapterWithBody("<p>không giữ</p>");
+    connector.adapter.parseFodt(fodtCustomShape("ooxml-straightConnector1"));
+    assert.equal(connector.adapter.shapes[0].type, "line");
+
+    const legacyConnector = adapterWithBody("<p>không giữ</p>");
+    legacyConnector.adapter.parseFodt(fodtCustomShape("mso-spt32"));
+    assert.equal(legacyConnector.adapter.shapes[0].type, "line");
+  });
+
   await test("Writer FODT Phase B.2 vẫn từ chối hình dạng KHÔNG có renderer tương ứng trong VN Writer (ví dụ pentagon) — không âm thầm vẽ sai", () => {
     const { adapter } = adapterWithBody("<p>không giữ</p>");
     assert.throws(() => adapter.parseFodt(fodtCustomShape("ooxml-pentagon")), error => /ooxml-pentagon/.test(error.message));
