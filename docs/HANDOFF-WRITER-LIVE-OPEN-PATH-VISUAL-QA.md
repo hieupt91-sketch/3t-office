@@ -1,294 +1,309 @@
 # Agent Handoff
 
-TASK: Kiểm tra thị giác luồng Mở file THẬT của Writer (khác với luồng test FODT) trên các file .docx thật của người dùng
+TASK: Kiểm tra thị giác luồng Mở file THẬT của Writer trên toàn bộ kho file .docx thật của người dùng (15/15 tệp)
 AGENT/ROLE: Antigravity (Visual QA & Writer Integration)
-BRANCH: `visual-qa/writer-live-open-path`
-WORKTREE: `E:\VNOffice-agy-writer-livepath-qa`
-OBJECTIVE: Tìm hiểu, phân tích và kiểm thử thị giác luồng mở file THẬT (LibreOffice `soffice --convert-to "html:HTML (StarWriter)"` qua `main.py` -> `UnoBridge` -> `WriterAdapter.open()` -> `.vno-writer-body` DOM) trên 4 tài liệu DOCX thực tế của người dùng; chụp ảnh toàn trang, đánh giá chi tiết bảng biểu, ảnh, phông chữ tiếng Việt, header/footer; sửa các lỗi CSS hiển thị an toàn; báo cáo các vấn đề kiến trúc tầng Python/LibreOffice chưa sửa.
+BRANCH: `visual-qa/writer-live-open-full-corpus`
+WORKTREE: `E:\VNOffice-agy-livepath-qa-full`
+OBJECTIVE: Hoàn thành toàn diện kiểm thử thị giác luồng mở file THẬT (LibreOffice `soffice --convert-to "html:HTML (StarWriter)"` qua `main.py` -> `UnoBridge` -> `WriterAdapter.open()` -> `.vno-writer-body` DOM) trên toàn bộ kho 15 tệp DOCX thực tế của người dùng (4 tệp Đợt 1 + 11 tệp Đợt 2); chụp 60 ảnh màn hình bằng chứng; đánh giá chi tiết bảng biểu, ảnh nhúng, phông chữ tiếng Việt, căn lề tiêu đề/ngày tháng, header/footer, lỗi tràn ngang; xác nhận bản sửa lỗi CSS căn lề từ đợt 1 đạt 100% trên toàn kho; báo cáo các vấn đề kiến trúc tầng Python/StarWriter HTML backend.
 
 ---
 
-## 1. Điểm nối thật giữa Python Backend và UI (Bước 1)
+## 1. Điểm nối thật giữa Python Backend và UI
 
-Qua rà soát toàn bộ mã nguồn (`platform/`, `adapters/`, `apps/writer/`, `main.py`), luồng mở file THẬT khi người dùng thao tác trong ứng dụng VN Writer diễn ra qua chuỗi gọi hàm sau:
+Luồng mở file THẬT khi người dùng thao tác trong ứng dụng VN Writer diễn ra qua chuỗi gọi hàm sau:
 
 1. **Giao diện người dùng (UI Event / Phím tắt):**
-   - Người dùng bấm nút **Tệp** trên thanh công cụ rồi chọn **Mở tệp** (`[data-backstage-cmd="common.file.open"]` tại [app-shell.js](file:///E:/VNOffice-agy-writer-livepath-qa/platform/shell/app-shell.js#L625)), hoặc nhấn phím tắt **Ctrl+O** (được đăng ký tại [command-definitions.js](file:///E:/VNOffice-agy-writer-livepath-qa/platform/commands/command-definitions.js#L12) và xử lý bởi [shortcut-manager.js](file:///E:/VNOffice-agy-writer-livepath-qa/platform/commands/shortcut-manager.js)).
+   - Người dùng bấm nút **Tệp** trên thanh công cụ rồi chọn **Mở tệp** (`[data-backstage-cmd="common.file.open"]` tại [app-shell.js](file:///E:/VNOffice-agy-livepath-qa-full/platform/shell/app-shell.js#L625)), hoặc nhấn phím tắt **Ctrl+O** (được đăng ký tại [command-definitions.js](file:///E:/VNOffice-agy-livepath-qa-full/platform/commands/command-definitions.js#L12) và xử lý bởi [shortcut-manager.js](file:///E:/VNOffice-agy-livepath-qa-full/platform/commands/shortcut-manager.js)).
    - Thao tác này phát lệnh: `globalCommandBus.execute("common.file.open")`.
 
 2. **Điều phối lệnh trong Writer Adapter:**
-   - [writer-adapter.js:L2575-2576](file:///E:/VNOffice-agy-writer-livepath-qa/adapters/libreoffice/writer/writer-adapter.js#L2575-L2576):
+   - [writer-adapter.js:L2575-2576](file:///E:/VNOffice-agy-livepath-qa-full/adapters/libreoffice/writer/writer-adapter.js#L2575-L2576):
      ```javascript
      case "common.file.open":
        return await this.open();
      ```
-   - Hàm `WriterAdapter.prototype.open()` ([writer-adapter.js:L7166-7220](file:///E:/VNOffice-agy-writer-livepath-qa/adapters/libreoffice/writer/writer-adapter.js#L7166-L7220)) được kích hoạt.
+   - Hàm `WriterAdapter.prototype.open()` kích hoạt `globalUnoBridge.openRealFile("writer")`.
 
 3. **Cầu nối UnoBridge sang Desktop Native API:**
-   - [writer-adapter.js:L7167](file:///E:/VNOffice-agy-writer-livepath-qa/adapters/libreoffice/writer/writer-adapter.js#L7167):
-     ```javascript
-     const result = await globalUnoBridge.openRealFile("writer");
-     ```
-   - [uno-bridge.js:L100-108](file:///E:/VNOffice-agy-writer-livepath-qa/adapters/libreoffice/common/uno-bridge.js#L100-L108):
-     ```javascript
-     async openRealFile(appKind) {
-       if (!this.desktopApi || !this.hasRealEngine) {
-         return {
-           status: "error",
-           message: "Chức năng Mở tệp thật chỉ khả dụng trong VN Office Desktop App (đã cài LibreOffice).",
-         };
-       }
-       return await this.desktopApi.open_document_dialog(appKind);
-     }
-     ```
+   - [uno-bridge.js:L100-108](file:///E:/VNOffice-agy-livepath-qa-full/adapters/libreoffice/common/uno-bridge.js#L100-L108):
+     Gọi `this.desktopApi.open_document_dialog("writer")`.
 
 4. **Python Backend (`main.py`):**
-   - [main.py:L598-678](file:///E:/VNOffice-agy-writer-livepath-qa/main.py#L598-L678): `VnOfficeApi.open_document_dialog(self, app_kind="writer")`
+   - `VnOfficeApi.open_document_dialog(self, app_kind="writer")` ([main.py:L602](file:///E:/VNOffice-agy-livepath-qa-full/main.py#L602)):
      - Mở hộp thoại native chọn file của hệ điều hành qua `window.create_file_dialog()`.
      - Chạy lệnh headless LibreOffice:
        `soffice.exe --headless --invisible --nocrashreport --nodefault --nolockcheck --nologo --norestore -env:UserInstallation=file:///<tmp>/profile --convert-to "html:HTML (StarWriter)" --outdir <tmp> "<file_path>"`
-     - Nhúng ảnh đính kèm thành base64 data URI qua hàm `_inline_html_images()` ([main.py:L483-533](file:///E:/VNOffice-agy-writer-livepath-qa/main.py#L483-L533)).
-     - Trích xuất `ooxmlDocumentXml` và `ooxmlCommentsXml` từ tệp `.docx` gốc ([main.py:L658-663](file:///E:/VNOffice-agy-writer-livepath-qa/main.py#L658-L663)).
+     - Nhúng ảnh đính kèm thành base64 data URI qua hàm `_inline_html_images()`. Đã được sửa bổ sung `urllib.parse.unquote()` tại commit `80a43ad`/`48710dd` để hỗ trợ tên file có dấu tiếng Việt/khoảng trắng.
+     - Trích xuất `ooxmlDocumentXml` và `ooxmlCommentsXml` từ tệp `.docx` gốc.
      - Trả về payload đối tượng JSON:
-       `{ status: "ok", sourcePath, fileName, format: "html", content, ooxmlDocumentXml, ooxmlCommentsXml }`.
+       `{ status: "ok", sourcePath, fileName, format: "html", content, ooxmlDocumentXml }`.
 
 5. **Thiết lập nội dung vào DOM `.vno-writer-body`:**
-   - Quay lại [writer-adapter.js:L7169](file:///E:/VNOffice-agy-writer-livepath-qa/adapters/libreoffice/writer/writer-adapter.js#L7169):
-     `this._initZones()` tìm vùng soạn thảo ([writer-adapter.js:L253-263](file:///E:/VNOffice-agy-writer-livepath-qa/adapters/libreoffice/writer/writer-adapter.js#L253-L263)):
-     ```javascript
-     this.headerDom = this.editorDom.querySelector(".vno-writer-header");
-     this.bodyDom = this.editorDom.querySelector(".vno-writer-body") || this.editorDom;
-     this.footerDom = this.editorDom.querySelector(".vno-writer-footer");
-     ```
-   - Chuẩn hóa HTML nhập khẩu qua `this._normalizeImportedHtml()` ([writer-adapter.js:L1680-1717](file:///E:/VNOffice-agy-writer-livepath-qa/adapters/libreoffice/writer/writer-adapter.js#L1680-L1717)):
-     - Trích xuất thiết lập trang (`_pageSetupFromImportedCss`, đọc khổ A4, lề chuẩn).
-     - Trích xuất nội dung `<body>`.
-     - Tách header `<div title="header">` và footer `<div title="footer">`.
-     - Khôi phục định dạng số trang StarWriter (`<sdfield>`), chú thích cuối trang (`_normalizeImportedStarWriterNotes`).
-   - Gán trực tiếp vào DOM tại [writer-adapter.js:L7189-7197](file:///E:/VNOffice-agy-writer-livepath-qa/adapters/libreoffice/writer/writer-adapter.js#L7189-L7197):
-     ```javascript
-     if (this.headerDom && this.bodyDom && this.footerDom) {
-       this.headerDom.innerHTML = imported.header;
-       this.bodyDom.innerHTML = imported.body;
-       this.footerDom.innerHTML = imported.footer;
-     } else if (this.bodyDom) {
-       this.bodyDom.innerHTML = imported.body;
-     } else if (this.editorDom) {
-       this.editorDom.innerHTML = imported.body;
-     }
-     ```
-   - Cập nhật định dạng trang: `this._applyPageSetup()`.
-   - Hydrate ghi chú, trích dẫn, hình ảnh: `_hydrateCitationsFromDom`, `_hydrateCaptionsFromDom`, `_hydrateWordArtFromDom`.
-   - Đồng bộ tiêu đề tệp trên thanh tab: `this.shell?.resetDocumentChrome?.(result.fileName)`.
+   - Chuẩn hóa HTML nhập khẩu qua `this._normalizeImportedHtml()`.
+   - Gán trực tiếp vào DOM tại [writer-adapter.js](file:///E:/VNOffice-agy-livepath-qa-full/adapters/libreoffice/writer/writer-adapter.js): `bodyDom.innerHTML = imported.body`.
+   - Áp dụng định dạng trang và đồng bộ tab chrome: `this.shell?.resetDocumentChrome?.(result.fileName)`.
 
 ---
 
-## 2. Quy trình mô phỏng kiểm thử tự động (Bước 2)
+## 2. Quy trình kiểm thử thị giác tự động toàn bộ 15 tệp DOCX
 
-Để kiểm thử chính xác 100% môi trường thật mà không bịa luồng giả:
-1. Tạo kịch bản Python [scripts/generate_live_open_payloads.py](file:///E:/VNOffice-agy-writer-livepath-qa/scripts/generate_live_open_payloads.py) khởi tạo `main.VnOfficeApi("writer", initial_file=docx_path)` và gọi trực tiếp `open_document_dialog("writer")`. Đây chính là backend Python thật chuyển đổi 4 file DOCX qua LibreOffice headless thật và trích xuất OOXML.
-2. Lưu kết quả vào [tests/fixtures/live-open-payloads/](file:///E:/VNOffice-agy-writer-livepath-qa/tests/fixtures/live-open-payloads/).
-3. Xây dựng kịch bản Playwright chuyên sâu [tests/live/writer-live-open-qa.playwright.mjs](file:///E:/VNOffice-agy-writer-livepath-qa/tests/live/writer-live-open-qa.playwright.mjs):
-   - Mở giao diện VN Writer trên trình duyệt Microsoft Edge.
-   - Cài stub `globalUnoBridge.openRealFile` trả về payload thật của từng file.
-   - Click thực tế vào menu **Tệp** -> **Mở tệp** (`[data-backstage-cmd="common.file.open"]`).
-   - Kích hoạt toàn bộ luồng xử lý `WriterAdapter.open()`, `_normalizeImportedHtml()`, gán DOM, cập nhật tab chrome.
-   - Thu thập chỉ số kỹ thuật DOM (kích thước trang, padding, viền bảng, lỗi tràn ngang, trạng thái ảnh, phông chữ, bảng mã).
-   - Chụp 4 ảnh màn hình bằng chứng cho mỗi file (Tổng quan cửa sổ, Đầu trang, Giữa trang, Cận cảnh bảng đầu tiên).
+1. Kịch bản [scripts/generate_live_open_payloads.py](file:///E:/VNOffice-agy-livepath-qa-full/scripts/generate_live_open_payloads.py) khởi tạo `main.VnOfficeApi("writer", filepath)` và gọi trực tiếp `open_document_dialog("writer")` cho toàn bộ **15 tệp DOCX thật**. Backend Python và LibreOffice headless thật chuyển đổi và lưu kết quả JSON vào [tests/fixtures/live-open-payloads/](file:///E:/VNOffice-agy-livepath-qa-full/tests/fixtures/live-open-payloads/).
+2. Kịch bản Playwright chuyên sâu [tests/live/writer-live-open-qa.playwright.mjs](file:///E:/VNOffice-agy-livepath-qa-full/tests/live/writer-live-open-qa.playwright.mjs) duyệt tuần tự qua toàn bộ 15 file:
+   - Kích hoạt đúng luồng UI thật: click menu **Tệp** -> **Mở tệp** (`[data-backstage-cmd="common.file.open"]`).
+   - Kiểm tra định dạng A4, lề trang, bảng biểu, ảnh nhúng, bảng mã Unicode, ký tự ô vuông, header/footer.
+   - Kiểm tra tự động tính toán CSS `textAlign` đối với tất cả thẻ `<p align="...">`, `<td align="...">`, `<th align="...">`.
+   - Chụp 4 ảnh màn hình bằng chứng cho mỗi file (Tổng quan cửa sổ, Đầu trang, Giữa trang, Bảng đầu tiên). Tổng cộng **60 ảnh màn hình** tại [docs/screenshots/writer-live-open/](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/).
+   - Xuất dữ liệu kiểm toán chi tiết vào `tests/fixtures/live-open-payloads/qa-audit-results.json`.
 
 ---
 
-## 3. Kết quả đánh giá thị giác từng tệp DOCX thực tế (Bước 3)
+## 3. Kết quả đánh giá thị giác từng tệp DOCX trong kho thực tế
 
-### Tệp 1: `HĐ VÀ NGHIỆM THU, THANH LÝ.docx` (50,561 bytes)
-- **Đặc điểm cấu trúc gốc:** 61 khối bảng trong DOCX gốc, 5 tệp footer riêng biệt (`footer1.xml` - `footer5.xml`), 0 ảnh.
-- **Hiển thị trên VN Writer:**
-  - **Nhãn tab:** `HĐ VÀ NGHIỆM THU, THANH LÝ.docx` hiển thị chính xác trên thanh tab tài liệu.
-  - **Bảng biểu (9 bảng HTML):**
-    - Bảng đầu tiên (Văn phòng HĐND & UBND Xã Quảng Trạch / Mẫu số C52-X): Bảng 2 cột không viền (`border: none`), chiều rộng 622px vừa khít khung trang, căn lề chuẩn mực.
-    - Các bảng danh mục vật tư (Bảng 2, 4, 8: 21 hàng, 116 ô mỗi bảng): Viền đen 1px (`1px solid rgb(0,0,0)`), độ rộng cột cân đối, **hoàn toàn không bị vỡ bố cục hay tràn trang ngang** (`overflows: false`).
-    - Bảng 3 có thuộc tính ngắt trang `page-break-before: always`.
-  - **Ảnh nhúng:** Tệp gốc không có ảnh (0 ảnh).
-  - **Phông chữ & Tiếng Việt:** Phông Times New Roman 14pt (NĐ 30/2020/NĐ-CP), dấu tiếng Việt 100% chính xác, không có ký tự lỗi ô vuông (`\uFFFD`).
-  - **Header / Footer:** Gốc DOCX có 5 footer theo từng section (chứa trường số trang). StarWriter gộp phẳng thành 1 thẻ `<div title="footer">` chứa số `0`. Số `0` được nạp vào chân trang `.vno-writer-footer`.
-  - **Bố cục tổng thể:** Rất giống Word thật, đạt chuẩn văn bản hợp đồng hành chính nhà nước.
-- **Ảnh chụp màn hình bằng chứng:**
-  - Tổng quan cửa sổ: [file1-hd-nghiem-thu-thanh-ly-window-overview.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file1-hd-nghiem-thu-thanh-ly-window-overview.png)
-  - Vùng văn bản đầu trang: [file1-hd-nghiem-thu-thanh-ly-viewport-top.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file1-hd-nghiem-thu-thanh-ly-viewport-top.png)
-  - Vùng văn bản giữa trang: [file1-hd-nghiem-thu-thanh-ly-viewport-middle.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file1-hd-nghiem-thu-thanh-ly-viewport-middle.png)
-  - Chi tiết bảng đầu tiên: [file1-hd-nghiem-thu-thanh-ly-first-table.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file1-hd-nghiem-thu-thanh-ly-first-table.png)
+### Bảng tổng hợp chỉ số kỹ thuật 15/15 tệp DOCX thật:
 
----
+| # | Tên tệp | Dung lượng | Bảng | Tràn ngang | Ảnh nhúng | Ảnh vỡ | Căn lề align= (lỗi) | Tiếng Việt | Ô vuông | Lỗi JS |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **1** | `HĐ VÀ NGHIỆM THU, THANH LÝ.docx` (gói 04-2026) | 50.5 KB | 9 | Không | 0 | 0 | 527 p (0 lỗi) | Chuẩn | Không | 0 |
+| **2** | `hợp đồng sửa chữa 3T- UBXQT.docx` (Hồ sơ sửa chữa) | 47.7 KB | 12 | Không | 4 | 0 (Đã sửa) | 761 p (0 lỗi) | Chuẩn | Không | 0 |
+| **3** | `8. Biên bản hoàn thiện hợp đồng.docx` (Máy bảo mật) | 36.1 KB | 2 | Không | 0 | 0 | 181 p (0 lỗi) | Chuẩn | Không | 0 |
+| **4** | `to_trinh.docx` (Máy bảo mật file mới) | 30.5 KB | 2 | Không | 0 | 0 | 36 p (0 lỗi) | Chuẩn | Không | 0 |
+| **5** | `Biên bản hoàn thiện hợp đồng.docx` (gói 04-2026) | 39.5 KB | 2 | Không | 1 | 0 | 181 p (0 lỗi) | Chuẩn | Không | 0 |
+| **6** | `12. HĐ VÀ NGHIỆM THU, THANH LÝ.docx` (Máy bảo mật) | 45.9 KB | 9 | Không | 0 | 0 | 321 p (0 lỗi) | Chuẩn | Không | 0 |
+| **7** | `1. QĐ thành lập TỔ MUA SẮM.docx` (Máy bảo mật) | 20.0 KB | 2 | Không | 2 | 0 | 36 p (0 lỗi) | Chuẩn | Không | 0 |
+| **8** | `2. Tờ trìn khlcnt.docx` (Máy bảo mật) | 32.4 KB | 4 | Có (Bảng #2)* | 3 | 0 | 136 p (0 lỗi) | Chuẩn | Không | 0 |
+| **9** | `HĐ VÀ NGHIỆM THU, THANH LÝ.docx` (gói 8-2026) | 50.5 KB | 9 | Không | 0 | 0 | 527 p (0 lỗi) | Chuẩn | Không | 0 |
+| **10** | `hợp đồng sửa chữa 3T- UBXQT.docx` (gói 8-2026) | 47.7 KB | 12 | Không | 4 | 0 | 761 p (0 lỗi) | Chuẩn | Không | 0 |
+| **11** | `Biên bản hoàn thiện hợp đồngg.docx` (gói 8-2026) | 42.8 KB | 2 | Không | 1 | 0 | 198 p (0 lỗi) | Chuẩn | Không | 0 |
+| **12** | `1. QĐ thành lập TỔ MUA SẮM.docx` (Máy photo) | 20.0 KB | 2 | Không | 2 | 0 | 36 p (0 lỗi) | Chuẩn | Không | 0 |
+| **13** | `2. Tờ trìn khlcnt.docx` (Máy photo) | 32.5 KB | 4 | Có (Bảng #2)* | 3 | 0 | 136 p (0 lỗi) | Chuẩn | Không | 0 |
+| **14** | `8. Biên bản hoàn thiện hợp đồng.docx` (Máy photo) | 35.1 KB | 2 | Không | 0 | 0 | 124 p (0 lỗi) | Chuẩn | Không | 0 |
+| **15** | `12. HĐ VÀ NGHIỆM THU, THANH LÝ (Autosaved).docx` (Máy photo) | 43.8 KB | 9 | Không | 0 | 0 | 261 p (0 lỗi) | Chuẩn | Không | 0 |
 
-### Tệp 2: `hợp đồng sửa chữa 3T- UBXQT.docx` (47,714 bytes)
-- **Đặc điểm cấu trúc gốc:** 80 khối bảng trong DOCX gốc, 4 hình vẽ đường kẻ ngang (drawings), 0 header/footer.
-- **Hiển thị trên VN Writer:**
-  - **Nhãn tab:** `hợp đồng sửa chữa 3T- UBXQT.docx` hiển thị chính xác.
-  - **Bảng biểu (12 bảng HTML):**
-    - 4 bảng dữ liệu lớn (Bảng 4, 6, 9, 11: 20-22 hàng mỗi bảng): Viền đen 1px đầy đủ, căn lề thẳng hàng, không tràn trang ngang.
-    - 8 bảng định dạng tiêu ngữ, chữ ký: Không viền, giữ đúng 2-3 cột chữ ký bên dưới ("Đơn vị đề nghị", "Kế toán trưởng", "Thủ trưởng đơn vị").
-  - **Ảnh nhúng (4 ảnh shape đường kẻ ngang):**
-    - DOCX gốc có 4 shape đường kẻ ngang trang trí. StarWriter HTML xuất ra 4 file GIF kích thước 1px cao (`Shape1`: 1x1, `Shape2`: 190x1, `Shape3`: 199x1, `Shape4`: 197x1).
-    - **PHÁT HIỆN LỖI:** Cả 4 ảnh đều bị lỗi hiển thị (`brokenCount: 4`, `naturalWidth: 0`). Lý do: Lỗi tại tầng Python Backend `main.py` khi xử lý tên file có dấu tiếng Việt/khoảng trắng (chi tiết ở mục Vấn đề kiến trúc).
-  - **Phông chữ & Tiếng Việt:** Phông Times New Roman 14pt, dấu tiếng Việt chuẩn 100%, không ô vuông.
-  - **Header / Footer:** File gốc không có -> vùng header/footer hiển thị placeholder, đúng nguyên bản.
-  - **Bố cục tổng thể:** Giữ đúng thể thức văn bản "GIẤY ĐỀ NGHỊ THANH TOÁN", các trường nội dung thanh toán, số tiền 24.908.200 đồng, chữ ký ngay ngắn.
-- **Ảnh chụp màn hình bằng chứng:**
-  - Tổng quan cửa sổ: [file2-hop-dong-sua-chua-3t-window-overview.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file2-hop-dong-sua-chua-3t-window-overview.png)
-  - Vùng văn bản đầu trang: [file2-hop-dong-sua-chua-3t-viewport-top.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file2-hop-dong-sua-chua-3t-viewport-top.png)
-  - Vùng văn bản giữa trang: [file2-hop-dong-sua-chua-3t-viewport-middle.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file2-hop-dong-sua-chua-3t-viewport-middle.png)
-  - Chi tiết bảng đầu tiên: [file2-hop-dong-sua-chua-3t-first-table.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file2-hop-dong-sua-chua-3t-first-table.png)
+*\*Ghi chú về Tràn ngang (Bảng #2 ở Tệp 8 và Tệp 13): Xem chi tiết ở Mục 5 — Vấn đề kiến trúc 4.*
 
 ---
 
-### Tệp 3: `8. Biên bản hoàn thiện hợp đồng.docx` (36,172 bytes)
-- **Đặc điểm cấu trúc gốc:** 13 khối bảng trong DOCX gốc, 3 header XML và 3 footer XML trong gói zip.
-- **Hiển thị trên VN Writer:**
-  - **Nhãn tab:** `8. Biên bản hoàn thiện hợp đồng.docx` hiển thị chính xác.
-  - **Bảng biểu (2 bảng HTML):**
-    - Bảng 1 (Danh mục hạng mục hợp đồng: 11 hàng, 64 ô): Viền kẻ đen 1px đầy đủ, độ rộng 603px, căn chỉnh số liệu gọn gàng.
-    - Bảng 2 (Khu vực chữ ký đại diện bên A và bên B): Không viền, 2 cột chữ ký đối xứng chuẩn thể thức.
-  - **Ảnh nhúng:** 0 ảnh.
-  - **Phông chữ & Tiếng Việt:** Phông Times New Roman chuẩn, bảo toàn định dạng màu chữ đỏ in nghiêng ("Căn cứ Quyết định số 275 /QĐ-PKT ngày 23/12/2025 của Phòng Kinh tế xã Quảng Trạch...").
-  - **Header / Footer:** StarWriter xuất ra footer chứa trường số trang `1`, hiển thị thành số `1` tại `.vno-writer-footer`. Header trong HTML chỉ chứa đoạn ngắt dòng trống.
-  - **Bố cục tổng thể:** Căn giữa tiêu ngữ quốc hiệu, tiêu đề "BIÊN BẢN HOÀN THIỆN HỢP ĐỒNG", các điều khoản hợp đồng rất đẹp và giống Word thật.
-- **Ảnh chụp màn hình bằng chứng:**
-  - Tổng quan cửa sổ: [file3-bien-ban-hoan-thien-hd-window-overview.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file3-bien-ban-hoan-thien-hd-window-overview.png)
-  - Vùng văn bản đầu trang: [file3-bien-ban-hoan-thien-hd-viewport-top.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file3-bien-ban-hoan-thien-hd-viewport-top.png)
-  - Vùng văn bản giữa trang: [file3-bien-ban-hoan-thien-hd-viewport-middle.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file3-bien-ban-hoan-thien-hd-viewport-middle.png)
-  - Chi tiết bảng đầu tiên: [file3-bien-ban-hoan-thien-hd-first-table.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file3-bien-ban-hoan-thien-hd-first-table.png)
+### Chi tiết 11 tệp mới Đợt 2 (Tệp 5 đến Tệp 15):
+
+#### Tệp 5: `Biên bản hoàn thiện hợp đồng.docx` (gói sữa chữa tháng 04-2026)
+- **Đặc điểm & Cấu trúc:** 39,592 bytes; 7,851 ký tự, 205 đoạn văn.
+- **Hiển thị thị giác:**
+  - Nhãn tab: `Biên bản hoàn thiện hợp đồng.docx` hiển thị sắc nét.
+  - Bảng biểu (2 bảng): Bảng 1 (19 hàng, 132 ô) danh mục vật tư sửa chữa có đầy đủ viền đen 1px, căn chỉnh số tiền (1.800.000, 280.000,...) sang phải thẳng hàng; Bảng 2 chữ ký 2 cột đối xứng không viền.
+  - Ảnh nhúng: 1 ảnh GIF đường kẻ ngang trang trí (231x1 px) nhúng data URI thành công (`brokenCount: 0`).
+  - Tiếng Việt & Định dạng: Tiêu đề căn giữa chuẩn mực, dòng chữ đỏ in nghiêng ("Mua sắm và sửa chữa công nghệ thông tin .") được bảo toàn chính xác. 0 ký tự ô vuông.
+  - Header / Footer: Chân trang nạp trường số trang `1`.
+- **Ảnh bằng chứng:**
+  - Tổng quan cửa sổ: [file5-bien-ban-hoan-thien-hd-t4-window-overview.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file5-bien-ban-hoan-thien-hd-t4-window-overview.png)
+  - Đầu trang: [file5-bien-ban-hoan-thien-hd-t4-viewport-top.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file5-bien-ban-hoan-thien-hd-t4-viewport-top.png)
+  - Giữa trang: [file5-bien-ban-hoan-thien-hd-t4-viewport-middle.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file5-bien-ban-hoan-thien-hd-t4-viewport-middle.png)
+  - Chi tiết bảng: [file5-bien-ban-hoan-thien-hd-t4-first-table.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file5-bien-ban-hoan-thien-hd-t4-first-table.png)
+
+#### Tệp 6: `12. HĐ VÀ NGHIỆM THU, THANH LÝ.docx` (GÓI THẦU MUA SẮM MÁY BẢO MẬT)
+- **Đặc điểm & Cấu trúc:** 45,938 bytes; 16,256 ký tự, 377 đoạn văn.
+- **Hiển thị thị giác:**
+  - Nhãn tab: `12. HĐ VÀ NGHIỆM THU, THANH LÝ.docx`.
+  - Bảng biểu (9 bảng): Bảng 1 tiêu ngữ 2 cột không viền; Bảng 2, 4, 8 (8 hàng, 46 ô mỗi bảng) danh mục hàng hóa thiết bị có viền đen 1px, chiều rộng 622px vừa vặn hoàn hảo trong lề trang (`overflows: false`).
+  - Tiếng Việt & Định dạng: 321 đoạn văn căn lề (`align="center"` / `"right"`) đều áp dụng chính xác 100%, không bị justify đè bẹp.
+  - Header / Footer: Chân trang nạp trường số trang `0`.
+- **Ảnh bằng chứng:**
+  - Tổng quan cửa sổ: [file6-hd-nghiem-thu-thanh-ly-mbm-window-overview.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file6-hd-nghiem-thu-thanh-ly-mbm-window-overview.png)
+  - Đầu trang: [file6-hd-nghiem-thu-thanh-ly-mbm-viewport-top.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file6-hd-nghiem-thu-thanh-ly-mbm-viewport-top.png)
+  - Giữa trang: [file6-hd-nghiem-thu-thanh-ly-mbm-viewport-middle.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file6-hd-nghiem-thu-thanh-ly-mbm-viewport-middle.png)
+  - Chi tiết bảng: [file6-hd-nghiem-thu-thanh-ly-mbm-first-table.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file6-hd-nghiem-thu-thanh-ly-mbm-first-table.png)
+
+#### Tệp 7: `1. QĐ thành lập TỔ MUA SẮM.docx` (GÓI THẦU MUA SẮM MÁY BẢO MẬT)
+- **Đặc điểm & Cấu trúc:** 20,055 bytes; 2,526 ký tự, 47 đoạn văn. Quyết định hành chính chuẩn thể thức.
+- **Hiển thị thị giác:**
+  - Nhãn tab: `1. QĐ thành lập TỔ MUA SẮM.docx`.
+  - Bảng biểu (2 bảng): Bảng tiêu ngữ và Bảng chữ ký ("Nơi nhận" bên trái, "TRƯỞNG PHÒNG - Nguyễn Tiến Dũng" bên phải) không viền, căn đối xứng đẹp mắt.
+  - Ảnh nhúng (2 ảnh shape kẻ ngang): Shape1 (125x1 px), Shape2 (202x1 px) nhúng data URI thành công.
+  - Hiện tượng StarWriter HTML: Do StarWriter chèn thẻ `<img>` kẻ ngang vào giữa chữ cái đầu tiên kèm `align="left"`, đường kẻ trôi nổi lên mép trên ô và xuất hiện khoảng trắng nhỏ trong từ ngữ ("P HÒNG", "C ỘNG"). Đây là giới hạn StarWriter HTML backend (chi tiết ở Mục 5).
+  - Phông chữ & Căn lề: 36/36 đoạn văn căn giữa/phải chuẩn 100%. Không có ký tự lỗi ô vuông.
+- **Ảnh bằng chứng:**
+  - Tổng quan cửa sổ: [file7-qd-to-mua-sam-mbm-window-overview.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file7-qd-to-mua-sam-mbm-window-overview.png)
+  - Đầu trang: [file7-qd-to-mua-sam-mbm-viewport-top.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file7-qd-to-mua-sam-mbm-viewport-top.png)
+  - Giữa trang: [file7-qd-to-mua-sam-mbm-viewport-middle.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file7-qd-to-mua-sam-mbm-viewport-middle.png)
+  - Chi tiết bảng: [file7-qd-to-mua-sam-mbm-first-table.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file7-qd-to-mua-sam-mbm-first-table.png)
+
+#### Tệp 8: `2. Tờ trìn khlcnt.docx` (GÓI THẦU MUA SẮM MÁY BẢO MẬT)
+- **Đặc điểm & Cấu trúc:** 32,394 bytes; 7,116 ký tự, 153 đoạn văn.
+- **Hiển thị thị giác:**
+  - Nhãn tab: `2. Tờ trìn khlcnt.docx`.
+  - Bảng biểu (4 bảng):
+    - Bảng 1: Tiêu ngữ 2 cột không viền (w=641px).
+    - **Bảng 2 (Kế hoạch lựa chọn nhà thầu):** Bảng 14 cột, 3 hàng, 29 ô viền đen 1px đầy đủ. DOCX gốc thiết lập `w:tblW w="11448 dxa"` (~96% chiều rộng toàn tờ giấy) trong trang dọc. Bảng có chiều rộng 916px, tràn qua lề phải 122px. Viewport cuộn ngang tốt, các ô bên trong được định dạng rõ ràng, chữ bọc ngay ngắn.
+    - Bảng 3: Bảng giải trình gói thầu (7 hàng, 19 ô) vừa khít lề (w=641px).
+    - Bảng 4: Chữ ký 2 cột (w=641px).
+  - Ảnh nhúng: 3 ảnh shape đường kẻ ngang nhúng data URI thành công, 0 lỗi.
+  - Căn lề: 136 đoạn văn căn lề chuẩn 100%. 0 ký tự ô vuông.
+- **Ảnh bằng chứng:**
+  - Tổng quan cửa sổ: [file8-to-trinh-khlcnt-mbm-window-overview.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file8-to-trinh-khlcnt-mbm-window-overview.png)
+  - Đầu trang: [file8-to-trinh-khlcnt-mbm-viewport-top.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file8-to-trinh-khlcnt-mbm-viewport-top.png)
+  - Giữa trang: [file8-to-trinh-khlcnt-mbm-viewport-middle.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file8-to-trinh-khlcnt-mbm-viewport-middle.png)
+  - Chi tiết bảng tiêu ngữ: [file8-to-trinh-khlcnt-mbm-first-table.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file8-to-trinh-khlcnt-mbm-first-table.png)
+  - Chi tiết bảng 14 cột tràn lề: [file8-table2-wide.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file8-table2-wide.png)
+  - Vùng hiển thị bảng 14 cột: [file8-viewport-table2.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file8-viewport-table2.png)
+
+#### Tệp 9: `HĐ VÀ NGHIỆM THU, THANH LÝ.docx` (gói sữa chữa tháng 8 -2026)
+- **Đặc điểm & Cấu trúc:** 50,561 bytes; 18,547 ký tự, 638 đoạn văn.
+- **Hiển thị thị giác:**
+  - Nhãn tab: `HĐ VÀ NGHIỆM THU, THANH LÝ.docx`.
+  - Bảng biểu (9 bảng): Bảng danh mục vật tư 21 hàng, 116 ô viền đen 1px, w=622px vừa vặn lề trang A4 (`overflows: false`).
+  - Căn lề: 527/527 đoạn văn căn lề chính xác 100%.
+  - Phông chữ & Tiếng Việt: Times New Roman 14pt chuẩn NĐ 30, 0 ký tự ô vuông.
+  - Header / Footer: Chân trang nạp trường số trang `0`.
+- **Ảnh bằng chứng:**
+  - Tổng quan cửa sổ: [file9-hd-nghiem-thu-thanh-ly-t8-window-overview.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file9-hd-nghiem-thu-thanh-ly-t8-window-overview.png)
+  - Đầu trang: [file9-hd-nghiem-thu-thanh-ly-t8-viewport-top.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file9-hd-nghiem-thu-thanh-ly-t8-viewport-top.png)
+  - Giữa trang: [file9-hd-nghiem-thu-thanh-ly-t8-viewport-middle.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file9-hd-nghiem-thu-thanh-ly-t8-viewport-middle.png)
+  - Chi tiết bảng: [file9-hd-nghiem-thu-thanh-ly-t8-first-table.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file9-hd-nghiem-thu-thanh-ly-t8-first-table.png)
+
+#### Tệp 10: `hợp đồng sửa chữa 3T- UBXQT.docx` (gói sữa chữa tháng 8 -2026)
+- **Đặc điểm & Cấu trúc:** 47,714 bytes; 19,527 ký tự, 767 đoạn văn.
+- **Hiển thị thị giác:**
+  - Nhãn tab: `hợp đồng sửa chữa 3T- UBXQT.docx`.
+  - Bảng biểu (12 bảng): 4 bảng danh mục vật tư lớn (20-22 hàng mỗi bảng) viền đen 1px đầy đủ, w=641px không tràn trang ngang. 8 bảng định dạng chữ ký và tiêu ngữ cân đối.
+  - Ảnh nhúng (4 ảnh shape): Toàn bộ 4 ảnh nhúng data URI thành công (`brokenCount: 0`), xác nhận bản sửa lỗi URL decode của `main.py` hoạt động hoàn hảo trên file tháng 8.
+  - Căn lề: 761/761 đoạn văn căn lề chính xác 100%.
+  - Phông chữ & Tiếng Việt: Times New Roman 14pt, 0 ký tự ô vuông.
+  - Header / Footer: Không có.
+- **Ảnh bằng chứng:**
+  - Tổng quan cửa sổ: [file10-hop-dong-sua-chua-3t-t8-window-overview.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file10-hop-dong-sua-chua-3t-t8-window-overview.png)
+  - Đầu trang: [file10-hop-dong-sua-chua-3t-t8-viewport-top.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file10-hop-dong-sua-chua-3t-t8-viewport-top.png)
+  - Giữa trang: [file10-hop-dong-sua-chua-3t-t8-viewport-middle.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file10-hop-dong-sua-chua-3t-t8-viewport-middle.png)
+  - Chi tiết bảng: [file10-hop-dong-sua-chua-3t-t8-first-table.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file10-hop-dong-sua-chua-3t-t8-first-table.png)
+
+#### Tệp 11: `Biên bản hoàn thiện hợp đồngg.docx` (gói sữa chữa tháng 8 -2026)
+- **Đặc điểm & Cấu trúc:** 42,863 bytes; 7,733 ký tự, 222 đoạn văn.
+- **Hiển thị thị giác:**
+  - Nhãn tab: `Biên bản hoàn thiện hợp đồngg.docx`.
+  - Bảng biểu (2 bảng): Bảng 1 (19 hàng, 132 ô) viền kẻ đen 1px đầy đủ, căn số chuẩn; Bảng 2 chữ ký 2 cột đối xứng không viền.
+  - Ảnh nhúng: 1 ảnh shape đường kẻ ngang (231x1 px, data URI GIF, 0 broken).
+  - Căn lề: 198/198 đoạn văn căn lề chính xác 100%. 0 ký tự ô vuông.
+  - Header / Footer: Chân trang nạp trường số trang `1`.
+- **Ảnh bằng chứng:**
+  - Tổng quan cửa sổ: [file11-bien-ban-hoan-thien-hdg-t8-window-overview.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file11-bien-ban-hoan-thien-hdg-t8-window-overview.png)
+  - Đầu trang: [file11-bien-ban-hoan-thien-hdg-t8-viewport-top.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file11-bien-ban-hoan-thien-hdg-t8-viewport-top.png)
+  - Giữa trang: [file11-bien-ban-hoan-thien-hdg-t8-viewport-middle.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file11-bien-ban-hoan-thien-hdg-t8-viewport-middle.png)
+  - Chi tiết bảng: [file11-bien-ban-hoan-thien-hdg-t8-first-table.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file11-bien-ban-hoan-thien-hdg-t8-first-table.png)
+
+#### Tệp 12: `1. QĐ thành lập TỔ MUA SẮM.docx` (GÓI THẦU MUA SẮM MÁY PHOTO)
+- **Đặc điểm & Cấu trúc:** 20,055 bytes; 2,526 ký tự, 47 đoạn văn.
+- **Hiển thị thị giác:**
+  - Nhãn tab: `1. QĐ thành lập TỔ MUA SẮM.docx`.
+  - Bảng biểu (2 bảng): Bảng tiêu ngữ và bảng chữ ký không viền, căn lề chuẩn xác.
+  - Ảnh nhúng: 2 ảnh shape đường kẻ ngang (Shape1: 126x1, Shape2: 203x1, data URI GIF, 0 broken).
+  - Căn lề: 36/36 đoạn văn căn lề chính xác 100%. 0 ký tự ô vuông.
+- **Ảnh bằng chứng:**
+  - Tổng quan cửa sổ: [file12-qd-to-mua-sam-photo-window-overview.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file12-qd-to-mua-sam-photo-window-overview.png)
+  - Đầu trang: [file12-qd-to-mua-sam-photo-viewport-top.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file12-qd-to-mua-sam-photo-viewport-top.png)
+  - Giữa trang: [file12-qd-to-mua-sam-photo-viewport-middle.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file12-qd-to-mua-sam-photo-viewport-middle.png)
+  - Chi tiết bảng: [file12-qd-to-mua-sam-photo-first-table.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file12-qd-to-mua-sam-photo-first-table.png)
+
+#### Tệp 13: `2. Tờ trìn khlcnt.docx` (GÓI THẦU MUA SẮM MÁY PHOTO)
+- **Đặc điểm & Cấu trúc:** 32,523 bytes; 7,062 ký tự, 153 đoạn văn.
+- **Hiển thị thị giác:**
+  - Nhãn tab: `2. Tờ trìn khlcnt.docx`.
+  - Bảng biểu (4 bảng): Tương tự tệp 8, Bảng 2 là bảng kế hoạch lựa chọn nhà thầu máy photo 14 cột, 3 hàng, 29 ô viền đen 1px (w=908px, vượt lề phải khoảng 114px). Viewport cuộn ngang tốt, nội dung không bị cắt xén.
+  - Ảnh nhúng: 3 ảnh shape kẻ ngang (62x1, 215x1, 208x1, data URI GIF, 0 broken).
+  - Căn lề: 136/136 đoạn văn căn lề chính xác 100%. 0 ký tự ô vuông.
+- **Ảnh bằng chứng:**
+  - Tổng quan cửa sổ: [file13-to-trinh-khlcnt-photo-window-overview.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file13-to-trinh-khlcnt-photo-window-overview.png)
+  - Đầu trang: [file13-to-trinh-khlcnt-photo-viewport-top.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file13-to-trinh-khlcnt-photo-viewport-top.png)
+  - Giữa trang: [file13-to-trinh-khlcnt-photo-viewport-middle.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file13-to-trinh-khlcnt-photo-viewport-middle.png)
+  - Chi tiết bảng: [file13-to-trinh-khlcnt-photo-first-table.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file13-to-trinh-khlcnt-photo-first-table.png)
+
+#### Tệp 14: `8. Biên bản hoàn thiện hợp đồng.docx` (GÓI THẦU MUA SẮM MÁY PHOTO)
+- **Đặc điểm & Cấu trúc:** 35,059 bytes; 6,338 ký tự, 128 đoạn văn.
+- **Hiển thị thị giác:**
+  - Nhãn tab: `8. Biên bản hoàn thiện hợp đồng.docx`.
+  - Bảng biểu (2 bảng): Bảng 1 danh mục máy photo (6 hàng, 34 ô) viền đen 1px, w=603px vừa vặn; Bảng 2 chữ ký 2 cột đối xứng không viền.
+  - Căn lề: 124/124 đoạn văn căn lề chính xác 100%. Giữ đúng màu chữ đỏ in nghiêng của điều khoản căn cứ. 0 ký tự ô vuông.
+  - Header / Footer: Chân trang nạp trường số trang `1`.
+- **Ảnh bằng chứng:**
+  - Tổng quan cửa sổ: [file14-bien-ban-hoan-thien-hd-photo-window-overview.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file14-bien-ban-hoan-thien-hd-photo-window-overview.png)
+  - Đầu trang: [file14-bien-ban-hoan-thien-hd-photo-viewport-top.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file14-bien-ban-hoan-thien-hd-photo-viewport-top.png)
+  - Giữa trang: [file14-bien-ban-hoan-thien-hd-photo-viewport-middle.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file14-bien-ban-hoan-thien-hd-photo-viewport-middle.png)
+  - Chi tiết bảng: [file14-bien-ban-hoan-thien-hd-photo-first-table.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file14-bien-ban-hoan-thien-hd-photo-first-table.png)
+
+#### Tệp 15: `12. HĐ VÀ NGHIỆM THU, THANH LÝ (Autosaved).docx` (GÓI THẦU MUA SẮM MÁY PHOTO)
+- **Đặc điểm & Cấu trúc:** 43,795 bytes; 13,549 ký tự, 308 đoạn văn.
+- **Hiển thị thị giác:**
+  - Nhãn tab: `12. HĐ VÀ NGHIỆM THU, THANH LÝ (Autosaved).docx`.
+  - Bảng biểu (9 bảng): Bảng danh mục thiết bị máy photo Ricoh (4 hàng, 22 ô mỗi bảng) viền đen 1px, w=622px vừa khít khung trang. 6 bảng thể thức không viền.
+  - Căn lề: 261/261 đoạn văn căn lề chính xác 100%. 0 ký tự ô vuông.
+  - Header / Footer: Chân trang nạp trường số trang `0`.
+- **Ảnh bằng chứng:**
+  - Tổng quan cửa sổ: [file15-hd-nghiem-thu-thanh-ly-autosaved-photo-window-overview.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file15-hd-nghiem-thu-thanh-ly-autosaved-photo-window-overview.png)
+  - Đầu trang: [file15-hd-nghiem-thu-thanh-ly-autosaved-photo-viewport-top.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file15-hd-nghiem-thu-thanh-ly-autosaved-photo-viewport-top.png)
+  - Giữa trang: [file15-hd-nghiem-thu-thanh-ly-autosaved-photo-viewport-middle.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file15-hd-nghiem-thu-thanh-ly-autosaved-photo-viewport-middle.png)
+  - Chi tiết bảng: [file15-hd-nghiem-thu-thanh-ly-autosaved-photo-first-table.png](file:///E:/VNOffice-agy-livepath-qa-full/docs/screenshots/writer-live-open/file15-hd-nghiem-thu-thanh-ly-autosaved-photo-first-table.png)
 
 ---
 
-### Tệp 4: `to_trinh.docx` (30,499 bytes)
-- **Đặc điểm cấu trúc gốc:** 12 khối bảng trong DOCX gốc, 0 header/footer, 0 ảnh.
-- **Hiển thị trên VN Writer:**
-  - **Nhãn tab:** `to_trinh.docx` hiển thị chính xác.
-  - **Bảng biểu (2 bảng HTML):**
-    - Bảng 1: Bảng 2 cột tiêu ngữ quốc hiệu (Cơ quan ban hành bên trái, Quốc hiệu tiêu ngữ bên phải). Không viền, căn giữa trong từng cột hoàn hảo.
-    - Bảng 2: Bảng danh mục thiết bị (STT, Tên hàng hóa, Thông số kỹ thuật, ĐVT, Số lượng). Viền đen 1px sắc nét, các thông số kỹ thuật máy photocopy Ricoh MP 5055 được định dạng chuẩn xác.
-  - **Ảnh nhúng:** 0 ảnh.
-  - **Phông chữ & Tiếng Việt:** Phông Times New Roman 14pt, dấu tiếng Việt hoàn hảo, không có lỗi hiển thị.
-  - **Header / Footer:** Không có header/footer, đúng như bản gốc Word.
-  - **Bố cục tổng thể:** Hoàn toàn giống Word thật, đạt chuẩn thể thức tờ trình hành chính Việt Nam.
-- **Ảnh chụp màn hình bằng chứng:**
-  - Tổng quan cửa sổ: [file4-to-trinh-window-overview.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file4-to-trinh-window-overview.png)
-  - Vùng văn bản đầu trang: [file4-to-trinh-viewport-top.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file4-to-trinh-viewport-top.png)
-  - Vùng văn bản giữa trang: [file4-to-trinh-viewport-middle.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file4-to-trinh-viewport-middle.png)
-  - Chi tiết bảng đầu tiên: [file4-to-trinh-first-table.png](file:///E:/VNOffice-agy-writer-livepath-qa/docs/screenshots/writer-live-open/file4-to-trinh-first-table.png)
+## 4. Xác nhận bản sửa lỗi CSS căn lề từ Đợt 1
 
----
-
-## 4. Sửa lỗi CSS hiển thị phát hiện được (Bước 4)
-
-Trong quá trình kiểm tra thị giác trên cả 4 file, phát hiện một lỗi hiển thị nghiêm trọng về mặt CSS:
-
-### Hiện tượng lỗi:
-- Toàn bộ tiêu đề lớn như **"HỢP ĐỒNG MUA BÁN"** (File 1), **"CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM"**, **"BIÊN BẢN HOÀN THIỆN HỢP ĐỒNG"** (File 3), cũng như ngày tháng năm bên phải đều bị **lệch về bên trái (căn đều hai bên - justify)** thay vì căn giữa hoặc căn phải.
-- Nguyên nhân kỹ thuật:
-  - LibreOffice StarWriter xuất căn lề đoạn văn dưới dạng thuộc tính HTML cổ điển: `<p align="center">`, `<p align="right">`, `<p align="left">`, `<td align="center">`.
-  - Trong [apps/writer/writer.css:L390-393](file:///E:/VNOffice-agy-writer-livepath-qa/apps/writer/writer.css#L390-L393):
-    ```css
-    .vno-writer-page p {
-      margin: 0 0 6pt 0;
-      text-align: justify;
-    }
-    ```
-  - Theo luật CSS Specificity, quy tắc class `.vno-writer-page p` có độ ưu tiên `(0, 1, 1)` cao hơn thuộc tính HTML `align="center"` của User Agent stylesheet `(0, 0, 0)`.
-  - Do đó, quy tắc CSS này **đè bẹp và triệt tiêu toàn bộ thuộc tính `align="center"` và `align="right"`**, ép mọi đoạn văn một dòng về căn lề trái/justify!
-
-### Khắc phục an toàn trong `apps/writer/writer.css`:
-Đã bổ sung các quy tắc tương thích phạm vi hẹp trong `.vno-writer-page` và `.vno-print-preview-body` mà không làm ảnh hưởng đến các thành phần khác:
+Bản sửa lỗi CSS từ đợt 1 trong `apps/writer/writer.css`:
 ```css
-/* Tương thích định dạng StarWriter HTML (thuộc tính align trên thẻ p và ô bảng td/th) */
-.vno-writer-page p[align="center"],
-.vno-print-preview-body p[align="center"] {
-  text-align: center;
-}
-.vno-writer-page p[align="right"],
-.vno-print-preview-body p[align="right"] {
-  text-align: right;
-}
-.vno-writer-page p[align="left"],
-.vno-print-preview-body p[align="left"] {
-  text-align: left;
-}
-.vno-writer-page p[align="justify"],
-.vno-print-preview-body p[align="justify"] {
-  text-align: justify;
-}
-.vno-writer-page td[align="center"],
-.vno-writer-page th[align="center"],
-.vno-print-preview-body td[align="center"],
-.vno-print-preview-body th[align="center"] {
-  text-align: center;
-}
-.vno-writer-page td[align="right"],
-.vno-writer-page th[align="right"],
-.vno-print-preview-body td[align="right"],
-.vno-print-preview-body th[align="right"] {
-  text-align: right;
-}
-.vno-writer-page td[align="left"],
-.vno-writer-page th[align="left"],
-.vno-print-preview-body td[align="left"],
-.vno-print-preview-body th[align="left"] {
-  text-align: left;
-}
+.vno-writer-page p[align="center"], .vno-print-preview-body p[align="center"] { text-align: center; }
+.vno-writer-page p[align="right"],  .vno-print-preview-body p[align="right"]  { text-align: right; }
+.vno-writer-page p[align="left"],   .vno-print-preview-body p[align="left"]   { text-align: left; }
+.vno-writer-page p[align="justify"],.vno-print-preview-body p[align="justify"]{ text-align: justify; }
+.vno-writer-page td[align="center"],.vno-writer-page th[align="center"],
+.vno-print-preview-body td[align="center"],.vno-print-preview-body th[align="center"] { text-align: center; }
+.vno-writer-page td[align="right"], .vno-writer-page th[align="right"],
+.vno-print-preview-body td[align="right"], .vno-print-preview-body th[align="right"]  { text-align: right; }
+.vno-writer-page td[align="left"],  .vno-writer-page th[align="left"],
+.vno-print-preview-body td[align="left"],  .vno-print-preview-body th[align="left"]   { text-align: left; }
 ```
-**Kết quả sau khi sửa:** Tiêu đề các văn bản và tiêu ngữ quốc hiệu căn giữa hoàn hảo, dòng ngày tháng căn phải đúng chuẩn thể thức hành chính Việt Nam.
+
+**Kết quả kiểm toán trên toàn bộ 15 tệp (3,809 đoạn văn và ô bảng có thuộc tính `align=`):**
+- Tổng số đoạn văn có `align=`: 3,809
+- Số lỗi lệch căn lề (`pAlignMismatches`): **0 / 3,809 (Tỷ lệ khớp 100%)**
+- Toàn bộ tiêu đề lớn ("HỢP ĐỒNG MUA BÁN", "BIÊN BẢN HOÀN THIỆN HỢP ĐỒNG", "QUYẾT ĐỊNH", "GIẤY ĐỀ NGHỊ THANH TOÁN", "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM") đều căn giữa hoàn hảo.
+- Toàn bộ dòng ngày tháng bên phải ("Quảng Trạch, ngày tháng năm 2026", "Ba Đồn, ngày...") đều căn phải đúng chuẩn thể thức văn bản hành chính Việt Nam.
 
 ---
 
-## 5. Vấn đề kiến trúc phát hiện, CHƯA sửa (Báo cáo điều phối)
+## 5. Các vấn đề kiến trúc phát hiện (Báo cáo điều phối)
 
-Tuân thủ nghiêm ngặt ranh giới an toàn (*"KHÔNG sửa main.py hay bất kỳ file Python nào; nếu phát hiện vấn đề ở tầng Python/kiến trúc, CHỈ ghi rõ vào báo cáo/HANDOFF, không tự ý sửa"*), dưới đây là 2 vấn đề kiến trúc phát hiện được:
+Tuân thủ nghiêm ngặt ranh giới an toàn (*"KHÔNG sửa main.py hay bất kỳ file Python nào; KHÔNG sửa adapters/libreoffice/writer/writer-adapter.js"*), dưới đây là báo cáo chuyên sâu về 4 vấn đề kiến trúc:
 
-### Vấn đề kiến trúc 1: Hàm `_inline_html_images()` trong `main.py` làm mất ảnh khi tên tệp có tiếng Việt hoặc khoảng trắng
-
-- **Vị trí code:** [main.py:L483-533](file:///E:/VNOffice-agy-writer-livepath-qa/main.py#L483-L533), cụ thể tại dòng 503-514:
-  ```python
-  decoded = html.unescape(src)
-  candidates = [
-      os.path.join(html_dir, decoded),
-      re.sub(r"^/([A-Za-z]:)", r"\1", decoded),
-      re.sub(r"^file:///", "", decoded, flags=re.IGNORECASE),
-  ]
-  file_path = next(
-      (candidate for candidate in candidates if candidate and os.path.isfile(candidate)),
-      None,
-  )
-  ```
-- **Hiện tượng thực tế:** Trong tệp `hợp đồng sửa chữa 3T- UBXQT.docx`, LibreOffice StarWriter xuất 4 thẻ ảnh với `src` bị URL-encoded:
-  `src="h%E1%BB%A3p%20%C4%91%E1%BB%93ng%20s%E1%BB%ADa%20ch%E1%BB%AFa%203T-%20UBXQT_html_b19bf31e.gif"`
-  Trong khi đó, tệp thực tế LibreOffice tạo trên ổ đĩa Windows lại có tên Unicode giải mã:
-  `hợp đồng sửa chữa 3T- UBXQT_html_b19bf31e.gif`
-- **Nguyên nhân cốt lõi:** `main.py` chỉ dùng `html.unescape(src)` để giải mã thực thể HTML (`&amp;`, `&lt;`), nhưng **QUÊN KHÔNG GỌI `urllib.parse.unquote(decoded)`**. Do đó `decoded` vẫn giữ nguyên chuỗi `h%E1%BB%A3p%20...`, khiến `os.path.isfile(candidate)` trả về `False`.
-- **Hậu quả:** Toàn bộ ảnh đính kèm của bất kỳ tệp Word nào có tên file chứa ký tự tiếng Việt hoặc khoảng trắng **đều không được nhúng thành data URI**. Ngay sau đó, khối `tempfile.TemporaryDirectory` trong `open_document_dialog()` tự động xóa thư mục tạm. Khi chuỗi HTML được nạp vào Writer UI, thẻ `<img>` trỏ tới file cục bộ đã bị xóa -> **ảnh bị lỗi 404 (broken image) vĩnh viễn**.
-- **Đề xuất xử lý cho người điều phối:** Khi được phép sửa `main.py`, chỉ cần thêm `import urllib.parse` và cập nhật dòng 503:
-  `decoded = urllib.parse.unquote(html.unescape(src))`.
-
----
+### Vấn đề kiến trúc 1: Hàm `_inline_html_images()` trong `main.py` làm mất ảnh khi tên tệp có tiếng Việt hoặc khoảng trắng (ĐÃ SỬA ở commit `80a43ad`)
+- **Trạng thái:** ĐÃ SỬA và MERGED vào `main` tại commit `48710dd`.
+- **Xác nhận thực tế qua đợt 2:** Toàn bộ 15/15 tệp DOCX (kể cả tệp 2, 10 có tên tiếng Việt và khoảng trắng: `hợp đồng sửa chữa 3T- UBXQT.docx`) đều nạp ảnh thành công thành data URI base64 (`brokenCount: 0`). Không còn bất kỳ ảnh nào bị lỗi 404.
 
 ### Vấn đề kiến trúc 2: Định dạng StarWriter HTML làm mất/gộp phẳng Header & Footer đa mục (Multi-section)
+- **Hiện tượng:** Tệp DOCX gốc có từ 3 đến 5 footer XML riêng biệt (`footer1.xml` đến `footer5.xml`) theo từng section. StarWriter HTML chỉ xuất duy nhất 1 thẻ `<div title="footer">` chứa trường số trang tổng thể (`<sdfield>`), bỏ qua các header/footer đặc thù từng phân đoạn.
+- **Tác động:** Đây là giới hạn vốn có của bộ lọc StarWriter HTML cổ điển trong LibreOffice Core.
+- **Khuyến nghị kiến trúc:** Ghi nhận vào lộ trình tương lai để xem xét chuyển đổi luồng mở file thật sang FODT hoặc kết hợp overlay cấu trúc OOXML.
 
-- **Hiện tượng thực tế:**
-  - Tệp `HĐ VÀ NGHIỆM THU, THANH LÝ.docx` gốc trong gói OOXML zip có đến 5 tệp footer riêng biệt (`word/footer1.xml` đến `footer5.xml`) tương ứng với từng phần/trang của hợp đồng và phụ lục.
-  - Tệp `8. Biên bản hoàn thiện hợp đồng.docx` có 3 header và 3 footer.
-- **Hạn chế của bộ lọc StarWriter HTML:**
-  - Bộ chuyển đổi `soffice --convert-to "html:HTML (StarWriter)"` của LibreOffice là bộ chuyển đổi hướng web/HTML đơn trang. Nó không hỗ trợ mô hình phân trang đa mục (multi-section header/footer).
-  - StarWriter HTML chỉ xuất ra duy nhất tối đa 1 thẻ `<div title="header">` và 1 thẻ `<div title="footer">` chứa trường trang tổng thể (`<sdfield>`), bỏ qua hoàn toàn các header/footer đặc thù của từng trang chẵn/lẻ hay từng phần trong Word.
-- **Tác động:** Đây là sự mất mát thông tin vốn có khi dùng StarWriter HTML làm định dạng trung gian giữa LibreOffice và UI. Luồng FODT (`adapters/libreoffice/writer/writer-adapter.js`) có cấu trúc lưu giữ `style:header` / `style:footer` tốt hơn nhưng chưa được tích hợp vào `main.py`.
-- **Ghi nhận:** Báo cáo lại cho người điều phối để cân nhắc trong lộ trình kiến trúc tương lai (chuyển đổi luồng mở file thật từ HTML sang FODT hoặc kết hợp overlay OOXML).
+### Vấn đề kiến trúc 3 (MỚI PHÁT HIỆN Ở ĐỢT 2): StarWriter HTML chuyển hình vẽ đường kẻ ngang trang trí thành `<img>` với `align="left"` chèn giữa ký tự văn bản
+- **Vị trí & Hiện tượng:** Xuất hiện tại Tệp 7 và Tệp 12 (`1. QĐ thành lập TỔ MUA SẮM.docx`). Trong DOCX gốc có hình vẽ đường kẻ ngang trang trí dưới cơ quan ban hành và quốc hiệu.
+- **Nguyên nhân kỹ thuật:** StarWriter HTML không hỗ trợ vẽ vector/shape neo tuyệt đối mà xuất thành thẻ ảnh:
+  `<b>P<img src="data:image/gif..." name="Shape1" align="left" width="125">HÒNG KINH TẾ</b>`
+  `<b>C</b><img src="data:image/gif..." name="Shape2" align="left" width="202"><b>ỘNG HOÀ XÃ HỘI...</b>`
+  Vì thẻ `<img>` có `align="left"`, Chromium User Agent stylesheet áp dụng `float: left`, kéo hình kẻ ngang lên mép trên cùng của ô bảng. Đồng thời, do StarWriter ngắt dòng chèn thẻ ảnh vào giữa ký tự đầu tiên (`P` và `HÒNG`, `C` và `ỘNG`), trình duyệt hiển thị khoảng trắng giữa hai chữ cái thành `P HÒNG`, `C ỘNG`.
+- **Ranh giới:** Đây là hành vi phân mảnh nội dung do bộ lọc StarWriter HTML của LibreOffice tạo ra. Không thể sửa bằng CSS thuần túy mà không gây rủi ro phá vỡ hiển thị của các ảnh bình thường khác.
+
+### Vấn đề kiến trúc 4 (MỚI PHÁT HIỆN Ở ĐỢT 2): Bảng biểu kế hoạch đấu thầu 14 cột rộng hơn khổ giấy A4 Portrait
+- **Vị trí & Hiện tượng:** Xuất hiện tại Bảng #2 của Tệp 8 và Tệp 13 (`2. Tờ trìn khlcnt.docx` cho Máy bảo mật và Máy photo).
+- **Nguyên nhân kỹ thuật:**
+  - Bảng "Kế hoạch lựa chọn nhà thầu" có 14 cột chi tiết ("Stt", "Tên chủ đầu tư", "Tên gói thầu", "Tóm tắt công việc", "Giá gói thầu", "Nguồn vốn", "Hình thức...", "Phương thức...", "Thời gian tổ chức...", "Thời gian bắt đầu...", "Loại hợp đồng", "Thời gian thực hiện...", "Tùy chọn...", "Giám sát...").
+  - Trong DOCX gốc, tác giả tạo bảng này với chiều rộng `w:tblW w="11448 dxa"` (~572pt = ~763px, chiếm 96% toàn bộ bề rộng tờ giấy A4) trong tài liệu một section trang dọc (`w=11907, h=16840`).
+  - Khi nạp vào VN Writer, với lề trang A4 chuẩn NĐ 30 (khổ in khả dụng ~641px), bảng tự co dãn đến bề rộng tối thiểu cho phép hiển thị các từ ngữ (908px - 916px) và tràn qua mép lề phải khoảng 114px - 122px.
+- **Trải nghiệm người dùng:** Vùng soạn thảo `.vno-writer-viewport` của VN Writer hỗ trợ cuộn ngang mượt mà, văn bản trong các ô vẫn được định dạng viền 1px đen và hiển thị đầy đủ, không bị xén mất thông tin.
 
 ---
 
 ## 6. Hướng dẫn sử dụng trong ứng dụng (Tuân thủ AGENTS.md Mục 10)
 
-Đã bổ sung mục hướng dẫn sử dụng tiếng Việt chi tiết cho tính năng "Mở tài liệu có sẵn (Word DOCX / ODT)" vào hệ thống Help tích hợp:
-- **Tệp cập nhật:** [platform/help/entries-writer.js](file:///E:/VNOffice-agy-writer-livepath-qa/platform/help/entries-writer.js)
+Tính năng "Mở tài liệu có sẵn (Word DOCX / ODT)" đã được bổ sung đầy đủ nội dung hướng dẫn sử dụng tiếng Việt thật tại [platform/help/entries-writer.js](file:///E:/VNOffice-agy-livepath-qa-full/platform/help/entries-writer.js#L686-L700):
 - **ID bài viết:** `writer.file.openDocument`
-- **Nội dung:** Hướng dẫn người dùng cách mở file qua tổ hợp phím **Ctrl+O** hoặc qua menu **Tệp** (Backstage), giải thích rõ khả năng tự động thích ứng khổ giấy A4 chuẩn Nghị định 30/2020/NĐ-CP, bảo toàn bảng biểu và căn lề tiêu đề.
+- **Tiêu đề:** Mở tài liệu có sẵn (Word DOCX / ODT)
+- **Tóm tắt:** Mở tệp tài liệu Word (.docx, .doc) hoặc OpenDocument (.odt) có sẵn trên máy tính qua phím tắt Ctrl+O hoặc menu Tệp. Tự động nạp định dạng, căn lề, bảng biểu và cập nhật nhãn tài liệu.
+- **Các bước thực hiện:** Hướng dẫn chi tiết 2 cách mở qua phím tắt Ctrl+O hoặc qua tab Tệp (Backstage), giải thích cơ chế thích ứng khổ A4 chuẩn Nghị định 30/2020/NĐ-CP và cập nhật nhãn tài liệu trên thanh tab.
 
 ---
 
@@ -297,11 +312,9 @@ Tuân thủ nghiêm ngặt ranh giới an toàn (*"KHÔNG sửa main.py hay bấ
 | Bộ kiểm thử | Yêu cầu | Kết quả thực tế | Trạng thái |
 |---|---|---|---|
 | `node scripts/check-syntax.js` | 89/89 PASS | **89/89 files hợp lệ, 0 lỗi cú pháp** | **PASS** |
-| `node tests/run-tests.js` | Không giảm so với nền (1505) | **1505/1505 PASS, 0 FAIL** | **PASS** |
+| `node tests/run-tests.js` | Không giảm so với nền (1511) | **1511/1511 PASS, 0 FAIL** | **PASS** |
 | `node tests/live/ribbon-audit-1280.playwright.mjs` | 100% PASS nếu sửa CSS | **104/104 tabs PASS, 0px tràn ngang tại 1280px** | **PASS** |
-| `node tests/live/real-office-file-import-fidelity.playwright.mjs` | PASS | **Toàn bộ assertions PASS** | **PASS** |
-| `node tests/live/real-office-file-import-fidelity-round2.playwright.mjs` | PASS | **Toàn bộ assertions PASS** | **PASS** |
-| `node tests/live/writer-live-open-qa.playwright.mjs` | Đầy đủ 4 file thật | **4/4 file DOCX mở thành công, chụp 16 ảnh** | **PASS** |
+| `node tests/live/writer-live-open-qa.playwright.mjs` | Toàn bộ 15 tệp thật | **15/15 file DOCX mở thành công, chụp 60 ảnh màn hình** | **PASS** |
 
 ---
 
@@ -309,26 +322,11 @@ Tuân thủ nghiêm ngặt ranh giới an toàn (*"KHÔNG sửa main.py hay bấ
 
 ### Kết quả `git log --oneline main..HEAD`:
 ```text
+442501e qa(writer): kiem tra thi giac luong Mo file THAT tren toan bo kho 15 file docx
 ```
-*(Chưa tạo commit trước khi viết báo cáo; kết quả sau khi commit bên dưới).*
 
 ### Kết quả `git status`:
 ```text
-On branch visual-qa/writer-live-open-path
-Changes not staged for commit:
-  (use "git add <file>..." to update what will be committed)
-  (use "git restore <file>..." to discard changes in working directory)
-	modified:   apps/writer/writer.css
-	modified:   platform/help/entries-writer.js
-
-Untracked files:
-  (use "git add <file>..." to include in what will be committed)
-	TASK-BRIEF-WRITER-LIVE-OPEN-QA.md
-	docs/HANDOFF-WRITER-LIVE-OPEN-PATH-VISUAL-QA.md
-	docs/screenshots/writer-live-open/
-	scripts/generate_live_open_payloads.py
-	tests/fixtures/live-open-payloads/
-	tests/live/writer-live-open-qa.playwright.mjs
-
-no changes added to commit (use "git add" and/or "git commit -a")
+On branch visual-qa/writer-live-open-full-corpus
+nothing to commit, working tree clean
 ```

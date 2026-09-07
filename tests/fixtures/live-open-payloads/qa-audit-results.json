@@ -1,6 +1,6 @@
 [
   {
-    "fileName": "HĐ VÀ NGHIỆM THU, THANH LÝ.docx",
+    "fileName": "HĐ VÀ NGHIỆM THU, THANH LÝ.docx (gói 04-2026)",
     "docTitle": "",
     "tabTitle": "HĐ VÀ NGHIỆM THU, THANH LÝ.docx\n            ×",
     "page": {
@@ -126,6 +126,12 @@
       "brokenCount": 0,
       "details": []
     },
+    "alignment": {
+      "pAlignedCount": 527,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
+    },
     "typography": {
       "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
       "fontSize": "18.6667px",
@@ -143,15 +149,15 @@
       "footerHtml": "<p align=\"center\" style=\"line-height: 100%; margin-top: 0.63cm; margin-bottom: 0cm\">\n\t0</p>\n\t<p style=\"line-height: 100%; margin-bottom: 0cm\"><br>\n\n\t</p>"
     },
     "screenshots": {
-      "windowOverview": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file1-hd-nghiem-thu-thanh-ly-window-overview.png",
-      "viewportTop": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file1-hd-nghiem-thu-thanh-ly-viewport-top.png",
-      "viewportMiddle": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file1-hd-nghiem-thu-thanh-ly-viewport-middle.png",
-      "firstTable": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file1-hd-nghiem-thu-thanh-ly-first-table.png"
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file1-hd-nghiem-thu-thanh-ly-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file1-hd-nghiem-thu-thanh-ly-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file1-hd-nghiem-thu-thanh-ly-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file1-hd-nghiem-thu-thanh-ly-first-table.png"
     },
     "pageErrors": []
   },
   {
-    "fileName": "hợp đồng sửa chữa 3T- UBXQT.docx",
+    "fileName": "hợp đồng sửa chữa 3T- UBXQT.docx (Hồ sơ sữa chữa)",
     "docTitle": "",
     "tabTitle": "hợp đồng sửa chữa 3T- UBXQT.docx\n            ×",
     "page": {
@@ -307,61 +313,67 @@
     },
     "images": {
       "count": 4,
-      "brokenCount": 4,
+      "brokenCount": 0,
       "details": [
         {
           "index": 1,
-          "srcPrefix": "h%E1%BB%A3p%20%C4%91%E1%BB%93ng%20s%E1%BB%ADa...",
-          "srcTotalLen": 92,
-          "isDataUri": false,
-          "naturalWidth": 0,
-          "naturalHeight": 0,
+          "srcPrefix": "data:image/gif;base64,R0lGODlhAQABAPAAAAAA/wD...",
+          "srcTotalLen": 1142,
+          "isDataUri": true,
+          "naturalWidth": 1,
+          "naturalHeight": 1,
           "clientWidth": 1,
           "clientHeight": 1,
-          "isBroken": true,
+          "isBroken": false,
           "name": "Shape1",
           "alt": "Shape1"
         },
         {
           "index": 2,
-          "srcPrefix": "h%E1%BB%A3p%20%C4%91%E1%BB%93ng%20s%E1%BB%ADa...",
-          "srcTotalLen": 92,
-          "isDataUri": false,
-          "naturalWidth": 0,
-          "naturalHeight": 0,
+          "srcPrefix": "data:image/gif;base64,R0lGODlhvgABAPAAAAAA/wD...",
+          "srcTotalLen": 1170,
+          "isDataUri": true,
+          "naturalWidth": 190,
+          "naturalHeight": 1,
           "clientWidth": 190,
           "clientHeight": 1,
-          "isBroken": true,
+          "isBroken": false,
           "name": "Shape2",
           "alt": "Shape2"
         },
         {
           "index": 3,
-          "srcPrefix": "h%E1%BB%A3p%20%C4%91%E1%BB%93ng%20s%E1%BB%ADa...",
-          "srcTotalLen": 91,
-          "isDataUri": false,
-          "naturalWidth": 0,
-          "naturalHeight": 0,
+          "srcPrefix": "data:image/gif;base64,R0lGODlhxwABAPAAAAAA/wD...",
+          "srcTotalLen": 1170,
+          "isDataUri": true,
+          "naturalWidth": 199,
+          "naturalHeight": 1,
           "clientWidth": 199,
           "clientHeight": 1,
-          "isBroken": true,
+          "isBroken": false,
           "name": "Shape3",
           "alt": "Shape3"
         },
         {
           "index": 4,
-          "srcPrefix": "h%E1%BB%A3p%20%C4%91%E1%BB%93ng%20s%E1%BB%ADa...",
-          "srcTotalLen": 92,
-          "isDataUri": false,
-          "naturalWidth": 0,
-          "naturalHeight": 0,
+          "srcPrefix": "data:image/gif;base64,R0lGODlhxQABAPAAAAAA/wD...",
+          "srcTotalLen": 1170,
+          "isDataUri": true,
+          "naturalWidth": 197,
+          "naturalHeight": 1,
           "clientWidth": 197,
           "clientHeight": 1,
-          "isBroken": true,
+          "isBroken": false,
           "name": "Shape4",
           "alt": "Shape4"
         }
       ]
+    },
+    "alignment": {
+      "pAlignedCount": 761,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
     },
     "typography": {
       "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
@@ -380,15 +392,15 @@
       "footerHtml": ""
     },
     "screenshots": {
-      "windowOverview": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file2-hop-dong-sua-chua-3t-window-overview.png",
-      "viewportTop": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file2-hop-dong-sua-chua-3t-viewport-top.png",
-      "viewportMiddle": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file2-hop-dong-sua-chua-3t-viewport-middle.png",
-      "firstTable": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file2-hop-dong-sua-chua-3t-first-table.png"
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file2-hop-dong-sua-chua-3t-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file2-hop-dong-sua-chua-3t-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file2-hop-dong-sua-chua-3t-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file2-hop-dong-sua-chua-3t-first-table.png"
     },
     "pageErrors": []
   },
   {
-    "fileName": "8. Biên bản hoàn thiện hợp đồng.docx",
+    "fileName": "8. Biên bản hoàn thiện hợp đồng.docx (MÁY BẢO MẬT)",
     "docTitle": "",
     "tabTitle": "8. Biên bản hoàn thiện hợp đồng.docx\n            ×",
     "page": {
@@ -437,6 +449,12 @@
       "brokenCount": 0,
       "details": []
     },
+    "alignment": {
+      "pAlignedCount": 149,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
+    },
     "typography": {
       "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
       "fontSize": "18.6667px",
@@ -454,15 +472,15 @@
       "footerHtml": "<p align=\"center\" style=\"margin-bottom: 0cm\">1</p>\n\t<p class=\"western\" style=\"margin-bottom: 0cm; line-height: 100%; border: none; padding: 0cm\">\n\t<br>\n\n\t</p>"
     },
     "screenshots": {
-      "windowOverview": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file3-bien-ban-hoan-thien-hd-window-overview.png",
-      "viewportTop": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file3-bien-ban-hoan-thien-hd-viewport-top.png",
-      "viewportMiddle": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file3-bien-ban-hoan-thien-hd-viewport-middle.png",
-      "firstTable": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file3-bien-ban-hoan-thien-hd-first-table.png"
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file3-bien-ban-hoan-thien-hd-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file3-bien-ban-hoan-thien-hd-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file3-bien-ban-hoan-thien-hd-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file3-bien-ban-hoan-thien-hd-first-table.png"
     },
     "pageErrors": []
   },
   {
-    "fileName": "to_trinh.docx",
+    "fileName": "to_trinh.docx (MÁY BẢO MẬT file mới)",
     "docTitle": "",
     "tabTitle": "to_trinh.docx\n            ×",
     "page": {
@@ -511,6 +529,12 @@
       "brokenCount": 0,
       "details": []
     },
+    "alignment": {
+      "pAlignedCount": 20,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
+    },
     "typography": {
       "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
       "fontSize": "18.6667px",
@@ -528,10 +552,1490 @@
       "footerHtml": ""
     },
     "screenshots": {
-      "windowOverview": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file4-to-trinh-window-overview.png",
-      "viewportTop": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file4-to-trinh-viewport-top.png",
-      "viewportMiddle": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file4-to-trinh-viewport-middle.png",
-      "firstTable": "E:\\VNOffice-agy-writer-livepath-qa\\docs\\screenshots\\writer-live-open\\file4-to-trinh-first-table.png"
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file4-to-trinh-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file4-to-trinh-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file4-to-trinh-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file4-to-trinh-first-table.png"
+    },
+    "pageErrors": []
+  },
+  {
+    "fileName": "Biên bản hoàn thiện hợp đồng.docx (gói 04-2026)",
+    "docTitle": "",
+    "tabTitle": "Biên bản hoàn thiện hợp đồng.docx\n            ×",
+    "page": {
+      "width": 794,
+      "clientWidth": 792,
+      "paddingLeft": "113.4px",
+      "paddingRight": "75.6px",
+      "paddingTop": "37.8px",
+      "paddingBottom": "37.8px"
+    },
+    "bodySummary": {
+      "totalChars": 7713,
+      "paragraphCount": 206,
+      "headingCount": 0
+    },
+    "tables": {
+      "count": 2,
+      "anyOverflow": false,
+      "details": [
+        {
+          "index": 1,
+          "rows": 21,
+          "cellCount": 116,
+          "tblWidth": 603,
+          "tblScrollWidth": 602,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "737"
+        },
+        {
+          "index": 2,
+          "rows": 2,
+          "cellCount": 4,
+          "tblWidth": 603,
+          "tblScrollWidth": 603,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "637"
+        }
+      ]
+    },
+    "images": {
+      "count": 1,
+      "brokenCount": 0,
+      "details": [
+        {
+          "index": 1,
+          "srcPrefix": "data:image/gif;base64,R0lGODlh5wABAPAAAAAA/wD...",
+          "srcTotalLen": 1174,
+          "isDataUri": true,
+          "naturalWidth": 231,
+          "naturalHeight": 1,
+          "clientWidth": 230,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape1",
+          "alt": "Shape1"
+        }
+      ]
+    },
+    "alignment": {
+      "pAlignedCount": 181,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
+    },
+    "typography": {
+      "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
+      "fontSize": "18.6667px",
+      "lineHeight": "22.4px",
+      "hasVietnamese": true,
+      "hasCorruptedGlyphs": false,
+      "sampleSnippet": "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM Đ ộc lập – Tự do – Hạnh phúc BIÊN BẢN HOÀN THIỆN HỢP ĐỒNG Gói thầu: Mua sắm và sửa chữa công nghệ thông tin xã Căn "
+    },
+    "headerFooter": {
+      "hasHeader": false,
+      "headerText": "",
+      "headerHtml": "<p style=\"margin-bottom: 0.9cm\"><br>\n\n\t</p>",
+      "hasFooter": true,
+      "footerText": "1",
+      "footerHtml": "<p align=\"center\" style=\"margin-bottom: 0cm\">1</p>\n\t<p class=\"western\" style=\"margin-bottom: 0cm; line-height: 100%; border: none; padding: 0cm\">\n\t<br>\n\n\t</p>"
+    },
+    "screenshots": {
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file5-bien-ban-hoan-thien-hd-t4-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file5-bien-ban-hoan-thien-hd-t4-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file5-bien-ban-hoan-thien-hd-t4-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file5-bien-ban-hoan-thien-hd-t4-first-table.png"
+    },
+    "pageErrors": []
+  },
+  {
+    "fileName": "12. HĐ VÀ NGHIỆM THU, THANH LÝ.docx (MÁY BẢO MẬT)",
+    "docTitle": "",
+    "tabTitle": "12. HĐ VÀ NGHIỆM THU, THANH LÝ.docx\n            ×",
+    "page": {
+      "width": 794,
+      "clientWidth": 792,
+      "paddingLeft": "113.4px",
+      "paddingRight": "56.7px",
+      "paddingTop": "56.7px",
+      "paddingBottom": "49.1px"
+    },
+    "bodySummary": {
+      "totalChars": 16256,
+      "paragraphCount": 377,
+      "headingCount": 0
+    },
+    "tables": {
+      "count": 9,
+      "anyOverflow": false,
+      "details": [
+        {
+          "index": 1,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "643"
+        },
+        {
+          "index": 2,
+          "rows": 8,
+          "cellCount": 46,
+          "tblWidth": 622,
+          "tblScrollWidth": 621,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "634"
+        },
+        {
+          "index": 3,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "page-break-before: always",
+          "inlineWidth": "643"
+        },
+        {
+          "index": 4,
+          "rows": 8,
+          "cellCount": 46,
+          "tblWidth": 622,
+          "tblScrollWidth": 621,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "634"
+        },
+        {
+          "index": 5,
+          "rows": 2,
+          "cellCount": 5,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "712"
+        },
+        {
+          "index": 6,
+          "rows": 2,
+          "cellCount": 5,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "712"
+        },
+        {
+          "index": 7,
+          "rows": 1,
+          "cellCount": 3,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "601"
+        },
+        {
+          "index": 8,
+          "rows": 8,
+          "cellCount": 46,
+          "tblWidth": 622,
+          "tblScrollWidth": 621,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "634"
+        },
+        {
+          "index": 9,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "624"
+        }
+      ]
+    },
+    "images": {
+      "count": 0,
+      "brokenCount": 0,
+      "details": []
+    },
+    "alignment": {
+      "pAlignedCount": 321,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
+    },
+    "typography": {
+      "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
+      "fontSize": "18.6667px",
+      "lineHeight": "26.1333px",
+      "hasVietnamese": true,
+      "hasCorruptedGlyphs": false,
+      "sampleSnippet": "PHÒNG KINH TẾ XÃ QUẢNG TRẠCH Mã QHNS:1149132 Mẫu số: C52-X (Ban hành kèm theo Thông tư số 70/2019/TT-BTC ngày 03/10/2019 của Bộ Tài chính) HỢP ĐỒNG MU"
+    },
+    "headerFooter": {
+      "hasHeader": false,
+      "headerText": "",
+      "headerHtml": "",
+      "hasFooter": true,
+      "footerText": "0",
+      "footerHtml": "<p align=\"center\" style=\"line-height: 100%; margin-top: 0.63cm; margin-bottom: 0cm\">\n\t0</p>\n\t<p style=\"line-height: 100%; margin-bottom: 0cm\"><br>\n\n\t</p>"
+    },
+    "screenshots": {
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file6-hd-nghiem-thu-thanh-ly-mbm-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file6-hd-nghiem-thu-thanh-ly-mbm-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file6-hd-nghiem-thu-thanh-ly-mbm-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file6-hd-nghiem-thu-thanh-ly-mbm-first-table.png"
+    },
+    "pageErrors": []
+  },
+  {
+    "fileName": "1. QĐ thành lập TỔ MUA SẮM.docx (MÁY BẢO MẬT)",
+    "docTitle": "",
+    "tabTitle": "1. QĐ thành lập TỔ MUA SẮM.docx\n            ×",
+    "page": {
+      "width": 794,
+      "clientWidth": 792,
+      "paddingLeft": "113.4px",
+      "paddingRight": "56.7px",
+      "paddingTop": "75.6px",
+      "paddingBottom": "75.6px"
+    },
+    "bodySummary": {
+      "totalChars": 2526,
+      "paragraphCount": 47,
+      "headingCount": 0
+    },
+    "tables": {
+      "count": 2,
+      "anyOverflow": false,
+      "details": [
+        {
+          "index": 1,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "681"
+        },
+        {
+          "index": 2,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "612"
+        }
+      ]
+    },
+    "images": {
+      "count": 2,
+      "brokenCount": 0,
+      "details": [
+        {
+          "index": 1,
+          "srcPrefix": "data:image/gif;base64,R0lGODlhfgABAPAAAAAA/wD...",
+          "srcTotalLen": 1166,
+          "isDataUri": true,
+          "naturalWidth": 126,
+          "naturalHeight": 1,
+          "clientWidth": 125,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape1",
+          "alt": "Shape1"
+        },
+        {
+          "index": 2,
+          "srcPrefix": "data:image/gif;base64,R0lGODlhywABAPAAAAAA/wD...",
+          "srcTotalLen": 1170,
+          "isDataUri": true,
+          "naturalWidth": 203,
+          "naturalHeight": 1,
+          "clientWidth": 202,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape2",
+          "alt": "Shape2"
+        }
+      ]
+    },
+    "alignment": {
+      "pAlignedCount": 36,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
+    },
+    "typography": {
+      "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
+      "fontSize": "18.6667px",
+      "lineHeight": "26.1333px",
+      "hasVietnamese": true,
+      "hasCorruptedGlyphs": false,
+      "sampleSnippet": "P HÒNG KINH TẾ XÃ QUẢNG TRẠCH Số: /QĐ-PKT C ỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM Độc lập - Tự do - Hạnh phúc Quảng Trạch, ngày tháng năm 2026 QUYẾT ĐỊN"
+    },
+    "headerFooter": {
+      "hasHeader": false,
+      "headerText": "",
+      "headerHtml": "",
+      "hasFooter": false,
+      "footerText": "",
+      "footerHtml": ""
+    },
+    "screenshots": {
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file7-qd-to-mua-sam-mbm-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file7-qd-to-mua-sam-mbm-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file7-qd-to-mua-sam-mbm-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file7-qd-to-mua-sam-mbm-first-table.png"
+    },
+    "pageErrors": []
+  },
+  {
+    "fileName": "2. Tờ trìn khlcnt.docx (MÁY BẢO MẬT)",
+    "docTitle": "",
+    "tabTitle": "2. Tờ trìn khlcnt.docx\n            ×",
+    "page": {
+      "width": 794,
+      "clientWidth": 792,
+      "paddingLeft": "75.6px",
+      "paddingRight": "75.6px",
+      "paddingTop": "56.7px",
+      "paddingBottom": "56.7px"
+    },
+    "bodySummary": {
+      "totalChars": 7116,
+      "paragraphCount": 153,
+      "headingCount": 0
+    },
+    "tables": {
+      "count": 4,
+      "anyOverflow": true,
+      "details": [
+        {
+          "index": 1,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 641,
+          "tblScrollWidth": 641,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "681"
+        },
+        {
+          "index": 2,
+          "rows": 3,
+          "cellCount": 29,
+          "tblWidth": 916,
+          "tblScrollWidth": 916,
+          "overflows": true,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "763"
+        },
+        {
+          "index": 3,
+          "rows": 7,
+          "cellCount": 19,
+          "tblWidth": 641,
+          "tblScrollWidth": 640,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "643"
+        },
+        {
+          "index": 4,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 641,
+          "tblScrollWidth": 641,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "612"
+        }
+      ]
+    },
+    "images": {
+      "count": 3,
+      "brokenCount": 0,
+      "details": [
+        {
+          "index": 1,
+          "srcPrefix": "data:image/gif;base64,R0lGODlhPgABAPAAAAAA/wD...",
+          "srcTotalLen": 1154,
+          "isDataUri": true,
+          "naturalWidth": 62,
+          "naturalHeight": 1,
+          "clientWidth": 62,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape1",
+          "alt": "Shape1"
+        },
+        {
+          "index": 2,
+          "srcPrefix": "data:image/gif;base64,R0lGODlh1wABAPAAAAAA/wD...",
+          "srcTotalLen": 1170,
+          "isDataUri": true,
+          "naturalWidth": 215,
+          "naturalHeight": 1,
+          "clientWidth": 214,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape2",
+          "alt": "Shape2"
+        },
+        {
+          "index": 3,
+          "srcPrefix": "data:image/gif;base64,R0lGODlh0AABAPAAAAAA/wD...",
+          "srcTotalLen": 1170,
+          "isDataUri": true,
+          "naturalWidth": 208,
+          "naturalHeight": 1,
+          "clientWidth": 207,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape3",
+          "alt": "Shape3"
+        }
+      ]
+    },
+    "alignment": {
+      "pAlignedCount": 136,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
+    },
+    "typography": {
+      "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
+      "fontSize": "18.6667px",
+      "lineHeight": "26.1333px",
+      "hasVietnamese": true,
+      "hasCorruptedGlyphs": false,
+      "sampleSnippet": "PHÒNG KINH TẾ XÃ QT T Ổ MUA SẮM Số: /TTr-TMS CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM Độc lập - Tự do - Hạnh phúc Quảng Trạch, ngày tháng năm 2026 TỜ TRÌNH "
+    },
+    "headerFooter": {
+      "hasHeader": false,
+      "headerText": "",
+      "headerHtml": "",
+      "hasFooter": false,
+      "footerText": "",
+      "footerHtml": ""
+    },
+    "screenshots": {
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file8-to-trinh-khlcnt-mbm-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file8-to-trinh-khlcnt-mbm-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file8-to-trinh-khlcnt-mbm-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file8-to-trinh-khlcnt-mbm-first-table.png"
+    },
+    "pageErrors": []
+  },
+  {
+    "fileName": "HĐ VÀ NGHIỆM THU, THANH LÝ.docx (gói 8 -2026)",
+    "docTitle": "",
+    "tabTitle": "HĐ VÀ NGHIỆM THU, THANH LÝ.docx\n            ×",
+    "page": {
+      "width": 794,
+      "clientWidth": 792,
+      "paddingLeft": "113.4px",
+      "paddingRight": "56.7px",
+      "paddingTop": "56.7px",
+      "paddingBottom": "49.1px"
+    },
+    "bodySummary": {
+      "totalChars": 18547,
+      "paragraphCount": 638,
+      "headingCount": 0
+    },
+    "tables": {
+      "count": 9,
+      "anyOverflow": false,
+      "details": [
+        {
+          "index": 1,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "643"
+        },
+        {
+          "index": 2,
+          "rows": 21,
+          "cellCount": 116,
+          "tblWidth": 622,
+          "tblScrollWidth": 621,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "737"
+        },
+        {
+          "index": 3,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "page-break-before: always",
+          "inlineWidth": "643"
+        },
+        {
+          "index": 4,
+          "rows": 21,
+          "cellCount": 116,
+          "tblWidth": 622,
+          "tblScrollWidth": 621,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "737"
+        },
+        {
+          "index": 5,
+          "rows": 2,
+          "cellCount": 5,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "712"
+        },
+        {
+          "index": 6,
+          "rows": 2,
+          "cellCount": 5,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "712"
+        },
+        {
+          "index": 7,
+          "rows": 1,
+          "cellCount": 3,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "601"
+        },
+        {
+          "index": 8,
+          "rows": 21,
+          "cellCount": 116,
+          "tblWidth": 622,
+          "tblScrollWidth": 621,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "737"
+        },
+        {
+          "index": 9,
+          "rows": 2,
+          "cellCount": 4,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "624"
+        }
+      ]
+    },
+    "images": {
+      "count": 0,
+      "brokenCount": 0,
+      "details": []
+    },
+    "alignment": {
+      "pAlignedCount": 527,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
+    },
+    "typography": {
+      "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
+      "fontSize": "18.6667px",
+      "lineHeight": "26.1333px",
+      "hasVietnamese": true,
+      "hasCorruptedGlyphs": false,
+      "sampleSnippet": "VĂN PHÒNG HĐND VÀ UBND XÃ QUẢNG TRẠCH Mã QHNS:1137264 Mẫu số: C52-X (Ban hành kèm theo Thông tư số 70/2019/TT-BTC ngày 03/10/2019 của Bộ Tài chính) HỢ"
+    },
+    "headerFooter": {
+      "hasHeader": false,
+      "headerText": "",
+      "headerHtml": "",
+      "hasFooter": true,
+      "footerText": "0",
+      "footerHtml": "<p align=\"center\" style=\"line-height: 100%; margin-top: 0.63cm; margin-bottom: 0cm\">\n\t0</p>\n\t<p style=\"line-height: 100%; margin-bottom: 0cm\"><br>\n\n\t</p>"
+    },
+    "screenshots": {
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file9-hd-nghiem-thu-thanh-ly-t8-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file9-hd-nghiem-thu-thanh-ly-t8-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file9-hd-nghiem-thu-thanh-ly-t8-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file9-hd-nghiem-thu-thanh-ly-t8-first-table.png"
+    },
+    "pageErrors": []
+  },
+  {
+    "fileName": "hợp đồng sửa chữa 3T- UBXQT.docx (gói 8 -2026)",
+    "docTitle": "",
+    "tabTitle": "hợp đồng sửa chữa 3T- UBXQT.docx\n            ×",
+    "page": {
+      "width": 794,
+      "clientWidth": 792,
+      "paddingLeft": "94.5px",
+      "paddingRight": "56.7px",
+      "paddingTop": "37.8px",
+      "paddingBottom": "22.7px"
+    },
+    "bodySummary": {
+      "totalChars": 19527,
+      "paragraphCount": 767,
+      "headingCount": 1
+    },
+    "tables": {
+      "count": 12,
+      "anyOverflow": false,
+      "details": [
+        {
+          "index": 1,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 641,
+          "tblScrollWidth": 641,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "559"
+        },
+        {
+          "index": 2,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 641,
+          "tblScrollWidth": 641,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "1106"
+        },
+        {
+          "index": 3,
+          "rows": 2,
+          "cellCount": 6,
+          "tblWidth": 641,
+          "tblScrollWidth": 641,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "593"
+        },
+        {
+          "index": 4,
+          "rows": 21,
+          "cellCount": 133,
+          "tblWidth": 641,
+          "tblScrollWidth": 640,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "735"
+        },
+        {
+          "index": 5,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 641,
+          "tblScrollWidth": 641,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "698"
+        },
+        {
+          "index": 6,
+          "rows": 22,
+          "cellCount": 136,
+          "tblWidth": 641,
+          "tblScrollWidth": 640,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "735"
+        },
+        {
+          "index": 7,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 641,
+          "tblScrollWidth": 641,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "698"
+        },
+        {
+          "index": 8,
+          "rows": 1,
+          "cellCount": 1,
+          "tblWidth": 641,
+          "tblScrollWidth": 641,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "648"
+        },
+        {
+          "index": 9,
+          "rows": 20,
+          "cellCount": 108,
+          "tblWidth": 641,
+          "tblScrollWidth": 640,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "735"
+        },
+        {
+          "index": 10,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 641,
+          "tblScrollWidth": 641,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "648"
+        },
+        {
+          "index": 11,
+          "rows": 20,
+          "cellCount": 108,
+          "tblWidth": 641,
+          "tblScrollWidth": 640,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "735"
+        },
+        {
+          "index": 12,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 641,
+          "tblScrollWidth": 641,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "633"
+        }
+      ]
+    },
+    "images": {
+      "count": 4,
+      "brokenCount": 0,
+      "details": [
+        {
+          "index": 1,
+          "srcPrefix": "data:image/gif;base64,R0lGODlhAQABAPAAAAAA/wD...",
+          "srcTotalLen": 1142,
+          "isDataUri": true,
+          "naturalWidth": 1,
+          "naturalHeight": 1,
+          "clientWidth": 1,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape1",
+          "alt": "Shape1"
+        },
+        {
+          "index": 2,
+          "srcPrefix": "data:image/gif;base64,R0lGODlhvgABAPAAAAAA/wD...",
+          "srcTotalLen": 1170,
+          "isDataUri": true,
+          "naturalWidth": 190,
+          "naturalHeight": 1,
+          "clientWidth": 190,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape2",
+          "alt": "Shape2"
+        },
+        {
+          "index": 3,
+          "srcPrefix": "data:image/gif;base64,R0lGODlhxwABAPAAAAAA/wD...",
+          "srcTotalLen": 1170,
+          "isDataUri": true,
+          "naturalWidth": 199,
+          "naturalHeight": 1,
+          "clientWidth": 199,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape3",
+          "alt": "Shape3"
+        },
+        {
+          "index": 4,
+          "srcPrefix": "data:image/gif;base64,R0lGODlhxQABAPAAAAAA/wD...",
+          "srcTotalLen": 1170,
+          "isDataUri": true,
+          "naturalWidth": 197,
+          "naturalHeight": 1,
+          "clientWidth": 197,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape4",
+          "alt": "Shape4"
+        }
+      ]
+    },
+    "alignment": {
+      "pAlignedCount": 761,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
+    },
+    "typography": {
+      "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
+      "fontSize": "18.6667px",
+      "lineHeight": "26.1333px",
+      "hasVietnamese": true,
+      "hasCorruptedGlyphs": false,
+      "sampleSnippet": "Đơn vị: Văn phòng HĐND và UBND Mã QHNS: 1137264 GIẤY ĐỀ NGHỊ THANH TOÁN Ba Đồn,Ngày ... tháng.... năm 2026 Kính gửi: - VĂN PHÒNG HĐND VÀ UBND XÃ QUẢNG"
+    },
+    "headerFooter": {
+      "hasHeader": false,
+      "headerText": "",
+      "headerHtml": "",
+      "hasFooter": false,
+      "footerText": "",
+      "footerHtml": ""
+    },
+    "screenshots": {
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file10-hop-dong-sua-chua-3t-t8-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file10-hop-dong-sua-chua-3t-t8-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file10-hop-dong-sua-chua-3t-t8-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file10-hop-dong-sua-chua-3t-t8-first-table.png"
+    },
+    "pageErrors": []
+  },
+  {
+    "fileName": "Biên bản hoàn thiện hợp đồngg.docx (gói 8 -2026)",
+    "docTitle": "",
+    "tabTitle": "Biên bản hoàn thiện hợp đồngg.docx\n            ×",
+    "page": {
+      "width": 794,
+      "clientWidth": 792,
+      "paddingLeft": "113.4px",
+      "paddingRight": "75.6px",
+      "paddingTop": "37.8px",
+      "paddingBottom": "37.8px"
+    },
+    "bodySummary": {
+      "totalChars": 7733,
+      "paragraphCount": 222,
+      "headingCount": 0
+    },
+    "tables": {
+      "count": 2,
+      "anyOverflow": false,
+      "details": [
+        {
+          "index": 1,
+          "rows": 19,
+          "cellCount": 132,
+          "tblWidth": 603,
+          "tblScrollWidth": 602,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "624"
+        },
+        {
+          "index": 2,
+          "rows": 2,
+          "cellCount": 4,
+          "tblWidth": 603,
+          "tblScrollWidth": 603,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "637"
+        }
+      ]
+    },
+    "images": {
+      "count": 1,
+      "brokenCount": 0,
+      "details": [
+        {
+          "index": 1,
+          "srcPrefix": "data:image/gif;base64,R0lGODlh5wABAPAAAAAA/wD...",
+          "srcTotalLen": 1174,
+          "isDataUri": true,
+          "naturalWidth": 231,
+          "naturalHeight": 1,
+          "clientWidth": 230,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape1",
+          "alt": "Shape1"
+        }
+      ]
+    },
+    "alignment": {
+      "pAlignedCount": 198,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
+    },
+    "typography": {
+      "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
+      "fontSize": "18.6667px",
+      "lineHeight": "28px",
+      "hasVietnamese": true,
+      "hasCorruptedGlyphs": false,
+      "sampleSnippet": "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM Đ ộc lập – Tự do – Hạnh phúc BIÊN BẢN HOÀN THIỆN HỢP ĐỒNG Gói thầu: Hợp đồng kinh tế về sữa chữa thay thế linh kiện"
+    },
+    "headerFooter": {
+      "hasHeader": false,
+      "headerText": "",
+      "headerHtml": "<p style=\"margin-bottom: 0.9cm\"><br>\n\n\t</p>",
+      "hasFooter": true,
+      "footerText": "1",
+      "footerHtml": "<p align=\"center\" style=\"margin-bottom: 0cm\">1</p>\n\t<p class=\"western\" style=\"margin-bottom: 0cm; line-height: 100%; border: none; padding: 0cm\">\n\t<br>\n\n\t</p>"
+    },
+    "screenshots": {
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file11-bien-ban-hoan-thien-hdg-t8-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file11-bien-ban-hoan-thien-hdg-t8-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file11-bien-ban-hoan-thien-hdg-t8-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file11-bien-ban-hoan-thien-hdg-t8-first-table.png"
+    },
+    "pageErrors": []
+  },
+  {
+    "fileName": "1. QĐ thành lập TỔ MUA SẮM.docx (MÁY PHOTO)",
+    "docTitle": "",
+    "tabTitle": "1. QĐ thành lập TỔ MUA SẮM.docx\n            ×",
+    "page": {
+      "width": 794,
+      "clientWidth": 792,
+      "paddingLeft": "113.4px",
+      "paddingRight": "56.7px",
+      "paddingTop": "75.6px",
+      "paddingBottom": "75.6px"
+    },
+    "bodySummary": {
+      "totalChars": 2526,
+      "paragraphCount": 47,
+      "headingCount": 0
+    },
+    "tables": {
+      "count": 2,
+      "anyOverflow": false,
+      "details": [
+        {
+          "index": 1,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "681"
+        },
+        {
+          "index": 2,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "612"
+        }
+      ]
+    },
+    "images": {
+      "count": 2,
+      "brokenCount": 0,
+      "details": [
+        {
+          "index": 1,
+          "srcPrefix": "data:image/gif;base64,R0lGODlhfgABAPAAAAAA/wD...",
+          "srcTotalLen": 1166,
+          "isDataUri": true,
+          "naturalWidth": 126,
+          "naturalHeight": 1,
+          "clientWidth": 125,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape1",
+          "alt": "Shape1"
+        },
+        {
+          "index": 2,
+          "srcPrefix": "data:image/gif;base64,R0lGODlhywABAPAAAAAA/wD...",
+          "srcTotalLen": 1170,
+          "isDataUri": true,
+          "naturalWidth": 203,
+          "naturalHeight": 1,
+          "clientWidth": 202,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape2",
+          "alt": "Shape2"
+        }
+      ]
+    },
+    "alignment": {
+      "pAlignedCount": 36,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
+    },
+    "typography": {
+      "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
+      "fontSize": "18.6667px",
+      "lineHeight": "26.1333px",
+      "hasVietnamese": true,
+      "hasCorruptedGlyphs": false,
+      "sampleSnippet": "P HÒNG KINH TẾ XÃ QUẢNG TRẠCH Số: /QĐ-PKT C ỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM Độc lập - Tự do - Hạnh phúc Quảng Trạch, ngày tháng năm 2026 QUYẾT ĐỊN"
+    },
+    "headerFooter": {
+      "hasHeader": false,
+      "headerText": "",
+      "headerHtml": "",
+      "hasFooter": false,
+      "footerText": "",
+      "footerHtml": ""
+    },
+    "screenshots": {
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file12-qd-to-mua-sam-photo-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file12-qd-to-mua-sam-photo-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file12-qd-to-mua-sam-photo-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file12-qd-to-mua-sam-photo-first-table.png"
+    },
+    "pageErrors": []
+  },
+  {
+    "fileName": "2. Tờ trìn khlcnt.docx (MÁY PHOTO)",
+    "docTitle": "",
+    "tabTitle": "2. Tờ trìn khlcnt.docx\n            ×",
+    "page": {
+      "width": 794,
+      "clientWidth": 792,
+      "paddingLeft": "75.6px",
+      "paddingRight": "75.6px",
+      "paddingTop": "56.7px",
+      "paddingBottom": "56.7px"
+    },
+    "bodySummary": {
+      "totalChars": 7062,
+      "paragraphCount": 153,
+      "headingCount": 0
+    },
+    "tables": {
+      "count": 4,
+      "anyOverflow": true,
+      "details": [
+        {
+          "index": 1,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 641,
+          "tblScrollWidth": 641,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "681"
+        },
+        {
+          "index": 2,
+          "rows": 3,
+          "cellCount": 29,
+          "tblWidth": 908,
+          "tblScrollWidth": 907,
+          "overflows": true,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "763"
+        },
+        {
+          "index": 3,
+          "rows": 7,
+          "cellCount": 19,
+          "tblWidth": 641,
+          "tblScrollWidth": 640,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "643"
+        },
+        {
+          "index": 4,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 641,
+          "tblScrollWidth": 641,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "612"
+        }
+      ]
+    },
+    "images": {
+      "count": 3,
+      "brokenCount": 0,
+      "details": [
+        {
+          "index": 1,
+          "srcPrefix": "data:image/gif;base64,R0lGODlhPgABAPAAAAAA/wD...",
+          "srcTotalLen": 1154,
+          "isDataUri": true,
+          "naturalWidth": 62,
+          "naturalHeight": 1,
+          "clientWidth": 62,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape1",
+          "alt": "Shape1"
+        },
+        {
+          "index": 2,
+          "srcPrefix": "data:image/gif;base64,R0lGODlh1wABAPAAAAAA/wD...",
+          "srcTotalLen": 1170,
+          "isDataUri": true,
+          "naturalWidth": 215,
+          "naturalHeight": 1,
+          "clientWidth": 214,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape2",
+          "alt": "Shape2"
+        },
+        {
+          "index": 3,
+          "srcPrefix": "data:image/gif;base64,R0lGODlh0AABAPAAAAAA/wD...",
+          "srcTotalLen": 1170,
+          "isDataUri": true,
+          "naturalWidth": 208,
+          "naturalHeight": 1,
+          "clientWidth": 207,
+          "clientHeight": 1,
+          "isBroken": false,
+          "name": "Shape3",
+          "alt": "Shape3"
+        }
+      ]
+    },
+    "alignment": {
+      "pAlignedCount": 136,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
+    },
+    "typography": {
+      "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
+      "fontSize": "18.6667px",
+      "lineHeight": "26.1333px",
+      "hasVietnamese": true,
+      "hasCorruptedGlyphs": false,
+      "sampleSnippet": "PHÒNG KINH TẾ XÃ QT T Ổ MUA SẮM Số: /TTr-TMS CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM Độc lập - Tự do - Hạnh phúc Quảng Trạch, ngày tháng năm 2026 TỜ TRÌNH "
+    },
+    "headerFooter": {
+      "hasHeader": false,
+      "headerText": "",
+      "headerHtml": "",
+      "hasFooter": false,
+      "footerText": "",
+      "footerHtml": ""
+    },
+    "screenshots": {
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file13-to-trinh-khlcnt-photo-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file13-to-trinh-khlcnt-photo-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file13-to-trinh-khlcnt-photo-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file13-to-trinh-khlcnt-photo-first-table.png"
+    },
+    "pageErrors": []
+  },
+  {
+    "fileName": "8. Biên bản hoàn thiện hợp đồng.docx (MÁY PHOTO)",
+    "docTitle": "",
+    "tabTitle": "8. Biên bản hoàn thiện hợp đồng.docx\n            ×",
+    "page": {
+      "width": 794,
+      "clientWidth": 792,
+      "paddingLeft": "113.4px",
+      "paddingRight": "75.6px",
+      "paddingTop": "37.8px",
+      "paddingBottom": "37.8px"
+    },
+    "bodySummary": {
+      "totalChars": 6338,
+      "paragraphCount": 128,
+      "headingCount": 0
+    },
+    "tables": {
+      "count": 2,
+      "anyOverflow": false,
+      "details": [
+        {
+          "index": 1,
+          "rows": 6,
+          "cellCount": 34,
+          "tblWidth": 603,
+          "tblScrollWidth": 602,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "634"
+        },
+        {
+          "index": 2,
+          "rows": 2,
+          "cellCount": 4,
+          "tblWidth": 603,
+          "tblScrollWidth": 603,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "637"
+        }
+      ]
+    },
+    "images": {
+      "count": 0,
+      "brokenCount": 0,
+      "details": []
+    },
+    "alignment": {
+      "pAlignedCount": 124,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
+    },
+    "typography": {
+      "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
+      "fontSize": "18.6667px",
+      "lineHeight": "22.4px",
+      "hasVietnamese": true,
+      "hasCorruptedGlyphs": false,
+      "sampleSnippet": "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM Độc lập – Tự do – Hạnh phúc BIÊN BẢN HOÀN THIỆN HỢP ĐỒNG Gói thầu: Mua sắm máy móc thực hiện sắp xếp đơn vị hành ch"
+    },
+    "headerFooter": {
+      "hasHeader": false,
+      "headerText": "",
+      "headerHtml": "<p style=\"margin-bottom: 0.9cm\"><br>\n\n\t</p>",
+      "hasFooter": true,
+      "footerText": "1",
+      "footerHtml": "<p align=\"center\" style=\"margin-bottom: 0cm\">1</p>\n\t<p class=\"western\" style=\"margin-bottom: 0cm; line-height: 100%; border: none; padding: 0cm\">\n\t<br>\n\n\t</p>"
+    },
+    "screenshots": {
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file14-bien-ban-hoan-thien-hd-photo-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file14-bien-ban-hoan-thien-hd-photo-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file14-bien-ban-hoan-thien-hd-photo-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file14-bien-ban-hoan-thien-hd-photo-first-table.png"
+    },
+    "pageErrors": []
+  },
+  {
+    "fileName": "12. HĐ VÀ NGHIỆM THU, THANH LÝ (Autosaved).docx (MÁY PHOTO)",
+    "docTitle": "",
+    "tabTitle": "12. HĐ VÀ NGHIỆM THU, THANH LÝ (Autosaved).docx\n            ×",
+    "page": {
+      "width": 794,
+      "clientWidth": 792,
+      "paddingLeft": "113.4px",
+      "paddingRight": "56.7px",
+      "paddingTop": "56.7px",
+      "paddingBottom": "49.1px"
+    },
+    "bodySummary": {
+      "totalChars": 13549,
+      "paragraphCount": 308,
+      "headingCount": 0
+    },
+    "tables": {
+      "count": 9,
+      "anyOverflow": false,
+      "details": [
+        {
+          "index": 1,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "643"
+        },
+        {
+          "index": 2,
+          "rows": 4,
+          "cellCount": 22,
+          "tblWidth": 622,
+          "tblScrollWidth": 621,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "634"
+        },
+        {
+          "index": 3,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "page-break-before: always",
+          "inlineWidth": "643"
+        },
+        {
+          "index": 4,
+          "rows": 4,
+          "cellCount": 22,
+          "tblWidth": 622,
+          "tblScrollWidth": 621,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "634"
+        },
+        {
+          "index": 5,
+          "rows": 2,
+          "cellCount": 5,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "712"
+        },
+        {
+          "index": 6,
+          "rows": 2,
+          "cellCount": 5,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "712"
+        },
+        {
+          "index": 7,
+          "rows": 1,
+          "cellCount": 3,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "601"
+        },
+        {
+          "index": 8,
+          "rows": 4,
+          "cellCount": 22,
+          "tblWidth": 622,
+          "tblScrollWidth": 621,
+          "overflows": false,
+          "borderTop": "1px solid rgb(0, 0, 0)",
+          "inlineStyle": "",
+          "inlineWidth": "634"
+        },
+        {
+          "index": 9,
+          "rows": 1,
+          "cellCount": 2,
+          "tblWidth": 622,
+          "tblScrollWidth": 622,
+          "overflows": false,
+          "borderTop": "0px none rgb(15, 23, 42)",
+          "inlineStyle": "",
+          "inlineWidth": "624"
+        }
+      ]
+    },
+    "images": {
+      "count": 0,
+      "brokenCount": 0,
+      "details": []
+    },
+    "alignment": {
+      "pAlignedCount": 261,
+      "pAlignMismatches": 0,
+      "cellAlignedCount": 0,
+      "cellAlignMismatches": 0
+    },
+    "typography": {
+      "fontFamily": "\"Times New Roman\", \"Be Vietnam Pro\", Georgia, serif",
+      "fontSize": "18.6667px",
+      "lineHeight": "26.1333px",
+      "hasVietnamese": true,
+      "hasCorruptedGlyphs": false,
+      "sampleSnippet": "PHÒNG KINH TẾ XÃ QUẢNG TRẠCH Mã QHNS:1149132 Mẫu số: C52-X (Ban hành kèm theo Thông tư số 70/2019/TT-BTC ngày 03/10/2019 của Bộ Tài chính) HỢP ĐỒNG MU"
+    },
+    "headerFooter": {
+      "hasHeader": false,
+      "headerText": "",
+      "headerHtml": "",
+      "hasFooter": true,
+      "footerText": "0",
+      "footerHtml": "<p align=\"center\" style=\"line-height: 100%; margin-top: 0.63cm; margin-bottom: 0cm\">\n\t0</p>\n\t<p style=\"line-height: 100%; margin-bottom: 0cm\"><br>\n\n\t</p>"
+    },
+    "screenshots": {
+      "windowOverview": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file15-hd-nghiem-thu-thanh-ly-autosaved-photo-window-overview.png",
+      "viewportTop": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file15-hd-nghiem-thu-thanh-ly-autosaved-photo-viewport-top.png",
+      "viewportMiddle": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file15-hd-nghiem-thu-thanh-ly-autosaved-photo-viewport-middle.png",
+      "firstTable": "E:\\VNOffice-agy-livepath-qa-full\\docs\\screenshots\\writer-live-open\\file15-hd-nghiem-thu-thanh-ly-autosaved-photo-first-table.png"
     },
     "pageErrors": []
   }
