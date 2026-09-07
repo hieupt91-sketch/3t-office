@@ -555,62 +555,42 @@
   pointer-events: none;
 }
 
-/* Freeze Panes (Cố định Hàng 1 / Cột A khi cuộn) */
-.vno-freeze-panes th.vno-col-header[data-col="A"] {
-  position: sticky;
-  left: 44px;
-  top: 0;
-  z-index: 25;
-  border-right: 2px solid #94a3b8;
-  box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.2);
+/*
+ * Freeze Panes (Cố định hàng/cột khi cuộn) - vị trí sticky top/left thật
+ * (pixel tích lũy theo đúng frozenRows/frozenCols, chiều cao/rộng hàng/cột
+ * thật) được tính và gán inline bởi SheetGridController._applyFreezeVisuals()
+ * trong sheet-grid.js - KHÔNG hardcode luôn hàng 1/cột A như trước đây. CSS ở
+ * đây chỉ còn phụ trách màu nền/viền/bóng đổ theo class.
+ */
+.is-frozen-col-header,
+.is-frozen-row-cell,
+.is-frozen-col-cell {
+  background-color: var(--vno-bg-window, #ffffff) !important;
 }
-.vno-freeze-panes td[data-col="A"] {
-  position: sticky;
-  left: 44px;
-  z-index: 8;
-  background-color: var(--vno-bg-window, #ffffff);
-  border-right: 2px solid #94a3b8;
-  box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.2);
+.is-frozen-row-cell.is-frozen-col-cell {
+  background-color: var(--vno-bg-window, #f1f5f9) !important;
 }
-.vno-freeze-panes tr[data-row="1"] td {
-  position: sticky;
-  top: 24px;
-  z-index: 8;
-  background-color: var(--vno-bg-window, #f8fafc);
-  border-bottom: 2px solid #94a3b8;
+th.is-frozen-col-header {
+  background-color: var(--vno-bg-subtle, #e2e8f0) !important;
 }
-.vno-freeze-panes tr[data-row="1"] th.vno-row-header {
-  position: sticky;
-  top: 24px;
-  left: 0;
-  z-index: 18;
-  background-color: var(--vno-bg-subtle, #e2e8f0);
-  border-bottom: 2px solid #94a3b8;
-}
-.vno-freeze-panes tr[data-row="1"] td[data-col="A"] {
-  position: sticky;
-  top: 24px;
-  left: 44px;
-  z-index: 19;
-  background-color: var(--vno-bg-window, #f1f5f9);
-  border-bottom: 2px solid #94a3b8;
-  border-right: 2px solid #94a3b8;
-  box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.2);
+th.vno-row-header.is-frozen-row-cell {
+  background-color: var(--vno-bg-subtle, #e2e8f0) !important;
 }
 
-[data-theme="dark"] .vno-freeze-panes th.vno-col-header[data-col="A"],
-[data-theme="dark"] .vno-freeze-panes td[data-col="A"] {
+/* Viền/bóng đổ phân cách CHỈ ở hàng/cột cố định CUỐI CÙNG (ranh giới thật), không lặp lại ở từng hàng/cột trung gian. */
+.is-frozen-col-last {
+  border-right: 2px solid #94a3b8;
+  box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.2);
+}
+.is-frozen-row-last {
+  border-bottom: 2px solid #94a3b8;
+}
+
+[data-theme="dark"] .is-frozen-col-last {
   border-right-color: #64748b;
 }
-
-[data-theme="dark"] .vno-freeze-panes tr[data-row="1"] td,
-[data-theme="dark"] .vno-freeze-panes tr[data-row="1"] th.vno-row-header,
-[data-theme="dark"] .vno-freeze-panes tr[data-row="1"] td[data-col="A"] {
+[data-theme="dark"] .is-frozen-row-last {
   border-bottom-color: #64748b;
-}
-
-[data-theme="dark"] .vno-freeze-panes tr[data-row="1"] td[data-col="A"] {
-  border-right-color: #64748b;
 }
 
 

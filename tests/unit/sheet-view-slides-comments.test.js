@@ -50,7 +50,12 @@ export async function runSheetViewSlidesCommentsTests() {
   await test("Sheet View: ribbon, mapping và SVG riêng đầy đủ; Freeze Panes chỉ còn ở tab View", () => {
     const view = SHEET_RIBBON_TABS.find(tab => tab.id === "view");
     const ids = ["sheet.view.zoomIn", "sheet.view.zoomOut", "sheet.view.zoomReset", "sheet.view.gridlines", "sheet.view.headings", "sheet.view.freezePanes"];
-    const flattened = view?.groups.flatMap(group => group.items.map(item => item.commandId)) || [];
+    // sheet.view.freezePanes giờ nằm trong dropdown "Cố định ô" (cùng
+    // freezeTopRow/freezeFirstColumn, đúng bố cục thật của Excel) nên phải
+    // đệ quy vào items lồng bên trong dropdown, không chỉ lấy commandId trực
+    // tiếp trên item cấp 1.
+    const collectCommandIds = (items) => (items || []).flatMap(item => [item.commandId, ...collectCommandIds(item.items)].filter(Boolean));
+    const flattened = view?.groups.flatMap(group => collectCommandIds(group.items)) || [];
     ids.forEach(id => assert(flattened.includes(id), `Thiếu ${id} trong View`));
     assert(SHEET_RIBBON_TABS.filter(tab => tab.id !== "view").every(tab => !JSON.stringify(tab).includes("sheet.view.freezePanes")), "Freeze Panes còn ở tab khác");
     ids.slice(0, 5).forEach(id => assert(SHEET_COMMANDS.some(command => command.id === id) && VN_TO_UNO_MAP[id], `Thiếu command/mapping ${id}`));

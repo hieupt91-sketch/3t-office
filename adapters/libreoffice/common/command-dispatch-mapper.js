@@ -218,6 +218,8 @@ export const VN_TO_UNO_MAP = {
   "sheet.view.formulaBar": ".uno:ToggleFormulaBar",
   "sheet.view.toggleFormulas": ".uno:ShowFormulas",
   "sheet.view.freezePanes": ".uno:FreezePanes",
+  "sheet.view.freezeTopRow": ".uno:FreezePanesRow",
+  "sheet.view.freezeFirstColumn": ".uno:FreezePanesColumn",
   "sheet.view.zoomIn": ".uno:ZoomPlus",
   "sheet.view.zoomOut": ".uno:ZoomMinus",
   "sheet.view.zoomReset": ".uno:Zoom100Percent",

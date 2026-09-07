@@ -134,6 +134,10 @@ export async function runSheetUndoRedoTests() {
   test("Freeze panes: undo/redo đúng sheet và không rò sang sheet khác", () => {
     const grid = new SheetGridController(container());
     const first = grid.activeSheet;
+    // Chọn C3 trước khi bấm Freeze Panes - đúng hành vi Excel thật là cố định
+    // hàng trên/cột trái của Ô đang chọn; ở A1 (mặc định) sẽ không có gì để
+    // cố định (0 hàng, 0 cột), không thể hiện được test undo/redo có ý nghĩa.
+    grid.selectedCoord = { c: "C", r: 3 };
     grid.toggleFreezePanes();
     grid.switchSheet("Kế hoạch Q3");
     assert(!grid.isFrozenPanes, "Sheet B không được kế thừa freeze của sheet A");

@@ -300,11 +300,14 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
             with open(src_path, "r", encoding="utf-8", errors="replace") as handle:
                 fods = handle.read()
             patcher = _ooxml_zip_patch()
-            if not patcher.fods_has_structure_protection(fods):
-                return
+            # LƯU Ý: KHÔNG early-return khi thiếu structure-protected — trường
+            # hợp đó chỉ tắt phần lockStructure; postprocess_sheet_xlsx() còn
+            # tự kiểm tra Freeze Panes ĐỘC LẬP (vno:frozen-rows/cols), việc
+            # nào cũng phổ biến hơn nhiều so với khóa cấu trúc workbook. Luôn
+            # gọi và để hàm tự quyết định không cần vá gì (trả về bytes y hệt).
             with open(out_path, "rb") as handle:
                 original = handle.read()
-            patched = patcher.postprocess_sheet_xlsx(original, source_fods=fods, enabled=True)
+            patched = patcher.postprocess_sheet_xlsx(original, source_fods=fods)
             if patched != original:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)

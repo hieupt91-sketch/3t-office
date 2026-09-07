@@ -357,7 +357,9 @@ export const viStrings = {
     ,"sheet.view.pageLayout": { label: "Bố trí trang", tooltip: "Xem bảng tính như khi in ra giấy kèm đầu/chân trang" }
     ,"sheet.view.formulaBar": { label: "Thanh công thức", tooltip: "Ẩn hoặc hiện thanh công thức" }
     ,"sheet.view.toggleFormulas": { label: "Hiện công thức", tooltip: "Hiển thị công thức thay vì kết quả (Ctrl+`)" }
-    ,"sheet.view.freezePanes": { label: "Cố định hàng/cột", tooltip: "Cố định hàng 1 và cột A khi cuộn (Freeze Panes)" }
+    ,"sheet.view.freezePanes": { label: "Cố định ô", tooltip: "Cố định các hàng phía trên và cột bên trái Ô đang chọn khi cuộn (Freeze Panes)" }
+    ,"sheet.view.freezeTopRow": { label: "Cố định hàng trên cùng", tooltip: "Chỉ cố định hàng 1 khi cuộn dọc (Freeze Top Row)" }
+    ,"sheet.view.freezeFirstColumn": { label: "Cố định cột đầu tiên", tooltip: "Chỉ cố định cột A khi cuộn ngang (Freeze First Column)" }
     ,"sheet.view.zoomIn": { label: "Phóng to", tooltip: "Tăng tỉ lệ hiển thị bảng tính" }
     ,"sheet.view.zoomOut": { label: "Thu nhỏ", tooltip: "Giảm tỉ lệ hiển thị bảng tính" }
     ,"sheet.view.zoomReset": { label: "100%", tooltip: "Đặt lại tỉ lệ hiển thị 100%" }

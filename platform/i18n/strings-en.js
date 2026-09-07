@@ -358,7 +358,9 @@ export const enStrings = {
     ,"sheet.view.pageLayout": { label: "Page Layout", tooltip: "View sheet as printed on paper with headers and footers" }
     ,"sheet.view.formulaBar": { label: "Formula Bar", tooltip: "Show or hide the formula bar" }
     ,"sheet.view.toggleFormulas": { label: "Show Formulas", tooltip: "Show formulas in cells instead of calculated values (Ctrl+`)" }
-    ,"sheet.view.freezePanes": { label: "Freeze Panes", tooltip: "Keep row 1 and column A visible while scrolling" }
+    ,"sheet.view.freezePanes": { label: "Freeze Panes", tooltip: "Keep the rows above and columns to the left of the selected cell visible while scrolling" }
+    ,"sheet.view.freezeTopRow": { label: "Freeze Top Row", tooltip: "Keep only row 1 visible while scrolling vertically" }
+    ,"sheet.view.freezeFirstColumn": { label: "Freeze First Column", tooltip: "Keep only column A visible while scrolling horizontally" }
     ,"sheet.view.zoomIn": { label: "Zoom In", tooltip: "Increase the worksheet zoom level" }
     ,"sheet.view.zoomOut": { label: "Zoom Out", tooltip: "Decrease the worksheet zoom level" }
     ,"sheet.view.zoomReset": { label: "100%", tooltip: "Reset the worksheet zoom level to 100%" }

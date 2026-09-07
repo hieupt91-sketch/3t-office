@@ -656,7 +656,19 @@ export const SHEET_RIBBON_TABS = [
         labelKey: "sheetRibbon.group.window",
         items: [
           { type: "button", commandId: "sheet.view.newWindow", isLarge: true },
-          { type: "button", commandId: "sheet.view.freezePanes", isLarge: true }
+          {
+            type: "dropdown",
+            id: "sheet.view.freezePanesMenu",
+            label: "Cố định ô",
+            labelKey: "sheetRibbon.window.freezePanes",
+            icon: "freezePanes",
+            isLarge: true,
+            items: [
+              { commandId: "sheet.view.freezePanes" },
+              { commandId: "sheet.view.freezeTopRow" },
+              { commandId: "sheet.view.freezeFirstColumn" }
+            ]
+          }
         ]
       }
     ]
