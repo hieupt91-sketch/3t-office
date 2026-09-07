@@ -912,6 +912,25 @@ export class AppShell {
           const notesData = adapter._extractNotesForPreview ? adapter._extractNotesForPreview(rawBody) : { cleanHtml: rawBody, footnotes: new Map(), endnotes: new Map() };
           const bodyForPagination = adapter._stripAutoPageGaps ? adapter._stripAutoPageGaps(notesData.cleanHtml) : notesData.cleanHtml;
           const pageBodies = adapter.paginateContent(bodyForPagination, availableBodyHeightPx, dim.printableWidthPx, adapter.columns);
+
+          // Gắn Footnote vào chân trang của đúng trang chứa số mũ tương ứng
+          if (typeof adapter._renderPageFootnotesForPreview === "function" && notesData.footnotes) {
+            for (let i = 0; i < pageBodies.length; i++) {
+              const pageFootnotesHtml = adapter._renderPageFootnotesForPreview(pageBodies[i], notesData.footnotes);
+              if (pageFootnotesHtml) {
+                pageBodies[i] = `${pageBodies[i]}\n${pageFootnotesHtml}`;
+              }
+            }
+          }
+
+          // Gắn Endnote vào cuối trang cuối cùng của tài liệu
+          if (typeof adapter._renderEndnotesForPreview === "function" && pageBodies.length > 0 && notesData.endnotes && notesData.endnotes.size > 0) {
+            const endnotesHtml = adapter._renderEndnotesForPreview(notesData.endnotes);
+            if (endnotesHtml) {
+              pageBodies[pageBodies.length - 1] = `${pageBodies[pageBodies.length - 1]}\n${endnotesHtml}`;
+            }
+          }
+
           const totalPages = Math.max(1, pageBodies.length);
           return { dim, headerHtml, footerHtml, pageBodies, totalPages };
         },

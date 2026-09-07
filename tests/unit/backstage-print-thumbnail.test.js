@@ -84,10 +84,11 @@ class FakeElement {
       if (classMatch) child.className = classMatch[1];
       const idMatch = rawAttrs.match(/\bid=["']([^"']+)["']/i);
       if (idMatch) child.setAttribute("id", idMatch[1]);
-      const dataTabMatch = rawAttrs.match(/\bdata-backstage-tab=["']([^"']+)["']/i);
-      if (dataTabMatch) child.setAttribute("data-backstage-tab", dataTabMatch[1]);
-      const dataCmdMatch = rawAttrs.match(/\bdata-backstage-cmd=["']([^"']+)["']/i);
-      if (dataCmdMatch) child.setAttribute("data-backstage-cmd", dataCmdMatch[1]);
+      const dataRegex = /data-([a-zA-Z0-9\-]+)=["']([^"']*)["']/g;
+      let dMatch;
+      while ((dMatch = dataRegex.exec(rawAttrs)) !== null) {
+        child.setAttribute(`data-${dMatch[1]}`, dMatch[2]);
+      }
       if (/disabled\b/i.test(rawAttrs)) child.disabled = true;
       const styleMatch = rawAttrs.match(/style=["']([^"']+)["']/i);
       if (styleMatch) {
@@ -141,8 +142,13 @@ class FakeElement {
   }
   get outerHTML() {
     const tag = this.tagName.toLowerCase();
+    const styleAttr = Object.entries(this.style).map(([k, v]) => `${k}:${v}`).join("; ");
+    const attrs = Object.entries(this.attributes).filter(([k]) => k !== "class" && k !== "id").map(([k, v]) => `${k}="${v}"`).join(" ");
+    const idStr = this.id ? ` id="${this.id}"` : "";
+    const styleStr = styleAttr ? ` style="${styleAttr}"` : "";
     const classStr = this.className ? ` class="${this.className}"` : "";
-    return `<${tag}${classStr}>${this.innerHTML}</${tag}>`;
+    const attrStr = attrs ? ` ${attrs}` : "";
+    return `<${tag}${idStr}${classStr}${styleStr}${attrStr}>${this.innerHTML}</${tag}>`;
   }
   appendChild(child) {
     if (child.parentNode) child.parentNode.removeChild(child);
@@ -160,6 +166,10 @@ class FakeElement {
     this.attributes[name] = String(value);
     if (name === "class") this.className = String(value);
     if (name === "id") this.attributes.id = String(value);
+    if (name.startsWith("data-")) {
+      const camelKey = name.slice(5).replace(/-([a-z])/g, (_, l) => l.toUpperCase());
+      this.dataset[camelKey] = String(value);
+    }
   }
   getAttribute(name) { return this.attributes[name] ?? null; }
   addEventListener(type, handler) { (this.listeners[type] ||= []).push(handler); }
@@ -495,6 +505,126 @@ export async function runBackstagePrintThumbnailTests() {
 
       assert(printTriggered === true, "Bấm In ngay phải kích hoạt common.file.print");
       assert(fakeDoc.body.querySelector(".vno-backstage-overlay") === null, "Modal phải đóng sau khi bấm In ngay");
+    });
+
+    await test("Writer Backstage In: hiển thị Endnote ở cuối trang cuối cùng khi tài liệu có Endnote", () => {
+      const pageEl = fakeDoc.createElement("div");
+      pageEl.className = "vno-writer-page";
+      const bodyEl = fakeDoc.createElement("div");
+      bodyEl.className = "vno-writer-body";
+      bodyEl.innerHTML = `
+        <p>Văn bản nghiên cứu khoa học có trích dẫn tài liệu<sup data-vno-endnote-ref="en-ref-1" class="vno-endnote-ref" contenteditable="false">i</sup>.</p>
+        <div data-vno-endnotes="true" class="vno-writer-endnotes-container" contenteditable="false">
+          <div class="vno-notes-separator"></div>
+          <div class="vno-notes-title">CHÚ THÍCH CUỐI TÀI LIỆU</div>
+          <div class="vno-endnote-item" data-vno-endnote-id="en-ref-1">
+            <span class="vno-note-num">i</span>
+            <span class="vno-note-text" contenteditable="true">Nghị định số 30/2020/NĐ-CP của Chính phủ về công tác văn thư.</span>
+          </div>
+        </div>
+      `.trim();
+      pageEl.appendChild(bodyEl);
+
+      const adapter = new WriterAdapter(pageEl);
+      const shell = new AppShell({ appName: "writer", appTitle: "VN Writer", adapter });
+      adapter.setShell(shell);
+
+      shell.showBackstageMenu();
+      const modal = fakeDoc.body.querySelector(".vno-backstage-overlay");
+      modal.querySelector("#vno-backstage-nav-print").click();
+
+      const printView = modal.querySelector("#vno-backstage-print-view");
+      assert(printView && printView.style.display !== "none", "Panel In phải hiển thị");
+
+      const sheet = printView.querySelector(".vno-print-preview-sheet");
+      assert(sheet, "Phải render trang in .vno-print-preview-sheet");
+
+      const endnotesContainer = sheet.querySelector(".vno-print-preview-endnotes");
+      assert(endnotesContainer, "Thumbnail trang cuối cùng phải chứa khối .vno-print-preview-endnotes");
+      assert(sheet.textContent.includes("CHÚ THÍCH CUỐI TÀI LIỆU"), "Thumbnail phải có tiêu đề CHÚ THÍCH CUỐI TÀI LIỆU");
+      assert(sheet.textContent.includes("Nghị định số 30/2020/NĐ-CP"), "Thumbnail phải chứa đúng nội dung chú thích cuối tài liệu (Endnote)");
+
+      modal.remove();
+    });
+
+    await test("Writer Backstage In: hiển thị Footnote ở chân trang tương ứng khi tài liệu có Footnote", () => {
+      const pageEl = fakeDoc.createElement("div");
+      pageEl.className = "vno-writer-page";
+      const bodyEl = fakeDoc.createElement("div");
+      bodyEl.className = "vno-writer-body";
+      bodyEl.innerHTML = `
+        <p>Văn bản có trích dẫn nguồn chân trang<sup data-vno-footnote-ref="fn-ref-1" class="vno-footnote-ref" contenteditable="false">1</sup>.</p>
+        <div data-vno-footnotes="true" class="vno-writer-footnotes-container" contenteditable="false">
+          <div class="vno-notes-separator"></div>
+          <div class="vno-footnote-item" data-vno-footnote-id="fn-ref-1">
+            <span class="vno-note-num">1</span>
+            <span class="vno-note-text" contenteditable="true">Chú thích chân trang giải thích thuật ngữ chuyên ngành.</span>
+          </div>
+        </div>
+      `.trim();
+      pageEl.appendChild(bodyEl);
+
+      const adapter = new WriterAdapter(pageEl);
+      const shell = new AppShell({ appName: "writer", appTitle: "VN Writer", adapter });
+      adapter.setShell(shell);
+
+      shell.showBackstageMenu();
+      const modal = fakeDoc.body.querySelector(".vno-backstage-overlay");
+      modal.querySelector("#vno-backstage-nav-print").click();
+
+      const printView = modal.querySelector("#vno-backstage-print-view");
+      assert(printView && printView.style.display !== "none", "Panel In phải hiển thị");
+
+      const sheet = printView.querySelector(".vno-print-preview-sheet");
+      assert(sheet, "Phải render trang in .vno-print-preview-sheet");
+
+      const footnotesContainer = sheet.querySelector(".vno-print-preview-footnotes");
+      assert(footnotesContainer, "Thumbnail phải chứa khối chú thích chân trang .vno-print-preview-footnotes");
+      assert(sheet.textContent.includes("Chú thích chân trang giải thích thuật ngữ chuyên ngành"), "Thumbnail phải hiển thị đúng nội dung Footnote");
+
+      modal.remove();
+    });
+
+    await test("Writer Backstage In: tài liệu có cả Footnote và Endnote — hiển thị đầy đủ cả hai loại chú thích", () => {
+      const pageEl = fakeDoc.createElement("div");
+      pageEl.className = "vno-writer-page";
+      const bodyEl = fakeDoc.createElement("div");
+      bodyEl.className = "vno-writer-body";
+      bodyEl.innerHTML = `
+        <p>Đoạn văn vừa có footnote<sup data-vno-footnote-ref="fn-both-1" class="vno-footnote-ref">1</sup> vừa có endnote<sup data-vno-endnote-ref="en-both-1" class="vno-endnote-ref">i</sup>.</p>
+        <div data-vno-footnotes="true">
+          <div class="vno-footnote-item" data-vno-footnote-id="fn-both-1">
+            <span class="vno-note-num">1</span>
+            <span class="vno-note-text">Nội dung Footnote trang 1</span>
+          </div>
+        </div>
+        <div data-vno-endnotes="true">
+          <div class="vno-endnote-item" data-vno-endnote-id="en-both-1">
+            <span class="vno-note-num">i</span>
+            <span class="vno-note-text">Nội dung Endnote cuối bài</span>
+          </div>
+        </div>
+      `.trim();
+      pageEl.appendChild(bodyEl);
+
+      const adapter = new WriterAdapter(pageEl);
+      const shell = new AppShell({ appName: "writer", appTitle: "VN Writer", adapter });
+      adapter.setShell(shell);
+
+      shell.showBackstageMenu();
+      const modal = fakeDoc.body.querySelector(".vno-backstage-overlay");
+      modal.querySelector("#vno-backstage-nav-print").click();
+
+      const printView = modal.querySelector("#vno-backstage-print-view");
+      const sheet = printView.querySelector(".vno-print-preview-sheet");
+
+      assert(sheet.querySelector(".vno-print-preview-footnotes"), "Phải có khối Footnotes");
+      assert(sheet.querySelector(".vno-print-preview-endnotes"), "Phải có khối Endnotes");
+      assert(sheet.textContent.includes("Nội dung Footnote trang 1"), "Chứa nội dung Footnote");
+      assert(sheet.textContent.includes("Nội dung Endnote cuối bài"), "Chứa nội dung Endnote");
+      assert(sheet.textContent.includes("CHÚ THÍCH CUỐI TÀI LIỆU"), "Chứa tiêu đề CHÚ THÍCH CUỐI TÀI LIỆU");
+
+      modal.remove();
     });
 
   } finally {
