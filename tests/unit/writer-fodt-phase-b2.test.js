@@ -229,5 +229,43 @@ export async function runWriterFodtPhaseB2Tests() {
     assert.throws(() => adapter.parseFodt(fodtBodyWithImage("page")), error => /anchor-type/.test(error.message));
   });
 
+  // Lỗi thật đã xác nhận qua soffice thật: file DOCX thật có hình cơ bản
+  // (hình chữ nhật, elip, bo góc — chèn qua "Insert Shapes" của Word,
+  // RẤT PHỔ BIẾN) không được soffice ghi thành <draw:rect>/<draw:ellipse>
+  // chuẩn ODF như VN Writer tự ghi, mà LUÔN thành <draw:custom-shape> với
+  // draw:enhanced-geometry draw:type="ooxml-<prstGeom>". Trước đây
+  // parseFodt() ném lỗi với BẤT KỲ type nào khác "right-arrow" — khiến
+  // file DOCX có 1 hình chữ nhật/elip bình thường cũng không mở được.
+  const fodtCustomShape = (ooxmlType) => `<?xml version="1.0"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+<office:body><office:text>
+<text:p><draw:custom-shape draw:name="Shape 1" text:anchor-type="as-char" svg:width="5cm" svg:height="3cm">
+<draw:enhanced-geometry draw:type="${ooxmlType}"/>
+</draw:custom-shape></text:p>
+</office:text></office:body>
+</office:document>`;
+
+  await test("Writer FODT Phase B.2 chấp nhận draw:custom-shape type \"ooxml-rect\" (hình chữ nhật thật từ Word thật) — ánh xạ đúng sang type \"rectangle\"", () => {
+    const { adapter } = adapterWithBody("<p>không giữ</p>");
+    adapter.parseFodt(fodtCustomShape("ooxml-rect"));
+    assert.equal(adapter.shapes.length, 1);
+    assert.equal(adapter.shapes[0].type, "rectangle");
+  });
+
+  await test("Writer FODT Phase B.2 chấp nhận \"ooxml-ellipse\" -> \"circle\" và \"ooxml-roundRect\" -> \"round-rect\"", () => {
+    const ellipse = adapterWithBody("<p>không giữ</p>");
+    ellipse.adapter.parseFodt(fodtCustomShape("ooxml-ellipse"));
+    assert.equal(ellipse.adapter.shapes[0].type, "circle");
+
+    const roundRect = adapterWithBody("<p>không giữ</p>");
+    roundRect.adapter.parseFodt(fodtCustomShape("ooxml-roundRect"));
+    assert.equal(roundRect.adapter.shapes[0].type, "round-rect");
+  });
+
+  await test("Writer FODT Phase B.2 vẫn từ chối hình dạng KHÔNG có renderer tương ứng trong VN Writer (ví dụ triangle/diamond) — không âm thầm vẽ sai", () => {
+    const { adapter } = adapterWithBody("<p>không giữ</p>");
+    assert.throws(() => adapter.parseFodt(fodtCustomShape("ooxml-triangle")), error => /ooxml-triangle/.test(error.message));
+  });
+
   return results;
 }
