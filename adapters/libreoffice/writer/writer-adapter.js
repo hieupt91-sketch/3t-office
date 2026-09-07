@@ -5355,10 +5355,28 @@ export class WriterAdapter {
     };
   }
 
+  _fodtParseDrawTranslate(attrs) {
+    const transform = attrs["draw:transform"] || attrs["svg:transform"];
+    const match = String(transform || "").match(/translate\s*\(\s*(-?\d+(?:\.\d+)?)\s*(?:cm)?\s*[,\s]\s*(-?\d+(?:\.\d+)?)\s*(?:cm)?\s*\)/i);
+    if (match) {
+      const parseCm = (s) => {
+        const absVal = Math.abs(Number(s));
+        const px = this._fodtCmToPx(`${absVal}cm`);
+        return Number(s) < 0 ? -px : px;
+      };
+      return { x: parseCm(match[1]), y: parseCm(match[2]) };
+    }
+    return {
+      x: attrs["svg:x"] ? this._fodtCmToPx(attrs["svg:x"]) : 0,
+      y: attrs["svg:y"] ? this._fodtCmToPx(attrs["svg:y"]) : 0
+    };
+  }
+
   _fodtShapeFromNode(node, graphicStyles) {
     const graphic = this._fodtGraphicFromStyle(node.attrs["draw:style-name"], graphicStyles);
-    const x = node.attrs["svg:x"] ? this._fodtCmToPx(node.attrs["svg:x"]) : 0;
-    const y = node.attrs["svg:y"] ? this._fodtCmToPx(node.attrs["svg:y"]) : 0;
+    const origin = this._fodtParseDrawTranslate(node.attrs);
+    const x = origin.x;
+    const y = origin.y;
     const w = node.attrs["svg:width"] ? this._fodtCmToPx(node.attrs["svg:width"]) : 0;
     const h = node.attrs["svg:height"] ? this._fodtCmToPx(node.attrs["svg:height"]) : 0;
     const id = node.attrs["draw:name"] || `shape-${graphicStyles.size + 1}`;
@@ -5629,12 +5647,13 @@ export class WriterAdapter {
     if (!paras.length || paras.some(child => child.name !== "text:p")) {
       throw this._fodtError("draw:text-box phải chứa text:p (Phase B.2)");
     }
+    const origin = this._fodtParseDrawTranslate(node.attrs);
     return {
       id: node.attrs["draw:name"] || "TextBox1",
       type: "textbox",
       shapeType: "textbox",
-      x: node.attrs["svg:x"] ? this._fodtCmToPx(node.attrs["svg:x"]) : 0,
-      y: node.attrs["svg:y"] ? this._fodtCmToPx(node.attrs["svg:y"]) : 0,
+      x: origin.x,
+      y: origin.y,
       w: this._fodtCmToPx(node.attrs["svg:width"] || "0cm"),
       h: this._fodtCmToPx(node.attrs["svg:height"] || "0cm"),
       width: this._fodtCmToPx(node.attrs["svg:width"] || "0cm"),
