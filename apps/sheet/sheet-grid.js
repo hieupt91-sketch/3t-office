@@ -4320,8 +4320,13 @@ export class SheetGridController {
   }
 
   _getAnchorFromPixel(left, top) {
-    const headerLeft = 46;
-    const headerTop = 28;
+    // Lỗi thật đã xác nhận: renderImages() dùng offset header 44px(cột)/
+    // 24px(hàng) (thống nhất với _applyFreezeVisuals(), xem
+    // HANDOFF-SHEET-IMAGE-FREEZE-PANE-SCROLL.md), nhưng hàm này (chuyển
+    // pixel thả chuột về lại ô neo khi kéo-thả ảnh) trước đó vẫn dùng
+    // 46/28 cũ — lệch offset khiến kéo-thả tính sai ô neo gần biên ô.
+    const headerLeft = 44;
+    const headerTop = 24;
     const rowH = this.rowHeight || 28;
 
     // Tính cột gần nhất
