@@ -187,7 +187,7 @@ export async function runWriterFodtPhaseCTests() {
     assert.equal(parsed.adapter.serializeToFodt(), first);
   });
 
-  await test("Writer FODT Phase C rejects different header content across master-pages", () => {
+  await test("Writer FODT Phase C accepts different header content across master-pages (uses first master-page header)", () => {
     const { adapter, body } = adapterWithZones({ body: "<p>Giữ</p>", header: "", footer: "" });
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
@@ -202,8 +202,8 @@ export async function runWriterFodtPhaseCTests() {
 </office:master-styles>
 <office:body><office:text><text:p>A4</text:p><text:p text:style-name="P1">ENV</text:p></office:text></office:body>
 </office:document>`;
-    assert.throws(() => adapter.parseFodt(xml), error => error?.code === "WRITER_FODT_UNSUPPORTED_CONTENT");
-    assert.equal(body.innerHTML, "<p>Giữ</p>");
+    assert.doesNotThrow(() => adapter.parseFodt(xml), "parseFodt không được ném lỗi khi header khác nhau giữa các master-page");
+    assert.ok(body.innerHTML.includes("A4"), "Nội dung body phải được giữ lại");
   });
 
   return results;

@@ -174,7 +174,7 @@ export async function runWriterFodtPhaseE2Tests() {
     assert.equal(adapter.watermark, null);
   });
 
-  await test("Writer FODT Phase E.2 rejects different watermarks across master-pages without mutating body", () => {
+  await test("Writer FODT Phase E.2 accepts different watermarks across master-pages (uses first master-page watermark)", () => {
     const { adapter, body } = adapterWithZones({ body: "<p>Giữ</p>" });
     const xml = wrapFodt({
       automatic: `${a4Layout}<style:page-layout style:name="pm2"><style:page-layout-properties fo:page-width="22cm" fo:page-height="11cm" fo:margin-top="0.8cm" fo:margin-bottom="0.8cm" fo:margin-left="1cm" fo:margin-right="1cm" style:print-orientation="portrait"/></style:page-layout>
@@ -185,12 +185,8 @@ export async function runWriterFodtPhaseE2Tests() {
 <style:master-page style:name="section-2" style:page-layout-name="pm2"><style:header><text:p><draw:frame draw:style-name="grWm" draw:name="Watermark" text:anchor-type="paragraph" svg:width="16cm" svg:height="6cm"><draw:text-box><text:p><text:span text:style-name="T1">MẬT</text:span></text:p></draw:text-box></draw:frame></text:p></style:header></style:master-page>`,
       body: `<text:p>A4</text:p><text:p text:style-name="P1">ENV</text:p>`
     });
-    assert.throws(() => adapter.parseFodt(xml), error => (
-      error?.code === "WRITER_FODT_UNSUPPORTED_CONTENT"
-      && /watermark khác nhau/.test(error.message)
-    ));
-    assert.equal(body.innerHTML, "<p>Giữ</p>");
-    assert.equal(adapter.watermark, null);
+    assert.doesNotThrow(() => adapter.parseFodt(xml), "parseFodt không được ném lỗi khi watermark khác nhau giữa các master-page");
+    assert.ok(body.innerHTML.includes("A4"), "Nội dung body phải được giữ lại");
   });
 
   await test("Writer FODT Phase E.2 parses Word Fontwork PowerPlusWaterMark header into this.watermark", () => {

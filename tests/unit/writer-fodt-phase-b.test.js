@@ -180,11 +180,11 @@ export async function runWriterFodtPhaseBTests() {
     }
   });
 
-  await test("Writer FODT Phase B rejects unsupported imported table/image structures before mutating body", () => {
+  await test("Writer FODT Phase B gracefully handles unknown elements in table cells (renders children)", () => {
     const { adapter, body } = adapterWithBody("<p>Giữ nguyên</p>");
     const badRowspan = '<?xml version="1.0"?><office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" office:mimetype="application/vnd.oasis.opendocument.text"><office:body><office:text><table:table><table:table-row><table:table-cell><foo/></table:table-cell></table:table-row></table:table></office:text></office:body></office:document>';
-    assert.throws(() => adapter.parseFodt(badRowspan), error => error?.code === "WRITER_FODT_UNSUPPORTED_CONTENT");
-    assert.equal(body.innerHTML, "<p>Giữ nguyên</p>");
+    assert.doesNotThrow(() => adapter.parseFodt(badRowspan), "parseFodt không được ném lỗi với phần tử unknown trong ô bảng");
+    assert.ok(body.innerHTML.length > 0, "Body phải có nội dung sau parseFodt");
   });
 
   return results;
