@@ -132,14 +132,17 @@ export async function showShapeDialog(currentOptions = null) {
             ${isEn ? "Select a basic geometric shape to insert onto the page layer:" : "Chọn hình khối cơ bản cần chèn vào trang văn bản:"}
           </p>
           <div class="vno-shape-grid" role="radiogroup" aria-labelledby="vno-shape-dialog-title" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;">
-            ${SHAPE_TYPES.map(s => {
+            ${SHAPE_TYPES.map((s, idx) => {
               const isSel = s.id === selectedType;
               const name = isEn ? s.nameEn : s.nameVi;
+              const isLastOdd = SHAPE_TYPES.length % 2 === 1 && idx === SHAPE_TYPES.length - 1;
+              const gridColStyle = isLastOdd ? "grid-column: 1 / -1; flex-direction: row; justify-content: center; gap: 16px;" : "flex-direction: column; align-items: center; gap: 8px;";
+              const previewStroke = s.id === "line" ? "var(--vno-text-primary, #0f172a)" : undefined;
               return `
               <button type="button" role="radio" aria-checked="${isSel}" aria-label="${name}" class="vno-shape-card ${isSel ? "is-selected" : ""}" data-shape-type="${s.id}"
-                style="display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px; border:2px solid ${isSel ? "var(--vno-border-focus, #2563eb)" : "var(--vno-border-default, #cbd5e1)"}; border-radius:8px; background:${isSel ? "var(--vno-sheet-light, #eff6ff)" : "var(--vno-bg-surface, #fff)"}; cursor:pointer; outline:none;">
+                style="display:flex; ${gridColStyle} padding:12px; border:2px solid ${isSel ? "var(--vno-border-focus, #2563eb)" : "var(--vno-border-default, #cbd5e1)"}; border-radius:8px; background:${isSel ? "var(--vno-writer-light, var(--vno-bg-selected, #eff6ff))" : "var(--vno-bg-surface, #fff)"}; cursor:pointer; outline:none;">
                 <div style="width:60px; height:40px; display:flex; align-items:center; justify-content:center;" aria-hidden="true">
-                  ${renderShapeSvg({ type: s.id, strokeWidth: 2 })}
+                  ${renderShapeSvg({ type: s.id, strokeWidth: 2, stroke: previewStroke })}
                 </div>
                 <strong style="font-size:12px; color:var(--vno-text-primary, #1e293b);">${name}</strong>
               </button>
@@ -168,7 +171,7 @@ export async function showShapeDialog(currentOptions = null) {
         card.classList.add("is-selected");
         card.setAttribute("aria-checked", "true");
         card.style.borderColor = "var(--vno-border-focus, #2563eb)";
-        card.style.background = "var(--vno-sheet-light, #eff6ff)";
+        card.style.background = "var(--vno-writer-light, var(--vno-bg-selected, #eff6ff))";
         selectedType = card.getAttribute("data-shape-type");
       });
     });
