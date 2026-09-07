@@ -134,20 +134,20 @@ export async function runWriterFodtPhaseCTests() {
     assert.throws(() => adapter.serializeToFodt(), error => error?.code === "WRITER_FODT_UNSUPPORTED_CONTENT");
   });
 
-  await test("Writer FODT Phase C accepts imported header page-number fields (skips unsupported header content)", () => {
-    const { adapter, body } = adapterWithZones({ body: "<p>Giữ nguyên</p>", header: "", footer: "" });
-    const unsupported = `<?xml version="1.0" encoding="UTF-8"?>
+  await test("Writer FODT Phase C hạ cấp field số trang trong header thành văn bản tĩnh (không ném lỗi)", () => {
+    const { adapter, header } = adapterWithZones({ body: "<p>Giữ nguyên</p>", header: "", footer: "" });
+    const withPageNumberField = `<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
 <office:automatic-styles>
 <style:page-layout style:name="pm1"><style:page-layout-properties fo:page-width="21cm" fo:page-height="29.7cm" fo:margin-top="2cm" fo:margin-bottom="2cm" fo:margin-left="3cm" fo:margin-right="1.5cm" style:print-orientation="portrait"/></style:page-layout>
 </office:automatic-styles>
 <office:master-styles>
-<style:master-page style:name="Standard" style:page-layout-name="pm1"><style:header><text:p>Trang <text:page-number/> / <text:page-count/></text:p></style:header></style:master-page>
+<style:master-page style:name="Standard" style:page-layout-name="pm1"><style:header><text:p>Trang <text:page-number>3</text:page-number> / <text:page-count>5</text:page-count></text:p></style:header></style:master-page>
 </office:master-styles>
 <office:body><office:text><text:p>Giữ nguyên</text:p></office:text></office:body>
 </office:document>`;
-    assert.doesNotThrow(() => adapter.parseFodt(unsupported), "parseFodt không được ném lỗi khi header chứa page-number field");
-    assert.ok(body.innerHTML.includes("Giữ nguyên"), "Nội dung body phải được giữ lại");
+    adapter.parseFodt(withPageNumberField);
+    assert.match(header.innerHTML, /Trang\s*3\s*\/\s*5/);
   });
 
   await test("Writer FODT Phase C serializes mixed A4+envelope as two page-layouts and a paragraph master-page change", () => {

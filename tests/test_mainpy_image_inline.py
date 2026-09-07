@@ -86,6 +86,28 @@ class InlineHtmlImagesUnitTests(unittest.TestCase):
             result = main._inline_html_images(html, html_path)
         self.assertEqual(_data_uri_payload(result), MINIMAL_PNG)
 
+    def test_percent_encoded_vietnamese_filename_is_decoded_before_join(self):
+        # Loi that phat hien qua file .docx that: LibreOffice StarWriter HTML
+        # URL-encode ten file co dau tieng Viet/khoang trang trong src (vi du
+        # "h%E1%BB%A3p%20%C4%91%E1%BB%93ng...") nhung file that tren dia van
+        # giu nguyen ten Unicode - truoc day chi html.unescape() ma quen
+        # unquote() nen os.path.isfile() luon False, anh vo vinh vien.
+        with tempfile.TemporaryDirectory(prefix="vno_inline_percent_") as tmp:
+            html_path = os.path.join(tmp, "doc.html")
+            real_name = "hợp đồng sửa chữa 3T- UBXQT_html_b19bf31e.gif"
+            gif_bytes = b"GIF89afake-gif-vn"
+            with open(os.path.join(tmp, real_name), "wb") as handle:
+                handle.write(gif_bytes)
+            encoded_src = (
+                "h%E1%BB%A3p%20%C4%91%E1%BB%93ng%20s%E1%BB%ADa%20ch%E1%BB%AFa"
+                "%203T-%20UBXQT_html_b19bf31e.gif"
+            )
+            html = f'<img src="{encoded_src}">'
+            result = main._inline_html_images(html, html_path)
+        self.assertIn("data:image/gif;base64,", result)
+        self.assertNotIn(encoded_src, result)
+        self.assertEqual(_data_uri_payload(result, "image/gif"), gif_bytes)
+
     def test_jpeg_and_gif_mime_from_extension(self):
         with tempfile.TemporaryDirectory(prefix="vno_inline_mime_") as tmp:
             html_path = os.path.join(tmp, "doc.html")

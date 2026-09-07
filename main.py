@@ -19,7 +19,7 @@ import threading
 import platform
 import zipfile
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, unquote
 
 import webview
 
@@ -500,7 +500,11 @@ def _inline_html_images(html_text: str, html_path: str) -> str:
         src = src_match.group(1)
         if re.match(r"^data:", src, re.IGNORECASE):
             return f"<img{attrs}>"
-        decoded = html.unescape(src)
+        # Loi that phat hien qua file .docx that co dau tieng Viet/khoang trang
+        # trong ten: LibreOffice StarWriter HTML ghi src bi URL-encode
+        # (vi du "h%E1%BB%A3p%20..."), truoc day chi html.unescape() ma
+        # QUEN unquote() nen os.path.isfile() luon False -> anh vo vinh vien.
+        decoded = unquote(html.unescape(src))
         candidates = [
             os.path.join(html_dir, decoded),
             re.sub(r"^/([A-Za-z]:)", r"\1", decoded),

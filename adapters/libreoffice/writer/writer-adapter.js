@@ -5065,9 +5065,11 @@ export class WriterAdapter {
       const inner = content || "";
       const header = inner.match(/<style:header\b[^>]*>([\s\S]*?)<\/style:header>/i)?.[1] || "";
       const footer = inner.match(/<style:footer\b[^>]*>([\s\S]*?)<\/style:footer>/i)?.[1] || "";
-      if (/<style:header-left\b|<style:footer-left\b|<style:header-first\b|<style:footer-first\b/i.test(inner)) {
-        throw this._fodtError("header/footer left/first trên master-page chưa hỗ trợ");
-      }
+      // Writer chỉ hỗ trợ MỘT cặp đầu/chân trang toàn cục: các biến thể
+      // header-left/footer-left (trang chẵn) và header-first/footer-first
+      // (trang đầu) bị bỏ qua có chủ đích, luôn dùng header/footer chính
+      // (style:header/style:footer) ở trên — ưu tiên mở được tài liệu hơn
+      // giữ đúng từng biến thể theo trang.
       masters.push({ name, layoutName, headerXml: header.trim(), footerXml: footer.trim() });
       return "";
     });
@@ -5436,12 +5438,18 @@ export class WriterAdapter {
       // round-rect/circle/triangle/diamond) — các kiểu KHÁC (pentagon,
       // star5, hexagon...) VN Writer chưa có renderer tương ứng nên VẪN
       // từ chối rõ ràng, không âm thầm vẽ sai hình.
-      const OOXML_SHAPE_TYPE_MAP = { "ooxml-rect": "rectangle", "ooxml-roundrect": "round-rect", "ooxml-ellipse": "circle", "ooxml-triangle": "triangle", "ooxml-diamond": "diamond" };
+      // "ooxml-straightConnector1" (OOXML thật) và "mso-spt32" (id 32 =
+      // Straight Connector, LibreOffice tự dùng khi convert file .doc cũ)
+      // đều là ĐƯỜNG THẲNG NỐI (connector) mà Word ghi thành custom-shape
+      // thay vì <draw:line> chuẩn — xác nhận qua file .docx/.doc thật của
+      // người dùng. Dùng lại type "line" có sẵn (vẽ đường chéo theo hộp
+      // biên x/y/w/h của base, đã có sẵn từ trên) thay vì tạo type mới.
+      const OOXML_SHAPE_TYPE_MAP = { "ooxml-rect": "rectangle", "ooxml-roundrect": "round-rect", "ooxml-ellipse": "circle", "ooxml-triangle": "triangle", "ooxml-diamond": "diamond", "ooxml-straightconnector1": "line", "mso-spt32": "line" };
       const mapped = OOXML_SHAPE_TYPE_MAP[String(type).toLowerCase()];
       if (mapped) {
         return { ...base, type: mapped, shapeType: mapped };
       }
-      throw this._fodtError(`draw:custom-shape type '${type}' (Phase B.2 chỉ hỗ trợ right-arrow/ooxml-rect/ooxml-roundRect/ooxml-ellipse/ooxml-triangle/ooxml-diamond; Phase E.3 Fontwork WordArt đi HTML)`);
+      throw this._fodtError(`draw:custom-shape type '${type}' (Phase B.2 chỉ hỗ trợ right-arrow/ooxml-rect/ooxml-roundRect/ooxml-ellipse/ooxml-triangle/ooxml-diamond/ooxml-straightConnector1/mso-spt32; Phase E.3 Fontwork WordArt đi HTML)`);
     }
     throw this._fodtError(`phần tử FODT drawing <${node.name}>`);
   }
@@ -6662,6 +6670,24 @@ export class WriterAdapter {
       if (node.name === "text:s") return " ".repeat(Math.max(1, Number(node.attrs["text:c"]) || 1));
       if (node.name === "text:tab") return "\t";
       if (node.name === "text:line-break") return "<br>";
+      if (node.name === "text:bookmark" || node.name === "text:bookmark-start" || node.name === "text:bookmark-end") {
+        // Điểm neo (anchor) vô hình dùng cho tham chiếu chéo/mục lục nội bộ
+        // của Word — không có nội dung hiển thị, VN Writer chưa có tính
+        // năng tham chiếu chéo nên bỏ qua an toàn (không mất nội dung
+        // hiển thị nào, chỉ mất khả năng nhảy tới điểm neo đó).
+        return "";
+      }
+      if (node.name === "text:page-number" || node.name === "text:page-count") {
+        // Writer không có field số trang sống (live-updating) trong thân
+        // tài liệu/header/footer — hạ cấp có chủ đích thành VĂN BẢN TĨNH
+        // lấy từ giá trị fallback mà soffice đã tính sẵn lúc convert
+        // (đúng số trang tại thời điểm đó). Chấp nhận đánh đổi: số có thể
+        // lệch nếu người dùng chỉnh sửa thêm/bớt trang sau này — nhưng cơ
+        // chế xem trước khi in (dòng ~7651, regex "Trang N / M") vẫn tự
+        // cập nhật đúng vì nó thay thế theo MẪU VĂN BẢN, không theo field.
+        const fallback = (node.children || []).map(child => child.name === "#text" ? String(child.text || "") : "").join("").trim();
+        return this._escapeHtml(fallback || "1");
+      }
       if (node.name === "draw:frame") return frameHtml(node);
       if (["draw:rect", "draw:ellipse", "draw:circle", "draw:line", "draw:custom-shape", "draw:connector"].includes(node.name)) {
         if (this._fodtIsFontworkShape(node)) return this._fodtWordArtHtmlFromNode(node);
@@ -6936,14 +6962,20 @@ export class WriterAdapter {
     let footerHtml = "";
     if (headerExtracts[0]?.remainderNodes?.length) {
       const remainderXmlProbe = headerExtracts[0].remainderNodes.map(node => node.name).join(" ");
-      if (/\b(table:|text:note|text:page-number|text:page-count|text:tracked-changes|text:change)\b/i.test(remainderXmlProbe)) {
+      // text:page-number/text:page-count KHÔNG nằm trong danh sách chặn này —
+      // được xử lý riêng qua inlineNodeHtml (hạ cấp thành văn bản tĩnh, xem
+      // nhánh "text:page-number" phía trên). Các phần tử KHÁC còn lại
+      // (bảng/ảnh/shape/ghi chú/Track Changes) hạ cấp thành header RỖNG thay
+      // vì ném lỗi hỏng toàn bộ tài liệu — xác nhận qua nhiều file .doc/.docx
+      // thật cần cách này mới mở được.
+      if (/\b(table:|text:note|text:tracked-changes|text:change)\b/i.test(remainderXmlProbe)) {
         headerHtml = "";
       } else {
         headerHtml = blocksHtml(headerExtracts[0].remainderNodes, { zone: "header" });
       }
     }
     if (masterPages[0]?.footerXml) {
-      if (/<(draw:|table:|text:note|text:page-number|text:page-count|text:tracked-changes|text:change)\b/i.test(masterPages[0].footerXml)) {
+      if (/<(draw:|table:|text:note|text:tracked-changes|text:change)\b/i.test(masterPages[0].footerXml)) {
         footerHtml = "";
       } else {
         footerHtml = blocksHtml(this._fodtParseMarkup(masterPages[0].footerXml, "FODT style:footer").children, { zone: "footer" });

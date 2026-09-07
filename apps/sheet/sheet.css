@@ -280,6 +280,20 @@
   background-image: linear-gradient(rgba(74, 222, 128, 0.16), rgba(74, 222, 128, 0.16));
 }
 
+/* Drag-to-move Image Target Cell Highlight */
+.vno-grid-cell.is-drop-target {
+  outline: 2px dashed var(--vno-sheet-primary, #0f6d38) !important;
+  outline-offset: -2px;
+  background-color: rgba(15, 109, 56, 0.18) !important;
+  z-index: 6;
+  transition: background-color 0.08s ease, outline-color 0.08s ease;
+}
+
+[data-theme="dark"] .vno-grid-cell.is-drop-target {
+  outline-color: var(--vno-sheet-primary-fg, #4ade80) !important;
+  background-color: rgba(74, 222, 128, 0.25) !important;
+}
+
 .vno-grid-cell.is-merged-cell { position: relative; background-color: var(--vno-surface, #fff); border: 1px solid var(--vno-border, #d1d5db); }
 
 .vno-grid-cell.has-comment::after { content:""; position:absolute; top:0; right:0; border-top:8px solid #dc2626; border-left:8px solid transparent; z-index:7; }
