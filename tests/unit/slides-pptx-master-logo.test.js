@@ -166,14 +166,26 @@ export async function runSlidesPptxMasterLogoTests() {
     assert(/<p:sld\b/.test(slide), "giữ slide1");
   });
 
-  test("postProcessSlidesPptx no-op khi FODP không có logo", () => {
+  test("postProcessSlidesPptx không đụng slideMaster/slide khi FODP không có logo (chỉ còn tự sửa khổ trang thật)", () => {
+    // LO_PRESENTATION_XML mô phỏng đúng khổ mặc định SAI mà soffice thật luôn ghi
+    // (28cm x 15.75cm, xem docs/HANDOFF-SLIDES-SLIDESIZE-EXPORT-FIX.md) - khác
+    // khổ 25.4cm x 14.287cm mà canvas.slideSize mặc định (960x540) thật sự dùng,
+    // nên hàm KHÔNG còn no-op tuyệt đối nữa: nó tự sửa lại <p:sldSz> đúng khổ
+    // thật độc lập với logo, đây là hành vi ĐÚNG và có chủ đích, không phải lỗi.
     const zip = fakePptx(LO_MASTER_XML);
     const fodp = new SlidesAdapter({
       slides: [{ id: 1, title: "A", body: "B", layoutType: "title-content", notes: "", shapes: [] }]
     }).serializeToFodp();
     assert(!fodpHasMasterLogo(fodp), "không theme thì không logo");
     const patched = postProcessSlidesPptx(zip, { sourceFodp: fodp });
-    assert(Buffer.compare(zip, patched) === 0, "không rewrite ZIP khi không có logo");
+    assert(Buffer.compare(zip, patched) !== 0, "phải có thay đổi: tự sửa khổ trang thật dù không có logo");
+    const master = readZipEntry(patched, "ppt/slideMasters/slideMaster1.xml").toString("utf8");
+    assert(!masterHasLogoShape(master, LOGO), "không có logo thì slideMaster không được thêm hình logo nào");
+    const slide = readZipEntry(patched, "ppt/slides/slide1.xml").toString("utf8");
+    assert(/<p:sld\b/.test(slide), "giữ nguyên slide1, không đụng vào");
+    const presentation = readZipEntry(patched, "ppt/presentation.xml").toString("utf8");
+    const size = parseSlideSize(presentation);
+    assert(size.cx === Math.round(25.4 * 360000), `sldSz cx phải sửa đúng 25.4cm (khổ 960px mặc định), nhận ${size.cx}`);
   });
 
   return results;

@@ -18,9 +18,11 @@ import { listZipEntries, patchOoxmlZip, readZipEntry } from "../common/ooxml-zip
 import {
   PPTX_PRESENTATION_ENTRY,
   SLIDE_MASTER_ENTRY_RE,
+  applyIntendedSlideSize,
   applyMasterLogoShape,
   fodpHasMasterLogo,
   overlayFodpMasterLogo,
+  parseIntendedSlideSizeFromFodp,
   parseMasterLogoFromFodp,
   parseSlideSize
 } from "./pptx-master-logo.js";
@@ -96,14 +98,32 @@ export function postProcessSlidesPptx(pptxPathOrBuffer, options = {}) {
   const applyLogo = wantsLogo(logo, options);
   const applySections = wantsSections(options);
   const applyShow = wantsShowSetup(options);
-  if (!applyLogo && !applySections && !applyShow) return source;
 
   const presentation = readZipEntry(source, PPTX_PRESENTATION_ENTRY);
-  const presentationXml = presentation ? presentation.toString("utf8") : "";
+  const originalPresentationXml = presentation ? presentation.toString("utf8") : "";
+  let presentationXml = originalPresentationXml;
   const replacements = {};
 
+  // soffice --convert-to pptx BỎ QUA style:page-layout-properties của FODP khi
+  // xuất PPTX, luôn tự ghi <p:sldSz> mặc định 28cm x 15.75cm bất kể canvas.slideSize
+  // thật của người dùng - đo thực tế bằng vòng chuyển đổi thật, xác nhận đây là
+  // giới hạn của bản thân soffice, không phải lỗi FODP do VN Office ghi ra. Khôi
+  // phục lại khổ trang THẬT ở đây, độc lập với logo/sections/show (luôn áp dụng
+  // nếu phát hiện khác biệt thật, không chỉ khi các tính năng khác cũng cần sửa).
+  const intendedSize = options.sourceFodp ? parseIntendedSlideSizeFromFodp(options.sourceFodp) : null;
+  const realSize = parseSlideSize(presentationXml);
+  const applySlideSize = Boolean(
+    intendedSize && (Math.abs(intendedSize.cx - realSize.cx) > 500 || Math.abs(intendedSize.cy - realSize.cy) > 500)
+  );
+  const effectiveSize = applySlideSize ? intendedSize : realSize;
+
+  if (!applyLogo && !applySections && !applyShow && !applySlideSize) return source;
+
+  if (applySlideSize && presentationXml) {
+    presentationXml = applyIntendedSlideSize(presentationXml, intendedSize);
+  }
+
   if (applyLogo) {
-    const size = parseSlideSize(presentationXml);
     for (const listed of listZipEntries(source)) {
       if (!SLIDE_MASTER_ENTRY_RE.test(listed.name)) continue;
       const current = readZipEntry(source, listed.name);
@@ -115,8 +135,8 @@ export function postProcessSlidesPptx(pptxPathOrBuffer, options = {}) {
         logoText: logo.logoText,
         accentColor: logo.accentColor,
         fontFamily: logo.fontFamily,
-        slideCx: size.cx,
-        slideCy: size.cy
+        slideCx: effectiveSize.cx,
+        slideCy: effectiveSize.cy
       });
       if (next !== xml) replacements[listed.name] = next;
     }
@@ -126,11 +146,12 @@ export function postProcessSlidesPptx(pptxPathOrBuffer, options = {}) {
     if (!presentationXml) {
       throw new Error("PPTX thiếu ppt/presentation.xml — không thể bổ sung p14:sectionLst");
     }
-    const next = Array.isArray(options.sections)
+    presentationXml = Array.isArray(options.sections)
       ? applySectionList(presentationXml, options.sections)
       : applySectionListFromFodp(presentationXml, options.sourceFodp);
-    if (next !== presentationXml) replacements[PPTX_PRESENTATION_ENTRY] = next;
   }
+
+  if (presentationXml !== originalPresentationXml) replacements[PPTX_PRESENTATION_ENTRY] = presentationXml;
 
   if (applyShow) {
     const current = readZipEntry(source, PPTX_PRESPROPS_ENTRY);

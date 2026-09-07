@@ -1460,9 +1460,12 @@ export class SlidesAdapter {
       }
     }
 
+    const slideWidthPx = this.canvas?.slideSize?.width || 960;
+    const slideHeightPx = this.canvas?.slideSize?.height || 540;
+    const pageOrientation = slideWidthPx >= slideHeightPx ? "landscape" : "portrait";
     let xml = `
     <style:page-layout style:name="PM1">
-      <style:page-layout-properties fo:page-width="28cm" fo:page-height="15.75cm" style:print-orientation="landscape"/>
+      <style:page-layout-properties fo:page-width="${this._pxToOdf(slideWidthPx)}" fo:page-height="${this._pxToOdf(slideHeightPx)}" style:print-orientation="${pageOrientation}"/>
     </style:page-layout>
     <style:style style:name="dp1" style:family="drawing-page">
       <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true"${this._masterPageFillAttrs()}/>
@@ -2110,13 +2113,15 @@ export class SlidesAdapter {
   _serializePageCommentsXml(comments) {
     const list = (Array.isArray(comments) ? comments : []).filter((comment) => String(comment?.text || "").trim());
     if (!list.length) return "";
+    const pageWidthCm = parseFloat(this._pxToOdf(this.canvas?.slideSize?.width || 960));
+    const commentXCm = Math.round(pageWidthCm * (22 / 28) * 1000) / 1000;
     return list.map((comment, index) => {
       const name = this._escapeXml(String(comment.id || `comment-${index + 1}`));
       const author = this._escapeXml(comment.author || "");
       const date = this._escapeXml(this._odfAnnotationDate(comment.timestamp));
       const y = Math.round((0.4 + index * 3.2) * 1000) / 1000;
       return `
-        <office:annotation draw:name="${name}" svg:x="22cm" svg:y="${y}cm" svg:width="5cm" svg:height="3cm">
+        <office:annotation draw:name="${name}" svg:x="${commentXCm}cm" svg:y="${y}cm" svg:width="5cm" svg:height="3cm">
           <dc:creator>${author}</dc:creator>${date ? `
           <dc:date>${date}</dc:date>` : ""}
           ${this._textParagraphsXml(comment.text)}
@@ -2177,16 +2182,28 @@ export class SlidesAdapter {
     };
     const logo = this._escapeXml(theme.logoText || "");
     const footer = this._escapeXml(theme.footerText || "");
+    // Kích thước thật của trang chiếu (canvas.slideSize) - KHÔNG hardcode 28cm/15.75cm
+    // nữa (giá trị cũ giả định sai một khổ 960x540 thật ra ~25.4x14.29cm, khiến
+    // slide xuất ra khai báo khổ giấy khác hẳn hệ tọa độ hình khối thật bên trong -
+    // lỗi thật phát hiện khi kiểm tra vòng chuyển đổi PPTX thật). Các phần tử trang
+    // trí (thanh nhấn, logo, chân trang) co giãn theo đúng tỉ lệ của khổ cũ để giữ
+    // nguyên bố cục tương đối, không bị lấn ra ngoài khi khổ trang chiếu khác 16:9 mặc định.
+    const slideWidthPx = this.canvas?.slideSize?.width || 960;
+    const slideHeightPx = this.canvas?.slideSize?.height || 540;
+    const pageWidthCm = parseFloat(this._pxToOdf(slideWidthPx));
+    const pageHeightCm = parseFloat(this._pxToOdf(slideHeightPx));
+    const footerWidthCm = (Math.round(pageWidthCm * (26.8 / 28) * 1000) / 1000);
+    const footerYCm = (Math.round(pageHeightCm * (14.6 / 15.75) * 1000) / 1000);
     // FODP keeps the logo on style:master-page. LibreOffice FODP→PPTX drops it
     // (placeholders only). File → Lưu PPTX post-process inserts a DrawingML
     // p:sp without p:ph onto ppt/slideMasters/slideMaster1.xml — see
     // pptx-master-logo.js / ooxml_zip_patch.postprocess_slides_pptx.
     return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1" vno:master-theme="${this._escapeXml(JSON.stringify(payload))}">
-      <draw:rect draw:style-name="grMasterAccent" svg:x="0cm" svg:y="0cm" svg:width="28cm" svg:height="0.25cm"/>
+      <draw:rect draw:style-name="grMasterAccent" svg:x="0cm" svg:y="0cm" svg:width="${pageWidthCm}cm" svg:height="0.25cm"/>
       <draw:frame draw:style-name="grMasterLogo" svg:x="0.6cm" svg:y="0.4cm" svg:width="16cm" svg:height="0.8cm">
         <draw:text-box><text:p>${logo}</text:p></draw:text-box>
       </draw:frame>
-      ${footer ? `<draw:frame draw:style-name="grMasterFooter" svg:x="0.6cm" svg:y="14.6cm" svg:width="26.8cm" svg:height="0.7cm">
+      ${footer ? `<draw:frame draw:style-name="grMasterFooter" svg:x="0.6cm" svg:y="${footerYCm}cm" svg:width="${footerWidthCm}cm" svg:height="0.7cm">
         <draw:text-box><text:p>${footer}</text:p></draw:text-box>
       </draw:frame>` : ""}
     </style:master-page>`;
@@ -2219,6 +2236,21 @@ export class SlidesAdapter {
     const richCtx = this._newRichTextContext();
     let pagesXml = "";
 
+    // Mọi khung placeholder (title/body/notes) bên dưới được thiết kế theo tỉ lệ
+    // của khổ 28cm x 15.75cm (khớp khổ trang chiếu đã khai báo trước khi sửa lỗi
+    // thật: khổ khai báo trong style:page-layout trước đây bị hardcode sai, không
+    // khớp hệ tọa độ px thật của canvas.slideSize). scaleX/scaleY co giãn các
+    // khung này đúng theo TỈ LỆ khi khổ trang chiếu thật khác 960x540 mặc định,
+    // giữ nguyên bố cục tương đối thay vì bị lấn ra ngoài mép trang mới.
+    const slideWidthPx = this.canvas?.slideSize?.width || 960;
+    const slideHeightPx = this.canvas?.slideSize?.height || 540;
+    const pageWidthCm = parseFloat(this._pxToOdf(slideWidthPx));
+    const pageHeightCm = parseFloat(this._pxToOdf(slideHeightPx));
+    const scaleX = pageWidthCm / 28;
+    const scaleY = pageHeightCm / 15.75;
+    const cmX = value => Math.round(value * scaleX * 1000) / 1000;
+    const cmY = value => Math.round(value * scaleY * 1000) / 1000;
+
     slides.forEach((slide, idx) => {
       const pageName = `page${idx + 1}`;
       const titleXml = this._richOrPlainXml(slide.title || `Trang chiếu ${idx + 1}`, slide.titleHtml, richCtx);
@@ -2226,7 +2258,7 @@ export class SlidesAdapter {
 
       const notesXml = slide.notes ? `
         <presentation:notes>
-          <draw:frame presentation:class="notes" svg:x="2cm" svg:y="2cm" svg:width="20cm" svg:height="15cm">
+          <draw:frame presentation:class="notes" svg:x="${cmX(2)}cm" svg:y="${cmY(2)}cm" svg:width="${cmX(20)}cm" svg:height="${cmY(15)}cm">
             <draw:text-box>
               ${slide.notes.split("\n").map((line) => `<text:p>${this._escapeXml(line)}</text:p>`).join("")}
             </draw:text-box>
@@ -2245,7 +2277,7 @@ export class SlidesAdapter {
         framesXml = "";
       } else if (layoutType === "title-only") {
         framesXml = `
-        <draw:frame presentation:style-name="prTitle" presentation:class="title"${titleIds} svg:x="2cm" svg:y="6cm" svg:width="24cm" svg:height="6cm">
+        <draw:frame presentation:style-name="prTitle" presentation:class="title"${titleIds} svg:x="${cmX(2)}cm" svg:y="${cmY(6)}cm" svg:width="${cmX(24)}cm" svg:height="${cmY(6)}cm">
           <draw:text-box>
             ${titleXml}
           </draw:text-box>
@@ -2255,17 +2287,17 @@ export class SlidesAdapter {
         const body2ParasXml = this._richOrPlainXml(slide.body2, slide.body2Html, richCtx);
 
         framesXml = `
-        <draw:frame presentation:style-name="prTitle" presentation:class="title"${titleIds} svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
+        <draw:frame presentation:style-name="prTitle" presentation:class="title"${titleIds} svg:x="${cmX(2)}cm" svg:y="${cmY(2)}cm" svg:width="${cmX(24)}cm" svg:height="${cmY(3)}cm">
           <draw:text-box>
             ${titleXml}
           </draw:text-box>
         </draw:frame>
-        <draw:frame presentation:style-name="prBody" presentation:class="outline"${bodyIds} svg:x="2cm" svg:y="5.5cm" svg:width="11.5cm" svg:height="11cm">
+        <draw:frame presentation:style-name="prBody" presentation:class="outline"${bodyIds} svg:x="${cmX(2)}cm" svg:y="${cmY(5.5)}cm" svg:width="${cmX(11.5)}cm" svg:height="${cmY(11)}cm">
           <draw:text-box>
             ${bodyParasXml}
           </draw:text-box>
         </draw:frame>
-        <draw:frame presentation:style-name="prBody" presentation:class="outline"${body2Ids} svg:x="14.5cm" svg:y="5.5cm" svg:width="11.5cm" svg:height="11cm">
+        <draw:frame presentation:style-name="prBody" presentation:class="outline"${body2Ids} svg:x="${cmX(14.5)}cm" svg:y="${cmY(5.5)}cm" svg:width="${cmX(11.5)}cm" svg:height="${cmY(11)}cm">
           <draw:text-box>
             ${body2ParasXml}
           </draw:text-box>
@@ -2274,12 +2306,12 @@ export class SlidesAdapter {
         const bodyParasXml = this._richOrPlainXml(slide.body, slide.bodyHtml, richCtx);
 
         framesXml = `
-        <draw:frame presentation:style-name="prTitle" presentation:class="title"${titleIds} svg:x="2cm" svg:y="2cm" svg:width="24cm" svg:height="3cm">
+        <draw:frame presentation:style-name="prTitle" presentation:class="title"${titleIds} svg:x="${cmX(2)}cm" svg:y="${cmY(2)}cm" svg:width="${cmX(24)}cm" svg:height="${cmY(3)}cm">
           <draw:text-box>
             ${titleXml}
           </draw:text-box>
         </draw:frame>
-        <draw:frame presentation:style-name="prBody" presentation:class="outline"${bodyIds} svg:x="2cm" svg:y="5.5cm" svg:width="24cm" svg:height="11cm">
+        <draw:frame presentation:style-name="prBody" presentation:class="outline"${bodyIds} svg:x="${cmX(2)}cm" svg:y="${cmY(5.5)}cm" svg:width="${cmX(24)}cm" svg:height="${cmY(11)}cm">
           <draw:text-box>
             ${bodyParasXml}
           </draw:text-box>

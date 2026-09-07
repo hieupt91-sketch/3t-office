@@ -137,6 +137,39 @@ export function parseSlideSize(presentationXml) {
   };
 }
 
+/**
+ * Đọc khổ trang chiếu THẬT NGƯỜI DÙNG ĐANG DÙNG (canvas.slideSize) từ chính FODP
+ * do VN Office ghi ra (style:page-layout-properties fo:page-width/height, cm).
+ * Cần thiết vì đã đo thực tế: soffice --convert-to pptx BỎ QUA hoàn toàn giá trị
+ * này khi chuyển FODP -> PPTX, luôn tự ý ghi ra đúng DEFAULT_SLIDE_CX/CY
+ * (28cm x 15.75cm) bất kể FODP khai báo gì - dùng để PHỤC HỒI đúng <p:sldSz>
+ * thật sau khi soffice convert xong, không phải để đọc slide size hiện tại.
+ */
+export function parseIntendedSlideSizeFromFodp(fodpXml) {
+  const attrs = String(fodpXml || "").match(/<style:page-layout-properties\b([^>]*)\/?>/i)?.[1] || "";
+  const widthCm = parseFloat(attrs.match(/\bfo:page-width=["']([\d.]+)cm["']/i)?.[1]);
+  const heightCm = parseFloat(attrs.match(/\bfo:page-height=["']([\d.]+)cm["']/i)?.[1]);
+  if (!Number.isFinite(widthCm) || !Number.isFinite(heightCm) || widthCm <= 0 || heightCm <= 0) return null;
+  return {
+    cx: Math.round(widthCm * CM_EMU),
+    cy: Math.round(heightCm * CM_EMU)
+  };
+}
+
+/** Ghi đè cx/cy thật trên <p:sldSz> trong ppt/presentation.xml - giữ nguyên mọi thuộc tính khác của thẻ. */
+export function applyIntendedSlideSize(presentationXml, size) {
+  const xml = String(presentationXml || "");
+  const match = xml.match(SLD_SZ_RE);
+  if (!match || !size) return xml;
+  const tag = match[0];
+  const attrs = match[1];
+  const nextAttrs = attrs
+    .replace(/\bcx=["']\d+["']/i, `cx="${size.cx}"`)
+    .replace(/\bcy=["']\d+["']/i, `cy="${size.cy}"`);
+  const nextTag = tag.replace(attrs, nextAttrs);
+  return xml.slice(0, match.index) + nextTag + xml.slice(match.index + tag.length);
+}
+
 function parseBox(tag, axisA, axisB) {
   const a = Number(tag.match(new RegExp(`\\b${axisA}=["'](-?\\d+)["']`, "i"))?.[1]);
   const b = Number(tag.match(new RegExp(`\\b${axisB}=["'](-?\\d+)["']`, "i"))?.[1]);
