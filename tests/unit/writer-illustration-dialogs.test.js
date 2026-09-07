@@ -144,6 +144,97 @@ export async function runWriterIllustrationDialogTests() {
     if (inserted.type === "rectangle") throw new Error("Vẫn là rectangle mặc định");
   });
 
+  await test("Writer Illustrations: SHAPE_TYPES có triangle và diamond với cấu trúc và kích thước chuẩn", () => {
+    const triangleDef = SHAPE_TYPES.find((item) => item.id === "triangle");
+    if (!triangleDef) throw new Error("Thiếu SHAPE_TYPES.triangle");
+    if (triangleDef.nameVi !== "Hình tam giác" || triangleDef.nameEn !== "Triangle") {
+      throw new Error(`Tên triangle sai: vi=${triangleDef.nameVi}, en=${triangleDef.nameEn}`);
+    }
+    if (triangleDef.defaultW !== 120 || triangleDef.defaultH !== 100) {
+      throw new Error(`Kích thước triangle sai: ${triangleDef.defaultW}x${triangleDef.defaultH}`);
+    }
+
+    const diamondDef = SHAPE_TYPES.find((item) => item.id === "diamond");
+    if (!diamondDef) throw new Error("Thiếu SHAPE_TYPES.diamond");
+    if (diamondDef.nameVi !== "Hình thoi" || diamondDef.nameEn !== "Diamond") {
+      throw new Error(`Tên diamond sai: vi=${diamondDef.nameVi}, en=${diamondDef.nameEn}`);
+    }
+    if (diamondDef.defaultW !== 120 || diamondDef.defaultH !== 100) {
+      throw new Error(`Kích thước diamond sai: ${diamondDef.defaultW}x${diamondDef.defaultH}`);
+    }
+  });
+
+  await test("Writer Illustrations: renderShapeSvg sinh thẻ SVG polygon chuẩn cho triangle và diamond", () => {
+    // Triangle mặc định
+    const svgTri = renderShapeSvg({ type: "triangle" });
+    if (!svgTri.includes("<polygon")) throw new Error("SVG triangle phải chứa thẻ polygon");
+    if (!svgTri.includes('points="50,4 96,92 4,92"')) throw new Error(`Points triangle sai: ${svgTri}`);
+    if (!svgTri.includes('fill="#16a34a"')) throw new Error(`Màu fill mặc định triangle sai: ${svgTri}`);
+    if (!svgTri.includes('stroke="#15803d"')) throw new Error(`Màu stroke mặc định triangle sai: ${svgTri}`);
+    if (!svgTri.includes('viewBox="0 0 100 100"')) throw new Error(`viewBox triangle sai: ${svgTri}`);
+
+    // Diamond mặc định
+    const svgDia = renderShapeSvg({ type: "diamond" });
+    if (!svgDia.includes("<polygon")) throw new Error("SVG diamond phải chứa thẻ polygon");
+    if (!svgDia.includes('points="50,4 96,50 50,96 4,50"')) throw new Error(`Points diamond sai: ${svgDia}`);
+    if (!svgDia.includes('fill="#9333ea"')) throw new Error(`Màu fill mặc định diamond sai: ${svgDia}`);
+    if (!svgDia.includes('stroke="#7e22ce"')) throw new Error(`Màu stroke mặc định diamond sai: ${svgDia}`);
+    if (!svgDia.includes('viewBox="0 0 100 100"')) throw new Error(`viewBox diamond sai: ${svgDia}`);
+
+    // Custom fill & stroke
+    const svgCustomTri = renderShapeSvg({ type: "triangle", fill: "#ff0000", stroke: "#00ff00", strokeWidth: 4 });
+    if (!svgCustomTri.includes('fill="#ff0000"') || !svgCustomTri.includes('stroke="#00ff00"') || !svgCustomTri.includes('stroke-width="4"')) {
+      throw new Error(`Custom styling triangle không được áp dụng: ${svgCustomTri}`);
+    }
+
+    const svgCustomDia = renderShapeSvg({ type: "diamond", fill: "#112233", stroke: "#445566", strokeWidth: 3 });
+    if (!svgCustomDia.includes('fill="#112233"') || !svgCustomDia.includes('stroke="#445566"') || !svgCustomDia.includes('stroke-width="3"')) {
+      throw new Error(`Custom styling diamond không được áp dụng: ${svgCustomDia}`);
+    }
+  });
+
+  await test("Writer Illustrations: chọn triangle và diamond qua command — chèn đúng loại và render đúng polygon", async () => {
+    const { page } = createMockWriterDoc();
+    const adapter = new WriterAdapter(page);
+    const triDef = SHAPE_TYPES.find((item) => item.id === "triangle");
+    const insertedTri = await adapter.handleDispatch(
+      mapVnCommandToUno("writer.shape.insert"),
+      { type: "triangle", w: triDef.defaultW, h: triDef.defaultH, fill: "#16a34a", stroke: "#15803d" },
+      "writer.shape.insert"
+    );
+    if (!insertedTri || insertedTri.type !== "triangle") {
+      throw new Error(`Không chèn triangle, nhận ${JSON.stringify(insertedTri)}`);
+    }
+    if (insertedTri.w !== 120 || insertedTri.h !== 100) {
+      throw new Error(`Kích thước triangle sai: ${insertedTri.w}x${insertedTri.h}, kỳ vọng 120x100`);
+    }
+    const svgTri = renderShapeSvg(insertedTri);
+    if (!svgTri.includes("<polygon") || !svgTri.includes('points="50,4 96,92 4,92"')) {
+      throw new Error("renderShapeSvg(insertedTri) không vẽ đúng tam giác");
+    }
+
+    const diaDef = SHAPE_TYPES.find((item) => item.id === "diamond");
+    const insertedDia = await adapter.handleDispatch(
+      mapVnCommandToUno("writer.shape.insert"),
+      { type: "diamond", w: diaDef.defaultW, h: diaDef.defaultH, fill: "#9333ea", stroke: "#7e22ce" },
+      "writer.shape.insert"
+    );
+    if (!insertedDia || insertedDia.type !== "diamond") {
+      throw new Error(`Không chèn diamond, nhận ${JSON.stringify(insertedDia)}`);
+    }
+    if (insertedDia.w !== 120 || insertedDia.h !== 100) {
+      throw new Error(`Kích thước diamond sai: ${insertedDia.w}x${insertedDia.h}, kỳ vọng 120x100`);
+    }
+    const svgDia = renderShapeSvg(insertedDia);
+    if (!svgDia.includes("<polygon") || !svgDia.includes('points="50,4 96,50 50,96 4,50"')) {
+      throw new Error("renderShapeSvg(insertedDia) không vẽ đúng hình thoi");
+    }
+
+    if (adapter.shapes.length !== 2) {
+      throw new Error(`shapes[] phải lưu 2 hình, nhận ${adapter.shapes.length}`);
+    }
+  });
+
   await test("Writer Illustrations: chọn sơ đồ cycle 5 bước — không phải Process 4 bước mặc định", async () => {
     const { page, body } = createMockWriterDoc();
     const adapter = new WriterAdapter(page);

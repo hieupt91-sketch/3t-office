@@ -533,12 +533,12 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.shape.insert", "writer.diagram.insert", "writer.chart.insert"],
     title: "Chèn hình khối, sơ đồ và biểu đồ",
-    summary: "Ba nút lớn nhóm Minh họa mở hộp thoại chọn kiểu rồi mới chèn. Hình khối: chữ nhật / bo tròn / tròn / mũi tên / đường thẳng. Sơ đồ: quy trình, chu trình, phân cấp, danh sách (3–6 phần tử). Biểu đồ: cột, đường, tròn, miền — nhập nhãn, giá trị và xem trước SVG.",
+    summary: "Ba nút lớn nhóm Minh họa mở hộp thoại chọn kiểu rồi mới chèn. Hình khối: chữ nhật / bo tròn / tròn / tam giác / hình thoi / mũi tên / đường thẳng. Sơ đồ: quy trình, chu trình, phân cấp, danh sách (3–6 phần tử). Biểu đồ: cột, đường, tròn, miền — nhập nhãn, giá trị và xem trước SVG.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
-    keywords: ["hình khối", "sơ đồ", "biểu đồ", "shape", "smartart", "chart", "hộp thoại", "hình tròn", "quy trình"],
+    keywords: ["hình khối", "sơ đồ", "biểu đồ", "shape", "smartart", "chart", "hộp thoại", "hình tròn", "tam giác", "hình thoi", "triangle", "diamond", "quy trình"],
     steps: [
       "Tab Chèn, nhóm Minh họa: Hình khối, Sơ đồ, Biểu đồ (ba nút lớn, cạnh Hình ảnh). Mỗi nút mở hộp thoại chọn kiểu; Hủy, nút ×, Esc hoặc bấm ra ngoài thì không chèn gì.",
-      "Hình khối: hộp «Chèn hình khối» — năm thẻ radio: Hình chữ nhật (140×80, nền #2563eb), Chữ nhật bo tròn, Hình tròn / Elip (110×110, #0ea5e9), Mũi tên sang phải (140×70, #f59e0b), Đường thẳng ngang. Chọn thẻ rồi Chèn. Lớp nổi tại x=100, y lệch dần 160+(n×25); kéo để đặt, nút × xóa khi đang chọn.",
+      "Hình khối: hộp «Chèn hình khối» — bảy thẻ radio: Hình chữ nhật (140×80, nền #2563eb), Chữ nhật bo tròn, Hình tròn / Elip (110×110, #0ea5e9), Hình tam giác (120×100, #16a34a), Hình thoi (120×100, #9333ea), Mũi tên sang phải (140×70, #f59e0b), Đường thẳng ngang. Chọn thẻ rồi Chèn. Lớp nổi tại x=100, y lệch dần 160+(n×25); kéo để đặt, nút × xóa khi đang chọn.",
       "Sơ đồ: hộp «Chèn sơ đồ SmartArt» — Quy trình / Chu trình / Phân cấp / Danh sách, ô số bước 3–6 (mặc định 4). Chèn sơ đồ tạo khối HTML tiêu đề theo kiểu đã chọn, nút «Bước 1»… sửa được chữ, nút Xóa sơ đồ. Không phải SmartArt Word.",
       "Biểu đồ: hộp «Chèn biểu đồ minh họa» — tiêu đề, kiểu Cột/Đường/Tròn/Miền, hàng nhãn & giá trị (mẫu Quý 1–4: 120, 190, 300, 250) và khung Xem trước trực quan. Chèn biểu đồ đưa SVG đã chọn vào trang. Ctrl+Z gỡ đối tượng vừa chèn. Hình ảnh cùng nhóm là bài riêng."
     ]

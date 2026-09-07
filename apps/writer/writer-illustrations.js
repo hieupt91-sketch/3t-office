@@ -13,6 +13,8 @@ export const SHAPE_TYPES = [
   { id: "rectangle", nameVi: "Hình chữ nhật", nameEn: "Rectangle", defaultW: 140, defaultH: 80 },
   { id: "round-rect", nameVi: "Chữ nhật bo tròn", nameEn: "Rounded Rectangle", defaultW: 140, defaultH: 80 },
   { id: "circle", nameVi: "Hình tròn / Elip", nameEn: "Circle / Oval", defaultW: 110, defaultH: 110 },
+  { id: "triangle", nameVi: "Hình tam giác", nameEn: "Triangle", defaultW: 120, defaultH: 100 },
+  { id: "diamond", nameVi: "Hình thoi", nameEn: "Diamond", defaultW: 120, defaultH: 100 },
   { id: "arrow", nameVi: "Mũi tên sang phải", nameEn: "Right Arrow", defaultW: 140, defaultH: 70 },
   { id: "line", nameVi: "Đường thẳng ngang", nameEn: "Horizontal Line", defaultW: 160, defaultH: 30 }
 ];
@@ -24,8 +26,8 @@ export const SHAPE_TYPES = [
  */
 export function renderShapeSvg(shape) {
   const type = shape?.type || shape?.shapeType || "rectangle";
-  const fill = shape?.fill || (type === "line" ? "none" : type === "circle" ? "#0ea5e9" : type === "arrow" ? "#f59e0b" : "#2563eb");
-  const stroke = shape?.stroke || (type === "line" ? "#0f172a" : type === "circle" ? "#0284c7" : type === "arrow" ? "#d97706" : "#1d4ed8");
+  const fill = shape?.fill || (type === "line" ? "none" : type === "circle" ? "#0ea5e9" : type === "arrow" ? "#f59e0b" : type === "triangle" ? "#16a34a" : type === "diamond" ? "#9333ea" : "#2563eb");
+  const stroke = shape?.stroke || (type === "line" ? "#0f172a" : type === "circle" ? "#0284c7" : type === "arrow" ? "#d97706" : type === "triangle" ? "#15803d" : type === "diamond" ? "#7e22ce" : "#1d4ed8");
   const strokeWidth = shape?.strokeWidth || (type === "line" ? 3 : 2);
 
   if (type === "round-rect" || type === "roundRect") {
@@ -37,6 +39,18 @@ export function renderShapeSvg(shape) {
   if (type === "circle") {
     return `<svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="none">
       <ellipse cx="50" cy="50" rx="46" ry="46" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"/>
+    </svg>`;
+  }
+
+  if (type === "triangle") {
+    return `<svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="none">
+      <polygon points="50,4 96,92 4,92" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linejoin="round"/>
+    </svg>`;
+  }
+
+  if (type === "diamond") {
+    return `<svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="none">
+      <polygon points="50,4 96,50 50,96 4,50" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linejoin="round"/>
     </svg>`;
   }
 
@@ -170,7 +184,9 @@ export async function showShapeDialog(currentOptions = null) {
 
     overlay.querySelector(".vno-dialog-ok-btn")?.addEventListener("click", () => {
       const shapeDef = SHAPE_TYPES.find(s => s.id === selectedType) || SHAPE_TYPES[0];
-      cleanup({ type: selectedType, w: shapeDef.defaultW, h: shapeDef.defaultH });
+      const defaultColors = selectedType === "triangle" ? { fill: "#16a34a", stroke: "#15803d" } :
+                            selectedType === "diamond"  ? { fill: "#9333ea", stroke: "#7e22ce" } : {};
+      cleanup({ type: selectedType, w: shapeDef.defaultW, h: shapeDef.defaultH, ...defaultColors });
     });
 
     overlay.querySelector(".vno-dialog-cancel-btn")?.addEventListener("click", () => cleanup(null));
@@ -186,7 +202,9 @@ export async function showShapeDialog(currentOptions = null) {
       } else if (e.key === "Enter") {
         e.preventDefault();
         const shapeDef = SHAPE_TYPES.find(s => s.id === selectedType) || SHAPE_TYPES[0];
-        cleanup({ type: selectedType, w: shapeDef.defaultW, h: shapeDef.defaultH });
+        const defaultColors = selectedType === "triangle" ? { fill: "#16a34a", stroke: "#15803d" } :
+                              selectedType === "diamond"  ? { fill: "#9333ea", stroke: "#7e22ce" } : {};
+        cleanup({ type: selectedType, w: shapeDef.defaultW, h: shapeDef.defaultH, ...defaultColors });
       } else if (e.key === "Tab") {
         trapFocus(dialogBox, e);
       }

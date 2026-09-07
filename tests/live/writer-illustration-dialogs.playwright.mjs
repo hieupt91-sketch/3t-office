@@ -56,9 +56,39 @@ try {
   const shapeDialog = page.locator(".vno-dialog-overlay").filter({ has: page.locator("#vno-shape-dialog-title") });
   await shapeDialog.waitFor();
   check(await shapeDialog.locator('[data-shape-type="circle"]').count() > 0, "Hộp Chèn hình khối liệt kê thẻ Hình tròn");
+  check(await shapeDialog.locator('[data-shape-type="triangle"]').count() > 0, "Hộp Chèn hình khối liệt kê thẻ Hình tam giác");
+  check(await shapeDialog.locator('[data-shape-type="diamond"]').count() > 0, "Hộp Chèn hình khối liệt kê thẻ Hình thoi");
+  check(await shapeDialog.locator('.vno-shape-card').count() === 7, "Hộp Chèn hình khối đủ 7 loại hình");
+  check(await shapeDialog.locator('[data-shape-type="triangle"] polygon[points="50,4 96,92 4,92"]').count() > 0, "Card preview tam giác có polygon đúng");
+  check(await shapeDialog.locator('[data-shape-type="diamond"] polygon[points="50,4 96,50 50,96 4,50"]').count() > 0, "Card preview hình thoi có polygon đúng");
+
+  const artifactDir = "C:/Users/3T Computer/.gemini/antigravity-cli/brain/50013238-143d-4fd2-a512-fff48a434e98";
+  await shapeDialog.locator(".vno-dialog-box").screenshot({ path: `${artifactDir}/writer-shape-dialog.png` });
+
   await shapeDialog.locator(".vno-dialog-cancel-btn").click();
   await shapeDialog.waitFor({ state: "detached" });
   check(await page.locator(".vno-writer-shape-item").count() === 0, "Hủy Hình khối không chèn gì");
+
+  // Shape: pick triangle, confirm canvas type
+  await page.locator('[data-command-id="writer.shape.insert"]').click();
+  await shapeDialog.waitFor();
+  await shapeDialog.locator('[data-shape-type="triangle"]').click();
+  await shapeDialog.locator(".vno-dialog-ok-btn").click();
+  await page.locator('.vno-writer-shape-item[data-shape-type="triangle"]').waitFor();
+  check(await page.locator('.vno-writer-shape-item[data-shape-type="triangle"]').count() === 1, "Chèn Hình khối → chọn triangle → canvas có đúng hình tam giác");
+  check(await page.locator('.vno-writer-shape-item[data-shape-type="triangle"] polygon[points="50,4 96,92 4,92"]').count() > 0, "SVG triangle trên canvas dùng polygon đúng");
+
+  // Shape: pick diamond, confirm canvas type
+  await page.locator('[data-command-id="writer.shape.insert"]').click();
+  await shapeDialog.waitFor();
+  await shapeDialog.locator('[data-shape-type="diamond"]').click();
+  await shapeDialog.locator(".vno-dialog-ok-btn").click();
+  await page.locator('.vno-writer-shape-item[data-shape-type="diamond"]').waitFor();
+  check(await page.locator('.vno-writer-shape-item[data-shape-type="diamond"]').count() === 1, "Chèn Hình khối → chọn diamond → canvas có đúng hình thoi");
+  check(await page.locator('.vno-writer-shape-item[data-shape-type="diamond"] polygon[points="50,4 96,50 50,96 4,50"]').count() > 0, "SVG diamond trên canvas dùng polygon đúng");
+
+  // Capture canvas with shapes
+  await page.screenshot({ path: `${artifactDir}/writer-shapes-canvas.png` });
 
   // Shape: pick circle, confirm canvas type
   await page.locator('[data-command-id="writer.shape.insert"]').click();
