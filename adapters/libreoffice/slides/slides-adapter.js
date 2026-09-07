@@ -1465,6 +1465,12 @@ export class SlidesAdapter {
     const name = this._escapeXml(String(shape.id ?? drawId));
     const styleName = this._shapeStyleName(shape);
     const fill = this._isTransparentFill(shape) ? "" : ` draw:fill-color="${this._escapeXml(shape.color)}"`;
+    if (shape.rotation) {
+      const radianOdf = -(shape.rotation * Math.PI / 180);
+      const xCm = this._pxToOdf(shape.x);
+      const yCm = this._pxToOdf(shape.y);
+      return `draw:id="${this._escapeXml(drawId)}" draw:name="${name}" draw:style-name="${styleName}" svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}" draw:transform="rotate (${radianOdf}) translate (${xCm} ${yCm})"${fill}`;
+    }
     return `draw:id="${this._escapeXml(drawId)}" draw:name="${name}" draw:style-name="${styleName}" svg:x="${this._pxToOdf(shape.x)}" svg:y="${this._pxToOdf(shape.y)}" svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}"${fill}`;
   }
 
