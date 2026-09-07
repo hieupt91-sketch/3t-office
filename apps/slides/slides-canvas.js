@@ -2638,7 +2638,8 @@ export class SlidesCanvasController {
       const marker = shape.arrowEnd ? "marker-end='url(#vno-show-arrow)'" : "";
       return `<svg class="vno-show-connector"${morphAttrs} style="position:absolute;inset:0;width:${this.slideSize.width}px;height:${this.slideSize.height}px;overflow:visible" viewBox="0 0 ${this.slideSize.width} ${this.slideSize.height}"><defs><marker id="vno-show-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="${shape.color || "#475569"}"/></marker></defs><line x1="${shape.x1}" y1="${shape.y1}" x2="${shape.x2}" y2="${shape.y2}" stroke="${shape.color || "#475569"}" stroke-width="3" ${marker}/></svg>`;
     }
-    const pos = `position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;`;
+    const rotateStyle = shape.rotation ? `transform:rotate(${shape.rotation}deg);transform-origin:center center;` : "";
+    const pos = `position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;${rotateStyle}`;
     let animStyle = "";
     let animAttrs = "";
     if (!options.suppressAnimation && shape.animation?.type && shape.animation.type !== "none") {
@@ -3639,6 +3640,20 @@ export class SlidesCanvasController {
         el.appendChild(h);
       });
     }
+
+    if (!el.querySelector(".vno-shape-rotate-handle")) {
+      const stem = document.createElement("div");
+      stem.className = "vno-shape-rotate-stem";
+      el.appendChild(stem);
+
+      const rotateHandle = document.createElement("div");
+      rotateHandle.className = "vno-shape-rotate-handle";
+      rotateHandle.title = "Xoay đối tượng (kéo để xoay, giữ Shift để xoay từng 15°)";
+      rotateHandle.setAttribute("role", "button");
+      rotateHandle.setAttribute("aria-label", "Tay cầm xoay đối tượng");
+      this._attachRotateHandle(rotateHandle, el, shape);
+      el.appendChild(rotateHandle);
+    }
   }
 
   _removeShapeSelectionHandles(el) {
@@ -3646,6 +3661,8 @@ export class SlidesCanvasController {
     const delBtn = el.querySelector(".vno-shape-delete-btn");
     if (delBtn) delBtn.remove();
     el.querySelectorAll(".vno-shape-resize-handle").forEach(h => h.remove());
+    el.querySelectorAll(".vno-shape-rotate-handle").forEach(h => h.remove());
+    el.querySelectorAll(".vno-shape-rotate-stem").forEach(h => h.remove());
   }
 
   _attachResizeHandle(handleEl, shapeEl, shape, dir) {
@@ -3744,6 +3761,84 @@ export class SlidesCanvasController {
     });
   }
 
+  _attachRotateHandle(handleEl, shapeEl, shape) {
+    handleEl.addEventListener("pointerdown", (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+
+      const origRotation = shape.rotation;
+      const rect = shapeEl.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      let rotated = false;
+
+      handleEl.classList.add("is-rotating");
+      if (document.body?.style) document.body.style.cursor = "grabbing";
+
+      const move = (moveEvent) => {
+        const dx = moveEvent.clientX - centerX;
+        const dy = moveEvent.clientY - centerY;
+
+        // Góc từ tâm hình tới vị trí chuột.
+        // Hướng "lên" (dy < 0, dx = 0) là -90° theo Math.atan2.
+        // Cần hướng "lên" là 0° (đối xứng vị trí tay cầm phía trên), cộng 90°.
+        let deg = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+        deg = ((deg % 360) + 360) % 360;
+
+        if (moveEvent.shiftKey) {
+          // Giữ Shift thì SNAP về bội số 15° (PowerPoint parity)
+          deg = Math.round(deg / 15) * 15;
+          deg = ((deg % 360) + 360) % 360;
+        } else {
+          deg = Math.round(deg);
+          deg = ((deg % 360) + 360) % 360;
+        }
+
+        // Bỏ qua / set undefined nếu angle gần 0 (giữ đúng quy ước ODF/PPTX không có trường rotation khi không xoay)
+        const isNearZero = deg === 0 || deg === 360 || Math.abs(deg) < 0.5;
+        const targetRot = isNearZero ? undefined : deg;
+
+        if (targetRot !== origRotation) {
+          rotated = true;
+        }
+
+        if (targetRot !== undefined) {
+          shape.rotation = targetRot;
+          shapeEl.style.transform = `rotate(${targetRot}deg)`;
+          shapeEl.style.transformOrigin = "center center";
+        } else {
+          delete shape.rotation;
+          shapeEl.style.transform = "";
+          shapeEl.style.transformOrigin = "";
+        }
+      };
+
+      const up = () => {
+        document.removeEventListener("pointermove", move);
+        document.removeEventListener("pointerup", up);
+        handleEl.classList.remove("is-rotating");
+        if (document.body?.style) document.body.style.cursor = "";
+
+        if (rotated) {
+          this.undoStack.push({
+            type: "shape-rotate",
+            slideIndex: this.currentSlideIndex,
+            shapeId: shape.id,
+            from: origRotation,
+            to: shape.rotation
+          });
+          this.redoStack = [];
+          this._syncUndoRedoState();
+          this._renderThumbnails();
+          if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+        }
+      };
+
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", up);
+    });
+  }
+
   _clearSmartGuides() {
     if (this.smartGuidesLayer) this.smartGuidesLayer.innerHTML = "";
   }
@@ -3768,6 +3863,7 @@ export class SlidesCanvasController {
   _attachShapeDrag(el, shape) {
     el.addEventListener("pointerdown", (event) => {
       if (event.target?.classList?.contains("vno-shape-resize-handle")) return;
+      if (event.target?.classList?.contains("vno-shape-rotate-handle") || event.target?.classList?.contains("vno-shape-rotate-stem")) return;
       if (event.target?.classList?.contains("vno-shape-delete-btn")) return;
       if (event.target?.classList?.contains("vno-diagram-node-text") && event.target.contentEditable === "true") return;
       if (this.formatPainter) {
@@ -5384,6 +5480,9 @@ export class SlidesCanvasController {
       <button type="button" data-action="duplicate" role="menuitem" tabindex="0">Nhân đôi (Ctrl+D)</button>
       <button type="button" data-action="delete" role="menuitem" tabindex="-1">Xóa hình vẽ (Delete)</button>
     `;
+    if (shape.rotation) {
+      itemsHtml += `<button type="button" data-action="reset-rotation" role="menuitem" tabindex="-1">Đặt lại góc xoay (0°)</button>`;
+    }
     if (shape.type === "chart") {
       itemsHtml += `<button type="button" data-action="edit-chart" role="menuitem" tabindex="-1">Chỉnh sửa biểu đồ...</button>`;
     }
@@ -5427,6 +5526,10 @@ export class SlidesCanvasController {
     menu.querySelector('[data-action="delete"]')?.addEventListener("click", () => {
       close(false);
       this.deleteSelectedShapes();
+    });
+    menu.querySelector('[data-action="reset-rotation"]')?.addEventListener("click", () => {
+      close(false);
+      this.resetShapeRotation(shape.id);
     });
     menu.querySelector('[data-action="edit-chart"]')?.addEventListener("click", () => {
       close(false);
@@ -5481,6 +5584,28 @@ export class SlidesCanvasController {
 
     document.body.appendChild(menu);
     menu.querySelector("button:not([disabled])")?.focus?.();
+    return true;
+  }
+
+  resetShapeRotation(shapeId) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    const shape = (slide.shapes || []).find(s => String(s.id) === String(shapeId));
+    if (!shape || !shape.rotation) return false;
+    const fromRot = shape.rotation;
+    delete shape.rotation;
+    this.undoStack.push({
+      type: "shape-rotate",
+      slideIndex: this.currentSlideIndex,
+      shapeId: shape.id,
+      from: fromRot,
+      to: undefined
+    });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderShapesLayer();
+    this._renderThumbnails();
+    if (this.slideSorterOverlay) this._renderSlideSorterGrid();
     return true;
   }
 
@@ -5830,6 +5955,19 @@ export class SlidesCanvasController {
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
       return true;
+    } else if (action.type === "shape-rotate") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      if (action.from !== undefined && action.from !== null) {
+        shape.rotation = action.from;
+      } else {
+        delete shape.rotation;
+      }
+      this.currentSlideIndex = action.slideIndex;
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
     } else if (action.type === "shapes-delete") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -6091,6 +6229,19 @@ export class SlidesCanvasController {
       shape.x = action.to.x; shape.y = action.to.y; shape.w = action.to.w; shape.h = action.to.h;
       this.currentSlideIndex = action.slideIndex;
       if (shape.diagramRole === "node") this._updateDiagramConnectorsForNode(shape);
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      this._renderShapesLayer();
+      return true;
+    } else if (action.type === "shape-rotate") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      if (action.to !== undefined && action.to !== null) {
+        shape.rotation = action.to;
+      } else {
+        delete shape.rotation;
+      }
+      this.currentSlideIndex = action.slideIndex;
       this.undoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();

@@ -577,6 +577,23 @@ export const SLIDES_HELP_ENTRIES = [
       "Hết (Esc hoặc trang cuối, trừ khi đang lặp liên tục): hộp xác nhận «Tổng thời gian trình chiếu: {time}. Lưu thời gian tập dượt cho từng trang?» Đồng ý ghi rehearsedDuration (1 chữ số thập phân); Bộ sắp xếp trang hiện ⏱ Ns.",
       "Mốc đã lưu không tự chạy khi F5 — chỉ để xem lại. Muốn lặp không dừng: tab Trình chiếu → Thiết lập trình chiếu."
     ]
+  },
+  {
+    id: "slides.shape.rotationHandle",
+    app: "slides",
+    commandIds: ["slides.shape.insert"],
+    title: "Xoay hình khối và hình ảnh",
+    summary: "Xoay đối tượng trực quan quanh tâm bằng tay cầm tròn phía trên đỉnh hình. Giữ Shift để xoay từng bước 15° chuẩn xác. Hoàn tác bằng Ctrl+Z hoặc nhấp chuột phải chọn Đặt lại góc xoay (0°).",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
+    keywords: ["xoay", "xoay hình", "rotate", "tay cầm xoay", "rotation handle", "góc xoay", "đặt lại góc xoay"],
+    steps: [
+      "Nhấp chọn một hình khối hoặc hình ảnh trên trang chiếu canvas. Xung quanh đối tượng sẽ xuất hiện 8 tay cầm co giãn, nút xóa màu đỏ ở góc trên-trái và một tay cầm xoay hình tròn nhỏ màu xanh dương ở phía trên đỉnh (nối bằng cần mảnh).",
+      "Rê chuột vào tay cầm xoay tròn: con trỏ chuyển thành hình bàn tay nắm (grab). Nhấn giữ chuột và kéo xoay quanh tâm đối tượng theo chiều kim đồng hồ hoặc ngược chiều kim đồng hồ.",
+      "Xoay từng bước 15° chuẩn xác: nhấn giữ phím Shift trong lúc kéo chuột để góc xoay tự động bắt dính vào các bội số 15° (15°, 30°, 45°, 60°, 90°...), tương tự như trong Microsoft PowerPoint.",
+      "Kéo tay cầm về vị trí thẳng đứng ban đầu (hoặc gần 0°), góc xoay sẽ tự động đưa về mặc định không xoay.",
+      "Đặt lại góc xoay về 0° nhanh chóng: nhấp chuột phải vào hình vẽ đã xoay để mở trình đơn ngữ cảnh, chọn «Đặt lại góc xoay (0°)».",
+      "Hoàn tác thao tác xoay: nhấn phím Ctrl+Z để quay về góc xoay trước đó; nhấn Ctrl+Y để làm lại."
+    ]
   }
 ];
 

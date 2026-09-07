@@ -864,6 +864,65 @@
 .vno-handle-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
 .vno-handle-w { top: calc(50% - 4px); left: -4px; cursor: ew-resize; }
 
+/* Shape Rotation Stem & Handle (PowerPoint parity) */
+.vno-shape-rotate-stem {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  width: 1px;
+  height: 22px;
+  background-color: #2563eb;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 26;
+}
+
+.vno-shape-rotate-handle {
+  position: absolute;
+  top: -28px;
+  left: calc(50% - 6px);
+  width: 12px;
+  height: 12px;
+  background-color: #2563eb;
+  border: 1.5px solid var(--vno-bg-surface, #ffffff);
+  border-radius: 50%;
+  box-sizing: border-box;
+  cursor: grab;
+  z-index: 26;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+.vno-shape-rotate-handle:hover {
+  background-color: #1d4ed8;
+  transform: scale(1.15);
+}
+
+.vno-shape-rotate-handle:active,
+.vno-shape-rotate-handle.is-rotating {
+  cursor: grabbing !important;
+  background-color: #1e40af;
+}
+
+[data-theme="dark"] .vno-shape-rotate-stem {
+  background-color: #60a5fa;
+}
+
+[data-theme="dark"] .vno-shape-rotate-handle {
+  background-color: #3b82f6;
+  border-color: var(--vno-bg-surface, #1e1e1e);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="dark"] .vno-shape-rotate-handle:hover {
+  background-color: #60a5fa;
+}
+
+[data-theme="dark"] .vno-shape-rotate-handle:active,
+[data-theme="dark"] .vno-shape-rotate-handle.is-rotating {
+  background-color: #93c5fd;
+}
+
 /* Smart Guides / Snap Lines */
 .vno-slide-smart-guides-layer {
   position: absolute;

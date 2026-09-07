@@ -149,6 +149,7 @@ import { runSheetPrintTitlesRealFileImportTests } from "./unit/sheet-print-title
 import { runWriterFodtRealDocxParsingTests } from "./unit/writer-fodt-real-docx-parsing.test.js";
 import { runBackstagePrintThumbnailTests } from "./unit/backstage-print-thumbnail.test.js";
 import { runSlidesShapeAlignmentTests } from "./unit/slides-shape-alignment.test.js";
+import { runSlidesShapeRotationHandleTests } from "./unit/slides-shape-rotation-handle.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -305,7 +306,8 @@ async function runAll() {
     { title: "129. Unit Tests — VN Sheet Freeze Panes thật (cố định theo Ô đang chọn + sửa lỗi ảo hóa hàng)", runner: runSheetFreezePanesRealTests },
     { title: "130. Unit Tests — VN Sheet đọc/ghi ảnh nhúng (draw:image) từ file thật + round-trip Lưu/Mở", runner: runSheetImageImportExportTests },
     { title: "131. Unit Tests — VN Slides: vị trí hình bị xoay trong PPTX thật (draw:transform rotate/translate)", runner: runSlidesRotatedShapePositionTests },
-    { title: "132. Unit Tests — VN Sheet thanh trạng thái Sum/Average/Count: chỉ tính vùng đang chọn, không xén dấu thập phân", runner: runSheetStatusBarSumTests }
+    { title: "132. Unit Tests — VN Sheet thanh trạng thái Sum/Average/Count: chỉ tính vùng đang chọn, không xén dấu thập phân", runner: runSheetStatusBarSumTests },
+    { title: "133. Unit Tests — VN Slides Tay Cầm Xoay Tương Tác (Rotation Handle & Undo/Redo)", runner: runSlidesShapeRotationHandleTests }
   ];
 
   for (const suite of suites) {
