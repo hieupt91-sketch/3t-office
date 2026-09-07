@@ -887,8 +887,38 @@ export class SlidesAdapter {
   _shapeStyleName(shape) {
     if (shape.type === "connector") return "grConnector";
     if (shape.type === "image" || shape.type === "video" || shape.type === "audio") return "grImage";
-    if (this._isTransparentFill(shape)) return "grNone";
-    return `gr${this._styleKey(shape.color)}`;
+    const suffix = this._shapeTextStyleSuffix(shape);
+    if (this._isTransparentFill(shape)) return suffix ? `grNone${suffix}` : "grNone";
+    return `gr${this._styleKey(shape.color)}${suffix}`;
+  }
+
+  /**
+   * GAP-SLIDES-05/06: hậu tố tên style khi hình có căn lề dọc / hướng chữ
+   * KHÁC mặc định (middle/horizontal) - giữ nguyên tên style gốc (gr3b82f6,
+   * grNone...) cho trường hợp phổ biến không dùng 2 tính năng này, tránh phá
+   * vỡ các fixture/test đã có tên style cố định từ trước.
+   */
+  _shapeTextStyleSuffix(shape) {
+    if (["connector", "image", "video", "audio", "chart", "table", "wordart"].includes(shape?.type)) return "";
+    if (shape?.text === undefined) return "";
+    const vAlign = shape.textVAlign && shape.textVAlign !== "middle" ? shape.textVAlign : "";
+    const dir = shape.textDirection && shape.textDirection !== "horizontal" ? shape.textDirection : "";
+    if (!vAlign && !dir) return "";
+    return `_${vAlign || "m"}${dir ? `_${dir}` : ""}`;
+  }
+
+  /** Thuộc tính ODF chuẩn cho căn lề dọc + hướng chữ, cộng vno:text-direction riêng để khôi phục CHÍNH XÁC vertical270/stacked (ODF không có 2 giá trị writing-mode chuẩn tương ứng). */
+  _textStyleGraphicAttrs(shape) {
+    if (!this._shapeTextStyleSuffix(shape)) return "";
+    let attrs = "";
+    if (shape.textVAlign && shape.textVAlign !== "middle") {
+      attrs += ` draw:textarea-vertical-align="${this._escapeXml(shape.textVAlign)}"`;
+    }
+    if (shape.textDirection && shape.textDirection !== "horizontal") {
+      const writingMode = shape.textDirection === "stacked" ? "tb-lr" : "tb-rl";
+      attrs += ` style:writing-mode="${writingMode}" vno:text-direction="${this._escapeXml(shape.textDirection)}"`;
+    }
+    return attrs;
   }
 
   _wordArtTextStyleName(shape) {
@@ -1440,6 +1470,7 @@ export class SlidesAdapter {
 
   _serializeGraphicStyles(slides) {
     const fills = new Map();
+    const namedStyles = new Map();
     let needsConnector = false;
     let needsMedia = false;
     for (const slide of slides) {
@@ -1450,6 +1481,11 @@ export class SlidesAdapter {
         }
         if (shape.type === "image" || shape.type === "video" || shape.type === "audio") {
           needsMedia = true;
+          continue;
+        }
+        const suffix = this._shapeTextStyleSuffix(shape);
+        if (suffix) {
+          namedStyles.set(this._shapeStyleName(shape), shape);
           continue;
         }
         if (this._isTransparentFill(shape)) {
@@ -1514,6 +1550,13 @@ export class SlidesAdapter {
       xml += `
     <style:style style:name="gr${key}" style:family="graphic">
       <style:graphic-properties draw:stroke="none" draw:fill="solid" draw:fill-color="${this._escapeXml(color)}"/>
+    </style:style>`;
+    }
+    for (const [styleName, shape] of namedStyles) {
+      const fillAttrs = this._isTransparentFill(shape) ? ` draw:fill="none"` : ` draw:fill="solid" draw:fill-color="${this._escapeXml(shape.color)}"`;
+      xml += `
+    <style:style style:name="${styleName}" style:family="graphic">
+      <style:graphic-properties draw:stroke="none"${fillAttrs}${this._textStyleGraphicAttrs(shape)}/>
     </style:style>`;
     }
     if (needsConnector) {
@@ -1690,10 +1733,19 @@ export class SlidesAdapter {
       const fillKind = match[2].match(/draw:fill=["']([^"']+)["']/i)?.[1];
       const stroke = match[2].match(/svg:stroke-color=["']([^"']+)["']/i)?.[1];
       const markerEnd = match[2].match(/draw:marker-end=["']([^"']+)["']/i)?.[1];
+      const vAlignRaw = match[2].match(/draw:textarea-vertical-align=["']([^"']+)["']/i)?.[1];
+      const vnoDirection = match[2].match(/vno:text-direction=["']([^"']+)["']/i)?.[1];
+      const writingMode = match[2].match(/style:writing-mode=["']([^"']+)["']/i)?.[1];
+      let textDirection = null;
+      if (vnoDirection) textDirection = vnoDirection;
+      else if (writingMode === "tb-rl") textDirection = "vertical";
+      else if (writingMode === "tb-lr") textDirection = "stacked";
       styles.set(name, {
         fill: fillKind === "none" ? "transparent" : (fill || null),
         stroke: stroke || null,
-        markerEnd: markerEnd || null
+        markerEnd: markerEnd || null,
+        textVAlign: (vAlignRaw && vAlignRaw !== "middle") ? vAlignRaw : null,
+        textDirection: (textDirection && textDirection !== "horizontal") ? textDirection : null
       });
     }
     return styles;
@@ -1743,7 +1795,7 @@ export class SlidesAdapter {
     const styleName = get("draw:style-name");
     const style = graphicStyles.get(styleName) || {};
     const color = get("draw:fill-color") || style.fill || "#3b82f6";
-    return {
+    const shape = {
       id: this._restoreShapeId(attrs),
       type,
       x: this._odfLengthToPx(get("svg:x")),
@@ -1755,6 +1807,9 @@ export class SlidesAdapter {
       textHtml: this._shapeHtmlFromXml(inner),
       animation: this._noneAnimation()
     };
+    if (style.textVAlign) shape.textVAlign = style.textVAlign;
+    if (style.textDirection) shape.textDirection = style.textDirection;
+    return shape;
   }
 
   _parseConnectorShape(attrs, inner, graphicStyles) {
@@ -1896,13 +1951,16 @@ export class SlidesAdapter {
       };
     }
     if (/<draw:text-box\b/i.test(inner) && hasId) {
-      return {
+      const textbox = {
         ...base,
         type: "textbox",
         color: get("draw:fill-color") || style.fill || "transparent",
         text: this._paragraphsFromXml(inner).join("\n"),
         textHtml: this._shapeHtmlFromXml(inner)
       };
+      if (style.textVAlign) textbox.textVAlign = style.textVAlign;
+      if (style.textDirection) textbox.textDirection = style.textDirection;
+      return textbox;
     }
     return null;
   }
@@ -2832,6 +2890,32 @@ export class SlidesAdapter {
 
       case "slides.arrange.alignToSlide":
         return this.canvas.toggleAlignToSlide ? this.canvas.toggleAlignToSlide() : false;
+
+      case "slides.text.vAlignTop":
+      case ".uno:TextVertAnchorTop":
+        return this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("top") : false;
+
+      case "slides.text.vAlignMiddle":
+      case ".uno:TextVertAnchorCenter":
+        return this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("middle") : false;
+
+      case "slides.text.vAlignBottom":
+      case ".uno:TextVertAnchorBottom":
+        return this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("bottom") : false;
+
+      case "slides.text.directionHorizontal":
+      case ".uno:TextdirectionLeftToRight":
+        return this.canvas.setTextDirection ? this.canvas.setTextDirection("horizontal") : false;
+
+      case "slides.text.directionVertical":
+      case ".uno:TextdirectionTopToBottom":
+        return this.canvas.setTextDirection ? this.canvas.setTextDirection("vertical") : false;
+
+      case "slides.text.directionVertical270":
+        return this.canvas.setTextDirection ? this.canvas.setTextDirection("vertical270") : false;
+
+      case "slides.text.directionStacked":
+        return this.canvas.setTextDirection ? this.canvas.setTextDirection("stacked") : false;
 
       case "slides.nav.firstSlide":
         this.canvas.selectSlide(0);

@@ -470,6 +470,13 @@ export const viStrings = {
     ,"slides.arrange.distributeHorizontal": { label: "Phân phối đều ngang", tooltip: "Chia đều khoảng cách ngang giữa các đối tượng (từ 3 đối tượng trở lên)" }
     ,"slides.arrange.distributeVertical": { label: "Phân phối đều dọc", tooltip: "Chia đều khoảng cách dọc giữa các đối tượng (từ 3 đối tượng trở lên)" }
     ,"slides.arrange.alignToSlide": { label: "Căn theo trang chiếu", tooltip: "Bật: căn theo toàn bộ khung trang chiếu. Tắt: căn theo khung các đối tượng đang chọn" }
+    ,"slides.text.vAlignTop": { label: "Căn lề trên", tooltip: "Căn văn bản lên đầu khung chữ" }
+    ,"slides.text.vAlignMiddle": { label: "Căn giữa (dọc)", tooltip: "Căn văn bản giữa khung chữ theo chiều dọc" }
+    ,"slides.text.vAlignBottom": { label: "Căn lề dưới", tooltip: "Căn văn bản xuống đáy khung chữ" }
+    ,"slides.text.directionHorizontal": { label: "Ngang", tooltip: "Văn bản nằm ngang (mặc định)" }
+    ,"slides.text.directionVertical": { label: "Xoay chữ 90°", tooltip: "Xoay toàn bộ văn bản 90°" }
+    ,"slides.text.directionVertical270": { label: "Xoay chữ 270°", tooltip: "Xoay toàn bộ văn bản 270°" }
+    ,"slides.text.directionStacked": { label: "Xếp chồng", tooltip: "Xếp chồng từng ký tự theo chiều dọc, không xoay" }
     ,"slides.nav.firstSlide": { label: "Trang đầu tiên", tooltip: "Về trang chiếu đầu tiên (Ctrl+Home)" }
     ,"slides.nav.lastSlide": { label: "Trang cuối cùng", tooltip: "Đến trang chiếu cuối cùng (Ctrl+End)" }
     ,"slides.nav.prevSlide": { label: "Trang trước", tooltip: "Về trang chiếu trước (Page Up)" }

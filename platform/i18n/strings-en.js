@@ -471,6 +471,13 @@ export const enStrings = {
     ,"slides.arrange.distributeHorizontal": { label: "Distribute Horizontally", tooltip: "Evenly space the objects horizontally (3 or more objects)" }
     ,"slides.arrange.distributeVertical": { label: "Distribute Vertically", tooltip: "Evenly space the objects vertically (3 or more objects)" }
     ,"slides.arrange.alignToSlide": { label: "Align to Slide", tooltip: "On: align relative to the whole slide. Off: align relative to the selected objects" }
+    ,"slides.text.vAlignTop": { label: "Align Top", tooltip: "Align text to the top of the text box" }
+    ,"slides.text.vAlignMiddle": { label: "Align Middle", tooltip: "Align text to the vertical middle of the text box" }
+    ,"slides.text.vAlignBottom": { label: "Align Bottom", tooltip: "Align text to the bottom of the text box" }
+    ,"slides.text.directionHorizontal": { label: "Horizontal", tooltip: "Horizontal text (default)" }
+    ,"slides.text.directionVertical": { label: "Rotate all text 90°", tooltip: "Rotate all text by 90 degrees" }
+    ,"slides.text.directionVertical270": { label: "Rotate all text 270°", tooltip: "Rotate all text by 270 degrees" }
+    ,"slides.text.directionStacked": { label: "Stacked", tooltip: "Stack characters vertically without rotating them" }
     ,"slides.nav.firstSlide": { label: "First Slide", tooltip: "Go to the first slide (Ctrl+Home)" }
     ,"slides.nav.lastSlide": { label: "Last Slide", tooltip: "Go to the last slide (Ctrl+End)" }
     ,"slides.nav.prevSlide": { label: "Previous Slide", tooltip: "Go to the previous slide (Page Up)" }

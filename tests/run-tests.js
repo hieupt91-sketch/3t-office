@@ -132,6 +132,7 @@ import { runSlidesPptxSectionsOpenOverlayTests } from "./unit/slides-pptx-sectio
 import { runSlidesPptxMasterLogoOpenOverlayTests } from "./unit/slides-pptx-masterlogo-open-overlay.test.js";
 import { runSlidesPptxShowPropertiesTests } from "./unit/slides-pptx-show-properties.test.js";
 import { runSlidesPptxSlideSizeTests } from "./unit/slides-pptx-slide-size.test.js";
+import { runSlidesTextVerticalDirectionTests } from "./unit/slides-text-vertical-direction.test.js";
 import { runSlidesPptxSetupShowOpenOverlayTests } from "./unit/slides-pptx-setup-show-open-overlay.test.js";
 import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.test.js";
 import { runWriterLineNumbersTests } from "./unit/writer-line-numbers.test.js";
@@ -293,7 +294,8 @@ async function runAll() {
     { title: "124. Unit Tests — Writer parseFodt(): đọc đúng file FODT thật từ vòng chuyển đổi DOCX (page-layout regex + text:sequence-decls)", runner: runWriterFodtRealDocxParsingTests },
     { title: "125. Unit & Behavioral Tests — VN Office Backstage Print Thumbnail & Live Preview", runner: runBackstagePrintThumbnailTests },
     { title: "126. Unit & Behavioral Tests — VN Slides Multi-Shape Align/Distribute (GAP-SLIDES-01/02/03)", runner: runSlidesShapeAlignmentTests },
-    { title: "127. Unit Tests — Slides native PPTX post-process (p:sldSz khổ trang chiếu thật)", runner: runSlidesPptxSlideSizeTests }
+    { title: "127. Unit Tests — Slides native PPTX post-process (p:sldSz khổ trang chiếu thật)", runner: runSlidesPptxSlideSizeTests },
+    { title: "128. Unit Tests — VN Slides Text Vertical Align & Direction (GAP-SLIDES-05/06)", runner: runSlidesTextVerticalDirectionTests }
   ];
 
   for (const suite of suites) {
