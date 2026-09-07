@@ -1890,10 +1890,18 @@ export class SlidesAdapter {
   _parseFrameShape(attrs, inner, graphicStyles) {
     const get = (name) => this._attr(attrs, name);
     const style = graphicStyles.get(get("draw:style-name")) || {};
+    // Lỗi thật đã xác nhận qua probe soffice thật: khi hình (ảnh/bảng/khối)
+    // trong PPTX thật bị XOAY, soffice ghi vị trí qua
+    // draw:transform="rotate(...) translate(...)" thay vì svg:x/svg:y (2
+    // thuộc tính này HOÀN TOÀN VẮNG MẶT trong trường hợp đó). Đọc thẳng
+    // svg:x/svg:y như trước đây làm mọi hình xoay bị đặt nhầm về góc
+    // (0,0) — dùng _parseDrawTranslate() (đã có sẵn, đang dùng cho
+    // <draw:g> ở _extractDrawGroups()) để xử lý đúng cả 2 trường hợp.
+    const origin = this._parseDrawTranslate(attrs);
     const base = {
       id: this._restoreShapeId(attrs),
-      x: this._odfLengthToPx(get("svg:x")),
-      y: this._odfLengthToPx(get("svg:y")),
+      x: origin.x,
+      y: origin.y,
       w: this._odfLengthToPx(get("svg:width")) || 200,
       h: this._odfLengthToPx(get("svg:height")) || 120,
       animation: this._noneAnimation()
@@ -2015,7 +2023,12 @@ export class SlidesAdapter {
 
   _parseDrawTranslate(attrs) {
     const transform = this._attr(attrs, "draw:transform") || this._attr(attrs, "svg:transform");
-    const match = String(transform || "").match(/translate\(\s*([^,)\s]+)\s*[, ]\s*([^,)\s]+)\s*\)/i);
+    // Lỗi thật đã xác nhận qua probe soffice thật: soffice ghi
+    // "rotate (-0.785...) translate (5.318cm 1.726cm)" — CÓ khoảng trắng
+    // giữa tên hàm và dấu ngoặc — nhưng regex cũ yêu cầu "translate(" liền
+    // nhau nên không bao giờ khớp, khiến vị trí luôn rơi về nhánh dự phòng
+    // svg:x/svg:y (thường vắng mặt khi có transform) → vị trí sai về (0,0).
+    const match = String(transform || "").match(/translate\s*\(\s*([^,)\s]+)\s*[, ]\s*([^,)\s]+)\s*\)/i);
     if (match) {
       return { x: this._odfLengthToPx(match[1]), y: this._odfLengthToPx(match[2]) };
     }
