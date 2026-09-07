@@ -6947,6 +6947,14 @@ export class WriterAdapter {
       // thích nào - đây là khai báo thuần, không mang nội dung người dùng, an
       // toàn để bỏ qua thay vì báo lỗi "chưa hỗ trợ" như mọi phần tử lạ khác.
       if (node.name === "text:sequence-decls") continue;
+      // Lỗi thật đã xác nhận qua file .doc thật của người dùng: LibreOffice
+      // LUÔN ghi <office:forms form:automatic-focus="false"
+      // form:apply-design-mode="false"/> (RỖNG, tự đóng thẻ) làm con của
+      // office:text khi convert file .doc/.docx cũ — kể cả tài liệu không hề
+      // có control form nào (checkbox/textbox tương tác). Đây chỉ là khai báo
+      // chế độ thiết kế form thuần túy của LibreOffice, KHÔNG mang nội dung
+      // người dùng — an toàn để bỏ qua, giống hệt text:sequence-decls ở trên.
+      if (node.name === "office:forms") continue;
       if (node.name === "text:tracked-changes") {
         this._fodtLoadTrackedChanges(node, trackedById);
         continue;

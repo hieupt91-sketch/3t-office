@@ -27,15 +27,18 @@ function adapterWithBody(innerHTML) {
 // nào, style của một style:style khác) TRƯỚC block <style:page-layout style:name="pm1">
 // thật - đúng thứ tự LibreOffice thật hay ghi ra, khác với FODT tự viết tay
 // hoặc do chính VN Office serializeToFodt() phát ra.
-function realDocxFodt({ orientation = "landscape", extraBoilerplate = true, sequenceDecls = true } = {}) {
+function realDocxFodt({ orientation = "landscape", extraBoilerplate = true, sequenceDecls = true, officeForms = false } = {}) {
   const boilerplate = extraBoilerplate
     ? `<style:style style:name="Standard" style:family="paragraph"><style:page-layout-properties style:layout-grid-standard-mode="true"/></style:style>`
     : "";
   const seq = sequenceDecls
     ? `<text:sequence-decls><text:sequence-decl text:display-outline-level="0" text:name="Illustration"/><text:sequence-decl text:display-outline-level="0" text:name="Table"/></text:sequence-decls>`
     : "";
+  const forms = officeForms
+    ? `<office:forms form:automatic-focus="false" form:apply-design-mode="false"/>`
+    : "";
   return `<?xml version="1.0" encoding="UTF-8"?>
-<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" office:version="1.2" office:mimetype="application/vnd.oasis.opendocument.text">
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:form="urn:oasis:names:tc:opendocument:xmlns:form:1.0" office:version="1.2" office:mimetype="application/vnd.oasis.opendocument.text">
  <office:automatic-styles>
   ${boilerplate}
   <style:page-layout style:name="pm1">
@@ -47,6 +50,7 @@ function realDocxFodt({ orientation = "landscape", extraBoilerplate = true, sequ
  </office:master-styles>
  <office:body>
   <office:text>
+   ${forms}
    ${seq}
    <text:p>Noi dung van ban DOCX that</text:p>
   </office:text>
@@ -97,6 +101,29 @@ export async function runWriterFodtRealDocxParsingTests() {
   await test("parseFodt: tài liệu không có text:sequence-decls vẫn hoạt động bình thường (không phụ thuộc ngược vào nó)", () => {
     const { adapter } = adapterWithBody("<p>x</p>");
     const xml = realDocxFodt({ sequenceDecls: false });
+    assert.doesNotThrow(() => adapter.parseFodt(xml));
+    assert.ok(adapter.bodyDom.innerHTML.includes("Noi dung van ban DOCX that"));
+  });
+
+  // Lỗi thật đã xác nhận qua file .doc THẬT của người dùng ("Giấy đề nghị
+  // thanh toán 08-2026.doc"): LibreOffice LUÔN ghi <office:forms
+  // form:automatic-focus="false" form:apply-design-mode="false"/> (RỖNG, tự
+  // đóng thẻ, không có control form nào bên trong) làm con ĐẦU TIÊN của
+  // office:text khi convert file .doc/.docx cũ — kể cả tài liệu không hề
+  // dùng form tương tác nào. Trước đây parseFodt() ném lỗi ngay khi gặp
+  // phần tử này, khiến TOÀN BỘ file .doc thật (văn bản hành chính bình
+  // thường, không có gì đặc biệt) không mở được.
+  await test("parseFodt: bỏ qua office:forms (khai báo chế độ thiết kế form rỗng LibreOffice luôn ghi khi convert .doc) thay vì báo lỗi chưa hỗ trợ", () => {
+    const { adapter } = adapterWithBody("<p>x</p>");
+    const xml = realDocxFodt({ officeForms: true });
+    adapter.parseFodt(xml);
+    assert.ok(adapter.bodyDom.innerHTML.includes("Noi dung van ban DOCX that"), "Nội dung văn bản thật vẫn phải được giữ nguyên");
+    assert.ok(!adapter.bodyDom.innerHTML.includes("office:forms"), "office:forms không được lọt vào nội dung hiển thị");
+  });
+
+  await test("parseFodt: tài liệu không có office:forms vẫn hoạt động bình thường (không phụ thuộc ngược vào nó)", () => {
+    const { adapter } = adapterWithBody("<p>x</p>");
+    const xml = realDocxFodt({ officeForms: false });
     assert.doesNotThrow(() => adapter.parseFodt(xml));
     assert.ok(adapter.bodyDom.innerHTML.includes("Noi dung van ban DOCX that"));
   });
