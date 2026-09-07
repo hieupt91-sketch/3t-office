@@ -480,6 +480,41 @@ _SRC_ATTR_RE = re.compile(r"""\bsrc=["']([^"']+)["']""", re.IGNORECASE)
 _SRC_ATTR_REPLACE_RE = re.compile(r"""\bsrc=["'][^"']*["']""", re.IGNORECASE)
 
 
+def _probe_pixel_dimensions(raw: bytes, ext: str) -> tuple[int, int] | None:
+    """Đọc kích thước pixel THẬT từ bytes ảnh (không tin cậy thuộc tính HTML
+    width/height, có thể bị soffice ghi lệch tỷ lệ). Chỉ hỗ trợ GIF/PNG —
+    đủ cho mục đích lọc hairline bên dưới; định dạng khác trả về None (an
+    toàn, không đoán)."""
+    if ext == ".gif" and len(raw) >= 10 and raw[:6] in (b"GIF87a", b"GIF89a"):
+        width = raw[6] | (raw[7] << 8)
+        height = raw[8] | (raw[9] << 8)
+        return (width, height)
+    if ext == ".png" and len(raw) >= 24 and raw[:8] == b"\x89PNG\r\n\x1a\n":
+        width = int.from_bytes(raw[16:20], "big")
+        height = int.from_bytes(raw[20:24], "big")
+        return (width, height)
+    return None
+
+
+def _is_decorative_hairline_image(raw: bytes, ext: str) -> bool:
+    """Loi that phat hien qua file .docx that ("1. QD thanh lap TO MUA
+    SAM.docx"): LibreOffice StarWriter HTML xuat hinh ve duong ke ngang
+    trang tri (Word "Insert Shapes" -> duong thang mong) thanh anh GIF
+    THAT SU 1px cao (vi du 126x1, 203x1) voi align="left", va vi tri anh
+    trong luong HTML giu nguyen dung vi tri ky tu trong van ban goc - CO
+    THE nam GIUA mot tu (vi du "P<img...>HONG" thay vi "PHONG"). Anh noi
+    (float) 1px lam vo bo cuc dong chu, tao khoang trang/ngat tu nhin
+    thay duoc, trong khi ban than duong ke nay khong mang thong tin gi
+    (thuan tuy trang tri, thuong khong con nhin thay duoc trong ngu canh
+    HTML). Danh cho: chieu cao (hoac chieu rong) <=2px VA chieu con lai
+    >=10px (hinh dang duong ke, khong phai icon nho that su)."""
+    dims = _probe_pixel_dimensions(raw, ext)
+    if not dims:
+        return False
+    width, height = dims
+    return (height <= 2 and width >= 10) or (width <= 2 and height >= 10)
+
+
 def _inline_html_images(html_text: str, html_path: str) -> str:
     """Replace <img src> sidecar files with data URIs while the convert temp dir still exists.
 
@@ -519,10 +554,16 @@ def _inline_html_images(html_text: str, html_path: str) -> str:
         try:
             with open(file_path, "rb") as image_file:
                 raw = image_file.read()
-            encoded = base64.b64encode(raw).decode("ascii")
         except OSError:
             return original
         ext = os.path.splitext(file_path)[1].lower()
+        if _is_decorative_hairline_image(raw, ext):
+            # Duong ke trang tri 1px that su (xac nhan qua pixel that, khong
+            # phai thuoc tinh HTML) - bo qua hoan toan thay vi nhung, vi
+            # align="left" cua no co the roi giua mot tu trong van ban va
+            # lam vo dong chu nhin thay duoc (xem _is_decorative_hairline_image).
+            return ""
+        encoded = base64.b64encode(raw).decode("ascii")
         if ext in (".jpg", ".jpeg"):
             mime = "image/jpeg"
         elif ext == ".gif":
