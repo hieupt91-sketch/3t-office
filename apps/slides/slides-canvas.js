@@ -3685,8 +3685,13 @@ export class SlidesCanvasController {
         if (!resized && Math.abs(dx) + Math.abs(dy) < 2) return;
         resized = true;
 
-        let newX = origX;
-        let newY = origY;
+        // Bước 1: Chiếu delta chuột (màn hình) về hệ trục CỤC BỘ của hình
+        const theta = (shape.rotation || 0) * Math.PI / 180;
+        const cosT = Math.cos(theta), sinT = Math.sin(theta);
+        const localDx = dx * cosT + dy * sinT;
+        const localDy = -dx * sinT + dy * cosT;
+
+        // Bước 2: Dùng localDx/localDy thay cho dx/dy trong toàn bộ logic tính newW/newH
         let newW = origW;
         let newH = origH;
 
@@ -3694,34 +3699,56 @@ export class SlidesCanvasController {
         const keepAspect = isCorner && moveEvent.shiftKey;
 
         if (dir.includes("e")) {
-          newW = Math.max(20, origW + dx);
+          newW = Math.max(20, origW + localDx);
         }
         if (dir.includes("s")) {
-          newH = Math.max(20, origH + dy);
+          newH = Math.max(20, origH + localDy);
         }
         if (dir.includes("w")) {
-          newW = Math.max(20, origW - dx);
-          newX = origX + (origW - newW);
+          newW = Math.max(20, origW - localDx);
         }
         if (dir.includes("n")) {
-          newH = Math.max(20, origH - dy);
-          newY = origY + (origH - newH);
+          newH = Math.max(20, origH - localDy);
         }
 
         if (keepAspect) {
-          if (dir === "se" || dir === "nw") {
+          if (dir === "se" || dir === "nw" || dir === "ne" || dir === "sw") {
             newH = Math.max(20, Math.round(newW / aspect));
-            if (dir === "nw") newY = origY + (origH - newH);
-          } else if (dir === "ne" || dir === "sw") {
-            newH = Math.max(20, Math.round(newW / aspect));
-            if (dir === "sw") newY = origY + (origH - newH);
           }
         }
 
-        newX = Math.max(0, Math.min(this.slideSize.width - 20, newX));
-        newY = Math.max(0, Math.min(this.slideSize.height - 20, newY));
-        newW = Math.min(this.slideSize.width - newX, newW);
-        newH = Math.min(this.slideSize.height - newY, newH);
+        // Bước 3: Giữ ĐÚNG góc neo (anchor corner) cố định trên MÀN HÌNH sau khi xoay lại
+        const oldCenterX = origX + origW / 2;
+        const oldCenterY = origY + origH / 2;
+
+        const anchorOffsetMap = {
+          nw: [1, 1], n: [0, 1], ne: [-1, 1], e: [-1, 0],
+          se: [-1, -1], s: [0, -1], sw: [1, -1], w: [1, 0]
+        };
+        const [ox, oy] = anchorOffsetMap[dir] || [0, 0];
+        const anchorLocalX = oldCenterX + ox * (origW / 2);
+        const anchorLocalY = oldCenterY + oy * (origH / 2);
+
+        const anchorOffsetX = anchorLocalX - oldCenterX;
+        const anchorOffsetY = anchorLocalY - oldCenterY;
+        const anchorScreenX = oldCenterX + (anchorOffsetX * cosT - anchorOffsetY * sinT);
+        const anchorScreenY = oldCenterY + (anchorOffsetX * sinT + anchorOffsetY * cosT);
+
+        const newAnchorOffsetX = ox * (newW / 2);
+        const newAnchorOffsetY = oy * (newH / 2);
+        const newCenterX = anchorScreenX - (newAnchorOffsetX * cosT - newAnchorOffsetY * sinT);
+        const newCenterY = anchorScreenY - (newAnchorOffsetX * sinT + newAnchorOffsetY * cosT);
+
+        let newX = newCenterX - newW / 2;
+        let newY = newCenterY - newH / 2;
+
+        // Bước 4: Áp dụng newX/newY/newW/newH
+        if (!shape.rotation) {
+          newX = Math.max(0, Math.min(this.slideSize.width - 20, newX));
+          newY = Math.max(0, Math.min(this.slideSize.height - 20, newY));
+          newW = Math.min(this.slideSize.width - newX, newW);
+          newH = Math.min(this.slideSize.height - newY, newH);
+        }
 
         shape.x = newX;
         shape.y = newY;
