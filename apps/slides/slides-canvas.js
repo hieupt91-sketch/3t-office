@@ -3684,6 +3684,7 @@ export class SlidesCanvasController {
     el.querySelectorAll(".vno-shape-resize-handle").forEach(h => h.remove());
     el.querySelectorAll(".vno-shape-rotate-handle").forEach(h => h.remove());
     el.querySelectorAll(".vno-shape-rotate-stem").forEach(h => h.remove());
+    el.querySelectorAll(".vno-shape-rotate-tooltip").forEach(h => h.remove());
   }
 
   _attachResizeHandle(handleEl, shapeEl, shape, dir) {
@@ -3824,6 +3825,16 @@ export class SlidesCanvasController {
       shapeEl.classList.add("is-rotating");
       if (document.body?.style) document.body.style.cursor = "grabbing";
 
+      let tooltipEl = shapeEl.querySelector(".vno-shape-rotate-tooltip");
+      if (!tooltipEl && typeof document !== "undefined" && document.createElement) {
+        tooltipEl = document.createElement("div");
+        tooltipEl.className = "vno-shape-rotate-tooltip";
+        const initialDeg = origRotation || 0;
+        tooltipEl.textContent = `${initialDeg}°`;
+        tooltipEl.style.transform = `translateX(-50%) rotate(${-initialDeg}deg)`;
+        shapeEl.appendChild(tooltipEl);
+      }
+
       const move = (moveEvent) => {
         const dx = moveEvent.clientX - centerX;
         const dy = moveEvent.clientY - centerY;
@@ -3861,6 +3872,13 @@ export class SlidesCanvasController {
           shapeEl.style.transformOrigin = "";
         }
 
+        // Cập nhật tooltip góc xoay thời gian thực
+        if (tooltipEl) {
+          const displayDeg = targetRot !== undefined ? targetRot : 0;
+          tooltipEl.textContent = `${displayDeg}°`;
+          tooltipEl.style.transform = `translateX(-50%) rotate(${-displayDeg}deg)`;
+        }
+
         // Cập nhật con trỏ chuột của 8 tay cầm và xoay ngược nút xóa theo thời gian thực
         const currentRot = targetRot || 0;
         shapeEl.querySelectorAll(".vno-shape-resize-handle").forEach(h => {
@@ -3878,6 +3896,10 @@ export class SlidesCanvasController {
         document.removeEventListener("pointerup", up);
         handleEl.classList.remove("is-rotating");
         shapeEl.classList.remove("is-rotating");
+        if (tooltipEl) {
+          tooltipEl.remove();
+          tooltipEl = null;
+        }
         if (document.body?.style) document.body.style.cursor = "";
 
         if (rotated) {

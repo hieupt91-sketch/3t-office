@@ -2818,8 +2818,10 @@ export class SheetGridController {
     const frozenImages = this.imageLayer.querySelectorAll('[data-frozen="true"]');
     for (const panel of frozenImages) {
       let tx = 0, ty = 0;
-      if (frozenRows > 0) ty = scrollTop;
-      if (frozenCols > 0) tx = scrollLeft;
+      const isFrozenRow = panel.dataset.frozenRow === "true" || (!panel.dataset.frozenRow && !panel.dataset.frozenCol && frozenRows > 0);
+      const isFrozenCol = panel.dataset.frozenCol === "true" || (!panel.dataset.frozenRow && !panel.dataset.frozenCol && frozenCols > 0);
+      if (isFrozenRow && frozenRows > 0) ty = scrollTop;
+      if (isFrozenCol && frozenCols > 0) tx = scrollLeft;
       if (tx === 0 && ty === 0) panel.style.transform = "";
       else panel.style.transform = `translate(${tx}px, ${ty}px)`;
     }
@@ -4400,6 +4402,18 @@ export class SheetGridController {
         currentTop = Math.max(0, startTop + dy);
         panel.style.left = `${currentLeft}px`;
         panel.style.top = `${currentTop}px`;
+
+        // Highlight ô đích thời gian thực trong lúc kéo
+        const hoverAnchor = this._getAnchorFromPixel(currentLeft, currentTop);
+        const targetCoordKey = `${hoverAnchor.c}${hoverAnchor.r}`;
+        const prevTarget = this.container?.querySelector?.(".vno-grid-cell.is-drop-target");
+        if (prevTarget && prevTarget.dataset.coord !== targetCoordKey) {
+          prevTarget.classList.remove("is-drop-target");
+        }
+        const newTarget = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${targetCoordKey}"]`);
+        if (newTarget && !newTarget.classList.contains("is-drop-target")) {
+          newTarget.classList.add("is-drop-target");
+        }
       };
 
       const up = () => {
@@ -4407,6 +4421,7 @@ export class SheetGridController {
           try { panel.releasePointerCapture(pointerId); } catch (_) { /* ignore */ }
         }
         panel.classList.remove("is-dragging");
+        this.container?.querySelectorAll?.(".vno-grid-cell.is-drop-target")?.forEach?.(c => c.classList.remove("is-drop-target"));
         if (targetWindow?.removeEventListener) {
           targetWindow.removeEventListener("pointermove", move);
           targetWindow.removeEventListener("pointerup", up);
@@ -4475,7 +4490,11 @@ export class SheetGridController {
       panel.dataset.imageId = image.id;
       panel.dataset.sheet = this.activeSheet;
       panel.dataset.anchor = `${image.anchor.c}${image.anchor.r}`;
-      if (isFrozen) panel.dataset.frozen = "true";
+      if (isFrozen) {
+        panel.dataset.frozen = "true";
+        if (isInFrozenRow) panel.dataset.frozenRow = "true";
+        if (isInFrozenCol) panel.dataset.frozenCol = "true";
+      }
       const zIdx = isFrozen ? 10 : 7;
       panel.style.cssText = `position:absolute;left:${leftVal}px;top:${topVal}px;z-index:${zIdx};width:240px;min-height:80px;margin:0;padding:5px;background:#fff;border:1px solid #94a3b8;border-radius:6px;box-shadow:0 6px 18px rgba(15,23,42,.2);pointer-events:auto`;
       const img = document.createElement("img");
@@ -4495,6 +4514,7 @@ export class SheetGridController {
       this._attachImageDrag(panel, image);
       this.imageLayer.appendChild(panel);
     }
+    this._updateFrozenImages();
   }
 
   insertSparkline(type, range = this.selectionRange) {

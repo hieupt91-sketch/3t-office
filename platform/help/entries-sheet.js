@@ -497,7 +497,7 @@ export const SHEET_HELP_ENTRIES = [
     steps: [
       "Chọn ô đích muốn đặt ảnh. Mở tab Chèn, nhóm Minh họa, nhấn nút lớn Chèn ảnh (hoặc dùng menu Chèn).",
       "Chọn file ảnh trên máy tính rồi nhấn Mở. Ảnh được chèn lên bảng tính với góc trên bên trái neo vào ô đã chọn.",
-      "Di chuyển ảnh: Nhấp giữ chuột trái trên khung ảnh (con trỏ chuột đổi thành biểu tượng di chuyển) rồi kéo đến vị trí mong muốn. Khi thả chuột, ảnh tự động căn chỉnh và neo chuẩn xác về góc ô gần nhất theo hàng và cột.",
+      "Di chuyển ảnh: Nhấp giữ chuột trái trên khung ảnh (con trỏ chuột đổi thành biểu tượng di chuyển) rồi kéo đến vị trí mong muốn. Trong lúc kéo, ô lưới đích gần nhất sẽ được viền sáng nét đứt (.is-drop-target) giúp người dùng xác định rõ vị trí thả. Khi thả chuột, ảnh tự động căn chỉnh và neo chuẩn xác về góc ô đích. Nếu bảng tính có Freeze Panes, ảnh nằm trong vùng đóng băng sẽ giữ nguyên vị trí hiển thị khi cuộn.",
       "Hoàn tác di chuyển: Nhấn Ctrl+Z để đưa ảnh về vị trí ô trước đó, hoặc Ctrl+Y để làm lại thao tác di chuyển.",
       "Xóa ảnh: Nhấp vào nút dấu nhân (×) màu đỏ ở góc trên bên phải của thẻ ảnh. Có thể nhấn Ctrl+Z để khôi phục ảnh vừa xóa.",
       "Cùng tab Chèn còn có Biểu đồ và Biểu đồ thu nhỏ (sparkline) phục vụ trực quan hóa dữ liệu số."
