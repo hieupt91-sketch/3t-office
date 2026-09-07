@@ -134,6 +134,7 @@ import { runSlidesPptxShowPropertiesTests } from "./unit/slides-pptx-show-proper
 import { runSlidesPptxSlideSizeTests } from "./unit/slides-pptx-slide-size.test.js";
 import { runSlidesTextVerticalDirectionTests } from "./unit/slides-text-vertical-direction.test.js";
 import { runSheetFreezePanesRealTests } from "./unit/sheet-freeze-panes-real.test.js";
+import { runSheetImageImportExportTests } from "./unit/sheet-image-import-export.test.js";
 import { runSlidesPptxSetupShowOpenOverlayTests } from "./unit/slides-pptx-setup-show-open-overlay.test.js";
 import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.test.js";
 import { runWriterLineNumbersTests } from "./unit/writer-line-numbers.test.js";
@@ -299,7 +300,8 @@ async function runAll() {
     { title: "126. Unit & Behavioral Tests — VN Slides Multi-Shape Align/Distribute (GAP-SLIDES-01/02/03)", runner: runSlidesShapeAlignmentTests },
     { title: "127. Unit Tests — Slides native PPTX post-process (p:sldSz khổ trang chiếu thật)", runner: runSlidesPptxSlideSizeTests },
     { title: "128. Unit Tests — VN Slides Text Vertical Align & Direction (GAP-SLIDES-05/06)", runner: runSlidesTextVerticalDirectionTests },
-    { title: "129. Unit Tests — VN Sheet Freeze Panes thật (cố định theo Ô đang chọn + sửa lỗi ảo hóa hàng)", runner: runSheetFreezePanesRealTests }
+    { title: "129. Unit Tests — VN Sheet Freeze Panes thật (cố định theo Ô đang chọn + sửa lỗi ảo hóa hàng)", runner: runSheetFreezePanesRealTests },
+    { title: "130. Unit Tests — VN Sheet đọc/ghi ảnh nhúng (draw:image) từ file thật + round-trip Lưu/Mở", runner: runSheetImageImportExportTests }
   ];
 
   for (const suite of suites) {

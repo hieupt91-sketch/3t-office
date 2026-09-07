@@ -548,6 +548,56 @@ export class SheetAdapter {
     return String(columnName || "").split("").reduce((total, char) => total * 26 + char.charCodeAt(0) - 64, 0);
   }
 
+  /**
+   * Đọc <draw:frame><draw:image> nhúng trực tiếp bên trong một <table:table-cell>
+   * (định dạng CHUẨN ODF thật do soffice ghi khi convert XLSX→FODS: ảnh được neo
+   * vào ô bằng cách làm con của chính <table:table-cell> đó, KHÔNG dùng thuộc tính
+   * neo riêng). Trả về { id, src, widthCm, heightCm } hoặc null nếu ô không có ảnh.
+   * cellXml: toàn bộ nội dung bên trong thẻ <table:table-cell>...</table:table-cell>.
+   */
+  _parseCellEmbeddedImage(cellXml, fallbackId) {
+    const frameMatch = String(cellXml || "").match(/<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/i);
+    if (!frameMatch) return null;
+    const frameAttrs = frameMatch[1];
+    const frameBody = frameMatch[2];
+    const imageMatch = frameBody.match(/<draw:image\b([^>]*)>([\s\S]*?)<\/draw:image>/i);
+    if (!imageMatch) return null;
+    const binaryMatch = imageMatch[2].match(/<office:binary-data\b[^>]*>([\s\S]*?)<\/office:binary-data>/i);
+    const base64 = binaryMatch ? binaryMatch[1].replace(/\s+/g, "") : "";
+    if (!base64) return null;
+    const mime = (imageMatch[1].match(/draw:mime-type=["']([^"']*)["']/i)?.[1] || "image/png").toLowerCase();
+    const widthCm = parseFloat(frameAttrs.match(/svg:width=["']([\d.]+)cm["']/i)?.[1] || "");
+    const heightCm = parseFloat(frameAttrs.match(/svg:height=["']([\d.]+)cm["']/i)?.[1] || "");
+    return {
+      id: this._unescapeXml(frameAttrs.match(/draw:name=["']([^"']*)["']/i)?.[1] || fallbackId),
+      src: `data:${mime};base64,${base64}`,
+      ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
+      ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {})
+    };
+  }
+
+  /** Bản DOM-native của _parseCellEmbeddedImage(), dùng cho nhánh parse bằng DOMParser. */
+  _parseCellEmbeddedImageDom(cellElement, fallbackId) {
+    const DRAW_NS = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0";
+    const OFFICE_NS = "urn:oasis:names:tc:opendocument:xmlns:office:1.0";
+    const frame = Array.from(cellElement.children).find(child => child.localName === "frame" && child.namespaceURI === DRAW_NS);
+    if (!frame) return null;
+    const image = Array.from(frame.children).find(child => child.localName === "image" && child.namespaceURI === DRAW_NS);
+    if (!image) return null;
+    const binaryNode = Array.from(image.children).find(child => child.localName === "binary-data" && child.namespaceURI === OFFICE_NS);
+    const base64 = binaryNode ? (binaryNode.textContent || "").replace(/\s+/g, "") : "";
+    if (!base64) return null;
+    const mime = (image.getAttribute("draw:mime-type") || "image/png").toLowerCase();
+    const widthCm = parseFloat(String(frame.getAttribute("svg:width") || "").replace(/cm$/i, ""));
+    const heightCm = parseFloat(String(frame.getAttribute("svg:height") || "").replace(/cm$/i, ""));
+    return {
+      id: frame.getAttribute("draw:name") || fallbackId,
+      src: `data:${mime};base64,${base64}`,
+      ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
+      ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {})
+    };
+  }
+
   _columnName(columnNumber) {
     let result = "";
     for (let n = columnNumber; n > 0; n = Math.floor((n - 1) / 26)) {
@@ -1077,6 +1127,25 @@ export class SheetAdapter {
     return frames.length ? `<table:shapes>${frames.join("")}</table:shapes>` : "";
   }
 
+  /**
+   * Ghi một ảnh (imagesBySheet item: { id, src, anchor, widthCm?, heightCm? }) thành
+   * <draw:frame><draw:image> nhúng NGAY BÊN TRONG ô neo của nó — cùng định dạng chuẩn
+   * ODF thật mà soffice tự ghi khi convert XLSX→FODS (đã xác nhận qua probe thật),
+   * để lần đọc lại (kể cả từ file VN Office tự lưu) dùng chung một đường phân tích
+   * _parseCellEmbeddedImage()/_parseCellEmbeddedImageDom() với file thật bên ngoài.
+   */
+  _serializeCellImageXml(image) {
+    const match = String(image?.src || "").match(/^data:([^;]+);base64,([\s\S]+)$/);
+    if (!match) return "";
+    const mime = match[1].toLowerCase();
+    const base64 = match[2].replace(/\s+/g, "");
+    if (!base64) return "";
+    const widthCm = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) > 0 ? Number(image.widthCm) : 6.35;
+    const heightCm = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) > 0 ? Number(image.heightCm) : 2.117;
+    const name = this._escapeXml(image.id || "Image");
+    return `<draw:frame draw:name="${name}" svg:width="${widthCm}cm" svg:height="${heightCm}cm"><draw:image draw:mime-type="${this._escapeXml(mime)}"><office:binary-data>${base64}</office:binary-data></draw:image></draw:frame>`;
+  }
+
   _serializeSparklinesXml(sheetName) {
     const cells = this.grid.sheetsData?.[sheetName]
       || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
@@ -1524,6 +1593,17 @@ export class SheetAdapter {
         maxRow = Math.max(maxRow, bottom);
       }
 
+      const imagesByAnchor = new Map();
+      for (const image of this.grid.imagesBySheet?.[sheetName] || []) {
+        const column = this._columnNumber(image.anchor?.c);
+        const row = Number(image.anchor?.r);
+        if (!Number.isInteger(column) || column < 1 || !Number.isInteger(row) || row < 1) continue;
+        imagesByAnchor.set(`${this._columnName(column)}${row}`, image);
+        if (!rows.has(row)) rows.set(row, new Map());
+        if (!rows.get(row).has(column)) rows.get(row).set(column, null);
+        maxRow = Math.max(maxRow, row);
+      }
+
       const layout = this._sheetRowColLayout(sheetName);
       const pageBreaks = this.grid.pageBreaksBySheet?.[sheetName] || { rows: [], cols: [] };
       const pageBreakRows = new Set((pageBreaks.rows || []).map(Number).filter(Number.isInteger));
@@ -1619,13 +1699,17 @@ export class SheetAdapter {
           const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}`;
           const comment = comments[coordinate];
           const annotationXml = comment ? `<office:annotation><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
-          if (!storedItem && !comment && !validationName && !conditionalBase) {
+          const cellImage = imagesByAnchor.get(coordinate);
+          const cellImageXml = cellImage ? this._serializeCellImageXml(cellImage) : "";
+          if (!storedItem && !comment && !validationName && !conditionalBase && !cellImageXml) {
             cellsXml += `<table:table-cell${cellAttrs}/>`;
+          } else if (!storedItem && !comment && !validationName && !conditionalBase) {
+            cellsXml += `<table:table-cell${cellAttrs}>${cellImageXml}</table:table-cell>`;
           } else if (typeof item.val === "number" && Number.isFinite(item.val)) {
-            cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+            cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
           } else {
             const text = item.val === undefined || item.val === null ? "" : String(item.val);
-            cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${cellAttrs}>${annotationXml}<text:p>${this._escapeXml(text)}</text:p></table:table-cell>`;
+            cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(text)}</text:p></table:table-cell>`;
           }
           previousColumn = columnNumber;
         }
@@ -2184,6 +2268,7 @@ export class SheetAdapter {
           const data = new Map();
           const comments = {};
           const mergedRanges = [];
+          const images = [];
           const localRanges = [];
           const arrayFormulas = [];
           let localNameIndex = 0;
@@ -2264,6 +2349,10 @@ export class SheetAdapter {
                     };
                   }
                 }
+                if (!isCovered) {
+                  const embeddedImage = this._parseCellEmbeddedImageDom(cell, `Image${images.length + 1}`);
+                  if (embeddedImage) images.push({ ...embeddedImage, anchor: { c: this._columnName(columnNumber), r: rowNumber } });
+                }
                 columnNumber += columnRepeat;
               });
               rowNumber++;
@@ -2281,6 +2370,8 @@ export class SheetAdapter {
           workbook.colWidthsBySheet[name] = colWidths;
           workbook.userHiddenRowsBySheet[name] = hiddenRows;
           workbook.userHiddenColsBySheet[name] = hiddenCols;
+          workbook.imagesBySheet = workbook.imagesBySheet || {};
+          workbook.imagesBySheet[name] = images;
         });
       }
     }
@@ -2331,6 +2422,7 @@ export class SheetAdapter {
         const data = new Map();
         const comments = {};
         const mergedRanges = [];
+        const images = [];
         const localRanges = [];
         const arrayFormulas = [];
         let localNameIndex = 0;
@@ -2423,6 +2515,10 @@ export class SheetAdapter {
                   }
                 }
               }
+              if (!isCovered) {
+                const embeddedImage = this._parseCellEmbeddedImage(content, `Image${images.length + 1}`);
+                if (embeddedImage) images.push({ ...embeddedImage, anchor: { c: this._columnName(columnNumber), r: rowNumber } });
+              }
               columnNumber += columnRepeat;
             }
             rowNumber++;
@@ -2440,6 +2536,8 @@ export class SheetAdapter {
         workbook.colWidthsBySheet[name] = colWidths;
         workbook.userHiddenRowsBySheet[name] = hiddenRows;
         workbook.userHiddenColsBySheet[name] = hiddenCols;
+        workbook.imagesBySheet = workbook.imagesBySheet || {};
+        workbook.imagesBySheet[name] = images;
       }
     }
     if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
@@ -2485,6 +2583,7 @@ export class SheetAdapter {
     this.grid.dataValidationsBySheet = {};
     this.grid.pivotTablesBySheet = {};
     this.grid.chartsBySheet = {};
+    this.grid.imagesBySheet = {};
     this.grid.rowHeightsBySheet = {};
     this.grid.colWidthsBySheet = {};
     this.grid.userHiddenRowsBySheet = {};
@@ -2498,6 +2597,7 @@ export class SheetAdapter {
       this.grid.dataValidationsBySheet[sheetName] = workbook.dataValidationsBySheet?.[sheetName] || [];
       this.grid.pivotTablesBySheet[sheetName] = workbook.pivotTablesBySheet?.[sheetName] || [];
       this.grid.chartsBySheet[sheetName] = workbook.chartsBySheet?.[sheetName] || [];
+      this.grid.imagesBySheet[sheetName] = workbook.imagesBySheet?.[sheetName] || [];
       this.grid.rowHeightsBySheet[sheetName] = this._asLayoutMap(workbook.rowHeightsBySheet?.[sheetName], true);
       this.grid.colWidthsBySheet[sheetName] = this._asLayoutMap(workbook.colWidthsBySheet?.[sheetName], false);
       this.grid.userHiddenRowsBySheet[sheetName] = this._asLayoutSet(workbook.userHiddenRowsBySheet?.[sheetName], true);
