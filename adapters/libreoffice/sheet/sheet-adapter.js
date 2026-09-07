@@ -2820,9 +2820,20 @@ export class SheetAdapter {
    */
   async save() {
     const fodsContent = this.serializeToFods();
-    const result = await globalUnoBridge.saveRealFile("sheet", fodsContent, "xlsx", this.sourceFileName);
+    const suggestedName = (this.sourceFileName && this.sourceFileName !== "BangTinh")
+      ? this.sourceFileName
+      : (this.shell?.documentName ? this.shell.documentName.replace(/\.[^/.]+$/, "") : (this.sourceFileName || "BangTinh"));
+    const result = await globalUnoBridge.saveRealFile("sheet", fodsContent, "xlsx", suggestedName);
     if (result.status === "ok") {
       this.isDirty = false;
+      const savedPath = result.path || result.fileName;
+      if (savedPath) {
+        const savedFileName = savedPath.split(/[/\\]/).pop();
+        if (savedFileName) {
+          this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
+          this.shell?.resetDocumentChrome?.(savedFileName, null);
+        }
+      }
       await showAlertDialog({ title: "Đã lưu", message: result.message, type: "success" });
       return true;
     }
