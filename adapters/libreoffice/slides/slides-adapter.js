@@ -2727,9 +2727,20 @@ export class SlidesAdapter {
    */
   async save() {
     const fodpContent = this.serializeToFodp();
-    const result = await globalUnoBridge.saveRealFile("slides", fodpContent, "pptx", this.sourceFileName);
+    const suggestedName = (this.sourceFileName && this.sourceFileName !== "TrinhChieu")
+      ? this.sourceFileName
+      : (this.shell?.documentName ? this.shell.documentName.replace(/\.[^/.]+$/, "") : (this.sourceFileName || "TrinhChieu"));
+    const result = await globalUnoBridge.saveRealFile("slides", fodpContent, "pptx", suggestedName);
     if (result.status === "ok") {
       this.isDirty = false;
+      const savedPath = result.path || result.fileName;
+      if (savedPath) {
+        const savedFileName = savedPath.split(/[/\\]/).pop();
+        if (savedFileName) {
+          this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
+          this.shell?.resetDocumentChrome?.(savedFileName, null);
+        }
+      }
       await showAlertDialog({ title: "Đã lưu", message: result.message, type: "success" });
       return true;
     }
