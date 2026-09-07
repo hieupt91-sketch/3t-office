@@ -184,6 +184,18 @@ export const SLIDE_LAYOUT_TYPES = [
   }
 ];
 
+// 8 hướng cursor CSS chuẩn theo thứ tự vòng tròn (0°, 45°, 90°...):
+export const CURSOR_CYCLE = ["ns-resize", "nesw-resize", "ew-resize", "nwse-resize"];
+// Góc cơ sở (độ) của mỗi handle khi KHÔNG xoay (0° = hướng lên/n):
+export const BASE_ANGLE = { n: 0, ne: 45, e: 90, se: 135, s: 180, sw: 225, w: 270, nw: 315 };
+
+export function cursorForHandle(dir, rotationDeg) {
+  const angle = (BASE_ANGLE[dir] + (rotationDeg || 0)) % 180; // resize cursor đối xứng 180°
+  const normalized = ((angle % 180) + 180) % 180;
+  const idx = Math.round(normalized / 45) % 4;
+  return CURSOR_CYCLE[idx];
+}
+
 export class SlidesCanvasController {
   constructor(container, options = {}) {
     this.container = container;
@@ -3617,8 +3629,9 @@ export class SlidesCanvasController {
 
   _ensureShapeSelectionHandles(el, shape) {
     if (!el || shape.type === "connector") return;
-    if (!el.querySelector(".vno-shape-delete-btn")) {
-      const delBtn = document.createElement("button");
+    let delBtn = el.querySelector(".vno-shape-delete-btn");
+    if (!delBtn) {
+      delBtn = document.createElement("button");
       delBtn.type = "button";
       delBtn.className = "vno-shape-delete-btn";
       delBtn.title = "Xóa đối tượng này";
@@ -3629,15 +3642,23 @@ export class SlidesCanvasController {
       });
       el.appendChild(delBtn);
     }
+    delBtn.style.transform = shape.rotation ? `rotate(${-shape.rotation}deg)` : "";
 
-    if (!el.querySelector(".vno-shape-resize-handle")) {
+    const existingHandles = el.querySelectorAll(".vno-shape-resize-handle");
+    if (existingHandles.length === 0) {
       const handles = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
       handles.forEach(dir => {
         const h = document.createElement("div");
         h.className = `vno-shape-resize-handle vno-handle-${dir}`;
         h.dataset.handleDir = dir;
+        h.style.cursor = cursorForHandle(dir, shape.rotation);
         this._attachResizeHandle(h, el, shape, dir);
         el.appendChild(h);
+      });
+    } else {
+      existingHandles.forEach(h => {
+        const dir = h.dataset.handleDir;
+        if (dir) h.style.cursor = cursorForHandle(dir, shape.rotation);
       });
     }
 
@@ -3800,6 +3821,7 @@ export class SlidesCanvasController {
       let rotated = false;
 
       handleEl.classList.add("is-rotating");
+      shapeEl.classList.add("is-rotating");
       if (document.body?.style) document.body.style.cursor = "grabbing";
 
       const move = (moveEvent) => {
@@ -3838,12 +3860,24 @@ export class SlidesCanvasController {
           shapeEl.style.transform = "";
           shapeEl.style.transformOrigin = "";
         }
+
+        // Cập nhật con trỏ chuột của 8 tay cầm và xoay ngược nút xóa theo thời gian thực
+        const currentRot = targetRot || 0;
+        shapeEl.querySelectorAll(".vno-shape-resize-handle").forEach(h => {
+          const dir = h.dataset.handleDir;
+          if (dir) h.style.cursor = cursorForHandle(dir, currentRot);
+        });
+        const delBtn = shapeEl.querySelector(".vno-shape-delete-btn");
+        if (delBtn) {
+          delBtn.style.transform = targetRot ? `rotate(${-targetRot}deg)` : "";
+        }
       };
 
       const up = () => {
         document.removeEventListener("pointermove", move);
         document.removeEventListener("pointerup", up);
         handleEl.classList.remove("is-rotating");
+        shapeEl.classList.remove("is-rotating");
         if (document.body?.style) document.body.style.cursor = "";
 
         if (rotated) {

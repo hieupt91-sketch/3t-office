@@ -1023,6 +1023,9 @@
   border-color: #1e1e1e;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
+.vno-slide-shape-item.is-rotating .vno-shape-delete-btn {
+  transition: none;
+}
 
 .vno-rehearse-timer-box {
   position: fixed;

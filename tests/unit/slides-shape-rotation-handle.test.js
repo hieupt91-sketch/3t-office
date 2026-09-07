@@ -16,7 +16,7 @@
  *    - Undo khôi phục góc xoay trước đó.
  * 6. _shapePresentationHtml() xuất transform:rotate(...) khi hình có góc xoay.
  */
-import { SlidesCanvasController } from "../../apps/slides/slides-canvas.js";
+import { SlidesCanvasController, cursorForHandle, CURSOR_CYCLE, BASE_ANGLE } from "../../apps/slides/slides-canvas.js";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -317,6 +317,113 @@ export async function runSlidesShapeRotationHandleTests() {
       const shapePlain = { id: "s2", type: "rect", x: 10, y: 20, w: 100, h: 80 };
       const htmlPlain = canvas._shapePresentationHtml(shapePlain);
       assert(!htmlPlain.includes("transform:rotate"), "Hình không xoay không được chứa transform:rotate trong HTML trình chiếu");
+    });
+
+    test("cursorForHandle: tính đúng con trỏ CSS cho 8 hướng ở mọi góc xoay", () => {
+      // 0° (không xoay)
+      assert(cursorForHandle("n", 0) === "ns-resize", "0° n phải là ns-resize");
+      assert(cursorForHandle("ne", 0) === "nesw-resize", "0° ne phải là nesw-resize");
+      assert(cursorForHandle("e", 0) === "ew-resize", "0° e phải là ew-resize");
+      assert(cursorForHandle("se", 0) === "nwse-resize", "0° se phải là nwse-resize");
+      assert(cursorForHandle("s", 0) === "ns-resize", "0° s phải là ns-resize");
+      assert(cursorForHandle("sw", 0) === "nesw-resize", "0° sw phải là nesw-resize");
+      assert(cursorForHandle("w", 0) === "ew-resize", "0° w phải là ew-resize");
+      assert(cursorForHandle("nw", 0) === "nwse-resize", "0° nw phải là nwse-resize");
+      assert(cursorForHandle("n", undefined) === "ns-resize", "undefined rotation phải giống 0°");
+
+      // 90° (xoay vuông góc)
+      // Cạnh 'n' ban đầu quay sang cạnh phải màn hình -> hiển thị ew-resize
+      assert(cursorForHandle("n", 90) === "ew-resize", "90° n phải chuyển thành ew-resize");
+      // Cạnh 'e' ban đầu quay xuống cạnh đáy màn hình -> hiển thị ns-resize
+      assert(cursorForHandle("e", 90) === "ns-resize", "90° e phải chuyển thành ns-resize");
+      assert(cursorForHandle("ne", 90) === "nwse-resize", "90° ne phải chuyển thành nwse-resize");
+      assert(cursorForHandle("se", 90) === "nesw-resize", "90° se phải chuyển thành nesw-resize");
+      assert(cursorForHandle("s", 90) === "ew-resize", "90° s phải chuyển thành ew-resize");
+      assert(cursorForHandle("w", 90) === "ns-resize", "90° w phải chuyển thành ns-resize");
+
+      // 45° và 135°
+      assert(cursorForHandle("n", 45) === "nesw-resize", "45° n phải là nesw-resize");
+      assert(cursorForHandle("e", 45) === "nwse-resize", "45° e phải là nwse-resize");
+      assert(cursorForHandle("n", 135) === "nwse-resize", "135° n phải là nwse-resize");
+      assert(cursorForHandle("e", 135) === "nesw-resize", "135° e phải là nesw-resize");
+
+      // 180° và 270°
+      assert(cursorForHandle("n", 180) === "ns-resize", "180° n đối xứng phải là ns-resize");
+      assert(cursorForHandle("n", 270) === "ew-resize", "270° n phải là ew-resize");
+
+      // Góc âm (-90°)
+      assert(cursorForHandle("n", -90) === "ew-resize", "-90° n phải là ew-resize");
+      assert(cursorForHandle("e", -90) === "ns-resize", "-90° e phải là ns-resize");
+    });
+
+    test("_ensureShapeSelectionHandles: gán cursor động và xoay ngược nút xóa theo shape.rotation", () => {
+      const canvas = createTestCanvas();
+
+      // Hình không xoay (0°)
+      const el0 = new FakeDomNode("div");
+      const shape0 = { id: "s0", type: "rect", x: 100, y: 100, w: 200, h: 100 };
+      canvas._ensureShapeSelectionHandles(el0, shape0);
+
+      const delBtn0 = el0.querySelector(".vno-shape-delete-btn");
+      assert(delBtn0, "Phải có nút xóa .vno-shape-delete-btn");
+      assert(!delBtn0.style.transform, "Hình 0° nút xóa không có transform");
+
+      const handleN0 = el0.querySelectorAll(".vno-shape-resize-handle").find(h => h.dataset.handleDir === "n");
+      const handleE0 = el0.querySelectorAll(".vno-shape-resize-handle").find(h => h.dataset.handleDir === "e");
+      assert(handleN0.style.cursor === "ns-resize", `Handle 'n' của hình 0° phải có cursor ns-resize, thực tế: ${handleN0.style.cursor}`);
+      assert(handleE0.style.cursor === "ew-resize", `Handle 'e' của hình 0° phải có cursor ew-resize, thực tế: ${handleE0.style.cursor}`);
+
+      // Hình xoay 90°
+      const el90 = new FakeDomNode("div");
+      const shape90 = { id: "s90", type: "rect", x: 100, y: 100, w: 200, h: 100, rotation: 90 };
+      canvas._ensureShapeSelectionHandles(el90, shape90);
+
+      const delBtn90 = el90.querySelector(".vno-shape-delete-btn");
+      assert(delBtn90.style.transform === "rotate(-90deg)", `Nút xóa phải có transform: rotate(-90deg), thực tế: ${delBtn90.style.transform}`);
+
+      const handleN90 = el90.querySelectorAll(".vno-shape-resize-handle").find(h => h.dataset.handleDir === "n");
+      const handleE90 = el90.querySelectorAll(".vno-shape-resize-handle").find(h => h.dataset.handleDir === "e");
+      assert(handleN90.style.cursor === "ew-resize", `Handle 'n' của hình 90° phải có cursor ew-resize, thực tế: ${handleN90.style.cursor}`);
+      assert(handleE90.style.cursor === "ns-resize", `Handle 'e' của hình 90° phải có cursor ns-resize, thực tế: ${handleE90.style.cursor}`);
+    });
+
+    test("_attachRotateHandle: cập nhật cursor 8 tay cầm và nút xóa trong thời gian thực khi kéo", () => {
+      const canvas = createTestCanvas();
+      const shapeEl = new FakeDomNode("div");
+      const shape = { id: "s-rot-live", type: "rect", x: 100, y: 100, w: 200, h: 100 };
+
+      // Tạo các handle và delete button trên shapeEl
+      canvas._ensureShapeSelectionHandles(shapeEl, shape);
+
+      const rotateHandle = shapeEl.querySelector(".vno-shape-rotate-handle");
+      const delBtn = shapeEl.querySelector(".vno-shape-delete-btn");
+      const handleN = shapeEl.querySelectorAll(".vno-shape-resize-handle").find(h => h.dataset.handleDir === "n");
+      const handleE = shapeEl.querySelectorAll(".vno-shape-resize-handle").find(h => h.dataset.handleDir === "e");
+
+      // Tâm shape: center=(200, 150)
+      // 1. pointerdown
+      rotateHandle.listeners["pointerdown"][0]({
+        stopPropagation() {},
+        preventDefault() {}
+      });
+
+      // 2. pointermove tới vị trí góc 90° (dx = 100, dy = 0) -> Math.atan2(0, 100) + 90° = 90°
+      triggerMove({ clientX: 300, clientY: 150, shiftKey: false });
+
+      assert(shape.rotation === 90, `shape.rotation phải là 90, thực tế: ${shape.rotation}`);
+      assert(shapeEl.style.transform === "rotate(90deg)", "shapeEl phải transform rotate(90deg)");
+      assert(delBtn.style.transform === "rotate(-90deg)", `delBtn phải được xoay ngược rotate(-90deg), thực tế: ${delBtn.style.transform}`);
+      assert(handleN.style.cursor === "ew-resize", `Handle 'n' phải cập nhật thời gian thực thành ew-resize, thực tế: ${handleN.style.cursor}`);
+      assert(handleE.style.cursor === "ns-resize", `Handle 'e' phải cập nhật thời gian thực thành ns-resize, thực tế: ${handleE.style.cursor}`);
+
+      // 3. pointermove về gần 0° (dx = 0, dy = -100) -> atan2(-100, 0) + 90° = 0°
+      triggerMove({ clientX: 200, clientY: 50, shiftKey: false });
+      assert(shape.rotation === undefined, "shape.rotation phải là undefined khi về 0°");
+      assert(delBtn.style.transform === "", `delBtn transform phải được xóa khi về 0°, thực tế: ${delBtn.style.transform}`);
+      assert(handleN.style.cursor === "ns-resize", `Handle 'n' phải khôi phục về ns-resize, thực tế: ${handleN.style.cursor}`);
+
+      // 4. pointerup
+      triggerUp();
     });
   } finally {
     globalThis.document = oldDoc;
