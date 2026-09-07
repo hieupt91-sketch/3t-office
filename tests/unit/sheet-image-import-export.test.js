@@ -1,0 +1,156 @@
+/**
+ * VN Office — Unit Tests: VN Sheet đọc/ghi ẢNH NHÚNG (draw:frame/draw:image)
+ * trong sheet-adapter.js.
+ *
+ * Bug thật đã xác nhận: sheet-adapter.js chỉ parse <draw:frame><chart:chart>
+ * (biểu đồ) từ FODS, KHÔNG BAO GIỜ đọc <draw:frame><draw:image> (ảnh raster
+ * thường — logo công ty, ảnh chèn tay). Writer và Slides đã hỗ trợ draw:image
+ * từ trước; chỉ riêng Sheet bị thiếu. Hậu quả kép:
+ * 1. Mở file XLSX/ODS thật (Excel, Google Sheets...) có ảnh nhúng → ảnh biến
+ *    mất hoàn toàn khi mở trong VN Sheet (xác nhận bằng cách mở file thật
+ *    "Copy of máy bảo mật - KTQT - thẩm định.xlsx" — có logo neo tại A1,
+ *    hoàn toàn không hiển thị).
+ * 2. sheet-grid.js đã có sẵn imagesBySheet/insertImage()/renderImages() đầy
+ *    đủ (người dùng tự chèn ảnh, undo/redo hoạt động) nhưng sheet-adapter.js
+ *    chưa bao giờ đọc/ghi trường này — ảnh người dùng tự chèn cũng bị MẤT
+ *    khi Lưu rồi Mở lại (serializeToFods() không ghi, parseFods() không đọc).
+ *
+ * Sửa: nhúng <draw:frame><draw:image> trực tiếp bên trong <table:table-cell>
+ * neo — ĐÚNG định dạng chuẩn ODF thật do soffice tự ghi khi convert XLSX→FODS
+ * (xác nhận qua probe file thật) — dùng CHUNG một định dạng cho cả đọc file
+ * ngoài lẫn tự round-trip (không cần thuộc tính riêng vno:*).
+ *
+ * Tuân thủ chuẩn 06-testing/TESTING-STANDARD.md & AGENTS.md
+ */
+import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
+
+const assert = (value, message) => { if (!value) throw new Error(message); };
+
+function container() {
+  return {
+    style: {}, className: "", classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+    appendChild() {}, querySelector: () => null, querySelectorAll: () => [], addEventListener() {}
+  };
+}
+
+const PNG_1X1_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+const PNG_DATA_URI = `data:image/png;base64,${PNG_1X1_BASE64}`;
+
+export async function runSheetImageImportExportTests() {
+  const results = [];
+  const test = (name, fn) => { try { fn(); results.push({ name, pass: true }); } catch (error) { results.push({ name, pass: false, error: error.message }); } };
+
+  test("_parseCellEmbeddedImage(): đọc đúng draw:frame/draw:image chuẩn ODF thật trong 1 ô", () => {
+    const adapter = new SheetAdapter(null);
+    const cellXml = `<draw:frame draw:name="Picture 1" svg:width="4.068cm" svg:height="3.548cm" svg:x="0.543cm" svg:y="0cm"><draw:image draw:mime-type="image/png"><office:binary-data>${PNG_1X1_BASE64}</office:binary-data></draw:image></draw:frame>`;
+    const image = adapter._parseCellEmbeddedImage(cellXml, "fallback");
+    assert(image, "Phải parse được ảnh");
+    assert(image.src === PNG_DATA_URI, `src phải khớp data URI gốc, thực tế: ${image.src}`);
+    assert(image.id === "Picture 1", `id phải lấy từ draw:name, thực tế: ${image.id}`);
+    assert(Math.abs(image.widthCm - 4.068) < 0.001, `widthCm phải là 4.068, thực tế: ${image.widthCm}`);
+    assert(Math.abs(image.heightCm - 3.548) < 0.001, `heightCm phải là 3.548, thực tế: ${image.heightCm}`);
+  });
+
+  test("_parseCellEmbeddedImage(): trả về null khi ô không có ảnh", () => {
+    const adapter = new SheetAdapter(null);
+    assert(adapter._parseCellEmbeddedImage("<text:p>Không có ảnh</text:p>", "x") === null);
+    assert(adapter._parseCellEmbeddedImage("", "x") === null);
+  });
+
+  test("parseFods() (nhánh regex): đọc đúng ảnh nhúng từ FODS thật, đúng ô neo", () => {
+    const fods = `<?xml version="1.0"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+<office:body><office:spreadsheet>
+<table:table table:name="Sheet1">
+<table:table-column table:number-columns-repeated="5"/>
+<table:table-row>
+<table:table-cell>
+<draw:frame draw:name="Logo" svg:width="4.068cm" svg:height="3.548cm"><draw:image draw:mime-type="image/png"><office:binary-data>${PNG_1X1_BASE64}</office:binary-data></draw:image></draw:frame>
+</table:table-cell>
+<table:table-cell office:value-type="string" office:string-value="Công ty"><text:p>Công ty</text:p></table:table-cell>
+</table:table-row>
+<table:table-row><table:table-cell/></table:table-row>
+</table:table>
+</office:spreadsheet></office:body>
+</office:document>`;
+    const adapter = new SheetAdapter(null);
+    const parsed = adapter.parseFods(fods);
+    const images = parsed.imagesBySheet?.Sheet1;
+    assert(Array.isArray(images), "Phải có imagesBySheet.Sheet1");
+    assert(images.length === 1, `Phải có đúng 1 ảnh, thực tế: ${images?.length}`);
+    assert(images[0].anchor.c === "A" && images[0].anchor.r === 1, `Ảnh phải neo tại A1, thực tế: ${JSON.stringify(images[0].anchor)}`);
+    assert(images[0].src === PNG_DATA_URI, "src ảnh phải khớp base64 gốc");
+    // Ô B1 vẫn phải đọc đúng giá trị text bình thường — ảnh không được làm hỏng parse giá trị ô khác.
+    assert(parsed.sheetsData.Sheet1.get("B1")?.val === "Công ty", "Ô B1 (không có ảnh) vẫn phải parse đúng giá trị");
+  });
+
+  test("parseFods(): ảnh neo tại ô KHÔNG có giá trị (ô trống hoàn toàn) vẫn được parse, không bị gộp vào vùng trống", () => {
+    const fods = `<?xml version="1.0"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+<office:body><office:spreadsheet>
+<table:table table:name="Sheet1">
+<table:table-column table:number-columns-repeated="10"/>
+<table:table-row><table:table-cell/></table:table-row>
+<table:table-row><table:table-cell/></table:table-row>
+<table:table-row><table:table-cell/></table:table-row>
+<table:table-row><table:table-cell/></table:table-row>
+<table:table-row>
+<table:table-cell/><table:table-cell/><table:table-cell/><table:table-cell/>
+<table:table-cell><draw:frame draw:name="Deep"><draw:image draw:mime-type="image/png"><office:binary-data>${PNG_1X1_BASE64}</office:binary-data></draw:image></draw:frame></table:table-cell>
+</table:table-row>
+</table:table>
+</office:spreadsheet></office:body>
+</office:document>`;
+    const adapter = new SheetAdapter(null);
+    const parsed = adapter.parseFods(fods);
+    const images = parsed.imagesBySheet?.Sheet1 || [];
+    assert(images.length === 1, `Phải parse được ảnh ở ô sâu (E5), thực tế: ${images.length}`);
+    assert(images[0].anchor.c === "E" && images[0].anchor.r === 5, `Ảnh phải neo tại E5, thực tế: ${JSON.stringify(images[0].anchor)}`);
+  });
+
+  test("serializeToFods() → parseFods(): ảnh người dùng tự chèn (insertImage) PHẢI sống sót qua Lưu rồi Mở lại", () => {
+    const grid = new SheetGridController(container());
+    grid.setCellValue?.("B2", "Xin chào");
+    grid.cellsData.set("B2", { val: "Xin chào", formula: "", style: {} });
+    const inserted = grid.insertImage(PNG_DATA_URI, { c: "D", r: 3 }, false);
+    assert(inserted && inserted.id, "insertImage() phải trả về ảnh với id");
+
+    const adapter = new SheetAdapter(grid);
+    const fodsXml = adapter.serializeToFods();
+    assert(fodsXml.includes("draw:image"), "FODS xuất ra phải chứa draw:image — ảnh không được bỏ qua khi Lưu");
+
+    const reparsed = adapter.parseFods(fodsXml);
+    const images = reparsed.imagesBySheet?.[grid.activeSheet] || [];
+    assert(images.length === 1, `Ảnh phải sống sót qua round-trip Lưu→Mở, thực tế còn ${images.length} ảnh`);
+    assert(images[0].anchor.c === "D" && images[0].anchor.r === 3, `Ảnh phải giữ đúng ô neo D3, thực tế: ${JSON.stringify(images[0].anchor)}`);
+    assert(images[0].src === PNG_DATA_URI, "Dữ liệu ảnh phải khớp nguyên vẹn sau round-trip");
+
+    // Ô B2 (có dữ liệu, không có ảnh) không được bị ảnh hưởng bởi logic ảnh mới.
+    const cellB2 = reparsed.sheetsData[grid.activeSheet].get("B2");
+    assert(cellB2?.val === "Xin chào", "Ô B2 vẫn phải giữ đúng giá trị sau round-trip");
+  });
+
+  test("serializeToFods(): sheet KHÔNG có ảnh nào thì không ghi draw:image thừa", () => {
+    const grid = new SheetGridController(container());
+    grid.cellsData.set("A1", { val: "Chỉ có chữ", formula: "", style: {} });
+    const adapter = new SheetAdapter(grid);
+    const fodsXml = adapter.serializeToFods();
+    assert(!fodsXml.includes("draw:image"), "Không được ghi draw:image khi sheet không có ảnh nào");
+  });
+
+  test("serializeToFods() → parseFods(): nhiều ảnh trên cùng 1 sheet đều sống sót, đúng từng ô neo", () => {
+    const grid = new SheetGridController(container());
+    grid.insertImage(PNG_DATA_URI, { c: "A", r: 1 }, false);
+    grid.insertImage(PNG_DATA_URI, { c: "F", r: 10 }, false);
+    const adapter = new SheetAdapter(grid);
+    const fodsXml = adapter.serializeToFods();
+    const reparsed = adapter.parseFods(fodsXml);
+    const images = reparsed.imagesBySheet?.[grid.activeSheet] || [];
+    assert(images.length === 2, `Phải còn đúng 2 ảnh, thực tế: ${images.length}`);
+    const anchors = images.map(image => `${image.anchor.c}${image.anchor.r}`).sort();
+    assert(anchors[0] === "A1" && anchors[1] === "F10", `Vị trí neo phải là A1 và F10, thực tế: ${anchors.join(",")}`);
+  });
+
+  return results;
+}
