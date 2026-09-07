@@ -9,6 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
+import { parseSlideSize } from "../../adapters/libreoffice/slides/pptx-master-logo.js";
 import {
   PPTX_PRESPROPS_ENTRY,
   applyShowProperties,
@@ -163,14 +164,23 @@ export async function runSlidesPptxShowPropertiesTests() {
     assert(/<p:sld\b/.test(slide), "giữ slide1");
     const presentation = readZipEntry(patched, "ppt/presentation.xml").toString("utf8");
     assert(!/showPr/.test(presentation), "không nhét showPr vào presentation.xml");
-    const noop = postProcessSlidesPptx(zip, {
-      sourceFodp: new SlidesAdapter(setupCanvas({
-        loopUntilEsc: true,
-        showWithoutNarration: false,
-        pointerColor: "#DC2626"
-      })).serializeToFodp()
-    });
-    assert(Buffer.compare(zip, noop) === 0, "không rewrite ZIP khi chỉ endless");
+    // Không showPr nào được thêm khi cấu hình chỉ có endless (giá trị mặc định) -
+    // nhưng vẫn KHÔNG còn là no-op tuyệt đối: khổ trang thật (25.4cm, canvas mặc
+    // định 960px) vẫn được tự sửa lại độc lập, vì fakePptx() mô phỏng đúng khổ
+    // SAI mà soffice thật luôn ghi (28cm x 15.75cm) - xem
+    // docs/HANDOFF-SLIDES-SLIDESIZE-EXPORT-FIX.md.
+    const endlessOnlyFodp = new SlidesAdapter(setupCanvas({
+      loopUntilEsc: true,
+      showWithoutNarration: false,
+      pointerColor: "#DC2626"
+    })).serializeToFodp();
+    const noop = postProcessSlidesPptx(zip, { sourceFodp: endlessOnlyFodp });
+    assert(Buffer.compare(zip, noop) !== 0, "phải có thay đổi: tự sửa khổ trang thật dù chỉ endless");
+    const originalProps = readZipEntry(zip, PPTX_PRESPROPS_ENTRY).toString("utf8");
+    const noopProps = readZipEntry(noop, PPTX_PRESPROPS_ENTRY).toString("utf8");
+    assert(noopProps === originalProps, "presProps.xml (showPr có sẵn từ soffice) không được đụng tới khi chỉ endless");
+    const noopSize = parseSlideSize(readZipEntry(noop, "ppt/presentation.xml").toString("utf8"));
+    assert(noopSize.cx === Math.round(25.4 * 360000), `sldSz cx phải sửa đúng 25.4cm, nhận ${noopSize.cx}`);
   });
 
   test("Python CLI vá presProps.xml giống JS", () => {

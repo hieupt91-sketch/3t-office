@@ -369,6 +369,45 @@ def parse_slide_size(presentation_xml: str | None) -> dict[str, int]:
     }
 
 
+_PAGE_LAYOUT_PROPS_RE = re.compile(r"<style:page-layout-properties\b([^>]*)/?>", re.IGNORECASE)
+
+
+def parse_intended_slide_size_from_fodp(fodp_xml: str | None) -> dict[str, int] | None:
+    """Đọc khổ trang chiếu THẬT (canvas.slideSize) từ chính FODP do VN Office ghi ra.
+
+    Cần thiết vì đã đo thực tế: soffice --convert-to pptx BỎ QUA hoàn toàn
+    style:page-layout-properties khi chuyển FODP -> PPTX, luôn tự ý ghi
+    DEFAULT_SLIDE_CX/CY (28cm x 15.75cm) vào <p:sldSz> bất kể FODP khai báo gì -
+    dùng để khôi phục lại khổ trang thật sau khi soffice convert xong.
+    """
+    match = _PAGE_LAYOUT_PROPS_RE.search(fodp_xml or "")
+    attrs = match.group(1) if match else ""
+    width_match = re.search(r'\bfo:page-width=["\']([\d.]+)cm["\']', attrs, re.IGNORECASE)
+    height_match = re.search(r'\bfo:page-height=["\']([\d.]+)cm["\']', attrs, re.IGNORECASE)
+    if not width_match or not height_match:
+        return None
+    width_cm = float(width_match.group(1))
+    height_cm = float(height_match.group(1))
+    if width_cm <= 0 or height_cm <= 0:
+        return None
+    return {"cx": round(width_cm * CM_EMU), "cy": round(height_cm * CM_EMU)}
+
+
+def apply_intended_slide_size(presentation_xml: str, size: dict[str, int] | None) -> str:
+    """Ghi đè cx/cy thật trên <p:sldSz> trong ppt/presentation.xml, giữ nguyên thuộc tính khác."""
+    if not size:
+        return presentation_xml
+    match = _SLD_SZ_RE.search(presentation_xml)
+    if not match:
+        return presentation_xml
+    tag = match.group(0)
+    attrs = match.group(1)
+    next_attrs = re.sub(r'\bcx=["\']\d+["\']', f'cx="{size["cx"]}"', attrs, flags=re.IGNORECASE)
+    next_attrs = re.sub(r'\bcy=["\']\d+["\']', f'cy="{size["cy"]}"', next_attrs, flags=re.IGNORECASE)
+    next_tag = tag.replace(attrs, next_attrs)
+    return presentation_xml[:match.start()] + next_tag + presentation_xml[match.end():]
+
+
 def _parse_box(tag: str, axis_a: str, axis_b: str) -> tuple[int, int] | None:
     a_match = re.search(rf'\b{axis_a}=["\'](-?\d+)["\']', tag or "", re.IGNORECASE)
     b_match = re.search(rf'\b{axis_b}=["\'](-?\d+)["\']', tag or "", re.IGNORECASE)
@@ -1265,13 +1304,33 @@ def postprocess_slides_pptx(
         apply_logo = False
     apply_sections = bool(sections) if sections is not None else fodp_has_sections(source_fodp)
     apply_show = bool(show_without_narration or pointer_color) or fodp_has_show_setup_patch(source_fodp)
-    if not apply_logo and not apply_sections and not apply_show:
-        return pptx_bytes
+
     presentation = read_zip_entry(pptx_bytes, PPTX_PRESENTATION_ENTRY)
-    presentation_xml = presentation.decode("utf-8", errors="replace") if presentation else ""
+    original_presentation_xml = presentation.decode("utf-8", errors="replace") if presentation else ""
+    presentation_xml = original_presentation_xml
     replacements: dict[str, str] = {}
+
+    # soffice --convert-to pptx BỎ QUA style:page-layout-properties của FODP khi
+    # xuất PPTX, luôn tự ghi <p:sldSz> mặc định 28cm x 15.75cm bất kể canvas.slideSize
+    # thật của người dùng - đo thực tế bằng vòng chuyển đổi thật qua soffice, xác
+    # nhận đây là giới hạn của bản thân soffice, không phải lỗi FODP do VN Office ghi
+    # ra. Khôi phục khổ trang THẬT ở đây, độc lập với logo/sections/show (luôn áp
+    # dụng nếu phát hiện khác biệt thật, không chỉ khi các tính năng khác cũng cần sửa).
+    intended_size = parse_intended_slide_size_from_fodp(source_fodp) if source_fodp else None
+    real_size = parse_slide_size(presentation_xml)
+    apply_slide_size = bool(
+        intended_size
+        and (abs(intended_size["cx"] - real_size["cx"]) > 500 or abs(intended_size["cy"] - real_size["cy"]) > 500)
+    )
+    effective_size = intended_size if apply_slide_size else real_size
+
+    if not apply_logo and not apply_sections and not apply_show and not apply_slide_size:
+        return pptx_bytes
+
+    if apply_slide_size and presentation_xml:
+        presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)
+
     if apply_logo:
-        size = parse_slide_size(presentation_xml)
         with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
             master_names = [name for name in package.namelist() if SLIDE_MASTER_ENTRY_RE.match(name)]
         if not master_names:
@@ -1284,8 +1343,8 @@ def postprocess_slides_pptx(
                 logo_text=logo["logoText"],
                 accent_color=logo["accentColor"],
                 font_family=logo["fontFamily"],
-                slide_cx=size["cx"],
-                slide_cy=size["cy"],
+                slide_cx=effective_size["cx"],
+                slide_cy=effective_size["cy"],
             )
             if next_xml != xml:
                 replacements[name] = next_xml
@@ -1293,11 +1352,11 @@ def postprocess_slides_pptx(
         if not presentation_xml:
             raise ValueError("PPTX thiếu ppt/presentation.xml — không thể bổ sung p14:sectionLst")
         if sections is not None:
-            next_xml = apply_section_list(presentation_xml, sections)
+            presentation_xml = apply_section_list(presentation_xml, sections)
         else:
-            next_xml = apply_section_list_from_fodp(presentation_xml, source_fodp)
-        if next_xml != presentation_xml:
-            replacements[PPTX_PRESENTATION_ENTRY] = next_xml
+            presentation_xml = apply_section_list_from_fodp(presentation_xml, source_fodp)
+    if presentation_xml != original_presentation_xml:
+        replacements[PPTX_PRESENTATION_ENTRY] = presentation_xml
     if apply_show:
         current_props = read_zip_entry(pptx_bytes, PPTX_PRESPROPS_ENTRY)
         if not current_props:

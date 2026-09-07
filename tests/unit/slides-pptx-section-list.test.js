@@ -9,6 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
+import { parseSlideSize } from "../../adapters/libreoffice/slides/pptx-master-logo.js";
 import {
   DEFAULT_SECTION_NAME,
   SECTION_LIST_URI,
@@ -172,14 +173,21 @@ export async function runSlidesPptxSectionListTests() {
     assert(parsed[0].slideIds.join(",") === "256,257,258", parsed[0].slideIds.join(","));
     const slide = readZipEntry(patched, "ppt/slides/slide1.xml").toString("utf8");
     assert(/<p:sld\b/.test(slide), "giữ slide1");
-    const noop = postProcessSlidesPptx(zip, {
-      sourceFodp: new SlidesAdapter({
-        slides: Array.from({ length: 6 }, (_, i) => ({
-          id: i + 1, title: `T${i}`, body: "x", layoutType: "title-content", notes: "", shapes: []
-        }))
-      }).serializeToFodp()
-    });
-    assert(Buffer.compare(zip, noop) === 0, "không rewrite ZIP khi không có phần");
+    // Không sectionLst nào được thêm khi FODP không có phần - nhưng vẫn KHÔNG
+    // còn là no-op tuyệt đối: khổ trang thật (25.4cm, canvas mặc định 960px) vẫn
+    // được tự sửa lại độc lập, vì LO_PRESENTATION_XML mô phỏng đúng khổ SAI mà
+    // soffice thật luôn ghi (28cm x 15.75cm) - xem docs/HANDOFF-SLIDES-SLIDESIZE-EXPORT-FIX.md.
+    const noSectionFodp = new SlidesAdapter({
+      slides: Array.from({ length: 6 }, (_, i) => ({
+        id: i + 1, title: `T${i}`, body: "x", layoutType: "title-content", notes: "", shapes: []
+      }))
+    }).serializeToFodp();
+    const noop = postProcessSlidesPptx(zip, { sourceFodp: noSectionFodp });
+    assert(Buffer.compare(zip, noop) !== 0, "phải có thay đổi: tự sửa khổ trang thật dù không có phần nào");
+    const noopPresentation = readZipEntry(noop, "ppt/presentation.xml").toString("utf8");
+    assert(!presentationHasSectionList(noopPresentation), "không có phần thì không được thêm sectionLst");
+    const noopSize = parseSlideSize(noopPresentation);
+    assert(noopSize.cx === Math.round(25.4 * 360000), `sldSz cx phải sửa đúng 25.4cm, nhận ${noopSize.cx}`);
   });
 
   test("JS GUID UUID v5 khớp Python twin; Python CLI vá PPTX giống JS", () => {

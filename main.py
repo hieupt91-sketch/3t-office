@@ -322,12 +322,13 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
             with open(src_path, "r", encoding="utf-8", errors="replace") as handle:
                 fodp = handle.read()
             patcher = _ooxml_zip_patch()
-            if (
-                not patcher.fodp_has_master_logo(fodp)
-                and not patcher.fodp_has_sections(fodp)
-                and not patcher.fodp_has_show_setup_patch(fodp)
-            ):
-                return
+            # Không còn early-return khi thiếu logo/sections/show-setup: soffice
+            # --convert-to pptx BỎ QUA style:page-layout-properties của FODP và
+            # luôn tự ghi <p:sldSz> mặc định 28cm x 15.75cm - postprocess_slides_pptx
+            # giờ LUÔN cần được gọi để có cơ hội khôi phục khổ trang thật, kể cả
+            # khi tài liệu không dùng logo/sections/show-setup nào (trường hợp
+            # phổ biến nhất). Bản thân postprocess_slides_pptx đã tự kiểm tra và
+            # trả về nguyên bytes gốc nếu thực sự không cần sửa gì.
             with open(out_path, "rb") as handle:
                 original = handle.read()
             patched = patcher.postprocess_slides_pptx(original, source_fodp=fodp)
@@ -338,7 +339,7 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
             raise
         except Exception as exc:
             raise DocumentEngineError(
-                f"Không bổ sung được thuộc tính native PPTX (logo / Sections / Set Up Show): {exc}"
+                f"Không bổ sung được thuộc tính native PPTX (khổ trang / logo / Sections / Set Up Show): {exc}"
             ) from exc
 
 
