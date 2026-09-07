@@ -150,7 +150,6 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   padding: 24px;
   overflow: auto;
   position: relative;
@@ -1648,6 +1647,7 @@
   position: relative;
   align-items: start;
   justify-content: center;
+  margin: auto;
 }
 
 .vno-slide-ruler-corner {
