@@ -1130,7 +1130,12 @@ export class AppShell {
     this.documentName = newDocumentName;
     const tabEl = this.rootEl?.querySelector(".vno-doc-tab span");
     if (tabEl) tabEl.textContent = this.documentName;
-    this.ribbonHost?.selectTab(homeTabId);
+    if (homeTabId) {
+      this.ribbonHost?.selectTab(homeTabId);
+    }
+    if (this.appName) {
+      RecentFilesManager.recordFile({ name: this.documentName, app: this.appName });
+    }
   }
 
   _setupGlobalShortcuts() {

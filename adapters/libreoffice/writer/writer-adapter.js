@@ -7163,9 +7163,20 @@ export class WriterAdapter {
    */
   async save() {
     this.documentContent = this.editorDom ? this.editorDom.innerHTML : "";
-    const result = await globalUnoBridge.saveRealFile("writer", this._contentForExport(), "docx", this.sourceFileName);
+    const suggestedName = (this.sourceFileName && this.sourceFileName !== "TaiLieu")
+      ? this.sourceFileName
+      : (this.shell?.documentName ? this.shell.documentName.replace(/\.[^/.]+$/, "") : (this.sourceFileName || "TaiLieu"));
+    const result = await globalUnoBridge.saveRealFile("writer", this._contentForExport(), "docx", suggestedName);
     if (result.status === "ok") {
       this.isDirty = false;
+      const savedPath = result.path || result.fileName;
+      if (savedPath) {
+        const savedFileName = savedPath.split(/[/\\]/).pop();
+        if (savedFileName) {
+          this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
+          this.shell?.resetDocumentChrome?.(savedFileName, null);
+        }
+      }
       await showAlertDialog({ title: "Đã lưu", message: result.message, type: "success" });
       return true;
     }
