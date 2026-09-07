@@ -238,8 +238,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: cell;
-  border-right: 1px solid var(--vno-border-subtle);
-  border-bottom: 1px solid var(--vno-border-subtle);
+  /* Excel thật dùng lưới ô rõ nét (~#d4d4d4), không mờ gần trắng như trước -
+     border-subtle (#f1f5f9) gần như vô hình trên nền trắng, khó nhìn hơn hẳn
+     Excel thật. Dùng border-default cho tương phản đủ rõ, khớp cảm giác lưới
+     Excel/Calc thật. */
+  border-right: 1px solid var(--vno-border-default);
+  border-bottom: 1px solid var(--vno-border-default);
   position: relative;
   background-color: var(--vno-bg-window);
   color: var(--vno-text-primary);
