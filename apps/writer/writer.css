@@ -392,6 +392,42 @@
   text-align: justify;
 }
 
+/* Tương thích định dạng StarWriter HTML (thuộc tính align trên thẻ p và ô bảng td/th) */
+.vno-writer-page p[align="center"],
+.vno-print-preview-body p[align="center"] {
+  text-align: center;
+}
+.vno-writer-page p[align="right"],
+.vno-print-preview-body p[align="right"] {
+  text-align: right;
+}
+.vno-writer-page p[align="left"],
+.vno-print-preview-body p[align="left"] {
+  text-align: left;
+}
+.vno-writer-page p[align="justify"],
+.vno-print-preview-body p[align="justify"] {
+  text-align: justify;
+}
+.vno-writer-page td[align="center"],
+.vno-writer-page th[align="center"],
+.vno-print-preview-body td[align="center"],
+.vno-print-preview-body th[align="center"] {
+  text-align: center;
+}
+.vno-writer-page td[align="right"],
+.vno-writer-page th[align="right"],
+.vno-print-preview-body td[align="right"],
+.vno-print-preview-body th[align="right"] {
+  text-align: right;
+}
+.vno-writer-page td[align="left"],
+.vno-writer-page th[align="left"],
+.vno-print-preview-body td[align="left"],
+.vno-print-preview-body th[align="left"] {
+  text-align: left;
+}
+
 /* Multilevel list canvas markers (3 levels). Class is the persist key; FODT uses LMulti*. */
 .vno-writer-page ol.vno-ml-decimal,
 .vno-writer-page ol.vno-ml-letter,

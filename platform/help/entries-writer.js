@@ -682,5 +682,21 @@ export const WRITER_HELP_ENTRIES = [
       "Chú thích cuối: số la mã thường i, ii, iii…, tiêu đề mục «CHÚ THÍCH CUỐI TÀI LIỆU», ô «Nhập nội dung chú thích cuối...». Khi in, cả khối nằm trang cuối.",
       "Nhấp số trên chữ để nhảy xuống ghi chú. Không có hộp đổi kiểu đánh số / chuyển footnote↔endnote như Word. Ctrl+Z gỡ mốc vừa chèn."
     ]
+  },
+  {
+    id: "writer.file.openDocument",
+    app: "writer",
+    commandIds: ["common.file.open"],
+    title: "Mở tài liệu có sẵn (Word DOCX / ODT)",
+    summary: "Mở tệp tài liệu Word (.docx, .doc) hoặc OpenDocument (.odt) có sẵn trên máy tính qua phím tắt Ctrl+O hoặc menu Tệp. Tự động nạp định dạng, căn lề, bảng biểu và cập nhật nhãn tài liệu.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
+    keywords: ["mở tệp", "mở file", "open", "ctrl+o", "docx", "word", "odt", "mở tài liệu"],
+    steps: [
+      "Cách 1: Nhấn tổ hợp phím tắt Ctrl+O trên bàn phím tại bất kỳ màn hình nào trong VN Writer.",
+      "Cách 2: Nhấn vào tab màu xanh «Tệp» ở góc trên cùng bên trái thanh công cụ để mở Backstage Menu, sau đó chọn mục «Mở tệp».",
+      "Hộp thoại chọn tệp của hệ điều hành sẽ xuất hiện. Duyệt đến thư mục chứa tệp Word (.docx, .doc, .odt, .rtf) cần mở, chọn tệp rồi nhấn Open.",
+      "Hệ thống tự động chuyển đổi và hiển thị văn bản lên khổ giấy A4 chuẩn Nghị định 30/2020/NĐ-CP (lề trái 30 mm, lề phải 15 mm). Toàn bộ bảng biểu, tiêu đề căn giữa, định dạng phông chữ Times New Roman và tiêu đề tệp trên thanh tab được cập nhật tự động."
+    ]
   }
 ];
+
