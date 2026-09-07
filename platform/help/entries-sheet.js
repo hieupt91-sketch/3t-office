@@ -490,15 +490,17 @@ export const SHEET_HELP_ENTRIES = [
     id: "sheet.insert.image",
     app: "sheet",
     commandIds: ["sheet.insert.image"],
-    title: "Chèn ảnh vào ô",
-    summary: "Mở hộp chọn tệp ảnh trên máy rồi gắn ảnh vào ô đang chọn. Ảnh nằm trong ô, không phải lớp nổi độc lập.",
+    title: "Chèn và di chuyển ảnh trên bảng tính",
+    summary: "Chèn tệp ảnh từ máy tính neo vào ô bảng tính. Kéo-thả thẻ ảnh để di chuyển giữa các ô (tự động neo về góc ô gần nhất). Hỗ trợ xóa ảnh và hoàn tác Ctrl+Z.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
-    keywords: ["chèn ảnh", "hình ảnh", "image", "picture", "minh họa", "ảnh ô"],
+    keywords: ["chèn ảnh", "hình ảnh", "image", "picture", "minh họa", "ảnh ô", "kéo thả ảnh", "di chuyển ảnh", "drag image"],
     steps: [
-      "Chọn ô đích. Tab Chèn, nhóm Minh họa, nhấn nút lớn Chèn ảnh.",
-      "Chọn file ảnh trên máy rồi Mở. Ảnh được gắn vào ô đang chọn.",
-      "Cùng tab Chèn còn Biểu đồ (biểu đồ lớn) và Biểu đồ thu nhỏ (sparkline trong ô) — khác với ảnh.",
-      "Ctrl+Z gỡ ảnh vừa chèn."
+      "Chọn ô đích muốn đặt ảnh. Mở tab Chèn, nhóm Minh họa, nhấn nút lớn Chèn ảnh (hoặc dùng menu Chèn).",
+      "Chọn file ảnh trên máy tính rồi nhấn Mở. Ảnh được chèn lên bảng tính với góc trên bên trái neo vào ô đã chọn.",
+      "Di chuyển ảnh: Nhấp giữ chuột trái trên khung ảnh (con trỏ chuột đổi thành biểu tượng di chuyển) rồi kéo đến vị trí mong muốn. Khi thả chuột, ảnh tự động căn chỉnh và neo chuẩn xác về góc ô gần nhất theo hàng và cột.",
+      "Hoàn tác di chuyển: Nhấn Ctrl+Z để đưa ảnh về vị trí ô trước đó, hoặc Ctrl+Y để làm lại thao tác di chuyển.",
+      "Xóa ảnh: Nhấp vào nút dấu nhân (×) màu đỏ ở góc trên bên phải của thẻ ảnh. Có thể nhấn Ctrl+Z để khôi phục ảnh vừa xóa.",
+      "Cùng tab Chèn còn có Biểu đồ và Biểu đồ thu nhỏ (sparkline) phục vụ trực quan hóa dữ liệu số."
     ]
   },
   {

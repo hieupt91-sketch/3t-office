@@ -4300,6 +4300,127 @@ export class SheetGridController {
     return true;
   }
 
+  _getAnchorFromPixel(left, top) {
+    const headerLeft = 46;
+    const headerTop = 28;
+    const rowH = this.rowHeight || 28;
+
+    // Tính cột gần nhất
+    let chosenCol = this.cols[0] || "A";
+    let accumX = headerLeft;
+    for (let i = 0; i < this.cols.length; i++) {
+      const col = this.cols[i];
+      const colW = typeof this.getColumnWidth === "function" ? this.getColumnWidth(col) : 100;
+      if (left < accumX + colW / 2) {
+        chosenCol = col;
+        break;
+      }
+      accumX += colW;
+      chosenCol = col;
+    }
+
+    // Tính hàng gần nhất
+    let chosenRow = 1;
+    let accumY = headerTop;
+    const maxRows = this.rowCount || 1000;
+    const hasCustomRows = this.rowHeightsBySheet?.[this.activeSheet]?.size > 0;
+    if (!hasCustomRows) {
+      const rIndex = Math.round((top - headerTop) / rowH);
+      chosenRow = Math.max(1, Math.min(maxRows, rIndex + 1));
+    } else {
+      for (let r = 1; r <= maxRows; r++) {
+        const height = typeof this.getRowHeight === "function" ? this.getRowHeight(r) : rowH;
+        if (top < accumY + height / 2) {
+          chosenRow = r;
+          break;
+        }
+        accumY += height;
+        chosenRow = r;
+      }
+    }
+
+    return { c: chosenCol, r: chosenRow };
+  }
+
+  _attachImageDrag(panel, image) {
+    panel.addEventListener("pointerdown", (event) => {
+      if (event.target?.closest?.("[data-image-delete]")) return;
+      if (event.button != null && event.button !== 0) return;
+
+      const pointerId = event.pointerId;
+      if (panel.setPointerCapture && pointerId != null) {
+        try { panel.setPointerCapture(pointerId); } catch (_) { /* ignore */ }
+      }
+
+      const startX = event.clientX;
+      const startY = event.clientY;
+      const startLeft = parseFloat(panel.style.left) || 0;
+      const startTop = parseFloat(panel.style.top) || 0;
+
+      let moved = false;
+      let currentLeft = startLeft;
+      let currentTop = startTop;
+
+      const targetWindow = typeof window !== "undefined" ? window : (typeof document !== "undefined" ? document : null);
+
+      const move = (moveEvent) => {
+        const dx = moveEvent.clientX - startX;
+        const dy = moveEvent.clientY - startY;
+        if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+        if (!moved) {
+          moved = true;
+          panel.classList.add("is-dragging");
+        }
+
+        currentLeft = Math.max(0, startLeft + dx);
+        currentTop = Math.max(0, startTop + dy);
+        panel.style.left = `${currentLeft}px`;
+        panel.style.top = `${currentTop}px`;
+      };
+
+      const up = () => {
+        if (panel.releasePointerCapture && pointerId != null) {
+          try { panel.releasePointerCapture(pointerId); } catch (_) { /* ignore */ }
+        }
+        panel.classList.remove("is-dragging");
+        if (targetWindow?.removeEventListener) {
+          targetWindow.removeEventListener("pointermove", move);
+          targetWindow.removeEventListener("pointerup", up);
+          targetWindow.removeEventListener("pointercancel", up);
+        }
+
+        if (!moved) return;
+
+        const newAnchor = this._getAnchorFromPixel(currentLeft, currentTop);
+        const oldAnchor = { c: image.anchor.c, r: Number(image.anchor.r) };
+
+        if (newAnchor.c === oldAnchor.c && Number(newAnchor.r) === oldAnchor.r) {
+          this.renderImages();
+          return;
+        }
+
+        image.anchor = { c: newAnchor.c, r: Number(newAnchor.r) };
+        this._recordHistory({
+          type: "collection",
+          sheet: this.activeSheet,
+          collection: "imagesBySheet",
+          operation: "update",
+          id: image.id,
+          before: { anchor: structuredClone(oldAnchor) },
+          after: { anchor: structuredClone(image.anchor) },
+          item: structuredClone(image)
+        });
+        this.renderImages();
+      };
+
+      if (targetWindow?.addEventListener) {
+        targetWindow.addEventListener("pointermove", move);
+        targetWindow.addEventListener("pointerup", up);
+        targetWindow.addEventListener("pointercancel", up);
+      }
+    });
+  }
+
   renderImages() {
     if (!this.imageLayer || typeof document === "undefined") return;
     this.imageLayer.innerHTML = "";
@@ -4315,7 +4436,8 @@ export class SheetGridController {
       const img = document.createElement("img");
       img.src = image.src;
       img.alt = t("sheetDialogs.insertedImageAlt");
-      img.style.cssText = "display:block;width:100%;height:auto;max-height:240px;object-fit:contain";
+      img.draggable = false;
+      img.style.cssText = "display:block;width:100%;height:auto;max-height:240px;object-fit:contain;pointer-events:none;user-select:none;-webkit-user-drag:none";
       const remove = document.createElement("button");
       remove.type = "button";
       remove.dataset.imageDelete = "";
@@ -4325,6 +4447,7 @@ export class SheetGridController {
       remove.style.cssText = "position:absolute;right:7px;top:7px;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer;box-shadow:0 1px 4px rgba(15,23,42,.25)";
       remove.addEventListener("click", () => this.deleteImage(image.id));
       panel.append(img, remove);
+      this._attachImageDrag(panel, image);
       this.imageLayer.appendChild(panel);
     }
   }
@@ -6268,11 +6391,22 @@ export class SheetGridController {
       this.scenariosBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
     } else if (action.type === "collection") {
       const collection = this[action.collection][action.sheet] ||= [];
-      const shouldInsert = (action.operation === "insert") === (direction === "redo");
-      if (shouldInsert) collection.splice(action.index, 0, structuredClone(action.item));
-      else {
-        const index = collection.findIndex(item => item.id === action.item.id);
-        if (index >= 0) collection.splice(index, 1);
+      if (action.operation === "update" || action.operation === "move") {
+        const target = collection.find(item => item.id === action.id || (action.item && item.id === action.item.id));
+        if (target) {
+          const state = direction === "undo" ? action.before : action.after;
+          if (state) {
+            if (state.anchor) target.anchor = structuredClone(state.anchor);
+            else Object.assign(target, structuredClone(state));
+          }
+        }
+      } else {
+        const shouldInsert = (action.operation === "insert") === (direction === "redo");
+        if (shouldInsert) collection.splice(action.index, 0, structuredClone(action.item));
+        else {
+          const index = collection.findIndex(item => item.id === action.item.id);
+          if (index >= 0) collection.splice(index, 1);
+        }
       }
       if (action.collection === "chartsBySheet") this.renderCharts();
       else if (action.collection === "imagesBySheet") this.renderImages();
