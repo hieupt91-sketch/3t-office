@@ -5391,10 +5391,29 @@ export class WriterAdapter {
       if (String(type).startsWith("fontwork-")) {
         throw this._fodtError("Fontwork WordArt không thuộc this.shapes");
       }
-      if (type !== "right-arrow") {
-        throw this._fodtError(`draw:custom-shape type '${type}' (Phase B.2 chỉ hỗ trợ right-arrow; Phase E.3 Fontwork WordArt đi HTML)`);
+      if (type === "right-arrow") {
+        return { ...base, type: "arrow", shapeType: "arrow" };
       }
-      return { ...base, type: "arrow", shapeType: "arrow" };
+      // Lỗi thật đã xác nhận qua probe soffice thật: file DOCX thật (Word
+      // thật) chèn hình cơ bản (hình chữ nhật, elip, bo góc — rất phổ biến,
+      // dùng qua "Insert Shapes" của Word) không được soffice ghi thành
+      // <draw:rect>/<draw:ellipse> chuẩn ODF như VN Writer tự ghi, mà LUÔN
+      // thành <draw:custom-shape> với draw:enhanced-geometry draw:type=
+      // "ooxml-<prstGeom>" (ví dụ "ooxml-rect", "ooxml-ellipse",
+      // "ooxml-roundRect"). Trước đây parseFodt() NÉM LỖI ngay khi gặp bất
+      // kỳ type nào khác "right-arrow" — khiến file DOCX có MỘT hình chữ
+      // nhật/elip bình thường (không cần xoay, không gì đặc biệt) cũng
+      // KHÔNG MỞ ĐƯỢC. Ánh xạ 3 kiểu có tương đương chính xác trong model
+      // hình của VN Writer (apps/writer/writer-illustrations.js: rectangle/
+      // round-rect/circle) — các kiểu KHÁC (triangle, diamond...) VN Writer
+      // chưa có renderer tương ứng nên VẪN từ chối rõ ràng, không âm thầm
+      // vẽ sai hình.
+      const OOXML_SHAPE_TYPE_MAP = { "ooxml-rect": "rectangle", "ooxml-roundrect": "round-rect", "ooxml-ellipse": "circle" };
+      const mapped = OOXML_SHAPE_TYPE_MAP[String(type).toLowerCase()];
+      if (mapped) {
+        return { ...base, type: mapped, shapeType: mapped };
+      }
+      throw this._fodtError(`draw:custom-shape type '${type}' (Phase B.2 chỉ hỗ trợ right-arrow/ooxml-rect/ooxml-roundRect/ooxml-ellipse; Phase E.3 Fontwork WordArt đi HTML)`);
     }
     throw this._fodtError(`phần tử FODT drawing <${node.name}>`);
   }
