@@ -8780,14 +8780,37 @@ export class SheetGridController {
     return true;
   }
 
+  /**
+   * Lỗi thật đã xác nhận: hàm này trước đây (1) duyệt TOÀN BỘ this.cellsData
+   * (cả sheet) thay vì chỉ vùng đang CHỌN — giống thanh trạng thái Excel
+   * thật, Sum/Average/Count chỉ tính trên vùng/ô đang bôi đen; (2) gọi
+   * itm.val.toString().replace(/\./g, "") vô điều kiện — nếu itm.val là
+   * SỐ THỰC (number) có phần thập phân thật (ví dụ 23814000.5), dấu chấm
+   * thập phân bị xóa nhầm thành dấu phân cách nghìn, biến 23814000.5
+   * thành 238140005 (SAI GẤP ~10 LẦN) — cùng lớp lỗi "xén dấu thập phân"
+   * đã sửa trước đây ở formula engine; (3) loại bỏ hẳn các ô có công thức
+   * (itm.formula) dù itm.val đã là KẾT QUẢ TÍNH TOÁN mới nhất (gán ở dòng
+   * ~559 sau mỗi lần recalculate) — Excel thật VẪN cộng ô công thức vào
+   * Sum/Average của vùng chọn.
+   */
   _calculateStats() {
+    const range = this._normalizeRange();
+    const startCol = this.cols.indexOf(range.start.c);
+    const endCol = this.cols.indexOf(range.end.c);
     let total = 0;
     let count = 0;
-    for (const [k, itm] of this.cellsData.entries()) {
-      if (itm.val && !itm.formula) {
+    for (let r = range.start.r; r <= range.end.r; r++) {
+      for (let ci = startCol; ci <= endCol; ci++) {
+        const col = this.cols[ci];
+        if (!col) continue;
+        const itm = this.cellsData.get(`${col}${r}`);
+        if (!itm || itm.val === undefined || itm.val === null || itm.val === "") continue;
+        const num = typeof itm.val === "number"
+          ? itm.val
+          : parseFloat(String(itm.val).replace(/\./g, "").replace(/,/g, ".").replace(/[^\d.-]/g, ""));
+        if (!Number.isFinite(num)) continue;
         count++;
-        const num = parseFloat(itm.val.toString().replace(/\./g, "").replace(/[^\d-]/g, ""));
-        if (!isNaN(num)) total += num;
+        total += num;
       }
     }
     const avg = count > 0 ? Math.round(total / count) : 0;
