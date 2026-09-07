@@ -60,6 +60,68 @@ export async function runSheetImageTests() {
       grid.switchSheet(firstSheet);
       assert(grid.imagesBySheet[firstSheet].length === 1 && grid.imageLayer.children.length === 1, "Ảnh sheet đầu không được phục hồi");
     });
+
+    test("Sheet Image: _getAnchorFromPixel tính ngược pixel sang tọa độ ô gần nhất", () => {
+      const grid = new SheetGridController(container());
+      // Header offset: left=46, top=28, colWidth=100, rowHeight=28
+      // Ô A1: left=46, top=28
+      const a1 = grid._getAnchorFromPixel(46, 28);
+      assert(a1.c === "A" && a1.r === 1, `A1 sai: ${JSON.stringify(a1)}`);
+
+      // Ô B1: left=146, top=28
+      const b1 = grid._getAnchorFromPixel(146, 28);
+      assert(b1.c === "B" && b1.r === 1, `B1 sai: ${JSON.stringify(b1)}`);
+
+      // Kéo sang D5: col D = 46 + 3*100 = 346, row 5 = 28 + 4*28 = 140
+      const d5 = grid._getAnchorFromPixel(346, 140);
+      assert(d5.c === "D" && d5.r === 5, `D5 sai: ${JSON.stringify(d5)}`);
+
+      // Snap điểm gần nhất: left=120 nằm giữa 46 và 146 nhưng gần 146 hơn -> B
+      const snapB = grid._getAnchorFromPixel(120, 30);
+      assert(snapB.c === "B" && snapB.r === 1, `Snap B sai: ${JSON.stringify(snapB)}`);
+
+      // Clamp biên trên/trái: left <= 0, top <= 0 -> A1
+      const clamped = grid._getAnchorFromPixel(-50, -20);
+      assert(clamped.c === "A" && clamped.r === 1, `Clamped sai: ${JSON.stringify(clamped)}`);
+    });
+
+    test("Sheet Image: di chuyển ảnh (move) cập nhật anchor, DOM và Undo/Redo đối xứng", () => {
+      const grid = new SheetGridController(container());
+      grid.imageLayer = layer();
+      const image = grid.insertImage("data:image/png;base64,AA==", { c: "B", r: 2 });
+      assert(grid.imageLayer.children[0]?.dataset.anchor === "B2", "Ảnh ban đầu không neo tại B2");
+
+      // Mô phỏng chốt vị trí sau khi kéo-thả tới E6
+      const oldAnchor = { c: image.anchor.c, r: Number(image.anchor.r) };
+      const newAnchor = grid._getAnchorFromPixel(46 + 4 * 100, 28 + 5 * grid.rowHeight);
+      assert(newAnchor.c === "E" && newAnchor.r === 6, `Tọa độ kéo tới phải là E6: ${JSON.stringify(newAnchor)}`);
+
+      image.anchor = { c: newAnchor.c, r: newAnchor.r };
+      grid._recordHistory({
+        type: "collection",
+        sheet: grid.activeSheet,
+        collection: "imagesBySheet",
+        operation: "update",
+        id: image.id,
+        before: { anchor: structuredClone(oldAnchor) },
+        after: { anchor: structuredClone(image.anchor) },
+        item: structuredClone(image)
+      });
+      grid.renderImages();
+
+      assert(image.anchor.c === "E" && image.anchor.r === 6, "Anchor không cập nhật sang E6");
+      assert(grid.imageLayer.children[0]?.dataset.anchor === "E6", "DOM không re-render tại E6");
+
+      // Undo -> quay về B2
+      assert(grid.undo(), "Undo di chuyển ảnh thất bại");
+      assert(image.anchor.c === "B" && image.anchor.r === 2, "Undo không đưa anchor về B2");
+      assert(grid.imageLayer.children[0]?.dataset.anchor === "B2", "DOM không phục hồi về B2 sau Undo");
+
+      // Redo -> nhảy lại E6
+      assert(grid.redo(), "Redo di chuyển ảnh thất bại");
+      assert(image.anchor.c === "E" && image.anchor.r === 6, "Redo không đưa anchor lại E6");
+      assert(grid.imageLayer.children[0]?.dataset.anchor === "E6", "DOM không re-render tại E6 sau Redo");
+    });
   } finally { globalThis.document = originalDocument; }
   return results;
 }
