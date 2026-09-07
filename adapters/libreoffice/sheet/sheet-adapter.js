@@ -490,6 +490,60 @@ export class SheetAdapter {
     };
   }
 
+  /**
+   * Đọc Print Titles chuẩn ODF thật (table:named-expression name="_xlnm.Print_Titles")
+   * từ file FODS thật. Khi LibreOffice/Excel convert XLSX→FODS, Print Titles được ghi
+   * vào <table:named-expression table:name="_xlnm.Print_Titles"> với table:expression
+   * chứa tham chiếu ODF dạng: ";[$Sheet1.$1:.$1];[$Sheet1.$A:.$A]" (phan cach boi dau cham phay).
+   * Mỗi phan trong dau [ ] la mot vung tham chieu: $Sheet.$Hang:.$Hang (hang) hoac
+   * $Sheet.$Cot:.$Cot (cot). Ham nay tra ve { rows: "1" hoac "1:2", cols: "A" hoac "A:B" }
+   * hoac null neu khong tim thay.
+   */
+  _parseStandardPrintTitles(xml, sheetName) {
+    if (!sheetName) return null;
+    const escapedSheet = sheetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const namedExprRegex = new RegExp(
+      `<table:named-expression\\b[^>]*table:name=["']_xlnm\\.Print_Titles["'][^>]*>`,
+      "gi"
+    );
+    let namedExprMatch;
+    while ((namedExprMatch = namedExprRegex.exec(xml)) !== null) {
+      const tagEnd = xml.indexOf("/>", namedExprMatch.index);
+      const tagClose = xml.indexOf(">", namedExprMatch.index);
+      const tagEndIdx = tagEnd !== -1 && tagEnd < tagClose ? tagEnd : tagClose;
+      const tag = xml.substring(namedExprMatch.index, tagEndIdx + 2);
+      const baseCellMatch = tag.match(new RegExp(`table:base-cell-address=["']([^"']*)["']`, "i"));
+      if (!baseCellMatch) continue;
+      const exprMatch = tag.match(/table:expression=["']([^"']*)["']/i);
+      if (!exprMatch) continue;
+      const expression = exprMatch[1];
+      const parts = expression.split(";").filter(Boolean);
+      let rows = "";
+      let cols = "";
+      for (const part of parts) {
+        const rangeMatch = part.match(/^\[(?:\$([^.\]]+)\.)?(?:\.)?\$([^:\]]+)(?::(?:\.?\$?(?:\$([^.\]]+)\.)?(?:\.)?)?([^.\]]+))?\]$/);
+        if (!rangeMatch) continue;
+        const rangeSheet = rangeMatch[1] || sheetName;
+        const ref1 = rangeMatch[2];
+        const ref2 = rangeMatch[4] || ref1;
+        if (rangeSheet !== sheetName) continue;
+        if (/^\d+$/.test(ref1)) {
+          const start = parseInt(ref1, 10);
+          const end = parseInt(ref2, 10);
+          rows = start === end ? String(start) : `${Math.min(start, end)}:${Math.max(start, end)}`;
+        } else if (/^[A-Z]+$/i.test(ref1)) {
+          const start = ref1.toUpperCase();
+          const end = ref2.toUpperCase();
+          const startNum = this._columnNumber(start);
+          const endNum = this._columnNumber(end);
+          cols = startNum === endNum ? start : (startNum < endNum ? start : end) + ":" + (startNum < endNum ? end : start);
+        }
+      }
+      if (rows || cols) return { rows, cols };
+    }
+    return null;
+  }
+
   _columnNumber(columnName) {
     return String(columnName || "").split("").reduce((total, char) => total * 26 + char.charCodeAt(0) - 64, 0);
   }
@@ -2121,6 +2175,12 @@ export class SheetAdapter {
             printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
             printTitles: { rows: table.getAttribute("vno:print-title-rows") || "", cols: table.getAttribute("vno:print-title-cols") || "" }
           };
+          if (!pageSetup.printTitles.rows && !pageSetup.printTitles.cols) {
+            const standardTitles = this._parseStandardPrintTitles(tableXml, name);
+            if (standardTitles) {
+              pageSetup.printTitles = standardTitles;
+            }
+          }
           const data = new Map();
           const comments = {};
           const mergedRanges = [];
@@ -2262,6 +2322,12 @@ export class SheetAdapter {
           printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
           printTitles: { rows: pageAttr("vno:print-title-rows"), cols: pageAttr("vno:print-title-cols") }
         };
+        if (!pageSetup.printTitles.rows && !pageSetup.printTitles.cols) {
+          const standardTitles = this._parseStandardPrintTitles(tableXml, name);
+          if (standardTitles) {
+            pageSetup.printTitles = standardTitles;
+          }
+        }
         const data = new Map();
         const comments = {};
         const mergedRanges = [];
