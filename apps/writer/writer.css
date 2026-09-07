@@ -1041,6 +1041,20 @@
     box-shadow: none !important;
     margin: 0 !important;
   }
+  /*
+   * Lỗi thật đã xác nhận: "In tài liệu" (common.file.print) gọi thẳng
+   * window.print() trên DOM sống, chỉ dựa vào CSS @media print - không đi
+   * qua getPageDimensions()'s hasHeader/hasFooter check như Print Preview
+   * (Ctrl+F2) hay Backstage In. Placeholder gợi ý "Nhấp để nhập tiêu đề..."
+   * (data-placeholder qua :empty::before) vốn CHỈ để hỗ trợ khi đang soạn
+   * thảo, không phải nội dung thật - phải ẩn tuyệt đối khi in thật/xuất PDF
+   * qua trình duyệt, nếu không sẽ in nhầm placeholder thành nội dung.
+   */
+  .vno-writer-header:empty::before,
+  .vno-writer-footer:empty::before,
+  .vno-note-text:empty::before {
+    content: none !important;
+  }
 }
 
 /* Quick Access Toolbar / Action buttons disabled state (Word Parity) */
