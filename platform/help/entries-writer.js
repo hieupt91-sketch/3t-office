@@ -697,6 +697,22 @@ export const WRITER_HELP_ENTRIES = [
       "Hộp thoại chọn tệp của hệ điều hành sẽ xuất hiện. Duyệt đến thư mục chứa tệp Word (.docx, .doc, .odt, .rtf) cần mở, chọn tệp rồi nhấn Open.",
       "Hệ thống tự động chuyển đổi và hiển thị văn bản lên khổ giấy A4 chuẩn Nghị định 30/2020/NĐ-CP (lề trái 30 mm, lề phải 15 mm). Toàn bộ bảng biểu, tiêu đề căn giữa, định dạng phông chữ Times New Roman và tiêu đề tệp trên thanh tab được cập nhật tự động."
     ]
+  },
+  {
+    id: "writer.file.saveDocument",
+    app: "writer",
+    commandIds: ["common.file.save", "common.file.saveAs"],
+    title: "Lưu tài liệu và Lưu bản sao (DOCX)",
+    summary: "Lưu văn bản đang soạn thảo sang tệp DOCX thật trên đĩa máy tính thông qua công cụ xử lý LibreOffice Core headless. Hỗ trợ phím tắt Ctrl+S, biểu tượng đĩa mềm trên thanh truy cập nhanh và menu Tệp.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
+    keywords: ["lưu tệp", "lưu file", "save", "save as", "ctrl+s", "docx", "lưu bản sao", "lưu tài liệu"],
+    steps: [
+      "Cách 1: Nhấn biểu tượng đĩa mềm trên thanh công cụ truy cập nhanh ở góc trên bên trái màn hình (hoặc nhấn tổ hợp phím Ctrl+S).",
+      "Cách 2: Nhấn vào nút màu xanh «Tệp» ở góc trên cùng bên trái để mở menu Backstage, sau đó nhấn chọn mục «Lưu» hoặc «Lưu bản sao».",
+      "Hộp thoại lưu tệp của hệ điều hành sẽ xuất hiện. Chọn thư mục trên máy tính, đặt tên tệp mong muốn (định dạng mặc định .docx) và nhấn Save.",
+      "Sau khi lưu thành công, thông báo xác nhận sẽ hiển thị, tên tệp trên thanh tab tiêu đề sẽ được cập nhật đồng bộ và tài liệu được ghi vào danh sách Tệp gần đây.",
+      "Lưu ý: Chức năng Lưu tệp thật yêu cầu ứng dụng VN Office Desktop có kết nối công cụ LibreOffice Core; khi chạy trên trình duyệt dev, hệ thống sẽ hiện hộp thoại thông báo hướng dẫn rõ ràng."
+    ]
   }
 ];
 

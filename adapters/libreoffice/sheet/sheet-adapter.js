@@ -2807,7 +2807,7 @@ export class SheetAdapter {
     }
     this.sourceFileName = "BangTinh";
     this.isDirty = false;
-    this.shell?.resetDocumentChrome?.("Bảng tính 1.xlsx");
+    this.shell?.resetDocumentChrome?.("Bảng tính 1.xlsx", "home", false);
     return true;
   }
 

@@ -34,7 +34,7 @@ export class SlidesAdapter {
     if (this.canvas?.resetToBlank) {
       this.canvas.resetToBlank("BẢN TRÌNH CHIẾU MỚI");
     }
-    this.shell?.resetDocumentChrome?.("Bản trình chiếu 1.pptx");
+    this.shell?.resetDocumentChrome?.("Bản trình chiếu 1.pptx", "home", false);
     return true;
   }
 
