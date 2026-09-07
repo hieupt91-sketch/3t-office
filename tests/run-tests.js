@@ -150,6 +150,7 @@ import { runWriterFodtRealDocxParsingTests } from "./unit/writer-fodt-real-docx-
 import { runBackstagePrintThumbnailTests } from "./unit/backstage-print-thumbnail.test.js";
 import { runSlidesShapeAlignmentTests } from "./unit/slides-shape-alignment.test.js";
 import { runSlidesShapeRotationHandleTests } from "./unit/slides-shape-rotation-handle.test.js";
+import { runSlidesShapeRotationSerializeTests } from "./unit/slides-shape-rotation-serialize.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -307,7 +308,8 @@ async function runAll() {
     { title: "130. Unit Tests — VN Sheet đọc/ghi ảnh nhúng (draw:image) từ file thật + round-trip Lưu/Mở", runner: runSheetImageImportExportTests },
     { title: "131. Unit Tests — VN Slides: vị trí hình bị xoay trong PPTX thật (draw:transform rotate/translate)", runner: runSlidesRotatedShapePositionTests },
     { title: "132. Unit Tests — VN Sheet thanh trạng thái Sum/Average/Count: chỉ tính vùng đang chọn, không xén dấu thập phân", runner: runSheetStatusBarSumTests },
-    { title: "133. Unit Tests — VN Slides Tay Cầm Xoay Tương Tác (Rotation Handle & Undo/Redo)", runner: runSlidesShapeRotationHandleTests }
+    { title: "133. Unit Tests — VN Slides Tay Cầm Xoay Tương Tác (Rotation Handle & Undo/Redo)", runner: runSlidesShapeRotationHandleTests },
+    { title: "134. Unit Tests — VN Slides Serialize Góc Xoay Hình (shape.rotation → draw:transform FODP)", runner: runSlidesShapeRotationSerializeTests }
   ];
 
   for (const suite of suites) {
