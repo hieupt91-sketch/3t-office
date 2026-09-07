@@ -77,6 +77,7 @@ import { runSheetPivotSaveFodsTests } from "./unit/sheet-pivot-save-fods.test.js
 import { runSheetMergeCellsTests } from "./unit/sheet-merge-cells.test.js";
 import { runSheetPasteSpecialTests } from "./unit/sheet-paste-special.test.js";
 import { runSlidesSmartartImportTests } from "./unit/slides-smartart-import.test.js";
+import { runSlidesRotatedShapePositionTests } from "./unit/slides-rotated-shape-position.test.js";
 import { runWriterHeaderFooterImportTests } from "./unit/writer-headerfooter-import.test.js";
 import { runWriterFootnotesImportTests } from "./unit/writer-footnotes-import.test.js";
 import { runSlidesDiagramGroupSelectTests } from "./unit/slides-diagram-group-select.test.js";
@@ -301,7 +302,8 @@ async function runAll() {
     { title: "127. Unit Tests — Slides native PPTX post-process (p:sldSz khổ trang chiếu thật)", runner: runSlidesPptxSlideSizeTests },
     { title: "128. Unit Tests — VN Slides Text Vertical Align & Direction (GAP-SLIDES-05/06)", runner: runSlidesTextVerticalDirectionTests },
     { title: "129. Unit Tests — VN Sheet Freeze Panes thật (cố định theo Ô đang chọn + sửa lỗi ảo hóa hàng)", runner: runSheetFreezePanesRealTests },
-    { title: "130. Unit Tests — VN Sheet đọc/ghi ảnh nhúng (draw:image) từ file thật + round-trip Lưu/Mở", runner: runSheetImageImportExportTests }
+    { title: "130. Unit Tests — VN Sheet đọc/ghi ảnh nhúng (draw:image) từ file thật + round-trip Lưu/Mở", runner: runSheetImageImportExportTests },
+    { title: "131. Unit Tests — VN Slides: vị trí hình bị xoay trong PPTX thật (draw:transform rotate/translate)", runner: runSlidesRotatedShapePositionTests }
   ];
 
   for (const suite of suites) {
