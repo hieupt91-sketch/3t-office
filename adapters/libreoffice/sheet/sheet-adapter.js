@@ -1134,6 +1134,27 @@ export class SheetAdapter {
     });
   }
 
+  /**
+   * vno:frozen-rows/cols (đọc lại từ chính FODS VN Office tự ghi - xem
+   * serializeToFods()). soffice thật KHÔNG khôi phục Freeze Panes vào
+   * office:settings khi chuyển đổi headless XLSX->FODS (xác nhận qua vòng
+   * chuyển đổi soffice thật, xem docs/HANDOFF-SHEET-FREEZE-PANES.md) - khi mở
+   * FILE XLSX THẬT từ Excel/nguồn khác, dùng sheet-xlsx-open-overlay đọc trực
+   * tiếp <pane> từ XLSX gốc thay vì hàm này (hàm này chỉ phục vụ tự round-trip
+   * FODS nội bộ của VN Office).
+   */
+  _attachImportedFreezePanes(workbook, xmlText) {
+    workbook.freezePanesBySheet = {};
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
+      const name = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      if (!name) return "";
+      const rows = Number(attrs.match(/vno:frozen-rows=["'](\d+)["']/i)?.[1]) || 0;
+      const cols = Number(attrs.match(/vno:frozen-cols=["'](\d+)["']/i)?.[1]) || 0;
+      if (rows > 0 || cols > 0) workbook.freezePanesBySheet[name] = { rows, cols };
+      return "";
+    });
+  }
+
   _attachImportedSparklines(workbook, xmlText) {
     String(xmlText || "").replace(/<calcext:sparkline-group\b([^>]*)>([\s\S]*?)<\/calcext:sparkline-group>/gi, (_, attrs, body) => {
       const typeRaw = (attrs.match(/calcext:type=["']([^"']+)["']/i)?.[1] || "line").toLowerCase();
@@ -1570,7 +1591,16 @@ export class SheetAdapter {
       const printTitles = this.grid.pageSetupBySheet?.[sheetName]?.printTitles || {};
       const protectedSheet = !!this.grid.protectionBySheet?.[sheetName]?.enabled;
       const protectedAttr = protectedSheet ? ' table:protected="true"' : "";
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"`;
+      const isActiveSheet = sheetName === this.grid.activeSheet;
+      const freezeRows = isActiveSheet ? (this.grid.frozenRows || 0) : (this.grid.sheetStates?.[sheetName]?.frozenRows || 0);
+      const freezeCols = isActiveSheet ? (this.grid.frozenCols || 0) : (this.grid.sheetStates?.[sheetName]?.frozenCols || 0);
+      // vno:frozen-rows/cols: LibreOffice thật KHÔNG ghi lại trạng thái Freeze
+      // Panes vào office:settings khi chuyển đổi headless XLSX<->FODS (đã xác
+      // nhận qua vòng chuyển đổi soffice thật - xem HANDOFF-SHEET-FREEZE-PANES.md).
+      // Lưu riêng ở đây để tự round-trip đúng trong VN Office; khi xuất XLSX
+      // thật, postprocess_sheet_xlsx() đọc thuộc tính này để ghi <pane> chuẩn.
+      const freezeAttr = (freezeRows > 0 || freezeCols > 0) ? ` vno:frozen-rows="${freezeRows}" vno:frozen-cols="${freezeCols}"` : "";
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"${freezeAttr}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -2352,6 +2382,7 @@ export class SheetAdapter {
     this._attachImportedCharts(workbook, xmlText);
     this._attachImportedPageBreaks(workbook, tableXml, rowColStyles);
     this._attachImportedProtection(workbook, xmlText);
+    this._attachImportedFreezePanes(workbook, xmlText);
     this._attachImportedSparklines(workbook, xmlText);
     this._attachImportedOutline(workbook, tableXml);
     return workbook;
@@ -2408,7 +2439,23 @@ export class SheetAdapter {
       this.grid.pageBreaksBySheet[sheetName] = workbook.pageBreaksBySheet?.[sheetName] || { rows: [], cols: [] };
       this.grid.protectionBySheet[sheetName] = workbook.protectionBySheet?.[sheetName] || { enabled: false, password: "" };
       this.grid.outlineGroupsBySheet[sheetName] = workbook.outlineGroupsBySheet?.[sheetName] || [];
+      const freeze = workbook.freezePanesBySheet?.[sheetName] || { rows: 0, cols: 0 };
+      if (!this.grid.sheetStates) this.grid.sheetStates = {};
+      if (!this.grid.sheetStates[sheetName]) {
+        this.grid.sheetStates[sheetName] = { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, selectedCoord: { r: 1, c: "A" } };
+      }
+      this.grid.sheetStates[sheetName].frozenRows = freeze.rows;
+      this.grid.sheetStates[sheetName].frozenCols = freeze.cols;
+      this.grid.sheetStates[sheetName].isFrozenPanes = freeze.rows > 0 || freeze.cols > 0;
     }
+    // switchSheet() ở trên chạy TRƯỚC vòng lặp này gán frozenRows/frozenCols
+    // vào sheetStates, nên trạng thái sống của grid cho sheet đang active cần
+    // đồng bộ lại thủ công ở đây.
+    const activeFreezeState = this.grid.sheetStates[this.grid.activeSheet];
+    this.grid.frozenRows = activeFreezeState?.frozenRows || 0;
+    this.grid.frozenCols = activeFreezeState?.frozenCols || 0;
+    this.grid.isFrozenPanes = activeFreezeState?.isFrozenPanes || false;
+    this.grid.container?.classList?.toggle?.("vno-freeze-panes", this.grid.isFrozenPanes);
     this.grid.undoStack = [];
     this.grid.redoStack = [];
     this.grid._refreshVisibleRuleVisuals?.();
@@ -3100,6 +3147,12 @@ export class SheetAdapter {
 
       case "sheet.view.freezePanes":
         return this.grid.toggleFreezePanes ? this.grid.toggleFreezePanes() : false;
+
+      case "sheet.view.freezeTopRow":
+        return this.grid.freezeTopRow ? this.grid.freezeTopRow() : false;
+
+      case "sheet.view.freezeFirstColumn":
+        return this.grid.freezeFirstColumn ? this.grid.freezeFirstColumn() : false;
 
       case "sheet.view.zoomIn":
         return this.grid.zoomIn ? this.grid.zoomIn() : false;

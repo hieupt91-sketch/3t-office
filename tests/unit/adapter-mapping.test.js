@@ -213,13 +213,17 @@ export async function runAdapterMappingTests() {
     results.push({ name: `SheetGrid Controller: Số hàng sai (${realGrid.rowCount})`, pass: false });
   }
 
-  // Freeze Panes toggle
+  // Freeze Panes toggle - đúng hành vi Excel thật: cố định hàng TRÊN + cột TRÁI
+  // của Ô đang chọn, không phải luôn hardcode hàng 1/cột A. Chọn C3 trước để
+  // có hàng/cột thật để cố định (1,2), rồi bấm lại để bỏ cố định.
+  realGrid.selectedCoord = { c: "C", r: 3 };
   const freeze1 = realGrid.toggleFreezePanes();
+  const frozenAfterFreeze = { rows: realGrid.frozenRows, cols: realGrid.frozenCols };
   const freeze2 = realGrid.toggleFreezePanes();
-  if (freeze1 === true && freeze2 === false) {
-    results.push({ name: "SheetGrid Freeze Panes: Chuyển đổi trạng thái cố định hàng 1 / cột A thành công", pass: true });
+  if (freeze1 === true && frozenAfterFreeze.rows === 2 && frozenAfterFreeze.cols === 2 && freeze2 === false && realGrid.frozenRows === 0 && realGrid.frozenCols === 0) {
+    results.push({ name: "SheetGrid Freeze Panes: Cố định đúng hàng trên/cột trái của Ô đang chọn (C3 -> 2 hàng, 2 cột), bấm lại bỏ cố định", pass: true });
   } else {
-    results.push({ name: "SheetGrid Freeze Panes: Lỗi toggleFreezePanes()", pass: false });
+    results.push({ name: `SheetGrid Freeze Panes: Lỗi toggleFreezePanes() (${JSON.stringify({ freeze1, frozenAfterFreeze, freeze2 })})`, pass: false });
   }
 
   // Sort & Undo

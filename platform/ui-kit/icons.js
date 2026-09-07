@@ -1130,6 +1130,18 @@ export const ICONS = {
     <path d="M4 12h24M12 5v22" stroke="#0F6D38" stroke-width="1.6"/>
     <path d="M20 16l2 5 2-5" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
+  freezeTopRow: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="5" width="24" height="22" rx="2" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.4"/>
+    <rect x="4" y="5" width="24" height="7" fill="#BBF7D0"/>
+    <path d="M4 12h24" stroke="#0F6D38" stroke-width="1.6"/>
+    <path d="M16 17v9M12 22l4 4 4-4" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+  freezeFirstColumn: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="5" width="24" height="22" rx="2" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.4"/>
+    <rect x="4" y="5" width="8" height="22" fill="#86EFAC" opacity="0.85"/>
+    <path d="M12 5v22" stroke="#0F6D38" stroke-width="1.6"/>
+    <path d="M17 16h9M22 12l4 4-4 4" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
 
   dataValidation: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="4" y="6" width="24" height="20" rx="3" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.4"/>

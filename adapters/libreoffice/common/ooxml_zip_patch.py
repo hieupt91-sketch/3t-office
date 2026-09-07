@@ -3,6 +3,7 @@
 Python twin of:
   adapters/libreoffice/common/ooxml-zip-patch.js
   adapters/libreoffice/sheet/xlsx-workbook-protection.js
+  adapters/libreoffice/sheet/xlsx-freeze-panes.js
   adapters/libreoffice/sheet/xlsx-native-postprocess.js
   adapters/libreoffice/slides/pptx-master-logo.js
   adapters/libreoffice/slides/pptx-section-list.js
@@ -10,8 +11,8 @@ Python twin of:
   adapters/libreoffice/slides/pptx-native-postprocess.js
 
 main.py calls:
-  - postprocess_sheet_xlsx() after soffice FODS→XLSX (File → Lưu)
-  - overlay_sheet_xlsx_fods() after soffice XLSX→FODS (File → Mở)
+  - postprocess_sheet_xlsx() after soffice FODS→XLSX (File → Lưu) - workbookProtection lockStructure + Freeze Panes <pane>
+  - overlay_sheet_xlsx_fods() after soffice XLSX→FODS (File → Mở) - table:structure-protected + vno:frozen-rows/cols
   - postprocess_slides_pptx() after soffice FODP→PPTX (File → Lưu)
   - overlay_slides_pptx_fodp() after soffice PPTX→FODP (File → Mở)
 
@@ -29,6 +30,7 @@ import uuid
 import zipfile
 
 XLSX_WORKBOOK_ENTRY = "xl/workbook.xml"
+XLSX_WORKBOOK_RELS_ENTRY = "xl/_rels/workbook.xml.rels"
 PPTX_PRESENTATION_ENTRY = "ppt/presentation.xml"
 PPTX_PRESPROPS_ENTRY = "ppt/presProps.xml"
 MASTER_LOGO_SHAPE_NAME = "VNOfficeMasterLogo"
@@ -237,26 +239,197 @@ def patch_ooxml_zip(zip_bytes: bytes, replacements: dict[str, str | bytes]) -> b
     return dest.getvalue()
 
 
+_FREEZE_TABLE_TAG_RE = re.compile(r"<table:table\b([^>]*)>")
+_FREEZE_ROWS_ATTR_RE = re.compile(r'vno:frozen-rows="(\d+)"', re.IGNORECASE)
+_FREEZE_COLS_ATTR_RE = re.compile(r'vno:frozen-cols="(\d+)"', re.IGNORECASE)
+_SHEET_VIEW_RE = re.compile(r"(<sheetView\b[^>]*>)([\s\S]*?)(</sheetView>)", re.IGNORECASE)
+_SHEET_VIEW_SELFCLOSE_RE = re.compile(r"<sheetView\b([^>]*)/>", re.IGNORECASE)
+_PANE_TAG_RE = re.compile(r"<pane\b[^>]*/>", re.IGNORECASE)
+_PANE_MATCH_RE = re.compile(r"<pane\b([^>]*)/>", re.IGNORECASE)
+_SELECTION_TAG_RE = re.compile(r"<selection\b[^>]*/>", re.IGNORECASE)
+_WB_SHEET_TAG_RE = re.compile(r"<sheet\b([^>]*)/?>", re.IGNORECASE)
+_WB_RELATIONSHIP_TAG_RE = re.compile(r"<Relationship\b([^>]*)/?>", re.IGNORECASE)
+
+
+def column_label_from_index(one_based_index: int) -> str:
+    """1-based column number -> Excel-style label (1="A", 26="Z", 27="AA")."""
+    n = max(1, int(one_based_index))
+    label = ""
+    while n > 0:
+        n, rem = divmod(n - 1, 26)
+        label = chr(65 + rem) + label
+    return label
+
+
+def parse_freeze_panes_from_fods(fods_xml: str | None) -> dict[str, dict[str, int]]:
+    """{sheet_name: {"rows": int, "cols": int}} từ vno:frozen-rows/cols VN Office tự ghi."""
+    xml = fods_xml or ""
+    result: dict[str, dict[str, int]] = {}
+    for match in _FREEZE_TABLE_TAG_RE.finditer(xml):
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs)
+        if not name_match:
+            continue
+        name = _unescape_xml(name_match.group(1))
+        rows = int(_FREEZE_ROWS_ATTR_RE.search(attrs).group(1)) if _FREEZE_ROWS_ATTR_RE.search(attrs) else 0
+        cols = int(_FREEZE_COLS_ATTR_RE.search(attrs).group(1)) if _FREEZE_COLS_ATTR_RE.search(attrs) else 0
+        if rows > 0 or cols > 0:
+            result[name] = {"rows": rows, "cols": cols}
+    return result
+
+
+def apply_freeze_panes_to_fods(fods_xml: str, freeze_by_sheet: dict[str, dict[str, int]]) -> str:
+    """Ghi vno:frozen-rows/cols vào đúng <table:table> - dùng ở File → Mở, TRƯỚC parseFods()."""
+    xml = fods_xml or ""
+    if not freeze_by_sheet:
+        return xml
+
+    def _replace(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs)
+        if not name_match:
+            return match.group(0)
+        name = _unescape_xml(name_match.group(1))
+        freeze = freeze_by_sheet.get(name)
+        if not freeze or (freeze.get("rows", 0) <= 0 and freeze.get("cols", 0) <= 0):
+            return match.group(0)
+        next_attrs = _FREEZE_ROWS_ATTR_RE.sub("", attrs)
+        next_attrs = _FREEZE_COLS_ATTR_RE.sub("", next_attrs)
+        next_attrs = f'{next_attrs} vno:frozen-rows="{freeze["rows"]}" vno:frozen-cols="{freeze["cols"]}"'
+        return f"<table:table{next_attrs}>"
+
+    return _FREEZE_TABLE_TAG_RE.sub(_replace, xml)
+
+
+def parse_freeze_pane_from_sheet_xml(sheet_xml: str | None) -> dict[str, int] | None:
+    """Đọc <pane state="frozen" xSplit ySplit> thật từ một worksheetN.xml XLSX."""
+    match = _PANE_MATCH_RE.search(sheet_xml or "")
+    if not match:
+        return None
+    attrs = match.group(1) or ""
+    if not re.search(r'state="frozen"', attrs, re.IGNORECASE):
+        return None
+    cols_match = re.search(r'xSplit="(\d+)"', attrs)
+    rows_match = re.search(r'ySplit="(\d+)"', attrs)
+    cols = int(cols_match.group(1)) if cols_match else 0
+    rows = int(rows_match.group(1)) if rows_match else 0
+    if rows == 0 and cols == 0:
+        return None
+    return {"rows": rows, "cols": cols}
+
+
+def apply_freeze_pane_to_sheet_xml(sheet_xml: str, rows: int, cols: int) -> str:
+    """Ghi <pane state="frozen"> chuẩn OOXML vào <sheetView> - xSplit/ySplit là SỐ CỘT/HÀNG, không phải pixel."""
+    xml = sheet_xml or ""
+    if rows <= 0 and cols <= 0:
+        return xml
+
+    top_left_col = column_label_from_index(cols + 1)
+    top_left_row = rows + 1
+    top_left_cell = f"{top_left_col}{top_left_row}"
+    active_pane = "bottomRight" if (rows > 0 and cols > 0) else ("bottomLeft" if rows > 0 else "topRight")
+
+    pane_attrs = []
+    if cols > 0:
+        pane_attrs.append(f'xSplit="{cols}"')
+    if rows > 0:
+        pane_attrs.append(f'ySplit="{rows}"')
+    pane_attrs.append(f'topLeftCell="{top_left_cell}"')
+    pane_attrs.append(f'activePane="{active_pane}"')
+    pane_attrs.append('state="frozen"')
+    pane_xml = f'<pane {" ".join(pane_attrs)}/>'
+    selection_xml = f'<selection pane="{active_pane}" activeCell="{top_left_cell}" sqref="{top_left_cell}"/>'
+
+    def _clean(inner: str) -> str:
+        return _SELECTION_TAG_RE.sub("", _PANE_TAG_RE.sub("", inner))
+
+    match = _SHEET_VIEW_RE.search(xml)
+    if match:
+        replacement = f"{match.group(1)}{pane_xml}{selection_xml}{_clean(match.group(2))}{match.group(3)}"
+        return xml[: match.start()] + replacement + xml[match.end() :]
+
+    self_close = _SHEET_VIEW_SELFCLOSE_RE.search(xml)
+    if self_close:
+        replacement = f"<sheetView{self_close.group(1)}>{pane_xml}{selection_xml}</sheetView>"
+        return xml[: self_close.start()] + replacement + xml[self_close.end() :]
+
+    return xml
+
+
+def _resolve_xlsx_sheet_entries(xlsx_bytes: bytes) -> dict[str, str]:
+    """Tên sheet (thứ tự trong xl/workbook.xml) -> đường dẫn zip entry worksheetN.xml thật."""
+    workbook_entry = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+    rels_entry = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_RELS_ENTRY)
+    if not workbook_entry or not rels_entry:
+        return {}
+    workbook_xml = workbook_entry.decode("utf-8", errors="replace")
+    rels_xml = rels_entry.decode("utf-8", errors="replace")
+
+    rid_by_sheet: dict[str, str] = {}
+    for match in _WB_SHEET_TAG_RE.finditer(workbook_xml):
+        attrs = match.group(1) or ""
+        name_match = re.search(r'name="([^"]*)"', attrs)
+        rid_match = re.search(r'r:id="([^"]*)"', attrs)
+        if name_match and rid_match:
+            rid_by_sheet[_unescape_xml(name_match.group(1))] = rid_match.group(1)
+
+    target_by_rid: dict[str, str] = {}
+    for match in _WB_RELATIONSHIP_TAG_RE.finditer(rels_xml):
+        attrs = match.group(1) or ""
+        id_match = re.search(r'Id="([^"]*)"', attrs)
+        target_match = re.search(r'Target="([^"]*)"', attrs)
+        if id_match and target_match:
+            target = target_match.group(1)
+            target_by_rid[id_match.group(1)] = target if target.startswith("xl/") else f"xl/{target.lstrip('./')}"
+
+    return {name: target_by_rid[rid] for name, rid in rid_by_sheet.items() if rid in target_by_rid}
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
     source_fods: str | None = None,
     enabled: bool | None = None,
 ) -> bytes:
-    """Return patched XLSX bytes, or the original buffer when no lock is needed."""
+    """Return patched XLSX bytes, or the original buffer when no patch is needed."""
+    replacements: dict[str, str] = {}
+
     if enabled is None:
         enabled = fods_has_structure_protection(source_fods)
-    if not enabled:
+    if enabled:
+        try:
+            current = _read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+        except KeyError as exc:
+            raise ValueError("XLSX thiếu xl/workbook.xml — không thể bổ sung workbookProtection") from exc
+        xml = current.decode("utf-8")
+        next_xml = apply_workbook_protection_lock_structure(xml)
+        if next_xml != xml:
+            replacements[XLSX_WORKBOOK_ENTRY] = next_xml
+
+    # Freeze Panes: soffice thật không khôi phục <pane> qua ODF office:settings
+    # khi chuyển đổi headless FODS<->XLSX (xác nhận qua vòng chuyển đổi soffice
+    # thật) - ghi thẳng <pane> chuẩn vào (các) worksheetN.xml thật dựa theo
+    # vno:frozen-rows/cols VN Office tự lưu trong FODS nguồn.
+    freeze_by_sheet = parse_freeze_panes_from_fods(source_fods)
+    if freeze_by_sheet:
+        sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+        for sheet_name, freeze in freeze_by_sheet.items():
+            entry_path = sheet_entries.get(sheet_name)
+            if not entry_path:
+                continue
+            sheet_xml = replacements.get(entry_path)
+            if sheet_xml is None:
+                entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+                if not entry_bytes:
+                    continue
+                sheet_xml = entry_bytes.decode("utf-8", errors="replace")
+            next_sheet_xml = apply_freeze_pane_to_sheet_xml(sheet_xml, freeze["rows"], freeze["cols"])
+            if next_sheet_xml != sheet_xml:
+                replacements[entry_path] = next_sheet_xml
+
+    if not replacements:
         return xlsx_bytes
-    try:
-        current = _read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
-    except KeyError as exc:
-        raise ValueError("XLSX thiếu xl/workbook.xml — không thể bổ sung workbookProtection") from exc
-    xml = current.decode("utf-8")
-    next_xml = apply_workbook_protection_lock_structure(xml)
-    if next_xml == xml:
-        return xlsx_bytes
-    return patch_ooxml_zip(xlsx_bytes, {XLSX_WORKBOOK_ENTRY: next_xml})
+    return patch_ooxml_zip(xlsx_bytes, replacements)
 
 
 def _read_zip_entry(zip_bytes: bytes, entry_name: str) -> bytes:
@@ -1403,17 +1576,38 @@ def postprocess_slides_pptx_file(
 
 
 def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
-    """Read xl/workbook.xml from the original XLSX and overlay FODS.
+    """Read the original XLSX ZIP and overlay FODS.
 
-    LibreOffice XLSX→FODS drops lockStructure. Production File → Mở must
-    restore table:structure-protected before SheetAdapter.parseFods().
+    LibreOffice XLSX→FODS drops lockStructure AND Freeze Panes (<pane> is not
+    restored into ODF office:settings — confirmed via a real soffice
+    round-trip, see docs/HANDOFF-SHEET-FREEZE-PANES.md). Production File → Mở
+    must restore both before SheetAdapter.parseFods().
     """
     xml = fods_xml or ""
     current = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
-    if not current:
+    if current:
+        workbook_xml = current.decode("utf-8", errors="replace")
+        xml = overlay_fods_structure_protection(xml, workbook_xml)
+    xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
+    return xml
+
+
+def overlay_sheet_xlsx_freeze_panes(xlsx_bytes: bytes, fods_xml: str | None) -> str:
+    """Đọc <pane state="frozen"> thật từ MỖI worksheetN.xml gốc và ghi đè
+    vno:frozen-rows/cols vào FODS trước khi SheetAdapter.parseFods() chạy."""
+    xml = fods_xml or ""
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    if not sheet_entries:
         return xml
-    workbook_xml = current.decode("utf-8", errors="replace")
-    return overlay_fods_structure_protection(xml, workbook_xml)
+    freeze_by_sheet: dict[str, dict[str, int]] = {}
+    for sheet_name, entry_path in sheet_entries.items():
+        entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry_bytes:
+            continue
+        freeze = parse_freeze_pane_from_sheet_xml(entry_bytes.decode("utf-8", errors="replace"))
+        if freeze:
+            freeze_by_sheet[sheet_name] = freeze
+    return apply_freeze_panes_to_fods(xml, freeze_by_sheet)
 
 
 def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:

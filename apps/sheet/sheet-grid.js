@@ -107,11 +107,11 @@ export class SheetGridController {
       "Nhân sự": new Map()
     };
 
-    /** @type {Record<string, {hiddenRows: Set<number>, activeFilters: Map<string, Set<string>>, isFilterActive: boolean, isFrozenPanes: boolean, selectedCoord: {r: number, c: string}}>} */
+    /** @type {Record<string, {hiddenRows: Set<number>, activeFilters: Map<string, Set<string>>, isFilterActive: boolean, isFrozenPanes: boolean, frozenRows: number, frozenCols: number, selectedCoord: {r: number, c: string}}>} */
     this.sheetStates = {
-      "Dự toán chi phí": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, selectedCoord: { r: 1, c: "A" } },
-      "Kế hoạch Q3": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, selectedCoord: { r: 1, c: "A" } },
-      "Nhân sự": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, selectedCoord: { r: 1, c: "A" } }
+      "Dự toán chi phí": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, selectedCoord: { r: 1, c: "A" } },
+      "Kế hoạch Q3": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, selectedCoord: { r: 1, c: "A" } },
+      "Nhân sự": { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, selectedCoord: { r: 1, c: "A" } }
     };
 
     this.namedRangesWorkbook = [];
@@ -175,6 +175,8 @@ export class SheetGridController {
 
     // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
     this.isFrozenPanes = false;
+    this.frozenRows = 0;
+    this.frozenCols = 0;
     this.isFilterActive = false;
     this.hiddenRows = new Set();
     this.activeFilters = new Map();
@@ -369,6 +371,7 @@ export class SheetGridController {
 
     const thead = document.createElement("thead");
     const trHead = document.createElement("tr");
+    this.theadRow = trHead;
     trHead.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;
     trHead.querySelector(".vno-grid-corner-header")?.addEventListener("click", () => this.selectAll());
     this.cols.forEach(col => {
@@ -1566,7 +1569,7 @@ export class SheetGridController {
     this.activeSheet = defaultSheetName;
     this.sheetsData = { [defaultSheetName]: new Map() };
     this.sheetStates = {
-      [defaultSheetName]: { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, selectedCoord: { r: 1, c: "A" } }
+      [defaultSheetName]: { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, selectedCoord: { r: 1, c: "A" } }
     };
     this.namedRangesWorkbook = [];
     this.namedRangesBySheet = { [defaultSheetName]: [] };
@@ -1588,6 +1591,8 @@ export class SheetGridController {
     this.protectionBySheet = { [defaultSheetName]: { enabled: false, password: "" } };
     this.workbookProtection = { enabled: false, password: "" };
     this.isFrozenPanes = false;
+    this.frozenRows = 0;
+    this.frozenCols = 0;
     this.isFilterActive = false;
     this.hiddenRows = new Set();
     this.activeFilters = new Map();
@@ -1653,6 +1658,8 @@ export class SheetGridController {
         activeFilters: new Map(this.activeFilters || []),
         isFilterActive: !!this.isFilterActive,
         isFrozenPanes: !!this.isFrozenPanes,
+        frozenRows: this.frozenRows || 0,
+        frozenCols: this.frozenCols || 0,
         selectedCoord: { ...(this.selectedCoord || { r: 1, c: "A" }) }
       };
     }
@@ -1670,6 +1677,8 @@ export class SheetGridController {
         activeFilters: new Map(),
         isFilterActive: false,
         isFrozenPanes: false,
+        frozenRows: 0,
+        frozenCols: 0,
         selectedCoord: { r: 1, c: "A" }
       };
     }
@@ -1677,6 +1686,8 @@ export class SheetGridController {
     this.hiddenRows = new Set(nextState.hiddenRows);
     this.activeFilters = new Map(nextState.activeFilters);
     this.isFilterActive = nextState.isFilterActive;
+    this.frozenRows = nextState.frozenRows || 0;
+    this.frozenCols = nextState.frozenCols || 0;
     this.isFrozenPanes = !!nextState.isFrozenPanes;
     this.selectedCoord = { ...nextState.selectedCoord };
     this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
@@ -1767,6 +1778,8 @@ export class SheetGridController {
         activeFilters: new Map(),
         isFilterActive: false,
         isFrozenPanes: false,
+        frozenRows: 0,
+        frozenCols: 0,
         selectedCoord: { r: 1, c: "A" }
       };
     }
@@ -1834,6 +1847,8 @@ export class SheetGridController {
       activeFilters: new Map(this.activeFilters || []),
       isFilterActive: !!this.isFilterActive,
       isFrozenPanes: !!this.isFrozenPanes,
+      frozenRows: this.frozenRows || 0,
+      frozenCols: this.frozenCols || 0,
       selectedCoord: { ...(this.selectedCoord || { r: 1, c: "A" }) }
     };
   }
@@ -2190,6 +2205,8 @@ export class SheetGridController {
       activeFilters: new Map([...(state.activeFilters || [])].map(([key, values]) => [key, new Set(values)])),
       isFilterActive: !!state.isFilterActive,
       isFrozenPanes: !!state.isFrozenPanes,
+      frozenRows: state.frozenRows || 0,
+      frozenCols: state.frozenCols || 0,
       selectedCoord: { ...(state.selectedCoord || { r: 1, c: "A" }) }
     };
     this.conditionalFormattingBySheet[targetName] = structuredClone(this.conditionalFormattingBySheet[sourceName] || []);
@@ -2521,6 +2538,109 @@ export class SheetGridController {
     return true;
   }
 
+  _buildRowTr(r) {
+    const tr = document.createElement("tr");
+    tr.dataset.row = r;
+    const rowHeight = this.getRowHeight(r);
+    tr.style.height = `${rowHeight}px`;
+
+    const thRow = document.createElement("th");
+    thRow.className = "vno-row-header";
+    thRow.dataset.row = r;
+    thRow.style.height = `${rowHeight}px`;
+    thRow.innerHTML = `
+      ${this._outlineToggleHtml("row", r)}
+      <span class="vno-row-title">${r}</span>
+      <div class="vno-row-resizer" data-row="${r}" title="Nhấp đúp để tự động vừa chiều cao hàng ${r}"></div>
+    `;
+    thRow.querySelector(".vno-outline-toggle")?.addEventListener("click", event => {
+      event.stopPropagation();
+      this.toggleOutlineGroup(event.currentTarget.dataset.groupId);
+    });
+    thRow.addEventListener("click", (e) => {
+      if (e.target.closest(".vno-row-resizer")) return;
+      this.selectCell(this.cols[0], r);
+      this.selectCell(this.cols[this.cols.length - 1], r, true);
+    });
+    thRow.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      this.selectCell(this.cols[0], r);
+      this.selectCell(this.cols[this.cols.length - 1], r, true);
+      this.showContextMenu(e, "row", r);
+    });
+    thRow.querySelector(".vno-row-resizer")?.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      this.autoFitRow(r);
+    });
+    tr.appendChild(thRow);
+
+    const normRange = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const isMulti = (normRange.start.c !== normRange.end.c || normRange.start.r !== normRange.end.r);
+
+    this.cols.forEach(c => {
+      const mergedRange = this.getMergedRangeForCell(c, r);
+      if (mergedRange && (mergedRange.start.c !== c || mergedRange.start.r !== r)) return;
+      const td = document.createElement("td");
+      td.hidden = this._isColumnHidden(c);
+      td.className = "vno-grid-cell";
+      const coordKey = `${c}${r}`;
+      td.dataset.coord = coordKey;
+      td.dataset.col = c;
+      td.dataset.row = r;
+      if (mergedRange) {
+        td.colSpan = this._columnNumber(mergedRange.end.c) - this._columnNumber(mergedRange.start.c) + 1;
+        td.rowSpan = mergedRange.end.r - mergedRange.start.r + 1;
+        td.dataset.mergedRange = this._rangeLabel(mergedRange);
+        td.classList.add("is-merged-cell");
+      }
+
+      const itm = this.cellsData.get(coordKey);
+      this._renderCellVisual(td, itm, c, r);
+      this._applyRowColSizeToCell(td, c, r);
+      this._applyRuleVisuals(td, c, r);
+      this._applyAnnotationAndPageVisuals(td, c, r);
+
+      if (this.selectedCoord.c === c && this.selectedCoord.r === r) {
+        td.classList.add("is-selected");
+        this._attachMoveHandles(td);
+      }
+      if (this._rangeContains(this.selectionRange, c, r) && isMulti) {
+        td.classList.add("is-range-selected");
+      }
+      if (normRange.end.c === c && normRange.end.r === r) {
+        this._attachAutofillHandle(td);
+      }
+
+      td.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        if (e.target.closest(".vno-cell-autofill-handle") || e.target.closest(".vno-cell-move-handle")) return;
+        this._startRangeSelect(e, c, r);
+      });
+      td.addEventListener("click", event => {
+        if (event.defaultPrevented) return;
+        this.selectCell(c, r, event.shiftKey);
+      });
+      td.addEventListener("dblclick", (e) => {
+        e.preventDefault();
+        if (this.formatPainter) return;
+        if (this._guardProtectedMutation()) return;
+        this._focusFormulaInputAtEnd();
+      });
+      td.addEventListener("contextmenu", event => {
+        event.preventDefault();
+        const inRange = this._rangeContains(this.selectionRange, c, r);
+        if (!inRange) {
+          this.selectCell(c, r);
+        }
+        this.showContextMenu(event, "cell", coordKey);
+      });
+
+      tr.appendChild(td);
+    });
+
+    return tr;
+  }
+
   _renderVirtualRows(startRow, endRow) {
     if (!this.tbody || !this.topSpacer || !this.bottomSpacer) return;
 
@@ -2529,127 +2649,147 @@ export class SheetGridController {
     this.currentStartRow = startRow;
     this.currentEndRow = endRow;
 
-    // Cập nhật khoảng cách cuộn ảo
-    const topHeight = (startRow - 1) * this.rowHeight;
+    const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
+
+    // Cập nhật khoảng cách cuộn ảo - loại trừ các hàng cố định (freeze) khỏi
+    // vùng đệm phía trên, vì chúng luôn được dựng riêng bên dưới, không nằm
+    // trong cửa sổ ảo hóa theo cuộn.
+    const skippedAbove = Math.max(0, startRow - 1 - frozenRows);
+    const topHeight = skippedAbove * this.rowHeight;
     const bottomHeight = Math.max(0, this.rowCount - endRow) * this.rowHeight;
     const topTd = this.topSpacer.querySelector("td");
     if (topTd) topTd.style.height = `${topHeight}px`;
     const bottomTd = this.bottomSpacer.querySelector("td");
     if (bottomTd) bottomTd.style.height = `${bottomHeight}px`;
 
-    // Xóa các hàng cũ nằm giữa topSpacer và bottomSpacer
+    // Xóa các hàng cũ nằm giữa topSpacer và bottomSpacer, kể cả hàng cố định cũ
+    // (sẽ được dựng lại ngay dưới đây để phản ánh đúng dữ liệu/lựa chọn hiện tại).
     while (this.topSpacer.nextSibling && this.topSpacer.nextSibling !== this.bottomSpacer) {
       this.tbody.removeChild(this.topSpacer.nextSibling);
     }
 
+    // Hàng cố định (Freeze Panes) LUÔN được dựng, bất kể vị trí cuộn hiện tại -
+    // khác hàng thường chỉ dựng trong cửa sổ ảo hóa [startRow, endRow]. Lỗi
+    // thật đã xác nhận: nếu không có bước này, hàng cố định biến mất khỏi DOM
+    // (và khỏi màn hình) ngay khi cuộn đủ xa để rơi ra ngoài cửa sổ ảo hóa
+    // (buffer ảo hóa mặc định chỉ 8 hàng - dễ xảy ra với sheet trên ~40 hàng).
+    const frozenFrag = document.createDocumentFragment();
+    for (let r = 1; r <= frozenRows; r++) {
+      if (this._isRowSkipped(r)) continue;
+      const tr = this._buildRowTr(r);
+      tr.classList.add("vno-frozen-row");
+      frozenFrag.appendChild(tr);
+    }
+    this.tbody.insertBefore(frozenFrag, this.topSpacer);
+
     const frag = document.createDocumentFragment();
     for (let r = startRow; r <= endRow; r++) {
+      if (r <= frozenRows) continue; // đã dựng riêng ở trên, tránh trùng lặp DOM
       if (this._isRowSkipped(r)) continue;
-
-      const tr = document.createElement("tr");
-      tr.dataset.row = r;
-      const rowHeight = this.getRowHeight(r);
-      tr.style.height = `${rowHeight}px`;
-
-      const thRow = document.createElement("th");
-      thRow.className = "vno-row-header";
-      thRow.dataset.row = r;
-      thRow.style.height = `${rowHeight}px`;
-      thRow.innerHTML = `
-        ${this._outlineToggleHtml("row", r)}
-        <span class="vno-row-title">${r}</span>
-        <div class="vno-row-resizer" data-row="${r}" title="Nhấp đúp để tự động vừa chiều cao hàng ${r}"></div>
-      `;
-      thRow.querySelector(".vno-outline-toggle")?.addEventListener("click", event => {
-        event.stopPropagation();
-        this.toggleOutlineGroup(event.currentTarget.dataset.groupId);
-      });
-      thRow.addEventListener("click", (e) => {
-        if (e.target.closest(".vno-row-resizer")) return;
-        this.selectCell(this.cols[0], r);
-        this.selectCell(this.cols[this.cols.length - 1], r, true);
-      });
-      thRow.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        this.selectCell(this.cols[0], r);
-        this.selectCell(this.cols[this.cols.length - 1], r, true);
-        this.showContextMenu(e, "row", r);
-      });
-      thRow.querySelector(".vno-row-resizer")?.addEventListener("dblclick", (e) => {
-        e.stopPropagation();
-        this.autoFitRow(r);
-      });
-      tr.appendChild(thRow);
-
-      const normRange = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
-      const isMulti = (normRange.start.c !== normRange.end.c || normRange.start.r !== normRange.end.r);
-
-      this.cols.forEach(c => {
-        const mergedRange = this.getMergedRangeForCell(c, r);
-        if (mergedRange && (mergedRange.start.c !== c || mergedRange.start.r !== r)) return;
-        const td = document.createElement("td");
-        td.hidden = this._isColumnHidden(c);
-        td.className = "vno-grid-cell";
-        const coordKey = `${c}${r}`;
-        td.dataset.coord = coordKey;
-        td.dataset.col = c;
-        td.dataset.row = r;
-        if (mergedRange) {
-          td.colSpan = this._columnNumber(mergedRange.end.c) - this._columnNumber(mergedRange.start.c) + 1;
-          td.rowSpan = mergedRange.end.r - mergedRange.start.r + 1;
-          td.dataset.mergedRange = this._rangeLabel(mergedRange);
-          td.classList.add("is-merged-cell");
-        }
-
-        const itm = this.cellsData.get(coordKey);
-        this._renderCellVisual(td, itm, c, r);
-        this._applyRowColSizeToCell(td, c, r);
-        this._applyRuleVisuals(td, c, r);
-        this._applyAnnotationAndPageVisuals(td, c, r);
-
-        if (this.selectedCoord.c === c && this.selectedCoord.r === r) {
-          td.classList.add("is-selected");
-          this._attachMoveHandles(td);
-        }
-        if (this._rangeContains(this.selectionRange, c, r) && isMulti) {
-          td.classList.add("is-range-selected");
-        }
-        if (normRange.end.c === c && normRange.end.r === r) {
-          this._attachAutofillHandle(td);
-        }
-
-        td.addEventListener("mousedown", (e) => {
-          if (e.button !== 0) return;
-          if (e.target.closest(".vno-cell-autofill-handle") || e.target.closest(".vno-cell-move-handle")) return;
-          this._startRangeSelect(e, c, r);
-        });
-        td.addEventListener("click", event => {
-          if (event.defaultPrevented) return;
-          this.selectCell(c, r, event.shiftKey);
-        });
-        td.addEventListener("dblclick", (e) => {
-          e.preventDefault();
-          if (this.formatPainter) return;
-          if (this._guardProtectedMutation()) return;
-          this._focusFormulaInputAtEnd();
-        });
-        td.addEventListener("contextmenu", event => {
-          event.preventDefault();
-          const inRange = this._rangeContains(this.selectionRange, c, r);
-          if (!inRange) {
-            this.selectCell(c, r);
-          }
-          this.showContextMenu(event, "cell", coordKey);
-        });
-
-        tr.appendChild(td);
-      });
-
-      frag.appendChild(tr);
+      frag.appendChild(this._buildRowTr(r));
     }
 
     this.tbody.insertBefore(frag, this.bottomSpacer);
+    this._applyFreezeVisuals();
     this.renderAuditArrows?.();
+  }
+
+  /**
+   * Áp dụng vị trí sticky (top/left theo pixel tích lũy thật) cho hàng/cột đang
+   * cố định (Freeze Panes) - thay cho cách cũ hardcode luôn hàng 1/cột A qua
+   * CSS tĩnh. Chạy lại sau mỗi lần render để phản ánh đúng frozenRows/frozenCols
+   * hiện tại và chiều cao/rộng hàng/cột thật (có thể khác mặc định).
+   */
+  _applyFreezeVisuals() {
+    if (!this.tbody) return;
+    const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
+    const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
+
+    this.tbody.querySelectorAll(".is-frozen-row-cell, .is-frozen-col-cell").forEach(el => {
+      el.classList.remove("is-frozen-row-cell", "is-frozen-col-cell", "is-frozen-corner-cell", "is-frozen-row-last", "is-frozen-col-last");
+      el.style.position = "";
+      el.style.top = "";
+      el.style.left = "";
+      el.style.zIndex = "";
+    });
+    if (this.theadRow) {
+      this.theadRow.querySelectorAll(".is-frozen-col-header").forEach(el => {
+        el.classList.remove("is-frozen-col-header", "is-frozen-col-last");
+        el.style.position = "";
+        el.style.left = "";
+        el.style.zIndex = "";
+      });
+    }
+
+    if (frozenRows === 0 && frozenCols === 0) return;
+
+    // Offset dọc tích lũy cho từng hàng cố định, cộng thêm 24px chiều cao
+    // header cột (luôn sticky top:0 riêng, không nằm trong tbody ảo hóa).
+    const rowTops = new Map();
+    let rowTop = 24;
+    for (let r = 1; r <= frozenRows; r++) {
+      rowTops.set(r, rowTop);
+      rowTop += this.getRowHeight(r);
+    }
+
+    // Offset ngang tích lũy cho từng cột cố định, cộng thêm 44px chiều rộng
+    // header hàng.
+    const colLefts = new Map();
+    let colLeft = 44;
+    for (let i = 0; i < frozenCols; i++) {
+      const col = this.cols[i];
+      colLefts.set(col, colLeft);
+      colLeft += this.getColumnWidth(col);
+    }
+
+    const lastFrozenCol = frozenCols > 0 ? this.cols[frozenCols - 1] : null;
+
+    if (this.theadRow && colLefts.size) {
+      this.theadRow.querySelectorAll("th[data-col]").forEach(th => {
+        const left = colLefts.get(th.dataset.col);
+        if (left === undefined) return;
+        th.classList.add("is-frozen-col-header");
+        if (th.dataset.col === lastFrozenCol) th.classList.add("is-frozen-col-last");
+        th.style.position = "sticky";
+        th.style.left = `${left}px`;
+        th.style.zIndex = "21";
+      });
+    }
+
+    this.tbody.querySelectorAll("tr[data-row]").forEach(tr => {
+      const r = Number(tr.dataset.row);
+      const rowTopPx = rowTops.get(r);
+      const isFrozenRow = rowTopPx !== undefined;
+      const isLastFrozenRow = r === frozenRows;
+      if (isFrozenRow) {
+        const th = tr.querySelector("th.vno-row-header");
+        if (th) {
+          th.classList.add("is-frozen-row-cell");
+          if (isLastFrozenRow) th.classList.add("is-frozen-row-last");
+          th.style.position = "sticky";
+          th.style.top = `${rowTopPx}px`;
+          th.style.zIndex = "18";
+        }
+      }
+      tr.querySelectorAll("td[data-col]").forEach(td => {
+        const leftPx = colLefts.get(td.dataset.col);
+        const isFrozenCol = leftPx !== undefined;
+        if (!isFrozenRow && !isFrozenCol) return;
+        td.style.position = "sticky";
+        if (isFrozenRow) {
+          td.classList.add("is-frozen-row-cell");
+          if (isLastFrozenRow) td.classList.add("is-frozen-row-last");
+          td.style.top = `${rowTopPx}px`;
+        }
+        if (isFrozenCol) {
+          td.classList.add("is-frozen-col-cell");
+          if (td.dataset.col === lastFrozenCol) td.classList.add("is-frozen-col-last");
+          td.style.left = `${leftPx}px`;
+        }
+        if (isFrozenRow && isFrozenCol) { td.classList.add("is-frozen-corner-cell"); td.style.zIndex = "19"; }
+        else td.style.zIndex = "8";
+      });
+    });
   }
 
   _onViewportScroll() {
@@ -5388,6 +5528,8 @@ export class SheetGridController {
     globalCommandBus?.updateState?.("common.edit.undo", { enabled: this.undoStack.length > 0 });
     globalCommandBus?.updateState?.("common.edit.redo", { enabled: this.redoStack.length > 0 });
     globalCommandBus?.updateState?.("sheet.view.freezePanes", { checked: !!this.isFrozenPanes });
+    globalCommandBus?.updateState?.("sheet.view.freezeTopRow", { checked: this.frozenRows === 1 && this.frozenCols === 0 });
+    globalCommandBus?.updateState?.("sheet.view.freezeFirstColumn", { checked: this.frozenCols === 1 && this.frozenRows === 0 });
     globalCommandBus?.updateState?.("sheet.data.filter", { checked: !!this.isFilterActive });
     globalCommandBus?.updateState?.("sheet.view.gridlines", { checked: this.gridlinesVisible });
     globalCommandBus?.updateState?.("sheet.view.headings", { checked: this.headingsVisible });
@@ -6156,20 +6298,49 @@ export class SheetGridController {
       else this.pageSetupBySheet[action.sheet] = desired;
       this._refreshPageAndCommentVisuals();
     } else if (action.type === "freeze") {
-      this._setFreezePanes(action[value], false);
+      if (direction === "undo") this._setFreezePanes(action.prevRows, action.prevCols, false);
+      else this._setFreezePanes(action.nextRows, action.nextCols, false);
     } else if (action.type === "filter") {
       this._restoreFilterState(action[value]);
     } else return false;
     return true;
   }
 
+  /**
+   * Cố định ô (Freeze Panes) tại Ô đang chọn - đúng hành vi Excel/Calc thật:
+   * cố định các hàng PHÍA TRÊN và cột BÊN TRÁI ô đang chọn, không phải luôn
+   * cố định cứng hàng 1/cột A như trước đây. Bấm lại khi đang cố định sẽ bỏ
+   * cố định (tiện dụng, khớp hành vi nút bật/tắt cũ người dùng đã quen).
+   */
   toggleFreezePanes() {
-    return this._setFreezePanes(!this.isFrozenPanes, true);
+    if ((this.frozenRows || 0) > 0 || (this.frozenCols || 0) > 0) {
+      return this._setFreezePanes(0, 0, true);
+    }
+    const rows = Math.max(0, this.selectedCoord.r - 1);
+    const cols = Math.max(0, this._columnNumber(this.selectedCoord.c) - 1);
+    return this._setFreezePanes(rows, cols, true);
   }
 
-  _setFreezePanes(value, recordUndo = false) {
-    const previous = !!this.isFrozenPanes;
-    this.isFrozenPanes = !!value;
+  /** Cố định Hàng trên cùng (Freeze Top Row) - đúng mục thứ 2 trong dropdown Freeze Panes thật của Excel. */
+  freezeTopRow() {
+    if (this.frozenRows === 1 && this.frozenCols === 0) return this._setFreezePanes(0, 0, true);
+    return this._setFreezePanes(1, 0, true);
+  }
+
+  /** Cố định Cột đầu tiên (Freeze First Column) - đúng mục thứ 3 trong dropdown Freeze Panes thật của Excel. */
+  freezeFirstColumn() {
+    if (this.frozenCols === 1 && this.frozenRows === 0) return this._setFreezePanes(0, 0, true);
+    return this._setFreezePanes(0, 1, true);
+  }
+
+  _setFreezePanes(rows, cols, recordUndo = false) {
+    const prevRows = this.frozenRows || 0;
+    const prevCols = this.frozenCols || 0;
+    const nextRows = Math.max(0, Math.min(Number(rows) || 0, this.rowCount - 1));
+    const nextCols = Math.max(0, Math.min(Number(cols) || 0, this.cols.length - 1));
+    this.frozenRows = nextRows;
+    this.frozenCols = nextCols;
+    this.isFrozenPanes = nextRows > 0 || nextCols > 0;
     if (this.container) {
       if (this.isFrozenPanes) {
         this.container.classList.add("vno-freeze-panes");
@@ -6177,9 +6348,16 @@ export class SheetGridController {
         this.container.classList.remove("vno-freeze-panes");
       }
     }
-    if (this.sheetStates[this.activeSheet]) this.sheetStates[this.activeSheet].isFrozenPanes = this.isFrozenPanes;
-    if (recordUndo && previous !== this.isFrozenPanes) this._recordHistory({ type: "freeze", sheet: this.activeSheet, prevVal: previous, nextVal: this.isFrozenPanes });
+    if (this.sheetStates[this.activeSheet]) {
+      this.sheetStates[this.activeSheet].isFrozenPanes = this.isFrozenPanes;
+      this.sheetStates[this.activeSheet].frozenRows = nextRows;
+      this.sheetStates[this.activeSheet].frozenCols = nextCols;
+    }
+    if (recordUndo && (prevRows !== nextRows || prevCols !== nextCols)) {
+      this._recordHistory({ type: "freeze", sheet: this.activeSheet, prevRows, prevCols, nextRows, nextCols });
+    }
     this._syncCommandStates();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
     return this.isFrozenPanes;
   }
 
@@ -6784,6 +6962,8 @@ export class SheetGridController {
       activeFilters: this.activeFilters,
       isFilterActive: this.isFilterActive,
       isFrozenPanes: this.isFrozenPanes,
+      frozenRows: this.frozenRows,
+      frozenCols: this.frozenCols,
       selectedCoord: this.selectedCoord
     } : savedState;
     return {
@@ -6793,6 +6973,8 @@ export class SheetGridController {
         activeFilters: Array.from(state.activeFilters || [], ([col, values]) => [col, [...values]]),
         isFilterActive: !!state.isFilterActive,
         isFrozenPanes: !!state.isFrozenPanes,
+        frozenRows: state.frozenRows || 0,
+        frozenCols: state.frozenCols || 0,
         selectedCoord: { ...(state.selectedCoord || { r: 1, c: "A" }) }
       },
       conditionalFormatting: structuredClone(this.conditionalFormattingBySheet[sheetName] || []),
@@ -6821,6 +7003,8 @@ export class SheetGridController {
       activeFilters: new Map(snapshot.state.activeFilters.map(([col, values]) => [col, new Set(values)])),
       isFilterActive: snapshot.state.isFilterActive,
       isFrozenPanes: snapshot.state.isFrozenPanes,
+      frozenRows: snapshot.state.frozenRows || 0,
+      frozenCols: snapshot.state.frozenCols || 0,
       selectedCoord: { ...snapshot.state.selectedCoord }
     };
     this.conditionalFormattingBySheet[sheetName] = structuredClone(snapshot.conditionalFormatting);
