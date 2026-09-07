@@ -2628,6 +2628,7 @@ export class SheetAdapter {
     this.grid._refreshRowColLayoutView?.();
     this.grid.refreshCharts?.();
     this.grid.renderCharts?.();
+    this.grid.renderImages?.();
     this.grid._applyProtectionUi?.({ renderTabs: true });
     this.grid.updateStatus?.();
     return true;
