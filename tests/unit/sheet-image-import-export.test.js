@@ -109,6 +109,38 @@ export async function runSheetImageImportExportTests() {
     assert(images[0].anchor.c === "E" && images[0].anchor.r === 5, `Ảnh phải neo tại E5, thực tế: ${JSON.stringify(images[0].anchor)}`);
   });
 
+  test("loadFromFods(): renderImages() phải chạy SAU KHI imagesBySheet đã có dữ liệu thật (không render sớm với dữ liệu rỗng rồi bỏ quên)", () => {
+    // Bug thật đã xác nhận bằng cách mở file thật trên máy: parseFods() parse
+    // đúng ảnh (test ở trên đã PASS), nhưng ảnh vẫn KHÔNG hiển thị trên màn
+    // hình khi mở file thật. Nguyên nhân: loadFromFods() gọi
+    // grid.switchSheet(workbook.activeSheet) (tự động renderImages() bên
+    // trong) TRƯỚC KHI gán grid.imagesBySheet từ dữ liệu vừa parse — lần
+    // render đó thấy imagesBySheet rỗng/cũ. sheet-adapter.js gán dữ liệu
+    // xong thì không gọi lại renderImages() nữa (renderCharts() ĐÃ được gọi
+    // lại cho đúng lý do này — xem dòng "switchSheet() ở trên chạy TRƯỚC...").
+    const fods = `<?xml version="1.0"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+<office:body><office:spreadsheet>
+<table:table table:name="Sheet1">
+<table:table-column table:number-columns-repeated="5"/>
+<table:table-row><table:table-cell><draw:frame draw:name="Logo"><draw:image draw:mime-type="image/png"><office:binary-data>${PNG_1X1_BASE64}</office:binary-data></draw:image></draw:frame></table:table-cell></table:table-row>
+</table:table>
+</office:spreadsheet></office:body>
+</office:document>`;
+    const grid = new SheetGridController(container());
+    const adapter = new SheetAdapter(grid);
+    const renderCallSnapshots = [];
+    const originalRenderImages = grid.renderImages.bind(grid);
+    grid.renderImages = function () {
+      renderCallSnapshots.push((this.imagesBySheet[this.activeSheet] || []).length);
+      return originalRenderImages();
+    };
+    adapter.loadFromFods(fods);
+    assert(renderCallSnapshots.length > 0, "renderImages() phải được gọi ít nhất 1 lần khi Mở file thật");
+    const lastSnapshot = renderCallSnapshots[renderCallSnapshots.length - 1];
+    assert(lastSnapshot === 1, `Lần gọi renderImages() CUỐI CÙNG phải thấy đúng 1 ảnh đã nạp, thực tế: ${lastSnapshot} (0 nghĩa là renderImages() chỉ chạy TRƯỚC khi imagesBySheet được gán dữ liệu thật — ảnh sẽ KHÔNG hiển thị trên màn hình dù parse đúng)`);
+  });
+
   test("serializeToFods() → parseFods(): ảnh người dùng tự chèn (insertImage) PHẢI sống sót qua Lưu rồi Mở lại", () => {
     const grid = new SheetGridController(container());
     grid.setCellValue?.("B2", "Xin chào");
