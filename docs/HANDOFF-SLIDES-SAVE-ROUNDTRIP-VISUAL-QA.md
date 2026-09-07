@@ -139,24 +139,11 @@ Toàn bộ ảnh chụp màn hình thực tế được ghi lại tự động t
 
 ### Git Log (`git log --oneline main..HEAD`)
 ```text
-(Chưa commit - xem mục bên dưới trước khi tạo commit)
+4318720 test(slides): visual QA round-trip luu va mo lai file PPTX that cho hinh xoay
 ```
 
 ### Git Status (`git status`)
 ```text
 On branch visual-qa/slides-save-roundtrip
-Untracked files:
-  (use "git add <file>..." to include in what will be committed)
-	TASK-BRIEF-SLIDES-SAVE-ROUNDTRIP.md
-	docs/HANDOFF-SLIDES-SAVE-ROUNDTRIP-VISUAL-QA.md
-	docs/screenshots/slides-roundtrip-01-before-save-canvas.png
-	docs/screenshots/slides-roundtrip-02-before-save-selected.png
-	docs/screenshots/slides-roundtrip-03-after-open-canvas.png
-	docs/screenshots/slides-roundtrip-04-after-open-selected.png
-	docs/screenshots/slides-roundtrip-05-after-open-interaction.png
-	scripts/slides_save_roundtrip_bridge.py
-	tests/fixtures/slides-roundtrip/
-	tests/live/slides-save-roundtrip-visual-qa.playwright.mjs
-
-nothing added to commit but untracked files present (use "git add" to track)
+nothing to commit, working tree clean
 ```
