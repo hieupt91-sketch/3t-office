@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+                 xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+                 xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+                 xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+                 xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+                 xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+                 xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+                 xmlns:xlink="http://www.w3.org/1999/xlink"
+                 xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+                 xmlns:dc="http://purl.org/dc/elements/1.1/"
+                 xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
+                 xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0"
+                 xmlns:vno="urn:vn-office:slides:1.0"
+                 office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.presentation">
+  <office:automatic-styles>
+    <style:page-layout style:name="PM1">
+      <style:page-layout-properties fo:page-width="25.4cm" fo:page-height="14.287cm" style:print-orientation="landscape"/>
+    </style:page-layout>
+    <style:style style:name="dp1" style:family="drawing-page">
+      <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true" draw:fill="solid" draw:fill-color="#f8fafc"/>
+    </style:style>
+    <style:style style:name="grMasterAccent" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="solid" draw:fill-color="#2563eb"/>
+    </style:style>
+    <style:style style:name="grMasterLogo" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+      <style:text-properties fo:color="#2563eb" fo:font-size="14pt" fo:font-weight="bold"/>
+    </style:style>
+    <style:style style:name="grMasterFooter" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+      <style:text-properties fo:color="#334155" fo:font-size="10pt"/>
+    </style:style>
+    <style:style style:name="prTitle" style:family="presentation">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+    </style:style>
+    <style:style style:name="prBody" style:family="presentation">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+    </style:style>
+    <style:style style:name="grNone" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+    </style:style>
+    <style:style style:name="gr2563eb" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="solid" draw:fill-color="#2563eb"/>
+    </style:style>
+    <style:style style:name="gr10b981" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="solid" draw:fill-color="#10b981"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:master-styles>
+    <style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1" vno:master-theme="{&quot;id&quot;:&quot;modern-blue&quot;,&quot;fontFamily&quot;:&quot;Inter, &apos;Segoe UI&apos;, sans-serif&quot;,&quot;titleColor&quot;:&quot;#1e3a8a&quot;,&quot;bodyColor&quot;:&quot;#334155&quot;,&quot;accentColor&quot;:&quot;#2563eb&quot;,&quot;bgColor&quot;:&quot;#f8fafc&quot;,&quot;logoText&quot;:&quot;VN OFFICE • THUYẾT TRÌNH&quot;,&quot;footerText&quot;:&quot;Tài liệu trình chiếu tiêu chuẩn VN Office&quot;}">
+      <draw:rect draw:style-name="grMasterAccent" svg:x="0cm" svg:y="0cm" svg:width="25.4cm" svg:height="0.25cm"/>
+      <draw:frame draw:style-name="grMasterLogo" svg:x="0.6cm" svg:y="0.4cm" svg:width="16cm" svg:height="0.8cm">
+        <draw:text-box><text:p>VN OFFICE • THUYẾT TRÌNH</text:p></draw:text-box>
+      </draw:frame>
+      <draw:frame draw:style-name="grMasterFooter" svg:x="0.6cm" svg:y="13.244cm" svg:width="24.311cm" svg:height="0.7cm">
+        <draw:text-box><text:p>Tài liệu trình chiếu tiêu chuẩn VN Office</text:p></draw:text-box>
+      </draw:frame>
+    </style:master-page>
+  </office:master-styles>
+  <office:body>
+    <office:presentation>
+      <draw:page draw:name="page1" draw:style-name="dp1" draw:master-page-name="Standard" presentation:layout="title-content" xml:id="idPage1" draw:id="idPage1">
+        
+        <draw:frame presentation:style-name="prTitle" presentation:class="title" draw:id="title-1" xml:id="title-1" draw:name="title" svg:x="1.814cm" svg:y="1.814cm" svg:width="21.771cm" svg:height="2.721cm">
+          <draw:text-box>
+            <text:p>VN OFFICE — BỘ ỨNG DỤNG VĂN PHÒNG VIỆT</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame presentation:style-name="prBody" presentation:class="outline" draw:id="body-1" xml:id="body-1" draw:name="body" svg:x="1.814cm" svg:y="4.989cm" svg:width="21.771cm" svg:height="9.978cm">
+          <draw:text-box>
+            <text:p>• Giải pháp công nghệ độc lập, bảo mật và chuẩn mực quốc gia</text:p><text:p>• Tận dụng sức mạnh xử lý tài liệu vượt trội từ LibreOffice Core Engine</text:p><text:p>• Giao diện thuần Việt, hiện đại, quen thuộc và thân thiện với người dùng</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:rect draw:id="shape-rect-30" draw:name="shape-rect-30" draw:style-name="gr2563eb" svg:width="5.821cm" svg:height="3.704cm" draw:transform="rotate (-0.5235987755982988) translate (3.175cm 3.175cm)" draw:fill-color="#2563eb">
+          <text:p>Chữ nhật 30°</text:p>
+        </draw:rect>
+        <draw:ellipse draw:id="shape-ellipse-90" draw:name="shape-ellipse-90" draw:style-name="gr10b981" svg:width="4.762cm" svg:height="4.762cm" draw:transform="rotate (-1.5707963267948966) translate (11.112cm 3.175cm)" draw:fill-color="#10b981">
+          <text:p>Elip 90°</text:p>
+        </draw:ellipse>
+        <draw:frame draw:id="shape-textbox-135" draw:name="shape-textbox-135" draw:style-name="grNone" svg:width="5.821cm" svg:height="2.646cm" draw:transform="rotate (-2.356194490192345) translate (17.992cm 3.704cm)">
+          <draw:text-box>
+            <text:p>Hộp văn bản 135°</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <anim:par presentation:node-type="timing-root">
+          <anim:seq presentation:node-type="main-sequence">
+            <anim:par smil:begin="indefinite">
+              <anim:par smil:begin="0.1s" smil:fill="hold" presentation:node-type="on-click" presentation:preset-class="entrance" presentation:preset-id="ooo-entrance-fade-in">
+                <anim:set smil:begin="0s" smil:dur="0.001s" smil:fill="hold" smil:targetElement="title-1" smil:attributeName="visibility" smil:to="visible"/>
+                <anim:animate smil:dur="0.6s" smil:fill="hold" smil:targetElement="title-1" smil:attributeName="opacity" smil:from="0" smil:to="1"/>
+              </anim:par>
+            </anim:par>
+            <anim:par smil:begin="indefinite">
+              <anim:par smil:begin="0.3s" smil:fill="hold" presentation:node-type="on-click" presentation:preset-class="entrance" presentation:preset-id="ooo-entrance-fly-in" presentation:preset-sub-type="from-bottom">
+                <anim:set smil:begin="0s" smil:dur="0.001s" smil:fill="hold" smil:targetElement="body-1" smil:attributeName="visibility" smil:to="visible"/>
+                <anim:animate smil:dur="0.7s" smil:fill="hold" smil:targetElement="body-1" smil:attributeName="x" smil:values="x;x" smil:keyTimes="0;1"/>
+                <anim:animate smil:dur="0.7s" smil:fill="hold" smil:targetElement="body-1" smil:attributeName="y" smil:values="height;y" smil:keyTimes="0;1"/>
+              </anim:par>
+            </anim:par>
+          </anim:seq>
+        </anim:par>
+        <presentation:notes>
+          <draw:frame presentation:class="notes" svg:x="1.814cm" svg:y="1.814cm" svg:width="18.143cm" svg:height="13.607cm">
+            <draw:text-box>
+              <text:p>Giới thiệu tổng quan về bộ ứng dụng VN Office, nhấn mạnh tính độc lập công nghệ và bảo mật dữ liệu theo tiêu chuẩn quốc gia.</text:p>
+            </draw:text-box>
+          </draw:frame>
+        </presentation:notes>
+      </draw:page>
+      <draw:page draw:name="page2" draw:style-name="dp1" draw:master-page-name="Standard" presentation:layout="title-content" xml:id="idPage2" draw:id="idPage2">
+        
+        <draw:frame presentation:style-name="prTitle" presentation:class="title" draw:id="title-2" xml:id="title-2" draw:name="title" svg:x="1.814cm" svg:y="1.814cm" svg:width="21.771cm" svg:height="2.721cm">
+          <draw:text-box>
+            <text:p>KIẾN TRÚC HỆ THỐNG PHÂN TẦNG</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame presentation:style-name="prBody" presentation:class="outline" draw:id="body-2" xml:id="body-2" draw:name="body" svg:x="1.814cm" svg:y="4.989cm" svg:width="21.771cm" svg:height="9.978cm">
+          <draw:text-box>
+            <text:p>1. VN App UI (Writer, Sheet, Slides đồng bộ phát triển)</text:p><text:p>2. VN Shared Platform &amp; Global Command Bus</text:p><text:p>3. VN LibreOffice Adapter Layer (UNO Bridge &amp; PyUNO)</text:p><text:p>4. LibreOffice Core Engine C++</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <anim:par presentation:node-type="timing-root">
+          <anim:seq presentation:node-type="main-sequence">
+            <anim:par smil:begin="indefinite">
+              <anim:par smil:begin="0s" smil:fill="hold" presentation:node-type="on-click" presentation:preset-class="entrance" presentation:preset-id="ooo-entrance-fade-in">
+                <anim:set smil:begin="0s" smil:dur="0.001s" smil:fill="hold" smil:targetElement="title-2" smil:attributeName="visibility" smil:to="visible"/>
+                <anim:animate smil:dur="0.5s" smil:fill="hold" smil:targetElement="title-2" smil:attributeName="opacity" smil:from="0" smil:to="1"/>
+              </anim:par>
+            </anim:par>
+          </anim:seq>
+        </anim:par>
+        <presentation:notes>
+          <draw:frame presentation:class="notes" svg:x="1.814cm" svg:y="1.814cm" svg:width="18.143cm" svg:height="13.607cm">
+            <draw:text-box>
+              <text:p>Làm rõ vai trò của UNO Bridge kết nối giữa tầng giao diện web và tầng lõi LibreOffice C++ headless mà không phát sinh chi phí bản quyền.</text:p>
+            </draw:text-box>
+          </draw:frame>
+        </presentation:notes>
+      </draw:page>
+      <draw:page draw:name="page3" draw:style-name="dp1" draw:master-page-name="Standard" presentation:layout="title-content" xml:id="idPage3" draw:id="idPage3">
+        
+        <draw:frame presentation:style-name="prTitle" presentation:class="title" draw:id="title-3" xml:id="title-3" draw:name="title" svg:x="1.814cm" svg:y="1.814cm" svg:width="21.771cm" svg:height="2.721cm">
+          <draw:text-box>
+            <text:p>KẾ HOẠCH TRIỂN KHAI &amp; TIÊU CHUẨN KỸ THUẬT</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <draw:frame presentation:style-name="prBody" presentation:class="outline" draw:id="body-3" xml:id="body-3" draw:name="body" svg:x="1.814cm" svg:y="4.989cm" svg:width="21.771cm" svg:height="9.978cm">
+          <draw:text-box>
+            <text:p>• Hỗ trợ toàn diện định dạng văn bản hành chính theo Nghị định 30/2020/NĐ-CP</text:p><text:p>• Tương thích 100% hai chiều với hệ sinh thái OOXML (DOCX, XLSX, PPTX)</text:p><text:p>• Tích hợp trợ lý AI bảo mật cục bộ, bảo vệ quyền riêng tư tuyệt đối</text:p>
+          </draw:text-box>
+        </draw:frame>
+        <anim:par presentation:node-type="timing-root">
+          <anim:seq presentation:node-type="main-sequence">
+            <anim:par smil:begin="indefinite">
+              <anim:par smil:begin="0.2s" smil:fill="hold" presentation:node-type="on-click" presentation:preset-class="entrance" presentation:preset-id="ooo-entrance-zoom">
+                <anim:set smil:begin="0s" smil:dur="0.001s" smil:fill="hold" smil:targetElement="title-3" smil:attributeName="visibility" smil:to="visible"/>
+                <anim:animate smil:dur="0.6s" smil:fill="hold" smil:targetElement="title-3" smil:attributeName="width" smil:values="0;width" smil:keyTimes="0;1"/>
+                <anim:animate smil:dur="0.6s" smil:fill="hold" smil:targetElement="title-3" smil:attributeName="height" smil:values="0;height" smil:keyTimes="0;1"/>
+              </anim:par>
+            </anim:par>
+          </anim:seq>
+        </anim:par>
+        <presentation:notes>
+          <draw:frame presentation:class="notes" svg:x="1.814cm" svg:y="1.814cm" svg:width="18.143cm" svg:height="13.607cm">
+            <draw:text-box>
+              <text:p>Nhấn mạnh khả năng tương thích định dạng DOCX/XLSX/PPTX và tuân thủ Nghị định 30/2020/NĐ-CP về thể thức văn bản hành chính.</text:p>
+            </draw:text-box>
+          </draw:frame>
+        </presentation:notes>
+      </draw:page>
+    </office:presentation>
+  </office:body>
+</office:document>
