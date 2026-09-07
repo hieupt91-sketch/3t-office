@@ -106,5 +106,7 @@ async function checkShape(prst, label, expectedType) {
 await checkShape("rect", "Hinh chu nhat", "rectangle");
 await checkShape("ellipse", "Hinh elip", "circle");
 await checkShape("roundRect", "Bo goc", "round-rect");
+await checkShape("triangle", "Hinh tam giac", "triangle");
+await checkShape("diamond", "Hinh thoi", "diamond");
 
 console.log("\nPASS: WriterAdapter.parseFodt() mở đúng file DOCX thật có hình cơ bản (rect/ellipse/roundRect), ánh xạ đúng sang type VN Writer render được.");

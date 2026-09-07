@@ -262,9 +262,19 @@ export async function runWriterFodtPhaseB2Tests() {
     assert.equal(roundRect.adapter.shapes[0].type, "round-rect");
   });
 
-  await test("Writer FODT Phase B.2 vẫn từ chối hình dạng KHÔNG có renderer tương ứng trong VN Writer (ví dụ triangle/diamond) — không âm thầm vẽ sai", () => {
+  await test("Writer FODT Phase B.2 chấp nhận \"ooxml-triangle\" -> \"triangle\" và \"ooxml-diamond\" -> \"diamond\"", () => {
+    const triangle = adapterWithBody("<p>không giữ</p>");
+    triangle.adapter.parseFodt(fodtCustomShape("ooxml-triangle"));
+    assert.equal(triangle.adapter.shapes[0].type, "triangle");
+
+    const diamond = adapterWithBody("<p>không giữ</p>");
+    diamond.adapter.parseFodt(fodtCustomShape("ooxml-diamond"));
+    assert.equal(diamond.adapter.shapes[0].type, "diamond");
+  });
+
+  await test("Writer FODT Phase B.2 vẫn từ chối hình dạng KHÔNG có renderer tương ứng trong VN Writer (ví dụ pentagon) — không âm thầm vẽ sai", () => {
     const { adapter } = adapterWithBody("<p>không giữ</p>");
-    assert.throws(() => adapter.parseFodt(fodtCustomShape("ooxml-triangle")), error => /ooxml-triangle/.test(error.message));
+    assert.throws(() => adapter.parseFodt(fodtCustomShape("ooxml-pentagon")), error => /ooxml-pentagon/.test(error.message));
   });
 
   return results;

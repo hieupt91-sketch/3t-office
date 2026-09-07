@@ -5403,17 +5403,17 @@ export class WriterAdapter {
       // "ooxml-roundRect"). Trước đây parseFodt() NÉM LỖI ngay khi gặp bất
       // kỳ type nào khác "right-arrow" — khiến file DOCX có MỘT hình chữ
       // nhật/elip bình thường (không cần xoay, không gì đặc biệt) cũng
-      // KHÔNG MỞ ĐƯỢC. Ánh xạ 3 kiểu có tương đương chính xác trong model
+      // KHÔNG MỞ ĐƯỢC. Ánh xạ 5 kiểu có tương đương chính xác trong model
       // hình của VN Writer (apps/writer/writer-illustrations.js: rectangle/
-      // round-rect/circle) — các kiểu KHÁC (triangle, diamond...) VN Writer
-      // chưa có renderer tương ứng nên VẪN từ chối rõ ràng, không âm thầm
-      // vẽ sai hình.
-      const OOXML_SHAPE_TYPE_MAP = { "ooxml-rect": "rectangle", "ooxml-roundrect": "round-rect", "ooxml-ellipse": "circle" };
+      // round-rect/circle/triangle/diamond) — các kiểu KHÁC (pentagon,
+      // star5, hexagon...) VN Writer chưa có renderer tương ứng nên VẪN
+      // từ chối rõ ràng, không âm thầm vẽ sai hình.
+      const OOXML_SHAPE_TYPE_MAP = { "ooxml-rect": "rectangle", "ooxml-roundrect": "round-rect", "ooxml-ellipse": "circle", "ooxml-triangle": "triangle", "ooxml-diamond": "diamond" };
       const mapped = OOXML_SHAPE_TYPE_MAP[String(type).toLowerCase()];
       if (mapped) {
         return { ...base, type: mapped, shapeType: mapped };
       }
-      throw this._fodtError(`draw:custom-shape type '${type}' (Phase B.2 chỉ hỗ trợ right-arrow/ooxml-rect/ooxml-roundRect/ooxml-ellipse; Phase E.3 Fontwork WordArt đi HTML)`);
+      throw this._fodtError(`draw:custom-shape type '${type}' (Phase B.2 chỉ hỗ trợ right-arrow/ooxml-rect/ooxml-roundRect/ooxml-ellipse/ooxml-triangle/ooxml-diamond; Phase E.3 Fontwork WordArt đi HTML)`);
     }
     throw this._fodtError(`phần tử FODT drawing <${node.name}>`);
   }
