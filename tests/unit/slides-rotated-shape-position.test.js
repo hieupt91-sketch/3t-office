@@ -78,6 +78,41 @@ export async function runSlidesRotatedShapePositionTests() {
     assert(Math.abs(noSpace.x - Math.round(5.318 * 96 / 2.54)) <= 2, "Định dạng KHÔNG khoảng trắng (dấu phẩy) vẫn phải khớp như trước — không được thoái lui");
   });
 
+  // Tính năng mới: HIỂN THỊ (chỉ đọc) góc xoay đọc được từ file thật — xem
+  // HANDOFF-SLIDES-SHAPE-ROTATION-DISPLAY.md. ODF rotate(radian) dùng chiều
+  // DƯƠNG = ngược kim đồng hồ (chuẩn toán học), OOXML/CSS transform:rotate(deg)
+  // dùng chiều DƯƠNG = xuôi kim đồng hồ — _parseDrawTranslate() phải đảo dấu
+  // khi quy đổi để CSS hiển thị đúng chiều xoay thật của PowerPoint.
+  test("_parseDrawTranslate(): trả về rotationDeg đúng dấu/độ lớn (đảo dấu radian ODF sang độ CSS xuôi kim đồng hồ)", () => {
+    const adapter = new SlidesAdapter(null);
+    // OOXML rot=1800000 (1/60000 độ) = 30° xuôi kim đồng hồ → soffice ghi
+    // rotate(-0.5235987755982988) [radian, ngược kim đồng hồ theo ODF].
+    const result = adapter._parseDrawTranslate('draw:transform="rotate (-0.5235987755982988) translate (5.233cm 1.019cm)"');
+    assert(Math.abs(result.rotationDeg - 30) < 0.01, `rotationDeg phải ~30 (xuôi kim đồng hồ, khớp CSS transform:rotate), thực tế: ${result.rotationDeg}`);
+  });
+
+  test("_parseDrawTranslate(): rotationDeg = 0 khi không có draw:transform (không thoái lui)", () => {
+    const adapter = new SlidesAdapter(null);
+    const result = adapter._parseDrawTranslate('svg:x="3cm" svg:y="4cm"');
+    assert(result.rotationDeg === 0, `rotationDeg phải là 0 khi không xoay, thực tế: ${result.rotationDeg}`);
+  });
+
+  test("parseFodp(): ảnh xoay 45° (fixture soffice thật) có shape.rotation ~45, KHÔNG có trường rotation khi không xoay", () => {
+    const slides = new SlidesAdapter(null).parseFodp(SOFFICE_ROTATED_IMAGE_FODP);
+    const image = (slides[0]?.shapes || []).find(s => s.type === "image");
+    assert(Math.abs(image.rotation - 45) < 0.01, `image.rotation phải ~45, thực tế: ${image.rotation}`);
+
+    const unrotatedFodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0">
+<office:body><office:presentation><draw:page draw:name="Slide1">
+<draw:frame draw:name="Picture 1" svg:width="2cm" svg:height="2cm" svg:x="3cm" svg:y="4cm">
+<draw:image draw:mime-type="image/png"><office:binary-data>iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=</office:binary-data></draw:image>
+</draw:frame></draw:page></office:presentation></office:body></office:document>`;
+    const unrotated = new SlidesAdapter(null).parseFodp(unrotatedFodp);
+    const plainImage = (unrotated[0]?.shapes || []).find(s => s.type === "image");
+    assert(plainImage.rotation === undefined, `image không xoay KHÔNG được có trường rotation, thực tế: ${plainImage.rotation}`);
+  });
+
   test("parseFodp(): shape KHÔNG xoay (chỉ có svg:x/svg:y bình thường) vẫn đọc đúng như trước — không thoái lui", () => {
     const fodp = `<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0">
@@ -124,6 +159,12 @@ export async function runSlidesRotatedShapePositionTests() {
     const expectedY = Math.round(1.019 * 96 / 2.54);
     assert(Math.abs(rect.x - expectedX) <= 2, `x phải ~${expectedX}px, thực tế: ${rect.x} (0 nghĩa là bug _parseDrawShape chưa sửa)`);
     assert(Math.abs(rect.y - expectedY) <= 2, `y phải ~${expectedY}px, thực tế: ${rect.y}`);
+  });
+
+  test("parseFodp(): hình chữ nhật xoay 30° (_parseDrawShape) có shape.rotation ~30, khớp chiều xoay xuôi kim đồng hồ của CSS", () => {
+    const slides = new SlidesAdapter(null).parseFodp(SOFFICE_ROTATED_RECT_FODP);
+    const rect = (slides[0]?.shapes || []).find(s => s.text === "Hop xoay");
+    assert(Math.abs(rect.rotation - 30) < 0.01, `rect.rotation phải ~30, thực tế: ${rect.rotation}`);
   });
 
   return results;
