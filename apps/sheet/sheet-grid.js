@@ -2691,6 +2691,7 @@ export class SheetGridController {
 
     this.tbody.insertBefore(frag, this.bottomSpacer);
     this._applyFreezeVisuals();
+    this._updateFrozenImages();
     this.renderAuditArrows?.();
   }
 
@@ -2803,6 +2804,24 @@ export class SheetGridController {
 
     if (Math.abs(startRow - this.currentStartRow) >= 3 || Math.abs(endRow - this.currentEndRow) >= 3) {
       this._renderVirtualRows(startRow, endRow);
+    }
+    this._updateFrozenImages();
+  }
+
+  _updateFrozenImages() {
+    if (!this.viewport || !this.imageLayer) return;
+    const scrollTop = this.viewport.scrollTop;
+    const scrollLeft = this.viewport.scrollLeft;
+    const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
+    const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
+    if (frozenRows === 0 && frozenCols === 0) return;
+    const frozenImages = this.imageLayer.querySelectorAll('[data-frozen="true"]');
+    for (const panel of frozenImages) {
+      let tx = 0, ty = 0;
+      if (frozenRows > 0) ty = scrollTop;
+      if (frozenCols > 0) tx = scrollLeft;
+      if (tx === 0 && ty === 0) panel.style.transform = "";
+      else panel.style.transform = `translate(${tx}px, ${ty}px)`;
     }
   }
 
@@ -4301,8 +4320,13 @@ export class SheetGridController {
   }
 
   _getAnchorFromPixel(left, top) {
-    const headerLeft = 46;
-    const headerTop = 28;
+    // Lỗi thật đã xác nhận: renderImages() dùng offset header 44px(cột)/
+    // 24px(hàng) (thống nhất với _applyFreezeVisuals(), xem
+    // HANDOFF-SHEET-IMAGE-FREEZE-PANE-SCROLL.md), nhưng hàm này (chuyển
+    // pixel thả chuột về lại ô neo khi kéo-thả ảnh) trước đó vẫn dùng
+    // 46/28 cũ — lệch offset khiến kéo-thả tính sai ô neo gần biên ô.
+    const headerLeft = 44;
+    const headerTop = 24;
     const rowH = this.rowHeight || 28;
 
     // Tính cột gần nhất
@@ -4424,15 +4448,36 @@ export class SheetGridController {
   renderImages() {
     if (!this.imageLayer || typeof document === "undefined") return;
     this.imageLayer.innerHTML = "";
+    const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
+    const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
     for (const image of this.imagesBySheet[this.activeSheet] || []) {
       const panel = document.createElement("figure");
-      const colOffset = Math.max(0, this.cols.indexOf(image.anchor.c)) * 100 + 46;
-      const rowOffset = Math.max(0, image.anchor.r - 1) * this.rowHeight + 28;
+      const colIdx = Math.max(0, this.cols.indexOf(image.anchor.c));
+      const isInFrozenRow = image.anchor.r >= 1 && image.anchor.r <= frozenRows;
+      const isInFrozenCol = colIdx < frozenCols && frozenCols > 0;
+      const isFrozen = isInFrozenRow || isInFrozenCol;
+      let topVal, leftVal;
+      if (isInFrozenRow) {
+        let topAcc = 24;
+        for (let r = 1; r < image.anchor.r; r++) topAcc += this.getRowHeight(r);
+        topVal = topAcc;
+      } else {
+        topVal = Math.max(0, image.anchor.r - 1) * this.rowHeight + 24;
+      }
+      if (isInFrozenCol) {
+        let leftAcc = 44;
+        for (let i = 0; i < colIdx; i++) leftAcc += this.getColumnWidth(this.cols[i]);
+        leftVal = leftAcc;
+      } else {
+        leftVal = colIdx * this.defaultColWidth + 44;
+      }
       panel.className = "vno-sheet-image";
       panel.dataset.imageId = image.id;
       panel.dataset.sheet = this.activeSheet;
       panel.dataset.anchor = `${image.anchor.c}${image.anchor.r}`;
-      panel.style.cssText = `position:absolute;left:${colOffset}px;top:${rowOffset}px;width:240px;min-height:80px;margin:0;padding:5px;background:#fff;border:1px solid #94a3b8;border-radius:6px;box-shadow:0 6px 18px rgba(15,23,42,.2);pointer-events:auto`;
+      if (isFrozen) panel.dataset.frozen = "true";
+      const zIdx = isFrozen ? 10 : 7;
+      panel.style.cssText = `position:absolute;left:${leftVal}px;top:${topVal}px;z-index:${zIdx};width:240px;min-height:80px;margin:0;padding:5px;background:#fff;border:1px solid #94a3b8;border-radius:6px;box-shadow:0 6px 18px rgba(15,23,42,.2);pointer-events:auto`;
       const img = document.createElement("img");
       img.src = image.src;
       img.alt = t("sheetDialogs.insertedImageAlt");
@@ -6492,6 +6537,8 @@ export class SheetGridController {
     }
     this._syncCommandStates();
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.renderImages();
+    this._updateFrozenImages();
     return this.isFrozenPanes;
   }
 
