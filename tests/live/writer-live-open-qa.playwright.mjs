@@ -62,27 +62,93 @@ const PAYLOAD_DIR = path.join(ROOT_DIR, "tests", "fixtures", "live-open-payloads
 const TEST_FILES = [
   {
     id: 1,
-    name: "HĐ VÀ NGHIỆM THU, THANH LÝ.docx",
+    name: "HĐ VÀ NGHIỆM THU, THANH LÝ.docx (gói 04-2026)",
     payloadFile: "file1_payload.json",
     slug: "file1-hd-nghiem-thu-thanh-ly"
   },
   {
     id: 2,
-    name: "hợp đồng sửa chữa 3T- UBXQT.docx",
+    name: "hợp đồng sửa chữa 3T- UBXQT.docx (Hồ sơ sữa chữa)",
     payloadFile: "file2_payload.json",
     slug: "file2-hop-dong-sua-chua-3t"
   },
   {
     id: 3,
-    name: "8. Biên bản hoàn thiện hợp đồng.docx",
+    name: "8. Biên bản hoàn thiện hợp đồng.docx (MÁY BẢO MẬT)",
     payloadFile: "file3_payload.json",
     slug: "file3-bien-ban-hoan-thien-hd"
   },
   {
     id: 4,
-    name: "to_trinh.docx",
+    name: "to_trinh.docx (MÁY BẢO MẬT file mới)",
     payloadFile: "file4_payload.json",
     slug: "file4-to-trinh"
+  },
+  {
+    id: 5,
+    name: "Biên bản hoàn thiện hợp đồng.docx (gói 04-2026)",
+    payloadFile: "file5_payload.json",
+    slug: "file5-bien-ban-hoan-thien-hd-t4"
+  },
+  {
+    id: 6,
+    name: "12. HĐ VÀ NGHIỆM THU, THANH LÝ.docx (MÁY BẢO MẬT)",
+    payloadFile: "file6_payload.json",
+    slug: "file6-hd-nghiem-thu-thanh-ly-mbm"
+  },
+  {
+    id: 7,
+    name: "1. QĐ thành lập TỔ MUA SẮM.docx (MÁY BẢO MẬT)",
+    payloadFile: "file7_payload.json",
+    slug: "file7-qd-to-mua-sam-mbm"
+  },
+  {
+    id: 8,
+    name: "2. Tờ trìn khlcnt.docx (MÁY BẢO MẬT)",
+    payloadFile: "file8_payload.json",
+    slug: "file8-to-trinh-khlcnt-mbm"
+  },
+  {
+    id: 9,
+    name: "HĐ VÀ NGHIỆM THU, THANH LÝ.docx (gói 8 -2026)",
+    payloadFile: "file9_payload.json",
+    slug: "file9-hd-nghiem-thu-thanh-ly-t8"
+  },
+  {
+    id: 10,
+    name: "hợp đồng sửa chữa 3T- UBXQT.docx (gói 8 -2026)",
+    payloadFile: "file10_payload.json",
+    slug: "file10-hop-dong-sua-chua-3t-t8"
+  },
+  {
+    id: 11,
+    name: "Biên bản hoàn thiện hợp đồngg.docx (gói 8 -2026)",
+    payloadFile: "file11_payload.json",
+    slug: "file11-bien-ban-hoan-thien-hdg-t8"
+  },
+  {
+    id: 12,
+    name: "1. QĐ thành lập TỔ MUA SẮM.docx (MÁY PHOTO)",
+    payloadFile: "file12_payload.json",
+    slug: "file12-qd-to-mua-sam-photo"
+  },
+  {
+    id: 13,
+    name: "2. Tờ trìn khlcnt.docx (MÁY PHOTO)",
+    payloadFile: "file13_payload.json",
+    slug: "file13-to-trinh-khlcnt-photo"
+  },
+  {
+    id: 14,
+    name: "8. Biên bản hoàn thiện hợp đồng.docx (MÁY PHOTO)",
+    payloadFile: "file14_payload.json",
+    slug: "file14-bien-ban-hoan-thien-hd-photo"
+  },
+  {
+    id: 15,
+    name: "12. HĐ VÀ NGHIỆM THU, THANH LÝ (Autosaved).docx (MÁY PHOTO)",
+    payloadFile: "file15_payload.json",
+    slug: "file15-hd-nghiem-thu-thanh-ly-autosaved-photo"
   }
 ];
 
@@ -97,7 +163,7 @@ try {
 
   for (const item of TEST_FILES) {
     console.log(`\n======================================================`);
-    console.log(`[FILE ${item.id}/4] Đang mở tài liệu: ${item.name}`);
+    console.log(`[FILE ${item.id}/${TEST_FILES.length}] Đang mở tài liệu: ${item.name}`);
     console.log(`======================================================`);
 
     const payloadPath = path.join(PAYLOAD_DIR, item.payloadFile);
@@ -224,6 +290,23 @@ try {
       const fontSize = pComputed ? pComputed.fontSize : "";
       const lineHeight = pComputed ? pComputed.lineHeight : "";
 
+      // Alignment audit: verify <p align="..."> and <td/th align="..."> computed styles
+      const alignedP = Array.from(bodyEl ? bodyEl.querySelectorAll("p[align]") : []);
+      const pAlignAudit = alignedP.map((p) => {
+        const attr = (p.getAttribute("align") || "").toLowerCase();
+        const computed = window.getComputedStyle(p).textAlign.toLowerCase();
+        return { attr, computed, match: attr === computed };
+      });
+      const pAlignMismatches = pAlignAudit.filter((a) => !a.match);
+
+      const alignedCells = Array.from(bodyEl ? bodyEl.querySelectorAll("td[align], th[align]") : []);
+      const cellAlignAudit = alignedCells.map((c) => {
+        const attr = (c.getAttribute("align") || "").toLowerCase();
+        const computed = window.getComputedStyle(c).textAlign.toLowerCase();
+        return { attr, computed, match: attr === computed };
+      });
+      const cellAlignMismatches = cellAlignAudit.filter((a) => !a.match);
+
       // Header / Footer
       const headerText = headerEl ? headerEl.innerText.trim() : "";
       const headerHtml = headerEl ? headerEl.innerHTML.trim() : "";
@@ -256,6 +339,12 @@ try {
           count: imgs.length,
           brokenCount: imgDetails.filter((img) => img.isBroken).length,
           details: imgDetails
+        },
+        alignment: {
+          pAlignedCount: alignedP.length,
+          pAlignMismatches: pAlignMismatches.length,
+          cellAlignedCount: alignedCells.length,
+          cellAlignMismatches: cellAlignMismatches.length
         },
         typography: {
           fontFamily,
@@ -322,6 +411,7 @@ try {
 
     console.log(`  -> Số bảng: ${auditData.tables.count}, Bảng tràn: ${auditData.tables.anyOverflow}`);
     console.log(`  -> Số ảnh: ${auditData.images.count}, Ảnh lỗi (broken): ${auditData.images.brokenCount}`);
+    console.log(`  -> Căn lề align=: ${auditData.alignment.pAlignedCount} p (${auditData.alignment.pAlignMismatches} lỗi), ${auditData.alignment.cellAlignedCount} ô bảng (${auditData.alignment.cellAlignMismatches} lỗi)`);
     console.log(`  -> Tiếng Việt: ${auditData.typography.hasVietnamese ? "OK" : "KHÔNG THẤY"}, Lỗi ký tự ô vuông: ${auditData.typography.hasCorruptedGlyphs ? "CÓ LỖI" : "KHÔNG"}`);
     console.log(`  -> Header: ${auditData.headerFooter.hasHeader ? auditData.headerFooter.headerText : "(trống)"}, Footer: ${auditData.headerFooter.hasFooter ? auditData.headerFooter.footerText : "(trống)"}`);
     console.log(`  -> Lỗi JS Console: ${pageErrors.length}`);
