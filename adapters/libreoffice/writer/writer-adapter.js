@@ -6737,7 +6737,20 @@ export class WriterAdapter {
       return imageHtml(node);
     };
     const imageHtml = (node) => {
-      if (node.attrs["text:anchor-type"] !== "as-char") throw this._fodtError(`draw:frame anchor-type '${node.attrs["text:anchor-type"] || ""}' (Phase B chỉ hỗ trợ as-char)`);
+      // Lỗi thật đã xác nhận: file DOCX thật có ảnh neo nổi (Word thường dùng
+      // kiểu này cho logo/letterhead có chữ chạy quanh — wp:anchor với
+      // wrapSquare) được soffice convert sang FODT với text:anchor-type="char"
+      // (không phải "as-char" mà VN Office tự ghi khi chèn ảnh). Trước đây
+      // parseFodt() NÉM LỖI ngay khi gặp anchor-type khác "as-char", khiến
+      // TOÀN BỘ file không mở được (không chỉ mất 1 ảnh). Vì kiến trúc hiện
+      // tại đặt draw:frame ngay trong luồng nội dung đoạn văn (inlineNodeHtml)
+      // bất kể anchor-type, nên chấp nhận thêm "char"/"paragraph" (2 kiểu neo
+      // nổi phổ biến nhất của Word thật) và hiển thị ảnh NGAY TẠI VỊ TRÍ đó
+      // trong luồng văn bản — đánh đổi: mất hiệu ứng chữ chạy quanh ảnh
+      // (wrap-around) và vị trí nổi chính xác, nhưng KHÔNG mất ảnh, KHÔNG mất
+      // nội dung văn bản khác, và file MỞ ĐƯỢC thay vì báo lỗi toàn bộ.
+      const supportedAnchors = ["as-char", "char", "paragraph"];
+      if (!supportedAnchors.includes(node.attrs["text:anchor-type"])) throw this._fodtError(`draw:frame anchor-type '${node.attrs["text:anchor-type"] || ""}' (chỉ hỗ trợ ${supportedAnchors.join("/")})`);
       const width = this._fodtCmToPx(node.attrs["svg:width"]);
       const height = this._fodtCmToPx(node.attrs["svg:height"]);
       const images = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));

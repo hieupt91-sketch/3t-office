@@ -194,5 +194,40 @@ export async function runWriterFodtPhaseB2Tests() {
     assert.throws(() => adapter.serializeToFodt(), error => error?.code === "WRITER_FODT_UNSUPPORTED_CONTENT");
   });
 
+  // Lỗi thật đã xác nhận qua soffice thật: DOCX thật có ảnh neo nổi
+  // (wp:anchor + wrapSquare — Word dùng kiểu này rất phổ biến cho
+  // logo/letterhead có chữ chạy quanh) được soffice convert sang FODT với
+  // text:anchor-type="char", KHÔNG PHẢI "as-char" mà VN Office tự ghi khi
+  // chèn ảnh qua UI. Trước đây parseFodt() ném lỗi ngay khi gặp anchor-type
+  // khác "as-char" — khiến TOÀN BỘ file DOCX không mở được, không chỉ mất 1
+  // ảnh. Sửa: chấp nhận thêm "char"/"paragraph" (đặt ảnh inline tại vị trí
+  // đó trong luồng văn bản — mất hiệu ứng chữ chạy quanh, nhưng không mất
+  // ảnh và không mất nội dung, file mở được).
+  const fodtBodyWithImage = (anchorType) => `<?xml version="1.0"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+<office:body><office:text>
+<text:p>Truoc<draw:frame draw:name="Picture 1" text:anchor-type="${anchorType}" svg:width="1cm" svg:height="1cm"><draw:image draw:mime-type="image/png"><office:binary-data>iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=</office:binary-data></draw:image></draw:frame>Sau</text:p>
+</office:text></office:body>
+</office:document>`;
+
+  await test("Writer FODT Phase B.2 chấp nhận draw:frame text:anchor-type=\"char\" (ảnh neo nổi thật từ Word thật qua soffice) thay vì ném lỗi làm hỏng cả file", () => {
+    const { adapter, body } = adapterWithBody("<p>không giữ</p>");
+    const html = adapter.parseFodt(fodtBodyWithImage("char"));
+    assert.match(html, /<img\b[^>]*src="data:image\/png;base64,/, "Ảnh phải hiển thị dù neo kiểu 'char'");
+    assert.ok(html.includes("Truoc") && html.includes("Sau"), "Văn bản trước/sau ảnh không được mất");
+    assert.equal(body.innerHTML, html);
+  });
+
+  await test("Writer FODT Phase B.2 chấp nhận draw:frame text:anchor-type=\"paragraph\" tương tự", () => {
+    const { adapter } = adapterWithBody("<p>không giữ</p>");
+    const html = adapter.parseFodt(fodtBodyWithImage("paragraph"));
+    assert.match(html, /<img\b[^>]*src="data:image\/png;base64,/);
+  });
+
+  await test("Writer FODT Phase B.2 vẫn từ chối anchor-type thật sự chưa hỗ trợ (không âm thầm bỏ qua)", () => {
+    const { adapter } = adapterWithBody("<p>không giữ</p>");
+    assert.throws(() => adapter.parseFodt(fodtBodyWithImage("page")), error => /anchor-type/.test(error.message));
+  });
+
   return results;
 }
