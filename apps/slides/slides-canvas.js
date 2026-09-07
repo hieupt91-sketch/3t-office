@@ -1617,6 +1617,7 @@ export class SlidesCanvasController {
       });
     }
     this._updateDiagramGroupBoundsUi();
+    this._syncCommandStates();
   }
 
   /**
@@ -4326,6 +4327,7 @@ export class SlidesCanvasController {
     this._syncUndoRedoState();
     this._renderShapesLayer();
     this._renderThumbnails();
+    this._syncCommandStates();
     return { changed: changes.length };
   }
 
@@ -4346,6 +4348,7 @@ export class SlidesCanvasController {
     this._syncUndoRedoState();
     this._renderShapesLayer();
     this._renderThumbnails();
+    this._syncCommandStates();
     return { changed: changes.length };
   }
 
@@ -8239,6 +8242,30 @@ export class SlidesCanvasController {
     });
     globalCommandBus.updateState("slides.animation.pane", { checked: !!this.isAnimationPaneVisible });
     globalCommandBus.updateState("slides.arrange.alignToSlide", { checked: !!this.alignToSlideMode });
+
+    const slide = this.slides ? this.slides[this.currentSlideIndex] : null;
+    let selectedShape = null;
+    if (slide && Array.isArray(slide.shapes)) {
+      if (this.selectedTarget != null) {
+        selectedShape = slide.shapes.find(s => String(s.id) === String(this.selectedTarget)) || null;
+      }
+      if (!selectedShape && this.selectedShapeIds && this.selectedShapeIds.size > 0) {
+        const firstId = this.selectedShapeIds.values().next().value;
+        selectedShape = slide.shapes.find(s => String(s.id) === String(firstId)) || null;
+      }
+    }
+    const hasShape = !!selectedShape;
+    const currentVAlign = hasShape ? (selectedShape.textVAlign || "middle") : null;
+    const currentDirection = hasShape ? (selectedShape.textDirection || "horizontal") : null;
+
+    globalCommandBus.updateState("slides.text.vAlignTop", { checked: hasShape && currentVAlign === "top" });
+    globalCommandBus.updateState("slides.text.vAlignMiddle", { checked: hasShape && currentVAlign === "middle" });
+    globalCommandBus.updateState("slides.text.vAlignBottom", { checked: hasShape && currentVAlign === "bottom" });
+    globalCommandBus.updateState("slides.text.directionHorizontal", { checked: hasShape && currentDirection === "horizontal" });
+    globalCommandBus.updateState("slides.text.directionVertical", { checked: hasShape && currentDirection === "vertical" });
+    globalCommandBus.updateState("slides.text.directionVertical270", { checked: hasShape && currentDirection === "vertical270" });
+    globalCommandBus.updateState("slides.text.directionStacked", { checked: hasShape && currentDirection === "stacked" });
+
     const currentSection = this._sectionAtSlide(this.currentSlideIndex);
     const ordered = this._orderedSectionRanges();
     const sectionPos = currentSection ? ordered.findIndex(item => item.section.id === currentSection.id) : -1;

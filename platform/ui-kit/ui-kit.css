@@ -210,6 +210,33 @@
   pointer-events: none;
   cursor: not-allowed;
 }
+.vno-ribbon-dropdown-item.is-checked,
+.vno-ribbon-dropdown-item[aria-checked="true"] {
+  background-color: var(--vno-app-current-light, #e7f4ec);
+  color: var(--vno-app-current-fg, var(--vno-app-current));
+  font-weight: 600;
+}
+.vno-ribbon-dropdown-item.is-checked::after,
+.vno-ribbon-dropdown-item[aria-checked="true"]::after {
+  content: "✓";
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--vno-app-current-fg, var(--vno-app-current));
+  padding-left: 10px;
+  flex-shrink: 0;
+}
+.vno-ribbon-dropdown-item.is-checked:hover,
+.vno-ribbon-dropdown-item.is-checked:focus,
+.vno-ribbon-dropdown-item.is-checked.is-focused {
+  filter: brightness(0.93);
+}
+[data-theme="dark"] .vno-ribbon-dropdown-item.is-checked:hover,
+[data-theme="dark"] .vno-ribbon-dropdown-item.is-checked:focus,
+[data-theme="dark"] .vno-ribbon-dropdown-item.is-checked.is-focused {
+  filter: brightness(1.25);
+}
 .vno-ribbon-dropdown-item .vno-menu-item-icon {
   display: flex;
   align-items: center;
