@@ -425,6 +425,39 @@ export async function runSlidesShapeRotationHandleTests() {
       // 4. pointerup
       triggerUp();
     });
+
+    test("_attachRotateHandle: hiển thị tooltip góc xoay (.vno-shape-rotate-tooltip) trong lúc kéo và dọn dẹp khi nhả chuột", () => {
+      const canvas = createTestCanvas();
+      const shapeEl = new FakeDomNode("div");
+      const shape = { id: "s-rot-tip", type: "rect", x: 100, y: 100, w: 200, h: 100 };
+      canvas._ensureShapeSelectionHandles(shapeEl, shape);
+
+      const rotateHandle = shapeEl.querySelector(".vno-shape-rotate-handle");
+      assert(rotateHandle, "Phải có rotateHandle");
+
+      // Trước khi kéo: chưa có tooltip
+      assert(!shapeEl.querySelector(".vno-shape-rotate-tooltip"), "Chưa kéo không được có tooltip");
+
+      // 1. pointerdown
+      rotateHandle.listeners["pointerdown"][0]({ stopPropagation() {}, preventDefault() {} });
+      const tooltipDown = shapeEl.querySelector(".vno-shape-rotate-tooltip");
+      assert(tooltipDown, "pointerdown phải tạo .vno-shape-rotate-tooltip");
+      assert(tooltipDown.textContent === "0°", `Tooltip ban đầu phải là 0°, thực tế: ${tooltipDown.textContent}`);
+
+      // 2. pointermove tới 90°
+      triggerMove({ clientX: 300, clientY: 150, shiftKey: false });
+      assert(tooltipDown.textContent === "90°", `Tooltip sau khi xoay 90° phải là 90°, thực tế: ${tooltipDown.textContent}`);
+      assert(tooltipDown.style.transform === "translateX(-50%) rotate(-90deg)", `Tooltip phải được counter-rotate, thực tế: ${tooltipDown.style.transform}`);
+
+      // 3. pointermove giữ Shift snap về 45°
+      // atan2(100, 100) = 45° -> +90° = 135°
+      triggerMove({ clientX: 300, clientY: 250, shiftKey: true });
+      assert(tooltipDown.textContent === "135°", `Tooltip khi snap Shift 135° phải là 135°, thực tế: ${tooltipDown.textContent}`);
+
+      // 4. pointerup -> tooltip được dọn sạch
+      triggerUp();
+      assert(!shapeEl.querySelector(".vno-shape-rotate-tooltip"), "Sau pointerup tooltip phải được gỡ bỏ");
+    });
   } finally {
     globalThis.document = oldDoc;
   }
