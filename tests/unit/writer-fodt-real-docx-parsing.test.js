@@ -128,5 +128,20 @@ export async function runWriterFodtRealDocxParsingTests() {
     assert.ok(adapter.bodyDom.innerHTML.includes("Noi dung van ban DOCX that"));
   });
 
+  // Lỗi thật phát hiện qua file .docx THẬT của người dùng: Word chèn
+  // <text:bookmark-start>/<text:bookmark-end> (điểm neo vô hình, dùng cho
+  // tham chiếu chéo nội bộ) xen giữa văn bản thường — trước đây bị ném lỗi
+  // "phần tử FODT inline" làm hỏng toàn bộ tài liệu dù không có nội dung
+  // hiển thị nào bị ảnh hưởng.
+  await test("parseFodt: bỏ qua text:bookmark-start/text:bookmark-end/text:bookmark (điểm neo vô hình) thay vì báo lỗi chưa hỗ trợ", () => {
+    const { adapter } = adapterWithBody("<p>x</p>");
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
+<office:body><office:text><text:p>Trước <text:bookmark-start text:name="_tinh1"/>giữa<text:bookmark-end text:name="_tinh1"/> sau <text:bookmark text:name="_diem2"/>cuối</text:p></office:text></office:body>
+</office:document>`;
+    adapter.parseFodt(xml);
+    assert.equal(adapter.bodyDom.innerHTML, "<p>Trước giữa sau cuối</p>");
+  });
+
   return results;
 }
