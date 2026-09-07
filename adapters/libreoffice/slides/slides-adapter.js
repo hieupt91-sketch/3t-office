@@ -1807,6 +1807,7 @@ export class SlidesAdapter {
       y: origin.y,
       w: this._odfLengthToPx(get("svg:width")) || 200,
       h: this._odfLengthToPx(get("svg:height")) || 120,
+      ...(origin.rotationDeg ? { rotation: origin.rotationDeg } : {}),
       color,
       text: this._paragraphsFromXml(inner).join("\n"),
       textHtml: this._shapeHtmlFromXml(inner),
@@ -1909,6 +1910,7 @@ export class SlidesAdapter {
       y: origin.y,
       w: this._odfLengthToPx(get("svg:width")) || 200,
       h: this._odfLengthToPx(get("svg:height")) || 120,
+      ...(origin.rotationDeg ? { rotation: origin.rotationDeg } : {}),
       animation: this._noneAnimation()
     };
 
@@ -2034,12 +2036,21 @@ export class SlidesAdapter {
     // nhau nên không bao giờ khớp, khiến vị trí luôn rơi về nhánh dự phòng
     // svg:x/svg:y (thường vắng mặt khi có transform) → vị trí sai về (0,0).
     const match = String(transform || "").match(/translate\s*\(\s*([^,)\s]+)\s*[, ]\s*([^,)\s]+)\s*\)/i);
+    // ODF rotate(radian) dùng chiều DƯƠNG = ngược kim đồng hồ (chuẩn toán
+    // học), trong khi OOXML a:xfrm rot=... VÀ CSS transform:rotate(deg)
+    // đều dùng chiều DƯƠNG = xuôi kim đồng hồ — phải ĐẢO DẤU khi quy đổi
+    // sang độ để hiển thị CSS đúng chiều xoay thật (xác nhận qua probe:
+    // OOXML rot="1800000" [30° xuôi kim] → ODF ghi rotate(-0.5235987...)
+    // [-30° theo chuẩn ngược kim] — đảo dấu lại đúng 30°).
+    const rotateMatch = String(transform || "").match(/rotate\s*\(\s*(-?[\d.]+)\s*\)/i);
+    const rotationDeg = rotateMatch ? -(parseFloat(rotateMatch[1]) * 180 / Math.PI) : 0;
     if (match) {
-      return { x: this._odfLengthToPx(match[1]), y: this._odfLengthToPx(match[2]) };
+      return { x: this._odfLengthToPx(match[1]), y: this._odfLengthToPx(match[2]), rotationDeg };
     }
     return {
       x: this._odfLengthToPx(this._attr(attrs, "svg:x")),
-      y: this._odfLengthToPx(this._attr(attrs, "svg:y"))
+      y: this._odfLengthToPx(this._attr(attrs, "svg:y")),
+      rotationDeg
     };
   }
 

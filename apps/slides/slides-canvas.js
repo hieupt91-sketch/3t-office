@@ -3317,7 +3317,11 @@ export class SlidesCanvasController {
       } else {
         el.setAttribute?.("aria-label", shape.text || (shape.type === "wordart" ? "Chữ nghệ thuật" : "Hình vẽ"));
       }
-      el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${isConnector ? "default" : "move"};z-index:${isConnector ? 0 : 1};`;
+      // Hiển thị góc xoay đọc được từ file thật (draw:transform rotate()).
+      // Đây là hiển thị CHỈ ĐỌC — chưa có tay cầm/thao tác xoay tương tác
+      // trên canvas (xem HANDOFF-SLIDES-SHAPE-ROTATION-DISPLAY.md).
+      const rotateStyle = shape.rotation ? ` transform:rotate(${shape.rotation}deg); transform-origin:center center;` : "";
+      el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${isConnector ? "default" : "move"};z-index:${isConnector ? 0 : 1};${rotateStyle}`;
       if (!isConnector && this._textStyleEligible(shape)) {
         const vAlign = shape.textVAlign || "middle";
         el.style.alignItems = vAlign === "top" ? "flex-start" : vAlign === "bottom" ? "flex-end" : "center";
