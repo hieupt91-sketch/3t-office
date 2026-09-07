@@ -1125,12 +1125,21 @@ export class AppShell {
    * với hành vi thật của Word/LibreOffice (lỗi thật, người dùng phát hiện 04/09/2026).
    * @param {string} newDocumentName
    * @param {string} [homeTabId="home"]
+   * @param {boolean} [recordRecent=true] - false cho tài liệu MỚI trắng (chưa
+   *   từng lưu ra đĩa) — không phải "tệp gần đây" thật, không được ghi vào
+   *   Recent Files (lỗi thật: File > Mới trước đó sẽ đẩy "Tài liệu 1.docx"
+   *   giả lên đầu danh sách, đè lên tệp thật đã mở/lưu trước đó).
    */
-  resetDocumentChrome(newDocumentName, homeTabId = "home") {
+  resetDocumentChrome(newDocumentName, homeTabId = "home", recordRecent = true) {
     this.documentName = newDocumentName;
     const tabEl = this.rootEl?.querySelector(".vno-doc-tab span");
     if (tabEl) tabEl.textContent = this.documentName;
-    this.ribbonHost?.selectTab(homeTabId);
+    if (homeTabId) {
+      this.ribbonHost?.selectTab(homeTabId);
+    }
+    if (this.appName && recordRecent) {
+      RecentFilesManager.recordFile({ name: this.documentName, app: this.appName });
+    }
   }
 
   _setupGlobalShortcuts() {
