@@ -7284,7 +7284,7 @@ export class WriterAdapter {
     this.isDirty = false;
     this._updateTrackChangesCommandState?.();
     this.clearUndoRedo?.();
-    this.shell?.resetDocumentChrome?.("Tài liệu 1.docx");
+    this.shell?.resetDocumentChrome?.("Tài liệu 1.docx", "home", false);
     this._recomputeLivePagination?.();
     this.editorDom?.focus?.();
     return true;
