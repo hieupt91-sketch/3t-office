@@ -578,31 +578,77 @@
 .vno-writer-body img.is-vno-image-selected {
   outline: 3px solid #2563eb;
   outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.2);
+  transition: outline-color 0.15s ease, box-shadow 0.15s ease;
 }
+
+[data-theme="dark"] .vno-writer-body img.is-vno-image-selected {
+  outline-color: #60a5fa;
+  box-shadow: 0 0 0 5px rgba(96, 165, 250, 0.25);
+}
+
 .vno-writer-arrange-group .vno-ribbon-group-items {
   align-items: center;
   gap: 8px;
 }
+
 .vno-writer-arrange-group label {
   display: grid;
   gap: 3px;
-  color: #334155;
+  color: var(--vno-text-secondary, #334155);
   font-size: 11px;
+  font-weight: 500;
 }
+
 .vno-writer-arrange-group select,
 .vno-writer-arrange-group button {
-  min-height: 30px;
-  border: 1px solid #94a3b8;
+  min-height: 28px;
+  border: 1px solid var(--vno-border-strong, #94a3b8);
   border-radius: 4px;
-  background: #fff;
-  color: #0f172a;
+  background: var(--vno-bg-window, #ffffff);
+  color: var(--vno-text-primary, #0f172a);
+  font-size: 12px;
+  padding: 3px 8px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
+
+.vno-writer-arrange-group button {
+  cursor: pointer;
+}
+
+.vno-writer-arrange-group button:hover {
+  background: var(--vno-bg-hover, #f1f5f9);
+  border-color: var(--vno-writer-primary, #2563eb);
+}
+
 .vno-writer-arrange-group select:focus-visible,
 .vno-writer-arrange-group button:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--vno-writer-primary, #2563eb);
   outline-offset: 2px;
 }
+
 .vno-writer-arrange-buttons { display: grid; grid-template-columns: repeat(2, auto); gap: 4px; }
+
+[data-theme="dark"] .vno-writer-arrange-group label {
+  color: var(--vno-text-muted, #94a3b8);
+}
+
+[data-theme="dark"] .vno-writer-arrange-group select,
+[data-theme="dark"] .vno-writer-arrange-group button {
+  background: var(--vno-bg-surface, #2d2d30);
+  color: var(--vno-text-primary, #f1f5f9);
+  border-color: var(--vno-border-strong, #52525b);
+}
+
+[data-theme="dark"] .vno-writer-arrange-group button:hover {
+  background: var(--vno-bg-subtle, #3e3e42);
+  border-color: #60a5fa;
+}
+
+[data-theme="dark"] .vno-writer-arrange-group select:focus-visible,
+[data-theme="dark"] .vno-writer-arrange-group button:focus-visible {
+  outline-color: #60a5fa;
+}
 
 .vno-spelling-uncertain {
   text-decoration: underline wavy #dc2626 1.5px;
@@ -989,6 +1035,12 @@
 .vno-print-preview-body p {
   margin: 0 0 6pt 0;
   text-align: justify;
+}
+
+.vno-print-preview-body img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
 }
 
 .vno-print-preview-body h1 {

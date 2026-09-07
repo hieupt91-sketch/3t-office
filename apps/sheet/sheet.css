@@ -1348,3 +1348,78 @@ tr.is-filtered-out {
   background-color: #f1f5f9;
   color: #1e293b;
 }
+
+/* --- Visual QA: Sheet Image Overlay & Interactive Delete Button --- */
+.vno-sheet-image {
+  background: var(--vno-bg-window, #ffffff) !important;
+  border: 1px solid var(--vno-border-strong, #94a3b8) !important;
+  border-radius: 6px !important;
+  box-shadow: var(--vno-shadow-md, 0 6px 18px rgba(15, 23, 42, 0.2)) !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vno-sheet-image:hover,
+.vno-sheet-image:focus-within {
+  border-color: var(--vno-sheet-primary, #0f6d38) !important;
+  box-shadow: 0 0 0 2px rgba(15, 109, 56, 0.25), 0 8px 24px rgba(15, 23, 42, 0.22) !important;
+}
+
+.vno-sheet-image button[data-image-delete] {
+  position: absolute !important;
+  right: 7px !important;
+  top: 7px !important;
+  width: 24px !important;
+  height: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  border: 1px solid var(--vno-border-default, #cbd5e1) !important;
+  background: var(--vno-bg-surface, #ffffff) !important;
+  color: var(--vno-text-secondary, #475569) !important;
+  border-radius: 4px !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2) !important;
+  transition: all 0.15s ease !important;
+}
+
+.vno-sheet-image button[data-image-delete]:hover {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #b91c1c !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.35) !important;
+}
+
+.vno-sheet-image button[data-image-delete]:focus-visible {
+  outline: 2px solid var(--vno-sheet-primary, #0f6d38) !important;
+  outline-offset: 2px !important;
+}
+
+[data-theme="dark"] .vno-sheet-image {
+  background: var(--vno-bg-surface, #2d2d30) !important;
+  border-color: var(--vno-border-strong, #52525b) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .vno-sheet-image:hover,
+[data-theme="dark"] .vno-sheet-image:focus-within {
+  border-color: #4ade80 !important;
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.3), 0 8px 24px rgba(0, 0, 0, 0.55) !important;
+}
+
+[data-theme="dark"] .vno-sheet-image button[data-image-delete] {
+  background: var(--vno-bg-subtle, #3e3e42) !important;
+  color: var(--vno-text-primary, #f1f5f9) !important;
+  border-color: var(--vno-border-strong, #52525b) !important;
+}
+
+[data-theme="dark"] .vno-sheet-image button[data-image-delete]:hover {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #b91c1c !important;
+}
+
