@@ -244,5 +244,191 @@ export async function runWriterFloatingImageImportTests() {
     }
   });
 
+  // --- Floating text-box / frame tests (generalized fix) ---
+
+  const TEXTBOX_FLOATING_HTML = `<!DOCTYPE html>
+<html><head></head><body>
+<p>Văn bản trước textbox.</p>
+<span id="textbox20" dir="ltr" style="position: absolute; top: 3.55cm; left: 0.82cm; width: 5.85cm; border: none; padding: 0cm; background: #ffffff">
+  <p class="western">CÂU CHUYỆN THƯƠNG HIỆU</p>
+</span>
+<span id="Frame159" dir="ltr" style="position: absolute; top: 7.15cm; width: 4.37cm; border: 1px solid #000">
+  <p class="western">BỘ ĐIỀU KHIỂN RÈM CUỐN</p>
+</span>
+<p>Văn bản sau textbox.</p>
+</body></html>`;
+
+  test("Textbox có id='textboxN' và position:absolute → position:absolute bị xóa", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(TEXTBOX_FLOATING_HTML);
+    const body = imported.body;
+
+    if (/position\s*:\s*absolute/.test(body)) {
+      throw new Error(`Vẫn còn position:absolute: ${body.slice(0, 500)}`);
+    }
+  });
+
+  test("Textbox có id='textboxN' chứa block content → display:block", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(TEXTBOX_FLOATING_HTML);
+    const body = imported.body;
+
+    const blocks = (body.match(/display\s*:\s*block(?:\s*;|\s*")/g) || []).length;
+    if (blocks < 2) {
+      throw new Error(`Expected >=2 display:block cho 2 textbox, found ${blocks}: ${body.slice(0, 500)}`);
+    }
+  });
+
+  test("Textbox frame giữ nguyên width", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(TEXTBOX_FLOATING_HTML);
+    const body = imported.body;
+
+    if (!/width\s*:\s*5\.85cm/.test(body)) {
+      throw new Error("Mất width 5.85cm của textbox");
+    }
+    if (!/width\s*:\s*4\.37cm/.test(body)) {
+      throw new Error("Mất width 4.37cm của frame");
+    }
+  });
+
+  test("Textbox frame giữ nguyên border/background", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(TEXTBOX_FLOATING_HTML);
+    const body = imported.body;
+
+    if (!/background\s*:\s*#ffffff/.test(body)) {
+      throw new Error("Mất background #ffffff");
+    }
+    if (!/border\s*:\s*1px\s+solid\s+#000/.test(body)) {
+      throw new Error("Mất border 1px solid #000");
+    }
+  });
+
+  test("Nội dung text bên trong textbox vẫn còn", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(TEXTBOX_FLOATING_HTML);
+    const body = imported.body;
+
+    if (!/CÂU CHUYỆN THƯƠNG HIỆU/.test(body)) {
+      throw new Error("Mất nội dung textbox 1");
+    }
+    if (!/BỘ ĐIỀU KHIỂN RÈM CUỐN/.test(body)) {
+      throw new Error("Mất nội dung textbox 2");
+    }
+  });
+
+  test("Văn bản xung quanh không bị ảnh hưởng", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(TEXTBOX_FLOATING_HTML);
+    const body = imported.body;
+
+    if (!/Văn bản trước textbox/.test(body)) {
+      throw new Error("Mất văn bản trước");
+    }
+    if (!/Văn bản sau textbox/.test(body)) {
+      throw new Error("Mất văn bản sau");
+    }
+  });
+
+  // --- Nested spans inside floating span ---
+
+  const NESTED_SPAN_HTML = `<body>
+<span id="textbox5" style="position: absolute; top: 2cm; left: 1cm; width: 300px; background: #fff">
+  <p><span style="font-weight: bold">Tiêu đề in đậm</span> và <span style="font-style: italic">nghiêng</span></p>
+  <p>Đoạn văn thường.</p>
+</span>
+<p>Nội dung bên ngoài.</p>
+</body>`;
+
+  test("Span lồng nhau bên trong floating span: nội dung đầy đủ, không cắt nhầm", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(NESTED_SPAN_HTML);
+    const body = imported.body;
+
+    if (!/Tiêu đề in đậm/.test(body)) {
+      throw new Error("Mất nội dung span lồng in đậm");
+    }
+    if (!/nghiêng/.test(body)) {
+      throw new Error("Mất nội dung span lồng nghiêng");
+    }
+    if (!/Đoạn văn thường/.test(body)) {
+      throw new Error("Mất đoạn văn bên trong");
+    }
+    if (!/Nội dung bên ngoài/.test(body)) {
+      throw new Error("Mất nội dung bên ngoài");
+    }
+  });
+
+  test("Span lồng nhau: position:absolute bị xóa", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(NESTED_SPAN_HTML);
+    const body = imported.body;
+
+    if (/position\s*:\s*absolute/.test(body)) {
+      throw new Error(`Vẫn còn position:absolute: ${body.slice(0, 500)}`);
+    }
+  });
+
+  test("Span lồng nhau: span format nội bộ không bị phá vỡ", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(NESTED_SPAN_HTML);
+    const body = imported.body;
+
+    const spanCount = (body.match(/<span\b/g) || []).length;
+    if (spanCount < 3) {
+      throw new Error(`Cần >=3 span (1 outer + 2 inner), tìm thấy ${spanCount}`);
+    }
+  });
+
+  // --- Mixed types: sd-abs-pos + textbox + frame together ---
+
+  const MIXED_FLOATING_HTML = `<body>
+<p>Banner nền xanh.</p>
+<span class="sd-abs-pos" style="position: absolute; top: 1cm; left: 0cm; width: 100%">
+  <img src="data:image/png;base64,abc" width="800" height="200"/>
+</span>
+<span id="textbox1" dir="ltr" style="position: absolute; top: 4cm; left: 2cm; width: 5cm">
+  <p>Thông số kỹ thuật A</p>
+</span>
+<span id="Frame42" dir="ltr" style="position: absolute; top: 8cm; width: 4cm">
+  <p>Thông số kỹ thuật B</p>
+</span>
+<p>Danh sách thông số.</p>
+</body>`;
+
+  test("Cả sd-abs-pos, textbox, frame đều được xử lý trong một file", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(MIXED_FLOATING_HTML);
+    const body = imported.body;
+
+    if (/position\s*:\s*absolute/.test(body)) {
+      throw new Error(`Vẫn còn position:absolute: ${body.slice(0, 500)}`);
+    }
+    const inlineBlocks = (body.match(/display\s*:\s*inline-block/g) || []).length;
+    if (inlineBlocks < 1) {
+      throw new Error(`Expected >=1 display:inline-block for sd-abs-pos img, found ${inlineBlocks}`);
+    }
+    const blocks = (body.match(/display\s*:\s*block(?:\s*;|\s*")/g) || []).length;
+    if (blocks < 2) {
+      throw new Error(`Expected >=2 display:block for textbox+frame, found ${blocks}: ${body.slice(0, 500)}`);
+    }
+    if (!/banner nền xanh/i.test(body)) {
+      throw new Error("Mất banner text");
+    }
+    if (!/Thông số kỹ thuật A/.test(body)) {
+      throw new Error("Mất thông số A");
+    }
+    if (!/Thông số kỹ thuật B/.test(body)) {
+      throw new Error("Mất thông số B");
+    }
+    if (!/Danh sách thông số/.test(body)) {
+      throw new Error("Mất danh sách");
+    }
+    if (!/<img\b/.test(body)) {
+      throw new Error("Mất img");
+    }
+  });
+
   return results;
 }

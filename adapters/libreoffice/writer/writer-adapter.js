@@ -1733,32 +1733,90 @@ export class WriterAdapter {
   }
 
   /**
-   * Convert StarWriter floating-image spans (`sd-abs-pos`) from absolute
-   * positioning to inline-block flow. LibreOffice's HTML export places
-   * images with "Behind Text" / "In Front of Text" wrapping into
-   * `<span class="sd-abs-pos" style="position:absolute; top:Xcm; left:Ycm">`
-   * where top/left are relative to the **original Word page**.  VN Writer
-   * renders the whole document inside a single `.vno-writer-page` container,
-   * so all absolute coordinates are measured from the same origin — causing
-   * images from pages 2+ to overlap unrelated content.
+   * Convert StarWriter floating spans from absolute positioning to
+   * inline-block flow. LibreOffice's HTML export places both floating
+   * images (`class="sd-abs-pos"`) AND floating text boxes / frames
+   * (`id="textboxN"`, `id="FrameN"`, etc.) into `<span>` elements with
+   * `position: absolute` and page-relative top/left coordinates.
    *
-   * Strategy: keep each element in its current DOM position (the HTML order
-   * from soffice already reflects the document flow) but strip absolute
-   * positioning so the browser places them inline, eliminating overlap.
-   * Width is preserved so images keep their original size.
+   * VN Writer renders the whole document inside a single container, so
+   * all absolute coordinates are measured from the same origin — causing
+   * elements from pages 2+ to overlap unrelated content.
+   *
+   * Strategy: keep each element in its current DOM position (the HTML
+   * order from soffice already reflects the document flow) but strip
+   * absolute positioning so the browser places them inline, eliminating
+   * overlap. Width is preserved so images/textboxes keep their original
+   * size. Other styles (border, background, etc.) are kept.
+   *
+   * Nested spans are handled by counting <span>/</span> tag pairs to find
+   * the correct closing tag instead of a naive non-greedy regex.
    */
   _convertFloatingImagesToInline(html) {
-    return String(html || "").replace(
-      /<span\s+class=["']sd-abs-pos["']\s+style=["']([^"']*)["']\s*>([\s\S]*?)<\/span>/gi,
-      (_match, styleAttr, inner) => {
-        let style = String(styleAttr);
-        style = style.replace(/\bposition\s*:\s*absolute\s*;?\s*/gi, "");
-        style = style.replace(/\btop\s*:\s*[^;]+;\s*/gi, "");
-        style = style.replace(/\bleft\s*:\s*[^;]+;\s*/gi, "");
-        style = `display:inline-block; position:static; ${style}`.trim();
-        return `<span style="${style}">${inner}</span>`;
+    const src = String(html || "");
+    const posAbsRe = /\bposition\s*:\s*absolute\b/i;
+    const spanOpenRe = /<span\b([^>]*)>/gi;
+    let result = "";
+    let cursor = 0;
+
+    while (cursor < src.length) {
+      const nextSpan = spanOpenRe.exec(src);
+      if (!nextSpan) {
+        result += src.slice(cursor);
+        break;
       }
-    );
+
+      const attrs = nextSpan[1] || "";
+      if (!posAbsRe.test(attrs)) {
+        result += src.slice(cursor, nextSpan.index + nextSpan[0].length);
+        cursor = nextSpan.index + nextSpan[0].length;
+        continue;
+      }
+
+      const spanStart = nextSpan.index;
+      let depth = 1;
+      let searchFrom = nextSpan.index + nextSpan[0].length;
+
+      while (depth > 0 && searchFrom < src.length) {
+        const openMatch = spanOpenRe.exec(src);
+        const closeIdx = src.indexOf("</span>", searchFrom);
+        if (closeIdx === -1) break;
+
+        if (openMatch && openMatch.index < closeIdx) {
+          searchFrom = openMatch.index + openMatch[0].length;
+          depth += 1;
+          spanOpenRe.lastIndex = searchFrom;
+        } else {
+          depth -= 1;
+          if (depth === 0) {
+            const inner = src.slice(nextSpan.index + nextSpan[0].length, closeIdx);
+            const openTag = nextSpan[0];
+            result += src.slice(cursor, spanStart);
+
+            const styleMatch = openTag.match(/\bstyle\s*=\s*["']([^"']*)["']/i);
+            let style = styleMatch ? styleMatch[1] : "";
+            style = style.replace(/\bposition\s*:\s*absolute\s*;?\s*/gi, "");
+            style = style.replace(/\btop\s*:\s*[^;]+;\s*/gi, "");
+            style = style.replace(/\bleft\s*:\s*[^;]+;\s*/gi, "");
+            const hasBlockContent = /<(?:p|h[1-6]|div|ul|ol|table|blockquote)\b/i.test(inner);
+            const displayValue = hasBlockContent ? "block" : "inline-block";
+            style = `display:${displayValue}; position:static; ${style}`.trim();
+
+            result += `<span style="${style}">${inner}</span>`;
+
+            cursor = closeIdx + "</span>".length;
+            spanOpenRe.lastIndex = cursor;
+          }
+          searchFrom = closeIdx + "</span>".length;
+        }
+      }
+      if (depth > 0) {
+        result += src.slice(cursor, spanStart + nextSpan[0].length);
+        cursor = spanStart + nextSpan[0].length;
+        spanOpenRe.lastIndex = cursor;
+      }
+    }
+    return result;
   }
 
   /**
