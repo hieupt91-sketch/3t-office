@@ -1259,6 +1259,18 @@ export class AppShell {
       return true;
     });
 
+    // Translate — Dịch thuật
+    globalCommandBus.bindHandler("ai.assistant.translate", () => {
+      this._handleTranslate();
+      return true;
+    });
+
+    // Draft Document — Viết nháp
+    globalCommandBus.bindHandler("ai.assistant.draftDocument", () => {
+      this._handleDraftDocument();
+      return true;
+    });
+
     // Macro: ghi/dừng ghi, quản lý, chạy (Ctrl+Shift+R bật/tắt ghi).
     globalCommandBus.bindHandler("common.macro.recordToggle", async () => {
       if (!globalMacroManager.isRecording()) {
@@ -1459,6 +1471,211 @@ export class AppShell {
     } catch (error) {
       botMsg.textContent = `⚠️ Lỗi tìm kiếm: ${error.message}`;
       this.setStatus?.("Lỗi tìm kiếm thông minh.");
+    }
+    if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  /** Dịch thuật — mở hộp thoại chọn ngôn ngữ, gọi AI dịch, hiển thị kết quả */
+  async _handleTranslate() {
+    const selection = window.getSelection?.();
+    const selectedText = selection?.toString?.() || "";
+    const docText = this.editorContainer.innerText || "";
+
+    if (!selectedText.trim() && !docText.trim()) {
+      await showAlertDialog({
+        title: t("aiAssistant.translateTitle", "Dịch thuật"),
+        message: "Tài liệu hiện đang trống. Vui lòng soạn thảo nội dung trước khi dịch.",
+        type: "warning"
+      });
+      return;
+    }
+
+    const langChoice = await this._showTranslateLangDialog();
+    if (!langChoice) return;
+
+    const textToTranslate = selectedText.trim() || docText.trim();
+    const langLabel = { en: "Tiếng Anh", vi: "Tiếng Việt", zh: "Tiếng Trung", ja: "Tiếng Nhật", ko: "Tiếng Hàn", fr: "Tiếng Pháp" }[langChoice] || langChoice;
+
+    this.setStatus?.(`Đang dịch sang ${langLabel}...`);
+    this.toggleAiSidebar(true);
+
+    const userMsg = document.createElement("div");
+    userMsg.style.cssText = "background:var(--vno-bg-hover);border:1px solid var(--vno-border-default);padding:8px 12px;border-radius:var(--vno-radius-md);font-size:12px;margin-top:10px;line-height:1.5;";
+    userMsg.innerHTML = `<strong>Bạn:</strong> Dịch sang ${langLabel}`;
+    const messagesEl = this.aiSidebar.querySelector("#vno-ai-messages");
+    if (messagesEl) messagesEl.appendChild(userMsg);
+
+    const botMsg = document.createElement("div");
+    botMsg.style.cssText = "background:#f0fdf4;border:1px solid #bbf7d0;padding:10px 12px;border-radius:var(--vno-radius-md);font-size:12px;line-height:1.5;margin-top:8px;";
+    botMsg.innerHTML = `<span style="color:#16a34a;">Đang dịch sang ${langLabel}...</span>`;
+    if (messagesEl) {
+      messagesEl.appendChild(botMsg);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    try {
+      const prompt = `Dịch đoạn văn bản sau sang ${langLabel}. YÊU CẦU:\n- Giữ nguyên định dạng và ý nghĩa gốc\n- Không diễn giải thêm, không bớt nội dung\n- Dịch chính xác, tự nhiên\n\nVăn bản cần dịch:\n${textToTranslate.substring(0, 8000)}`;
+      const res = await LocalAiService.query(prompt, { documentText: textToTranslate, appName: this.appName });
+
+      botMsg.innerHTML = `<div style="font-weight:bold;color:#16a34a;margin-bottom:6px;">✨ ${t("aiAssistant.translateResult", "Kết quả dịch thuật")}</div>`;
+      const replyEl = document.createElement("div");
+      replyEl.style.cssText = "white-space:pre-line;color:var(--vno-text-primary);";
+      replyEl.textContent = res.reply;
+      botMsg.appendChild(replyEl);
+
+      if (selectedText.trim()) {
+        const replaceBtn = document.createElement("button");
+        replaceBtn.className = "vno-btn vno-btn-primary";
+        replaceBtn.style.cssText = "font-size:11px;padding:4px 10px;margin-top:8px;margin-right:6px;display:inline-block;";
+        replaceBtn.textContent = t("aiAssistant.translateReplace", "Thay thế vùng chọn");
+        replaceBtn.addEventListener("click", () => {
+          document.execCommand("insertText", false, res.reply);
+          replaceBtn.textContent = "✓ Đã thay thế";
+          replaceBtn.disabled = true;
+        });
+        botMsg.appendChild(replaceBtn);
+      }
+
+      const insertBtn = document.createElement("button");
+      insertBtn.className = "vno-btn vno-btn-primary";
+      insertBtn.style.cssText = "font-size:11px;padding:4px 10px;margin-top:8px;display:inline-block;";
+      insertBtn.textContent = t("aiAssistant.translateInsertBelow", "Chèn bên dưới");
+      insertBtn.addEventListener("click", () => {
+        document.execCommand("insertText", false, "\n\n" + res.reply + "\n\n");
+        insertBtn.textContent = "✓ Đã chèn";
+        insertBtn.disabled = true;
+      });
+      botMsg.appendChild(insertBtn);
+
+      this.setStatus?.("Đã dịch xong.");
+    } catch (error) {
+      botMsg.textContent = `⚠️ Lỗi dịch thuật: ${error.message}`;
+      this.setStatus?.("Lỗi dịch thuật.");
+    }
+    if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  /** Hiển thị hộp thoại chọn ngôn ngữ dịch */
+  _showTranslateLangDialog() {
+    return new Promise((resolve) => {
+      const overlay = document.createElement("div");
+      overlay.className = "vno-dialog-overlay";
+      const box = document.createElement("div");
+      box.className = "vno-dialog-box";
+      box.style.width = "380px";
+      box.setAttribute("role", "dialog");
+      box.setAttribute("aria-modal", "true");
+
+      const titleId = "vno-translate-title";
+      box.innerHTML = `
+        <div class="vno-dialog-header">
+          <span id="${titleId}">${t("aiAssistant.translateTitle", "Dịch thuật")}</span>
+          <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn">&times;</button>
+        </div>
+        <div class="vno-dialog-body">
+          <p style="margin:0 0 12px;font-size:13px;color:var(--vno-text-primary);">${t("aiAssistant.translateMessage", "Chọn ngôn ngữ đích để dịch đoạn văn bản được chọn.")}</p>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-sm);cursor:pointer;font-size:13px;">
+              <input type="radio" name="vno-translate-lang" value="en" checked> Tiếng Anh (English)
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-sm);cursor:pointer;font-size:13px;">
+              <input type="radio" name="vno-translate-lang" value="vi"> Tiếng Việt
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-sm);cursor:pointer;font-size:13px;">
+              <input type="radio" name="vno-translate-lang" value="zh"> Tiếng Trung (中文)
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-sm);cursor:pointer;font-size:13px;">
+              <input type="radio" name="vno-translate-lang" value="ja"> Tiếng Nhật (日本語)
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-sm);cursor:pointer;font-size:13px;">
+              <input type="radio" name="vno-translate-lang" value="ko"> Tiếng Hàn (한국어)
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-sm);cursor:pointer;font-size:13px;">
+              <input type="radio" name="vno-translate-lang" value="fr"> Tiếng Français
+            </label>
+          </div>
+        </div>
+        <div class="vno-dialog-footer">
+          <button class="vno-btn vno-dialog-cancel-btn">Hủy bỏ</button>
+          <button class="vno-btn vno-btn-primary vno-dialog-ok-btn">Dịch</button>
+        </div>
+      `;
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+
+      const close = (val) => { overlay.remove(); resolve(val); };
+      box.querySelector(".vno-dialog-close-btn").onclick = () => close(null);
+      box.querySelector(".vno-dialog-cancel-btn").onclick = () => close(null);
+      box.querySelector(".vno-dialog-ok-btn").onclick = () => {
+        const checked = box.querySelector("input[name='vno-translate-lang']:checked");
+        close(checked?.value || "en");
+      };
+      overlay.onclick = (e) => { if (e.target === overlay) close(null); };
+      box.querySelector("input[name='vno-translate-lang']:checked")?.focus();
+    });
+  }
+
+  /** AI Viết nháp — mở hộp thoại nhập mô tả, gọi AI, chèn kết quả */
+  async _handleDraftDocument() {
+    const description = await showPromptDialog({
+      title: t("aiAssistant.draftTitle", "AI Viết nháp"),
+      message: t("aiAssistant.draftMessage", "Mô tả nội dung bạn muốn AI soạn thảo."),
+      placeholder: t("aiAssistant.draftPlaceholder", "Mô tả yêu cầu viết nháp..."),
+      defaultValue: "",
+      confirmText: "Tạo nháp",
+      cancelText: "Hủy"
+    });
+
+    if (!description || !description.trim()) return;
+
+    const docText = this.editorContainer.innerText || "";
+    this.setStatus?.("Đang tạo bản nháp...");
+    this.toggleAiSidebar(true);
+
+    const userMsg = document.createElement("div");
+    userMsg.style.cssText = "background:var(--vno-bg-hover);border:1px solid var(--vno-border-default);padding:8px 12px;border-radius:var(--vno-radius-md);font-size:12px;margin-top:10px;line-height:1.5;";
+    userMsg.innerHTML = `<strong>Bạn:</strong> ${description.replace(/</g, "&lt;").replace(/>/g, "&gt;")}`;
+    const messagesEl = this.aiSidebar.querySelector("#vno-ai-messages");
+    if (messagesEl) messagesEl.appendChild(userMsg);
+
+    const botMsg = document.createElement("div");
+    botMsg.style.cssText = "background:#f0fdf4;border:1px solid #bbf7d0;padding:10px 12px;border-radius:var(--vno-radius-md);font-size:12px;line-height:1.5;margin-top:8px;";
+    botMsg.innerHTML = `<span style="color:#16a34a;">Đang soạn thảo bản nháp...</span>`;
+    if (messagesEl) {
+      messagesEl.appendChild(botMsg);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    try {
+      const prompt = `Tạo bản nháp văn bản hành chính tiếng Việt theo yêu cầu sau. YÊU CẦU:\n- Cấu trúc phù hợp loại văn bản (tiêu đề, kính gửi, nội dung, ký tên nếu là thư/công văn)\n- Ngôn ngữ hành chính trang trọng tiếng Việt\n- Đầy đủ ý, rõ ràng\n\nYêu cầu: ${description.trim()}\n\n${docText.trim() ? `Nội dung tài liệu hiện tại:\n${docText.trim().substring(0, 4000)}` : "(Tài liệu trống — tạo mới)"}`;
+      const res = await LocalAiService.query(prompt, { documentText: docText, appName: this.appName });
+
+      botMsg.innerHTML = `<div style="font-weight:bold;color:#16a34a;margin-bottom:6px;">✨ ${t("aiAssistant.draftTitle", "AI Viết nháp")}</div>`;
+      const warningEl = document.createElement("div");
+      warningEl.style.cssText = "background:#fef3c7;border:1px solid #fcd34d;border-radius:var(--vno-radius-sm);padding:6px 8px;font-size:11px;margin-bottom:8px;color:#92400e;";
+      warningEl.textContent = `⚠ ${t("aiAssistant.draftWarning", "Đây là bản nháp do AI tạo — vui lòng tự kiểm tra lại nội dung trước khi sử dụng.")}`;
+      botMsg.appendChild(warningEl);
+
+      const replyEl = document.createElement("div");
+      replyEl.style.cssText = "white-space:pre-line;color:var(--vno-text-primary);";
+      replyEl.textContent = res.reply;
+      botMsg.appendChild(replyEl);
+
+      const insertBtn = document.createElement("button");
+      insertBtn.className = "vno-btn vno-btn-primary";
+      insertBtn.style.cssText = "font-size:11px;padding:4px 10px;margin-top:8px;display:inline-block;";
+      insertBtn.textContent = docText.trim() ? "Chèn tại vị trí con trỏ" : "Chèn vào tài liệu";
+      insertBtn.addEventListener("click", () => {
+        document.execCommand("insertText", false, "\n\n" + res.reply + "\n\n");
+        insertBtn.textContent = "✓ Đã chèn";
+        insertBtn.disabled = true;
+      });
+      botMsg.appendChild(insertBtn);
+
+      this.setStatus?.("Đã tạo bản nháp xong.");
+    } catch (error) {
+      botMsg.textContent = `⚠️ Lỗi tạo nháp: ${error.message}`;
+      this.setStatus?.("Lỗi tạo bản nháp.");
     }
     if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
   }
