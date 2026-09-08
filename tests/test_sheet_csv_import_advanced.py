@@ -90,6 +90,69 @@ class SheetCsvImportAdvancedTests(unittest.TestCase):
                 self.assertEqual(result, str(expected_output))
                 self.assertFalse(any(arg.startswith("--infilter=") for arg in command), command)
 
+    def test_delimiter_detection_with_leading_description_rows(self):
+        """csv.Sniffer must not mis-detect delimiter when description rows precede the header."""
+        cases = [
+            # Semicolon file with description rows (no semicolons in descriptions)
+            (
+                "vn_bank.csv",
+                (
+                    "Bao cao giao dich ngay 01/04/2026\r\n"
+                    "So tai khoan: 123456789\r\n"
+                    "\r\n"
+                    "Ngay giao dich;Mo ta;So tien;So du\r\n"
+                    "01/04/2026;Chuyen tien;500000;10500000\r\n"
+                ).encode("utf-8"),
+                "59",  # semicolon
+            ),
+            # Tab file with description rows
+            (
+                "tab_desc.csv",
+                "Mo ta file\r\nSo dong: 2\r\nSTT\tTen\tGia\r\n1\tA\t100\r\n".encode("utf-8"),
+                "9",  # tab
+            ),
+        ]
+        with tempfile.TemporaryDirectory(prefix="vno_csv_desc_") as tmp:
+            for name, payload, expected_delim_code in cases:
+                path = Path(tmp, name)
+                path.write_bytes(payload)
+                _, options = main._detect_csv_import_options(str(path))
+                self.assertTrue(
+                    options.startswith(expected_delim_code),
+                    f"{name}: expected delimiter code {expected_delim_code}, got {options}",
+                )
+
+    def test_us_number_format_detects_english_locale(self):
+        """US-style decimal numbers (1234.56 or 1,234.56) should trigger English locale."""
+        cases = [
+            ("us_simple.csv", b"Name,Amount\nItem1,1234.56\n", True),
+            ("us_grouped.csv", b'Name,Amount\nItem1,"1,234.56"\n', True),
+            ("vn_grouped.csv", "Name;Amount\nItem1;1.234,56\n".encode("utf-8"), False),
+            ("vn_no_decimal.csv", "Name,Amount\nItem1,85.000\n".encode("utf-8"), False),
+        ]
+        with tempfile.TemporaryDirectory(prefix="vno_csv_usnum_") as tmp:
+            for name, payload, expect_us in cases:
+                path = Path(tmp, name)
+                path.write_bytes(payload)
+                _, options = main._detect_csv_import_options(str(path))
+                # Language code is the 6th token (index 5)
+                lang = options.split(",")[5]
+                if expect_us:
+                    self.assertEqual(lang, "1033", f"{name}: expected English (1033), got lang={lang}")
+                else:
+                    self.assertEqual(lang, "1066", f"{name}: expected Vietnamese (1066), got lang={lang}")
+
+    def test_looks_like_us_numbers_unit(self):
+        """Unit test for _looks_like_us_numbers heuristic."""
+        self.assertTrue(main._looks_like_us_numbers("1234.56", ","))
+        self.assertTrue(main._looks_like_us_numbers('"1,234.56"', ","))
+        self.assertFalse(main._looks_like_us_numbers("1.234,56", ";"))
+        self.assertFalse(main._looks_like_us_numbers("85.000", ","))
+        # Mixed: more VN than US → returns False
+        self.assertFalse(
+            main._looks_like_us_numbers("1234.56 and 1.234,56 and 2.345,67", ";")
+        )
+
     @unittest.skipUnless(main.SOFFICE_PATH, "LibreOffice soffice is not installed")
     def test_real_soffice_import_preserves_columns_vietnamese_and_number(self):
         cases = [
