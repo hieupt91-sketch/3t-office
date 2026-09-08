@@ -713,6 +713,23 @@ export const WRITER_HELP_ENTRIES = [
       "Sau khi lưu thành công, thông báo xác nhận sẽ hiển thị, tên tệp trên thanh tab tiêu đề sẽ được cập nhật đồng bộ và tài liệu được ghi vào danh sách Tệp gần đây.",
       "Lưu ý: Chức năng Lưu tệp thật yêu cầu ứng dụng VN Office Desktop có kết nối công cụ LibreOffice Core; khi chạy trên trình duyệt dev, hệ thống sẽ hiện hộp thoại thông báo hướng dẫn rõ ràng."
     ]
+  },
+  {
+    id: "writer.accessibility.keyboardNav",
+    app: "writer",
+    commandIds: ["common.file.backstage", "writer.format.bold", "writer.format.italic", "writer.format.underline"],
+    title: "Điều hướng bằng bàn phím và trợ năng (VN Writer)",
+    summary: "Thao tác hoàn toàn bằng bàn phím không cần dùng chuột: mở menu Tệp (Alt+F), chuyển tab Ribbon bằng phím mũi tên Trái/Phải, di chuyển giữa các nút bằng Tab, bẫy tiêu điểm trong các hộp thoại (Tab/Shift+Tab) và đóng bằng Escape khôi phục tiêu điểm.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Trợ năng" },
+    keywords: ["bàn phím", "phím tắt", "trợ năng", "accessibility", "keyboard", "focus", "alt+f", "esc", "tab", "mũi tên"],
+    steps: [
+      "Mở menu Tệp (Backstage) bằng phím tắt Alt+F: Menu toàn màn hình mở ra với tiêu điểm tự động đặt vào nút 'Quay lại'. Dùng mũi tên Lên/Xuống để duyệt danh sách lệnh (Mới, Mở, Lưu, In...), dùng mũi tên Phải để đi vào các thẻ mẫu văn bản, và nhấn Escape để đóng menu trở về vùng soạn thảo.",
+      "Chuyển tab trên thanh Ribbon: Nhấn Tab cho đến khi tiêu điểm nằm trên dải tab Ribbon, sau đó dùng phím mũi tên Trái (ArrowLeft) hoặc Phải (ArrowRight) để chuyển tab qua lại. Phím Home nhảy về tab Trang đầu, phím End nhảy tới tab cuối cùng. Dùng phím mũi tên Trái từ tab đầu tiên để đi sang nút 'Tệp'.",
+      "Duyệt các nút lệnh trên Ribbon: Nhấn phím Tab để di chuyển tiêu điểm tuần tự qua từng nhóm và nút lệnh trên thanh Ribbon. Mọi nút lệnh nhận tiêu điểm đều hiển thị viền focus rõ ràng (chuẩn tương phản WCAG 2.1 AA). Nhấn Enter hoặc Space để kích hoạt lệnh.",
+      "Thao tác trong hộp thoại và bẫy tiêu điểm (Focus Trap): Khi mở các hộp thoại như Thiết lập trang, Chèn cột, Thủy ấn hoặc Trộn thư, tiêu điểm bàn phím được bẫy hoàn toàn bên trong hộp thoại (phím Tab và Shift+Tab chỉ xoay vòng giữa các điều khiển hợp lệ của hộp thoại, không bị rơi ra ngoài nền). Nhấn Escape để đóng hộp thoại bất kỳ lúc nào và tự động khôi phục tiêu điểm về nút đã mở.",
+      "Soạn thảo văn bản và phím tắt định dạng: Nhập văn bản trực tiếp trong vùng soạn thảo trang giấy. Sử dụng các tổ hợp phím tắt chuẩn như Ctrl+B (chữ đậm), Ctrl+I (chữ nghiêng), Ctrl+U (gạch chân), Ctrl+Z (hoàn tác), Ctrl+Y (làm lại)."
+    ]
   }
 ];
+
 

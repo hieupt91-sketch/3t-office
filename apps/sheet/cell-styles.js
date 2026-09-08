@@ -6,20 +6,24 @@
 import { t } from "../../platform/i18n/i18n.js";
 
 function trapFocus(element, event) {
-  if (event.key !== "Tab") return;
-  const focusables = element.querySelectorAll(
-    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-  );
+  if (event.key !== "Tab" || !element) return;
+  const focusables = Array.from(element.querySelectorAll(
+    'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    '[href], input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+
   if (!focusables || focusables.length === 0) return;
   const first = focusables[0];
   const last = focusables[focusables.length - 1];
+
   if (event.shiftKey) {
-    if (document.activeElement === first) {
+    if (document.activeElement === first || !element.contains(document.activeElement)) {
       event.preventDefault();
       last.focus();
     }
   } else {
-    if (document.activeElement === last) {
+    if (document.activeElement === last || !element.contains(document.activeElement)) {
       event.preventDefault();
       first.focus();
     }
