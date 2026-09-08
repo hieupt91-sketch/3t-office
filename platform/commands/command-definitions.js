@@ -43,6 +43,9 @@ export const COMMON_COMMANDS = [
   { id: "ai.assistant.summarize", category: "ai", label: "Tóm tắt nhanh", icon: "aiSummarize", tooltip: "Tóm tắt nội dung vùng chọn bằng AI" },
   { id: "ai.assistant.rewrite", category: "ai", label: "Viết lại", icon: "aiRewrite", tooltip: "Viết lại câu từ chuẩn văn phong tiếng Việt" },
   { id: "ai.assistant.grammarCheck", category: "ai", label: "Soát lỗi chính tả", shortcut: "F7", icon: "aiGrammar", tooltip: "Kiểm tra chính tả và ngữ pháp tiếng Việt (F7)" },
+  { id: "ai.voice.input", category: "ai", label: "Nhập liệu bằng giọng nói", icon: "voiceInput", tooltip: "Nhập liệu bằng giọng nói tiếng Việt qua microphone" },
+  { id: "ai.assistant.summarizeMeeting", category: "ai", label: "Tóm tắt cuộc họp", icon: "aiMeeting", tooltip: "Tóm tắt ghi chép cuộc họp thành điểm chính, quyết định, việc cần làm" },
+  { id: "ai.assistant.smartSearch", category: "ai", label: "Tìm kiếm thông minh", icon: "aiSearch", tooltip: "Tìm kiếm nội dung bằng ngôn ngữ tự nhiên bằng AI" },
 
   // Macro (ghi & phát lại thao tác — cơ bản, không phải ngôn ngữ script)
   { id: "common.macro.recordToggle", category: "macro", label: "Ghi Macro", shortcut: "Ctrl+Shift+R", icon: "macroRecordStart", tooltip: "Bắt đầu/Dừng ghi lại thao tác thành Macro (Ctrl+Shift+R)", isToggle: true },

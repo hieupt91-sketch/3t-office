@@ -745,6 +745,56 @@ export const WRITER_HELP_ENTRIES = [
       "Xem và chạy Macro: Mở tab Chế độ xem, nhấn «Xem Macro» (hoặc nhấn Alt+F8) để mở hộp thoại Quản lý Macro. Tại đây bạn có thể nhấn nút «▶ Chạy» để phát lại các thao tác đã ghi, «Đổi tên» để cập nhật tên gọi, hoặc «Xóa» để gỡ bỏ Macro không dùng nữa.",
       "Giới hạn trung thực: Macro cơ bản chỉ ghi lại các thao tác đi qua hệ thống lệnh (Command Bus) như định dạng, chèn bảng, đổi bố cục... Macro KHÔNG ghi lại nội dung gõ chữ tự do từ bàn phím vào trang soạn thảo (do đây là nhập liệu trực tiếp của trình duyệt). Nếu trong chuỗi ghi có bước mở hộp thoại cần người dùng tương tác, Macro sẽ tạm dừng tại hộp thoại đó chờ bạn thao tác. Macro được lưu trữ riêng biệt theo từng ứng dụng (Writer, Sheet, Slides) và không dùng chéo giữa các ứng dụng."
     ]
+  },
+  {
+    id: "writer.ai.voiceInput",
+    app: "writer",
+    commandIds: ["ai.voice.input"],
+    title: "Nhập liệu bằng giọng nói (Voice Input)",
+    summary: "Nhập văn bản vào tài liệu bằng giọng nói tiếng Việt qua microphone. Dùng Web Speech API tích hợp sẵn trong trình duyệt — không cần cài thêm phần mềm. Nhận dạng giọng nói được xử lý cục bộ trong WebView2, không gửi dữ liệu ra ngoài.",
+    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "AI Thông minh" },
+    keywords: ["giọng nói", "voice input", "speech to text", "nhập liệu", "microphone", "micro", "nhận dạng giọng", "nói", "vi-VN"],
+    steps: [
+      "Mở tab Trợ lý VN AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Nhập liệu bằng giọng nói».",
+      "Nếu đây là lần đầu tiên sử dụng, trình duyệt sẽ hỏi quyền truy cập microphone — nhấn Cho phép.",
+      "Trạng thái «Đang lắng nghe — hãy nói vào microphone...» sẽ hiển thị trên thanh trạng thái dưới cùng màn hình.",
+      "Nói rõ ràng nội dung cần nhập. Văn bản nhận dạng được sẽ tự động chèn vào vị trí con trỏ hiện tại trong tài liệu.",
+      "Để dừng nhập liệu, nhấn lại nút «Nhập liệu bằng giọng nói» trên ribbon. Trạng thái sẽ chuyển thành «Đã dừng lắng nghe».",
+      "Lưu ý: Tính năng này yêu cầu microphone và kết nối internet (do Web Speech API sử dụng dịch vụ nhận dạng của Google/Chromium). Nếu không có quyền truy cập microphone hoặc trình duyệt không hỗ trợ, sẽ hiển thị thông báo lỗi rõ ràng bằng tiếng Việt."
+    ]
+  },
+  {
+    id: "writer.ai.meetingSummary",
+    app: "writer",
+    commandIds: ["ai.assistant.summarizeMeeting"],
+    title: "Tóm tắt cuộc họp (Meeting Summary)",
+    summary: "Tóm tắt nội dung ghi chép/transcript cuộc họp thành cấu trúc rõ ràng: Điểm chính, Quyết định, Việc cần làm (kèm người phụ trách). Khác với Tóm tắt nhanh (tóm tắt tài liệu hiện tại), tính năng này cho phép dán nội dung ghi chép từ nguồn bên ngoài vào hộp thoại để AI xử lý.",
+    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "AI Thông minh" },
+    keywords: ["tóm tắt cuộc họp", "meeting summary", "ghi chép", "transcript", "điểm chính", "quyết định", "việc cần làm", "action items"],
+    steps: [
+      "Mở tab Trợ lý VN AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Tóm tắt cuộc họp».",
+      "Hộp thoại «Tóm tắt cuộc họp» xuất hiện. Dán hoặc nhập nội dung ghi chép/transcript cuộc họp vào ô văn bản.",
+      "Nhấn nút «Tóm tắt» để bắt đầu xử lý. AI sẽ phân tích nội dung và tạo bản tóm tắt có cấu trúc với 3 phần: Điểm chính, Quyết định, Việc cần làm.",
+      "Kết quả tóm tắt hiển thị trong bảng Trợ lý VN AI bên phải. Nhấn «Chèn vào tài liệu» để thêm nội dung tóm tắt vào vị trí con trỏ trong tài liệu.",
+      "Nếu chưa kết nối AI cloud nào (chỉ dùng chế độ quy tắc cục bộ), tính năng sẽ hoạt động ở mức cơ bản. Để có kết quả tóm tắt chính xác hơn, vui lòng kết nối OpenAI, Gemini hoặc Claude trong phần cài đặt AI trên thanh Trợ lý VN AI."
+    ]
+  },
+  {
+    id: "writer.ai.smartSearch",
+    app: "writer",
+    commandIds: ["ai.assistant.smartSearch"],
+    title: "Tìm kiếm thông minh (Smart Search)",
+    summary: "Tìm kiếm nội dung trong tài liệu bằng ngôn ngữ tự nhiên thay vì chỉ tìm chuỗi chính xác như Ctrl+F. AI sẽ phân tích câu hỏi và tìm các đoạn văn bản liên quan nhất trong tài liệu.",
+    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "AI Thông minh" },
+    keywords: ["tìm kiếm thông minh", "smart search", "tìm kiếm AI", "ngôn ngữ tự nhiên", "natural language search", "tìm đoạn"],
+    steps: [
+      "Mở tab Trợ lý VN AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Tìm kiếm thông minh».",
+      "Hộp thoại «Tìm kiếm thông minh» xuất hiện. Nhập câu hỏi tìm kiếm bằng ngôn ngữ tự nhiên, ví dụ: «tìm đoạn nói về ngân sách quý 2» hoặc «tìm phần thảo luận về nhân sự».",
+      "Nhấn nút «Tìm kiếm» để bắt đầu. AI sẽ phân tích nội dung tài liệu và tìm các đoạn liên quan đến câu hỏi.",
+      "Kết quả hiển thị trong bảng Trợ lý VN AI bên phải, bao gồm các đoạn văn bản tìm thấy và vị trí trong tài liệu.",
+      "Nếu tài liệu trống hoặc không tìm thấy nội dung phù hợp, hệ thống sẽ thông báo rõ ràng.",
+      "Lưu ý: Tính năng này hoạt động tốt nhất với tài liệu có nội dung dài. Kết quả phụ thuộc vào AI provider đang dùng — kết nối AI cloud (OpenAI/Gemini/Claude) sẽ cho kết quả chính xác hơn chế độ quy tắc cục bộ."
+    ]
   }
 ];
 

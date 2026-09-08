@@ -11,7 +11,8 @@ import { OFFICE_TEMPLATES } from "../templates/template-registry.js";
 import { RecentFilesManager } from "../recent/recent-manager.js";
 import { createEmptyState } from "../ui-kit/components.js";
 import { LocalAiService, ApiKeyManager } from "../ai/ai-service.js";
-import { showAlertDialog, showPromptDialog, showMacroManagerDialog } from "../ui-kit/dialogs.js";
+import { isVoiceInputSupported, startVoiceInput, stopVoiceInput, isVoiceInputActive } from "../ai/voice-input.js";
+import { showAlertDialog, showConfirmDialog, showPromptDialog, showMacroManagerDialog } from "../ui-kit/dialogs.js";
 import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
 import { getPlatformLaunchContext } from "../bootstrap.js";
 import { themeManager } from "../theme/theme-manager.js";
@@ -1240,6 +1241,24 @@ export class AppShell {
       return true;
     });
 
+    // Voice Input — Nhập liệu bằng giọng nói
+    globalCommandBus.bindHandler("ai.voice.input", () => {
+      this._handleVoiceInput();
+      return true;
+    });
+
+    // Meeting Summary — Tóm tắt cuộc họp
+    globalCommandBus.bindHandler("ai.assistant.summarizeMeeting", () => {
+      this._handleMeetingSummary();
+      return true;
+    });
+
+    // Smart Search — Tìm kiếm thông minh
+    globalCommandBus.bindHandler("ai.assistant.smartSearch", () => {
+      this._handleSmartSearch();
+      return true;
+    });
+
     // Macro: ghi/dừng ghi, quản lý, chạy (Ctrl+Shift+R bật/tắt ghi).
     globalCommandBus.bindHandler("common.macro.recordToggle", async () => {
       if (!globalMacroManager.isRecording()) {
@@ -1289,6 +1308,159 @@ export class AppShell {
         onDelete: (id) => globalMacroManager.deleteMacro(id)
       });
     });
+  }
+
+  /** Nhập liệu bằng giọng nói — toggle bắt đầu/dừng */
+  _handleVoiceInput() {
+    if (!isVoiceInputSupported()) {
+      showAlertDialog({
+        title: "Nhập liệu bằng giọng nói",
+        message: "Trình duyệt hiện tại không hỗ trợ nhận dạng giọng nói.\n\nVui lòng dùng Microsoft Edge hoặc Google Chrome trên Windows để sử dụng tính năng này.",
+        type: "warning"
+      });
+      return;
+    }
+
+    if (isVoiceInputActive()) {
+      stopVoiceInput();
+      this.setStatus?.("Đã dừng nhập liệu bằng giọng nói.");
+      return;
+    }
+
+    startVoiceInput({
+      lang: "vi-VN",
+      onStatus: (msg) => this.setStatus?.(msg),
+      onResult: (text) => {
+        document.execCommand("insertText", false, text);
+      },
+      onEnd: () => {
+        this.setStatus?.("Đã dừng nhập liệu bằng giọng nói.");
+      },
+      onError: (msg) => {
+        showAlertDialog({
+          title: "Lỗi nhập liệu giọng nói",
+          message: msg,
+          type: "error"
+        });
+      }
+    });
+  }
+
+  /** Tóm tắt cuộc họp — mở hộp thoại nhập transcript, gọi AI, chèn kết quả */
+  async _handleMeetingSummary() {
+    const transcript = await showPromptDialog({
+      title: "Tóm tắt cuộc họp",
+      message: "Dán hoặc nhập nội dung ghi chép/transcript cuộc họp vào bên dưới. AI sẽ tóm tắt thành: Điểm chính, Quyết định, Việc cần làm.",
+      placeholder: "Dán nội dung ghi chép cuộc họp tại đây...",
+      defaultValue: "",
+      confirmText: "Tóm tắt",
+      cancelText: "Hủy"
+    });
+
+    if (!transcript || !transcript.trim()) return;
+
+    this.setStatus?.("Đang tóm tắt cuộc họp...");
+    this.toggleAiSidebar(true);
+
+    const userMsg = document.createElement("div");
+    userMsg.style.cssText = "background:var(--vno-bg-hover);border:1px solid var(--vno-border-default);padding:8px 12px;border-radius:var(--vno-radius-md);font-size:12px;margin-top:10px;line-height:1.5;";
+    userMsg.innerHTML = `<strong>Bạn:</strong> Tóm tắt cuộc họp`;
+    const messagesEl = this.aiSidebar.querySelector("#vno-ai-messages");
+    if (messagesEl) messagesEl.appendChild(userMsg);
+
+    const botMsg = document.createElement("div");
+    botMsg.style.cssText = "background:#f0fdf4;border:1px solid #bbf7d0;padding:10px 12px;border-radius:var(--vno-radius-md);font-size:12px;line-height:1.5;margin-top:8px;";
+    botMsg.innerHTML = `<span style="color:#16a34a;">Đang phân tích nội dung cuộc họp...</span>`;
+    if (messagesEl) {
+      messagesEl.appendChild(botMsg);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    try {
+      const prompt = `Tóm tắt cuộc họp sau thành cấu trúc rõ ràng. YÊU CẦU BẮT BUỘC:\n1. **ĐIỂM CHÍNH**: Liệt kê các vấn đề chính được bàn luận\n2. **QUYẾT ĐỊNH**: Các quyết định đã được đưa ra\n3. **VIỆC CẦN LÀM**: Các action items, ghi rõ người phụ trách nếu có\n\nNội dung ghi chép cuộc họp:\n${transcript.trim()}`;
+      const res = await LocalAiService.query(prompt, { documentText: transcript.trim(), appName: this.appName });
+
+      botMsg.innerHTML = `<div style="font-weight:bold;color:#16a34a;margin-bottom:6px;">✨ Tóm tắt cuộc họp</div>`;
+      const replyEl = document.createElement("div");
+      replyEl.style.cssText = "white-space:pre-line;color:var(--vno-text-primary);";
+      replyEl.textContent = res.reply;
+      botMsg.appendChild(replyEl);
+
+      const applyBtn = document.createElement("button");
+      applyBtn.className = "vno-btn vno-btn-primary";
+      applyBtn.style.cssText = "font-size:11px;padding:4px 10px;margin-top:8px;display:inline-block;";
+      applyBtn.textContent = "Chèn vào tài liệu";
+      applyBtn.addEventListener("click", () => {
+        document.execCommand("insertText", false, "\n\n" + res.reply + "\n\n");
+        applyBtn.textContent = "✓ Đã chèn";
+        applyBtn.disabled = true;
+      });
+      botMsg.appendChild(applyBtn);
+
+      this.setStatus?.("Đã tóm tắt cuộc họp.");
+    } catch (error) {
+      botMsg.textContent = `⚠️ Lỗi tóm tắt: ${error.message}`;
+      this.setStatus?.("Lỗi tóm tắt cuộc họp.");
+    }
+    if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  /** Tìm kiếm thông minh — mở hộp thoại nhập câu hỏi, gọi AI, hiển thị kết quả */
+  async _handleSmartSearch() {
+    const question = await showPromptDialog({
+      title: "Tìm kiếm thông minh",
+      message: "Nhập câu hỏi tìm kiếm bằng ngôn ngữ tự nhiên. AI sẽ tìm trong nội dung tài liệu và hiển thị các đoạn liên quan.",
+      placeholder: "Ví dụ: tìm đoạn nói về ngân sách quý 2...",
+      defaultValue: "",
+      confirmText: "Tìm kiếm",
+      cancelText: "Hủy"
+    });
+
+    if (!question || !question.trim()) return;
+
+    const docText = this.editorContainer.innerText || "";
+    if (!docText.trim()) {
+      await showAlertDialog({
+        title: "Tìm kiếm thông minh",
+        message: "Tài liệu hiện đang trống. Vui lòng mở hoặc soạn thảo nội dung trước khi tìm kiếm.",
+        type: "warning"
+      });
+      return;
+    }
+
+    this.setStatus?.("Đang tìm kiếm thông minh...");
+    this.toggleAiSidebar(true);
+
+    const userMsg = document.createElement("div");
+    userMsg.style.cssText = "background:var(--vno-bg-hover);border:1px solid var(--vno-border-default);padding:8px 12px;border-radius:var(--vno-radius-md);font-size:12px;margin-top:10px;line-height:1.5;";
+    userMsg.innerHTML = `<strong>Bạn:</strong> ${question.replace(/</g, "&lt;").replace(/>/g, "&gt;")}`;
+    const messagesEl = this.aiSidebar.querySelector("#vno-ai-messages");
+    if (messagesEl) messagesEl.appendChild(userMsg);
+
+    const botMsg = document.createElement("div");
+    botMsg.style.cssText = "background:#eff6ff;border:1px solid #bfdbfe;padding:10px 12px;border-radius:var(--vno-radius-md);font-size:12px;line-height:1.5;margin-top:8px;";
+    botMsg.innerHTML = `<span style="color:#2563eb;">Đang tìm kiếm trong tài liệu...</span>`;
+    if (messagesEl) {
+      messagesEl.appendChild(botMsg);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    try {
+      const prompt = `Tìm kiếm trong nội dung tài liệu bên dưới và trả lời câu hỏi của người dùng. YÊU CẦU:\n- Trích xuất các đoạn văn bản liên quan nhất tìm thấy trong tài liệu\n- Chỉ rõ vị trí (đoạn nào, nội dung gì)\n- Nếu không tìm thấy, nói rõ\n\nCâu hỏi: ${question.trim()}\n\nNội dung tài liệu:\n${docText.trim().substring(0, 8000)}`;
+      const res = await LocalAiService.query(prompt, { documentText: docText, appName: this.appName });
+
+      botMsg.innerHTML = `<div style="font-weight:bold;color:#2563eb;margin-bottom:6px;">🔍 Kết quả tìm kiếm: "${question.trim()}"</div>`;
+      const replyEl = document.createElement("div");
+      replyEl.style.cssText = "white-space:pre-line;color:var(--vno-text-primary);";
+      replyEl.textContent = res.reply;
+      botMsg.appendChild(replyEl);
+
+      this.setStatus?.("Đã tìm xong.");
+    } catch (error) {
+      botMsg.textContent = `⚠️ Lỗi tìm kiếm: ${error.message}`;
+      this.setStatus?.("Lỗi tìm kiếm thông minh.");
+    }
+    if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
   setEditorCanvas(element) {
