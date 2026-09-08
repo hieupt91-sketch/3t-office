@@ -411,7 +411,7 @@ def _ooxml_zip_patch():
     return _OOXML_ZIP_PATCH
 
 
-def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str | None, target_format: str) -> None:
+def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str | None, target_format: str, source_path: str | None = None) -> None:
     """Patch native OOXML that LibreOffice omitted, after soffice convert.
 
     Why here (main.py), not the JS adapters: File → Lưu serializes FODS/FODP in
@@ -484,6 +484,25 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
         except Exception as exc:
             raise DocumentEngineError(
                 f"Không bổ sung được thuộc tính native PPTX (khổ trang / logo / Sections / Set Up Show): {exc}"
+            ) from exc
+    if app_kind == "writer" and fmt == "docx":
+        if not source_path or not os.path.isfile(source_path):
+            return
+        try:
+            with open(source_path, "rb") as handle:
+                original_docx = handle.read()
+            with open(out_path, "rb") as handle:
+                converted_docx = handle.read()
+            patcher = _ooxml_zip_patch()
+            patched = patcher.postprocess_writer_docx(converted_docx, source_docx=original_docx)
+            if patched != converted_docx:
+                with open(out_path, "wb") as handle:
+                    handle.write(patched)
+        except DocumentEngineError:
+            raise
+        except Exception as exc:
+            raise DocumentEngineError(
+                f"Không khôi phục được section/header/footer cho DOCX: {exc}"
             ) from exc
 
 
@@ -863,7 +882,7 @@ class VnOfficeApi:
                 payload["ooxmlPresPropsXml"] = pres_props_xml
         return payload
 
-    def save_document_dialog(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu"):
+    def save_document_dialog(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu", source_path=None):
         """Mở hộp thoại lưu tệp NATIVE thật, chuyển đổi nội dung soạn thảo hiện tại
         sang định dạng Office/ODF thật và ghi ra đĩa thật."""
         window = _active_window()
@@ -901,16 +920,16 @@ class VnOfficeApi:
                     return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
 
                 out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
-                _apply_native_export_postprocess(src_path, out_path, app_kind, target_format)
+                _apply_native_export_postprocess(src_path, out_path, app_kind, target_format, source_path=source_path)
                 shutil.copyfile(out_path, dest_path)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
 
         return {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
 
-    def export_pdf_dialog(self, content, app_kind="writer", suggested_name="TaiLieu"):
+    def export_pdf_dialog(self, content, app_kind="writer", suggested_name="TaiLieu", source_path=None):
         return self.save_document_dialog(
-            content, app_kind=app_kind, target_format="pdf", suggested_name=suggested_name
+            content, app_kind=app_kind, target_format="pdf", suggested_name=suggested_name, source_path=source_path
         )
 
 

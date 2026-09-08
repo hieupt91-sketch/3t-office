@@ -7166,7 +7166,7 @@ export class WriterAdapter {
     const suggestedName = (this.sourceFileName && this.sourceFileName !== "TaiLieu")
       ? this.sourceFileName
       : (this.shell?.documentName ? this.shell.documentName.replace(/\.[^/.]+$/, "") : (this.sourceFileName || "TaiLieu"));
-    const result = await globalUnoBridge.saveRealFile("writer", this._contentForExport(), "docx", suggestedName);
+    const result = await globalUnoBridge.saveRealFile("writer", this._contentForExport(), "docx", suggestedName, this._sourcePath || null);
     if (result.status === "ok") {
       this.isDirty = false;
       const savedPath = result.path || result.fileName;
@@ -7196,6 +7196,7 @@ export class WriterAdapter {
     const result = await globalUnoBridge.openRealFile("writer");
     if (result.status === "ok") {
       this._initZones();
+      this._sourcePath = result.sourcePath || null;
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
       this.comments = [];
       this.trackChangesEnabled = false;
@@ -7256,6 +7257,7 @@ export class WriterAdapter {
    */
   async newDocument() {
     this._initZones();
+    this._sourcePath = null;
     this.comments = [];
     this.trackChangesEnabled = false;
     this.activeCommentId = null;

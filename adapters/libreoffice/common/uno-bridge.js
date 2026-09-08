@@ -113,15 +113,16 @@ export class UnoBridge {
    * @param {string} content
    * @param {string} [targetFormat]
    * @param {string} [suggestedName]
+   * @param {string} [sourcePath]
    */
-  async saveRealFile(appKind, content, targetFormat, suggestedName) {
+  async saveRealFile(appKind, content, targetFormat, suggestedName, sourcePath) {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
         message: "Chức năng Lưu tệp thật chỉ khả dụng trong VN Office Desktop App (đã cài LibreOffice).",
       };
     }
-    return await this.desktopApi.save_document_dialog(content, appKind, targetFormat, suggestedName);
+    return await this.desktopApi.save_document_dialog(content, appKind, targetFormat, suggestedName, sourcePath);
   }
 
   /**
