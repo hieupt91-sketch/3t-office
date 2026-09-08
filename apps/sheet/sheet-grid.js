@@ -366,6 +366,8 @@ export class SheetGridController {
 
     const table = document.createElement("table");
     table.className = "vno-grid-table";
+    table.setAttribute("role", "grid");
+    table.setAttribute("aria-label", "Lưới bảng tính");
     this.table = table;
     this._applyViewState();
 

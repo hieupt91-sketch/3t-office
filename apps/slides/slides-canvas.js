@@ -400,6 +400,9 @@ export class SlidesCanvasController {
     this.titleEl.className = "vno-slide-title";
     this.titleEl.contentEditable = "true";
     this.titleEl.spellcheck = false;
+    this.titleEl.setAttribute("role", "textbox");
+    this.titleEl.setAttribute("aria-label", "Tiêu đề trang chiếu");
+    this.titleEl.setAttribute("aria-multiline", "false");
 
     this.bodyRowEl = document.createElement("div");
     this.bodyRowEl.className = "vno-slide-body-row";
@@ -408,11 +411,17 @@ export class SlidesCanvasController {
     this.bodyEl.className = "vno-slide-body";
     this.bodyEl.contentEditable = "true";
     this.bodyEl.spellcheck = false;
+    this.bodyEl.setAttribute("role", "textbox");
+    this.bodyEl.setAttribute("aria-label", "Nội dung trang chiếu");
+    this.bodyEl.setAttribute("aria-multiline", "true");
 
     this.body2El = document.createElement("div");
     this.body2El.className = "vno-slide-body vno-slide-body-col2 vno-slide-body-col-2";
     this.body2El.contentEditable = "true";
     this.body2El.spellcheck = false;
+    this.body2El.setAttribute("role", "textbox");
+    this.body2El.setAttribute("aria-label", "Nội dung trang chiếu cột 2");
+    this.body2El.setAttribute("aria-multiline", "true");
     this.body2El.style.display = "none";
 
     this.bodyRowEl.appendChild(this.bodyEl);

@@ -39,6 +39,8 @@ export class SlidesApp {
 
     const workspace = document.createElement("div");
     workspace.className = "vno-slides-workspace";
+    workspace.setAttribute("role", "application");
+    workspace.setAttribute("aria-label", "Trình soạn thảo trang chiếu");
 
     const studioWrap = document.createElement("div");
     studioWrap.style.flex = "1 1 auto";

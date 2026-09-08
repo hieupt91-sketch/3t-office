@@ -51,6 +51,8 @@ export class WriterApp {
     // Thước đo ngang (Ruler)
     const ruler = document.createElement("div");
     ruler.className = "vno-writer-ruler";
+    ruler.setAttribute("role", "presentation");
+    ruler.setAttribute("aria-hidden", "true");
     ruler.innerHTML = `
       <div class="vno-ruler-track">
         <div class="vno-ruler-marker-left" title="Lề trái: 30mm (NĐ 30/2020/NĐ-CP)"></div>
@@ -73,17 +75,26 @@ export class WriterApp {
     header.className = "vno-writer-header";
     header.setAttribute("contenteditable", "true");
     header.setAttribute("spellcheck", "false");
+    header.setAttribute("role", "textbox");
+    header.setAttribute("aria-label", "Đầu trang");
+    header.setAttribute("aria-multiline", "true");
     header.setAttribute("data-placeholder", t("writerDialogs.comments.placeholderHeader"));
 
     const body = document.createElement("div");
     body.className = "vno-writer-body";
     body.setAttribute("contenteditable", "true");
     body.setAttribute("spellcheck", "false");
+    body.setAttribute("role", "textbox");
+    body.setAttribute("aria-label", "Nội dung văn bản");
+    body.setAttribute("aria-multiline", "true");
 
     const footer = document.createElement("div");
     footer.className = "vno-writer-footer";
     footer.setAttribute("contenteditable", "true");
     footer.setAttribute("spellcheck", "false");
+    footer.setAttribute("role", "textbox");
+    footer.setAttribute("aria-label", "Chân trang");
+    footer.setAttribute("aria-multiline", "true");
     footer.setAttribute("data-placeholder", t("writerDialogs.comments.placeholderFooter"));
 
     if (isBlank) {
