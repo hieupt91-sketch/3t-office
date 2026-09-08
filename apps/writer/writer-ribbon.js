@@ -729,6 +729,15 @@ export const WRITER_RIBBON_TABS = [
           { type: "button", commandId: "ai.assistant.summarize", isLarge: true },
           { type: "button", commandId: "ai.assistant.rewrite", isLarge: true }
         ]
+      },
+      {
+        label: "AI Thông minh",
+        labelKey: "writerRibbon.group.aiSmart",
+        items: [
+          { type: "button", commandId: "ai.voice.input", isLarge: true },
+          { type: "button", commandId: "ai.assistant.summarizeMeeting", isLarge: true },
+          { type: "button", commandId: "ai.assistant.smartSearch", isLarge: true }
+        ]
       }
     ]
   }

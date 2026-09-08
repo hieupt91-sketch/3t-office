@@ -1169,6 +1169,29 @@ export const ICONS = {
     <path d="M14.8 16.2 16.5 18l3.2-3.6" stroke="#15803D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
+  voiceInput: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="9" y="2" width="6" height="12" rx="3" fill="#DBEAFE" stroke="#2563EB" stroke-width="1.3"/>
+    <path d="M5 11a7 7 0 0 0 14 0" stroke="#2563EB" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M12 18v4M8 22h8" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"/>
+    <circle cx="18" cy="5" r="3.5" fill="#F5B800" stroke="#D97706" stroke-width="0.6"/>
+    <path d="M17 4.2l.8 1.6 1.8.3-1.3 1.2.3 1.8L17 8.4l-1.6.9.3-1.8-1.3-1.2 1.8-.3L17 4.2Z" fill="#D97706"/>
+  </svg>`,
+
+  aiMeeting: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="4" width="14" height="16" rx="1.5" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.3"/>
+    <path d="M6 8h6M6 11h5M6 14h4" stroke="#64748B" stroke-width="1.3" stroke-linecap="round"/>
+    <circle cx="18" cy="8" r="4" fill="#FEF3C7" stroke="#D97706" stroke-width="1.2"/>
+    <path d="M16.5 8h3M18 6.5v3" stroke="#D97706" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`,
+
+  aiSearch: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <circle cx="10" cy="10" r="6.5" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.3"/>
+    <path d="M15 15l5 5" stroke="#2563EB" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M8 10h4M10 8v4" stroke="#2563EB" stroke-width="1.3" stroke-linecap="round"/>
+    <circle cx="18" cy="5" r="3" fill="#F5B800" stroke="#D97706" stroke-width="0.6"/>
+    <path d="M17 4.2l.7 1.4 1.5.2-1.1 1 .3 1.5L17 7.6l-1.4.7.3-1.5-1.1-1 1.5-.2L17 4.2Z" fill="#D97706"/>
+  </svg>`,
+
   // Macro (ghi & phát lại thao tác)
   macroRecordStart: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
     <circle cx="12" cy="12" r="9" fill="#FEE2E2" stroke="#DC2626" stroke-width="1.4"/>

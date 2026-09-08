@@ -66,6 +66,28 @@ export class RuleBasedProvider {
       };
     }
 
+    if (p.includes("cuộc họp") || p.includes("meeting") || p.includes("action items")) {
+      if (!docText) {
+        return {
+          reply: "Không có nội dung ghi chép cuộc họp để tóm tắt. Vui lòng dán nội dung ghi chép/transcript vào hộp thoại trước."
+        };
+      }
+      return {
+        reply: `**Tóm tắt cuộc họp (Chế độ cục bộ — giới hạn):**\n\n⚠️ Chế độ quy tắc cục bộ không thể phân tích ngữ cảnh sâu để tạo tóm tắt cuộc họp có cấu trúc chính xác.\n\n**Khuyến nghị:** Vui lòng kết nối AI cloud (OpenAI, Gemini hoặc Claude) hoặc cài Ollama để có kết quả tóm tắt tốt nhất — với Điểm chính, Quyết định và Việc cần làm được phân tích rõ ràng.\n\n*Nội dung nhận được: ${docText.substring(0, 200)}${docText.length > 200 ? "..." : ""}*`
+      };
+    }
+
+    if (p.includes("tìm kiếm") || p.includes("search") || p.includes("tìm đoạn")) {
+      if (!docText) {
+        return {
+          reply: "Tài liệu hiện đang trống. Vui lòng mở hoặc soạn thảo nội dung trước khi tìm kiếm."
+        };
+      }
+      return {
+        reply: `**Tìm kiếm thông minh (Chế độ cục bộ — giới hạn):**\n\n⚠️ Chế độ quy tắc cục bộ chỉ thực hiện tìm kiếm từ khóa đơn giản, không thể hiểu ngữ cảnh câu hỏi.\n\n**Kết quả tìm kiếm cơ bản:**\n• Tài liệu có ${docText.split(/\s+/).length} từ\n• Nội dung:${docText.substring(0, 300)}${docText.length > 300 ? "..." : ""}\n\n**Khuyến nghị:** Kết nối AI cloud (OpenAI, Gemini hoặc Claude) hoặc Ollama để sử dụng tính năng tìm kiếm thông minh đầy đủ — AI sẽ hiểu câu hỏi bằng ngôn ngữ tự nhiên và tìm các đoạn liên quan chính xác.`
+      };
+    }
+
     return {
       reply: `Tôi đã nhận yêu cầu: "${prompt}".\nTôi có thể hỗ trợ bạn:\n1. Tóm tắt nội dung văn bản hiện tại\n2. Trau chuốt văn phong theo chuẩn hành chính\n3. Soát lỗi chính tả tiếng Việt\n4. Tra cứu phím tắt và tính năng\n\n*Lưu ý: đang chạy ở chế độ quy tắc cục bộ. Cài đặt Ollama (mô hình AI mở, chạy trên máy) để có trợ lý AI thật.*`
     };
