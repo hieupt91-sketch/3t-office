@@ -1169,6 +1169,28 @@ export const ICONS = {
     <path d="M14.8 16.2 16.5 18l3.2-3.6" stroke="#15803D" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
+  // Macro (ghi & phát lại thao tác)
+  macroRecordStart: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <circle cx="12" cy="12" r="9" fill="#FEE2E2" stroke="#DC2626" stroke-width="1.4"/>
+    <circle cx="12" cy="12" r="4.5" fill="#DC2626"/>
+  </svg>`,
+  macroRecordStop: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <circle cx="12" cy="12" r="9" fill="#FEE2E2" stroke="#DC2626" stroke-width="1.4"/>
+    <rect x="8.5" y="8.5" width="7" height="7" rx="1" fill="#DC2626"/>
+  </svg>`,
+  macroRun: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="4" width="14" height="16" rx="1.5" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.3"/>
+    <path d="M6 8h8M6 12h5" stroke="#64748B" stroke-width="1.3" stroke-linecap="round"/>
+    <path d="M14 15.5v5l4.5-2.5-4.5-2.5Z" fill="#16A34A" stroke="#15803D" stroke-width="0.8" stroke-linejoin="round"/>
+  </svg>`,
+  macroManager: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="4" width="18" height="16" rx="1.5" fill="#F8FAFC" stroke="#0F4C81" stroke-width="1.3"/>
+    <path d="M6 8h4M6 12h4M6 16h4" stroke="#64748B" stroke-width="1.3" stroke-linecap="round"/>
+    <rect x="12.5" y="7" width="8" height="3.2" rx="0.8" fill="#DBEAFE" stroke="#2563EB" stroke-width="1"/>
+    <rect x="12.5" y="11.4" width="8" height="3.2" rx="0.8" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1"/>
+    <rect x="12.5" y="15.8" width="8" height="3.2" rx="0.8" fill="#F1F5F9" stroke="#94A3B8" stroke-width="1"/>
+  </svg>`,
+
   objectAnimation: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="6" y="8" width="16" height="12" rx="2" fill="#FAEEE8" stroke="#B53818" stroke-width="1.4"/>
     <path d="M24 10l5 6-5 6" stroke="#F59E0B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>

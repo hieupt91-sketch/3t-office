@@ -16,6 +16,32 @@ export class CommandBus {
     /** @type {Array<{commandId: string, timestamp: number, args: any}>} */
     this._history = [];
     this._maxHistory = 100;
+    /** @type {Array<{commandId: string, args: any}>|null} Ghi macro đang chạy, null = không ghi */
+    this._macroSteps = null;
+  }
+
+  /**
+   * Bắt đầu ghi macro: mọi lệnh thật thực thi qua execute() từ giờ trở đi
+   * (trừ chính các lệnh common.macro.*) được ghi lại theo đúng thứ tự.
+   */
+  startMacroRecording() {
+    this._macroSteps = [];
+  }
+
+  /** Đang ghi macro hay không. */
+  isRecordingMacro() {
+    return this._macroSteps !== null;
+  }
+
+  /**
+   * Dừng ghi macro, trả về danh sách bước đã ghi (không tự lưu — nơi gọi
+   * quyết định lưu hay hủy).
+   * @returns {Array<{commandId: string, args: any}>}
+   */
+  stopMacroRecording() {
+    const steps = this._macroSteps || [];
+    this._macroSteps = null;
+    return steps;
   }
 
   /**
@@ -110,6 +136,11 @@ export class CommandBus {
 
     try {
       this._recordHistory(commandId, args);
+      // Ghi macro: bỏ qua chính các lệnh điều khiển macro.* để không tự ghi
+      // đè lên nhau (bấm "Dừng ghi" không được lọt vào chính macro đang ghi).
+      if (this._macroSteps !== null && !commandId.startsWith("common.macro.")) {
+        this._macroSteps.push({ commandId, args });
+      }
       const result = await handler(args);
       
       // Nếu là lệnh toggle, tự động cập nhật checked state nếu handler không tự đổi

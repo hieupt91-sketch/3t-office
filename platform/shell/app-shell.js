@@ -5,12 +5,13 @@
 import { ICONS } from "../ui-kit/icons.js";
 import { globalCommandBus } from "../commands/command-bus.js";
 import { globalShortcutManager } from "../commands/shortcut-manager.js";
+import { globalMacroManager } from "../commands/macro-manager.js";
 import { RibbonHost } from "../ribbon/ribbon-host.js";
 import { OFFICE_TEMPLATES } from "../templates/template-registry.js";
 import { RecentFilesManager } from "../recent/recent-manager.js";
 import { createEmptyState } from "../ui-kit/components.js";
 import { LocalAiService, ApiKeyManager } from "../ai/ai-service.js";
-import { showAlertDialog } from "../ui-kit/dialogs.js";
+import { showAlertDialog, showPromptDialog, showMacroManagerDialog } from "../ui-kit/dialogs.js";
 import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
 import { getPlatformLaunchContext } from "../bootstrap.js";
 import { themeManager } from "../theme/theme-manager.js";
@@ -1233,6 +1234,44 @@ export class AppShell {
     globalCommandBus.bindHandler("ai.assistant.grammarCheck", () => {
       this.triggerAiQuickAction("soát lỗi chính tả tài liệu hiện tại");
       return true;
+    });
+
+    // Macro: ghi/dừng ghi, quản lý, chạy (Ctrl+Shift+R bật/tắt ghi).
+    globalCommandBus.bindHandler("common.macro.recordToggle", async () => {
+      if (!globalMacroManager.isRecording()) {
+        globalMacroManager.startRecording(this.appName);
+        this.setStatus?.("Đang ghi Macro... Bấm Ctrl+Shift+R để dừng.");
+        return true;
+      }
+      const { app, steps } = globalMacroManager.stopRecording();
+      if (!steps.length) {
+        await showAlertDialog({ title: "Ghi Macro", message: "Không có thao tác nào được ghi lại — Macro không được lưu.", type: "warning" });
+        return false;
+      }
+      const name = await showPromptDialog({ title: "Lưu Macro", message: "Đặt tên cho Macro vừa ghi:", defaultValue: `Macro ${new Date().toLocaleString("vi-VN")}` });
+      if (name) {
+        globalMacroManager.saveMacro(app, name, steps);
+        this.setStatus?.(`Đã lưu Macro "${name}" (${steps.length} thao tác).`);
+      } else {
+        this.setStatus?.("Đã hủy — Macro không được lưu.");
+      }
+      return false;
+    });
+
+    globalCommandBus.bindHandler("common.macro.manager", async () => {
+      await showMacroManagerDialog({
+        macros: globalMacroManager.getMacros(this.appName),
+        onRun: async (id) => {
+          try {
+            const { executed, total } = await globalMacroManager.runMacro(id);
+            this.setStatus?.(`Đã chạy Macro: ${executed}/${total} thao tác.`);
+          } catch (err) {
+            await showAlertDialog({ title: "Lỗi chạy Macro", message: `Macro dừng do lỗi: ${err?.message || err}`, type: "error" });
+          }
+        },
+        onRename: (id, newName) => globalMacroManager.renameMacro(id, newName),
+        onDelete: (id) => globalMacroManager.deleteMacro(id)
+      });
     });
   }
 
