@@ -88,6 +88,30 @@ export class RuleBasedProvider {
       };
     }
 
+    if (p.includes("dịch") || p.includes("translate")) {
+      return {
+        reply: `**Dịch thuật (Chế độ cục bộ — giới hạn):**\n\n⚠️ Chế độ quy tắc cục bộ không thể dịch văn bản thật — chỉ hỗ trợ vài mẫu câu cứng.\n\n**Khuyến nghị:** Kết nối AI cloud (OpenAI, Gemini hoặc Claude) hoặc cài Ollama để sử dụng tính năng dịch thuật đầy đủ với 6 ngôn ngữ: Tiếng Anh, Tiếng Việt, Tiếng Trung, Tiếng Nhật, Tiếng Hàn, Tiếng Pháp.`
+      };
+    }
+
+    if (p.includes("viết nháp") || p.includes("draft") || p.includes("soạn thảo thư") || p.includes("soạn hợp đồng")) {
+      return {
+        reply: `**Viết nháp văn bản (Chế độ cục bộ — giới hạn):**\n\n⚠️ Chế độ quy tắc cục bộ không thể tạo bản nháp có cấu trúc phù hợp — chỉ đưa ra gợi ý chung.\n\n**Gợi ý:** Khi dùng chế độ cục bộ, bạn có thể tự soạn theo mẫu:\n• Thư mời họp: Tiêu đề → Kính gửi → Nội dung → Ký tên\n• Công văn: Số ký hiệu → Địa chỉ nhận → Nội dung → Ký tên\n\n**Khuyến nghị:** Kết nối AI cloud hoặc cài Ollama để AI tạo bản nháp có cấu trúc chuẩn hành chính Việt Nam.`
+      };
+    }
+
+    if (p.includes("giải thích công thức") || p.includes("explain formula") || p.includes("công thức đang làm gì")) {
+      return {
+        reply: `**Giải thích công thức (Chế độ cục bộ — giới hạn):**\n\n⚠️ Chế độ quy tắc cục bộ không thể phân tích và giải thích chi tiết công thức.\n\n**Khuyến nghị:** Kết nối AI cloud (OpenAI, Gemini hoặc Claude) hoặc cài Ollama để AI giải thích công thức bằng tiếng Việt dễ hiểu — công thức đang làm gì, tham chiếu tới đâu, kết quả mang ý nghĩa gì.`
+      };
+    }
+
+    if (p.includes("tạo công thức") || p.includes("formula from") || p.includes("công thức từ mô tả") || p.includes("sinh công thức")) {
+      return {
+        reply: `**Tạo công thức từ mô tả (Chế độ cục bộ — giới hạn):**\n\n⚠️ Chế độ quy tắc cục bộ không thể tạo công thức phức tạp từ mô tả ngôn ngữ tự nhiên.\n\n**Khuyến nghị:** Kết nối AI cloud (OpenAI, Gemini hoặc Claude) hoặc cài Ollama để AI tạo công thức Excel tương thích với VN Sheet từ mô tả của bạn.`
+      };
+    }
+
     return {
       reply: `Tôi đã nhận yêu cầu: "${prompt}".\nTôi có thể hỗ trợ bạn:\n1. Tóm tắt nội dung văn bản hiện tại\n2. Trau chuốt văn phong theo chuẩn hành chính\n3. Soát lỗi chính tả tiếng Việt\n4. Tra cứu phím tắt và tính năng\n\n*Lưu ý: đang chạy ở chế độ quy tắc cục bộ. Cài đặt Ollama (mô hình AI mở, chạy trên máy) để có trợ lý AI thật.*`
     };

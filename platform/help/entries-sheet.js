@@ -864,6 +864,39 @@ export const SHEET_HELP_ENTRIES = [
       "Quản lý và phát lại: Nhấn nút «Xem Macro» trong nhóm Macro (hoặc bấm Alt+F8) để mở danh sách Macro. Bấm «▶ Chạy» để thực thi ngay chuỗi lệnh trên vùng ô đang chọn, «Đổi tên» hoặc «Xóa» khi cần chỉnh lý.",
       "Giới hạn trung thực: Macro cơ bản chỉ ghi lại các lệnh đi qua Command Bus của VN Sheet (định dạng ô, sắp xếp, căn chỉnh, chèn cấu trúc). Macro không ghi nhận việc gõ nhập ký tự tự do từng phím vào ô tính nếu không qua lệnh xác nhận. Macro được lưu cục bộ theo VN Sheet và không chạy chéo sang VN Writer hoặc VN Slides."
     ]
+  },
+  {
+    id: "sheet.ai.explainFormula",
+    app: "sheet",
+    commandIds: ["sheet.ai.explainFormula"],
+    title: "Giải thích công thức (AI)",
+    summary: "AI giải thích công thức trong ô đang chọn bằng tiếng Việt dễ hiểu: công thức đang làm gì, tham chiếu tới đâu, kết quả mang ý nghĩa gì.",
+    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "Phân tích dữ liệu AI" },
+    keywords: ["giải thích công thức", "explain formula", "công thức", "formula", "giải thích AI", "AI formula", "ô công thức"],
+    steps: [
+      "Chọn ô đang chứa công thức (bắt đầu bằng dấu =). Nếu ô không có công thức, hệ thống sẽ thông báo.",
+      "Mở tab Trợ lý VN AI trên ribbon, trong nhóm Phân tích dữ liệu AI nhấn nút «Giải thích công thức».",
+      "AI sẽ phân tích công thức và giải thích bằng tiếng Việt trong bảng Trợ lý VN AI bên phải: công thức đang làm gì, tham chiếu tới ô/vùng nào, kết quả mang ý nghĩa gì.",
+      "Nếu công thức phức tạp, AI sẽ giải thích từng phần của công thức.",
+      "Lưu ý: Kết quả phụ thuộc vào AI provider đang dùng. Chế độ quy tắc cục bộ chỉ đưa ra gợi ý chung."
+    ]
+  },
+  {
+    id: "sheet.ai.formulaFromDescription",
+    app: "sheet",
+    commandIds: ["sheet.ai.formulaFromDescription"],
+    title: "Tạo công thức từ mô tả (AI)",
+    summary: "AI tạo công thức Excel tương thích VN Sheet từ mô tả bằng ngôn ngữ tự nhiên. Công thức được validate trước khi áp dụng — chỉ dùng hàm engine hỗ trợ.",
+    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "Phân tích dữ liệu AI" },
+    keywords: ["tạo công thức", "formula from description", "công thức AI", "sinh công thức", "mô tả công thức", "tự động công thức"],
+    steps: [
+      "Mở tab Trợ lý VN AI trên ribbon, trong nhóm Phân tích dữ liệu AI nhấn nút «Tạo công thức».",
+      "Hộp thoại «Tạo công thức từ mô tả» xuất hiện. Nhập mô tả công thức bạn muốn bằng ngôn ngữ tự nhiên, ví dụ: «tính tổng cột B khi cột A lớn hơn 100», «đếm số ô có giá trị > 50 trong vùng D1:D100».",
+      "Nhấn «Tạo công thức». AI sẽ tạo công thức Excel tương thích với VN Sheet.",
+      "Kết quả hiển thị trong bảng Trợ lý VN AI: công thức dạng chữ trên nền xám để xem trước. Nhấn «Áp dụng vào ô đang chọn» để ghi công thức vào ô.",
+      "Công thức được validate trước khi áp dụng — nếu chứa hàm VN Sheet chưa hỗ trợ, hệ thống sẽ báo lỗi rõ ràng thay vì ghi công thức lỗi vào ô.",
+      "Lưu ý: Kết quả phụ thuộc vào AI provider đang dùng. Chế độ quy tắc cục bộ chỉ đưa ra gợi ý chung."
+    ]
   }
 ];
 

@@ -795,6 +795,40 @@ export const WRITER_HELP_ENTRIES = [
       "Nếu tài liệu trống hoặc không tìm thấy nội dung phù hợp, hệ thống sẽ thông báo rõ ràng.",
       "Lưu ý: Tính năng này hoạt động tốt nhất với tài liệu có nội dung dài. Kết quả phụ thuộc vào AI provider đang dùng — kết nối AI cloud (OpenAI/Gemini/Claude) sẽ cho kết quả chính xác hơn chế độ quy tắc cục bộ."
     ]
+  },
+  {
+    id: "writer.ai.translate",
+    app: "writer",
+    commandIds: ["ai.assistant.translate"],
+    title: "Dịch thuật",
+    summary: "Dịch đoạn văn bản được chọn (hoặc toàn bộ tài liệu nếu không chọn gì) sang ngôn ngữ đích bằng AI. Hỗ trợ 6 ngôn ngữ: Tiếng Anh, Tiếng Việt, Tiếng Trung, Tiếng Nhật, Tiếng Hàn, Tiếng Français.",
+    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "AI Thông minh" },
+    keywords: ["dịch thuật", "translate", "dịch", "tiếng anh", "tiếng trung", "tiếng nhật", "tiếng hàn", "tiếng pháp", "dịch văn bản", "translation"],
+    steps: [
+      "Bôi đen đoạn văn bản cần dịch. Nếu không chọn gì, toàn bộ nội dung tài liệu sẽ được dịch.",
+      "Mở tab Trợ lý VN AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Dịch thuật».",
+      "Hộp thoại «Dịch thuật» xuất hiện với 6 ngôn ngữ đích để chọn: Tiếng Anh, Tiếng Việt, Tiếng Trung, Tiếng Nhật, Tiếng Hàn, Tiếng Pháp. Chọn ngôn ngữ cần dịch rồi nhấn «Dịch».",
+      "Kết quả hiển thị trong bảng Trợ lý VN AI bên phải. Nếu đã bôi đen văn bản, có 2 nút: «Thay thế vùng chọn» (thay nội dung gốc bằng bản dịch) và «Chèn bên dưới» (giữ bản gốc, thêm bản dịch phía dưới).",
+      "Nếu không bôi đen, chỉ có nút «Chèn bên dưới» để thêm bản dịch vào tài liệu.",
+      "Lưu ý: Bản dịch có thể cần chỉnh sửa lại cho phù hợp ngữ cảnh. Ctrl+Z hoàn tác nếu chèn nhầm."
+    ]
+  },
+  {
+    id: "writer.ai.draftDocument",
+    app: "writer",
+    commandIds: ["ai.assistant.draftDocument"],
+    title: "AI Viết nháp",
+    summary: "AI tạo bản nháp văn bản hành chính tiếng Việt theo yêu cầu bằng ngôn ngữ tự nhiên. Phù hợp cho thư mời, công văn, hợp đồng, báo cáo và các loại văn bản hành chính khác.",
+    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "AI Thông minh" },
+    keywords: ["viết nháp", "draft", "soạn thảo", "soạn thư", "soạn hợp đồng", "văn bản hành chính", "AI viết", "tạo văn bản"],
+    steps: [
+      "Mở tab Trợ lý VN AI trên ribbon, trong nhóm AI Thông minh nhấn nút «Viết nháp».",
+      "Hộp thoại «AI Viết nháp» xuất hiện. Nhập mô tả nội dung bạn muốn AI soạn, ví dụ: «soạn thư mời họp giao ban tuần», «soạn hợp đồng thuê nhà cơ bản», «soạn công văn đề nghị».",
+      "Nhấn «Tạo nháp» để bắt đầu. AI sẽ tạo bản nháp có cấu trúc phù hợp loại văn bản (tiêu đề, kính gửi, nội dung, ký tên nếu là thư/công văn).",
+      "Kết quả hiển thị trong bảng Trợ lý VN AI với cảnh báo: đây là bản nháp do AI tạo, cần tự kiểm tra lại nội dung trước khi sử dụng, đặc biệt với hợp đồng/văn bản có giá trị pháp lý.",
+      "Nhấn «Chèn vào tài liệu» để thêm bản nháp vào vị trí con trỏ. Ctrl+Z hoàn tác nếu chèn nhầm.",
+      "Lưu ý: Chế độ quy tắc cục bộ chỉ đưa ra gợi ý chung. Để có bản nháp tốt, nên kết nối AI cloud (OpenAI/Gemini/Claude) hoặc cài Ollama."
+    ]
   }
 ];
 

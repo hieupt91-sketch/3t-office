@@ -706,7 +706,9 @@ export const SHEET_RIBBON_TABS = [
         labelKey: "sheetRibbon.group.aiAnalysis",
         items: [
           { type: "button", commandId: "ai.assistant.toggle", isLarge: true },
-          { type: "button", commandId: "ai.assistant.summarize", isLarge: true }
+          { type: "button", commandId: "ai.assistant.summarize", isLarge: true },
+          { type: "button", commandId: "sheet.ai.explainFormula", isLarge: true },
+          { type: "button", commandId: "sheet.ai.formulaFromDescription", isLarge: true }
         ]
       }
     ]

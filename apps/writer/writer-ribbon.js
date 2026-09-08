@@ -736,7 +736,9 @@ export const WRITER_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "ai.voice.input", isLarge: true },
           { type: "button", commandId: "ai.assistant.summarizeMeeting", isLarge: true },
-          { type: "button", commandId: "ai.assistant.smartSearch", isLarge: true }
+          { type: "button", commandId: "ai.assistant.smartSearch", isLarge: true },
+          { type: "button", commandId: "ai.assistant.translate", isLarge: true },
+          { type: "button", commandId: "ai.assistant.draftDocument", isLarge: true }
         ]
       }
     ]
