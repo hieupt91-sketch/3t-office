@@ -1278,6 +1278,72 @@ export class SheetAdapter {
     });
   }
 
+  /**
+   * vno:sheet-state (hidden/veryHidden) — read back from FODS that VN Office
+   * self-wrote during File → Mở overlay.  LibreOffice downgrades veryHidden
+   * to hidden during XLSX→FODS; the Python overlay writes vno:sheet-state so
+   * we can round-trip correctly.
+   */
+  _attachImportedSheetVisibility(workbook, xmlText) {
+    workbook.sheetVisibilityBySheet = {};
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
+      const name = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      if (!name) return "";
+      const rawState = attrs.match(/vno:sheet-state=["']([^"']*)["']/i)?.[1] || "";
+      const state = rawState.toLowerCase();
+      if (state === "hidden" || state === "veryhidden") {
+        // Preserve canonical OOXML casing ("veryHidden", not "veryhidden")
+        // for round-trip back into vno:sheet-state / xl/workbook.xml state=.
+        workbook.sheetVisibilityBySheet[name] = state === "veryhidden" ? "veryHidden" : "hidden";
+      }
+      return "";
+    });
+  }
+
+  /**
+   * <table:database-ranges> — read back from FODS that VN Office self-wrote
+   * during File → Mở overlay.  These represent AutoFilter ranges that
+   * LibreOffice preserves in FODS but may drop during FODS→XLSX export.
+   */
+  _attachImportedAutoFilter(workbook, xmlText) {
+    workbook.autoFilterBySheet = {};
+    String(xmlText || "").replace(/<table:database-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
+      const target = this._unescapeXml(attrs.match(/table:target-range-address=["']([^"']*)["']/i)?.[1] || "");
+      if (!target) return "";
+      // Format: SheetName.A1:D10
+      const dotIdx = target.indexOf(".");
+      if (dotIdx === -1) return "";
+      const sheetName = target.substring(0, dotIdx);
+      const ref = target.substring(dotIdx + 1);
+      if (sheetName && ref) workbook.autoFilterBySheet[sheetName] = ref;
+      return "";
+    });
+  }
+
+  /**
+   * Serialize <table:database-ranges> for sheets with active AutoFilter.
+   * Each range uses the stored filterRef from sheetStates or the sheet's
+   * used range as fallback.  This ensures the filter survives FODS→XLSX
+   * round-trip via the Python postprocess layer.
+   */
+  _serializeDatabaseRanges(sheetNames) {
+    const ranges = [];
+    for (const sheetName of sheetNames) {
+      const ss = this.grid.sheetStates?.[sheetName];
+      const isActive = ss?.isFilterActive;
+      if (!isActive) continue;
+      const ref = ss?.filterRange || "";
+      if (!ref) continue;
+      ranges.push(
+        `<table:database-range table:name="AutoFilter_${this._escapeXml(sheetName)}"`
+        + ` table:target-range-address="${this._escapeXml(sheetName)}.${this._escapeXml(ref)}"`
+        + ` table:display-filter-buttons="true"/>`
+      );
+    }
+    if (ranges.length === 0) return "";
+    return `<table:database-ranges>${ranges.join("")}</table:database-ranges>`;
+  }
+
   _attachImportedSparklines(workbook, xmlText) {
     String(xmlText || "").replace(/<calcext:sparkline-group\b([^>]*)>([\s\S]*?)<\/calcext:sparkline-group>/gi, (_, attrs, body) => {
       const typeRaw = (attrs.match(/calcext:type=["']([^"']+)["']/i)?.[1] || "line").toLowerCase();
@@ -1738,7 +1804,15 @@ export class SheetAdapter {
       // Lưu riêng ở đây để tự round-trip đúng trong VN Office; khi xuất XLSX
       // thật, postprocess_sheet_xlsx() đọc thuộc tính này để ghi <pane> chuẩn.
       const freezeAttr = (freezeRows > 0 || freezeCols > 0) ? ` vno:frozen-rows="${freezeRows}" vno:frozen-cols="${freezeCols}"` : "";
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"${freezeAttr}`;
+      // vno:sheet-state: preserve hidden/veryHidden through round-trip.
+      // LibreOffice downgrades veryHidden → hidden during XLSX→FODS; the
+      // Python overlay writes vno:sheet-state so serializeToFods can echo it.
+      const rawVisState = this.grid.sheetVisibilityBySheet?.[sheetName] || "";
+      const visStateLower = rawVisState.toLowerCase();
+      const sheetStateAttr = (visStateLower === "hidden" || visStateLower === "veryhidden")
+        ? ` vno:sheet-state="${visStateLower === "veryhidden" ? "veryHidden" : "hidden"}"`
+        : "";
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"${freezeAttr}${sheetStateAttr}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -1811,7 +1885,7 @@ export class SheetAdapter {
       </config:config-item-map-entry></config:config-item-map-indexed>
     </config:config-item-set>
   </office:settings>
-  <office:body><office:spreadsheet${structureAttr}>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}</office:spreadsheet></office:body>
+  <office:body><office:spreadsheet${structureAttr}>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}${this._serializeDatabaseRanges(sheetNames)}</office:spreadsheet></office:body>
 </office:document>`;
   }
 
@@ -2547,6 +2621,8 @@ export class SheetAdapter {
     this._attachImportedPageBreaks(workbook, tableXml, rowColStyles);
     this._attachImportedProtection(workbook, xmlText);
     this._attachImportedFreezePanes(workbook, xmlText);
+    this._attachImportedSheetVisibility(workbook, xmlText);
+    this._attachImportedAutoFilter(workbook, xmlText);
     this._attachImportedSparklines(workbook, xmlText);
     this._attachImportedOutline(workbook, tableXml);
     return workbook;
@@ -2592,6 +2668,8 @@ export class SheetAdapter {
     this.grid.protectionBySheet = {};
     this.grid.outlineGroupsBySheet = {};
     this.grid.workbookProtection = workbook.workbookProtection || { enabled: false, password: "" };
+    // Sheet visibility (hidden/veryHidden) — round-trip via vno:sheet-state
+    this.grid.sheetVisibilityBySheet = workbook.sheetVisibilityBySheet || {};
     for (const sheetName of workbook.sheets) {
       this.grid.conditionalFormattingBySheet[sheetName] = workbook.conditionalFormattingBySheet?.[sheetName] || [];
       this.grid.dataValidationsBySheet[sheetName] = workbook.dataValidationsBySheet?.[sheetName] || [];
@@ -2613,6 +2691,13 @@ export class SheetAdapter {
       this.grid.sheetStates[sheetName].frozenRows = freeze.rows;
       this.grid.sheetStates[sheetName].frozenCols = freeze.cols;
       this.grid.sheetStates[sheetName].isFrozenPanes = freeze.rows > 0 || freeze.cols > 0;
+      // AutoFilter: if the FODS had <table:database-range> for this sheet,
+      // restore the filter state so it round-trips through serializeToFods.
+      const autoFilterRef = workbook.autoFilterBySheet?.[sheetName];
+      if (autoFilterRef) {
+        this.grid.sheetStates[sheetName].isFilterActive = true;
+        this.grid.sheetStates[sheetName].filterRange = autoFilterRef;
+      }
     }
     // switchSheet() ở trên chạy TRƯỚC vòng lặp này gán frozenRows/frozenCols
     // vào sheetStates, nên trạng thái sống của grid cho sheet đang active cần
@@ -2622,6 +2707,12 @@ export class SheetAdapter {
     this.grid.frozenCols = activeFreezeState?.frozenCols || 0;
     this.grid.isFrozenPanes = activeFreezeState?.isFrozenPanes || false;
     this.grid.container?.classList?.toggle?.("vno-freeze-panes", this.grid.isFrozenPanes);
+    // Restore AutoFilter state for the active sheet
+    if (activeFreezeState?.isFilterActive) {
+      this.grid.isFilterActive = true;
+      this.grid.container?.classList?.add?.("vno-filter-mode");
+      this.grid._updateFilterButtons?.();
+    }
     this.grid.undoStack = [];
     this.grid.redoStack = [];
     this.grid._refreshVisibleRuleVisuals?.();

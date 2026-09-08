@@ -11,8 +11,8 @@ Python twin of:
   adapters/libreoffice/slides/pptx-native-postprocess.js
 
 main.py calls:
-  - postprocess_sheet_xlsx() after soffice FODS→XLSX (File → Lưu) - workbookProtection lockStructure + Freeze Panes <pane>
-  - overlay_sheet_xlsx_fods() after soffice XLSX→FODS (File → Mở) - table:structure-protected + vno:frozen-rows/cols
+  - postprocess_sheet_xlsx() after soffice FODS→XLSX (File → Lưu) - workbookProtection lockStructure + Freeze Panes <pane> + veryHidden state + AutoFilter
+  - overlay_sheet_xlsx_fods() after soffice XLSX→FODS (File → Mở) - table:structure-protected + vno:frozen-rows/cols + vno:sheet-state + database-ranges
   - postprocess_slides_pptx() after soffice FODP→PPTX (File → Lưu)
   - overlay_slides_pptx_fodp() after soffice PPTX→FODP (File → Mở)
 
@@ -356,6 +356,184 @@ def apply_freeze_pane_to_sheet_xml(sheet_xml: str, rows: int, cols: int) -> str:
     return xml
 
 
+# ---------------------------------------------------------------------------
+# Sheet visibility (veryHidden) overlay
+# ---------------------------------------------------------------------------
+
+_SHEET_STATE_ATTR_RE = re.compile(r'state="(visible|hidden|veryHidden)"', re.IGNORECASE)
+_VNO_SHEET_STATE_RE = re.compile(r'vno:sheet-state="(visible|hidden|veryHidden)"', re.IGNORECASE)
+
+
+def parse_sheet_visibility_from_workbook(workbook_xml: str | None) -> dict[str, str]:
+    """Read sheet state from xl/workbook.xml <sheet state="..."> elements.
+
+    Returns {sheet_name: state} for sheets whose state is NOT the default
+    ``visible``.  Only ``hidden`` and ``veryHidden`` are forwarded — visible
+    sheets are omitted so the FODS overlay is a no-op for them.
+    """
+    result: dict[str, str] = {}
+    if not workbook_xml:
+        return result
+    for match in _WB_SHEET_TAG_RE.finditer(workbook_xml):
+        attrs = match.group(1) or ""
+        name_match = re.search(r'name="([^"]*)"', attrs)
+        state_match = _SHEET_STATE_ATTR_RE.search(attrs)
+        if name_match and state_match:
+            state = state_match.group(1)
+            if state.lower() in ("hidden", "veryhidden"):
+                result[_unescape_xml(name_match.group(1))] = state
+    return result
+
+
+def apply_sheet_visibility_to_fods(fods_xml: str, visibility_by_sheet: dict[str, str]) -> str:
+    """Inject vno:sheet-state onto <table:table> tags in FODS — used during
+    File → Mở, BEFORE parseFods()."""
+    xml = fods_xml or ""
+    if not visibility_by_sheet:
+        return xml
+
+    _CANONICAL = {"hidden": "hidden", "veryhidden": "veryHidden"}
+
+    def _replace(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs)
+        if not name_match:
+            return match.group(0)
+        name = _unescape_xml(name_match.group(1))
+        state = visibility_by_sheet.get(name)
+        if not state:
+            return match.group(0)
+        canonical = _CANONICAL.get(state.lower(), state)
+        next_attrs = _VNO_SHEET_STATE_RE.sub("", attrs)
+        next_attrs = f'{next_attrs} vno:sheet-state="{canonical}"'
+        return f"<table:table{next_attrs}>"
+
+    return _FREEZE_TABLE_TAG_RE.sub(_replace, xml)
+
+
+def parse_sheet_visibility_from_fods(fods_xml: str | None) -> dict[str, str]:
+    """Read vno:sheet-state from FODS <table:table> tags (VN Office self-written)."""
+    result: dict[str, str] = {}
+    if not fods_xml:
+        return result
+    for match in _FREEZE_TABLE_TAG_RE.finditer(fods_xml):
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs)
+        if not name_match:
+            continue
+        state_match = _VNO_SHEET_STATE_RE.search(attrs)
+        if state_match:
+            result[_unescape_xml(name_match.group(1))] = state_match.group(1)
+    return result
+
+
+def apply_sheet_visibility_to_workbook(workbook_xml: str, visibility_by_sheet: dict[str, str]) -> str:
+    """Write state="hidden|veryHidden" back into xl/workbook.xml <sheet> elements."""
+    xml = workbook_xml or ""
+    if not visibility_by_sheet:
+        return xml
+    _CANONICAL = {"hidden": "hidden", "veryhidden": "veryHidden"}
+
+    def _replace(match: re.Match[str]) -> str:
+        full = match.group(0)
+        attrs = match.group(1) or ""
+        name_match = re.search(r'name="([^"]*)"', attrs)
+        if not name_match:
+            return full
+        name = _unescape_xml(name_match.group(1))
+        state = visibility_by_sheet.get(name)
+        if not state:
+            return full
+        canonical = _CANONICAL.get(state.lower(), state)
+        # <sheet> is always a self-closing/empty element in xl/workbook.xml.
+        # _WB_SHEET_TAG_RE's greedy [^>]* can swallow a trailing "/" into
+        # `attrs` before the optional /? — strip it so we don't end up with
+        # a stray "/" in the middle of the tag (e.g. `.../ state="x">`,
+        # which breaks the self-closing form and corrupts the XML).
+        next_attrs = re.sub(r"/\s*$", "", attrs)
+        next_attrs = _SHEET_STATE_ATTR_RE.sub("", next_attrs)
+        next_attrs = f'{next_attrs} state="{canonical}"'
+        return f"<sheet{next_attrs}/>"
+
+    return _WB_SHEET_TAG_RE.sub(_replace, xml)
+
+
+# ---------------------------------------------------------------------------
+# AutoFilter overlay (database-ranges in ODF ↔ <autoFilter> in OOXML)
+# ---------------------------------------------------------------------------
+
+_AUTOFILTER_REF_RE = re.compile(r'<autoFilter\b[^>]*ref="([^"]*)"[^>]*/?\s*>', re.IGNORECASE)
+_DB_RANGE_RE = re.compile(r'<table:database-range\b([^>]*)/>', re.IGNORECASE)
+_DB_RANGES_OPEN_RE = re.compile(r'<table:database-ranges\b[^>]*>', re.IGNORECASE)
+
+
+def parse_autofilter_from_worksheet(sheet_xml: str | None) -> str | None:
+    """Read <autoFilter ref="A1:D10"/> from a single worksheetN.xml. Returns the
+    ref string or None."""
+    if not sheet_xml:
+        return None
+    m = _AUTOFILTER_REF_RE.search(sheet_xml)
+    return m.group(1) if m else None
+
+
+def apply_autofilter_to_fods(fods_xml: str, autofilter_by_sheet: dict[str, str]) -> str:
+    """Inject <table:database-ranges> into FODS before </office:spreadsheet>.
+    Each entry: {sheet_name: "A1:D10"}.  Used during File → Mở."""
+    xml = fods_xml or ""
+    if not autofilter_by_sheet:
+        return xml
+    ranges_xml = []
+    for sheet_name, ref in autofilter_by_sheet.items():
+        ranges_xml.append(
+            f'<table:database-range table:name="AutoFilter_{_escape_xml(sheet_name)}"'
+            f' table:target-range-address="{_escape_xml(sheet_name)}.{_escape_xml(ref)}"'
+            f' table:display-filter-buttons="true"/>'
+        )
+    db_block = f'<table:database-ranges>{"".join(ranges_xml)}</table:database-ranges>'
+    marker = "</office:spreadsheet>"
+    idx = xml.rfind(marker)
+    if idx == -1:
+        return xml + db_block
+    return xml[:idx] + db_block + xml[idx:]
+
+
+def parse_autofilter_from_fods(fods_xml: str | None) -> dict[str, str]:
+    """Read <table:database-range> from FODS. Returns {sheet_name: ref}."""
+    result: dict[str, str] = {}
+    if not fods_xml:
+        return result
+    for match in _DB_RANGE_RE.finditer(fods_xml):
+        attrs = match.group(1) or ""
+        target_match = re.search(r'table:target-range-address="([^"]*)"', attrs)
+        if not target_match:
+            continue
+        target = _unescape_xml(target_match.group(1))
+        # Format: SheetName.A1:D10
+        dot_idx = target.find(".")
+        if dot_idx == -1:
+            continue
+        sheet_name = target[:dot_idx]
+        ref = target[dot_idx + 1:]
+        if sheet_name and ref:
+            result[sheet_name] = ref
+    return result
+
+
+def apply_autofilter_to_worksheet(sheet_xml: str, ref: str) -> str:
+    """Inject <autoFilter ref="..."/> into a worksheet XML if not already present."""
+    xml = sheet_xml or ""
+    if not ref:
+        return xml
+    if _AUTOFILTER_REF_RE.search(xml):
+        return xml
+    # Insert before </worksheet>
+    marker = "</worksheet>"
+    idx = xml.rfind(marker)
+    if idx == -1:
+        return xml + f'<autoFilter ref="{ref}"/>'
+    return xml[:idx] + f'<autoFilter ref="{ref}"/>' + xml[idx:]
+
+
 def _resolve_xlsx_sheet_entries(xlsx_bytes: bytes) -> dict[str, str]:
     """Tên sheet (thứ tự trong xl/workbook.xml) -> đường dẫn zip entry worksheetN.xml thật."""
     workbook_entry = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
@@ -424,6 +602,41 @@ def postprocess_sheet_xlsx(
                     continue
                 sheet_xml = entry_bytes.decode("utf-8", errors="replace")
             next_sheet_xml = apply_freeze_pane_to_sheet_xml(sheet_xml, freeze["rows"], freeze["cols"])
+            if next_sheet_xml != sheet_xml:
+                replacements[entry_path] = next_sheet_xml
+
+    # Sheet visibility (veryHidden): soffice downgrades veryHidden → hidden
+    # during FODS→XLSX, so we read vno:sheet-state from FODS and write
+    # state="veryHidden" back into xl/workbook.xml.
+    visibility_by_sheet = parse_sheet_visibility_from_fods(source_fods)
+    if visibility_by_sheet:
+        try:
+            current = _read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+        except KeyError:
+            current = None
+        if current:
+            wb_xml = current.decode("utf-8", errors="replace")
+            next_wb_xml = apply_sheet_visibility_to_workbook(wb_xml, visibility_by_sheet)
+            if next_wb_xml != wb_xml:
+                replacements[XLSX_WORKBOOK_ENTRY] = next_wb_xml
+
+    # AutoFilter: soffice may drop <autoFilter> during FODS→XLSX conversion
+    # when the FODS had <table:database-ranges>.  Read the range info from
+    # FODS and write <autoFilter ref> back into the correct worksheet XML.
+    autofilter_by_sheet = parse_autofilter_from_fods(source_fods)
+    if autofilter_by_sheet:
+        sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+        for sheet_name, ref in autofilter_by_sheet.items():
+            entry_path = sheet_entries.get(sheet_name)
+            if not entry_path:
+                continue
+            sheet_xml = replacements.get(entry_path)
+            if sheet_xml is None:
+                entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+                if not entry_bytes:
+                    continue
+                sheet_xml = entry_bytes.decode("utf-8", errors="replace")
+            next_sheet_xml = apply_autofilter_to_worksheet(sheet_xml, ref)
             if next_sheet_xml != sheet_xml:
                 replacements[entry_path] = next_sheet_xml
 
@@ -1944,18 +2157,45 @@ def postprocess_slides_pptx_file(
 def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     """Read the original XLSX ZIP and overlay FODS.
 
-    LibreOffice XLSX→FODS drops lockStructure AND Freeze Panes (<pane> is not
-    restored into ODF office:settings — confirmed via a real soffice
-    round-trip, see docs/HANDOFF-SHEET-FREEZE-PANES.md). Production File → Mở
-    must restore both before SheetAdapter.parseFods().
+    LibreOffice XLSX→FODS drops lockStructure, Freeze Panes, veryHidden
+    sheet state, and AutoFilter database-ranges — all confirmed via real
+    soffice round-trips.  Production File → Mở must restore them before
+    SheetAdapter.parseFods().
     """
     xml = fods_xml or ""
     current = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
     if current:
         workbook_xml = current.decode("utf-8", errors="replace")
         xml = overlay_fods_structure_protection(xml, workbook_xml)
+        # Sheet visibility (veryHidden → vno:sheet-state): soffice downgrades
+        # veryHidden to hidden during XLSX→FODS, so we read the original state
+        # and write vno:sheet-state for round-trip fidelity.
+        visibility = parse_sheet_visibility_from_workbook(workbook_xml)
+        if visibility:
+            xml = apply_sheet_visibility_to_fods(xml, visibility)
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
+    # AutoFilter: read <autoFilter ref> from original worksheet XMLs and
+    # inject <table:database-ranges> into FODS so parseFods can restore
+    # the filter state.
+    xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
     return xml
+
+
+def _overlay_autofilter_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+    """Read <autoFilter ref> from each worksheetN.xml and inject
+    <table:database-ranges> into FODS."""
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    if not sheet_entries:
+        return fods_xml
+    autofilter_by_sheet: dict[str, str] = {}
+    for sheet_name, entry_path in sheet_entries.items():
+        entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry_bytes:
+            continue
+        ref = parse_autofilter_from_worksheet(entry_bytes.decode("utf-8", errors="replace"))
+        if ref:
+            autofilter_by_sheet[sheet_name] = ref
+    return apply_autofilter_to_fods(fods_xml, autofilter_by_sheet)
 
 
 def overlay_sheet_xlsx_freeze_panes(xlsx_bytes: bytes, fods_xml: str | None) -> str:
