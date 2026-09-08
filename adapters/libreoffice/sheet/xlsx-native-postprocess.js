@@ -24,6 +24,131 @@ import {
 export const XLSX_WORKBOOK_ENTRY = "xl/workbook.xml";
 export const XLSX_WORKBOOK_RELS_ENTRY = "xl/_rels/workbook.xml.rels";
 
+// --- Sheet visibility (veryHidden) helpers ---
+
+const WB_SHEET_TAG_RE = /<sheet\b([^>]*)\/?>/gi;
+const SHEET_STATE_RE = /state="(visible|hidden|veryHidden)"/i;
+const VNO_SHEET_STATE_RE = /vno:sheet-state="(visible|hidden|veryHidden)"/i;
+const TABLE_TAG_RE = /<table:table\b([^>]*)>/gi;
+
+function unescapeXml(value) {
+  return String(value ?? "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
+/** Read sheet state from xl/workbook.xml <sheet state="..."> elements. */
+function parseSheetVisibilityFromWorkbook(workbookXml) {
+  const result = {};
+  if (!workbookXml) return result;
+  let match;
+  WB_SHEET_TAG_RE.lastIndex = 0;
+  while ((match = WB_SHEET_TAG_RE.exec(workbookXml)) !== null) {
+    const attrs = match[1] || "";
+    const nameMatch = attrs.match(/name="([^"]*)"/);
+    const stateMatch = attrs.match(SHEET_STATE_RE);
+    if (nameMatch && stateMatch) {
+      const state = stateMatch[1].toLowerCase();
+      if (state === "hidden" || state === "veryHidden") {
+        result[unescapeXml(nameMatch[1])] = state;
+      }
+    }
+  }
+  return result;
+}
+
+/** Write state="hidden|veryHidden" back into xl/workbook.xml <sheet> elements. */
+function applySheetVisibilityToWorkbook(workbookXml, visibilityBySheet) {
+  let xml = workbookXml || "";
+  if (!Object.keys(visibilityBySheet).length) return xml;
+  return xml.replace(WB_SHEET_TAG_RE, (full, attrs) => {
+    const nameMatch = attrs.match(/name="([^"]*)"/);
+    if (!nameMatch) return full;
+    const name = unescapeXml(nameMatch[1]);
+    const state = visibilityBySheet[name];
+    if (!state) return full;
+    const nextAttrs = attrs.replace(SHEET_STATE_RE, "") + ` state="${state}"`;
+    return `<sheet${nextAttrs}>`;
+  });
+}
+
+/** Read vno:sheet-state from FODS <table:table> tags. */
+function parseSheetVisibilityFromFods(fodsXml) {
+  const result = {};
+  if (!fodsXml) return result;
+  let match;
+  TABLE_TAG_RE.lastIndex = 0;
+  while ((match = TABLE_TAG_RE.exec(fodsXml)) !== null) {
+    const attrs = match[1] || "";
+    const nameMatch = attrs.match(/table:name="([^"]*)"/i);
+    if (!nameMatch) continue;
+    const stateMatch = attrs.match(VNO_SHEET_STATE_RE);
+    if (stateMatch) result[unescapeXml(nameMatch[1])] = stateMatch[1].toLowerCase();
+  }
+  return result;
+}
+
+/** Inject vno:sheet-state onto <table:table> tags in FODS. */
+function applySheetVisibilityToFods(fodsXml, visibilityBySheet) {
+  let xml = fodsXml || "";
+  if (!Object.keys(visibilityBySheet).length) return xml;
+  return xml.replace(TABLE_TAG_RE, (full, attrs) => {
+    const nameMatch = attrs.match(/table:name="([^"]*)"/i);
+    if (!nameMatch) return full;
+    const name = unescapeXml(nameMatch[1]);
+    const state = visibilityBySheet[name];
+    if (!state) return full;
+    const nextAttrs = attrs.replace(VNO_SHEET_STATE_RE, "") + ` vno:sheet-state="${state}"`;
+    return `<table:table${nextAttrs}>`;
+  });
+}
+
+// --- AutoFilter helpers ---
+
+const AUTOFILTER_REF_RE = /<autoFilter\b[^>]*ref="([^"]*)"[^>]*\/?\s*>/i;
+const DB_RANGE_RE = /<table:database-range\b([^>]*)\/?\s*>/gi;
+
+/** Read <autoFilter ref="..."/> from a single worksheetN.xml. */
+function parseAutofilterFromWorksheet(sheetXml) {
+  if (!sheetXml) return null;
+  const m = sheetXml.match(AUTOFILTER_REF_RE);
+  return m ? m[1] : null;
+}
+
+/** Read <table:database-range> from FODS. Returns {sheetName: ref}. */
+function parseAutofilterFromFods(fodsXml) {
+  const result = {};
+  if (!fodsXml) return result;
+  let match;
+  DB_RANGE_RE.lastIndex = 0;
+  while ((match = DB_RANGE_RE.exec(fodsXml)) !== null) {
+    const attrs = match[1] || "";
+    const targetMatch = attrs.match(/table:target-range-address="([^"]*)"/i);
+    if (!targetMatch) continue;
+    const target = unescapeXml(targetMatch[1]);
+    const dotIdx = target.indexOf(".");
+    if (dotIdx === -1) continue;
+    const sheetName = target.substring(0, dotIdx);
+    const ref = target.substring(dotIdx + 1);
+    if (sheetName && ref) result[sheetName] = ref;
+  }
+  return result;
+}
+
+/** Inject <autoFilter ref="..."/> into a worksheet XML if not already present. */
+function applyAutofilterToWorksheet(sheetXml, ref) {
+  let xml = sheetXml || "";
+  if (!ref) return xml;
+  if (AUTOFILTER_REF_RE.test(xml)) return xml;
+  const marker = "</worksheet>";
+  const idx = xml.lastIndexOf(marker);
+  if (idx === -1) return xml + `<autoFilter ref="${ref}"/>`;
+  return xml.substring(0, idx) + `<autoFilter ref="${ref}"/>` + xml.substring(idx);
+}
+
 function asBuffer(zipPathOrBuffer) {
   return Buffer.isBuffer(zipPathOrBuffer) ? zipPathOrBuffer : fs.readFileSync(zipPathOrBuffer);
 }
@@ -84,6 +209,33 @@ export function postProcessSheetXlsx(xlsxPathOrBuffer, options = {}) {
     }
   }
 
+  // Sheet visibility (veryHidden): soffice downgrades veryHidden → hidden
+  // during FODS→XLSX. Read vno:sheet-state from FODS and write state back.
+  const visibilityBySheet = parseSheetVisibilityFromFods(options.sourceFods);
+  if (Object.keys(visibilityBySheet).length > 0) {
+    const current = readZipEntry(source, XLSX_WORKBOOK_ENTRY);
+    if (current) {
+      const wbXml = current.toString("utf8");
+      const nextWbXml = applySheetVisibilityToWorkbook(wbXml, visibilityBySheet);
+      if (nextWbXml !== wbXml) replacements[XLSX_WORKBOOK_ENTRY] = nextWbXml;
+    }
+  }
+
+  // AutoFilter: soffice may drop <autoFilter> during FODS→XLSX. Read
+  // database-ranges from FODS and write <autoFilter ref> into worksheets.
+  const autofilterBySheet = parseAutofilterFromFods(options.sourceFods);
+  if (Object.keys(autofilterBySheet).length > 0) {
+    const sheetEntries = resolveXlsxSheetEntries(source);
+    for (const [sheetName, ref] of Object.entries(autofilterBySheet)) {
+      const entryPath = sheetEntries[sheetName];
+      if (!entryPath) continue;
+      const sheetXml = (replacements[entryPath] || readZipEntry(source, entryPath)?.toString("utf8"));
+      if (!sheetXml) continue;
+      const nextSheetXml = applyAutofilterToWorksheet(sheetXml, ref);
+      if (nextSheetXml !== sheetXml) replacements[entryPath] = nextSheetXml;
+    }
+  }
+
   if (Object.keys(replacements).length === 0) return source;
   return patchOoxmlZip(source, replacements);
 }
@@ -101,9 +253,47 @@ export function overlaySheetXlsxFods(xlsxPathOrBuffer, fodsXml) {
   const source = asBuffer(xlsxPathOrBuffer);
   const current = readZipEntry(source, XLSX_WORKBOOK_ENTRY);
   let xml = String(fodsXml || "");
-  if (current) xml = overlayFodsStructureProtection(xml, current.toString("utf8"));
+  if (current) {
+    const workbookXml = current.toString("utf8");
+    xml = overlayFodsStructureProtection(xml, workbookXml);
+    // Sheet visibility: inject vno:sheet-state for veryHidden/hidden sheets
+    const visibility = parseSheetVisibilityFromWorkbook(workbookXml);
+    if (Object.keys(visibility).length > 0) {
+      xml = applySheetVisibilityToFods(xml, visibility);
+    }
+  }
   xml = overlaySheetXlsxFreezePanes(source, xml);
+  // AutoFilter: read <autoFilter ref> from worksheet XMLs and inject
+  // <table:database-ranges> into FODS.
+  xml = overlayAutofilterFromXlsx(source, xml);
   return xml;
+}
+
+/** Read <autoFilter ref> from each worksheet and inject database-ranges into FODS. */
+function overlayAutofilterFromXlsx(source, fodsXml) {
+  const sheetEntries = resolveXlsxSheetEntries(source);
+  if (Object.keys(sheetEntries).length === 0) return fodsXml;
+  const autofilterBySheet = {};
+  for (const [sheetName, entryPath] of Object.entries(sheetEntries)) {
+    const sheetXml = readZipEntry(source, entryPath)?.toString("utf8");
+    if (!sheetXml) continue;
+    const ref = parseAutofilterFromWorksheet(sheetXml);
+    if (ref) autofilterBySheet[sheetName] = ref;
+  }
+  if (!Object.keys(autofilterBySheet).length) return fodsXml;
+  const ranges = [];
+  for (const [sheetName, ref] of Object.entries(autofilterBySheet)) {
+    ranges.push(
+      `<table:database-range table:name="AutoFilter_${sheetName}"`
+      + ` table:target-range-address="${sheetName}.${ref}"`
+      + ` table:display-filter-buttons="true"/>`
+    );
+  }
+  const dbBlock = `<table:database-ranges>${ranges.join("")}</table:database-ranges>`;
+  const marker = "</office:spreadsheet>";
+  const idx = fodsXml.lastIndexOf(marker);
+  if (idx === -1) return fodsXml + dbBlock;
+  return fodsXml.substring(0, idx) + dbBlock + fodsXml.substring(idx);
 }
 
 /**
