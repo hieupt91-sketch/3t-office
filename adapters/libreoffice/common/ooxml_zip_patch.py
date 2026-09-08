@@ -2071,6 +2071,210 @@ def postprocess_sheet_xlsx_file(
     return dest
 
 
+def _extract_docx_header_footer_refs(document_xml: str) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+    """Extract (type, rId) pairs for header and footer references from word/document.xml."""
+    header_refs: list[tuple[str, str]] = []
+    footer_refs: list[tuple[str, str]] = []
+    for match in re.finditer(
+        r"<w:(headerReference|footerReference)\b([^>]*?)(?:/\s*>|>([\s\S]*?)</w:\1\s*>)",
+        document_xml,
+        re.IGNORECASE,
+    ):
+        tag_type = match.group(1).lower()
+        attrs_str = match.group(2) or ""
+        r_id_match = re.search(r'r:id\s*=\s*["\']([^"\']+)["\']', attrs_str, re.IGNORECASE)
+        if not r_id_match:
+            continue
+        r_id = r_id_match.group(1)
+        if tag_type == "headerreference":
+            header_refs.append(("header", r_id))
+        elif tag_type == "footerreference":
+            footer_refs.append(("footer", r_id))
+    return header_refs, footer_refs
+
+
+def _extract_docx_section_properties(document_xml: str) -> str | None:
+    """Extract the last w:sectPr (body-level section) from word/document.xml."""
+    sect_matches = list(re.finditer(
+        r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>",
+        document_xml,
+        re.IGNORECASE,
+    ))
+    if not sect_matches:
+        return None
+    return sect_matches[-1].group(0)
+
+
+def _resolve_docx_rels(docx_bytes: bytes) -> dict[str, str]:
+    """Read word/_rels/document.xml.rels and return {rId: target}."""
+    rels_xml_bytes = read_zip_entry(docx_bytes, "word/_rels/document.xml.rels")
+    if not rels_xml_bytes:
+        return {}
+    rels_xml = rels_xml_bytes.decode("utf-8", errors="replace")
+    result: dict[str, str] = {}
+    for match in re.finditer(r"<Relationship\b([^>]*?)/?>", rels_xml, re.IGNORECASE):
+        attrs = match.group(1) or ""
+        id_match = re.search(r'\bId\s*=\s*["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        target_match = re.search(r'\bTarget\s*=\s*["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        if id_match and target_match:
+            result[id_match.group(1)] = target_match.group(1)
+    return result
+
+
+def _extract_docx_section_parts(
+    original_docx_bytes: bytes,
+) -> tuple[list[str], list[str], str | None, dict[str, str]]:
+    """From the original DOCX, extract:
+    - header entry names (e.g. word/header1.xml)
+    - footer entry names (e.g. word/footer1.xml)
+    - the body-level w:sectPr
+    - rId -> target mapping
+
+    Returns (header_entries, footer_entries, sect_pr, rels_map).
+    """
+    original_xml_bytes = read_zip_entry(original_docx_bytes, "word/document.xml")
+    if not original_xml_bytes:
+        return [], [], None, {}
+    original_xml = original_xml_bytes.decode("utf-8", errors="replace")
+    header_refs, footer_refs = _extract_docx_header_footer_refs(original_xml)
+    sect_pr = _extract_docx_section_properties(original_xml)
+    rels = _resolve_docx_rels(original_docx_bytes)
+    header_entries = [
+        f"word/{rels.get(r_id, f'header{idx + 1}.xml')}"
+        for idx, (_, r_id) in enumerate(header_refs)
+    ]
+    footer_entries = [
+        f"word/{rels.get(r_id, f'footer{idx + 1}.xml')}"
+        for idx, (_, r_id) in enumerate(footer_refs)
+    ]
+    return header_entries, footer_entries, sect_pr, rels
+
+
+def _rebuild_docx_document_xml(
+    converted_xml: str,
+    original_xml: str,
+    original_header_entries: list[str],
+    original_footer_entries: list[str],
+    original_sect_pr: str | None,
+) -> str:
+    """Re-inject header/footer references and section properties into the converted document.xml.
+
+    Strategy:
+    1. Find the body-level w:sectPr in the converted XML (last w:sectPr).
+    2. Replace it with the original w:sectPr (which has the correct header/footer refs
+       and section geometry).
+    3. If the converted XML lacks w:headerReference/w:footerReference, inject them
+       from the original just before the w:sectPr.
+    """
+    if not original_sect_pr:
+        return converted_xml
+
+    has_header_ref = bool(re.search(r"<w:headerReference\b", converted_xml, re.IGNORECASE))
+    has_footer_ref = bool(re.search(r"<w:footerReference\b", converted_xml, re.IGNORECASE))
+    has_sect_pr = bool(re.search(r"<w:sectPr\b", converted_xml, re.IGNORECASE))
+
+    if has_sect_pr:
+        converted_xml = re.sub(
+            r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>",
+            original_sect_pr,
+            converted_xml,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+    else:
+        body_close = re.search(r"</w:body\s*>", converted_xml, re.IGNORECASE)
+        if body_close:
+            converted_xml = (
+                converted_xml[: body_close.start()]
+                + original_sect_pr
+                + converted_xml[body_close.start() :]
+            )
+
+    return converted_xml
+
+
+def postprocess_writer_docx(
+    docx_bytes: bytes,
+    *,
+    source_docx: bytes | None = None,
+) -> bytes:
+    """Re-inject section structure, header/footer XML from the original DOCX
+    into the converted DOCX that LibreOffice generated from HTML.
+
+    When source_docx is None or the original has no header/footer references,
+    returns docx_bytes unchanged (safe no-op).
+    """
+    if not source_docx:
+        return docx_bytes
+
+    orig_header_entries, orig_footer_entries, orig_sect_pr, orig_rels = (
+        _extract_docx_section_parts(source_docx)
+    )
+
+    if not orig_sect_pr and not orig_header_entries and not orig_footer_entries:
+        return docx_bytes
+
+    try:
+        converted_xml_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    except (KeyError, ValueError):
+        return docx_bytes
+    if not converted_xml_bytes:
+        return docx_bytes
+    converted_xml = converted_xml_bytes.decode("utf-8", errors="replace")
+
+    original_xml_bytes = read_zip_entry(source_docx, "word/document.xml")
+    original_xml = original_xml_bytes.decode("utf-8", errors="replace") if original_xml_bytes else ""
+
+    new_xml = _rebuild_docx_document_xml(
+        converted_xml, original_xml, orig_header_entries, orig_footer_entries, orig_sect_pr
+    )
+
+    replacements: dict[str, bytes] = {}
+    if new_xml != converted_xml:
+        replacements["word/document.xml"] = new_xml.encode("utf-8")
+
+    for entry_name in orig_header_entries:
+        header_bytes = read_zip_entry(source_docx, entry_name)
+        if header_bytes:
+            replacements[entry_name] = header_bytes
+
+    for entry_name in orig_footer_entries:
+        footer_bytes = read_zip_entry(source_docx, entry_name)
+        if footer_bytes:
+            replacements[entry_name] = footer_bytes
+
+    if not replacements:
+        return docx_bytes
+
+    source = io.BytesIO(docx_bytes)
+    dest = io.BytesIO()
+    with zipfile.ZipFile(source, "r") as zin, zipfile.ZipFile(
+        dest, "w", compression=zipfile.ZIP_DEFLATED
+    ) as zout:
+        written_replacements: set[str] = set()
+        for item in zin.infolist():
+            if item.is_dir() or not item.filename or item.filename.endswith("/"):
+                continue
+            if item.filename in replacements:
+                data = replacements[item.filename]
+                info = zipfile.ZipInfo(filename=item.filename, date_time=item.date_time)
+                info.compress_type = zipfile.ZIP_DEFLATED
+                zout.writestr(info, data)
+                written_replacements.add(item.filename)
+            else:
+                data = zin.read(item.filename)
+                info = zipfile.ZipInfo(filename=item.filename, date_time=item.date_time)
+                info.compress_type = zipfile.ZIP_DEFLATED
+                zout.writestr(info, data)
+        for entry_name, data in replacements.items():
+            if entry_name not in written_replacements:
+                info = zipfile.ZipInfo(filename=entry_name)
+                info.compress_type = zipfile.ZIP_DEFLATED
+                zout.writestr(info, data)
+
+    return dest.getvalue()
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Patch native OOXML after soffice convert: XLSX lockStructure, "
