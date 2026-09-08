@@ -155,6 +155,7 @@ import { runSlidesShapeRotationSerializeTests } from "./unit/slides-shape-rotati
 import { runSlidesShapeRotatedResizeTests } from "./unit/slides-shape-rotated-resize.test.js";
 import { runWriterFodtRealFileGapsBatch2Tests } from "./unit/writer-fodt-real-file-gaps-batch2.test.js";
 import { runMacroManagerTests } from "./unit/macro-manager.test.js";
+import { runWriterFloatingImageImportTests } from "./unit/writer-floating-image-import.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -317,7 +318,8 @@ async function runAll() {
     { title: "134. Unit Tests — VN Slides Serialize Góc Xoay Hình (shape.rotation → draw:transform FODP)", runner: runSlidesShapeRotationSerializeTests },
     { title: "135. Unit Tests — VN Slides Co Giãn Hình Đã Xoay (Rotated Shape Resize Math & Anchor Invariance)", runner: runSlidesShapeRotatedResizeTests },
     { title: "136. Unit Tests — Writer parseFodt(): 3 lỗi thật từ file .doc người dùng (header/footer diff, table multi-p, draw:connector)", runner: runWriterFodtRealFileGapsBatch2Tests },
-    { title: "137. Unit Tests — VN Office Macro cơ bản (ghi/phát lại thao tác qua Command Bus)", runner: runMacroManagerTests }
+    { title: "137. Unit Tests — VN Office Macro cơ bản (ghi/phát lại thao tác qua Command Bus)", runner: runMacroManagerTests },
+    { title: "138. Unit Tests — Writer floating image (sd-abs-pos) import normalization", runner: runWriterFloatingImageImportTests }
   ];
 
   for (const suite of suites) {
