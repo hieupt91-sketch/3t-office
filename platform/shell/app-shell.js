@@ -488,6 +488,10 @@ export class AppShell {
 
     sb.innerHTML = `
       <div class="vno-statusbar-left">
+        <span id="vno-macro-status-indicator" class="vno-macro-status-indicator" style="display:none;" role="status" aria-live="polite">
+          <span class="vno-macro-recording-dot" aria-hidden="true"></span>
+          <span class="vno-macro-recording-text">${t("macro.statusRecording", "Đang ghi Macro...")}</span>
+        </span>
         <span id="vno-status-docinfo" aria-live="polite">Sẵn sàng</span>
         <span aria-hidden="true">|</span>
         <span>Tiếng Việt (Việt Nam)</span>
@@ -1240,20 +1244,32 @@ export class AppShell {
     globalCommandBus.bindHandler("common.macro.recordToggle", async () => {
       if (!globalMacroManager.isRecording()) {
         globalMacroManager.startRecording(this.appName);
-        this.setStatus?.("Đang ghi Macro... Bấm Ctrl+Shift+R để dừng.");
+        this.setStatus?.(t("macro.statusHint", "Đang ghi Macro... Bấm Ctrl+Shift+R để dừng."));
+        globalCommandBus.updateState("common.macro.recordToggle", {
+          checked: true,
+          label: t("macro.stop", "Dừng ghi"),
+          icon: "macroRecordStop"
+        });
+        this._setMacroRecordingState(true);
         return true;
       }
       const { app, steps } = globalMacroManager.stopRecording();
+      globalCommandBus.updateState("common.macro.recordToggle", {
+        checked: false,
+        label: t("macro.record", "Ghi Macro"),
+        icon: "macroRecordStart"
+      });
+      this._setMacroRecordingState(false);
       if (!steps.length) {
-        await showAlertDialog({ title: "Ghi Macro", message: "Không có thao tác nào được ghi lại — Macro không được lưu.", type: "warning" });
+        await showAlertDialog({ title: t("macro.saveTitle", "Ghi Macro"), message: t("macro.noActionsNotice", "Không có thao tác nào được ghi lại — Macro không được lưu."), type: "warning" });
         return false;
       }
-      const name = await showPromptDialog({ title: "Lưu Macro", message: "Đặt tên cho Macro vừa ghi:", defaultValue: `Macro ${new Date().toLocaleString("vi-VN")}` });
+      const name = await showPromptDialog({ title: t("macro.saveTitle", "Lưu Macro"), message: t("macro.savePrompt", "Đặt tên cho Macro vừa ghi:"), defaultValue: `Macro ${new Date().toLocaleString("vi-VN")}` });
       if (name) {
         globalMacroManager.saveMacro(app, name, steps);
-        this.setStatus?.(`Đã lưu Macro "${name}" (${steps.length} thao tác).`);
+        this.setStatus?.(`${t("macro.savedNotice", "Đã lưu Macro")} "${name}" (${steps.length} thao tác).`);
       } else {
-        this.setStatus?.("Đã hủy — Macro không được lưu.");
+        this.setStatus?.(t("macro.emptyCancelled", "Đã hủy — Macro không được lưu."));
       }
       return false;
     });
@@ -1283,5 +1299,13 @@ export class AppShell {
   setStatus(text) {
     const el = document.getElementById("vno-status-docinfo");
     if (el) el.textContent = text;
+  }
+
+  _setMacroRecordingState(isRecording) {
+    const indicator = document.getElementById("vno-macro-status-indicator");
+    if (indicator) indicator.style.display = isRecording ? "inline-flex" : "none";
+    if (typeof document !== "undefined" && document.body) {
+      document.body.classList.toggle("vno-macro-is-recording", isRecording);
+    }
   }
 }

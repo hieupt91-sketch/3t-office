@@ -848,6 +848,22 @@ export const SHEET_HELP_ENTRIES = [
       "Đóng hộp thoại và khôi phục tiêu điểm: Nhấn phím Escape để đóng hộp thoại Định dạng ô. Tiêu điểm lập tức được khôi phục chính xác về ô bạn đang chọn trước đó, cho phép bạn tiếp tục điều hướng bằng các phím mũi tên ngay mà không cần dùng chuột.",
       "Mở menu Tệp (Backstage) bằng Alt+F: Menu mở ra và tiêu điểm đặt vào nút 'Quay lại'. Dùng mũi tên Lên/Xuống để duyệt danh sách lệnh, phím Escape để đóng menu trở về lưới ô tính."
     ]
+  },
+  {
+    id: "sheet.macro.basics",
+    app: "sheet",
+    commandIds: ["common.macro.recordToggle", "common.macro.manager"],
+    title: "Ghi và quản lý Macro trong bảng tính",
+    summary: "Tự động hóa các chuỗi thao tác thường dùng trong VN Sheet như tô màu, căn lề, sắp xếp, lọc dữ liệu. Bật/dừng ghi bằng Ctrl+Shift+R và quản lý danh sách macro bằng Alt+F8.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Macro" },
+    keywords: ["macro", "ghi macro", "dừng ghi", "quản lý macro", "xem macro", "tự động hóa", "record macro", "alt+f8", "ctrl+shift+r"],
+    steps: [
+      "Bắt đầu ghi: Mở tab Chế độ xem trên thanh Ribbon, tại nhóm Macro nhấn nút «Ghi Macro» (hoặc bấm phím tắt Ctrl+Shift+R). Biểu tượng nút chuyển sang dừng ghi màu đỏ và nhãn đổi thành «Dừng ghi» kèm chỉ báo nhấp nháy trực quan.",
+      "Thực hiện thao tác: Thực hiện các lệnh bảng tính cần tự động hóa (ví dụ: bôi đậm ô, căn giữa, đổi màu nền ô, sắp xếp tăng dần A-Z, chèn hàng/cột...).",
+      "Dừng và lưu: Nhấn lại nút «Dừng ghi» trên Ribbon (hoặc Ctrl+Shift+R). Hộp thoại hiển thị yêu cầu nhập tên cho Macro, điền tên mong muốn và bấm OK.",
+      "Quản lý và phát lại: Nhấn nút «Xem Macro» trong nhóm Macro (hoặc bấm Alt+F8) để mở danh sách Macro. Bấm «▶ Chạy» để thực thi ngay chuỗi lệnh trên vùng ô đang chọn, «Đổi tên» hoặc «Xóa» khi cần chỉnh lý.",
+      "Giới hạn trung thực: Macro cơ bản chỉ ghi lại các lệnh đi qua Command Bus của VN Sheet (định dạng ô, sắp xếp, căn chỉnh, chèn cấu trúc). Macro không ghi nhận việc gõ nhập ký tự tự do từng phím vào ô tính nếu không qua lệnh xác nhận. Macro được lưu cục bộ theo VN Sheet và không chạy chéo sang VN Writer hoặc VN Slides."
+    ]
   }
 ];
 

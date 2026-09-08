@@ -729,6 +729,22 @@ export const WRITER_HELP_ENTRIES = [
       "Thao tác trong hộp thoại và bẫy tiêu điểm (Focus Trap): Khi mở các hộp thoại như Thiết lập trang, Chèn cột, Thủy ấn hoặc Trộn thư, tiêu điểm bàn phím được bẫy hoàn toàn bên trong hộp thoại (phím Tab và Shift+Tab chỉ xoay vòng giữa các điều khiển hợp lệ của hộp thoại, không bị rơi ra ngoài nền). Nhấn Escape để đóng hộp thoại bất kỳ lúc nào và tự động khôi phục tiêu điểm về nút đã mở.",
       "Soạn thảo văn bản và phím tắt định dạng: Nhập văn bản trực tiếp trong vùng soạn thảo trang giấy. Sử dụng các tổ hợp phím tắt chuẩn như Ctrl+B (chữ đậm), Ctrl+I (chữ nghiêng), Ctrl+U (gạch chân), Ctrl+Z (hoàn tác), Ctrl+Y (làm lại)."
     ]
+  },
+  {
+    id: "writer.macro.basics",
+    app: "writer",
+    commandIds: ["common.macro.recordToggle", "common.macro.manager"],
+    title: "Ghi và quản lý Macro (Tự động hóa thao tác)",
+    summary: "Ghi lại chuỗi thao tác lệnh trong VN Writer để phát lại tự động. Giúp tiết kiệm thời gian cho các chuỗi định dạng lặp đi lặp lại. Hỗ trợ phím tắt Ctrl+Shift+R để bật/dừng ghi và Alt+F8 để mở hộp thoại Quản lý Macro.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Macro" },
+    keywords: ["macro", "ghi macro", "dừng ghi", "quản lý macro", "xem macro", "tự động hóa", "record macro", "alt+f8", "ctrl+shift+r"],
+    steps: [
+      "Bắt đầu ghi: Mở tab Chế độ xem trên Ribbon, trong nhóm Macro nhấn nút «Ghi Macro» (hoặc nhấn tổ hợp phím Ctrl+Shift+R). Nút sẽ chuyển sang biểu tượng hình vuông dừng ghi màu đỏ với nhãn «Dừng ghi», đồng thời chỉ báo chấm đỏ nhấp nháy trên thanh trạng thái và nút Ribbon sẽ kích hoạt.",
+      "Thực hiện các thao tác: Tiến hành các thao tác lệnh bạn muốn ghi lại (ví dụ: bôi đậm, đổi màu chữ, căn giữa đoạn văn, chèn bảng, đổi hướng giấy...).",
+      "Dừng ghi và đặt tên: Nhấn lại nút «Dừng ghi» trên Ribbon (hoặc nhấn Ctrl+Shift+R). Nhập tên cho Macro trong hộp thoại Lưu Macro và nhấn OK. Nếu không thực hiện thao tác nào trong lúc ghi, hệ thống sẽ thông báo và không lưu Macro rỗng.",
+      "Xem và chạy Macro: Mở tab Chế độ xem, nhấn «Xem Macro» (hoặc nhấn Alt+F8) để mở hộp thoại Quản lý Macro. Tại đây bạn có thể nhấn nút «▶ Chạy» để phát lại các thao tác đã ghi, «Đổi tên» để cập nhật tên gọi, hoặc «Xóa» để gỡ bỏ Macro không dùng nữa.",
+      "Giới hạn trung thực: Macro cơ bản chỉ ghi lại các thao tác đi qua hệ thống lệnh (Command Bus) như định dạng, chèn bảng, đổi bố cục... Macro KHÔNG ghi lại nội dung gõ chữ tự do từ bàn phím vào trang soạn thảo (do đây là nhập liệu trực tiếp của trình duyệt). Nếu trong chuỗi ghi có bước mở hộp thoại cần người dùng tương tác, Macro sẽ tạm dừng tại hộp thoại đó chờ bạn thao tác. Macro được lưu trữ riêng biệt theo từng ứng dụng (Writer, Sheet, Slides) và không dùng chéo giữa các ứng dụng."
+    ]
   }
 ];
 

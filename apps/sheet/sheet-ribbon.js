@@ -670,6 +670,15 @@ export const SHEET_RIBBON_TABS = [
             ]
           }
         ]
+      },
+      {
+        id: "macro",
+        label: "Macro",
+        labelKey: "sheetRibbon.group.macro",
+        items: [
+          { type: "button", commandId: "common.macro.recordToggle", isLarge: true },
+          { type: "button", commandId: "common.macro.manager", isLarge: true }
+        ]
       }
     ]
   },
