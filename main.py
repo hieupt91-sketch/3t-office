@@ -9,6 +9,7 @@ import os
 import sys
 import base64
 import csv
+from collections import Counter
 import html
 import importlib.util
 import re
@@ -129,11 +130,23 @@ _CSV_CP1258_CODE = 40
 _CSV_SAMPLE_BYTES = 64 * 1024
 
 
+_CSV_VN_LANG = 1066
+_CSV_EN_LANG = 1033
+_CSV_DESCRIPTION_MAX_FIELDS = 3
+
+
 def _detect_csv_import_options(src_path: str) -> tuple[str, str]:
     """Detect delimiter/encoding and return (encoding name, LO FilterOptions).
 
     UTF-8 is validated strictly (with or without BOM). Files that are not valid
     UTF-8 use Windows-1258, the ANSI code page used by Vietnamese Windows/Excel.
+
+    The delimiter is detected by counting field splits across many lines (not just
+    the first few), which avoids mis-detection when description/blank rows precede
+    the real header.  The language code is set to English (1033) when US-style
+    decimal numbers are detected (e.g. ``1234.56`` or ``1,234.56``), so
+    LibreOffice recognises the dot as a decimal separator instead of a thousands
+    separator.
     """
     try:
         with open(src_path, "rb") as csv_file:
@@ -160,21 +173,73 @@ def _detect_csv_import_options(src_path: str) -> tuple[str, str]:
             "Tệp CSV không phải UTF-8 hợp lệ và cũng không giải mã được bằng Windows-1258."
         ) from exc
 
+    # --- delimiter detection -------------------------------------------------
+    # Take many non-empty lines so that leading description/blank rows do not
+    # skew the detection.  Then pick the delimiter that produces the highest
+    # *consistent* field count (mode), falling back to csv.Sniffer as a last
+    # resort.
+    nonempty_lines = [line for line in sample_text.splitlines() if line.strip()][:200]
     delimiter = ","
-    nonempty_lines = [line for line in sample_text.splitlines() if line.strip()][:20]
+
     if nonempty_lines:
-        try:
-            delimiter = csv.Sniffer().sniff("\n".join(nonempty_lines), delimiters=",;\t").delimiter
-        except csv.Error:
-            # A one-column or malformed sample has no reliable separator signal.
-            delimiter = ","
+        best_delim = ","
+        best_score = 0
+        for delim in (",", ";", "\t"):
+            counts = [len(line.split(delim)) for line in nonempty_lines]
+            if not counts:
+                continue
+            mode_count = Counter(counts).most_common(1)[0][1]
+            max_fields = max(counts)
+            # Require at least 2 fields in the majority of lines to be useful.
+            if mode_count > best_score and max_fields >= 2:
+                best_score = mode_count
+                best_delim = delim
+        if best_score > 0:
+            delimiter = best_delim
+        else:
+            # Fallback: single-column or malformed – let Sniffer have a try.
+            try:
+                delimiter = csv.Sniffer().sniff(
+                    "\n".join(nonempty_lines[:50]), delimiters=",;\t"
+                ).delimiter
+            except csv.Error:
+                delimiter = ","
+
+    # --- number format / language detection ----------------------------------
+    # If the data contains US-style decimal numbers (e.g. 1234.56 or 1,234.56)
+    # without VN-style digit-dot grouping (1.234), switch the language to
+    # English so that LibreOffice interprets the dot as a decimal separator.
+    lang_code = _CSV_VN_LANG
+    if _looks_like_us_numbers(sample_text, delimiter):
+        lang_code = _CSV_EN_LANG
 
     # LibreOffice CSV import tokens: field separator, text delimiter, charset,
-    # first row, column formats, language (vi-VN), quoted-as-text, detect numbers.
+    # first row, column formats, language, quoted-as-text, detect numbers.
     filter_options = (
-        f"{_CSV_DELIMITER_CODES[delimiter]},34,{charset_code},1,,1066,false,true"
+        f"{_CSV_DELIMITER_CODES[delimiter]},34,{charset_code},1,,{lang_code},false,true"
     )
     return encoding, filter_options
+
+
+def _looks_like_us_numbers(text: str, delimiter: str) -> bool:
+    """Return True when the text likely contains US-style decimal numbers.
+
+    US style: ``1234.56`` or ``1,234.56`` (comma = thousands, dot = decimal).
+    VN style: ``1.234,56`` (dot = thousands, comma = decimal).
+    """
+    # US thousands+decimal: 1,234.56 — comma must be followed by exactly 3
+    # digits so that short ambiguous fragments (12,34) are excluded.
+    us_grouped_re = re.compile(r"[-+]?\d{1,3}(?:,\d{3})+\.\d+")
+    # VN grouped: 1.234 or 1.234,56 — three digits after each dot.
+    vn_grouped_re = re.compile(r"[-+]?\d{1,3}(?:\.\d{3})+(?:,\d+)?")
+    us_count = len(us_grouped_re.findall(text))
+    vn_count = len(vn_grouped_re.findall(text))
+    # Simple US decimals like 1234.56 (no thousands separator) — only count
+    # when there is no VN-style grouping in the file at all.
+    if vn_count == 0:
+        simple_us_re = re.compile(r"(?:^|(?<=" + re.escape(delimiter) + r"))[-+]?\d+\.\d+(?=" + re.escape(delimiter) + r"|$)")
+        us_count += len(simple_us_re.findall(text))
+    return us_count > vn_count
 
 
 def _profile_uri(app_kind: str | None = None) -> str:
