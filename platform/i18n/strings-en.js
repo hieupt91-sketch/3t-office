@@ -73,14 +73,14 @@ export const enStrings = {
   sheetRibbon: {
     whatIfAnalysis: "What-If Analysis",
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "VN AI Assistant" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", help: "Help", aiAnalysis: "AI Data Analysis" },
+    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis" },
     editing: { fill: "Fill", clear: "Clear" },
     alignment: { orientation: "Orientation" },
     cells: { format: "Format" }
   },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "VN AI Assistant" },
-    group: { slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", help: "Help", aiContent: "AI Presentation Content" },
+    group: { slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
     editing: { select: "Select" },
     drawing: { arrange: "Arrange" },
     section: "Section"
@@ -246,6 +246,8 @@ export const enStrings = {
     "common.file.exportPdf": { label: "Export PDF", tooltip: "Export content to standard PDF format" },
     "common.file.print": { label: "Print", tooltip: "Print the document (Ctrl+P)" },
     "common.file.close": { label: "Close", tooltip: "Close the document (Ctrl+W)" },
+    "common.macro.recordToggle": { label: "Record Macro", tooltip: "Start/Stop recording actions into a Macro (Ctrl+Shift+R)" },
+    "common.macro.manager": { label: "View Macros", tooltip: "View, run, rename or delete recorded Macros (Alt+F8)" },
     "common.edit.undo": { label: "Undo", tooltip: "Undo the last action (Ctrl+Z)" },
     "common.edit.redo": { label: "Redo", tooltip: "Redo the last undone action (Ctrl+Y)" },
     "common.edit.repeat": { label: "Repeat", tooltip: "Repeat the last action (F4)" },
@@ -671,6 +673,7 @@ export const enStrings = {
       show: "Show",
       zoom: "Zoom",
       window: "Window",
+      macro: "Macros",
       help: "Help",
       aiFeatures: "Vietnamese AI Features"
     }
@@ -960,5 +963,17 @@ export const enStrings = {
     alignJustifyVGap: "Justify (GAP)",
     alignDistributedVGap: "Distributed (GAP)",
     gapNotSupported: "Feature not yet supported (GAP)"
+  },
+  macro: {
+    record: "Record Macro",
+    stop: "Stop Recording",
+    manager: "View Macros",
+    statusRecording: "Recording Macro...",
+    statusHint: "Recording Macro... Press Ctrl+Shift+R to stop.",
+    saveTitle: "Save Macro",
+    savePrompt: "Enter a name for the recorded Macro:",
+    savedNotice: "Macro saved",
+    noActionsNotice: "No actions were recorded — Macro was not saved.",
+    emptyCancelled: "Cancelled — Macro was not saved."
   }
 };

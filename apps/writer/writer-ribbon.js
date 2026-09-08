@@ -690,6 +690,15 @@ export const WRITER_RIBBON_TABS = [
         label: "Cửa sổ",
         labelKey: "writerRibbon.group.window",
         items: [{ type: "button", commandId: "writer.view.newWindow", isLarge: true }]
+      },
+      {
+        id: "macro",
+        label: "Macro",
+        labelKey: "writerRibbon.group.macro",
+        items: [
+          { type: "button", commandId: "common.macro.recordToggle", isLarge: true },
+          { type: "button", commandId: "common.macro.manager", isLarge: true }
+        ]
       }
     ]
   },

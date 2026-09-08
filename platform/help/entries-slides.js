@@ -611,6 +611,22 @@ export const SLIDES_HELP_ENTRIES = [
       "Mở menu Tệp (Backstage) bằng Alt+F: Mở menu Tệp toàn màn hình với tiêu điểm đặt tại nút 'Quay lại'. Dùng mũi tên Lên/Xuống duyệt các lệnh Mới, Mở, Lưu, Xuất bản, mũi tên Phải để đi vào các mẫu trình chiếu và phím Escape để đóng menu.",
       "Duyệt Ribbon và hộp thoại: Dùng Tab và các phím mũi tên để chuyển tab và truy cập các nút lệnh; trong các hộp thoại chèn đối tượng, tiêu điểm luôn được bẫy an toàn và khôi phục khi nhấn Escape."
     ]
+  },
+  {
+    id: "slides.macro.basics",
+    app: "slides",
+    commandIds: ["common.macro.recordToggle", "common.macro.manager"],
+    title: "Ghi và quản lý Macro trong bản trình chiếu",
+    summary: "Ghi lại chuỗi thao tác định dạng và xử lý slide trong VN Slides để phát lại nhanh chóng. Sử dụng Ctrl+Shift+R để bật/dừng ghi và Alt+F8 để mở hộp thoại Quản lý Macro.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Macro" },
+    keywords: ["macro", "ghi macro", "dừng ghi", "quản lý macro", "xem macro", "tự động hóa", "record macro", "alt+f8", "ctrl+shift+r"],
+    steps: [
+      "Bắt đầu ghi: Mở tab Chế độ xem trên Ribbon, tìm nhóm Macro ở cuối dải băng và nhấn nút «Ghi Macro» (hoặc nhấn Ctrl+Shift+R). Nút đổi trạng thái thành «Dừng ghi» kèm chấm đỏ chỉ báo đang ghi.",
+      "Thao tác trên slide: Thực hiện các lệnh trình chiếu muốn ghi lại (ví dụ: tạo slide mới, đổi bố cục slide, căn chỉnh hình vẽ, định dạng khối chữ...).",
+      "Dừng ghi: Bấm nút «Dừng ghi» (hoặc Ctrl+Shift+R), nhập tên gợi nhớ cho Macro trong hộp thoại Lưu Macro và nhấn OK.",
+      "Phát lại và chỉnh sửa: Bấm «Xem Macro» (hoặc Alt+F8) để mở hộp thoại Quản lý Macro. Nhấn «▶ Chạy» để thực thi lại chuỗi thao tác đã ghi trên trang chiếu hiện tại, hoặc chọn «Đổi tên», «Xóa» tùy ý.",
+      "Giới hạn trung thực: Macro chỉ ghi lại các thao tác lệnh có trong Command Bus của VN Slides (bố cục, hình khối, định dạng). Macro không ghi lại văn bản gõ tay trực tiếp vào hộp chữ tự do. Macro được lưu riêng cho VN Slides và phân tách độc lập với Writer và Sheet."
+    ]
   }
 ];
 

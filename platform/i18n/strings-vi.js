@@ -72,14 +72,14 @@ export const viStrings = {
   sheetRibbon: {
     whatIfAnalysis: "Phân tích What-If",
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý VN AI" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Chứng minh", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI" },
+    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Chứng minh", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI" },
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" },
     alignment: { orientation: "Hướng chữ" }
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý VN AI" },
-    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Chứng minh", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
+    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Chứng minh", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
     editing: { select: "Chọn" },
     drawing: { arrange: "Sắp xếp" },
     section: "Phần"
@@ -245,6 +245,8 @@ export const viStrings = {
     "common.file.exportPdf": { label: "Xuất PDF", tooltip: "Xuất nội dung sang định dạng PDF tiêu chuẩn" },
     "common.file.print": { label: "In tài liệu", tooltip: "In tài liệu (Ctrl+P)" },
     "common.file.close": { label: "Đóng", tooltip: "Đóng tài liệu (Ctrl+W)" },
+    "common.macro.recordToggle": { label: "Ghi Macro", tooltip: "Bắt đầu/Dừng ghi lại thao tác thành Macro (Ctrl+Shift+R)" },
+    "common.macro.manager": { label: "Xem Macro", tooltip: "Xem, chạy, đổi tên hoặc xóa các Macro đã ghi (Alt+F8)" },
     "common.edit.undo": { label: "Hoàn tác", tooltip: "Hoàn tác thao tác vừa thực hiện (Ctrl+Z)" },
     "common.edit.redo": { label: "Làm lại", tooltip: "Làm lại thao tác vừa hoàn tác (Ctrl+Y)" },
     "common.edit.repeat": { label: "Lặp lại", tooltip: "Lặp lại thao tác cuối (F4)" },
@@ -670,6 +672,7 @@ export const viStrings = {
       show: "Hiển thị",
       zoom: "Thu phóng",
       window: "Cửa sổ",
+      macro: "Macro",
       help: "Trợ giúp",
       aiFeatures: "Tính năng AI thuần Việt"
     }
@@ -959,5 +962,17 @@ export const viStrings = {
     alignJustifyVGap: "Căn đều dọc / Justify (GAP)",
     alignDistributedVGap: "Phân phối đều / Distributed (GAP)",
     gapNotSupported: "Tính năng chưa được hỗ trợ (GAP)"
+  },
+  macro: {
+    record: "Ghi Macro",
+    stop: "Dừng ghi",
+    manager: "Xem Macro",
+    statusRecording: "Đang ghi Macro...",
+    statusHint: "Đang ghi Macro... Bấm Ctrl+Shift+R để dừng.",
+    saveTitle: "Lưu Macro",
+    savePrompt: "Đặt tên cho Macro vừa ghi:",
+    savedNotice: "Đã lưu Macro",
+    noActionsNotice: "Không có thao tác nào được ghi lại — Macro không được lưu.",
+    emptyCancelled: "Đã hủy — Macro không được lưu."
   }
 };

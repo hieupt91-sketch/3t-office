@@ -694,4 +694,84 @@
   background-color: #e7f4ec !important;
 }
 
+/* ==========================================================================
+   MACRO RECORDING INDICATORS & ANIMATION
+   ========================================================================== */
+.vno-ribbon-btn-large[data-command-id="common.macro.recordToggle"] {
+  position: relative;
+}
+
+.vno-ribbon-btn-large[data-command-id="common.macro.recordToggle"].is-checked::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  width: 9px;
+  height: 9px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3), 0 0 8px #ef4444;
+  animation: vno-macro-pulse 1.2s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.vno-macro-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background-color: #fee2e2;
+  border: 1px solid #f87171;
+  color: #991b1b;
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.vno-macro-recording-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  animation: vno-macro-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes vno-macro-pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.6;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2), 0 0 8px #ef4444;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.6;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+}
+
+/* Badge on View Tab when recording in background */
+body.vno-macro-is-recording #vno-ribbon-tab-view {
+  position: relative;
+}
+body.vno-macro-is-recording #vno-ribbon-tab-view::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  animation: vno-macro-pulse 1.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
 

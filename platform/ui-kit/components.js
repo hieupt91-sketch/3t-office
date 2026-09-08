@@ -65,6 +65,9 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("new")) return ICONS.fileNew;
   if (idLower.includes("print")) return ICONS.filePrint;
   if (idLower.includes("ai")) return ICONS.aiSparkle;
+  if (idLower.includes("macrorecordstop")) return ICONS.macroRecordStop;
+  if (idLower.includes("macro.record") || idLower.includes("macrorecordstart")) return ICONS.macroRecordStart;
+  if (idLower.includes("macro.manager") || idLower.includes("macromanager")) return ICONS.macroManager;
 
   return `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>`;
 }
@@ -148,6 +151,10 @@ export function createCommandButton({ commandId, isLarge = false, iconOnly = fal
       if (newState.label && !iconOnly) {
         const labelSpan = btn.querySelector(".vno-btn-label");
         if (labelSpan) labelSpan.textContent = newState.label;
+      }
+      if (newState.icon) {
+        const iconSpan = btn.querySelector(".vno-btn-icon");
+        if (iconSpan) iconSpan.innerHTML = resolveIcon(commandId, newState.icon);
       }
     }
   });
