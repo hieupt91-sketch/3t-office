@@ -956,7 +956,26 @@ def main(argv: list[str] | None = None):
 
     # Start embedded static-file server BEFORE creating the webview window
     # so the UI is guaranteed to load without ERR_CONNECTION_REFUSED.
-    server, port = _start_static_server()
+    try:
+        server, port = _start_static_server()
+    except RuntimeError as exc:
+        msg = (
+            f"VN Office không thể khởi động.\n\n"
+            f"Nguyên nhân: {exc}\n\n"
+            f"Vui lòng kiểm tra:\n"
+            f"• Phần mềm diệt virus hoặc tường lửa có đang chặn ứng dụng không.\n"
+            f"• Thử khởi động lại máy tính."
+        )
+        if platform.system() == "Windows":
+            try:
+                import ctypes
+                ctypes.windll.user32.MessageBoxW(0, msg, "VN Office — Lỗi khởi động", 0x10)
+            except Exception:
+                print(f"[VN Office] {msg}", file=sys.stderr)
+        else:
+            print(f"[VN Office] {msg}", file=sys.stderr)
+        return 3
+
     print(f"[VN Office] Embedded server ready at http://localhost:{port}")
 
     api = VnOfficeApi(app_kind=app_kind, initial_file=initial_file)
