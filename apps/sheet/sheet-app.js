@@ -38,6 +38,8 @@ export class SheetApp {
 
     const workspace = document.createElement("div");
     workspace.className = "vno-sheet-workspace";
+    workspace.setAttribute("role", "application");
+    workspace.setAttribute("aria-label", "Bảng tính");
 
     const gridWrap = document.createElement("div");
     gridWrap.style.flex = "1 1 auto";
