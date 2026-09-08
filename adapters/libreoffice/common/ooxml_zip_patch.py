@@ -543,6 +543,53 @@ def parse_slide_size(presentation_xml: str | None) -> dict[str, int]:
 
 
 _PAGE_LAYOUT_PROPS_RE = re.compile(r"<style:page-layout-properties\b([^>]*)/?>", re.IGNORECASE)
+_PAGE_LAYOUT_TAG_RE = re.compile(r"<style:page-layout\b", re.IGNORECASE)
+_PAGE_LAYOUT_CLOSE_RE = re.compile(r"</style:page-layout\s*>", re.IGNORECASE)
+_PAGE_LAYOUT_NAME_RE = re.compile(r'\bstyle:name\s*=\s*["\']([^"\']+)["\']', re.IGNORECASE)
+
+
+def _resolve_slide_page_layout_name(fodp_xml: str) -> str | None:
+    """Theo chuỗi tham chiếu ODF: draw:page → master-page → page-layout.
+
+    Trả về style:name của page-layout gắn với khổ chiếu thật (không phải
+    notes/handout), hoặc None nếu FODP không đủ cấu trúc.
+    """
+    # Bước 1: Lấy master-page name từ draw:page đầu tiên
+    page_match = _PAGE_OPEN_RE.search(fodp_xml)
+    if not page_match:
+        return None
+    page_attrs = page_match.group(1)
+    mp_name_match = re.search(
+        r'\bdraw:master-page-name\s*=\s*["\']([^"\']+)["\']', page_attrs, re.IGNORECASE
+    )
+    master_page_name = mp_name_match.group(1) if mp_name_match else None
+
+    # Bước 2: Tìm style:master-page có tên khớp
+    # Nếu draw:page không có draw:master-page-name → dùng master-page đầu tiên
+    best_layout_name: str | None = None
+    for mp_match in _MASTER_PAGE_OPEN_RE.finditer(fodp_xml):
+        mp_attrs = mp_match.group(1)
+        name_match = _PAGE_LAYOUT_NAME_RE.search(mp_attrs)
+        if not name_match:
+            continue
+        mp_current_name_match = re.search(
+            r'\bstyle:name\s*=\s*["\']([^"\']+)["\']', mp_attrs, re.IGNORECASE
+        )
+        mp_current_name = mp_current_name_match.group(1) if mp_current_name_match else None
+        if master_page_name and mp_current_name and mp_current_name != master_page_name:
+            continue
+        # Tìm page-layout-name trên master-page
+        pln_match = re.search(
+            r'\bstyle:page-layout-name\s*=\s*["\']([^"\']+)["\']', mp_attrs, re.IGNORECASE
+        )
+        if pln_match:
+            best_layout_name = pln_match.group(1)
+            break
+        if best_layout_name is None:
+            # Master-page đầu tiên không có page-layout-name → fallback
+            best_layout_name = name_match.group(1)
+            break
+    return best_layout_name
 
 
 def parse_intended_slide_size_from_fodp(fodp_xml: str | None) -> dict[str, int] | None:
@@ -552,9 +599,52 @@ def parse_intended_slide_size_from_fodp(fodp_xml: str | None) -> dict[str, int] 
     style:page-layout-properties khi chuyển FODP -> PPTX, luôn tự ý ghi
     DEFAULT_SLIDE_CX/CY (28cm x 15.75cm) vào <p:sldSz> bất kể FODP khai báo gì -
     dùng để khôi phục lại khổ trang thật sau khi soffice convert xong.
+
+    FODP Presentation ODF có NHIỀU style:page-layout (slide / notes / handout).
+    Phải lần theo chuỗi tham chiếu draw:page → master-page → page-layout để
+    lấy ĐÚNG page-layout của khổ chiếu, không lấy page-layout đầu tiên tìm thấy
+    (có thể là của trang ghi chú, sai khổ).
     """
-    match = _PAGE_LAYOUT_PROPS_RE.search(fodp_xml or "")
-    attrs = match.group(1) if match else ""
+    xml = fodp_xml or ""
+    if not xml:
+        return None
+
+    target_layout_name = _resolve_slide_page_layout_name(xml)
+
+    # Tìm <style:page-layout> có style:name khớp target
+    if target_layout_name:
+        for tag_match in _PAGE_LAYOUT_TAG_RE.finditer(xml):
+            tag_start = tag_match.start()
+            # Tìm closing > của opening tag
+            close_gt = xml.find(">", tag_start + len("<style:page-layout"))
+            if close_gt < 0:
+                continue
+            tag_attrs = xml[tag_start:close_gt + 1]
+            name_match = _PAGE_LAYOUT_NAME_RE.search(tag_attrs)
+            if not name_match:
+                continue
+            if name_match.group(1) != target_layout_name:
+                continue
+            # Tìm page-layout-properties bên trong block này
+            body_start = close_gt + 1
+            body_close = _PAGE_LAYOUT_CLOSE_RE.search(xml[body_start:])
+            if not body_close:
+                continue
+            block = xml[body_start:body_start + body_close.start()]
+            props_match = _PAGE_LAYOUT_PROPS_RE.search(block)
+            if props_match:
+                return _parse_page_layout_props(props_match.group(1))
+
+    # Fallback: lấy page-layout-properties đầu tiên (an toàn cho FODP đơn giản
+    # chỉ có 1 layout)
+    match = _PAGE_LAYOUT_PROPS_RE.search(xml)
+    if match:
+        return _parse_page_layout_props(match.group(1))
+    return None
+
+
+def _parse_page_layout_props(attrs: str) -> dict[str, int] | None:
+    """Trích xuất fo:page-width / fo:page-height (cm) và đổi sang EMU."""
     width_match = re.search(r'\bfo:page-width=["\']([\d.]+)cm["\']', attrs, re.IGNORECASE)
     height_match = re.search(r'\bfo:page-height=["\']([\d.]+)cm["\']', attrs, re.IGNORECASE)
     if not width_match or not height_match:
@@ -1449,6 +1539,272 @@ def overlay_fodp_master_logo(fodp_xml: str, master_xml: str | list[str] | None) 
     return apply_fodp_master_theme_attrs(xml, logo)
 
 
+# ---------------------------------------------------------------------------
+# Speaker notes (presentation:notes) restoration
+# ---------------------------------------------------------------------------
+
+_PRESENTATION_NOTES_RE = re.compile(
+    r"<presentation:notes\b([^>]*?)>([\s\S]*?)</presentation:notes\s*>",
+    re.IGNORECASE,
+)
+_TEXT_P_RE = re.compile(r"<text:p\b[^>]*>([\s\S]*?)</text:p>", re.IGNORECASE)
+_SLIDE_RELS_ENTRY_RE = re.compile(r"^ppt/slides/_rels/slide(\d+)\.xml\.rels$", re.IGNORECASE)
+_CONTENT_TYPES_ENTRY = "[Content_Types].xml"
+_NOTES_CONTENT_TYPE = (
+    "application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml"
+)
+_NOTES_MASTER_CONTENT_TYPE = (
+    "application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml"
+)
+_NOTES_REL_TYPE = (
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide"
+)
+_NOTES_MASTER_REL_TYPE = (
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster"
+)
+_RELATIONSHIPS_TAG = (
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+)
+_RELATIONSHIPS_CLOSE = "</Relationships>"
+_TYPES_CLOSE = "</Types>"
+
+
+def _strip_xml_tags(xml_fragment: str) -> str:
+    """Remove XML tags, return raw text content."""
+    text = re.sub(r"<[^>]+>", "", xml_fragment)
+    return text.strip()
+
+
+def parse_notes_from_fodp(fodp_xml: str | None) -> dict[int, list[str]]:
+    """Trích xuất ghi chú diễn giả từ FODP.
+
+    Trả về dict: slide_index (0-based) → list[str] (mỗi paragraph một dòng).
+    Slide không có notes sẽ không có key trong dict.
+    """
+    xml = fodp_xml or ""
+    if not xml:
+        return {}
+
+    pages = list(_PAGE_OPEN_RE.finditer(xml))
+    notes_by_slide: dict[int, list[str]] = {}
+
+    for page_match in pages:
+        page_idx = pages.index(page_match)
+        page_start = page_match.start()
+        # Tìm closing </draw:page> tương ứng
+        close_match = re.search(r"</draw:page\s*>", xml[page_start:], re.IGNORECASE)
+        if not close_match:
+            continue
+        page_body = xml[page_start:page_start + close_match.end()]
+        notes_match = _PRESENTATION_NOTES_RE.search(page_body)
+        if not notes_match:
+            continue
+        notes_body = notes_match.group(2)
+        paragraphs: list[str] = []
+        for tp_match in _TEXT_P_RE.finditer(notes_body):
+            raw = tp_match.group(1)
+            text = _strip_xml_tags(raw).strip()
+            if text:
+                paragraphs.append(text)
+        if paragraphs:
+            notes_by_slide[page_idx] = paragraphs
+    return notes_by_slide
+
+
+def _build_notes_slide_xml(paragraphs: list[str]) -> str:
+    """Tạo XML cho ppt/notesSlides/notesSlideN.xml."""
+    body_paras = ""
+    for text in paragraphs:
+        escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        body_paras += (
+            "<a:p><a:pPr indent=\"0\" algn=\"l\"><a:buNone/></a:pPr>"
+            "<a:r><a:rPr lang=\"vi-VN\" sz=\"2000\" b=\"0\" u=\"none\" strike=\"noStrike\">"
+            "<a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill>"
+            "<a:effectLst/><a:uFillTx/><a:latin typeface=\"Arial\"/></a:rPr>"
+            f"<a:t>{escaped}</a:t></a:r>"
+            "<a:endParaRPr lang=\"vi-VN\" sz=\"2000\" b=\"0\" u=\"none\" strike=\"noStrike\">"
+            "<a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill>"
+            "<a:effectLst/><a:uFillTx/><a:latin typeface=\"Arial\"/></a:endParaRPr></a:p>"
+        )
+    return (
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+        "<p:notes xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\""
+        " xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\""
+        " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+        "<p:cSld><p:spTree>"
+        "<p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/>"
+        "<p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"
+        "<p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/>"
+        "<a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>"
+        "<p:sp><p:nvSpPr><p:cNvPr id=\"20\" name=\"PlaceHolder 1\"/>"
+        "<p:cNvSpPr><a:spLocks noGrp=\"1\"/></p:cNvSpPr>"
+        "<p:nvPr><p:ph type=\"sldImg\"/></p:nvPr></p:nvSpPr>"
+        "<p:spPr><a:xfrm><a:off x=\"812520\" y=\"812520\"/>"
+        "<a:ext cx=\"5934960\" cy=\"3338280\"/></a:xfrm>"
+        "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>"
+        "<a:ln w=\"0\"><a:noFill/></a:ln></p:spPr></p:sp>"
+        "<p:sp><p:nvSpPr><p:cNvPr id=\"21\" name=\"PlaceHolder 2\"/>"
+        "<p:cNvSpPr><a:spLocks noGrp=\"1\"/></p:cNvSpPr>"
+        "<p:nvPr><p:ph type=\"body\"/></p:nvPr></p:nvSpPr>"
+        "<p:spPr><a:xfrm><a:off x=\"812520\" y=\"4942080\"/>"
+        "<a:ext cx=\"5934960\" cy=\"4811040\"/></a:xfrm>"
+        "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>"
+        "<a:noFill/><a:ln w=\"0\"><a:noFill/></a:ln></p:spPr>"
+        "<p:txBody><a:bodyPr lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\" anchor=\"t\">"
+        "<a:spAutoFit/></a:bodyPr>"
+        + body_paras +
+        "</p:txBody></p:sp>"
+        "</p:spTree></p:cSld></p:notes>"
+    )
+
+
+def _build_notes_slide_rels(slide_num: int, notes_master_rid: str, slide_rid: str) -> str:
+    """Tạo XML cho ppt/notesSlides/_rels/notesSlideN.xml.rels."""
+    return (
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+        "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+        f"<Relationship Id=\"{slide_rid}\" Type=\"{_NOTES_REL_TYPE.replace('notesSlide', 'slide')}\""
+        f" Target=\"../slides/slide{slide_num}.xml\"/>"
+        f"<Relationship Id=\"{notes_master_rid}\" Type=\"{_NOTES_MASTER_REL_TYPE}\""
+        " Target=\"../notesMasters/notesMaster1.xml\"/>"
+        "</Relationships>"
+    )
+
+
+def _find_or_create_notes_master(pptx_entries: dict[str, bytes]) -> bool:
+    """Kiểm tra notesMaster1.xml tồn tại trong PPTX. Trả về True nếu có."""
+    return bool(pptx_entries.get("ppt/notesMasters/notesMaster1.xml"))
+
+
+def restore_notes_to_pptx(
+    pptx_bytes: bytes, notes_by_slide: dict[int, list[str]]
+) -> bytes:
+    """Bổ sung missing notesSlideN.xml vào PPTX dựa trên dữ liệu FODP.
+
+    Chỉ thêm notes cho slide CHƯA có notesSlide trong PPTX.
+    Trả về bytes PPTX đã cập nhật (hoặc nguyên bản nếu không cần vá).
+    """
+    if not notes_by_slide:
+        return pptx_bytes
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as zin:
+            existing = set(zin.namelist())
+            entries_data: dict[str, bytes] = {}
+            for name in existing:
+                if not name.endswith("/"):
+                    entries_data[name] = zin.read(name)
+    except zipfile.BadZipFile:
+        return pptx_bytes
+
+    # Xác định哪些 slide đã có notesSlide — kiểm tra slideN.xml.rels
+    has_notes: set[int] = set()  # 0-based slide indices
+    slide_rels_map: dict[int, str] = {}  # slide_num (1-based) → slide rels entry name
+    for name in existing:
+        m2 = _SLIDE_RELS_ENTRY_RE.match(name)
+        if m2:
+            slide_num = int(m2.group(1))
+            slide_rels_map[slide_num] = name
+            rels_data = entries_data.get(name, b"").decode("utf-8", errors="replace")
+            if _NOTES_REL_TYPE in rels_data:
+                has_notes.add(slide_num - 1)  # 0-based
+
+    # Kiểm tra notesMaster tồn tại
+    if not _find_or_create_notes_master(entries_data):
+        return pptx_bytes
+
+    new_entries: dict[str, bytes] = {}
+    modified_entries: dict[str, bytes] = {}
+    next_notes_num = 1
+    # Tìm số notesSlide cao nhất hiện có
+    for name in existing:
+        m = re.match(r"^ppt/notesSlides/notesSlide(\d+)\.xml$", name, re.IGNORECASE)
+        if m:
+            next_notes_num = max(next_notes_num, int(m.group(1)) + 1)
+
+    for slide_idx, paragraphs in notes_by_slide.items():
+        if slide_idx in has_notes:
+            continue
+        slide_num = slide_idx + 1  # 1-based
+        notes_num = next_notes_num
+        next_notes_num += 1
+
+        notes_entry = f"ppt/notesSlides/notesSlide{notes_num}.xml"
+        notes_rels_entry = f"ppt/notesSlides/_rels/notesSlide{notes_num}.xml.rels"
+
+        # Tạo notesSlide XML
+        notes_xml = _build_notes_slide_xml(paragraphs)
+        new_entries[notes_entry] = notes_xml.encode("utf-8")
+
+        # Tạo notesSlide rels (liên kết về slide + notesMaster)
+        notes_rels_xml = (
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+            "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+            f"<Relationship Id=\"rId1\" Type=\"{_NOTES_REL_TYPE.replace('notesSlide', 'slide')}\""
+            f" Target=\"../slides/slide{slide_num}.xml\"/>"
+            f"<Relationship Id=\"rId2\" Type=\"{_NOTES_MASTER_REL_TYPE}\""
+            " Target=\"../notesMasters/notesMaster1.xml\"/>"
+            "</Relationships>"
+        )
+        new_entries[notes_rels_entry] = notes_rels_xml.encode("utf-8")
+
+        # Cập nhật slideN.xml.rels — thêm relationship tới notesSlide
+        slide_rels_name = slide_rels_map.get(slide_num)
+        if slide_rels_name:
+            slide_rels_data = entries_data.get(slide_rels_name, b"").decode("utf-8", errors="replace")
+            if _NOTES_REL_TYPE not in slide_rels_data:
+                # Tìm rId cao nhất hiện có
+                max_rid = 0
+                for rid_match in re.finditer(r'Id\s*=\s*["\']rId(\d+)["\']', slide_rels_data, re.IGNORECASE):
+                    max_rid = max(max_rid, int(rid_match.group(1)))
+                new_rid = f"rId{max_rid + 1}"
+                new_rel = (
+                    f"<Relationship Id=\"{new_rid}\" Type=\"{_NOTES_REL_TYPE}\""
+                    f" Target=\"../notesSlides/notesSlide{notes_num}.xml\"/>"
+                )
+                slide_rels_data = slide_rels_data.replace(
+                    _RELATIONSHIPS_CLOSE, new_rel + _RELATIONSHIPS_CLOSE
+                )
+                modified_entries[slide_rels_name] = slide_rels_data.encode("utf-8")
+
+        # Cập nhật [Content_Types].xml — thêm Override cho notesSlide
+        ct_data = entries_data.get(_CONTENT_TYPES_ENTRY, b"").decode("utf-8", errors="replace")
+        notes_part = f"/ppt/notesSlides/notesSlide{notes_num}.xml"
+        if notes_part not in ct_data:
+            override = (
+                f"<Override PartName=\"{notes_part}\" ContentType=\"{_NOTES_CONTENT_TYPE}\"/>"
+            )
+            ct_data = ct_data.replace(_TYPES_CLOSE, override + _TYPES_CLOSE)
+            modified_entries[_CONTENT_TYPES_ENTRY] = ct_data.encode("utf-8")
+
+    if not new_entries and not modified_entries:
+        return pptx_bytes
+
+    # Rebuild ZIP
+    dest = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as zin, \
+         zipfile.ZipFile(dest, "w", compression=zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            if item.is_dir() or not item.filename or item.filename.endswith("/"):
+                continue
+            if item.filename in modified_entries:
+                data = modified_entries[item.filename]
+            elif item.filename in new_entries:
+                data = new_entries[item.filename]
+            else:
+                data = zin.read(item.filename)
+            info = zipfile.ZipInfo(filename=item.filename, date_time=item.date_time)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            zout.writestr(info, data)
+        # Thêm entries mới
+        for name, data in new_entries.items():
+            if name not in {item.filename for item in zin.infolist()}:
+                info = zipfile.ZipInfo(filename=name)
+                info.compress_type = zipfile.ZIP_DEFLATED
+                zout.writestr(info, data)
+    return dest.getvalue()
+
+
 def postprocess_slides_pptx(
     pptx_bytes: bytes,
     *,
@@ -1491,13 +1847,18 @@ def postprocess_slides_pptx(
     # dụng nếu phát hiện khác biệt thật, không chỉ khi các tính năng khác cũng cần sửa).
     intended_size = parse_intended_slide_size_from_fodp(source_fodp) if source_fodp else None
     real_size = parse_slide_size(presentation_xml)
+    # Dung sai 1000 EMU (~0.0028cm) — tránh vá giả do sai số làm tròn giữa
+    # FODP (cm, làm tròn 3 chữ số thập phân) và PPTX (EMU, integer).
     apply_slide_size = bool(
         intended_size
-        and (abs(intended_size["cx"] - real_size["cx"]) > 500 or abs(intended_size["cy"] - real_size["cy"]) > 500)
+        and (abs(intended_size["cx"] - real_size["cx"]) > 1000 or abs(intended_size["cy"] - real_size["cy"]) > 1000)
     )
     effective_size = intended_size if apply_slide_size else real_size
 
-    if not apply_logo and not apply_sections and not apply_show and not apply_slide_size:
+    # Luôn kiểm tra notes — ghi chú diễn giả mất trắng khi soffice convert
+    notes_by_slide = parse_notes_from_fodp(source_fodp) if source_fodp else {}
+
+    if not apply_logo and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide:
         return pptx_bytes
 
     if apply_slide_size and presentation_xml:
@@ -1548,8 +1909,13 @@ def postprocess_slides_pptx(
         if next_props != props_xml:
             replacements[PPTX_PRESPROPS_ENTRY] = next_props
     if not replacements:
-        return pptx_bytes
-    return patch_ooxml_zip(pptx_bytes, replacements)
+        patched = pptx_bytes
+    else:
+        patched = patch_ooxml_zip(pptx_bytes, replacements)
+    # Khôi phục ghi chú diễn giả (notesSlideN.xml) nếu bị mất
+    if notes_by_slide:
+        patched = restore_notes_to_pptx(patched, notes_by_slide)
+    return patched
 
 
 def postprocess_slides_pptx_file(

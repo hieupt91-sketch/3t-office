@@ -129,5 +129,98 @@ class TestPostprocessSlidesPptxSlideSize(unittest.TestCase):
         self.assertEqual(patched, original, "Khổ đã khớp sẵn (trong dung sai) thì không cần vá gì")
 
 
+# FODP có NHIỀU page-layout-properties: slide (10"×5.625") + notes (A4) + handout
+FODP_MULTI_LAYOUTS = """<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+                 xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+                 xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+                 xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+                 office:mimetype="application/vnd.oasis.opendocument.presentation">
+  <office:automatic-styles>
+    <style:page-layout style:name="PM1">
+      <style:page-layout-properties fo:page-width="25.4cm" fo:page-height="14.287cm" style:print-orientation="landscape"/>
+    </style:page-layout>
+    <style:page-layout style:name="PMNotes">
+      <style:page-layout-properties fo:page-width="21cm" fo:page-height="29.7cm" style:print-orientation="portrait"/>
+    </style:page-layout>
+    <style:page-layout style:name="PMHandout">
+      <style:page-layout-properties fo:page-width="19.05cm" fo:page-height="25.4cm" style:print-orientation="portrait"/>
+    </style:page-layout>
+  </office:automatic-styles>
+  <office:master-styles>
+    <style:master-page style:name="Standard" style:page-layout-name="PM1"/>
+  </office:master-styles>
+  <office:body><office:presentation>
+    <draw:page draw:name="page1" draw:master-page-name="Standard"/>
+  </office:presentation></office:body>
+</office:document>
+"""
+
+# FODP notes layout ĐƯỢC ĐẶT TRƯỚC slide layout — phải chọn đúng slide layout
+FODP_NOTES_FIRST = """<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+                 xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+                 xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+                 xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+                 office:mimetype="application/vnd.oasis.opendocument.presentation">
+  <office:automatic-styles>
+    <style:page-layout style:name="PMNotes">
+      <style:page-layout-properties fo:page-width="21cm" fo:page-height="29.7cm" style:print-orientation="portrait"/>
+    </style:page-layout>
+    <style:page-layout style:name="PM1">
+      <style:page-layout-properties fo:page-width="25.4cm" fo:page-height="14.287cm" style:print-orientation="landscape"/>
+    </style:page-layout>
+  </office:automatic-styles>
+  <office:master-styles>
+    <style:master-page style:name="Standard" style:page-layout-name="PM1"/>
+  </office:master-styles>
+  <office:body><office:presentation>
+    <draw:page draw:name="page1" draw:master-page-name="Standard"/>
+  </office:presentation></office:document>
+"""
+
+
+class TestParseIntendedSlideSizeMultiLayout(unittest.TestCase):
+    """Khi FODP có nhiều page-layout-properties (slide / notes / handout),
+    phải chọn đúng cái gắn với slide, không lấy nhầm cái khác."""
+
+    def test_picks_slide_layout_not_notes(self):
+        size = patcher.parse_intended_slide_size_from_fodp(FODP_MULTI_LAYOUTS)
+        self.assertIsNotNone(size)
+        self.assertEqual(size["cx"], round(25.4 * 360000))
+        self.assertEqual(size["cy"], round(14.287 * 360000))
+
+    def test_notes_layout_first_still_picks_slide(self):
+        """Khi notes layout (A4) xuất hiện TRƯỚC slide layout trong XML,
+        vẫn phải chọn đúng slide layout (25.4cm × 14.287cm)."""
+        size = patcher.parse_intended_slide_size_from_fodp(FODP_NOTES_FIRST)
+        self.assertIsNotNone(size)
+        self.assertEqual(size["cx"], round(25.4 * 360000))
+        self.assertEqual(size["cy"], round(14.287 * 360000))
+
+
+class TestPostprocessSlidesPptxMultiLayout(unittest.TestCase):
+    def test_multi_layout_pptx_gets_correct_slide_size(self):
+        """PPTX mặc định 28cm × 15.75cm, FODP có slide layout 25.4cm × 14.287cm
+        + notes A4 + handout → phải sửa đúng khổ slide, không lấy nhầm A4."""
+        original = _fake_pptx()
+        patched = patcher.postprocess_slides_pptx(original, source_fodp=FODP_MULTI_LAYOUTS)
+        self.assertNotEqual(patched, original)
+        with zipfile.ZipFile(io.BytesIO(patched)) as z:
+            presentation_xml = z.read("ppt/presentation.xml").decode("utf-8")
+        size = patcher.parse_slide_size(presentation_xml)
+        self.assertEqual(size["cx"], round(25.4 * 360000))
+        self.assertEqual(size["cy"], round(14.287 * 360000))
+
+    def test_notes_first_still_corrects_to_slide_size(self):
+        original = _fake_pptx()
+        patched = patcher.postprocess_slides_pptx(original, source_fodp=FODP_NOTES_FIRST)
+        with zipfile.ZipFile(io.BytesIO(patched)) as z:
+            presentation_xml = z.read("ppt/presentation.xml").decode("utf-8")
+        size = patcher.parse_slide_size(presentation_xml)
+        self.assertEqual(size["cx"], round(25.4 * 360000))
+        self.assertEqual(size["cy"], round(14.287 * 360000))
+
+
 if __name__ == "__main__":
     unittest.main()
