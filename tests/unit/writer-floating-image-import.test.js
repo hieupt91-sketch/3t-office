@@ -430,5 +430,114 @@ export async function runWriterFloatingImageImportTests() {
     }
   });
 
+  // --- Top-position sorting for block-content clusters ---
+
+  const SORTING_HTML = `<!DOCTYPE html>
+<html><head></head><body>
+<p>Văn bản đầu trang.</p>
+<span id="textbox22" dir="ltr" style="position: absolute; top: 13.85cm; left: 0.82cm; width: 5cm; border: none; background: #fff">
+  <p class="western">HỆ SINH THÁI NHÀ THÔNG MINH TOÀN DIỆN</p>
+</span>
+<span id="textbox21" dir="ltr" style="position: absolute; top: 12.08cm; left: 0.82cm; width: 5cm; border: none; background: #fff">
+  <p class="western">DỄ DÀNG CÀI ĐẶT</p>
+</span>
+<span id="textbox20" dir="ltr" style="position: absolute; top: 3.55cm; left: 0.82cm; width: 5cm; border: none; background: #fff">
+  <p class="western">CÂU CHUYỆN THƯƠNG HIỆU</p>
+</span>
+<span id="textbox19" dir="ltr" style="position: absolute; top: 10.32cm; left: 0.82cm; width: 5cm; border: none; background: #fff">
+  <p class="western">THIẾT KẾ ĐẸP VÀ CHU ĐÁO</p>
+</span>
+<p>Văn bản cuối trang.</p>
+</body></html>`;
+
+  test("Cụm block-content spans sắp xếp theo top tăng dần (đọc từ trên xuống)", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(SORTING_HTML);
+    const body = imported.body;
+
+    const idxCauChuyen = body.indexOf("CÂU CHUYỆN THƯƠNG HIỆU");
+    const idxThietKe = body.indexOf("THIẾT KẾ ĐẸP VÀ CHU ĐÁO");
+    const idxDeDang = body.indexOf("DỄ DÀNG CÀI ĐẶT");
+    const idxHeSinhThai = body.indexOf("HỆ SINH THÁI NHÀ THÔNG MINH TOÀN DIỆN");
+
+    if (idxCauChuyen === -1) throw new Error("Mất CÂU CHUYỆN THƯƠNG HIỆU");
+    if (idxThietKe === -1) throw new Error("Mất THIẾT KẾ ĐẸP VÀ CHU ĐÁO");
+    if (idxDeDang === -1) throw new Error("Mất DỄ DÀNG CÀI ĐẶT");
+    if (idxHeSinhThai === -1) throw new Error("Mất HỆ SINH THÁI NHÀ THÔNG MINH TOÀN DIỆN");
+
+    if (!(idxCauChuyen < idxThietKe)) {
+      throw new Error(`CÂU CHUYỆN (${idxCauChuyen}) phải đứng TRƯỚC THIẾT KẾ (${idxThietKe})`);
+    }
+    if (!(idxThietKe < idxDeDang)) {
+      throw new Error(`THIẾT KẾ (${idxThietKe}) phải đứng TRƯỚC DỄ DÀNG (${idxDeDang})`);
+    }
+    if (!(idxDeDang < idxHeSinhThai)) {
+      throw new Error(`DỄ DÀNG (${idxDeDang}) phải đứng TRƯỚC HỆ SINH THÁI (${idxHeSinhThai})`);
+    }
+  });
+
+  test("Văn bản xung quanh không bị ảnh hưởng sau khi sắp xếp top", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(SORTING_HTML);
+    const body = imported.body;
+
+    if (!/Văn bản đầu trang/.test(body)) {
+      throw new Error("Mất văn bản đầu trang");
+    }
+    if (!/Văn bản cuối trang/.test(body)) {
+      throw new Error("Mất văn bản cuối trang");
+    }
+  });
+
+  test("Sắp xếp top: position:absolute bị xóa, display:block cho block content", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(SORTING_HTML);
+    const body = imported.body;
+
+    if (/position\s*:\s*absolute/.test(body)) {
+      throw new Error(`Vẫn còn position:absolute: ${body.slice(0, 500)}`);
+    }
+    const blocks = (body.match(/display\s*:\s*block(?:\s*;|\s*")/g) || []).length;
+    if (blocks < 4) {
+      throw new Error(`Expected >=4 display:block cho 4 textbox, found ${blocks}`);
+    }
+  });
+
+  // --- Test spec-grid (cột ngang) không bị phá vỡ ---
+
+  const SPECGRID_HTML = `<body>
+<p>Văn bản thường.</p>
+<span id="textbox1" dir="ltr" style="position: absolute; top: 5cm; left: 1cm; width: 4cm">
+  <p>CÔNG TẮC (CẦN CÓ AQARA HUB)</p>
+</span>
+<span id="textbox2" dir="ltr" style="position: absolute; top: 5cm; left: 6cm; width: 4cm">
+  <p>CHUÔNG CỬA VIDEO G4</p>
+</span>
+<span id="textbox3" dir="ltr" style="position: absolute; top: 5cm; left: 11cm; width: 4cm">
+  <p>BÓNG ĐÈN LED T1</p>
+</span>
+</body>`;
+
+  test("Spec-grid (cùng top, khác left): giữ nguyên thứ tự DOM khi left tăng dần", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(SPECGRID_HTML);
+    const body = imported.body;
+
+    const idxCongTac = body.indexOf("CÔNG TẮC");
+    const idxChuong = body.indexOf("CHUÔNG CỬA");
+    const idxBongDen = body.indexOf("BÓNG ĐÈN");
+
+    if (idxCongTac === -1) throw new Error("Mất CÔNG TẮC");
+    if (idxChuong === -1) throw new Error("Mất CHUÔNG CỬA");
+    if (idxBongDen === -1) throw new Error("Mất BÓNG ĐÈN");
+
+    if (!(idxCongTac < idxChuong)) {
+      throw new Error(`CÔNG TẮC (${idxCongTac}) phải đứng TRƯỚC CHUÔNG (${idxChuong}) khi cùng top, left tăng dần`);
+    }
+    if (!(idxChuong < idxBongDen)) {
+      throw new Error(`CHUÔNG (${idxChuong}) phải đứng TRƯỚC BÓNG ĐÈN (${idxBongDen}) khi cùng top, left tăng dần`);
+    }
+  });
+
   return results;
 }

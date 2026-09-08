@@ -108,3 +108,64 @@ while (depth > 0 && searchFrom < src.length) {
 - **Branch:** nhánh hiện tại của worktree
 - **Cần làm tiếp:** Test visual thủ công với file Aquara khi có LibreOffice + file test
 - **Lưu ý:** Nếu file Aquara có watermark dùng `position: absolute` (giống lỗi trước), watermark cũng sẽ bị convert — đây là đánh đổi đã ghi nhận trong fix trước (HANDOFF-WRITER-FLOATING-IMAGE-OVERLAP.md)
+
+---
+
+## Fix bổ sung: Sắp xếp thứ tự đọc theo top-position (Commit tiếp theo)
+
+### Lỗi còn lại (sau fix block/inline-block)
+
+Sau khi fix block/inline-block, 4 tiêu đề xếp dọc đúng nhưng **thứ tự bị NGƯỢC HOÀN TOÀN** so với Word thật:
+- **Word thật:** "CÂU CHUYỆN THƯƠNG HIỆU" → "THIẾT KẾ ĐẸP VÀ CHU ĐÁO" → "DỄ DÀNG CÀI ĐẶT" → "HỆ SINH THÁI NHÀ THÔNG MINH TOÀN DIỆN"
+- **VN Writer (lỗi):** "HỆ SINH THÁI..." → "DỄ DÀNG..." → "CÂU CHUYỆN..." → "THIẾT KẾ..."
+
+Nguyên nhân: code giữ span theo thứ tự DOM (thứ tự xuất hiện trong HTML soffice), nhưng DOM order KHÔNG phải thứ tự đọc từ trên xuống — nó là z-order từ Word gốc.
+
+### Bằng chứng đo thật (đã xác minh)
+
+Trích xuất `top` (cm) từ HTML soffice cho file `aquara final (1) (2).docx`:
+```
+textbox22 top=13.85cm  (DOM order: xuất hiện ĐẦU tiên)
+textbox21 top=12.08cm
+textbox20 top=3.55cm
+textbox19 top=10.32cm  (DOM order: xuất hiện CUỐI)
+```
+
+Sắp theo `top` tăng dần: `textbox20 (3.55) → textbox19 (10.32) → textbox21 (12.08) → textbox22 (13.85)` — **khớp chính xác** thứ tự đọc thật.
+
+### Phương án sửa
+
+**Thuật toán mới trong `_convertFloatingImagesToInline()`:**
+
+1. **Pass 1 — Thu thập:** Duyệt HTML, tìm tất cả `<span>` có `position: absolute`. Với mỗi span, trích xuất `top`, `left` (trước khi strip), inner content, và xác định block vs inline-block.
+2. **Xây dựng items array:** Xen kẽ text segments và floating spans theo đúng thứ tự DOM.
+3. **Pass 2 — Cluster + Sort:** Duyệt items array:
+   - Nếu gặp block-content floating span → bắt đầu tích luỹ cluster
+   - Cluster bao gồm: các block-content floating span LIÊN TIẾP (có thể có whitespace-only text xen giữa)
+   - Khi gặp non-block text hoặc inline-block → kết thúc cluster, sort cluster theo `top` tăng dần, `left` tăng dần làm tiebreaker
+   - Singleton (cluster = 1 span) giữ nguyên vị trí DOM
+4. **Emit:** Ghi kết quả, chèn lại whitespace đã lưu giữa các span trong cluster.
+
+**Tại sao an toàn cho spec-grid (cột ngang):** Các span có `top` bằng nhau (chênh lệch < 1cm — cùng "hàng") sẽ được sort theo `left` tăng dần, giữ đúng thứ tự từ trái sang phải. Trang "CÔNG TẮC (CẦN CÓ AQARA HUB)" đã render đúng dạng lưới vì các span có cùng `top` value.
+
+### Files đã sửa (fix bổ sung)
+
+#### 1. `adapters/libreoffice/writer/writer-adapter.js`
+
+Viết lại `_convertFloatingImagesToInline()`:
+- **Trước:** Streaming — xử lý từng span ngay khi gặp, giữ nguyên DOM order
+- **Sau:** Two-pass — thu thập tất cả floating spans trước,Identify clusters, sort clusters theo `top`
+
+#### 2. `tests/unit/writer-floating-image-import.test.js`
+
+Thêm 4 test mới:
+- Cụm block-content sắp xếp theo top tăng dần (mô phỏng Aquara)
+- Văn bản xung quanh không bị ảnh hưởng sau sắp xếp
+- position:absolute bị xóa, display:block cho block content
+- Spec-grid (cùng top, khác left): giữ nguyên thứ tự DOM khi left tăng dần
+
+### Kết quả kiểm thử (fix bổ sung)
+
+- **24/24 PASS | 0 FAIL** — writer-floating-image-import.test.js
+- **91/91 files PASS** syntax check (`node scripts/check-syntax.js`)
+- Visual: cần test thủ công với file Aquara để xác nhận thứ tự đúng

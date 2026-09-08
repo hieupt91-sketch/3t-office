@@ -1755,21 +1755,24 @@ export class WriterAdapter {
   _convertFloatingImagesToInline(html) {
     const src = String(html || "");
     const posAbsRe = /\bposition\s*:\s*absolute\b/i;
+    const blockRe = /<(?:p|h[1-6]|div|ul|ol|table|blockquote)\b/i;
+    const topRe = /\btop\s*:\s*([^;]+)/i;
+    const leftRe = /\bleft\s*:\s*([^;]+)/i;
     const spanOpenRe = /<span\b([^>]*)>/gi;
-    let result = "";
-    let cursor = 0;
 
-    while (cursor < src.length) {
+    const items = [];
+    let scanCursor = 0;
+    let hasFloating = false;
+
+    while (scanCursor < src.length) {
       const nextSpan = spanOpenRe.exec(src);
       if (!nextSpan) {
-        result += src.slice(cursor);
+        items.push({ type: "text", value: src.slice(scanCursor) });
         break;
       }
 
       const attrs = nextSpan[1] || "";
       if (!posAbsRe.test(attrs)) {
-        result += src.slice(cursor, nextSpan.index + nextSpan[0].length);
-        cursor = nextSpan.index + nextSpan[0].length;
         continue;
       }
 
@@ -1790,32 +1793,98 @@ export class WriterAdapter {
           depth -= 1;
           if (depth === 0) {
             const inner = src.slice(nextSpan.index + nextSpan[0].length, closeIdx);
-            const openTag = nextSpan[0];
-            result += src.slice(cursor, spanStart);
+            const fullSpan = src.slice(spanStart, closeIdx + "</span>".length);
+            const styleMatch = nextSpan[0].match(/\bstyle\s*=\s*["']([^"']*)["']/i);
+            const rawStyle = styleMatch ? styleMatch[1] : "";
 
-            const styleMatch = openTag.match(/\bstyle\s*=\s*["']([^"']*)["']/i);
-            let style = styleMatch ? styleMatch[1] : "";
-            style = style.replace(/\bposition\s*:\s*absolute\s*;?\s*/gi, "");
-            style = style.replace(/\btop\s*:\s*[^;]+;\s*/gi, "");
-            style = style.replace(/\bleft\s*:\s*[^;]+;\s*/gi, "");
-            const hasBlockContent = /<(?:p|h[1-6]|div|ul|ol|table|blockquote)\b/i.test(inner);
-            const displayValue = hasBlockContent ? "block" : "inline-block";
-            style = `display:${displayValue}; position:static; ${style}`.trim();
+            let topVal = 0;
+            const topMatch = rawStyle.match(topRe);
+            if (topMatch) {
+              const numStr = topMatch[1].trim().replace(/[^0-9.\-]/g, "");
+              topVal = parseFloat(numStr) || 0;
+            }
+            let leftVal = 0;
+            const leftMatch = rawStyle.match(leftRe);
+            if (leftMatch) {
+              const numStr = leftMatch[1].trim().replace(/[^0-9.\-]/g, "");
+              leftVal = parseFloat(numStr) || 0;
+            }
 
-            result += `<span style="${style}">${inner}</span>`;
+            const hasBlockContent = blockRe.test(inner);
+            hasFloating = true;
 
-            cursor = closeIdx + "</span>".length;
-            spanOpenRe.lastIndex = cursor;
+            items.push({ type: "text", value: src.slice(scanCursor, spanStart) });
+            items.push({
+              type: "floating",
+              fullSpan,
+              inner,
+              rawStyle,
+              top: topVal,
+              left: leftVal,
+              hasBlockContent,
+            });
+
+            scanCursor = closeIdx + "</span>".length;
+            spanOpenRe.lastIndex = scanCursor;
           }
           searchFrom = closeIdx + "</span>".length;
         }
       }
+
       if (depth > 0) {
-        result += src.slice(cursor, spanStart + nextSpan[0].length);
-        cursor = spanStart + nextSpan[0].length;
-        spanOpenRe.lastIndex = cursor;
+        items.push({ type: "text", value: src.slice(scanCursor, spanStart + nextSpan[0].length) });
+        scanCursor = spanStart + nextSpan[0].length;
+        spanOpenRe.lastIndex = scanCursor;
       }
     }
+
+    if (!hasFloating) return src;
+
+    const convertFloating = (fs) => {
+      let style = fs.rawStyle;
+      style = style.replace(/\bposition\s*:\s*absolute\s*;?\s*/gi, "");
+      style = style.replace(/\btop\s*:\s*[^;]+;\s*/gi, "");
+      style = style.replace(/\bleft\s*:\s*[^;]+;\s*/gi, "");
+      const displayValue = fs.hasBlockContent ? "block" : "inline-block";
+      style = `display:${displayValue}; position:static; ${style}`.trim();
+      return `<span style="${style}">${fs.inner}</span>`;
+    };
+
+    let result = "";
+    let i = 0;
+    while (i < items.length) {
+      if (items[i].type !== "floating" || !items[i].hasBlockContent) {
+        result += items[i].type === "text" ? items[i].value : convertFloating(items[i]);
+        i++;
+        continue;
+      }
+
+      const cluster = [];
+      const clusterText = [];
+      while (i < items.length) {
+        if (items[i].type === "floating" && items[i].hasBlockContent) {
+          cluster.push(items[i]);
+          i++;
+        } else if (items[i].type === "text" && /^\s*$/.test(items[i].value)) {
+          clusterText.push(items[i]);
+          i++;
+        } else {
+          break;
+        }
+      }
+
+      if (cluster.length > 1) {
+        cluster.sort((a, b) => a.top - b.top || a.left - b.left);
+      }
+
+      for (let ci = 0; ci < cluster.length; ci++) {
+        if (ci < clusterText.length) {
+          result += clusterText[ci].value;
+        }
+        result += convertFloating(cluster[ci]);
+      }
+    }
+
     return result;
   }
 
