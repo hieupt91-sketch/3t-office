@@ -56,6 +56,19 @@ export class RibbonHost {
     fileBtn.addEventListener("click", () => {
       if (this.options.onFileMenuClick) this.options.onFileMenuClick();
     });
+    fileBtn.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        const activeTabBtn = this.container.querySelector(`.vno-ribbon-tab.is-active`)
+          || this.container.querySelector(`.vno-ribbon-tab`);
+        activeTabBtn?.focus();
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const tabButtons = Array.from(this.container.querySelectorAll(".vno-ribbon-tab"));
+        const lastTab = tabButtons[tabButtons.length - 1];
+        lastTab?.focus();
+      }
+    });
     tabsBar.appendChild(fileBtn);
 
     // Các tabs chức năng
@@ -88,13 +101,25 @@ export class RibbonHost {
 
         if (e.key === "ArrowRight" || e.key === "ArrowDown") {
           e.preventDefault();
+          if (currentIndex === tabButtons.length - 1) {
+            const fb = this.container.querySelector(".vno-ribbon-tab-file");
+            fb?.focus();
+            return;
+          }
           targetIndex = (currentIndex + 1) % tabButtons.length;
         } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
           e.preventDefault();
-          targetIndex = (currentIndex - 1 + tabButtons.length) % tabButtons.length;
+          if (currentIndex === 0) {
+            const fb = this.container.querySelector(".vno-ribbon-tab-file");
+            fb?.focus();
+            return;
+          }
+          targetIndex = currentIndex - 1;
         } else if (e.key === "Home") {
           e.preventDefault();
-          targetIndex = 0;
+          const fb = this.container.querySelector(".vno-ribbon-tab-file");
+          fb?.focus();
+          return;
         } else if (e.key === "End") {
           e.preventDefault();
           targetIndex = tabButtons.length - 1;

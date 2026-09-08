@@ -690,6 +690,60 @@ export class AppShell {
             first.focus();
           }
         }
+      } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && modal.querySelector(".vno-backstage-sidebar")?.contains(document.activeElement)) {
+        const sidebarButtons = Array.from(modal.querySelectorAll(".vno-backstage-sidebar button:not([disabled])"))
+          .filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+        const curIdx = sidebarButtons.indexOf(document.activeElement);
+        if (curIdx !== -1) {
+          e.preventDefault();
+          const nextIdx = e.key === "ArrowDown"
+            ? (curIdx + 1) % sidebarButtons.length
+            : (curIdx - 1 + sidebarButtons.length) % sidebarButtons.length;
+          sidebarButtons[nextIdx]?.focus();
+        }
+      } else if (e.key === "ArrowRight" && modal.querySelector(".vno-backstage-sidebar")?.contains(document.activeElement)) {
+        const contentFocusables = Array.from(modal.querySelectorAll(
+          '.vno-backstage-content button:not([disabled]), .vno-backstage-content [tabindex="0"], .vno-backstage-content input:not([disabled]), .vno-backstage-content select:not([disabled])'
+        )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+        if (contentFocusables.length > 0) {
+          e.preventDefault();
+          contentFocusables[0].focus();
+        }
+      } else if (document.activeElement?.classList?.contains("vno-template-card")) {
+        const cards = Array.from(modal.querySelectorAll(".vno-template-card"))
+          .filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+        const curIdx = cards.indexOf(document.activeElement);
+        if (curIdx !== -1) {
+          if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+            e.preventDefault();
+            cards[(curIdx + 1) % cards.length]?.focus();
+          } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+            e.preventDefault();
+            if (e.key === "ArrowLeft" && curIdx === 0) {
+              const activeNavBtn = modal.querySelector(".vno-backstage-nav-btn.is-active") || modal.querySelector("#vno-backstage-back");
+              activeNavBtn?.focus();
+            } else {
+              cards[(curIdx - 1 + cards.length) % cards.length]?.focus();
+            }
+          }
+        }
+      } else if (document.activeElement?.classList?.contains("vno-recent-row")) {
+        const rows = Array.from(modal.querySelectorAll(".vno-recent-row"))
+          .filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+        const curIdx = rows.indexOf(document.activeElement);
+        if (curIdx !== -1) {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            rows[(curIdx + 1) % rows.length]?.focus();
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            rows[(curIdx - 1 + rows.length) % rows.length]?.focus();
+          } else if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            const activeNavBtn = modal.querySelector(".vno-backstage-nav-btn.is-active") || modal.querySelector("#vno-backstage-back");
+            activeNavBtn?.focus();
+          }
+        }
       }
     };
     document.addEventListener("keydown", onBackstageKeyDown);
@@ -1156,6 +1210,12 @@ export class AppShell {
         this.ribbonHost.isCollapsed = !this.ribbonHost.isCollapsed;
         this.ribbonHost.render();
       }
+    });
+
+    // Mở menu Tệp (Backstage) bằng phím tắt Alt+F
+    globalCommandBus.bindHandler("common.file.backstage", () => {
+      this.showBackstageMenu();
+      return true;
     });
 
     // Lắng nghe lệnh AI

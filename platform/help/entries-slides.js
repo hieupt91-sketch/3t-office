@@ -595,7 +595,24 @@ export const SLIDES_HELP_ENTRIES = [
       "Đặt lại góc xoay về 0° nhanh chóng: nhấp chuột phải vào hình vẽ đã xoay để mở trình đơn ngữ cảnh, chọn «Đặt lại góc xoay (0°)».",
       "Hoàn tác thao tác xoay: nhấn phím Ctrl+Z để quay về góc xoay trước đó; nhấn Ctrl+Y để làm lại."
     ]
+  },
+  {
+    id: "slides.accessibility.keyboardNav",
+    app: "slides",
+    commandIds: ["common.file.backstage"],
+    title: "Điều hướng bằng bàn phím và trợ năng (VN Slides)",
+    summary: "Thao tác hoàn toàn bằng bàn phím không cần dùng chuột trên trang chiếu: duyệt qua các đối tượng (tiêu đề, khối văn bản, hình vẽ) bằng phím Tab và Shift+Tab, dịch chuyển vị trí đối tượng bằng các phím mũi tên, mở menu Tệp bằng Alt+F và đóng bằng phím Escape.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Trợ năng" },
+    keywords: ["bàn phím", "phím tắt", "trợ năng", "accessibility", "keyboard", "focus", "tab", "shift+tab", "đối tượng", "slide", "mũi tên"],
+    steps: [
+      "Duyệt và chọn đối tượng trên slide: Nhấn phím Tab để lần lượt chọn các đối tượng trên trang trình chiếu hiện tại (hộp tiêu đề, nội dung văn bản, hình vẽ minh họa, biểu đồ...). Nhấn Shift+Tab để chọn lùi lại đối tượng trước. Đối tượng được chọn sẽ hiển thị viền chọn rõ ràng (is-selected).",
+      "Dịch chuyển đối tượng: Khi một hình khối hoặc hộp chữ đang được chọn, nhấn các phím mũi tên Lên/Xuống/Trái/Phải để dịch chuyển đối tượng từng bước chính xác trên trang canvas.",
+      "Chuyển đổi slide: Dùng Page Up để chuyển về trang slide trước và Page Down để chuyển sang trang slide kế tiếp. Nhấn Ctrl+Home để về trang slide đầu tiên và Ctrl+End để nhảy tới trang slide cuối cùng.",
+      "Mở menu Tệp (Backstage) bằng Alt+F: Mở menu Tệp toàn màn hình với tiêu điểm đặt tại nút 'Quay lại'. Dùng mũi tên Lên/Xuống duyệt các lệnh Mới, Mở, Lưu, Xuất bản, mũi tên Phải để đi vào các mẫu trình chiếu và phím Escape để đóng menu.",
+      "Duyệt Ribbon và hộp thoại: Dùng Tab và các phím mũi tên để chuyển tab và truy cập các nút lệnh; trong các hộp thoại chèn đối tượng, tiêu điểm luôn được bẫy an toàn và khôi phục khi nhấn Escape."
+    ]
   }
 ];
 
 registerHelpEntries(SLIDES_HELP_ENTRIES);
+

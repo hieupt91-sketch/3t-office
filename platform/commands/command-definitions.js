@@ -8,6 +8,7 @@ import { tCommand } from "../i18n/i18n.js";
 
 export const COMMON_COMMANDS = [
   // Tệp (File)
+  { id: "common.file.backstage", category: "file", label: "Menu Tệp", shortcut: "Alt+F", icon: "fileNew", tooltip: "Mở menu Tệp (Alt+F)" },
   { id: "common.file.new", category: "file", label: "Tạo mới", shortcut: "Ctrl+N", icon: "fileNew", tooltip: "Tạo tài liệu mới (Ctrl+N)" },
   { id: "common.file.open", category: "file", label: "Mở tệp", shortcut: "Ctrl+O", icon: "fileOpen", tooltip: "Mở tài liệu có sẵn (Ctrl+O)" },
   { id: "common.file.save", category: "file", label: "Lưu", shortcut: "Ctrl+S", icon: "fileSave", tooltip: "Lưu tài liệu hiện tại (Ctrl+S)" },

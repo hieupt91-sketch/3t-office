@@ -832,7 +832,24 @@ export const SHEET_HELP_ENTRIES = [
       "Nhập vùng dạng TênTrang!A1:B5 rồi nhấn Thêm (hoặc Enter). Có thể lấy từ trang khác: nhấn Duyệt, hộp thu nhỏ, bấm chọn ô thật trên lưới (được phép đổi tab trang tính), nhấn Chọn, rồi Thêm. Xóa bỏ tham chiếu đang chọn trong danh sách bằng nút Xóa. Lặp cho từng vùng nguồn.",
       "Không tick nhãn: gộp theo vị trí — mọi vùng phải cùng số hàng và số cột; ô cùng offset được đưa vào hàm. Tick «Nhãn ở hàng trên» và/hoặc «Nhãn ở cột trái»: gộp theo nhãn (không phân biệt hoa thường sau khi xóa khoảng trắng); trục không có nhãn vẫn theo vị trí và yêu cầu cùng kích thước. Nhấn Đồng ý: engine tính SUM/AVERAGE/COUNT/MAX/MIN thật rồi ghi giá trị tĩnh vào ô đích. Ctrl+Z / Ctrl+Y hoàn tác hoặc làm lại cả khối. Không gộp file workbook khác; không tạo liên kết công thức về nguồn."
     ]
+  },
+  {
+    id: "sheet.accessibility.keyboardNav",
+    app: "sheet",
+    commandIds: ["common.file.backstage", "sheet.format.cells"],
+    title: "Điều hướng bằng bàn phím và trợ năng (VN Sheet)",
+    summary: "Thao tác hoàn toàn bằng bàn phím không cần dùng chuột trên bảng tính: di chuyển ô bằng phím mũi tên, Enter, Tab; mở hộp thoại Định dạng ô bằng phím tắt Ctrl+1; bẫy tiêu điểm bên trong hộp thoại (kể cả khi chuyển tab) và tự động khôi phục tiêu điểm về ô lưới sau khi nhấn Escape.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Trợ năng" },
+    keywords: ["bàn phím", "phím tắt", "trợ năng", "accessibility", "keyboard", "focus", "ctrl+1", "esc", "tab", "lưới", "ô"],
+    steps: [
+      "Di chuyển trên lưới ô tính: Dùng các phím mũi tên Lên/Xuống/Trái/Phải để chuyển qua các ô lân cận. Phím Tab di chuyển sang ô bên phải, Shift+Tab sang ô bên trái. Phím Enter di chuyển xuống ô bên dưới, Shift+Enter lên ô bên trên. Dùng Ctrl+Home để nhảy về ô A1 và Ctrl+End về ô cuối cùng có dữ liệu.",
+      "Nhập dữ liệu và công thức: Khi đang chọn một ô, chỉ cần gõ trực tiếp chữ số hoặc công thức (ví dụ: =SUM(A1:A10) hoặc =100+250) rồi nhấn Enter để xác nhận và tự động tính kết quả. Nhấn F2 để vào chế độ chỉnh sửa nội dung ô mà không làm mất dữ liệu hiện có.",
+      "Mở hộp thoại Định dạng ô (Ctrl+1): Nhấn tổ hợp phím Ctrl+1 tại bất kỳ ô nào để mở hộp thoại Định dạng ô toàn diện. Tiêu điểm sẽ tự động bẫy trong hộp thoại. Phím Tab và Shift+Tab chuyển qua lại giữa các trường nhập số, kiểu canh lề, phông chữ và viền. Ngay cả khi các tab khác đang ẩn, phím Tab không bao giờ bị rơi ra ngoài lưới nền.",
+      "Đóng hộp thoại và khôi phục tiêu điểm: Nhấn phím Escape để đóng hộp thoại Định dạng ô. Tiêu điểm lập tức được khôi phục chính xác về ô bạn đang chọn trước đó, cho phép bạn tiếp tục điều hướng bằng các phím mũi tên ngay mà không cần dùng chuột.",
+      "Mở menu Tệp (Backstage) bằng Alt+F: Menu mở ra và tiêu điểm đặt vào nút 'Quay lại'. Dùng mũi tên Lên/Xuống để duyệt danh sách lệnh, phím Escape để đóng menu trở về lưới ô tính."
+    ]
   }
 ];
 
 registerHelpEntries(SHEET_HELP_ENTRIES);
+
