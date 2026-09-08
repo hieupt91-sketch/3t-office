@@ -445,9 +445,15 @@ def apply_sheet_visibility_to_workbook(workbook_xml: str, visibility_by_sheet: d
         if not state:
             return full
         canonical = _CANONICAL.get(state.lower(), state)
-        next_attrs = _SHEET_STATE_ATTR_RE.sub("", attrs)
+        # <sheet> is always a self-closing/empty element in xl/workbook.xml.
+        # _WB_SHEET_TAG_RE's greedy [^>]* can swallow a trailing "/" into
+        # `attrs` before the optional /? — strip it so we don't end up with
+        # a stray "/" in the middle of the tag (e.g. `.../ state="x">`,
+        # which breaks the self-closing form and corrupts the XML).
+        next_attrs = re.sub(r"/\s*$", "", attrs)
+        next_attrs = _SHEET_STATE_ATTR_RE.sub("", next_attrs)
         next_attrs = f'{next_attrs} state="{canonical}"'
-        return f"<sheet{next_attrs}>"
+        return f"<sheet{next_attrs}/>"
 
     return _WB_SHEET_TAG_RE.sub(_replace, xml)
 

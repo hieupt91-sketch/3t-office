@@ -1289,9 +1289,12 @@ export class SheetAdapter {
     String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
       const name = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
       if (!name) return "";
-      const state = (attrs.match(/vno:sheet-state=["']([^"']*)["']/i)?.[1] || "").toLowerCase();
-      if (state === "hidden" || state === "veryHidden") {
-        workbook.sheetVisibilityBySheet[name] = state;
+      const rawState = attrs.match(/vno:sheet-state=["']([^"']*)["']/i)?.[1] || "";
+      const state = rawState.toLowerCase();
+      if (state === "hidden" || state === "veryhidden") {
+        // Preserve canonical OOXML casing ("veryHidden", not "veryhidden")
+        // for round-trip back into vno:sheet-state / xl/workbook.xml state=.
+        workbook.sheetVisibilityBySheet[name] = state === "veryhidden" ? "veryHidden" : "hidden";
       }
       return "";
     });
@@ -1804,8 +1807,11 @@ export class SheetAdapter {
       // vno:sheet-state: preserve hidden/veryHidden through round-trip.
       // LibreOffice downgrades veryHidden → hidden during XLSX→FODS; the
       // Python overlay writes vno:sheet-state so serializeToFods can echo it.
-      const visState = (this.grid.sheetVisibilityBySheet?.[sheetName] || "").toLowerCase();
-      const sheetStateAttr = (visState === "hidden" || visState === "veryHidden") ? ` vno:sheet-state="${visState}"` : "";
+      const rawVisState = this.grid.sheetVisibilityBySheet?.[sheetName] || "";
+      const visStateLower = rawVisState.toLowerCase();
+      const sheetStateAttr = (visStateLower === "hidden" || visStateLower === "veryhidden")
+        ? ` vno:sheet-state="${visStateLower === "veryhidden" ? "veryHidden" : "hidden"}"`
+        : "";
       const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"${freezeAttr}${sheetStateAttr}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);

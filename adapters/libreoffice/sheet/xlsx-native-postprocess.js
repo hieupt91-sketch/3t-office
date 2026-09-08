@@ -70,8 +70,12 @@ function applySheetVisibilityToWorkbook(workbookXml, visibilityBySheet) {
     const name = unescapeXml(nameMatch[1]);
     const state = visibilityBySheet[name];
     if (!state) return full;
-    const nextAttrs = attrs.replace(SHEET_STATE_RE, "") + ` state="${state}"`;
-    return `<sheet${nextAttrs}>`;
+    // <sheet> is always self-closing in xl/workbook.xml. WB_SHEET_TAG_RE's
+    // greedy [^>]* can swallow a trailing "/" into `attrs` before the
+    // optional /? — strip it so we don't corrupt the tag (e.g.
+    // `.../ state="x">` instead of a valid self-closing element).
+    const nextAttrs = attrs.replace(/\/\s*$/, "").replace(SHEET_STATE_RE, "") + ` state="${state}"`;
+    return `<sheet${nextAttrs}/>`;
   });
 }
 
