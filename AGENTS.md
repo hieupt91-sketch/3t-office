@@ -21,6 +21,8 @@ Phát triển VN Office thành một suite thống nhất gồm VN Writer, VN Sh
 - Không làm UI chỉ “chạy được”; phải trực quan, keyboard-usable, có states và error handling.
 - Không sao chép tài sản/branding độc quyền của sản phẩm khác.
 - Mỗi tính năng mới cho Writer/Sheet/Slides PHẢI kèm nội dung Hướng dẫn sử dụng (tiếng Việt) trong ứng dụng — không chỉ code tính năng rồi coi là xong (xem mục 10).
+- **App desktop chạy OFFLINE là mục tiêu chính, ưu tiên số 1** — người dùng thật chủ yếu dùng bản đóng gói chạy độc lập trên máy, không có mạng cũng phải dùng được đầy đủ (trừ các tính năng rõ ràng cần mạng như AI cloud/đồng bộ, có xin phép riêng). `main.py` (Python) phải tự khởi động và tự quản lý mọi dịch vụ nó cần (kể cả server tĩnh phục vụ giao diện) NGAY TRONG tiến trình của nó — không được phụ thuộc một tiến trình Node.js/web server khởi động tách rời để app chạy được, giống cách Microsoft Office/LibreOffice tự chạy độc lập.
+- `scripts/serve.js` (Node.js) CHỈ dùng cho hạ tầng test tự động (Playwright) — KHÔNG được dùng làm phần phục vụ giao diện cho luồng chạy app thật/production. Nếu 1 agent cần server tĩnh cho mục đích khác ngoài test, phải tự có cơ chế Python riêng (`http.server` chuẩn có sẵn), không mượn lại script test này.
 
 ## 3. Mandatory decision order
 Khi cần feature:
