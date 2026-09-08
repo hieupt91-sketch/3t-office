@@ -160,11 +160,23 @@ Mở `sample-writer-headerfooter.docx` (1 section, 1 header "Công ty TNHH Sao V
 - **Backward compatibility**: Python `save_document_dialog()` có `source_path=None` mặc định. Nếu JS cũ chưa gửi → postprocess bị skip (an toàn).
 - **File gốc bị xóa**: Nếu `source_path` trỏ file không tồn tại → `os.path.isfile()` return False → skip postprocess (an toàn).
 
-## 7. Git log
+## 7. Xác minh độc lập của Claude bằng file thật (bắt buộc trước khi merge)
+
+Test tích hợp của opencode chỉ dùng fixture đơn giản (1 section/1 header/1 footer). Đã tự chạy lại đúng luồng thật (`open_document_dialog` → `save_document_dialog` với `source_path`) trên file thật `file test/aquara  final (1) (2).docx` (3 section, 9 footer, nội dung footer thật `"www.smartconnection.com.vn Catalog sản phẩm Aqara | [số trang]"`) — đây chính là file đã dùng để phát hiện lỗi gốc ban đầu.
+
+**Kết quả:**
+- Footer text **SỐNG SÓT ĐÚNG NGUYÊN VĂN**: `"www.smartconnection.com.vn Catalog sản phẩm Aqara | 2"`, `"| 1"`, `"| 1"` — trước khi vá, các dòng này bị xóa trắng hoàn toàn. Đây là lỗi nghiêm trọng nhất (mất thương hiệu công ty trên mọi trang) và đã được xác nhận sửa dứt điểm bằng dữ liệu thật.
+- Toàn bộ 9 file `word/footerN.xml` gốc đều được ghi lại vào file kết quả (so với 1 file rỗng trước khi vá).
+
+**Giới hạn còn lại (chưa xử lý, cần lưu ý cho agent sau):** `sectPr` trong file kết quả vẫn chỉ còn 1 (bản gốc có 3), và `footerReference` chỉ còn 3 (bản gốc có 9) — cơ chế hiện tại (`_rebuild_docx_document_xml`) chỉ thay thế ĐÚNG MỘT `w:sectPr` (section cuối/body-level) bằng bản gốc, chưa khôi phục đầy đủ cấu trúc NHIỀU section riêng biệt (ví dụ trang bìa dùng section khác trang nội dung, mỗi section có footer/khổ trang khác nhau). Với tài liệu chỉ có 1 section (trường hợp phổ biến nhất, đúng như fixture test của opencode), fix này khôi phục đầy đủ 100%. Với tài liệu nhiều section như Aquara, fix khôi phục được ĐÚNG NỘI DUNG footer (không còn mất trắng) nhưng chưa khôi phục đủ SỐ LƯỢNG section/footerReference gốc — đây là cải thiện lớn (từ mất trắng 100% sang giữ được nội dung thật) nhưng chưa phải giải pháp trọn vẹn 100% cho trường hợp nhiều section phức tạp. Nên coi là việc tiếp theo nếu cần độ trung thực tuyệt đối cho tài liệu nhiều section.
+
+## 8. Git log
 
 ```
 e241179 feat(writer): re-inject section/header/footer from original DOCX on save (Phuong an A)
 ```
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
 
 ---
 *Hoàn thành theo HANDOFF-WRITER-SECTION-HEADER-FOOTER-FIDELITY.md §4: Phương án A — thêm `source_path` parameter.*
