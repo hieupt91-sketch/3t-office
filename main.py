@@ -5,7 +5,9 @@ và làm cầu nối thật (không mock) tới LibreOffice headless engine
 cho các thao tác Mở/Lưu/Xuất PDF — cross-platform: Windows, Linux, macOS.
 """
 
+import http.server
 import os
+import socket
 import sys
 import base64
 import csv
@@ -26,6 +28,80 @@ import webview
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML = os.path.join(ROOT_DIR, "index.html")
+
+# ---------------------------------------------------------------------------
+# Embedded static-file server (runs inside the Python process)
+# ---------------------------------------------------------------------------
+
+_STATIC_MIME_OVERRIDES = {
+    ".js": "text/javascript; charset=UTF-8",
+    ".mjs": "text/javascript; charset=UTF-8",
+    ".css": "text/css; charset=UTF-8",
+    ".json": "application/json; charset=UTF-8",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".gif": "image/gif",
+    ".html": "text/html; charset=UTF-8",
+    ".htm": "text/html; charset=UTF-8",
+}
+
+_DEFAULT_STATIC_PORT = 8080
+_MAX_PORT_ATTEMPTS = 20
+
+
+class _StaticFileHandler(http.server.SimpleHTTPRequestHandler):
+    """Serve files from ROOT_DIR with correct MIME types for JS/CSS."""
+
+    def __init__(self, *args, directory=None, **kwargs):
+        super().__init__(*args, directory=directory or ROOT_DIR, **kwargs)
+
+    def guess_type(self, path):
+        ext = os.path.splitext(path)[1].lower()
+        if ext in _STATIC_MIME_OVERRIDES:
+            return _STATIC_MIME_OVERRIDES[ext]
+        return super().guess_type(path)
+
+    def log_message(self, fmt, *args):
+        pass  # quiet — do not spam console on every request
+
+
+class _QuietTCPServer(http.server.ThreadingHTTPServer):
+    allow_reuse_address = False
+
+    def server_bind(self):
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 0)
+        super().server_bind()
+
+
+def _start_static_server():
+    """Find a free port, start the embedded HTTP server on a daemon thread,
+    wait until it is ready, and return (server, port).
+
+    Raises RuntimeError if no port is available within _MAX_PORT_ATTEMPTS.
+    """
+    for attempt in range(_MAX_PORT_ATTEMPTS):
+        port = _DEFAULT_STATIC_PORT + attempt
+        try:
+            server = _QuietTCPServer(("127.0.0.1", port), _StaticFileHandler)
+        except OSError:
+            continue  # port occupied, try next
+
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+
+        # Quick readiness check
+        import time
+        time.sleep(0.05)
+        if thread.is_alive():
+            return server, port
+        # Thread died immediately — port was not truly free
+        server.server_close()
+
+    raise RuntimeError(
+        f"Không tìm thấy cổng trống trong khoảng {_DEFAULT_STATIC_PORT}–"
+        f"{_DEFAULT_STATIC_PORT + _MAX_PORT_ATTEMPTS - 1}"
+    )
 
 APP_DATA_DIR_NAME = "VNOffice"
 VALID_APP_KINDS = ("writer", "sheet", "slides")
@@ -862,13 +938,13 @@ def parse_launch_args(argv: list[str]) -> tuple[str | None, str | None]:
     return app_kind, file_path
 
 
-def build_launch_url(app_kind: str | None, initial_file: str | None) -> str:
+def build_launch_url(app_kind: str | None, initial_file: str | None, port: int = _DEFAULT_STATIC_PORT) -> str:
     if not app_kind:
-        return "http://localhost:8080"
+        return f"http://localhost:{port}"
     query = {"app": app_kind, "singleApp": "1"}
     if initial_file:
         query["openFile"] = "1"
-    return f"http://localhost:8080/?{urlencode(query)}"
+    return f"http://localhost:{port}/?{urlencode(query)}"
 
 
 def main(argv: list[str] | None = None):
@@ -878,11 +954,16 @@ def main(argv: list[str] | None = None):
         print(f"[VN Office] {exc}", file=sys.stderr)
         return 2
 
+    # Start embedded static-file server BEFORE creating the webview window
+    # so the UI is guaranteed to load without ERR_CONNECTION_REFUSED.
+    server, port = _start_static_server()
+    print(f"[VN Office] Embedded server ready at http://localhost:{port}")
+
     api = VnOfficeApi(app_kind=app_kind, initial_file=initial_file)
 
     window = webview.create_window(
         title=APP_TITLES.get(app_kind, SUITE_TITLE),
-        url=build_launch_url(app_kind, initial_file),
+        url=build_launch_url(app_kind, initial_file, port=port),
         width=1366,
         height=820,
         min_size=(960, 640),
