@@ -1713,6 +1713,7 @@ export class WriterAdapter {
       html = html.replace(footerMatch[0], "");
     }
     html = this._normalizeImportedStarWriterNotes(html);
+    html = this._convertFloatingImagesToInline(html);
     return { body: html.trim(), header, footer, page, comments };
   }
 
@@ -1729,6 +1730,35 @@ export class WriterAdapter {
       "$1"
     );
     return out.trim();
+  }
+
+  /**
+   * Convert StarWriter floating-image spans (`sd-abs-pos`) from absolute
+   * positioning to inline-block flow. LibreOffice's HTML export places
+   * images with "Behind Text" / "In Front of Text" wrapping into
+   * `<span class="sd-abs-pos" style="position:absolute; top:Xcm; left:Ycm">`
+   * where top/left are relative to the **original Word page**.  VN Writer
+   * renders the whole document inside a single `.vno-writer-page` container,
+   * so all absolute coordinates are measured from the same origin — causing
+   * images from pages 2+ to overlap unrelated content.
+   *
+   * Strategy: keep each element in its current DOM position (the HTML order
+   * from soffice already reflects the document flow) but strip absolute
+   * positioning so the browser places them inline, eliminating overlap.
+   * Width is preserved so images keep their original size.
+   */
+  _convertFloatingImagesToInline(html) {
+    return String(html || "").replace(
+      /<span\s+class=["']sd-abs-pos["']\s+style=["']([^"']*)["']\s*>([\s\S]*?)<\/span>/gi,
+      (_match, styleAttr, inner) => {
+        let style = String(styleAttr);
+        style = style.replace(/\bposition\s*:\s*absolute\s*;?\s*/gi, "");
+        style = style.replace(/\btop\s*:\s*[^;]+;\s*/gi, "");
+        style = style.replace(/\bleft\s*:\s*[^;]+;\s*/gi, "");
+        style = `display:inline-block; position:static; ${style}`.trim();
+        return `<span style="${style}">${inner}</span>`;
+      }
+    );
   }
 
   /**
