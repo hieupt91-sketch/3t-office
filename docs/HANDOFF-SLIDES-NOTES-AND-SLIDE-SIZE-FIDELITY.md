@@ -69,6 +69,14 @@ Tích hợp vào `postprocess_slides_pptx()`: chạy sau khi Logo/Sections/Show/
 | `tests/test_slides_pptx_slide_size.py` | Thêm FODP_MULTI_LAYOUTS, FODP_NOTES_FIRST, 4 test cases multi-layout |
 | `tests/test_slides_pptx_notes.py` | File mới: 12 test cases cho notes parsing + restoration |
 
----
+## 7. Xác minh độc lập của Claude (bắt buộc trước khi merge)
+
+- **Lỗi 2 (khổ trang) — xác nhận ĐÚNG bằng file thật `sample-3.pptx`**: chạy lại chính xác round-trip Mở → Lưu qua `main.py` thật trên nhánh này, khổ trang kết quả khớp CHÍNH XÁC bản gốc (`cx="9144000" cy="5143500"`), không còn bị đổi thành A4. Bug xác nhận đã sửa dứt điểm.
+- **Lỗi 1 (ghi chú diễn giả) — ĐÍNH CHÍNH mức độ nghiêm trọng đã báo ban đầu**: chạy lại round-trip thật trên `sample-3.pptx`, `notesSlideN.xml` vẫn ra 0 sau khi Lưu — NHƯNG kiểm tra trực tiếp file **gốc** thì phát hiện cả 10 `notesSlideN.xml` trong file gốc đều **RỖNG HOÀN TOÀN** (0 `<a:t>` có nội dung, chỉ là placeholder mặc định do PowerPoint/Google Slides tự sinh) — file này chưa bao giờ có ghi chú thật để mà mất. Kết luận ban đầu "20 slide mất trắng ghi chú" dựa trên đếm số PART tồn tại, không kiểm tra nội dung thật — đã sửa sai sót này.
+  - Đã tự viết 1 kịch bản FODP tối giản có ghi chú THẬT (`"Day la ghi chu dien gia..."`), chạy qua đúng `_run_soffice_convert` + `_apply_native_export_postprocess` thật (không mock) — xác nhận: soffice tự giữ được notes trong trường hợp đơn giản này, và `restore_notes_to_pptx()` hoạt động đúng, không phá hỏng gì, không tạo nội dung giả khi không cần.
+  - Chưa tái hiện được bằng file thật trường hợp "soffice thật sự làm rớt ghi chú CÓ NỘI DUNG" — cơ chế vá vẫn là phòng ngừa hợp lý (an toàn, có test đơn vị đầy đủ 12 case), nhưng mức độ nghiêm trọng ban đầu cho lỗi này cần hạ xuống so với báo cáo lúc đầu.
+- Đã tự chạy `python -m unittest discover -s tests -p "test_*.py"` đầy đủ trên cây đã merge main (không bị timeout như lần opencode chạy) — xem kết quả trong commit merge.
+- `node scripts/check-syntax.js`: 90/90 PASS (xác nhận lại).
 
 Co-Authored-By: opencode (mimo-v2.5-free)
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
