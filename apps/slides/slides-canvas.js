@@ -2652,6 +2652,270 @@ export class SlidesCanvasController {
     return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
+  _parseCropCm(v) {
+    if (typeof v === "number") return v;
+    const m = String(v || "").match(/^([-\d.]+)\s*(cm|pt|mm|in|px)?$/i);
+    if (!m) return 0;
+    const n = parseFloat(m[1]) || 0;
+    const u = (m[2] || "cm").toLowerCase();
+    if (u === "cm") return n;
+    if (u === "pt") return n * 2.54 / 72;
+    if (u === "in") return n * 2.54;
+    if (u === "mm") return n * 0.1;
+    if (u === "px") return n * 2.54 / 96;
+    return n;
+  }
+
+  _probeImageDimensionsAndDpi(src) {
+    if (!src || typeof src !== "string" || !src.startsWith("data:")) return null;
+    if (!this._imageDimsCache) this._imageDimsCache = new Map();
+    const cacheKey = src.length > 256 ? src.slice(0, 256) + src.length : src;
+    if (this._imageDimsCache.has(cacheKey)) {
+      return this._imageDimsCache.get(cacheKey);
+    }
+    const comma = src.indexOf(",");
+    if (comma < 0) return null;
+    const b64 = src.slice(comma + 1, comma + 1 + 65536);
+    let bytes;
+    try {
+      if (typeof Buffer !== "undefined") {
+        bytes = Uint8Array.from(Buffer.from(b64, "base64"));
+      } else if (typeof atob === "function") {
+        const bin = atob(b64);
+        bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      }
+    } catch (_) {
+      return null;
+    }
+    if (!bytes || bytes.length < 16) return null;
+
+    let result = null;
+
+    // PNG
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
+      if (bytes.length >= 24) {
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        const width = view.getUint32(16);
+        const height = view.getUint32(20);
+        let dpiX = 96;
+        let dpiY = 96;
+        let offset = 8;
+        while (offset + 8 <= bytes.length) {
+          const len = view.getUint32(offset);
+          const type = String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7]);
+          if (type === "pHYs" && offset + 12 + 9 <= bytes.length) {
+            const ppuX = view.getUint32(offset + 8);
+            const ppuY = view.getUint32(offset + 12);
+            const unit = bytes[offset + 16];
+            if (unit === 1 && ppuX > 0 && ppuY > 0) {
+              dpiX = ppuX * 0.0254;
+              dpiY = ppuY * 0.0254;
+            }
+            break;
+          }
+          if (type === "IDAT") break;
+          offset += 12 + len;
+        }
+        result = { width, height, dpiX, dpiY };
+      }
+    }
+    // JPEG
+    else if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+      let offset = 2;
+      let width = 0;
+      let height = 0;
+      let dpiX = 96;
+      let dpiY = 96;
+      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      while (offset + 4 <= bytes.length) {
+        if (bytes[offset] !== 0xff) {
+          offset++;
+          continue;
+        }
+        const marker = bytes[offset + 1];
+        if (marker === 0xd9 || marker === 0xda) break;
+        if (marker === 0x00 || (marker >= 0xd0 && marker <= 0xd7)) {
+          offset += 2;
+          continue;
+        }
+        if (offset + 4 > bytes.length) break;
+        const len = view.getUint16(offset + 2);
+        // JFIF (APP0)
+        if (marker === 0xe0 && len >= 14 && offset + 2 + len <= bytes.length) {
+          const id = String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7], bytes[offset + 8]);
+          if (id === "JFIF\0") {
+            const units = bytes[offset + 11];
+            const xDen = view.getUint16(offset + 12);
+            const yDen = view.getUint16(offset + 14);
+            if (units === 1 && xDen > 0) {
+              dpiX = xDen;
+              dpiY = yDen > 0 ? yDen : xDen;
+            } else if (units === 2 && xDen > 0) {
+              dpiX = xDen * 2.54;
+              dpiY = (yDen > 0 ? yDen : xDen) * 2.54;
+            }
+          }
+        }
+        // EXIF (APP1)
+        if (marker === 0xe1 && len >= 14 && offset + 2 + len <= bytes.length) {
+          const id = String.fromCharCode(bytes[offset + 4], bytes[offset + 5], bytes[offset + 6], bytes[offset + 7], bytes[offset + 8], bytes[offset + 9]);
+          if (id === "Exif\0\0") {
+            try {
+              const tiffStart = offset + 10;
+              const endian = view.getUint16(tiffStart);
+              const little = endian === 0x4949;
+              const ifdOffset = view.getUint32(tiffStart + 4, little);
+              let p = tiffStart + ifdOffset;
+              if (p + 2 <= bytes.length) {
+                const numEntries = view.getUint16(p, little);
+                p += 2;
+                let xRes = 0, yRes = 0, resUnit = 2;
+                for (let i = 0; i < numEntries && p + 12 <= bytes.length; i++) {
+                  const tag = view.getUint16(p, little);
+                  const tagType = view.getUint16(p + 2, little);
+                  const valOffset = view.getUint32(p + 8, little);
+                  if (tag === 0x011a && tagType === 5 && tiffStart + valOffset + 8 <= bytes.length) {
+                    const num = view.getUint32(tiffStart + valOffset, little);
+                    const den = view.getUint32(tiffStart + valOffset + 4, little);
+                    if (den > 0) xRes = num / den;
+                  } else if (tag === 0x011b && tagType === 5 && tiffStart + valOffset + 8 <= bytes.length) {
+                    const num = view.getUint32(tiffStart + valOffset, little);
+                    const den = view.getUint32(tiffStart + valOffset + 4, little);
+                    if (den > 0) yRes = num / den;
+                  } else if (tag === 0x0128 && tagType === 3) {
+                    resUnit = view.getUint16(p + 8, little);
+                  }
+                  p += 12;
+                }
+                if (xRes > 0) {
+                  if (resUnit === 3) {
+                    dpiX = xRes * 2.54;
+                    dpiY = (yRes > 0 ? yRes : xRes) * 2.54;
+                  } else {
+                    dpiX = xRes;
+                    dpiY = yRes > 0 ? yRes : xRes;
+                  }
+                }
+              }
+            } catch (_) {}
+          }
+        }
+        // SOF0, SOF1, SOF2
+        if ((marker === 0xc0 || marker === 0xc1 || marker === 0xc2) && len >= 7 && offset + 9 <= bytes.length) {
+          height = view.getUint16(offset + 5);
+          width = view.getUint16(offset + 7);
+          if (width > 0 && height > 0) break;
+        }
+        offset += 2 + len;
+      }
+      if (width > 0 && height > 0) {
+        result = { width, height, dpiX, dpiY };
+      }
+    }
+
+    this._imageDimsCache.set(cacheKey, result);
+    return result;
+  }
+
+  _computeImageCropStyles(shape) {
+    if (!shape) return null;
+
+    // 1. If cropPct is available (from PPTX a:srcRect or preserved cropPct)
+    let cropPct = shape.cropPct;
+    if (typeof cropPct === "string") {
+      try {
+        cropPct = JSON.parse(cropPct);
+      } catch (_) {
+        const parts = cropPct.split(",").map((s) => parseFloat(s.trim()));
+        if (parts.length === 4 && parts.every((n) => !isNaN(n))) {
+          cropPct = { l: parts[0], t: parts[1], r: parts[2], b: parts[3] };
+        } else {
+          cropPct = null;
+        }
+      }
+    }
+    if (cropPct && typeof cropPct === "object") {
+      const l = Number(cropPct.l ?? cropPct.left) || 0;
+      const t = Number(cropPct.t ?? cropPct.top) || 0;
+      const r = Number(cropPct.r ?? cropPct.right) || 0;
+      const b = Number(cropPct.b ?? cropPct.bottom) || 0;
+      const origW = 100;
+      const origH = 100;
+      const visW = Math.max(0.001, origW - l - r);
+      const visH = Math.max(0.001, origH - t - b);
+      const wPct = (origW / visW) * 100;
+      const hPct = (origH / visH) * 100;
+      const leftPct = (l / visW) * 100;
+      const topPct = (t / visH) * 100;
+      return {
+        wPct,
+        hPct,
+        leftPct,
+        topPct,
+        cssText: `position:absolute;width:${wPct}%;height:${hPct}%;left:-${leftPct}%;top:-${topPct}%;max-width:none;max-height:none;object-fit:fill;pointer-events:none;`
+      };
+    }
+
+    // 2. If only crop (cm) is available (ODP / FODP without PPTX)
+    if (!shape.crop) return null;
+    let crop = shape.crop;
+    if (typeof crop === "string") {
+      try { crop = JSON.parse(crop); } catch (_) { return null; }
+    }
+    if (!crop || typeof crop !== "object") return null;
+    const topCm = this._parseCropCm(crop.top);
+    const rightCm = this._parseCropCm(crop.right);
+    const bottomCm = this._parseCropCm(crop.bottom);
+    const leftCm = this._parseCropCm(crop.left);
+
+    // Try reading logical dimensions from image data (JPEG JFIF/EXIF, PNG pHYs; fallback 96dpi)
+    const probed = this._probeImageDimensionsAndDpi(shape.src);
+    if (probed && probed.width > 0 && probed.height > 0) {
+      const dpiX = probed.dpiX || 96;
+      const dpiY = probed.dpiY || 96;
+      const origWCm = (probed.width / dpiX) * 2.54;
+      const origHCm = (probed.height / dpiY) * 2.54;
+      const visW = origWCm - leftCm - rightCm;
+      const visH = origHCm - topCm - bottomCm;
+      if (visW > 0 && visH > 0) {
+        const wPct = (origWCm / visW) * 100;
+        const hPct = (origHCm / visH) * 100;
+        const leftPct = (leftCm / visW) * 100;
+        const topPct = (topCm / visH) * 100;
+        return {
+          wPct,
+          hPct,
+          leftPct,
+          topPct,
+          cssText: `position:absolute;width:${wPct}%;height:${hPct}%;left:-${leftPct}%;top:-${topPct}%;max-width:none;max-height:none;object-fit:fill;pointer-events:none;`
+        };
+      }
+    }
+
+    // Fallback: 96 DPI frame + crop
+    const cmToPx = 37.795275591; // 96 DPI
+    const topPx = topCm * cmToPx;
+    const rightPx = rightCm * cmToPx;
+    const bottomPx = bottomCm * cmToPx;
+    const leftPx = leftCm * cmToPx;
+    const shapeW = shape.w || 200;
+    const shapeH = shape.h || 120;
+    const origWPx = Math.max(1, shapeW + leftPx + rightPx);
+    const origHPx = Math.max(1, shapeH + topPx + bottomPx);
+    const wPct = (origWPx / shapeW) * 100;
+    const hPct = (origHPx / shapeH) * 100;
+    const leftPct = (leftPx / shapeW) * 100;
+    const topPct = (topPx / shapeH) * 100;
+    return {
+      wPct,
+      hPct,
+      leftPct,
+      topPct,
+      cssText: `position:absolute;width:${wPct}%;height:${hPct}%;left:-${leftPct}%;top:-${topPct}%;max-width:none;max-height:none;object-fit:fill;pointer-events:none;`
+    };
+  }
+
   _shapePresentationHtml(shape, options = {}) {
     const shapeId = this._escapeShapeText(String(shape.id ?? ""));
     const morphAttrs = ` data-vno-shape-id="${shapeId}" data-vno-shape-type="${this._escapeShapeText(shape.type || "rect")}"`;
@@ -2669,7 +2933,13 @@ export class SlidesCanvasController {
       animStyle = this._animationInlineStyle(shape.animation, playDelay);
       animAttrs = ` data-vno-anim-target="${shapeId}" data-vno-anim-order="${timelineItem ? timelineItem.index : ""}" data-vno-anim-delay="${playDelay}" data-vno-anim-type="${this._escapeShapeText(shape.animation.type)}"`;
     }
-    if (shape.type === "image" && shape.src) return `<img src="${shape.src}"${morphAttrs}${animAttrs} style="${pos}${animStyle}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,.15)" />`;
+    if (shape.type === "image" && shape.src) {
+      const cropInfo = this._computeImageCropStyles(shape);
+      if (cropInfo) {
+        return `<div${morphAttrs}${animAttrs} style="${pos}${animStyle}overflow:hidden;box-shadow:none;"><img src="${shape.src}" style="position:absolute;width:${cropInfo.wPct}%;height:${cropInfo.hPct}%;left:-${cropInfo.leftPct}%;top:-${cropInfo.topPct}%;max-width:none;max-height:none;object-fit:fill;" /></div>`;
+      }
+      return `<img src="${shape.src}"${morphAttrs}${animAttrs} style="${pos}${animStyle}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,.15)" />`;
+    }
     if (shape.type === "video" && shape.src) return `<video src="${shape.src}"${morphAttrs}${animAttrs} controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,.15)"></video>`;
     if (shape.type === "audio" && shape.src) return `<audio src="${shape.src}"${morphAttrs}${animAttrs} controls style="${pos}${animStyle}"></audio>`;
     if (shape.type === "chart") return `<div class="vno-show-shape vno-show-chart"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:#fff;overflow:hidden">${generateSlidesChartSvg(shape)}</div>`;
@@ -3390,7 +3660,12 @@ export class SlidesCanvasController {
       } else if (shape.type === "image" && shape.src) {
         const img = document.createElement("img");
         img.src = shape.src;
-        img.style.cssText = "width:100%;height:100%;object-fit:cover;pointer-events:none;";
+        const cropInfo = this._computeImageCropStyles(shape);
+        if (cropInfo) {
+          img.style.cssText = cropInfo.cssText;
+        } else {
+          img.style.cssText = "width:100%;height:100%;object-fit:cover;pointer-events:none;";
+        }
         el.style.overflow = "hidden";
         el.style.boxShadow = "none";
         el.appendChild(img);
@@ -8325,6 +8600,10 @@ export class SlidesCanvasController {
       const shapesHtml = (s.shapes || []).map((shape) => {
         const pos = `position:absolute;left:${shape.x * 0.7}px;top:${shape.y * 0.7}px;width:${shape.w * 0.7}px;height:${shape.h * 0.7}px;`;
         if (shape.type === "image" && shape.src) {
+          const cropInfo = this._computeImageCropStyles(shape);
+          if (cropInfo) {
+            return `<div style="${pos}overflow:hidden;"><img src="${shape.src}" style="position:absolute;width:${cropInfo.wPct}%;height:${cropInfo.hPct}%;left:-${cropInfo.leftPct}%;top:-${cropInfo.topPct}%;max-width:none;max-height:none;object-fit:fill;" /></div>`;
+          }
           return `<img src="${shape.src}" style="${pos}object-fit:contain;" />`;
         }
         const radius = shape.type === "ellipse" ? "50%" : "4px";

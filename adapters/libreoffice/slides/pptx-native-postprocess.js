@@ -219,6 +219,140 @@ export function overlaySlidesPptxFodp(pptxPathOrBuffer, fodpXml) {
       `PPTX ZIP hỏng — không thể khôi phục thuộc tính native: ${error.message || error}`
     );
   }
-  if (!props) return xml;
-  return overlayFodpShowProperties(xml, props.toString("utf8"));
+  if (props) {
+    xml = overlayFodpShowProperties(xml, props.toString("utf8"));
+  }
+  xml = overlayFodpImageCrops(xml, source);
+  return xml;
+}
+
+export function parseSlideImageCrops(slideXml) {
+  if (!slideXml) return {};
+  const crops = {};
+  const fmt = (v) => {
+    const s = (v / 1000).toFixed(5).replace(/\.?0+$/, "");
+    return s || "0";
+  };
+  const picRegex = /<p:pic\b[\s\S]*?<\/p:pic>/gi;
+  let match;
+  while ((match = picRegex.exec(slideXml)) !== null) {
+    const pic = match[0];
+    const nameMatch = pic.match(/<p:cNvPr\b[^>]*\bname=(?:"([^"]*)"|'([^']*)')/i);
+    const srcRectMatch = pic.match(/<a:srcRect\b([^>]*)\/?>/i);
+    if (nameMatch && srcRectMatch) {
+      const name = nameMatch[1] !== undefined ? nameMatch[1] : (nameMatch[2] || "");
+      const attrs = srcRectMatch[1] || "";
+      const lMatch = attrs.match(/\bl=(?:"(-?\d+)"|'(-?\d+)')/i);
+      const tMatch = attrs.match(/\bt=(?:"(-?\d+)"|'(-?\d+)')/i);
+      const rMatch = attrs.match(/\br=(?:"(-?\d+)"|'(-?\d+)')/i);
+      const bMatch = attrs.match(/\bb=(?:"(-?\d+)"|'(-?\d+)')/i);
+      const l = lMatch ? parseInt(lMatch[1] || lMatch[2], 10) : 0;
+      const t = tMatch ? parseInt(tMatch[1] || tMatch[2], 10) : 0;
+      const r = rMatch ? parseInt(rMatch[1] || rMatch[2], 10) : 0;
+      const b = bMatch ? parseInt(bMatch[1] || bMatch[2], 10) : 0;
+      crops[name] = `${fmt(l)},${fmt(t)},${fmt(r)},${fmt(b)}`;
+    }
+  }
+  return crops;
+}
+
+export function applyFodpImageCrops(fodpXml, cropsBySlide) {
+  let xml = fodpXml || "";
+  if (!cropsBySlide || !cropsBySlide.some((c) => c && Object.keys(c).length > 0)) {
+    return xml;
+  }
+  let pageIdx = 0;
+  xml = xml.replace(/<draw:page\b[\s\S]*?<\/draw:page>/gi, (pageXml) => {
+    const crops = cropsBySlide[pageIdx];
+    pageIdx++;
+    if (!crops || Object.keys(crops).length === 0) return pageXml;
+    return pageXml.replace(/<draw:frame\b([^>]*)>/gi, (fm, rawAttrs) => {
+      const nameMatch = rawAttrs.match(/\bdraw:name=(?:"([^"]*)"|'([^']*)')/i);
+      if (!nameMatch) return fm;
+      const name = nameMatch[1] !== undefined ? nameMatch[1] : (nameMatch[2] || "");
+      if (!crops[name]) return fm;
+      const rect = crops[name];
+      const selfClose = /\/\s*$/.test(rawAttrs);
+      let cleanAttrs = selfClose ? rawAttrs.replace(/\/\s*$/, "") : rawAttrs;
+      if (/\bvno:src-rect\s*=/i.test(cleanAttrs)) {
+        cleanAttrs = cleanAttrs.replace(/\bvno:src-rect=(?:"[^"]*"|'[^']*')/i, `vno:src-rect="${rect}"`);
+      } else {
+        cleanAttrs = `${cleanAttrs.trimEnd()} vno:src-rect="${rect}"`;
+      }
+      if (cleanAttrs && !cleanAttrs.startsWith(" ")) cleanAttrs = " " + cleanAttrs;
+      return selfClose ? `<draw:frame${cleanAttrs}/>` : `<draw:frame${cleanAttrs}>`;
+    });
+  });
+  if (!/xmlns:vno\s*=/i.test(xml)) {
+    xml = xml.replace(/<office:document\b([^>]*)>/i, `<office:document$1 xmlns:vno="urn:oasis:names:tc:opendocument:xmlns:vno:1.0">`);
+  }
+  return xml;
+}
+
+export function overlayFodpImageCrops(fodpXml, pptxSource) {
+  const source = asBuffer(pptxSource);
+  let presEntry;
+  let relsEntry;
+  try {
+    presEntry = readZipEntry(source, PPTX_PRESENTATION_ENTRY);
+    relsEntry = readZipEntry(source, "ppt/_rels/presentation.xml.rels");
+  } catch (_) {
+    return fodpXml || "";
+  }
+  if (!presEntry) return fodpXml || "";
+  const presXml = presEntry.toString("utf8");
+  const rels = {};
+  if (relsEntry) {
+    const relsXml = relsEntry.toString("utf8");
+    const relRegex = /<Relationship\b([^>]*)\/?>/gi;
+    let rm;
+    while ((rm = relRegex.exec(relsXml)) !== null) {
+      const attrs = rm[1];
+      const idMatch = attrs.match(/\bId=(?:"([^"]*)"|'([^']*)')/i);
+      const targetMatch = attrs.match(/\bTarget=(?:"([^"]*)"|'([^']*)')/i);
+      if (idMatch && targetMatch) {
+        rels[idMatch[1] || idMatch[2]] = targetMatch[1] || targetMatch[2];
+      }
+    }
+  }
+  const slidePaths = [];
+  const sldLstMatch = presXml.match(/<(?:[\w]+:)?sldIdLst\b[^>]*>([\s\S]*?)<\/(?:[\w]+:)?sldIdLst>/i);
+  if (sldLstMatch) {
+    const sldIdRegex = /<(?:[\w]+:)?sldId\b([^>]*)\/?>/gi;
+    let sm;
+    while ((sm = sldIdRegex.exec(sldLstMatch[1])) !== null) {
+      const ridMatch = sm[1].match(/\br:id=(?:"([^"]*)"|'([^']*)')/i);
+      if (ridMatch) {
+        const rid = ridMatch[1] || ridMatch[2];
+        let target = rels[rid] || "";
+        if (target) {
+          if (!target.startsWith("ppt/")) target = "ppt/" + target.replace(/^\/+/, "");
+          slidePaths.push(target);
+        }
+      }
+    }
+  }
+  if (!slidePaths.length) {
+    try {
+      const listed = listZipEntries(source);
+      const slideNames = listed
+        .map((item) => item.name)
+        .filter((name) => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
+        .sort((a, b) => {
+          const numA = parseInt(a.match(/\d+/)?.[0] || "0", 10);
+          const numB = parseInt(b.match(/\d+/)?.[0] || "0", 10);
+          return numA - numB;
+        });
+      slidePaths.push(...slideNames);
+    } catch (_) {}
+  }
+  const cropsBySlide = [];
+  for (const path of slidePaths) {
+    let slideEntry;
+    try {
+      slideEntry = readZipEntry(source, path);
+    } catch (_) {}
+    cropsBySlide.push(parseSlideImageCrops(slideEntry ? slideEntry.toString("utf8") : ""));
+  }
+  return applyFodpImageCrops(fodpXml, cropsBySlide);
 }
