@@ -1039,6 +1039,13 @@ export class SheetAdapter {
     if (item.formula) return true;
     if (item.sparkline) return true;
     if (this._normalizedTextRotation(item.style?.textRotation) != null) return true;
+    // Cells with visual styles (borders, background, font, alignment, etc.) should be persisted
+    // even if they have no value — this preserves empty cells with borders.
+    const s = item.style || {};
+    const hasVisualStyle = s.backgroundColor || s.color || s.fontWeight || s.fontStyle ||
+      s.textDecoration || s.fontFamily || s.fontSize || s.textAlign || s.verticalAlign ||
+      s.whiteSpace || s.borderLeft || s.borderRight || s.borderTop || s.borderBottom;
+    if (hasVisualStyle) return true;
     return item.val !== "" && item.val !== undefined && item.val !== null;
   }
 
@@ -2415,8 +2422,10 @@ export class SheetAdapter {
    * A bare office:value-type (what LibreOffice writes on formatted-but-empty
    * cells) does not count — that is what lets the used-range bound in
    * parseFods ignore the million-row repeated tail of real XLSX files.
+   * ALSO counts cells that have a style with borders (visual formatting),
+   * so that empty cells with borders are preserved within the used range.
    */
-  _fodsCellHasRealContent(cell) {
+  _fodsCellHasRealContent(cell, cellVisualStyles = new Map()) {
     if (cell.getAttribute("vno:original-string") !== null) return true;
     if (cell.getAttribute("table:formula") || cell.getAttribute("vno:formula")) return true;
     if (cell.getAttribute("table:content-validation-name")) return true;
@@ -2432,11 +2441,19 @@ export class SheetAdapter {
     for (const paragraph of Array.from(paragraphs)) {
       if ((paragraph.textContent || "").trim() !== "") return true;
     }
+    // Check if cell has a style with borders
+    const styleName = cell.getAttribute("table:style-name");
+    if (styleName && cellVisualStyles.has(styleName)) {
+      const visualStyle = cellVisualStyles.get(styleName);
+      if (visualStyle && (visualStyle.borderLeft || visualStyle.borderRight || visualStyle.borderTop || visualStyle.borderBottom)) {
+        return true;
+      }
+    }
     return false;
   }
 
   /** Regex-branch twin of _fodsCellHasRealContent (attributes map + raw inner markup). */
-  _fodsCellMarkupHasRealContent(attributes, content) {
+  _fodsCellMarkupHasRealContent(attributes, content, cellVisualStyles = new Map()) {
     if (attributes["vno:original-string"] !== undefined) return true;
     if (attributes["table:formula"] || attributes["vno:formula"] || attributes["table:content-validation-name"]) return true;
     if (Number(attributes["table:number-columns-spanned"]) > 1 || Number(attributes["table:number-rows-spanned"]) > 1) return true;
@@ -2446,7 +2463,16 @@ export class SheetAdapter {
     const markup = String(content || "");
     if (!markup) return false;
     if (/<office:annotation\b/i.test(markup) || /<draw:frame\b/i.test(markup)) return true;
-    return markup.replace(/<[^>]+>/g, "").trim() !== "";
+    if (markup.replace(/<[^>]+>/g, "").trim() !== "") return true;
+    // Check if cell has a style with borders
+    const styleName = attributes["table:style-name"];
+    if (styleName && cellVisualStyles.has(styleName)) {
+      const visualStyle = cellVisualStyles.get(styleName);
+      if (visualStyle && (visualStyle.borderLeft || visualStyle.borderRight || visualStyle.borderTop || visualStyle.borderBottom)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   _cellFromFodsAttributes(attributes, text, numberStyles = new Map(), rotationStyles = new Map(), cellVisualStyles = new Map()) {
@@ -2945,7 +2971,7 @@ export class SheetAdapter {
               for (const cell of Array.from(row.children)) {
                 if (!["table-cell", "covered-table-cell"].includes(cell.localName)) continue;
                 const colRepeat = Math.max(1, Number(cell.getAttribute("table:number-columns-repeated")) || 1);
-                if (this._fodsCellHasRealContent(cell)) {
+                if (this._fodsCellHasRealContent(cell, cellVisualStyles)) {
                   rowHasData = true;
                   lastDataCol = Math.max(lastDataCol, scanCol + colRepeat - 1);
                 }
@@ -3037,7 +3063,7 @@ export class SheetAdapter {
                   // A style-only cell keeps its entries inside the used range so
                   // borders/fills on blank table cells survive; past lastDataCol it
                   // is the collapsed empty tail and must not be expanded.
-                  const materializeRepeat = this._fodsCellHasRealContent(cell)
+                  const materializeRepeat = this._fodsCellHasRealContent(cell, cellVisualStyles)
                     ? columnRepeat
                     : Math.max(0, Math.min(columnRepeat, lastDataCol - columnNumber + 1));
                   for (let repeat = 0; repeat < materializeRepeat; repeat++) {
@@ -3160,7 +3186,7 @@ export class SheetAdapter {
               const scanAttrs = {};
               scanCellMatch[2].replace(/([\w:-]+)=["']([^"']*)["']/g, (_, key, value) => { scanAttrs[key] = value; return ""; });
               const colRepeat = Math.max(1, Number(scanAttrs["table:number-columns-repeated"]) || 1);
-              if (this._fodsCellMarkupHasRealContent(scanAttrs, scanCellMatch[3] || "")) {
+              if (this._fodsCellMarkupHasRealContent(scanAttrs, scanCellMatch[3] || "", cellVisualStyles)) {
                 rowHasData = true;
                 lastDataCol = Math.max(lastDataCol, scanCol + colRepeat - 1);
               }
@@ -3253,7 +3279,7 @@ export class SheetAdapter {
                 if ((attributes["table:number-matrix-columns-spanned"] || attributes["table:number-matrix-rows-spanned"]) && item.formula) {
                   arrayFormulas.push({ column: columnNumber, row: rowNumber, columns: matrixColumns, rows: matrixRows, formula: item.formula });
                 }
-                const materializeRepeat = this._fodsCellMarkupHasRealContent(attributes, content)
+                const materializeRepeat = this._fodsCellMarkupHasRealContent(attributes, content, cellVisualStyles)
                   ? columnRepeat
                   : Math.max(0, Math.min(columnRepeat, lastDataCol - columnNumber + 1));
                 for (let repeat = 0; repeat < materializeRepeat; repeat++) {

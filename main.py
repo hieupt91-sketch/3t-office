@@ -423,7 +423,6 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
     <workbookProtection lockWindows="false"/> but not lockStructure="1".
     Excel's Protect Workbook structure lock IS that standard attribute — not a
     custom namespace. We add it in-place on the existing element.
-    Also copies border styles from the original XLSX to preserve double/thick/medium borders.
 
     Slides PPTX: FODP already has the master-page logo (vno:master-theme +
     draw:frame), named sections (vno:section-* on draw:page), and Set Up
@@ -449,12 +448,8 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
             # gọi và để hàm tự quyết định không cần vá gì (trả về bytes y hệt).
             with open(out_path, "rb") as handle:
                 original = handle.read()
-            # Read original XLSX for border preservation if available
-            original_xlsx_bytes = None
-            if source_path and os.path.isfile(source_path):
-                with open(source_path, "rb") as handle:
-                    original_xlsx_bytes = handle.read()
-            patched = patcher.postprocess_sheet_xlsx(original, source_fods=fods, source_xlsx=original_xlsx_bytes)
+            # Read source FODS for activeTab preservation
+            patched = patcher.postprocess_sheet_xlsx(original, source_fods=fods)
             if patched != original:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)

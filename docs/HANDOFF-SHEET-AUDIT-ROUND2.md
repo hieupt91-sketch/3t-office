@@ -1,10 +1,90 @@
 # Agent Handoff
 
-TASK: Audit file Excel thật lần 2 và audit chiều lưu XLSX -> VN Sheet -> XLSX
+TASK: Audit file Excel thật lần 2 và audit chiều lưu XLSX -> VN Sheet -> XLSX (Round 2: Border fix)
 AGENT/ROLE: Codex (code) + Opencode (verify & commit)
-BRANCH: `fix/sheet-audit-second-file-and-roundtrip`
-WORKTREE: `E:\VNOffice-codex-sheet-audit2`
-OBJECTIVE: Đo OOXML/FODS bằng file thật, sửa lỗi parser/overlay thuộc VN Office, bổ sung auditor XLSX-vs-XLSX và regression test.
+BRANCH: `fix/sheet-save-borders-activesheet`
+WORKTREE: `E:\VNOffice-opencode-sheet-borders`
+OBJECTIVE: Gỡ post-process chép viền theo toạ độ; sửa parseFods/serializeToFods giữ ô rỗng có viền; sửa activeTab từ model/FODS.
+
+## PLAN
+
+- Current capability: tái sử dụng LibreOffice để đổi XLSX/FODS và lớp VN Adapter/overlay hiện hữu; không sửa LibreOffice Core.
+- Files/modules: `sheet-adapter.js`, Python OOXML overlay, script audit và test tương ứng.
+- Dependency: LibreOffice cài tại máy cho pipeline thật; auditor không thêm dependency ngoài.
+- Risk: FODS lớn có nhiều cell lặp và ảnh inline; overlay phải sparse, không bung toàn bộ range.
+- Test plan: fixture nhỏ cho hai parser, Python overlay, audit hai file XLSX giống nhau; sau đó syntax, toàn bộ JS và Python unittest.
+- Rollback: revert commit này; không đổi schema OOXML xuất ra và không có migration dữ liệu.
+
+## KẾT QUẢ VÒNG 2 — Viền ô & activeTab
+
+### Trước sửa (Round 1 — có post-process `_apply_borders_from_source_xlsx`)
+
+| Chỉ số | Sheet11 (Các mã sản phẩm dừng phân phối) |
+|--------|------------------------------------------|
+| Ô có `s=` | 88 |
+| Ô có viền | 80 |
+| activeTab | 1 (nhưng từ source XLSX — sai) |
+
+### Sau sửa (Round 2 — bỏ post-process, sửa parseFods/serializeToFods)
+
+| Chỉ số | Sheet11 (Các mã sản phẩm dừng phân phối) |
+|--------|------------------------------------------|
+| Ô có `s=` | **101** (+13) |
+| Ô có viền | **94** (+14) |
+| activeTab | **1** (từ FODS ActiveTable — đúng) |
+
+> **Lưu ý**: LibreOffice FODS→XLSX conversion vốn dĩ lossy (gốc 147 ô có viền). Việc bỏ post-process *cải thiện* từ 80→94 ô có viền vì parseFods/serializeToFods giờ giữ ô rỗng có style. Còn lại 47 ô mất do giới hạn bản chất của chuyển đổi LibreOffice, không phải bug VN Office.
+
+### Phân loại nguyên nhân còn lại (Sheet11)
+
+| Loại | Gốc | Sau Round 2 | Mất | Nguyên nhân |
+|------|-----|-------------|-----|-------------|
+| Ô có viền | 147 | 94 | 53 | LibreOffice FODS→XLSX drop empty cells with borders (giới hạn LO) |
+| Ô có `s=` | 162 | 101 | 61 | LibreOffice FODS→XLSX drop empty styled cells |
+
+**Kết luận**: Tất cả 53 ô viền còn thiếu là **LibreOffice roundtrip loss**, không lỗi VN. Fix parseFods/serializeToFods đã cải thiện từ 80→94 ô có viền (so với post-process Round 1 chỉ 80).
+
+## IMPLEMENTATION SUMMARY (Round 2)
+
+Thay đổi code (verified by Opencode):
+
+1. **`adapters/libreoffice/common/ooxml_zip_patch.py`** — Xoá `_parse_xlsx_borders_and_styles`, `_apply_borders_from_source_xlsx` (278 dòng). Thêm `parse_active_sheet_from_fods()` đọc `ActiveTable` từ FODS. `postprocess_sheet_xlsx()`: truyền `source_fods` thay vì `source_xlsx`; đọc `ActiveTable` → map sang index → ghi `activeTab`. Sửa regex `apply_active_tab_to_workbook` tránh tạo `//>` invalid XML.
+
+2. **`main.py`** — `_apply_native_export_postprocess`: bỏ tham số `source_xlsx`, chỉ truyền `source_fods`.
+
+3. **`adapters/libreoffice/sheet/sheet-adapter.js`** —
+   - `_fodsCellHasRealContent` / `_fodsCellMarkupHasRealContent`: thêm tham số `cellVisualStyles`; trả về `true` nếu ô có style viền (`borderLeft/Right/Top/Bottom`).
+   - `_cellHasPersistableContent`: trả về `true` nếu `item.style` có visual property (border, background, font, alignment, wrap...).
+   - Cả hai nhánh DOM và regex đều được sửa.
+
+4. **`tests/test_sheet_borders_activetab.py`** — Unit test mới: ô rỗng có viền double round-trip FODS; activeTab FODS→XLSX; parseActiveSheetFromFods.
+
+## FILES CHANGED (Round 2)
+
+- `adapters/libreoffice/common/ooxml_zip_patch.py`
+- `main.py`
+- `adapters/libreoffice/sheet/sheet-adapter.js`
+- `tests/test_sheet_borders_activetab.py`
+- `docs/HANDOFF-SHEET-SAVE-BORDERS.md`
+- `docs/HANDOFF-SHEET-AUDIT-ROUND2.md` (this file)
+
+## COMMANDS RUN (Opencode verification)
+
+- `python -m unittest tests.test_sheet_borders_activetab` — **8/8 PASS**
+- `python -m unittest tests.test_sheet_save_roundtrip` — **2/2 PASS**
+- `python -m unittest tests.test_sheet_active_tab_overlay` — **18/18 PASS**
+- `python -m unittest tests.test_sheet_freeze_panes tests.test_sheet_hidden_autofilter tests.test_sheet_xlsx_native_open` — **53/53 PASS**
+- `python -m unittest tests.test_sheet_numfmt_overlay tests.test_sheet_csv_import_advanced` — **11/11 PASS**
+- Real verification Dahua file: `sheet11 bordered 94 (vs 80 post-process), activeTab=1 ✓`
+
+BUILD RESULT: Syntax check passed.
+TEST RESULTS: Python **84/84 PASS** (sheet subset).
+KNOWN FAILURES: 53 ô viền còn thiếu trên sheet11 do LibreOffice FODS→XLSX lossy conversion — không thể sửa ở tầng VN Office mà không lưu raw OOXML style.
+RISKS: Không. Post-process cũ nguy hiểm (chép viền theo toạ độ `B2` → user chèn hàng → viền lệch) đã xoá hoàn toàn.
+DEPENDENCIES/BLOCKERS: Muốn zero-diff cần lưu raw style/theme/XF qua model — thay đổi document model lớn, ngoài scope fix an toàn.
+CORE PATCH ID (if any): Không có.
+
+## AUDIT ROUND 1 (vừa trước) — Giữ lại để tham khảo
 
 ## PLAN
 

@@ -553,15 +553,34 @@ def parse_active_sheet_from_workbook(workbook_xml: str | None) -> str | None:
     return sheet_names[0]
 
 
+def parse_active_sheet_from_fods(fods_xml: str | None) -> str | None:
+    """Read ActiveTable from FODS office:settings config:name="ActiveTable".
+    
+    Returns the active sheet name as written by serializeToFods(), or None if not found.
+    """
+    if not fods_xml:
+        return None
+    match = re.search(
+        r'<config:config-item\b[^>]*config:name\s*=\s*["\']ActiveTable["\'][^>]*>([^<]*)</config:config-item>',
+        fods_xml,
+        re.IGNORECASE
+    )
+    if match:
+        return _unescape_xml(match.group(1))
+    return None
+
+
 def apply_active_tab_to_workbook(workbook_xml: str, active_tab: int) -> str:
     """Write activeTab back into xl/workbook.xml <workbookView> element."""
     xml = workbook_xml or ""
     if not xml:
         return xml
-    match = re.search(r"<(?:\w+:)?workbookView\b([^>]*)/?>", xml, re.IGNORECASE)
+    # Capture attributes and optional self-closing slash separately
+    match = re.search(r"<(?:\w+:)?workbookView\b([^>]*?)(/?)\s*>", xml, re.IGNORECASE)
     if not match:
         return xml
     attrs = match.group(1) or ""
+    self_closing = match.group(2) == "/"
     # Replace or add activeTab attribute
     if re.search(r'\bactiveTab\s*=', attrs, re.IGNORECASE):
         attrs = re.sub(r'\bactiveTab\s*=\s*(["\'])\d+\1', f'activeTab="{active_tab}"', attrs, flags=re.IGNORECASE)
@@ -569,7 +588,7 @@ def apply_active_tab_to_workbook(workbook_xml: str, active_tab: int) -> str:
         attrs = f'{attrs.rstrip()} activeTab="{active_tab}"'
     if attrs and not attrs.startswith(" "):
         attrs = f" {attrs}"
-    next_tag = f"<workbookView{attrs}/>" if match.group(0).endswith("/>") else f"<workbookView{attrs}>"
+    next_tag = f"<workbookView{attrs}/>" if self_closing else f"<workbookView{attrs}>"
     return xml[: match.start()] + next_tag + xml[match.end() :]
 
 
@@ -890,278 +909,10 @@ def _resolve_xlsx_sheet_entries(xlsx_bytes: bytes) -> dict[str, str]:
     return {name: target_by_rid[rid] for name, rid in rid_by_sheet.items() if rid in target_by_rid}
 
 
-def _parse_xlsx_borders_and_styles(xlsx_bytes: bytes) -> tuple[dict[int, str], dict[str, dict[str, int]]]:
-    """Extract border definitions and cell style mappings from an XLSX.
-
-    Returns:
-        - border_id_to_xml: {borderId: <border>...</border> XML}
-        - sheet_cell_styles: {sheet_name: {cell_coord: borderId}} mapping cell coordinates to borderId
-    """
-    # Read styles.xml
-    styles_bytes = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
-    if not styles_bytes:
-        return {}, {}
-    styles_xml = styles_bytes.decode("utf-8", errors="replace")
-
-    # Extract border definitions
-    border_id_to_xml = {}
-    borders_match = re.search(r"<borders\b[^>]*>([\s\S]*?)</borders>", styles_xml, re.IGNORECASE)
-    if borders_match:
-        borders_content = borders_match.group(1)
-        for border_match in re.finditer(r"<border\b[^>]*>([\s\S]*?)</border>|<border\b[^>]*/>", borders_content, re.IGNORECASE):
-            border_xml = border_match.group(0)
-            border_id_to_xml[len(border_id_to_xml)] = border_xml
-
-    # Extract cellXfs to map xfIndex -> borderId
-    xf_to_border_id = {}
-    cell_xfs_match = re.search(r"<cellXfs\b[^>]*>([\s\S]*?)</cellXfs>", styles_xml, re.IGNORECASE)
-    if cell_xfs_match:
-        cell_xfs_content = cell_xfs_match.group(1)
-        xf_index = 0
-        for xf_match in re.finditer(r"<xf\b[^>]*/?>", cell_xfs_content, re.IGNORECASE):
-            xf_attrs = xf_match.group(0)
-            border_id_match = re.search(r'borderId="(\d+)"', xf_attrs)
-            border_id = int(border_id_match.group(1)) if border_id_match else 0
-            xf_to_border_id[xf_index] = border_id
-            xf_index += 1
-
-    # Read workbook.xml to get sheet names and r:id mapping
-    wb_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
-    if not wb_bytes:
-        return border_id_to_xml, {}
-    wb_xml = wb_bytes.decode("utf-8", errors="replace")
-
-    # Get sheet name -> r:id mapping
-    sheet_rid = {}
-    for match in _WB_SHEET_TAG_RE.finditer(wb_xml):
-        attrs = match.group(1) or ""
-        name_match = re.search(r'name="([^"]*)"', attrs)
-        rid_match = re.search(r'r:id="([^"]*)"', attrs)
-        if name_match and rid_match:
-            sheet_rid[name_match.group(1)] = rid_match.group(1)
-
-    # Get r:id -> worksheet path mapping
-    wb_rels_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_RELS_ENTRY)
-    if not wb_rels_bytes:
-        return border_id_to_xml, {}
-    wb_rels_xml = wb_rels_bytes.decode("utf-8", errors="replace")
-
-    rid_to_path = {}
-    for match in _WB_RELATIONSHIP_TAG_RE.finditer(wb_rels_xml):
-        attrs = match.group(1) or ""
-        id_match = re.search(r'Id="([^"]*)"', attrs)
-        target_match = re.search(r'Target="([^"]*)"', attrs)
-        if id_match and target_match:
-            target = target_match.group(1)
-            rid_to_path[id_match.group(1)] = target if target.startswith("xl/") else f"xl/{target.lstrip('./')}"
-
-    # For each sheet, read worksheet.xml and extract cell -> borderId mapping
-    sheet_cell_styles = {}
-    for sheet_name, rid in sheet_rid.items():
-        entry_path = rid_to_path.get(rid)
-        if not entry_path:
-            continue
-        ws_bytes = read_zip_entry(xlsx_bytes, entry_path)
-        if not ws_bytes:
-            continue
-        ws_xml = ws_bytes.decode("utf-8", errors="replace")
-
-        # Extract sheetData
-        sheet_data_match = re.search(r"<sheetData\b[^>]*>([\s\S]*?)</sheetData>", ws_xml, re.IGNORECASE)
-        if not sheet_data_match:
-            continue
-        sheet_data = sheet_data_match.group(1)
-
-        cell_styles = {}
-        # Find all <c> elements with r (coordinate) and s (style index)
-        for cell_match in re.finditer(r"<c\b([^>]*)/?>", sheet_data, re.IGNORECASE):
-            cell_attrs = cell_match.group(1) or ""
-            coord_match = re.search(r'r="([^"]*)"', cell_attrs)
-            style_match = re.search(r's="(\d+)"', cell_attrs)
-            if coord_match and style_match:
-                coord = coord_match.group(1)
-                xf_index = int(style_match.group(1))
-                border_id = xf_to_border_id.get(xf_index, 0)
-                if border_id > 0 and border_id in border_id_to_xml:
-                    cell_styles[coord] = border_id
-        sheet_cell_styles[sheet_name] = cell_styles
-
-    return border_id_to_xml, sheet_cell_styles
-
-
-def _apply_borders_from_source_xlsx(output_xlsx: bytes, source_xlsx: bytes, replacements: dict[str, str]) -> None:
-    """Copy border styles from source XLSX to output XLSX by cell coordinate.
-
-    Modifies replacements dict in place with updated styles.xml and worksheet XMLs.
-    """
-    # Parse source XLSX borders and cell styles
-    src_border_id_to_xml, src_sheet_cell_styles = _parse_xlsx_borders_and_styles(source_xlsx)
-    if not src_border_id_to_xml or not src_sheet_cell_styles:
-        return
-
-    # Parse output XLSX styles.xml
-    out_styles_bytes = read_zip_entry(output_xlsx, XLSX_STYLES_ENTRY)
-    if not out_styles_bytes:
-        return
-    out_styles_xml = out_styles_bytes.decode("utf-8", errors="replace")
-
-    # Extract output border definitions
-    out_border_id_to_xml = {}
-    out_borders_match = re.search(r"<borders\b[^>]*>([\s\S]*?)</borders>", out_styles_xml, re.IGNORECASE)
-    if out_borders_match:
-        out_borders_content = out_borders_match.group(1)
-        for border_match in re.finditer(r"<border\b[^>]*>([\s\S]*?)</border>|<border\b[^>]*/>", out_borders_content, re.IGNORECASE):
-            out_border_id_to_xml[len(out_border_id_to_xml)] = border_match.group(0)
-
-    # Map source border XML to output borderId (deduplicate by XML content)
-    src_border_id_to_out_id = {}
-    for src_id, src_xml in src_border_id_to_xml.items():
-        norm_src = re.sub(r"\s+", " ", src_xml).strip()
-        found = False
-        for out_id, out_xml in out_border_id_to_xml.items():
-            norm_out = re.sub(r"\s+", " ", out_xml).strip()
-            if norm_src == norm_out:
-                src_border_id_to_out_id[src_id] = out_id
-                found = True
-                break
-        if not found:
-            new_id = len(out_border_id_to_xml)
-            out_border_id_to_xml[new_id] = src_xml
-            src_border_id_to_out_id[src_id] = new_id
-
-    # If new borders were added, rebuild borders section in styles.xml
-    if len(out_border_id_to_xml) > (len(out_borders_match.group(1).split("</border>")) - 1 if out_borders_match else 0):
-        new_borders_content = "".join(out_border_id_to_xml.values())
-        if out_borders_match:
-            out_styles_xml = out_styles_xml[:out_borders_match.start(1)] + new_borders_content + out_styles_xml[out_borders_match.end(1):]
-            replacements[XLSX_STYLES_ENTRY] = out_styles_xml
-
-    # Parse output workbook to get sheet entries
-    out_wb_bytes = read_zip_entry(output_xlsx, XLSX_WORKBOOK_ENTRY)
-    if not out_wb_bytes:
-        return
-    out_wb_xml = out_wb_bytes.decode("utf-8", errors="replace")
-
-    out_sheet_rid = {}
-    for match in _WB_SHEET_TAG_RE.finditer(out_wb_xml):
-        attrs = match.group(1) or ""
-        name_match = re.search(r'name="([^"]*)"', attrs)
-        rid_match = re.search(r'r:id="([^"]*)"', attrs)
-        if name_match and rid_match:
-            out_sheet_rid[name_match.group(1)] = rid_match.group(1)
-
-    out_wb_rels_bytes = read_zip_entry(output_xlsx, XLSX_WORKBOOK_RELS_ENTRY)
-    if not out_wb_rels_bytes:
-        return
-    out_wb_rels_xml = out_wb_rels_bytes.decode("utf-8", errors="replace")
-
-    out_rid_to_path = {}
-    for match in _WB_RELATIONSHIP_TAG_RE.finditer(out_wb_rels_xml):
-        attrs = match.group(1) or ""
-        id_match = re.search(r'Id="([^"]*)"', attrs)
-        target_match = re.search(r'Target="([^"]*)"', attrs)
-        if id_match and target_match:
-            target = target_match.group(1)
-            out_rid_to_path[id_match.group(1)] = target if target.startswith("xl/") else f"xl/{target.lstrip('./')}"
-
-    # Parse output cellXfs to understand existing xf entries
-    out_cell_xfs_match = re.search(r"<cellXfs\b[^>]*>([\s\S]*?)</cellXfs>", out_styles_xml, re.IGNORECASE)
-    if not out_cell_xfs_match:
-        return
-    out_cell_xfs_content = out_cell_xfs_match.group(1)
-
-    out_xf_attrs_list = []
-    out_xf_border_ids = []
-    for xf_match in re.finditer(r"<xf\b([^>]*)/?>", out_cell_xfs_content, re.IGNORECASE):
-        xf_attrs = xf_match.group(1)
-        out_xf_attrs_list.append(xf_attrs)
-        border_id_match = re.search(r'borderId="(\d+)"', xf_attrs)
-        out_xf_border_ids.append(int(border_id_match.group(1)) if border_id_match else 0)
-
-    # For each sheet in source, update output worksheet cells
-    for sheet_name, src_cell_styles in src_sheet_cell_styles.items():
-        if not src_cell_styles:
-            continue
-        out_rid = out_sheet_rid.get(sheet_name)
-        if not out_rid:
-            continue
-        out_entry_path = out_rid_to_path.get(out_rid)
-        if not out_entry_path:
-            continue
-
-        # Get output worksheet XML
-        out_ws_xml = replacements.get(out_entry_path)
-        if out_ws_xml is None:
-            out_ws_bytes = read_zip_entry(output_xlsx, out_entry_path)
-            if not out_ws_bytes:
-                continue
-            out_ws_xml = out_ws_bytes.decode("utf-8", errors="replace")
-
-        # Extract sheetData
-        sheet_data_match = re.search(r"<sheetData\b[^>]*>([\s\S]*?)</sheetData>", out_ws_xml, re.IGNORECASE)
-        if not sheet_data_match:
-            continue
-        sheet_data = sheet_data_match.group(1)
-
-        # For each cell in source that has a border, find corresponding cell in output
-        # and update its style index (s attribute) to use an xf with the correct borderId
-        # We need to create new xf entries in output cellXfs for each needed borderId
-        # based on a template xf (e.g., the default xf at index 0 or 15)
-
-        # Find a template xf (one with minimal formatting, typically index 0 or 15)
-        template_xf_attrs = out_xf_attrs_list[0] if out_xf_attrs_list else ""
-        if not template_xf_attrs:
-            continue
-
-        # Build mapping from borderId -> new xf index in output
-        border_id_to_new_xf_index = {}
-        new_xf_entries = []
-        for src_coord, src_border_id in src_cell_styles.items():
-            out_border_id = src_border_id_to_out_id.get(src_border_id)
-            if out_border_id is None:
-                continue
-            if out_border_id in border_id_to_new_xf_index:
-                continue
-            # Create new xf entry based on template with this borderId
-            new_xf_attrs = re.sub(r'\s*borderId="\d+"', "", template_xf_attrs)
-            new_xf_attrs = f'{new_xf_attrs} borderId="{out_border_id}"'
-            new_xf_index = len(out_xf_attrs_list) + len(new_xf_entries)
-            border_id_to_new_xf_index[out_border_id] = new_xf_index
-            new_xf_entries.append(f"<xf {new_xf_attrs}/>")
-
-        if not new_xf_entries:
-            continue
-
-        # Add new xf entries to cellXfs in styles.xml
-        new_cell_xfs_content = out_cell_xfs_content + "".join(new_xf_entries)
-        out_styles_xml = out_styles_xml[:out_cell_xfs_match.start(1)] + new_cell_xfs_content + out_styles_xml[out_cell_xfs_match.end(1):]
-        replacements[XLSX_STYLES_ENTRY] = out_styles_xml
-
-        # Update worksheet cells: for each source cell with border, find output cell and update s attribute
-        new_sheet_data = sheet_data
-        for src_coord, src_border_id in src_cell_styles.items():
-            out_border_id = src_border_id_to_out_id.get(src_border_id)
-            if out_border_id is None:
-                continue
-            new_xf_index = border_id_to_new_xf_index.get(out_border_id)
-            if new_xf_index is None:
-                continue
-            # Find and replace the cell's s attribute
-            cell_pattern = rf'(<c\b[^>]*\br="{re.escape(src_coord)}"[^>]*)\s*s="\d+"'
-            def replace_s(match):
-                return f'{match.group(1)} s="{new_xf_index}"'
-            new_sheet_data = re.sub(cell_pattern, replace_s, new_sheet_data)
-
-        # Update the sheetData in worksheet XML
-        out_ws_xml = out_ws_xml[:sheet_data_match.start(1)] + new_sheet_data + out_ws_xml[sheet_data_match.end(1):]
-        replacements[out_entry_path] = out_ws_xml
-
-
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
     source_fods: str | None = None,
-    source_xlsx: bytes | None = None,
     enabled: bool | None = None,
 ) -> bytes:
     """Return patched XLSX bytes, or the original buffer when no patch is needed."""
@@ -1235,29 +986,22 @@ def postprocess_sheet_xlsx(
             if next_sheet_xml != sheet_xml:
                 replacements[entry_path] = next_sheet_xml
 
-    # Border preservation: copy border styles from original XLSX to output XLSX
-    # matching by cell coordinate. This preserves double/thick/medium borders
-    # that soffice drops during FODS→XLSX conversion.
-    if source_xlsx:
+    # Preserve activeTab (selected sheet) from source FODS (model/FODS active sheet).
+    # The FODS already contains ActiveTable in office:settings from serializeToFods().
+    # We read it and write the corresponding activeTab index into workbook.xml.
+    if source_fods:
         try:
-            _apply_borders_from_source_xlsx(xlsx_bytes, source_xlsx, replacements)
-        except Exception:
-            # Never fail the save due to border preservation issues
-            pass
-
-        # Preserve activeTab (selected sheet) from original XLSX
-        try:
-            src_wb_bytes = read_zip_entry(source_xlsx, XLSX_WORKBOOK_ENTRY)
-            if src_wb_bytes:
-                src_wb_xml = src_wb_bytes.decode("utf-8", errors="replace")
-                active_tab = parse_active_tab_from_workbook(src_wb_xml)
-                if active_tab > 0:
-                    out_wb_xml = replacements.get(XLSX_WORKBOOK_ENTRY)
-                    if out_wb_xml is None:
-                        out_wb_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
-                        if out_wb_bytes:
-                            out_wb_xml = out_wb_bytes.decode("utf-8", errors="replace")
-                    if out_wb_xml:
+            active_sheet = parse_active_sheet_from_fods(source_fods)
+            if active_sheet:
+                out_wb_xml = replacements.get(XLSX_WORKBOOK_ENTRY)
+                if out_wb_xml is None:
+                    out_wb_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+                    if out_wb_bytes:
+                        out_wb_xml = out_wb_bytes.decode("utf-8", errors="replace")
+                if out_wb_xml:
+                    sheet_names = parse_sheet_names_from_workbook(out_wb_xml)
+                    if active_sheet in sheet_names:
+                        active_tab = sheet_names.index(active_sheet)
                         next_wb_xml = apply_active_tab_to_workbook(out_wb_xml, active_tab)
                         if next_wb_xml != out_wb_xml:
                             replacements[XLSX_WORKBOOK_ENTRY] = next_wb_xml
