@@ -160,6 +160,7 @@ import { runAiFeaturesBatch2Tests } from "./unit/ai-features-batch2.test.js";
 import { runBlankDefaultTests } from "./unit/blank-default.test.js";
 import { runSheetLoadFodsBlankTests } from "./unit/sheet-load-fods-blank.test.js";
 import { runSheetFodsRepeatExpandTests } from "./unit/sheet-fods-repeat-expand.test.js";
+import { runSheetImportCellStylesTests } from "./unit/sheet-import-cell-styles.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -327,7 +328,8 @@ async function runAll() {
     { title: "139. Unit Tests — AI Features Batch 2 (Dịch thuật, Viết nháp, Giải thích CT, Tạo CT từ mô tả)", runner: runAiFeaturesBatch2Tests },
     { title: "140. Unit Tests — Blank Default (Writer/Sheet/Slides mặc định trang trắng thật)", runner: runBlankDefaultTests },
     { title: "141. Integration Tests — Sheet loadFromFods after isBlank mount MUST populate data", runner: runSheetLoadFodsBlankTests },
-    { title: "142. Unit Tests — parseFods repeat expansion: perf + data integrity + serialize round-trip", runner: runSheetFodsRepeatExpandTests }
+    { title: "142. Unit Tests — parseFods repeat expansion: perf + data integrity + serialize round-trip", runner: runSheetFodsRepeatExpandTests },
+    { title: "143. Unit Tests — Sheet import cell visual styles (background/border/font/alignment) + sheet visibility + round-trip", runner: runSheetImportCellStylesTests }
   ];
 
   for (const suite of suites) {
