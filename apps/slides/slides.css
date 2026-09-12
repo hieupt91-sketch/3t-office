@@ -822,6 +822,7 @@
   padding: 0;
   width: 100%;
   box-sizing: border-box;
+  overflow: visible;
 }
 
 [data-theme="dark"] .vno-shape-text.is-textbox-text {

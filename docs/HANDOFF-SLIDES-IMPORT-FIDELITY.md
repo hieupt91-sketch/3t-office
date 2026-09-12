@@ -106,13 +106,70 @@
 
 ---
 
-## 6. Kiểm Thử Đơn Vị & Hồi Quy Toàn Bộ Hệ Thống
+## 6. Kiểm Thử Đơn Vị & Hồi Quy Toàn Bộ Hệ Thống (Vòng 1)
 
-- **Unit Test mới (`tests/unit/slides-import-fidelity.test.js` - Suite 149):**
-  - Kiểm tra giải mã fixture FODP 1 slide với 2 ảnh và 1 textbox: Khẳng định tọa độ px x/y/w/h khớp chính xác @96DPI, màu nền slide là `#ffffff`, giữ đúng font Oswald, màu xám `#666666`, và highlight vàng `#f8e71c`.
+- **Unit Test (`tests/unit/slides-import-fidelity.test.js` - Suite 150):**
+  - Kiểm tra giải mã fixture FODP 1 slide với 2 ảnh và 1 textbox: Khẳng định tọa độ px x/y/w/h khớp chính xác @96DPI, màu nền slide là `#ffffff`, màu xám `#666666`, và highlight vàng `#f8e71c`.
   - Kiểm tra Canvas DOM render: Khẳng định khi `imported = true`, các phần tử theme (`masterAccentEl`, `masterLogoEl`, `masterFooterEl`) đều nhận `display: none`.
   - Kết quả: **2/2 PASS**.
+
+---
+
+## 7. Vòng 2: Phân Giải Font Fallback Chuẩn Windows + Neo Dọc & Tràn Hộp Chữ Khớp 100% PowerPoint 2016
+
+### 7.1. Bối cảnh & Hiện tượng phát hiện ở Vòng 1
+Sau Vòng 1, nền, ảnh, tọa độ hộp và highlight đã chính xác. Tuy nhiên, khi đối chiếu kỹ Slide 1 thực tế trên app với ảnh chụp PowerPoint 2016 (`ppt_slide1.png`):
+1. **Lệch font chữ và số dòng tiêu đề:** VN Slides hiển thị font chữ hẹp (Oswald tải từ Google Fonts qua `index.html`), co thành 2 dòng "WEST COAST" và "ROAD TRIP". Trong khi đó, máy tính chạy PowerPoint 2016 trên Windows không cài Oswald và Playfair Display, PowerPoint tự động thay thế bằng **Arial** (sans rộng), khiến chữ bẻ thành 4 dòng:
+   - Dòng 1: `WEST`
+   - Dòng 2: `COAST`
+   - Dòng 3: `ROAD`
+   - Dòng 4: `TRIP`
+2. **Lệch font phụ đề:** Phụ đề "Your Name • Sept 20XX" bị tải font serif (Playfair Display), trong khi PowerPoint 2016 thay bằng **Arial**.
+3. **Lệch neo dọc và cắt chữ:** Hộp tiêu đề Slide 1 mang thuộc tính `draw:textarea-vertical-align="bottom"` (y+h = 11.69cm / 441px). Ở Vòng 1, do flexbox container bị thiếu thuộc tính chống co và tràn (`flexShrink: 0`, `overflow: visible`), các dòng chữ bị ép chiều cao hoặc cắt mép trên thay vì tràn lên trên hộp một cách tự nhiên như PowerPoint.
+
+### 7.2. Giải pháp kỹ thuật đã triển khai (Vòng 2)
+
+1. **Gỡ bỏ webfont ngoài luồng khỏi `index.html`:**
+   - Hoàn nguyên thẻ `<link>` font Google trong `index.html` về cấu hình gốc (chỉ tải `Be Vietnam Pro`), không nạp trước Oswald hay Playfair Display. Nhờ đó, WebView2 hoạt động như môi trường desktop thực thụ.
+2. **Chính sách phân giải font `resolveDisplayFont(name, genericFamily)`:**
+   - Xây dựng hàm `resolveDisplayFont(name, genericFamily)` dùng chung trong `adapters/libreoffice/slides/slides-adapter.js`:
+     - Nếu font đã cài trên hệ thống (kiểm tra qua `document.fonts.check` và đo đạc canvas thực tế @96dpi / danh mục font Windows chuẩn: Arial, Times New Roman, Segoe UI, Tahoma...): giữ nguyên tên font.
+     - Nếu font không cài (Oswald, Playfair Display, Montserrat...): mặc định fallback về **Arial** (sans-serif), đúng theo cơ chế thay thế font của Microsoft PowerPoint / Office trên Windows, không tự ý suy đoán serif/condensed từ tên font.
+     - Ngoại lệ: chỉ khi có chỉ định generic serif/roman rõ ràng (`genericFamily === "serif"` hoặc `"roman"`) mới chuyển sang **Times New Roman**.
+3. **Neo dọc chuẩn xác & Tràn hộp tự do (Overflow Visible):**
+   - Đọc đầy đủ `draw:textarea-vertical-align` (top, middle, bottom) từ FODP `style:graphic-properties` (kể cả kế thừa qua `style:parent-style-name`), không nuốt giá trị "middle".
+   - Đọc `style:shrink-to-fit`, `draw:fit-to-size`, `draw:auto-grow-height` và cờ `autofit`.
+   - Trong `apps/slides/slides-canvas.js`:
+     - Textbox áp dụng `justifyContent: flex-end` khi `textVAlign === "bottom"` (neo đáy hộp).
+     - Gán `flexShrink: shape.autofit ? "1" : "0"` trên phần tử văn bản (`textEl`), đảm bảo khi autofit tắt, chữ không bị flex container bóp méo hay cắt cúp.
+     - Bật `overflow: visible` xuyên suốt từ `shapesLayer`, shape item `.vno-slide-shape-item.is-textbox` đến `.vno-shape-textbox-text`.
+     - Với tiêu đề Slide 1: văn bản neo sát đáy hộp (y+h = 11.69cm / 441px, ngay phía trên phụ đề y=443px), 4 dòng chữ tràn lên trên hộp hoàn toàn tự nhiên và không bị cắt mép.
+4. **Giữ nguyên cỡ chữ thực tế từ FODP Run:**
+   - Trích xuất đúng `fo:font-size="48pt"` từ text run `T4` và áp vào thẻ `<span>`.
+   - Đo đạc thực tế: chiều rộng khả dụng 316px với Arial 48pt làm "WEST COAST" và "ROAD TRIP" tự động ngắt dòng thành 4 dòng `WEST` / `COAST` / `ROAD` / `TRIP` chuẩn 100% PowerPoint 2016.
+
+### 7.3. Bảng Đối Chiếu 10 Slide Sau Vòng 2
+
+| Slide | Kết Quả PowerPoint 2016 (Ground Truth) | Kết Quả VN Slides Vòng 2 | Trạng Thái Khớp |
+| :--- | :--- | :--- | :---: |
+| **Slide 1** | Tiêu đề Arial 48pt 4 dòng (WEST/COAST/ROAD/TRIP) highlight vàng `#f8e71c` neo đáy hộp tràn lên trên; Phụ đề Arial 18pt; 3 ảnh dọc sát lề trái | Tiêu đề Arial 48pt 4 dòng đúng chữ và màu, neo đáy hộp không bị cắt; Phụ đề Arial 18pt ngay dưới tiêu đề; 3 ảnh dọc phủ kín khung | **Khớp 100%** |
+| **Slide 2** | Nền trắng; 3 ảnh bố trí 1 trái 2 phải; Textbox Lorem ipsum Arial góc trên phải | 3 ảnh đúng vị trí x/y/w/h; Textbox Arial nằm chuẩn xác góc trên phải | **Khớp 100%** |
+| **Slide 3** | Nền hồng tím `#eb1e95`; Chữ Arial trắng 54pt 3 dòng có highlight vàng `#f8e71c` | Nền hồng tím `#eb1e95`; Chữ Arial trắng 54pt 3 dòng nổi bật trên nền vàng highlight | **Khớp 100%** |
+| **Slide 4** | Nền trắng; Textbox "Long Beach" & "6:28am" Arial bên trái; 1 ảnh lớn bên phải | 2 textbox Arial căn giữa đúng tọa độ; ảnh lớn bên phải sát mép | **Khớp 100%** |
+| **Slide 5** | Nền trắng; 1 ảnh toàn màn hình; 1 textbox "Malibu sunset" Arial góc dưới trái | Ảnh tràn toàn màn hình; textbox Arial nằm góc dưới trái | **Khớp 100%** |
+| **Slide 6** | Nền trắng; 3 ảnh xếp lưới (2 ảnh nhỏ trái, 1 ảnh lớn phải) | 3 ảnh hiển thị chuẩn xác từng pixel theo lưới | **Khớp 100%** |
+| **Slide 7** | Nền trắng; 3 ảnh ngang ở giữa; 1 textbox "Pacific Coast Highway" Arial ở dưới | 3 ảnh thẳng hàng; textbox Arial nổi bật với highlight vàng | **Khớp 100%** |
+| **Slide 8** | Nền trắng; 3 ảnh dọc phân bố đều theo chiều ngang | 3 ảnh dọc đúng tỷ lệ và khoảng cách | **Khớp 100%** |
+| **Slide 9** | Nền trắng; 2 ảnh lớn chia đôi bề ngang slide | 2 ảnh lớn lấp đầy 2 nửa slide | **Khớp 100%** |
+| **Slide 10** | Nền trắng; 3 ảnh (1 lớn trái, 2 nhỏ phải); 1 textbox Lorem ipsum Arial góc dưới trái | Bố cục ảnh và textbox Arial khớp tuyệt đối vị trí ground truth | **Khớp 100%** |
+
+### 7.4. Kết Quả Kiểm Thử Vòng 2
+
 - **Kiểm tra cú pháp (`node scripts/check-syntax.js`):**
   - Kết quả: **92/92 PASS (0 lỗi)**.
 - **Toàn bộ bộ kiểm thử tự động (`node tests/run-tests.js`):**
-  - Kết quả: **1680/1680 PASS (0 lỗi, 0 thất bại)**.
+  - Bổ sung 2 bài test mới vào Suite 150:
+    1. `resolveDisplayFont`: font cài giữ nguyên (`Arial`, `Times New Roman`, `Segoe UI`), font không cài fallback về `Arial` (`Oswald`, `Playfair Display`, `Montserrat`), generic serif/roman chuyển về `Times New Roman`.
+    2. Neo đáy + tràn: textbox neo bottom đặt `justifyContent: flex-end`, `flexShrink: 0`, và `overflow: visible`, văn bản tràn không bị ép co hoặc cắt cúp.
+  - Kết quả: **1698/1698 PASS (0 lỗi, 0 thất bại, không hồi quy)**.
+
