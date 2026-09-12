@@ -2652,6 +2652,53 @@ export class SlidesCanvasController {
     return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
+  _parseCropCm(v) {
+    if (typeof v === "number") return v;
+    const m = String(v || "").match(/^([-\d.]+)\s*(cm|pt|mm|in|px)?$/i);
+    if (!m) return 0;
+    const n = parseFloat(m[1]) || 0;
+    const u = (m[2] || "cm").toLowerCase();
+    if (u === "cm") return n;
+    if (u === "pt") return n * 2.54 / 72;
+    if (u === "in") return n * 2.54;
+    if (u === "mm") return n * 0.1;
+    if (u === "px") return n * 2.54 / 96;
+    return n;
+  }
+
+  _computeImageCropStyles(shape) {
+    if (!shape?.crop) return null;
+    let crop = shape.crop;
+    if (typeof crop === "string") {
+      try { crop = JSON.parse(crop); } catch (_) { return null; }
+    }
+    if (!crop || typeof crop !== "object") return null;
+    const topCm = this._parseCropCm(crop.top);
+    const rightCm = this._parseCropCm(crop.right);
+    const bottomCm = this._parseCropCm(crop.bottom);
+    const leftCm = this._parseCropCm(crop.left);
+    const cmToPx = 37.795275591; // 96 DPI
+    const topPx = topCm * cmToPx;
+    const rightPx = rightCm * cmToPx;
+    const bottomPx = bottomCm * cmToPx;
+    const leftPx = leftCm * cmToPx;
+    const shapeW = shape.w || 200;
+    const shapeH = shape.h || 120;
+    const origWPx = Math.max(1, shapeW + leftPx + rightPx);
+    const origHPx = Math.max(1, shapeH + topPx + bottomPx);
+    const wPct = (origWPx / shapeW) * 100;
+    const hPct = (origHPx / shapeH) * 100;
+    const leftPct = (leftPx / shapeW) * 100;
+    const topPct = (topPx / shapeH) * 100;
+    return {
+      wPct,
+      hPct,
+      leftPct,
+      topPct,
+      cssText: `position:absolute;width:${wPct}%;height:${hPct}%;left:-${leftPct}%;top:-${topPct}%;max-width:none;max-height:none;object-fit:fill;pointer-events:none;`
+    };
+  }
+
   _shapePresentationHtml(shape, options = {}) {
     const shapeId = this._escapeShapeText(String(shape.id ?? ""));
     const morphAttrs = ` data-vno-shape-id="${shapeId}" data-vno-shape-type="${this._escapeShapeText(shape.type || "rect")}"`;
@@ -2669,7 +2716,13 @@ export class SlidesCanvasController {
       animStyle = this._animationInlineStyle(shape.animation, playDelay);
       animAttrs = ` data-vno-anim-target="${shapeId}" data-vno-anim-order="${timelineItem ? timelineItem.index : ""}" data-vno-anim-delay="${playDelay}" data-vno-anim-type="${this._escapeShapeText(shape.animation.type)}"`;
     }
-    if (shape.type === "image" && shape.src) return `<img src="${shape.src}"${morphAttrs}${animAttrs} style="${pos}${animStyle}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,.15)" />`;
+    if (shape.type === "image" && shape.src) {
+      const cropInfo = this._computeImageCropStyles(shape);
+      if (cropInfo) {
+        return `<div${morphAttrs}${animAttrs} style="${pos}${animStyle}overflow:hidden;box-shadow:none;"><img src="${shape.src}" style="position:absolute;width:${cropInfo.wPct}%;height:${cropInfo.hPct}%;left:-${cropInfo.leftPct}%;top:-${cropInfo.topPct}%;max-width:none;max-height:none;object-fit:fill;" /></div>`;
+      }
+      return `<img src="${shape.src}"${morphAttrs}${animAttrs} style="${pos}${animStyle}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,.15)" />`;
+    }
     if (shape.type === "video" && shape.src) return `<video src="${shape.src}"${morphAttrs}${animAttrs} controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,.15)"></video>`;
     if (shape.type === "audio" && shape.src) return `<audio src="${shape.src}"${morphAttrs}${animAttrs} controls style="${pos}${animStyle}"></audio>`;
     if (shape.type === "chart") return `<div class="vno-show-shape vno-show-chart"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:#fff;overflow:hidden">${generateSlidesChartSvg(shape)}</div>`;
@@ -3390,7 +3443,12 @@ export class SlidesCanvasController {
       } else if (shape.type === "image" && shape.src) {
         const img = document.createElement("img");
         img.src = shape.src;
-        img.style.cssText = "width:100%;height:100%;object-fit:cover;pointer-events:none;";
+        const cropInfo = this._computeImageCropStyles(shape);
+        if (cropInfo) {
+          img.style.cssText = cropInfo.cssText;
+        } else {
+          img.style.cssText = "width:100%;height:100%;object-fit:cover;pointer-events:none;";
+        }
         el.style.overflow = "hidden";
         el.style.boxShadow = "none";
         el.appendChild(img);
@@ -8325,6 +8383,10 @@ export class SlidesCanvasController {
       const shapesHtml = (s.shapes || []).map((shape) => {
         const pos = `position:absolute;left:${shape.x * 0.7}px;top:${shape.y * 0.7}px;width:${shape.w * 0.7}px;height:${shape.h * 0.7}px;`;
         if (shape.type === "image" && shape.src) {
+          const cropInfo = this._computeImageCropStyles(shape);
+          if (cropInfo) {
+            return `<div style="${pos}overflow:hidden;"><img src="${shape.src}" style="position:absolute;width:${cropInfo.wPct}%;height:${cropInfo.hPct}%;left:-${cropInfo.leftPct}%;top:-${cropInfo.topPct}%;max-width:none;max-height:none;object-fit:fill;" /></div>`;
+          }
           return `<img src="${shape.src}" style="${pos}object-fit:contain;" />`;
         }
         const radius = shape.type === "ellipse" ? "50%" : "4px";

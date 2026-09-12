@@ -518,7 +518,9 @@ export class SlidesAdapter {
     const value = String(html || "");
     if (!value) return false;
     if (/<(b|strong|i|em|u|s|strike|sub|sup|font|ul|ol|li|blockquote)\b/i.test(value)) return true;
-    if (/style\s*=\s*["'][^"']*(font-weight|font-style|text-decoration|color|background|font-family|font-size|text-align|line-height)/i.test(value)) return true;
+    const styleMatch = value.match(/style\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+    const styleVal = styleMatch ? (styleMatch[1] !== undefined ? styleMatch[1] : (styleMatch[2] || "")) : "";
+    if (/(?:font-weight|font-style|text-decoration|color|background|font-family|font-size|text-align|line-height)/i.test(styleVal)) return true;
     return /<(span|div|p)\b[^>]*(align|face|color|size)=/i.test(value);
   }
 
@@ -562,14 +564,15 @@ export class SlidesAdapter {
     if (lower === "u") out.underline = true;
     if (lower === "s" || lower === "strike") out.strike = true;
     if (lower === "font") {
-      const face = this._attr(` ${attrs} `, "face") || attrs.match(/face\s*=\s*["']([^"']+)["']/i)?.[1];
-      const color = this._attr(` ${attrs} `, "color") || attrs.match(/color\s*=\s*["']([^"']+)["']/i)?.[1];
-      const size = this._attr(` ${attrs} `, "size") || attrs.match(/size\s*=\s*["']?(\d+)/i)?.[1];
+      const face = this._attr(` ${attrs} `, "face") || attrs.match(/face\s*=\s*(?:"([^"]+)"|'([^']+)')/i)?.[1];
+      const color = this._attr(` ${attrs} `, "color") || attrs.match(/color\s*=\s*(?:"([^"]+)"|'([^']+)')/i)?.[1];
+      const size = this._attr(` ${attrs} `, "size") || attrs.match(/size\s*=\s*(?:"(\d+)"|'(\d+)'|(\d+))/i)?.[1];
       if (face) out.family = face.split(",")[0].replace(/['"]/g, "").trim();
       if (color) out.color = this._cssColorToHex(color);
       if (size) out.size = this._htmlFontSizeToPt(size);
     }
-    const style = attrs.match(/style\s*=\s*["']([^"']*)["']/i)?.[1] || "";
+    const styleMatch = attrs.match(/style\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+    const style = styleMatch ? (styleMatch[1] !== undefined ? styleMatch[1] : (styleMatch[2] || "")) : "";
     for (const part of style.split(";")) {
       const colon = part.indexOf(":");
       if (colon < 0) continue;
@@ -588,7 +591,7 @@ export class SlidesAdapter {
       if (key === "line-height") out.lineHeight = value;
       if (key === "margin-left") out.indent = value;
     }
-    const align = attrs.match(/\balign\s*=\s*["']([^"']+)["']/i)?.[1];
+    const align = this._attr(` ${attrs} `, "align") || attrs.match(/\balign\s*=\s*(?:"([^"]+)"|'([^']+)')/i)?.[1];
     if (align) out.align = align;
     return out;
   }
@@ -700,6 +703,25 @@ export class SlidesAdapter {
     return this._textParagraphsXml(plain);
   }
 
+  _formatLineHeightForOdf(lh) {
+    if (!lh) return null;
+    const str = String(lh).trim().toLowerCase();
+    if (str === "normal") return null;
+    if (/^[\d.]+%$/.test(str) || /^[\d.]+(?:pt|cm|mm|in)$/.test(str)) {
+      return str;
+    }
+    if (/^([\d.]+)px$/.test(str)) {
+      const px = parseFloat(str);
+      const pt = Math.round(px * 0.75 * 100) / 100;
+      return `${pt}pt`;
+    }
+    const n = parseFloat(str);
+    if (Number.isFinite(n) && !/[a-z%]/i.test(str)) {
+      return `${Math.round(n * 100)}%`;
+    }
+    return str;
+  }
+
   _serializeRichTextStyles(ctx) {
     if (!ctx) return "";
     let xml = "";
@@ -707,7 +729,10 @@ export class SlidesAdapter {
       const props = style.props || {};
       const attrs = [];
       if (props.align) attrs.push(`fo:text-align="${this._escapeXml(props.align)}"`);
-      if (props.lineHeight) attrs.push(`fo:line-height="${this._escapeXml(props.lineHeight)}"`);
+      if (props.lineHeight) {
+        const odfLh = this._formatLineHeightForOdf(props.lineHeight);
+        if (odfLh) attrs.push(`fo:line-height="${this._escapeXml(odfLh)}"`);
+      }
       if (props.indent) attrs.push(`fo:margin-left="${this._escapeXml(props.indent)}"`);
       xml += `
     <style:style style:name="${style.name}" style:family="paragraph">
@@ -781,10 +806,15 @@ export class SlidesAdapter {
           size: inner.match(/fo:font-size=["']([^"']+)["']/i)?.[1]
         });
       } else if (family === "paragraph") {
+        let rawLh = inner.match(/fo:line-height=["']([^"']+)["']/i)?.[1];
+        if (rawLh && rawLh.endsWith("%")) {
+          const num = parseFloat(rawLh) / 100;
+          if (Number.isFinite(num)) rawLh = String(num);
+        }
         para.set(name, {
           align: inner.match(/fo:text-align=["']([^"']+)["']/i)?.[1],
           fontSize: inner.match(/fo:font-size=["']([^"']+)["']/i)?.[1],
-          lineHeight: inner.match(/fo:line-height=["']([^"']+)["']/i)?.[1],
+          lineHeight: rawLh,
           indent: inner.match(/fo:margin-left=["']([^"']+)["']/i)?.[1]
         });
       }
@@ -922,7 +952,31 @@ export class SlidesAdapter {
   }
 
   _attr(attrs, name) {
-    return String(attrs || "").match(new RegExp(`${name}=["']([^"']*)["']`, "i"))?.[1] || "";
+    const escaped = String(name || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const m = String(attrs || "").match(new RegExp(`(?:^|\\s)${escaped}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, "i"));
+    return m ? (m[1] !== undefined ? m[1] : (m[2] || "")) : "";
+  }
+
+  _parseClipRect(raw) {
+    if (!raw) return null;
+    const m = String(raw).match(/rect\s*\(\s*([^,\s)]+)[,\s]+([^,\s)]+)[,\s]+([^,\s)]+)[,\s]+([^,\s)]+)\s*\)/i);
+    if (!m) return null;
+    return {
+      top: m[1].trim(),
+      right: m[2].trim(),
+      bottom: m[3].trim(),
+      left: m[4].trim()
+    };
+  }
+
+  _formatClipRect(crop) {
+    if (!crop) return "";
+    const fmt = (v) => {
+      if (v == null) return "0cm";
+      const s = String(v).trim();
+      return /^[-\d.]+(?:cm|pt|mm|in|px|%)?$/i.test(s) ? (/cm|pt|mm|in|px|%/i.test(s) ? s : `${s}cm`) : s;
+    };
+    return `rect(${fmt(crop.top)}, ${fmt(crop.right)}, ${fmt(crop.bottom)}, ${fmt(crop.left)})`;
   }
 
   _styleKey(color) {
@@ -995,6 +1049,7 @@ export class SlidesAdapter {
 
   _shapeStyleName(shape) {
     if (shape.type === "connector") return "grConnector";
+    if (shape.type === "image" && shape.crop) return `grImage_crop_${this._styleKey(shape.id || "img")}`;
     if (shape.type === "image" || shape.type === "video" || shape.type === "audio") return "grImage";
     const suffix = this._shapeTextStyleSuffix(shape);
     if (this._isTransparentFill(shape)) return suffix ? `grNone${suffix}` : "grNone";
@@ -1595,7 +1650,11 @@ export class SlidesAdapter {
           continue;
         }
         if (shape.type === "image" || shape.type === "video" || shape.type === "audio") {
-          needsMedia = true;
+          if (shape.type === "image" && shape.crop) {
+            namedStyles.set(this._shapeStyleName(shape), shape);
+          } else {
+            needsMedia = true;
+          }
           continue;
         }
         const suffix = this._shapeTextStyleSuffix(shape);
@@ -1620,18 +1679,34 @@ export class SlidesAdapter {
     </style:page-layout>
     <style:style style:name="dp1" style:family="drawing-page">
       <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true"${this._masterPageFillAttrs()}/>
-    </style:style>
+    </style:style>`;
+
+    const isImported = Boolean(this.canvas?.imported);
+    const theme = this._masterTheme();
+    const isVnDefaultLogo = !theme?.logoText || theme?.logoText === "VN OFFICE • THUYẾT TRÌNH" || theme?.logoText === "VN OFFICE";
+    const effectiveLogoText = (isImported && isVnDefaultLogo) ? "" : (theme?.logoText || "");
+    const effectiveFooterText = theme?.footerText || "";
+
+    if (!isImported) {
+      xml += `
     <style:style style:name="grMasterAccent" style:family="graphic">
-      <style:graphic-properties draw:stroke="none" draw:fill="solid" draw:fill-color="${this._escapeXml(this._masterTheme()?.accentColor || "#2563eb")}"/>
-    </style:style>
+      <style:graphic-properties draw:stroke="none" draw:fill="solid" draw:fill-color="${this._escapeXml(theme?.accentColor || "#2563eb")}"/>
+    </style:style>`;
+    }
+    if (!isImported || effectiveLogoText) {
+      xml += `
     <style:style style:name="grMasterLogo" style:family="graphic">
       <style:graphic-properties draw:stroke="none" draw:fill="none"/>
-      <style:text-properties fo:color="${this._escapeXml(this._masterTheme()?.accentColor || "#2563eb")}" fo:font-size="14pt" fo:font-weight="bold"/>
-    </style:style>
+      <style:text-properties fo:color="${this._escapeXml(theme?.accentColor || "#2563eb")}" fo:font-size="14pt" fo:font-weight="bold"/>
+    </style:style>`;
+    }
+    if (!isImported || effectiveFooterText) {
+      xml += `
     <style:style style:name="grMasterFooter" style:family="graphic">
       <style:graphic-properties draw:stroke="none" draw:fill="none"/>
-      <style:text-properties fo:color="${this._escapeXml(this._masterTheme()?.bodyColor || "#64748b")}" fo:font-size="10pt"/>
+      <style:text-properties fo:color="${this._escapeXml(theme?.bodyColor || "#64748b")}" fo:font-size="10pt"/>
     </style:style>`;
+    }
 
     (slides || []).forEach((slide, idx) => {
       if (!this._slideNeedsOwnDrawingStyle(slide)) return;
@@ -1668,6 +1743,14 @@ export class SlidesAdapter {
     </style:style>`;
     }
     for (const [styleName, shape] of namedStyles) {
+      if (shape.type === "image" && shape.crop) {
+        const clip = this._formatClipRect(shape.crop);
+        xml += `
+    <style:style style:name="${styleName}" style:family="graphic">
+      <style:graphic-properties draw:stroke="none" draw:fill="none" fo:clip="${this._escapeXml(clip)}"/>
+    </style:style>`;
+        continue;
+      }
       const fillAttrs = this._isTransparentFill(shape) ? ` draw:fill="none"` : ` draw:fill="solid" draw:fill-color="${this._escapeXml(shape.color)}"`;
       xml += `
     <style:style style:name="${styleName}" style:family="graphic">
@@ -1863,6 +1946,8 @@ export class SlidesAdapter {
       const shrinkToFit = /style:shrink-to-fit=["']true["']/i.test(match[2]);
       const fitToSize = /draw:fit-to-size=["']true["']/i.test(match[2]);
       const autoGrowHeight = /draw:auto-grow-height=["']true["']/i.test(match[2]);
+      const clipRaw = match[2].match(/fo:clip=["']([^"']+)["']/i)?.[1];
+      const crop = this._parseClipRect(clipRaw);
       styles.set(name, {
         parentStyleName,
         fill: fillKind === "none" ? "transparent" : (fill || null),
@@ -1877,6 +1962,7 @@ export class SlidesAdapter {
         shrinkToFit,
         fitToSize,
         autoGrowHeight,
+        crop: crop || null,
         autofit: shrinkToFit || fitToSize
       });
     }
@@ -1893,6 +1979,7 @@ export class SlidesAdapter {
         if (!s.shrinkToFit && p.shrinkToFit) s.shrinkToFit = true;
         if (!s.fitToSize && p.fitToSize) s.fitToSize = true;
         if (!s.autofit && p.autofit) s.autofit = true;
+        if (!s.crop && p.crop) s.crop = p.crop;
         p = p.parentStyleName ? styles.get(p.parentStyleName) : null;
         depth++;
       }
@@ -2107,7 +2194,14 @@ export class SlidesAdapter {
       return { ...base, type, src: this._parseEmbeddedSrc(pluginXml, type === "audio" ? "audio/mpeg" : "video/mp4"), color: "transparent" };
     }
     if (/<draw:image\b/i.test(inner)) {
-      return { ...base, type: "image", src: this._parseEmbeddedSrc(inner, "image/png"), color: "transparent" };
+      const crop = style.crop || this._parseClipRect(this._attr(attrs, "fo:clip")) || this._parseClipRect(inner.match(/fo:clip=["']([^"']+)["']/i)?.[1]);
+      return {
+        ...base,
+        type: "image",
+        src: this._parseEmbeddedSrc(inner, "image/png"),
+        color: "transparent",
+        ...(crop ? { crop } : {})
+      };
     }
 
     const hasId = get("draw:id") || get("xml:id") || get("draw:name") || get("svg:x");
@@ -2424,10 +2518,14 @@ export class SlidesAdapter {
   }
 
   _serializeMasterPageXml() {
+    const isImported = Boolean(this.canvas?.imported);
     const theme = this._masterTheme();
     if (!theme) {
       return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"/>`;
     }
+    const isVnDefaultLogo = !theme.logoText || theme.logoText === "VN OFFICE • THUYẾT TRÌNH" || theme.logoText === "VN OFFICE";
+    const effectiveLogoText = (isImported && isVnDefaultLogo) ? "" : (theme.logoText || "");
+    const effectiveFooterText = theme.footerText || "";
     const payload = {
       id: theme.id || theme.themeId || "",
       fontFamily: theme.fontFamily || "",
@@ -2435,11 +2533,19 @@ export class SlidesAdapter {
       bodyColor: theme.bodyColor || "",
       accentColor: theme.accentColor || "",
       bgColor: theme.bgColor || "",
-      logoText: theme.logoText || "",
-      footerText: theme.footerText || ""
+      logoText: effectiveLogoText,
+      footerText: effectiveFooterText
     };
-    const logo = this._escapeXml(theme.logoText || "");
-    const footer = this._escapeXml(theme.footerText || "");
+    const logo = this._escapeXml(effectiveLogoText);
+    const footer = this._escapeXml(effectiveFooterText);
+
+    if (isImported && !effectiveLogoText && !effectiveFooterText) {
+      const themeAttr = (payload.bgColor || payload.fontFamily)
+        ? ` vno:master-theme="${this._escapeXml(JSON.stringify(payload))}"`
+        : "";
+      return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"${themeAttr}/>`;
+    }
+
     // Kích thước thật của trang chiếu (canvas.slideSize) - KHÔNG hardcode 28cm/15.75cm
     // nữa (giá trị cũ giả định sai một khổ 960x540 thật ra ~25.4x14.29cm, khiến
     // slide xuất ra khai báo khổ giấy khác hẳn hệ tọa độ hình khối thật bên trong -
@@ -2456,14 +2562,18 @@ export class SlidesAdapter {
     // (placeholders only). File → Lưu PPTX post-process inserts a DrawingML
     // p:sp without p:ph onto ppt/slideMasters/slideMaster1.xml — see
     // pptx-master-logo.js / ooxml_zip_patch.postprocess_slides_pptx.
+    const accentBar = !isImported
+      ? `<draw:rect draw:style-name="grMasterAccent" svg:x="0cm" svg:y="0cm" svg:width="${pageWidthCm}cm" svg:height="0.25cm"/>\n      `
+      : "";
+    const logoFrame = logo
+      ? `<draw:frame draw:style-name="grMasterLogo" svg:x="0.6cm" svg:y="0.4cm" svg:width="16cm" svg:height="0.8cm">\n        <draw:text-box><text:p>${logo}</text:p></draw:text-box>\n      </draw:frame>\n      `
+      : "";
+    const footerFrame = footer
+      ? `<draw:frame draw:style-name="grMasterFooter" svg:x="0.6cm" svg:y="${footerYCm}cm" svg:width="${footerWidthCm}cm" svg:height="0.7cm">\n        <draw:text-box><text:p>${footer}</text:p></draw:text-box>\n      </draw:frame>`
+      : "";
+
     return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1" vno:master-theme="${this._escapeXml(JSON.stringify(payload))}">
-      <draw:rect draw:style-name="grMasterAccent" svg:x="0cm" svg:y="0cm" svg:width="${pageWidthCm}cm" svg:height="0.25cm"/>
-      <draw:frame draw:style-name="grMasterLogo" svg:x="0.6cm" svg:y="0.4cm" svg:width="16cm" svg:height="0.8cm">
-        <draw:text-box><text:p>${logo}</text:p></draw:text-box>
-      </draw:frame>
-      ${footer ? `<draw:frame draw:style-name="grMasterFooter" svg:x="0.6cm" svg:y="${footerYCm}cm" svg:width="${footerWidthCm}cm" svg:height="0.7cm">
-        <draw:text-box><text:p>${footer}</text:p></draw:text-box>
-      </draw:frame>` : ""}
+      ${accentBar}${logoFrame}${footerFrame}
     </style:master-page>`;
   }
 
@@ -2926,6 +3036,8 @@ export class SlidesAdapter {
         this.canvas.applySlideMaster(newSlides.masterTheme);
       } else if (newSlides.masterTheme) {
         this.canvas.masterTheme = { ...(this.canvas.masterTheme || {}), ...newSlides.masterTheme };
+      } else if (this.canvas.masterTheme) {
+        this.canvas.masterTheme.logoText = "";
       }
       if (typeof this.canvas.selectSlide === "function") {
         this.canvas.selectSlide(0);

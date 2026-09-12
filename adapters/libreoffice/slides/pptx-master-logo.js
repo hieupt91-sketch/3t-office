@@ -33,7 +33,7 @@ const LOGO_NAME_ATTR = `name="${MASTER_LOGO_SHAPE_NAME}"`;
 
 const MASTER_PAGE_OPEN_RE = /<style:master-page\b([^>]*)>/i;
 const MASTER_PAGE_OPEN_GI_RE = /<style:master-page\b([^>]*?)(\/?)\s*>/gi;
-const THEME_ATTR_RE = /\bvno:master-theme\s*=\s*["']([^"']*)["']/i;
+const THEME_ATTR_RE = /\bvno:master-theme\s*=\s*(?:"([^"]*)"|'([^']*)')/i;
 const LOGO_FRAME_RE = /<draw:frame\b[^>]*grMasterLogo[\s\S]*?<text:p\b[^>]*>([\s\S]*?)<\/text:p>/i;
 const SLD_SZ_RE = /<(?:[\w]+:)?sldSz\b([^>]*)\/?\s*>/i;
 const CNVPR_ID_RE = /<(?:[\w]+:)?cNvPr\b[^>]*\bid=["'](\d+)["']/gi;
@@ -100,7 +100,8 @@ function nsPrefix(xml, uri, fallback) {
 export function parseMasterLogoFromFodp(fodpXml) {
   const xml = String(fodpXml || "");
   const attrs = xml.match(MASTER_PAGE_OPEN_RE)?.[1] || "";
-  const rawTheme = unescapeXml(attrs.match(THEME_ATTR_RE)?.[1] || "");
+  const rawThemeMatch = attrs.match(THEME_ATTR_RE);
+  const rawTheme = unescapeXml((rawThemeMatch ? (rawThemeMatch[1] !== undefined ? rawThemeMatch[1] : rawThemeMatch[2]) : "") || "");
   let logoText = "";
   let accentColor = "";
   let fontFamily = "";
@@ -427,7 +428,8 @@ export function applyFodpMasterThemeAttrs(fodpXml, logo) {
     let raw = attrs || "";
     const selfClose = slash === "/" || /\/\s*$/.test(raw);
     if (selfClose) raw = raw.replace(/\/\s*$/, "");
-    const existing = unescapeXml(raw.match(THEME_ATTR_RE)?.[1] || "");
+    const existingMatch = raw.match(THEME_ATTR_RE);
+    const existing = unescapeXml((existingMatch ? (existingMatch[1] !== undefined ? existingMatch[1] : existingMatch[2]) : "") || "");
     const encoded = escapeXml(JSON.stringify(mergeMasterThemePayload(existing, logo)));
     if (THEME_ATTR_RE.test(raw)) {
       raw = raw.replace(THEME_ATTR_RE, `vno:master-theme="${encoded}"`);

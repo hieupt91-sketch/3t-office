@@ -102,7 +102,7 @@ _LOCK_STRUCTURE_TRUE_RE = re.compile(
 )
 _MASTER_PAGE_OPEN_RE = re.compile(r"<style:master-page\b([^>]*)>", re.IGNORECASE)
 _MASTER_PAGE_OPEN_GI_RE = re.compile(r"<style:master-page\b([^>]*?)(/?)\s*>", re.IGNORECASE)
-_THEME_ATTR_RE = re.compile(r'\bvno:master-theme\s*=\s*["\']([^"\']*)["\']', re.IGNORECASE)
+_THEME_ATTR_RE = re.compile(r'\bvno:master-theme\s*=\s*(?:"([^"]*)"|\'([^\']*)\')', re.IGNORECASE)
 _LOGO_NAME_RE = re.compile(
     rf"""\bname\s*=\s*(['"]){re.escape(MASTER_LOGO_SHAPE_NAME)}\1"""
 )
@@ -1026,7 +1026,7 @@ def parse_master_logo_from_fodp(fodp_xml: str | None) -> dict[str, str]:
     accent_color = ""
     font_family = ""
     if theme_match:
-        raw = _unescape_xml(theme_match.group(1) or "")
+        raw = _unescape_xml(theme_match.group(1) or theme_match.group(2) or "")
         try:
             parsed = json.loads(raw)
         except json.JSONDecodeError:
@@ -2028,7 +2028,9 @@ def apply_fodp_master_theme_attrs(fodp_xml: str, logo: dict | None) -> str:
         if self_close:
             raw = re.sub(r"/\s*$", "", raw)
         theme_match = _THEME_ATTR_RE.search(raw)
-        existing = _unescape_xml(theme_match.group(1) if theme_match else "")
+        existing = _unescape_xml(
+            (theme_match.group(1) or theme_match.group(2)) if theme_match else ""
+        )
         encoded = _escape_xml(
             json.dumps(_merge_master_theme_payload(existing, logo), ensure_ascii=False, separators=(",", ":"))
         )
