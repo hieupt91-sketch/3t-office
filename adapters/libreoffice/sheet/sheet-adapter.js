@@ -1086,7 +1086,7 @@ export class SheetAdapter {
 
   _parseRotationStyles(xmlText) {
     const rotations = new Map();
-    String(xmlText || "").replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrs, body) => {
+    String(xmlText || "").replace(/<style:style\b([^>]*?)\s*(?:\/>|>([\s\S]*?)<\/style:style>)/gi, (_, attrs, body = "") => {
       const name = this._unescapeXml(attrs.match(/style:name=["']([^"']+)["']/i)?.[1] || "");
       if (!name) return "";
       const direction = body.match(/style:direction=["']([^"']+)["']/i)?.[1];
@@ -1106,7 +1106,7 @@ export class SheetAdapter {
   _parseCellVisualStyles(xmlText) {
     const raw = new Map();
     const parseStyleBlock = (block) => {
-      String(block || "").replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrs, body) => {
+      String(block || "").replace(/<style:style\b([^>]*?)\s*(?:\/>|>([\s\S]*?)<\/style:style>)/gi, (_, attrs, body = "") => {
         const family = attrs.match(/style:family=["']([^"']+)["']/i)?.[1] || "";
         if (family !== "table-cell") return "";
         const name = this._unescapeXml(attrs.match(/style:name=["']([^"']+)["']/i)?.[1] || "");
@@ -1191,7 +1191,7 @@ export class SheetAdapter {
    */
   _parseTextStyles(xmlText) {
     const raw = new Map();
-    String(xmlText || "").replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrs, body) => {
+    String(xmlText || "").replace(/<style:style\b([^>]*?)\s*(?:\/>|>([\s\S]*?)<\/style:style>)/gi, (_, attrs, body = "") => {
       const family = attrs.match(/style:family=["']([^"']+)["']/i)?.[1] || "";
       if (family !== "text") return "";
       const name = this._unescapeXml(attrs.match(/style:name=["']([^"']+)["']/i)?.[1] || "");
@@ -2449,7 +2449,7 @@ export class SheetAdapter {
     const numFmtAttr = get("vno:number-format");
     const standardFormat = numberStyles.get(get("table:style-name"));
     const numericTypes = new Set(["float", "percentage", "currency", "date", "time"]);
-    if (numFmtAttr) {
+    if (numFmtAttr && (numericTypes.has(valueType) || !valueType)) {
       try {
         style.numberFormat = JSON.parse(numFmtAttr);
       } catch (e) {
@@ -2475,7 +2475,7 @@ export class SheetAdapter {
 
   _parseCellStyleColors(xmlText) {
     const colors = new Map();
-    String(xmlText || "").replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrs, body) => {
+    String(xmlText || "").replace(/<style:style\b([^>]*?)\s*(?:\/>|>([\s\S]*?)<\/style:style>)/gi, (_, attrs, body = "") => {
       const name = this._unescapeXml(attrs.match(/style:name=["']([^"']*)["']/i)?.[1] || "");
       const display = this._unescapeXml(attrs.match(/style:display-name=["']([^"']*)["']/i)?.[1] || "");
       const color = (body.match(/fo:background-color=["']([^"']+)["']/i)?.[1] || "").trim().toLowerCase();

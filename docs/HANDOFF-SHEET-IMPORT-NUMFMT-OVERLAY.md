@@ -61,3 +61,11 @@ CORE PATCH ID (if any): Khong co; khong sua LibreOffice Core.
 NEXT ACTION: Neu can audit 0 number-format, phase sau co the doc style ke thua tu row/column XF; xu ly value/whitespace va formula la task rieng.
 
 ROLLBACK: `git revert <commit-cua-task-nay>`.
+
+## Follow-up: style tu dong va o chuoi
+
+- Sua toan bo regex doc `style:style` trong Sheet de the tu dong `/>` co body rong, khong an nham body cua style ke tiep.
+- Overlay XLSX bo qua number format tren cell OOXML co `t="s"`, `t="str"` hoac `t="inlineStr"`.
+- Parser FODS va renderer chi ap dung number format so cho gia tri so; chuoi hien nguyen van va van co text overflow dung.
+- Regression tests bao phu parser visual style, parser number format, overlay Python va renderer.
+- Xac minh follow-up: syntax 92/92 PASS; Node 1661/1661 PASS; Python test dich 3/3 PASS. Python discover: FAIL 12/185 do cac lan goi LibreOffice tra ve loi chuyen doi khong ro nguyen nhan; khong co failure nao trong overlay numfmt. File `_dss_real.xlsx` dung cho audit truoc khong co trong worktree, nen audit that follow-up NOT RUN.

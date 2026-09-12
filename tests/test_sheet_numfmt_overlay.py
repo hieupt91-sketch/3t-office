@@ -18,7 +18,7 @@ def make_xlsx():
         "xl/workbook.xml": '<workbook xmlns:r="r"><sheets><sheet name="Data" r:id="rId1"/></sheets></workbook>',
         "xl/_rels/workbook.xml.rels": '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
         "xl/styles.xml": '<styleSheet><numFmts count="2"><numFmt numFmtId="164" formatCode="[$₫-42A] #,##0"/><numFmt numFmtId="165" formatCode="dd/mm/yyyy"/></numFmts><cellXfs count="4"><xf numFmtId="0"/><xf numFmtId="3"/><xf numFmtId="164"/><xf numFmtId="165"/></cellXfs></styleSheet>',
-        "xl/worksheets/sheet1.xml": '<worksheet><sheetData><row r="2"><c r="A2" s="1"><v>1234</v></c><c r="B2" s="2"><v>5000</v></c><c r="C2" s="3"><f>TODAY()</f><v>45000</v></c><c r="D2" s="1"/></row></sheetData></worksheet>',
+        "xl/worksheets/sheet1.xml": '<worksheet><sheetData><row r="2"><c r="A2" s="1"><v>1234</v></c><c r="B2" s="2"><v>5000</v></c><c r="C2" s="3"><f>TODAY()</f><v>45000</v></c><c r="D2" s="1"/><c r="E2" s="1" t="s"><v>0</v></c><c r="F2" s="1" t="str"><v>24 thang</v></c><c r="G2" s="1" t="inlineStr"><is><t>inline</t></is></c></row></sheetData></worksheet>',
     }
     stream = io.BytesIO()
     with zipfile.ZipFile(stream, "w") as package:
@@ -44,6 +44,12 @@ class SheetNumberFormatOverlayTests(unittest.TestCase):
     def test_only_cells_with_value_or_formula_are_overlaid(self):
         result = patcher.overlay_sheet_xlsx_fods(make_xlsx(), FODS)
         self.assertEqual(len(re.findall(r"vno:number-format=", result)), 3)
+
+    def test_text_cells_do_not_receive_numeric_format_overlay(self):
+        formats = patcher._xlsx_cells_with_number_formats(make_xlsx())["Data"]
+        self.assertNotIn((2, 5), formats)
+        self.assertNotIn((2, 6), formats)
+        self.assertNotIn((2, 7), formats)
 
 
 if __name__ == "__main__":

@@ -340,5 +340,18 @@ export async function runSheetCellTextFitTests() {
     assert(tdA2.style.maxWidth === "1565px", `maxWidth phải là 1565px, nhận: ${tdA2.style.maxWidth}`);
   });
 
+  test("Renderer: imported string ignores numeric numberFormat", () => {
+    const grid = createMockGridController({ colWidths: { A: 80, B: 80 } });
+    grid.setCellValue("A", 1, "24 thang");
+    const itmA1 = grid.cellsData.get("A1");
+    itmA1.style = { numberFormat: { category: "accounting", decimals: 0, useThousands: true } };
+    const tdA1 = createMockTd("A1");
+
+    grid._renderCellVisual(tdA1, itmA1, "A", 1);
+
+    assert(tdA1.textContent === "24 thang", `String must remain intact, got '${tdA1.textContent}'`);
+    assert(!tdA1.innerHTML.includes("vno-cell-accounting-num"), "String must not render as accounting number");
+  });
+
   return results;
 }

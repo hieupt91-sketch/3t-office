@@ -2526,6 +2526,8 @@ def _xlsx_cells_with_number_formats(xlsx_bytes: bytes) -> dict[str, dict[tuple[i
                 attrs, body = _xml_attrs(match.group(1)), match.group(2) or ""
                 coord = re.fullmatch(r"([A-Z]+)(\d+)", attrs.get("r", ""), re.IGNORECASE)
                 style_index = int(attrs.get("s") or 0)
+                if attrs.get("t", "").lower() in {"s", "str", "inlinestr"}:
+                    continue
                 if not (coord and re.search(r"<(?:v|f|is)\b", body, re.IGNORECASE) and 0 <= style_index < len(xfs)):
                     continue
                 code = xfs[style_index]
