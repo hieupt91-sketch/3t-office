@@ -58,6 +58,13 @@ const PAGE_SIZES_MM = {
 // Lề mặc định theo Nghị định 30/2020/NĐ-CP: Trên 20mm, Dưới 20mm, Trái 30mm, Phải 15mm
 const DEFAULT_MARGINS_MM = { top: 20, bottom: 20, left: 30, right: 15 };
 const MM_TO_PX = 3.7795275591; // 96dpi
+
+function pageSizeMm(setup) {
+  if (setup?.size === "custom" && Number.isFinite(setup.widthMm) && Number.isFinite(setup.heightMm)) {
+    return { label: `Tùy chỉnh (${setup.widthMm} × ${setup.heightMm} mm)`, w: setup.widthMm, h: setup.heightMm };
+  }
+  return PAGE_SIZES_MM[setup?.size] || PAGE_SIZES_MM.a4;
+}
 /** LibreOffice 26.2.5 drops tracked-changes unless office:change-info has a date. Session canvas markers have none. */
 const FODT_TRACK_CHANGE_SENTINEL_DATE = "1970-01-01T00:00:00";
 
@@ -1562,7 +1569,7 @@ export class WriterAdapter {
   /** Áp dụng kích thước/lề trang hiện tại lên canvas thật (không chỉ lưu state suông). */
   _applyPageSetup() {
     if (!this.editorDom || !this.editorDom.style) return;
-    const base = PAGE_SIZES_MM[this.pageSetup.size] || PAGE_SIZES_MM.a4;
+    const base = pageSizeMm(this.pageSetup);
     const isLandscape = this.pageSetup.orientation === "landscape";
     const widthMm = isLandscape ? base.h : base.w;
     const heightMm = isLandscape ? base.w : base.h;
@@ -1585,7 +1592,7 @@ export class WriterAdapter {
    * đảm bảo khổ giấy/lề đúng trong DOCX/PDF xuất ra thật, không chỉ đúng trên canvas.
    */
   _getPageSetupCss() {
-    const base = PAGE_SIZES_MM[this.pageSetup.size] || PAGE_SIZES_MM.a4;
+    const base = pageSizeMm(this.pageSetup);
     const isLandscape = this.pageSetup.orientation === "landscape";
     const widthMm = isLandscape ? base.h : base.w;
     const heightMm = isLandscape ? base.w : base.h;
@@ -1601,7 +1608,7 @@ export class WriterAdapter {
 
   _getSectionPageCss() {
     return Object.entries(this.sectionPageSetups || {}).map(([id, setup]) => {
-      const base = PAGE_SIZES_MM[setup.size] || PAGE_SIZES_MM.a4;
+      const base = pageSizeMm(setup);
       const landscape = setup.orientation === "landscape";
       const width = landscape ? base.h : base.w;
       const height = landscape ? base.w : base.h;
@@ -1636,6 +1643,11 @@ export class WriterAdapter {
         if (Math.abs(portraitW - 210) < 8 && Math.abs(portraitH - 297) < 8) setup.size = "a4";
         else if (Math.abs(portraitW - 216) < 8 && Math.abs(portraitH - 279) < 8) setup.size = "letter";
         else if (Math.abs(portraitW - 216) < 8 && Math.abs(portraitH - 356) < 8) setup.size = "legal";
+        else {
+          setup.size = "custom";
+          setup.widthMm = Number(portraitW.toFixed(1));
+          setup.heightMm = Number(portraitH.toFixed(1));
+        }
       }
     }
     const marginMap = { top: /margin-top:\s*([^;]+)/i, bottom: /margin-bottom:\s*([^;]+)/i, left: /margin-left:\s*([^;]+)/i, right: /margin-right:\s*([^;]+)/i };
@@ -2307,9 +2319,12 @@ export class WriterAdapter {
       const previousFocused = document.activeElement;
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay";
-      const sizeOptions = Object.entries(PAGE_SIZES_MM)
+      let sizeOptions = Object.entries(PAGE_SIZES_MM)
         .map(([key, v]) => `<option value="${key}" ${key === this.pageSetup.size ? "selected" : ""}>${v.label}</option>`)
         .join("");
+      if (this.pageSetup.size === "custom") {
+        sizeOptions += `<option value="custom" selected>${pageSizeMm(this.pageSetup).label}</option>`;
+      }
 
       const titleText = (typeof t === "function" && t("writerDialogs.pageSetup.title") !== "writerDialogs.pageSetup.title")
         ? t("writerDialogs.pageSetup.title")
@@ -2426,7 +2441,10 @@ export class WriterAdapter {
     this.pageSetup = {
       size: newSetup.size || this.pageSetup.size,
       orientation: newSetup.orientation || this.pageSetup.orientation,
-      margins: { ...this.pageSetup.margins, ...(newSetup.margins || {}) }
+      margins: { ...this.pageSetup.margins, ...(newSetup.margins || {}) },
+      ...(newSetup.size === "custom" || (!newSetup.size && this.pageSetup.size === "custom")
+        ? { widthMm: newSetup.widthMm ?? this.pageSetup.widthMm, heightMm: newSetup.heightMm ?? this.pageSetup.heightMm }
+        : {})
     };
     this.sectionPageSetups[this.activeSectionId] = JSON.parse(JSON.stringify(this.pageSetup));
     this._applyPageSetup();
@@ -4973,7 +4991,7 @@ export class WriterAdapter {
   }
 
   _fodtPageBox(setup) {
-    const base = PAGE_SIZES_MM[setup?.size] || PAGE_SIZES_MM.a4;
+    const base = pageSizeMm(setup);
     const isLandscape = setup?.orientation === "landscape";
     const margins = setup?.margins || DEFAULT_MARGINS_MM;
     return {
@@ -5169,13 +5187,17 @@ export class WriterAdapter {
         break;
       }
     }
-    if (!size) throw this._fodtError(`khổ giấy ${widthMm}×${heightMm} mm chưa hỗ trợ`);
+    const customSize = size ? {} : {
+      widthMm: Number(portraitW.toFixed(1)),
+      heightMm: Number(portraitH.toFixed(1))
+    };
     const marginOr = (side, fallback) => {
       const mm = this._lengthToMm(props[`fo:margin-${side}`]);
       return mm == null ? fallback : Math.round(mm);
     };
     return {
-      size,
+      size: size || "custom",
+      ...customSize,
       orientation,
       margins: {
         top: marginOr("top", DEFAULT_MARGINS_MM.top),
@@ -7415,8 +7437,18 @@ export class WriterAdapter {
         this.pageSetup = {
           size: imported.page.size || this.pageSetup.size,
           orientation: imported.page.orientation || this.pageSetup.orientation,
-          margins: { ...this.pageSetup.margins, ...imported.page.margins }
+          margins: { ...this.pageSetup.margins, ...imported.page.margins },
+          ...(imported.page.size === "custom"
+            ? { widthMm: imported.page.widthMm, heightMm: imported.page.heightMm }
+            : {})
         };
+        const importedSetup = JSON.parse(JSON.stringify(this.pageSetup));
+        const sectionIds = Object.keys(this.sectionPageSetups || {});
+        if (sectionIds.length <= 1) {
+          this.sectionPageSetups = { [this.activeSectionId]: importedSetup };
+        } else {
+          this.sectionPageSetups[this.activeSectionId] = importedSetup;
+        }
         this._applyPageSetup();
       }
 
@@ -7524,7 +7556,7 @@ export class WriterAdapter {
    * dựa trên cấu hình Page Setup hiện tại của tài liệu.
    */
   getPageDimensions() {
-    const base = PAGE_SIZES_MM[this.pageSetup?.size] || PAGE_SIZES_MM.a4;
+    const base = pageSizeMm(this.pageSetup);
     const isLandscape = this.pageSetup?.orientation === "landscape";
     const widthMm = isLandscape ? base.h : base.w;
     const heightMm = isLandscape ? base.w : base.h;
