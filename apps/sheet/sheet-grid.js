@@ -3329,6 +3329,8 @@ export class SheetGridController {
         row,
         prevVal: item.formula || item.val || "",
         nextVal: val,
+        prevValRichText: item.richText || null,
+        nextValRichText: null,
         timestamp: Date.now()
       }, historyOptions);
     }
@@ -3349,6 +3351,8 @@ export class SheetGridController {
       item.formula = "";
       item.val = NumberFormatter.normalizeInputForFormat(val, item.style?.numberFormat);
     }
+    // When user edits a cell, clear rich text formatting (Excel behavior)
+    delete item.richText;
 
     this.cellsData.set(key, item);
 
@@ -6641,6 +6645,12 @@ export class SheetGridController {
       this._restoreRowColLayout(direction === "undo" ? action.before : action.after);
     } else if (action.type === "cell") {
       this.setCellValue(action.col, action.row, action[value], false);
+      // Restore richText from snapshot if present (edited cells lose richText in setCellValue)
+      if (action[value + "RichText"]) {
+        const key = `${action.col}${action.row}`;
+        const itm = this.cellsData.get(key);
+        if (itm) itm.richText = action[value + "RichText"];
+      }
       this.selectCell(action.col, action.row);
     } else if (action.type === "array-formula") {
       const snapshots = direction === "undo" ? action.before : action.after;
@@ -9333,6 +9343,25 @@ export class SheetGridController {
       td.textContent = itm.formula;
       td.style.textAlign = "left";
       if (col && row && typeof this._applyRowColSizeToCell === "function") this._applyRowColSizeToCell(td, col, row);
+      return;
+    }
+
+    // Rich text: render multiple styled <span> elements
+    if (Array.isArray(itm.richText) && itm.richText.length > 0) {
+      const escapeHtml = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const spanHtml = itm.richText.map(run => {
+        const styles = [];
+        if (run.style?.color) styles.push(`color:${run.style.color}`);
+        if (run.style?.fontWeight) styles.push(`font-weight:${run.style.fontWeight}`);
+        if (run.style?.fontStyle) styles.push(`font-style:${run.style.fontStyle}`);
+        if (run.style?.textDecoration) styles.push(`text-decoration:${run.style.textDecoration}`);
+        if (run.style?.fontFamily) styles.push(`font-family:${run.style.fontFamily}`);
+        if (run.style?.fontSize) styles.push(`font-size:${run.style.fontSize}`);
+        const styleAttr = styles.length ? ` style="${styles.join(";")}"` : "";
+        return `<span${styleAttr}>${escapeHtml(run.text)}</span>`;
+      }).join("");
+      td.innerHTML = spanHtml;
+      if (itm.style?.textAlign) td.style.textAlign = itm.style.textAlign;
       return;
     }
 

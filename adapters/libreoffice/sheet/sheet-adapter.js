@@ -1138,6 +1138,184 @@ export class SheetAdapter {
     return resolved;
   }
 
+  /**
+   * Parse office:automatic-styles with style:family="text" into a Map<styleName, styleObject>.
+   * These are the text-level styles used by <text:span text:style-name="Tn"> for rich text runs.
+   */
+  _parseTextStyles(xmlText) {
+    const raw = new Map();
+    String(xmlText || "").replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrs, body) => {
+      const family = attrs.match(/style:family=["']([^"']+)["']/i)?.[1] || "";
+      if (family !== "text") return "";
+      const name = this._unescapeXml(attrs.match(/style:name=["']([^"']+)["']/i)?.[1] || "");
+      const parentName = this._unescapeXml(attrs.match(/style:parent-style-name=["']([^"']+)["']/i)?.[1] || "");
+      if (!name) return "";
+      const textProps = (body.match(/<style:text-properties\b([^>]*?)\/?\s*>/i)?.[1] || "");
+      const style = {};
+      const color = textProps.match(/fo:color=["']([^"']+)["']/i)?.[1];
+      if (color) style.color = color;
+      const fontWeight = textProps.match(/fo:font-weight=["']([^"']+)["']/i)?.[1];
+      if (fontWeight) style.fontWeight = fontWeight;
+      const fontStyle = textProps.match(/fo:font-style=["']([^"']+)["']/i)?.[1];
+      if (fontStyle) style.fontStyle = fontStyle;
+      const textDecoration = textProps.match(/fo:text-decoration=["']([^"']+)["']/i)?.[1];
+      if (textDecoration) style.textDecoration = textDecoration;
+      const fontName = textProps.match(/style:font-name=["']([^"']+)["']/i)?.[1];
+      if (fontName) style.fontFamily = fontName;
+      const fontSize = textProps.match(/fo:font-size=["']([^"']+)["']/i)?.[1];
+      if (fontSize) {
+        if (fontSize.endsWith("pt")) style.fontSize = `${parseFloat(fontSize) * 1.3333}px`;
+        else if (fontSize.endsWith("px")) style.fontSize = fontSize;
+        else style.fontSize = `${fontSize}px`;
+      }
+      raw.set(name, { style, parentName });
+      return "";
+    });
+    const resolved = new Map();
+    for (const [name, entry] of raw) {
+      let merged = { ...entry.style };
+      if (entry.parentName && raw.has(entry.parentName)) {
+        merged = { ...raw.get(entry.parentName).style, ...merged };
+      }
+      resolved.set(name, merged);
+    }
+    return resolved;
+  }
+
+  /**
+   * Extract rich text runs from a DOM cell element's <text:p> paragraphs.
+   * Returns { text, runs } where text is the flat joined text and runs is the richText array.
+   * Only returns runs when there are ≥2 runs with different styles.
+   */
+  _extractRichTextFromDom(cellElement, textStyles, cellStyle) {
+    const TEXT_NS = "urn:oasis:names:tc:opendocument:xmlns:text:1.0";
+    const paragraphs = Array.from(cellElement.getElementsByTagNameNS(TEXT_NS, "p"));
+    const allRuns = [];
+    let firstRun = true;
+
+    for (const para of paragraphs) {
+      if (!firstRun) {
+        allRuns.push({ text: "\n", style: {} });
+      }
+      firstRun = false;
+
+      const spans = Array.from(para.getElementsByTagNameNS(TEXT_NS, "span"));
+      if (spans.length === 0) {
+        allRuns.push({ text: para.textContent || "", style: {} });
+      } else {
+        for (const span of spans) {
+          const styleName = span.getAttribute("text:style-name") || "";
+          const spanStyle = textStyles.get(styleName) || {};
+          allRuns.push({ text: span.textContent || "", style: { ...spanStyle } });
+        }
+      }
+    }
+
+    if (allRuns.length === 0) return { text: "", runs: null };
+
+    const flatText = allRuns.map(r => r.text).join("");
+
+    // Normalize: merge consecutive runs with identical styles
+    const merged = [];
+    for (const run of allRuns) {
+      if (merged.length > 0) {
+        const prev = merged[merged.length - 1];
+        const prevStyleStr = JSON.stringify(prev.style);
+        const thisStyleStr = JSON.stringify(run.style);
+        if (prevStyleStr === thisStyleStr) {
+          prev.text += run.text;
+          continue;
+        }
+      }
+      merged.push({ ...run });
+    }
+
+    // Check if there are at least 2 runs with meaningfully different styles
+    // (different from cell-level style). If all runs share the same effective
+    // style as the cell, treat as flat text.
+    if (merged.length < 2) return { text: flatText, runs: null };
+    const cellStyleStr = JSON.stringify(cellStyle || {});
+    const uniqueStyles = new Set(merged.map(r => JSON.stringify(r.style)));
+    if (uniqueStyles.size < 2) return { text: flatText, runs: null };
+
+    return { text: flatText, runs: merged };
+  }
+
+  /**
+   * Extract rich text runs from raw XML content of a cell (regex branch).
+   * Returns { text, runs } analogous to _extractRichTextFromDom.
+   */
+  _extractRichTextFromXml(cellContent, textStyles, cellStyle) {
+    const paragraphs = [];
+    String(cellContent || "").replace(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi, (_, inner) => {
+      paragraphs.push(inner);
+      return "";
+    });
+
+    const allRuns = [];
+    let firstRun = true;
+
+    for (const paraInner of paragraphs) {
+      if (!firstRun) {
+        allRuns.push({ text: "\n", style: {} });
+      }
+      firstRun = false;
+
+      const spanRegex = /<text:span\b([^>]*)>([\s\S]*?)<\/text:span>/gi;
+      let spanMatch;
+      let lastIdx = 0;
+      let hasSpans = false;
+
+      while ((spanMatch = spanRegex.exec(paraInner)) !== null) {
+        hasSpans = true;
+        // Text before this span (if any) is unstyled
+        if (spanMatch.index > lastIdx) {
+          const gap = paraInner.substring(lastIdx, spanMatch.index).replace(/<[^>]+>/g, "");
+          if (gap) allRuns.push({ text: gap, style: {} });
+        }
+        const attrs = spanMatch[1];
+        const styleName = (attrs.match(/text:style-name=["']([^"']*)["']/i)?.[1] || "");
+        const spanStyle = textStyles.get(styleName) || {};
+        const text = spanMatch[2].replace(/<[^>]+>/g, "");
+        allRuns.push({ text, style: { ...spanStyle } });
+        lastIdx = spanMatch.index + spanMatch[0].length;
+      }
+
+      if (!hasSpans) {
+        const text = paraInner.replace(/<[^>]+>/g, "");
+        allRuns.push({ text, style: {} });
+      } else if (lastIdx < paraInner.length) {
+        const tail = paraInner.substring(lastIdx).replace(/<[^>]+>/g, "");
+        if (tail) allRuns.push({ text: tail, style: {} });
+      }
+    }
+
+    if (allRuns.length === 0) return { text: "", runs: null };
+
+    const flatText = allRuns.map(r => r.text).join("");
+
+    // Normalize: merge consecutive runs with identical styles
+    const merged = [];
+    for (const run of allRuns) {
+      if (merged.length > 0) {
+        const prev = merged[merged.length - 1];
+        const prevStyleStr = JSON.stringify(prev.style);
+        const thisStyleStr = JSON.stringify(run.style);
+        if (prevStyleStr === thisStyleStr) {
+          prev.text += run.text;
+          continue;
+        }
+      }
+      merged.push({ ...run });
+    }
+
+    if (merged.length < 2) return { text: flatText, runs: null };
+    const uniqueStyles = new Set(merged.map(r => JSON.stringify(r.style)));
+    if (uniqueStyles.size < 2) return { text: flatText, runs: null };
+
+    return { text: flatText, runs: merged };
+  }
+
   _chartSeriesPlan(sheetName, chart) {
     const chartClass = this._odfChartClass(chart?.type);
     const range = chart?.range;
@@ -1562,6 +1740,8 @@ export class SheetAdapter {
     const conditionalBaseByCell = new Map();
     const visualStyleEntries = [];
     const visualStyleNames = new Map();
+    const richTextAutoStyles = [];
+    const richTextStyleNames = new Map();
     const validationDefinitions = [];
     const validationsByCell = new Map();
     const pageLayouts = [];
@@ -1635,6 +1815,27 @@ export class SheetAdapter {
       if (paraProps.length) parts.push(`<style:paragraph-properties ${paraProps.join(" ")}/>`);
       if (textProps.length) parts.push(`<style:text-properties ${textProps.join(" ")}/>`);
       visualStyleEntries.push(`<style:style style:name="${name}" style:family="table-cell">${parts.join("")}</style:style>`);
+      return name;
+    };
+    const richTextStyleFor = (runStyle) => {
+      if (!runStyle || Object.keys(runStyle).length === 0) return null;
+      const hash = JSON.stringify(runStyle);
+      if (richTextStyleNames.has(hash)) return richTextStyleNames.get(hash);
+      const name = `T${richTextStyleNames.size + 1}`;
+      richTextStyleNames.set(hash, name);
+      const textProps = [];
+      if (runStyle.color) textProps.push(`fo:color="${this._escapeXml(runStyle.color)}"`);
+      if (runStyle.fontWeight) textProps.push(`fo:font-weight="${this._escapeXml(runStyle.fontWeight)}"`);
+      if (runStyle.fontStyle) textProps.push(`fo:font-style="${this._escapeXml(runStyle.fontStyle)}"`);
+      if (runStyle.textDecoration) textProps.push(`fo:text-decoration="${this._escapeXml(runStyle.textDecoration)}"`);
+      if (runStyle.fontFamily) textProps.push(`style:font-name="${this._escapeXml(runStyle.fontFamily)}"`);
+      if (runStyle.fontSize) {
+        const ptVal = runStyle.fontSize.endsWith("px") ? (parseFloat(runStyle.fontSize) / 1.3333).toFixed(1) : runStyle.fontSize;
+        textProps.push(`fo:font-size="${ptVal}pt"`);
+      }
+      if (textProps.length) {
+        richTextAutoStyles.push(`<style:style style:name="${name}" style:family="text"><style:text-properties ${textProps.join(" ")}/></style:style>`);
+      }
       return name;
     };
     const paperSizes = { a4: [21, 29.7], letter: [21.59, 27.94], legal: [21.59, 35.56] };
@@ -1968,7 +2169,35 @@ export class SheetAdapter {
             cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
           } else {
             const text = item.val === undefined || item.val === null ? "" : String(item.val);
-            cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(text)}</text:p></table:table-cell>`;
+            if (Array.isArray(item.richText) && item.richText.length > 0) {
+              // Serialize rich text as <text:p> with <text:span> elements
+              const paraRuns = [];
+              let currentPara = [];
+              for (const run of item.richText) {
+                if (run.text === "\n") {
+                  if (currentPara.length) paraRuns.push(currentPara);
+                  currentPara = [];
+                  continue;
+                }
+                currentPara.push(run);
+              }
+              if (currentPara.length) paraRuns.push(currentPara);
+              if (paraRuns.length === 0) paraRuns.push([{ text, style: {} }]);
+              const paraXml = paraRuns.map(runs => {
+                if (runs.length === 1 && Object.keys(runs[0].style || {}).length === 0) {
+                  return `<text:p>${this._escapeXml(runs[0].text)}</text:p>`;
+                }
+                const spanXml = runs.map(run => {
+                  const styleName = richTextStyleFor(run.style);
+                  const styleAttr = styleName ? ` text:style-name="${styleName}"` : "";
+                  return `<text:span${styleAttr}>${this._escapeXml(run.text)}</text:span>`;
+                }).join("");
+                return `<text:p>${spanXml}</text:p>`;
+              }).join("");
+              cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${cellAttrs}>${cellImageXml}${annotationXml}${paraXml}</table:table-cell>`;
+            } else {
+              cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(text)}</text:p></table:table-cell>`;
+            }
           }
           previousColumn = columnNumber;
         }
@@ -2067,7 +2296,7 @@ export class SheetAdapter {
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
   ${conditionalNamedStyles.length ? `<office:styles>${conditionalNamedStyles.join("")}</office:styles>` : ""}
-  <office:automatic-styles>${pageLayouts.join("")}${tablePageStyles.join("")}${dimensionStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${[...rotationStyles.values()].map(style => this._rotationCellStyleXml(style.styleName, style.textRotation)).join("")}${rotationCombinedStyles.join("")}${conditionalBaseStyles.join("")}${visualStyleEntries.join("")}</office:automatic-styles>
+  <office:automatic-styles>${pageLayouts.join("")}${tablePageStyles.join("")}${dimensionStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${[...rotationStyles.values()].map(style => this._rotationCellStyleXml(style.styleName, style.textRotation)).join("")}${rotationCombinedStyles.join("")}${conditionalBaseStyles.join("")}${visualStyleEntries.join("")}${richTextAutoStyles.join("")}</office:automatic-styles>
   <office:master-styles>${masterPages.join("")}</office:master-styles>
   <office:settings>
     <config:config-item-set config:name="ooo:view-settings">
@@ -2523,6 +2752,7 @@ export class SheetAdapter {
     const numberStyles = this._parseNumberStyles(tableXml);
     const rotationStyles = this._parseRotationStyles(tableXml);
     const cellVisualStyles = this._parseCellVisualStyles(tableXml);
+    const textStyles = this._parseTextStyles(tableXml);
     const rowColStyles = this._parseRowColStyles(tableXml);
     const defaultRowHeight = this.grid?.rowHeight || 26;
     const defaultColWidth = this.grid?.defaultColWidth || 100;
@@ -2685,6 +2915,15 @@ export class SheetAdapter {
                 const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"];
                 if (hasValue && !isCovered) {
                   const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
+                  // Extract rich text runs from <text:span> elements
+                  if (textStyles.size > 0) {
+                    const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};
+                    const rt = this._extractRichTextFromDom(cell, textStyles, cellVisual);
+                    if (rt.runs) {
+                      item.richText = rt.runs;
+                      item.val = rt.text;
+                    }
+                  }
                   const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);
                   const matrixRows = Math.max(1, Number(attributes["table:number-matrix-rows-spanned"]) || 1);
                   if ((attributes["table:number-matrix-columns-spanned"] || attributes["table:number-matrix-rows-spanned"]) && item.formula) {
@@ -2893,6 +3132,15 @@ export class SheetAdapter {
               const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotationMatch || attributes["table:content-validation-name"];
               if (hasValue && !isCovered) {
                 const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
+                // Extract rich text runs from <text:span> elements (regex branch)
+                if (textStyles.size > 0) {
+                  const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};
+                  const rt = this._extractRichTextFromXml(valueContent, textStyles, cellVisual);
+                  if (rt.runs) {
+                    item.richText = rt.runs;
+                    item.val = rt.text;
+                  }
+                }
                 const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);
                 const matrixRows = Math.max(1, Number(attributes["table:number-matrix-rows-spanned"]) || 1);
                 if ((attributes["table:number-matrix-columns-spanned"] || attributes["table:number-matrix-rows-spanned"]) && item.formula) {

@@ -161,6 +161,7 @@ import { runBlankDefaultTests } from "./unit/blank-default.test.js";
 import { runSheetLoadFodsBlankTests } from "./unit/sheet-load-fods-blank.test.js";
 import { runSheetFodsRepeatExpandTests } from "./unit/sheet-fods-repeat-expand.test.js";
 import { runSheetImportCellStylesTests } from "./unit/sheet-import-cell-styles.test.js";
+import { runSheetImportRichTextTests } from "./unit/sheet-import-rich-text.test.js";
 import { runSheetCellTextFitTests } from "./unit/sheet-cell-text-fit.test.js";
 
 async function runAll() {
@@ -331,7 +332,8 @@ async function runAll() {
     { title: "141. Integration Tests — Sheet loadFromFods after isBlank mount MUST populate data", runner: runSheetLoadFodsBlankTests },
     { title: "142. Unit Tests — parseFods repeat expansion: perf + data integrity + serialize round-trip", runner: runSheetFodsRepeatExpandTests },
     { title: "143. Unit Tests — Sheet import cell visual styles (background/border/font/alignment) + sheet visibility + round-trip", runner: runSheetImportCellStylesTests },
-    { title: "144. Unit Tests — Sheet cell text fit, font size precision, padding & text overflow (Excel 2016 parity)", runner: runSheetCellTextFitTests }
+    { title: "144. Unit Tests — Sheet import rich text (multi-run styled cells in FODS) + round-trip + render + edit clears richText", runner: runSheetImportRichTextTests },
+    { title: "145. Unit Tests — Sheet cell text fit, font size precision, padding & text overflow (Excel 2016 parity)", runner: runSheetCellTextFitTests }
   ];
 
   for (const suite of suites) {
