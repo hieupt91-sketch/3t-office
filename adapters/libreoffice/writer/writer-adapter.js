@@ -1725,7 +1725,7 @@ export class WriterAdapter {
       html = html.replace(footerMatch[0], "");
     }
     html = this._normalizeImportedStarWriterNotes(html);
-    html = this._makeFloatingAnchorContainers(this._preserveImportedFloatingFrames(html, ooxmlDocumentXml));
+    html = this._makeFloatingAnchorContainers(this._preserveImportedFloatingFrames(html, ooxmlDocumentXml, page));
     return { body: html.trim(), header, footer, page, comments };
   }
 
@@ -1746,16 +1746,24 @@ export class WriterAdapter {
       const posH = body.match(/<wp:positionH\b[^>]*relativeFrom=["']([^"']+)/i)?.[1] || "paragraph";
       const posV = body.match(/<wp:positionV\b[^>]*relativeFrom=["']([^"']+)/i)?.[1] || "paragraph";
       const wrap = body.match(/<wp:(wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b/i)?.[1] || "wrapNone";
+      const horizontalOffset = Number(body.match(/<wp:positionH\b[^>]*>[\s\S]*?<wp:posOffset>(-?\d+)<\/wp:posOffset>/i)?.[1]);
+      const verticalOffset = Number(body.match(/<wp:positionV\b[^>]*>[\s\S]*?<wp:posOffset>(-?\d+)<\/wp:posOffset>/i)?.[1]);
+      const extent = body.match(/<wp:extent\b[^>]*\bcx=["'](\d+)["'][^>]*\bcy=["'](\d+)["']/i);
       return {
         relativeH: posH,
         relativeV: posV,
         wrap,
-        behindDoc: /\bbehindDoc=["'](?:1|true)["']/i.test(attrs)
+        behindDoc: /\bbehindDoc=["'](?:1|true)["']/i.test(attrs),
+        sourceGroup: /<wpg:wgp\b/i.test(body),
+        leftCm: Number.isFinite(horizontalOffset) ? Number((horizontalOffset / 360000).toFixed(3)) : null,
+        topCm: Number.isFinite(verticalOffset) ? Number((verticalOffset / 360000).toFixed(3)) : null,
+        widthCm: extent ? Number((Number(extent[1]) / 360000).toFixed(3)) : null,
+        heightCm: extent ? Number((Number(extent[2]) / 360000).toFixed(3)) : null
       };
     });
   }
 
-  _preserveImportedFloatingFrames(html, ooxmlDocumentXml) {
+  _preserveImportedFloatingFrames(html, ooxmlDocumentXml, page = null) {
     const src = String(html || "");
     const anchors = this._ooxmlFloatingAnchorMetadata(ooxmlDocumentXml);
     const openRe = /<span\b([^>]*)>/gi;
@@ -1801,15 +1809,23 @@ export class WriterAdapter {
       const value = (name) => style.match(new RegExp(`\\b${name}\\s*:\\s*([^;]+)`, "i"))?.[1];
       const imgTag = inner.match(/<img\b[^>]*>/i)?.[0] || "";
       const attrValue = (name) => imgTag.match(new RegExp(`\\b${name}=["']?([^"'\\s>]+)`, "i"))?.[1];
-      const left = this._cssLengthToCm(value("left")) ?? 0;
-      const top = this._cssLengthToCm(value("top")) ?? 0;
-      const width = this._cssLengthToCm(value("width")) ?? this._cssLengthToCm(`${attrValue("width") || 0}px`) ?? 0;
-      const height = this._cssLengthToCm(value("height")) ?? this._cssLengthToCm(`${attrValue("height") || 0}px`) ?? 0;
       const meta = anchors[anchorIndex++] || { relativeH: "paragraph", relativeV: "paragraph", wrap: "wrapNone", behindDoc: false };
+      const htmlLeft = this._cssLengthToCm(value("left")) ?? 0;
+      const htmlTop = this._cssLengthToCm(value("top")) ?? 0;
+      const htmlWidth = this._cssLengthToCm(value("width")) ?? this._cssLengthToCm(`${attrValue("width") || 0}px`) ?? 0;
+      const htmlHeight = this._cssLengthToCm(value("height")) ?? this._cssLengthToCm(`${attrValue("height") || 0}px`) ?? 0;
+      const left = meta.sourceGroup && meta.leftCm != null ? meta.leftCm : htmlLeft;
+      const top = meta.sourceGroup && meta.topCm != null ? meta.topCm : htmlTop;
+      const width = meta.sourceGroup && meta.widthCm ? meta.widthCm : htmlWidth;
+      const height = meta.sourceGroup && meta.heightCm ? meta.heightCm : htmlHeight;
+      const marginLeftCm = Number(page?.margins?.left || 0) / 10;
+      const marginTopCm = Number(page?.margins?.top || 0) / 10;
+      const displayLeft = ["margin", "column"].includes(String(meta.relativeH).toLowerCase()) ? left + marginLeftCm : left;
+      const displayTop = ["margin"].includes(String(meta.relativeV).toLowerCase()) ? top + marginTopCm : top;
       const cleanedStyle = style.replace(/\b(?:position|top|left|width|height)\s*:\s*[^;]+;?\s*/gi, "").trim();
       const kind = isImage ? "image" : "textbox";
       result += src.slice(cursor, opening.index);
-      result += `<span data-vno-float="${kind}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}" style="position:absolute;left:${left}cm;top:${top}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:-1;" : "z-index:1;"}${cleanedStyle}">${inner}</span>`;
+      result += `<span data-vno-float="${kind}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}" style="position:absolute;left:${displayLeft}cm;top:${displayTop}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:-1;" : `z-index:${anchorIndex};`}${cleanedStyle}">${inner}</span>`;
       cursor = close + 7;
     }
     return result;
@@ -1817,7 +1833,7 @@ export class WriterAdapter {
 
   _makeFloatingAnchorContainers(html) {
     let out = String(html || "");
-    if (!/\bdata-vno-float=["']textbox["']/i.test(out)) return out;
+    if (!/\bdata-vno-float=["'](?:image|textbox)["']/i.test(out)) return out;
     const tags = [...out.matchAll(/<p\b[^>]*>|<\/p>/gi)];
     const stack = [];
     const replacements = [];
@@ -1830,9 +1846,31 @@ export class WriterAdapter {
       if (!opening) continue;
       const inner = out.slice(opening.index + opening[0].length, tag.index);
       if (!/\bdata-vno-float=["'](?:image|textbox)["']/i.test(inner)) continue;
-      const attrs = opening[0].slice(2, -1).replace(/\bstyle=["']([^"']*)["']/i, (_m, style) => `style="position:relative;${style}"`);
-      const openTag = /\bstyle=/i.test(attrs) ? `<div data-vno-float-anchor${attrs}>` : `<div data-vno-float-anchor${attrs} style="position:relative;">`;
-      replacements.push([tag.index, tag.index + tag[0].length, "</div>"]);
+      const hasTextbox = /\bdata-vno-float=["']textbox["']/i.test(inner);
+      const paragraphStyle = opening[0].match(/\bstyle=["']([^"']*)/i)?.[1] || "";
+      const paragraphMarginLeft = this._cssLengthToCm(paragraphStyle.match(/\bmargin-left\s*:\s*([^;]+)/i)?.[1]) || 0;
+      const adjustedInner = paragraphMarginLeft === 0 ? inner : inner.replace(
+        /<span\b([^>]*data-vno-relative-h=["']page["'][^>]*)>/gi,
+        (floatTag, attrs) => {
+          const currentLeft = this._cssLengthToCm(attrs.match(/\bleft\s*:\s*([^;"']+)/i)?.[1]);
+          if (currentLeft == null) return floatTag;
+          const corrected = Number((currentLeft - paragraphMarginLeft).toFixed(3));
+          return floatTag.replace(/\bleft\s*:\s*[^;"']+/, `left:${corrected}cm`);
+        }
+      );
+      const paragraphRelative = /data-vno-relative-(?:h|v)=["']paragraph["']/i.test(inner);
+      let reserveCm = 0;
+      for (const floating of inner.matchAll(/<span\b[^>]*data-vno-wrap=["']wrapTopAndBottom["'][^>]*>/gi)) {
+        const top = Number(floating[0].match(/data-vno-top=["'](-?[\d.]+)/i)?.[1] || 0);
+        const height = Number(floating[0].match(/data-vno-height=["']([\d.]+)/i)?.[1] || 0);
+        reserveCm = Math.max(reserveCm, top + height);
+      }
+      const layoutStyle = `${paragraphRelative ? "position:relative;" : "position:static;"}${reserveCm > 0 ? `min-height:${Number(reserveCm.toFixed(3))}cm;` : ""}`;
+      const attrs = opening[0].slice(2, -1).replace(/\bstyle=["']([^"']*)["']/i, (_m, style) => `style="${layoutStyle}${style}"`);
+      const wrapperTag = hasTextbox ? "div" : "p";
+      const openTag = /\bstyle=/i.test(attrs) ? `<${wrapperTag} data-vno-float-anchor${attrs}>` : `<${wrapperTag} data-vno-float-anchor${attrs} style="${layoutStyle}">`;
+      replacements.push([tag.index, tag.index + tag[0].length, `</${wrapperTag}>`]);
+      if (adjustedInner !== inner) replacements.push([opening.index + opening[0].length, tag.index, adjustedInner]);
       replacements.push([opening.index, opening.index + opening[0].length, openTag]);
     }
     for (const [start, end, value] of replacements.sort((a, b) => b[0] - a[0])) {

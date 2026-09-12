@@ -392,6 +392,44 @@
   text-align: justify;
 }
 
+/* Floating Word drawings use the page as their containing block when OOXML
+   says page/margin/column. The anchor paragraph remains static so negative
+   paragraph margins are not counted twice. */
+.vno-writer-page [data-vno-float-anchor],
+.vno-print-preview-body [data-vno-float-anchor] {
+  box-sizing: border-box;
+}
+
+.vno-writer-page,
+.vno-print-preview-sheet {
+  isolation: isolate;
+}
+
+.vno-writer-page > :not([data-vno-float-anchor]),
+.vno-print-preview-body > :not([data-vno-float-anchor]) {
+  position: relative;
+  z-index: 1;
+}
+
+.vno-writer-page [data-vno-float],
+.vno-print-preview-sheet [data-vno-float] {
+  box-sizing: border-box;
+  max-width: none;
+}
+
+.vno-writer-page [data-vno-float][data-vno-behind="1"],
+.vno-print-preview-sheet [data-vno-float][data-vno-behind="1"] {
+  z-index: 0 !important;
+}
+
+.vno-writer-page [data-vno-float] > img,
+.vno-print-preview-sheet [data-vno-float] > img {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: fill;
+}
+
 /* Tương thích định dạng StarWriter HTML (thuộc tính align trên thẻ p và ô bảng td/th) */
 .vno-writer-page p[align="center"],
 .vno-print-preview-body p[align="center"] {
