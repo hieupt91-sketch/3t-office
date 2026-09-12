@@ -99,7 +99,7 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertEqual(len(re.findall(r"<a:solidFill\b", sp_pr)), 1)
         self.assertIn('val="FFFF00"', sp_pr)
         self.assertIn('behindDoc="1"', xml)
-        self.assertIn('<wp:positionH relativeFrom="page"', xml)
+        self.assertIn('<wp:positionH relativeFrom="paragraph"', xml)
         self.assertIn('<wp:wrapSquare', xml)
         transparent = ooxml_zip_patch_mod._repair_writer_double_fills(
             '<wps:spPr><a:noFill/><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></wps:spPr>'

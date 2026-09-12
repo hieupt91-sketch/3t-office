@@ -716,6 +716,21 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.file.saveFloatingContent",
+    app: "writer",
+    commandIds: ["common.file.save", "common.file.saveAs"],
+    title: "Lưu DOCX có ảnh neo và khung nổi",
+    summary: "Giữ nguyên ảnh neo trang, nhóm hình và vị trí khung nổi chưa chỉnh sửa khi lưu lại tài liệu Word.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
+    keywords: ["ảnh neo", "khung nổi", "nhóm hình", "anchor", "floating", "lưu docx"],
+    steps: [
+      "Mở tài liệu DOCX bằng Tệp → Mở. VN Writer hiển thị ảnh neo và khung nổi từ tài liệu gốc trên vùng soạn thảo.",
+      "Soạn sửa phần văn bản cần thiết. Các nhóm hình và ảnh neo chưa hỗ trợ kéo hoặc đổi kích thước trực tiếp; VN Writer giữ dữ liệu gốc của các đối tượng này khi lưu.",
+      "Nhấn Ctrl+S hoặc chọn Tệp → Lưu/Lưu bản sao, chọn định dạng DOCX rồi xác nhận vị trí lưu.",
+      "Mở lại tệp bằng Microsoft Word hoặc LibreOffice Writer để kiểm tra bố cục. Nếu cần chỉnh vị trí hay thành phần bên trong nhóm hình, hãy chỉnh trong ứng dụng nguồn rồi mở lại trong VN Writer."
+    ]
+  },
+  {
     id: "writer.accessibility.keyboardNav",
     app: "writer",
     commandIds: ["common.file.backstage", "writer.format.bold", "writer.format.italic", "writer.format.underline"],

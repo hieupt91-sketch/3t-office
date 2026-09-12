@@ -3312,7 +3312,20 @@ def _writer_anchor_properties(document_xml: str) -> list[dict[str, str]]:
 
 
 def _restore_writer_anchor_properties(converted_xml: str, original_xml: str) -> str:
-    """Restore source anchor semantics by stable document order (nth anchor to nth anchor)."""
+    """Restore non-coordinate semantics only when document-order pairing is safe.
+
+    LibreOffice offsets are relative to the coordinate system it emitted. Changing
+    relativeFrom without translating posOffset shifts frames by the page margin,
+    so horizontal/vertical origins deliberately remain untouched.
+    """
+    converted_anchors = re.findall(
+        r"<wp:anchor\b[^>]*>[\s\S]*?</wp:anchor\s*>", converted_xml, re.IGNORECASE
+    )
+    original_anchors = re.findall(
+        r"<wp:anchor\b[^>]*>[\s\S]*?</wp:anchor\s*>", original_xml, re.IGNORECASE
+    )
+    if len(converted_anchors) != len(original_anchors):
+        return converted_xml
     source_props = iter(_writer_anchor_properties(original_xml))
 
     def restore(match: re.Match) -> str:
@@ -3324,12 +3337,299 @@ def _restore_writer_anchor_properties(converted_xml: str, original_xml: str) -> 
             attrs = re.sub(r'\bbehindDoc=["\'][^"\']*["\']', f'behindDoc="{props["behind"]}"', attrs, count=1, flags=re.IGNORECASE)
         else:
             attrs += f' behindDoc="{props["behind"]}"'
-        body = re.sub(r'(<wp:positionH\b[^>]*relativeFrom=)["\'][^"\']+["\']', rf'\1"{props["horizontal"]}"', body, count=1, flags=re.IGNORECASE)
-        body = re.sub(r'(<wp:positionV\b[^>]*relativeFrom=)["\'][^"\']+["\']', rf'\1"{props["vertical"]}"', body, count=1, flags=re.IGNORECASE)
         body = re.sub(r'<wp:(?:wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b[^>]*(?:/>|>[\s\S]*?</wp:(?:wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\s*>)', f'<wp:{props["wrap"]}/>', body, count=1, flags=re.IGNORECASE)
         return f"<wp:anchor{attrs}>{body}</wp:anchor>"
 
     return re.sub(r"<wp:anchor\b([^>]*)>([\s\S]*?)</wp:anchor\s*>", restore, converted_xml, flags=re.IGNORECASE)
+
+
+_WRITER_ANCHOR_RE = re.compile(
+    r"<wp:anchor\b[^>]*>[\s\S]*?</wp:anchor\s*>", re.IGNORECASE
+)
+_WRITER_PARAGRAPH_RE = re.compile(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", re.IGNORECASE)
+_DOCX_IMAGE_REL_TYPE = (
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+)
+_DOCX_IMAGE_CONTENT_TYPES = {
+    "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+    "gif": "image/gif", "emf": "image/x-emf", "wmf": "image/x-wmf",
+    "svg": "image/svg+xml",
+}
+
+
+def _writer_anchor_name(anchor: str) -> str | None:
+    match = re.search(r'<wp:docPr\b[^>]*\bname=["\']([^"\']+)', anchor, re.IGNORECASE)
+    return match.group(1) if match else None
+
+
+def _writer_anchor_passthrough_kind(anchor: str) -> str | None:
+    """Return the non-editable drawing kind that is safe to copy from source."""
+    if re.search(r"<wpg:wgp\b", anchor, re.IGNORECASE):
+        return "group"
+    if re.search(r"<pic:pic\b", anchor, re.IGNORECASE):
+        return "picture"
+    # Text boxes remain editable in Writer. Only non-textbox WPS geometry is
+    # passthrough; copying a txbx would silently discard the user's edit.
+    if re.search(r"<wps:wsp\b", anchor, re.IGNORECASE) and not re.search(
+        r"<wps:txbx\b|<w:txbxContent\b", anchor, re.IGNORECASE
+    ):
+        return "shape"
+    return None
+
+
+def _writer_anchor_paragraph_groups(xml: str) -> list[list[str]]:
+    return [_WRITER_ANCHOR_RE.findall(p.group(0)) for p in _WRITER_PARAGRAPH_RE.finditer(xml)]
+
+
+def _writer_passthrough_matches(converted_xml: str, original_xml: str) -> dict[int, str]:
+    """Match safe source anchors without assuming global N-to-N ordering.
+
+    Unique docPr names are the stable primary key. As a conservative fallback,
+    anchors are paired by order only inside paragraphs having the same non-zero
+    anchor count, and only when their drawing kinds agree.
+    """
+    converted = _WRITER_ANCHOR_RE.findall(converted_xml)
+    original = _WRITER_ANCHOR_RE.findall(original_xml)
+    converted_names: dict[str, list[int]] = {}
+    original_names: dict[str, list[int]] = {}
+    for index, anchor in enumerate(converted):
+        name = _writer_anchor_name(anchor)
+        if name:
+            converted_names.setdefault(name, []).append(index)
+    for index, anchor in enumerate(original):
+        name = _writer_anchor_name(anchor)
+        if name:
+            original_names.setdefault(name, []).append(index)
+
+    matches: dict[int, int] = {}
+    used_source: set[int] = set()
+    for name, converted_indexes in converted_names.items():
+        source_indexes = original_names.get(name, [])
+        if len(converted_indexes) == len(source_indexes) == 1:
+            source_index = source_indexes[0]
+            if _writer_anchor_passthrough_kind(original[source_index]):
+                matches[converted_indexes[0]] = source_index
+                used_source.add(source_index)
+
+    # LibreOffice rasterizes a WPG group and renames it (for example
+    # "Group 7068" -> "Shape1"). Bound that otherwise unstable fallback by
+    # neighbouring name matches, then select the first generated picture in
+    # the same document segment. Only the first pair is accepted; later
+    # generated pictures are ambiguous and remain untouched.
+    named_pairs = sorted((source_index, converted_index) for converted_index, source_index in matches.items())
+    boundaries = [(-1, -1), *named_pairs, (len(original), len(converted))]
+    for (source_start, converted_start), (source_end, converted_end) in zip(boundaries, boundaries[1:]):
+        source_groups = [
+            index for index in range(source_start + 1, source_end)
+            if index not in used_source and _writer_anchor_passthrough_kind(original[index]) == "group"
+        ]
+        candidates = [
+            index for index in range(converted_start + 1, converted_end)
+            if index not in matches and _writer_anchor_passthrough_kind(converted[index]) == "picture"
+        ]
+        if source_groups and candidates:
+            matches[candidates[0]] = source_groups[0]
+            used_source.add(source_groups[0])
+
+    converted_offset = original_offset = 0
+    converted_paragraphs = _writer_anchor_paragraph_groups(converted_xml)
+    original_paragraphs = _writer_anchor_paragraph_groups(original_xml)
+    for converted_group, original_group in zip(converted_paragraphs, original_paragraphs):
+        if converted_group and len(converted_group) == len(original_group):
+            for local_index, (converted_anchor, source_anchor) in enumerate(zip(converted_group, original_group)):
+                converted_index = converted_offset + local_index
+                source_index = original_offset + local_index
+                source_kind = _writer_anchor_passthrough_kind(source_anchor)
+                converted_kind = _writer_anchor_passthrough_kind(converted_anchor)
+                compatible_kind = (
+                    source_kind == converted_kind
+                    or (source_kind in {"group", "shape"} and converted_kind == "picture")
+                )
+                if (converted_index not in matches and source_index not in used_source
+                        and source_kind
+                        and compatible_kind):
+                    matches[converted_index] = source_index
+                    used_source.add(source_index)
+        converted_offset += len(converted_group)
+        original_offset += len(original_group)
+    return {converted_index: original[source_index] for converted_index, source_index in matches.items()}
+
+
+def _relationship_records(rels_xml: str) -> dict[str, dict[str, str]]:
+    records: dict[str, dict[str, str]] = {}
+    for match in re.finditer(r"<Relationship\b([^>]*?)/?>", rels_xml, re.IGNORECASE):
+        attrs = {key: value for key, _quote, value in re.findall(
+            r'([\w:]+)\s*=\s*(["\'])(.*?)\2', match.group(1)
+        )}
+        if attrs.get("Id"):
+            records[attrs["Id"]] = attrs
+    return records
+
+
+def _add_content_type_default(ct_xml: str, extension: str, content_type: str) -> str:
+    if re.search(rf'<Default\b[^>]*\bExtension=["\']{re.escape(extension)}["\']', ct_xml, re.IGNORECASE):
+        return ct_xml
+    entry = f'<Default Extension="{extension}" ContentType="{content_type}"/>'
+    index = ct_xml.rfind("</Types>")
+    return ct_xml if index < 0 else ct_xml[:index] + entry + ct_xml[index:]
+
+
+def _xml_element_ranges(xml: str, qname: str) -> list[tuple[int, int]]:
+    token_re = re.compile(rf"<{re.escape(qname)}\b[^>]*>|</{re.escape(qname)}\s*>", re.IGNORECASE)
+    stack: list[int] = []
+    ranges: list[tuple[int, int]] = []
+    for token in token_re.finditer(xml):
+        if token.group(0).startswith("</"):
+            if stack:
+                ranges.append((stack.pop(), token.end()))
+        elif not token.group(0).rstrip().endswith("/>"):
+            stack.append(token.start())
+    return sorted(ranges)
+
+
+def _paragraph_plain_text(paragraph_xml: str) -> str:
+    text = "".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", paragraph_xml, re.IGNORECASE))
+    text = re.sub(r"<[^>]+>", "", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _paragraph_match_key(paragraph_xml: str) -> str:
+    return re.sub(r"[^\w]+", "", _paragraph_plain_text(paragraph_xml), flags=re.UNICODE).casefold()
+
+
+def _document_paragraph_ranges(xml: str) -> list[tuple[int, int]]:
+    anchor_ranges = [(match.start(), match.end()) for match in _WRITER_ANCHOR_RE.finditer(xml)]
+    return [
+        (start, end) for start, end in _xml_element_ranges(xml, "w:p")
+        if not any(anchor_start < start < anchor_end for anchor_start, anchor_end in anchor_ranges)
+    ]
+
+
+def _relocate_passthrough_anchors(converted_xml: str, original_xml: str) -> str:
+    """Return copied page anchors to paragraphs identified by nearby source text."""
+    source_paragraphs = _document_paragraph_ranges(original_xml)
+    source_anchors = list(_WRITER_ANCHOR_RE.finditer(original_xml))
+    destinations: list[tuple[str, str]] = []
+    for anchor_match in source_anchors:
+        name = _writer_anchor_name(anchor_match.group(0))
+        if not name or not _writer_anchor_passthrough_kind(anchor_match.group(0)):
+            continue
+        if not re.search(r'\bbehindDoc=["\'](?:1|true)["\']', anchor_match.group(0), re.IGNORECASE):
+            continue
+        if not re.search(r"<wp:wrapNone\b", anchor_match.group(0), re.IGNORECASE):
+            continue
+        containing = [(end - start, i) for i, (start, end) in enumerate(source_paragraphs)
+                      if start <= anchor_match.start() < end]
+        parent_index = min(containing)[1] if containing else None
+        if parent_index is None:
+            continue
+        fingerprint = ""
+        for distance in range(1, len(source_paragraphs)):
+            for candidate_index in (parent_index + distance, parent_index - distance):
+                if 0 <= candidate_index < len(source_paragraphs):
+                    start, end = source_paragraphs[candidate_index]
+                    candidate = _paragraph_match_key(original_xml[start:end])
+                    if len(candidate) >= 12:
+                        fingerprint = candidate[:40]
+                        break
+            if fingerprint:
+                break
+        if fingerprint:
+            destinations.append((name, fingerprint))
+
+    result = converted_xml
+    for name, fingerprint in destinations:
+        anchor_match = next((match for match in _WRITER_ANCHOR_RE.finditer(result)
+                             if _writer_anchor_name(match.group(0)) == name), None)
+        if not anchor_match:
+            continue
+        paragraph_ranges = _document_paragraph_ranges(result)
+        targets = [(end - start, start, end) for start, end in paragraph_ranges
+                   if fingerprint in _paragraph_match_key(result[start:end])]
+        target = (min(targets)[1], min(targets)[2]) if targets else None
+        if not target or target[0] <= anchor_match.start() < target[1]:
+            continue
+        anchor_xml = anchor_match.group(0)
+        result = result[:anchor_match.start()] + result[anchor_match.end():]
+        result = re.sub(r"<w:drawing\b[^>]*>\s*</w:drawing\s*>", "", result, count=1)
+        result = re.sub(r"<w:r\b[^>]*>\s*</w:r\s*>", "", result, count=1)
+        paragraph_ranges = _document_paragraph_ranges(result)
+        targets = [(end - start, start, end) for start, end in paragraph_ranges
+                   if fingerprint in _paragraph_match_key(result[start:end])]
+        target = (min(targets)[1], min(targets)[2]) if targets else None
+        if target:
+            close = result.rfind("</w:p", target[0], target[1])
+            if close >= 0:
+                result = result[:close] + f"<w:r><w:drawing>{anchor_xml}</w:drawing></w:r>" + result[close:]
+    return result
+
+
+def _passthrough_writer_anchors(
+    converted_xml: str, original_xml: str, source_docx: bytes,
+    converted_rels_xml: str, next_rid: int, existing_entries: set[str],
+) -> tuple[str, str, int, dict[str, bytes], set[str]]:
+    matches = _writer_passthrough_matches(converted_xml, original_xml)
+    if not matches:
+        return converted_xml, converted_rels_xml, next_rid, {}, set()
+    original_rels_bytes = read_zip_entry(source_docx, "word/_rels/document.xml.rels") or b""
+    original_rels = _relationship_records(original_rels_bytes.decode("utf-8", errors="replace"))
+    media: dict[str, bytes] = {}
+    extensions: set[str] = set()
+    occupied_docpr_ids = {int(value) for value in re.findall(r'<wp:docPr\b[^>]*\bid=["\'](\d+)', converted_xml, re.IGNORECASE)}
+    next_docpr_id = max(occupied_docpr_ids, default=0) + 1
+    anchor_index = 0
+
+    def replace(match: re.Match) -> str:
+        nonlocal anchor_index, next_rid, converted_rels_xml, next_docpr_id
+        source_anchor = matches.get(anchor_index)
+        anchor_index += 1
+        if source_anchor is None:
+            return match.group(0)
+        copied = source_anchor
+        for old_rid in dict.fromkeys(re.findall(r'\br:(?:embed|link|id)=["\']([^"\']+)', copied, re.IGNORECASE)):
+            rel = original_rels.get(old_rid)
+            if not rel:
+                continue
+            new_rid = f"rId{next_rid}"
+            next_rid += 1
+            target_for_rels = rel.get("Target", "")
+            if rel.get("TargetMode") != "External":
+                source_entry = "word/" + target_for_rels.lstrip("./")
+                payload = read_zip_entry(source_docx, source_entry)
+                if payload is None:
+                    continue
+                extension = source_entry.rsplit(".", 1)[-1].lower()
+                destination = f"word/media/vno_passthrough_{next_rid}.{extension}"
+                while destination in existing_entries or destination in media:
+                    next_rid += 1
+                    destination = f"word/media/vno_passthrough_{next_rid}.{extension}"
+                target_for_rels = destination.removeprefix("word/")
+                media[destination] = payload
+                if extension in _DOCX_IMAGE_CONTENT_TYPES:
+                    extensions.add(extension)
+            relationship = (
+                f'<Relationship Id="{new_rid}" Type="{rel.get("Type", _DOCX_IMAGE_REL_TYPE)}" '
+                f'Target="{target_for_rels}"'
+                f'{" TargetMode=\"External\"" if rel.get("TargetMode") == "External" else ""}/>'
+            )
+            close = "</Relationships>"
+            close_index = converted_rels_xml.rfind(close)
+            if close_index >= 0:
+                converted_rels_xml = converted_rels_xml[:close_index] + relationship + converted_rels_xml[close_index:]
+            copied = re.sub(rf'(\br:(?:embed|link|id)=)(["\']){re.escape(old_rid)}\2', rf'\1"{new_rid}"', copied)
+        def unique_docpr(docpr: re.Match) -> str:
+            nonlocal next_docpr_id
+            value = int(docpr.group(3))
+            if value not in occupied_docpr_ids:
+                occupied_docpr_ids.add(value)
+                return docpr.group(0)
+            replacement = f'{docpr.group(1)}"{next_docpr_id}"'
+            occupied_docpr_ids.add(next_docpr_id)
+            next_docpr_id += 1
+            return replacement
+        return re.sub(r'(<wp:docPr\b[^>]*\bid=)(["\'])(\d+)\2', unique_docpr, copied)
+
+    return _WRITER_ANCHOR_RE.sub(replace, converted_xml), converted_rels_xml, next_rid, media, extensions
 
 
 def postprocess_writer_docx(
@@ -3353,9 +3653,6 @@ def postprocess_writer_docx(
     orig_header_entries, orig_footer_entries, orig_sect_pr, orig_rels = (
         _extract_docx_section_parts(source_docx)
     )
-
-    if not orig_sect_pr and not orig_header_entries and not orig_footer_entries:
-        return docx_bytes
 
     try:
         converted_xml_bytes = read_zip_entry(docx_bytes, "word/document.xml")
@@ -3408,6 +3705,15 @@ def postprocess_writer_docx(
         converted_xml, original_xml, orig_header_entries, orig_footer_entries, remapped_sect_pr
     )
     new_xml = _repair_writer_double_fills(new_xml)
+    with zipfile.ZipFile(io.BytesIO(docx_bytes)) as converted_zip:
+        existing_entries = set(converted_zip.namelist())
+    new_xml, converted_rels_xml, next_rid, anchor_media, anchor_extensions = (
+        _passthrough_writer_anchors(
+            new_xml, original_xml, source_docx, converted_rels_xml, next_rid,
+            existing_entries,
+        )
+    )
+    new_xml = _relocate_passthrough_anchors(new_xml, original_xml)
     new_xml = _restore_writer_anchor_properties(new_xml, original_xml)
 
     replacements: dict[str, bytes] = {}
@@ -3423,6 +3729,8 @@ def postprocess_writer_docx(
         footer_bytes = read_zip_entry(source_docx, entry_name)
         if footer_bytes:
             replacements[entry_name] = footer_bytes
+
+    replacements.update(anchor_media)
 
     if not replacements:
         return docx_bytes
@@ -3471,6 +3779,10 @@ def postprocess_writer_docx(
     for entry_name in orig_header_entries:
         part_name = f"/{entry_name}"
         ct_xml = _add_content_types_override(ct_xml, part_name, _DOCX_HEADER_CONTENT_TYPE)
+    for extension in sorted(anchor_extensions):
+        ct_xml = _add_content_type_default(
+            ct_xml, extension, _DOCX_IMAGE_CONTENT_TYPES[extension]
+        )
     replacements["[Content_Types].xml"] = ct_xml.encode("utf-8")
 
     source = io.BytesIO(docx_bytes)
