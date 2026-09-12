@@ -55,13 +55,12 @@ export class SheetApp {
     this.grid = new SheetGridController(gridWrap, {
       onSelect: (coord, data, stats) => {
         this.shell.setStatus(`SẴN SÀNG  |  Ô: ${coord}  |  ĐẾM: ${stats.count}  |  TRUNG BÌNH: ${stats.avg}  |  TỔNG CỘNG: ${stats.sum}`);
-      }
+      },
+      isBlank: options.templateId === "blank"
     });
     this.grid.mount();
 
     if (options.templateId === "blank") {
-      this.grid.cellsData.clear();
-      this.grid.container.querySelectorAll(".vno-grid-cell").forEach(td => td.textContent = "");
       this.shell.documentName = "Bảng tính 1.xlsx";
       const tabEl = this.shell.rootEl.querySelector(".vno-doc-tab span");
       if (tabEl) tabEl.textContent = "Bảng tính 1.xlsx";
