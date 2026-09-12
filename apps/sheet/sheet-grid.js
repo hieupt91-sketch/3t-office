@@ -966,12 +966,25 @@ export class SheetGridController {
   _applyRowColSizeToCell(td, col, row) {
     if (!td?.style) return;
     if (!this._isColumnHidden(col)) {
-      const width = this.getColumnWidth(col);
+      const colSpan = td.colSpan || 1;
+      let width = 0;
+      const startColNum = typeof this._columnNumber === "function" ? this._columnNumber(col) : 1;
+      for (let i = 0; i < colSpan; i++) {
+        const cLabel = typeof this._columnLabel === "function" ? this._columnLabel(startColNum + i) : col;
+        if (!this._isColumnHidden(cLabel)) {
+          width += this.getColumnWidth(cLabel);
+        }
+      }
       td.style.width = `${width}px`;
       td.style.minWidth = `${width}px`;
       td.style.maxWidth = `${width}px`;
     }
-    td.style.height = `${this.getRowHeight(row)}px`;
+    const rowSpan = td.rowSpan || 1;
+    let height = 0;
+    for (let i = 0; i < rowSpan; i++) {
+      height += this.getRowHeight(row + i);
+    }
+    td.style.height = `${height}px`;
   }
 
   _bindColumnHeader(th, col) {
@@ -3347,6 +3360,14 @@ export class SheetGridController {
     if (cell) {
       this._renderCellVisual(cell, item, col, row);
       this._applyRuleVisuals(cell, col, row);
+    }
+    const prevColNum = typeof this._columnNumber === "function" ? this._columnNumber(col) - 1 : 0;
+    if (prevColNum >= 1) {
+      const prevCol = this._columnLabel(prevColNum);
+      const prevCell = this.container.querySelector(`.vno-grid-cell[data-coord="${prevCol}${row}"]`);
+      if (prevCell) {
+        this._renderCellVisual(prevCell, this.cellsData.get(`${prevCol}${row}`), prevCol, row);
+      }
     }
 
     // Tự động tính toán lại các ô có công thức khác (trừ khi ở chế độ Manual)
@@ -9283,9 +9304,14 @@ export class SheetGridController {
   _renderCellVisual(td, itm, col, row) {
     if (!td) return;
     td.style.cssText = "";
-    td.classList?.toggle?.("is-wrap-text", itm?.style?.whiteSpace === "normal");
+    const isWrap = itm?.style?.whiteSpace === "normal" || itm?.style?.whiteSpace === "pre-wrap";
+    td.classList?.toggle?.("is-wrap-text", isWrap);
     if (!itm) {
       td.textContent = "";
+      td.classList?.remove?.("can-overflow", "has-content");
+      if (col && row && typeof this._applyRowColSizeToCell === "function") {
+        this._applyRowColSizeToCell(td, col, row);
+      }
       return;
     }
 
@@ -9303,17 +9329,20 @@ export class SheetGridController {
         const points = values.map((value, i) => `${values.length === 1 ? 50 : i * 100 / (values.length - 1)},${22 - (value - min) / span * 20}`).join(" ");
         td.innerHTML = `<svg data-sparkline="line" viewBox="0 0 100 24" width="100%" height="24" aria-label="Sparkline line"><polyline points="${points}" fill="none" stroke="#0f6d38" stroke-width="2"/></svg>`;
       }
+      if (col && row && typeof this._applyRowColSizeToCell === "function") this._applyRowColSizeToCell(td, col, row);
       return;
     }
 
     if (itm.hyperlink) {
       td.innerHTML = `<a href="${this._escapeHtml(itm.hyperlink)}" target="_blank" rel="noopener noreferrer">${this._escapeHtml(itm.val || itm.hyperlink)}</a>`;
+      if (col && row && typeof this._applyRowColSizeToCell === "function") this._applyRowColSizeToCell(td, col, row);
       return;
     }
 
     if (this.showFormulas && itm.formula) {
       td.textContent = itm.formula;
       td.style.textAlign = "left";
+      if (col && row && typeof this._applyRowColSizeToCell === "function") this._applyRowColSizeToCell(td, col, row);
       return;
     }
 
@@ -9350,6 +9379,49 @@ export class SheetGridController {
       }
     } else {
       td.textContent = typeof itm.val === "number" ? NumberFormatter.formatGeneralNumber(itm.val) : (itm.val ?? "");
+    }
+
+    if (col && row && typeof this._applyRowColSizeToCell === "function") {
+      this._applyRowColSizeToCell(td, col, row);
+    }
+
+    // Xử lý tràn chữ (text overflow) sang ô trống bên phải như Excel:
+    const hasVal = itm.val !== undefined && itm.val !== null && itm.val !== "";
+    if (hasVal) {
+      const isText = typeof itm.val === "string" && !itm.style?.numberFormat;
+      const align = itm.style?.textAlign || td.style?.textAlign;
+      const isLeftAlign = !align || align === "left" || align === "start";
+
+      if (isText && !isWrap && isLeftAlign && col && row) {
+        const colSpan = td.colSpan || 1;
+        const startColNum = typeof this._columnNumber === "function" ? this._columnNumber(col) : 1;
+        const nextColNum = startColNum + colSpan;
+        const nextCol = typeof this._columnLabel === "function" ? this._columnLabel(nextColNum) : null;
+        let nextIsEmpty = true;
+        if (nextCol && this.cellsData) {
+          const nextItem = this.cellsData.get(`${nextCol}${row}`);
+          if (nextItem && nextItem.val !== undefined && nextItem.val !== null && nextItem.val !== "") {
+            nextIsEmpty = false;
+          }
+        }
+        if (nextIsEmpty) {
+          td.classList.add("can-overflow");
+          td.classList.remove("has-content");
+          td.style.overflow = "visible";
+        } else {
+          td.classList.remove("can-overflow");
+          td.classList.add("has-content");
+          td.style.overflow = "hidden";
+          td.style.textOverflow = "clip";
+        }
+      } else {
+        td.classList.remove("can-overflow");
+        td.classList.add("has-content");
+        td.style.overflow = "hidden";
+        td.style.textOverflow = "clip";
+      }
+    } else {
+      td.classList.remove("can-overflow", "has-content");
     }
   }
 }
