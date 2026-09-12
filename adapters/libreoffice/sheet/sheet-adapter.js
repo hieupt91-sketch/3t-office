@@ -1751,6 +1751,34 @@ export class SheetAdapter {
 
     const numberFormats = this._collectNumberFormats(sheetNames);
     const rotationStyles = this._collectRotationStyles(sheetNames);
+
+    // ── Collect font families for office:font-face-decls ──
+    const fontFaces = new Map();
+    const addFontFace = (fontName) => {
+      if (!fontName || fontFaces.has(fontName)) return;
+      fontFaces.set(fontName, true);
+    };
+    for (const sheetName of sheetNames) {
+      const cells = this.grid.sheetsData?.[sheetName]
+        || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
+        || new Map();
+      for (const item of cells.values()) {
+        if (item?.style?.fontFamily) addFontFace(item.style.fontFamily);
+        if (Array.isArray(item?.richText)) {
+          for (const run of item.richText) {
+            if (run?.style?.fontFamily) addFontFace(run.style.fontFamily);
+          }
+        }
+      }
+    }
+    const fontFaceDeclsXml = fontFaces.size > 0
+      ? `<office:font-face-decls>${[...fontFaces.keys()].map(name => {
+          const escaped = this._escapeXml(name);
+          const needsQuote = /\s/.test(name);
+          const familyAttr = needsQuote ? `svg:font-family="&apos;${escaped}&apos;"` : `svg:font-family="${escaped}"`;
+          return `<style:font-face style:name="${escaped}" ${familyAttr}/>`;
+        }).join("")}</office:font-face-decls>`
+      : "";
     const rotationCombinedStyles = [];
     const conditionalNamedStyles = [];
     const conditionalBaseStyles = [];
@@ -2217,9 +2245,11 @@ export class SheetAdapter {
                 }).join("");
                 return `<text:p>${spanXml}</text:p>`;
               }).join("");
-              cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${cellAttrs}>${cellImageXml}${annotationXml}${paraXml}</table:table-cell>`;
+              cellsXml += `<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${paraXml}</table:table-cell>`;
             } else {
-              cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(text)}</text:p></table:table-cell>`;
+              const lines = text.split("\n");
+              const linesXml = lines.map(line => `<text:p>${this._escapeXml(line)}</text:p>`).join("");
+              cellsXml += `<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${linesXml}</table:table-cell>`;
             }
           }
           previousColumn = columnNumber;
@@ -2318,6 +2348,7 @@ export class SheetAdapter {
                  xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0"
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+  ${fontFaceDeclsXml}
   ${conditionalNamedStyles.length ? `<office:styles>${conditionalNamedStyles.join("")}</office:styles>` : ""}
   <office:automatic-styles>${pageLayouts.join("")}${tablePageStyles.join("")}${dimensionStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${[...rotationStyles.values()].map(style => this._rotationCellStyleXml(style.styleName, style.textRotation)).join("")}${rotationCombinedStyles.join("")}${conditionalBaseStyles.join("")}${visualStyleEntries.join("")}${richTextAutoStyles.join("")}</office:automatic-styles>
   <office:master-styles>${masterPages.join("")}</office:master-styles>
