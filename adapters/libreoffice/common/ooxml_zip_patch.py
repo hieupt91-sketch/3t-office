@@ -102,7 +102,7 @@ _LOCK_STRUCTURE_TRUE_RE = re.compile(
 )
 _MASTER_PAGE_OPEN_RE = re.compile(r"<style:master-page\b([^>]*)>", re.IGNORECASE)
 _MASTER_PAGE_OPEN_GI_RE = re.compile(r"<style:master-page\b([^>]*?)(/?)\s*>", re.IGNORECASE)
-_THEME_ATTR_RE = re.compile(r'\bvno:master-theme\s*=\s*["\']([^"\']*)["\']', re.IGNORECASE)
+_THEME_ATTR_RE = re.compile(r'\bvno:master-theme\s*=\s*(?:"([^"]*)"|\'([^\']*)\')', re.IGNORECASE)
 _LOGO_NAME_RE = re.compile(
     rf"""\bname\s*=\s*(['"]){re.escape(MASTER_LOGO_SHAPE_NAME)}\1"""
 )
@@ -1026,7 +1026,7 @@ def parse_master_logo_from_fodp(fodp_xml: str | None) -> dict[str, str]:
     accent_color = ""
     font_family = ""
     if theme_match:
-        raw = _unescape_xml(theme_match.group(1) or "")
+        raw = _unescape_xml(theme_match.group(1) or theme_match.group(2) or "")
         try:
             parsed = json.loads(raw)
         except json.JSONDecodeError:
@@ -1690,6 +1690,152 @@ def overlay_fodp_show_properties(fodp_xml: str, pres_props_xml: str | None) -> s
     return apply_fodp_show_settings_attrs(xml, settings)
 
 
+def parse_slide_image_crops(slide_xml: str | None) -> dict[str, str]:
+    """Parse p:pic with a:srcRect from a slide XML string.
+
+    Returns a dict mapping shape name to percentage string "l,t,r,b"
+    (where l,t,r,b are numbers in percent, e.g. "43.436,2.742,9.328,0").
+    """
+    if not slide_xml:
+        return {}
+    crops: dict[str, str] = {}
+    fmt = lambda v: f"{v / 1000.0:.5f}".rstrip("0").rstrip(".") or "0"
+    for match in re.finditer(r"<p:pic\b[\s\S]*?</p:pic>", slide_xml, re.IGNORECASE):
+        pic = match.group(0)
+        name_m = re.search(r"""<p:cNvPr\b[^>]*\bname=['"]([^'"]*)['"]""", pic, re.IGNORECASE)
+        src_m = re.search(r"<a:srcRect\b([^>]*)/?>", pic, re.IGNORECASE)
+        if name_m and src_m:
+            name = _unescape_xml(name_m.group(1))
+            attrs = src_m.group(1)
+            l_m = re.search(r"""\bl=['"](-?\d+)['"]""", attrs, re.IGNORECASE)
+            t_m = re.search(r"""\bt=['"](-?\d+)['"]""", attrs, re.IGNORECASE)
+            r_m = re.search(r"""\br=['"](-?\d+)['"]""", attrs, re.IGNORECASE)
+            b_m = re.search(r"""\bb=['"](-?\d+)['"]""", attrs, re.IGNORECASE)
+            l = int(l_m.group(1)) if l_m else 0
+            t = int(t_m.group(1)) if t_m else 0
+            r = int(r_m.group(1)) if r_m else 0
+            b = int(b_m.group(1)) if b_m else 0
+            crops[name] = f"{fmt(l)},{fmt(t)},{fmt(r)},{fmt(b)}"
+    return crops
+
+
+def apply_fodp_image_crops(
+    fodp_xml: str | None, crops_by_slide: list[dict[str, str]] | None
+) -> str:
+    """Stamp vno:src-rect="l,t,r,b" onto matching draw:frame in each draw:page."""
+    xml = fodp_xml or ""
+    if not crops_by_slide or not any(crops_by_slide):
+        return xml
+
+    pieces = []
+    cursor = 0
+    page_idx = 0
+
+    for start, end in _flat_xml_blocks(xml, ("draw:page",)):
+        pieces.append(xml[cursor:start])
+        page_xml = xml[start:end]
+        crops = crops_by_slide[page_idx] if page_idx < len(crops_by_slide) else None
+        page_idx += 1
+        if crops:
+            def replace_frame(fm: re.Match) -> str:
+                raw_attrs = fm.group(1) or ""
+                name_m = re.search(r"""\bdraw:name=['"]([^'"]*)['"]""", raw_attrs, re.IGNORECASE)
+                if not name_m:
+                    return fm.group(0)
+                name = _unescape_xml(name_m.group(1))
+                if name not in crops:
+                    return fm.group(0)
+                rect = crops[name]
+                self_close = bool(re.search(r"/\s*$", raw_attrs))
+                if self_close:
+                    raw_attrs = re.sub(r"/\s*$", "", raw_attrs)
+                if re.search(r'\bvno:src-rect\s*=', raw_attrs, re.IGNORECASE):
+                    raw_attrs = re.sub(
+                        r"""\bvno:src-rect=['"][^'"]*['"]""",
+                        f'vno:src-rect="{rect}"',
+                        raw_attrs,
+                        flags=re.IGNORECASE,
+                    )
+                else:
+                    raw_attrs = f'{raw_attrs.rstrip()} vno:src-rect="{rect}"'
+                if raw_attrs and not raw_attrs.startswith(" "):
+                    raw_attrs = f" {raw_attrs}"
+                return f"<draw:frame{raw_attrs}/>" if self_close else f"<draw:frame{raw_attrs}>"
+
+            page_xml = re.sub(r"<draw:frame\b([^>]*)>", replace_frame, page_xml, flags=re.IGNORECASE)
+        pieces.append(page_xml)
+        cursor = end
+
+    pieces.append(xml[cursor:])
+    result = "".join(pieces)
+    return ensure_vno_xmlns(result)
+
+
+def _resolve_pptx_slide_entries(pptx_bytes: bytes) -> list[str]:
+    """Returns list of zip entry paths for slides in p:sldIdLst order."""
+    pres_entry = read_zip_entry(pptx_bytes, PPTX_PRESENTATION_ENTRY)
+    if not pres_entry:
+        return []
+    pres_xml = pres_entry.decode("utf-8", errors="replace")
+    rels_entry = read_zip_entry(pptx_bytes, "ppt/_rels/presentation.xml.rels")
+    rels: dict[str, str] = {}
+    if rels_entry:
+        rels_xml = rels_entry.decode("utf-8", errors="replace")
+        for m in re.finditer(r"<Relationship\b([^>]*)/?>", rels_xml, re.IGNORECASE):
+            attrs = m.group(1)
+            rid_m = re.search(r"""\bId=['"]([^'"]*)['"]""", attrs, re.IGNORECASE)
+            target_m = re.search(r"""\bTarget=['"]([^'"]*)['"]""", attrs, re.IGNORECASE)
+            if rid_m and target_m:
+                rels[rid_m.group(1)] = target_m.group(1)
+    slide_ids = []
+    sld_lst_m = re.search(
+        r"<(?:[\w]+:)?sldIdLst\b[^>]*>([\s\S]*?)</(?:[\w]+:)?sldIdLst>",
+        pres_xml,
+        re.IGNORECASE,
+    )
+    if sld_lst_m:
+        for m in re.finditer(
+            r"<(?:[\w]+:)?sldId\b([^>]*)/?>", sld_lst_m.group(1), re.IGNORECASE
+        ):
+            rid_m = re.search(r"""\br:id=['"]([^'"]*)['"]""", m.group(1), re.IGNORECASE)
+            if rid_m:
+                target = rels.get(rid_m.group(1), "")
+                if target:
+                    if not target.startswith("ppt/"):
+                        target = f"ppt/{target.lstrip('/')}"
+                    slide_ids.append(target)
+    if not slide_ids:
+        try:
+            with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as z:
+                names = [
+                    n
+                    for n in z.namelist()
+                    if re.match(r"^ppt/slides/slide\d+\.xml$", n, re.IGNORECASE)
+                ]
+                names.sort(
+                    key=lambda x: int(re.search(r"\d+", x).group(0))
+                    if re.search(r"\d+", x)
+                    else 0
+                )
+                slide_ids = names
+        except Exception:
+            pass
+    return slide_ids
+
+
+def overlay_fodp_image_crops(fodp_xml: str, pptx_bytes: bytes) -> str:
+    """Extract a:srcRect from each slide in PPTX and overlay onto FODP frames."""
+    slide_entries = _resolve_pptx_slide_entries(pptx_bytes)
+    if not slide_entries:
+        return fodp_xml or ""
+    crops_by_slide = []
+    for entry_path in slide_entries:
+        slide_bytes = read_zip_entry(pptx_bytes, entry_path)
+        slide_xml = slide_bytes.decode("utf-8", errors="replace") if slide_bytes else ""
+        crops_by_slide.append(parse_slide_image_crops(slide_xml))
+    return apply_fodp_image_crops(fodp_xml, crops_by_slide)
+
+
 def parse_sections_from_fodp(fodp_xml: str | None) -> list[dict]:
     pages = parse_fodp_pages(fodp_xml)
     if not any(page["sectionId"] for page in pages):
@@ -2028,7 +2174,9 @@ def apply_fodp_master_theme_attrs(fodp_xml: str, logo: dict | None) -> str:
         if self_close:
             raw = re.sub(r"/\s*$", "", raw)
         theme_match = _THEME_ATTR_RE.search(raw)
-        existing = _unescape_xml(theme_match.group(1) if theme_match else "")
+        existing = _unescape_xml(
+            (theme_match.group(1) or theme_match.group(2)) if theme_match else ""
+        )
         encoded = _escape_xml(
             json.dumps(_merge_master_theme_payload(existing, logo), ensure_ascii=False, separators=(",", ":"))
         )
@@ -2877,9 +3025,10 @@ def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
         masters.append(entry.decode("utf-8", errors="replace"))
     xml = overlay_fodp_master_logo(xml, masters)
     props = read_zip_entry(pptx_bytes, PPTX_PRESPROPS_ENTRY)
-    if not props:
-        return xml
-    return overlay_fodp_show_properties(xml, props.decode("utf-8", errors="replace"))
+    if props:
+        xml = overlay_fodp_show_properties(xml, props.decode("utf-8", errors="replace"))
+    xml = overlay_fodp_image_crops(xml, pptx_bytes)
+    return xml
 
 
 def overlay_slides_pptx_fodp_file(
