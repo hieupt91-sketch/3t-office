@@ -708,7 +708,8 @@ export class SheetAdapter {
   }
 
   _isCloseToDefault(px, fallback) {
-    return Math.abs(Number(px) - Number(fallback)) <= 1;
+    // Không nuốt độ rộng hay chiều cao thật (kể cả khi lệch <= 1px hoặc bằng đúng default)
+    return false;
   }
 
   _tableAttr(element, localName) {
@@ -1085,7 +1086,10 @@ export class SheetAdapter {
           if (parts.length < 3) return val;
           const [width, style, ...rest] = parts;
           let w = width;
-          if (w.endsWith("pt")) w = `${parseFloat(w) * 1.3333}px`;
+          if (w.endsWith("pt")) {
+            const pxVal = Math.round(parseFloat(w) * (96 / 72) * 100) / 100;
+            w = `${pxVal}px`;
+          }
           const color = rest.join(" ") || "#000000";
           return `${w} ${style} ${color}`;
         };
@@ -1097,9 +1101,16 @@ export class SheetAdapter {
         if (hAlign) style.textAlign = hAlign;
         const fontSize = textProps.match(/fo:font-size=["']([^"']+)["']/i)?.[1];
         if (fontSize) {
-          if (fontSize.endsWith("pt")) style.fontSize = `${parseFloat(fontSize) * 1.3333}px`;
-          else if (fontSize.endsWith("px")) style.fontSize = fontSize;
-          else style.fontSize = `${fontSize}px`;
+          if (fontSize.endsWith("pt")) {
+            const pxVal = Math.round(parseFloat(fontSize) * (96 / 72) * 100) / 100;
+            style.fontSize = `${pxVal}px`;
+          } else if (fontSize.endsWith("px")) {
+            const pxVal = Math.round(parseFloat(fontSize) * 100) / 100;
+            style.fontSize = `${pxVal}px`;
+          } else {
+            const pxVal = Math.round(parseFloat(fontSize) * 100) / 100;
+            style.fontSize = `${pxVal}px`;
+          }
         }
         const fontWeight = textProps.match(/fo:font-weight=["']([^"']+)["']/i)?.[1];
         if (fontWeight) style.fontWeight = fontWeight;
@@ -1766,7 +1777,7 @@ export class SheetAdapter {
       if (!cssVal || cssVal === "none") return `${side}="none"`;
       const m = String(cssVal).match(/^([\d.]+)px\s+(solid|dashed|dotted|double)\s+(#[0-9a-fA-F]+|[\w]+)$/);
       if (!m) return `${side}="none"`;
-      const ptVal = (parseFloat(m[1]) / 1.3333).toFixed(2);
+      const ptVal = Number((parseFloat(m[1]) * (72 / 96)).toFixed(2));
       return `${side}="${ptVal}pt ${m[2]} ${m[3]}"`;
     };
     const visualStyleFor = (item) => {
@@ -1791,7 +1802,7 @@ export class SheetAdapter {
       if (s.textAlign) paraProps.push(`fo:text-align="${this._escapeXml(s.textAlign)}"`);
       const textProps = [];
       if (s.fontSize) {
-        const ptVal = s.fontSize.endsWith("px") ? (parseFloat(s.fontSize) / 1.3333).toFixed(1) : s.fontSize;
+        const ptVal = s.fontSize.endsWith("px") ? Number((parseFloat(s.fontSize) * (72 / 96)).toFixed(2)) : s.fontSize;
         textProps.push(`fo:font-size="${ptVal}pt"`);
       }
       if (s.fontWeight) textProps.push(`fo:font-weight="${this._escapeXml(s.fontWeight)}"`);
