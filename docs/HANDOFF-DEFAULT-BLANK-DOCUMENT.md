@@ -127,3 +127,47 @@ Lưu ý: Bằng chứng ảnh chụp cần được bổ sung bởi người ch�
   - Hiển thị đầy đủ và chính xác 15 tab sheet.
   - Sheet "Camera IP" hiển thị đúng banner hình ảnh và tiêu đề "BẢNG BÁO GIÁ ĐẠI LÝ DAHUA CHÍNH HÃNG".
 
+---
+
+## PHẦN B: Khắc phục lệch Fidelity mở mặc định sai Sheet so với Excel (`activeTab` → `ActiveTable`)
+
+### 1. Hiện tượng & Nguyên nhân
+- **Bằng chứng file thực tế**: Trong file `DSS_Báo giá Dahua HN-T11.2023.xlsx`:
+  - `xl/workbook.xml` gốc khai báo: `<bookViews><workbookView activeTab="1"/></bookViews>`
+  - Danh sách sheet: sheet 0 là `"foxz"` (trống, mang thuộc tính `state="veryHidden"`), sheet 1 là `"Thông báo Sản phẩm mới"`.
+  - Microsoft Excel khi mở file sẽ kích hoạt trực tiếp sheet thứ 2 ("Thông báo Sản phẩm mới").
+- **Vấn đề của LibreOffice**:
+  - Khi chạy headless `soffice --convert-to fods`, LibreOffice làm rơi toàn bộ thiết lập `config:name="ActiveTable"` trong `office:settings`.
+  - Hệ quả trong VN Office Sheet: `parseFods()` trong `SheetAdapter` đọc `ActiveTable` trả về rỗng, dẫn đến việc ứng dụng tự rơi về sheet đầu tiên (`workbook.sheets[0] = "foxz"`). Người dùng mở file thấy một trang tính trắng trơn dù file đầy dữ liệu, khác biệt hoàn toàn với Excel.
+
+### 2. Giải pháp thực hiện theo pattern Native Overlay
+Bổ sung cơ chế bù đắp thuộc tính thiếu hụt từ file XLSX gốc vào FODS trước khi `SheetAdapter.parseFods()` đọc:
+- **Cập nhật đồng bộ cả hai module twin**:
+  - Python: `adapters/libreoffice/common/ooxml_zip_patch.py` (sử dụng trong `main.py` khi mở file desktop và CLI `--overlay-fods`).
+  - Node.js: `adapters/libreoffice/sheet/xlsx-native-postprocess.js` (sử dụng trong bộ test và runtime JS).
+- **Các bước thực hiện**:
+  1. Đọc `activeTab` từ `<bookViews><workbookView activeTab="N"/>` trong `xl/workbook.xml` gốc (mặc định là `0` nếu thẻ `workbookView` có tồn tại nhưng thiếu thuộc tính `activeTab`). Nếu `workbookView` hoàn toàn không có trong file, trả về `None` để không can thiệp không cần thiết.
+  2. Ánh xạ chỉ số N sang tên sheet tương ứng theo thứ tự khai báo `<sheets><sheet name="..."/>` (chỉ số N tính theo toàn bộ các sheet, bao gồm cả sheet ẩn và veryHidden theo đúng đặc tả OOXML). Giải mã các thực thể XML (unescape) trong tên sheet.
+  3. Nếu FODS chưa có `ActiveTable`:
+     - Escape XML tên sheet và tạo thẻ: `<config:config-item config:name="ActiveTable" config:type="string">TÊN_SHEET</config:config-item>`.
+     - Đảm bảo namespace `xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"` được khai báo trên thẻ gốc `<office:document>`.
+     - Nếu FODS đã có `<config:config-item-set config:name="ooo:view-settings">`, chèn thẻ `ActiveTable` vào `config:config-item-map-entry` hoặc bọc trong `config:config-item-map-indexed config:name="Views"`.
+     - Nếu FODS thiếu cấu trúc view settings, tự động tạo khối `<office:settings>` hoàn chỉnh trước `<office:body>` theo đúng định dạng `serializeToFods()`.
+     - Nếu FODS **ĐÃ CÓ** `ActiveTable` từ trước: giữ nguyên tuyệt đối, không ghi đè.
+  4. Phía JavaScript không cần chỉnh sửa `sheet-adapter.js` vì cả hai nhánh DOM parser và regex streaming parser đều đã đọc sẵn `ActiveTable`.
+
+### 3. Kiểm thử & Xác minh độ chính xác
+- **Unit tests Python mới**: `tests/test_sheet_active_tab_overlay.py` (18/18 tests PASS):
+  - Kiểm tra đọc đúng `activeTab="1"`, fallback về `0` khi thiếu, xử lý `None` và chuỗi rỗng an toàn.
+  - Ánh xạ chính xác chỉ số `1` sang sheet thứ hai ("Thông báo Sản phẩm mới").
+  - Xử lý sheet name chứa tiếng Việt và ký tự đặc biệt XML (`&`, `<`, `>`, `"`).
+  - Kiểm tra `apply_active_sheet_to_fods` trên FODS không có settings, FODS có sẵn LibreOffice view settings, và FODS đã có sẵn ActiveTable (idempotency).
+  - Tích hợp `overlay_sheet_xlsx_fods`: đảm bảo trả về đúng sheet tương ứng sau overlay.
+  - **Xác minh không mock trên file thật**: Chuyển đổi thật `file test/DSS_Báo giá Dahua HN-T11.2023.xlsx` qua LibreOffice headless + chạy `_apply_native_import_overlay()` → trích xuất chính xác `ActiveTable` = `"Thông báo Sản phẩm mới"`.
+- **Đảm bảo không hồi quy**:
+  - `python -m unittest discover -s tests -p "test_*.py"`: **175/175 PASS** (tăng từ 157).
+  - `node scripts/check-syntax.js`: **91/91 files hợp lệ**.
+  - `node tests/run-tests.js`: **1581/1581 PASS**.
+  - Bộ test đối chiếu song song Python twin vs JS (`tests/unit/sheet-xlsx-native-open-overlay.test.js`) đạt chuẩn tuyệt đối (`jsFods === pyFods`).
+
+
