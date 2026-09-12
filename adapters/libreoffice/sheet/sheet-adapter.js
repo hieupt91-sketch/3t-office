@@ -46,6 +46,7 @@ export class SheetAdapter {
     this.grid = gridController;
     this.isDirty = false;
     this.sourceFileName = "BangTinh";
+    this.sourceFilePath = "";
     this.shell = null;
   }
 
@@ -1128,6 +1129,7 @@ export class SheetAdapter {
         const borderRight = cellProps.match(/fo:border-right=["']([^"']+)["']/i)?.[1];
         const borderTop = cellProps.match(/fo:border-top=["']([^"']+)["']/i)?.[1];
         const borderBottom = cellProps.match(/fo:border-bottom=["']([^"']+)["']/i)?.[1];
+        const borderShorthand = cellProps.match(/fo:border=["']([^"']+)["']/i)?.[1];
         const odfBorderToCss = (val) => {
           if (!val || val === "none" || val === "hidden") return "none";
           const parts = val.trim().split(/\s+/);
@@ -1138,13 +1140,23 @@ export class SheetAdapter {
             const pxVal = Math.round(parseFloat(w) * (96 / 72) * 100) / 100;
             w = `${pxVal}px`;
           }
+          let s = style;
+          if (s === "double-thin") s = "double";
           const color = rest.join(" ") || "#000000";
-          return `${w} ${style} ${color}`;
+          return `${w} ${s} ${color}`;
         };
-        if (borderLeft) style.borderLeft = odfBorderToCss(borderLeft);
-        if (borderRight) style.borderRight = odfBorderToCss(borderRight);
-        if (borderTop) style.borderTop = odfBorderToCss(borderTop);
-        if (borderBottom) style.borderBottom = odfBorderToCss(borderBottom);
+        if (borderShorthand) {
+          const css = odfBorderToCss(borderShorthand);
+          style.borderLeft = css;
+          style.borderRight = css;
+          style.borderTop = css;
+          style.borderBottom = css;
+        } else {
+          if (borderLeft) style.borderLeft = odfBorderToCss(borderLeft);
+          if (borderRight) style.borderRight = odfBorderToCss(borderRight);
+          if (borderTop) style.borderTop = odfBorderToCss(borderTop);
+          if (borderBottom) style.borderBottom = odfBorderToCss(borderBottom);
+        }
         const hAlign = paraProps.match(/fo:text-align=["']([^"']+)["']/i)?.[1];
         if (hAlign) style.textAlign = hAlign;
         const fontSize = textProps.match(/fo:font-size=["']([^"']+)["']/i)?.[1];
@@ -1854,7 +1866,9 @@ export class SheetAdapter {
       const m = String(cssVal).match(/^([\d.]+)px\s+(solid|dashed|dotted|double)\s+(#[0-9a-fA-F]+|[\w]+)$/);
       if (!m) return `${side}="none"`;
       const ptVal = Number((parseFloat(m[1]) * (72 / 96)).toFixed(2));
-      return `${side}="${ptVal}pt ${m[2]} ${m[3]}"`;
+      let style = m[2];
+      if (style === "double") style = "double-thin";
+      return `${side}="${ptVal}pt ${style} ${m[3]}"`;
     };
     const visualStyleFor = (item) => {
       const s = item?.style || {};
@@ -3599,7 +3613,7 @@ export class SheetAdapter {
     const suggestedName = (this.sourceFileName && this.sourceFileName !== "BangTinh")
       ? this.sourceFileName
       : (this.shell?.documentName ? this.shell.documentName.replace(/\.[^/.]+$/, "") : (this.sourceFileName || "BangTinh"));
-    const result = await globalUnoBridge.saveRealFile("sheet", fodsContent, "xlsx", suggestedName);
+    const result = await globalUnoBridge.saveRealFile("sheet", fodsContent, "xlsx", suggestedName, this.sourceFilePath);
     if (result.status === "ok") {
       this.isDirty = false;
       const savedPath = result.path || result.fileName;
@@ -3633,6 +3647,7 @@ export class SheetAdapter {
       // belt-and-suspenders path (ooxmlWorkbookXml) plus tests that stub the bridge.
       this.loadFromFods(result.content, result.ooxmlWorkbookXml);
       this.sourceFileName = (result.fileName || "BangTinh").replace(/\.[^/.]+$/, "");
+      this.sourceFilePath = result.sourcePath || "";
       this.isDirty = false;
       // Lỗi thật đã xác nhận: dữ liệu nạp đúng nhưng nhãn tên tệp trên tab
       // (đầu cửa sổ) vẫn giữ nguyên tên demo cũ vì resetDocumentChrome() chỉ
