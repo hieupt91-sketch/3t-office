@@ -5,7 +5,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { createZip } from "../../adapters/libreoffice/common/ooxml-zip-patch.js";
 import { SheetAdapter, numberFormatFromExcelCode } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
-import { auditSheetImport } from "../../scripts/audit-sheet-import.mjs";
+import { auditSheetImport, auditSheetRoundtrip } from "../../scripts/audit-sheet-import.mjs";
 
 const WORKBOOK = `<?xml version="1.0"?><workbook xmlns:r="r"><bookViews><workbookView activeTab="0"/></bookViews><sheets><sheet name="Data" sheetId="1" r:id="rId1"/></sheets></workbook>`;
 const RELS = `<?xml version="1.0"?><Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>`;
@@ -57,6 +57,11 @@ export async function runSheetImportAuditTests() {
     const parsed = new SheetAdapter(null).parseFods(FODS);
     assert.equal(parsed.sheetsData.Data.get("A1").val, "A & B");
   });
+  await test("parseFods regex preserves vno original-string whitespace", () => {
+    const source = FODS.replace('office:string-value="A &amp;amp; B"', 'office:string-value="changed" vno:original-string="  A &amp; B  "');
+    const parsed = new SheetAdapter(null).parseFods(source);
+    assert.equal(parsed.sheetsData.Data.get("A1").val, "  A & B  ");
+  });
   await test("audit engine: đối chiếu value/formula/format/merge/layout/hidden/freeze/filter", () => {
     const f = fixture();
     try { const report = auditSheetImport(f.xlsx, f.fods); assert.equal(report.totals.mismatches, 0, JSON.stringify(report.sheets[0].mismatches)); }
@@ -69,6 +74,15 @@ export async function runSheetImportAuditTests() {
       assert.equal(cli.status, 0, cli.stderr); assert.match(cli.stdout, /TONG: o khop 3\/3; sai lech 0/);
     } finally { fs.rmSync(f.dir, { recursive: true, force: true }); }
   });
+  await test("audit XLSX-vs-XLSX: fixture giống nhau có 0 lệch", () => {
+    const f = fixture();
+    try {
+      const report = auditSheetRoundtrip(f.xlsx, f.xlsx);
+      assert.equal(report.totals.mismatches, 0, JSON.stringify(report));
+      const cli = spawnSync(process.execPath, ["scripts/audit-sheet-import.mjs", "--xlsx-vs-xlsx", f.xlsx, f.xlsx], { cwd: path.resolve("."), encoding: "utf8" });
+      assert.equal(cli.status, 0, cli.stderr); assert.match(cli.stdout, /TONG sai lech: 0/);
+    } finally { fs.rmSync(f.dir, { recursive: true, force: true }); }
+  });
   await test("Python overlay giữ kích thước XLSX chính xác cho cả parser regex", () => {
     const f = fixture(); const overlaid = path.join(f.dir, "overlaid.fods");
     try {
@@ -77,6 +91,19 @@ export async function runSheetImportAuditTests() {
       const parsed = new SheetAdapter(null).parseFods(fs.readFileSync(overlaid, "utf8"));
       assert.equal(parsed.colWidthsBySheet.Data.get("A"), 99.9999999998);
       assert.equal(parsed.rowHeightsBySheet.Data.get(1), 20);
+    } finally { fs.rmSync(f.dir, { recursive: true, force: true }); }
+  });
+  await test("audit XLSX-vs-XLSX ignores LibreOffice default column tail", () => {
+    const f = fixture(); const actual = path.join(f.dir, "actual.xlsx");
+    try {
+      const sheetWithTail = SHEET.replace("</cols>", '<col min="2" max="16384" width="13.5714285714"/></cols>');
+      fs.writeFileSync(actual, createZip([
+        { name: "xl/workbook.xml", data: WORKBOOK }, { name: "xl/_rels/workbook.xml.rels", data: RELS },
+        { name: "xl/styles.xml", data: STYLES }, { name: "xl/sharedStrings.xml", data: SHARED },
+        { name: "xl/worksheets/sheet1.xml", data: sheetWithTail }
+      ]));
+      const report = auditSheetRoundtrip(f.xlsx, actual);
+      assert.equal(report.sheets[0].mismatches.columnWidth.count, 0, JSON.stringify(report.sheets[0].mismatches.columnWidth));
     } finally { fs.rmSync(f.dir, { recursive: true, force: true }); }
   });
   return results;

@@ -585,5 +585,156 @@ export async function runSheetImportRichTextTests() {
     assert(thirdRun.style?.fontWeight === "bold", "third run should be bold");
   });
 
+  // --- Entity round-trip tests: < > & " ' must survive parse→serialize→parse ---
+
+  run("Regex branch: entity < > & in regular cell text survive round-trip", () => {
+    const sheetName = "Ent";
+    const grid = makeGrid(sheetName);
+    const adapter = new SheetAdapter(grid);
+    adapter.grid = grid;
+
+    const fods = minimalRichTextFods({
+      sheetName,
+      cells: [{
+        attrs: {
+          "office:value-type": "string"
+        },
+        paragraphs: [{ text: "A &lt; B &amp; C &gt; D" }]
+      }]
+    });
+
+    const wb = adapter.parseFods(fods);
+    const cell = wb.sheetsData[sheetName].get("A1");
+    assert(cell, "A1 should exist");
+    assert(cell.val === "A < B & C > D", `val should be decoded, got "${cell.val}"`);
+
+    grid.sheetsData[sheetName] = wb.sheetsData[sheetName];
+    const reFods = adapter.serializeToFods();
+    assert(!reFods.includes("&amp;lt;"), "serialized FODS must not contain &amp;lt;");
+    assert(!reFods.includes("&amp;amp;"), "serialized FODS must not contain &amp;amp;");
+    assert(reFods.includes("A &lt; B &amp; C &gt; D"), "serialized FODS should have single-escaped entities");
+
+    const wb2 = new SheetAdapter(null).parseFods(reFods);
+    const cell2 = wb2.sheetsData[sheetName].get("A1");
+    assert(cell2, "round-trip A1 should exist");
+    assert(cell2.val === "A < B & C > D", `round-trip val should match, got "${cell2.val}"`);
+  });
+
+  run("Regex branch: entity < > & in rich text runs survive round-trip", () => {
+    const sheetName = "EntRT";
+    const grid = makeGrid(sheetName);
+    const adapter = new SheetAdapter(grid);
+    adapter.grid = grid;
+
+    const fods = minimalRichTextFods({
+      sheetName,
+      autoStyles: `
+        <style:style style:name="T1" style:family="text">
+          <style:text-properties fo:color="#ff0000"/>
+        </style:style>
+      `,
+      cells: [{
+        attrs: {
+          "office:value-type": "string"
+        },
+        paragraphs: [{
+          spans: [
+            { styleName: "T1", text: "X &lt; 9.6W &amp; ok" },
+            { text: " plain &gt; text" }
+          ]
+        }]
+      }]
+    });
+
+    const wb = adapter.parseFods(fods);
+    const cell = wb.sheetsData[sheetName].get("A1");
+    assert(cell, "A1 should exist");
+    assert(Array.isArray(cell.richText), "richText should be array");
+    assert(cell.richText.length === 2, `should have 2 runs, got ${cell.richText.length}`);
+    assert(cell.richText[0].text === "X < 9.6W & ok", `run 0 text decoded, got "${cell.richText[0].text}"`);
+    assert(cell.richText[1].text === " plain > text", `run 1 text decoded, got "${cell.richText[1].text}"`);
+
+    grid.sheetsData[sheetName] = wb.sheetsData[sheetName];
+    const reFods = adapter.serializeToFods();
+    assert(!reFods.includes("&amp;lt;"), "serialized FODS must not contain &amp;lt;");
+    assert(!reFods.includes("&amp;amp;"), "serialized FODS must not contain &amp;amp;");
+
+    const wb2 = new SheetAdapter(null).parseFods(reFods);
+    const cell2 = wb2.sheetsData[sheetName].get("A1");
+    assert(cell2, "round-trip A1 should exist");
+    assert(Array.isArray(cell2.richText), "round-trip richText should be array");
+    assert(cell2.richText.length === 2, `round-trip should have 2 runs, got ${cell2.richText.length}`);
+    assert(cell2.richText[0].text === "X < 9.6W & ok", `round-trip run 0, got "${cell2.richText[0].text}"`);
+    assert(cell2.richText[1].text === " plain > text", `round-trip run 1, got "${cell2.richText[1].text}"`);
+  });
+
+  run("Regex branch: vno:original-string with entities overrides decoded text correctly", () => {
+    const sheetName = "EntOrig";
+    const grid = makeGrid(sheetName);
+    const adapter = new SheetAdapter(grid);
+    adapter.grid = grid;
+
+    const fods = minimalRichTextFods({
+      sheetName,
+      cells: [{
+        attrs: {
+          "office:value-type": "string",
+          "vno:original-string": "Công suất &lt;9.6W"
+        },
+        paragraphs: [{ text: "Công suất &lt;9.6W" }]
+      }]
+    });
+
+    const wb = adapter.parseFods(fods);
+    const cell = wb.sheetsData[sheetName].get("A1");
+    assert(cell, "A1 should exist");
+    assert(cell.val === "Công suất <9.6W", `val from vno:original-string decoded, got "${cell.val}"`);
+  });
+
+  run("DOM branch: entity < > & in rich text runs survive round-trip", () => {
+    const sheetName = "EntDOM";
+    const grid = makeGrid(sheetName);
+    const adapter = new SheetAdapter(grid);
+    adapter.grid = grid;
+
+    const fods = minimalRichTextFods({
+      sheetName,
+      autoStyles: `
+        <style:style style:name="T1" style:family="text">
+          <style:text-properties fo:font-weight="bold"/>
+        </style:style>
+      `,
+      cells: [{
+        attrs: {
+          "office:value-type": "string"
+        },
+        paragraphs: [{
+          spans: [
+            { styleName: "T1", text: "A &lt; B" },
+            { text: " &amp; C &gt; D" }
+          ]
+        }]
+      }]
+    });
+
+    const wb = adapter.parseFods(fods);
+    const cell = wb.sheetsData[sheetName].get("A1");
+    assert(cell, "A1 should exist");
+    assert(Array.isArray(cell.richText), "richText should be array");
+    assert(cell.richText[0].text === "A < B", `DOM run 0, got "${cell.richText[0].text}"`);
+    assert(cell.richText[1].text === " & C > D", `DOM run 1, got "${cell.richText[1].text}"`);
+
+    grid.sheetsData[sheetName] = wb.sheetsData[sheetName];
+    const reFods = adapter.serializeToFods();
+    assert(!reFods.includes("&amp;lt;"), "DOM serialized FODS must not contain &amp;lt;");
+    assert(!reFods.includes("&amp;amp;"), "DOM serialized FODS must not contain &amp;amp;");
+
+    const wb2 = new SheetAdapter(null).parseFods(reFods);
+    const cell2 = wb2.sheetsData[sheetName].get("A1");
+    assert(cell2, "DOM round-trip A1 should exist");
+    assert(cell2.richText[0].text === "A < B", `DOM round-trip run 0, got "${cell2.richText[0].text}"`);
+    assert(cell2.richText[1].text === " & C > D", `DOM round-trip run 1, got "${cell2.richText[1].text}"`);
+  });
+
   return results;
 }

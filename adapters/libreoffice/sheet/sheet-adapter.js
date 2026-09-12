@@ -419,7 +419,8 @@ export class SheetAdapter {
   // value and once again for XML. XML DOM/text stripping removes one layer;
   // this removes the remaining transport layer while preserving user text.
   _decodeImportedCellText(value) {
-    return this._unescapeXml(value);
+    const once = this._unescapeXml(value);
+    return /&(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-f]+);/i.test(once) ? this._unescapeXml(once) : once;
   }
 
   /** Đọc mọi thuộc tính trong một đoạn mở-thẻ XML (vd 'style:name="ta1" style:master-page-name="X"') thành object, không phụ thuộc thứ tự. */
@@ -1317,22 +1318,22 @@ export class SheetAdapter {
         hasSpans = true;
         // Text before this span (if any) is unstyled
         if (spanMatch.index > lastIdx) {
-          const gap = paraInner.substring(lastIdx, spanMatch.index).replace(/<[^>]+>/g, "");
+          const gap = this._unescapeXml(paraInner.substring(lastIdx, spanMatch.index).replace(/<[^>]+>/g, ""));
           if (gap) allRuns.push({ text: gap, style: {} });
         }
         const attrs = spanMatch[1];
         const styleName = (attrs.match(/text:style-name=["']([^"']*)["']/i)?.[1] || "");
         const spanStyle = textStyles.get(styleName) || {};
-        const text = spanMatch[2].replace(/<[^>]+>/g, "");
+        const text = this._unescapeXml(spanMatch[2].replace(/<[^>]+>/g, ""));
         allRuns.push({ text, style: { ...spanStyle } });
         lastIdx = spanMatch.index + spanMatch[0].length;
       }
 
       if (!hasSpans) {
-        const text = paraInner.replace(/<[^>]+>/g, "");
+        const text = this._unescapeXml(paraInner.replace(/<[^>]+>/g, ""));
         allRuns.push({ text, style: {} });
       } else if (lastIdx < paraInner.length) {
-        const tail = paraInner.substring(lastIdx).replace(/<[^>]+>/g, "");
+        const tail = this._unescapeXml(paraInner.substring(lastIdx).replace(/<[^>]+>/g, ""));
         if (tail) allRuns.push({ text: tail, style: {} });
       }
     }
@@ -2402,6 +2403,7 @@ export class SheetAdapter {
    * parseFods ignore the million-row repeated tail of real XLSX files.
    */
   _fodsCellHasRealContent(cell) {
+    if (cell.getAttribute("vno:original-string") !== null) return true;
     if (cell.getAttribute("table:formula") || cell.getAttribute("vno:formula")) return true;
     if (cell.getAttribute("table:content-validation-name")) return true;
     if (Number(cell.getAttribute("table:number-columns-spanned")) > 1 || Number(cell.getAttribute("table:number-rows-spanned")) > 1) return true;
@@ -2421,6 +2423,7 @@ export class SheetAdapter {
 
   /** Regex-branch twin of _fodsCellHasRealContent (attributes map + raw inner markup). */
   _fodsCellMarkupHasRealContent(attributes, content) {
+    if (attributes["vno:original-string"] !== undefined) return true;
     if (attributes["table:formula"] || attributes["vno:formula"] || attributes["table:content-validation-name"]) return true;
     if (Number(attributes["table:number-columns-spanned"]) > 1 || Number(attributes["table:number-rows-spanned"]) > 1) return true;
     for (const attr of ["office:value", "office:string-value", "office:date-value", "office:time-value", "office:boolean-value"]) {
@@ -2441,6 +2444,8 @@ export class SheetAdapter {
       value = Number.isFinite(numericValue) ? numericValue : text;
     } else if (valueType === "boolean") {
       value = get("office:boolean-value") === "true";
+    } else if (get("vno:original-string") !== "") {
+      value = get("vno:original-string");
     } else if (get("office:string-value")) {
       value = this._decodeImportedCellText(get("office:string-value"));
     }
@@ -3007,7 +3012,7 @@ export class SheetAdapter {
                     const rt = this._extractRichTextFromDom(cell, textStyles, cellVisual);
                     if (rt.runs) {
                       item.richText = rt.runs;
-                      item.val = rt.text;
+                      item.val = attributes["vno:original-string"] ?? rt.text;
                     }
                   }
                   const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);
@@ -3226,7 +3231,7 @@ export class SheetAdapter {
                   const rt = this._extractRichTextFromXml(valueContent, textStyles, cellVisual);
                   if (rt.runs) {
                     item.richText = rt.runs;
-                    item.val = rt.text;
+                    item.val = attributes["vno:original-string"] ?? rt.text;
                   }
                 }
                 const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);
