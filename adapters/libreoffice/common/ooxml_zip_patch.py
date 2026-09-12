@@ -31,6 +31,7 @@ import zipfile
 
 XLSX_WORKBOOK_ENTRY = "xl/workbook.xml"
 XLSX_WORKBOOK_RELS_ENTRY = "xl/_rels/workbook.xml.rels"
+XLSX_STYLES_ENTRY = "xl/styles.xml"
 PPTX_PRESENTATION_ENTRY = "ppt/presentation.xml"
 PPTX_PRESPROPS_ENTRY = "ppt/presProps.xml"
 MASTER_LOGO_SHAPE_NAME = "VNOfficeMasterLogo"
@@ -46,6 +47,25 @@ SECTION_LIST_URI = "{521415D9-36F7-43E2-AB2F-B90AF26B5E84}"
 DEFAULT_SECTION_NAME = "Default Section"
 SECTION_GUID_NAME_PREFIX = "urn:vn-office:slides:section:"
 VNO_NS = "urn:vn-office:slides:1.0"
+SHEET_VNO_NS = "https://vnoffice.vn/ns/spreadsheet/1.0"
+EXCEL_BUILTIN_NUMBER_FORMATS = {
+    0: "General", 1: "0", 2: "0.00", 3: "#,##0", 4: "#,##0.00",
+    5: '"$"#,##0_);("$"#,##0)', 6: '"$"#,##0_);[Red]("$"#,##0)',
+    7: '"$"#,##0.00_);("$"#,##0.00)', 8: '"$"#,##0.00_);[Red]("$"#,##0.00)',
+    9: "0%", 10: "0.00%", 11: "0.00E+00", 12: "# ?/?", 13: "# ??/??",
+    14: "mm-dd-yy", 15: "d-mmm-yy", 16: "d-mmm", 17: "mmm-yy",
+    18: "h:mm AM/PM", 19: "h:mm:ss AM/PM", 20: "h:mm", 21: "h:mm:ss",
+    22: "m/d/yy h:mm", 23: "General", 24: "General", 25: "General", 26: "General",
+    27: "m/d/yy", 28: "m/d/yy", 29: "m/d/yy", 30: "m/d/yy", 31: "m/d/yy",
+    32: "h:mm:ss", 33: "h:mm:ss", 34: "h:mm:ss", 35: "h:mm:ss", 36: "m/d/yy",
+    37: "#,##0 ;(#,##0)", 38: "#,##0 ;[Red](#,##0)",
+    39: "#,##0.00;(#,##0.00)", 40: "#,##0.00;[Red](#,##0.00)",
+    41: '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)',
+    42: '_($* #,##0_);_($* (#,##0);_($* "-"_);_(@_)',
+    43: '_(* #,##0.00_);_(* (#,##0.00);_(* "-"??_);_(@_)',
+    44: '_($* #,##0.00_);_($* (#,##0.00);_($* "-"??_);_(@_)',
+    45: "mm:ss", 46: "[h]:mm:ss", 47: "mmss.0", 48: "##0.0E+0", 49: "@",
+}
 _BRACED_GUID_RE = re.compile(
     r"^\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}$"
 )
@@ -2469,7 +2489,169 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     # the filter state.
     xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
+    xml = _overlay_sheet_number_formats_from_xlsx(xlsx_bytes, xml)
     return xml
+
+
+def _xml_attrs(raw: str) -> dict[str, str]:
+    return {m.group(1): _unescape_xml(m.group(3)) for m in re.finditer(r'([\w:.-]+)\s*=\s*(["\'])([\s\S]*?)\2', raw or "")}
+
+
+def _xlsx_number_formats(xlsx_bytes: bytes) -> list[str]:
+    entry = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
+    if not entry:
+        return []
+    styles_xml = entry.decode("utf-8", errors="replace")
+    formats = dict(EXCEL_BUILTIN_NUMBER_FORMATS)
+    for match in re.finditer(r"<numFmt\b([^>]*)/?\s*>", styles_xml, re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        if attrs.get("numFmtId", "").isdigit() and attrs.get("formatCode") is not None:
+            formats[int(attrs["numFmtId"])] = attrs["formatCode"]
+    body = re.search(r"<cellXfs\b[^>]*>([\s\S]*?)</cellXfs>", styles_xml, re.IGNORECASE)
+    result = []
+    for match in re.finditer(r"<xf\b([^>]*)/?\s*>", body.group(1) if body else "", re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        result.append(formats.get(int(attrs.get("numFmtId") or 0), "General"))
+    return result
+
+
+def _xlsx_cells_with_number_formats(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, int], str]]:
+    xfs = _xlsx_number_formats(xlsx_bytes)
+    result = {}
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        entry = read_zip_entry(xlsx_bytes, entry_path)
+        cells = {}
+        if entry:
+            for match in re.finditer(r"<c\b([^>]*?)(?:>([\s\S]*?)</c>|/\s*>)", entry.decode("utf-8", errors="replace"), re.IGNORECASE):
+                attrs, body = _xml_attrs(match.group(1)), match.group(2) or ""
+                coord = re.fullmatch(r"([A-Z]+)(\d+)", attrs.get("r", ""), re.IGNORECASE)
+                style_index = int(attrs.get("s") or 0)
+                if not (coord and re.search(r"<(?:v|f|is)\b", body, re.IGNORECASE) and 0 <= style_index < len(xfs)):
+                    continue
+                code = xfs[style_index]
+                if code.lower() == "general":
+                    continue
+                column = 0
+                for char in coord.group(1).upper():
+                    column = column * 26 + ord(char) - 64
+                cells[(int(coord.group(2)), column)] = code
+        if cells:
+            result[sheet_name] = cells
+    return result
+
+
+def _set_number_format_attr(cell_xml: str, code: str) -> str:
+    opening = re.match(r"<(table:(?:table-cell|covered-table-cell))\b([^>]*?)(/?)>", cell_xml, re.IGNORECASE)
+    if not opening or "covered-table-cell" in opening.group(1).lower():
+        return cell_xml
+    attrs = re.sub(r'\s+vno:number-format\s*=\s*(["\']).*?\1', "", opening.group(2), flags=re.IGNORECASE)
+    tag = f'<{opening.group(1)}{attrs} vno:number-format="{_escape_xml(code)}"{opening.group(3)}>'
+    return tag + cell_xml[opening.end():]
+
+
+def _set_repeat(xml: str, attr: str, count: int) -> str:
+    xml = re.sub(rf'\s+{re.escape(attr)}\s*=\s*(["\'])\d+\1', "", xml, count=1, flags=re.IGNORECASE)
+    return xml if count <= 1 else re.sub(r">", f' {attr}="{count}">', xml, count=1)
+
+
+def _flat_xml_blocks(xml: str, names: tuple[str, ...]):
+    """Yield flat ODF element spans using str.find (large inline images make .* regex costly)."""
+    cursor = 0
+    while True:
+        choices = [(xml.find(f"<{name}", cursor), name) for name in names]
+        choices = [(index, name) for index, name in choices if index >= 0]
+        if not choices:
+            return
+        start, name = min(choices)
+        boundary = start + len(name) + 1
+        if boundary < len(xml) and xml[boundary] not in " \t\r\n>/":
+            cursor = boundary
+            continue
+        opening_end = xml.find(">", boundary)
+        if opening_end < 0:
+            return
+        if xml[opening_end - 1] == "/":
+            end = opening_end + 1
+        else:
+            close = f"</{name}>"
+            close_at = xml.find(close, opening_end + 1)
+            if close_at < 0:
+                return
+            end = close_at + len(close)
+        yield start, end
+        cursor = end
+
+
+def _overlay_formats_in_row(row_xml: str, targets: dict[int, str]) -> str:
+    pieces, cursor, column = [], 0, 1
+    for start, end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
+        pieces.append(row_xml[cursor:start])
+        cell = row_xml[start:end]
+        attrs = _xml_attrs(re.match(r"<[^>]+", cell).group(0))
+        repeat = max(1, int(attrs.get("table:number-columns-repeated") or 1))
+        hits = [(col, targets[col]) for col in sorted(targets) if column <= col < column + repeat]
+        if not hits:
+            pieces.append(cell)
+        else:
+            at = column
+            for col, code in hits:
+                if col > at:
+                    pieces.append(_set_repeat(cell, "table:number-columns-repeated", col - at))
+                pieces.append(_set_number_format_attr(_set_repeat(cell, "table:number-columns-repeated", 1), code))
+                at = col + 1
+            if at < column + repeat:
+                pieces.append(_set_repeat(cell, "table:number-columns-repeated", column + repeat - at))
+        cursor, column = end, column + repeat
+    pieces.append(row_xml[cursor:])
+    return "".join(pieces)
+
+
+def _overlay_formats_in_table(table_xml: str, targets: dict[tuple[int, int], str]) -> str:
+    pieces, cursor, row_number, rows = [], 0, 1, {}
+    for (row, col), code in targets.items():
+        rows.setdefault(row, {})[col] = code
+    for start, end in _flat_xml_blocks(table_xml, ("table:table-row",)):
+        pieces.append(table_xml[cursor:start])
+        row_xml = table_xml[start:end]
+        attrs = _xml_attrs(re.match(r"<[^>]+", row_xml).group(0))
+        repeat = max(1, int(attrs.get("table:number-rows-repeated") or 1))
+        hits = [row for row in sorted(rows) if row_number <= row < row_number + repeat]
+        if not hits:
+            pieces.append(row_xml)
+        else:
+            at = row_number
+            for row in hits:
+                if row > at:
+                    pieces.append(_set_repeat(row_xml, "table:number-rows-repeated", row - at))
+                pieces.append(_overlay_formats_in_row(_set_repeat(row_xml, "table:number-rows-repeated", 1), rows[row]))
+                at = row + 1
+            if at < row_number + repeat:
+                pieces.append(_set_repeat(row_xml, "table:number-rows-repeated", row_number + repeat - at))
+        cursor, row_number = end, row_number + repeat
+    pieces.append(table_xml[cursor:])
+    return "".join(pieces)
+
+
+def _overlay_sheet_number_formats_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+    by_sheet = _xlsx_cells_with_number_formats(xlsx_bytes)
+    if not by_sheet:
+        return fods_xml
+    pieces, cursor = [], 0
+    for start, end in _flat_xml_blocks(fods_xml, ("table:table",)):
+        pieces.append(fods_xml[cursor:start])
+        table_xml = fods_xml[start:end]
+        attrs = _xml_attrs(re.match(r"<[^>]+", table_xml).group(0))
+        targets = by_sheet.get(attrs.get("table:name", ""))
+        pieces.append(_overlay_formats_in_table(table_xml, targets) if targets else table_xml)
+        cursor = end
+    pieces.append(fods_xml[cursor:])
+    result = "".join(pieces)
+    if re.search(r"xmlns:vno\s*=", result, re.IGNORECASE):
+        return result
+    match = _OFFICE_DOCUMENT_OPEN_RE.search(result)
+    if not match:
+        return result
+    return result[:match.start()] + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + result[match.end():]
 
 
 def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:

@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { createZip } from "../../adapters/libreoffice/common/ooxml-zip-patch.js";
-import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
+import { SheetAdapter, numberFormatFromExcelCode } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { auditSheetImport } from "../../scripts/audit-sheet-import.mjs";
 
 const WORKBOOK = `<?xml version="1.0"?><workbook xmlns:r="r"><bookViews><workbookView activeTab="0"/></bookViews><sheets><sheet name="Data" sheetId="1" r:id="rId1"/></sheets></workbook>`;
@@ -29,6 +29,30 @@ function fixture() {
 export async function runSheetImportAuditTests() {
   const results = [];
   const test = async (name, fn) => { try { await fn(); results.push({ name, pass: true }); } catch (error) { results.push({ name, pass: false, error: error.message }); } };
+  await test("Excel formatCode -> VN Sheet numberFormat", () => {
+    const cases = [
+      ["#,##0", "number", 0, true], ["#,##0.00", "number", 2, true],
+      ["0%", "percentage", 0], ["0.00%", "percentage", 2],
+      ['_("$"* #,##0_);_("$"* (#,##0);_("$"* "-"_);_(@_)', "accounting", 0],
+      ["[$₫-42A] #,##0", "currency", 0], ['#,##0 "₫"', "currency", 0],
+      ["dd/mm/yyyy", "date"], ["m/d/yyyy", "date"], ["h:mm:ss", "date"],
+      ["@", "text"], ["General", "general"]
+    ];
+    for (const [code, category, decimals, thousands] of cases) {
+      const actual = numberFormatFromExcelCode(code);
+      assert.equal(actual.category, category, code);
+      if (decimals !== undefined) assert.equal(actual.decimals, decimals, code);
+      if (thousands !== undefined) assert.equal(actual.useThousands, thousands, code);
+    }
+    assert.deepEqual(numberFormatFromExcelCode("[Blue]literal!"), { category: "custom", code: "[Blue]literal!", customPattern: "[Blue]literal!" });
+  });
+  await test("parse vno:number-format chap nhan Excel formatCode va JSON", () => {
+    const adapter = new SheetAdapter(null);
+    const excel = adapter._cellFromFodsAttributes({ "office:value-type": "float", "office:value": "1234", "vno:number-format": "#,##0.00" }, "1234");
+    const json = adapter._cellFromFodsAttributes({ "office:value-type": "float", "office:value": "1234", "vno:number-format": '{"category":"percentage","decimals":1}' }, "1234");
+    assert.deepEqual(excel.style.numberFormat, { category: "number", decimals: 2, useThousands: true, negativeStyle: 0 });
+    assert.equal(json.style.numberFormat.category, "percentage");
+  });
   await test("parseFods regex: giải mã đúng text bị soffice escape hai lớp", () => {
     const parsed = new SheetAdapter(null).parseFods(FODS);
     assert.equal(parsed.sheetsData.Data.get("A1").val, "A & B");
