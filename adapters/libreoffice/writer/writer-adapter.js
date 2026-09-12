@@ -7406,7 +7406,20 @@ export class WriterAdapter {
   }
 
   _prepareFloatingFramesForExport(html) {
-    const src = String(html || "");
+    // The anchor's position/min-height are canvas-only layout aids. Page-break
+    // declarations on these carrier paragraphs must also stay out of the HTML
+    // export: the native anchored frame restored by the DOCX postprocessor owns
+    // pagination, while importing the carrier break creates a second real page
+    // break. Float geometry itself is rebuilt below from original data-vno-*.
+    const src = String(html || "").replace(
+      /(<(?:div|p)\b[^>]*\bdata-vno-float-anchor\b[^>]*\bstyle=["'])([^"']*)(["'])/gi,
+      (_m, pre, styleVal, post) => {
+        const exportStyle = styleVal
+          .replace(/\b(?:min-height|position|page-break-before|break-before)\s*:\s*[^;]+;?\s*/gi, "")
+          .trim();
+        return `${pre}${exportStyle}${post}`;
+      }
+    );
     const openRe = /<span\b([^>]*\bdata-vno-float=["'](?:image|textbox)["'][^>]*)>/gi;
     let cursor = 0;
     let result = "";
