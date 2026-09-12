@@ -86,6 +86,27 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         result = ooxml_zip_patch_mod.postprocess_writer_docx(fake, source_docx=None)
         self.assertEqual(result, fake)
 
+    def test_duplicate_wps_solid_fill_is_repaired_and_anchor_semantics_restored(self):
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:drawing><wp:anchor behindDoc="1"><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapSquare/></wp:anchor></w:drawing></w:r></w:p><w:sectPr></w:sectPr>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:drawing><wp:anchor behindDoc="0"><wp:positionH relativeFrom="paragraph"/><wp:positionV relativeFrom="paragraph"/><wp:wrapNone/><wps:wsp><wps:spPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:solidFill><a:srgbClr val="FFFF00"/></a:solidFill></wps:spPr></wps:wsp></wp:anchor></w:drawing></w:r></w:p><w:sectPr></w:sectPr>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        sp_pr = re.search(r"<wps:spPr\b[^>]*>([\s\S]*?)</wps:spPr>", xml).group(1)
+        self.assertEqual(len(re.findall(r"<a:solidFill\b", sp_pr)), 1)
+        self.assertIn('val="FFFF00"', sp_pr)
+        self.assertIn('behindDoc="1"', xml)
+        self.assertIn('<wp:positionH relativeFrom="page"', xml)
+        self.assertIn('<wp:wrapSquare', xml)
+        transparent = ooxml_zip_patch_mod._repair_writer_double_fills(
+            '<wps:spPr><a:noFill/><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></wps:spPr>'
+        )
+        self.assertIn("<a:noFill/>", transparent)
+        self.assertNotIn("<a:solidFill", transparent)
+
     @unittest.skipUnless(FIXTURE_DOCX.is_file(), "Fixture missing")
     def test_noop_when_no_header_footer_refs(self):
         original = FIXTURE_DOCX.read_bytes()

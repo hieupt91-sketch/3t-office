@@ -3130,6 +3130,59 @@ def _rebuild_docx_document_xml(
     return converted_xml
 
 
+def _repair_writer_double_fills(document_xml: str) -> str:
+    """Keep one schema-valid fill child in each WordprocessingShape spPr."""
+    def repair(match: re.Match) -> str:
+        attrs, body = match.group(1), match.group(2)
+        fill_pattern = r"<a:solidFill\b[^>]*/\s*>|<a:solidFill\b[^>]*>[\s\S]*?</a:solidFill\s*>"
+        fills = list(re.finditer(fill_pattern, body, re.IGNORECASE))
+        if fills and re.search(r"<a:noFill\b[^>]*/\s*>", body, re.IGNORECASE):
+            cleaned = re.sub(fill_pattern, "", body, flags=re.IGNORECASE)
+            return f"<wps:spPr{attrs}>{cleaned}</wps:spPr>"
+        if len(fills) < 2:
+            return match.group(0)
+        keep = fills[-1].group(0)
+        first = fills[0].start()
+        cleaned = re.sub(fill_pattern, "", body, flags=re.IGNORECASE)
+        cleaned = cleaned[:first] + keep + cleaned[first:]
+        return f"<wps:spPr{attrs}>{cleaned}</wps:spPr>"
+    return re.sub(r"<wps:spPr\b([^>]*)>([\s\S]*?)</wps:spPr\s*>", repair, document_xml, flags=re.IGNORECASE)
+
+
+def _writer_anchor_properties(document_xml: str) -> list[dict[str, str]]:
+    props: list[dict[str, str]] = []
+    for match in re.finditer(r"<wp:anchor\b([^>]*)>([\s\S]*?)</wp:anchor\s*>", document_xml, re.IGNORECASE):
+        attrs, body = match.group(1), match.group(2)
+        props.append({
+            "behind": "1" if re.search(r'\bbehindDoc=["\'](?:1|true)["\']', attrs, re.IGNORECASE) else "0",
+            "horizontal": (re.search(r'<wp:positionH\b[^>]*relativeFrom=["\']([^"\']+)', body, re.IGNORECASE) or [None, "paragraph"])[1],
+            "vertical": (re.search(r'<wp:positionV\b[^>]*relativeFrom=["\']([^"\']+)', body, re.IGNORECASE) or [None, "paragraph"])[1],
+            "wrap": (re.search(r'<wp:(wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b', body, re.IGNORECASE) or [None, "wrapNone"])[1],
+        })
+    return props
+
+
+def _restore_writer_anchor_properties(converted_xml: str, original_xml: str) -> str:
+    """Restore source anchor semantics by stable document order (nth anchor to nth anchor)."""
+    source_props = iter(_writer_anchor_properties(original_xml))
+
+    def restore(match: re.Match) -> str:
+        props = next(source_props, None)
+        if not props:
+            return match.group(0)
+        attrs, body = match.group(1), match.group(2)
+        if re.search(r"\bbehindDoc=", attrs, re.IGNORECASE):
+            attrs = re.sub(r'\bbehindDoc=["\'][^"\']*["\']', f'behindDoc="{props["behind"]}"', attrs, count=1, flags=re.IGNORECASE)
+        else:
+            attrs += f' behindDoc="{props["behind"]}"'
+        body = re.sub(r'(<wp:positionH\b[^>]*relativeFrom=)["\'][^"\']+["\']', rf'\1"{props["horizontal"]}"', body, count=1, flags=re.IGNORECASE)
+        body = re.sub(r'(<wp:positionV\b[^>]*relativeFrom=)["\'][^"\']+["\']', rf'\1"{props["vertical"]}"', body, count=1, flags=re.IGNORECASE)
+        body = re.sub(r'<wp:(?:wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b[^>]*(?:/>|>[\s\S]*?</wp:(?:wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\s*>)', f'<wp:{props["wrap"]}/>', body, count=1, flags=re.IGNORECASE)
+        return f"<wp:anchor{attrs}>{body}</wp:anchor>"
+
+    return re.sub(r"<wp:anchor\b([^>]*)>([\s\S]*?)</wp:anchor\s*>", restore, converted_xml, flags=re.IGNORECASE)
+
+
 def postprocess_writer_docx(
     docx_bytes: bytes,
     *,
@@ -3205,6 +3258,8 @@ def postprocess_writer_docx(
     new_xml = _rebuild_docx_document_xml(
         converted_xml, original_xml, orig_header_entries, orig_footer_entries, remapped_sect_pr
     )
+    new_xml = _repair_writer_double_fills(new_xml)
+    new_xml = _restore_writer_anchor_properties(new_xml, original_xml)
 
     replacements: dict[str, bytes] = {}
     if new_xml != converted_xml:

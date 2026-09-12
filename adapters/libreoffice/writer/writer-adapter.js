@@ -1725,8 +1725,120 @@ export class WriterAdapter {
       html = html.replace(footerMatch[0], "");
     }
     html = this._normalizeImportedStarWriterNotes(html);
-    html = this._convertFloatingImagesToInline(html);
+    html = this._makeFloatingAnchorContainers(this._preserveImportedFloatingFrames(html, ooxmlDocumentXml));
     return { body: html.trim(), header, footer, page, comments };
+  }
+
+  _cssLengthToCm(raw) {
+    const match = String(raw || "").trim().match(/^(-?[\d.]+)\s*(cm|mm|in|px|pt)?$/i);
+    if (!match) return null;
+    const value = Number(match[1]);
+    if (!Number.isFinite(value)) return null;
+    const unit = (match[2] || "cm").toLowerCase();
+    const cm = unit === "mm" ? value / 10 : unit === "in" ? value * 2.54 : unit === "px" ? value * 2.54 / 96 : unit === "pt" ? value * 2.54 / 72 : value;
+    return Number(cm.toFixed(3));
+  }
+
+  _ooxmlFloatingAnchorMetadata(xml) {
+    return [...String(xml || "").matchAll(/<wp:anchor\b([^>]*)>([\s\S]*?)<\/wp:anchor>/gi)].map((match) => {
+      const attrs = match[1] || "";
+      const body = match[2] || "";
+      const posH = body.match(/<wp:positionH\b[^>]*relativeFrom=["']([^"']+)/i)?.[1] || "paragraph";
+      const posV = body.match(/<wp:positionV\b[^>]*relativeFrom=["']([^"']+)/i)?.[1] || "paragraph";
+      const wrap = body.match(/<wp:(wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b/i)?.[1] || "wrapNone";
+      return {
+        relativeH: posH,
+        relativeV: posV,
+        wrap,
+        behindDoc: /\bbehindDoc=["'](?:1|true)["']/i.test(attrs)
+      };
+    });
+  }
+
+  _preserveImportedFloatingFrames(html, ooxmlDocumentXml) {
+    const src = String(html || "");
+    const anchors = this._ooxmlFloatingAnchorMetadata(ooxmlDocumentXml);
+    const openRe = /<span\b([^>]*)>/gi;
+    let cursor = 0;
+    let anchorIndex = 0;
+    let result = "";
+    while (cursor < src.length) {
+      openRe.lastIndex = cursor;
+      const opening = openRe.exec(src);
+      if (!opening) return result + src.slice(cursor);
+      const attrs = opening[1] || "";
+      const style = opening[0].match(/\bstyle\s*=\s*["']([^"']*)/i)?.[1] || "";
+      const isImage = /\bclass=["'][^"']*\bsd-abs-pos\b/i.test(opening[0]);
+      const isTextbox = /\bid=["'](?:textbox|Frame)[^"']*["']/i.test(opening[0]);
+      if (!/\bposition\s*:\s*absolute\b/i.test(style) || (!isImage && !isTextbox)) {
+        result += src.slice(cursor, opening.index + opening[0].length);
+        cursor = opening.index + opening[0].length;
+        continue;
+      }
+      let depth = 1;
+      let search = opening.index + opening[0].length;
+      let close = -1;
+      while (depth > 0) {
+        openRe.lastIndex = search;
+        const nested = openRe.exec(src);
+        const nextClose = src.indexOf("</span>", search);
+        if (nextClose < 0) break;
+        if (nested && nested.index < nextClose) {
+          depth += 1;
+          search = nested.index + nested[0].length;
+        } else {
+          depth -= 1;
+          close = nextClose;
+          search = nextClose + 7;
+        }
+      }
+      if (depth !== 0) {
+        result += src.slice(cursor, opening.index + opening[0].length);
+        cursor = opening.index + opening[0].length;
+        continue;
+      }
+      const inner = src.slice(opening.index + opening[0].length, close);
+      const value = (name) => style.match(new RegExp(`\\b${name}\\s*:\\s*([^;]+)`, "i"))?.[1];
+      const imgTag = inner.match(/<img\b[^>]*>/i)?.[0] || "";
+      const attrValue = (name) => imgTag.match(new RegExp(`\\b${name}=["']?([^"'\\s>]+)`, "i"))?.[1];
+      const left = this._cssLengthToCm(value("left")) ?? 0;
+      const top = this._cssLengthToCm(value("top")) ?? 0;
+      const width = this._cssLengthToCm(value("width")) ?? this._cssLengthToCm(`${attrValue("width") || 0}px`) ?? 0;
+      const height = this._cssLengthToCm(value("height")) ?? this._cssLengthToCm(`${attrValue("height") || 0}px`) ?? 0;
+      const meta = anchors[anchorIndex++] || { relativeH: "paragraph", relativeV: "paragraph", wrap: "wrapNone", behindDoc: false };
+      const cleanedStyle = style.replace(/\b(?:position|top|left|width|height)\s*:\s*[^;]+;?\s*/gi, "").trim();
+      const kind = isImage ? "image" : "textbox";
+      result += src.slice(cursor, opening.index);
+      result += `<span data-vno-float="${kind}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}" style="position:absolute;left:${left}cm;top:${top}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:-1;" : "z-index:1;"}${cleanedStyle}">${inner}</span>`;
+      cursor = close + 7;
+    }
+    return result;
+  }
+
+  _makeFloatingAnchorContainers(html) {
+    let out = String(html || "");
+    if (!/\bdata-vno-float=["']textbox["']/i.test(out)) return out;
+    const tags = [...out.matchAll(/<p\b[^>]*>|<\/p>/gi)];
+    const stack = [];
+    const replacements = [];
+    for (const tag of tags) {
+      if (!/^<\/p/i.test(tag[0])) {
+        stack.push(tag);
+        continue;
+      }
+      const opening = stack.pop();
+      if (!opening) continue;
+      const inner = out.slice(opening.index + opening[0].length, tag.index);
+      if (!/\bdata-vno-float=["'](?:image|textbox)["']/i.test(inner)) continue;
+      const attrs = opening[0].slice(2, -1).replace(/\bstyle=["']([^"']*)["']/i, (_m, style) => `style="position:relative;${style}"`);
+      const openTag = /\bstyle=/i.test(attrs) ? `<div data-vno-float-anchor${attrs}>` : `<div data-vno-float-anchor${attrs} style="position:relative;">`;
+      replacements.push([tag.index, tag.index + tag[0].length, "</div>"]);
+      replacements.push([opening.index, opening.index + opening[0].length, openTag]);
+    }
+    for (const [start, end, value] of replacements.sort((a, b) => b[0] - a[0])) {
+      out = out.slice(0, start) + value + out.slice(end);
+    }
+    return out;
   }
 
   /**
@@ -7227,12 +7339,14 @@ export class WriterAdapter {
     };
     const SPAN_STYLE_RE = /(<span\b[^>]*?\bstyle=["'])([^"']*?)(["'][^>]*>)/gi;
     let out = html.replace(SPAN_STYLE_RE, (_m, pre, styleVal, post) => {
+      if (/\bdata-vno-float-export\b/i.test(pre)) return `${pre}${styleVal}${post}`;
       const s = cleanStyle(styleVal);
       if (!s) return `${pre}${post}`;
       return `${pre}${s}${post}`;
     });
     const IMG_STYLE_RE = /(<img\b[^>]*?\bstyle=["'])([^"']*?)(["'][^>]*>)/gi;
     out = out.replace(IMG_STYLE_RE, (_m, pre, styleVal, post) => {
+      if (/\bposition\s*:\s*absolute\b/i.test(styleVal)) return `${pre}${styleVal}${post}`;
       const s = cleanStyle(styleVal);
       if (!s) return `${pre}${post}`;
       return `${pre}${s}${post}`;
@@ -7240,7 +7354,7 @@ export class WriterAdapter {
     const DIV_STYLE_RE = /(<div\b[^>]*?\bstyle=["'])([^"']*?)(["'][^>]*>)/gi;
     out = out.replace(DIV_STYLE_RE, (_m, pre, styleVal, post) => {
       const fullTag = pre + post;
-      if (/\bvno-export(?:-section|-watermark|-shapes)\b/.test(fullTag)) {
+      if (/\bvno-export(?:-section|-watermark|-shapes)\b/.test(fullTag) || /\bposition\s*:\s*absolute\b/i.test(styleVal)) {
         return `${pre}${styleVal}${post}`;
       }
       let s = styleVal;
@@ -7251,6 +7365,58 @@ export class WriterAdapter {
     });
     out = out.replace(/\bstyle\s*=\s*["']\s*["']/gi, "");
     return out;
+  }
+
+  _prepareFloatingFramesForExport(html) {
+    const src = String(html || "");
+    const openRe = /<span\b([^>]*\bdata-vno-float=["'](?:image|textbox)["'][^>]*)>/gi;
+    let cursor = 0;
+    let result = "";
+    while (cursor < src.length) {
+      openRe.lastIndex = cursor;
+      const opening = openRe.exec(src);
+      if (!opening) return result + src.slice(cursor);
+      let depth = 1;
+      let search = opening.index + opening[0].length;
+      let close = -1;
+      const anySpanRe = /<span\b[^>]*>/gi;
+      while (depth > 0) {
+        anySpanRe.lastIndex = search;
+        const nested = anySpanRe.exec(src);
+        const nextClose = src.indexOf("</span>", search);
+        if (nextClose < 0) break;
+        if (nested && nested.index < nextClose) {
+          depth += 1;
+          search = nested.index + nested[0].length;
+        } else {
+          depth -= 1;
+          close = nextClose;
+          search = nextClose + 7;
+        }
+      }
+      if (depth !== 0) return result + src.slice(cursor);
+      const tag = opening[0];
+      const attr = (name) => tag.match(new RegExp(`\\b${name}=["']([^"']*)`, "i"))?.[1] || "";
+      const kind = attr("data-vno-float");
+      const left = attr("data-vno-left") || "0";
+      const top = attr("data-vno-top") || "0";
+      const width = attr("data-vno-width");
+      const height = attr("data-vno-height");
+      const style = `position:absolute;left:${left}cm;top:${top}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}margin:0;line-height:0;`;
+      const inner = src.slice(opening.index + opening[0].length, close);
+      let replacement;
+      if (kind === "image") {
+        replacement = inner.replace(/<img\b([^>]*)>/i, (_all, attrs) => {
+          const withoutStyle = attrs.replace(/\sstyle=["'][^"']*["']/i, "");
+          return `<img${withoutStyle} style="${style}">`;
+        });
+      } else {
+        replacement = `<div data-vno-float-export="textbox" style="${style}">${inner}</div>`;
+      }
+      result += src.slice(cursor, opening.index) + replacement;
+      cursor = close + 7;
+    }
+    return result;
   }
 
   /**
@@ -7284,6 +7450,7 @@ export class WriterAdapter {
     } else if (this.editorDom) {
       bodyHtml = this._stripSessionMarkup(this.editorDom.innerHTML);
     }
+    bodyHtml = this._prepareFloatingFramesForExport(bodyHtml);
 
     // LibreOffice's Writer HTML importer drops a class-only Drop Cap span
     // completely (including its first letter) because writer.css is not part
