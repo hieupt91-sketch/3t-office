@@ -165,6 +165,7 @@ import { runSheetImportRichTextTests } from "./unit/sheet-import-rich-text.test.
 import { runSheetCellTextFitTests } from "./unit/sheet-cell-text-fit.test.js";
 import { runSheetImportAuditTests } from "./unit/sheet-import-audit.test.js";
 import { runSheetSaveFidelityTests } from "./unit/sheet-save-fidelity.test.js";
+import { runWriterExportDocxWordCompatTests } from "./unit/writer-export-docx-word-compat.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -337,7 +338,8 @@ async function runAll() {
     { title: "144. Unit Tests — Sheet import rich text (multi-run styled cells in FODS) + round-trip + render + edit clears richText", runner: runSheetImportRichTextTests },
     { title: "145. Unit Tests — Sheet cell text fit, font size precision, padding & text overflow (Excel 2016 parity)", runner: runSheetCellTextFitTests },
     { title: "146. Unit Tests — Sheet XLSX import audit", runner: runSheetImportAuditTests },
-    { title: "147. Unit Tests — Sheet save fidelity: font-face-decls, newline preservation, rich-text paragraph split", runner: runSheetSaveFidelityTests }
+    { title: "147. Unit Tests — Sheet save fidelity: font-face-decls, newline preservation, rich-text paragraph split", runner: runSheetSaveFidelityTests },
+    { title: "148. Unit Tests — Writer DOCX export Word 2016 compat (strip span dimension/position for LO HTML→Writer import)", runner: runWriterExportDocxWordCompatTests }
   ];
 
   for (const suite of suites) {

@@ -7186,6 +7186,52 @@ export class WriterAdapter {
   }
 
   /**
+   * Loại bỏ các thuộc tính CSS kích thước/vị trí khỏi thẻ `<span>` trong chuỗi
+   * HTML xuất —阻止 LibreOffice HTML import biến span thành TEXT FRAME
+   * (DrawingML+VML)导致 Microsoft Word 2016拒绝打开 DOCX.
+   *
+   * Chỉ thao tác trên chuỗi xuất, KHÔNG đụng DOM hiển thị trong editor.
+   */
+  _sanitizeExportHtmlForWordCompat(html) {
+    if (!html) return html;
+    const STRIP_RE = /\b(width|min-height|max-width|height|position|top|right|bottom|left|float)\s*:\s*[^;]*;?/gi;
+    const STRIP_DISPLAY = /\bdisplay\s*:\s*inline-block\s*;?/gi;
+    const cleanStyle = (styleVal) => {
+      let s = styleVal;
+      s = s.replace(STRIP_RE, "");
+      s = s.replace(STRIP_DISPLAY, "");
+      s = s.replace(/\s{2,}/g, " ").trim();
+      return s;
+    };
+    const SPAN_STYLE_RE = /(<span\b[^>]*?\bstyle=["'])([^"']*?)(["'][^>]*>)/gi;
+    let out = html.replace(SPAN_STYLE_RE, (_m, pre, styleVal, post) => {
+      const s = cleanStyle(styleVal);
+      if (!s) return `${pre}${post}`;
+      return `${pre}${s}${post}`;
+    });
+    const IMG_STYLE_RE = /(<img\b[^>]*?\bstyle=["'])([^"']*?)(["'][^>]*>)/gi;
+    out = out.replace(IMG_STYLE_RE, (_m, pre, styleVal, post) => {
+      const s = cleanStyle(styleVal);
+      if (!s) return `${pre}${post}`;
+      return `${pre}${s}${post}`;
+    });
+    const DIV_STYLE_RE = /(<div\b[^>]*?\bstyle=["'])([^"']*?)(["'][^>]*>)/gi;
+    out = out.replace(DIV_STYLE_RE, (_m, pre, styleVal, post) => {
+      const fullTag = pre + post;
+      if (/\bvno-export(?:-section|-watermark|-shapes)\b/.test(fullTag)) {
+        return `${pre}${styleVal}${post}`;
+      }
+      let s = styleVal;
+      s = s.replace(/\bwidth\s*:[^;]*;?/gi, "");
+      s = s.replace(/\s{2,}/g, " ").trim();
+      if (!s) return `${pre}${post}`;
+      return `${pre}${s}${post}`;
+    });
+    out = out.replace(/\bstyle\s*=\s*["']\s*["']/gi, "");
+    return out;
+  }
+
+  /**
    * Nội dung HTML thật sự gửi cho LibreOffice để lưu/xuất — có kèm `@page` CSS của
    * Page Setup hiện tại, để khổ giấy/lề trong DOCX/PDF xuất ra khớp với canvas.
    * Đặt `<style>` ở đầu body thay vì head vì bộ dispatch hiện chỉ truyền 1 chuỗi
@@ -7268,7 +7314,8 @@ export class WriterAdapter {
     }
 
     const fullHtml = `${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}`;
-    return `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
+    const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
+    return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
 
   _stripCommentMarkup(html) {
