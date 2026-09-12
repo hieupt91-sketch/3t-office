@@ -205,6 +205,10 @@ export class SheetGridController {
     this.viewport = null;
     this.tbody = null;
     this.tabBar = null;
+
+    // Prefix-sum row tops cache (per sheet) for virtual scroll with variable row heights.
+    // _rowTopsCache[sheetName] = { tops: number[], totalHeight: number, valid: boolean }
+    this._rowTopsCache = {};
   }
 
   get cellsData() {
@@ -637,6 +641,76 @@ export class SheetGridController {
     return this.userHiddenColsBySheet[sheetName];
   }
 
+  // --- Prefix-sum row tops cache for virtual scroll with variable row heights ---
+  _ensureRowTopsCache(sheetName = this.activeSheet) {
+    if (!this._rowTopsCache) this._rowTopsCache = {};
+    if (!this._rowTopsCache[sheetName] || !this._rowTopsCache[sheetName].valid) {
+      this._buildRowTopsCache(sheetName);
+    }
+    return this._rowTopsCache[sheetName];
+  }
+
+  _buildRowTopsCache(sheetName = this.activeSheet) {
+    const count = this.rowCount || 200;
+    const tops = new Float64Array(count + 2);
+    tops[1] = 0;
+    for (let r = 1; r <= count; r++) {
+      tops[r + 1] = tops[r] + (this._isRowSkipped(r) ? 0 : this.getRowHeight(r, sheetName));
+    }
+    if (!this._rowTopsCache) this._rowTopsCache = {};
+    this._rowTopsCache[sheetName] = { tops, totalHeight: tops[count + 1], valid: true };
+    return this._rowTopsCache[sheetName];
+  }
+
+  _invalidateRowTopsCache(sheetName = this.activeSheet) {
+    if (!this._rowTopsCache) return;
+    if (sheetName) {
+      if (this._rowTopsCache[sheetName]) this._rowTopsCache[sheetName].valid = false;
+    } else {
+      for (const k of Object.keys(this._rowTopsCache)) this._rowTopsCache[k].valid = false;
+    }
+  }
+
+  _rowTop(r, sheetName = this.activeSheet) {
+    const cache = this._ensureRowTopsCache(sheetName);
+    if (r < 1) return 0;
+    if (r > this.rowCount) return cache.totalHeight;
+    return cache.tops[r];
+  }
+
+  _rowBottom(r, sheetName = this.activeSheet) {
+    return this._rowTop(r, sheetName) + this.getRowHeight(r, sheetName);
+  }
+
+  _totalHeight(sheetName = this.activeSheet) {
+    return this._ensureRowTopsCache(sheetName).totalHeight;
+  }
+
+  _firstVisibleRow(scrollTop, sheetName = this.activeSheet) {
+    const cache = this._ensureRowTopsCache(sheetName);
+    const count = this.rowCount || 200;
+    let lo = 1, hi = count;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (cache.tops[mid + 1] <= scrollTop) lo = mid + 1;
+      else hi = mid;
+    }
+    return Math.max(1, Math.min(count, lo));
+  }
+
+  _lastVisibleRow(scrollTop, viewportHeight, sheetName = this.activeSheet) {
+    const bottom = scrollTop + viewportHeight;
+    const cache = this._ensureRowTopsCache(sheetName);
+    const count = this.rowCount || 200;
+    let lo = 1, hi = count;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (cache.tops[mid] >= bottom) hi = mid - 1;
+      else lo = mid;
+    }
+    return Math.max(1, Math.min(count, lo));
+  }
+
   _snapshotRowColLayout(sheetName = this.activeSheet) {
     this._ensureRowColLayout(sheetName);
     return {
@@ -656,6 +730,7 @@ export class SheetGridController {
     this.colWidthsBySheet[sheetName] = new Map(snapshot.colWidths || []);
     this.userHiddenRowsBySheet[sheetName] = new Set(snapshot.userHiddenRows || []);
     this.userHiddenColsBySheet[sheetName] = new Set(snapshot.userHiddenCols || []);
+    this._invalidateRowTopsCache(sheetName);
     if (render && sheetName === this.activeSheet) {
       this._renderColumnHeaders();
       this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
@@ -765,6 +840,7 @@ export class SheetGridController {
       if (height === this.rowHeight) map.delete(row);
       else map.set(row, height);
     }
+    this._invalidateRowTopsCache();
     this._refreshRowColLayoutView();
     if (recordUndo) this._recordRowColLayoutChange(before);
     return height;
@@ -852,6 +928,7 @@ export class SheetGridController {
     const before = recordUndo ? this._snapshotRowColLayout() : null;
     const hidden = this._userHiddenRows();
     for (const row of targets) hidden.add(row);
+    this._invalidateRowTopsCache();
     this._refreshRowColLayoutView();
     this._moveSelectionOffHidden();
     if (recordUndo) this._recordRowColLayoutChange(before);
@@ -872,6 +949,7 @@ export class SheetGridController {
     if (!toShow.length) return false;
     const before = recordUndo ? this._snapshotRowColLayout() : null;
     for (const row of toShow) hidden.delete(row);
+    this._invalidateRowTopsCache();
     this._refreshRowColLayoutView();
     if (recordUndo) this._recordRowColLayoutChange(before);
     return true;
@@ -1673,6 +1751,7 @@ export class SheetGridController {
     if (!this.protectionBySheet) this.protectionBySheet = {};
     if (!this.protectionBySheet[sheetName]) this.protectionBySheet[sheetName] = { enabled: false, password: "" };
     this._ensureRowColLayout(sheetName);
+    this._invalidateRowTopsCache(sheetName);
 
     // 1. Lưu trạng thái sheet hiện tại
     if (this.activeSheet && this.sheetStates) {
@@ -2679,9 +2758,10 @@ export class SheetGridController {
     // Cập nhật khoảng cách cuộn ảo - loại trừ các hàng cố định (freeze) khỏi
     // vùng đệm phía trên, vì chúng luôn được dựng riêng bên dưới, không nằm
     // trong cửa sổ ảo hóa theo cuộn.
-    const skippedAbove = Math.max(0, startRow - 1 - frozenRows);
-    const topHeight = skippedAbove * this.rowHeight;
-    const bottomHeight = Math.max(0, this.rowCount - endRow) * this.rowHeight;
+    const topHeight = frozenRows > 0 && startRow > frozenRows
+      ? this._rowTop(startRow) - this._rowBottom(frozenRows)
+      : this._rowTop(startRow);
+    const bottomHeight = Math.max(0, this._totalHeight() - this._rowTop(endRow + 1));
     const topTd = this.topSpacer.querySelector("td");
     if (topTd) topTd.style.height = `${topHeight}px`;
     const bottomTd = this.bottomSpacer.querySelector("td");
@@ -2822,10 +2902,9 @@ export class SheetGridController {
     if (!this.viewport) return;
     const scrollTop = this.viewport.scrollTop;
     const viewportHeight = this.viewport.clientHeight || 500;
-    const visibleCount = Math.ceil(viewportHeight / this.rowHeight);
     const buffer = 8;
-    const startRow = Math.max(1, Math.floor(scrollTop / this.rowHeight) - buffer);
-    const endRow = Math.min(this.rowCount, startRow + visibleCount + buffer * 2);
+    const startRow = Math.max(1, this._firstVisibleRow(scrollTop) - buffer);
+    const endRow = Math.min(this.rowCount, this._lastVisibleRow(scrollTop, viewportHeight) + buffer);
 
     if (Math.abs(startRow - this.currentStartRow) >= 3 || Math.abs(endRow - this.currentEndRow) >= 3) {
       this._renderVirtualRows(startRow, endRow);
@@ -3244,7 +3323,7 @@ export class SheetGridController {
 
     // Tự động cuộn viewport nếu ô nằm ngoài phạm vi hiển thị ảo
     if (this.viewport && (row < this.currentStartRow || row > this.currentEndRow)) {
-      this.viewport.scrollTop = Math.max(0, (row - 5) * this.rowHeight);
+      this.viewport.scrollTop = Math.max(0, this._rowTop(row) - 5 * this.rowHeight);
       this._onViewportScroll();
     }
 
@@ -4523,24 +4602,14 @@ export class SheetGridController {
       chosenCol = col;
     }
 
-    // Tính hàng gần nhất
-    let chosenRow = 1;
-    let accumY = headerTop;
-    const maxRows = this.rowCount || 1000;
-    const hasCustomRows = this.rowHeightsBySheet?.[this.activeSheet]?.size > 0;
-    if (!hasCustomRows) {
-      const rIndex = Math.round((top - headerTop) / rowH);
-      chosenRow = Math.max(1, Math.min(maxRows, rIndex + 1));
-    } else {
-      for (let r = 1; r <= maxRows; r++) {
-        const height = typeof this.getRowHeight === "function" ? this.getRowHeight(r) : rowH;
-        if (top < accumY + height / 2) {
-          chosenRow = r;
-          break;
-        }
-        accumY += height;
-        chosenRow = r;
-      }
+    // Tính hàng gần nhất (dung prefix-sum binary search)
+    const pixelY = top - headerTop;
+    let chosenRow = this._firstVisibleRow(Math.max(0, pixelY));
+    if (chosenRow > 1) {
+      const rowTopPx = this._rowTop(chosenRow);
+      const rowHeight = this.getRowHeight(chosenRow);
+      if (pixelY < rowTopPx - rowHeight / 2) chosenRow = Math.max(1, chosenRow - 1);
+      else if (pixelY > rowTopPx + rowHeight / 2) chosenRow = Math.min(this.rowCount, chosenRow + 1);
     }
 
     return { c: chosenCol, r: chosenRow };
@@ -4653,10 +4722,7 @@ export class SheetGridController {
       const isInFrozenCol = colIdx < frozenCols && frozenCols > 0;
       const isFrozen = isInFrozenRow || isInFrozenCol;
 
-      let topAcc = 24;
-      for (let r = 1; r < image.anchor.r; r++) {
-        topAcc += typeof this.getRowHeight === "function" ? this.getRowHeight(r) : (this.rowHeight || 28);
-      }
+      let topAcc = 24 + this._rowTop(image.anchor.r);
       const offsetYPx = Number.isFinite(Number(image.offsetYCm))
         ? Number(image.offsetYCm) * 37.79527559055118
         : (Number.isFinite(Number(image.offsetY)) ? Number(image.offsetY) : 0);
