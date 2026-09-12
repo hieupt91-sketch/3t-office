@@ -549,11 +549,27 @@ export class SheetAdapter {
     return String(columnName || "").split("").reduce((total, char) => total * 26 + char.charCodeAt(0) - 64, 0);
   }
 
+  _odfLengthToCm(value) {
+    const raw = String(value || "").trim();
+    const match = raw.match(/^(-?[\d.]+)\s*(cm|mm|in|pt|pc|px)?$/i);
+    if (!match) return null;
+    const amount = Number(match[1]);
+    if (!Number.isFinite(amount)) return null;
+    const unit = (match[2] || "cm").toLowerCase();
+    const cm = unit === "mm" ? amount * 0.1
+      : unit === "in" ? amount * 2.54
+      : unit === "pt" ? amount * (2.54 / 72)
+      : unit === "pc" ? amount * (2.54 / 6)
+      : unit === "px" ? amount * (2.54 / 96)
+      : amount;
+    return Number(cm.toFixed(4));
+  }
+
   /**
    * Đọc <draw:frame><draw:image> nhúng trực tiếp bên trong một <table:table-cell>
    * (định dạng CHUẨN ODF thật do soffice ghi khi convert XLSX→FODS: ảnh được neo
    * vào ô bằng cách làm con của chính <table:table-cell> đó, KHÔNG dùng thuộc tính
-   * neo riêng). Trả về { id, src, widthCm, heightCm } hoặc null nếu ô không có ảnh.
+   * neo riêng). Trả về { id, src, widthCm, heightCm, offsetXCm, offsetYCm } hoặc null nếu ô không có ảnh.
    * cellXml: toàn bộ nội dung bên trong thẻ <table:table-cell>...</table:table-cell>.
    */
   _parseCellEmbeddedImage(cellXml, fallbackId) {
@@ -567,13 +583,23 @@ export class SheetAdapter {
     const base64 = binaryMatch ? binaryMatch[1].replace(/\s+/g, "") : "";
     if (!base64) return null;
     const mime = (imageMatch[1].match(/draw:mime-type=["']([^"']*)["']/i)?.[1] || "image/png").toLowerCase();
-    const widthCm = parseFloat(frameAttrs.match(/svg:width=["']([\d.]+)cm["']/i)?.[1] || "");
-    const heightCm = parseFloat(frameAttrs.match(/svg:height=["']([\d.]+)cm["']/i)?.[1] || "");
+    const widthRaw = frameAttrs.match(/svg:width=["']([^"']*)["']/i)?.[1];
+    const heightRaw = frameAttrs.match(/svg:height=["']([^"']*)["']/i)?.[1];
+    const xRaw = frameAttrs.match(/svg:x=["']([^"']*)["']/i)?.[1];
+    const yRaw = frameAttrs.match(/svg:y=["']([^"']*)["']/i)?.[1];
+
+    const widthCm = this._odfLengthToCm(widthRaw);
+    const heightCm = this._odfLengthToCm(heightRaw);
+    const offsetXCm = this._odfLengthToCm(xRaw);
+    const offsetYCm = this._odfLengthToCm(yRaw);
+
     return {
       id: this._unescapeXml(frameAttrs.match(/draw:name=["']([^"']*)["']/i)?.[1] || fallbackId),
       src: `data:${mime};base64,${base64}`,
       ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-      ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {})
+      ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+      ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
+      ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {})
     };
   }
 
@@ -581,6 +607,7 @@ export class SheetAdapter {
   _parseCellEmbeddedImageDom(cellElement, fallbackId) {
     const DRAW_NS = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0";
     const OFFICE_NS = "urn:oasis:names:tc:opendocument:xmlns:office:1.0";
+    const SVG_NS = "urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0";
     const frame = Array.from(cellElement.children).find(child => child.localName === "frame" && child.namespaceURI === DRAW_NS);
     if (!frame) return null;
     const image = Array.from(frame.children).find(child => child.localName === "image" && child.namespaceURI === DRAW_NS);
@@ -589,13 +616,23 @@ export class SheetAdapter {
     const base64 = binaryNode ? (binaryNode.textContent || "").replace(/\s+/g, "") : "";
     if (!base64) return null;
     const mime = (image.getAttribute("draw:mime-type") || "image/png").toLowerCase();
-    const widthCm = parseFloat(String(frame.getAttribute("svg:width") || "").replace(/cm$/i, ""));
-    const heightCm = parseFloat(String(frame.getAttribute("svg:height") || "").replace(/cm$/i, ""));
+    const widthRaw = frame.getAttribute("svg:width") || frame.getAttributeNS?.(SVG_NS, "width");
+    const heightRaw = frame.getAttribute("svg:height") || frame.getAttributeNS?.(SVG_NS, "height");
+    const xRaw = frame.getAttribute("svg:x") || frame.getAttributeNS?.(SVG_NS, "x");
+    const yRaw = frame.getAttribute("svg:y") || frame.getAttributeNS?.(SVG_NS, "y");
+
+    const widthCm = this._odfLengthToCm(widthRaw);
+    const heightCm = this._odfLengthToCm(heightRaw);
+    const offsetXCm = this._odfLengthToCm(xRaw);
+    const offsetYCm = this._odfLengthToCm(yRaw);
+
     return {
       id: frame.getAttribute("draw:name") || fallbackId,
       src: `data:${mime};base64,${base64}`,
       ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-      ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {})
+      ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+      ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
+      ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {})
     };
   }
 
@@ -1141,10 +1178,12 @@ export class SheetAdapter {
     const mime = match[1].toLowerCase();
     const base64 = match[2].replace(/\s+/g, "");
     if (!base64) return "";
-    const widthCm = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) > 0 ? Number(image.widthCm) : 6.35;
-    const heightCm = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) > 0 ? Number(image.heightCm) : 2.117;
+    const widthCm = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) > 0 ? Number(Number(image.widthCm).toFixed(4)) : 6.35;
+    const heightCm = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) > 0 ? Number(Number(image.heightCm).toFixed(4)) : 2.117;
+    const xCm = Number.isFinite(Number(image.offsetXCm)) ? Number(Number(image.offsetXCm).toFixed(4)) : 0;
+    const yCm = Number.isFinite(Number(image.offsetYCm)) ? Number(Number(image.offsetYCm).toFixed(4)) : 0;
     const name = this._escapeXml(image.id || "Image");
-    return `<draw:frame draw:name="${name}" svg:width="${widthCm}cm" svg:height="${heightCm}cm"><draw:image draw:mime-type="${this._escapeXml(mime)}"><office:binary-data>${base64}</office:binary-data></draw:image></draw:frame>`;
+    return `<draw:frame draw:name="${name}" svg:x="${xCm}cm" svg:y="${yCm}cm" svg:width="${widthCm}cm" svg:height="${heightCm}cm"><draw:image draw:mime-type="${this._escapeXml(mime)}"><office:binary-data>${base64}</office:binary-data></draw:image></draw:frame>`;
   }
 
   _serializeSparklinesXml(sheetName) {

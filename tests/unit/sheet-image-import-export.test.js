@@ -50,6 +50,8 @@ export async function runSheetImageImportExportTests() {
     assert(image.id === "Picture 1", `id phải lấy từ draw:name, thực tế: ${image.id}`);
     assert(Math.abs(image.widthCm - 4.068) < 0.001, `widthCm phải là 4.068, thực tế: ${image.widthCm}`);
     assert(Math.abs(image.heightCm - 3.548) < 0.001, `heightCm phải là 3.548, thực tế: ${image.heightCm}`);
+    assert(Math.abs(image.offsetXCm - 0.543) < 0.001, `offsetXCm phải là 0.543, thực tế: ${image.offsetXCm}`);
+    assert(Math.abs(image.offsetYCm - 0) < 0.001, `offsetYCm phải là 0, thực tế: ${image.offsetYCm}`);
   });
 
   test("_parseCellEmbeddedImage(): trả về null khi ô không có ảnh", () => {
@@ -182,6 +184,87 @@ export async function runSheetImageImportExportTests() {
     assert(images.length === 2, `Phải còn đúng 2 ảnh, thực tế: ${images.length}`);
     const anchors = images.map(image => `${image.anchor.c}${image.anchor.r}`).sort();
     assert(anchors[0] === "A1" && anchors[1] === "F10", `Vị trí neo phải là A1 và F10, thực tế: ${anchors.join(",")}`);
+  });
+
+  test("_parseCellEmbeddedImage(): đổi đúng các đơn vị in, mm, pt về cm", () => {
+    const adapter = new SheetAdapter(null);
+    // 1in = 2.54cm, 10mm = 1cm, 72pt = 2.54cm, 36pt = 1.27cm
+    const cellXml = `<draw:frame draw:name="Units" svg:width="1in" svg:height="10mm" svg:x="72pt" svg:y="36pt"><draw:image draw:mime-type="image/png"><office:binary-data>${PNG_1X1_BASE64}</office:binary-data></draw:image></draw:frame>`;
+    const image = adapter._parseCellEmbeddedImage(cellXml, "fallback");
+    assert(image, "Phải parse được ảnh");
+    assert(Math.abs(image.widthCm - 2.54) < 0.01, `widthCm từ 1in phải là 2.54, thực tế: ${image.widthCm}`);
+    assert(Math.abs(image.heightCm - 1) < 0.01, `heightCm từ 10mm phải là 1, thực tế: ${image.heightCm}`);
+    assert(Math.abs(image.offsetXCm - 2.54) < 0.01, `offsetXCm từ 72pt phải là 2.54, thực tế: ${image.offsetXCm}`);
+    assert(Math.abs(image.offsetYCm - 1.27) < 0.01, `offsetYCm từ 36pt phải là 1.27, thực tế: ${image.offsetYCm}`);
+  });
+
+  test("_parseCellEmbeddedImageDom(): đọc đúng svg:x, svg:y, widthCm, heightCm qua DOM", () => {
+    const adapter = new SheetAdapter(null);
+    const xml = `<table:table-cell xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0">
+      <draw:frame draw:name="Picture 2" svg:width="6.27cm" svg:height="6.251cm" svg:x="1.334cm" svg:y="0.552cm">
+        <draw:image draw:mime-type="image/png"><office:binary-data>${PNG_1X1_BASE64}</office:binary-data></draw:image>
+      </draw:frame>
+    </table:table-cell>`;
+    let cellEl;
+    if (typeof DOMParser !== "undefined") {
+      cellEl = new DOMParser().parseFromString(xml, "application/xml").documentElement;
+    } else {
+      const frameEl = {
+        localName: "frame",
+        namespaceURI: "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0",
+        getAttribute: (attr) => ({
+          "draw:name": "Picture 2",
+          "svg:width": "6.27cm",
+          "svg:height": "6.251cm",
+          "svg:x": "1.334cm",
+          "svg:y": "0.552cm"
+        }[attr] || null),
+        children: [{
+          localName: "image",
+          namespaceURI: "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0",
+          getAttribute: (attr) => attr === "draw:mime-type" ? "image/png" : null,
+          children: [{
+            localName: "binary-data",
+            namespaceURI: "urn:oasis:names:tc:opendocument:xmlns:office:1.0",
+            textContent: PNG_1X1_BASE64
+          }]
+        }]
+      };
+      cellEl = { localName: "table-cell", namespaceURI: "urn:oasis:names:tc:opendocument:xmlns:table:1.0", children: [frameEl] };
+    }
+    const image = adapter._parseCellEmbeddedImageDom(cellEl, "fallback");
+    assert(image, "Phải parse được ảnh qua DOM");
+    assert(image.id === "Picture 2", `id phải là Picture 2, thực tế: ${image.id}`);
+    assert(Math.abs(image.widthCm - 6.27) < 0.001, `widthCm phải là 6.27, thực tế: ${image.widthCm}`);
+    assert(Math.abs(image.heightCm - 6.251) < 0.001, `heightCm phải là 6.251, thực tế: ${image.heightCm}`);
+    assert(Math.abs(image.offsetXCm - 1.334) < 0.001, `offsetXCm phải là 1.334, thực tế: ${image.offsetXCm}`);
+    assert(Math.abs(image.offsetYCm - 0.552) < 0.001, `offsetYCm phải là 0.552, thực tế: ${image.offsetYCm}`);
+  });
+
+  test("serializeToFods() → parseFods(): ghi và nạp lại chính xác svg:x, svg:y (offset)", () => {
+    const grid = new SheetGridController(container());
+    grid.imagesBySheet[grid.activeSheet] = [{
+      id: "Camera B5",
+      src: PNG_DATA_URI,
+      anchor: { c: "B", r: 5 },
+      widthCm: 6.27,
+      heightCm: 6.251,
+      offsetXCm: 1.334,
+      offsetYCm: 0.552
+    }];
+    const adapter = new SheetAdapter(grid);
+    const fodsXml = adapter.serializeToFods();
+    assert(fodsXml.includes('svg:x="1.334cm"'), `FODS phải chứa svg:x="1.334cm", thực tế: ${fodsXml.slice(fodsXml.indexOf("<draw:frame"), fodsXml.indexOf("</draw:frame>") + 13)}`);
+    assert(fodsXml.includes('svg:y="0.552cm"'), `FODS phải chứa svg:y="0.552cm"`);
+
+    const reparsed = adapter.parseFods(fodsXml);
+    const img = reparsed.imagesBySheet?.[grid.activeSheet]?.[0];
+    assert(img, "Ảnh phải được nạp lại");
+    assert(img.anchor.c === "B" && img.anchor.r === 5, "Anchor phải là B5");
+    assert(Math.abs(img.offsetXCm - 1.334) < 0.001, `offsetXCm sau round-trip phải là 1.334, thực tế: ${img.offsetXCm}`);
+    assert(Math.abs(img.offsetYCm - 0.552) < 0.001, `offsetYCm sau round-trip phải là 0.552, thực tế: ${img.offsetYCm}`);
+    assert(Math.abs(img.widthCm - 6.27) < 0.001, `widthCm sau round-trip phải là 6.27, thực tế: ${img.widthCm}`);
+    assert(Math.abs(img.heightCm - 6.251) < 0.001, `heightCm sau round-trip phải là 6.251, thực tế: ${img.heightCm}`);
   });
 
   return results;
