@@ -2468,7 +2468,62 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     # inject <table:database-ranges> into FODS so parseFods can restore
     # the filter state.
     xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
+    xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
     return xml
+
+
+def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+    """Preserve exact Excel width*7+5 px and row pt->px dimensions.
+
+    soffice canonicalizes dimensions to ODF lengths and can apply font metrics;
+    the compact table-level map avoids rewriting repeated FODS columns/rows.
+    """
+    layouts: dict[str, dict[str, dict[str, float]]] = {}
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        entry = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry:
+            continue
+        sheet_xml = entry.decode("utf-8", errors="replace")
+        columns: dict[str, float] = {}
+        rows: dict[str, float] = {}
+        for match in re.finditer(r"<col\b([^>]*)/?>", sheet_xml, re.IGNORECASE):
+            attrs = match.group(1)
+            width = re.search(r'\bwidth="([\d.]+)"', attrs)
+            custom = re.search(r'\b(?:customWidth|bestFit)="1"', attrs)
+            minimum = re.search(r'\bmin="(\d+)"', attrs)
+            maximum = re.search(r'\bmax="(\d+)"', attrs)
+            if not (width and custom and minimum and maximum):
+                continue
+            for index in range(int(minimum.group(1)), int(maximum.group(1)) + 1):
+                number = index
+                name = ""
+                while number:
+                    number, remainder = divmod(number - 1, 26)
+                    name = chr(65 + remainder) + name
+                columns[name] = float(width.group(1)) * 7 + 5
+        for match in re.finditer(r"<row\b([^>]*)>", sheet_xml, re.IGNORECASE):
+            attrs = match.group(1)
+            row = re.search(r'\br="(\d+)"', attrs)
+            height = re.search(r'\bht="([\d.]+)"', attrs)
+            if row and height:
+                rows[row.group(1)] = float(height.group(1)) * 96 / 72
+        if columns or rows:
+            layouts[sheet_name] = {"columns": columns, "rows": rows}
+    if not layouts:
+        return fods_xml
+
+    def add_layout(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs)
+        name = _unescape_xml(name_match.group(1)) if name_match else ""
+        layout = layouts.get(name)
+        if not layout:
+            return match.group(0)
+        encoded = _escape_xml(json.dumps(layout, ensure_ascii=False, separators=(",", ":")))
+        attrs = re.sub(r'\s+vno:xlsx-layout="[^"]*"', "", attrs)
+        return f'<table:table{attrs} vno:xlsx-layout="{encoded}">'
+
+    return re.sub(r"<table:table(?=[\s>/])([^>]*)>", add_layout, fods_xml, flags=re.IGNORECASE)
 
 
 def _overlay_autofilter_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
