@@ -310,5 +310,108 @@ class TestCombinedRoundTrip(unittest.TestCase):
         self.assertIn('<autoFilter ref="A1:B2"/>', sheet1)
 
 
+# ---------------------------------------------------------------------------
+# Schema-order insertion tests
+# ---------------------------------------------------------------------------
+
+def _tag_indices(xml: str, *tags: str) -> dict[str, int]:
+    """Return {tag: first_index} for each tag in *xml*. Index = position in string."""
+    return {tag: xml.find(f"<{tag}") for tag in tags}
+
+
+SHEET_WITH_MERGECELLS_PAGEMARGINS = """\
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetViews><sheetView workbookViewId="0"/></sheetViews>
+<sheetData/>
+<mergeCells count="1"><mergeCell ref="A1:B2"/></mergeCells>
+<pageMargins left="0.75" right="0.75" top="1" bottom="1" header="0.5" footer="0.5"/>
+</worksheet>"""
+
+SHEET_WITH_SHEETPROTECTION = """\
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetViews><sheetView workbookViewId="0"/></sheetViews>
+<sheetData/>
+<sheetProtection password="FFFF" sheet="1"/>
+<pageMargins left="0.75" right="0.75" top="1" bottom="1" header="0.5" footer="0.5"/>
+</worksheet>"""
+
+SHEET_WITH_HEADERFOOTER_DRAWING = """\
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+           xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheetViews><sheetView workbookViewId="0"/></sheetViews>
+<sheetData/>
+<pageMargins left="0.75" right="0.75" top="1" bottom="1" header="0.5" footer="0.5"/>
+<headerFooter>&lt;oddHeader&gt;Title&lt;/oddHeader&gt;</headerFooter>
+<drawing r:id="rId1"/>
+</worksheet>"""
+
+
+class TestAutofilterSchemaOrder(unittest.TestCase):
+    """autoFilter must land at the correct CT_Worksheet schema position."""
+
+    def test_before_mergecells_and_pagemargins(self):
+        result = patcher.apply_autofilter_to_worksheet(
+            SHEET_WITH_MERGECELLS_PAGEMARGINS, "A1:C10"
+        )
+        idx = _tag_indices(result, "autoFilter", "mergeCells", "pageMargins")
+        self.assertGreater(idx["autoFilter"], 0, "autoFilter must be inserted")
+        self.assertLess(idx["autoFilter"], idx["mergeCells"])
+        self.assertLess(idx["autoFilter"], idx["pageMargins"])
+
+    def test_after_sheet_protection(self):
+        result = patcher.apply_autofilter_to_worksheet(
+            SHEET_WITH_SHEETPROTECTION, "A1:C10"
+        )
+        idx = _tag_indices(result, "sheetProtection", "autoFilter", "pageMargins")
+        self.assertGreater(idx["autoFilter"], idx["sheetProtection"])
+        self.assertLess(idx["autoFilter"], idx["pageMargins"])
+
+    def test_before_headerfooter_and_drawing(self):
+        result = patcher.apply_autofilter_to_worksheet(
+            SHEET_WITH_HEADERFOOTER_DRAWING, "A1:C10"
+        )
+        idx = _tag_indices(result, "autoFilter", "headerFooter", "drawing")
+        self.assertGreater(idx["autoFilter"], 0, "autoFilter must be inserted")
+        self.assertLess(idx["autoFilter"], idx["headerFooter"])
+        self.assertLess(idx["autoFilter"], idx["drawing"])
+
+    def test_no_duplicate_when_already_present(self):
+        xml_with = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/><autoFilter ref="A1:B2"/></worksheet>'
+        result = patcher.apply_autofilter_to_worksheet(xml_with, "A1:B2")
+        self.assertEqual(result, xml_with)
+        self.assertEqual(result.count("<autoFilter"), 1)
+
+
+class TestInsertWorksheetChildInSchemaOrder(unittest.TestCase):
+    """Direct tests for the _insert_worksheet_child_in_schema_order helper."""
+
+    def test_inserts_after_existing_earlier_children(self):
+        xml = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/><pageMargins left="0"/></worksheet>'
+        result = patcher._insert_worksheet_child_in_schema_order(
+            xml, '<sheetProtection password="FFFF"/>', "sheetProtection"
+        )
+        idx = _tag_indices(result, "sheetData", "sheetProtection", "pageMargins")
+        self.assertGreater(idx["sheetProtection"], idx["sheetData"])
+        self.assertLess(idx["sheetProtection"], idx["pageMargins"])
+
+    def test_skips_if_already_present(self):
+        xml = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/><autoFilter ref="A1:B2"/></worksheet>'
+        result = patcher._insert_worksheet_child_in_schema_order(
+            xml, '<autoFilter ref="C3:D4"/>', "autoFilter"
+        )
+        self.assertEqual(result, xml)
+
+    def test_falls_back_to_end_when_no_known_children(self):
+        xml = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><foo/><bar/></worksheet>'
+        result = patcher._insert_worksheet_child_in_schema_order(
+            xml, '<autoFilter ref="A1:B2"/>', "autoFilter"
+        )
+        self.assertIn('<autoFilter ref="A1:B2"/>', result)
+        self.assertTrue(result.index('<autoFilter') < result.index("</worksheet>"))
+
+
 if __name__ == "__main__":
     unittest.main()

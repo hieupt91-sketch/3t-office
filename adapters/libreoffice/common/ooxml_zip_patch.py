@@ -633,6 +633,119 @@ def overlay_active_sheet_to_fods(fods_xml: str | None, workbook_xml: str | None)
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# CT_Worksheet child-element schema order (ECMA-376 §18.3.1.73)
+# ---------------------------------------------------------------------------
+
+_WORKSHEET_CHILD_ORDER: tuple[str, ...] = (
+    "sheetPr",
+    "dimension",
+    "sheetViews",
+    "sheetFormatPr",
+    "cols",
+    "sheetData",
+    "sheetCalcPr",
+    "sheetProtection",
+    "protectedRanges",
+    "scenarios",
+    "autoFilter",
+    "sortState",
+    "dataConsolidate",
+    "customSheetViews",
+    "mergeCells",
+    "phoneticPr",
+    "conditionalFormatting",
+    "dataValidations",
+    "hyperlinks",
+    "printOptions",
+    "pageMargins",
+    "pageSetup",
+    "headerFooter",
+    "rowBreaks",
+    "colBreaks",
+    "customProperties",
+    "cellWatches",
+    "ignoredErrors",
+    "smartTags",
+    "drawing",
+    "legacyDrawing",
+    "legacyDrawingHF",
+    "picture",
+    "oleObjects",
+    "controls",
+    "webPublishItems",
+    "tableParts",
+    "extLst",
+)
+
+_WORKSHEET_CHILD_ORDER_INDEX: dict[str, int] = {
+    name.lower(): idx for idx, name in enumerate(_WORKSHEET_CHILD_ORDER)
+}
+
+_WORKSHEET_CHILD_TAG_RE = re.compile(
+    r"<(?:[\w]+:)?(\w+)(?:\b[^>]*)?\s*(?:/>|>)",
+    re.IGNORECASE,
+)
+
+
+def _insert_worksheet_child_in_schema_order(
+    xml: str, element_xml: str, element_name: str
+) -> str:
+    """Insert *element_xml* into *xml* (a CT_Worksheet string) at the correct
+    position according to ECMA-376 child-element order.
+
+    If *element_name* is already present the original *xml* is returned
+    unchanged.  Falls back to appending before ``</worksheet>`` when the
+    tag is not in the known order list.
+    """
+    if not element_xml or not element_name:
+        return xml
+
+    tag_lower = element_name.lower()
+
+    if re.search(
+        rf"<(?:[\w]+:)?{re.escape(tag_lower)}\b",
+        xml,
+        re.IGNORECASE,
+    ):
+        return xml
+
+    target_idx = _WORKSHEET_CHILD_ORDER_INDEX.get(tag_lower)
+    if target_idx is None:
+        marker = "</worksheet>"
+        pos = xml.rfind(marker)
+        if pos == -1:
+            return xml + element_xml
+        return xml[:pos] + element_xml + xml[pos:]
+
+    best_pos = None
+    for m in _WORKSHEET_CHILD_TAG_RE.finditer(xml):
+        child_name = m.group(1).lower()
+        child_idx = _WORKSHEET_CHILD_ORDER_INDEX.get(child_name)
+        if child_idx is not None and child_idx < target_idx:
+            best_pos = m.end()
+
+    if best_pos is not None:
+        return xml[:best_pos] + element_xml + xml[best_pos:]
+
+    insert_before = None
+    for m in _WORKSHEET_CHILD_TAG_RE.finditer(xml):
+        child_name = m.group(1).lower()
+        child_idx = _WORKSHEET_CHILD_ORDER_INDEX.get(child_name)
+        if child_idx is not None and child_idx > target_idx:
+            insert_before = m.start()
+            break
+
+    if insert_before is not None:
+        return xml[:insert_before] + element_xml + xml[insert_before:]
+
+    marker = "</worksheet>"
+    pos = xml.rfind(marker)
+    if pos == -1:
+        return xml + element_xml
+    return xml[:pos] + element_xml + xml[pos:]
+
+
 # AutoFilter overlay (database-ranges in ODF ↔ <autoFilter> in OOXML)
 # ---------------------------------------------------------------------------
 
@@ -694,18 +807,18 @@ def parse_autofilter_from_fods(fods_xml: str | None) -> dict[str, str]:
 
 
 def apply_autofilter_to_worksheet(sheet_xml: str, ref: str) -> str:
-    """Inject <autoFilter ref="..."/> into a worksheet XML if not already present."""
+    """Inject <autoFilter ref="..."/> into a worksheet XML if not already present.
+
+    Position follows CT_Worksheet schema order (after ``sheetProtection`` /
+    ``scenarios``, before ``sortState`` / ``mergeCells`` / …).
+    """
     xml = sheet_xml or ""
     if not ref:
         return xml
     if _AUTOFILTER_REF_RE.search(xml):
         return xml
-    # Insert before </worksheet>
-    marker = "</worksheet>"
-    idx = xml.rfind(marker)
-    if idx == -1:
-        return xml + f'<autoFilter ref="{ref}"/>'
-    return xml[:idx] + f'<autoFilter ref="{ref}"/>' + xml[idx:]
+    element_xml = f'<autoFilter ref="{ref}"/>'
+    return _insert_worksheet_child_in_schema_order(xml, element_xml, "autoFilter")
 
 
 def _resolve_xlsx_sheet_entries(xlsx_bytes: bytes) -> dict[str, str]:
