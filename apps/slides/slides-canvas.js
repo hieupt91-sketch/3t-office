@@ -502,7 +502,7 @@ export class SlidesCanvasController {
 
     this.shapesLayer = document.createElement("div");
     this.shapesLayer.className = "vno-slide-shapes-layer";
-    this.shapesLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;";
+    this.shapesLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;overflow:visible;";
     this.canvasEl.appendChild(this.shapesLayer);
 
     this.smartGuidesLayer = document.createElement("div");
@@ -3343,7 +3343,7 @@ export class SlidesCanvasController {
       // Đây là hiển thị CHỈ ĐỌC — chưa có tay cầm/thao tác xoay tương tác
       // trên canvas (xem HANDOFF-SLIDES-SHAPE-ROTATION-DISPLAY.md).
       const rotateStyle = shape.rotation ? ` transform:rotate(${shape.rotation}deg); transform-origin:center center;` : "";
-      el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${isConnector ? "default" : "move"};z-index:${isConnector ? 0 : 1};${rotateStyle}`;
+      el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${isConnector ? "default" : "move"};z-index:${isConnector ? 0 : 1};overflow:visible;${rotateStyle}`;
       if (!isConnector && this._textStyleEligible(shape) && shape.type !== "textbox") {
         const vAlign = shape.textVAlign || "middle";
         el.style.alignItems = vAlign === "top" ? "flex-start" : vAlign === "bottom" ? "flex-end" : "center";
@@ -3554,6 +3554,8 @@ export class SlidesCanvasController {
         textEl.style.overflowWrap = "break-word";
         textEl.style.lineHeight = "1.15";
         textEl.style.cursor = "text";
+        textEl.style.flexShrink = shape.autofit ? "1" : "0";
+        textEl.style.overflow = "visible";
         if (shape.textDirection) textEl.style.cssText += ";" + this._textDirectionCss(shape.textDirection);
         if (shape.textHtml && this._htmlLooksFormatted(shape.textHtml)) textEl.innerHTML = shape.textHtml;
         else textEl.textContent = shape.text || "";

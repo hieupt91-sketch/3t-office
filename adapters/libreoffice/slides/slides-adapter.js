@@ -11,6 +11,96 @@ import { overlayFodpMasterLogo } from "./pptx-master-logo.js";
 import { overlayFodpSections } from "./pptx-section-list.js";
 import { overlayFodpShowProperties } from "./pptx-show-properties.js";
 
+const KNOWN_INSTALLED_FONTS = new Set([
+  "arial",
+  "arial black",
+  "calibri",
+  "cambria",
+  "candara",
+  "comic sans ms",
+  "consolas",
+  "constantia",
+  "corbel",
+  "courier new",
+  "georgia",
+  "impact",
+  "lucida console",
+  "lucida sans unicode",
+  "microsoft sans serif",
+  "microsoft yahei",
+  "segoe ui",
+  "simsun",
+  "tahoma",
+  "times new roman",
+  "trebuchet ms",
+  "verdana"
+]);
+
+export function isFontAvailable(fontName) {
+  if (!fontName) return false;
+  const clean = String(fontName).replace(/['"]/g, "").trim();
+  if (!clean) return false;
+
+  // In Node.js without DOM: check known installed fonts
+  if (typeof document === "undefined") {
+    return KNOWN_INSTALLED_FONTS.has(clean.toLowerCase());
+  }
+
+  // If document.fonts.check exists:
+  if (document.fonts && typeof document.fonts.check === "function") {
+    try {
+      if (!document.fonts.check(`12px "${clean}"`)) {
+        return false;
+      }
+    } catch (_) {}
+  }
+
+  if (KNOWN_INSTALLED_FONTS.has(clean.toLowerCase())) {
+    return true;
+  }
+
+  // In browser runtime (WebView2), measure via canvas to verify actual OS font availability
+  if (typeof document.createElement === "function") {
+    try {
+      const c = document.createElement("canvas");
+      const ctx = c?.getContext?.("2d");
+      if (ctx && typeof ctx.measureText === "function") {
+        const str = "mmmmmmmmmmlli";
+        ctx.font = "72px monospace";
+        const wMono = ctx.measureText(str).width;
+        ctx.font = "72px sans-serif";
+        const wSans = ctx.measureText(str).width;
+        ctx.font = `72px "${clean}", monospace`;
+        const cMono = ctx.measureText(str).width;
+        ctx.font = `72px "${clean}", sans-serif`;
+        const cSans = ctx.measureText(str).width;
+        return cMono !== wMono || cSans !== wSans;
+      }
+    } catch (_) {}
+  }
+
+  return false;
+}
+
+export function resolveDisplayFont(name, genericFamily) {
+  if (!name) return "Arial";
+  const clean = String(name).replace(/['"]/g, "").trim();
+  if (!clean) return "Arial";
+
+  if (isFontAvailable(clean)) {
+    return clean;
+  }
+
+  // Font not installed: check generic serif / roman
+  const generic = typeof genericFamily === "string" ? genericFamily.trim().toLowerCase() : "";
+  if (generic === "serif" || generic === "roman" || generic === "times" || generic.includes("serif") || generic.includes("roman")) {
+    return "Times New Roman";
+  }
+
+  // Default fallback for Windows PowerPoint/Word/Excel: Arial (sans)
+  return "Arial";
+}
+
 export class SlidesAdapter {
   constructor(canvasController) {
     this.canvas = canvasController;
@@ -687,11 +777,13 @@ export class SlidesAdapter {
           color: inner.match(/fo:color=["']([^"']+)["']/i)?.[1],
           bg: inner.match(/fo:background-color=["']([^"']+)["']/i)?.[1],
           family: inner.match(/fo:font-family=["']([^"']+)["']/i)?.[1] || inner.match(/style:font-name=["']([^"']+)["']/i)?.[1],
+          genericFamily: inner.match(/style:font-family-generic=["']([^"']+)["']/i)?.[1],
           size: inner.match(/fo:font-size=["']([^"']+)["']/i)?.[1]
         });
       } else if (family === "paragraph") {
         para.set(name, {
           align: inner.match(/fo:text-align=["']([^"']+)["']/i)?.[1],
+          fontSize: inner.match(/fo:font-size=["']([^"']+)["']/i)?.[1],
           lineHeight: inner.match(/fo:line-height=["']([^"']+)["']/i)?.[1],
           indent: inner.match(/fo:margin-left=["']([^"']+)["']/i)?.[1]
         });
@@ -729,8 +821,9 @@ export class SlidesAdapter {
       if (fmt.bg && fmt.bg !== "transparent") spanStyles.push(`background-color:${fmt.bg}`);
       if (fmt.family) {
         const cleanFamily = fmt.family.replace(/['"]/g, "").trim();
-        const generic = /serif/i.test(cleanFamily) ? "serif" : "sans-serif";
-        spanStyles.push(`font-family:'${cleanFamily}',${generic}`);
+        const displayFont = resolveDisplayFont(cleanFamily, fmt.genericFamily);
+        const generic = /serif|times/i.test(displayFont) ? "serif" : "sans-serif";
+        spanStyles.push(`font-family:'${displayFont}',${generic}`);
       }
       if (fmt.size) spanStyles.push(`font-size:${fmt.size}`);
       if (spanStyles.length) wrapped = `<span style="${spanStyles.join(";")}">${wrapped}</span>`;
@@ -763,6 +856,7 @@ export class SlidesAdapter {
         const inner = this._odfInlineToHtml(match[4], maps);
         const styles = [];
         if (para.align) styles.push(`text-align:${para.align}`);
+        if (para.fontSize) styles.push(`font-size:${para.fontSize}`);
         if (para.lineHeight) {
           const lh = para.lineHeight.endsWith("%") ? (parseFloat(para.lineHeight) / 100) : para.lineHeight;
           styles.push(`line-height:${lh}`);
@@ -1750,6 +1844,7 @@ export class SlidesAdapter {
       if (!/style:family=["'](graphic|presentation)["']/i.test(match[1])) continue;
       const name = match[1].match(/style:name=["']([^"']+)["']/i)?.[1];
       if (!name) continue;
+      const parentStyleName = match[1].match(/style:parent-style-name=["']([^"']+)["']/i)?.[1] || null;
       const fill = match[2].match(/draw:fill-color=["']([^"']+)["']/i)?.[1];
       const fillKind = match[2].match(/draw:fill=["']([^"']+)["']/i)?.[1];
       const stroke = match[2].match(/svg:stroke-color=["']([^"']+)["']/i)?.[1];
@@ -1765,17 +1860,42 @@ export class SlidesAdapter {
       const padBottom = match[2].match(/fo:padding-bottom=["']([^"']+)["']/i)?.[1];
       const padLeft = match[2].match(/fo:padding-left=["']([^"']+)["']/i)?.[1];
       const padRight = match[2].match(/fo:padding-right=["']([^"']+)["']/i)?.[1];
+      const shrinkToFit = /style:shrink-to-fit=["']true["']/i.test(match[2]);
+      const fitToSize = /draw:fit-to-size=["']true["']/i.test(match[2]);
+      const autoGrowHeight = /draw:auto-grow-height=["']true["']/i.test(match[2]);
       styles.set(name, {
+        parentStyleName,
         fill: fillKind === "none" ? "transparent" : (fill || null),
         stroke: stroke || null,
         markerEnd: markerEnd || null,
-        textVAlign: (vAlignRaw && vAlignRaw !== "middle") ? vAlignRaw : null,
+        textVAlign: vAlignRaw || null,
         textDirection: (textDirection && textDirection !== "horizontal") ? textDirection : null,
         paddingTop: padTop ? this._odfLengthToPx(padTop) : null,
         paddingBottom: padBottom ? this._odfLengthToPx(padBottom) : null,
         paddingLeft: padLeft ? this._odfLengthToPx(padLeft) : null,
-        paddingRight: padRight ? this._odfLengthToPx(padRight) : null
+        paddingRight: padRight ? this._odfLengthToPx(padRight) : null,
+        shrinkToFit,
+        fitToSize,
+        autoGrowHeight,
+        autofit: shrinkToFit || fitToSize
       });
+    }
+    for (const [, s] of styles) {
+      let p = s.parentStyleName ? styles.get(s.parentStyleName) : null;
+      let depth = 0;
+      while (p && depth < 10) {
+        if (!s.textVAlign && p.textVAlign) s.textVAlign = p.textVAlign;
+        if (!s.textDirection && p.textDirection) s.textDirection = p.textDirection;
+        if (s.paddingTop == null && p.paddingTop != null) s.paddingTop = p.paddingTop;
+        if (s.paddingBottom == null && p.paddingBottom != null) s.paddingBottom = p.paddingBottom;
+        if (s.paddingLeft == null && p.paddingLeft != null) s.paddingLeft = p.paddingLeft;
+        if (s.paddingRight == null && p.paddingRight != null) s.paddingRight = p.paddingRight;
+        if (!s.shrinkToFit && p.shrinkToFit) s.shrinkToFit = true;
+        if (!s.fitToSize && p.fitToSize) s.fitToSize = true;
+        if (!s.autofit && p.autofit) s.autofit = true;
+        p = p.parentStyleName ? styles.get(p.parentStyleName) : null;
+        depth++;
+      }
     }
     return styles;
   }
@@ -2000,14 +2120,21 @@ export class SlidesAdapter {
       };
     }
     if (/<draw:text-box\b/i.test(inner) && (hasId || get("svg:width"))) {
+      const frameVAlign = this._attr(attrs, "draw:textarea-vertical-align");
+      const boxVAlign = inner.match(/draw:textarea-vertical-align=["']([^"']+)["']/i)?.[1];
+      const vAlign = frameVAlign || boxVAlign || style.textVAlign || null;
+      const frameShrink = /style:shrink-to-fit=["']true["']/i.test(attrs) || /style:shrink-to-fit=["']true["']/i.test(inner);
+      const frameFit = /draw:fit-to-size=["']true["']/i.test(attrs) || /draw:fit-to-size=["']true["']/i.test(inner);
       const textbox = {
         ...base,
         type: "textbox",
         color: get("draw:fill-color") || style.fill || "transparent",
         text: this._paragraphsFromXml(inner).join("\n"),
-        textHtml: this._shapeHtmlFromXml(inner)
+        textHtml: this._shapeHtmlFromXml(inner),
+        shrinkToFit: frameShrink || Boolean(style.shrinkToFit),
+        autofit: frameShrink || frameFit || Boolean(style.autofit)
       };
-      if (style.textVAlign) textbox.textVAlign = style.textVAlign;
+      if (vAlign) textbox.textVAlign = vAlign;
       if (style.textDirection) textbox.textDirection = style.textDirection;
       if (style.paddingLeft != null) textbox.paddingLeft = style.paddingLeft;
       if (style.paddingRight != null) textbox.paddingRight = style.paddingRight;
@@ -3280,3 +3407,6 @@ export class SlidesAdapter {
     }
   }
 }
+
+SlidesAdapter.resolveDisplayFont = resolveDisplayFont;
+SlidesAdapter.isFontAvailable = isFontAvailable;
