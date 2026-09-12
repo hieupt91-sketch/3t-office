@@ -122,6 +122,101 @@ export async function runSheetImageTests() {
       assert(image.anchor.c === "E" && image.anchor.r === 6, "Redo không đưa anchor lại E6");
       assert(grid.imageLayer.children[0]?.dataset.anchor === "E6", "DOM không re-render tại E6 sau Redo");
     });
+
+    test("Sheet Image: render đúng kích thước widthCm/heightCm và vị trí tích lũy hàng/cột + offset (mock getRowHeight hàng 1 = 198px, ảnh B5 không đè hàng 1)", () => {
+      const grid = new SheetGridController(container());
+      grid.imageLayer = layer();
+      // Mock getRowHeight: hàng 1 cao 198px (như file Dahua thật), các hàng khác 28px
+      grid.getRowHeight = (r) => Number(r) === 1 ? 198 : 28;
+      grid.getColumnWidth = () => 100;
+
+      // 1. Banner A1: 41.872cm x 5.245cm, offset 0
+      const banner = {
+        id: "Picture 7",
+        src: "data:image/png;base64,AA==",
+        anchor: { c: "A", r: 1 },
+        widthCm: 41.872,
+        heightCm: 5.245,
+        offsetXCm: 0,
+        offsetYCm: 0
+      };
+      // 2. Camera B5: 6.27cm x 6.251cm, offset x=1.334cm, y=0.552cm
+      const camera = {
+        id: "Picture 2",
+        src: "data:image/png;base64,AA==",
+        anchor: { c: "B", r: 5 },
+        widthCm: 6.27,
+        heightCm: 6.251,
+        offsetXCm: 1.334,
+        offsetYCm: 0.552
+      };
+      grid.imagesBySheet[grid.activeSheet] = [banner, camera];
+      grid.selectedImageId = null;
+      grid.renderImages();
+
+      const bannerPanel = grid.imageLayer.children[0];
+      const cameraPanel = grid.imageLayer.children[1];
+      assert(bannerPanel, "Banner panel phải tồn tại");
+      assert(cameraPanel, "Camera panel phải tồn tại");
+
+      // Banner A1: top = 24px, left = 44px
+      assert(parseFloat(bannerPanel.style.top) === 24, `Top banner phải là 24, thực tế: ${bannerPanel.style.top}`);
+      assert(parseFloat(bannerPanel.style.left) === 44, `Left banner phải là 44, thực tế: ${bannerPanel.style.left}`);
+      // Banner width: 41.872 * 37.795 = ~1583px, height: 5.245 * 37.795 = ~198px (tràn ngang hàng 1)
+      const bannerW = parseFloat(bannerPanel.style.width);
+      const bannerH = parseFloat(bannerPanel.style.height);
+      assert(bannerW > 1500, `Banner phải vẽ tràn ngang (>1500px), thực tế: ${bannerW}px`);
+      assert(Math.abs(bannerH - 198) <= 2, `Banner cao ~198px bằng hàng 1, thực tế: ${bannerH}px`);
+
+      // Camera B5:
+      // top = 24 (header) + 198 (hàng 1) + 28*3 (hàng 2,3,4) + 0.552*37.795 (offsetY ~21px) = 24 + 198 + 84 + 21 = 327px
+      const cameraTop = parseFloat(cameraPanel.style.top);
+      assert(cameraTop >= 320 && cameraTop <= 335, `Camera B5 top phải nằm trong ô B5 (~327px), thực tế: ${cameraTop}px`);
+      // Chứng minh không đè hàng 1: hàng 1 kết thúc tại 24 + 198 = 222px. cameraTop = 327px >> 222px
+      assert(cameraTop > 222, `Camera B5 top (${cameraTop}px) phải nằm dưới hoàn toàn hàng 1 (kết thúc tại 222px)`);
+
+      // Camera left: 44 (header) + 100 (cột A) + 1.334*37.795 (offsetX ~50px) = 194px
+      const cameraLeft = parseFloat(cameraPanel.style.left);
+      assert(cameraLeft >= 190 && cameraLeft <= 200, `Camera B5 left phải là ~194px, thực tế: ${cameraLeft}px`);
+
+      // Camera kích thước: ~237px x ~236px
+      const cameraW = parseFloat(cameraPanel.style.width);
+      const cameraH = parseFloat(cameraPanel.style.height);
+      assert(Math.abs(cameraW - 237) <= 2, `Camera B5 width phải ~237px, thực tế: ${cameraW}px`);
+      assert(Math.abs(cameraH - 236) <= 2, `Camera B5 height phải ~236px, thực tế: ${cameraH}px`);
+    });
+
+    test("Sheet Image: bỏ khung thẻ mặc định khi chưa chọn, hiện viền chọn + 8 handles khi được chọn", () => {
+      const grid = new SheetGridController(container());
+      grid.imageLayer = layer();
+      grid.imagesBySheet[grid.activeSheet] = [{
+        id: "img-1",
+        src: "data:image/png;base64,AA==",
+        anchor: { c: "B", r: 3 },
+        widthCm: 5,
+        heightCm: 5
+      }];
+      grid.selectedImageId = null;
+      grid.renderImages();
+
+      const panel = grid.imageLayer.children[0];
+      assert(panel, "Panel ảnh phải tồn tại");
+      assert(!panel.className.includes("is-selected"), "Ảnh chưa chọn không được có class is-selected");
+
+      // Kiểm tra 8 handles tồn tại trong DOM
+      const handles = panel.children.filter(child => child.className?.includes("vno-handle-"));
+      assert(handles.length === 8, `Phải có đủ 8 resize handles, thực tế: ${handles.length}`);
+
+      // Khi chọn ảnh:
+      grid.selectedImageId = "img-1";
+      grid.renderImages();
+      const selectedPanel = grid.imageLayer.children[0];
+      assert(selectedPanel.className.includes("is-selected"), "Ảnh được chọn phải có class is-selected");
+
+      // selectCell deselects ảnh:
+      grid.selectCell("A", 1);
+      assert(grid.selectedImageId === null, "selectCell phải hủy chọn ảnh");
+    });
   } finally { globalThis.document = originalDocument; }
   return results;
 }

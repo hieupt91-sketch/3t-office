@@ -1363,22 +1363,21 @@ tr.is-filtered-out {
   color: #1e293b;
 }
 
-/* --- Visual QA: Sheet Image Overlay & Interactive Delete Button --- */
+/* --- Visual QA: Sheet Image Overlay & Excel Fidelity Selection --- */
 .vno-sheet-image {
-  background: var(--vno-bg-window, #ffffff) !important;
-  border: 1px solid var(--vno-border-strong, #94a3b8) !important;
-  border-radius: 6px !important;
-  box-shadow: var(--vno-shadow-md, 0 6px 18px rgba(15, 23, 42, 0.2)) !important;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   cursor: move;
   user-select: none;
   touch-action: none;
+  box-sizing: border-box;
 }
 
-.vno-sheet-image:hover,
-.vno-sheet-image:focus-within {
-  border-color: var(--vno-sheet-primary, #0f6d38) !important;
-  box-shadow: 0 0 0 2px rgba(15, 109, 56, 0.25), 0 8px 24px rgba(15, 23, 42, 0.22) !important;
+.vno-sheet-image.is-selected {
+  outline: 1.5px solid var(--vno-sheet-primary, #0f6d38) !important;
+  outline-offset: 0;
 }
 
 .vno-sheet-image:active {
@@ -1389,7 +1388,7 @@ tr.is-filtered-out {
   cursor: grabbing !important;
   opacity: 0.88;
   z-index: 100 !important;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.35) !important;
+  outline: 1.5px dashed var(--vno-sheet-primary, #0f6d38) !important;
   transition: none !important;
 }
 
@@ -1399,26 +1398,57 @@ tr.is-filtered-out {
   -webkit-user-drag: none;
 }
 
+/* 8 handles when selected (Excel/Slides fidelity) */
+.vno-sheet-image .vno-image-resize-handle {
+  display: none;
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background-color: #ffffff;
+  border: 1.5px solid var(--vno-sheet-primary, #0f6d38);
+  border-radius: 1px;
+  box-sizing: border-box;
+  z-index: 30;
+}
+
+.vno-sheet-image.is-selected .vno-image-resize-handle {
+  display: block;
+}
+
+.vno-sheet-image .vno-handle-nw { top: -4px; left: -4px; cursor: nwse-resize; }
+.vno-sheet-image .vno-handle-n  { top: -4px; left: calc(50% - 4px); cursor: ns-resize; }
+.vno-sheet-image .vno-handle-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.vno-sheet-image .vno-handle-e  { top: calc(50% - 4px); right: -4px; cursor: ew-resize; }
+.vno-sheet-image .vno-handle-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+.vno-sheet-image .vno-handle-s  { bottom: -4px; left: calc(50% - 4px); cursor: ns-resize; }
+.vno-sheet-image .vno-handle-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.vno-sheet-image .vno-handle-w  { top: calc(50% - 4px); left: -4px; cursor: ew-resize; }
+
 .vno-sheet-image button[data-image-delete] {
+  display: none !important;
   position: absolute !important;
-  right: 7px !important;
-  top: 7px !important;
-  width: 24px !important;
-  height: 24px !important;
-  display: flex !important;
+  right: -10px !important;
+  top: -10px !important;
+  width: 20px !important;
+  height: 20px !important;
+  z-index: 35 !important;
   align-items: center !important;
   justify-content: center !important;
   padding: 0 !important;
   border: 1px solid var(--vno-border-default, #cbd5e1) !important;
   background: var(--vno-bg-surface, #ffffff) !important;
   color: var(--vno-text-secondary, #475569) !important;
-  border-radius: 4px !important;
-  font-size: 16px !important;
+  border-radius: 50% !important;
+  font-size: 14px !important;
   line-height: 1 !important;
   font-weight: 700 !important;
   cursor: pointer !important;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2) !important;
   transition: all 0.15s ease !important;
+}
+
+.vno-sheet-image.is-selected button[data-image-delete] {
+  display: flex !important;
 }
 
 .vno-sheet-image button[data-image-delete]:hover {
@@ -1434,20 +1464,13 @@ tr.is-filtered-out {
   outline-offset: 2px !important;
 }
 
-[data-theme="dark"] .vno-sheet-image {
-  background: var(--vno-bg-surface, #2d2d30) !important;
-  border-color: var(--vno-border-strong, #52525b) !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45) !important;
+[data-theme="dark"] .vno-sheet-image.is-selected {
+  outline-color: #4ade80 !important;
 }
 
-[data-theme="dark"] .vno-sheet-image:hover,
-[data-theme="dark"] .vno-sheet-image:focus-within {
-  border-color: #4ade80 !important;
-  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.3), 0 8px 24px rgba(0, 0, 0, 0.55) !important;
-}
-
-[data-theme="dark"] .vno-sheet-image.is-dragging {
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6) !important;
+[data-theme="dark"] .vno-sheet-image .vno-image-resize-handle {
+  background-color: #1e1e1e;
+  border-color: #4ade80;
 }
 
 [data-theme="dark"] .vno-sheet-image button[data-image-delete] {

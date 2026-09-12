@@ -166,6 +166,7 @@ export class SheetGridController {
     this.dataValidationsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.chartsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.imagesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.selectedImageId = null;
     this.textBoxesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.scenariosBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
@@ -2847,6 +2848,21 @@ export class SheetGridController {
       }
       if (document.activeElement === this.formulaInput) return;
 
+      if (this.selectedImageId) {
+        if (e.key === "Delete" || e.key === "Backspace") {
+          e.preventDefault();
+          this.deleteImage(this.selectedImageId);
+          this.selectedImageId = null;
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          this.selectedImageId = null;
+          this._updateImageSelection();
+          return;
+        }
+      }
+
       const colIdx = this.cols.indexOf(this.selectedCoord.c);
       let nextCol = this.selectedCoord.c;
       let nextRow = this.selectedCoord.r;
@@ -3191,6 +3207,10 @@ export class SheetGridController {
 
   selectCell(col, row, extendRange = false) {
     if (row < 1 || row > this.rowCount) return;
+    if (this.selectedImageId) {
+      this.selectedImageId = null;
+      this._updateImageSelection();
+    }
     if (this.autocomplete) {
       this.autocomplete.closeAll();
     }
@@ -4308,15 +4328,117 @@ export class SheetGridController {
     }
   }
 
-  insertImage(src, anchor = this.selectedCoord, recordUndo = true) {
+  _extractImageDimensions(dataUrl) {
+    if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:image/")) return null;
+    const match = dataUrl.match(/^data:image\/([^;]+);base64,(.+)$/);
+    if (!match) return null;
+    const base64 = match[2];
+    let binary = "";
+    try {
+      const chunk = base64.slice(0, 4096);
+      if (typeof atob === "function") {
+        binary = atob(chunk);
+      } else if (typeof Buffer !== "undefined") {
+        binary = Buffer.from(chunk, "base64").toString("binary");
+      }
+    } catch (_) {
+      return null;
+    }
+    if (!binary || binary.length < 16) return null;
+    const b = (i) => binary.charCodeAt(i) & 0xff;
+
+    // PNG
+    if (b(0) === 0x89 && b(1) === 0x50 && b(2) === 0x4e && b(3) === 0x47) {
+      if (binary.length >= 24) {
+        const width = (b(16) << 24) | (b(17) << 16) | (b(18) << 8) | b(19);
+        const height = (b(20) << 24) | (b(21) << 16) | (b(22) << 8) | b(23);
+        if (width > 0 && height > 0) return { width, height };
+      }
+    }
+
+    // GIF
+    if (b(0) === 0x47 && b(1) === 0x49 && b(2) === 0x46) {
+      if (binary.length >= 10) {
+        const width = b(6) | (b(7) << 8);
+        const height = b(8) | (b(9) << 8);
+        if (width > 0 && height > 0) return { width, height };
+      }
+    }
+
+    // JPEG
+    if (b(0) === 0xff && b(1) === 0xd8) {
+      let offset = 2;
+      while (offset < binary.length - 8) {
+        if (b(offset) !== 0xff) { offset++; continue; }
+        const marker = b(offset + 1);
+        if (marker === 0xd9 || marker === 0xda) break;
+        const len = (b(offset + 2) << 8) | b(offset + 3);
+        if ((marker >= 0xc0 && marker <= 0xc3) || (marker >= 0xc5 && marker <= 0xc7) || (marker >= 0xc9 && marker <= 0xcb) || (marker >= 0xcd && marker <= 0xcf)) {
+          const height = (b(offset + 5) << 8) | b(offset + 6);
+          const width = (b(offset + 7) << 8) | b(offset + 8);
+          if (width > 0 && height > 0) return { width, height };
+        }
+        offset += 2 + len;
+      }
+    }
+
+    // WebP
+    if (binary.length >= 30 && binary.slice(0, 4) === "RIFF" && binary.slice(8, 12) === "WEBP") {
+      const type = binary.slice(12, 16);
+      if (type === "VP8 " && binary.length >= 30) {
+        const width = (b(26) | (b(27) << 8)) & 0x3fff;
+        const height = (b(28) | (b(29) << 8)) & 0x3fff;
+        if (width > 0 && height > 0) return { width, height };
+      } else if (type === "VP8L" && binary.length >= 25) {
+        const b1 = b(21), b2 = b(22), b3 = b(23), b4 = b(24);
+        const width = 1 + (((b2 & 0x3f) << 8) | b1);
+        const height = 1 + (((b4 & 0xf) << 10) | (b3 << 2) | ((b2 & 0xc0) >> 6));
+        if (width > 0 && height > 0) return { width, height };
+      } else if (type === "VP8X" && binary.length >= 30) {
+        const width = 1 + (b(24) | (b(25) << 8) | (b(26) << 16));
+        const height = 1 + (b(27) | (b(28) << 8) | (b(29) << 16));
+        if (width > 0 && height > 0) return { width, height };
+      }
+    }
+
+    return null;
+  }
+
+  insertImage(src, anchor = this.selectedCoord, recordUndo = true, options = {}) {
     if (typeof src !== "string" || !src.startsWith("data:image/")) return false;
+    let widthCm = options?.widthCm;
+    let heightCm = options?.heightCm;
+    if ((!Number.isFinite(widthCm) || !Number.isFinite(heightCm)) && typeof src === "string") {
+      const dims = this._extractImageDimensions(src);
+      if (dims && dims.width > 0 && dims.height > 0) {
+        let wPx = dims.width;
+        let hPx = dims.height;
+        const maxW = 480;
+        const maxH = 480;
+        if (wPx > maxW || hPx > maxH) {
+          const ratio = Math.min(maxW / wPx, maxH / hPx);
+          wPx = Math.round(wPx * ratio);
+          hPx = Math.round(hPx * ratio);
+        }
+        widthCm = parseFloat((wPx / 37.79527559055118).toFixed(3));
+        heightCm = parseFloat((hPx / 37.79527559055118).toFixed(3));
+      } else {
+        widthCm = 6.35;
+        heightCm = 2.117;
+      }
+    }
     const image = {
       id: `image-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       src,
-      anchor: { c: anchor?.c || this.selectedCoord.c, r: Number(anchor?.r || this.selectedCoord.r) }
+      anchor: { c: anchor?.c || this.selectedCoord.c, r: Number(anchor?.r || this.selectedCoord.r) },
+      ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
+      ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+      ...(Number.isFinite(options?.offsetXCm) ? { offsetXCm: options.offsetXCm } : {}),
+      ...(Number.isFinite(options?.offsetYCm) ? { offsetYCm: options.offsetYCm } : {})
     };
     this.imagesBySheet[this.activeSheet] ||= [];
     this.imagesBySheet[this.activeSheet].push(image);
+    this.selectedImageId = image.id;
     this.renderImages();
     if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "imagesBySheet", operation: "insert", index: this.imagesBySheet[this.activeSheet].length - 1, item: structuredClone(image) });
     return image;
@@ -4327,9 +4449,29 @@ export class SheetGridController {
     const index = images.findIndex(image => image.id === imageId);
     if (index < 0) return false;
     const [image] = images.splice(index, 1);
+    if (this.selectedImageId === imageId) this.selectedImageId = null;
     if (sheetName === this.activeSheet) this.renderImages();
     if (recordUndo) this._recordHistory({ type: "collection", sheet: sheetName, collection: "imagesBySheet", operation: "delete", index, item: structuredClone(image) });
     return true;
+  }
+
+  _updateImageSelection() {
+    if (!this.imageLayer) return;
+    const panels = this.imageLayer.querySelectorAll?.(".vno-sheet-image") || [];
+    for (const p of panels) {
+      const isSelected = p.dataset?.imageId === this.selectedImageId;
+      if (isSelected) {
+        p.classList?.add?.("is-selected");
+        if (typeof p.className === "string" && !p.className.includes("is-selected")) {
+          p.className = `${p.className} is-selected`.trim();
+        }
+      } else {
+        p.classList?.remove?.("is-selected");
+        if (typeof p.className === "string") {
+          p.className = p.className.replace(/\bis-selected\b/g, "").trim();
+        }
+      }
+    }
   }
 
   _getAnchorFromPixel(left, top) {
@@ -4384,6 +4526,9 @@ export class SheetGridController {
       if (event.target?.closest?.("[data-image-delete]")) return;
       if (event.button != null && event.button !== 0) return;
 
+      this.selectedImageId = image.id;
+      this._updateImageSelection();
+
       const pointerId = event.pointerId;
       if (panel.setPointerCapture && pointerId != null) {
         try { panel.setPointerCapture(pointerId); } catch (_) { /* ignore */ }
@@ -4406,7 +4551,7 @@ export class SheetGridController {
         if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
         if (!moved) {
           moved = true;
-          panel.classList.add("is-dragging");
+          panel.classList?.add?.("is-dragging");
         }
 
         currentLeft = Math.max(0, startLeft + dx);
@@ -4431,7 +4576,7 @@ export class SheetGridController {
         if (panel.releasePointerCapture && pointerId != null) {
           try { panel.releasePointerCapture(pointerId); } catch (_) { /* ignore */ }
         }
-        panel.classList.remove("is-dragging");
+        panel.classList?.remove?.("is-dragging");
         this.container?.querySelectorAll?.(".vno-grid-cell.is-drop-target")?.forEach?.(c => c.classList.remove("is-drop-target"));
         if (targetWindow?.removeEventListener) {
           targetWindow.removeEventListener("pointermove", move);
@@ -4482,22 +4627,27 @@ export class SheetGridController {
       const isInFrozenRow = image.anchor.r >= 1 && image.anchor.r <= frozenRows;
       const isInFrozenCol = colIdx < frozenCols && frozenCols > 0;
       const isFrozen = isInFrozenRow || isInFrozenCol;
-      let topVal, leftVal;
-      if (isInFrozenRow) {
-        let topAcc = 24;
-        for (let r = 1; r < image.anchor.r; r++) topAcc += this.getRowHeight(r);
-        topVal = topAcc;
-      } else {
-        topVal = Math.max(0, image.anchor.r - 1) * this.rowHeight + 24;
+
+      let topAcc = 24;
+      for (let r = 1; r < image.anchor.r; r++) {
+        topAcc += typeof this.getRowHeight === "function" ? this.getRowHeight(r) : (this.rowHeight || 28);
       }
-      if (isInFrozenCol) {
-        let leftAcc = 44;
-        for (let i = 0; i < colIdx; i++) leftAcc += this.getColumnWidth(this.cols[i]);
-        leftVal = leftAcc;
-      } else {
-        leftVal = colIdx * this.defaultColWidth + 44;
+      const offsetYPx = Number.isFinite(Number(image.offsetYCm))
+        ? Number(image.offsetYCm) * 37.79527559055118
+        : (Number.isFinite(Number(image.offsetY)) ? Number(image.offsetY) : 0);
+      const topVal = topAcc + offsetYPx;
+
+      let leftAcc = 44;
+      for (let i = 0; i < colIdx; i++) {
+        leftAcc += typeof this.getColumnWidth === "function" ? this.getColumnWidth(this.cols[i]) : (this.defaultColWidth || 100);
       }
-      panel.className = "vno-sheet-image";
+      const offsetXPx = Number.isFinite(Number(image.offsetXCm))
+        ? Number(image.offsetXCm) * 37.79527559055118
+        : (Number.isFinite(Number(image.offsetX)) ? Number(image.offsetX) : 0);
+      const leftVal = leftAcc + offsetXPx;
+
+      const isSelected = this.selectedImageId === image.id;
+      panel.className = isSelected ? "vno-sheet-image is-selected" : "vno-sheet-image";
       panel.dataset.imageId = image.id;
       panel.dataset.sheet = this.activeSheet;
       panel.dataset.anchor = `${image.anchor.c}${image.anchor.r}`;
@@ -4507,21 +4657,86 @@ export class SheetGridController {
         if (isInFrozenCol) panel.dataset.frozenCol = "true";
       }
       const zIdx = isFrozen ? 10 : 7;
-      panel.style.cssText = `position:absolute;left:${leftVal}px;top:${topVal}px;z-index:${zIdx};width:240px;min-height:80px;margin:0;padding:5px;background:#fff;border:1px solid #94a3b8;border-radius:6px;box-shadow:0 6px 18px rgba(15,23,42,.2);pointer-events:auto`;
+
+      const hasWidth = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) > 0;
+      const hasHeight = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) > 0;
+
+      let cssText = `position:absolute;left:${leftVal}px;top:${topVal}px;z-index:${zIdx};margin:0;padding:0;pointer-events:auto;box-sizing:border-box;`;
+      if (hasWidth) {
+        const widthPx = Math.round(Number(image.widthCm) * 37.79527559055118);
+        panel.style.width = `${widthPx}px`;
+        cssText += `width:${widthPx}px;`;
+      }
+      if (hasHeight) {
+        const heightPx = Math.round(Number(image.heightCm) * 37.79527559055118);
+        panel.style.height = `${heightPx}px`;
+        cssText += `height:${heightPx}px;`;
+      }
+      panel.style.cssText = cssText;
+      panel.style.position = "absolute";
+      panel.style.left = `${leftVal}px`;
+      panel.style.top = `${topVal}px`;
+      panel.style.zIndex = `${zIdx}`;
+      panel.style.margin = "0";
+      panel.style.padding = "0";
+      panel.style.pointerEvents = "auto";
+      panel.style.boxSizing = "border-box";
+      if (hasWidth) panel.style.width = `${Math.round(Number(image.widthCm) * 37.79527559055118)}px`;
+      if (hasHeight) panel.style.height = `${Math.round(Number(image.heightCm) * 37.79527559055118)}px`;
+
       const img = document.createElement("img");
       img.src = image.src;
       img.alt = t("sheetDialogs.insertedImageAlt");
       img.draggable = false;
-      img.style.cssText = "display:block;width:100%;height:auto;max-height:240px;object-fit:contain;pointer-events:none;user-select:none;-webkit-user-drag:none";
+      img.style.cssText = "display:block;width:100%;height:100%;object-fit:fill;pointer-events:none;user-select:none;-webkit-user-drag:none";
+
+      if (!hasWidth || !hasHeight) {
+        img.onload = () => {
+          if (!image.widthCm || !image.heightCm) {
+            let natW = img.naturalWidth || img.width;
+            let natH = img.naturalHeight || img.height;
+            if (natW > 0 && natH > 0) {
+              if (natW > 480 || natH > 480) {
+                const ratio = Math.min(480 / natW, 480 / natH);
+                natW = Math.round(natW * ratio);
+                natH = Math.round(natH * ratio);
+              }
+              if (!hasWidth) {
+                panel.style.width = `${natW}px`;
+                image.widthCm = parseFloat((natW / 37.79527559055118).toFixed(3));
+              }
+              if (!hasHeight) {
+                panel.style.height = `${natH}px`;
+                image.heightCm = parseFloat((natH / 37.79527559055118).toFixed(3));
+              }
+            }
+          }
+        };
+      }
+
+      panel.appendChild(img);
+
+      // 8 resize handles for selection (Excel/Slides fidelity)
+      const handles = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+      for (const dir of handles) {
+        const h = document.createElement("div");
+        h.className = `vno-shape-resize-handle vno-image-resize-handle vno-handle-${dir}`;
+        h.dataset.handleDir = dir;
+        panel.appendChild(h);
+      }
+
       const remove = document.createElement("button");
       remove.type = "button";
       remove.dataset.imageDelete = "";
       remove.setAttribute("aria-label", t("sheetDialogs.deleteImage"));
       remove.title = t("sheetDialogs.deleteImage");
       remove.textContent = "×";
-      remove.style.cssText = "position:absolute;right:7px;top:7px;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer;box-shadow:0 1px 4px rgba(15,23,42,.25)";
-      remove.addEventListener("click", () => this.deleteImage(image.id));
-      panel.append(img, remove);
+      remove.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.deleteImage(image.id);
+      });
+      panel.appendChild(remove);
+
       this._attachImageDrag(panel, image);
       this.imageLayer.appendChild(panel);
     }
