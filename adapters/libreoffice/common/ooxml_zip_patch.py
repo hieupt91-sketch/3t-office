@@ -2490,6 +2490,7 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_number_formats_from_xlsx(xlsx_bytes, xml)
+    xml = _overlay_sheet_original_strings_from_xlsx(xlsx_bytes, xml)
     return xml
 
 
@@ -2551,6 +2552,15 @@ def _set_number_format_attr(cell_xml: str, code: str) -> str:
     return tag + cell_xml[opening.end():]
 
 
+def _set_original_string_attr(cell_xml: str, value: str) -> str:
+    opening = re.match(r"<(table:(?:table-cell|covered-table-cell))\b([^>]*?)(/?)>", cell_xml, re.IGNORECASE)
+    if not opening or "covered-table-cell" in opening.group(1).lower():
+        return cell_xml
+    raw_attrs = re.sub(r'\s+vno:original-string\s*=\s*(["\']).*?\1', "", opening.group(2), flags=re.IGNORECASE)
+    tag = f'<{opening.group(1)}{raw_attrs} vno:original-string="{_escape_xml(value)}"{opening.group(3)}>'
+    return tag + cell_xml[opening.end():]
+
+
 def _set_repeat(xml: str, attr: str, count: int) -> str:
     xml = re.sub(rf'\s+{re.escape(attr)}\s*=\s*(["\'])\d+\1', "", xml, count=1, flags=re.IGNORECASE)
     return xml if count <= 1 else re.sub(r">", f' {attr}="{count}">', xml, count=1)
@@ -2586,12 +2596,19 @@ def _flat_xml_blocks(xml: str, names: tuple[str, ...]):
 
 def _overlay_formats_in_row(row_xml: str, targets: dict[int, str]) -> str:
     pieces, cursor, column = [], 0, 1
+    sorted_columns, target_index = sorted(targets), 0
     for start, end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
         pieces.append(row_xml[cursor:start])
         cell = row_xml[start:end]
         attrs = _xml_attrs(re.match(r"<[^>]+", cell).group(0))
         repeat = max(1, int(attrs.get("table:number-columns-repeated") or 1))
-        hits = [(col, targets[col]) for col in sorted(targets) if column <= col < column + repeat]
+        while target_index < len(sorted_columns) and sorted_columns[target_index] < column:
+            target_index += 1
+        hit_end = target_index
+        while hit_end < len(sorted_columns) and sorted_columns[hit_end] < column + repeat:
+            hit_end += 1
+        hits = [(col, targets[col]) for col in sorted_columns[target_index:hit_end]]
+        target_index = hit_end
         if not hits:
             pieces.append(cell)
         else:
@@ -2608,16 +2625,47 @@ def _overlay_formats_in_row(row_xml: str, targets: dict[int, str]) -> str:
     return "".join(pieces)
 
 
+def _overlay_strings_in_row(row_xml: str, targets: dict[int, str]) -> str:
+    pieces, cursor, column = [], 0, 1
+    sorted_columns, target_index = sorted(targets), 0
+    for start, end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
+        pieces.append(row_xml[cursor:start]); cell = row_xml[start:end]
+        cell_attrs = _xml_attrs(re.match(r"<[^>]+", cell).group(0)); repeat = max(1, int(cell_attrs.get("table:number-columns-repeated") or 1))
+        while target_index < len(sorted_columns) and sorted_columns[target_index] < column:
+            target_index += 1
+        hit_end = target_index
+        while hit_end < len(sorted_columns) and sorted_columns[hit_end] < column + repeat:
+            hit_end += 1
+        hits = [(col, targets[col]) for col in sorted_columns[target_index:hit_end]]
+        target_index = hit_end
+        if not hits: pieces.append(cell)
+        else:
+            at = column
+            for col, value in hits:
+                if col > at: pieces.append(_set_repeat(cell, "table:number-columns-repeated", col - at))
+                pieces.append(_set_original_string_attr(_set_repeat(cell, "table:number-columns-repeated", 1), value)); at = col + 1
+            if at < column + repeat: pieces.append(_set_repeat(cell, "table:number-columns-repeated", column + repeat - at))
+        cursor, column = end, column + repeat
+    pieces.append(row_xml[cursor:]); return "".join(pieces)
+
+
 def _overlay_formats_in_table(table_xml: str, targets: dict[tuple[int, int], str]) -> str:
     pieces, cursor, row_number, rows = [], 0, 1, {}
     for (row, col), code in targets.items():
         rows.setdefault(row, {})[col] = code
+    sorted_rows, target_index = sorted(rows), 0
     for start, end in _flat_xml_blocks(table_xml, ("table:table-row",)):
         pieces.append(table_xml[cursor:start])
         row_xml = table_xml[start:end]
         attrs = _xml_attrs(re.match(r"<[^>]+", row_xml).group(0))
         repeat = max(1, int(attrs.get("table:number-rows-repeated") or 1))
-        hits = [row for row in sorted(rows) if row_number <= row < row_number + repeat]
+        while target_index < len(sorted_rows) and sorted_rows[target_index] < row_number:
+            target_index += 1
+        hit_end = target_index
+        while hit_end < len(sorted_rows) and sorted_rows[hit_end] < row_number + repeat:
+            hit_end += 1
+        hits = sorted_rows[target_index:hit_end]
+        target_index = hit_end
         if not hits:
             pieces.append(row_xml)
         else:
@@ -2654,6 +2702,62 @@ def _overlay_sheet_number_formats_from_xlsx(xlsx_bytes: bytes, fods_xml: str) ->
     if not match:
         return result
     return result[:match.start()] + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + result[match.end():]
+
+
+def _xlsx_cells_with_original_strings(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, int], str]]:
+    shared_xml = (read_zip_entry(xlsx_bytes, "xl/sharedStrings.xml") or b"").decode("utf-8", errors="replace")
+    shared = []
+    for item in re.finditer(r"<si\b[^>]*>([\s\S]*?)</si>", shared_xml, re.IGNORECASE):
+        shared.append("".join(_unescape_xml(m.group(1)) for m in re.finditer(r"<t\b[^>]*>([\s\S]*?)</t>", item.group(1), re.IGNORECASE)))
+    result = {}
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        sheet_xml = (read_zip_entry(xlsx_bytes, entry_path) or b"").decode("utf-8", errors="replace"); cells = {}
+        for match in re.finditer(r"<c\b([^>]*?)(?:/\s*>|>([\s\S]*?)</c>)", sheet_xml, re.IGNORECASE):
+            cell_attrs, body = _xml_attrs(match.group(1)), match.group(2) or ""; kind = cell_attrs.get("t", "").lower()
+            coord = re.fullmatch(r"([A-Z]+)(\d+)", cell_attrs.get("r", ""), re.IGNORECASE)
+            if not coord or kind not in {"s", "str", "inlinestr"}: continue
+            if kind == "s":
+                raw = re.search(r"<v\b[^>]*>([\s\S]*?)</v>", body, re.IGNORECASE); value = shared[int(raw.group(1))] if raw and int(raw.group(1)) < len(shared) else ""
+            else: value = "".join(_unescape_xml(m.group(1)) for m in re.finditer(r"<t\b[^>]*>([\s\S]*?)</t>", body, re.IGNORECASE)) or _unescape_xml(re.search(r"<v\b[^>]*>([\s\S]*?)</v>", body, re.IGNORECASE).group(1) if re.search(r"<v\b[^>]*>([\s\S]*?)</v>", body, re.IGNORECASE) else "")
+            column = 0
+            for char in coord.group(1).upper(): column = column * 26 + ord(char) - 64
+            cells[(int(coord.group(2)), column)] = value
+        if cells: result[sheet_name] = cells
+    return result
+
+
+def _overlay_sheet_original_strings_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+    by_sheet = _xlsx_cells_with_original_strings(xlsx_bytes)
+    pieces, cursor = [], 0
+    for start, end in _flat_xml_blocks(fods_xml, ("table:table",)):
+        pieces.append(fods_xml[cursor:start]); table_xml = fods_xml[start:end]
+        table_attrs = _xml_attrs(re.match(r"<[^>]+", table_xml).group(0)); targets = by_sheet.get(table_attrs.get("table:name", ""), {})
+        if targets:
+            rows = {}
+            for (row, col), value in targets.items(): rows.setdefault(row, {})[col] = value
+            row_pieces, row_cursor, row_number = [], 0, 1
+            sorted_rows, target_index = sorted(rows), 0
+            for row_start, row_end in _flat_xml_blocks(table_xml, ("table:table-row",)):
+                row_pieces.append(table_xml[row_cursor:row_start]); row_xml = table_xml[row_start:row_end]
+                repeat = max(1, int(_xml_attrs(re.match(r"<[^>]+", row_xml).group(0)).get("table:number-rows-repeated") or 1))
+                while target_index < len(sorted_rows) and sorted_rows[target_index] < row_number:
+                    target_index += 1
+                hit_end = target_index
+                while hit_end < len(sorted_rows) and sorted_rows[hit_end] < row_number + repeat:
+                    hit_end += 1
+                hits = sorted_rows[target_index:hit_end]
+                target_index = hit_end
+                if not hits: row_pieces.append(row_xml)
+                else:
+                    at = row_number
+                    for row in hits:
+                        if row > at: row_pieces.append(_set_repeat(row_xml, "table:number-rows-repeated", row - at))
+                        row_pieces.append(_overlay_strings_in_row(_set_repeat(row_xml, "table:number-rows-repeated", 1), rows[row])); at = row + 1
+                    if at < row_number + repeat: row_pieces.append(_set_repeat(row_xml, "table:number-rows-repeated", row_number + repeat - at))
+                row_cursor, row_number = row_end, row_number + repeat
+            row_pieces.append(table_xml[row_cursor:]); table_xml = "".join(row_pieces)
+        pieces.append(table_xml); cursor = end
+    pieces.append(fods_xml[cursor:]); return "".join(pieces)
 
 
 def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:

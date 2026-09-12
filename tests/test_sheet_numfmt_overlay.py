@@ -18,6 +18,7 @@ def make_xlsx():
         "xl/workbook.xml": '<workbook xmlns:r="r"><sheets><sheet name="Data" r:id="rId1"/></sheets></workbook>',
         "xl/_rels/workbook.xml.rels": '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
         "xl/styles.xml": '<styleSheet><numFmts count="2"><numFmt numFmtId="164" formatCode="[$₫-42A] #,##0"/><numFmt numFmtId="165" formatCode="dd/mm/yyyy"/></numFmts><cellXfs count="4"><xf numFmtId="0"/><xf numFmtId="3"/><xf numFmtId="164"/><xf numFmtId="165"/></cellXfs></styleSheet>',
+        "xl/sharedStrings.xml": '<sst><si><t xml:space="preserve">  Giữ &amp; nguyên  </t></si></sst>',
         "xl/worksheets/sheet1.xml": '<worksheet><sheetData><row r="2"><c r="A2" s="1"><v>1234</v></c><c r="B2" s="2"><v>5000</v></c><c r="C2" s="3"><f>TODAY()</f><v>45000</v></c><c r="D2" s="1"/><c r="E2" s="1" t="s"><v>0</v></c><c r="F2" s="1" t="str"><v>24 thang</v></c><c r="G2" s="1" t="inlineStr"><is><t>inline</t></is></c></row></sheetData></worksheet>',
     }
     stream = io.BytesIO()
@@ -50,6 +51,16 @@ class SheetNumberFormatOverlayTests(unittest.TestCase):
         self.assertNotIn((2, 5), formats)
         self.assertNotIn((2, 6), formats)
         self.assertNotIn((2, 7), formats)
+
+    def test_original_shared_string_is_overlaid_exactly(self):
+        result = patcher._set_original_string_attr('<table:table-cell office:value-type="string"/>', "  Giữ & nguyên  ")
+        self.assertIn('vno:original-string="  Giữ &amp; nguyên  "', result)
+
+    def test_original_strings_parser_skips_self_closing_cells(self):
+        strings = patcher._xlsx_cells_with_original_strings(make_xlsx())["Data"]
+        self.assertEqual(strings[(2, 5)], "  Giữ & nguyên  ")
+        self.assertEqual(strings[(2, 6)], "24 thang")
+        self.assertEqual(strings[(2, 7)], "inline")
 
 
 if __name__ == "__main__":
