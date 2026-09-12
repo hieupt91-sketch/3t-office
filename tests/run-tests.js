@@ -163,6 +163,7 @@ import { runSheetFodsRepeatExpandTests } from "./unit/sheet-fods-repeat-expand.t
 import { runSheetImportCellStylesTests } from "./unit/sheet-import-cell-styles.test.js";
 import { runSheetImportRichTextTests } from "./unit/sheet-import-rich-text.test.js";
 import { runSheetCellTextFitTests } from "./unit/sheet-cell-text-fit.test.js";
+import { runWriterExportDocxWordCompatTests } from "./unit/writer-export-docx-word-compat.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -333,7 +334,8 @@ async function runAll() {
     { title: "142. Unit Tests — parseFods repeat expansion: perf + data integrity + serialize round-trip", runner: runSheetFodsRepeatExpandTests },
     { title: "143. Unit Tests — Sheet import cell visual styles (background/border/font/alignment) + sheet visibility + round-trip", runner: runSheetImportCellStylesTests },
     { title: "144. Unit Tests — Sheet import rich text (multi-run styled cells in FODS) + round-trip + render + edit clears richText", runner: runSheetImportRichTextTests },
-    { title: "145. Unit Tests — Sheet cell text fit, font size precision, padding & text overflow (Excel 2016 parity)", runner: runSheetCellTextFitTests }
+    { title: "145. Unit Tests — Sheet cell text fit, font size precision, padding & text overflow (Excel 2016 parity)", runner: runSheetCellTextFitTests },
+    { title: "146. Unit Tests — Writer DOCX export Word 2016 compat (strip span dimension/position for LO HTML→Writer import)", runner: runWriterExportDocxWordCompatTests }
   ];
 
   for (const suite of suites) {
