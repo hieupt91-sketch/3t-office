@@ -393,8 +393,13 @@ export class SlidesAdapter {
     while (node && node !== root && node.tagName !== "P" && node.tagName !== "DIV" && node.tagName !== "LI") {
       node = node.parentNode;
     }
-    if (node && node !== root && node.style) node.style.lineHeight = String(value);
-    else if (this._savedEditable?.style) this._savedEditable.style.lineHeight = String(value);
+    // Ribbon chọn bội số kiểu PowerPoint (1.0/1.5/2.0 × chiều cao dòng tự nhiên) → CSS qua cùng hằng số.
+    const multiple = parseFloat(value);
+    const cssValue = Number.isFinite(multiple) && !/[a-z%]/i.test(String(value))
+      ? (this._odfProportionalToCssLineHeight(`${multiple * 100}%`) || String(value))
+      : String(value);
+    if (node && node !== root && node.style) node.style.lineHeight = cssValue;
+    else if (this._savedEditable?.style) this._savedEditable.style.lineHeight = cssValue;
     this.canvas?._syncEditableFieldsFromDom?.();
     this._syncTextFormatState();
     return true;
@@ -703,6 +708,21 @@ export class SlidesAdapter {
     return this._textParagraphsXml(plain);
   }
 
+  /**
+   * ODF/PowerPoint "100%" = chiều cao dòng TỰ NHIÊN của font (ascent+descent+lineGap,
+   * ≈ 1.15 × cỡ chữ với Arial/Calibri), còn CSS `line-height: 1` = đúng 1 × cỡ chữ.
+   * Hai chiều đều đi qua hằng số này: proportional P → CSS P × 1.15 (P = 1 → `normal`),
+   * CSS r → ODF round(r / 1.15 × 100)%.
+   */
+  static get LINE_HEIGHT_NATURAL_RATIO() { return 1.15; }
+
+  _odfProportionalToCssLineHeight(percent) {
+    const num = parseFloat(percent) / 100;
+    if (!Number.isFinite(num) || num <= 0) return null;
+    if (Math.abs(num - 1) < 0.001) return "normal";
+    return String(Math.round(num * SlidesAdapter.LINE_HEIGHT_NATURAL_RATIO * 1000) / 1000);
+  }
+
   _formatLineHeightForOdf(lh) {
     if (!lh) return null;
     const str = String(lh).trim().toLowerCase();
@@ -717,7 +737,7 @@ export class SlidesAdapter {
     }
     const n = parseFloat(str);
     if (Number.isFinite(n) && !/[a-z%]/i.test(str)) {
-      return `${Math.round(n * 100)}%`;
+      return `${Math.round((n / SlidesAdapter.LINE_HEIGHT_NATURAL_RATIO) * 100)}%`;
     }
     return str;
   }
@@ -808,8 +828,7 @@ export class SlidesAdapter {
       } else if (family === "paragraph") {
         let rawLh = inner.match(/fo:line-height=["']([^"']+)["']/i)?.[1];
         if (rawLh && rawLh.endsWith("%")) {
-          const num = parseFloat(rawLh) / 100;
-          if (Number.isFinite(num)) rawLh = String(num);
+          rawLh = this._odfProportionalToCssLineHeight(rawLh) || rawLh;
         }
         para.set(name, {
           align: inner.match(/fo:text-align=["']([^"']+)["']/i)?.[1],
@@ -888,8 +907,11 @@ export class SlidesAdapter {
         if (para.align) styles.push(`text-align:${para.align}`);
         if (para.fontSize) styles.push(`font-size:${para.fontSize}`);
         if (para.lineHeight) {
-          const lh = para.lineHeight.endsWith("%") ? (parseFloat(para.lineHeight) / 100) : para.lineHeight;
-          styles.push(`line-height:${lh}`);
+          // para.lineHeight đã ở dạng CSS (qua _odfProportionalToCssLineHeight khi parse);
+          // giá trị % còn sót (từ nguồn khác) được quy đổi tại đây cho cùng một quy tắc.
+          const lh = String(para.lineHeight);
+          const css = lh.endsWith("%") ? (this._odfProportionalToCssLineHeight(lh) || lh) : lh;
+          styles.push(`line-height:${css}`);
         }
         if (para.indent) styles.push(`margin-left:${para.indent}`);
         const styleAttr = styles.length ? ` style="${styles.join(";")}"` : "";
