@@ -707,19 +707,31 @@ export class SlidesAdapter {
   }
 
   _odfInlineToHtml(inner, maps) {
-    let html = String(inner || "").replace(/<text:line-break\b[^>]*\/?>/gi, "<br>");
+    let html = String(inner || "");
+    html = html.replace(/<text:line-break\b[^>]*\/?>/gi, "<br>");
+    html = html.replace(/<text:s\b[^>]*text:c=["'](\d+)["'][^>]*\/?>/gi, (_, c) => " ".repeat(parseInt(c, 10) || 1));
+    html = html.replace(/<text:s\b[^>]*\/?>/gi, " ");
     html = html.replace(/<text:span\b([^>]*)>([\s\S]*?)<\/text:span>/gi, (_, attrs, content) => {
       const name = attrs.match(/text:style-name=["']([^"']+)["']/i)?.[1];
       const fmt = maps?.text?.get(name) || {};
-      let wrapped = this._escapeXml(this._unescapeXml(String(content).replace(/<[^>]+>/g, "")));
+      let cleanContent = String(content)
+        .replace(/<text:line-break\b[^>]*\/?>/gi, "<br>")
+        .replace(/<text:s\b[^>]*text:c=["'](\d+)["'][^>]*\/?>/gi, (_, c) => " ".repeat(parseInt(c, 10) || 1))
+        .replace(/<text:s\b[^>]*\/?>/gi, " ");
+      const parts = cleanContent.split(/<br\s*\/?>/i);
+      let wrapped = parts.map(p => this._escapeXml(this._unescapeXml(p.replace(/<[^>]+>/g, "")))).join("<br>");
       if (fmt.bold) wrapped = `<b>${wrapped}</b>`;
       if (fmt.italic) wrapped = `<i>${wrapped}</i>`;
       if (fmt.underline) wrapped = `<u>${wrapped}</u>`;
       if (fmt.strike) wrapped = `<s>${wrapped}</s>`;
       const spanStyles = [];
       if (fmt.color) spanStyles.push(`color:${fmt.color}`);
-      if (fmt.bg) spanStyles.push(`background-color:${fmt.bg}`);
-      if (fmt.family) spanStyles.push(`font-family:${fmt.family}`);
+      if (fmt.bg && fmt.bg !== "transparent") spanStyles.push(`background-color:${fmt.bg}`);
+      if (fmt.family) {
+        const cleanFamily = fmt.family.replace(/['"]/g, "").trim();
+        const generic = /serif/i.test(cleanFamily) ? "serif" : "sans-serif";
+        spanStyles.push(`font-family:'${cleanFamily}',${generic}`);
+      }
       if (fmt.size) spanStyles.push(`font-size:${fmt.size}`);
       if (spanStyles.length) wrapped = `<span style="${spanStyles.join(";")}">${wrapped}</span>`;
       return wrapped;
@@ -751,7 +763,10 @@ export class SlidesAdapter {
         const inner = this._odfInlineToHtml(match[4], maps);
         const styles = [];
         if (para.align) styles.push(`text-align:${para.align}`);
-        if (para.lineHeight) styles.push(`line-height:${para.lineHeight}`);
+        if (para.lineHeight) {
+          const lh = para.lineHeight.endsWith("%") ? (parseFloat(para.lineHeight) / 100) : para.lineHeight;
+          styles.push(`line-height:${lh}`);
+        }
         if (para.indent) styles.push(`margin-left:${para.indent}`);
         const styleAttr = styles.length ? ` style="${styles.join(";")}"` : "";
         out += `<div${styleAttr}>${inner}</div>`;
@@ -1732,7 +1747,7 @@ export class SlidesAdapter {
     const regex = /<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi;
     let match;
     while ((match = regex.exec(xmlText)) !== null) {
-      if (!/style:family=["']graphic["']/i.test(match[1])) continue;
+      if (!/style:family=["'](graphic|presentation)["']/i.test(match[1])) continue;
       const name = match[1].match(/style:name=["']([^"']+)["']/i)?.[1];
       if (!name) continue;
       const fill = match[2].match(/draw:fill-color=["']([^"']+)["']/i)?.[1];
@@ -1746,12 +1761,20 @@ export class SlidesAdapter {
       if (vnoDirection) textDirection = vnoDirection;
       else if (writingMode === "tb-rl") textDirection = "vertical";
       else if (writingMode === "tb-lr") textDirection = "stacked";
+      const padTop = match[2].match(/fo:padding-top=["']([^"']+)["']/i)?.[1];
+      const padBottom = match[2].match(/fo:padding-bottom=["']([^"']+)["']/i)?.[1];
+      const padLeft = match[2].match(/fo:padding-left=["']([^"']+)["']/i)?.[1];
+      const padRight = match[2].match(/fo:padding-right=["']([^"']+)["']/i)?.[1];
       styles.set(name, {
         fill: fillKind === "none" ? "transparent" : (fill || null),
         stroke: stroke || null,
         markerEnd: markerEnd || null,
         textVAlign: (vAlignRaw && vAlignRaw !== "middle") ? vAlignRaw : null,
-        textDirection: (textDirection && textDirection !== "horizontal") ? textDirection : null
+        textDirection: (textDirection && textDirection !== "horizontal") ? textDirection : null,
+        paddingTop: padTop ? this._odfLengthToPx(padTop) : null,
+        paddingBottom: padBottom ? this._odfLengthToPx(padBottom) : null,
+        paddingLeft: padLeft ? this._odfLengthToPx(padLeft) : null,
+        paddingRight: padRight ? this._odfLengthToPx(padRight) : null
       });
     }
     return styles;
@@ -1762,7 +1785,11 @@ export class SlidesAdapter {
     const regex = /<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi;
     let match;
     while ((match = regex.exec(xml)) !== null) {
-      const clean = this._unescapeXml(match[1].replace(/<[^>]+>/g, "")).trim();
+      let inner = match[1]
+        .replace(/<text:line-break\b[^>]*\/?>/gi, "\n")
+        .replace(/<text:s\b[^>]*text:c=["'](\d+)["'][^>]*\/?>/gi, (_, c) => " ".repeat(parseInt(c, 10) || 1))
+        .replace(/<text:s\b[^>]*\/?>/gi, " ");
+      const clean = this._unescapeXml(inner.replace(/<[^>]+>/g, "")).trim();
       if (clean && clean !== "<number>" && !clean.startsWith("<")) paragraphs.push(clean);
     }
     return paragraphs;
@@ -1901,7 +1928,8 @@ export class SlidesAdapter {
 
   _parseFrameShape(attrs, inner, graphicStyles) {
     const get = (name) => this._attr(attrs, name);
-    const style = graphicStyles.get(get("draw:style-name")) || {};
+    const styleName = get("draw:style-name") || get("presentation:style-name");
+    const style = graphicStyles.get(styleName) || {};
     // Lỗi thật đã xác nhận qua probe soffice thật: khi hình (ảnh/bảng/khối)
     // trong PPTX thật bị XOAY, soffice ghi vị trí qua
     // draw:transform="rotate(...) translate(...)" thay vì svg:x/svg:y (2
@@ -1962,7 +1990,7 @@ export class SlidesAdapter {
       return { ...base, type: "image", src: this._parseEmbeddedSrc(inner, "image/png"), color: "transparent" };
     }
 
-    const hasId = get("draw:id") || get("xml:id") || get("draw:name");
+    const hasId = get("draw:id") || get("xml:id") || get("draw:name") || get("svg:x");
     const wordart = this._parseWordArtAttrs(attrs);
     if (wordart) {
       return {
@@ -1971,7 +1999,7 @@ export class SlidesAdapter {
         text: this._paragraphsFromXml(inner).join("\n")
       };
     }
-    if (/<draw:text-box\b/i.test(inner) && hasId) {
+    if (/<draw:text-box\b/i.test(inner) && (hasId || get("svg:width"))) {
       const textbox = {
         ...base,
         type: "textbox",
@@ -1981,6 +2009,10 @@ export class SlidesAdapter {
       };
       if (style.textVAlign) textbox.textVAlign = style.textVAlign;
       if (style.textDirection) textbox.textDirection = style.textDirection;
+      if (style.paddingLeft != null) textbox.paddingLeft = style.paddingLeft;
+      if (style.paddingRight != null) textbox.paddingRight = style.paddingRight;
+      if (style.paddingTop != null) textbox.paddingTop = style.paddingTop;
+      if (style.paddingBottom != null) textbox.paddingBottom = style.paddingBottom;
       return textbox;
     }
     return null;
@@ -2010,7 +2042,13 @@ export class SlidesAdapter {
     let match;
     while ((match = regex.exec(pageContent)) !== null) {
       const cls = this._attr(match[1], "presentation:class");
-      if (this._isLayoutPresentationClass(cls)) continue;
+      if (/^(notes|header|footer|page-number|date-time|page)$/i.test(cls)) continue;
+      const name = this._attr(match[1], "draw:name");
+      const userTransformed = this._attr(match[1], "presentation:user-transformed") === "true";
+      const isPlaceholder = /^(title|subtitle|outline)$/i.test(cls)
+        && (!name || /^(title|body|body2|subtitle|outline)$/i.test(name))
+        && !userTransformed;
+      if (isPlaceholder) continue;
       const shape = this._parseFrameShape(match[1], match[2], graphicStyles);
       if (!shape) continue;
       this._recordShapeId(match[1], shape, idMap);
@@ -2311,12 +2349,10 @@ export class SlidesAdapter {
         if (parsed && typeof parsed === "object") return parsed;
       } catch (_) { /* ignore malformed metadata */ }
     }
-    const fill = String(xmlText || "").match(/<style:style[^>]*style:name="dp1"[^>]*>[\s\S]*?<\/style:style>/i)?.[0] || "";
-    const bgColor = fill.match(/draw:fill-color=["']([^"']+)["']/i)?.[1] || "";
     const logoMatch = String(xmlText || "").match(/<style:master-page\b[\s\S]*?<draw:frame[^>]*grMasterLogo[\s\S]*?<text:p\b[^>]*>([\s\S]*?)<\/text:p>/i);
     const logoText = logoMatch ? this._unescapeXml(logoMatch[1].replace(/<[^>]+>/g, "")).trim() : "";
-    if (!bgColor && !logoText) return null;
-    return { bgColor, logoText };
+    if (!logoText) return null;
+    return { logoText };
   }
 
   /**
@@ -2483,6 +2519,27 @@ export class SlidesAdapter {
     this._richMaps = this._parseRichStyleMaps(xmlText);
     const parsedSections = [];
 
+    const masterPageStyles = new Map();
+    const masterRe = /<style:master-page\b([^>]*)>/gi;
+    let mm;
+    while ((mm = masterRe.exec(xmlText)) !== null) {
+      const mName = this._attr(mm[1], "style:name");
+      const mStyle = this._attr(mm[1], "draw:style-name");
+      if (mName && mStyle) masterPageStyles.set(mName, mStyle);
+    }
+
+    let presentationWidth = 960;
+    let presentationHeight = 540;
+    const pageLayoutPropMatch = String(xmlText || "").match(/<style:page-layout-properties\b[^>]*fo:page-width=["']([^"']+)["'][^>]*fo:page-height=["']([^"']+)["']/i);
+    if (pageLayoutPropMatch) {
+      const pw = this._odfLengthToPx(pageLayoutPropMatch[1]);
+      const ph = this._odfLengthToPx(pageLayoutPropMatch[2]);
+      if (pw > 0 && ph > 0) {
+        presentationWidth = pw;
+        presentationHeight = ph;
+      }
+    }
+
     // Negative lookahead: do not match draw:page-thumbnail / page-number placeholders.
     const pageRegex = /<draw:page(?![-a-zA-Z])([^>]*)>([\s\S]*?)<\/draw:page>/gi;
     let pageMatch;
@@ -2537,13 +2594,20 @@ export class SlidesAdapter {
       }
       this._applyParsedAnimations(shapes, idMap, animByTarget);
 
-      const titleParas = this._frameParagraphsByClass(pageContent, "title");
-      const subtitleParas = this._frameParagraphsByClass(pageContent, "subtitle");
-      const outlineParas = this._frameParagraphsByClass(pageContent, "outline");
-      const outlineBlocks = this._frameBlocksByClass(pageContent, "outline");
+      const titleParas = this._frameParagraphsByClass(originalPageXml, "title");
+      const subtitleParas = this._frameParagraphsByClass(originalPageXml, "subtitle");
+      const outlineParas = this._frameParagraphsByClass(originalPageXml, "outline");
+      const outlineBlocks = this._frameBlocksByClass(originalPageXml, "outline");
       const hasPlaceholderClasses = titleParas.length > 0 || subtitleParas.length > 0 || outlineParas.length > 0;
+
+      const masterPageName = this._attr(fullPageTag, "draw:master-page-name");
+      const hasTextBoxShapes = shapes.some(s => s.type === "textbox");
+      const isImportedSlide = !layoutMatch || masterPageName === "BLANK" || hasTextBoxShapes;
+
       // PPTX hop drops presentation:layout; restore two-content / title-only from remaining placeholders.
-      if (pageLayout !== "blank") {
+      if (isImportedSlide && (hasTextBoxShapes || masterPageName === "BLANK" || shapes.length > 0)) {
+        pageLayout = "blank";
+      } else if (pageLayout !== "blank") {
         if (outlineBlocks.length > 1) pageLayout = "two-content";
         else if (!pageLayout && hasPlaceholderClasses && titleParas.length && outlineBlocks.length === 0 && subtitleParas.length === 0) {
           pageLayout = "title-only";
@@ -2555,10 +2619,7 @@ export class SlidesAdapter {
       let body = "";
       let body2 = undefined;
 
-      if (pageLayout === "blank") {
-        title = "";
-        body = "";
-      } else if (hasPlaceholderClasses) {
+      if (hasPlaceholderClasses) {
         title = titleParas.filter(Boolean).join(" ");
         if (pageLayout === "two-content") {
           body = outlineBlocks[0] || "";
@@ -2566,6 +2627,9 @@ export class SlidesAdapter {
         } else {
           body = subtitleParas.length ? subtitleParas.join("\n") : outlineParas.join("\n");
         }
+      } else if (pageLayout === "blank") {
+        title = "";
+        body = "";
       } else if (pageLayout === "two-content") {
         const frameRegex = /<draw:frame[^>]*>([\s\S]*?)<\/draw:frame>/gi;
         const frames = [];
@@ -2611,9 +2675,9 @@ export class SlidesAdapter {
         body = pageLayout === "title-only" ? "" : (paragraphs.length > 1 ? paragraphs.slice(1).join("\n") : "");
       }
 
-      const titleHtmls = this._frameHtmlByClass(pageContent, "title", this._richMaps);
-      const outlineHtmls = this._frameHtmlByClass(pageContent, "outline", this._richMaps);
-      const subtitleHtmls = this._frameHtmlByClass(pageContent, "subtitle", this._richMaps);
+      const titleHtmls = this._frameHtmlByClass(originalPageXml, "title", this._richMaps);
+      const outlineHtmls = this._frameHtmlByClass(originalPageXml, "outline", this._richMaps);
+      const subtitleHtmls = this._frameHtmlByClass(originalPageXml, "subtitle", this._richMaps);
       const titleHtml = titleHtmls.find((item) => this._htmlHasFormat(item));
       const bodyHtml = (subtitleHtmls.find((item) => this._htmlHasFormat(item))
         || (pageLayout === "two-content" ? outlineHtmls[0] : outlineHtmls.find((item) => this._htmlHasFormat(item))));
@@ -2625,7 +2689,18 @@ export class SlidesAdapter {
       const hidden = !!fromPageStyle.hidden
         || /^hidden$/i.test(pageVisibility)
         || /^(false|0)$/i.test(pageVisibility);
-      const background = this._backgroundFromPageStyle(fromPageStyle, backgroundResources);
+      let background = this._backgroundFromPageStyle(fromPageStyle, backgroundResources);
+      if (!background) {
+        const masterStyleName = masterPageStyles.get(masterPageName);
+        if (masterStyleName) {
+          const fromMasterStyle = drawingPageStyles.get(masterStyleName);
+          background = this._backgroundFromPageStyle(fromMasterStyle, backgroundResources);
+        }
+      }
+      if (!background) {
+        background = { type: "solid", color: "#ffffff" };
+      }
+
       const parsedSlide = {
         id: Date.now() + idx,
         title,
@@ -2641,7 +2716,8 @@ export class SlidesAdapter {
         comments: parsedComments.comments,
         hidden,
         ...(sectionId ? { sectionId } : {}),
-        ...(pageTransition ? { transition: pageTransition } : {})
+        ...(pageTransition ? { transition: pageTransition } : {}),
+        ...(isImportedSlide ? { imported: true } : {})
       };
       this._applyPlaceholderAnimations(
         parsedSlide,
@@ -2654,6 +2730,8 @@ export class SlidesAdapter {
     Object.defineProperty(parsedSlides, "sections", { value: parsedSections, enumerable: false });
     Object.defineProperty(parsedSlides, "slideShowSettings", { value: this._parsePresentationSettings(xmlText), enumerable: false });
     Object.defineProperty(parsedSlides, "masterTheme", { value: this._parseMasterTheme(xmlText), enumerable: false });
+    Object.defineProperty(parsedSlides, "slideWidth", { value: presentationWidth, enumerable: false });
+    Object.defineProperty(parsedSlides, "slideHeight", { value: presentationHeight, enumerable: false });
     return parsedSlides;
   }
 
@@ -2704,6 +2782,12 @@ export class SlidesAdapter {
     if (ooxmlPresPropsXml) xml = overlayFodpShowProperties(xml, ooxmlPresPropsXml);
     const newSlides = this.parseFodp(xml);
     if (newSlides && newSlides.length > 0) {
+      this.canvas.imported = true;
+      if (newSlides.slideWidth && newSlides.slideHeight && this.canvas.setSlideSize) {
+        this.canvas.setSlideSize(newSlides.slideWidth, newSlides.slideHeight);
+      } else if (newSlides.slideWidth && newSlides.slideHeight) {
+        this.canvas.slideSize = { width: newSlides.slideWidth, height: newSlides.slideHeight };
+      }
       this.canvas.slides = newSlides;
       this.canvas.sections = [...(newSlides.sections || [])];
       if (newSlides.slideShowSettings && this.canvas.applySlideShowSettings) {

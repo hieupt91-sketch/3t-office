@@ -3344,7 +3344,7 @@ export class SlidesCanvasController {
       // trên canvas (xem HANDOFF-SLIDES-SHAPE-ROTATION-DISPLAY.md).
       const rotateStyle = shape.rotation ? ` transform:rotate(${shape.rotation}deg); transform-origin:center center;` : "";
       el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${isConnector ? "default" : "move"};z-index:${isConnector ? 0 : 1};${rotateStyle}`;
-      if (!isConnector && this._textStyleEligible(shape)) {
+      if (!isConnector && this._textStyleEligible(shape) && shape.type !== "textbox") {
         const vAlign = shape.textVAlign || "middle";
         el.style.alignItems = vAlign === "top" ? "flex-start" : vAlign === "bottom" ? "flex-end" : "center";
       }
@@ -3390,7 +3390,9 @@ export class SlidesCanvasController {
       } else if (shape.type === "image" && shape.src) {
         const img = document.createElement("img");
         img.src = shape.src;
-        img.style.cssText = "width:100%;height:100%;object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,0.15);pointer-events:none;";
+        img.style.cssText = "width:100%;height:100%;object-fit:cover;pointer-events:none;";
+        el.style.overflow = "hidden";
+        el.style.boxShadow = "none";
         el.appendChild(img);
       } else if (shape.type === "video" && shape.src) {
         const video = document.createElement("video");
@@ -3523,6 +3525,105 @@ export class SlidesCanvasController {
           table.appendChild(tr);
         });
         el.appendChild(table);
+      } else if (shape.type === "textbox") {
+        el.classList.add("is-textbox");
+        el.style.backgroundColor = (shape.color && shape.color !== "transparent") ? shape.color : "transparent";
+        el.style.opacity = "1";
+        el.style.borderRadius = "0";
+        el.style.overflow = "visible";
+        el.style.boxShadow = "none";
+        el.style.display = "flex";
+        el.style.flexDirection = "column";
+        el.style.alignItems = "flex-start";
+        const vAlign = shape.textVAlign || "top";
+        el.style.justifyContent = vAlign === "top" ? "flex-start" : vAlign === "bottom" ? "flex-end" : "center";
+        if (shape.paddingLeft != null || shape.paddingTop != null || shape.paddingRight != null || shape.paddingBottom != null) {
+          const pt = shape.paddingTop ?? 0;
+          const pr = shape.paddingRight ?? 0;
+          const pb = shape.paddingBottom ?? 0;
+          const pl = shape.paddingLeft ?? 0;
+          el.style.padding = `${pt}px ${pr}px ${pb}px ${pl}px`;
+          el.style.boxSizing = "border-box";
+        }
+        const textEl = document.createElement("div");
+        textEl.className = "vno-shape-textbox-text is-textbox-text";
+        textEl.dataset.shapeTextId = String(shape.id);
+        textEl.style.width = "100%";
+        textEl.style.boxSizing = "border-box";
+        textEl.style.wordBreak = "normal";
+        textEl.style.overflowWrap = "break-word";
+        textEl.style.lineHeight = "1.15";
+        textEl.style.cursor = "text";
+        if (shape.textDirection) textEl.style.cssText += ";" + this._textDirectionCss(shape.textDirection);
+        if (shape.textHtml && this._htmlLooksFormatted(shape.textHtml)) textEl.innerHTML = shape.textHtml;
+        else textEl.textContent = shape.text || "";
+        textEl.contentEditable = "false";
+        textEl.setAttribute?.("role", "textbox");
+        textEl.setAttribute?.("aria-label", shape.text || "Hộp văn bản");
+        const startEditing = (initialText) => {
+          if (textEl.contentEditable !== "true") textEl.dataset.originalText = shape.text || "";
+          textEl.contentEditable = "true";
+          if (initialText !== undefined) textEl.textContent = initialText;
+          textEl.focus();
+          if (initialText !== undefined) {
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(textEl);
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
+        };
+        textEl.addEventListener("input", () => this.updateShapeText(shape.id, textEl.innerText || textEl.textContent, this._captureEditableHtml(textEl)));
+        textEl.addEventListener("blur", () => {
+          textEl.contentEditable = "false";
+          const before = textEl.dataset.originalText ?? "";
+          const after = shape.text || "";
+          if (before !== after) {
+            this.undoStack.push({ type: "shape-text-edit", slideIndex: this.currentSlideIndex, shapeId: shape.id, before, after });
+            this.redoStack = [];
+            this._syncUndoRedoState();
+          }
+        });
+        textEl.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === "Escape") {
+            event.preventDefault();
+            textEl.blur();
+            el.focus?.();
+          } else if (event.key === "Tab") {
+            event.preventDefault();
+            textEl.blur();
+            this.selectNextObject(event.shiftKey);
+          }
+          event.stopPropagation();
+        });
+        el.addEventListener("dblclick", (event) => { event.stopPropagation(); startEditing(); });
+        el.tabIndex = 0;
+        el.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === "F2") {
+            event.preventDefault();
+            event.stopPropagation();
+            startEditing();
+            return;
+          }
+          if (event.key === "Delete" || event.key === "Backspace") {
+            event.preventDefault();
+            event.stopPropagation();
+            this.deleteSelectedShapes();
+            return;
+          }
+          if ((event.ctrlKey || event.metaKey) && (event.key === "d" || event.key === "D")) {
+            event.preventDefault();
+            event.stopPropagation();
+            this.duplicateSelectedShapes();
+            return;
+          }
+          if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1 && event.key !== " ") {
+            event.preventDefault(); event.stopPropagation(); startEditing(event.key);
+            this.updateShapeText(shape.id, event.key);
+          }
+        });
+        el.appendChild(textEl);
       } else {
         el.style.backgroundColor = shape.color || "#3b82f6";
         el.style.opacity = "0.85";
@@ -4740,22 +4841,33 @@ export class SlidesCanvasController {
       const layout = slide.layoutType || "title-content";
 
       let cardInner = "";
-      if (layout === "blank") {
+      const isImportedSlide = Boolean(this.imported || slide.imported);
+      const topAccent = isImportedSlide ? "" : `<div style="height:2px;background:${theme.accentColor || "#b53818"};margin-bottom:3px;"></div>`;
+      if (layout === "blank" && (!slide.title && (!slide.shapes || !slide.shapes.length))) {
         cardInner = `
           <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-style:italic;font-size:9px;">
             Trang trống
           </div>
         `;
+      } else if (layout === "blank") {
+        const thumbTitle = slide.title || (slide.shapes?.find(s => s.text)?.text) || "";
+        const isDarkBg = slide.background?.color === "#eb1e95" || slide.background?.color === "#000000";
+        cardInner = `
+          <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:4px;overflow:hidden;">
+            ${thumbTitle ? `<div style="font-size:8px;font-weight:700;color:${isDarkBg ? "#ffffff" : "#334155"};line-height:1.2;max-height:28px;overflow:hidden;text-overflow:ellipsis;">${this._escapeHtml(thumbTitle.substring(0, 32))}</div>` : ""}
+            ${slide.shapes?.length ? `<div style="font-size:7px;color:${isDarkBg ? "#fce7f3" : "#94a3b8"};margin-top:2px;">${slide.shapes.length} đối tượng</div>` : ""}
+          </div>
+        `;
       } else if (layout === "title-only") {
         cardInner = `
-          <div style="height:2px;background:${theme.accentColor || "#b53818"};margin-bottom:3px;"></div>
+          ${topAccent}
           <div style="flex:1;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:bold;font-size:8px;color:${theme.titleColor || "#0f172a"};padding:2px;">
             ${(slide.title || "Tiêu đề").substring(0, 32)}
           </div>
         `;
       } else if (layout === "two-content") {
         cardInner = `
-          <div style="height:2px;background:${theme.accentColor || "#b53818"};margin-bottom:3px;"></div>
+          ${topAccent}
           <div style="font-weight:bold;color:${theme.titleColor || "#0f172a"};margin-bottom:2px;">${(slide.title || "").substring(0, 22)}...</div>
           <div style="display:flex;gap:4px;flex:1;font-size:6px;color:${theme.bodyColor || "#64748b"};line-height:1.1;">
             <div style="flex:1;overflow:hidden;">${(slide.body || "").substring(0, 20)}...</div>
@@ -4765,7 +4877,7 @@ export class SlidesCanvasController {
       } else {
         // title-content
         cardInner = `
-          <div style="height:2px;background:${theme.accentColor || "#b53818"};margin-bottom:3px;"></div>
+          ${topAccent}
           <div style="font-weight:bold;color:${theme.titleColor || "#0f172a"};margin-bottom:4px;">${(slide.title || "").substring(0, 24)}...</div>
           <div style="color:${theme.bodyColor || "#64748b"};">${(slide.body || "").substring(0, 36)}...</div>
         `;
@@ -4888,6 +5000,15 @@ export class SlidesCanvasController {
     const layout = s.layoutType || "title-content";
 
     this._applyLayoutToDom(layout);
+
+    const isImported = Boolean(this.imported || s?.imported);
+    if (this.masterAccentEl) this.masterAccentEl.style.display = isImported ? "none" : "";
+    if (this.masterLogoEl) this.masterLogoEl.style.display = isImported ? "none" : "";
+    if (this.masterFooterEl && isImported && !s?.headerFooter) {
+      this.masterFooterEl.style.display = "none";
+    } else if (this.masterFooterEl && !isImported) {
+      this.masterFooterEl.style.display = "";
+    }
 
     if (this.titleEl) this._setEditableContent(this.titleEl, s.titleHtml, s.title || "");
     if (this.bodyEl) this._setEditableContent(this.bodyEl, s.bodyHtml, s.body || "");
@@ -6645,8 +6766,9 @@ export class SlidesCanvasController {
   }
 
   _slideSurfaceCss(slide) {
+    const isImported = Boolean(this.imported || slide?.imported);
     const theme = this.masterTheme || {};
-    const fallback = theme.bgColor || "#ffffff";
+    const fallback = (!isImported && theme.bgColor) ? theme.bgColor : "#ffffff";
     const bg = slide?.background;
     if (!bg || bg.type === "none") {
       return { backgroundColor: fallback, backgroundImage: "none", backgroundSize: "", backgroundPosition: "", backgroundRepeat: "" };

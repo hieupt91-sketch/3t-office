@@ -795,6 +795,35 @@
   text-align: left;
 }
 
+.vno-shape-textbox-text {
+  width: 100%;
+  box-sizing: border-box;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  user-select: text;
+  cursor: text;
+  outline: none;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.vno-slide-shape-item.is-textbox {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.vno-shape-textbox-text {
+  text-align: left;
+  color: inherit;
+  font-weight: normal;
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 [data-theme="dark"] .vno-shape-text.is-textbox-text {
   color: var(--vno-text-primary, #f1f5f9);
 }
