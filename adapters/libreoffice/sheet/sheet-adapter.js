@@ -1013,6 +1013,83 @@ export class SheetAdapter {
     return rotations;
   }
 
+  /**
+   * Parse office:automatic-styles (and office:styles) into a Map<styleName, styleObject>
+   * covering visual cell properties: background, border, font, alignment, wrap.
+   * Resolves style:parent-style-name for 1-level inheritance.
+   */
+  _parseCellVisualStyles(xmlText) {
+    const raw = new Map();
+    const parseStyleBlock = (block) => {
+      String(block || "").replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrs, body) => {
+        const family = attrs.match(/style:family=["']([^"']+)["']/i)?.[1] || "";
+        if (family !== "table-cell") return "";
+        const name = this._unescapeXml(attrs.match(/style:name=["']([^"']+)["']/i)?.[1] || "");
+        const parentName = this._unescapeXml(attrs.match(/style:parent-style-name=["']([^"']+)["']/i)?.[1] || "");
+        if (!name) return "";
+        const cellProps = (body.match(/<style:table-cell-properties\b([^>]*?)\/?\s*>/i)?.[1] || "");
+        const paraProps = (body.match(/<style:paragraph-properties\b([^>]*?)\/?\s*>/i)?.[1] || "");
+        const textProps = (body.match(/<style:text-properties\b([^>]*?)\/?\s*>/i)?.[1] || "");
+        const style = {};
+        const bg = cellProps.match(/fo:background-color=["']([^"']+)["']/i)?.[1];
+        if (bg && bg !== "transparent") style.backgroundColor = bg;
+        const vAlign = cellProps.match(/style:vertical-align=["']([^"']+)["']/i)?.[1];
+        if (vAlign) style.verticalAlign = vAlign;
+        const wrap = cellProps.match(/fo:wrap-option=["']([^"']+)["']/i)?.[1];
+        if (wrap === "wrap") style.whiteSpace = "pre-wrap";
+        else if (wrap === "no-wrap") style.whiteSpace = "nowrap";
+        const borderLeft = cellProps.match(/fo:border-left=["']([^"']+)["']/i)?.[1];
+        const borderRight = cellProps.match(/fo:border-right=["']([^"']+)["']/i)?.[1];
+        const borderTop = cellProps.match(/fo:border-top=["']([^"']+)["']/i)?.[1];
+        const borderBottom = cellProps.match(/fo:border-bottom=["']([^"']+)["']/i)?.[1];
+        const odfBorderToCss = (val) => {
+          if (!val || val === "none" || val === "hidden") return "none";
+          const parts = val.trim().split(/\s+/);
+          if (parts.length < 3) return val;
+          const [width, style, ...rest] = parts;
+          let w = width;
+          if (w.endsWith("pt")) w = `${parseFloat(w) * 1.3333}px`;
+          const color = rest.join(" ") || "#000000";
+          return `${w} ${style} ${color}`;
+        };
+        if (borderLeft) style.borderLeft = odfBorderToCss(borderLeft);
+        if (borderRight) style.borderRight = odfBorderToCss(borderRight);
+        if (borderTop) style.borderTop = odfBorderToCss(borderTop);
+        if (borderBottom) style.borderBottom = odfBorderToCss(borderBottom);
+        const hAlign = paraProps.match(/fo:text-align=["']([^"']+)["']/i)?.[1];
+        if (hAlign) style.textAlign = hAlign;
+        const fontSize = textProps.match(/fo:font-size=["']([^"']+)["']/i)?.[1];
+        if (fontSize) {
+          if (fontSize.endsWith("pt")) style.fontSize = `${parseFloat(fontSize) * 1.3333}px`;
+          else if (fontSize.endsWith("px")) style.fontSize = fontSize;
+          else style.fontSize = `${fontSize}px`;
+        }
+        const fontWeight = textProps.match(/fo:font-weight=["']([^"']+)["']/i)?.[1];
+        if (fontWeight) style.fontWeight = fontWeight;
+        const fontStyle = textProps.match(/fo:font-style=["']([^"']+)["']/i)?.[1];
+        if (fontStyle) style.fontStyle = fontStyle;
+        const textDecoration = textProps.match(/fo:text-decoration=["']([^"']+)["']/i)?.[1];
+        if (textDecoration) style.textDecoration = textDecoration;
+        const color = textProps.match(/fo:color=["']([^"']+)["']/i)?.[1];
+        if (color) style.color = color;
+        const fontName = textProps.match(/style:font-name=["']([^"']+)["']/i)?.[1];
+        if (fontName) style.fontFamily = fontName;
+        raw.set(name, { style, parentName });
+        return "";
+      });
+    };
+    parseStyleBlock(xmlText);
+    const resolved = new Map();
+    for (const [name, entry] of raw) {
+      let merged = { ...entry.style };
+      if (entry.parentName && raw.has(entry.parentName)) {
+        merged = { ...raw.get(entry.parentName).style, ...merged };
+      }
+      resolved.set(name, merged);
+    }
+    return resolved;
+  }
+
   _chartSeriesPlan(sheetName, chart) {
     const chartClass = this._odfChartClass(chart?.type);
     const range = chart?.range;
@@ -1433,6 +1510,8 @@ export class SheetAdapter {
     const conditionalBaseStyles = [];
     const conditionalStyleNames = new Map();
     const conditionalBaseByCell = new Map();
+    const visualStyleEntries = [];
+    const visualStyleNames = new Map();
     const validationDefinitions = [];
     const validationsByCell = new Map();
     const pageLayouts = [];
@@ -1463,6 +1542,50 @@ export class SheetAdapter {
         dimensionStyles.push(`<style:style style:name="${name}" style:family="table-row"><style:table-row-properties style:row-height="${this._pxToOdfCm(heightKey)}cm" fo:break-before="${pageBreak ? "page" : "auto"}" style:use-optimal-row-height="false"/></style:style>`);
       }
       return rowStyleNames.get(key);
+    };
+    const cssToOdfBorder = (side, cssVal) => {
+      if (!cssVal || cssVal === "none") return `${side}="none"`;
+      const m = String(cssVal).match(/^([\d.]+)px\s+(solid|dashed|dotted|double)\s+(#[0-9a-fA-F]+|[\w]+)$/);
+      if (!m) return `${side}="none"`;
+      const ptVal = (parseFloat(m[1]) / 1.3333).toFixed(2);
+      return `${side}="${ptVal}pt ${m[2]} ${m[3]}"`;
+    };
+    const visualStyleFor = (item) => {
+      const s = item?.style || {};
+      const keys = ["backgroundColor", "color", "fontWeight", "fontStyle", "textDecoration", "fontFamily", "fontSize", "textAlign", "verticalAlign", "whiteSpace", "borderLeft", "borderRight", "borderTop", "borderBottom"];
+      const hasVisual = keys.some(k => s[k] !== undefined && s[k] !== "" && s[k] !== null);
+      if (!hasVisual) return null;
+      const hash = JSON.stringify(keys.map(k => s[k] || ""));
+      if (visualStyleNames.has(hash)) return visualStyleNames.get(hash);
+      const name = `vno_vs_${visualStyleNames.size + 1}`;
+      visualStyleNames.set(hash, name);
+      const cellProps = [];
+      if (s.backgroundColor) cellProps.push(`fo:background-color="${this._escapeXml(s.backgroundColor)}"`);
+      if (s.verticalAlign) cellProps.push(`style:vertical-align="${this._escapeXml(s.verticalAlign)}"`);
+      if (s.whiteSpace === "pre-wrap") cellProps.push(`fo:wrap-option="wrap"`);
+      else if (s.whiteSpace === "nowrap") cellProps.push(`fo:wrap-option="no-wrap"`);
+      if (s.borderLeft) cellProps.push(cssToOdfBorder("fo:border-left", s.borderLeft));
+      if (s.borderRight) cellProps.push(cssToOdfBorder("fo:border-right", s.borderRight));
+      if (s.borderTop) cellProps.push(cssToOdfBorder("fo:border-top", s.borderTop));
+      if (s.borderBottom) cellProps.push(cssToOdfBorder("fo:border-bottom", s.borderBottom));
+      const paraProps = [];
+      if (s.textAlign) paraProps.push(`fo:text-align="${this._escapeXml(s.textAlign)}"`);
+      const textProps = [];
+      if (s.fontSize) {
+        const ptVal = s.fontSize.endsWith("px") ? (parseFloat(s.fontSize) / 1.3333).toFixed(1) : s.fontSize;
+        textProps.push(`fo:font-size="${ptVal}pt"`);
+      }
+      if (s.fontWeight) textProps.push(`fo:font-weight="${this._escapeXml(s.fontWeight)}"`);
+      if (s.fontStyle) textProps.push(`fo:font-style="${this._escapeXml(s.fontStyle)}"`);
+      if (s.textDecoration) textProps.push(`fo:text-decoration="${this._escapeXml(s.textDecoration)}"`);
+      if (s.color) textProps.push(`fo:color="${this._escapeXml(s.color)}"`);
+      if (s.fontFamily) textProps.push(`style:font-name="${this._escapeXml(s.fontFamily)}"`);
+      const parts = [];
+      if (cellProps.length) parts.push(`<style:table-cell-properties ${cellProps.join(" ")}/>`);
+      if (paraProps.length) parts.push(`<style:paragraph-properties ${paraProps.join(" ")}/>`);
+      if (textProps.length) parts.push(`<style:text-properties ${textProps.join(" ")}/>`);
+      visualStyleEntries.push(`<style:style style:name="${name}" style:family="table-cell">${parts.join("")}</style:style>`);
+      return name;
     };
     const paperSizes = { a4: [21, 29.7], letter: [21.59, 27.94], legal: [21.59, 35.56] };
     const headerFooterTextXml = value => String(value || "").split(/(&[PNDTFA])/g).map(part => ({
@@ -1757,6 +1880,25 @@ export class SheetAdapter {
               cellStyleName = rotStyle.styleName;
             }
           }
+          const vsName = visualStyleFor(item);
+          if (vsName) {
+            if (cellStyleName) {
+              const combined = `${cellStyleName}_${vsName}`;
+              const dataAttr = formatStyle ? ` style:data-style-name="${formatStyle.dataStyle}"` : "";
+              if (!rotationCombinedStyles.some(style => style.includes(`style:name="${combined}"`))) {
+                let vsEntry = visualStyleEntries[visualStyleEntries.length - 1];
+                if (rotStyle) {
+                  const rotAttrs = this._odfRotationAttrs(rotStyle.textRotation);
+                  vsEntry = vsEntry.replace(/<style:table-cell-properties/, `<style:table-cell-properties ${rotAttrs}`);
+                }
+                const vsInner = vsEntry.replace(/^<style:style[^>]*>/, "").replace(/<\/style:style>$/, "");
+                rotationCombinedStyles.push(`<style:style style:name="${combined}" style:family="table-cell"${dataAttr}>${conditionalBase?.maps || ""}${vsInner}</style:style>`);
+              }
+              cellStyleName = combined;
+            } else {
+              cellStyleName = vsName;
+            }
+          }
           const validationName = cellValidations.get(coordinate);
           const validationAttr = validationName ? ` table:content-validation-name="${validationName}"` : "";
           const merge = mergeAnchors.get(coordinate);
@@ -1875,7 +2017,7 @@ export class SheetAdapter {
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
   ${conditionalNamedStyles.length ? `<office:styles>${conditionalNamedStyles.join("")}</office:styles>` : ""}
-  <office:automatic-styles>${pageLayouts.join("")}${tablePageStyles.join("")}${dimensionStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${[...rotationStyles.values()].map(style => this._rotationCellStyleXml(style.styleName, style.textRotation)).join("")}${rotationCombinedStyles.join("")}${conditionalBaseStyles.join("")}</office:automatic-styles>
+  <office:automatic-styles>${pageLayouts.join("")}${tablePageStyles.join("")}${dimensionStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${[...rotationStyles.values()].map(style => this._rotationCellStyleXml(style.styleName, style.textRotation)).join("")}${rotationCombinedStyles.join("")}${conditionalBaseStyles.join("")}${visualStyleEntries.join("")}</office:automatic-styles>
   <office:master-styles>${masterPages.join("")}</office:master-styles>
   <office:settings>
     <config:config-item-set config:name="ooo:view-settings">
@@ -1928,7 +2070,7 @@ export class SheetAdapter {
     return markup.replace(/<[^>]+>/g, "").trim() !== "";
   }
 
-  _cellFromFodsAttributes(attributes, text, numberStyles = new Map(), rotationStyles = new Map()) {
+  _cellFromFodsAttributes(attributes, text, numberStyles = new Map(), rotationStyles = new Map(), cellVisualStyles = new Map()) {
     const get = name => attributes[name] ?? "";
     const valueType = get("office:value-type");
     let value = text;
@@ -1960,6 +2102,12 @@ export class SheetAdapter {
     }
     const rotation = rotationStyles.get(get("table:style-name"));
     if (rotation != null) style.textRotation = rotation;
+    const visualStyle = cellVisualStyles.get(get("table:style-name"));
+    if (visualStyle) {
+      for (const [key, val] of Object.entries(visualStyle)) {
+        if (val !== undefined && val !== null && val !== "") style[key] = val;
+      }
+    }
     return { val: value, formula, style };
   }
 
@@ -2324,6 +2472,7 @@ export class SheetAdapter {
     const tableXml = this._xmlWithoutEmbeddedObjects(xmlText);
     const numberStyles = this._parseNumberStyles(tableXml);
     const rotationStyles = this._parseRotationStyles(tableXml);
+    const cellVisualStyles = this._parseCellVisualStyles(tableXml);
     const rowColStyles = this._parseRowColStyles(tableXml);
     const defaultRowHeight = this.grid?.rowHeight || 26;
     const defaultColWidth = this.grid?.defaultColWidth || 100;
@@ -2483,7 +2632,7 @@ export class SheetAdapter {
                 const text = paragraphs.map(paragraph => paragraph.textContent || "").join("\n");
                 const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"];
                 if (hasValue && !isCovered) {
-                  const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles);
+                  const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
                   const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);
                   const matrixRows = Math.max(1, Number(attributes["table:number-matrix-rows-spanned"]) || 1);
                   if ((attributes["table:number-matrix-columns-spanned"] || attributes["table:number-matrix-rows-spanned"]) && item.formula) {
@@ -2689,7 +2838,7 @@ export class SheetAdapter {
               const text = paragraphs.join("\n");
               const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotationMatch || attributes["table:content-validation-name"];
               if (hasValue && !isCovered) {
-                const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles);
+                const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
                 const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);
                 const matrixRows = Math.max(1, Number(attributes["table:number-matrix-rows-spanned"]) || 1);
                 if ((attributes["table:number-matrix-columns-spanned"] || attributes["table:number-matrix-rows-spanned"]) && item.formula) {

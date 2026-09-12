@@ -1867,6 +1867,8 @@ export class SheetGridController {
     if (!tabsListEl || typeof document === "undefined" || typeof document.createElement !== "function") return;
     tabsListEl.innerHTML = "";
     this.sheets.forEach(sheetName => {
+      const visState = (this.sheetVisibilityBySheet?.[sheetName] || "").toLowerCase();
+      if (visState === "hidden" || visState === "veryhidden") return;
       const isActive = sheetName === this.activeSheet;
       const protectedSheet = this.isSheetProtected(sheetName);
       const tab = document.createElement("div");
