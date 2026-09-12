@@ -2063,6 +2063,11 @@ export class SheetAdapter {
         if (group?.axis === "row") maxRow = Math.max(maxRow, Number(group.end) || 0);
         if (group?.axis === "col") maxCol = Math.max(maxCol, Number(group.end) || 0);
       }
+      // Safety cap: never iterate beyond 4096 columns/rows even if upstream
+      // data is tainted (the real fix is in parseFods which limits
+      // colWidths/rowHeights, but this prevents serialize blowup defensively).
+      maxCol = Math.min(maxCol, 4096);
+      maxRow = Math.min(maxRow, 1048576);
 
       const columnParts = [];
       for (let columnNumber = 1; columnNumber <= Math.max(1, maxCol); columnNumber++) {
@@ -2819,25 +2824,6 @@ export class SheetAdapter {
             if (range) localRanges.push(range);
             return "";
           });
-          const columnStyles = [];
-          const colWidths = new Map();
-          const hiddenCols = new Set();
-          let layoutColumn = 1;
-          Array.from(table.children).filter(element => element.localName === "table-column").forEach(column => {
-            const repeat = Math.max(1, Number(column.getAttribute("table:number-columns-repeated")) || 1);
-            const styleName = this._tableAttr(column, "style-name");
-            const visibility = this._tableAttr(column, "visibility").toLowerCase();
-            const widthPx = rowColStyles.columns.get(styleName)?.widthPx;
-            for (let index = 0; index < repeat; index++) {
-              columnStyles.push(column.getAttribute("table:default-cell-style-name") || "");
-              const colName = this._columnName(layoutColumn);
-              if (repeat <= 32 || visibility === "collapse") {
-                if (Number.isFinite(widthPx)) colWidths.set(colName, widthPx);
-              }
-              if (visibility === "collapse") hiddenCols.add(colName);
-              layoutColumn++;
-            }
-          });
           const rowHeights = new Map();
           const hiddenRows = new Set();
           let rowNumber = 1;
@@ -2873,13 +2859,35 @@ export class SheetAdapter {
             }
           }
 
+          const columnStyles = [];
+          const colWidths = new Map();
+          const hiddenCols = new Set();
+          let layoutColumn = 1;
+          const effectiveColLimit = Math.max(lastDataCol, 26);
+          Array.from(table.children).filter(element => element.localName === "table-column").forEach(column => {
+            const repeat = Math.max(1, Number(column.getAttribute("table:number-columns-repeated")) || 1);
+            const styleName = this._tableAttr(column, "style-name");
+            const visibility = this._tableAttr(column, "visibility").toLowerCase();
+            const widthPx = rowColStyles.columns.get(styleName)?.widthPx;
+            const defaultCellStyle = column.getAttribute("table:default-cell-style-name") || "";
+            for (let index = 0; index < repeat; index++) {
+              if (layoutColumn <= effectiveColLimit) {
+                columnStyles.push(defaultCellStyle);
+                const colName = this._columnName(layoutColumn);
+                if (Number.isFinite(widthPx) && !this._isCloseToDefault(widthPx, defaultColWidth)) colWidths.set(colName, widthPx);
+                if (visibility === "collapse") hiddenCols.add(colName);
+              }
+              layoutColumn++;
+            }
+          });
+
           rowElements.forEach(row => {
             const rowRepeat = Math.max(1, Number(row.getAttribute("table:number-rows-repeated")) || 1);
             const rowStyleName = this._tableAttr(row, "style-name");
             const rowVisibility = this._tableAttr(row, "visibility").toLowerCase();
             const heightPx = rowColStyles.rows.get(rowStyleName)?.heightPx;
 
-            if (rowNumber > lastDataRow && rowRepeat > 32 && rowVisibility !== "collapse") {
+            if (rowNumber > lastDataRow && (rowRepeat > 32 || rowNumber > lastDataRow + 1000) && rowVisibility !== "collapse") {
               rowNumber += rowRepeat;
               return;
             }
@@ -3031,27 +3039,6 @@ export class SheetAdapter {
           if (range) localRanges.push(range);
           return "";
         });
-        const columnStyles = [];
-        const colWidths = new Map();
-        const hiddenCols = new Set();
-        let layoutColumn = 1;
-        tableMatch[2].replace(/<table:table-column(?=[\s>/])([^>]*)\/?\s*>/gi, (_, attrs) => {
-          const repeat = Math.max(1, Number(attrs.match(/table:number-columns-repeated=["'](\d+)["']/i)?.[1]) || 1);
-          const defaultCellStyle = this._unescapeXml(attrs.match(/table:default-cell-style-name=["']([^"']*)["']/i)?.[1] || "");
-          const styleName = this._unescapeXml(attrs.match(/table:style-name=["']([^"']*)["']/i)?.[1] || "");
-          const visibility = (attrs.match(/table:visibility=["']([^"']*)["']/i)?.[1] || "").toLowerCase();
-          const widthPx = rowColStyles.columns.get(styleName)?.widthPx;
-          for (let index = 0; index < repeat; index++) {
-            columnStyles.push(defaultCellStyle);
-            const colName = this._columnName(layoutColumn);
-            if (repeat <= 32 || visibility === "collapse") {
-              if (Number.isFinite(widthPx)) colWidths.set(colName, widthPx);
-            }
-            if (visibility === "collapse") hiddenCols.add(colName);
-            layoutColumn++;
-          }
-          return "";
-        });
         const rowHeights = new Map();
         const hiddenRows = new Set();
         let rowNumber = 1;
@@ -3085,13 +3072,35 @@ export class SheetAdapter {
             scanRow += scanRepeat;
           }
         }
+        const columnStyles = [];
+        const colWidths = new Map();
+        const hiddenCols = new Set();
+        let layoutColumn = 1;
+        const effectiveColLimit = Math.max(lastDataCol, 26);
+        tableMatch[2].replace(/<table:table-column(?=[\s>/])([^>]*)\/?\s*>/gi, (_, attrs) => {
+          const repeat = Math.max(1, Number(attrs.match(/table:number-columns-repeated=["'](\d+)["']/i)?.[1]) || 1);
+          const defaultCellStyle = this._unescapeXml(attrs.match(/table:default-cell-style-name=["']([^"']*)["']/i)?.[1] || "");
+          const styleName = this._unescapeXml(attrs.match(/table:style-name=["']([^"']*)["']/i)?.[1] || "");
+          const visibility = (attrs.match(/table:visibility=["']([^"']*)["']/i)?.[1] || "").toLowerCase();
+          const widthPx = rowColStyles.columns.get(styleName)?.widthPx;
+          for (let index = 0; index < repeat; index++) {
+            if (layoutColumn <= effectiveColLimit) {
+              columnStyles.push(defaultCellStyle);
+              const colName = this._columnName(layoutColumn);
+              if (Number.isFinite(widthPx) && !this._isCloseToDefault(widthPx, defaultColWidth)) colWidths.set(colName, widthPx);
+              if (visibility === "collapse") hiddenCols.add(colName);
+            }
+            layoutColumn++;
+          }
+          return "";
+        });
         let rowMatch;
         while ((rowMatch = rowRegex.exec(tableMatch[2])) !== null) {
           const rowRepeat = Math.max(1, Number(rowMatch[1].match(/table:number-rows-repeated=["'](\d+)["']/i)?.[1]) || 1);
           const rowStyleName = this._unescapeXml(rowMatch[1].match(/table:style-name=["']([^"']*)["']/i)?.[1] || "");
           const rowVisibility = (rowMatch[1].match(/table:visibility=["']([^"']*)["']/i)?.[1] || "").toLowerCase();
           const heightPx = rowColStyles.rows.get(rowStyleName)?.heightPx;
-          if (rowNumber > lastDataRow && rowRepeat > 32 && rowVisibility !== "collapse") {
+          if (rowNumber > lastDataRow && (rowRepeat > 32 || rowNumber > lastDataRow + 1000) && rowVisibility !== "collapse") {
             rowNumber += rowRepeat;
             continue;
           }
