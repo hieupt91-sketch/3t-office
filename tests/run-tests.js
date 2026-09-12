@@ -167,6 +167,7 @@ import { runSheetImportAuditTests } from "./unit/sheet-import-audit.test.js";
 import { runSheetSaveFidelityTests } from "./unit/sheet-save-fidelity.test.js";
 import { runWriterExportDocxWordCompatTests } from "./unit/writer-export-docx-word-compat.test.js";
 import { runSheetVirtualScrollRowHeightTests } from "./unit/sheet-virtual-scroll-row-heights.test.js";
+import { runSlidesImportFidelityTests } from "./unit/slides-import-fidelity.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -341,7 +342,8 @@ async function runAll() {
     { title: "146. Unit Tests — Sheet XLSX import audit", runner: runSheetImportAuditTests },
     { title: "147. Unit Tests — Sheet save fidelity: font-face-decls, newline preservation, rich-text paragraph split", runner: runSheetSaveFidelityTests },
     { title: "148. Unit Tests — Writer DOCX export Word 2016 compat (strip span dimension/position for LO HTML→Writer import)", runner: runWriterExportDocxWordCompatTests },
-    { title: "149. Unit Tests — Sheet Virtual Scroll with Variable Row Heights (prefix-sum cache, binary search, spacers)", runner: runSheetVirtualScrollRowHeightTests }
+    { title: "149. Unit Tests — Sheet Virtual Scroll with Variable Row Heights (prefix-sum cache, binary search, spacers)", runner: runSheetVirtualScrollRowHeightTests },
+    { title: "150. Unit Tests — Slides PPTX/FODP Import Fidelity", runner: runSlidesImportFidelityTests }
   ];
 
   for (const suite of suites) {
