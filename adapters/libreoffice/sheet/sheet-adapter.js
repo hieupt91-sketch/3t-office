@@ -10,6 +10,7 @@ import { globalShortcutManager } from "../../../platform/commands/shortcut-manag
 import { getVnCommand } from "../common/command-dispatch-mapper.js";
 import { SheetChartBuilder } from "../../../apps/sheet/sheet-chart.js";
 import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
+import { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
 
 export class SheetAdapter {
   constructor(gridController) {
@@ -2755,7 +2756,8 @@ export class SheetAdapter {
 
   loadFromFods(fodsText, ooxmlWorkbookXml) {
     if (!this.grid) return false;
-    const xml = overlayFodsStructureProtection(fodsText, ooxmlWorkbookXml);
+    let xml = overlayFodsStructureProtection(fodsText, ooxmlWorkbookXml);
+    xml = overlayActiveSheetToFods(xml, ooxmlWorkbookXml);
     const workbook = this.parseFods(xml);
     if (workbook.sheets.length === 0) return false;
     const firstSheet = workbook.sheets[0];

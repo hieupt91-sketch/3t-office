@@ -123,3 +123,6 @@ export function applyFodsStructureProtection(fodsXml) {
   const nextTag = selfClose ? `<office:spreadsheet${attrs}/>` : `<office:spreadsheet${attrs}>`;
   return xml.slice(0, match.index) + nextTag + xml.slice(match.index + full.length);
 }
+
+export { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
+

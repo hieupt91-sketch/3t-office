@@ -154,7 +154,7 @@ Bổ sung cơ chế bù đắp thuộc tính thiếu hụt từ file XLSX gốc 
      - Nếu FODS đã có `<config:config-item-set config:name="ooo:view-settings">`, chèn thẻ `ActiveTable` vào `config:config-item-map-entry` hoặc bọc trong `config:config-item-map-indexed config:name="Views"`.
      - Nếu FODS thiếu cấu trúc view settings, tự động tạo khối `<office:settings>` hoàn chỉnh trước `<office:body>` theo đúng định dạng `serializeToFods()`.
      - Nếu FODS **ĐÃ CÓ** `ActiveTable` từ trước: giữ nguyên tuyệt đối, không ghi đè.
-  4. Phía JavaScript không cần chỉnh sửa `sheet-adapter.js` vì cả hai nhánh DOM parser và regex streaming parser đều đã đọc sẵn `ActiveTable`.
+  4. Phía JavaScript: `SheetAdapter.loadFromFods(fodsText, ooxmlWorkbookXml)` trong `sheet-adapter.js` gọi `overlayActiveSheetToFods(xml, ooxmlWorkbookXml)` ngay sau `overlayFodsStructureProtection` (browser-safe qua `xlsx-active-sheet.js`, re-export qua `xlsx-native-postprocess.js`) làm belt-and-suspenders cho đường test stub và payload mở file, no-op khi thiếu `ooxmlWorkbookXml` hoặc khi FODS đã có `ActiveTable`.
 
 ### 3. Kiểm thử & Xác minh độ chính xác
 - **Unit tests Python mới**: `tests/test_sheet_active_tab_overlay.py` (18/18 tests PASS):
@@ -166,8 +166,8 @@ Bổ sung cơ chế bù đắp thuộc tính thiếu hụt từ file XLSX gốc 
   - **Xác minh không mock trên file thật**: Chuyển đổi thật `file test/DSS_Báo giá Dahua HN-T11.2023.xlsx` qua LibreOffice headless + chạy `_apply_native_import_overlay()` → trích xuất chính xác `ActiveTable` = `"Thông báo Sản phẩm mới"`.
 - **Đảm bảo không hồi quy**:
   - `python -m unittest discover -s tests -p "test_*.py"`: **175/175 PASS** (tăng từ 157).
-  - `node scripts/check-syntax.js`: **91/91 files hợp lệ**.
-  - `node tests/run-tests.js`: **1581/1581 PASS**.
+  - `node scripts/check-syntax.js`: **92/92 files hợp lệ** (bổ sung `xlsx-active-sheet.js`).
+  - `node tests/run-tests.js`: **1586/1586 PASS** (suite 109 kiểm thử đầy đủ loadFromFods activeTab, fallback, idempotent và Python-twin parity).
   - Bộ test đối chiếu song song Python twin vs JS (`tests/unit/sheet-xlsx-native-open-overlay.test.js`) đạt chuẩn tuyệt đối (`jsFods === pyFods`).
 
 
