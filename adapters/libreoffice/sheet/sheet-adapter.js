@@ -3387,6 +3387,19 @@ export class SheetAdapter {
     }
     this.grid.undoStack = [];
     this.grid.redoStack = [];
+
+    // Dat rowCount = max(200, maxRow + 50) de cuon toi cuoi sheet khong bi trong
+    let _maxRowInFile = 0;
+    for (const sheetData of Object.values(this.grid.sheetsData || {})) {
+      if (!sheetData) continue;
+      for (const key of sheetData.keys()) {
+        const m = /^([A-Z]+)(\d+)$/.exec(key);
+        if (m) _maxRowInFile = Math.max(_maxRowInFile, Number(m[2]));
+      }
+    }
+    this.grid.rowCount = Math.max(200, _maxRowInFile + 50);
+    this._invalidateRowTopsCache?.();
+
     this.grid._refreshVisibleRuleVisuals?.();
     this.grid._refreshRowColLayoutView?.();
     this.grid.refreshCharts?.();
