@@ -386,6 +386,13 @@ export class SheetAdapter {
       .replace(/&amp;/g, "&");
   }
 
+  // soffice escapes entity-looking text from XLSX once for the spreadsheet
+  // value and once again for XML. XML DOM/text stripping removes one layer;
+  // this removes the remaining transport layer while preserving user text.
+  _decodeImportedCellText(value) {
+    return this._unescapeXml(value);
+  }
+
   /** Đọc mọi thuộc tính trong một đoạn mở-thẻ XML (vd 'style:name="ta1" style:master-page-name="X"') thành object, không phụ thuộc thứ tự. */
   _parseTagAttrs(tagInner) {
     const attrs = {};
@@ -675,6 +682,17 @@ export class SheetAdapter {
     if (value instanceof Set) return value;
     const items = Array.isArray(value) ? value : [...value];
     return new Set(numeric ? items.map(Number) : items);
+  }
+
+  _applyXlsxLayoutOverlay(raw, rowHeights, colWidths) {
+    if (!raw) return;
+    try {
+      const layout = JSON.parse(this._unescapeXml(raw));
+      for (const [column, width] of Object.entries(layout.columns || {})) if (Number.isFinite(Number(width))) colWidths.set(column, Number(width));
+      for (const [row, height] of Object.entries(layout.rows || {})) if (Number.isFinite(Number(height))) rowHeights.set(Number(row), Number(height));
+    } catch (_) {
+      // Ignore malformed optional overlay; standard ODF dimensions remain usable.
+    }
   }
 
   _sheetRowColLayout(sheetName) {
@@ -1733,6 +1751,34 @@ export class SheetAdapter {
 
     const numberFormats = this._collectNumberFormats(sheetNames);
     const rotationStyles = this._collectRotationStyles(sheetNames);
+
+    // ── Collect font families for office:font-face-decls ──
+    const fontFaces = new Map();
+    const addFontFace = (fontName) => {
+      if (!fontName || fontFaces.has(fontName)) return;
+      fontFaces.set(fontName, true);
+    };
+    for (const sheetName of sheetNames) {
+      const cells = this.grid.sheetsData?.[sheetName]
+        || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
+        || new Map();
+      for (const item of cells.values()) {
+        if (item?.style?.fontFamily) addFontFace(item.style.fontFamily);
+        if (Array.isArray(item?.richText)) {
+          for (const run of item.richText) {
+            if (run?.style?.fontFamily) addFontFace(run.style.fontFamily);
+          }
+        }
+      }
+    }
+    const fontFaceDeclsXml = fontFaces.size > 0
+      ? `<office:font-face-decls>${[...fontFaces.keys()].map(name => {
+          const escaped = this._escapeXml(name);
+          const needsQuote = /\s/.test(name);
+          const familyAttr = needsQuote ? `svg:font-family="&apos;${escaped}&apos;"` : `svg:font-family="${escaped}"`;
+          return `<style:font-face style:name="${escaped}" ${familyAttr}/>`;
+        }).join("")}</office:font-face-decls>`
+      : "";
     const rotationCombinedStyles = [];
     const conditionalNamedStyles = [];
     const conditionalBaseStyles = [];
@@ -2199,9 +2245,11 @@ export class SheetAdapter {
                 }).join("");
                 return `<text:p>${spanXml}</text:p>`;
               }).join("");
-              cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${cellAttrs}>${cellImageXml}${annotationXml}${paraXml}</table:table-cell>`;
+              cellsXml += `<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${paraXml}</table:table-cell>`;
             } else {
-              cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(text)}</text:p></table:table-cell>`;
+              const lines = text.split("\n");
+              const linesXml = lines.map(line => `<text:p>${this._escapeXml(line)}</text:p>`).join("");
+              cellsXml += `<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${linesXml}</table:table-cell>`;
             }
           }
           previousColumn = columnNumber;
@@ -2300,6 +2348,7 @@ export class SheetAdapter {
                  xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0"
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+  ${fontFaceDeclsXml}
   ${conditionalNamedStyles.length ? `<office:styles>${conditionalNamedStyles.join("")}</office:styles>` : ""}
   <office:automatic-styles>${pageLayouts.join("")}${tablePageStyles.join("")}${dimensionStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${[...rotationStyles.values()].map(style => this._rotationCellStyleXml(style.styleName, style.textRotation)).join("")}${rotationCombinedStyles.join("")}${conditionalBaseStyles.join("")}${visualStyleEntries.join("")}${richTextAutoStyles.join("")}</office:automatic-styles>
   <office:master-styles>${masterPages.join("")}</office:master-styles>
@@ -2364,7 +2413,7 @@ export class SheetAdapter {
     } else if (valueType === "boolean") {
       value = get("office:boolean-value") === "true";
     } else if (get("office:string-value")) {
-      value = get("office:string-value");
+      value = this._decodeImportedCellText(get("office:string-value"));
     }
     const formula = get("vno:formula") || this._formulaFromOdf(get("table:formula"));
     const style = {};
@@ -2919,7 +2968,7 @@ export class SheetAdapter {
                 if (!attributes["table:style-name"] && columnStyles[columnNumber - 1]) attributes["table:style-name"] = columnStyles[columnNumber - 1];
                 const annotation = Array.from(cell.children).find(child => child.localName === "annotation");
                 const paragraphs = Array.from(cell.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p")).filter(paragraph => !annotation?.contains(paragraph));
-                const text = paragraphs.map(paragraph => paragraph.textContent || "").join("\n");
+                const text = this._decodeImportedCellText(paragraphs.map(paragraph => paragraph.textContent || "").join("\n"));
                 const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"];
                 if (hasValue && !isCovered) {
                   const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
@@ -2967,6 +3016,7 @@ export class SheetAdapter {
             }
           });
           arrayFormulas.forEach(region => this._restoreArrayFormula(data, region.column, region.row, region.columns, region.rows, region.formula));
+          this._applyXlsxLayoutOverlay(table.getAttribute("vno:xlsx-layout"), rowHeights, colWidths);
           workbook.sheets.push(name);
           workbook.sheetsData[name] = data;
           workbook.commentsBySheet[name] = comments;
@@ -3137,7 +3187,7 @@ export class SheetAdapter {
               const valueContent = annotationMatch ? content.replace(annotationMatch[0], "") : content;
               const paragraphs = [];
               valueContent.replace(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi, (_, value) => { paragraphs.push(this._unescapeXml(value.replace(/<[^>]+>/g, ""))); return ""; });
-              const text = paragraphs.join("\n");
+              const text = this._decodeImportedCellText(paragraphs.join("\n"));
               const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotationMatch || attributes["table:content-validation-name"];
               if (hasValue && !isCovered) {
                 const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
@@ -3185,6 +3235,7 @@ export class SheetAdapter {
           }
         }
         arrayFormulas.forEach(region => this._restoreArrayFormula(data, region.column, region.row, region.columns, region.rows, region.formula));
+        this._applyXlsxLayoutOverlay(pageAttr("vno:xlsx-layout"), rowHeights, colWidths);
         workbook.sheets.push(name);
         workbook.sheetsData[name] = data;
         workbook.commentsBySheet[name] = comments;
