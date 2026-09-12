@@ -28,6 +28,33 @@ export async function runWriterFloatingImageImportTests() {
     check(body.includes("data-vno-float-anchor") && body.includes("position:relative"), "Textbox anchor paragraph was not made a relative container");
   });
 
+  test("Page-relative image uses the page rather than a negatively indented paragraph", () => {
+    const html = '<body><p style="margin-left:-2.54cm"><span class="sd-abs-pos" style="position:absolute;left:-2.54cm;top:-2.54cm;width:21cm;height:29.7cm"><img src="cover"></span></p><p>Trang sau</p></body>';
+    const xml = '<w:document><w:body><w:p><w:r><w:drawing><wp:anchor behindDoc="1"><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapTopAndBottom/></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>';
+    const body = new WriterAdapter(null)._normalizeImportedHtml(html, xml).body;
+    check(body.includes('data-vno-relative-h="page"'), "Page origin metadata missing");
+    check(/data-vno-float-anchor[^>]*style="position:static;min-height:27\.16cm;/i.test(body), `Page anchor still follows paragraph box: ${body}`);
+    check(body.includes("left:0cm") && body.includes("top:-2.54cm"), "Negative paragraph margin was not compensated");
+  });
+
+  test("Margin-relative image includes imported page margins", () => {
+    const adapter = new WriterAdapter(null);
+    const normalized = adapter._preserveImportedFloatingFrames(
+      '<span class="sd-abs-pos" style="position:absolute;left:1cm;top:2cm;width:3cm;height:4cm"><img src="x"></span>',
+      '<wp:anchor><wp:positionH relativeFrom="margin"/><wp:positionV relativeFrom="margin"/><wp:wrapNone/></wp:anchor>',
+      { margins: { left: 30, top: 20 } }
+    );
+    check(normalized.includes("left:4cm") && normalized.includes("top:4cm"), `Margins were not applied: ${normalized}`);
+  });
+
+  test("Rasterized OOXML group uses native page geometry instead of LibreOffice HTML geometry", () => {
+    const html = '<span class="sd-abs-pos" style="position:absolute;left:-2.54cm;top:-2.54cm;width:10cm;height:10cm"><img src="group-preview"></span>';
+    const xml = '<wp:anchor><wp:positionH relativeFrom="page"><wp:posOffset>360000</wp:posOffset></wp:positionH><wp:positionV relativeFrom="page"><wp:posOffset>720000</wp:posOffset></wp:positionV><wp:extent cx="1800000" cy="2160000"/><wp:wrapNone/><wpg:wgp/></wp:anchor>';
+    const body = new WriterAdapter(null)._preserveImportedFloatingFrames(html, xml);
+    check(body.includes('data-vno-left="1"') && body.includes('data-vno-top="2"'), `Native offsets missing: ${body}`);
+    check(body.includes('data-vno-width="5"') && body.includes('data-vno-height="6"'), `Native extent missing: ${body}`);
+  });
+
   test("Floating export emits absolute img and div while ordinary spans remain sanitized", () => {
     const adapter = new WriterAdapter(null);
     const imported = adapter._normalizeImportedHtml(HTML, OOXML).body;
@@ -89,10 +116,31 @@ export async function runWriterFloatingImageImportTests() {
     check(/^<div\b/i.test(body), "Float anchor did not become div");
   });
 
-  test("Image-only document keeps paragraph page-break semantics", () => {
+  test("Image-only document keeps group carrier break out of paragraph semantics", () => {
     const html = '<body><p style="page-break-before:always"><span class="sd-abs-pos" style="position:absolute;left:1cm;top:1cm"><img src="x"></span></p></body>';
-    const body = new WriterAdapter(null)._normalizeImportedHtml(html, OOXML).body;
-    check(/^<p\b/i.test(body) && body.includes("page-break-before:always"), "Image-only anchor paragraph changed");
+    const groupedOoxml = OOXML.replace("<wp:wrapNone/>", "<wp:wrapNone/><wpg:wgp/>");
+    const body = new WriterAdapter(null)._normalizeImportedHtml(html, groupedOoxml).body;
+    check(/^<div\b/i.test(body) && body.includes("page-break-before:always"), "Image-only anchor carrier was not isolated");
+  });
+
+  test("Export restores original page-relative geometry without canvas anchor layout", () => {
+    const html = '<body><p style="page-break-before:always;margin-left:-2.54cm"><span class="sd-abs-pos" style="position:absolute;left:1cm;top:2cm;width:3cm;height:4cm"><img src="x"></span></p></body>';
+    const ooxml = '<w:document><w:body><w:p><w:r><w:drawing><wp:anchor><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapTopAndBottom/></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>';
+    const adapter = new WriterAdapter(null);
+    const imported = adapter._normalizeImportedHtml(html, ooxml).body;
+    check(/data-vno-float-anchor[^>]*position:static/i.test(imported), "Fixture did not exercise canvas-only static positioning");
+    check(/data-vno-float-anchor[^>]*min-height:6cm/i.test(imported), "Fixture did not exercise canvas-only height reservation");
+    check(/data-vno-float[^>]*left:3\.54cm/i.test(imported), `Fixture did not exercise negative-margin display compensation: ${imported}`);
+
+    const body = {
+      innerHTML: imported,
+      querySelector() { return null; },
+      querySelectorAll() { return []; }
+    };
+    const exported = new WriterAdapter(body)._contentForExport();
+    check(/<img[^>]*style="[^"]*left:1cm;top:2cm;/i.test(exported), `Export did not restore LibreOffice geometry: ${exported}`);
+    check(!/data-vno-float-anchor[^>]*\b(?:min-height|position)\s*:/i.test(exported), `Canvas-only anchor layout leaked into export: ${exported}`);
+    check(/data-vno-float-anchor[^>]*\bpage-break-before\s*:\s*always/i.test(exported), "Carrier break metadata was stripped from export");
   });
 
   return results;
