@@ -190,8 +190,8 @@ async function runSheetSaveFidelityTests() {
       realFods = readFileSync(fodsPath, "utf8");
     } catch (_) {
       pass("Real FODS file not found — skipped");
-      return results;
     }
+    if (realFods) {
     const adapter = new SheetAdapter(makeGrid("Sheet1"));
     const parsed = adapter.parseFods(realFods);
     assert(parsed.sheets.length > 0, "Real FODS parsed with ≥1 sheet");
@@ -246,6 +246,7 @@ async function runSheetSaveFidelityTests() {
     assertIncludes(reSerialized, "text:span", "Re-serialized output contains <text:span> elements");
 
     pass("Real FODS (_dss_real.fods): font-face, ≥15 <text:p>, <text:span>");
+    }
   } catch (e) { fail("Real FODS (_dss_real.fods): font-face, ≥15 <text:p>, <text:span>", e.message); }
 
   // ── Test 9: font-face-decls quote spacing in names correctly ──
@@ -272,6 +273,87 @@ async function runSheetSaveFidelityTests() {
     assert(match, "Single-line cell produces one <text:p>");
     pass("Single-line cell → one <text:p>");
   } catch (e) { fail("Single-line cell → one <text:p>", e.message); }
+
+  // ── Test 11: richText cell → output MUST NOT contain office:string-value ──
+  try {
+    const grid = makeGrid("Sheet1");
+    grid.sheetsData["Sheet1"].set("A1", {
+      val: "Para1\nPara2",
+      richText: [
+        { text: "Para1", style: { color: "#ff0000" } },
+        { text: "\n" },
+        { text: "Para2", style: { color: "#0000ff" } }
+      ],
+      style: {}
+    });
+    const adapter = new SheetAdapter(grid);
+    const fods = adapter.serializeToFods();
+    // Find the cell tag for A1
+    assertNotIncludes(fods, 'office:string-value', "richText cell must not contain office:string-value");
+    pass("richText cell → no office:string-value");
+  } catch (e) { fail("richText cell → no office:string-value", e.message); }
+
+  // ── Test 12: multiline cell (val with \\n, no richText) → output MUST NOT contain office:string-value ──
+  try {
+    const grid = makeGrid("Sheet1");
+    grid.sheetsData["Sheet1"].set("A1", { val: "Line1\nLine2\nLine3", style: {} });
+    const adapter = new SheetAdapter(grid);
+    const fods = adapter.serializeToFods();
+    assertNotIncludes(fods, 'office:string-value', "multiline cell must not contain office:string-value");
+    pass("multiline cell → no office:string-value");
+  } catch (e) { fail("multiline cell → no office:string-value", e.message); }
+
+  // ── Test 13: single-line cell (no \\n) → output also must not contain office:string-value ──
+  try {
+    const grid = makeGrid("Sheet1");
+    grid.sheetsData["Sheet1"].set("A1", { val: "Just one line", style: {} });
+    const adapter = new SheetAdapter(grid);
+    const fods = adapter.serializeToFods();
+    assertNotIncludes(fods, 'office:string-value', "single-line cell must not contain office:string-value");
+    pass("single-line cell → no office:string-value");
+  } catch (e) { fail("single-line cell → no office:string-value", e.message); }
+
+  // ── Test 14: round-trip multiline val preserved when no office:string-value ──
+  try {
+    const grid = makeGrid("Sheet1");
+    grid.sheetsData["Sheet1"].set("A1", { val: "Hello\nWorld\nThird", style: {} });
+    const adapter = new SheetAdapter(grid);
+    const fods = adapter.serializeToFods();
+    assertNotIncludes(fods, 'office:string-value', "No office:string-value in output");
+    const adapter2 = new SheetAdapter(makeGrid("Sheet1"));
+    const wb = adapter2.parseFods(fods);
+    const cell = wb.sheetsData["Sheet1"]?.get("A1");
+    assert(cell, "Cell A1 exists after round-trip");
+    assert(cell.val === "Hello\nWorld\nThird",
+      `round-trip val: expected "Hello\\nWorld\\nThird", got "${cell.val}"`);
+    pass("round-trip multiline val preserved (no office:string-value)");
+  } catch (e) { fail("round-trip multiline val preserved (no office:string-value)", e.message); }
+
+  // ── Test 15: round-trip richText preserved when no office:string-value ──
+  try {
+    const grid = makeGrid("Sheet1");
+    grid.sheetsData["Sheet1"].set("A1", {
+      val: "Red line\nBlue line",
+      richText: [
+        { text: "Red line", style: { color: "#ff0000" } },
+        { text: "\n" },
+        { text: "Blue line", style: { color: "#0000ff" } }
+      ],
+      style: {}
+    });
+    const adapter = new SheetAdapter(grid);
+    const fods = adapter.serializeToFods();
+    assertNotIncludes(fods, 'office:string-value', "No office:string-value in output");
+    const adapter2 = new SheetAdapter(makeGrid("Sheet1"));
+    const wb = adapter2.parseFods(fods);
+    const cell = wb.sheetsData["Sheet1"]?.get("A1");
+    assert(cell, "Cell A1 exists after round-trip");
+    assert(cell.val === "Red line\nBlue line",
+      `round-trip richText val: expected "Red line\\nBlue line", got "${cell.val}"`);
+    assert(Array.isArray(cell.richText) && cell.richText.length >= 2,
+      `round-trip richText runs: expected ≥2, got ${cell.richText?.length || 0}`);
+    pass("round-trip richText preserved (no office:string-value)");
+  } catch (e) { fail("round-trip richText preserved (no office:string-value)", e.message); }
 
   return results;
 }

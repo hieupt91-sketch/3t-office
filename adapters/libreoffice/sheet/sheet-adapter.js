@@ -2227,11 +2227,11 @@ export class SheetAdapter {
                 }).join("");
                 return `<text:p>${spanXml}</text:p>`;
               }).join("");
-              cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${cellAttrs}>${cellImageXml}${annotationXml}${paraXml}</table:table-cell>`;
+              cellsXml += `<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${paraXml}</table:table-cell>`;
             } else {
               const lines = text.split("\n");
               const linesXml = lines.map(line => `<text:p>${this._escapeXml(line)}</text:p>`).join("");
-              cellsXml += `<table:table-cell office:value-type="string" office:string-value="${this._escapeXml(text)}"${cellAttrs}>${cellImageXml}${annotationXml}${linesXml}</table:table-cell>`;
+              cellsXml += `<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${linesXml}</table:table-cell>`;
             }
           }
           previousColumn = columnNumber;
