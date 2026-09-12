@@ -63,7 +63,7 @@ Tất cả 5.838 lệch đều thuộc **LibreOffice roundtrip loss**, không c�
 
 | Loại lệch | Nguyên nhân | Thuộc VN? |
 |---|---|---|
-| Value (168) | LO double-encode XML entities (`<` → `&lt;` literal trong shared strings), normalize `\r\n` → `\n` | Không — LO |
+| Value (168) | **ĐÍNH CHÍNH (Claude kiểm chứng):** phần entity `<`/`&` thành `&lt;`/`&amp;` nguyên văn là **lỗi VN** — `_extractRichTextFromXml` (nhánh regex) không `_unescapeXml`, rồi `serializeToFods` escape lần 2 (`&amp;lt;`). FODS app gửi đi có 34 chỗ `&amp;lt;`, 39 ô lỗi. Đã sửa ở commit def18db: sau fix 0 ô lỗi, 0 escape kép trên file Dahua thật. Phần còn lại của nhóm này (`\r\n` → `\n`, whitespace) là do LO. | **Có — VN (đã sửa)** |
 | Number format (683) | LO bỏ text format `@` (numFmtId=49) và một số format tùy chỉnh, trả về `General` | Không — LO |
 | Font (2.009) | LO resolve theme color (theme:0 → #FFFFFF, theme:1 → #000000, theme:3 → #558ED5) | Không — LO |
 | Fill (317) | LO resolve theme fill color thành RGB; LO thêm fill `#FFC7CE` cho ô conditional formatting | Không — LO |
