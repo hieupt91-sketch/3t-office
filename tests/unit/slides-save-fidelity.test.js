@@ -113,7 +113,7 @@ export async function runSlidesSaveFidelityTests() {
               y: 50,
               w: 300,
               h: 100,
-              textHtml: '<p style="line-height:1">Dòng 1</p>'
+              textHtml: '<p style="line-height:1.15">Dòng 1</p>'
             },
             {
               id: "lh-test-2",
@@ -122,7 +122,7 @@ export async function runSlidesSaveFidelityTests() {
               y: 200,
               w: 300,
               h: 100,
-              textHtml: '<p style="line-height:1.25">Dòng 2</p>'
+              textHtml: '<p style="line-height:1.4375">Dòng 2</p>'
             },
             {
               id: "lh-test-3",
@@ -145,8 +145,9 @@ export async function runSlidesSaveFidelityTests() {
     const adapter = new SlidesAdapter(canvas);
     const xml = adapter.serializeToFodp();
 
-    assert(xml.includes('fo:line-height="100%"'), 'line-height:1 phải được định dạng thành fo:line-height="100%"');
-    assert(xml.includes('fo:line-height="125%"'), 'line-height:1.25 phải được định dạng thành fo:line-height="125%"');
+    // CSS line-height là bội số × cỡ chữ; ODF/PowerPoint % là bội số × chiều cao dòng tự nhiên (≈1.15 cỡ chữ).
+    assert(xml.includes('fo:line-height="100%"'), 'line-height:1.15 (= 1 × tự nhiên) phải thành fo:line-height="100%"');
+    assert(xml.includes('fo:line-height="125%"'), 'line-height:1.4375 (= 1.25 × 1.15) phải thành fo:line-height="125%"');
     assert(xml.includes('fo:line-height="12pt"'), 'line-height:16px (16*0.75=12pt) phải được định dạng thành fo:line-height="12pt"');
     assert(!xml.includes('fo:line-height="1"'), 'Không được còn fo:line-height="1" không đơn vị trong ODF');
   });
@@ -187,7 +188,8 @@ export async function runSlidesSaveFidelityTests() {
     assert(slides.length === 1, "Phải parse được 1 slide");
     const shape = (slides[0].shapes || [])[0];
     assert(shape && shape.textHtml, "Phải có shape chứa textHtml");
-    assert(shape.textHtml.includes("line-height:1.2") || shape.textHtml.includes("line-height: 1.2"), `textHtml phải chứa line-height:1.2: ${shape.textHtml}`);
+    // 120% × chiều cao dòng tự nhiên (1.15) = CSS 1.38
+    assert(shape.textHtml.includes("line-height:1.38") || shape.textHtml.includes("line-height: 1.38"), `textHtml phải chứa line-height:1.38: ${shape.textHtml}`);
   });
 
   await test("C1. Image crop (fo:clip): parseFodp đọc đúng fo:clip và serializeToFodp giữ nguyên fo:clip", async () => {
