@@ -231,12 +231,12 @@
 
 /* Data Cells */
 .vno-grid-cell {
-  padding: 3px 8px;
+  padding: 3px 3px;
   height: 26px;
   box-sizing: border-box;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  text-overflow: clip;
   cursor: cell;
   /* Excel thật dùng lưới ô rõ nét (~#d4d4d4), không mờ gần trắng như trước -
      border-subtle (#f1f5f9) gần như vô hình trên nền trắng, khó nhìn hơn hẳn
@@ -247,6 +247,16 @@
   position: relative;
   background-color: var(--vno-bg-window);
   color: var(--vno-text-primary);
+  z-index: 1;
+}
+
+.vno-grid-cell.can-overflow {
+  overflow: visible;
+  z-index: 2;
+}
+
+.vno-grid-cell.has-content {
+  z-index: 3;
 }
 
 [data-theme="dark"] .vno-grid-cell {
