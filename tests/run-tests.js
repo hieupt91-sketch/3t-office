@@ -164,6 +164,7 @@ import { runSheetImportCellStylesTests } from "./unit/sheet-import-cell-styles.t
 import { runSheetImportRichTextTests } from "./unit/sheet-import-rich-text.test.js";
 import { runSheetCellTextFitTests } from "./unit/sheet-cell-text-fit.test.js";
 import { runSheetImportAuditTests } from "./unit/sheet-import-audit.test.js";
+import { runSheetSaveFidelityTests } from "./unit/sheet-save-fidelity.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -335,7 +336,8 @@ async function runAll() {
     { title: "143. Unit Tests — Sheet import cell visual styles (background/border/font/alignment) + sheet visibility + round-trip", runner: runSheetImportCellStylesTests },
     { title: "144. Unit Tests — Sheet import rich text (multi-run styled cells in FODS) + round-trip + render + edit clears richText", runner: runSheetImportRichTextTests },
     { title: "145. Unit Tests — Sheet cell text fit, font size precision, padding & text overflow (Excel 2016 parity)", runner: runSheetCellTextFitTests },
-    { title: "146. Unit Tests — Sheet XLSX import audit", runner: runSheetImportAuditTests }
+    { title: "146. Unit Tests — Sheet XLSX import audit", runner: runSheetImportAuditTests },
+    { title: "147. Unit Tests — Sheet save fidelity: font-face-decls, newline preservation, rich-text paragraph split", runner: runSheetSaveFidelityTests }
   ];
 
   for (const suite of suites) {
