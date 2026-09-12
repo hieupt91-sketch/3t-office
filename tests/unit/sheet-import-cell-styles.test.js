@@ -344,5 +344,38 @@ export async function runSheetImportCellStylesTests() {
     assert(item.style.whiteSpace === "pre-wrap", `wrapText must be pre-wrap, got ${item.style.whiteSpace}`);
   });
 
+  await test("cell.styles.import: self-closing style does not consume the following style body", () => {
+    const fods = minimalFodsXml({
+      sheetName: "SelfClosingStyle",
+      autoStyles: `
+        <style:style style:name="Excel_Comma" style:family="table-cell" style:parent-style-name="Default"/>
+        <style:style style:name="ConditionalStyle_1" style:family="table-cell">
+          <style:table-cell-properties fo:background-color="#ffc7ce"/>
+          <style:text-properties fo:color="#9c0006"/>
+        </style:style>`,
+      cells: [{
+        attrs: { "table:style-name": "Excel_Comma", "office:value-type": "float", "office:value": "1270000" },
+        text: "1270000"
+      }]
+    });
+    const item = makeAdapter(makeGrid("SelfClosingStyle")).parseFods(fods).sheetsData.SelfClosingStyle.get("A1");
+    assert(item, "A1 must exist");
+    assert(!item.style.backgroundColor, `self-closing style must stay empty, got ${item.style.backgroundColor}`);
+    assert(!item.style.color, `self-closing style must not inherit following text color, got ${item.style.color}`);
+  });
+
+  await test("cell.styles.import: numeric vno format is ignored for string cells", () => {
+    const fods = minimalFodsXml({
+      sheetName: "TextNumberFormat",
+      cells: [{
+        attrs: { "office:value-type": "string", "vno:number-format": "_(* #,##0_);_(* (#,##0);_(* &quot;-&quot;_);_(@_)" },
+        text: "24 thang"
+      }]
+    });
+    const item = makeAdapter(makeGrid("TextNumberFormat")).parseFods(fods).sheetsData.TextNumberFormat.get("A1");
+    assert(item?.val === "24 thang", `string value must remain intact, got ${item?.val}`);
+    assert(!item.style.numberFormat, "string cell must not retain a numeric numberFormat");
+  });
+
   return results;
 }

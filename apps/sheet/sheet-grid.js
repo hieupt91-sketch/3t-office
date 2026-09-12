@@ -9365,7 +9365,7 @@ export class SheetGridController {
       return;
     }
 
-    if (itm.style?.numberFormat) {
+    if (itm.style?.numberFormat && typeof itm.val === "number") {
       const formatted = NumberFormatter.formatValue(itm.val, itm.style.numberFormat);
       if (formatted.isAccounting) {
         td.innerHTML = `<span class="vno-cell-accounting-symbol" style="float:left;user-select:none;color:inherit;">${formatted.symbol || ""}</span><span class="vno-cell-accounting-num" style="float:right;color:inherit;">${formatted.numberText}</span>`;
@@ -9388,7 +9388,7 @@ export class SheetGridController {
     // Xử lý tràn chữ (text overflow) sang ô trống bên phải như Excel:
     const hasVal = itm.val !== undefined && itm.val !== null && itm.val !== "";
     if (hasVal) {
-      const isText = typeof itm.val === "string" && !itm.style?.numberFormat;
+      const isText = typeof itm.val === "string";
       const align = itm.style?.textAlign || td.style?.textAlign;
       const isLeftAlign = !align || align === "left" || align === "start";
 

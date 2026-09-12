@@ -12,6 +12,35 @@ import { SheetChartBuilder } from "../../../apps/sheet/sheet-chart.js";
 import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
 import { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
 
+export function numberFormatFromExcelCode(code) {
+  const source = String(code ?? "").trim();
+  if (!source || /^general$/i.test(source)) return { category: "general" };
+  if (source === "@") return { category: "text" };
+  const first = source.split(";")[0];
+  const visible = first.replace(/"[^"]*"|\\.|\[[^\]]*\]|_[^ ]|\*./g, "");
+  const decimals = (visible.match(/\.([0#?]+)/)?.[1] || "").length;
+  const negative = source.split(";")[1] || "";
+  const negativeStyle = /\([^)]*[0#?]/.test(negative) ? (/\[red\]/i.test(negative) ? 3 : 2) : (/\[red\]/i.test(negative) ? 1 : 0);
+  const useThousands = /#,##|0,000/.test(visible);
+  if (/%/.test(visible)) return { category: "percentage", decimals };
+  const currency = source.match(/\[\$([^\]-]+)(?:-[^\]]+)?\]/)?.[1]
+    || source.match(/"([$€£¥₫])"/)?.[1]
+    || source.match(/[$€£¥₫]/)?.[0]
+    || (/\bVND\b/i.test(source) ? "₫" : "");
+  if (currency) {
+    const accounting = /_[([]|\*\s|_\)/.test(source);
+    return { category: accounting ? "accounting" : "currency", decimals, useThousands, currencySymbol: currency, negativeStyle };
+  }
+  const dateCode = visible.replace(/AM\/PM/ig, "").toLowerCase();
+  if (/[dmy]/.test(dateCode) || /h+\s*:|\[h\]/i.test(source)) {
+    return { category: "date", dateFormat: source.replace(/\[[^\]]*\]/g, "").replace(/"([^"]*)"/g, "$1") };
+  }
+  if (/e[+-]0/i.test(visible)) return { category: "scientific", decimals };
+  if (/[/][?#0]/.test(visible)) return { category: "custom", code: source, customPattern: source };
+  if (/[#0?]/.test(visible)) return { category: "number", decimals, useThousands, negativeStyle };
+  return { category: "custom", code: source, customPattern: source };
+}
+
 export class SheetAdapter {
   constructor(gridController) {
     this.grid = gridController;
@@ -1057,7 +1086,7 @@ export class SheetAdapter {
 
   _parseRotationStyles(xmlText) {
     const rotations = new Map();
-    String(xmlText || "").replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrs, body) => {
+    String(xmlText || "").replace(/<style:style\b([^>]*?)\s*(?:\/>|>([\s\S]*?)<\/style:style>)/gi, (_, attrs, body = "") => {
       const name = this._unescapeXml(attrs.match(/style:name=["']([^"']+)["']/i)?.[1] || "");
       if (!name) return "";
       const direction = body.match(/style:direction=["']([^"']+)["']/i)?.[1];
@@ -1077,7 +1106,7 @@ export class SheetAdapter {
   _parseCellVisualStyles(xmlText) {
     const raw = new Map();
     const parseStyleBlock = (block) => {
-      String(block || "").replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrs, body) => {
+      String(block || "").replace(/<style:style\b([^>]*?)\s*(?:\/>|>([\s\S]*?)<\/style:style>)/gi, (_, attrs, body = "") => {
         const family = attrs.match(/style:family=["']([^"']+)["']/i)?.[1] || "";
         if (family !== "table-cell") return "";
         const name = this._unescapeXml(attrs.match(/style:name=["']([^"']+)["']/i)?.[1] || "");
@@ -1162,7 +1191,7 @@ export class SheetAdapter {
    */
   _parseTextStyles(xmlText) {
     const raw = new Map();
-    String(xmlText || "").replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrs, body) => {
+    String(xmlText || "").replace(/<style:style\b([^>]*?)\s*(?:\/>|>([\s\S]*?)<\/style:style>)/gi, (_, attrs, body = "") => {
       const family = attrs.match(/style:family=["']([^"']+)["']/i)?.[1] || "";
       if (family !== "text") return "";
       const name = this._unescapeXml(attrs.match(/style:name=["']([^"']+)["']/i)?.[1] || "");
@@ -2420,14 +2449,14 @@ export class SheetAdapter {
     const numFmtAttr = get("vno:number-format");
     const standardFormat = numberStyles.get(get("table:style-name"));
     const numericTypes = new Set(["float", "percentage", "currency", "date", "time"]);
-    if (standardFormat && (numericTypes.has(valueType) || !valueType)) {
-      style.numberFormat = { ...standardFormat };
-    } else if (numFmtAttr) {
+    if (numFmtAttr && (numericTypes.has(valueType) || !valueType)) {
       try {
         style.numberFormat = JSON.parse(numFmtAttr);
       } catch (e) {
-        // ignore parse error
+        style.numberFormat = numberFormatFromExcelCode(numFmtAttr);
       }
+    } else if (standardFormat && (numericTypes.has(valueType) || !valueType)) {
+      style.numberFormat = { ...standardFormat };
     } else if (valueType === "percentage") {
       style.numberFormat = { category: "percentage", decimals: 2 };
     } else if (valueType === "currency") {
@@ -2446,7 +2475,7 @@ export class SheetAdapter {
 
   _parseCellStyleColors(xmlText) {
     const colors = new Map();
-    String(xmlText || "").replace(/<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi, (_, attrs, body) => {
+    String(xmlText || "").replace(/<style:style\b([^>]*?)\s*(?:\/>|>([\s\S]*?)<\/style:style>)/gi, (_, attrs, body = "") => {
       const name = this._unescapeXml(attrs.match(/style:name=["']([^"']*)["']/i)?.[1] || "");
       const display = this._unescapeXml(attrs.match(/style:display-name=["']([^"']*)["']/i)?.[1] || "");
       const color = (body.match(/fo:background-color=["']([^"']+)["']/i)?.[1] || "").trim().toLowerCase();
