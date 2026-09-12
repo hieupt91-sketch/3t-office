@@ -1318,22 +1318,22 @@ export class SheetAdapter {
         hasSpans = true;
         // Text before this span (if any) is unstyled
         if (spanMatch.index > lastIdx) {
-          const gap = paraInner.substring(lastIdx, spanMatch.index).replace(/<[^>]+>/g, "");
+          const gap = this._unescapeXml(paraInner.substring(lastIdx, spanMatch.index).replace(/<[^>]+>/g, ""));
           if (gap) allRuns.push({ text: gap, style: {} });
         }
         const attrs = spanMatch[1];
         const styleName = (attrs.match(/text:style-name=["']([^"']*)["']/i)?.[1] || "");
         const spanStyle = textStyles.get(styleName) || {};
-        const text = spanMatch[2].replace(/<[^>]+>/g, "");
+        const text = this._unescapeXml(spanMatch[2].replace(/<[^>]+>/g, ""));
         allRuns.push({ text, style: { ...spanStyle } });
         lastIdx = spanMatch.index + spanMatch[0].length;
       }
 
       if (!hasSpans) {
-        const text = paraInner.replace(/<[^>]+>/g, "");
+        const text = this._unescapeXml(paraInner.replace(/<[^>]+>/g, ""));
         allRuns.push({ text, style: {} });
       } else if (lastIdx < paraInner.length) {
-        const tail = paraInner.substring(lastIdx).replace(/<[^>]+>/g, "");
+        const tail = this._unescapeXml(paraInner.substring(lastIdx).replace(/<[^>]+>/g, ""));
         if (tail) allRuns.push({ text: tail, style: {} });
       }
     }
