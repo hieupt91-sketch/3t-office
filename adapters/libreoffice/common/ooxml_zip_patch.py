@@ -2919,6 +2919,70 @@ def _extract_docx_section_parts(
     return header_entries, footer_entries, sect_pr, rels
 
 
+_DOCX_FOOTER_REL_TYPE = (
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+)
+_DOCX_HEADER_REL_TYPE = (
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+)
+_DOCX_FOOTER_CONTENT_TYPE = (
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"
+)
+_DOCX_HEADER_CONTENT_TYPE = (
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"
+)
+
+
+def _max_rels_rid(rels_xml: str) -> int:
+    """Return the highest rId number found in a rels XML string."""
+    ids = re.findall(r'Id="rId(\d+)"', rels_xml)
+    return max((int(x) for x in ids), default=0)
+
+
+def _add_rels_entry(
+    rels_xml: str, r_id: str, rel_type: str, target: str
+) -> str:
+    """Add a <Relationship> entry before </Relationships>."""
+    new_rel = (
+        f'<Relationship Id="{r_id}" Type="{rel_type}" Target="{target}"/>'
+    )
+    close = "</Relationships>"
+    idx = rels_xml.rfind(close)
+    if idx == -1:
+        return rels_xml
+    return rels_xml[:idx] + new_rel + rels_xml[idx:]
+
+
+def _add_content_types_override(ct_xml: str, part_name: str, content_type: str) -> str:
+    """Add an Override entry before </Types>."""
+    override = f'<Override PartName="{part_name}" ContentType="{content_type}"/>'
+    close = "</Types>"
+    idx = ct_xml.rfind(close)
+    if idx == -1:
+        return ct_xml
+    return ct_xml[:idx] + override + ct_xml[idx:]
+
+
+def _remap_header_footer_rids(
+    sect_pr: str, r_id_map: dict[str, str]
+) -> str:
+    """Replace r:id values in w:headerReference / w:footerReference tags."""
+    if not r_id_map:
+        return sect_pr
+    result = sect_pr
+    for tag in ("headerReference", "footerReference"):
+        pattern = re.compile(
+            rf"(<w:{tag}\b[^>]*?)r:id\s*=\s*['\"]([^'\"]+)['\"]",
+            re.IGNORECASE,
+        )
+        def _replace(m: re.Match) -> str:
+            old_rid = m.group(2)
+            new_rid = r_id_map.get(old_rid, old_rid)
+            return f'{m.group(1)}r:id="{new_rid}"'
+        result = pattern.sub(_replace, result)
+    return result
+
+
 def _rebuild_docx_document_xml(
     converted_xml: str,
     original_xml: str,
@@ -2972,6 +3036,10 @@ def postprocess_writer_docx(
 
     When source_docx is None or the original has no header/footer references,
     returns docx_bytes unchanged (safe no-op).
+
+    Key fix: remap original header/footer rIds to new sequential rIds in the
+    converted DOCX's rels file, and add Content_Types overrides — without
+    these, Word sees dangling references and reports "appears to be corrupted".
     """
     if not source_docx:
         return docx_bytes
@@ -2994,8 +3062,44 @@ def postprocess_writer_docx(
     original_xml_bytes = read_zip_entry(source_docx, "word/document.xml")
     original_xml = original_xml_bytes.decode("utf-8", errors="replace") if original_xml_bytes else ""
 
+    # --- Remap original header/footer rIds to sequential new rIds ---
+    # The original sectPr has rIds (e.g. rId154) that don't exist in the
+    # converted DOCX's rels. We renumber them to sequential rIds starting
+    # after the converted DOCX's current max rId.
+    converted_rels_bytes = read_zip_entry(docx_bytes, "word/_rels/document.xml.rels")
+    converted_rels_xml = (
+        converted_rels_bytes.decode("utf-8", errors="replace")
+        if converted_rels_bytes
+        else '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        "</Relationships>"
+    )
+    max_rid = _max_rels_rid(converted_rels_xml)
+    next_rid = max_rid + 1
+
+    # Build mapping: original rId -> new rId for all header/footer refs
+    r_id_map: dict[str, str] = {}
+    for ref_list in (orig_header_entries, orig_footer_entries):
+        for entry_name in ref_list:
+            # Extract the rId from sectPr by finding which rId maps to this entry
+            # via the original rels
+            target_file = entry_name.replace("word/", "")
+            for orig_rid, orig_target in orig_rels.items():
+                resolved = orig_target if orig_target.startswith("word/") else f"word/{orig_target.lstrip('./')}"
+                if resolved == entry_name and orig_rid not in r_id_map:
+                    new_rid = f"rId{next_rid}"
+                    next_rid += 1
+                    r_id_map[orig_rid] = new_rid
+                    break
+
+    # Remap the sectPr's header/footer rIds
+    if r_id_map and orig_sect_pr:
+        remapped_sect_pr = _remap_header_footer_rids(orig_sect_pr, r_id_map)
+    else:
+        remapped_sect_pr = orig_sect_pr
+
     new_xml = _rebuild_docx_document_xml(
-        converted_xml, original_xml, orig_header_entries, orig_footer_entries, orig_sect_pr
+        converted_xml, original_xml, orig_header_entries, orig_footer_entries, remapped_sect_pr
     )
 
     replacements: dict[str, bytes] = {}
@@ -3014,6 +3118,52 @@ def postprocess_writer_docx(
 
     if not replacements:
         return docx_bytes
+
+    # --- Update word/_rels/document.xml.rels ---
+    new_rels_xml = converted_rels_xml
+    footer_type = _DOCX_FOOTER_REL_TYPE
+    header_type = _DOCX_HEADER_REL_TYPE
+    for entry_name in orig_footer_entries:
+        target_file = entry_name.replace("word/", "")
+        new_rid = None
+        for orig_rid, mapped in r_id_map.items():
+            # Find which original rId maps to this entry
+            orig_target = orig_rels.get(orig_rid, "")
+            resolved = orig_target if orig_target.startswith("word/") else f"word/{orig_target.lstrip('./')}"
+            if resolved == entry_name:
+                new_rid = mapped
+                break
+        if new_rid:
+            new_rels_xml = _add_rels_entry(new_rels_xml, new_rid, footer_type, target_file)
+    for entry_name in orig_header_entries:
+        target_file = entry_name.replace("word/", "")
+        new_rid = None
+        for orig_rid, mapped in r_id_map.items():
+            orig_target = orig_rels.get(orig_rid, "")
+            resolved = orig_target if orig_target.startswith("word/") else f"word/{orig_target.lstrip('./')}"
+            if resolved == entry_name:
+                new_rid = mapped
+                break
+        if new_rid:
+            new_rels_xml = _add_rels_entry(new_rels_xml, new_rid, header_type, target_file)
+    replacements["word/_rels/document.xml.rels"] = new_rels_xml.encode("utf-8")
+
+    # --- Update [Content_Types].xml ---
+    ct_bytes = read_zip_entry(docx_bytes, "[Content_Types].xml")
+    ct_xml = (
+        ct_bytes.decode("utf-8", errors="replace")
+        if ct_bytes
+        else '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        "</Types>"
+    )
+    for entry_name in orig_footer_entries:
+        part_name = f"/{entry_name}"
+        ct_xml = _add_content_types_override(ct_xml, part_name, _DOCX_FOOTER_CONTENT_TYPE)
+    for entry_name in orig_header_entries:
+        part_name = f"/{entry_name}"
+        ct_xml = _add_content_types_override(ct_xml, part_name, _DOCX_HEADER_CONTENT_TYPE)
+    replacements["[Content_Types].xml"] = ct_xml.encode("utf-8")
 
     source = io.BytesIO(docx_bytes)
     dest = io.BytesIO()
