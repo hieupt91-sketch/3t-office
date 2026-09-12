@@ -58,6 +58,13 @@ const PAGE_SIZES_MM = {
 // Lề mặc định theo Nghị định 30/2020/NĐ-CP: Trên 20mm, Dưới 20mm, Trái 30mm, Phải 15mm
 const DEFAULT_MARGINS_MM = { top: 20, bottom: 20, left: 30, right: 15 };
 const MM_TO_PX = 3.7795275591; // 96dpi
+
+function pageSizeMm(setup) {
+  if (setup?.size === "custom" && Number.isFinite(setup.widthMm) && Number.isFinite(setup.heightMm)) {
+    return { label: `Tùy chỉnh (${setup.widthMm} × ${setup.heightMm} mm)`, w: setup.widthMm, h: setup.heightMm };
+  }
+  return PAGE_SIZES_MM[setup?.size] || PAGE_SIZES_MM.a4;
+}
 /** LibreOffice 26.2.5 drops tracked-changes unless office:change-info has a date. Session canvas markers have none. */
 const FODT_TRACK_CHANGE_SENTINEL_DATE = "1970-01-01T00:00:00";
 
@@ -1562,7 +1569,7 @@ export class WriterAdapter {
   /** Áp dụng kích thước/lề trang hiện tại lên canvas thật (không chỉ lưu state suông). */
   _applyPageSetup() {
     if (!this.editorDom || !this.editorDom.style) return;
-    const base = PAGE_SIZES_MM[this.pageSetup.size] || PAGE_SIZES_MM.a4;
+    const base = pageSizeMm(this.pageSetup);
     const isLandscape = this.pageSetup.orientation === "landscape";
     const widthMm = isLandscape ? base.h : base.w;
     const heightMm = isLandscape ? base.w : base.h;
@@ -1585,7 +1592,7 @@ export class WriterAdapter {
    * đảm bảo khổ giấy/lề đúng trong DOCX/PDF xuất ra thật, không chỉ đúng trên canvas.
    */
   _getPageSetupCss() {
-    const base = PAGE_SIZES_MM[this.pageSetup.size] || PAGE_SIZES_MM.a4;
+    const base = pageSizeMm(this.pageSetup);
     const isLandscape = this.pageSetup.orientation === "landscape";
     const widthMm = isLandscape ? base.h : base.w;
     const heightMm = isLandscape ? base.w : base.h;
@@ -1601,7 +1608,7 @@ export class WriterAdapter {
 
   _getSectionPageCss() {
     return Object.entries(this.sectionPageSetups || {}).map(([id, setup]) => {
-      const base = PAGE_SIZES_MM[setup.size] || PAGE_SIZES_MM.a4;
+      const base = pageSizeMm(setup);
       const landscape = setup.orientation === "landscape";
       const width = landscape ? base.h : base.w;
       const height = landscape ? base.w : base.h;
@@ -1636,6 +1643,11 @@ export class WriterAdapter {
         if (Math.abs(portraitW - 210) < 8 && Math.abs(portraitH - 297) < 8) setup.size = "a4";
         else if (Math.abs(portraitW - 216) < 8 && Math.abs(portraitH - 279) < 8) setup.size = "letter";
         else if (Math.abs(portraitW - 216) < 8 && Math.abs(portraitH - 356) < 8) setup.size = "legal";
+        else {
+          setup.size = "custom";
+          setup.widthMm = Number(portraitW.toFixed(1));
+          setup.heightMm = Number(portraitH.toFixed(1));
+        }
       }
     }
     const marginMap = { top: /margin-top:\s*([^;]+)/i, bottom: /margin-bottom:\s*([^;]+)/i, left: /margin-left:\s*([^;]+)/i, right: /margin-right:\s*([^;]+)/i };
@@ -1713,8 +1725,120 @@ export class WriterAdapter {
       html = html.replace(footerMatch[0], "");
     }
     html = this._normalizeImportedStarWriterNotes(html);
-    html = this._convertFloatingImagesToInline(html);
+    html = this._makeFloatingAnchorContainers(this._preserveImportedFloatingFrames(html, ooxmlDocumentXml));
     return { body: html.trim(), header, footer, page, comments };
+  }
+
+  _cssLengthToCm(raw) {
+    const match = String(raw || "").trim().match(/^(-?[\d.]+)\s*(cm|mm|in|px|pt)?$/i);
+    if (!match) return null;
+    const value = Number(match[1]);
+    if (!Number.isFinite(value)) return null;
+    const unit = (match[2] || "cm").toLowerCase();
+    const cm = unit === "mm" ? value / 10 : unit === "in" ? value * 2.54 : unit === "px" ? value * 2.54 / 96 : unit === "pt" ? value * 2.54 / 72 : value;
+    return Number(cm.toFixed(3));
+  }
+
+  _ooxmlFloatingAnchorMetadata(xml) {
+    return [...String(xml || "").matchAll(/<wp:anchor\b([^>]*)>([\s\S]*?)<\/wp:anchor>/gi)].map((match) => {
+      const attrs = match[1] || "";
+      const body = match[2] || "";
+      const posH = body.match(/<wp:positionH\b[^>]*relativeFrom=["']([^"']+)/i)?.[1] || "paragraph";
+      const posV = body.match(/<wp:positionV\b[^>]*relativeFrom=["']([^"']+)/i)?.[1] || "paragraph";
+      const wrap = body.match(/<wp:(wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b/i)?.[1] || "wrapNone";
+      return {
+        relativeH: posH,
+        relativeV: posV,
+        wrap,
+        behindDoc: /\bbehindDoc=["'](?:1|true)["']/i.test(attrs)
+      };
+    });
+  }
+
+  _preserveImportedFloatingFrames(html, ooxmlDocumentXml) {
+    const src = String(html || "");
+    const anchors = this._ooxmlFloatingAnchorMetadata(ooxmlDocumentXml);
+    const openRe = /<span\b([^>]*)>/gi;
+    let cursor = 0;
+    let anchorIndex = 0;
+    let result = "";
+    while (cursor < src.length) {
+      openRe.lastIndex = cursor;
+      const opening = openRe.exec(src);
+      if (!opening) return result + src.slice(cursor);
+      const attrs = opening[1] || "";
+      const style = opening[0].match(/\bstyle\s*=\s*["']([^"']*)/i)?.[1] || "";
+      const isImage = /\bclass=["'][^"']*\bsd-abs-pos\b/i.test(opening[0]);
+      const isTextbox = /\bid=["'](?:textbox|Frame)[^"']*["']/i.test(opening[0]);
+      if (!/\bposition\s*:\s*absolute\b/i.test(style) || (!isImage && !isTextbox)) {
+        result += src.slice(cursor, opening.index + opening[0].length);
+        cursor = opening.index + opening[0].length;
+        continue;
+      }
+      let depth = 1;
+      let search = opening.index + opening[0].length;
+      let close = -1;
+      while (depth > 0) {
+        openRe.lastIndex = search;
+        const nested = openRe.exec(src);
+        const nextClose = src.indexOf("</span>", search);
+        if (nextClose < 0) break;
+        if (nested && nested.index < nextClose) {
+          depth += 1;
+          search = nested.index + nested[0].length;
+        } else {
+          depth -= 1;
+          close = nextClose;
+          search = nextClose + 7;
+        }
+      }
+      if (depth !== 0) {
+        result += src.slice(cursor, opening.index + opening[0].length);
+        cursor = opening.index + opening[0].length;
+        continue;
+      }
+      const inner = src.slice(opening.index + opening[0].length, close);
+      const value = (name) => style.match(new RegExp(`\\b${name}\\s*:\\s*([^;]+)`, "i"))?.[1];
+      const imgTag = inner.match(/<img\b[^>]*>/i)?.[0] || "";
+      const attrValue = (name) => imgTag.match(new RegExp(`\\b${name}=["']?([^"'\\s>]+)`, "i"))?.[1];
+      const left = this._cssLengthToCm(value("left")) ?? 0;
+      const top = this._cssLengthToCm(value("top")) ?? 0;
+      const width = this._cssLengthToCm(value("width")) ?? this._cssLengthToCm(`${attrValue("width") || 0}px`) ?? 0;
+      const height = this._cssLengthToCm(value("height")) ?? this._cssLengthToCm(`${attrValue("height") || 0}px`) ?? 0;
+      const meta = anchors[anchorIndex++] || { relativeH: "paragraph", relativeV: "paragraph", wrap: "wrapNone", behindDoc: false };
+      const cleanedStyle = style.replace(/\b(?:position|top|left|width|height)\s*:\s*[^;]+;?\s*/gi, "").trim();
+      const kind = isImage ? "image" : "textbox";
+      result += src.slice(cursor, opening.index);
+      result += `<span data-vno-float="${kind}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}" style="position:absolute;left:${left}cm;top:${top}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:-1;" : "z-index:1;"}${cleanedStyle}">${inner}</span>`;
+      cursor = close + 7;
+    }
+    return result;
+  }
+
+  _makeFloatingAnchorContainers(html) {
+    let out = String(html || "");
+    if (!/\bdata-vno-float=["']textbox["']/i.test(out)) return out;
+    const tags = [...out.matchAll(/<p\b[^>]*>|<\/p>/gi)];
+    const stack = [];
+    const replacements = [];
+    for (const tag of tags) {
+      if (!/^<\/p/i.test(tag[0])) {
+        stack.push(tag);
+        continue;
+      }
+      const opening = stack.pop();
+      if (!opening) continue;
+      const inner = out.slice(opening.index + opening[0].length, tag.index);
+      if (!/\bdata-vno-float=["'](?:image|textbox)["']/i.test(inner)) continue;
+      const attrs = opening[0].slice(2, -1).replace(/\bstyle=["']([^"']*)["']/i, (_m, style) => `style="position:relative;${style}"`);
+      const openTag = /\bstyle=/i.test(attrs) ? `<div data-vno-float-anchor${attrs}>` : `<div data-vno-float-anchor${attrs} style="position:relative;">`;
+      replacements.push([tag.index, tag.index + tag[0].length, "</div>"]);
+      replacements.push([opening.index, opening.index + opening[0].length, openTag]);
+    }
+    for (const [start, end, value] of replacements.sort((a, b) => b[0] - a[0])) {
+      out = out.slice(0, start) + value + out.slice(end);
+    }
+    return out;
   }
 
   /**
@@ -2307,9 +2431,12 @@ export class WriterAdapter {
       const previousFocused = document.activeElement;
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay";
-      const sizeOptions = Object.entries(PAGE_SIZES_MM)
+      let sizeOptions = Object.entries(PAGE_SIZES_MM)
         .map(([key, v]) => `<option value="${key}" ${key === this.pageSetup.size ? "selected" : ""}>${v.label}</option>`)
         .join("");
+      if (this.pageSetup.size === "custom") {
+        sizeOptions += `<option value="custom" selected>${pageSizeMm(this.pageSetup).label}</option>`;
+      }
 
       const titleText = (typeof t === "function" && t("writerDialogs.pageSetup.title") !== "writerDialogs.pageSetup.title")
         ? t("writerDialogs.pageSetup.title")
@@ -2426,7 +2553,10 @@ export class WriterAdapter {
     this.pageSetup = {
       size: newSetup.size || this.pageSetup.size,
       orientation: newSetup.orientation || this.pageSetup.orientation,
-      margins: { ...this.pageSetup.margins, ...(newSetup.margins || {}) }
+      margins: { ...this.pageSetup.margins, ...(newSetup.margins || {}) },
+      ...(newSetup.size === "custom" || (!newSetup.size && this.pageSetup.size === "custom")
+        ? { widthMm: newSetup.widthMm ?? this.pageSetup.widthMm, heightMm: newSetup.heightMm ?? this.pageSetup.heightMm }
+        : {})
     };
     this.sectionPageSetups[this.activeSectionId] = JSON.parse(JSON.stringify(this.pageSetup));
     this._applyPageSetup();
@@ -4973,7 +5103,7 @@ export class WriterAdapter {
   }
 
   _fodtPageBox(setup) {
-    const base = PAGE_SIZES_MM[setup?.size] || PAGE_SIZES_MM.a4;
+    const base = pageSizeMm(setup);
     const isLandscape = setup?.orientation === "landscape";
     const margins = setup?.margins || DEFAULT_MARGINS_MM;
     return {
@@ -5169,13 +5299,17 @@ export class WriterAdapter {
         break;
       }
     }
-    if (!size) throw this._fodtError(`khổ giấy ${widthMm}×${heightMm} mm chưa hỗ trợ`);
+    const customSize = size ? {} : {
+      widthMm: Number(portraitW.toFixed(1)),
+      heightMm: Number(portraitH.toFixed(1))
+    };
     const marginOr = (side, fallback) => {
       const mm = this._lengthToMm(props[`fo:margin-${side}`]);
       return mm == null ? fallback : Math.round(mm);
     };
     return {
-      size,
+      size: size || "custom",
+      ...customSize,
       orientation,
       margins: {
         top: marginOr("top", DEFAULT_MARGINS_MM.top),
@@ -7205,12 +7339,14 @@ export class WriterAdapter {
     };
     const SPAN_STYLE_RE = /(<span\b[^>]*?\bstyle=["'])([^"']*?)(["'][^>]*>)/gi;
     let out = html.replace(SPAN_STYLE_RE, (_m, pre, styleVal, post) => {
+      if (/\bdata-vno-float-export\b/i.test(pre)) return `${pre}${styleVal}${post}`;
       const s = cleanStyle(styleVal);
       if (!s) return `${pre}${post}`;
       return `${pre}${s}${post}`;
     });
     const IMG_STYLE_RE = /(<img\b[^>]*?\bstyle=["'])([^"']*?)(["'][^>]*>)/gi;
     out = out.replace(IMG_STYLE_RE, (_m, pre, styleVal, post) => {
+      if (/\bposition\s*:\s*absolute\b/i.test(styleVal)) return `${pre}${styleVal}${post}`;
       const s = cleanStyle(styleVal);
       if (!s) return `${pre}${post}`;
       return `${pre}${s}${post}`;
@@ -7218,7 +7354,7 @@ export class WriterAdapter {
     const DIV_STYLE_RE = /(<div\b[^>]*?\bstyle=["'])([^"']*?)(["'][^>]*>)/gi;
     out = out.replace(DIV_STYLE_RE, (_m, pre, styleVal, post) => {
       const fullTag = pre + post;
-      if (/\bvno-export(?:-section|-watermark|-shapes)\b/.test(fullTag)) {
+      if (/\bvno-export(?:-section|-watermark|-shapes)\b/.test(fullTag) || /\bposition\s*:\s*absolute\b/i.test(styleVal)) {
         return `${pre}${styleVal}${post}`;
       }
       let s = styleVal;
@@ -7229,6 +7365,58 @@ export class WriterAdapter {
     });
     out = out.replace(/\bstyle\s*=\s*["']\s*["']/gi, "");
     return out;
+  }
+
+  _prepareFloatingFramesForExport(html) {
+    const src = String(html || "");
+    const openRe = /<span\b([^>]*\bdata-vno-float=["'](?:image|textbox)["'][^>]*)>/gi;
+    let cursor = 0;
+    let result = "";
+    while (cursor < src.length) {
+      openRe.lastIndex = cursor;
+      const opening = openRe.exec(src);
+      if (!opening) return result + src.slice(cursor);
+      let depth = 1;
+      let search = opening.index + opening[0].length;
+      let close = -1;
+      const anySpanRe = /<span\b[^>]*>/gi;
+      while (depth > 0) {
+        anySpanRe.lastIndex = search;
+        const nested = anySpanRe.exec(src);
+        const nextClose = src.indexOf("</span>", search);
+        if (nextClose < 0) break;
+        if (nested && nested.index < nextClose) {
+          depth += 1;
+          search = nested.index + nested[0].length;
+        } else {
+          depth -= 1;
+          close = nextClose;
+          search = nextClose + 7;
+        }
+      }
+      if (depth !== 0) return result + src.slice(cursor);
+      const tag = opening[0];
+      const attr = (name) => tag.match(new RegExp(`\\b${name}=["']([^"']*)`, "i"))?.[1] || "";
+      const kind = attr("data-vno-float");
+      const left = attr("data-vno-left") || "0";
+      const top = attr("data-vno-top") || "0";
+      const width = attr("data-vno-width");
+      const height = attr("data-vno-height");
+      const style = `position:absolute;left:${left}cm;top:${top}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}margin:0;line-height:0;`;
+      const inner = src.slice(opening.index + opening[0].length, close);
+      let replacement;
+      if (kind === "image") {
+        replacement = inner.replace(/<img\b([^>]*)>/i, (_all, attrs) => {
+          const withoutStyle = attrs.replace(/\sstyle=["'][^"']*["']/i, "");
+          return `<img${withoutStyle} style="${style}">`;
+        });
+      } else {
+        replacement = `<div data-vno-float-export="textbox" style="${style}">${inner}</div>`;
+      }
+      result += src.slice(cursor, opening.index) + replacement;
+      cursor = close + 7;
+    }
+    return result;
   }
 
   /**
@@ -7262,6 +7450,7 @@ export class WriterAdapter {
     } else if (this.editorDom) {
       bodyHtml = this._stripSessionMarkup(this.editorDom.innerHTML);
     }
+    bodyHtml = this._prepareFloatingFramesForExport(bodyHtml);
 
     // LibreOffice's Writer HTML importer drops a class-only Drop Cap span
     // completely (including its first letter) because writer.css is not part
@@ -7415,8 +7604,18 @@ export class WriterAdapter {
         this.pageSetup = {
           size: imported.page.size || this.pageSetup.size,
           orientation: imported.page.orientation || this.pageSetup.orientation,
-          margins: { ...this.pageSetup.margins, ...imported.page.margins }
+          margins: { ...this.pageSetup.margins, ...imported.page.margins },
+          ...(imported.page.size === "custom"
+            ? { widthMm: imported.page.widthMm, heightMm: imported.page.heightMm }
+            : {})
         };
+        const importedSetup = JSON.parse(JSON.stringify(this.pageSetup));
+        const sectionIds = Object.keys(this.sectionPageSetups || {});
+        if (sectionIds.length <= 1) {
+          this.sectionPageSetups = { [this.activeSectionId]: importedSetup };
+        } else {
+          this.sectionPageSetups[this.activeSectionId] = importedSetup;
+        }
         this._applyPageSetup();
       }
 
@@ -7524,7 +7723,7 @@ export class WriterAdapter {
    * dựa trên cấu hình Page Setup hiện tại của tài liệu.
    */
   getPageDimensions() {
-    const base = PAGE_SIZES_MM[this.pageSetup?.size] || PAGE_SIZES_MM.a4;
+    const base = pageSizeMm(this.pageSetup);
     const isLandscape = this.pageSetup?.orientation === "landscape";
     const widthMm = isLandscape ? base.h : base.w;
     const heightMm = isLandscape ? base.w : base.h;

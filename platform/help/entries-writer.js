@@ -347,6 +347,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Đặt con trỏ tại chỗ cần ảnh. Tab Chèn, nhóm Minh họa, nhấn nút lớn Hình ảnh (cạnh Hình khối, Sơ đồ, Biểu đồ).",
       "Hộp chọn tệp của hệ thống hiện ra, lọc sẵn các file ảnh. Chọn một file rồi Mở. Ảnh được nhúng dạng data URL, rộng tối đa 100% trang, chiều cao tự giữ tỉ lệ, có đổ bóng nhẹ.",
+      "Khi mở DOCX có ảnh neo hoặc hộp văn bản nổi, VN Writer giữ vị trí và kiểu bọc chữ từ tệp gốc. Các khung nhập hiện chưa hỗ trợ kéo để đổi vị trí; hãy chỉnh vị trí trong ứng dụng nguồn nếu cần.",
       "Nhấp ảnh để chọn (có tabindex). Delete khi đang chọn sẽ xóa ảnh. Ctrl+Z hoàn tác lần chèn.",
       "Muốn chú thích và đánh số hình: sau khi chèn, dùng tab Tham chiếu → nhóm Chú thích ảnh (bài «Chú thích ảnh và danh mục hình»)."
     ]
@@ -598,7 +599,7 @@ export const WRITER_HELP_ENTRIES = [
     keywords: ["căn lề", "lề trang", "hướng giấy", "khổ giấy", "a4", "nđ 30", "portrait", "landscape", "thiết lập trang"],
     steps: [
       "Tab Bố cục, nhóm Thiết lập trang: Căn lề, Hướng giấy, Khổ giấy (ba nút lớn). Cả ba mở hộp «Thiết lập trang» — Hướng giấy đặt focus vào hướng; Căn lề và Khổ giấy đặt focus vào khổ.",
-      "Khổ giấy: A4 (210 × 297 mm, mặc định), Letter (216 × 279 mm), Legal (216 × 356 mm). Hướng: Dọc (Portrait) hoặc Ngang (Landscape).",
+      "Khổ giấy: A4 (210 × 297 mm, mặc định), Letter (216 × 279 mm), Legal (216 × 356 mm). Khi mở DOCX có khổ không chuẩn, hộp hiển thị Tùy chỉnh kèm kích thước gốc và VN Writer giữ nguyên kích thước đó khi lưu. Hướng: Dọc (Portrait) hoặc Ngang (Landscape).",
       "Lề trên / dưới / trái / phải (mm), mỗi ô 0–100. Mặc định trên 20, dưới 20, trái 30, phải 15 — đúng lề văn bản hành chính NĐ 30. Áp dụng / Hủy bỏ.",
       "Không có gallery Narrow/Wide như Word — chỉ số mm. Thước trên tab Chế độ xem phản ánh lề trái/phải sau khi áp dụng. Ctrl+Z hoàn tác."
     ]
