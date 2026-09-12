@@ -979,6 +979,34 @@ export class SlidesAdapter {
     return `rect(${fmt(crop.top)}, ${fmt(crop.right)}, ${fmt(crop.bottom)}, ${fmt(crop.left)})`;
   }
 
+  _parseSrcRectPct(raw) {
+    if (!raw) return null;
+    if (typeof raw === "object" && raw !== null) return raw;
+    const parts = String(raw).split(",").map((s) => parseFloat(s.trim()));
+    if (parts.length === 4 && parts.every((n) => !isNaN(n))) {
+      return {
+        l: parts[0],
+        t: parts[1],
+        r: parts[2],
+        b: parts[3]
+      };
+    }
+    return null;
+  }
+
+  _formatSrcRectPct(cropPct) {
+    if (!cropPct || typeof cropPct !== "object") return "";
+    const fmt = (v) => {
+      const n = Number(v) || 0;
+      return String(Number(n.toFixed(5)));
+    };
+    const l = cropPct.l ?? cropPct.left ?? 0;
+    const t = cropPct.t ?? cropPct.top ?? 0;
+    const r = cropPct.r ?? cropPct.right ?? 0;
+    const b = cropPct.b ?? cropPct.bottom ?? 0;
+    return `${fmt(l)},${fmt(t)},${fmt(r)},${fmt(b)}`;
+  }
+
   _styleKey(color) {
     return String(color || "3b82f6").replace(/[^A-Za-z0-9]/g, "").toLowerCase() || "3b82f6";
   }
@@ -1797,8 +1825,11 @@ export class SlidesAdapter {
       const parts = this._dataUrlParts(shape.src);
       const mime = this._escapeXml(parts?.mime || "image/png");
       const href = parts ? "" : this._escapeXml(shape.src || "");
+      const srcRectAttr = shape.cropPct
+        ? ` vno:src-rect="${this._escapeXml(this._formatSrcRectPct(shape.cropPct))}"`
+        : "";
       return `
-        <draw:frame ${geom}>
+        <draw:frame ${geom}${srcRectAttr}>
           <draw:image xlink:href="${href}" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad" draw:mime-type="${mime}">
             ${this._binaryDataXml(shape.src)}
           </draw:image>
@@ -2195,12 +2226,14 @@ export class SlidesAdapter {
     }
     if (/<draw:image\b/i.test(inner)) {
       const crop = style.crop || this._parseClipRect(this._attr(attrs, "fo:clip")) || this._parseClipRect(inner.match(/fo:clip=["']([^"']+)["']/i)?.[1]);
+      const cropPct = this._parseSrcRectPct(this._attr(attrs, "vno:src-rect")) || this._parseSrcRectPct(inner.match(/vno:src-rect=["']([^"']+)["']/i)?.[1]);
       return {
         ...base,
         type: "image",
         src: this._parseEmbeddedSrc(inner, "image/png"),
         color: "transparent",
-        ...(crop ? { crop } : {})
+        ...(crop ? { crop } : {}),
+        ...(cropPct ? { cropPct } : {})
       };
     }
 
