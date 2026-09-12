@@ -50,10 +50,13 @@ export async function runDesktopLaunchContextTests() {
     if (result !== true || switchedTo !== "sheet") throw new Error(`switchedTo=${switchedTo}`);
   });
 
-  test("index.html launches resolved app with explicit singleApp option", () => {
+  test("index.html launches resolved app with explicit singleApp + blank template options", () => {
     const html = fs.readFileSync(path.join(ROOT_DIR, "index.html"), "utf8");
-    if (!html.includes("await switchApp(initialApp, { singleApp: launchContext.singleAppMode })")) {
-      throw new Error("Không tìm thấy lời gọi switchApp theo launch context");
+    if (!html.includes("templateId: \"blank\"")) {
+      throw new Error("Không tìm thấy templateId: 'blank' trong switchApp call");
+    }
+    if (!html.includes("openInitialFile: launchContext.openInitialFile")) {
+      throw new Error("Không tìm thấy openInitialFile trong switchApp call");
     }
   });
 

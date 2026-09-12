@@ -18,6 +18,7 @@ import {
   workbookHasStructureLock
 } from "../../adapters/libreoffice/sheet/xlsx-workbook-protection.js";
 import {
+  overlayActiveSheetToFods,
   overlaySheetXlsxFods,
   postProcessSheetXlsx
 } from "../../adapters/libreoffice/sheet/xlsx-native-postprocess.js";
@@ -42,6 +43,43 @@ const LO_FODS = `<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
   <office:body><office:spreadsheet>
     <table:table table:name="BaoCao"><table:table-row><table:table-cell office:value-type="string"><text:p>Khóa cấu trúc</text:p></table:table-cell></table:table-row></table:table>
+  </office:spreadsheet></office:body>
+</office:document>`;
+
+const WORKBOOK_XML_3_SHEETS_ACTIVE_1 = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <bookViews><workbookView activeTab="1"/></bookViews>
+  <sheets>
+    <sheet name="foxz" sheetId="1" state="veryHidden" r:id="rId1"/>
+    <sheet name="Thông báo Sản phẩm mới" sheetId="2" r:id="rId2"/>
+    <sheet name="Camera IP" sheetId="3" r:id="rId3"/>
+  </sheets>
+</workbook>`;
+
+const FODS_3_SHEETS = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+  <office:body><office:spreadsheet>
+    <table:table table:name="foxz"><table:table-row><table:table-cell office:value-type="string"><text:p>foxz</text:p></table:table-cell></table:table-row></table:table>
+    <table:table table:name="Thông báo Sản phẩm mới"><table:table-row><table:table-cell office:value-type="string"><text:p>tb</text:p></table:table-cell></table:table-row></table:table>
+    <table:table table:name="Camera IP"><table:table-row><table:table-cell office:value-type="string"><text:p>cam</text:p></table:table-cell></table:table-row></table:table>
+  </office:spreadsheet></office:body>
+</office:document>`;
+
+const FODS_3_SHEETS_WITH_ACTIVE_TABLE = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+  <office:settings>
+    <config:config-item-set config:name="ooo:view-settings">
+      <config:config-item-map-indexed config:name="Views">
+        <config:config-item-map-entry>
+          <config:config-item config:name="ActiveTable" config:type="string">Camera IP</config:config-item>
+        </config:config-item-map-entry>
+      </config:config-item-map-indexed>
+    </config:config-item-set>
+  </office:settings>
+  <office:body><office:spreadsheet>
+    <table:table table:name="foxz"><table:table-row><table:table-cell office:value-type="string"><text:p>foxz</text:p></table:table-cell></table:table-row></table:table>
+    <table:table table:name="Thông báo Sản phẩm mới"><table:table-row><table:table-cell office:value-type="string"><text:p>tb</text:p></table:table-cell></table:table-row></table:table>
+    <table:table table:name="Camera IP"><table:table-row><table:table-cell office:value-type="string"><text:p>cam</text:p></table:table-cell></table:table-row></table:table>
   </office:spreadsheet></office:body>
 </office:document>`;
 
@@ -204,6 +242,52 @@ export async function runSheetXlsxNativeOpenOverlayTests() {
       const jsFods = overlaySheetXlsxFods(fs.readFileSync(xlsxPath), LO_FODS);
       assert(fodsHasStructureProtection(pyFods), "Python phải gắn structure-protected");
       assert(jsFods === pyFods, "JS và Python overlay phải ra cùng FODS");
+    } finally {
+      fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  await test("loadFromFods(fods, workbookXml): FODS 3 sheet không ActiveTable + workbook.xml activeTab='1' -> grid.activeSheet = tên sheet thứ 2", () => {
+    const grid = new SheetGridController(container());
+    const adapter = new SheetAdapter(grid);
+    assert(adapter.loadFromFods(FODS_3_SHEETS, WORKBOOK_XML_3_SHEETS_ACTIVE_1) === true);
+    assert(grid.activeSheet === "Thông báo Sản phẩm mới", `grid.activeSheet = ${grid.activeSheet}`);
+  });
+
+  await test("loadFromFods(fods) không có workbookXml -> sheet đầu (fallback)", () => {
+    const grid = new SheetGridController(container());
+    const adapter = new SheetAdapter(grid);
+    assert(adapter.loadFromFods(FODS_3_SHEETS) === true);
+    assert(grid.activeSheet === "foxz", `grid.activeSheet = ${grid.activeSheet}`);
+  });
+
+  await test("loadFromFods(fods, workbookXml): FODS đã có ActiveTable -> giữ nguyên", () => {
+    const grid = new SheetGridController(container());
+    const adapter = new SheetAdapter(grid);
+    assert(adapter.loadFromFods(FODS_3_SHEETS_WITH_ACTIVE_TABLE, WORKBOOK_XML_3_SHEETS_ACTIVE_1) === true);
+    assert(grid.activeSheet === "Camera IP", `grid.activeSheet = ${grid.activeSheet}`);
+  });
+
+  await test("Python twin overlay ActiveTable trong FODS giống JS (CLI --overlay-fods)", () => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "vno-xlsx-active-"));
+    try {
+      const xlsxPath = path.join(tempRoot, "active.xlsx");
+      const fodsPath = path.join(tempRoot, "lo.fods");
+      const outPath = path.join(tempRoot, "overlaid.fods");
+      fs.writeFileSync(xlsxPath, fakeXlsx(WORKBOOK_XML_3_SHEETS_ACTIVE_1));
+      fs.writeFileSync(fodsPath, FODS_3_SHEETS, "utf8");
+      const py = spawnSync(process.env.PYTHON || "python", [
+        PYTHON_PATCHER,
+        "--xlsx", xlsxPath,
+        "--overlay-fods", fodsPath,
+        "--out", outPath
+      ], { encoding: "utf8" });
+      assert(py.status === 0, `Python overlay failed: ${(py.stderr || py.stdout || "").trim()}`);
+      const pyFods = fs.readFileSync(outPath, "utf8");
+      const jsFods = overlaySheetXlsxFods(fs.readFileSync(xlsxPath), FODS_3_SHEETS);
+      assert(pyFods.includes('config:name="ActiveTable"'), "Python phải gắn ActiveTable");
+      assert(pyFods.includes(">Thông báo Sản phẩm mới<"), "Python phải trỏ đúng sheet thứ 2");
+      assert(jsFods === pyFods, "JS và Python active sheet overlay phải ra cùng FODS");
     } finally {
       fs.rmSync(tempRoot, { recursive: true, force: true });
     }

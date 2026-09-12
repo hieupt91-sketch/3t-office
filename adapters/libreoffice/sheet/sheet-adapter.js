@@ -10,6 +10,7 @@ import { globalShortcutManager } from "../../../platform/commands/shortcut-manag
 import { getVnCommand } from "../common/command-dispatch-mapper.js";
 import { SheetChartBuilder } from "../../../apps/sheet/sheet-chart.js";
 import { overlayFodsStructureProtection } from "./xlsx-workbook-protection.js";
+import { overlayActiveSheetToFods } from "./xlsx-active-sheet.js";
 
 export class SheetAdapter {
   constructor(gridController) {
@@ -1889,6 +1890,44 @@ export class SheetAdapter {
 </office:document>`;
   }
 
+  /**
+   * True only when a FODS cell carries something a user would see as content:
+   * an actual value attribute, a formula, text, a comment or a validation.
+   * A bare office:value-type (what LibreOffice writes on formatted-but-empty
+   * cells) does not count — that is what lets the used-range bound in
+   * parseFods ignore the million-row repeated tail of real XLSX files.
+   */
+  _fodsCellHasRealContent(cell) {
+    if (cell.getAttribute("table:formula") || cell.getAttribute("vno:formula")) return true;
+    if (cell.getAttribute("table:content-validation-name")) return true;
+    if (Number(cell.getAttribute("table:number-columns-spanned")) > 1 || Number(cell.getAttribute("table:number-rows-spanned")) > 1) return true;
+    for (const attr of ["office:value", "office:string-value", "office:date-value", "office:time-value", "office:boolean-value"]) {
+      const value = cell.getAttribute(attr);
+      if (value !== null && value !== undefined && value !== "") return true;
+    }
+    for (const child of Array.from(cell.children)) {
+      if (child.localName === "annotation" || child.localName === "frame") return true;
+    }
+    const paragraphs = cell.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p");
+    for (const paragraph of Array.from(paragraphs)) {
+      if ((paragraph.textContent || "").trim() !== "") return true;
+    }
+    return false;
+  }
+
+  /** Regex-branch twin of _fodsCellHasRealContent (attributes map + raw inner markup). */
+  _fodsCellMarkupHasRealContent(attributes, content) {
+    if (attributes["table:formula"] || attributes["vno:formula"] || attributes["table:content-validation-name"]) return true;
+    if (Number(attributes["table:number-columns-spanned"]) > 1 || Number(attributes["table:number-rows-spanned"]) > 1) return true;
+    for (const attr of ["office:value", "office:string-value", "office:date-value", "office:time-value", "office:boolean-value"]) {
+      if (attributes[attr] !== undefined && attributes[attr] !== "") return true;
+    }
+    const markup = String(content || "");
+    if (!markup) return false;
+    if (/<office:annotation\b/i.test(markup) || /<draw:frame\b/i.test(markup)) return true;
+    return markup.replace(/<[^>]+>/g, "").trim() !== "";
+  }
+
   _cellFromFodsAttributes(attributes, text, numberStyles = new Map(), rotationStyles = new Map()) {
     const get = name => attributes[name] ?? "";
     const valueType = get("office:value-type");
@@ -2372,15 +2411,56 @@ export class SheetAdapter {
           const hiddenRows = new Set();
           let rowNumber = 1;
           const rowElements = Array.from(table.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "table-row"));
+
+          // LibreOffice collapses the formatted-but-empty tail of a real XLSX into
+          // one <table:table-row table:number-rows-repeated="1048570"> (and the
+          // same for columns, up to 16384). Those cells still carry
+          // office:value-type, so "has a value-type" cannot mean "has data" —
+          // expanding them literally creates millions of Map entries and hangs
+          // the app. Bound materialization to the used range like Excel does:
+          // pre-scan for the last row/column holding REAL content, then never
+          // expand a repeat that lies entirely beyond it.
+          let lastDataRow = 0;
+          let lastDataCol = 0;
+          {
+            let scanRow = 1;
+            for (const row of rowElements) {
+              const scanRepeat = Math.max(1, Number(row.getAttribute("table:number-rows-repeated")) || 1);
+              let scanCol = 1;
+              let rowHasData = false;
+              for (const cell of Array.from(row.children)) {
+                if (!["table-cell", "covered-table-cell"].includes(cell.localName)) continue;
+                const colRepeat = Math.max(1, Number(cell.getAttribute("table:number-columns-repeated")) || 1);
+                if (this._fodsCellHasRealContent(cell)) {
+                  rowHasData = true;
+                  lastDataCol = Math.max(lastDataCol, scanCol + colRepeat - 1);
+                }
+                scanCol += colRepeat;
+              }
+              if (rowHasData) lastDataRow = scanRow + scanRepeat - 1;
+              scanRow += scanRepeat;
+            }
+          }
+
           rowElements.forEach(row => {
             const rowRepeat = Math.max(1, Number(row.getAttribute("table:number-rows-repeated")) || 1);
             const rowStyleName = this._tableAttr(row, "style-name");
             const rowVisibility = this._tableAttr(row, "visibility").toLowerCase();
             const heightPx = rowColStyles.rows.get(rowStyleName)?.heightPx;
+
+            if (rowNumber > lastDataRow && rowRepeat > 32 && rowVisibility !== "collapse") {
+              rowNumber += rowRepeat;
+              return;
+            }
+
             for (let repeatedRow = 0; repeatedRow < rowRepeat; repeatedRow++) {
               if (rowRepeat <= 32 || rowVisibility === "collapse") {
                 if (Number.isFinite(heightPx) && !this._isCloseToDefault(heightPx, defaultRowHeight)) rowHeights.set(rowNumber, heightPx);
                 if (rowVisibility === "collapse") hiddenRows.add(rowNumber);
+              }
+              if (rowNumber > lastDataRow) {
+                rowNumber++;
+                continue;
               }
               let columnNumber = 1;
               Array.from(row.children).filter(cell => ["table-cell", "covered-table-cell"].includes(cell.localName)).forEach(cell => {
@@ -2409,7 +2489,13 @@ export class SheetAdapter {
                   if ((attributes["table:number-matrix-columns-spanned"] || attributes["table:number-matrix-rows-spanned"]) && item.formula) {
                     arrayFormulas.push({ column: columnNumber, row: rowNumber, columns: matrixColumns, rows: matrixRows, formula: item.formula });
                   }
-                  for (let repeat = 0; repeat < columnRepeat; repeat++) {
+                  // A style-only cell keeps its entries inside the used range so
+                  // borders/fills on blank table cells survive; past lastDataCol it
+                  // is the collapsed empty tail and must not be expanded.
+                  const materializeRepeat = this._fodsCellHasRealContent(cell)
+                    ? columnRepeat
+                    : Math.max(0, Math.min(columnRepeat, lastDataCol - columnNumber + 1));
+                  for (let repeat = 0; repeat < materializeRepeat; repeat++) {
                     const coord = `${this._columnName(columnNumber + repeat)}${rowNumber}`;
                     data.set(coord, { ...item });
                     if (attributes["table:content-validation-name"]) {
@@ -2528,19 +2614,56 @@ export class SheetAdapter {
         const hiddenRows = new Set();
         let rowNumber = 1;
         const rowRegex = /<table:table-row(?=[\s>/])([^>]*?)(?:\/>|>([\s\S]*?)<\/table:table-row>)/gi;
+        const cellRegexSource = /<(?:table:)?(table-cell|covered-table-cell)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:table:)?(?:table-cell|covered-table-cell)>)/gi;
+        // Same used-range bound as the DOM branch above (see the comment there):
+        // never expand a number-rows/columns-repeated tail that holds no real content.
+        let lastDataRow = 0;
+        let lastDataCol = 0;
+        {
+          const scanRowRegex = new RegExp(rowRegex.source, "gi");
+          let scanRow = 1;
+          let scanRowMatch;
+          while ((scanRowMatch = scanRowRegex.exec(tableMatch[2])) !== null) {
+            const scanRepeat = Math.max(1, Number(scanRowMatch[1].match(/table:number-rows-repeated=["'](\d+)["']/i)?.[1]) || 1);
+            const scanCellRegex = new RegExp(cellRegexSource.source, "gi");
+            let scanCol = 1;
+            let rowHasData = false;
+            let scanCellMatch;
+            while ((scanCellMatch = scanCellRegex.exec(scanRowMatch[2] || "")) !== null) {
+              const scanAttrs = {};
+              scanCellMatch[2].replace(/([\w:-]+)=["']([^"']*)["']/g, (_, key, value) => { scanAttrs[key] = value; return ""; });
+              const colRepeat = Math.max(1, Number(scanAttrs["table:number-columns-repeated"]) || 1);
+              if (this._fodsCellMarkupHasRealContent(scanAttrs, scanCellMatch[3] || "")) {
+                rowHasData = true;
+                lastDataCol = Math.max(lastDataCol, scanCol + colRepeat - 1);
+              }
+              scanCol += colRepeat;
+            }
+            if (rowHasData) lastDataRow = scanRow + scanRepeat - 1;
+            scanRow += scanRepeat;
+          }
+        }
         let rowMatch;
         while ((rowMatch = rowRegex.exec(tableMatch[2])) !== null) {
           const rowRepeat = Math.max(1, Number(rowMatch[1].match(/table:number-rows-repeated=["'](\d+)["']/i)?.[1]) || 1);
           const rowStyleName = this._unescapeXml(rowMatch[1].match(/table:style-name=["']([^"']*)["']/i)?.[1] || "");
           const rowVisibility = (rowMatch[1].match(/table:visibility=["']([^"']*)["']/i)?.[1] || "").toLowerCase();
           const heightPx = rowColStyles.rows.get(rowStyleName)?.heightPx;
+          if (rowNumber > lastDataRow && rowRepeat > 32 && rowVisibility !== "collapse") {
+            rowNumber += rowRepeat;
+            continue;
+          }
           for (let repeatedRow = 0; repeatedRow < rowRepeat; repeatedRow++) {
             if (rowRepeat <= 32 || rowVisibility === "collapse") {
               if (Number.isFinite(heightPx) && !this._isCloseToDefault(heightPx, defaultRowHeight)) rowHeights.set(rowNumber, heightPx);
               if (rowVisibility === "collapse") hiddenRows.add(rowNumber);
             }
+            if (rowNumber > lastDataRow) {
+              rowNumber++;
+              continue;
+            }
             let columnNumber = 1;
-            const cellRegex = /<(?:table:)?(table-cell|covered-table-cell)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:table:)?(?:table-cell|covered-table-cell)>)/gi;
+            const cellRegex = new RegExp(cellRegexSource.source, "gi");
             let cellMatch;
             while ((cellMatch = cellRegex.exec(rowMatch[2] || "")) !== null) {
               const attributes = {};
@@ -2572,7 +2695,10 @@ export class SheetAdapter {
                 if ((attributes["table:number-matrix-columns-spanned"] || attributes["table:number-matrix-rows-spanned"]) && item.formula) {
                   arrayFormulas.push({ column: columnNumber, row: rowNumber, columns: matrixColumns, rows: matrixRows, formula: item.formula });
                 }
-                for (let repeat = 0; repeat < columnRepeat; repeat++) {
+                const materializeRepeat = this._fodsCellMarkupHasRealContent(attributes, content)
+                  ? columnRepeat
+                  : Math.max(0, Math.min(columnRepeat, lastDataCol - columnNumber + 1));
+                for (let repeat = 0; repeat < materializeRepeat; repeat++) {
                   const coord = `${this._columnName(columnNumber + repeat)}${rowNumber}`;
                   data.set(coord, { ...item });
                   if (attributes["table:content-validation-name"]) {
@@ -2630,7 +2756,8 @@ export class SheetAdapter {
 
   loadFromFods(fodsText, ooxmlWorkbookXml) {
     if (!this.grid) return false;
-    const xml = overlayFodsStructureProtection(fodsText, ooxmlWorkbookXml);
+    let xml = overlayFodsStructureProtection(fodsText, ooxmlWorkbookXml);
+    xml = overlayActiveSheetToFods(xml, ooxmlWorkbookXml);
     const workbook = this.parseFods(xml);
     if (workbook.sheets.length === 0) return false;
     const firstSheet = workbook.sheets[0];

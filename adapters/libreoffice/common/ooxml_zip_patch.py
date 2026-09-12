@@ -459,6 +459,180 @@ def apply_sheet_visibility_to_workbook(workbook_xml: str, visibility_by_sheet: d
 
 
 # ---------------------------------------------------------------------------
+# Active sheet (activeTab in OOXML ↔ ActiveTable in ODF office:settings)
+# ---------------------------------------------------------------------------
+
+CONFIG_NS = "urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+_CONFIG_ITEM_ACTIVE_TABLE_RE = re.compile(
+    r'<config:config-item\b[^>]*config:name\s*=\s*(["\'])ActiveTable\1',
+    re.IGNORECASE,
+)
+_VIEW_SETTINGS_SET_RE = re.compile(
+    r'(<config:config-item-set\b[^>]*config:name\s*=\s*(["\'])ooo:view-settings\2[^>]*>)([\s\S]*?)(</config:config-item-set>)',
+    re.IGNORECASE,
+)
+_VIEW_MAP_ENTRY_RE = re.compile(
+    r'(<config:config-item-map-entry\b[^>]*>)([\s\S]*?)(</config:config-item-map-entry>)',
+    re.IGNORECASE,
+)
+_OFFICE_SETTINGS_RE = re.compile(
+    r'(<office:settings\b[^>]*>)([\s\S]*?)(</office:settings>)',
+    re.IGNORECASE,
+)
+_OFFICE_BODY_RE = re.compile(r'<office:body\b', re.IGNORECASE)
+_OFFICE_DOCUMENT_CLOSE_RE = re.compile(r'</office:document\s*>', re.IGNORECASE)
+
+
+def parse_active_tab_from_workbook(workbook_xml: str | None) -> int:
+    """Read activeTab index (0-based) from xl/workbook.xml <workbookView activeTab="N"/>."""
+    if not workbook_xml:
+        return 0
+    match = re.search(r"<(?:\w+:)?workbookView\b([^>]*)/?>", workbook_xml, re.IGNORECASE)
+    if match:
+        attrs = match.group(1) or ""
+        tab_match = re.search(r'\b(?:activeTab|activeSheet)\s*=\s*(["\'])(\d+)\1', attrs, re.IGNORECASE)
+        if tab_match:
+            try:
+                return int(tab_match.group(2))
+            except ValueError:
+                return 0
+    return 0
+
+
+def parse_sheet_names_from_workbook(workbook_xml: str | None) -> list[str]:
+    """Read ordered sheet names from xl/workbook.xml <sheets><sheet name="..."/>."""
+    if not workbook_xml:
+        return []
+    sheet_names: list[str] = []
+    for match in _WB_SHEET_TAG_RE.finditer(workbook_xml):
+        attrs = match.group(1) or ""
+        name_match = re.search(r'\bname\s*=\s*(["\'])(.*?)\1', attrs)
+        if name_match:
+            sheet_names.append(_unescape_xml(name_match.group(2)))
+    return sheet_names
+
+
+def parse_active_sheet_from_workbook(workbook_xml: str | None) -> str | None:
+    """Read activeTab from workbookView and map to the corresponding sheet name.
+
+    Returns the N-th sheet name (including hidden/veryHidden sheets in index
+    order). Defaults to the first sheet if activeTab is missing or out of bounds.
+    Returns None if workbookView is not present or no sheets are found.
+    """
+    if not workbook_xml:
+        return None
+    wv_match = re.search(r"<(?:\w+:)?workbookView\b([^>]*)/?>", workbook_xml, re.IGNORECASE)
+    if not wv_match:
+        return None
+    sheet_names = parse_sheet_names_from_workbook(workbook_xml)
+    if not sheet_names:
+        return None
+    tab_index = parse_active_tab_from_workbook(workbook_xml)
+    if 0 <= tab_index < len(sheet_names):
+        return sheet_names[tab_index]
+    return sheet_names[0]
+
+
+def ensure_config_xmlns(fods_xml: str) -> str:
+    """Ensure root <office:document> declares xmlns:config."""
+    xml = fods_xml or ""
+    if re.search(r"xmlns:config\s*=", xml, re.IGNORECASE):
+        return xml
+    match = _OFFICE_DOCUMENT_OPEN_RE.search(xml)
+    if not match:
+        return xml
+    attrs = match.group(1) or ""
+    next_tag = f'<office:document{attrs} xmlns:config="{CONFIG_NS}">'
+    return xml[: match.start()] + next_tag + xml[match.end() :]
+
+
+def apply_active_sheet_to_fods(fods_xml: str | None, active_sheet: str | None) -> str:
+    """Inject ActiveTable config item into FODS office:settings if not already present."""
+    xml = fods_xml or ""
+    if not active_sheet or not xml:
+        return xml
+
+    if _CONFIG_ITEM_ACTIVE_TABLE_RE.search(xml):
+        return xml
+
+    escaped = _escape_xml(active_sheet)
+    active_item = f'<config:config-item config:name="ActiveTable" config:type="string">{escaped}</config:config-item>'
+
+    xml = ensure_config_xmlns(xml)
+
+    # 1. Inside existing ooo:view-settings
+    view_match = _VIEW_SETTINGS_SET_RE.search(xml)
+    if view_match:
+        open_tag = view_match.group(1)
+        inner = view_match.group(3)
+        close_tag = view_match.group(4)
+        entry_match = _VIEW_MAP_ENTRY_RE.search(inner)
+        if entry_match:
+            entry_idx = inner.find(entry_match.group(0))
+            close_entry_idx = inner.find("</config:config-item-map-entry>", entry_idx)
+            new_inner = inner[:close_entry_idx] + active_item + inner[close_entry_idx:]
+            return xml[: view_match.start()] + open_tag + new_inner + close_tag + xml[view_match.end() :]
+        views_block = (
+            '<config:config-item-map-indexed config:name="Views">'
+            '<config:config-item-map-entry>'
+            f'{active_item}'
+            '</config:config-item-map-entry>'
+            '</config:config-item-map-indexed>'
+        )
+        return xml[: view_match.start()] + open_tag + inner + views_block + close_tag + xml[view_match.end() :]
+
+    # 2. Inside existing office:settings
+    settings_match = _OFFICE_SETTINGS_RE.search(xml)
+    if settings_match:
+        open_tag = settings_match.group(1)
+        inner = settings_match.group(2)
+        close_tag = settings_match.group(3)
+        set_block = (
+            '<config:config-item-set config:name="ooo:view-settings">'
+            '<config:config-item-map-indexed config:name="Views">'
+            '<config:config-item-map-entry>'
+            f'{active_item}'
+            '</config:config-item-map-entry>'
+            '</config:config-item-map-indexed>'
+            '</config:config-item-set>'
+        )
+        return xml[: settings_match.start()] + open_tag + inner + set_block + close_tag + xml[settings_match.end() :]
+
+    # 3. Create office:settings before office:body
+    full_block = (
+        '<office:settings>'
+        '<config:config-item-set config:name="ooo:view-settings">'
+        '<config:config-item-map-indexed config:name="Views">'
+        '<config:config-item-map-entry>'
+        f'{active_item}'
+        '</config:config-item-map-entry>'
+        '</config:config-item-map-indexed>'
+        '</config:config-item-set>'
+        '</office:settings>'
+    )
+    body_match = _OFFICE_BODY_RE.search(xml)
+    if body_match:
+        return xml[: body_match.start()] + full_block + xml[body_match.start() :]
+
+    doc_close = _OFFICE_DOCUMENT_CLOSE_RE.search(xml)
+    if doc_close:
+        return xml[: doc_close.start()] + full_block + xml[doc_close.start() :]
+
+    return xml + full_block
+
+
+def overlay_active_sheet_to_fods(fods_xml: str | None, workbook_xml: str | None) -> str:
+    """Read activeTab from workbook_xml and ensure FODS has ActiveTable set."""
+    xml = fods_xml or ""
+    if not workbook_xml:
+        return xml
+    active_sheet = parse_active_sheet_from_workbook(workbook_xml)
+    if not active_sheet:
+        return xml
+    return apply_active_sheet_to_fods(xml, active_sheet)
+
+
+# ---------------------------------------------------------------------------
 # AutoFilter overlay (database-ranges in ODF ↔ <autoFilter> in OOXML)
 # ---------------------------------------------------------------------------
 
@@ -2173,6 +2347,9 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
         visibility = parse_sheet_visibility_from_workbook(workbook_xml)
         if visibility:
             xml = apply_sheet_visibility_to_fods(xml, visibility)
+        # Active sheet (activeTab -> ActiveTable): soffice headless drops
+        # ActiveTable in office:settings, so we restore it from xl/workbook.xml.
+        xml = overlay_active_sheet_to_fods(xml, workbook_xml)
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
     # AutoFilter: read <autoFilter ref> from original worksheet XMLs and
     # inject <table:database-ranges> into FODS so parseFods can restore

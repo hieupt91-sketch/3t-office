@@ -5,7 +5,6 @@
  * after `convertWithSoffice`. Production File → Lưu uses the Python twin
  * hooked in main.py (`ooxml_zip_patch.py`).
  */
-import fs from "node:fs";
 import { patchOoxmlZip, readZipEntry } from "../common/ooxml-zip-patch.js";
 import {
   applyWorkbookProtectionLockStructure,
@@ -52,8 +51,8 @@ function parseSheetVisibilityFromWorkbook(workbookXml) {
     const stateMatch = attrs.match(SHEET_STATE_RE);
     if (nameMatch && stateMatch) {
       const state = stateMatch[1].toLowerCase();
-      if (state === "hidden" || state === "veryHidden") {
-        result[unescapeXml(nameMatch[1])] = state;
+      if (state === "hidden" || state === "veryhidden") {
+        result[unescapeXml(nameMatch[1])] = state === "veryhidden" ? "veryHidden" : "hidden";
       }
     }
   }
@@ -109,6 +108,26 @@ function applySheetVisibilityToFods(fodsXml, visibilityBySheet) {
     return `<table:table${nextAttrs}>`;
   });
 }
+
+// --- Active sheet (activeTab) helpers ---
+
+import {
+  parseActiveTabFromWorkbook,
+  parseSheetNamesFromWorkbook,
+  parseActiveSheetFromWorkbook,
+  ensureConfigXmlns,
+  applyActiveSheetToFods,
+  overlayActiveSheetToFods
+} from "./xlsx-active-sheet.js";
+
+export {
+  parseActiveTabFromWorkbook,
+  parseSheetNamesFromWorkbook,
+  parseActiveSheetFromWorkbook,
+  ensureConfigXmlns,
+  applyActiveSheetToFods,
+  overlayActiveSheetToFods
+};
 
 // --- AutoFilter helpers ---
 
@@ -265,6 +284,8 @@ export function overlaySheetXlsxFods(xlsxPathOrBuffer, fodsXml) {
     if (Object.keys(visibility).length > 0) {
       xml = applySheetVisibilityToFods(xml, visibility);
     }
+    // Active sheet (activeTab -> ActiveTable): soffice headless drops ActiveTable
+    xml = overlayActiveSheetToFods(xml, workbookXml);
   }
   xml = overlaySheetXlsxFreezePanes(source, xml);
   // AutoFilter: read <autoFilter ref> from worksheet XMLs and inject

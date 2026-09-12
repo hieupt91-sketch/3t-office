@@ -96,6 +96,7 @@ export class SheetGridController {
   constructor(container, options = {}) {
     this.container = container;
     this.options = options;
+    this.isBlank = options.isBlank === true;
     this.cols = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
     this.rowCount = 200;
     this.rowHeight = DEFAULT_ROW_HEIGHT_PX;
@@ -485,7 +486,9 @@ export class SheetGridController {
 
     this.container.appendChild(tabBar);
 
-    this._populateInitialData();
+    if (!this.isBlank) {
+      this._populateInitialData();
+    }
     this.undoStack = [];
     this.redoStack = [];
     this._syncCommandStates();

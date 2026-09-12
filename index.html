@@ -65,7 +65,11 @@
     // Bootstrap suite tập trung một lần duy nhất rồi khởi động VN Writer
     await bootstrapPlatform();
     const initialApp = launchContext.appKind || "writer";
-    await switchApp(initialApp, { singleApp: launchContext.singleAppMode });
+    await switchApp(initialApp, {
+      singleApp: launchContext.singleAppMode,
+      templateId: "blank",
+      openInitialFile: launchContext.openInitialFile
+    });
     if (launchContext.openInitialFile) {
       await globalCommandBus.execute("common.file.open");
     }
