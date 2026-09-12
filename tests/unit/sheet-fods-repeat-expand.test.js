@@ -297,5 +297,109 @@ export async function runSheetFodsRepeatExpandTests() {
     if (grid.sheetsData["Sheet1"].size > 100) throw new Error(`No-value-type created ${grid.sheetsData["Sheet1"].size} entries`);
   });
 
+  // ── Column repeat expansion: the bug that caused 16384 colWidths ────
+
+  function makeColRepeatFods(opts = {}) {
+    const colRepeat = opts.colRepeat || 16376;
+    const customWidth = opts.customWidth || "3.5cm";
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<office:document
+  xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+  xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+  xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0"
+  office:version="1.3"
+  office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+  <office:body>
+    <office:spreadsheet>
+      <config:config-item-set config:name="ooo:settings">
+        <config:config-item config:name="ActiveTable" config:type="string">Sheet1</config:config-item>
+      </config:config-item-set>
+      <style:style style:name="co_custom" style:family="table-column">
+        <style:table-column-properties fo:break-before="auto" style:column-width="${customWidth}"/>
+      </style:style>
+      <table:table table:name="Sheet1">
+        <table:table-column table:style-name="co_custom" table:number-columns-repeated="5"/>
+        <table:table-column table:style-name="co_custom" table:number-columns-repeated="${colRepeat}"/>
+        <table:table-row>
+          <table:table-cell office:value-type="string" office:string-value="A"><text:p>A</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="B"><text:p>B</text:p></table:table-cell>
+          <table:table-cell office:value-type="string" office:string-value="C"><text:p>C</text:p></table:table-cell>
+        </table:table-row>
+        <table:table-row table:number-rows-repeated="100000">
+          <table:table-cell office:value-type="string" table:number-columns-repeated="16384"/>
+        </table:table-row>
+      </table:table>
+    </office:spreadsheet>
+  </office:body>
+</office:document>`;
+  }
+
+  function makeGrid() {
+    const grid = new Proxy({ sheets: [], activeSheet: "", sheetsData: {}, cellsData: new Map(), rowHeight: 26, defaultColWidth: 100, pageSetupBySheet: {}, rowHeightsBySheet: {}, colWidthsBySheet: {}, userHiddenRowsBySheet: {}, userHiddenColsBySheet: {}, commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesBySheet: {}, printAreaBySheet: {}, conditionalFormattingBySheet: {}, dataValidationsBySheet: {}, imagesBySheet: {} }, {
+      set(target, prop, value) { target[prop] = value; if (prop === "activeSheet" && target.sheetsData[value]) target.cellsData = target.sheetsData[value]; return true; }
+    });
+    grid.sheets = ["Sheet1"];
+    grid.activeSheet = "Sheet1";
+    grid.sheetsData["Sheet1"] = new Map();
+    grid.cellsData = grid.sheetsData["Sheet1"];
+    return grid;
+  }
+
+  test("column repeat: parseFods with 16376 repeated columns is fast and colWidths is small", () => {
+    const grid = makeGrid();
+    const adapter = new SheetAdapter(grid);
+    const fods = makeColRepeatFods({ colRepeat: 16376 });
+
+    const start = Date.now();
+    adapter.loadFromFods(fods);
+    const elapsed = Date.now() - start;
+
+    if (!grid.sheetsData["Sheet1"]) throw new Error("loadFromFods failed");
+    const cw = grid.colWidthsBySheet["Sheet1"];
+    if (!cw) throw new Error("colWidthsBySheet missing");
+    if (cw.size > 100) throw new Error(`colWidths.size = ${cw.size} — expected ≤100 for 5+1 used columns, got bloated from 16376 repeat`);
+    if (elapsed > 5000) throw new Error(`parseFods took ${elapsed}ms — too slow for column repeat`);
+  });
+
+  test("column repeat: serializeToFods does not throw and round-trip preserves used-range widths", () => {
+    const grid = makeGrid();
+    const adapter = new SheetAdapter(grid);
+    adapter.loadFromFods(makeColRepeatFods({ colRepeat: 16376 }));
+
+    let threw = false;
+    try {
+      adapter.serializeToFods();
+    } catch (e) {
+      if (e instanceof RangeError) threw = true;
+      else throw e;
+    }
+    if (threw) throw new Error("serializeToFods threw RangeError on column repeat fixture");
+
+    const cw = grid.colWidthsBySheet["Sheet1"];
+    const defaultWidth = 100;
+    const customWidth = cw.get("A");
+    if (!Number.isFinite(customWidth)) throw new Error(`Column A width not set after round-trip: ${customWidth}`);
+    if (customWidth === defaultWidth) throw new Error(`Column A width ${customWidth} equals default ${defaultWidth} — custom width not preserved`);
+  });
+
+  test("column repeat: cells beyond used range are not materialized", () => {
+    const grid = makeGrid();
+    const adapter = new SheetAdapter(grid);
+    adapter.loadFromFods(makeColRepeatFods({ colRepeat: 16376 }));
+
+    const data = grid.sheetsData["Sheet1"];
+    const a1 = data.get("A1");
+    const b1 = data.get("B1");
+    const c1 = data.get("C1");
+    if (!a1 || a1.val !== "A") throw new Error(`A1 lost: ${JSON.stringify(a1)}`);
+    if (!b1 || b1.val !== "B") throw new Error(`B1 lost: ${JSON.stringify(b1)}`);
+    if (!c1 || c1.val !== "C") throw new Error(`C1 lost: ${JSON.stringify(c1)}`);
+
+    if (data.size > 100) throw new Error(`cellsData.size = ${data.size} — expected ~3 real cells, bloated`);
+  });
+
   return results;
 }

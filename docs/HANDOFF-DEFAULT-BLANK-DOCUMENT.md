@@ -107,6 +107,12 @@ Lưu ý: Bằng chứng ảnh chụp cần được bổ sung bởi người ch�
    - Duyệt trước bảng tính để tìm dòng cuối và cột cuối thực sự chứa dữ liệu.
    - Các khối hàng lặp nằm hoàn toàn sau `lastDataRow` được bỏ qua hoàn toàn.
    - Các ô có kiểu/định dạng nhưng không có nội dung thật chỉ được vật chất hóa trong phạm vi `lastDataCol` (giữ nguyên viền/màu của ô trống nằm TRONG bảng dữ liệu, loại bỏ toàn bộ phần đuôi mở rộng ra vô cực).
+3. **Vật chất hóa cột (`<table:table-column>`) trong phạm vi used-range**:
+   - FODS thật nén phần đuôi cột trống thành `table:number-columns-repeated="16376"` (tổng 16384 cột).
+   - Code cũ `for (index < repeat)` đẩy `colWidths.set()`, `hiddenCols.add()`, `columnStyles.push()` cho TỪNG cột → 16384 entry/sheet → `serializeToFods()` ghi 16384 `<table:table-column>` → `RangeError: Invalid string length`.
+   - **Sửa**: Pre-scan hàng để tính `lastDataCol` TRƯỚC khi duyệt `<table:table-column>`. Giới hạn vật chất hóa `colWidths` / `hiddenCols` / `columnStyles` tới `max(lastDataCol, 26)` (26 = độ rộng lưới mặc định A-Z). Phần đuôi lặp ngoài used-range không tạo entry từng cột.
+   - Tương tự, hàng: `rowHeights.set()` chỉ gọi khi `rowNumber <= lastDataRow`, tránh entry ở row 1048576 từ block `number-rows-repeated` khổng lồ.
+   - `serializeToFods()`:afety cap `maxCol ≤ 4096`, `maxRow ≤ 1048576`防止 serialize blowup từ dữ liệu upstream bị nhiễm.
 
 ### 3. Tests đã bổ sung & cập nhật
 - `tests/unit/sheet-fods-repeat-expand.test.js` (6/6 PASS, trước fix là 4/6):
