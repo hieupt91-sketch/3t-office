@@ -3514,14 +3514,16 @@ def _relocate_passthrough_anchors(converted_xml: str, original_xml: str) -> str:
         name = _writer_anchor_name(anchor_match.group(0))
         if not name or not _writer_anchor_passthrough_kind(anchor_match.group(0)):
             continue
-        if not re.search(r'\bbehindDoc=["\'](?:1|true)["\']', anchor_match.group(0), re.IGNORECASE):
-            continue
-        if not re.search(r"<wp:wrapNone\b", anchor_match.group(0), re.IGNORECASE):
-            continue
         containing = [(end - start, i) for i, (start, end) in enumerate(source_paragraphs)
                       if start <= anchor_match.start() < end]
         parent_index = min(containing)[1] if containing else None
         if parent_index is None:
+            continue
+        relocatable_background = bool(
+            re.search(r'\bbehindDoc=["\'](?:1|true)["\']', anchor_match.group(0), re.IGNORECASE)
+            and re.search(r"<wp:wrapNone\b", anchor_match.group(0), re.IGNORECASE)
+        )
+        if not relocatable_background:
             continue
         fingerprint = ""
         for distance in range(1, len(source_paragraphs)):
@@ -3567,10 +3569,10 @@ def _relocate_passthrough_anchors(converted_xml: str, original_xml: str) -> str:
 def _passthrough_writer_anchors(
     converted_xml: str, original_xml: str, source_docx: bytes,
     converted_rels_xml: str, next_rid: int, existing_entries: set[str],
-) -> tuple[str, str, int, dict[str, bytes], set[str]]:
+) -> tuple[str, str, int, dict[str, bytes], set[str], set[str]]:
     matches = _writer_passthrough_matches(converted_xml, original_xml)
     if not matches:
-        return converted_xml, converted_rels_xml, next_rid, {}, set()
+        return converted_xml, converted_rels_xml, next_rid, {}, set(), set()
     original_rels_bytes = read_zip_entry(source_docx, "word/_rels/document.xml.rels") or b""
     original_rels = _relationship_records(original_rels_bytes.decode("utf-8", errors="replace"))
     media: dict[str, bytes] = {}
@@ -3578,6 +3580,7 @@ def _passthrough_writer_anchors(
     occupied_docpr_ids = {int(value) for value in re.findall(r'<wp:docPr\b[^>]*\bid=["\'](\d+)', converted_xml, re.IGNORECASE)}
     next_docpr_id = max(occupied_docpr_ids, default=0) + 1
     anchor_index = 0
+    replaced_rids: set[str] = set()
 
     def replace(match: re.Match) -> str:
         nonlocal anchor_index, next_rid, converted_rels_xml, next_docpr_id
@@ -3585,6 +3588,9 @@ def _passthrough_writer_anchors(
         anchor_index += 1
         if source_anchor is None:
             return match.group(0)
+        replaced_rids.update(re.findall(
+            r'\br:(?:embed|link|id)=["\']([^"\']+)', match.group(0), re.IGNORECASE
+        ))
         copied = source_anchor
         for old_rid in dict.fromkeys(re.findall(r'\br:(?:embed|link|id)=["\']([^"\']+)', copied, re.IGNORECASE)):
             rel = original_rels.get(old_rid)
@@ -3629,7 +3635,26 @@ def _passthrough_writer_anchors(
             return replacement
         return re.sub(r'(<wp:docPr\b[^>]*\bid=)(["\'])(\d+)\2', unique_docpr, copied)
 
-    return _WRITER_ANCHOR_RE.sub(replace, converted_xml), converted_rels_xml, next_rid, media, extensions
+    patched_xml = _WRITER_ANCHOR_RE.sub(replace, converted_xml)
+    removable_entries: set[str] = set()
+    for old_rid in replaced_rids:
+        if re.search(rf'\br:(?:embed|link|id)=["\']{re.escape(old_rid)}["\']', patched_xml, re.IGNORECASE):
+            continue
+        records = _relationship_records(converted_rels_xml)
+        old_rel = records.get(old_rid)
+        converted_rels_xml = re.sub(
+            rf'<Relationship\b(?=[^>]*\bId=["\']{re.escape(old_rid)}["\'])[^>]*/?>',
+            "", converted_rels_xml, count=1, flags=re.IGNORECASE,
+        )
+        if not old_rel or old_rel.get("TargetMode") == "External":
+            continue
+        old_target = old_rel.get("Target", "")
+        if not any(
+            rel.get("Target") == old_target and rel.get("TargetMode") != "External"
+            for rel in _relationship_records(converted_rels_xml).values()
+        ):
+            removable_entries.add("word/" + old_target.lstrip("./"))
+    return patched_xml, converted_rels_xml, next_rid, media, extensions, removable_entries
 
 
 def postprocess_writer_docx(
@@ -3707,7 +3732,7 @@ def postprocess_writer_docx(
     new_xml = _repair_writer_double_fills(new_xml)
     with zipfile.ZipFile(io.BytesIO(docx_bytes)) as converted_zip:
         existing_entries = set(converted_zip.namelist())
-    new_xml, converted_rels_xml, next_rid, anchor_media, anchor_extensions = (
+    new_xml, converted_rels_xml, next_rid, anchor_media, anchor_extensions, obsolete_anchor_media = (
         _passthrough_writer_anchors(
             new_xml, original_xml, source_docx, converted_rels_xml, next_rid,
             existing_entries,
@@ -3793,6 +3818,8 @@ def postprocess_writer_docx(
         written_replacements: set[str] = set()
         for item in zin.infolist():
             if item.is_dir() or not item.filename or item.filename.endswith("/"):
+                continue
+            if item.filename in obsolete_anchor_media:
                 continue
             if item.filename in replacements:
                 data = replacements[item.filename]

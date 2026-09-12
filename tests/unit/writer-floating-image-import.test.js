@@ -116,10 +116,11 @@ export async function runWriterFloatingImageImportTests() {
     check(/^<div\b/i.test(body), "Float anchor did not become div");
   });
 
-  test("Image-only document keeps paragraph page-break semantics", () => {
+  test("Image-only document keeps group carrier break out of paragraph semantics", () => {
     const html = '<body><p style="page-break-before:always"><span class="sd-abs-pos" style="position:absolute;left:1cm;top:1cm"><img src="x"></span></p></body>';
-    const body = new WriterAdapter(null)._normalizeImportedHtml(html, OOXML).body;
-    check(/^<p\b/i.test(body) && body.includes("page-break-before:always"), "Image-only anchor paragraph changed");
+    const groupedOoxml = OOXML.replace("<wp:wrapNone/>", "<wp:wrapNone/><wpg:wgp/>");
+    const body = new WriterAdapter(null)._normalizeImportedHtml(html, groupedOoxml).body;
+    check(/^<div\b/i.test(body) && body.includes("page-break-before:always"), "Image-only anchor carrier was not isolated");
   });
 
   test("Export restores original page-relative geometry without canvas anchor layout", () => {
@@ -139,7 +140,7 @@ export async function runWriterFloatingImageImportTests() {
     const exported = new WriterAdapter(body)._contentForExport();
     check(/<img[^>]*style="[^"]*left:1cm;top:2cm;/i.test(exported), `Export did not restore LibreOffice geometry: ${exported}`);
     check(!/data-vno-float-anchor[^>]*\b(?:min-height|position)\s*:/i.test(exported), `Canvas-only anchor layout leaked into export: ${exported}`);
-    check(!/data-vno-float-anchor[^>]*\b(?:page-break-before|break-before)\s*:/i.test(exported), "Carrier paragraph page break leaked into export");
+    check(/data-vno-float-anchor[^>]*\bpage-break-before\s*:\s*always/i.test(exported), "Carrier break metadata was stripped from export");
   });
 
   return results;

@@ -1825,7 +1825,7 @@ export class WriterAdapter {
       const cleanedStyle = style.replace(/\b(?:position|top|left|width|height)\s*:\s*[^;]+;?\s*/gi, "").trim();
       const kind = isImage ? "image" : "textbox";
       result += src.slice(cursor, opening.index);
-      result += `<span data-vno-float="${kind}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}" style="position:absolute;left:${displayLeft}cm;top:${displayTop}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:-1;" : `z-index:${anchorIndex};`}${cleanedStyle}">${inner}</span>`;
+      result += `<span data-vno-float="${kind}" data-vno-source-group="${meta.sourceGroup ? "1" : "0"}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}" style="position:absolute;left:${displayLeft}cm;top:${displayTop}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:-1;" : `z-index:${anchorIndex};`}${cleanedStyle}">${inner}</span>`;
       cursor = close + 7;
     }
     return result;
@@ -1834,6 +1834,7 @@ export class WriterAdapter {
   _makeFloatingAnchorContainers(html) {
     let out = String(html || "");
     if (!/\bdata-vno-float=["'](?:image|textbox)["']/i.test(out)) return out;
+    const hasNativeGroup = /data-vno-source-group=["']1["']/i.test(out);
     const tags = [...out.matchAll(/<p\b[^>]*>|<\/p>/gi)];
     const stack = [];
     const replacements = [];
@@ -1867,7 +1868,10 @@ export class WriterAdapter {
       }
       const layoutStyle = `${paragraphRelative ? "position:relative;" : "position:static;"}${reserveCm > 0 ? `min-height:${Number(reserveCm.toFixed(3))}cm;` : ""}`;
       const attrs = opening[0].slice(2, -1).replace(/\bstyle=["']([^"']*)["']/i, (_m, style) => `style="${layoutStyle}${style}"`);
-      const wrapperTag = hasTextbox ? "div" : "p";
+      // Image-only carrier paragraphs are LibreOffice layout scaffolding. Keep
+      // them as divs so Word does not promote page breaks attached to grouped
+      // drawing carriers; ordinary image carrier paragraphs remain p.
+      const wrapperTag = hasNativeGroup || hasTextbox ? "div" : "p";
       const openTag = /\bstyle=/i.test(attrs) ? `<${wrapperTag} data-vno-float-anchor${attrs}>` : `<${wrapperTag} data-vno-float-anchor${attrs} style="${layoutStyle}">`;
       replacements.push([tag.index, tag.index + tag[0].length, `</${wrapperTag}>`]);
       if (adjustedInner !== inner) replacements.push([opening.index + opening[0].length, tag.index, adjustedInner]);
@@ -7406,16 +7410,15 @@ export class WriterAdapter {
   }
 
   _prepareFloatingFramesForExport(html) {
-    // The anchor's position/min-height are canvas-only layout aids. Page-break
-    // declarations on these carrier paragraphs must also stay out of the HTML
-    // export: the native anchored frame restored by the DOCX postprocessor owns
-    // pagination, while importing the carrier break creates a second real page
-    // break. Float geometry itself is rebuilt below from original data-vno-*.
+    // The anchor's position/min-height are canvas-only layout aids. Keep page
+    // breaks on image carrier paragraphs: they are real Word pagination from
+    // the source document, not geometry owned by the floating frame. Float
+    // geometry itself is rebuilt below from original data-vno-*.
     const src = String(html || "").replace(
       /(<(?:div|p)\b[^>]*\bdata-vno-float-anchor\b[^>]*\bstyle=["'])([^"']*)(["'])/gi,
       (_m, pre, styleVal, post) => {
         const exportStyle = styleVal
-          .replace(/\b(?:min-height|position|page-break-before|break-before)\s*:\s*[^;]+;?\s*/gi, "")
+          .replace(/\b(?:min-height|position)\s*:\s*[^;]+;?\s*/gi, "")
           .trim();
         return `${pre}${exportStyle}${post}`;
       }
