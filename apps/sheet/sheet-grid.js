@@ -51,6 +51,22 @@ export const SHEET_MM_TO_PX = 3.7795275591; // 96dpi
 // Lề trong pageSetupBySheet lưu bằng CM (xem showPageSetupDialog: input "(cm)"), khác mm.
 export const SHEET_CM_TO_PX = SHEET_MM_TO_PX * 10;
 
+export function _getTabContrastTextColor(hexColor) {
+  if (!hexColor || typeof hexColor !== "string") return "#000000";
+  let hex = hexColor.trim().replace(/^#/, "");
+  if (hex.length === 3) {
+    hex = hex.split("").map(c => c + c).join("");
+  }
+  if (hex.length >= 6) {
+    const r = parseInt(hex.substring(0, 2), 16) || 0;
+    const g = parseInt(hex.substring(2, 4), 16) || 0;
+    const b = parseInt(hex.substring(4, 6), 16) || 0;
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness >= 130 ? "#000000" : "#ffffff";
+  }
+  return "#000000";
+}
+
 function newSheetPageSetup(overrides = {}) {
   return {
     margins: { ...DEFAULT_SHEET_PAGE_SETUP.margins, ...(overrides.margins || {}) },
@@ -1978,16 +1994,22 @@ export class SheetGridController {
       tab.setAttribute("aria-label", protectedSheet
         ? t("sheetDialogs.sheetTabProtectedAria", { name: sheetName })
         : sheetName);
-      // Tab color: apply Excel-style colored underline (inactive) or full tab tint (active)
+      // Tab color: Excel 2016 style
+      // Inactive tab: full background color + auto text color (white/black by brightness)
+      // Active tab: white background with 15% tint + 3px colored bottom border
+      // Tab without color: keep default style untouched
       const tabColor = (this.sheetStates?.[sheetName]?.tabColor) || (this.tabColors?.[sheetName]);
       if (tabColor) {
+        tab.classList.add("has-tab-color");
         if (isActive) {
-          // Active tab: subtle background tint + colored bottom border (3px like Excel)
-          tab.style.backgroundColor = `${tabColor}20`; // 12% opacity
+          tab.style.background = `linear-gradient(to top, ${tabColor}26 0%, #ffffff 100%)`;
+          tab.style.backgroundColor = "#ffffff";
           tab.style.borderBottom = `3px solid ${tabColor}`;
         } else {
-          // Inactive tab: colored bottom border only (3px like Excel)
-          tab.style.borderBottom = `3px solid ${tabColor}`;
+          tab.style.background = tabColor;
+          tab.style.backgroundColor = tabColor;
+          tab.style.color = _getTabContrastTextColor(tabColor);
+          tab.style.borderBottom = "3px solid transparent";
         }
       }
       const label = document.createElement("span");
@@ -6071,8 +6093,13 @@ export class SheetGridController {
 
   _applyViewState() {
     if (this.table) {
-      this.table.style.transform = `scale(${this.zoomLevel})`;
-      this.table.style.transformOrigin = "top left";
+      if (this.zoomLevel === 1 && typeof document !== "undefined" && typeof HTMLElement !== "undefined" && this.table instanceof HTMLElement) {
+        this.table.style.transform = "";
+        this.table.style.transformOrigin = "";
+      } else {
+        this.table.style.transform = `scale(${this.zoomLevel})`;
+        this.table.style.transformOrigin = "top left";
+      }
       this.table.dataset.zoom = String(this.zoomLevel);
     }
     this.container?.classList.toggle("vno-hide-gridlines", !this.gridlinesVisible);

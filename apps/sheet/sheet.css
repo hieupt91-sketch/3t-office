@@ -123,7 +123,6 @@
   font-size: var(--vno-text-xs);
   font-family: var(--vno-font-ui);
   transform-origin: top left;
-  transition: transform 120ms ease-out;
 }
 
 .vno-hide-gridlines .vno-grid-cell {
@@ -148,7 +147,7 @@
   position: sticky;
   top: 0;
   left: 0;
-  z-index: 20;
+  z-index: 25;
 }
 
 .vno-col-header[hidden],
@@ -168,7 +167,7 @@
   user-select: none;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 14;
 }
 .vno-col-header:hover {
   background-color: var(--vno-sheet-light);
@@ -187,7 +186,7 @@
   user-select: none;
   position: sticky;
   left: 0;
-  z-index: 9;
+  z-index: 12;
 }
 .vno-row-header:hover {
   background-color: var(--vno-sheet-light);
@@ -922,6 +921,17 @@ tr.is-filtered-out {
   outline: 2px solid var(--vno-border-focus);
   outline-offset: -1px;
 }
+.vno-sheet-tab-item.has-tab-color {
+  border-bottom-width: 3px;
+}
+.vno-sheet-tab-item.has-tab-color:not(.is-active):hover {
+  filter: brightness(0.92);
+}
+.vno-sheet-tab-item.has-tab-color.is-active {
+  background-color: #ffffff;
+  color: var(--vno-sheet-primary-fg, #0f6d38);
+}
+
 
 .vno-dialog-hint {
   margin: 0;
