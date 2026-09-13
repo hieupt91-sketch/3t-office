@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office — Number Formatter for VN Sheet
  * Xử lý định dạng hiển thị giá trị ô theo chuẩn Microsoft Excel & LibreOffice Calc
  * Hỗ trợ đầy đủ các Category: General, Number, Currency, Accounting, Date, Percentage, Text, Custom.
@@ -124,6 +124,10 @@ export class NumberFormatter {
 
     const isNegative = num < 0;
     const absVal = Math.abs(num);
+
+    if (num === 0 && (config.zeroFormat === "-" || config.zeroAsDash)) {
+      return { text: "-", isNegative: false, isRed: false, align: "right" };
+    }
 
     let formattedNumber = this._formatDecimalAndThousands(absVal, decimals, useThousands);
 
@@ -401,6 +405,7 @@ export class NumberFormatter {
     }
 
     output = output.replace(/\u0000(\d+)\u0000/g, (_, idx) => literals[Number(idx)] || "");
+    output = output.replace(/_[\s\S]/g, "").replace(/\*[\s\S]/g, "").replace(/\\(.)/g, "$1").replace(/\?/g, "").trim();
 
     return { text: output, isRed, align: "right" };
   }

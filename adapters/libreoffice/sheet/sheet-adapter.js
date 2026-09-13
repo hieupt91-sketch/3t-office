@@ -17,27 +17,50 @@ export function numberFormatFromExcelCode(code) {
   if (!source || /^general$/i.test(source)) return { category: "general" };
   if (source === "@") return { category: "text" };
   const first = source.split(";")[0];
-  const visible = first.replace(/"[^"]*"|\\.|\[[^\]]*\]|_[^ ]|\*./g, "");
+  const visible = first.replace(/"[^"]*"|\\.|\[[^\]]*\]|_[\s\S]|\*[\s\S]/g, "");
   const decimals = (visible.match(/\.([0#?]+)/)?.[1] || "").length;
   const negative = source.split(";")[1] || "";
   const negativeStyle = /\([^)]*[0#?]/.test(negative) ? (/\[red\]/i.test(negative) ? 3 : 2) : (/\[red\]/i.test(negative) ? 1 : 0);
   const useThousands = /#,##|0,000/.test(visible);
   if (/%/.test(visible)) return { category: "percentage", decimals };
-  const currency = source.match(/\[\$([^\]-]+)(?:-[^\]]+)?\]/)?.[1]
-    || source.match(/"([$€£¥₫])"/)?.[1]
-    || source.match(/[$€£¥₫]/)?.[0]
-    || (/\bVND\b/i.test(source) ? "₫" : "");
+
+  // Strip non-currency parts (_x padding, *x fill, \x escape, [tags]) before matching naked currency
+  const bracketCurrency = source.match(/\[\$([^\]-]+)(?:-[^\]]+)?\]/)?.[1];
+  const quotedCurrency = source.match(/"([^"]*?[$€£¥₫][^"]*?)"/)?.[1] || source.match(/"([$€£¥₫])"/)?.[1];
+  const stripped = source
+    .replace(/\[\$([^\]-]+)(?:-[^\]]+)?\]/g, "")
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/"[^"]*"/g, "")
+    .replace(/_[\s\S]|\*[\s\S]|\\./g, "");
+  const nakedCurrency = stripped.match(/[$€£¥₫]/)?.[0] || (/\bVND\b/i.test(stripped) ? "₫" : "");
+  const currency = bracketCurrency || quotedCurrency || nakedCurrency || "";
+
   if (currency) {
     const accounting = /_[([]|\*\s|_\)/.test(source);
     return { category: accounting ? "accounting" : "currency", decimals, useThousands, currencySymbol: currency, negativeStyle };
   }
+
+  // Section 3 (zero value) format
+  const sections = source.split(";");
+  let zeroFormat;
+  if (sections.length > 2) {
+    const zeroSec = sections[2].replace(/_[\s\S]|\*[\s\S]|\\./g, "").trim();
+    if (zeroSec.includes('"-"') || /^-+$/.test(zeroSec.replace(/\?/g, "").trim())) {
+      zeroFormat = "-";
+    }
+  }
+
   const dateCode = visible.replace(/AM\/PM/ig, "").toLowerCase();
   if (/[dmy]/.test(dateCode) || /h+\s*:|\[h\]/i.test(source)) {
     return { category: "date", dateFormat: source.replace(/\[[^\]]*\]/g, "").replace(/"([^"]*)"/g, "$1") };
   }
   if (/e[+-]0/i.test(visible)) return { category: "scientific", decimals };
   if (/[/][?#0]/.test(visible)) return { category: "custom", code: source, customPattern: source };
-  if (/[#0?]/.test(visible)) return { category: "number", decimals, useThousands, negativeStyle };
+  if (/[#0?]/.test(visible)) {
+    const res = { category: "number", decimals, useThousands, negativeStyle };
+    if (zeroFormat) res.zeroFormat = zeroFormat;
+    return res;
+  }
   return { category: "custom", code: source, customPattern: source };
 }
 
