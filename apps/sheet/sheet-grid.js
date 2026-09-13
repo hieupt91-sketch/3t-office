@@ -1978,6 +1978,18 @@ export class SheetGridController {
       tab.setAttribute("aria-label", protectedSheet
         ? t("sheetDialogs.sheetTabProtectedAria", { name: sheetName })
         : sheetName);
+      // Tab color: apply Excel-style colored underline (inactive) or full tab tint (active)
+      const tabColor = (this.sheetStates?.[sheetName]?.tabColor) || (this.tabColors?.[sheetName]);
+      if (tabColor) {
+        if (isActive) {
+          // Active tab: subtle background tint + colored bottom border (3px like Excel)
+          tab.style.backgroundColor = `${tabColor}20`; // 12% opacity
+          tab.style.borderBottom = `3px solid ${tabColor}`;
+        } else {
+          // Inactive tab: colored bottom border only (3px like Excel)
+          tab.style.borderBottom = `3px solid ${tabColor}`;
+        }
+      }
       const label = document.createElement("span");
       label.className = "vno-sheet-tab-label";
       label.textContent = sheetName;
