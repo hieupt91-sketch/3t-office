@@ -1143,9 +1143,17 @@ export class SheetAdapter {
           if (parts.length < 3) return val;
           const [width, style, ...rest] = parts;
           let w = width;
-          if (w.endsWith("pt")) {
-            const pxVal = Math.round(parseFloat(w) * (96 / 72) * 100) / 100;
-            w = `${pxVal}px`;
+          const wMatch = String(w).match(/^(-?[\d.]+)\s*(cm|mm|in|pt|pc|px)?$/i);
+          if (wMatch) {
+            const amount = Number(wMatch[1]);
+            const unit = (wMatch[2] || "px").toLowerCase();
+            const px = unit === "mm" ? amount * 3.779527559055118
+              : unit === "cm" ? amount * 37.79527559055118
+              : unit === "in" ? amount * 96
+              : unit === "pt" ? amount * (96 / 72)
+              : unit === "pc" ? amount * 16
+              : amount;
+            w = `${Math.round(px * 100) / 100}px`;
           }
           let s = style;
           if (s === "double-thin") s = "double";
@@ -1231,9 +1239,9 @@ export class SheetAdapter {
       if (fontName) style.fontFamily = fontName;
       const fontSize = textProps.match(/fo:font-size=["']([^"']+)["']/i)?.[1];
       if (fontSize) {
-        if (fontSize.endsWith("pt")) style.fontSize = `${parseFloat(fontSize) * 1.3333}px`;
-        else if (fontSize.endsWith("px")) style.fontSize = fontSize;
-        else style.fontSize = `${fontSize}px`;
+        if (fontSize.endsWith("pt")) style.fontSize = `${Math.round(parseFloat(fontSize) * (96 / 72) * 100) / 100}px`;
+        else if (fontSize.endsWith("px")) style.fontSize = `${Math.round(parseFloat(fontSize) * 100) / 100}px`;
+        else style.fontSize = `${Math.round(parseFloat(fontSize) * 100) / 100}px`;
       }
       raw.set(name, { style, parentName });
       return "";
@@ -2338,7 +2346,10 @@ export class SheetAdapter {
       const sheetStateAttr = (visStateLower === "hidden" || visStateLower === "veryhidden")
         ? ` vno:sheet-state="${visStateLower === "veryhidden" ? "veryHidden" : "hidden"}"`
         : "";
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"${freezeAttr}${sheetStateAttr}`;
+      // Tab color: serialize vno:tab-color for round-trip fidelity
+      const tabColor = this.grid.sheetStates?.[sheetName]?.tabColor;
+      const tabColorAttr = tabColor ? ` vno:tab-color="${this._escapeXml(tabColor)}"` : "";
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"${freezeAttr}${sheetStateAttr}${tabColorAttr}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -2460,11 +2471,7 @@ export class SheetAdapter {
     for (const attr of ["office:value", "office:string-value", "office:date-value", "office:time-value", "office:boolean-value"]) {
       if (attributes[attr] !== undefined && attributes[attr] !== "") return true;
     }
-    const markup = String(content || "");
-    if (!markup) return false;
-    if (/<office:annotation\b/i.test(markup) || /<draw:frame\b/i.test(markup)) return true;
-    if (markup.replace(/<[^>]+>/g, "").trim() !== "") return true;
-    // Check if cell has a style with borders
+    // Check if cell has a style with borders (empty cells with borders must be materialized)
     const styleName = attributes["table:style-name"];
     if (styleName && cellVisualStyles.has(styleName)) {
       const visualStyle = cellVisualStyles.get(styleName);
@@ -2472,6 +2479,10 @@ export class SheetAdapter {
         return true;
       }
     }
+    const markup = String(content || "");
+    if (!markup) return false;
+    if (/<office:annotation\b/i.test(markup) || /<draw:frame\b/i.test(markup)) return true;
+    if (markup.replace(/<[^>]+>/g, "").trim() !== "") return true;
     return false;
   }
 
@@ -3043,7 +3054,11 @@ export class SheetAdapter {
                 const annotation = Array.from(cell.children).find(child => child.localName === "annotation");
                 const paragraphs = Array.from(cell.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p")).filter(paragraph => !annotation?.contains(paragraph));
                 const text = this._decodeImportedCellText(paragraphs.map(paragraph => paragraph.textContent || "").join("\n"));
-                const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"];
+                // Ô rỗng nhưng có viền/nền (style-only) cũng phải vào model, nếu không
+                // serializeToFods bỏ table:style-name -> XLSX lưu ra mất viền (đo Dahua:
+                // FODS soffice 573 ô viền, app gửi đi 468 khi thiếu nhánh này).
+                const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"]
+                  || (columnNumber <= lastDataCol && this._fodsCellHasRealContent(cell, cellVisualStyles));
                 if (hasValue && !isCovered) {
                   const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
                   // Extract rich text runs from <text:span> elements
@@ -3091,6 +3106,8 @@ export class SheetAdapter {
           });
           arrayFormulas.forEach(region => this._restoreArrayFormula(data, region.column, region.row, region.columns, region.rows, region.formula));
           this._applyXlsxLayoutOverlay(table.getAttribute("vno:xlsx-layout"), rowHeights, colWidths);
+          // Tab color: read vno:tab-color from table:table element
+          const tabColor = table.getAttribute("vno:tab-color") || "";
           workbook.sheets.push(name);
           workbook.sheetsData[name] = data;
           workbook.commentsBySheet[name] = comments;
@@ -3104,6 +3121,10 @@ export class SheetAdapter {
           workbook.userHiddenColsBySheet[name] = hiddenCols;
           workbook.imagesBySheet = workbook.imagesBySheet || {};
           workbook.imagesBySheet[name] = images;
+          if (tabColor) {
+            workbook.tabColors = workbook.tabColors || {};
+            workbook.tabColors[name] = tabColor;
+          }
         });
       }
     }
@@ -3310,6 +3331,9 @@ export class SheetAdapter {
         }
         arrayFormulas.forEach(region => this._restoreArrayFormula(data, region.column, region.row, region.columns, region.rows, region.formula));
         this._applyXlsxLayoutOverlay(pageAttr("vno:xlsx-layout"), rowHeights, colWidths);
+        // Tab color: read vno:tab-color from table:table element (regex branch)
+        const tabColorMatch = tableMatch[1].match(/vno:tab-color=["']([^"']*)["']/i);
+        const tabColor = tabColorMatch ? tabColorMatch[1] : "";
         workbook.sheets.push(name);
         workbook.sheetsData[name] = data;
         workbook.commentsBySheet[name] = comments;
@@ -3323,6 +3347,10 @@ export class SheetAdapter {
         workbook.userHiddenColsBySheet[name] = hiddenCols;
         workbook.imagesBySheet = workbook.imagesBySheet || {};
         workbook.imagesBySheet[name] = images;
+        if (tabColor) {
+          workbook.tabColors = workbook.tabColors || {};
+          workbook.tabColors[name] = tabColor;
+        }
       }
     }
     if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
@@ -3365,8 +3393,6 @@ export class SheetAdapter {
       this.grid.printAreaBySheet[sheetName] = workbook.printAreaBySheet[sheetName] || null;
       this.grid.pageSetupBySheet[sheetName] = workbook.pageSetupBySheet[sheetName];
     }
-    if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet);
-    else this.grid.activeSheet = workbook.activeSheet;
     this.grid.conditionalFormattingBySheet = {};
     this.grid.dataValidationsBySheet = {};
     this.grid.pivotTablesBySheet = {};
@@ -3382,6 +3408,8 @@ export class SheetAdapter {
     this.grid.workbookProtection = workbook.workbookProtection || { enabled: false, password: "" };
     // Sheet visibility (hidden/veryHidden) — round-trip via vno:sheet-state
     this.grid.sheetVisibilityBySheet = workbook.sheetVisibilityBySheet || {};
+    // Store tabColors on grid for fallback access in _renderSheetTabs
+    this.grid.tabColors = workbook.tabColors || {};
     for (const sheetName of workbook.sheets) {
       this.grid.conditionalFormattingBySheet[sheetName] = workbook.conditionalFormattingBySheet?.[sheetName] || [];
       this.grid.dataValidationsBySheet[sheetName] = workbook.dataValidationsBySheet?.[sheetName] || [];
@@ -3403,6 +3431,10 @@ export class SheetAdapter {
       this.grid.sheetStates[sheetName].frozenRows = freeze.rows;
       this.grid.sheetStates[sheetName].frozenCols = freeze.cols;
       this.grid.sheetStates[sheetName].isFrozenPanes = freeze.rows > 0 || freeze.cols > 0;
+      // Tab color: restore from workbook.tabColors
+      if (workbook.tabColors?.[sheetName]) {
+        this.grid.sheetStates[sheetName].tabColor = workbook.tabColors[sheetName];
+      }
       // AutoFilter: if the FODS had <table:database-range> for this sheet,
       // restore the filter state so it round-trips through serializeToFods.
       const autoFilterRef = workbook.autoFilterBySheet?.[sheetName];
@@ -3411,9 +3443,8 @@ export class SheetAdapter {
         this.grid.sheetStates[sheetName].filterRange = autoFilterRef;
       }
     }
-    // switchSheet() ở trên chạy TRƯỚC vòng lặp này gán frozenRows/frozenCols
-    // vào sheetStates, nên trạng thái sống của grid cho sheet đang active cần
-    // đồng bộ lại thủ công ở đây.
+    if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet);
+    else this.grid.activeSheet = workbook.activeSheet;
     const activeFreezeState = this.grid.sheetStates[this.grid.activeSheet];
     this.grid.frozenRows = activeFreezeState?.frozenRows || 0;
     this.grid.frozenCols = activeFreezeState?.frozenCols || 0;

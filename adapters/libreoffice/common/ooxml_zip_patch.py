@@ -2701,6 +2701,11 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_number_formats_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_original_strings_from_xlsx(xlsx_bytes, xml)
+    # Sheet tab colors: read from original XLSX worksheet XMLs and write
+    # vno:tab-color to FODS table:table elements for round-trip fidelity.
+    tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
+    if tab_colors:
+        xml = apply_tab_colors_to_fods(xml, tab_colors)
     return xml
 
 
@@ -3022,6 +3027,53 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
         return f'<table:table{attrs} vno:xlsx-layout="{encoded}">'
 
     return re.sub(r"<table:table(?=[\s>/])([^>]*)>", add_layout, fods_xml, flags=re.IGNORECASE)
+
+
+def parse_tab_colors_from_xlsx(xlsx_bytes: bytes) -> dict[str, str]:
+    """Parse tabColor from each worksheet XML in XLSX.
+    
+    Returns dict mapping sheet name -> #RRGGBB color string.
+    """
+    result: dict[str, str] = {}
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    if not sheet_entries:
+        return result
+    for sheet_name, entry_path in sheet_entries.items():
+        entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry_bytes:
+            continue
+        sheet_xml = entry_bytes.decode("utf-8", errors="replace")
+        # <sheetPr><tabColor rgb="FFRRGGBB"/></sheetPr>
+        match = re.search(r'<tabColor\b([^>]*)\/?>', sheet_xml, re.IGNORECASE)
+        if match:
+            attrs = match.group(1)
+            rgb_match = re.search(r'rgb\s*=\s*["\']([0-9A-Fa-f]{8})["\']', attrs)
+            if rgb_match:
+                argb = rgb_match.group(1)
+                # XLSX tabColor is ARGB (8 hex digits), we want RGB
+                if len(argb) == 8:
+                    rgb = argb[2:]  # Skip alpha
+                    result[sheet_name] = f"#{rgb.upper()}"
+    return result
+
+
+def apply_tab_colors_to_fods(fods_xml: str, tab_colors: dict[str, str]) -> str:
+    """Apply tab colors to FODS table:table elements as vno:tab-color attribute."""
+    if not tab_colors:
+        return fods_xml
+    
+    def add_tab_color(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs)
+        name = _unescape_xml(name_match.group(1)) if name_match else ""
+        color = tab_colors.get(name)
+        if not color:
+            return match.group(0)
+        # Remove existing vno:tab-color if present
+        attrs = re.sub(r'\s+vno:tab-color="[^"]*"', "", attrs)
+        return f'<table:table{attrs} vno:tab-color="{color}">'
+    
+    return re.sub(r"<table:table(?=[\s>/])([^>]*)>", add_tab_color, fods_xml, flags=re.IGNORECASE)
 
 
 def _overlay_autofilter_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:

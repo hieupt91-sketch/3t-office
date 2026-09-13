@@ -870,9 +870,8 @@ export class SlidesAdapter {
       if (fmt.bg && fmt.bg !== "transparent") spanStyles.push(`background-color:${fmt.bg}`);
       if (fmt.family) {
         const cleanFamily = fmt.family.replace(/['"]/g, "").trim();
-        const displayFont = resolveDisplayFont(cleanFamily, fmt.genericFamily);
-        const generic = /serif|times/i.test(displayFont) ? "serif" : "sans-serif";
-        spanStyles.push(`font-family:'${displayFont}',${generic}`);
+        const generic = fmt.genericFamily && /serif|roman|times/i.test(fmt.genericFamily) ? "serif" : "sans-serif";
+        spanStyles.push(`font-family:'${cleanFamily}',${generic}`);
       }
       if (fmt.size) spanStyles.push(`font-size:${fmt.size}`);
       if (spanStyles.length) wrapped = `<span style="${spanStyles.join(";")}">${wrapped}</span>`;
@@ -957,14 +956,15 @@ export class SlidesAdapter {
       .replace(/&amp;/g, "&");
   }
 
-  _odfLengthToPx(raw) {
+  _odfLengthToPx(raw, round = true) {
     const match = String(raw || "").trim().match(/^(-?[\d.]+)\s*(cm|mm|in|pt|px)?$/i);
     if (!match) return 0;
     const value = Number(match[1]);
     if (!Number.isFinite(value)) return 0;
     const unit = (match[2] || "cm").toLowerCase();
     const pxPerUnit = { cm: 37.795275591, mm: 3.7795275591, in: 96, pt: 96 / 72, px: 1 };
-    return Math.round(value * (pxPerUnit[unit] || pxPerUnit.cm));
+    const px = value * (pxPerUnit[unit] || pxPerUnit.cm);
+    return round ? Math.round(px) : Math.round(px * 1000) / 1000;
   }
 
   _pxToOdf(px) {
@@ -1034,9 +1034,9 @@ export class SlidesAdapter {
   }
 
   _isTransparentFill(shape) {
-    const type = shape?.type;
-    return type === "textbox" || type === "text" || type === "table" || type === "wordart"
-      || !shape?.color || shape.color === "transparent";
+    if (shape?.type === "wordart") return true;
+    const color = shape?.color;
+    return !color || color === "transparent" || color === "none";
   }
 
   _sanitizeDrawId(raw, used) {
@@ -1112,25 +1112,48 @@ export class SlidesAdapter {
    * grNone...) cho trường hợp phổ biến không dùng 2 tính năng này, tránh phá
    * vỡ các fixture/test đã có tên style cố định từ trước.
    */
-  _shapeTextStyleSuffix(shape) {
-    if (["connector", "image", "video", "audio", "chart", "table", "wordart"].includes(shape?.type)) return "";
-    if (shape?.text === undefined) return "";
-    const vAlign = shape.textVAlign && shape.textVAlign !== "middle" ? shape.textVAlign : "";
-    const dir = shape.textDirection && shape.textDirection !== "horizontal" ? shape.textDirection : "";
-    if (!vAlign && !dir) return "";
-    return `_${vAlign || "m"}${dir ? `_${dir}` : ""}`;
+  _padKey(shape) {
+    if (shape?.paddingTop == null && shape?.paddingBottom == null && shape?.paddingLeft == null && shape?.paddingRight == null) {
+      return "";
+    }
+    const pt = shape.paddingTop != null ? this._pxToOdf(shape.paddingTop).replace(/[^a-z0-9]/gi, "") : "none";
+    const pr = shape.paddingRight != null ? this._pxToOdf(shape.paddingRight).replace(/[^a-z0-9]/gi, "") : "none";
+    const pb = shape.paddingBottom != null ? this._pxToOdf(shape.paddingBottom).replace(/[^a-z0-9]/gi, "") : "none";
+    const pl = shape.paddingLeft != null ? this._pxToOdf(shape.paddingLeft).replace(/[^a-z0-9]/gi, "") : "none";
+    return `_p${pt}_${pr}_${pb}_${pl}`;
   }
 
-  /** Thuộc tính ODF chuẩn cho căn lề dọc + hướng chữ, cộng vno:text-direction riêng để khôi phục CHÍNH XÁC vertical270/stacked (ODF không có 2 giá trị writing-mode chuẩn tương ứng). */
+  _shapeTextStyleSuffix(shape) {
+    if (["connector", "image", "video", "audio", "chart", "table", "wordart"].includes(shape?.type)) return "";
+    const vAlign = shape.textVAlign && shape.textVAlign !== "middle" ? shape.textVAlign : "";
+    const dir = shape.textDirection && shape.textDirection !== "horizontal" ? shape.textDirection : "";
+    const pad = this._padKey(shape);
+    if (!vAlign && !dir && !pad) return "";
+    return `_${vAlign || "m"}${dir ? `_${dir}` : ""}${pad}`;
+  }
+
+  /** Thuộc tính ODF chuẩn cho căn lề dọc + hướng chữ + padding hộp chữ + autofit/wrap. */
   _textStyleGraphicAttrs(shape) {
-    if (!this._shapeTextStyleSuffix(shape)) return "";
     let attrs = "";
-    if (shape.textVAlign && shape.textVAlign !== "middle") {
+    if (shape.textVAlign) {
       attrs += ` draw:textarea-vertical-align="${this._escapeXml(shape.textVAlign)}"`;
     }
     if (shape.textDirection && shape.textDirection !== "horizontal") {
       const writingMode = shape.textDirection === "stacked" ? "tb-lr" : "tb-rl";
       attrs += ` style:writing-mode="${writingMode}" vno:text-direction="${this._escapeXml(shape.textDirection)}"`;
+    }
+    if (shape.paddingTop != null) attrs += ` fo:padding-top="${this._pxToOdf(shape.paddingTop)}"`;
+    if (shape.paddingBottom != null) attrs += ` fo:padding-bottom="${this._pxToOdf(shape.paddingBottom)}"`;
+    if (shape.paddingLeft != null) attrs += ` fo:padding-left="${this._pxToOdf(shape.paddingLeft)}"`;
+    if (shape.paddingRight != null) attrs += ` fo:padding-right="${this._pxToOdf(shape.paddingRight)}"`;
+    if (shape.wrap) attrs += ` fo:wrap-option="${this._escapeXml(shape.wrap)}"`;
+    // autofit: noAutofit → auto-grow-height/width=false; shrinkToFit → shrink-to-fit=true; fitToSize → fit-to-size=true
+    if (shape.autofit === false || shape.noAutofit) {
+      attrs += ` draw:auto-grow-height="false" draw:auto-grow-width="false"`;
+    } else if (shape.shrinkToFit) {
+      attrs += ` style:shrink-to-fit="true"`;
+    } else if (shape.fitToSize) {
+      attrs += ` draw:fit-to-size="true"`;
     }
     return attrs;
   }
@@ -1283,7 +1306,13 @@ export class SlidesAdapter {
 
   _hasPageBackground(slide) {
     const bg = slide?.background;
-    return !!(bg && (bg.type === "solid" || bg.type === "gradient" || (bg.type === "picture" && bg.picture)));
+    if (!bg) return false;
+    // Don't serialize default white background for imported slides
+    // (original PPTX had no background element)
+    if (slide?.imported && bg.type === "solid" && (bg.color === "#ffffff" || bg.color === "#FFFFFF" || bg.color === "white")) {
+      return false;
+    }
+    return bg.type === "solid" || bg.type === "gradient" || (bg.type === "picture" && bg.picture);
   }
 
   _slideNeedsOwnDrawingStyle(slide) {
@@ -1774,12 +1803,17 @@ export class SlidesAdapter {
     </style:style>`;
     });
 
+    const themeFont = theme?.fontFamily || "Arial";
+    const titleColor = theme?.titleColor || "#000000";
+    const bodyColor = theme?.bodyColor || "#000000";
     xml += `
     <style:style style:name="prTitle" style:family="presentation">
       <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+      <style:text-properties fo:font-family="${this._escapeXml(themeFont)}" fo:font-size="44pt" fo:font-weight="bold" fo:color="${this._escapeXml(titleColor)}" style:font-name="${this._escapeXml(themeFont)}"/>
     </style:style>
     <style:style style:name="prBody" style:family="presentation">
       <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+      <style:text-properties fo:font-family="${this._escapeXml(themeFont)}" fo:font-size="32pt" fo:color="${this._escapeXml(bodyColor)}" style:font-name="${this._escapeXml(themeFont)}"/>
     </style:style>
     <style:style style:name="grNone" style:family="graphic">
       <style:graphic-properties draw:stroke="none" draw:fill="none"/>
@@ -1801,10 +1835,20 @@ export class SlidesAdapter {
     </style:style>`;
         continue;
       }
-      const fillAttrs = this._isTransparentFill(shape) ? ` draw:fill="none"` : ` draw:fill="solid" draw:fill-color="${this._escapeXml(shape.color)}"`;
+      const isTextBox = shape.type === "textbox";
+      const isTransparent = this._isTransparentFill(shape);
+      let fillAttrs = "";
+      let strokeAttrs = "";
+      if (isTransparent) {
+        fillAttrs = ` draw:fill="none"`;
+        strokeAttrs = ` draw:stroke="none"`;
+      } else {
+        fillAttrs = ` draw:fill="solid" draw:fill-color="${this._escapeXml(shape.color)}"`;
+        strokeAttrs = ` draw:stroke="none"`;
+      }
       xml += `
     <style:style style:name="${styleName}" style:family="graphic">
-      <style:graphic-properties draw:stroke="none"${fillAttrs}${this._textStyleGraphicAttrs(shape)}/>
+      <style:graphic-properties${strokeAttrs}${fillAttrs}${this._textStyleGraphicAttrs(shape)}/>
     </style:style>`;
     }
     if (needsConnector) {
@@ -1996,6 +2040,11 @@ export class SlidesAdapter {
       const padBottom = match[2].match(/fo:padding-bottom=["']([^"']+)["']/i)?.[1];
       const padLeft = match[2].match(/fo:padding-left=["']([^"']+)["']/i)?.[1];
       const padRight = match[2].match(/fo:padding-right=["']([^"']+)["']/i)?.[1];
+      const padAll = match[2].match(/(?:^|\s)fo:padding=["']([^"']+)["']/i)?.[1];
+      const finalPadTop = padTop || padAll;
+      const finalPadBottom = padBottom || padAll;
+      const finalPadLeft = padLeft || padAll;
+      const finalPadRight = padRight || padAll;
       const shrinkToFit = /style:shrink-to-fit=["']true["']/i.test(match[2]);
       const fitToSize = /draw:fit-to-size=["']true["']/i.test(match[2]);
       const autoGrowHeight = /draw:auto-grow-height=["']true["']/i.test(match[2]);
@@ -2008,10 +2057,10 @@ export class SlidesAdapter {
         markerEnd: markerEnd || null,
         textVAlign: vAlignRaw || null,
         textDirection: (textDirection && textDirection !== "horizontal") ? textDirection : null,
-        paddingTop: padTop ? this._odfLengthToPx(padTop) : null,
-        paddingBottom: padBottom ? this._odfLengthToPx(padBottom) : null,
-        paddingLeft: padLeft ? this._odfLengthToPx(padLeft) : null,
-        paddingRight: padRight ? this._odfLengthToPx(padRight) : null,
+        paddingTop: finalPadTop ? this._odfLengthToPx(finalPadTop, false) : null,
+        paddingBottom: finalPadBottom ? this._odfLengthToPx(finalPadBottom, false) : null,
+        paddingLeft: finalPadLeft ? this._odfLengthToPx(finalPadLeft, false) : null,
+        paddingRight: finalPadRight ? this._odfLengthToPx(finalPadRight, false) : null,
         shrinkToFit,
         fitToSize,
         autoGrowHeight,
@@ -2023,6 +2072,8 @@ export class SlidesAdapter {
       let p = s.parentStyleName ? styles.get(s.parentStyleName) : null;
       let depth = 0;
       while (p && depth < 10) {
+        if (!s.fill && p.fill) s.fill = p.fill;
+        if (!s.stroke && p.stroke) s.stroke = p.stroke;
         if (!s.textVAlign && p.textVAlign) s.textVAlign = p.textVAlign;
         if (!s.textDirection && p.textDirection) s.textDirection = p.textDirection;
         if (s.paddingTop == null && p.paddingTop != null) s.paddingTop = p.paddingTop;
@@ -2108,6 +2159,18 @@ export class SlidesAdapter {
     };
     if (style.textVAlign) shape.textVAlign = style.textVAlign;
     if (style.textDirection) shape.textDirection = style.textDirection;
+    const inlinePadTop = get("fo:padding-top") || get("fo:padding") || inner.match(/fo:padding(?:-top)?=["']([^"']+)["']/i)?.[1];
+    const inlinePadBottom = get("fo:padding-bottom") || get("fo:padding") || inner.match(/fo:padding(?:-bottom)?=["']([^"']+)["']/i)?.[1];
+    const inlinePadLeft = get("fo:padding-left") || get("fo:padding") || inner.match(/fo:padding(?:-left)?=["']([^"']+)["']/i)?.[1];
+    const inlinePadRight = get("fo:padding-right") || get("fo:padding") || inner.match(/fo:padding(?:-right)?=["']([^"']+)["']/i)?.[1];
+    const pLeft = inlinePadLeft ? this._odfLengthToPx(inlinePadLeft, false) : style.paddingLeft;
+    const pRight = inlinePadRight ? this._odfLengthToPx(inlinePadRight, false) : style.paddingRight;
+    const pTop = inlinePadTop ? this._odfLengthToPx(inlinePadTop, false) : style.paddingTop;
+    const pBottom = inlinePadBottom ? this._odfLengthToPx(inlinePadBottom, false) : style.paddingBottom;
+    if (pLeft != null) shape.paddingLeft = pLeft;
+    if (pRight != null) shape.paddingRight = pRight;
+    if (pTop != null) shape.paddingTop = pTop;
+    if (pBottom != null) shape.paddingBottom = pBottom;
     return shape;
   }
 
@@ -2274,21 +2337,45 @@ export class SlidesAdapter {
       const vAlign = frameVAlign || boxVAlign || style.textVAlign || null;
       const frameShrink = /style:shrink-to-fit=["']true["']/i.test(attrs) || /style:shrink-to-fit=["']true["']/i.test(inner);
       const frameFit = /draw:fit-to-size=["']true["']/i.test(attrs) || /draw:fit-to-size=["']true["']/i.test(inner);
+      const frameAutoGrowH = /draw:auto-grow-height=["']false["']/i.test(attrs) || /draw:auto-grow-height=["']false["']/i.test(inner);
+      const frameAutoGrowW = /draw:auto-grow-width=["']false["']/i.test(attrs) || /draw:auto-grow-width=["']false["']/i.test(inner);
+      const frameWrap = this._attr(attrs, "fo:wrap-option") || inner.match(/fo:wrap-option=["']([^"']+)["']/i)?.[1];
+      const frameFill = get("draw:fill-color");
+      const boxFill = inner.match(/draw:fill-color=["']([^"']+)["']/i)?.[1];
+      const frameFillKind = get("draw:fill");
+      const boxFillKind = inner.match(/draw:fill=["']([^"']+)["']/i)?.[1];
+      let color = "transparent";
+      if (frameFillKind === "none" || boxFillKind === "none" || style.fill === "transparent") {
+        color = "transparent";
+      } else {
+        color = frameFill || boxFill || style.fill || "transparent";
+      }
       const textbox = {
         ...base,
         type: "textbox",
-        color: get("draw:fill-color") || style.fill || "transparent",
+        color,
         text: this._paragraphsFromXml(inner).join("\n"),
         textHtml: this._shapeHtmlFromXml(inner),
         shrinkToFit: frameShrink || Boolean(style.shrinkToFit),
-        autofit: frameShrink || frameFit || Boolean(style.autofit)
+        fitToSize: frameFit || Boolean(style.fitToSize),
+        noAutofit: frameAutoGrowH && frameAutoGrowW,
+        autofit: frameShrink || frameFit || Boolean(style.autofit),
+        wrap: frameWrap || style.wrap || null
       };
       if (vAlign) textbox.textVAlign = vAlign;
       if (style.textDirection) textbox.textDirection = style.textDirection;
-      if (style.paddingLeft != null) textbox.paddingLeft = style.paddingLeft;
-      if (style.paddingRight != null) textbox.paddingRight = style.paddingRight;
-      if (style.paddingTop != null) textbox.paddingTop = style.paddingTop;
-      if (style.paddingBottom != null) textbox.paddingBottom = style.paddingBottom;
+      const inlinePadTop = this._attr(attrs, "fo:padding-top") || this._attr(attrs, "fo:padding") || inner.match(/fo:padding(?:-top)?=["']([^"']+)["']/i)?.[1];
+      const inlinePadBottom = this._attr(attrs, "fo:padding-bottom") || this._attr(attrs, "fo:padding") || inner.match(/fo:padding(?:-bottom)?=["']([^"']+)["']/i)?.[1];
+      const inlinePadLeft = this._attr(attrs, "fo:padding-left") || this._attr(attrs, "fo:padding") || inner.match(/fo:padding(?:-left)?=["']([^"']+)["']/i)?.[1];
+      const inlinePadRight = this._attr(attrs, "fo:padding-right") || this._attr(attrs, "fo:padding") || inner.match(/fo:padding(?:-right)?=["']([^"']+)["']/i)?.[1];
+      const pLeft = inlinePadLeft ? this._odfLengthToPx(inlinePadLeft, false) : style.paddingLeft;
+      const pRight = inlinePadRight ? this._odfLengthToPx(inlinePadRight, false) : style.paddingRight;
+      const pTop = inlinePadTop ? this._odfLengthToPx(inlinePadTop, false) : style.paddingTop;
+      const pBottom = inlinePadBottom ? this._odfLengthToPx(inlinePadBottom, false) : style.paddingBottom;
+      if (pLeft != null) textbox.paddingLeft = pLeft;
+      if (pRight != null) textbox.paddingRight = pRight;
+      if (pTop != null) textbox.paddingTop = pTop;
+      if (pBottom != null) textbox.paddingBottom = pBottom;
       return textbox;
     }
     return null;
@@ -2567,7 +2654,12 @@ export class SlidesAdapter {
   }
 
   _masterPageFillAttrs() {
-    const color = this._cssColorToHex(this._masterTheme()?.bgColor || "") || this._masterTheme()?.bgColor;
+    const isImported = Boolean(this.canvas?.imported);
+    const theme = this._masterTheme();
+    // Default VN Office theme bgColor - don't serialize for imported docs
+    const defaultBgColor = "#f8fafc";
+    if (isImported && (!theme?.bgColor || theme.bgColor === defaultBgColor)) return "";
+    const color = this._cssColorToHex(theme?.bgColor || "") || theme?.bgColor;
     if (!color) return "";
     return ` draw:fill="solid" draw:fill-color="${this._escapeXml(color)}"`;
   }

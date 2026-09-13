@@ -323,7 +323,46 @@ export async function runSheetImportCellStylesTests() {
     }
   });
 
-  // ── Test 8: wrapText from fo:wrap-option="wrap" ──
+  // ── Test 8: regex branch preserves empty cells with borders (used-range expansion) ──
+  await test("cell.styles.import: regex branch preserves empty cell with border at used-range edge", () => {
+    const origDOMParser = globalThis.DOMParser;
+    try {
+      delete globalThis.DOMParser;
+      // Cell A1 has data, B1 is empty but has border style
+      // B1 should be materialized because its style has borders
+      const fods = minimalFodsXml({
+        sheetName: "BorderEdgeTest",
+        autoStyles: `
+          <style:style style:name="dataStyle" style:family="table-cell">
+            <style:text-properties fo:font-weight="bold"/>
+          </style:style>
+          <style:style style:name="borderStyle" style:family="table-cell">
+            <style:table-cell-properties fo:border="0.75pt solid #000000"/>
+          </style:style>`,
+        cells: [
+          { attrs: { "table:style-name": "dataStyle", "office:value-type": "string" }, text: "Data" },
+          { attrs: { "table:style-name": "borderStyle", "office:value-type": "string" }, text: "" }
+        ]
+      });
+
+      const adapter = makeAdapter(makeGrid("BorderEdgeTest"));
+      const wb = adapter.parseFods(fods);
+      const data = wb.sheetsData["BorderEdgeTest"];
+      const a1 = data.get("A1");
+      const b1 = data.get("B1");
+      assert(a1, "A1 must exist");
+      assert(b1, "B1 must exist (empty cell with border at used-range edge)");
+      assert(b1.style.borderLeft, "B1 must have borderLeft");
+      assert(b1.style.borderRight, "B1 must have borderRight");
+      assert(b1.style.borderTop, "B1 must have borderTop");
+      assert(b1.style.borderBottom, "B1 must have borderBottom");
+    } finally {
+      if (origDOMParser !== undefined) globalThis.DOMParser = origDOMParser;
+      else delete globalThis.DOMParser;
+    }
+  });
+
+  // ── Test 9: wrapText from fo:wrap-option="wrap" ──
   await test("cell.styles.import: fo:wrap-option maps to wrapText", () => {
     const fods = minimalFodsXml({
       sheetName: "WrapTest",
