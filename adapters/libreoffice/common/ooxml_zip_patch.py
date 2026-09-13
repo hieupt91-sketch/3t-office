@@ -592,6 +592,143 @@ def apply_active_tab_to_workbook(workbook_xml: str, active_tab: int) -> str:
     return xml[: match.start()] + next_tag + xml[match.end() :]
 
 
+def parse_tab_colors_from_fods(fods_xml: str | None) -> dict[str, str]:
+    """Parse sheet tab colors from FODS.
+
+    Reads either:
+      1) Attributes on <table:table>: vno:tab-color, tableooo:tab-color, table:tab-color
+      2) Attributes on the table's style <style:table-properties>: table:tab-color, tableooo:tab-color
+    Returns dict mapping sheet name -> '#RRGGBB' hex color string.
+    """
+    result: dict[str, str] = {}
+    if not fods_xml:
+        return result
+
+    # 1. Parse table styles for tab-color
+    style_colors: dict[str, str] = {}
+    for style_match in re.finditer(
+        r'<style:style\b([^>]*style:family=["\']table["\'][^>]*)>(.*?)</style:style>',
+        fods_xml,
+        re.DOTALL | re.IGNORECASE,
+    ):
+        style_attrs = style_match.group(1)
+        style_body = style_match.group(2)
+        name_m = re.search(r'style:name=["\']([^"\']*)["\']', style_attrs, re.IGNORECASE)
+        if not name_m:
+            continue
+        style_name = _unescape_xml(name_m.group(1))
+        prop_m = re.search(r'<style:table-properties\b([^>]*)/?>', style_body, re.IGNORECASE)
+        if prop_m:
+            color_m = re.search(r'(?:table|tableooo|vno):tab-color=["\']([^"\']*)["\']', prop_m.group(1), re.IGNORECASE)
+            if color_m:
+                color = color_m.group(1).strip()
+                if color:
+                    style_colors[style_name] = f"#{color.lstrip('#').upper()}"
+
+    for style_match in re.finditer(
+        r'<style:style\b([^>]*style:name=["\']([^"\']*)["\'][^>]*style:family=["\']table["\'][^>]*>|style:style\b[^>]*style:family=["\']table["\'][^>]*style:name=["\']([^"\']*)["\'][^>]*>)(.*?)</style:style>',
+        fods_xml,
+        re.DOTALL | re.IGNORECASE,
+    ):
+        name = _unescape_xml(style_match.group(2) or style_match.group(3) or "")
+        if name and name not in style_colors:
+            body = style_match.group(4)
+            prop_m = re.search(r'<style:table-properties\b([^>]*)/?>', body, re.IGNORECASE)
+            if prop_m:
+                color_m = re.search(r'(?:table|tableooo|vno):tab-color=["\']([^"\']*)["\']', prop_m.group(1), re.IGNORECASE)
+                if color_m:
+                    color = color_m.group(1).strip()
+                    if color:
+                        style_colors[name] = f"#{color.lstrip('#').upper()}"
+
+    # 2. Parse table:table elements
+    for match in re.finditer(r'<table:table(?=[\s>/])([^>]*)>', fods_xml, re.IGNORECASE):
+        attrs = match.group(1)
+        name_m = re.search(r'table:name=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+        if not name_m:
+            continue
+        sheet_name = _unescape_xml(name_m.group(1))
+
+        # Direct attribute on table:table
+        color_m = re.search(r'(?:vno|tableooo|table):tab-color=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+        if color_m and color_m.group(1).strip():
+            result[sheet_name] = f"#{color_m.group(1).strip().lstrip('#').upper()}"
+            continue
+
+        # Look up via table:style-name
+        style_m = re.search(r'table:style-name=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+        if style_m:
+            style_name = _unescape_xml(style_m.group(1))
+            if style_name in style_colors:
+                result[sheet_name] = style_colors[style_name]
+
+    return result
+
+
+def apply_tab_color_to_worksheet(sheet_xml: str, color: str) -> str:
+    """Ensure worksheet XML has <sheetPr><tabColor rgb="FFRRGGBB"/></sheetPr>."""
+    xml = sheet_xml or ""
+    if not color:
+        return xml
+    clean_hex = color.lstrip("#").upper()
+    if len(clean_hex) == 6:
+        argb = f"FF{clean_hex}"
+    elif len(clean_hex) == 8:
+        argb = clean_hex
+    else:
+        return xml
+
+    tab_color_elem = f'<tabColor rgb="{argb}"/>'
+
+    # Check if tabColor already exists
+    if re.search(r'<tabColor\b', xml, re.IGNORECASE):
+        return re.sub(r'<tabColor\b[^>]*\/?>', tab_color_elem, xml, flags=re.IGNORECASE)
+
+    # Check if sheetPr exists
+    sheet_pr_match = re.search(r'<sheetPr\b([^>]*?)(\s*/?>)', xml, re.IGNORECASE)
+    if sheet_pr_match:
+        attrs = sheet_pr_match.group(1) or ""
+        close = sheet_pr_match.group(2)
+        full_pr_match = re.search(r'(<sheetPr\b[^>]*>)([\s\S]*?)(</sheetPr>)', xml, re.IGNORECASE)
+        if full_pr_match:
+            open_tag = full_pr_match.group(1)
+            pr_body = full_pr_match.group(2)
+            close_tag = full_pr_match.group(3)
+            return xml[: full_pr_match.start()] + open_tag + tab_color_elem + pr_body + close_tag + xml[full_pr_match.end() :]
+        elif close.strip() == "/>":
+            replacement = f"<sheetPr{attrs}>{tab_color_elem}</sheetPr>"
+            return xml[: sheet_pr_match.start()] + replacement + xml[sheet_pr_match.end() :]
+    else:
+        # sheetPr missing: insert at beginning in schema order
+        new_pr = f"<sheetPr>{tab_color_elem}</sheetPr>"
+        return _insert_worksheet_child_in_schema_order(xml, new_pr, "sheetPr")
+    return xml
+
+
+def apply_sheet_view_selection(sheet_xml: str, is_active: bool) -> str:
+    """Ensure active worksheet has tabSelected="1" on its sheetView, and inactive worksheets do not."""
+    xml = sheet_xml or ""
+    if is_active:
+        if re.search(r"<sheetViews\b", xml, re.IGNORECASE):
+            def update_first_view(m: re.Match) -> str:
+                tag = m.group(0)
+                if re.search(r'\btabSelected\s*=', tag, re.IGNORECASE):
+                    return re.sub(r'\btabSelected\s*=\s*(["\'])[^"\']*\1', 'tabSelected="1"', tag, flags=re.IGNORECASE)
+                if tag.endswith("/>"):
+                    return tag[:-2].rstrip() + ' tabSelected="1"/>'
+                return tag[:-1].rstrip() + ' tabSelected="1">'
+            xml = re.sub(r"<sheetView\b[^>]*>", update_first_view, xml, count=1, flags=re.IGNORECASE)
+        else:
+            sv_elem = '<sheetViews><sheetView tabSelected="1" workbookViewId="0"/></sheetViews>'
+            xml = _insert_worksheet_child_in_schema_order(xml, sv_elem, "sheetViews")
+    else:
+        def remove_selected(m: re.Match) -> str:
+            tag = m.group(0)
+            return re.sub(r'\s+tabSelected\s*=\s*(["\'])[^"\']*\1', '', tag, flags=re.IGNORECASE)
+        xml = re.sub(r"<sheetView\b[^>]*>", remove_selected, xml, flags=re.IGNORECASE)
+    return xml
+
+
 def ensure_config_xmlns(fods_xml: str) -> str:
     """Ensure root <office:document> declares xmlns:config."""
     xml = fods_xml or ""
@@ -986,25 +1123,52 @@ def postprocess_sheet_xlsx(
             if next_sheet_xml != sheet_xml:
                 replacements[entry_path] = next_sheet_xml
 
-    # Preserve activeTab (selected sheet) from source FODS (model/FODS active sheet).
-    # The FODS already contains ActiveTable in office:settings from serializeToFods().
-    # We read it and write the corresponding activeTab index into workbook.xml.
+    # Preserve activeTab (selected sheet) and tab colors from source FODS.
+    # The FODS contains ActiveTable and tabColor/tableooo:tab-color from serializeToFods().
     if source_fods:
         try:
             active_sheet = parse_active_sheet_from_fods(source_fods)
-            if active_sheet:
-                out_wb_xml = replacements.get(XLSX_WORKBOOK_ENTRY)
-                if out_wb_xml is None:
-                    out_wb_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
-                    if out_wb_bytes:
-                        out_wb_xml = out_wb_bytes.decode("utf-8", errors="replace")
-                if out_wb_xml:
-                    sheet_names = parse_sheet_names_from_workbook(out_wb_xml)
-                    if active_sheet in sheet_names:
-                        active_tab = sheet_names.index(active_sheet)
-                        next_wb_xml = apply_active_tab_to_workbook(out_wb_xml, active_tab)
-                        if next_wb_xml != out_wb_xml:
-                            replacements[XLSX_WORKBOOK_ENTRY] = next_wb_xml
+            fods_tab_colors = parse_tab_colors_from_fods(source_fods)
+            sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+
+            out_wb_xml = replacements.get(XLSX_WORKBOOK_ENTRY)
+            if out_wb_xml is None:
+                out_wb_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+                if out_wb_bytes:
+                    out_wb_xml = out_wb_bytes.decode("utf-8", errors="replace")
+            if out_wb_xml:
+                sheet_names = parse_sheet_names_from_workbook(out_wb_xml)
+                if active_sheet and active_sheet in sheet_names:
+                    active_tab = sheet_names.index(active_sheet)
+                    next_wb_xml = apply_active_tab_to_workbook(out_wb_xml, active_tab)
+                    if next_wb_xml != out_wb_xml:
+                        replacements[XLSX_WORKBOOK_ENTRY] = next_wb_xml
+                elif sheet_names:
+                    active_tab = parse_active_tab_from_workbook(out_wb_xml)
+                    if 0 <= active_tab < len(sheet_names):
+                        active_sheet = sheet_names[active_tab]
+                    else:
+                        active_sheet = sheet_names[0]
+
+            # Apply tabSelected and tabColor to worksheets
+            for sheet_name, entry_path in sheet_entries.items():
+                sheet_xml = replacements.get(entry_path)
+                if sheet_xml is None:
+                    entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+                    if not entry_bytes:
+                        continue
+                    sheet_xml = entry_bytes.decode("utf-8", errors="replace")
+
+                orig_sheet_xml = sheet_xml
+                is_active = bool(active_sheet and sheet_name == active_sheet)
+                sheet_xml = apply_sheet_view_selection(sheet_xml, is_active)
+
+                color = fods_tab_colors.get(sheet_name)
+                if color:
+                    sheet_xml = apply_tab_color_to_worksheet(sheet_xml, color)
+
+                if sheet_xml != orig_sheet_xml:
+                    replacements[entry_path] = sheet_xml
         except Exception:
             # Never fail the save due to activeTab preservation issues
             pass

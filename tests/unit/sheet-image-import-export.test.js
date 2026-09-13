@@ -267,5 +267,63 @@ export async function runSheetImageImportExportTests() {
     assert(Math.abs(img.heightCm - 6.251) < 0.001, `heightCm sau round-trip phải là 6.251, thực tế: ${img.heightCm}`);
   });
 
+  test("parseFods(): đọc đúng ảnh nhúng nằm trong <table:covered-table-cell> (ô gộp nhiều cột)", () => {
+    const fods = `<?xml version="1.0"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0">
+<office:body><office:spreadsheet>
+<table:table table:name="Sheet1">
+<table:table-column table:number-columns-repeated="5"/>
+<table:table-row>
+  <table:table-cell table:number-columns-spanned="3"><text:p>Gộp</text:p></table:table-cell>
+  <table:covered-table-cell>
+    <draw:frame draw:name="CoveredPic" svg:width="3cm" svg:height="3cm">
+      <draw:image draw:mime-type="image/jpeg"><office:binary-data>${PNG_1X1_BASE64}</office:binary-data></draw:image>
+    </draw:frame>
+  </table:covered-table-cell>
+  <table:covered-table-cell/>
+</table:table-row>
+</table:table>
+</office:spreadsheet></office:body>
+</office:document>`;
+    const adapter = new SheetAdapter(null);
+    const parsed = adapter.parseFods(fods);
+    const images = parsed.imagesBySheet?.Sheet1 || [];
+    assert(images.length === 1, `Phải parse được ảnh trong covered-table-cell, thực tế: ${images.length}`);
+    assert(images[0].anchor.c === "B" && images[0].anchor.r === 1, `Ảnh phải neo tại B1, thực tế: ${images[0].anchor.c}${images[0].anchor.r}`);
+  });
+
+  test("serializeToFods(): giữ lại <draw:frame> ảnh trong <table:covered-table-cell> khi ô bị che", () => {
+    const grid = new SheetGridController(container());
+    grid.activeSheet = "Sheet1";
+    grid.sheets = ["Sheet1"];
+    grid.mergedRangesBySheet = { "Sheet1": [{ start: { c: "A", r: 1 }, end: { c: "C", r: 1 } }] };
+    grid.imagesBySheet["Sheet1"] = [{
+      id: "CoveredImg",
+      src: PNG_DATA_URI,
+      anchor: { c: "B", r: 1 },
+      widthCm: 3,
+      heightCm: 3
+    }];
+    const adapter = new SheetAdapter(grid);
+    const fods = adapter.serializeToFods();
+    assert(fods.includes("<table:covered-table-cell><draw:frame"), "FODS phải chứa draw:frame bên trong covered-table-cell");
+  });
+
+  test("serializeToFods() & parseFods(): ghi và đọc chuẩn ODF tableooo:tab-color trong style:table-properties", () => {
+    const grid = new SheetGridController(container());
+    grid.activeSheet = "Sheet1";
+    grid.sheets = ["Sheet1", "Sheet2"];
+    grid.tabColors = { "Sheet1": "#FF5500", "Sheet2": "#00AAFF" };
+    const adapter = new SheetAdapter(grid);
+    const fods = adapter.serializeToFods();
+    assert(fods.includes('tableooo:tab-color="#ff5500"') || fods.includes('tableooo:tab-color="#FF5500"'), "FODS phải có tableooo:tab-color");
+    assert(fods.includes('table:tab-color="#ff5500"') || fods.includes('table:tab-color="#FF5500"'), "FODS phải có table:tab-color");
+
+    const parsed = adapter.parseFods(fods);
+    assert(parsed.tabColors, "parsed phải có tabColors");
+    assert(parsed.tabColors["Sheet1"].toLowerCase() === "#ff5500", `Sheet1 color phải là #ff5500, thực tế: ${parsed.tabColors["Sheet1"]}`);
+    assert(parsed.tabColors["Sheet2"].toLowerCase() === "#00aaff", `Sheet2 color phải là #00aaff, thực tế: ${parsed.tabColors["Sheet2"]}`);
+  });
+
   return results;
 }
