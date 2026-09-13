@@ -1920,10 +1920,12 @@ export class WriterAdapter {
       }
       const layoutStyle = `${paragraphRelative ? "position:relative;" : "position:static;"}${reserveCm > 0 ? `min-height:${Number(reserveCm.toFixed(3))}cm;` : ""}`;
       const attrs = opening[0].slice(2, -1).replace(/\bstyle=["']([^"']*)["']/i, (_m, style) => `style="${layoutStyle}${style}"`);
-      // Image-only carrier paragraphs are LibreOffice layout scaffolding. Keep
-      // them as divs so Word does not promote page breaks attached to grouped
-      // drawing carriers; ordinary image carrier paragraphs remain p.
-      const wrapperTag = hasNativeGroup || hasTextbox ? "div" : "p";
+      // LibreOffice's HTML exporter only turns page-break-before into a real
+      // DOCX break when the carrier is a paragraph.  Keep non-breaking group
+      // scaffolding as divs, but a source page-break carrier must remain p so
+      // edited long documents retain their pagination.
+      const hasPageBreak = /(?:page-break-before|break-before)\s*:\s*(?:always|page)/i.test(paragraphStyle);
+      const wrapperTag = hasPageBreak || (!hasNativeGroup && !hasTextbox) ? "p" : "div";
       const openTag = /\bstyle=/i.test(attrs) ? `<${wrapperTag} data-vno-float-anchor${attrs}>` : `<${wrapperTag} data-vno-float-anchor${attrs} style="${layoutStyle}">`;
       replacements.push([tag.index, tag.index + tag[0].length, `</${wrapperTag}>`]);
       if (adjustedInner !== inner) replacements.push([opening.index + opening[0].length, tag.index, adjustedInner]);

@@ -78,6 +78,10 @@ def _make_mock_window(dest_path: str) -> "unittest.mock.MagicMock":
 
 
 class UnitPostprocessWriterDocxTests(unittest.TestCase):
+    def test_relationship_id_allocator_accepts_single_quoted_xml(self):
+        rels = "<Relationships><Relationship Id='rId137' Target='media/image.png'/></Relationships>"
+        self.assertEqual(ooxml_zip_patch_mod._max_rels_rid(rels), 137)
+
     def test_duplicate_untouched_textbox_inside_source_group_is_removed(self):
         source = (
             '<w:p><w:r><w:drawing><wp:anchor><wp:docPr name="Group 1"/>'
@@ -231,6 +235,84 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertNotIn('name="Group Target"', paragraphs[0])
         target = next(p for p in paragraphs if ooxml_zip_patch_mod._paragraph_plain_text(p) == "Target")
         self.assertIn('name="Group Target"', target)
+
+    def test_edited_document_restores_untouched_empty_anchor_carrier(self):
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'
+            '<w:p><w:r><w:br w:type="page"/><w:drawing><wp:anchor behindDoc="0">'
+            '<wp:positionV relativeFrom="page"/><wp:docPr id="7" name="Carrier"/><pic:pic/>'
+            '</wp:anchor></w:drawing></w:r></w:p>'
+            '<w:p><w:r><w:t>Edited</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>After</w:t></w:r></w:p><w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:drawing><wp:anchor behindDoc="0">'
+            '<wp:positionV relativeFrom="paragraph"/><wp:docPr id="70" name="Carrier"/><pic:pic/>'
+            '</wp:anchor></w:drawing></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="8" w:name="vno-untouched-0"/>'
+            '<w:bookmarkEnd w:id="8"/><w:r><w:t>Before</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="9" w:name="vno-untouched-1"/>'
+            '<w:bookmarkEnd w:id="9"/><w:r><w:drawing/></w:r></w:p>'
+            '<w:p><w:r><w:t>Edited and bold</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="10" w:name="vno-untouched-3"/>'
+            '<w:bookmarkEnd w:id="10"/><w:r><w:t>After</w:t></w:r></w:p><w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        paragraphs = [xml[start:end] for start, end in ooxml_zip_patch_mod._writer_body_paragraph_ranges(xml)]
+        carrier = next(p for p in paragraphs if 'name="Carrier"' in p)
+        self.assertIn('w:type="page"', carrier)
+        self.assertEqual(ooxml_zip_patch_mod._paragraph_plain_text(carrier), "")
+        self.assertNotIn('name="Carrier"', paragraphs[0])
+
+    def test_edited_document_turns_untouched_carrier_section_into_page_break(self):
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:sectPr><w:type w:val="nextPage"/></w:sectPr></w:pPr>'
+            '<w:r><w:drawing><wp:anchor><wp:docPr id="7" name="Section Carrier"/>'
+            '<pic:pic/></wp:anchor></w:drawing></w:r></w:p>'
+            '<w:p><w:r><w:t>After</w:t></w:r></w:p><w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:drawing><wp:anchor><wp:docPr id="70" name="Section Carrier"/>'
+            '<pic:pic/></wp:anchor></w:drawing></w:r></w:p>'
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/></w:pPr>'
+            '<w:r><w:br w:type="page"/></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="8" w:name="vno-untouched-0"/>'
+            '<w:bookmarkEnd w:id="8"/><w:r><w:t>Before</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="9" w:name="vno-untouched-1"/>'
+            '<w:bookmarkEnd w:id="9"/><w:r><w:drawing/></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="10" w:name="vno-untouched-2"/>'
+            '<w:bookmarkEnd w:id="10"/><w:r><w:t>After</w:t></w:r></w:p><w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        paragraphs = [xml[start:end] for start, end in ooxml_zip_patch_mod._writer_body_paragraph_ranges(xml)]
+        carrier = next(p for p in paragraphs if 'name="Section Carrier"' in p)
+        self.assertIn('w:type="page"', carrier)
+        self.assertIn('<w:sectPr', carrier)
+        self.assertIn('w:val="continuous"', carrier)
+        self.assertEqual(xml.count('w:type="page"'), 1)
+
+    def test_edited_document_does_not_recreate_deleted_empty_carrier(self):
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'
+            '<w:p><w:r><w:br w:type="page"/><w:drawing><wp:anchor>'
+            '<wp:docPr id="7" name="Deleted Carrier"/><pic:pic/>'
+            '</wp:anchor></w:drawing></w:r></w:p>'
+            '<w:p><w:r><w:t>After</w:t></w:r></w:p><w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:drawing><wp:anchor><wp:docPr id="70" name="Deleted Carrier"/>'
+            '<pic:pic/></wp:anchor></w:drawing></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="8" w:name="vno-untouched-0"/>'
+            '<w:bookmarkEnd w:id="8"/><w:r><w:t>Before</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="9" w:name="vno-untouched-1"/>'
+            '<w:bookmarkEnd w:id="9"/><w:r><w:t>After</w:t></w:r></w:p><w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertNotIn('w:type="page"', xml)
 
     def test_matched_format_overlay_restores_alignment_and_list(self):
         xml = self._format_roundtrip_xml('<w:pPr><w:jc w:val="center"/><w:numPr><w:ilvl w:val="1"/><w:numId w:val="7"/></w:numPr></w:pPr>')

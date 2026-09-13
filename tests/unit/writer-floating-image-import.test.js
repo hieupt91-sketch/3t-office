@@ -116,11 +116,11 @@ export async function runWriterFloatingImageImportTests() {
     check(/^<div\b/i.test(body), "Float anchor did not become div");
   });
 
-  test("Image-only document keeps group carrier break out of paragraph semantics", () => {
+  test("Image-only document keeps group carrier page break on a real paragraph", () => {
     const html = '<body><p style="page-break-before:always"><span class="sd-abs-pos" style="position:absolute;left:1cm;top:1cm"><img src="x"></span></p></body>';
     const groupedOoxml = OOXML.replace("<wp:wrapNone/>", "<wp:wrapNone/><wpg:wgp/>");
     const body = new WriterAdapter(null)._normalizeImportedHtml(html, groupedOoxml).body;
-    check(/^<div\b/i.test(body) && body.includes("page-break-before:always"), "Image-only anchor carrier was not isolated");
+    check(/^<p\b/i.test(body) && body.includes("page-break-before:always"), "Image-only anchor carrier lost paragraph break semantics");
   });
 
   test("Export restores original page-relative geometry without canvas anchor layout", () => {
