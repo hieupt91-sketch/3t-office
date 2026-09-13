@@ -2981,12 +2981,39 @@ def _overlay_sheet_original_strings_from_xlsx(xlsx_bytes: bytes, fods_xml: str) 
     pieces.append(fods_xml[cursor:]); return "".join(pieces)
 
 
+def _extract_default_font_digit_width(xlsx_bytes: bytes) -> float:
+    entry = read_zip_entry(xlsx_bytes, "xl/styles.xml")
+    if not entry:
+        return 7.0
+    styles_xml = entry.decode("utf-8", errors="replace")
+    font_match = re.search(r"<fonts\b[^>]*>(.*?)</fonts>", styles_xml, re.S | re.IGNORECASE)
+    if not font_match:
+        return 7.0
+    first_font = re.search(r"<font\b[^>]*>(.*?)</font>", font_match.group(1), re.S | re.IGNORECASE)
+    if not first_font:
+        return 7.0
+    content = first_font.group(1)
+    name_m = re.search(r'<name\b[^>]*val="([^"]*)"', content, re.IGNORECASE)
+    size_m = re.search(r'<sz\b[^>]*val="([\d.]+)"', content, re.IGNORECASE)
+    font_name = name_m.group(1).lower() if name_m else "calibri"
+    font_size = float(size_m.group(1)) if size_m else 11.0
+
+    if "arial" in font_name:
+        return 8.0 if font_size >= 11 else 7.0
+    if "times" in font_name:
+        return 8.0 if font_size >= 12 else 7.0
+    if "calibri" in font_name:
+        return 8.0 if font_size >= 12 else 7.0
+    return 7.0
+
+
 def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
-    """Preserve exact Excel width*7+5 px and row pt->px dimensions.
+    """Preserve exact Excel width*digit_width+5 px and row pt->px dimensions.
 
     soffice canonicalizes dimensions to ODF lengths and can apply font metrics;
     the compact table-level map avoids rewriting repeated FODS columns/rows.
     """
+    digit_width = _extract_default_font_digit_width(xlsx_bytes)
     layouts: dict[str, dict[str, dict[str, float]]] = {}
     for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
         entry = read_zip_entry(xlsx_bytes, entry_path)
@@ -3009,7 +3036,7 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
                 while number:
                     number, remainder = divmod(number - 1, 26)
                     name = chr(65 + remainder) + name
-                columns[name] = float(width.group(1)) * 7 + 5
+                columns[name] = float(width.group(1)) * digit_width + 5
         for match in re.finditer(r"<row\b([^>]*)>", sheet_xml, re.IGNORECASE):
             attrs = match.group(1)
             row = re.search(r'\br="(\d+)"', attrs)

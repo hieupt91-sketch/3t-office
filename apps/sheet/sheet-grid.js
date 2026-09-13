@@ -2833,6 +2833,7 @@ export class SheetGridController {
     this.tbody.insertBefore(frag, this.bottomSpacer);
     this._applyFreezeVisuals();
     this._updateFrozenImages();
+    this._updateImagePositions();
     this.renderAuditArrows?.();
   }
 
@@ -2964,6 +2965,22 @@ export class SheetGridController {
       if (isFrozenCol && frozenCols > 0) tx = scrollLeft;
       if (tx === 0 && ty === 0) panel.style.transform = "";
       else panel.style.transform = `translate(${tx}px, ${ty}px)`;
+    }
+  }
+
+  _updateImagePositions() {
+    if (!this.imageLayer || !this.tbody || typeof document === "undefined") return;
+    const images = this.imagesBySheet?.[this.activeSheet] || [];
+    for (const image of images) {
+      const panel = this.imageLayer.querySelector(`.vno-sheet-image[data-image-id="${image.id}"]`);
+      if (!panel) continue;
+      const targetTr = this.tbody.querySelector(`tr[data-row="${image.anchor.r}"]`);
+      if (!targetTr || typeof targetTr.offsetTop !== "number") continue;
+      const offsetYPx = Number.isFinite(Number(image.offsetYCm))
+        ? Number(image.offsetYCm) * 37.79527559055118
+        : (Number.isFinite(Number(image.offsetY)) ? Number(image.offsetY) : 0);
+      const topVal = targetTr.offsetTop + offsetYPx;
+      panel.style.top = `${topVal}px`;
     }
   }
 
@@ -4758,7 +4775,10 @@ export class SheetGridController {
       const isInFrozenCol = colIdx < frozenCols && frozenCols > 0;
       const isFrozen = isInFrozenRow || isInFrozenCol;
 
-      let topAcc = 24 + this._rowTop(image.anchor.r);
+      const targetTr = this.tbody ? this.tbody.querySelector(`tr[data-row="${image.anchor.r}"]`) : null;
+      let topAcc = (targetTr && typeof targetTr.offsetTop === "number")
+        ? targetTr.offsetTop
+        : (24 + this._rowTop(image.anchor.r));
       const offsetYPx = Number.isFinite(Number(image.offsetYCm))
         ? Number(image.offsetYCm) * 37.79527559055118
         : (Number.isFinite(Number(image.offsetY)) ? Number(image.offsetY) : 0);
