@@ -55,6 +55,21 @@ export async function runWriterFloatingImageImportTests() {
     check(body.includes('data-vno-width="5"') && body.includes('data-vno-height="6"'), `Native extent missing: ${body}`);
   });
 
+  test("Repeated full-page behind image is classified as an imported watermark", () => {
+    const image = '<span class="sd-abs-pos" style="position:absolute;left:3cm;top:7cm;width:14cm;height:13cm"><img src="same-watermark"></span>';
+    const html = `<body><p>${image}</p><p>${image}</p><p>${image}</p></body>`;
+    const anchor = '<wp:anchor behindDoc="1"><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapNone/></wp:anchor>';
+    const body = new WriterAdapter(null)._normalizeImportedHtml(html, `<w:document>${anchor}${anchor}${anchor}</w:document>`).body;
+    check((body.match(/data-vno-imported-watermark="1"/g) || []).length === 3, `Repeated watermark markers missing: ${body}`);
+  });
+
+  test("OOXML first-row cell widths restore imported table column proportions", () => {
+    const html = '<body><table width="625"><colgroup><col width="313"><col width="313"></colgroup><tr><td>A</td><td>B</td></tr></table></body>';
+    const xml = '<w:document><w:tbl><w:tr><w:tc><w:tcPr><w:tcW w:w="7130"/></w:tcPr></w:tc><w:tc><w:tcPr><w:tcW w:w="472"/></w:tcPr></w:tc></w:tr></w:tbl></w:document>';
+    const body = new WriterAdapter(null)._normalizeImportedHtml(html, xml).body;
+    check(body.includes('<col width="586">') && body.includes('<col width="39">'), `Native Word column ratio was not restored: ${body}`);
+  });
+
   test("Floating export emits absolute img and div while ordinary spans remain sanitized", () => {
     const adapter = new WriterAdapter(null);
     const imported = adapter._normalizeImportedHtml(HTML, OOXML).body;

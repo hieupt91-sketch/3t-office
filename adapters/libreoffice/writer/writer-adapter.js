@@ -1702,6 +1702,9 @@ export class WriterAdapter {
       comments = overlaid.comments;
     }
     html = this._upgradeImportedTrackChangeMarkup(html);
+    if (ooxmlDocumentXml) {
+      html = this._applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml);
+    }
     const page = this._pageSetupFromImportedCss(html);
     const bodyMatch = html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
     if (bodyMatch) html = bodyMatch[1];
@@ -1843,9 +1846,55 @@ export class WriterAdapter {
     });
   }
 
+  _ooxmlTableColumnWidths(xml) {
+    return [...String(xml || "").matchAll(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi)].map((tableMatch) => {
+      const firstRow = tableMatch[0].match(/<w:tr\b[\s\S]*?<\/w:tr>/i)?.[0] || "";
+      return [...firstRow.matchAll(/<w:tcW\b[^>]*\bw:w=["'](\d+)["']/gi)]
+        .map((match) => Number(match[1]))
+        .filter((width) => Number.isFinite(width) && width > 0);
+    });
+  }
+
+  _applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml) {
+    const widthsByTable = this._ooxmlTableColumnWidths(ooxmlDocumentXml);
+    let tableIndex = 0;
+    return String(html || "").replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, (tableHtml) => {
+      const nativeWidths = widthsByTable[tableIndex++] || [];
+      const cols = [...tableHtml.matchAll(/<col\b[^>]*>/gi)];
+      if (!nativeWidths.length || nativeWidths.length !== cols.length) return tableHtml;
+      const renderedWidth = Number(tableHtml.match(/<table\b[^>]*\bwidth=["']?(\d+)/i)?.[1]);
+      const total = nativeWidths.reduce((sum, width) => sum + width, 0);
+      if (!Number.isFinite(renderedWidth) || renderedWidth <= 0 || total <= 0) return tableHtml;
+      const renderedWidths = nativeWidths.map((width) => Math.max(1, Math.round(renderedWidth * width / total)));
+      let colIndex = 0;
+      let normalized = tableHtml.replace(/<col\b[^>]*>/gi, (colTag) => {
+        const width = renderedWidths[colIndex++];
+        return /\bwidth=["']?\d+["']?/i.test(colTag)
+          ? colTag.replace(/\bwidth=["']?\d+["']?/i, `width="${width}"`)
+          : colTag.replace(/>$/, ` width="${width}">`);
+      });
+      normalized = normalized.replace(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi, (rowHtml) => {
+        const cells = [...rowHtml.matchAll(/<(?:td|th)\b[^>]*>/gi)];
+        if (cells.length !== renderedWidths.length) return rowHtml;
+        let cellIndex = 0;
+        return rowHtml.replace(/<(?:td|th)\b[^>]*>/gi, (cellTag) => {
+          const width = renderedWidths[cellIndex++];
+          return /\bwidth=["']?\d+["']?/i.test(cellTag)
+            ? cellTag.replace(/\bwidth=["']?\d+["']?/i, `width="${width}"`)
+            : cellTag.replace(/>$/, ` width="${width}">`);
+        });
+      });
+      return normalized;
+    });
+  }
+
   _preserveImportedFloatingFrames(html, ooxmlDocumentXml, page = null) {
     const src = String(html || "");
     const anchors = this._ooxmlFloatingAnchorMetadata(ooxmlDocumentXml);
+    const imageSourceCounts = new Map();
+    for (const match of src.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)) {
+      imageSourceCounts.set(match[1], (imageSourceCounts.get(match[1]) || 0) + 1);
+    }
     const openRe = /<span\b([^>]*)>/gi;
     let cursor = 0;
     let anchorIndex = 0;
@@ -1904,8 +1953,27 @@ export class WriterAdapter {
       const displayTop = ["margin"].includes(String(meta.relativeV).toLowerCase()) ? top + marginTopCm : top;
       const cleanedStyle = style.replace(/\b(?:position|top|left|width|height)\s*:\s*[^;]+;?\s*/gi, "").trim();
       const kind = isImage ? "image" : "textbox";
+      const imageSource = attrValue("src") || "";
+      const isRepeatedPageWatermark = kind === "image"
+        && meta.behindDoc
+        && String(meta.relativeH).toLowerCase() === "page"
+        && String(meta.relativeV).toLowerCase() === "page"
+        && (imageSourceCounts.get(imageSource) || 0) >= 3
+        && width >= 10
+        && height >= 10;
+      const isPageImage = kind === "image"
+        && meta.behindDoc
+        && meta.wrap === "wrapNone"
+        && !isRepeatedPageWatermark
+        && String(meta.relativeH).toLowerCase() === "page"
+        && String(meta.relativeV).toLowerCase() === "page";
+      const canvasLeft = Number((displayLeft - marginLeftCm).toFixed(3));
+      const canvasTop = Number((displayTop - marginTopCm).toFixed(3));
+      const canvasGeometry = (isRepeatedPageWatermark || isPageImage)
+        ? `position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;`
+        : `position:absolute;left:${displayLeft}cm;top:${displayTop}cm;`;
       result += src.slice(cursor, opening.index);
-      result += `<span data-vno-float="${kind}" data-vno-source-group="${meta.sourceGroup ? "1" : "0"}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}" style="position:absolute;left:${displayLeft}cm;top:${displayTop}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:-1;" : `z-index:${anchorIndex};`}${cleanedStyle}">${inner}</span>`;
+      result += `<span data-vno-float="${kind}" data-vno-source-group="${meta.sourceGroup ? "1" : "0"}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}"${isRepeatedPageWatermark ? ' data-vno-imported-watermark="1"' : ""}${isPageImage ? ' data-vno-page-image="1"' : ""} style="${canvasGeometry}${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:0;" : `z-index:${anchorIndex};`}${cleanedStyle}">${inner}</span>`;
       cursor = close + 7;
     }
     return result;
@@ -1940,13 +2008,14 @@ export class WriterAdapter {
         }
       );
       const paragraphRelative = /data-vno-relative-(?:h|v)=["']paragraph["']/i.test(inner);
+      const hasPageAnchor = /data-vno-(?:imported-watermark|page-image)=["']1["']/i.test(inner);
       let reserveCm = 0;
       for (const floating of inner.matchAll(/<span\b[^>]*data-vno-wrap=["']wrapTopAndBottom["'][^>]*>/gi)) {
         const top = Number(floating[0].match(/data-vno-top=["'](-?[\d.]+)/i)?.[1] || 0);
         const height = Number(floating[0].match(/data-vno-height=["']([\d.]+)/i)?.[1] || 0);
         reserveCm = Math.max(reserveCm, top + height);
       }
-      const layoutStyle = `${paragraphRelative ? "position:relative;" : "position:static;"}${reserveCm > 0 ? `min-height:${Number(reserveCm.toFixed(3))}cm;` : ""}`;
+      const layoutStyle = `${paragraphRelative || hasPageAnchor ? "position:relative;" : "position:static;"}${reserveCm > 0 ? `min-height:${Number(reserveCm.toFixed(3))}cm;` : ""}`;
       const attrs = opening[0].slice(2, -1).replace(/\bstyle=["']([^"']*)["']/i, (_m, style) => `style="${layoutStyle}${style}"`);
       // LibreOffice's HTML exporter only turns page-break-before into a real
       // DOCX break when the carrier is a paragraph.  Keep non-breaking group
