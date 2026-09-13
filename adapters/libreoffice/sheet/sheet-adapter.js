@@ -1143,9 +1143,17 @@ export class SheetAdapter {
           if (parts.length < 3) return val;
           const [width, style, ...rest] = parts;
           let w = width;
-          if (w.endsWith("pt")) {
-            const pxVal = Math.round(parseFloat(w) * (96 / 72) * 100) / 100;
-            w = `${pxVal}px`;
+          const wMatch = String(w).match(/^(-?[\d.]+)\s*(cm|mm|in|pt|pc|px)?$/i);
+          if (wMatch) {
+            const amount = Number(wMatch[1]);
+            const unit = (wMatch[2] || "px").toLowerCase();
+            const px = unit === "mm" ? amount * 3.779527559055118
+              : unit === "cm" ? amount * 37.79527559055118
+              : unit === "in" ? amount * 96
+              : unit === "pt" ? amount * (96 / 72)
+              : unit === "pc" ? amount * 16
+              : amount;
+            w = `${Math.round(px * 100) / 100}px`;
           }
           let s = style;
           if (s === "double-thin") s = "double";
@@ -1231,9 +1239,9 @@ export class SheetAdapter {
       if (fontName) style.fontFamily = fontName;
       const fontSize = textProps.match(/fo:font-size=["']([^"']+)["']/i)?.[1];
       if (fontSize) {
-        if (fontSize.endsWith("pt")) style.fontSize = `${parseFloat(fontSize) * 1.3333}px`;
-        else if (fontSize.endsWith("px")) style.fontSize = fontSize;
-        else style.fontSize = `${fontSize}px`;
+        if (fontSize.endsWith("pt")) style.fontSize = `${Math.round(parseFloat(fontSize) * (96 / 72) * 100) / 100}px`;
+        else if (fontSize.endsWith("px")) style.fontSize = `${Math.round(parseFloat(fontSize) * 100) / 100}px`;
+        else style.fontSize = `${Math.round(parseFloat(fontSize) * 100) / 100}px`;
       }
       raw.set(name, { style, parentName });
       return "";
@@ -3365,8 +3373,6 @@ export class SheetAdapter {
       this.grid.printAreaBySheet[sheetName] = workbook.printAreaBySheet[sheetName] || null;
       this.grid.pageSetupBySheet[sheetName] = workbook.pageSetupBySheet[sheetName];
     }
-    if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet);
-    else this.grid.activeSheet = workbook.activeSheet;
     this.grid.conditionalFormattingBySheet = {};
     this.grid.dataValidationsBySheet = {};
     this.grid.pivotTablesBySheet = {};
@@ -3411,9 +3417,8 @@ export class SheetAdapter {
         this.grid.sheetStates[sheetName].filterRange = autoFilterRef;
       }
     }
-    // switchSheet() ở trên chạy TRƯỚC vòng lặp này gán frozenRows/frozenCols
-    // vào sheetStates, nên trạng thái sống của grid cho sheet đang active cần
-    // đồng bộ lại thủ công ở đây.
+    if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet);
+    else this.grid.activeSheet = workbook.activeSheet;
     const activeFreezeState = this.grid.sheetStates[this.grid.activeSheet];
     this.grid.frozenRows = activeFreezeState?.frozenRows || 0;
     this.grid.frozenCols = activeFreezeState?.frozenCols || 0;
