@@ -3017,6 +3017,11 @@ export class SlidesCanvasController {
       const box = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:#fff;overflow:hidden`;
       return `<div class="vno-sorter-shape-node vno-sorter-chart" data-chart-type="${this._escapeShapeText(shape.chartType)}" style="${box}">${generateSlidesChartSvg(shape)}</div>`;
     }
+    if (shape.type === "textbox" || shape.type === "text") {
+      const bg = (shape.color && shape.color !== "transparent" && shape.color !== "none") ? shape.color : "transparent";
+      const box = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:${bg};overflow:hidden;box-sizing:border-box`;
+      return `<div class="vno-sorter-shape-node vno-sorter-textbox" style="${box}">${this._escapeShapeText(shape.text || "")}</div>`;
+    }
     if (shape.type !== "rect" && shape.type !== "ellipse") return "";
     const style = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:${shape.color || "#3b82f6"};border-radius:${shape.type === "ellipse" ? "50%" : "4px"}`;
     return `<div class="vno-sorter-shape-node" style="${style}">${this._escapeShapeText(shape.text || "")}</div>`;
@@ -3802,7 +3807,9 @@ export class SlidesCanvasController {
         el.appendChild(table);
       } else if (shape.type === "textbox") {
         el.classList.add("is-textbox");
-        el.style.backgroundColor = (shape.color && shape.color !== "transparent") ? shape.color : "transparent";
+        const hasBg = shape.color && shape.color !== "transparent" && shape.color !== "none";
+        el.style.backgroundColor = hasBg ? shape.color : "transparent";
+        el.style.background = hasBg ? shape.color : "transparent";
         el.style.opacity = "1";
         el.style.borderRadius = "0";
         el.style.overflow = "visible";
@@ -7318,7 +7325,11 @@ export class SlidesCanvasController {
   setSlideSize(options, recordHistory = true) {
     options = options || {};
     const presets = { wide: { preset: "wide", width: 960, height: 540 }, standard: { preset: "standard", width: 720, height: 540 } };
-    const next = presets[options.preset || options] || null;
+    let next = presets[options.preset || options] || null;
+    if (!next && options && options.width && options.height) {
+      const isStd = Math.abs((options.width / options.height) - (4 / 3)) < 0.15;
+      next = { preset: isStd ? "standard" : "wide", width: options.width, height: options.height };
+    }
     if (!next || next.preset === this.slideSize.preset) return false;
     const before = { size: { ...this.slideSize }, geometry: this._captureSlideGeometry() };
     const scaleX = next.width / this.slideSize.width;
