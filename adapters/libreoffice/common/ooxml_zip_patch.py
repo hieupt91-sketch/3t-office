@@ -3302,7 +3302,7 @@ _DOCX_HEADER_CONTENT_TYPE = (
 
 def _max_rels_rid(rels_xml: str) -> int:
     """Return the highest rId number found in a rels XML string."""
-    ids = re.findall(r'Id="rId(\d+)"', rels_xml)
+    ids = re.findall(r'\bId\s*=\s*["\']rId(\d+)["\']', rels_xml, re.IGNORECASE)
     return max((int(x) for x in ids), default=0)
 
 
@@ -3495,6 +3495,14 @@ def _writer_anchor_paragraph_groups(xml: str) -> list[list[str]]:
     return [_WRITER_ANCHOR_RE.findall(p.group(0)) for p in _WRITER_PARAGRAPH_RE.finditer(xml)]
 
 
+def _writer_anchor_is_untouched(anchor: str) -> bool:
+    return "vno-edited-" not in anchor
+
+
+def _writer_anchor_has_edited_text(anchor: str) -> bool:
+    return "vno-edited-" in anchor
+
+
 def _remove_duplicate_writer_textbox_anchors(
     converted_xml: str, original_xml: str, pristine_document: bool = False,
 ) -> str:
@@ -3513,7 +3521,7 @@ def _remove_duplicate_writer_textbox_anchors(
         anchor = match.group(0)
         if not re.search(r"<w:txbxContent\b", anchor, re.IGNORECASE):
             return anchor
-        if not pristine_document and "vno-untouched-" not in anchor:
+        if not pristine_document and not _writer_anchor_is_untouched(anchor):
             return anchor
         text = _paragraph_match_key(anchor)
         if len(text) < 4 or not any(text in group_text for group_text in group_texts):
@@ -3703,7 +3711,7 @@ def _writer_restore_selected_ppr(target_paragraph: str, source_paragraph: str) -
     # untouched bookmark is the ownership proof for restoring all paragraph
     # formatting that affects layout.  pStyle is included because an injected
     # Body Text style otherwise reintroduces left alignment after removing jc.
-    for child in ("pStyle", "spacing", "ind", "jc", "numPr"):
+    for child in ("pStyle", "ind", "jc", "numPr"):
         source_child = _writer_direct_property(source_ppr, child)
         child_re = re.compile(
             rf"<w:{child}\b[^>]*(?:/>|>[\s\S]*?</w:{child}\s*>)", re.IGNORECASE
@@ -3870,12 +3878,12 @@ def _restore_writer_matched_formatting(
 
 def _remove_writer_untouched_bookmarks(xml: str) -> str:
     marker_ids = set(re.findall(
-        r'<w:bookmarkStart\b(?=[^>]*\bw:id=["\']([^"\']+)["\'])(?=[^>]*\bw:name=["\'](?:vno-untouched-\d+|vno-pristine-document)["\'])[^>]*/?>',
+        r'<w:bookmarkStart\b(?=[^>]*\bw:id=["\']([^"\']+)["\'])(?=[^>]*\bw:name=["\'](?:vno-(?:untouched|edited)-\d+|vno-pristine-document)["\'])[^>]*/?>',
         xml,
         re.IGNORECASE,
     ))
     xml = re.sub(
-        r'<w:bookmarkStart\b(?=[^>]*\bw:name=["\'](?:vno-untouched-\d+|vno-pristine-document)["\'])[^>]*/?>',
+        r'<w:bookmarkStart\b(?=[^>]*\bw:name=["\'](?:vno-(?:untouched|edited)-\d+|vno-pristine-document)["\'])[^>]*/?>',
         "",
         xml,
         flags=re.IGNORECASE,
@@ -3941,7 +3949,11 @@ def _writer_text_lcs_pairs(source: list[str], target: list[str]) -> list[tuple[i
 
 def _writer_has_page_break(paragraph: str) -> bool:
     return bool(re.search(
-        r'<w:br\b[^>]*\bw:type=["\']page["\']|<w:pageBreakBefore\b',
+        # HTML/LibreOffice collapses paragraph-level Word section boundaries
+        # to the final body sectPr.  For carrier relocation those original
+        # next-page sections are page boundaries: rebuilt carriers emit a
+        # literal page break while the final section pass owns sectPr/rIds.
+        r'<w:br\b[^>]*\bw:type=["\']page["\']|<w:pageBreakBefore\b|<w:sectPr\b',
         paragraph, re.IGNORECASE,
     ))
 
@@ -4028,10 +4040,12 @@ def _relocate_passthrough_anchors(
     converted_xml: str, original_xml: str, pristine_document: bool = False,
 ) -> str:
     """Restore untouched anchors to their source body-paragraph slots."""
-    if not pristine_document:
-        return converted_xml
     source_ranges = _writer_body_paragraph_ranges(original_xml)
-    if len(source_ranges) > 25:
+    relocate_page_breaks = pristine_document or len(source_ranges) <= 25
+    has_untouched_markers = "vno-untouched-" in converted_xml
+    if not pristine_document and not has_untouched_markers:
+        return converted_xml
+    if pristine_document and len(source_ranges) > 25:
         return _relocate_writer_background_anchors(converted_xml, original_xml)
     converted_ranges = _writer_body_paragraph_ranges(converted_xml)
     source = [original_xml[start:end] for start, end in source_ranges]
@@ -4075,10 +4089,53 @@ def _relocate_passthrough_anchors(
     pairs = sorted(expanded_pairs)
     source_to_target = dict(pairs)
 
+    # An edited document no longer carries the document-wide pristine marker.
+    # Preserve ownership at paragraph granularity instead.  Non-empty carriers
+    # must retain their own untouched bookmark.  Empty drawing/page-break
+    # carriers cannot join the text LCS, so pair them only inside two stable
+    # neighbouring text boundaries.  If the user deleted such a carrier there
+    # is no empty marked paragraph in that bounded interval and it is not
+    # recreated.
+    marked_targets = {
+        index for index, paragraph in enumerate(converted)
+        if re.search(
+            r'<w:bookmarkStart\b[^>]*\bw:name=["\']vno-untouched-\d+["\'][^>]*/?>',
+            paragraph, re.IGNORECASE,
+        )
+    }
+    empty_source_to_target: dict[int, int] = {}
+    retained_empty_sources: set[int] = set()
+    bounded_pairs = [(-1, -1), *pairs, (len(source), len(converted))]
+    for (source_start, target_start), (source_end, target_end) in zip(
+        bounded_pairs, bounded_pairs[1:]
+    ):
+        source_empty = [
+            index for index in range(source_start + 1, source_end)
+            if not _writer_flow_text(source[index])
+            and (_writer_outer_anchor_blocks(source[index]) or _writer_has_page_break(source[index]))
+        ]
+        target_empty = [
+            index for index in range(target_start + 1, target_end)
+            if index in marked_targets and not _writer_flow_text(converted[index])
+        ]
+        if source_empty and len(source_empty) == len(target_empty):
+            empty_source_to_target.update(zip(source_empty, target_empty))
+            retained_empty_sources.update(source_empty)
+        elif source_empty and target_end - target_start > 1:
+            # A carrier can be represented after HTML import by expanded
+            # drawing text rather than an empty paragraph.  The non-empty LCS
+            # interval proves that the slot still exists; use any surviving
+            # empty markers first and reinsert the remaining source carriers
+            # at the bounded slot.  An actually deleted carrier has adjacent
+            # LCS neighbours and does not enter this branch.
+            empty_source_to_target.update(zip(source_empty, target_empty))
+            retained_empty_sources.update(source_empty)
+
     output_anchors: dict[str, str] = {}
     for anchor in _writer_outer_anchor_blocks(converted_xml):
         name = _writer_anchor_name(anchor)
-        if name and _writer_anchor_passthrough_kind(anchor):
+        if (name and _writer_anchor_passthrough_kind(anchor)
+                and (pristine_document or _writer_anchor_is_untouched(anchor))):
             output_anchors[name] = anchor
 
     tasks: list[tuple[int, int | None, str, list[str]]] = []
@@ -4088,11 +4145,17 @@ def _relocate_passthrough_anchors(
             for name in (_writer_anchor_name(anchor) for anchor in _writer_outer_anchor_blocks(paragraph))
             if name and name in output_anchors
         ]
-        has_break = _writer_has_page_break(paragraph)
+        has_break = relocate_page_breaks and _writer_has_page_break(paragraph)
         if not names and not has_break:
             continue
         matched_target = source_to_target.get(source_index)
+        if matched_target is None:
+            matched_target = empty_source_to_target.get(source_index)
         if matched_target is None and _writer_flow_text(paragraph):
+            continue
+        if (not pristine_document
+                and matched_target not in marked_targets
+                and source_index not in retained_empty_sources):
             continue
         tasks.append((source_index, matched_target, paragraph, names))
     if not tasks:
@@ -4111,7 +4174,19 @@ def _relocate_passthrough_anchors(
             after_open, re.IGNORECASE,
         )
         ppr = direct_ppr.group(1) if direct_ppr else ""
-        page_break = '<w:r><w:br w:type="page"/></w:r>' if _writer_has_page_break(source_paragraph) else ""
+        # The rebuilt carrier already emits the source page boundary. Even a
+        # continuous paragraph sectPr makes Word repaginate long documents;
+        # the dedicated final-section pass owns page setup/header/footer.
+        ppr = re.sub(
+            r"<w:sectPr\b[^>]*(?:/>|>[\s\S]*?</w:sectPr\s*>)",
+            "", ppr, flags=re.IGNORECASE,
+        )
+        if _writer_has_page_break(source_paragraph):
+            ppr = ""
+        page_break = (
+            '<w:r><w:br w:type="page"/></w:r>'
+            if relocate_page_breaks and _writer_has_page_break(source_paragraph) else ""
+        )
         drawings = "".join(
             f"<w:r><w:drawing>{output_anchors[name]}</w:drawing></w:r>"
             for name in names
@@ -4127,7 +4202,8 @@ def _relocate_passthrough_anchors(
     # Drawing-only catalogues are entirely represented by their source WPG
     # anchors. Rebuilding their short top-level body avoids retaining the 100+
     # flow paragraphs LibreOffice expanded from the same grouped text.
-    if (len(source_safe_anchors) >= 5
+    if (pristine_document
+            and len(source_safe_anchors) >= 5
             and len(mapped_names) == len(source_safe_anchors)
             and source_body and "<w:tbl" not in source_body.group(1)):
         restored: list[str] = []
@@ -4173,11 +4249,38 @@ def _relocate_passthrough_anchors(
                     payload = "".join(
                         f"<w:r><w:drawing>{anchor}</w:drawing></w:r>" for anchor in moved
                     )
-                    if _writer_has_page_break(source_paragraph) and not _writer_has_page_break(target):
+                    if (relocate_page_breaks and _writer_has_page_break(source_paragraph)
+                            and not _writer_has_page_break(target)):
                         payload = '<w:r><w:br w:type="page"/></w:r>' + payload
                     replacements[matched_target] = target[:close] + payload + target[close:]
             else:
-                replacements[matched_target] = carrier
+                target = replacements.get(matched_target, paragraphs[matched_target])
+                if not relocate_page_breaks:
+                    close = target.rfind("</w:p")
+                    payload = "".join(
+                        f"<w:r><w:drawing>{anchor}</w:drawing></w:r>" for anchor in moved
+                    )
+                    if close >= 0:
+                        replacements[matched_target] = target[:close] + payload + target[close:]
+                    continue
+                target_names = {
+                    _writer_anchor_name(anchor)
+                    for anchor in _writer_outer_anchor_blocks(target)
+                }
+                if any(name and name not in names for name in target_names):
+                    edited_anchors = [
+                        anchor for anchor in _writer_outer_anchor_blocks(target)
+                        if _writer_anchor_has_edited_text(anchor)
+                    ]
+                    replacements[matched_target] = (
+                        "<w:p>" + "".join(
+                            f"<w:r><w:drawing>{anchor}</w:drawing></w:r>"
+                            for anchor in edited_anchors
+                        ) + "</w:p>"
+                    )
+                    insertions.setdefault(matched_target, []).append(carrier)
+                else:
+                    replacements[matched_target] = carrier
             continue
         next_targets = [target for src, target in pairs if src > source_index]
         slot = min(next_targets) if next_targets else len(paragraphs)
@@ -4192,15 +4295,41 @@ def _relocate_passthrough_anchors(
         cursor = end
     result_parts.extend(insertions.get(len(ranges), []))
     result_parts.append(stripped[cursor:])
-    return "".join(result_parts)
+    result = "".join(result_parts)
+    # LibreOffice occasionally materializes a few HTML page-break-before
+    # styles as standalone rich paragraphs while the source section carriers
+    # above are also rebuilt. Keep exactly the source boundary count and
+    # discard only surplus drawing-free breaks. Prefer LO artifacts without
+    # section geometry so rebuilt source carriers retain their page setup.
+    source_break_count = sum(_writer_has_page_break(paragraph) for paragraph in source)
+    result_ranges = _writer_body_paragraph_ranges(result)
+    result_break_count = sum(
+        _writer_has_page_break(result[start:end]) for start, end in result_ranges
+    )
+    excess_breaks = max(0, result_break_count - source_break_count)
+    if excess_breaks:
+        orphan_breaks = []
+        for start, end in result_ranges:
+            paragraph = result[start:end]
+            if (not _writer_flow_text(paragraph)
+                    and _writer_has_page_break(paragraph)
+                    and not _writer_outer_anchor_blocks(paragraph)):
+                ppr = _writer_direct_property(paragraph, "pPr")
+                richness = len(re.sub(r"</?w:pPr\b[^>]*>", "", ppr, flags=re.IGNORECASE))
+                has_section = bool(re.search(r"<w:sectPr\b", ppr, re.IGNORECASE))
+                orphan_breaks.append((has_section, -richness, start, end))
+        removals = sorted(orphan_breaks)[:excess_breaks]
+        for _has_section, _richness, start, end in sorted(
+            removals, key=lambda item: item[2], reverse=True,
+        ):
+            result = result[:start] + result[end:]
+    return result
 
 
 def _remove_duplicate_writer_group_flow_paragraphs(
     converted_xml: str, original_xml: str, pristine_document: bool = False,
 ) -> str:
     """Remove LO-expanded body text already rendered by restored WPG groups."""
-    if not pristine_document:
-        return converted_xml
     group_texts = [
         _paragraph_plain_text(original_xml[start:end])
         for start, end in _xml_element_ranges(original_xml, "wpg:wgp")
@@ -4212,7 +4341,8 @@ def _remove_duplicate_writer_group_flow_paragraphs(
     for start, end in _writer_body_paragraph_ranges(converted_xml):
         paragraph = converted_xml[start:end]
         text = _writer_flow_text(paragraph)
-        if (text and not _writer_outer_anchor_blocks(paragraph)
+        if (text and (pristine_document or "vno-untouched-" in paragraph)
+                and not _writer_outer_anchor_blocks(paragraph)
                 and not _writer_has_page_break(paragraph)
                 and any(text in group_text for group_text in group_texts)):
             removals.append((start, end))
@@ -4225,9 +4355,16 @@ def _remove_duplicate_writer_group_flow_paragraphs(
 def _passthrough_writer_anchors(
     converted_xml: str, original_xml: str, source_docx: bytes,
     converted_rels_xml: str, next_rid: int, existing_entries: set[str],
-    trust_order: bool = False,
+    trust_order: bool = False, pristine_document: bool = False,
 ) -> tuple[str, str, int, dict[str, bytes], set[str], set[str]]:
     matches = _writer_passthrough_matches(converted_xml, original_xml, trust_order=trust_order)
+    if matches and not pristine_document:
+        converted_anchors = list(_WRITER_ANCHOR_RE.finditer(converted_xml))
+        matches = {
+            index: source_anchor for index, source_anchor in matches.items()
+            if index < len(converted_anchors)
+            and _writer_anchor_is_untouched(converted_anchors[index].group(0))
+        }
     if not matches:
         return converted_xml, converted_rels_xml, next_rid, {}, set(), set()
     original_rels_bytes = read_zip_entry(source_docx, "word/_rels/document.xml.rels") or b""
@@ -4360,6 +4497,43 @@ def postprocess_writer_docx(
         ]
         if 5 <= len(safe_anchors) and len(source_flow) <= 25:
             return source_docx
+    elif "vno-edited-" in converted_xml:
+        source_flow = _writer_body_paragraph_ranges(original_xml)
+        safe_anchors = [
+            anchor for anchor in _writer_outer_anchor_blocks(original_xml)
+            if _writer_anchor_passthrough_kind(anchor)
+        ]
+        # Drawing-led catalogues keep their editable text in native grouped
+        # text boxes. Transplant simple text insertions into that native XML so
+        # the edited box stays inside its original group (11 anchors), rather
+        # than retaining an extra LibreOffice raster/textbox anchor.
+        if 5 <= len(safe_anchors) and len(source_flow) <= 25:
+            edited_texts = [
+                _paragraph_plain_text(converted_xml[start:end])
+                for start, end in _document_paragraph_ranges(converted_xml)
+                if "vno-edited-" in converted_xml[start:end]
+                and _paragraph_plain_text(converted_xml[start:end])
+            ]
+            native_xml = original_xml
+            mapped_count = 0
+            for edited_text in edited_texts:
+                candidates = []
+                for match in re.finditer(r"(<w:t\b[^>]*>)([\s\S]*?)(</w:t\s*>)", native_xml, re.IGNORECASE):
+                    source_text = _unescape_xml(match.group(2))
+                    if len(source_text) >= 4 and edited_text.endswith(source_text):
+                        candidates.append((len(source_text), match))
+                if not candidates:
+                    continue
+                _length, match = max(candidates, key=lambda item: item[0])
+                native_xml = (
+                    native_xml[:match.start(2)] + _escape_xml(edited_text)
+                    + native_xml[match.end(2):]
+                )
+                mapped_count += 1
+            if mapped_count:
+                return patch_ooxml_zip(
+                    source_docx, {"word/document.xml": native_xml.encode("utf-8")},
+                )
 
     # --- Remap original header/footer rIds to sequential new rIds ---
     # The original sectPr has rIds (e.g. rId154) that don't exist in the
@@ -4412,6 +4586,13 @@ def postprocess_writer_docx(
         _passthrough_writer_anchors(
             new_xml, original_xml, source_docx, converted_rels_xml, next_rid,
             existing_entries,
+            # The HTML bridge emits the source's top-level floating carriers
+            # first and preserves paragraph bookmarks independently.  Order is
+            # therefore trustworthy for the carrier set whenever at least one
+            # per-paragraph untouched marker survives; relocation below still
+            # decides independently which carrier paragraphs may be restored.
+            trust_order=pristine_document or "vno-untouched-" in new_xml,
+            pristine_document=pristine_document,
         )
     )
     new_xml = _relocate_passthrough_anchors(
