@@ -184,6 +184,54 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertIn('<w:spacing w:after="240"/>', xml)
         self.assertIn('<w:jc w:val="center"/>', xml)
 
+    def test_pristine_document_reinserts_anchor_page_break_carrier_in_lcs_slot(self):
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'
+            '<w:p><w:r><w:br w:type="page"/><w:drawing><wp:anchor behindDoc="0">'
+            '<wp:positionV relativeFrom="page"><wp:posOffset>123</wp:posOffset></wp:positionV>'
+            '<wp:docPr id="7" name="Picture Carrier"/><pic:pic/>'
+            '</wp:anchor></w:drawing></w:r></w:p>'
+            '<w:p><w:r><w:t>After</w:t></w:r></w:p><w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:bookmarkStart w:id="8" w:name="vno-pristine-document"/>'
+            '<w:bookmarkEnd w:id="8"/><w:r><w:drawing><wp:anchor behindDoc="0">'
+            '<wp:positionV relativeFrom="paragraph"><wp:posOffset>999</wp:posOffset></wp:positionV>'
+            '<wp:docPr id="70" name="Picture Carrier"/><pic:pic/>'
+            '</wp:anchor></w:drawing></w:r></w:p>'
+            '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>After</w:t></w:r></w:p><w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        paragraphs = [xml[start:end] for start, end in ooxml_zip_patch_mod._writer_body_paragraph_ranges(xml)]
+        self.assertEqual([ooxml_zip_patch_mod._paragraph_plain_text(p) for p in paragraphs[:4]], ["", "Before", "", "After"])
+        self.assertIn('w:type="page"', paragraphs[2])
+        self.assertIn('name="Picture Carrier"', paragraphs[2])
+        self.assertNotIn('name="Picture Carrier"', paragraphs[0])
+
+    def test_pristine_document_moves_anchor_to_matched_text_paragraph(self):
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:t>Cover</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Target</w:t><w:drawing><wp:anchor behindDoc="0">'
+            '<wp:positionV relativeFrom="page"/><wp:docPr id="3" name="Group Target"/><wpg:wgp/>'
+            '</wp:anchor></w:drawing></w:r></w:p><w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:bookmarkStart w:id="8" w:name="vno-pristine-document"/>'
+            '<w:bookmarkEnd w:id="8"/><w:r><w:drawing><wp:anchor behindDoc="0">'
+            '<wp:positionV relativeFrom="paragraph"/><wp:docPr id="30" name="Group Target"/><wpg:wgp/>'
+            '</wp:anchor></w:drawing></w:r></w:p>'
+            '<w:p><w:r><w:t>Cover</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Target</w:t></w:r></w:p><w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        paragraphs = [xml[start:end] for start, end in ooxml_zip_patch_mod._writer_body_paragraph_ranges(xml)]
+        self.assertNotIn('name="Group Target"', paragraphs[0])
+        target = next(p for p in paragraphs if ooxml_zip_patch_mod._paragraph_plain_text(p) == "Target")
+        self.assertIn('name="Group Target"', target)
+
     def test_matched_format_overlay_restores_alignment_and_list(self):
         xml = self._format_roundtrip_xml('<w:pPr><w:jc w:val="center"/><w:numPr><w:ilvl w:val="1"/><w:numId w:val="7"/></w:numPr></w:pPr>')
         self.assertIn('<w:jc w:val="center"/>', xml)
