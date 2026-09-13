@@ -2948,9 +2948,17 @@ export class SlidesCanvasController {
       const text = `<span class="vno-wordart-text" data-vno-wordart="true" data-vno-wordart-preset="${this._escapeShapeText(shape.presetId || "")}" style="${textCss}">${this._escapeShapeText(shape.text)}</span>`;
       return `<div class="vno-show-shape vno-show-wordart"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:transparent;display:flex;align-items:center;justify-content:center;overflow:visible">${text}</div>`;
     }
-    const radius = shape.type === "ellipse" ? "50%" : "6px";
-    const text = shape.text !== undefined ? `<span class="vno-show-shape-text">${this._escapeShapeText(shape.text)}</span>` : "";
-    return `<div class="vno-show-shape"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:${shape.color || "#3b82f6"};opacity:.9;border-radius:${radius}">${text}</div>`;
+    const isDiagramNode = !!(shape.diagramGroupId || shape.diagramRole === "node");
+    const radius = shape.type === "ellipse" ? "50%" : (isDiagramNode ? "6px" : "0px");
+    const border = (shape.stroke || shape.strokeColor) ? `border:${shape.strokeWidth || 1}px solid ${shape.stroke || shape.strokeColor};box-sizing:border-box;` : "";
+    const opacity = isDiagramNode ? ".85" : (shape.opacity != null ? String(shape.opacity) : "1");
+    const textWeight = shape.fontWeight ? `font-weight:${shape.fontWeight};` : (!isDiagramNode ? "font-weight:normal;" : "");
+    const textSize = shape.fontSize ? `font-size:${typeof shape.fontSize === "number" ? `${shape.fontSize}px` : shape.fontSize};` : "";
+    const textColor = (shape.fontColor || shape.textColor) ? `color:${shape.fontColor || shape.textColor};` : "";
+    const textAlign = shape.textAlign ? `text-align:${shape.textAlign};` : "";
+    const textStyle = [textWeight, textSize, textColor, textAlign].filter(Boolean).join("");
+    const text = shape.text !== undefined ? `<span class="vno-show-shape-text"${textStyle ? ` style="${textStyle}"` : ""}>${this._escapeShapeText(shape.text)}</span>` : "";
+    return `<div class="vno-show-shape"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:${shape.fill || shape.color || "#3b82f6"};opacity:${opacity};border-radius:${radius};${border}">${text}</div>`;
   }
 
   _getMorphMatches(fromSlide, toSlide) {
@@ -3023,7 +3031,10 @@ export class SlidesCanvasController {
       return `<div class="vno-sorter-shape-node vno-sorter-textbox" style="${box}">${this._escapeShapeText(shape.text || "")}</div>`;
     }
     if (shape.type !== "rect" && shape.type !== "ellipse") return "";
-    const style = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:${shape.color || "#3b82f6"};border-radius:${shape.type === "ellipse" ? "50%" : "4px"}`;
+    const isDiagramNode = !!(shape.diagramGroupId || shape.diagramRole === "node");
+    const radius = shape.type === "ellipse" ? "50%" : (isDiagramNode ? "4px" : "0px");
+    const border = (shape.stroke || shape.strokeColor) ? `;border:${Math.max(1, Math.round((shape.strokeWidth || 1) * 0.2))}px solid ${shape.stroke || shape.strokeColor};box-sizing:border-box` : "";
+    const style = `left:${shape.x / this.slideSize.width * 100}%;top:${shape.y / this.slideSize.height * 100}%;width:${shape.w / this.slideSize.width * 100}%;height:${shape.h / this.slideSize.height * 100}%;background:${shape.fill || shape.color || "#3b82f6"};border-radius:${radius}${border}`;
     return `<div class="vno-sorter-shape-node" style="${style}">${this._escapeShapeText(shape.text || "")}</div>`;
   }
 
@@ -3909,14 +3920,50 @@ export class SlidesCanvasController {
         });
         el.appendChild(textEl);
       } else {
-        el.style.backgroundColor = shape.color || "#3b82f6";
-        el.style.opacity = "0.85";
-        el.style.borderRadius = shape.type === "ellipse" ? "50%" : "6px";
+        el.style.backgroundColor = shape.fill || shape.color || "#3b82f6";
+        if (shape.stroke || shape.strokeColor) {
+          const sw = shape.strokeWidth || 1;
+          const sc = shape.stroke || shape.strokeColor;
+          el.style.border = `${sw}px solid ${sc}`;
+          el.style.boxSizing = "border-box";
+        } else {
+          el.style.border = "none";
+        }
+        const isDiagramNode = !!(shape.diagramGroupId || shape.diagramRole === "node");
+        el.style.opacity = isDiagramNode ? "0.85" : (shape.opacity != null ? String(shape.opacity) : "1");
+        el.style.borderRadius = shape.type === "ellipse" ? "50%" : (isDiagramNode ? "6px" : "0");
+        if (shape.paddingLeft != null || shape.paddingTop != null || shape.paddingRight != null || shape.paddingBottom != null) {
+          const pt = shape.paddingTop ?? 0;
+          const pr = shape.paddingRight ?? 0;
+          const pb = shape.paddingBottom ?? 0;
+          const pl = shape.paddingLeft ?? 0;
+          el.style.padding = `${pt}px ${pr}px ${pb}px ${pl}px`;
+          el.style.boxSizing = "border-box";
+        }
         if (shape.text !== undefined) {
           const textEl = document.createElement("div");
-          textEl.className = "vno-diagram-node-text";
+          textEl.className = isDiagramNode ? "vno-diagram-node-text" : "vno-shape-text";
           textEl.dataset.shapeTextId = String(shape.id);
           textEl.style.cssText = this._textDirectionCss(shape.textDirection);
+          if (shape.paddingLeft != null || shape.paddingTop != null || shape.paddingRight != null || shape.paddingBottom != null) {
+            textEl.style.padding = "0";
+          }
+          if (shape.fontWeight) {
+            textEl.style.fontWeight = shape.fontWeight;
+          } else if (!isDiagramNode) {
+            textEl.style.fontWeight = "normal";
+          }
+          if (shape.fontSize) {
+            textEl.style.fontSize = typeof shape.fontSize === "number" ? `${shape.fontSize}px` : shape.fontSize;
+          }
+          if (shape.textAlign) {
+            textEl.style.textAlign = shape.textAlign;
+          } else if (!isDiagramNode && shape.textHtml && shape.textHtml.includes("text-align:left")) {
+            textEl.style.textAlign = "left";
+          }
+          if (shape.fontColor || shape.textColor) {
+            textEl.style.color = shape.fontColor || shape.textColor;
+          }
           if (shape.textHtml && this._htmlLooksFormatted(shape.textHtml)) textEl.innerHTML = shape.textHtml;
           else textEl.textContent = shape.text || "";
           textEl.contentEditable = "false";
@@ -8621,8 +8668,10 @@ export class SlidesCanvasController {
           }
           return `<img src="${shape.src}" style="${pos}object-fit:contain;" />`;
         }
-        const radius = shape.type === "ellipse" ? "50%" : "4px";
-        return `<div style="${pos}background:${shape.color || "#3b82f6"};border-radius:${radius};"></div>`;
+        const isDiagramNode = !!(shape.diagramGroupId || shape.diagramRole === "node");
+        const radius = shape.type === "ellipse" ? "50%" : (isDiagramNode ? "4px" : "0px");
+        const border = (shape.stroke || shape.strokeColor) ? `border:1px solid ${shape.stroke || shape.strokeColor};box-sizing:border-box;` : "";
+        return `<div style="${pos}background:${shape.fill || shape.color || "#3b82f6"};border-radius:${radius};${border}"></div>`;
       }).join("");
 
       const layout = s.layoutType || "title-content";

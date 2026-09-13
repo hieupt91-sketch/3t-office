@@ -814,8 +814,12 @@ export class SlidesAdapter {
       if (!name) continue;
       const inner = match[2] || "";
       if (family === "text") {
+        const weightMatch = inner.match(/fo:font-weight=["']([^"']+)["']/i)?.[1];
+        const isBold = /fo:font-weight=["']bold["']/i.test(inner) || /fo:font-weight=["'][7-9]00["']/i.test(inner);
         text.set(name, {
-          bold: /fo:font-weight=["']bold["']/i.test(inner) || /fo:font-weight=["'][7-9]00["']/i.test(inner),
+          bold: isBold,
+          weight: weightMatch || (isBold ? "bold" : null),
+          fontWeight: weightMatch || (isBold ? "bold" : null),
           italic: /fo:font-style=["']italic["']/i.test(inner),
           underline: /style:text-underline-style=["'](?!none)[^"']+["']/i.test(inner),
           strike: /style:text-line-through-style=["'](?!none)[^"']+["']/i.test(inner),
@@ -830,9 +834,15 @@ export class SlidesAdapter {
         if (rawLh && rawLh.endsWith("%")) {
           rawLh = this._odfProportionalToCssLineHeight(rawLh) || rawLh;
         }
+        const weightMatch = inner.match(/fo:font-weight=["']([^"']+)["']/i)?.[1];
+        const isBold = /fo:font-weight=["']bold["']/i.test(inner) || /fo:font-weight=["'][7-9]00["']/i.test(inner);
         para.set(name, {
           align: inner.match(/fo:text-align=["']([^"']+)["']/i)?.[1],
           fontSize: inner.match(/fo:font-size=["']([^"']+)["']/i)?.[1],
+          bold: isBold,
+          weight: weightMatch || (isBold ? "bold" : null),
+          fontWeight: weightMatch || (isBold ? "bold" : null),
+          color: inner.match(/fo:color=["']([^"']+)["']/i)?.[1],
           lineHeight: rawLh,
           indent: inner.match(/fo:margin-left=["']([^"']+)["']/i)?.[1]
         });
@@ -874,6 +884,7 @@ export class SlidesAdapter {
         spanStyles.push(`font-family:'${cleanFamily}',${generic}`);
       }
       if (fmt.size) spanStyles.push(`font-size:${fmt.size}`);
+      if (fmt.fontWeight) spanStyles.push(`font-weight:${fmt.fontWeight}`);
       if (spanStyles.length) wrapped = `<span style="${spanStyles.join(";")}">${wrapped}</span>`;
       return wrapped;
     });
@@ -1841,9 +1852,14 @@ export class SlidesAdapter {
       let strokeAttrs = "";
       if (isTransparent) {
         fillAttrs = ` draw:fill="none"`;
-        strokeAttrs = ` draw:stroke="none"`;
       } else {
-        fillAttrs = ` draw:fill="solid" draw:fill-color="${this._escapeXml(shape.color)}"`;
+        fillAttrs = ` draw:fill="solid" draw:fill-color="${this._escapeXml(shape.fill || shape.color)}"`;
+      }
+      if (shape.stroke || shape.strokeColor) {
+        const sc = shape.stroke || shape.strokeColor;
+        const sw = shape.strokeWidth ? this._pxToOdf(shape.strokeWidth) : "0.02cm";
+        strokeAttrs = ` draw:stroke="solid" svg:stroke-color="${this._escapeXml(sc)}" svg:stroke-width="${sw}"`;
+      } else {
         strokeAttrs = ` draw:stroke="none"`;
       }
       xml += `
@@ -2028,6 +2044,20 @@ export class SlidesAdapter {
       const fill = match[2].match(/draw:fill-color=["']([^"']+)["']/i)?.[1];
       const fillKind = match[2].match(/draw:fill=["']([^"']+)["']/i)?.[1];
       const stroke = match[2].match(/svg:stroke-color=["']([^"']+)["']/i)?.[1];
+      const strokeKind = match[2].match(/draw:stroke=["']([^"']+)["']/i)?.[1];
+      const strokeWidthRaw = match[2].match(/svg:stroke-width=["']([^"']+)["']/i)?.[1];
+      const hAlignRaw = match[2].match(/draw:textarea-horizontal-align=["']([^"']+)["']/i)?.[1];
+      const fontSize = match[2].match(/fo:font-size=["']([^"']+)["']/i)?.[1];
+      const fontWeight = match[2].match(/fo:font-weight=["']([^"']+)["']/i)?.[1];
+      const fontColor = match[2].match(/fo:color=["']([^"']+)["']/i)?.[1];
+      const fontFamily = match[2].match(/fo:font-family=["']([^"']+)["']/i)?.[1] || match[2].match(/style:font-name=["']([^"']+)["']/i)?.[1];
+      let strokeWidth = null;
+      if (strokeWidthRaw) {
+        strokeWidth = this._odfLengthToPx(strokeWidthRaw, false);
+      }
+      if ((stroke || strokeKind === "solid") && (strokeWidth == null || strokeWidth <= 0)) {
+        strokeWidth = 1;
+      }
       const markerEnd = match[2].match(/draw:marker-end=["']([^"']+)["']/i)?.[1];
       const vAlignRaw = match[2].match(/draw:textarea-vertical-align=["']([^"']+)["']/i)?.[1];
       const vnoDirection = match[2].match(/vno:text-direction=["']([^"']+)["']/i)?.[1];
@@ -2053,9 +2083,17 @@ export class SlidesAdapter {
       styles.set(name, {
         parentStyleName,
         fill: fillKind === "none" ? "transparent" : (fill || null),
-        stroke: stroke || null,
+        stroke: strokeKind === "none" ? null : (stroke || (strokeKind === "solid" ? "#000000" : null)),
+        strokeWidth,
+        strokeWidthRaw,
+        strokeKind: strokeKind || null,
         markerEnd: markerEnd || null,
         textVAlign: vAlignRaw || null,
+        textAlign: hAlignRaw || null,
+        fontSize: fontSize || null,
+        fontWeight: fontWeight || null,
+        fontColor: fontColor || null,
+        fontFamily: fontFamily || null,
         textDirection: (textDirection && textDirection !== "horizontal") ? textDirection : null,
         paddingTop: finalPadTop ? this._odfLengthToPx(finalPadTop, false) : null,
         paddingBottom: finalPadBottom ? this._odfLengthToPx(finalPadBottom, false) : null,
@@ -2074,7 +2112,14 @@ export class SlidesAdapter {
       while (p && depth < 10) {
         if (!s.fill && p.fill) s.fill = p.fill;
         if (!s.stroke && p.stroke) s.stroke = p.stroke;
+        if (s.strokeWidth == null && p.strokeWidth != null) s.strokeWidth = p.strokeWidth;
+        if (!s.strokeKind && p.strokeKind) s.strokeKind = p.strokeKind;
         if (!s.textVAlign && p.textVAlign) s.textVAlign = p.textVAlign;
+        if (!s.textAlign && p.textAlign) s.textAlign = p.textAlign;
+        if (!s.fontSize && p.fontSize) s.fontSize = p.fontSize;
+        if (!s.fontWeight && p.fontWeight) s.fontWeight = p.fontWeight;
+        if (!s.fontColor && p.fontColor) s.fontColor = p.fontColor;
+        if (!s.fontFamily && p.fontFamily) s.fontFamily = p.fontFamily;
         if (!s.textDirection && p.textDirection) s.textDirection = p.textDirection;
         if (s.paddingTop == null && p.paddingTop != null) s.paddingTop = p.paddingTop;
         if (s.paddingBottom == null && p.paddingBottom != null) s.paddingBottom = p.paddingBottom;
@@ -2139,6 +2184,75 @@ export class SlidesAdapter {
     const styleName = get("draw:style-name");
     const style = graphicStyles.get(styleName) || {};
     const color = get("draw:fill-color") || style.fill || "#3b82f6";
+
+    // Stroke / border resolution
+    const strokeKind = get("draw:stroke") || style.strokeKind;
+    let stroke = get("svg:stroke-color") || (strokeKind === "none" ? null : style.stroke);
+    if (!stroke && strokeKind === "solid") stroke = "#000000";
+    let strokeWidth = null;
+    const strokeWidthAttr = get("svg:stroke-width");
+    if (strokeWidthAttr) {
+      strokeWidth = this._odfLengthToPx(strokeWidthAttr, false);
+    } else if (style.strokeWidth != null) {
+      strokeWidth = style.strokeWidth;
+    }
+    if (stroke && (strokeWidth == null || strokeWidth <= 0)) {
+      strokeWidth = 1;
+    }
+
+    // Font properties resolution (weight, size, color)
+    let resolvedFontWeight = null;
+    let resolvedFontSize = null;
+    let resolvedFontColor = null;
+
+    const spanStyleMatches = inner.matchAll(/<text:span\b[^>]*text:style-name=["']([^"']+)["']/gi);
+    for (const sm of spanStyleMatches) {
+      const tStyle = this._richMaps?.text?.get(sm[1]);
+      if (tStyle) {
+        if (!resolvedFontWeight && tStyle.fontWeight) resolvedFontWeight = tStyle.fontWeight;
+        if (!resolvedFontSize && tStyle.size) resolvedFontSize = tStyle.size;
+        if (!resolvedFontColor && tStyle.color) resolvedFontColor = tStyle.color;
+      }
+    }
+
+    const pStyleMatches = inner.matchAll(/<text:p\b[^>]*text:style-name=["']([^"']+)["']/gi);
+    for (const pm of pStyleMatches) {
+      const pStyle = this._richMaps?.para?.get(pm[1]);
+      if (pStyle) {
+        if (!resolvedFontWeight && pStyle.fontWeight) resolvedFontWeight = pStyle.fontWeight;
+        if (!resolvedFontSize && pStyle.fontSize) resolvedFontSize = pStyle.fontSize;
+        if (!resolvedFontColor && pStyle.color) resolvedFontColor = pStyle.color;
+      }
+    }
+
+    const textStyleName = get("draw:text-style-name");
+    if (textStyleName) {
+      const pStyle = this._richMaps?.para?.get(textStyleName);
+      if (pStyle) {
+        if (!resolvedFontWeight && pStyle.fontWeight) resolvedFontWeight = pStyle.fontWeight;
+        if (!resolvedFontSize && pStyle.fontSize) resolvedFontSize = pStyle.fontSize;
+        if (!resolvedFontColor && pStyle.color) resolvedFontColor = pStyle.color;
+      }
+      const tStyle = this._richMaps?.text?.get(textStyleName);
+      if (tStyle) {
+        if (!resolvedFontWeight && tStyle.fontWeight) resolvedFontWeight = tStyle.fontWeight;
+        if (!resolvedFontSize && tStyle.size) resolvedFontSize = tStyle.size;
+        if (!resolvedFontColor && tStyle.color) resolvedFontColor = tStyle.color;
+      }
+    }
+
+    if (!resolvedFontWeight) {
+      resolvedFontWeight = inner.match(/fo:font-weight=["']([^"']+)["']/i)?.[1] || style.fontWeight || null;
+    }
+    if (!resolvedFontSize) {
+      resolvedFontSize = inner.match(/fo:font-size=["']([^"']+)["']/i)?.[1] || style.fontSize || null;
+    }
+    if (!resolvedFontColor) {
+      resolvedFontColor = inner.match(/fo:color=["']([^"']+)["']/i)?.[1] || style.fontColor || null;
+    }
+
+    const textAlign = inner.match(/fo:text-align=["']([^"']+)["']/i)?.[1] || style.textAlign || get("draw:textarea-horizontal-align") || null;
+
     // Cùng lỗi thật đã sửa cho _parseFrameShape() (ảnh): hình rect/ellipse/
     // custom-shape bị XOAY trong PPTX thật cũng được soffice ghi vị trí qua
     // draw:transform="rotate(...) translate(...)" thay vì svg:x/svg:y —
@@ -2153,6 +2267,16 @@ export class SlidesAdapter {
       h: this._odfLengthToPx(get("svg:height")) || 120,
       ...(origin.rotationDeg ? { rotation: origin.rotationDeg } : {}),
       color,
+      fill: color,
+      ...(stroke ? { stroke, strokeColor: stroke, strokeWidth, "svg:stroke-color": stroke, "draw:stroke": strokeKind || "solid" } : {}),
+      ...(resolvedFontWeight ? {
+        fontWeight: resolvedFontWeight,
+        "fo:font-weight": resolvedFontWeight,
+        bold: resolvedFontWeight === "bold" || parseInt(resolvedFontWeight, 10) >= 600
+      } : {}),
+      ...(resolvedFontSize ? { fontSize: resolvedFontSize, "fo:font-size": resolvedFontSize } : {}),
+      ...(resolvedFontColor ? { fontColor: resolvedFontColor, color: color } : {}),
+      ...(textAlign ? { textAlign: textAlign === "justify" ? "left" : textAlign } : {}),
       text: this._paragraphsFromXml(inner).join("\n"),
       textHtml: this._shapeHtmlFromXml(inner),
       animation: this._noneAnimation()

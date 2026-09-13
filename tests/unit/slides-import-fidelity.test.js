@@ -257,5 +257,88 @@ export async function runSlidesImportFidelityTests() {
     }
   });
 
+  await test("parseFodp: custom-shape đọc đúng fill, stroke hairline 1px, và fo:font-weight normal từ FODP", async () => {
+    const FODP_CUSTOM_SHAPE = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+                 xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+                 xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+                 xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+                 xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+                 xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+                 xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+                 office:mimetype="application/vnd.oasis.opendocument.presentation">
+  <office:automatic-styles>
+    <style:style style:name="gr4" style:family="graphic">
+      <style:graphic-properties draw:stroke="solid" svg:stroke-width="0cm" svg:stroke-color="#2f5496" draw:fill="solid" draw:fill-color="#4472c4"/>
+      <style:text-properties fo:font-weight="normal" fo:font-size="18pt"/>
+    </style:style>
+    <style:style style:name="T4" style:family="text">
+      <style:text-properties fo:font-weight="normal" fo:font-size="18pt"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body>
+    <office:presentation>
+      <draw:page draw:name="Slide 2">
+        <draw:custom-shape draw:style-name="gr4" svg:x="5cm" svg:y="5cm" svg:width="10cm" svg:height="6cm">
+          <text:p><text:span text:style-name="T4">Khối kiến trúc</text:span></text:p>
+        </draw:custom-shape>
+      </draw:page>
+    </office:presentation>
+  </office:body>
+</office:document>`;
+
+    const adapter = new SlidesAdapter(null);
+    const slides = adapter.parseFodp(FODP_CUSTOM_SHAPE);
+    assert(slides.length === 1, `Phải có 1 slide, nhận ${slides.length}`);
+    const shapes = slides[0].shapes || [];
+    assert(shapes.length === 1, `Phải có 1 shape, nhận ${shapes.length}`);
+    const shape = shapes[0];
+
+    assert(shape.type === "rect", `Type shape phải là rect: ${shape.type}`);
+    assert(shape.fill === "#4472c4", `Fill color phải là #4472c4: ${shape.fill}`);
+    assert(shape.stroke === "#2f5496", `Stroke color phải là #2f5496: ${shape.stroke}`);
+    assert(shape.strokeWidth === 1, `Stroke width cho 0cm hairline phải là 1px: ${shape.strokeWidth}`);
+    assert(shape.fontWeight === "normal", `Font weight phải là normal: ${shape.fontWeight}`);
+    assert(shape.text === "Khối kiến trúc", `Text phải là 'Khối kiến trúc': ${shape.text}`);
+    assert(/font-weight:\s*normal/i.test(shape.textHtml), `textHtml phải có font-weight: normal: ${shape.textHtml}`);
+
+    // Kiểm tra Canvas render cho shape
+    const origDoc = global.document;
+    const origWin = global.window;
+    try {
+      global.document = {
+        createElement: tag => new FakeElement(tag),
+        getElementById: () => null,
+        addEventListener() {},
+        removeEventListener() {},
+        body: new FakeElement("body")
+      };
+      global.window = {
+        addEventListener() {},
+        removeEventListener() {}
+      };
+
+      const container = new FakeElement("div");
+      const canvas = new SlidesCanvasController(container);
+      canvas.mount();
+      canvas.slides = slides;
+      canvas.selectSlide(0);
+
+      const shapeEl = canvas.shapesLayer.children.find(c => String(c.dataset?.shapeId) === String(shape.id)) || canvas.shapesLayer.children[0];
+      assert(shapeEl, "Phải tìm thấy shapeEl trong canvas");
+      assert(shapeEl.style.backgroundColor === "#4472c4", `backgroundColor phải là #4472c4: ${shapeEl.style.backgroundColor}`);
+      assert(shapeEl.style.border === "1px solid #2f5496", `border phải là 1px solid #2f5496: ${shapeEl.style.border}`);
+      assert(shapeEl.style.opacity === "1", `opacity phải là 1 (không mờ 0.85): ${shapeEl.style.opacity}`);
+      assert(shapeEl.style.borderRadius === "0" || shapeEl.style.borderRadius === "0px", `borderRadius phải là 0: ${shapeEl.style.borderRadius}`);
+
+      const textChild = shapeEl.children.find(c => c.className?.includes("vno-shape-text"));
+      assert(textChild, "Phải tìm thấy textChild có class vno-shape-text");
+      assert(textChild.style.fontWeight === "normal", `textChild.style.fontWeight phải là normal: ${textChild.style.fontWeight}`);
+    } finally {
+      global.document = origDoc;
+      global.window = origWin;
+    }
+  });
+
   return results;
 }
