@@ -7318,7 +7318,11 @@ export class SlidesCanvasController {
   setSlideSize(options, recordHistory = true) {
     options = options || {};
     const presets = { wide: { preset: "wide", width: 960, height: 540 }, standard: { preset: "standard", width: 720, height: 540 } };
-    const next = presets[options.preset || options] || null;
+    let next = presets[options.preset || options] || null;
+    if (!next && options && options.width && options.height) {
+      const isStd = Math.abs((options.width / options.height) - (4 / 3)) < 0.15;
+      next = { preset: isStd ? "standard" : "wide", width: options.width, height: options.height };
+    }
     if (!next || next.preset === this.slideSize.preset) return false;
     const before = { size: { ...this.slideSize }, geometry: this._captureSlideGeometry() };
     const scaleX = next.width / this.slideSize.width;
