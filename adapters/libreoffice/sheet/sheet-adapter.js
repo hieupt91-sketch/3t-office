@@ -3043,7 +3043,11 @@ export class SheetAdapter {
                 const annotation = Array.from(cell.children).find(child => child.localName === "annotation");
                 const paragraphs = Array.from(cell.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p")).filter(paragraph => !annotation?.contains(paragraph));
                 const text = this._decodeImportedCellText(paragraphs.map(paragraph => paragraph.textContent || "").join("\n"));
-                const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"];
+                // Ô rỗng nhưng có viền/nền (style-only) cũng phải vào model, nếu không
+                // serializeToFods bỏ table:style-name -> XLSX lưu ra mất viền (đo Dahua:
+                // FODS soffice 573 ô viền, app gửi đi 468 khi thiếu nhánh này).
+                const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"]
+                  || (columnNumber <= lastDataCol && this._fodsCellHasRealContent(cell, cellVisualStyles));
                 if (hasValue && !isCovered) {
                   const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
                   // Extract rich text runs from <text:span> elements
