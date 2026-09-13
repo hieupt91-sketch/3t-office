@@ -1,4 +1,5 @@
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
+import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 import { WRITER_HELP_ENTRIES } from "../../platform/help/entries-writer.js";
@@ -66,6 +67,50 @@ export async function runWriterSectionBreaksPageColorTests() {
     const ids = dropdown?.items.map((item) => item.commandId) || [];
     for (const id of ["writer.page.break", "writer.break.column", "writer.section.nextPage", "writer.section.continuous", "writer.section.evenPage", "writer.section.oddPage"]) assert(ids.includes(id), `Dropdown thiếu ${id}`);
     assert(WRITER_HELP_ENTRIES.some((entry) => entry.id === "writer.section.breaks"), "Thiếu Help Section Breaks");
+  });
+
+  await test("Writer import syncs Letter geometry and margins to the active section", async () => {
+    const { adapter } = createAdapter();
+    const originalOpen = globalUnoBridge.openRealFile;
+    globalUnoBridge.openRealFile = async () => ({
+      status: "ok",
+      fileName: "letter.docx",
+      content: "<html><head><style>@page { size: 21.59cm 27.94cm; margin-top: 1.3cm; margin-right: 2.5cm; margin-bottom: 0.9cm; margin-left: 2.5cm; }</style></head><body><p>Letter</p></body></html>"
+    });
+    try {
+      assert(await adapter.open(), "Could not open Letter fixture");
+      const exported = adapter._contentForExport();
+      assert(exported.includes("@page { size: 216mm 279mm; margin: 13mm 25mm 9mm 25mm;"), "Global @page lost imported Letter geometry/margins");
+      assert(exported.includes("@page vno-section-1 { size:216mm 279mm; margin:13mm 25mm 9mm 25mm;"), "Section @page was not synchronized with imported Letter geometry/margins");
+    } finally {
+      globalUnoBridge.openRealFile = originalOpen;
+    }
+  });
+
+  await test("Writer import preserves custom geometry in global and section CSS", async () => {
+    const { adapter, editor } = createAdapter();
+    const originalOpen = globalUnoBridge.openRealFile;
+    globalUnoBridge.openRealFile = async () => ({
+      status: "ok",
+      fileName: "custom.docx",
+      content: "<html><head><style>@page { size: 14.65cm 21.3cm; }</style></head><body><p>Custom</p></body></html>"
+    });
+    try {
+      assert(await adapter.open(), "Could not open custom-size fixture");
+      const exported = adapter._contentForExport();
+      assert(adapter.pageSetup.size === "custom" && adapter.pageSetup.widthMm === 146.5 && adapter.pageSetup.heightMm === 213, "Model lost custom dimensions");
+      assert(exported.includes("@page { size: 146.5mm 213mm;"), "Global @page lost custom geometry");
+      assert(exported.includes("@page vno-section-1 { size:146.5mm 213mm;"), "Section @page lost custom geometry");
+      assert(editor.style.width === `${(146.5 * 3.7795275591).toFixed(1)}px`, "Canvas did not use the custom width");
+    } finally {
+      globalUnoBridge.openRealFile = originalOpen;
+    }
+  });
+
+  await test("Writer new document remains A4 by default", () => {
+    const { adapter } = createAdapter();
+    assert(adapter.pageSetup.size === "a4", "New document default is no longer A4");
+    assert(adapter._getPageSetupCss().includes("size: 210mm 297mm"), "New document CSS is no longer A4");
   });
 
   return results;
