@@ -448,6 +448,7 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
             # gọi và để hàm tự quyết định không cần vá gì (trả về bytes y hệt).
             with open(out_path, "rb") as handle:
                 original = handle.read()
+            # Read source FODS for activeTab preservation
             patched = patcher.postprocess_sheet_xlsx(original, source_fods=fods)
             if patched != original:
                 with open(out_path, "wb") as handle:

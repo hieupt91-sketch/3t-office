@@ -553,6 +553,45 @@ def parse_active_sheet_from_workbook(workbook_xml: str | None) -> str | None:
     return sheet_names[0]
 
 
+def parse_active_sheet_from_fods(fods_xml: str | None) -> str | None:
+    """Read ActiveTable from FODS office:settings config:name="ActiveTable".
+    
+    Returns the active sheet name as written by serializeToFods(), or None if not found.
+    """
+    if not fods_xml:
+        return None
+    match = re.search(
+        r'<config:config-item\b[^>]*config:name\s*=\s*["\']ActiveTable["\'][^>]*>([^<]*)</config:config-item>',
+        fods_xml,
+        re.IGNORECASE
+    )
+    if match:
+        return _unescape_xml(match.group(1))
+    return None
+
+
+def apply_active_tab_to_workbook(workbook_xml: str, active_tab: int) -> str:
+    """Write activeTab back into xl/workbook.xml <workbookView> element."""
+    xml = workbook_xml or ""
+    if not xml:
+        return xml
+    # Capture attributes and optional self-closing slash separately
+    match = re.search(r"<(?:\w+:)?workbookView\b([^>]*?)(/?)\s*>", xml, re.IGNORECASE)
+    if not match:
+        return xml
+    attrs = match.group(1) or ""
+    self_closing = match.group(2) == "/"
+    # Replace or add activeTab attribute
+    if re.search(r'\bactiveTab\s*=', attrs, re.IGNORECASE):
+        attrs = re.sub(r'\bactiveTab\s*=\s*(["\'])\d+\1', f'activeTab="{active_tab}"', attrs, flags=re.IGNORECASE)
+    else:
+        attrs = f'{attrs.rstrip()} activeTab="{active_tab}"'
+    if attrs and not attrs.startswith(" "):
+        attrs = f" {attrs}"
+    next_tag = f"<workbookView{attrs}/>" if self_closing else f"<workbookView{attrs}>"
+    return xml[: match.start()] + next_tag + xml[match.end() :]
+
+
 def ensure_config_xmlns(fods_xml: str) -> str:
     """Ensure root <office:document> declares xmlns:config."""
     xml = fods_xml or ""
@@ -946,6 +985,29 @@ def postprocess_sheet_xlsx(
             next_sheet_xml = apply_autofilter_to_worksheet(sheet_xml, ref)
             if next_sheet_xml != sheet_xml:
                 replacements[entry_path] = next_sheet_xml
+
+    # Preserve activeTab (selected sheet) from source FODS (model/FODS active sheet).
+    # The FODS already contains ActiveTable in office:settings from serializeToFods().
+    # We read it and write the corresponding activeTab index into workbook.xml.
+    if source_fods:
+        try:
+            active_sheet = parse_active_sheet_from_fods(source_fods)
+            if active_sheet:
+                out_wb_xml = replacements.get(XLSX_WORKBOOK_ENTRY)
+                if out_wb_xml is None:
+                    out_wb_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+                    if out_wb_bytes:
+                        out_wb_xml = out_wb_bytes.decode("utf-8", errors="replace")
+                if out_wb_xml:
+                    sheet_names = parse_sheet_names_from_workbook(out_wb_xml)
+                    if active_sheet in sheet_names:
+                        active_tab = sheet_names.index(active_sheet)
+                        next_wb_xml = apply_active_tab_to_workbook(out_wb_xml, active_tab)
+                        if next_wb_xml != out_wb_xml:
+                            replacements[XLSX_WORKBOOK_ENTRY] = next_wb_xml
+        except Exception:
+            # Never fail the save due to activeTab preservation issues
+            pass
 
     if not replacements:
         return xlsx_bytes
