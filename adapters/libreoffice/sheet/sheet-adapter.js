@@ -2460,11 +2460,7 @@ export class SheetAdapter {
     for (const attr of ["office:value", "office:string-value", "office:date-value", "office:time-value", "office:boolean-value"]) {
       if (attributes[attr] !== undefined && attributes[attr] !== "") return true;
     }
-    const markup = String(content || "");
-    if (!markup) return false;
-    if (/<office:annotation\b/i.test(markup) || /<draw:frame\b/i.test(markup)) return true;
-    if (markup.replace(/<[^>]+>/g, "").trim() !== "") return true;
-    // Check if cell has a style with borders
+    // Check if cell has a style with borders (empty cells with borders must be materialized)
     const styleName = attributes["table:style-name"];
     if (styleName && cellVisualStyles.has(styleName)) {
       const visualStyle = cellVisualStyles.get(styleName);
@@ -2472,6 +2468,10 @@ export class SheetAdapter {
         return true;
       }
     }
+    const markup = String(content || "");
+    if (!markup) return false;
+    if (/<office:annotation\b/i.test(markup) || /<draw:frame\b/i.test(markup)) return true;
+    if (markup.replace(/<[^>]+>/g, "").trim() !== "") return true;
     return false;
   }
 
@@ -3043,7 +3043,11 @@ export class SheetAdapter {
                 const annotation = Array.from(cell.children).find(child => child.localName === "annotation");
                 const paragraphs = Array.from(cell.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p")).filter(paragraph => !annotation?.contains(paragraph));
                 const text = this._decodeImportedCellText(paragraphs.map(paragraph => paragraph.textContent || "").join("\n"));
-                const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"];
+                // Ô rỗng nhưng có viền/nền (style-only) cũng phải vào model, nếu không
+                // serializeToFods bỏ table:style-name -> XLSX lưu ra mất viền (đo Dahua:
+                // FODS soffice 573 ô viền, app gửi đi 468 khi thiếu nhánh này).
+                const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"]
+                  || (columnNumber <= lastDataCol && this._fodsCellHasRealContent(cell, cellVisualStyles));
                 if (hasValue && !isCovered) {
                   const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
                   // Extract rich text runs from <text:span> elements
