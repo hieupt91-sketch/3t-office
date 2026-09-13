@@ -46,6 +46,20 @@ export async function runSheetImportAuditTests() {
     }
     assert.deepEqual(numberFormatFromExcelCode("[Blue]literal!"), { category: "custom", code: "[Blue]literal!", customPattern: "[Blue]literal!" });
   });
+  await test("Unit test: numFmt _-* #,##0\\ _₫_- với 8890000 -> 8,890,000 (khong ₫)", async () => {
+    const { NumberFormatter } = await import("../../apps/sheet/number-formatter.js");
+    const code164 = '_-* #,##0\\ _₫_-;\\-* #,##0\\ _₫_-;_-* "-"??\\ _₫_-;_-@';
+    const nf164 = numberFormatFromExcelCode(code164);
+    assert.equal(nf164.category, "number");
+    assert.equal(nf164.currencySymbol, undefined);
+    assert.equal(NumberFormatter.formatValue(8890000, nf164).text, "8,890,000");
+    assert.equal(NumberFormatter.formatValue(0, nf164).text, "-");
+
+    const code165 = '_(* #,##0_);_(* \\(#,##0\\);_(* "-"??_);_(@_)';
+    const nf165 = numberFormatFromExcelCode(code165);
+    assert.equal(nf165.category, "number");
+    assert.equal(NumberFormatter.formatValue(34, nf165).text, "34");
+  });
   await test("parse vno:number-format chap nhan Excel formatCode va JSON", () => {
     const adapter = new SheetAdapter(null);
     const excel = adapter._cellFromFodsAttributes({ "office:value-type": "float", "office:value": "1234", "vno:number-format": "#,##0.00" }, "1234");

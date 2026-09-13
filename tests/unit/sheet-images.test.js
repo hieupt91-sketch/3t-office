@@ -345,6 +345,24 @@ export async function runSheetImageTests() {
       assert(normalZ < frozenZ, "Normal image z-index phai nho hon frozen image z-index");
       assert(colZ < cornerZ && rowZ < cornerZ, "Corner header phai co z-index cao nhat");
     });
+
+    test("Sheet Image: anh anchor hang 7 co top = top hang 7 (DOM offsetTop)", () => {
+      const grid = new SheetGridController(container());
+      grid.imageLayer = layer();
+      grid.tbody = {
+        querySelector: (sel) => {
+          if (sel === 'tr[data-row="7"]') return { offsetTop: 691 };
+          return null;
+        }
+      };
+      grid.imagesBySheet[grid.activeSheet] = [
+        { id: "img-row7", src: "data:image/png;base64,AA==", anchor: { c: "B", r: 7 }, offsetYCm: 0 }
+      ];
+      grid.renderImages();
+      const panel = grid.imageLayer.children.find(c => c.dataset?.imageId === "img-row7");
+      assert(panel, "Panel anh hang 7 phai ton tai");
+      assert(panel.style.top === "691px", `Top cua anh phai khop offsetTop cua tr hang 7 (691px), thuc te: ${panel.style.top}`);
+    });
   } finally { globalThis.document = originalDocument; }
   return results;
 }
