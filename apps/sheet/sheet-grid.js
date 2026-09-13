@@ -1067,6 +1067,7 @@ export class SheetGridController {
 
   _bindColumnHeader(th, col) {
     th.className = "vno-col-header";
+    if (!th.dataset) th.dataset = {};
     th.dataset.col = col;
     th.hidden = this._isColumnHidden(col);
     const width = this.getColumnWidth(col);
@@ -1828,6 +1829,7 @@ export class SheetGridController {
     }
 
     // 6. Re-render lưới hiển thị ảo
+    this._renderColumnHeaders();
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
     this.renderCharts();
     this.renderImages();
@@ -7265,6 +7267,7 @@ export class SheetGridController {
   }
 
   _renderColumnHeaders() {
+    if (typeof document === "undefined") return;
     const row = this.table?.querySelector?.("thead tr");
     if (row) {
       row.innerHTML = `<th class="vno-grid-corner-header" title="Chọn tất cả (Ctrl+A)"></th>`;

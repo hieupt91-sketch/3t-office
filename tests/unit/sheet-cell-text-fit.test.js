@@ -353,5 +353,62 @@ export async function runSheetCellTextFitTests() {
     assert(!tdA1.innerHTML.includes("vno-cell-accounting-num"), "String must not render as accounting number");
   });
 
+  // =========================================================================
+  // 7. FODS 96dpi unit conversion (column-width, row-height, white border) & switchSheet fidelity
+  // =========================================================================
+  test("FODS nhỏ: style:column-width='5.874cm' + style:row-height='0.767cm' và viền 0.74pt solid #ffffff được giữ", () => {
+    const fodsXml = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+  xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0">
+  <office:automatic-styles>
+    <style:style style:name="co1" style:family="table-column">
+      <style:table-column-properties style:column-width="5.874cm"/>
+    </style:style>
+    <style:style style:name="ro1" style:family="table-row">
+      <style:table-row-properties style:row-height="0.767cm"/>
+    </style:style>
+    <style:style style:name="ceWhite" style:family="table-cell">
+      <style:table-cell-properties fo:border="0.74pt solid #ffffff" fo:background-color="#558ed5"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body>
+    <office:spreadsheet>
+      <table:table table:name="TestSheet">
+        <table:table-column table:style-name="co1"/>
+        <table:table-row table:style-name="ro1">
+          <table:table-cell table:style-name="ceWhite" office:value-type="string">
+            <text:p>Header</text:p>
+          </table:table-cell>
+        </table:table-row>
+      </table:table>
+    </office:spreadsheet>
+  </office:body>
+</office:document-content>`;
+
+    const wb = adapter.parseFods(fodsXml);
+    const colWidth = wb.colWidthsBySheet["TestSheet"]?.get("A");
+    const rowHeight = wb.rowHeightsBySheet["TestSheet"]?.get(1);
+    const cellA1 = wb.sheetsData["TestSheet"]?.get("A1");
+
+    assert(Math.abs(colWidth - 222) <= 1, `colWidth phải là 222 ±1px, nhận: ${colWidth}`);
+    assert(Math.abs(rowHeight - 29) <= 1, `rowHeight phải là 29 ±1px, nhận: ${rowHeight}`);
+    assert(cellA1?.style?.borderLeft?.includes("#ffffff"), `Viền trắng phải được giữ, nhận: ${cellA1?.style?.borderLeft}`);
+    assert(cellA1?.style?.borderTop?.includes("#ffffff"), `Viền trắng phải được giữ, nhận: ${cellA1?.style?.borderTop}`);
+  });
+
+  test("SheetGridController: _bindColumnHeader áp dụng đúng độ rộng cột từ getColumnWidth", () => {
+    const grid = createMockGridController();
+    grid.colWidthsBySheet = {
+      [grid.activeSheet]: new Map([["B", 222]])
+    };
+    const mockTh = { style: {}, dataset: {}, className: "", innerHTML: "", querySelector() {}, addEventListener() {} };
+    grid._bindColumnHeader(mockTh, "B");
+    assert(mockTh.style.width === "222px", `th width phải là 222px, nhận: ${mockTh.style.width}`);
+    assert(mockTh.style.minWidth === "222px", `th minWidth phải là 222px, nhận: ${mockTh.style.minWidth}`);
+  });
+
   return results;
 }
