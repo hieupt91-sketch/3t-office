@@ -671,8 +671,8 @@ export class SheetAdapter {
     return {
       id: this._unescapeXml(frameAttrs.match(/draw:name=["']([^"']*)["']/i)?.[1] || fallbackId),
       src: `data:${mime};base64,${base64}`,
-      ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-      ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+      ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
+      ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
       ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
       ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {})
     };
@@ -704,8 +704,8 @@ export class SheetAdapter {
     return {
       id: frame.getAttribute("draw:name") || fallbackId,
       src: `data:${mime};base64,${base64}`,
-      ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-      ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+      ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
+      ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
       ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
       ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {})
     };
@@ -742,8 +742,8 @@ export class SheetAdapter {
       images.push({
         id: frame.getAttribute("draw:name") || `${baseId}_${i + 1}`,
         src: `data:${mime};base64,${base64}`,
-        ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-        ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+        ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
+        ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
         ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
         ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {})
       });
@@ -782,8 +782,8 @@ export class SheetAdapter {
       images.push({
         id: frameAttrs.match(/draw:name=["']([^"']*)["']/i)?.[1] || `${baseId}_${index + 1}`,
         src: `data:${mime};base64,${base64}`,
-        ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-        ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+        ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
+        ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
         ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
         ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {})
       });
@@ -826,8 +826,8 @@ export class SheetAdapter {
         images.push({
           id: frame.getAttribute("draw:name") || `ShapeImage${images.length + 1}`,
           src: `data:${mime};base64,${base64}`,
-          ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-          ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+          ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
+          ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
           ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
           ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {}),
           anchorType: "page",
@@ -871,8 +871,8 @@ export class SheetAdapter {
       images.push({
         id: frameAttrs.match(/draw:name=["']([^"']*)["']/i)?.[1] || `ShapeImage${images.length + 1}`,
         src: `data:${mime};base64,${base64}`,
-        ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-        ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+        ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
+        ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
         ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
         ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {}),
         anchorType: "page",
@@ -1728,8 +1728,8 @@ export class SheetAdapter {
     const mime = match[1].toLowerCase();
     const base64 = match[2].replace(/\s+/g, "");
     if (!base64) return "";
-    const widthCm = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) > 0 ? Number(Number(image.widthCm).toFixed(4)) : 6.35;
-    const heightCm = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) > 0 ? Number(Number(image.heightCm).toFixed(4)) : 2.117;
+    const widthCm = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) >= 0 ? Number(Number(image.widthCm).toFixed(4)) : 6.35;
+    const heightCm = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) >= 0 ? Number(Number(image.heightCm).toFixed(4)) : 2.117;
     const xCm = Number.isFinite(Number(image.offsetXCm)) ? Number(Number(image.offsetXCm).toFixed(4)) : 0;
     const yCm = Number.isFinite(Number(image.offsetYCm)) ? Number(Number(image.offsetYCm).toFixed(4)) : 0;
     const name = this._escapeXml(image.id || "Image");
@@ -1748,8 +1748,8 @@ export class SheetAdapter {
       const mime = match[1].toLowerCase();
       const base64 = match[2].replace(/\s+/g, "");
       if (!base64) return "";
-      const widthCm = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) > 0 ? Number(Number(image.widthCm).toFixed(4)) : 6.35;
-      const heightCm = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) > 0 ? Number(Number(image.heightCm).toFixed(4)) : 2.117;
+      const widthCm = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) >= 0 ? Number(Number(image.widthCm).toFixed(4)) : 6.35;
+      const heightCm = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) >= 0 ? Number(Number(image.heightCm).toFixed(4)) : 2.117;
       const xCm = Number.isFinite(Number(image.offsetXCm)) ? Number(Number(image.offsetXCm).toFixed(4)) : 0;
       const yCm = Number.isFinite(Number(image.offsetYCm)) ? Number(Number(image.offsetYCm).toFixed(4)) : 0;
       const name = this._escapeXml(image.id || "ShapeImage");
