@@ -1299,7 +1299,13 @@ export class SlidesAdapter {
 
   _hasPageBackground(slide) {
     const bg = slide?.background;
-    return !!(bg && (bg.type === "solid" || bg.type === "gradient" || (bg.type === "picture" && bg.picture)));
+    if (!bg) return false;
+    // Don't serialize default white background for imported slides
+    // (original PPTX had no background element)
+    if (slide?.imported && bg.type === "solid" && (bg.color === "#ffffff" || bg.color === "#FFFFFF" || bg.color === "white")) {
+      return false;
+    }
+    return bg.type === "solid" || bg.type === "gradient" || (bg.type === "picture" && bg.picture);
   }
 
   _slideNeedsOwnDrawingStyle(slide) {
@@ -1790,12 +1796,17 @@ export class SlidesAdapter {
     </style:style>`;
     });
 
+    const themeFont = theme?.fontFamily || "Arial";
+    const titleColor = theme?.titleColor || "#000000";
+    const bodyColor = theme?.bodyColor || "#000000";
     xml += `
     <style:style style:name="prTitle" style:family="presentation">
       <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+      <style:text-properties fo:font-family="${this._escapeXml(themeFont)}" fo:font-size="44pt" fo:font-weight="bold" fo:color="${this._escapeXml(titleColor)}" style:font-name="${this._escapeXml(themeFont)}"/>
     </style:style>
     <style:style style:name="prBody" style:family="presentation">
       <style:graphic-properties draw:stroke="none" draw:fill="none"/>
+      <style:text-properties fo:font-family="${this._escapeXml(themeFont)}" fo:font-size="32pt" fo:color="${this._escapeXml(bodyColor)}" style:font-name="${this._escapeXml(themeFont)}"/>
     </style:style>
     <style:style style:name="grNone" style:family="graphic">
       <style:graphic-properties draw:stroke="none" draw:fill="none"/>
@@ -2620,7 +2631,12 @@ export class SlidesAdapter {
   }
 
   _masterPageFillAttrs() {
-    const color = this._cssColorToHex(this._masterTheme()?.bgColor || "") || this._masterTheme()?.bgColor;
+    const isImported = Boolean(this.canvas?.imported);
+    const theme = this._masterTheme();
+    // Default VN Office theme bgColor - don't serialize for imported docs
+    const defaultBgColor = "#f8fafc";
+    if (isImported && (!theme?.bgColor || theme.bgColor === defaultBgColor)) return "";
+    const color = this._cssColorToHex(theme?.bgColor || "") || theme?.bgColor;
     if (!color) return "";
     return ` draw:fill="solid" draw:fill-color="${this._escapeXml(color)}"`;
   }
