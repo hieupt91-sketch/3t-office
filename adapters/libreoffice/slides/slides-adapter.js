@@ -2822,7 +2822,20 @@ export class SlidesAdapter {
 
     let presentationWidth = 960;
     let presentationHeight = 540;
-    const pageLayoutPropMatch = String(xmlText || "").match(/<style:page-layout-properties\b[^>]*fo:page-width=["']([^"']+)["'][^>]*fo:page-height=["']([^"']+)["']/i);
+    // Resolve page layout from master-page (typically "Standard" with page-layout-name="PM1")
+    // rather than blindly taking the first <style:page-layout-properties> (which may be PM0 handouts A4 portrait).
+    const masterPageLayoutMatch = String(xmlText || "").match(/<style:master-page\b[^>]*style:page-layout-name=["']([^"']+)["']/i);
+    const masterLayoutName = masterPageLayoutMatch ? masterPageLayoutMatch[1] : null;
+    let pageLayoutPropMatch = null;
+    if (masterLayoutName) {
+      const layoutRegex = new RegExp(`<style:page-layout\\b[^>]*style:name=["']${masterLayoutName}["'][\\s\\S]*?<style:page-layout-properties\\b[^>]*fo:page-width=["']([^"']+)["'][^>]*fo:page-height=["']([^"']+)["']`, "i");
+      pageLayoutPropMatch = String(xmlText || "").match(layoutRegex);
+    }
+    if (!pageLayoutPropMatch) {
+      pageLayoutPropMatch = String(xmlText || "").match(/<style:page-layout-properties\b[^>]*fo:page-width=["']([^"']+)["'][^>]*fo:page-height=["']([^"']+)["'][^>]*style:print-orientation=["']landscape["']/i)
+        || String(xmlText || "").match(/<style:page-layout-properties\b[^>]*style:print-orientation=["']landscape["'][^>]*fo:page-width=["']([^"']+)["'][^>]*fo:page-height=["']([^"']+)["']/i)
+        || String(xmlText || "").match(/<style:page-layout-properties\b[^>]*fo:page-width=["']([^"']+)["'][^>]*fo:page-height=["']([^"']+)["']/i);
+    }
     if (pageLayoutPropMatch) {
       const pw = this._odfLengthToPx(pageLayoutPropMatch[1]);
       const ph = this._odfLengthToPx(pageLayoutPropMatch[2]);
@@ -3075,10 +3088,14 @@ export class SlidesAdapter {
     const newSlides = this.parseFodp(xml);
     if (newSlides && newSlides.length > 0) {
       this.canvas.imported = true;
-      if (newSlides.slideWidth && newSlides.slideHeight && this.canvas.setSlideSize) {
-        this.canvas.setSlideSize(newSlides.slideWidth, newSlides.slideHeight);
-      } else if (newSlides.slideWidth && newSlides.slideHeight) {
-        this.canvas.slideSize = { width: newSlides.slideWidth, height: newSlides.slideHeight };
+      if (newSlides.slideWidth && newSlides.slideHeight) {
+        const ratio = newSlides.slideWidth / newSlides.slideHeight;
+        const preset = Math.abs(ratio - (4 / 3)) < 0.15 ? "standard" : "wide";
+        if (this.canvas.setSlideSize) {
+          this.canvas.setSlideSize({ preset, width: newSlides.slideWidth, height: newSlides.slideHeight }, false);
+        } else {
+          this.canvas.slideSize = { preset, width: newSlides.slideWidth, height: newSlides.slideHeight };
+        }
       }
       this.canvas.slides = newSlides;
       this.canvas.sections = [...(newSlides.sections || [])];
