@@ -7325,12 +7325,16 @@ export class SlidesCanvasController {
   setSlideSize(options, recordHistory = true) {
     options = options || {};
     const presets = { wide: { preset: "wide", width: 960, height: 540 }, standard: { preset: "standard", width: 720, height: 540 } };
-    let next = presets[options.preset || options] || null;
+    // Có width/height tường minh (khổ thật của file mở) thì ưu tiên hơn preset.
+    let next = (options && options.width && options.height) ? null : (presets[options.preset || options] || null);
     if (!next && options && options.width && options.height) {
       const isStd = Math.abs((options.width / options.height) - (4 / 3)) < 0.15;
       next = { preset: isStd ? "standard" : "wide", width: options.width, height: options.height };
     }
-    if (!next || next.preset === this.slideSize.preset) return false;
+    // So cả kích thước thật, không chỉ preset: file 28×15.75cm (1058×595px) cũng là "wide"
+    // nhưng khác 960×540 — nếu bỏ qua, canvas giữ 960×540 trong khi toạ độ hình theo
+    // 1058×595 -> mọi hình lệch xuống/phải ~5% so với PowerPoint (đo trên sample-slides.pptx).
+    if (!next || (next.preset === this.slideSize.preset && next.width === this.slideSize.width && next.height === this.slideSize.height)) return false;
     const before = { size: { ...this.slideSize }, geometry: this._captureSlideGeometry() };
     const scaleX = next.width / this.slideSize.width;
     const scaleY = next.height / this.slideSize.height;
