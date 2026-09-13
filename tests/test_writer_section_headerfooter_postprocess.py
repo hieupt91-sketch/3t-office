@@ -143,13 +143,10 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertIn('<w:sz w:val="28"/>', xml)
         self.assertNotIn('<w:sz w:val="20"/>', xml)
 
-    def test_matched_format_overlay_restores_spacing_and_indent(self):
+    def test_matched_format_overlay_restores_indent_without_reintroducing_spacing(self):
         xml = self._format_roundtrip_xml('<w:pPr><w:spacing w:before="120" w:after="240" w:line="360" w:lineRule="auto"/><w:ind w:left="720" w:firstLine="360"/></w:pPr>')
         self.assertIn('w:left="720"', xml)
-        self.assertIn('w:before="120"', xml)
-        self.assertIn('w:after="240"', xml)
-        self.assertIn('w:line="360"', xml)
-        self.assertIn('w:lineRule="auto"', xml)
+        self.assertNotIn('<w:spacing', xml)
 
     def test_matched_format_overlay_removes_injected_body_text_style(self):
         xml = self._format_roundtrip_xml("")
@@ -170,7 +167,7 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         )
         result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
         xml = _read_entry(result, "word/document.xml").decode("utf-8")
-        self.assertIn('<w:spacing w:after="240"/>', xml)
+        self.assertIn('<w:spacing w:after="0"/>', xml)
         self.assertIn('<w:jc w:val="center"/>', xml)
 
     def test_pristine_document_restores_empty_paragraphs_by_lcs(self):
@@ -185,7 +182,7 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         )
         result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
         xml = _read_entry(result, "word/document.xml").decode("utf-8")
-        self.assertIn('<w:spacing w:after="240"/>', xml)
+        self.assertIn('<w:spacing w:after="0"/>', xml)
         self.assertIn('<w:jc w:val="center"/>', xml)
 
     def test_pristine_document_reinserts_anchor_page_break_carrier_in_lcs_slot(self):
@@ -290,8 +287,7 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         paragraphs = [xml[start:end] for start, end in ooxml_zip_patch_mod._writer_body_paragraph_ranges(xml)]
         carrier = next(p for p in paragraphs if 'name="Section Carrier"' in p)
         self.assertIn('w:type="page"', carrier)
-        self.assertIn('<w:sectPr', carrier)
-        self.assertIn('w:val="continuous"', carrier)
+        self.assertNotIn('<w:sectPr', carrier)
         self.assertEqual(xml.count('w:type="page"'), 1)
 
     def test_edited_document_does_not_recreate_deleted_empty_carrier(self):

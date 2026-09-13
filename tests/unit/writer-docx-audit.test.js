@@ -30,10 +30,10 @@ export async function runWriterDocxAuditTests() {
   paragraphs[2].innerHTML = "Đoạn 3 đã sửa";
   adapter._markCurrentUntouchedParagraphs(root);
   const pass = paragraphs[0].getAttribute("id") === "vno-untouched-0"
-    && !paragraphs[1].getAttribute("id")
-    && !paragraphs[2].getAttribute("id");
+    && paragraphs[1].getAttribute("id") === "vno-edited-1"
+    && paragraphs[2].getAttribute("id") === "vno-edited-2";
   results.push({
-    name: "Writer untouched guard: unchanged paragraph marked; formatting/text edits unmarked",
+    name: "Writer untouched guard: unchanged paragraph and formatting/text edits are explicitly marked",
     pass,
     ...(pass ? {} : { error: paragraphs.map((p) => p.innerHTML).join(" | ") }),
   });

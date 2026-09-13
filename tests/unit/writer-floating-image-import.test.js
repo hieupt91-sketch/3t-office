@@ -123,6 +123,29 @@ export async function runWriterFloatingImageImportTests() {
     check(/^<p\b/i.test(body) && body.includes("page-break-before:always"), "Image-only anchor carrier lost paragraph break semantics");
   });
 
+  test("Whole-editor snapshot detects native textbox and ordinary text edits", () => {
+    const editor = {
+      innerHTML: '<div class="vno-writer-body"><p>Body</p><div data-vno-float="textbox">Box</div></div>',
+      querySelector() { return null; },
+      querySelectorAll() { return []; }
+    };
+    const adapter = new WriterAdapter(editor);
+    adapter._openedEditorDomHash = adapter._editorDomFingerprint();
+    check(adapter._isOpenedDocumentPristine(), "Unedited editor was not pristine");
+    editor.innerHTML = editor.innerHTML.replace("Box", "ZZBox");
+    check(!adapter._isOpenedDocumentPristine(), "Textbox edit escaped whole-editor snapshot");
+    editor.innerHTML = '<div class="vno-writer-body"><p>ZZBody</p><div data-vno-float="textbox">Box</div></div>';
+    check(!adapter._isOpenedDocumentPristine(), "Ordinary text edit escaped whole-editor snapshot");
+  });
+
+  test("Dirty state overrides an unchanged whole-editor snapshot", () => {
+    const editor = { innerHTML: "<p>Body</p>" };
+    const adapter = new WriterAdapter(editor);
+    adapter._openedEditorDomHash = adapter._editorDomFingerprint();
+    adapter.isDirty = true;
+    check(!adapter._isOpenedDocumentPristine(), "Dirty document was marked pristine");
+  });
+
   test("Export restores original page-relative geometry without canvas anchor layout", () => {
     const html = '<body><p style="page-break-before:always;margin-left:-2.54cm"><span class="sd-abs-pos" style="position:absolute;left:1cm;top:2cm;width:3cm;height:4cm"><img src="x"></span></p></body>';
     const ooxml = '<w:document><w:body><w:p><w:r><w:drawing><wp:anchor><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapTopAndBottom/></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>';

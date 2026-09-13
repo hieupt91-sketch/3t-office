@@ -164,6 +164,7 @@ export class WriterAdapter {
     this.editorDom = editorDom;
     this.documentContent = "";
     this.isDirty = false;
+    this._openedEditorDomHash = null;
     this.sourceFileName = "TaiLieu";
     this.pageSetup = {
       size: "a4",
@@ -1733,6 +1734,7 @@ export class WriterAdapter {
     const normalized = String(html || "")
       .replace(/<a\b[^>]*\bname=["']vno-untouched-\d+["'][^>]*>\s*<\/a>/gi, "")
       .replace(/\s+data-vno-(?:src-hash|untouched)=["'][^"']*["']/gi, "")
+      .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1")
       .replace(/\r\n?/g, "\n")
       .trim();
     let hash = 2166136261;
@@ -1741,6 +1743,26 @@ export class WriterAdapter {
       hash = Math.imul(hash, 16777619);
     }
     return (hash >>> 0).toString(16).padStart(8, "0");
+  }
+
+  _editorDomFingerprint() {
+    const normalized = this._stripAutoPageGaps(this.editorDom?.innerHTML || "")
+      .replace(/\s+data-vno-(?:src-hash|untouched)=["'][^"']*["']/gi, "")
+      .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1")
+      .replace(/\r\n?/g, "\n")
+      .trim();
+    let hash = 2166136261;
+    for (let i = 0; i < normalized.length; i += 1) {
+      hash ^= normalized.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, "0");
+  }
+
+  _isOpenedDocumentPristine() {
+    return !this.isDirty
+      && this._openedEditorDomHash !== null
+      && this._openedEditorDomHash === this._editorDomFingerprint();
   }
 
   _markImportedParagraphsUntouched(root = this.bodyDom) {
@@ -1776,6 +1798,12 @@ export class WriterAdapter {
         }
       } else {
         element.removeAttribute?.("data-vno-untouched");
+        element.setAttribute?.("data-vno-edited", "1");
+        if (!element.getAttribute("id")) {
+          element.setAttribute("id", `vno-edited-${index}`);
+        } else {
+          element.innerHTML = `<a name="vno-edited-${index}"></a>${element.innerHTML}`;
+        }
       }
       index += 1;
     }
@@ -7612,7 +7640,7 @@ export class WriterAdapter {
         `</div>\n`;
     }
 
-    const pristineMarker = this.isDirty ? "" : '<a name="vno-pristine-document"></a>';
+    const pristineMarker = this._isOpenedDocumentPristine() ? '<a name="vno-pristine-document"></a>' : "";
     const fullHtml = `${pristineMarker}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
@@ -7629,6 +7657,8 @@ export class WriterAdapter {
     const withoutComments = this._stripCommentMarkup(html);
     return withoutComments
       .replace(/\s+data-vno-src-hash=["'][^"']*["']/gi, "")
+      .replace(/\s+data-vno-edited=["'][^"']*["']/gi, "")
+      .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1")
       .replace(/\s+is-vno-image-selected(?=[\s"'])/gi, "")
       .replace(/<del\b(?=[^>]*\bdata-vno-change=(?:"delete"|'delete'))[^>]*>[\s\S]*?<\/del>/gi, "")
       .replace(/<ins\b(?=[^>]*\bdata-vno-change=(?:"insert"|'insert'))[^>]*>([\s\S]*?)<\/ins>/gi, "$1")
@@ -7755,6 +7785,7 @@ export class WriterAdapter {
       this.documentContent = this.editorDom ? this.editorDom.innerHTML : raw;
       this.sourceFileName = (result.fileName || "TaiLieu").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
+      this._openedEditorDomHash = this._editorDomFingerprint();
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
       // Lỗi thật đã xác nhận: nội dung nạp đúng nhưng nhãn tên tệp trên tab
@@ -7800,6 +7831,7 @@ export class WriterAdapter {
     this.documentContent = this.editorDom ? this.editorDom.innerHTML : "";
     this.sourceFileName = "TaiLieu";
     this.isDirty = false;
+    this._openedEditorDomHash = this._editorDomFingerprint();
     this._updateTrackChangesCommandState?.();
     this.clearUndoRedo?.();
     this.shell?.resetDocumentChrome?.("Tài liệu 1.docx", "home", false);
