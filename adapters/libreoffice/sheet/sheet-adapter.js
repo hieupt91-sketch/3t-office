@@ -2460,11 +2460,7 @@ export class SheetAdapter {
     for (const attr of ["office:value", "office:string-value", "office:date-value", "office:time-value", "office:boolean-value"]) {
       if (attributes[attr] !== undefined && attributes[attr] !== "") return true;
     }
-    const markup = String(content || "");
-    if (!markup) return false;
-    if (/<office:annotation\b/i.test(markup) || /<draw:frame\b/i.test(markup)) return true;
-    if (markup.replace(/<[^>]+>/g, "").trim() !== "") return true;
-    // Check if cell has a style with borders
+    // Check if cell has a style with borders (empty cells with borders must be materialized)
     const styleName = attributes["table:style-name"];
     if (styleName && cellVisualStyles.has(styleName)) {
       const visualStyle = cellVisualStyles.get(styleName);
@@ -2472,6 +2468,10 @@ export class SheetAdapter {
         return true;
       }
     }
+    const markup = String(content || "");
+    if (!markup) return false;
+    if (/<office:annotation\b/i.test(markup) || /<draw:frame\b/i.test(markup)) return true;
+    if (markup.replace(/<[^>]+>/g, "").trim() !== "") return true;
     return false;
   }
 
