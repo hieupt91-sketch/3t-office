@@ -4589,7 +4589,7 @@ export class SheetGridController {
       src,
       anchor: { c: anchor?.c || this.selectedCoord.c, r: Number(anchor?.r || this.selectedCoord.r) },
       ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-      ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+      ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
       ...(Number.isFinite(options?.offsetXCm) ? { offsetXCm: options.offsetXCm } : {}),
       ...(Number.isFinite(options?.offsetYCm) ? { offsetYCm: options.offsetYCm } : {})
     };
@@ -4806,7 +4806,7 @@ export class SheetGridController {
       const zIdx = isFrozen ? 10 : 7;
 
       const hasWidth = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) > 0;
-      const hasHeight = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) > 0;
+      const hasHeight = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) >= 0;
 
       let cssText = `position:absolute;left:${leftVal}px;top:${topVal}px;z-index:${zIdx};margin:0;padding:0;pointer-events:auto;box-sizing:border-box;`;
       if (hasWidth) {

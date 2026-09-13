@@ -553,6 +553,20 @@ export class SheetAdapter {
   }
 
   /**
+   * Đọc tab-color từ style:style family="table" trong FODS do LibreOffice hoặc VN Office tạo ra.
+   */
+  _parseStandardOdfTabColor(xml, tableStyleName) {
+    if (!tableStyleName || !xml) return "";
+    const escapedStyle = tableStyleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const styleMatch = xml.match(new RegExp(`<style:style\\b[^>]*style:name=["']${escapedStyle}["'][^>]*>([\\s\\S]*?)<\\/style:style>`, "i"));
+    if (!styleMatch) return "";
+    const propMatch = styleMatch[1].match(/<style:table-properties\b([^>]*)\/?>/i);
+    if (!propMatch) return "";
+    const attrs = this._parseTagAttrs(propMatch[1]);
+    return attrs["table:tab-color"] || attrs["tableooo:tab-color"] || attrs["vno:tab-color"] || "";
+  }
+
+  /**
    * Đọc Print Titles chuẩn ODF thật (table:named-expression name="_xlnm.Print_Titles")
    * từ file FODS thật. Khi LibreOffice/Excel convert XLSX→FODS, Print Titles được ghi
    * vào <table:named-expression table:name="_xlnm.Print_Titles"> với table:expression
@@ -657,8 +671,8 @@ export class SheetAdapter {
     return {
       id: this._unescapeXml(frameAttrs.match(/draw:name=["']([^"']*)["']/i)?.[1] || fallbackId),
       src: `data:${mime};base64,${base64}`,
-      ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-      ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+      ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
+      ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
       ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
       ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {})
     };
@@ -690,8 +704,8 @@ export class SheetAdapter {
     return {
       id: frame.getAttribute("draw:name") || fallbackId,
       src: `data:${mime};base64,${base64}`,
-      ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-      ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+      ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
+      ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
       ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
       ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {})
     };
@@ -728,8 +742,8 @@ export class SheetAdapter {
       images.push({
         id: frame.getAttribute("draw:name") || `${baseId}_${i + 1}`,
         src: `data:${mime};base64,${base64}`,
-        ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-        ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+        ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
+        ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
         ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
         ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {})
       });
@@ -768,8 +782,8 @@ export class SheetAdapter {
       images.push({
         id: frameAttrs.match(/draw:name=["']([^"']*)["']/i)?.[1] || `${baseId}_${index + 1}`,
         src: `data:${mime};base64,${base64}`,
-        ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-        ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+        ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
+        ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
         ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
         ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {})
       });
@@ -812,8 +826,8 @@ export class SheetAdapter {
         images.push({
           id: frame.getAttribute("draw:name") || `ShapeImage${images.length + 1}`,
           src: `data:${mime};base64,${base64}`,
-          ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-          ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+          ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
+          ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
           ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
           ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {}),
           anchorType: "page",
@@ -857,8 +871,8 @@ export class SheetAdapter {
       images.push({
         id: frameAttrs.match(/draw:name=["']([^"']*)["']/i)?.[1] || `ShapeImage${images.length + 1}`,
         src: `data:${mime};base64,${base64}`,
-        ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
-        ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+        ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
+        ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
         ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
         ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {}),
         anchorType: "page",
@@ -1714,8 +1728,8 @@ export class SheetAdapter {
     const mime = match[1].toLowerCase();
     const base64 = match[2].replace(/\s+/g, "");
     if (!base64) return "";
-    const widthCm = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) > 0 ? Number(Number(image.widthCm).toFixed(4)) : 6.35;
-    const heightCm = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) > 0 ? Number(Number(image.heightCm).toFixed(4)) : 2.117;
+    const widthCm = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) >= 0 ? Number(Number(image.widthCm).toFixed(4)) : 6.35;
+    const heightCm = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) >= 0 ? Number(Number(image.heightCm).toFixed(4)) : 2.117;
     const xCm = Number.isFinite(Number(image.offsetXCm)) ? Number(Number(image.offsetXCm).toFixed(4)) : 0;
     const yCm = Number.isFinite(Number(image.offsetYCm)) ? Number(Number(image.offsetYCm).toFixed(4)) : 0;
     const name = this._escapeXml(image.id || "Image");
@@ -1734,8 +1748,8 @@ export class SheetAdapter {
       const mime = match[1].toLowerCase();
       const base64 = match[2].replace(/\s+/g, "");
       if (!base64) return "";
-      const widthCm = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) > 0 ? Number(Number(image.widthCm).toFixed(4)) : 6.35;
-      const heightCm = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) > 0 ? Number(Number(image.heightCm).toFixed(4)) : 2.117;
+      const widthCm = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) >= 0 ? Number(Number(image.widthCm).toFixed(4)) : 6.35;
+      const heightCm = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) >= 0 ? Number(Number(image.heightCm).toFixed(4)) : 2.117;
       const xCm = Number.isFinite(Number(image.offsetXCm)) ? Number(Number(image.offsetXCm).toFixed(4)) : 0;
       const yCm = Number.isFinite(Number(image.offsetYCm)) ? Number(Number(image.offsetYCm).toFixed(4)) : 0;
       const name = this._escapeXml(image.id || "ShapeImage");
@@ -2187,7 +2201,9 @@ export class SheetAdapter {
       const suffix = index + 1;
       pageStyleBySheet.set(sheetName, { tableStyle: `vno-table-page-${suffix}`, size, orientation, margins, scale, headerFooter, centerOnPage, printOptions });
       pageLayouts.push(`<style:page-layout style:name="vno-page-layout-${suffix}"><style:page-layout-properties fo:page-width="${width}cm" fo:page-height="${height}cm" style:print-orientation="${orientation}" fo:margin-top="${margins.top}cm" fo:margin-bottom="${margins.bottom}cm" fo:margin-left="${margins.left}cm" fo:margin-right="${margins.right}cm" style:table-centering="${tableCentering}"${scaleAttribute}/><style:header-style><style:header-footer-properties fo:min-height="0.75cm" fo:margin-bottom="0.25cm"/></style:header-style><style:footer-style><style:header-footer-properties fo:min-height="0.75cm" fo:margin-top="0.25cm"/></style:footer-style></style:page-layout>`);
-      tablePageStyles.push(`<style:style style:name="vno-table-page-${suffix}" style:family="table" style:master-page-name="vno-master-page-${suffix}"><style:table-properties style:print="${printTokens}"/></style:style>`);
+      const tabColor = (this.grid.sheetStates?.[sheetName]?.tabColor) || (this.grid.tabColors?.[sheetName]) || "";
+      const tabColorProp = tabColor ? ` table:tab-color="${this._escapeXml(tabColor)}" tableooo:tab-color="${this._escapeXml(tabColor)}"` : "";
+      tablePageStyles.push(`<style:style style:name="vno-table-page-${suffix}" style:family="table" style:master-page-name="vno-master-page-${suffix}"><style:table-properties table:display="true" style:writing-mode="lr-tb" style:print="${printTokens}"${tabColorProp}/></style:style>`);
       masterPages.push(`<style:master-page style:name="vno-master-page-${suffix}" style:page-layout-name="vno-page-layout-${suffix}">${headerFooterXml("header", headerFooter.header)}${headerFooterXml("footer", headerFooter.footer)}</style:master-page>`);
     });
     const odfAddress = (sheetName, cell) => `'${String(sheetName).replace(/'/g, "''")}'.${cell}`;
@@ -2427,7 +2443,11 @@ export class SheetAdapter {
 
           const coordinate = `${this._columnName(columnNumber)}${rowNumber}`;
           if (coveredCells.has(coordinate)) {
-            cellsXml += "<table:covered-table-cell/>";
+            const cellImages = imagesByAnchor.get(coordinate) || [];
+            const cellImageXml = cellImages.length > 0
+              ? cellImages.map(img => this._serializeCellImageXml(img)).join("")
+              : "";
+            cellsXml += cellImageXml ? `<table:covered-table-cell>${cellImageXml}</table:covered-table-cell>` : "<table:covered-table-cell/>";
             previousColumn = columnNumber;
             continue;
           }
@@ -2578,7 +2598,7 @@ export class SheetAdapter {
         ? ` vno:sheet-state="${visStateLower === "veryhidden" ? "veryHidden" : "hidden"}"`
         : "";
       // Tab color: serialize vno:tab-color for round-trip fidelity
-      const tabColor = this.grid.sheetStates?.[sheetName]?.tabColor;
+      const tabColor = (this.grid.sheetStates?.[sheetName]?.tabColor) || (this.grid.tabColors?.[sheetName]) || "";
       const tabColorAttr = tabColor ? ` vno:tab-color="${this._escapeXml(tabColor)}"` : "";
       const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"${freezeAttr}${sheetStateAttr}${tabColorAttr}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
@@ -2640,6 +2660,7 @@ export class SheetAdapter {
                  xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
                  xmlns:xlink="http://www.w3.org/1999/xlink"
                  xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0"
+                 xmlns:tableooo="http://openoffice.org/2009/table"
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
   ${fontFaceDeclsXml}
@@ -3327,11 +3348,9 @@ export class SheetAdapter {
                     };
                   }
                 }
-                if (!isCovered) {
-                  const embeddedImages = this._parseCellEmbeddedImagesDom(cell, `Image${images.length + 1}`);
-                  for (const embeddedImage of embeddedImages) {
-                    images.push({ ...embeddedImage, anchor: { c: this._columnName(columnNumber), r: rowNumber } });
-                  }
+                const embeddedImages = this._parseCellEmbeddedImagesDom(cell, `Image${images.length + 1}`);
+                for (const embeddedImage of embeddedImages) {
+                  images.push({ ...embeddedImage, anchor: { c: this._columnName(columnNumber), r: rowNumber } });
                 }
                 columnNumber += columnRepeat;
               });
@@ -3345,8 +3364,11 @@ export class SheetAdapter {
           const shapesImages = this._parseTableShapesImages(table, name);
           images.push(...shapesImages);
 
-          // Tab color: read vno:tab-color from table:table element
-          const tabColor = table.getAttribute("vno:tab-color") || "";
+          // Tab color: read vno:tab-color, tableooo:tab-color, table:tab-color, or from table style
+          let tabColor = table.getAttribute("vno:tab-color") || table.getAttribute("tableooo:tab-color") || table.getAttribute("table:tab-color") || "";
+          if (!tabColor) {
+            tabColor = this._parseStandardOdfTabColor(tableXml, table.getAttribute("table:style-name"));
+          }
           workbook.sheets.push(name);
           workbook.sheetsData[name] = data;
           workbook.commentsBySheet[name] = comments;
@@ -3559,11 +3581,9 @@ export class SheetAdapter {
                   }
                 }
               }
-              if (!isCovered) {
-                const embeddedImages = this._parseCellEmbeddedImages(content, `Image${images.length + 1}`);
-                for (const embeddedImage of embeddedImages) {
-                  images.push({ ...embeddedImage, anchor: { c: this._columnName(columnNumber), r: rowNumber } });
-                }
+              const embeddedImages = this._parseCellEmbeddedImages(content, `Image${images.length + 1}`);
+              for (const embeddedImage of embeddedImages) {
+                images.push({ ...embeddedImage, anchor: { c: this._columnName(columnNumber), r: rowNumber } });
               }
               columnNumber += columnRepeat;
             }
@@ -3577,9 +3597,13 @@ export class SheetAdapter {
         const shapesImages = this._parseTableShapesImagesRegex(tableMatch[2], name);
         images.push(...shapesImages);
 
-        // Tab color: read vno:tab-color from table:table element (regex branch)
-        const tabColorMatch = tableMatch[1].match(/vno:tab-color=["']([^"']*)["']/i);
-        const tabColor = tabColorMatch ? tabColorMatch[1] : "";
+        // Tab color: read vno:tab-color from table:table element (regex branch) or table style
+        const tabColorMatch = tableMatch[1].match(/(?:vno|tableooo|table):tab-color=["']([^"']*)["']/i);
+        let tabColor = tabColorMatch ? tabColorMatch[1] : "";
+        if (!tabColor) {
+          const tableStyleMatch = tableMatch[1].match(/table:style-name=["']([^"']*)["']/i);
+          tabColor = this._parseStandardOdfTabColor(tableXml, tableStyleMatch ? this._unescapeXml(tableStyleMatch[1]) : "");
+        }
         workbook.sheets.push(name);
         workbook.sheetsData[name] = data;
         workbook.commentsBySheet[name] = comments;

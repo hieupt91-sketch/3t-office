@@ -192,5 +192,176 @@ class TestParseActiveSheetFromFods(unittest.TestCase):
         result = patcher.parse_active_sheet_from_fods(fods_special)
         self.assertEqual(result, "Báo cáo & Phân tích")
 
+
+class TestParseTabColorsFromFods(unittest.TestCase):
+    """Test parsing tab colors from FODS."""
+
+    def test_parse_tab_colors_from_table_styles(self):
+        fods = '''<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+  xmlns:tableooo="http://openoffice.org/2009/table">
+<office:automatic-styles>
+  <style:style style:name="ta1" style:family="table">
+    <style:table-properties tableooo:tab-color="#ffff00" table:tab-color="#ffff00"/>
+  </style:style>
+  <style:style style:name="ta2" style:family="table">
+    <style:table-properties table:tab-color="#00ff00"/>
+  </style:style>
+</office:automatic-styles>
+<office:body>
+  <office:spreadsheet>
+    <table:table table:name="Sheet1" table:style-name="ta1"/>
+    <table:table table:name="Sheet2" table:style-name="ta2"/>
+    <table:table table:name="Sheet3"/>
+  </office:spreadsheet>
+</office:body>
+</office:document>'''
+        colors = patcher.parse_tab_colors_from_fods(fods)
+        self.assertEqual(colors.get("Sheet1"), "#FFFF00")
+        self.assertEqual(colors.get("Sheet2"), "#00FF00")
+        self.assertNotIn("Sheet3", colors)
+
+    def test_parse_tab_colors_from_table_attributes(self):
+        fods = '''<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+  xmlns:vno="http://vnoffice.vn/ns">
+<office:body>
+  <office:spreadsheet>
+    <table:table table:name="Sheet1" vno:tab-color="#ff0000"/>
+    <table:table table:name="Sheet2" table:tab-color="#0000ff"/>
+  </office:spreadsheet>
+</office:body>
+</office:document>'''
+        colors = patcher.parse_tab_colors_from_fods(fods)
+        self.assertEqual(colors.get("Sheet1"), "#FF0000")
+        self.assertEqual(colors.get("Sheet2"), "#0000FF")
+
+
+class TestApplyTabColorToWorksheet(unittest.TestCase):
+    """Test applying tabColor to worksheet XML."""
+
+    def test_apply_tab_color_inserts_sheetpr_in_schema_order(self):
+        sheet_xml = '<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView/></sheetViews><sheetData/></worksheet>'
+        patched = patcher.apply_tab_color_to_worksheet(sheet_xml, "#FFFF00")
+        self.assertIn('<sheetPr><tabColor rgb="FFFFFF00"/></sheetPr>', patched)
+        self.assertTrue(patched.index("<sheetPr") < patched.index("<sheetViews"))
+        self.assertTrue(patched.index("<sheetPr") < patched.index("<sheetData"))
+
+    def test_apply_tab_color_updates_existing_tab_color(self):
+        sheet_xml = '<worksheet><sheetPr><tabColor rgb="FF000000"/><pageSetUpPr/></sheetPr><sheetData/></worksheet>'
+        patched = patcher.apply_tab_color_to_worksheet(sheet_xml, "#00FF00")
+        self.assertIn('<tabColor rgb="FF00FF00"/>', patched)
+        self.assertNotIn('rgb="FF000000"', patched)
+        self.assertIn('<pageSetUpPr/>', patched)
+
+    def test_apply_tab_color_into_empty_sheetpr(self):
+        sheet_xml = '<worksheet><sheetPr/><sheetData/></worksheet>'
+        patched = patcher.apply_tab_color_to_worksheet(sheet_xml, "#112233")
+        self.assertIn('<sheetPr><tabColor rgb="FF112233"/></sheetPr>', patched)
+
+
+class TestApplySheetViewSelection(unittest.TestCase):
+    """Test tabSelected in worksheet sheetViews."""
+
+    def test_active_sheet_gets_tab_selected_1(self):
+        sheet_xml = '<worksheet><sheetViews><sheetView tabSelected="false" workbookViewId="0"/></sheetViews></worksheet>'
+        patched = patcher.apply_sheet_view_selection(sheet_xml, is_active=True)
+        self.assertIn('tabSelected="1"', patched)
+        self.assertNotIn('tabSelected="false"', patched)
+
+    def test_active_sheet_adds_tab_selected_if_missing(self):
+        sheet_xml = '<worksheet><sheetViews><sheetView workbookViewId="0"/></sheetViews></worksheet>'
+        patched = patcher.apply_sheet_view_selection(sheet_xml, is_active=True)
+        self.assertIn('tabSelected="1"', patched)
+
+    def test_inactive_sheet_removes_tab_selected(self):
+        sheet_xml = '<worksheet><sheetViews><sheetView tabSelected="1" workbookViewId="0"/></sheetViews></worksheet>'
+        patched = patcher.apply_sheet_view_selection(sheet_xml, is_active=False)
+        self.assertNotIn('tabSelected', patched)
+
+    def test_inactive_sheet_removes_tab_selected_false(self):
+        sheet_xml = '<worksheet><sheetViews><sheetView tabSelected="false" workbookViewId="0"/></sheetViews></worksheet>'
+        patched = patcher.apply_sheet_view_selection(sheet_xml, is_active=False)
+        self.assertNotIn('tabSelected', patched)
+
+
+class TestPostprocessSheetXlsxTabsIntegration(unittest.TestCase):
+    """Full integration test for postprocess_sheet_xlsx with tabColor and tabSelected."""
+
+    def test_roundtrip_tab_colors_and_active_sheet(self):
+        wb_xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<bookViews><workbookView/></bookViews>
+<sheets>
+<sheet name="Sheet1" sheetId="1" r:id="rId1"/>
+<sheet name="Sheet2" sheetId="2" r:id="rId2"/>
+</sheets>
+</workbook>'''
+        rels_xml = '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>
+</Relationships>'''
+        sheet1_xml = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView tabSelected="false" workbookViewId="0"/></sheetViews><sheetData/></worksheet>'
+        sheet2_xml = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView tabSelected="false" workbookViewId="0"/></sheetViews><sheetData/></worksheet>'
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as z:
+            z.writestr("[Content_Types].xml", '<?xml version="1.0"?><Types/>')
+            z.writestr("xl/workbook.xml", wb_xml)
+            z.writestr("xl/_rels/workbook.xml.rels", rels_xml)
+            z.writestr("xl/worksheets/sheet1.xml", sheet1_xml)
+            z.writestr("xl/worksheets/sheet2.xml", sheet2_xml)
+        xlsx_bytes = buf.getvalue()
+
+        fods = '''<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+  xmlns:tableooo="http://openoffice.org/2009/table"
+  xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0">
+<office:settings>
+  <config:config-item-set config:name="ooo:view-settings">
+    <config:config-item-map-indexed config:name="Views">
+      <config:config-item-map-entry>
+        <config:config-item config:name="ActiveTable" config:type="string">Sheet2</config:config-item>
+      </config:config-item-map-entry>
+    </config:config-item-map-indexed>
+  </config:config-item-set>
+</office:settings>
+<office:automatic-styles>
+  <style:style style:name="ta1" style:family="table">
+    <style:table-properties tableooo:tab-color="#ff0000" table:tab-color="#ff0000"/>
+  </style:style>
+  <style:style style:name="ta2" style:family="table">
+    <style:table-properties tableooo:tab-color="#00ff00" table:tab-color="#00ff00"/>
+  </style:style>
+</office:automatic-styles>
+<office:body>
+  <office:spreadsheet>
+    <table:table table:name="Sheet1" table:style-name="ta1"/>
+    <table:table table:name="Sheet2" table:style-name="ta2"/>
+  </office:spreadsheet>
+</office:body>
+</office:document>'''
+
+        patched = patcher.postprocess_sheet_xlsx(xlsx_bytes, source_fods=fods)
+
+        with zipfile.ZipFile(io.BytesIO(patched)) as z:
+            out_wb = z.read("xl/workbook.xml").decode("utf-8")
+            s1 = z.read("xl/worksheets/sheet1.xml").decode("utf-8")
+            s2 = z.read("xl/worksheets/sheet2.xml").decode("utf-8")
+
+        self.assertIn('activeTab="1"', out_wb)
+        self.assertIn('<tabColor rgb="FFFF0000"/>', s1)
+        self.assertNotIn('tabSelected', s1)
+        self.assertIn('<tabColor rgb="FF00FF00"/>', s2)
+        self.assertIn('tabSelected="1"', s2)
+
+
 if __name__ == "__main__":
     unittest.main()
