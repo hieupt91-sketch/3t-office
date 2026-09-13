@@ -697,6 +697,178 @@ export class SheetAdapter {
     };
   }
 
+  /**
+   * Parse ALL embedded images from a cell (DOM branch).
+   * Returns array of image objects.
+   */
+  _parseCellEmbeddedImagesDom(cellElement, baseId) {
+    const DRAW_NS = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0";
+    const OFFICE_NS = "urn:oasis:names:tc:opendocument:xmlns:office:1.0";
+    const SVG_NS = "urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0";
+    const frames = Array.from(cellElement.children).filter(child => child.localName === "frame" && child.namespaceURI === DRAW_NS);
+    const images = [];
+    for (let i = 0; i < frames.length; i++) {
+      const frame = frames[i];
+      const image = Array.from(frame.children).find(child => child.localName === "image" && child.namespaceURI === DRAW_NS);
+      if (!image) continue;
+      const binaryNode = Array.from(image.children).find(child => child.localName === "binary-data" && child.namespaceURI === OFFICE_NS);
+      const base64 = binaryNode ? (binaryNode.textContent || "").replace(/\s+/g, "") : "";
+      if (!base64) continue;
+      const mime = (image.getAttribute("draw:mime-type") || "image/png").toLowerCase();
+      const widthRaw = frame.getAttribute("svg:width") || frame.getAttributeNS?.(SVG_NS, "width");
+      const heightRaw = frame.getAttribute("svg:height") || frame.getAttributeNS?.(SVG_NS, "height");
+      const xRaw = frame.getAttribute("svg:x") || frame.getAttributeNS?.(SVG_NS, "x");
+      const yRaw = frame.getAttribute("svg:y") || frame.getAttributeNS?.(SVG_NS, "y");
+
+      const widthCm = this._odfLengthToCm(widthRaw);
+      const heightCm = this._odfLengthToCm(heightRaw);
+      const offsetXCm = this._odfLengthToCm(xRaw);
+      const offsetYCm = this._odfLengthToCm(yRaw);
+
+      images.push({
+        id: frame.getAttribute("draw:name") || `${baseId}_${i + 1}`,
+        src: `data:${mime};base64,${base64}`,
+        ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
+        ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+        ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
+        ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {})
+      });
+    }
+    return images;
+  }
+
+  /**
+   * Parse ALL embedded images from a cell (regex branch).
+   * Returns array of image objects.
+   */
+  _parseCellEmbeddedImages(cellXml, baseId) {
+    const images = [];
+    let match;
+    const frameRegex = /<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi;
+    let index = 0;
+    while ((match = frameRegex.exec(cellXml)) !== null) {
+      const frameAttrs = match[1];
+      const frameBody = match[2];
+      const imageMatch = frameBody.match(/<draw:image\b([^>]*)>([\s\S]*?)<\/draw:image>/i);
+      if (!imageMatch) continue;
+      const binaryMatch = imageMatch[2].match(/<office:binary-data\b[^>]*>([\s\S]*?)<\/office:binary-data>/i);
+      const base64 = binaryMatch ? binaryMatch[1].replace(/\s+/g, "") : "";
+      if (!base64) continue;
+      const mime = (imageMatch[1].match(/draw:mime-type=["']([^"']*)["']/i)?.[1] || "image/png").toLowerCase();
+      const widthRaw = frameAttrs.match(/svg:width=["']([^"']*)["']/i)?.[1];
+      const heightRaw = frameAttrs.match(/svg:height=["']([^"']*)["']/i)?.[1];
+      const xRaw = frameAttrs.match(/svg:x=["']([^"']*)["']/i)?.[1];
+      const yRaw = frameAttrs.match(/svg:y=["']([^"']*)["']/i)?.[1];
+
+      const widthCm = this._odfLengthToCm(widthRaw);
+      const heightCm = this._odfLengthToCm(heightRaw);
+      const offsetXCm = this._odfLengthToCm(xRaw);
+      const offsetYCm = this._odfLengthToCm(yRaw);
+
+      images.push({
+        id: frameAttrs.match(/draw:name=["']([^"']*)["']/i)?.[1] || `${baseId}_${index + 1}`,
+        src: `data:${mime};base64,${base64}`,
+        ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
+        ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+        ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
+        ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {})
+      });
+      index++;
+    }
+    return images;
+  }
+
+  /**
+   * Parse images from <table:shapes> (page-anchored images) using DOM.
+   * These images have table:end-cell-address and svg:x/y for positioning.
+   * Returns array of image objects with anchorType: "page" and position info.
+   */
+  _parseTableShapesImages(tableElement, sheetName) {
+    const DRAW_NS = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0";
+    const OFFICE_NS = "urn:oasis:names:tc:opendocument:xmlns:office:1.0";
+    const SVG_NS = "urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0";
+    const TABLE_NS = "urn:oasis:names:tc:opendocument:xmlns:table:1.0";
+    const shapes = Array.from(tableElement.getElementsByTagNameNS(TABLE_NS, "shapes"));
+    if (!shapes.length) return [];
+    const images = [];
+    for (const shapesEl of shapes) {
+      const frames = Array.from(shapesEl.getElementsByTagNameNS(DRAW_NS, "frame"));
+      for (const frame of frames) {
+        const image = Array.from(frame.getElementsByTagNameNS(DRAW_NS, "image"))[0];
+        if (!image) continue;
+        const binaryNode = Array.from(image.getElementsByTagNameNS(OFFICE_NS, "binary-data"))[0];
+        const base64 = binaryNode ? (binaryNode.textContent || "").replace(/\s+/g, "") : "";
+        if (!base64) continue;
+        const mime = (image.getAttribute("draw:mime-type") || "image/png").toLowerCase();
+        const widthRaw = frame.getAttribute("svg:width") || frame.getAttributeNS?.(SVG_NS, "width");
+        const heightRaw = frame.getAttribute("svg:height") || frame.getAttributeNS?.(SVG_NS, "height");
+        const xRaw = frame.getAttribute("svg:x") || frame.getAttributeNS?.(SVG_NS, "x");
+        const yRaw = frame.getAttribute("svg:y") || frame.getAttributeNS?.(SVG_NS, "y");
+        const endCellAddress = frame.getAttribute("table:end-cell-address") || frame.getAttributeNS?.(TABLE_NS, "end-cell-address");
+        const widthCm = this._odfLengthToCm(widthRaw);
+        const heightCm = this._odfLengthToCm(heightRaw);
+        const offsetXCm = this._odfLengthToCm(xRaw);
+        const offsetYCm = this._odfLengthToCm(yRaw);
+        images.push({
+          id: frame.getAttribute("draw:name") || `ShapeImage${images.length + 1}`,
+          src: `data:${mime};base64,${base64}`,
+          ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
+          ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+          ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
+          ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {}),
+          anchorType: "page",
+          endCellAddress,
+          sheetName
+        });
+      }
+    }
+    return images;
+  }
+
+  /**
+   * Parse images from <table:shapes> (page-anchored images) using regex.
+   * Used by the regex branch of parseFods.
+   */
+  _parseTableShapesImagesRegex(tableBodyXml, sheetName) {
+    const shapesMatch = tableBodyXml.match(/<table:shapes>([\s\S]*?)<\/table:shapes>/i);
+    if (!shapesMatch) return [];
+    const shapesXml = shapesMatch[1];
+    const images = [];
+    const frameRegex = /<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi;
+    let frameMatch;
+    while ((frameMatch = frameRegex.exec(shapesXml)) !== null) {
+      const frameAttrs = frameMatch[1];
+      const frameBody = frameMatch[2];
+      const imageMatch = frameBody.match(/<draw:image\b([^>]*)>([\s\S]*?)<\/draw:image>/i);
+      if (!imageMatch) continue;
+      const binaryMatch = imageMatch[2].match(/<office:binary-data\b[^>]*>([\s\S]*?)<\/office:binary-data>/i);
+      const base64 = binaryMatch ? binaryMatch[1].replace(/\s+/g, "") : "";
+      if (!base64) continue;
+      const mime = (imageMatch[1].match(/draw:mime-type=["']([^"']*)["']/i)?.[1] || "image/png").toLowerCase();
+      const widthRaw = frameAttrs.match(/svg:width=["']([^"']*)["']/i)?.[1];
+      const heightRaw = frameAttrs.match(/svg:height=["']([^"']*)["']/i)?.[1];
+      const xRaw = frameAttrs.match(/svg:x=["']([^"']*)["']/i)?.[1];
+      const yRaw = frameAttrs.match(/svg:y=["']([^"']*)["']/i)?.[1];
+      const endCellAddress = frameAttrs.match(/table:end-cell-address=["']([^"']*)["']/i)?.[1];
+      const widthCm = this._odfLengthToCm(widthRaw);
+      const heightCm = this._odfLengthToCm(heightRaw);
+      const offsetXCm = this._odfLengthToCm(xRaw);
+      const offsetYCm = this._odfLengthToCm(yRaw);
+      images.push({
+        id: frameAttrs.match(/draw:name=["']([^"']*)["']/i)?.[1] || `ShapeImage${images.length + 1}`,
+        src: `data:${mime};base64,${base64}`,
+        ...(Number.isFinite(widthCm) && widthCm > 0 ? { widthCm } : {}),
+        ...(Number.isFinite(heightCm) && heightCm > 0 ? { heightCm } : {}),
+        ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
+        ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {}),
+        anchorType: "page",
+        endCellAddress,
+        sheetName
+      });
+    }
+    return images;
+  }
+
   _columnName(columnNumber) {
     let result = "";
     for (let n = columnNumber; n > 0; n = Math.floor((n - 1) / 26)) {
@@ -1550,6 +1722,29 @@ export class SheetAdapter {
     return `<draw:frame draw:name="${name}" svg:x="${xCm}cm" svg:y="${yCm}cm" svg:width="${widthCm}cm" svg:height="${heightCm}cm"><draw:image draw:mime-type="${this._escapeXml(mime)}"><office:binary-data>${base64}</office:binary-data></draw:image></draw:frame>`;
   }
 
+  /**
+   * Serialize page-anchored images (from table:shapes) back to <table:shapes>.
+   * These images have absolute positioning with table:end-cell-address and svg:x/y.
+   */
+  _serializePageAnchoredImagesXml(images) {
+    if (!images || images.length === 0) return "";
+    const frames = images.map(image => {
+      const match = String(image?.src || "").match(/^data:([^;]+);base64,([\s\S]+)$/);
+      if (!match) return "";
+      const mime = match[1].toLowerCase();
+      const base64 = match[2].replace(/\s+/g, "");
+      if (!base64) return "";
+      const widthCm = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) > 0 ? Number(Number(image.widthCm).toFixed(4)) : 6.35;
+      const heightCm = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) > 0 ? Number(Number(image.heightCm).toFixed(4)) : 2.117;
+      const xCm = Number.isFinite(Number(image.offsetXCm)) ? Number(Number(image.offsetXCm).toFixed(4)) : 0;
+      const yCm = Number.isFinite(Number(image.offsetYCm)) ? Number(Number(image.offsetYCm).toFixed(4)) : 0;
+      const name = this._escapeXml(image.id || "ShapeImage");
+      const endCellAttr = image.endCellAddress ? ` table:end-cell-address="${this._escapeXml(image.endCellAddress)}"` : "";
+      return `<draw:frame draw:name="${name}" svg:x="${xCm}cm" svg:y="${yCm}cm" svg:width="${widthCm}cm" svg:height="${heightCm}cm"${endCellAttr}><draw:image draw:mime-type="${this._escapeXml(mime)}"><office:binary-data>${base64}</office:binary-data></draw:image></draw:frame>`;
+    }).filter(Boolean);
+    return frames.length ? `<table:shapes>${frames.join("")}</table:shapes>` : "";
+  }
+
   _serializeSparklinesXml(sheetName) {
     const cells = this.grid.sheetsData?.[sheetName]
       || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
@@ -2163,11 +2358,20 @@ export class SheetAdapter {
       }
 
       const imagesByAnchor = new Map();
+      const pageAnchoredImages = [];
       for (const image of this.grid.imagesBySheet?.[sheetName] || []) {
+        if (image.anchorType === "page") {
+          pageAnchoredImages.push(image);
+          continue;
+        }
         const column = this._columnNumber(image.anchor?.c);
         const row = Number(image.anchor?.r);
         if (!Number.isInteger(column) || column < 1 || !Number.isInteger(row) || row < 1) continue;
-        imagesByAnchor.set(`${this._columnName(column)}${row}`, image);
+        const coordinate = `${this._columnName(column)}${row}`;
+        if (!imagesByAnchor.has(coordinate)) {
+          imagesByAnchor.set(coordinate, []);
+        }
+        imagesByAnchor.get(coordinate).push(image);
         if (!rows.has(row)) rows.set(row, new Map());
         if (!rows.get(row).has(column)) rows.get(row).set(column, null);
         maxRow = Math.max(maxRow, row);
@@ -2292,8 +2496,10 @@ export class SheetAdapter {
           const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}`;
           const comment = comments[coordinate];
           const annotationXml = comment ? `<office:annotation><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
-          const cellImage = imagesByAnchor.get(coordinate);
-          const cellImageXml = cellImage ? this._serializeCellImageXml(cellImage) : "";
+          const cellImages = imagesByAnchor.get(coordinate) || [];
+          const cellImageXml = cellImages.length > 0
+            ? cellImages.map(img => this._serializeCellImageXml(img)).join("")
+            : "";
           if (!storedItem && !comment && !validationName && !conditionalBase && !cellImageXml) {
             cellsXml += `<table:table-cell${cellAttrs}/>`;
           } else if (!storedItem && !comment && !validationName && !conditionalBase) {
@@ -2378,7 +2584,8 @@ export class SheetAdapter {
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
-      return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}${protectedAttr}>${chartsXml}${columnsXml}${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}${sparklinesXml}</table:table>`;
+      const shapesXml = this._serializePageAnchoredImagesXml(pageAnchoredImages);
+      return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}${protectedAttr}>${chartsXml}${shapesXml}${columnsXml}${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}${sparklinesXml}</table:table>`;
     }).join("");
 
     const dataPilotTables = [];
@@ -3121,8 +3328,10 @@ export class SheetAdapter {
                   }
                 }
                 if (!isCovered) {
-                  const embeddedImage = this._parseCellEmbeddedImageDom(cell, `Image${images.length + 1}`);
-                  if (embeddedImage) images.push({ ...embeddedImage, anchor: { c: this._columnName(columnNumber), r: rowNumber } });
+                  const embeddedImages = this._parseCellEmbeddedImagesDom(cell, `Image${images.length + 1}`);
+                  for (const embeddedImage of embeddedImages) {
+                    images.push({ ...embeddedImage, anchor: { c: this._columnName(columnNumber), r: rowNumber } });
+                  }
                 }
                 columnNumber += columnRepeat;
               });
@@ -3131,6 +3340,11 @@ export class SheetAdapter {
           });
           arrayFormulas.forEach(region => this._restoreArrayFormula(data, region.column, region.row, region.columns, region.rows, region.formula));
           this._applyXlsxLayoutOverlay(table.getAttribute("vno:xlsx-layout"), rowHeights, colWidths);
+
+          // Parse images from <table:shapes> (page-anchored images)
+          const shapesImages = this._parseTableShapesImages(table, name);
+          images.push(...shapesImages);
+
           // Tab color: read vno:tab-color from table:table element
           const tabColor = table.getAttribute("vno:tab-color") || "";
           workbook.sheets.push(name);
@@ -3346,8 +3560,10 @@ export class SheetAdapter {
                 }
               }
               if (!isCovered) {
-                const embeddedImage = this._parseCellEmbeddedImage(content, `Image${images.length + 1}`);
-                if (embeddedImage) images.push({ ...embeddedImage, anchor: { c: this._columnName(columnNumber), r: rowNumber } });
+                const embeddedImages = this._parseCellEmbeddedImages(content, `Image${images.length + 1}`);
+                for (const embeddedImage of embeddedImages) {
+                  images.push({ ...embeddedImage, anchor: { c: this._columnName(columnNumber), r: rowNumber } });
+                }
               }
               columnNumber += columnRepeat;
             }
@@ -3356,6 +3572,11 @@ export class SheetAdapter {
         }
         arrayFormulas.forEach(region => this._restoreArrayFormula(data, region.column, region.row, region.columns, region.rows, region.formula));
         this._applyXlsxLayoutOverlay(pageAttr("vno:xlsx-layout"), rowHeights, colWidths);
+
+        // Parse images from <table:shapes> (page-anchored images) - regex branch
+        const shapesImages = this._parseTableShapesImagesRegex(tableMatch[2], name);
+        images.push(...shapesImages);
+
         // Tab color: read vno:tab-color from table:table element (regex branch)
         const tabColorMatch = tableMatch[1].match(/vno:tab-color=["']([^"']*)["']/i);
         const tabColor = tabColorMatch ? tabColorMatch[1] : "";
