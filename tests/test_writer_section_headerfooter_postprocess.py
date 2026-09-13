@@ -78,6 +78,21 @@ def _make_mock_window(dest_path: str) -> "unittest.mock.MagicMock":
 
 
 class UnitPostprocessWriterDocxTests(unittest.TestCase):
+    def test_duplicate_untouched_textbox_inside_source_group_is_removed(self):
+        source = (
+            '<w:p><w:r><w:drawing><wp:anchor><wp:docPr name="Group 1"/>'
+            '<wpg:wgp><w:txbxContent><w:p><w:r><w:t>Duplicate label</w:t></w:r></w:p>'
+            '</w:txbxContent></wpg:wgp></wp:anchor></w:drawing></w:r></w:p>'
+        )
+        converted = (
+            '<w:p><w:r><w:drawing><wp:anchor><wp:docPr name="Frame1"/>'
+            '<wps:txbx/><w:txbxContent><w:p><w:bookmarkStart w:id="1" '
+            'w:name="vno-untouched-1"/><w:r><w:t>Duplicate label</w:t></w:r></w:p>'
+            '</w:txbxContent></wp:anchor></w:drawing></w:r></w:p>'
+        )
+        result = ooxml_zip_patch_mod._remove_duplicate_writer_textbox_anchors(converted, source)
+        self.assertNotIn("Frame1", result)
+
     """Direct tests for postprocess_writer_docx — no soffice required."""
 
     @unittest.skipUnless(FIXTURE_DOCX.is_file(), "Fixture missing")

@@ -3443,6 +3443,45 @@ def _writer_anchor_paragraph_groups(xml: str) -> list[list[str]]:
     return [_WRITER_ANCHOR_RE.findall(p.group(0)) for p in _WRITER_PARAGRAPH_RE.finditer(xml)]
 
 
+def _remove_duplicate_writer_textbox_anchors(
+    converted_xml: str, original_xml: str, pristine_document: bool = False,
+) -> str:
+    """Drop untouched LO text boxes already contained by a source WPG group."""
+    # Read WPG elements directly: a group may itself contain drawing anchors,
+    # so the flat wp:anchor regex can stop at a nested closing tag.
+    group_texts = [
+        _paragraph_match_key(original_xml[start:end])
+        for start, end in _xml_element_ranges(original_xml, "wpg:wgp")
+    ]
+    group_texts = [text for text in group_texts if text]
+    if not group_texts:
+        return converted_xml
+
+    def keep_or_drop(match: re.Match) -> str:
+        anchor = match.group(0)
+        if not re.search(r"<w:txbxContent\b", anchor, re.IGNORECASE):
+            return anchor
+        if not pristine_document and "vno-untouched-" not in anchor:
+            return anchor
+        text = _paragraph_match_key(anchor)
+        if len(text) < 4 or not any(text in group_text for group_text in group_texts):
+            return anchor
+        return ""
+
+    alternate_re = re.compile(
+        r"<mc:AlternateContent\b[^>]*>[\s\S]*?</mc:AlternateContent\s*>",
+        re.IGNORECASE,
+    )
+
+    def clean_alternate(match: re.Match) -> str:
+        block = match.group(0)
+        anchor = _WRITER_ANCHOR_RE.search(block)
+        return "" if anchor and not keep_or_drop(anchor) else block
+
+    result = alternate_re.sub(clean_alternate, converted_xml)
+    return _WRITER_ANCHOR_RE.sub(keep_or_drop, result)
+
+
 def _writer_passthrough_matches(converted_xml: str, original_xml: str) -> dict[int, str]:
     """Match safe source anchors without assuming global N-to-N ordering.
 
@@ -4015,6 +4054,9 @@ def postprocess_writer_docx(
     new_xml = _repair_writer_double_fills(new_xml)
     pristine_document = "vno-pristine-document" in new_xml
     untouched_texts = _writer_unique_marked_texts(new_xml)
+    new_xml = _remove_duplicate_writer_textbox_anchors(
+        new_xml, original_xml, pristine_document=pristine_document,
+    )
     with zipfile.ZipFile(io.BytesIO(docx_bytes)) as converted_zip:
         existing_entries = set(converted_zip.namelist())
     new_xml, converted_rels_xml, next_rid, anchor_media, anchor_extensions, obsolete_anchor_media = (
