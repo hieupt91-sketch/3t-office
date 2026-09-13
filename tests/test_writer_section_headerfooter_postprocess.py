@@ -107,12 +107,13 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertIn("<a:noFill/>", transparent)
         self.assertNotIn("<a:solidFill", transparent)
 
-    def _format_roundtrip_xml(self, source_ppr: str, source_rpr: str = "") -> str:
+    def _format_roundtrip_xml(self, source_ppr: str, source_rpr: str = "", marker: bool = True) -> str:
         source = _build_minimal_docx(
             f'<w:p>{source_ppr}<w:r>{source_rpr}<w:t>Exact audit text</w:t></w:r></w:p><w:sectPr/>'
         )
+        bookmark = '<w:bookmarkStart w:id="9" w:name="vno-untouched-0"/><w:bookmarkEnd w:id="9"/>' if marker else ""
         converted = _build_minimal_docx(
-            '<w:p><w:pPr><w:jc w:val="left"/></w:pPr><w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:t>Exact audit text</w:t></w:r></w:p><w:sectPr/>'
+            f'<w:p><w:pPr><w:jc w:val="left"/></w:pPr>{bookmark}<w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:t>Exact audit text</w:t></w:r></w:p><w:sectPr/>'
         )
         result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
         return _read_entry(result, "word/document.xml").decode("utf-8")
@@ -132,6 +133,51 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         xml = self._format_roundtrip_xml('<w:pPr><w:jc w:val="center"/><w:numPr><w:ilvl w:val="1"/><w:numId w:val="7"/></w:numPr></w:pPr>')
         self.assertIn('<w:jc w:val="center"/>', xml)
         self.assertIn('<w:numId w:val="7"/>', xml)
+
+    def test_touched_same_text_keeps_libreoffice_formatting(self):
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:rPr><w:color w:val="FF0000"/></w:rPr><w:t>Exact audit text</w:t></w:r></w:p><w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:rPr><w:b/><w:sz w:val="20"/></w:rPr><w:t>Exact audit text</w:t></w:r></w:p><w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn("<w:b/>", xml)
+        self.assertIn('<w:sz w:val="20"/>', xml)
+        self.assertNotIn('w:val="FF0000"', xml)
+
+    def test_changed_text_without_marker_is_not_restored(self):
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Original text</w:t></w:r></w:p><w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:rPr><w:i/></w:rPr><w:t>User changed text</w:t></w:r></w:p><w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn("User changed text", xml)
+        self.assertIn("<w:i/>", xml)
+        self.assertNotIn("<w:b/>", xml)
+
+    def test_untouched_marker_is_removed_from_final_docx(self):
+        xml = self._format_roundtrip_xml("", '<w:rPr><w:b/></w:rPr>')
+        self.assertIn("<w:b/>", xml)
+        self.assertNotIn("vno-untouched-", xml)
+        self.assertNotIn('w:bookmarkEnd w:id="9"', xml)
+
+    @unittest.skipUnless(main.SOFFICE_PATH, "LibreOffice soffice is not installed")
+    def test_libreoffice_html_to_docx_preserves_untouched_bookmark(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "untouched.html"
+            source.write_text(
+                '<!doctype html><meta charset="utf-8"><body><p>'
+                '<a name="vno-untouched-0"></a>Exact audit text</p></body>',
+                encoding="utf-8",
+            )
+            output = main._run_soffice_convert(str(source), "docx", temp_dir, app_kind="writer")
+            xml = _read_entry(Path(output).read_bytes(), "word/document.xml").decode("utf-8")
+            self.assertRegex(xml, r'<w:bookmarkStart\b[^>]*w:name="vno-untouched-0"')
 
     @unittest.skipUnless(FIXTURE_DOCX.is_file(), "Fixture missing")
     def test_noop_when_no_header_footer_refs(self):

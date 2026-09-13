@@ -3640,6 +3640,12 @@ def _restore_writer_matched_formatting(converted_xml: str, original_xml: str) ->
     for source_index, converted_index in pairs:
         source_p = original[source_index]
         target_p = converted[converted_index]
+        if not re.search(
+            r'<w:bookmarkStart\b[^>]*\bw:name=["\']vno-untouched-\d+["\'][^>]*/?>',
+            target_p,
+            re.IGNORECASE,
+        ):
+            continue
         # Section relationships are handled by the dedicated section pass.
         if "<w:sectPr" not in source_p and "<w:sectPr" not in target_p:
             target_p = _writer_restore_selected_ppr(target_p, source_p)
@@ -3668,6 +3674,28 @@ def _restore_writer_matched_formatting(converted_xml: str, original_xml: str) ->
         start, end = converted_ranges[index]
         result = result[:start] + replacements[index] + result[end:]
     return result
+
+
+def _remove_writer_untouched_bookmarks(xml: str) -> str:
+    marker_ids = set(re.findall(
+        r'<w:bookmarkStart\b(?=[^>]*\bw:id=["\']([^"\']+)["\'])(?=[^>]*\bw:name=["\']vno-untouched-\d+["\'])[^>]*/?>',
+        xml,
+        re.IGNORECASE,
+    ))
+    xml = re.sub(
+        r'<w:bookmarkStart\b(?=[^>]*\bw:name=["\']vno-untouched-\d+["\'])[^>]*/?>',
+        "",
+        xml,
+        flags=re.IGNORECASE,
+    )
+    for marker_id in marker_ids:
+        xml = re.sub(
+            rf'<w:bookmarkEnd\b(?=[^>]*\bw:id=["\']{re.escape(marker_id)}["\'])[^>]*/?>',
+            "",
+            xml,
+            flags=re.IGNORECASE,
+        )
+    return xml
 
 
 def _document_paragraph_ranges(xml: str) -> list[tuple[int, int]]:
@@ -3914,6 +3942,7 @@ def postprocess_writer_docx(
     new_xml = _relocate_passthrough_anchors(new_xml, original_xml)
     new_xml = _restore_writer_anchor_properties(new_xml, original_xml)
     new_xml = _restore_writer_matched_formatting(new_xml, original_xml)
+    new_xml = _remove_writer_untouched_bookmarks(new_xml)
 
     replacements: dict[str, bytes] = {}
     if new_xml != converted_xml:

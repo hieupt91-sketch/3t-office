@@ -1729,6 +1729,45 @@ export class WriterAdapter {
     return { body: html.trim(), header, footer, page, comments };
   }
 
+  _untouchedParagraphFingerprint(html) {
+    const normalized = String(html || "")
+      .replace(/<a\b[^>]*\bname=["']vno-untouched-\d+["'][^>]*>\s*<\/a>/gi, "")
+      .replace(/\s+data-vno-(?:src-hash|untouched)=["'][^"']*["']/gi, "")
+      .replace(/\r\n?/g, "\n")
+      .trim();
+    let hash = 2166136261;
+    for (let i = 0; i < normalized.length; i += 1) {
+      hash ^= normalized.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, "0");
+  }
+
+  _markImportedParagraphsUntouched(root = this.bodyDom) {
+    if (!root?.children) return;
+    for (const element of Array.from(root.children)) {
+      if (!/^(?:P|H[1-6])$/i.test(element.tagName || "") || typeof element.setAttribute !== "function") continue;
+      element.setAttribute("data-vno-src-hash", this._untouchedParagraphFingerprint(element.innerHTML));
+    }
+  }
+
+  _markCurrentUntouchedParagraphs(root = this.bodyDom) {
+    if (!root?.children) return;
+    let index = 0;
+    for (const element of Array.from(root.children)) {
+      if (!/^(?:P|H[1-6])$/i.test(element.tagName || "") || typeof element.getAttribute !== "function") continue;
+      const sourceHash = element.getAttribute("data-vno-src-hash");
+      const currentHash = this._untouchedParagraphFingerprint(element.innerHTML);
+      if (sourceHash && sourceHash === currentHash) {
+        element.setAttribute("data-vno-untouched", "1");
+        element.innerHTML = `<a name="vno-untouched-${index}"></a>${element.innerHTML}`;
+      } else {
+        element.removeAttribute?.("data-vno-untouched");
+      }
+      index += 1;
+    }
+  }
+
   _cssLengthToCm(raw) {
     const match = String(raw || "").trim().match(/^(-?[\d.]+)\s*(cm|mm|in|px|pt)?$/i);
     if (!match) return null;
@@ -7500,7 +7539,9 @@ export class WriterAdapter {
     }
 
     if (this.bodyDom) {
-      bodyHtml = this._stripSessionMarkup(this.bodyDom.innerHTML);
+      const exportRoot = this.bodyDom.cloneNode?.(true) || this.bodyDom;
+      this._markCurrentUntouchedParagraphs(exportRoot);
+      bodyHtml = this._stripSessionMarkup(exportRoot.innerHTML);
     } else if (this.editorDom) {
       bodyHtml = this._stripSessionMarkup(this.editorDom.innerHTML);
     }
@@ -7571,6 +7612,7 @@ export class WriterAdapter {
   _stripSessionMarkup(html) {
     const withoutComments = this._stripCommentMarkup(html);
     return withoutComments
+      .replace(/\s+data-vno-src-hash=["'][^"']*["']/gi, "")
       .replace(/\s+is-vno-image-selected(?=[\s"'])/gi, "")
       .replace(/<del\b(?=[^>]*\bdata-vno-change=(?:"delete"|'delete'))[^>]*>[\s\S]*?<\/del>/gi, "")
       .replace(/<ins\b(?=[^>]*\bdata-vno-change=(?:"insert"|'insert'))[^>]*>([\s\S]*?)<\/ins>/gi, "$1")
@@ -7682,6 +7724,7 @@ export class WriterAdapter {
       } else if (this.editorDom) {
         this.editorDom.innerHTML = imported.body;
       }
+      this._markImportedParagraphsUntouched(this.bodyDom || this.editorDom);
 
       if (imported.comments?.length) {
         this.comments = imported.comments;
