@@ -3581,14 +3581,19 @@ def _writer_replace_direct_property(xml: str, name: str, source: str) -> str:
 def _writer_restore_selected_ppr(target_paragraph: str, source_paragraph: str) -> str:
     target_ppr = _writer_direct_property(target_paragraph, "pPr")
     source_ppr = _writer_direct_property(source_paragraph, "pPr")
-    if not source_ppr:
-        return target_paragraph
     if not target_ppr:
+        if not source_ppr:
+            return target_paragraph
         target_ppr = "<w:pPr></w:pPr>"
     elif target_ppr.rstrip().endswith("/>"):
         target_ppr = re.sub(r"/\s*>$", "></w:pPr>", target_ppr)
     merged = target_ppr
-    for child in ("ind", "jc", "numPr"):
+    # LibreOffice's HTML bridge assigns Body Text and translates exact line
+    # spacing to atLeast, even when the paragraph itself was not edited.  The
+    # untouched bookmark is the ownership proof for restoring all paragraph
+    # formatting that affects layout.  pStyle is included because an injected
+    # Body Text style otherwise reintroduces left alignment after removing jc.
+    for child in ("pStyle", "spacing", "ind", "jc", "numPr"):
         source_child = _writer_direct_property(source_ppr, child)
         child_re = re.compile(
             rf"<w:{child}\b[^>]*(?:/>|>[\s\S]*?</w:{child}\s*>)", re.IGNORECASE
@@ -3606,15 +3611,57 @@ def _writer_run_blocks(paragraph: str) -> list[tuple[int, int, str]]:
     )]
 
 
-def _restore_writer_matched_formatting(converted_xml: str, original_xml: str) -> str:
+def _writer_unique_marked_texts(xml: str) -> set[str]:
+    """Capture non-empty untouched identities before anchor passthrough."""
+    paragraphs = [xml[start:end] for start, end in _document_paragraph_ranges(xml)]
+    counts: dict[str, int] = {}
+    for paragraph in paragraphs:
+        text = _paragraph_plain_text(paragraph)
+        if text:
+            counts[text] = counts.get(text, 0) + 1
+    return {
+        _paragraph_plain_text(paragraph)
+        for paragraph in paragraphs
+        if "vno-untouched-" in paragraph
+        and counts.get(_paragraph_plain_text(paragraph), 0) == 1
+    }
+
+
+def _restore_writer_matched_formatting(
+    converted_xml: str, original_xml: str,
+    trusted_untouched_texts: set[str] | None = None,
+    trust_all_exact: bool = False,
+) -> str:
     """Restore direct pPr/rPr only for paragraphs paired by exact text LCS.
 
     This is deliberately formatting-only: paragraph/run text and drawing XML
     always remain the converted app output. Exact text matching prevents a
     guessed or positional overlay when LibreOffice split/merged paragraphs.
     """
-    converted_ranges = _document_paragraph_ranges(converted_xml)
-    original_ranges = _document_paragraph_ranges(original_xml)
+    def paragraph_ranges(xml: str) -> list[tuple[int, int]]:
+        ranges = _document_paragraph_ranges(xml)
+        if not trust_all_exact:
+            return ranges
+        # Match the fidelity auditor's document-flow view. Paragraphs inside
+        # text boxes and tables do not paginate as body paragraphs and must
+        # not shift the LCS used for pristine body-layout restoration.
+        body = re.search(r"<w:body\b[^>]*>([\s\S]*?)</w:body\s*>", xml, re.IGNORECASE)
+        start_offset = body.start(1) if body else 0
+        flow = body.group(1) if body else xml
+        flow = re.sub(
+            r"<w:txbxContent\b[\s\S]*?</w:txbxContent\s*>",
+            lambda match: " " * len(match.group(0)), flow, flags=re.IGNORECASE,
+        )
+        table_ranges = _xml_element_ranges(flow, "w:tbl")
+        return [
+            (start_offset + match.start(), start_offset + match.end())
+            for match in re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", flow, re.IGNORECASE)
+            if not any(table_start < match.start() < table_end
+                       for table_start, table_end in table_ranges)
+        ]
+
+    converted_ranges = paragraph_ranges(converted_xml)
+    original_ranges = paragraph_ranges(original_xml)
     converted = [converted_xml[start:end] for start, end in converted_ranges]
     original = [original_xml[start:end] for start, end in original_ranges]
     converted_keys = [_paragraph_plain_text(p) for p in converted]
@@ -3624,27 +3671,62 @@ def _restore_writer_matched_formatting(converted_xml: str, original_xml: str) ->
     dp = [[0] * (cols + 1) for _ in range(rows + 1)]
     for i in range(rows - 1, -1, -1):
         for j in range(cols - 1, -1, -1):
-            equal = bool(original_keys[i]) and original_keys[i] == converted_keys[j]
+            # A pristine round-trip can safely use the same empty-paragraph
+            # LCS pairing as the fidelity auditor.  Edited documents still
+            # require non-empty text ownership because empty carriers are
+            # otherwise ambiguous after paragraph insertion/removal.
+            equal = original_keys[i] == converted_keys[j] and (
+                trust_all_exact or bool(original_keys[i])
+            )
             dp[i][j] = dp[i + 1][j + 1] + 1 if equal else max(dp[i + 1][j], dp[i][j + 1])
     pairs: list[tuple[int, int]] = []
     i = j = 0
     while i < rows and j < cols:
-        if original_keys[i] and original_keys[i] == converted_keys[j]:
+        if original_keys[i] == converted_keys[j] and (
+            trust_all_exact or bool(original_keys[i])
+        ):
             pairs.append((i, j)); i += 1; j += 1
         elif dp[i + 1][j] >= dp[i][j + 1]:
             i += 1
         else:
             j += 1
 
+    # Image carrier paragraphs have no text, so they cannot participate in
+    # the text LCS above.  Pair them only inside two already-stable text
+    # boundaries and only when both sides contain the same number of empty
+    # paragraphs.  This restores untouched carrier spacing/alignment without
+    # guessing across a LibreOffice paragraph split or merge.
+    bounded_pairs = [(-1, -1), *pairs, (rows, cols)]
+    empty_pairs: list[tuple[int, int]] = []
+    for (source_start, converted_start), (source_end, converted_end) in zip(
+        bounded_pairs, bounded_pairs[1:]
+    ):
+        source_empty = [
+            index for index in range(source_start + 1, source_end)
+            if not original_keys[index]
+        ]
+        converted_empty = [
+            index for index in range(converted_start + 1, converted_end)
+            if not converted_keys[index]
+        ]
+        if source_empty and len(source_empty) == len(converted_empty):
+            empty_pairs.extend(zip(source_empty, converted_empty))
+    pairs = sorted(set([*pairs, *empty_pairs]))
+
     replacements: dict[int, str] = {}
     for source_index, converted_index in pairs:
         source_p = original[source_index]
         target_p = converted[converted_index]
-        if not re.search(
+        has_marker = bool(re.search(
             r'<w:bookmarkStart\b[^>]*\bw:name=["\']vno-untouched-\d+["\'][^>]*/?>',
             target_p,
             re.IGNORECASE,
-        ):
+        ))
+        # A source group copied by passthrough can remove the generated anchor
+        # paragraph that held the bookmark.  A unique, non-empty text captured
+        # before that replacement safely carries the same untouched proof.
+        if (not trust_all_exact and not has_marker
+                and converted_keys[converted_index] not in (trusted_untouched_texts or set())):
             continue
         # Section relationships are handled by the dedicated section pass.
         if "<w:sectPr" not in source_p and "<w:sectPr" not in target_p:
@@ -3678,12 +3760,12 @@ def _restore_writer_matched_formatting(converted_xml: str, original_xml: str) ->
 
 def _remove_writer_untouched_bookmarks(xml: str) -> str:
     marker_ids = set(re.findall(
-        r'<w:bookmarkStart\b(?=[^>]*\bw:id=["\']([^"\']+)["\'])(?=[^>]*\bw:name=["\']vno-untouched-\d+["\'])[^>]*/?>',
+        r'<w:bookmarkStart\b(?=[^>]*\bw:id=["\']([^"\']+)["\'])(?=[^>]*\bw:name=["\'](?:vno-untouched-\d+|vno-pristine-document)["\'])[^>]*/?>',
         xml,
         re.IGNORECASE,
     ))
     xml = re.sub(
-        r'<w:bookmarkStart\b(?=[^>]*\bw:name=["\']vno-untouched-\d+["\'])[^>]*/?>',
+        r'<w:bookmarkStart\b(?=[^>]*\bw:name=["\'](?:vno-untouched-\d+|vno-pristine-document)["\'])[^>]*/?>',
         "",
         xml,
         flags=re.IGNORECASE,
@@ -3931,6 +4013,8 @@ def postprocess_writer_docx(
         converted_xml, original_xml, orig_header_entries, orig_footer_entries, remapped_sect_pr
     )
     new_xml = _repair_writer_double_fills(new_xml)
+    pristine_document = "vno-pristine-document" in new_xml
+    untouched_texts = _writer_unique_marked_texts(new_xml)
     with zipfile.ZipFile(io.BytesIO(docx_bytes)) as converted_zip:
         existing_entries = set(converted_zip.namelist())
     new_xml, converted_rels_xml, next_rid, anchor_media, anchor_extensions, obsolete_anchor_media = (
@@ -3941,7 +4025,10 @@ def postprocess_writer_docx(
     )
     new_xml = _relocate_passthrough_anchors(new_xml, original_xml)
     new_xml = _restore_writer_anchor_properties(new_xml, original_xml)
-    new_xml = _restore_writer_matched_formatting(new_xml, original_xml)
+    new_xml = _restore_writer_matched_formatting(
+        new_xml, original_xml, trusted_untouched_texts=untouched_texts,
+        trust_all_exact=pristine_document,
+    )
     new_xml = _remove_writer_untouched_bookmarks(new_xml)
 
     replacements: dict[str, bytes] = {}

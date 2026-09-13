@@ -1745,7 +1745,10 @@ export class WriterAdapter {
 
   _markImportedParagraphsUntouched(root = this.bodyDom) {
     if (!root?.children) return;
-    for (const element of Array.from(root.children)) {
+    const paragraphs = root.querySelectorAll
+      ? Array.from(root.querySelectorAll("p,h1,h2,h3,h4,h5,h6"))
+      : Array.from(root.children);
+    for (const element of paragraphs) {
       if (!/^(?:P|H[1-6])$/i.test(element.tagName || "") || typeof element.setAttribute !== "function") continue;
       element.setAttribute("data-vno-src-hash", this._untouchedParagraphFingerprint(element.innerHTML));
     }
@@ -1754,13 +1757,23 @@ export class WriterAdapter {
   _markCurrentUntouchedParagraphs(root = this.bodyDom) {
     if (!root?.children) return;
     let index = 0;
-    for (const element of Array.from(root.children)) {
+    const paragraphs = root.querySelectorAll
+      ? Array.from(root.querySelectorAll("p,h1,h2,h3,h4,h5,h6"))
+      : Array.from(root.children);
+    for (const element of paragraphs) {
       if (!/^(?:P|H[1-6])$/i.test(element.tagName || "") || typeof element.getAttribute !== "function") continue;
       const sourceHash = element.getAttribute("data-vno-src-hash");
       const currentHash = this._untouchedParagraphFingerprint(element.innerHTML);
       if (sourceHash && sourceHash === currentHash) {
         element.setAttribute("data-vno-untouched", "1");
-        element.innerHTML = `<a name="vno-untouched-${index}"></a>${element.innerHTML}`;
+        // A paragraph id becomes a Word bookmark on that exact paragraph.
+        // An inner <a> can be moved by LibreOffice ahead of an absolute frame,
+        // losing the paragraph ownership needed by the DOCX overlay.
+        if (!element.getAttribute("id")) {
+          element.setAttribute("id", `vno-untouched-${index}`);
+        } else {
+          element.innerHTML = `<a name="vno-untouched-${index}"></a>${element.innerHTML}`;
+        }
       } else {
         element.removeAttribute?.("data-vno-untouched");
       }
@@ -7597,7 +7610,8 @@ export class WriterAdapter {
         `</div>\n`;
     }
 
-    const fullHtml = `${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}`;
+    const pristineMarker = this.isDirty ? "" : '<a name="vno-pristine-document"></a>';
+    const fullHtml = `${pristineMarker}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }

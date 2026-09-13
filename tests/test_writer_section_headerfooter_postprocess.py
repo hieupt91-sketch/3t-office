@@ -124,10 +124,50 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertIn('<w:sz w:val="28"/>', xml)
         self.assertNotIn('<w:sz w:val="20"/>', xml)
 
-    def test_matched_format_overlay_restores_indent_without_spacing_overlay(self):
+    def test_matched_format_overlay_restores_spacing_and_indent(self):
         xml = self._format_roundtrip_xml('<w:pPr><w:spacing w:before="120" w:after="240" w:line="360" w:lineRule="auto"/><w:ind w:left="720" w:firstLine="360"/></w:pPr>')
         self.assertIn('w:left="720"', xml)
-        self.assertNotIn('w:before="120"', xml)
+        self.assertIn('w:before="120"', xml)
+        self.assertIn('w:after="240"', xml)
+        self.assertIn('w:line="360"', xml)
+        self.assertIn('w:lineRule="auto"', xml)
+
+    def test_matched_format_overlay_removes_injected_body_text_style(self):
+        xml = self._format_roundtrip_xml("")
+        self.assertNotIn("<w:pStyle", xml)
+        self.assertNotIn('<w:jc w:val="left"', xml)
+
+    def test_untouched_empty_carrier_is_matched_between_text_boundaries(self):
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:spacing w:after="240"/><w:jc w:val="center"/></w:pPr><w:r><w:drawing/></w:r></w:p>'
+            '<w:p><w:r><w:t>After</w:t></w:r></w:p><w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:spacing w:after="0"/><w:jc w:val="left"/></w:pPr>'
+            '<w:bookmarkStart w:id="9" w:name="vno-untouched-1"/><w:bookmarkEnd w:id="9"/><w:r><w:drawing/></w:r></w:p>'
+            '<w:p><w:r><w:t>After</w:t></w:r></w:p><w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:spacing w:after="240"/>', xml)
+        self.assertIn('<w:jc w:val="center"/>', xml)
+
+    def test_pristine_document_restores_empty_paragraphs_by_lcs(self):
+        source = _build_minimal_docx(
+            '<w:p><w:pPr><w:spacing w:after="240"/><w:jc w:val="center"/></w:pPr></w:p>'
+            '<w:p><w:r><w:t>Stable</w:t></w:r></w:p><w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:pPr><w:spacing w:after="0"/><w:jc w:val="left"/></w:pPr>'
+            '<w:bookmarkStart w:id="8" w:name="vno-pristine-document"/><w:bookmarkEnd w:id="8"/></w:p>'
+            '<w:p><w:r><w:t>Stable</w:t></w:r></w:p><w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:spacing w:after="240"/>', xml)
+        self.assertIn('<w:jc w:val="center"/>', xml)
 
     def test_matched_format_overlay_restores_alignment_and_list(self):
         xml = self._format_roundtrip_xml('<w:pPr><w:jc w:val="center"/><w:numPr><w:ilvl w:val="1"/><w:numId w:val="7"/></w:numPr></w:pPr>')
