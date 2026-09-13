@@ -150,7 +150,7 @@ export async function runSlidesImportFidelityTests() {
     assert(Math.abs(tb.w - 336) <= 2, `Textbox w phải ~336px: ${tb.w}`);
     assert(Math.abs(tb.h - 265) <= 2, `Textbox h phải ~265px: ${tb.h}`);
     assert(tb.text.includes("WEST COAST") && tb.text.includes("ROAD TRIP"), `Textbox text phải có nội dung: '${tb.text}'`);
-    assert(tb.textHtml.includes("Arial"), `Textbox textHtml phải thay font không cài (Oswald) thành Arial: '${tb.textHtml}'`);
+    assert(tb.textHtml.includes("Oswald"), `Textbox textHtml phải giữ font gốc (Oswald): '${tb.textHtml}'`);
     assert(tb.textHtml.includes("#f8e71c"), `Textbox textHtml phải giữ highlight vàng #f8e71c: '${tb.textHtml}'`);
     assert(tb.textHtml.includes("#666666"), `Textbox textHtml phải giữ màu chữ xám #666666: '${tb.textHtml}'`);
     assert(tb.textVAlign === "bottom", `Textbox textVAlign phải là bottom: '${tb.textVAlign}'`);

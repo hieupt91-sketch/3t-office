@@ -870,9 +870,8 @@ export class SlidesAdapter {
       if (fmt.bg && fmt.bg !== "transparent") spanStyles.push(`background-color:${fmt.bg}`);
       if (fmt.family) {
         const cleanFamily = fmt.family.replace(/['"]/g, "").trim();
-        const displayFont = resolveDisplayFont(cleanFamily, fmt.genericFamily);
-        const generic = /serif|times/i.test(displayFont) ? "serif" : "sans-serif";
-        spanStyles.push(`font-family:'${displayFont}',${generic}`);
+        const generic = fmt.genericFamily && /serif|roman|times/i.test(fmt.genericFamily) ? "serif" : "sans-serif";
+        spanStyles.push(`font-family:'${cleanFamily}',${generic}`);
       }
       if (fmt.size) spanStyles.push(`font-size:${fmt.size}`);
       if (spanStyles.length) wrapped = `<span style="${spanStyles.join(";")}">${wrapped}</span>`;
@@ -1133,11 +1132,10 @@ export class SlidesAdapter {
     return `_${vAlign || "m"}${dir ? `_${dir}` : ""}${pad}`;
   }
 
-  /** Thuộc tính ODF chuẩn cho căn lề dọc + hướng chữ + padding hộp chữ. */
+  /** Thuộc tính ODF chuẩn cho căn lề dọc + hướng chữ + padding hộp chữ + autofit/wrap. */
   _textStyleGraphicAttrs(shape) {
-    if (!this._shapeTextStyleSuffix(shape)) return "";
     let attrs = "";
-    if (shape.textVAlign && shape.textVAlign !== "middle") {
+    if (shape.textVAlign) {
       attrs += ` draw:textarea-vertical-align="${this._escapeXml(shape.textVAlign)}"`;
     }
     if (shape.textDirection && shape.textDirection !== "horizontal") {
@@ -1148,6 +1146,15 @@ export class SlidesAdapter {
     if (shape.paddingBottom != null) attrs += ` fo:padding-bottom="${this._pxToOdf(shape.paddingBottom)}"`;
     if (shape.paddingLeft != null) attrs += ` fo:padding-left="${this._pxToOdf(shape.paddingLeft)}"`;
     if (shape.paddingRight != null) attrs += ` fo:padding-right="${this._pxToOdf(shape.paddingRight)}"`;
+    if (shape.wrap) attrs += ` fo:wrap-option="${this._escapeXml(shape.wrap)}"`;
+    // autofit: noAutofit → auto-grow-height/width=false; shrinkToFit → shrink-to-fit=true; fitToSize → fit-to-size=true
+    if (shape.autofit === false || shape.noAutofit) {
+      attrs += ` draw:auto-grow-height="false" draw:auto-grow-width="false"`;
+    } else if (shape.shrinkToFit) {
+      attrs += ` style:shrink-to-fit="true"`;
+    } else if (shape.fitToSize) {
+      attrs += ` draw:fit-to-size="true"`;
+    }
     return attrs;
   }
 
@@ -1828,10 +1835,20 @@ export class SlidesAdapter {
     </style:style>`;
         continue;
       }
-      const fillAttrs = this._isTransparentFill(shape) ? ` draw:fill="none"` : ` draw:fill="solid" draw:fill-color="${this._escapeXml(shape.color)}"`;
+      const isTextBox = shape.type === "textbox";
+      const isTransparent = this._isTransparentFill(shape);
+      let fillAttrs = "";
+      let strokeAttrs = "";
+      if (isTransparent) {
+        fillAttrs = ` draw:fill="none"`;
+        strokeAttrs = ` draw:stroke="none"`;
+      } else {
+        fillAttrs = ` draw:fill="solid" draw:fill-color="${this._escapeXml(shape.color)}"`;
+        strokeAttrs = ` draw:stroke="none"`;
+      }
       xml += `
     <style:style style:name="${styleName}" style:family="graphic">
-      <style:graphic-properties draw:stroke="none"${fillAttrs}${this._textStyleGraphicAttrs(shape)}/>
+      <style:graphic-properties${strokeAttrs}${fillAttrs}${this._textStyleGraphicAttrs(shape)}/>
     </style:style>`;
     }
     if (needsConnector) {
@@ -2320,6 +2337,9 @@ export class SlidesAdapter {
       const vAlign = frameVAlign || boxVAlign || style.textVAlign || null;
       const frameShrink = /style:shrink-to-fit=["']true["']/i.test(attrs) || /style:shrink-to-fit=["']true["']/i.test(inner);
       const frameFit = /draw:fit-to-size=["']true["']/i.test(attrs) || /draw:fit-to-size=["']true["']/i.test(inner);
+      const frameAutoGrowH = /draw:auto-grow-height=["']false["']/i.test(attrs) || /draw:auto-grow-height=["']false["']/i.test(inner);
+      const frameAutoGrowW = /draw:auto-grow-width=["']false["']/i.test(attrs) || /draw:auto-grow-width=["']false["']/i.test(inner);
+      const frameWrap = this._attr(attrs, "fo:wrap-option") || inner.match(/fo:wrap-option=["']([^"']+)["']/i)?.[1];
       const frameFill = get("draw:fill-color");
       const boxFill = inner.match(/draw:fill-color=["']([^"']+)["']/i)?.[1];
       const frameFillKind = get("draw:fill");
@@ -2337,7 +2357,10 @@ export class SlidesAdapter {
         text: this._paragraphsFromXml(inner).join("\n"),
         textHtml: this._shapeHtmlFromXml(inner),
         shrinkToFit: frameShrink || Boolean(style.shrinkToFit),
-        autofit: frameShrink || frameFit || Boolean(style.autofit)
+        fitToSize: frameFit || Boolean(style.fitToSize),
+        noAutofit: frameAutoGrowH && frameAutoGrowW,
+        autofit: frameShrink || frameFit || Boolean(style.autofit),
+        wrap: frameWrap || style.wrap || null
       };
       if (vAlign) textbox.textVAlign = vAlign;
       if (style.textDirection) textbox.textDirection = style.textDirection;
