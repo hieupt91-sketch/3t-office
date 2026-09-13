@@ -107,6 +107,32 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertIn("<a:noFill/>", transparent)
         self.assertNotIn("<a:solidFill", transparent)
 
+    def _format_roundtrip_xml(self, source_ppr: str, source_rpr: str = "") -> str:
+        source = _build_minimal_docx(
+            f'<w:p>{source_ppr}<w:r>{source_rpr}<w:t>Exact audit text</w:t></w:r></w:p><w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:pPr><w:jc w:val="left"/></w:pPr><w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:t>Exact audit text</w:t></w:r></w:p><w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        return _read_entry(result, "word/document.xml").decode("utf-8")
+
+    def test_matched_format_overlay_restores_font_and_size(self):
+        xml = self._format_roundtrip_xml("", '<w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="28"/></w:rPr>')
+        self.assertIn('w:ascii="Arial"', xml)
+        self.assertIn('<w:sz w:val="28"/>', xml)
+        self.assertNotIn('<w:sz w:val="20"/>', xml)
+
+    def test_matched_format_overlay_restores_indent_without_spacing_overlay(self):
+        xml = self._format_roundtrip_xml('<w:pPr><w:spacing w:before="120" w:after="240" w:line="360" w:lineRule="auto"/><w:ind w:left="720" w:firstLine="360"/></w:pPr>')
+        self.assertIn('w:left="720"', xml)
+        self.assertNotIn('w:before="120"', xml)
+
+    def test_matched_format_overlay_restores_alignment_and_list(self):
+        xml = self._format_roundtrip_xml('<w:pPr><w:jc w:val="center"/><w:numPr><w:ilvl w:val="1"/><w:numId w:val="7"/></w:numPr></w:pPr>')
+        self.assertIn('<w:jc w:val="center"/>', xml)
+        self.assertIn('<w:numId w:val="7"/>', xml)
+
     @unittest.skipUnless(FIXTURE_DOCX.is_file(), "Fixture missing")
     def test_noop_when_no_header_footer_refs(self):
         original = FIXTURE_DOCX.read_bytes()

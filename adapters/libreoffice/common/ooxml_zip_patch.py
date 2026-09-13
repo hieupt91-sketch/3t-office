@@ -3559,6 +3559,117 @@ def _paragraph_match_key(paragraph_xml: str) -> str:
     return re.sub(r"[^\w]+", "", _paragraph_plain_text(paragraph_xml), flags=re.UNICODE).casefold()
 
 
+def _writer_direct_property(xml: str, name: str) -> str:
+    match = re.search(
+        rf"<w:{name}\b[^>]*(?:/>|>[\s\S]*?</w:{name}\s*>)", xml, re.IGNORECASE
+    )
+    return match.group(0) if match else ""
+
+
+def _writer_replace_direct_property(xml: str, name: str, source: str) -> str:
+    pattern = re.compile(
+        rf"<w:{name}\b[^>]*(?:/>|>[\s\S]*?</w:{name}\s*>)", re.IGNORECASE
+    )
+    if pattern.search(xml):
+        return pattern.sub(lambda _match: source, xml, count=1) if source else pattern.sub("", xml, count=1)
+    if not source:
+        return xml
+    opening = re.search(r"<w:(?:p|r)\b[^>]*>", xml, re.IGNORECASE)
+    return xml if not opening else xml[:opening.end()] + source + xml[opening.end():]
+
+
+def _writer_restore_selected_ppr(target_paragraph: str, source_paragraph: str) -> str:
+    target_ppr = _writer_direct_property(target_paragraph, "pPr")
+    source_ppr = _writer_direct_property(source_paragraph, "pPr")
+    if not source_ppr:
+        return target_paragraph
+    if not target_ppr:
+        target_ppr = "<w:pPr></w:pPr>"
+    elif target_ppr.rstrip().endswith("/>"):
+        target_ppr = re.sub(r"/\s*>$", "></w:pPr>", target_ppr)
+    merged = target_ppr
+    for child in ("ind", "jc", "numPr"):
+        source_child = _writer_direct_property(source_ppr, child)
+        child_re = re.compile(
+            rf"<w:{child}\b[^>]*(?:/>|>[\s\S]*?</w:{child}\s*>)", re.IGNORECASE
+        )
+        if child_re.search(merged):
+            merged = child_re.sub(lambda _match: source_child, merged, count=1) if source_child else child_re.sub("", merged, count=1)
+        elif source_child:
+            merged = re.sub(r"</w:pPr\s*>", source_child + "</w:pPr>", merged, count=1, flags=re.IGNORECASE)
+    return _writer_replace_direct_property(target_paragraph, "pPr", merged)
+
+
+def _writer_run_blocks(paragraph: str) -> list[tuple[int, int, str]]:
+    return [(m.start(), m.end(), m.group(0)) for m in re.finditer(
+        r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", paragraph, re.IGNORECASE
+    )]
+
+
+def _restore_writer_matched_formatting(converted_xml: str, original_xml: str) -> str:
+    """Restore direct pPr/rPr only for paragraphs paired by exact text LCS.
+
+    This is deliberately formatting-only: paragraph/run text and drawing XML
+    always remain the converted app output. Exact text matching prevents a
+    guessed or positional overlay when LibreOffice split/merged paragraphs.
+    """
+    converted_ranges = _document_paragraph_ranges(converted_xml)
+    original_ranges = _document_paragraph_ranges(original_xml)
+    converted = [converted_xml[start:end] for start, end in converted_ranges]
+    original = [original_xml[start:end] for start, end in original_ranges]
+    converted_keys = [_paragraph_plain_text(p) for p in converted]
+    original_keys = [_paragraph_plain_text(p) for p in original]
+    # Empty paragraphs are too ambiguous to overlay safely.
+    rows, cols = len(original), len(converted)
+    dp = [[0] * (cols + 1) for _ in range(rows + 1)]
+    for i in range(rows - 1, -1, -1):
+        for j in range(cols - 1, -1, -1):
+            equal = bool(original_keys[i]) and original_keys[i] == converted_keys[j]
+            dp[i][j] = dp[i + 1][j + 1] + 1 if equal else max(dp[i + 1][j], dp[i][j + 1])
+    pairs: list[tuple[int, int]] = []
+    i = j = 0
+    while i < rows and j < cols:
+        if original_keys[i] and original_keys[i] == converted_keys[j]:
+            pairs.append((i, j)); i += 1; j += 1
+        elif dp[i + 1][j] >= dp[i][j + 1]:
+            i += 1
+        else:
+            j += 1
+
+    replacements: dict[int, str] = {}
+    for source_index, converted_index in pairs:
+        source_p = original[source_index]
+        target_p = converted[converted_index]
+        # Section relationships are handled by the dedicated section pass.
+        if "<w:sectPr" not in source_p and "<w:sectPr" not in target_p:
+            target_p = _writer_restore_selected_ppr(target_p, source_p)
+        source_runs = _writer_run_blocks(source_p)
+        target_runs = _writer_run_blocks(target_p)
+        source_by_text: dict[str, list[str]] = {}
+        for _start, _end, run in source_runs:
+            text = _paragraph_plain_text(run)
+            if text:
+                source_by_text.setdefault(text, []).append(run)
+        run_replacements: list[tuple[int, int, str]] = []
+        used: dict[str, int] = {}
+        for start, end, run in target_runs:
+            text = _paragraph_plain_text(run)
+            occurrence = used.get(text, 0)
+            candidates = source_by_text.get(text, [])
+            if text and occurrence < len(candidates):
+                source_rpr = _writer_direct_property(candidates[occurrence], "rPr")
+                run_replacements.append((start, end, _writer_replace_direct_property(run, "rPr", source_rpr)))
+                used[text] = occurrence + 1
+        for start, end, run in reversed(run_replacements):
+            target_p = target_p[:start] + run + target_p[end:]
+        replacements[converted_index] = target_p
+    result = converted_xml
+    for index in sorted(replacements, reverse=True):
+        start, end = converted_ranges[index]
+        result = result[:start] + replacements[index] + result[end:]
+    return result
+
+
 def _document_paragraph_ranges(xml: str) -> list[tuple[int, int]]:
     anchor_ranges = [(match.start(), match.end()) for match in _WRITER_ANCHOR_RE.finditer(xml)]
     return [
@@ -3802,6 +3913,7 @@ def postprocess_writer_docx(
     )
     new_xml = _relocate_passthrough_anchors(new_xml, original_xml)
     new_xml = _restore_writer_anchor_properties(new_xml, original_xml)
+    new_xml = _restore_writer_matched_formatting(new_xml, original_xml)
 
     replacements: dict[str, bytes] = {}
     if new_xml != converted_xml:
