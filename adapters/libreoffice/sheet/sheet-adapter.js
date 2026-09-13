@@ -2306,7 +2306,9 @@ export class SheetAdapter {
               }).join("");
               cellsXml += `<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${paraXml}</table:table-cell>`;
             } else {
-              const lines = text.split("\n");
+              // Excel lưu xuống dòng trong ô là "\n" (đôi khi "\r\n" qua vno:original-string);
+              // một "\r" lẻ trong <text:p> sẽ bị XML chuẩn hoá thành "\n" -> thừa dòng trống.
+              const lines = text.split(/\r\n|\r|\n/);
               const linesXml = lines.map(line => `<text:p>${this._escapeXml(line)}</text:p>`).join("");
               cellsXml += `<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${linesXml}</table:table-cell>`;
             }

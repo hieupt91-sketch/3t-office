@@ -2772,7 +2772,13 @@ def _set_original_string_attr(cell_xml: str, value: str) -> str:
     if not opening or "covered-table-cell" in opening.group(1).lower():
         return cell_xml
     raw_attrs = re.sub(r'\s+vno:original-string\s*=\s*(["\']).*?\1', "", opening.group(2), flags=re.IGNORECASE)
-    tag = f'<{opening.group(1)}{raw_attrs} vno:original-string="{_escape_xml(value)}"{opening.group(3)}>'
+    # Newline/tab in an XML attribute value are normalized to spaces by every DOM
+    # parser (attribute-value normalization) unless written as character
+    # references. The app's DOM branch of parseFods was reading "Từ 5 bộ ck 30%"
+    # for a two-line cell and the saved XLSX lost its line breaks; the regex
+    # branch (Node tests) never saw it. Encode them explicitly.
+    attr_value = _escape_xml(value).replace("\r", "&#13;").replace("\n", "&#10;").replace("\t", "&#9;")
+    tag = f'<{opening.group(1)}{raw_attrs} vno:original-string="{attr_value}"{opening.group(3)}>'
     return tag + cell_xml[opening.end():]
 
 

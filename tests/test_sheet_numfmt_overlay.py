@@ -56,6 +56,19 @@ class SheetNumberFormatOverlayTests(unittest.TestCase):
         result = patcher._set_original_string_attr('<table:table-cell office:value-type="string"/>', "  Giữ & nguyên  ")
         self.assertIn('vno:original-string="  Giữ &amp; nguyên  "', result)
 
+    def test_original_string_newlines_survive_dom_attribute_normalization(self):
+        # Raw \n / \r\n inside an attribute is turned into spaces by DOM parsers
+        # (the app's parseFods DOM branch) — must be written as &#10; / &#13;.
+        result = patcher._set_original_string_attr('<table:table-cell office:value-type="string"/>', "Từ 5 bộ\r\nck 30%\tx")
+        self.assertIn('vno:original-string="Từ 5 bộ&#13;&#10;ck 30%&#9;x"', result)
+        self.assertNotIn("\n", result.split("vno:original-string=")[1].split('"')[1])
+        import xml.dom.minidom as minidom
+        doc = minidom.parseString(
+            '<r xmlns:table="urn:t" xmlns:office="urn:o" xmlns:vno="urn:v">' + result + "</r>"
+        )
+        cell = doc.getElementsByTagName("table:table-cell")[0]
+        self.assertEqual(cell.getAttribute("vno:original-string"), "Từ 5 bộ\r\nck 30%\tx")
+
     def test_original_strings_parser_skips_self_closing_cells(self):
         strings = patcher._xlsx_cells_with_original_strings(make_xlsx())["Data"]
         self.assertEqual(strings[(2, 5)], "  Giữ & nguyên  ")
