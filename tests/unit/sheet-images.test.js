@@ -1,4 +1,5 @@
-import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { readFileSync } from "fs";
+import { SheetGridController, _getTabContrastTextColor } from "../../apps/sheet/sheet-grid.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
 import { SHEET_RIBBON_TABS } from "../../apps/sheet/sheet-ribbon.js";
 import { VN_TO_UNO_MAP } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
@@ -8,12 +9,39 @@ function container() {
   return { querySelector() { return null; }, querySelectorAll() { return []; }, classList: { add() {}, remove() {}, toggle() {} } };
 }
 class FakeElement {
-  constructor(tagName) { this.tagName = tagName; this.children = []; this.dataset = {}; this.style = {}; this.attributes = {}; }
+  constructor(tagName) {
+    this.tagName = tagName;
+    this.children = [];
+    this.dataset = {};
+    this.style = {};
+    this.attributes = {};
+    this._classes = new Set();
+    this.classList = {
+      add: (...cls) => cls.forEach(c => this._classes.add(c)),
+      remove: (...cls) => cls.forEach(c => this._classes.delete(c)),
+      contains: c => this._classes.has(c),
+      toggle: (c, force) => {
+        const next = force !== undefined ? !!force : !this._classes.has(c);
+        if (next) this._classes.add(c); else this._classes.delete(c);
+        return next;
+      }
+    };
+  }
+  get className() { return Array.from(this._classes).join(" "); }
+  set className(val) {
+    this._classes = new Set(String(val || "").split(/\s+/).filter(Boolean));
+  }
   set innerHTML(_value) { this.children = []; }
   append(...children) { this.children.push(...children); }
   appendChild(child) { this.children.push(child); return child; }
   setAttribute(name, value) { this.attributes[name] = value; }
   addEventListener(_name, handler) { this.handler = handler; }
+  querySelector(sel) {
+    if (sel === "#vno-sheet-tabs-list") {
+      return this.children.find(c => c.id === "vno-sheet-tabs-list") || null;
+    }
+    return null;
+  }
 }
 function layer() {
   return { children: [], set innerHTML(_value) { this.children = []; }, appendChild(child) { this.children.push(child); return child; } };
@@ -216,6 +244,106 @@ export async function runSheetImageTests() {
       // selectCell deselects ảnh:
       grid.selectCell("A", 1);
       assert(grid.selectedImageId === null, "selectCell phải hủy chọn ảnh");
+    });
+
+    test("Sheet Tab Color: _getTabContrastTextColor tinh do sang dung nguong 130 va DOM tab style background/color theo chuan Excel", () => {
+      // Contrast text color helper
+      assert(_getTabContrastTextColor("#FFFFFF") === "#000000", "Trang phai co chu den");
+      assert(_getTabContrastTextColor("#FFFF00") === "#000000", "Vang phai co chu den");
+      assert(_getTabContrastTextColor("#FF9900") === "#000000", "Cam phai co chu den");
+      assert(_getTabContrastTextColor("#00FF00") === "#000000", "Xanh la sang phai co chu den");
+      assert(_getTabContrastTextColor("#00FFFF") === "#000000", "Xanh cyan phai co chu den");
+      assert(_getTabContrastTextColor("#000000") === "#ffffff", "Den phai co chu trang");
+      assert(_getTabContrastTextColor("#9900FF") === "#ffffff", "Tim phai co chu trang");
+      assert(_getTabContrastTextColor("#4A86E8") === "#ffffff", "Xanh duong toi phai co chu trang");
+
+      // DOM tab rendering
+      const grid = new SheetGridController(container());
+      const tabsList = new FakeElement("div");
+      tabsList.id = "vno-sheet-tabs-list";
+      const tabBar = new FakeElement("div");
+      tabBar.appendChild(tabsList);
+      grid.tabBar = tabBar;
+
+      grid.sheets = ["Sheet1", "Sheet2", "Sheet3"];
+      grid.activeSheet = "Sheet2";
+      grid.sheetStates = {
+        Sheet1: { tabColor: "#4A86E8" },
+        Sheet2: { tabColor: "#FFFF00" },
+      }; // Sheet3 has no color
+
+      grid._renderSheetTabs();
+
+      const tabs = tabsList.children;
+      assert(tabs.length === 3, "Phai render du 3 tabs");
+
+      // Tab 1: Inactive with dark blue tabColor (#4A86E8) -> full background, white text, 3px transparent bottom border
+      const tab1 = tabs[0];
+      assert(tab1.dataset.sheet === "Sheet1", "Tab 1 sai ten");
+      assert(tab1.classList.contains("has-tab-color"), "Tab 1 phai co class has-tab-color");
+      assert(!tab1.className.includes("is-active"), "Tab 1 khong phai active");
+      assert(tab1.style.background === "#4A86E8" && tab1.style.backgroundColor === "#4A86E8", "Tab 1 phai to kin mau nen");
+      assert(tab1.style.color === "#ffffff", "Tab 1 phai co mau chu trang vi nen toi");
+      assert(tab1.style.borderBottom === "3px solid transparent", "Tab 1 phai co borderBottom 3px transparent");
+
+      // Tab 2: Active with yellow tabColor (#FFFF00) -> white background with 15% tint, 3px solid border
+      const tab2 = tabs[1];
+      assert(tab2.dataset.sheet === "Sheet2", "Tab 2 sai ten");
+      assert(tab2.classList.contains("has-tab-color"), "Tab 2 phai co class has-tab-color");
+      assert(tab2.className.includes("is-active"), "Tab 2 phai active");
+      assert(tab2.style.background.includes("linear-gradient"), "Tab 2 phai co gradient tint 15%");
+      assert(tab2.style.backgroundColor === "#ffffff", "Tab 2 phai co mau nen trang");
+      assert(tab2.style.borderBottom === "3px solid #FFFF00", "Tab 2 phai co borderBottom 3px solid mau tab");
+
+      // Tab 3: Inactive without tabColor -> default styling
+      const tab3 = tabs[2];
+      assert(tab3.dataset.sheet === "Sheet3", "Tab 3 sai ten");
+      assert(!tab3.classList.contains("has-tab-color"), "Tab 3 khong duoc co class has-tab-color");
+      assert(!tab3.style.background, "Tab 3 khong duoc ghi de background");
+    });
+
+    test("Sheet Image Z-Index: lop anh va panel anh luon nam duoi header cot va header hang", () => {
+      const cssPath = new URL("../../apps/sheet/sheet.css", import.meta.url);
+      const css = readFileSync(cssPath, "utf8");
+
+      // Trich xuat z-index tu CSS cho th.vno-col-header, th.vno-row-header, .vno-grid-corner-header
+      const colHeaderMatch = css.match(/\.vno-col-header[^{]*\{[^}]*z-index:\s*(\d+)/s);
+      const rowHeaderMatch = css.match(/\.vno-row-header[^{]*\{[^}]*z-index:\s*(\d+)/s);
+      const cornerHeaderMatch = css.match(/\.vno-grid-corner-header[^{]*\{[^}]*z-index:\s*(\d+)/s);
+
+      const colZ = colHeaderMatch ? parseInt(colHeaderMatch[1], 10) : 0;
+      const rowZ = rowHeaderMatch ? parseInt(rowHeaderMatch[1], 10) : 0;
+      const cornerZ = cornerHeaderMatch ? parseInt(cornerHeaderMatch[1], 10) : 0;
+
+      assert(colZ >= 14, `Col header z-index phai >= 14, thuc te: ${colZ}`);
+      assert(rowZ >= 12, `Row header z-index phai >= 12, thuc te: ${rowZ}`);
+      assert(cornerZ >= 25, `Corner header z-index phai >= 25, thuc te: ${cornerZ}`);
+
+      // Kiem tra z-index cua imageLayer va image panel trong sheet-grid.js
+      const grid = new SheetGridController(container());
+      grid.imageLayer = layer();
+      grid.imagesBySheet[grid.activeSheet] = [
+        { id: "img-normal", src: "data:image/png;base64,AA==", anchor: { c: "C", r: 5 } },
+        { id: "img-frozen", src: "data:image/png;base64,AA==", anchor: { c: "A", r: 1 } }
+      ];
+      grid.frozenRows = 2;
+      grid.frozenCols = 1;
+      grid.renderImages();
+
+      const frozenPanel = grid.imageLayer.children.find(c => c.dataset?.imageId === "img-frozen");
+      const normalPanel = grid.imageLayer.children.find(c => c.dataset?.imageId === "img-normal");
+
+      assert(frozenPanel && normalPanel, "Phai render du frozen va normal image panel");
+      // Z-index hierarchy:
+      // normal image (7) < frozen image (10) < row header (12) < col header (14) < corner (25)
+      const normalZ = 7;
+      const frozenZ = 10;
+      assert(normalZ < rowZ, "Normal image z-index phai nho hon row header z-index");
+      assert(normalZ < colZ, "Normal image z-index phai nho hon col header z-index");
+      assert(frozenZ < rowZ, "Frozen image z-index phai nho hon row header z-index");
+      assert(frozenZ < colZ, "Frozen image z-index phai nho hon col header z-index");
+      assert(normalZ < frozenZ, "Normal image z-index phai nho hon frozen image z-index");
+      assert(colZ < cornerZ && rowZ < cornerZ, "Corner header phai co z-index cao nhat");
     });
   } finally { globalThis.document = originalDocument; }
   return results;
