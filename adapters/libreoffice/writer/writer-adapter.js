@@ -7857,10 +7857,11 @@ export class WriterAdapter {
       this._openedEditorDomHash = this._editorDomFingerprint();
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
-      // Lỗi thật đã xác nhận: nội dung nạp đúng nhưng nhãn tên tệp trên tab
-      // vẫn giữ nguyên tên demo cũ vì resetDocumentChrome() chỉ được gọi ở
-      // File > Mới/Đóng, chưa bao giờ gọi sau khi Mở tệp thật.
       this.shell?.resetDocumentChrome?.(result.fileName || "Tài liệu 1.docx");
+      this._recomputeLivePagination?.();
+      if (typeof requestAnimationFrame !== "undefined") {
+        requestAnimationFrame(() => this._recomputeLivePagination?.());
+      }
       return true;
     }
     if (result.status === "cancelled") return false;
