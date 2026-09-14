@@ -217,5 +217,37 @@ export async function runWriterFloatingImageImportTests() {
     check(minHeightCm <= 24.62, `Reserve ${minHeightCm}cm exceeded usable content height ~24.62cm`);
   });
 
+  test("R3 (a): Inline group with child textboxes wraps img in data-vno-inline-group and sets relative coordinates", () => {
+    const html = '<body><p><span id="Frame1" style="position:absolute;top:0cm;left:0cm;width:2cm"><p>Inline Label</p></span></p><p><img name="Shape8" src="img_inline.png"></p></body>';
+    const ooxml = `<w:document><w:body>
+      <w:p><w:r><w:drawing><wp:inline>
+        <wp:extent cx="3600000" cy="7200000"/>
+        <wp:docPr id="1" name="Group 7735"/>
+        <wpg:wgp>
+          <wpg:grpSpPr>
+            <a:chOff x="0" y="0"/><a:chExt cx="3600000" cy="7200000"/>
+          </wpg:grpSpPr>
+          <wps:wsp>
+            <w:txbxContent><w:p><w:r><w:t>Inline Label</w:t></w:r></w:p></w:txbxContent>
+            <a:off x="360000" y="720000"/>
+            <a:ext cx="1800000" cy="360000"/>
+          </wps:wsp>
+        </wpg:wgp>
+      </wp:inline></w:drawing></w:r></w:p>
+    </w:body></w:document>`;
+    const adapter = new WriterAdapter(null);
+    const body = adapter._normalizeImportedHtml(html, ooxml).body;
+    check(body.includes('data-vno-inline-group="0"'), `Missing data-vno-inline-group: ${body}`);
+    check(/<span\b[^>]*data-vno-inline-group="0"[^>]*style="[^"]*width:\s*10cm;\s*height:\s*20cm/i.test(body), `Inline group container must have extent width/height: ${body}`);
+    check(/data-vno-left="1"[^>]*data-vno-top="2"/i.test(body), `Child textbox must have local coordinates without page margins: ${body}`);
+    check(/left:\s*1cm;\s*top:\s*2cm/i.test(body), `Child textbox must have local CSS positioning: ${body}`);
+    check(!/top:\s*-2\.54cm/i.test(body), `Child textbox must not have negative margin offset: ${body}`);
+    // Check that Frame1 was removed from first paragraph
+    const pParts = body.split(/<\/p>/i);
+    check(!pParts[0].includes("Inline Label"), `Child textbox was not removed from initial paragraph: ${pParts[0]}`);
+    check(pParts[1].includes("data-vno-inline-group") && pParts[1].includes("Inline Label"), `Child textbox was not moved into inline group container: ${pParts[1]}`);
+  });
+
   return results;
 }
+

@@ -1931,33 +1931,97 @@ export class WriterAdapter {
       }
     }
 
-    // 2. Inline groups: anchorIndex = null
+    // 2. Inline groups: anchorIndex = null, inlineGroupIndex = j
     const inlines = [...rawXml.matchAll(/<wp:inline\b([\s\S]*?)<\/wp:inline>/gi)];
+    let inlineGroupJ = 0;
     for (const iMatch of inlines) {
       const dXml = iMatch[0];
       if (!/<wpg:wgp\b/i.test(dXml)) continue;
+      const j = inlineGroupJ++;
+      const extent = dXml.match(/<wp:extent\b[^>]*\bcx=["'](\d+)["'][^>]*\bcy=["'](\d+)["']/i);
+      const cx = extent ? Number(extent[1]) : 0;
+      const cy = extent ? Number(extent[2]) : 0;
+
       for (const wgpMatch of dXml.matchAll(/<wpg:wgp\b[\s\S]*?<\/wpg:wgp>/gi)) {
         const wgp = wgpMatch[0];
+        const grpSpPr = wgp.match(/<wpg:grpSpPr\b[\s\S]*?<\/wpg:grpSpPr>/i)?.[0] || "";
+        const gExt = grpSpPr.match(/<a:ext\s+cx=["']([^"']*)["']\s+cy=["']([^"']*)["']/i);
+        const gChOff = grpSpPr.match(/<a:chOff\s+x=["']([^"']*)["']\s+y=["']([^"']*)["']/i);
+        const gChExt = grpSpPr.match(/<a:chExt\s+cx=["']([^"']*)["']\s+cy=["']([^"']*)["']/i);
+
+        const gExtCx = gExt ? Number(gExt[1]) : cx;
+        const gExtCy = gExt ? Number(gExt[2]) : cy;
+        const gChOffX = gChOff ? Number(gChOff[1]) : 0;
+        const gChOffY = gChOff ? Number(gChOff[2]) : 0;
+        const gChExtCx = gChExt ? Number(gChExt[1]) : gExtCx;
+        const gChExtCy = gChExt ? Number(gChExt[2]) : gExtCy;
+
+        const scaleX = gChExtCx > 0 ? gExtCx / gChExtCx : 1.0;
+        const scaleY = gChExtCy > 0 ? gExtCy / gChExtCy : 1.0;
+
         for (const wspMatch of wgp.matchAll(/<wps:wsp\b[\s\S]*?<\/wps:wsp>/gi)) {
           const wspXml = wspMatch[0];
           const txbxMatch = wspXml.match(/<w:txbxContent\b[\s\S]*?<\/w:txbxContent>/i);
           if (!txbxMatch) continue;
           const text = normalize(txbxMatch[0]);
           if (!text) continue;
+
+          const wspOff = wspXml.match(/<a:off\s+x=["']([^"']*)["']\s+y=["']([^"']*)["']/i);
+          const wspExt = wspXml.match(/<a:ext\s+cx=["']([^"']*)["']\s+cy=["']([^"']*)["']/i);
+          const wspSolid = /<a:solidFill\b/i.test(wspXml);
+
+          const offX = wspOff ? Number(wspOff[1]) : 0;
+          const offY = wspOff ? Number(wspOff[2]) : 0;
+          const extCx = wspExt ? Number(wspExt[1]) : 0;
+          const extCy = wspExt ? Number(wspExt[2]) : 0;
+
+          const childX = (offX - gChOffX) * scaleX;
+          const childY = (offY - gChOffY) * scaleY;
+          const childW = extCx * scaleX;
+          const childH = extCy * scaleY;
+
+          const leftCm = Number((childX / 360000).toFixed(3));
+          const topCm = Number((childY / 360000).toFixed(3));
+          const wspWidthCm = Number((childW / 360000).toFixed(3));
+          const wspHeightCm = Number((childH / 360000).toFixed(3));
+
           groupWsps.push({
             text,
-            solidFill: /<a:solidFill\b/i.test(wspXml),
-            pageLeftCm: 0,
-            pageTopCm: 0,
-            widthCm: 0,
-            heightCm: 0,
-            anchorIndex: null
+            solidFill: wspSolid,
+            pageLeftCm: leftCm,
+            pageTopCm: topCm,
+            widthCm: wspWidthCm,
+            heightCm: wspHeightCm,
+            anchorIndex: null,
+            inlineGroupIndex: j
           });
         }
       }
     }
 
     return groupWsps;
+  }
+
+  _ooxmlInlineGroupMetadata(xml) {
+    const rawXml = String(xml || "");
+    const inlines = [...rawXml.matchAll(/<wp:inline\b([\s\S]*?)<\/wp:inline>/gi)];
+    const groups = [];
+    let j = 0;
+    for (const iMatch of inlines) {
+      const dXml = iMatch[0];
+      if (!/<wpg:wgp\b/i.test(dXml)) continue;
+      const extent = dXml.match(/<wp:extent\b[^>]*\bcx=["'](\d+)["'][^>]*\bcy=["'](\d+)["']/i);
+      const cx = extent ? Number(extent[1]) : 0;
+      const cy = extent ? Number(extent[2]) : 0;
+      groups.push({
+        index: j++,
+        widthCm: Number((cx / 360000).toFixed(3)),
+        heightCm: Number((cy / 360000).toFixed(3)),
+        cx,
+        cy
+      });
+    }
+    return groups;
   }
 
   _ooxmlTableColumnWidths(xml) {
@@ -2111,9 +2175,32 @@ export class WriterAdapter {
     }
 
     let anchorIndex = 0;
+    const inlineGroups = typeof this._ooxmlInlineGroupMetadata === "function"
+      ? this._ooxmlInlineGroupMetadata(ooxmlDocumentXml)
+      : [];
+
+    const imgRe = /<img\b[^>]*>/gi;
+    const inlineImages = [];
+    let iMatch;
+    while ((iMatch = imgRe.exec(src)) !== null) {
+      const inSpan = spans.some((s) => iMatch.index >= s.startPos && iMatch.index < s.endPos);
+      if (!inSpan) {
+        const nameMatch = iMatch[0].match(/\bname=["']?Shape(\d+)\b/i);
+        if (nameMatch) {
+          inlineImages.push({
+            start: iMatch.index,
+            end: iMatch.index + iMatch[0].length,
+            tag: iMatch[0],
+            shapeNum: Number(nameMatch[1])
+          });
+        }
+      }
+    }
+
     const imageSpans = [];
     const imageIndexByAnchor = new Map();
     const textboxesByAnchor = new Map();
+    const textboxesByInlineGroup = new Map();
     const spanReplacements = [];
 
     // Identify images first so we can attach textboxes to the right anchor image
@@ -2179,29 +2266,53 @@ export class WriterAdapter {
       const matchedWsp = matchedWspBySpan.get(sIdx);
 
       if (matchedWsp) {
-        const left = matchedWsp.pageLeftCm;
-        const top = matchedWsp.pageTopCm;
-        const width = matchedWsp.widthCm;
-        const height = matchedWsp.heightCm;
-        const canvasLeft = Number((left - marginLeftCm).toFixed(3));
-        const canvasTop = Number((top - marginTopCm).toFixed(3));
+        if (matchedWsp.inlineGroupIndex !== null && matchedWsp.inlineGroupIndex !== undefined) {
+          const j = matchedWsp.inlineGroupIndex;
+          const left = matchedWsp.pageLeftCm;
+          const top = matchedWsp.pageTopCm;
+          const width = matchedWsp.widthCm;
+          const height = matchedWsp.heightCm;
 
-        let cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
-        if (!matchedWsp.solidFill) {
-          cleanedStyle = cleanedStyle.replace(/\bbackground(?:-color)?\s*:\s*[^;]+;?\s*/gi, "").trim();
-          cleanedStyle = `background:transparent;${cleanedStyle}`;
-        }
+          let cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
+          if (!matchedWsp.solidFill) {
+            cleanedStyle = cleanedStyle.replace(/\bbackground(?:-color)?\s*:\s*[^;]+;?\s*/gi, "").trim();
+            cleanedStyle = `background:transparent;${cleanedStyle}`;
+          }
 
-        const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="page" data-vno-relative-v="page" data-vno-wrap="wrapNone" data-vno-behind="0" style="position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}z-index:1;${cleanedStyle}">${inner}</span>`;
+          const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="inline" data-vno-relative-v="inline" data-vno-wrap="wrapNone" data-vno-behind="0" style="position:absolute;left:${left}cm;top:${top}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}z-index:1;${cleanedStyle}">${inner}</span>`;
 
-        // If matched to an anchored group with a known image, move textbox to that image
-        if (matchedWsp.anchorIndex !== null && imageIndexByAnchor.has(matchedWsp.anchorIndex)) {
-          const k = matchedWsp.anchorIndex;
-          if (!textboxesByAnchor.has(k)) textboxesByAnchor.set(k, []);
-          textboxesByAnchor.get(k).push(spanHtml);
-          spanReplacements.push({ start: startPos, end: endPos, value: "" });
+          if (j < inlineImages.length) {
+            if (!textboxesByInlineGroup.has(j)) textboxesByInlineGroup.set(j, []);
+            textboxesByInlineGroup.get(j).push(spanHtml);
+            spanReplacements.push({ start: startPos, end: endPos, value: "" });
+          } else {
+            spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
+          }
         } else {
-          spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
+          const left = matchedWsp.pageLeftCm;
+          const top = matchedWsp.pageTopCm;
+          const width = matchedWsp.widthCm;
+          const height = matchedWsp.heightCm;
+          const canvasLeft = Number((left - marginLeftCm).toFixed(3));
+          const canvasTop = Number((top - marginTopCm).toFixed(3));
+
+          let cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
+          if (!matchedWsp.solidFill) {
+            cleanedStyle = cleanedStyle.replace(/\bbackground(?:-color)?\s*:\s*[^;]+;?\s*/gi, "").trim();
+            cleanedStyle = `background:transparent;${cleanedStyle}`;
+          }
+
+          const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="page" data-vno-relative-v="page" data-vno-wrap="wrapNone" data-vno-behind="0" style="position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}z-index:1;${cleanedStyle}">${inner}</span>`;
+
+          // If matched to an anchored group with a known image, move textbox to that image
+          if (matchedWsp.anchorIndex !== null && imageIndexByAnchor.has(matchedWsp.anchorIndex)) {
+            const k = matchedWsp.anchorIndex;
+            if (!textboxesByAnchor.has(k)) textboxesByAnchor.set(k, []);
+            textboxesByAnchor.get(k).push(spanHtml);
+            spanReplacements.push({ start: startPos, end: endPos, value: "" });
+          } else {
+            spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
+          }
         }
       } else {
         // Standalone textbox: consume next anchor (DO NOT take sourceGroup or group dimensions)
@@ -2227,6 +2338,29 @@ export class WriterAdapter {
         start: img.startPos,
         end: img.endPos,
         value: img.spanHtml + attached.join("")
+      });
+    }
+
+    // Wrap inline images with inline groups
+    for (let j = 0; j < inlineImages.length; j++) {
+      const imgInfo = inlineImages[j];
+      const meta = inlineGroups[j];
+      const widthCm = meta ? meta.widthCm : 0;
+      const heightCm = meta ? meta.heightCm : 0;
+      const attached = textboxesByInlineGroup.get(j) || [];
+      let imgTag = imgInfo.tag;
+      if (widthCm && heightCm) {
+        if (/\bstyle=["']/i.test(imgTag)) {
+          imgTag = imgTag.replace(/\bstyle=["']([^"']*)["']/i, (_m, s) => `style="width:${widthCm}cm;height:${heightCm}cm;display:block;${s}"`);
+        } else {
+          imgTag = imgTag.replace(/>$/, ` style="width:${widthCm}cm;height:${heightCm}cm;display:block;">`);
+        }
+      }
+      const wrappedSpan = `<span data-vno-inline-group="${j}" style="position:relative;display:inline-block;${widthCm ? `width:${widthCm}cm;` : ""}${heightCm ? `height:${heightCm}cm;` : ""}">${imgTag}${attached.join("")}</span>`;
+      spanReplacements.push({
+        start: imgInfo.start,
+        end: imgInfo.end,
+        value: wrappedSpan
       });
     }
 
@@ -2262,6 +2396,8 @@ export class WriterAdapter {
       if (/data-vno-float-anchor/i.test(opening[0])) continue;
       const inner = out.slice(opening.index + opening[0].length, tag.index);
       if (!/\bdata-vno-float=["'](?:image|textbox)["']/i.test(inner)) continue;
+      const nonInline = inner.replace(/<span\b[^>]*data-vno-inline-group=["']\d+["'][\s\S]*?<\/span>/gi, "");
+      if (!/\bdata-vno-float=["'](?:image|textbox)["']/i.test(nonInline)) continue;
       const hasTextbox = /\bdata-vno-float=["']textbox["']/i.test(inner);
       const paragraphStyle = opening[0].match(/\bstyle=["']([^"']*)/i)?.[1] || "";
       const paragraphMarginLeft = this._cssLengthToCm(paragraphStyle.match(/\bmargin-left\s*:\s*([^;]+)/i)?.[1]) || 0;
