@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office — Unit & Behavioral Tests for Writer Print Preview
  * Tuân thủ chuẩn 06-testing/TESTING-STANDARD.md & AGENTS.md
  */
@@ -477,6 +477,23 @@ export async function runWriterPrintPreviewTests() {
       const busResult = await globalCommandBus.execute("writer.file.printPreview");
       if (!adapter.printPreviewOverlay) throw new Error("Command Bus execute writer.file.printPreview không mở preview");
       adapter.closePrintPreview();
+    });
+
+    await test("Writer Print Preview: _normalizePreviewFooterTables chuẩn hóa tỷ lệ cột bảng footer Word có badge cam", async () => {
+      const editorDom = new FakeElement("div");
+      const adapter = new WriterAdapter(editorDom);
+      const inputTable = '<table width="626"><colgroup><col width="209"><col width="209"><col width="209"></colgroup><tbody><tr><td style="background: #ed7c31">HƯỚNG DẪN SỬ DỤNG PHẦN MỀM CHẤM CÔNG MYTIME</td></tr></tbody></table>';
+      const output = adapter._normalizePreviewFooterTables(inputTable);
+      if (!output.includes('<col width="50">') || !output.includes('<col width="537">') || !output.includes('<col width="39">')) {
+        throw new Error(`_normalizePreviewFooterTables không chuẩn hóa đúng 3 cột 50/537/39: ${output}`);
+      }
+
+      // Không đổi bảng thường
+      const normalTable = '<table width="600"><colgroup><col width="200"><col width="200"><col width="200"></colgroup><tbody><tr><td>Bảng thường</td></tr></tbody></table>';
+      const unchanged = adapter._normalizePreviewFooterTables(normalTable);
+      if (unchanged !== normalTable) {
+        throw new Error("Bảng thường không được phép bị thay đổi tỷ lệ");
+      }
     });
 
   } finally {
