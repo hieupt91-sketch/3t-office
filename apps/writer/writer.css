@@ -570,14 +570,17 @@
   font-size: 10pt;
   color: #64748b;
   outline: none;
-  position: relative;
+  position: absolute !important;
+  left: var(--vno-margin-left, 113px);
+  right: var(--vno-margin-right, 56px);
   box-sizing: border-box;
   caret-color: var(--vno-text-primary);
+  z-index: 1;
 }
 
 .vno-writer-header {
+  top: var(--vno-header-distance, 48px);
   border-bottom: 1px dashed #cbd5e1;
-  margin-bottom: 12px;
   padding-bottom: 4px;
 }
 
@@ -607,8 +610,8 @@
 }
 
 .vno-writer-footer {
+  bottom: var(--vno-footer-distance, 48px);
   border-top: 1px dashed #cbd5e1;
-  margin-top: 20px;
   padding-top: 4px;
 }
 

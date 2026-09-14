@@ -169,7 +169,9 @@ export class WriterAdapter {
     this.pageSetup = {
       size: "a4",
       orientation: "portrait",
-      margins: { ...DEFAULT_MARGINS_MM }
+      margins: { ...DEFAULT_MARGINS_MM },
+      headerDistanceMm: 12.7,
+      footerDistanceMm: 12.7
     };
     this.activeSectionId = "section-1";
     this.sectionPageSetups = { "section-1": JSON.parse(JSON.stringify(this.pageSetup)) };
@@ -1575,6 +1577,8 @@ export class WriterAdapter {
     const widthMm = isLandscape ? base.h : base.w;
     const heightMm = isLandscape ? base.w : base.h;
     const { top, right, bottom, left } = this.pageSetup.margins;
+    const headerDistanceMm = this.pageSetup.headerDistanceMm ?? 12.7;
+    const footerDistanceMm = this.pageSetup.footerDistanceMm ?? 12.7;
 
     this.editorDom.style.width = `${(widthMm * MM_TO_PX).toFixed(1)}px`;
     this.editorDom.style.minHeight = `${(heightMm * MM_TO_PX).toFixed(1)}px`;
@@ -1586,6 +1590,8 @@ export class WriterAdapter {
     viewContainer?.style?.setProperty("--vno-page-width", (widthMm * MM_TO_PX).toFixed(1) + "px");
     viewContainer?.style?.setProperty("--vno-margin-left", (left * MM_TO_PX).toFixed(1) + "px");
     viewContainer?.style?.setProperty("--vno-margin-right", (right * MM_TO_PX).toFixed(1) + "px");
+    viewContainer?.style?.setProperty("--vno-header-distance", (headerDistanceMm * MM_TO_PX).toFixed(1) + "px");
+    viewContainer?.style?.setProperty("--vno-footer-distance", (footerDistanceMm * MM_TO_PX).toFixed(1) + "px");
   }
 
   /**
@@ -1598,7 +1604,9 @@ export class WriterAdapter {
     const widthMm = isLandscape ? base.h : base.w;
     const heightMm = isLandscape ? base.w : base.h;
     const { top, right, bottom, left } = this.pageSetup.margins;
-    let pageCss = `@page { size: ${widthMm}mm ${heightMm}mm; margin: ${top}mm ${right}mm ${bottom}mm ${left}mm;`;
+    const headerDistanceMm = this.pageSetup.headerDistanceMm ?? 12.7;
+    const footerDistanceMm = this.pageSetup.footerDistanceMm ?? 12.7;
+    let pageCss = `@page { size: ${widthMm}mm ${heightMm}mm; margin: ${top}mm ${right}mm ${bottom}mm ${left}mm; --vno-header-distance: ${headerDistanceMm}mm; --vno-footer-distance: ${footerDistanceMm}mm;`;
     if (this.pageColor && this.pageColor !== "transparent") pageCss += ` background-color: ${this.pageColor};`;
     if (this.pageBorder && this.pageBorder.enabled && this.pageBorder.style !== "none") {
       pageCss += ` border: ${this.pageBorder.width || 2}pt ${this.pageBorder.style || "solid"} ${this.pageBorder.color || "#0f4c81"};`;
@@ -1656,7 +1664,57 @@ export class WriterAdapter {
       const mm = this._lengthToMm(block.match(regex)?.[1]);
       if (mm != null) setup.margins[side] = Math.round(mm);
     }
+    const hdrMatch = block.match(/--vno-header-distance:\s*([^;]+)/i);
+    const ftrMatch = block.match(/--vno-footer-distance:\s*([^;]+)/i);
+    if (hdrMatch) {
+      const mm = this._lengthToMm(hdrMatch[1]);
+      if (mm != null) setup.headerDistanceMm = Math.round(mm * 10) / 10;
+    }
+    if (ftrMatch) {
+      const mm = this._lengthToMm(ftrMatch[1]);
+      if (mm != null) setup.footerDistanceMm = Math.round(mm * 10) / 10;
+    }
     return setup;
+  }
+
+  /**
+   * Parse w:header and w:footer distances from w:pgMar in OOXML (twips).
+   * Returns { headerDistanceMm, footerDistanceMm } or null if not found.
+   */
+  _pageHeaderFooterFromOoxml(ooxmlDocumentXml) {
+    if (!ooxmlDocumentXml) return null;
+    const pgMarMatch = String(ooxmlDocumentXml).match(/<w:pgMar\b([^>]*)>/i);
+    if (!pgMarMatch) return null;
+    const attrs = pgMarMatch[1] || "";
+    const headerMatch = attrs.match(/w:header=["'](\d+)["']/i);
+    const footerMatch = attrs.match(/w:footer=["'](\d+)["']/i);
+    const twipsToMm = (twips) => Math.round((twips / 1440) * 25.4 * 10) / 10;
+    const headerDistanceMm = headerMatch ? twipsToMm(Number(headerMatch[1])) : 12.7;
+    const footerDistanceMm = footerMatch ? twipsToMm(Number(footerMatch[1])) : 12.7;
+    return { headerDistanceMm, footerDistanceMm };
+  }
+
+  /**
+   * Parse page margins from w:pgMar in OOXML (twips).
+   * Returns { top, right, bottom, left } in mm or null if not found.
+   */
+  _pageMarginsFromOoxml(ooxmlDocumentXml) {
+    if (!ooxmlDocumentXml) return null;
+    const pgMarMatch = String(ooxmlDocumentXml).match(/<w:pgMar\b([^>]*)>/i);
+    if (!pgMarMatch) return null;
+    const attrs = pgMarMatch[1] || "";
+    const twipsToMm = (twips) => Math.round((twips / 1440) * 25.4 * 10) / 10;
+    const sides = ['top', 'right', 'bottom', 'left'];
+    const margins = {};
+    let found = false;
+    for (const side of sides) {
+      const match = attrs.match(new RegExp(`w:${side}=["'](\\d+)["']`, 'i'));
+      if (match) {
+        margins[side] = twipsToMm(Number(match[1]));
+        found = true;
+      }
+    }
+    return found ? margins : null;
   }
 
   /**
@@ -1706,6 +1764,15 @@ export class WriterAdapter {
       html = this._applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml);
     }
     const page = this._pageSetupFromImportedCss(html);
+    const hf = this._pageHeaderFooterFromOoxml(ooxmlDocumentXml);
+    if (hf) {
+      page.headerDistanceMm = hf.headerDistanceMm;
+      page.footerDistanceMm = hf.footerDistanceMm;
+    }
+    const ooxmlMargins = this._pageMarginsFromOoxml(ooxmlDocumentXml);
+    if (ooxmlMargins) {
+      page.margins = { ...page.margins, ...ooxmlMargins };
+    }
     const bodyMatch = html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
     if (bodyMatch) html = bodyMatch[1];
 
@@ -8236,6 +8303,8 @@ export class WriterAdapter {
           size: imported.page.size || this.pageSetup.size,
           orientation: imported.page.orientation || this.pageSetup.orientation,
           margins: { ...this.pageSetup.margins, ...imported.page.margins },
+          headerDistanceMm: imported.page.headerDistanceMm ?? this.pageSetup.headerDistanceMm ?? 12.7,
+          footerDistanceMm: imported.page.footerDistanceMm ?? this.pageSetup.footerDistanceMm ?? 12.7,
           ...(imported.page.size === "custom"
             ? { widthMm: imported.page.widthMm, heightMm: imported.page.heightMm }
             : {})
@@ -8311,6 +8380,10 @@ export class WriterAdapter {
     this.clearWatermark?.();
     this.clearPageBorder?.();
     this.setColumns?.({ count: 1, gap: 0, rule: false });
+
+    this.pageSetup.headerDistanceMm = 12.7;
+    this.pageSetup.footerDistanceMm = 12.7;
+    this._applyPageSetup();
 
     this.mailMergeData = { fields: [], records: [], rawCsv: "" };
     this.mailMergePreview = { enabled: false, recordIndex: 0 };
@@ -8399,13 +8472,25 @@ export class WriterAdapter {
   /**
    * Nguồn duy nhất cho chiều cao thân trang mà cả live pagination và Print Preview sử dụng.
    * Header/footer chỉ chiếm chỗ khi thực sự có nội dung, giống cách chúng được render.
+   * Body bắt đầu tại padding-top (lề trên). Header/footer nằm trong lề (absolute).
+   * Nếu header cao hơn không gian cho phép (topMargin - headerDistance), đẩy body xuống phần dư.
    */
   _getUsablePageHeight(dim = this.getPageDimensions()) {
     const hasHeader = Boolean(this.headerDom && this.headerDom.innerText?.trim());
     const hasFooter = Boolean(this.footerDom && this.footerDom.innerText?.trim());
-    const headerReservedPx = hasHeader ? 46 : 0;
-    const footerReservedPx = hasFooter ? 48 : 0;
-    return Math.max(150, dim.printableHeightPx - headerReservedPx - footerReservedPx);
+    const headerDistancePx = (this.pageSetup.headerDistanceMm ?? 12.7) * MM_TO_PX;
+    const topMarginPx = dim.topPx;
+    const maxHeaderSpacePx = topMarginPx - headerDistancePx;
+    let headerExtraPx = 0;
+    if (hasHeader && this.headerDom) {
+      const headerHeight = this.headerDom.offsetHeight || 0;
+      if (headerHeight > maxHeaderSpacePx) {
+        headerExtraPx = headerHeight - maxHeaderSpacePx;
+      }
+    }
+    // Footer doesn't push body up in Word; it just sits in bottom margin.
+    // Body usable height = printableHeight - header extra push
+    return Math.max(150, dim.printableHeightPx - headerExtraPx);
   }
 
   /**
@@ -9293,6 +9378,21 @@ export class WriterAdapter {
 
       const dim = this.getPageDimensions();
       const availableHeightPx = this._getUsablePageHeight(dim);
+
+      // Update body margin-top if header pushes content down (Word behavior)
+      const headerDistancePx = (this.pageSetup.headerDistanceMm ?? 12.7) * MM_TO_PX;
+      const topMarginPx = dim.topPx;
+      const maxHeaderSpacePx = topMarginPx - headerDistancePx;
+      let headerExtraPx = 0;
+      if (this.headerDom && this.headerDom.innerText?.trim()) {
+        const headerHeight = this.headerDom.offsetHeight || 0;
+        if (headerHeight > maxHeaderSpacePx) {
+          headerExtraPx = headerHeight - maxHeaderSpacePx;
+        }
+      }
+      if (this.bodyDom.style) {
+        this.bodyDom.style.marginTop = headerExtraPx > 0 ? `${headerExtraPx}px` : "0";
+      }
 
       const children = Array.from(this.bodyDom.children);
       let currentHeight = 0;
