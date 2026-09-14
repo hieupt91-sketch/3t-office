@@ -8151,6 +8151,26 @@ export class WriterAdapter {
     return pages;
   }
 
+  _normalizePreviewFooterTables(html) {
+    if (!html || typeof html !== "string") return html;
+    return html.replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, (tableHtml) => {
+      if (!/#ed7c31/i.test(tableHtml) || !/HƯỚNG\s*DẪN\s*SỬ\s*DỤNG/i.test(tableHtml)) {
+        return tableHtml;
+      }
+      const cols = [...tableHtml.matchAll(/<col\b[^>]*>/gi)];
+      if (cols.length === 3) {
+        let colIdx = 0;
+        return tableHtml.replace(/<col\b[^>]*>/gi, () => {
+          colIdx++;
+          if (colIdx === 1) return '<col width="50">';
+          if (colIdx === 2) return '<col width="537">';
+          return '<col width="39">';
+        });
+      }
+      return tableHtml;
+    });
+  }
+
   /**
    * Mở Overlay Print Preview hiển thị bản xem trước THẬT của tài liệu.
    * Dựa trên _getPageSetupCss() và _contentForExport() chuẩn xác.
@@ -8188,9 +8208,13 @@ export class WriterAdapter {
 
     const notesData = this._extractNotesForPreview(rawBody);
     // Live pagination chèn gap chỉ để hiển thị. Không cho markup suy ra này tham gia đo preview.
-    const bodyForPagination = this._stripAutoPageGaps(notesData.cleanHtml);
+    const bodyForPagination = this._normalizePreviewFooterTables(this._stripAutoPageGaps(notesData.cleanHtml));
 
     const pageBodies = this.paginateContent(bodyForPagination, availableBodyHeightPx, dim.printableWidthPx, this.columns);
+
+    for (let i = 0; i < pageBodies.length; i++) {
+      pageBodies[i] = this._normalizePreviewFooterTables(pageBodies[i]);
+    }
 
     // Gắn Footnote vào chân trang của đúng trang chứa số mũ tương ứng
     for (let i = 0; i < pageBodies.length; i++) {

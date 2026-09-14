@@ -36,3 +36,8 @@ $RECYCLE.BIN/
 # Người dùng: kho file thật (hợp đồng, giấy tờ...) dùng để quét lỗi thật -
 # KHÔNG BAO GIỜ được commit (dữ liệu cá nhân/doanh nghiệp thật của người dùng).
 /file test/
+
+# Scratch measurement scripts/outputs used by agents (never commit)
+/_*
+/TASK-BRIEF-*.md
+
