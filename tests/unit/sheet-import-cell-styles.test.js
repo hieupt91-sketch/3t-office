@@ -430,6 +430,38 @@ export async function runSheetImportCellStylesTests() {
       "save must not double-escape wrapping font quotes");
   });
 
+  await test("cell.styles.font: Calc underline/strikethrough attributes round-trip as textDecoration", () => {
+    const fods = minimalFodsXml({
+      sheetName: "Underline",
+      autoStyles: `
+        <style:style style:name="cellU" style:family="table-cell">
+          <style:text-properties style:font-name="Times New Roman" style:text-underline-style="solid" style:text-underline-width="auto" style:text-underline-color="font-color" style:text-line-through-style="none"/>
+        </style:style>
+        <style:style style:name="TU" style:family="text">
+          <style:text-properties fo:font-weight="bold" style:text-underline-style="solid" style:text-line-through-type="single"/>
+        </style:style>`,
+      cells: [
+        { attrs: { "table:style-name": "cellU", "office:value-type": "string" }, text: "Plain" },
+        {
+          attrs: { "table:style-name": "cellU", "office:value-type": "string" },
+          text: '<text:span text:style-name="TU">Label:</text:span> value'
+        }
+      ]
+    });
+    const parsed = makeAdapter(makeGrid("Underline")).parseFods(fods);
+    const plain = parsed.sheetsData.Underline.get("A1");
+    assert(plain.style.textDecoration === "underline", `cell underline must be parsed, got ${plain.style.textDecoration}`);
+    const cell = parsed.sheetsData.Underline.get("B1");
+    assert(cell.richText?.[0]?.style?.textDecoration === "underline line-through",
+      `run underline+strike must be parsed, got ${cell.richText?.[0]?.style?.textDecoration}`);
+
+    const grid = makeGrid("Underline");
+    grid.sheetsData.Underline = parsed.sheetsData.Underline;
+    const saved = makeAdapter(grid).serializeToFods();
+    assert(/style:text-underline-style="solid"/.test(saved), "save must write style:text-underline-style for Calc");
+    assert(/style:text-line-through-style="solid"/.test(saved), "save must write style:text-line-through-style for Calc");
+  });
+
   await test("cell.styles.richText: first bold run does not make the whole cell bold", () => {
     const fods = minimalFodsXml({
       sheetName: "RichFont",

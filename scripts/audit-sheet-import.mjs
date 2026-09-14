@@ -79,7 +79,8 @@ function parseStyles(xml) {
   const fonts = childBlocks("fonts").map(block => ({
     name: normalizeFontName(attrs(block.match(/<name\b([^>]*)\/?\s*>/i)?.[1] || "").val || ""),
     size: Number(attrs(block.match(/<sz\b([^>]*)\/?\s*>/i)?.[1] || "").val || 0),
-    bold: /<b\b/i.test(block), italic: /<i\b/i.test(block), color: color(block)
+    bold: /<b\b/i.test(block), italic: /<i\b/i.test(block), color: color(block),
+    underline: /<u\b(?![^>]*val=["']none["'])/i.test(block), strike: /<strike\b(?![^>]*val=["'](?:0|false)["'])/i.test(block)
   }));
   const fills = childBlocks("fills").map(block => ({ pattern: attrs(block.match(/<patternFill\b([^>]*)>/i)?.[1] || "").patternType || "", color: color(block) }));
   const borders = childBlocks("borders").map(block => ["left", "right", "top", "bottom"].map(side => {
