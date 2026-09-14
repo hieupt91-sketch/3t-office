@@ -33,7 +33,7 @@ export async function runWriterFloatingImageImportTests() {
     const xml = '<w:document><w:body><w:p><w:r><w:drawing><wp:anchor behindDoc="1"><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapTopAndBottom/></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>';
     const body = new WriterAdapter(null)._normalizeImportedHtml(html, xml).body;
     check(body.includes('data-vno-relative-h="page"'), "Page origin metadata missing");
-    check(/data-vno-float-anchor[^>]*style="position:static;min-height:27\.16cm;/i.test(body), `Page anchor still follows paragraph box: ${body}`);
+    check(/data-vno-float-anchor[^>]*style="position:relative;min-height:24\.62cm;/i.test(body), `Page anchor must be position:relative with capped height: ${body}`);
     check(body.includes("left:0cm") && body.includes("top:-2.54cm"), "Negative paragraph margin was not compensated");
   });
 
@@ -166,8 +166,8 @@ export async function runWriterFloatingImageImportTests() {
     const ooxml = '<w:document><w:body><w:p><w:r><w:drawing><wp:anchor><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapTopAndBottom/></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>';
     const adapter = new WriterAdapter(null);
     const imported = adapter._normalizeImportedHtml(html, ooxml).body;
-    check(/data-vno-float-anchor[^>]*position:static/i.test(imported), "Fixture did not exercise canvas-only static positioning");
-    check(/data-vno-float-anchor[^>]*min-height:6cm/i.test(imported), "Fixture did not exercise canvas-only height reservation");
+    check(/data-vno-float-anchor[^>]*position:relative/i.test(imported), "Fixture did not exercise canvas-only relative positioning");
+    check(/data-vno-float-anchor[^>]*min-height:3\.46cm/i.test(imported), "Fixture did not exercise canvas-only height reservation");
     check(/data-vno-float[^>]*left:3\.54cm/i.test(imported), `Fixture did not exercise negative-margin display compensation: ${imported}`);
 
     const body = {
@@ -181,5 +181,154 @@ export async function runWriterFloatingImageImportTests() {
     check(/data-vno-float-anchor[^>]*\bpage-break-before\s*:\s*always/i.test(exported), "Carrier break metadata was stripped from export");
   });
 
+  test("R2 (a): FrameN with matched text is moved into paragraph containing anchor image k", () => {
+    const html = '<body><p><span class="sd-abs-pos" style="position:absolute;left:0cm;top:0cm;width:10cm;height:10cm"><img name="Shape1" src="img1"></span><span id="Frame99" style="position:absolute;top:5cm;left:1cm;width:8cm"><p>Text for anchor 1</p></span></p><p style="page-break-before:always"><span class="sd-abs-pos" style="position:absolute;left:0cm;top:0cm;width:10cm;height:10cm"><img name="Shape2" src="img2"></span></p></body>';
+    const ooxml = `<w:document><w:body>
+      <w:p><w:r><w:drawing><wp:anchor><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapNone/><wpg:wgp><wpg:grpSpPr/></wpg:wgp></wp:anchor></w:drawing></w:r></w:p>
+      <w:p><w:r><w:drawing><wp:anchor><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapNone/><wpg:wgp><wpg:grpSpPr/>
+        <wps:wsp><w:txbxContent><w:p><w:r><w:t>Text for anchor 1</w:t></w:r></w:p></w:txbxContent><a:off x="0" y="0"/><a:ext cx="1000" cy="1000"/></wps:wsp>
+      </wpg:wgp></wp:anchor></w:drawing></w:r></w:p>
+    </w:body></w:document>`;
+    const adapter = new WriterAdapter(null);
+    const body = adapter._normalizeImportedHtml(html, ooxml).body;
+    const parts = body.split(/page-break-before/i);
+    check(parts.length === 2, "Failed to split into two pages by break");
+    check(!parts[0].includes("Text for anchor 1"), "Frame99 was not removed from first paragraph");
+    check(parts[1].includes("Shape2") && parts[1].includes("Text for anchor 1"), "Frame99 was not moved into paragraph of Shape2");
+  });
+
+  test("R2 (b): Page-relative container is position:relative", () => {
+    const html = '<body><p><span class="sd-abs-pos" style="position:absolute;left:1cm;top:2cm;width:5cm;height:5cm"><img src="x"></span></p></body>';
+    const ooxml = '<w:document><w:body><w:p><w:r><w:drawing><wp:anchor><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapTopAndBottom/></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>';
+    const adapter = new WriterAdapter(null);
+    const body = adapter._normalizeImportedHtml(html, ooxml).body;
+    check(/data-vno-float-anchor[^>]*\bstyle="[^"]*position:\s*relative/i.test(body), `Container must be position:relative: ${body}`);
+    check(!/position:\s*static/i.test(body), `Container must not be position:static: ${body}`);
+  });
+
+  test("R2 (c): Reserve height does not exceed usable content height", () => {
+    const html = '<body><p><span class="sd-abs-pos" style="position:absolute;left:0cm;top:0cm;width:21cm;height:40cm"><img src="huge"></span></p></body>';
+    const ooxml = '<w:document><w:body><w:p><w:r><w:drawing><wp:anchor><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapTopAndBottom/></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>';
+    const adapter = new WriterAdapter(null);
+    const body = adapter._normalizeImportedHtml(html, ooxml).body;
+    const minHeightMatch = body.match(/min-height:\s*([\d.]+)cm/i);
+    check(minHeightMatch, "min-height reserve was not generated");
+    const minHeightCm = Number(minHeightMatch[1]);
+    check(minHeightCm <= 24.62, `Reserve ${minHeightCm}cm exceeded usable content height ~24.62cm`);
+  });
+
+  test("R3 (a): Inline group with child textboxes wraps img in data-vno-inline-group and sets relative coordinates", () => {
+    const html = '<body><p><span id="Frame1" style="position:absolute;top:0cm;left:0cm;width:2cm"><p>Inline Label</p></span></p><p><img name="Shape8" src="img_inline.png"></p></body>';
+    const ooxml = `<w:document><w:body>
+      <w:p><w:r><w:drawing><wp:inline>
+        <wp:extent cx="3600000" cy="7200000"/>
+        <wp:docPr id="1" name="Group 7735"/>
+        <wpg:wgp>
+          <wpg:grpSpPr>
+            <a:chOff x="0" y="0"/><a:chExt cx="3600000" cy="7200000"/>
+          </wpg:grpSpPr>
+          <wps:wsp>
+            <w:txbxContent><w:p><w:r><w:t>Inline Label</w:t></w:r></w:p></w:txbxContent>
+            <a:off x="360000" y="720000"/>
+            <a:ext cx="1800000" cy="360000"/>
+          </wps:wsp>
+        </wpg:wgp>
+      </wp:inline></w:drawing></w:r></w:p>
+    </w:body></w:document>`;
+    const adapter = new WriterAdapter(null);
+    const body = adapter._normalizeImportedHtml(html, ooxml).body;
+    check(body.includes('data-vno-inline-group="0"'), `Missing data-vno-inline-group: ${body}`);
+    check(/<span\b[^>]*data-vno-inline-group="0"[^>]*style="[^"]*width:\s*10cm;\s*height:\s*20cm/i.test(body), `Inline group container must have extent width/height: ${body}`);
+    check(/data-vno-left="1"[^>]*data-vno-top="2"/i.test(body), `Child textbox must have local coordinates without page margins: ${body}`);
+    check(/left:\s*1cm;\s*top:\s*2cm/i.test(body), `Child textbox must have local CSS positioning: ${body}`);
+    check(!/top:\s*-2\.54cm/i.test(body), `Child textbox must not have negative margin offset: ${body}`);
+    // Check that Frame1 was removed from first paragraph
+    const pParts = body.split(/<\/p>/i);
+    check(!pParts[0].includes("Inline Label"), `Child textbox was not removed from initial paragraph: ${pParts[0]}`);
+    check(pParts[1].includes("data-vno-inline-group") && pParts[1].includes("Inline Label"), `Child textbox was not moved into inline group container: ${pParts[1]}`);
+  });
+
+  test("R3 (b): _alignPageRelativeFloats aligns page-relative floats against their page start top in 2-page DOM", () => {
+    // Page 1: block 0 (offsetTop = 0)
+    // Gap: auto-gap (offsetTop = 800)
+    // Page 2: block 1 (container with data-vno-float-anchor, offsetTop = 880, start = 850)
+    const mockFloat = {
+      style: { top: "" },
+      dataset: { vnoTop: "0.2", vnoRelativeV: "page" },
+      getAttribute(k) {
+        if (k === "data-vno-top") return this.dataset.vnoTop;
+        if (k === "data-vno-relative-v") return this.dataset.vnoRelativeV;
+        if (k === "data-vno-float-id") return "7";
+        return null;
+      },
+      closest(sel) { return sel === "[data-vno-float-anchor]" ? mockContainer : null; }
+    };
+    const mockContainer = {
+      offsetTop: 880,
+      parentElement: null,
+      getAttribute(k) { return k === "data-vno-float-anchor" ? "" : null; }
+    };
+    const mockBlock0 = {
+      offsetTop: 0,
+      classList: { contains: () => false },
+      getAttribute: () => "",
+      parentElement: null
+    };
+    const mockGap = {
+      offsetTop: 800,
+      classList: { contains: (c) => c === "vno-page-auto-gap" },
+      getAttribute: (k) => k === "data-vno-auto-page-gap" ? "true" : null,
+      parentElement: null
+    };
+    const mockBlock1 = {
+      offsetTop: 850,
+      classList: { contains: () => false },
+      getAttribute: () => "",
+      parentElement: null
+    };
+    mockContainer.parentElement = mockBlock1;
+
+    const mockBody = {
+      children: [mockBlock0, mockGap, mockBlock1],
+      querySelectorAll(sel) {
+        if (sel.includes("[data-vno-float]")) return [mockFloat];
+        return [];
+      }
+    };
+    mockBlock0.parentElement = mockBody;
+    mockGap.parentElement = mockBody;
+    mockBlock1.parentElement = mockBody;
+
+    const adapter = new WriterAdapter(null);
+    let appliedCss = null;
+    adapter._applyLiveFloatStylesheet = (css) => { appliedCss = css; };
+    adapter._alignPageRelativeFloats(mockBody);
+
+    // marginTopCm = 2.0 (default margin: 20mm)
+    // wantPx = (0.2 - 2.0) * 96 / 2.54 = -68.03px
+    // pageTop for mockBlock1 = 850
+    // deltaPx = container.offsetTop (880) - pageTop (850) = 30px
+    // expected top = -68.03 - 30 = -98.03px, delivered through a stylesheet
+    // rule (never element.style, which would dirty the document).
+    check(mockFloat.style.top === "", `element.style must stay untouched, got ${mockFloat.style.top}`);
+    check(appliedCss !== null && appliedCss.includes('[data-vno-float-id="7"]{top:-98.03px !important;}'),
+      `Expected stylesheet rule for float 7 at -98.03px, got ${appliedCss}`);
+  });
+
+  test("R3 (c): _prepareFloatingFramesForExport restores data-vno-top/left and drops the div carrier page break onto an empty paragraph", () => {
+    const html = '<body><div data-vno-float-anchor style="position:relative;min-height:5cm;page-break-before:always"><span data-vno-float="textbox" data-vno-float-id="3" data-vno-left="2" data-vno-top="0.2" data-vno-width="5" data-vno-height="3" style="position:absolute;top:-118.44px;left:100px;width:5cm;height:3cm">Hello</span></div></body>';
+    const adapter = new WriterAdapter(null);
+    const exported = adapter._prepareFloatingFramesForExport(html);
+    check(!exported.includes("-118.44px"), `Live-aligned top leaked into export: ${exported}`);
+    check(!exported.includes("100px"), `Live-aligned left leaked into export: ${exported}`);
+    check(/top:0\.2cm/i.test(exported), `Original data-vno-top was not restored: ${exported}`);
+    check(/left:2cm/i.test(exported), `Original data-vno-left was not restored: ${exported}`);
+    check(/<p style="page-break-before:always;break-before:page;margin:0;"><\/p><div data-vno-float-anchor style="[^"]*"/.test(exported),
+      `Page break must move to an empty paragraph before the div carrier: ${exported}`);
+    check(!/<div[^>]*page-break-before/.test(exported), `Div carrier must not keep the page break: ${exported}`);
+  });
+
   return results;
 }
+
+

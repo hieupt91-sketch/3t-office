@@ -1729,7 +1729,7 @@ export class WriterAdapter {
       html = html.replace(footerMatch[0], "");
     }
     html = this._normalizeImportedStarWriterNotes(html);
-    html = this._makeFloatingAnchorContainers(this._preserveImportedFloatingFrames(html, ooxmlDocumentXml, page));
+    html = this._makeFloatingAnchorContainers(this._preserveImportedFloatingFrames(html, ooxmlDocumentXml, page), page);
     return { body: html.trim(), header, footer, page, comments };
   }
 
@@ -1823,7 +1823,9 @@ export class WriterAdapter {
   }
 
   _ooxmlFloatingAnchorMetadata(xml) {
-    return [...String(xml || "").matchAll(/<wp:anchor\b([^>]*)>([\s\S]*?)<\/wp:anchor>/gi)].map((match) => {
+    const rawXml = String(xml || "");
+    const bodyStart = rawXml.indexOf("<w:body>");
+    return [...rawXml.matchAll(/<wp:anchor\b([^>]*)>([\s\S]*?)<\/wp:anchor>/gi)].map((match) => {
       const attrs = match[1] || "";
       const body = match[2] || "";
       const posH = body.match(/<wp:positionH\b[^>]*relativeFrom=["']([^"']+)/i)?.[1] || "paragraph";
@@ -1832,6 +1834,13 @@ export class WriterAdapter {
       const horizontalOffset = Number(body.match(/<wp:positionH\b[^>]*>[\s\S]*?<wp:posOffset>(-?\d+)<\/wp:posOffset>/i)?.[1]);
       const verticalOffset = Number(body.match(/<wp:positionV\b[^>]*>[\s\S]*?<wp:posOffset>(-?\d+)<\/wp:posOffset>/i)?.[1]);
       const extent = body.match(/<wp:extent\b[^>]*\bcx=["'](\d+)["'][^>]*\bcy=["'](\d+)["']/i);
+
+      const prefix = bodyStart !== -1 ? rawXml.slice(bodyStart, match.index) : rawXml.slice(0, match.index);
+      const brCount = (prefix.match(/<w:br\b[^>]*w:type=["']page["']/gi) || []).length;
+      const pbbCount = (prefix.match(/<w:pageBreakBefore\b/gi) || []).length;
+      const sectCount = (prefix.match(/<w:pPr\b[^>]*>[\s\S]*?<w:sectPr\b/gi) || []).length;
+      const pageIndex = brCount + pbbCount + sectCount;
+
       return {
         relativeH: posH,
         relativeV: posV,
@@ -1841,9 +1850,178 @@ export class WriterAdapter {
         leftCm: Number.isFinite(horizontalOffset) ? Number((horizontalOffset / 360000).toFixed(3)) : null,
         topCm: Number.isFinite(verticalOffset) ? Number((verticalOffset / 360000).toFixed(3)) : null,
         widthCm: extent ? Number((Number(extent[1]) / 360000).toFixed(3)) : null,
-        heightCm: extent ? Number((Number(extent[2]) / 360000).toFixed(3)) : null
+        heightCm: extent ? Number((Number(extent[2]) / 360000).toFixed(3)) : null,
+        pageIndex
       };
     });
+  }
+
+  _ooxmlGroupChildTextboxes(xml) {
+    const rawXml = String(xml || "");
+    const normalize = (str) => String(str || "").replace(/<[^>]+>/g, "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+    const groupWsps = [];
+
+    // 1. Anchored groups: each wp:anchor at index anchorK corresponds 1:1 to raster image k
+    const anchors = [...rawXml.matchAll(/<wp:anchor\b([\s\S]*?)<\/wp:anchor>/gi)];
+    for (let anchorK = 0; anchorK < anchors.length; anchorK++) {
+      const dXml = anchors[anchorK][0];
+      if (!/<wpg:wgp\b/i.test(dXml)) continue;
+
+      const posH = Number(dXml.match(/<wp:positionH\b[^>]*>[\s\S]*?<wp:posOffset>(-?\d+)<\/wp:posOffset>/i)?.[1]);
+      const posV = Number(dXml.match(/<wp:positionV\b[^>]*>[\s\S]*?<wp:posOffset>(-?\d+)<\/wp:posOffset>/i)?.[1]);
+      const extent = dXml.match(/<wp:extent\b[^>]*\bcx=["'](\d+)["'][^>]*\bcy=["'](\d+)["']/i);
+      const ancLeftEmu = Number.isFinite(posH) ? posH : 0;
+      const ancTopEmu = Number.isFinite(posV) ? posV : 0;
+      const cx = extent ? Number(extent[1]) : 0;
+      const cy = extent ? Number(extent[2]) : 0;
+
+      for (const wgpMatch of dXml.matchAll(/<wpg:wgp\b[\s\S]*?<\/wpg:wgp>/gi)) {
+        const wgp = wgpMatch[0];
+        const grpSpPr = wgp.match(/<wpg:grpSpPr\b[\s\S]*?<\/wpg:grpSpPr>/i)?.[0] || "";
+        const gExt = grpSpPr.match(/<a:ext\s+cx=["']([^"']*)["']\s+cy=["']([^"']*)["']/i);
+        const gChOff = grpSpPr.match(/<a:chOff\s+x=["']([^"']*)["']\s+y=["']([^"']*)["']/i);
+        const gChExt = grpSpPr.match(/<a:chExt\s+cx=["']([^"']*)["']\s+cy=["']([^"']*)["']/i);
+
+        const gExtCx = gExt ? Number(gExt[1]) : cx;
+        const gExtCy = gExt ? Number(gExt[2]) : cy;
+        const gChOffX = gChOff ? Number(gChOff[1]) : 0;
+        const gChOffY = gChOff ? Number(gChOff[2]) : 0;
+        const gChExtCx = gChExt ? Number(gChExt[1]) : gExtCx;
+        const gChExtCy = gChExt ? Number(gChExt[2]) : gExtCy;
+
+        const scaleX = gChExtCx > 0 ? gExtCx / gChExtCx : 1.0;
+        const scaleY = gChExtCy > 0 ? gExtCy / gChExtCy : 1.0;
+
+        for (const wspMatch of wgp.matchAll(/<wps:wsp\b[\s\S]*?<\/wps:wsp>/gi)) {
+          const wspXml = wspMatch[0];
+          const txbxMatch = wspXml.match(/<w:txbxContent\b[\s\S]*?<\/w:txbxContent>/i);
+          if (!txbxMatch) continue;
+          const text = normalize(txbxMatch[0]);
+          if (!text) continue;
+
+          const wspOff = wspXml.match(/<a:off\s+x=["']([^"']*)["']\s+y=["']([^"']*)["']/i);
+          const wspExt = wspXml.match(/<a:ext\s+cx=["']([^"']*)["']\s+cy=["']([^"']*)["']/i);
+          const wspSolid = /<a:solidFill\b/i.test(wspXml);
+
+          const offX = wspOff ? Number(wspOff[1]) : 0;
+          const offY = wspOff ? Number(wspOff[2]) : 0;
+          const extCx = wspExt ? Number(wspExt[1]) : 0;
+          const extCy = wspExt ? Number(wspExt[2]) : 0;
+
+          const childX = (offX - gChOffX) * scaleX;
+          const childY = (offY - gChOffY) * scaleY;
+          const childW = extCx * scaleX;
+          const childH = extCy * scaleY;
+
+          const pageLeftCm = Number(((ancLeftEmu + childX) / 360000).toFixed(3));
+          const pageTopCm = Number(((ancTopEmu + childY) / 360000).toFixed(3));
+          const wspWidthCm = Number((childW / 360000).toFixed(3));
+          const wspHeightCm = Number((childH / 360000).toFixed(3));
+
+          groupWsps.push({
+            text,
+            solidFill: wspSolid,
+            pageLeftCm,
+            pageTopCm,
+            widthCm: wspWidthCm,
+            heightCm: wspHeightCm,
+            anchorIndex: anchorK
+          });
+        }
+      }
+    }
+
+    // 2. Inline groups: anchorIndex = null, inlineGroupIndex = j
+    const inlines = [...rawXml.matchAll(/<wp:inline\b([\s\S]*?)<\/wp:inline>/gi)];
+    let inlineGroupJ = 0;
+    for (const iMatch of inlines) {
+      const dXml = iMatch[0];
+      if (!/<wpg:wgp\b/i.test(dXml)) continue;
+      const j = inlineGroupJ++;
+      const extent = dXml.match(/<wp:extent\b[^>]*\bcx=["'](\d+)["'][^>]*\bcy=["'](\d+)["']/i);
+      const cx = extent ? Number(extent[1]) : 0;
+      const cy = extent ? Number(extent[2]) : 0;
+
+      for (const wgpMatch of dXml.matchAll(/<wpg:wgp\b[\s\S]*?<\/wpg:wgp>/gi)) {
+        const wgp = wgpMatch[0];
+        const grpSpPr = wgp.match(/<wpg:grpSpPr\b[\s\S]*?<\/wpg:grpSpPr>/i)?.[0] || "";
+        const gExt = grpSpPr.match(/<a:ext\s+cx=["']([^"']*)["']\s+cy=["']([^"']*)["']/i);
+        const gChOff = grpSpPr.match(/<a:chOff\s+x=["']([^"']*)["']\s+y=["']([^"']*)["']/i);
+        const gChExt = grpSpPr.match(/<a:chExt\s+cx=["']([^"']*)["']\s+cy=["']([^"']*)["']/i);
+
+        const gExtCx = gExt ? Number(gExt[1]) : cx;
+        const gExtCy = gExt ? Number(gExt[2]) : cy;
+        const gChOffX = gChOff ? Number(gChOff[1]) : 0;
+        const gChOffY = gChOff ? Number(gChOff[2]) : 0;
+        const gChExtCx = gChExt ? Number(gChExt[1]) : gExtCx;
+        const gChExtCy = gChExt ? Number(gChExt[2]) : gExtCy;
+
+        const scaleX = gChExtCx > 0 ? gExtCx / gChExtCx : 1.0;
+        const scaleY = gChExtCy > 0 ? gExtCy / gChExtCy : 1.0;
+
+        for (const wspMatch of wgp.matchAll(/<wps:wsp\b[\s\S]*?<\/wps:wsp>/gi)) {
+          const wspXml = wspMatch[0];
+          const txbxMatch = wspXml.match(/<w:txbxContent\b[\s\S]*?<\/w:txbxContent>/i);
+          if (!txbxMatch) continue;
+          const text = normalize(txbxMatch[0]);
+          if (!text) continue;
+
+          const wspOff = wspXml.match(/<a:off\s+x=["']([^"']*)["']\s+y=["']([^"']*)["']/i);
+          const wspExt = wspXml.match(/<a:ext\s+cx=["']([^"']*)["']\s+cy=["']([^"']*)["']/i);
+          const wspSolid = /<a:solidFill\b/i.test(wspXml);
+
+          const offX = wspOff ? Number(wspOff[1]) : 0;
+          const offY = wspOff ? Number(wspOff[2]) : 0;
+          const extCx = wspExt ? Number(wspExt[1]) : 0;
+          const extCy = wspExt ? Number(wspExt[2]) : 0;
+
+          const childX = (offX - gChOffX) * scaleX;
+          const childY = (offY - gChOffY) * scaleY;
+          const childW = extCx * scaleX;
+          const childH = extCy * scaleY;
+
+          const leftCm = Number((childX / 360000).toFixed(3));
+          const topCm = Number((childY / 360000).toFixed(3));
+          const wspWidthCm = Number((childW / 360000).toFixed(3));
+          const wspHeightCm = Number((childH / 360000).toFixed(3));
+
+          groupWsps.push({
+            text,
+            solidFill: wspSolid,
+            pageLeftCm: leftCm,
+            pageTopCm: topCm,
+            widthCm: wspWidthCm,
+            heightCm: wspHeightCm,
+            anchorIndex: null,
+            inlineGroupIndex: j
+          });
+        }
+      }
+    }
+
+    return groupWsps;
+  }
+
+  _ooxmlInlineGroupMetadata(xml) {
+    const rawXml = String(xml || "");
+    const inlines = [...rawXml.matchAll(/<wp:inline\b([\s\S]*?)<\/wp:inline>/gi)];
+    const groups = [];
+    let j = 0;
+    for (const iMatch of inlines) {
+      const dXml = iMatch[0];
+      if (!/<wpg:wgp\b/i.test(dXml)) continue;
+      const extent = dXml.match(/<wp:extent\b[^>]*\bcx=["'](\d+)["'][^>]*\bcy=["'](\d+)["']/i);
+      const cx = extent ? Number(extent[1]) : 0;
+      const cy = extent ? Number(extent[2]) : 0;
+      groups.push({
+        index: j++,
+        widthCm: Number((cx / 360000).toFixed(3)),
+        heightCm: Number((cy / 360000).toFixed(3)),
+        cx,
+        cy
+      });
+    }
+    return groups;
   }
 
   _ooxmlTableColumnWidths(xml) {
@@ -1891,27 +2069,39 @@ export class WriterAdapter {
   _preserveImportedFloatingFrames(html, ooxmlDocumentXml, page = null) {
     const src = String(html || "");
     const anchors = this._ooxmlFloatingAnchorMetadata(ooxmlDocumentXml);
+    const groupWsps = typeof this._ooxmlGroupChildTextboxes === "function"
+      ? this._ooxmlGroupChildTextboxes(ooxmlDocumentXml)
+      : [];
+    const hasNativeGroup = anchors.some((a) => a.sourceGroup) || groupWsps.length > 0;
+    const hasParagraphs = /<p\b/i.test(src);
+
     const imageSourceCounts = new Map();
     for (const match of src.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)) {
       imageSourceCounts.set(match[1], (imageSourceCounts.get(match[1]) || 0) + 1);
     }
+
+    const normalizeText = (s) => String(s || "").replace(/<[^>]+>/g, "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+
     const openRe = /<span\b([^>]*)>/gi;
     let cursor = 0;
-    let anchorIndex = 0;
-    let result = "";
+    const spans = [];
+
     while (cursor < src.length) {
       openRe.lastIndex = cursor;
       const opening = openRe.exec(src);
-      if (!opening) return result + src.slice(cursor);
+      if (!opening) break;
       const attrs = opening[1] || "";
       const style = opening[0].match(/\bstyle\s*=\s*["']([^"']*)/i)?.[1] || "";
       const isImage = /\bclass=["'][^"']*\bsd-abs-pos\b/i.test(opening[0]);
       const isTextbox = /\bid=["'](?:textbox|Frame)[^"']*["']/i.test(opening[0]);
-      if (!/\bposition\s*:\s*absolute\b/i.test(style) || (!isImage && !isTextbox)) {
-        result += src.slice(cursor, opening.index + opening[0].length);
+
+      const isAbs = /\bposition\s*:\s*absolute\b/i.test(style);
+      const isFloat = /\bfloat\s*:\s*left\b/i.test(style);
+      if ((!isImage && !isTextbox) || (!isAbs && !isFloat)) {
         cursor = opening.index + opening[0].length;
         continue;
       }
+
       let depth = 1;
       let search = opening.index + opening[0].length;
       let close = -1;
@@ -1929,63 +2119,280 @@ export class WriterAdapter {
           search = nextClose + 7;
         }
       }
+
       if (depth !== 0) {
-        result += src.slice(cursor, opening.index + opening[0].length);
         cursor = opening.index + opening[0].length;
         continue;
       }
+
       const inner = src.slice(opening.index + opening[0].length, close);
+      const startPos = opening.index;
+      const endPos = close + 7;
+      cursor = endPos;
+
+      spans.push({ isImage, isTextbox, style, inner, startPos, endPos });
+    }
+
+    const marginLeftCm = Number(page?.margins?.left || 0) / 10;
+    const marginTopCm = Number(page?.margins?.top || 0) / 10;
+
+    // Pass 1 & 2: Match textboxes to group wsp
+    const matchedWspBySpan = new Map();
+    const usedWsps = new Set();
+    if (hasNativeGroup && groupWsps.length > 0) {
+      // Pass 1: Exact match pass
+      for (let sIdx = 0; sIdx < spans.length; sIdx++) {
+        const sp = spans[sIdx];
+        if (!sp.isTextbox) continue;
+        const text = normalizeText(sp.inner);
+        for (let i = 0; i < groupWsps.length; i++) {
+          if (usedWsps.has(i)) continue;
+          const w = groupWsps[i];
+          if (w.text === text) {
+            matchedWspBySpan.set(sIdx, w);
+            usedWsps.add(i);
+            break;
+          }
+        }
+      }
+      // Pass 2: Fuzzy match pass for remaining unattached textboxes
+      for (let sIdx = 0; sIdx < spans.length; sIdx++) {
+        if (matchedWspBySpan.has(sIdx)) continue;
+        const sp = spans[sIdx];
+        if (!sp.isTextbox) continue;
+        const text = normalizeText(sp.inner);
+        if (!text || text.length < 5) continue;
+        for (let i = 0; i < groupWsps.length; i++) {
+          if (usedWsps.has(i)) continue;
+          const w = groupWsps[i];
+          if (w.text.includes(text) || text.includes(w.text)) {
+            matchedWspBySpan.set(sIdx, w);
+            usedWsps.add(i);
+            break;
+          }
+        }
+      }
+    }
+
+    let anchorIndex = 0;
+    const inlineGroups = typeof this._ooxmlInlineGroupMetadata === "function"
+      ? this._ooxmlInlineGroupMetadata(ooxmlDocumentXml)
+      : [];
+
+    const imgRe = /<img\b[^>]*>/gi;
+    const inlineImages = [];
+    let iMatch;
+    while ((iMatch = imgRe.exec(src)) !== null) {
+      const inSpan = spans.some((s) => iMatch.index >= s.startPos && iMatch.index < s.endPos);
+      if (!inSpan) {
+        const nameMatch = iMatch[0].match(/\bname=["']?Shape(\d+)\b/i);
+        if (nameMatch) {
+          inlineImages.push({
+            start: iMatch.index,
+            end: iMatch.index + iMatch[0].length,
+            tag: iMatch[0],
+            shapeNum: Number(nameMatch[1])
+          });
+        }
+      }
+    }
+
+    const imageSpans = [];
+    const imageIndexByAnchor = new Map();
+    const textboxesByAnchor = new Map();
+    const textboxesByInlineGroup = new Map();
+    const spanReplacements = [];
+
+    // Identify images first so we can attach textboxes to the right anchor image
+    for (let sIdx = 0; sIdx < spans.length; sIdx++) {
+      const sp = spans[sIdx];
+      if (!sp.isImage) continue;
+
+      const imgK = anchorIndex++;
+      imageIndexByAnchor.set(imgK, imageSpans.length);
+
+      const { style, inner, startPos, endPos } = sp;
       const value = (name) => style.match(new RegExp(`\\b${name}\\s*:\\s*([^;]+)`, "i"))?.[1];
       const imgTag = inner.match(/<img\b[^>]*>/i)?.[0] || "";
       const attrValue = (name) => imgTag.match(new RegExp(`\\b${name}=["']?([^"'\\s>]+)`, "i"))?.[1];
-      const meta = anchors[anchorIndex++] || { relativeH: "paragraph", relativeV: "paragraph", wrap: "wrapNone", behindDoc: false };
       const htmlLeft = this._cssLengthToCm(value("left")) ?? 0;
       const htmlTop = this._cssLengthToCm(value("top")) ?? 0;
       const htmlWidth = this._cssLengthToCm(value("width")) ?? this._cssLengthToCm(`${attrValue("width") || 0}px`) ?? 0;
       const htmlHeight = this._cssLengthToCm(value("height")) ?? this._cssLengthToCm(`${attrValue("height") || 0}px`) ?? 0;
+
+      const meta = anchors[imgK] || { relativeH: "paragraph", relativeV: "paragraph", wrap: "wrapNone", behindDoc: false, pageIndex: 0 };
       const left = meta.sourceGroup && meta.leftCm != null ? meta.leftCm : htmlLeft;
       const top = meta.sourceGroup && meta.topCm != null ? meta.topCm : htmlTop;
       const width = meta.sourceGroup && meta.widthCm ? meta.widthCm : htmlWidth;
       const height = meta.sourceGroup && meta.heightCm ? meta.heightCm : htmlHeight;
-      const marginLeftCm = Number(page?.margins?.left || 0) / 10;
-      const marginTopCm = Number(page?.margins?.top || 0) / 10;
+
+      const isPageRel = ["page", "margin"].includes(String(meta.relativeV).toLowerCase());
       const displayLeft = ["margin", "column"].includes(String(meta.relativeH).toLowerCase()) ? left + marginLeftCm : left;
       const displayTop = ["margin"].includes(String(meta.relativeV).toLowerCase()) ? top + marginTopCm : top;
-      const cleanedStyle = style.replace(/\b(?:position|top|left|width|height)\s*:\s*[^;]+;?\s*/gi, "").trim();
-      const kind = isImage ? "image" : "textbox";
+      const canvasLeft = Number((displayLeft - marginLeftCm).toFixed(3));
+      const canvasTop = Number((displayTop - marginTopCm).toFixed(3));
+
+      const cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
       const imageSource = attrValue("src") || "";
-      const isRepeatedPageWatermark = kind === "image"
-        && meta.behindDoc
+      const isRepeatedPageWatermark = meta.behindDoc
         && String(meta.relativeH).toLowerCase() === "page"
         && String(meta.relativeV).toLowerCase() === "page"
         && (imageSourceCounts.get(imageSource) || 0) >= 3
         && width >= 10
         && height >= 10;
-      const isPageImage = kind === "image"
-        && meta.behindDoc
+      const isPageImage = meta.behindDoc
         && meta.wrap === "wrapNone"
         && !isRepeatedPageWatermark
         && String(meta.relativeH).toLowerCase() === "page"
         && String(meta.relativeV).toLowerCase() === "page";
-      const canvasLeft = Number((displayLeft - marginLeftCm).toFixed(3));
-      const canvasTop = Number((displayTop - marginTopCm).toFixed(3));
-      const canvasGeometry = (isRepeatedPageWatermark || isPageImage)
+
+      const canvasGeometry = (hasNativeGroup && isPageRel)
         ? `position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;`
-        : `position:absolute;left:${displayLeft}cm;top:${displayTop}cm;`;
-      result += src.slice(cursor, opening.index);
-      result += `<span data-vno-float="${kind}" data-vno-source-group="${meta.sourceGroup ? "1" : "0"}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}"${isRepeatedPageWatermark ? ' data-vno-imported-watermark="1"' : ""}${isPageImage ? ' data-vno-page-image="1"' : ""} style="${canvasGeometry}${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:0;" : `z-index:${anchorIndex};`}${cleanedStyle}">${inner}</span>`;
-      cursor = close + 7;
+        : (isRepeatedPageWatermark || isPageImage)
+          ? `position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;`
+          : `position:absolute;left:${displayLeft}cm;top:${displayTop}cm;`;
+
+      const spanHtml = `<span data-vno-float="image" data-vno-source-group="${meta.sourceGroup ? "1" : "0"}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}"${isRepeatedPageWatermark ? ' data-vno-imported-watermark="1"' : ""}${isPageImage ? ' data-vno-page-image="1"' : ""} style="${canvasGeometry}${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:0;" : "z-index:1;"}${cleanedStyle}">${inner}</span>`;
+
+      imageSpans.push({ imgK, spanHtml, startPos, endPos });
     }
-    return result;
+
+    // Process textboxes
+    for (let sIdx = 0; sIdx < spans.length; sIdx++) {
+      const sp = spans[sIdx];
+      if (!sp.isTextbox) continue;
+
+      const { style, inner, startPos, endPos } = sp;
+      const matchedWsp = matchedWspBySpan.get(sIdx);
+
+      if (matchedWsp) {
+        if (matchedWsp.inlineGroupIndex !== null && matchedWsp.inlineGroupIndex !== undefined) {
+          const j = matchedWsp.inlineGroupIndex;
+          const left = matchedWsp.pageLeftCm;
+          const top = matchedWsp.pageTopCm;
+          const width = matchedWsp.widthCm;
+          const height = matchedWsp.heightCm;
+
+          let cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
+          if (!matchedWsp.solidFill) {
+            cleanedStyle = cleanedStyle.replace(/\bbackground(?:-color)?\s*:\s*[^;]+;?\s*/gi, "").trim();
+            cleanedStyle = `background:transparent;${cleanedStyle}`;
+          }
+
+          const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="inline" data-vno-relative-v="inline" data-vno-wrap="wrapNone" data-vno-behind="0" style="position:absolute;left:${left}cm;top:${top}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}z-index:2;${cleanedStyle}">${inner}</span>`;
+
+          if (j < inlineImages.length) {
+            if (!textboxesByInlineGroup.has(j)) textboxesByInlineGroup.set(j, []);
+            textboxesByInlineGroup.get(j).push(spanHtml);
+            spanReplacements.push({ start: startPos, end: endPos, value: "" });
+          } else {
+            spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
+          }
+        } else {
+          const left = matchedWsp.pageLeftCm;
+          const top = matchedWsp.pageTopCm;
+          const width = matchedWsp.widthCm;
+          const height = matchedWsp.heightCm;
+          const canvasLeft = Number((left - marginLeftCm).toFixed(3));
+          const canvasTop = Number((top - marginTopCm).toFixed(3));
+
+          let cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
+          if (!matchedWsp.solidFill) {
+            cleanedStyle = cleanedStyle.replace(/\bbackground(?:-color)?\s*:\s*[^;]+;?\s*/gi, "").trim();
+            cleanedStyle = `background:transparent;${cleanedStyle}`;
+          }
+
+          const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="page" data-vno-relative-v="page" data-vno-wrap="wrapNone" data-vno-behind="0" style="position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}z-index:2;${cleanedStyle}">${inner}</span>`;
+
+          // If matched to an anchored group with a known image, move textbox to that image
+          if (matchedWsp.anchorIndex !== null && imageIndexByAnchor.has(matchedWsp.anchorIndex)) {
+            const k = matchedWsp.anchorIndex;
+            if (!textboxesByAnchor.has(k)) textboxesByAnchor.set(k, []);
+            textboxesByAnchor.get(k).push(spanHtml);
+            spanReplacements.push({ start: startPos, end: endPos, value: "" });
+          } else {
+            spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
+          }
+        }
+      } else {
+        // Standalone textbox: consume next anchor (DO NOT take sourceGroup or group dimensions)
+        const meta = anchors[anchorIndex++] || { relativeH: "paragraph", relativeV: "paragraph", wrap: "wrapNone", behindDoc: false };
+        const value = (name) => style.match(new RegExp(`\\b${name}\\s*:\\s*([^;]+)`, "i"))?.[1];
+        const htmlLeft = this._cssLengthToCm(value("left")) ?? 0;
+        const htmlTop = this._cssLengthToCm(value("top")) ?? 0;
+        const htmlWidth = this._cssLengthToCm(value("width")) ?? 0;
+        const htmlHeight = this._cssLengthToCm(value("height")) ?? 0;
+
+        const displayLeft = ["margin", "column"].includes(String(meta.relativeH).toLowerCase()) ? htmlLeft + marginLeftCm : htmlLeft;
+        const displayTop = ["margin"].includes(String(meta.relativeV).toLowerCase()) ? htmlTop + marginTopCm : htmlTop;
+        const cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
+        const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${htmlLeft}" data-vno-top="${htmlTop}" data-vno-width="${htmlWidth}" data-vno-height="${htmlHeight}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}" style="position:absolute;left:${displayLeft}cm;top:${displayTop}cm;${htmlWidth ? `width:${htmlWidth}cm;` : ""}${htmlHeight ? `height:${htmlHeight}cm;` : ""}z-index:2;${cleanedStyle}">${inner}</span>`;
+        spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
+      }
+    }
+
+    // Attach textboxes immediately after their respective anchor image
+    for (const img of imageSpans) {
+      const attached = textboxesByAnchor.get(img.imgK) || [];
+      spanReplacements.push({
+        start: img.startPos,
+        end: img.endPos,
+        value: img.spanHtml + attached.join("")
+      });
+    }
+
+    // Wrap inline images with inline groups
+    for (let j = 0; j < inlineImages.length; j++) {
+      const imgInfo = inlineImages[j];
+      const meta = inlineGroups[j];
+      const widthCm = meta ? meta.widthCm : 0;
+      const heightCm = meta ? meta.heightCm : 0;
+      const attached = textboxesByInlineGroup.get(j) || [];
+      let imgTag = imgInfo.tag;
+      if (widthCm && heightCm) {
+        if (/\bstyle=["']/i.test(imgTag)) {
+          imgTag = imgTag.replace(/\bstyle=["']([^"']*)["']/i, (_m, s) => `style="width:${widthCm}cm;height:${heightCm}cm;display:block;${s}"`);
+        } else {
+          imgTag = imgTag.replace(/>$/, ` style="width:${widthCm}cm;height:${heightCm}cm;display:block;">`);
+        }
+      }
+      const wrappedSpan = `<span data-vno-inline-group="${j}" style="position:relative;display:inline-block;${widthCm ? `width:${widthCm}cm;` : ""}${heightCm ? `height:${heightCm}cm;` : ""}">${imgTag}${attached.join("")}</span>`;
+      spanReplacements.push({
+        start: imgInfo.start,
+        end: imgInfo.end,
+        value: wrappedSpan
+      });
+    }
+
+    spanReplacements.sort((a, b) => b.start - a.start);
+    let finalHtml = src;
+    for (const rep of spanReplacements) {
+      finalHtml = finalHtml.slice(0, rep.start) + rep.value + finalHtml.slice(rep.end);
+    }
+
+    // Stable per-document ids let live pagination position page-relative
+    // floats through a stylesheet instead of mutating element styles (which
+    // would re-serialize the style attribute and make the document look
+    // edited).
+    let floatId = 0;
+    finalHtml = finalHtml.replace(/<span data-vno-float="(image|textbox)"/g, (_m, kind) => `<span data-vno-float="${kind}" data-vno-float-id="${++floatId}"`);
+
+    return finalHtml;
   }
 
-  _makeFloatingAnchorContainers(html) {
+  _makeFloatingAnchorContainers(html, page = null) {
     let out = String(html || "");
     if (!/\bdata-vno-float=["'](?:image|textbox)["']/i.test(out)) return out;
     const hasNativeGroup = /data-vno-source-group=["']1["']/i.test(out);
     const tags = [...out.matchAll(/<p\b[^>]*>|<\/p>/gi)];
     const stack = [];
     const replacements = [];
+
+    const pageHeightCm = (page?.heightMm ? page.heightMm / 10 : (page?.size === "letter" ? 27.94 : 29.7));
+    const marginTopCm = Number(page?.margins?.top || 0) / 10 || 2.54;
+    const marginBottomCm = Number(page?.margins?.bottom || 0) / 10 || 2.54;
+    const usableContentHeightCm = Math.max(10, pageHeightCm - marginTopCm - marginBottomCm);
+
     for (const tag of tags) {
       if (!/^<\/p/i.test(tag[0])) {
         stack.push(tag);
@@ -1993,8 +2400,11 @@ export class WriterAdapter {
       }
       const opening = stack.pop();
       if (!opening) continue;
+      if (/data-vno-float-anchor/i.test(opening[0])) continue;
       const inner = out.slice(opening.index + opening[0].length, tag.index);
       if (!/\bdata-vno-float=["'](?:image|textbox)["']/i.test(inner)) continue;
+      const nonInline = inner.replace(/<span\b[^>]*data-vno-inline-group=["']\d+["'][\s\S]*?<\/span>/gi, "");
+      if (!/\bdata-vno-float=["'](?:image|textbox)["']/i.test(nonInline)) continue;
       const hasTextbox = /\bdata-vno-float=["']textbox["']/i.test(inner);
       const paragraphStyle = opening[0].match(/\bstyle=["']([^"']*)/i)?.[1] || "";
       const paragraphMarginLeft = this._cssLengthToCm(paragraphStyle.match(/\bmargin-left\s*:\s*([^;]+)/i)?.[1]) || 0;
@@ -2007,22 +2417,24 @@ export class WriterAdapter {
           return floatTag.replace(/\bleft\s*:\s*[^;"']+/, `left:${corrected}cm`);
         }
       );
-      const paragraphRelative = /data-vno-relative-(?:h|v)=["']paragraph["']/i.test(inner);
-      const hasPageAnchor = /data-vno-(?:imported-watermark|page-image)=["']1["']/i.test(inner);
+
       let reserveCm = 0;
       for (const floating of inner.matchAll(/<span\b[^>]*data-vno-wrap=["']wrapTopAndBottom["'][^>]*>/gi)) {
         const top = Number(floating[0].match(/data-vno-top=["'](-?[\d.]+)/i)?.[1] || 0);
         const height = Number(floating[0].match(/data-vno-height=["']([\d.]+)/i)?.[1] || 0);
-        reserveCm = Math.max(reserveCm, top + height);
+        const rawReserve = Math.max(0, top + height - marginTopCm);
+        reserveCm = Math.max(reserveCm, Math.min(rawReserve, usableContentHeightCm));
       }
-      const layoutStyle = `${paragraphRelative || hasPageAnchor ? "position:relative;" : "position:static;"}${reserveCm > 0 ? `min-height:${Number(reserveCm.toFixed(3))}cm;` : ""}`;
+      const layoutStyle = `position:relative;${reserveCm > 0 ? `min-height:${Number(reserveCm.toFixed(3))}cm;` : ""}`;
       const attrs = opening[0].slice(2, -1).replace(/\bstyle=["']([^"']*)["']/i, (_m, style) => `style="${layoutStyle}${style}"`);
-      // LibreOffice's HTML exporter only turns page-break-before into a real
-      // DOCX break when the carrier is a paragraph.  Keep non-breaking group
-      // scaffolding as divs, but a source page-break carrier must remain p so
-      // edited long documents retain their pagination.
-      const hasPageBreak = /(?:page-break-before|break-before)\s*:\s*(?:always|page)/i.test(paragraphStyle);
-      const wrapperTag = hasPageBreak || (!hasNativeGroup && !hasTextbox) ? "p" : "div";
+      // LibreOffice text frames carry their own <p>; a <p> wrapper would be
+      // auto-closed by the browser and every frame (plus the paragraph text)
+      // would spill into the body as loose siblings.  Wrap such carriers in a
+      // div even when they hold a page break: _prepareFloatingFramesForExport
+      // re-emits the break on an empty <p> so LibreOffice still gets a real
+      // paragraph break at export time.
+      const hasBlockInner = /<(?:p|div|table|h\d|ul|ol)\b/i.test(inner);
+      const wrapperTag = hasBlockInner || (hasNativeGroup && hasTextbox) ? "div" : "p";
       const openTag = /\bstyle=/i.test(attrs) ? `<${wrapperTag} data-vno-float-anchor${attrs}>` : `<${wrapperTag} data-vno-float-anchor${attrs} style="${layoutStyle}">`;
       replacements.push([tag.index, tag.index + tag[0].length, `</${wrapperTag}>`]);
       if (adjustedInner !== inner) replacements.push([opening.index + opening[0].length, tag.index, adjustedInner]);
@@ -7566,11 +7978,19 @@ export class WriterAdapter {
     // the source document, not geometry owned by the floating frame. Float
     // geometry itself is rebuilt below from original data-vno-*.
     const src = String(html || "").replace(
-      /(<(?:div|p)\b[^>]*\bdata-vno-float-anchor\b[^>]*\bstyle=["'])([^"']*)(["'])/gi,
-      (_m, pre, styleVal, post) => {
-        const exportStyle = styleVal
+      /(<(div|p)\b[^>]*\bdata-vno-float-anchor\b[^>]*\bstyle=["'])([^"']*)(["'])/gi,
+      (_m, pre, tagName, styleVal, post) => {
+        let exportStyle = styleVal
           .replace(/\b(?:min-height|position)\s*:\s*[^;]+;?\s*/gi, "")
           .trim();
+        // A div carrier cannot break pages in LibreOffice's HTML import; hand
+        // the break to an empty paragraph placed right before it instead.
+        const carriesBreak = tagName.toLowerCase() === "div"
+          && /(?:page-break-before|break-before)\s*:\s*(?:always|page)/i.test(exportStyle);
+        if (carriesBreak) {
+          exportStyle = exportStyle.replace(/\b(?:page-break-before|break-before)\s*:\s*[^;]+;?\s*/gi, "").trim();
+          return `<p style="page-break-before:always;break-before:page;margin:0;"></p>${pre}${exportStyle}${post}`;
+        }
         return `${pre}${exportStyle}${post}`;
       }
     );
@@ -7857,10 +8277,11 @@ export class WriterAdapter {
       this._openedEditorDomHash = this._editorDomFingerprint();
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
-      // Lỗi thật đã xác nhận: nội dung nạp đúng nhưng nhãn tên tệp trên tab
-      // vẫn giữ nguyên tên demo cũ vì resetDocumentChrome() chỉ được gọi ở
-      // File > Mới/Đóng, chưa bao giờ gọi sau khi Mở tệp thật.
       this.shell?.resetDocumentChrome?.(result.fileName || "Tài liệu 1.docx");
+      this._recomputeLivePagination?.();
+      if (typeof requestAnimationFrame !== "undefined") {
+        requestAnimationFrame(() => this._recomputeLivePagination?.());
+      }
       return true;
     }
     if (result.status === "cancelled") return false;
@@ -8883,13 +9304,19 @@ export class WriterAdapter {
         const textContent = el.textContent || "";
         const isManualBreak = styleStr.includes("page-break-before") || styleStr.includes("break-before") || textContent.includes("Phân tách trang");
 
+        const h = el.offsetHeight || 0;
         if (isManualBreak) {
-          currentHeight = 0;
-          pageCount++;
+          // Ngắt trang thủ công / page-break-before nhập từ DOCX cũng phải hiện
+          // thành một tờ mới trong khung soạn thảo (Word tách trang thật), nếu
+          // không mọi float neo theo trang của các trang sau sẽ đè lên trang 1.
+          if (el !== children[0]) {
+            gapBeforeEls.push(el);
+            pageCount++;
+          }
+          currentHeight = h;
           continue;
         }
 
-        const h = el.offsetHeight || 0;
         if (currentHeight > 0 && currentHeight + h > availableHeightPx) {
           gapBeforeEls.push(el);
           currentHeight = h;
@@ -8899,13 +9326,16 @@ export class WriterAdapter {
         }
       }
 
-      for (const el of gapBeforeEls) {
+      const canInsertGaps = typeof this.bodyDom.insertBefore === "function" && typeof document.createElement === "function";
+      for (const el of canInsertGaps ? gapBeforeEls : []) {
         const gap = document.createElement("div");
         gap.className = "vno-page-auto-gap";
         gap.setAttribute("contenteditable", "false");
         gap.setAttribute("data-vno-auto-page-gap", "true");
         this.bodyDom.insertBefore(gap, el);
       }
+
+      this._alignPageRelativeFloats();
 
       this._livePageCount = pageCount;
       if (typeof this.bodyDom.dispatchEvent === "function") {
@@ -8916,6 +9346,93 @@ export class WriterAdapter {
     } finally {
       this._paginating = false;
     }
+  }
+
+  _alignPageRelativeFloats(targetBodyDom = this.bodyDom) {
+    const bodyDom = targetBodyDom;
+    if (!bodyDom || !bodyDom.children || typeof bodyDom.querySelectorAll !== "function") return;
+
+    const dim = this.getPageDimensions ? this.getPageDimensions() : null;
+    const marginTopCm = Number(dim?.margins?.top ?? 25.4) / 10;
+
+    const children = Array.from(bodyDom.children);
+    if (children.length === 0) return;
+
+    const pageStartTopByBlock = new Map();
+    let currentPageStartTop = children[0].offsetTop || 0;
+
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      const isAutoGap = child.classList?.contains?.("vno-page-auto-gap") || child.getAttribute?.("data-vno-auto-page-gap") === "true";
+      const styleStr = (typeof child.getAttribute === "function" ? child.getAttribute("style") : "") || "";
+      const isManualBreak = styleStr.includes("page-break-before") || styleStr.includes("break-before");
+
+      if (isAutoGap) {
+        if (i + 1 < children.length) {
+          currentPageStartTop = children[i + 1].offsetTop || 0;
+        }
+        continue;
+      }
+
+      if (isManualBreak && i > 0) {
+        currentPageStartTop = child.offsetTop || 0;
+      }
+
+      pageStartTopByBlock.set(child, currentPageStartTop);
+    }
+
+    let floatEls;
+    try {
+      floatEls = bodyDom.querySelectorAll(
+        '[data-vno-float][data-vno-relative-v="page"],[data-vno-float][data-vno-relative-v="margin"]'
+      );
+    } catch {
+      // Mock DOMs in unit tests do not implement attribute selectors.
+      return;
+    }
+    if (!floatEls || typeof floatEls[Symbol.iterator] !== "function") return;
+    // The correction is written to a stylesheet keyed by data-vno-float-id, never
+    // to element.style: touching inline styles re-serializes the attribute and
+    // would make an untouched document dirty (snapshot/fingerprint mismatch).
+    const rules = [];
+    for (const el of floatEls) {
+      const floatId = el.getAttribute?.("data-vno-float-id");
+      if (!floatId) continue;
+      const container = el.closest ? el.closest("[data-vno-float-anchor]") : null;
+      if (!container) continue;
+
+      let block = container;
+      while (block && block.parentElement && block.parentElement !== bodyDom) {
+        block = block.parentElement;
+      }
+      if (!block) continue;
+
+      const pageTop = pageStartTopByBlock.has(block) ? pageStartTopByBlock.get(block) : (block.offsetTop || 0);
+      const rawTop = el.dataset?.vnoTop ?? el.getAttribute?.("data-vno-top");
+      const topCm = Number(rawTop || 0);
+      const relV = String(el.dataset?.vnoRelativeV ?? el.getAttribute?.("data-vno-relative-v") ?? "").toLowerCase();
+      const topMarginCm = (relV === "margin") ? 0 : marginTopCm;
+      const wantPx = (topCm - topMarginCm) * 96 / 2.54;
+      const deltaPx = (container.offsetTop || 0) - pageTop;
+      const alignedTopPx = Number((wantPx - deltaPx).toFixed(2));
+      rules.push(`.vno-writer-page [data-vno-float-id="${floatId}"]{top:${alignedTopPx}px !important;}`);
+    }
+    this._applyLiveFloatStylesheet(rules.join("\n"));
+  }
+
+  _applyLiveFloatStylesheet(cssText) {
+    if (typeof document === "undefined" || !document.head || typeof document.createElement !== "function") return;
+    let styleEl = this._liveFloatStyleEl;
+    if (!styleEl || !styleEl.isConnected) {
+      styleEl = document.getElementById?.("vno-live-float-tops") || null;
+      if (!styleEl) {
+        styleEl = document.createElement("style");
+        styleEl.id = "vno-live-float-tops";
+        document.head.appendChild(styleEl);
+      }
+      this._liveFloatStyleEl = styleEl;
+    }
+    if (styleEl.textContent !== cssText) styleEl.textContent = cssText;
   }
 
   /**
