@@ -2252,7 +2252,7 @@ export class WriterAdapter {
           ? `position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;`
           : `position:absolute;left:${displayLeft}cm;top:${displayTop}cm;`;
 
-      const spanHtml = `<span data-vno-float="image" data-vno-source-group="${meta.sourceGroup ? "1" : "0"}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}"${isRepeatedPageWatermark ? ' data-vno-imported-watermark="1"' : ""}${isPageImage ? ' data-vno-page-image="1"' : ""} style="${canvasGeometry}${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:0;" : `z-index:${imgK + 1};`}${cleanedStyle}">${inner}</span>`;
+      const spanHtml = `<span data-vno-float="image" data-vno-source-group="${meta.sourceGroup ? "1" : "0"}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}"${isRepeatedPageWatermark ? ' data-vno-imported-watermark="1"' : ""}${isPageImage ? ' data-vno-page-image="1"' : ""} style="${canvasGeometry}${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:0;" : "z-index:1;"}${cleanedStyle}">${inner}</span>`;
 
       imageSpans.push({ imgK, spanHtml, startPos, endPos });
     }
@@ -2279,7 +2279,7 @@ export class WriterAdapter {
             cleanedStyle = `background:transparent;${cleanedStyle}`;
           }
 
-          const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="inline" data-vno-relative-v="inline" data-vno-wrap="wrapNone" data-vno-behind="0" style="position:absolute;left:${left}cm;top:${top}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}z-index:1;${cleanedStyle}">${inner}</span>`;
+          const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="inline" data-vno-relative-v="inline" data-vno-wrap="wrapNone" data-vno-behind="0" style="position:absolute;left:${left}cm;top:${top}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}z-index:2;${cleanedStyle}">${inner}</span>`;
 
           if (j < inlineImages.length) {
             if (!textboxesByInlineGroup.has(j)) textboxesByInlineGroup.set(j, []);
@@ -2302,7 +2302,7 @@ export class WriterAdapter {
             cleanedStyle = `background:transparent;${cleanedStyle}`;
           }
 
-          const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="page" data-vno-relative-v="page" data-vno-wrap="wrapNone" data-vno-behind="0" style="position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}z-index:1;${cleanedStyle}">${inner}</span>`;
+          const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="page" data-vno-relative-v="page" data-vno-wrap="wrapNone" data-vno-behind="0" style="position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}z-index:2;${cleanedStyle}">${inner}</span>`;
 
           // If matched to an anchored group with a known image, move textbox to that image
           if (matchedWsp.anchorIndex !== null && imageIndexByAnchor.has(matchedWsp.anchorIndex)) {
@@ -2326,7 +2326,7 @@ export class WriterAdapter {
         const displayLeft = ["margin", "column"].includes(String(meta.relativeH).toLowerCase()) ? htmlLeft + marginLeftCm : htmlLeft;
         const displayTop = ["margin"].includes(String(meta.relativeV).toLowerCase()) ? htmlTop + marginTopCm : htmlTop;
         const cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
-        const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${htmlLeft}" data-vno-top="${htmlTop}" data-vno-width="${htmlWidth}" data-vno-height="${htmlHeight}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}" style="position:absolute;left:${displayLeft}cm;top:${displayTop}cm;${htmlWidth ? `width:${htmlWidth}cm;` : ""}${htmlHeight ? `height:${htmlHeight}cm;` : ""}z-index:1;${cleanedStyle}">${inner}</span>`;
+        const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${htmlLeft}" data-vno-top="${htmlTop}" data-vno-width="${htmlWidth}" data-vno-height="${htmlHeight}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}" style="position:absolute;left:${displayLeft}cm;top:${displayTop}cm;${htmlWidth ? `width:${htmlWidth}cm;` : ""}${htmlHeight ? `height:${htmlHeight}cm;` : ""}z-index:2;${cleanedStyle}">${inner}</span>`;
         spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
       }
     }
@@ -2369,6 +2369,13 @@ export class WriterAdapter {
     for (const rep of spanReplacements) {
       finalHtml = finalHtml.slice(0, rep.start) + rep.value + finalHtml.slice(rep.end);
     }
+
+    // Stable per-document ids let live pagination position page-relative
+    // floats through a stylesheet instead of mutating element styles (which
+    // would re-serialize the style attribute and make the document look
+    // edited).
+    let floatId = 0;
+    finalHtml = finalHtml.replace(/<span data-vno-float="(image|textbox)"/g, (_m, kind) => `<span data-vno-float="${kind}" data-vno-float-id="${++floatId}"`);
 
     return finalHtml;
   }
@@ -2420,12 +2427,14 @@ export class WriterAdapter {
       }
       const layoutStyle = `position:relative;${reserveCm > 0 ? `min-height:${Number(reserveCm.toFixed(3))}cm;` : ""}`;
       const attrs = opening[0].slice(2, -1).replace(/\bstyle=["']([^"']*)["']/i, (_m, style) => `style="${layoutStyle}${style}"`);
-      // LibreOffice's HTML exporter only turns page-break-before into a real
-      // DOCX break when the carrier is a paragraph.  Keep non-breaking group
-      // scaffolding as divs, but a source page-break carrier must remain p so
-      // edited long documents retain their pagination.
-      const hasPageBreak = /(?:page-break-before|break-before)\s*:\s*(?:always|page)/i.test(paragraphStyle);
-      const wrapperTag = hasPageBreak || (!hasNativeGroup && !hasTextbox) ? "p" : "div";
+      // LibreOffice text frames carry their own <p>; a <p> wrapper would be
+      // auto-closed by the browser and every frame (plus the paragraph text)
+      // would spill into the body as loose siblings.  Wrap such carriers in a
+      // div even when they hold a page break: _prepareFloatingFramesForExport
+      // re-emits the break on an empty <p> so LibreOffice still gets a real
+      // paragraph break at export time.
+      const hasBlockInner = /<(?:p|div|table|h\d|ul|ol)\b/i.test(inner);
+      const wrapperTag = hasBlockInner || (hasNativeGroup && hasTextbox) ? "div" : "p";
       const openTag = /\bstyle=/i.test(attrs) ? `<${wrapperTag} data-vno-float-anchor${attrs}>` : `<${wrapperTag} data-vno-float-anchor${attrs} style="${layoutStyle}">`;
       replacements.push([tag.index, tag.index + tag[0].length, `</${wrapperTag}>`]);
       if (adjustedInner !== inner) replacements.push([opening.index + opening[0].length, tag.index, adjustedInner]);
@@ -7969,11 +7978,19 @@ export class WriterAdapter {
     // the source document, not geometry owned by the floating frame. Float
     // geometry itself is rebuilt below from original data-vno-*.
     const src = String(html || "").replace(
-      /(<(?:div|p)\b[^>]*\bdata-vno-float-anchor\b[^>]*\bstyle=["'])([^"']*)(["'])/gi,
-      (_m, pre, styleVal, post) => {
-        const exportStyle = styleVal
+      /(<(div|p)\b[^>]*\bdata-vno-float-anchor\b[^>]*\bstyle=["'])([^"']*)(["'])/gi,
+      (_m, pre, tagName, styleVal, post) => {
+        let exportStyle = styleVal
           .replace(/\b(?:min-height|position)\s*:\s*[^;]+;?\s*/gi, "")
           .trim();
+        // A div carrier cannot break pages in LibreOffice's HTML import; hand
+        // the break to an empty paragraph placed right before it instead.
+        const carriesBreak = tagName.toLowerCase() === "div"
+          && /(?:page-break-before|break-before)\s*:\s*(?:always|page)/i.test(exportStyle);
+        if (carriesBreak) {
+          exportStyle = exportStyle.replace(/\b(?:page-break-before|break-before)\s*:\s*[^;]+;?\s*/gi, "").trim();
+          return `<p style="page-break-before:always;break-before:page;margin:0;"></p>${pre}${exportStyle}${post}`;
+        }
         return `${pre}${exportStyle}${post}`;
       }
     );
@@ -9287,13 +9304,19 @@ export class WriterAdapter {
         const textContent = el.textContent || "";
         const isManualBreak = styleStr.includes("page-break-before") || styleStr.includes("break-before") || textContent.includes("Phân tách trang");
 
+        const h = el.offsetHeight || 0;
         if (isManualBreak) {
-          currentHeight = 0;
-          pageCount++;
+          // Ngắt trang thủ công / page-break-before nhập từ DOCX cũng phải hiện
+          // thành một tờ mới trong khung soạn thảo (Word tách trang thật), nếu
+          // không mọi float neo theo trang của các trang sau sẽ đè lên trang 1.
+          if (el !== children[0]) {
+            gapBeforeEls.push(el);
+            pageCount++;
+          }
+          currentHeight = h;
           continue;
         }
 
-        const h = el.offsetHeight || 0;
         if (currentHeight > 0 && currentHeight + h > availableHeightPx) {
           gapBeforeEls.push(el);
           currentHeight = h;
@@ -9303,7 +9326,8 @@ export class WriterAdapter {
         }
       }
 
-      for (const el of gapBeforeEls) {
+      const canInsertGaps = typeof this.bodyDom.insertBefore === "function" && typeof document.createElement === "function";
+      for (const el of canInsertGaps ? gapBeforeEls : []) {
         const gap = document.createElement("div");
         gap.className = "vno-page-auto-gap";
         gap.setAttribute("contenteditable", "false");
@@ -9357,10 +9381,23 @@ export class WriterAdapter {
       pageStartTopByBlock.set(child, currentPageStartTop);
     }
 
-    const floatEls = bodyDom.querySelectorAll(
-      '[data-vno-float][data-vno-relative-v="page"],[data-vno-float][data-vno-relative-v="margin"]'
-    );
+    let floatEls;
+    try {
+      floatEls = bodyDom.querySelectorAll(
+        '[data-vno-float][data-vno-relative-v="page"],[data-vno-float][data-vno-relative-v="margin"]'
+      );
+    } catch {
+      // Mock DOMs in unit tests do not implement attribute selectors.
+      return;
+    }
+    if (!floatEls || typeof floatEls[Symbol.iterator] !== "function") return;
+    // The correction is written to a stylesheet keyed by data-vno-float-id, never
+    // to element.style: touching inline styles re-serializes the attribute and
+    // would make an untouched document dirty (snapshot/fingerprint mismatch).
+    const rules = [];
     for (const el of floatEls) {
+      const floatId = el.getAttribute?.("data-vno-float-id");
+      if (!floatId) continue;
       const container = el.closest ? el.closest("[data-vno-float-anchor]") : null;
       if (!container) continue;
 
@@ -9378,13 +9415,24 @@ export class WriterAdapter {
       const wantPx = (topCm - topMarginCm) * 96 / 2.54;
       const deltaPx = (container.offsetTop || 0) - pageTop;
       const alignedTopPx = Number((wantPx - deltaPx).toFixed(2));
-      el.style.top = `${alignedTopPx}px`;
-      if (el.dataset) {
-        el.dataset.vnoLiveTop = "1";
-      } else if (typeof el.setAttribute === "function") {
-        el.setAttribute("data-vno-live-top", "1");
-      }
+      rules.push(`.vno-writer-page [data-vno-float-id="${floatId}"]{top:${alignedTopPx}px !important;}`);
     }
+    this._applyLiveFloatStylesheet(rules.join("\n"));
+  }
+
+  _applyLiveFloatStylesheet(cssText) {
+    if (typeof document === "undefined" || !document.head || typeof document.createElement !== "function") return;
+    let styleEl = this._liveFloatStyleEl;
+    if (!styleEl || !styleEl.isConnected) {
+      styleEl = document.getElementById?.("vno-live-float-tops") || null;
+      if (!styleEl) {
+        styleEl = document.createElement("style");
+        styleEl.id = "vno-live-float-tops";
+        document.head.appendChild(styleEl);
+      }
+      this._liveFloatStyleEl = styleEl;
+    }
+    if (styleEl.textContent !== cssText) styleEl.textContent = cssText;
   }
 
   /**

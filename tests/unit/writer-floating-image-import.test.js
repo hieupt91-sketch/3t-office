@@ -258,6 +258,7 @@ export async function runWriterFloatingImageImportTests() {
       getAttribute(k) {
         if (k === "data-vno-top") return this.dataset.vnoTop;
         if (k === "data-vno-relative-v") return this.dataset.vnoRelativeV;
+        if (k === "data-vno-float-id") return "7";
         return null;
       },
       closest(sel) { return sel === "[data-vno-float-anchor]" ? mockContainer : null; }
@@ -299,26 +300,32 @@ export async function runWriterFloatingImageImportTests() {
     mockBlock1.parentElement = mockBody;
 
     const adapter = new WriterAdapter(null);
+    let appliedCss = null;
+    adapter._applyLiveFloatStylesheet = (css) => { appliedCss = css; };
     adapter._alignPageRelativeFloats(mockBody);
 
     // marginTopCm = 2.0 (default margin: 20mm)
     // wantPx = (0.2 - 2.0) * 96 / 2.54 = -68.03px
     // pageTop for mockBlock1 = 850
     // deltaPx = container.offsetTop (880) - pageTop (850) = 30px
-    // expected top = -68.03 - 30 = -98.03px
-    check(mockFloat.dataset.vnoLiveTop === "1", "data-vno-live-top was not set");
-    check(mockFloat.style.top === "-98.03px", `Expected top -98.03px, got ${mockFloat.style.top}`);
+    // expected top = -68.03 - 30 = -98.03px, delivered through a stylesheet
+    // rule (never element.style, which would dirty the document).
+    check(mockFloat.style.top === "", `element.style must stay untouched, got ${mockFloat.style.top}`);
+    check(appliedCss !== null && appliedCss.includes('[data-vno-float-id="7"]{top:-98.03px !important;}'),
+      `Expected stylesheet rule for float 7 at -98.03px, got ${appliedCss}`);
   });
 
-  test("R3 (c): _prepareFloatingFramesForExport strips live-aligned style.top/left and restores data-vno-top/left", () => {
-    const html = '<body><div data-vno-float-anchor style="position:relative;min-height:5cm"><span data-vno-float="textbox" data-vno-left="2" data-vno-top="0.2" data-vno-width="5" data-vno-height="3" data-vno-live-top="1" style="position:absolute;top:-118.44px;left:100px;width:5cm;height:3cm">Hello</span></div></body>';
+  test("R3 (c): _prepareFloatingFramesForExport restores data-vno-top/left and drops the div carrier page break onto an empty paragraph", () => {
+    const html = '<body><div data-vno-float-anchor style="position:relative;min-height:5cm;page-break-before:always"><span data-vno-float="textbox" data-vno-float-id="3" data-vno-left="2" data-vno-top="0.2" data-vno-width="5" data-vno-height="3" style="position:absolute;top:-118.44px;left:100px;width:5cm;height:3cm">Hello</span></div></body>';
     const adapter = new WriterAdapter(null);
     const exported = adapter._prepareFloatingFramesForExport(html);
     check(!exported.includes("-118.44px"), `Live-aligned top leaked into export: ${exported}`);
     check(!exported.includes("100px"), `Live-aligned left leaked into export: ${exported}`);
-    check(!exported.includes("data-vno-live-top"), `Live-top flag leaked into export: ${exported}`);
     check(/top:0\.2cm/i.test(exported), `Original data-vno-top was not restored: ${exported}`);
     check(/left:2cm/i.test(exported), `Original data-vno-left was not restored: ${exported}`);
+    check(/<p style="page-break-before:always;break-before:page;margin:0;"><\/p><div data-vno-float-anchor style="[^"]*"/.test(exported),
+      `Page break must move to an empty paragraph before the div carrier: ${exported}`);
+    check(!/<div[^>]*page-break-before/.test(exported), `Div carrier must not keep the page break: ${exported}`);
   });
 
   return results;
