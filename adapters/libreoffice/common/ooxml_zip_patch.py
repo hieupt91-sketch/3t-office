@@ -1718,25 +1718,31 @@ def _preserve_external_formulas(
             # Replace formula/type/cached value of the output cell with the source
             # cell's, but keep the output's style index: xf numbering differs
             # between the source styles.xml and the one LibreOffice wrote.
+            # One pass over the sheet: a per-cell re.sub was O(cells x sheet)
+            # and never finished on a 1.5 M-cell sheet (Danh sach thi online).
+            prepared: dict[str, tuple[str | None, str]] = {}
             for coord, src_cell in ext_cells.items():
                 src_open = re.match(r"<c\b([^>]*?)(/?)>", src_cell)
                 src_attrs = src_open.group(1) if src_open else ""
                 src_type = re.search(r'\bt="([^"]*)"', src_attrs)
                 src_body = re.search(r"<c\b[^>]*>([\s\S]*?)</c>", src_cell)
-                src_body = src_body.group(1) if src_body else ""
+                prepared[coord] = (src_type.group(1) if src_type else None, src_body.group(1) if src_body else "")
 
-                def rebuild(match: re.Match[str]) -> str:
-                    out_attrs = match.group(1) or ""
-                    style = re.search(r'\bs="([^"]*)"', out_attrs)
-                    attrs = f' r="{coord}"'
-                    if style:
-                        attrs += f' s="{style.group(1)}"'
-                    if src_type:
-                        attrs += f' t="{src_type.group(1)}"'
-                    return f"<c{attrs}>{src_body}</c>" if src_body else f"<c{attrs}/>"
+            def rebuild(match: re.Match[str]) -> str:
+                out_attrs = match.group(1) or ""
+                coord_match = re.search(r'\br="([^"]*)"', out_attrs)
+                if not coord_match or coord_match.group(1) not in prepared:
+                    return match.group(0)
+                src_type, src_body = prepared[coord_match.group(1)]
+                style = re.search(r'\bs="([^"]*)"', out_attrs)
+                attrs = f' r="{coord_match.group(1)}"'
+                if style:
+                    attrs += f' s="{style.group(1)}"'
+                if src_type:
+                    attrs += f' t="{src_type}"'
+                return f"<c{attrs}>{src_body}</c>" if src_body else f"<c{attrs}/>"
 
-                pattern = rf'<c\b([^>]*r="{re.escape(coord)}"[^>]*?)(?:>(?:[\s\S]*?)</c>|/>)'
-                out_sheet_xml = re.sub(pattern, rebuild, out_sheet_xml, count=1, flags=re.IGNORECASE)
+            out_sheet_xml = re.sub(r"<c\b([^>]*?)(?:/>|>[\s\S]*?</c>)", rebuild, out_sheet_xml)
 
             replacements[out_entry] = out_sheet_xml
 
