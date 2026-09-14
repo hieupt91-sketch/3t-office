@@ -1729,7 +1729,7 @@ export class WriterAdapter {
       html = html.replace(footerMatch[0], "");
     }
     html = this._normalizeImportedStarWriterNotes(html);
-    html = this._makeFloatingAnchorContainers(this._preserveImportedFloatingFrames(html, ooxmlDocumentXml, page));
+    html = this._makeFloatingAnchorContainers(this._preserveImportedFloatingFrames(html, ooxmlDocumentXml, page), page);
     return { body: html.trim(), header, footer, page, comments };
   }
 
@@ -2239,13 +2239,19 @@ export class WriterAdapter {
     return finalHtml;
   }
 
-  _makeFloatingAnchorContainers(html) {
+  _makeFloatingAnchorContainers(html, page = null) {
     let out = String(html || "");
     if (!/\bdata-vno-float=["'](?:image|textbox)["']/i.test(out)) return out;
     const hasNativeGroup = /data-vno-source-group=["']1["']/i.test(out);
     const tags = [...out.matchAll(/<p\b[^>]*>|<\/p>/gi)];
     const stack = [];
     const replacements = [];
+
+    const pageHeightCm = (page?.heightMm ? page.heightMm / 10 : (page?.size === "letter" ? 27.94 : 29.7));
+    const marginTopCm = Number(page?.margins?.top || 0) / 10 || 2.54;
+    const marginBottomCm = Number(page?.margins?.bottom || 0) / 10 || 2.54;
+    const usableContentHeightCm = Math.max(10, pageHeightCm - marginTopCm - marginBottomCm);
+
     for (const tag of tags) {
       if (!/^<\/p/i.test(tag[0])) {
         stack.push(tag);
@@ -2268,15 +2274,15 @@ export class WriterAdapter {
           return floatTag.replace(/\bleft\s*:\s*[^;"']+/, `left:${corrected}cm`);
         }
       );
-      const paragraphRelative = /data-vno-relative-(?:h|v)=["']paragraph["']/i.test(inner);
-      const hasPageAnchor = /data-vno-(?:imported-watermark|page-image)=["']1["']/i.test(inner);
+
       let reserveCm = 0;
       for (const floating of inner.matchAll(/<span\b[^>]*data-vno-wrap=["']wrapTopAndBottom["'][^>]*>/gi)) {
         const top = Number(floating[0].match(/data-vno-top=["'](-?[\d.]+)/i)?.[1] || 0);
         const height = Number(floating[0].match(/data-vno-height=["']([\d.]+)/i)?.[1] || 0);
-        reserveCm = Math.max(reserveCm, top + height);
+        const rawReserve = Math.max(0, top + height - marginTopCm);
+        reserveCm = Math.max(reserveCm, Math.min(rawReserve, usableContentHeightCm));
       }
-      const layoutStyle = `${paragraphRelative || hasPageAnchor ? "position:relative;" : "position:static;"}${reserveCm > 0 ? `min-height:${Number(reserveCm.toFixed(3))}cm;` : ""}`;
+      const layoutStyle = `position:relative;${reserveCm > 0 ? `min-height:${Number(reserveCm.toFixed(3))}cm;` : ""}`;
       const attrs = opening[0].slice(2, -1).replace(/\bstyle=["']([^"']*)["']/i, (_m, style) => `style="${layoutStyle}${style}"`);
       // LibreOffice's HTML exporter only turns page-break-before into a real
       // DOCX break when the carrier is a paragraph.  Keep non-breaking group

@@ -33,7 +33,7 @@ export async function runWriterFloatingImageImportTests() {
     const xml = '<w:document><w:body><w:p><w:r><w:drawing><wp:anchor behindDoc="1"><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapTopAndBottom/></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>';
     const body = new WriterAdapter(null)._normalizeImportedHtml(html, xml).body;
     check(body.includes('data-vno-relative-h="page"'), "Page origin metadata missing");
-    check(/data-vno-float-anchor[^>]*style="position:static;min-height:27\.16cm;/i.test(body), `Page anchor still follows paragraph box: ${body}`);
+    check(/data-vno-float-anchor[^>]*style="position:relative;min-height:24\.62cm;/i.test(body), `Page anchor must be position:relative with capped height: ${body}`);
     check(body.includes("left:0cm") && body.includes("top:-2.54cm"), "Negative paragraph margin was not compensated");
   });
 
@@ -166,8 +166,8 @@ export async function runWriterFloatingImageImportTests() {
     const ooxml = '<w:document><w:body><w:p><w:r><w:drawing><wp:anchor><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapTopAndBottom/></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>';
     const adapter = new WriterAdapter(null);
     const imported = adapter._normalizeImportedHtml(html, ooxml).body;
-    check(/data-vno-float-anchor[^>]*position:static/i.test(imported), "Fixture did not exercise canvas-only static positioning");
-    check(/data-vno-float-anchor[^>]*min-height:6cm/i.test(imported), "Fixture did not exercise canvas-only height reservation");
+    check(/data-vno-float-anchor[^>]*position:relative/i.test(imported), "Fixture did not exercise canvas-only relative positioning");
+    check(/data-vno-float-anchor[^>]*min-height:3\.46cm/i.test(imported), "Fixture did not exercise canvas-only height reservation");
     check(/data-vno-float[^>]*left:3\.54cm/i.test(imported), `Fixture did not exercise negative-margin display compensation: ${imported}`);
 
     const body = {
@@ -179,6 +179,42 @@ export async function runWriterFloatingImageImportTests() {
     check(/<img[^>]*style="[^"]*left:1cm;top:2cm;/i.test(exported), `Export did not restore LibreOffice geometry: ${exported}`);
     check(!/data-vno-float-anchor[^>]*\b(?:min-height|position)\s*:/i.test(exported), `Canvas-only anchor layout leaked into export: ${exported}`);
     check(/data-vno-float-anchor[^>]*\bpage-break-before\s*:\s*always/i.test(exported), "Carrier break metadata was stripped from export");
+  });
+
+  test("R2 (a): FrameN with matched text is moved into paragraph containing anchor image k", () => {
+    const html = '<body><p><span class="sd-abs-pos" style="position:absolute;left:0cm;top:0cm;width:10cm;height:10cm"><img name="Shape1" src="img1"></span><span id="Frame99" style="position:absolute;top:5cm;left:1cm;width:8cm"><p>Text for anchor 1</p></span></p><p style="page-break-before:always"><span class="sd-abs-pos" style="position:absolute;left:0cm;top:0cm;width:10cm;height:10cm"><img name="Shape2" src="img2"></span></p></body>';
+    const ooxml = `<w:document><w:body>
+      <w:p><w:r><w:drawing><wp:anchor><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapNone/><wpg:wgp><wpg:grpSpPr/></wpg:wgp></wp:anchor></w:drawing></w:r></w:p>
+      <w:p><w:r><w:drawing><wp:anchor><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapNone/><wpg:wgp><wpg:grpSpPr/>
+        <wps:wsp><w:txbxContent><w:p><w:r><w:t>Text for anchor 1</w:t></w:r></w:p></w:txbxContent><a:off x="0" y="0"/><a:ext cx="1000" cy="1000"/></wps:wsp>
+      </wpg:wgp></wp:anchor></w:drawing></w:r></w:p>
+    </w:body></w:document>`;
+    const adapter = new WriterAdapter(null);
+    const body = adapter._normalizeImportedHtml(html, ooxml).body;
+    const parts = body.split(/page-break-before/i);
+    check(parts.length === 2, "Failed to split into two pages by break");
+    check(!parts[0].includes("Text for anchor 1"), "Frame99 was not removed from first paragraph");
+    check(parts[1].includes("Shape2") && parts[1].includes("Text for anchor 1"), "Frame99 was not moved into paragraph of Shape2");
+  });
+
+  test("R2 (b): Page-relative container is position:relative", () => {
+    const html = '<body><p><span class="sd-abs-pos" style="position:absolute;left:1cm;top:2cm;width:5cm;height:5cm"><img src="x"></span></p></body>';
+    const ooxml = '<w:document><w:body><w:p><w:r><w:drawing><wp:anchor><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapTopAndBottom/></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>';
+    const adapter = new WriterAdapter(null);
+    const body = adapter._normalizeImportedHtml(html, ooxml).body;
+    check(/data-vno-float-anchor[^>]*\bstyle="[^"]*position:\s*relative/i.test(body), `Container must be position:relative: ${body}`);
+    check(!/position:\s*static/i.test(body), `Container must not be position:static: ${body}`);
+  });
+
+  test("R2 (c): Reserve height does not exceed usable content height", () => {
+    const html = '<body><p><span class="sd-abs-pos" style="position:absolute;left:0cm;top:0cm;width:21cm;height:40cm"><img src="huge"></span></p></body>';
+    const ooxml = '<w:document><w:body><w:p><w:r><w:drawing><wp:anchor><wp:positionH relativeFrom="page"/><wp:positionV relativeFrom="page"/><wp:wrapTopAndBottom/></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>';
+    const adapter = new WriterAdapter(null);
+    const body = adapter._normalizeImportedHtml(html, ooxml).body;
+    const minHeightMatch = body.match(/min-height:\s*([\d.]+)cm/i);
+    check(minHeightMatch, "min-height reserve was not generated");
+    const minHeightCm = Number(minHeightMatch[1]);
+    check(minHeightCm <= 24.62, `Reserve ${minHeightCm}cm exceeded usable content height ~24.62cm`);
   });
 
   return results;
