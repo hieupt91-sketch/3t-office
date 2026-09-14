@@ -25,3 +25,6 @@ NEXT ACTION: Review commit và giữ các file kiểm chứng sinh ra ngoài Git
 | MYTIME | 31,888,330 B | 34,515,921 B | +8.2% | 88 | 43 |
 
 Aquara giữ 2 break nội dung độc lập; 7 break còn lại của file gốc nằm trên đoạn chỉ mang grouped drawing và đã được native anchor passthrough đảm nhiệm phân trang. Giữ chúng dưới dạng `<p>` tạo break kép và cho kết quả sai 20 trang.
+
+
+> **Correction 2026-09-14 (Claude):** every MYTIME page count in this document was measured with Word COM ComputeStatistics(wdStatisticPages), which is wrong in a hidden window (it reports 88 for a 44-page document). Word's PDF export of the original MYTIME has **44** pages; the edited-save output currently has **73** (43 section breaks lost). Use _word_oracle3.ps1 (PDF-based) going forward. See HANDOFF-WRITER-SAVE-SECTIONS*.md.

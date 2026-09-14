@@ -242,15 +242,17 @@ def apply_workbook_protection_lock_structure(workbook_xml: str) -> str:
 
 def patch_ooxml_zip(zip_bytes: bytes, replacements: dict[str, str | bytes | None]) -> bytes:
     """Replace named ZIP entries; copy the rest. A ``None`` payload drops the entry.
-    No third-party library."""
+    New entries (not present in source) are added. No third-party library."""
     source = io.BytesIO(zip_bytes)
     dest = io.BytesIO()
     with zipfile.ZipFile(source, "r") as zin, zipfile.ZipFile(
         dest, "w", compression=zipfile.ZIP_DEFLATED
     ) as zout:
+        seen = set()
         for item in zin.infolist():
             if item.is_dir() or not item.filename or item.filename.endswith("/"):
                 continue
+            seen.add(item.filename)
             if item.filename in replacements:
                 payload = replacements[item.filename]
                 if payload is None:
@@ -259,6 +261,16 @@ def patch_ooxml_zip(zip_bytes: bytes, replacements: dict[str, str | bytes | None
             else:
                 data = zin.read(item.filename)
             info = zipfile.ZipInfo(filename=item.filename, date_time=item.date_time)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            zout.writestr(info, data)
+        # Add new entries not present in source
+        for name, payload in replacements.items():
+            if name in seen:
+                continue
+            if payload is None:
+                continue
+            data = payload.encode("utf-8") if isinstance(payload, str) else payload
+            info = zipfile.ZipInfo(filename=name, date_time=(1980, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             zout.writestr(info, data)
     return dest.getvalue()
@@ -1484,6 +1496,257 @@ def _restore_row_heights(sheet_xml: str, row_heights_cm: dict[int, float]) -> st
     return re.sub(r"<row\b([^>]*)>", replace_row, sheet_xml, flags=re.IGNORECASE)
 
 
+# ---------------------------------------------------------------------------
+# External links preservation
+# ---------------------------------------------------------------------------
+
+_EXTERNAL_LINKS_DIR = "xl/externalLinks/"
+
+def _preserve_external_links(
+    xlsx_bytes: bytes,
+    source_xlsx_bytes: bytes,
+    replacements: dict[str, str],
+) -> None:
+    """Copy external links from source XLSX and preserve original formulas/values.
+
+    This handles the case where LibreOffice converts external reference formulas
+    (e.g., '[1]Sheet!A1') to ODF-style file:// URLs which Excel cannot open.
+    """
+    # Check if source has external links
+    with zipfile.ZipFile(io.BytesIO(source_xlsx_bytes), "r") as zin:
+        extlink_names = [
+            name for name in zin.namelist()
+            if name.startswith(_EXTERNAL_LINKS_DIR) and name.endswith(".xml") and not name.endswith(".rels")
+        ]
+        if not extlink_names:
+            return
+
+        # 1. Copy all externalLink XML files and their .rels
+        for name in extlink_names:
+            data = zin.read(name)
+            replacements[name] = data
+            # Part relationships live in the sibling _rels folder:
+            # xl/externalLinks/_rels/externalLink1.xml.rels (Excel rejects the
+            # workbook when <externalBook r:id> has no relationship part).
+            folder, base = name.rsplit("/", 1)
+            rels_name = f"{folder}/_rels/{base}.rels"
+            if rels_name in zin.namelist():
+                replacements[rels_name] = zin.read(rels_name)
+
+        # 2. Parse source workbook.xml for externalReferences and relationships
+        src_wb = zin.read(XLSX_WORKBOOK_ENTRY).decode("utf-8", errors="replace")
+        src_rels = zin.read(XLSX_WORKBOOK_RELS_ENTRY).decode("utf-8", errors="replace")
+        src_ct = zin.read("[Content_Types].xml").decode("utf-8", errors="replace")
+
+        # Extract externalReferences element
+        ext_refs_match = re.search(r"<externalReferences\b[^>]*>[\s\S]*?</externalReferences>", src_wb, re.IGNORECASE)
+        if not ext_refs_match:
+            return
+        external_references_xml = ext_refs_match.group(0)
+
+        # Extract externalLink relationships from workbook.xml.rels. The source
+        # ids (rId3, rId4, …) collide with LibreOffice's own sheet/style ids in
+        # the output, so every external relationship gets a fresh id and the
+        # <externalReference r:id> list is rewritten to match.
+        extlink_rels = []
+        id_map: dict[str, str] = {}
+        for index, m in enumerate(re.finditer(r'<Relationship\b([^>]*)/?>', src_rels, re.IGNORECASE), start=1):
+            attrs = m.group(1)
+            type_match = re.search(r'Type="([^"]*)"', attrs)
+            if type_match and "externalLink" in type_match.group(1):
+                old_id = re.search(r'\bId="([^"]*)"', attrs)
+                if not old_id:
+                    continue
+                new_id = f"rIdVnoExt{index}"
+                id_map[old_id.group(1)] = new_id
+                extlink_rels.append(re.sub(r'\bId="[^"]*"', f'Id="{new_id}"', m.group(0)))
+        external_references_xml = re.sub(
+            r'r:id="([^"]*)"',
+            lambda ref: f'r:id="{id_map.get(ref.group(1), ref.group(1))}"',
+            external_references_xml,
+        )
+
+        # Extract externalLink Override entries from Content_Types
+        extlink_overrides = []
+        for m in re.finditer(r'<Override\b[^>]*externalLink[^>]*/>', src_ct, re.IGNORECASE):
+            extlink_overrides.append(m.group(0))
+
+        # 3. Update workbook.xml in output: add externalReferences
+        out_wb_xml = replacements.get(XLSX_WORKBOOK_ENTRY)
+        if out_wb_xml is None:
+            out_wb_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+            if out_wb_bytes:
+                out_wb_xml = out_wb_bytes.decode("utf-8", errors="replace")
+        if out_wb_xml and "<externalReferences" not in out_wb_xml:
+            # Insert externalReferences after <sheets> element (schema order)
+            out_wb_xml = _insert_external_references(out_wb_xml, external_references_xml)
+            replacements[XLSX_WORKBOOK_ENTRY] = out_wb_xml
+
+        # 4. Update workbook.xml.rels: add externalLink relationships
+        out_rels_xml = replacements.get(XLSX_WORKBOOK_RELS_ENTRY)
+        if out_rels_xml is None:
+            out_rels_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_RELS_ENTRY)
+            if out_rels_bytes:
+                out_rels_xml = out_rels_bytes.decode("utf-8", errors="replace")
+        if out_rels_xml:
+            out_rels_xml = _add_external_link_relationships(out_rels_xml, extlink_rels)
+            replacements[XLSX_WORKBOOK_RELS_ENTRY] = out_rels_xml
+
+        # 5. Update Content_Types.xml: add externalLink Override entries
+        out_ct_xml = replacements.get("[Content_Types].xml")
+        if out_ct_xml is None:
+            out_ct_bytes = read_zip_entry(xlsx_bytes, "[Content_Types].xml")
+            if out_ct_bytes:
+                out_ct_xml = out_ct_bytes.decode("utf-8", errors="replace")
+        if out_ct_xml:
+            out_ct_xml = _add_content_type_overrides(out_ct_xml, extlink_overrides)
+            replacements["[Content_Types].xml"] = out_ct_xml
+
+        # 6. Preserve original formulas and cached values for cells with [N] references
+        _preserve_external_formulas(xlsx_bytes, source_xlsx_bytes, replacements)
+
+
+def _insert_external_references(workbook_xml: str, external_references_xml: str) -> str:
+    """Insert externalReferences element into workbook.xml right after </sheets>
+    (CT_Workbook order: sheets, functionGroups, externalReferences, definedNames, calcPr)."""
+    sheets_end = re.search(r"</sheets\s*>", workbook_xml, re.IGNORECASE)
+    if sheets_end:
+        return workbook_xml[:sheets_end.end()] + external_references_xml + workbook_xml[sheets_end.end():]
+    # Fallback: insert before <definedNames> or <calcPr>
+    for tag in (r"<definedNames\b", r"<calcPr\b"):
+        match = re.search(tag, workbook_xml, re.IGNORECASE)
+        if match:
+            return workbook_xml[:match.start()] + external_references_xml + workbook_xml[match.start():]
+    # Last resort: before </workbook>
+    wb_end = re.search(r"</workbook\s*>", workbook_xml, re.IGNORECASE)
+    if wb_end:
+        return workbook_xml[:wb_end.start()] + external_references_xml + workbook_xml[wb_end.start():]
+    return workbook_xml
+
+
+def _add_external_link_relationships(rels_xml: str, extlink_rels: list[str]) -> str:
+    """Add externalLink Relationship entries to workbook.xml.rels, avoiding duplicates."""
+    if not extlink_rels:
+        return rels_xml
+    # Collect existing relationship IDs
+    existing_ids = set(re.findall(r'Id="([^"]*)"', rels_xml))
+    # Filter out duplicates
+    new_rels = []
+    for rel in extlink_rels:
+        id_match = re.search(r'Id="([^"]*)"', rel)
+        if id_match and id_match.group(1) not in existing_ids:
+            new_rels.append(rel)
+            existing_ids.add(id_match.group(1))
+    if not new_rels:
+        return rels_xml
+    # Insert before </Relationships>
+    rels_end = re.search(r"</Relationships\s*>", rels_xml, re.IGNORECASE)
+    if rels_end:
+        return rels_xml[:rels_end.start()] + "".join(new_rels) + rels_xml[rels_end.start():]
+    return rels_xml
+
+
+def _add_content_type_overrides(ct_xml: str, overrides: list[str]) -> str:
+    """Add externalLink Override entries to Content_Types.xml, avoiding duplicates."""
+    if not overrides:
+        return ct_xml
+    # Collect existing PartNames
+    existing_parts = set(re.findall(r'PartName="([^"]*)"', ct_xml))
+    # Filter out duplicates
+    new_overrides = []
+    for ovr in overrides:
+        part_match = re.search(r'PartName="([^"]*)"', ovr)
+        if part_match and part_match.group(1) not in existing_parts:
+            new_overrides.append(ovr)
+            existing_parts.add(part_match.group(1))
+    if not new_overrides:
+        return ct_xml
+    # Insert before </Types>
+    types_end = re.search(r"</Types\s*>", ct_xml, re.IGNORECASE)
+    if types_end:
+        return ct_xml[:types_end.start()] + "".join(new_overrides) + ct_xml[types_end.start():]
+    return ct_xml
+
+
+def _preserve_external_formulas(
+    xlsx_bytes: bytes,
+    source_xlsx_bytes: bytes,
+    replacements: dict[str, str],
+) -> None:
+    """Preserve original formulas, types, and cached values for cells with [N] references."""
+    # Map sheet name -> entry path for source and output
+    src_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+    out_sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+
+    with zipfile.ZipFile(io.BytesIO(source_xlsx_bytes), "r") as zin:
+        for sheet_name, src_entry in src_sheet_entries.items():
+            out_entry = out_sheet_entries.get(sheet_name)
+            if not out_entry:
+                continue
+
+            # Read source sheet XML
+            src_sheet_xml = zin.read(src_entry).decode("utf-8", errors="replace")
+
+            # Find all cells with [N] in formula
+            ext_cells = {}
+            for m in re.finditer(r'<c\b([^>]*?)(?:>([\s\S]*?)<\/c>|\/\s*>)', src_sheet_xml, re.IGNORECASE):
+                attrs_str = m.group(1)
+                body = m.group(2) or ""
+                # Check if formula contains [N] pattern
+                f_match = re.search(r'<f\b[^>]*>([\s\S]*?)</f>|<f\b[^>]*/>', body, re.IGNORECASE)
+                if f_match:
+                    formula = f_match.group(1) or ""
+                    if re.search(r'\[\d+\]', formula):
+                        # Get cell coordinate
+                        r_match = re.search(r'r="([^"]*)"', attrs_str)
+                        if r_match:
+                            coord = r_match.group(1)
+                            # Store the full cell element
+                            ext_cells[coord] = m.group(0)
+
+            if not ext_cells:
+                continue
+
+            # Read output sheet XML
+            out_sheet_xml = replacements.get(out_entry)
+            if out_sheet_xml is None:
+                out_sheet_bytes = read_zip_entry(xlsx_bytes, out_entry)
+                if not out_sheet_bytes:
+                    continue
+                out_sheet_xml = out_sheet_bytes.decode("utf-8", errors="replace")
+
+            # Replace formula/type/cached value of the output cell with the source
+            # cell's, but keep the output's style index: xf numbering differs
+            # between the source styles.xml and the one LibreOffice wrote.
+            # One pass over the sheet: a per-cell re.sub was O(cells x sheet)
+            # and never finished on a 1.5 M-cell sheet (Danh sach thi online).
+            prepared: dict[str, tuple[str | None, str]] = {}
+            for coord, src_cell in ext_cells.items():
+                src_open = re.match(r"<c\b([^>]*?)(/?)>", src_cell)
+                src_attrs = src_open.group(1) if src_open else ""
+                src_type = re.search(r'\bt="([^"]*)"', src_attrs)
+                src_body = re.search(r"<c\b[^>]*>([\s\S]*?)</c>", src_cell)
+                prepared[coord] = (src_type.group(1) if src_type else None, src_body.group(1) if src_body else "")
+
+            def rebuild(match: re.Match[str]) -> str:
+                out_attrs = match.group(1) or ""
+                coord_match = re.search(r'\br="([^"]*)"', out_attrs)
+                if not coord_match or coord_match.group(1) not in prepared:
+                    return match.group(0)
+                src_type, src_body = prepared[coord_match.group(1)]
+                style = re.search(r'\bs="([^"]*)"', out_attrs)
+                attrs = f' r="{coord_match.group(1)}"'
+                if style:
+                    attrs += f' s="{style.group(1)}"'
+                if src_type:
+                    attrs += f' t="{src_type}"'
+                return f"<c{attrs}>{src_body}</c>" if src_body else f"<c{attrs}/>"
+
+            out_sheet_xml = re.sub(r"<c\b([^>]*?)(?:/>|>[\s\S]*?</c>)", rebuild, out_sheet_xml)
+
+            replacements[out_entry] = out_sheet_xml
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
@@ -1637,6 +1900,14 @@ def postprocess_sheet_xlsx(
             )
         except Exception:
             # Never fail the save due to font/layout restoration issues
+            pass
+
+    # Preserve external links from source XLSX
+    if source_xlsx_bytes:
+        try:
+            _preserve_external_links(xlsx_bytes, source_xlsx_bytes, replacements)
+        except Exception:
+            # Never fail the save due to external links preservation issues
             pass
 
     if not replacements:

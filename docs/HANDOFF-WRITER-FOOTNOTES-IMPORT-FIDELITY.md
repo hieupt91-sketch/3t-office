@@ -150,3 +150,6 @@ CORE PATCH ID (if any): Không có — không sửa LibreOffice Core.
 
 - **Không merge vào `main`.** Review trên `fix/writer-footnotes-import-fidelity`.
 - Follow-up riêng (không làm trong task này): fixture note có ảnh/bảng; numbering restart mỗi trang; ghi native `word/footnotes.xml` khi save.
+
+
+> **Correction 2026-09-14 (Claude):** every MYTIME page count in this document was measured with Word COM ComputeStatistics(wdStatisticPages), which is wrong in a hidden window (it reports 88 for a 44-page document). Word's PDF export of the original MYTIME has **44** pages; the edited-save output currently has **73** (43 section breaks lost). Use _word_oracle3.ps1 (PDF-based) going forward. See HANDOFF-WRITER-SAVE-SECTIONS*.md.

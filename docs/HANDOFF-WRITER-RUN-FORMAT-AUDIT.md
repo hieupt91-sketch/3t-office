@@ -145,3 +145,6 @@ DEPENDENCIES/BLOCKERS: Khong co.
 CORE PATCH ID: Khong co; chi sua VN Adapter/App layer.
 ROLLBACK: Revert commit Brief 2; commit doc lap voi 2fa117c.
 NEXT ACTION: Khong co trong scope Brief 2.
+
+
+> **Correction 2026-09-14 (Claude):** every MYTIME page count in this document was measured with Word COM ComputeStatistics(wdStatisticPages), which is wrong in a hidden window (it reports 88 for a 44-page document). Word's PDF export of the original MYTIME has **44** pages; the edited-save output currently has **73** (43 section breaks lost). Use _word_oracle3.ps1 (PDF-based) going forward. See HANDOFF-WRITER-SAVE-SECTIONS*.md.

@@ -130,3 +130,6 @@ Quyết định serializer (dựa trên đo, chưa viết code):
 - WEBP 1×1 tự dựng (không phải ảnh lớn). Header 1×1 đủ để phân biệt VP8/VP8L/VP8X; soffice chấp nhận cả ba rồi đều ra PNG.
 - `draw:ellipse` lệch tỉ lệ (oval thật) chưa convert riêng — UI `circle` cho phép w≠h; serializer nên luôn ghi `draw:ellipse`, parser nhận cả `circle` lẫn `ellipse`.
 - Chưa mở Microsoft Word bằng mắt (làm sau khi có serializer, cùng quy trình Phase A/B/B.1: Start-Process thụ động, chụp màn hình, xóa rác, Stop-Process).
+
+
+> **Correction 2026-09-14 (Claude):** every MYTIME page count in this document was measured with Word COM ComputeStatistics(wdStatisticPages), which is wrong in a hidden window (it reports 88 for a 44-page document). Word's PDF export of the original MYTIME has **44** pages; the edited-save output currently has **73** (43 section breaks lost). Use _word_oracle3.ps1 (PDF-based) going forward. See HANDOFF-WRITER-SAVE-SECTIONS*.md.

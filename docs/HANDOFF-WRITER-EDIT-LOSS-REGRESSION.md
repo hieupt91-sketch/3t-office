@@ -15,3 +15,6 @@ RISKS: Native-group text transplantation is deliberately limited to short anchor
 DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): N/A - adapter/postprocess only.
 NEXT ACTION: Merge the committed regression fix.
+
+
+> **Correction 2026-09-14 (Claude):** every MYTIME page count in this document was measured with Word COM ComputeStatistics(wdStatisticPages), which is wrong in a hidden window (it reports 88 for a 44-page document). Word's PDF export of the original MYTIME has **44** pages; the edited-save output currently has **73** (43 section breaks lost). Use _word_oracle3.ps1 (PDF-based) going forward. See HANDOFF-WRITER-SAVE-SECTIONS*.md.

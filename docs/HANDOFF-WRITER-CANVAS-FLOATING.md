@@ -33,3 +33,6 @@ Both after values were measured on the generated DOCX with installed Microsoft W
 | Aquara page 1 | `_word_png/aquara_word_p1.png`; `_word_png/aquara_app_p1.png` | `_app_after.png` (excluded before commit) | Re-captured after the export-only fix. Page-relative geometry remains unchanged and no longer double-counts the -2.54 cm paragraph margin; remaining content mismatch is the LibreOffice group raster limitation above. |
 | Aquara page 2 | `_word_png/aquara_word_p2.png` | Desktop inspection | Top-and-bottom anchors reserve flow; later text is no longer intentionally treated as wrapNone. |
 | MYTIME image page | `_word_png/mytime_word_p3.png` | Desktop/import logic plus shared Print Preview CSS | Native picture geometry and explicit width/height are retained; no max-width downscaling is applied to floating images. |
+
+
+> **Correction 2026-09-14 (Claude):** every MYTIME page count in this document was measured with Word COM ComputeStatistics(wdStatisticPages), which is wrong in a hidden window (it reports 88 for a 44-page document). Word's PDF export of the original MYTIME has **44** pages; the edited-save output currently has **73** (43 section breaks lost). Use _word_oracle3.ps1 (PDF-based) going forward. See HANDOFF-WRITER-SAVE-SECTIONS*.md.

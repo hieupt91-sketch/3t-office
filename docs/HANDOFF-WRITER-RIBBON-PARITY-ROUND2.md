@@ -1,4 +1,4 @@
-﻿# BAO CAO BAN GIAO: VN WRITER RIBBON PARITY - ROUND 2 (4 TAB CON LAI)
+# BAO CAO BAN GIAO: VN WRITER RIBBON PARITY - ROUND 2 (4 TAB CON LAI)
 
 - Nhanh: fix/writer-ribbon-parity-round2 (tach tu main, KHONG merge vao main)
 - Worktree: E:\VNOffice-agy-writer-ribbon-parity-r2
@@ -100,3 +100,6 @@ Cac nguyen tac tuan thu nghiem ngat:
   - Tab Mailings: 634px (VI) / 681px (EN) -> An toan tuyet doi (< 1280px).
   - Tab Review: 963px (VI) / 1038px (EN) -> Du hon 240px khoang dem tai 1280px sau khi gom cot Nhan xet.
   - Tab View: 642px (VI) / 641px (EN) -> An toan tuyet doi (< 1280px).
+
+
+> **Correction 2026-09-14 (Claude):** every MYTIME page count in this document was measured with Word COM ComputeStatistics(wdStatisticPages), which is wrong in a hidden window (it reports 88 for a 44-page document). Word's PDF export of the original MYTIME has **44** pages; the edited-save output currently has **73** (43 section breaks lost). Use _word_oracle3.ps1 (PDF-based) going forward. See HANDOFF-WRITER-SAVE-SECTIONS*.md.

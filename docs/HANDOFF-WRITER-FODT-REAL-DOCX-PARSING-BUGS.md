@@ -41,3 +41,6 @@ Chỉ 2 thay đổi tối thiểu trong `adapters/libreoffice/writer/writer-adap
 - Vòng lặp lọc `bodyNodes` trong `parseFodt()`: thêm nhánh bỏ qua `text:sequence-decls`.
 
 Không đụng đến bất kỳ logic serialize (`serializeToFodt()`) nào, không thay đổi hành vi của bất kỳ tính năng Phase A-E nào khác — toàn bộ 1359 test nền trước đó vẫn PASS nguyên vẹn.
+
+
+> **Correction 2026-09-14 (Claude):** every MYTIME page count in this document was measured with Word COM ComputeStatistics(wdStatisticPages), which is wrong in a hidden window (it reports 88 for a 44-page document). Word's PDF export of the original MYTIME has **44** pages; the edited-save output currently has **73** (43 section breaks lost). Use _word_oracle3.ps1 (PDF-based) going forward. See HANDOFF-WRITER-SAVE-SECTIONS*.md.

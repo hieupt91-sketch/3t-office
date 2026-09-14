@@ -117,3 +117,6 @@ Không merge. Xóa worktree / không lấy branch. Không đụng main.
 3. Mở FODT đã bật bằng Word/LibreOffice thật để thấy số ở lề trái.
 4. Quyết định merge `feature/writer-line-numbers` khi sẵn sàng.
 5. GAP Round 1 còn: Hyphenation, Selection Pane, Multilevel List.
+
+
+> **Correction 2026-09-14 (Claude):** every MYTIME page count in this document was measured with Word COM ComputeStatistics(wdStatisticPages), which is wrong in a hidden window (it reports 88 for a 44-page document). Word's PDF export of the original MYTIME has **44** pages; the edited-save output currently has **73** (43 section breaks lost). Use _word_oracle3.ps1 (PDF-based) going forward. See HANDOFF-WRITER-SAVE-SECTIONS*.md.
