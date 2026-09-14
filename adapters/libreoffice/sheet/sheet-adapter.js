@@ -2008,18 +2008,22 @@ export class SheetAdapter {
    */
   _serializeDatabaseRanges(sheetNames) {
     const ranges = [];
-    for (const sheetName of sheetNames) {
+    // "__Anonymous_Sheet_DB__<sheet index>" is LibreOffice's own name for a
+    // sheet AutoFilter; it exports as <autoFilter>. Any other name becomes an
+    // Excel Table part, which Excel rejects for header-only ranges or empty
+    // column captions (measured: lan11 "Reyee" A3:F3 could not be opened).
+    sheetNames.forEach((sheetName, sheetIndex) => {
       const ss = this.grid.sheetStates?.[sheetName];
       const isActive = ss?.isFilterActive;
-      if (!isActive) continue;
+      if (!isActive) return;
       const ref = ss?.filterRange || "";
-      if (!ref) continue;
+      if (!ref) return;
       ranges.push(
-        `<table:database-range table:name="AutoFilter_${this._escapeXml(sheetName)}"`
+        `<table:database-range table:name="__Anonymous_Sheet_DB__${sheetIndex}"`
         + ` table:target-range-address="${this._escapeXml(sheetName)}.${this._escapeXml(ref)}"`
         + ` table:display-filter-buttons="true"/>`
       );
-    }
+    });
     if (ranges.length === 0) return "";
     return `<table:database-ranges>${ranges.join("")}</table:database-ranges>`;
   }

@@ -240,8 +240,9 @@ def apply_workbook_protection_lock_structure(workbook_xml: str) -> str:
     return _WORKBOOK_CLOSE_RE.sub(insertion + "</workbook>", xml, count=1)
 
 
-def patch_ooxml_zip(zip_bytes: bytes, replacements: dict[str, str | bytes]) -> bytes:
-    """Replace named ZIP entries; copy the rest. No third-party library."""
+def patch_ooxml_zip(zip_bytes: bytes, replacements: dict[str, str | bytes | None]) -> bytes:
+    """Replace named ZIP entries; copy the rest. A ``None`` payload drops the entry.
+    No third-party library."""
     source = io.BytesIO(zip_bytes)
     dest = io.BytesIO()
     with zipfile.ZipFile(source, "r") as zin, zipfile.ZipFile(
@@ -252,6 +253,8 @@ def patch_ooxml_zip(zip_bytes: bytes, replacements: dict[str, str | bytes]) -> b
                 continue
             if item.filename in replacements:
                 payload = replacements[item.filename]
+                if payload is None:
+                    continue
                 data = payload.encode("utf-8") if isinstance(payload, str) else payload
             else:
                 data = zin.read(item.filename)
@@ -968,9 +971,13 @@ def apply_autofilter_to_fods(fods_xml: str, autofilter_by_sheet: dict[str, str])
     if not autofilter_by_sheet:
         return xml
     ranges_xml = []
-    for sheet_name, ref in autofilter_by_sheet.items():
+    # LibreOffice treats "__Anonymous_Sheet_DB__<n>" as the sheet's own
+    # AutoFilter range and exports it as <autoFilter>; any other name becomes an
+    # Excel Table part (xl/tables/tableN.xml) that Excel rejects when the range
+    # is header-only or has an empty column caption (measured on lan11.xlsx).
+    for index, (sheet_name, ref) in enumerate(autofilter_by_sheet.items()):
         ranges_xml.append(
-            f'<table:database-range table:name="AutoFilter_{_escape_xml(sheet_name)}"'
+            f'<table:database-range table:name="__Anonymous_Sheet_DB__{index}"'
             f' table:target-range-address="{_escape_xml(sheet_name)}.{_escape_xml(ref)}"'
             f' table:display-filter-buttons="true"/>'
         )
@@ -980,6 +987,89 @@ def apply_autofilter_to_fods(fods_xml: str, autofilter_by_sheet: dict[str, str])
     if idx == -1:
         return xml + db_block
     return xml[:idx] + db_block + xml[idx:]
+
+
+_TABLE_PART_NAME_RE = re.compile(r'<table\b[^>]*\bname="([^"]*)"', re.IGNORECASE)
+
+
+def strip_autofilter_table_parts(xlsx_bytes: bytes, replacements: dict[str, str | bytes | None]) -> None:
+    """Drop Excel Table parts LibreOffice generates for AutoFilter database ranges.
+
+    A named database range (``AutoFilter_<sheet>`` from older VN Office saves or
+    LibreOffice's own ``__Anonymous_Sheet_DB__<n>``) is exported as
+    ``xl/tables/tableN.xml``. Excel refuses to open such a table when the range is
+    header-only (``ref="A3:F3"``) or a column caption is empty — measured on
+    lan11.xlsx. The sheet-level ``<autoFilter>`` written by
+    ``apply_autofilter_to_worksheet`` already carries the filter, so the table
+    part, its relationship, ``<tablePart>`` reference and content-type override
+    are removed.
+    """
+    with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as archive:
+        names = archive.namelist()
+    tables_to_drop: set[str] = set()
+    for name in names:
+        if not re.match(r"xl/tables/table\d+\.xml$", name):
+            continue
+        content = replacements.get(name)
+        if content is None:
+            raw = read_zip_entry(xlsx_bytes, name)
+            content = raw.decode("utf-8", errors="replace") if raw else ""
+        elif isinstance(content, bytes):
+            content = content.decode("utf-8", errors="replace")
+        table_name = _TABLE_PART_NAME_RE.search(content or "")
+        if table_name and re.match(r"(?:AutoFilter_|__Anonymous_Sheet_DB__)", table_name.group(1)):
+            tables_to_drop.add(name)
+    if not tables_to_drop:
+        return
+    for name in tables_to_drop:
+        replacements[name] = None
+    for rels_name in names:
+        if not re.match(r"xl/worksheets/_rels/sheet\d+\.xml\.rels$", rels_name):
+            continue
+        rels_raw = replacements.get(rels_name)
+        if rels_raw is None:
+            raw = read_zip_entry(xlsx_bytes, rels_name)
+            rels_raw = raw.decode("utf-8", errors="replace") if raw else ""
+        elif isinstance(rels_raw, bytes):
+            rels_raw = rels_raw.decode("utf-8", errors="replace")
+        dropped_ids: list[str] = []
+
+        def drop_rel(match: re.Match[str]) -> str:
+            attrs = match.group(0)
+            target = re.search(r'Target="([^"]*)"', attrs)
+            rid = re.search(r'\bId="([^"]*)"', attrs)
+            if target and rid:
+                resolved = "xl/" + target.group(1).replace("../", "").lstrip("/")
+                if resolved in tables_to_drop:
+                    dropped_ids.append(rid.group(1))
+                    return ""
+            return attrs
+
+        next_rels = re.sub(r"<Relationship\b[^>]*/>", drop_rel, rels_raw)
+        if not dropped_ids:
+            continue
+        replacements[rels_name] = next_rels
+        sheet_name = rels_name.replace("/_rels/", "/").replace(".rels", "")
+        sheet_xml = replacements.get(sheet_name)
+        if sheet_xml is None:
+            raw = read_zip_entry(xlsx_bytes, sheet_name)
+            sheet_xml = raw.decode("utf-8", errors="replace") if raw else ""
+        elif isinstance(sheet_xml, bytes):
+            sheet_xml = sheet_xml.decode("utf-8", errors="replace")
+        for rid in dropped_ids:
+            sheet_xml = re.sub(rf'<tablePart\b[^>]*\br:id="{re.escape(rid)}"[^>]*/>', "", sheet_xml)
+        sheet_xml = re.sub(r"<tableParts\b[^>]*>\s*</tableParts>", "", sheet_xml)
+        sheet_xml = re.sub(r'<tableParts\b[^>]*count="\d+"', lambda m: re.sub(r'count="\d+"', f'count="{len(re.findall(r"<tablePart\b", sheet_xml))}"', m.group(0)), sheet_xml)
+        replacements[sheet_name] = sheet_xml
+    ct_raw = replacements.get("[Content_Types].xml")
+    if ct_raw is None:
+        raw = read_zip_entry(xlsx_bytes, "[Content_Types].xml")
+        ct_raw = raw.decode("utf-8", errors="replace") if raw else ""
+    elif isinstance(ct_raw, bytes):
+        ct_raw = ct_raw.decode("utf-8", errors="replace")
+    for name in tables_to_drop:
+        ct_raw = re.sub(rf'<Override PartName="/{re.escape(name)}"[^>]*/>', "", ct_raw)
+    replacements["[Content_Types].xml"] = ct_raw
 
 
 def parse_autofilter_from_fods(fods_xml: str | None) -> dict[str, str]:
@@ -1481,6 +1571,11 @@ def postprocess_sheet_xlsx(
             next_sheet_xml = apply_autofilter_to_worksheet(sheet_xml, ref)
             if next_sheet_xml != sheet_xml:
                 replacements[entry_path] = next_sheet_xml
+        try:
+            strip_autofilter_table_parts(xlsx_bytes, replacements)
+        except Exception:
+            # A table part we could not parse is left alone rather than failing the save.
+            pass
 
     # Preserve activeTab (selected sheet) and tab colors from source FODS.
     # The FODS contains ActiveTable and tabColor/tableooo:tab-color from serializeToFods().
