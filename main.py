@@ -448,8 +448,13 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
             # gọi và để hàm tự quyết định không cần vá gì (trả về bytes y hệt).
             with open(out_path, "rb") as handle:
                 original = handle.read()
+            # Read original XLSX for font/column width restoration
+            source_xlsx_bytes = None
+            if source_path and os.path.isfile(source_path) and source_path.lower().endswith(".xlsx"):
+                with open(source_path, "rb") as handle:
+                    source_xlsx_bytes = handle.read()
             # Read source FODS for activeTab preservation
-            patched = patcher.postprocess_sheet_xlsx(original, source_fods=fods)
+            patched = patcher.postprocess_sheet_xlsx(original, source_fods=fods, source_xlsx_bytes=source_xlsx_bytes)
             if patched != original:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
