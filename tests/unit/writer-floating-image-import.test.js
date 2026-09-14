@@ -248,6 +248,80 @@ export async function runWriterFloatingImageImportTests() {
     check(pParts[1].includes("data-vno-inline-group") && pParts[1].includes("Inline Label"), `Child textbox was not moved into inline group container: ${pParts[1]}`);
   });
 
+  test("R3 (b): _alignPageRelativeFloats aligns page-relative floats against their page start top in 2-page DOM", () => {
+    // Page 1: block 0 (offsetTop = 0)
+    // Gap: auto-gap (offsetTop = 800)
+    // Page 2: block 1 (container with data-vno-float-anchor, offsetTop = 880, start = 850)
+    const mockFloat = {
+      style: { top: "" },
+      dataset: { vnoTop: "0.2", vnoRelativeV: "page" },
+      getAttribute(k) {
+        if (k === "data-vno-top") return this.dataset.vnoTop;
+        if (k === "data-vno-relative-v") return this.dataset.vnoRelativeV;
+        return null;
+      },
+      closest(sel) { return sel === "[data-vno-float-anchor]" ? mockContainer : null; }
+    };
+    const mockContainer = {
+      offsetTop: 880,
+      parentElement: null,
+      getAttribute(k) { return k === "data-vno-float-anchor" ? "" : null; }
+    };
+    const mockBlock0 = {
+      offsetTop: 0,
+      classList: { contains: () => false },
+      getAttribute: () => "",
+      parentElement: null
+    };
+    const mockGap = {
+      offsetTop: 800,
+      classList: { contains: (c) => c === "vno-page-auto-gap" },
+      getAttribute: (k) => k === "data-vno-auto-page-gap" ? "true" : null,
+      parentElement: null
+    };
+    const mockBlock1 = {
+      offsetTop: 850,
+      classList: { contains: () => false },
+      getAttribute: () => "",
+      parentElement: null
+    };
+    mockContainer.parentElement = mockBlock1;
+
+    const mockBody = {
+      children: [mockBlock0, mockGap, mockBlock1],
+      querySelectorAll(sel) {
+        if (sel.includes("[data-vno-float]")) return [mockFloat];
+        return [];
+      }
+    };
+    mockBlock0.parentElement = mockBody;
+    mockGap.parentElement = mockBody;
+    mockBlock1.parentElement = mockBody;
+
+    const adapter = new WriterAdapter(null);
+    adapter._alignPageRelativeFloats(mockBody);
+
+    // marginTopCm = 2.0 (default margin: 20mm)
+    // wantPx = (0.2 - 2.0) * 96 / 2.54 = -68.03px
+    // pageTop for mockBlock1 = 850
+    // deltaPx = container.offsetTop (880) - pageTop (850) = 30px
+    // expected top = -68.03 - 30 = -98.03px
+    check(mockFloat.dataset.vnoLiveTop === "1", "data-vno-live-top was not set");
+    check(mockFloat.style.top === "-98.03px", `Expected top -98.03px, got ${mockFloat.style.top}`);
+  });
+
+  test("R3 (c): _prepareFloatingFramesForExport strips live-aligned style.top/left and restores data-vno-top/left", () => {
+    const html = '<body><div data-vno-float-anchor style="position:relative;min-height:5cm"><span data-vno-float="textbox" data-vno-left="2" data-vno-top="0.2" data-vno-width="5" data-vno-height="3" data-vno-live-top="1" style="position:absolute;top:-118.44px;left:100px;width:5cm;height:3cm">Hello</span></div></body>';
+    const adapter = new WriterAdapter(null);
+    const exported = adapter._prepareFloatingFramesForExport(html);
+    check(!exported.includes("-118.44px"), `Live-aligned top leaked into export: ${exported}`);
+    check(!exported.includes("100px"), `Live-aligned left leaked into export: ${exported}`);
+    check(!exported.includes("data-vno-live-top"), `Live-top flag leaked into export: ${exported}`);
+    check(/top:0\.2cm/i.test(exported), `Original data-vno-top was not restored: ${exported}`);
+    check(/left:2cm/i.test(exported), `Original data-vno-left was not restored: ${exported}`);
+  });
+
   return results;
 }
+
 

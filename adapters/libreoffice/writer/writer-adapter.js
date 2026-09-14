@@ -9311,6 +9311,8 @@ export class WriterAdapter {
         this.bodyDom.insertBefore(gap, el);
       }
 
+      this._alignPageRelativeFloats();
+
       this._livePageCount = pageCount;
       if (typeof this.bodyDom.dispatchEvent === "function") {
         try {
@@ -9319,6 +9321,69 @@ export class WriterAdapter {
       }
     } finally {
       this._paginating = false;
+    }
+  }
+
+  _alignPageRelativeFloats(targetBodyDom = this.bodyDom) {
+    const bodyDom = targetBodyDom;
+    if (!bodyDom || !bodyDom.children || typeof bodyDom.querySelectorAll !== "function") return;
+
+    const dim = this.getPageDimensions ? this.getPageDimensions() : null;
+    const marginTopCm = Number(dim?.margins?.top ?? 25.4) / 10;
+
+    const children = Array.from(bodyDom.children);
+    if (children.length === 0) return;
+
+    const pageStartTopByBlock = new Map();
+    let currentPageStartTop = children[0].offsetTop || 0;
+
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      const isAutoGap = child.classList?.contains?.("vno-page-auto-gap") || child.getAttribute?.("data-vno-auto-page-gap") === "true";
+      const styleStr = (typeof child.getAttribute === "function" ? child.getAttribute("style") : "") || "";
+      const isManualBreak = styleStr.includes("page-break-before") || styleStr.includes("break-before");
+
+      if (isAutoGap) {
+        if (i + 1 < children.length) {
+          currentPageStartTop = children[i + 1].offsetTop || 0;
+        }
+        continue;
+      }
+
+      if (isManualBreak && i > 0) {
+        currentPageStartTop = child.offsetTop || 0;
+      }
+
+      pageStartTopByBlock.set(child, currentPageStartTop);
+    }
+
+    const floatEls = bodyDom.querySelectorAll(
+      '[data-vno-float][data-vno-relative-v="page"],[data-vno-float][data-vno-relative-v="margin"]'
+    );
+    for (const el of floatEls) {
+      const container = el.closest ? el.closest("[data-vno-float-anchor]") : null;
+      if (!container) continue;
+
+      let block = container;
+      while (block && block.parentElement && block.parentElement !== bodyDom) {
+        block = block.parentElement;
+      }
+      if (!block) continue;
+
+      const pageTop = pageStartTopByBlock.has(block) ? pageStartTopByBlock.get(block) : (block.offsetTop || 0);
+      const rawTop = el.dataset?.vnoTop ?? el.getAttribute?.("data-vno-top");
+      const topCm = Number(rawTop || 0);
+      const relV = String(el.dataset?.vnoRelativeV ?? el.getAttribute?.("data-vno-relative-v") ?? "").toLowerCase();
+      const topMarginCm = (relV === "margin") ? 0 : marginTopCm;
+      const wantPx = (topCm - topMarginCm) * 96 / 2.54;
+      const deltaPx = (container.offsetTop || 0) - pageTop;
+      const alignedTopPx = Number((wantPx - deltaPx).toFixed(2));
+      el.style.top = `${alignedTopPx}px`;
+      if (el.dataset) {
+        el.dataset.vnoLiveTop = "1";
+      } else if (typeof el.setAttribute === "function") {
+        el.setAttribute("data-vno-live-top", "1");
+      }
     }
   }
 
