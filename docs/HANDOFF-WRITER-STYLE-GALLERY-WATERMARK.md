@@ -163,3 +163,6 @@ Toàn bộ 28 bộ kiểm tra đều đạt chuẩn chất lượng.
 2. **Cơ chế chuyển đổi sang LibreOffice / Word**:
    - Watermark được biểu diễn bằng lớp fixed layer có xoay góc và độ trong suốt trong HTML xuất ra. Khi LibreOffice chuyển đổi sang PDF, watermark xuất hiện cố định trên các trang in.
    - Page Border được định nghĩa thông qua thuộc tính `border` trong `@page` CSS. Các trình đọc hiện đại và LibreOffice hỗ trợ xuất định dạng này ra PDF/DOCX; đối với các phiên bản MS Word cổ điển không hỗ trợ CSS `@page`, khung viền trang in có thể cần được áp dụng lại qua menu Page Borders của Word.
+
+
+> **Correction 2026-09-14 (Claude):** every MYTIME page count in this document was measured with Word COM ComputeStatistics(wdStatisticPages), which is wrong in a hidden window (it reports 88 for a 44-page document). Word's PDF export of the original MYTIME has **44** pages; the edited-save output currently has **73** (43 section breaks lost). Use _word_oracle3.ps1 (PDF-based) going forward. See HANDOFF-WRITER-SAVE-SECTIONS*.md.

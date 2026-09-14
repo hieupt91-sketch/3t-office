@@ -25,3 +25,6 @@ NEXT ACTION: Review the conservative ambiguity policy if Writer later supports e
 | MYTIME round-trip | OK | 88 | Page 3 restored both embedded setup screenshots and the diagonal MY Time watermark in the same page regions as `_word_png/mytime_word_p3.png`. |
 
 Generated verification files were deliberately excluded from Git.
+
+
+> **Correction 2026-09-14 (Claude):** every MYTIME page count in this document was measured with Word COM ComputeStatistics(wdStatisticPages), which is wrong in a hidden window (it reports 88 for a 44-page document). Word's PDF export of the original MYTIME has **44** pages; the edited-save output currently has **73** (43 section breaks lost). Use _word_oracle3.ps1 (PDF-based) going forward. See HANDOFF-WRITER-SAVE-SECTIONS*.md.

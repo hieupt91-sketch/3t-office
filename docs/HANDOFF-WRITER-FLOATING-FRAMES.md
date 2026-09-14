@@ -33,3 +33,6 @@ Hai file sau lưu đều mở lại qua luồng LibreOffice HTML → `WriterAdap
 ## Hướng dẫn sử dụng
 
 Mở DOCX như bình thường bằng **Tệp → Mở**. Ảnh neo và hộp văn bản nổi được giữ tại tọa độ gốc; ảnh phía sau chữ vẫn nằm sau chữ, các kiểu bọc chữ lấy từ DOCX được giữ khi lưu. Có thể tìm kiếm, hoàn tác và xem trước khi in bình thường. Phiên bản này chưa cho chọn/kéo khung nhập trực tiếp; để đổi vị trí, chỉnh trong ứng dụng nguồn rồi mở lại. Bài **Chèn hình ảnh** trong tab **Trợ giúp** cũng nêu giới hạn này.
+
+
+> **Correction 2026-09-14 (Claude):** every MYTIME page count in this document was measured with Word COM ComputeStatistics(wdStatisticPages), which is wrong in a hidden window (it reports 88 for a 44-page document). Word's PDF export of the original MYTIME has **44** pages; the edited-save output currently has **73** (43 section breaks lost). Use _word_oracle3.ps1 (PDF-based) going forward. See HANDOFF-WRITER-SAVE-SECTIONS*.md.

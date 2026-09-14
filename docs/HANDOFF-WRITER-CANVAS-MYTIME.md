@@ -43,3 +43,6 @@
 - **Round-trip & An toàn lưu**:
   - Không thay đổi chiều lưu hoặc xuất file gốc.
   - Toàn bộ cơ chế chỉ can thiệp hiển thị canvas và print preview.
+
+
+> **Correction 2026-09-14 (Claude):** every MYTIME page count in this document was measured with Word COM ComputeStatistics(wdStatisticPages), which is wrong in a hidden window (it reports 88 for a 44-page document). Word's PDF export of the original MYTIME has **44** pages; the edited-save output currently has **73** (43 section breaks lost). Use _word_oracle3.ps1 (PDF-based) going forward. See HANDOFF-WRITER-SAVE-SECTIONS*.md.
