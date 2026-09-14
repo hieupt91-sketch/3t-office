@@ -383,6 +383,117 @@ export async function runSheetImportCellStylesTests() {
     assert(item.style.whiteSpace === "pre-wrap", `wrapText must be pre-wrap, got ${item.style.whiteSpace}`);
   });
 
+  await test("cell.styles.save: reused visual style combines with number format without contamination", () => {
+    const grid = makeGrid("CombinedStyle");
+    const centered = { textAlign: "center", verticalAlign: "middle", whiteSpace: "nowrap" };
+    grid.sheetsData.CombinedStyle.set("A1", { val: "header", formula: "", style: { ...centered } });
+    grid.sheetsData.CombinedStyle.set("A2", {
+      val: 42,
+      formula: "",
+      style: { ...centered, numberFormat: { category: "number", decimals: 0, useThousands: true } }
+    });
+    grid.sheetsData.CombinedStyle.set("A3", {
+      val: "unrelated",
+      formula: "",
+      style: { textAlign: "left", verticalAlign: "top", whiteSpace: "pre-wrap" }
+    });
+    const fods = makeAdapter(grid).serializeToFods();
+    const cellStyle = fods.match(/<table:table-cell\b[^>]*office:value="42"[^>]*table:style-name="([^"]+)"/)?.[1];
+    assert(cellStyle, "number cell must reference a combined style");
+    const escaped = cellStyle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const combined = fods.match(new RegExp(`<style:style\\b[^>]*style:name="${escaped}"[^>]*>([\\s\\S]*?)<\\/style:style>`))?.[1] || "";
+    assert(/style:vertical-align="middle"/.test(combined), "combined style must keep the reused middle alignment");
+    assert(/fo:text-align="center"/.test(combined), "combined style must keep the reused center alignment");
+    assert(/fo:wrap-option="no-wrap"/.test(combined), "combined style must keep the reused no-wrap setting");
+  });
+
+  await test("cell.styles.font: quoted ODF font name is normalized on parse and save", () => {
+    const fods = minimalFodsXml({
+      sheetName: "QuotedFont",
+      autoStyles: `
+        <style:style style:name="quoted" style:family="table-cell">
+          <style:text-properties style:font-name="&quot;Times New Roman&quot;"/>
+        </style:style>`,
+      cells: [{ attrs: { "table:style-name": "quoted", "office:value-type": "string" }, text: "Text" }]
+    });
+    const parsed = makeAdapter(makeGrid("QuotedFont")).parseFods(fods);
+    assert(parsed.sheetsData.QuotedFont.get("A1").style.fontFamily === "Times New Roman",
+      "parse must remove wrapping quote entities from the font name");
+
+    const grid = makeGrid("QuotedFont");
+    grid.sheetsData.QuotedFont.set("A1", {
+      val: "Text", formula: "", style: { fontFamily: '"Times New Roman"' }
+    });
+    const saved = makeAdapter(grid).serializeToFods();
+    assert(/style:font-name="Times New Roman"/.test(saved), "save must write an unquoted style:font-name");
+    assert(!/style:font-name="&amp;quot;Times New Roman&amp;quot;"/.test(saved),
+      "save must not double-escape wrapping font quotes");
+  });
+
+  await test("cell.styles.font: Calc underline/strikethrough attributes round-trip as textDecoration", () => {
+    const fods = minimalFodsXml({
+      sheetName: "Underline",
+      autoStyles: `
+        <style:style style:name="cellU" style:family="table-cell">
+          <style:text-properties style:font-name="Times New Roman" style:text-underline-style="solid" style:text-underline-width="auto" style:text-underline-color="font-color" style:text-line-through-style="none"/>
+        </style:style>
+        <style:style style:name="TU" style:family="text">
+          <style:text-properties fo:font-weight="bold" style:text-underline-style="solid" style:text-line-through-type="single"/>
+        </style:style>`,
+      cells: [
+        { attrs: { "table:style-name": "cellU", "office:value-type": "string" }, text: "Plain" },
+        {
+          attrs: { "table:style-name": "cellU", "office:value-type": "string" },
+          text: '<text:span text:style-name="TU">Label:</text:span> value'
+        }
+      ]
+    });
+    const parsed = makeAdapter(makeGrid("Underline")).parseFods(fods);
+    const plain = parsed.sheetsData.Underline.get("A1");
+    assert(plain.style.textDecoration === "underline", `cell underline must be parsed, got ${plain.style.textDecoration}`);
+    const cell = parsed.sheetsData.Underline.get("B1");
+    assert(cell.richText?.[0]?.style?.textDecoration === "underline line-through",
+      `run underline+strike must be parsed, got ${cell.richText?.[0]?.style?.textDecoration}`);
+
+    const grid = makeGrid("Underline");
+    grid.sheetsData.Underline = parsed.sheetsData.Underline;
+    const saved = makeAdapter(grid).serializeToFods();
+    assert(/style:text-underline-style="solid"/.test(saved), "save must write style:text-underline-style for Calc");
+    assert(/style:text-line-through-style="solid"/.test(saved), "save must write style:text-line-through-style for Calc");
+  });
+
+  await test("cell.styles.richText: first bold run does not make the whole cell bold", () => {
+    const fods = minimalFodsXml({
+      sheetName: "RichFont",
+      autoStyles: `
+        <style:style style:name="cellBold" style:family="table-cell">
+          <style:text-properties style:font-name="Times New Roman" fo:font-size="11pt" fo:font-weight="bold" fo:color="#000000"/>
+        </style:style>
+        <style:style style:name="T1" style:family="text">
+          <style:text-properties style:font-name="Times New Roman" fo:font-size="11pt" fo:font-weight="bold" fo:color="#000000"/>
+        </style:style>
+        <style:style style:name="T2" style:family="text">
+          <style:text-properties style:font-name="Times New Roman" fo:font-size="11pt" fo:font-weight="normal" fo:color="#000000"/>
+        </style:style>`,
+      cells: [{
+        attrs: { "table:style-name": "cellBold", "office:value-type": "string" },
+        text: '<text:span text:style-name="T1">Label:</text:span><text:span text:style-name="T2"> value</text:span>'
+      }]
+    });
+    const parsed = makeAdapter(makeGrid("RichFont")).parseFods(fods);
+    const cell = parsed.sheetsData.RichFont.get("A1");
+    assert(Array.isArray(cell.richText) && cell.richText.length === 2, "two rich-text runs must be parsed");
+    assert(cell.style.fontWeight === "normal", "mixed run weights need a neutral cell-level baseline");
+    assert(cell.richText[0].style.fontWeight === "bold", "first run must stay bold");
+    assert(cell.richText[1].style.fontWeight === "normal", "second run must explicitly stay normal");
+
+    const grid = makeGrid("RichFont");
+    grid.sheetsData.RichFont = parsed.sheetsData.RichFont;
+    const saved = makeAdapter(grid).serializeToFods();
+    assert(/fo:font-weight="bold"/.test(saved) && /fo:font-weight="normal"/.test(saved),
+      "serialized rich-text runs must carry both explicit weights");
+  });
+
   await test("cell.styles.import: self-closing style does not consume the following style body", () => {
     const fods = minimalFodsXml({
       sheetName: "SelfClosingStyle",
