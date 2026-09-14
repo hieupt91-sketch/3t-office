@@ -1030,6 +1030,15 @@ export class SheetAdapter {
       references.push(`[${prefix}${start}:${prefix}${end}]`);
       return `__VNO_REF_${references.length - 1}__`;
     });
+    // Whole-column ranges (`$A:$C`, `'Giá cost1'!$A:$C`): ODF has no column-only
+    // reference, LibreOffice writes rows 1..1048576. Left as Excel syntax the
+    // sheet part became `'giá cost1' $A:$C` in the saved XLSX and Excel refused
+    // to open the workbook (measured on xét lương công ty.xlsx).
+    expression = expression.replace(/((?:'[^']+'|[A-Za-z0-9_À-ỹ ]+)!)?(?<![A-Za-z0-9_.\]])(\$?)([A-Z]{1,3}):(\$?)([A-Z]{1,3})(?![A-Za-z0-9_(])/g, (_, sheet, startAbs, startCol, endAbs, endCol) => {
+      const prefix = sheet ? `$${sheet.slice(0, -1)}.` : ".";
+      references.push(`[${prefix}${startAbs}${startCol}$1:${prefix}${endAbs}${endCol}$1048576]`);
+      return `__VNO_REF_${references.length - 1}__`;
+    });
     expression = expression.replace(/((?:'[^']+'|[A-Za-z0-9_À-ỹ ]+)!)?(\$?[A-Z]+\$?\d+)/g, (_, sheet, cell) => {
       const prefix = sheet ? `$${sheet.slice(0, -1)}.` : ".";
       references.push(`[${prefix}${cell}]`);
@@ -1049,6 +1058,12 @@ export class SheetAdapter {
         const match = part.match(/^\$((?:'[^']+'|[^.]+))\.(.+)$/);
         return match ? `${match[1]}!${match[2]}` : part;
       });
+      // Rows 1..1048576 is how LibreOffice spells an Excel whole-column range.
+      if (parts.length === 2) {
+        const first = parts[0].match(/^((?:'[^']+'|[^!]+)!)?(\$?[A-Z]{1,3})\$?1$/);
+        const second = parts[1].match(/^((?:'[^']+'|[^!]+)!)?(\$?[A-Z]{1,3})\$?1048576$/);
+        if (first && second) return `${first[1] || ""}${first[2]}:${second[2]}`;
+      }
       return parts.join(":");
     });
     return this._replaceFormulaSeparators(expression, ";", ",");

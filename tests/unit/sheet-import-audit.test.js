@@ -29,6 +29,14 @@ function fixture() {
 export async function runSheetImportAuditTests() {
   const results = [];
   const test = async (name, fn) => { try { await fn(); results.push({ name, pass: true }); } catch (error) { results.push({ name, pass: false, error: error.message }); } };
+  await test("formula ODF: whole-column ranges and quoted cross-sheet refs round-trip (xét lương công ty.xlsx)", () => {
+    const adapter = Object.create(SheetAdapter.prototype);
+    const odf = adapter._formulaToOdf("=VLOOKUP(B3,'Giá cost1'!$A:$C,3,FALSE())+SUM(TTNV!$A:$E)+SUM(A:B)+MAX(D1:D9)");
+    assert.equal(odf, "of:=VLOOKUP([.B3];[$'Giá cost1'.$A$1:$'Giá cost1'.$C$1048576];3;FALSE())+SUM([$TTNV.$A$1:$TTNV.$E$1048576])+SUM([.A$1:.B$1048576])+MAX([.D1:.D9])");
+    assert.equal(adapter._formulaFromOdf("of:=VLOOKUP([.B3];[$'Giá cost1'.$A$1:$'Giá cost1'.$C$1048576];3;FALSE())+SUM([.A$1:.B$1048576])"),
+      "=VLOOKUP(B3,'Giá cost1'!$A:$C,3,FALSE())+SUM(A:B)");
+  });
+
   await test("Excel formatCode -> VN Sheet numberFormat", () => {
     const cases = [
       ["#,##0", "number", 0, true], ["#,##0.00", "number", 2, true],
