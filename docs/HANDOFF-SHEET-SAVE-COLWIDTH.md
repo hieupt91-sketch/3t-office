@@ -58,3 +58,10 @@ NEXT ACTION:
 1. Triển khai CI/CD có LibreOffice + Excel để chạy `_roundtrip_save_sheet.py` + auditor + `_excel_capture_sheet.ps1` tự động.
 2. Thêm unit test chuyên biệt cho `_restore_normal_font_and_layout()` với fixture KHOACUA.xlsx.
 3. Review và merge branch `fix/sheet-save-colwidth-normal-font` vào main.
+
+## Verification and corrections by Claude (2026-09-14, real app + Excel 2016)
+opencode's commit b443a1a was NOT measured end-to-end (it reported "cần LibreOffice"). Measured on the real app:
+- The first output was rejected by Excel ("Unable to get the Open property of the Workbooks class"): (1) fonts[0] was patched attribute-by-attribute and left `/>/>` text nodes inside `<font>`; (2) `_restore_row_heights` matched `customHeight="…"` with its `ht\s*=` regex and wrote the height into the boolean; (3) `_restore_sheet_format_pr` only matched a self-closing element, so LibreOffice's long form `<sheetFormatPr …></sheetFormatPr>` was left and a second one was inserted after `<sheetPr>` (invalid position). All three fixed: fonts[0] is now copied verbatim from the source `styles.xml`, row heights use a lookbehind, sheetFormatPr is edited in place or inserted before `<cols>`.
+- Column D (10 chars) was missing from `<cols>` because LibreOffice drops columns at its default width; `_restore_column_widths` now writes back every FODS column inside the used range whose width differs from the workbook `defaultColWidth`.
+- Results: auditor `columnWidth` = 0 on all 6 KHÓA CỬA sheets (was 12 each) and on all 15 Dahua sheets; both outputs open in Excel 2016; `_xl_cw4_ktm.png` (sheet "KHÓA THÔNG MINH") matches `_excel_orig_ktm.png` column for column (A..K end at the same x).
+- Unit tests added: `tests/test_sheet_save_colwidth.py` (font verbatim, widths in original digit unit incl. dropped/default columns, sheetFormatPr in place/insert, customHeight untouched).

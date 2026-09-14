@@ -1182,11 +1182,14 @@ def _restore_normal_font_and_layout(
     if not original_font or not original_digit_width:
         return
     
-    # 1. Restore Normal font in styles.xml
+    # 1. Restore Normal font in styles.xml: copy the source workbook's fonts[0]
+    #    element verbatim (exact name/size/colour/scheme Excel used for the
+    #    column-width unit) instead of patching attributes piecemeal.
     styles_entry = read_zip_entry(xlsx_bytes, "xl/styles.xml")
-    if styles_entry:
+    original_font_xml = _extract_normal_font_xml_from_xlsx(source_xlsx_bytes)
+    if styles_entry and original_font_xml:
         styles_xml = styles_entry.decode("utf-8", errors="replace")
-        new_styles_xml = _restore_normal_font_in_styles(styles_xml, original_font)
+        new_styles_xml = _restore_normal_font_in_styles(styles_xml, original_font_xml)
         if new_styles_xml != styles_xml:
             replacements["xl/styles.xml"] = new_styles_xml
     
@@ -1208,7 +1211,10 @@ def _restore_normal_font_and_layout(
         
         # Restore column widths
         if sheet_name in fods_col_widths:
-            sheet_xml = _restore_column_widths(sheet_xml, fods_col_widths[sheet_name], original_digit_width)
+            default_chars = original_sheet_format_pr.get(sheet_name, {}).get("defaultColWidth")
+            sheet_xml = _restore_column_widths(
+                sheet_xml, fods_col_widths[sheet_name], original_digit_width, default_chars
+            )
         
         # Restore sheetFormatPr
         if sheet_name in original_sheet_format_pr:
@@ -1222,124 +1228,70 @@ def _restore_normal_font_and_layout(
             replacements[entry_path] = sheet_xml
 
 
-def _restore_normal_font_in_styles(styles_xml: str, original_font: dict) -> str:
-    """Restore the Normal font (fonts[0]) in styles.xml."""
-    # Find fonts element
-    fonts_match = re.search(r"(<fonts\b[^>]*>)(.*?)(</fonts>)", styles_xml, re.S | re.IGNORECASE)
-    if not fonts_match:
+def _extract_normal_font_xml_from_xlsx(xlsx_bytes: bytes) -> str | None:
+    """Return the raw first <font>...</font> element (the Normal style font) of a workbook."""
+    entry = read_zip_entry(xlsx_bytes, "xl/styles.xml")
+    if not entry:
+        return None
+    styles_xml = entry.decode("utf-8", errors="replace")
+    fonts = re.search(r"<fonts\b[^>]*>([\s\S]*?)</fonts>", styles_xml, re.IGNORECASE)
+    if not fonts:
+        return None
+    first = re.search(r"<font\b[^>]*>[\s\S]*?</font>|<font\b[^>]*/>", fonts.group(1), re.IGNORECASE)
+    return first.group(0) if first else None
+
+
+def _restore_normal_font_in_styles(styles_xml: str, original_font_xml: str) -> str:
+    """Replace fonts[0] (the Normal style font) with the source workbook's element verbatim."""
+    fonts_match = re.search(r"(<fonts\b[^>]*>)([\s\S]*?)(</fonts>)", styles_xml, re.IGNORECASE)
+    if not fonts_match or not original_font_xml:
         return styles_xml
-    
     before_fonts, fonts_content, after_fonts = fonts_match.groups()
-    
-    # Find first font
-    first_font_match = re.search(r"(<font\b[^>]*>)(.*?)(</font>)", fonts_content, re.S | re.IGNORECASE)
-    if not first_font_match:
+    first_font = re.search(r"<font\b[^>]*>[\s\S]*?</font>|<font\b[^>]*/>", fonts_content, re.IGNORECASE)
+    if not first_font:
         return styles_xml
-    
-    before_font, font_content, after_font = first_font_match.groups()
-    
-    # Build new font content
-    new_font_content = font_content
-    
-    # Update name
-    new_font_content = re.sub(
-        r'<name\b[^>]*val="[^"]*"', 
-        f'<name val="{original_font["name"]}"/>', 
-        new_font_content, 
-        flags=re.IGNORECASE
-    )
-    if '<name' not in new_font_content:
-        new_font_content = f'<name val="{original_font["name"]}"/>' + new_font_content
-    
-    # Update size
-    new_font_content = re.sub(
-        r'<sz\b[^>]*val="[^"]*"', 
-        f'<sz val="{original_font["size"]}"/>', 
-        new_font_content, 
-        flags=re.IGNORECASE
-    )
-    if '<sz' not in new_font_content:
-        new_font_content = f'<sz val="{original_font["size"]}"/>' + new_font_content
-    
-    # Update color
-    color_parts = []
-    if "color" in original_font:
-        color = original_font["color"]
-        attrs = []
-        if "theme" in color:
-            attrs.append(f'theme="{color["theme"]}"')
-        if "tint" in color:
-            attrs.append(f'tint="{color["tint"]}"')
-        if "rgb" in color:
-            attrs.append(f'rgb="{color["rgb"]}"')
-        if attrs:
-            color_parts.append(f'<color {" ".join(attrs)}/>')
-    if color_parts:
-        new_font_content = re.sub(r'<color\b[^>]*/?>', color_parts[0], new_font_content, flags=re.IGNORECASE)
-        if '<color' not in new_font_content:
-            new_font_content = color_parts[0] + new_font_content
-    
-    # Update scheme
-    new_font_content = re.sub(
-        r'<scheme\b[^>]*val="[^"]*"', 
-        f'<scheme val="{original_font["scheme"]}"/>', 
-        new_font_content, 
-        flags=re.IGNORECASE
-    )
-    if '<scheme' not in new_font_content:
-        new_font_content = f'<scheme val="{original_font["scheme"]}"/>' + new_font_content
-    
-    # Update bold
-    if original_font.get("bold"):
-        if '<b' not in new_font_content:
-            new_font_content = '<b/>' + new_font_content
-    else:
-        new_font_content = re.sub(r'<b\b[^>]*/?>', '', new_font_content, flags=re.IGNORECASE)
-    
-    # Update italic
-    if original_font.get("italic"):
-        if '<i' not in new_font_content:
-            new_font_content = '<i/>' + new_font_content
-    else:
-        new_font_content = re.sub(r'<i\b[^>]*/?>', '', new_font_content, flags=re.IGNORECASE)
-    
-    # Update underline
-    if original_font.get("underline"):
-        u_val = original_font["underline"]
-        new_font_content = re.sub(
-            r'<u\b[^>]*/?>', 
-            f'<u val="{u_val}"/>', 
-            new_font_content, 
-            flags=re.IGNORECASE
-        )
-        if '<u' not in new_font_content:
-            new_font_content = f'<u val="{u_val}"/>' + new_font_content
-    else:
-        new_font_content = re.sub(r'<u\b[^>]*/?>', '', new_font_content, flags=re.IGNORECASE)
-    
-    # Update strike
-    if original_font.get("strike"):
-        if '<strike' not in new_font_content:
-            new_font_content = '<strike/>' + new_font_content
-    else:
-        new_font_content = re.sub(r'<strike\b[^>]*/?>', '', new_font_content, flags=re.IGNORECASE)
-    
-    new_fonts_content = fonts_content[:first_font_match.start()] + before_font + new_font_content + after_font + fonts_content[first_font_match.end():]
+    new_fonts_content = fonts_content[:first_font.start()] + original_font_xml + fonts_content[first_font.end():]
     return styles_xml[:fonts_match.start()] + before_fonts + new_fonts_content + after_fonts + styles_xml[fonts_match.end():]
 
 
-def _restore_column_widths(sheet_xml: str, col_widths_cm: dict[str, float], digit_width: float) -> str:
+def _column_letter(index: int) -> str:
+    name = ""
+    while index:
+        index, remainder = divmod(index - 1, 26)
+        name = chr(65 + remainder) + name
+    return name
+
+
+def _column_index(letters: str) -> int:
+    index = 0
+    for ch in letters.upper():
+        index = index * 26 + (ord(ch) - 64)
+    return index
+
+
+def _restore_column_widths(
+    sheet_xml: str, col_widths_cm: dict[str, float], digit_width: float,
+    default_col_width_chars: float | None = None,
+) -> str:
     """Restore column widths in worksheet XML using original font's digit width.
-    
+
     Formula: px = width_cm * 96 / 2.54; chars = trunc((px - 5) / digit_width * 100 + 0.5) / 100
+
+    LibreOffice omits <col> entries whose width equals *its* default, but Excel
+    then renders them with the workbook's defaultColWidth, so every column the
+    app laid out inside the used range is written back explicitly unless it
+    already matches that Excel default.
     """
-    # Find existing <cols> block
     cols_match = re.search(r"(<cols>)([\s\S]*?)(</cols>)", sheet_xml, re.IGNORECASE)
     if not cols_match:
         return sheet_xml
-    
+
     before_cols, cols_content, after_cols = cols_match.groups()
-    
+
+    def chars_for(width_cm: float) -> float:
+        px = width_cm * 96 / 2.54
+        return math.trunc((px - 5) / digit_width * 100 + 0.5) / 100
+
     # Parse existing col elements to preserve min/max/bestFit/customWidth
     col_elements: list[tuple[int, int, dict]] = []  # (min, max, attrs_dict)
     for col_match in re.finditer(r"<col\b([^>]*)/?>", cols_content, re.IGNORECASE):
@@ -1350,64 +1302,67 @@ def _restore_column_widths(sheet_xml: str, col_widths_cm: dict[str, float], digi
         min_col = int(attrs.get("min", "1"))
         max_col = int(attrs.get("max", str(min_col)))
         col_elements.append((min_col, max_col, attrs))
-    
-    # Build new cols content
-    new_cols_parts = []
+
+    rebuilt: dict[int, dict] = {}
     for min_col, max_col, attrs in col_elements:
         for col_idx in range(min_col, max_col + 1):
-            number = col_idx
-            name = ""
-            while number:
-                number, remainder = divmod(number - 1, 26)
-                name = chr(65 + remainder) + name
-            
+            name = _column_letter(col_idx)
             new_attrs = attrs.copy()
             if name in col_widths_cm:
-                width_cm = col_widths_cm[name]
-                px = width_cm * 96 / 2.54
-                # Excel formula: chars = trunc((px - 5) / mdw * 100 + 0.5) / 100
-                chars = math.trunc((px - 5) / digit_width * 100 + 0.5) / 100
-                new_attrs["width"] = f"{chars:.2f}"
+                new_attrs["width"] = f"{chars_for(col_widths_cm[name]):.2f}"
                 new_attrs["customWidth"] = "1"
             # Ensure bestFit is not set if we're explicitly setting width
             if "width" in new_attrs:
                 new_attrs.pop("bestFit", None)
-            
-            attr_str = " ".join(f'{k}="{v}"' for k, v in new_attrs.items())
-            new_cols_parts.append(f"<col {attr_str}/>")
-    
+            new_attrs["min"] = str(col_idx)
+            new_attrs["max"] = str(col_idx)
+            rebuilt[col_idx] = new_attrs
+
+    # Columns LibreOffice dropped: bounded by the used range so repeated
+    # default FODS columns never expand to 16384 entries.
+    dimension = re.search(r'<dimension\b[^>]*ref="[A-Z]+\d*(?::([A-Z]+)\d*)?"', sheet_xml, re.IGNORECASE)
+    limit = max([idx for idx in rebuilt] + [_column_index(dimension.group(1)) if dimension and dimension.group(1) else 0])
+    for col_idx in range(1, limit + 1):
+        if col_idx in rebuilt:
+            continue
+        name = _column_letter(col_idx)
+        if name not in col_widths_cm:
+            continue
+        chars = chars_for(col_widths_cm[name])
+        if default_col_width_chars is not None and abs(chars - default_col_width_chars) < 0.02:
+            continue
+        rebuilt[col_idx] = {"min": str(col_idx), "max": str(col_idx), "width": f"{chars:.2f}", "customWidth": "1"}
+
+    new_cols_parts = []
+    for col_idx in sorted(rebuilt):
+        attr_str = " ".join(f'{k}="{v}"' for k, v in rebuilt[col_idx].items())
+        new_cols_parts.append(f"<col {attr_str}/>")
+
     new_cols_content = "".join(new_cols_parts)
     return sheet_xml[:cols_match.start()] + before_cols + new_cols_content + after_cols + sheet_xml[cols_match.end():]
 
 
 def _restore_sheet_format_pr(sheet_xml: str, format_pr: dict) -> str:
-    """Restore sheetFormatPr attributes from original."""
-    sfpr_match = re.search(r"(<sheetFormatPr\b)([^>]*)(/>)", sheet_xml, re.IGNORECASE)
-    if sfpr_match:
-        before, attrs, after = sfpr_match.groups()
-        # Update attributes
-        new_attrs = attrs
+    """Restore the source sheetFormatPr attributes (defaultColWidth/RowHeight, customHeight).
+
+    LibreOffice writes the element in long form (<sheetFormatPr ...></sheetFormatPr>);
+    it is edited in place. When absent it is inserted right before <cols> or
+    <sheetData> (the only schema-valid slots), never after <sheetPr>.
+    """
+    match = re.search(r"<sheetFormatPr\b([^>]*?)\s*(/>|>\s*</sheetFormatPr\s*>)", sheet_xml, re.IGNORECASE)
+    if match:
+        attrs = match.group(1)
         for key, value in format_pr.items():
-            attr_name = key[0].lower() + key[1:]  # defaultColWidth -> defaultColWidth
-            # Convert camelCase to camelCase (already correct)
-            new_attrs = re.sub(
-                rf'{attr_name}\s*=\s*"[^"]*"', 
-                f'{attr_name}="{value}"', 
-                new_attrs, 
-                flags=re.IGNORECASE
-            )
-            if attr_name not in new_attrs:
-                new_attrs += f' {attr_name}="{value}"'
-        return sheet_xml[:sfpr_match.start()] + before + new_attrs + after + sheet_xml[sfpr_match.end():]
-    else:
-        # Insert new sheetFormatPr after sheetPr if exists, or at beginning of worksheet
-        sheet_pr_match = re.search(r"(</sheetPr\s*>)", sheet_xml, re.IGNORECASE)
-        if sheet_pr_match:
-            insert_pos = sheet_pr_match.end()
-            attrs = " ".join(f'{k}="{v}"' for k, v in format_pr.items())
-            new_sfpr = f'<sheetFormatPr {attrs}/>'
-            return sheet_xml[:insert_pos] + new_sfpr + sheet_xml[insert_pos:]
+            if re.search(rf'\b{key}\s*=\s*"[^"]*"', attrs, re.IGNORECASE):
+                attrs = re.sub(rf'\b{key}\s*=\s*"[^"]*"', f'{key}="{value}"', attrs, flags=re.IGNORECASE)
+            else:
+                attrs += f' {key}="{value}"'
+        return sheet_xml[:match.start()] + f"<sheetFormatPr{attrs}/>" + sheet_xml[match.end():]
+    anchor = re.search(r"<cols\b|<sheetData\b", sheet_xml, re.IGNORECASE)
+    if not anchor:
         return sheet_xml
+    attrs = " ".join(f'{k}="{v}"' for k, v in format_pr.items())
+    return sheet_xml[:anchor.start()] + f"<sheetFormatPr {attrs}/>" + sheet_xml[anchor.start():]
 
 
 def _restore_row_heights(sheet_xml: str, row_heights_cm: dict[int, float]) -> str:
@@ -1427,13 +1382,14 @@ def _restore_row_heights(sheet_xml: str, row_heights_cm: dict[int, float]) -> st
         height_cm = row_heights_cm[row_num]
         height_pt = height_cm * 72 / 2.54
         # Update or add ht attribute
-        new_attrs = re.sub(r'ht\s*=\s*"[^"]*"', f'ht="{height_pt:.2f}"', attrs_str, flags=re.IGNORECASE)
-        if 'ht=' not in new_attrs:
+        # `\b` keeps customHeight="…" untouched (Excel rejects a non-boolean value there).
+        new_attrs = re.sub(r'(?<![A-Za-z])ht\s*=\s*"[^"]*"', f'ht="{height_pt:.2f}"', attrs_str, flags=re.IGNORECASE)
+        if not re.search(r'(?<![A-Za-z])ht=', new_attrs):
             new_attrs += f' ht="{height_pt:.2f}"'
         # Also set customHeight="1" if not present
         if 'customHeight=' not in new_attrs:
             new_attrs += ' customHeight="1"'
-        return f'<row {new_attrs}>'
+        return f'<row {new_attrs.strip()}>'
     
     return re.sub(r"<row\b([^>]*)>", replace_row, sheet_xml, flags=re.IGNORECASE)
 
