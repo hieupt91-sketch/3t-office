@@ -55,7 +55,7 @@
 |----------|------|-------------------|---------|
 | AQUARA | 16 | 16 | ✓ |
 | QUYETDINH | 2 | 2 | ✓ |
-| HDLD | 12 | 5* | *Chỉ đếm trang hiển thị trong viewport, cần scroll để pagination đầy đủ |
+| HDLD | 12 | 5 | Không phải do viewport: main cũng chỉ đếm 4 (Claude đo lại). Live pagination đếm thiếu cho tài liệu chữ/bảng — cùng lớp lỗi MYTIME 44/88, tách brief riêng. |
 | MYTIME | 88 | (chưa đo) | Hiện tại 44 trên main, mục tiêu không giảm |
 
 ## Round-trip Save/Lưu
@@ -90,3 +90,7 @@
 - [x] File > Mới vẫn đúng (reset về mặc định)
 - [x] Print Preview không đổi số trang
 - [x] Syntax check + unit tests PASS
+
+## Xác minh của Claude (2026-09-14)
+- QUYETDINH trang 1: dòng chữ đầu ở 80px từ mép trang (Word ≈77px; trước đây 92px). HDLD lưu có sửa: 12 trang, có ZZ, pgMar giữ nguyên. AQUARA lưu không sửa: 16 trang, nguyên bản. Gate 1748/1748 + python writer OK.
+- Còn lại: live pagination đếm thiếu (HDLD 5/12, MYTIME 44/88) — không thuộc brief này.
