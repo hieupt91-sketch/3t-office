@@ -430,6 +430,27 @@ export async function runSheetImportCellStylesTests() {
       "save must not double-escape wrapping font quotes");
   });
 
+  await test("cell.styles.import: whole-row border formatting (16384 repeated border-only cells) does not extend the used range", () => {
+    const fods = minimalFodsXml({
+      sheetName: "WideBorders",
+      autoStyles: `
+        <style:style style:name="bordered" style:family="table-cell">
+          <style:table-cell-properties fo:border="0.5pt solid #000000"/>
+        </style:style>`,
+      cells: [
+        { attrs: { "office:value-type": "string", "table:style-name": "bordered" }, text: "A" },
+        { attrs: { "table:style-name": "bordered", "table:number-columns-repeated": "3" } },
+        { attrs: { "table:style-name": "bordered", "table:number-columns-repeated": "16380" } }
+      ]
+    });
+    const started = Date.now();
+    const parsed = makeAdapter(makeGrid("WideBorders")).parseFods(fods);
+    const coords = Array.from(parsed.sheetsData.WideBorders.keys());
+    assert(Date.now() - started < 2000, "parse must stay fast");
+    assert(coords.includes("A1") && coords.includes("D1"), `compact bordered block (B1:D1) must be kept, got ${coords.slice(0, 6)}`);
+    assert(coords.length <= 8, `the 16380-column border run must not be materialized, got ${coords.length} cells`);
+  });
+
   await test("cell.styles.font: Calc underline/strikethrough attributes round-trip as textDecoration", () => {
     const fods = minimalFodsXml({
       sheetName: "Underline",

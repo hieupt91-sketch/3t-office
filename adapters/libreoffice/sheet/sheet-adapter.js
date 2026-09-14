@@ -65,6 +65,12 @@ export function numberFormatFromExcelCode(code) {
 }
 
 export class SheetAdapter {
+  // A border-only cell repeated over more columns / a border-only row repeated
+  // over more rows than this is Excel's "format the whole row/column", not a
+  // bordered table; it must not extend the used range (see parseFods scan).
+  static get STYLE_ONLY_MAX_COLUMN_REPEAT() { return 64; }
+  static get STYLE_ONLY_MAX_ROW_REPEAT() { return 32; }
+
   constructor(gridController) {
     this.grid = gridController;
     this.isDirty = false;
@@ -2491,6 +2497,10 @@ export class SheetAdapter {
       // colWidths/rowHeights, but this prevents serialize blowup defensively).
       maxCol = Math.min(maxCol, 4096);
       maxRow = Math.min(maxRow, 1048576);
+      // Last row that carries a cell, comment, image or covered cell; rows past
+      // it only exist for layout (height/hidden) and can be run-length encoded.
+      let lastContentRow = 0;
+      for (const rowNumber of rows.keys()) lastContentRow = Math.max(lastContentRow, rowNumber);
 
       const columnParts = [];
       for (let columnNumber = 1; columnNumber <= Math.max(1, maxCol); columnNumber++) {
@@ -2649,7 +2659,23 @@ export class SheetAdapter {
         const rowAttrs = [];
         if (Number.isFinite(rowHeight) || rowHidden || rowPageBreak) rowAttrs.push(`table:style-name="${rowStyleFor(Number.isFinite(rowHeight) ? rowHeight : defaultRowHeight, rowPageBreak)}"`);
         if (rowHidden) rowAttrs.push(`table:visibility="collapse"`);
-        rowParts.push({ key: rowNumber, xml: `<table:table-row${rowAttrs.length ? ` ${rowAttrs.join(" ")}` : ""}>${cellsXml || "<table:table-cell/>"}</table:table-row>` });
+        const rowOpen = `<table:table-row${rowAttrs.length ? ` ${rowAttrs.join(" ")}` : ""}`;
+        // Trailing rows without cells (Excel "hide every row below the data",
+        // custom default heights) are run-length encoded like ODF does; lan02.xlsx
+        // otherwise produced 1,048,576 <table:table-row> per sheet (231 MB FODS)
+        // and the save never finished.
+        const trailingEmpty = !cellsXml && rowNumber > lastContentRow && !rowPageBreak;
+        const previous = rowParts[rowParts.length - 1];
+        if (trailingEmpty && previous?.repeatOpen === rowOpen) {
+          previous.repeat += 1;
+          previous.xml = `${rowOpen} table:number-rows-repeated="${previous.repeat}"><table:table-cell/></table:table-row>`;
+          continue;
+        }
+        rowParts.push({
+          key: rowNumber,
+          xml: `${rowOpen}>${cellsXml || "<table:table-cell/>"}</table:table-row>`,
+          ...(trailingEmpty ? { repeatOpen: rowOpen, repeat: 1 } : {})
+        });
       }
       const rowsXml = this._wrapOutlineGroups(sheetName, rowParts, "row", "table:table-row-group");
       const localNames = (this.grid.namedRangesBySheet?.[sheetName] || []).map(range => this._namedRangeXml(range, sheetName)).join("");
@@ -2768,7 +2794,7 @@ export class SheetAdapter {
    * ALSO counts cells that have a style with borders (visual formatting),
    * so that empty cells with borders are preserved within the used range.
    */
-  _fodsCellHasRealContent(cell, cellVisualStyles = new Map()) {
+  _fodsCellHasRealContent(cell, cellVisualStyles = new Map(), includeBorderStyle = true) {
     if (cell.getAttribute("vno:original-string") !== null) return true;
     if (cell.getAttribute("table:formula") || cell.getAttribute("vno:formula")) return true;
     if (cell.getAttribute("table:content-validation-name")) return true;
@@ -2785,6 +2811,7 @@ export class SheetAdapter {
       if ((paragraph.textContent || "").trim() !== "") return true;
     }
     // Check if cell has a style with borders
+    if (!includeBorderStyle) return false;
     const styleName = cell.getAttribute("table:style-name");
     if (styleName && cellVisualStyles.has(styleName)) {
       const visualStyle = cellVisualStyles.get(styleName);
@@ -2795,8 +2822,15 @@ export class SheetAdapter {
     return false;
   }
 
+  /** True when the cell's automatic style draws at least one border. */
+  _cellStyleHasBorder(styleName, cellVisualStyles = new Map()) {
+    if (!styleName || !cellVisualStyles.has(styleName)) return false;
+    const visualStyle = cellVisualStyles.get(styleName);
+    return Boolean(visualStyle && (visualStyle.borderLeft || visualStyle.borderRight || visualStyle.borderTop || visualStyle.borderBottom));
+  }
+
   /** Regex-branch twin of _fodsCellHasRealContent (attributes map + raw inner markup). */
-  _fodsCellMarkupHasRealContent(attributes, content, cellVisualStyles = new Map()) {
+  _fodsCellMarkupHasRealContent(attributes, content, cellVisualStyles = new Map(), includeBorderStyle = true) {
     if (attributes["vno:original-string"] !== undefined) return true;
     if (attributes["table:formula"] || attributes["vno:formula"] || attributes["table:content-validation-name"]) return true;
     if (Number(attributes["table:number-columns-spanned"]) > 1 || Number(attributes["table:number-rows-spanned"]) > 1) return true;
@@ -2805,7 +2839,7 @@ export class SheetAdapter {
     }
     // Check if cell has a style with borders (empty cells with borders must be materialized)
     const styleName = attributes["table:style-name"];
-    if (styleName && cellVisualStyles.has(styleName)) {
+    if (includeBorderStyle && styleName && cellVisualStyles.has(styleName)) {
       const visualStyle = cellVisualStyles.get(styleName);
       if (visualStyle && (visualStyle.borderLeft || visualStyle.borderRight || visualStyle.borderTop || visualStyle.borderBottom)) {
         return true;
@@ -3314,7 +3348,16 @@ export class SheetAdapter {
               for (const cell of Array.from(row.children)) {
                 if (!["table-cell", "covered-table-cell"].includes(cell.localName)) continue;
                 const colRepeat = Math.max(1, Number(cell.getAttribute("table:number-columns-repeated")) || 1);
-                if (this._fodsCellHasRealContent(cell, cellVisualStyles)) {
+                // A border-only cell repeated across a whole row/column block is
+                // "format the entire row" (Excel writes it for 16384 columns and
+                // up to 1M rows); counting it as data blew the used range up to
+                // 16384 x 1M coords and crashed the Map (lan02.xlsx: "Map maximum
+                // size exceeded"). Only compact bordered blocks extend the range.
+                const hasValue = this._fodsCellHasRealContent(cell, cellVisualStyles, false);
+                const compactBorderBlock = !hasValue && colRepeat <= SheetAdapter.STYLE_ONLY_MAX_COLUMN_REPEAT
+                  && scanRepeat <= SheetAdapter.STYLE_ONLY_MAX_ROW_REPEAT
+                  && this._fodsCellHasRealContent(cell, cellVisualStyles);
+                if (hasValue || compactBorderBlock) {
                   rowHasData = true;
                   lastDataCol = Math.max(lastDataCol, scanCol + colRepeat - 1);
                 }
@@ -3390,7 +3433,7 @@ export class SheetAdapter {
                 // serializeToFods bỏ table:style-name -> XLSX lưu ra mất viền (đo Dahua:
                 // FODS soffice 573 ô viền, app gửi đi 468 khi thiếu nhánh này).
                 const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"]
-                  || (columnNumber <= lastDataCol && this._fodsCellHasRealContent(cell, cellVisualStyles));
+                  || (columnNumber <= lastDataCol && this._cellStyleHasBorder(attributes["table:style-name"], cellVisualStyles));
                 if (hasValue && !isCovered) {
                   const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
                   // Extract rich text runs from <text:span> elements
@@ -3410,9 +3453,10 @@ export class SheetAdapter {
                   // A style-only cell keeps its entries inside the used range so
                   // borders/fills on blank table cells survive; past lastDataCol it
                   // is the collapsed empty tail and must not be expanded.
-                  const materializeRepeat = this._fodsCellHasRealContent(cell, cellVisualStyles)
-                    ? columnRepeat
-                    : Math.max(0, Math.min(columnRepeat, lastDataCol - columnNumber + 1));
+                  // lastDataCol already covers every value-bearing repeat, so the
+                  // bound applies to all cells: a border-only run of 16384
+                  // columns inside the used rows would otherwise still explode.
+                  const materializeRepeat = Math.max(0, Math.min(columnRepeat, lastDataCol - columnNumber + 1));
                   for (let repeat = 0; repeat < materializeRepeat; repeat++) {
                     const coord = `${this._columnName(columnNumber + repeat)}${rowNumber}`;
                     data.set(coord, { ...item });
@@ -3547,7 +3591,13 @@ export class SheetAdapter {
               const scanAttrs = {};
               scanCellMatch[2].replace(/([\w:-]+)=["']([^"']*)["']/g, (_, key, value) => { scanAttrs[key] = value; return ""; });
               const colRepeat = Math.max(1, Number(scanAttrs["table:number-columns-repeated"]) || 1);
-              if (this._fodsCellMarkupHasRealContent(scanAttrs, scanCellMatch[3] || "", cellVisualStyles)) {
+              // Same bound as the DOM branch: whole-row/column border formatting
+              // must not extend the used range (see STYLE_ONLY_MAX_*_REPEAT).
+              const hasValue = this._fodsCellMarkupHasRealContent(scanAttrs, scanCellMatch[3] || "", cellVisualStyles, false);
+              const compactBorderBlock = !hasValue && colRepeat <= SheetAdapter.STYLE_ONLY_MAX_COLUMN_REPEAT
+                && scanRepeat <= SheetAdapter.STYLE_ONLY_MAX_ROW_REPEAT
+                && this._fodsCellMarkupHasRealContent(scanAttrs, scanCellMatch[3] || "", cellVisualStyles);
+              if (hasValue || compactBorderBlock) {
                 rowHasData = true;
                 lastDataCol = Math.max(lastDataCol, scanCol + colRepeat - 1);
               }
@@ -3623,7 +3673,10 @@ export class SheetAdapter {
               const paragraphs = [];
               valueContent.replace(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi, (_, value) => { paragraphs.push(this._unescapeXml(value.replace(/<[^>]+>/g, ""))); return ""; });
               const text = this._decodeImportedCellText(paragraphs.join("\n"));
-              const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotationMatch || attributes["table:content-validation-name"];
+              // Regex-branch twin of the DOM rule: border-only cells inside the
+              // used range enter the model so their borders survive the save.
+              const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotationMatch || attributes["table:content-validation-name"]
+                || (columnNumber <= lastDataCol && this._cellStyleHasBorder(attributes["table:style-name"], cellVisualStyles));
               if (hasValue && !isCovered) {
                 const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
                 // Extract rich text runs from <text:span> elements (regex branch)
@@ -3640,9 +3693,7 @@ export class SheetAdapter {
                 if ((attributes["table:number-matrix-columns-spanned"] || attributes["table:number-matrix-rows-spanned"]) && item.formula) {
                   arrayFormulas.push({ column: columnNumber, row: rowNumber, columns: matrixColumns, rows: matrixRows, formula: item.formula });
                 }
-                const materializeRepeat = this._fodsCellMarkupHasRealContent(attributes, content, cellVisualStyles)
-                  ? columnRepeat
-                  : Math.max(0, Math.min(columnRepeat, lastDataCol - columnNumber + 1));
+                const materializeRepeat = Math.max(0, Math.min(columnRepeat, lastDataCol - columnNumber + 1));
                 for (let repeat = 0; repeat < materializeRepeat; repeat++) {
                   const coord = `${this._columnName(columnNumber + repeat)}${rowNumber}`;
                   data.set(coord, { ...item });
