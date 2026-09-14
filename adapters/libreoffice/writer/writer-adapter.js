@@ -1999,13 +1999,7 @@ export class WriterAdapter {
 
     const openRe = /<span\b([^>]*)>/gi;
     let cursor = 0;
-    let anchorIndex = 0;
-    const usedWsps = new Set();
-    const pageFloats = new Map();
-    const spanReplacements = [];
-
-    const marginLeftCm = Number(page?.margins?.left || 0) / 10;
-    const marginTopCm = Number(page?.margins?.top || 0) / 10;
+    const spans = [];
 
     while (cursor < src.length) {
       openRe.lastIndex = cursor;
@@ -2051,6 +2045,57 @@ export class WriterAdapter {
       const endPos = close + 7;
       cursor = endPos;
 
+      spans.push({ isImage, isTextbox, style, inner, startPos, endPos });
+    }
+
+    const marginLeftCm = Number(page?.margins?.left || 0) / 10;
+    const marginTopCm = Number(page?.margins?.top || 0) / 10;
+
+    // Pass 1 & 2: Match textboxes to group wsp
+    const matchedWspBySpan = new Map();
+    const usedWsps = new Set();
+    if (hasNativeGroup && groupWsps.length > 0) {
+      // Pass 1: Exact match pass
+      for (let sIdx = 0; sIdx < spans.length; sIdx++) {
+        const sp = spans[sIdx];
+        if (!sp.isTextbox) continue;
+        const text = normalizeText(sp.inner);
+        for (let i = 0; i < groupWsps.length; i++) {
+          if (usedWsps.has(i)) continue;
+          const w = groupWsps[i];
+          if (w.text === text) {
+            matchedWspBySpan.set(sIdx, w);
+            usedWsps.add(i);
+            break;
+          }
+        }
+      }
+      // Pass 2: Fuzzy match pass for remaining unattached textboxes
+      for (let sIdx = 0; sIdx < spans.length; sIdx++) {
+        if (matchedWspBySpan.has(sIdx)) continue;
+        const sp = spans[sIdx];
+        if (!sp.isTextbox) continue;
+        const text = normalizeText(sp.inner);
+        if (!text || text.length < 5) continue;
+        for (let i = 0; i < groupWsps.length; i++) {
+          if (usedWsps.has(i)) continue;
+          const w = groupWsps[i];
+          if (w.text.includes(text) || text.includes(w.text)) {
+            matchedWspBySpan.set(sIdx, w);
+            usedWsps.add(i);
+            break;
+          }
+        }
+      }
+    }
+
+    let anchorIndex = 0;
+    const pageFloats = new Map();
+    const spanReplacements = [];
+
+    for (let sIdx = 0; sIdx < spans.length; sIdx++) {
+      const sp = spans[sIdx];
+      const { isImage, isTextbox, style, inner, startPos, endPos } = sp;
       const value = (name) => style.match(new RegExp(`\\b${name}\\s*:\\s*([^;]+)`, "i"))?.[1];
       const imgTag = inner.match(/<img\b[^>]*>/i)?.[0] || "";
       const attrValue = (name) => imgTag.match(new RegExp(`\\b${name}=["']?([^"'\\s>]+)`, "i"))?.[1];
@@ -2103,20 +2148,7 @@ export class WriterAdapter {
           spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
         }
       } else if (isTextbox) {
-        const text = normalizeText(inner);
-        let matchedWsp = null;
-        if (hasNativeGroup && groupWsps.length > 0) {
-          for (let i = 0; i < groupWsps.length; i++) {
-            if (usedWsps.has(i)) continue;
-            const w = groupWsps[i];
-            if (w.text === text || (text && (w.text.includes(text) || text.includes(w.text)))) {
-              matchedWsp = w;
-              usedWsps.add(i);
-              break;
-            }
-          }
-        }
-
+        const matchedWsp = matchedWspBySpan.get(sIdx);
         if (matchedWsp) {
           const left = matchedWsp.pageLeftCm;
           const top = matchedWsp.pageTopCm;
@@ -2221,19 +2253,15 @@ export class WriterAdapter {
     let finalHtml = intermediateHtml;
     for (const inj of sortedInjections) {
       const pInfo = openingParagraphs[inj.pIndex];
-      const layoutStyle = `position:relative;${inj.reserveCm > 0 ? `min-height:${Number(inj.reserveCm.toFixed(3))}cm;` : ""}`;
-      let newTag = pInfo.tag;
-      if (!/data-vno-float-anchor/i.test(newTag)) {
-        newTag = newTag.replace(/^<p\b/i, "<p data-vno-float-anchor");
-      }
-      if (/\bstyle=["']/i.test(newTag)) {
-        newTag = newTag.replace(/\bstyle=["']([^"']*)["']/i, (_m, s) => `style="${layoutStyle}${s}"`);
-      } else {
-        newTag = newTag.replace(/>$/, ` style="${layoutStyle}">`);
-      }
-
+      const containerStyle = `position:relative;${inj.reserveCm > 0 ? `min-height:${Number(inj.reserveCm.toFixed(3))}cm;` : ""}`;
       const combinedFloats = inj.allFloats.join("");
-      finalHtml = finalHtml.slice(0, pInfo.index) + newTag + combinedFloats + finalHtml.slice(pInfo.index + pInfo.length);
+      const containerHtml = `<div data-vno-float-anchor style="${containerStyle}">${combinedFloats}</div>`;
+
+      if (pInfo.isBreak) {
+        finalHtml = finalHtml.slice(0, pInfo.index + pInfo.length) + containerHtml + finalHtml.slice(pInfo.index + pInfo.length);
+      } else {
+        finalHtml = finalHtml.slice(0, pInfo.index) + containerHtml + finalHtml.slice(pInfo.index);
+      }
     }
 
     return finalHtml;
