@@ -1858,20 +1858,14 @@ export class WriterAdapter {
 
   _ooxmlGroupChildTextboxes(xml) {
     const rawXml = String(xml || "");
-    const bodyStart = rawXml.indexOf("<w:body>");
     const normalize = (str) => String(str || "").replace(/<[^>]+>/g, "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
     const groupWsps = [];
 
-    const drawings = [...rawXml.matchAll(/<wp:(?:anchor|inline)\b([\s\S]*?)<\/wp:(?:anchor|inline)>/gi)];
-    for (const dMatch of drawings) {
-      const dXml = dMatch[0];
+    // 1. Anchored groups: each wp:anchor at index anchorK corresponds 1:1 to raster image k
+    const anchors = [...rawXml.matchAll(/<wp:anchor\b([\s\S]*?)<\/wp:anchor>/gi)];
+    for (let anchorK = 0; anchorK < anchors.length; anchorK++) {
+      const dXml = anchors[anchorK][0];
       if (!/<wpg:wgp\b/i.test(dXml)) continue;
-      const dStart = dMatch.index;
-      const prefix = bodyStart !== -1 ? rawXml.slice(bodyStart, dStart) : rawXml.slice(0, dStart);
-      const brCount = (prefix.match(/<w:br\b[^>]*w:type=["']page["']/gi) || []).length;
-      const pbbCount = (prefix.match(/<w:pageBreakBefore\b/gi) || []).length;
-      const sectCount = (prefix.match(/<w:pPr\b[^>]*>[\s\S]*?<w:sectPr\b/gi) || []).length;
-      const pageIndex = brCount + pbbCount + sectCount;
 
       const posH = Number(dXml.match(/<wp:positionH\b[^>]*>[\s\S]*?<wp:posOffset>(-?\d+)<\/wp:posOffset>/i)?.[1]);
       const posV = Number(dXml.match(/<wp:positionV\b[^>]*>[\s\S]*?<wp:posOffset>(-?\d+)<\/wp:posOffset>/i)?.[1]);
@@ -1931,11 +1925,38 @@ export class WriterAdapter {
             pageTopCm,
             widthCm: wspWidthCm,
             heightCm: wspHeightCm,
-            pageIndex
+            anchorIndex: anchorK
           });
         }
       }
     }
+
+    // 2. Inline groups: anchorIndex = null
+    const inlines = [...rawXml.matchAll(/<wp:inline\b([\s\S]*?)<\/wp:inline>/gi)];
+    for (const iMatch of inlines) {
+      const dXml = iMatch[0];
+      if (!/<wpg:wgp\b/i.test(dXml)) continue;
+      for (const wgpMatch of dXml.matchAll(/<wpg:wgp\b[\s\S]*?<\/wpg:wgp>/gi)) {
+        const wgp = wgpMatch[0];
+        for (const wspMatch of wgp.matchAll(/<wps:wsp\b[\s\S]*?<\/wps:wsp>/gi)) {
+          const wspXml = wspMatch[0];
+          const txbxMatch = wspXml.match(/<w:txbxContent\b[\s\S]*?<\/w:txbxContent>/i);
+          if (!txbxMatch) continue;
+          const text = normalize(txbxMatch[0]);
+          if (!text) continue;
+          groupWsps.push({
+            text,
+            solidFill: /<a:solidFill\b/i.test(wspXml),
+            pageLeftCm: 0,
+            pageTopCm: 0,
+            widthCm: 0,
+            heightCm: 0,
+            anchorIndex: null
+          });
+        }
+      }
+    }
+
     return groupWsps;
   }
 
@@ -2090,12 +2111,20 @@ export class WriterAdapter {
     }
 
     let anchorIndex = 0;
-    const pageFloats = new Map();
+    const imageSpans = [];
+    const imageIndexByAnchor = new Map();
+    const textboxesByAnchor = new Map();
     const spanReplacements = [];
 
+    // Identify images first so we can attach textboxes to the right anchor image
     for (let sIdx = 0; sIdx < spans.length; sIdx++) {
       const sp = spans[sIdx];
-      const { isImage, isTextbox, style, inner, startPos, endPos } = sp;
+      if (!sp.isImage) continue;
+
+      const imgK = anchorIndex++;
+      imageIndexByAnchor.set(imgK, imageSpans.length);
+
+      const { style, inner, startPos, endPos } = sp;
       const value = (name) => style.match(new RegExp(`\\b${name}\\s*:\\s*([^;]+)`, "i"))?.[1];
       const imgTag = inner.match(/<img\b[^>]*>/i)?.[0] || "";
       const attrValue = (name) => imgTag.match(new RegExp(`\\b${name}=["']?([^"'\\s>]+)`, "i"))?.[1];
@@ -2104,164 +2133,107 @@ export class WriterAdapter {
       const htmlWidth = this._cssLengthToCm(value("width")) ?? this._cssLengthToCm(`${attrValue("width") || 0}px`) ?? 0;
       const htmlHeight = this._cssLengthToCm(value("height")) ?? this._cssLengthToCm(`${attrValue("height") || 0}px`) ?? 0;
 
-      if (isImage) {
-        const meta = anchors[anchorIndex++] || { relativeH: "paragraph", relativeV: "paragraph", wrap: "wrapNone", behindDoc: false, pageIndex: 0 };
-        const left = meta.sourceGroup && meta.leftCm != null ? meta.leftCm : htmlLeft;
-        const top = meta.sourceGroup && meta.topCm != null ? meta.topCm : htmlTop;
-        const width = meta.sourceGroup && meta.widthCm ? meta.widthCm : htmlWidth;
-        const height = meta.sourceGroup && meta.heightCm ? meta.heightCm : htmlHeight;
+      const meta = anchors[imgK] || { relativeH: "paragraph", relativeV: "paragraph", wrap: "wrapNone", behindDoc: false, pageIndex: 0 };
+      const left = meta.sourceGroup && meta.leftCm != null ? meta.leftCm : htmlLeft;
+      const top = meta.sourceGroup && meta.topCm != null ? meta.topCm : htmlTop;
+      const width = meta.sourceGroup && meta.widthCm ? meta.widthCm : htmlWidth;
+      const height = meta.sourceGroup && meta.heightCm ? meta.heightCm : htmlHeight;
 
-        const isPageRel = ["page", "margin"].includes(String(meta.relativeV).toLowerCase());
-        const displayLeft = ["margin", "column"].includes(String(meta.relativeH).toLowerCase()) ? left + marginLeftCm : left;
-        const displayTop = ["margin"].includes(String(meta.relativeV).toLowerCase()) ? top + marginTopCm : top;
-        const canvasLeft = Number((displayLeft - marginLeftCm).toFixed(3));
-        const canvasTop = Number((displayTop - marginTopCm).toFixed(3));
+      const isPageRel = ["page", "margin"].includes(String(meta.relativeV).toLowerCase());
+      const displayLeft = ["margin", "column"].includes(String(meta.relativeH).toLowerCase()) ? left + marginLeftCm : left;
+      const displayTop = ["margin"].includes(String(meta.relativeV).toLowerCase()) ? top + marginTopCm : top;
+      const canvasLeft = Number((displayLeft - marginLeftCm).toFixed(3));
+      const canvasTop = Number((displayTop - marginTopCm).toFixed(3));
 
-        const cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
-        const imageSource = attrValue("src") || "";
-        const isRepeatedPageWatermark = meta.behindDoc
-          && String(meta.relativeH).toLowerCase() === "page"
-          && String(meta.relativeV).toLowerCase() === "page"
-          && (imageSourceCounts.get(imageSource) || 0) >= 3
-          && width >= 10
-          && height >= 10;
-        const isPageImage = meta.behindDoc
-          && meta.wrap === "wrapNone"
-          && !isRepeatedPageWatermark
-          && String(meta.relativeH).toLowerCase() === "page"
-          && String(meta.relativeV).toLowerCase() === "page";
+      const cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
+      const imageSource = attrValue("src") || "";
+      const isRepeatedPageWatermark = meta.behindDoc
+        && String(meta.relativeH).toLowerCase() === "page"
+        && String(meta.relativeV).toLowerCase() === "page"
+        && (imageSourceCounts.get(imageSource) || 0) >= 3
+        && width >= 10
+        && height >= 10;
+      const isPageImage = meta.behindDoc
+        && meta.wrap === "wrapNone"
+        && !isRepeatedPageWatermark
+        && String(meta.relativeH).toLowerCase() === "page"
+        && String(meta.relativeV).toLowerCase() === "page";
 
-        const canvasGeometry = (hasNativeGroup && isPageRel)
+      const canvasGeometry = (hasNativeGroup && isPageRel)
+        ? `position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;`
+        : (isRepeatedPageWatermark || isPageImage)
           ? `position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;`
-          : (isRepeatedPageWatermark || isPageImage)
-            ? `position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;`
-            : `position:absolute;left:${displayLeft}cm;top:${displayTop}cm;`;
+          : `position:absolute;left:${displayLeft}cm;top:${displayTop}cm;`;
 
-        const spanHtml = `<span data-vno-float="image" data-vno-source-group="${meta.sourceGroup ? "1" : "0"}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}"${isRepeatedPageWatermark ? ' data-vno-imported-watermark="1"' : ""}${isPageImage ? ' data-vno-page-image="1"' : ""} style="${canvasGeometry}${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:0;" : `z-index:${anchorIndex};`}${cleanedStyle}">${inner}</span>`;
+      const spanHtml = `<span data-vno-float="image" data-vno-source-group="${meta.sourceGroup ? "1" : "0"}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}"${isRepeatedPageWatermark ? ' data-vno-imported-watermark="1"' : ""}${isPageImage ? ' data-vno-page-image="1"' : ""} style="${canvasGeometry}${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:0;" : `z-index:${imgK + 1};`}${cleanedStyle}">${inner}</span>`;
 
-        if (hasNativeGroup && isPageRel && hasParagraphs) {
-          const pageJ = meta.pageIndex || 0;
-          if (!pageFloats.has(pageJ)) pageFloats.set(pageJ, []);
-          pageFloats.get(pageJ).push(spanHtml);
+      imageSpans.push({ imgK, spanHtml, startPos, endPos });
+    }
+
+    // Process textboxes
+    for (let sIdx = 0; sIdx < spans.length; sIdx++) {
+      const sp = spans[sIdx];
+      if (!sp.isTextbox) continue;
+
+      const { style, inner, startPos, endPos } = sp;
+      const matchedWsp = matchedWspBySpan.get(sIdx);
+
+      if (matchedWsp) {
+        const left = matchedWsp.pageLeftCm;
+        const top = matchedWsp.pageTopCm;
+        const width = matchedWsp.widthCm;
+        const height = matchedWsp.heightCm;
+        const canvasLeft = Number((left - marginLeftCm).toFixed(3));
+        const canvasTop = Number((top - marginTopCm).toFixed(3));
+
+        let cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
+        if (!matchedWsp.solidFill) {
+          cleanedStyle = cleanedStyle.replace(/\bbackground(?:-color)?\s*:\s*[^;]+;?\s*/gi, "").trim();
+          cleanedStyle = `background:transparent;${cleanedStyle}`;
+        }
+
+        const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="page" data-vno-relative-v="page" data-vno-wrap="wrapNone" data-vno-behind="0" style="position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}z-index:1;${cleanedStyle}">${inner}</span>`;
+
+        // If matched to an anchored group with a known image, move textbox to that image
+        if (matchedWsp.anchorIndex !== null && imageIndexByAnchor.has(matchedWsp.anchorIndex)) {
+          const k = matchedWsp.anchorIndex;
+          if (!textboxesByAnchor.has(k)) textboxesByAnchor.set(k, []);
+          textboxesByAnchor.get(k).push(spanHtml);
           spanReplacements.push({ start: startPos, end: endPos, value: "" });
         } else {
           spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
         }
-      } else if (isTextbox) {
-        const matchedWsp = matchedWspBySpan.get(sIdx);
-        if (matchedWsp) {
-          const left = matchedWsp.pageLeftCm;
-          const top = matchedWsp.pageTopCm;
-          const width = matchedWsp.widthCm;
-          const height = matchedWsp.heightCm;
-          const canvasLeft = Number((left - marginLeftCm).toFixed(3));
-          const canvasTop = Number((top - marginTopCm).toFixed(3));
+      } else {
+        // Standalone textbox: consume next anchor (DO NOT take sourceGroup or group dimensions)
+        const meta = anchors[anchorIndex++] || { relativeH: "paragraph", relativeV: "paragraph", wrap: "wrapNone", behindDoc: false };
+        const value = (name) => style.match(new RegExp(`\\b${name}\\s*:\\s*([^;]+)`, "i"))?.[1];
+        const htmlLeft = this._cssLengthToCm(value("left")) ?? 0;
+        const htmlTop = this._cssLengthToCm(value("top")) ?? 0;
+        const htmlWidth = this._cssLengthToCm(value("width")) ?? 0;
+        const htmlHeight = this._cssLengthToCm(value("height")) ?? 0;
 
-          let cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
-          if (!matchedWsp.solidFill) {
-            cleanedStyle = cleanedStyle.replace(/\bbackground(?:-color)?\s*:\s*[^;]+;?\s*/gi, "").trim();
-            cleanedStyle = `background:transparent;${cleanedStyle}`;
-          }
-
-          const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="page" data-vno-relative-v="page" data-vno-wrap="wrapNone" data-vno-behind="0" style="position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}z-index:1;${cleanedStyle}">${inner}</span>`;
-
-          if (hasParagraphs) {
-            const pageJ = matchedWsp.pageIndex || 0;
-            if (!pageFloats.has(pageJ)) pageFloats.set(pageJ, []);
-            pageFloats.get(pageJ).push(spanHtml);
-            spanReplacements.push({ start: startPos, end: endPos, value: "" });
-          } else {
-            spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
-          }
-        } else {
-          // Standalone textbox: consume next anchor (DO NOT take sourceGroup or group dimensions)
-          const meta = anchors[anchorIndex++] || { relativeH: "paragraph", relativeV: "paragraph", wrap: "wrapNone", behindDoc: false };
-          const displayLeft = ["margin", "column"].includes(String(meta.relativeH).toLowerCase()) ? htmlLeft + marginLeftCm : htmlLeft;
-          const displayTop = ["margin"].includes(String(meta.relativeV).toLowerCase()) ? htmlTop + marginTopCm : htmlTop;
-          const cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
-          const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${htmlLeft}" data-vno-top="${htmlTop}" data-vno-width="${htmlWidth}" data-vno-height="${htmlHeight}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}" style="position:absolute;left:${displayLeft}cm;top:${displayTop}cm;${htmlWidth ? `width:${htmlWidth}cm;` : ""}${htmlHeight ? `height:${htmlHeight}cm;` : ""}z-index:1;${cleanedStyle}">${inner}</span>`;
-          spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
-        }
+        const displayLeft = ["margin", "column"].includes(String(meta.relativeH).toLowerCase()) ? htmlLeft + marginLeftCm : htmlLeft;
+        const displayTop = ["margin"].includes(String(meta.relativeV).toLowerCase()) ? htmlTop + marginTopCm : htmlTop;
+        const cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
+        const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${htmlLeft}" data-vno-top="${htmlTop}" data-vno-width="${htmlWidth}" data-vno-height="${htmlHeight}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}" style="position:absolute;left:${displayLeft}cm;top:${displayTop}cm;${htmlWidth ? `width:${htmlWidth}cm;` : ""}${htmlHeight ? `height:${htmlHeight}cm;` : ""}z-index:1;${cleanedStyle}">${inner}</span>`;
+        spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
       }
     }
 
-    spanReplacements.sort((a, b) => b.start - a.start);
-    let intermediateHtml = src;
-    for (const rep of spanReplacements) {
-      intermediateHtml = intermediateHtml.slice(0, rep.start) + rep.value + intermediateHtml.slice(rep.end);
-    }
-
-    if (pageFloats.size === 0 || !hasParagraphs) {
-      return intermediateHtml;
-    }
-
-    const pRegex = /<p\b([^>]*)>/gi;
-    const openingParagraphs = [];
-    let pMatch;
-    while ((pMatch = pRegex.exec(intermediateHtml)) !== null) {
-      const pAttrs = pMatch[1] || "";
-      const isBreak = /(?:page-break-before|break-before)\s*:\s*(?:always|page)/i.test(pAttrs);
-      if (openingParagraphs.length === 0) {
-        openingParagraphs.push({ index: pMatch.index, length: pMatch[0].length, tag: pMatch[0], attrs: pAttrs, isBreak });
-      } else if (isBreak) {
-        openingParagraphs.push({ index: pMatch.index, length: pMatch[0].length, tag: pMatch[0], attrs: pAttrs, isBreak: true });
-      }
-    }
-
-    if (openingParagraphs.length === 0) {
-      return intermediateHtml;
-    }
-
-    const pInjections = [];
-    for (const [pageJ, floats] of pageFloats.entries()) {
-      const targetIdx = Math.min(pageJ, openingParagraphs.length - 1);
-      const pInfo = openingParagraphs[targetIdx];
-      if (!pInfo) continue;
-
-      let reserveCm = 0;
-      for (const fl of floats) {
-        if (/data-vno-wrap=["']wrapTopAndBottom["']/i.test(fl)) {
-          const top = Number(fl.match(/data-vno-top=["'](-?[\d.]+)/i)?.[1] || 0);
-          const height = Number(fl.match(/data-vno-height=["']([\d.]+)/i)?.[1] || 0);
-          reserveCm = Math.max(reserveCm, top + height);
-        }
-      }
-
-      pInjections.push({
-        pIndex: targetIdx,
-        tagPos: pInfo.index,
-        tagLen: pInfo.length,
-        origTag: pInfo.tag,
-        origAttrs: pInfo.attrs,
-        reserveCm,
-        floatsHtml: floats.join("")
+    // Attach textboxes immediately after their respective anchor image
+    for (const img of imageSpans) {
+      const attached = textboxesByAnchor.get(img.imgK) || [];
+      spanReplacements.push({
+        start: img.startPos,
+        end: img.endPos,
+        value: img.spanHtml + attached.join("")
       });
     }
 
-    const injectionsByP = new Map();
-    for (const inj of pInjections) {
-      if (!injectionsByP.has(inj.pIndex)) {
-        injectionsByP.set(inj.pIndex, { ...inj, allFloats: [inj.floatsHtml] });
-      } else {
-        const existing = injectionsByP.get(inj.pIndex);
-        existing.reserveCm = Math.max(existing.reserveCm, inj.reserveCm);
-        existing.allFloats.push(inj.floatsHtml);
-      }
-    }
-
-    const sortedInjections = Array.from(injectionsByP.values()).sort((a, b) => b.tagPos - a.tagPos);
-    let finalHtml = intermediateHtml;
-    for (const inj of sortedInjections) {
-      const pInfo = openingParagraphs[inj.pIndex];
-      const containerStyle = `position:relative;${inj.reserveCm > 0 ? `min-height:${Number(inj.reserveCm.toFixed(3))}cm;` : ""}`;
-      const combinedFloats = inj.allFloats.join("");
-      const containerHtml = `<div data-vno-float-anchor style="${containerStyle}">${combinedFloats}</div>`;
-
-      if (pInfo.isBreak) {
-        finalHtml = finalHtml.slice(0, pInfo.index + pInfo.length) + containerHtml + finalHtml.slice(pInfo.index + pInfo.length);
-      } else {
-        finalHtml = finalHtml.slice(0, pInfo.index) + containerHtml + finalHtml.slice(pInfo.index);
-      }
+    spanReplacements.sort((a, b) => b.start - a.start);
+    let finalHtml = src;
+    for (const rep of spanReplacements) {
+      finalHtml = finalHtml.slice(0, rep.start) + rep.value + finalHtml.slice(rep.end);
     }
 
     return finalHtml;
