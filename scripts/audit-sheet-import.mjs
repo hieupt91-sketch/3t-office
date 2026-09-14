@@ -27,6 +27,12 @@ function decodeXml(value = "") {
     .replace(/&apos;/g, "'").replace(/&amp;/g, "&");
 }
 
+function normalizeFontName(value = "") {
+  const font = decodeXml(String(value)).trim();
+  const wrapped = font.match(/^(["'])([\s\S]*)\1$/);
+  return (wrapped ? wrapped[2] : font).trim();
+}
+
 function attrs(text = "") {
   const result = {};
   text.replace(/([\w:.-]+)\s*=\s*(["'])([\s\S]*?)\2/g, (_, key, _q, value) => { result[key] = decodeXml(value); return ""; });
@@ -49,9 +55,11 @@ function resolveTarget(base, target) {
 
 function parseSharedStrings(xml) {
   const strings = [];
+  strings.richIndexes = new Set();
   xml.replace(/<si\b[^>]*>([\s\S]*?)<\/si>/gi, (_, body) => {
     const pieces = [];
     body.replace(/<t\b[^>]*>([\s\S]*?)<\/t>/gi, (_m, text) => { pieces.push(decodeXml(text)); return ""; });
+    if (/<r\b/i.test(body)) strings.richIndexes.add(strings.length);
     strings.push(pieces.join(""));
     return "";
   });
@@ -69,7 +77,7 @@ function parseStyles(xml) {
     return a.rgb ? `#${a.rgb.slice(-6).toUpperCase()}` : (a.indexed ? (indexed[Number(a.indexed)] ?? `indexed:${a.indexed}`) : (a.theme ? `theme:${a.theme}${a.tint ? `:${a.tint}` : ""}` : ""));
   };
   const fonts = childBlocks("fonts").map(block => ({
-    name: attrs(block.match(/<name\b([^>]*)\/?\s*>/i)?.[1] || "").val || "",
+    name: normalizeFontName(attrs(block.match(/<name\b([^>]*)\/?\s*>/i)?.[1] || "").val || ""),
     size: Number(attrs(block.match(/<sz\b([^>]*)\/?\s*>/i)?.[1] || "").val || 0),
     bold: /<b\b/i.test(block), italic: /<i\b/i.test(block), color: color(block)
   }));
@@ -195,7 +203,8 @@ function parseSheetXml(xml, sharedStrings, styles) {
     }
     const rawValue = decodeXml(body.match(/<v\b[^>]*>([\s\S]*?)<\/v>/i)?.[1] || "");
     let value = rawValue;
-    if (a.t === "s") value = sharedStrings[Number(rawValue)] ?? "";
+    const sharedIndex = a.t === "s" ? Number(rawValue) : -1;
+    if (a.t === "s") value = sharedStrings[sharedIndex] ?? "";
     else if (a.t === "inlineStr") {
       const pieces = []; body.replace(/<t\b[^>]*>([\s\S]*?)<\/t>/gi, (_m, text) => { pieces.push(decodeXml(text)); return ""; }); value = pieces.join("");
     } else if (a.t === "b") value = rawValue === "1";
@@ -203,7 +212,7 @@ function parseSheetXml(xml, sharedStrings, styles) {
     else if (rawValue !== "") value = Number(rawValue);
     // A self-closing <c/> only carries style/used-range metadata, not data.
     if (rawValue !== "" || formula || a.t === "inlineStr") {
-      result.cells.set(coord, { coord, value, formula, ...style, category: formatCategory(style.formatCode) });
+      result.cells.set(coord, { coord, value, formula, ...style, category: formatCategory(style.formatCode), richText: sharedStrings.richIndexes?.has(sharedIndex) || (a.t === "inlineStr" && /<r\b/i.test(body)) });
       const col = coord.match(/^([A-Z]+)/i)?.[1] || "";
       const colNumber = [...col.toUpperCase()].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
       result.maxDataColumn = Math.max(result.maxDataColumn, colNumber);
@@ -375,8 +384,13 @@ export function auditSheetRoundtrip(expectedPath, actualPath, { maxDetails = 20 
         if (!valuesEqual(a?.value, b?.value)) mismatch(kinds.value, { coord, expected: a?.value, actual: b?.value }, maxDetails);
         if (normalizeFormula(a?.formula) !== normalizeFormula(b?.formula)) mismatch(kinds.formula, { coord, expected: a?.formula || "", actual: b?.formula || "" }, maxDetails);
         const as = comparableStyle(a || {}); const bs = comparableStyle(b || {});
-        for (const [kind, key] of [["numberFormat", "numFmt"], ["font", "font"], ["fill", "fill"], ["border", "border"], ["alignment", "alignment"], ["wrap", "wrap"]])
+        for (const [kind, key] of [["numberFormat", "numFmt"], ["font", "font"], ["fill", "fill"], ["border", "border"], ["alignment", "alignment"], ["wrap", "wrap"]]) {
+          // Cell XF font is not the effective font of a fully rich shared
+          // string; each run carries its own rPr. Calc commonly derives that
+          // unused XF from the first run, so compare run-based semantics.
+          if (kind === "font" && (a?.richText || b?.richText)) continue;
           if (stable(as[key]) !== stable(bs[key])) mismatch(kinds[kind], { coord, expected: as[key], actual: bs[key] }, maxDetails);
+        }
       }
       compareSet(kinds, "merge", left.merges, right.merges);
       compareSet(kinds, "hiddenColumn", left.hiddenCols, right.hiddenCols); compareSet(kinds, "hiddenRow", left.hiddenRows, right.hiddenRows);
