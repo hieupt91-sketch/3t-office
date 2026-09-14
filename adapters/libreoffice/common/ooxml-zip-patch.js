@@ -180,24 +180,36 @@ export function readZipEntry(zipPathOrBuffer, entryName) {
 /**
  * Replace named ZIP entries and rebuild the package. Unmentioned entries are
  * copied unchanged (decompressed then recompressed). Directory entries skipped.
+ * New entries (not present in source) are added.
  *
  * @param {string|Buffer} zipPathOrBuffer
- * @param {Record<string, Buffer|string>} replacements
+ * @param {Record<string, Buffer|string|null>} replacements
  * @returns {Buffer}
  */
 export function replaceZipEntries(zipPathOrBuffer, replacements = {}) {
+  const sourceEntries = listZipEntries(zipPathOrBuffer);
+  const seen = new Set();
   const entries = [];
-  for (const listed of listZipEntries(zipPathOrBuffer)) {
+  for (const listed of sourceEntries) {
     if (!listed.name || listed.name.endsWith("/")) continue;
+    seen.add(listed.name);
     const next = replacements[listed.name];
     let data;
     if (next !== undefined) {
+      if (next === null) continue;
       data = Buffer.isBuffer(next) ? next : Buffer.from(String(next), "utf8");
     } else {
       data = readZipEntry(zipPathOrBuffer, listed.name);
       if (!data) continue;
     }
     entries.push({ name: listed.name, data });
+  }
+  // Add new entries not present in source
+  for (const [name, payload] of Object.entries(replacements)) {
+    if (seen.has(name)) continue;
+    if (payload === null) continue;
+    const data = Buffer.isBuffer(payload) ? payload : Buffer.from(String(payload), "utf8");
+    entries.push({ name, data });
   }
   return createZip(entries);
 }
