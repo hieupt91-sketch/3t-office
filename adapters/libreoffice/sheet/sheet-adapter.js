@@ -439,6 +439,45 @@ export class SheetAdapter {
       .replace(/&amp;/g, "&");
   }
 
+  // Calc never writes fo:text-decoration for cells/runs; it uses
+  // style:text-underline-style / style:text-line-through-style. Read both
+  // forms so imported underline/strikethrough survive, and write both so
+  // LibreOffice honours them on export.
+  _odfTextDecoration(textProps) {
+    const props = String(textProps || "");
+    const explicit = props.match(/fo:text-decoration=["']([^"']+)["']/i)?.[1];
+    if (explicit) return explicit;
+    const parts = [];
+    const underline = props.match(/style:text-underline-style=["']([^"']+)["']/i)?.[1];
+    if (underline && underline !== "none") parts.push("underline");
+    const strike = props.match(/style:text-line-through-(?:style|type)=["']([^"']+)["']/i)?.[1];
+    if (strike && strike !== "none") parts.push("line-through");
+    return parts.length ? parts.join(" ") : undefined;
+  }
+
+  _odfTextDecorationAttrs(textDecoration) {
+    const value = String(textDecoration || "").trim();
+    if (!value || value === "none") return [];
+    const attrs = [`fo:text-decoration="${this._escapeXml(value)}"`];
+    if (/underline/.test(value)) {
+      attrs.push('style:text-underline-style="solid"', 'style:text-underline-width="auto"', 'style:text-underline-color="font-color"');
+    }
+    if (/line-through/.test(value)) {
+      attrs.push('style:text-line-through-style="solid"', 'style:text-line-through-type="single"');
+    }
+    return attrs;
+  }
+
+  _normalizeFontFamily(value) {
+    let font = this._unescapeXml(String(value || "")).trim();
+    // LibreOffice may put a quoted family in style:font-name.  Quotes are
+    // syntax in fo/svg font-family, but data when retained in style:font-name,
+    // so carrying them into the model produces a literal &quot;...&quot; XLSX font.
+    const wrapped = font.match(/^(["'])([\s\S]*)\1$/);
+    if (wrapped) font = wrapped[2].trim();
+    return font;
+  }
+
   // soffice escapes entity-looking text from XLSX once for the spreadsheet
   // value and once again for XML. XML DOM/text stripping removes one layer;
   // this removes the remaining transport layer while preserving user text.
@@ -1400,11 +1439,11 @@ export class SheetAdapter {
         if (fontWeight) style.fontWeight = fontWeight;
         const fontStyle = textProps.match(/fo:font-style=["']([^"']+)["']/i)?.[1];
         if (fontStyle) style.fontStyle = fontStyle;
-        const textDecoration = textProps.match(/fo:text-decoration=["']([^"']+)["']/i)?.[1];
+        const textDecoration = this._odfTextDecoration(textProps);
         if (textDecoration) style.textDecoration = textDecoration;
         const color = textProps.match(/fo:color=["']([^"']+)["']/i)?.[1];
         if (color) style.color = color;
-        const fontName = textProps.match(/style:font-name=["']([^"']+)["']/i)?.[1];
+        const fontName = this._normalizeFontFamily(textProps.match(/style:font-name=["']([^"']+)["']/i)?.[1]);
         if (fontName) style.fontFamily = fontName;
         raw.set(name, { style, parentName });
         return "";
@@ -1442,9 +1481,9 @@ export class SheetAdapter {
       if (fontWeight) style.fontWeight = fontWeight;
       const fontStyle = textProps.match(/fo:font-style=["']([^"']+)["']/i)?.[1];
       if (fontStyle) style.fontStyle = fontStyle;
-      const textDecoration = textProps.match(/fo:text-decoration=["']([^"']+)["']/i)?.[1];
+      const textDecoration = this._odfTextDecoration(textProps);
       if (textDecoration) style.textDecoration = textDecoration;
-      const fontName = textProps.match(/style:font-name=["']([^"']+)["']/i)?.[1];
+      const fontName = this._normalizeFontFamily(textProps.match(/style:font-name=["']([^"']+)["']/i)?.[1]);
       if (fontName) style.fontFamily = fontName;
       const fontSize = textProps.match(/fo:font-size=["']([^"']+)["']/i)?.[1];
       if (fontSize) {
@@ -1598,6 +1637,34 @@ export class SheetAdapter {
     if (uniqueStyles.size < 2) return { text: flatText, runs: null };
 
     return { text: flatText, runs: merged };
+  }
+
+  _normalizeRichTextCellFont(runs, cellStyle) {
+    const fontKeys = ["color", "fontWeight", "fontStyle", "textDecoration", "fontFamily", "fontSize"];
+    const effectiveRuns = runs.map(run => {
+      const style = { ...(run.style || {}) };
+      for (const key of fontKeys) {
+        if ((style[key] === undefined || style[key] === null || style[key] === "") && cellStyle?.[key]) {
+          style[key] = cellStyle[key];
+        }
+      }
+      return { ...run, style };
+    });
+
+    for (const key of fontKeys) {
+      const values = effectiveRuns.map(run => run.style?.[key] ?? "");
+      if (values.length > 0 && values.every(value => value === values[0]) && values[0] !== "") {
+        cellStyle[key] = values[0];
+      } else if (key === "fontWeight" || key === "fontStyle") {
+        // An omitted cell-level weight/style lets Calc promote the first rich
+        // text run to the XLSX cell font. Use a neutral baseline while each
+        // run keeps its complete effective formatting.
+        cellStyle[key] = "normal";
+      } else {
+        delete cellStyle[key];
+      }
+    }
+    return effectiveRuns;
   }
 
   _chartSeriesPlan(sheetName, chart) {
@@ -2043,7 +2110,8 @@ export class SheetAdapter {
 
     // ── Collect font families for office:font-face-decls ──
     const fontFaces = new Map();
-    const addFontFace = (fontName) => {
+    const addFontFace = (rawFontName) => {
+      const fontName = this._normalizeFontFamily(rawFontName);
       if (!fontName || fontFaces.has(fontName)) return;
       fontFaces.set(fontName, true);
     };
@@ -2075,6 +2143,7 @@ export class SheetAdapter {
     const conditionalBaseByCell = new Map();
     const visualStyleEntries = [];
     const visualStyleNames = new Map();
+    const visualStyleXmlByName = new Map();
     const richTextAutoStyles = [];
     const richTextStyleNames = new Map();
     const validationDefinitions = [];
@@ -2144,14 +2213,16 @@ export class SheetAdapter {
       }
       if (s.fontWeight) textProps.push(`fo:font-weight="${this._escapeXml(s.fontWeight)}"`);
       if (s.fontStyle) textProps.push(`fo:font-style="${this._escapeXml(s.fontStyle)}"`);
-      if (s.textDecoration) textProps.push(`fo:text-decoration="${this._escapeXml(s.textDecoration)}"`);
+      if (s.textDecoration) textProps.push(...this._odfTextDecorationAttrs(s.textDecoration));
       if (s.color) textProps.push(`fo:color="${this._escapeXml(s.color)}"`);
-      if (s.fontFamily) textProps.push(`style:font-name="${this._escapeXml(s.fontFamily)}"`);
+      if (s.fontFamily) textProps.push(`style:font-name="${this._escapeXml(this._normalizeFontFamily(s.fontFamily))}"`);
       const parts = [];
       if (cellProps.length) parts.push(`<style:table-cell-properties ${cellProps.join(" ")}/>`);
       if (paraProps.length) parts.push(`<style:paragraph-properties ${paraProps.join(" ")}/>`);
       if (textProps.length) parts.push(`<style:text-properties ${textProps.join(" ")}/>`);
-      visualStyleEntries.push(`<style:style style:name="${name}" style:family="table-cell">${parts.join("")}</style:style>`);
+      const xml = `<style:style style:name="${name}" style:family="table-cell">${parts.join("")}</style:style>`;
+      visualStyleEntries.push(xml);
+      visualStyleXmlByName.set(name, xml);
       return name;
     };
     const richTextStyleFor = (runStyle) => {
@@ -2164,8 +2235,8 @@ export class SheetAdapter {
       if (runStyle.color) textProps.push(`fo:color="${this._escapeXml(runStyle.color)}"`);
       if (runStyle.fontWeight) textProps.push(`fo:font-weight="${this._escapeXml(runStyle.fontWeight)}"`);
       if (runStyle.fontStyle) textProps.push(`fo:font-style="${this._escapeXml(runStyle.fontStyle)}"`);
-      if (runStyle.textDecoration) textProps.push(`fo:text-decoration="${this._escapeXml(runStyle.textDecoration)}"`);
-      if (runStyle.fontFamily) textProps.push(`style:font-name="${this._escapeXml(runStyle.fontFamily)}"`);
+      if (runStyle.textDecoration) textProps.push(...this._odfTextDecorationAttrs(runStyle.textDecoration));
+      if (runStyle.fontFamily) textProps.push(`style:font-name="${this._escapeXml(this._normalizeFontFamily(runStyle.fontFamily))}"`);
       if (runStyle.fontSize) {
         const ptVal = runStyle.fontSize.endsWith("px") ? (parseFloat(runStyle.fontSize) / 1.3333).toFixed(1) : runStyle.fontSize;
         textProps.push(`fo:font-size="${ptVal}pt"`);
@@ -2494,7 +2565,11 @@ export class SheetAdapter {
               const combined = `${cellStyleName}_${vsName}`;
               const dataAttr = formatStyle ? ` style:data-style-name="${formatStyle.dataStyle}"` : "";
               if (!rotationCombinedStyles.some(style => style.includes(`style:name="${combined}"`))) {
-                let vsEntry = visualStyleEntries[visualStyleEntries.length - 1];
+                // visualStyleFor() may return a deduplicated style created for
+                // an earlier cell.  Combining it with a number/rotation style
+                // must use that exact entry, not the most recently collected
+                // visual style from an unrelated cell.
+                let vsEntry = visualStyleXmlByName.get(vsName);
                 if (rotStyle) {
                   const rotAttrs = this._odfRotationAttrs(rotStyle.textRotation);
                   vsEntry = vsEntry.replace(/<style:table-cell-properties/, `<style:table-cell-properties ${rotAttrs}`);
@@ -3319,7 +3394,7 @@ export class SheetAdapter {
                     const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};
                     const rt = this._extractRichTextFromDom(cell, textStyles, cellVisual);
                     if (rt.runs) {
-                      item.richText = rt.runs;
+                      item.richText = this._normalizeRichTextCellFont(rt.runs, item.style);
                       item.val = attributes["vno:original-string"] ?? rt.text;
                     }
                   }
@@ -3552,7 +3627,7 @@ export class SheetAdapter {
                   const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};
                   const rt = this._extractRichTextFromXml(valueContent, textStyles, cellVisual);
                   if (rt.runs) {
-                    item.richText = rt.runs;
+                    item.richText = this._normalizeRichTextCellFont(rt.runs, item.style);
                     item.val = attributes["vno:original-string"] ?? rt.text;
                   }
                 }
