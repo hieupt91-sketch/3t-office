@@ -14,7 +14,8 @@
 3. Rich text bold propagation: first run bold → cell-level bold (9 cells KHÓA CỬA, 8 Dahua)
 
 **FINDINGS:**
-- Issue 1 (alignment): Root cause in `_parseCellVisualStyles` — when `style:text-align-source="value-type"` is present, the explicit `fo:text-align` in paragraph properties was being ignored. Also serialization was not writing `style:text-align-source="fix"` for explicit alignments.
+- Issue 1 (alignment): Root cause in `serializeToFods` — when a cell combined a number/rotation style with a *reused* visual style, the code took `visualStyleEntries[visualStyleEntries.length - 1]` (the most recently created visual style of an unrelated cell) instead of the entry actually returned by `visualStyleFor()`. Fixed with a `visualStyleXmlByName` map (Codex, verified by Claude with the real-app round-trip: the 13 `center/center → left/top` cells are gone). No `text-align-source` handling was changed.
+- Issue 4 (found during verification, commit 3abd00a): Calc writes underline/strikethrough as `style:text-underline-style` / `style:text-line-through-style`, never `fo:text-decoration`, so rich-text underlines (e.g. "Người gửi (bên bán):") were dropped on save. Both forms are now read and written; the auditor compares `<u>`/`<strike>` too.
 - Issue 2 (font name): `_normalizeFontFamily()` added to strip wrapping quotes from `style:font-name` during parse and serialize. Applied at 5 locations: cell style parse, text style parse, visual style serialize, rich text style serialize, font-face-decls collection.
 - Issue 3 (rich text bold): `_normalizeRichTextCellFont()` added to normalize cell-level font weight to "normal" when rich text runs have mixed weights. Called in both DOM and regex parse branches for rich text cells.
 
@@ -52,7 +53,7 @@ python _audit_classify.py _audit_dahua.txt
 - Auditor KHÓA CỬA: alignment `horizontal+vertical` 0 VN diffs (remaining 62 are LO `""→general`, 19 `""→bottom`); font name 0 VN diffs; font bold+color 0 VN diffs (remaining 94 are LO `theme:1→#000000`)
 - Auditor Dahua: alignment `horizontal+wrapText` 0 VN diffs (remaining 167 are LO `""→general`)
 
-**KNOWN FAILURES:** None. All remaining audit diffs are classified as LibreOffice representation differences (theme color mapping, default alignment representation, default fill/border emission).
+**KNOWN FAILURES:** Column widths still differ visibly in Excel (audit `columnWidth: 12` per sheet): the saved workbook's Normal style font is Arial 10 (LibreOffice default) while the original's is Arial 11, so the same character-unit widths render narrower, and LibreOffice re-expresses widths in its own unit (32 → 35.27 chars). Needs the Normal font + `sheetFormatPr` + `<col>` widths restored in the XLSX post-processor. All other remaining audit diffs are LibreOffice representation differences (theme color mapping, default alignment representation, default fill/border emission).
 
 **RISKS:** Low. Changes are confined to SheetAdapter parse/serialize path. No Core patches. No new dependencies.
 
