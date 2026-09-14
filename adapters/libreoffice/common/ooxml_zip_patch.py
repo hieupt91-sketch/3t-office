@@ -4256,6 +4256,72 @@ def _extract_docx_section_properties(document_xml: str) -> str | None:
     return sect_matches[-1].group(0)
 
 
+def _extract_all_docx_sections(document_xml: str) -> list[dict]:
+    """Extract ALL w:sectPr from word/document.xml, including mid-document sections in w:pPr.
+
+    Returns a list of dicts for each section break (excluding the final body-level sectPr):
+    {
+        'sect_pr_xml': str,           # the w:sectPr XML
+        'paragraph_bookmark': str,    # vno-untouched-N bookmark name on the paragraph, or ''
+        'paragraph_text': str,        # plain text of the paragraph containing the sectPr (for fallback matching)
+        'preceding_text': str,        # plain text of the nearest preceding NON-EMPTY paragraph (key matching field)
+        'section_index': int,         # 0-based index of this section break
+    }
+    """
+    sections = []
+    # First, get all paragraphs with their text
+    all_paras = []
+    for match in re.finditer(r"(<w:p\b[^>]*>)([\s\S]*?)(</w:p\s*>)", document_xml, re.IGNORECASE):
+        p_open, p_content, p_close = match.groups()
+        full_paragraph = p_open + p_content + p_close
+        paragraph_text = _paragraph_plain_text(full_paragraph)
+        has_sect_pr = bool(re.search(r'<w:sectPr\b', p_content, re.IGNORECASE))
+        all_paras.append({
+            'full_xml': full_paragraph,
+            'p_content': p_content,
+            'text': paragraph_text,
+            'has_sect_pr': has_sect_pr,
+            'start': match.start(),
+            'end': match.end(),
+        })
+
+    # Find paragraphs with sectPr and get nearest preceding NON-EMPTY paragraph's text
+    for i, para in enumerate(all_paras):
+        if not para['has_sect_pr']:
+            continue
+
+        # Extract the sectPr XML
+        sect_pr_match = re.search(r"(<w:sectPr\b[\s\S]*?</w:sectPr\s*>)", para['p_content'], re.IGNORECASE)
+        if not sect_pr_match:
+            continue
+        sect_pr_xml = sect_pr_match.group(1)
+
+        # Extract bookmark from this paragraph
+        bookmark_match = re.search(
+            r'<w:bookmarkStart\b[^>]*\bw:name=["\'](vno-untouched-\d+)["\']',
+            para['full_xml'],
+            re.IGNORECASE,
+        )
+        paragraph_bookmark = bookmark_match.group(1) if bookmark_match else ""
+
+        # Find nearest preceding paragraph with non-empty text
+        preceding_text = ""
+        for j in range(i - 1, -1, -1):
+            if all_paras[j]['text'].strip():
+                preceding_text = all_paras[j]['text']
+                break
+
+        sections.append({
+            'sect_pr_xml': sect_pr_xml,
+            'paragraph_bookmark': paragraph_bookmark,
+            'paragraph_text': para['text'],
+            'preceding_text': preceding_text,
+            'section_index': len(sections),
+        })
+
+    return sections
+
+
 def _resolve_docx_rels(docx_bytes: bytes) -> dict[str, str]:
     """Read word/_rels/document.xml.rels and return {rId: target}."""
     rels_xml_bytes = read_zip_entry(docx_bytes, "word/_rels/document.xml.rels")
@@ -5466,6 +5532,154 @@ def _passthrough_writer_anchors(
     return patched_xml, converted_rels_xml, next_rid, media, extensions, removable_entries
 
 
+def _restore_mid_document_sections(
+    converted_xml: str,
+    original_xml: str,
+    orig_rels: dict[str, str],
+    r_id_map: dict[str, str],
+    next_rid: int,
+) -> tuple[str, int]:
+    """Restore mid-document w:sectPr from original DOCX into converted DOCX.
+
+    LibreOffice HTML import converts section breaks (w:sectPr in w:pPr) to
+    w:br type="page". This function finds those page breaks and replaces them
+    with the original w:sectPr, matched by the preceding paragraph's text content.
+
+    Also remaps header/footer rIds in each sectPr to new sequential rIds.
+
+    Returns (updated_xml, updated_next_rid).
+    """
+    # Extract all mid-document sections from original
+    original_sections = _extract_all_docx_sections(original_xml)
+    if not original_sections:
+        return converted_xml, next_rid
+
+    # Build a map from preceding paragraph text -> section info
+    # The section break in original is on a paragraph; the preceding paragraph
+    # typically has the section identifier (number, title, etc.)
+    preceding_text_to_sections: dict[str, list[dict]] = {}
+    for sec in original_sections:
+        # Use the preceding paragraph's text as the key
+        if sec['preceding_text']:
+            preceding_text_to_sections.setdefault(sec['preceding_text'], []).append(sec)
+
+    # Find all paragraphs in converted XML that have w:br type="page"
+    # These are the section boundaries LibreOffice created
+    page_break_paragraphs = []
+
+    # First, get all paragraphs with their positions
+    all_paras = []
+    for match in re.finditer(r"(<w:p\b[^>]*>)([\s\S]*?)(</w:p\s*>)", converted_xml, re.IGNORECASE):
+        p_open, p_content, p_close = match.groups()
+        full_paragraph = p_open + p_content + p_close
+        paragraph_text = _paragraph_plain_text(full_paragraph)
+        has_page_break = bool(re.search(r'<w:br\b[^>]*w:type=["\']page["\']', p_content, re.IGNORECASE))
+        all_paras.append({
+            'full_xml': full_paragraph,
+            'p_open': p_open,
+            'p_content': p_content,
+            'p_close': p_close,
+            'start': match.start(),
+            'end': match.end(),
+            'text': paragraph_text,
+            'has_page_break': has_page_break,
+        })
+
+    # Find page break paragraphs and their preceding paragraph's text
+    for i, para in enumerate(all_paras):
+        if not para['has_page_break']:
+            continue
+        # Get preceding paragraph's text for matching
+        prev_text = all_paras[i-1]['text'] if i > 0 else ""
+        page_break_paragraphs.append({
+            'para': para,
+            'prev_text': prev_text,
+            'index_in_all': i,
+        })
+
+    if not page_break_paragraphs:
+        return converted_xml, next_rid
+
+    # Match page break paragraphs to original sections by preceding paragraph text
+    matched_sections: set[int] = set()
+    replacements_list: list[tuple[int, int, str]] = []  # (start, end, new_paragraph_xml)
+
+    for pb in page_break_paragraphs:
+        matched_section = None
+        match_type = ""
+
+        # Try exact text match on preceding paragraph
+        if pb['prev_text'] and pb['prev_text'] in preceding_text_to_sections:
+            candidates = [s for s in preceding_text_to_sections[pb['prev_text']] if s['section_index'] not in matched_sections]
+            if candidates:
+                matched_section = candidates[0]
+                match_type = "prev_text"
+
+        # Fallback: ordinal matching (nth page break -> nth section)
+        if matched_section is None:
+            # Count how many page breaks we've processed so far
+            processed = len([r for r in replacements_list if r[0] < pb['para']['start']])
+            if processed < len(original_sections):
+                # Find the section with this index
+                for sec in original_sections:
+                    if sec['section_index'] == processed and sec['section_index'] not in matched_sections:
+                        matched_section = sec
+                        match_type = "ordinal"
+                        break
+
+        if matched_section is None:
+            continue
+
+        matched_sections.add(matched_section['section_index'])
+
+        # Get the original sectPr and remap its header/footer rIds
+        sect_pr_xml = matched_section['sect_pr_xml']
+        if r_id_map:
+            sect_pr_xml = _remap_header_footer_rids(sect_pr_xml, r_id_map)
+
+        # Remove the w:br type="page" from the paragraph content
+        new_p_content = re.sub(
+            r'<w:br\b[^>]*w:type=["\']page["\'][^>]*/?>',
+            '',
+            pb['para']['p_content'],
+            flags=re.IGNORECASE,
+        )
+        # Also remove w:r that only contains the page break
+        new_p_content = re.sub(
+            r'<w:r\b[^>]*>\s*<w:br\b[^>]*w:type=["\']page["\'][^>]*/?>\s*</w:r\s*>',
+            '',
+            new_p_content,
+            flags=re.IGNORECASE,
+        )
+
+        # Word semantics: the paragraph that carries w:sectPr is the LAST
+        # paragraph of the section, and in MYTIME it is an empty paragraph that
+        # LibreOffice dropped. The page-break paragraph is the FIRST paragraph of
+        # the next section, so the sectPr must not be injected into it (that
+        # moved every section boundary by one paragraph: 51 pages instead of
+        # 44). Re-create the carrier: an empty paragraph before the page-break
+        # paragraph, or — when the original carrier had text and the converted
+        # predecessor holds that text — the predecessor's own pPr.
+        # Measured (MYTIME): LibreOffice puts the page break at the END of the
+        # last paragraph of the previous section, so that paragraph is the right
+        # carrier for w:sectPr (an inserted empty carrier gave 86 pages).
+        ppr_match = re.search(r'(<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>)', new_p_content, re.IGNORECASE)
+        if ppr_match:
+            new_ppr = re.sub(r'(</w:pPr\s*>)', sect_pr_xml + r'\1', ppr_match.group(1), count=1, flags=re.IGNORECASE)
+            new_p_content = new_p_content[:ppr_match.start()] + new_ppr + new_p_content[ppr_match.end():]
+        else:
+            new_p_content = f"<w:pPr>{sect_pr_xml}</w:pPr>" + new_p_content
+        new_paragraph = pb['para']['p_open'] + new_p_content + pb['para']['p_close']
+        replacements_list.append((pb['para']['start'], pb['para']['end'], new_paragraph))
+
+    # Apply replacements in reverse order to maintain correct offsets
+    result_xml = converted_xml
+    for start, end, new_para in sorted(replacements_list, key=lambda x: x[0], reverse=True):
+        result_xml = result_xml[:start] + new_para + result_xml[end:]
+
+    return result_xml, next_rid
+
+
 def postprocess_writer_docx(
     docx_bytes: bytes,
     *,
@@ -5590,6 +5804,13 @@ def postprocess_writer_docx(
         converted_xml, original_xml, orig_header_entries, orig_footer_entries, remapped_sect_pr
     )
     new_xml = _repair_writer_double_fills(new_xml)
+
+    # Restore mid-document section breaks (w:sectPr in w:pPr) that LibreOffice
+    # converted to w:br type="page". Match by vno-untouched-N bookmark.
+    new_xml, next_rid = _restore_mid_document_sections(
+        new_xml, original_xml, orig_rels, r_id_map, next_rid
+    )
+
     pristine_document = "vno-pristine-document" in new_xml
     untouched_texts = _writer_unique_marked_texts(new_xml)
     new_xml = _remove_duplicate_writer_textbox_anchors(
