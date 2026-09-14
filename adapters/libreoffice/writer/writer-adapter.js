@@ -1823,7 +1823,9 @@ export class WriterAdapter {
   }
 
   _ooxmlFloatingAnchorMetadata(xml) {
-    return [...String(xml || "").matchAll(/<wp:anchor\b([^>]*)>([\s\S]*?)<\/wp:anchor>/gi)].map((match) => {
+    const rawXml = String(xml || "");
+    const bodyStart = rawXml.indexOf("<w:body>");
+    return [...rawXml.matchAll(/<wp:anchor\b([^>]*)>([\s\S]*?)<\/wp:anchor>/gi)].map((match) => {
       const attrs = match[1] || "";
       const body = match[2] || "";
       const posH = body.match(/<wp:positionH\b[^>]*relativeFrom=["']([^"']+)/i)?.[1] || "paragraph";
@@ -1832,6 +1834,13 @@ export class WriterAdapter {
       const horizontalOffset = Number(body.match(/<wp:positionH\b[^>]*>[\s\S]*?<wp:posOffset>(-?\d+)<\/wp:posOffset>/i)?.[1]);
       const verticalOffset = Number(body.match(/<wp:positionV\b[^>]*>[\s\S]*?<wp:posOffset>(-?\d+)<\/wp:posOffset>/i)?.[1]);
       const extent = body.match(/<wp:extent\b[^>]*\bcx=["'](\d+)["'][^>]*\bcy=["'](\d+)["']/i);
+
+      const prefix = bodyStart !== -1 ? rawXml.slice(bodyStart, match.index) : rawXml.slice(0, match.index);
+      const brCount = (prefix.match(/<w:br\b[^>]*w:type=["']page["']/gi) || []).length;
+      const pbbCount = (prefix.match(/<w:pageBreakBefore\b/gi) || []).length;
+      const sectCount = (prefix.match(/<w:pPr\b[^>]*>[\s\S]*?<w:sectPr\b/gi) || []).length;
+      const pageIndex = brCount + pbbCount + sectCount;
+
       return {
         relativeH: posH,
         relativeV: posV,
@@ -1841,9 +1850,93 @@ export class WriterAdapter {
         leftCm: Number.isFinite(horizontalOffset) ? Number((horizontalOffset / 360000).toFixed(3)) : null,
         topCm: Number.isFinite(verticalOffset) ? Number((verticalOffset / 360000).toFixed(3)) : null,
         widthCm: extent ? Number((Number(extent[1]) / 360000).toFixed(3)) : null,
-        heightCm: extent ? Number((Number(extent[2]) / 360000).toFixed(3)) : null
+        heightCm: extent ? Number((Number(extent[2]) / 360000).toFixed(3)) : null,
+        pageIndex
       };
     });
+  }
+
+  _ooxmlGroupChildTextboxes(xml) {
+    const rawXml = String(xml || "");
+    const bodyStart = rawXml.indexOf("<w:body>");
+    const normalize = (str) => String(str || "").replace(/<[^>]+>/g, "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+    const groupWsps = [];
+
+    const drawings = [...rawXml.matchAll(/<wp:(?:anchor|inline)\b([\s\S]*?)<\/wp:(?:anchor|inline)>/gi)];
+    for (const dMatch of drawings) {
+      const dXml = dMatch[0];
+      if (!/<wpg:wgp\b/i.test(dXml)) continue;
+      const dStart = dMatch.index;
+      const prefix = bodyStart !== -1 ? rawXml.slice(bodyStart, dStart) : rawXml.slice(0, dStart);
+      const brCount = (prefix.match(/<w:br\b[^>]*w:type=["']page["']/gi) || []).length;
+      const pbbCount = (prefix.match(/<w:pageBreakBefore\b/gi) || []).length;
+      const sectCount = (prefix.match(/<w:pPr\b[^>]*>[\s\S]*?<w:sectPr\b/gi) || []).length;
+      const pageIndex = brCount + pbbCount + sectCount;
+
+      const posH = Number(dXml.match(/<wp:positionH\b[^>]*>[\s\S]*?<wp:posOffset>(-?\d+)<\/wp:posOffset>/i)?.[1]);
+      const posV = Number(dXml.match(/<wp:positionV\b[^>]*>[\s\S]*?<wp:posOffset>(-?\d+)<\/wp:posOffset>/i)?.[1]);
+      const extent = dXml.match(/<wp:extent\b[^>]*\bcx=["'](\d+)["'][^>]*\bcy=["'](\d+)["']/i);
+      const ancLeftEmu = Number.isFinite(posH) ? posH : 0;
+      const ancTopEmu = Number.isFinite(posV) ? posV : 0;
+      const cx = extent ? Number(extent[1]) : 0;
+      const cy = extent ? Number(extent[2]) : 0;
+
+      for (const wgpMatch of dXml.matchAll(/<wpg:wgp\b[\s\S]*?<\/wpg:wgp>/gi)) {
+        const wgp = wgpMatch[0];
+        const grpSpPr = wgp.match(/<wpg:grpSpPr\b[\s\S]*?<\/wpg:grpSpPr>/i)?.[0] || "";
+        const gExt = grpSpPr.match(/<a:ext\s+cx=["']([^"']*)["']\s+cy=["']([^"']*)["']/i);
+        const gChOff = grpSpPr.match(/<a:chOff\s+x=["']([^"']*)["']\s+y=["']([^"']*)["']/i);
+        const gChExt = grpSpPr.match(/<a:chExt\s+cx=["']([^"']*)["']\s+cy=["']([^"']*)["']/i);
+
+        const gExtCx = gExt ? Number(gExt[1]) : cx;
+        const gExtCy = gExt ? Number(gExt[2]) : cy;
+        const gChOffX = gChOff ? Number(gChOff[1]) : 0;
+        const gChOffY = gChOff ? Number(gChOff[2]) : 0;
+        const gChExtCx = gChExt ? Number(gChExt[1]) : gExtCx;
+        const gChExtCy = gChExt ? Number(gChExt[2]) : gExtCy;
+
+        const scaleX = gChExtCx > 0 ? gExtCx / gChExtCx : 1.0;
+        const scaleY = gChExtCy > 0 ? gExtCy / gChExtCy : 1.0;
+
+        for (const wspMatch of wgp.matchAll(/<wps:wsp\b[\s\S]*?<\/wps:wsp>/gi)) {
+          const wspXml = wspMatch[0];
+          const txbxMatch = wspXml.match(/<w:txbxContent\b[\s\S]*?<\/w:txbxContent>/i);
+          if (!txbxMatch) continue;
+          const text = normalize(txbxMatch[0]);
+          if (!text) continue;
+
+          const wspOff = wspXml.match(/<a:off\s+x=["']([^"']*)["']\s+y=["']([^"']*)["']/i);
+          const wspExt = wspXml.match(/<a:ext\s+cx=["']([^"']*)["']\s+cy=["']([^"']*)["']/i);
+          const wspSolid = /<a:solidFill\b/i.test(wspXml);
+
+          const offX = wspOff ? Number(wspOff[1]) : 0;
+          const offY = wspOff ? Number(wspOff[2]) : 0;
+          const extCx = wspExt ? Number(wspExt[1]) : 0;
+          const extCy = wspExt ? Number(wspExt[2]) : 0;
+
+          const childX = (offX - gChOffX) * scaleX;
+          const childY = (offY - gChOffY) * scaleY;
+          const childW = extCx * scaleX;
+          const childH = extCy * scaleY;
+
+          const pageLeftCm = Number(((ancLeftEmu + childX) / 360000).toFixed(3));
+          const pageTopCm = Number(((ancTopEmu + childY) / 360000).toFixed(3));
+          const wspWidthCm = Number((childW / 360000).toFixed(3));
+          const wspHeightCm = Number((childH / 360000).toFixed(3));
+
+          groupWsps.push({
+            text,
+            solidFill: wspSolid,
+            pageLeftCm,
+            pageTopCm,
+            widthCm: wspWidthCm,
+            heightCm: wspHeightCm,
+            pageIndex
+          });
+        }
+      }
+    }
+    return groupWsps;
   }
 
   _ooxmlTableColumnWidths(xml) {
@@ -1891,27 +1984,45 @@ export class WriterAdapter {
   _preserveImportedFloatingFrames(html, ooxmlDocumentXml, page = null) {
     const src = String(html || "");
     const anchors = this._ooxmlFloatingAnchorMetadata(ooxmlDocumentXml);
+    const groupWsps = typeof this._ooxmlGroupChildTextboxes === "function"
+      ? this._ooxmlGroupChildTextboxes(ooxmlDocumentXml)
+      : [];
+    const hasNativeGroup = anchors.some((a) => a.sourceGroup) || groupWsps.length > 0;
+    const hasParagraphs = /<p\b/i.test(src);
+
     const imageSourceCounts = new Map();
     for (const match of src.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi)) {
       imageSourceCounts.set(match[1], (imageSourceCounts.get(match[1]) || 0) + 1);
     }
+
+    const normalizeText = (s) => String(s || "").replace(/<[^>]+>/g, "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+
     const openRe = /<span\b([^>]*)>/gi;
     let cursor = 0;
     let anchorIndex = 0;
-    let result = "";
+    const usedWsps = new Set();
+    const pageFloats = new Map();
+    const spanReplacements = [];
+
+    const marginLeftCm = Number(page?.margins?.left || 0) / 10;
+    const marginTopCm = Number(page?.margins?.top || 0) / 10;
+
     while (cursor < src.length) {
       openRe.lastIndex = cursor;
       const opening = openRe.exec(src);
-      if (!opening) return result + src.slice(cursor);
+      if (!opening) break;
       const attrs = opening[1] || "";
       const style = opening[0].match(/\bstyle\s*=\s*["']([^"']*)/i)?.[1] || "";
       const isImage = /\bclass=["'][^"']*\bsd-abs-pos\b/i.test(opening[0]);
       const isTextbox = /\bid=["'](?:textbox|Frame)[^"']*["']/i.test(opening[0]);
-      if (!/\bposition\s*:\s*absolute\b/i.test(style) || (!isImage && !isTextbox)) {
-        result += src.slice(cursor, opening.index + opening[0].length);
+
+      const isAbs = /\bposition\s*:\s*absolute\b/i.test(style);
+      const isFloat = /\bfloat\s*:\s*left\b/i.test(style);
+      if ((!isImage && !isTextbox) || (!isAbs && !isFloat)) {
         cursor = opening.index + opening[0].length;
         continue;
       }
+
       let depth = 1;
       let search = opening.index + opening[0].length;
       let close = -1;
@@ -1929,54 +2040,203 @@ export class WriterAdapter {
           search = nextClose + 7;
         }
       }
+
       if (depth !== 0) {
-        result += src.slice(cursor, opening.index + opening[0].length);
         cursor = opening.index + opening[0].length;
         continue;
       }
+
       const inner = src.slice(opening.index + opening[0].length, close);
+      const startPos = opening.index;
+      const endPos = close + 7;
+      cursor = endPos;
+
       const value = (name) => style.match(new RegExp(`\\b${name}\\s*:\\s*([^;]+)`, "i"))?.[1];
       const imgTag = inner.match(/<img\b[^>]*>/i)?.[0] || "";
       const attrValue = (name) => imgTag.match(new RegExp(`\\b${name}=["']?([^"'\\s>]+)`, "i"))?.[1];
-      const meta = anchors[anchorIndex++] || { relativeH: "paragraph", relativeV: "paragraph", wrap: "wrapNone", behindDoc: false };
       const htmlLeft = this._cssLengthToCm(value("left")) ?? 0;
       const htmlTop = this._cssLengthToCm(value("top")) ?? 0;
       const htmlWidth = this._cssLengthToCm(value("width")) ?? this._cssLengthToCm(`${attrValue("width") || 0}px`) ?? 0;
       const htmlHeight = this._cssLengthToCm(value("height")) ?? this._cssLengthToCm(`${attrValue("height") || 0}px`) ?? 0;
-      const left = meta.sourceGroup && meta.leftCm != null ? meta.leftCm : htmlLeft;
-      const top = meta.sourceGroup && meta.topCm != null ? meta.topCm : htmlTop;
-      const width = meta.sourceGroup && meta.widthCm ? meta.widthCm : htmlWidth;
-      const height = meta.sourceGroup && meta.heightCm ? meta.heightCm : htmlHeight;
-      const marginLeftCm = Number(page?.margins?.left || 0) / 10;
-      const marginTopCm = Number(page?.margins?.top || 0) / 10;
-      const displayLeft = ["margin", "column"].includes(String(meta.relativeH).toLowerCase()) ? left + marginLeftCm : left;
-      const displayTop = ["margin"].includes(String(meta.relativeV).toLowerCase()) ? top + marginTopCm : top;
-      const cleanedStyle = style.replace(/\b(?:position|top|left|width|height)\s*:\s*[^;]+;?\s*/gi, "").trim();
-      const kind = isImage ? "image" : "textbox";
-      const imageSource = attrValue("src") || "";
-      const isRepeatedPageWatermark = kind === "image"
-        && meta.behindDoc
-        && String(meta.relativeH).toLowerCase() === "page"
-        && String(meta.relativeV).toLowerCase() === "page"
-        && (imageSourceCounts.get(imageSource) || 0) >= 3
-        && width >= 10
-        && height >= 10;
-      const isPageImage = kind === "image"
-        && meta.behindDoc
-        && meta.wrap === "wrapNone"
-        && !isRepeatedPageWatermark
-        && String(meta.relativeH).toLowerCase() === "page"
-        && String(meta.relativeV).toLowerCase() === "page";
-      const canvasLeft = Number((displayLeft - marginLeftCm).toFixed(3));
-      const canvasTop = Number((displayTop - marginTopCm).toFixed(3));
-      const canvasGeometry = (isRepeatedPageWatermark || isPageImage)
-        ? `position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;`
-        : `position:absolute;left:${displayLeft}cm;top:${displayTop}cm;`;
-      result += src.slice(cursor, opening.index);
-      result += `<span data-vno-float="${kind}" data-vno-source-group="${meta.sourceGroup ? "1" : "0"}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}"${isRepeatedPageWatermark ? ' data-vno-imported-watermark="1"' : ""}${isPageImage ? ' data-vno-page-image="1"' : ""} style="${canvasGeometry}${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:0;" : `z-index:${anchorIndex};`}${cleanedStyle}">${inner}</span>`;
-      cursor = close + 7;
+
+      if (isImage) {
+        const meta = anchors[anchorIndex++] || { relativeH: "paragraph", relativeV: "paragraph", wrap: "wrapNone", behindDoc: false, pageIndex: 0 };
+        const left = meta.sourceGroup && meta.leftCm != null ? meta.leftCm : htmlLeft;
+        const top = meta.sourceGroup && meta.topCm != null ? meta.topCm : htmlTop;
+        const width = meta.sourceGroup && meta.widthCm ? meta.widthCm : htmlWidth;
+        const height = meta.sourceGroup && meta.heightCm ? meta.heightCm : htmlHeight;
+
+        const isPageRel = ["page", "margin"].includes(String(meta.relativeV).toLowerCase());
+        const displayLeft = ["margin", "column"].includes(String(meta.relativeH).toLowerCase()) ? left + marginLeftCm : left;
+        const displayTop = ["margin"].includes(String(meta.relativeV).toLowerCase()) ? top + marginTopCm : top;
+        const canvasLeft = Number((displayLeft - marginLeftCm).toFixed(3));
+        const canvasTop = Number((displayTop - marginTopCm).toFixed(3));
+
+        const cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
+        const imageSource = attrValue("src") || "";
+        const isRepeatedPageWatermark = meta.behindDoc
+          && String(meta.relativeH).toLowerCase() === "page"
+          && String(meta.relativeV).toLowerCase() === "page"
+          && (imageSourceCounts.get(imageSource) || 0) >= 3
+          && width >= 10
+          && height >= 10;
+        const isPageImage = meta.behindDoc
+          && meta.wrap === "wrapNone"
+          && !isRepeatedPageWatermark
+          && String(meta.relativeH).toLowerCase() === "page"
+          && String(meta.relativeV).toLowerCase() === "page";
+
+        const canvasGeometry = (hasNativeGroup && isPageRel)
+          ? `position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;`
+          : (isRepeatedPageWatermark || isPageImage)
+            ? `position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;`
+            : `position:absolute;left:${displayLeft}cm;top:${displayTop}cm;`;
+
+        const spanHtml = `<span data-vno-float="image" data-vno-source-group="${meta.sourceGroup ? "1" : "0"}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}"${isRepeatedPageWatermark ? ' data-vno-imported-watermark="1"' : ""}${isPageImage ? ' data-vno-page-image="1"' : ""} style="${canvasGeometry}${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:0;" : `z-index:${anchorIndex};`}${cleanedStyle}">${inner}</span>`;
+
+        if (hasNativeGroup && isPageRel && hasParagraphs) {
+          const pageJ = meta.pageIndex || 0;
+          if (!pageFloats.has(pageJ)) pageFloats.set(pageJ, []);
+          pageFloats.get(pageJ).push(spanHtml);
+          spanReplacements.push({ start: startPos, end: endPos, value: "" });
+        } else {
+          spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
+        }
+      } else if (isTextbox) {
+        const text = normalizeText(inner);
+        let matchedWsp = null;
+        if (hasNativeGroup && groupWsps.length > 0) {
+          for (let i = 0; i < groupWsps.length; i++) {
+            if (usedWsps.has(i)) continue;
+            const w = groupWsps[i];
+            if (w.text === text || (text && (w.text.includes(text) || text.includes(w.text)))) {
+              matchedWsp = w;
+              usedWsps.add(i);
+              break;
+            }
+          }
+        }
+
+        if (matchedWsp) {
+          const left = matchedWsp.pageLeftCm;
+          const top = matchedWsp.pageTopCm;
+          const width = matchedWsp.widthCm;
+          const height = matchedWsp.heightCm;
+          const canvasLeft = Number((left - marginLeftCm).toFixed(3));
+          const canvasTop = Number((top - marginTopCm).toFixed(3));
+
+          let cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
+          if (!matchedWsp.solidFill) {
+            cleanedStyle = cleanedStyle.replace(/\bbackground(?:-color)?\s*:\s*[^;]+;?\s*/gi, "").trim();
+            cleanedStyle = `background:transparent;${cleanedStyle}`;
+          }
+
+          const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="page" data-vno-relative-v="page" data-vno-wrap="wrapNone" data-vno-behind="0" style="position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}z-index:1;${cleanedStyle}">${inner}</span>`;
+
+          if (hasParagraphs) {
+            const pageJ = matchedWsp.pageIndex || 0;
+            if (!pageFloats.has(pageJ)) pageFloats.set(pageJ, []);
+            pageFloats.get(pageJ).push(spanHtml);
+            spanReplacements.push({ start: startPos, end: endPos, value: "" });
+          } else {
+            spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
+          }
+        } else {
+          // Standalone textbox: consume next anchor (DO NOT take sourceGroup or group dimensions)
+          const meta = anchors[anchorIndex++] || { relativeH: "paragraph", relativeV: "paragraph", wrap: "wrapNone", behindDoc: false };
+          const displayLeft = ["margin", "column"].includes(String(meta.relativeH).toLowerCase()) ? htmlLeft + marginLeftCm : htmlLeft;
+          const displayTop = ["margin"].includes(String(meta.relativeV).toLowerCase()) ? htmlTop + marginTopCm : htmlTop;
+          const cleanedStyle = style.replace(/\b(?:position|top|left|width|height|float)\s*:\s*[^;]+;?\s*/gi, "").trim();
+          const spanHtml = `<span data-vno-float="textbox" data-vno-source-group="0" data-vno-left="${htmlLeft}" data-vno-top="${htmlTop}" data-vno-width="${htmlWidth}" data-vno-height="${htmlHeight}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}" style="position:absolute;left:${displayLeft}cm;top:${displayTop}cm;${htmlWidth ? `width:${htmlWidth}cm;` : ""}${htmlHeight ? `height:${htmlHeight}cm;` : ""}z-index:1;${cleanedStyle}">${inner}</span>`;
+          spanReplacements.push({ start: startPos, end: endPos, value: spanHtml });
+        }
+      }
     }
-    return result;
+
+    spanReplacements.sort((a, b) => b.start - a.start);
+    let intermediateHtml = src;
+    for (const rep of spanReplacements) {
+      intermediateHtml = intermediateHtml.slice(0, rep.start) + rep.value + intermediateHtml.slice(rep.end);
+    }
+
+    if (pageFloats.size === 0 || !hasParagraphs) {
+      return intermediateHtml;
+    }
+
+    const pRegex = /<p\b([^>]*)>/gi;
+    const openingParagraphs = [];
+    let pMatch;
+    while ((pMatch = pRegex.exec(intermediateHtml)) !== null) {
+      const pAttrs = pMatch[1] || "";
+      const isBreak = /(?:page-break-before|break-before)\s*:\s*(?:always|page)/i.test(pAttrs);
+      if (openingParagraphs.length === 0) {
+        openingParagraphs.push({ index: pMatch.index, length: pMatch[0].length, tag: pMatch[0], attrs: pAttrs, isBreak });
+      } else if (isBreak) {
+        openingParagraphs.push({ index: pMatch.index, length: pMatch[0].length, tag: pMatch[0], attrs: pAttrs, isBreak: true });
+      }
+    }
+
+    if (openingParagraphs.length === 0) {
+      return intermediateHtml;
+    }
+
+    const pInjections = [];
+    for (const [pageJ, floats] of pageFloats.entries()) {
+      const targetIdx = Math.min(pageJ, openingParagraphs.length - 1);
+      const pInfo = openingParagraphs[targetIdx];
+      if (!pInfo) continue;
+
+      let reserveCm = 0;
+      for (const fl of floats) {
+        if (/data-vno-wrap=["']wrapTopAndBottom["']/i.test(fl)) {
+          const top = Number(fl.match(/data-vno-top=["'](-?[\d.]+)/i)?.[1] || 0);
+          const height = Number(fl.match(/data-vno-height=["']([\d.]+)/i)?.[1] || 0);
+          reserveCm = Math.max(reserveCm, top + height);
+        }
+      }
+
+      pInjections.push({
+        pIndex: targetIdx,
+        tagPos: pInfo.index,
+        tagLen: pInfo.length,
+        origTag: pInfo.tag,
+        origAttrs: pInfo.attrs,
+        reserveCm,
+        floatsHtml: floats.join("")
+      });
+    }
+
+    const injectionsByP = new Map();
+    for (const inj of pInjections) {
+      if (!injectionsByP.has(inj.pIndex)) {
+        injectionsByP.set(inj.pIndex, { ...inj, allFloats: [inj.floatsHtml] });
+      } else {
+        const existing = injectionsByP.get(inj.pIndex);
+        existing.reserveCm = Math.max(existing.reserveCm, inj.reserveCm);
+        existing.allFloats.push(inj.floatsHtml);
+      }
+    }
+
+    const sortedInjections = Array.from(injectionsByP.values()).sort((a, b) => b.tagPos - a.tagPos);
+    let finalHtml = intermediateHtml;
+    for (const inj of sortedInjections) {
+      const pInfo = openingParagraphs[inj.pIndex];
+      const layoutStyle = `position:relative;${inj.reserveCm > 0 ? `min-height:${Number(inj.reserveCm.toFixed(3))}cm;` : ""}`;
+      let newTag = pInfo.tag;
+      if (!/data-vno-float-anchor/i.test(newTag)) {
+        newTag = newTag.replace(/^<p\b/i, "<p data-vno-float-anchor");
+      }
+      if (/\bstyle=["']/i.test(newTag)) {
+        newTag = newTag.replace(/\bstyle=["']([^"']*)["']/i, (_m, s) => `style="${layoutStyle}${s}"`);
+      } else {
+        newTag = newTag.replace(/>$/, ` style="${layoutStyle}">`);
+      }
+
+      const combinedFloats = inj.allFloats.join("");
+      finalHtml = finalHtml.slice(0, pInfo.index) + newTag + combinedFloats + finalHtml.slice(pInfo.index + pInfo.length);
+    }
+
+    return finalHtml;
   }
 
   _makeFloatingAnchorContainers(html) {
@@ -1993,6 +2253,7 @@ export class WriterAdapter {
       }
       const opening = stack.pop();
       if (!opening) continue;
+      if (/data-vno-float-anchor/i.test(opening[0])) continue;
       const inner = out.slice(opening.index + opening[0].length, tag.index);
       if (!/\bdata-vno-float=["'](?:image|textbox)["']/i.test(inner)) continue;
       const hasTextbox = /\bdata-vno-float=["']textbox["']/i.test(inner);
