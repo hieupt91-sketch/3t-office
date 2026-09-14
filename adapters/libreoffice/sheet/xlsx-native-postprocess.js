@@ -307,9 +307,11 @@ function overlayAutofilterFromXlsx(source, fodsXml) {
   }
   if (!Object.keys(autofilterBySheet).length) return fodsXml;
   const ranges = [];
-  for (const [sheetName, ref] of Object.entries(autofilterBySheet)) {
+  // LibreOffice's anonymous sheet-filter name; a custom name would export as an
+  // Excel Table part (see _serializeDatabaseRanges in sheet-adapter.js).
+  for (const [index, [sheetName, ref]] of Object.entries(autofilterBySheet).entries()) {
     ranges.push(
-      `<table:database-range table:name="AutoFilter_${sheetName}"`
+      `<table:database-range table:name="__Anonymous_Sheet_DB__${index}"`
       + ` table:target-range-address="${sheetName}.${ref}"`
       + ` table:display-filter-buttons="true"/>`
     );
