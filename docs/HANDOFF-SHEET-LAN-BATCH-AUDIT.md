@@ -33,3 +33,8 @@ RISKS: the used-range bound drops whole-row formatting on empty cells (row 8) �
 DEPENDENCIES/BLOCKERS: Codex weekly cap until 2026-09-19; opencode/nemotron is the only implementer (2–4 h per brief).
 CORE PATCH ID (if any): None.
 NEXT ACTION: (1) merge the external-links fix when opencode delivers and re-run `_batch_audit.py` (round 3); (2) Python-side FODS trimming before the pywebview bridge (lan06 139 MB → the used-range bound applied in `overlay_sheet_xlsx_fods`) and image streaming for lan09; (3) hidden-column/row tails as compact ranges; (4) extend the auditor with conditionalFormatting/dataValidation counts and hand the CF loss to an agent.
+
+## Round 3 (main 8f1f7c2, 2026-09-15 04:30–05:27)
+- **28/28 saved workbooks open in Excel 2016** (lan14 THI ONLINE 4 sheets, lan22, lan28 now OK). 25/28 load in the app (lan06, lan08, lan09 still not loaded — payload/time).
+- Diff totals unchanged from round 2 except the fixed files: lan22 1354 → 982 (formula/value 0), lan28 14512 → 14509, lan02 17437 → 17374.
+- Batch note: the first round-3 run was killed by the harness for low memory while lan14 was open together with round-2 leftovers; lan14 (1.5 M cells) must run alone at the end. _roundtrip_save_sheet.py now stops waiting as soon as the output file exists (the save-done flag never flips because the success alert awaits a click) — 20 min → ~1 min per file.
