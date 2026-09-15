@@ -170,6 +170,7 @@ import { runSheetVirtualScrollRowHeightTests } from "./unit/sheet-virtual-scroll
 import { runSlidesImportFidelityTests } from "./unit/slides-import-fidelity.test.js";
 import { runSlidesSaveFidelityTests } from "./unit/slides-save-fidelity.test.js";
 import { runWriterDocxAuditTests } from "./unit/writer-docx-audit.test.js";
+import { runWriterDocFontSpacingTests } from "./unit/writer-doc-font-spacing.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -347,7 +348,8 @@ async function runAll() {
     { title: "149. Unit Tests — Sheet Virtual Scroll with Variable Row Heights (prefix-sum cache, binary search, spacers)", runner: runSheetVirtualScrollRowHeightTests },
     { title: "150. Unit Tests — Slides PPTX/FODP Import Fidelity", runner: runSlidesImportFidelityTests },
     { title: "151. Unit Tests — Slides Save Fidelity (PowerPoint 2016 parity: quotes, line-height, fo:clip, master chrome)", runner: runSlidesSaveFidelityTests },
-    { title: "152. Unit Tests — Writer DOCX effective-format audit", runner: runWriterDocxAuditTests }
+    { title: "152. Unit Tests — Writer DOCX effective-format audit", runner: runWriterDocxAuditTests },
+    { title: "153. Unit Tests — Writer doc font / line spacing (Word multiple x font ratio, anchor <br>, imported class)", runner: runWriterDocFontSpacingTests }
   ];
 
   for (const suite of suites) {

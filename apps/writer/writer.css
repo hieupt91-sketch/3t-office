@@ -319,11 +319,23 @@
   padding: 75px 56px 75px 113px; /* Lề chuẩn NĐ 30: Trên 20mm, Dưới 20mm, Trái 30mm, Phải 15mm */
   font-family: var(--vno-doc-font-family, var(--vno-font-doc));
   font-size: var(--vno-doc-font-size, 14pt);
-  line-height: var(--vno-doc-line-height, 1.4);
+  /* Giãn dòng tỉ lệ kiểu Word: bội số (--vno-lh) × chiều cao dòng tự nhiên của font
+     (--vno-font-ratio, adapter đo: Arial/Times 1.149, Calibri 1.221). Đoạn nhập từ
+     LibreOffice/nút giãn dòng ghi `--vno-lh: 1.3` inline thay cho line-height: 130%. */
+  --vno-lh: var(--vno-doc-line-height, 1.4);
+  line-height: calc(var(--vno-lh) * var(--vno-font-ratio, 1));
   color: var(--vno-text-primary);
   border: 1px solid var(--vno-border-subtle);
   outline: none;
   box-sizing: border-box;
+}
+.vno-writer-page :is(p, h1, h2, h3, h4, h5, h6, li, dd, dt, td, th, blockquote, div, span, font, b, i, u, em, strong, a) {
+  line-height: calc(var(--vno-lh) * var(--vno-font-ratio, 1));
+}
+/* Giãn dòng "chính xác" (line-height: 0.53cm inline) cố định chiều cao dòng bất kể font
+   của run - các phần tử inline bên trong phải kế thừa, không tính lại theo font. */
+.vno-writer-page [style*="line-height"] * {
+  line-height: inherit;
 }
 
 /* 4 Dấu góc căn lề (Crop Marks / Margin Corners) */
@@ -400,6 +412,36 @@
 .vno-writer-page font[size="3"]:not([style*="font-size"]),
 .vno-print-preview-body font[size="3"]:not([style*="font-size"]) {
   font-size: var(--vno-doc-font-size, inherit);
+}
+
+/* Khoảng cách giữa hai đoạn: Word (compatibilityMode 15, "HTML paragraph auto
+   spacing") lấy MAX(space-after, space-before) - đúng bằng gộp lề CSS. Đo HDLD.docx
+   2026-09-15 bằng Word COM: đoạn sa=6pt + đoạn sb=6pt cách nhau 6pt, không phải 12pt.
+   Vì vậy KHÔNG triệt tiêu margin collapsing (display:inline-block cho đoạn còn làm
+   Chromium mất toàn bộ các đoạn sau khi nhấn Enter: 108 khối -> 6 khối). */
+/* Tài liệu nhập từ DOCX/ODT (LibreOffice ghi đủ style riêng, .vno-doc-imported):
+   không áp lề bảng 14pt, bảng rộng 100% và căn đều mặc định của mẫu NĐ30 —
+   Word không có khoảng cách quanh bảng, bảng rộng theo thuộc tính width LibreOffice
+   ghi, đoạn không có align là căn trái. Đo MYTIME.docx 2026-09-15: bảng chân trang
+   71px thay vì 25px trong Word làm mỗi trang Word tách thành 2 trang canvas. */
+.vno-writer-page.vno-doc-imported table,
+.vno-print-preview-overlay.vno-doc-imported .vno-print-preview-body table {
+  width: auto;
+  margin: 0;
+}
+.vno-writer-page.vno-doc-imported p:not([align]),
+.vno-print-preview-overlay.vno-doc-imported .vno-print-preview-body p:not([align]) {
+  text-align: start;
+}
+
+/* Word: đoạn đầu trang sau ngắt trang tự động không có space-before; space-after
+   của đoạn cuối trang không tràn sang trang sau. Chỉ đặt qua stylesheet để không
+   đụng thuộc tính style của đoạn (giữ dấu vân tay "chưa sửa" khi lưu). */
+.vno-writer-body > .vno-page-auto-gap[data-vno-soft-break="true"] + * {
+  margin-top: 0 !important;
+}
+.vno-writer-body > :has(+ .vno-page-auto-gap) {
+  margin-bottom: 0 !important;
 }
 
 /* Floating Word drawings use the page as their containing block when OOXML
@@ -1076,7 +1118,8 @@
   color: #111827;
   font-family: var(--vno-doc-font-family, var(--vno-font-doc, "Times New Roman", Times, serif));
   font-size: var(--vno-doc-font-size, 14pt);
-  line-height: var(--vno-doc-line-height, 1.4);
+  --vno-lh: var(--vno-doc-line-height, 1.4);
+  line-height: calc(var(--vno-lh) * var(--vno-font-ratio, 1));
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.45), 0 8px 10px -6px rgba(0, 0, 0, 0.35);
   border-radius: 2px;
   box-sizing: border-box;
@@ -1086,6 +1129,12 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+.vno-print-preview-sheet :is(p, h1, h2, h3, h4, h5, h6, li, dd, dt, td, th, blockquote, div, span, font, b, i, u, em, strong, a) {
+  line-height: calc(var(--vno-lh) * var(--vno-font-ratio, 1));
+}
+.vno-print-preview-sheet [style*="line-height"] * {
+  line-height: inherit;
 }
 
 .vno-print-preview-sheet.is-active {

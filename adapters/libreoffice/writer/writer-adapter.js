@@ -178,6 +178,8 @@ export class WriterAdapter {
     this._sectionSequence = 1;
     this.copiedFormat = null;
     this.docStyles = null;
+    // Tài liệu trống lúc khởi động cũng cần --vno-font-ratio (giãn dòng kiểu Word).
+    try { this._applyDocStyles(); } catch {}
     /** @type {Array<{id:string, anchorText:string, content:string, createdAt:string, author?:string}>} */
     this.comments = [];
     this.commentsPanel = null;
@@ -1899,6 +1901,12 @@ export class WriterAdapter {
       }
     };
 
+    // Tài liệu nhập từ LibreOffice mang đủ style riêng: tắt các mặc định NĐ30
+    // (lề bảng 14pt, bảng rộng 100%, căn đều) bằng lớp .vno-doc-imported.
+    if (target.classList && typeof target.classList.toggle === "function") {
+      target.classList.toggle("vno-doc-imported", Boolean(this.docStyles));
+    }
+
     if (this.docStyles) {
       if (this.docStyles.fontFamily) setProp("--vno-doc-font-family", this.docStyles.fontFamily);
       else removeProp("--vno-doc-font-family");
@@ -1917,6 +1925,14 @@ export class WriterAdapter {
       removeProp("--vno-doc-line-height");
       removeProp("--vno-doc-para-margin");
     }
+
+    // Giãn dòng tỉ lệ = bội số chiều cao dòng tự nhiên của font tài liệu (xem
+    // _encodeProportionalLineHeights); đo font đang thực sự vẽ trên canvas.
+    let family = this.docStyles?.fontFamily || "";
+    if (!family && typeof window !== "undefined" && typeof window.getComputedStyle === "function") {
+      try { family = window.getComputedStyle(target).fontFamily || ""; } catch {}
+    }
+    setProp("--vno-font-ratio", String(this._fontLineRatio(family || "Times New Roman")));
   }
 
   _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml) {
@@ -1969,7 +1985,119 @@ export class WriterAdapter {
     }
     html = this._normalizeImportedStarWriterNotes(html);
     html = this._makeFloatingAnchorContainers(this._preserveImportedFloatingFrames(html, ooxmlDocumentXml, page), page);
+    html = this._collapseFloatOnlyParagraphBreaks(html);
+    html = this._encodeProportionalLineHeights(html);
     return { body: html.trim(), header, footer, page, comments, docStyles };
+  }
+
+  /**
+   * Giãn dòng tỉ lệ (Word "multiple"/LibreOffice `line-height: 130%` hay số không đơn vị)
+   * là bội số của chiều cao dòng TỰ NHIÊN của font (ascent + descent + lineGap), còn CSS
+   * hiểu `130%`/`1.3` là bội số của font-size. Đo HDLD.docx (Arial 12pt, w:line=312):
+   * Word 23.9px/dòng, canvas 20.8px → trang 1 canvas dư 2 đoạn so với Word.
+   * Khi nhập: đổi `line-height: 130%` / `line-height: 1.3` thành `--vno-lh: 1.3`; stylesheet
+   * tính `line-height: calc(var(--vno-lh) * var(--vno-font-ratio))` với --vno-font-ratio đo
+   * từ font của tài liệu (Arial 1.149, Calibri 1.221...). Khi xuất đổi ngược thành `%`.
+   * Giá trị tuyệt đối (cm/pt/px = giãn dòng "exactly") giữ nguyên.
+   */
+  _encodeProportionalLineHeights(html) {
+    let out = String(html || "").replace(/\bstyle=(["'])([^"']*)\1/gi, (match, quote, css) => {
+      if (!/line-height/i.test(css)) return match;
+      const next = css.replace(/(^|;)\s*line-height\s*:\s*([\d.]+)\s*(%?)\s*(?=;|$)/gi, (m, lead, num, pct) => {
+        const value = Number(num);
+        if (!Number.isFinite(value) || value <= 0) return m;
+        const factor = pct ? value / 100 : value;
+        return `${lead}${lead ? " " : ""}--vno-lh: ${Math.round(factor * 10000) / 10000}`;
+      });
+      return next === css ? match : `style=${quote}${next}${quote}`;
+    });
+    // Word tính chiều cao dòng theo font của TỪNG run (dòng = max các run): HDLD.docx chữ
+    // Calibri Light (theme major) trong đoạn Arial → Word 19.1pt/dòng = 1.3 × 14.65 (Calibri
+    // Light 1.2207), không phải 1.3 × 13.8 (Arial). Gắn --vno-font-ratio inline cho mọi
+    // <font face> / font-family để calc() trong stylesheet dùng đúng tỉ số của run.
+    out = out.replace(/<font\b([^>]*\bface=(["'])([^"']*)\2[^>]*)>/gi, (match, attrs, quote, face) => {
+      if (/--vno-font-ratio/i.test(attrs)) return match;
+      const ratio = this._fontLineRatio(face);
+      const styleMatch = attrs.match(/\bstyle=(["'])([^"']*)\1/i);
+      if (styleMatch) {
+        const merged = attrs.replace(styleMatch[0], `style=${styleMatch[1]}${styleMatch[2].replace(/;?\s*$/, "")}; --vno-font-ratio: ${ratio}${styleMatch[1]}`);
+        return `<font${merged}>`;
+      }
+      return `<font${attrs} style="--vno-font-ratio: ${ratio}">`;
+    });
+    out = out.replace(/<(span|p|h[1-6]|li|td|th|div|b|i|u|em|strong)\b([^>]*\bstyle=(["'])([^"']*font-family\s*:[^"']*)\3[^>]*)>/gi, (match, tag, attrs, quote, css) => {
+      if (/--vno-font-ratio/i.test(css)) return match;
+      const family = css.match(/font-family\s*:\s*([^;]+)/i)?.[1]?.trim();
+      if (!family) return match;
+      const ratio = this._fontLineRatio(family);
+      const next = attrs.replace(`style=${quote}${css}${quote}`, `style=${quote}${css.replace(/;?\s*$/, "")}; --vno-font-ratio: ${ratio}${quote}`);
+      return `<${tag}${next}>`;
+    });
+    return out;
+  }
+
+  _restoreProportionalLineHeightsForExport(html) {
+    return String(html || "")
+      .replace(/--vno-lh\s*:\s*([\d.]+)/gi, (m, num) => {
+        const value = Number(num);
+        if (!Number.isFinite(value)) return m;
+        return `line-height: ${Math.round(value * 10000) / 100}%`;
+      })
+      .replace(/;?\s*--vno-font-ratio\s*:\s*[\d.]+\s*;?/gi, (m) => (m.trim().endsWith(";") && m.trim().startsWith(";") ? ";" : ""))
+      .replace(/\sstyle=(["'])\s*;?\s*\1/gi, "");
+  }
+
+  /**
+   * Tỉ số chiều cao dòng tự nhiên / font-size của một họ font (`line-height: normal`),
+   * đo bằng trình duyệt thật (font thay thế nào đang vẽ thì đo đúng font đó); ngoài
+   * trình duyệt dùng bảng metric hhea của các font Windows phổ biến.
+   */
+  _fontLineRatio(fontFamily) {
+    const family = String(fontFamily || "").trim();
+    if (!family) return 1.15;
+    this._fontLineRatioCache ||= new Map();
+    if (this._fontLineRatioCache.has(family)) return this._fontLineRatioCache.get(family);
+    let ratio = null;
+    if (typeof document !== "undefined" && document.body && typeof document.createElement === "function") {
+      try {
+        const box = document.createElement("div");
+        box.setAttribute("aria-hidden", "true");
+        box.style.cssText = `position:absolute;visibility:hidden;left:-99999px;top:0;font-family:${family};font-size:100px;line-height:normal;white-space:nowrap;padding:0;margin:0;border:0;`;
+        box.textContent = "Hg";
+        document.body.appendChild(box);
+        const h = box.offsetHeight;
+        box.remove();
+        if (h > 0) ratio = h / 100;
+      } catch {}
+    }
+    if (!ratio) {
+      const key = family.split(",")[0].replace(/["']/g, "").trim().toLowerCase();
+      const table = {
+        "arial": 1.1499, "arial narrow": 1.1499, "times new roman": 1.1499, "calibri": 1.2207, "calibri light": 1.2207,
+        "cambria": 1.1719, "tahoma": 1.207, "verdana": 1.2148, "segoe ui": 1.3301, "courier new": 1.1328,
+        "georgia": 1.1362, "garamond": 1.1738, "book antiqua": 1.1699, "consolas": 1.1719
+      };
+      ratio = table[key] || 1.15;
+    }
+    this._fontLineRatioCache.set(family, ratio);
+    return ratio;
+  }
+
+  /**
+   * LibreOffice xuất đoạn chỉ chứa đối tượng neo (ảnh/khung sd-abs-pos, không chữ)
+   * thành `<span ...></span><br/><br/>` — hai `<br>` cho một đoạn trống. Word vẽ đoạn đó
+   * đúng MỘT dòng (đo MYTIME.docx 2026-09-15: đoạn neo 11pt + space-after 25pt = 48px
+   * trong Word, canvas 63px vì 2 dòng; và khi lưu LibreOffice ghi thêm `w:br` làm mỗi
+   * trang dôi một dòng). Gộp về một `<br>` khi phần còn lại ngoài các float đúng là 2 `<br>`.
+   */
+  _collapseFloatOnlyParagraphBreaks(html) {
+    return String(html || "").replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (match, attrs, inner) => {
+      if (!/\bdata-vno-float=/i.test(inner) || /<(?:p|div|table|h[1-6])\b/i.test(inner)) return match;
+      const rest = inner.replace(/<span\b[^>]*\bdata-vno-float=[^>]*>[\s\S]*?<\/span>/gi, "");
+      if (!/^\s*(?:<br\s*\/?>\s*){2}$/i.test(rest)) return match;
+      const collapsed = inner.replace(/(<br\s*\/?>)\s*<br\s*\/?>(\s*)$/i, "$1$2");
+      return `<p${attrs}>${collapsed}</p>`;
+    });
   }
 
   _untouchedParagraphFingerprint(html) {
@@ -5849,7 +5977,14 @@ export class WriterAdapter {
         node = node.parentNode;
       }
       if (node && node !== this.editorDom) {
-        node.style.lineHeight = val;
+        // Bội số dòng kiểu Word (1.0/1.5/2.0 dòng): ghi vào --vno-lh để stylesheet nhân
+        // với tỉ số font (--vno-font-ratio); khi xuất đổi lại thành line-height: 150%.
+        if (typeof node.style.setProperty === "function") {
+          node.style.removeProperty("line-height");
+          node.style.setProperty("--vno-lh", String(Number(val) || val));
+        } else {
+          node.style.lineHeight = val;
+        }
       }
     }
   }
@@ -8317,6 +8452,7 @@ export class WriterAdapter {
       bodyHtml = this._stripSessionMarkup(this.editorDom.innerHTML);
     }
     bodyHtml = this._prepareFloatingFramesForExport(bodyHtml);
+    bodyHtml = this._restoreProportionalLineHeightsForExport(bodyHtml);
 
     // LibreOffice's Writer HTML importer drops a class-only Drop Cap span
     // completely (including its first letter) because writer.css is not part
@@ -8742,11 +8878,29 @@ export class WriterAdapter {
     const pages = [];
     let currentPageHtmls = [];
     let currentHeight = 0;
+    let pageStartTop = null;
 
+    // Khoảng cách giữa hai đoạn trong Word 2013+ = MAX(space-after, space-before) = gộp lề
+    // CSS, nên đo bằng vị trí thật (offsetTop) trong khung đo là đúng nhất; Word bỏ
+    // space-before của đoạn đầu trang sau ngắt trang tự động và cắt space-after ở đáy trang.
+    // Trả về {h, mt, top} (top = null khi không có layout thật → ước lượng).
     const estimateHeight = (el) => {
-      if (el.offsetHeight && el.offsetHeight > 0) {
-        return el.offsetHeight;
+      let mt = 0;
+      if (typeof window !== "undefined" && typeof window.getComputedStyle === "function") {
+        try {
+          mt = parseFloat(window.getComputedStyle(el).marginTop) || 0;
+        } catch {}
       }
+      if (measurementHost && typeof el.offsetTop === "number" && typeof el.offsetHeight === "number") {
+        return { h: el.offsetHeight, mt, top: el.offsetTop };
+      }
+      if (el.offsetHeight && el.offsetHeight > 0) {
+        return { h: el.offsetHeight, mt, top: null };
+      }
+      return { h: estimateBareHeight(el), mt: 0, top: null };
+    };
+
+    const estimateBareHeight = (el) => {
       const tagName = (el.tagName || "").toUpperCase();
       const text = (el.textContent || el.innerText || "").trim();
 
@@ -8802,6 +8956,7 @@ export class WriterAdapter {
           pages.push(currentPageHtmls.join("\n"));
           currentPageHtmls = [];
           currentHeight = 0;
+          pageStartTop = null;
         }
         // Chỉ bỏ qua nếu là phần tử phân tách trang chuyên biệt
         if (textContent.includes("Phân tách trang") || (el.tagName || "").toUpperCase() === "HR") {
@@ -8809,8 +8964,24 @@ export class WriterAdapter {
         }
       }
 
-      const h = estimateHeight(el);
+      const { h, mt, top } = estimateHeight(el);
       const elHtml = el.outerHTML || el.innerHTML || `<p>${textContent}</p>`;
+
+      // Có layout thật: trang tính từ offsetTop khối đầu (giữ space-before sau ngắt
+      // thủ công/đầu tài liệu) tới đáy khối đang xét; khoảng cách giữa các khối đã gộp lề.
+      if (top !== null) {
+        if (currentPageHtmls.length === 0 || pageStartTop === null) {
+          pageStartTop = top - mt;
+          currentPageHtmls.push(elHtml);
+        } else if (top + h - pageStartTop > availableHeightPx) {
+          pages.push(currentPageHtmls.join("\n"));
+          currentPageHtmls = [elHtml];
+          pageStartTop = top;
+        } else {
+          currentPageHtmls.push(elHtml);
+        }
+        continue;
+      }
 
       if (currentHeight + h > availableHeightPx && currentPageHtmls.length > 0) {
         pages.push(currentPageHtmls.join("\n"));
@@ -8960,6 +9131,11 @@ export class WriterAdapter {
     overlay.dataset.widthMm = String(dim.widthMm);
     overlay.dataset.heightMm = String(dim.heightMm);
     overlay.dataset.columnCount = String(this.columns?.count || 1);
+    if (this.docStyles && overlay.classList?.add) overlay.classList.add("vno-doc-imported");
+    if (overlay.style && typeof overlay.style.setProperty === "function") {
+      const ratio = this.editorDom?.style?.getPropertyValue?.("--vno-font-ratio") || String(this._fontLineRatio(this.docStyles?.fontFamily || "Times New Roman"));
+      overlay.style.setProperty("--vno-font-ratio", String(ratio).trim());
+    }
     if (this.docStyles && overlay.style) {
       const setOverlayProp = (prop, val) => {
         if (typeof overlay.style.setProperty === "function") overlay.style.setProperty(prop, val);
@@ -9581,9 +9757,18 @@ export class WriterAdapter {
       }
 
       const children = Array.from(this.bodyDom.children);
-      let currentHeight = 0;
       let pageCount = 1;
       const gapBeforeEls = [];
+      // Đo bằng vị trí thật của khối (offsetTop) nên khoảng cách giữa hai đoạn đã là
+      // MAX(space-after, space-before) như Word 2013+ (lề CSS gộp = Word). Word bỏ
+      // space-before của đoạn đầu trang sau ngắt trang tự động và cắt space-after của
+      // đoạn cuối trang → trang bắt đầu tại offsetTop của khối đầu (không tính lề trên),
+      // kết thúc tại đáy khối cuối. Sau ngắt trang thủ công/đầu tài liệu, space-before giữ.
+      const marginTopOf = (el) => {
+        if (typeof window === "undefined" || typeof window.getComputedStyle !== "function") return 0;
+        try { return parseFloat(window.getComputedStyle(el).marginTop) || 0; } catch { return 0; }
+      };
+      let pageStartTop = null;
 
       for (const el of children) {
         const styleStr = (typeof el.getAttribute === "function" ? el.getAttribute("style") : "") || "";
@@ -9591,33 +9776,39 @@ export class WriterAdapter {
         const isManualBreak = styleStr.includes("page-break-before") || styleStr.includes("break-before") || textContent.includes("Phân tách trang");
 
         const h = el.offsetHeight || 0;
+        const top = el.offsetTop || 0;
         if (isManualBreak) {
           // Ngắt trang thủ công / page-break-before nhập từ DOCX cũng phải hiện
           // thành một tờ mới trong khung soạn thảo (Word tách trang thật), nếu
           // không mọi float neo theo trang của các trang sau sẽ đè lên trang 1.
           if (el !== children[0]) {
-            gapBeforeEls.push(el);
+            gapBeforeEls.push({ el, soft: false });
             pageCount++;
           }
-          currentHeight = h;
+          pageStartTop = top - marginTopOf(el);
           continue;
         }
 
-        if (currentHeight > 0 && currentHeight + h > availableHeightPx) {
-          gapBeforeEls.push(el);
-          currentHeight = h;
+        if (pageStartTop === null) {
+          pageStartTop = top - marginTopOf(el);
+          continue;
+        }
+        if (top + h - pageStartTop > availableHeightPx) {
+          gapBeforeEls.push({ el, soft: true });
+          pageStartTop = top;
           pageCount++;
-        } else {
-          currentHeight += h;
         }
       }
 
       const canInsertGaps = typeof this.bodyDom.insertBefore === "function" && typeof document.createElement === "function";
-      for (const el of canInsertGaps ? gapBeforeEls : []) {
+      for (const { el, soft } of canInsertGaps ? gapBeforeEls : []) {
         const gap = document.createElement("div");
         gap.className = "vno-page-auto-gap";
         gap.setAttribute("contenteditable", "false");
         gap.setAttribute("data-vno-auto-page-gap", "true");
+        // CSS `.vno-page-auto-gap[data-vno-soft-break="true"] + *` bỏ space-before
+        // của đoạn đầu trang (đúng Word) mà không chạm vào style của đoạn.
+        gap.setAttribute("data-vno-soft-break", soft ? "true" : "false");
         this.bodyDom.insertBefore(gap, el);
       }
 
