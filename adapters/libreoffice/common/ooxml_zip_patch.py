@@ -4129,10 +4129,8 @@ def _restore_original_xf_for_vno_cells(
             
             # Replace cellXfs
             cell_xfs_match = re.search(r"(<cellXfs\b[^>]*>)([\s\S]*?)(</cellXfs>)", styles_xml, re.IGNORECASE)
-            print(f"DEBUG _restore_original_xf_for_vno_cells: cell_xfs_match={cell_xfs_match is not None}", flush=True)
             if cell_xfs_match:
                 new_xfs = "".join(new_xf_elements)
-                print(f"DEBUG _restore_original_xf_for_vno_cells: new_xfs length={len(new_xfs)}", flush=True)
                 # Update count attribute
                 open_tag = cell_xfs_match.group(1)
                 if 'count=' in open_tag:
@@ -4140,13 +4138,8 @@ def _restore_original_xf_for_vno_cells(
                 else:
                     open_tag = open_tag.rstrip(">") + f' count="{len(new_xf_elements)}">'
                 styles_xml = styles_xml[:cell_xfs_match.start(1)] + open_tag + new_xfs + styles_xml[cell_xfs_match.start(3):]
-                print(f"DEBUG _restore_original_xf_for_vno_cells: styles_xml length after cellXfs replace={len(styles_xml)}", flush=True)
-            else:
-                print(f"DEBUG _restore_original_xf_for_vno_cells: cellXfs NOT FOUND in styles_xml", flush=True)
-            
+
             replacements[XLSX_STYLES_ENTRY] = styles_xml
-    else:
-        print(f"DEBUG _restore_original_xf_for_vno_cells: condition NOT met, skipping styles.xml rebuild", flush=True)
 
 
 def _set_number_format_attr(cell_xml: str, code: str) -> str:
