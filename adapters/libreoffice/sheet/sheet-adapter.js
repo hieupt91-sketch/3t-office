@@ -2662,14 +2662,16 @@ export class SheetAdapter {
             if (isDateType && !isTimeOnly) {
               const isoDate = this._excelSerialToIsoDate(item.val);
               if (isoDate) {
-                const officeValueType = "date";
-                let timeAttr = "";
+                // ODF: ngày-giờ nằm trong CÙNG office:date-value dạng "2021-10-01T08:30:00"
+                // (office:time-value chỉ dành cho value-type="time"; LibreOffice bỏ qua nó trên ô date).
+                let dateValue = isoDate;
                 if (hasTimeComponent) {
                   const timeFraction = item.val - Math.floor(item.val);
                   const isoTime = this._excelSerialToIsoTime(timeFraction);
-                  if (isoTime) timeAttr = ` office:time-value="${isoTime}"`;
+                  const m = isoTime ? isoTime.match(/^PT(\d+)H(\d+)M(\d+)S$/) : null;
+                  if (m) dateValue = `${isoDate}T${m[1]}:${m[2]}:${m[3]}`;
                 }
-                cellsXml += `<table:table-cell office:value-type="${officeValueType}" office:date-value="${isoDate}"${timeAttr}${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+                cellsXml += `<table:table-cell office:value-type="date" office:date-value="${dateValue}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
               } else {
                 cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
               }
@@ -2930,23 +2932,13 @@ export class SheetAdapter {
     } else if (valueType === "date") {
       const dateValue = get("office:date-value");
       if (dateValue) {
-        const isoDate = String(dateValue).replace("T", " ").split(".")[0];
-        const date = new Date(isoDate);
-        if (!isNaN(date.getTime())) {
+        // Tách thành phần bằng tay, tính theo UTC: `new Date("2021-10-01 08:30")` hiểu là giờ ĐỊA PHƯƠNG
+        // rồi trừ mốc UTC → lệch múi giờ (+7h ở VN = +0.29 ngày).
+        const m = String(dateValue).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}(?:\.\d+)?))?)?/);
+        if (m) {
           const epoch = Date.UTC(1899, 11, 30);
-          value = Math.round((date.getTime() - epoch) / 86400000 * 1000000) / 1000000;
-        }
-        // Also parse time component if present (for datetime cells)
-        const timeValue = get("office:time-value");
-        if (timeValue) {
-          const match = String(timeValue).match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/);
-          if (match) {
-            const hours = Number(match[1] || 0);
-            const minutes = Number(match[2] || 0);
-            const seconds = Number(match[3] || 0);
-            const timeFraction = (hours * 3600 + minutes * 60 + seconds) / 86400;
-            value += timeFraction;
-          }
+          const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4] || 0), Number(m[5] || 0), Number(m[6] || 0));
+          value = Math.round((ms - epoch) / 86400000 * 1000000) / 1000000;
         }
       }
     } else if (valueType === "time") {
