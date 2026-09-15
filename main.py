@@ -889,6 +889,10 @@ class VnOfficeApi:
             comments_xml = _read_docx_comments_xml(src_path)
             if comments_xml:
                 payload["ooxmlCommentsXml"] = comments_xml
+            # Quy ước W11: style bảng (TableGrid: spacing after=0, line=240) nằm trong styles.xml.
+            styles_xml = _read_docx_zip_entry(src_path, "word/styles.xml")
+            if styles_xml:
+                payload["ooxmlStylesXml"] = styles_xml
         elif app_kind == "sheet":
             workbook_xml = _read_xlsx_workbook_xml(src_path)
             if workbook_xml:

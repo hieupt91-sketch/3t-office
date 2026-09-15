@@ -2009,11 +2009,12 @@ export class WriterAdapter {
     setProp("--vno-font-ratio", String(this._fontLineRatio(family || "Times New Roman")));
   }
 
-  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml) {
+  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "") {
     let html = String(raw || "");
     let comments = [];
     if (ooxmlDocumentXml) {
       html = this._applyOoxmlTrackChangesToHtml(html, ooxmlDocumentXml);
+      html = this._applyOoxmlTableParagraphSpacing(html, ooxmlDocumentXml, ooxmlStylesXml);
     }
     if (ooxmlDocumentXml && ooxmlCommentsXml) {
       const overlaid = this._applyOoxmlCommentsToHtml(html, ooxmlDocumentXml, ooxmlCommentsXml);
@@ -2511,6 +2512,95 @@ export class WriterAdapter {
       return [...firstRow.matchAll(/<w:tcW\b[^>]*\bw:w=["'](\d+)["']/gi)]
         .map((match) => Number(match[1]))
         .filter((width) => Number.isFinite(width) && width > 0);
+    });
+  }
+
+  /**
+   * Quy ước W11 — khoảng cách/giãn dòng của đoạn TRONG Ô BẢNG theo OOXML.
+   * LibreOffice bỏ `w:spacing w:after="0"` ghi ngay trong ô và không áp pPr của style bảng (TableGrid:
+   * after=0, line=240) → mỗi đoạn trong ô mang margin-bottom 0,21cm + 115% của tài liệu.
+   * Đo d13.docx 2026-09-15: hàng Word 14px, canvas 28px; 5 bảng thấp hơn Word 93–124px mỗi bảng.
+   * Ghép bảng thứ k của HTML với w:tbl thứ k (như _applyOoxmlTableColumnGeometry), đoạn thứ j trong bảng
+   * với w:p thứ j; chỉ ghi khi OOXML nói rõ (đoạn hoặc style bảng), không chạm giá trị LibreOffice khác.
+   */
+  _applyOoxmlTableParagraphSpacing(html, ooxmlDocumentXml, ooxmlStylesXml = "") {
+    const xml = String(ooxmlDocumentXml || "");
+    if (!xml.includes("<w:tbl>")) return html;
+    const styles = String(ooxmlStylesXml || "");
+    const spacingOf = (block) => {
+      const m = block.match(/<w:spacing\b([^>]*)\/>/);
+      if (!m) return null;
+      const a = m[1];
+      const num = (name) => { const v = a.match(new RegExp(`w:${name}="(-?\\d+)"`)); return v ? Number(v[1]) : null; };
+      return { before: num("before"), after: num("after"), line: num("line"), lineRule: a.match(/w:lineRule="(\w+)"/)?.[1] || "auto" };
+    };
+    // pPr của style bảng (kể cả basedOn) — phần <w:pPr> cấp style, không phải trong w:tblStylePr.
+    const tableStyleSpacing = new Map();
+    const styleSpacing = (styleId, depth = 0) => {
+      if (!styleId || depth > 8) return null;
+      if (tableStyleSpacing.has(styleId)) return tableStyleSpacing.get(styleId);
+      const st = styles.match(new RegExp(`<w:style\\b[^>]*w:styleId="${styleId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"[^>]*>([\\s\\S]*?)</w:style>`));
+      let result = null;
+      if (st) {
+        const body = st[1].replace(/<w:tblStylePr\b[\s\S]*?<\/w:tblStylePr>/g, "");
+        const ppr = body.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+        result = ppr ? spacingOf(ppr[1]) : null;
+        if (!result) result = styleSpacing(body.match(/<w:basedOn w:val="([^"]+)"/)?.[1], depth + 1);
+      }
+      tableStyleSpacing.set(styleId, result);
+      return result;
+    };
+    // Tách các w:tbl cấp cao nhất (bảng lồng nằm trong bảng cha).
+    const tables = [];
+    let pos = 0;
+    while (true) {
+      const start = xml.indexOf("<w:tbl>", pos);
+      if (start < 0) break;
+      let depth = 0; let i = start;
+      const re = /<w:tbl>|<\/w:tbl>/g; re.lastIndex = start;
+      let m; let end = -1;
+      while ((m = re.exec(xml))) { depth += m[0] === "<w:tbl>" ? 1 : -1; if (depth === 0) { end = m.index + m[0].length; break; } }
+      if (end < 0) break;
+      tables.push(xml.slice(start, end)); pos = end; i = end;
+    }
+    if (!tables.length) return html;
+    const twipsToCm = (t) => `${Math.round(t / 567 * 1000) / 1000}cm`;
+    let tableIndex = 0;
+    return String(html || "").replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, (tableHtml) => {
+      const tbl = tables[tableIndex++];
+      if (!tbl) return tableHtml;
+      const tableStyle = styleSpacing(tbl.match(/<w:tblStyle w:val="([^"]+)"/)?.[1]);
+      const paras = [...tbl.matchAll(/<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g)].map((p) => {
+        const ppr = p[0].match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+        return { own: ppr ? spacingOf(ppr[1]) : null, contextual: /<w:contextualSpacing\b/.test(ppr?.[1] || "") };
+      });
+      const htmlParas = [...tableHtml.matchAll(/<p\b[^>]*>/gi)];
+      if (!paras.length || htmlParas.length !== paras.length) return tableHtml;
+      let j = 0;
+      return tableHtml.replace(/<p\b([^>]*)>/gi, (tag, attrs) => {
+        const spec = paras[j++];
+        const eff = { ...(tableStyle || {}) };
+        for (const key of ["before", "after", "line", "lineRule"]) if (spec.own && spec.own[key] !== null && spec.own[key] !== undefined) eff[key] = spec.own[key];
+        const decls = [];
+        if (eff.before !== null && eff.before !== undefined) decls.push(`margin-top: ${twipsToCm(eff.before)}`);
+        if (eff.after !== null && eff.after !== undefined) decls.push(`margin-bottom: ${twipsToCm(eff.after)}`);
+        if (eff.line !== null && eff.line !== undefined) {
+          if (eff.lineRule === "exact") decls.push(`line-height: ${Math.round(eff.line / 20 * 100) / 100}pt`);
+          else if (eff.lineRule === "auto") decls.push(`line-height: ${Math.round(eff.line / 240 * 10000) / 100}%`);
+        }
+        if (!decls.length) return tag;
+        const styleMatch = attrs.match(/\bstyle=(["'])([^"']*)\1/i);
+        if (styleMatch) {
+          let css = styleMatch[2];
+          for (const d of decls) {
+            const prop = d.split(":")[0].trim();
+            css = css.replace(new RegExp(`(^|;)\\s*${prop}\\s*:[^;]*`, "i"), "$1");
+          }
+          css = `${css.replace(/;\s*$/, "").replace(/^\s*;/, "")}${css.trim() ? "; " : ""}${decls.join("; ")}`;
+          return `<p${attrs.replace(styleMatch[0], `style=${styleMatch[1]}${css}${styleMatch[1]}`)}>`;
+        }
+        return `<p${attrs} style="${decls.join("; ")}">`;
+      });
     });
   }
 
@@ -8781,7 +8871,8 @@ export class WriterAdapter {
       const imported = this._normalizeImportedHtml(
         result.content || "",
         result.ooxmlDocumentXml,
-        result.ooxmlCommentsXml
+        result.ooxmlCommentsXml,
+        result.ooxmlStylesXml
       );
       if (imported.page) {
         this.pageSetup = {
