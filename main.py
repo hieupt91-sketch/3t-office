@@ -641,6 +641,14 @@ def _apply_native_import_overlay(src_path: str, fods: str, app_kind: str | None)
     return fods
 
 
+def _optimize_fods_for_sheet(fods_xml: str) -> str:
+    """Optimize FODS for Sheet: merge repeated empty cells, trim style-only tail.
+    
+    Delegates to the shared implementation in ooxml_zip_patch.
+    """
+    return _ooxml_zip_patch().optimize_fods_streaming(fods_xml)
+
+
 _IMG_TAG_RE = re.compile(r"<img\b([^>]*?)(\s*/?)>", re.IGNORECASE)
 _SRC_ATTR_RE = re.compile(r"""\bsrc=["']([^"']+)["']""", re.IGNORECASE)
 _SRC_ATTR_REPLACE_RE = re.compile(r"""\bsrc=["'][^"']*["']""", re.IGNORECASE)
@@ -849,10 +857,12 @@ class VnOfficeApi:
                     # Overlay BEFORE the FODS leaves this process — SheetAdapter.parseFods
                     # must see table:structure-protected when the original XLSX is locked.
                     content = _apply_native_import_overlay(src_path, content, app_kind)
+                    # Optimize FODS: merge repeated empty cells, trim style-only tail
+                    content = _optimize_fods_for_sheet(content)
                 elif app_kind == "slides":
                     # Overlay BEFORE the FODP leaves this process — SlidesAdapter.parseFodp
                     # must see vno:section-*, vno:master-theme, and Set Up Show vno:*
-                    # when the original PPTX has p14:sectionLst / VNOfficeMasterLogo /
+                    # when the original PTTX has p14:sectionLst / VNOfficeMasterLogo /
                     # p:showPr showNarration=0 or p:penClr.
                     content = _apply_native_import_overlay(src_path, content, app_kind)
         except DocumentEngineError as exc:
