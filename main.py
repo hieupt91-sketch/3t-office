@@ -440,6 +440,7 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
         try:
             with open(src_path, "r", encoding="utf-8", errors="replace") as handle:
                 fods = handle.read()
+            print(f"DEBUG _apply_native_export_postprocess: source_path={source_path}", flush=True)
             patcher = _ooxml_zip_patch()
             # LƯU Ý: KHÔNG early-return khi thiếu structure-protected — trường
             # hợp đó chỉ tắt phần lockStructure; postprocess_sheet_xlsx() còn
@@ -453,11 +454,16 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
             if source_path and os.path.isfile(source_path) and source_path.lower().endswith(".xlsx"):
                 with open(source_path, "rb") as handle:
                     source_xlsx_bytes = handle.read()
+                print(f"DEBUG _apply_native_export_postprocess: read source_xlsx_bytes={len(source_xlsx_bytes)} bytes", flush=True)
             # Read source FODS for activeTab preservation
+            print(f"DEBUG _apply_native_export_postprocess: fods has vno:xf={fods.count('vno:xf')}", flush=True)
             patched = patcher.postprocess_sheet_xlsx(original, source_fods=fods, source_xlsx_bytes=source_xlsx_bytes)
+            print(f"DEBUG _apply_native_export_postprocess: patched same as original={patched == original}", flush=True)
             if patched != original:
+                print(f"DEBUG _apply_native_export_postprocess: writing patched to {out_path}", flush=True)
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
+                print(f"DEBUG _apply_native_export_postprocess: wrote {len(patched)} bytes", flush=True)
         except DocumentEngineError:
             raise
         except Exception as exc:
@@ -944,7 +950,9 @@ class VnOfficeApi:
 
                 out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
                 _apply_native_export_postprocess(src_path, out_path, app_kind, target_format, source_path=source_path)
+                print(f"DEBUG save_document_dialog: copying {out_path} ({os.path.getsize(out_path)} bytes) to {dest_path}", flush=True)
                 shutil.copyfile(out_path, dest_path)
+                print(f"DEBUG save_document_dialog: copied, dest size={os.path.getsize(dest_path)}", flush=True)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
 

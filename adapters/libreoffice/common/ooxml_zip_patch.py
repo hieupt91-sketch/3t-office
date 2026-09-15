@@ -244,6 +244,13 @@ def apply_workbook_protection_lock_structure(workbook_xml: str) -> str:
 def patch_ooxml_zip(zip_bytes: bytes, replacements: dict[str, str | bytes | None]) -> bytes:
     """Replace named ZIP entries; copy the rest. A ``None`` payload drops the entry.
     New entries (not present in source) are added. No third-party library."""
+    print(f"DEBUG patch_ooxml_zip: replacements keys={list(replacements.keys())}", flush=True)
+    if 'xl/styles.xml' in replacements:
+        print(f"DEBUG patch_ooxml_zip: styles.xml replacement length={len(replacements['xl/styles.xml'])}", flush=True)
+        content = replacements['xl/styles.xml']
+        import re
+        xf_matches = list(re.finditer(r'<xf\b[^>]*/?>', content))
+        print(f"DEBUG patch_ooxml_zip: styles.xml xf count={len(xf_matches)}", flush=True)
     source = io.BytesIO(zip_bytes)
     dest = io.BytesIO()
     with zipfile.ZipFile(source, "r") as zin, zipfile.ZipFile(
@@ -259,6 +266,7 @@ def patch_ooxml_zip(zip_bytes: bytes, replacements: dict[str, str | bytes | None
                 if payload is None:
                     continue
                 data = payload.encode("utf-8") if isinstance(payload, str) else payload
+                print(f"DEBUG patch_ooxml_zip: replacing {item.filename} ({len(data)} bytes)", flush=True)
             else:
                 data = zin.read(item.filename)
             info = zipfile.ZipInfo(filename=item.filename, date_time=item.date_time)
@@ -1288,10 +1296,14 @@ def _restore_normal_font_and_layout(
     # 1. Restore Normal font in styles.xml: copy the source workbook's fonts[0]
     #    element verbatim (exact name/size/colour/scheme Excel used for the
     #    column-width unit) instead of patching attributes piecemeal.
-    styles_entry = read_zip_entry(xlsx_bytes, "xl/styles.xml")
+    # Use already-modified styles.xml from replacements if available, otherwise read from xlsx_bytes.
+    styles_xml = replacements.get("xl/styles.xml")
+    if styles_xml is None:
+        styles_entry = read_zip_entry(xlsx_bytes, "xl/styles.xml")
+        if styles_entry:
+            styles_xml = styles_entry.decode("utf-8", errors="replace")
     original_font_xml = _extract_normal_font_xml_from_xlsx(source_xlsx_bytes)
-    if styles_entry and original_font_xml:
-        styles_xml = styles_entry.decode("utf-8", errors="replace")
+    if styles_xml and original_font_xml:
         new_styles_xml = _restore_normal_font_in_styles(styles_xml, original_font_xml)
         if new_styles_xml != styles_xml:
             replacements["xl/styles.xml"] = new_styles_xml
@@ -1894,8 +1906,11 @@ def postprocess_sheet_xlsx(
     # Restore original xf for cells with vno:xf (S8: untouched cell styles)
     if source_xlsx_bytes and source_fods:
         try:
+            print(f"DEBUG _restore_original_xf_for_vno_cells: called", flush=True)
             _restore_original_xf_for_vno_cells(xlsx_bytes, source_fods, source_xlsx_bytes, replacements)
-        except Exception:
+            print(f"DEBUG _restore_original_xf_for_vno_cells: replacements keys={list(replacements.keys())}", flush=True)
+        except Exception as e:
+            print(f"DEBUG _restore_original_xf_for_vno_cells: error={e}", flush=True)
             # Never fail the save due to xf restoration issues
             pass
 
@@ -4023,6 +4038,7 @@ def _restore_original_xf_for_vno_cells(
                 fill_id = int(xf_attrs.get("fillId", 0))
                 border_id = int(xf_attrs.get("borderId", 0))
                 numfmt_id = int(xf_attrs.get("numFmtId", 0))
+                print(f"DEBUG _restore_original_xf_for_vno_cells: cell ({row},{col}) src_xf_idx={src_xf_idx}, font_id={font_id}, fill_id={fill_id}, border_id={border_id}, numfmt_id={numfmt_id}", flush=True)
                 
                 # Copy font if needed
                 if font_id < len(src_font_elements):
@@ -4047,12 +4063,17 @@ def _restore_original_xf_for_vno_cells(
                 # Copy border if needed
                 if border_id < len(src_border_elements):
                     src_border = src_border_elements[border_id]
+                    print(f"DEBUG _restore_original_xf_for_vno_cells: src_border[{border_id}]={src_border[:100]}", flush=True)
                     if src_border not in border_map:
                         border_map[src_border] = len(current_border_elements)
                         current_border_elements.append(src_border)
+                        print(f"DEBUG _restore_original_xf_for_vno_cells: added new border at index {len(current_border_elements)-1}", flush=True)
+                    else:
+                        print(f"DEBUG _restore_original_xf_for_vno_cells: found existing border at index {border_map[src_border]}", flush=True)
                     new_border_id = border_map[src_border]
                 else:
                     new_border_id = 0
+                print(f"DEBUG _restore_original_xf_for_vno_cells: new_border_id={new_border_id}", flush=True)
                 
                 # Copy numFmt if needed (custom numFmt only, built-in are shared)
                 if numfmt_id >= 164 and numfmt_id < len(src_numfmt_elements):
@@ -4069,13 +4090,14 @@ def _restore_original_xf_for_vno_cells(
                 new_xf = re.sub(r'fillId="\d+"', f'fillId="{new_fill_id}"', new_xf)
                 new_xf = re.sub(r'borderId="\d+"', f'borderId="{new_border_id}"', new_xf)
                 new_xf = re.sub(r'numFmtId="\d+"', f'numFmtId="{new_numfmt_id}"', new_xf)
+                print(f"DEBUG _restore_original_xf_for_vno_cells: new_xf={new_xf}", flush=True)
                 
                 new_xf_idx = len(new_xf_elements)
                 new_xf_elements.append(new_xf)
                 xf_index_map[src_xf_idx] = new_xf_idx
             
             # Update the cell's s attribute in the worksheet XML
-            coord = f"{_column_label_from_index(col)}{row}"
+            coord = f"{column_label_from_index(col)}{row}"
             # Find and update the cell's s attribute
             cell_pattern = rf'(<c\b[^>]*\br="{re.escape(coord)}"[^>]*)>'
             def _replace_s(match):
@@ -4086,14 +4108,43 @@ def _restore_original_xf_for_vno_cells(
                     attrs = f'{attrs} s="{new_xf_idx}"'
                 return f'{attrs}>'
             
+            old_sheet_xml = sheet_xml
+            # Debug: check what the pattern matches
+            matches = list(re.finditer(cell_pattern, sheet_xml, re.IGNORECASE))
+            if matches:
+                print(f"DEBUG _restore_original_xf_for_vno_cells: pattern matches {len(matches)} times for {coord}", flush=True)
+                for m in matches[:3]:
+                    print(f"DEBUG _restore_original_xf_for_vno_cells: match: {m.group()[:100]}", flush=True)
+            else:
+                print(f"DEBUG _restore_original_xf_for_vno_cells: pattern NO MATCH for {coord}", flush=True)
+            
             sheet_xml = re.sub(cell_pattern, _replace_s, sheet_xml, flags=re.IGNORECASE)
+            if sheet_xml != old_sheet_xml:
+                print(f"DEBUG _restore_original_xf_for_vno_cells: updated cell {coord} to s={new_xf_idx}", flush=True)
+            else:
+                print(f"DEBUG _restore_original_xf_for_vno_cells: FAILED to update cell {coord} (new_xf_idx={new_xf_idx})", flush=True)
+                # Debug: check if cell exists in sheet_xml
+                if coord in sheet_xml:
+                    print(f"DEBUG _restore_original_xf_for_vno_cells: coord {coord} found in sheet_xml", flush=True)
+                    # Show context
+                    idx = sheet_xml.find(f'r="{coord}"')
+                    if idx >= 0:
+                        print(f"DEBUG _restore_original_xf_for_vno_cells: context: {sheet_xml[max(0,idx-100):idx+100]}", flush=True)
+                else:
+                    print(f"DEBUG _restore_original_xf_for_vno_cells: coord {coord} NOT found in sheet_xml", flush=True)
         
         # Update the worksheet XML in replacements
         if sheet_xml != replacements.get(entry_path, ""):
             replacements[entry_path] = sheet_xml
     
     # Update styles.xml with new elements
+    print(f"DEBUG _restore_original_xf_for_vno_cells: new_xf_elements={len(new_xf_elements)}, current_xf_elements={len(current_xf_elements)}", flush=True)
+    print(f"DEBUG _restore_original_xf_for_vno_cells: current_font_elements={len(current_font_elements)}, font_map={len(font_map)}", flush=True)
+    print(f"DEBUG _restore_original_xf_for_vno_cells: current_fill_elements={len(current_fill_elements)}, fill_map={len(fill_map)}", flush=True)
+    print(f"DEBUG _restore_original_xf_for_vno_cells: current_border_elements={len(current_border_elements)}, border_map={len(border_map)}", flush=True)
+    print(f"DEBUG _restore_original_xf_for_vno_cells: current_numfmt_elements={len(current_numfmt_elements)}, numfmt_map={len(numfmt_map)}", flush=True)
     if len(new_xf_elements) > len(current_xf_elements) or len(current_font_elements) > len(font_map) or len(current_fill_elements) > len(fill_map) or len(current_border_elements) > len(border_map) or len(current_numfmt_elements) > len(numfmt_map):
+        print(f"DEBUG _restore_original_xf_for_vno_cells: condition met, rebuilding styles.xml", flush=True)
         # Rebuild styles.xml
         styles_entry = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
         if styles_entry:
@@ -4125,8 +4176,10 @@ def _restore_original_xf_for_vno_cells(
             
             # Replace cellXfs
             cell_xfs_match = re.search(r"(<cellXfs\b[^>]*>)([\s\S]*?)(</cellXfs>)", styles_xml, re.IGNORECASE)
+            print(f"DEBUG _restore_original_xf_for_vno_cells: cell_xfs_match={cell_xfs_match is not None}", flush=True)
             if cell_xfs_match:
                 new_xfs = "".join(new_xf_elements)
+                print(f"DEBUG _restore_original_xf_for_vno_cells: new_xfs length={len(new_xfs)}", flush=True)
                 # Update count attribute
                 open_tag = cell_xfs_match.group(1)
                 if 'count=' in open_tag:
@@ -4134,8 +4187,13 @@ def _restore_original_xf_for_vno_cells(
                 else:
                     open_tag = open_tag.rstrip(">") + f' count="{len(new_xf_elements)}">'
                 styles_xml = styles_xml[:cell_xfs_match.start(1)] + open_tag + new_xfs + styles_xml[cell_xfs_match.start(3):]
+                print(f"DEBUG _restore_original_xf_for_vno_cells: styles_xml length after cellXfs replace={len(styles_xml)}", flush=True)
+            else:
+                print(f"DEBUG _restore_original_xf_for_vno_cells: cellXfs NOT FOUND in styles_xml", flush=True)
             
             replacements[XLSX_STYLES_ENTRY] = styles_xml
+    else:
+        print(f"DEBUG _restore_original_xf_for_vno_cells: condition NOT met, skipping styles.xml rebuild", flush=True)
 
 
 def _set_number_format_attr(cell_xml: str, code: str) -> str:
