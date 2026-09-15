@@ -535,7 +535,8 @@ export async function runSheetImportCellStylesTests() {
     assert(!item.style.color, `self-closing style must not inherit following text color, got ${item.style.color}`);
   });
 
-  await test("cell.styles.import: numeric vno format is ignored for string cells", () => {
+  await test("cell.styles.import: string cells keep the original Excel format code (excelCode)", () => {
+    // Quy ước: ô chuỗi/trống có numFmt phải giữ numFmt (ma trận Sheet 2026-09-15: 203x `#,##0` -> general trên ô chuỗi).
     const fods = minimalFodsXml({
       sheetName: "TextNumberFormat",
       cells: [{
@@ -545,7 +546,7 @@ export async function runSheetImportCellStylesTests() {
     });
     const item = makeAdapter(makeGrid("TextNumberFormat")).parseFods(fods).sheetsData.TextNumberFormat.get("A1");
     assert(item?.val === "24 thang", `string value must remain intact, got ${item?.val}`);
-    assert(!item.style.numberFormat, "string cell must not retain a numeric numberFormat");
+    assert(item.style.numberFormat?.excelCode === '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)', `string cell must keep excelCode, got ${JSON.stringify(item.style.numberFormat)}`);
   });
 
   return results;

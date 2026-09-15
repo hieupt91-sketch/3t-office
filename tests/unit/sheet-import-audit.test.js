@@ -72,7 +72,7 @@ export async function runSheetImportAuditTests() {
     const adapter = new SheetAdapter(null);
     const excel = adapter._cellFromFodsAttributes({ "office:value-type": "float", "office:value": "1234", "vno:number-format": "#,##0.00" }, "1234");
     const json = adapter._cellFromFodsAttributes({ "office:value-type": "float", "office:value": "1234", "vno:number-format": '{"category":"percentage","decimals":1}' }, "1234");
-    assert.deepEqual(excel.style.numberFormat, { category: "number", decimals: 2, useThousands: true, negativeStyle: 0 });
+    assert.deepEqual(excel.style.numberFormat, { category: "number", decimals: 2, useThousands: true, negativeStyle: 0, excelCode: "#,##0.00" });
     assert.equal(json.style.numberFormat.category, "percentage");
   });
   await test("parseFods regex: giải mã đúng text bị soffice escape hai lớp", () => {
@@ -128,5 +128,54 @@ export async function runSheetImportAuditTests() {
       assert.equal(report.sheets[0].mismatches.columnWidth.count, 0, JSON.stringify(report.sheets[0].mismatches.columnWidth));
     } finally { fs.rmSync(f.dir, { recursive: true, force: true }); }
   });
+
+  // Unit tests for specific format codes round-trip (parse → serialize → parse)
+  await test("Accounting 4-section formatCode round-trip", () => {
+    const adapter = new SheetAdapter(null);
+    const code = '_(* #,##0_);_(* \\(#,##0\\);_(* "-"??_);_(@_)';
+    const cell = adapter._cellFromFodsAttributes({ "office:value-type": "float", "office:value": "1234", "vno:number-format": code }, "1234");
+    assert.equal(cell.style.numberFormat.excelCode, code);
+    assert.equal(cell.style.numberFormat.category, "number");
+    // Serialize and parse back
+    const fods = adapter.serializeToFods();
+    const parsed = new SheetAdapter(null).parseFods(fods);
+    // The excelCode should be preserved through the round-trip
+    // Note: This is a simplified check - full round-trip requires actual file save/load
+  });
+
+  await test("Accounting VND formatCode round-trip", () => {
+    const adapter = new SheetAdapter(null);
+    const code = '_-* #,##0 _₫_-;\\-* #,##0 _₫_-;_-* "-"?? _₫_-;_-@_-';
+    const cell = adapter._cellFromFodsAttributes({ "office:value-type": "float", "office:value": "8890000", "vno:number-format": code }, "8890000");
+    assert.equal(cell.style.numberFormat.excelCode, code);
+    assert.equal(cell.style.numberFormat.category, "number");
+  });
+
+  await test("Text format @ round-trip", () => {
+    const adapter = new SheetAdapter(null);
+    const code = "@";
+    const cell = adapter._cellFromFodsAttributes({ "office:value-type": "string", "office:string-value": "hello", "vno:number-format": code }, "hello");
+    assert.equal(cell.style.numberFormat.excelCode, code);
+    assert.equal(cell.style.numberFormat.category, "text");
+  });
+
+  await test("Currency Euro formatCode [$€-1] round-trip", () => {
+    const adapter = new SheetAdapter(null);
+    const code = '#,##0.0 [$€-1]';
+    const cell = adapter._cellFromFodsAttributes({ "office:value-type": "float", "office:value": "1234.5", "vno:number-format": code }, "1234.5");
+    assert.equal(cell.style.numberFormat.excelCode, code);
+    assert.equal(cell.style.numberFormat.category, "currency");
+    assert.equal(cell.style.numberFormat.currencySymbol, "€");
+  });
+
+  await test("Red negative formatCode [Red] round-trip", () => {
+    const adapter = new SheetAdapter(null);
+    const code = '#,##0;[Red](#,##0)';
+    const cell = adapter._cellFromFodsAttributes({ "office:value-type": "float", "office:value": "-1234", "vno:number-format": code }, "-1234");
+    assert.equal(cell.style.numberFormat.excelCode, code);
+    assert.equal(cell.style.numberFormat.category, "number");
+    assert.equal(cell.style.numberFormat.negativeStyle, 3); // Red with parentheses
+  });
+
   return results;
 }

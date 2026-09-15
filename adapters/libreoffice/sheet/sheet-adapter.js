@@ -80,6 +80,79 @@ export class SheetAdapter {
   }
 
   /**
+   * Reconstruct Excel format code from simplified numberFormat object.
+   * Used to preserve original format when round-tripping through ODF.
+   */
+  _excelCodeFromNumberFormat(fmt) {
+    if (!fmt || !fmt.category) return null;
+    const cat = fmt.category;
+    const decimals = Number(fmt.decimals || 0);
+    const useThousands = fmt.useThousands;
+    const currencySymbol = fmt.currencySymbol || "";
+    const negativeStyle = Number(fmt.negativeStyle || 0);
+    const zeroFormat = fmt.zeroFormat;
+
+    // Build negative section
+    let negSection = "";
+    if (negativeStyle === 1 || negativeStyle === 3) {
+      negSection = "[Red]";
+    }
+    if (negativeStyle >= 2) {
+      negSection += "(";
+    }
+
+    // Build number pattern
+    let numPattern = "";
+    if (useThousands) numPattern += "#,##";
+    numPattern += "0";
+    if (decimals > 0) {
+      numPattern += "." + "0".repeat(decimals);
+    }
+
+    // Build positive section (section 1)
+    let posSection = numPattern;
+    if (cat === "currency" || cat === "accounting") {
+      const symbol = currencySymbol || "₫";
+      if (cat === "accounting") {
+        posSection = `_(* ${symbol} ${numPattern}_);_(* ${negSection}${symbol} ${numPattern}`;
+        if (negativeStyle >= 2) posSection += ")";
+        posSection += ";_(* \"-\"??_)";
+      } else {
+        posSection = `${symbol} ${numPattern}`;
+      }
+    } else if (cat === "percentage") {
+      posSection = numPattern + "%";
+    } else {
+      posSection = numPattern;
+    }
+
+    // Build full format code with sections
+    let code = posSection;
+    if (negSection || negativeStyle >= 2) {
+      code += ";" + negSection + numPattern + (cat === "currency" || cat === "accounting" ? ` ${currencySymbol}` : "") + (negativeStyle >= 2 ? ")" : "");
+    } else {
+      code += ";" + numPattern;
+    }
+
+    // Section 3 (zero)
+    if (zeroFormat === "-") {
+      code += ";\"-\"";
+    } else {
+      code += ";0";
+    }
+
+    // Section 4 (text)
+    code += ";@";
+
+    // Add accounting padding for accounting category
+    if (cat === "accounting") {
+      code = code.replace(/^_\(\* /, "_(* ").replace(/_\);_/, "_);_(* ").replace(/_\);_/, "_);_(* ").replace(/;@$/, ";_(@_)");
+    }
+
+    return code;
+  }
+
+  /**
    * Grid-model signal for the native XLSX post-process (lockStructure).
    * serializeToFods() already writes table:structure-protected from this flag.
    * Production File → Lưu patches xl/workbook.xml in main.py after soffice;
@@ -1108,6 +1181,21 @@ export class SheetAdapter {
   }
 
   _numberFormatXml(config, name) {
+    // Quy ước S7: định dạng số nhập từ file giữ NGUYÊN data-style ODF mà LibreOffice sinh khi nhập XLSX
+    // (biểu diễn chính xác của mã Excel: 4 section qua style:map, đệm _( _), [$€-1], [Red]...). Đổi tên
+    // style + các style phụ theo tên mới; LibreOffice ghi lại đúng numFmt gốc. Chỉ khi người dùng đổi
+    // định dạng trong app (không còn odf) mới sinh từ category/excelCode.
+    if (config.odf?.xml) {
+      const rename = new Map([[config.odf.name, name]]);
+      (config.odf.deps || []).forEach((dep, k) => rename.set(dep.name, `${name}S${k}`));
+      const renamed = (xml) => xml
+        .replace(/style:name=(["'])([^"']+)\1/g, (m, q, n) => `style:name=${q}${rename.get(n) || n}${q}`)
+        .replace(/style:apply-style-name=(["'])([^"']+)\1/g, (m, q, n) => `style:apply-style-name=${q}${rename.get(n) || n}${q}`);
+      return (config.odf.deps || []).map(dep => renamed(dep.xml)).join("") + renamed(config.odf.xml);
+    }
+    if (config.excelCode) {
+      return this._numberFormatXmlFromExcelCode(config.excelCode, name);
+    }
     const category = String(config.category || "number");
     const decimals = Math.max(0, Math.min(30, Number(config.decimals ?? (["currency", "accounting", "percentage", "scientific"].includes(category) ? 2 : 0))));
     const grouping = config.useThousands || category === "accounting" ? ' number:grouping="true"' : "";
@@ -1151,6 +1239,115 @@ export class SheetAdapter {
       return `<number:number-style style:name="${name}">${prefix ? `<number:text>${this._escapeXml(prefix)}</number:text>` : ""}<number:number number:min-integer-digits="1" number:decimal-places="${customDecimals}" number:min-decimal-places="${customDecimals}"${customGrouping}/>${suffix ? `<number:text>${this._escapeXml(suffix)}</number:text>` : ""}</number:number-style>`;
     }
     return mappedStyles(negativeWrapper);
+  }
+
+  /**
+   * Generate ODF number-style XML from raw Excel format code.
+   * Preserves all 4 sections: positive; negative; zero; text.
+   * Handles Accounting padding (_(), _), currency symbols, colors, etc.
+   */
+  _numberFormatXmlFromExcelCode(excelCode, name) {
+    const code = String(excelCode || "General");
+    if (/^general$/i.test(code)) return `<number:number-style style:name="${name}"><number:number number:min-integer-digits="1"/></number:number-style>`;
+    if (code === "@") return `<number:text-style style:name="${name}"><number:text-content/></number:text-style>`;
+
+    // Parse Excel format code into 4 sections
+    const sections = code.split(";").map(s => s.trim());
+    const pos = sections[0] || "";
+    const neg = sections[1] || "";
+    const zero = sections[2] || "";
+    const text = sections[3] || "";
+
+    // Detect accounting style: _(* ...)_) padding
+    const isAccounting = /_\(/.test(pos) && /_\)/.test(pos);
+    // Detect currency symbol
+    const currencyMatch = code.match(/\[\$([^\]-]+)(?:-[^\]]+)?\]/) || code.match(/[$€£¥₫]/);
+    const currencySymbol = currencyMatch ? (currencyMatch[1] || currencyMatch[0]) : "";
+    // Detect negative style: parentheses, red color
+    const negHasParen = /\(/.test(neg) && /\)/.test(neg);
+    const negIsRed = /\[red\]/i.test(neg);
+    // Detect zero format "-"
+    const zeroIsDash = /^-+$/.test(zero.replace(/\?/g, "").trim()) || zero.includes('"-"');
+    // Detect thousands separator
+    const useThousands = /#,##|0,000/.test(pos);
+    // Extract decimal places
+    const decimalMatch = pos.match(/\.([0#?]+)/);
+    const decimals = decimalMatch ? decimalMatch[1].length : 0;
+
+    // Build the core number format element
+    const grouping = useThousands ? ' number:grouping="true"' : "";
+    const numberEl = `<number:number number:min-integer-digits="1" number:decimal-places="${decimals}" number:min-decimal-places="${decimals}"${grouping}/>`;
+
+    // Build positive section
+    let posBody = "";
+    if (isAccounting) {
+      // Accounting: _( * symbol number _) with padding
+      const symbol = currencySymbol || "₫";
+      posBody = `<number:text> </number:text>${numberEl}<number:fill-character> </number:fill-character><number:currency-symbol>${this._escapeXml(symbol)}</number:currency-symbol><number:text> </number:text>`;
+    } else if (currencySymbol) {
+      // Currency
+      const after = pos.indexOf(currencySymbol) > pos.indexOf("0") || pos.indexOf(currencySymbol) > pos.indexOf("#");
+      posBody = after ? `${numberEl}<number:fill-character> </number:fill-character><number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol>` : `<number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol><number:fill-character> </number:fill-character>${numberEl}`;
+    } else if (/%/.test(pos)) {
+      // Percentage
+      posBody = `${numberEl}<number:text>%</number:text>`;
+    } else {
+      // Number
+      posBody = numberEl;
+    }
+
+    // Handle negative/zero/text sections via style:map. style:map phải nằm TRONG style chính và điều kiện phải
+    // escape (`value()&lt;0`) — bản đầu ghi `<` trần + map ngoài style: FODS hỏng, LibreOffice không mở được (lan10).
+    const maps = [];
+    const mapEls = [];
+    let negBody = posBody;
+    let negName = name;
+    const subType = (isAccounting || currencySymbol) ? "currency-style" : (/%/.test(pos) ? "percentage-style" : "number-style");
+
+    if (negHasParen || negIsRed) {
+      // Create separate negative style
+      negName = `${name}N`;
+      let negInner = numberEl;
+      if (currencySymbol && !isAccounting) {
+        const after = neg.indexOf(currencySymbol) > neg.indexOf("0") || neg.indexOf(currencySymbol) > neg.indexOf("#");
+        negInner = after ? `${numberEl}<number:fill-character> </number:fill-character><number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol>` : `<number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol><number:fill-character> </number:fill-character>${numberEl}`;
+      } else if (isAccounting) {
+        const symbol = currencySymbol || "₫";
+        negInner = `<number:text> </number:text>${numberEl}<number:fill-character> </number:fill-character><number:currency-symbol>${this._escapeXml(symbol)}</number:currency-symbol><number:text> </number:text>`;
+      } else if (/%/.test(neg)) {
+        negInner = `${numberEl}<number:text>%</number:text>`;
+      }
+      if (negHasParen) {
+        negInner = `<number:text>(</number:text>${negInner}<number:text>)</number:text>`;
+      }
+      const negColor = negIsRed ? '<style:text-properties fo:color="#ff0000"/>' : "";
+      maps.push(`<number:${subType} style:name="${negName}">${negColor}${negInner}</number:${subType}>`);
+      mapEls.push(`<style:map style:condition="value()&lt;0" style:apply-style-name="${negName}"/>`);
+    } else if (negIsRed) {
+      // Red negative without parentheses
+      negName = `${name}N`;
+      let negInner = numberEl;
+      if (currencySymbol && !isAccounting) {
+        const after = neg.indexOf(currencySymbol) > neg.indexOf("0") || neg.indexOf(currencySymbol) > neg.indexOf("#");
+        negInner = after ? `${numberEl}<number:fill-character> </number:fill-character><number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol>` : `<number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol><number:fill-character> </number:fill-character>${numberEl}`;
+      } else if (/%/.test(neg)) {
+        negInner = `${numberEl}<number:text>%</number:text>`;
+      }
+      maps.push(`<number:${subType} style:name="${negName}"><style:text-properties fo:color="#ff0000"/>${negInner}</number:${subType}>`);
+      mapEls.push(`<style:map style:condition="value()&lt;0" style:apply-style-name="${negName}"/>`);
+    }
+
+    // Zero section
+    if (zeroIsDash) {
+      const zeroName = `${name}Z`;
+      maps.push(`<number:${subType} style:name="${zeroName}"><number:text>-</number:text></number:${subType}>`);
+      mapEls.push(`<style:map style:condition="value()=0" style:apply-style-name="${zeroName}"/>`);
+    }
+    // Section chuỗi (@): ODF không có điều kiện cho chuỗi; LibreOffice hiển thị chuỗi nguyên văn nên bỏ qua.
+
+    const styleType = subType;
+    const mainStyle = `<number:${styleType} style:name="${name}">${posBody}${mapEls.join("")}</number:${styleType}>`;
+    return maps.join("") + mainStyle;
   }
 
   _collectNumberFormats(sheetNames) {
@@ -1246,11 +1443,28 @@ export class SheetAdapter {
       ["N36", { category: "date", dateFormat: "dd/mm/yyyy" }],
       ["N100", { category: "text" }]
     ]);
-    const styleRegex = /<number:(number-style|percentage-style|currency-style|date-style|text-style)\b([^>]*)>([\s\S]*?)<\/number:\1>/gi;
+    const styleRegex = /<number:(number-style|percentage-style|currency-style|date-style|text-style|boolean-style)\b([^>]*)>([\s\S]*?)<\/number:\1>/gi;
+    // XML thô của từng data-style (để ghi lại nguyên vẹn khi lưu — quy ước S7) + các style phụ mà style:map trỏ tới.
+    const rawByName = new Map();
+    for (const raw of xmlText.matchAll(styleRegex)) {
+      const rawName = raw[2].match(/style:name=["']([^"']+)["']/i)?.[1];
+      if (rawName) rawByName.set(rawName, raw[0]);
+    }
+    const odfFor = (styleName) => {
+      const xml = rawByName.get(styleName);
+      if (!xml) return null;
+      const deps = [];
+      for (const m of xml.matchAll(/style:apply-style-name=["']([^"']+)["']/g)) {
+        const depXml = rawByName.get(m[1]);
+        if (depXml && m[1] !== styleName && !deps.some(d => d.name === m[1])) deps.push({ name: m[1], xml: depXml });
+      }
+      return { name: styleName, xml, deps };
+    };
     let match;
     while ((match = styleRegex.exec(xmlText)) !== null) {
       const name = match[2].match(/style:name=["']([^"']+)["']/i)?.[1];
       if (!name) continue;
+      if (match[1] === "boolean-style") { dataStyles.set(name, { category: "general", odf: odfFor(name) }); continue; }
       const body = match[3];
       const numberAttrs = body.match(/<number:(?:number|scientific-number)\b([^>]*)\/?\s*>/i)?.[1] || "";
       const config = {
@@ -1293,6 +1507,7 @@ export class SheetAdapter {
           delete config.decimals; delete config.useThousands;
         }
       }
+      config.odf = odfFor(name);
       dataStyles.set(name, config);
     }
     const cellStyles = new Map();
@@ -2975,14 +3190,34 @@ export class SheetAdapter {
     const numFmtAttr = get("vno:number-format");
     const standardFormat = numberStyles.get(get("table:style-name"));
     const numericTypes = new Set(["float", "percentage", "currency", "date", "time"]);
-    if (numFmtAttr && (numericTypes.has(valueType) || !valueType)) {
+    // Apply number format from vno:number-format for ALL cell types (including string/empty)
+    // Per task requirement: keep original Excel format code for every cell/column/row with format
+    if (numFmtAttr) {
+      let parsed;
+      let excelCode = null;
       try {
-        style.numberFormat = JSON.parse(numFmtAttr);
+        parsed = JSON.parse(numFmtAttr);
+        // If parsed from app's own JSON, try to reconstruct excelCode from category
+        if (parsed.category) {
+          excelCode = this._excelCodeFromNumberFormat(parsed);
+        }
       } catch (e) {
-        style.numberFormat = numberFormatFromExcelCode(numFmtAttr);
+        // Raw Excel format code from Python overlay
+        excelCode = numFmtAttr;
+        parsed = numberFormatFromExcelCode(numFmtAttr);
       }
-    } else if (standardFormat && (numericTypes.has(valueType) || !valueType)) {
-      style.numberFormat = { ...standardFormat };
+      if (parsed) {
+        style.numberFormat = parsed;
+        if (excelCode) style.numberFormat.excelCode = excelCode;
+        // S7: data-style ODF của LibreOffice cho ô này (nếu có) là biểu diễn chính xác nhất khi ghi lại.
+        if (standardFormat?.odf) style.numberFormat.odf = standardFormat.odf;
+      }
+    } else if (standardFormat && (numericTypes.has(valueType) || !valueType || standardFormat.odf)) {
+      const fmt = { ...standardFormat };
+      // Try to reconstruct excelCode from standard format
+      const inferred = this._excelCodeFromNumberFormat(fmt);
+      if (inferred) fmt.excelCode = inferred;
+      style.numberFormat = fmt;
     } else if (valueType === "percentage") {
       style.numberFormat = { category: "percentage", decimals: 2 };
     } else if (valueType === "currency") {
