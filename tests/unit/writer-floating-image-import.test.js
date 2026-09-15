@@ -248,6 +248,25 @@ export async function runWriterFloatingImageImportTests() {
     check(pParts[1].includes("data-vno-inline-group") && pParts[1].includes("Inline Label"), `Child textbox was not moved into inline group container: ${pParts[1]}`);
   });
 
+  test("R3 (a2): Plain <img name=ShapeN> with only a wp:anchor group behind it becomes a floating raster, not an inline group", () => {
+    // d06.docx 2026-09-15: LibreOffice exports wrapNone anchored groups as bare <img name="Shape2" align="left">
+    // (no sd-abs-pos); treating them as inline groups made the carrier 106-216px tall -> canvas 5 pages, Word 3.
+    const html = '<body><p>Neo<img name="Shape2" align="left" hspace="1" vspace="1" width="710" height="106" src="g.png"></p><p>Sau</p></body>';
+    const ooxml = `<w:document><w:body>
+      <w:p><w:r><w:drawing><wp:anchor behindDoc="0">
+        <wp:positionH relativeFrom="page"><wp:posOffset>720000</wp:posOffset></wp:positionH>
+        <wp:positionV relativeFrom="page"><wp:posOffset>1440000</wp:posOffset></wp:positionV>
+        <wp:extent cx="6761000" cy="1011000"/><wp:wrapNone/>
+        <wp:docPr id="1" name="Group 368"/>
+        <wpg:wgp><wpg:grpSpPr><a:chOff x="0" y="0"/><a:chExt cx="6761000" cy="1011000"/></wpg:grpSpPr></wpg:wgp>
+      </wp:anchor></w:drawing></w:r></w:p>
+    </w:body></w:document>`;
+    const body = new WriterAdapter(null)._normalizeImportedHtml(html, ooxml).body;
+    check(!/data-vno-inline-group/.test(body), `Anchored group must not be an inline group: ${body}`);
+    check(/<span\b[^>]*data-vno-float="image"[^>]*data-vno-relative-v="page"[^>]*style="position:absolute;/i.test(body), `Anchored group must be an absolute floating raster with page origin: ${body}`);
+    check(/name="Shape2"/.test(body), `Raster img must survive: ${body}`);
+  });
+
   test("R3 (b): _alignPageRelativeFloats aligns page-relative floats against their page start top in 2-page DOM", () => {
     // Page 1: block 0 (offsetTop = 0)
     // Gap: auto-gap (offsetTop = 800)
