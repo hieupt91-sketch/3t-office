@@ -4402,7 +4402,14 @@ def _add_rels_entry(
 
 
 def _add_content_types_override(ct_xml: str, part_name: str, content_type: str) -> str:
-    """Add an Override entry before </Types>."""
+    """Add an Override entry before </Types> unless the part already has one.
+
+    A duplicate Override (LibreOffice already declared footer1.xml, then the
+    header/footer restore added it again) makes Word 2016 report "The file
+    appears to be corrupted" — measured on 4 of the first 7 LAN documents.
+    """
+    if re.search(r'<Override\b[^>]*\bPartName="' + re.escape(part_name) + r'"', ct_xml, re.IGNORECASE):
+        return ct_xml
     override = f'<Override PartName="{part_name}" ContentType="{content_type}"/>'
     close = "</Types>"
     idx = ct_xml.rfind(close)
