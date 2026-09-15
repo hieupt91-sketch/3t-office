@@ -500,6 +500,15 @@ export class NumberFormatter {
       return parsed !== null ? parsed : inputVal;
     }
 
+    if (category === "date") {
+      const date = this._parseDate(inputVal);
+      if (date && !isNaN(date.getTime())) {
+        const epoch = Date.UTC(1899, 11, 30);
+        return Math.round((date.getTime() - epoch) / 86400000 * 1000000) / 1000000;
+      }
+      return inputVal;
+    }
+
     return inputVal;
   }
 }
