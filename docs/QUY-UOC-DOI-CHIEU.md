@@ -37,6 +37,7 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 | S3 | Dòng bị lọc ẩn (`visibility="filter"`) = dòng ẩn | lan01 2635 dòng | suite 154 |
 | S4 | Vùng AutoFilter: `'Tên sheet'.A1:'Tên sheet'.J2650` (nháy cả hai đầu) | lan01 sheet 3 | suite 154 |
 | S5 | Dải style-only rộng hơn 64 cột là "định dạng nguyên hàng": bộ tối ưu FODS không được cắt xuống ≤ 64 | lan05 Map overflow | test_sheet_fods_optimize |
+| S7 | Định dạng số nhập từ file: giữ nguyên data-style ODF LibreOffice sinh (`numberFormat.odf`), ghi lại verbatim; ô chuỗi/trống cũng giữ numFmt | lan10/26/27 | ade1bc8 |
 | S6 | Auditor so theo ngữ nghĩa Excel: màu theme(+tint) → RGB; font/viền không màu = tự động; căn ngang trống = general, dọc trống = bottom; cạnh viền hiệu dụng với ô kề | lan09 115k → 1.246 lệch thật | audit-sheet-import.mjs |
 
 ## Đang đo / đang giao
