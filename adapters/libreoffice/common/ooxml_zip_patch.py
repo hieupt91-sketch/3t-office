@@ -26,6 +26,7 @@ import io
 import json
 import math
 import os
+import posixpath
 import re
 import sys
 import uuid
@@ -4381,6 +4382,64 @@ _DOCX_HEADER_CONTENT_TYPE = (
 )
 
 
+_DOCX_HF_EXTRA_CONTENT_TYPES = {
+    "bmp": "image/bmp", "tif": "image/tiff", "tiff": "image/tiff",
+    "bin": "application/vnd.openxmlformats-officedocument.oleObject",
+}
+
+
+def _collect_header_footer_dependencies(
+    source_docx: bytes, entries: list[str], existing_entries: set[str]
+) -> tuple[dict[str, bytes], set[str]]:
+    """The header/footer parts are copied verbatim from the original DOCX, so their own
+    relationship part (`word/_rels/header1.xml.rels`) and every internal target it names
+    (`word/media/image1.jpeg` logos, ...) must come along, or Word refuses the file.
+    Measured 2026-09-15 on the LAN batch (d20.docx): header1.xml restored, header1.xml.rels
+    dropped -> "The file appears to be corrupted"; without the header the file opens.
+    Media is copied under a `vnohf_` prefix so it never overwrites the converted body media.
+
+    Returns (extra entries to write, media extensions needing a Content_Types Default).
+    """
+    extra: dict[str, bytes] = {}
+    extensions: set[str] = set()
+    for entry_name in entries:
+        folder, _, base = entry_name.rpartition("/")
+        rels_name = f"{folder}/_rels/{base}.rels" if folder else f"_rels/{base}.rels"
+        rels_bytes = read_zip_entry(source_docx, rels_name)
+        if not rels_bytes:
+            continue
+        rels_xml = rels_bytes.decode("utf-8", errors="replace")
+
+        def _copy_target(match: re.Match) -> str:
+            attrs = match.group(0)
+            if re.search(r'TargetMode\s*=\s*["\']External["\']', attrs, re.IGNORECASE):
+                return attrs
+            target_match = re.search(r'\bTarget\s*=\s*["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+            if not target_match:
+                return attrs
+            target = target_match.group(1)
+            if target.startswith("/"):
+                source_name = target.lstrip("/")
+            else:
+                source_name = posixpath.normpath(posixpath.join(folder or "", target))
+            data = read_zip_entry(source_docx, source_name)
+            if data is None:
+                return attrs
+            dep_folder, _, dep_base = source_name.rpartition("/")
+            new_name = f"{dep_folder}/vnohf_{dep_base}" if dep_folder else f"vnohf_{dep_base}"
+            if new_name not in existing_entries or new_name in extra:
+                extra[new_name] = data
+            extension = dep_base.rsplit(".", 1)[-1].lower() if "." in dep_base else ""
+            if extension:
+                extensions.add(extension)
+            new_target = posixpath.relpath(new_name, folder or ".") if not target.startswith("/") else f"/{new_name}"
+            return attrs.replace(target_match.group(0), f'Target="{new_target}"')
+
+        new_rels_xml = re.sub(r"<Relationship\b[^>]*?/?>", _copy_target, rels_xml)
+        extra[rels_name] = new_rels_xml.encode("utf-8")
+    return extra, extensions
+
+
 def _max_rels_rid(rels_xml: str) -> int:
     """Return the highest rId number found in a rels XML string."""
     ids = re.findall(r'\bId\s*=\s*["\']rId(\d+)["\']', rels_xml, re.IGNORECASE)
@@ -5865,6 +5924,20 @@ def postprocess_writer_docx(
         if footer_bytes:
             replacements[entry_name] = footer_bytes
 
+    # Runs restored from the original keep `w:asciiTheme="majorHAnsi"`; LibreOffice's regenerated
+    # theme1.xml says Arial/Arial while the original says Calibri Light/Calibri, so those runs
+    # changed font (HDLD.docx 2026-09-15: dotted lines wrapped, 5 -> 6 pages). Keep the source theme.
+    source_theme = read_zip_entry(source_docx, "word/theme/theme1.xml")
+    if source_theme and "word/theme/theme1.xml" in existing_entries:
+        replacements["word/theme/theme1.xml"] = source_theme
+
+    hf_dependencies, hf_extensions = _collect_header_footer_dependencies(
+        source_docx,
+        [e for e in (*orig_header_entries, *orig_footer_entries) if e in replacements],
+        existing_entries,
+    )
+    replacements.update(hf_dependencies)
+
     replacements.update(anchor_media)
 
     if not replacements:
@@ -5918,6 +5991,10 @@ def postprocess_writer_docx(
         ct_xml = _add_content_type_default(
             ct_xml, extension, _DOCX_IMAGE_CONTENT_TYPES[extension]
         )
+    for extension in sorted(hf_extensions):
+        content_type = _DOCX_IMAGE_CONTENT_TYPES.get(extension) or _DOCX_HF_EXTRA_CONTENT_TYPES.get(extension)
+        if content_type and extension not in ("xml", "rels"):
+            ct_xml = _add_content_type_default(ct_xml, extension, content_type)
     replacements["[Content_Types].xml"] = ct_xml.encode("utf-8")
 
     source = io.BytesIO(docx_bytes)

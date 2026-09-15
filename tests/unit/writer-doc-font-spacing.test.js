@@ -48,6 +48,15 @@ export async function runWriterDocFontSpacingTests() {
     check(out.includes('line-height: 130%') && out.includes('line-height: 115%'), `round trip changed values: ${out}`);
   });
 
+  test("Export: font lists collapse to the first family so LibreOffice does not write 'Calibri Light;sans-serif'", () => {
+    const adapter = new WriterAdapter(null);
+    const html = '<font face="Calibri Light, sans-serif"><font size="3">a</font></font><span style="font-family: Arial, sans-serif; color: red">b</span><span style="font-family: Tahoma">c</span><font face="Arial">d</font>';
+    const out = adapter._simplifyFontFamiliesForExport(html);
+    check(out.includes('<font face="Calibri Light">'), `face list must keep the first family: ${out}`);
+    check(out.includes('style="font-family: Arial; color: red"'), `font-family list must keep the first family: ${out}`);
+    check(out.includes('style="font-family: Tahoma"') && out.includes('<font face="Arial">'), `single families must not change: ${out}`);
+  });
+
   test("Font line ratio: table fallback outside the browser, cached per family", () => {
     const adapter = new WriterAdapter(null);
     check(Math.abs(adapter._fontLineRatio('"Arial", sans-serif') - 1.1499) < 1e-6, "Arial ratio");

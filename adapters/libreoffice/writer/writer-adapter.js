@@ -2048,6 +2048,32 @@ export class WriterAdapter {
   }
 
   /**
+   * LibreOffice xuất run thành `<font face="Calibri Light, sans-serif">`, nhưng khi nhập lại HTML
+   * nó giữ CẢ danh sách làm tên font ("Calibri Light;sans-serif") rồi ghi nguyên vào DOCX
+   * `w:rFonts w:ascii="Calibri Light;sans-serif"` (đo HDLD.docx lưu: 96 run). Word không biết font
+   * đó → thay font khác. Chỉ giữ họ font đầu tiên (bỏ generic family) trước khi gửi LibreOffice.
+   */
+  _simplifyFontFamiliesForExport(html) {
+    const firstFamily = (list) => {
+      const first = String(list || "").split(",")[0].trim().replace(/^["']|["']$/g, "").trim();
+      return first;
+    };
+    return String(html || "")
+      .replace(/<font\b([^>]*?)\bface=(["'])([^"']*,[^"']*)\2/gi, (m, before, quote, list) => {
+        const first = firstFamily(list);
+        return first ? `<font${before}face=${quote}${first}${quote}` : m;
+      })
+      .replace(/\bstyle=(["'])([^"']*font-family\s*:[^"']*)\1/gi, (m, quote, css) => {
+        const next = css.replace(/font-family\s*:\s*([^;]+)/gi, (d, list) => {
+          if (!list.includes(",")) return d;
+          const first = firstFamily(list);
+          return first ? `font-family: ${/\s/.test(first) ? `'${first}'` : first}` : d;
+        });
+        return next === css ? m : `style=${quote}${next}${quote}`;
+      });
+  }
+
+  /**
    * Tỉ số chiều cao dòng tự nhiên / font-size của một họ font (`line-height: normal`),
    * đo bằng trình duyệt thật (font thay thế nào đang vẽ thì đo đúng font đó); ngoài
    * trình duyệt dùng bảng metric hhea của các font Windows phổ biến.
@@ -8453,6 +8479,7 @@ export class WriterAdapter {
     }
     bodyHtml = this._prepareFloatingFramesForExport(bodyHtml);
     bodyHtml = this._restoreProportionalLineHeightsForExport(bodyHtml);
+    bodyHtml = this._simplifyFontFamiliesForExport(bodyHtml);
 
     // LibreOffice's Writer HTML importer drops a class-only Drop Cap span
     // completely (including its first letter) because writer.css is not part
