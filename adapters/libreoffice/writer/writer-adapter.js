@@ -1896,6 +1896,48 @@ export class WriterAdapter {
     };
   }
 
+  /**
+   * Sau khi thân tài liệu vào DOM thật (đo được font computed):
+   * - W1: `--vno-font-ratio` inline cho mọi phần tử có chữ mà font-family computed khác cha (font đến từ
+   *   p.western/h1.western CSS, không phải <font face>): d01.docx đoạn Times New Roman 13pt dùng tỉ số Calibri
+   *   của trang (1.22) → 24,7px/dòng thay vì 22,9px của Word (109 đoạn).
+   * - W8: strut của <p>/<hN> = font của run đầu khi mọi chữ nằm trong <font>/<span> (LibreOffice cho <p> font của
+   *   paragraph STYLE): d16.docx <p class=western> .VnTime 14pt bọc run Times New Roman 13pt → 26px/dòng thay vì
+   *   21,5px (80 đoạn). Word không có strut: chiều cao dòng chỉ do các run (và dấu đoạn, thường = run).
+   */
+  _normalizeImportedFontMetrics(root) {
+    if (!root || typeof window === "undefined" || typeof window.getComputedStyle !== "function" || !root.querySelectorAll) return;
+    const blocks = Array.from(root.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, td, th"));
+    for (const block of blocks) {
+      if (block.closest?.("[data-vno-float]")) continue;
+      let firstRun = null;
+      let directText = false;
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (!node.textContent.trim()) continue;
+        if (node.parentElement.closest("[data-vno-float]")) continue;
+        if (node.parentElement === block) { directText = true; break; }
+        if (!firstRun) firstRun = node.parentElement;
+      }
+      if (!directText && firstRun) {
+        const rcs = window.getComputedStyle(firstRun);
+        const bcs = window.getComputedStyle(block);
+        if (rcs.fontSize !== bcs.fontSize) block.style.fontSize = rcs.fontSize;
+        if (rcs.fontFamily !== bcs.fontFamily) block.style.fontFamily = rcs.fontFamily;
+      }
+    }
+    // Tỉ số font theo font computed thật (sau khi strut đã đổi).
+    const elements = Array.from(root.querySelectorAll("*")).filter(el => !el.closest?.("[data-vno-float]"));
+    for (const el of elements) {
+      const family = window.getComputedStyle(el).fontFamily;
+      const parentFamily = el.parentElement ? window.getComputedStyle(el.parentElement).fontFamily : "";
+      if (family && family !== parentFamily) {
+        el.style.setProperty("--vno-font-ratio", String(this._fontLineRatio(family)));
+      }
+    }
+  }
+
   /** Stylesheet `<style id="vno-doc-head-styles">` cho quy tắc tiêu đề của tài liệu nhập (W9b). */
   _applyDocHeadStylesheet() {
     if (typeof document === "undefined" || typeof document.getElementById !== "function") return;
@@ -8773,6 +8815,9 @@ export class WriterAdapter {
       } else if (this.editorDom) {
         this.editorDom.innerHTML = imported.body;
       }
+      // Quy ước W1/W8: tỉ số font theo font THẬT đang vẽ của từng phần tử và strut của <p> = font của run.
+      // Chạy trước khi băm "chưa sửa" nên không làm tài liệu thành "đã sửa".
+      try { this._normalizeImportedFontMetrics(this.bodyDom || this.editorDom); } catch {}
       this._markImportedParagraphsUntouched(this.bodyDom || this.editorDom);
 
       if (imported.comments?.length) {
