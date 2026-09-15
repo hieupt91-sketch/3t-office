@@ -853,6 +853,13 @@ class VnOfficeApi:
                     content = f.read()
                 if app_kind == "writer":
                     content = _inline_html_images(content, out_path)
+                    # Quy ước W9: font/cỡ mặc định từ docDefaults + theme khi LibreOffice không ghi p.western.
+                    if src_path.lower().endswith(".docx"):
+                        try:
+                            with open(src_path, "rb") as f:
+                                content = _ooxml_zip_patch().inject_docx_default_font_css(f.read(), content)
+                        except OSError:
+                            pass
                 elif app_kind == "sheet":
                     # Overlay BEFORE the FODS leaves this process — SheetAdapter.parseFods
                     # must see table:structure-protected when the original XLSX is locked.

@@ -1864,6 +1864,20 @@ export class WriterAdapter {
       }
     }
 
+    // Quy ước W9b: quy tắc tiêu đề h1..h6 (font/cỡ/màu/lề) của head LibreOffice áp lên canvas qua stylesheet
+    // scoped `.vno-writer-page.vno-doc-imported h1.western {...}` (đo d13.docx: 42 tiêu đề Calibri 14/18pt bị vẽ
+    // bằng Arial 10pt của Normal). `line-height: N%` đổi thành `--vno-lh` để nhân với tỉ số font (W1).
+    const scopedHeadingCss = headingRules.map((rule) => {
+      const m = rule.match(/^([^{]+)\{([^}]*)\}$/);
+      if (!m) return "";
+      const decl = m[2]
+        .replace(/(^|;)\s*line-height\s*:\s*([\d.]+)%\s*(?=;|$)/gi, (all, lead, pct) => `${lead} --vno-lh: ${Math.round(Number(pct) * 100) / 10000}`)
+        .replace(/(^|;)\s*(?:page-break-[a-z]+|orphans|widows|direction|so-language|background)\s*:[^;]*/gi, "$1")
+        .replace(/font-family\s*:\s*;/gi, "");
+      const selectors = m[1].split(",").map(s => `.vno-writer-page.vno-doc-imported ${s.trim()}, .vno-print-preview-overlay.vno-doc-imported ${s.trim()}`).join(", ");
+      return `${selectors} { ${decl.trim()} }`;
+    }).filter(Boolean).join("\n");
+
     const rawRules = {
       p: rules["p"] ? `p { ${rules["p"]} }` : null,
       pWestern: rules["p.western"] ? `p.western { ${rules["p.western"]} }` : null,
@@ -1877,8 +1891,23 @@ export class WriterAdapter {
       fontSize: fontSize || null,
       lineHeight: lineHeight || null,
       paraMargin: paraMargin || null,
+      scopedHeadingCss: scopedHeadingCss || null,
       rawRules
     };
+  }
+
+  /** Stylesheet `<style id="vno-doc-head-styles">` cho quy tắc tiêu đề của tài liệu nhập (W9b). */
+  _applyDocHeadStylesheet() {
+    if (typeof document === "undefined" || typeof document.getElementById !== "function") return;
+    let el = document.getElementById("vno-doc-head-styles");
+    const css = this.docStyles?.scopedHeadingCss || "";
+    if (!css) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement("style");
+      el.id = "vno-doc-head-styles";
+      (document.head || document.body || document.documentElement).appendChild(el);
+    }
+    el.textContent = css;
   }
 
   /**
@@ -1908,6 +1937,7 @@ export class WriterAdapter {
     if (target.classList && typeof target.classList.toggle === "function") {
       target.classList.toggle("vno-doc-imported", Boolean(this.docStyles));
     }
+    try { this._applyDocHeadStylesheet(); } catch {}
 
     if (this.docStyles) {
       if (this.docStyles.fontFamily) setProp("--vno-doc-font-family", this.docStyles.fontFamily);

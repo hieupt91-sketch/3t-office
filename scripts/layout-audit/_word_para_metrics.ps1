@@ -18,7 +18,7 @@ try {
     $txt = ($r.Text -replace "[`r`n`a`t]+", " ").Trim()
     if ($txt.Length -gt 40) { $txt = $txt.Substring(0, 40) }
     $rows.Add([pscustomobject]@{ i = $i; page = $page; y = $y; lines = $lines; sb = [math]::Round($p.SpaceBefore, 2); sa = [math]::Round($p.SpaceAfter, 2);
-      lsRule = $p.LineSpacingRule; ls = [math]::Round($p.LineSpacing, 2); font = $r.Font.Name; size = $r.Font.Size;
+      lsRule = $p.LineSpacingRule; ls = [math]::Round($p.LineSpacing, 2); font = $r.Font.Name; fontOther = $r.Font.NameOther; fontAscii = $r.Font.NameAscii; size = $r.Font.Size;
       tbl = [bool]$r.Information(12); align = $p.Alignment; text = $txt })
   }
   $pages = $doc.ComputeStatistics(2)

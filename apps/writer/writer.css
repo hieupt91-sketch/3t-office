@@ -429,6 +429,18 @@
   width: auto;
   margin: 0;
 }
+.vno-writer-page.vno-doc-imported :is(h1, h2, h3, h4, h5, h6),
+.vno-print-preview-overlay.vno-doc-imported .vno-print-preview-body :is(h1, h2, h3, h4, h5, h6) {
+  /* Tiêu đề tài liệu nhập: bỏ mặc định NĐ30 (in hoa, canh giữa, 16pt); font/cỡ/lề thật đến từ
+     stylesheet #vno-doc-head-styles (quy tắc h1..h6 của head LibreOffice, quy ước W9b). */
+  text-transform: none;
+  text-align: start;
+  font-style: normal;
+  margin: 0;
+}
+.vno-writer-page.vno-doc-imported :is(h1, h2, h3, h4, h5, h6)[align="center"] { text-align: center; }
+.vno-writer-page.vno-doc-imported :is(h1, h2, h3, h4, h5, h6)[align="right"] { text-align: right; }
+.vno-writer-page.vno-doc-imported :is(h1, h2, h3, h4, h5, h6)[align="justify"] { text-align: justify; }
 .vno-writer-page.vno-doc-imported p:not([align]),
 .vno-print-preview-overlay.vno-doc-imported .vno-print-preview-body p:not([align]) {
   text-align: start;

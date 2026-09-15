@@ -39,7 +39,18 @@ def match(word_rows, canvas_rows):
                 pairs.append((c, wrows[j])); wi = j + 1; break
     return pairs
 
-def classify(pairs, canvas_rows, word_rows):
+def theme_fonts(docx):
+    """+Headings/+Body trong Word COM (Font.NameOther) = font major/minor cua theme1.xml."""
+    import zipfile
+    try:
+        t = zipfile.ZipFile(docx).read("word/theme/theme1.xml").decode("utf-8", "replace")
+    except Exception:
+        return {}
+    major = re.search(r'<a:majorFont>\s*<a:latin\b[^>]*typeface="([^"]*)"', t)
+    minor = re.search(r'<a:minorFont>\s*<a:latin\b[^>]*typeface="([^"]*)"', t)
+    return {"+headings": (major.group(1) if major else "").lower(), "+body": (minor.group(1) if minor else "").lower()}
+
+def classify(pairs, canvas_rows, word_rows, themes=None):
     """Per matched pair: compare line count, line pitch (height/lines), spacing to the next matched paragraph, page."""
     kinds = collections.Counter(); details = []
     idx_c = {id(c): k for k, c in enumerate(canvas_rows)}
@@ -49,21 +60,20 @@ def classify(pairs, canvas_rows, word_rows):
         c_lines = c["lines"] if c["lines"] and c["lines"] > 0 else (round(c["h"] / c["lh"]) if c["lh"] else 1)
         if c_lines != w["lines"]:
             tags.append("wrap")  # so dong gay khac -> font thay the / do rong / tab
-        else:
-            c_line_px = c["h"] / max(1, c_lines); w_line_px = None
-            # Word: chieu cao doan = y(next) - y - spacing; chi do duoc khi doan ke tiep cung trang
-            nxt = by_i.get(w["i"] + 1)
-            if nxt and nxt["page"] == w["page"] and nxt["y"] > w["y"]:
-                w_para_px = (nxt["y"] - w["y"]) * PT2PX - max(w["sa"], nxt["sb"]) * PT2PX
-                w_line_px = w_para_px / max(1, w["lines"])
-                if abs(w_line_px - c_line_px) > 1.5: tags.append("line-height")
-        # spacing to the next matched pair (same page both sides)
-        if n + 1 < len(pairs):
+        # Chỉ so khi hai đoạn KẾ TIẾP NHAU ở cả Word lẫn canvas và cùng trang: pitch (đỉnh→đỉnh) phải bằng nhau.
+        # Word không cho đo chiều cao đoạn trực tiếp; pitch − khoảng cách đoạn (MAX(sa, sb kế)) = chiều cao đoạn.
+        if n + 1 < len(pairs) and "wrap" not in tags:
             c2, w2 = pairs[n + 1]
             if w2["page"] == w["page"] and c2["page"] == c["page"] and w2["i"] == w["i"] + 1 and idx_c[id(c2)] == idx_c[id(c)] + 1:
                 c_pitch = c2["top"] - c["top"]; w_pitch = (w2["y"] - w["y"]) * PT2PX
-                if "wrap" not in tags and "line-height" not in tags and abs(c_pitch - w_pitch) > 2.5: tags.append("spacing")
-        if c["font"].lower() != (w["font"] or "").lower(): tags.append("font-name")
+                if abs(c_pitch - w_pitch) > 2.5:
+                    w_para_px = w_pitch - max(w["sa"], w2["sb"]) * PT2PX
+                    c_para_px = c_pitch - max(c["mb"], c2["mt"])
+                    tags.append("line-height" if abs(w_para_px - c_para_px) > 2.5 else "spacing")
+        # Word: chữ Việt (high ANSI) vẽ bằng font hAnsi = Font.NameOther; Font.Name trả về font eastAsia (đo d07/HDLD).
+        wfont = (w.get("fontOther") or w.get("font") or "").split(";")[0].strip().lower()
+        wfont = (themes or {}).get(wfont, wfont)
+        if wfont and c["font"].lower() != wfont: tags.append("font-name")
         if w["size"] and w["size"] < 1000 and abs(c["size"] - w["size"] * PT2PX) > 0.6: tags.append("font-size")
         if c["page"] != w["page"]: tags.append("page")
         for t in tags: kinds[t] += 1
@@ -91,7 +101,7 @@ for name in names:
     meta, crows, cerr = canvas_metrics(docx, os.path.join(OUTDIR, base + ".canvas.jsonl"))
     if crows is None: per_file[name] = {"error": "canvas: " + cerr}; print(name, "CANVAS FAIL", cerr, flush=True); continue
     pairs = match(wrows, crows)
-    kinds, details = classify(pairs, crows, wrows)
+    kinds, details = classify(pairs, crows, wrows, theme_fonts(docx))
     tables_c = sum(1 for c in crows if c["tag"] == "TABLE"); floats_c = sum(c["floats"] for c in crows)
     wpages = max((w["page"] for w in wrows), default=0); cpages = max((c["page"] for c in crows), default=0)
     per_file[name] = {"word_pages": wpages, "canvas_pages": cpages, "paras_word": len(wrows), "blocks": len(crows), "matched": len(pairs), "kinds": dict(kinds), "tables": tables_c, "floats": floats_c}

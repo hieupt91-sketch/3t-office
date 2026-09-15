@@ -1929,6 +1929,80 @@ def read_zip_entry(zip_bytes: bytes, entry_name: str) -> bytes | None:
         return None
 
 
+def docx_default_font(docx_bytes: bytes) -> tuple[str, float | None]:
+    """Font/cỡ chữ mặc định của tài liệu Word: style Normal (rFonts/sz), nếu không thì docDefaults;
+    `w:asciiTheme="majorHAnsi|minorHAnsi"` giải qua theme1.xml (majorFont/minorFont latin).
+    Đo d07.docx 2026-09-15 (quy ước W9): LibreOffice không ghi font-family nào vào HTML khi font đến từ
+    docDefaults + theme (Arial), canvas rơi về Times New Roman NĐ30 → 199 đoạn lệch font trong 1 file.
+    Returns (family, size_pt) — family "" nếu không xác định."""
+    styles = (read_zip_entry(docx_bytes, "word/styles.xml") or b"").decode("utf-8", errors="replace")
+    theme = (read_zip_entry(docx_bytes, "word/theme/theme1.xml") or b"").decode("utf-8", errors="replace")
+    major = re.search(r"<a:majorFont>\s*<a:latin\b[^>]*typeface=\"([^\"]*)\"", theme)
+    minor = re.search(r"<a:minorFont>\s*<a:latin\b[^>]*typeface=\"([^\"]*)\"", theme)
+    theme_fonts = {"majorHAnsi": major.group(1) if major else "", "minorHAnsi": minor.group(1) if minor else "",
+                   "majorAscii": major.group(1) if major else "", "minorAscii": minor.group(1) if minor else ""}
+
+    def pick(block: str) -> tuple[str, float | None]:
+        fam = ""
+        rfonts = re.search(r"<w:rFonts\b([^>]*)/?>", block)
+        if rfonts:
+            attrs = rfonts.group(1)
+            ascii_match = re.search(r'w:ascii="([^"]+)"', attrs)
+            theme_match = re.search(r'w:asciiTheme="([^"]+)"', attrs)
+            if ascii_match:
+                fam = ascii_match.group(1)
+            elif theme_match:
+                fam = theme_fonts.get(theme_match.group(1), "")
+        sz = re.search(r'<w:sz\b[^>]*w:val="(\d+)"', block)
+        return fam, (int(sz.group(1)) / 2 if sz else None)
+
+    normal = re.search(r'<w:style\b[^>]*w:styleId="Normal"[^>]*>(.*?)</w:style>', styles, re.S)
+    defaults = re.search(r"<w:rPrDefault>(.*?)</w:rPrDefault>", styles, re.S)
+    fam, size = ("", None)
+    if normal:
+        fam, size = pick(normal.group(1))
+    if (not fam or size is None) and defaults:
+        dfam, dsize = pick(defaults.group(1))
+        fam = fam or dfam
+        size = size if size is not None else dsize
+    return fam, size
+
+
+def inject_docx_default_font_css(docx_bytes: bytes, html: str) -> str:
+    """Khi head HTML của LibreOffice không có `p.western { font-family }` (font mặc định đến từ docDefaults/theme)
+    thì chèn quy tắc đó từ DOCX để canvas dùng đúng font/cỡ mặc định của Word (quy ước W9)."""
+    if not html or not docx_bytes:
+        return html
+    head_match = re.search(r"<style\b[^>]*>(.*?)</style>", html, re.S | re.I)
+    head = head_match.group(1) if head_match else ""
+    western = re.search(r"p\.western\s*\{([^}]*)\}", head)
+    has_family = bool(western and re.search(r"font-family\s*:", western.group(1)))
+    has_size = bool(re.search(r"\bp(?:\.western)?\s*\{[^}]*font-size\s*:", head))
+    if has_family and has_size:
+        return html
+    fam, size = docx_default_font(docx_bytes)
+    parts = []
+    if not has_family and fam:
+        parts.append(f'font-family: "{fam}", sans-serif')
+    if not has_size and size is not None:
+        parts.append(f"font-size: {size:g}pt")
+    if not parts:
+        return html
+    if western and head_match:
+        # Gộp vào quy tắc p.western sẵn có (JS đọc một khối duy nhất cho mỗi selector).
+        body = western.group(1).rstrip()
+        merged = (body + ("; " if body and not body.endswith(";") else " ") + "; ".join(parts) + " ")
+        new_head = head[:western.start(1)] + merged + head[western.end(1):]
+        return html[:head_match.start(1)] + new_head + html[head_match.end(1):]
+    rule = "\n\t\tp.western { " + "; ".join(parts) + " }\n\t"
+    if head_match:
+        insert_at = head_match.end(1)
+        return html[:insert_at] + rule + html[insert_at:]
+    if re.search(r"</head>", html, re.I):
+        return re.sub(r"</head>", f'<style type="text/css">{rule}</style></head>', html, count=1, flags=re.I)
+    return html
+
+
 def _unescape_xml(value: str) -> str:
     return (
         (value or "")
