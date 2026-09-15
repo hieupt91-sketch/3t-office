@@ -38,3 +38,13 @@ NEXT ACTION: (1) merge the external-links fix when opencode delivers and re-run 
 - **28/28 saved workbooks open in Excel 2016** (lan14 THI ONLINE 4 sheets, lan22, lan28 now OK). 25/28 load in the app (lan06, lan08, lan09 still not loaded — payload/time).
 - Diff totals unchanged from round 2 except the fixed files: lan22 1354 → 982 (formula/value 0), lan28 14512 → 14509, lan02 17437 → 17374.
 - Batch note: the first round-3 run was killed by the harness for low memory while lan14 was open together with round-2 leftovers; lan14 (1.5 M cells) must run alone at the end. _roundtrip_save_sheet.py now stops waiting as soon as the output file exists (the save-done flag never flips because the success alert awaits a click) — 20 min → ~1 min per file.
+## Round 4 (main d854992, 2026-09-15 chiều) — sau tối ưu FODS + sửa ô ngày
+
+26/26 workbook (trừ lan06 VAT 8 phút và lan14 1,5M ô chạy riêng): **26/26 lưu được, 26/26 Excel 2016 mở OK**.
+So với vòng 3: không file nào tăng lệch; giảm nhờ ô ngày thành giá trị thật: lan01 81773→81294, lan02 17437→17357,
+lan05 52963→52895, lan25 9417→9229, lan28 14509→14289, lan15/16/17/07/12/13 giảm 3–9.
+**lan08 (HIKVISION 395 ảnh) và lan09 (COTIMEX) nay tải được trong app** (vòng 2–3 "not loaded"): lan08 4314 lệch,
+lan09 115450 lệch (lần đầu so được nội dung thật — cần phân loại). lan06 (VAT): xem HANDOFF-SHEET-OPEN-HEAVY-FODS-FINDINGS.md
+(146 MB → 2 MB, mở sau 470 s, lưu Excel OK).
+Sự cố trong ngày: bộ tối ưu FODS cắt dải viền 16374 cột còn 54 làm lan05 không mở được ("Map maximum size exceeded") —
+sửa ca546f3 (giữ > 64 cột). Bảng đầy đủ: `_batch_audit_report.md` vòng 4 trong worktree audit (không commit, chứa tên file thật).
