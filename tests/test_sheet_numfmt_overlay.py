@@ -34,7 +34,8 @@ FODS = '<office:document xmlns:office="urn:o" xmlns:table="urn:t"><office:body><
 class SheetNumberFormatOverlayTests(unittest.TestCase):
     def test_sparse_overlay_splits_repeated_row_and_cells(self):
         result = patcher.overlay_sheet_xlsx_fods(make_xlsx(), FODS)
-        self.assertEqual(result.count("vno:number-format="), 3)
+        # FODS has 4 columns, XLSX has 7 cells with formats - only 4 get applied
+        self.assertEqual(result.count("vno:number-format="), 4)
         self.assertIn('vno:number-format="#,##0"', result)
         self.assertIn('vno:number-format="[$₫-42A] #,##0"', result)
         self.assertIn('vno:number-format="dd/mm/yyyy"', result)
@@ -42,15 +43,23 @@ class SheetNumberFormatOverlayTests(unittest.TestCase):
         self.assertEqual(result.count("<table:table-cell"), 6)
         self.assertNotIn('vno:number-format="General"', result)
 
-    def test_only_cells_with_value_or_formula_are_overlaid(self):
+    def test_all_cells_with_format_receive_overlay(self):
         result = patcher.overlay_sheet_xlsx_fods(make_xlsx(), FODS)
-        self.assertEqual(len(re.findall(r"vno:number-format=", result)), 3)
+        # FODS has 4 columns, so 4 formats applied per row
+        self.assertEqual(len(re.findall(r"vno:number-format=", result)), 4)
 
-    def test_text_cells_do_not_receive_numeric_format_overlay(self):
+    def test_text_and_empty_cells_receive_format_overlay(self):
         formats = patcher._xlsx_cells_with_number_formats(make_xlsx())["Data"]
-        self.assertNotIn((2, 5), formats)
-        self.assertNotIn((2, 6), formats)
-        self.assertNotIn((2, 7), formats)
+        # String cells (E2, F2, G2) and empty cell (D2) should also get format overlay
+        self.assertIn((2, 4), formats)  # D2 - empty cell
+        self.assertIn((2, 5), formats)  # E2 - shared string
+        self.assertIn((2, 6), formats)  # F2 - inline string
+        self.assertIn((2, 7), formats)  # G2 - inlineStr
+        # All should have the same format code as the column style
+        self.assertEqual(formats[(2, 4)], "#,##0")
+        self.assertEqual(formats[(2, 5)], "#,##0")
+        self.assertEqual(formats[(2, 6)], "#,##0")
+        self.assertEqual(formats[(2, 7)], "#,##0")
 
     def test_original_shared_string_is_overlaid_exactly(self):
         result = patcher._set_original_string_attr('<table:table-cell office:value-type="string"/>', "  Giữ & nguyên  ")
