@@ -30,6 +30,23 @@ Sửa lỗi: khi mở file XLSX có ô ngày tháng (serial number + numFmt ngà
 - Khi `formatConfig.category === "date"`: parse input string bằng `_parseDate()`, trả về Excel serial number.
 - Hỗ trợ các định dạng: `dd/mm/yyyy`, `mm/dd/yyyy`, `yyyy-mm-dd`, ISO, Vietnamese text date, timestamp.
 
+## Kiểm chứng của Claude (2026-09-15, đo thật)
+
+opencode giao mà chưa chạy round-trip thật và chưa có unit test. Claude sửa thêm 2 lỗi rồi đo:
+1. Ngày-giờ ghi `office:date-value="2021-10-01" office:time-value="PT08H30M00S"` — ODF/LibreOffice bỏ qua
+   `office:time-value` trên ô date → mất giờ. Sửa: `office:date-value="2021-10-01T08:30:00"`.
+2. Parse `new Date("2021-10-01 08:30:00")` hiểu giờ ĐỊA PHƯƠNG rồi trừ mốc UTC → lệch múi giờ (+7h ở VN =
+   +0.29 ngày). Sửa: tách thành phần và tính bằng `Date.UTC`.
+3. Unit test `tests/unit/sheet-date-values.test.js` (suite 154): parse date/datetime/time → serial; serialize →
+   `office:date-value` / `office:time-value`; số thường vẫn float.
+
+| Workbook | Trước (vòng 2/3) | Sau |
+|---|---|---|
+| lan05 (BẢNG KÊ HĐ MUA VÀO Q4-2021) | 52963 lệch, 20 ô ngày → chuỗi | **52895**, 0 ô ngày → chuỗi, Excel mở OK |
+| lan28 (xét lương công ty) | 14509 lệch, 77 ô ngày → chuỗi | **14289**, 0 ô ngày → chuỗi, Excel mở OK 12 sheet |
+
+Gate: 1762/1762, `test_sheet*.py` OK. Ghi chú: lan05 ban đầu không mở được sau merge tối ưu FODS (ca546f3 sửa
+riêng trên main: dải định dạng nguyên hàng phải giữ > 64 cột sau khi cắt).
 ## Kết quả test
 
 ### Unit test (1758/1758 PASS)
