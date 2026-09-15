@@ -12,7 +12,6 @@ app_kind, initial_file = vnmain.parse_launch_args([XLSX_PATH])
 api = vnmain.VnOfficeApi(app_kind=app_kind, initial_file=initial_file)
 _orig_save = api.save_document_dialog
 def _dump_save(content, *a, **k):
-    print(f"DEBUG _dump_save: args={a}, kwargs={k}", flush=True)
     with open(OUT + ".sent.fods", "w", encoding="utf-8") as f:
         f.write(content)
     return _orig_save(content, *a, **k)

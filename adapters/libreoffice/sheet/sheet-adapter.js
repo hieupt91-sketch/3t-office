@@ -506,16 +506,16 @@ export class SheetAdapter {
       .replace(/'/g, "&apos;");
   }
 
-_unescapeXml(value) {
+  _unescapeXml(value) {
     if (!value) return "";
     return String(value)
       .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
       .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(parseInt(code, 10)))
       .replace(/&apos;/g, "'")
-      .replace(/"/g, '"')
-      .replace(/>/g, ">")
-      .replace(/</g, "<")
-      .replace(/&/g, "&");
+      .replace(/&quot;/g, '"')
+      .replace(/&gt;/g, ">")
+      .replace(/&lt;/g, "<")
+      .replace(/&amp;/g, "&");
   }
 
   /**
