@@ -2713,6 +2713,11 @@ export class SheetAdapter {
                 return `<text:p>${spanXml}</text:p>`;
               }).join("");
               cellsXml += `<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${paraXml}</table:table-cell>`;
+            } else if (text === "" && !item.formula) {
+              // Ô chỉ có style (viền/nền, không giá trị): KHÔNG ghi office:value-type="string" +
+              // <text:p/> — LibreOffice biến thành ô chuỗi rỗng trong XLSX (lan09: 21.930 ô, COUNTA/
+              // ISBLANK/Ctrl+End sai, auditor 115k lệch). Ghi ô trống mang style như ODF của Calc.
+              cellsXml += `<table:table-cell${cellAttrs}>${cellImageXml}${annotationXml}</table:table-cell>`;
             } else {
               // Excel lưu xuống dòng trong ô là "\n" (đôi khi "\r\n" qua vno:original-string);
               // một "\r" lẻ trong <text:p> sẽ bị XML chuẩn hoá thành "\n" -> thừa dòng trống.

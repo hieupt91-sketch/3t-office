@@ -211,7 +211,9 @@ function parseSheetXml(xml, sharedStrings, styles) {
     } else if (a.t === "b") value = rawValue === "1";
     else if (a.t === "str" || a.t === "e") value = rawValue;
     else if (rawValue !== "") value = Number(rawValue);
-    // A self-closing <c/> only carries style/used-range metadata, not data.
+    // A self-closing <c/> only carries style/used-range metadata, not data. A cell whose
+    // string resolves to "" IS kept: an empty-string cell differs from a blank one in
+    // Excel (COUNTA, ISBLANK, Ctrl+End) — lan09.xlsx save once produced 21,930 of them.
     if (rawValue !== "" || formula || a.t === "inlineStr") {
       result.cells.set(coord, { coord, value, formula, ...style, category: formatCategory(style.formatCode), richText: sharedStrings.richIndexes?.has(sharedIndex) || (a.t === "inlineStr" && /<r\b/i.test(body)) });
       const col = coord.match(/^([A-Z]+)/i)?.[1] || "";
@@ -348,14 +350,118 @@ function parseXlsxWorkbook(xlsxPath) {
     data.state = def.state;
     sheets.set(def.name, data);
   }
-  return { names: sheetDefs.map(s => s.name), active: sheetDefs[Number(view.activeTab || 0)]?.name || sheetDefs[0]?.name || "", sheets };
+  const theme = parseThemePalette(xmlEntry(xlsx, "xl/theme/theme1.xml"));
+  return { names: sheetDefs.map(s => s.name), active: sheetDefs[Number(view.activeTab || 0)]?.name || sheetDefs[0]?.name || "", sheets, theme };
 }
 
-function comparableStyle(style = {}) {
-  return {
-    numFmt: normalizeFormatCode(style.formatCode), font: style.font || {}, fill: style.fill || {},
-    border: style.border || "", alignment: style.alignment || {}, wrap: Boolean(style.alignment?.wrapText)
-  };
+// Bảng màu theme (clrScheme) theo chỉ số Excel: 0 lt1, 1 dk1, 2 lt2, 3 dk2, 4–9 accent1–6, 10 hlink, 11 folHlink.
+function parseThemePalette(themeXml = "") {
+  const order = ["lt1", "dk1", "lt2", "dk2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink"];
+  const scheme = themeXml.match(/<a:clrScheme\b[^>]*>([\s\S]*?)<\/a:clrScheme>/i)?.[1] || "";
+  return order.map(name => {
+    const body = scheme.match(new RegExp(`<a:${name}>([\\s\\S]*?)<\\/a:${name}>`, "i"))?.[1] || "";
+    const srgb = body.match(/<a:srgbClr\b[^>]*val="([0-9A-Fa-f]{6})"/i)?.[1];
+    const sys = body.match(/<a:sysClr\b[^>]*lastClr="([0-9A-Fa-f]{6})"/i)?.[1];
+    return srgb || sys ? `#${(srgb || sys).toUpperCase()}` : "";
+  });
+}
+
+// Excel áp tint lên độ sáng HSL: tint < 0 → L·(1+tint); tint > 0 → L·(1−tint)+tint.
+function applyTint(hex, tint) {
+  const m = /^#([0-9A-F]{2})([0-9A-F]{2})([0-9A-F]{2})$/i.exec(hex);
+  if (!m || !tint) return hex;
+  const [r, g, b] = [m[1], m[2], m[3]].map(x => parseInt(x, 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0, l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6; else if (max === g) h = ((b - r) / d + 2) / 6; else h = ((r - g) / d + 4) / 6;
+  }
+  l = tint < 0 ? l * (1 + tint) : l * (1 - tint) + tint;
+  const hue2rgb = (p, q, t) => { if (t < 0) t += 1; if (t > 1) t -= 1; if (t < 1 / 6) return p + (q - p) * 6 * t; if (t < 1 / 2) return q; if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6; return p; };
+  let out;
+  if (s === 0) out = [l, l, l];
+  else { const q = l < 0.5 ? l * (1 + s) : l + s - l * s; const p = 2 * l - q; out = [hue2rgb(p, q, h + 1 / 3), hue2rgb(p, q, h), hue2rgb(p, q, h - 1 / 3)]; }
+  return `#${out.map(v => Math.round(v * 255).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+}
+
+// "theme:1", "theme:0:-0.15", "" (tự động) → RGB thật mà Excel vẽ; các giá trị khác giữ nguyên.
+function resolveColor(color, theme, autoColor) {
+  if (!color) return autoColor;
+  const m = /^theme:(\d+)(?::(-?[\d.]+))?$/.exec(color);
+  if (!m) return color;
+  const base = theme?.[Number(m[1])] || "";
+  if (!base) return color;
+  return applyTint(base, Number(m[2] || 0));
+}
+
+// Hai màu coi như bằng nhau khi mỗi kênh lệch ≤ 2/255 (tint Excel làm tròn theo HLS 0–255).
+function colorsClose(a, b) {
+  const pa = /^#([0-9A-F]{6})$/i.exec(a || ""), pb = /^#([0-9A-F]{6})$/i.exec(b || "");
+  if (!pa || !pb) return a === b;
+  for (let i = 0; i < 3; i++) if (Math.abs(parseInt(pa[1].slice(i * 2, i * 2 + 2), 16) - parseInt(pb[1].slice(i * 2, i * 2 + 2), 16)) > 2) return false;
+  return true;
+}
+
+// Ngữ nghĩa Excel: font/viền không màu = tự động (dk1, thường đen); căn ngang trống = general, dọc trống = bottom;
+// màu theme(+tint) so bằng RGB thật. Đo lan09.xlsx 2026-09-15: 22.7k lệch alignment ""/general và 25k lệch font
+// theme:1/#000000 là cùng một hiển thị trong Excel.
+function comparableStyle(style = {}, theme = null) {
+  const auto = theme?.[1] || "#000000";
+  const font = { ...(style.font || {}) };
+  if ("color" in font || Object.keys(font).length) font.color = resolveColor(font.color, theme, auto);
+  const fill = { ...(style.fill || {}) };
+  if (fill.pattern && fill.pattern !== "none") fill.color = resolveColor(fill.color, theme, auto); else { delete fill.pattern; delete fill.color; }
+  const alignment = { ...(style.alignment || {}) };
+  if (Object.keys(alignment).length) {
+    alignment.horizontal = alignment.horizontal || "general";
+    alignment.vertical = alignment.vertical || "bottom";
+  }
+  const border = String(style.border || "").split("|").filter(Boolean).map(part => {
+    const [side, lineStyle, color] = part.split(":");
+    return `${side}:${lineStyle || ""}:${lineStyle ? resolveColor(color, theme, auto) : ""}`;
+  }).join("|");
+  return { numFmt: normalizeFormatCode(style.formatCode), font, fill, border, alignment, wrap: Boolean(style.alignment?.wrapText) };
+}
+
+// Cạnh chung giữa hai ô: Excel vẽ đường kẻ nếu MỘT trong hai ô khai báo. LibreOffice ghi lại viền của ô kề
+// (A6 bottom "" + A7 top thin → A6 bottom thin): cùng hình vẽ. So sánh cạnh "hiệu dụng" = ô này hoặc ô kề.
+function effectiveBorder(cells, coord, border, theme) {
+  const m = /^([A-Z]+)(\d+)$/.exec(coord);
+  if (!m) return border;
+  const col = [...m[1]].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0), row = Number(m[2]);
+  const name = n => { let s = ""; while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };
+  const neighbor = { left: col > 1 ? `${name(col - 1)}${row}` : null, right: `${name(col + 1)}${row}`, top: row > 1 ? `${name(col)}${row - 1}` : null, bottom: `${name(col)}${row + 1}` };
+  const opposite = { left: "right", right: "left", top: "bottom", bottom: "top" };
+  const own = Object.fromEntries(String(border || "").split("|").filter(Boolean).map(part => [part.split(":")[0], part]));
+  return ["left", "right", "top", "bottom"].map(side => {
+    const mine = own[side] || `${side}::`;
+    if (mine.split(":")[1]) return mine;
+    const other = neighbor[side] ? cells.get(neighbor[side]) : null;
+    if (!other) return mine;
+    const theirs = comparableStyle(other, theme).border.split("|").find(part => part.startsWith(`${opposite[side]}:`)) || "";
+    const [, lineStyle, color] = theirs.split(":");
+    return lineStyle ? `${side}:${lineStyle}:${color || ""}` : mine;
+  }).join("|");
+}
+
+// So sánh từng loại style: màu (font/fill/viền) dung sai ±2/kênh, phần còn lại so chuỗi ổn định.
+function styleKindEqual(kind, a, b) {
+  if (kind === "font") {
+    const { color: ca, ...ra } = a || {}; const { color: cb, ...rb } = b || {};
+    return stable(ra) === stable(rb) && colorsClose(ca, cb);
+  }
+  if (kind === "fill") return (a?.pattern || "") === (b?.pattern || "") && colorsClose(a?.color, b?.color);
+  if (kind === "border") {
+    const pa = String(a || "").split("|"), pb = String(b || "").split("|");
+    if (pa.length !== pb.length) return false;
+    return pa.every((part, i) => {
+      const [sa, la, xa] = part.split(":"); const [sb, lb, xb] = pb[i].split(":");
+      return sa === sb && la === lb && (!la || colorsClose(xa, xb));
+    });
+  }
+  return stable(a) === stable(b);
 }
 
 function stable(value) {
@@ -384,13 +490,15 @@ export function auditSheetRoundtrip(expectedPath, actualPath, { maxDetails = 20 
         const a = left.cells.get(coord); const b = right.cells.get(coord);
         if (!valuesEqual(a?.value, b?.value)) mismatch(kinds.value, { coord, expected: a?.value, actual: b?.value }, maxDetails);
         if (normalizeFormula(a?.formula) !== normalizeFormula(b?.formula)) mismatch(kinds.formula, { coord, expected: a?.formula || "", actual: b?.formula || "" }, maxDetails);
-        const as = comparableStyle(a || {}); const bs = comparableStyle(b || {});
+        const as = comparableStyle(a || {}, expected.theme); const bs = comparableStyle(b || {}, actual.theme);
+        as.border = effectiveBorder(left.cells, coord, as.border, expected.theme);
+        bs.border = effectiveBorder(right.cells, coord, bs.border, actual.theme);
         for (const [kind, key] of [["numberFormat", "numFmt"], ["font", "font"], ["fill", "fill"], ["border", "border"], ["alignment", "alignment"], ["wrap", "wrap"]]) {
           // Cell XF font is not the effective font of a fully rich shared
           // string; each run carries its own rPr. Calc commonly derives that
           // unused XF from the first run, so compare run-based semantics.
           if (kind === "font" && (a?.richText || b?.richText)) continue;
-          if (stable(as[key]) !== stable(bs[key])) mismatch(kinds[kind], { coord, expected: as[key], actual: bs[key] }, maxDetails);
+          if (!styleKindEqual(kind, as[key], bs[key])) mismatch(kinds[kind], { coord, expected: as[key], actual: bs[key] }, maxDetails);
         }
       }
       compareSet(kinds, "merge", left.merges, right.merges);
