@@ -237,6 +237,47 @@ class SheetFodsOptimizeTests(unittest.TestCase):
         self.assertNotIn('table:number-columns-repeated="2"', optimized)
         self.assertIn("text:span", optimized)
 
+    def test_self_closing_cells_stay_well_formed_and_columns_survive(self):
+        """Đo VAT.xlsx 2026-09-15: bản đầu ghi `<table:table-cell .../ table:number-columns-repeated="61">`
+        (3148 ô XML hỏng) và ghép lại bảng chỉ từ các hàng nên mất hết <table:table-column>/<table:shapes>."""
+        import xml.dom.minidom
+        table_body = (
+            '<table:table-column table:style-name="co1" table:number-columns-repeated="4" table:default-cell-style-name="Default"/>'
+            '<table:shapes><draw:frame xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" draw:name="Image 1"/></table:shapes>'
+            '<table:table-header-rows>'
+            '<table:table-row table:style-name="ro1"><table:table-cell office:value-type="string"><text:p>H</text:p></table:table-cell></table:table-row>'
+            '</table:table-header-rows>'
+            '<table:table-row table:style-name="ro2">'
+            '<table:table-cell table:style-name="ce1"/><table:table-cell table:style-name="ce1"/><table:table-cell table:style-name="ce1"/>'
+            '<table:table-cell office:value-type="float" office:value="1"><text:p>1</text:p></table:table-cell>'
+            '</table:table-row>'
+            '<table:table-row table:style-name="ro3" table:number-rows-repeated="1048000"><table:table-cell table:number-columns-repeated="16384"/></table:table-row>'
+        )
+        optimized = self.patcher.optimize_fods_streaming(self._simple_fods(table_body))
+        xml.dom.minidom.parseString(optimized)  # phải là XML hợp lệ
+        self.assertIn('<table:table-cell table:style-name="ce1" table:number-columns-repeated="3"/>', optimized)
+        self.assertNotIn('/ table:number-columns-repeated', optimized)
+        self.assertIn('<table:table-column table:style-name="co1" table:number-columns-repeated="4"', optimized)
+        self.assertIn('<table:shapes>', optimized)
+        self.assertIn('<table:table-header-rows>', optimized)
+        self.assertIn('table:number-rows-repeated="1048000"', optimized)
+        self.assertIn('<text:p>H</text:p>', optimized)
+        self.assertIn('office:value="1"', optimized)
+
+    def test_cell_anchored_image_is_content_not_merged(self):
+        """lan19.xlsx: ô chỉ chứa <draw:frame> (ảnh neo ô) từng bị coi là ô trống và gộp -> mất ảnh."""
+        table_body = (
+            '<table:table-row>'
+            '<table:table-cell table:style-name="ce1"/>'
+            '<table:table-cell table:style-name="ce1"><draw:frame xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" draw:name="Image 1"><draw:image/></draw:frame></table:table-cell>'
+            '<table:table-cell table:style-name="ce1"/>'
+            '</table:table-row>'
+        )
+        optimized = self.patcher.optimize_fods_streaming(self._simple_fods(table_body))
+        self.assertIn('draw:name="Image 1"', optimized)
+        self.assertNotIn('number-columns-repeated', optimized)
+        self.assertEqual(optimized.count('<table:table-cell table:style-name="ce1"'), 3)
+
 
 if __name__ == "__main__":
     unittest.main()

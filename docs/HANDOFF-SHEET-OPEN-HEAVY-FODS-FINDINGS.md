@@ -43,20 +43,29 @@ Thêm hàm `optimize_fods_streaming(fods_xml, max_style_only_col_repeat=64)` ch�
 
 ---
 
-## 3. Số đo dự kiến (chưa chạy được do thiếu LibreOffice)
+## 3. Số đo thật (Claude, 2026-09-15, main b363abe + nhánh này)
 
-| Metric | Trước (main 98f4bc7) | Sau (dự kiến) | Yêu cầu |
-|--------|---------------------|---------------|---------|
-| VAT.xlsx FODS size | 146.3 MB | **≤ 20 MB** | ≤ 20 MB |
-| VAT.xlsx cell count | 2,471,851 | **≤ 100,000** | ≤ 100,000 |
-| VAT.xlsx `number-columns-repeated` | 705,071 | **giảm mạnh** | — |
-| HIKVISION.xlsx base64 images | ~395 ảnh | base64 giữ nguyên (xem mục 4) | — |
-| KHOACUA.xlsx round-trip borders | 120/230/140/70/265/72 | **giữ nguyên** | không đổi |
+Bản opencode giao chưa đo được (không tìm thấy soffice) và có **2 lỗi chặn** phát hiện khi đo VAT.xlsx:
+1. `_set_cell_col_repeat` thay `>` đầu tiên nên ô tự đóng thành `<table:table-cell .../ table:number-columns-repeated="61">`
+   — 3148 ô XML hỏng trong FODS đầu ra.
+2. `process_table` ghép lại bảng chỉ từ các hàng → mất toàn bộ `<table:table-column>` (độ rộng cột), `<table:shapes>`,
+   `<table:table-header-rows>`: 0 table-column sau tối ưu. Đã sửa: thay từng hàng tại chỗ (`row_full_re.sub`).
+3. Ô chỉ chứa `<draw:frame>` (ảnh neo ô) bị coi là ô trống và gộp → lan19.xlsx auditor +1 image. Đã sửa
+   (`_cell_has_content`: bất kỳ phần tử con nào ngoài `<text:p/>` là nội dung).
 
-> **Lưu ý**: Môi trường test thiếu LibreOffice (`soffice` không tìm thấy). Các test unit Python (mock) pass 100%. Các test tích hợp cần LibreOffice bị skip/fail do thiếu engine.
+| Metric | Trước (main) | Sau (đo) |
+|---|---|---|
+| VAT.xlsx (lan06) FODS trả cho JS | 146,377,294 ký tự | **2,053,697** (2 MB), 39 table-column, 0 ô hỏng |
+| Thời gian tối ưu | — | 36 s (regex trên 146 MB) |
+| Tổng thời gian mở (soffice convert + overlay + tối ưu) | app không hiện file | 451 s headless; app thật hiện tab sau 470 s |
+| VAT.xlsx lưu vòng tròn | — | lưu 132 KB, Excel 2016 mở OK 4 sheet; auditor 115,357 lệch (font "Times Roman"→"Times New Roman", ngày → chuỗi "16/12/2019" 642 ô, `FALSE`→`FALSE()`) |
+| KHOACUA (lan26) round-trip | 1446 lệch, border 635 | 1446 lệch, border 635 (không đổi) |
+| lan18 / lan19 / lan23 | 216 / 796 / 1 | 216 / 796 / 1 (không đổi) |
+| tests/test_sheet_fods_optimize.py | 13 | 15 (thêm test XML hợp lệ + cột/shape/header-rows, test ô ảnh) |
 
----
-
+Nút thắt còn lại là **soffice convert ~415 s** cho VAT.xlsx (LibreOffice ghi 2.47M ô trống có style ra FODS).
+Muốn nhanh hơn phải cắt ô style-only ngoài vùng dùng ngay trong sheet XML của XLSX trước khi convert.
+Lỗi ngày → chuỗi và `FALSE()` khi lưu là lỗi có sẵn của đường lưu, không do nhánh này (cần task riêng).
 ## 4. Xử lý ảnh (HIKVISION 395 ảnh)
 
 **Đo được**: FODS chứa ảnh dạng base64 nhúng trong `<draw:image xlink:href="data:image/png;base64,..."/>`. Kích thước base64 chiếm phần lớn dung lượng.

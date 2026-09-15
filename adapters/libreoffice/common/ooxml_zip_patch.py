@@ -6135,6 +6135,14 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
             return True
         if "<text:span" in cell_xml:
             return True
+        # Bất kỳ phần tử con nào khác (<draw:frame> ảnh neo ô, <table:cell-range-source>...) đều
+        # là nội dung: gộp ô mất ảnh (đo lan19.xlsx: auditor +1 image diff khi coi ô ảnh là trống).
+        open_end = cell_xml.find(">")
+        inner = cell_xml[open_end + 1:] if open_end >= 0 else ""
+        inner = re.sub(r"</table:(?:covered-)?table-cell\s*>\s*$", "", inner)
+        inner = re.sub(r"<text:p\s*/>|<text:p\b[^>]*>\s*</text:p>", "", inner)
+        if "<" in inner:
+            return True
         return False
 
     def _fods_cell_is_style_only(cell_xml: str) -> bool:
@@ -6150,16 +6158,19 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
         return bool(style)
 
     def _set_cell_col_repeat(cell_xml: str, count: int) -> str:
+        # Chèn thuộc tính TRƯỚC "/>" hoặc ">" của thẻ mở — bản đầu thay ">" đầu tiên nên ô tự
+        # đóng thành `<table:table-cell .../ table:number-columns-repeated="61">` (XML hỏng,
+        # đo VAT.xlsx: 3148 ô hỏng).
         cell_xml = re.sub(r'\s+table:number-columns-repeated\s*=\s*(["\'])\d+\1', "", cell_xml)
         if count <= 1:
             return cell_xml
-        return cell_xml.replace(">", f' table:number-columns-repeated="{count}">', 1)
+        return re.sub(r"^(<table:(?:covered-)?table-cell\b[^>]*?)(\s*/?>)", lambda m: f'{m.group(1)} table:number-columns-repeated="{count}"{m.group(2)}', cell_xml, count=1)
 
     def _set_row_repeat(row_xml: str, count: int) -> str:
         row_xml = re.sub(r'\s+table:number-rows-repeated\s*=\s*(["\'])\d+\1', "", row_xml)
         if count <= 1:
             return row_xml
-        return row_xml.replace(">", f' table:number-rows-repeated="{count}">', 1)
+        return re.sub(r"^(<table:table-row\b[^>]*?)(\s*/?>)", lambda m: f'{m.group(1)} table:number-rows-repeated="{count}"{m.group(2)}', row_xml, count=1)
 
     def _extract_cells_from_row(row_content: str) -> list[str]:
         """Extract complete cell XML strings from row content."""
@@ -6193,30 +6204,37 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
                     pos = open_match.end()
         return cells
 
+    # Một hàng trọn vẹn (tự đóng hoặc mở...đóng); hàng không lồng nhau nên non-greedy là đủ.
+    row_full_re = re.compile(r"<table:table-row\b[^>]*?/>|<table:table-row\b[^>]*>[\s\S]*?</table:table-row\s*>", re.IGNORECASE)
+
+    def _split_row(row_xml: str) -> tuple[str, bool, str]:
+        """→ (thẻ mở không có '>' cuối, tự đóng?, nội dung trong hàng)."""
+        open_match = _FODS_ROW_RE.match(row_xml)
+        row_open_tag = open_match.group(1)
+        row_self_close = open_match.group(2) == "/"
+        row_content = ""
+        if not row_self_close:
+            row_content = row_xml[open_match.end():]
+            close_idx = row_content.rfind("</table:table-row")
+            if close_idx >= 0:
+                row_content = row_content[:close_idx]
+        return row_open_tag, row_self_close, row_content
+
     def process_table(match: re.Match) -> str:
         table_open = match.group(1)
         table_body = match.group(2)
         table_close = match.group(3)
 
-        # Find all rows in this table
-        row_matches = list(_FODS_ROW_RE.finditer(table_body))
-        if not row_matches:
+        # Chỉ thay TỪNG HÀNG tại chỗ; mọi thứ khác trong bảng (<table:table-column> độ rộng cột,
+        # <table:shapes> ảnh, <table:table-header-rows>, nhóm hàng...) giữ nguyên. Bản đầu ghép
+        # lại bảng chỉ từ các hàng nên mất toàn bộ cột/ảnh (đo VAT.xlsx: 0 table-column sau tối ưu).
+        if not row_full_re.search(table_body):
             return match.group(0)
 
         # First pass: find last data column across all rows (only actual content, not style-only)
         last_data_col = 0
-        for row_match in row_matches:
-            row_open_tag = row_match.group(1)
-            row_self_close = row_match.group(2) == "/"
-            row_repeat = _get_row_repeat(row_open_tag)
-            row_content = ""
-            if not row_self_close:
-                row_start = row_match.end()
-                next_row = table_body.find("<table:table-row", row_start)
-                row_end_tag = table_body.find("</table:table-row>", row_start)
-                if row_end_tag >= 0 and (next_row < 0 or row_end_tag < next_row):
-                    row_content = table_body[row_start:row_end_tag]
-
+        for row_match in row_full_re.finditer(table_body):
+            _row_open_tag, _row_self_close, row_content = _split_row(row_match.group(0))
             scan_col = 1
             row_last_data_col = 0
             for cell_xml in _extract_cells_from_row(row_content):
@@ -6231,19 +6249,10 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
             if row_last_data_col > 0:
                 last_data_col = max(last_data_col, row_last_data_col)
 
-        # Second pass: rebuild rows with merged cells and trimmed tail
-        new_rows = []
-        for row_match in row_matches:
-            row_open_tag = row_match.group(1)
-            row_self_close = row_match.group(2) == "/"
+        # Second pass: rebuild each row with merged cells and trimmed tail
+        def process_row(row_match: re.Match) -> str:
+            row_open_tag, row_self_close, row_content = _split_row(row_match.group(0))
             row_repeat = _get_row_repeat(row_open_tag)
-            row_content = ""
-            if not row_self_close:
-                row_start = row_match.end()
-                next_row = table_body.find("<table:table-row", row_start)
-                row_end_tag = table_body.find("</table:table-row>", row_start)
-                if row_end_tag >= 0 and (next_row < 0 or row_end_tag < next_row):
-                    row_content = table_body[row_start:row_end_tag]
 
             new_row_content = []
             col_number = 1
@@ -6270,18 +6279,10 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
                     # For style-only cells, calculate how many columns to keep
                     # Columns <= max_style_only_col_repeat are kept
                     # Columns > last_data_col AND > max_style_only_col_repeat are trimmed
-                    keep_count = 0
-                    for i in range(col_repeat):
-                        col = col_number + i
-                        if col <= max_style_only_col_repeat:
-                            keep_count += 1
-                        elif col <= last_data_col:
-                            # Within used range (has data in other rows), keep
-                            keep_count += 1
-                        # else: beyond both limits, trim
-                    
-                    trim_count = col_repeat - keep_count
-                    
+                    # Giữ các cột ≤ max(ngưỡng 64, cột dữ liệu cuối của bảng); phần sau bị cắt.
+                    keep_limit = max(max_style_only_col_repeat, last_data_col)
+                    keep_count = max(0, min(col_number + col_repeat - 1, keep_limit) - col_number + 1)
+
                     if keep_count > 0:
                         # Create kept portion
                         kept_cell = _set_cell_col_repeat(cell_xml, keep_count)
@@ -6309,16 +6310,12 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
 
             flush_pending()
 
-            # Rebuild row
-            row_open = f"{row_open_tag}>"
-            if row_repeat > 1:
-                row_open = _set_row_repeat(row_open, row_repeat)
-            row_xml = row_open + "".join(new_row_content)
-            if not row_self_close:
-                row_xml += "</table:table-row>"
-            new_rows.append(row_xml)
+            # Rebuild row (thẻ mở giữ nguyên thuộc tính, kể cả number-rows-repeated)
+            if row_self_close:
+                return f"{row_open_tag}/>"
+            return f"{row_open_tag}>" + "".join(new_row_content) + "</table:table-row>"
 
-        return table_open + "".join(new_rows) + table_close
+        return table_open + row_full_re.sub(process_row, table_body) + table_close
 
     return _FODS_TABLE_RE.sub(process_table, fods_xml)
 
