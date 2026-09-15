@@ -47,10 +47,17 @@ gốc **11/20** (vòng 1: 6/20); số trang canvas = Word **7/20** (vòng 1: 6/2
 5. Canvas: giãn dòng tỉ lệ theo font run, phân trang đo vị trí thật, gộp `<br>` đoạn neo ảnh
    (HANDOFF-WRITER-DOC-FONT-SPACING.md) — d04/d09 tải được, d13 16 → 12, d19 4 → 2, d20 6 → 5.
 
+## Sau vòng 2 (đo lẻ từng file, main 37596ed)
+
+- d06 canvas 6 → **3** (= Word): gộp `<br><br>` đoạn neo hộp văn bản (cde39f9) + nhóm hình neo trôi không còn bị coi
+  là inline group (af209af, HANDOFF-WRITER-FLOATING-GROUP-RASTERS.md).
+- d14 5 → 4 (Word 3), d07 26 → 25 (23), d09 19 → 16 (14): cỡ chữ mặc định tài liệu từng lấy từ run đầu tiên của
+  document.xml (tiêu đề 28pt → strut 64px mỗi dòng); nay chỉ lấy từ style Normal, mặc định 12pt (37596ed).
+
 ## Còn lại (đo được)
 
-- Canvas dư trang: d06 3→6, d14 3→5, d07 23→26, d09 14→19. Cần đo từng file bằng `_probe_blocks_css.py` +
-  `_word_para_pos.ps1` (nghi: bảng, tab stop, font thay thế).
+- Canvas dư trang: d14 4/3, d07 25/23, d09 16/14, d16 9/8, d21 10/9, d13 12/10. Đo tiếp bằng
+  `_probe_paginate_trace.py` + `_word_para_pos.ps1`.
 - Bản lưu dư trang: d01 +2, d02 +2, d16 +3, d20 +4, d09 +2, d11/d17/d19 +1. d09 mất 62 đoạn khi lưu (406 → 344).
 - d03: 2 sectPr trong thân gốc → 0 sau lưu (mid-document sections chưa khôi phục cho file này).
 - Lưu ngày tháng trong Sheet thành chuỗi (VAT.xlsx: 642 ô) — ngoài phạm vi Writer, ghi để không quên.

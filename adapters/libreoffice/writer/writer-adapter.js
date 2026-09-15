@@ -1816,10 +1816,13 @@ export class WriterAdapter {
 
     // 1. Font family: ưu tiên p.western, sau đó p, p.cjk, p.ctl
     let fontFamily = getProp(pWest, "font-family") || getProp(pDecl, "font-family") || getProp(pCjk, "font-family") || getProp(pCtl, "font-family");
-    if (!fontFamily && ooxmlDocumentXml) {
-      const normalMatch = String(ooxmlDocumentXml).match(/<w:style\b[^>]*w:styleId=["']Normal["'][^>]*>[\s\S]*?<\/w:style>/i);
-      const targetXml = normalMatch ? normalMatch[0] : ooxmlDocumentXml;
-      const asciiMatch = targetXml.match(/<w:rFonts\b[^>]*w:ascii=["']([^"']+)["']/i);
+    // Chỉ lấy từ style Normal nếu XML đưa vào có styles; KHÔNG quét run đầu tiên của document.xml
+    // (d14.docx 2026-09-15: run tiêu đề w:sz=56 → cả tài liệu 28pt, mỗi dòng 64px, canvas 5 trang/Word 3).
+    const normalStyleMatch = ooxmlDocumentXml
+      ? String(ooxmlDocumentXml).match(/<w:style\b[^>]*w:styleId=["']Normal["'][^>]*>[\s\S]*?<\/w:style>/i)
+      : null;
+    if (!fontFamily && normalStyleMatch) {
+      const asciiMatch = normalStyleMatch[0].match(/<w:rFonts\b[^>]*w:ascii=["']([^"']+)["']/i);
       if (asciiMatch) {
         fontFamily = `"${asciiMatch[1]}", sans-serif`;
       }
@@ -1827,9 +1830,8 @@ export class WriterAdapter {
 
     // 2. Font size: ưu tiên p.western, sau đó p
     let fontSize = getProp(pWest, "font-size") || getProp(pDecl, "font-size");
-    if (!fontSize && ooxmlDocumentXml) {
-      const normalMatch = String(ooxmlDocumentXml).match(/<w:style\b[^>]*w:styleId=["']Normal["'][^>]*>[\s\S]*?<\/w:style>/i);
-      const szMatch = (normalMatch ? normalMatch[0] : ooxmlDocumentXml).match(/<w:sz\b[^>]*w:val=["'](\d+)["']/i);
+    if (!fontSize && normalStyleMatch) {
+      const szMatch = normalStyleMatch[0].match(/<w:sz\b[^>]*w:val=["'](\d+)["']/i);
       if (szMatch) {
         const pt = Number(szMatch[1]) / 2;
         fontSize = `${pt}pt`;
@@ -2664,6 +2666,65 @@ export class WriterAdapter {
       imageSpans.push({ imgK, spanHtml, startPos, endPos });
     }
 
+    // Identify floating group rasters among inlineImages (images without matching wp:inline)
+    const groupAnchors = anchors.filter((a) => a.sourceGroup);
+    let floatingGroupIdx = 0;
+    const inlineGroupImages = [];
+
+    for (let j = 0; j < inlineImages.length; j++) {
+      const imgInfo = inlineImages[j];
+      if (j < inlineGroups.length) {
+        inlineGroupImages.push({ j, imgInfo });
+      } else {
+        // Nhóm neo trôi (wp:anchor chứa wpg:wgp) mà LibreOffice xuất thành <img name="ShapeN"> trần:
+        // ghép theo THỨ TỰ các anchor nhóm trong tài liệu (số "ShapeN" là bộ đếm của LibreOffice,
+        // không phải chỉ số anchor). Đo d06.docx 2026-09-15: 3 nhóm 18.8×2.8cm bị coi là inline
+        // → canvas 5 trang, Word 3.
+        let ancK = null;
+        let meta = null;
+        if (floatingGroupIdx < groupAnchors.length) {
+          meta = groupAnchors[floatingGroupIdx++];
+          ancK = anchors.indexOf(meta);
+        } else {
+          ancK = anchorIndex++;
+          meta = anchors[ancK] || { relativeH: "paragraph", relativeV: "paragraph", wrap: "wrapNone", behindDoc: false, pageIndex: 0 };
+        }
+
+        imageIndexByAnchor.set(ancK, imageSpans.length);
+
+        const attrValue = (name) => imgInfo.tag.match(new RegExp(`\\b${name}=["']?([^"'\\s>]+)`, "i"))?.[1];
+        const htmlWidth = this._cssLengthToCm(`${attrValue("width") || 0}px`) ?? 0;
+        const htmlHeight = this._cssLengthToCm(`${attrValue("height") || 0}px`) ?? 0;
+        const left = meta.sourceGroup && meta.leftCm != null ? meta.leftCm : (meta.leftCm ?? 0);
+        const top = meta.sourceGroup && meta.topCm != null ? meta.topCm : (meta.topCm ?? 0);
+        const width = meta.sourceGroup && meta.widthCm ? meta.widthCm : (meta.widthCm || htmlWidth);
+        const height = meta.sourceGroup && meta.heightCm ? meta.heightCm : (meta.heightCm || htmlHeight);
+
+        const isPageRel = ["page", "margin"].includes(String(meta.relativeV).toLowerCase());
+        const displayLeft = ["margin", "column"].includes(String(meta.relativeH).toLowerCase()) ? left + marginLeftCm : left;
+        const displayTop = ["margin"].includes(String(meta.relativeV).toLowerCase()) ? top + marginTopCm : top;
+        const canvasLeft = Number((displayLeft - marginLeftCm).toFixed(3));
+        const canvasTop = Number((displayTop - marginTopCm).toFixed(3));
+
+        const canvasGeometry = (hasNativeGroup && isPageRel)
+          ? `position:absolute;left:${canvasLeft}cm;top:${canvasTop}cm;`
+          : `position:absolute;left:${displayLeft}cm;top:${displayTop}cm;`;
+
+        let imgTag = imgInfo.tag;
+        if (width && height) {
+          if (/\bstyle=["']/i.test(imgTag)) {
+            imgTag = imgTag.replace(/\bstyle=["']([^"']*)["']/i, (_m, s) => `style="width:${width}cm;height:${height}cm;display:block;${s}"`);
+          } else {
+            imgTag = imgTag.replace(/>$/, ` style="width:${width}cm;height:${height}cm;display:block;">`);
+          }
+        }
+
+        const spanHtml = `<span data-vno-float="image" data-vno-source-group="${meta.sourceGroup ? "1" : "0"}" data-vno-left="${left}" data-vno-top="${top}" data-vno-width="${width}" data-vno-height="${height}" data-vno-relative-h="${meta.relativeH}" data-vno-relative-v="${meta.relativeV}" data-vno-wrap="${meta.wrap}" data-vno-behind="${meta.behindDoc ? "1" : "0"}" style="${canvasGeometry}${width ? `width:${width}cm;` : ""}${height ? `height:${height}cm;` : ""}${meta.behindDoc ? "z-index:0;" : "z-index:1;"}">${imgTag}</span>`;
+
+        imageSpans.push({ imgK: ancK, spanHtml, startPos: imgInfo.start, endPos: imgInfo.end, inlineGroupJ: j });
+      }
+    }
+
     // Process textboxes
     for (let sIdx = 0; sIdx < spans.length; sIdx++) {
       const sp = spans[sIdx];
@@ -2738,9 +2799,12 @@ export class WriterAdapter {
       }
     }
 
+
     // Attach textboxes immediately after their respective anchor image
     for (const img of imageSpans) {
-      const attached = textboxesByAnchor.get(img.imgK) || [];
+      const attachedAnchor = textboxesByAnchor.get(img.imgK) || [];
+      const attachedInline = img.inlineGroupJ != null ? (textboxesByInlineGroup.get(img.inlineGroupJ) || []) : [];
+      const attached = [...attachedAnchor, ...attachedInline];
       spanReplacements.push({
         start: img.startPos,
         end: img.endPos,
@@ -2749,8 +2813,8 @@ export class WriterAdapter {
     }
 
     // Wrap inline images with inline groups
-    for (let j = 0; j < inlineImages.length; j++) {
-      const imgInfo = inlineImages[j];
+    for (const item of inlineGroupImages) {
+      const { j, imgInfo } = item;
       const meta = inlineGroups[j];
       const widthCm = meta ? meta.widthCm : 0;
       const heightCm = meta ? meta.heightCm : 0;

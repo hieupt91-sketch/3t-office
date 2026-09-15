@@ -278,6 +278,21 @@ class SheetFodsOptimizeTests(unittest.TestCase):
         self.assertNotIn('number-columns-repeated', optimized)
         self.assertEqual(optimized.count('<table:table-cell table:style-name="ce1"'), 3)
 
+    def test_whole_row_format_run_stays_wider_than_js_threshold(self):
+        """lan05.xlsx: dải viền 16374 cột bị cắt còn 54 (<= 64) làm JS coi là khối viền gọn -> vùng dùng tới hàng
+        1048576 -> 'Map maximum size exceeded'. Dải rộng hơn ngưỡng phải giữ >= 65 sau khi cắt."""
+        table_body = (
+            '<table:table-row><table:table-cell office:value-type="string"><text:p>a</text:p></table:table-cell></table:table-row>'
+            '<table:table-row table:number-rows-repeated="1047503"><table:table-cell table:number-columns-repeated="10"/>'
+            '<table:table-cell table:style-name="ce2" table:number-columns-repeated="16374"/></table:table-row>'
+        )
+        optimized = self.patcher.optimize_fods_streaming(self._simple_fods(table_body))
+        self.assertIn('<table:table-cell table:style-name="ce2" table:number-columns-repeated="65"/>', optimized)
+        # khối viền gọn thật (<= 64) giữ nguyên
+        table_body2 = '<table:table-row><table:table-cell table:style-name="ce2" table:number-columns-repeated="12"/></table:table-row>'
+        optimized2 = self.patcher.optimize_fods_streaming(self._simple_fods(table_body2))
+        self.assertIn('table:number-columns-repeated="12"', optimized2)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6363,9 +6363,15 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
                     # For style-only cells, calculate how many columns to keep
                     # Columns <= max_style_only_col_repeat are kept
                     # Columns > last_data_col AND > max_style_only_col_repeat are trimmed
-                    # Giữ các cột ≤ max(ngưỡng 64, cột dữ liệu cuối của bảng); phần sau bị cắt.
+                    # Giữ các cột ≤ max(ngưỡng, cột dữ liệu cuối của bảng); phần sau bị cắt.
                     keep_limit = max(max_style_only_col_repeat, last_data_col)
                     keep_count = max(0, min(col_number + col_repeat - 1, keep_limit) - col_number + 1)
+                    # Dải "định dạng nguyên hàng" (rộng hơn ngưỡng) phải VẪN rộng hơn ngưỡng sau khi cắt,
+                    # nếu không JS (STYLE_ONLY_MAX_COLUMN_REPEAT) coi nó là khối viền gọn và mở rộng vùng dùng
+                    # tới hàng cuối: lan05.xlsx 2026-09-15 cắt 16374 -> 54 cột làm hàng 1048576 thành dữ liệu,
+                    # 1M hàng x 54 ô -> "Map maximum size exceeded", app không mở được.
+                    if col_repeat > max_style_only_col_repeat and 0 < keep_count <= max_style_only_col_repeat:
+                        keep_count = min(col_repeat, max_style_only_col_repeat + 1)
 
                     if keep_count > 0:
                         # Create kept portion
