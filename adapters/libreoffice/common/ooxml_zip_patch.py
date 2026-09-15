@@ -5995,5 +5995,333 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
+_FODS_TABLE_OPEN_RE = re.compile(r"<table:table\b([^>]*)>")
+_FODS_TABLE_CLOSE_RE = re.compile(r"</table:table\s*>")
+_FODS_TABLE_RE = re.compile(r"(<table:table\b[^>]*>)([\s\S]*?)(</table:table\s*>)", re.IGNORECASE)
+_FODS_ROW_RE = re.compile(r"(<table:table-row\b[^>]*?)(/?)\s*>", re.IGNORECASE)
+_FODS_ROW_CLOSE_RE = re.compile(r"</table:table-row\s*>", re.IGNORECASE)
+_FODS_CELL_OPEN_RE = re.compile(r"(<(table:table-cell|table:covered-table-cell)\b[^>]*?)(/?)\s*>", re.IGNORECASE)
+_FODS_CELL_CLOSE_RE = re.compile(r"</(table:table-cell|table:covered-table-cell)\s*>", re.IGNORECASE)
+
+_STYLE_NAME_ATTR_RE = re.compile(r'table:style-name\s*=\s*(["\'])([^"\']*)\1')
+_COL_REPEAT_ATTR_RE = re.compile(r'table:number-columns-repeated\s*=\s*(["\'])(\d+)\1')
+_ROW_REPEAT_ATTR_RE = re.compile(r'table:number-rows-repeated\s*=\s*(["\'])(\d+)\1')
+_VALUE_TYPE_ATTR_RE = re.compile(r'office:value-type\s*=\s*(["\'])([^"\']*)\1')
+_FORMULA_ATTR_RE = re.compile(r'table:formula\s*=\s*(["\'])([^"\']*)\1')
+_ANNOTATION_RE = re.compile(r"<office:annotation\b")
+
+
+def _cell_has_content(cell_xml: str) -> bool:
+    """Check if a cell has actual content (value, formula, annotation, or text)."""
+    if _VALUE_TYPE_ATTR_RE.search(cell_xml):
+        m = _VALUE_TYPE_ATTR_RE.search(cell_xml)
+        if m and m.group(2) != "void":
+            return True
+    if _FORMULA_ATTR_RE.search(cell_xml):
+        return True
+    if _ANNOTATION_RE.search(cell_xml):
+        return True
+    if re.search(r"<text:p\b[^>]*>[^<]*</text:p>", cell_xml):
+        return True
+    if re.search(r"<text:span\b", cell_xml):
+        return True
+    return False
+
+
+def _get_cell_style(cell_xml: str) -> str:
+    """Extract style-name from cell XML."""
+    m = _STYLE_NAME_ATTR_RE.search(cell_xml)
+    return m.group(2) if m else ""
+
+
+def _get_cell_col_repeat(cell_xml: str) -> int:
+    """Extract number-columns-repeated from cell XML."""
+    m = _COL_REPEAT_ATTR_RE.search(cell_xml)
+    return int(m.group(2)) if m else 1
+
+
+def _set_cell_col_repeat(cell_xml: str, count: int) -> str:
+    """Set number-columns-repeated on cell XML."""
+    cell_xml = _COL_REPEAT_ATTR_RE.sub("", cell_xml)
+    if count <= 1:
+        return cell_xml
+    return cell_xml.replace(">", f' table:number-columns-repeated="{count}">', 1)
+
+
+def _get_row_repeat(row_xml: str) -> int:
+    """Extract number-rows-repeated from row XML."""
+    m = _ROW_REPEAT_ATTR_RE.search(row_xml)
+    return int(m.group(2)) if m else 1
+
+
+def _set_row_repeat(row_xml: str, count: int) -> str:
+    """Set number-rows-repeated on row XML."""
+    row_xml = _ROW_REPEAT_ATTR_RE.sub("", row_xml)
+    if count <= 1:
+        return row_xml
+    return row_xml.replace(">", f' table:number-rows-repeated="{count}">', 1)
+
+
+def _fods_cell_is_style_only(cell_xml: str, cell_visual_styles: dict | None = None) -> bool:
+    """Check if cell is style-only (has style but no content)."""
+    if _cell_has_content(cell_xml):
+        return False
+    style = _get_cell_style(cell_xml)
+    if not style:
+        return False
+    if cell_visual_styles and style in cell_visual_styles:
+        visual = cell_visual_styles[style]
+        if visual.get("hasBorder") or visual.get("hasBackground"):
+            return True
+    return bool(style)
+
+
+def _parse_fods_cell_visual_styles(fods_xml: str) -> dict:
+    """Parse cell visual styles from FODS (borders, backgrounds)."""
+    styles = {}
+    for match in re.finditer(r'<style:style\b([^>]*style:family=["\']table-cell["\'][^>]*)>([\s\S]*?)</style:style>', fods_xml, re.IGNORECASE):
+        style_attrs = match.group(1)
+        style_body = match.group(2)
+        name_match = re.search(r'style:name=["\']([^"\']*)["\']', style_attrs)
+        if not name_match:
+            continue
+        style_name = name_match.group(1)
+        has_border = bool(re.search(r'<style:table-cell-properties\b[^>]*\b(?:fo:border|style:border)', style_body, re.IGNORECASE))
+        has_background = bool(re.search(r'<style:table-cell-properties\b[^>]*\bfo:background-color', style_body, re.IGNORECASE))
+        styles[style_name] = {"hasBorder": has_border, "hasBackground": has_background}
+    return styles
+
+
+def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) -> str:
+    """Optimize FODS by merging consecutive empty cells with same style and trimming style-only tail.
+
+    This runs BEFORE the FODS is passed to JS, using streaming regex (no DOM).
+    Target: reduce FODS size from ~146MB to <20MB, cell count from 2.4M to <100K.
+
+    Args:
+        fods_xml: Raw FODS XML string
+        max_style_only_col_repeat: Max repeated columns for style-only cells (matches JS STYLE_ONLY_MAX_COLUMN_REPEAT)
+
+    Returns:
+        Optimized FODS XML string
+    """
+    if not fods_xml:
+        return fods_xml
+
+    cell_visual_styles = _parse_fods_cell_visual_styles(fods_xml)
+
+    def _get_cell_style(cell_xml: str) -> str:
+        m = re.search(r'table:style-name\s*=\s*(["\'])([^"\']*)\1', cell_xml)
+        return m.group(2) if m else ""
+
+    def _get_cell_col_repeat(cell_xml: str) -> int:
+        m = re.search(r'table:number-columns-repeated\s*=\s*(["\'])(\d+)\1', cell_xml)
+        return int(m.group(2)) if m else 1
+
+    def _get_row_repeat(row_xml: str) -> int:
+        m = re.search(r'table:number-rows-repeated\s*=\s*(["\'])(\d+)\1', row_xml)
+        return int(m.group(2)) if m else 1
+
+    def _cell_has_content(cell_xml: str) -> bool:
+        if re.search(r'office:value-type\s*=\s*(["\'])([^"\']*)\1', cell_xml):
+            m = re.search(r'office:value-type\s*=\s*(["\'])([^"\']*)\1', cell_xml)
+            if m and m.group(2) != "void":
+                return True
+        if re.search(r'table:formula\s*=\s*(["\'])([^"\']*)\1', cell_xml):
+            return True
+        if "<office:annotation" in cell_xml:
+            return True
+        if re.search(r"<text:p\b[^>]*>[^<]*</text:p>", cell_xml):
+            return True
+        if "<text:span" in cell_xml:
+            return True
+        return False
+
+    def _fods_cell_is_style_only(cell_xml: str) -> bool:
+        if _cell_has_content(cell_xml):
+            return False
+        style = _get_cell_style(cell_xml)
+        if not style:
+            return False
+        if cell_visual_styles and style in cell_visual_styles:
+            visual = cell_visual_styles[style]
+            if visual.get("hasBorder") or visual.get("hasBackground"):
+                return True
+        return bool(style)
+
+    def _set_cell_col_repeat(cell_xml: str, count: int) -> str:
+        cell_xml = re.sub(r'\s+table:number-columns-repeated\s*=\s*(["\'])\d+\1', "", cell_xml)
+        if count <= 1:
+            return cell_xml
+        return cell_xml.replace(">", f' table:number-columns-repeated="{count}">', 1)
+
+    def _set_row_repeat(row_xml: str, count: int) -> str:
+        row_xml = re.sub(r'\s+table:number-rows-repeated\s*=\s*(["\'])\d+\1', "", row_xml)
+        if count <= 1:
+            return row_xml
+        return row_xml.replace(">", f' table:number-rows-repeated="{count}">', 1)
+
+    def _extract_cells_from_row(row_content: str) -> list[str]:
+        """Extract complete cell XML strings from row content."""
+        cells = []
+        pos = 0
+        while pos < len(row_content):
+            # Find next cell opening tag
+            open_match = _FODS_CELL_OPEN_RE.search(row_content, pos)
+            if not open_match:
+                break
+            cell_open = open_match.group(1)
+            cell_type = open_match.group(2)
+            self_close = open_match.group(3) == "/"
+            cell_start = open_match.start()
+            
+            if self_close:
+                # Self-closing cell
+                cells.append(cell_open + "/>")
+                pos = open_match.end()
+            else:
+                # Find closing tag
+                close_tag = f"</{cell_type}>"
+                close_pos = row_content.find(close_tag, open_match.end())
+                if close_pos >= 0:
+                    cell_full = row_content[cell_start:close_pos + len(close_tag)]
+                    cells.append(cell_full)
+                    pos = close_pos + len(close_tag)
+                else:
+                    # Malformed - just take the opening tag
+                    cells.append(cell_open + ">")
+                    pos = open_match.end()
+        return cells
+
+    def process_table(match: re.Match) -> str:
+        table_open = match.group(1)
+        table_body = match.group(2)
+        table_close = match.group(3)
+
+        # Find all rows in this table
+        row_matches = list(_FODS_ROW_RE.finditer(table_body))
+        if not row_matches:
+            return match.group(0)
+
+        # First pass: find last data column across all rows (only actual content, not style-only)
+        last_data_col = 0
+        for row_match in row_matches:
+            row_open_tag = row_match.group(1)
+            row_self_close = row_match.group(2) == "/"
+            row_repeat = _get_row_repeat(row_open_tag)
+            row_content = ""
+            if not row_self_close:
+                row_start = row_match.end()
+                next_row = table_body.find("<table:table-row", row_start)
+                row_end_tag = table_body.find("</table:table-row>", row_start)
+                if row_end_tag >= 0 and (next_row < 0 or row_end_tag < next_row):
+                    row_content = table_body[row_start:row_end_tag]
+
+            scan_col = 1
+            row_last_data_col = 0
+            for cell_xml in _extract_cells_from_row(row_content):
+                col_repeat = _get_cell_col_repeat(cell_xml)
+                has_content = _cell_has_content(cell_xml)
+
+                if has_content:
+                    row_last_data_col = max(row_last_data_col, scan_col + col_repeat - 1)
+
+                scan_col += col_repeat
+
+            if row_last_data_col > 0:
+                last_data_col = max(last_data_col, row_last_data_col)
+
+        # Second pass: rebuild rows with merged cells and trimmed tail
+        new_rows = []
+        for row_match in row_matches:
+            row_open_tag = row_match.group(1)
+            row_self_close = row_match.group(2) == "/"
+            row_repeat = _get_row_repeat(row_open_tag)
+            row_content = ""
+            if not row_self_close:
+                row_start = row_match.end()
+                next_row = table_body.find("<table:table-row", row_start)
+                row_end_tag = table_body.find("</table:table-row>", row_start)
+                if row_end_tag >= 0 and (next_row < 0 or row_end_tag < next_row):
+                    row_content = table_body[row_start:row_end_tag]
+
+            new_row_content = []
+            col_number = 1
+            pending_cell = None
+            pending_count = 0
+            pending_style = None
+
+            def flush_pending():
+                nonlocal pending_cell, pending_count, pending_style
+                if pending_cell is not None and pending_count > 0:
+                    new_row_content.append(_set_cell_col_repeat(pending_cell, pending_count))
+                    pending_cell = None
+                    pending_count = 0
+                    pending_style = None
+
+            cells = _extract_cells_from_row(row_content)
+            for cell_xml in cells:
+                col_repeat = _get_cell_col_repeat(cell_xml)
+                style = _get_cell_style(cell_xml)
+                has_content = _cell_has_content(cell_xml)
+                is_style_only = _fods_cell_is_style_only(cell_xml)
+
+                if is_style_only and not has_content:
+                    # For style-only cells, calculate how many columns to keep
+                    # Columns <= max_style_only_col_repeat are kept
+                    # Columns > last_data_col AND > max_style_only_col_repeat are trimmed
+                    keep_count = 0
+                    for i in range(col_repeat):
+                        col = col_number + i
+                        if col <= max_style_only_col_repeat:
+                            keep_count += 1
+                        elif col <= last_data_col:
+                            # Within used range (has data in other rows), keep
+                            keep_count += 1
+                        # else: beyond both limits, trim
+                    
+                    trim_count = col_repeat - keep_count
+                    
+                    if keep_count > 0:
+                        # Create kept portion
+                        kept_cell = _set_cell_col_repeat(cell_xml, keep_count)
+                        if style == pending_style:
+                            pending_count += keep_count
+                        else:
+                            flush_pending()
+                            pending_cell = kept_cell
+                            pending_count = keep_count
+                            pending_style = style
+                    # Trimmed portion is silently dropped
+                    
+                    col_number += col_repeat
+                else:
+                    # Content cells or non-style-only: never trim, merge if same style
+                    if is_style_only and not has_content and style == pending_style:
+                        # This shouldn't happen since we handled is_style_only above
+                        pending_count += col_repeat
+                    else:
+                        flush_pending()
+                        pending_cell = cell_xml
+                        pending_count = col_repeat
+                        pending_style = style if (is_style_only and not has_content) else None
+                    col_number += col_repeat
+
+            flush_pending()
+
+            # Rebuild row
+            row_open = f"{row_open_tag}>"
+            if row_repeat > 1:
+                row_open = _set_row_repeat(row_open, row_repeat)
+            row_xml = row_open + "".join(new_row_content)
+            if not row_self_close:
+                row_xml += "</table:table-row>"
+            new_rows.append(row_xml)
+
+        return table_open + "".join(new_rows) + table_close
+
+    return _FODS_TABLE_RE.sub(process_table, fods_xml)
+
+
 if __name__ == "__main__":
     sys.exit(main())
