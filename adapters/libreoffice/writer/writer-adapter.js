@@ -1985,7 +1985,7 @@ export class WriterAdapter {
     }
     html = this._normalizeImportedStarWriterNotes(html);
     html = this._makeFloatingAnchorContainers(this._preserveImportedFloatingFrames(html, ooxmlDocumentXml, page), page);
-    html = this._collapseFloatOnlyParagraphBreaks(html);
+    html = this._collapseFloatOnlyParagraphBreaks(html, ooxmlDocumentXml);
     html = this._encodeProportionalLineHeights(html);
     return { body: html.trim(), header, footer, page, comments, docStyles };
   }
@@ -2116,9 +2116,23 @@ export class WriterAdapter {
    * trong Word, canvas 63px vì 2 dòng; và khi lưu LibreOffice ghi thêm `w:br` làm mỗi
    * trang dôi một dòng). Gộp về một `<br>` khi phần còn lại ngoài các float đúng là 2 `<br>`.
    */
-  _collapseFloatOnlyParagraphBreaks(html) {
+  _collapseFloatOnlyParagraphBreaks(html, ooxmlDocumentXml = "") {
+    // Đoạn neo hộp văn bản: khung đã được chuyển sang carrier khác nên đoạn chỉ còn `<br><br>`
+    // (d06.docx: 10 đoạn như vậy → canvas 6 trang, Word 3). Chỉ gộp cả các đoạn trống không
+    // float khi DOCX gốc không có đoạn trống nào chứa `w:br` thật (ngắt dòng thủ công).
+    const xml = String(ooxmlDocumentXml || "");
+    let legitEmptyBreakParagraphs = 0;
+    if (xml) {
+      for (const para of xml.matchAll(/<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>/g)) {
+        const p = para[0];
+        if (/<w:t\b/.test(p)) continue;
+        if (/<w:br\b(?![^>]*w:type=["'](?:page|column)["'])/.test(p)) legitEmptyBreakParagraphs += 1;
+      }
+    }
+    const collapseEmptyToo = xml ? legitEmptyBreakParagraphs === 0 : false;
     return String(html || "").replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (match, attrs, inner) => {
-      if (!/\bdata-vno-float=/i.test(inner) || /<(?:p|div|table|h[1-6])\b/i.test(inner)) return match;
+      const hasFloat = /\bdata-vno-float=/i.test(inner);
+      if ((!hasFloat && !collapseEmptyToo) || /<(?:p|div|table|h[1-6])\b/i.test(inner)) return match;
       const rest = inner.replace(/<span\b[^>]*\bdata-vno-float=[^>]*>[\s\S]*?<\/span>/gi, "");
       if (!/^\s*(?:<br\s*\/?>\s*){2}$/i.test(rest)) return match;
       const collapsed = inner.replace(/(<br\s*\/?>)\s*<br\s*\/?>(\s*)$/i, "$1$2");

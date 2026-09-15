@@ -75,6 +75,18 @@ export async function runWriterDocFontSpacingTests() {
     check(out.includes("<p>text<br><br></p>"), `paragraph with text must not change: ${out}`);
   });
 
+  test("Empty double-<br> paragraphs collapse only when the DOCX has no real empty line-break paragraph", () => {
+    const adapter = new WriterAdapter(null);
+    const html = '<p style="margin-bottom: 0.28cm"><br>\n<br>\n</p><p>text<br><br></p>';
+    const noLegit = '<w:document><w:body><w:p><w:r><w:drawing/></w:r></w:p><w:p><w:r><w:t>text</w:t><w:br/></w:r></w:p></w:body></w:document>';
+    const withLegit = '<w:document><w:body><w:p><w:r><w:br/></w:r></w:p></w:body></w:document>';
+    const collapsed = adapter._collapseFloatOnlyParagraphBreaks(html, noLegit);
+    check(collapsed.includes('<p style="margin-bottom: 0.28cm"><br>\n</p>'), `anchor-carrier leftovers must collapse: ${collapsed}`);
+    check(collapsed.includes("<p>text<br><br></p>"), `paragraph with text must not change: ${collapsed}`);
+    const kept = adapter._collapseFloatOnlyParagraphBreaks(html, withLegit);
+    check(kept === html, `real empty line-break paragraph in DOCX must keep both <br>: ${kept}`);
+  });
+
   test("Imported document class toggles with docStyles (NĐ30 table margins off)", () => {
     const classes = new Set();
     const editor = {
