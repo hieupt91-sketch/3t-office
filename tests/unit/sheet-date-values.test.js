@@ -48,5 +48,21 @@ export async function runSheetDateValuesTests() {
     assert.doesNotMatch(fods, /office:value-type="date"[^>]*office:time-value/);
   });
 
+  test("AutoFilter database range quotes sheet names with spaces/parentheses on both ends", () => {
+    const a = Object.assign(Object.create(SheetAdapter.prototype), { grid: { sheetStates: {
+      "Nguồn 2020 (GVCN Trang)": { isFilterActive: true, filterRange: "A1:J2650" }, Plain: { isFilterActive: true, filterRange: "A1:L431" } } } });
+    const xml = a._serializeDatabaseRanges(["Nguồn 2020 (GVCN Trang)", "Plain"]);
+    assert.match(xml, /table:target-range-address="&apos;Nguồn 2020 \(GVCN Trang\)&apos;\.A1:&apos;Nguồn 2020 \(GVCN Trang\)&apos;\.J2650"/);
+    assert.match(xml, /table:target-range-address="Plain\.A1:Plain\.L431"/);
+  });
+
+  test("rows hidden by an active AutoFilter (table:visibility=filter) import as hidden rows", () => {
+    // lan01.xlsx: 2635 dòng bị lọc ẩn (LibreOffice ghi visibility="filter", không phải "collapse") từng mất khi lưu.
+    const fods = `<?xml version="1.0"?><office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"><office:body><office:spreadsheet><table:table table:name="F"><table:table-column/><table:table-row><table:table-cell office:value-type="string"><text:p>h</text:p></table:table-cell></table:table-row><table:table-row table:visibility="filter"><table:table-cell office:value-type="float" office:value="1"><text:p>1</text:p></table:table-cell></table:table-row><table:table-row><table:table-cell office:value-type="float" office:value="2"><text:p>2</text:p></table:table-cell></table:table-row></table:table></office:spreadsheet></office:body></office:document>`;
+    const workbook = Object.create(SheetAdapter.prototype).parseFods(fods);
+    const hidden = workbook.userHiddenRowsBySheet?.F;
+    assert.ok(hidden && (hidden.has ? hidden.has(2) : hidden.includes(2)), `row 2 must be hidden: ${JSON.stringify([...(hidden || [])])}`);
+  });
+
   return results;
 }

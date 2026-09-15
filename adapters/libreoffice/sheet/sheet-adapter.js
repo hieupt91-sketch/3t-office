@@ -2059,9 +2059,15 @@ export class SheetAdapter {
       if (!isActive) return;
       const ref = ss?.filterRange || "";
       if (!ref) return;
+      // Tên sheet có khoảng trắng/ký tự đặc biệt phải đặt trong nháy đơn ở CẢ HAI đầu vùng
+      // ('Nguồn 2020 (GVCN)'.A1:'Nguồn 2020 (GVCN)'.J2650) như Calc ghi; không nháy LibreOffice
+      // bỏ AutoFilter khi lưu XLSX (lan01.xlsx sheet 3: autoFilter A1:J2650 mất, sheet 1 tên không dấu cách giữ).
+      const quotedSheet = /^[A-Za-z0-9_]+$/.test(sheetName) ? sheetName : `'${sheetName.replace(/'/g, "''")}'`;
+      const [start, end] = ref.split(":");
+      const address = end ? `${quotedSheet}.${start}:${quotedSheet}.${end}` : `${quotedSheet}.${start}`;
       ranges.push(
         `<table:database-range table:name="__Anonymous_Sheet_DB__${sheetIndex}"`
-        + ` table:target-range-address="${this._escapeXml(sheetName)}.${this._escapeXml(ref)}"`
+        + ` table:target-range-address="${this._escapeXml(address)}"`
         + ` table:display-filter-buttons="true"/>`
       );
     });
@@ -3494,15 +3500,15 @@ export class SheetAdapter {
             const rowVisibility = this._tableAttr(row, "visibility").toLowerCase();
             const heightPx = rowColStyles.rows.get(rowStyleName)?.heightPx;
 
-            if (rowNumber > lastDataRow && (rowRepeat > 32 || rowNumber > lastDataRow + 1000) && rowVisibility !== "collapse") {
+            if (rowNumber > lastDataRow && (rowRepeat > 32 || rowNumber > lastDataRow + 1000) && rowVisibility !== "collapse" && rowVisibility !== "filter") {
               rowNumber += rowRepeat;
               return;
             }
 
             for (let repeatedRow = 0; repeatedRow < rowRepeat; repeatedRow++) {
-              if (rowRepeat <= 32 || rowVisibility === "collapse") {
+              if (rowRepeat <= 32 || (rowVisibility === "collapse" || rowVisibility === "filter")) {
                 if (Number.isFinite(heightPx) && !this._isCloseToDefault(heightPx, defaultRowHeight)) rowHeights.set(rowNumber, heightPx);
-                if (rowVisibility === "collapse") hiddenRows.add(rowNumber);
+                if ((rowVisibility === "collapse" || rowVisibility === "filter")) hiddenRows.add(rowNumber);
               }
               if (rowNumber > lastDataRow) {
                 rowNumber++;
@@ -3733,14 +3739,14 @@ export class SheetAdapter {
           const rowStyleName = this._unescapeXml(rowMatch[1].match(/table:style-name=["']([^"']*)["']/i)?.[1] || "");
           const rowVisibility = (rowMatch[1].match(/table:visibility=["']([^"']*)["']/i)?.[1] || "").toLowerCase();
           const heightPx = rowColStyles.rows.get(rowStyleName)?.heightPx;
-          if (rowNumber > lastDataRow && (rowRepeat > 32 || rowNumber > lastDataRow + 1000) && rowVisibility !== "collapse") {
+          if (rowNumber > lastDataRow && (rowRepeat > 32 || rowNumber > lastDataRow + 1000) && rowVisibility !== "collapse" && rowVisibility !== "filter") {
             rowNumber += rowRepeat;
             continue;
           }
           for (let repeatedRow = 0; repeatedRow < rowRepeat; repeatedRow++) {
-            if (rowRepeat <= 32 || rowVisibility === "collapse") {
+            if (rowRepeat <= 32 || (rowVisibility === "collapse" || rowVisibility === "filter")) {
               if (Number.isFinite(heightPx) && !this._isCloseToDefault(heightPx, defaultRowHeight)) rowHeights.set(rowNumber, heightPx);
-              if (rowVisibility === "collapse") hiddenRows.add(rowNumber);
+              if ((rowVisibility === "collapse" || rowVisibility === "filter")) hiddenRows.add(rowNumber);
             }
             if (rowNumber > lastDataRow) {
               rowNumber++;
