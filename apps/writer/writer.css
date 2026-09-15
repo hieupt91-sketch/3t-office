@@ -317,9 +317,9 @@
   border-radius: 1px;
   position: relative;
   padding: 75px 56px 75px 113px; /* Lề chuẩn NĐ 30: Trên 20mm, Dưới 20mm, Trái 30mm, Phải 15mm */
-  font-family: var(--vno-font-doc);
-  font-size: 14pt;
-  line-height: 1.4;
+  font-family: var(--vno-doc-font-family, var(--vno-font-doc));
+  font-size: var(--vno-doc-font-size, 14pt);
+  line-height: var(--vno-doc-line-height, 1.4);
   color: var(--vno-text-primary);
   border: 1px solid var(--vno-border-subtle);
   outline: none;
@@ -388,8 +388,18 @@
 }
 
 .vno-writer-page p {
-  margin: 0 0 6pt 0;
+  margin: var(--vno-doc-para-margin, 0 0 6pt 0);
   text-align: justify;
+}
+
+.vno-writer-page p.western,
+.vno-print-preview-body p.western {
+  font-family: var(--vno-doc-font-family, inherit);
+}
+
+.vno-writer-page font[size="3"]:not([style*="font-size"]),
+.vno-print-preview-body font[size="3"]:not([style*="font-size"]) {
+  font-size: var(--vno-doc-font-size, inherit);
 }
 
 /* Floating Word drawings use the page as their containing block when OOXML
@@ -1064,9 +1074,9 @@
 .vno-print-preview-sheet {
   background-color: #ffffff;
   color: #111827;
-  font-family: var(--vno-font-doc, "Times New Roman", Times, serif);
-  font-size: 14pt;
-  line-height: 1.4;
+  font-family: var(--vno-doc-font-family, var(--vno-font-doc, "Times New Roman", Times, serif));
+  font-size: var(--vno-doc-font-size, 14pt);
+  line-height: var(--vno-doc-line-height, 1.4);
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.45), 0 8px 10px -6px rgba(0, 0, 0, 0.35);
   border-radius: 2px;
   box-sizing: border-box;
@@ -1123,7 +1133,7 @@
 }
 
 .vno-print-preview-body p {
-  margin: 0 0 6pt 0;
+  margin: var(--vno-doc-para-margin, 0 0 6pt 0);
   text-align: justify;
 }
 

@@ -177,6 +177,7 @@ export class WriterAdapter {
     this.sectionPageSetups = { "section-1": JSON.parse(JSON.stringify(this.pageSetup)) };
     this._sectionSequence = 1;
     this.copiedFormat = null;
+    this.docStyles = null;
     /** @type {Array<{id:string, anchorText:string, content:string, createdAt:string, author?:string}>} */
     this.comments = [];
     this.commentsPanel = null;
@@ -1612,6 +1613,25 @@ export class WriterAdapter {
       pageCss += ` border: ${this.pageBorder.width || 2}pt ${this.pageBorder.style || "solid"} ${this.pageBorder.color || "#0f4c81"};`;
     }
     pageCss += ` }`;
+    if (this.docStyles) {
+      if (this.docStyles.rawRules?.p) {
+        pageCss += `\n${this.docStyles.rawRules.p}`;
+      } else {
+        const pParts = [];
+        if (this.docStyles.lineHeight) pParts.push(`line-height: ${this.docStyles.lineHeight};`);
+        if (this.docStyles.paraMargin) pParts.push(`margin: ${this.docStyles.paraMargin};`);
+        if (this.docStyles.fontSize) pParts.push(`font-size: ${this.docStyles.fontSize};`);
+        if (pParts.length) pageCss += `\np { ${pParts.join(" ")} }`;
+      }
+      if (this.docStyles.rawRules?.pWestern) {
+        pageCss += `\n${this.docStyles.rawRules.pWestern}`;
+      } else if (this.docStyles.fontFamily) {
+        pageCss += `\np.western { font-family: ${this.docStyles.fontFamily}; }`;
+      }
+      if (this.docStyles.rawRules?.pCjk) pageCss += `\n${this.docStyles.rawRules.pCjk}`;
+      if (this.docStyles.rawRules?.pCtl) pageCss += `\n${this.docStyles.rawRules.pCtl}`;
+      if (this.docStyles.rawRules?.headings) pageCss += `\n${this.docStyles.rawRules.headings}`;
+    }
     return pageCss;
   }
 
@@ -1748,6 +1768,157 @@ export class WriterAdapter {
    * stylesheet shorthand; inline per-edge borders win, so no OOXML sidecar
    * is required. Diagonal borders / theme-table styles are HTML limits.
    */
+  /**
+   * Đọc cấu hình style mặc định của tài liệu từ thẻ <style> trong <head> của HTML LibreOffice.
+   * Chỉ nhận diện các quy tắc kiểu đoạn chuẩn (p, p.western, p.cjk, p.ctl, h1..h6).
+   * Áp dụng lên canvas thông qua các biến CSS thay vì nhúng thẻ <style> thô vào thân trang.
+   */
+  _parseDocStylesFromImportedHtml(html, ooxmlDocumentXml) {
+    if (!html || typeof html !== "string") return null;
+    const styleMatch = html.match(/<style\b[^>]*>([\s\S]*?)<\/style>/i);
+    if (!styleMatch) return null;
+    const css = styleMatch[1] || "";
+
+    const ruleRegex = /([^{}]+)\{([^{}]+)\}/g;
+    let match;
+    const rules = {};
+    const headingRules = [];
+
+    while ((match = ruleRegex.exec(css)) !== null) {
+      const selStr = match[1].trim();
+      const declStr = match[2].trim();
+      const selectors = selStr.split(",").map(s => s.trim().toLowerCase());
+      for (const sel of selectors) {
+        if (sel === "p" || sel === "p.western" || sel === "p.cjk" || sel === "p.ctl") {
+          rules[sel] = declStr;
+        } else if (/^h[1-6](\.(western|cjk|ctl))?$/.test(sel)) {
+          headingRules.push(`${match[1].trim()} { ${declStr} }`);
+        }
+      }
+    }
+
+    if (!rules["p"] && !rules["p.western"] && !rules["p.cjk"] && !rules["p.ctl"]) {
+      return null;
+    }
+
+    const getProp = (decl, name) => {
+      if (!decl) return null;
+      const m = decl.match(new RegExp(`(?:^|;)\\s*${name}\\s*:\\s*([^;]+)`, "i"));
+      return m ? m[1].trim() : null;
+    };
+
+    const pDecl = rules["p"] || "";
+    const pWest = rules["p.western"] || "";
+    const pCjk = rules["p.cjk"] || "";
+    const pCtl = rules["p.ctl"] || "";
+
+    // 1. Font family: ưu tiên p.western, sau đó p, p.cjk, p.ctl
+    let fontFamily = getProp(pWest, "font-family") || getProp(pDecl, "font-family") || getProp(pCjk, "font-family") || getProp(pCtl, "font-family");
+    if (!fontFamily && ooxmlDocumentXml) {
+      const normalMatch = String(ooxmlDocumentXml).match(/<w:style\b[^>]*w:styleId=["']Normal["'][^>]*>[\s\S]*?<\/w:style>/i);
+      const targetXml = normalMatch ? normalMatch[0] : ooxmlDocumentXml;
+      const asciiMatch = targetXml.match(/<w:rFonts\b[^>]*w:ascii=["']([^"']+)["']/i);
+      if (asciiMatch) {
+        fontFamily = `"${asciiMatch[1]}", sans-serif`;
+      }
+    }
+
+    // 2. Font size: ưu tiên p.western, sau đó p
+    let fontSize = getProp(pWest, "font-size") || getProp(pDecl, "font-size");
+    if (!fontSize && ooxmlDocumentXml) {
+      const normalMatch = String(ooxmlDocumentXml).match(/<w:style\b[^>]*w:styleId=["']Normal["'][^>]*>[\s\S]*?<\/w:style>/i);
+      const szMatch = (normalMatch ? normalMatch[0] : ooxmlDocumentXml).match(/<w:sz\b[^>]*w:val=["'](\d+)["']/i);
+      if (szMatch) {
+        const pt = Number(szMatch[1]) / 2;
+        fontSize = `${pt}pt`;
+      }
+    }
+    // LibreOffice StarWriter mặc định base 12pt cho DOCX khi không ghi font-size
+    if (!fontSize) {
+      fontSize = "12pt";
+    }
+
+    // 3. Line height: ưu tiên p.western, sau đó p
+    let lineHeight = getProp(pWest, "line-height") || getProp(pDecl, "line-height");
+    if (lineHeight && lineHeight.endsWith("%")) {
+      const pct = parseFloat(lineHeight);
+      if (!Number.isNaN(pct)) {
+        lineHeight = (pct / 100).toFixed(2).replace(/\.?0+$/, "");
+      }
+    }
+
+    // 4. Paragraph margin: đọc margin-bottom và margin-top từ quy tắc p
+    let paraMargin = null;
+    const marginExact = getProp(pDecl, "margin");
+    if (marginExact) {
+      paraMargin = marginExact;
+    } else {
+      const mb = getProp(pDecl, "margin-bottom");
+      const mt = getProp(pDecl, "margin-top");
+      if (mb != null || mt != null) {
+        paraMargin = `${mt || "0"} 0 ${mb || "0"} 0`;
+      }
+    }
+
+    const rawRules = {
+      p: rules["p"] ? `p { ${rules["p"]} }` : null,
+      pWestern: rules["p.western"] ? `p.western { ${rules["p.western"]} }` : null,
+      pCjk: rules["p.cjk"] ? `p.cjk { ${rules["p.cjk"]} }` : null,
+      pCtl: rules["p.ctl"] ? `p.ctl { ${rules["p.ctl"]} }` : null,
+      headings: headingRules.length ? headingRules.join("\n") : null
+    };
+
+    return {
+      fontFamily: fontFamily || null,
+      fontSize: fontSize || null,
+      lineHeight: lineHeight || null,
+      paraMargin: paraMargin || null,
+      rawRules
+    };
+  }
+
+  /**
+   * Áp dụng biến CSS font/margin của tài liệu lên phần tử editorDom (.vno-writer-page).
+   * Khi tài liệu không có hoặc đóng tài liệu, gỡ bỏ thuộc tính để trở về mặc định NĐ30 (14pt Times New Roman).
+   */
+  _applyDocStyles() {
+    const target = this.editorDom;
+    if (!target || !target.style) return;
+    const setProp = (prop, val) => {
+      if (typeof target.style.setProperty === "function") {
+        target.style.setProperty(prop, val);
+      } else {
+        target.style[prop] = val;
+      }
+    };
+    const removeProp = (prop) => {
+      if (typeof target.style.removeProperty === "function") {
+        target.style.removeProperty(prop);
+      } else {
+        delete target.style[prop];
+      }
+    };
+
+    if (this.docStyles) {
+      if (this.docStyles.fontFamily) setProp("--vno-doc-font-family", this.docStyles.fontFamily);
+      else removeProp("--vno-doc-font-family");
+
+      if (this.docStyles.fontSize) setProp("--vno-doc-font-size", this.docStyles.fontSize);
+      else removeProp("--vno-doc-font-size");
+
+      if (this.docStyles.lineHeight) setProp("--vno-doc-line-height", this.docStyles.lineHeight);
+      else removeProp("--vno-doc-line-height");
+
+      if (this.docStyles.paraMargin) setProp("--vno-doc-para-margin", this.docStyles.paraMargin);
+      else removeProp("--vno-doc-para-margin");
+    } else {
+      removeProp("--vno-doc-font-family");
+      removeProp("--vno-doc-font-size");
+      removeProp("--vno-doc-line-height");
+      removeProp("--vno-doc-para-margin");
+    }
+  }
+
   _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml) {
     let html = String(raw || "");
     let comments = [];
@@ -1764,6 +1935,7 @@ export class WriterAdapter {
       html = this._applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml);
     }
     const page = this._pageSetupFromImportedCss(html);
+    const docStyles = this._parseDocStylesFromImportedHtml(raw, ooxmlDocumentXml);
     const hf = this._pageHeaderFooterFromOoxml(ooxmlDocumentXml);
     if (hf) {
       page.headerDistanceMm = hf.headerDistanceMm;
@@ -1797,7 +1969,7 @@ export class WriterAdapter {
     }
     html = this._normalizeImportedStarWriterNotes(html);
     html = this._makeFloatingAnchorContainers(this._preserveImportedFloatingFrames(html, ooxmlDocumentXml, page), page);
-    return { body: html.trim(), header, footer, page, comments };
+    return { body: html.trim(), header, footer, page, comments, docStyles };
   }
 
   _untouchedParagraphFingerprint(html) {
@@ -8318,6 +8490,8 @@ export class WriterAdapter {
         }
         this._applyPageSetup();
       }
+      this.docStyles = imported.docStyles || null;
+      this._applyDocStyles();
 
       if (this.headerDom && this.bodyDom && this.footerDom) {
         this.headerDom.innerHTML = imported.header;
@@ -8384,6 +8558,8 @@ export class WriterAdapter {
     this.pageSetup.headerDistanceMm = 12.7;
     this.pageSetup.footerDistanceMm = 12.7;
     this._applyPageSetup();
+    this.docStyles = null;
+    this._applyDocStyles();
 
     this.mailMergeData = { fields: [], records: [], rawCsv: "" };
     this.mailMergePreview = { enabled: false, recordIndex: 0 };
@@ -8784,6 +8960,16 @@ export class WriterAdapter {
     overlay.dataset.widthMm = String(dim.widthMm);
     overlay.dataset.heightMm = String(dim.heightMm);
     overlay.dataset.columnCount = String(this.columns?.count || 1);
+    if (this.docStyles && overlay.style) {
+      const setOverlayProp = (prop, val) => {
+        if (typeof overlay.style.setProperty === "function") overlay.style.setProperty(prop, val);
+        else overlay.style[prop] = val;
+      };
+      if (this.docStyles.fontFamily) setOverlayProp("--vno-doc-font-family", this.docStyles.fontFamily);
+      if (this.docStyles.fontSize) setOverlayProp("--vno-doc-font-size", this.docStyles.fontSize);
+      if (this.docStyles.lineHeight) setOverlayProp("--vno-doc-line-height", this.docStyles.lineHeight);
+      if (this.docStyles.paraMargin) setOverlayProp("--vno-doc-para-margin", this.docStyles.paraMargin);
+    }
 
     // Toolbar
     const toolbar = document.createElement("header");
