@@ -1816,10 +1816,13 @@ export class WriterAdapter {
 
     // 1. Font family: ưu tiên p.western, sau đó p, p.cjk, p.ctl
     let fontFamily = getProp(pWest, "font-family") || getProp(pDecl, "font-family") || getProp(pCjk, "font-family") || getProp(pCtl, "font-family");
-    if (!fontFamily && ooxmlDocumentXml) {
-      const normalMatch = String(ooxmlDocumentXml).match(/<w:style\b[^>]*w:styleId=["']Normal["'][^>]*>[\s\S]*?<\/w:style>/i);
-      const targetXml = normalMatch ? normalMatch[0] : ooxmlDocumentXml;
-      const asciiMatch = targetXml.match(/<w:rFonts\b[^>]*w:ascii=["']([^"']+)["']/i);
+    // Chỉ lấy từ style Normal nếu XML đưa vào có styles; KHÔNG quét run đầu tiên của document.xml
+    // (d14.docx 2026-09-15: run tiêu đề w:sz=56 → cả tài liệu 28pt, mỗi dòng 64px, canvas 5 trang/Word 3).
+    const normalStyleMatch = ooxmlDocumentXml
+      ? String(ooxmlDocumentXml).match(/<w:style\b[^>]*w:styleId=["']Normal["'][^>]*>[\s\S]*?<\/w:style>/i)
+      : null;
+    if (!fontFamily && normalStyleMatch) {
+      const asciiMatch = normalStyleMatch[0].match(/<w:rFonts\b[^>]*w:ascii=["']([^"']+)["']/i);
       if (asciiMatch) {
         fontFamily = `"${asciiMatch[1]}", sans-serif`;
       }
@@ -1827,9 +1830,8 @@ export class WriterAdapter {
 
     // 2. Font size: ưu tiên p.western, sau đó p
     let fontSize = getProp(pWest, "font-size") || getProp(pDecl, "font-size");
-    if (!fontSize && ooxmlDocumentXml) {
-      const normalMatch = String(ooxmlDocumentXml).match(/<w:style\b[^>]*w:styleId=["']Normal["'][^>]*>[\s\S]*?<\/w:style>/i);
-      const szMatch = (normalMatch ? normalMatch[0] : ooxmlDocumentXml).match(/<w:sz\b[^>]*w:val=["'](\d+)["']/i);
+    if (!fontSize && normalStyleMatch) {
+      const szMatch = normalStyleMatch[0].match(/<w:sz\b[^>]*w:val=["'](\d+)["']/i);
       if (szMatch) {
         const pt = Number(szMatch[1]) / 2;
         fontSize = `${pt}pt`;
