@@ -936,6 +936,26 @@ export class SheetAdapter {
     return result;
   }
 
+  _excelSerialToIsoDate(serial) {
+    if (!Number.isFinite(serial)) return null;
+    const epoch = Date.UTC(1899, 11, 30);
+    const date = new Date(epoch + serial * 86400000);
+    if (isNaN(date.getTime())) return null;
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  _excelSerialToIsoTime(serial) {
+    if (!Number.isFinite(serial)) return null;
+    const totalSeconds = Math.round(serial * 86400);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `PT${String(hours).padStart(2, "0")}H${String(minutes).padStart(2, "0")}M${String(seconds).padStart(2, "0")}S`;
+  }
+
   _pxToOdfCm(px) {
     return (Number(px) / 37.79527559055118).toFixed(3);
   }
@@ -2622,14 +2642,49 @@ export class SheetAdapter {
           const annotationXml = comment ? `<office:annotation><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
           const cellImages = imagesByAnchor.get(coordinate) || [];
           const cellImageXml = cellImages.length > 0
-            ? cellImages.map(img => this._serializeCellImageXml(img)).join("")
-            : "";
+? cellImages.map(img => this._serializeCellImageXml(img)).join("")
+          : "";
+          const isDateType = item.style?.numberFormat?.category === "date";
+          const dateFormat = item.style?.numberFormat?.dateFormat || "";
+          // Detect if format has time component (h, hh) but not just as part of month (m, mm)
+          // Time formats: h, hh, h:mm, hh:mm, h:mm:ss, hh:mm:ss
+          // Date formats with time: dd/mm/yyyy hh:mm, etc.
+          // Use a more precise regex: h followed by : or end, or hh followed by : or end
+          const hasTimeComponent = isDateType && /(^|[^m])h{1,2}(?::|$)/i.test(dateFormat);
+          // Time-only: format consists ONLY of time parts (h, hh, h:mm, hh:mm, h:mm:ss, hh:mm:ss)
+          // No date parts (d, dd, m, mm, mmm, y, yy, yyyy) outside of time context
+          const isTimeOnly = isDateType && /^h{1,2}(?::m{1,2}(?::s{1,2})?)?$/i.test(dateFormat);
           if (!storedItem && !comment && !validationName && !conditionalBase && !cellImageXml) {
             cellsXml += `<table:table-cell${cellAttrs}/>`;
           } else if (!storedItem && !comment && !validationName && !conditionalBase) {
             cellsXml += `<table:table-cell${cellAttrs}>${cellImageXml}</table:table-cell>`;
           } else if (typeof item.val === "number" && Number.isFinite(item.val)) {
-            cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+            if (isDateType && !isTimeOnly) {
+              const isoDate = this._excelSerialToIsoDate(item.val);
+              if (isoDate) {
+                // ODF: ngày-giờ nằm trong CÙNG office:date-value dạng "2021-10-01T08:30:00"
+                // (office:time-value chỉ dành cho value-type="time"; LibreOffice bỏ qua nó trên ô date).
+                let dateValue = isoDate;
+                if (hasTimeComponent) {
+                  const timeFraction = item.val - Math.floor(item.val);
+                  const isoTime = this._excelSerialToIsoTime(timeFraction);
+                  const m = isoTime ? isoTime.match(/^PT(\d+)H(\d+)M(\d+)S$/) : null;
+                  if (m) dateValue = `${isoDate}T${m[1]}:${m[2]}:${m[3]}`;
+                }
+                cellsXml += `<table:table-cell office:value-type="date" office:date-value="${dateValue}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+              } else {
+                cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+              }
+            } else if (isTimeOnly) {
+              const isoTime = this._excelSerialToIsoTime(item.val);
+              if (isoTime) {
+                cellsXml += `<table:table-cell office:value-type="time" office:time-value="${isoTime}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+              } else {
+                cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+              }
+            } else {
+              cellsXml += `<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`;
+            }
           } else {
             const text = item.val === undefined || item.val === null ? "" : String(item.val);
             if (Array.isArray(item.richText) && item.richText.length > 0) {
@@ -2874,6 +2929,29 @@ export class SheetAdapter {
     if (["float", "percentage", "currency"].includes(valueType)) {
       const numericValue = Number(get("office:value"));
       value = Number.isFinite(numericValue) ? numericValue : text;
+    } else if (valueType === "date") {
+      const dateValue = get("office:date-value");
+      if (dateValue) {
+        // Tách thành phần bằng tay, tính theo UTC: `new Date("2021-10-01 08:30")` hiểu là giờ ĐỊA PHƯƠNG
+        // rồi trừ mốc UTC → lệch múi giờ (+7h ở VN = +0.29 ngày).
+        const m = String(dateValue).match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}(?:\.\d+)?))?)?/);
+        if (m) {
+          const epoch = Date.UTC(1899, 11, 30);
+          const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4] || 0), Number(m[5] || 0), Number(m[6] || 0));
+          value = Math.round((ms - epoch) / 86400000 * 1000000) / 1000000;
+        }
+      }
+    } else if (valueType === "time") {
+      const timeValue = get("office:time-value");
+      if (timeValue) {
+        const match = String(timeValue).match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/);
+        if (match) {
+          const hours = Number(match[1] || 0);
+          const minutes = Number(match[2] || 0);
+          const seconds = Number(match[3] || 0);
+          value = (hours * 3600 + minutes * 60 + seconds) / 86400;
+        }
+      }
     } else if (valueType === "boolean") {
       value = get("office:boolean-value") === "true";
     } else if (get("vno:original-string") !== "") {
