@@ -67,7 +67,9 @@ def classify(pairs, canvas_rows, word_rows, themes=None):
             if w2["page"] == w["page"] and c2["page"] == c["page"] and w2["i"] == w["i"] + 1 and idx_c[id(c2)] == idx_c[id(c)] + 1:
                 c_pitch = c2["top"] - c["top"]; w_pitch = (w2["y"] - w["y"]) * PT2PX
                 if abs(c_pitch - w_pitch) > 2.5:
-                    w_para_px = w_pitch - max(w["sa"], w2["sb"]) * PT2PX
+                    # contextualSpacing: hai doan cung style co "khong cach doan cung kieu" -> Word bo sa/sb giua chung
+                    contextual = w.get("nsb") and w2.get("nsb") and w.get("style") == w2.get("style")
+                    w_para_px = w_pitch - (0 if contextual else max(w["sa"], w2["sb"]) * PT2PX)
                     c_para_px = c_pitch - max(c["mb"], c2["mt"])
                     tags.append("line-height" if abs(w_para_px - c_para_px) > 2.5 else "spacing")
         # Word: chữ Việt (high ANSI) vẽ bằng font hAnsi = Font.NameOther; Font.Name trả về font eastAsia (đo d07/HDLD).
