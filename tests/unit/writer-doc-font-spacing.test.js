@@ -87,6 +87,18 @@ export async function runWriterDocFontSpacingTests() {
     check(kept === html, `real empty line-break paragraph in DOCX must keep both <br>: ${kept}`);
   });
 
+  test("W11: table-cell paragraphs take spacing/line from the paragraph pPr and the table style (TableGrid)", () => {
+    // d13.docx: LibreOffice bỏ w:spacing after=0 trong ô và không áp TableGrid (after=0, line=240) → hàng 28px thay vì 14px.
+    const adapter = new WriterAdapter(null);
+    const html = '<p>before</p><table><tr><td><p class="western" style="widows: 2">A</p></td><td><p style="margin-bottom: 0.5cm">B</p></td></tr></table>';
+    const doc = '<w:document><w:body><w:p><w:r><w:t>before</w:t></w:r></w:p><w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/></w:tblPr><w:tr><w:tc><w:p><w:pPr><w:spacing w:after="0"/></w:pPr><w:r><w:t>A</w:t></w:r></w:p></w:tc><w:tc><w:p><w:pPr><w:spacing w:before="120" w:line="360" w:lineRule="auto"/></w:pPr><w:r><w:t>B</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>';
+    const stylesXml = '<w:styles><w:style w:type="table" w:styleId="TableGrid"><w:basedOn w:val="TableNormal"/><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:tblStylePr w:type="firstRow"><w:pPr><w:spacing w:after="999"/></w:pPr></w:tblStylePr></w:style></w:styles>';
+    const out = adapter._applyOoxmlTableParagraphSpacing(html, doc, stylesXml);
+    check(out.includes('<p class="western" style="widows: 2; margin-bottom: 0cm; line-height: 100%">A</p>'), `cell A must get after=0 + table style line 240: ${out}`);
+    check(out.includes('<p style="margin-top: 0.212cm; margin-bottom: 0cm; line-height: 150%">B</p>'), `cell B keeps own before/line, table style after: ${out}`);
+    check(out.startsWith("<p>before</p>"), "paragraphs outside tables must not change");
+  });
+
   test("Imported document class toggles with docStyles (NĐ30 table margins off)", () => {
     const classes = new Set();
     const editor = {
