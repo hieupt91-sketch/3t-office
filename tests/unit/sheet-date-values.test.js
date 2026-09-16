@@ -64,5 +64,28 @@ export async function runSheetDateValuesTests() {
     assert.ok(hidden && (hidden.has ? hidden.has(2) : hidden.includes(2)), `row 2 must be hidden: ${JSON.stringify([...(hidden || [])])}`);
   });
 
+  test("S8: vno:xf is written only for cells whose style is unchanged since import", () => {
+    const fods = `<?xml version="1.0"?><office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"><office:body><office:spreadsheet><table:table table:name="S"><table:table-column/><table:table-row><table:table-cell office:value-type="float" office:value="5" vno:xf="7"><text:p>5</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="6" vno:xf="8"><text:p>6</text:p></table:table-cell></table:table-row></table:table></office:spreadsheet></office:body></office:document>`;
+    const wb = Object.create(SheetAdapter.prototype).parseFods(fods);
+    const data = wb.sheetsData.S;
+    assert.equal(data.get("A1").style.origXf, 7);
+    // B1: người dùng đổi định dạng trong app -> style khác lúc nhập
+    const b1 = data.get("B1");
+    b1.style = { ...b1.style, numberFormat: { category: "percentage", decimals: 2 } };
+    const sheet = "S";
+    const grid = {
+      sheets: [sheet], activeSheet: sheet, sheetsData: { [sheet]: data },
+      commentsBySheet: { [sheet]: {} }, mergedRangesBySheet: { [sheet]: [] }, namedRangesBySheet: { [sheet]: [] },
+      namedRangesWorkbook: [], printAreaBySheet: { [sheet]: null }, conditionalFormattingBySheet: { [sheet]: [] },
+      dataValidationsBySheet: { [sheet]: [] }, chartsBySheet: { [sheet]: [] }, pageBreaksBySheet: { [sheet]: { rows: [], cols: [] } },
+      protectionBySheet: { [sheet]: { enabled: false, password: "" } }, workbookProtection: { enabled: false, password: "" },
+      outlineGroupsBySheet: { [sheet]: [] }
+    };
+    const out = new SheetAdapter(grid).serializeToFods();
+    const cells = [...out.matchAll(/<table:table-cell\b[^>]*>/g)].map(m => m[0]);
+    assert.ok(cells[0].includes('vno:xf="7"'), `A1 untouched must keep vno:xf: ${cells[0]}`);
+    assert.ok(!cells[1].includes("vno:xf"), `B1 edited must not carry vno:xf: ${cells[1]}`);
+  });
+
   return results;
 }

@@ -1288,10 +1288,14 @@ def _restore_normal_font_and_layout(
     # 1. Restore Normal font in styles.xml: copy the source workbook's fonts[0]
     #    element verbatim (exact name/size/colour/scheme Excel used for the
     #    column-width unit) instead of patching attributes piecemeal.
-    styles_entry = read_zip_entry(xlsx_bytes, "xl/styles.xml")
+    # Use already-modified styles.xml from replacements if available, otherwise read from xlsx_bytes.
+    styles_xml = replacements.get("xl/styles.xml")
+    if styles_xml is None:
+        styles_entry = read_zip_entry(xlsx_bytes, "xl/styles.xml")
+        if styles_entry:
+            styles_xml = styles_entry.decode("utf-8", errors="replace")
     original_font_xml = _extract_normal_font_xml_from_xlsx(source_xlsx_bytes)
-    if styles_entry and original_font_xml:
-        styles_xml = styles_entry.decode("utf-8", errors="replace")
+    if styles_xml and original_font_xml:
         new_styles_xml = _restore_normal_font_in_styles(styles_xml, original_font_xml)
         if new_styles_xml != styles_xml:
             replacements["xl/styles.xml"] = new_styles_xml
@@ -1889,6 +1893,14 @@ def postprocess_sheet_xlsx(
                     replacements[entry_path] = sheet_xml
         except Exception:
             # Never fail the save due to activeTab preservation issues
+            pass
+
+    # Restore original xf for cells with vno:xf (S8: untouched cell styles)
+    if source_xlsx_bytes and source_fods:
+        try:
+            _restore_original_xf_for_vno_cells(xlsx_bytes, source_fods, source_xlsx_bytes, replacements)
+        except Exception:
+            # Never fail the save due to xf restoration issues
             pass
 
     # Restore Normal font, column widths, sheetFormatPr, and row heights from original XLSX
@@ -3677,6 +3689,9 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_number_formats_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_original_strings_from_xlsx(xlsx_bytes, xml)
+    # Cell style indices (xf): write vno:xf on each table:table-cell so the
+    # app can preserve original formatting for untouched cells on save.
+    xml = _overlay_sheet_xf_indices_from_xlsx(xlsx_bytes, xml)
     # Sheet tab colors: read from original XLSX worksheet XMLs and write
     # vno:tab-color to FODS table:table elements for round-trip fidelity.
     tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
@@ -3730,6 +3745,380 @@ def _xlsx_cells_with_number_formats(xlsx_bytes: bytes) -> dict[str, dict[tuple[i
         if cells:
             result[sheet_name] = cells
     return result
+
+
+def _xlsx_cells_with_xf_indices(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, int], int]]:
+    """Extract cell style indices (xf) from original XLSX for all cells in used range.
+    
+    Returns {sheet_name: {(row, col): xf_index}} including style-only cells.
+    """
+    result = {}
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        entry = read_zip_entry(xlsx_bytes, entry_path)
+        cells = {}
+        if entry:
+            sheet_xml = entry.decode("utf-8", errors="replace")
+            for match in re.finditer(r"<c\b([^>]*?)(?:>([\s\S]*?)</c>|/\s*>)", sheet_xml, re.IGNORECASE):
+                attrs, body = _xml_attrs(match.group(1)), match.group(2) or ""
+                coord = re.fullmatch(r"([A-Z]+)(\d+)", attrs.get("r", ""), re.IGNORECASE)
+                style_index = int(attrs.get("s") or 0)
+                if not coord:
+                    continue
+                column = 0
+                for char in coord.group(1).upper():
+                    column = column * 26 + ord(char) - 64
+                cells[(int(coord.group(2)), column)] = style_index
+        if cells:
+            result[sheet_name] = cells
+    return result
+
+
+def _set_orig_xf_attr(cell_xml: str, xf_index: int) -> str:
+    opening = re.match(r"<(table:(?:table-cell|covered-table-cell))\b([^>]*?)(/?)>", cell_xml, re.IGNORECASE)
+    if not opening or "covered-table-cell" in opening.group(1).lower():
+        return cell_xml
+    attrs = re.sub(r'\s+vno:xf\s*=\s*(["\'])\d+\1', "", opening.group(2), flags=re.IGNORECASE)
+    tag = f'<{opening.group(1)}{attrs} vno:xf="{xf_index}"{opening.group(3)}>'
+    return tag + cell_xml[opening.end():]
+
+
+def _overlay_xf_indices_in_row(row_xml: str, targets: dict[int, int]) -> str:
+    pieces, cursor, column = [], 0, 1
+    sorted_columns, target_index = sorted(targets), 0
+    for start, end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
+        pieces.append(row_xml[cursor:start])
+        cell = row_xml[start:end]
+        attrs = _xml_attrs(re.match(r"<[^>]+", cell).group(0))
+        repeat = max(1, int(attrs.get("table:number-columns-repeated") or 1))
+        while target_index < len(sorted_columns) and sorted_columns[target_index] < column:
+            target_index += 1
+        hit_end = target_index
+        while hit_end < len(sorted_columns) and sorted_columns[hit_end] < column + repeat:
+            hit_end += 1
+        hits = [(col, targets[col]) for col in sorted_columns[target_index:hit_end]]
+        target_index = hit_end
+        if not hits:
+            pieces.append(cell)
+        else:
+            at = column
+            for col, xf_idx in hits:
+                if col > at:
+                    pieces.append(_set_repeat(cell, "table:number-columns-repeated", col - at))
+                pieces.append(_set_orig_xf_attr(_set_repeat(cell, "table:number-columns-repeated", 1), xf_idx))
+                at = col + 1
+            if at < column + repeat:
+                pieces.append(_set_repeat(cell, "table:number-columns-repeated", column + repeat - at))
+        cursor, column = end, column + repeat
+    pieces.append(row_xml[cursor:])
+    return "".join(pieces)
+
+
+def _overlay_xf_indices_in_table(table_xml: str, targets: dict[tuple[int, int], int]) -> str:
+    pieces, cursor, row_number, rows = [], 0, 1, {}
+    for (row, col), xf_idx in targets.items():
+        rows.setdefault(row, {})[col] = xf_idx
+    sorted_rows, target_index = sorted(rows), 0
+    for start, end in _flat_xml_blocks(table_xml, ("table:table-row",)):
+        pieces.append(table_xml[cursor:start])
+        row_xml = table_xml[start:end]
+        attrs = _xml_attrs(re.match(r"<[^>]+", row_xml).group(0))
+        repeat = max(1, int(attrs.get("table:number-rows-repeated") or 1))
+        while target_index < len(sorted_rows) and sorted_rows[target_index] < row_number:
+            target_index += 1
+        hit_end = target_index
+        while hit_end < len(sorted_rows) and sorted_rows[hit_end] < row_number + repeat:
+            hit_end += 1
+        hits = sorted_rows[target_index:hit_end]
+        target_index = hit_end
+        if not hits:
+            pieces.append(row_xml)
+        else:
+            at = row_number
+            for row in hits:
+                if row > at:
+                    pieces.append(_set_repeat(row_xml, "table:number-rows-repeated", row - at))
+                pieces.append(_overlay_xf_indices_in_row(_set_repeat(row_xml, "table:number-rows-repeated", 1), rows[row]))
+                at = row + 1
+            if at < row_number + repeat:
+                pieces.append(_set_repeat(row_xml, "table:number-rows-repeated", row_number + repeat - at))
+        cursor, row_number = end, row_number + repeat
+    pieces.append(table_xml[cursor:])
+    return "".join(pieces)
+
+
+def _overlay_sheet_xf_indices_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+    by_sheet = _xlsx_cells_with_xf_indices(xlsx_bytes)
+    if not by_sheet:
+        return fods_xml
+    pieces, cursor = [], 0
+    for start, end in _flat_xml_blocks(fods_xml, ("table:table",)):
+        pieces.append(fods_xml[cursor:start])
+        table_xml = fods_xml[start:end]
+        attrs = _xml_attrs(re.match(r"<[^>]+", table_xml).group(0))
+        targets = by_sheet.get(attrs.get("table:name", ""))
+        pieces.append(_overlay_xf_indices_in_table(table_xml, targets) if targets else table_xml)
+        cursor = end
+    pieces.append(fods_xml[cursor:])
+    result = "".join(pieces)
+    if re.search(r"xmlns:vno\s*=", result, re.IGNORECASE):
+        return result
+    match = _OFFICE_DOCUMENT_OPEN_RE.search(result)
+    if not match:
+        return result
+    return result[:match.start()] + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + result[match.end():]
+
+
+def _fods_cells_with_vno_xf(fods_xml: str) -> dict[str, dict[tuple[int, int], int]]:
+    """Parse vno:xf attributes from FODS cells.
+    
+    Returns {sheet_name: {(row, col): xf_index}} for cells that have vno:xf.
+    Uses the same flat block iteration as the overlay functions to correctly
+    handle number-rows-repeated and number-columns-repeated.
+    """
+    result = {}
+    for table_start, table_end in _flat_xml_blocks(fods_xml, ("table:table",)):
+        table_xml = fods_xml[table_start:table_end]
+        table_attrs = _xml_attrs(re.match(r"<[^>]+", table_xml).group(0))
+        sheet_name = _unescape_xml(table_attrs.get("table:name", ""))
+        if not sheet_name:
+            continue
+        
+        # Use the same row/col iteration logic as _overlay_xf_indices_in_table
+        targets = {}
+        row_number = 1
+        for row_start, row_end in _flat_xml_blocks(table_xml, ("table:table-row",)):
+            row_xml = table_xml[row_start:row_end]
+            row_attrs = _xml_attrs(re.match(r"<[^>]+", row_xml).group(0))
+            row_repeat = max(1, int(row_attrs.get("table:number-rows-repeated") or 1))
+            
+            col_number = 1
+            for cell_start, cell_end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
+                cell_xml = row_xml[cell_start:cell_end]
+                cell_attrs = _xml_attrs(re.match(r"<[^>]+", cell_xml).group(0))
+                xf_match = re.search(r'vno:xf="(\d+)"', cell_xml)
+                if xf_match:
+                    xf_index = int(xf_match.group(1))
+                    targets[(row_number, col_number)] = xf_index
+                col_repeat = max(1, int(cell_attrs.get("table:number-columns-repeated") or 1))
+                col_number += col_repeat
+            row_number += row_repeat
+        
+        if targets:
+            result[sheet_name] = targets
+    return result
+
+
+def _parse_xlsx_styles_for_xf(xlsx_bytes: bytes) -> tuple[list[str], list[str], list[str], list[str]]:
+    """Parse styles.xml and extract xf, font, fill, border, numFmt elements.
+    
+    Returns (xf_elements, font_elements, fill_elements, border_elements, numfmt_elements)
+    where each is a list of XML strings for the elements.
+    """
+    entry = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
+    if not entry:
+        return [], [], [], [], []
+    styles_xml = entry.decode("utf-8", errors="replace")
+
+    def _children(container: str, tag: str) -> list[str]:
+        """Mọi phần tử <tag> trực tiếp trong container, giữ nguyên XML (tự đóng hoặc có con như
+        <xf><alignment/></xf>, <border><left/>…</border>). Bản đầu ghép lại "<xf attrs/>" nên mất
+        <alignment>, sinh "//>" và bỏ qua <border/> tự đóng làm lệch chỉ số (đo lan18: Excel không mở)."""
+        m = re.search(rf"<{container}\b[^>]*>([\s\S]*?)</{container}>", styles_xml, re.IGNORECASE)
+        if not m:
+            return []
+        return [x.group(0) for x in re.finditer(rf"<{tag}\b[^>]*/>|<{tag}\b[^>]*>[\s\S]*?</{tag}>", m.group(1), re.IGNORECASE)]
+
+    xf_elements = _children("cellXfs", "xf")
+    font_elements = _children("fonts", "font")
+    fill_elements = _children("fills", "fill")
+    border_elements = _children("borders", "border")
+    # numFmt: {numFmtId: formatCode}
+    numfmt_elements: dict[int, str] = {}
+    numfmts_match = re.search(r"<numFmts\b[^>]*>([\s\S]*?)</numFmts>", styles_xml, re.IGNORECASE)
+    if numfmts_match:
+        for match in re.finditer(r"<numFmt\b([^>]*?)/?\s*>", numfmts_match.group(1), re.IGNORECASE):
+            attrs = _xml_attrs(match.group(1))
+            try:
+                numfmt_elements[int(attrs.get("numFmtId", "-1"))] = attrs.get("formatCode", "General")
+            except ValueError:
+                continue
+
+    return xf_elements, font_elements, fill_elements, border_elements, numfmt_elements
+
+
+def _restore_original_xf_for_vno_cells(
+    xlsx_bytes: bytes,
+    source_fods: str | None,
+    source_xlsx_bytes: bytes | None,
+    replacements: dict[str, str]
+) -> None:
+    """Restore original XLSX xf for cells with vno:xf attribute in FODS.
+    
+    For each cell with vno:xf=n in FODS:
+    1. Get the original xf #n from source XLSX styles.xml
+    2. Copy the xf and its referenced font, fill, border, numFmt to the new styles.xml
+    3. Update the cell's s attribute in the new worksheet to the new xf index
+    """
+    if not source_fods or not source_xlsx_bytes:
+        return
+    
+    # Parse vno:xf from FODS
+    vno_cells = _fods_cells_with_vno_xf(source_fods)
+    if not vno_cells:
+        return
+    
+    # Parse original XLSX styles
+    src_xf_elements, src_font_elements, src_fill_elements, src_border_elements, src_numfmt_elements = _parse_xlsx_styles_for_xf(source_xlsx_bytes)
+    if not src_xf_elements:
+        return
+    
+    # Parse current (LibreOffice-generated) XLSX styles to append to
+    current_xf_elements, current_font_elements, current_fill_elements, current_border_elements, current_numfmt_elements = _parse_xlsx_styles_for_xf(xlsx_bytes)
+    
+    # Build maps for deduplication (by XML content). numFmt: formatCode -> numFmtId (custom ids >= 164).
+    font_map = {f: i for i, f in enumerate(current_font_elements)}
+    fill_map = {f: i for i, f in enumerate(current_fill_elements)}
+    border_map = {b: i for i, b in enumerate(current_border_elements)}
+    numfmt_map = {code: fmt_id for fmt_id, code in current_numfmt_elements.items()}
+    next_numfmt_id = max([163, *current_numfmt_elements.keys()]) + 1
+    added_numfmts: dict[int, str] = {}
+    
+    # For each source xf referenced by vno:xf, copy its dependencies and the xf itself
+    new_xf_elements = list(current_xf_elements)
+    xf_index_map = {}  # source_xf_index -> new_xf_index
+    
+    for sheet_name, cells in vno_cells.items():
+        # Get the worksheet entry path
+        sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+        entry_path = sheet_entries.get(sheet_name)
+        if not entry_path:
+            continue
+        
+        # Get the worksheet XML
+        sheet_xml = replacements.get(entry_path)
+        if sheet_xml is None:
+            entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+            if not entry_bytes:
+                continue
+            sheet_xml = entry_bytes.decode("utf-8", errors="replace")
+        
+        # Process each cell with vno:xf
+        for (row, col), src_xf_idx in cells.items():
+            if src_xf_idx >= len(src_xf_elements):
+                continue
+            if src_xf_idx in xf_index_map:
+                new_xf_idx = xf_index_map[src_xf_idx]
+            else:
+                # Copy the source xf and its dependencies
+                src_xf = src_xf_elements[src_xf_idx]
+                
+                # Parse xf attributes to get fontId, fillId, borderId, numFmtId
+                xf_attrs = _xml_attrs(re.match(r"<xf\b([^>]*)", src_xf).group(1))
+                font_id = int(xf_attrs.get("fontId", 0))
+                fill_id = int(xf_attrs.get("fillId", 0))
+                border_id = int(xf_attrs.get("borderId", 0))
+                numfmt_id = int(xf_attrs.get("numFmtId", 0))
+                
+                # Copy font if needed
+                if font_id < len(src_font_elements):
+                    src_font = src_font_elements[font_id]
+                    if src_font not in font_map:
+                        font_map[src_font] = len(current_font_elements)
+                        current_font_elements.append(src_font)
+                    new_font_id = font_map[src_font]
+                else:
+                    new_font_id = 0
+                
+                # Copy fill if needed
+                if fill_id < len(src_fill_elements):
+                    src_fill = src_fill_elements[fill_id]
+                    if src_fill not in fill_map:
+                        fill_map[src_fill] = len(current_fill_elements)
+                        current_fill_elements.append(src_fill)
+                    new_fill_id = fill_map[src_fill]
+                else:
+                    new_fill_id = 0
+                
+                # Copy border if needed
+                if border_id < len(src_border_elements):
+                    src_border = src_border_elements[border_id]
+                    if src_border not in border_map:
+                        border_map[src_border] = len(current_border_elements)
+                        current_border_elements.append(src_border)
+                    new_border_id = border_map[src_border]
+                else:
+                    new_border_id = 0
+                
+                # Copy numFmt if needed (custom numFmt only, built-in ids < 164 are shared)
+                if numfmt_id >= 164 and numfmt_id in src_numfmt_elements:
+                    code = src_numfmt_elements[numfmt_id]
+                    if code not in numfmt_map:
+                        numfmt_map[code] = next_numfmt_id
+                        added_numfmts[next_numfmt_id] = code
+                        next_numfmt_id += 1
+                    new_numfmt_id = numfmt_map[code]
+                else:
+                    new_numfmt_id = numfmt_id
+                
+                # Create new xf with updated indices
+                new_xf = re.sub(r'fontId="\d+"', f'fontId="{new_font_id}"', src_xf)
+                new_xf = re.sub(r'fillId="\d+"', f'fillId="{new_fill_id}"', new_xf)
+                new_xf = re.sub(r'borderId="\d+"', f'borderId="{new_border_id}"', new_xf)
+                new_xf = re.sub(r'numFmtId="\d+"', f'numFmtId="{new_numfmt_id}"', new_xf)
+                
+                new_xf_idx = len(new_xf_elements)
+                new_xf_elements.append(new_xf)
+                xf_index_map[src_xf_idx] = new_xf_idx
+            
+            # Update the cell's s attribute in the worksheet XML
+            coord = f"{column_label_from_index(col)}{row}"
+            # Find and update the cell's s attribute
+            cell_pattern = rf'(<c\b[^>]*\br="{re.escape(coord)}"[^>]*)>'
+            def _replace_s(match):
+                attrs = match.group(1)
+                if 's=' in attrs:
+                    attrs = re.sub(r'\bs\s*=\s*"?\d+"?', f's="{new_xf_idx}"', attrs)
+                else:
+                    attrs = f'{attrs} s="{new_xf_idx}"'
+                return f'{attrs}>'
+            
+            sheet_xml = re.sub(cell_pattern, _replace_s, sheet_xml, flags=re.IGNORECASE)
+        
+        # Update the worksheet XML in replacements
+        if sheet_xml != replacements.get(entry_path, ""):
+            replacements[entry_path] = sheet_xml
+    
+    # Update styles.xml with new elements (mỗi bảng ghi lại cả count= để Excel không từ chối file)
+    if len(new_xf_elements) > len(current_xf_elements) or added_numfmts:
+        styles_entry = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
+        if styles_entry:
+            styles_xml = styles_entry.decode("utf-8", errors="replace")
+
+            def _replace_block(xml: str, container: str, elements: list[str]) -> str:
+                m = re.search(rf"(<{container}\b[^>]*>)([\s\S]*?)(</{container}>)", xml, re.IGNORECASE)
+                if not m:
+                    return xml
+                open_tag = re.sub(r'\scount="\d+"', "", m.group(1))
+                open_tag = open_tag[:-1] + f' count="{len(elements)}">'
+                return xml[:m.start(1)] + open_tag + "".join(elements) + xml[m.start(3):]
+
+            styles_xml = _replace_block(styles_xml, "fonts", current_font_elements)
+            styles_xml = _replace_block(styles_xml, "fills", current_fill_elements)
+            styles_xml = _replace_block(styles_xml, "borders", current_border_elements)
+            styles_xml = _replace_block(styles_xml, "cellXfs", new_xf_elements)
+            if added_numfmts:
+                all_numfmts = {**current_numfmt_elements, **added_numfmts}
+                numfmt_xml = "".join(
+                    f'<numFmt numFmtId="{fmt_id}" formatCode="{_escape_xml(code)}"/>' for fmt_id, code in sorted(all_numfmts.items())
+                )
+                block = f'<numFmts count="{len(all_numfmts)}">{numfmt_xml}</numFmts>'
+                if re.search(r"<numFmts\b", styles_xml, re.IGNORECASE):
+                    styles_xml = re.sub(r"<numFmts\b[^>]*>[\s\S]*?</numFmts>|<numFmts\b[^>]*/>", lambda _m: block, styles_xml, count=1, flags=re.IGNORECASE)
+                else:
+                    # numFmts phải đứng đầu styleSheet (trước <fonts>)
+                    styles_xml = re.sub(r"(<styleSheet\b[^>]*>)", lambda m: m.group(1) + block, styles_xml, count=1, flags=re.IGNORECASE)
+
+            replacements[XLSX_STYLES_ENTRY] = styles_xml
 
 
 def _set_number_format_attr(cell_xml: str, code: str) -> str:

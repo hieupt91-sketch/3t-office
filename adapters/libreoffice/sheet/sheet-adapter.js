@@ -518,6 +518,35 @@ export class SheetAdapter {
       .replace(/&amp;/g, "&");
   }
 
+  /**
+   * Compute a stable hash of a cell's style object for S8 untouched-cell detection.
+   * Only includes properties that affect visual formatting: numberFormat, font, borders, fill, alignment.
+   * Returns a simple string hash (not cryptographic).
+   */
+  _computeStyleHash(style) {
+    if (!style || Object.keys(style).length === 0) return "";
+    // Extract only visual formatting properties
+    const visualProps = {
+      numberFormat: style.numberFormat?.excelCode || style.numberFormat?.code || style.numberFormat?.category || "",
+      fontFamily: style.fontFamily || "",
+      fontSize: style.fontSize || "",
+      fontWeight: style.fontWeight || "",
+      fontStyle: style.fontStyle || "",
+      textDecoration: style.textDecoration || "",
+      color: style.color || "",
+      backgroundColor: style.backgroundColor || "",
+      borderLeft: style.borderLeft || "",
+      borderRight: style.borderRight || "",
+      borderTop: style.borderTop || "",
+      borderBottom: style.borderBottom || "",
+      textAlign: style.textAlign || "",
+      verticalAlign: style.verticalAlign || "",
+      whiteSpace: style.whiteSpace || "",
+      textRotation: style.textRotation || "",
+    };
+    return JSON.stringify(visualProps);
+  }
+
   // Calc never writes fo:text-decoration for cells/runs; it uses
   // style:text-underline-style / style:text-line-through-style. Read both
   // forms so imported underline/strikethrough survive, and write both so
@@ -2858,7 +2887,12 @@ export class SheetAdapter {
           const mergeAttrs = merge
             ? ` table:number-columns-spanned="${merge.columns}" table:number-rows-spanned="${merge.rows}"`
             : "";
-          const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}`;
+          // S8: Write vno:xf only if style hasn't changed since import.
+          let xfAttr = "";
+          if (item.style?.origXf != null && item.style.styleHashAtImport === this._computeStyleHash(item.style)) {
+            xfAttr = ` vno:xf="${item.style.origXf}"`;
+          }
+          const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}${xfAttr}`;
           const comment = comments[coordinate];
           const annotationXml = comment ? `<office:annotation><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
           const cellImages = imagesByAnchor.get(coordinate) || [];
@@ -3231,6 +3265,13 @@ export class SheetAdapter {
         if (val !== undefined && val !== null && val !== "") style[key] = val;
       }
     }
+    // S8: Preserve original xf index for untouched cells round-trip.
+    const origXf = get("vno:xf");
+    if (origXf !== "") {
+      style.origXf = parseInt(origXf, 10);
+    }
+    // S8: Compute stable hash of style at import time.
+    style.styleHashAtImport = this._computeStyleHash(style);
     return { val: value, formula, style };
   }
 
