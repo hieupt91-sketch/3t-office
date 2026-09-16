@@ -3,7 +3,7 @@
 Nguyên tắc: mỗi việc = một LỚP lỗi trong ma trận (`MA-TRAN-WRITER-*.md`, `MA-TRAN-SHEET-*.md`), sửa một chỗ theo quy ước,
 đo lại toàn bộ batch, ghi quy ước vào `QUY-UOC-DOI-CHIEU.md`. Không nhận việc "sửa file X".
 
-## ƯU TIÊN 1 (mai) — S8: ô chưa sửa giữ NGUYÊN style gốc XLSX (numFmt / border / font / fill / alignment)
+## (XONG 16/9, merged 0d9c35e — chạy lại batch 28 file để xác nhận) S8: ô chưa sửa giữ NGUYÊN style gốc XLSX (numFmt / border / font / fill / alignment)
 Đo được 15/9: LibreOffice tự ghi lại mã Excel theo cách của nó (Accounting `_(* #,##0_);…"-"??` → `* #,##0 ; … -00`,
 `#,##0.00"";` → `#,##0.00;…""`) và tự đổi viền ô gộp ngay khi NHẬP (lan18 A2) → hai lớp lớn nhất của Sheet
 (numberFormat 287k, border 180k) KHÔNG sửa được qua FODS. Cơ chế S8: overlay Python ghi `vno:xf=<s>` cho từng ô khi
