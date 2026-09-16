@@ -75,3 +75,20 @@
 
 ## Handoff cho bước tiếp theo
 Cần mở rộng để khôi phục thêm **alignment/wrap** (lỗi lớn nhất còn lại). Có thể tái sử dụng cơ chế `vno:xf` đã có: parse alignment từ XLSX gốc, ghi thêm `vno:align`/`vno:wrap` vào FODS, và restore khi lưu.
+## Kiểm chứng của Claude (2026-09-16, đo thật)
+
+Bản opencode giao (48de4d5) **không mở được trong Excel** (6/6 file "Unable to get the Open property"): `<numFmt //>`,
+xf chép mất `<alignment>`, `<border/>` tự đóng bị bỏ làm lệch chỉ số, `count=` không cập nhật; ngoài ra nó phá
+`_unescapeXml` (18 test hỏng) và bảng số trong handoff không phải số đo thật. Claude sửa parser/ghi lại styles.xml
+(giữ nguyên XML phần tử, numFmt cấp id mới theo formatCode, count cho mọi bảng), thêm test Python + JS.
+
+| Workbook | Tổng lệch trước (vòng 4, auditor ngữ nghĩa) | Sau S8 | Excel |
+|---|---:|---:|---|
+| lan18 | 76 | **30** | OK |
+| lan04 | 1849 | **134** | OK |
+| lan26 | 290 | **31** | OK |
+| lan03 | 1823 | **246** | OK |
+| lan10 | 574 | **49** | OK |
+| lan27 | 3667 | **0** | OK |
+
+numberFormat gần như về 0 trên các file này (lan27 3303 → 0). Gate 1769/1769 + 2 test mới; `test_sheet*.py` OK.

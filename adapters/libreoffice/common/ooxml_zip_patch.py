@@ -3918,42 +3918,31 @@ def _parse_xlsx_styles_for_xf(xlsx_bytes: bytes) -> tuple[list[str], list[str], 
     if not entry:
         return [], [], [], [], []
     styles_xml = entry.decode("utf-8", errors="replace")
-    
-    # Parse xf elements (cellXfs)
-    xf_elements = []
-    cell_xfs_match = re.search(r"<cellXfs\b[^>]*>([\s\S]*?)</cellXfs>", styles_xml, re.IGNORECASE)
-    if cell_xfs_match:
-        for match in re.finditer(r"<xf\b([^>]*)/?\s*>", cell_xfs_match.group(1), re.IGNORECASE):
-            xf_elements.append(f"<xf{match.group(1)}/>")
-    
-    # Parse font elements
-    font_elements = []
-    fonts_match = re.search(r"<fonts\b[^>]*>([\s\S]*?)</fonts>", styles_xml, re.IGNORECASE)
-    if fonts_match:
-        for match in re.finditer(r"<font\b[^>]*>([\s\S]*?)</font>", fonts_match.group(1), re.IGNORECASE):
-            font_elements.append(f"<font>{match.group(1)}</font>")
-    
-    # Parse fill elements
-    fill_elements = []
-    fills_match = re.search(r"<fills\b[^>]*>([\s\S]*?)</fills>", styles_xml, re.IGNORECASE)
-    if fills_match:
-        for match in re.finditer(r"<fill\b[^>]*>([\s\S]*?)</fill>", fills_match.group(1), re.IGNORECASE):
-            fill_elements.append(f"<fill>{match.group(1)}</fill>")
-    
-    # Parse border elements
-    border_elements = []
-    borders_match = re.search(r"<borders\b[^>]*>([\s\S]*?)</borders>", styles_xml, re.IGNORECASE)
-    if borders_match:
-        for match in re.finditer(r"<border\b[^>]*>([\s\S]*?)</border>", borders_match.group(1), re.IGNORECASE):
-            border_elements.append(f"<border>{match.group(1)}</border>")
-    
-    # Parse numFmt elements
-    numfmt_elements = []
+
+    def _children(container: str, tag: str) -> list[str]:
+        """Mọi phần tử <tag> trực tiếp trong container, giữ nguyên XML (tự đóng hoặc có con như
+        <xf><alignment/></xf>, <border><left/>…</border>). Bản đầu ghép lại "<xf attrs/>" nên mất
+        <alignment>, sinh "//>" và bỏ qua <border/> tự đóng làm lệch chỉ số (đo lan18: Excel không mở)."""
+        m = re.search(rf"<{container}\b[^>]*>([\s\S]*?)</{container}>", styles_xml, re.IGNORECASE)
+        if not m:
+            return []
+        return [x.group(0) for x in re.finditer(rf"<{tag}\b[^>]*/>|<{tag}\b[^>]*>[\s\S]*?</{tag}>", m.group(1), re.IGNORECASE)]
+
+    xf_elements = _children("cellXfs", "xf")
+    font_elements = _children("fonts", "font")
+    fill_elements = _children("fills", "fill")
+    border_elements = _children("borders", "border")
+    # numFmt: {numFmtId: formatCode}
+    numfmt_elements: dict[int, str] = {}
     numfmts_match = re.search(r"<numFmts\b[^>]*>([\s\S]*?)</numFmts>", styles_xml, re.IGNORECASE)
     if numfmts_match:
-        for match in re.finditer(r"<numFmt\b([^>]*)/?\s*>", numfmts_match.group(1), re.IGNORECASE):
-            numfmt_elements.append(f"<numFmt{match.group(1)}/>")
-    
+        for match in re.finditer(r"<numFmt\b([^>]*?)/?\s*>", numfmts_match.group(1), re.IGNORECASE):
+            attrs = _xml_attrs(match.group(1))
+            try:
+                numfmt_elements[int(attrs.get("numFmtId", "-1"))] = attrs.get("formatCode", "General")
+            except ValueError:
+                continue
+
     return xf_elements, font_elements, fill_elements, border_elements, numfmt_elements
 
 
@@ -3986,11 +3975,13 @@ def _restore_original_xf_for_vno_cells(
     # Parse current (LibreOffice-generated) XLSX styles to append to
     current_xf_elements, current_font_elements, current_fill_elements, current_border_elements, current_numfmt_elements = _parse_xlsx_styles_for_xf(xlsx_bytes)
     
-    # Build maps for deduplication (by XML content)
+    # Build maps for deduplication (by XML content). numFmt: formatCode -> numFmtId (custom ids >= 164).
     font_map = {f: i for i, f in enumerate(current_font_elements)}
     fill_map = {f: i for i, f in enumerate(current_fill_elements)}
     border_map = {b: i for i, b in enumerate(current_border_elements)}
-    numfmt_map = {n: i for i, n in enumerate(current_numfmt_elements)}
+    numfmt_map = {code: fmt_id for fmt_id, code in current_numfmt_elements.items()}
+    next_numfmt_id = max([163, *current_numfmt_elements.keys()]) + 1
+    added_numfmts: dict[int, str] = {}
     
     # For each source xf referenced by vno:xf, copy its dependencies and the xf itself
     new_xf_elements = list(current_xf_elements)
@@ -4058,13 +4049,14 @@ def _restore_original_xf_for_vno_cells(
                 else:
                     new_border_id = 0
                 
-                # Copy numFmt if needed (custom numFmt only, built-in are shared)
-                if numfmt_id >= 164 and numfmt_id < len(src_numfmt_elements):
-                    src_numfmt = src_numfmt_elements[numfmt_id - 164]  # Custom numFmts start at 164
-                    if src_numfmt not in numfmt_map:
-                        numfmt_map[src_numfmt] = len(current_numfmt_elements) + 164
-                        current_numfmt_elements.append(src_numfmt)
-                    new_numfmt_id = numfmt_map[src_numfmt]
+                # Copy numFmt if needed (custom numFmt only, built-in ids < 164 are shared)
+                if numfmt_id >= 164 and numfmt_id in src_numfmt_elements:
+                    code = src_numfmt_elements[numfmt_id]
+                    if code not in numfmt_map:
+                        numfmt_map[code] = next_numfmt_id
+                        added_numfmts[next_numfmt_id] = code
+                        next_numfmt_id += 1
+                    new_numfmt_id = numfmt_map[code]
                 else:
                     new_numfmt_id = numfmt_id
                 
@@ -4096,48 +4088,35 @@ def _restore_original_xf_for_vno_cells(
         if sheet_xml != replacements.get(entry_path, ""):
             replacements[entry_path] = sheet_xml
     
-    # Update styles.xml with new elements
-    if len(new_xf_elements) > len(current_xf_elements) or len(current_font_elements) > len(font_map) or len(current_fill_elements) > len(fill_map) or len(current_border_elements) > len(border_map) or len(current_numfmt_elements) > len(numfmt_map):
-        # Rebuild styles.xml
+    # Update styles.xml with new elements (mỗi bảng ghi lại cả count= để Excel không từ chối file)
+    if len(new_xf_elements) > len(current_xf_elements) or added_numfmts:
         styles_entry = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
         if styles_entry:
             styles_xml = styles_entry.decode("utf-8", errors="replace")
-            
-            # Replace fonts
-            fonts_match = re.search(r"(<fonts\b[^>]*>)([\s\S]*?)(</fonts>)", styles_xml, re.IGNORECASE)
-            if fonts_match:
-                new_fonts = "".join(current_font_elements)
-                styles_xml = styles_xml[:fonts_match.start(2)] + new_fonts + styles_xml[fonts_match.end(2):]
-            
-            # Replace fills
-            fills_match = re.search(r"(<fills\b[^>]*>)([\s\S]*?)(</fills>)", styles_xml, re.IGNORECASE)
-            if fills_match:
-                new_fills = "".join(current_fill_elements)
-                styles_xml = styles_xml[:fills_match.start(2)] + new_fills + styles_xml[fills_match.end(2):]
-            
-            # Replace borders
-            borders_match = re.search(r"(<borders\b[^>]*>)([\s\S]*?)(</borders>)", styles_xml, re.IGNORECASE)
-            if borders_match:
-                new_borders = "".join(current_border_elements)
-                styles_xml = styles_xml[:borders_match.start(2)] + new_borders + styles_xml[borders_match.end(2):]
-            
-            # Replace numFmts
-            numfmts_match = re.search(r"(<numFmts\b[^>]*>)([\s\S]*?)(</numFmts>)", styles_xml, re.IGNORECASE)
-            if numfmts_match:
-                new_numfmts = "".join(current_numfmt_elements)
-                styles_xml = styles_xml[:numfmts_match.start(2)] + new_numfmts + styles_xml[numfmts_match.end(2):]
-            
-            # Replace cellXfs
-            cell_xfs_match = re.search(r"(<cellXfs\b[^>]*>)([\s\S]*?)(</cellXfs>)", styles_xml, re.IGNORECASE)
-            if cell_xfs_match:
-                new_xfs = "".join(new_xf_elements)
-                # Update count attribute
-                open_tag = cell_xfs_match.group(1)
-                if 'count=' in open_tag:
-                    open_tag = re.sub(r'count="\d+"', f'count="{len(new_xf_elements)}"', open_tag)
+
+            def _replace_block(xml: str, container: str, elements: list[str]) -> str:
+                m = re.search(rf"(<{container}\b[^>]*>)([\s\S]*?)(</{container}>)", xml, re.IGNORECASE)
+                if not m:
+                    return xml
+                open_tag = re.sub(r'\scount="\d+"', "", m.group(1))
+                open_tag = open_tag[:-1] + f' count="{len(elements)}">'
+                return xml[:m.start(1)] + open_tag + "".join(elements) + xml[m.start(3):]
+
+            styles_xml = _replace_block(styles_xml, "fonts", current_font_elements)
+            styles_xml = _replace_block(styles_xml, "fills", current_fill_elements)
+            styles_xml = _replace_block(styles_xml, "borders", current_border_elements)
+            styles_xml = _replace_block(styles_xml, "cellXfs", new_xf_elements)
+            if added_numfmts:
+                all_numfmts = {**current_numfmt_elements, **added_numfmts}
+                numfmt_xml = "".join(
+                    f'<numFmt numFmtId="{fmt_id}" formatCode="{_escape_xml(code)}"/>' for fmt_id, code in sorted(all_numfmts.items())
+                )
+                block = f'<numFmts count="{len(all_numfmts)}">{numfmt_xml}</numFmts>'
+                if re.search(r"<numFmts\b", styles_xml, re.IGNORECASE):
+                    styles_xml = re.sub(r"<numFmts\b[^>]*>[\s\S]*?</numFmts>|<numFmts\b[^>]*/>", lambda _m: block, styles_xml, count=1, flags=re.IGNORECASE)
                 else:
-                    open_tag = open_tag.rstrip(">") + f' count="{len(new_xf_elements)}">'
-                styles_xml = styles_xml[:cell_xfs_match.start(1)] + open_tag + new_xfs + styles_xml[cell_xfs_match.start(3):]
+                    # numFmts phải đứng đầu styleSheet (trước <fonts>)
+                    styles_xml = re.sub(r"(<styleSheet\b[^>]*>)", lambda m: m.group(1) + block, styles_xml, count=1, flags=re.IGNORECASE)
 
             replacements[XLSX_STYLES_ENTRY] = styles_xml
 
