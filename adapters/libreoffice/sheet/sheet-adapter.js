@@ -3823,6 +3823,7 @@ export class SheetAdapter {
                     if (rt.runs) {
                       item.richText = this._normalizeRichTextCellFont(rt.runs, item.style);
                       item.val = attributes["vno:original-string"] ?? rt.text;
+                      item.style.styleHashAtImport = this._computeStyleHash(item.style);
                     }
                   }
                   const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);
@@ -4066,6 +4067,7 @@ export class SheetAdapter {
                   if (rt.runs) {
                     item.richText = this._normalizeRichTextCellFont(rt.runs, item.style);
                     item.val = attributes["vno:original-string"] ?? rt.text;
+                    item.style.styleHashAtImport = this._computeStyleHash(item.style);
                   }
                 }
                 const matrixColumns = Math.max(1, Number(attributes["table:number-matrix-columns-spanned"]) || 1);

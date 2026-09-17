@@ -1507,7 +1507,7 @@ def _restore_hidden_columns_and_rows_from_source(sheet_xml: str, source_sheet_xm
                     if col_min <= col_max:
                         width_val = f"{float(hc['width']):.2f}" if hc["width"] else "9.00"
                         missing_col_tags.append(
-                            f'<col collapsed="false" customWidth="1" hidden="true" outlineLevel="0" max="{col_max}" min="{col_min}" style="{hc.get("style", "0")}" width="{width_val}"/>'
+                            f'<col collapsed="false" customWidth="1" hidden="true" outlineLevel="0" max="{col_max}" min="{col_min}" style="0" width="{width_val}"/>'
                         )
             if missing_col_tags:
                 new_cols = cols_match.group(1) + existing_cols_content + "".join(missing_col_tags) + cols_match.group(3)
@@ -1519,7 +1519,7 @@ def _restore_hidden_columns_and_rows_from_source(sheet_xml: str, source_sheet_xm
                 for hc in orig_hidden_cols:
                     width_val = f"{float(hc['width']):.2f}" if hc["width"] else "9.00"
                     missing_col_tags.append(
-                        f'<col collapsed="false" customWidth="1" hidden="true" outlineLevel="0" max="{hc["max"]}" min="{hc["min"]}" style="{hc.get("style", "0")}" width="{width_val}"/>'
+                        f'<col collapsed="false" customWidth="1" hidden="true" outlineLevel="0" max="{hc["max"]}" min="{hc["min"]}" style="0" width="{width_val}"/>'
                     )
                 if missing_col_tags:
                     cols_xml = f"<cols>{''.join(missing_col_tags)}</cols>"
@@ -6806,6 +6806,10 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
         if re.search(r"<text:p\b[^>]*>[^<]*</text:p>", cell_xml):
             return True
         if "<text:span" in cell_xml:
+            return True
+        if "table:number-columns-spanned" in cell_xml or "table:number-rows-spanned" in cell_xml:
+            return True
+        if "covered-table-cell" in cell_xml:
             return True
         # Bất kỳ phần tử con nào khác (<draw:frame> ảnh neo ô, <table:cell-range-source>...) đều
         # là nội dung: gộp ô mất ảnh (đo lan19.xlsx: auditor +1 image diff khi coi ô ảnh là trống).
