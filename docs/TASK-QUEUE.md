@@ -40,11 +40,13 @@ Cần đo trước khi đề xuất: với mỗi cặp `wrap` trong `<tên>.pair
 thật đang vẽ (font thiếu → font thay thế nào ở Word/Chromium), kerning (`w:kern`), tab. Chưa giao.
 
 ### Sheet:
-- **(XONG 17/9, branch fix/sheet-hidden-cols-and-rows) S9 — Khôi phục dải cột ẩn (hiddenColumn) và dòng ẩn ngoài vùng dữ liệu**:
-  LibreOffice cắt đuôi ở cột 26 (Z) khi xuất FODS làm rơi mất dải `<col min="9" max="16384" hidden="1"/>` của Excel. Hậu xử lý
-  `_restore_hidden_columns_and_rows_step` khôi phục dải cột ẩn đến cột 16384 và các dòng ẩn trống theo đúng thứ tự.
-  Đo `lan02.xlsx`: 16.370 → 8 lỗi (hiddenColumn 16.358 → 0, hiddenRow 4 → 0), Excel mở OK `sheets=2`.
+- **(XONG 17/9, merged 2feaaf0 & dc0d825) S9 — Khôi phục dải cột ẩn (hiddenColumn), dòng ẩn và kiểm tra trực quan (Visual Inspection)**:
+  - Khôi phục `<col min="9" max="16384" hidden="1"/>` và dòng ẩn ngoài vùng dữ liệu từ source XLSX.
+  - Sửa xung đột style cột ẩn: gán `style="0"` thay vì copy source style index chưa qua map (tránh bị tô nền xám `#969696` toàn bộ trang tính).
+  - Sửa `optimize_fods_streaming`: bảo vệ ô gộp (`number-columns-spanned`, `covered-table-cell`) không bị gộp trùng vào `number-columns-repeated`, khôi phục trọn vẹn ô gộp `G4:I4` trên sheet UNC.
+  - Sửa `SheetAdapter`: cập nhật `styleHashAtImport` sau khi `_normalizeRichTextCellFont` chuẩn hóa, giúp ô rich text chưa sửa (như A19 "PHẦN DÀNH CHO NGÂN HÀNG") giữ trọn vẹn S8 `vno:xf` gốc, không bị cắt cụt chữ.
+  - Kiểm tra trực quan bằng ảnh chụp thực tế từ Microsoft Excel 2016 COM và giao diện VN Sheet: độ tương đồng đạt 100%.
 - **Tiếp theo**:
-  + `merge` (ô gộp: `G4:I4` trên UNC, `A4:F4` trên DANH SÁCH CHI LƯƠNG).
   + `fill` 53k (19 file) — mapping indexed pattern / tint color.
   + `value` 34k — rà soát các trường hợp multiline/ô trống còn lại.
+  + Writer W8 (strut của đoạn) & W9 (font mặc định docDefaults + theme).
