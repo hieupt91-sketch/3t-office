@@ -39,4 +39,12 @@ truyền styles.xml/theme cho `_parseDocStylesFromImportedHtml`. Đo: hàng `fon
 Cần đo trước khi đề xuất: với mỗi cặp `wrap` trong `<tên>.pairs.jsonl`, so bề rộng cột chữ (page − lề − indent), font
 thật đang vẽ (font thiếu → font thay thế nào ở Word/Chromium), kerning (`w:kern`), tab. Chưa giao.
 
-### Sheet tiếp theo (sau numberFormat/border): `fill` 53k (19 file), `value` 34k ("\n" trong ô trống: 170×), `hiddenColumn` 18k (5 file).
+### Sheet:
+- **(XONG 17/9, branch fix/sheet-hidden-cols-and-rows) S9 — Khôi phục dải cột ẩn (hiddenColumn) và dòng ẩn ngoài vùng dữ liệu**:
+  LibreOffice cắt đuôi ở cột 26 (Z) khi xuất FODS làm rơi mất dải `<col min="9" max="16384" hidden="1"/>` của Excel. Hậu xử lý
+  `_restore_hidden_columns_and_rows_step` khôi phục dải cột ẩn đến cột 16384 và các dòng ẩn trống theo đúng thứ tự.
+  Đo `lan02.xlsx`: 16.370 → 8 lỗi (hiddenColumn 16.358 → 0, hiddenRow 4 → 0), Excel mở OK `sheets=2`.
+- **Tiếp theo**:
+  + `merge` (ô gộp: `G4:I4` trên UNC, `A4:F4` trên DANH SÁCH CHI LƯƠNG).
+  + `fill` 53k (19 file) — mapping indexed pattern / tint color.
+  + `value` 34k — rà soát các trường hợp multiline/ô trống còn lại.

@@ -1306,6 +1306,7 @@ def _restore_normal_font_and_layout(
     
     # 3. Process each worksheet
     sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    source_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes) if source_xlsx_bytes else {}
     for sheet_name, entry_path in sheet_entries.items():
         sheet_xml = replacements.get(entry_path)
         if sheet_xml is None:
@@ -1447,6 +1448,124 @@ def _restore_column_widths(
 
     new_cols_content = "".join(new_cols_parts)
     return sheet_xml[:cols_match.start()] + before_cols + new_cols_content + after_cols + sheet_xml[cols_match.end():]
+
+
+def _restore_hidden_columns_and_rows_step(
+    xlsx_bytes: bytes,
+    source_xlsx_bytes: bytes,
+    replacements: dict[str, str],
+) -> None:
+    """Extract source worksheet XMLs and restore hidden column ranges and hidden rows (S9)."""
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    source_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes) if source_xlsx_bytes else {}
+    for sheet_name, entry_path in sheet_entries.items():
+        if sheet_name in source_sheet_entries:
+            sheet_xml = replacements.get(entry_path)
+            if sheet_xml is None:
+                entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+                if not entry_bytes:
+                    continue
+                sheet_xml = entry_bytes.decode("utf-8", errors="replace")
+            orig_sheet_xml = sheet_xml
+            source_sheet_bytes = read_zip_entry(source_xlsx_bytes, source_sheet_entries[sheet_name])
+            if source_sheet_bytes:
+                sheet_xml = _restore_hidden_columns_and_rows_from_source(
+                    sheet_xml, source_sheet_bytes.decode("utf-8", errors="replace")
+                )
+            if sheet_xml != orig_sheet_xml:
+                replacements[entry_path] = sheet_xml
+
+
+def _restore_hidden_columns_and_rows_from_source(sheet_xml: str, source_sheet_xml: str) -> str:
+    """Restore hidden columns (including ranges up to XFD/16384) and empty hidden rows from source XLSX (S9)."""
+    # --- 1. Hidden columns ---
+    orig_hidden_cols = []
+    for m in re.finditer(r'<col\b([^>]*)/?>', source_sheet_xml, re.IGNORECASE):
+        attrs = dict(re.findall(r'(\w+)="([^"]*)"', m.group(1)))
+        if attrs.get("hidden") in ("1", "true"):
+            orig_hidden_cols.append({
+                "min": int(attrs.get("min", "1")),
+                "max": int(attrs.get("max", attrs.get("min", "1"))),
+                "width": attrs.get("width", "9.00"),
+                "style": attrs.get("style", "0"),
+            })
+
+    if orig_hidden_cols:
+        cols_match = re.search(r"(<cols>)([\s\S]*?)(</cols>)", sheet_xml, re.IGNORECASE)
+        if cols_match:
+            existing_cols_content = cols_match.group(2)
+            existing_max = 0
+            for m in re.finditer(r'<col\b([^>]*)/?>', existing_cols_content, re.IGNORECASE):
+                attrs = dict(re.findall(r'(\w+)="([^"]*)"', m.group(1)))
+                existing_max = max(existing_max, int(attrs.get("max", attrs.get("min", "0"))))
+
+            missing_col_tags = []
+            for hc in orig_hidden_cols:
+                if hc["max"] > existing_max:
+                    col_min = max(hc["min"], existing_max + 1)
+                    col_max = hc["max"]
+                    if col_min <= col_max:
+                        width_val = f"{float(hc['width']):.2f}" if hc["width"] else "9.00"
+                        missing_col_tags.append(
+                            f'<col collapsed="false" customWidth="1" hidden="true" outlineLevel="0" max="{col_max}" min="{col_min}" style="{hc.get("style", "0")}" width="{width_val}"/>'
+                        )
+            if missing_col_tags:
+                new_cols = cols_match.group(1) + existing_cols_content + "".join(missing_col_tags) + cols_match.group(3)
+                sheet_xml = sheet_xml[:cols_match.start()] + new_cols + sheet_xml[cols_match.end():]
+        else:
+            sd_match = re.search(r"<sheetData\b", sheet_xml, re.IGNORECASE)
+            if sd_match:
+                missing_col_tags = []
+                for hc in orig_hidden_cols:
+                    width_val = f"{float(hc['width']):.2f}" if hc["width"] else "9.00"
+                    missing_col_tags.append(
+                        f'<col collapsed="false" customWidth="1" hidden="true" outlineLevel="0" max="{hc["max"]}" min="{hc["min"]}" style="{hc.get("style", "0")}" width="{width_val}"/>'
+                    )
+                if missing_col_tags:
+                    cols_xml = f"<cols>{''.join(missing_col_tags)}</cols>"
+                    sheet_xml = sheet_xml[:sd_match.start()] + cols_xml + sheet_xml[sd_match.start():]
+
+    # --- 2. Hidden rows ---
+    orig_hidden_rows = {}
+    for m in re.finditer(r'<row\b([^>]*)>', source_sheet_xml, re.IGNORECASE):
+        attrs = dict(re.findall(r'(\w+)="([^"]*)"', m.group(1)))
+        if attrs.get("hidden") in ("1", "true"):
+            r = int(attrs.get("r", "0"))
+            if r > 0:
+                orig_hidden_rows[r] = attrs
+
+    if orig_hidden_rows:
+        sd_match = re.search(r"(<sheetData\b[^>]*>)([\s\S]*?)(</sheetData>)", sheet_xml, re.IGNORECASE)
+        if sd_match:
+            sd_open, sd_content, sd_close = sd_match.groups()
+            row_blocks = []
+            for m in re.finditer(r'<row\b([^>]*?)(?:/>|>([\s\S]*?)</row>)', sd_content, re.IGNORECASE):
+                attrs = dict(re.findall(r'(\w+)="([^"]*)"', m.group(1)))
+                r = int(attrs.get("r", "0"))
+                full_tag = m.group(0)
+                row_blocks.append((r, full_tag, attrs))
+
+            existing_r = {rb[0] for rb in row_blocks}
+            new_row_blocks = []
+            for r, full_tag, attrs in row_blocks:
+                if r in orig_hidden_rows and attrs.get("hidden") not in ("1", "true"):
+                    if 'hidden="' in full_tag:
+                        full_tag = re.sub(r'hidden="[^"]*"', 'hidden="true"', full_tag)
+                    else:
+                        full_tag = full_tag.replace("<row ", '<row hidden="true" ')
+                new_row_blocks.append((r, full_tag))
+
+            for hr, hattrs in orig_hidden_rows.items():
+                if hr not in existing_r:
+                    ht_val = hattrs.get("ht", "12.8")
+                    new_tag = f'<row collapsed="false" customFormat="false" customHeight="false" hidden="true" ht="{ht_val}" outlineLevel="0" r="{hr}"/>'
+                    new_row_blocks.append((hr, new_tag))
+
+            new_row_blocks.sort(key=lambda x: x[0])
+            new_sd_content = "".join(x[1] for x in new_row_blocks)
+            sheet_xml = sheet_xml[:sd_match.start()] + sd_open + new_sd_content + sd_close + sheet_xml[sd_match.end():]
+
+    return sheet_xml
 
 
 def _restore_sheet_format_pr(sheet_xml: str, format_pr: dict) -> str:
@@ -1913,6 +2032,14 @@ def postprocess_sheet_xlsx(
             )
         except Exception:
             # Never fail the save due to font/layout restoration issues
+            pass
+
+    # Restore hidden columns and rows from original XLSX (S9)
+    if source_xlsx_bytes:
+        try:
+            _restore_hidden_columns_and_rows_step(xlsx_bytes, source_xlsx_bytes, replacements)
+        except Exception:
+            # Never fail the save due to hidden columns/rows restoration issues
             pass
 
     # Preserve external links from source XLSX
