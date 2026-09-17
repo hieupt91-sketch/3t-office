@@ -39,9 +39,10 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 | S5 | Dải style-only rộng hơn 64 cột là "định dạng nguyên hàng": bộ tối ưu FODS không được cắt xuống ≤ 64 | lan05 Map overflow | test_sheet_fods_optimize |
 | S7 | Định dạng số nhập từ file: giữ nguyên data-style ODF LibreOffice sinh (`numberFormat.odf`), ghi lại verbatim; ô chuỗi/trống cũng giữ numFmt | lan10/26/27 | ade1bc8 |
 | S8 | Ô không bị sửa trong app giữ NGUYÊN <xf> gốc XLSX (numFmt/font/fill/border/alignment): overlay `vno:xf` khi mở, băm style lúc nhập, hậu xử lý chép xf+phụ thuộc vào styles.xml mới | lan27 3667→0, lan04 1849→134, lan03 1823→246 | 0d9c35e, test_sheet_untouched_cell_styles |
+| S9 | Dải cột ẩn ngoài used range (kéo tới 16384/XFD) và dòng ẩn trống được khôi phục từ XLSX gốc qua hậu xử lý | lan02: 16.370→8 (hiddenColumn 16.358→0, hiddenRow 4→0) | test_sheet_hidden_cols_rows |
 | S6 | Auditor so theo ngữ nghĩa Excel: màu theme(+tint) → RGB; font/viền không màu = tự động; căn ngang trống = general, dọc trống = bottom; cạnh viền hiệu dụng với ô kề | lan09 115k → 1.246 lệch thật | audit-sheet-import.mjs |
 
 ## Đang đo / đang giao
 
-- Sheet: chạy lại batch 28 file với S8 để xác nhận toàn bộ (mới đo 6 file). Lớp còn lại sau S8: fill/value/hiddenColumn (xem MA-TRAN-SHEET).
-- Writer: MA-TRAN-WRITER-2026-09-15b.md; còn wrap (86), line-height (126), drift:unknown (119), d20 bảng 	rHeight (W11b).
+- Sheet: Đã triệt tiêu 16.358 lỗi `hiddenColumn` qua S9. Lớp còn lại: fill (53k), value (34k), merge ô gộp (`G4:I4` UNC, `A4:F4` DANH SÁCH CHI LƯƠNG).
+- Writer: MA-TRAN-WRITER-2026-09-15b.md; còn wrap (86), line-height (126), drift:unknown (119), d20 bảng trHeight (W11b).
