@@ -48,3 +48,6 @@ docs/screenshots/*.fods
 docs/screenshots/*.htm
 docs/screenshots/*.pdf
 docs/screenshots/*_files/
+docs/screenshots/visual_excel_*
+docs/screenshots/visual_vnsheet_*
+docs/screenshots/test_out.xlsx
