@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import re
 import unittest
 import zipfile
 from xml.dom import minidom
@@ -263,9 +264,10 @@ class SheetDrawingPassthroughTests(unittest.TestCase):
         fods = _make_fods_with_images(has_all_images=True)
         overlaid = _overlay_sheet_drawing_image_ids(xlsx, fods)
 
-        # Check vno:image-id attributes are added
-        self.assertIn('vno:image-id="Sheet1:0"', overlaid)
-        self.assertIn('vno:image-id="Sheet1:1"', overlaid)
+        # id = <sheet>:<i>/<N>, N = so khung anh Calc nhap duoc luc mo (Calc bo anh nhom/anh cao 0/anh lien ket:
+        # lan12 9 anchor goc -> 6 khung) -> "chua sua" khong phu thuoc Calc bo gi
+        self.assertIn('vno:image-id="Sheet1:0/2"', overlaid)
+        self.assertIn('vno:image-id="Sheet1:1/2"', overlaid)
         # Ensure vno namespace is declared
         self.assertIn('xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"', overlaid)
 
@@ -297,9 +299,10 @@ class SheetDrawingPassthroughTests(unittest.TestCase):
         """FODS missing one image -> drawing should NOT be restored."""
         source_xlsx = _make_xlsx_with_drawing()
         out_xlsx = source_xlsx
-        fods = _make_fods_with_images(has_all_images=False)  # Only 1 image
-
-        fods_with_ids = _overlay_sheet_drawing_image_ids(source_xlsx, fods)
+        # Nguoi dung XOA mot anh trong app SAU khi mo (overlay da gan 0/2, 1/2) -> thieu id 1/2 -> khong phuc hoi
+        fods_with_ids = _overlay_sheet_drawing_image_ids(source_xlsx, _make_fods_with_images(has_all_images=True))
+        fods_with_ids = re.sub(r'<draw:frame\b[^>]*vno:image-id="Sheet1:1/2"[^>]*>[\s\S]*?</draw:frame>', "", fods_with_ids)
+        self.assertNotIn('Sheet1:1/2', fods_with_ids)
 
         replacements: dict[str, str] = {}
         _restore_untouched_drawings_step(out_xlsx, fods_with_ids, source_xlsx, replacements)
@@ -307,15 +310,21 @@ class SheetDrawingPassthroughTests(unittest.TestCase):
         # Drawing should NOT be restored
         self.assertNotIn("xl/drawings/drawing1.xml", replacements)
 
+        # Calc bo anh luc NHAP (FODS chi co 1 khung truoc overlay) thi van la "chua sua" -> phuc hoi drawing goc
+        fods_calc_dropped = _overlay_sheet_drawing_image_ids(source_xlsx, _make_fods_with_images(has_all_images=False))
+        self.assertIn('vno:image-id="Sheet1:0/1"', fods_calc_dropped)
+        replacements = {}
+        _restore_untouched_drawings_step(out_xlsx, fods_calc_dropped, source_xlsx, replacements)
+        self.assertIn("xl/drawings/drawing1.xml", replacements)
+
     def test_restore_untouched_drawings_extra_image_no_restore(self):
         """FODS has extra image -> drawing should NOT be restored."""
         source_xlsx = _make_xlsx_with_drawing()
         out_xlsx = source_xlsx
 
-        # Create FODS with 3 images (one extra)
-        fods = _make_fods_with_images(has_all_images=True)
-        # Inject an extra frame
-        fods = fods.replace(
+        # Overlay tren FODS Calc nhap (2 anh) roi nguoi dung THEM anh thu 3 trong app (khong co vno:image-id)
+        fods_with_ids = _overlay_sheet_drawing_image_ids(source_xlsx, _make_fods_with_images(has_all_images=True))
+        fods_with_ids = fods_with_ids.replace(
             "</table:table>",
             '<table:table-row><table:table-cell>'
             '<draw:frame draw:name="Extra" svg:width="3.528cm" svg:height="3.528cm">'
@@ -323,8 +332,6 @@ class SheetDrawingPassthroughTests(unittest.TestCase):
             "</draw:frame>"
             "</table:table-cell></table:table-row></table:table>",
         )
-
-        fods_with_ids = _overlay_sheet_drawing_image_ids(source_xlsx, fods)
 
         replacements: dict[str, str] = {}
         _restore_untouched_drawings_step(out_xlsx, fods_with_ids, source_xlsx, replacements)
