@@ -2436,7 +2436,7 @@ export class SheetAdapter {
     sheetNames.forEach((sheetName, sheetIndex) => {
       const ss = this.grid.sheetStates?.[sheetName];
       const isActive = ss?.isFilterActive;
-      if (!isActive) return;
+      if (!isActive || (!ss?.filterRange && !ss?.filterSetByUser)) return;
       // Bộ lọc người dùng bật trong app không có filterRange -> dùng vùng đã dùng của sheet
       const ref = ss?.filterRange || this._usedRangeOfSheet(sheetName) || "";
       if (!ref) return;

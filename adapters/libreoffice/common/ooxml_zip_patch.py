@@ -285,7 +285,7 @@ _SHEET_VIEW_SELFCLOSE_RE = re.compile(r"<sheetView\b([^>]*)/>", re.IGNORECASE)
 _PANE_TAG_RE = re.compile(r"<pane\b[^>]*/>", re.IGNORECASE)
 _PANE_MATCH_RE = re.compile(r"<pane\b([^>]*)/>", re.IGNORECASE)
 _SELECTION_TAG_RE = re.compile(r"<selection\b[^>]*/>", re.IGNORECASE)
-_WB_SHEET_TAG_RE = re.compile(r"<sheet\b([^>]*)/?>", re.IGNORECASE)
+_WB_SHEET_TAG_RE = re.compile(r"<(?:[A-Za-z_][\w.-]*:)?sheet\b([^>]*)/?>", re.IGNORECASE)
 _WB_RELATIONSHIP_TAG_RE = re.compile(r"<Relationship\b([^>]*)/?>", re.IGNORECASE)
 
 
@@ -1321,29 +1321,33 @@ def _restore_normal_font_and_layout(
         
         orig_sheet_xml = sheet_xml
         
+        col_widths = _sheet_name_equivalent_value(fods_col_widths, sheet_name)
+        format_pr = _sheet_name_equivalent_value(original_sheet_format_pr, sheet_name)
+        source_entry_path = _sheet_name_equivalent_value(source_sheet_entries, sheet_name)
+        row_heights = _sheet_name_equivalent_value(fods_row_heights, sheet_name)
+
         # Restore column widths
-        if sheet_name in fods_col_widths:
-            format_pr = original_sheet_format_pr.get(sheet_name)
+        if col_widths is not None:
             default_chars = (format_pr or {}).get("defaultColWidth")
             source_sheet_xml = None
-            if sheet_name in source_sheet_entries:
-                source_entry = read_zip_entry(source_xlsx_bytes, source_sheet_entries[sheet_name])
+            if source_entry_path:
+                source_entry = read_zip_entry(source_xlsx_bytes, source_entry_path)
                 if source_entry:
                     source_sheet_xml = source_entry.decode("utf-8", errors="replace")
             sheet_xml = _restore_column_widths(
-                sheet_xml, fods_col_widths[sheet_name], original_digit_width, default_chars,
+                sheet_xml, col_widths, original_digit_width, default_chars,
                 source_explicit_cols=_source_columns_with_explicit_width(source_sheet_xml),
                 default_display_chars=_unchanged_default_column_chars(format_pr, original_digit_width) if source_sheet_xml is not None else None,
                 source_widths=_source_explicit_column_widths(source_sheet_xml),
             )
 
         # Restore sheetFormatPr
-        if sheet_name in original_sheet_format_pr:
-            sheet_xml = _restore_sheet_format_pr(sheet_xml, original_sheet_format_pr[sheet_name])
+        if format_pr is not None:
+            sheet_xml = _restore_sheet_format_pr(sheet_xml, format_pr)
         
         # Restore row heights
-        if sheet_name in fods_row_heights:
-            sheet_xml = _restore_row_heights(sheet_xml, fods_row_heights[sheet_name])
+        if row_heights is not None:
+            sheet_xml = _restore_row_heights(sheet_xml, row_heights)
         
         if sheet_xml != orig_sheet_xml:
             replacements[entry_path] = sheet_xml
@@ -1864,6 +1868,17 @@ def _restore_formula_results_and_missing_errors_step(
 def _sheet_name_equivalence_key(name: str) -> str:
     decoded = re.sub(r"_x([0-9A-Fa-f]{4})_", lambda m: chr(int(m.group(1), 16)), name or "")
     return re.sub(r"[\x00-\x20]+", " ", decoded).strip().casefold()
+
+
+def _sheet_name_equivalent_value(mapping: dict, name: str):
+    """Return per-sheet metadata using the common decoded-name key."""
+    if name in mapping:
+        return mapping[name]
+    wanted = _sheet_name_equivalence_key(name)
+    return next(
+        (value for key, value in mapping.items() if _sheet_name_equivalence_key(key) == wanted),
+        None,
+    )
 
 
 def _restore_source_sheet_names_and_states(workbook_xml: str, source_workbook_xml: str) -> str:
@@ -2396,7 +2411,7 @@ def postprocess_sheet_xlsx(
     if freeze_by_sheet:
         sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
         for sheet_name, freeze in freeze_by_sheet.items():
-            entry_path = sheet_entries.get(sheet_name)
+            entry_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
             if not entry_path:
                 continue
             sheet_xml = replacements.get(entry_path)
@@ -2431,7 +2446,7 @@ def postprocess_sheet_xlsx(
     if autofilter_by_sheet:
         sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
         for sheet_name, ref in autofilter_by_sheet.items():
-            entry_path = sheet_entries.get(sheet_name)
+            entry_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
             if not entry_path:
                 continue
             sheet_xml = replacements.get(entry_path)
@@ -2657,7 +2672,7 @@ def inject_docx_default_font_css(docx_bytes: bytes, html: str) -> str:
 
 
 def _unescape_xml(value: str) -> str:
-    return (
+    unescaped = (
         (value or "")
         .replace("&quot;", '"')
         .replace("&apos;", "'")
@@ -2665,6 +2680,12 @@ def _unescape_xml(value: str) -> str:
         .replace("&gt;", ">")
         .replace("&amp;", "&")
     )
+    unescaped = re.sub(
+        r"&#[xX]([0-9A-Fa-f]+);",
+        lambda match: chr(int(match.group(1), 16)),
+        unescaped,
+    )
+    return re.sub(r"&#(\d+);", lambda match: chr(int(match.group(1), 10)), unescaped)
 
 
 def _escape_xml(value: str) -> str:
@@ -5064,6 +5085,12 @@ def _overlay_sheet_xf_indices_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str
     return result[:match.start()] + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + result[match.end():]
 
 
+def reoverlay_sheet_xf_indices(xlsx_bytes: bytes, fods_xml: str) -> str:
+    """Reattach XF ownership after FODS cell-run normalization."""
+    clean = re.sub(r'\s+vno:xf\s*=\s*(["\'])\d+\1', "", fods_xml, flags=re.IGNORECASE)
+    return _overlay_sheet_xf_indices_from_xlsx(xlsx_bytes, clean)
+
+
 def _fods_cells_with_vno_xf(fods_xml: str) -> dict[str, dict[tuple[int, int], int]]:
     """Parse vno:xf attributes from FODS cells.
     
@@ -5919,6 +5946,15 @@ def apply_tab_colors_to_fods(fods_xml: str, tab_colors: dict[str, str]) -> str:
 def _overlay_autofilter_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
     """Read <autoFilter ref> from each worksheetN.xml and inject
     <table:database-ranges> into FODS."""
+    # LibreOffice can synthesize a database range from rows hidden with the
+    # filter visibility flag even when the source XLSX has no AutoFilter.
+    # Source worksheet XML is authoritative; discard synthesized ranges first.
+    fods_xml = re.sub(
+        r"<table:database-ranges\b[^>]*>[\s\S]*?</table:database-ranges\s*>",
+        "",
+        fods_xml,
+        flags=re.IGNORECASE,
+    )
     sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
     if not sheet_entries:
         return fods_xml
