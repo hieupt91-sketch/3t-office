@@ -112,6 +112,8 @@ class TestSheetHiddenColsAndRows(unittest.TestCase):
         patched = patcher.postprocess_sheet_xlsx(_make_xlsx(saved), source_fods=FODS_MINIMAL, source_xlsx_bytes=_make_xlsx(source))
         with zipfile.ZipFile(io.BytesIO(patched), "r") as z:
             out_xml = z.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        import xml.dom.minidom
+        xml.dom.minidom.parseString(out_xml)  # vòng 7: `<col .../ max="1" min="1"/>` hỏng XML -> Excel không mở lan02/07/08
         cols = out_xml.split("<cols>")[1].split("</cols>")[0]
         import re
         entries = [(int(a["min"]), int(a["max"]), a.get("hidden")) for a in

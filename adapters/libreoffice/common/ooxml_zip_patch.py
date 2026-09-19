@@ -1785,11 +1785,11 @@ def _restore_hidden_columns_and_rows_from_source(sheet_xml: str, source_sheet_xm
         if hidden_ranges:
             existing: list[tuple[int, int, str]] = []  # (min, max, attrs không có min/max)
             if cols_match:
-                for m in re.finditer(r'<col\b([^>]*)/?>', cols_match.group(2), re.IGNORECASE):
+                for m in re.finditer(r'<col\b([^>]*?)\s*/?>', cols_match.group(2), re.IGNORECASE):
                     attrs_str = m.group(1)
                     attrs = dict(re.findall(r'(\w+)="([^"]*)"', attrs_str))
                     c_min = int(attrs.get("min", "1")); c_max = int(attrs.get("max", attrs.get("min", "1")))
-                    rest = re.sub(r'\s*\b(?:min|max)="[^"]*"', "", attrs_str).strip()
+                    rest = re.sub(r'\s*\b(?:min|max)="[^"]*"', "", attrs_str).strip().rstrip("/").strip()
                     existing.append((c_min, c_max, rest))
             already_hidden = [(a, b) for a, b, rest in existing if re.search(r'\bhidden="(?:1|true)"', rest)]
             pieces: list[tuple[int, int, str]] = []
@@ -4483,6 +4483,9 @@ class _SourceXfCopier:
         (self.current_xf, self.fonts, self.fills, self.borders, self.current_numfmts) = _parse_xlsx_styles_for_xf(xlsx_bytes)
         self.available = bool(self.src_xf)
         self.xlsx_bytes = xlsx_bytes
+        styles_entry = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
+        csx = re.search(r"<cellStyleXfs\b[^>]*>([\s\S]*?)</cellStyleXfs>", styles_entry.decode("utf-8", errors="replace"), re.IGNORECASE) if styles_entry else None
+        self.cell_style_xf_count = max(1, len(re.findall(r"<xf\b", csx.group(1)))) if csx else 1
         # Build maps for deduplication (by XML content). numFmt: formatCode -> numFmtId (custom ids >= 164).
         self.font_map = {f: i for i, f in enumerate(self.fonts)}
         self.fill_map = {f: i for i, f in enumerate(self.fills)}
@@ -4529,6 +4532,9 @@ class _SourceXfCopier:
         new_xf = re.sub(r'fillId="\d+"', f'fillId="{new_fill_id}"', new_xf)
         new_xf = re.sub(r'borderId="\d+"', f'borderId="{new_border_id}"', new_xf)
         new_xf = re.sub(r'numFmtId="\d+"', f'numFmtId="{new_numfmt_id}"', new_xf)
+        # xfId trỏ vào cellStyleXfs của file GỐC (lan02: 1428) — file LibreOffice chỉ có ~20 -> về Normal (0)
+        if int(xf_attrs.get("xfId", 0)) >= self.cell_style_xf_count:
+            new_xf = re.sub(r'xfId="\d+"', 'xfId="0"', new_xf)
         new_idx = len(self.new_xf)
         self.new_xf.append(new_xf)
         self.xf_index_map[src_xf_idx] = new_idx

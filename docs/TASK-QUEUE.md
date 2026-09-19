@@ -40,6 +40,14 @@ Cần đo trước khi đề xuất: với mỗi cặp `wrap` trong `<tên>.pair
 thật đang vẽ (font thiếu → font thay thế nào ở Word/Chromium), kerning (`w:kern`), tab. Chưa giao.
 
 ### Sheet:
+- **(XONG 19/9, main 39c54e8 — `MA-TRAN-SHEET-2026-09-19.md`) Vòng 5→7 theo lớp**: S12 chữ ô/rich text (value 285), S10/S10b theme +
+  bảng màu indexed (fill 742, font/border lan03 540), S11 cột mặc định (columnWidth 271), S9b cột ẩn ngoài vùng dữ liệu
+  (396), S13 ô chuỗi rỗng (lan25 1372), S14/S15 công thức (342), S8b numFmt built-in khai báo tường minh (1635), S8 một
+  lượt quét (lan09 lưu 15 s thay vì không lưu được). opencode S13 (e967f2a) không merge: chép thẳng `s=` gốc, tính sai
+  chỉ số shared string; Claude viết lại + `_SourceXfCopier`.
+- **Tiếp theo (đo vòng 7 rồi mới giao)**: `numberFormat` còn lại (mã Excel bị LibreOffice viết lại ở ô ĐÃ sửa — cần
+  S7 cho ô sửa), `image` (lan09 30, lan26 13: ảnh neo ô mất/đổi ô), `wrap`, `merge` A4:F4 (Excel centerContinuous
+  → LibreOffice gộp ô), `visibility` lan06 (4 sheet ẩn), lan06/lan14 chạy riêng.
 - **(XONG 17/9, merged 2feaaf0 & dc0d825) S9 — Khôi phục dải cột ẩn (hiddenColumn), dòng ẩn và kiểm tra trực quan (Visual Inspection)**:
   - Khôi phục `<col min="9" max="16384" hidden="1"/>` và dòng ẩn ngoài vùng dữ liệu từ source XLSX.
   - Sửa xung đột style cột ẩn: gán `style="0"` thay vì copy source style index chưa qua map (tránh bị tô nền xám `#969696` toàn bộ trang tính).

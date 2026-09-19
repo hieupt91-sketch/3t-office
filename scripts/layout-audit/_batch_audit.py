@@ -30,14 +30,18 @@ for name in names:
         for k, n in re.findall(r"^  (\w+): (\d+)$", txt, re.M):
             kinds[k] = kinds.get(k, 0) + int(n)
         per_kind = ", ".join(f"{k}={v}" for k, v in sorted(kinds.items(), key=lambda kv: -kv[1]))
-    excel = "-"
+    excel = "-"; lint = "-"
     if saved:
         e = subprocess.run(["powershell", "-NoProfile", "-File", os.path.join(SP, "_excel_open_test.ps1"), "-Files", out], capture_output=True, text=True, timeout=240)
         excel = (e.stdout.strip().splitlines() or ["?"])[-1]
-    rows.append((name, mapping.get(name, ""), ("yes" if saved else "NO") + ("" if loaded else " (not loaded)"), total, excel, per_kind))
-    print(name, "saved" if saved else "NOT SAVED", "total", total, "excel", excel, flush=True)
+        # Lint XML (well-formed, count=, chỉ số, thứ tự ô) để phân biệt file hỏng thật với Excel COM bị tranh
+        lint_run = subprocess.run([sys.executable, os.path.join(SP, "_xlsx_lint.py"), out], capture_output=True, text=True, timeout=300)
+        issues = [line for line in (lint_run.stdout or "").splitlines() if line.strip() and line.strip() != "lint done"]
+        lint = "clean" if not issues else f"{len(issues)} issue(s): " + "; ".join(issues[:3])
+    rows.append((name, mapping.get(name, ""), ("yes" if saved else "NO") + ("" if loaded else " (not loaded)"), total, excel, lint, per_kind))
+    print(name, "saved" if saved else "NOT SAVED", "total", total, "excel", excel, "lint", lint, flush=True)
 with open(os.path.join(ROOT, "_batch_audit_report.md"), "w", encoding="utf-8") as f:
-    f.write("| file | original name | saved | total diffs | Excel opens | diffs by kind |\n|---|---|---|---:|---|---|\n")
+    f.write("| file | original name | saved | total diffs | Excel opens | lint | diffs by kind |\n|---|---|---|---:|---|---|---|\n")
     for r in rows:
         f.write("| " + " | ".join(str(x) for x in r) + " |\n")
 print("report: _batch_audit_report.md")
