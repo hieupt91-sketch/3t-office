@@ -2372,6 +2372,14 @@ def postprocess_sheet_xlsx(
             # Never fail the save due to external links preservation issues
             pass
 
+    # S16: Restore original drawings for sheets where images were not modified
+    if source_xlsx_bytes and source_fods:
+        try:
+            _restore_untouched_drawings_step(xlsx_bytes, source_fods, source_xlsx_bytes, replacements)
+        except Exception:
+            # Never fail the save due to drawing restoration issues
+            pass
+
     if not replacements:
         return xlsx_bytes
     return patch_ooxml_zip(xlsx_bytes, replacements)
@@ -4108,6 +4116,510 @@ def postprocess_slides_pptx_file(
     return dest
 
 
+_XDR_ANCHOR_RE = re.compile(
+    r"(<xdr:(?:twoCellAnchor|oneCellAnchor|absoluteAnchor)\b[\s\S]*?</xdr:(?:twoCellAnchor|oneCellAnchor|absoluteAnchor)>)",
+    re.IGNORECASE,
+)
+_XDR_PIC_RE = re.compile(
+    r"<xdr:pic\b[\s\S]*?</xdr:pic>",
+    re.IGNORECASE,
+)
+_XDR_CNVPR_RE = re.compile(
+    r"<xdr:cNvPr\b[^>]*\bid\s*=\s*([\"'])(\d+)\1[^>]*\bname\s*=\s*([\"'])([^\3]*?)\3",
+    re.IGNORECASE,
+)
+_XDR_BLIP_RE = re.compile(
+    r"<a:blip\b[^>]*\br:embed\s*=\s*([\"'])([^\1]*?)\1",
+    re.IGNORECASE,
+)
+
+
+def _parse_xlsx_drawing_images(xlsx_bytes: bytes) -> dict[str, list[dict]]:
+    """Parse all drawing XMLs in XLSX and extract image anchors.
+
+    Returns {sheet_name: [{"anchor_xml": str, "cnvpr_id": str, "name": str, "rel_id": str, "index": int}, ...]}
+    where index is the 0-based order of xdr:pic anchors in the drawing.
+    """
+    result: dict[str, list[dict]] = {}
+
+    # Resolve sheet name -> worksheet entry path
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+
+    # Resolve sheet name -> drawing entry path via worksheet rels
+    drawing_by_sheet: dict[str, str] = {}
+    for sheet_name, entry_path in sheet_entries.items():
+        rels_path = entry_path.replace("/worksheets/", "/worksheets/_rels/") + ".rels"
+        rels_bytes = read_zip_entry(xlsx_bytes, rels_path)
+        if not rels_bytes:
+            continue
+        rels_xml = rels_bytes.decode("utf-8", errors="replace")
+        for m in re.finditer(
+            r"<Relationship\b([^>]*)/?>",
+            rels_xml,
+            re.IGNORECASE,
+        ):
+            attrs = m.group(1)
+            type_match = re.search(r'Type="([^"]*)"', attrs)
+            target_match = re.search(r'Target="([^"]*)"', attrs)
+            id_match = re.search(r'Id="([^"]*)"', attrs)
+            if not (type_match and target_match and id_match):
+                continue
+            if "drawing" not in type_match.group(1).lower():
+                continue
+            target = target_match.group(1)
+            if target.startswith("../"):
+                target = target[3:]
+            elif target.startswith("./"):
+                target = target[2:]
+            drawing_by_sheet[sheet_name] = f"xl/{target}"
+            break
+
+    # Parse each drawing XML
+    for sheet_name, drawing_path in drawing_by_sheet.items():
+        drawing_bytes = read_zip_entry(xlsx_bytes, drawing_path)
+        if not drawing_bytes:
+            continue
+        drawing_xml = drawing_bytes.decode("utf-8", errors="replace")
+
+        anchors = []
+        anchor_index = 0
+        for anchor_match in _XDR_ANCHOR_RE.finditer(drawing_xml):
+            anchor_xml = anchor_match.group(1)
+            pic_match = _XDR_PIC_RE.search(anchor_xml)
+            if not pic_match:
+                continue
+            pic_xml = pic_match.group(0)
+
+            cnvpr_match = _XDR_CNVPR_RE.search(pic_xml)
+            blip_match = _XDR_BLIP_RE.search(pic_xml)
+
+            if cnvpr_match and blip_match:
+                cnvpr_id = cnvpr_match.group(2)
+                name = _unescape_xml(cnvpr_match.group(4))
+                rel_id = blip_match.group(2)
+                anchors.append(
+                    {
+                        "anchor_xml": anchor_xml,
+                        "cnvpr_id": cnvpr_id,
+                        "name": name,
+                        "rel_id": rel_id,
+                        "index": anchor_index,
+                    }
+                )
+                anchor_index += 1
+
+        if anchors:
+            result[sheet_name] = anchors
+
+    return result
+
+
+def _overlay_sheet_drawing_image_ids(xlsx_bytes: bytes, fods_xml: str) -> str:
+    """Overlay vno:image-id onto <draw:frame> elements in FODS for each sheet.
+
+    Each <draw:frame> containing a <draw:image> gets a vno:image-id attribute
+    in the format "sheet_name:anchor_index" (0-based anchor index in original drawing).
+    """
+    xml = fods_xml or ""
+    if not xml:
+        return xml
+
+    # Parse original drawing images
+    drawing_images = _parse_xlsx_drawing_images(xlsx_bytes)
+    if not drawing_images:
+        return xml
+
+    # Ensure vno namespace is declared
+    if not re.search(r"xmlns:vno\s*=", xml, re.IGNORECASE):
+        match = _OFFICE_DOCUMENT_OPEN_RE.search(xml)
+        if match:
+            attrs = match.group(1) or ""
+            xml = (
+                xml[: match.start()]
+                + f'<office:document{attrs} xmlns:vno="{SHEET_VNO_NS}">'
+                + xml[match.end() :]
+            )
+
+    # For each sheet in FODS, find draw:frame elements with draw:image and assign image-id
+    pieces = []
+    cursor = 0
+    for table_start, table_end in _flat_xml_blocks(xml, ("table:table",)):
+        pieces.append(xml[cursor:table_start])
+        table_xml = xml[table_start:table_end]
+        table_attrs = _xml_attrs(re.match(r"<[^>]+", table_xml).group(0))
+        sheet_name = _unescape_xml(table_attrs.get("table:name", ""))
+
+        anchors = drawing_images.get(sheet_name, [])
+        if not anchors:
+            pieces.append(table_xml)
+            cursor = table_end
+            continue
+
+        # Find all draw:frame elements with draw:image in this sheet
+        anchor_idx = 0
+
+        def replace_frame(fm: re.Match) -> str:
+            nonlocal anchor_idx
+            raw_attrs = fm.group(1) or ""
+            body = fm.group(2) or ""
+            # Check if this frame has a draw:image
+            if not re.search(r"<draw:image\b", body, re.IGNORECASE):
+                return fm.group(0)
+            if anchor_idx >= len(anchors):
+                return fm.group(0)
+            image_id = f"{sheet_name}:{anchor_idx}"
+            anchor_idx += 1
+            self_close = bool(re.search(r"/\s*$", raw_attrs))
+            if self_close:
+                raw_attrs = re.sub(r"/\s*$", "", raw_attrs)
+            if re.search(r'\bvno:image-id\s*=', raw_attrs, re.IGNORECASE):
+                raw_attrs = re.sub(
+                    r'\bvno:image-id\s*=\s*(["\'])[^\1]*\1',
+                    f'vno:image-id="{image_id}"',
+                    raw_attrs,
+                    flags=re.IGNORECASE,
+                )
+            else:
+                raw_attrs = f'{raw_attrs.rstrip()} vno:image-id="{image_id}"'
+            if raw_attrs and not raw_attrs.startswith(" "):
+                raw_attrs = f" {raw_attrs}"
+            if self_close:
+                return f"<draw:frame{raw_attrs}/>"
+            else:
+                return f"<draw:frame{raw_attrs}>{body}</draw:frame>"
+
+        table_xml = re.sub(
+            r"<draw:frame\b([^>]*)>([\s\S]*?)</draw:frame>",
+            replace_frame,
+            table_xml,
+            flags=re.IGNORECASE,
+        )
+        pieces.append(table_xml)
+        cursor = table_end
+
+    pieces.append(xml[cursor:])
+    return "".join(pieces)
+
+
+def _restore_untouched_drawings_step(
+    xlsx_bytes: bytes,
+    source_fods: str | None,
+    source_xlsx_bytes: bytes | None,
+    replacements: dict[str, str],
+) -> None:
+    """Restore original drawings for sheets where images were not modified.
+
+    A sheet is "untouched" if:
+    - Every original vno:image-id from the source XLSX is still present in FODS
+    - No new images were added (FODS image count == original image count)
+    - The set of vno:image-ids matches exactly
+
+    For untouched sheets:
+    - Copy original drawing XML, its .rels, and referenced media files
+    - Rename media files with "vnosrc_" prefix to avoid clashing with LibreOffice's images
+    - Update worksheet's <drawing r:id> and worksheet rels
+    - Update [Content_Types].xml with Override entries for drawing and Default for image types
+    - Remove (or leave unreferenced) the LibreOffice-generated drawing for that sheet
+    """
+    if not source_fods or not source_xlsx_bytes:
+        return
+
+    # 1. Parse vno:image-ids from FODS per sheet
+    fods_image_ids: dict[str, list[str]] = {}
+    fods_total_image_counts: dict[str, int] = {}
+    for table_start, table_end in _flat_xml_blocks(source_fods, ("table:table",)):
+        table_xml = source_fods[table_start:table_end]
+        table_attrs = _xml_attrs(re.match(r"<[^>]+", table_xml).group(0))
+        sheet_name = _unescape_xml(table_attrs.get("table:name", ""))
+        ids: list[str] = []
+        total_images = 0
+        # Match draw:frame opening tag (works for both self-closing and regular)
+        for fm in re.finditer(
+            r"<draw:frame\b([^>]*)>",
+            table_xml,
+            re.IGNORECASE,
+        ):
+            raw_attrs = fm.group(1) or ""
+            # Check if this frame has a draw:image by looking ahead
+            # Find the corresponding closing tag or self-close
+            tag_end = fm.end()
+            # Look for draw:image in the element
+            # For self-closing: no body. For regular: body between > and </draw:frame>
+            has_image = False
+            if raw_attrs.endswith("/"):
+                # Self-closing, no body
+                pass
+            else:
+                # Regular tag, look for draw:image before </draw:frame>
+                close_pos = table_xml.find("</draw:frame>", tag_end)
+                if close_pos > 0:
+                    body = table_xml[tag_end:close_pos]
+                    if re.search(r"<draw:image\b", body, re.IGNORECASE):
+                        has_image = True
+            if not has_image:
+                continue
+            total_images += 1
+            id_match = re.search(r'\bvno:image-id\s*=\s*(["\'])([^\1]*?)\1', raw_attrs, re.IGNORECASE)
+            if id_match:
+                ids.append(id_match.group(2))
+        if ids:
+            fods_image_ids[sheet_name] = ids
+        if total_images > 0:
+            fods_total_image_counts[sheet_name] = total_images
+
+    if not fods_image_ids:
+        return
+
+    # 2. Parse original drawing images from source XLSX
+    source_drawing_images = _parse_xlsx_drawing_images(source_xlsx_bytes)
+
+    # 3. Resolve sheet entries in output XLSX
+    out_sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    source_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+
+    # 4. For each sheet, check if untouched
+    for sheet_name, fods_ids in fods_image_ids.items():
+        source_anchors = source_drawing_images.get(sheet_name, [])
+        source_ids = [f"{sheet_name}:{a['index']}" for a in source_anchors]
+
+        # Exact match check: IDs must match AND total image count must match
+        total_images_match = fods_total_image_counts.get(sheet_name, 0) == len(source_ids)
+        # So theo TẬP: app ghi ảnh theo thứ tự ô, drawing gốc theo z-order — thứ tự khác không phải "đã sửa"
+        if sorted(fods_ids) != sorted(source_ids) or len(fods_ids) != len(set(fods_ids)) or not total_images_match:
+            continue  # Sheet has modified images, use LibreOffice's drawing
+
+        # Sheet is untouched — restore original drawing
+        source_entry_path = source_sheet_entries.get(sheet_name)
+        out_entry_path = out_sheet_entries.get(sheet_name)
+        if not source_entry_path or not out_entry_path:
+            continue
+
+        # Get source drawing path from source worksheet rels
+        source_rels_path = source_entry_path.replace("/worksheets/", "/worksheets/_rels/") + ".rels"
+        source_rels_bytes = read_zip_entry(source_xlsx_bytes, source_rels_path)
+        if not source_rels_bytes:
+            continue
+        source_rels_xml = source_rels_bytes.decode("utf-8", errors="replace")
+
+        source_drawing_path = None
+        source_drawing_rel_id = None
+        for m in re.finditer(
+            r"<Relationship\b([^>]*)/?>",
+            source_rels_xml,
+            re.IGNORECASE,
+        ):
+            attrs = m.group(1)
+            type_match = re.search(r'Type="([^"]*)"', attrs)
+            target_match = re.search(r'Target="([^"]*)"', attrs)
+            id_match = re.search(r'Id="([^"]*)"', attrs)
+            if not (type_match and target_match and id_match):
+                continue
+            if "drawing" not in type_match.group(1).lower():
+                continue
+            target = target_match.group(1)
+            if target.startswith("../"):
+                target = target[3:]
+            elif target.startswith("./"):
+                target = target[2:]
+            source_drawing_path = f"xl/{target}"
+            source_drawing_rel_id = id_match.group(1)
+            break
+
+        if not source_drawing_path:
+            continue
+
+        # Read source drawing XML and its rels
+        source_drawing_bytes = read_zip_entry(source_xlsx_bytes, source_drawing_path)
+        if not source_drawing_bytes:
+            continue
+        source_drawing_xml = source_drawing_bytes.decode("utf-8", errors="replace")
+
+        source_drawing_rels_path = source_drawing_path.replace("/drawings/", "/drawings/_rels/") + ".rels"
+        source_drawing_rels_bytes = read_zip_entry(source_xlsx_bytes, source_drawing_rels_path)
+        if not source_drawing_rels_bytes:
+            continue
+        source_drawing_rels_xml = source_drawing_rels_bytes.decode("utf-8", errors="replace")
+
+        # 5. Collect media files referenced by source drawing rels
+        media_map: dict[str, str] = {}  # original_rel_id -> new_media_path
+        media_content: dict[str, bytes] = {}  # new_media_path -> content
+        media_content_types: dict[str, str] = {}  # extension -> content_type
+
+        # Parse source drawing rels for image relationships
+        for m in re.finditer(
+            r"<Relationship\b([^>]*)/?>",
+            source_drawing_rels_xml,
+            re.IGNORECASE,
+        ):
+            attrs = m.group(1)
+            type_match = re.search(r'Type="([^"]*)"', attrs)
+            target_match = re.search(r'Target="([^"]*)"', attrs)
+            id_match = re.search(r'Id="([^"]*)"', attrs)
+            if not (type_match and target_match and id_match):
+                continue
+            if "image" not in type_match.group(1).lower():
+                continue
+            target = target_match.group(1)
+            rel_id = id_match.group(1)
+            # target is like "../media/image1.jpeg"
+            if target.startswith("../media/"):
+                media_name = target[9:]  # "image1.jpeg"
+            elif target.startswith("media/"):
+                media_name = target[6:]
+            else:
+                media_name = target
+            # Rename with prefix to avoid clash
+            new_media_name = f"vnosrc_{media_name}"
+            new_media_path = f"xl/media/{new_media_name}"
+            media_map[rel_id] = new_media_path
+
+            # Read media content
+            orig_media_path = f"xl/media/{media_name}"
+            media_bytes = read_zip_entry(source_xlsx_bytes, orig_media_path)
+            if media_bytes:
+                media_content[new_media_path] = media_bytes
+                ext = media_name.split(".")[-1].lower()
+                ct = {
+                    "png": "image/png",
+                    "jpeg": "image/jpeg",
+                    "jpg": "image/jpeg",
+                    "gif": "image/gif",
+                    "bmp": "image/bmp",
+                    "tiff": "image/tiff",
+                    "tif": "image/tiff",
+                    "emf": "image/x-emf",
+                    "wmf": "image/x-wmf",
+                    "svg": "image/svg+xml",
+                }.get(ext, "application/octet-stream")
+                media_content_types[ext] = ct
+
+
+        # 6. Rewrite source drawing XML to use new media rel IDs
+        # We need to create new rel IDs for the output drawing rels
+        new_drawing_rels_xml = (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        )
+        rel_id_counter = 1
+        old_to_new_rel_id: dict[str, str] = {}
+        for m in re.finditer(
+            r'<Relationship\b([^>]*)/?>',
+            source_drawing_rels_xml,
+            re.IGNORECASE,
+        ):
+            attrs = m.group(1)
+            type_match = re.search(r'Type="([^"]*)"', attrs)
+            target_match = re.search(r'Target="([^"]*)"', attrs)
+            old_id_match = re.search(r'Id="([^"]*)"', attrs)
+            if not (type_match and target_match and old_id_match):
+                continue
+            rel_type = type_match.group(1)
+            target = target_match.group(1)
+            old_id = old_id_match.group(1)
+            if re.search(r'TargetMode="External"', attrs, re.IGNORECASE):
+                # Ảnh liên kết ngoài (lan12: http://…): giữ nguyên Target + TargetMode, không có media để chép
+                new_id = f"rId{rel_id_counter}"
+                rel_id_counter += 1
+                old_to_new_rel_id[old_id] = new_id
+                new_drawing_rels_xml += f'<Relationship Id="{new_id}" Type="{rel_type}" Target="{target}" TargetMode="External"/>'
+            elif "image" in rel_type.lower():
+                # Media nằm ở xl/media/, rels ở xl/drawings/_rels/ -> đường dẫn tương đối phải là ../media/
+                # (bản đầu ghi "media/vnosrc_…" -> Excel không mở lan12, lint parts báo thiếu target)
+                new_target = "../media/vnosrc_" + target.rsplit("/", 1)[-1]
+                new_id = f"rId{rel_id_counter}"
+                rel_id_counter += 1
+                old_to_new_rel_id[old_id] = new_id
+                new_drawing_rels_xml += f'<Relationship Id="{new_id}" Type="{rel_type}" Target="{new_target}"/>'
+            else:
+                # Non-image relationship (e.g., chart), keep as-is but with new ID
+                new_id = f"rId{rel_id_counter}"
+                rel_id_counter += 1
+                old_to_new_rel_id[old_id] = new_id
+                new_drawing_rels_xml += f'<Relationship Id="{new_id}" Type="{rel_type}" Target="{target}"/>'
+        new_drawing_rels_xml += "</Relationships>"
+
+        # Update drawing XML: replace r:embed attributes with new rel IDs
+        # Một lượt, theo bảng ánh xạ (thay tuần tự rId1->rId2 rồi rId2->rId3 sẽ đổi hai lần)
+        new_drawing_xml = re.sub(
+            r'(r:(?:embed|link|id)\s*=\s*(["\']))([^"\']*)\2',
+            lambda m: f"{m.group(1)}{old_to_new_rel_id.get(m.group(3), m.group(3))}{m.group(2)}",
+            source_drawing_xml,
+        )
+
+        # 7. Determine output drawing path (reuse LibreOffice's drawingN.xml numbering or create new)
+        out_rels_path = out_entry_path.replace("/worksheets/", "/worksheets/_rels/") + ".rels"
+        out_rels_bytes = replacements.get(out_rels_path)
+        if out_rels_bytes is None:
+            out_rels_bytes = read_zip_entry(xlsx_bytes, out_rels_path)
+        if not out_rels_bytes:
+            continue
+        out_rels_xml = out_rels_bytes.decode("utf-8", errors="replace") if isinstance(out_rels_bytes, bytes) else out_rels_bytes
+
+        # Find existing drawing relationship in output
+        out_drawing_rel_id = None
+        out_drawing_path = None
+        for m in re.finditer(
+            r"<Relationship\b([^>]*)/?>",
+            out_rels_xml,
+            re.IGNORECASE,
+        ):
+            attrs = m.group(1)
+            type_match = re.search(r'Type="([^"]*)"', attrs)
+            target_match = re.search(r'Target="([^"]*)"', attrs)
+            id_match = re.search(r'Id="([^"]*)"', attrs)
+            if not (type_match and target_match and id_match):
+                continue
+            if "drawing" not in type_match.group(1).lower():
+                continue
+            out_drawing_rel_id = id_match.group(1)
+            target = target_match.group(1)
+            if target.startswith("../"):
+                target = target[3:]
+            elif target.startswith("./"):
+                target = target[2:]
+            out_drawing_path = f"xl/{target}"
+            break
+
+        if not out_drawing_rel_id or not out_drawing_path:
+            continue
+
+        # 8. Write restored drawing XML and rels to replacements
+        replacements[out_drawing_path] = new_drawing_xml
+        out_drawing_rels_path = out_drawing_path.replace("/drawings/", "/drawings/_rels/") + ".rels"
+        replacements[out_drawing_rels_path] = new_drawing_rels_xml
+
+        # 9. Write media files
+        for media_path, content in media_content.items():
+            replacements[media_path] = content
+
+        # 10. Update [Content_Types].xml
+        ct_xml = replacements.get("[Content_Types].xml")
+        if ct_xml is None:
+            ct_bytes = read_zip_entry(xlsx_bytes, "[Content_Types].xml")
+            ct_xml = ct_bytes.decode("utf-8", errors="replace") if ct_bytes else ""
+
+        # Add Override for drawing if not present
+        drawing_part_name = f"/{out_drawing_path}"
+        if not re.search(rf'Override PartName="{re.escape(drawing_part_name)}"', ct_xml):
+            drawing_override = f'<Override PartName="{drawing_part_name}" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
+            ct_xml = ct_xml.replace("</Types>", f"{drawing_override}</Types>")
+
+        # Add Default for image extensions if not present
+        for ext, ct in media_content_types.items():
+            if not re.search(rf'Default Extension="{ext}"', ct_xml):
+                default_entry = f'<Default Extension="{ext}" ContentType="{ct}"/>'
+                ct_xml = ct_xml.replace("</Types>", f"{default_entry}</Types>")
+
+        replacements["[Content_Types].xml"] = ct_xml
+
+        # 11. Remove LibreOffice's drawing XML (the one it generated) from replacements
+        # by setting it to None — but keep the restored one above
+        # The LibreOffice drawing is at out_drawing_path, which we just overwrote with restored
+        # So we don't need to do anything extra — the restored one wins.
+
+    return
+
+
 def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     """Read the original XLSX ZIP and overlay FODS.
 
@@ -4146,6 +4658,8 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
     if tab_colors:
         xml = apply_tab_colors_to_fods(xml, tab_colors)
+    # Drawing images: overlay vno:image-id on <draw:frame> elements
+    xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
     return xml
 
 

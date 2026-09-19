@@ -36,7 +36,9 @@ for name in names:
         excel = (e.stdout.strip().splitlines() or ["?"])[-1]
         # Lint XML (well-formed, count=, chỉ số, thứ tự ô) để phân biệt file hỏng thật với Excel COM bị tranh
         lint_run = subprocess.run([sys.executable, os.path.join(SP, "_xlsx_lint.py"), out], capture_output=True, text=True, timeout=300)
-        issues = [line for line in (lint_run.stdout or "").splitlines() if line.strip() and line.strip() != "lint done"]
+        parts_run = subprocess.run([sys.executable, os.path.join(SP, "_xlsx_parts_lint.py"), out], capture_output=True, text=True, timeout=300)
+        issues = [line for line in ((lint_run.stdout or "") + (parts_run.stdout or "")).splitlines()
+                  if line.strip() and line.strip() not in ("lint done", "parts lint done")]
         lint = "clean" if not issues else f"{len(issues)} issue(s): " + "; ".join(issues[:3])
     rows.append((name, mapping.get(name, ""), ("yes" if saved else "NO") + ("" if loaded else " (not loaded)"), total, excel, lint, per_kind))
     print(name, "saved" if saved else "NOT SAVED", "total", total, "excel", excel, "lint", lint, flush=True)

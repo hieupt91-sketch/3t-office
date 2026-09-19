@@ -817,6 +817,7 @@ export class SheetAdapter {
 
     return {
       id: this._unescapeXml(frameAttrs.match(/draw:name=["']([^"']*)["']/i)?.[1] || fallbackId),
+      ...this._imageSourceIdFromAttrs(frameAttrs),
       src: `data:${mime};base64,${base64}`,
       ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
       ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
@@ -850,6 +851,7 @@ export class SheetAdapter {
 
     return {
       id: frame.getAttribute("draw:name") || fallbackId,
+      ...this._imageSourceIdFromNode(frame),
       src: `data:${mime};base64,${base64}`,
       ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
       ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
@@ -888,6 +890,7 @@ export class SheetAdapter {
 
       images.push({
         id: frame.getAttribute("draw:name") || `${baseId}_${i + 1}`,
+        ...this._imageSourceIdFromNode(frame),
         src: `data:${mime};base64,${base64}`,
         ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
         ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
@@ -928,6 +931,7 @@ export class SheetAdapter {
 
       images.push({
         id: frameAttrs.match(/draw:name=["']([^"']*)["']/i)?.[1] || `${baseId}_${index + 1}`,
+        ...this._imageSourceIdFromAttrs(frameAttrs),
         src: `data:${mime};base64,${base64}`,
         ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
         ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
@@ -972,6 +976,7 @@ export class SheetAdapter {
         const offsetYCm = this._odfLengthToCm(yRaw);
         images.push({
           id: frame.getAttribute("draw:name") || `ShapeImage${images.length + 1}`,
+          ...this._imageSourceIdFromNode(frame),
           src: `data:${mime};base64,${base64}`,
           ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
           ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
@@ -1017,6 +1022,7 @@ export class SheetAdapter {
       const offsetYCm = this._odfLengthToCm(yRaw);
       images.push({
         id: frameAttrs.match(/draw:name=["']([^"']*)["']/i)?.[1] || `ShapeImage${images.length + 1}`,
+        ...this._imageSourceIdFromAttrs(frameAttrs),
         src: `data:${mime};base64,${base64}`,
         ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
         ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
@@ -2171,6 +2177,24 @@ export class SheetAdapter {
    * để lần đọc lại (kể cả từ file VN Office tự lưu) dùng chung một đường phân tích
    * _parseCellEmbeddedImage()/_parseCellEmbeddedImageDom() với file thật bên ngoài.
    */
+  /**
+   * S16: overlay Python gắn vno:image-id="<sheet>:<n>" (thứ tự anchor trong drawing gốc) cho từng ảnh khi mở;
+   * giữ nguyên qua model (sourceId) và ghi lại khi lưu để hậu xử lý biết sheet nào chưa đụng tới ảnh.
+   */
+  _imageSourceIdFromAttrs(frameAttrs) {
+    const id = this._unescapeXml(String(frameAttrs || "").match(/vno:image-id=["']([^"']*)["']/i)?.[1] || "");
+    return id ? { sourceId: id } : {};
+  }
+
+  _imageSourceIdFromNode(frame) {
+    const id = frame?.getAttribute?.("vno:image-id") || "";
+    return id ? { sourceId: id } : {};
+  }
+
+  _imageSourceIdAttr(image) {
+    return image?.sourceId ? ` vno:image-id="${this._escapeXml(image.sourceId)}"` : "";
+  }
+
   _serializeCellImageXml(image) {
     const match = String(image?.src || "").match(/^data:([^;]+);base64,([\s\S]+)$/);
     if (!match) return "";
@@ -2182,7 +2206,7 @@ export class SheetAdapter {
     const xCm = Number.isFinite(Number(image.offsetXCm)) ? Number(Number(image.offsetXCm).toFixed(4)) : 0;
     const yCm = Number.isFinite(Number(image.offsetYCm)) ? Number(Number(image.offsetYCm).toFixed(4)) : 0;
     const name = this._escapeXml(image.id || "Image");
-    return `<draw:frame draw:name="${name}" svg:x="${xCm}cm" svg:y="${yCm}cm" svg:width="${widthCm}cm" svg:height="${heightCm}cm"><draw:image draw:mime-type="${this._escapeXml(mime)}"><office:binary-data>${base64}</office:binary-data></draw:image></draw:frame>`;
+    return `<draw:frame draw:name="${name}"${this._imageSourceIdAttr(image)} svg:x="${xCm}cm" svg:y="${yCm}cm" svg:width="${widthCm}cm" svg:height="${heightCm}cm"><draw:image draw:mime-type="${this._escapeXml(mime)}"><office:binary-data>${base64}</office:binary-data></draw:image></draw:frame>`;
   }
 
   /**
@@ -2203,7 +2227,7 @@ export class SheetAdapter {
       const yCm = Number.isFinite(Number(image.offsetYCm)) ? Number(Number(image.offsetYCm).toFixed(4)) : 0;
       const name = this._escapeXml(image.id || "ShapeImage");
       const endCellAttr = image.endCellAddress ? ` table:end-cell-address="${this._escapeXml(image.endCellAddress)}"` : "";
-      return `<draw:frame draw:name="${name}" svg:x="${xCm}cm" svg:y="${yCm}cm" svg:width="${widthCm}cm" svg:height="${heightCm}cm"${endCellAttr}><draw:image draw:mime-type="${this._escapeXml(mime)}"><office:binary-data>${base64}</office:binary-data></draw:image></draw:frame>`;
+      return `<draw:frame draw:name="${name}"${this._imageSourceIdAttr(image)} svg:x="${xCm}cm" svg:y="${yCm}cm" svg:width="${widthCm}cm" svg:height="${heightCm}cm"${endCellAttr}><draw:image draw:mime-type="${this._escapeXml(mime)}"><office:binary-data>${base64}</office:binary-data></draw:image></draw:frame>`;
     }).filter(Boolean);
     return frames.length ? `<table:shapes>${frames.join("")}</table:shapes>` : "";
   }
