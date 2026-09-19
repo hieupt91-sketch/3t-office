@@ -41,3 +41,10 @@ $RECYCLE.BIN/
 /_*
 /TASK-BRIEF-*.md
 
+
+# real LAN documents rendered for visual inspection - never commit
+docs/screenshots/*lan[0-9][0-9]*
+docs/screenshots/*.fods
+docs/screenshots/*.htm
+docs/screenshots/*.pdf
+docs/screenshots/*_files/
