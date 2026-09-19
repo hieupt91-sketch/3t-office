@@ -4143,11 +4143,13 @@ def _restore_original_xf_for_vno_cells(
     # Parse vno:xf from FODS
     vno_cells = _fods_cells_with_vno_xf(source_fods)
     if not vno_cells:
+        _restore_source_color_palette(xlsx_bytes, source_xlsx_bytes, replacements, copy_theme=False)
         return
-    
+
     # Parse original XLSX styles
     src_xf_elements, src_font_elements, src_fill_elements, src_border_elements, src_numfmt_elements = _parse_xlsx_styles_for_xf(source_xlsx_bytes)
     if not src_xf_elements:
+        _restore_source_color_palette(xlsx_bytes, source_xlsx_bytes, replacements, copy_theme=False)
         return
     
     # Parse current (LibreOffice-generated) XLSX styles to append to
@@ -4303,17 +4305,16 @@ def _restore_original_xf_for_vno_cells(
 
             replacements[XLSX_STYLES_ENTRY] = styles_xml
 
-    if xf_index_map:
-        _restore_source_color_palette(xlsx_bytes, source_xlsx_bytes, replacements)
+    _restore_source_color_palette(xlsx_bytes, source_xlsx_bytes, replacements, copy_theme=bool(xf_index_map))
 
 
-def _restore_source_color_palette(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
+def _restore_source_color_palette(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str], copy_theme: bool = True) -> None:
     """S10: xf/font/fill chép từ XLSX gốc (S8) trỏ màu theo `theme="N"`/`indexed="N"`, nhưng
     LibreOffice ghi theme1.xml mặc định của nó ("Office", accent6 = C9211E) và bỏ bảng
     <indexedColors> riêng của file → Excel tô màu khác (đo vòng 5: lan07/13/17 fill
     #A9D18E → #E9706D, 574 ô; lan03/10/16 #558ED5 → #666666, 168 ô). Giữ theme1.xml
     và <colors> của file gốc để các chỉ số đó giải về đúng màu như Writer W7."""
-    source_theme = read_zip_entry(source_xlsx_bytes, "xl/theme/theme1.xml")
+    source_theme = read_zip_entry(source_xlsx_bytes, "xl/theme/theme1.xml") if copy_theme else None
     if source_theme:
         with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
             has_theme = "xl/theme/theme1.xml" in package.namelist()
@@ -4324,14 +4325,21 @@ def _restore_source_color_palette(xlsx_bytes: bytes, source_xlsx_bytes: bytes, r
     if not source_styles:
         return
     colors_match = re.search(r"<colors\b[^>]*>[\s\S]*?</colors>", source_styles.decode("utf-8", errors="replace"), re.IGNORECASE)
-    if not colors_match or "<indexedColors" not in colors_match.group(0):
-        return
+    source_has_palette = bool(colors_match and "<indexedColors" in colors_match.group(0))
     styles_xml = replacements.get(XLSX_STYLES_ENTRY)
     if styles_xml is None:
         current = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
         if not current:
             return
         styles_xml = current.decode("utf-8", errors="replace")
+    if not source_has_palette:
+        # LibreOffice ghi <indexedColors> 64 màu nhưng bỏ khối 8 màu lặp (chỉ số 8–15) → mọi
+        # indexed="N" lệch 8 bậc: indexed="8" (đen) Excel vẽ #800000. Đo Excel COM lan03 E3
+        # (_excel_cell_probe.ps1): font #800000 → bỏ khối này → #000000 như file gốc.
+        if re.search(r"<indexedColors\b", styles_xml, re.IGNORECASE):
+            styles_xml = re.sub(r"<colors\b[^>]*>[\s\S]*?</colors>|<colors\b[^>]*/>", "", styles_xml, count=1, flags=re.IGNORECASE)
+            replacements[XLSX_STYLES_ENTRY] = styles_xml
+        return
     if re.search(r"<colors\b", styles_xml, re.IGNORECASE):
         styles_xml = re.sub(r"<colors\b[^>]*>[\s\S]*?</colors>|<colors\b[^>]*/>", lambda _m: colors_match.group(0), styles_xml, count=1, flags=re.IGNORECASE)
     else:

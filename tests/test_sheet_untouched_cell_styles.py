@@ -108,6 +108,28 @@ class UntouchedCellStyles(unittest.TestCase):
         patcher._restore_original_xf_for_vno_cells(with_theme(LO_STYLES, lo_theme), FODS.replace(' vno:xf="1"', ""), with_theme(src_styles, src_theme), untouched)
         self.assertNotIn("xl/theme/theme1.xml", untouched)
 
+    def test_s10_libreoffice_shifted_indexed_palette_is_dropped_when_source_has_none(self):
+        """Đo Excel COM lan03 E3 (19/9): LibreOffice ghi <indexedColors> thiếu khối 8 màu lặp (chỉ số 8–15)
+        -> indexed="8" (đen) Excel vẽ #800000; bỏ khối đó -> #000000 như file gốc."""
+        lo_palette = "<colors><indexedColors>" + "".join(
+            f'<rgbColor rgb="FF{c}"/>' for c in ["000000", "FFFFFF", "FF0000", "00FF00", "0000C8", "FFFF00", "FF00FF", "00FFFF", "800000", "008000"]) + "</indexedColors></colors>"
+        lo_styles = LO_STYLES.replace("</styleSheet>", lo_palette + "</styleSheet>")
+        # Có ô vno:xf
+        replacements = {}
+        patcher._restore_original_xf_for_vno_cells(_xlsx(lo_styles, LO_SHEET), FODS, _xlsx(SOURCE_STYLES, LO_SHEET), replacements)
+        self.assertNotIn("<indexedColors", replacements["xl/styles.xml"])
+        self.assertNotIn("<colors", replacements["xl/styles.xml"])
+        # Không có ô vno:xf nào vẫn phải bỏ bảng màu lệch
+        replacements = {}
+        patcher._restore_original_xf_for_vno_cells(_xlsx(lo_styles, LO_SHEET), FODS.replace(' vno:xf="1"', ""), _xlsx(SOURCE_STYLES, LO_SHEET), replacements)
+        self.assertNotIn("<indexedColors", replacements["xl/styles.xml"])
+        # File gốc có <indexedColors> riêng -> thay bằng của file gốc (không bỏ)
+        src_custom = SOURCE_STYLES.replace("</styleSheet>", '<colors><indexedColors><color rgb="FF112233"/></indexedColors></colors></styleSheet>')
+        replacements = {}
+        patcher._restore_original_xf_for_vno_cells(_xlsx(lo_styles, LO_SHEET), FODS, _xlsx(src_custom, LO_SHEET), replacements)
+        self.assertIn('<indexedColors><color rgb="FF112233"/></indexedColors>', replacements["xl/styles.xml"])
+        self.assertNotIn('0000C8', replacements["xl/styles.xml"])
+
 
 if __name__ == "__main__":
     unittest.main()
