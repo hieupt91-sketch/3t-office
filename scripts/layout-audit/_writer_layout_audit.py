@@ -50,6 +50,40 @@ def theme_fonts(docx):
     minor = re.search(r'<a:minorFont>\s*<a:latin\b[^>]*typeface="([^"]*)"', t)
     return {"+headings": (major.group(1) if major else "").lower(), "+body": (minor.group(1) if minor else "").lower()}
 
+def contextual_spacing_from_docx(docx, word_rows):
+    """Word COM NoSpaceBetweenParagraphsOfSameStyle trả False dù style có <w:contextualSpacing/> (đo d09: List
+    Paragraph, Word bỏ space-after 10pt giữa các đoạn cùng style → 43 cặp bị gán nhầm 'line-height'). Đọc thẳng
+    OOXML: style chain (basedOn) hoặc pPr của đoạn có contextualSpacing → đặt w['nsb'] = True (khớp theo chữ)."""
+    import zipfile
+    try:
+        z = zipfile.ZipFile(docx)
+        styles = z.read("word/styles.xml").decode("utf-8", "replace")
+        doc = z.read("word/document.xml").decode("utf-8", "replace")
+    except Exception:
+        return
+    style_ctx = {}; based = {}
+    for m in re.finditer(r'<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>(.*?)</w:style>', styles, re.S):
+        sid, body = m.group(1), m.group(2)
+        ppr = re.search(r"<w:pPr>.*?</w:pPr>", body, re.S)
+        style_ctx[sid] = bool(ppr and "<w:contextualSpacing" in ppr.group(0))
+        b = re.search(r'<w:basedOn w:val="([^"]+)"', body); based[sid] = b.group(1) if b else None
+    def ctx(sid, depth=0):
+        if not sid or sid not in style_ctx or depth > 12: return False
+        return style_ctx[sid] or ctx(based.get(sid), depth + 1)
+    by_text = {}
+    for pm in re.finditer(r"<w:p\b[^>]*>(.*?)</w:p>", doc, re.S):
+        body = pm.group(1)
+        ppr = re.search(r"<w:pPr>(.*?)</w:pPr>", body, re.S)
+        pp = ppr.group(1) if ppr else ""
+        sid = re.search(r'<w:pStyle w:val="([^"]+)"', pp)
+        own = "<w:contextualSpacing" in pp and 'w:val="0"' not in (re.search(r"<w:contextualSpacing[^>]*>", pp) or re.match("", "")).group(0)
+        flag = own or ctx(sid.group(1) if sid else "Normal")
+        text = norm("".join(re.findall(r"<w:t\b[^>]*>([^<]*)</w:t>", body)))[:24]
+        if len(text) >= 6 and text not in by_text: by_text[text] = flag
+    for w in word_rows:
+        key = norm(w.get("text", ""))[:24]
+        if key in by_text and by_text[key]: w["nsb"] = True
+
 def classify(pairs, canvas_rows, word_rows, themes=None):
     """Per matched pair: compare line count, line pitch (height/lines), spacing to the next matched paragraph, page."""
     kinds = collections.Counter(); details = []
@@ -64,14 +98,21 @@ def classify(pairs, canvas_rows, word_rows, themes=None):
         # Word không cho đo chiều cao đoạn trực tiếp; pitch − khoảng cách đoạn (MAX(sa, sb kế)) = chiều cao đoạn.
         if n + 1 < len(pairs) and "wrap" not in tags:
             c2, w2 = pairs[n + 1]
-            if w2["page"] == w["page"] and c2["page"] == c["page"] and w2["i"] == w["i"] + 1 and idx_c[id(c2)] == idx_c[id(c)] + 1:
+            # Đoạn trong BẢNG: Word trả y của ô (các ô cùng hàng cùng y) nên pitch đoạn→đoạn không phải chiều cao
+            # đoạn (d09: 43 cặp "line-height" giả, Word 9–10 px/dòng cho chữ 13pt). Bảng đo riêng (drift:table, wrap).
+            in_table = bool(w.get("tbl")) or bool(w2.get("tbl"))
+            if not in_table and w2["page"] == w["page"] and c2["page"] == c["page"] and w2["i"] == w["i"] + 1 and idx_c[id(c2)] == idx_c[id(c)] + 1:
                 c_pitch = c2["top"] - c["top"]; w_pitch = (w2["y"] - w["y"]) * PT2PX
                 if abs(c_pitch - w_pitch) > 2.5:
                     # contextualSpacing: hai doan cung style co "khong cach doan cung kieu" -> Word bo sa/sb giua chung
                     contextual = w.get("nsb") and w2.get("nsb") and w.get("style") == w2.get("style")
                     w_para_px = w_pitch - (0 if contextual else max(w["sa"], w2["sb"]) * PT2PX)
-                    c_para_px = c_pitch - max(c["mb"], c2["mt"])
+                    # Canvas đo được chiều cao khối trực tiếp (h); pitch − lề bỏ sót lề của phần tử con (li/p trong ol)
+                    c_para_px = c["h"] if c.get("h") else c_pitch - max(c["mb"], c2["mt"])
                     tags.append("line-height" if abs(w_para_px - c_para_px) > 2.5 else "spacing")
+                    # Số đo để gom lớp offline: chiều cao đoạn Word/canvas (px) và chiều cao MỖI dòng suy ra
+                    c["_w_para_px"] = round(w_para_px, 1); c["_c_para_px"] = round(c_para_px, 1)
+                    c["_w_line_px"] = round(w_para_px / max(1, w["lines"]), 2); c["_c_line_px"] = round(c_para_px / max(1, c_lines), 2)
         # Word: chữ Việt (high ANSI) vẽ bằng font hAnsi = Font.NameOther; Font.Name trả về font eastAsia (đo d07/HDLD).
         wfont = (w.get("fontOther") or w.get("font") or "").split(";")[0].strip().lower()
         wfont = (themes or {}).get(wfont, wfont)
@@ -79,7 +120,8 @@ def classify(pairs, canvas_rows, word_rows, themes=None):
         if w["size"] and w["size"] < 1000 and abs(c["size"] - w["size"] * PT2PX) > 0.6: tags.append("font-size")
         if c["page"] != w["page"]: tags.append("page")
         for t in tags: kinds[t] += 1
-        if tags: details.append({"kinds": tags, "canvas": {k: c[k] for k in ("i", "page", "h", "lines", "lh", "font", "size", "mt", "mb")}, "word": {k: w[k] for k in ("i", "page", "y", "lines", "sb", "sa", "lsRule", "ls", "font", "size")}, "text": c["text"]})
+        if tags: details.append({"kinds": tags, "canvas": {k: c[k] for k in ("i", "page", "h", "lines", "lh", "font", "size", "mt", "mb")}, "word": {k: w[k] for k in ("i", "page", "y", "lines", "sb", "sa", "lsRule", "ls", "font", "size")}, "text": c["text"],
+                                 **{k[1:]: c[k] for k in ("_w_para_px", "_c_para_px", "_w_line_px", "_c_line_px") if k in c}})
     # Drift: within a Word page, canvas offset from the page's first matched paragraph vs Word's. A jump > 8px between
     # consecutive pairs points at the unmatched blocks in between (table, image, empty paragraphs, floats).
     anchor = None; prev = None
@@ -102,6 +144,7 @@ for name in names:
     if wrows is None: per_file[name] = {"error": "word: " + werr}; print(name, "WORD FAIL", werr, flush=True); continue
     meta, crows, cerr = canvas_metrics(docx, os.path.join(OUTDIR, base + ".canvas.jsonl"))
     if crows is None: per_file[name] = {"error": "canvas: " + cerr}; print(name, "CANVAS FAIL", cerr, flush=True); continue
+    contextual_spacing_from_docx(docx, wrows)
     pairs = match(wrows, crows)
     kinds, details = classify(pairs, crows, wrows, theme_fonts(docx))
     tables_c = sum(1 for c in crows if c["tag"] == "TABLE"); floats_c = sum(c["floats"] for c in crows)
