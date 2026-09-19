@@ -79,6 +79,19 @@ class UntouchedCellStyles(unittest.TestCase):
             self.assertEqual(int(m.group(1)), actual, tag)
         self.assertIn("<border><left style=\"thin\"/><right/><top style=\"thin\"/><bottom style=\"thin\"/></border>", styles)
 
+    def test_builtin_numfmt_id_declared_explicitly_in_source_keeps_its_code(self):
+        """lan28 (vòng 5, 1540 ô): file gốc khai báo `<numFmt numFmtId="41" formatCode="_-* #,##0_-;…"/>` (ghi đè mã
+        built-in theo locale); S8 chỉ chép id >= 164 nên Excel dùng mã 41 mặc định của nó."""
+        code = "_-* #,##0_-;\\-* #,##0_-;_-* &quot;-&quot;_-;_-@_-"
+        src = SOURCE_STYLES.replace('<numFmt numFmtId="170"', f'<numFmt numFmtId="41" formatCode="{code}"/><numFmt numFmtId="170"').replace(
+            'count="1"><numFmt numFmtId="41"', 'count="2"><numFmt numFmtId="41"').replace('numFmtId="170" fontId="1"', 'numFmtId="41" fontId="1"')
+        replacements = {}
+        patcher._restore_original_xf_for_vno_cells(_xlsx(LO_STYLES, LO_SHEET), FODS, _xlsx(src, LO_SHEET), replacements)
+        styles = replacements["xl/styles.xml"]
+        self.assertIn(f'<numFmt numFmtId="165" formatCode="{code}"/>', styles)
+        xfs = re.findall(r"<xf\b[^>]*/>|<xf\b[^>]*>.*?</xf>", re.search(r"<cellXfs[^>]*>(.*?)</cellXfs>", styles, re.S).group(1), re.S)
+        self.assertIn('numFmtId="165"', xfs[2])
+
     def test_s10_source_theme_and_indexed_colors_follow_the_copied_xf(self):
         """Đo vòng 5 (19/9): fill <fgColor theme="9" tint="0.6"/> chép theo S8 nhưng theme1.xml là theme
         mặc định của LibreOffice -> Excel tô #E9706D thay vì #A9D18E (574 ô lan07/13/17)."""

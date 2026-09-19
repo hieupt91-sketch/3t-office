@@ -1519,6 +1519,76 @@ def _restore_hidden_columns_and_rows_step(
                 replacements[entry_path] = sheet_xml
 
 
+def _restore_literal_error_cells_step(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
+    """S14 (đo vòng 6: lan01 200 ô, lan15 2 ô): XLSX gốc có ô giá trị lỗi thuần `<c t="e"><v>#N/A</v></c>`
+    (giá trị dán, không công thức); LibreOffice chỉ biểu diễn lỗi bằng công thức nên nhập thành
+    `table:formula="of:=#N/A"` và xuất `<f>#N/A</f>` — thanh công thức Excel hiện "=#N/A" thay vì "#N/A".
+    Ô lưu có cùng giá trị lỗi và công thức đúng bằng chữ lỗi đó thì bỏ `<f>`."""
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    source_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+    for sheet_name, entry_path in sheet_entries.items():
+        if sheet_name not in source_sheet_entries:
+            continue
+        source_bytes = read_zip_entry(source_xlsx_bytes, source_sheet_entries[sheet_name])
+        if not source_bytes:
+            continue
+        source_xml = source_bytes.decode("utf-8", errors="replace")
+        literal_errors: dict[str, str] = {}
+        source_formulas: dict[str, str] = {}  # coord -> chữ công thức gốc (không shared/array)
+        # `(?:[^>/]|/(?!>))*` — không nuốt <c .../> tự đóng (nếu không, body sẽ chứa ô kế tiếp)
+        for m in re.finditer(r'<c\b((?:[^>/]|/(?!>))*)>([\s\S]*?)</c>', source_xml, re.IGNORECASE):
+            coord = re.search(r'\br="([A-Z]+\d+)"', m.group(1), re.IGNORECASE)
+            if not coord:
+                continue
+            formula = re.search(r"<f\b([^>]*)>([\s\S]*?)</f>", m.group(2), re.IGNORECASE)
+            if formula:
+                if not re.search(r'\bt="', formula.group(1), re.IGNORECASE):
+                    source_formulas[coord.group(1).upper()] = formula.group(2)
+                continue
+            if re.search(r'\bt="e"', m.group(1), re.IGNORECASE):
+                value = re.search(r"<v>([\s\S]*?)</v>", m.group(2), re.IGNORECASE)
+                if value:
+                    literal_errors[coord.group(1).upper()] = value.group(1).strip()
+        if not literal_errors and not source_formulas:
+            continue
+        sheet_xml = replacements.get(entry_path)
+        if sheet_xml is None:
+            entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+            if not entry_bytes:
+                continue
+            sheet_xml = entry_bytes.decode("utf-8", errors="replace")
+
+        def _same_formula(a: str, b: str) -> bool:
+            # S15: LibreOffice xuất TRUE/FALSE thành TRUE()/FALSE() (OpenFormula) — cùng nghĩa, khác chữ
+            norm = lambda s: re.sub(r"\b(TRUE|FALSE)\(\)", r"\1", re.sub(r"\s+", "", _unescape_xml(s)), flags=re.IGNORECASE).upper()
+            return norm(a) == norm(b)
+
+        def _fix_cell(match: "re.Match[str]") -> str:
+            attrs, body = match.group(1), match.group(2)
+            coord = re.search(r'\br="([A-Z]+\d+)"', attrs, re.IGNORECASE)
+            if not coord:
+                return match.group(0)
+            key = coord.group(1).upper()
+            formula = re.search(r"<f\b([^>]*)>([\s\S]*?)</f>", body, re.IGNORECASE)
+            if not formula:
+                return match.group(0)
+            expected_error = literal_errors.get(key)
+            if expected_error is not None and re.search(r'\bt="e"', attrs, re.IGNORECASE):
+                value = re.search(r"<v>([\s\S]*?)</v>", body, re.IGNORECASE)
+                if value and value.group(1).strip() == expected_error and formula.group(2).strip() == expected_error:
+                    return f"<c{attrs}>" + body[:formula.start()] + body[formula.end():] + "</c>"
+                return match.group(0)
+            source_text = source_formulas.get(key)
+            if source_text is not None and not re.search(r'\bt="', formula.group(1), re.IGNORECASE) \
+                    and formula.group(2) != source_text and _same_formula(formula.group(2), source_text):
+                return f"<c{attrs}>" + body[:formula.start()] + f"<f{formula.group(1)}>{source_text}</f>" + body[formula.end():] + "</c>"
+            return match.group(0)
+
+        new_xml = re.sub(r'<c\b((?:[^>/]|/(?!>))*)>([\s\S]*?)</c>', _fix_cell, sheet_xml, flags=re.IGNORECASE)
+        if new_xml != sheet_xml:
+            replacements[entry_path] = new_xml
+
+
 def _restore_hidden_columns_and_rows_from_source(sheet_xml: str, source_sheet_xml: str) -> str:
     """Restore hidden columns (including ranges up to XFD/16384) and empty hidden rows from source XLSX (S9)."""
     # --- 1. Hidden columns ---
@@ -2109,6 +2179,13 @@ def postprocess_sheet_xlsx(
             _restore_hidden_columns_and_rows_step(xlsx_bytes, source_xlsx_bytes, replacements)
         except Exception:
             # Never fail the save due to hidden columns/rows restoration issues
+            pass
+
+    # S14: ô giá trị lỗi thuần (t="e", không công thức) không được thành công thức "=#N/A"
+    if source_xlsx_bytes:
+        try:
+            _restore_literal_error_cells_step(xlsx_bytes, source_xlsx_bytes, replacements)
+        except Exception:
             pass
 
     # Preserve external links from source XLSX
@@ -4248,8 +4325,11 @@ def _restore_original_xf_for_vno_cells(
                 else:
                     new_border_id = 0
                 
-                # Copy numFmt if needed (custom numFmt only, built-in ids < 164 are shared)
-                if numfmt_id >= 164 and numfmt_id in src_numfmt_elements:
+                # Copy numFmt if needed: mã tuỳ chỉnh (>= 164) VÀ mã built-in được file gốc khai báo tường
+                # minh (Excel cho ghi đè 5–8, 41–44 theo locale: lan28 `numFmtId="41" formatCode="_-* #,##0_-…"`,
+                # 1540 ô vòng 5) — cấp id mới >= 164 để giữ đúng chữ mã, không đụng id 41 của LibreOffice.
+                if numfmt_id in src_numfmt_elements and (numfmt_id >= 164 or numfmt_id not in current_numfmt_elements
+                                                         or current_numfmt_elements.get(numfmt_id) != src_numfmt_elements[numfmt_id]):
                     code = src_numfmt_elements[numfmt_id]
                     if code not in numfmt_map:
                         numfmt_map[code] = next_numfmt_id
@@ -4278,11 +4358,14 @@ def _restore_original_xf_for_vno_cells(
             new_idx = new_xf_by_coord.get(match.group(2).upper())
             if new_idx is None:
                 return match.group(0)
+            self_closing = attrs.endswith("/")
+            if self_closing:
+                attrs = attrs[:-1].rstrip()
             if re.search(r'\bs\s*=', attrs):
                 attrs = re.sub(r'\bs\s*=\s*"?\d+"?', f's="{new_idx}"', attrs, count=1)
             else:
                 attrs = f'{attrs} s="{new_idx}"'
-            return f'{attrs}>'
+            return f'{attrs}/>' if self_closing else f'{attrs}>'
 
         if new_xf_by_coord:
             sheet_xml = re.sub(r'(<c\b[^>]*\br="([A-Za-z]+\d+)"[^>]*)>', _replace_s, sheet_xml)
