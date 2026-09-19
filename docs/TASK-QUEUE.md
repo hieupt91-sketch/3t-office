@@ -45,9 +45,14 @@ thật đang vẽ (font thiếu → font thay thế nào ở Word/Chromium), ker
   (396), S13 ô chuỗi rỗng (lan25 1372), S14/S15 công thức (342), S8b numFmt built-in khai báo tường minh (1635), S8 một
   lượt quét (lan09 lưu 15 s thay vì không lưu được). opencode S13 (e967f2a) không merge: chép thẳng `s=` gốc, tính sai
   chỉ số shared string; Claude viết lại + `_SourceXfCopier`.
-- **Tiếp theo (đo vòng 7 rồi mới giao)**: `numberFormat` còn lại (mã Excel bị LibreOffice viết lại ở ô ĐÃ sửa — cần
-  S7 cho ô sửa), `image` (lan09 30, lan26 13: ảnh neo ô mất/đổi ô), `wrap`, `merge` A4:F4 (Excel centerContinuous
-  → LibreOffice gộp ô), `visibility` lan06 (4 sheet ẩn), lan06/lan14 chạy riêng.
+- **(XONG 19/9 chiều, main d78ba1c)** vòng 8: Excel 26/26, lint sạch, 371 lệch → sau sửa lẻ ≈ 40 (font[0] gộp,
+  font-face "Calibri1", chữ shape, AutoFilter sheet cuối, S16 drawing passthrough — opencode viết Python, Claude nối
+  id qua JS + sửa rels/ảnh ngoài).
+- **ĐANG GIAO (19/9 13:40)**: codex → `TASK-BRIEF-SHEET-RESIDUALS-R8.md` (worktree `E:\VNOffice-codex-sheet-r8`,
+  branch `fix/sheet-residuals-r8`); opencode → `TASK-BRIEF-WRITER-W12-LINE-HEIGHT.md` (worktree
+  `E:\VNOffice-opencode-writer-w12`, branch `fix/writer-w12-line-height`). Claude gate + đo lại rồi merge.
+- Sau đó: lan06 (VAT) và lan14 (1,5 triệu ô) chạy riêng với bộ đo mới; `numberFormat` ở ô ĐÃ sửa trong app (S7 chiều
+  lưu); Writer W13 font-size, W10 wrap, W11b bảng trHeight.
 - **(XONG 17/9, merged 2feaaf0 & dc0d825) S9 — Khôi phục dải cột ẩn (hiddenColumn), dòng ẩn và kiểm tra trực quan (Visual Inspection)**:
   - Khôi phục `<col min="9" max="16384" hidden="1"/>` và dòng ẩn ngoài vùng dữ liệu từ source XLSX.
   - Sửa xung đột style cột ẩn: gán `style="0"` thay vì copy source style index chưa qua map (tránh bị tô nền xám `#969696` toàn bộ trang tính).
