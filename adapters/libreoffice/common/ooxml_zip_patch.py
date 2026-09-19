@@ -4385,21 +4385,44 @@ def _parse_xlsx_drawing_images(xlsx_bytes: bytes) -> dict[str, list[dict]]:
                 cnvpr_id = cnvpr_match.group(2)
                 name = _unescape_xml(cnvpr_match.group(4))
                 rel_id = blip_match.group(2)
+                # Ảnh liên kết (r:link, không có r:embed) Calc KHÔNG nhập nên không bao giờ có trong FODS:
+                # không cấp chỉ số id (id là số thứ tự theo thứ tự ảnh app thấy), chỉ giữ để chép drawing.
+                linked = bool(re.search(r"\br:link=", pic_xml)) and not re.search(r"\br:embed=", pic_xml)
                 anchors.append(
                     {
                         "anchor_xml": anchor_xml,
                         "cnvpr_id": cnvpr_id,
                         "name": name,
                         "rel_id": rel_id,
-                        "index": anchor_index,
+                        "index": None if linked else anchor_index,
+                        "linked": linked,
                     }
                 )
-                anchor_index += 1
+                if not linked:
+                    anchor_index += 1
 
         if anchors:
             result[sheet_name] = anchors
 
     return result
+
+
+def _draw_group_spans(xml: str) -> list[tuple[int, int]]:
+    """Các khoảng [start, end) nằm trong <draw:g>…</draw:g> (kể cả lồng nhau)."""
+    spans: list[tuple[int, int]] = []
+    depth = 0
+    start = 0
+    for m in re.finditer(r"<(/?)draw:g\b[^>]*?(/?)>", xml, re.IGNORECASE):
+        closing, self_closing = m.group(1) == "/", m.group(2) == "/"
+        if not closing and not self_closing:
+            if depth == 0:
+                start = m.start()
+            depth += 1
+        elif closing and depth > 0:
+            depth -= 1
+            if depth == 0:
+                spans.append((start, m.end()))
+    return spans
 
 
 def _overlay_sheet_drawing_image_ids(xlsx_bytes: bytes, fods_xml: str) -> str:
@@ -4443,7 +4466,16 @@ def _overlay_sheet_drawing_image_ids(xlsx_bytes: bytes, fods_xml: str) -> str:
             cursor = table_end
             continue
 
-        # Find all draw:frame elements with draw:image in this sheet
+        # id = "<sheet>:<i>/<N>" với N = số khung ảnh Calc NHẬP ĐƯỢC cho sheet này lúc mở (Calc bỏ ảnh nhóm
+        # grpSp, ảnh cao 0, ảnh liên kết — đo lan12: 9 anchor gốc → 6 khung). Khi lưu, sheet "chưa sửa ảnh"
+        # ⇔ đúng N khung, mang đủ id 0..N-1 — không phụ thuộc Calc bỏ gì, và xoá/thêm ảnh trong app đều lộ.
+        frame_re = re.compile(r"<draw:frame\b([^>]*)>([\s\S]*?)</draw:frame>", re.IGNORECASE)
+        # Ảnh trong nhóm <draw:g> (Excel grpSp) app không có model -> không bao giờ ghi lại: không đếm, không gắn id
+        # (đo lan12 sheet 1: Calc nhập 12 khung, 5 nằm trong nhóm, app giữ 7 -> phải coi 7 là N).
+        group_spans = _draw_group_spans(table_xml)
+        in_group = lambda pos: any(a <= pos < b for a, b in group_spans)
+        imported_total = sum(1 for fm in frame_re.finditer(table_xml)
+                             if re.search(r"<draw:image\b", fm.group(2) or "", re.IGNORECASE) and not in_group(fm.start()))
         anchor_idx = 0
 
         def replace_frame(fm: re.Match) -> str:
@@ -4451,11 +4483,9 @@ def _overlay_sheet_drawing_image_ids(xlsx_bytes: bytes, fods_xml: str) -> str:
             raw_attrs = fm.group(1) or ""
             body = fm.group(2) or ""
             # Check if this frame has a draw:image
-            if not re.search(r"<draw:image\b", body, re.IGNORECASE):
+            if not re.search(r"<draw:image\b", body, re.IGNORECASE) or in_group(fm.start()):
                 return fm.group(0)
-            if anchor_idx >= len(anchors):
-                return fm.group(0)
-            image_id = f"{sheet_name}:{anchor_idx}"
+            image_id = f"{sheet_name}:{anchor_idx}/{imported_total}"
             anchor_idx += 1
             self_close = bool(re.search(r"/\s*$", raw_attrs))
             if self_close:
@@ -4568,25 +4598,24 @@ def _restore_untouched_drawings_step(
     # 4. For each sheet, check if untouched
     for sheet_name, fods_ids in fods_image_ids.items():
         source_anchors = source_drawing_images.get(sheet_name, [])
-        source_ids = [f"{sheet_name}:{a['index']}" for a in source_anchors]
-
-        # Every image which survived LibreOffice import must retain its source
-        # id. A strict count against the source is wrong: Calc itself can drop
-        # linked/one-cell images before the app sees them. No untagged current
-        # image and a unique source-id subset still proves the user did not edit.
+        # Ảnh liên kết (r:link) Calc không nhập → không nằm trong tập so; ảnh nhúng phải KHỚP TRỌN (tập id bằng
+        # nhau, không có khung chưa gắn id). Thiếu ảnh nhúng = người dùng đã xoá → không phục hồi drawing gốc
+        # (bản codex a05eec1 chấp nhận tập con cho oneCell/absolute/grouped → xoá ảnh trong app sẽ bị phục hồi lại).
+        # id dạng "<sheet>:<i>/<N>" (N = số khung ảnh Calc nhập được lúc mở): chưa sửa ⇔ hiện có đúng N khung ảnh,
+        # tất cả mang id, và tập id = {0..N-1}. Không so với số anchor gốc (Calc bỏ ảnh nhóm/ảnh cao 0/ảnh liên kết).
+        if not source_anchors:
+            continue
         current_count = fods_total_image_counts.get(sheet_name, 0)
-        # Nested/grouped frames can make the lightweight FODS frame counter
-        # see an untagged wrapper. It is still untouched when every tagged id
-        # belongs to the source and the current count did not grow.
-        exact_ids = sorted(fods_ids) == sorted(source_ids) and current_count == len(source_ids)
-        grouped_wrapper_evidence = current_count > len(fods_ids) and current_count <= len(source_ids)
-        missing_anchors = [anchor for anchor in source_anchors if f"{sheet_name}:{anchor['index']}" not in set(fods_ids)]
-        import_loss_only = bool(missing_anchors) and all(
-            "oneCellAnchor" in anchor["anchor_xml"] or "absoluteAnchor" in anchor["anchor_xml"] or re.search(r"\br:link=", anchor["anchor_xml"])
-            for anchor in missing_anchors
-        )
-        untouched_ids = exact_ids or (set(fods_ids).issubset(source_ids) and (grouped_wrapper_evidence or import_loss_only))
-        if not untouched_ids or len(fods_ids) != len(set(fods_ids)):
+        parsed = [re.match(r"^(.*):(\d+)/(\d+)$", i) for i in fods_ids]
+        if not parsed or any(m is None for m in parsed):
+            continue
+        totals = {int(m.group(3)) for m in parsed}
+        indexes = sorted(int(m.group(2)) for m in parsed)
+        if len(totals) != 1:
+            continue
+        n_at_open = totals.pop()
+        untouched_ids = current_count == n_at_open and indexes == list(range(n_at_open))
+        if not untouched_ids:
             continue  # Sheet has modified images, use LibreOffice's drawing
 
         # Sheet is untouched — restore original drawing
