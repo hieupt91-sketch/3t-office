@@ -12,6 +12,7 @@ Bộ đo: `scripts/layout-audit/_batch_audit.py` (mở + lưu app thật, Excel 
 | 6 | 5db873f | 3.780 | 6 | 23/26 (`<cols></cols>` rỗng) | S10 theme, S11 cột mặc định, S12 chữ ô, S8 một lượt (lan09 15 s) |
 | 7 | 5bb0dd4 | 2.070 (lan03 772 → 0, lan25 1386 → 0) | 15 | 21/26 (S9b ghi `<col>` hỏng) | S10b bảng màu, S9b cột ẩn, S13 chuỗi rỗng, S14/S15 công thức, S8b numFmt |
 | 8 | c5b038d | **371** | 14 | **26/26**, lint sạch | S9b XML, xfId |
+| 9 (19/9 chiều) | 59bff83 (codex S17–S21 + S16 theo N khung) | **5** (lan07 numberFormat 1 ô, lan15 rowHeight+freeze, lan23 visibility, lan25 autoFilter thừa `A1:Z183`) | **22** | 26/26, lint sạch | S16 nhóm draw:g, S17 `\r\n` đầu, S18 width snap, S19 ô lỗi có công thức, S20 centerContinuous + tên sheet `_x0009_`, S21 drawing |
 | sau 8 (đo lẻ) | d78ba1c | lan08 98 → 0, lan01 9 → 0, lan25 14 → 0, lan11 41 → 1, lan09 134 → 32, lan26 13 → 0, lan04 18 → 0, lan12 12 → 10, lan15 18 → 14 → **≈ 40** | 19 | 26/26 | font[0], font-face, chữ shape, AutoFilter nhiều sheet, S16 drawing |
 
 ## Vòng 8 (main c5b038d) — loại lỗi × file
