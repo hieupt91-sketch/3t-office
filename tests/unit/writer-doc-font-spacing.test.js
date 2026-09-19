@@ -115,5 +115,35 @@ export async function runWriterDocFontSpacingTests() {
     check(!classes.has("vno-doc-imported"), "imported class must be removed for a new document");
   });
 
+  test("W12a: contextualSpacing zeros margin between consecutive same-style paragraphs", () => {
+    const adapter = new WriterAdapter(null);
+    const html = '<p style="margin-top: 0.21cm; margin-bottom: 0.21cm">First</p><p style="margin-top: 0.21cm; margin-bottom: 0.21cm">Second</p><p style="margin-top: 0.21cm; margin-bottom: 0.21cm">Third</p>';
+    const doc = '<w:document><w:body><w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:contextualSpacing/></w:pPr><w:r><w:t>First</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:contextualSpacing/></w:pPr><w:r><w:t>Second</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:t>Third</w:t></w:r></w:p></w:body></w:document>';
+    const stylesXml = '<w:styles><w:style w:type="paragraph" w:styleId="ListParagraph"><w:pPr><w:contextualSpacing/></w:pPr></w:style></w:styles>';
+    const out = adapter._applyOoxmlContextualSpacing(html, doc, stylesXml);
+    check(out.includes('<p style="margin-top: 0.21cm; margin-bottom: 0">First</p>'), `first para must have margin-bottom: 0: ${out}`);
+    check(out.includes('<p style="margin-top: 0; margin-bottom: 0.21cm">Second</p>'), `second para must have margin-top: 0: ${out}`);
+    check(out.includes('<p style="margin-top: 0.21cm; margin-bottom: 0.21cm">Third</p>'), `third para (different style) must not change: ${out}`);
+  });
+
+  test("W12a: contextualSpacing via style basedOn chain", () => {
+    const adapter = new WriterAdapter(null);
+    const html = '<p style="margin-top: 0.21cm; margin-bottom: 0.21cm">A</p><p style="margin-top: 0.21cm; margin-bottom: 0.21cm">B</p>';
+    const doc = '<w:document><w:body><w:p><w:pPr><w:pStyle w:val="MyList"/></w:pPr><w:r><w:t>A</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="MyList"/></w:pPr><w:r><w:t>B</w:t></w:r></w:p></w:body></w:document>';
+    const stylesXml = '<w:styles><w:style w:type="paragraph" w:styleId="MyList"><w:basedOn w:val="ListParagraph"/></w:style><w:style w:type="paragraph" w:styleId="ListParagraph"><w:pPr><w:contextualSpacing/></w:pPr></w:style></w:styles>';
+    const out = adapter._applyOoxmlContextualSpacing(html, doc, stylesXml);
+    check(out.includes('<p style="margin-top: 0.21cm; margin-bottom: 0">A</p>'), `first para must have margin-bottom: 0 via basedOn: ${out}`);
+    check(out.includes('<p style="margin-top: 0; margin-bottom: 0.21cm">B</p>'), `second para must have margin-top: 0 via basedOn: ${out}`);
+  });
+
+  test("W12a: contextualSpacing not applied when styles differ", () => {
+    const adapter = new WriterAdapter(null);
+    const html = '<p style="margin-top: 0.21cm; margin-bottom: 0.21cm">A</p><p style="margin-top: 0.21cm; margin-bottom: 0.21cm">B</p>';
+    const doc = '<w:document><w:body><w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:contextualSpacing/></w:pPr><w:r><w:t>A</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:t>B</w:t></w:r></w:p></w:body></w:document>';
+    const stylesXml = '<w:styles><w:style w:type="paragraph" w:styleId="ListParagraph"><w:pPr><w:contextualSpacing/></w:pPr></w:style></w:styles>';
+    const out = adapter._applyOoxmlContextualSpacing(html, doc, stylesXml);
+    check(out === html, `different styles must not change margins: ${out}`);
+  });
+
   return results;
 }

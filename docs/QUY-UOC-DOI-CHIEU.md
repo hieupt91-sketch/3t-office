@@ -35,6 +35,7 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 | W5 | Nhóm hình `wp:anchor` (wrapNone) xuất thành `<img name=ShapeN>` trần vẫn là float tuyệt đối, không phải inline | d06: 3 nhóm | test R3(a2) |
 | W6 | Cỡ chữ/font mặc định tài liệu chỉ lấy từ style Normal / head CSS; không lấy từ run đầu | d14: tiêu đề 28pt → strut 64px | 37596ed |
 | W7 | Lưu: header/footer chép theo `.rels` + media; giữ `theme1.xml` gốc; run chỉ 1 họ font | d20 corrupted, HDLD 6 trang | test_writer_headerfooter_dependencies |
+| W12a | contextualSpacing: hai đoạn kế tiếp cùng pStyle và style/pPr có `<w:contextualSpacing/>` → Word bỏ MAX(sa, sb) giữa chúng (lề = 0). Khi nhập: ánh xạ w:p → HTML <p> theo thứ tự, đoạn trước margin-bottom:0, đoạn sau margin-top:0. | d09 ListParagraph: Word pitch 23px (sa 10pt bỏ), canvas 37px; 43 cặp spacing | `_applyOoxmlContextualSpacing` (suite 153) |
 
 ## Quy ước đã đo và khoá (Sheet)
 

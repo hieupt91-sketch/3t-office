@@ -2015,6 +2015,7 @@ export class WriterAdapter {
     if (ooxmlDocumentXml) {
       html = this._applyOoxmlTrackChangesToHtml(html, ooxmlDocumentXml);
       html = this._applyOoxmlTableParagraphSpacing(html, ooxmlDocumentXml, ooxmlStylesXml);
+      html = this._applyOoxmlContextualSpacing(html, ooxmlDocumentXml, ooxmlStylesXml);
     }
     if (ooxmlDocumentXml && ooxmlCommentsXml) {
       const overlaid = this._applyOoxmlCommentsToHtml(html, ooxmlDocumentXml, ooxmlCommentsXml);
@@ -2602,6 +2603,139 @@ export class WriterAdapter {
         return `<p${attrs} style="${decls.join("; ")}">`;
       });
     });
+  }
+
+  /**
+   * Quy ước W12a — contextualSpacing: Word bỏ MAX(space-after, space-before) giữa HAI ĐOẠN KẾ TIẾP
+   * cùng pStyle khi style đó (hoặc pPr đoạn) có <w:contextualSpacing/>. LibreOffice không áp dụng điều này.
+   * Sửa khi nhập: duyệt các w:p cấp cao nhất (không trong bảng), ánh xạ theo thứ tự sang HTML <p>,
+   * nếu đoạn i và i+1 cùng style và cả hai đều có contextualSpacing → margin-bottom: 0 cho đoạn i,
+   * margin-top: 0 cho đoạn i+1.
+   */
+  _applyOoxmlContextualSpacing(html, ooxmlDocumentXml, ooxmlStylesXml = "") {
+    const xml = String(ooxmlDocumentXml || "");
+    const styles = String(ooxmlStylesXml || "");
+    if (!xml || !xml.includes("<w:body>")) return html;
+
+    // 1. Xây dựng map styleId -> có contextualSpacing (kể cả basedOn chain)
+    const styleCtx = new Map();
+    const basedOn = new Map();
+    const styleRe = /<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>([\s\S]*?)<\/w:style>/g;
+    for (const m of styles.matchAll(styleRe)) {
+      const sid = m[1];
+      const body = m[2];
+      const ppr = body.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+      styleCtx.set(sid, ppr && /<w:contextualSpacing\b/.test(ppr[1]));
+      const b = body.match(/<w:basedOn w:val="([^"]+)"/);
+      basedOn.set(sid, b ? b[1] : null);
+    }
+    const hasCtx = (sid, depth = 0) => {
+      if (!sid || depth > 12) return false;
+      if (styleCtx.has(sid) && styleCtx.get(sid)) return true;
+      const parent = basedOn.get(sid);
+      return parent ? hasCtx(parent, depth + 1) : false;
+    };
+
+    // 2. Lấy tất cả w:p cấp cao nhất (không nằm trong w:tbl)
+    const bodyMatch = xml.match(/<w:body>([\s\S]*?)<\/w:body>/i);
+    if (!bodyMatch) return html;
+    const bodyXml = bodyMatch[1];
+
+    // Loại bỏ nội dung trong bảng để không đếm w:p trong bảng
+    const bodyNoTables = bodyXml.replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi, "");
+
+    const paras = [];
+    const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
+    for (const m of bodyNoTables.matchAll(paraRe)) {
+      const p = m[0];
+      const ppr = p.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+      const pprXml = ppr ? ppr[1] : "";
+      const ownCtx = /<w:contextualSpacing\b/.test(pprXml);
+      const styleMatch = pprXml.match(/<w:pStyle w:val="([^"]+)"/);
+      const styleId = styleMatch ? styleMatch[1] : "Normal";
+      const ctx = ownCtx || hasCtx(styleId);
+      paras.push({ styleId, ctx, pprXml });
+    }
+
+    if (!paras.length) return html;
+
+    // 3. Xác định paragraphs nào cần margin-bottom:0 (với next) và margin-top:0 (với prev)
+    const needBottomZero = new Array(paras.length).fill(false);
+    const needTopZero = new Array(paras.length).fill(false);
+    for (let i = 0; i < paras.length - 1; i++) {
+      const cur = paras[i];
+      const next = paras[i + 1];
+      if (cur.styleId === next.styleId && cur.ctx && next.ctx) {
+        needBottomZero[i] = true;
+        needTopZero[i + 1] = true;
+      }
+    }
+    if (!needBottomZero.some(v => v) && !needTopZero.some(v => v)) return html;
+
+    // 4. Tách các bảng HTML để bỏ qua paragraph trong bảng
+    const tables = [];
+    let pos = 0;
+    while (true) {
+      const start = html.indexOf("<table", pos);
+      if (start < 0) break;
+      let depth = 0; let i = start;
+      const re = /<table\b|<\/table>/gi; re.lastIndex = start;
+      let m; let end = -1;
+      while ((m = re.exec(html))) { depth += m[0].startsWith("<table") ? 1 : -1; if (depth === 0) { end = m.index + m[0].length; break; } }
+      if (end < 0) break;
+      tables.push({ start, end }); pos = end;
+    }
+
+    // 5. Single-pass replace on HTML paragraphs (skip paragraphs inside tables)
+    let paraIndex = 0;
+    return String(html || "").replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (fullTag, attrs, inner, offset) => {
+      // Skip if inside a table
+      for (const t of tables) {
+        if (offset >= t.start && offset < t.end) return fullTag;
+      }
+
+      const spec = paras[paraIndex];
+      paraIndex++;
+      if (!spec) return fullTag;
+
+      const decls = [];
+      if (needBottomZero[paraIndex - 1]) decls.push("margin-bottom: 0");
+      if (needTopZero[paraIndex - 1]) decls.push("margin-top: 0");
+      if (!decls.length) return fullTag;
+
+      return this._addCssDeclsToParagraph(fullTag, attrs, inner, decls);
+    });
+  }
+
+  _addCssDeclsToParagraph(fullTag, attrs, inner, decls) {
+    const styleMatch = attrs.match(/\bstyle=(["'])([^"']*)\1/i);
+    let newAttrs = attrs;
+    if (styleMatch) {
+      const quote = styleMatch[1];
+      let css = styleMatch[2];
+      const existing = {};
+      css.split(";").forEach(part => {
+        const m = part.trim().match(/^([^:]+):\s*(.+)$/);
+        if (m) existing[m[1].trim().toLowerCase()] = m[2].trim();
+      });
+      for (const decl of decls) {
+        const [prop, val] = decl.split(":").map(s => s.trim());
+        existing[prop.toLowerCase()] = val;
+      }
+      const orderedProps = ["margin-top", "margin-bottom", "margin-left", "margin-right", "line-height"];
+      const newParts = [];
+      for (const prop of orderedProps) {
+        if (existing[prop] !== undefined) newParts.push(`${prop}: ${existing[prop]}`);
+      }
+      for (const [prop, val] of Object.entries(existing)) {
+        if (!orderedProps.includes(prop)) newParts.push(`${prop}: ${val}`);
+      }
+      css = newParts.join("; ");
+      newAttrs = attrs.replace(styleMatch[0], `style=${quote}${css}${quote}`);
+    } else {
+      newAttrs = `${attrs} style="${decls.join("; ")}"`;
+    }
+    return `<p${newAttrs}>${inner}</p>`;
   }
 
   _applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml) {
