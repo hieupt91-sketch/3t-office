@@ -51,6 +51,8 @@
       }
 
       await currentAppInstance.init({ ...options, singleApp: launchContext.singleAppMode });
+      // Bộ đo (scripts/layout-audit/_create_new_*.py) điều khiển app thật qua handle này; không dùng trong code sản phẩm.
+      window.__vnoAppInstance = currentAppInstance;
 
       // Cập nhật callback chuyển đổi app vào shell hiện tại
       if (currentAppInstance.shell) {
