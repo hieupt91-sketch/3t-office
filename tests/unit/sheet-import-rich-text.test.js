@@ -774,6 +774,24 @@ export async function runSheetImportRichTextTests() {
     assert(cell.val === "" || cell.val === null || cell.val === undefined, `image-only cell must have no text, got ${JSON.stringify(cell.val)}`);
   });
 
+  run("Regex branch: text inside <draw:custom-shape>/<draw:g> (text box) is not cell text", () => {
+    // lan11 A19 (vòng 8): text box "Update V2" neo ô lọt vào giá trị ô
+    const shapeCell = `<table:table-cell table:style-name="ce1"><draw:g><draw:custom-shape svg:width="2cm" svg:height="1cm"><text:p>Update V2</text:p><draw:enhanced-geometry/></draw:custom-shape></draw:g><draw:rect svg:width="1cm" svg:height="1cm"><text:p>X</text:p></draw:rect></table:table-cell>`;
+    const wb = new SheetAdapter(makeGrid("S")).parseFods(fodsHead + shapeCell + fodsTail);
+    const cell = wb.sheetsData.S.get("A1");
+    assert(!cell || !cell.val, `shape text must not become cell text, got ${JSON.stringify(cell?.val)}`);
+  });
+
+  run("style:font-name resolves through office:font-face-decls (Calibri1 -> Calibri)", () => {
+    const head = fodsHead.replace("<office:automatic-styles>", `<office:font-face-decls><style:font-face style:name="Calibri1" svg:font-family="Calibri" style:font-pitch="variable"/><style:font-face style:name="Arial" svg:font-family="Arial"/></office:font-face-decls><office:automatic-styles><style:style style:name="ce9" style:family="table-cell"><style:text-properties style:font-name="Calibri1" fo:font-size="11pt"/></style:style><style:style style:name="T9" style:family="text"><style:text-properties style:font-name="Calibri1"/></style:style>`);
+    const cell = `<table:table-cell table:style-name="ce9" office:value-type="string"><text:p>a<text:span text:style-name="T9">b</text:span></text:p></table:table-cell>`;
+    const wb = new SheetAdapter(makeGrid("S")).parseFods(head + cell + fodsTail);
+    const a1 = wb.sheetsData.S.get("A1");
+    assert(a1.style.fontFamily === "Calibri", `cell font, got ${a1.style.fontFamily}`);
+    const run1 = (a1.richText || []).find(r => r.text === "b");
+    assert(run1 && run1.style.fontFamily === "Calibri", `run font, got ${JSON.stringify(a1.richText)}`);
+  });
+
   run("Regex branch: <text:s text:c>, <text:tab/>, <text:line-break/> expand to spaces/tab/newline", () => {
     const wb = new SheetAdapter(makeGrid("S")).parseFods(fodsHead + spacesCell + fodsTail);
     assert(wb.sheetsData.S.get("A1").val === "a   b\tc\nd", `got ${JSON.stringify(wb.sheetsData.S.get("A1").val)}`);

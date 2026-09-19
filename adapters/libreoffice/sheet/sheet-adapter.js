@@ -1645,8 +1645,32 @@ export class SheetAdapter {
    * covering visual cell properties: background, border, font, alignment, wrap.
    * Resolves style:parent-style-name for 1-level inheritance.
    */
+  /**
+   * <office:font-face-decls>: style:font-name là TÊN khai báo, không phải họ font. LibreOffice đặt "Calibri1",
+   * "Arial1" khi cùng họ xuất hiện với pitch/charset khác (đo vòng 5: 56 ô "Calibri1", 54 ô "Arial1"; vòng 8 lan25
+   * 14 ô) — họ thật nằm ở svg:font-family. Trả về Map tên → họ.
+   */
+  _parseFontFaceDecls(xmlText) {
+    const faces = new Map();
+    const block = String(xmlText || "").match(/<office:font-face-decls\b[^>]*>([\s\S]*?)<\/office:font-face-decls>/i)?.[1] || "";
+    block.replace(/<style:font-face\b([^>]*?)\/?>/gi, (_, attrs) => {
+      const name = this._unescapeXml(attrs.match(/style:name=["']([^"']+)["']/i)?.[1] || "");
+      const family = this._normalizeFontFamily(attrs.match(/svg:font-family=["']([^"']+)["']/i)?.[1] || "");
+      if (name && family) faces.set(name, family);
+      return "";
+    });
+    return faces;
+  }
+
+  _resolveFontFaceName(rawName, fontFaces) {
+    const name = this._normalizeFontFamily(rawName);
+    if (!name) return name;
+    return fontFaces?.get(name) || fontFaces?.get(String(rawName || "").trim()) || name;
+  }
+
   _parseCellVisualStyles(xmlText) {
     const raw = new Map();
+    const fontFaces = this._parseFontFaceDecls(xmlText);
     const parseStyleBlock = (block) => {
       String(block || "").replace(/<style:style\b([^>]*?)\s*(?:\/>|>([\s\S]*?)<\/style:style>)/gi, (_, attrs, body = "") => {
         const family = attrs.match(/style:family=["']([^"']+)["']/i)?.[1] || "";
@@ -1728,7 +1752,7 @@ export class SheetAdapter {
         if (textDecoration) style.textDecoration = textDecoration;
         const color = textProps.match(/fo:color=["']([^"']+)["']/i)?.[1];
         if (color) style.color = color;
-        const fontName = this._normalizeFontFamily(textProps.match(/style:font-name=["']([^"']+)["']/i)?.[1]);
+        const fontName = this._resolveFontFaceName(textProps.match(/style:font-name=["']([^"']+)["']/i)?.[1], fontFaces);
         if (fontName) style.fontFamily = fontName;
         raw.set(name, { style, parentName });
         return "";
@@ -1752,6 +1776,7 @@ export class SheetAdapter {
    */
   _parseTextStyles(xmlText) {
     const raw = new Map();
+    const fontFaces = this._parseFontFaceDecls(xmlText);
     String(xmlText || "").replace(/<style:style\b([^>]*?)\s*(?:\/>|>([\s\S]*?)<\/style:style>)/gi, (_, attrs, body = "") => {
       const family = attrs.match(/style:family=["']([^"']+)["']/i)?.[1] || "";
       if (family !== "text") return "";
@@ -1768,7 +1793,7 @@ export class SheetAdapter {
       if (fontStyle) style.fontStyle = fontStyle;
       const textDecoration = this._odfTextDecoration(textProps);
       if (textDecoration) style.textDecoration = textDecoration;
-      const fontName = this._normalizeFontFamily(textProps.match(/style:font-name=["']([^"']+)["']/i)?.[1]);
+      const fontName = this._resolveFontFaceName(textProps.match(/style:font-name=["']([^"']+)["']/i)?.[1], fontFaces);
       if (fontName) style.fontFamily = fontName;
       const fontSize = textProps.match(/fo:font-size=["']([^"']+)["']/i)?.[1];
       if (fontSize) {
@@ -1797,9 +1822,12 @@ export class SheetAdapter {
    */
   _cellTextParagraphs(cellElement) {
     const TEXT_NS = "urn:oasis:names:tc:opendocument:xmlns:text:1.0";
+    const DRAW_NS = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0";
     return Array.from(cellElement.getElementsByTagNameNS(TEXT_NS, "p")).filter(paragraph => {
       for (let node = paragraph.parentNode; node && node !== cellElement; node = node.parentNode) {
-        if (node.localName === "frame" || node.localName === "annotation") return false;
+        // Mọi đối tượng vẽ neo ô: draw:frame (ảnh), draw:custom-shape / draw:rect / draw:g (text box, hình —
+        // đo lan11 A19: chữ "Update V2" của text box lọt vào ô), office:annotation (ghi chú)
+        if (node.namespaceURI === DRAW_NS || node.localName === "annotation") return false;
       }
       return true;
     });
@@ -1820,9 +1848,30 @@ export class SheetAdapter {
     return text;
   }
 
-  /** Bản regex của _cellTextParagraphs: bỏ <draw:frame>…</draw:frame> (ảnh neo ô) khỏi nội dung ô. */
+  /** Bản regex của _cellTextParagraphs: bỏ mọi phần tử <draw:*> (ảnh, text box, hình — kể cả lồng nhau) khỏi nội dung ô. */
   _stripCellFrames(cellContent) {
-    return String(cellContent || "").replace(/<draw:frame\b[^>]*\/>|<draw:frame\b[^>]*>[\s\S]*?<\/draw:frame>/gi, "");
+    const xml = String(cellContent || "");
+    if (!/<draw:/i.test(xml)) return xml;
+    let out = "";
+    const tagRe = /<(\/?)draw:([\w-]+)\b[^>]*?(\/?)>/gi;
+    let depth = 0;
+    let keepFrom = 0;
+    let m;
+    while ((m = tagRe.exec(xml)) !== null) {
+      const closing = m[1] === "/";
+      const selfClosing = m[3] === "/";
+      if (!closing && depth === 0) {
+        out += xml.slice(keepFrom, m.index);
+        if (selfClosing) { keepFrom = m.index + m[0].length; continue; }
+        depth = 1;
+      } else if (!closing && !selfClosing) {
+        depth++;
+      } else if (closing) {
+        depth = Math.max(0, depth - 1);
+        if (depth === 0) keepFrom = m.index + m[0].length;
+      }
+    }
+    return out + xml.slice(keepFrom);
   }
 
   /** Bản regex của _odfInlineText cho nội dung trong <text:p>. */
@@ -2323,11 +2372,13 @@ export class SheetAdapter {
     String(xmlText || "").replace(/<table:database-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
       const target = this._unescapeXml(attrs.match(/table:target-range-address=["']([^"']*)["']/i)?.[1] || "");
       if (!target) return "";
-      // Format: SheetName.A1:D10
-      const dotIdx = target.indexOf(".");
-      if (dotIdx === -1) return "";
-      const sheetName = target.substring(0, dotIdx);
-      const ref = target.substring(dotIdx + 1);
+      // Calc ghi 'Tên sheet'.A1:'Tên sheet'.J2650 (nháy đơn khi tên có dấu cách/ký tự đặc biệt) hoặc
+      // Sheet.A3:Sheet.CF145 — tách theo dấu "." đầu tiên làm sai cả hai (đo vòng 8: lan01 sheet 3 và
+      // lan11 sheet 3 mất AutoFilter vì tên sheet lẫn vào vùng).
+      const m = target.match(/^(?:'((?:[^']|'')*)'|([^.'!]+))\.(\$?[A-Z]+\$?\d+)(?::(?:(?:'(?:[^']|'')*'|[^.'!]+)\.)?(\$?[A-Z]+\$?\d+))?$/i);
+      if (!m) return "";
+      const sheetName = m[1] !== undefined ? m[1].replace(/''/g, "'") : m[2];
+      const ref = (m[3] + (m[4] ? `:${m[4]}` : "")).replace(/\$/g, "");
       if (sheetName && ref) workbook.autoFilterBySheet[sheetName] = ref;
       return "";
     });

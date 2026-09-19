@@ -26,6 +26,7 @@ except Exception as exc:
     print(f"soffice: FAILED after {time.time()-t2:.1f}s: {exc}", flush=True)
     sys.exit(1)
 print(f"soffice: {os.path.getsize(xlsx)/1e6:.1f} MB in {time.time()-t2:.1f}s", flush=True)
+shutil.copyfile(xlsx, OUT + ".lo.xlsx")  # ban LibreOffice ghi ra TRUOC hau xu ly, de doi chieu tung buoc
 
 t3 = time.time()
 vnmain._apply_native_export_postprocess(src, xlsx, "sheet", "xlsx", source_path=SOURCE)

@@ -79,6 +79,18 @@ class UntouchedCellStyles(unittest.TestCase):
             self.assertEqual(int(m.group(1)), actual, tag)
         self.assertIn("<border><left style=\"thin\"/><right/><top style=\"thin\"/><bottom style=\"thin\"/></border>", styles)
 
+    def test_copied_font_never_dedupes_into_normal_slot_zero(self):
+        """lan08 vòng 8 (98 ô): font chép (Arial 10) trùng fonts[0] của LibreOffice -> gộp về 0; sau đó
+        _restore_normal_font_in_styles thay fonts[0] bằng Normal gốc (Calibri 11) -> ô mất Arial 10."""
+        lo_styles = LO_STYLES.replace('<fonts count="1"><font><sz val="10"/><name val="Arial"/></font></fonts>',
+                                      '<fonts count="1"><font><b/><sz val="13"/><name val="Times New Roman"/></font></fonts>')
+        replacements = {}
+        patcher._restore_original_xf_for_vno_cells(_xlsx(lo_styles, LO_SHEET), FODS, _xlsx(SOURCE_STYLES, LO_SHEET), replacements)
+        styles = replacements["xl/styles.xml"]
+        xfs = re.findall(r"<xf\b[^>]*/>|<xf\b[^>]*>.*?</xf>", re.search(r"<cellXfs[^>]*>(.*?)</cellXfs>", styles, re.S).group(1), re.S)
+        self.assertIn('fontId="1"', xfs[2])
+        self.assertIn('<fonts count="2">', styles)
+
     def test_builtin_numfmt_id_declared_explicitly_in_source_keeps_its_code(self):
         """lan28 (vòng 5, 1540 ô): file gốc khai báo `<numFmt numFmtId="41" formatCode="_-* #,##0_-;…"/>` (ghi đè mã
         built-in theo locale); S8 chỉ chép id >= 164 nên Excel dùng mã 41 mặc định của nó."""

@@ -4487,7 +4487,10 @@ class _SourceXfCopier:
         csx = re.search(r"<cellStyleXfs\b[^>]*>([\s\S]*?)</cellStyleXfs>", styles_entry.decode("utf-8", errors="replace"), re.IGNORECASE) if styles_entry else None
         self.cell_style_xf_count = max(1, len(re.findall(r"<xf\b", csx.group(1)))) if csx else 1
         # Build maps for deduplication (by XML content). numFmt: formatCode -> numFmtId (custom ids >= 164).
-        self.font_map = {f: i for i, f in enumerate(self.fonts)}
+        # fonts[0] là ô Normal: _restore_normal_font_in_styles sẽ thay bằng font Normal của file gốc SAU S8, nên
+        # không được gộp font chép vào chỉ số 0 (đo lan08 vòng 8: Arial 10 == fonts[0] của LibreOffice -> gộp
+        # về 0 -> sau đó thành Calibri 11 của Normal gốc, 98 ô lệch font).
+        self.font_map = {f: i for i, f in enumerate(self.fonts) if i > 0}
         self.fill_map = {f: i for i, f in enumerate(self.fills)}
         self.border_map = {b: i for i, b in enumerate(self.borders)}
         self.numfmt_map = {code: fmt_id for fmt_id, code in self.current_numfmts.items()}
