@@ -6,10 +6,10 @@
   đoạn = MAX(sa, sb); strut của `<p>` = font của run đầu; font mặc định từ docDefaults + theme…).
 - `docs/MA-TRAN-WRITER-2026-09-15b.md`: ma trận hiện tại. Lớp `line-height` tập trung ở d09 (43), d11 (24), d07 (21),
   d06 (15), d19 (6); `font-size` ở d19 (19), d21 (14).
-- Bộ đo: `python scripts/layout-audit/_writer_layout_audit.py . "file test/docx" _out d09.docx d11.docx d07.docx d06.docx d19.docx d21.docx`
+- Bộ đo: `python scripts/layout-audit/_writer_layout_audit.py . "file test/landocx" _out d09.docx d11.docx d07.docx d06.docx d19.docx d21.docx`
   → `_out/_writer_layout_matrix.md` và `_out/<tên>.pairs.jsonl` (từng đoạn: Word COM vs canvas app thật, có
   `kind`, chiều cao dòng Word/canvas, font, cỡ, `w:line`, `w:lineRule`, spacing). Word COM: `Font.NameOther` cho tên
-  font Latin, `+Headings/+Body` giải qua theme1.xml. Thư mục mẫu nằm ngoài git (`file test/docx`, đã có sẵn trong worktree).
+  font Latin, `+Headings/+Body` giải qua theme1.xml. Thư mục mẫu nằm ngoài git (`file test/landocx`, đã có sẵn trong worktree).
 
 ## Việc — theo đúng phương pháp "gom lớp → một giá trị chung → sửa một chỗ"
 
@@ -22,7 +22,7 @@
    `tests/unit/writer-doc-font-spacing.test.js` (suite 153) khoá quy ước.
 3. Làm tương tự cho `font-size` (d19/d21): so `w:sz` run vs cỡ canvas; nghi vấn: cỡ lấy từ style đoạn thay vì run,
    hoặc `w:szCs`, hoặc `<font size=N>` HTML của LibreOffice (1–7) đổi sai sang pt.
-4. Chạy lại bộ đo trên CẢ 24 file (`python scripts/layout-audit/_writer_layout_audit.py . "file test/docx" _out`):
+4. Chạy lại bộ đo trên CẢ 24 file (`python scripts/layout-audit/_writer_layout_audit.py . "file test/landocx" _out`):
    hàng `line-height` phải giảm ≥ 60% (126 → ≤ 50), `font-size` 36 → ≤ 10, KHÔNG lớp nào tăng, số trang canvas
    không xa Word hơn trước (cột `page`). Dán ma trận trước/sau vào báo cáo.
 
