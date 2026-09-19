@@ -2390,6 +2390,19 @@ export class SheetAdapter {
    * used range as fallback.  This ensures the filter survives FODS→XLSX
    * round-trip via the Python postprocess layer.
    */
+  _usedRangeOfSheet(sheetName) {
+    const cells = this.grid?.sheetsData?.[sheetName] || (sheetName === this.grid?.activeSheet ? this.grid?.cellsData : null);
+    if (!cells || typeof cells.keys !== "function") return "";
+    let maxCol = 0, maxRow = 0;
+    for (const coord of cells.keys()) {
+      const m = /^([A-Z]+)(\d+)$/.exec(coord);
+      if (!m) continue;
+      maxCol = Math.max(maxCol, this._columnNumber(m[1]));
+      maxRow = Math.max(maxRow, Number(m[2]));
+    }
+    return maxCol && maxRow ? `A1:${this._columnName(maxCol)}${maxRow}` : "";
+  }
+
   _serializeDatabaseRanges(sheetNames) {
     const ranges = [];
     // "__Anonymous_Sheet_DB__<sheet index>" is LibreOffice's own name for a
@@ -2400,7 +2413,8 @@ export class SheetAdapter {
       const ss = this.grid.sheetStates?.[sheetName];
       const isActive = ss?.isFilterActive;
       if (!isActive) return;
-      const ref = ss?.filterRange || "";
+      // Bộ lọc người dùng bật trong app không có filterRange -> dùng vùng đã dùng của sheet
+      const ref = ss?.filterRange || this._usedRangeOfSheet(sheetName) || "";
       if (!ref) return;
       // Tên sheet có khoảng trắng/ký tự đặc biệt phải đặt trong nháy đơn ở CẢ HAI đầu vùng
       // ('Nguồn 2020 (GVCN)'.A1:'Nguồn 2020 (GVCN)'.J2650) như Calc ghi; không nháy LibreOffice
@@ -4324,6 +4338,10 @@ export class SheetAdapter {
         this.grid.sheetStates[sheetName].filterRange = autoFilterRef;
       }
     }
+    // switchSheet bước 1 ghi trạng thái SỐNG của grid (isFilterActive=false lúc mới mở) đè lên sheetStates
+    // của sheet đang active — đo vòng 8: sheet cuối của lan01/lan11 mất AutoFilter vì grid vừa tạo sheet đó.
+    // Mọi trạng thái đã được nạp từ workbook ở trên nên bỏ qua bước lưu này.
+    this.grid.activeSheet = null;
     if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet);
     else this.grid.activeSheet = workbook.activeSheet;
     const activeFreezeState = this.grid.sheetStates[this.grid.activeSheet];

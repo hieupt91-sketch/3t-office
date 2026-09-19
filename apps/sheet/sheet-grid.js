@@ -1770,9 +1770,10 @@ export class SheetGridController {
     this._ensureRowColLayout(sheetName);
     this._invalidateRowTopsCache(sheetName);
 
-    // 1. Lưu trạng thái sheet hiện tại
+    // 1. Lưu trạng thái sheet hiện tại (giữ các khoá khác như filterRange/tabColor mà adapter đã gắn)
     if (this.activeSheet && this.sheetStates) {
       this.sheetStates[this.activeSheet] = {
+        ...(this.sheetStates[this.activeSheet] || {}),
         hiddenRows: new Set(this.hiddenRows || []),
         activeFilters: new Map(this.activeFilters || []),
         isFilterActive: !!this.isFilterActive,
@@ -1963,6 +1964,7 @@ export class SheetGridController {
     if (!this.activeSheet) return;
     if (!this.sheetStates) this.sheetStates = {};
     this.sheetStates[this.activeSheet] = {
+      ...(this.sheetStates[this.activeSheet] || {}),
       hiddenRows: new Set(this.hiddenRows || []),
       activeFilters: new Map(this.activeFilters || []),
       isFilterActive: !!this.isFilterActive,
