@@ -89,10 +89,42 @@ class TestSheetHiddenColsAndRows(unittest.TestCase):
         with zipfile.ZipFile(io.BytesIO(patched), "r") as z:
             out_xml = z.read("xl/worksheets/sheet1.xml").decode("utf-8")
 
-        # Must have hidden column up to 16384
-        self.assertIn('max="16384"', out_xml)
-        self.assertIn('min="27"', out_xml)
-        self.assertIn('hidden="true"', out_xml)
+        # Must have hidden columns covering 9..16384 (one range or several, no gap)
+        import re
+        hidden = sorted((int(a.get("min")), int(a.get("max"))) for a in
+                        (dict(re.findall(r'(\w+)="([^"]*)"', m.group(1))) for m in re.finditer(r"<col\b([^>]*)/?>", out_xml))
+                        if a.get("hidden") in ("1", "true"))
+        covered = 9
+        for lo, hi in hidden:
+            if lo <= covered <= hi:
+                covered = hi + 1
+        self.assertEqual(covered, 16385, f"hidden ranges {hidden}")
+        self.assertNotIn('min="1" max="8" width="10.0" customWidth="1" hidden', out_xml)
+
+    def test_s9b_hidden_columns_beyond_data_range_override_saved_cols(self):
+        """Đo vòng 5/6 (lan19 150, lan08 231, lan22 15 cột): dải ẩn gốc 265..269 nằm trong <cols> LibreOffice
+        ghi tới 4096 (không ẩn) nên cách "nối sau cột lớn nhất" bỏ qua; phải phủ dải gốc lên và cắt <col> chồng."""
+        source = SOURCE_SHEET_XML.replace('<col min="9" max="16384" width="9.18" style="5" hidden="1"/>',
+                                          '<col min="9" max="9" width="11.45" style="5" hidden="1"/><col min="265" max="269" width="0" hidden="1"/>')
+        saved = SAVED_SHEET_XML_TRUNCATED.replace('<col min="9" max="26" width="9.00" hidden="true" customWidth="1"/>',
+                                                  '<col min="9" max="9" width="11.45" hidden="true" customWidth="1"/><col min="10" max="4096" width="8.43" customWidth="1"/>')
+        saved = saved.replace("<cols>", '<dimension ref="A1:T39"/><cols>')
+        patched = patcher.postprocess_sheet_xlsx(_make_xlsx(saved), source_fods=FODS_MINIMAL, source_xlsx_bytes=_make_xlsx(source))
+        with zipfile.ZipFile(io.BytesIO(patched), "r") as z:
+            out_xml = z.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        cols = out_xml.split("<cols>")[1].split("</cols>")[0]
+        import re
+        entries = [(int(a["min"]), int(a["max"]), a.get("hidden")) for a in
+                   (dict(re.findall(r'(\w+)="([^"]*)"', m.group(1))) for m in re.finditer(r"<col\b([^>]*)/?>", cols))]
+        # cột 9 đã ẩn: giữ nguyên; 10..264 và 270..4096 vẫn hiện; 265..269 ẩn; thứ tự tăng dần, không chồng
+        self.assertIn((9, 9, "true"), entries)
+        self.assertIn((10, 264, None), entries)
+        self.assertIn((265, 269, "true"), entries)
+        self.assertIn((270, 4096, None), entries)
+        mins = [e[0] for e in entries]
+        self.assertEqual(mins, sorted(mins))
+        for (a1, b1, _), (a2, b2, _) in zip(entries, entries[1:]):
+            self.assertLess(b1, a2)
 
         # Must have rows 35-38 inserted in order
         self.assertIn('r="35"', out_xml)

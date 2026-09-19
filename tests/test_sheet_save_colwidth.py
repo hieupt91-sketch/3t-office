@@ -74,6 +74,10 @@ class ColumnWidthRestore(unittest.TestCase):
         self.assertIn('max="2" min="2" style="0" width="47.57"', cols)
         # D: cột ẩn giữ <col hidden> nhưng không có width
         self.assertIn('hidden="true"', cols); self.assertNotIn('min="4" style="0" width', cols)
+        # Mọi cột đều mặc định -> bỏ hẳn <cols> (CT_Cols rỗng làm Excel từ chối file: lan21/lan22 vòng 6)
+        all_default = lo_sheet.replace('max="2" min="2" style="0" width="47.57"', 'max="2" min="2" style="0" width="8.43"').replace('hidden="true"', 'hidden="false"')
+        out_none = patcher._restore_column_widths(all_default, {**widths, "B": 1.6933}, 7.0, None, source_explicit_cols=set(), default_display_chars=default_chars)
+        self.assertNotIn("<cols>", out_none); self.assertIn("<sheetData/>", out_none)
         # Cột mặc định bị app đổi (C rộng 100px = 2.6458cm -> 13.57 chars) thì vẫn ghi
         out2 = patcher._restore_column_widths(lo_sheet, {**widths, "C": 2.6458}, 7.0, None, source_explicit_cols=explicit, default_display_chars=default_chars)
         self.assertIn('max="3" min="3" style="0" width="13.57"', out2)

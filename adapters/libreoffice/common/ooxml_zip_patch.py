@@ -1487,6 +1487,9 @@ def _restore_column_widths(
         new_cols_parts.append(f"<col {attr_str}/>")
 
     new_cols_content = "".join(new_cols_parts)
+    if not new_cols_content:
+        # CT_Cols bắt buộc có ít nhất một <col>: <cols></cols> rỗng làm Excel từ chối mở file (đo lan21/lan22 vòng 6)
+        return sheet_xml[:cols_match.start()] + sheet_xml[cols_match.end():]
     return sheet_xml[:cols_match.start()] + before_cols + new_cols_content + after_cols + sheet_xml[cols_match.end():]
 
 
@@ -1531,39 +1534,54 @@ def _restore_hidden_columns_and_rows_from_source(sheet_xml: str, source_sheet_xm
             })
 
     if orig_hidden_cols:
+        # S9b (đo vòng 5/6: lan19 150, lan08 231, lan22 15 cột): cột ẩn NGOÀI vùng dữ liệu (sau cột cuối
+        # của <dimension>) là phần app không bao giờ thấy (LibreOffice bỏ khi nhập) -> file gốc là nguồn
+        # đúng: phủ dải ẩn gốc lên <cols> đã lưu (cắt các <col> hiện có bị chồng), không chỉ nối thêm
+        # sau cột lớn nhất (lan19: dải 265..4096 nằm trong <cols> LibreOffice ghi tới 4096 nên bị bỏ qua).
+        dimension = re.search(r'<dimension\b[^>]*ref="[A-Z]+\d*(?::([A-Z]+)\d*)?"', sheet_xml, re.IGNORECASE)
+        last_data_col = _column_index(dimension.group(1)) if dimension and dimension.group(1) else 0
+        hidden_ranges = []
+        for hc in orig_hidden_cols:
+            lo = max(hc["min"], last_data_col + 1)
+            if lo <= hc["max"]:
+                hidden_ranges.append((lo, min(hc["max"], 16384), hc))
         cols_match = re.search(r"(<cols>)([\s\S]*?)(</cols>)", sheet_xml, re.IGNORECASE)
-        if cols_match:
-            existing_cols_content = cols_match.group(2)
-            existing_max = 0
-            for m in re.finditer(r'<col\b([^>]*)/?>', existing_cols_content, re.IGNORECASE):
-                attrs = dict(re.findall(r'(\w+)="([^"]*)"', m.group(1)))
-                existing_max = max(existing_max, int(attrs.get("max", attrs.get("min", "0"))))
-
-            missing_col_tags = []
-            for hc in orig_hidden_cols:
-                if hc["max"] > existing_max:
-                    col_min = max(hc["min"], existing_max + 1)
-                    col_max = hc["max"]
-                    if col_min <= col_max:
-                        width_val = f"{float(hc['width']):.2f}" if hc["width"] else "9.00"
-                        missing_col_tags.append(
-                            f'<col collapsed="false" customWidth="1" hidden="true" outlineLevel="0" max="{col_max}" min="{col_min}" style="0" width="{width_val}"/>'
-                        )
-            if missing_col_tags:
-                new_cols = cols_match.group(1) + existing_cols_content + "".join(missing_col_tags) + cols_match.group(3)
-                sheet_xml = sheet_xml[:cols_match.start()] + new_cols + sheet_xml[cols_match.end():]
-        else:
-            sd_match = re.search(r"<sheetData\b", sheet_xml, re.IGNORECASE)
-            if sd_match:
-                missing_col_tags = []
-                for hc in orig_hidden_cols:
-                    width_val = f"{float(hc['width']):.2f}" if hc["width"] else "9.00"
-                    missing_col_tags.append(
-                        f'<col collapsed="false" customWidth="1" hidden="true" outlineLevel="0" max="{hc["max"]}" min="{hc["min"]}" style="0" width="{width_val}"/>'
-                    )
-                if missing_col_tags:
-                    cols_xml = f"<cols>{''.join(missing_col_tags)}</cols>"
-                    sheet_xml = sheet_xml[:sd_match.start()] + cols_xml + sheet_xml[sd_match.start():]
+        if hidden_ranges:
+            existing: list[tuple[int, int, str]] = []  # (min, max, attrs không có min/max)
+            if cols_match:
+                for m in re.finditer(r'<col\b([^>]*)/?>', cols_match.group(2), re.IGNORECASE):
+                    attrs_str = m.group(1)
+                    attrs = dict(re.findall(r'(\w+)="([^"]*)"', attrs_str))
+                    c_min = int(attrs.get("min", "1")); c_max = int(attrs.get("max", attrs.get("min", "1")))
+                    rest = re.sub(r'\s*\b(?:min|max)="[^"]*"', "", attrs_str).strip()
+                    existing.append((c_min, c_max, rest))
+            already_hidden = [(a, b) for a, b, rest in existing if re.search(r'\bhidden="(?:1|true)"', rest)]
+            pieces: list[tuple[int, int, str]] = []
+            for lo, hi, hc in hidden_ranges:
+                if any(a <= lo and hi <= b for a, b in already_hidden):
+                    continue
+                # cắt phần chồng khỏi các <col> hiện có
+                trimmed = []
+                for a, b, rest in existing:
+                    if b < lo or a > hi:
+                        trimmed.append((a, b, rest))
+                        continue
+                    if a < lo:
+                        trimmed.append((a, lo - 1, rest))
+                    if b > hi:
+                        trimmed.append((hi + 1, b, rest))
+                existing = trimmed
+                width_val = f"{float(hc['width']):.2f}" if hc["width"] else "9.00"
+                pieces.append((lo, hi, f'collapsed="false" customWidth="1" hidden="true" outlineLevel="0" style="0" width="{width_val}"'))
+            if pieces:
+                merged = sorted(existing + pieces, key=lambda t: t[0])
+                new_cols_content = "".join(f'<col {rest} max="{b}" min="{a}"/>' if rest else f'<col max="{b}" min="{a}"/>' for a, b, rest in merged)
+                if cols_match:
+                    sheet_xml = sheet_xml[:cols_match.start()] + "<cols>" + new_cols_content + "</cols>" + sheet_xml[cols_match.end():]
+                else:
+                    sd_match = re.search(r"<sheetData\b", sheet_xml, re.IGNORECASE)
+                    if sd_match:
+                        sheet_xml = sheet_xml[:sd_match.start()] + "<cols>" + new_cols_content + "</cols>" + sheet_xml[sd_match.start():]
 
     # --- 2. Hidden rows ---
     orig_hidden_rows = {}
