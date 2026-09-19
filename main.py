@@ -864,8 +864,16 @@ class VnOfficeApi:
                     # Overlay BEFORE the FODS leaves this process — SheetAdapter.parseFods
                     # must see table:structure-protected when the original XLSX is locked.
                     content = _apply_native_import_overlay(src_path, content, app_kind)
-                    # Optimize FODS: merge repeated empty cells, trim style-only tail
+                    # Optimize FODS: merge repeated empty cells, trim style-only tail.
                     content = _optimize_fods_for_sheet(content)
+                    # Cell runs can move to their final logical coordinates during
+                    # optimization. Reapply only XF ownership at those coordinates;
+                    # all other native overlays retain their established ordering.
+                    if src_path.lower().endswith(".xlsx"):
+                        with open(src_path, "rb") as source_file:
+                            content = _ooxml_zip_patch().reoverlay_sheet_xf_indices(
+                                source_file.read(), content
+                            )
                 elif app_kind == "slides":
                     # Overlay BEFORE the FODP leaves this process — SlidesAdapter.parseFodp
                     # must see vno:section-*, vno:master-theme, and Set Up Show vno:*

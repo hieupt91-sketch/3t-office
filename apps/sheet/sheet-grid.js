@@ -7024,6 +7024,8 @@ export class SheetGridController {
   toggleFilter() {
     const previous = this._snapshotFilterState();
     this.isFilterActive = !this.isFilterActive;
+    const state = this.sheetStates?.[this.activeSheet];
+    if (state) state.filterSetByUser = true;
     if (this.container) {
       if (this.isFilterActive) {
         this.container.classList.add("vno-filter-mode");
