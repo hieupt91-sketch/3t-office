@@ -2369,6 +2369,7 @@ def postprocess_sheet_xlsx(
 ) -> bytes:
     """Return patched XLSX bytes, or the original buffer when no patch is needed."""
     replacements: dict[str, str] = {}
+    source_xlsx_bytes = normalize_source_xlsx(source_xlsx_bytes)  # S23: XLSX gốc có tiền tố x: (lan23)
 
     # Extract original font and sheetFormatPr from source XLSX if available
     original_font = None
@@ -4872,6 +4873,40 @@ def _restore_untouched_drawings_step(
     return
 
 
+_MAIN_NS_PREFIX_RE = re.compile(r'xmlns:([A-Za-z_][\w.-]*)="http://schemas\.openxmlformats\.org/spreadsheetml/2006/main"')
+
+
+def normalize_source_xlsx(xlsx_bytes: bytes | None) -> bytes | None:
+    """S23: XLSX ghi SpreadsheetML với tiền tố (`<x:workbook xmlns:x="…/spreadsheetml/2006/main"><x:sheet>`, `<x:c>`
+    — lan23, phần mềm kế toán xuất) làm MỌI regex `<sheet\\b`/`<c\\b`/`<row\\b` của overlay lúc mở và hậu xử lý lúc lưu
+    không thấy gì: không có vno:xf, không khôi phục gì (đo 19/9: auditor cũng đọc 0 sheet → 627 lệch bị che). Bỏ tiền
+    tố của namespace chính trong mọi part .xml một lần ở cửa vào; các tiền tố khác (r:, mc:, x14ac:) giữ nguyên."""
+    if not xlsx_bytes:
+        return xlsx_bytes
+    try:
+        with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as zin:
+            names = zin.namelist()
+            wb = zin.read(XLSX_WORKBOOK_ENTRY).decode("utf-8", errors="replace") if XLSX_WORKBOOK_ENTRY in names else ""
+            m = _MAIN_NS_PREFIX_RE.search(wb)
+            if not m:
+                return xlsx_bytes
+            out = io.BytesIO()
+            with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout:
+                for info in zin.infolist():
+                    data = zin.read(info.filename)
+                    if info.filename.startswith("xl/") and info.filename.endswith(".xml"):
+                        text = data.decode("utf-8", errors="replace")
+                        pm = _MAIN_NS_PREFIX_RE.search(text)
+                        if pm:
+                            p = re.escape(pm.group(1))
+                            text = re.sub(rf"<(/?){p}:", r"<\1", text)
+                            data = text.encode("utf-8")
+                    zout.writestr(info, data)
+            return out.getvalue()
+    except (zipfile.BadZipFile, KeyError, OSError, ValueError):
+        return xlsx_bytes
+
+
 def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     """Read the original XLSX ZIP and overlay FODS.
 
@@ -4880,6 +4915,7 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     soffice round-trips.  Production File → Mở must restore them before
     SheetAdapter.parseFods().
     """
+    xlsx_bytes = normalize_source_xlsx(xlsx_bytes)
     xml = fods_xml or ""
     current = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
     if current:
@@ -5088,7 +5124,7 @@ def _overlay_sheet_xf_indices_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str
 def reoverlay_sheet_xf_indices(xlsx_bytes: bytes, fods_xml: str) -> str:
     """Reattach XF ownership after FODS cell-run normalization."""
     clean = re.sub(r'\s+vno:xf\s*=\s*(["\'])\d+\1', "", fods_xml, flags=re.IGNORECASE)
-    return _overlay_sheet_xf_indices_from_xlsx(xlsx_bytes, clean)
+    return _overlay_sheet_xf_indices_from_xlsx(normalize_source_xlsx(xlsx_bytes), clean)
 
 
 def _fods_cells_with_vno_xf(fods_xml: str) -> dict[str, dict[tuple[int, int], int]]:

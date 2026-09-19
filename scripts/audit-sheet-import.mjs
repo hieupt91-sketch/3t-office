@@ -42,7 +42,17 @@ function attrs(text = "") {
 function xmlEntry(xlsx, name, required = false) {
   const data = readZipEntry(xlsx, name);
   if (!data && required) throw new Error(`XLSX thiếu ${name}`);
-  return data?.toString("utf8") || "";
+  return stripMainNamespacePrefix(data?.toString("utf8") || "");
+}
+
+// Một số file (lan23, xuất từ phần mềm khác) ghi SpreadsheetML với tiền tố (`<x:workbook xmlns:x="…/spreadsheetml/2006/main">
+// <x:sheet …>`): auditor cũ đọc được 0 sheet nguồn → 627 lệch dữ liệu bị che (codex đo 19/9). Bỏ tiền tố của
+// namespace chính để mọi regex `<sheet\b`, `<c\b`… nhìn thấy; các namespace khác (r:, mc:, x14ac:) giữ nguyên.
+function stripMainNamespacePrefix(xml) {
+  const m = /xmlns:([A-Za-z_][\w.-]*)="http:\/\/schemas\.openxmlformats\.org\/spreadsheetml\/2006\/main"/.exec(xml);
+  if (!m) return xml;
+  const p = m[1];
+  return xml.replace(new RegExp(`<(/?)${p}:`, "g"), "<$1");
 }
 
 function resolveTarget(base, target) {
@@ -247,7 +257,9 @@ function parseSheetXml(xml, sharedStrings, styles) {
     // string resolves to "" IS kept: an empty-string cell differs from a blank one in
     // Excel (COUNTA, ISBLANK, Ctrl+End) — lan09.xlsx save once produced 21,930 of them.
     if (rawValue !== "" || formula || a.t === "inlineStr") {
-      result.cells.set(coord, { coord, value, formula, ...style, category: formatCategory(style.formatCode), richText: sharedStrings.richIndexes?.has(sharedIndex) || (a.t === "inlineStr" && /<r\b/i.test(body)) });
+      // Ô công thức không có <v> (lan23: `<c t="e"><f>…</f></c>`, 21 ô): Excel tự tính khi mở, không có giá trị
+      // gốc để so → bỏ so giá trị, vẫn so công thức/style.
+      result.cells.set(coord, { coord, value, formula, noCache: Boolean(formula) && rawValue === "", ...style, category: formatCategory(style.formatCode), richText: sharedStrings.richIndexes?.has(sharedIndex) || (a.t === "inlineStr" && /<r\b/i.test(body)) });
       const col = coord.match(/^([A-Z]+)/i)?.[1] || "";
       const colNumber = [...col.toUpperCase()].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
       result.maxDataColumn = Math.max(result.maxDataColumn, colNumber);
@@ -521,7 +533,7 @@ export function auditSheetRoundtrip(expectedPath, actualPath, { maxDetails = 20 
     else {
       for (const coord of [...new Set([...left.cells.keys(), ...right.cells.keys()])]) {
         const a = left.cells.get(coord); const b = right.cells.get(coord);
-        if (!valuesEqual(a?.value, b?.value)) mismatch(kinds.value, { coord, expected: a?.value, actual: b?.value }, maxDetails);
+        if (!a?.noCache && !valuesEqual(a?.value, b?.value)) mismatch(kinds.value, { coord, expected: a?.value, actual: b?.value }, maxDetails);
         if (normalizeFormula(a?.formula) !== normalizeFormula(b?.formula)) mismatch(kinds.formula, { coord, expected: a?.formula || "", actual: b?.formula || "" }, maxDetails);
         const as = comparableStyle(a || {}, expected.theme); const bs = comparableStyle(b || {}, actual.theme);
         as.border = effectiveBorder(left.cells, coord, as.border, expected.theme);
