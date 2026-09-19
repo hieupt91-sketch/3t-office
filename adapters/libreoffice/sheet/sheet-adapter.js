@@ -1791,13 +1791,56 @@ export class SheetAdapter {
   }
 
   /**
+   * <text:p> là nội dung chữ của ô: chỉ lấy các đoạn không nằm trong <draw:frame>
+   * (ảnh neo ô: soffice ghi `<draw:image>…<text:p/></draw:image>` — đo lan04 B23:
+   * 2 ảnh → chuỗi "\n", 233 ô / 7 file) và không nằm trong <office:annotation>.
+   */
+  _cellTextParagraphs(cellElement) {
+    const TEXT_NS = "urn:oasis:names:tc:opendocument:xmlns:text:1.0";
+    return Array.from(cellElement.getElementsByTagNameNS(TEXT_NS, "p")).filter(paragraph => {
+      for (let node = paragraph.parentNode; node && node !== cellElement; node = node.parentNode) {
+        if (node.localName === "frame" || node.localName === "annotation") return false;
+      }
+      return true;
+    });
+  }
+
+  /**
+   * Chữ của một nút ODF inline: <text:s text:c="n"/> = n dấu cách, <text:tab/> = tab,
+   * <text:line-break/> = xuống dòng (textContent bỏ mất cả ba).
+   */
+  _odfInlineText(node) {
+    if (node.nodeType === 3) return node.nodeValue || "";
+    if (node.nodeType !== 1) return "";
+    if (node.localName === "s") return " ".repeat(Math.max(1, Number(node.getAttribute("text:c")) || 1));
+    if (node.localName === "tab") return "\t";
+    if (node.localName === "line-break") return "\n";
+    let text = "";
+    for (const child of Array.from(node.childNodes)) text += this._odfInlineText(child);
+    return text;
+  }
+
+  /** Bản regex của _cellTextParagraphs: bỏ <draw:frame>…</draw:frame> (ảnh neo ô) khỏi nội dung ô. */
+  _stripCellFrames(cellContent) {
+    return String(cellContent || "").replace(/<draw:frame\b[^>]*\/>|<draw:frame\b[^>]*>[\s\S]*?<\/draw:frame>/gi, "");
+  }
+
+  /** Bản regex của _odfInlineText cho nội dung trong <text:p>. */
+  _odfInlineTextFromXml(inner) {
+    return this._unescapeXml(String(inner || "")
+      .replace(/<text:s\b([^>]*)\/>/gi, (_, attrs) => " ".repeat(Math.max(1, Number(attrs.match(/text:c=["'](\d+)["']/i)?.[1]) || 1)))
+      .replace(/<text:tab\b[^>]*\/>/gi, "\t")
+      .replace(/<text:line-break\b[^>]*\/>/gi, "\n")
+      .replace(/<[^>]+>/g, ""));
+  }
+
+  /**
    * Extract rich text runs from a DOM cell element's <text:p> paragraphs.
    * Returns { text, runs } where text is the flat joined text and runs is the richText array.
    * Only returns runs when there are ≥2 runs with different styles.
    */
   _extractRichTextFromDom(cellElement, textStyles, cellStyle) {
-    const TEXT_NS = "urn:oasis:names:tc:opendocument:xmlns:text:1.0";
-    const paragraphs = Array.from(cellElement.getElementsByTagNameNS(TEXT_NS, "p"));
+    const paragraphs = this._cellTextParagraphs(cellElement);
     const allRuns = [];
     let firstRun = true;
 
@@ -1807,14 +1850,19 @@ export class SheetAdapter {
       }
       firstRun = false;
 
-      const spans = Array.from(para.getElementsByTagNameNS(TEXT_NS, "span"));
-      if (spans.length === 0) {
-        allRuns.push({ text: para.textContent || "", style: {} });
-      } else {
-        for (const span of spans) {
-          const styleName = span.getAttribute("text:style-name") || "";
+      // Đo lan02 G3: soffice ghi `<text:p>SỐ TIỀN<text:span>(With Amount)</text:span></text:p>` —
+      // chữ trần đứng trước/giữa các span là run không style; duyệt theo thứ tự con
+      // của <text:p>, không chỉ lấy các <text:span> (mất "SỐ TIỀN", 52 ô / 5 file).
+      for (const node of Array.from(para.childNodes)) {
+        if (node.nodeType === 3) {
+          if (node.nodeValue) allRuns.push({ text: node.nodeValue, style: {} });
+        } else if (node.nodeType === 1 && node.localName === "span") {
+          const styleName = node.getAttribute("text:style-name") || "";
           const spanStyle = textStyles.get(styleName) || {};
-          allRuns.push({ text: span.textContent || "", style: { ...spanStyle } });
+          allRuns.push({ text: this._odfInlineText(node), style: { ...spanStyle } });
+        } else if (node.nodeType === 1) {
+          const text = this._odfInlineText(node);
+          if (text) allRuns.push({ text, style: {} });
         }
       }
     }
@@ -1855,7 +1903,7 @@ export class SheetAdapter {
    */
   _extractRichTextFromXml(cellContent, textStyles, cellStyle) {
     const paragraphs = [];
-    String(cellContent || "").replace(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi, (_, inner) => {
+    this._stripCellFrames(cellContent).replace(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi, (_, inner) => {
       paragraphs.push(inner);
       return "";
     });
@@ -1878,22 +1926,22 @@ export class SheetAdapter {
         hasSpans = true;
         // Text before this span (if any) is unstyled
         if (spanMatch.index > lastIdx) {
-          const gap = this._unescapeXml(paraInner.substring(lastIdx, spanMatch.index).replace(/<[^>]+>/g, ""));
+          const gap = this._odfInlineTextFromXml(paraInner.substring(lastIdx, spanMatch.index));
           if (gap) allRuns.push({ text: gap, style: {} });
         }
         const attrs = spanMatch[1];
         const styleName = (attrs.match(/text:style-name=["']([^"']*)["']/i)?.[1] || "");
         const spanStyle = textStyles.get(styleName) || {};
-        const text = this._unescapeXml(spanMatch[2].replace(/<[^>]+>/g, ""));
+        const text = this._odfInlineTextFromXml(spanMatch[2]);
         allRuns.push({ text, style: { ...spanStyle } });
         lastIdx = spanMatch.index + spanMatch[0].length;
       }
 
       if (!hasSpans) {
-        const text = this._unescapeXml(paraInner.replace(/<[^>]+>/g, ""));
+        const text = this._odfInlineTextFromXml(paraInner);
         allRuns.push({ text, style: {} });
       } else if (lastIdx < paraInner.length) {
-        const tail = this._unescapeXml(paraInner.substring(lastIdx).replace(/<[^>]+>/g, ""));
+        const tail = this._odfInlineTextFromXml(paraInner.substring(lastIdx));
         if (tail) allRuns.push({ text: tail, style: {} });
       }
     }
@@ -3807,8 +3855,8 @@ export class SheetAdapter {
                 }
                 if (!attributes["table:style-name"] && columnStyles[columnNumber - 1]) attributes["table:style-name"] = columnStyles[columnNumber - 1];
                 const annotation = Array.from(cell.children).find(child => child.localName === "annotation");
-                const paragraphs = Array.from(cell.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p")).filter(paragraph => !annotation?.contains(paragraph));
-                const text = this._decodeImportedCellText(paragraphs.map(paragraph => paragraph.textContent || "").join("\n"));
+                const paragraphs = this._cellTextParagraphs(cell);
+                const text = this._decodeImportedCellText(paragraphs.map(paragraph => this._odfInlineText(paragraph)).join("\n"));
                 // Ô rỗng nhưng có viền/nền (style-only) cũng phải vào model, nếu không
                 // serializeToFods bỏ table:style-name -> XLSX lưu ra mất viền (đo Dahua:
                 // FODS soffice 573 ô viền, app gửi đi 468 khi thiếu nhánh này).
@@ -4052,7 +4100,7 @@ export class SheetAdapter {
               const annotationMatch = content.match(/<office:annotation\b([^>]*)>([\s\S]*?)<\/office:annotation>/i);
               const valueContent = annotationMatch ? content.replace(annotationMatch[0], "") : content;
               const paragraphs = [];
-              valueContent.replace(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi, (_, value) => { paragraphs.push(this._unescapeXml(value.replace(/<[^>]+>/g, ""))); return ""; });
+              this._stripCellFrames(valueContent).replace(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/gi, (_, value) => { paragraphs.push(this._odfInlineTextFromXml(value)); return ""; });
               const text = this._decodeImportedCellText(paragraphs.join("\n"));
               // Regex-branch twin of the DOM rule: border-only cells inside the
               // used range enter the model so their borders survive the save.

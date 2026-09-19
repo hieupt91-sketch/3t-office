@@ -13,6 +13,8 @@ Không sửa "cho file X". Mọi con số trong file này là số đo thật (W
 | `python scripts/layout-audit/_batch_audit.py <wt> [lanNN.xlsx...]` | Sheet: mở + lưu app thật, Excel mở thử, auditor `scripts/audit-sheet-import.mjs --xlsx-vs-xlsx` |
 | `python scripts/layout-audit/_sheet_matrix.py <wt> [outdir]` | Sheet: gom auditor của mọi `_rt_lanNN.xlsx` thành `_sheet_matrix.md` (loại lỗi × file + mẫu lặp) |
 | `powershell -File scripts/layout-audit/_word_oracle3.ps1 -File x.docx` | Số trang Word (PDF export). KHÔNG dùng `ComputeStatistics(wdStatisticPages)` (sai: 88 cho tài liệu 44 trang) |
+| `powershell -File scripts/layout-audit/_excel_mdw.ps1 ["Calibri:11" ...]` | Excel COM: chiều rộng cột mặc định (px) và max digit width theo font Normal — nguồn số cho S11 |
+| `python scripts/layout-audit/_time_sheet_save_stages.py <wt> <x.sent.fods> <src.xlsx> <out.xlsx>` | Đo thời gian từng bước lưu Sheet (tối ưu FODS → soffice → hậu xử lý) không cần mở app; dùng khi file lớn không lưu xong |
 
 File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`); ma trận chỉ ghi số, không ghi tên file thật.
 
@@ -40,7 +42,10 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 | S7 | Định dạng số nhập từ file: giữ nguyên data-style ODF LibreOffice sinh (`numberFormat.odf`), ghi lại verbatim; ô chuỗi/trống cũng giữ numFmt | lan10/26/27 | ade1bc8 |
 | S8 | Ô không bị sửa trong app giữ NGUYÊN <xf> gốc XLSX (numFmt/font/fill/border/alignment): overlay `vno:xf` khi mở, băm style lúc nhập, hậu xử lý chép xf+phụ thuộc vào styles.xml mới | lan27 3667→0, lan04 1849→134, lan03 1823→246 | 0d9c35e, test_sheet_untouched_cell_styles |
 | S9 | Dải cột ẩn ngoài used range (kéo tới 16384/XFD) và dòng ẩn trống được khôi phục từ XLSX gốc qua hậu xử lý | lan02: 16.370→8 (hiddenColumn 16.358→0, hiddenRow 4→0) | test_sheet_hidden_cols_rows |
-| S6 | Auditor so theo ngữ nghĩa Excel: màu theme(+tint) → RGB; font/viền không màu = tự động; căn ngang trống = general, dọc trống = bottom; cạnh viền hiệu dụng với ô kề | lan09 115k → 1.246 lệch thật | audit-sheet-import.mjs |
+| S10 | xf/font/fill chép theo S8 trỏ màu `theme="N"`/`indexed="N"` → file lưu phải giữ `xl/theme/theme1.xml` và `<colors><indexedColors>` của file gốc (LibreOffice ghi theme "Office" của nó: accent6 C9211E thay vì 70AD47) | vòng 5: fill #A9D18E→#E9706D 574 ô (lan07/13/17), #558ED5→#666666 168 ô (lan03/10/16) | test_sheet_untouched_cell_styles (S10) |
+| S11 | Cột KHÔNG có `<col width>` trong file gốc và app không đổi (lệch < 0,5 ký tự) thì không ghi `width=`; `defaultColWidth` LibreOffice tự thêm (11.535) bị bỏ khi file gốc không có; `baseColWidth` giữ nguyên. Excel: thuộc tính width đã gồm lề 5px (9.140625 = 64px/7 cho cột hiển thị "8.43"), cột mặc định = 8×MDW+8 px; MDW đo Excel COM (`_excel_mdw.ps1`): Calibri 11/Arial 10/Tahoma 10 = 7, Calibri 12/Arial 11/Times New Roman 12/Verdana 10 = 8 | vòng 5: 271 cột / 9 file (lan21 104, lan17 69, lan28 20, lan01 20…) ghi `width="8.43"` = 59px cho cột 64px | test_sheet_save_colwidth (S11), auditor `columnPx`/`defaultColumnPx` |
+| S12 | Chữ của ô = các `<text:p>` con trực tiếp của ô (không lấy `<text:p/>` trong `<draw:frame>` ảnh neo ô, không lấy trong annotation); rich text duyệt mọi nút con của `<text:p>` theo thứ tự (chữ trần trước/giữa span là run không style); `<text:s text:c>`/`<text:tab/>`/`<text:line-break/>` = dấu cách/tab/xuống dòng | vòng 5: ô chỉ có ảnh → chuỗi "\n" 233 ô / 7 file (lan04 B23…); "SỐ TIỀN (With Amount)" → " (With Amount)" 52 ô / 5 file (lan02 G3…) | sheet-import-rich-text.test.js (4 test S12) |
+| S6 | Auditor so theo ngữ nghĩa Excel: màu theme(+tint) → RGB; màu indexed theo bảng chuẩn 0–63 (+`<indexedColors>` riêng); font/viền không màu = tự động; căn ngang trống = general, dọc trống = bottom; cạnh viền hiệu dụng với ô kề; cột không có `<col>` = mặc định theo sheetFormatPr + MDW | lan09 115k → 1.246 lệch thật | audit-sheet-import.mjs |
 
 ## Đang đo / đang giao
 

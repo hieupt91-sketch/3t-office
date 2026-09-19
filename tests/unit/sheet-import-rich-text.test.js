@@ -736,5 +736,79 @@ export async function runSheetImportRichTextTests() {
     assert(cell2.richText[1].text === " & C > D", `DOM round-trip run 1, got "${cell2.richText[1].text}"`);
   });
 
+  // Đo 2026-09-19 (batch LAN vòng 5): soffice ghi `<text:p>SỐ TIỀN<text:span>(With Amount)</text:span></text:p>`
+  // — chữ trần trước span bị mất (lan02 G3/G4/G9/G10/G11, 52 ô / 5 file); ô chỉ chứa ảnh neo
+  // (`<draw:frame><draw:image>…<text:p/></draw:image></draw:frame>` × 2) thành chuỗi "\n" (233 ô / 7 file).
+  const fodsHead = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+  xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+  xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+  xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0">
+  <office:automatic-styles>
+    <style:style style:name="T1" style:family="text"><style:text-properties fo:font-style="italic"/></style:style>
+    <style:style style:name="ce1" style:family="table-cell"><style:table-cell-properties fo:border="0.5pt solid #000000"/></style:style>
+  </office:automatic-styles>
+  <office:body><office:spreadsheet><table:table table:name="S"><table:table-column/><table:table-row>`;
+  const fodsTail = `</table:table-row></table:table></office:spreadsheet></office:body></office:document-content>`;
+  const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+  const mixedCell = `<table:table-cell office:value-type="string" calcext:value-type="string"><text:p>SỐ TIỀN<text:span text:style-name="T1"> (With Amount)</text:span></text:p></table:table-cell>`;
+  const imageOnlyCell = `<table:table-cell table:style-name="ce1"><draw:frame draw:name="Picture 21" svg:width="1cm" svg:height="1cm"><draw:image draw:mime-type="image/png"><office:binary-data>${png}</office:binary-data><text:p/></draw:image></draw:frame><draw:frame draw:name="Picture 22" svg:width="1cm" svg:height="1cm"><draw:image draw:mime-type="image/png"><office:binary-data>${png}</office:binary-data><text:p/></draw:image></draw:frame></table:table-cell>`;
+  const spacesCell = `<table:table-cell office:value-type="string"><text:p>a<text:s text:c="3"/>b<text:tab/>c<text:line-break/>d</text:p></table:table-cell>`;
+
+  run("Regex branch: bare text before/after <text:span> stays in the value and becomes an unstyled run", () => {
+    const wb = new SheetAdapter(makeGrid("S")).parseFods(fodsHead + mixedCell + fodsTail);
+    const cell = wb.sheetsData.S.get("A1");
+    assert(cell.val === "SỐ TIỀN (With Amount)", `val, got "${cell.val}"`);
+    assert(Array.isArray(cell.richText) && cell.richText.length === 2, `2 runs, got ${JSON.stringify(cell.richText)}`);
+    assert(cell.richText[0].text === "SỐ TIỀN", `run 0, got "${cell.richText[0].text}"`);
+    assert(cell.richText[1].style.fontStyle === "italic", "run 1 italic");
+  });
+
+  run("Regex branch: <text:p/> inside <draw:frame> (anchored image) is not cell text", () => {
+    const wb = new SheetAdapter(makeGrid("S")).parseFods(fodsHead + imageOnlyCell + fodsTail);
+    const cell = wb.sheetsData.S.get("A1");
+    assert(cell, "A1 kept as style-only cell (border)");
+    assert(cell.val === "" || cell.val === null || cell.val === undefined, `image-only cell must have no text, got ${JSON.stringify(cell.val)}`);
+  });
+
+  run("Regex branch: <text:s text:c>, <text:tab/>, <text:line-break/> expand to spaces/tab/newline", () => {
+    const wb = new SheetAdapter(makeGrid("S")).parseFods(fodsHead + spacesCell + fodsTail);
+    assert(wb.sheetsData.S.get("A1").val === "a   b\tc\nd", `got ${JSON.stringify(wb.sheetsData.S.get("A1").val)}`);
+  });
+
+  // Nhánh DOM (app thật dùng DOMParser): mô phỏng cây nút tối thiểu vì Node không có DOMParser.
+  const TEXT_NS = "urn:oasis:names:tc:opendocument:xmlns:text:1.0";
+  const el = (ns, localName, attrs, children) => {
+    const node = { nodeType: 1, localName, namespaceURI: ns, childNodes: children || [], parentNode: null,
+      getAttribute: name => attrs?.[name] ?? null,
+      getElementsByTagNameNS(wantNs, wantName) {
+        const out = [];
+        const walk = n => { for (const c of n.childNodes || []) { if (c.nodeType === 1 && c.namespaceURI === wantNs && c.localName === wantName) out.push(c); walk(c); } };
+        walk(this); return out;
+      } };
+    for (const child of node.childNodes) child.parentNode = node;
+    return node;
+  };
+  const txt = value => ({ nodeType: 3, nodeValue: value, childNodes: [] });
+  const DRAW_NS = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0";
+
+  run("DOM branch: bare text nodes around <text:span> are kept in order; frame paragraphs ignored", () => {
+    const adapter = Object.create(SheetAdapter.prototype);
+    const span = el(TEXT_NS, "span", { "text:style-name": "T1" }, [txt(" (With Amount)")]);
+    const p = el(TEXT_NS, "p", {}, [txt("SỐ TIỀN"), span, txt("!")]);
+    const frame = el(DRAW_NS, "frame", {}, [el(DRAW_NS, "image", {}, [el(TEXT_NS, "p", {}, [])])]);
+    const cell = el("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "table-cell", {}, [p, frame]);
+    const paragraphs = adapter._cellTextParagraphs(cell);
+    assert(paragraphs.length === 1, `only the cell's own paragraph, got ${paragraphs.length}`);
+    const rt = adapter._extractRichTextFromDom(cell, new Map([["T1", { fontStyle: "italic" }]]), {});
+    assert(rt.text === "SỐ TIỀN (With Amount)!", `flat text, got "${rt.text}"`);
+    assert(rt.runs.length === 3 && rt.runs[0].text === "SỐ TIỀN" && rt.runs[2].text === "!", `runs ${JSON.stringify(rt.runs)}`);
+    const spaced = el(TEXT_NS, "p", {}, [txt("a"), el(TEXT_NS, "s", { "text:c": "3" }, []), txt("b"), el(TEXT_NS, "tab", {}, []), txt("c")]);
+    assert(adapter._odfInlineText(spaced) === "a   b\tc", `inline text, got ${JSON.stringify(adapter._odfInlineText(spaced))}`);
+  });
+
   return results;
 }

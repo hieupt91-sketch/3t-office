@@ -118,14 +118,17 @@ export async function runSheetImportAuditTests() {
   await test("audit XLSX-vs-XLSX ignores LibreOffice default column tail", () => {
     const f = fixture(); const actual = path.join(f.dir, "actual.xlsx");
     try {
-      const sheetWithTail = SHEET.replace("</cols>", '<col min="2" max="16384" width="13.5714285714"/></cols>');
-      fs.writeFileSync(actual, createZip([
+      const build = cols => { fs.writeFileSync(actual, createZip([
         { name: "xl/workbook.xml", data: WORKBOOK }, { name: "xl/_rels/workbook.xml.rels", data: RELS },
         { name: "xl/styles.xml", data: STYLES }, { name: "xl/sharedStrings.xml", data: SHARED },
-        { name: "xl/worksheets/sheet1.xml", data: sheetWithTail }
-      ]));
-      const report = auditSheetRoundtrip(f.xlsx, actual);
-      assert.equal(report.sheets[0].mismatches.columnWidth.count, 0, JSON.stringify(report.sheets[0].mismatches.columnWidth));
+        { name: "xl/worksheets/sheet1.xml", data: SHEET.replace("</cols>", cols + "</cols>") }
+      ])); return auditSheetRoundtrip(f.xlsx, actual).sheets[0].mismatches.columnWidth; };
+      // Đuôi cột mặc định ngoài vùng dữ liệu (C..XFD) bị bỏ qua
+      assert.equal(build('<col min="3" max="16384" width="13.5714285714"/>').count, 0);
+      // Cột B trong vùng dữ liệu: file gốc không có <col> = mặc định 64px (Calibri 11, MDW 7);
+      // ghi width="13.57" (= 95px) là lệch thật (S11); width="9.140625" (= 64px) thì không.
+      assert.equal(build('<col min="2" max="16384" width="13.5714285714"/>').count, 1);
+      assert.equal(build('<col min="2" max="2" width="9.140625"/>').count, 0);
     } finally { fs.rmSync(f.dir, { recursive: true, force: true }); }
   });
 

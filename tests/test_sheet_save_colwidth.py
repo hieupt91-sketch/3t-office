@@ -50,6 +50,39 @@ class ColumnWidthRestore(unittest.TestCase):
         self.assertEqual([int(x) for x in __import__("re").findall(r'min="(\d+)"', cols)], [1, 2, 3, 4, 6])
 
 
+    def test_s11_source_default_columns_stay_implicit(self):
+        """Đo vòng 5 (19/9, 271 cột / 9 file): cột không có <col> trong file gốc (Excel: 64px với
+        Calibri 11) bị LibreOffice ghi width="8.43" = 59px vì thuộc tính width đã gồm lề 5px."""
+        lo_sheet = ('<worksheet><dimension ref="A1:D9"/><sheetFormatPr defaultColWidth="11.53515625" defaultRowHeight="14.5"></sheetFormatPr><cols>'
+                    '<col collapsed="false" customWidth="1" hidden="false" outlineLevel="0" max="1" min="1" style="0" width="8.43"/>'
+                    '<col collapsed="false" customWidth="1" hidden="false" outlineLevel="0" max="2" min="2" style="0" width="47.57"/>'
+                    '<col collapsed="false" customWidth="1" hidden="false" outlineLevel="0" max="3" min="3" style="0" width="8.43"/>'
+                    '<col collapsed="false" customWidth="1" hidden="true" outlineLevel="0" max="4" min="4" style="0" width="8.43"/>'
+                    '</cols><sheetData/></worksheet>')
+        source_sheet = '<worksheet><cols><col min="2" max="2" width="47.54296875" customWidth="1"/></cols><sheetData/></worksheet>'
+        # 64px = 1.6933cm -> chars_for = 8.43; B 338px = 8.9429cm -> 47.57
+        widths = {"A": 1.6933, "B": 8.9429, "C": 1.6933, "D": 1.6933}
+        explicit = patcher._source_columns_with_explicit_width(source_sheet)
+        self.assertEqual(explicit, {2})
+        default_chars = patcher._unchanged_default_column_chars({}, 7.0)
+        self.assertAlmostEqual(default_chars, 8.43, places=2)
+        out = patcher._restore_column_widths(lo_sheet, widths, 7.0, None, source_explicit_cols=explicit, default_display_chars=default_chars)
+        cols = out.split("<cols>")[1].split("</cols>")[0]
+        # A, C: cột mặc định của file gốc, app không đổi -> không ghi <col>
+        self.assertNotIn('min="1"', cols); self.assertNotIn('min="3"', cols)
+        # B: có width trong file gốc -> ghi lại theo app
+        self.assertIn('max="2" min="2" style="0" width="47.57"', cols)
+        # D: cột ẩn giữ <col hidden> nhưng không có width
+        self.assertIn('hidden="true"', cols); self.assertNotIn('min="4" style="0" width', cols)
+        # Cột mặc định bị app đổi (C rộng 100px = 2.6458cm -> 13.57 chars) thì vẫn ghi
+        out2 = patcher._restore_column_widths(lo_sheet, {**widths, "C": 2.6458}, 7.0, None, source_explicit_cols=explicit, default_display_chars=default_chars)
+        self.assertIn('max="3" min="3" style="0" width="13.57"', out2)
+        # baseColWidth=10 (lan01/lan28): mặc định = 10 + 3/7 = 10.43; app trả 10.57 -> vẫn là mặc định
+        self.assertAlmostEqual(patcher._unchanged_default_column_chars({"baseColWidth": 10}, 7.0), 10.4286, places=3)
+        # Calibri 12 (MDW 8): mặc định 8.375, app trả 8.00 (lan21) -> vẫn là mặc định
+        self.assertAlmostEqual(patcher._unchanged_default_column_chars({}, 8.0), 8.375, places=3)
+
+
 class SheetFormatPrRestore(unittest.TestCase):
     def test_long_form_element_is_edited_in_place(self):
         sheet = '<worksheet><sheetPr><tabColor rgb="FF00FF00"/></sheetPr><dimension ref="A1:B2"/><sheetViews/><sheetFormatPr defaultColWidth="11.53" defaultRowHeight="12.8" customHeight="false"></sheetFormatPr><cols/><sheetData/></worksheet>'
@@ -61,6 +94,30 @@ class SheetFormatPrRestore(unittest.TestCase):
         sheet = '<worksheet><sheetPr/><dimension ref="A1:B2"/><sheetViews/><cols/><sheetData/></worksheet>'
         out = patcher._restore_sheet_format_pr(sheet, {"defaultRowHeight": 15.0})
         self.assertIn('<sheetViews/><sheetFormatPr defaultRowHeight="15.0"/><cols/>', out)
+
+    def test_s11_libreoffice_default_col_width_is_dropped_when_source_has_none(self):
+        sheet = '<worksheet><sheetFormatPr defaultColWidth="11.53515625" defaultRowHeight="12.8" customHeight="false"></sheetFormatPr><cols/><sheetData/></worksheet>'
+        # File gốc không có sheetFormatPr (lan21) -> bỏ defaultColWidth của LibreOffice
+        out = patcher._restore_sheet_format_pr(sheet, {})
+        self.assertIn('<sheetFormatPr defaultRowHeight="12.8" customHeight="false"/>', out)
+        # File gốc chỉ có baseColWidth="10" (lan01) -> ghi baseColWidth nguyên, không có defaultColWidth
+        out = patcher._restore_sheet_format_pr(sheet, {"baseColWidth": 10, "defaultRowHeight": 15.0})
+        self.assertIn('defaultRowHeight="15.0"', out); self.assertIn('baseColWidth="10"', out); self.assertNotIn("defaultColWidth", out)
+        # Chèn mới khi thiếu: bắt buộc có defaultRowHeight
+        out = patcher._restore_sheet_format_pr('<worksheet><cols/><sheetData/></worksheet>', {"baseColWidth": 10})
+        self.assertIn('<sheetFormatPr baseColWidth="10" defaultRowHeight="15"/><cols/>', out)
+
+    def test_extract_keeps_sheets_without_default_col_width(self):
+        import io, zipfile
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as z:
+            z.writestr("xl/workbook.xml", '<workbook xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="S1" sheetId="1" r:id="rId1"/><sheet name="S2" sheetId="2" r:id="rId2"/></sheets></workbook>')
+            z.writestr("xl/_rels/workbook.xml.rels", '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/></Relationships>')
+            z.writestr("xl/worksheets/sheet1.xml", '<worksheet><sheetFormatPr baseColWidth="10" defaultRowHeight="14.5"/><sheetData/></worksheet>')
+            z.writestr("xl/worksheets/sheet2.xml", '<worksheet><sheetData/></worksheet>')
+        info = patcher._extract_sheet_format_pr_from_xlsx(buf.getvalue())
+        self.assertEqual(info["S1"], {"baseColWidth": 10, "defaultRowHeight": 14.5})
+        self.assertEqual(info["S2"], {})
 
 
 class RowHeightRestore(unittest.TestCase):

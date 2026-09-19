@@ -79,6 +79,35 @@ class UntouchedCellStyles(unittest.TestCase):
             self.assertEqual(int(m.group(1)), actual, tag)
         self.assertIn("<border><left style=\"thin\"/><right/><top style=\"thin\"/><bottom style=\"thin\"/></border>", styles)
 
+    def test_s10_source_theme_and_indexed_colors_follow_the_copied_xf(self):
+        """Đo vòng 5 (19/9): fill <fgColor theme="9" tint="0.6"/> chép theo S8 nhưng theme1.xml là theme
+        mặc định của LibreOffice -> Excel tô #E9706D thay vì #A9D18E (574 ô lan07/13/17)."""
+        src_theme = '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office Theme"><a:accent6><a:srgbClr val="70AD47"/></a:accent6></a:theme>'
+        lo_theme = '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office"><a:accent6><a:srgbClr val="C9211E"/></a:accent6></a:theme>'
+        src_styles = SOURCE_STYLES.replace('<fgColor rgb="FFD9EAD3"/>', '<fgColor theme="9" tint="0.6"/>').replace(
+            "</styleSheet>", '<colors><indexedColors><color rgb="FF112233"/></indexedColors></colors></styleSheet>')
+
+        def with_theme(styles, theme):
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w") as z:
+                z.writestr("xl/workbook.xml", WORKBOOK); z.writestr("xl/_rels/workbook.xml.rels", RELS)
+                z.writestr("xl/styles.xml", styles); z.writestr("xl/worksheets/sheet1.xml", LO_SHEET)
+                z.writestr("xl/theme/theme1.xml", theme)
+            return buf.getvalue()
+
+        replacements = {}
+        patcher._restore_original_xf_for_vno_cells(with_theme(LO_STYLES, lo_theme), FODS, with_theme(src_styles, src_theme), replacements)
+        self.assertEqual(replacements["xl/theme/theme1.xml"], src_theme)
+        styles = replacements["xl/styles.xml"]
+        self.assertIn('<fgColor theme="9" tint="0.6"/>', styles)
+        self.assertIn('<colors><indexedColors><color rgb="FF112233"/></indexedColors></colors></styleSheet>', styles)
+        import xml.dom.minidom
+        xml.dom.minidom.parseString(styles)
+        # Không có ô vno:xf nào -> không đụng theme của LibreOffice
+        untouched = {}
+        patcher._restore_original_xf_for_vno_cells(with_theme(LO_STYLES, lo_theme), FODS.replace(' vno:xf="1"', ""), with_theme(src_styles, src_theme), untouched)
+        self.assertNotIn("xl/theme/theme1.xml", untouched)
+
 
 if __name__ == "__main__":
     unittest.main()

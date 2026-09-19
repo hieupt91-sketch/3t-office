@@ -1319,11 +1319,19 @@ def _restore_normal_font_and_layout(
         
         # Restore column widths
         if sheet_name in fods_col_widths:
-            default_chars = original_sheet_format_pr.get(sheet_name, {}).get("defaultColWidth")
+            format_pr = original_sheet_format_pr.get(sheet_name)
+            default_chars = (format_pr or {}).get("defaultColWidth")
+            source_sheet_xml = None
+            if sheet_name in source_sheet_entries:
+                source_entry = read_zip_entry(source_xlsx_bytes, source_sheet_entries[sheet_name])
+                if source_entry:
+                    source_sheet_xml = source_entry.decode("utf-8", errors="replace")
             sheet_xml = _restore_column_widths(
-                sheet_xml, fods_col_widths[sheet_name], original_digit_width, default_chars
+                sheet_xml, fods_col_widths[sheet_name], original_digit_width, default_chars,
+                source_explicit_cols=_source_columns_with_explicit_width(source_sheet_xml),
+                default_display_chars=_unchanged_default_column_chars(format_pr, original_digit_width) if source_sheet_xml is not None else None,
             )
-        
+
         # Restore sheetFormatPr
         if sheet_name in original_sheet_format_pr:
             sheet_xml = _restore_sheet_format_pr(sheet_xml, original_sheet_format_pr[sheet_name])
@@ -1380,6 +1388,8 @@ def _column_index(letters: str) -> int:
 def _restore_column_widths(
     sheet_xml: str, col_widths_cm: dict[str, float], digit_width: float,
     default_col_width_chars: float | None = None,
+    source_explicit_cols: set[int] | None = None,
+    default_display_chars: float | None = None,
 ) -> str:
     """Restore column widths in worksheet XML using original font's digit width.
 
@@ -1389,16 +1399,37 @@ def _restore_column_widths(
     then renders them with the workbook's defaultColWidth, so every column the
     app laid out inside the used range is written back explicitly unless it
     already matches that Excel default.
+
+    S11 (đo vòng 5, 19/9: 271 cột / 9 file): cột KHÔNG có width= trong file gốc mà app
+    không đổi (lệch < 0.5 ký tự so với mặc định Excel) thì không ghi width= — LibreOffice
+    ghi `width="8.43"` (= 59px) cho cột mặc định 64px vì thuộc tính width đã gồm lề 5px.
     """
     cols_match = re.search(r"(<cols>)([\s\S]*?)(</cols>)", sheet_xml, re.IGNORECASE)
     if not cols_match:
         return sheet_xml
 
     before_cols, cols_content, after_cols = cols_match.groups()
+    if default_display_chars is None:
+        default_display_chars = _unchanged_default_column_chars(
+            {"defaultColWidth": default_col_width_chars} if default_col_width_chars else None, digit_width)
 
     def chars_for(width_cm: float) -> float:
         px = width_cm * 96 / 2.54
         return math.trunc((px - 5) / digit_width * 100 + 0.5) / 100
+
+    def is_default_width(chars: float) -> bool:
+        return abs(chars - default_display_chars) < 0.5
+
+    def keeps_meaning_without_width(attrs: dict) -> bool:
+        if attrs.get("hidden", "").lower() in ("1", "true"):
+            return True
+        if attrs.get("collapsed", "").lower() in ("1", "true"):
+            return True
+        if attrs.get("outlineLevel", "0") not in ("", "0"):
+            return True
+        if attrs.get("style", "0") not in ("", "0"):
+            return True
+        return False
 
     # Parse existing col elements to preserve min/max/bestFit/customWidth
     col_elements: list[tuple[int, int, dict]] = []  # (min, max, attrs_dict)
@@ -1417,8 +1448,17 @@ def _restore_column_widths(
             name = _column_letter(col_idx)
             new_attrs = attrs.copy()
             if name in col_widths_cm:
-                new_attrs["width"] = f"{chars_for(col_widths_cm[name]):.2f}"
-                new_attrs["customWidth"] = "1"
+                chars = chars_for(col_widths_cm[name])
+                source_has_width = source_explicit_cols is None or col_idx in source_explicit_cols
+                if not source_has_width and is_default_width(chars):
+                    # S11: cột mặc định của file gốc, app không đổi -> để Excel dùng defaultColWidth
+                    for key in ("width", "customWidth", "bestFit"):
+                        new_attrs.pop(key, None)
+                    if not keeps_meaning_without_width(new_attrs):
+                        continue
+                else:
+                    new_attrs["width"] = f"{chars:.2f}"
+                    new_attrs["customWidth"] = "1"
             # Ensure bestFit is not set if we're explicitly setting width
             if "width" in new_attrs:
                 new_attrs.pop("bestFit", None)
@@ -1437,7 +1477,7 @@ def _restore_column_widths(
         if name not in col_widths_cm:
             continue
         chars = chars_for(col_widths_cm[name])
-        if default_col_width_chars is not None and abs(chars - default_col_width_chars) < 0.02:
+        if is_default_width(chars):
             continue
         rebuilt[col_idx] = {"min": str(col_idx), "max": str(col_idx), "width": f"{chars:.2f}", "customWidth": "1"}
 
@@ -1583,11 +1623,22 @@ def _restore_sheet_format_pr(sheet_xml: str, format_pr: dict) -> str:
                 attrs = re.sub(rf'\b{key}\s*=\s*"[^"]*"', f'{key}="{value}"', attrs, flags=re.IGNORECASE)
             else:
                 attrs += f' {key}="{value}"'
+        # S11: file gốc không có defaultColWidth (Excel dùng baseColWidth/8 ký tự) nhưng LibreOffice
+        # luôn ghi defaultColWidth="11.53515625" của nó -> mọi cột không có <col> bị rộng ra.
+        if "defaultColWidth" not in format_pr:
+            attrs = re.sub(r'\s*\bdefaultColWidth\s*=\s*"[^"]*"', "", attrs, flags=re.IGNORECASE)
+        if "defaultrowheight" not in attrs.lower():
+            # CT_SheetFormatPr bắt buộc có defaultRowHeight
+            attrs += ' defaultRowHeight="15"'
         return sheet_xml[:match.start()] + f"<sheetFormatPr{attrs}/>" + sheet_xml[match.end():]
+    if not format_pr:
+        return sheet_xml
     anchor = re.search(r"<cols\b|<sheetData\b", sheet_xml, re.IGNORECASE)
     if not anchor:
         return sheet_xml
-    attrs = " ".join(f'{k}="{v}"' for k, v in format_pr.items())
+    inserted = dict(format_pr)
+    inserted.setdefault("defaultRowHeight", 15)
+    attrs = " ".join(f'{k}="{v}"' for k, v in inserted.items())
     return sheet_xml[:anchor.start()] + f"<sheetFormatPr {attrs}/>" + sheet_xml[anchor.start():]
 
 
@@ -4130,6 +4181,7 @@ def _restore_original_xf_for_vno_cells(
             sheet_xml = entry_bytes.decode("utf-8", errors="replace")
         
         # Process each cell with vno:xf
+        new_xf_by_coord: dict[str, int] = {}
         for (row, col), src_xf_idx in cells.items():
             if src_xf_idx >= len(src_xf_elements):
                 continue
@@ -4197,20 +4249,24 @@ def _restore_original_xf_for_vno_cells(
                 new_xf_elements.append(new_xf)
                 xf_index_map[src_xf_idx] = new_xf_idx
             
-            # Update the cell's s attribute in the worksheet XML
-            coord = f"{column_label_from_index(col)}{row}"
-            # Find and update the cell's s attribute
-            cell_pattern = rf'(<c\b[^>]*\br="{re.escape(coord)}"[^>]*)>'
-            def _replace_s(match):
-                attrs = match.group(1)
-                if 's=' in attrs:
-                    attrs = re.sub(r'\bs\s*=\s*"?\d+"?', f's="{new_xf_idx}"', attrs)
-                else:
-                    attrs = f'{attrs} s="{new_xf_idx}"'
-                return f'{attrs}>'
-            
-            sheet_xml = re.sub(cell_pattern, _replace_s, sheet_xml, flags=re.IGNORECASE)
-        
+            new_xf_by_coord[f"{column_label_from_index(col)}{row}"] = new_xf_idx
+
+        # Đặt lại s= cho mọi ô trong MỘT lượt quét (lan09: 13 MB XLSX, hàng trăm nghìn ô vno:xf —
+        # re.sub từng ô trên toàn bộ sheet XML là O(ô × kích thước) và không lưu xong trong 20 phút).
+        def _replace_s(match):
+            attrs = match.group(1)
+            new_idx = new_xf_by_coord.get(match.group(2).upper())
+            if new_idx is None:
+                return match.group(0)
+            if re.search(r'\bs\s*=', attrs):
+                attrs = re.sub(r'\bs\s*=\s*"?\d+"?', f's="{new_idx}"', attrs, count=1)
+            else:
+                attrs = f'{attrs} s="{new_idx}"'
+            return f'{attrs}>'
+
+        if new_xf_by_coord:
+            sheet_xml = re.sub(r'(<c\b[^>]*\br="([A-Za-z]+\d+)"[^>]*)>', _replace_s, sheet_xml)
+
         # Update the worksheet XML in replacements
         if sheet_xml != replacements.get(entry_path, ""):
             replacements[entry_path] = sheet_xml
@@ -4246,6 +4302,50 @@ def _restore_original_xf_for_vno_cells(
                     styles_xml = re.sub(r"(<styleSheet\b[^>]*>)", lambda m: m.group(1) + block, styles_xml, count=1, flags=re.IGNORECASE)
 
             replacements[XLSX_STYLES_ENTRY] = styles_xml
+
+    if xf_index_map:
+        _restore_source_color_palette(xlsx_bytes, source_xlsx_bytes, replacements)
+
+
+def _restore_source_color_palette(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
+    """S10: xf/font/fill chép từ XLSX gốc (S8) trỏ màu theo `theme="N"`/`indexed="N"`, nhưng
+    LibreOffice ghi theme1.xml mặc định của nó ("Office", accent6 = C9211E) và bỏ bảng
+    <indexedColors> riêng của file → Excel tô màu khác (đo vòng 5: lan07/13/17 fill
+    #A9D18E → #E9706D, 574 ô; lan03/10/16 #558ED5 → #666666, 168 ô). Giữ theme1.xml
+    và <colors> của file gốc để các chỉ số đó giải về đúng màu như Writer W7."""
+    source_theme = read_zip_entry(source_xlsx_bytes, "xl/theme/theme1.xml")
+    if source_theme:
+        with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+            has_theme = "xl/theme/theme1.xml" in package.namelist()
+        if has_theme:
+            replacements["xl/theme/theme1.xml"] = source_theme.decode("utf-8", errors="replace")
+
+    source_styles = read_zip_entry(source_xlsx_bytes, XLSX_STYLES_ENTRY)
+    if not source_styles:
+        return
+    colors_match = re.search(r"<colors\b[^>]*>[\s\S]*?</colors>", source_styles.decode("utf-8", errors="replace"), re.IGNORECASE)
+    if not colors_match or "<indexedColors" not in colors_match.group(0):
+        return
+    styles_xml = replacements.get(XLSX_STYLES_ENTRY)
+    if styles_xml is None:
+        current = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
+        if not current:
+            return
+        styles_xml = current.decode("utf-8", errors="replace")
+    if re.search(r"<colors\b", styles_xml, re.IGNORECASE):
+        styles_xml = re.sub(r"<colors\b[^>]*>[\s\S]*?</colors>|<colors\b[^>]*/>", lambda _m: colors_match.group(0), styles_xml, count=1, flags=re.IGNORECASE)
+    else:
+        # Thứ tự trong CT_Stylesheet: ... cellXfs, cellStyles, dxfs, tableStyles, colors, extLst
+        inserted = False
+        for anchor in (r"<extLst\b", r"</styleSheet>"):
+            m = re.search(anchor, styles_xml, re.IGNORECASE)
+            if m:
+                styles_xml = styles_xml[:m.start()] + colors_match.group(0) + styles_xml[m.start():]
+                inserted = True
+                break
+        if not inserted:
+            return
+    replacements[XLSX_STYLES_ENTRY] = styles_xml
 
 
 def _set_number_format_attr(cell_xml: str, code: str) -> str:
@@ -4540,21 +4640,63 @@ def _extract_sheet_format_pr_from_xlsx(xlsx_bytes: bytes) -> dict[str, dict]:
             continue
         sheet_xml = entry.decode("utf-8", errors="replace")
         sfpr_match = re.search(r"<sheetFormatPr\b([^>]*)/?>", sheet_xml, re.IGNORECASE)
+        # S11: sheet không có sheetFormatPr/defaultColWidth vẫn có mặt (info rỗng) để bước
+        # khôi phục biết phải BỎ defaultColWidth="11.53515625" LibreOffice tự thêm.
+        info = {}
         if sfpr_match:
             attrs = sfpr_match.group(1)
             dcw_m = re.search(r'defaultColWidth\s*=\s*["\']([\d.]+)["\']', attrs, re.IGNORECASE)
+            bcw_m = re.search(r'baseColWidth\s*=\s*["\']([\d.]+)["\']', attrs, re.IGNORECASE)
             drh_m = re.search(r'defaultRowHeight\s*=\s*["\']([\d.]+)["\']', attrs, re.IGNORECASE)
             ch_m = re.search(r'customHeight\s*=\s*["\']([^"\']+)["\']', attrs, re.IGNORECASE)
-            info = {}
             if dcw_m:
                 info["defaultColWidth"] = float(dcw_m.group(1))
+            if bcw_m:
+                # xsd:unsignedByte — ghi lại phải là số nguyên, Excel từ chối "10.0"
+                info["baseColWidth"] = int(float(bcw_m.group(1)))
             if drh_m:
                 info["defaultRowHeight"] = float(drh_m.group(1))
             if ch_m:
                 info["customHeight"] = ch_m.group(1)
-            if info:
-                result[sheet_name] = info
+        result[sheet_name] = info
     return result
+
+
+def _unchanged_default_column_chars(format_pr: dict | None, digit_width: float) -> float:
+    """Giá trị chars_for() mà app trả về cho cột KHÔNG có <col> trong file gốc và không bị đổi.
+
+    - Có `defaultColWidth`: LibreOffice nhập giá trị đó như số ký tự + 5px lề → chars_for = dcw
+      (đo KHOACUA: dcw 12.625 → 2.8046cm → 12.63).
+    - Không có: Excel 2016 vẽ cột mặc định 64px (MDW 7: Calibri 11/Arial 10), 72px (MDW 8:
+      Calibri 12/Arial 11/Times New Roman 12) = 8*MDW + 8, hiển thị 8 + 3/MDW (8.43 / 8.38 đúng
+      như Excel báo; đo _excel_mdw.ps1 19/9); `baseColWidth` thay số 8. App trả 8.43 (lan17),
+      8.00 (lan21), 10.57 (lan01 base 10) → dung sai 0.5 ký tự.
+    """
+    mdw = digit_width or 7.0
+    format_pr = format_pr or {}
+    if format_pr.get("defaultColWidth"):
+        return float(format_pr["defaultColWidth"])
+    base = float(format_pr.get("baseColWidth") or 8.0)
+    return base + 3.0 / mdw
+
+
+def _source_columns_with_explicit_width(source_sheet_xml: str | None) -> set[int] | None:
+    """Chỉ số các cột có width= trong <cols> của worksheet gốc; None khi không có worksheet gốc."""
+    if source_sheet_xml is None:
+        return None
+    explicit: set[int] = set()
+    for match in re.finditer(r"<col\b([^>]*)/?>", source_sheet_xml, re.IGNORECASE):
+        attrs = match.group(1)
+        if not re.search(r'\bwidth\s*=\s*"', attrs, re.IGNORECASE):
+            continue
+        minimum = re.search(r'\bmin="(\d+)"', attrs)
+        maximum = re.search(r'\bmax="(\d+)"', attrs)
+        if not minimum:
+            continue
+        low = int(minimum.group(1))
+        high = int(maximum.group(1)) if maximum else low
+        explicit.update(range(low, min(high, 16384) + 1))
+    return explicit
 
 
 def _calculate_digit_width(font_name: str, font_size: float) -> float:

@@ -71,10 +71,15 @@ function parseStyles(xml) {
     const body = xml.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"))?.[1] || "";
     return [...body.matchAll(new RegExp(`<${tag.slice(0, -1)}\\b[^>]*>[\\s\\S]*?<\\/${tag.slice(0, -1)}>|<${tag.slice(0, -1)}\\b[^>]*/>`, "gi"))].map(match => match[0]);
   };
+  // Bảng màu indexed chuẩn của Excel (0–63); <colors><indexedColors> trong styles.xml ghi đè (lan15, lan23).
+  const indexed = [...INDEXED_PALETTE];
+  const customIndexed = xml.match(/<indexedColors\b[^>]*>([\s\S]*?)<\/indexedColors>/i)?.[1] || "";
+  if (customIndexed) [...customIndexed.matchAll(/<rgbColor\b[^>]*rgb="([0-9A-Fa-f]{6,8})"/gi)].forEach((m, i) => { indexed[i] = `#${m[1].slice(-6).toUpperCase()}`; });
   const color = block => {
     const a = attrs(block.match(/<(?:color|fgColor)\b([^>]*)\/?\s*>/i)?.[1] || "");
-    const indexed = { 8: "#000000", 9: "#FFFFFF", 64: "" };
-    return a.rgb ? `#${a.rgb.slice(-6).toUpperCase()}` : (a.indexed ? (indexed[Number(a.indexed)] ?? `indexed:${a.indexed}`) : (a.theme ? `theme:${a.theme}${a.tint ? `:${a.tint}` : ""}` : ""));
+    if (a.rgb) return `#${a.rgb.slice(-6).toUpperCase()}`;
+    if (a.indexed !== undefined) { const n = Number(a.indexed); return n === 64 || n === 65 ? "" : (indexed[n] ?? `indexed:${a.indexed}`); }
+    return a.theme ? `theme:${a.theme}${a.tint ? `:${a.tint}` : ""}` : "";
   };
   const fonts = childBlocks("fonts").map(block => ({
     name: normalizeFontName(attrs(block.match(/<name\b([^>]*)\/?\s*>/i)?.[1] || "").val || ""),
@@ -106,7 +111,31 @@ function parseStyles(xml) {
     });
     return "";
   });
+  // Đơn vị chiều rộng cột = max digit width (px) của font Normal (fonts[0]); đo Excel 2016 COM
+  // (_excel_mdw.ps1): Calibri 11 / Arial 10 / Tahoma 10 → 7; Calibri 12 / Arial 11 / Times New Roman 12 / Verdana 10 → 8.
+  xfs.mdw = maxDigitWidth(fonts[0] || {});
   return xfs;
+}
+
+const INDEXED_PALETTE = ["000000", "FFFFFF", "FF0000", "00FF00", "0000FF", "FFFF00", "FF00FF", "00FFFF", "000000", "FFFFFF", "FF0000", "00FF00", "0000FF", "FFFF00", "FF00FF", "00FFFF",
+  "800000", "008000", "000080", "808000", "800080", "008080", "C0C0C0", "808080", "9999FF", "993366", "FFFFCC", "CCFFFF", "660066", "FF8080", "0066CC", "CCCCFF",
+  "000080", "FF00FF", "FFFF00", "00FFFF", "800080", "800000", "008080", "0000FF", "00CCFF", "CCFFFF", "CCFFCC", "FFFF99", "99CCFF", "FF99CC", "CC99FF", "FFCC99",
+  "3366FF", "33CCCC", "99CC00", "FFCC00", "FF9900", "FF6600", "666699", "969696", "003366", "339966", "003300", "333300", "993300", "993366", "333399", "333333"].map(v => `#${v}`);
+
+function maxDigitWidth(font) {
+  const name = String(font.name || "calibri").toLowerCase(); const size = Number(font.size || 11);
+  if (/times/.test(name)) return size >= 13 ? 9 : size >= 12 ? 8 : 7;
+  if (/arial/.test(name)) return size >= 11 ? 8 : 7;
+  if (/verdana/.test(name)) return size >= 10 ? 8 : 7;
+  return size >= 12 ? 8 : 7; // Calibri, Tahoma và font chưa đo
+}
+
+// px của cột: thuộc tính width đã gồm lề 5px (Excel ghi 9.140625 = 64/7 cho cột hiển thị "8.43");
+// cột không có <col> = defaultColWidth×MDW, hoặc (baseColWidth|8)×MDW + 8 (đo: 64/72/80px cho MDW 7/8/9).
+function columnPx(width, mdw) { return Math.round(Number(width) * mdw); }
+function defaultColumnPx(formatPr, mdw) {
+  if (formatPr.defaultColWidth !== undefined) return columnPx(formatPr.defaultColWidth, mdw);
+  return Number(formatPr.baseColWidth || 8) * mdw + 8;
 }
 
 function normalizeFormatCode(code = "General") {
@@ -174,11 +203,14 @@ function valuesEqual(a, b) {
 }
 
 function parseSheetXml(xml, sharedStrings, styles) {
-  const result = { cells: new Map(), merges: [], columns: new Map(), rows: new Map(), hiddenRows: new Set(), hiddenCols: new Set(), freeze: { rows: 0, cols: 0 }, autoFilter: "", maxDataColumn: 0 };
+  const mdw = styles.mdw || 7;
+  const formatPr = attrs(xml.match(/<sheetFormatPr\b([^>]*)\/?\s*>/i)?.[1] || "");
+  const result = { cells: new Map(), merges: [], columns: new Map(), rows: new Map(), hiddenRows: new Set(), hiddenCols: new Set(), freeze: { rows: 0, cols: 0 }, autoFilter: "", maxDataColumn: 0,
+    defaultColumnPx: defaultColumnPx(formatPr, mdw) };
   xml.replace(/<col\b([^>]*)\/?\s*>/gi, (_, raw) => {
     const a = attrs(raw); const min = Number(a.min); const max = Number(a.max || a.min);
     for (let col = min; col <= max; col++) {
-      if (a.width !== undefined) result.columns.set(columnName(col), Number(a.width) * 7 + 5);
+      if (a.width !== undefined) result.columns.set(columnName(col), columnPx(a.width, mdw));
       if (a.hidden === "1" || a.hidden === "true") result.hiddenCols.add(columnName(col));
     }
     return "";
@@ -287,7 +319,8 @@ export function auditSheetImport(xlsxPath, fodsPath, { maxDetails = 20 } = {}) {
     for (const ref of setDiff(new Set(source.merges), actualMerges)) mismatch(kinds.merge, { ref, expected: true, actual: false }, maxDetails);
     for (const ref of setDiff(actualMerges, new Set(source.merges))) mismatch(kinds.merge, { ref, expected: false, actual: true }, maxDetails);
     const actualCols = parsed.colWidthsBySheet[sheet.name] || new Map();
-    for (const [coord, px] of source.columns) if (!closePx(px, actualCols.get(coord) ?? 100)) mismatch(kinds.columnWidth, { coord, expected: px, actual: actualCols.get(coord) ?? 100 }, maxDetails);
+    // Model của app giữ px theo LibreOffice (= width×MDW + 5, overlay Python) nên cộng lề 5px khi so.
+    for (const [coord, px] of source.columns) if (!closePx(px + 5, actualCols.get(coord) ?? 100)) mismatch(kinds.columnWidth, { coord, expected: px + 5, actual: actualCols.get(coord) ?? 100 }, maxDetails);
     const actualRows = parsed.rowHeightsBySheet[sheet.name] || new Map();
     for (const [coord, px] of source.rows) if (!closePx(px, actualRows.get(coord) ?? 26)) mismatch(kinds.rowHeight, { coord, expected: px, actual: actualRows.get(coord) ?? 26 }, maxDetails);
     for (const coord of setDiff(source.hiddenCols, parsed.userHiddenColsBySheet[sheet.name] || new Set())) mismatch(kinds.hiddenColumn, { coord }, maxDetails);
@@ -510,7 +543,7 @@ export function auditSheetRoundtrip(expectedPath, actualPath, { maxDetails = 20 
       const columnNumber = coord => [...coord].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0);
       for (const coord of new Set([...left.columns.keys(), ...right.columns.keys()])) {
         if (columnNumber(coord) > maxMeaningfulColumn) continue;
-        const width = left.columns.get(coord) ?? 100; const actualWidth = right.columns.get(coord) ?? 100;
+        const width = left.columns.get(coord) ?? left.defaultColumnPx; const actualWidth = right.columns.get(coord) ?? right.defaultColumnPx;
         if (!closePx(width, actualWidth)) mismatch(kinds.columnWidth, { coord, expected: width, actual: actualWidth }, maxDetails);
       }
       for (const [coord, height] of left.rows) if (!closePx(height, right.rows.get(coord) ?? 26)) mismatch(kinds.rowHeight, { coord, expected: height, actual: right.rows.get(coord) ?? 26 }, maxDetails);
