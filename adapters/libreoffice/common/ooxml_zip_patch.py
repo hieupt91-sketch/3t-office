@@ -329,6 +329,8 @@ def apply_freeze_panes_to_fods(fods_xml: str, freeze_by_sheet: dict[str, dict[st
             return match.group(0)
         name = _unescape_xml(name_match.group(1))
         freeze = freeze_by_sheet.get(name)
+        if freeze is None:
+            freeze = next((value for key, value in freeze_by_sheet.items() if _sheet_name_equivalence_key(key) == _sheet_name_equivalence_key(name)), None)
         if not freeze or (freeze.get("rows", 0) <= 0 and freeze.get("cols", 0) <= 0):
             return match.group(0)
         next_attrs = _FREEZE_ROWS_ATTR_RE.sub("", attrs)
@@ -439,6 +441,8 @@ def apply_sheet_visibility_to_fods(fods_xml: str, visibility_by_sheet: dict[str,
             return match.group(0)
         name = _unescape_xml(name_match.group(1))
         state = visibility_by_sheet.get(name)
+        if state is None:
+            state = next((value for key, value in visibility_by_sheet.items() if _sheet_name_equivalence_key(key) == _sheet_name_equivalence_key(name)), None)
         if not state:
             return match.group(0)
         canonical = _CANONICAL.get(state.lower(), state)
@@ -1330,6 +1334,7 @@ def _restore_normal_font_and_layout(
                 sheet_xml, fods_col_widths[sheet_name], original_digit_width, default_chars,
                 source_explicit_cols=_source_columns_with_explicit_width(source_sheet_xml),
                 default_display_chars=_unchanged_default_column_chars(format_pr, original_digit_width) if source_sheet_xml is not None else None,
+                source_widths=_source_explicit_column_widths(source_sheet_xml),
             )
 
         # Restore sheetFormatPr
@@ -1390,6 +1395,7 @@ def _restore_column_widths(
     default_col_width_chars: float | None = None,
     source_explicit_cols: set[int] | None = None,
     default_display_chars: float | None = None,
+    source_widths: dict[int, float] | None = None,
 ) -> str:
     """Restore column widths in worksheet XML using original font's digit width.
 
@@ -1415,7 +1421,15 @@ def _restore_column_widths(
 
     def chars_for(width_cm: float) -> float:
         px = width_cm * 96 / 2.54
-        return math.trunc((px - 5) / digit_width * 100 + 0.5) / 100
+        chars = math.trunc((px - 5) / digit_width * 100 + 0.5) / 100
+        return chars
+
+    def snap_to_source(col_idx: int, chars: float) -> float:
+        """Keep an explicit source width when cm round-trip drift is <= 2 px."""
+        source = (source_widths or {}).get(col_idx)
+        if source is not None and abs(source - chars) * digit_width <= 2.01:
+            return source
+        return chars
 
     def is_default_width(chars: float) -> bool:
         return abs(chars - default_display_chars) < 0.5
@@ -1448,7 +1462,7 @@ def _restore_column_widths(
             name = _column_letter(col_idx)
             new_attrs = attrs.copy()
             if name in col_widths_cm:
-                chars = chars_for(col_widths_cm[name])
+                chars = snap_to_source(col_idx, chars_for(col_widths_cm[name]))
                 source_has_width = source_explicit_cols is None or col_idx in source_explicit_cols
                 if not source_has_width and is_default_width(chars):
                     # S11: cột mặc định của file gốc, app không đổi -> để Excel dùng defaultColWidth
@@ -1476,7 +1490,7 @@ def _restore_column_widths(
         name = _column_letter(col_idx)
         if name not in col_widths_cm:
             continue
-        chars = chars_for(col_widths_cm[name])
+        chars = snap_to_source(col_idx, chars_for(col_widths_cm[name]))
         if is_default_width(chars):
             continue
         rebuilt[col_idx] = {"min": str(col_idx), "max": str(col_idx), "width": f"{chars:.2f}", "customWidth": "1"}
@@ -1753,6 +1767,161 @@ def _restore_literal_error_cells_step(xlsx_bytes: bytes, source_xlsx_bytes: byte
         new_xml = re.sub(r'<c\b((?:[^>/]|/(?!>))*)>([\s\S]*?)</c>', _fix_cell, sheet_xml, flags=re.IGNORECASE)
         if new_xml != sheet_xml:
             replacements[entry_path] = new_xml
+
+
+def _insert_or_replace_cells(sheet_xml: str, replacements_by_coord: dict[str, str], *, only_missing: bool = False) -> str:
+    """Insert/replace a small cell set with one sheetData scan (never one re.sub per cell)."""
+    if not replacements_by_coord:
+        return sheet_xml
+    sheet_data = re.search(r"(<sheetData\b[^>]*>)([\s\S]*?)(</sheetData>)|<sheetData\b[^>]*/>", sheet_xml, re.IGNORECASE)
+    if not sheet_data:
+        return sheet_xml
+    cell_re = re.compile(r'<c\b((?:[^>/]|/(?!>))*)(?:/>|>([\s\S]*?)</c>)', re.IGNORECASE)
+    row_re = re.compile(r'<row\b((?:[^>/]|/(?!>))*)(?:/>|>([\s\S]*?)</row>)', re.IGNORECASE)
+    pending: dict[int, dict[int, tuple[str, str]]] = {}
+    for coord, xml in replacements_by_coord.items():
+        hit = re.fullmatch(r"([A-Z]+)(\d+)", coord.upper())
+        if hit:
+            pending.setdefault(int(hit.group(2)), {})[_column_index(hit.group(1))] = (coord.upper(), xml)
+    body = sheet_data.group(2) or ""
+    pieces: list[str] = []; cursor = 0
+    for row_match in row_re.finditer(body):
+        pieces.append(body[cursor:row_match.start()]); cursor = row_match.end()
+        row_attr = re.search(r'\br="(\d+)"', row_match.group(1))
+        row_num = int(row_attr.group(1)) if row_attr else -1
+        wanted = pending.pop(row_num, {})
+        if not wanted:
+            pieces.append(row_match.group(0)); continue
+        existing: list[tuple[int, str]] = []
+        seen: set[int] = set()
+        for cell_match in cell_re.finditer(row_match.group(2) or ""):
+            attrs = _xml_attrs(cell_match.group(1)); coord = (attrs.get("r") or "").upper()
+            col = re.match(r"[A-Z]+", coord)
+            if not col:
+                continue
+            col_idx = _column_index(col.group(0)); seen.add(col_idx)
+            replacement = wanted.get(col_idx)
+            existing.append((col_idx, cell_match.group(0) if only_missing or replacement is None else replacement[1]))
+        for col_idx, (_coord, xml) in wanted.items():
+            if col_idx not in seen:
+                existing.append((col_idx, xml))
+        existing.sort(key=lambda item: item[0])
+        pieces.append(f"<row{row_match.group(1)}>" + "".join(xml for _, xml in existing) + "</row>")
+    pieces.append(body[cursor:])
+    for row_num in sorted(pending):
+        cells = "".join(xml for _, (_coord, xml) in sorted(pending[row_num].items()))
+        pieces.append(f'<row r="{row_num}">{cells}</row>')
+    rebuilt = "".join(pieces)
+    wrapper = (sheet_data.group(1) + rebuilt + sheet_data.group(3)) if sheet_data.group(1) else "<sheetData>" + rebuilt + "</sheetData>"
+    return sheet_xml[:sheet_data.start()] + wrapper + sheet_xml[sheet_data.end():]
+
+
+def _restore_formula_results_and_missing_errors_step(
+    xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str], copier: "_SourceXfCopier | None"
+) -> None:
+    """Preserve cached formula results and formula-error cells that LibreOffice drops."""
+    out_entries = _resolve_xlsx_sheet_entries(xlsx_bytes); src_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+    cell_re = re.compile(r'<c\b((?:[^>/]|/(?!>))*)(?:/>|>([\s\S]*?)</c>)', re.IGNORECASE)
+    for sheet_name, out_path in out_entries.items():
+        src_path = src_entries.get(sheet_name)
+        if not src_path:
+            continue
+        src_xml = (read_zip_entry(source_xlsx_bytes, src_path) or b"").decode("utf-8", errors="replace")
+        out_xml = replacements.get(out_path) or (read_zip_entry(xlsx_bytes, out_path) or b"").decode("utf-8", errors="replace")
+        source: dict[str, tuple[dict[str, str], str, str, str]] = {}
+        for match in cell_re.finditer(src_xml):
+            attrs = _xml_attrs(match.group(1)); coord = (attrs.get("r") or "").upper(); body = match.group(2) or ""
+            formula = re.search(r"<f\b[^>]*>([\s\S]*?)</f>", body, re.IGNORECASE)
+            value = re.search(r"<v\b[^>]*>([\s\S]*?)</v>", body, re.IGNORECASE)
+            if coord and formula and value:
+                source[coord] = (attrs, formula.group(1), value.group(1), body)
+        if not source:
+            continue
+        seen: set[str] = set()
+        def fix(match: re.Match[str]) -> str:
+            attrs = _xml_attrs(match.group(1)); coord = (attrs.get("r") or "").upper(); seen.add(coord)
+            item = source.get(coord); body = match.group(2) or ""
+            formula = re.search(r"<f\b[^>]*>([\s\S]*?)</f>", body, re.IGNORECASE)
+            if not item or not formula or re.sub(r"\s+", "", _unescape_xml(formula.group(1))).upper() != re.sub(r"\s+", "", _unescape_xml(item[1])).upper():
+                return match.group(0)
+            next_body = re.sub(r"<v\b[^>]*>[\s\S]*?</v>", lambda _m: f"<v>{item[2]}</v>", body, count=1, flags=re.IGNORECASE)
+            return f"<c{match.group(1)}>{next_body}</c>"
+        out_xml = cell_re.sub(fix, out_xml)
+        missing: dict[str, str] = {}
+        for coord, (attrs, formula, value, _body) in source.items():
+            if coord in seen or attrs.get("t", "").lower() != "e":
+                continue
+            src_xf = int(attrs["s"]) if attrs.get("s", "").isdigit() else None
+            new_xf = copier.map(src_xf) if copier is not None and src_xf is not None else None
+            style = f' s="{new_xf}"' if new_xf is not None else ""
+            missing[coord] = f'<c r="{coord}"{style} t="e"><f>{formula}</f><v>{value}</v></c>'
+        out_xml = _insert_or_replace_cells(out_xml, missing, only_missing=True)
+        replacements[out_path] = out_xml
+    if copier is not None:
+        copier.write_styles(replacements)
+
+
+def _sheet_name_equivalence_key(name: str) -> str:
+    decoded = re.sub(r"_x([0-9A-Fa-f]{4})_", lambda m: chr(int(m.group(1), 16)), name or "")
+    return re.sub(r"[\x00-\x20]+", " ", decoded).strip().casefold()
+
+
+def _restore_source_sheet_names_and_states(workbook_xml: str, source_workbook_xml: str) -> str:
+    """Restore encoded/control-character sheet names by stable workbook order."""
+    output_tags = list(_WB_SHEET_TAG_RE.finditer(workbook_xml or "")); source_tags = list(_WB_SHEET_TAG_RE.finditer(source_workbook_xml or ""))
+    if len(output_tags) != len(source_tags):
+        return workbook_xml
+    replacements: list[tuple[int, int, str]] = []
+    for output, source in zip(output_tags, source_tags):
+        out_attrs = output.group(1) or ""; src_attrs = source.group(1) or ""
+        out_name = re.search(r'name="([^"]*)"', out_attrs); src_name = re.search(r'name="([^"]*)"', src_attrs)
+        if not out_name or not src_name or _sheet_name_equivalence_key(_unescape_xml(out_name.group(1))) != _sheet_name_equivalence_key(_unescape_xml(src_name.group(1))):
+            continue
+        attrs = re.sub(r'name="[^"]*"', f'name="{src_name.group(1)}"', out_attrs, count=1)
+        attrs = _SHEET_STATE_ATTR_RE.sub("", attrs)
+        state = _SHEET_STATE_ATTR_RE.search(src_attrs)
+        if state and state.group(1).lower() != "visible": attrs = attrs.rstrip(" /") + f' state="{state.group(1)}"/'
+        replacements.append((output.start(), output.end(), f"<sheet{attrs}>"))
+    for start, end, value in reversed(replacements): workbook_xml = workbook_xml[:start] + value + workbook_xml[end:]
+    return workbook_xml
+
+
+def _remove_spurious_center_continuous_merges_step(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
+    """Remove merges invented by LibreOffice for source centerContinuous cells."""
+    styles = (read_zip_entry(source_xlsx_bytes, XLSX_STYLES_ENTRY) or b"").decode("utf-8", errors="replace")
+    def xf_items(container: str) -> list[str]:
+        block = re.search(rf"<{container}\b[^>]*>([\s\S]*?)</{container}>", styles, re.IGNORECASE)
+        return [m.group(0) for m in re.finditer(r"<xf\b(?:[^>/]|/(?!>))*(?:/>|>[\s\S]*?</xf>)", block.group(1) if block else "", re.IGNORECASE)]
+    cell_xfs = xf_items("cellXfs"); style_xfs = xf_items("cellStyleXfs")
+    centered = set()
+    for idx, xf in enumerate(cell_xfs):
+        direct = re.search(r'horizontal="centerContinuous"', xf, re.IGNORECASE)
+        xf_id = _xml_attrs(xf).get("xfId", "")
+        inherited = xf_id.isdigit() and int(xf_id) < len(style_xfs) and re.search(r'horizontal="centerContinuous"', style_xfs[int(xf_id)], re.IGNORECASE)
+        if direct or inherited: centered.add(idx)
+    if not centered: return
+    out_entries = _resolve_xlsx_sheet_entries(xlsx_bytes); src_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+    for name, out_path in out_entries.items():
+        src_path = src_entries.get(name)
+        if not src_path: continue
+        src_xml = (read_zip_entry(source_xlsx_bytes, src_path) or b"").decode("utf-8", errors="replace")
+        source_merges = set(re.findall(r'<mergeCell\b[^>]*ref="([^"]+)"', src_xml, re.IGNORECASE))
+        center_cells = set()
+        for match in re.finditer(r'<c\b([^>]*)', src_xml, re.IGNORECASE):
+            attrs = _xml_attrs(match.group(1))
+            if attrs.get("s", "").isdigit() and int(attrs["s"]) in centered: center_cells.add((attrs.get("r") or "").upper())
+        out_xml = replacements.get(out_path) or (read_zip_entry(xlsx_bytes, out_path) or b"").decode("utf-8", errors="replace")
+        removed = 0
+        def drop(match: re.Match[str]) -> str:
+            nonlocal removed
+            ref = match.group(1); start = ref.split(":", 1)[0].upper()
+            if ref not in source_merges and start in center_cells: removed += 1; return ""
+            return match.group(0)
+        out_xml = re.sub(r'<mergeCell\b[^>]*ref="([^"]+)"[^>]*/>', drop, out_xml, flags=re.IGNORECASE)
+        if removed:
+            out_xml = re.sub(r'(<mergeCells\b[^>]*\bcount=")\d+("[^>]*>)', lambda m: m.group(1) + str(max(0, int(re.search(r'\d+', m.group(0)).group()) - removed)) + m.group(2), out_xml, count=1, flags=re.IGNORECASE)
+            out_xml = re.sub(r'<mergeCells\b[^>]*\bcount="0"[^>]*>\s*</mergeCells>', "", out_xml, flags=re.IGNORECASE)
+            replacements[out_path] = out_xml
 
 
 def _restore_hidden_columns_and_rows_from_source(sheet_xml: str, source_sheet_xml: str) -> str:
@@ -2196,6 +2365,17 @@ def postprocess_sheet_xlsx(
         if original_font:
             original_digit_width = _calculate_digit_width(original_font["name"], original_font["size"])
 
+        # Run source-fidelity repairs before slower layout/style passes. The
+        # desktop save has already created the target ZIP at this point; doing
+        # these compact, deterministic repairs first also keeps automation from
+        # observing the transient LibreOffice-only file.
+        early_copier = _SourceXfCopier(xlsx_bytes, source_xlsx_bytes)
+        _restore_formula_results_and_missing_errors_step(xlsx_bytes, source_xlsx_bytes, replacements, early_copier if early_copier.available else None)
+        _restore_lost_leading_newlines_step(xlsx_bytes, source_xlsx_bytes, replacements, early_copier if early_copier.available else None)
+        _remove_spurious_center_continuous_merges_step(xlsx_bytes, source_xlsx_bytes, replacements)
+        if source_fods:
+            _restore_untouched_drawings_step(xlsx_bytes, source_fods, source_xlsx_bytes, replacements)
+
     if enabled is None:
         enabled = fods_has_structure_protection(source_fods)
     if enabled:
@@ -2372,12 +2552,16 @@ def postprocess_sheet_xlsx(
             # Never fail the save due to external links preservation issues
             pass
 
-    # S16: Restore original drawings for sheets where images were not modified
-    if source_xlsx_bytes and source_fods:
+    # LibreOffice decodes Excel's _xHHHH_ sheet-name escape and normalizes a
+    # control character to whitespace. Restore the original name/state only
+    # when workbook order and normalized names still prove sheet identity.
+    if source_xlsx_bytes:
         try:
-            _restore_untouched_drawings_step(xlsx_bytes, source_fods, source_xlsx_bytes, replacements)
+            output_wb = replacements.get(XLSX_WORKBOOK_ENTRY) or (read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY) or b"").decode("utf-8", errors="replace")
+            source_wb = (read_zip_entry(source_xlsx_bytes, XLSX_WORKBOOK_ENTRY) or b"").decode("utf-8", errors="replace")
+            restored_wb = _restore_source_sheet_names_and_states(output_wb, source_wb)
+            if restored_wb != output_wb: replacements[XLSX_WORKBOOK_ENTRY] = restored_wb
         except Exception:
-            # Never fail the save due to drawing restoration issues
             pass
 
     if not replacements:
@@ -4129,7 +4313,7 @@ _XDR_CNVPR_RE = re.compile(
     re.IGNORECASE,
 )
 _XDR_BLIP_RE = re.compile(
-    r"<a:blip\b[^>]*\br:embed\s*=\s*([\"'])([^\1]*?)\1",
+    r"<a:blip\b[^>]*\br:(?:embed|link)\s*=\s*([\"'])(.*?)\1",
     re.IGNORECASE,
 )
 
@@ -4193,6 +4377,10 @@ def _parse_xlsx_drawing_images(xlsx_bytes: bytes) -> dict[str, list[dict]]:
             cnvpr_match = _XDR_CNVPR_RE.search(pic_xml)
             blip_match = _XDR_BLIP_RE.search(pic_xml)
 
+            # Linked pictures use r:link instead of r:embed.  They are still
+            # pictures in the drawing and must participate in the untouched
+            # image count, otherwise one missing id disables passthrough for
+            # the whole sheet.
             if cnvpr_match and blip_match:
                 cnvpr_id = cnvpr_match.group(2)
                 name = _unescape_xml(cnvpr_match.group(4))
@@ -4382,10 +4570,23 @@ def _restore_untouched_drawings_step(
         source_anchors = source_drawing_images.get(sheet_name, [])
         source_ids = [f"{sheet_name}:{a['index']}" for a in source_anchors]
 
-        # Exact match check: IDs must match AND total image count must match
-        total_images_match = fods_total_image_counts.get(sheet_name, 0) == len(source_ids)
-        # So theo TẬP: app ghi ảnh theo thứ tự ô, drawing gốc theo z-order — thứ tự khác không phải "đã sửa"
-        if sorted(fods_ids) != sorted(source_ids) or len(fods_ids) != len(set(fods_ids)) or not total_images_match:
+        # Every image which survived LibreOffice import must retain its source
+        # id. A strict count against the source is wrong: Calc itself can drop
+        # linked/one-cell images before the app sees them. No untagged current
+        # image and a unique source-id subset still proves the user did not edit.
+        current_count = fods_total_image_counts.get(sheet_name, 0)
+        # Nested/grouped frames can make the lightweight FODS frame counter
+        # see an untagged wrapper. It is still untouched when every tagged id
+        # belongs to the source and the current count did not grow.
+        exact_ids = sorted(fods_ids) == sorted(source_ids) and current_count == len(source_ids)
+        grouped_wrapper_evidence = current_count > len(fods_ids) and current_count <= len(source_ids)
+        missing_anchors = [anchor for anchor in source_anchors if f"{sheet_name}:{anchor['index']}" not in set(fods_ids)]
+        import_loss_only = bool(missing_anchors) and all(
+            "oneCellAnchor" in anchor["anchor_xml"] or "absoluteAnchor" in anchor["anchor_xml"] or re.search(r"\br:link=", anchor["anchor_xml"])
+            for anchor in missing_anchors
+        )
+        untouched_ids = exact_ids or (set(fods_ids).issubset(source_ids) and (grouped_wrapper_evidence or import_loss_only))
+        if not untouched_ids or len(fods_ids) != len(set(fods_ids)):
             continue  # Sheet has modified images, use LibreOffice's drawing
 
         # Sheet is untouched — restore original drawing
@@ -4457,7 +4658,7 @@ def _restore_untouched_drawings_step(
             id_match = re.search(r'Id="([^"]*)"', attrs)
             if not (type_match and target_match and id_match):
                 continue
-            if "image" not in type_match.group(1).lower():
+            if "image" not in type_match.group(1).lower() and "media/" not in target_match.group(1).lower():
                 continue
             target = target_match.group(1)
             rel_id = id_match.group(1)
@@ -4490,6 +4691,7 @@ def _restore_untouched_drawings_step(
                     "emf": "image/x-emf",
                     "wmf": "image/x-wmf",
                     "svg": "image/svg+xml",
+                    "wdp": "image/vnd.ms-photo",
                 }.get(ext, "application/octet-stream")
                 media_content_types[ext] = ct
 
@@ -4522,7 +4724,7 @@ def _restore_untouched_drawings_step(
                 rel_id_counter += 1
                 old_to_new_rel_id[old_id] = new_id
                 new_drawing_rels_xml += f'<Relationship Id="{new_id}" Type="{rel_type}" Target="{target}" TargetMode="External"/>'
-            elif "image" in rel_type.lower():
+            elif "image" in rel_type.lower() or "media/" in target.lower():
                 # Media nằm ở xl/media/, rels ở xl/drawings/_rels/ -> đường dẫn tương đối phải là ../media/
                 # (bản đầu ghi "media/vnosrc_…" -> Excel không mở lan12, lint parts báo thiếu target)
                 new_target = "../media/vnosrc_" + target.rsplit("/", 1)[-1]
@@ -4649,6 +4851,7 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_number_formats_from_xlsx(xlsx_bytes, xml)
+    xml = _promote_covered_formula_errors(xml)
     xml = _overlay_sheet_original_strings_from_xlsx(xlsx_bytes, xml)
     # Cell style indices (xf): write vno:xf on each table:table-cell so the
     # app can preserve original formatting for untouched cells on save.
@@ -4738,7 +4941,8 @@ def _xlsx_cells_with_xf_indices(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, 
 
 def _set_orig_xf_attr(cell_xml: str, xf_index: int) -> str:
     opening = re.match(r"<(table:(?:table-cell|covered-table-cell))\b([^>]*?)(/?)>", cell_xml, re.IGNORECASE)
-    if not opening or "covered-table-cell" in opening.group(1).lower():
+    covered_formula = opening and "covered-table-cell" in opening.group(1).lower() and re.search(r"\btable:formula=", opening.group(2), re.IGNORECASE)
+    if not opening or ("covered-table-cell" in opening.group(1).lower() and not covered_formula):
         return cell_xml
     attrs = re.sub(r'\s+vno:xf\s*=\s*(["\'])\d+\1', "", opening.group(2), flags=re.IGNORECASE)
     tag = f'<{opening.group(1)}{attrs} vno:xf="{xf_index}"{opening.group(3)}>'
@@ -5163,7 +5367,23 @@ def _set_original_string_attr(cell_xml: str, value: str) -> str:
     # branch (Node tests) never saw it. Encode them explicitly.
     attr_value = _escape_xml(value).replace("\r", "&#13;").replace("\n", "&#10;").replace("\t", "&#9;")
     tag = f'<{opening.group(1)}{raw_attrs} vno:original-string="{attr_value}"{opening.group(3)}>'
-    return tag + cell_xml[opening.end():]
+    result = tag + cell_xml[opening.end():]
+    # Calc represents a leading line break as an empty first paragraph, but
+    # may omit that paragraph on import. Recreate only the missing prefix so
+    # both DOM and regex parsers see the same text as vno:original-string.
+    if re.match(r"^(?:\r\n|\r|\n)", value) and not re.match(r"<[^>]+>\s*<text:p\b[^>]*>\s*</text:p>", result, re.IGNORECASE):
+        result = re.sub(r"(<[^>]+>)", r"\1<text:p></text:p>", result, count=1)
+    return result
+
+
+def _promote_covered_formula_errors(fods_xml: str) -> str:
+    """A covered ODF cell may still carry an OOXML error formula; keep it as data."""
+    return re.sub(
+        r"<table:covered-table-cell\b([^>]*\btable:formula=[^>]*)>([\s\S]*?)</table:covered-table-cell>",
+        lambda m: f"<table:table-cell{m.group(1)}>{m.group(2)}</table:table-cell>",
+        fods_xml or "",
+        flags=re.IGNORECASE,
+    )
 
 
 def _set_repeat(xml: str, attr: str, count: int) -> str:
@@ -5555,6 +5775,8 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
         name_match = re.search(r'table:name="([^"]*)"', attrs)
         name = _unescape_xml(name_match.group(1)) if name_match else ""
         layout = layouts.get(name)
+        if layout is None:
+            layout = next((value for key, value in layouts.items() if _sheet_name_equivalence_key(key) == _sheet_name_equivalence_key(name)), None)
         if not layout:
             return match.group(0)
         encoded = _escape_xml(json.dumps(layout, ensure_ascii=False, separators=(",", ":")))
@@ -5589,6 +5811,60 @@ def parse_tab_colors_from_xlsx(xlsx_bytes: bytes) -> dict[str, str]:
                 if len(argb) == 8:
                     rgb = argb[2:]  # Skip alpha
                     result[sheet_name] = f"#{rgb.upper()}"
+    return result
+
+
+def _restore_lost_leading_newlines_step(
+    xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str], copier: "_SourceXfCopier | None"
+) -> None:
+    """Restore only leading CR/LF lost by the ODF empty-first-paragraph conversion."""
+    source_values = _xlsx_cells_with_original_strings(source_xlsx_bytes)
+    output_values = _xlsx_cells_with_original_strings(xlsx_bytes)
+    source_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+    output_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    for sheet_name, source_cells in source_values.items():
+        out_path = output_entries.get(sheet_name); src_path = source_entries.get(sheet_name)
+        if not out_path or not src_path:
+            continue
+        output_cells = output_values.get(sheet_name, {}); wanted: dict[str, str] = {}
+        src_xml = (read_zip_entry(source_xlsx_bytes, src_path) or b"").decode("utf-8", errors="replace")
+        src_styles = {}
+        for match in re.finditer(r'<c\b([^>]*)>', src_xml, re.IGNORECASE):
+            attrs = _xml_attrs(match.group(1)); coord = (attrs.get("r") or "").upper()
+            if coord and attrs.get("s", "").isdigit(): src_styles[coord] = int(attrs["s"])
+        for (row, col), source_value in source_cells.items():
+            output_value = output_cells.get((row, col))
+            if output_value is None or not re.match(r"^(?:\r\n|\r|\n)+", source_value):
+                continue
+            if re.sub(r"^(?:\r\n|\r|\n)+", "", source_value) != output_value:
+                continue
+            coord = f"{_column_letter(col)}{row}"; mapped = copier.map(src_styles[coord]) if copier is not None and coord in src_styles else None
+            style = f' s="{mapped}"' if mapped is not None else ""
+            text = _escape_xml(source_value)
+            wanted[coord] = f'<c r="{coord}"{style} t="inlineStr"><is><t xml:space="preserve">{text}</t></is></c>'
+        if wanted:
+            sheet_xml = replacements.get(out_path) or (read_zip_entry(xlsx_bytes, out_path) or b"").decode("utf-8", errors="replace")
+            replacements[out_path] = _insert_or_replace_cells(sheet_xml, wanted)
+    if copier is not None:
+        copier.write_styles(replacements)
+
+
+def _source_explicit_column_widths(source_sheet_xml: str | None) -> dict[int, float]:
+    """Expand explicit source <col width> ranges to column-index -> character width."""
+    result: dict[int, float] = {}
+    if not source_sheet_xml:
+        return result
+    for match in re.finditer(r"<col\b([^>]*)/?>", source_sheet_xml, re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        if "width" not in attrs:
+            continue
+        try:
+            first = int(attrs.get("min", "1")); last = int(attrs.get("max", str(first)))
+            width = float(attrs["width"])
+        except ValueError:
+            continue
+        for col_idx in range(first, last + 1):
+            result[col_idx] = width
     return result
 
 

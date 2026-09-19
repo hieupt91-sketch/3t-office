@@ -2949,7 +2949,11 @@ export class SheetAdapter {
           else if (gap > 1) cellsXml += `<table:table-cell table:number-columns-repeated="${gap}"/>`;
 
           const coordinate = `${this._columnName(columnNumber)}${rowNumber}`;
-          if (coveredCells.has(coordinate)) {
+          const storedItem = rowCells.get(columnNumber);
+          // Some XLSX files legitimately store an error formula in a cell
+          // which Calc exposes as covered. It is document data, so do not let
+          // the visual merge marker erase it during serialization.
+          if (coveredCells.has(coordinate) && !storedItem?.formula) {
             const cellImages = imagesByAnchor.get(coordinate) || [];
             const cellImageXml = cellImages.length > 0
               ? cellImages.map(img => this._serializeCellImageXml(img)).join("")
@@ -2958,7 +2962,6 @@ export class SheetAdapter {
             previousColumn = columnNumber;
             continue;
           }
-          const storedItem = rowCells.get(columnNumber);
           const item = storedItem || { val: "", formula: "", style: {} };
           const arrayFormula = this._arrayFormulaInfo(coordinate, item);
           const formula = (!arrayFormula || arrayFormula.isAnchor) && item.formula && String(item.formula).startsWith("=") ? String(item.formula) : "";
@@ -3079,7 +3082,11 @@ export class SheetAdapter {
             }
           } else {
             const text = item.val === undefined || item.val === null ? "" : String(item.val);
-            if (Array.isArray(item.richText) && item.richText.length > 0) {
+            const richTextValue = Array.isArray(item.richText) ? item.richText.map(run => String(run.text || "")).join("") : "";
+            // vno:original-string is authoritative. Calc can omit an empty
+            // first <text:p>, so its rich runs no longer represent a leading
+            // newline even though the original plain value still does.
+            if (Array.isArray(item.richText) && item.richText.length > 0 && richTextValue === text.replace(/\r\n|\r/g, "\n")) {
               // Serialize rich text as <text:p> with <text:span> elements
               const paraRuns = [];
               let currentPara = [];
@@ -3932,6 +3939,8 @@ export class SheetAdapter {
                 const columnRepeat = Math.max(1, Number(cell.getAttribute("table:number-columns-repeated")) || 1);
                 const attributes = Object.fromEntries(Array.from(cell.attributes).map(attr => [attr.name, attr.value]));
                 const isCovered = cell.localName === "covered-table-cell";
+                const isCoveredErrorFormula = isCovered && Boolean(attributes["table:formula"] || attributes["vno:formula"])
+                  && (attributes["calcext:value-type"] || "").toLowerCase() === "error";
                 const mergedColumns = Math.max(1, Number(attributes["table:number-columns-spanned"]) || 1);
                 const mergedRows = Math.max(1, Number(attributes["table:number-rows-spanned"]) || 1);
                 if (!isCovered && (mergedColumns > 1 || mergedRows > 1)) {
@@ -3951,7 +3960,7 @@ export class SheetAdapter {
                 // FODS soffice 573 ô viền, app gửi đi 468 khi thiếu nhánh này).
                 const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotation || attributes["table:content-validation-name"]
                   || (columnNumber <= lastDataCol && this._cellStyleHasBorder(attributes["table:style-name"], cellVisualStyles));
-                if (hasValue && !isCovered) {
+                if (hasValue && (!isCovered || isCoveredErrorFormula)) {
                   const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
                   // Extract rich text runs from <text:span> elements
                   if (textStyles.size > 0) {
@@ -4174,6 +4183,8 @@ export class SheetAdapter {
               cellMatch[2].replace(/([\w:-]+)=["']([^"']*)["']/g, (_, key, value) => { attributes[key] = this._unescapeXml(value); return ""; });
               const columnRepeat = Math.max(1, Number(attributes["table:number-columns-repeated"]) || 1);
               const isCovered = cellMatch[1].toLowerCase() === "covered-table-cell";
+              const isCoveredErrorFormula = isCovered && Boolean(attributes["table:formula"] || attributes["vno:formula"])
+                && (attributes["calcext:value-type"] || "").toLowerCase() === "error";
               const mergedColumns = Math.max(1, Number(attributes["table:number-columns-spanned"]) || 1);
               const mergedRows = Math.max(1, Number(attributes["table:number-rows-spanned"]) || 1);
               if (!isCovered && (mergedColumns > 1 || mergedRows > 1)) {
@@ -4195,7 +4206,7 @@ export class SheetAdapter {
               // used range enter the model so their borders survive the save.
               const hasValue = attributes["office:value-type"] || attributes["table:formula"] || attributes["vno:formula"] || text !== "" || annotationMatch || attributes["table:content-validation-name"]
                 || (columnNumber <= lastDataCol && this._cellStyleHasBorder(attributes["table:style-name"], cellVisualStyles));
-              if (hasValue && !isCovered) {
+              if (hasValue && (!isCovered || isCoveredErrorFormula)) {
                 const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
                 // Extract rich text runs from <text:span> elements (regex branch)
                 if (textStyles.size > 0) {
@@ -4329,20 +4340,27 @@ export class SheetAdapter {
     this.grid.sheetVisibilityBySheet = workbook.sheetVisibilityBySheet || {};
     // Store tabColors on grid for fallback access in _renderSheetTabs
     this.grid.tabColors = workbook.tabColors || {};
+    const equivalentSheetValue = (mapping, sheetName) => {
+      if (!mapping) return undefined;
+      if (Object.prototype.hasOwnProperty.call(mapping, sheetName)) return mapping[sheetName];
+      const key = String(sheetName).replace(/_x([0-9a-f]{4})_/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16))).replace(/[\x00-\x20]+/g, " ").trim().toLowerCase();
+      const found = Object.keys(mapping).find(name => String(name).replace(/_x([0-9a-f]{4})_/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16))).replace(/[\x00-\x20]+/g, " ").trim().toLowerCase() === key);
+      return found === undefined ? undefined : mapping[found];
+    };
     for (const sheetName of workbook.sheets) {
       this.grid.conditionalFormattingBySheet[sheetName] = workbook.conditionalFormattingBySheet?.[sheetName] || [];
       this.grid.dataValidationsBySheet[sheetName] = workbook.dataValidationsBySheet?.[sheetName] || [];
       this.grid.pivotTablesBySheet[sheetName] = workbook.pivotTablesBySheet?.[sheetName] || [];
       this.grid.chartsBySheet[sheetName] = workbook.chartsBySheet?.[sheetName] || [];
       this.grid.imagesBySheet[sheetName] = workbook.imagesBySheet?.[sheetName] || [];
-      this.grid.rowHeightsBySheet[sheetName] = this._asLayoutMap(workbook.rowHeightsBySheet?.[sheetName], true);
+      this.grid.rowHeightsBySheet[sheetName] = this._asLayoutMap(equivalentSheetValue(workbook.rowHeightsBySheet, sheetName), true);
       this.grid.colWidthsBySheet[sheetName] = this._asLayoutMap(workbook.colWidthsBySheet?.[sheetName], false);
       this.grid.userHiddenRowsBySheet[sheetName] = this._asLayoutSet(workbook.userHiddenRowsBySheet?.[sheetName], true);
       this.grid.userHiddenColsBySheet[sheetName] = this._asLayoutSet(workbook.userHiddenColsBySheet?.[sheetName], false);
       this.grid.pageBreaksBySheet[sheetName] = workbook.pageBreaksBySheet?.[sheetName] || { rows: [], cols: [] };
       this.grid.protectionBySheet[sheetName] = workbook.protectionBySheet?.[sheetName] || { enabled: false, password: "" };
       this.grid.outlineGroupsBySheet[sheetName] = workbook.outlineGroupsBySheet?.[sheetName] || [];
-      const freeze = workbook.freezePanesBySheet?.[sheetName] || { rows: 0, cols: 0 };
+      const freeze = equivalentSheetValue(workbook.freezePanesBySheet, sheetName) || { rows: 0, cols: 0 };
       if (!this.grid.sheetStates) this.grid.sheetStates = {};
       if (!this.grid.sheetStates[sheetName]) {
         this.grid.sheetStates[sheetName] = { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, selectedCoord: { r: 1, c: "A" } };

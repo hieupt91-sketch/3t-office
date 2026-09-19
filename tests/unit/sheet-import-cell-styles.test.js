@@ -549,5 +549,19 @@ export async function runSheetImportCellStylesTests() {
     assert(item.style.numberFormat?.excelCode === '_(* #,##0_);_(* (#,##0);_(* "-"_);_(@_)', `string cell must keep excelCode, got ${JSON.stringify(item.style.numberFormat)}`);
   });
 
+  await test("cell.formula.error: promoted covered error survives parse and serialize", () => {
+    const fods = minimalFodsXml({
+      sheetName: "ErrorFormula",
+      cells: [{ attrs: { "office:value-type": "string", "table:formula": "of:=NA()", "calcext:value-type": "error" }, text: "#N/A" }]
+    });
+    const adapter = makeAdapter(makeGrid("ErrorFormula"));
+    const parsed = adapter.parseFods(fods);
+    const item = parsed.sheetsData.ErrorFormula.get("A1");
+    assert(item?.formula === "=NA()", `error formula must import, got ${item?.formula}`);
+    adapter.loadFromFods(fods);
+    const saved = adapter.serializeToFods();
+    assert(saved.includes('table:formula="of:=NA()"'), "error formula must serialize back to FODS");
+  });
+
   return results;
 }
