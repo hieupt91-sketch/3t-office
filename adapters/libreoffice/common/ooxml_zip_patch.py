@@ -1519,6 +1519,172 @@ def _restore_hidden_columns_and_rows_step(
                 replacements[entry_path] = sheet_xml
 
 
+def _xlsx_empty_shared_string_indexes(sst_xml: str) -> tuple[list[str], set[int]]:
+    """Danh sách <si> và tập chỉ số các chuỗi rỗng (`<si><t/></si>`, `<t xml:space="preserve"></t>`, mọi run rỗng)."""
+    items = re.findall(r"<si\b[^>]*>[\s\S]*?</si>|<si\b[^>]*/>", sst_xml, re.IGNORECASE)
+    empty: set[int] = set()
+    for idx, si in enumerate(items):
+        texts = re.findall(r"<t\b[^>]*>([\s\S]*?)</t>", si, re.IGNORECASE)
+        if not texts or all(t == "" for t in texts):
+            empty.add(idx)
+    return items, empty
+
+
+def _restore_empty_string_cells_step(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str], copier: "_SourceXfCopier | None") -> None:
+    """S13 (đo vòng 5/6: lan25 686 ô, lan20 20 ô, lan15 2 ô): ô chuỗi rỗng `<c t="s"><v>N</v></c>` (N -> `<si><t/></si>`)
+    hoặc `t="inlineStr"` rỗng bị soffice BỎ khi nhập XLSX→FODS (app không bao giờ thấy), còn khi xuất thì giữ.
+    Excel: ISBLANK=FALSE, COUNTA đếm, Ctrl+End tới ô đó — nên khôi phục từ file gốc: chèn lại ô (đúng thứ tự
+    dòng/cột) với shared string rỗng của file lưu và xf chép qua `copier` (không chép thẳng `s=` gốc)."""
+    src_sst = read_zip_entry(source_xlsx_bytes, "xl/sharedStrings.xml")
+    src_empty: set[int] = set()
+    if src_sst:
+        src_empty = _xlsx_empty_shared_string_indexes(src_sst.decode("utf-8", errors="replace"))[1]
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    source_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+    cell_re = re.compile(r'<c\b((?:[^>/]|/(?!>))*)(?:/>|>([\s\S]*?)</c>)', re.IGNORECASE)
+    row_re = re.compile(r'<row\b((?:[^>/]|/(?!>))*)(?:/>|>([\s\S]*?)</row>)', re.IGNORECASE)
+    out_empty_idx: int | None = None
+    restored_refs = 0
+
+    def _ensure_output_empty_string() -> int | None:
+        nonlocal out_empty_idx
+        if out_empty_idx is not None:
+            return out_empty_idx
+        sst_xml = replacements.get("xl/sharedStrings.xml")
+        if sst_xml is None:
+            entry = read_zip_entry(xlsx_bytes, "xl/sharedStrings.xml")
+            sst_xml = entry.decode("utf-8", errors="replace") if entry else None
+        if sst_xml is None:
+            return None
+        items, empty = _xlsx_empty_shared_string_indexes(sst_xml)
+        if empty:
+            out_empty_idx = min(empty)
+        else:
+            out_empty_idx = len(items)
+            sst_xml = re.sub(r"</sst>", "<si><t/></si></sst>", sst_xml, count=1, flags=re.IGNORECASE)
+            sst_xml = re.sub(r'\buniqueCount="(\d+)"', lambda m: f'uniqueCount="{int(m.group(1)) + 1}"', sst_xml, count=1)
+            replacements["xl/sharedStrings.xml"] = sst_xml
+        return out_empty_idx
+
+    for sheet_name, entry_path in sheet_entries.items():
+        if sheet_name not in source_sheet_entries:
+            continue
+        source_bytes = read_zip_entry(source_xlsx_bytes, source_sheet_entries[sheet_name])
+        if not source_bytes:
+            continue
+        source_xml = source_bytes.decode("utf-8", errors="replace")
+        wanted: dict[str, int | None] = {}  # coord -> chỉ số xf gốc
+        for m in cell_re.finditer(source_xml):
+            attrs = _xml_attrs(m.group(1))
+            coord = (attrs.get("r") or "").upper()
+            kind = (attrs.get("t") or "").lower()
+            body = m.group(2) or ""
+            if not coord:
+                continue
+            is_empty = False
+            if kind == "s":
+                v = re.search(r"<v>\s*(\d+)\s*</v>", body)
+                is_empty = bool(v) and int(v.group(1)) in src_empty
+            elif kind == "inlinestr":
+                texts = re.findall(r"<t\b[^>]*>([\s\S]*?)</t>", body, re.IGNORECASE)
+                is_empty = not texts or all(t == "" for t in texts)
+            if is_empty:
+                wanted[coord] = int(attrs["s"]) if attrs.get("s", "").isdigit() else None
+        if not wanted:
+            continue
+        sheet_xml = replacements.get(entry_path)
+        if sheet_xml is None:
+            entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+            if not entry_bytes:
+                continue
+            sheet_xml = entry_bytes.decode("utf-8", errors="replace")
+        sd = re.search(r"(<sheetData\b[^>]*>)([\s\S]*?)(</sheetData>)|<sheetData\b[^>]*/>", sheet_xml, re.IGNORECASE)
+        if not sd:
+            continue
+        sd_content = sd.group(2) or ""
+        by_row: dict[int, dict[int, str]] = {}
+        for coord, src_s in wanted.items():
+            col_letters, row_str = re.match(r"([A-Z]+)(\d+)", coord).groups()
+            new_s = copier.map(src_s) if (copier is not None and src_s is not None) else None
+            by_row.setdefault(int(row_str), {})[_column_index(col_letters)] = f' s="{new_s}"' if new_s is not None else ""
+        empty_idx = _ensure_output_empty_string()
+        if empty_idx is None:
+            continue
+
+        def _cell_xml(col_idx: int, row_num: int, s_attr: str) -> str:
+            return f'<c r="{_column_letter(col_idx)}{row_num}"{s_attr} t="s"><v>{empty_idx}</v></c>'
+
+        out_parts: list[str] = []
+        pending_rows = sorted(by_row)
+        pi = 0
+        pos = 0
+
+        def _emit_new_rows_before(row_num: int | None):
+            nonlocal pi, restored_refs
+            while pi < len(pending_rows) and (row_num is None or pending_rows[pi] < row_num):
+                r = pending_rows[pi]
+                cells = "".join(_cell_xml(c, r, s) for c, s in sorted(by_row[r].items()))
+                restored_refs += len(by_row[r])
+                out_parts.append(f'<row r="{r}">{cells}</row>')
+                pi += 1
+
+        for rm in row_re.finditer(sd_content):
+            r_attr = re.search(r'\br="(\d+)"', rm.group(1))
+            if not r_attr:
+                continue
+            r = int(r_attr.group(1))
+            _emit_new_rows_before(r)
+            out_parts.append(sd_content[pos:rm.start()])
+            pos = rm.end()
+            if pi < len(pending_rows) and pending_rows[pi] == r:
+                cols = dict(by_row[r])
+                body = rm.group(2) or ""
+                rebuilt: list[tuple[int, str]] = []
+                for cm in cell_re.finditer(body):
+                    a = _xml_attrs(cm.group(1))
+                    c = (a.get("r") or "").upper()
+                    letters = re.match(r"[A-Z]+", c)
+                    if not letters:
+                        continue
+                    ci = _column_index(letters.group(0))
+                    cbody = cm.group(2) or ""
+                    has_value = bool(re.search(r"<v\b|<f\b|<is\b", cbody, re.IGNORECASE))
+                    if ci in cols and not has_value:
+                        rebuilt.append((ci, _cell_xml(ci, r, cols.pop(ci))))  # ô tự đóng chỉ có style -> thay
+                        restored_refs += 1
+                    else:
+                        cols.pop(ci, None)  # ô đã có giá trị (người dùng gõ) -> giữ nguyên
+                        rebuilt.append((ci, cm.group(0)))
+                for ci, s in cols.items():
+                    rebuilt.append((ci, _cell_xml(ci, r, s)))
+                    restored_refs += 1
+                rebuilt.sort(key=lambda t: t[0])
+                out_parts.append(f"<row{rm.group(1)}>" + "".join(x for _, x in rebuilt) + "</row>")
+                pi += 1
+            else:
+                out_parts.append(rm.group(0))
+        _emit_new_rows_before(None)
+        out_parts.append(sd_content[pos:])
+        new_content = "".join(out_parts)
+        if sd.group(1):
+            new_sheet = sheet_xml[:sd.start()] + sd.group(1) + new_content + sd.group(3) + sheet_xml[sd.end():]
+        else:
+            new_sheet = sheet_xml[:sd.start()] + "<sheetData>" + new_content + "</sheetData>" + sheet_xml[sd.end():]
+        if new_sheet != sheet_xml:
+            replacements[entry_path] = new_sheet
+
+    if restored_refs:
+        sst_xml = replacements.get("xl/sharedStrings.xml")
+        if sst_xml is None:
+            entry = read_zip_entry(xlsx_bytes, "xl/sharedStrings.xml")
+            sst_xml = entry.decode("utf-8", errors="replace") if entry else None
+        if sst_xml is not None:
+            sst_xml = re.sub(r'\bcount="(\d+)"', lambda m: f'count="{int(m.group(1)) + restored_refs}"', sst_xml, count=1)
+            replacements["xl/sharedStrings.xml"] = sst_xml
+    if copier is not None:
+        copier.write_styles(replacements)
+
+
 def _restore_literal_error_cells_step(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
     """S14 (đo vòng 6: lan01 200 ô, lan15 2 ô): XLSX gốc có ô giá trị lỗi thuần `<c t="e"><v>#N/A</v></c>`
     (giá trị dán, không công thức); LibreOffice chỉ biểu diễn lỗi bằng công thức nên nhập thành
@@ -2154,11 +2320,21 @@ def postprocess_sheet_xlsx(
             pass
 
     # Restore original xf for cells with vno:xf (S8: untouched cell styles)
+    xf_copier = None
     if source_xlsx_bytes and source_fods:
         try:
-            _restore_original_xf_for_vno_cells(xlsx_bytes, source_fods, source_xlsx_bytes, replacements)
+            xf_copier = _restore_original_xf_for_vno_cells(xlsx_bytes, source_fods, source_xlsx_bytes, replacements)
         except Exception:
             # Never fail the save due to xf restoration issues
+            pass
+
+    # S13: ô chuỗi rỗng của file gốc bị soffice bỏ khi nhập -> chèn lại (xf qua cùng bộ chép của S8)
+    if source_xlsx_bytes:
+        try:
+            if xf_copier is None:
+                xf_copier = _SourceXfCopier(xlsx_bytes, source_xlsx_bytes)
+            _restore_empty_string_cells_step(xlsx_bytes, source_xlsx_bytes, replacements, xf_copier if xf_copier.available else None)
+        except Exception:
             pass
 
     # Restore Normal font, column widths, sheetFormatPr, and row heights from original XLSX
@@ -4241,34 +4417,18 @@ def _restore_original_xf_for_vno_cells(
         _restore_source_color_palette(xlsx_bytes, source_xlsx_bytes, replacements, copy_theme=False)
         return
 
-    # Parse original XLSX styles
-    src_xf_elements, src_font_elements, src_fill_elements, src_border_elements, src_numfmt_elements = _parse_xlsx_styles_for_xf(source_xlsx_bytes)
-    if not src_xf_elements:
+    copier = _SourceXfCopier(xlsx_bytes, source_xlsx_bytes)
+    if not copier.available:
         _restore_source_color_palette(xlsx_bytes, source_xlsx_bytes, replacements, copy_theme=False)
         return
-    
-    # Parse current (LibreOffice-generated) XLSX styles to append to
-    current_xf_elements, current_font_elements, current_fill_elements, current_border_elements, current_numfmt_elements = _parse_xlsx_styles_for_xf(xlsx_bytes)
-    
-    # Build maps for deduplication (by XML content). numFmt: formatCode -> numFmtId (custom ids >= 164).
-    font_map = {f: i for i, f in enumerate(current_font_elements)}
-    fill_map = {f: i for i, f in enumerate(current_fill_elements)}
-    border_map = {b: i for i, b in enumerate(current_border_elements)}
-    numfmt_map = {code: fmt_id for fmt_id, code in current_numfmt_elements.items()}
-    next_numfmt_id = max([163, *current_numfmt_elements.keys()]) + 1
-    added_numfmts: dict[int, str] = {}
-    
-    # For each source xf referenced by vno:xf, copy its dependencies and the xf itself
-    new_xf_elements = list(current_xf_elements)
-    xf_index_map = {}  # source_xf_index -> new_xf_index
-    
+
     for sheet_name, cells in vno_cells.items():
         # Get the worksheet entry path
         sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
         entry_path = sheet_entries.get(sheet_name)
         if not entry_path:
             continue
-        
+
         # Get the worksheet XML
         sheet_xml = replacements.get(entry_path)
         if sheet_xml is None:
@@ -4276,79 +4436,13 @@ def _restore_original_xf_for_vno_cells(
             if not entry_bytes:
                 continue
             sheet_xml = entry_bytes.decode("utf-8", errors="replace")
-        
+
         # Process each cell with vno:xf
         new_xf_by_coord: dict[str, int] = {}
         for (row, col), src_xf_idx in cells.items():
-            if src_xf_idx >= len(src_xf_elements):
+            new_xf_idx = copier.map(src_xf_idx)
+            if new_xf_idx is None:
                 continue
-            if src_xf_idx in xf_index_map:
-                new_xf_idx = xf_index_map[src_xf_idx]
-            else:
-                # Copy the source xf and its dependencies
-                src_xf = src_xf_elements[src_xf_idx]
-                
-                # Parse xf attributes to get fontId, fillId, borderId, numFmtId
-                xf_attrs = _xml_attrs(re.match(r"<xf\b([^>]*)", src_xf).group(1))
-                font_id = int(xf_attrs.get("fontId", 0))
-                fill_id = int(xf_attrs.get("fillId", 0))
-                border_id = int(xf_attrs.get("borderId", 0))
-                numfmt_id = int(xf_attrs.get("numFmtId", 0))
-                
-                # Copy font if needed
-                if font_id < len(src_font_elements):
-                    src_font = src_font_elements[font_id]
-                    if src_font not in font_map:
-                        font_map[src_font] = len(current_font_elements)
-                        current_font_elements.append(src_font)
-                    new_font_id = font_map[src_font]
-                else:
-                    new_font_id = 0
-                
-                # Copy fill if needed
-                if fill_id < len(src_fill_elements):
-                    src_fill = src_fill_elements[fill_id]
-                    if src_fill not in fill_map:
-                        fill_map[src_fill] = len(current_fill_elements)
-                        current_fill_elements.append(src_fill)
-                    new_fill_id = fill_map[src_fill]
-                else:
-                    new_fill_id = 0
-                
-                # Copy border if needed
-                if border_id < len(src_border_elements):
-                    src_border = src_border_elements[border_id]
-                    if src_border not in border_map:
-                        border_map[src_border] = len(current_border_elements)
-                        current_border_elements.append(src_border)
-                    new_border_id = border_map[src_border]
-                else:
-                    new_border_id = 0
-                
-                # Copy numFmt if needed: mã tuỳ chỉnh (>= 164) VÀ mã built-in được file gốc khai báo tường
-                # minh (Excel cho ghi đè 5–8, 41–44 theo locale: lan28 `numFmtId="41" formatCode="_-* #,##0_-…"`,
-                # 1540 ô vòng 5) — cấp id mới >= 164 để giữ đúng chữ mã, không đụng id 41 của LibreOffice.
-                if numfmt_id in src_numfmt_elements and (numfmt_id >= 164 or numfmt_id not in current_numfmt_elements
-                                                         or current_numfmt_elements.get(numfmt_id) != src_numfmt_elements[numfmt_id]):
-                    code = src_numfmt_elements[numfmt_id]
-                    if code not in numfmt_map:
-                        numfmt_map[code] = next_numfmt_id
-                        added_numfmts[next_numfmt_id] = code
-                        next_numfmt_id += 1
-                    new_numfmt_id = numfmt_map[code]
-                else:
-                    new_numfmt_id = numfmt_id
-                
-                # Create new xf with updated indices
-                new_xf = re.sub(r'fontId="\d+"', f'fontId="{new_font_id}"', src_xf)
-                new_xf = re.sub(r'fillId="\d+"', f'fillId="{new_fill_id}"', new_xf)
-                new_xf = re.sub(r'borderId="\d+"', f'borderId="{new_border_id}"', new_xf)
-                new_xf = re.sub(r'numFmtId="\d+"', f'numFmtId="{new_numfmt_id}"', new_xf)
-                
-                new_xf_idx = len(new_xf_elements)
-                new_xf_elements.append(new_xf)
-                xf_index_map[src_xf_idx] = new_xf_idx
-            
             new_xf_by_coord[f"{column_label_from_index(col)}{row}"] = new_xf_idx
 
         # Đặt lại s= cho mọi ô trong MỘT lượt quét (lan09: 13 MB XLSX, hàng trăm nghìn ô vno:xf —
@@ -4374,39 +4468,107 @@ def _restore_original_xf_for_vno_cells(
         if sheet_xml != replacements.get(entry_path, ""):
             replacements[entry_path] = sheet_xml
     
-    # Update styles.xml with new elements (mỗi bảng ghi lại cả count= để Excel không từ chối file)
-    if len(new_xf_elements) > len(current_xf_elements) or added_numfmts:
-        styles_entry = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
-        if styles_entry:
+    copier.write_styles(replacements)
+    _restore_source_color_palette(xlsx_bytes, source_xlsx_bytes, replacements, copy_theme=bool(copier.xf_index_map))
+    return copier
+
+
+class _SourceXfCopier:
+    """Chép <xf> của XLSX gốc (+font/fill/border/numFmt nó trỏ tới) vào styles.xml của file LibreOffice
+    ghi ra, trả về chỉ số xf mới. Dùng chung cho S8 (ô vno:xf) và S13 (ô chuỗi rỗng khôi phục): mọi
+    chỉ số style của file gốc PHẢI đi qua đây, không được chép thẳng `s=` gốc vào file lưu."""
+
+    def __init__(self, xlsx_bytes: bytes, source_xlsx_bytes: bytes):
+        (self.src_xf, self.src_fonts, self.src_fills, self.src_borders, self.src_numfmts) = _parse_xlsx_styles_for_xf(source_xlsx_bytes)
+        (self.current_xf, self.fonts, self.fills, self.borders, self.current_numfmts) = _parse_xlsx_styles_for_xf(xlsx_bytes)
+        self.available = bool(self.src_xf)
+        self.xlsx_bytes = xlsx_bytes
+        # Build maps for deduplication (by XML content). numFmt: formatCode -> numFmtId (custom ids >= 164).
+        self.font_map = {f: i for i, f in enumerate(self.fonts)}
+        self.fill_map = {f: i for i, f in enumerate(self.fills)}
+        self.border_map = {b: i for i, b in enumerate(self.borders)}
+        self.numfmt_map = {code: fmt_id for fmt_id, code in self.current_numfmts.items()}
+        self.next_numfmt_id = max([163, *self.current_numfmts.keys()]) + 1
+        self.added_numfmts: dict[int, str] = {}
+        self.new_xf = list(self.current_xf)
+        self.xf_index_map: dict[int, int] = {}  # source_xf_index -> new_xf_index
+
+    def _dedupe(self, elements: list[str], index_map: dict[str, int], element: str) -> int:
+        if element not in index_map:
+            index_map[element] = len(elements)
+            elements.append(element)
+        return index_map[element]
+
+    def map(self, src_xf_idx: int) -> int | None:
+        if not self.available or src_xf_idx < 0 or src_xf_idx >= len(self.src_xf):
+            return None
+        if src_xf_idx in self.xf_index_map:
+            return self.xf_index_map[src_xf_idx]
+        src_xf = self.src_xf[src_xf_idx]
+        xf_attrs = _xml_attrs(re.match(r"<xf\b([^>]*)", src_xf).group(1))
+        font_id = int(xf_attrs.get("fontId", 0))
+        fill_id = int(xf_attrs.get("fillId", 0))
+        border_id = int(xf_attrs.get("borderId", 0))
+        numfmt_id = int(xf_attrs.get("numFmtId", 0))
+        new_font_id = self._dedupe(self.fonts, self.font_map, self.src_fonts[font_id]) if font_id < len(self.src_fonts) else 0
+        new_fill_id = self._dedupe(self.fills, self.fill_map, self.src_fills[fill_id]) if fill_id < len(self.src_fills) else 0
+        new_border_id = self._dedupe(self.borders, self.border_map, self.src_borders[border_id]) if border_id < len(self.src_borders) else 0
+        # numFmt: mã tuỳ chỉnh (>= 164) VÀ mã built-in được file gốc khai báo tường minh (Excel cho ghi đè
+        # 5–8, 41–44 theo locale: lan28 `numFmtId="41" formatCode="_-* #,##0_-…"`, 1540 ô vòng 5) — cấp id
+        # mới >= 164 để giữ đúng chữ mã, không đụng id 41 của LibreOffice.
+        if numfmt_id in self.src_numfmts and (numfmt_id >= 164 or self.current_numfmts.get(numfmt_id) != self.src_numfmts[numfmt_id]):
+            code = self.src_numfmts[numfmt_id]
+            if code not in self.numfmt_map:
+                self.numfmt_map[code] = self.next_numfmt_id
+                self.added_numfmts[self.next_numfmt_id] = code
+                self.next_numfmt_id += 1
+            new_numfmt_id = self.numfmt_map[code]
+        else:
+            new_numfmt_id = numfmt_id
+        new_xf = re.sub(r'fontId="\d+"', f'fontId="{new_font_id}"', src_xf)
+        new_xf = re.sub(r'fillId="\d+"', f'fillId="{new_fill_id}"', new_xf)
+        new_xf = re.sub(r'borderId="\d+"', f'borderId="{new_border_id}"', new_xf)
+        new_xf = re.sub(r'numFmtId="\d+"', f'numFmtId="{new_numfmt_id}"', new_xf)
+        new_idx = len(self.new_xf)
+        self.new_xf.append(new_xf)
+        self.xf_index_map[src_xf_idx] = new_idx
+        return new_idx
+
+    def write_styles(self, replacements: dict[str, str]) -> None:
+        """Ghi lại styles.xml (mỗi bảng ghi lại cả count= để Excel không từ chối file). Gọi được nhiều lần."""
+        if len(self.new_xf) <= len(self.current_xf) and not self.added_numfmts:
+            return
+        styles_xml = replacements.get(XLSX_STYLES_ENTRY)
+        if styles_xml is None:
+            styles_entry = read_zip_entry(self.xlsx_bytes, XLSX_STYLES_ENTRY)
+            if not styles_entry:
+                return
             styles_xml = styles_entry.decode("utf-8", errors="replace")
 
-            def _replace_block(xml: str, container: str, elements: list[str]) -> str:
-                m = re.search(rf"(<{container}\b[^>]*>)([\s\S]*?)(</{container}>)", xml, re.IGNORECASE)
-                if not m:
-                    return xml
-                open_tag = re.sub(r'\scount="\d+"', "", m.group(1))
-                open_tag = open_tag[:-1] + f' count="{len(elements)}">'
-                return xml[:m.start(1)] + open_tag + "".join(elements) + xml[m.start(3):]
+        def _replace_block(xml: str, container: str, elements: list[str]) -> str:
+            m = re.search(rf"(<{container}\b[^>]*>)([\s\S]*?)(</{container}>)", xml, re.IGNORECASE)
+            if not m:
+                return xml
+            open_tag = re.sub(r'\scount="\d+"', "", m.group(1))
+            open_tag = open_tag[:-1] + f' count="{len(elements)}">'
+            return xml[:m.start(1)] + open_tag + "".join(elements) + xml[m.start(3):]
 
-            styles_xml = _replace_block(styles_xml, "fonts", current_font_elements)
-            styles_xml = _replace_block(styles_xml, "fills", current_fill_elements)
-            styles_xml = _replace_block(styles_xml, "borders", current_border_elements)
-            styles_xml = _replace_block(styles_xml, "cellXfs", new_xf_elements)
-            if added_numfmts:
-                all_numfmts = {**current_numfmt_elements, **added_numfmts}
-                numfmt_xml = "".join(
-                    f'<numFmt numFmtId="{fmt_id}" formatCode="{_escape_xml(code)}"/>' for fmt_id, code in sorted(all_numfmts.items())
-                )
-                block = f'<numFmts count="{len(all_numfmts)}">{numfmt_xml}</numFmts>'
-                if re.search(r"<numFmts\b", styles_xml, re.IGNORECASE):
-                    styles_xml = re.sub(r"<numFmts\b[^>]*>[\s\S]*?</numFmts>|<numFmts\b[^>]*/>", lambda _m: block, styles_xml, count=1, flags=re.IGNORECASE)
-                else:
-                    # numFmts phải đứng đầu styleSheet (trước <fonts>)
-                    styles_xml = re.sub(r"(<styleSheet\b[^>]*>)", lambda m: m.group(1) + block, styles_xml, count=1, flags=re.IGNORECASE)
-
-            replacements[XLSX_STYLES_ENTRY] = styles_xml
-
-    _restore_source_color_palette(xlsx_bytes, source_xlsx_bytes, replacements, copy_theme=bool(xf_index_map))
+        styles_xml = _replace_block(styles_xml, "fonts", self.fonts)
+        styles_xml = _replace_block(styles_xml, "fills", self.fills)
+        styles_xml = _replace_block(styles_xml, "borders", self.borders)
+        styles_xml = _replace_block(styles_xml, "cellXfs", self.new_xf)
+        if self.added_numfmts:
+            all_numfmts = {**self.current_numfmts, **self.added_numfmts}
+            numfmt_xml = "".join(
+                f'<numFmt numFmtId="{fmt_id}" formatCode="{_escape_xml(code)}"/>' for fmt_id, code in sorted(all_numfmts.items())
+            )
+            block = f'<numFmts count="{len(all_numfmts)}">{numfmt_xml}</numFmts>'
+            if re.search(r"<numFmts\b", styles_xml, re.IGNORECASE):
+                styles_xml = re.sub(r"<numFmts\b[^>]*>[\s\S]*?</numFmts>|<numFmts\b[^>]*/>", lambda _m: block, styles_xml, count=1, flags=re.IGNORECASE)
+            else:
+                # numFmts phải đứng đầu styleSheet (trước <fonts>)
+                styles_xml = re.sub(r"(<styleSheet\b[^>]*>)", lambda m: m.group(1) + block, styles_xml, count=1, flags=re.IGNORECASE)
+        replacements[XLSX_STYLES_ENTRY] = styles_xml
 
 
 def _restore_source_color_palette(xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str], copy_theme: bool = True) -> None:
