@@ -8167,23 +8167,23 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     for section_text in section_starts:
         if not section_text:
             continue
-        def insert_page_break(match: re.Match) -> str:
-            paragraph = match.group(0)
-            if _paragraph_plain_text(paragraph).strip() != section_text:
-                return paragraph
-            ppr = re.match(r"(<w:p\b[^>]*>)(<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>)?", paragraph, re.IGNORECASE)
-            if not ppr:
-                return paragraph
-            at = ppr.end()
-            return paragraph[:at] + '<w:r><w:br w:type="page"/></w:r>' + paragraph[at:]
-        document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", insert_page_break, document_xml, flags=re.IGNORECASE)
+        paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+        target_index = next((index for index, match in enumerate(paragraphs)
+                             if _paragraph_plain_text(match.group(0)).strip() == section_text), None)
+        final_sect = re.search(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE)
+        if target_index is not None and target_index > 0 and final_sect:
+            carrier_match = paragraphs[target_index - 1]
+            carrier = carrier_match.group(0)
+            section_props = re.sub(r"<w:type\b[^>]*/>", "", final_sect.group(0), flags=re.IGNORECASE)
+            section_props = re.sub(r"(<w:sectPr\b[^>]*>)", r'\1<w:type w:val="nextPage"/>', section_props, count=1)
+            carrier = _writer_upsert_ppr_empty(carrier, "sectPr", section_props)
+            document_xml = document_xml[:carrier_match.start()] + carrier + document_xml[carrier_match.end():]
     if section_starts:
-        document_xml = re.sub(
-            r'(<w:sectPr\b[^>]*>[\s\S]*?)<w:type\b[^>]*/>',
-            r'\1',
-            document_xml,
-            flags=re.IGNORECASE,
-        )
+        sections = list(re.finditer(r'<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>', document_xml, re.IGNORECASE))
+        if sections:
+            final = sections[-1]
+            cleaned = re.sub(r'<w:type\b[^>]*/>', '', final.group(0), flags=re.IGNORECASE)
+            document_xml = document_xml[:final.start()] + cleaned + document_xml[final.end():]
 
     page = re.search(r"@page\s*\{[^}]*\bmargin\s*:\s*([\d.]+)mm\s+([\d.]+)mm\s+([\d.]+)mm\s+([\d.]+)mm", source_html, re.IGNORECASE)
     if page:

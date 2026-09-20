@@ -113,7 +113,7 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
     def test_w20e_created_document_break_is_before_second_section_text(self):
         converted = _build_minimal_docx(
             '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'
-            '<w:p><w:pPr/><w:r><w:t>After</w:t></w:r></w:p>'
+            '<w:p><w:pPr></w:pPr><w:r><w:t>After</w:t></w:r></w:p>'
             '<w:sectPr><w:type w:val="nextPage"/><w:pgMar w:top="1440"/></w:sectPr>'
         )
         result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
@@ -122,9 +122,11 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
                         '<div data-vno-export-section="section-2"><p>After</p></div>',
         )
         document = _read_entry(result, "word/document.xml").decode("utf-8")
-        after = next(p for p in re.findall(r'<w:p\b[^>]*>[\s\S]*?</w:p>', document) if "After" in p)
-        self.assertIn('<w:br w:type="page"/>', after)
-        self.assertNotIn('<w:type w:val="nextPage"/>', document)
+        before = next(p for p in re.findall(r'<w:p\b[^>]*>[\s\S]*?</w:p>', document) if "Before" in p)
+        self.assertIn('<w:sectPr>', before)
+        self.assertIn('<w:type w:val="nextPage"/>', before)
+        final_section = re.findall(r'<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr>', document)[-1]
+        self.assertNotIn('<w:type w:val="nextPage"/>', final_section)
 
     def test_relationship_id_allocator_accepts_single_quoted_xml(self):
         rels = "<Relationships><Relationship Id='rId137' Target='media/image.png'/></Relationships>"
