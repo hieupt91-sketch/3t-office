@@ -209,6 +209,19 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertIn('<w:gridCol w:w="1700"/>', document)
         self.assertIn('<w:tcW w:w="1700" w:type="dxa"/>', document)
 
+    def test_w22g_created_document_tab_stop(self):
+        converted = _build_minimal_docx(
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/></w:pPr><w:r><w:t>Col 1 Col 2 after Tab 5cm</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        source_html = '<p style="tab-size: 5cm;">Col 1\tCol 2 after Tab 5cm</p>'
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html=source_html,
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:tabs><w:tab w:val="left" w:pos="2834"/></w:tabs>', document)
+
     def test_w20e_created_document_break_is_before_second_section_text(self):
         converted = _build_minimal_docx(
             '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'

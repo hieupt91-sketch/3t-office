@@ -8409,6 +8409,47 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
 
         document_xml = re.sub(r'<w:tbl\b[\s\S]*?</w:tbl\s*>', patch_table, document_xml, flags=re.IGNORECASE)
 
+    # W22g: Khôi phục tab stop (<w:tabs><w:tab w:val="left" w:pos="..."/>)
+    # LibreOffice HTML import bỏ qua CSS tab-size trên đoạn văn.
+    tab_stops_by_text: dict[str, int] = {}
+    for p_m in re.finditer(r'<p\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>([\s\S]*?)</p\s*>', source_html, re.IGNORECASE):
+        style = p_m.group(1)
+        tab_m = re.search(r'(?:^|;)\s*tab-size\s*:\s*([\d.]+)cm(?:;|$)', style, re.IGNORECASE)
+        if tab_m:
+            cm_v = float(tab_m.group(1))
+            pt_v = round(cm_v / 2.54 * 72, 1)
+            tw_v = int(round(pt_v * 20))
+            txt = re.sub(r'\s+', ' ', _writer_html_plain(p_m.group(2))).strip()
+            if txt:
+                tab_stops_by_text[txt] = tw_v
+
+    if tab_stops_by_text:
+        def patch_tab_stop(p_match: re.Match) -> str:
+            p = p_match.group(0)
+            p_text = _paragraph_plain_text(p).strip()
+            twips = tab_stops_by_text.get(p_text)
+            if twips:
+                tab_xml = f'<w:tabs><w:tab w:val="left" w:pos="{twips}"/></w:tabs>'
+                if '<w:tabs' in p:
+                    p = re.sub(r'<w:tabs\b[\s\S]*?</w:tabs>', tab_xml, p)
+                elif '<w:bidi' in p:
+                    p = p.replace('<w:bidi', f'{tab_xml}<w:bidi')
+                elif '<w:spacing' in p:
+                    p = p.replace('<w:spacing', f'{tab_xml}<w:spacing')
+                elif '<w:ind' in p:
+                    p = p.replace('<w:ind', f'{tab_xml}<w:ind')
+                elif '<w:jc' in p:
+                    p = p.replace('<w:jc', f'{tab_xml}<w:jc')
+                elif '<w:rPr' in p:
+                    p = p.replace('<w:rPr', f'{tab_xml}<w:rPr')
+                elif '</w:pPr>' in p:
+                    p = p.replace('</w:pPr>', f'{tab_xml}</w:pPr>')
+                else:
+                    p = re.sub(r'(<w:p\b[^>]*>)', rf'\1<w:pPr>{tab_xml}</w:pPr>', p, count=1)
+            return p
+
+        document_xml = re.sub(r'<w:p\b[^>]*>[\s\S]*?</w:p\s*>', patch_tab_stop, document_xml, flags=re.IGNORECASE)
+
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
     numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
     bullet_texts = {

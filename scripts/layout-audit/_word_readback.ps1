@@ -135,7 +135,7 @@ $word = New-Object -ComObject Word.Application
 $word.Visible = $false; $word.DisplayAlerts = 0  # wdAlertsNone = 0
 
 try {
-    $doc = $word.Documents.Open((Resolve-Path $File).Path, 0, $true)
+    $doc = $word.Documents.Open((Resolve-Path $File).Path, 0, $false)
     
     if ($expected.ContainsKey("scenario") -and [int]$expected["scenario"] -eq 2) {
         # --- 1. Đoạn canh đều (justify), đoạn canh phải ---
@@ -341,9 +341,15 @@ try {
         $pTab = FindParagraphByText $doc "sau Tab 5cm"
         if ($pTab) {
             $tabPos = 0.0
-            if ($pTab.ParagraphFormat.TabStops.Count -ge 1) {
-                $tabPos = [math]::Round([double]$pTab.ParagraphFormat.TabStops.Item(1).Position, 1)
-            }
+            try {
+                $stops = $pTab.TabStops
+                if ($stops -and $stops.Count -ge 1) {
+                    $item = $stops.Item(1)
+                    if ($item.CustomTab) {
+                        $tabPos = [math]::Round([double]$item.Position, 1)
+                    }
+                }
+            } catch {}
             Check "tabStop" "positionPt" $expected["tabStop"]["positionPt"] $tabPos
         } else {
             Check "tabStop" "positionPt" $expected["tabStop"]["positionPt"] 0
