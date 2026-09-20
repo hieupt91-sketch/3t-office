@@ -340,5 +340,29 @@ export async function runWriterDocFontSpacingTests() {
     check(out.includes('style="font-size: 11.5pt">Đoạn 2 run 11.5pt</font>'), `second para run must become 11.5pt: ${out}`);
   });
 
+  test("Import (W26a): empty paragraphs receive exact paragraph mark font-size from pPr/rPr/sz or style chain", () => {
+    const adapter = new WriterAdapter(null);
+    const stylesXml = '<w:styles xmlns:w="w">'
+      + '<w:docDefaults><w:rPrDefault><w:rPr><w:sz w:val="22"/></w:rPr></w:rPrDefault></w:docDefaults>'
+      + '<w:style w:styleId="Heading1"><w:rPr><w:sz w:val="28"/></w:rPr></w:style>'
+      + '<w:style w:styleId="CustomHeading"><w:basedOn w:val="Heading1"/></w:style>'
+      + '</w:styles>';
+    const docXml = '<w:document xmlns:w="w"><w:body>'
+      + '<w:p><w:pPr><w:rPr><w:sz w:val="26"/></w:rPr></w:pPr></w:p>' // empty 13pt
+      + '<w:p><w:pPr><w:pStyle w:val="CustomHeading"/></w:pPr></w:p>' // empty 14pt via style chain
+      + '<w:p><w:r><w:t>Đoạn có chữ không bị đổi</w:t></w:r></w:p>' // has text
+      + '<w:p><w:r><w:drawing><wp:inline/></w:drawing></w:r></w:p>' // has drawing (anchored shape)
+      + '</w:body></w:document>';
+    const html = '<p style="margin-bottom: 0cm; line-height: 130%"><br/></p>'
+      + '<p style="margin-bottom: 0cm"><br/></p>'
+      + '<p style="margin-bottom: 0cm">Đoạn có chữ không bị đổi</p>'
+      + '<p style="margin-bottom: 0cm"><span data-vno-float="1"><img src="x"/></span></p>';
+    const out = adapter._applyOoxmlEmptyParagraphFontSizes(html, docXml, stylesXml);
+    check(out.includes('style="margin-bottom: 0cm; line-height: 130%; font-size: 13pt"><br/></p>'), `first empty para must get 13pt: ${out}`);
+    check(out.includes('style="margin-bottom: 0cm; font-size: 14pt"><br/></p>'), `second empty para must get 14pt via style chain: ${out}`);
+    check(out.includes('>Đoạn có chữ không bị đổi</p>') && !out.includes('Đoạn có chữ không bị đổi</p>').includes?.('font-size:'), `text para must not get empty para font-size: ${out}`);
+    check(out.includes('<p style="margin-bottom: 0cm"><span data-vno-float="1">'), `drawing para must not get font-size: ${out}`);
+  });
+
   return results;
 }

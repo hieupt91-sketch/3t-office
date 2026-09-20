@@ -2095,6 +2095,8 @@ export class WriterAdapter {
       html = this._applyOoxmlContextualSpacing(html, ooxmlDocumentXml, ooxmlStylesXml);
       // W25b: cỡ chữ run nửa điểm (w:sz lẻ: 8,5 / 11,5 / 14,5 / 16,5 pt) bị LibreOffice làm tròn
       html = this._applyOoxmlHalfPointRunFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml);
+      // W26a: cỡ chữ đoạn rỗng theo cỡ dấu đoạn (w:pPr/w:rPr/w:sz -> style chain -> docDefaults)
+      html = this._applyOoxmlEmptyParagraphFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml);
       if (ooxmlNumberingXml) {
         html = this._applyOoxmlListIndents(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
         html = this._applyOoxmlListBullets(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
@@ -2874,7 +2876,7 @@ export class WriterAdapter {
         const [prop, val] = decl.split(":").map(s => s.trim());
         existing[prop.toLowerCase()] = val;
       }
-      const orderedProps = ["margin-top", "margin-bottom", "margin-left", "margin-right", "line-height"];
+      const orderedProps = ["margin-top", "margin-bottom", "margin-left", "margin-right", "line-height", "font-size"];
       const newParts = [];
       for (const prop of orderedProps) {
         if (existing[prop] !== undefined) newParts.push(`${prop}: ${existing[prop]}`);
@@ -3021,6 +3023,111 @@ export class WriterAdapter {
       });
 
       return `<${tagName}${attrs}>${newInner}</${tagName}>`;
+    });
+  }
+
+  /**
+   * Quy ước W26a: Đoạn rỗng cao theo cỡ dấu đoạn (w:pPr/w:rPr/w:sz -> style chain -> docDefaults), không theo cỡ mặc định.
+   * Ánh xạ w:p <-> <p>/<hN> theo thứ tự (chuẩn W12a/W12e, không theo text).
+   * Với w:p không có w:t và không có w:drawing/w:pict/w:tab/w:br (rỗng thật):
+   * cỡ dấu đoạn = pPr/rPr/sz -> style chain (pStyle -> basedOn) -> docDefaults w:sz;
+   * gán font-size: <sz/2>pt vào <p> (giữ <br>). Không đụng đoạn có chữ.
+   */
+  _applyOoxmlEmptyParagraphFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml = "") {
+    const xml = String(ooxmlDocumentXml || "");
+    const styles = String(ooxmlStylesXml || "");
+    if (!xml || !xml.includes("<w:body>")) return html;
+
+    // 1. styles.xml: docDefaults & style chain map
+    let docDefaultsSz = null;
+    const stylesSz = new Map();
+    const stylesBasedOn = new Map();
+
+    if (styles) {
+      const docDefMatch = styles.match(/<w:docDefaults>[\s\S]*?<w:rPrDefault>[\s\S]*?<w:sz\b[^>]*w:val="(\d+)"/);
+      if (docDefMatch) docDefaultsSz = parseInt(docDefMatch[1], 10);
+
+      const styleRe = /<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>([\s\S]*?)<\/w:style>/g;
+      for (const m of styles.matchAll(styleRe)) {
+        const sid = m[1];
+        const sBody = m[2];
+        const rprMatch = sBody.match(/<w:rPr>([\s\S]*?)<\/w:rPr>/);
+        if (rprMatch) {
+          const szMatch = rprMatch[1].match(/<w:sz\b[^>]*w:val="(\d+)"/);
+          if (szMatch) stylesSz.set(sid, parseInt(szMatch[1], 10));
+        }
+        const basedOnMatch = sBody.match(/<w:basedOn\b[^>]*w:val="([^"]+)"/);
+        if (basedOnMatch) stylesBasedOn.set(sid, basedOnMatch[1]);
+      }
+    }
+
+    const resolveStyleSz = (sid, depth = 0) => {
+      if (!sid || depth > 20) return docDefaultsSz || 22;
+      if (stylesSz.has(sid)) return stylesSz.get(sid);
+      if (stylesBasedOn.has(sid)) return resolveStyleSz(stylesBasedOn.get(sid), depth + 1);
+      if (sid !== "Normal" && stylesSz.has("Normal")) return stylesSz.get("Normal");
+      return docDefaultsSz || 22;
+    };
+
+    // 2. Lấy tất cả w:p cấp cao nhất (không nằm trong w:tbl)
+    const bodyMatch = xml.match(/<w:body>([\s\S]*?)<\/w:body>/i);
+    if (!bodyMatch) return html;
+    const bodyXml = bodyMatch[1];
+    const bodyNoTables = this._ooxmlBodyParagraphSource(bodyXml).replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi, "");
+
+    const parasData = [];
+    const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
+    for (const pm of bodyNoTables.matchAll(paraRe)) {
+      const pXml = pm[0];
+      const hasText = /<w:t\b|<w:t>/i.test(pXml);
+      const hasSpecial = /<w:(?:drawing|pict|tab|br)\b/i.test(pXml);
+      const isEmptyOoxml = !hasText && !hasSpecial;
+
+      let sz = null;
+      if (isEmptyOoxml) {
+        const pprMatch = pXml.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+        const ppr = pprMatch ? pprMatch[1] : "";
+        const rprMatch = ppr.match(/<w:rPr>([\s\S]*?)<\/w:rPr>/);
+        const rpr = rprMatch ? rprMatch[1] : "";
+        const rprSz = rpr.match(/<w:sz\b[^>]*w:val="(\d+)"/);
+        if (rprSz) {
+          sz = parseInt(rprSz[1], 10);
+        } else {
+          const pstyleMatch = ppr.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/);
+          const styleId = pstyleMatch ? pstyleMatch[1] : "Normal";
+          sz = resolveStyleSz(styleId);
+        }
+      }
+      parasData.push({ isEmptyOoxml, sz, pt: sz ? sz / 2.0 : null });
+    }
+
+    if (!parasData.some(p => p.isEmptyOoxml && p.pt !== null)) return html;
+
+    // 3. Skip ranges cho bảng, header/footer, chú thích
+    const tables = this._htmlParagraphSkipRanges(html);
+    let paraIndex = 0;
+
+    return String(html || "").replace(/<(p|h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi, (fullTag, tagName, attrs, inner, offset) => {
+      for (const t of tables) {
+        if (offset >= t.start && offset < t.end) return fullTag;
+      }
+
+      if (paraIndex >= parasData.length) return fullTag;
+      const pSpec = parasData[paraIndex++];
+
+      if (!pSpec || !pSpec.isEmptyOoxml || pSpec.pt === null) return fullTag;
+
+      // Kiểm tra xem đoạn HTML có phải là đoạn rỗng thật sự không (không chữ và không ảnh/media)
+      const text = inner.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
+      if (text.length > 0) return fullTag;
+      if (/<(?:img|iframe|object|svg|canvas)\b|data-vno-float/i.test(inner)) return fullTag;
+
+      let newInner = inner;
+      if (/\bfont-size:\s*\d+(?:\.\d+)?pt/i.test(inner)) {
+        newInner = inner.replace(/\bfont-size:\s*\d+(?:\.\d+)?pt/gi, `font-size: ${pSpec.pt}pt`);
+      }
+
+      return this._addCssDeclsToParagraph(fullTag, attrs, newInner, [`font-size: ${pSpec.pt}pt`], tagName);
     });
   }
 
