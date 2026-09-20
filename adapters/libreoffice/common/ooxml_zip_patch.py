@@ -8239,18 +8239,28 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     # W22a: Superscript / Subscript (<w:vertAlign>)
     # LibreOffice HTML import turns <sup>/<sub> into <w:position w:val="..."/> (e.g. 8 for sup, -2 for sub).
     # Word COM Font.Superscript/Subscript requires native <w:vertAlign w:val="superscript|subscript"/>.
-    document_xml = re.sub(
-        r'<w:position\s+w:val="([1-9]\d*)"\s*/>',
-        r'<w:vertAlign w:val="superscript"/>',
-        document_xml,
-        flags=re.IGNORECASE,
-    )
-    document_xml = re.sub(
-        r'<w:position\s+w:val="(-\d+)"\s*/>',
-        r'<w:vertAlign w:val="subscript"/>',
-        document_xml,
-        flags=re.IGNORECASE,
-    )
+    # Chỉ đổi run có chữ đúng bằng nội dung <sup>/<sub> của HTML nguồn: `w:position` còn là "nâng/hạ chữ" hợp lệ
+    # của tài liệu nhập (hàm này chạy cho cả tài liệu mở từ DOCX), không được biến mọi run nâng/hạ thành chỉ số.
+    vert_align_texts: dict[str, set[str]] = {"superscript": set(), "subscript": set()}
+    for tag, val in (("sup", "superscript"), ("sub", "subscript")):
+        for m in re.finditer(rf"<{tag}\b[^>]*>([\s\S]*?)</{tag}\s*>", source_html, re.IGNORECASE):
+            txt = _writer_html_plain(m.group(1)).strip()
+            if txt:
+                vert_align_texts[val].add(txt)
+
+    if vert_align_texts["superscript"] or vert_align_texts["subscript"]:
+        def patch_vert_align(r_match: re.Match) -> str:
+            r = r_match.group(0)
+            pos = re.search(r'<w:position\s+w:val="(-?\d+)"\s*/>', r, re.IGNORECASE)
+            if not pos or pos.group(1) == "0":
+                return r
+            val = "subscript" if pos.group(1).startswith("-") else "superscript"
+            txt = html.unescape("".join(re.findall(r"<w:t\b[^>]*>([^<]*)</w:t>", r))).strip()
+            if txt not in vert_align_texts[val]:
+                return r
+            return r[:pos.start()] + f'<w:vertAlign w:val="{val}"/>' + r[pos.end():]
+
+        document_xml = re.sub(r'<w:r\b[^>]*>[\s\S]*?</w:r\s*>', patch_vert_align, document_xml, flags=re.IGNORECASE)
 
     # W22b: Highlight text (<w:highlight>)
     # LibreOffice HTML import drops <mark> and inline background-color.

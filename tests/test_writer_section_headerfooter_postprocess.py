@@ -129,6 +129,25 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertIn('<w:vertAlign w:val="superscript"/>', document)
         self.assertIn('<w:vertAlign w:val="subscript"/>', document)
 
+    def test_w22a_keeps_raised_text_that_is_not_sup_sub(self):
+        # w:position la "nang/ha chu" hop le cua tai lieu nhap (ham chay cho ca tai lieu mo tu DOCX):
+        # run khong den tu <sup>/<sub> trong HTML nguon phai giu nguyen w:position.
+        converted = _build_minimal_docx(
+            '<w:p>'
+            '<w:r><w:rPr><w:position w:val="6"/></w:rPr><w:t>Chữ nâng</w:t></w:r>'
+            '<w:r><w:rPr><w:position w:val="8"/></w:rPr><w:t>2</w:t></w:r>'
+            '</w:p>'
+            '<w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html='<p><span style="position: relative; top: -3pt">Chữ nâng</span> x<sup>2</sup></p>',
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:position w:val="6"/></w:rPr><w:t>Chữ nâng</w:t>', document)
+        self.assertIn('<w:vertAlign w:val="superscript"/></w:rPr><w:t>2</w:t>', document)
+        self.assertNotIn('<w:vertAlign w:val="subscript"/>', document)
+
     def test_w22b_created_document_highlight(self):
         converted = _build_minimal_docx(
             '<w:p>'
