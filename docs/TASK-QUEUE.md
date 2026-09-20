@@ -1,4 +1,20 @@
-# Hàng đợi việc theo ma trận (cập nhật 2026-09-15)
+# Hàng đợi việc theo ma trận (cập nhật 2026-09-21)
+
+## Trạng thái 21/9 (main)
+
+| Chiều | Số đo | Ghi chú |
+|---|---|---|
+| Sheet nhập→lưu (26 file LAN) | 0 lệch auditor, Excel mở 26/26, lint sạch | S8–S25; lan06/lan14 (file lớn) chưa chạy lại vòng mới |
+| Sheet tạo mới → Excel | kịch bản 1: CHECKS=40 DIFFS=0 | S26 (kịch bản 2, 16 mục) đang giao codex |
+| Writer tạo mới → Word | kịch bản 1: CHECKS=36 DIFFS=0 (codex W20, Claude đo lại) | V12 (kịch bản 2, 16 mục) đang giao agy — W22a–d đã có |
+| Writer nhập (24 docx, bộ đo tách <li> từ 21/9) | page 552, wrap 32, drift:unknown 58, line-height 31, spacing 38, font-size 36 | sau W10b (wrap 67→32); trước W12c-thu-hẹp bộ đo cũ: page 613, wrap 87 |
+
+Lớp Writer nhập còn lại theo thứ tự lớn → nhỏ:
+1. **page (552)** — d01 232 (19 trang Word / 17 canvas), d07 136, d09 37, d13 30, d11 27: phần lớn là hệ quả tích lũy của
+   lớp khác + **keepNext/widow** (d15: heading II. Word đẩy sang trang 3 vì w:keepNext, canvas giữ trang 2) → cần
+   đo w:keepNext/w:keepLines/w:widowControl trong bộ phân trang canvas (chưa giao).
+2. **drift:unknown (58)**, **spacing (38)**, **line-height (31)**, **font-size (36: d19 19, d21 14)** — chưa gom lớp mới.
+3. **wrap (32)** — còn d09 4, d11 1, d13 2, d01 7 (trong bảng), d15 1: đo tiếp sau khi tách bảng.
 
 Nguyên tắc: mỗi việc = một LỚP lỗi trong ma trận (`MA-TRAN-WRITER-*.md`, `MA-TRAN-SHEET-*.md`), sửa một chỗ theo quy ước,
 đo lại toàn bộ batch, ghi quy ước vào `QUY-UOC-DOI-CHIEU.md`. Không nhận việc "sửa file X".

@@ -93,3 +93,20 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 - **S24a — chiều rộng:** pixel trong model/UI VN Sheet là pixel Excel hiển thị. Khi nhập XLSX, `width` ký tự được đổi thành `width × MDW`; khi lưu, đổi ngược bằng `px / MDW`, không cộng/trừ lề 5 px.
 - **S24b — mặc định workbook mới:** Normal là Calibri 11 pt; hàng 20 px (15 pt); cột 64 px (MDW 7); XLSX có `sheetFormatPr defaultRowHeight="15"` và không giữ `defaultColWidth` do LibreOffice tự sinh.
 - **S24c — cỡ chữ ribbon:** giá trị người dùng chọn là point. Model CSS lưu `pt × 4/3` px (làm tròn hai chữ số); tăng/giảm cỡ chữ so sánh theo point.
+
+# S25 — Sửa lỗi hiển thị VN Sheet vòng 10 (opencode, gộp 21/09/2026)
+
+- **S25a — Crash render ảnh (L1):** `renderImages()` bảo vệ `image.anchor` thiếu (ảnh neo trang chỉ có `endCellAddress`): `_resolveImageAnchor()` ưu tiên `anchor` rồi `endCellAddress` (`` → `A1`), bỏ qua ảnh không xác định được neo.
+- **S25b — AutoFilter tự bật (L9):** chỉ kích hoạt AutoFilter khi FODS có `<table:database-range table:display-filter-buttons="true"/>`; `_attachImportedAutoFilter` bỏ qua vùng thiếu/`false` (khớp S22).
+- **S25c — Tràn chữ sang ô trống (L3):** ô kề cho tràn khi `val === ""` **và** không có `formula`; ô có công thức (dù trả "") vẫn chặn như Excel.
+- **S25e — Ảnh WMF/EMF không decode (L4):** `img.onerror` ẩn `<img>` và chèn `div.vno-image-broken` đúng kích thước, không đè chữ.
+- **S25f — Nạp workbook không ghi đè trạng thái sheet (L2):** `switchSheet(name, { skipSave: true })` ở lần chuyển đầu tiên sau `loadFromFods` để `frozenRows/frozenCols` vừa nạp không bị trạng thái grid rỗng đè.
+- **L5 (A10:B13 vàng) — không phải lỗi:** XLSX nguồn không tham chiếu fill vàng ở các ô đó (fillId=0). Mã "S25d theme color" của opencode bị **loại** khi gộp: FODS LibreOffice không bao giờ ghi `fo:background-color="theme:N"` hay `loext:color-N` (đo lan02: 0/0, theme nằm trong `<loext:theme-colors>`), test đi kèm mô tả định dạng không tồn tại.
+
+| # | Quy ước | Khoá bởi |
+|---|---|---|
+| S25a | Guard `image.anchor`, fallback `endCellAddress` | `sheet-images.test.js` |
+| S25b | AutoFilter chỉ khi `display-filter-buttons="true"` | `sheet-date-values.test.js` |
+| S25c | Tràn chữ: ô kề `val==""` và không `formula` | `sheet-cell-text-fit.test.js` |
+| S25e | Ảnh lỗi → placeholder `vno-image-broken` | `sheet-images.test.js` |
+| S25f | `skipSave` khi nạp workbook | `sheet-adapter` loadFromFods |

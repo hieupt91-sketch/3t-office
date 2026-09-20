@@ -1741,7 +1741,8 @@ export class SheetGridController {
     return true;
   }
 
-  switchSheet(sheetName) {
+  switchSheet(sheetName, options = {}) {
+    const skipSave = options.skipSave === true;
     if (!sheetName) return false;
     if (!this.sheets.includes(sheetName)) {
       this.sheets.push(sheetName);
@@ -1771,7 +1772,8 @@ export class SheetGridController {
     this._invalidateRowTopsCache(sheetName);
 
     // 1. Lưu trạng thái sheet hiện tại (giữ các khoá khác như filterRange/tabColor mà adapter đã gắn)
-    if (this.activeSheet && this.sheetStates) {
+    // Bỏ qua khi tải từ workbook (skipSave) vì trạng thái đã được nạp từ workbook
+    if (!skipSave && this.activeSheet && this.sheetStates) {
       this.sheetStates[this.activeSheet] = {
         ...(this.sheetStates[this.activeSheet] || {}),
         hiddenRows: new Set(this.hiddenRows || []),
@@ -4765,22 +4767,45 @@ export class SheetGridController {
     });
   }
 
+  _parseEndCellAddress(endCellAddress) {
+    if (!endCellAddress) return null;
+    const match = String(endCellAddress).match(/\$?([A-Z]{1,3})\$?(\d+)/i);
+    if (!match) return null;
+    return { c: match[1].toUpperCase(), r: Number(match[2]) };
+  }
+
+  _resolveImageAnchor(image) {
+    if (image.anchor?.c && image.anchor?.r) {
+      return { c: image.anchor.c, r: image.anchor.r };
+    }
+    if (image.endCellAddress) {
+      const parsed = this._parseEndCellAddress(image.endCellAddress);
+      if (parsed) return parsed;
+    }
+    return null;
+  }
+
   renderImages() {
     if (!this.imageLayer || typeof document === "undefined") return;
     this.imageLayer.innerHTML = "";
     const frozenRows = Math.min(this.frozenRows || 0, this.rowCount);
     const frozenCols = Math.min(this.frozenCols || 0, this.cols.length);
     for (const image of this.imagesBySheet[this.activeSheet] || []) {
+      const anchor = this._resolveImageAnchor(image);
+      if (!anchor) {
+        console.warn("[SheetGrid] Skipping image without valid anchor:", image.id, image);
+        continue;
+      }
       const panel = document.createElement("figure");
-      const colIdx = Math.max(0, this.cols.indexOf(image.anchor.c));
-      const isInFrozenRow = image.anchor.r >= 1 && image.anchor.r <= frozenRows;
+      const colIdx = Math.max(0, this.cols.indexOf(anchor.c));
+      const isInFrozenRow = anchor.r >= 1 && anchor.r <= frozenRows;
       const isInFrozenCol = colIdx < frozenCols && frozenCols > 0;
       const isFrozen = isInFrozenRow || isInFrozenCol;
 
-      const targetTr = this.tbody ? this.tbody.querySelector(`tr[data-row="${image.anchor.r}"]`) : null;
+      const targetTr = this.tbody ? this.tbody.querySelector(`tr[data-row="${anchor.r}"]`) : null;
       let topAcc = (targetTr && typeof targetTr.offsetTop === "number")
         ? targetTr.offsetTop
-        : (24 + this._rowTop(image.anchor.r));
+        : (24 + this._rowTop(anchor.r));
       const offsetYPx = Number.isFinite(Number(image.offsetYCm))
         ? Number(image.offsetYCm) * 37.79527559055118
         : (Number.isFinite(Number(image.offsetY)) ? Number(image.offsetY) : 0);
@@ -4799,7 +4824,7 @@ export class SheetGridController {
       panel.className = isSelected ? "vno-sheet-image is-selected" : "vno-sheet-image";
       panel.dataset.imageId = image.id;
       panel.dataset.sheet = this.activeSheet;
-      panel.dataset.anchor = `${image.anchor.c}${image.anchor.r}`;
+      panel.dataset.anchor = `${anchor.c}${anchor.r}`;
       if (isFrozen) {
         panel.dataset.frozen = "true";
         if (isInFrozenRow) panel.dataset.frozenRow = "true";
@@ -4838,6 +4863,19 @@ export class SheetGridController {
       img.alt = t("sheetDialogs.insertedImageAlt");
       img.draggable = false;
       img.style.cssText = "display:block;width:100%;height:100%;object-fit:fill;pointer-events:none;user-select:none;-webkit-user-drag:none";
+
+      // Handle broken images (WMF/EMF that browser can't decode) - hide broken placeholder
+      img.onerror = () => {
+        img.style.display = "none";
+        // Show empty placeholder with correct size instead of broken image icon
+        if (!panel.querySelector(".vno-image-broken")) {
+          const placeholder = document.createElement("div");
+          placeholder.className = "vno-image-broken";
+          placeholder.style.cssText = "width:100%;height:100%;background:transparent;border:1px dashed #94a3b8;pointer-events:none;box-sizing:border-box;";
+          placeholder.title = t("sheetDialogs.imageFormatUnsupported");
+          panel.insertBefore(placeholder, img);
+        }
+      };
 
       if (!hasWidth || !hasHeight) {
         img.onload = () => {
@@ -9519,7 +9557,8 @@ export class SheetGridController {
       this._applyRowColSizeToCell(td, col, row);
     }
 
-    // Xử lý tràn chữ (text overflow) sang ô trống bên phải như Excel:
+    // Xử lý tràn chữ (text overflow) sang ô trống bên phải như Excel (S25e):
+    // Ô kề coi là trống khi val === "" và không có công thức
     const hasVal = itm.val !== undefined && itm.val !== null && itm.val !== "";
     if (hasVal) {
       const isText = typeof itm.val === "string";
@@ -9534,8 +9573,12 @@ export class SheetGridController {
         let nextIsEmpty = true;
         if (nextCol && this.cellsData) {
           const nextItem = this.cellsData.get(`${nextCol}${row}`);
-          if (nextItem && nextItem.val !== undefined && nextItem.val !== null && nextItem.val !== "") {
-            nextIsEmpty = false;
+          if (nextItem) {
+            const nextHasVal = nextItem.val !== undefined && nextItem.val !== null && nextItem.val !== "";
+            const nextHasFormula = nextItem.formula !== undefined && nextItem.formula !== null && nextItem.formula !== "";
+            if (nextHasVal || nextHasFormula) {
+              nextIsEmpty = false;
+            }
           }
         }
         if (nextIsEmpty) {

@@ -320,6 +320,40 @@ export async function runSheetCellTextFitTests() {
     assert(tdA1.style.overflow === "hidden", "A1 wrap text phải có overflow: hidden");
   });
 
+  test("Text Overflow: ô bên phải là style-only (val='' có style) vẫn coi là trống để tràn chữ (S25e)", () => {
+    const grid = createMockGridController({
+      colWidths: { A: 45, B: 401 }
+    });
+    grid.setCellValue("A", 1, "Dòng chữ rất dài cần tràn");
+    // B1 là ô style-only: có style nhưng val = ""
+    grid.cellsData.set("B1", { val: "", formula: "", style: { backgroundColor: "#ffff00" } });
+
+    const tdA1 = createMockTd("A1");
+    const itmA1 = grid.cellsData.get("A1");
+    grid._renderCellVisual(tdA1, itmA1, "A", 1);
+
+    assert(tdA1.classList.contains("can-overflow"), "A1 phải có class .can-overflow khi ô kế bên là style-only (val='')");
+    assert(!tdA1.classList.contains("has-content"), "A1 không có class .has-content khi tràn");
+    assert(tdA1.style.overflow === "visible", `A1 overflow phải là 'visible', nhận: '${tdA1.style.overflow}'`);
+  });
+
+  test("Text Overflow: ô bên phải có công thức (val='' nhưng formula) KHÔNG coi là trống (S25e)", () => {
+    const grid = createMockGridController({
+      colWidths: { A: 45, B: 401 }
+    });
+    grid.setCellValue("A", 1, "Dòng chữ rất dài cần tràn");
+    // B1 có công thức: val="" nhưng formula tồn tại
+    grid.cellsData.set("B1", { val: "", formula: "=SUM(C1:C10)", style: {} });
+
+    const tdA1 = createMockTd("A1");
+    const itmA1 = grid.cellsData.get("A1");
+    grid._renderCellVisual(tdA1, itmA1, "A", 1);
+
+    assert(!tdA1.classList.contains("can-overflow"), "A1 KHÔNG được có class .can-overflow khi ô kế bên có công thức");
+    assert(tdA1.classList.contains("has-content"), "A1 phải có class .has-content khi ô kế bên có công thức");
+    assert(tdA1.style.overflow === "hidden", `A1 overflow phải là 'hidden', nhận: '${tdA1.style.overflow}'`);
+  });
+
   // =========================================================================
   // 6. Ô gộp (Merged Cells): _applyRowColSizeToCell tính đúng tổng độ rộng các cột
   // =========================================================================

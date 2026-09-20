@@ -2390,10 +2390,13 @@ export class SheetAdapter {
    * <table:database-ranges> — read back from FODS that VN Office self-wrote
    * during File → Mở overlay.  These represent AutoFilter ranges that
    * LibreOffice preserves in FODS but may drop during FODS→XLSX export.
+   * Only activate filter when display-filter-buttons="true" (S25d).
    */
   _attachImportedAutoFilter(workbook, xmlText) {
     workbook.autoFilterBySheet = {};
     String(xmlText || "").replace(/<table:database-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
+      const displayFilterButtons = attrs.match(/table:display-filter-buttons=["']([^"']*)["']/i)?.[1];
+      if (displayFilterButtons !== "true") return "";
       const target = this._unescapeXml(attrs.match(/table:target-range-address=["']([^"']*)["']/i)?.[1] || "");
       if (!target) return "";
       // Calc ghi 'Tên sheet'.A1:'Tên sheet'.J2650 (nháy đơn khi tên có dấu cách/ký tự đặc biệt) hoặc
@@ -3430,8 +3433,9 @@ export class SheetAdapter {
       const display = this._unescapeXml(attrs.match(/style:display-name=["']([^"']*)["']/i)?.[1] || "");
       const color = (body.match(/fo:background-color=["']([^"']+)["']/i)?.[1] || "").trim().toLowerCase();
       if (name && color && color !== "transparent") {
-        colors.set(name, color);
-        if (display) colors.set(display, color);
+        const resolvedColor = color;
+        colors.set(name, resolvedColor);
+        if (display) colors.set(display, resolvedColor);
       }
       return "";
     });
@@ -4390,9 +4394,9 @@ export class SheetAdapter {
     }
     // switchSheet bước 1 ghi trạng thái SỐNG của grid (isFilterActive=false lúc mới mở) đè lên sheetStates
     // của sheet đang active — đo vòng 8: sheet cuối của lan01/lan11 mất AutoFilter vì grid vừa tạo sheet đó.
-    // Mọi trạng thái đã được nạp từ workbook ở trên nên bỏ qua bước lưu này.
+    // Mọi trạng thái đã được nạp từ workbook ở trên nên bỏ qua bước lưu này (skipSave: true).
     this.grid.activeSheet = null;
-    if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet);
+    if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet, { skipSave: true });
     else this.grid.activeSheet = workbook.activeSheet;
     const activeFreezeState = this.grid.sheetStates[this.grid.activeSheet];
     this.grid.frozenRows = activeFreezeState?.frozenRows || 0;

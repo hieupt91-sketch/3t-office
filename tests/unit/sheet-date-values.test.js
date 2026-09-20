@@ -67,6 +67,19 @@ export async function runSheetDateValuesTests() {
     assert.deepEqual(wb.autoFilterBySheet, { "DS A B": "A1:L431", Ruijie: "A3:CF145", Plain: "A1:C9" });
   });
 
+  test("imported database-ranges: chi bật AutoFilter khi display-filter-buttons=true (S25d)", () => {
+    const wb = {};
+    Object.create(SheetAdapter.prototype)._attachImportedAutoFilter(wb, `<table:database-ranges>
+      <table:database-range table:name="Filter1" table:target-range-address="Sheet1.A1:C10" table:display-filter-buttons="true"/>
+      <table:database-range table:name="Filter2" table:target-range-address="Sheet2.A1:D5" table:display-filter-buttons="false"/>
+      <table:database-range table:name="Filter3" table:target-range-address="Sheet3.A1:B3"/>
+      <table:database-range table:name="Filter4" table:target-range-address="Sheet4.A1:E7" table:display-filter-buttons="true"/>
+      </table:database-ranges>`);
+    assert.deepEqual(wb.autoFilterBySheet, { Sheet1: "A1:C10", Sheet4: "A1:E7" });
+    assert.ok(!wb.autoFilterBySheet.Sheet2, "Sheet2 không có display-filter-buttons=true không được kích hoạt");
+    assert.ok(!wb.autoFilterBySheet.Sheet3, "Sheet3 thiếu display-filter-buttons không được kích hoạt");
+  });
+
   test("rows hidden by an active AutoFilter (table:visibility=filter) import as hidden rows", () => {
     // lan01.xlsx: 2635 dòng bị lọc ẩn (LibreOffice ghi visibility="filter", không phải "collapse") từng mất khi lưu.
     const fods = `<?xml version="1.0"?><office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"><office:body><office:spreadsheet><table:table table:name="F"><table:table-column/><table:table-row><table:table-cell office:value-type="string"><text:p>h</text:p></table:table-cell></table:table-row><table:table-row table:visibility="filter"><table:table-cell office:value-type="float" office:value="1"><text:p>1</text:p></table:table-cell></table:table-row><table:table-row><table:table-cell office:value-type="float" office:value="2"><text:p>2</text:p></table:table-cell></table:table-row></table:table></office:spreadsheet></office:body></office:document>`;

@@ -34,6 +34,12 @@ class FakeElement {
   set innerHTML(_value) { this.children = []; }
   append(...children) { this.children.push(...children); }
   appendChild(child) { this.children.push(child); return child; }
+  insertBefore(newChild, refChild) {
+    const idx = this.children.indexOf(refChild);
+    if (idx >= 0) this.children.splice(idx, 0, newChild);
+    else this.children.push(newChild);
+    return newChild;
+  }
   setAttribute(name, value) { this.attributes[name] = value; }
   addEventListener(_name, handler) { this.handler = handler; }
   querySelector(sel) {
@@ -362,6 +368,60 @@ export async function runSheetImageTests() {
       const panel = grid.imageLayer.children.find(c => c.dataset?.imageId === "img-row7");
       assert(panel, "Panel anh hang 7 phai ton tai");
       assert(panel.style.top === "691px", `Top cua anh phai khop offsetTop cua tr hang 7 (691px), thuc te: ${panel.style.top}`);
+    });
+
+    test("Sheet Image: page-anchored image with endCellAddress (no anchor) duoc render dung vi tri", () => {
+      const grid = new SheetGridController(container());
+      grid.imageLayer = layer();
+      grid.tbody = {
+        querySelector: (sel) => {
+          if (sel === 'tr[data-row="5"]') return { offsetTop: 450 };
+          return null;
+        }
+      };
+      grid.getRowHeight = () => 28;
+      grid.getColumnWidth = () => 100;
+      grid.imagesBySheet[grid.activeSheet] = [
+        { id: "img-page", src: "data:image/png;base64,AA==", endCellAddress: "$C$5", widthCm: 5, heightCm: 5 }
+      ];
+      grid.renderImages();
+      const panel = grid.imageLayer.children.find(c => c.dataset?.imageId === "img-page");
+      assert(panel, "Page-anchored image phai duoc render");
+      assert(panel.dataset.anchor === "C5", `Anchor phai la C5 tu endCellAddress, thuc te: ${panel.dataset.anchor}`);
+      // top = 24 + (row 1-4 height) + offsetTop of row 5 = 24 + 28*4 + 0 = 136 (hoac offsetTop mock)
+      assert(panel.style.top === "450px", `Top phai khop offsetTop cua tr hang 5 (450px), thuc te: ${panel.style.top}`);
+    });
+
+    test("Sheet Image: image khong co anchor va khong co endCellAddress bi bo qua (khong crash)", () => {
+      const grid = new SheetGridController(container());
+      grid.imageLayer = layer();
+      grid.imagesBySheet[grid.activeSheet] = [
+        { id: "img-no-anchor", src: "data:image/png;base64,AA==" },
+        { id: "img-with-anchor", src: "data:image/png;base64,AA==", anchor: { c: "A", r: 1 } }
+      ];
+      grid.renderImages();
+      assert(grid.imageLayer.children.length === 1, "Chi anh co anchor duoc render, anh khong anchor bi bo qua");
+      assert(grid.imageLayer.children[0].dataset.imageId === "img-with-anchor", "Anh hop le phai van duoc render");
+    });
+
+    test("Sheet Image: anh hien thi placeholder khi onerror (WMF/EMF khong decode duoc) (S25g)", () => {
+      const grid = new SheetGridController(container());
+      grid.imageLayer = layer();
+      grid.imagesBySheet[grid.activeSheet] = [
+        { id: "img-broken", src: "data:image/x-wmf;base64,AA==", anchor: { c: "A", r: 1 }, widthCm: 5, heightCm: 5 }
+      ];
+      grid.renderImages();
+      const panel = grid.imageLayer.children.find(c => c.dataset?.imageId === "img-broken");
+      assert(panel, "Panel anh phai ton tai");
+      const img = panel.children.find(c => c.tagName === "img");
+      assert(img, "img phai ton tai");
+      // Mo phong loi anh bang cach goi truc tiep onerror handler
+      if (img.onerror) img.onerror();
+      const brokenPlaceholder = panel.children.find(c => c.className?.includes("vno-image-broken"));
+      assert(brokenPlaceholder, "Phai co placeholder .vno-image-broken khi anh loi");
+      assert(brokenPlaceholder.style.display !== "none", "Placeholder phai hien thi");
+      // img bi an
+      assert(img && img.style.display === "none", "Anh loi phai bi an");
     });
   } finally { globalThis.document = originalDocument; }
   return results;

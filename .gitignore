@@ -44,6 +44,10 @@ $RECYCLE.BIN/
 
 # real LAN documents rendered for visual inspection - never commit
 docs/screenshots/*lan[0-9][0-9]*
+docs/screenshots/**/*lan[0-9][0-9]*
+docs/screenshots/**/*.htm
+docs/screenshots/**/*.pdf
+docs/screenshots/**/console_log.json
 docs/screenshots/*.fods
 docs/screenshots/*.htm
 docs/screenshots/*.pdf
@@ -51,3 +55,4 @@ docs/screenshots/*_files/
 docs/screenshots/visual_excel_*
 docs/screenshots/visual_vnsheet_*
 docs/screenshots/test_out.xlsx
+docs/screenshots/**/*d[0-9][0-9]_*
