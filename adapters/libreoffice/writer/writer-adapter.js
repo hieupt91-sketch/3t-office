@@ -2699,6 +2699,46 @@ export class WriterAdapter {
    * nếu đoạn i và i+1 cùng style và cả hai đều có contextualSpacing → margin-bottom: 0 cho đoạn i,
    * margin-top: 0 cho đoạn i+1.
    */
+  /**
+   * W12e: nguồn w:p để ánh xạ THỨ TỰ với <p> của HTML LibreOffice. Đoạn trong hộp văn bản (w:txbxContent) và bản
+   * VML dự phòng (mc:Fallback) không có <p> trong HTML (LibreOffice vẽ hộp thành ảnh) nên phải bỏ, nếu không mọi
+   * ánh xạ sau hộp đầu tiên đều lệch (d09: 30 hộp).
+   */
+  _ooxmlBodyParagraphSource(bodyXml) {
+    return String(bodyXml || "")
+      .replace(/<mc:Fallback\b[\s\S]*?<\/mc:Fallback>/gi, "")
+      .replace(/<w:txbxContent\b[\s\S]*?<\/w:txbxContent>/gi, "");
+  }
+
+  /**
+   * W12e: các vùng HTML có <p> nhưng KHÔNG có w:p tương ứng trong body OOXML: bảng (lồng nhau), header/footer
+   * (<div title="header|footer"> — LibreOffice đặt header ở đầu body), chú thích cuối trang/cuối bài (sdfootnote/sdendnote).
+   * Trả về [{start, end}] theo offset trong chuỗi HTML.
+   */
+  _htmlParagraphSkipRanges(html) {
+    const source = String(html || "");
+    const ranges = [];
+    const scan = (openRe, tagName) => {
+      let pos = 0;
+      while (true) {
+        openRe.lastIndex = pos;
+        const open = openRe.exec(source);
+        if (!open) break;
+        const start = open.index;
+        const re = new RegExp(`<${tagName}\\b|<\\/${tagName}>`, "gi");
+        re.lastIndex = start;
+        let depth = 0; let end = -1; let m;
+        while ((m = re.exec(source))) { depth += m[0][1] === "/" ? -1 : 1; if (depth === 0) { end = m.index + m[0].length; break; } }
+        if (end < 0) break;
+        ranges.push({ start, end }); pos = end;
+      }
+    };
+    scan(/<table\b/gi, "table");
+    scan(/<div\b[^>]*\btitle=["'](?:header|footer)["'][^>]*>/gi, "div");
+    scan(/<div\b[^>]*\bid=["']sd(?:foot|end)note\d*["'][^>]*>/gi, "div");
+    return ranges;
+  }
+
   _applyOoxmlContextualSpacing(html, ooxmlDocumentXml, ooxmlStylesXml = "") {
     const xml = String(ooxmlDocumentXml || "");
     const styles = String(ooxmlStylesXml || "");
@@ -2741,8 +2781,10 @@ export class WriterAdapter {
     if (!bodyMatch) return html;
     const bodyXml = bodyMatch[1];
 
-    // Loại bỏ nội dung trong bảng để không đếm w:p trong bảng
-    const bodyNoTables = bodyXml.replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi, "");
+    // Loại bỏ nội dung trong bảng để không đếm w:p trong bảng; W12e: bỏ cả đoạn trong hộp văn bản
+    // (w:txbxContent, và bản VML dự phòng mc:Fallback) vì LibreOffice HTML vẽ hộp thành ảnh, không có <p> tương ứng
+    // (d09: 30 hộp văn bản → ánh xạ lệch, 24 cặp spacing sai).
+    const bodyNoTables = this._ooxmlBodyParagraphSource(bodyXml).replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi, "");
 
     const paras = [];
     const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
@@ -2781,23 +2823,14 @@ export class WriterAdapter {
     const anyAtLeast = paras.some(p => p.atLeastTwips !== null);
     if (!needBottomZero.some(v => v) && !needTopZero.some(v => v) && !anyAtLeast) return html;
 
-    // 4. Tách các bảng HTML để bỏ qua paragraph trong bảng
-    const tables = [];
-    let pos = 0;
-    while (true) {
-      const start = html.indexOf("<table", pos);
-      if (start < 0) break;
-      let depth = 0; let i = start;
-      const re = /<table\b|<\/table>/gi; re.lastIndex = start;
-      let m; let end = -1;
-      while ((m = re.exec(html))) { depth += m[0].startsWith("<table") ? 1 : -1; if (depth === 0) { end = m.index + m[0].length; break; } }
-      if (end < 0) break;
-      tables.push({ start, end }); pos = end;
-    }
+    // 4. Vùng HTML không có w:p tương ứng trong body: bảng (đã bỏ ở OOXML), header/footer (LibreOffice đặt
+    // <div title="header"> ở ĐẦU body → lệch toàn bộ ánh xạ, d09 header 3 đoạn), chú thích cuối trang (sdfootnote).
+    const tables = this._htmlParagraphSkipRanges(html);
 
-    // 5. Single-pass replace on HTML paragraphs (skip paragraphs inside tables)
+    // 5. Single-pass replace on HTML paragraphs (skip paragraphs inside tables). Heading styles được LibreOffice
+    // xuất thành <h1>…<h6> (d13: 42 heading) — cũng là một w:p nên phải đếm, nếu không ánh xạ lệch sau heading đầu.
     let paraIndex = 0;
-    return String(html || "").replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (fullTag, attrs, inner, offset) => {
+    return String(html || "").replace(/<(p|h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi, (fullTag, tagName, attrs, inner, offset) => {
       // Skip if inside a table
       for (const t of tables) {
         if (offset >= t.start && offset < t.end) return fullTag;
@@ -2820,11 +2853,11 @@ export class WriterAdapter {
       }
       if (!decls.length) return fullTag;
 
-      return this._addCssDeclsToParagraph(fullTag, attrs, inner, decls);
+      return this._addCssDeclsToParagraph(fullTag, attrs, inner, decls, tagName);
     });
   }
 
-  _addCssDeclsToParagraph(fullTag, attrs, inner, decls) {
+  _addCssDeclsToParagraph(fullTag, attrs, inner, decls, tagName = "p") {
     const styleMatch = attrs.match(/\bstyle=(["'])([^"']*)\1/i);
     let newAttrs = attrs;
     if (styleMatch) {
@@ -2852,7 +2885,7 @@ export class WriterAdapter {
     } else {
       newAttrs = `${attrs} style="${decls.join("; ")}"`;
     }
-    return `<p${newAttrs}>${inner}</p>`;
+    return `<${tagName}${newAttrs}>${inner}</${tagName}>`;
   }
 
   /**
@@ -2962,7 +2995,7 @@ export class WriterAdapter {
     if (!bodyMatch) return [];
     const items = [];
     const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
-    for (const m of bodyMatch[1].matchAll(paraRe)) {
+    for (const m of this._ooxmlBodyParagraphSource(bodyMatch[1]).matchAll(paraRe)) {
       const ppr = m[0].match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
       const pprXml = ppr ? ppr[1] : "";
       const chain = styleChain(pprXml.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/)?.[1] || "Normal");

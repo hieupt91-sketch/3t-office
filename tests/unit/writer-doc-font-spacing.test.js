@@ -257,6 +257,33 @@ export async function runWriterDocFontSpacingTests() {
     check(!out.includes("list-style-type:"), `ordered and standard bullet must not have list-style-type injected: ${out}`);
   });
 
+  // Đo d09 (Word COM): "PHẦN II"/"THỰC TRẠNG…" là Normal (không contextualSpacing) nhưng canvas nhận margin 0 vì ánh xạ
+  // w:p ↔ <p> theo thứ tự bị lệch: header 3 đoạn đứng đầu HTML và 30 hộp văn bản có w:p trong body nhưng không có <p>.
+  test("W12e: ánh xạ thứ tự bỏ qua <p> trong header/footer/footnote và w:p trong hộp văn bản / mc:Fallback", () => {
+    const adapter = new WriterAdapter(null);
+    const styles = '<w:styles><w:style w:styleId="ListParagraph"><w:pPr><w:contextualSpacing/></w:pPr></w:style></w:styles>';
+    const doc = '<w:document><w:body>'
+      + '<w:p><w:r><w:mc:AlternateContent><mc:Choice><w:drawing><wps:txbx><w:txbxContent><w:p><w:pPr><w:pStyle w:val="ListParagraph"/></w:pPr><w:r><w:t>Hộp</w:t></w:r></w:p></w:txbxContent></wps:txbx></w:drawing></mc:Choice>'
+      + '<mc:Fallback><w:pict><v:textbox><w:txbxContent><w:p><w:pPr><w:pStyle w:val="ListParagraph"/></w:pPr><w:r><w:t>Hộp</w:t></w:r></w:p></w:txbxContent></v:textbox></w:pict></mc:Fallback></w:mc:AlternateContent></w:r><w:r><w:t>Thân 1</w:t></w:r></w:p>'
+      + '<w:p><w:r><w:t>Thân 2</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:pStyle w:val="ListParagraph"/></w:pPr><w:r><w:t>Mục A</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:pStyle w:val="ListParagraph"/></w:pPr><w:r><w:t>Mục B</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Tiêu đề</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:pStyle w:val="ListParagraph"/></w:pPr><w:r><w:t>Mục C</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:pStyle w:val="ListParagraph"/></w:pPr><w:r><w:t>Mục D</w:t></w:r></w:p>'
+      + '</w:body></w:document>';
+    const html = '<div title="header"><p>Đầu trang 1</p><p>Đầu trang 2</p></div>'
+      + '<p>Thân 1</p><p>Thân 2</p><p>Mục A</p><p>Mục B</p><h2 class="western">Tiêu đề</h2><p>Mục C</p><p>Mục D</p>'
+      + '<div id="sdfootnote1"><p>Chú thích</p></div><div title="footer"><p>Chân trang</p></div>';
+    const out = adapter._applyOoxmlContextualSpacing(html, doc, styles);
+    check(out.includes('<p>Đầu trang 1</p><p>Đầu trang 2</p>'), `header paragraphs must be untouched: ${out}`);
+    check(out.includes('<p>Thân 1</p><p>Thân 2</p>'), `Normal paragraphs must keep their spacing: ${out}`);
+    check(/<p style="margin-bottom: 0">Mục A<\/p><p style="margin-top: 0">Mục B<\/p>/.test(out), `contextual pair must be Mục A/B: ${out}`);
+    check(out.includes('<h2 class="western">Tiêu đề</h2>'), `heading counts as a w:p but keeps its tag: ${out}`);
+    check(/<p style="margin-bottom: 0">Mục C<\/p><p style="margin-top: 0">Mục D<\/p>/.test(out), `mapping after a heading must stay aligned (Mục C/D): ${out}`);
+    check(out.includes('<p>Chú thích</p>') && out.includes('<p>Chân trang</p>'), `footnote/footer paragraphs must be untouched: ${out}`);
+  });
+
   // Đo thật d15 (Word 2016 COM): 16/16 đoạn "wrap" là List Paragraph, Word left=714 (đoạn) hoặc 1080 (mức numbering)
   // twips, canvas <li> margin 0 vì shell.css reset `* { padding: 0 }` → cột chữ rộng hơn Word 47–72px → ít hơn 1 dòng.
   test("W10b: _applyOoxmlListIndents đặt margin-left cho <li> theo w:ind (đoạn > mức numbering > style), lồng nhau lấy phần chênh", () => {
