@@ -156,6 +156,19 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         document = _read_entry(result, "word/document.xml").decode("utf-8")
         self.assertIn('<w:pgSz w:w="12240" w:h="15840"/>', document)
 
+    def test_w22d_created_document_normal_page_break(self):
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Page 1 text</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Page 2 break text</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html='<p>Page 1 text</p><p style="page-break-before: always;">Page 2 break text</p>',
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:pageBreakBefore/>', document)
+
     def test_w20e_created_document_break_is_before_second_section_text(self):
         converted = _build_minimal_docx(
             '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'

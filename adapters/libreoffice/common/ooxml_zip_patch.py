@@ -8281,6 +8281,33 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
 
     document_xml = re.sub(r'<w:pgSz\b[^>]*/>', patch_pgsz_letter, document_xml, flags=re.IGNORECASE)
 
+    # W22d: Khôi phục ngắt trang thường (<w:pageBreakBefore/>)
+    # LibreOffice bỏ qua thuộc tính CSS page-break-before: always / break-before: page trên thẻ đoạn <p>.
+    page_break_texts = set()
+    for p_m in re.finditer(r'<p\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>([\s\S]*?)</p\s*>', source_html, re.IGNORECASE):
+        style = p_m.group(1)
+        if re.search(r'(?:^|;)\s*(?:page-break-before\s*:\s*always|break-before\s*:\s*page)(?:;|$)', style, re.IGNORECASE):
+            txt = _writer_html_plain(p_m.group(2)).strip()
+            if txt:
+                page_break_texts.add(txt)
+
+    if page_break_texts:
+        def patch_page_break(p_match: re.Match) -> str:
+            p = p_match.group(0)
+            if _paragraph_plain_text(p).strip() in page_break_texts:
+                if '<w:pageBreakBefore/>' not in p and '<w:pageBreakBefore ' not in p:
+                    if '<w:sectPr' in p:
+                        p = p.replace('<w:sectPr', '<w:pageBreakBefore/><w:sectPr')
+                    elif '<w:rPr' in p:
+                        p = p.replace('<w:rPr', '<w:pageBreakBefore/><w:rPr')
+                    elif '</w:pPr>' in p:
+                        p = p.replace('</w:pPr>', '<w:pageBreakBefore/></w:pPr>')
+                    else:
+                        p = re.sub(r'(<w:p\b[^>]*>)', r'\1<w:pPr><w:pageBreakBefore/></w:pPr>', p, count=1)
+            return p
+
+        document_xml = re.sub(r'<w:p\b[^>]*>[\s\S]*?</w:p\s*>', patch_page_break, document_xml, flags=re.IGNORECASE)
+
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
     numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
     bullet_texts = {

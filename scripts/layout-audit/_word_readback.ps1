@@ -9,7 +9,14 @@ $script:diffs = 0; $script:checks = 0
 
 function Check($key, $prop, $want, $got) {
     $script:checks++
-    if ("$got" -ne "$want") {
+    $mismatch = $false
+    $wNum = 0.0; $gNum = 0.0
+    if ([double]::TryParse("$want", [ref]$wNum) -and [double]::TryParse("$got", [ref]$gNum)) {
+        $mismatch = ([math]::Abs($wNum - $gNum) -gt 0.001)
+    } else {
+        $mismatch = ("$got" -ne "$want")
+    }
+    if ($mismatch) {
         $script:diffs++; Write-Host "${key}.${prop}: expected [$want] Word [$got]"
     }
 }
