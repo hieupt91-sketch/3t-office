@@ -2047,6 +2047,7 @@ export class WriterAdapter {
       html = this._applyOoxmlTableParagraphSpacing(html, ooxmlDocumentXml, ooxmlStylesXml);
       html = this._applyOoxmlContextualSpacing(html, ooxmlDocumentXml, ooxmlStylesXml);
       if (ooxmlNumberingXml) {
+        html = this._applyOoxmlListIndents(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
         html = this._applyOoxmlListBullets(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
       }
     }
@@ -2807,129 +2808,190 @@ export class WriterAdapter {
    * khiến trình duyệt hiển thị dấu chấm tròn mặc định (disc). Phương thức này đối chiếu
    * từng mục <li> với w:p có numPr trong OOXML và gán list-style-type tương ứng (ví dụ: "- ").
    */
-  _applyOoxmlListBullets(html, ooxmlDocumentXml, ooxmlStylesXml = "", ooxmlNumberingXml = "") {
+  /**
+   * Các đoạn có đánh số/bullet trong OOXML theo đúng thứ tự tài liệu (kể cả đoạn trong bảng — LibreOffice cũng xuất
+   * <li> cho chúng, d15: 20/95 <li> nằm trong bảng), mỗi đoạn = một <li> trong HTML LibreOffice. numId="0" là
+   * "bỏ đánh số" nên không phải mục danh sách. Trả về {numId, ilvl, numFmt, lvlText, font, ind} với ind (twips) đã
+   * gộp theo thứ tự ưu tiên của Word: style đoạn < mức numbering (abstractNum/lvlOverride) < w:ind trực tiếp.
+   */
+  _ooxmlListParagraphs(ooxmlDocumentXml, ooxmlStylesXml = "", ooxmlNumberingXml = "") {
     const xml = String(ooxmlDocumentXml || "");
     const numberingXml = String(ooxmlNumberingXml || "");
     const stylesXml = String(ooxmlStylesXml || "");
-    if (!xml || !numberingXml || !html.includes("<li")) return html;
+    if (!xml || !numberingXml) return [];
+    const parseInd = (fragment) => {
+      const tag = String(fragment || "").match(/<w:ind\b([^>]*)\/?>/);
+      if (!tag) return null;
+      const attr = (names) => {
+        for (const name of names) {
+          const m = tag[1].match(new RegExp(`\\bw:${name}="(-?\\d+)"`));
+          if (m) return Number(m[1]);
+        }
+        return undefined;
+      };
+      const ind = { left: attr(["left", "start"]), right: attr(["right", "end"]), hanging: attr(["hanging"]), firstLine: attr(["firstLine"]) };
+      return Object.values(ind).some(v => v !== undefined) ? ind : null;
+    };
+    const mergeInd = (base, over) => {
+      if (!over) return base ? { ...base } : null;
+      const out = { ...(base || {}) };
+      if (over.left !== undefined) out.left = over.left;
+      if (over.right !== undefined) out.right = over.right;
+      // hanging và firstLine loại trừ nhau: cái ghi đè thay thế cái kia
+      if (over.hanging !== undefined) { out.hanging = over.hanging; delete out.firstLine; }
+      if (over.firstLine !== undefined) { out.firstLine = over.firstLine; delete out.hanging; }
+      return out;
+    };
+    const lvlProps = (lbody) => {
+      const numFmt = lbody.match(/<w:numFmt\b[^>]*w:val="([^"]+)"/)?.[1];
+      const lvlText = lbody.match(/<w:lvlText\b[^>]*w:val="([^"]+)"/)?.[1];
+      const rFonts = lbody.match(/<w:rFonts\b([^>]*)\/?>/)?.[1];
+      const asciiFont = rFonts ? rFonts.match(/\bw:ascii="([^"]+)"/)?.[1] : null;
+      const ppr = lbody.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+      return { numFmt, lvlText, font: asciiFont, ind: parseInd(ppr ? ppr[1] : "") };
+    };
 
-    // 1. Phân tích numbering.xml
+    // 1. numbering.xml
     const abstractNums = new Map();
     const absRe = /<w:abstractNum\b[^>]*w:abstractNumId="([^"]+)"[^>]*>([\s\S]*?)<\/w:abstractNum>/g;
     for (const m of numberingXml.matchAll(absRe)) {
-      const aid = m[1];
-      const body = m[2];
       const lvls = new Map();
       const lvlRe = /<w:lvl\b[^>]*w:ilvl="([^"]+)"[^>]*>([\s\S]*?)<\/w:lvl>/g;
-      for (const lm of body.matchAll(lvlRe)) {
-        const ilvl = lm[1];
-        const lbody = lm[2];
-        const numFmt = lbody.match(/<w:numFmt\b[^>]*w:val="([^"]+)"/)?.[1];
-        const lvlText = lbody.match(/<w:lvlText\b[^>]*w:val="([^"]+)"/)?.[1];
-        const rFonts = lbody.match(/<w:rFonts\b([^>]*)\/?>/)?.[1];
-        const asciiFont = rFonts ? rFonts.match(/\bw:ascii="([^"]+)"/)?.[1] : null;
-        lvls.set(ilvl, { numFmt, lvlText, font: asciiFont });
-      }
-      abstractNums.set(aid, lvls);
+      for (const lm of m[2].matchAll(lvlRe)) lvls.set(lm[1], lvlProps(lm[2]));
+      abstractNums.set(m[1], lvls);
     }
-
     const nums = new Map();
     const numRe = /<w:num\b[^>]*w:numId="([^"]+)"[^>]*>([\s\S]*?)<\/w:num>/g;
     for (const m of numberingXml.matchAll(numRe)) {
-      const nid = m[1];
-      const body = m[2];
-      const aid = body.match(/<w:abstractNumId\b[^>]*w:val="([^"]+)"/)?.[1];
+      const aid = m[2].match(/<w:abstractNumId\b[^>]*w:val="([^"]+)"/)?.[1];
       const overrides = new Map();
       const ovrRe = /<w:lvlOverride\b[^>]*w:ilvl="([^"]+)"[^>]*>([\s\S]*?)<\/w:lvlOverride>/g;
-      for (const om of body.matchAll(ovrRe)) {
-        const ilvl = om[1];
-        const obody = om[2];
-        const numFmt = obody.match(/<w:numFmt\b[^>]*w:val="([^"]+)"/)?.[1];
-        const lvlText = obody.match(/<w:lvlText\b[^>]*w:val="([^"]+)"/)?.[1];
-        const rFonts = obody.match(/<w:rFonts\b([^>]*)\/?>/)?.[1];
-        const asciiFont = rFonts ? rFonts.match(/\bw:ascii="([^"]+)"/)?.[1] : null;
-        if (numFmt || lvlText || asciiFont) {
-          overrides.set(ilvl, { numFmt, lvlText, font: asciiFont });
-        }
+      for (const om of m[2].matchAll(ovrRe)) {
+        const props = lvlProps(om[2]);
+        if (props.numFmt || props.lvlText || props.font || props.ind) overrides.set(om[1], props);
       }
-      nums.set(nid, { abstractNumId: aid, overrides });
+      nums.set(m[1], { abstractNumId: aid, overrides });
     }
-
     const resolveLvl = (nid, ilvl = "0") => {
-      if (!nid) return null;
       const numEntry = nums.get(String(nid));
       if (!numEntry) return null;
-      if (numEntry.overrides && numEntry.overrides.has(String(ilvl))) {
-        return numEntry.overrides.get(String(ilvl));
-      }
       const abs = abstractNums.get(String(numEntry.abstractNumId));
-      if (!abs) return null;
-      return abs.get(String(ilvl)) || null;
+      const base = abs ? abs.get(String(ilvl)) || null : null;
+      const over = numEntry.overrides.get(String(ilvl));
+      if (!over) return base;
+      return {
+        numFmt: over.numFmt || base?.numFmt,
+        lvlText: over.lvlText !== undefined ? over.lvlText : base?.lvlText,
+        font: over.font || base?.font || null,
+        ind: mergeInd(base?.ind || null, over.ind)
+      };
     };
 
-    // 2. Phân tích styles.xml (cho các style thừa kế numPr như ListBullet)
-    const styleNumPr = new Map();
-    const styleBasedOn = new Map();
+    // 2. styles.xml: numPr và w:ind thừa kế qua basedOn
+    const styleInfo = new Map();
     const styleRe = /<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>([\s\S]*?)<\/w:style>/g;
     for (const m of stylesXml.matchAll(styleRe)) {
-      const sid = m[1];
-      const body = m[2];
-      const ppr = body.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
-      if (ppr) {
-        const nid = ppr[1].match(/<w:numId\b[^>]*w:val="([^"]+)"/)?.[1];
-        const ilvl = ppr[1].match(/<w:ilvl\b[^>]*w:val="([^"]+)"/)?.[1] || "0";
-        if (nid) styleNumPr.set(sid, { numId: nid, ilvl });
-      }
-      const b = body.match(/<w:basedOn\b[^>]*w:val="([^"]+)"/);
-      if (b) styleBasedOn.set(sid, b[1]);
+      const ppr = m[2].match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+      const pp = ppr ? ppr[1] : "";
+      const nid = pp.match(/<w:numId\b[^>]*w:val="([^"]+)"/)?.[1];
+      const ilvl = pp.match(/<w:ilvl\b[^>]*w:val="([^"]+)"/)?.[1] || "0";
+      styleInfo.set(m[1], { numPr: nid ? { numId: nid, ilvl } : null, ind: parseInd(pp), basedOn: m[2].match(/<w:basedOn\b[^>]*w:val="([^"]+)"/)?.[1] || null });
     }
-    const getStyleNumPr = (sid, depth = 0) => {
-      if (!sid || depth > 12) return null;
-      if (styleNumPr.has(sid)) return styleNumPr.get(sid);
-      const parent = styleBasedOn.get(sid);
-      return parent ? getStyleNumPr(parent, depth + 1) : null;
+    const styleChain = (sid) => {
+      const chain = [];
+      let cur = sid;
+      for (let depth = 0; cur && styleInfo.has(cur) && depth < 12; depth++) { chain.unshift(styleInfo.get(cur)); cur = styleInfo.get(cur).basedOn; }
+      return chain; // gốc trước, style trực tiếp sau
     };
 
-    // 3. Trích xuất danh sách w:p trong OOXML
+    // 3. Các w:p theo thứ tự tài liệu
     const bodyMatch = xml.match(/<w:body>([\s\S]*?)<\/w:body>/i);
-    if (!bodyMatch) return html;
-    const bodyXml = bodyMatch[1];
-    const bodyNoTables = bodyXml.replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi, "");
-
-    const docListItems = [];
+    if (!bodyMatch) return [];
+    const items = [];
     const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
-    for (const m of bodyNoTables.matchAll(paraRe)) {
-      const pXml = m[0];
-      const ppr = pXml.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+    for (const m of bodyMatch[1].matchAll(paraRe)) {
+      const ppr = m[0].match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
       const pprXml = ppr ? ppr[1] : "";
-      const numPrMatch = pprXml.match(/<w:numPr>([\s\S]*?)<\/w:numPr>/);
+      const chain = styleChain(pprXml.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/)?.[1] || "Normal");
       let numId = null;
       let ilvl = "0";
+      const numPrMatch = pprXml.match(/<w:numPr>([\s\S]*?)<\/w:numPr>/);
       if (numPrMatch) {
-        numId = numPrMatch[1].match(/<w:numId\b[^>]*w:val="([^"]+)"/)?.[1];
+        numId = numPrMatch[1].match(/<w:numId\b[^>]*w:val="([^"]+)"/)?.[1] || null;
         ilvl = numPrMatch[1].match(/<w:ilvl\b[^>]*w:val="([^"]+)"/)?.[1] || "0";
       } else {
-        const styleMatch = pprXml.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/);
-        if (styleMatch) {
-          const snp = getStyleNumPr(styleMatch[1]);
-          if (snp) {
-            numId = snp.numId;
-            ilvl = snp.ilvl || "0";
-          }
-        }
+        const styled = [...chain].reverse().find(s => s.numPr);
+        if (styled) { numId = styled.numPr.numId; ilvl = styled.numPr.ilvl || "0"; }
       }
-      if (numId) {
-        const lvl = resolveLvl(numId, ilvl);
-        docListItems.push({
-          numId,
-          ilvl,
-          numFmt: lvl?.numFmt || null,
-          lvlText: lvl?.lvlText !== undefined ? lvl?.lvlText : null,
-          font: lvl?.font || null
-        });
-      }
+      if (!numId || numId === "0") continue;
+      const lvl = resolveLvl(numId, ilvl);
+      let ind = null;
+      for (const s of chain) ind = mergeInd(ind, s.ind);
+      ind = mergeInd(ind, lvl?.ind || null);
+      ind = mergeInd(ind, parseInd(pprXml));
+      items.push({
+        numId,
+        ilvl,
+        numFmt: lvl?.numFmt || null,
+        lvlText: lvl?.lvlText !== undefined ? lvl?.lvlText : null,
+        font: lvl?.font || null,
+        ind
+      });
     }
+    return items;
+  }
 
+  /**
+   * Quy ước W10b: thụt lề danh sách theo OOXML. Reset toàn cục `* { margin: 0; padding: 0 }` (shell.css) xoá
+   * padding-left 40px mặc định của <ul>/<ol>, còn LibreOffice HTML không ghi w:ind của đoạn danh sách lên <li>,
+   * nên cột chữ của mọi mục danh sách rộng bằng cả trang (d15: 16/16 đoạn "wrap" đều là List Paragraph, Word
+   * left=714/1080 twips → canvas 0). Đặt margin-left/right (và text-indent khi firstLine) cho từng <li> theo
+   * w:ind đã gộp; <li> lồng nhau chỉ nhận phần chênh so với <li> cha vì lề CSS cộng dồn còn w:left là tuyệt đối.
+   */
+  _applyOoxmlListIndents(html, ooxmlDocumentXml, ooxmlStylesXml = "", ooxmlNumberingXml = "") {
+    const source = String(html || "");
+    if (!source.includes("<li")) return source;
+    const items = this._ooxmlListParagraphs(ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
+    if (!items.length) return source;
+    const headerMatch = source.match(/<div\s+title=["']header["'][^>]*>[\s\S]*?<\/div>/i);
+    const footerMatch = source.match(/<div\s+title=["']footer["'][^>]*>[\s\S]*?<\/div>/i);
+    const inRange = (offset, match) => match && offset >= match.index && offset < match.index + match[0].length;
+    const twipsToCm = (twips) => `${Math.round(twips / 1440 * 2.54 * 1000) / 1000}cm`;
+    let liIndex = 0;
+    let depth = 0;
+    const liLeftByDepth = [];
+    return source.replace(/<\/?(?:ul|ol)\b[^>]*>|<li\b([^>]*)>/gi, (tag, attrs, offset) => {
+      const lower = tag.slice(0, 3).toLowerCase();
+      if (lower === "</u" || lower === "</o") { depth = Math.max(0, depth - 1); return tag; }
+      if (lower === "<ul" || lower === "<ol") { depth += 1; return tag; }
+      if (inRange(offset, headerMatch) || inRange(offset, footerMatch)) return tag;
+      const item = items[liIndex++];
+      const ind = item?.ind;
+      const left = Number.isFinite(ind?.left) ? ind.left : 0;
+      liLeftByDepth[depth] = left;
+      if (!ind) return tag;
+      const parentLeft = depth > 1 ? (liLeftByDepth[depth - 1] || 0) : 0;
+      const decls = [];
+      const relLeft = Math.max(0, left - parentLeft);
+      if (relLeft > 0) decls.push(`margin-left: ${twipsToCm(relLeft)}`);
+      if (Number.isFinite(ind.right) && ind.right > 0) decls.push(`margin-right: ${twipsToCm(ind.right)}`);
+      if (Number.isFinite(ind.firstLine) && ind.firstLine > 0) decls.push(`text-indent: ${twipsToCm(ind.firstLine)}`);
+      if (!decls.length) return tag;
+      // Giá trị style có thể chứa dấu nháy đơn (list-style-type: '- ' của W21b) nên bắt theo đúng loại nháy mở.
+      const styleMatch = (attrs || "").match(/\bstyle=("([^"]*)"|'([^']*)')/i);
+      if (styleMatch) {
+        const quote = styleMatch[1][0];
+        const existing = (styleMatch[2] !== undefined ? styleMatch[2] : styleMatch[3]).trim();
+        const css = (existing ? existing.replace(/;?$/, "; ") : "") + `${decls.join("; ")};`;
+        return `<li${attrs.replace(styleMatch[0], `style=${quote}${css}${quote}`)}>`;
+      }
+      return `<li${attrs || ""} style="${decls.join("; ")};">`;
+    });
+  }
+
+  _applyOoxmlListBullets(html, ooxmlDocumentXml, ooxmlStylesXml = "", ooxmlNumberingXml = "") {
+    if (!ooxmlDocumentXml || !ooxmlNumberingXml || !html.includes("<li")) return html;
+    const docListItems = this._ooxmlListParagraphs(ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
     if (!docListItems.length) return html;
 
     // 4. Bỏ qua header và footer divs nếu có
@@ -2937,9 +2999,9 @@ export class WriterAdapter {
     const footerMatch = html.match(/<div\s+title=["']footer["'][^>]*>[\s\S]*?<\/div>/i);
     const inRange = (offset, match) => match && offset >= match.index && offset < match.index + match[0].length;
 
-    // 5. Đối chiếu tuần tự với từng thẻ <li> trong HTML
+    // 5. Đối chiếu tuần tự với từng thẻ mở <li> trong HTML (chỉ thẻ mở: <li>…</li> lồng nhau sẽ nuốt mất <li> con)
     let liIndex = 0;
-    return html.replace(/<li\b([^>]*)>([\s\S]*?)<\/li>/gi, (fullTag, attrs, inner, offset) => {
+    return html.replace(/<li\b([^>]*)>/gi, (fullTag, attrs, offset) => {
       if (inRange(offset, headerMatch) || inRange(offset, footerMatch)) {
         return fullTag;
       }
@@ -2979,9 +3041,9 @@ export class WriterAdapter {
           css = css.replace(/list-style-type\s*:\s*[^;]+(;?)/i, `list-style-type: ${listStyleType}$1`);
         }
         const newAttrs = attrs.replace(styleMatch[0], `style=${quote}${css}${quote}`);
-        return `<li${newAttrs}>${inner}</li>`;
+        return `<li${newAttrs}>`;
       } else {
-        return `<li${attrs} style="list-style-type: ${listStyleType};">${inner}</li>`;
+        return `<li${attrs} style="list-style-type: ${listStyleType};">`;
       }
     });
   }

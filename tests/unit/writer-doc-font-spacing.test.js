@@ -257,5 +257,38 @@ export async function runWriterDocFontSpacingTests() {
     check(!out.includes("list-style-type:"), `ordered and standard bullet must not have list-style-type injected: ${out}`);
   });
 
+  // Đo thật d15 (Word 2016 COM): 16/16 đoạn "wrap" là List Paragraph, Word left=714 (đoạn) hoặc 1080 (mức numbering)
+  // twips, canvas <li> margin 0 vì shell.css reset `* { padding: 0 }` → cột chữ rộng hơn Word 47–72px → ít hơn 1 dòng.
+  test("W10b: _applyOoxmlListIndents đặt margin-left cho <li> theo w:ind (đoạn > mức numbering > style), lồng nhau lấy phần chênh", () => {
+    const adapter = new WriterAdapter(null);
+    const html = '<ul><li><p>Đoạn có w:ind riêng</p></li><li><p>Đoạn lấy lề mức numbering</p></li>'
+      + '<li><p>Mục cha</p><ul><li><p>Mục con</p></li></ul></li></ul>'
+      + '<ul><li style="list-style-type: \'- \';"><p>Đã có style bullet</p></li></ul>';
+    const doc = '<w:document><w:body>'
+      + '<w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="12"/></w:numPr><w:ind w:left="714" w:hanging="357"/></w:pPr><w:r><w:t>Đoạn có w:ind riêng</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="12"/></w:numPr></w:pPr><w:r><w:t>Đoạn lấy lề mức numbering</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="12"/></w:numPr></w:pPr><w:r><w:t>Mục cha</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="1"/><w:numId w:val="12"/></w:numPr></w:pPr><w:r><w:t>Mục con</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="0"/></w:numPr></w:pPr><w:r><w:t>numId 0 = bỏ đánh số, không phải li</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="12"/></w:numPr><w:ind w:left="1440"/></w:pPr><w:r><w:t>Đã có style bullet</w:t></w:r></w:p>'
+      + '</w:body></w:document>';
+    const stylesXml = '<w:styles><w:style w:type="paragraph" w:styleId="ListParagraph"><w:pPr><w:ind w:left="720"/></w:pPr></w:style></w:styles>';
+    const numXml = '<w:numbering>'
+      + '<w:abstractNum w:abstractNumId="6">'
+      + '<w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val="-"/><w:pPr><w:ind w:left="1080" w:hanging="360"/></w:pPr></w:lvl>'
+      + '<w:lvl w:ilvl="1"><w:numFmt w:val="bullet"/><w:lvlText w:val="o"/><w:pPr><w:ind w:left="1800" w:hanging="360"/></w:pPr></w:lvl>'
+      + '</w:abstractNum><w:num w:numId="12"><w:abstractNumId w:val="6"/></w:num></w:numbering>';
+    const items = adapter._ooxmlListParagraphs(doc, stylesXml, numXml);
+    check(items.length === 5, `numId=0 must be skipped, 5 list paragraphs expected: ${items.length}`);
+    check(items[0].ind.left === 714 && items[0].ind.hanging === 357, `direct w:ind wins: ${JSON.stringify(items[0].ind)}`);
+    check(items[1].ind.left === 1080 && items[1].ind.hanging === 360, `numbering level beats style ind 720: ${JSON.stringify(items[1].ind)}`);
+    const out = adapter._applyOoxmlListIndents(html, doc, stylesXml, numXml);
+    check(out.includes('<li style="margin-left: 1.259cm;"><p>Đoạn có w:ind riêng</p>'), `714 twips → 1.259cm: ${out}`);
+    check(out.includes('<li style="margin-left: 1.905cm;"><p>Đoạn lấy lề mức numbering</p>'), `1080 twips → 1.905cm: ${out}`);
+    check(out.includes('<li style="margin-left: 1.905cm;"><p>Mục cha</p><ul><li style="margin-left: 1.27cm;"><p>Mục con</p>'), `nested li gets 1800-1080 = 720 twips: ${out}`);
+    check(out.includes('<li style="list-style-type: \'- \'; margin-left: 2.54cm;"><p>Đã có style bullet</p>'), `existing single-quoted style must be extended, not duplicated: ${out}`);
+    check(!out.includes("text-indent"), `hanging lists must not get a negative text-indent (marker sits outside): ${out}`);
+  });
+
   return results;
 }
