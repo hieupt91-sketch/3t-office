@@ -2598,6 +2598,62 @@ def read_zip_entry(zip_bytes: bytes, entry_name: str) -> bytes | None:
         return None
 
 
+def docx_theme_fonts(docx_bytes: bytes) -> dict:
+    """Font theme major/minor mà WORD thật sự vẽ cho tài liệu này (quy ước W12b, đo d07 19/9/2026).
+
+    Word chọn typeface theo SCRIPT của ngôn ngữ văn bản: tài liệu tiếng Việt (docDefaults `w:lang w:val="vi"`
+    hoặc phần lớn run `w:lang="vi-VN"`) dùng `<a:font script="Viet" typeface="Times New Roman"/>` của majorFont
+    (không phải `<a:latin typeface="Calibri Light"/>`) — Word COM Font.Name = "Times New Roman" trong khi
+    LibreOffice/HTML ghi Calibri Light → 23 đoạn d07 cao hơn 6–9% (ratio 1.221 vs 1.149).
+    Returns {"major", "minor", "major_latin", "minor_latin", "vietnamese"}."""
+    styles = (read_zip_entry(docx_bytes, "word/styles.xml") or b"").decode("utf-8", errors="replace")
+    document = (read_zip_entry(docx_bytes, "word/document.xml") or b"").decode("utf-8", errors="replace")
+    theme = (read_zip_entry(docx_bytes, "word/theme/theme1.xml") or b"").decode("utf-8", errors="replace")
+
+    def fonts(kind: str) -> tuple[str, str]:
+        block = re.search(rf"<a:{kind}>(.*?)</a:{kind}>", theme, re.S)
+        if not block:
+            return "", ""
+        latin = re.search(r'<a:latin\b[^>]*typeface="([^"]*)"', block.group(1))
+        viet = re.search(r'<a:font\b[^>]*script="Viet"[^>]*typeface="([^"]*)"', block.group(1))
+        return (latin.group(1) if latin else ""), (viet.group(1) if viet else "")
+
+    major_latin, major_viet = fonts("majorFont")
+    minor_latin, minor_viet = fonts("minorFont")
+    default_lang = re.search(r"<w:rPrDefault>.*?<w:lang\b[^>]*w:val=\"([^\"]*)\"", styles, re.S)
+    langs = re.findall(r'<w:lang\b[^>]*w:val="([^"]*)"', document)
+    vi_runs = sum(1 for l in langs if l.lower().startswith("vi"))
+    vietnamese = bool(default_lang and default_lang.group(1).lower().startswith("vi")) or (langs and vi_runs * 2 > len(langs))
+    return {
+        "major": (major_viet if vietnamese and major_viet else major_latin),
+        "minor": (minor_viet if vietnamese and minor_viet else minor_latin),
+        "major_latin": major_latin, "minor_latin": minor_latin, "vietnamese": bool(vietnamese),
+    }
+
+
+def apply_docx_theme_script_fonts(docx_bytes: bytes, html: str) -> str:
+    """W12b, phía HTML: LibreOffice ghi `<font face="Calibri Light, sans-serif">` cho run dùng theme font; với tài
+    liệu tiếng Việt Word vẽ typeface script="Viet" (Times New Roman / Arial). Thay tên font theme latin bằng font
+    Viet trong HTML khi tài liệu KHÔNG có run/style nào đặt tường minh font latin đó (`w:ascii="Calibri Light"`) —
+    khi đó mọi lần xuất hiện đều đến từ theme."""
+    if not html or not docx_bytes:
+        return html
+    info = docx_theme_fonts(docx_bytes)
+    if not info["vietnamese"]:
+        return html
+    styles = (read_zip_entry(docx_bytes, "word/styles.xml") or b"").decode("utf-8", errors="replace")
+    document = (read_zip_entry(docx_bytes, "word/document.xml") or b"").decode("utf-8", errors="replace")
+    for latin, viet in ((info["major_latin"], info["major"]), (info["minor_latin"], info["minor"])):
+        if not latin or not viet or latin == viet:
+            continue
+        explicit = re.search(rf'w:(?:ascii|hAnsi)="{re.escape(latin)}"', styles + document)
+        if explicit:
+            continue
+        html = re.sub(rf'(face=["\']){re.escape(latin)}(?=[,"\'])', lambda m: m.group(1) + viet, html)
+        html = re.sub(rf'(font-family:\s*["\']?){re.escape(latin)}(?=["\',;])', lambda m: m.group(1) + viet, html)
+    return html
+
+
 def docx_default_font(docx_bytes: bytes) -> tuple[str, float | None]:
     """Font/cỡ chữ mặc định của tài liệu Word: style Normal (rFonts/sz), nếu không thì docDefaults;
     `w:asciiTheme="majorHAnsi|minorHAnsi"` giải qua theme1.xml (majorFont/minorFont latin).
@@ -2605,11 +2661,9 @@ def docx_default_font(docx_bytes: bytes) -> tuple[str, float | None]:
     docDefaults + theme (Arial), canvas rơi về Times New Roman NĐ30 → 199 đoạn lệch font trong 1 file.
     Returns (family, size_pt) — family "" nếu không xác định."""
     styles = (read_zip_entry(docx_bytes, "word/styles.xml") or b"").decode("utf-8", errors="replace")
-    theme = (read_zip_entry(docx_bytes, "word/theme/theme1.xml") or b"").decode("utf-8", errors="replace")
-    major = re.search(r"<a:majorFont>\s*<a:latin\b[^>]*typeface=\"([^\"]*)\"", theme)
-    minor = re.search(r"<a:minorFont>\s*<a:latin\b[^>]*typeface=\"([^\"]*)\"", theme)
-    theme_fonts = {"majorHAnsi": major.group(1) if major else "", "minorHAnsi": minor.group(1) if minor else "",
-                   "majorAscii": major.group(1) if major else "", "minorAscii": minor.group(1) if minor else ""}
+    resolved = docx_theme_fonts(docx_bytes)
+    theme_fonts = {"majorHAnsi": resolved["major"], "minorHAnsi": resolved["minor"],
+                   "majorAscii": resolved["major"], "minorAscii": resolved["minor"]}
 
     def pick(block: str) -> tuple[str, float | None]:
         fam = ""

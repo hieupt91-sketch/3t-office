@@ -46,9 +46,20 @@ def theme_fonts(docx):
         t = zipfile.ZipFile(docx).read("word/theme/theme1.xml").decode("utf-8", "replace")
     except Exception:
         return {}
-    major = re.search(r'<a:majorFont>\s*<a:latin\b[^>]*typeface="([^"]*)"', t)
-    minor = re.search(r'<a:minorFont>\s*<a:latin\b[^>]*typeface="([^"]*)"', t)
-    return {"+headings": (major.group(1) if major else "").lower(), "+body": (minor.group(1) if minor else "").lower()}
+    # W12b: tài liệu tiếng Việt (docDefaults w:lang="vi") → Word dùng <a:font script="Viet"> (TNR/Arial), không phải latin
+    try:
+        styles = zipfile.ZipFile(docx).read("word/styles.xml").decode("utf-8", "replace")
+    except Exception:
+        styles = ""
+    lang = re.search(r"<w:rPrDefault>.*?<w:lang\b[^>]*w:val=\"([^\"]*)\"", styles, re.S)
+    vietnamese = bool(lang and lang.group(1).lower().startswith("vi"))
+    def pick(kind):
+        block = re.search(rf"<a:{kind}>(.*?)</a:{kind}>", t, re.S)
+        if not block: return ""
+        latin = re.search(r'<a:latin\b[^>]*typeface="([^"]*)"', block.group(1))
+        viet = re.search(r'<a:font\b[^>]*script="Viet"[^>]*typeface="([^"]*)"', block.group(1))
+        return ((viet.group(1) if vietnamese and viet else (latin.group(1) if latin else ""))).lower()
+    return {"+headings": pick("majorFont"), "+body": pick("minorFont")}
 
 def contextual_spacing_from_docx(docx, word_rows):
     """Word COM NoSpaceBetweenParagraphsOfSameStyle trả False dù style có <w:contextualSpacing/> (đo d09: List

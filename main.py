@@ -857,7 +857,11 @@ class VnOfficeApi:
                     if src_path.lower().endswith(".docx"):
                         try:
                             with open(src_path, "rb") as f:
-                                content = _ooxml_zip_patch().inject_docx_default_font_css(f.read(), content)
+                                docx_bytes = f.read()
+                            patcher = _ooxml_zip_patch()
+                            # W12b: font theme của tài liệu tiếng Việt = typeface script="Viet" (Word), không phải latin
+                            content = patcher.apply_docx_theme_script_fonts(docx_bytes, content)
+                            content = patcher.inject_docx_default_font_css(docx_bytes, content)
                         except OSError:
                             pass
                 elif app_kind == "sheet":

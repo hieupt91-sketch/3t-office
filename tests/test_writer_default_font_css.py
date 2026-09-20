@@ -48,6 +48,34 @@ class DefaultFontCss(unittest.TestCase):
         html = '<html><head><style>p { font-size: 12pt } p.western { font-family: "Arial", sans-serif }</style></head></html>'
         self.assertEqual(patcher.inject_docx_default_font_css(docx, html), html)
 
+    def test_w12b_vietnamese_document_uses_theme_script_viet_fonts(self):
+        """Đo d07 (19/9): theme majorFont latin "Calibri Light" nhưng <a:font script="Viet" typeface="Times New Roman"/>;
+        docDefaults w:lang="vi" → Word COM Font.Name = Times New Roman, LibreOffice HTML ghi Calibri Light (23 đoạn cao
+        hơn 6–9%). Tài liệu không phải tiếng Việt vẫn dùng latin."""
+        theme = ('<a:theme xmlns:a="x"><a:fontScheme><a:majorFont><a:latin typeface="Calibri Light"/><a:font script="Jpan" typeface="X"/>'
+                 '<a:font script="Viet" typeface="Times New Roman"/></a:majorFont><a:minorFont><a:latin typeface="Calibri"/>'
+                 '<a:font script="Viet" typeface="Arial"/></a:minorFont></a:fontScheme></a:theme>')
+        def docx(lang, document='<w:document xmlns:w="w"><w:body><w:p><w:r><w:t>a</w:t></w:r></w:p></w:body></w:document>'):
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w") as z:
+                z.writestr("word/styles.xml", f'<w:styles xmlns:w="w"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:asciiTheme="minorHAnsi"/><w:sz w:val="22"/><w:lang w:val="{lang}"/></w:rPr></w:rPrDefault></w:docDefaults></w:styles>')
+                z.writestr("word/theme/theme1.xml", theme)
+                z.writestr("word/document.xml", document)
+            return buf.getvalue()
+        vi = patcher.docx_theme_fonts(docx("vi"))
+        self.assertEqual((vi["major"], vi["minor"], vi["vietnamese"]), ("Times New Roman", "Arial", True))
+        self.assertEqual(patcher.docx_default_font(docx("vi")), ("Arial", 11.0))
+        en = patcher.docx_theme_fonts(docx("en-US"))
+        self.assertEqual((en["major"], en["minor"]), ("Calibri Light", "Calibri"))
+        html = '<p><font face="Calibri Light, sans-serif"><font size="3">x</font></font></p><p style="font-family: \'Calibri\', sans-serif">y</p>'
+        out = patcher.apply_docx_theme_script_fonts(docx("vi"), html)
+        self.assertIn('face="Times New Roman, sans-serif"', out)
+        self.assertIn("font-family: 'Arial', sans-serif", out)
+        self.assertEqual(patcher.apply_docx_theme_script_fonts(docx("en-US"), html), html)
+        # Run đặt tường minh Calibri Light -> không thay (không thể phân biệt trong HTML)
+        explicit = docx("vi", '<w:document xmlns:w="w"><w:body><w:p><w:r><w:rPr><w:rFonts w:ascii="Calibri Light"/></w:rPr><w:t>a</w:t></w:r></w:p></w:body></w:document>')
+        self.assertIn('face="Calibri Light, sans-serif"', patcher.apply_docx_theme_script_fonts(explicit, html))
+
 
 if __name__ == "__main__":
     unittest.main()
