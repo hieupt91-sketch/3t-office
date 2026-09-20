@@ -36,11 +36,19 @@ function GetAlignment($range) {
     $alignMap = @{ 0="left"; 1="center"; 2="right"; 3="justify" }
     try { return $alignMap[[int]$range.ParagraphFormat.Alignment] } catch { return "" }
 }
+function NormalizeLineSpacing($rule, $spacing) {
+    if ([int]$rule -eq 0) { return 1.0 }
+    if ([int]$rule -eq 1) { return 1.5 }
+    if ([int]$rule -eq 2) { return 2.0 }
+    if ([int]$rule -eq 5) { return [double]$spacing / 12.0 }
+    return [double]$spacing
+}
 function GetLineSpacing($range) {
-    try { return [double]$range.ParagraphFormat.LineSpacing / [double]$range.Font.Size } catch { return 0 }
+    try { return NormalizeLineSpacing $range.ParagraphFormat.LineSpacingRule $range.ParagraphFormat.LineSpacing } catch { return 0 }
 }
 function GetLineSpacingRule($range) {
-    try { return [int]$range.ParagraphFormat.LineSpacingRule } catch { return 0 }
+    $labels = @{ 0="single"; 1="1.5 lines"; 2="double"; 3="at least"; 4="exactly"; 5="multiple" }
+    try { return $labels[[int]$range.ParagraphFormat.LineSpacingRule] } catch { return "" }
 }
 function GetFirstLineIndentCm($range) {
     try { return [math]::Round($range.ParagraphFormat.FirstLineIndent * $twip2cm, 2) } catch { return 0 }
@@ -64,6 +72,7 @@ function GetTableCellText($table, $row, $col) {
 if ($SelfTest) {
     if ((NormalizeTableCellText "merged$([char]13)$([char]7)") -ne "merged") { throw "Word cell terminator was not removed" }
     if ("$([bool]$true)" -ne "True") { throw "Boolean was not normalized to True" }
+    if ((NormalizeLineSpacing 1 18) -ne 1.5) { throw "wdLineSpace1pt5 was interpreted incorrectly" }
     Write-Output "SELFTEST=PASS"
     exit 0
 }
