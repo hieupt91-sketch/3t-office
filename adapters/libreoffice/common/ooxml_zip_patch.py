@@ -1118,12 +1118,16 @@ def parse_autofilter_from_fods(fods_xml: str | None) -> dict[str, str]:
         if not target_match:
             continue
         target = _unescape_xml(target_match.group(1))
-        # Format: SheetName.A1:D10
-        dot_idx = target.find(".")
-        if dot_idx == -1:
+        # S27a: Calc ghi 'Tên sheet'.A1:'Tên sheet'.D10 (định danh sheet ở CẢ HAI đầu, nháy đơn khi tên có dấu cách);
+        # autoFilter@ref của OOXML chỉ nhận vùng cục bộ A1:D10 (lan14: "A12:Sheet1.AW33632" làm Excel không mở).
+        range_match = re.match(
+            r"^(.+?)\.(\$?[A-Za-z]{1,3}\$?\d+):(?:.+\.)?(\$?[A-Za-z]{1,3}\$?\d+)$",
+            target,
+        )
+        if not range_match:
             continue
-        sheet_name = target[:dot_idx]
-        ref = target[dot_idx + 1:]
+        sheet_name = range_match.group(1).strip("'")
+        ref = f"{range_match.group(2)}:{range_match.group(3)}"
         if sheet_name and ref:
             result[sheet_name] = ref
     return result
@@ -1138,8 +1142,13 @@ def apply_autofilter_to_worksheet(sheet_xml: str, ref: str) -> str:
     xml = sheet_xml or ""
     if not ref:
         return xml
-    if _AUTOFILTER_REF_RE.search(xml):
-        return _AUTOFILTER_REF_RE.sub(f'<autoFilter ref="{ref}"/>', xml, count=1)
+    existing = _AUTOFILTER_REF_RE.search(xml)
+    if existing:
+        # S27a: chỉ thay giá trị ref, giữ nguyên thẻ (tự đóng hay cặp) và các <filterColumn> con — thay cả thẻ mở
+        # bằng thẻ tự đóng để dư </autoFilter> làm worksheet XML hỏng (lan11/lan14/lan20 Excel không mở).
+        tag = existing.group(0)
+        new_tag = re.sub(r'\bref="[^"]*"', f'ref="{ref}"', tag, count=1)
+        return xml[:existing.start()] + new_tag + xml[existing.end():]
     element_xml = f'<autoFilter ref="{ref}"/>'
     return _insert_worksheet_child_in_schema_order(xml, element_xml, "autoFilter")
 

@@ -124,3 +124,8 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 
 - **S26a — dữ liệu người dùng nhập:** chuỗi ngày Việt Nam `dd/mm/yyyy` được đổi sang serial Excel bằng thành phần ngày/giờ cục bộ nhưng phép tính UTC-safe; chuỗi giờ `hh:mm[:ss]` ở ô định dạng Time được đổi sang phần ngày. Dấu nháy đơn đầu vào là ký hiệu ép văn bản nên không trở thành nội dung ô. Vùng AutoFilter do người dùng chọn được giữ riêng, không tự nới theo used range. Mức thụt lề và dấu trừ của số âm màu đỏ phải được ghi rõ trong FODS.
 - **S26b — metadata LibreOffice làm đổi/rơi:** hậu xử lý XLSX thay phạm vi AutoFilter LibreOffice tự nới bằng đúng `table:database-range` trong FODS; `vno:print-title-rows/cols` được dựng thành defined name `_xlnm.Print_Titles` theo từng sheet.
+
+## S27 — Chạy lại toàn bộ LAN Sheet (21/09/2026)
+
+- **S27a — AutoFilter sau LibreOffice (Claude):** Calc ghi `table:target-range-address` định danh sheet ở CẢ HAI đầu (`'Tên'.A12:'Tên'.AW33632`) → `autoFilter@ref` chỉ nhận vùng cục bộ; khi thay ref của `<autoFilter>` có sẵn chỉ thay thuộc tính `ref`, giữ thẻ cặp và `<filterColumn>` con (S26b thay cả thẻ mở bằng thẻ tự đóng → dư `</autoFilter>`, lan11/lan14/lan20 Excel không mở). Khoá: test_sheet_s26_ooxml (S27a).
+
