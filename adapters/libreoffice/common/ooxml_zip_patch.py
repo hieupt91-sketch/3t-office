@@ -8185,6 +8185,44 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             cleaned = re.sub(r'<w:type\b[^>]*/>', '', final.group(0), flags=re.IGNORECASE)
             document_xml = document_xml[:final.start()] + cleaned + document_xml[final.end():]
 
+    # W22e: Định hướng trang Landscape cho từng section theo @page CSS
+    if section_ids:
+        section_orientations = {}
+        for sid in section_ids:
+            sec_page = re.search(rf"@page\s+(?:vno-)?{re.escape(sid)}\s*\{{([^}}]*)\}}", source_html, re.IGNORECASE)
+            if sec_page:
+                css = sec_page.group(1)
+                size_m = re.search(r"size\s*:\s*([\d.]+)mm\s+([\d.]+)mm", css, re.IGNORECASE)
+                if size_m and float(size_m.group(1)) > float(size_m.group(2)):
+                    section_orientations[sid] = "landscape"
+                elif re.search(r"\blandscape\b", css, re.IGNORECASE):
+                    section_orientations[sid] = "landscape"
+                else:
+                    section_orientations[sid] = "portrait"
+
+        sections = list(re.finditer(r'<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>', document_xml, re.IGNORECASE))
+        if len(sections) == len(section_ids):
+            for idx, sid in enumerate(section_ids):
+                if section_orientations.get(sid) == "landscape":
+                    sect_match = sections[idx]
+                    sect_content = sect_match.group(0)
+                    pgsz_m = re.search(r'<w:pgSz\b([^>]*)/?>', sect_content, re.IGNORECASE)
+                    if pgsz_m:
+                        w_m = re.search(r'\bw:w="(\d+)"', pgsz_m.group(1))
+                        h_m = re.search(r'\bw:h="(\d+)"', pgsz_m.group(1))
+                        if w_m and h_m:
+                            w_val, h_val = int(w_m.group(1)), int(h_m.group(1))
+                            land_w = max(w_val, h_val)
+                            land_h = min(w_val, h_val)
+                            if 15750 <= land_w <= 15900 and 12200 <= land_h <= 12300:
+                                land_w, land_h = 15840, 12240
+                            elif 16800 <= land_w <= 16900 and 11850 <= land_h <= 12000:
+                                land_w, land_h = 16838, 11906
+                            new_pgsz = f'<w:pgSz w:w="{land_w}" w:h="{land_h}" w:orient="landscape"/>'
+                            updated_sect = sect_content[:pgsz_m.start()] + new_pgsz + sect_content[pgsz_m.end():]
+                            document_xml = document_xml[:sect_match.start()] + updated_sect + document_xml[sect_match.end():]
+                            sections = list(re.finditer(r'<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>', document_xml, re.IGNORECASE))
+
     page = re.search(r"@page\s*\{[^}]*\bmargin\s*:\s*([\d.]+)mm\s+([\d.]+)mm\s+([\d.]+)mm\s+([\d.]+)mm", source_html, re.IGNORECASE)
     if page:
         top, right, bottom, left = (round(float(value) / 25.4 * 1440) for value in page.groups())
@@ -8197,6 +8235,230 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
                     tag = tag[:-2] + f' w:{name}="{value}"/>'
             return tag
         document_xml = re.sub(r"<w:pgMar\b[^>]*/>", patch_margin, document_xml, flags=re.IGNORECASE)
+
+    # W22a: Superscript / Subscript (<w:vertAlign>)
+    # LibreOffice HTML import turns <sup>/<sub> into <w:position w:val="..."/> (e.g. 8 for sup, -2 for sub).
+    # Word COM Font.Superscript/Subscript requires native <w:vertAlign w:val="superscript|subscript"/>.
+    # Chỉ đổi run có chữ đúng bằng nội dung <sup>/<sub> của HTML nguồn: `w:position` còn là "nâng/hạ chữ" hợp lệ
+    # của tài liệu nhập (hàm này chạy cho cả tài liệu mở từ DOCX), không được biến mọi run nâng/hạ thành chỉ số.
+    vert_align_texts: dict[str, set[str]] = {"superscript": set(), "subscript": set()}
+    for tag, val in (("sup", "superscript"), ("sub", "subscript")):
+        for m in re.finditer(rf"<{tag}\b[^>]*>([\s\S]*?)</{tag}\s*>", source_html, re.IGNORECASE):
+            txt = _writer_html_plain(m.group(1)).strip()
+            if txt:
+                vert_align_texts[val].add(txt)
+
+    if vert_align_texts["superscript"] or vert_align_texts["subscript"]:
+        def patch_vert_align(r_match: re.Match) -> str:
+            r = r_match.group(0)
+            pos = re.search(r'<w:position\s+w:val="(-?\d+)"\s*/>', r, re.IGNORECASE)
+            if not pos or pos.group(1) == "0":
+                return r
+            val = "subscript" if pos.group(1).startswith("-") else "superscript"
+            txt = html.unescape("".join(re.findall(r"<w:t\b[^>]*>([^<]*)</w:t>", r))).strip()
+            if txt not in vert_align_texts[val]:
+                return r
+            return r[:pos.start()] + f'<w:vertAlign w:val="{val}"/>' + r[pos.end():]
+
+        document_xml = re.sub(r'<w:r\b[^>]*>[\s\S]*?</w:r\s*>', patch_vert_align, document_xml, flags=re.IGNORECASE)
+
+    # W22b: Highlight text (<w:highlight>)
+    # LibreOffice HTML import drops <mark> and inline background-color.
+    highlight_texts: dict[str, str] = {}
+    for mark in re.finditer(r'<mark\b[^>]*>([\s\S]*?)</mark\s*>', source_html, re.IGNORECASE):
+        txt = _writer_html_plain(mark.group(1)).strip()
+        if txt:
+            highlight_texts[txt] = "yellow"
+    for span in re.finditer(r'<span\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>([\s\S]*?)</span\s*>', source_html, re.IGNORECASE):
+        style = span.group(1)
+        if re.search(r'background-color\s*:\s*(?:#ffff00|yellow|rgb\(\s*255\s*,\s*255\s*,\s*0\s*\))', style, re.IGNORECASE):
+            txt = _writer_html_plain(span.group(2)).strip()
+            if txt:
+                highlight_texts[txt] = "yellow"
+
+    if highlight_texts:
+        def patch_highlight(r_match: re.Match) -> str:
+            r = r_match.group(0)
+            t_m = re.search(r'<w:t\b[^>]*>([\s\S]*?)</w:t\s*>', r, re.IGNORECASE)
+            if not t_m:
+                return r
+            full_text = t_m.group(1)
+            for hl_text, hl_color in highlight_texts.items():
+                if hl_text == full_text.strip():
+                    if re.search(r'<w:highlight\b', r, re.IGNORECASE):
+                        return r
+                    if '<w:rPr>' in r:
+                        return r.replace('<w:rPr>', f'<w:rPr><w:highlight w:val="{hl_color}"/>')
+                    elif '<w:rPr/>' in r:
+                        return r.replace('<w:rPr/>', f'<w:rPr><w:highlight w:val="{hl_color}"/></w:rPr>')
+                    else:
+                        return r.replace('<w:r>', f'<w:r><w:rPr><w:highlight w:val="{hl_color}"/></w:rPr>')
+                elif hl_text in full_text:
+                    if re.search(r'<w:highlight\b', r, re.IGNORECASE):
+                        return r
+                    idx = full_text.find(hl_text)
+                    before_text = full_text[:idx]
+                    after_text = full_text[idx + len(hl_text):]
+                    res = []
+                    if before_text:
+                        res.append(f'<w:r><w:rPr></w:rPr><w:t xml:space="preserve">{before_text}</w:t></w:r>')
+                    res.append(f'<w:r><w:rPr><w:highlight w:val="{hl_color}"/></w:rPr><w:t>{hl_text}</w:t></w:r>')
+                    if after_text:
+                        res.append(f'<w:r><w:rPr></w:rPr><w:t xml:space="preserve">{after_text}</w:t></w:r>')
+                    return "".join(res)
+            return r
+
+        document_xml = re.sub(r'<w:r\b[^>]*>[\s\S]*?</w:r\s*>', patch_highlight, document_xml, flags=re.IGNORECASE)
+
+    # W22c: Chuẩn hóa kích thước trang Letter (12240 x 15840 twips = 612pt x 792pt)
+    # LibreOffice xuất 216mm x 279mm thành 12246 x 15817 twips khiến Word COM đọc là 791pt thay vì 792pt.
+    def patch_pgsz_letter(match: re.Match) -> str:
+        tag = match.group(0)
+        w_m = re.search(r'\bw:w="(\d+)"', tag)
+        h_m = re.search(r'\bw:h="(\d+)"', tag)
+        if not (w_m and h_m):
+            return tag
+        w_val, h_val = int(w_m.group(1)), int(h_m.group(1))
+        if 12200 <= w_val <= 12300 and 15750 <= h_val <= 15900:
+            tag = re.sub(r'\bw:w="\d+"', 'w:w="12240"', tag)
+            tag = re.sub(r'\bw:h="\d+"', 'w:h="15840"', tag)
+        elif 15750 <= w_val <= 15900 and 12200 <= h_val <= 12300:
+            tag = re.sub(r'\bw:w="\d+"', 'w:w="15840"', tag)
+            tag = re.sub(r'\bw:h="\d+"', 'w:h="12240"', tag)
+        return tag
+
+    document_xml = re.sub(r'<w:pgSz\b[^>]*/>', patch_pgsz_letter, document_xml, flags=re.IGNORECASE)
+
+    # W22d: Khôi phục ngắt trang thường (<w:pageBreakBefore/>)
+    # LibreOffice bỏ qua thuộc tính CSS page-break-before: always / break-before: page trên thẻ đoạn <p>.
+    page_break_texts = set()
+    for p_m in re.finditer(r'<p\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>([\s\S]*?)</p\s*>', source_html, re.IGNORECASE):
+        style = p_m.group(1)
+        if re.search(r'(?:^|;)\s*(?:page-break-before\s*:\s*always|break-before\s*:\s*page)(?:;|$)', style, re.IGNORECASE):
+            txt = _writer_html_plain(p_m.group(2)).strip()
+            if txt:
+                page_break_texts.add(txt)
+
+    if page_break_texts:
+        def patch_page_break(p_match: re.Match) -> str:
+            p = p_match.group(0)
+            if _paragraph_plain_text(p).strip() in page_break_texts:
+                if '<w:pageBreakBefore/>' not in p and '<w:pageBreakBefore ' not in p:
+                    if '<w:sectPr' in p:
+                        p = p.replace('<w:sectPr', '<w:pageBreakBefore/><w:sectPr')
+                    elif '<w:rPr' in p:
+                        p = p.replace('<w:rPr', '<w:pageBreakBefore/><w:rPr')
+                    elif '</w:pPr>' in p:
+                        p = p.replace('</w:pPr>', '<w:pageBreakBefore/></w:pPr>')
+                    else:
+                        p = re.sub(r'(<w:p\b[^>]*>)', r'\1<w:pPr><w:pageBreakBefore/></w:pPr>', p, count=1)
+            return p
+
+        document_xml = re.sub(r'<w:p\b[^>]*>[\s\S]*?</w:p\s*>', patch_page_break, document_xml, flags=re.IGNORECASE)
+
+    # W22f: Khôi phục bề rộng cột bảng (w:gridCol & w:tcW) từ style width: ...cm của ô
+    # LibreOffice HTML import bỏ qua thuộc tính width trên ô <td>, chia đều bề rộng các cột.
+    table_col_widths: list[dict[int, int]] = []
+    for tbl_match in re.finditer(r'<table\b[^>]*>([\s\S]*?)</table\s*>', source_html, re.IGNORECASE):
+        tbl_html = tbl_match.group(1)
+        first_tr = re.search(r'<tr\b[^>]*>([\s\S]*?)</tr\s*>', tbl_html, re.IGNORECASE)
+        col_map: dict[int, int] = {}
+        if first_tr:
+            for c_idx, td_match in enumerate(re.finditer(r'<t[dh]\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>', first_tr.group(1), re.IGNORECASE)):
+                w_m = re.search(r'(?:^|;)\s*width\s*:\s*([\d.]+)cm(?:;|$)', td_match.group(1), re.IGNORECASE)
+                if w_m:
+                    cm_val = float(w_m.group(1))
+                    pt_val = round(cm_val / 2.54 * 72, 1)
+                    col_map[c_idx] = int(round(pt_val * 20))
+        table_col_widths.append(col_map)
+
+    if any(table_col_widths):
+        tbl_idx = 0
+        def patch_table(tbl_m: re.Match) -> str:
+            nonlocal tbl_idx
+            t_xml = tbl_m.group(0)
+            if tbl_idx < len(table_col_widths) and table_col_widths[tbl_idx]:
+                c_map = table_col_widths[tbl_idx]
+                grid_m = re.search(r'<w:tblGrid\b[^>]*>([\s\S]*?)</w:tblGrid\s*>', t_xml, re.IGNORECASE)
+                if grid_m:
+                    cols = list(re.finditer(r'<w:gridCol\b[^>]*w:w="(\d+)"[^>]*/>', grid_m.group(1), re.IGNORECASE))
+                    if cols:
+                        col_diff = 0
+                        new_cols_xml = []
+                        for i, col in enumerate(cols):
+                            old_w = int(col.group(1))
+                            if i in c_map:
+                                new_w = c_map[i]
+                                col_diff += (new_w - old_w)
+                                new_cols_xml.append(f'<w:gridCol w:w="{new_w}"/>')
+                            else:
+                                new_cols_xml.append(col.group(0))
+                        new_grid = f'<w:tblGrid>{"".join(new_cols_xml)}</w:tblGrid>'
+                        t_xml = t_xml[:grid_m.start()] + new_grid + t_xml[grid_m.end():]
+
+                        tbl_w_m = re.search(r'<w:tblW\b[^>]*w:w="(\d+)"[^>]*/>', t_xml, re.IGNORECASE)
+                        if tbl_w_m:
+                            total_w = int(tbl_w_m.group(1)) + col_diff
+                            t_xml = t_xml[:tbl_w_m.start()] + f'<w:tblW w:w="{total_w}" w:type="dxa"/>' + t_xml[tbl_w_m.end():]
+
+                        def patch_row(r_m: re.Match) -> str:
+                            r_xml = r_m.group(0)
+                            cells = list(re.finditer(r'<w:tc\b[\s\S]*?</w:tc\s*>', r_xml, re.IGNORECASE))
+                            for c_i, cell in enumerate(cells):
+                                if c_i in c_map:
+                                    target_w = c_map[c_i]
+                                    cell_str = cell.group(0)
+                                    cell_str = re.sub(r'<w:tcW\b[^>]*/>', f'<w:tcW w:w="{target_w}" w:type="dxa"/>', cell_str, count=1, flags=re.IGNORECASE)
+                                    r_xml = r_xml[:cell.start()] + cell_str + r_xml[cell.end():]
+                                    cells = list(re.finditer(r'<w:tc\b[\s\S]*?</w:tc\s*>', r_xml, re.IGNORECASE))
+                            return r_xml
+
+                        t_xml = re.sub(r'<w:tr\b[\s\S]*?</w:tr\s*>', patch_row, t_xml, flags=re.IGNORECASE)
+            tbl_idx += 1
+            return t_xml
+
+        document_xml = re.sub(r'<w:tbl\b[\s\S]*?</w:tbl\s*>', patch_table, document_xml, flags=re.IGNORECASE)
+
+    # W22g: Khôi phục tab stop (<w:tabs><w:tab w:val="left" w:pos="..."/>)
+    # LibreOffice HTML import bỏ qua CSS tab-size trên đoạn văn.
+    tab_stops_by_text: dict[str, int] = {}
+    for p_m in re.finditer(r'<p\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>([\s\S]*?)</p\s*>', source_html, re.IGNORECASE):
+        style = p_m.group(1)
+        tab_m = re.search(r'(?:^|;)\s*tab-size\s*:\s*([\d.]+)cm(?:;|$)', style, re.IGNORECASE)
+        if tab_m:
+            cm_v = float(tab_m.group(1))
+            pt_v = round(cm_v / 2.54 * 72, 1)
+            tw_v = int(round(pt_v * 20))
+            txt = re.sub(r'\s+', ' ', _writer_html_plain(p_m.group(2))).strip()
+            if txt:
+                tab_stops_by_text[txt] = tw_v
+
+    if tab_stops_by_text:
+        def patch_tab_stop(p_match: re.Match) -> str:
+            p = p_match.group(0)
+            p_text = _paragraph_plain_text(p).strip()
+            twips = tab_stops_by_text.get(p_text)
+            if twips:
+                tab_xml = f'<w:tabs><w:tab w:val="left" w:pos="{twips}"/></w:tabs>'
+                if '<w:tabs' in p:
+                    p = re.sub(r'<w:tabs\b[\s\S]*?</w:tabs>', tab_xml, p)
+                elif '<w:bidi' in p:
+                    p = p.replace('<w:bidi', f'{tab_xml}<w:bidi')
+                elif '<w:spacing' in p:
+                    p = p.replace('<w:spacing', f'{tab_xml}<w:spacing')
+                elif '<w:ind' in p:
+                    p = p.replace('<w:ind', f'{tab_xml}<w:ind')
+                elif '<w:jc' in p:
+                    p = p.replace('<w:jc', f'{tab_xml}<w:jc')
+                elif '<w:rPr' in p:
+                    p = p.replace('<w:rPr', f'{tab_xml}<w:rPr')
+                elif '</w:pPr>' in p:
+                    p = p.replace('</w:pPr>', f'{tab_xml}</w:pPr>')
+                else:
+                    p = re.sub(r'(<w:p\b[^>]*>)', rf'\1<w:pPr>{tab_xml}</w:pPr>', p, count=1)
+            return p
+
+        document_xml = re.sub(r'<w:p\b[^>]*>[\s\S]*?</w:p\s*>', patch_tab_stop, document_xml, flags=re.IGNORECASE)
 
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
     numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")

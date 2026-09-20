@@ -110,6 +110,137 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertIn('<w:numFmt w:val="bullet"/>', patched)
         self.assertIn('<w:lvlText w:val="•"/>', patched)
 
+    def test_w22a_created_document_superscript_and_subscript(self):
+        converted = _build_minimal_docx(
+            '<w:p>'
+            '<w:r><w:t>x</w:t></w:r>'
+            '<w:r><w:rPr><w:position w:val="8"/></w:rPr><w:t>2</w:t></w:r>'
+            '<w:r><w:t>H</w:t></w:r>'
+            '<w:r><w:rPr><w:position w:val="-2"/></w:rPr><w:t>2</w:t></w:r>'
+            '<w:r><w:t>O</w:t></w:r>'
+            '</w:p>'
+            '<w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html='<p>x<sup>2</sup> H<sub>2</sub>O</p>',
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:vertAlign w:val="superscript"/>', document)
+        self.assertIn('<w:vertAlign w:val="subscript"/>', document)
+
+    def test_w22a_keeps_raised_text_that_is_not_sup_sub(self):
+        # w:position la "nang/ha chu" hop le cua tai lieu nhap (ham chay cho ca tai lieu mo tu DOCX):
+        # run khong den tu <sup>/<sub> trong HTML nguon phai giu nguyen w:position.
+        converted = _build_minimal_docx(
+            '<w:p>'
+            '<w:r><w:rPr><w:position w:val="6"/></w:rPr><w:t>Chữ nâng</w:t></w:r>'
+            '<w:r><w:rPr><w:position w:val="8"/></w:rPr><w:t>2</w:t></w:r>'
+            '</w:p>'
+            '<w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html='<p><span style="position: relative; top: -3pt">Chữ nâng</span> x<sup>2</sup></p>',
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:position w:val="6"/></w:rPr><w:t>Chữ nâng</w:t>', document)
+        self.assertIn('<w:vertAlign w:val="superscript"/></w:rPr><w:t>2</w:t>', document)
+        self.assertNotIn('<w:vertAlign w:val="subscript"/>', document)
+
+    def test_w22b_created_document_highlight(self):
+        converted = _build_minimal_docx(
+            '<w:p>'
+            '<w:r><w:t>Prefix </w:t></w:r>'
+            '<w:r><w:t>Chữ highlight vàng</w:t></w:r>'
+            '</w:p>'
+            '<w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html='<p>Prefix <mark style="background-color: rgb(255, 255, 0);">Chữ highlight vàng</mark></p>',
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:highlight w:val="yellow"/>', document)
+
+    def test_w22c_created_document_letter_size(self):
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Letter page</w:t></w:r></w:p>'
+            '<w:sectPr><w:pgSz w:w="12246" w:h="15817"/></w:sectPr>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html='@page { size: 216mm 279mm; margin: 20mm; }<p>Letter page</p>',
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:pgSz w:w="12240" w:h="15840"/>', document)
+
+    def test_w22d_created_document_normal_page_break(self):
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Page 1 text</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Page 2 break text</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html='<p>Page 1 text</p><p style="page-break-before: always;">Page 2 break text</p>',
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:pageBreakBefore/>', document)
+
+    def test_w22e_created_document_section_landscape(self):
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Section 1 text</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Section 2 text</w:t></w:r></w:p>'
+            '<w:sectPr><w:pgSz w:w="12246" w:h="15817"/></w:sectPr>'
+        )
+        source_html = (
+            '@page vno-section-1 { size: 216mm 279mm; }\n'
+            '@page vno-section-2 { size: 279mm 216mm; }\n'
+            '<div data-vno-export-section="section-1"><p>Section 1 text</p></div>'
+            '<div data-vno-export-section="section-2"><p>Section 2 text</p></div>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html=source_html,
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('w:orient="landscape"', document)
+        self.assertIn('<w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/>', document)
+
+    def test_w22f_created_document_table_column_width(self):
+        converted = _build_minimal_docx(
+            '<w:tbl>'
+            '<w:tblPr><w:tblW w:w="3624" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="1203"/><w:gridCol w:w="1188"/><w:gridCol w:w="1233"/></w:tblGrid>'
+            '<w:tr><w:tc><w:tcPr><w:tcW w:w="1203" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>Col 1</w:t></w:r></w:p></w:tc></w:tr>'
+            '</w:tbl>'
+            '<w:sectPr/>'
+        )
+        source_html = (
+            '<table><tr><td style="width: 3cm;">Col 1</td><td>Col 2</td><td>Col 3</td></tr></table>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html=source_html,
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:gridCol w:w="1700"/>', document)
+        self.assertIn('<w:tcW w:w="1700" w:type="dxa"/>', document)
+
+    def test_w22g_created_document_tab_stop(self):
+        converted = _build_minimal_docx(
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/></w:pPr><w:r><w:t>Col 1 Col 2 after Tab 5cm</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        source_html = '<p style="tab-size: 5cm;">Col 1\tCol 2 after Tab 5cm</p>'
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html=source_html,
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:tabs><w:tab w:val="left" w:pos="2834"/></w:tabs>', document)
+
     def test_w20e_created_document_break_is_before_second_section_text(self):
         converted = _build_minimal_docx(
             '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'
