@@ -2756,7 +2756,10 @@ export class WriterAdapter {
       if (spec.atLeastTwips !== null) {
         // W12c: "ít nhất X" = MAX(X, dòng tự nhiên = 1em × tỉ số font (W1)); LibreOffice chỉ ghi X tuyệt đối
         const pt = Math.round(spec.atLeastTwips / 20 * 100) / 100;
-        decls.push(`line-height: max(${pt}pt, calc(1em * var(--vno-font-ratio, 1.15)))`);
+        // Chỉ can thiệp khi giá trị "ít nhất" nhỏ hơn mọi dòng tự nhiên có thể (< 8pt: d06 dùng 0,5pt = "single"):
+        // line-height: normal = ascent+descent+lineGap của font = dòng tự nhiên (W1). Giá trị ≥ 8pt giữ nguyên số
+        // LibreOffice ghi (đo d07: áp max() cho 6 đoạn 15pt làm canvas thêm 1 trang so với Word 23).
+        if (pt < 8) decls.push("line-height: normal");
       }
       if (!decls.length) return fullTag;
 

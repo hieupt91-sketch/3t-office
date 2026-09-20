@@ -1,10 +1,10 @@
-import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
+﻿import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
 
-// Đo thật 2026-09-15 (HDLD.docx, Word 2016 COM): Arial 12pt w:line=312 → Word 19.1pt/dòng
-// (= 1.3 × chiều cao dòng tự nhiên của Calibri Light 1.2207), CSS 130% chỉ cho 20.8px;
-// hai đoạn sa=6pt / sb=6pt cách nhau 6pt (MAX, gộp lề như CSS), không phải 12pt.
-// MYTIME.docx: đoạn chỉ chứa ảnh neo được LibreOffice xuất `<span>…</span><br/><br/>`
-// (2 dòng) trong khi Word vẽ 1 dòng.
+// Äo tháº­t 2026-09-15 (HDLD.docx, Word 2016 COM): Arial 12pt w:line=312 â†’ Word 19.1pt/dÃ²ng
+// (= 1.3 Ã— chiá»u cao dÃ²ng tá»± nhiÃªn cá»§a Calibri Light 1.2207), CSS 130% chá»‰ cho 20.8px;
+// hai Ä‘oáº¡n sa=6pt / sb=6pt cÃ¡ch nhau 6pt (MAX, gá»™p lá» nhÆ° CSS), khÃ´ng pháº£i 12pt.
+// MYTIME.docx: Ä‘oáº¡n chá»‰ chá»©a áº£nh neo Ä‘Æ°á»£c LibreOffice xuáº¥t `<span>â€¦</span><br/><br/>`
+// (2 dÃ²ng) trong khi Word váº½ 1 dÃ²ng.
 
 function check(value, message) { if (!value) throw new Error(message); }
 
@@ -41,7 +41,7 @@ export async function runWriterDocFontSpacingTests() {
     check(!/vno-font-ratio|--vno-lh/.test(out), `no vno custom properties may leak to LibreOffice: ${out}`);
   });
 
-  test("Import→export round trip keeps 130% exactly", () => {
+  test("Importâ†’export round trip keeps 130% exactly", () => {
     const adapter = new WriterAdapter(null);
     const src = '<p style="line-height: 130%; margin-top: 0.21cm">a</p><p style="line-height: 115%">b</p>';
     const out = adapter._restoreProportionalLineHeightsForExport(adapter._encodeProportionalLineHeights(src));
@@ -74,7 +74,7 @@ export async function runWriterDocFontSpacingTests() {
     const block = { style: style(), parentElement: null, closest: () => null, querySelectorAll: () => [] };
     const outer = { style: style(), parentElement: block, childNodes: [], closest: () => null };
     const inner = { style: style(), parentElement: outer, childNodes: [], closest: () => null };
-    const textNode = { nodeType: 3, textContent: "Từ những thay đổi", parentElement: inner };
+    const textNode = { nodeType: 3, textContent: "Tá»« nhá»¯ng thay Ä‘á»•i", parentElement: inner };
     inner.childNodes = [textNode];
     outer.childNodes = [inner];
     block.childNodes = [outer];
@@ -127,7 +127,7 @@ export async function runWriterDocFontSpacingTests() {
   });
 
   test("W11: table-cell paragraphs take spacing/line from the paragraph pPr and the table style (TableGrid)", () => {
-    // d13.docx: LibreOffice bỏ w:spacing after=0 trong ô và không áp TableGrid (after=0, line=240) → hàng 28px thay vì 14px.
+    // d13.docx: LibreOffice bá» w:spacing after=0 trong Ã´ vÃ  khÃ´ng Ã¡p TableGrid (after=0, line=240) â†’ hÃ ng 28px thay vÃ¬ 14px.
     const adapter = new WriterAdapter(null);
     const html = '<p>before</p><table><tr><td><p class="western" style="widows: 2">A</p></td><td><p style="margin-bottom: 0.5cm">B</p></td></tr></table>';
     const doc = '<w:document><w:body><w:p><w:r><w:t>before</w:t></w:r></w:p><w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/></w:tblPr><w:tr><w:tc><w:p><w:pPr><w:spacing w:after="0"/></w:pPr><w:r><w:t>A</w:t></w:r></w:p></w:tc><w:tc><w:p><w:pPr><w:spacing w:before="120" w:line="360" w:lineRule="auto"/></w:pPr><w:r><w:t>B</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>';
@@ -138,7 +138,7 @@ export async function runWriterDocFontSpacingTests() {
     check(out.startsWith("<p>before</p>"), "paragraphs outside tables must not change");
   });
 
-  test("Imported document class toggles with docStyles (NĐ30 table margins off)", () => {
+  test("Imported document class toggles with docStyles (NÄ30 table margins off)", () => {
     const classes = new Set();
     const editor = {
       style: { setProperty(k, v) { this[k] = v; }, removeProperty(k) { delete this[k]; } },
@@ -185,8 +185,8 @@ export async function runWriterDocFontSpacingTests() {
   });
 
   test("W12c: lineRule=atLeast becomes max(value, natural line) instead of LibreOffice's absolute line-height", () => {
-    // Đo d06 (19/9): <w:spacing w:line="10" w:lineRule="atLeast"/> (0,5pt) → LibreOffice line-height: 0.02cm → canvas 0,76 px;
-    // Word vẽ 1 dòng tự nhiên (Calibri 12: 19–20 px). 15 đoạn.
+    // Äo d06 (19/9): <w:spacing w:line="10" w:lineRule="atLeast"/> (0,5pt) â†’ LibreOffice line-height: 0.02cm â†’ canvas 0,76 px;
+    // Word váº½ 1 dÃ²ng tá»± nhiÃªn (Calibri 12: 19â€“20 px). 15 Ä‘oáº¡n.
     const adapter = new WriterAdapter(null);
     const html = '<p style="line-height: 0.02cm; margin-bottom: 0.28cm">SS04</p><p style="line-height: 0.02cm">Via</p><p style="line-height: 1.5cm">Exact</p>';
     const doc = '<w:document><w:body><w:p><w:pPr><w:spacing w:after="160" w:line="10" w:lineRule="atLeast"/></w:pPr><w:r><w:t>SS04</w:t></w:r></w:p>'
@@ -194,8 +194,9 @@ export async function runWriterDocFontSpacingTests() {
       + '<w:p><w:pPr><w:spacing w:line="850" w:lineRule="exact"/></w:pPr><w:r><w:t>Exact</w:t></w:r></w:p></w:body></w:document>';
     const stylesXml = '<w:styles><w:style w:type="paragraph" w:styleId="Tight"><w:pPr><w:spacing w:line="240" w:lineRule="atLeast"/></w:pPr></w:style></w:styles>';
     const out = adapter._applyOoxmlContextualSpacing(html, doc, stylesXml);
-    check(out.includes('line-height: max(0.5pt, calc(1em * var(--vno-font-ratio, 1.15)))') && out.includes("SS04"), `atLeast on paragraph: ${out}`);
-    check(out.includes('line-height: max(12pt, calc(1em * var(--vno-font-ratio, 1.15)))'), `atLeast via style chain: ${out}`);
+    // atLeast 0,5pt (< 8pt) → dòng tự nhiên; atLeast 12pt (≥ 8pt) giữ số LibreOffice ghi (đo d07: max() làm thêm 1 trang)
+    check(/<p style="[^"]*line-height: normal[^"]*">SS04<\/p>/.test(out), `atLeast 0.5pt -> normal: ${out}`);
+    check(out.includes('<p style="line-height: 0.02cm">Via</p>'), `atLeast 12pt keeps LibreOffice value: ${out}`);
     check(out.includes('<p style="line-height: 1.5cm">Exact</p>'), `exact must stay absolute: ${out}`);
   });
 
