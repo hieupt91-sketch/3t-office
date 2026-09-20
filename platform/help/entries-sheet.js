@@ -7,6 +7,21 @@ import { registerHelpEntries } from "./help-catalog.js";
 
 export const SHEET_HELP_ENTRIES = [
   {
+    id: "sheet.format.defaultWorkbook",
+    app: "sheet",
+    commandIds: ["sheet.font.family", "sheet.font.size", "sheet.font.grow", "sheet.font.shrink"],
+    title: "Mặc định trang tính mới và cỡ chữ",
+    summary: "Trang tính mới dùng Calibri 11 pt, hàng cao 20 px và cột rộng 64 px như Excel 2016. Cỡ chữ trên ribbon được tính theo point (pt).",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+    keywords: ["mặc định", "Calibri 11", "cỡ chữ", "font size", "chiều cao hàng", "độ rộng cột", "point", "pt"],
+    steps: [
+      "Tạo bảng tính mới: các ô chưa định dạng dùng Calibri 11 pt; hàng mặc định cao 20 px và cột mặc định rộng 64 px.",
+      "Để đổi cỡ chữ, chọn ô hoặc vùng rồi mở tab Trang đầu, nhóm Phông chữ và chọn số trong hộp Cỡ chữ. Số 14 nghĩa là 14 pt và khi lưu XLSX, Excel đọc lại đúng 14 pt.",
+      "Dùng nút Tăng cỡ chữ hoặc Giảm cỡ chữ cạnh hộp Cỡ chữ để chuyển theo các bậc 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48 và 72 pt.",
+      "Muốn đổi kích thước hàng hoặc cột riêng: tab Trang đầu → nhóm Ô → Định dạng → Chiều cao hàng... hoặc Độ rộng cột...."
+    ]
+  },
+  {
     id: "sheet.formula.basic",
     app: "sheet",
     commandIds: [

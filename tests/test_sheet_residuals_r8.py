@@ -27,10 +27,10 @@ def package(workbook, sheet, styles=None, shared=None, drawing=None, linked=Fals
 
 
 class ResidualLayersR8Tests(unittest.TestCase):
-    def test_column_width_snaps_two_pixel_roundtrip_drift(self):
+    def test_column_width_uses_s24_direct_pixel_convention(self):
         xml = '<worksheet><dimension ref="A1:A2"/><cols><col min="1" max="1" width="8" customWidth="1"/></cols></worksheet>'
         out = patcher._restore_column_widths(xml, {"A": 1.6933}, 7.0, source_explicit_cols={1}, source_widths={1: 8.25})
-        self.assertIn('width="8.25"', out)
+        self.assertIn('width="9.14"', out)
 
     def test_sheet_name_escape_and_hidden_state_restored_by_order(self):
         out = '<workbook><sheets><sheet name="Bang " sheetId="1" r:id="rId1"/></sheets></workbook>'

@@ -7,8 +7,10 @@ from the FODS cm widths with the original digit width, writes back columns Libre
 dropped, and keeps sheetFormatPr in its schema slot.
 """
 import importlib.util
+import io
 import os
 import unittest
+import zipfile
 
 
 ROOT = os.path.dirname(os.path.dirname(__file__))
@@ -19,6 +21,25 @@ SPEC.loader.exec_module(patcher)
 
 
 class NormalFontRestore(unittest.TestCase):
+    def test_hidden_sheets_are_visible_only_in_temporary_import_copy(self):
+        package = io.BytesIO()
+        with zipfile.ZipFile(package, "w") as archive:
+            archive.writestr(
+                "xl/workbook.xml",
+                '<workbook><sheets><sheet name="Visible" sheetId="1"/>'
+                '<sheet name="Hidden" sheetId="2" state="hidden"/>'
+                '<sheet name="Very" sheetId="3" state="veryHidden"/>'
+                '</sheets></workbook>',
+            )
+        original = package.getvalue()
+        patched = patcher.make_all_sheets_visible_for_import(original)
+        workbook = patcher.read_zip_entry(patched, "xl/workbook.xml").decode("utf-8")
+        self.assertNotIn('state="hidden"', workbook)
+        self.assertNotIn('state="veryHidden"', workbook)
+        original_workbook = patcher.read_zip_entry(original, "xl/workbook.xml").decode("utf-8")
+        self.assertIn('state="hidden"', original_workbook)
+        self.assertIn('state="veryHidden"', original_workbook)
+
     def test_first_font_is_replaced_verbatim(self):
         styles = '<styleSheet><fonts count="2"><font><sz val="10"/><name val="Arial"/><family val="2"/></font><font><b/><sz val="12"/><name val="Times New Roman"/></font></fonts></styleSheet>'
         original = '<font><sz val="11"/><color theme="1"/><name val="Arial"/><scheme val="minor"/></font>'
@@ -33,21 +54,21 @@ class ColumnWidthRestore(unittest.TestCase):
         sheet = ('<worksheet><dimension ref="A1:F20"/><sheetFormatPr defaultColWidth="12.625" defaultRowHeight="15"></sheetFormatPr>'
                  '<cols><col collapsed="false" customWidth="true" max="2" min="1" style="0" width="35.27"/>'
                  '<col max="3" min="3" width="34.19" bestFit="true"/></cols><sheetData/></worksheet>')
-        # 10 cm in the app -> 378 px -> (377.95-5)/8 = 46.62 chars with Arial 11.
+        # S24: 10 cm in the app -> 378 px -> 377.95/8 = 47.24 chars with Arial 11.
         widths = {"A": 10.0, "B": 10.0, "C": 6.694, "D": 2.249, "E": 2.8046, "F": 2.249}
         out = patcher._restore_column_widths(sheet, widths, 8.0, 12.625)
-        self.assertIn('max="1" min="1" style="0" width="46.62"', out)
+        self.assertIn('max="1" min="1" style="0" width="47.24"', out)
         self.assertIn('customWidth="1"', out)
         self.assertNotIn('bestFit', out)
-        # C = 6.694 cm -> 253 px -> 31.00 chars
-        self.assertIn('max="3" min="3" width="31.00"', out)
-        # D (85 px -> 10.00 chars) was dropped by LibreOffice and must be written back...
-        self.assertIn('<col min="4" max="4" width="10.00" customWidth="1"/>', out)
-        # ...but E equals the workbook default (12.625 chars = 106 px = 2.8046 cm) and stays implicit.
-        self.assertNotIn('min="5"', out)
-        self.assertIn('<col min="6" max="6" width="10.00" customWidth="1"/>', out)
+        # C = 6.694 cm -> 253 px -> 31.63 chars
+        self.assertIn('max="3" min="3" width="31.63"', out)
+        # D (85 px -> 10.63 chars) was dropped by LibreOffice and must be written back...
+        self.assertIn('<col min="4" max="4" width="10.63" customWidth="1"/>', out)
+        # E no longer equals 12.625 chars under S24's direct px/MDW convention.
+        self.assertIn('<col min="5" max="5" width="13.25" customWidth="1"/>', out)
+        self.assertIn('<col min="6" max="6" width="10.63" customWidth="1"/>', out)
         cols = out.split("<cols>")[1].split("</cols>")[0]
-        self.assertEqual([int(x) for x in __import__("re").findall(r'min="(\d+)"', cols)], [1, 2, 3, 4, 6])
+        self.assertEqual([int(x) for x in __import__("re").findall(r'min="(\d+)"', cols)], [1, 2, 3, 4, 5, 6])
 
 
     def test_s11_source_default_columns_stay_implicit(self):
@@ -60,18 +81,18 @@ class ColumnWidthRestore(unittest.TestCase):
                     '<col collapsed="false" customWidth="1" hidden="true" outlineLevel="0" max="4" min="4" style="0" width="8.43"/>'
                     '</cols><sheetData/></worksheet>')
         source_sheet = '<worksheet><cols><col min="2" max="2" width="47.54296875" customWidth="1"/></cols><sheetData/></worksheet>'
-        # 64px = 1.6933cm -> chars_for = 8.43; B 338px = 8.9429cm -> 47.57
+        # S24: 64px = 1.6933cm -> chars_for = 9.14; B 338px -> 48.29.
         widths = {"A": 1.6933, "B": 8.9429, "C": 1.6933, "D": 1.6933}
         explicit = patcher._source_columns_with_explicit_width(source_sheet)
         self.assertEqual(explicit, {2})
-        default_chars = patcher._unchanged_default_column_chars({}, 7.0)
-        self.assertAlmostEqual(default_chars, 8.43, places=2)
+        default_chars = 64.0 / 7.0
+        self.assertAlmostEqual(default_chars, 9.14, places=2)
         out = patcher._restore_column_widths(lo_sheet, widths, 7.0, None, source_explicit_cols=explicit, default_display_chars=default_chars)
         cols = out.split("<cols>")[1].split("</cols>")[0]
         # A, C: cột mặc định của file gốc, app không đổi -> không ghi <col>
         self.assertNotIn('min="1"', cols); self.assertNotIn('min="3"', cols)
         # B: có width trong file gốc -> ghi lại theo app
-        self.assertIn('max="2" min="2" style="0" width="47.57"', cols)
+        self.assertIn('max="2" min="2" style="0" width="48.29"', cols)
         # D: cột ẩn giữ <col hidden> nhưng không có width
         self.assertIn('hidden="true"', cols); self.assertNotIn('min="4" style="0" width', cols)
         # Mọi cột đều mặc định -> bỏ hẳn <cols> (CT_Cols rỗng làm Excel từ chối file: lan21/lan22 vòng 6)
@@ -80,7 +101,7 @@ class ColumnWidthRestore(unittest.TestCase):
         self.assertNotIn("<cols>", out_none); self.assertIn("<sheetData/>", out_none)
         # Cột mặc định bị app đổi (C rộng 100px = 2.6458cm -> 13.57 chars) thì vẫn ghi
         out2 = patcher._restore_column_widths(lo_sheet, {**widths, "C": 2.6458}, 7.0, None, source_explicit_cols=explicit, default_display_chars=default_chars)
-        self.assertIn('max="3" min="3" style="0" width="13.57"', out2)
+        self.assertIn('max="3" min="3" style="0" width="14.29"', out2)
         # baseColWidth=10 (lan01/lan28): mặc định = 10 + 3/7 = 10.43; app trả 10.57 -> vẫn là mặc định
         self.assertAlmostEqual(patcher._unchanged_default_column_chars({"baseColWidth": 10}, 7.0), 10.4286, places=3)
         # Calibri 12 (MDW 8): mặc định 8.375, app trả 8.00 (lan21) -> vẫn là mặc định

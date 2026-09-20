@@ -30,8 +30,8 @@ export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
   printTitles: Object.freeze({ rows: "", cols: "" })
 });
 
-export const DEFAULT_ROW_HEIGHT_PX = 26;
-export const DEFAULT_COL_WIDTH_PX = 100;
+export const DEFAULT_ROW_HEIGHT_PX = 20;
+export const DEFAULT_COL_WIDTH_PX = 64;
 export const MIN_ROW_HEIGHT_PX = 1;
 export const MAX_ROW_HEIGHT_PX = 409;
 export const MIN_COL_WIDTH_PX = 8;
@@ -4788,7 +4788,7 @@ export class SheetGridController {
 
       let leftAcc = 44;
       for (let i = 0; i < colIdx; i++) {
-        leftAcc += typeof this.getColumnWidth === "function" ? this.getColumnWidth(this.cols[i]) : (this.defaultColWidth || 100);
+        leftAcc += typeof this.getColumnWidth === "function" ? this.getColumnWidth(this.cols[i]) : (this.defaultColWidth || DEFAULT_COL_WIDTH_PX);
       }
       const offsetXPx = Number.isFinite(Number(image.offsetXCm))
         ? Number(image.offsetXCm) * 37.79527559055118
@@ -5931,15 +5931,17 @@ export class SheetGridController {
   }
 
   setFontSize(size) {
-    const numericSize = Number.parseInt(size, 10);
+    const numericSize = Number.parseFloat(size);
     if (!Number.isFinite(numericSize) || numericSize < 1 || numericSize > 409) return false;
-    return this.setStyle("fontSize", `${numericSize}px`);
+    const px = Math.round(numericSize * 4 / 3 * 100) / 100;
+    return this.setStyle("fontSize", `${px}px`);
   }
 
   adjustFontSize(direction) {
     const steps = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72];
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-    const current = Number.parseInt(this.cellsData.get(key)?.style?.fontSize, 10) || 11;
+    const currentPx = Number.parseFloat(this.cellsData.get(key)?.style?.fontSize);
+    const current = Number.isFinite(currentPx) ? currentPx * 3 / 4 : 11;
     const next = direction > 0
       ? (steps.find(size => size > current) || steps[steps.length - 1])
       : ([...steps].reverse().find(size => size < current) || steps[0]);

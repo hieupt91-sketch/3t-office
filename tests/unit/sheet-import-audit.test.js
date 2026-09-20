@@ -111,7 +111,7 @@ export async function runSheetImportAuditTests() {
       const run = spawnSync("python", ["adapters/libreoffice/common/ooxml_zip_patch.py", "--xlsx", f.xlsx, "--overlay-fods", f.fods, "--out", overlaid], { cwd: path.resolve("."), encoding: "utf8" });
       assert.equal(run.status, 0, run.stderr);
       const parsed = new SheetAdapter(null).parseFods(fs.readFileSync(overlaid, "utf8"));
-      assert.equal(parsed.colWidthsBySheet.Data.get("A"), 99.9999999998);
+      assert.equal(parsed.colWidthsBySheet.Data.get("A"), 94.9999999998);
       assert.equal(parsed.rowHeightsBySheet.Data.get(1), 20);
     } finally { fs.rmSync(f.dir, { recursive: true, force: true }); }
   });

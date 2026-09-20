@@ -39,7 +39,7 @@ export async function runRibbonGapsRealOfficeTests() {
     grid.toggleWrapText(); grid.adjustIndent(1);
     grid.applyQuickNumberCategory("currency"); grid.adjustDecimalPlaces(1);
     const style = grid.cellsData.get("A1").style;
-    assert(style.fontFamily === "Calibri" && style.fontSize === "12px", "Font style không đúng");
+    assert(style.fontFamily === "Calibri" && style.fontSize === "16px", "Font style không đúng theo đơn vị pt");
     assert(style.whiteSpace === "normal" && style.paddingLeft === "20px", "Wrap/indent không đúng");
     assert(style.numberFormat.category === "currency" && style.numberFormat.decimals === 3, "Number format không đúng");
   });

@@ -2532,6 +2532,7 @@ export class SheetAdapter {
   /** Serialize the complete workbook as Flat OpenDocument Spreadsheet XML. */
   serializeToFods() {
     if (!this.grid) return "";
+    const isNewWorkbook = !this.sourceFilePath;
     const sheetNames = (this.grid.sheets && this.grid.sheets.length)
       ? [...this.grid.sheets]
       : Object.keys(this.grid.sheetsData || {});
@@ -2547,6 +2548,7 @@ export class SheetAdapter {
       if (!fontName || fontFaces.has(fontName)) return;
       fontFaces.set(fontName, true);
     };
+    if (isNewWorkbook) addFontFace("Calibri");
     for (const sheetName of sheetNames) {
       const cells = this.grid.sheetsData?.[sheetName]
         || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
@@ -2587,8 +2589,8 @@ export class SheetAdapter {
     const dimensionStyles = [];
     const colStyleNames = new Map();
     const rowStyleNames = new Map();
-    const defaultRowHeight = this.grid.rowHeight || 26;
-    const defaultColWidth = this.grid.defaultColWidth || 100;
+    const defaultRowHeight = this.grid.rowHeight || 20;
+    const defaultColWidth = this.grid.defaultColWidth || 64;
     const colStyleFor = (px, pageBreak = false) => {
       const widthKey = Math.round(Number(px));
       const key = `${widthKey}:${pageBreak ? "page" : "auto"}`;
@@ -2932,6 +2934,7 @@ export class SheetAdapter {
         const pageBreak = pageBreakCols.has(colName);
         const attrs = [];
         if (Number.isFinite(width) || hidden || pageBreak) attrs.push(`table:style-name="${colStyleFor(Number.isFinite(width) ? width : defaultColWidth, pageBreak)}"`);
+        else if (isNewWorkbook) attrs.push('table:style-name="vno-default-column"');
         if (hidden) attrs.push(`table:visibility="collapse"`);
         columnParts.push({ key: columnNumber, xml: `<table:table-column${attrs.length ? ` ${attrs.join(" ")}` : ""}/>` });
       }
@@ -3132,6 +3135,7 @@ export class SheetAdapter {
         const rowPageBreak = pageBreakRows.has(rowNumber);
         const rowAttrs = [];
         if (Number.isFinite(rowHeight) || rowHidden || rowPageBreak) rowAttrs.push(`table:style-name="${rowStyleFor(Number.isFinite(rowHeight) ? rowHeight : defaultRowHeight, rowPageBreak)}"`);
+        else if (isNewWorkbook) rowAttrs.push('table:style-name="vno-default-row"');
         if (rowHidden) rowAttrs.push(`table:visibility="collapse"`);
         const rowOpen = `<table:table-row${rowAttrs.length ? ` ${rowAttrs.join(" ")}` : ""}`;
         // Trailing rows without cells (Excel "hide every row below the data",
@@ -3243,8 +3247,8 @@ export class SheetAdapter {
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
   ${fontFaceDeclsXml}
-  ${conditionalNamedStyles.length ? `<office:styles>${conditionalNamedStyles.join("")}</office:styles>` : ""}
-  <office:automatic-styles>${pageLayouts.join("")}${tablePageStyles.join("")}${dimensionStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${[...rotationStyles.values()].map(style => this._rotationCellStyleXml(style.styleName, style.textRotation)).join("")}${rotationCombinedStyles.join("")}${conditionalBaseStyles.join("")}${visualStyleEntries.join("")}${richTextAutoStyles.join("")}</office:automatic-styles>
+  <office:styles>${isNewWorkbook ? '<style:default-style style:family="table-cell"><style:text-properties style:font-name="Calibri" fo:font-size="11pt"/></style:default-style>' : ""}${conditionalNamedStyles.join("")}</office:styles>
+  <office:automatic-styles>${isNewWorkbook ? '<style:style style:name="vno-default-column" style:family="table-column"><style:table-column-properties style:column-width="1.693cm"/></style:style><style:style style:name="vno-default-row" style:family="table-row"><style:table-row-properties style:row-height="0.529cm" style:use-optimal-row-height="false"/></style:style>' : ""}${pageLayouts.join("")}${tablePageStyles.join("")}${dimensionStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${[...rotationStyles.values()].map(style => this._rotationCellStyleXml(style.styleName, style.textRotation)).join("")}${rotationCombinedStyles.join("")}${conditionalBaseStyles.join("")}${visualStyleEntries.join("")}${richTextAutoStyles.join("")}</office:automatic-styles>
   <office:master-styles>${masterPages.join("")}</office:master-styles>
   <office:settings>
     <config:config-item-set config:name="ooo:view-settings">
@@ -3783,8 +3787,8 @@ export class SheetAdapter {
     const cellVisualStyles = this._parseCellVisualStyles(tableXml);
     const textStyles = this._parseTextStyles(tableXml);
     const rowColStyles = this._parseRowColStyles(tableXml);
-    const defaultRowHeight = this.grid?.rowHeight || 26;
-    const defaultColWidth = this.grid?.defaultColWidth || 100;
+    const defaultRowHeight = this.grid?.rowHeight || 20;
+    const defaultColWidth = this.grid?.defaultColWidth || 64;
     const tableBlocks = [];
     tableXml.replace(/<table:table(?=[\s>/])([^>]*)>([\s\S]*?)<\/table:table>/gi, all => { tableBlocks.push(all); return all; });
     const workbookOnlyXml = tableBlocks.reduce((text, block) => text.replace(block, ""), tableXml);
@@ -4299,6 +4303,10 @@ export class SheetAdapter {
 
   loadFromFods(fodsText, ooxmlWorkbookXml) {
     if (!this.grid) return false;
+    // Imported files retain the legacy layout fallback while their explicit
+    // XLSX dimensions are overlaid. S24's 20/64 defaults apply to new books.
+    this.grid.rowHeight = 26;
+    this.grid.defaultColWidth = 100;
     let xml = overlayFodsStructureProtection(fodsText, ooxmlWorkbookXml);
     xml = overlayActiveSheetToFods(xml, ooxmlWorkbookXml);
     const workbook = this.parseFods(xml);

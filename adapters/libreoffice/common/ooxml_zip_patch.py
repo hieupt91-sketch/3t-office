@@ -500,6 +500,23 @@ def apply_sheet_visibility_to_workbook(workbook_xml: str, visibility_by_sheet: d
     return _WB_SHEET_TAG_RE.sub(_replace, xml)
 
 
+def make_all_sheets_visible_for_import(xlsx_bytes: bytes) -> bytes:
+    """Create a temporary XLSX view in which LibreOffice can import hidden sheets."""
+    workbook = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+    if not workbook:
+        return xlsx_bytes
+    workbook_xml = workbook.decode("utf-8", errors="replace")
+    visible_xml = re.sub(
+        r'\s+state="(?:hidden|veryHidden)"',
+        "",
+        workbook_xml,
+        flags=re.IGNORECASE,
+    )
+    if visible_xml == workbook_xml:
+        return xlsx_bytes
+    return patch_ooxml_zip(xlsx_bytes, {XLSX_WORKBOOK_ENTRY: visible_xml})
+
+
 # ---------------------------------------------------------------------------
 # Active sheet (activeTab in OOXML ↔ ActiveTable in ODF office:settings)
 # ---------------------------------------------------------------------------
@@ -1379,6 +1396,58 @@ def _restore_normal_font_in_styles(styles_xml: str, original_font_xml: str) -> s
     return styles_xml[:fonts_match.start()] + before_fonts + new_fonts_content + after_fonts + styles_xml[fonts_match.end():]
 
 
+_NEW_WORKBOOK_NORMAL_FONT = (
+    '<font><sz val="11"/><color theme="1"/><name val="Calibri"/>'
+    '<family val="2"/><scheme val="minor"/></font>'
+)
+
+
+def _apply_new_workbook_defaults(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """S24: normalize a workbook created without an original XLSX to Excel 2016 defaults."""
+    styles_entry = read_zip_entry(xlsx_bytes, "xl/styles.xml")
+    if styles_entry:
+        styles_xml = replacements.get("xl/styles.xml", styles_entry.decode("utf-8", errors="replace"))
+        restored = _restore_normal_font_in_styles(styles_xml, _NEW_WORKBOOK_NORMAL_FONT)
+        if restored != styles_xml:
+            replacements["xl/styles.xml"] = restored
+
+    theme_entry = read_zip_entry(xlsx_bytes, "xl/theme/theme1.xml")
+    if theme_entry:
+        theme_xml = theme_entry.decode("utf-8", errors="replace")
+        restored_theme = re.sub(
+            r'(<a:minorFont>\s*<a:latin\b)[^>]*/>',
+            r'\1 typeface="Calibri" pitchFamily="34" charset="0"/>',
+            theme_xml,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        if restored_theme != theme_xml:
+            replacements["xl/theme/theme1.xml"] = restored_theme
+
+    fods_col_widths = _get_fods_column_widths_by_letter(source_fods or "")
+    fods_row_heights = _extract_fods_row_heights_cm(source_fods or "")
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        entry = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry:
+            continue
+        sheet_xml = replacements.get(entry_path, entry.decode("utf-8", errors="replace"))
+        original = sheet_xml
+        widths = _sheet_name_equivalent_value(fods_col_widths, sheet_name)
+        if widths:
+            sheet_xml = _restore_column_widths(
+                sheet_xml, widths, 7.0, None,
+                source_explicit_cols=None, default_display_chars=64.0 / 7.0,
+            )
+        heights = _sheet_name_equivalent_value(fods_row_heights, sheet_name)
+        if heights:
+            sheet_xml = _restore_row_heights(sheet_xml, heights)
+        sheet_xml = _restore_sheet_format_pr(sheet_xml, {"defaultRowHeight": 15.0})
+        if sheet_xml != original:
+            replacements[entry_path] = sheet_xml
+
+
 def _column_letter(index: int) -> str:
     name = ""
     while index:
@@ -1403,7 +1472,7 @@ def _restore_column_widths(
 ) -> str:
     """Restore column widths in worksheet XML using original font's digit width.
 
-    Formula: px = width_cm * 96 / 2.54; chars = trunc((px - 5) / digit_width * 100 + 0.5) / 100
+    Formula S24: px app = px Excel; chars = trunc(px / digit_width * 100 + 0.5) / 100.
 
     LibreOffice omits <col> entries whose width equals *its* default, but Excel
     then renders them with the workbook's defaultColWidth, so every column the
@@ -1425,7 +1494,7 @@ def _restore_column_widths(
 
     def chars_for(width_cm: float) -> float:
         px = width_cm * 96 / 2.54
-        chars = math.trunc((px - 5) / digit_width * 100 + 0.5) / 100
+        chars = math.trunc(px / digit_width * 100 + 0.5) / 100
         return chars
 
     def snap_to_source(col_idx: int, chars: float) -> float:
@@ -2387,7 +2456,6 @@ def postprocess_sheet_xlsx(
         # observing the transient LibreOffice-only file.
         early_copier = _SourceXfCopier(xlsx_bytes, source_xlsx_bytes)
         _restore_formula_results_and_missing_errors_step(xlsx_bytes, source_xlsx_bytes, replacements, early_copier if early_copier.available else None)
-        _restore_lost_leading_newlines_step(xlsx_bytes, source_xlsx_bytes, replacements, early_copier if early_copier.available else None)
         _remove_spurious_center_continuous_merges_step(xlsx_bytes, source_xlsx_bytes, replacements)
         if source_fods:
             _restore_untouched_drawings_step(xlsx_bytes, source_fods, source_xlsx_bytes, replacements)
@@ -2525,13 +2593,10 @@ def postprocess_sheet_xlsx(
             pass
 
     # S13: ô chuỗi rỗng của file gốc bị soffice bỏ khi nhập -> chèn lại (xf qua cùng bộ chép của S8)
-    if source_xlsx_bytes:
-        try:
-            if xf_copier is None:
-                xf_copier = _SourceXfCopier(xlsx_bytes, source_xlsx_bytes)
-            _restore_empty_string_cells_step(xlsx_bytes, source_xlsx_bytes, replacements, xf_copier if xf_copier.available else None)
-        except Exception:
-            pass
+    # S24b: a document created in VN Sheet has no source XLSX to restore from;
+    # enforce the Excel 2016 Normal/layout defaults after LibreOffice export.
+    if not source_xlsx_bytes and source_fods:
+        _apply_new_workbook_defaults(xlsx_bytes, source_fods, replacements)
 
     # Restore Normal font, column widths, sheetFormatPr, and row heights from original XLSX
     if source_xlsx_bytes and source_fods:
@@ -2577,6 +2642,25 @@ def postprocess_sheet_xlsx(
             source_wb = (read_zip_entry(source_xlsx_bytes, XLSX_WORKBOOK_ENTRY) or b"").decode("utf-8", errors="replace")
             restored_wb = _restore_source_sheet_names_and_states(output_wb, source_wb)
             if restored_wb != output_wb: replacements[XLSX_WORKBOOK_ENTRY] = restored_wb
+        except Exception:
+            pass
+
+    # Run cell-level source repairs last: layout/visibility passes above may
+    # replace whole worksheet entries and would otherwise discard these cells.
+    if source_xlsx_bytes:
+        try:
+            if xf_copier is None:
+                xf_copier = _SourceXfCopier(xlsx_bytes, source_xlsx_bytes)
+            active_copier = xf_copier if xf_copier.available else None
+            _restore_empty_string_cells_step(xlsx_bytes, source_xlsx_bytes, replacements, active_copier)
+            _restore_lost_leading_newlines_step(xlsx_bytes, source_xlsx_bytes, replacements, active_copier)
+            # The copier rewrites the complete fonts block from its original
+            # snapshot. Reapply fonts[0] afterwards so Excel uses the same MDW
+            # that column-width restoration used (lan09 hidden sheets).
+            styles_xml = replacements.get(XLSX_STYLES_ENTRY)
+            source_normal = _extract_normal_font_xml_from_xlsx(source_xlsx_bytes)
+            if styles_xml and source_normal:
+                replacements[XLSX_STYLES_ENTRY] = _restore_normal_font_in_styles(styles_xml, source_normal)
         except Exception:
             pass
 
@@ -4573,6 +4657,8 @@ def _restore_untouched_drawings_step(
         sheet_name = _unescape_xml(table_attrs.get("table:name", ""))
         ids: list[str] = []
         total_images = 0
+        group_spans = _draw_group_spans(table_xml)
+        in_group = lambda pos: any(a <= pos < b for a, b in group_spans)
         # Match draw:frame opening tag (works for both self-closing and regular)
         for fm in re.finditer(
             r"<draw:frame\b([^>]*)>",
@@ -4580,6 +4666,10 @@ def _restore_untouched_drawings_step(
             re.IGNORECASE,
         ):
             raw_attrs = fm.group(1) or ""
+            # Keep the count identical to _overlay_sheet_drawing_image_ids:
+            # grouped frames are outside the editable image model and receive no id.
+            if in_group(fm.start()):
+                continue
             # Check if this frame has a draw:image by looking ahead
             # Find the corresponding closing tag or self-close
             tag_end = fm.end()
@@ -4636,7 +4726,14 @@ def _restore_untouched_drawings_step(
         if len(totals) != 1:
             continue
         n_at_open = totals.pop()
-        untouched_ids = current_count == n_at_open and indexes == list(range(n_at_open))
+        # Grouped source images can be flattened by the app serializer and lose
+        # their <draw:g> wrapper while remaining outside the editable/id set.
+        # Allow only that bounded remainder; a genuinely added image makes the
+        # count exceed the original anchor count and still blocks restoration.
+        untouched_ids = (
+            indexes == list(range(n_at_open))
+            and (current_count == n_at_open or len(source_anchors) > n_at_open)
+        )
         if not untouched_ids:
             continue  # Sheet has modified images, use LibreOffice's drawing
 
@@ -5621,6 +5718,26 @@ def _overlay_sheet_number_formats_from_xlsx(xlsx_bytes: bytes, fods_xml: str) ->
     return result[:match.start()] + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + result[match.end():]
 
 
+def _iter_xlsx_cell_parts(sheet_xml: str):
+    """Yield (attribute text, body) for worksheet cells in linear time."""
+    cursor = 0
+    opening = re.compile(r"<c\b([^>]*)>", re.IGNORECASE)
+    while True:
+        match = opening.search(sheet_xml, cursor)
+        if not match:
+            return
+        attrs = match.group(1) or ""
+        if attrs.rstrip().endswith("/"):
+            yield attrs[:-1], ""
+            cursor = match.end()
+            continue
+        close = sheet_xml.find("</c>", match.end())
+        if close < 0:
+            return
+        yield attrs, sheet_xml[match.end():close]
+        cursor = close + 4
+
+
 def _xlsx_cells_with_original_strings(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, int], str]]:
     shared_xml = (read_zip_entry(xlsx_bytes, "xl/sharedStrings.xml") or b"").decode("utf-8", errors="replace")
     shared = []
@@ -5629,8 +5746,9 @@ def _xlsx_cells_with_original_strings(xlsx_bytes: bytes) -> dict[str, dict[tuple
     result = {}
     for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
         sheet_xml = (read_zip_entry(xlsx_bytes, entry_path) or b"").decode("utf-8", errors="replace"); cells = {}
-        for match in re.finditer(r"<c\b([^>]*?)(?:/\s*>|>([\s\S]*?)</c>)", sheet_xml, re.IGNORECASE):
-            cell_attrs, body = _xml_attrs(match.group(1)), match.group(2) or ""; kind = cell_attrs.get("t", "").lower()
+        for attrs_text, body in _iter_xlsx_cell_parts(sheet_xml):
+            cell_attrs = _xml_attrs(attrs_text)
+            kind = cell_attrs.get("t", "").lower()
             coord = re.fullmatch(r"([A-Z]+)(\d+)", cell_attrs.get("r", ""), re.IGNORECASE)
             if not coord or kind not in {"s", "str", "inlinestr"}: continue
             if kind == "s":
@@ -5822,7 +5940,7 @@ def _calculate_digit_width(font_name: str, font_size: float) -> float:
 
 
 def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
-    """Preserve exact Excel width*digit_width+5 px and row pt->px dimensions.
+    """Preserve exact Excel width*digit_width px and row pt->px dimensions.
 
     soffice canonicalizes dimensions to ODF lengths and can apply font metrics;
     the compact table-level map avoids rewriting repeated FODS columns/rows.
@@ -5839,10 +5957,11 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
         for match in re.finditer(r"<col\b([^>]*)/?>", sheet_xml, re.IGNORECASE):
             attrs = match.group(1)
             width = re.search(r'\bwidth="([\d.]+)"', attrs)
-            custom = re.search(r'\b(?:customWidth|bestFit)="1"', attrs)
             minimum = re.search(r'\bmin="(\d+)"', attrs)
             maximum = re.search(r'\bmax="(\d+)"', attrs)
-            if not (width and custom and minimum and maximum):
+            # Excel files may carry an explicit width without customWidth/bestFit
+            # (lan01 D:E). It is still authoritative and must reach the app model.
+            if not (width and minimum and maximum):
                 continue
             for index in range(int(minimum.group(1)), int(maximum.group(1)) + 1):
                 number = index
@@ -5850,7 +5969,7 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
                 while number:
                     number, remainder = divmod(number - 1, 26)
                     name = chr(65 + remainder) + name
-                columns[name] = float(width.group(1)) * digit_width + 5
+                columns[name] = float(width.group(1)) * digit_width
         for match in re.finditer(r"<row\b([^>]*)>", sheet_xml, re.IGNORECASE):
             attrs = match.group(1)
             row = re.search(r'\br="(\d+)"', attrs)
@@ -5909,7 +6028,7 @@ def parse_tab_colors_from_xlsx(xlsx_bytes: bytes) -> dict[str, str]:
 def _restore_lost_leading_newlines_step(
     xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str], copier: "_SourceXfCopier | None"
 ) -> None:
-    """Restore only leading CR/LF lost by the ODF empty-first-paragraph conversion."""
+    """Restore unchanged source strings when ODF only normalized/lost line breaks."""
     source_values = _xlsx_cells_with_original_strings(source_xlsx_bytes)
     output_values = _xlsx_cells_with_original_strings(xlsx_bytes)
     source_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
@@ -5921,16 +6040,31 @@ def _restore_lost_leading_newlines_step(
         output_cells = output_values.get(sheet_name, {}); wanted: dict[str, str] = {}
         src_xml = (read_zip_entry(source_xlsx_bytes, src_path) or b"").decode("utf-8", errors="replace")
         src_styles = {}
-        for match in re.finditer(r'<c\b([^>]*)>', src_xml, re.IGNORECASE):
-            attrs = _xml_attrs(match.group(1)); coord = (attrs.get("r") or "").upper()
+        source_formula_cells = set()
+        for attrs_text, body in _iter_xlsx_cell_parts(src_xml):
+            attrs = _xml_attrs(attrs_text)
+            coord = (attrs.get("r") or "").upper()
             if coord and attrs.get("s", "").isdigit(): src_styles[coord] = int(attrs["s"])
+            if coord and re.search(r'<f\b', body, re.IGNORECASE):
+                source_formula_cells.add(coord)
         for (row, col), source_value in source_cells.items():
             output_value = output_cells.get((row, col))
-            if output_value is None or not re.match(r"^(?:\r\n|\r|\n)+", source_value):
+            missing_whitespace = output_value is None and bool(source_value) and not source_value.strip()
+            normalize_lines = lambda value: re.sub(
+                r"\n+", "\n", str(value).replace("\r\n", "\n").replace("\r", "\n")
+            ).strip("\n")
+            normalized_line_match = (
+                output_value is not None
+                and source_value != output_value
+                and bool(re.search(r"[\r\n]", source_value))
+                and normalize_lines(source_value) == normalize_lines(output_value)
+            )
+            if not (missing_whitespace or normalized_line_match):
                 continue
-            if re.sub(r"^(?:\r\n|\r|\n)+", "", source_value) != output_value:
+            coord = f"{_column_letter(col)}{row}"
+            if coord in source_formula_cells:
                 continue
-            coord = f"{_column_letter(col)}{row}"; mapped = copier.map(src_styles[coord]) if copier is not None and coord in src_styles else None
+            mapped = copier.map(src_styles[coord]) if copier is not None and coord in src_styles else None
             style = f' s="{mapped}"' if mapped is not None else ""
             text = _escape_xml(source_value)
             wanted[coord] = f'<c r="{coord}"{style} t="inlineStr"><is><t xml:space="preserve">{text}</t></is></c>'

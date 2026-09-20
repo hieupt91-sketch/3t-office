@@ -199,10 +199,13 @@ class TestPostprocessSheetXlsxVisibility(unittest.TestCase):
         # HiddenSheet should still have state="hidden"
         self.assertIn('name="HiddenSheet"', wb)
 
-    def test_no_visibility_data_leaves_xlsx_untouched(self):
+    def test_new_workbook_without_visibility_data_gets_s24_defaults(self):
         original = _fake_xlsx()
         patched = patcher.postprocess_sheet_xlsx(original, source_fods=FODS_BASE)
-        self.assertEqual(patched, original)
+        self.assertNotEqual(patched, original)
+        with zipfile.ZipFile(io.BytesIO(patched)) as z:
+            sheet1 = z.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn('defaultRowHeight="15.0"', sheet1)
 
 
 # ---------------------------------------------------------------------------
@@ -280,10 +283,14 @@ class TestPostprocessSheetXlsxAutofilter(unittest.TestCase):
             sheet4 = z.read("xl/worksheets/sheet4.xml").decode("utf-8")
         self.assertIn('<autoFilter ref="A1:C10"/>', sheet4)
 
-    def test_no_autofilter_data_leaves_xlsx_untouched(self):
+    def test_new_workbook_gets_s24_defaults_and_keeps_fods_autofilter(self):
         original = _fake_xlsx()
         patched = patcher.postprocess_sheet_xlsx(original, source_fods=FODS_BASE)
-        self.assertEqual(patched, original)
+        self.assertNotEqual(patched, original)
+        with zipfile.ZipFile(io.BytesIO(patched)) as z:
+            sheet1 = z.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn('defaultRowHeight="15.0"', sheet1)
+        self.assertIn('<autoFilter ref="A1:B2"/>', sheet1)
 
 
 # ---------------------------------------------------------------------------

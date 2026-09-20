@@ -156,7 +156,7 @@ export async function runSheetVirtualScrollRowHeightTests() {
   });
 
   // TEST 4: _firstVisibleRow() binary search with tall rows
-  test("_firstVisibleRow() binary search: scrollTop=5716, rows 1-43 at 130px, rest default 26px", () => {
+  test("_firstVisibleRow() binary search: scrollTop=5716, rows 1-43 at 130px, rest default 20px", () => {
     const customHeights = {};
     for (let r = 1; r <= 43; r++) customHeights[r] = 130;
     const grid = createGridForTest(200, customHeights);
@@ -165,7 +165,7 @@ export async function runSheetVirtualScrollRowHeightTests() {
     // scrollTop=5716 >= tops[48]=5694, tops[49]=5720 > 5716 -> row 48
     const scrollTop = 5716;
     const row = grid._firstVisibleRow(scrollTop);
-    assertEq(row, 48, "first visible row at scrollTop=5716 with 130px rows 1-43");
+    assertEq(row, 50, "first visible row at scrollTop=5716 with 130px rows 1-43");
   });
 
   // TEST 5: _lastVisibleRow() with viewport height
@@ -183,7 +183,7 @@ export async function runSheetVirtualScrollRowHeightTests() {
     // tops[69] = 5590 + 25*26 = 6240 > 6216
     // So _lastVisibleRow should return 68
     const lastRow = grid._lastVisibleRow(5716, 500);
-    assertEq(lastRow, 68, "last visible row at scrollTop=5716 vh=500");
+    assertEq(lastRow, 75, "last visible row at scrollTop=5716 vh=500");
   });
 
   // TEST 6: _onViewportScroll renders correct row range with tall rows
@@ -306,15 +306,15 @@ export async function runSheetVirtualScrollRowHeightTests() {
   // TEST 14: Prefix-sum cache works with mix of default and custom heights
   test("Prefix-sum with mixed default and custom row heights", () => {
     const grid = createGridForTest(10, { 3: 100, 7: 200 });
-    // Row 1: 26 (default), Row 2: 26, Row 3: 100, Row 4: 26, Row 5: 26, Row 6: 26, Row 7: 200
+    // Row 1: 20 (default), Row 2: 20, Row 3: 100, Row 4: 20, Row 5: 20, Row 6: 20, Row 7: 200
     assertEq(grid._rowTop(1), 0, "row 1");
-    assertEq(grid._rowTop(2), 26, "row 2");
-    assertEq(grid._rowTop(3), 52, "row 3");
-    assertEq(grid._rowTop(4), 152, "row 4 (after 100px row 3)");
-    assertEq(grid._rowTop(5), 178, "row 5");
-    assertEq(grid._rowTop(6), 204, "row 6");
-    assertEq(grid._rowTop(7), 230, "row 7");
-    assertEq(grid._rowTop(8), 430, "row 8 (after 200px row 7)");
+    assertEq(grid._rowTop(2), 20, "row 2");
+    assertEq(grid._rowTop(3), 40, "row 3");
+    assertEq(grid._rowTop(4), 140, "row 4 (after 100px row 3)");
+    assertEq(grid._rowTop(5), 160, "row 5");
+    assertEq(grid._rowTop(6), 180, "row 6");
+    assertEq(grid._rowTop(7), 200, "row 7");
+    assertEq(grid._rowTop(8), 400, "row 8 (after 200px row 7)");
   });
 
   // TEST 15: Binary search at scrollTop=0 returns row 1
