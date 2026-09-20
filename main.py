@@ -914,6 +914,10 @@ class VnOfficeApi:
             styles_xml = _read_docx_zip_entry(src_path, "word/styles.xml")
             if styles_xml:
                 payload["ooxmlStylesXml"] = styles_xml
+            # Quy ước W21b: định dạng danh sách/bullet nằm trong numbering.xml.
+            numbering_xml = _read_docx_zip_entry(src_path, "word/numbering.xml")
+            if numbering_xml:
+                payload["ooxmlNumberingXml"] = numbering_xml
         elif app_kind == "sheet":
             workbook_xml = _read_xlsx_workbook_xml(src_path)
             if workbook_xml:

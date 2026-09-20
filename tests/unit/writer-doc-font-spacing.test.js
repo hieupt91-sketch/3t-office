@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
 
 // Đo thật 2026-09-15 (HDLD.docx, Word 2016 COM): Arial 12pt w:line=312 → Word 19.1pt/dòng
@@ -158,6 +160,61 @@ export async function runWriterDocFontSpacingTests() {
     check(out.includes('line-height: max(0.5pt, calc(1em * var(--vno-font-ratio, 1.15)))') && out.includes("SS04"), `atLeast on paragraph: ${out}`);
     check(out.includes('line-height: max(12pt, calc(1em * var(--vno-font-ratio, 1.15)))'), `atLeast via style chain: ${out}`);
     check(out.includes('<p style="line-height: 1.5cm">Exact</p>'), `exact must stay absolute: ${out}`);
+  });
+
+  test("W21a: .vno-writer-page has flex-shrink: 0 to prevent footer overlap on multi-page docs", () => {
+    const cssPath = path.resolve("apps/writer/writer.css");
+    const css = fs.readFileSync(cssPath, "utf8");
+    const pageRule = css.match(/(?:^|\n)\.vno-writer-page\s*\{([^}]+)\}/);
+    check(pageRule && /flex-shrink:\s*0/.test(pageRule[1]), "vno-writer-page must have flex-shrink: 0");
+  });
+
+  test("W21b: _applyOoxmlListBullets maps hyphen bullet '-' from numbering.xml to list-style-type: '- '", () => {
+    const adapter = new WriterAdapter(null);
+    const html = '<ul><li><p>Tên thương mại: CÔNG TY 3T</p></li><li><p>Tên viết tắt</p></li></ul>';
+    const doc = '<w:document><w:body>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="4"/></w:numPr></w:pPr><w:r><w:t>Tên thương mại: CÔNG TY 3T</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="4"/></w:numPr></w:pPr><w:r><w:t>Tên viết tắt</w:t></w:r></w:p>'
+      + '</w:body></w:document>';
+    const numXml = '<w:numbering>'
+      + '<w:abstractNum w:abstractNumId="6"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val="-"/><w:rPr><w:rFonts w:ascii="Times New Roman"/></w:rPr></w:lvl></w:abstractNum>'
+      + '<w:num w:numId="4"><w:abstractNumId w:val="6"/></w:num>'
+      + '</w:numbering>';
+    const out = adapter._applyOoxmlListBullets(html, doc, "", numXml);
+    check(out.includes('<li style="list-style-type: \'- \';"><p>Tên thương mại: CÔNG TY 3T</p></li>'), `first li must have list-style-type: '- ': ${out}`);
+    check(out.includes('<li style="list-style-type: \'- \';"><p>Tên viết tắt</p></li>'), `second li must have list-style-type: '- ': ${out}`);
+  });
+
+  test("W21b: _applyOoxmlListBullets resolves numPr from style chain (e.g. ListBullet)", () => {
+    const adapter = new WriterAdapter(null);
+    const html = '<ul><li><p>Bullet item via style</p></li></ul>';
+    const doc = '<w:document><w:body>'
+      + '<w:p><w:pPr><w:pStyle w:val="ListBullet"/></w:pPr><w:r><w:t>Bullet item via style</w:t></w:r></w:p>'
+      + '</w:body></w:document>';
+    const stylesXml = '<w:styles><w:style w:type="paragraph" w:styleId="ListBullet"><w:pPr><w:numPr><w:numId w:val="10"/><w:ilvl w:val="0"/></w:numPr></w:pPr></w:style></w:styles>';
+    const numXml = '<w:numbering>'
+      + '<w:abstractNum w:abstractNumId="20"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val="-"/></w:lvl></w:abstractNum>'
+      + '<w:num w:numId="10"><w:abstractNumId w:val="20"/></w:num>'
+      + '</w:numbering>';
+    const out = adapter._applyOoxmlListBullets(html, doc, stylesXml, numXml);
+    check(out.includes('<li style="list-style-type: \'- \';"><p>Bullet item via style</p></li>'), `style-inherited bullet must have list-style-type: '- ': ${out}`);
+  });
+
+  test("W21b: _applyOoxmlListBullets leaves decimal/ordered lists and standard disc bullets untouched", () => {
+    const adapter = new WriterAdapter(null);
+    const html = '<ol><li><p>Item 1</p></li></ol><ul><li><p>Standard bullet</p></li></ul>';
+    const doc = '<w:document><w:body>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>Item 1</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="2"/></w:numPr></w:pPr><w:r><w:t>Standard bullet</w:t></w:r></w:p>'
+      + '</w:body></w:document>';
+    const numXml = '<w:numbering>'
+      + '<w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/></w:lvl></w:abstractNum>'
+      + '<w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num>'
+      + '<w:abstractNum w:abstractNumId="2"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val=""/></w:lvl></w:abstractNum>'
+      + '<w:num w:numId="2"><w:abstractNumId w:val="2"/></w:num>'
+      + '</w:numbering>';
+    const out = adapter._applyOoxmlListBullets(html, doc, "", numXml);
+    check(!out.includes("list-style-type:"), `ordered and standard bullet must not have list-style-type injected: ${out}`);
   });
 
   return results;

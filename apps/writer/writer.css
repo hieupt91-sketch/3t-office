@@ -308,8 +308,9 @@
   color: var(--vno-text-primary);
 }
 
-/* Trang giấy A4 chuẩn mực */
+/* Trang giấy A4 chuẩn mực (W21a: flex-shrink: 0 để không co chiều cao trong flex column viewport) */
 .vno-writer-page {
+  flex-shrink: 0;
   width: 794px; /* A4 width */
   min-height: 1123px; /* A4 height */
   background-color: var(--vno-bg-window);
