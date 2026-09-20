@@ -9527,26 +9527,39 @@ export class WriterAdapter {
 
   /**
    * Nguồn duy nhất cho chiều cao thân trang mà cả live pagination và Print Preview sử dụng.
-   * Header/footer chỉ chiếm chỗ khi thực sự có nội dung, giống cách chúng được render.
-   * Body bắt đầu tại padding-top (lề trên). Header/footer nằm trong lề (absolute).
-   * Nếu header cao hơn không gian cho phép (topMargin - headerDistance), đẩy body xuống phần dư.
+   * Header/footer chỉ chiếm chỗ khi thực sự có nội dung (Word W23b):
+   * Thân trang bắt đầu tại max(topMargin, headerDistance + headerH),
+   * và kết thúc tại min(pageH - bottomMargin, pageH - footerDistance - footerH).
+   * Khi header/footer nằm trong lề: giữ nguyên lề.
+   * Khi cao hơn lề: đẩy bodyTop xuống và cắt đáy thân trang.
    */
   _getUsablePageHeight(dim = this.getPageDimensions()) {
     const hasHeader = Boolean(this.headerDom && this.headerDom.innerText?.trim());
     const hasFooter = Boolean(this.footerDom && this.footerDom.innerText?.trim());
-    const headerDistancePx = (this.pageSetup.headerDistanceMm ?? 12.7) * MM_TO_PX;
+    const headerDistancePx = (this.pageSetup?.headerDistanceMm ?? 12.7) * MM_TO_PX;
+    const footerDistancePx = (this.pageSetup?.footerDistanceMm ?? 12.7) * MM_TO_PX;
     const topMarginPx = dim.topPx;
-    const maxHeaderSpacePx = topMarginPx - headerDistancePx;
+    const bottomMarginPx = dim.bottomPx;
+
     let headerExtraPx = 0;
     if (hasHeader && this.headerDom) {
       const headerHeight = this.headerDom.offsetHeight || 0;
-      if (headerHeight > maxHeaderSpacePx) {
-        headerExtraPx = headerHeight - maxHeaderSpacePx;
+      const headerBottomPx = headerDistancePx + headerHeight;
+      if (headerBottomPx > topMarginPx) {
+        headerExtraPx = headerBottomPx - topMarginPx;
       }
     }
-    // Footer doesn't push body up in Word; it just sits in bottom margin.
-    // Body usable height = printableHeight - header extra push
-    return Math.max(150, dim.printableHeightPx - headerExtraPx);
+
+    let footerExtraPx = 0;
+    if (hasFooter && this.footerDom) {
+      const footerHeight = this.footerDom.offsetHeight || 0;
+      const footerBottomSpacePx = footerDistancePx + footerHeight;
+      if (footerBottomSpacePx > bottomMarginPx) {
+        footerExtraPx = footerBottomSpacePx - bottomMarginPx;
+      }
+    }
+
+    return Math.max(150, dim.printableHeightPx - headerExtraPx - footerExtraPx);
   }
 
   /**
@@ -10485,19 +10498,34 @@ export class WriterAdapter {
       const dim = this.getPageDimensions();
       const availableHeightPx = this._getUsablePageHeight(dim);
 
-      // Update body margin-top if header pushes content down (Word behavior)
-      const headerDistancePx = (this.pageSetup.headerDistanceMm ?? 12.7) * MM_TO_PX;
+      // Cap nhat body margin-top va margin-bottom theo quy tac Word W23b:
+      // Day bodyTop neu header vuot qua le tren; cat day neu footer vuot qua le duoi.
+      const headerDistancePx = (this.pageSetup?.headerDistanceMm ?? 12.7) * MM_TO_PX;
+      const footerDistancePx = (this.pageSetup?.footerDistanceMm ?? 12.7) * MM_TO_PX;
       const topMarginPx = dim.topPx;
-      const maxHeaderSpacePx = topMarginPx - headerDistancePx;
+      const bottomMarginPx = dim.bottomPx;
+
       let headerExtraPx = 0;
       if (this.headerDom && this.headerDom.innerText?.trim()) {
         const headerHeight = this.headerDom.offsetHeight || 0;
-        if (headerHeight > maxHeaderSpacePx) {
-          headerExtraPx = headerHeight - maxHeaderSpacePx;
+        const headerBottomPx = headerDistancePx + headerHeight;
+        if (headerBottomPx > topMarginPx) {
+          headerExtraPx = headerBottomPx - topMarginPx;
         }
       }
+
+      let footerExtraPx = 0;
+      if (this.footerDom && this.footerDom.innerText?.trim()) {
+        const footerHeight = this.footerDom.offsetHeight || 0;
+        const footerBottomSpacePx = footerDistancePx + footerHeight;
+        if (footerBottomSpacePx > bottomMarginPx) {
+          footerExtraPx = footerBottomSpacePx - bottomMarginPx;
+        }
+      }
+
       if (this.bodyDom.style) {
         this.bodyDom.style.marginTop = headerExtraPx > 0 ? `${headerExtraPx}px` : "0";
+        this.bodyDom.style.marginBottom = footerExtraPx > 0 ? `${footerExtraPx}px` : "0";
       }
 
       const children = Array.from(this.bodyDom.children);
@@ -11496,11 +11524,7 @@ export class WriterAdapter {
   _estimateHeadingPage(headingNode) {
     if (!this.bodyDom) return 1;
     const dim = this.getPageDimensions ? this.getPageDimensions() : { printableHeightPx: 800, printableWidthPx: 600 };
-    const hasHeader = Boolean(this.headerDom?.innerText?.trim());
-    const hasFooter = Boolean(this.footerDom?.innerText?.trim());
-    const headerReservedPx = hasHeader ? 46 : 0;
-    const footerReservedPx = hasFooter ? 48 : 0;
-    const availableHeightPx = Math.max(150, (dim.printableHeightPx || 800) - headerReservedPx - footerReservedPx);
+    const availableHeightPx = this._getUsablePageHeight ? this._getUsablePageHeight(dim) : Math.max(150, (dim.printableHeightPx || 800));
 
     let blocks = [];
     if (this.bodyDom.children && this.bodyDom.children.length > 0) {
