@@ -24,6 +24,7 @@ PNG_1X1_RED = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QD
 SCENARIO = r"""
 (async function(){
   try {
+    const PNG_1X1_RED = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
     const app = window.__vnoAppInstance; if (!app) return 'no-app';
     const bus = (await import('/platform/commands/command-bus.js')).globalCommandBus;
     const adapter = app.adapter;
