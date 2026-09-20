@@ -317,6 +317,23 @@ export async function runWriterDocFontSpacingTests() {
     check(!out.includes("text-indent"), `hanging lists must not get a negative text-indent (marker sits outside): ${out}`);
   });
 
+  // Đo d07 (Word COM): mục danh sách 2 dòng Word 39,8px, canvas <li> 41,8px vì hộp dòng của ::marker dùng
+  // line-height của <li> (--vno-lh mặc định 1,15 × 1,15 = 22,9px) trong khi <p> bên trong có line-height 100% (19,9px).
+  test("W10c: <li> nhận --vno-lh của <p> đầu tiên bên trong để marker không làm mục cao thêm", () => {
+    const adapter = new WriterAdapter(null);
+    const html = '<ul><li><p style="margin-top: 0.21cm; line-height: 100%">Mục</p></li><li>\n\t<p style="line-height: 130%">Mục 2</p></li><li><p>Không có line-height</p></li></ul>';
+    const doc = '<w:document><w:body>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>Mục</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>Mục 2</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>Không có line-height</w:t></w:r></w:p>'
+      + '</w:body></w:document>';
+    const numXml = '<w:numbering><w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:numFmt w:val="bullet"/><w:lvlText w:val="-"/></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num></w:numbering>';
+    const out = adapter._applyOoxmlListIndents(html, doc, "", numXml);
+    check(out.includes('<li style="--vno-lh: 1;"><p style="margin-top: 0.21cm; line-height: 100%">Mục</p>'), `li must take --vno-lh: 1 from its 100% paragraph: ${out}`);
+    check(out.includes('<li style="--vno-lh: 1.3;">\n\t<p style="line-height: 130%">Mục 2</p>'), `li must take --vno-lh: 1.3 (whitespace before <p> allowed): ${out}`);
+    check(out.includes('<li><p>Không có line-height</p>'), `li without line-height on its paragraph stays untouched: ${out}`);
+  });
+
   test("Import (W25b): odd w:sz runs (11.5/16.5 pt) restored to exact half-point font-size without touching even runs", () => {
     const adapter = new WriterAdapter(null);
     const docXml = '<w:document xmlns:w="w"><w:body>'

@@ -16,6 +16,12 @@
 - keepNext/keepLines: Word đẩy đoạn "giữ với đoạn sau" xuống trang sau khi đoạn sau không vừa (R14/R16: d13 Heading2,
   d19/d20 Heading1, d01 2 điểm). Lớp nhỏ, làm ở bước 3.
 
+**Bổ sung 21/9 06:50 (Claude đo d07 sau W10c/W25/W26):** trang 1 và 2 của d07 khớp Word từng đoạn (±1px) nhưng
+canvas vẫn đẩy cả `<ul>` (2 mục, 148px) sang trang 3 vì **danh sách `<ul>/<ol>` cũng là MỘT khối nguyên tử** trong
+`_recomputeLivePagination` (duyệt `body.children`); Word cắt giữa hai `<li>`. d07 có 34 `<li>` trong 10 danh sách, d15
+95, d09 87, d13 120 → W24a phải cắt cả trong danh sách: gap trước `<li>` (chèn phần tử gap làm con của `<ul>/<ol>` —
+dùng `<li class="vno-page-auto-gap" style="list-style: none">` để HTML hợp lệ; danh sách lồng: cắt ở `<li>` cấp trong).
+
 ## Việc (mỗi bước 1 commit + unit test + quy ước W24a/b/c)
 
 **W24a — cắt bảng theo hàng:** trong `_recomputeLivePagination`, khi khối là `<table>` (cấp 1, kể cả bảng có bảng
