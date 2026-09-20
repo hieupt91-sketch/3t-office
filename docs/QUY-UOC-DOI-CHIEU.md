@@ -39,6 +39,8 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 | W12c | `w:lineRule="atLeast"` (đoạn hoặc style chain) = MAX(giá trị, dòng tự nhiên 1em × tỉ số font W1); LibreOffice ghi giá trị tuyệt đối (`line=10` → 0,02 cm → canvas 0,76 px) | d06: line-height 15 → 3, drift 15 → 3 (đo lại với cache canvas xoá — bộ đo dùng lại `*.canvas.jsonl` nếu còn) | writer-doc-font-spacing (W12c) |
 | W12a | contextualSpacing: hai đoạn kế tiếp cùng pStyle và style/pPr có `<w:contextualSpacing/>` → Word bỏ MAX(sa, sb) giữa chúng (lề = 0). Khi nhập: ánh xạ w:p → HTML <p> theo thứ tự, đoạn trước margin-bottom:0, đoạn sau margin-top:0. | d09 ListParagraph: Word pitch 23px (sa 10pt bỏ), canvas 37px; 43 cặp spacing | `_applyOoxmlContextualSpacing` (suite 153) |
 
+| W12d | Inline wrapper không có chữ trực tiếp không được giữ strut lớn hơn các run con: hạ wrapper về cỡ run nhỏ nhất bên trong; run lớn có cỡ tường minh vẫn quyết định line box | d11: LibreOffice lồng run TNR 8 pt trong `<font size="3" style="font-size:12pt">`; line-height 15 → 2, page 20 → 18, không tăng lớp khác trên ma trận 24 file (d10 Word COM báo file hỏng) | writer-doc-font-spacing (W12d) |
+
 ## Quy ước đã đo và khoá (Sheet)
 
 | # | Quy ước | Số đo gốc | Khoá bởi |

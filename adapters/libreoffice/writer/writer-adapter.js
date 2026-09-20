@@ -1901,7 +1901,10 @@ export class WriterAdapter {
    * - W1: `--vno-font-ratio` inline cho mọi phần tử có chữ mà font-family computed khác cha (font đến từ
    *   p.western/h1.western CSS, không phải <font face>): d01.docx đoạn Times New Roman 13pt dùng tỉ số Calibri
    *   của trang (1.22) → 24,7px/dòng thay vì 22,9px của Word (109 đoạn).
-   * - W8: strut của <p>/<hN> = font của run đầu khi mọi chữ nằm trong <font>/<span> (LibreOffice cho <p> font của
+   * - W8/W12d: strut của <p>/<hN> và các inline wrapper không có chữ trực tiếp = font của run đầu/nhỏ nhất khi
+   *   mọi chữ nằm trong <font>/<span> (LibreOffice có thể lồng font 8pt trong một wrapper font 12pt; wrapper rỗng
+   *   vẫn góp strut 12pt vào line box nếu chỉ sửa <p>).
+   *   LibreOffice cho <p> font của
    *   paragraph STYLE): d16.docx <p class=western> .VnTime 14pt bọc run Times New Roman 13pt → 26px/dòng thay vì
    *   21,5px (80 đoạn). Word không có strut: chiều cao dòng chỉ do các run (và dấu đoạn, thường = run).
    */
@@ -1912,6 +1915,7 @@ export class WriterAdapter {
       if (block.closest?.("[data-vno-float]")) continue;
       let firstRun = null;
       let directText = false;
+      const textRuns = [];
       const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
       let node;
       while ((node = walker.nextNode())) {
@@ -1919,12 +1923,38 @@ export class WriterAdapter {
         if (node.parentElement.closest("[data-vno-float]")) continue;
         if (node.parentElement === block) { directText = true; break; }
         if (!firstRun) firstRun = node.parentElement;
+        textRuns.push({ node, element: node.parentElement, computed: window.getComputedStyle(node.parentElement) });
       }
       if (!directText && firstRun) {
-        const rcs = window.getComputedStyle(firstRun);
+        const rcs = textRuns[0].computed;
         const bcs = window.getComputedStyle(block);
         if (rcs.fontSize !== bcs.fontSize) block.style.fontSize = rcs.fontSize;
         if (rcs.fontFamily !== bcs.fontFamily) block.style.fontFamily = rcs.fontFamily;
+
+        // W12d: một inline wrapper không có text trực tiếp vẫn tạo inline strut theo font của chính nó.
+        // Hạ wrapper về run nhỏ nhất bên trong; run lớn có cỡ tường minh vẫn tiếp tục quyết định line box.
+        const wrappers = new Map();
+        for (const run of textRuns) {
+          const size = Number.parseFloat(run.computed.fontSize);
+          let wrapper = run.element;
+          while (wrapper && wrapper !== block) {
+            const entry = wrappers.get(wrapper) || { minSize: Infinity, fontSize: run.computed.fontSize, fontFamily: run.computed.fontFamily };
+            if (Number.isFinite(size) && size < entry.minSize) {
+              entry.minSize = size;
+              entry.fontSize = run.computed.fontSize;
+              entry.fontFamily = run.computed.fontFamily;
+            }
+            wrappers.set(wrapper, entry);
+            wrapper = wrapper.parentElement;
+          }
+        }
+        for (const [wrapper, runStyle] of wrappers) {
+          const hasDirectText = Array.from(wrapper.childNodes || []).some(child => child.nodeType === 3 && child.textContent.trim());
+          if (hasDirectText) continue;
+          const wcs = window.getComputedStyle(wrapper);
+          if (runStyle.fontSize && runStyle.fontSize !== wcs.fontSize) wrapper.style.fontSize = runStyle.fontSize;
+          if (runStyle.fontFamily && runStyle.fontFamily !== wcs.fontFamily) wrapper.style.fontFamily = runStyle.fontFamily;
+        }
       }
     }
     // Tỉ số font theo font computed thật (sau khi strut đã đổi).

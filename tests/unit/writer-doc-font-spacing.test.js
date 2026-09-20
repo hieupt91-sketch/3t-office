@@ -65,6 +65,45 @@ export async function runWriterDocFontSpacingTests() {
     check(adapter._fontLineRatio("") === 1.15, "empty family default");
   });
 
+  test("W12d: nested empty 12pt wrapper takes the 8pt text-run strut", () => {
+    const adapter = new WriterAdapter(null);
+    const oldWindow = globalThis.window;
+    const oldDocument = globalThis.document;
+    const oldNodeFilter = globalThis.NodeFilter;
+    const style = () => ({ fontSize: "", fontFamily: "", setProperty() {} });
+    const block = { style: style(), parentElement: null, closest: () => null, querySelectorAll: () => [] };
+    const outer = { style: style(), parentElement: block, childNodes: [], closest: () => null };
+    const inner = { style: style(), parentElement: outer, childNodes: [], closest: () => null };
+    const textNode = { nodeType: 3, textContent: "Từ những thay đổi", parentElement: inner };
+    inner.childNodes = [textNode];
+    outer.childNodes = [inner];
+    block.childNodes = [outer];
+    const computed = new Map([
+      [block, { fontSize: "12pt", fontFamily: "Times New Roman" }],
+      [outer, { fontSize: "12pt", fontFamily: "Times New Roman" }],
+      [inner, { fontSize: "8pt", fontFamily: "Times New Roman" }]
+    ]);
+    try {
+      globalThis.window = { getComputedStyle: el => ({ ...computed.get(el), ...(el.style.fontSize ? { fontSize: el.style.fontSize } : {}), ...(el.style.fontFamily ? { fontFamily: el.style.fontFamily } : {}) }) };
+      globalThis.NodeFilter = { SHOW_TEXT: 4 };
+      globalThis.document = {
+        createTreeWalker() {
+          let done = false;
+          return { nextNode() { if (done) return null; done = true; return textNode; } };
+        }
+      };
+      const root = { querySelectorAll(selector) { return selector === "*" ? [] : [block]; } };
+      adapter._normalizeImportedFontMetrics(root);
+      check(block.style.fontSize === "8pt", `paragraph strut must be 8pt: ${block.style.fontSize}`);
+      check(outer.style.fontSize === "8pt", `empty outer wrapper strut must be 8pt: ${outer.style.fontSize}`);
+      check(inner.style.fontSize === "", "wrapper with direct 8pt text must keep its explicit run size");
+    } finally {
+      globalThis.window = oldWindow;
+      globalThis.document = oldDocument;
+      globalThis.NodeFilter = oldNodeFilter;
+    }
+  });
+
   test("Anchor-only paragraph: LibreOffice's double <br> collapses to one line", () => {
     const adapter = new WriterAdapter(null);
     const html = '<p data-vno-float-anchor="" style="position:relative;margin-bottom: 0.9cm">\n<span data-vno-float="image" data-vno-float-id="3" style="position:absolute;left:0.24cm;top:6.33cm;"><img src="x">\n</span><span data-vno-float="image" data-vno-float-id="4" style="position:absolute;"><img src="y">\n</span><br>\n<br>\n\n</p><p style="line-height: 0.02cm"><br>\n<br>\n</p><p>text<br><br></p>';
