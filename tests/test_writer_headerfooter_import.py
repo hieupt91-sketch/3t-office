@@ -70,6 +70,22 @@ class WriterHeaderFooterImportTests(unittest.TestCase):
         self.assertRegex(html, r"128/KH-ĐT")
         # PAGE fields survive as sdfield in the HTML string (adapter unwraps later).
         self.assertRegex(html, r"<sdfield\b")
+        # Quy ước W26b: payload chứa ooxmlHeaderXml và ooxmlFooterXml
+        self.assertIn("ooxmlHeaderXml", result)
+        self.assertIn("ooxmlFooterXml", result)
+        self.assertIn("<w:hdr", result["ooxmlHeaderXml"])
+        self.assertIn("<w:ftr", result["ooxmlFooterXml"])
+
+    def test_w26b_read_docx_header_footer_xmls_order_and_payload(self):
+        h, f = main._read_docx_header_footer_xmls(str(FIXTURE_DOCX))
+        self.assertIsNotNone(h)
+        self.assertIsNotNone(f)
+        self.assertIn("<w:hdr", h)
+        self.assertIn("<w:ftr", f)
+        self.assertIn(HEADER_COMPANY, h)
+        self.assertIn(FOOTER_DATE, f)
+        self.assertEqual(main._read_docx_header_footer_xmls(""), (None, None))
+        self.assertEqual(main._read_docx_header_footer_xmls(str(ROOT / "README.md")), (None, None))
 
 
 if __name__ == "__main__":

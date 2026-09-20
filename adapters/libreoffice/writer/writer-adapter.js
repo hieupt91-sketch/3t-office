@@ -2086,7 +2086,7 @@ export class WriterAdapter {
     setProp("--vno-font-ratio", String(this._fontLineRatio(family || "Times New Roman")));
   }
 
-  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "") {
+  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "", ooxmlHeaderXml = "", ooxmlFooterXml = "") {
     let html = String(raw || "");
     let comments = [];
     if (ooxmlDocumentXml) {
@@ -2143,11 +2143,11 @@ export class WriterAdapter {
     let header = "";
     let footer = "";
     if (headerMatch) {
-      header = this._normalizeImportedHeaderFooterHtml(headerMatch[1], "header", ooxmlDocumentXml);
+      header = this._normalizeImportedHeaderFooterHtml(headerMatch[1], "header", ooxmlDocumentXml, ooxmlHeaderXml, ooxmlStylesXml);
       html = html.replace(headerMatch[0], "");
     }
     if (footerMatch) {
-      footer = this._normalizeImportedHeaderFooterHtml(footerMatch[1], "footer", ooxmlDocumentXml);
+      footer = this._normalizeImportedHeaderFooterHtml(footerMatch[1], "footer", ooxmlDocumentXml, ooxmlFooterXml, ooxmlStylesXml);
       html = html.replace(footerMatch[0], "");
     }
     html = this._normalizeImportedStarWriterNotes(html);
@@ -3079,8 +3079,9 @@ export class WriterAdapter {
     const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
     for (const pm of bodyNoTables.matchAll(paraRe)) {
       const pXml = pm[0];
-      const hasText = /<w:t\b|<w:t>/i.test(pXml);
-      const hasSpecial = /<w:(?:drawing|pict|tab|br)\b/i.test(pXml);
+      const pContent = pXml.replace(/<w:pPr\b[\s\S]*?<\/w:pPr>/gi, "");
+      const hasText = /<w:t\b|<w:t>/i.test(pContent);
+      const hasSpecial = /<w:(?:drawing|pict|tab|br)\b/i.test(pContent);
       const isEmptyOoxml = !hasText && !hasSpecial;
 
       let sz = null;
@@ -3857,7 +3858,7 @@ export class WriterAdapter {
    * gray `<span>` wrapping them prevents Print Preview from matching
    * `Trang N / M` (the replacement lives on the footer innerHTML string).
    */
-  _normalizeImportedHeaderFooterHtml(html, zone = "header", ooxmlDocumentXml = "") {
+  _normalizeImportedHeaderFooterHtml(html, zone = "header", ooxmlDocumentXml = "", ooxmlZoneXml = "", ooxmlStylesXml = "") {
     let out = String(html || "");
     out = out.replace(/<sdfield\b[^>]*>([\s\S]*?)<\/sdfield>/gi, "$1");
     out = out.replace(
@@ -3883,9 +3884,135 @@ export class WriterAdapter {
       }
     }
     out = out.replace(/\bstyle=(["'])\s*;?\s*\1/gi, "");
+
+    // W26b: chuẩn hóa đoạn rỗng trong header/footer theo cỡ dấu đoạn từ ooxmlZoneXml
+    if (ooxmlZoneXml) {
+      out = this._applyOoxmlZoneEmptyParagraphFontSizes(out, ooxmlZoneXml, ooxmlStylesXml, zone);
+    }
+
     out = this._collapseFloatOnlyParagraphBreaks(out, ooxmlDocumentXml);
     out = this._encodeProportionalLineHeights(out);
     return out.trim();
+  }
+
+  /**
+   * Quy ước W26b: Chuẩn hóa cỡ chữ đoạn rỗng trong vùng header/footer theo cỡ dấu đoạn từ ooxmlZoneXml.
+   * Ánh xạ w:p <-> <p>/<hN> trong zone theo thứ tự. Với w:p không có w:t và không có drawing/pict/tab/br (rỗng thật):
+   * cỡ dấu đoạn = pPr/rPr/sz -> style chain (pStyle -> basedOn) -> docDefaults w:sz;
+   * gán font-size: <sz/2>pt vào <p> (giữ <br>).
+   */
+  _applyOoxmlZoneEmptyParagraphFontSizes(html, ooxmlZoneXml, ooxmlStylesXml = "", zone = "header") {
+    const xml = String(ooxmlZoneXml || "");
+    const styles = String(ooxmlStylesXml || "");
+    if (!xml) return html;
+
+    let docDefaultsSz = null;
+    const stylesSz = new Map();
+    const stylesBasedOn = new Map();
+
+    if (styles) {
+      const docDefMatch = styles.match(/<w:docDefaults>[\s\S]*?<w:rPrDefault>[\s\S]*?<w:sz\b[^>]*w:val="(\d+)"/);
+      if (docDefMatch) docDefaultsSz = parseInt(docDefMatch[1], 10);
+
+      const styleRe = /<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>([\s\S]*?)<\/w:style>/g;
+      for (const m of styles.matchAll(styleRe)) {
+        const sid = m[1];
+        const sBody = m[2];
+        const rprMatch = sBody.match(/<w:rPr>([\s\S]*?)<\/w:rPr>/);
+        if (rprMatch) {
+          const szMatch = rprMatch[1].match(/<w:sz\b[^>]*w:val="(\d+)"/);
+          if (szMatch) stylesSz.set(sid, parseInt(szMatch[1], 10));
+        }
+        const basedOnMatch = sBody.match(/<w:basedOn\b[^>]*w:val="([^"]+)"/);
+        if (basedOnMatch) stylesBasedOn.set(sid, basedOnMatch[1]);
+      }
+    }
+
+    const defaultZoneStyle = zone === "header" ? "Header" : "Footer";
+    const resolveStyleSz = (sid, depth = 0) => {
+      if (!sid || depth > 20) {
+        if (stylesSz.has(defaultZoneStyle)) return stylesSz.get(defaultZoneStyle);
+        return docDefaultsSz || 22;
+      }
+      if (stylesSz.has(sid)) return stylesSz.get(sid);
+      if (stylesBasedOn.has(sid)) return resolveStyleSz(stylesBasedOn.get(sid), depth + 1);
+      if (sid !== defaultZoneStyle && stylesSz.has(defaultZoneStyle)) return stylesSz.get(defaultZoneStyle);
+      if (sid !== "Normal" && stylesSz.has("Normal")) return stylesSz.get("Normal");
+      return docDefaultsSz || 22;
+    };
+
+    const zoneNoTables = xml.replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi, "");
+    const parasData = [];
+    const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
+    for (const pm of zoneNoTables.matchAll(paraRe)) {
+      const pXml = pm[0];
+      const pContent = pXml.replace(/<w:pPr\b[\s\S]*?<\/w:pPr>/gi, "");
+      const hasText = /<w:t\b|<w:t>/i.test(pContent);
+      const hasSpecial = /<w:(?:drawing|pict|tab|br)\b/i.test(pContent);
+      const isEmptyOoxml = !hasText && !hasSpecial;
+
+      let sz = null;
+      if (isEmptyOoxml) {
+        const pprMatch = pXml.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+        const ppr = pprMatch ? pprMatch[1] : "";
+        const rprMatch = ppr.match(/<w:rPr>([\s\S]*?)<\/w:rPr>/);
+        const rpr = rprMatch ? rprMatch[1] : "";
+        const rprSz = rpr.match(/<w:sz\b[^>]*w:val="(\d+)"/);
+        if (rprSz) {
+          sz = parseInt(rprSz[1], 10);
+        } else {
+          const pstyleMatch = ppr.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/);
+          const styleId = pstyleMatch ? pstyleMatch[1] : defaultZoneStyle;
+          sz = resolveStyleSz(styleId);
+        }
+      }
+      parasData.push({ isEmptyOoxml, sz, pt: sz ? sz / 2.0 : null });
+    }
+
+    if (!parasData.some(p => p.isEmptyOoxml && p.pt !== null)) return html;
+
+    // Trong zone, bỏ qua các đoạn nằm trong bảng (nếu có)
+    const tables = [];
+    let pos = 0;
+    const tblRe = /<table\b/gi;
+    while (pos < html.length) {
+      tblRe.lastIndex = pos;
+      const m = tblRe.exec(html);
+      if (!m) break;
+      const start = m.index;
+      const re = /<table\b|<\/table>/gi;
+      re.lastIndex = start;
+      let depth = 0, end = -1, tm;
+      while ((tm = re.exec(html))) {
+        depth += tm[0][1] === "/" ? -1 : 1;
+        if (depth === 0) { end = tm.index + tm[0].length; break; }
+      }
+      if (end < 0) break;
+      tables.push({ start, end }); pos = end;
+    }
+
+    let paraIndex = 0;
+    return String(html || "").replace(/<(p|h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi, (fullTag, tagName, attrs, inner, offset) => {
+      for (const t of tables) {
+        if (offset >= t.start && offset < t.end) return fullTag;
+      }
+
+      if (paraIndex >= parasData.length) return fullTag;
+      const pSpec = parasData[paraIndex++];
+
+      if (!pSpec || !pSpec.isEmptyOoxml || pSpec.pt === null) return fullTag;
+
+      const text = inner.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
+      if (text.length > 0) return fullTag;
+      if (/<(?:img|iframe|object|svg|canvas)\b|data-vno-float/i.test(inner)) return fullTag;
+
+      let newInner = inner;
+      if (/\bfont-size:\s*\d+(?:\.\d+)?pt/i.test(inner)) {
+        newInner = inner.replace(/\bfont-size:\s*\d+(?:\.\d+)?pt/gi, `font-size: ${pSpec.pt}pt`);
+      }
+
+      return this._addCssDeclsToParagraph(fullTag, attrs, newInner, [`font-size: ${pSpec.pt}pt`], tagName);
+    });
   }
 
   /**
@@ -9670,7 +9797,9 @@ export class WriterAdapter {
         result.ooxmlDocumentXml,
         result.ooxmlCommentsXml,
         result.ooxmlStylesXml,
-        result.ooxmlNumberingXml
+        result.ooxmlNumberingXml,
+        result.ooxmlHeaderXml,
+        result.ooxmlFooterXml
       );
       if (imported.page) {
         this.pageSetup = {

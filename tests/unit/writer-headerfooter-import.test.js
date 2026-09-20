@@ -468,5 +468,26 @@ export async function runWriterHeaderFooterImportTests() {
     if (none.header !== undefined || none.footer !== undefined) throw new Error("Không có style Header/Footer thì không đặt cỡ vùng");
   });
 
+  test("W26b: _normalizeImportedHeaderFooterHtml chuẩn hóa cỡ chữ đoạn rỗng theo cỡ dấu đoạn từ ooxmlZoneXml", () => {
+    const adapter = new WriterAdapter(null);
+    const styles = '<w:styles><w:docDefaults><w:rPrDefault><w:rPr><w:sz w:val="28"/></w:rPr></w:rPrDefault></w:docDefaults>'
+      + '<w:style w:styleId="Footer"><w:rPr><w:sz w:val="24"/></w:rPr></w:style>'
+      + '</w:styles>';
+    const footerXml = '<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+      + '<w:p><w:pPr><w:pStyle w:val="Footer"/><w:rPr><w:sz w:val="20"/></w:rPr></w:pPr></w:p>' // empty 10pt
+      + '<w:p><w:r><w:t>Đoạn có chữ</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:pStyle w:val="Footer"/></w:pPr></w:p>' // empty 12pt (Footer style fallback)
+      + '</w:ftr>';
+    const html = '<p style="line-height: 100%; margin-top: 1.8cm; margin-bottom: 0cm"><br/></p>'
+      + '<p style="line-height: 100%; margin-bottom: 0cm">Đoạn có chữ</p>'
+      + '<p style="line-height: 100%; margin-bottom: 0cm"><br/></p>';
+    const out = adapter._normalizeImportedHeaderFooterHtml(html, "footer", "", footerXml, styles);
+    if (!out.includes('font-size: 10pt')) throw new Error(`Đoạn rỗng 1 có sz=20 phải nhận font-size: 10pt, thực tế: ${out}`);
+    if (!out.includes('font-size: 12pt')) throw new Error(`Đoạn rỗng 3 thừa kế style Footer sz=24 phải nhận font-size: 12pt, thực tế: ${out}`);
+    if (out.includes('font-size: 10pt">Đoạn có chữ') || out.includes('font-size: 12pt">Đoạn có chữ')) {
+      throw new Error(`Đoạn có chữ không được thêm font-size: ${out}`);
+    }
+  });
+
   return results;
 }
