@@ -2635,6 +2635,19 @@ export class WriterAdapter {
       const parent = basedOn.get(sid);
       return parent ? hasCtx(parent, depth + 1) : false;
     };
+    // <w:spacing> gần nhất trong style chain (đoạn không tự khai báo) — cho lineRule="atLeast" (W12c)
+    const styleSpacingAttrs = new Map();
+    for (const m of styles.matchAll(styleRe)) {
+      const ppr = m[2].match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+      const sp = ppr && ppr[1].match(/<w:spacing\b([^>]*)\/?>/);
+      styleSpacingAttrs.set(m[1], sp ? sp[1] : null);
+    }
+    const styleSpacing = (sid, depth = 0) => {
+      if (!sid || depth > 12) return null;
+      if (styleSpacingAttrs.get(sid)) return styleSpacingAttrs.get(sid);
+      const parent = basedOn.get(sid);
+      return parent ? styleSpacing(parent, depth + 1) : null;
+    };
 
     // 2. Lấy tất cả w:p cấp cao nhất (không nằm trong w:tbl)
     const bodyMatch = xml.match(/<w:body>([\s\S]*?)<\/w:body>/i);
@@ -2654,7 +2667,15 @@ export class WriterAdapter {
       const styleMatch = pprXml.match(/<w:pStyle w:val="([^"]+)"/);
       const styleId = styleMatch ? styleMatch[1] : "Normal";
       const ctx = ownCtx || hasCtx(styleId);
-      paras.push({ styleId, ctx, pprXml });
+      // W12c: lineRule="atLeast" (đoạn hoặc style chain) — Word: dòng = MAX(giá trị, chiều cao tự nhiên của font).
+      // LibreOffice ghi thành line-height tuyệt đối (d06: line=10 twips → 0.02cm → canvas 0.76 px, 15 đoạn cao 1 px).
+      const ownSpacing = pprXml.match(/<w:spacing\b([^>]*)\/?>/);
+      let atLeastTwips = null;
+      const spacingAttrs = ownSpacing ? ownSpacing[1] : (styleSpacing(styleId) || "");
+      const lineRule = spacingAttrs.match(/w:lineRule="(\w+)"/)?.[1];
+      const lineVal = spacingAttrs.match(/w:line="(-?\d+)"/)?.[1];
+      if (lineRule === "atLeast" && lineVal) atLeastTwips = Number(lineVal);
+      paras.push({ styleId, ctx, pprXml, atLeastTwips });
     }
 
     if (!paras.length) return html;
@@ -2670,7 +2691,8 @@ export class WriterAdapter {
         needTopZero[i + 1] = true;
       }
     }
-    if (!needBottomZero.some(v => v) && !needTopZero.some(v => v)) return html;
+    const anyAtLeast = paras.some(p => p.atLeastTwips !== null);
+    if (!needBottomZero.some(v => v) && !needTopZero.some(v => v) && !anyAtLeast) return html;
 
     // 4. Tách các bảng HTML để bỏ qua paragraph trong bảng
     const tables = [];
@@ -2701,6 +2723,11 @@ export class WriterAdapter {
       const decls = [];
       if (needBottomZero[paraIndex - 1]) decls.push("margin-bottom: 0");
       if (needTopZero[paraIndex - 1]) decls.push("margin-top: 0");
+      if (spec.atLeastTwips !== null) {
+        // W12c: "ít nhất X" = MAX(X, dòng tự nhiên = 1em × tỉ số font (W1)); LibreOffice chỉ ghi X tuyệt đối
+        const pt = Math.round(spec.atLeastTwips / 20 * 100) / 100;
+        decls.push(`line-height: max(${pt}pt, calc(1em * var(--vno-font-ratio, 1.15)))`);
+      }
       if (!decls.length) return fullTag;
 
       return this._addCssDeclsToParagraph(fullTag, attrs, inner, decls);

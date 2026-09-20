@@ -36,6 +36,7 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 | W6 | Cỡ chữ/font mặc định tài liệu chỉ lấy từ style Normal / head CSS; không lấy từ run đầu | d14: tiêu đề 28pt → strut 64px | 37596ed |
 | W7 | Lưu: header/footer chép theo `.rels` + media; giữ `theme1.xml` gốc; run chỉ 1 họ font | d20 corrupted, HDLD 6 trang | test_writer_headerfooter_dependencies |
 | W12b | Tài liệu tiếng Việt (docDefaults `w:lang="vi"` / đa số run vi-VN): font theme = typeface `<a:font script="Viet">` (Times New Roman/Arial trong theme Office), KHÔNG phải `<a:latin>` (Calibri Light/Calibri) — Word COM `Font.Name` = TNR trong khi LibreOffice ghi Calibri Light. Áp cho font mặc định (W9) và `<font face>` run (thay khi tài liệu không đặt tường minh font latin đó) | d07: line-height 22 → 0, page 147 → 134; bộ đo `theme_fonts()` cùng quy tắc | test_writer_default_font_css (W12b) |
+| W12c | `w:lineRule="atLeast"` (đoạn hoặc style chain) = MAX(giá trị, dòng tự nhiên 1em × tỉ số font W1); LibreOffice ghi giá trị tuyệt đối (`line=10` → 0,02 cm → canvas 0,76 px) | d06: line-height 15 → 3, drift 15 → 3 (đo lại với cache canvas xoá — bộ đo dùng lại `*.canvas.jsonl` nếu còn) | writer-doc-font-spacing (W12c) |
 | W12a | contextualSpacing: hai đoạn kế tiếp cùng pStyle và style/pPr có `<w:contextualSpacing/>` → Word bỏ MAX(sa, sb) giữa chúng (lề = 0). Khi nhập: ánh xạ w:p → HTML <p> theo thứ tự, đoạn trước margin-bottom:0, đoạn sau margin-top:0. | d09 ListParagraph: Word pitch 23px (sa 10pt bỏ), canvas 37px; 43 cặp spacing | `_applyOoxmlContextualSpacing` (suite 153) |
 
 ## Quy ước đã đo và khoá (Sheet)
@@ -71,3 +72,4 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 
 - Sheet: Đã triệt tiêu 16.358 lỗi `hiddenColumn` qua S9. Lớp còn lại: fill (53k), value (34k), merge ô gộp (`G4:I4` UNC, `A4:F4` DANH SÁCH CHI LƯƠNG).
 - Writer: MA-TRAN-WRITER-2026-09-15b.md; còn wrap (86), line-height (126), drift:unknown (119), d20 bảng trHeight (W11b).
+

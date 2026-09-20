@@ -145,5 +145,20 @@ export async function runWriterDocFontSpacingTests() {
     check(out === html, `different styles must not change margins: ${out}`);
   });
 
+  test("W12c: lineRule=atLeast becomes max(value, natural line) instead of LibreOffice's absolute line-height", () => {
+    // Đo d06 (19/9): <w:spacing w:line="10" w:lineRule="atLeast"/> (0,5pt) → LibreOffice line-height: 0.02cm → canvas 0,76 px;
+    // Word vẽ 1 dòng tự nhiên (Calibri 12: 19–20 px). 15 đoạn.
+    const adapter = new WriterAdapter(null);
+    const html = '<p style="line-height: 0.02cm; margin-bottom: 0.28cm">SS04</p><p style="line-height: 0.02cm">Via</p><p style="line-height: 1.5cm">Exact</p>';
+    const doc = '<w:document><w:body><w:p><w:pPr><w:spacing w:after="160" w:line="10" w:lineRule="atLeast"/></w:pPr><w:r><w:t>SS04</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:pStyle w:val="Tight"/></w:pPr><w:r><w:t>Via</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:spacing w:line="850" w:lineRule="exact"/></w:pPr><w:r><w:t>Exact</w:t></w:r></w:p></w:body></w:document>';
+    const stylesXml = '<w:styles><w:style w:type="paragraph" w:styleId="Tight"><w:pPr><w:spacing w:line="240" w:lineRule="atLeast"/></w:pPr></w:style></w:styles>';
+    const out = adapter._applyOoxmlContextualSpacing(html, doc, stylesXml);
+    check(out.includes('line-height: max(0.5pt, calc(1em * var(--vno-font-ratio, 1.15)))') && out.includes("SS04"), `atLeast on paragraph: ${out}`);
+    check(out.includes('line-height: max(12pt, calc(1em * var(--vno-font-ratio, 1.15)))'), `atLeast via style chain: ${out}`);
+    check(out.includes('<p style="line-height: 1.5cm">Exact</p>'), `exact must stay absolute: ${out}`);
+  });
+
   return results;
 }
