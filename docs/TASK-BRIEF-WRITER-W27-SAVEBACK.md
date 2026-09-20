@@ -25,7 +25,8 @@ Số trang bản lưu vs Word gốc (R11b): 12/23 file lệch (d20 3→7, d16 8�
    pageBreakBefore cho bảng; hoặc chèn đoạn rỗng có `w:br type=page` trước bảng, đo Word xem cách nào giữ đúng số trang)
    và XOÁ `w:pageBreakBefore` LibreOffice gắn nhầm. Kiểm: d15 d13 d21 d03 d06 d23 bản lưu có ngắt ở đúng đoạn (giải nén
    so 6 chữ đầu), số trang Word bản lưu = Word gốc.
-2. **Quy ước W27b (A):** tìm vì sao LibreOffice nhân đôi bảng d09: dùng `_saveback_stages.py` lấy `stage2_export.html`,
+2. **Quy ước W27b (A):** tìm vì sao LibreOffice nhân đôi bảng d09 (R13: bảng tài chính nằm LỒNG trong `<td>` của một
+   bảng bố cục — nghi LibreOffice HTML import nhân đôi bảng lồng): dùng `_saveback_stages.py` lấy `stage2_export.html`,
    cắt dần (bisect HTML quanh bảng 2: bỏ thuộc tính/thẻ bao) đến khi tầng 3 còn 1 bảng → xác định thẻ/thuộc tính gây
    nhân đôi (nghi: bảng nằm trong `<li>`, `div[data-vno-float]`, hoặc `contenteditable`/`data-vno-*` còn sót trong
    HTML xuất) → sửa MỘT chỗ ở `_contentForExport` (không gửi thứ LibreOffice hiểu sai) hoặc hậu xử lý bỏ bảng trùng
