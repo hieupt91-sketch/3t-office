@@ -290,6 +290,7 @@ export async function runBackstagePrintThumbnailTests() {
     await test("Sheet Backstage In: tài liệu nhiều trang hiện điều hướng và bấm Trang sau đổi đúng trang", () => {
       const grid = new SheetGridController(fakeContainer());
       for (let r = 1; r <= 80; r++) putCell(grid, `A${r}`, `Dòng dữ liệu số ${r}`);
+      grid.setRowHeights(26, Array.from({ length: 80 }, (_, index) => index + 1));
       grid.printAreaBySheet[grid.activeSheet] = "A1:A80";
 
       const shell = new AppShell({ appName: "sheet", appTitle: "VN Sheet", grid });

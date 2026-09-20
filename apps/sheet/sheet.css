@@ -120,8 +120,8 @@
 .vno-grid-table {
   border-collapse: collapse;
   table-layout: fixed;
-  font-size: var(--vno-text-xs);
-  font-family: var(--vno-font-ui);
+  font-size: 14.67px;
+  font-family: Calibri, Carlito, Arial, sans-serif;
   transform-origin: top left;
 }
 
@@ -157,7 +157,7 @@
 
 .vno-col-header {
   height: 24px;
-  min-width: 100px;
+  min-width: 64px;
   background-color: var(--vno-bg-subtle);
   color: var(--vno-text-muted);
   font-weight: 600;
@@ -176,7 +176,7 @@
 
 .vno-row-header {
   width: 44px;
-  height: 26px;
+  height: 20px;
   background-color: var(--vno-bg-subtle);
   color: var(--vno-text-muted);
   font-weight: 600;
@@ -231,7 +231,7 @@
 /* Data Cells */
 .vno-grid-cell {
   padding: 3px 3px;
-  height: 26px;
+  height: 20px;
   box-sizing: border-box;
   white-space: nowrap;
   overflow: hidden;
@@ -265,7 +265,7 @@
 
 .vno-grid-cell.is-wrap-text {
   height: auto;
-  min-height: 26px;
+  min-height: 20px;
   white-space: normal;
   overflow-wrap: anywhere;
   text-overflow: clip;

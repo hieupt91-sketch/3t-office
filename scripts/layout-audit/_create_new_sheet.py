@@ -20,7 +20,7 @@ window = webview.create_window(title="VN Sheet - Create New", url=vnmain.build_l
 
 # Kich ban: (coord, value, style props, numberFormat config) — gia tri mong doi doc bang Excel COM
 SCENARIO = r"""
-(function(){
+(async function(){
   const app = window.__vnoAppInstance; if (!app || !app.grid) return 'no-app';
   const g = app.grid;
   const put = (c, r, v) => g.setCellValue(c, r, v);
@@ -40,6 +40,10 @@ SCENARIO = r"""
   put("E", 1, "Gộp E1:G1"); g.selectCell("E", 1); g.selectionRange = { start: { c: "E", r: 1 }, end: { c: "G", r: 1 } }; g.mergeCells("mergeCenter", g.selectionRange, { confirmDataLoss: false });
   g.setColumnWidths(160, ["A"]); g.setColumnWidths(48, ["C"]);
   g.setRowHeights(40, [5]); put("A", 5, "Dòng cao 40px");
+  put("B", 5, "Ô mặc định");
+  put("H", 1, "Cỡ chữ 14 pt"); sel("H", 1);
+  const { globalCommandBus } = await import('/platform/commands/command-bus.js');
+  await globalCommandBus.execute("sheet.font.size", "14");
   return 'ok';
 })()
 """
@@ -57,7 +61,10 @@ EXPECTED = {
     "D2": {"borders": True},
     "D3": {"wrap": True, "valign": "top"},
     "E1": {"value": "Gộp E1:G1", "mergeArea": "$E$1:$G$1", "halign": "center"},
-    "A": {"colWidthPx": 160}, "C": {"colWidthPx": 48}, "5": {"rowHeightPx": 40},
+    "B5": {"value": "Ô mặc định", "font": "Calibri", "size": 11},
+    "H1": {"value": "Cỡ chữ 14 pt", "size": 14},
+    "A": {"colWidthPx": 160}, "B": {"colWidthPx": 64}, "C": {"colWidthPx": 48},
+    "5": {"rowHeightPx": 40}, "6": {"rowHeightPx": 20},
 }
 
 def after_load(win):

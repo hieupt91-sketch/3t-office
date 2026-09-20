@@ -848,7 +848,16 @@ class VnOfficeApi:
 
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_open_") as tmp:
-                out_path = _run_soffice_convert(src_path, target_ext, tmp, app_kind=app_kind)
+                convert_src_path = src_path
+                if app_kind == "sheet" and src_path.lower().endswith(".xlsx"):
+                    with open(src_path, "rb") as source_file:
+                        original_xlsx = source_file.read()
+                    import_xlsx = _ooxml_zip_patch().make_all_sheets_visible_for_import(original_xlsx)
+                    if import_xlsx != original_xlsx:
+                        convert_src_path = os.path.join(tmp, "import-visible.xlsx")
+                        with open(convert_src_path, "wb") as import_file:
+                            import_file.write(import_xlsx)
+                out_path = _run_soffice_convert(convert_src_path, target_ext, tmp, app_kind=app_kind)
                 with open(out_path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
                 if app_kind == "writer":

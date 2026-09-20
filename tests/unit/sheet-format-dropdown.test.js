@@ -53,10 +53,10 @@ export async function runSheetFormatDropdownTests() {
     grid.selectCell("B", 3);
     assert(grid.setRowHeights(48, [3]) === 48, "setRowHeights phải trả chiều cao đã kẹp");
     assert(grid.getRowHeight(3) === 48, `Hàng 3 phải cao 48px, thực tế ${grid.getRowHeight(3)}`);
-    assert(grid.getRowHeight(1) === 26, "Hàng khác phải giữ mặc định 26px");
+    assert(grid.getRowHeight(1) === 20, "Hàng khác phải giữ mặc định 20px");
     assert(grid.setColumnWidths(160, ["B"]) === 160, "setColumnWidths phải trả độ rộng đã kẹp");
     assert(grid.getColumnWidth("B") === 160, `Cột B phải rộng 160px, thực tế ${grid.getColumnWidth("B")}`);
-    assert(grid.getColumnWidth("A") === 100, "Cột A phải giữ mặc định 100px");
+    assert(grid.getColumnWidth("A") === 64, "Cột A phải giữ mặc định 64px");
   });
 
   await test("Ẩn 1 hàng và 1 cột, rồi hiện lại đúng", () => {
@@ -100,9 +100,9 @@ export async function runSheetFormatDropdownTests() {
     grid.undo();
     assert(!grid.isRowUserHidden(4), "Undo 2: hiện lại hàng 4");
     grid.undo();
-    assert(grid.getColumnWidth("A") === 100, "Undo 3: cột A về mặc định");
+    assert(grid.getColumnWidth("A") === 64, "Undo 3: cột A về mặc định");
     grid.undo();
-    assert(grid.getRowHeight(2) === 26, "Undo 4: hàng 2 về mặc định");
+    assert(grid.getRowHeight(2) === 20, "Undo 4: hàng 2 về mặc định");
 
     grid.redo();
     assert(grid.getRowHeight(2) === 40, "Redo chiều cao hàng 2");

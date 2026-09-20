@@ -73,3 +73,8 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 - Sheet: Đã triệt tiêu 16.358 lỗi `hiddenColumn` qua S9. Lớp còn lại: fill (53k), value (34k), merge ô gộp (`G4:I4` UNC, `A4:F4` DANH SÁCH CHI LƯƠNG).
 - Writer: MA-TRAN-WRITER-2026-09-15b.md; còn wrap (86), line-height (126), drift:unknown (119), d20 bảng trHeight (W11b).
 
+# S24 — Tài liệu VN Sheet tạo mới (19/09/2026)
+
+- **S24a — chiều rộng:** pixel trong model/UI VN Sheet là pixel Excel hiển thị. Khi nhập XLSX, `width` ký tự được đổi thành `width × MDW`; khi lưu, đổi ngược bằng `px / MDW`, không cộng/trừ lề 5 px.
+- **S24b — mặc định workbook mới:** Normal là Calibri 11 pt; hàng 20 px (15 pt); cột 64 px (MDW 7); XLSX có `sheetFormatPr defaultRowHeight="15"` và không giữ `defaultColWidth` do LibreOffice tự sinh.
+- **S24c — cỡ chữ ribbon:** giá trị người dùng chọn là point. Model CSS lưu `pt × 4/3` px (làm tròn hai chữ số); tăng/giảm cỡ chữ so sánh theo point.

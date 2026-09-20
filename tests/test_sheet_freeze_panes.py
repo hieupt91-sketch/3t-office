@@ -141,10 +141,14 @@ class TestPostprocessSheetXlsxFreezePanes(unittest.TestCase):
         self.assertIn('ySplit="3"', sheet1)
         self.assertNotIn("<pane", sheet2, "Sheet2 khong freeze thi khong duoc vá gi")
 
-    def test_no_freeze_data_leaves_xlsx_untouched(self):
+    def test_new_workbook_without_freeze_still_gets_s24_defaults(self):
         original = _fake_xlsx()
         patched = patcher.postprocess_sheet_xlsx(original, source_fods=FODS_NO_FREEZE)
-        self.assertEqual(patched, original)
+        self.assertNotEqual(patched, original)
+        with zipfile.ZipFile(io.BytesIO(patched)) as z:
+            sheet1 = z.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn('defaultRowHeight="15.0"', sheet1)
+        self.assertNotIn("<pane", sheet1)
 
 
 class TestOverlaySheetXlsxFods(unittest.TestCase):

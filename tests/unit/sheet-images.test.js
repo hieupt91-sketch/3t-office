@@ -97,15 +97,15 @@ export async function runSheetImageTests() {
       assert(a1.c === "A" && a1.r === 1, `A1 sai: ${JSON.stringify(a1)}`);
 
       // Ô B1: left=146, top=28
-      const b1 = grid._getAnchorFromPixel(146, 28);
+      const b1 = grid._getAnchorFromPixel(46 + grid.defaultColWidth, 28);
       assert(b1.c === "B" && b1.r === 1, `B1 sai: ${JSON.stringify(b1)}`);
 
       // Kéo sang D5: col D = 46 + 3*100 = 346, row 5 = 28 + 4*28 = 140
-      const d5 = grid._getAnchorFromPixel(346, 140);
+      const d5 = grid._getAnchorFromPixel(46 + 3 * grid.defaultColWidth, 28 + 4 * grid.rowHeight);
       assert(d5.c === "D" && d5.r === 5, `D5 sai: ${JSON.stringify(d5)}`);
 
       // Snap điểm gần nhất: left=120 nằm giữa 46 và 146 nhưng gần 146 hơn -> B
-      const snapB = grid._getAnchorFromPixel(120, 30);
+      const snapB = grid._getAnchorFromPixel(46 + grid.defaultColWidth * 0.75, 30);
       assert(snapB.c === "B" && snapB.r === 1, `Snap B sai: ${JSON.stringify(snapB)}`);
 
       // Clamp biên trên/trái: left <= 0, top <= 0 -> A1
@@ -121,7 +121,7 @@ export async function runSheetImageTests() {
 
       // Mô phỏng chốt vị trí sau khi kéo-thả tới E6
       const oldAnchor = { c: image.anchor.c, r: Number(image.anchor.r) };
-      const newAnchor = grid._getAnchorFromPixel(46 + 4 * 100, 28 + 5 * grid.rowHeight);
+      const newAnchor = grid._getAnchorFromPixel(46 + 4 * grid.defaultColWidth, 28 + 5 * grid.rowHeight);
       assert(newAnchor.c === "E" && newAnchor.r === 6, `Tọa độ kéo tới phải là E6: ${JSON.stringify(newAnchor)}`);
 
       image.anchor = { c: newAnchor.c, r: newAnchor.r };
