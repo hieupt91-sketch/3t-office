@@ -796,6 +796,71 @@ def _read_docx_comments_xml(src_path: str) -> str | None:
     return _read_docx_zip_entry(src_path, "word/comments.xml")
 
 
+def _read_docx_header_footer_xmls(src_path: str) -> tuple[str | None, str | None]:
+    """Quy ước W26b: Đọc các part header/footer XML từ DOCX theo thứ tự rels của sectPr đầu (default trước, first/even sau)."""
+    if not src_path or not str(src_path).lower().endswith(".docx"):
+        return None, None
+    try:
+        with zipfile.ZipFile(src_path) as z:
+            namelist = set(z.namelist())
+            if "word/document.xml" not in namelist:
+                return None, None
+            doc_xml = z.read("word/document.xml").decode("utf-8", errors="replace")
+
+            rels = {}
+            if "word/_rels/document.xml.rels" in namelist:
+                rels_xml = z.read("word/_rels/document.xml.rels").decode("utf-8", errors="replace")
+                for match in re.finditer(r"<Relationship\b([^>]*?)/?>", rels_xml, re.IGNORECASE):
+                    attrs = match.group(1) or ""
+                    id_match = re.search(r'\bId\s*=\s*["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+                    target_match = re.search(r'\bTarget\s*=\s*["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+                    if id_match and target_match:
+                        rels[id_match.group(1)] = target_match.group(1)
+
+            sect_match = re.search(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", doc_xml, re.IGNORECASE)
+            sect_xml = sect_match.group(0) if sect_match else doc_xml
+
+            type_order = {"default": 0, "first": 1, "even": 2}
+
+            def extract_parts(tag_name: str) -> str | None:
+                pattern = rf"<w:{tag_name}Reference\b([^>]*?)(?:/\s*>|>([\s\S]*?)</w:{tag_name}Reference\s*>)"
+                refs = []
+                for m in re.finditer(pattern, sect_xml, re.IGNORECASE):
+                    attrs_str = m.group(1) or ""
+                    id_match = re.search(r'r:id\s*=\s*["\']([^"\']+)["\']', attrs_str, re.IGNORECASE)
+                    type_match = re.search(r'w:type\s*=\s*["\']([^"\']+)["\']', attrs_str, re.IGNORECASE)
+                    if id_match:
+                        r_id = id_match.group(1)
+                        w_type = (type_match.group(1) if type_match else "default").lower()
+                        refs.append((type_order.get(w_type, 3), w_type, r_id))
+
+                refs.sort(key=lambda x: x[0])
+
+                parts = []
+                used_entries = set()
+                for _, _, r_id in refs:
+                    target = rels.get(r_id, "")
+                    if target:
+                        entry = f"word/{target}" if not target.startswith(("word/", "/")) else target.lstrip("/")
+                        if entry in namelist and entry not in used_entries:
+                            used_entries.add(entry)
+                            parts.append(z.read(entry).decode("utf-8", errors="replace"))
+
+                if not parts:
+                    prefix = f"word/{tag_name}"
+                    matching_entries = sorted([n for n in namelist if n.startswith(prefix) and n.endswith(".xml")])
+                    for entry in matching_entries:
+                        parts.append(z.read(entry).decode("utf-8", errors="replace"))
+
+                return "\n".join(parts) if parts else None
+
+            header_xml = extract_parts("header")
+            footer_xml = extract_parts("footer")
+            return header_xml, footer_xml
+    except Exception:
+        return None, None
+
+
 def _active_window():
     """Lấy cửa sổ pywebview hiện tại qua danh sách module-level `webview.windows`.
 
@@ -875,6 +940,8 @@ class VnOfficeApi:
                             # W12b: font theme của tài liệu tiếng Việt = typeface script="Viet" (Word), không phải latin
                             content = patcher.apply_docx_theme_script_fonts(docx_bytes, content)
                             content = patcher.inject_docx_default_font_css(docx_bytes, content)
+                            # W25a: cỡ chữ style nửa điểm (w:sz lẻ: 8,5 / 11,5 / 14,5 pt) bị LibreOffice làm tròn
+                            content = patcher.inject_docx_half_point_styles_css(docx_bytes, content)
                         except OSError:
                             pass
                 elif app_kind == "sheet":
@@ -922,6 +989,12 @@ class VnOfficeApi:
             numbering_xml = _read_docx_zip_entry(src_path, "word/numbering.xml")
             if numbering_xml:
                 payload["ooxmlNumberingXml"] = numbering_xml
+            # Quy ước W26b: header/footer XML để chuẩn hóa đoạn rỗng theo cỡ dấu đoạn zone.
+            header_xml, footer_xml = _read_docx_header_footer_xmls(src_path)
+            if header_xml:
+                payload["ooxmlHeaderXml"] = header_xml
+            if footer_xml:
+                payload["ooxmlFooterXml"] = footer_xml
         elif app_kind == "sheet":
             workbook_xml = _read_xlsx_workbook_xml(src_path)
             if workbook_xml:

@@ -2086,13 +2086,17 @@ export class WriterAdapter {
     setProp("--vno-font-ratio", String(this._fontLineRatio(family || "Times New Roman")));
   }
 
-  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "") {
+  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "", ooxmlHeaderXml = "", ooxmlFooterXml = "") {
     let html = String(raw || "");
     let comments = [];
     if (ooxmlDocumentXml) {
       html = this._applyOoxmlTrackChangesToHtml(html, ooxmlDocumentXml);
       html = this._applyOoxmlTableParagraphSpacing(html, ooxmlDocumentXml, ooxmlStylesXml);
       html = this._applyOoxmlContextualSpacing(html, ooxmlDocumentXml, ooxmlStylesXml);
+      // W25b: cỡ chữ run nửa điểm (w:sz lẻ: 8,5 / 11,5 / 14,5 / 16,5 pt) bị LibreOffice làm tròn
+      html = this._applyOoxmlHalfPointRunFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml);
+      // W26a: cỡ chữ đoạn rỗng theo cỡ dấu đoạn (w:pPr/w:rPr/w:sz -> style chain -> docDefaults)
+      html = this._applyOoxmlEmptyParagraphFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml);
       if (ooxmlNumberingXml) {
         html = this._applyOoxmlListIndents(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
         html = this._applyOoxmlListBullets(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
@@ -2139,11 +2143,11 @@ export class WriterAdapter {
     let header = "";
     let footer = "";
     if (headerMatch) {
-      header = this._normalizeImportedHeaderFooterHtml(headerMatch[1], "header", ooxmlDocumentXml);
+      header = this._normalizeImportedHeaderFooterHtml(headerMatch[1], "header", ooxmlDocumentXml, ooxmlHeaderXml, ooxmlStylesXml);
       html = html.replace(headerMatch[0], "");
     }
     if (footerMatch) {
-      footer = this._normalizeImportedHeaderFooterHtml(footerMatch[1], "footer", ooxmlDocumentXml);
+      footer = this._normalizeImportedHeaderFooterHtml(footerMatch[1], "footer", ooxmlDocumentXml, ooxmlFooterXml, ooxmlStylesXml);
       html = html.replace(footerMatch[0], "");
     }
     html = this._normalizeImportedStarWriterNotes(html);
@@ -2872,7 +2876,7 @@ export class WriterAdapter {
         const [prop, val] = decl.split(":").map(s => s.trim());
         existing[prop.toLowerCase()] = val;
       }
-      const orderedProps = ["margin-top", "margin-bottom", "margin-left", "margin-right", "line-height"];
+      const orderedProps = ["margin-top", "margin-bottom", "margin-left", "margin-right", "line-height", "font-size"];
       const newParts = [];
       for (const prop of orderedProps) {
         if (existing[prop] !== undefined) newParts.push(`${prop}: ${existing[prop]}`);
@@ -2886,6 +2890,246 @@ export class WriterAdapter {
       newAttrs = `${attrs} style="${decls.join("; ")}"`;
     }
     return `<${tagName}${newAttrs}>${inner}</${tagName}>`;
+  }
+
+  /**
+   * Quy ước W25b: Cỡ chữ run nửa điểm (w:sz lẻ: 8,5 / 11,5 / 14,5 / 16,5 pt) bị LibreOffice HTML làm tròn xuống 0,5pt.
+   * Ánh xạ w:p <-> <p> theo thứ tự (dùng lại cơ chế W12a, không theo text), trong mỗi đoạn:
+   * các run OOXML có w:sz lẻ (hoặc thừa kế từ pPr/rPr) <-> <font style="font-size: Npt"> / <span style="font-size: Npt">
+   * cùng thứ tự / cùng chữ đầu -> đặt font-size: <sz/2>pt chính xác. Không đụng run có w:sz chẵn.
+   */
+  _applyOoxmlHalfPointRunFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml = "") {
+    const xml = String(ooxmlDocumentXml || "");
+    const styles = String(ooxmlStylesXml || "");
+    if (!xml || !xml.includes("<w:body>")) return html;
+
+    // 1. styles.xml: lấy w:sz của style để fallback khi pPr/rPr không có w:sz
+    const stylesSz = new Map();
+    if (styles) {
+      const styleRe = /<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>([\s\S]*?)<\/w:style>/g;
+      for (const m of styles.matchAll(styleRe)) {
+        const sid = m[1];
+        const szMatch = m[2].match(/<w:sz\b[^>]*w:val="(\d+)"/);
+        if (szMatch) stylesSz.set(sid, parseInt(szMatch[1], 10));
+      }
+    }
+
+    // 2. Lấy tất cả w:p cấp cao nhất (không nằm trong w:tbl)
+    const bodyMatch = xml.match(/<w:body>([\s\S]*?)<\/w:body>/i);
+    if (!bodyMatch) return html;
+    const bodyXml = bodyMatch[1];
+    const bodyNoTables = this._ooxmlBodyParagraphSource(bodyXml).replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi, "");
+
+    const parasData = [];
+    const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
+    for (const pm of bodyNoTables.matchAll(paraRe)) {
+      const pXml = pm[0];
+      const pprMatch = pXml.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+      const pprBody = pprMatch ? pprMatch[1] : "";
+      const pprSz = pprBody.match(/<w:sz\b[^>]*w:val="(\d+)"/);
+      const pstyleMatch = pprBody.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/);
+
+      let paraDefaultSz = null;
+      if (pprSz) {
+        paraDefaultSz = parseInt(pprSz[1], 10);
+      } else if (pstyleMatch && stylesSz.has(pstyleMatch[1])) {
+        paraDefaultSz = stylesSz.get(pstyleMatch[1]);
+      }
+
+      const runRe = /<w:r\b[^>]*>([\s\S]*?)<\/w:r>/g;
+      const runsData = [];
+      for (const rm of pXml.matchAll(runRe)) {
+        const rBody = rm[1];
+        const rSz = rBody.match(/<w:sz\b[^>]*w:val="(\d+)"/);
+        const sz = rSz ? parseInt(rSz[1], 10) : paraDefaultSz;
+        const tMatches = [...rBody.matchAll(/<w:t\b[^>]*>([^<]*)<\/w:t>/g)];
+        const text = tMatches.map(m => m[1]).join("");
+        if (text.trim().length > 0) {
+          runsData.push({
+            text: text.trim(),
+            sz: sz,
+            isOdd: Boolean(sz && sz % 2 !== 0),
+            pt: sz ? sz / 2.0 : null,
+          });
+        }
+      }
+      parasData.push({ runs: runsData });
+    }
+
+    if (!parasData.some(p => p.runs.some(r => r.isOdd))) return html;
+
+    // 3. Skip ranges cho bảng, header/footer, chú thích
+    const tables = this._htmlParagraphSkipRanges(html);
+    let paraIndex = 0;
+
+    const normTxt = s => {
+      return String(s || "")
+        .replace(/<[^>]+>/g, "")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/\s+/g, "");
+    };
+
+    return String(html || "").replace(/<(p|h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi, (fullTag, tagName, attrs, inner, offset) => {
+      for (const t of tables) {
+        if (offset >= t.start && offset < t.end) return fullTag;
+      }
+
+      if (paraIndex >= parasData.length) return fullTag;
+      const pSpec = parasData[paraIndex];
+      paraIndex++;
+
+      if (!pSpec || !pSpec.runs || !pSpec.runs.some(r => r.isOdd)) return fullTag;
+
+      let runIdx = 0;
+      // Regex tìm thẻ font hoặc span có font-size: Npt
+      const tagRe = /(<(?:font|span)\b[^>]*\bstyle=["'])([^"']*\bfont-size:\s*(\d+(?:\.\d+)?)pt[^"']*["'][^>]*>)([\s\S]*?)(<\/(?:font|span)>)/gi;
+
+      const newInner = inner.replace(tagRe, (fullElem, prefix, styleAttr, curPtStr, elemContent, closeTag) => {
+        const curPt = parseFloat(curPtStr);
+        const innerClean = normTxt(elemContent);
+
+        let matchedRun = null;
+        if (runIdx < pSpec.runs.length) {
+          const r = pSpec.runs[runIdx];
+          const rClean = normTxt(r.text);
+          if (r.isOdd && (Math.floor(curPt) === Math.floor(r.pt) || (innerClean && rClean && (innerClean.slice(0, 3) === rClean.slice(0, 3) || rClean.includes(innerClean.slice(0, 3)))))) {
+            matchedRun = r;
+            runIdx++;
+          } else {
+            for (let k = runIdx; k < Math.min(runIdx + 5, pSpec.runs.length); k++) {
+              const cand = pSpec.runs[k];
+              const candClean = normTxt(cand.text);
+              if (cand.isOdd && Math.floor(curPt) === Math.floor(cand.pt) && (!innerClean || !candClean || innerClean.slice(0, 3) === candClean.slice(0, 3) || candClean.includes(innerClean.slice(0, 3)))) {
+                matchedRun = cand;
+                runIdx = k + 1;
+                break;
+              }
+            }
+          }
+        }
+
+        if (matchedRun && matchedRun.pt !== null) {
+          const newPtStr = `${matchedRun.pt}pt`;
+          if (newPtStr !== `${curPtStr}pt`) {
+            const newStyleAttr = styleAttr.replace(/\bfont-size:\s*\d+(?:\.\d+)?pt\b/, `font-size: ${newPtStr}`);
+            return `${prefix}${newStyleAttr}${elemContent}${closeTag}`;
+          }
+        }
+        return fullElem;
+      });
+
+      return `<${tagName}${attrs}>${newInner}</${tagName}>`;
+    });
+  }
+
+  /**
+   * Quy ước W26a: Đoạn rỗng cao theo cỡ dấu đoạn (w:pPr/w:rPr/w:sz -> style chain -> docDefaults), không theo cỡ mặc định.
+   * Ánh xạ w:p <-> <p>/<hN> theo thứ tự (chuẩn W12a/W12e, không theo text).
+   * Với w:p không có w:t và không có w:drawing/w:pict/w:tab/w:br (rỗng thật):
+   * cỡ dấu đoạn = pPr/rPr/sz -> style chain (pStyle -> basedOn) -> docDefaults w:sz;
+   * gán font-size: <sz/2>pt vào <p> (giữ <br>). Không đụng đoạn có chữ.
+   */
+  _applyOoxmlEmptyParagraphFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml = "") {
+    const xml = String(ooxmlDocumentXml || "");
+    const styles = String(ooxmlStylesXml || "");
+    if (!xml || !xml.includes("<w:body>")) return html;
+
+    // 1. styles.xml: docDefaults & style chain map
+    let docDefaultsSz = null;
+    const stylesSz = new Map();
+    const stylesBasedOn = new Map();
+
+    if (styles) {
+      const docDefMatch = styles.match(/<w:docDefaults>[\s\S]*?<w:rPrDefault>[\s\S]*?<w:sz\b[^>]*w:val="(\d+)"/);
+      if (docDefMatch) docDefaultsSz = parseInt(docDefMatch[1], 10);
+
+      const styleRe = /<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>([\s\S]*?)<\/w:style>/g;
+      for (const m of styles.matchAll(styleRe)) {
+        const sid = m[1];
+        const sBody = m[2];
+        const rprMatch = sBody.match(/<w:rPr>([\s\S]*?)<\/w:rPr>/);
+        if (rprMatch) {
+          const szMatch = rprMatch[1].match(/<w:sz\b[^>]*w:val="(\d+)"/);
+          if (szMatch) stylesSz.set(sid, parseInt(szMatch[1], 10));
+        }
+        const basedOnMatch = sBody.match(/<w:basedOn\b[^>]*w:val="([^"]+)"/);
+        if (basedOnMatch) stylesBasedOn.set(sid, basedOnMatch[1]);
+      }
+    }
+
+    const resolveStyleSz = (sid, depth = 0) => {
+      if (!sid || depth > 20) return docDefaultsSz || 22;
+      if (stylesSz.has(sid)) return stylesSz.get(sid);
+      if (stylesBasedOn.has(sid)) return resolveStyleSz(stylesBasedOn.get(sid), depth + 1);
+      if (sid !== "Normal" && stylesSz.has("Normal")) return stylesSz.get("Normal");
+      return docDefaultsSz || 22;
+    };
+
+    // 2. Lấy tất cả w:p cấp cao nhất (không nằm trong w:tbl)
+    const bodyMatch = xml.match(/<w:body>([\s\S]*?)<\/w:body>/i);
+    if (!bodyMatch) return html;
+    const bodyXml = bodyMatch[1];
+    const bodyNoTables = this._ooxmlBodyParagraphSource(bodyXml).replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi, "");
+
+    const parasData = [];
+    const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
+    for (const pm of bodyNoTables.matchAll(paraRe)) {
+      const pXml = pm[0];
+      const pContent = pXml.replace(/<w:pPr\b[\s\S]*?<\/w:pPr>/gi, "");
+      const hasText = /<w:t\b|<w:t>/i.test(pContent);
+      const hasSpecial = /<w:(?:drawing|pict|tab|br)\b/i.test(pContent);
+      const isEmptyOoxml = !hasText && !hasSpecial;
+
+      let sz = null;
+      if (isEmptyOoxml) {
+        const pprMatch = pXml.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+        const ppr = pprMatch ? pprMatch[1] : "";
+        const rprMatch = ppr.match(/<w:rPr>([\s\S]*?)<\/w:rPr>/);
+        const rpr = rprMatch ? rprMatch[1] : "";
+        const rprSz = rpr.match(/<w:sz\b[^>]*w:val="(\d+)"/);
+        if (rprSz) {
+          sz = parseInt(rprSz[1], 10);
+        } else {
+          const pstyleMatch = ppr.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/);
+          const styleId = pstyleMatch ? pstyleMatch[1] : "Normal";
+          sz = resolveStyleSz(styleId);
+        }
+      }
+      parasData.push({ isEmptyOoxml, sz, pt: sz ? sz / 2.0 : null });
+    }
+
+    if (!parasData.some(p => p.isEmptyOoxml && p.pt !== null)) return html;
+
+    // 3. Skip ranges cho bảng, header/footer, chú thích
+    const tables = this._htmlParagraphSkipRanges(html);
+    let paraIndex = 0;
+
+    return String(html || "").replace(/<(p|h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi, (fullTag, tagName, attrs, inner, offset) => {
+      for (const t of tables) {
+        if (offset >= t.start && offset < t.end) return fullTag;
+      }
+
+      if (paraIndex >= parasData.length) return fullTag;
+      const pSpec = parasData[paraIndex++];
+
+      if (!pSpec || !pSpec.isEmptyOoxml || pSpec.pt === null) return fullTag;
+
+      // Kiểm tra xem đoạn HTML có phải là đoạn rỗng thật sự không (không chữ và không ảnh/media)
+      const text = inner.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
+      if (text.length > 0) return fullTag;
+      if (/<(?:img|iframe|object|svg|canvas)\b|data-vno-float/i.test(inner)) return fullTag;
+
+      let newInner = inner;
+      if (/\bfont-size:\s*\d+(?:\.\d+)?pt/i.test(inner)) {
+        newInner = inner.replace(/\bfont-size:\s*\d+(?:\.\d+)?pt/gi, `font-size: ${pSpec.pt}pt`);
+      }
+
+      return this._addCssDeclsToParagraph(fullTag, attrs, newInner, [`font-size: ${pSpec.pt}pt`], tagName);
+    });
   }
 
   /**
@@ -3614,7 +3858,7 @@ export class WriterAdapter {
    * gray `<span>` wrapping them prevents Print Preview from matching
    * `Trang N / M` (the replacement lives on the footer innerHTML string).
    */
-  _normalizeImportedHeaderFooterHtml(html, zone = "header", ooxmlDocumentXml = "") {
+  _normalizeImportedHeaderFooterHtml(html, zone = "header", ooxmlDocumentXml = "", ooxmlZoneXml = "", ooxmlStylesXml = "") {
     let out = String(html || "");
     out = out.replace(/<sdfield\b[^>]*>([\s\S]*?)<\/sdfield>/gi, "$1");
     out = out.replace(
@@ -3640,9 +3884,135 @@ export class WriterAdapter {
       }
     }
     out = out.replace(/\bstyle=(["'])\s*;?\s*\1/gi, "");
+
+    // W26b: chuẩn hóa đoạn rỗng trong header/footer theo cỡ dấu đoạn từ ooxmlZoneXml
+    if (ooxmlZoneXml) {
+      out = this._applyOoxmlZoneEmptyParagraphFontSizes(out, ooxmlZoneXml, ooxmlStylesXml, zone);
+    }
+
     out = this._collapseFloatOnlyParagraphBreaks(out, ooxmlDocumentXml);
     out = this._encodeProportionalLineHeights(out);
     return out.trim();
+  }
+
+  /**
+   * Quy ước W26b: Chuẩn hóa cỡ chữ đoạn rỗng trong vùng header/footer theo cỡ dấu đoạn từ ooxmlZoneXml.
+   * Ánh xạ w:p <-> <p>/<hN> trong zone theo thứ tự. Với w:p không có w:t và không có drawing/pict/tab/br (rỗng thật):
+   * cỡ dấu đoạn = pPr/rPr/sz -> style chain (pStyle -> basedOn) -> docDefaults w:sz;
+   * gán font-size: <sz/2>pt vào <p> (giữ <br>).
+   */
+  _applyOoxmlZoneEmptyParagraphFontSizes(html, ooxmlZoneXml, ooxmlStylesXml = "", zone = "header") {
+    const xml = String(ooxmlZoneXml || "");
+    const styles = String(ooxmlStylesXml || "");
+    if (!xml) return html;
+
+    let docDefaultsSz = null;
+    const stylesSz = new Map();
+    const stylesBasedOn = new Map();
+
+    if (styles) {
+      const docDefMatch = styles.match(/<w:docDefaults>[\s\S]*?<w:rPrDefault>[\s\S]*?<w:sz\b[^>]*w:val="(\d+)"/);
+      if (docDefMatch) docDefaultsSz = parseInt(docDefMatch[1], 10);
+
+      const styleRe = /<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>([\s\S]*?)<\/w:style>/g;
+      for (const m of styles.matchAll(styleRe)) {
+        const sid = m[1];
+        const sBody = m[2];
+        const rprMatch = sBody.match(/<w:rPr>([\s\S]*?)<\/w:rPr>/);
+        if (rprMatch) {
+          const szMatch = rprMatch[1].match(/<w:sz\b[^>]*w:val="(\d+)"/);
+          if (szMatch) stylesSz.set(sid, parseInt(szMatch[1], 10));
+        }
+        const basedOnMatch = sBody.match(/<w:basedOn\b[^>]*w:val="([^"]+)"/);
+        if (basedOnMatch) stylesBasedOn.set(sid, basedOnMatch[1]);
+      }
+    }
+
+    const defaultZoneStyle = zone === "header" ? "Header" : "Footer";
+    const resolveStyleSz = (sid, depth = 0) => {
+      if (!sid || depth > 20) {
+        if (stylesSz.has(defaultZoneStyle)) return stylesSz.get(defaultZoneStyle);
+        return docDefaultsSz || 22;
+      }
+      if (stylesSz.has(sid)) return stylesSz.get(sid);
+      if (stylesBasedOn.has(sid)) return resolveStyleSz(stylesBasedOn.get(sid), depth + 1);
+      if (sid !== defaultZoneStyle && stylesSz.has(defaultZoneStyle)) return stylesSz.get(defaultZoneStyle);
+      if (sid !== "Normal" && stylesSz.has("Normal")) return stylesSz.get("Normal");
+      return docDefaultsSz || 22;
+    };
+
+    const zoneNoTables = xml.replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi, "");
+    const parasData = [];
+    const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
+    for (const pm of zoneNoTables.matchAll(paraRe)) {
+      const pXml = pm[0];
+      const pContent = pXml.replace(/<w:pPr\b[\s\S]*?<\/w:pPr>/gi, "");
+      const hasText = /<w:t\b|<w:t>/i.test(pContent);
+      const hasSpecial = /<w:(?:drawing|pict|tab|br)\b/i.test(pContent);
+      const isEmptyOoxml = !hasText && !hasSpecial;
+
+      let sz = null;
+      if (isEmptyOoxml) {
+        const pprMatch = pXml.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+        const ppr = pprMatch ? pprMatch[1] : "";
+        const rprMatch = ppr.match(/<w:rPr>([\s\S]*?)<\/w:rPr>/);
+        const rpr = rprMatch ? rprMatch[1] : "";
+        const rprSz = rpr.match(/<w:sz\b[^>]*w:val="(\d+)"/);
+        if (rprSz) {
+          sz = parseInt(rprSz[1], 10);
+        } else {
+          const pstyleMatch = ppr.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/);
+          const styleId = pstyleMatch ? pstyleMatch[1] : defaultZoneStyle;
+          sz = resolveStyleSz(styleId);
+        }
+      }
+      parasData.push({ isEmptyOoxml, sz, pt: sz ? sz / 2.0 : null });
+    }
+
+    if (!parasData.some(p => p.isEmptyOoxml && p.pt !== null)) return html;
+
+    // Trong zone, bỏ qua các đoạn nằm trong bảng (nếu có)
+    const tables = [];
+    let pos = 0;
+    const tblRe = /<table\b/gi;
+    while (pos < html.length) {
+      tblRe.lastIndex = pos;
+      const m = tblRe.exec(html);
+      if (!m) break;
+      const start = m.index;
+      const re = /<table\b|<\/table>/gi;
+      re.lastIndex = start;
+      let depth = 0, end = -1, tm;
+      while ((tm = re.exec(html))) {
+        depth += tm[0][1] === "/" ? -1 : 1;
+        if (depth === 0) { end = tm.index + tm[0].length; break; }
+      }
+      if (end < 0) break;
+      tables.push({ start, end }); pos = end;
+    }
+
+    let paraIndex = 0;
+    return String(html || "").replace(/<(p|h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi, (fullTag, tagName, attrs, inner, offset) => {
+      for (const t of tables) {
+        if (offset >= t.start && offset < t.end) return fullTag;
+      }
+
+      if (paraIndex >= parasData.length) return fullTag;
+      const pSpec = parasData[paraIndex++];
+
+      if (!pSpec || !pSpec.isEmptyOoxml || pSpec.pt === null) return fullTag;
+
+      const text = inner.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
+      if (text.length > 0) return fullTag;
+      if (/<(?:img|iframe|object|svg|canvas)\b|data-vno-float/i.test(inner)) return fullTag;
+
+      let newInner = inner;
+      if (/\bfont-size:\s*\d+(?:\.\d+)?pt/i.test(inner)) {
+        newInner = inner.replace(/\bfont-size:\s*\d+(?:\.\d+)?pt/gi, `font-size: ${pSpec.pt}pt`);
+      }
+
+      return this._addCssDeclsToParagraph(fullTag, attrs, newInner, [`font-size: ${pSpec.pt}pt`], tagName);
+    });
   }
 
   /**
@@ -9427,7 +9797,9 @@ export class WriterAdapter {
         result.ooxmlDocumentXml,
         result.ooxmlCommentsXml,
         result.ooxmlStylesXml,
-        result.ooxmlNumberingXml
+        result.ooxmlNumberingXml,
+        result.ooxmlHeaderXml,
+        result.ooxmlFooterXml
       );
       if (imported.page) {
         this.pageSetup = {

@@ -2874,6 +2874,131 @@ def inject_docx_default_font_css(docx_bytes: bytes, html: str) -> str:
     return html
 
 
+def inject_docx_half_point_styles_css(docx_bytes: bytes, html: str) -> str:
+    """W25a: Với mỗi style đoạn có w:sz lẻ (docDefaults -> Normal -> Heading1..6 -> style tuỳ biến)
+    mà LibreOffice ánh xạ thành p.western, h1.western... ghi đè font-size: <sz/2>pt chính xác
+    vào head CSS (thêm rule sau rule của LibreOffice, không sửa rule cũ)."""
+    if not html or not docx_bytes:
+        return html
+    try:
+        styles_xml = (read_zip_entry(docx_bytes, "word/styles.xml") or b"").decode("utf-8", errors="replace")
+    except Exception:
+        return html
+    if not styles_xml:
+        return html
+
+    # docDefaults sz
+    doc_default_sz = None
+    dd = re.search(r"<w:docDefaults>[\s\S]*?</w:docDefaults>", styles_xml)
+    if dd:
+        m = re.search(r'<w:sz\b[^>]*w:val="(\d+)"', dd.group(0))
+        if m:
+            doc_default_sz = int(m.group(1))
+
+    # Parse styles
+    styles_map = {}
+    for sm in re.finditer(r'<w:style\b([^>]*)>([\s\S]*?)</w:style>', styles_xml):
+        attrs, body = sm.group(1), sm.group(2)
+        stype = re.search(r'w:type="([^"]+)"', attrs)
+        if stype and stype.group(1) != "paragraph":
+            continue
+        sid = re.search(r'w:styleId="([^"]+)"', attrs)
+        if not sid:
+            continue
+        style_id = sid.group(1)
+        name_m = re.search(r'<w:name\b[^>]*w:val="([^"]+)"', body)
+        name = name_m.group(1) if name_m else style_id
+        based_m = re.search(r'<w:basedOn\b[^>]*w:val="([^"]+)"', body)
+        based_on = based_m.group(1) if based_m else None
+        sz_m = re.search(r'<w:sz\b[^>]*w:val="(\d+)"', body)
+        sz = int(sz_m.group(1)) if sz_m else None
+        styles_map[style_id] = {
+            "name": name,
+            "basedOn": based_on,
+            "sz": sz,
+        }
+
+    def resolve_sz(sid, visited=None):
+        if visited is None:
+            visited = set()
+        if sid in visited:
+            return doc_default_sz
+        visited.add(sid)
+        st = styles_map.get(sid)
+        if not st:
+            if sid != "Normal" and "Normal" in styles_map:
+                return resolve_sz("Normal", visited)
+            return doc_default_sz
+        if st["sz"] is not None:
+            return st["sz"]
+        if st["basedOn"]:
+            return resolve_sz(st["basedOn"], visited)
+        if sid != "Normal" and "Normal" in styles_map:
+            return resolve_sz("Normal", visited)
+        return doc_default_sz
+
+    head_match = re.search(r"<style\b[^>]*>(.*?)</style>", html, re.S | re.I)
+    head_content = head_match.group(1) if head_match else ""
+
+    odd_rules = []
+    # Normal / docDefaults
+    normal_sz = resolve_sz("Normal")
+    if normal_sz is not None and normal_sz % 2 != 0:
+        odd_rules.append(f"p.western {{ font-size: {normal_sz / 2.0:g}pt }}")
+
+    for sid, st in styles_map.items():
+        eff_sz = resolve_sz(sid)
+        if eff_sz is None or eff_sz % 2 == 0:
+            continue
+        pt_size = eff_sz / 2.0
+        name_lower = st["name"].strip().lower()
+        sid_lower = sid.strip().lower()
+
+        if name_lower == "normal" or sid_lower == "normal":
+            continue
+
+        heading_m = re.match(r"^heading\s*([1-6])$", name_lower) or re.match(r"^heading([1-6])$", sid_lower)
+        if heading_m:
+            lvl = heading_m.group(1)
+            odd_rules.append(f"h{lvl}.western {{ font-size: {pt_size:g}pt }}")
+            continue
+
+        # Custom styles
+        clean_name = re.sub(r"[^a-zA-Z0-9]+", "-", name_lower).strip("-")
+        clean_sid = re.sub(r"[^a-zA-Z0-9]+", "-", sid_lower).strip("-")
+        matched_sel = None
+        for pattern in [rf"\bp\.{re.escape(clean_name)}-western\b",
+                        rf"\bp\.{re.escape(clean_sid)}-western\b",
+                        rf"\bp\.{re.escape(clean_name)}\b",
+                        rf"\bp\.{re.escape(clean_sid)}\b"]:
+            sel_m = re.search(pattern, head_content, re.I)
+            if sel_m:
+                matched_sel = sel_m.group(0)
+                break
+        if matched_sel:
+            odd_rules.append(f"{matched_sel} {{ font-size: {pt_size:g}pt }}")
+        else:
+            odd_rules.append(f"p.{clean_name}-western {{ font-size: {pt_size:g}pt }}")
+
+    if not odd_rules:
+        return html
+
+    seen = set()
+    deduped = []
+    for r in odd_rules:
+        if r not in seen:
+            seen.add(r)
+            deduped.append(r)
+
+    rules_str = "\n\t\t" + "\n\t\t".join(deduped) + "\n\t"
+    if head_match:
+        insert_at = head_match.end(1)
+        return html[:insert_at] + rules_str + html[insert_at:]
+    if re.search(r"</head>", html, re.I):
+        return re.sub(r"</head>", f'<style type="text/css">{rules_str}</style></head>', html, count=1, flags=re.I)
+    return html
+
+
 def _unescape_xml(value: str) -> str:
     unescaped = (
         (value or "")
