@@ -50,6 +50,7 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 | W20f | Header/footer tạo mới được LibreOffice xuất thành part thật; field/trang được Word nhận khi scenario chạy hết | Harness sạch: header `VN Office` căn giữa, footer có PAGE đều PASS | harness 36 checks (W20f) |
 | W20g | Lề DOCX tạo mới lấy từ `@page` và được khóa lại ở `w:pgMar` sau HTML import; mm → twip theo `mm / 25,4 × 1440` | 20/20/20/30 mm → 1134/1134/1134/1701 twip | test_writer_section_headerfooter_postprocess (W20g) |
 | W22a | Thẻ `<sup>` và `<sub>` tạo mới khi LibreOffice import xuất thành `<w:position>` phải được chuẩn hóa thành native `<w:vertAlign w:val="superscript|subscript"/>` để Word COM `Font.Superscript` và `Font.Subscript` nhận diện đúng | Harness tạo mới 2: `x²` và `H₂O` nhận diện đúng superscript/subscript | test_writer_section_headerfooter_postprocess (W22a) |
+| W22b | Thẻ `<mark>` và `background-color` highlight trên inline span khi xuất DOCX bị LibreOffice làm rơi phải được khôi phục thành `<w:highlight w:val="yellow"/>` trên run tương ứng | Harness tạo mới 2: `Chữ highlight vàng` nhận diện đúng HighlightColorIndex=7 (wdYellow) | test_writer_section_headerfooter_postprocess (W22b) |
 
 ## Quy ước đã đo và khoá (Sheet)
 

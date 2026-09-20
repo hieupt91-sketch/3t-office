@@ -567,9 +567,9 @@ def after_load(win):
     
     win.create_file_dialog = lambda *a, **k: OUT
     win.evaluate_js("window.__saveDone=0; window.__saveErr=''; import('/platform/commands/command-bus.js').then(m => m.globalCommandBus.execute('common.file.save')).then(r => { window.__saveDone = 1; }, e => { window.__saveErr = String(e && e.stack || e); }); 'queued'")
-    for _ in range(100):
-        time.sleep(2)
-        if win.evaluate_js("window.__saveDone") == 1 or win.evaluate_js("window.__saveErr"):
+    for _ in range(50):
+        time.sleep(1)
+        if win.evaluate_js("window.__saveDone") == 1 or win.evaluate_js("window.__saveErr") or (os.path.exists(OUT) and os.path.getsize(OUT) > 0):
             break
     time.sleep(1)
     print("SAVED:", os.path.exists(OUT), "ERR:", win.evaluate_js("window.__saveErr"), flush=True)

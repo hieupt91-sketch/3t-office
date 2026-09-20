@@ -129,6 +129,21 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertIn('<w:vertAlign w:val="superscript"/>', document)
         self.assertIn('<w:vertAlign w:val="subscript"/>', document)
 
+    def test_w22b_created_document_highlight(self):
+        converted = _build_minimal_docx(
+            '<w:p>'
+            '<w:r><w:t>Prefix </w:t></w:r>'
+            '<w:r><w:t>Chữ highlight vàng</w:t></w:r>'
+            '</w:p>'
+            '<w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html='<p>Prefix <mark style="background-color: rgb(255, 255, 0);">Chữ highlight vàng</mark></p>',
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:highlight w:val="yellow"/>', document)
+
     def test_w20e_created_document_break_is_before_second_section_text(self):
         converted = _build_minimal_docx(
             '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'

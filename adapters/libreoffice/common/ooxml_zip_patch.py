@@ -8214,6 +8214,54 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
         flags=re.IGNORECASE,
     )
 
+    # W22b: Highlight text (<w:highlight>)
+    # LibreOffice HTML import drops <mark> and inline background-color.
+    highlight_texts: dict[str, str] = {}
+    for mark in re.finditer(r'<mark\b[^>]*>([\s\S]*?)</mark\s*>', source_html, re.IGNORECASE):
+        txt = _writer_html_plain(mark.group(1)).strip()
+        if txt:
+            highlight_texts[txt] = "yellow"
+    for span in re.finditer(r'<span\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>([\s\S]*?)</span\s*>', source_html, re.IGNORECASE):
+        style = span.group(1)
+        if re.search(r'background-color\s*:\s*(?:#ffff00|yellow|rgb\(\s*255\s*,\s*255\s*,\s*0\s*\))', style, re.IGNORECASE):
+            txt = _writer_html_plain(span.group(2)).strip()
+            if txt:
+                highlight_texts[txt] = "yellow"
+
+    if highlight_texts:
+        def patch_highlight(r_match: re.Match) -> str:
+            r = r_match.group(0)
+            t_m = re.search(r'<w:t\b[^>]*>([\s\S]*?)</w:t\s*>', r, re.IGNORECASE)
+            if not t_m:
+                return r
+            full_text = t_m.group(1)
+            for hl_text, hl_color in highlight_texts.items():
+                if hl_text == full_text.strip():
+                    if re.search(r'<w:highlight\b', r, re.IGNORECASE):
+                        return r
+                    if '<w:rPr>' in r:
+                        return r.replace('<w:rPr>', f'<w:rPr><w:highlight w:val="{hl_color}"/>')
+                    elif '<w:rPr/>' in r:
+                        return r.replace('<w:rPr/>', f'<w:rPr><w:highlight w:val="{hl_color}"/></w:rPr>')
+                    else:
+                        return r.replace('<w:r>', f'<w:r><w:rPr><w:highlight w:val="{hl_color}"/></w:rPr>')
+                elif hl_text in full_text:
+                    if re.search(r'<w:highlight\b', r, re.IGNORECASE):
+                        return r
+                    idx = full_text.find(hl_text)
+                    before_text = full_text[:idx]
+                    after_text = full_text[idx + len(hl_text):]
+                    res = []
+                    if before_text:
+                        res.append(f'<w:r><w:rPr></w:rPr><w:t xml:space="preserve">{before_text}</w:t></w:r>')
+                    res.append(f'<w:r><w:rPr><w:highlight w:val="{hl_color}"/></w:rPr><w:t>{hl_text}</w:t></w:r>')
+                    if after_text:
+                        res.append(f'<w:r><w:rPr></w:rPr><w:t xml:space="preserve">{after_text}</w:t></w:r>')
+                    return "".join(res)
+            return r
+
+        document_xml = re.sub(r'<w:r\b[^>]*>[\s\S]*?</w:r\s*>', patch_highlight, document_xml, flags=re.IGNORECASE)
+
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
     numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
     bullet_texts = {
