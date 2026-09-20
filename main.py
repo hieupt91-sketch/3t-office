@@ -875,6 +875,8 @@ class VnOfficeApi:
                             # W12b: font theme của tài liệu tiếng Việt = typeface script="Viet" (Word), không phải latin
                             content = patcher.apply_docx_theme_script_fonts(docx_bytes, content)
                             content = patcher.inject_docx_default_font_css(docx_bytes, content)
+                            # W25a: cỡ chữ style nửa điểm (w:sz lẻ: 8,5 / 11,5 / 14,5 pt) bị LibreOffice làm tròn
+                            content = patcher.inject_docx_half_point_styles_css(docx_bytes, content)
                         except OSError:
                             pass
                 elif app_kind == "sheet":

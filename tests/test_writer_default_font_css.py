@@ -76,6 +76,38 @@ class DefaultFontCss(unittest.TestCase):
         explicit = docx("vi", '<w:document xmlns:w="w"><w:body><w:p><w:r><w:rPr><w:rFonts w:ascii="Calibri Light"/></w:rPr><w:t>a</w:t></w:r></w:p></w:body></w:document>')
         self.assertIn('face="Calibri Light, sans-serif"', patcher.apply_docx_theme_script_fonts(explicit, html))
 
+    def test_w25a_half_point_style_font_size_overrides(self):
+        """W25a: Style đoạn có w:sz lẻ (Normal 8.5pt, Heading 1 14.5pt) bị LibreOffice cắt 0.5pt;
+        overlay Python ghi đè font-size chính xác vào head CSS mà không sửa rule cũ."""
+        styles_xml = (
+            '<w:styles xmlns:w="w">'
+            '<w:docDefaults><w:rPrDefault><w:rPr><w:sz w:val="22"/></w:rPr></w:rPrDefault></w:docDefaults>'
+            '<w:style w:type="paragraph" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:sz w:val="17"/></w:rPr></w:style>'
+            '<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:rPr><w:sz w:val="29"/></w:rPr></w:style>'
+            '<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:rPr><w:sz w:val="20"/></w:rPr></w:style>'
+            '<w:style w:type="paragraph" w:styleId="CustomStyle"><w:name w:val="Custom Note"/><w:rPr><w:sz w:val="23"/></w:rPr></w:style>'
+            '</w:styles>'
+        )
+        docx = _docx(styles_xml)
+        html = (
+            '<html><head><style type="text/css">\n'
+            '\t\tp.western { font-family: "Tahoma", sans-serif; font-size: 8pt }\n'
+            '\t\th1.western { font-family: "Tahoma", sans-serif; font-size: 14pt }\n'
+            '\t\th2.western { font-family: "Tahoma", sans-serif; font-size: 10pt }\n'
+            '\t\tp.custom-note-western { font-size: 11pt }\n'
+            '\t</style></head><body></body></html>'
+        )
+        out = patcher.inject_docx_half_point_styles_css(docx, html)
+        # Rule cũ vẫn nguyên
+        self.assertIn('p.western { font-family: "Tahoma", sans-serif; font-size: 8pt }', out)
+        self.assertIn('h1.western { font-family: "Tahoma", sans-serif; font-size: 14pt }', out)
+        # Rule mới chèn sau với cỡ nửa điểm chính xác
+        self.assertIn('p.western { font-size: 8.5pt }', out)
+        self.assertIn('h1.western { font-size: 14.5pt }', out)
+        self.assertIn('p.custom-note-western { font-size: 11.5pt }', out)
+        # Heading 2 cỡ chẵn (20 = 10pt) không bị thêm rule
+        self.assertNotIn('h2.western { font-size: 10pt }', out[out.rfind('h1.western { font-size: 14.5pt }'):])
+
 
 if __name__ == "__main__":
     unittest.main()
