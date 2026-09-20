@@ -1717,6 +1717,45 @@ export class WriterAdapter {
   }
 
   /**
+   * W23c: cỡ chữ của style đoạn `Header`/`Footer` trong styles.xml (theo chuỗi basedOn, cuối cùng docDefaults),
+   * trả về { header: "10pt", footer: "10pt" } (chỉ các mục tìm thấy). Đo d15: Word vẽ đoạn rỗng của footer 10pt
+   * (pitch 12pt) trong khi canvas dùng cỡ Normal 14pt → footer canvas 124px so với Word 98,5px.
+   */
+  _headerFooterFontSizesFromStyles(ooxmlStylesXml) {
+    const styles = String(ooxmlStylesXml || "");
+    const out = {};
+    if (!styles) return out;
+    const styleById = new Map();
+    for (const m of styles.matchAll(/<w:style\b([^>]*)>([\s\S]*?)<\/w:style>/g)) {
+      const id = m[1].match(/w:styleId="([^"]+)"/)?.[1];
+      if (id) styleById.set(id, m[2]);
+    }
+    const szOf = (body) => {
+      const rpr = String(body || "").match(/<w:rPr>([\s\S]*?)<\/w:rPr>/);
+      const sz = rpr?.[1].match(/<w:sz\b[^>]*w:val="(\d+)"/)?.[1];
+      return sz ? Number(sz) / 2 : null;
+    };
+    const defaults = styles.match(/<w:rPrDefault>([\s\S]*?)<\/w:rPrDefault>/);
+    const defaultPt = szOf(defaults?.[1]);
+    const resolve = (id) => {
+      let cur = id;
+      for (let depth = 0; cur && styleById.has(cur) && depth < 12; depth++) {
+        const body = styleById.get(cur);
+        const pt = szOf(body);
+        if (pt) return pt;
+        cur = body.match(/<w:basedOn\b[^>]*w:val="([^"]+)"/)?.[1] || null;
+      }
+      return defaultPt;
+    };
+    for (const [key, id] of [["header", "Header"], ["footer", "Footer"]]) {
+      if (!styleById.has(id)) continue;
+      const pt = resolve(id);
+      if (pt) out[key] = `${Math.round(pt * 100) / 100}pt`;
+    }
+    return out;
+  }
+
+  /**
    * Parse page margins from w:pgMar in OOXML (twips).
    * Returns { top, right, bottom, left } in mm or null if not found.
    */
@@ -2018,6 +2057,12 @@ export class WriterAdapter {
       if (this.docStyles.fontSize) setProp("--vno-doc-font-size", this.docStyles.fontSize);
       else removeProp("--vno-doc-font-size");
 
+      // W23c: đoạn rỗng trong header/footer lấy cỡ của style Header/Footer (d15: Footer 10pt, thân 14pt).
+      if (this.docStyles.headerFontSize) setProp("--vno-header-font-size", this.docStyles.headerFontSize);
+      else removeProp("--vno-header-font-size");
+      if (this.docStyles.footerFontSize) setProp("--vno-footer-font-size", this.docStyles.footerFontSize);
+      else removeProp("--vno-footer-font-size");
+
       if (this.docStyles.lineHeight) setProp("--vno-doc-line-height", this.docStyles.lineHeight);
       else removeProp("--vno-doc-line-height");
 
@@ -2026,6 +2071,8 @@ export class WriterAdapter {
     } else {
       removeProp("--vno-doc-font-family");
       removeProp("--vno-doc-font-size");
+      removeProp("--vno-header-font-size");
+      removeProp("--vno-footer-font-size");
       removeProp("--vno-doc-line-height");
       removeProp("--vno-doc-para-margin");
     }
@@ -2062,6 +2109,12 @@ export class WriterAdapter {
     }
     const page = this._pageSetupFromImportedCss(html);
     const docStyles = this._parseDocStylesFromImportedHtml(raw, ooxmlDocumentXml);
+    // W23c: cỡ chữ mặc định của vùng header/footer = style Header/Footer (styles.xml), không phải Normal của thân.
+    if (docStyles && ooxmlStylesXml) {
+      const zoneSizes = this._headerFooterFontSizesFromStyles(ooxmlStylesXml);
+      if (zoneSizes.header) docStyles.headerFontSize = zoneSizes.header;
+      if (zoneSizes.footer) docStyles.footerFontSize = zoneSizes.footer;
+    }
     const hf = this._pageHeaderFooterFromOoxml(ooxmlDocumentXml);
     if (hf) {
       page.headerDistanceMm = hf.headerDistanceMm;

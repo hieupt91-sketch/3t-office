@@ -452,5 +452,21 @@ export async function runWriterHeaderFooterImportTests() {
     }
   });
 
+  // Đo d15 (Word COM): style Footer sz=24 (12pt, basedOn Normal không sz, docDefaults 28 = 14pt); canvas dùng
+  // --vno-doc-font-size 14pt cho đoạn rỗng footer → footer 124px so với Word 98,5px.
+  test("W23c: _headerFooterFontSizesFromStyles lấy cỡ style Header/Footer theo chuỗi basedOn rồi docDefaults", () => {
+    const adapter = new WriterAdapter(null);
+    const styles = '<w:styles><w:docDefaults><w:rPrDefault><w:rPr><w:sz w:val="28"/></w:rPr></w:rPrDefault></w:docDefaults>'
+      + '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:szCs w:val="24"/></w:rPr></w:style>'
+      + '<w:style w:type="paragraph" w:styleId="Header"><w:name w:val="header"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs/></w:pPr></w:style>'
+      + '<w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:basedOn w:val="Normal"/><w:rPr><w:bCs w:val="0"/><w:sz w:val="24"/></w:rPr></w:style>'
+      + '</w:styles>';
+    const sizes = adapter._headerFooterFontSizesFromStyles(styles);
+    if (sizes.footer !== "12pt") throw new Error(`Footer sz=24 phải là 12pt, thực tế: ${sizes.footer}`);
+    if (sizes.header !== "14pt") throw new Error(`Header không có sz → docDefaults 28 = 14pt, thực tế: ${sizes.header}`);
+    const none = adapter._headerFooterFontSizesFromStyles('<w:styles><w:style w:styleId="Normal"/></w:styles>');
+    if (none.header !== undefined || none.footer !== undefined) throw new Error("Không có style Header/Footer thì không đặt cỡ vùng");
+  });
+
   return results;
 }
