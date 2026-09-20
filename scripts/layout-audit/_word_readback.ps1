@@ -1,11 +1,7 @@
 # Doc lai file DOCX bang Word 2016 COM va doi chieu voi <file>.expected.json (sinh boi _create_new_writer.py).
 # Usage: powershell -File _word_readback.ps1 -File out.docx
-param([string]$File)
+param([string]$File, [switch]$SelfTest)
 Add-Type -AssemblyName System.Web.Extensions
-$json = New-Object System.Web.Script.Serialization.JavaScriptSerializer
-$expected = $json.DeserializeObject([IO.File]::ReadAllText("$File.expected.json", [Text.Encoding]::UTF8))
-$word = New-Object -ComObject Word.Application
-$word.Visible = $false; $word.DisplayAlerts = 0  # wdAlertsNone = 0
 $hex = { param($v) "#{0:X2}{1:X2}{2:X2}" -f ($v -band 0xFF), (($v -shr 8) -band 0xFF), (($v -shr 16) -band 0xFF) }
 $pt2cm = 0.0352778  # 1 pt = 0.0352778 cm
 $twip2cm = 0.00176389  # 1 twip = 0.00176389 cm
@@ -57,9 +53,25 @@ function GetListType($range) {
         else { return "numbered" }
     } catch { return "error" }
 }
-function GetTableCellText($table, $row, $col) {
-    try { return $table.Cell($row,$col).Range.Text.Trim() } catch { return "" }
+function NormalizeTableCellText($text) {
+    return "$text".TrimEnd([char]13, [char]7)
 }
+function GetTableCellText($table, $row, $col) {
+    # Word COM appends CR + end-of-cell (0x07); neither is user content.
+    try { return NormalizeTableCellText $table.Cell($row,$col).Range.Text } catch { return "" }
+}
+
+if ($SelfTest) {
+    if ((NormalizeTableCellText "merged$([char]13)$([char]7)") -ne "merged") { throw "Word cell terminator was not removed" }
+    if ("$([bool]$true)" -ne "True") { throw "Boolean was not normalized to True" }
+    Write-Output "SELFTEST=PASS"
+    exit 0
+}
+
+$json = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+$expected = $json.DeserializeObject([IO.File]::ReadAllText("$File.expected.json", [Text.Encoding]::UTF8))
+$word = New-Object -ComObject Word.Application
+$word.Visible = $false; $word.DisplayAlerts = 0  # wdAlertsNone = 0
 
 try {
     $doc = $word.Documents.Open((Resolve-Path $File).Path, 0, $true)
@@ -119,7 +131,7 @@ try {
         Check "table" "cols" $expected["table"]["cols"] $table.Columns.Count
         $cell11 = $table.Cell(1,1)
         $hasBorders = ($cell11.Borders.Item(1).LineStyle -ne 0) -and ($cell11.Borders.Item(2).LineStyle -ne 0) -and ($cell11.Borders.Item(3).LineStyle -ne 0) -and ($cell11.Borders.Item(4).LineStyle -ne 0)
-        Check "table" "borders" $expected["table"]["borders"] [bool]$hasBorders
+        Check "table" "borders" $expected["table"]["borders"] ([bool]$hasBorders)
         $mergedText = GetTableCellText $table 1 1
         Check "table" "mergedCell.text" $expected["table"]["mergedCell"]["text"] $mergedText
         $row1Cells = $table.Rows.Item(1).Cells.Count
@@ -154,7 +166,7 @@ try {
     $footerRange = $doc.Sections.Item(1).Footers.Item(1).Range
     $footerText = $footerRange.Text.Trim()
     $hasPageNum = $footerText -like "*Trang*" -or $footerRange.Fields.Count -gt 0
-    Check "footer" "hasPageNumber" $expected["footer"]["hasPageNumber"] [bool]$hasPageNum
+    Check "footer" "hasPageNumber" $expected["footer"]["hasPageNumber"] ([bool]$hasPageNum)
 
     # --- Page Setup ---
     $setup = $doc.Sections.Item(1).PageSetup
