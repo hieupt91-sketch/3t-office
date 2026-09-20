@@ -95,8 +95,8 @@ SCENARIO2 = r"""
   put('B', 5, '08:30');
   put('B', 6, 1.5e10); g.applyNumberFormat({ category: 'scientific', decimals: 1 }, range('B', 6, 'B', 6));
   put('B', 7, 0); put('B', 8, 200); put('B', 9, 75); put('B', 10, 125);
-  put('B', 11, -1234); g.applyNumberFormat({ category: 'number', decimals: 0, useThousands: true, negativeStyle: 1 }, range('B', 11, 'B', 11));
-  put('B', 12, 0); g.applyNumberFormat({ category: 'number', decimals: 2, useThousands: true }, range('B', 12, 'B', 12));
+  put('B', 12, -1234); g.applyNumberFormat({ category: 'number', decimals: 0, useThousands: true, negativeStyle: 1 }, range('B', 12, 'B', 12));
+  put('B', 13, 0); g.applyNumberFormat({ category: 'number', decimals: 2, useThousands: true }, range('B', 13, 'B', 13));
 
   put('G', 2, 'SP1'); put('H', 2, 10); put('G', 3, 'SP2'); put('H', 3, 20);
   put('E', 2, '=IF(B2>100,"Đạt","Chưa")');
@@ -124,8 +124,8 @@ SCENARIO2 = r"""
   sel('C', 1); await globalCommandBus.execute('sheet.cell.orientation', 90);
   sel('D', 2); await globalCommandBus.execute('sheet.cell.indentIncrease'); await globalCommandBus.execute('sheet.cell.indentIncrease');
 
-  put('A', 13, 'Chuỗi rất dài để kiểm tra AutoFit độ rộng cột');
-  sel('A', 13); await globalCommandBus.execute('sheet.col.autoFit');
+  put('A', 14, 'Chuỗi rất dài để kiểm tra AutoFit độ rộng cột');
+  sel('A', 14); await globalCommandBus.execute('sheet.col.autoFit');
   await globalCommandBus.execute('sheet.col.hide', { cols: ['C'] });
   await globalCommandBus.execute('sheet.row.hide', { rows: [7] });
   g.addConditionalFormattingRule(range('B', 2, 'B', 10), { type: 'greaterThan', value: 100, color: '#70AD47' });
@@ -156,8 +156,8 @@ EXPECTED2 = {
                 "B4": {"value": 46096, "numFmtContains": "dd/mm/yyyy"},
                 "B5": {"value": 0.354166666666667, "numFmtContains": "hh:mm"},
                 "B6": {"value": 15000000000, "numFmtContains": "E+"},
-                "B11": {"value": -1234, "numFmtContains": "[Red]-#,##0"},
-                "B12": {"value": 0, "numFmtContains": "#,##0.00"},
+                "B12": {"value": -1234, "numFmtContains": "[Red]-#,##0"},
+                "B13": {"value": 0, "numFmtContains": "#,##0.00"},
                 "E2": {"formula": "=IF(B2>100,\"Đạt\",\"Chưa\")", "value": "Đạt"},
                 "E3": {"formula": "=VLOOKUP(A3,G2:H3,2,0)", "value": 20},
                 "E4": {"formula": "=SUMIF(C2:C3,\"Đạt\",B2:B3)"},
