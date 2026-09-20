@@ -15,12 +15,18 @@ def word_pages(path):
 
 def docx_stats(path):
     try:
-        x = zipfile.ZipFile(path).read("word/document.xml").decode("utf8", "replace")
+        z = zipfile.ZipFile(path)
+        x = z.read("word/document.xml").decode("utf8", "replace")
     except Exception as e:
         return {"err": str(e)[:40]}
     body = re.sub(r"<w:txbxContent\b[\s\S]*?</w:txbxContent>", "", x)
+    pbb = len(re.findall(r"<w:pageBreakBefore\b", body))
+    hdr = len([n for n in z.namelist() if n.startswith("word/header") and n.endswith(".xml")])
+    ftr = len([n for n in z.namelist() if n.startswith("word/footer") and n.endswith(".xml")])
+    media = len([n for n in z.namelist() if n.startswith("word/media/")])
     return {"paras": len(re.findall(r"<w:p[ >]", body)), "sect": len(re.findall(r"<w:pPr>(?:(?!</w:pPr>)[\s\S])*?<w:sectPr", body)),
-            "br": len(re.findall(r'<w:br\b[^>]*w:type="page"', body)), "anchors": x.count("<wp:anchor"), "tables": x.count("<w:tbl>"), "zz": "ZZ" in x}
+            "br": len(re.findall(r'<w:br\b[^>]*w:type="page"', body)), "pbb": pbb, "hdr": hdr, "ftr": ftr, "media": media,
+            "anchors": x.count("<wp:anchor"), "tables": x.count("<w:tbl>"), "zz": "ZZ" in x}
 
 PROBE = r'''
 import sys, time, os, json
@@ -73,10 +79,11 @@ for name in names:
     so, ss = docx_stats(src), (docx_stats(out) if saved else {})
     rows.append((name, orig_pages, canvas, saved_pages, "yes" if saved else "NO", "yes" if res.get("loaded") else "NO",
                  f"{so.get('paras')}/{ss.get('paras','-')}", f"{so.get('sect')}/{ss.get('sect','-')}", f"{so.get('br')}/{ss.get('br','-')}",
+                 f"{so.get('pbb')}/{ss.get('pbb','-')}", f"{so.get('hdr')}/{ss.get('hdr','-')}", f"{so.get('ftr')}/{ss.get('ftr','-')}", f"{so.get('media')}/{ss.get('media','-')}",
                  ss.get("zz", "-"), (res.get("edit") or "")[:20], (res.get("err") or "")[:40]))
     print(name, "word", orig_pages, "canvas", canvas, "saved", saved_pages, "loaded", res.get("loaded"), flush=True)
     with open(os.path.join(OUTDIR, "_batch_writer_report.md"), "w", encoding="utf-8") as f:
-        f.write("| file | Word pages | canvas pages | saved pages (Word) | saved | loaded | paras o/s | sectPr o/s | br o/s | ZZ | edit | err |\n|---|---:|---:|---:|---|---|---|---|---|---|---|---|\n")
+        f.write("| file | Word pages | canvas pages | saved pages (Word) | saved | loaded | paras o/s | sectPr o/s | br o/s | pbb o/s | hdr o/s | ftr o/s | media o/s | ZZ | edit | err |\n|---|---:|---:|---:|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
         for row in rows:
             f.write("| " + " | ".join(str(x) for x in row) + " |\n")
 print("report:", os.path.join(OUTDIR, "_batch_writer_report.md"))
