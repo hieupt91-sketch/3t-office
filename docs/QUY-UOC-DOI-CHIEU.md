@@ -117,3 +117,7 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 | S25c | Tràn chữ: ô kề `val==""` và không `formula` | `sheet-cell-text-fit.test.js` |
 | S25e | Ảnh lỗi → placeholder `vno-image-broken` | `sheet-images.test.js` |
 | S25f | `skipSave` khi nạp workbook | `sheet-adapter` loadFromFods |
+## S26 — Tạo mới nâng cao, Excel 2016 đọc lại (21/09/2026)
+
+- **S26a — dữ liệu người dùng nhập:** chuỗi ngày Việt Nam `dd/mm/yyyy` được đổi sang serial Excel bằng thành phần ngày/giờ cục bộ nhưng phép tính UTC-safe; chuỗi giờ `hh:mm[:ss]` ở ô định dạng Time được đổi sang phần ngày. Dấu nháy đơn đầu vào là ký hiệu ép văn bản nên không trở thành nội dung ô. Vùng AutoFilter do người dùng chọn được giữ riêng, không tự nới theo used range. Mức thụt lề và dấu trừ của số âm màu đỏ phải được ghi rõ trong FODS.
+- **S26b — metadata LibreOffice làm đổi/rơi:** hậu xử lý XLSX thay phạm vi AutoFilter LibreOffice tự nới bằng đúng `table:database-range` trong FODS; `vno:print-title-rows/cols` được dựng thành defined name `_xlnm.Print_Titles` theo từng sheet.

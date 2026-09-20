@@ -3471,7 +3471,9 @@ export class SheetGridController {
       }, historyOptions);
     }
 
-    if (typeof val === "string" && val.startsWith("=")) {
+    const escapedText = typeof val === "string" && val.startsWith("'");
+    if (escapedText) val = val.slice(1);
+    if (!escapedText && typeof val === "string" && val.startsWith("=")) {
       item.formula = val;
       // Store the raw computed value (number, string, or #ERROR!). Do NOT
       // pre-format as VNĐ currency text here: that both destroys precision
@@ -6015,7 +6017,10 @@ export class SheetGridController {
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const current = Number.parseInt(this.cellsData.get(key)?.style?.paddingLeft, 10) || 8;
     const next = Math.max(8, Math.min(56, current + (direction > 0 ? 12 : -12)));
-    return this.setStyle("paddingLeft", `${next}px`);
+    const level = Math.max(0, Math.round((next - 8) / 12));
+    const changed = this.setStyle("paddingLeft", `${next}px`);
+    this.setStyle("indentLevel", level);
+    return changed;
   }
 
   _rangeLabel(range) {
@@ -7065,7 +7070,13 @@ export class SheetGridController {
     const previous = this._snapshotFilterState();
     this.isFilterActive = !this.isFilterActive;
     const state = this.sheetStates?.[this.activeSheet];
-    if (state) state.filterSetByUser = true;
+    if (state) {
+      state.filterSetByUser = true;
+      if (this.isFilterActive) {
+        const selected = this._normalizeRange(this.selectionRange);
+        if (selected.start.c !== selected.end.c || selected.start.r !== selected.end.r) state.filterRange = this._rangeLabel(selected);
+      }
+    }
     if (this.container) {
       if (this.isFilterActive) {
         this.container.classList.add("vno-filter-mode");

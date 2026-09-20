@@ -172,6 +172,11 @@ export async function runSheetFormatCellsTests() {
     assert(normalized3 === 0.75, `Gõ "75%" vào ô % phải lưu 0.75 (nhận được: ${normalized3})`);
   });
 
+  test("S26a: nhập ngày Việt Nam và giờ tạo serial Excel, không lệch múi giờ", () => {
+    assert(NumberFormatter.normalizeInputForFormat("15/03/2026", { category: "date", dateFormat: "dd/mm/yyyy" }) === 46096);
+    assert(NumberFormatter.normalizeInputForFormat("08:30", { category: "time", timeFormat: "hh:mm" }) === 8.5 / 24);
+  });
+
   // 6. Unit Test Category Date
   test("Category Date: Định dạng chuẩn Việt Nam dd/mm/yyyy và mẫu văn bản hành chính", () => {
     const testDate = new Date(2024, 2, 14, 13, 30); // 14/03/2024 13:30

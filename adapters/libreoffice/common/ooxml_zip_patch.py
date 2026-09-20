@@ -1139,9 +1139,51 @@ def apply_autofilter_to_worksheet(sheet_xml: str, ref: str) -> str:
     if not ref:
         return xml
     if _AUTOFILTER_REF_RE.search(xml):
-        return xml
+        return _AUTOFILTER_REF_RE.sub(f'<autoFilter ref="{ref}"/>', xml, count=1)
     element_xml = f'<autoFilter ref="{ref}"/>'
     return _insert_worksheet_child_in_schema_order(xml, element_xml, "autoFilter")
+
+
+def parse_print_titles_from_fods(fods_xml: str | None) -> list[tuple[str, str, str]]:
+    """Return [(sheet name, row titles, column titles)] in workbook order."""
+    result: list[tuple[str, str, str]] = []
+    for match in re.finditer(r"<table:table\b([^>]*)>", fods_xml or "", re.IGNORECASE):
+        attrs = match.group(1)
+        name = re.search(r'table:name="([^"]*)"', attrs, re.IGNORECASE)
+        rows = re.search(r'vno:print-title-rows="([^"]*)"', attrs, re.IGNORECASE)
+        cols = re.search(r'vno:print-title-cols="([^"]*)"', attrs, re.IGNORECASE)
+        if name:
+            result.append((_unescape_xml(name.group(1)), _unescape_xml(rows.group(1)) if rows else "", _unescape_xml(cols.group(1)) if cols else ""))
+    return result
+
+
+def apply_print_titles_to_workbook(workbook_xml: str, titles: list[tuple[str, str, str]]) -> str:
+    xml = workbook_xml or ""
+    xml = re.sub(r'<definedName\b(?=[^>]*\bname="_xlnm\.Print_Titles")[^>]*>[\s\S]*?</definedName\s*>', "", xml, flags=re.IGNORECASE)
+    entries = []
+    for sheet_index, (sheet_name, rows, cols) in enumerate(titles):
+        refs = []
+        quoted = "'" + sheet_name.replace("'", "''") + "'!"
+        if rows:
+            start, _, end = rows.partition(":")
+            end = end or start
+            refs.append(f"{quoted}${start}:$" + end)
+        if cols:
+            start, _, end = cols.partition(":")
+            end = end or start
+            refs.append(f"{quoted}${start}:$" + end)
+        if refs:
+            entries.append(f'<definedName name="_xlnm.Print_Titles" localSheetId="{sheet_index}">{_escape_xml(",".join(refs))}</definedName>')
+    if not entries:
+        return xml
+    block = "".join(entries)
+    close = re.search(r"</definedNames\s*>", xml, re.IGNORECASE)
+    if close:
+        return xml[:close.start()] + block + xml[close.start():]
+    sheets_end = re.search(r"</sheets\s*>", xml, re.IGNORECASE)
+    if sheets_end:
+        return xml[:sheets_end.end()] + f"<definedNames>{block}</definedNames>" + xml[sheets_end.end():]
+    return xml
 
 
 def _resolve_xlsx_sheet_entries(xlsx_bytes: bytes) -> dict[str, str]:
@@ -2533,6 +2575,18 @@ def postprocess_sheet_xlsx(
         except Exception:
             # A table part we could not parse is left alone rather than failing the save.
             pass
+
+    # Print Titles: LibreOffice drops the app's vno:print-title-* metadata
+    # during FODS -> XLSX, so rebuild the standard workbook defined names.
+    print_titles = parse_print_titles_from_fods(source_fods)
+    if any(rows or cols for _name, rows, cols in print_titles):
+        current = replacements.get(XLSX_WORKBOOK_ENTRY)
+        if current is None:
+            current_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+            current = current_bytes.decode("utf-8", errors="replace") if current_bytes else ""
+        next_workbook = apply_print_titles_to_workbook(str(current), print_titles)
+        if next_workbook != current:
+            replacements[XLSX_WORKBOOK_ENTRY] = next_workbook
 
     # Preserve activeTab (selected sheet) and tab colors from source FODS.
     # The FODS contains ActiveTable and tabColor/tableooo:tab-color from serializeToFods().
