@@ -543,6 +543,7 @@ export class SheetAdapter {
       verticalAlign: style.verticalAlign || "",
       whiteSpace: style.whiteSpace || "",
       textRotation: style.textRotation || "",
+      indentLevel: style.indentLevel || 0,
     };
     return JSON.stringify(visualProps);
   }
@@ -1236,7 +1237,9 @@ export class SheetAdapter {
     const grouping = config.useThousands || category === "accounting" ? ' number:grouping="true"' : "";
     const number = `<number:number number:min-integer-digits="1" number:decimal-places="${decimals}" number:min-decimal-places="${decimals}"${grouping}/>`;
     const negativeStyle = Number(config.negativeStyle || 0);
-    const negativeWrapper = negativeStyle >= 2 ? `<number:text>(</number:text>${number}<number:text>)</number:text>` : number;
+    const negativeWrapper = negativeStyle >= 2
+      ? `<number:text>(</number:text>${number}<number:text>)</number:text>`
+      : (negativeStyle === 1 ? `<number:text>-</number:text>${number}` : number);
     const negativeColor = [1, 3].includes(negativeStyle) ? '<style:text-properties fo:color="#ff0000"/>' : "";
     const mappedStyles = body => negativeStyle > 0
       ? `<number:number-style style:name="${name}P">${number}</number:number-style><number:number-style style:name="${name}">${negativeColor}${body}<style:map style:condition="value()&gt;=0" style:apply-style-name="${name}P"/></number:number-style>`
@@ -1244,8 +1247,8 @@ export class SheetAdapter {
     if (category === "percentage") return `<number:percentage-style style:name="${name}">${number}<number:text>%</number:text></number:percentage-style>`;
     if (category === "scientific") return `<number:number-style style:name="${name}"><number:scientific-number number:min-integer-digits="1" number:decimal-places="${decimals}" number:min-decimal-places="${decimals}" number:min-exponent-digits="2"/></number:number-style>`;
     if (category === "text") return `<number:text-style style:name="${name}"><number:text-content/></number:text-style>`;
-    if (category === "date") {
-      const tokens = String(config.dateFormat || "dd/mm/yyyy").match(/"[^"]*"|yyyy|yy|mmmm|mm|dd|hh|ss|m|d|./gi) || [];
+    if (category === "date" || category === "time") {
+      const tokens = String(config.dateFormat || config.timeFormat || "dd/mm/yyyy").match(/"[^"]*"|yyyy|yy|mmmm|mm|dd|hh|ss|m|d|./gi) || [];
       const parts = tokens.map(token => {
         const lower = token.toLowerCase();
         if (["d", "dd"].includes(lower)) return `<number:day number:style="${lower === "dd" ? "long" : "short"}"/>`;
@@ -1255,7 +1258,7 @@ export class SheetAdapter {
         if (lower === "ss") return '<number:seconds number:style="long"/>';
         return `<number:text>${this._escapeXml(token.replace(/^"|"$/g, ""))}</number:text>`;
       }).join("");
-      return `<number:date-style style:name="${name}">${parts}</number:date-style>`;
+      return `<number:${category === "time" ? "time" : "date"}-style style:name="${name}">${parts}</number:${category === "time" ? "time" : "date"}-style>`;
     }
     if (["currency", "accounting"].includes(category)) {
       const rawSymbol = config.currencySymbol ?? "₫";
@@ -2622,7 +2625,7 @@ export class SheetAdapter {
     };
     const visualStyleFor = (item) => {
       const s = item?.style || {};
-      const keys = ["backgroundColor", "color", "fontWeight", "fontStyle", "textDecoration", "fontFamily", "fontSize", "textAlign", "verticalAlign", "whiteSpace", "borderLeft", "borderRight", "borderTop", "borderBottom"];
+      const keys = ["backgroundColor", "color", "fontWeight", "fontStyle", "textDecoration", "fontFamily", "fontSize", "textAlign", "verticalAlign", "whiteSpace", "indentLevel", "borderLeft", "borderRight", "borderTop", "borderBottom"];
       const hasVisual = keys.some(k => s[k] !== undefined && s[k] !== "" && s[k] !== null);
       if (!hasVisual) return null;
       const hash = JSON.stringify(keys.map(k => s[k] || ""));
@@ -2640,6 +2643,7 @@ export class SheetAdapter {
       if (s.borderBottom) cellProps.push(cssToOdfBorder("fo:border-bottom", s.borderBottom));
       const paraProps = [];
       if (s.textAlign) paraProps.push(`fo:text-align="${this._escapeXml(s.textAlign)}"`);
+      if (Number(s.indentLevel) > 0) paraProps.push(`fo:margin-left="${(Number(s.indentLevel) * 0.235).toFixed(3)}cm"`);
       const textProps = [];
       if (s.fontSize) {
         const ptVal = s.fontSize.endsWith("px") ? Number((parseFloat(s.fontSize) * (72 / 96)).toFixed(2)) : s.fontSize;
@@ -3042,8 +3046,9 @@ export class SheetAdapter {
           const cellImageXml = cellImages.length > 0
 ? cellImages.map(img => this._serializeCellImageXml(img)).join("")
           : "";
-          const isDateType = item.style?.numberFormat?.category === "date";
-          const dateFormat = item.style?.numberFormat?.dateFormat || "";
+          const numberCategory = item.style?.numberFormat?.category;
+          const isDateType = numberCategory === "date" || numberCategory === "time";
+          const dateFormat = item.style?.numberFormat?.dateFormat || item.style?.numberFormat?.timeFormat || "";
           // Detect if format has time component (h, hh) but not just as part of month (m, mm)
           // Time formats: h, hh, h:mm, hh:mm, h:mm:ss, hh:mm:ss
           // Date formats with time: dd/mm/yyyy hh:mm, etc.

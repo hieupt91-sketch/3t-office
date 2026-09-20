@@ -89,3 +89,7 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 - **S24a — chiều rộng:** pixel trong model/UI VN Sheet là pixel Excel hiển thị. Khi nhập XLSX, `width` ký tự được đổi thành `width × MDW`; khi lưu, đổi ngược bằng `px / MDW`, không cộng/trừ lề 5 px.
 - **S24b — mặc định workbook mới:** Normal là Calibri 11 pt; hàng 20 px (15 pt); cột 64 px (MDW 7); XLSX có `sheetFormatPr defaultRowHeight="15"` và không giữ `defaultColWidth` do LibreOffice tự sinh.
 - **S24c — cỡ chữ ribbon:** giá trị người dùng chọn là point. Model CSS lưu `pt × 4/3` px (làm tròn hai chữ số); tăng/giảm cỡ chữ so sánh theo point.
+
+## S26 — Tạo mới nâng cao, Excel 2016 đọc lại (21/09/2026)
+
+- **S26a — dữ liệu người dùng nhập:** chuỗi ngày Việt Nam `dd/mm/yyyy` được đổi sang serial Excel bằng thành phần ngày/giờ cục bộ nhưng phép tính UTC-safe; chuỗi giờ `hh:mm[:ss]` ở ô định dạng Time được đổi sang phần ngày. Dấu nháy đơn đầu vào là ký hiệu ép văn bản nên không trở thành nội dung ô. Vùng AutoFilter do người dùng chọn được giữ riêng, không tự nới theo used range. Mức thụt lề và dấu trừ của số âm màu đỏ phải được ghi rõ trong FODS.

@@ -39,7 +39,7 @@ try {
           switch ($prop) {
             "value" { $got = $r.Value2 }
             "formula" { $got = $r.Formula }
-            "numFmtContains" { $got = $r.NumberFormat; if ("$got" -like "*$want*") { $got = $want } }
+            "numFmtContains" { $got = $r.NumberFormat; if ("$got".Contains("$want")) { $got = $want } }
             "numberFormat" { $got = $r.NumberFormat }
             "bottomBorderStyle" { $got = $r.Borders.Item(9).LineStyle }
             "fill" { $got = & $hex ([int]$r.Interior.Color) }
@@ -47,7 +47,7 @@ try {
             "comment" { if ($null -ne $r.Comment) { $got = $r.Comment.Text() } }
             "halign" { $got = @{ "-4108" = "center"; "-4131" = "left"; "-4152" = "right"; "1" = "general" }[[string][int]$r.HorizontalAlignment] }
             "valign" { $got = @{ "-4160" = "top"; "-4108" = "center"; "-4107" = "bottom" }[[string][int]$r.VerticalAlignment] }
-            "orientation" { $got = $r.Orientation }
+            "orientation" { $got = $r.Orientation; if ($want -eq 90 -and $got -eq -4171) { $got = 90 } }
             "indentLevel" { $got = $r.IndentLevel }
           }
           Compare-Value "$sheetName.$coord.$prop" $want $got
@@ -62,7 +62,7 @@ try {
             "insideHorizontalWeight" { $got = $r.Borders.Item(12).Weight }
             "formatConditionCount" { $got = $r.FormatConditions.Count }
             "formatConditionType" { if ($r.FormatConditions.Count -gt 0) { $got = $r.FormatConditions.Item(1).Type } }
-            "formatConditionFormula1" { if ($r.FormatConditions.Count -gt 0) { $got = $r.FormatConditions.Item(1).Formula1 } }
+            "formatConditionFormula1" { if ($r.FormatConditions.Count -gt 0) { $got = $r.FormatConditions.Item(1).Formula1.TrimStart('=') } }
             "formatConditionFill" { if ($r.FormatConditions.Count -gt 0) { $got = & $hex ([int]$r.FormatConditions.Item(1).Interior.Color) } }
             "validationType" { $got = $r.Validation.Type }
             "validationFormula1Contains" { $got = $r.Validation.Formula1; if ("$got" -like "*$want*") { $got = $want } }

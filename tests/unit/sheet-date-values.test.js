@@ -32,7 +32,8 @@ export async function runSheetDateValuesTests() {
         ["A1", { val: 44470, formula: "", style: { numberFormat: { category: "date", dateFormat: "dd/mm/yyyy" } } }],
         ["A2", { val: 44470.354167, formula: "", style: { numberFormat: { category: "date", dateFormat: "dd/mm/yyyy hh:mm" } } }],
         ["A3", { val: 0.354167, formula: "", style: { numberFormat: { category: "date", dateFormat: "h:mm" } } }],
-        ["A4", { val: 12.5, formula: "", style: { numberFormat: { category: "number" } } }]
+        ["A4", { val: 12.5, formula: "", style: { numberFormat: { category: "number" } } }],
+        ["A5", { val: 0.354167, formula: "", style: { numberFormat: { category: "time", timeFormat: "hh:mm" } } }]
       ]) },
       commentsBySheet: { [sheet]: {} }, mergedRangesBySheet: { [sheet]: [] }, namedRangesBySheet: { [sheet]: [] },
       namedRangesWorkbook: [], printAreaBySheet: { [sheet]: null }, conditionalFormattingBySheet: { [sheet]: [] },
@@ -54,6 +55,11 @@ export async function runSheetDateValuesTests() {
     const xml = a._serializeDatabaseRanges(["Nguồn 2020 (GVCN Trang)", "Plain"]);
     assert.match(xml, /table:target-range-address="&apos;Nguồn 2020 \(GVCN Trang\)&apos;\.A1:&apos;Nguồn 2020 \(GVCN Trang\)&apos;\.J2650"/);
     assert.match(xml, /table:target-range-address="Plain\.A1:Plain\.L431"/);
+  });
+
+  test("S26a: FODS moi giu dinh dang am co dau tru", () => {
+    const adapter = Object.create(SheetAdapter.prototype);
+    assert.match(adapter._numberFormatXml({ category: "number", decimals: 0, useThousands: true, negativeStyle: 1 }, "nS26"), /<number:text>-<\/number:text>/);
   });
 
   test("imported database-ranges: quoted sheet names and two-ended addresses map to the right sheet", () => {

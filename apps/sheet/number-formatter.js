@@ -500,11 +500,23 @@ export class NumberFormatter {
       return parsed !== null ? parsed : inputVal;
     }
 
+    if (category === "time") {
+      const match = String(inputVal).trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+      if (match) {
+        const hours = Number(match[1]);
+        const minutes = Number(match[2]);
+        const seconds = Number(match[3] || 0);
+        if (hours < 24 && minutes < 60 && seconds < 60) return (hours * 3600 + minutes * 60 + seconds) / 86400;
+      }
+      return inputVal;
+    }
+
     if (category === "date") {
       const date = this._parseDate(inputVal);
       if (date && !isNaN(date.getTime())) {
         const epoch = Date.UTC(1899, 11, 30);
-        return Math.round((date.getTime() - epoch) / 86400000 * 1000000) / 1000000;
+        const utcValue = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds());
+        return Math.round((utcValue - epoch) / 86400000 * 1000000) / 1000000;
       }
       return inputVal;
     }
