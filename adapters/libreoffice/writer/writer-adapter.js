@@ -8924,7 +8924,9 @@ export class WriterAdapter {
 
     const firstSectionId = Object.keys(this.sectionPageSetups || {})[0] || "section-1";
     bodyHtml = `<div class="vno-export-section vno-export-${firstSectionId}" data-vno-export-section="${firstSectionId}">` + bodyHtml.replace(
-      /<div\b[^>]*data-vno-section-break=["'](nextPage|continuous|evenPage|oddPage)["'][^>]*data-vno-section-id=["']([^"']+)["'][^>]*>[\s\S]*?<\/div>\s*<p\b[^>]*>\s*<br\s*\/?\s*>\s*<\/p>/gi,
+      // Spacer `<p><br></p>` sau marker (do insertSectionBreak chèn) là tùy chọn: phong bì/nhãn/FODT
+      // tạo marker không có spacer và vẫn phải tách mục.
+      /<div\b[^>]*data-vno-section-break=["'](nextPage|continuous|evenPage|oddPage)["'][^>]*data-vno-section-id=["']([^"']+)["'][^>]*>[\s\S]*?<\/div>(?:\s*<p\b[^>]*>\s*<br\s*\/?\s*>\s*<\/p>)?/gi,
       (_match, type, id) => {
         // LibreOffice's HTML→Writer import filter only honors page-break-before on a
         // real <p>, not a wrapping <div> — so a dedicated zero-height marker paragraph

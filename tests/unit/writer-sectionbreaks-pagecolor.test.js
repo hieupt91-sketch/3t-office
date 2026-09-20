@@ -69,6 +69,15 @@ export async function runWriterSectionBreaksPageColorTests() {
     assert(exported.includes('data-vno-export-section="section-2"'), "Mất vùng trang kế tiếp");
   });
 
+  await test("W20e: marker không có spacer (phong bì/nhãn/FODT) vẫn tách mục khi export", () => {
+    const marker = '<p>Trước</p><div class="vno-section-break" data-vno-section-break="nextPage" data-vno-section-id="section-2" contenteditable="false">---</div><p>Phong bì sau</p>';
+    const { adapter } = createAdapter(marker);
+    const exported = adapter._contentForExport();
+    assert(exported.includes('data-vno-export-section="section-2"'), "Marker không spacer bị bỏ qua, mất vùng trang kế tiếp");
+    assert(/data-vno-export-section="section-2"[^>]*>\s*<p>Phong bì sau<\/p>/.test(exported), `Đoạn sau marker phải mở đầu mục 2: ${exported}`);
+    assert(!exported.includes("data-vno-section-break="), "Marker UI còn sót trong HTML export");
+  });
+
   await test("Writer Section Break: ribbon có đủ Page/Column/Next/Continuous/Even/Odd và Help", () => {
     const layout = WRITER_RIBBON_TABS.find((tab) => tab.id === "layout");
     const dropdown = layout.groups.flatMap((group) => group.items).find((item) => item.id === "writer.layout.breaks");
