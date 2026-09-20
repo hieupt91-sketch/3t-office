@@ -3299,13 +3299,21 @@ export class WriterAdapter {
       const ind = item?.ind;
       const left = Number.isFinite(ind?.left) ? ind.left : 0;
       liLeftByDepth[depth] = left;
-      if (!ind) return tag;
-      const parentLeft = depth > 1 ? (liLeftByDepth[depth - 1] || 0) : 0;
       const decls = [];
-      const relLeft = Math.max(0, left - parentLeft);
-      if (relLeft > 0) decls.push(`margin-left: ${twipsToCm(relLeft)}`);
-      if (Number.isFinite(ind.right) && ind.right > 0) decls.push(`margin-right: ${twipsToCm(ind.right)}`);
-      if (Number.isFinite(ind.firstLine) && ind.firstLine > 0) decls.push(`text-indent: ${twipsToCm(ind.firstLine)}`);
+      // W10c: hộp dòng của marker (::marker) dùng line-height của <li> (= --vno-lh mặc định tài liệu 1,15) trong khi
+      // <p> bên trong có --vno-lh riêng (d07: 100% → 19,9px); marker cao hơn dòng đầu làm <li> cao thêm 2–3px mỗi mục
+      // (Word: 39,8px, canvas 41,8px). Cho <li> cùng --vno-lh với <p> đầu tiên của nó.
+      const liClose = source.indexOf("</li>", offset);
+      const firstP = source.slice(offset + tag.length, liClose < 0 ? undefined : liClose).match(/^\s*<p\b([^>]*)>/i);
+      const pLine = firstP && firstP[1].match(/line-height\s*:\s*([\d.]+)\s*%/i);
+      if (pLine) decls.push(`--vno-lh: ${Math.round(Number(pLine[1])) / 100}`);
+      if (ind) {
+        const parentLeft = depth > 1 ? (liLeftByDepth[depth - 1] || 0) : 0;
+        const relLeft = Math.max(0, left - parentLeft);
+        if (relLeft > 0) decls.push(`margin-left: ${twipsToCm(relLeft)}`);
+        if (Number.isFinite(ind.right) && ind.right > 0) decls.push(`margin-right: ${twipsToCm(ind.right)}`);
+        if (Number.isFinite(ind.firstLine) && ind.firstLine > 0) decls.push(`text-indent: ${twipsToCm(ind.firstLine)}`);
+      }
       if (!decls.length) return tag;
       // Giá trị style có thể chứa dấu nháy đơn (list-style-type: '- ' của W21b) nên bắt theo đúng loại nháy mở.
       const styleMatch = (attrs || "").match(/\bstyle=("([^"]*)"|'([^']*)')/i);
