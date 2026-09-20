@@ -169,6 +169,26 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         document = _read_entry(result, "word/document.xml").decode("utf-8")
         self.assertIn('<w:pageBreakBefore/>', document)
 
+    def test_w22e_created_document_section_landscape(self):
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Section 1 text</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Section 2 text</w:t></w:r></w:p>'
+            '<w:sectPr><w:pgSz w:w="12246" w:h="15817"/></w:sectPr>'
+        )
+        source_html = (
+            '@page vno-section-1 { size: 216mm 279mm; }\n'
+            '@page vno-section-2 { size: 279mm 216mm; }\n'
+            '<div data-vno-export-section="section-1"><p>Section 1 text</p></div>'
+            '<div data-vno-export-section="section-2"><p>Section 2 text</p></div>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html=source_html,
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('w:orient="landscape"', document)
+        self.assertIn('<w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/>', document)
+
     def test_w20e_created_document_break_is_before_second_section_text(self):
         converted = _build_minimal_docx(
             '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'

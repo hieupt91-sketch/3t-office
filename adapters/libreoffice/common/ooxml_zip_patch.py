@@ -8185,6 +8185,44 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             cleaned = re.sub(r'<w:type\b[^>]*/>', '', final.group(0), flags=re.IGNORECASE)
             document_xml = document_xml[:final.start()] + cleaned + document_xml[final.end():]
 
+    # W22e: Định hướng trang Landscape cho từng section theo @page CSS
+    if section_ids:
+        section_orientations = {}
+        for sid in section_ids:
+            sec_page = re.search(rf"@page\s+(?:vno-)?{re.escape(sid)}\s*\{{([^}}]*)\}}", source_html, re.IGNORECASE)
+            if sec_page:
+                css = sec_page.group(1)
+                size_m = re.search(r"size\s*:\s*([\d.]+)mm\s+([\d.]+)mm", css, re.IGNORECASE)
+                if size_m and float(size_m.group(1)) > float(size_m.group(2)):
+                    section_orientations[sid] = "landscape"
+                elif re.search(r"\blandscape\b", css, re.IGNORECASE):
+                    section_orientations[sid] = "landscape"
+                else:
+                    section_orientations[sid] = "portrait"
+
+        sections = list(re.finditer(r'<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>', document_xml, re.IGNORECASE))
+        if len(sections) == len(section_ids):
+            for idx, sid in enumerate(section_ids):
+                if section_orientations.get(sid) == "landscape":
+                    sect_match = sections[idx]
+                    sect_content = sect_match.group(0)
+                    pgsz_m = re.search(r'<w:pgSz\b([^>]*)/?>', sect_content, re.IGNORECASE)
+                    if pgsz_m:
+                        w_m = re.search(r'\bw:w="(\d+)"', pgsz_m.group(1))
+                        h_m = re.search(r'\bw:h="(\d+)"', pgsz_m.group(1))
+                        if w_m and h_m:
+                            w_val, h_val = int(w_m.group(1)), int(h_m.group(1))
+                            land_w = max(w_val, h_val)
+                            land_h = min(w_val, h_val)
+                            if 15750 <= land_w <= 15900 and 12200 <= land_h <= 12300:
+                                land_w, land_h = 15840, 12240
+                            elif 16800 <= land_w <= 16900 and 11850 <= land_h <= 12000:
+                                land_w, land_h = 16838, 11906
+                            new_pgsz = f'<w:pgSz w:w="{land_w}" w:h="{land_h}" w:orient="landscape"/>'
+                            updated_sect = sect_content[:pgsz_m.start()] + new_pgsz + sect_content[pgsz_m.end():]
+                            document_xml = document_xml[:sect_match.start()] + updated_sect + document_xml[sect_match.end():]
+                            sections = list(re.finditer(r'<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>', document_xml, re.IGNORECASE))
+
     page = re.search(r"@page\s*\{[^}]*\bmargin\s*:\s*([\d.]+)mm\s+([\d.]+)mm\s+([\d.]+)mm\s+([\d.]+)mm", source_html, re.IGNORECASE)
     if page:
         top, right, bottom, left = (round(float(value) / 25.4 * 1440) for value in page.groups())
