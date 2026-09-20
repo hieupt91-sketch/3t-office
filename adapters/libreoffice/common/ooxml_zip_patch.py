@@ -8198,6 +8198,22 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             return tag
         document_xml = re.sub(r"<w:pgMar\b[^>]*/>", patch_margin, document_xml, flags=re.IGNORECASE)
 
+    # W22a: Superscript / Subscript (<w:vertAlign>)
+    # LibreOffice HTML import turns <sup>/<sub> into <w:position w:val="..."/> (e.g. 8 for sup, -2 for sub).
+    # Word COM Font.Superscript/Subscript requires native <w:vertAlign w:val="superscript|subscript"/>.
+    document_xml = re.sub(
+        r'<w:position\s+w:val="([1-9]\d*)"\s*/>',
+        r'<w:vertAlign w:val="superscript"/>',
+        document_xml,
+        flags=re.IGNORECASE,
+    )
+    document_xml = re.sub(
+        r'<w:position\s+w:val="(-\d+)"\s*/>',
+        r'<w:vertAlign w:val="subscript"/>',
+        document_xml,
+        flags=re.IGNORECASE,
+    )
+
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
     numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
     bullet_texts = {

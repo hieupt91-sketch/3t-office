@@ -110,6 +110,25 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertIn('<w:numFmt w:val="bullet"/>', patched)
         self.assertIn('<w:lvlText w:val="•"/>', patched)
 
+    def test_w22a_created_document_superscript_and_subscript(self):
+        converted = _build_minimal_docx(
+            '<w:p>'
+            '<w:r><w:t>x</w:t></w:r>'
+            '<w:r><w:rPr><w:position w:val="8"/></w:rPr><w:t>2</w:t></w:r>'
+            '<w:r><w:t>H</w:t></w:r>'
+            '<w:r><w:rPr><w:position w:val="-2"/></w:rPr><w:t>2</w:t></w:r>'
+            '<w:r><w:t>O</w:t></w:r>'
+            '</w:p>'
+            '<w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html='<p>x<sup>2</sup> H<sub>2</sub>O</p>',
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:vertAlign w:val="superscript"/>', document)
+        self.assertIn('<w:vertAlign w:val="subscript"/>', document)
+
     def test_w20e_created_document_break_is_before_second_section_text(self):
         converted = _build_minimal_docx(
             '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'
