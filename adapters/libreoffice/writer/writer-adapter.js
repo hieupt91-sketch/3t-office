@@ -9115,14 +9115,17 @@ export class WriterAdapter {
 
     const firstSectionId = Object.keys(this.sectionPageSetups || {})[0] || "section-1";
     bodyHtml = `<div class="vno-export-section vno-export-${firstSectionId}" data-vno-export-section="${firstSectionId}">` + bodyHtml.replace(
-      /<div\b[^>]*data-vno-section-break=["'](nextPage|continuous|evenPage|oddPage)["'][^>]*data-vno-section-id=["']([^"']+)["'][^>]*>[\s\S]*?<\/div>/gi,
+      // Spacer `<p><br></p>` sau marker (do insertSectionBreak chèn) là tùy chọn: phong bì/nhãn/FODT
+      // tạo marker không có spacer và vẫn phải tách mục.
+      /<div\b[^>]*data-vno-section-break=["'](nextPage|continuous|evenPage|oddPage)["'][^>]*data-vno-section-id=["']([^"']+)["'][^>]*>[\s\S]*?<\/div>(?:\s*<p\b[^>]*>\s*<br\s*\/?\s*>\s*<\/p>)?/gi,
       (_match, type, id) => {
         // LibreOffice's HTML→Writer import filter only honors page-break-before on a
         // real <p>, not a wrapping <div> — so a dedicated zero-height marker paragraph
         // carries the break instead of relying on the section <div>'s own style.
-        const pageBreak = type === "continuous"
-          ? ""
-          : `<p style="page-break-before:always;break-before:${type === "evenPage" ? "left" : type === "oddPage" ? "right" : "page"};margin:0;height:0;overflow:hidden;" aria-hidden="true">&nbsp;</p>`;
+        // The following named-page section already makes LibreOffice start a
+        // new page. Adding a separate page-break paragraph here creates two
+        // consecutive breaks (a blank page) for nextPage sections.
+        const pageBreak = "";
         return `</div>${pageBreak}<div class="vno-export-section vno-export-${id}" data-vno-export-section="${id}">`;
       }
     ) + `</div>`;

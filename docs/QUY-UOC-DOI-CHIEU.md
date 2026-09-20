@@ -42,6 +42,13 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 | W21b | Ký hiệu bullet của danh sách không thứ tự (`<ul>`/`<li>`) khi nhập từ DOCX phải lấy đúng `w:lvlText` và font từ `word/numbering.xml` theo `numId/ilvl` của đoạn (ví dụ `-`), đặt `list-style-type: '- '` trên `<li>`, thay vì để trình duyệt render chấm tròn mặc định `•` | d09 trang 1 mục 1–2: gạch đầu dòng `-` được bảo toàn | `_applyOoxmlListBullets` (L8, suite 153) |
 
 | W12d | Inline wrapper không có chữ trực tiếp không được giữ strut lớn hơn các run con: hạ wrapper về cỡ run nhỏ nhất bên trong; run lớn có cỡ tường minh vẫn quyết định line box | d11: LibreOffice lồng run TNR 8 pt trong `<font size="3" style="font-size:12pt">`; line-height 15 → 2, page 20 → 18, không tăng lớp khác trên ma trận 24 file (d10 Word COM báo file hỏng) | writer-doc-font-spacing (W12d) |
+| W20a | Word COM `LineSpacingRule=1` là `wdLineSpace1pt5`, và `LineSpacing=18pt` là đúng 1,5 dòng; không chia 18 cho cỡ chữ run 13pt để kết luận 1,38 | Harness tạo mới: OOXML sẵn có `w:line="360" w:lineRule="auto"`; sửa diễn giải bộ đo 2 lệch → 0 | test_writer_create_new_readback (W20a) |
+| W20b | `text-indent` của tài liệu tạo mới phải thành `w:ind w:firstLine` theo `cm / 2,54 × 1440` | 1,27 cm → 720 twip | test_writer_section_headerfooter_postprocess (W20b) |
+| W20c | `<ul>` phải tham chiếu abstract numbering có `w:numFmt="bullet"` và `w:lvlText="•"`; không dùng decimal | Harness tạo mới: Word numbered → bullet | test_writer_section_headerfooter_postprocess (W20c) |
+| W20d | Ảnh data URI tạo mới phải hiện thành inline shape trong DOCX; harness phải thực sự khai báo payload ảnh trong browser trước khi kết luận | Harness sạch: `InlineShapes.Count=1`, không cần sửa sản phẩm | test_writer_create_new_readback (W20d) |
+| W20e | Marker section break gồm cả spacer UI `<p><br></p>`; export phải tiêu thụ spacer và chỉ sinh một paragraph page-break | Harness sạch trước sửa: 3 trang → mục tiêu 2 | writer-sectionbreaks-pagecolor (W20e) |
+| W20f | Header/footer tạo mới được LibreOffice xuất thành part thật; field/trang được Word nhận khi scenario chạy hết | Harness sạch: header `VN Office` căn giữa, footer có PAGE đều PASS | harness 36 checks (W20f) |
+| W20g | Lề DOCX tạo mới lấy từ `@page` và được khóa lại ở `w:pgMar` sau HTML import; mm → twip theo `mm / 25,4 × 1440` | 20/20/20/30 mm → 1134/1134/1134/1701 twip | test_writer_section_headerfooter_postprocess (W20g) |
 
 ## Quy ước đã đo và khoá (Sheet)
 

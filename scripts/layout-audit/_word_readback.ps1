@@ -1,11 +1,7 @@
 # Doc lai file DOCX bang Word 2016 COM va doi chieu voi <file>.expected.json (sinh boi _create_new_writer.py).
 # Usage: powershell -File _word_readback.ps1 -File out.docx
-param([string]$File)
+param([string]$File, [switch]$SelfTest)
 Add-Type -AssemblyName System.Web.Extensions
-$json = New-Object System.Web.Script.Serialization.JavaScriptSerializer
-$expected = $json.DeserializeObject([IO.File]::ReadAllText("$File.expected.json", [Text.Encoding]::UTF8))
-$word = New-Object -ComObject Word.Application
-$word.Visible = $false; $word.DisplayAlerts = 0  # wdAlertsNone = 0
 $hex = { param($v) "#{0:X2}{1:X2}{2:X2}" -f ($v -band 0xFF), (($v -shr 8) -band 0xFF), (($v -shr 16) -band 0xFF) }
 $pt2cm = 0.0352778  # 1 pt = 0.0352778 cm
 $twip2cm = 0.00176389  # 1 twip = 0.00176389 cm
@@ -40,26 +36,68 @@ function GetAlignment($range) {
     $alignMap = @{ 0="left"; 1="center"; 2="right"; 3="justify" }
     try { return $alignMap[[int]$range.ParagraphFormat.Alignment] } catch { return "" }
 }
+function NormalizeLineSpacing($rule, $spacing) {
+    if ([int]$rule -eq 0) { return 1.0 }
+    if ([int]$rule -eq 1) { return 1.5 }
+    if ([int]$rule -eq 2) { return 2.0 }
+    if ([int]$rule -eq 5) { return [double]$spacing / 12.0 }
+    return [double]$spacing
+}
 function GetLineSpacing($range) {
-    try { return [double]$range.ParagraphFormat.LineSpacing / [double]$range.Font.Size } catch { return 0 }
+    try { return NormalizeLineSpacing $range.ParagraphFormat.LineSpacingRule $range.ParagraphFormat.LineSpacing } catch { return 0 }
 }
 function GetLineSpacingRule($range) {
-    try { return [int]$range.ParagraphFormat.LineSpacingRule } catch { return 0 }
+    $labels = @{ 0="single"; 1="1.5 lines"; 2="double"; 3="at least"; 4="exactly"; 5="multiple" }
+    try { return $labels[[int]$range.ParagraphFormat.LineSpacingRule] } catch { return "" }
 }
 function GetFirstLineIndentCm($range) {
-    try { return [math]::Round($range.ParagraphFormat.FirstLineIndent * $twip2cm, 2) } catch { return 0 }
+    try { return [math]::Round($range.ParagraphFormat.FirstLineIndent * $pt2cm, 2) } catch { return 0 }
+}
+function NormalizeListType($listType, $listString) {
+    if ([int]$listType -eq 0) { return "none" }
+    $marker = "$listString"
+    $bulletCodes = @(0x2022, 0x00B7, 0x25AA, 0x25E6, 0x25CB, 0x25CF, 0x25A0, 0x002D)
+    if ($marker.Length -eq 1 -and $bulletCodes -contains [int][char]$marker) { return "bullet" }
+    return "numbered"
 }
 function GetListType($range) {
     try {
-        $lt = $range.ListFormat.ListType
-        if ($lt -eq 0) { return "none" }
-        elseif ($lt -eq 2) { return "bullet" }
-        else { return "numbered" }
+        return NormalizeListType $range.ListFormat.ListType $range.ListFormat.ListString
     } catch { return "error" }
 }
-function GetTableCellText($table, $row, $col) {
-    try { return $table.Cell($row,$col).Range.Text.Trim() } catch { return "" }
+function NormalizeTableCellText($text) {
+    return "$text".TrimEnd([char]13, [char]7)
 }
+function GetTableCellText($table, $row, $col) {
+    # Word COM appends CR + end-of-cell (0x07); neither is user content.
+    try { return NormalizeTableCellText $table.Cell($row,$col).Range.Text } catch { return "" }
+}
+function GetPrintPageCount($doc) {
+    $pdf = [IO.Path]::Combine([IO.Path]::GetTempPath(), "vno_readback_" + [guid]::NewGuid().ToString("N") + ".pdf")
+    try {
+        $doc.ExportAsFixedFormat($pdf, 17)  # wdExportFormatPDF: real print layout
+        $bytes = [IO.File]::ReadAllBytes($pdf)
+        $text = [Text.Encoding]::GetEncoding(28591).GetString($bytes)
+        return ([regex]::Matches($text, "/Type\s*/Page[^s]")).Count
+    } finally {
+        if (Test-Path -LiteralPath $pdf) { Remove-Item -LiteralPath $pdf -Force -ErrorAction SilentlyContinue }
+    }
+}
+
+if ($SelfTest) {
+    if ((NormalizeTableCellText "merged$([char]13)$([char]7)") -ne "merged") { throw "Word cell terminator was not removed" }
+    if ("$([bool]$true)" -ne "True") { throw "Boolean was not normalized to True" }
+    if ((NormalizeLineSpacing 1 18) -ne 1.5) { throw "wdLineSpace1pt5 was interpreted incorrectly" }
+    if ((NormalizeListType 4 ([char]0x2022)) -ne "bullet") { throw "Word bullet marker was interpreted incorrectly" }
+    if ([math]::Round(36 * $pt2cm, 2) -ne 1.27) { throw "Word point indent was interpreted as twips" }
+    Write-Output "SELFTEST=PASS"
+    exit 0
+}
+
+$json = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+$expected = $json.DeserializeObject([IO.File]::ReadAllText("$File.expected.json", [Text.Encoding]::UTF8))
+$word = New-Object -ComObject Word.Application
+$word.Visible = $false; $word.DisplayAlerts = 0  # wdAlertsNone = 0
 
 try {
     $doc = $word.Documents.Open((Resolve-Path $File).Path, 0, $true)
@@ -119,7 +157,7 @@ try {
         Check "table" "cols" $expected["table"]["cols"] $table.Columns.Count
         $cell11 = $table.Cell(1,1)
         $hasBorders = ($cell11.Borders.Item(1).LineStyle -ne 0) -and ($cell11.Borders.Item(2).LineStyle -ne 0) -and ($cell11.Borders.Item(3).LineStyle -ne 0) -and ($cell11.Borders.Item(4).LineStyle -ne 0)
-        Check "table" "borders" $expected["table"]["borders"] [bool]$hasBorders
+        Check "table" "borders" $expected["table"]["borders"] ([bool]$hasBorders)
         $mergedText = GetTableCellText $table 1 1
         Check "table" "mergedCell.text" $expected["table"]["mergedCell"]["text"] $mergedText
         $row1Cells = $table.Rows.Item(1).Cells.Count
@@ -133,13 +171,16 @@ try {
     Check "image" "inlineShapesCount" $expected["image"]["inlineShapesCount"] $doc.InlineShapes.Count
 
     # --- Page Break / Page Count ---
-    $pageCount = $doc.ComputeStatistics(2)  # wdStatisticPages = 2
+    $pageCount = GetPrintPageCount $doc
     Check "pageBreak" "pageCount" $expected["pageBreak"]["pageCount"] $pageCount
     $page2Text = ""
-    if ($doc.Paragraphs.Count -gt 10) {
-        for ($i = 11; $i -le $doc.Paragraphs.Count; $i++) {
-            $t = $doc.Paragraphs.Item($i).Range.Text.Trim()
-            if ($t) { $page2Text = $t; break }
+    for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
+        $range = $doc.Paragraphs.Item($i).Range
+        $t = NormalizeTableCellText $range.Text
+        if ($t.Trim() -eq $expected["pageBreak"]["page2Text"]) {
+            $paragraphPage = $range.Information(3)  # wdActiveEndPageNumber
+            $page2Text = if ($paragraphPage -eq 2) { $t.Trim() } else { "$($t.Trim()) (page $paragraphPage)" }
+            break
         }
     }
     Check "pageBreak" "page2Text" $expected["pageBreak"]["page2Text"] $page2Text
@@ -154,7 +195,7 @@ try {
     $footerRange = $doc.Sections.Item(1).Footers.Item(1).Range
     $footerText = $footerRange.Text.Trim()
     $hasPageNum = $footerText -like "*Trang*" -or $footerRange.Fields.Count -gt 0
-    Check "footer" "hasPageNumber" $expected["footer"]["hasPageNumber"] [bool]$hasPageNum
+    Check "footer" "hasPageNumber" $expected["footer"]["hasPageNumber"] ([bool]$hasPageNum)
 
     # --- Page Setup ---
     $setup = $doc.Sections.Item(1).PageSetup
