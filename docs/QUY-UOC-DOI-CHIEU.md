@@ -51,6 +51,7 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 | W20g | Lề DOCX tạo mới lấy từ `@page` và được khóa lại ở `w:pgMar` sau HTML import; mm → twip theo `mm / 25,4 × 1440` | 20/20/20/30 mm → 1134/1134/1134/1701 twip | test_writer_section_headerfooter_postprocess (W20g) |
 | W22a | Thẻ `<sup>` và `<sub>` tạo mới khi LibreOffice import xuất thành `<w:position>` phải được chuẩn hóa thành native `<w:vertAlign w:val="superscript|subscript"/>` để Word COM `Font.Superscript` và `Font.Subscript` nhận diện đúng | Harness tạo mới 2: `x²` và `H₂O` nhận diện đúng superscript/subscript | test_writer_section_headerfooter_postprocess (W22a) |
 | W22b | Thẻ `<mark>` và `background-color` highlight trên inline span khi xuất DOCX bị LibreOffice làm rơi phải được khôi phục thành `<w:highlight w:val="yellow"/>` trên run tương ứng | Harness tạo mới 2: `Chữ highlight vàng` nhận diện đúng HighlightColorIndex=7 (wdYellow) | test_writer_section_headerfooter_postprocess (W22b) |
+| W22c | Khổ giấy US Letter tiêu chuẩn trong Word/OOXML là 8.5" × 11" (12240 × 15840 twips = 612pt × 792pt). Khi LibreOffice xuất từ HTML 216mm × 279mm thành 12246 × 15817 twips (790.85pt làm tròn thành 791pt trong Word COM), hậu xử lý tự động snap kích thước về chuẩn 12240 × 15840 twips (portrait) hoặc 15840 × 12240 twips (landscape) | Harness tạo mới 2: pageSetup.pageHeightPt 791 → 792 pt | test_writer_section_headerfooter_postprocess (W22c) |
 
 ## Quy ước đã đo và khoá (Sheet)
 

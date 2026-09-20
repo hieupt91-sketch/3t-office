@@ -144,6 +144,18 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         document = _read_entry(result, "word/document.xml").decode("utf-8")
         self.assertIn('<w:highlight w:val="yellow"/>', document)
 
+    def test_w22c_created_document_letter_size(self):
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Letter page</w:t></w:r></w:p>'
+            '<w:sectPr><w:pgSz w:w="12246" w:h="15817"/></w:sectPr>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html='@page { size: 216mm 279mm; margin: 20mm; }<p>Letter page</p>',
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:pgSz w:w="12240" w:h="15840"/>', document)
+
     def test_w20e_created_document_break_is_before_second_section_text(self):
         converted = _build_minimal_docx(
             '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'

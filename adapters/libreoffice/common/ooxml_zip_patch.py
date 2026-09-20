@@ -8262,6 +8262,25 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
 
         document_xml = re.sub(r'<w:r\b[^>]*>[\s\S]*?</w:r\s*>', patch_highlight, document_xml, flags=re.IGNORECASE)
 
+    # W22c: Chuẩn hóa kích thước trang Letter (12240 x 15840 twips = 612pt x 792pt)
+    # LibreOffice xuất 216mm x 279mm thành 12246 x 15817 twips khiến Word COM đọc là 791pt thay vì 792pt.
+    def patch_pgsz_letter(match: re.Match) -> str:
+        tag = match.group(0)
+        w_m = re.search(r'\bw:w="(\d+)"', tag)
+        h_m = re.search(r'\bw:h="(\d+)"', tag)
+        if not (w_m and h_m):
+            return tag
+        w_val, h_val = int(w_m.group(1)), int(h_m.group(1))
+        if 12200 <= w_val <= 12300 and 15750 <= h_val <= 15900:
+            tag = re.sub(r'\bw:w="\d+"', 'w:w="12240"', tag)
+            tag = re.sub(r'\bw:h="\d+"', 'w:h="15840"', tag)
+        elif 15750 <= w_val <= 15900 and 12200 <= h_val <= 12300:
+            tag = re.sub(r'\bw:w="\d+"', 'w:w="15840"', tag)
+            tag = re.sub(r'\bw:h="\d+"', 'w:h="12240"', tag)
+        return tag
+
+    document_xml = re.sub(r'<w:pgSz\b[^>]*/>', patch_pgsz_letter, document_xml, flags=re.IGNORECASE)
+
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
     numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
     bullet_texts = {
