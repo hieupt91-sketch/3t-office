@@ -51,14 +51,18 @@ function GetLineSpacingRule($range) {
     try { return $labels[[int]$range.ParagraphFormat.LineSpacingRule] } catch { return "" }
 }
 function GetFirstLineIndentCm($range) {
-    try { return [math]::Round($range.ParagraphFormat.FirstLineIndent * $twip2cm, 2) } catch { return 0 }
+    try { return [math]::Round($range.ParagraphFormat.FirstLineIndent * $pt2cm, 2) } catch { return 0 }
+}
+function NormalizeListType($listType, $listString) {
+    if ([int]$listType -eq 0) { return "none" }
+    $marker = "$listString"
+    $bulletCodes = @(0x2022, 0x00B7, 0x25AA, 0x25E6, 0x25CB, 0x25CF, 0x25A0, 0x002D)
+    if ($marker.Length -eq 1 -and $bulletCodes -contains [int][char]$marker) { return "bullet" }
+    return "numbered"
 }
 function GetListType($range) {
     try {
-        $lt = $range.ListFormat.ListType
-        if ($lt -eq 0) { return "none" }
-        elseif ($lt -eq 2) { return "bullet" }
-        else { return "numbered" }
+        return NormalizeListType $range.ListFormat.ListType $range.ListFormat.ListString
     } catch { return "error" }
 }
 function NormalizeTableCellText($text) {
@@ -73,6 +77,8 @@ if ($SelfTest) {
     if ((NormalizeTableCellText "merged$([char]13)$([char]7)") -ne "merged") { throw "Word cell terminator was not removed" }
     if ("$([bool]$true)" -ne "True") { throw "Boolean was not normalized to True" }
     if ((NormalizeLineSpacing 1 18) -ne 1.5) { throw "wdLineSpace1pt5 was interpreted incorrectly" }
+    if ((NormalizeListType 4 ([char]0x2022)) -ne "bullet") { throw "Word bullet marker was interpreted incorrectly" }
+    if ([math]::Round(36 * $pt2cm, 2) -ne 1.27) { throw "Word point indent was interpreted as twips" }
     Write-Output "SELFTEST=PASS"
     exit 0
 }
@@ -157,10 +163,13 @@ try {
     $pageCount = $doc.ComputeStatistics(2)  # wdStatisticPages = 2
     Check "pageBreak" "pageCount" $expected["pageBreak"]["pageCount"] $pageCount
     $page2Text = ""
-    if ($doc.Paragraphs.Count -gt 10) {
-        for ($i = 11; $i -le $doc.Paragraphs.Count; $i++) {
-            $t = $doc.Paragraphs.Item($i).Range.Text.Trim()
-            if ($t) { $page2Text = $t; break }
+    for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
+        $range = $doc.Paragraphs.Item($i).Range
+        $t = NormalizeTableCellText $range.Text
+        if ($t.Trim() -eq $expected["pageBreak"]["page2Text"]) {
+            $paragraphPage = $range.Information(3)  # wdActiveEndPageNumber
+            $page2Text = if ($paragraphPage -eq 2) { $t.Trim() } else { "$($t.Trim()) (page $paragraphPage)" }
+            break
         }
     }
     Check "pageBreak" "page2Text" $expected["pageBreak"]["page2Text"] $page2Text
