@@ -317,5 +317,28 @@ export async function runWriterDocFontSpacingTests() {
     check(!out.includes("text-indent"), `hanging lists must not get a negative text-indent (marker sits outside): ${out}`);
   });
 
+  test("Import (W25b): odd w:sz runs (11.5/16.5 pt) restored to exact half-point font-size without touching even runs", () => {
+    const adapter = new WriterAdapter(null);
+    const docXml = '<w:document xmlns:w="w"><w:body>'
+      + '<w:p><w:pPr><w:rPr><w:sz w:val="23"/></w:rPr></w:pPr>'
+      + '<w:r><w:t>Đoạn 1 run 1 kế thừa pPr</w:t></w:r>'
+      + '<w:r><w:rPr><w:sz w:val="33"/></w:rPr><w:t>Tiêu đề 16.5pt</w:t></w:r>'
+      + '<w:r><w:rPr><w:sz w:val="24"/></w:rPr><w:t>Run chẵn 12pt</w:t></w:r>'
+      + '</w:p>'
+      + '<w:p>'
+      + '<w:r><w:rPr><w:sz w:val="23"/></w:rPr><w:t>Đoạn 2 run 11.5pt</w:t></w:r>'
+      + '</w:p>'
+      + '</w:body></w:document>';
+    const html = '<p><font face="Times New Roman"><font size="3" style="font-size: 11pt">Đoạn 1 run 1 kế thừa pPr</font></font>'
+      + '<span style="font-size: 16pt">Tiêu đề 16.5pt</span>'
+      + '<font style="font-size: 12pt">Run chẵn 12pt</font></p>'
+      + '<p><font style="font-size: 11pt">Đoạn 2 run 11.5pt</font></p>';
+    const out = adapter._applyOoxmlHalfPointRunFontSizes(html, docXml, "");
+    check(out.includes('style="font-size: 11.5pt">Đoạn 1 run 1'), `11pt must become 11.5pt: ${out}`);
+    check(out.includes('style="font-size: 16.5pt">Tiêu đề 16.5pt</span>'), `16pt must become 16.5pt: ${out}`);
+    check(out.includes('style="font-size: 12pt">Run chẵn 12pt</font>'), `even 12pt must remain untouched: ${out}`);
+    check(out.includes('style="font-size: 11.5pt">Đoạn 2 run 11.5pt</font>'), `second para run must become 11.5pt: ${out}`);
+  });
+
   return results;
 }
