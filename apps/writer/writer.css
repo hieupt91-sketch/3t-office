@@ -631,8 +631,8 @@
 /* Vùng Đầu trang (Header) và Chân trang (Footer) tách biệt chuẩn Word */
 .vno-writer-header,
 .vno-writer-footer {
-  min-height: 26px;
-  font-size: 10pt;
+  min-height: 0;
+  font-size: var(--vno-doc-font-size, 10pt);
   color: #64748b;
   outline: none;
   position: absolute !important;
@@ -643,10 +643,22 @@
   z-index: 1;
 }
 
+.vno-writer-header:empty,
+.vno-writer-footer:empty {
+  min-height: 26px;
+}
+
+/* W23a: Đoạn trong header/footer chuẩn Word: lề mặc định bằng 0, không nhận lề thân */
+.vno-writer-header p,
+.vno-writer-footer p {
+  margin: 0;
+  text-align: left;
+}
+
 .vno-writer-header {
   top: var(--vno-header-distance, 48px);
   border-bottom: 1px dashed #cbd5e1;
-  padding-bottom: 4px;
+  padding-bottom: 0;
 }
 
 .vno-writer-header:focus,
@@ -677,7 +689,7 @@
 .vno-writer-footer {
   bottom: var(--vno-footer-distance, 48px);
   border-top: 1px dashed #cbd5e1;
-  padding-top: 4px;
+  padding-top: 0;
 }
 
 .vno-writer-footer:focus,

@@ -307,5 +307,36 @@ export async function runWriterHeaderFooterImportTests() {
     if (!imported.body.includes(BODY_TOKEN)) throw new Error("Mất body khi không có header/footer");
   });
 
+  test("W23a: Header/Footer loại bỏ spacer nhân tạo (margin-bottom đoạn cuối header, margin-top đoạn đầu footer)", () => {
+    const html = `<div title="header">
+      <p style="margin-bottom: 0.35cm">Đoạn 1 giữ nguyên margin-bottom</p>
+      <p style="line-height: 100%; margin-bottom: 2.44cm">Đoạn cuối bị xén spacer</p>
+    </div>
+    <div title="footer">
+      <p style="margin-top: 2.19cm; margin-bottom: 0.35cm">Đoạn đầu footer bị xén margin-top</p>
+      <p style="line-height: 100%; margin-bottom: 0cm">Đoạn 2 footer giữ nguyên</p>
+    </div>`;
+    const imported = new WriterAdapter(null)._normalizeImportedHtml(html);
+    if (!imported.header.includes("margin-bottom: 0.35cm")) {
+      throw new Error(`Đoạn 1 header bị mất margin-bottom: ${imported.header}`);
+    }
+    if (imported.header.includes("2.44cm")) {
+      throw new Error(`Đoạn cuối header chưa bỏ margin-bottom 2.44cm: ${imported.header}`);
+    }
+    if (imported.footer.includes("2.19cm")) {
+      throw new Error(`Đoạn đầu footer chưa bỏ margin-top 2.19cm: ${imported.footer}`);
+    }
+    if (!imported.footer.includes("margin-bottom: 0.35cm")) {
+      throw new Error(`Đoạn đầu footer mất margin-bottom hợp lệ: ${imported.footer}`);
+    }
+    // line-height: 100% phải được chuẩn hoá thành --vno-lh: 1
+    if (!imported.header.includes("--vno-lh: 1")) {
+      throw new Error(`Header chưa được mã hoá proportional line-height (--vno-lh): ${imported.header}`);
+    }
+    if (!imported.footer.includes("--vno-lh: 1")) {
+      throw new Error(`Footer chưa được mã hoá proportional line-height (--vno-lh): ${imported.footer}`);
+    }
+  });
+
   return results;
 }

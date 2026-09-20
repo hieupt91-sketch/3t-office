@@ -29,7 +29,7 @@ def canvas_metrics(docx, out):
 def match(word_rows, canvas_rows):
     """Greedy in-order match of non-table paragraphs by normalized text prefix (>= 6 chars)."""
     pairs = []; wi = 0
-    wrows = [w for w in word_rows if not w["tbl"]]
+    wrows = [w for w in word_rows if not w["tbl"] and w.get("zone", "body") == "body"]
     for c in canvas_rows:
         if c["tag"] == "TABLE" or c["tables"]: continue
         key = norm(c["text"])[:24]
@@ -160,11 +160,11 @@ for name in names:
     kinds, details = classify(pairs, crows, wrows, theme_fonts(docx))
     tables_c = sum(1 for c in crows if c["tag"] == "TABLE"); floats_c = sum(c["floats"] for c in crows)
     wpages = max((w["page"] for w in wrows), default=0); cpages = max((c["page"] for c in crows), default=0)
-    per_file[name] = {"word_pages": wpages, "canvas_pages": cpages, "paras_word": len(wrows), "blocks": len(crows), "matched": len(pairs), "kinds": dict(kinds), "tables": tables_c, "floats": floats_c}
+    per_file[name] = {"word_pages": wpages, "canvas_pages": cpages, "paras_word": len(wrows), "blocks": len(crows), "matched": len(pairs), "kinds": dict(kinds), "tables": tables_c, "floats": floats_c, "header_h": meta.get("headerH", 0), "footer_h": meta.get("footerH", 0), "body_top": meta.get("bodyTop", 0)}
     matrix[name] = kinds
     with open(os.path.join(OUTDIR, base + ".pairs.jsonl"), "w", encoding="utf-8") as f:
         for d in details: f.write(json.dumps(d, ensure_ascii=False) + "\n")
-    print(name, "word", wpages, "canvas", cpages, "matched", len(pairs), dict(kinds), flush=True)
+    print(name, "word", wpages, "canvas", cpages, "matched", len(pairs), f"headerH={meta.get('headerH', 0)} footerH={meta.get('footerH', 0)} bodyTop={meta.get('bodyTop', 0)}", dict(kinds), flush=True)
 
 all_kinds = sorted({k for v in matrix.values() for k in v}, key=lambda k: -sum(v[k] for v in matrix.values()))
 with open(os.path.join(OUTDIR, "_writer_layout_matrix.md"), "w", encoding="utf-8") as f:

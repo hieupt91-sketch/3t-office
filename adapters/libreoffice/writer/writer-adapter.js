@@ -2086,11 +2086,11 @@ export class WriterAdapter {
     let header = "";
     let footer = "";
     if (headerMatch) {
-      header = this._normalizeImportedHeaderFooterHtml(headerMatch[1]);
+      header = this._normalizeImportedHeaderFooterHtml(headerMatch[1], "header", ooxmlDocumentXml);
       html = html.replace(headerMatch[0], "");
     }
     if (footerMatch) {
-      footer = this._normalizeImportedHeaderFooterHtml(footerMatch[1]);
+      footer = this._normalizeImportedHeaderFooterHtml(footerMatch[1], "footer", ooxmlDocumentXml);
       html = html.replace(footerMatch[0], "");
     }
     html = this._normalizeImportedStarWriterNotes(html);
@@ -3528,13 +3528,34 @@ export class WriterAdapter {
    * gray `<span>` wrapping them prevents Print Preview from matching
    * `Trang N / M` (the replacement lives on the footer innerHTML string).
    */
-  _normalizeImportedHeaderFooterHtml(html) {
+  _normalizeImportedHeaderFooterHtml(html, zone = "header", ooxmlDocumentXml = "") {
     let out = String(html || "");
     out = out.replace(/<sdfield\b[^>]*>([\s\S]*?)<\/sdfield>/gi, "$1");
     out = out.replace(
       /<span\b[^>]*\bstyle=["'][^"']*background:\s*#c0c0c0[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi,
       "$1"
     );
+    // W23a: Bỏ spacer nhân tạo do StarWriter HTML export chèn vào giữa header/footer và thân:
+    // Header: margin-bottom ở đoạn cuối cùng là khoảng cách tới lề trên của LibreOffice.
+    // Footer: margin-top ở đoạn đầu tiên là khoảng cách từ lề dưới của LibreOffice.
+    if (zone === "header") {
+      const lastPIdx = out.lastIndexOf("<p");
+      if (lastPIdx !== -1) {
+        const lastP = out.slice(lastPIdx);
+        const cleanedLastP = lastP.replace(/(\bstyle=["'][^"']*?)margin-bottom\s*:\s*[\d.]+\s*(?:cm|pt|px|in);?\s*/i, "$1");
+        out = out.slice(0, lastPIdx) + cleanedLastP;
+      }
+    } else if (zone === "footer") {
+      const firstPEnd = out.indexOf(">");
+      if (firstPEnd !== -1) {
+        const firstPTag = out.slice(0, firstPEnd + 1);
+        const cleanedFirstPTag = firstPTag.replace(/(\bstyle=["'][^"']*?)margin-top\s*:\s*[\d.]+\s*(?:cm|pt|px|in);?\s*/i, "$1");
+        out = cleanedFirstPTag + out.slice(firstPEnd + 1);
+      }
+    }
+    out = out.replace(/\bstyle=(["'])\s*;?\s*\1/gi, "");
+    out = this._collapseFloatOnlyParagraphBreaks(out, ooxmlDocumentXml);
+    out = this._encodeProportionalLineHeights(out);
     return out.trim();
   }
 
@@ -9354,9 +9375,13 @@ export class WriterAdapter {
       } else if (this.editorDom) {
         this.editorDom.innerHTML = imported.body;
       }
-      // Quy ước W1/W8: tỉ số font theo font THẬT đang vẽ của từng phần tử và strut của <p> = font của run.
+      // Quy ước W1/W8/W23a: tỉ số font theo font THẬT đang vẽ của từng phần tử và strut của <p> = font của run (cả thân lẫn header/footer).
       // Chạy trước khi băm "chưa sửa" nên không làm tài liệu thành "đã sửa".
-      try { this._normalizeImportedFontMetrics(this.bodyDom || this.editorDom); } catch {}
+      try {
+        this._normalizeImportedFontMetrics(this.bodyDom || this.editorDom);
+        if (this.headerDom) this._normalizeImportedFontMetrics(this.headerDom);
+        if (this.footerDom) this._normalizeImportedFontMetrics(this.footerDom);
+      } catch {}
       this._markImportedParagraphsUntouched(this.bodyDom || this.editorDom);
 
       if (imported.comments?.length) {
