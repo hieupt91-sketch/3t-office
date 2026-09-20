@@ -72,6 +72,17 @@ function GetTableCellText($table, $row, $col) {
     # Word COM appends CR + end-of-cell (0x07); neither is user content.
     try { return NormalizeTableCellText $table.Cell($row,$col).Range.Text } catch { return "" }
 }
+function GetPrintPageCount($doc) {
+    $pdf = [IO.Path]::Combine([IO.Path]::GetTempPath(), "vno_readback_" + [guid]::NewGuid().ToString("N") + ".pdf")
+    try {
+        $doc.ExportAsFixedFormat($pdf, 17)  # wdExportFormatPDF: real print layout
+        $bytes = [IO.File]::ReadAllBytes($pdf)
+        $text = [Text.Encoding]::GetEncoding(28591).GetString($bytes)
+        return ([regex]::Matches($text, "/Type\s*/Page[^s]")).Count
+    } finally {
+        if (Test-Path -LiteralPath $pdf) { Remove-Item -LiteralPath $pdf -Force -ErrorAction SilentlyContinue }
+    }
+}
 
 if ($SelfTest) {
     if ((NormalizeTableCellText "merged$([char]13)$([char]7)") -ne "merged") { throw "Word cell terminator was not removed" }
@@ -160,7 +171,7 @@ try {
     Check "image" "inlineShapesCount" $expected["image"]["inlineShapesCount"] $doc.InlineShapes.Count
 
     # --- Page Break / Page Count ---
-    $pageCount = $doc.ComputeStatistics(2)  # wdStatisticPages = 2
+    $pageCount = GetPrintPageCount $doc
     Check "pageBreak" "pageCount" $expected["pageBreak"]["pageCount"] $pageCount
     $page2Text = ""
     for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
