@@ -1717,6 +1717,45 @@ export class WriterAdapter {
   }
 
   /**
+   * W23c: cỡ chữ của style đoạn `Header`/`Footer` trong styles.xml (theo chuỗi basedOn, cuối cùng docDefaults),
+   * trả về { header: "10pt", footer: "10pt" } (chỉ các mục tìm thấy). Đo d15: Word vẽ đoạn rỗng của footer 10pt
+   * (pitch 12pt) trong khi canvas dùng cỡ Normal 14pt → footer canvas 124px so với Word 98,5px.
+   */
+  _headerFooterFontSizesFromStyles(ooxmlStylesXml) {
+    const styles = String(ooxmlStylesXml || "");
+    const out = {};
+    if (!styles) return out;
+    const styleById = new Map();
+    for (const m of styles.matchAll(/<w:style\b([^>]*)>([\s\S]*?)<\/w:style>/g)) {
+      const id = m[1].match(/w:styleId="([^"]+)"/)?.[1];
+      if (id) styleById.set(id, m[2]);
+    }
+    const szOf = (body) => {
+      const rpr = String(body || "").match(/<w:rPr>([\s\S]*?)<\/w:rPr>/);
+      const sz = rpr?.[1].match(/<w:sz\b[^>]*w:val="(\d+)"/)?.[1];
+      return sz ? Number(sz) / 2 : null;
+    };
+    const defaults = styles.match(/<w:rPrDefault>([\s\S]*?)<\/w:rPrDefault>/);
+    const defaultPt = szOf(defaults?.[1]);
+    const resolve = (id) => {
+      let cur = id;
+      for (let depth = 0; cur && styleById.has(cur) && depth < 12; depth++) {
+        const body = styleById.get(cur);
+        const pt = szOf(body);
+        if (pt) return pt;
+        cur = body.match(/<w:basedOn\b[^>]*w:val="([^"]+)"/)?.[1] || null;
+      }
+      return defaultPt;
+    };
+    for (const [key, id] of [["header", "Header"], ["footer", "Footer"]]) {
+      if (!styleById.has(id)) continue;
+      const pt = resolve(id);
+      if (pt) out[key] = `${Math.round(pt * 100) / 100}pt`;
+    }
+    return out;
+  }
+
+  /**
    * Parse page margins from w:pgMar in OOXML (twips).
    * Returns { top, right, bottom, left } in mm or null if not found.
    */
@@ -2018,6 +2057,12 @@ export class WriterAdapter {
       if (this.docStyles.fontSize) setProp("--vno-doc-font-size", this.docStyles.fontSize);
       else removeProp("--vno-doc-font-size");
 
+      // W23c: đoạn rỗng trong header/footer lấy cỡ của style Header/Footer (d15: Footer 10pt, thân 14pt).
+      if (this.docStyles.headerFontSize) setProp("--vno-header-font-size", this.docStyles.headerFontSize);
+      else removeProp("--vno-header-font-size");
+      if (this.docStyles.footerFontSize) setProp("--vno-footer-font-size", this.docStyles.footerFontSize);
+      else removeProp("--vno-footer-font-size");
+
       if (this.docStyles.lineHeight) setProp("--vno-doc-line-height", this.docStyles.lineHeight);
       else removeProp("--vno-doc-line-height");
 
@@ -2026,6 +2071,8 @@ export class WriterAdapter {
     } else {
       removeProp("--vno-doc-font-family");
       removeProp("--vno-doc-font-size");
+      removeProp("--vno-header-font-size");
+      removeProp("--vno-footer-font-size");
       removeProp("--vno-doc-line-height");
       removeProp("--vno-doc-para-margin");
     }
@@ -2062,6 +2109,12 @@ export class WriterAdapter {
     }
     const page = this._pageSetupFromImportedCss(html);
     const docStyles = this._parseDocStylesFromImportedHtml(raw, ooxmlDocumentXml);
+    // W23c: cỡ chữ mặc định của vùng header/footer = style Header/Footer (styles.xml), không phải Normal của thân.
+    if (docStyles && ooxmlStylesXml) {
+      const zoneSizes = this._headerFooterFontSizesFromStyles(ooxmlStylesXml);
+      if (zoneSizes.header) docStyles.headerFontSize = zoneSizes.header;
+      if (zoneSizes.footer) docStyles.footerFontSize = zoneSizes.footer;
+    }
     const hf = this._pageHeaderFooterFromOoxml(ooxmlDocumentXml);
     if (hf) {
       page.headerDistanceMm = hf.headerDistanceMm;
@@ -2086,11 +2139,11 @@ export class WriterAdapter {
     let header = "";
     let footer = "";
     if (headerMatch) {
-      header = this._normalizeImportedHeaderFooterHtml(headerMatch[1]);
+      header = this._normalizeImportedHeaderFooterHtml(headerMatch[1], "header", ooxmlDocumentXml);
       html = html.replace(headerMatch[0], "");
     }
     if (footerMatch) {
-      footer = this._normalizeImportedHeaderFooterHtml(footerMatch[1]);
+      footer = this._normalizeImportedHeaderFooterHtml(footerMatch[1], "footer", ooxmlDocumentXml);
       html = html.replace(footerMatch[0], "");
     }
     html = this._normalizeImportedStarWriterNotes(html);
@@ -3528,13 +3581,34 @@ export class WriterAdapter {
    * gray `<span>` wrapping them prevents Print Preview from matching
    * `Trang N / M` (the replacement lives on the footer innerHTML string).
    */
-  _normalizeImportedHeaderFooterHtml(html) {
+  _normalizeImportedHeaderFooterHtml(html, zone = "header", ooxmlDocumentXml = "") {
     let out = String(html || "");
     out = out.replace(/<sdfield\b[^>]*>([\s\S]*?)<\/sdfield>/gi, "$1");
     out = out.replace(
       /<span\b[^>]*\bstyle=["'][^"']*background:\s*#c0c0c0[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi,
       "$1"
     );
+    // W23a: Bỏ spacer nhân tạo do StarWriter HTML export chèn vào giữa header/footer và thân:
+    // Header: margin-bottom ở đoạn cuối cùng là khoảng cách tới lề trên của LibreOffice.
+    // Footer: margin-top ở đoạn đầu tiên là khoảng cách từ lề dưới của LibreOffice.
+    if (zone === "header") {
+      const lastPIdx = out.lastIndexOf("<p");
+      if (lastPIdx !== -1) {
+        const lastP = out.slice(lastPIdx);
+        const cleanedLastP = lastP.replace(/(\bstyle=["'][^"']*?)margin-bottom\s*:\s*[\d.]+\s*(?:cm|pt|px|in);?\s*/i, "$1");
+        out = out.slice(0, lastPIdx) + cleanedLastP;
+      }
+    } else if (zone === "footer") {
+      const firstPEnd = out.indexOf(">");
+      if (firstPEnd !== -1) {
+        const firstPTag = out.slice(0, firstPEnd + 1);
+        const cleanedFirstPTag = firstPTag.replace(/(\bstyle=["'][^"']*?)margin-top\s*:\s*[\d.]+\s*(?:cm|pt|px|in);?\s*/i, "$1");
+        out = cleanedFirstPTag + out.slice(firstPEnd + 1);
+      }
+    }
+    out = out.replace(/\bstyle=(["'])\s*;?\s*\1/gi, "");
+    out = this._collapseFloatOnlyParagraphBreaks(out, ooxmlDocumentXml);
+    out = this._encodeProportionalLineHeights(out);
     return out.trim();
   }
 
@@ -9354,9 +9428,13 @@ export class WriterAdapter {
       } else if (this.editorDom) {
         this.editorDom.innerHTML = imported.body;
       }
-      // Quy ước W1/W8: tỉ số font theo font THẬT đang vẽ của từng phần tử và strut của <p> = font của run.
+      // Quy ước W1/W8/W23a: tỉ số font theo font THẬT đang vẽ của từng phần tử và strut của <p> = font của run (cả thân lẫn header/footer).
       // Chạy trước khi băm "chưa sửa" nên không làm tài liệu thành "đã sửa".
-      try { this._normalizeImportedFontMetrics(this.bodyDom || this.editorDom); } catch {}
+      try {
+        this._normalizeImportedFontMetrics(this.bodyDom || this.editorDom);
+        if (this.headerDom) this._normalizeImportedFontMetrics(this.headerDom);
+        if (this.footerDom) this._normalizeImportedFontMetrics(this.footerDom);
+      } catch {}
       this._markImportedParagraphsUntouched(this.bodyDom || this.editorDom);
 
       if (imported.comments?.length) {
@@ -9502,26 +9580,39 @@ export class WriterAdapter {
 
   /**
    * Nguồn duy nhất cho chiều cao thân trang mà cả live pagination và Print Preview sử dụng.
-   * Header/footer chỉ chiếm chỗ khi thực sự có nội dung, giống cách chúng được render.
-   * Body bắt đầu tại padding-top (lề trên). Header/footer nằm trong lề (absolute).
-   * Nếu header cao hơn không gian cho phép (topMargin - headerDistance), đẩy body xuống phần dư.
+   * Header/footer chỉ chiếm chỗ khi thực sự có nội dung (Word W23b):
+   * Thân trang bắt đầu tại max(topMargin, headerDistance + headerH),
+   * và kết thúc tại min(pageH - bottomMargin, pageH - footerDistance - footerH).
+   * Khi header/footer nằm trong lề: giữ nguyên lề.
+   * Khi cao hơn lề: đẩy bodyTop xuống và cắt đáy thân trang.
    */
   _getUsablePageHeight(dim = this.getPageDimensions()) {
     const hasHeader = Boolean(this.headerDom && this.headerDom.innerText?.trim());
     const hasFooter = Boolean(this.footerDom && this.footerDom.innerText?.trim());
-    const headerDistancePx = (this.pageSetup.headerDistanceMm ?? 12.7) * MM_TO_PX;
+    const headerDistancePx = (this.pageSetup?.headerDistanceMm ?? 12.7) * MM_TO_PX;
+    const footerDistancePx = (this.pageSetup?.footerDistanceMm ?? 12.7) * MM_TO_PX;
     const topMarginPx = dim.topPx;
-    const maxHeaderSpacePx = topMarginPx - headerDistancePx;
+    const bottomMarginPx = dim.bottomPx;
+
     let headerExtraPx = 0;
     if (hasHeader && this.headerDom) {
       const headerHeight = this.headerDom.offsetHeight || 0;
-      if (headerHeight > maxHeaderSpacePx) {
-        headerExtraPx = headerHeight - maxHeaderSpacePx;
+      const headerBottomPx = headerDistancePx + headerHeight;
+      if (headerBottomPx > topMarginPx) {
+        headerExtraPx = headerBottomPx - topMarginPx;
       }
     }
-    // Footer doesn't push body up in Word; it just sits in bottom margin.
-    // Body usable height = printableHeight - header extra push
-    return Math.max(150, dim.printableHeightPx - headerExtraPx);
+
+    let footerExtraPx = 0;
+    if (hasFooter && this.footerDom) {
+      const footerHeight = this.footerDom.offsetHeight || 0;
+      const footerBottomSpacePx = footerDistancePx + footerHeight;
+      if (footerBottomSpacePx > bottomMarginPx) {
+        footerExtraPx = footerBottomSpacePx - bottomMarginPx;
+      }
+    }
+
+    return Math.max(150, dim.printableHeightPx - headerExtraPx - footerExtraPx);
   }
 
   /**
@@ -10460,19 +10551,34 @@ export class WriterAdapter {
       const dim = this.getPageDimensions();
       const availableHeightPx = this._getUsablePageHeight(dim);
 
-      // Update body margin-top if header pushes content down (Word behavior)
-      const headerDistancePx = (this.pageSetup.headerDistanceMm ?? 12.7) * MM_TO_PX;
+      // Cap nhat body margin-top va margin-bottom theo quy tac Word W23b:
+      // Day bodyTop neu header vuot qua le tren; cat day neu footer vuot qua le duoi.
+      const headerDistancePx = (this.pageSetup?.headerDistanceMm ?? 12.7) * MM_TO_PX;
+      const footerDistancePx = (this.pageSetup?.footerDistanceMm ?? 12.7) * MM_TO_PX;
       const topMarginPx = dim.topPx;
-      const maxHeaderSpacePx = topMarginPx - headerDistancePx;
+      const bottomMarginPx = dim.bottomPx;
+
       let headerExtraPx = 0;
       if (this.headerDom && this.headerDom.innerText?.trim()) {
         const headerHeight = this.headerDom.offsetHeight || 0;
-        if (headerHeight > maxHeaderSpacePx) {
-          headerExtraPx = headerHeight - maxHeaderSpacePx;
+        const headerBottomPx = headerDistancePx + headerHeight;
+        if (headerBottomPx > topMarginPx) {
+          headerExtraPx = headerBottomPx - topMarginPx;
         }
       }
+
+      let footerExtraPx = 0;
+      if (this.footerDom && this.footerDom.innerText?.trim()) {
+        const footerHeight = this.footerDom.offsetHeight || 0;
+        const footerBottomSpacePx = footerDistancePx + footerHeight;
+        if (footerBottomSpacePx > bottomMarginPx) {
+          footerExtraPx = footerBottomSpacePx - bottomMarginPx;
+        }
+      }
+
       if (this.bodyDom.style) {
         this.bodyDom.style.marginTop = headerExtraPx > 0 ? `${headerExtraPx}px` : "0";
+        this.bodyDom.style.marginBottom = footerExtraPx > 0 ? `${footerExtraPx}px` : "0";
       }
 
       const children = Array.from(this.bodyDom.children);
@@ -11471,11 +11577,7 @@ export class WriterAdapter {
   _estimateHeadingPage(headingNode) {
     if (!this.bodyDom) return 1;
     const dim = this.getPageDimensions ? this.getPageDimensions() : { printableHeightPx: 800, printableWidthPx: 600 };
-    const hasHeader = Boolean(this.headerDom?.innerText?.trim());
-    const hasFooter = Boolean(this.footerDom?.innerText?.trim());
-    const headerReservedPx = hasHeader ? 46 : 0;
-    const footerReservedPx = hasFooter ? 48 : 0;
-    const availableHeightPx = Math.max(150, (dim.printableHeightPx || 800) - headerReservedPx - footerReservedPx);
+    const availableHeightPx = this._getUsablePageHeight ? this._getUsablePageHeight(dim) : Math.max(150, (dim.printableHeightPx || 800));
 
     let blocks = [];
     if (this.bodyDom.children && this.bodyDom.children.length > 0) {

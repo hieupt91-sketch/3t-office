@@ -65,7 +65,12 @@ JS = r"""(function(){
     measure(el, i, pageNo);
   }
   const status = ((document.querySelector('.vno-statusbar-left')||{}).textContent||'').replace(/\s+/g,' ');
-  return JSON.stringify({ status, pagePad: pcs.padding, pageW: page.offsetWidth, pageH: page.offsetHeight, rows });
+  const headerEl = document.querySelector('.vno-writer-header');
+  const footerEl = document.querySelector('.vno-writer-footer');
+  const headerH = headerEl ? Math.round(headerEl.offsetHeight) : 0;
+  const footerH = footerEl ? Math.round(footerEl.offsetHeight) : 0;
+  const bodyTop = Math.round(body.offsetTop);
+  return JSON.stringify({ status, pagePad: pcs.padding, pageW: page.offsetWidth, pageH: page.offsetHeight, headerH, footerH, bodyTop, rows });
 })();"""
 def after_load(win):
     for _ in range(300):

@@ -307,5 +307,166 @@ export async function runWriterHeaderFooterImportTests() {
     if (!imported.body.includes(BODY_TOKEN)) throw new Error("Mất body khi không có header/footer");
   });
 
+  test("W23a: Header/Footer loại bỏ spacer nhân tạo (margin-bottom đoạn cuối header, margin-top đoạn đầu footer)", () => {
+    const html = `<div title="header">
+      <p style="margin-bottom: 0.35cm">Đoạn 1 giữ nguyên margin-bottom</p>
+      <p style="line-height: 100%; margin-bottom: 2.44cm">Đoạn cuối bị xén spacer</p>
+    </div>
+    <div title="footer">
+      <p style="margin-top: 2.19cm; margin-bottom: 0.35cm">Đoạn đầu footer bị xén margin-top</p>
+      <p style="line-height: 100%; margin-bottom: 0cm">Đoạn 2 footer giữ nguyên</p>
+    </div>`;
+    const imported = new WriterAdapter(null)._normalizeImportedHtml(html);
+    if (!imported.header.includes("margin-bottom: 0.35cm")) {
+      throw new Error(`Đoạn 1 header bị mất margin-bottom: ${imported.header}`);
+    }
+    if (imported.header.includes("2.44cm")) {
+      throw new Error(`Đoạn cuối header chưa bỏ margin-bottom 2.44cm: ${imported.header}`);
+    }
+    if (imported.footer.includes("2.19cm")) {
+      throw new Error(`Đoạn đầu footer chưa bỏ margin-top 2.19cm: ${imported.footer}`);
+    }
+    if (!imported.footer.includes("margin-bottom: 0.35cm")) {
+      throw new Error(`Đoạn đầu footer mất margin-bottom hợp lệ: ${imported.footer}`);
+    }
+    // line-height: 100% phải được chuẩn hoá thành --vno-lh: 1
+    if (!imported.header.includes("--vno-lh: 1")) {
+      throw new Error(`Header chưa được mã hoá proportional line-height (--vno-lh): ${imported.header}`);
+    }
+    if (!imported.footer.includes("--vno-lh: 1")) {
+      throw new Error(`Footer chưa được mã hoá proportional line-height (--vno-lh): ${imported.footer}`);
+    }
+  });
+
+  test("W23b: _getUsablePageHeight tính chiều cao thân theo quy tắc Word (max lề trên, min đáy trang)", () => {
+    const adapter = new WriterAdapter(null);
+    const MM_TO_PX = 96 / 25.4;
+
+    // Cấu hình: lề trên 20mm (=75.6px), lề dưới 20mm (=75.6px), headerDist 10mm (=37.8px), footerDist 10mm (=37.8px)
+    adapter.pageSetup = {
+      size: "a4",
+      orientation: "portrait",
+      margins: { top: 20, right: 20, bottom: 20, left: 20 },
+      headerDistanceMm: 10,
+      footerDistanceMm: 10
+    };
+
+    const dim = adapter.getPageDimensions();
+    const topMarginPx = dim.topPx;
+    const bottomMarginPx = dim.bottomPx;
+
+    // Trường hợp 1: Không có header/footer -> availableHeightPx = printableHeightPx
+    adapter.headerDom = null;
+    adapter.footerDom = null;
+    let usableH = adapter._getUsablePageHeight(dim);
+    if (usableH !== dim.printableHeightPx) {
+      throw new Error(`Usable height khi không có header/footer phải bằng printableHeightPx (${dim.printableHeightPx}), thực tế: ${usableH}`);
+    }
+
+    // Trường hợp 2: Header và Footer nằm gọn trong lề
+    // headerDist = 37.8px, headerH = 20px -> headerBottom = 57.8px <= topMarginPx (~76px) -> không đẩy
+    // footerDist = 37.8px, footerH = 20px -> footerBottomSpace = 57.8px <= bottomMarginPx (~76px) -> không cắt
+    adapter.headerDom = { innerText: "Header text", offsetHeight: 20 };
+    adapter.footerDom = { innerText: "Footer text", offsetHeight: 20 };
+    usableH = adapter._getUsablePageHeight(dim);
+    if (usableH !== dim.printableHeightPx) {
+      throw new Error(`Khi header/footer nằm gọn trong lề, usable height phải giữ nguyên lề (${dim.printableHeightPx}), thực tế: ${usableH}`);
+    }
+
+    // Trường hợp 3: Header cao hơn lề, Footer nằm gọn trong lề
+    // headerDist = 37.8px, headerH = 60px -> headerBottom = 97.8px > 76px -> đẩy 21.8px
+    adapter.headerDom = { innerText: "Cao hon le tren", offsetHeight: 60 };
+    adapter.footerDom = { innerText: "Nam trong le duoi", offsetHeight: 20 };
+    usableH = adapter._getUsablePageHeight(dim);
+    const expectedHeaderExtra = (10 * MM_TO_PX + 60) - topMarginPx;
+    if (Math.abs(usableH - (dim.printableHeightPx - expectedHeaderExtra)) > 0.01) {
+      throw new Error(`Khi header cao hơn lề, usable height phải giảm đúng headerExtra (${expectedHeaderExtra}), thực tế: ${dim.printableHeightPx - usableH}`);
+    }
+
+    // Trường hợp 4: Footer cao hơn lề (như d15), Header nằm gọn trong lề
+    // footerDist = 37.8px, footerH = 80px -> footerBottomSpace = 117.8px > 76px -> cắt đáy 41.8px
+    adapter.headerDom = { innerText: "Nam trong le", offsetHeight: 20 };
+    adapter.footerDom = { innerText: "Footer dai 6 doan", offsetHeight: 80 };
+    usableH = adapter._getUsablePageHeight(dim);
+    const expectedFooterExtra = (10 * MM_TO_PX + 80) - bottomMarginPx;
+    if (Math.abs(usableH - (dim.printableHeightPx - expectedFooterExtra)) > 0.01) {
+      throw new Error(`Khi footer cao hơn lề, usable height phải giảm đúng footerExtra (${expectedFooterExtra}), thực tế: ${dim.printableHeightPx - usableH}`);
+    }
+
+    // Trường hợp 5: Cả Header và Footer đều cao hơn lề
+    adapter.headerDom = { innerText: "Header cao", offsetHeight: 60 };
+    adapter.footerDom = { innerText: "Footer cao", offsetHeight: 80 };
+    usableH = adapter._getUsablePageHeight(dim);
+    if (Math.abs(usableH - (dim.printableHeightPx - expectedHeaderExtra - expectedFooterExtra)) > 0.01) {
+      throw new Error(`Khi cả header và footer cao hơn lề, usable height phải trừ cả 2 extra, thực tế: ${usableH}`);
+    }
+  });
+
+  test("W23b: _recomputeLivePagination cập nhật marginTop và marginBottom của bodyDom theo Word rule", () => {
+    const adapter = new WriterAdapter(null);
+    adapter.pageSetup = {
+      size: "a4",
+      orientation: "portrait",
+      margins: { top: 20, right: 20, bottom: 20, left: 20 },
+      headerDistanceMm: 10,
+      footerDistanceMm: 10
+    };
+
+    const mockBodyStyle = { marginTop: "", marginBottom: "" };
+    adapter.bodyDom = {
+      style: mockBodyStyle,
+      children: [],
+      querySelectorAll: () => [],
+      insertBefore: () => {},
+      dispatchEvent: () => {}
+    };
+
+    const origDoc = globalThis.document;
+    globalThis.document = {
+      createElement: () => ({ setAttribute: () => {}, className: "" })
+    };
+    try {
+      // Header 20px (nằm trong lề), Footer 20px (nằm trong lề) -> marginTop = "0", marginBottom = "0"
+      adapter.headerDom = { innerText: "Header", offsetHeight: 20 };
+      adapter.footerDom = { innerText: "Footer", offsetHeight: 20 };
+      adapter._recomputeLivePagination();
+      if (mockBodyStyle.marginTop !== "0") {
+        throw new Error(`marginTop phải là "0" khi header trong lề, thực tế: ${mockBodyStyle.marginTop}`);
+      }
+      if (mockBodyStyle.marginBottom !== "0") {
+        throw new Error(`marginBottom phải là "0" khi footer trong lề, thực tế: ${mockBodyStyle.marginBottom}`);
+      }
+
+      // Header 60px (cao hơn lề), Footer 80px (cao hơn lề) -> marginTop > 0, marginBottom > 0
+      adapter.headerDom = { innerText: "Header", offsetHeight: 60 };
+      adapter.footerDom = { innerText: "Footer", offsetHeight: 80 };
+      adapter._recomputeLivePagination();
+      if (!mockBodyStyle.marginTop || mockBodyStyle.marginTop === "0") {
+        throw new Error(`marginTop phải > 0 khi header vượt lề, thực tế: ${mockBodyStyle.marginTop}`);
+      }
+      if (!mockBodyStyle.marginBottom || mockBodyStyle.marginBottom === "0") {
+        throw new Error(`marginBottom phải > 0 khi footer vượt lề, thực tế: ${mockBodyStyle.marginBottom}`);
+      }
+    } finally {
+      globalThis.document = origDoc;
+    }
+  });
+
+  // Đo d15 (Word COM): style Footer sz=24 (12pt, basedOn Normal không sz, docDefaults 28 = 14pt); canvas dùng
+  // --vno-doc-font-size 14pt cho đoạn rỗng footer → footer 124px so với Word 98,5px.
+  test("W23c: _headerFooterFontSizesFromStyles lấy cỡ style Header/Footer theo chuỗi basedOn rồi docDefaults", () => {
+    const adapter = new WriterAdapter(null);
+    const styles = '<w:styles><w:docDefaults><w:rPrDefault><w:rPr><w:sz w:val="28"/></w:rPr></w:rPrDefault></w:docDefaults>'
+      + '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:szCs w:val="24"/></w:rPr></w:style>'
+      + '<w:style w:type="paragraph" w:styleId="Header"><w:name w:val="header"/><w:basedOn w:val="Normal"/><w:pPr><w:tabs/></w:pPr></w:style>'
+      + '<w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:basedOn w:val="Normal"/><w:rPr><w:bCs w:val="0"/><w:sz w:val="24"/></w:rPr></w:style>'
+      + '</w:styles>';
+    const sizes = adapter._headerFooterFontSizesFromStyles(styles);
+    if (sizes.footer !== "12pt") throw new Error(`Footer sz=24 phải là 12pt, thực tế: ${sizes.footer}`);
+    if (sizes.header !== "14pt") throw new Error(`Header không có sz → docDefaults 28 = 14pt, thực tế: ${sizes.header}`);
+    const none = adapter._headerFooterFontSizesFromStyles('<w:styles><w:style w:styleId="Normal"/></w:styles>');
+    if (none.header !== undefined || none.footer !== undefined) throw new Error("Không có style Header/Footer thì không đặt cỡ vùng");
+  });
+
   return results;
 }
