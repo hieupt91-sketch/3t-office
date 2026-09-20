@@ -61,6 +61,14 @@ export async function runWriterSectionBreaksPageColorTests() {
     assert(adapter.sectionPageSetups[secondId].orientation === "portrait", "Undo không phục hồi mục sau");
   });
 
+  await test("W20e: export section break consumes its UI spacer", () => {
+    const marker = '<p>Trước</p><div data-vno-section-break="nextPage" data-vno-section-id="section-2">---</div><p><br></p><p>Sau</p>';
+    const { adapter } = createAdapter(marker);
+    const exported = adapter._contentForExport();
+    assert(!exported.includes('<p><br></p>'), "Spacer UI còn lại tạo thêm trang trắng");
+    assert(exported.includes('data-vno-export-section="section-2"'), "Mất vùng trang kế tiếp");
+  });
+
   await test("Writer Section Break: ribbon có đủ Page/Column/Next/Continuous/Even/Odd và Help", () => {
     const layout = WRITER_RIBBON_TABS.find((tab) => tab.id === "layout");
     const dropdown = layout.groups.flatMap((group) => group.items).find((item) => item.id === "writer.layout.breaks");

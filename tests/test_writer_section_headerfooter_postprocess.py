@@ -78,6 +78,54 @@ def _make_mock_window(dest_path: str) -> "unittest.mock.MagicMock":
 
 
 class UnitPostprocessWriterDocxTests(unittest.TestCase):
+    def test_w20b_w20g_created_document_indent_and_margins(self):
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Indented</w:t></w:r></w:p>'
+            '<w:sectPr><w:pgMar w:top="1440" w:right="850" w:bottom="1440" w:left="1700"/></w:sectPr>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html='<style>@page { size:210mm 297mm; margin:20mm 20mm 20mm 30mm; }</style>'
+                        '<p style="text-indent:1.27cm">Indented</p>',
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:ind w:firstLine="720"/>', document)
+        self.assertRegex(document, r'<w:pgMar\b[^>]*w:top="1134"[^>]*w:right="1134"[^>]*w:bottom="1134"[^>]*w:left="1701"')
+
+    def test_w20c_created_document_ul_is_native_bullet(self):
+        converted = _build_minimal_docx(
+            '<w:p><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>Bullet A</w:t></w:r></w:p><w:sectPr/>'
+        )
+        numbering = (
+            '<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            '<w:abstractNum w:abstractNumId="2"><w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/>'
+            '<w:lvlText w:val="%1."/></w:lvl></w:abstractNum>'
+            '<w:num w:numId="1"><w:abstractNumId w:val="2"/></w:num></w:numbering>'
+        ).encode("utf-8")
+        converted = ooxml_zip_patch_mod.patch_ooxml_zip(converted, {"word/numbering.xml": numbering})
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted, source_html='<ul><li>Bullet A</li></ul>'
+        )
+        patched = _read_entry(result, "word/numbering.xml").decode("utf-8")
+        self.assertIn('<w:numFmt w:val="bullet"/>', patched)
+        self.assertIn('<w:lvlText w:val="•"/>', patched)
+
+    def test_w20e_created_document_break_is_before_second_section_text(self):
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'
+            '<w:p><w:pPr/><w:r><w:t>After</w:t></w:r></w:p>'
+            '<w:sectPr><w:type w:val="nextPage"/><w:pgMar w:top="1440"/></w:sectPr>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html='<div data-vno-export-section="section-1"><p>Before</p></div>'
+                        '<div data-vno-export-section="section-2"><p>After</p></div>',
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        after = next(p for p in re.findall(r'<w:p\b[^>]*>[\s\S]*?</w:p>', document) if "After" in p)
+        self.assertIn('<w:br w:type="page"/>', after)
+        self.assertNotIn('<w:type w:val="nextPage"/>', document)
+
     def test_relationship_id_allocator_accepts_single_quoted_xml(self):
         rels = "<Relationships><Relationship Id='rId137' Target='media/image.png'/></Relationships>"
         self.assertEqual(ooxml_zip_patch_mod._max_rels_rid(rels), 137)

@@ -22,6 +22,7 @@ Keep the XML transform in lock step with the JS helpers.
 from __future__ import annotations
 
 import argparse
+import html
 import io
 import json
 import math
@@ -8115,6 +8116,131 @@ def postprocess_writer_docx(
                 zout.writestr(info, data)
 
     return dest.getvalue()
+
+
+def _writer_upsert_ppr_empty(paragraph: str, tag: str, replacement: str) -> str:
+    ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", paragraph, re.IGNORECASE)
+    if ppr:
+        updated = re.sub(rf"<w:{tag}\b[^>]*/?>", replacement, ppr.group(0), count=1, flags=re.IGNORECASE)
+        if updated == ppr.group(0):
+            updated = re.sub(r"</w:pPr\s*>", replacement + "</w:pPr>", updated, count=1, flags=re.IGNORECASE)
+        return paragraph[:ppr.start()] + updated + paragraph[ppr.end():]
+    return re.sub(r"(<w:p\b[^>]*>)", rf"\1<w:pPr>{replacement}</w:pPr>", paragraph, count=1, flags=re.IGNORECASE)
+
+
+def _writer_html_plain(inner: str) -> str:
+    return html.unescape(re.sub(r"<[^>]+>", "", inner)).strip()
+
+
+def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """W20 native corrections for Writer documents created from local HTML."""
+    if not source_html:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    indent_by_text: dict[str, int] = {}
+    for match in re.finditer(r"<p\b(?=[^>]*\bstyle=([\"'])([^\"']*)\1)[^>]*>([\s\S]*?)</p\s*>", source_html, re.IGNORECASE):
+        indent = re.search(r"(?:^|;)\s*text-indent\s*:\s*([\d.]+)cm\s*(?:;|$)", match.group(2), re.IGNORECASE)
+        text = _writer_html_plain(match.group(3))
+        if indent and text:
+            indent_by_text[text] = round(float(indent.group(1)) / 2.54 * 1440)
+
+    def patch_indent(match: re.Match) -> str:
+        paragraph = match.group(0)
+        twips = indent_by_text.get(_paragraph_plain_text(paragraph).strip())
+        return _writer_upsert_ppr_empty(paragraph, "ind", f'<w:ind w:firstLine="{twips}"/>') if twips else paragraph
+
+    document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch_indent, document_xml, flags=re.IGNORECASE)
+
+    section_ids = re.findall(r'data-vno-export-section=["\']([^"\']+)["\']', source_html, re.IGNORECASE)
+    section_starts = []
+    for section_id in section_ids[1:]:
+        start = re.search(
+            rf'<div\b[^>]*data-vno-export-section=["\']{re.escape(section_id)}["\'][^>]*>\s*<p\b[^>]*>([\s\S]*?)</p\s*>',
+            source_html,
+            re.IGNORECASE,
+        )
+        if start:
+            section_starts.append(_writer_html_plain(start.group(1)))
+    for section_text in section_starts:
+        if not section_text:
+            continue
+        def insert_page_break(match: re.Match) -> str:
+            paragraph = match.group(0)
+            if _paragraph_plain_text(paragraph).strip() != section_text:
+                return paragraph
+            ppr = re.match(r"(<w:p\b[^>]*>)(<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>)?", paragraph, re.IGNORECASE)
+            if not ppr:
+                return paragraph
+            at = ppr.end()
+            return paragraph[:at] + '<w:r><w:br w:type="page"/></w:r>' + paragraph[at:]
+        document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", insert_page_break, document_xml, flags=re.IGNORECASE)
+    if section_starts:
+        document_xml = re.sub(
+            r'(<w:sectPr\b[^>]*>[\s\S]*?)<w:type\b[^>]*/>',
+            r'\1',
+            document_xml,
+            flags=re.IGNORECASE,
+        )
+
+    page = re.search(r"@page\s*\{[^}]*\bmargin\s*:\s*([\d.]+)mm\s+([\d.]+)mm\s+([\d.]+)mm\s+([\d.]+)mm", source_html, re.IGNORECASE)
+    if page:
+        top, right, bottom, left = (round(float(value) / 25.4 * 1440) for value in page.groups())
+        def patch_margin(match: re.Match) -> str:
+            tag = match.group(0)
+            for name, value in (("top", top), ("right", right), ("bottom", bottom), ("left", left)):
+                if re.search(rf"\bw:{name}=", tag, re.IGNORECASE):
+                    tag = re.sub(rf"\bw:{name}=(['\"])[^'\"]*\1", f'w:{name}="{value}"', tag, flags=re.IGNORECASE)
+                else:
+                    tag = tag[:-2] + f' w:{name}="{value}"/>'
+            return tag
+        document_xml = re.sub(r"<w:pgMar\b[^>]*/>", patch_margin, document_xml, flags=re.IGNORECASE)
+
+    replacements = {"word/document.xml": document_xml.encode("utf-8")}
+    numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
+    bullet_texts = {
+        _writer_html_plain(item.group(1))
+        for ul in re.finditer(r"<ul\b[^>]*>([\s\S]*?)</ul\s*>", source_html, re.IGNORECASE)
+        for item in re.finditer(r"<li\b[^>]*>([\s\S]*?)</li\s*>", ul.group(1), re.IGNORECASE)
+    }
+    if numbering_bytes and bullet_texts:
+        numbering = numbering_bytes.decode("utf-8", errors="replace")
+        source_num_id = None
+        for paragraph in re.findall(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE):
+            if _paragraph_plain_text(paragraph).strip() in bullet_texts:
+                num = re.search(r"<w:numId\b[^>]*w:val=([\"'])(\d+)\1", paragraph, re.IGNORECASE)
+                if num:
+                    source_num_id = num.group(2)
+                    break
+        num = re.search(rf"<w:num\b[^>]*w:numId=([\"']){source_num_id}\1[^>]*>[\s\S]*?</w:num\s*>", numbering, re.IGNORECASE) if source_num_id else None
+        abstract = re.search(r"<w:abstractNumId\b[^>]*w:val=([\"'])(\d+)\1", num.group(0), re.IGNORECASE) if num else None
+        source_abstract = re.search(
+            rf"<w:abstractNum\b[^>]*w:abstractNumId=([\"']){abstract.group(2)}\1[^>]*>[\s\S]*?</w:abstractNum\s*>",
+            numbering, re.IGNORECASE,
+        ) if abstract else None
+        if source_abstract:
+            abstract_ids = [int(value) for value in re.findall(r"w:abstractNumId=([\"'])(\d+)\1", numbering, re.IGNORECASE) for value in [value[1]]]
+            num_ids = [int(value) for value in re.findall(r"<w:num\b[^>]*w:numId=([\"'])(\d+)\1", numbering, re.IGNORECASE) for value in [value[1]]]
+            new_abstract_id = max(abstract_ids, default=0) + 1
+            new_num_id = max(num_ids, default=0) + 1
+            bullet_abstract = re.sub(r"w:abstractNumId=([\"'])\d+\1", f'w:abstractNumId="{new_abstract_id}"', source_abstract.group(0), count=1)
+            bullet_abstract = re.sub(r"<w:numFmt\b[^>]*/>", '<w:numFmt w:val="bullet"/>', bullet_abstract, flags=re.IGNORECASE)
+            bullet_abstract = re.sub(r"<w:lvlText\b[^>]*/>", '<w:lvlText w:val="•"/>', bullet_abstract, flags=re.IGNORECASE)
+            first_num = re.search(r"<w:num\b", numbering, re.IGNORECASE)
+            insert_at = first_num.start() if first_num else numbering.rfind("</w:numbering>")
+            numbering = numbering[:insert_at] + bullet_abstract + numbering[insert_at:]
+            numbering = numbering.replace("</w:numbering>", f'<w:num w:numId="{new_num_id}"><w:abstractNumId w:val="{new_abstract_id}"/></w:num></w:numbering>')
+            def assign_bullet(match: re.Match) -> str:
+                paragraph = match.group(0)
+                if _paragraph_plain_text(paragraph).strip() not in bullet_texts:
+                    return paragraph
+                return re.sub(r"(<w:numId\b[^>]*w:val=)([\"'])\d+\2", rf'\1"{new_num_id}"', paragraph, count=1, flags=re.IGNORECASE)
+            document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", assign_bullet, document_xml, flags=re.IGNORECASE)
+            replacements["word/document.xml"] = document_xml.encode("utf-8")
+        replacements["word/numbering.xml"] = numbering.encode("utf-8")
+    return patch_ooxml_zip(docx_bytes, replacements)
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:

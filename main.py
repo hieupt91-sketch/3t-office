@@ -492,15 +492,19 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
                 f"Không bổ sung được thuộc tính native PPTX (khổ trang / logo / Sections / Set Up Show): {exc}"
             ) from exc
     if app_kind == "writer" and fmt == "docx":
-        if not source_path or not os.path.isfile(source_path):
-            return
         try:
-            with open(source_path, "rb") as handle:
-                original_docx = handle.read()
             with open(out_path, "rb") as handle:
                 converted_docx = handle.read()
             patcher = _ooxml_zip_patch()
-            patched = patcher.postprocess_writer_docx(converted_docx, source_docx=original_docx)
+            source_html = None
+            if src_path and str(src_path).lower().endswith(".html"):
+                with open(src_path, "r", encoding="utf-8", errors="replace") as handle:
+                    source_html = handle.read()
+            patched = patcher.postprocess_created_writer_docx(converted_docx, source_html=source_html)
+            if source_path and os.path.isfile(source_path):
+                with open(source_path, "rb") as handle:
+                    original_docx = handle.read()
+                patched = patcher.postprocess_writer_docx(patched, source_docx=original_docx)
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
