@@ -1,23 +1,23 @@
 # Hàng đợi việc theo ma trận (cập nhật 2026-09-21)
 
-## Trạng thái 21/9 (main)
+## Trạng thái 21/9 05:00 (main `46e52e1`)
 
 | Chiều | Số đo | Ghi chú |
 |---|---|---|
-| Sheet nhập→lưu (26 file LAN) | 0 lệch auditor, Excel mở 26/26, lint sạch | S8–S25; lan06/lan14 (file lớn) chưa chạy lại vòng mới |
-| Sheet tạo mới → Excel | kịch bản 1: CHECKS=40 DIFFS=0 | S26 (kịch bản 2, 16 mục) đang giao codex |
-| Writer tạo mới → Word | kịch bản 1: CHECKS=36 DIFFS=0 (codex W20, Claude đo lại) | V12 (kịch bản 2, 16 mục) đang giao agy — W22a–d đã có |
-| Writer nhập (24 docx, bộ đo tách <li> từ 21/9) | page 552, wrap 32, drift:unknown 58, line-height 31, spacing 38, font-size 36 | sau W10b (wrap 67→32); trước W12c-thu-hẹp bộ đo cũ: page 613, wrap 87 |
+| Sheet nhập→lưu (28 file LAN) | 25/28 0 lệch (vòng codex S27, main 5a1f486); lan11/lan20 hỏng XML do S26b → **S27a đã sửa** (0 lệch); lan14 (33k dòng) 167 lệch + mất 1 ảnh, lan06 visibility 7 — codex S27 đang xử lý (tiếp 06:29) | S8–S27a |
+| Sheet tạo mới → Excel | kịch bản 1: 40/0; kịch bản 2 (16 mục, 63 phép đo): **63/0** (codex S26, Claude đo lại) | |
+| Writer tạo mới → Word | kịch bản 1: 36/0; kịch bản 2 (16 mục, 39 phép đo): **39/0** (agy V12 W22a–g, Claude đo lại) | |
+| Writer nhập (24 docx, bộ đo tách `<li>`) | **page 445, wrap 32, drift:unknown 36, line-height 27, spacing 12, font-size 36, empty-para 14, table 3** | W10b, W23a–c, W12e trong ngày; trước đó (bộ đo cũ) page 613 / wrap 87 |
+| Writer mở→sửa→lưu→Word (23 docx) | 12/23 đổi số trang; mất ngắt trang thủ công 6 file (LibreOffice HTML→DOCX gắn nhầm/rơi), d09 bảng lồng bị nhân đôi, d06 shape → ảnh raster khi nhập | R11/R11b/R12/R13 (opencode đo); **W27** brief sẵn cho codex |
 
-Lớp Writer nhập còn lại theo thứ tự lớn → nhỏ:
-1. **page (552)** — d01 232 (19 trang Word / 17 canvas), d07 136, d09 37, d13 30, d11 27: phần lớn là hệ quả tích lũy của
-   lớp khác + **keepNext/widow** (d15: heading II. Word đẩy sang trang 3 vì w:keepNext, canvas giữ trang 2) → cần
-   đo w:keepNext/w:keepLines/w:widowControl trong bộ phân trang canvas (chưa giao).
-2. **drift:unknown (58)**, **spacing (38)**, **line-height (31)**, **font-size (36: d19 19, d21 14)** — chưa gom lớp mới.
-3. **wrap (32)** — còn d09 4, d11 1, d13 2, d01 7 (trong bảng), d15 1: đo tiếp sau khi tách bảng.
-
-Nguyên tắc: mỗi việc = một LỚP lỗi trong ma trận (`MA-TRAN-WRITER-*.md`, `MA-TRAN-SHEET-*.md`), sửa một chỗ theo quy ước,
-đo lại toàn bộ batch, ghi quy ước vào `QUY-UOC-DOI-CHIEU.md`. Không nhận việc "sửa file X".
+Lớp Writer nhập còn lại (lớn → nhỏ) và người nhận:
+1. **page 445** — d01 232 / d09 54 / d02 34 / d07 30 / d11 27: (b) bảng dài hơn trang không được cắt (canvas coi bảng là
+   1 khối; d01 bảng 10022px = 9 trang) → **W24 cắt trang trong bảng (theo hàng) và trong đoạn dài** (codex sau W27);
+   (c) keepNext/keepLines (d13, d19/d20) → gộp vào W24; còn lại là trôi tích luỹ của các lớp dưới.
+2. **font-size 36** (d19 19, d21 14: cỡ nửa điểm bị LibreOffice cắt 0,5pt) → **W25** agy (05:25).
+3. **drift:unknown 36, line-height 27, empty-para 14** → **W26** đoạn rỗng theo cỡ dấu đoạn (opencode R15 đang đo), phần
+   còn lại gom sau W25/W26.
+4. **wrap 32** — d01 7 (trong bảng), d09 4, d13 1…: đo lại sau W24.
 
 ## (XONG 16/9, merged 0d9c35e — chạy lại batch 28 file để xác nhận) S8: ô chưa sửa giữ NGUYÊN style gốc XLSX (numFmt / border / font / fill / alignment)
 Đo được 15/9: LibreOffice tự ghi lại mã Excel theo cách của nó (Accounting `_(* #,##0_);…"-"??` → `* #,##0 ; … -00`,
