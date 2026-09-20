@@ -189,6 +189,26 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertIn('w:orient="landscape"', document)
         self.assertIn('<w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/>', document)
 
+    def test_w22f_created_document_table_column_width(self):
+        converted = _build_minimal_docx(
+            '<w:tbl>'
+            '<w:tblPr><w:tblW w:w="3624" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="1203"/><w:gridCol w:w="1188"/><w:gridCol w:w="1233"/></w:tblGrid>'
+            '<w:tr><w:tc><w:tcPr><w:tcW w:w="1203" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>Col 1</w:t></w:r></w:p></w:tc></w:tr>'
+            '</w:tbl>'
+            '<w:sectPr/>'
+        )
+        source_html = (
+            '<table><tr><td style="width: 3cm;">Col 1</td><td>Col 2</td><td>Col 3</td></tr></table>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(
+            converted,
+            source_html=source_html,
+        )
+        document = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:gridCol w:w="1700"/>', document)
+        self.assertIn('<w:tcW w:w="1700" w:type="dxa"/>', document)
+
     def test_w20e_created_document_break_is_before_second_section_text(self):
         converted = _build_minimal_docx(
             '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'

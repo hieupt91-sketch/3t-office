@@ -8346,6 +8346,69 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
 
         document_xml = re.sub(r'<w:p\b[^>]*>[\s\S]*?</w:p\s*>', patch_page_break, document_xml, flags=re.IGNORECASE)
 
+    # W22f: Khôi phục bề rộng cột bảng (w:gridCol & w:tcW) từ style width: ...cm của ô
+    # LibreOffice HTML import bỏ qua thuộc tính width trên ô <td>, chia đều bề rộng các cột.
+    table_col_widths: list[dict[int, int]] = []
+    for tbl_match in re.finditer(r'<table\b[^>]*>([\s\S]*?)</table\s*>', source_html, re.IGNORECASE):
+        tbl_html = tbl_match.group(1)
+        first_tr = re.search(r'<tr\b[^>]*>([\s\S]*?)</tr\s*>', tbl_html, re.IGNORECASE)
+        col_map: dict[int, int] = {}
+        if first_tr:
+            for c_idx, td_match in enumerate(re.finditer(r'<t[dh]\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>', first_tr.group(1), re.IGNORECASE)):
+                w_m = re.search(r'(?:^|;)\s*width\s*:\s*([\d.]+)cm(?:;|$)', td_match.group(1), re.IGNORECASE)
+                if w_m:
+                    cm_val = float(w_m.group(1))
+                    pt_val = round(cm_val / 2.54 * 72, 1)
+                    col_map[c_idx] = int(round(pt_val * 20))
+        table_col_widths.append(col_map)
+
+    if any(table_col_widths):
+        tbl_idx = 0
+        def patch_table(tbl_m: re.Match) -> str:
+            nonlocal tbl_idx
+            t_xml = tbl_m.group(0)
+            if tbl_idx < len(table_col_widths) and table_col_widths[tbl_idx]:
+                c_map = table_col_widths[tbl_idx]
+                grid_m = re.search(r'<w:tblGrid\b[^>]*>([\s\S]*?)</w:tblGrid\s*>', t_xml, re.IGNORECASE)
+                if grid_m:
+                    cols = list(re.finditer(r'<w:gridCol\b[^>]*w:w="(\d+)"[^>]*/>', grid_m.group(1), re.IGNORECASE))
+                    if cols:
+                        col_diff = 0
+                        new_cols_xml = []
+                        for i, col in enumerate(cols):
+                            old_w = int(col.group(1))
+                            if i in c_map:
+                                new_w = c_map[i]
+                                col_diff += (new_w - old_w)
+                                new_cols_xml.append(f'<w:gridCol w:w="{new_w}"/>')
+                            else:
+                                new_cols_xml.append(col.group(0))
+                        new_grid = f'<w:tblGrid>{"".join(new_cols_xml)}</w:tblGrid>'
+                        t_xml = t_xml[:grid_m.start()] + new_grid + t_xml[grid_m.end():]
+
+                        tbl_w_m = re.search(r'<w:tblW\b[^>]*w:w="(\d+)"[^>]*/>', t_xml, re.IGNORECASE)
+                        if tbl_w_m:
+                            total_w = int(tbl_w_m.group(1)) + col_diff
+                            t_xml = t_xml[:tbl_w_m.start()] + f'<w:tblW w:w="{total_w}" w:type="dxa"/>' + t_xml[tbl_w_m.end():]
+
+                        def patch_row(r_m: re.Match) -> str:
+                            r_xml = r_m.group(0)
+                            cells = list(re.finditer(r'<w:tc\b[\s\S]*?</w:tc\s*>', r_xml, re.IGNORECASE))
+                            for c_i, cell in enumerate(cells):
+                                if c_i in c_map:
+                                    target_w = c_map[c_i]
+                                    cell_str = cell.group(0)
+                                    cell_str = re.sub(r'<w:tcW\b[^>]*/>', f'<w:tcW w:w="{target_w}" w:type="dxa"/>', cell_str, count=1, flags=re.IGNORECASE)
+                                    r_xml = r_xml[:cell.start()] + cell_str + r_xml[cell.end():]
+                                    cells = list(re.finditer(r'<w:tc\b[\s\S]*?</w:tc\s*>', r_xml, re.IGNORECASE))
+                            return r_xml
+
+                        t_xml = re.sub(r'<w:tr\b[\s\S]*?</w:tr\s*>', patch_row, t_xml, flags=re.IGNORECASE)
+            tbl_idx += 1
+            return t_xml
+
+        document_xml = re.sub(r'<w:tbl\b[\s\S]*?</w:tbl\s*>', patch_table, document_xml, flags=re.IGNORECASE)
+
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
     numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
     bullet_texts = {
