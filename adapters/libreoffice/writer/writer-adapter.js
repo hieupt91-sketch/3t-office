@@ -2039,13 +2039,16 @@ export class WriterAdapter {
     setProp("--vno-font-ratio", String(this._fontLineRatio(family || "Times New Roman")));
   }
 
-  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "") {
+  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "") {
     let html = String(raw || "");
     let comments = [];
     if (ooxmlDocumentXml) {
       html = this._applyOoxmlTrackChangesToHtml(html, ooxmlDocumentXml);
       html = this._applyOoxmlTableParagraphSpacing(html, ooxmlDocumentXml, ooxmlStylesXml);
       html = this._applyOoxmlContextualSpacing(html, ooxmlDocumentXml, ooxmlStylesXml);
+      if (ooxmlNumberingXml) {
+        html = this._applyOoxmlListBullets(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
+      }
     }
     if (ooxmlDocumentXml && ooxmlCommentsXml) {
       const overlaid = this._applyOoxmlCommentsToHtml(html, ooxmlDocumentXml, ooxmlCommentsXml);
@@ -2796,6 +2799,191 @@ export class WriterAdapter {
       newAttrs = `${attrs} style="${decls.join("; ")}"`;
     }
     return `<p${newAttrs}>${inner}</p>`;
+  }
+
+  /**
+   * Quy ước W21b: Khôi phục ký hiệu bullet từ word/numbering.xml (w:lvlText)
+   * LibreOffice HTML xuất các danh sách bullet thành <ul><li> không kèm ký tự bullet,
+   * khiến trình duyệt hiển thị dấu chấm tròn mặc định (disc). Phương thức này đối chiếu
+   * từng mục <li> với w:p có numPr trong OOXML và gán list-style-type tương ứng (ví dụ: "- ").
+   */
+  _applyOoxmlListBullets(html, ooxmlDocumentXml, ooxmlStylesXml = "", ooxmlNumberingXml = "") {
+    const xml = String(ooxmlDocumentXml || "");
+    const numberingXml = String(ooxmlNumberingXml || "");
+    const stylesXml = String(ooxmlStylesXml || "");
+    if (!xml || !numberingXml || !html.includes("<li")) return html;
+
+    // 1. Phân tích numbering.xml
+    const abstractNums = new Map();
+    const absRe = /<w:abstractNum\b[^>]*w:abstractNumId="([^"]+)"[^>]*>([\s\S]*?)<\/w:abstractNum>/g;
+    for (const m of numberingXml.matchAll(absRe)) {
+      const aid = m[1];
+      const body = m[2];
+      const lvls = new Map();
+      const lvlRe = /<w:lvl\b[^>]*w:ilvl="([^"]+)"[^>]*>([\s\S]*?)<\/w:lvl>/g;
+      for (const lm of body.matchAll(lvlRe)) {
+        const ilvl = lm[1];
+        const lbody = lm[2];
+        const numFmt = lbody.match(/<w:numFmt\b[^>]*w:val="([^"]+)"/)?.[1];
+        const lvlText = lbody.match(/<w:lvlText\b[^>]*w:val="([^"]+)"/)?.[1];
+        const rFonts = lbody.match(/<w:rFonts\b([^>]*)\/?>/)?.[1];
+        const asciiFont = rFonts ? rFonts.match(/\bw:ascii="([^"]+)"/)?.[1] : null;
+        lvls.set(ilvl, { numFmt, lvlText, font: asciiFont });
+      }
+      abstractNums.set(aid, lvls);
+    }
+
+    const nums = new Map();
+    const numRe = /<w:num\b[^>]*w:numId="([^"]+)"[^>]*>([\s\S]*?)<\/w:num>/g;
+    for (const m of numberingXml.matchAll(numRe)) {
+      const nid = m[1];
+      const body = m[2];
+      const aid = body.match(/<w:abstractNumId\b[^>]*w:val="([^"]+)"/)?.[1];
+      const overrides = new Map();
+      const ovrRe = /<w:lvlOverride\b[^>]*w:ilvl="([^"]+)"[^>]*>([\s\S]*?)<\/w:lvlOverride>/g;
+      for (const om of body.matchAll(ovrRe)) {
+        const ilvl = om[1];
+        const obody = om[2];
+        const numFmt = obody.match(/<w:numFmt\b[^>]*w:val="([^"]+)"/)?.[1];
+        const lvlText = obody.match(/<w:lvlText\b[^>]*w:val="([^"]+)"/)?.[1];
+        const rFonts = obody.match(/<w:rFonts\b([^>]*)\/?>/)?.[1];
+        const asciiFont = rFonts ? rFonts.match(/\bw:ascii="([^"]+)"/)?.[1] : null;
+        if (numFmt || lvlText || asciiFont) {
+          overrides.set(ilvl, { numFmt, lvlText, font: asciiFont });
+        }
+      }
+      nums.set(nid, { abstractNumId: aid, overrides });
+    }
+
+    const resolveLvl = (nid, ilvl = "0") => {
+      if (!nid) return null;
+      const numEntry = nums.get(String(nid));
+      if (!numEntry) return null;
+      if (numEntry.overrides && numEntry.overrides.has(String(ilvl))) {
+        return numEntry.overrides.get(String(ilvl));
+      }
+      const abs = abstractNums.get(String(numEntry.abstractNumId));
+      if (!abs) return null;
+      return abs.get(String(ilvl)) || null;
+    };
+
+    // 2. Phân tích styles.xml (cho các style thừa kế numPr như ListBullet)
+    const styleNumPr = new Map();
+    const styleBasedOn = new Map();
+    const styleRe = /<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>([\s\S]*?)<\/w:style>/g;
+    for (const m of stylesXml.matchAll(styleRe)) {
+      const sid = m[1];
+      const body = m[2];
+      const ppr = body.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+      if (ppr) {
+        const nid = ppr[1].match(/<w:numId\b[^>]*w:val="([^"]+)"/)?.[1];
+        const ilvl = ppr[1].match(/<w:ilvl\b[^>]*w:val="([^"]+)"/)?.[1] || "0";
+        if (nid) styleNumPr.set(sid, { numId: nid, ilvl });
+      }
+      const b = body.match(/<w:basedOn\b[^>]*w:val="([^"]+)"/);
+      if (b) styleBasedOn.set(sid, b[1]);
+    }
+    const getStyleNumPr = (sid, depth = 0) => {
+      if (!sid || depth > 12) return null;
+      if (styleNumPr.has(sid)) return styleNumPr.get(sid);
+      const parent = styleBasedOn.get(sid);
+      return parent ? getStyleNumPr(parent, depth + 1) : null;
+    };
+
+    // 3. Trích xuất danh sách w:p trong OOXML
+    const bodyMatch = xml.match(/<w:body>([\s\S]*?)<\/w:body>/i);
+    if (!bodyMatch) return html;
+    const bodyXml = bodyMatch[1];
+    const bodyNoTables = bodyXml.replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi, "");
+
+    const docListItems = [];
+    const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
+    for (const m of bodyNoTables.matchAll(paraRe)) {
+      const pXml = m[0];
+      const ppr = pXml.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
+      const pprXml = ppr ? ppr[1] : "";
+      const numPrMatch = pprXml.match(/<w:numPr>([\s\S]*?)<\/w:numPr>/);
+      let numId = null;
+      let ilvl = "0";
+      if (numPrMatch) {
+        numId = numPrMatch[1].match(/<w:numId\b[^>]*w:val="([^"]+)"/)?.[1];
+        ilvl = numPrMatch[1].match(/<w:ilvl\b[^>]*w:val="([^"]+)"/)?.[1] || "0";
+      } else {
+        const styleMatch = pprXml.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/);
+        if (styleMatch) {
+          const snp = getStyleNumPr(styleMatch[1]);
+          if (snp) {
+            numId = snp.numId;
+            ilvl = snp.ilvl || "0";
+          }
+        }
+      }
+      if (numId) {
+        const lvl = resolveLvl(numId, ilvl);
+        docListItems.push({
+          numId,
+          ilvl,
+          numFmt: lvl?.numFmt || null,
+          lvlText: lvl?.lvlText !== undefined ? lvl?.lvlText : null,
+          font: lvl?.font || null
+        });
+      }
+    }
+
+    if (!docListItems.length) return html;
+
+    // 4. Bỏ qua header và footer divs nếu có
+    const headerMatch = html.match(/<div\s+title=["']header["'][^>]*>[\s\S]*?<\/div>/i);
+    const footerMatch = html.match(/<div\s+title=["']footer["'][^>]*>[\s\S]*?<\/div>/i);
+    const inRange = (offset, match) => match && offset >= match.index && offset < match.index + match[0].length;
+
+    // 5. Đối chiếu tuần tự với từng thẻ <li> trong HTML
+    let liIndex = 0;
+    return html.replace(/<li\b([^>]*)>([\s\S]*?)<\/li>/gi, (fullTag, attrs, inner, offset) => {
+      if (inRange(offset, headerMatch) || inRange(offset, footerMatch)) {
+        return fullTag;
+      }
+      const item = docListItems[liIndex++];
+      if (!item || item.numFmt !== "bullet" || item.lvlText == null) {
+        return fullTag;
+      }
+
+      let listStyleType = null;
+      const t = item.lvlText;
+      if (t === "-") {
+        listStyleType = "'- '";
+      } else if (t === "\u2013") {
+        listStyleType = "'\u2013 '";
+      } else if (t === "\u2014") {
+        listStyleType = "'\u2014 '";
+      } else if (t === "o") {
+        listStyleType = "circle";
+      } else if (t === "\uf0a7") {
+        listStyleType = "square";
+      } else if (t === "\uf0b7" || t === "\u2022") {
+        listStyleType = "disc";
+      } else if (t.trim().length > 0) {
+        const clean = t.endsWith(" ") ? t : (t + " ");
+        listStyleType = `'${clean.replace(/'/g, "\\'")}'`;
+      }
+
+      if (!listStyleType || listStyleType === "disc") return fullTag;
+
+      const styleMatch = attrs.match(/\bstyle=(["'])([^"']*)\1/i);
+      if (styleMatch) {
+        const quote = styleMatch[1];
+        let css = styleMatch[2];
+        if (!/\blist-style(-type)?\b/i.test(css)) {
+          css = css.trim().replace(/;?$/, `; list-style-type: ${listStyleType};`);
+        } else {
+          css = css.replace(/list-style-type\s*:\s*[^;]+(;?)/i, `list-style-type: ${listStyleType}$1`);
+        }
+        const newAttrs = attrs.replace(styleMatch[0], `style=${quote}${css}${quote}`);
+        return `<li${newAttrs}>${inner}</li>`;
+      } else {
+        return `<li${attrs} style="list-style-type: ${listStyleType};">${inner}</li>`;
+      }
+    });
   }
 
   _applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml) {
@@ -9066,7 +9254,8 @@ export class WriterAdapter {
         result.content || "",
         result.ooxmlDocumentXml,
         result.ooxmlCommentsXml,
-        result.ooxmlStylesXml
+        result.ooxmlStylesXml,
+        result.ooxmlNumberingXml
       );
       if (imported.page) {
         this.pageSetup = {
