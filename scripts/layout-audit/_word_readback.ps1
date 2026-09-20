@@ -1,4 +1,4 @@
-# Doc lai file DOCX bang Word 2016 COM va doi chieu voi <file>.expected.json (sinh boi _create_new_writer.py).
+﻿# Doc lai file DOCX bang Word 2016 COM va doi chieu voi <file>.expected.json (sinh boi _create_new_writer.py).
 # Usage: powershell -File _word_readback.ps1 -File out.docx
 param([string]$File, [switch]$SelfTest)
 Add-Type -AssemblyName System.Web.Extensions
@@ -84,6 +84,34 @@ function GetPrintPageCount($doc) {
     }
 }
 
+function FindRangeByText($doc, [string]$text) {
+    try {
+        $r = $doc.Content.Duplicate
+        $f = $r.Find
+        $f.ClearFormatting()
+        $f.Text = $text
+        $f.Forward = $true
+        $f.Wrap = 0  # wdFindStop
+        if ($f.Execute()) {
+            return $r
+        }
+    } catch {}
+    return $null
+}
+
+function FindParagraphByText($doc, [string]$matchText) {
+    try {
+        for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
+            $p = $doc.Paragraphs.Item($i)
+            $t = NormalizeTableCellText $p.Range.Text
+            if ($t.Trim() -like "*$matchText*") {
+                return $p
+            }
+        }
+    } catch {}
+    return $null
+}
+
 if ($SelfTest) {
     if ((NormalizeTableCellText "merged$([char]13)$([char]7)") -ne "merged") { throw "Word cell terminator was not removed" }
     if ("$([bool]$true)" -ne "True") { throw "Boolean was not normalized to True" }
@@ -102,7 +130,219 @@ $word.Visible = $false; $word.DisplayAlerts = 0  # wdAlertsNone = 0
 try {
     $doc = $word.Documents.Open((Resolve-Path $File).Path, 0, $true)
     
-    # --- Title (Heading 1) ---
+    if ($expected.ContainsKey("scenario") -and [int]$expected["scenario"] -eq 2) {
+        # --- 1. Đoạn canh đều (justify), đoạn canh phải ---
+        $pJ = FindParagraphByText $doc "Đoạn canh đều hai bên (justify)"
+        if ($pJ) {
+            Check "justifyPara" "alignment" $expected["justifyPara"]["alignment"] (GetAlignment $pJ.Range)
+        } else {
+            Check "justifyPara" "alignment" $expected["justifyPara"]["alignment"] "missing"
+        }
+        $pR = FindParagraphByText $doc "Đoạn canh phải (right)"
+        if ($pR) {
+            Check "rightPara" "alignment" $expected["rightPara"]["alignment"] (GetAlignment $pR.Range)
+        } else {
+            Check "rightPara" "alignment" $expected["rightPara"]["alignment"] "missing"
+        }
+
+        # --- 2. Khoảng cách đoạn trước 6pt / sau 12pt ---
+        $pS = FindParagraphByText $doc "Đoạn khoảng cách trước 6pt và sau 12pt"
+        if ($pS) {
+            $sb = [math]::Round([double]$pS.Range.ParagraphFormat.SpaceBefore, 1)
+            $sa = [math]::Round([double]$pS.Range.ParagraphFormat.SpaceAfter, 1)
+            Check "spacingPara" "spaceBefore" $expected["spacingPara"]["spaceBefore"] $sb
+            Check "spacingPara" "spaceAfter" $expected["spacingPara"]["spaceAfter"] $sa
+        } else {
+            Check "spacingPara" "spaceBefore" $expected["spacingPara"]["spaceBefore"] "missing"
+            Check "spacingPara" "spaceAfter" $expected["spacingPara"]["spaceAfter"] "missing"
+        }
+
+        # --- 4. Thụt lề trái 2cm + treo (hanging) 1cm ---
+        $pH = FindParagraphByText $doc "Đoạn thụt lề trái 2cm và thụt lề treo 1cm"
+        if ($pH) {
+            $li = [math]::Round([double]$pH.Range.ParagraphFormat.LeftIndent, 1)
+            $fli = [math]::Round([double]$pH.Range.ParagraphFormat.FirstLineIndent, 2)
+            Check "hangingPara" "leftIndentPt" $expected["hangingPara"]["leftIndentPt"] $li
+            Check "hangingPara" "firstLineIndentPt" $expected["hangingPara"]["firstLineIndentPt"] $fli
+        } else {
+            Check "hangingPara" "leftIndentPt" $expected["hangingPara"]["leftIndentPt"] "missing"
+            Check "hangingPara" "firstLineIndentPt" $expected["hangingPara"]["firstLineIndentPt"] "missing"
+        }
+
+        # --- 5. Chữ đậm + nghiêng + gạch chân; gạch ngang; x²; H₂O; highlight vàng ---
+        $rBiU = FindRangeByText $doc "Chữ đậm nghiêng gạch chân"
+        if ($rBiU) {
+            Check "styles" "bold" $expected["styles"]["bold"] (GetFontBold $rBiU)
+            Check "styles" "italic" $expected["styles"]["italic"] (GetFontItalic $rBiU)
+            Check "styles" "underline" $expected["styles"]["underline"] (GetFontUnderline $rBiU)
+        } else {
+            Check "styles" "bold" $expected["styles"]["bold"] "missing"
+            Check "styles" "italic" $expected["styles"]["italic"] "missing"
+            Check "styles" "underline" $expected["styles"]["underline"] "missing"
+        }
+
+        $rStrike = FindRangeByText $doc "Chữ gạch ngang"
+        if ($rStrike) {
+            $st = try { [bool]($rStrike.Font.StrikeThrough -ne 0) } catch { $false }
+            Check "styles" "strikeThrough" $expected["styles"]["strikeThrough"] $st
+        } else {
+            Check "styles" "strikeThrough" $expected["styles"]["strikeThrough"] "missing"
+        }
+
+        $rX2 = FindRangeByText $doc "x2"
+        if (-not $rX2) { $rX2 = FindRangeByText $doc "x²" }
+        if ($rX2) {
+            $char2 = $rX2.Characters.Item($rX2.Characters.Count)
+            $isSuper = try { [bool]($char2.Font.Superscript -ne 0) } catch { $false }
+            Check "styles" "superscript" $expected["styles"]["superscript"] $isSuper
+        } else {
+            Check "styles" "superscript" $expected["styles"]["superscript"] "missing"
+        }
+
+        $rH2O = FindRangeByText $doc "H2O"
+        if (-not $rH2O) { $rH2O = FindRangeByText $doc "H₂O" }
+        if ($rH2O) {
+            $char2 = $rH2O.Characters.Item(2)
+            $isSub = try { [bool]($char2.Font.Subscript -ne 0) } catch { $false }
+            Check "styles" "subscript" $expected["styles"]["subscript"] $isSub
+        } else {
+            Check "styles" "subscript" $expected["styles"]["subscript"] "missing"
+        }
+
+        $rHl = FindRangeByText $doc "Chữ highlight vàng"
+        if ($rHl) {
+            $hlColor = try { [int]$rHl.HighlightColorIndex } catch { 0 }
+            Check "styles" "highlightColorIndex" $expected["styles"]["highlightColorIndex"] $hlColor
+        } else {
+            Check "styles" "highlightColorIndex" $expected["styles"]["highlightColorIndex"] "missing"
+        }
+
+        # --- 6. Font khác nhau trong 1 đoạn: Arial 11pt + Times New Roman 14pt + màu xanh #0070C0 ---
+        $rArial = FindRangeByText $doc "Chữ Arial 11pt"
+        if ($rArial) {
+            Check "fonts" "arialName" $expected["fonts"]["arialName"] (GetFontName $rArial)
+            Check "fonts" "arialSize" $expected["fonts"]["arialSize"] (GetFontSize $rArial)
+        } else {
+            Check "fonts" "arialName" $expected["fonts"]["arialName"] "missing"
+            Check "fonts" "arialSize" $expected["fonts"]["arialSize"] "missing"
+        }
+
+        $rTnr = FindRangeByText $doc "Chữ Times New Roman 14pt màu xanh"
+        if ($rTnr) {
+            Check "fonts" "tnrName" $expected["fonts"]["tnrName"] (GetFontName $rTnr)
+            Check "fonts" "tnrSize" $expected["fonts"]["tnrSize"] (GetFontSize $rTnr)
+            Check "fonts" "tnrColor" $expected["fonts"]["tnrColor"] (GetFontColor $rTnr)
+        } else {
+            Check "fonts" "tnrName" $expected["fonts"]["tnrName"] "missing"
+            Check "fonts" "tnrSize" $expected["fonts"]["tnrSize"] "missing"
+            Check "fonts" "tnrColor" $expected["fonts"]["tnrColor"] "missing"
+        }
+
+        # --- 7. Liên kết https://example.com với chữ "Trang chủ" ---
+        Check "hyperlink" "count" $expected["hyperlink"]["count"] $doc.Hyperlinks.Count
+        if ($doc.Hyperlinks.Count -ge 1) {
+            $hl = $doc.Hyperlinks.Item(1)
+            $addr = "$($hl.Address)".TrimEnd('/')
+            Check "hyperlink" "address" $expected["hyperlink"]["address"] $addr
+            Check "hyperlink" "textToDisplay" $expected["hyperlink"]["textToDisplay"] "$($hl.TextToDisplay)".Trim()
+        } else {
+            Check "hyperlink" "address" $expected["hyperlink"]["address"] "none"
+            Check "hyperlink" "textToDisplay" $expected["hyperlink"]["textToDisplay"] "none"
+        }
+
+        # --- 8. Danh sách đánh số bắt đầu lại từ 1 sau một đoạn thường ---
+        $pList2 = FindParagraphByText $doc "Mục 2.1"
+        if ($pList2) {
+            Check "listRestart" "firstNumber" $expected["listRestart"]["firstNumber"] "$($pList2.Range.ListFormat.ListString)".Trim()
+        } else {
+            Check "listRestart" "firstNumber" $expected["listRestart"]["firstNumber"] "missing"
+        }
+
+        # --- 9. Danh sách 2 cấp (mục con thụt vào) ---
+        $pSub = FindParagraphByText $doc "Mục cấp 2"
+        if ($pSub) {
+            Check "multilevelList" "subItemLevel" $expected["multilevelList"]["subItemLevel"] ([int]$pSub.Range.ListFormat.ListLevelNumber)
+        } else {
+            Check "multilevelList" "subItemLevel" $expected["multilevelList"]["subItemLevel"] 0
+        }
+
+        # --- 10. Bảng 3×3: ô nền xám #D9D9D9, chữ ô tiêu đề đậm căn giữa, bề rộng cột 1 = 3cm ---
+        if ($doc.Tables.Count -ge 1) {
+            $tbl = $doc.Tables.Item(1)
+            Check "table" "rows" $expected["table"]["rows"] $tbl.Rows.Count
+            Check "table" "cols" $expected["table"]["cols"] $tbl.Columns.Count
+            $c11 = $tbl.Cell(1,1)
+            $bg = try { & $hex ([int]$c11.Shading.BackgroundPatternColor) } catch { "" }
+            Check "table" "headerBgColor" $expected["table"]["headerBgColor"] $bg
+            Check "table" "headerBold" $expected["table"]["headerBold"] (GetFontBold $c11.Range)
+            Check "table" "headerAlignment" $expected["table"]["headerAlignment"] (GetAlignment $c11.Range)
+            $w1 = try { [math]::Round([double]$tbl.Cell(1,1).Width, 1) } catch { 0 }
+            Check "table" "col1WidthPt" $expected["table"]["col1WidthPt"] $w1
+        } else {
+            Check "table" "rows" $expected["table"]["rows"] 0
+            Check "table" "cols" $expected["table"]["cols"] 0
+            Check "table" "headerBgColor" $expected["table"]["headerBgColor"] "missing"
+            Check "table" "headerBold" $expected["table"]["headerBold"] "missing"
+            Check "table" "headerAlignment" $expected["table"]["headerAlignment"] "missing"
+            Check "table" "col1WidthPt" $expected["table"]["col1WidthPt"] 0
+        }
+
+        # --- 11. Trang ngang (landscape) cho mục 2 ---
+        if ($doc.Sections.Count -ge 2) {
+            $sec2 = $doc.Sections.Item(2)
+            $sec2Orient = if ([int]$sec2.PageSetup.Orientation -eq 1) { "landscape" } else { "portrait" }
+            Check "section2" "orientation" $expected["section2"]["orientation"] $sec2Orient
+        } else {
+            Check "section2" "orientation" $expected["section2"]["orientation"] "missing section 2"
+        }
+
+        # --- 12. Cỡ trang Letter, lề 2cm 4 phía ---
+        $sec1 = $doc.Sections.Item(1)
+        $setup = $sec1.PageSetup
+        $pw = [math]::Round([double]$setup.PageWidth, 0)
+        $ph = [math]::Round([double]$setup.PageHeight, 0)
+        $tm = [math]::Round([double]$setup.TopMargin, 1)
+        $bm = [math]::Round([double]$setup.BottomMargin, 1)
+        $lm = [math]::Round([double]$setup.LeftMargin, 1)
+        $rm = [math]::Round([double]$setup.RightMargin, 1)
+        Check "pageSetup" "pageWidthPt" $expected["pageSetup"]["pageWidthPt"] $pw
+        Check "pageSetup" "pageHeightPt" $expected["pageSetup"]["pageHeightPt"] $ph
+        Check "pageSetup" "topMarginPt" $expected["pageSetup"]["topMarginPt"] $tm
+        Check "pageSetup" "bottomMarginPt" $expected["pageSetup"]["bottomMarginPt"] $bm
+        Check "pageSetup" "leftMarginPt" $expected["pageSetup"]["leftMarginPt"] $lm
+        Check "pageSetup" "rightMarginPt" $expected["pageSetup"]["rightMarginPt"] $rm
+
+        # --- 13. Ngắt trang thường (Ctrl+Enter, không ngắt mục) ---
+        $pNorm = FindParagraphByText $doc "Đoạn sau ngắt trang thường"
+        if ($pNorm) {
+            $pg = [int]$pNorm.Range.Information(3)  # wdActiveEndPageNumber
+            Check "normalPageBreak" "pageNumber" $expected["normalPageBreak"]["pageNumber"] $pg
+        } else {
+            Check "normalPageBreak" "pageNumber" $expected["normalPageBreak"]["pageNumber"] 0
+        }
+
+        # --- 15. Ký tự đặc biệt / tiếng Việt có dấu tổ hợp: "Nguyễn Văn Ơn – ĐẠI HỌC" (NFC) ---
+        $pNfc = FindParagraphByText $doc "Nguyễn Văn Ơn"
+        if ($pNfc) {
+            $txt = (NormalizeTableCellText $pNfc.Range.Text).Trim()
+            Check "nfcText" "text" $expected["nfcText"]["text"] $txt
+        } else {
+            Check "nfcText" "text" $expected["nfcText"]["text"] "missing"
+        }
+
+        # --- 16. Tab stop 5cm + đoạn dùng Tab ---
+        $pTab = FindParagraphByText $doc "sau Tab 5cm"
+        if ($pTab) {
+            $tabPos = 0.0
+            if ($pTab.ParagraphFormat.TabStops.Count -ge 1) {
+                $tabPos = [math]::Round([double]$pTab.ParagraphFormat.TabStops.Item(1).Position, 1)
+            }
+            Check "tabStop" "positionPt" $expected["tabStop"]["positionPt"] $tabPos
+        } else {
+            Check "tabStop" "positionPt" $expected["tabStop"]["positionPt"] 0
+        }
+    } else {
+        # --- Title (Heading 1) ---
     $titlePara = $doc.Paragraphs.Item(1)
     $titleRange = $titlePara.Range
     Check "title" "text" $expected["title"]["text"] $titleRange.Text.Trim()
@@ -211,6 +451,7 @@ try {
     Check "pageSetup" "rightMarginMm" $expected["pageSetup"]["rightMarginMm"] $rightMm
     Check "pageSetup" "pageWidthMm" $expected["pageSetup"]["pageWidthMm"] $widthMm
     Check "pageSetup" "pageHeightMm" $expected["pageSetup"]["pageHeightMm"] $heightMm
+    }
 
     $doc.Close($false)
 } finally { $word.Quit(); [void][Runtime.InteropServices.Marshal]::ReleaseComObject($word) }
