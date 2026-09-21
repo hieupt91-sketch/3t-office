@@ -3191,7 +3191,10 @@ export class SheetAdapter {
       // Tab color: serialize vno:tab-color for round-trip fidelity
       const tabColor = (this.grid.sheetStates?.[sheetName]?.tabColor) || (this.grid.tabColors?.[sheetName]) || "";
       const tabColorAttr = tabColor ? ` vno:tab-color="${this._escapeXml(tabColor)}"` : "";
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}"${freezeAttr}${sheetStateAttr}${tabColorAttr}`;
+      // S27c: retain how many images entered the editable model at open time.
+      // If all are later deleted, the save-side repair must not resurrect them.
+      const imagesAtOpen = Math.max(0, Number(this.grid.imagesAtOpenBySheet?.[sheetName]) || 0);
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${sheetStateAttr}${tabColorAttr}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -3788,7 +3791,7 @@ export class SheetAdapter {
 
   /** Parse FODS into every worksheet, including repeated rows/cells emitted by LibreOffice. */
   parseFods(xmlText) {
-    const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, pageSetupBySheet: {}, validationHits: [], rowHeightsBySheet: {}, colWidthsBySheet: {}, userHiddenRowsBySheet: {}, userHiddenColsBySheet: {} };
+    const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, pageSetupBySheet: {}, validationHits: [], rowHeightsBySheet: {}, colWidthsBySheet: {}, userHiddenRowsBySheet: {}, userHiddenColsBySheet: {}, imagesAtOpenBySheet: {} };
     if (!xmlText) return workbook;
     const tableXml = this._xmlWithoutEmbeddedObjects(xmlText);
     const numberStyles = this._parseNumberStyles(tableXml);
@@ -4045,6 +4048,7 @@ export class SheetAdapter {
           workbook.userHiddenColsBySheet[name] = hiddenCols;
           workbook.imagesBySheet = workbook.imagesBySheet || {};
           workbook.imagesBySheet[name] = images;
+          workbook.imagesAtOpenBySheet[name] = images.length;
           if (tabColor) {
             workbook.tabColors = workbook.tabColors || {};
             workbook.tabColors[name] = tabColor;
@@ -4290,6 +4294,7 @@ export class SheetAdapter {
         workbook.userHiddenColsBySheet[name] = hiddenCols;
         workbook.imagesBySheet = workbook.imagesBySheet || {};
         workbook.imagesBySheet[name] = images;
+        workbook.imagesAtOpenBySheet[name] = images.length;
         if (tabColor) {
           workbook.tabColors = workbook.tabColors || {};
           workbook.tabColors[name] = tabColor;
@@ -4345,6 +4350,7 @@ export class SheetAdapter {
     this.grid.pivotTablesBySheet = {};
     this.grid.chartsBySheet = {};
     this.grid.imagesBySheet = {};
+    this.grid.imagesAtOpenBySheet = {};
     this.grid.rowHeightsBySheet = {};
     this.grid.colWidthsBySheet = {};
     this.grid.userHiddenRowsBySheet = {};
@@ -4370,6 +4376,7 @@ export class SheetAdapter {
       this.grid.pivotTablesBySheet[sheetName] = workbook.pivotTablesBySheet?.[sheetName] || [];
       this.grid.chartsBySheet[sheetName] = workbook.chartsBySheet?.[sheetName] || [];
       this.grid.imagesBySheet[sheetName] = workbook.imagesBySheet?.[sheetName] || [];
+      this.grid.imagesAtOpenBySheet[sheetName] = workbook.imagesAtOpenBySheet?.[sheetName] || 0;
       this.grid.rowHeightsBySheet[sheetName] = this._asLayoutMap(equivalentSheetValue(workbook.rowHeightsBySheet, sheetName), true);
       this.grid.colWidthsBySheet[sheetName] = this._asLayoutMap(workbook.colWidthsBySheet?.[sheetName], false);
       this.grid.userHiddenRowsBySheet[sheetName] = this._asLayoutSet(workbook.userHiddenRowsBySheet?.[sheetName], true);

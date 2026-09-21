@@ -1550,9 +1550,9 @@ def _restore_column_widths(
         return chars
 
     def snap_to_source(col_idx: int, chars: float) -> float:
-        """Keep an explicit source width when cm round-trip drift is <= 2 px."""
+        """Keep an explicit source width when cm round-trip drift is <= 4 px."""
         source = (source_widths or {}).get(col_idx)
-        if source is not None and abs(source - chars) * digit_width <= 2.01:
+        if source is not None and abs(source - chars) * digit_width <= 4.01:
             return source
         return chars
 
@@ -4894,10 +4894,14 @@ def _restore_untouched_drawings_step(
     # 1. Parse vno:image-ids from FODS per sheet
     fods_image_ids: dict[str, list[str]] = {}
     fods_total_image_counts: dict[str, int] = {}
+    fods_images_at_open: dict[str, int] = {}
     for table_start, table_end in _flat_xml_blocks(source_fods, ("table:table",)):
         table_xml = source_fods[table_start:table_end]
         table_attrs = _xml_attrs(re.match(r"<[^>]+", table_xml).group(0))
         sheet_name = _unescape_xml(table_attrs.get("table:name", ""))
+        images_at_open = table_attrs.get("vno:images-at-open")
+        if images_at_open is not None and re.fullmatch(r"\d+", images_at_open):
+            fods_images_at_open[sheet_name] = int(images_at_open)
         ids: list[str] = []
         total_images = 0
         group_spans = _draw_group_spans(table_xml)
@@ -4940,19 +4944,18 @@ def _restore_untouched_drawings_step(
         if total_images > 0:
             fods_total_image_counts[sheet_name] = total_images
 
-    if not fods_image_ids:
-        return
-
     # 2. Parse original drawing images from source XLSX
     source_drawing_images = _parse_xlsx_drawing_images(source_xlsx_bytes)
+    if not source_drawing_images:
+        return
 
     # 3. Resolve sheet entries in output XLSX
     out_sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
     source_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
 
     # 4. For each sheet, check if untouched
-    for sheet_name, fods_ids in fods_image_ids.items():
-        source_anchors = source_drawing_images.get(sheet_name, [])
+    for sheet_name, source_anchors in source_drawing_images.items():
+        fods_ids = fods_image_ids.get(sheet_name, [])
         # Ảnh liên kết (r:link) Calc không nhập → không nằm trong tập so; ảnh nhúng phải KHỚP TRỌN (tập id bằng
         # nhau, không có khung chưa gắn id). Thiếu ảnh nhúng = người dùng đã xoá → không phục hồi drawing gốc
         # (bản codex a05eec1 chấp nhận tập con cho oneCell/absolute/grouped → xoá ảnh trong app sẽ bị phục hồi lại).
@@ -4962,19 +4965,25 @@ def _restore_untouched_drawings_step(
             continue
         current_count = fods_total_image_counts.get(sheet_name, 0)
         parsed = [re.match(r"^(.*):(\d+)/(\d+)$", i) for i in fods_ids]
-        if not parsed or any(m is None for m in parsed):
-            continue
-        totals = {int(m.group(3)) for m in parsed}
-        indexes = sorted(int(m.group(2)) for m in parsed)
-        if len(totals) != 1:
-            continue
-        n_at_open = totals.pop()
+        totals = {int(m.group(3)) for m in parsed if m is not None}
+        indexes = sorted(int(m.group(2)) for m in parsed if m is not None)
+        n_at_open = next(iter(totals)) if len(totals) == 1 else 0
         # Grouped source images can be flattened by the app serializer and lose
         # their <draw:g> wrapper while remaining outside the editable/id set.
         # Allow only that bounded remainder; a genuinely added image makes the
         # count exceed the original anchor count and still blocks restoration.
-        untouched_ids = (
-            indexes == list(range(n_at_open))
+        # With no ids, restore only for legacy FODS (marker absent) or when
+        # Calc imported zero images.  N>0 means the user deleted all imported
+        # images in VN Sheet, so restoring the source drawing would resurrect them.
+        calc_imported_no_images = (
+            current_count == 0
+            and fods_images_at_open.get(sheet_name, 0) == 0
+        )
+        untouched_ids = calc_imported_no_images or (
+            bool(parsed)
+            and all(m is not None for m in parsed)
+            and len(totals) == 1
+            and indexes == list(range(n_at_open))
             and (current_count == n_at_open or len(source_anchors) > n_at_open)
         )
         if not untouched_ids:
@@ -6302,7 +6311,12 @@ def _restore_lost_leading_newlines_step(
                 and bool(re.search(r"[\r\n]", source_value))
                 and normalize_lines(source_value) == normalize_lines(output_value)
             )
-            if not (missing_whitespace or normalized_line_match):
+            trailing_apostrophe_match = (
+                output_value is not None
+                and source_value.endswith("'")
+                and output_value == source_value[:-1]
+            )
+            if not (missing_whitespace or normalized_line_match or trailing_apostrophe_match):
                 continue
             coord = f"{_column_letter(col)}{row}"
             if coord in source_formula_cells:

@@ -1,7 +1,7 @@
 """Usage: python _batch_audit.py <worktree> [lanNN.xlsx ...]
 For each xlsx in "file test/lan" (or the given names): real-app round-trip save, auditor,
 Excel COM open check, and a summary table written to _batch_audit_report.md."""
-import os, sys, subprocess, re, glob
+import os, sys, subprocess, re, glob, time
 ROOT = os.path.abspath(sys.argv[1])
 SP = os.path.dirname(os.path.abspath(__file__))
 names = sys.argv[2:] or sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROOT, "file test", "lan", "lan*.xlsx")))
@@ -13,11 +13,15 @@ if os.path.exists(mp):
             k, v = line.rstrip("\n").split("\t", 1); mapping[k] = v
 rows = []
 for name in names:
+    started = time.monotonic()
     src = os.path.join(ROOT, "file test", "lan", name)
     out = os.path.join(ROOT, "_rt_" + name)
     audit = os.path.join(ROOT, "_audit_" + name.replace(".xlsx", ".txt"))
     if os.path.exists(out): os.remove(out)
-    r = subprocess.run([sys.executable, os.path.join(SP, "_roundtrip_save_sheet.py"), ROOT, src, out], capture_output=True, text=True, cwd=ROOT, timeout=1500)
+    try:
+        r = subprocess.run([sys.executable, os.path.join(SP, "_roundtrip_save_sheet.py"), ROOT, src, out], capture_output=True, text=True, cwd=ROOT, timeout=1200)
+    except subprocess.TimeoutExpired as exc:
+        r = subprocess.CompletedProcess(exc.cmd, 124, exc.stdout or "", exc.stderr or "")
     saved = os.path.exists(out)
     loaded = ("LOADED: " + name) in (r.stdout or "")
     total = ""; per_kind = ""
@@ -40,10 +44,11 @@ for name in names:
         issues = [line for line in ((lint_run.stdout or "") + (parts_run.stdout or "")).splitlines()
                   if line.strip() and line.strip() not in ("lint done", "parts lint done")]
         lint = "clean" if not issues else f"{len(issues)} issue(s): " + "; ".join(issues[:3])
-    rows.append((name, mapping.get(name, ""), ("yes" if saved else "NO") + ("" if loaded else " (not loaded)"), total, excel, lint, per_kind))
-    print(name, "saved" if saved else "NOT SAVED", "total", total, "excel", excel, "lint", lint, flush=True)
+    seconds = round(time.monotonic() - started, 1)
+    rows.append((name, mapping.get(name, ""), ("yes" if saved else "NO") + ("" if loaded else " (not loaded)"), total, excel, lint, per_kind, seconds))
+    print(name, "saved" if saved else "NOT SAVED", "total", total, "excel", excel, "lint", lint, "seconds", seconds, flush=True)
 with open(os.path.join(ROOT, "_batch_audit_report.md"), "w", encoding="utf-8") as f:
-    f.write("| file | original name | saved | total diffs | Excel opens | lint | diffs by kind |\n|---|---|---|---:|---|---|---|\n")
+    f.write("| file | original name | saved | total diffs | Excel opens | lint | diffs by kind | seconds |\n|---|---|---|---:|---|---|---|---:|\n")
     for r in rows:
         f.write("| " + " | ".join(str(x) for x in r) + " |\n")
 print("report: _batch_audit_report.md")

@@ -237,6 +237,14 @@ class TestApplyAutofilterToWorksheet(unittest.TestCase):
         result = patcher.apply_autofilter_to_worksheet(SHEET2_PLAIN, "")
         self.assertEqual(result, SHEET2_PLAIN)
 
+    def test_replaces_ref_and_keeps_filter_columns(self):
+        paired = SHEET1_WITH_AUTOFILTER.replace(
+            '<autoFilter ref="A1:B2"/>',
+            '<autoFilter ref="A1:B2"><filterColumn colId="0"/></autoFilter>',
+        )
+        result = patcher.apply_autofilter_to_worksheet(paired, "A3:F3")
+        self.assertIn('<autoFilter ref="A3:F3"><filterColumn colId="0"/></autoFilter>', result)
+
 
 class TestParseAutofilterFromFods(unittest.TestCase):
     def test_reads_database_range(self):
@@ -249,6 +257,16 @@ class TestParseAutofilterFromFods(unittest.TestCase):
 
     def test_none_returns_empty(self):
         self.assertEqual(patcher.parse_autofilter_from_fods(None), {})
+
+    def test_strips_libreoffice_sheet_qualifier_from_second_endpoint(self):
+        fods = FODS_BASE.replace(
+            "</office:spreadsheet>",
+            '<table:database-ranges><table:database-range table:name="AF1" table:target-range-address="DataSheet.A3:DataSheet.F3" table:display-filter-buttons="true"/></table:database-ranges></office:spreadsheet>'
+        )
+        self.assertEqual(
+            patcher.parse_autofilter_from_fods(fods),
+            {"DataSheet": "A3:F3"},
+        )
 
 
 class TestApplyAutofilterToFods(unittest.TestCase):
