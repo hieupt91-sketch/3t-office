@@ -69,3 +69,20 @@ Nếu không thể sửa kịp ở HTML, có thể thêm bước post-process tr
 ## File script bisect
 `scripts/layout-audit/_html_docx_bisect.py` — dùng lại cho các case tương tự.
 Chạy: `python _html_docx_bisect.py <worktree> <html_file> <outdir>` (cần `$env:LOCALAPPDATA = 'E:\VNOffice-profiles\opencode'`).
+## Claude kiểm lại (21/9) — kết luận trên SAI hướng, đúng điểm kích hoạt
+
+Đo lại bằng `main._run_soffice_convert` với chính 2 HTML tối thiểu ở trên (đếm `<w:tbl\b`, `<w:txbxContent`):
+
+| HTML | `<w:tbl` | `<w:txbxContent` | chữ |
+|---|---:|---:|---|
+| có `align="left"` | **3** | 2 | LabelValue**ABAB** |
+| không `align` | 2 | 0 | LabelValueAB |
+
+Bảng `align="left"` KHÔNG bị loại bỏ: LibreOffice nhập nó thành khung nổi (frame) rồi xuất DOCX thành hộp văn bản
+`mc:AlternateContent` với **Choice + Fallback cùng chứa bảng** → đếm ra 3 bảng / chữ nhân đôi (đây chính là "nhân đôi"
+R12/R13 thấy). Word hiển thị MỘT hộp văn bản nổi chứa bảng. Nguồn d09 có 2 bảng ở thân, bảng thứ hai là **bảng nổi**
+(`w:tblpPr` tblpX=-190 tblpY=97) — nên `align="left"` là cách LibreOffice biểu diễn bảng nổi, không phải lỗi.
+
+Sửa đúng chỗ (W27b, `_restore_writer_floating_tables` trong `postprocess_writer_docx`): khung có nội dung đúng một
+bảng → trả lại `<w:tbl>` ở thân với `<w:tblpPr>` của nguồn (ghép theo chữ đầu bảng) hoặc suy từ `wp:anchor`.
+d09 lưu: tbl 2/2, tblpPr 1/1, txbx 30/30 (trước: 3/2, 46/30). Trang Word sau lưu vẫn 12 (nguồn 14) — lớp khác.
