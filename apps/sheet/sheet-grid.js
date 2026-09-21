@@ -9507,6 +9507,9 @@ export class SheetGridController {
     if (!dom || !styles) return;
     for (const [k, v] of Object.entries(styles)) {
       if (k === "numberFormat" || k === "textRotation") continue;
+      // S29a: Excel giữ khoảng trắng liên tiếp trong ô; model ghi "nowrap"/"normal" (ý nghĩa: có bọc chữ hay không)
+      // → DOM dùng pre / pre-wrap để không gộp dấu cách (lan02 A17 "Phí chuyển tiền:" + 15 dấu cách + "□ Người…").
+      if (k === "whiteSpace") { dom.style.whiteSpace = v === "normal" ? "pre-wrap" : (v === "nowrap" ? "pre" : v); continue; }
       dom.style[k] = v;
     }
     this._applyTextRotationToDom(dom, styles.textRotation);
@@ -9599,7 +9602,11 @@ export class SheetGridController {
         else if (itm.style?.textAlign) td.style.textAlign = itm.style.textAlign;
       }
     } else {
-      td.textContent = typeof itm.val === "number" ? NumberFormatter.formatGeneralNumber(itm.val) : (itm.val ?? "");
+      let text = typeof itm.val === "number" ? NumberFormatter.formatGeneralNumber(itm.val) : (itm.val ?? "");
+      // S29a: ô không bọc chữ dùng white-space: pre (giữ dấu cách liên tiếp) nên phải tự bỏ xuống dòng như Excel
+      // (Excel không hiện Alt+Enter khi Wrap Text tắt).
+      if (!isWrap && typeof text === "string" && text.includes("\n")) text = text.replace(/\r?\n/g, "");
+      td.textContent = text;
     }
 
     if (col && row && typeof this._applyRowColSizeToCell === "function") {

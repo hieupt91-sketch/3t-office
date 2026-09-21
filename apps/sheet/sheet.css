@@ -239,7 +239,9 @@
   padding: 3px 3px;
   height: 20px;
   box-sizing: border-box;
-  white-space: nowrap;
+  /* S29a: Excel giu nguyen khoang trang lien tiep trong o (lan02 A17: 'Phi chuyen tien:' + 15 dau cach + ...);
+     nowrap gop khoang trang -> dung pre de giu, van khong xuong dong. */
+  white-space: pre;
   overflow: hidden;
   text-overflow: clip;
   cursor: cell;
@@ -272,7 +274,7 @@
 .vno-grid-cell.is-wrap-text {
   height: auto;
   min-height: 20px;
-  white-space: normal;
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
   text-overflow: clip;
 }

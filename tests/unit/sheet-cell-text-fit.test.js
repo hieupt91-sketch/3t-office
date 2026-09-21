@@ -477,5 +477,19 @@ export async function runSheetCellTextFitTests() {
     assert(mockTh.style.minWidth === "222px", `th minWidth phải là 222px, nhận: ${mockTh.style.minWidth}`);
   });
 
+  test("S29a: whiteSpace nowrap/normal của model ánh xạ sang pre/pre-wrap để giữ khoảng trắng liên tiếp như Excel", () => {
+    const grid = createMockGridController();
+    const td = createMockTd("A17");
+    grid._applyStylesToDom(td, { whiteSpace: "nowrap", color: "#000000" });
+    assert(td.style.whiteSpace === "pre", `nowrap phải thành pre, nhận: ${td.style.whiteSpace}`);
+    assert(td.style.color === "#000000", "các style khác vẫn được áp");
+    const td2 = createMockTd("A18");
+    grid._applyStylesToDom(td2, { whiteSpace: "normal" });
+    assert(td2.style.whiteSpace === "pre-wrap", `normal (bọc chữ) phải thành pre-wrap, nhận: ${td2.style.whiteSpace}`);
+    const css = fs.readFileSync(path.join(__dirname, "../../apps/sheet/sheet.css"), "utf8");
+    assert(/\.vno-grid-cell\s*\{[^}]*white-space:\s*pre;/.test(css), "sheet.css: .vno-grid-cell phải white-space: pre");
+    assert(/\.vno-grid-cell\.is-wrap-text\s*\{[^}]*white-space:\s*pre-wrap;/.test(css), "sheet.css: .is-wrap-text phải pre-wrap");
+  });
+
   return results;
 }
