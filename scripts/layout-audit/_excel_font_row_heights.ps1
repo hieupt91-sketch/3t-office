@@ -1,5 +1,6 @@
-# Bang chieu cao hang tu dong (AutoFit) cua Excel 2016 theo font/co chu, don vi px @96dpi (= pt/0.75).
-# Moi font/co: [h1, h2, h3, h5, h1Bold, h2Bold, h3Bold, h5Bold] = cao hang AutoFit khi o boc chu co 1/2/3/5 dong
+﻿# Bang chieu cao hang tu dong (AutoFit) cua Excel 2016 theo font/co chu, don vi px @96dpi (= pt/0.75).
+# Moi font/co: [h1, h2, h3, h5, h1Bold, h2Bold, h3Bold, h5Bold, h1Italic.., h1BoldItalic..] (16 so) = cao hang AutoFit khi o boc chu co 1/2/3/5 dong
+#   (S31g: nghieng doi metric -> TNR 14 dam nghieng 26px thay vi 25, lan19 hang 17)
 #   (h1 co san toi thieu = cao font Normal cua workbook, o day Calibri 11 = 20px; n dong > 5: h5 + (n-5)*(h5-h3)/2)
 # Usage: powershell -File _excel_font_row_heights.ps1 -Out row_heights.json [-Fonts "Calibri,Arial"] [-Sizes "8,9,10,11"]
 param([string]$Out, [string]$Fonts = "Calibri,Arial,Times New Roman,Tahoma,Verdana,Cambria,Segoe UI,Courier New,Georgia,Calibri Light,Arial Narrow,Book Antiqua,Century Gothic,Garamond,Palatino Linotype,Trebuchet MS,Comic Sans MS,Consolas,Roboto,Open Sans,VNI-Times,.VnTime,.VnArial",
@@ -7,8 +8,8 @@ param([string]$Out, [string]$Fonts = "Calibri,Arial,Times New Roman,Tahoma,Verda
 $excel = New-Object -ComObject Excel.Application
 $excel.Visible = $false; $excel.DisplayAlerts = $false
 $table = [ordered]@{}
-function Measure-Font($ws, $cell, $font, $size, $bold) {
-  $cell.Font.Name = $font; $cell.Font.Size = $size; $cell.Font.Bold = $bold; $cell.WrapText = $true
+function Measure-Font($ws, $cell, $font, $size, $bold, $italic = $false) {
+  $cell.Font.Name = $font; $cell.Font.Size = $size; $cell.Font.Bold = $bold; $cell.Font.Italic = $italic; $cell.WrapText = $true
   $out = @()
   foreach ($n in 1, 2, 3, 5) {
     $cell.Value2 = (@(1..$n) | ForEach-Object { "Xgjy" }) -join "`n"
@@ -29,7 +30,9 @@ try {
       try {
         $r = Measure-Font $ws $cell $font $size $false
         $b = Measure-Font $ws $cell $font $size $true
-        $row["$size"] = @($r[0], $r[1], $r[2], $r[3], $b[0], $b[1], $b[2], $b[3])
+        $i = Measure-Font $ws $cell $font $size $false $true
+        $bi = Measure-Font $ws $cell $font $size $true $true
+        $row["$size"] = @($r[0], $r[1], $r[2], $r[3], $b[0], $b[1], $b[2], $b[3], $i[0], $i[1], $i[2], $i[3], $bi[0], $bi[1], $bi[2], $bi[3])
       } catch { $row["$size"] = $null }
     }
     $wb.Close($false)

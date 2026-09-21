@@ -6388,11 +6388,84 @@ def _excel_row_height_table() -> dict:
     return _EXCEL_ROW_HEIGHTS_CACHE
 
 
-def _excel_font_line_heights(font_name: str, size: float, bold: bool) -> list[float] | None:
-    """[h1, h2, h3, h5] cho font/cỡ (nội suy cỡ lẻ; font lạ dùng Calibri)."""
+_GDI_DESCENT_CACHE: dict[tuple[str, int, bool, bool], int | None] = {}
+# Font không cài -> Excel thay font gần tên (lan28 "Times Roman" 11 đậm: hàng 19 = TNR 11 đậm, không phải Calibri 20)
+_EXCEL_FONT_ALIASES = {"times roman": "Times New Roman", "times": "Times New Roman", "timesnewroman": "Times New Roman",
+                       "helvetica": "Arial", "courier": "Courier New", "arial unicode ms": "Arial"}
+
+
+def _gdi_font_descent(font_name: str, size_pt: float, bold: bool, italic: bool = False) -> int | None:
+    """tmDescent (px nguyên, GDI) của font ở ppem = round(pt·96/72); None ngoài Windows hoặc font không cài
+    (GDI thay bằng font khác — lan28 "Times Roman": Excel vẽ bằng font thay thế có desc 4 -> hàng 20, không phải 21)."""
+    font_name = _EXCEL_FONT_ALIASES.get(str(font_name).lower(), font_name)
+    px = int(round(float(size_pt) * 96 / 72))
+    key = (str(font_name).lower(), px, bool(bold), bool(italic))
+    if key in _GDI_DESCENT_CACHE:
+        return _GDI_DESCENT_CACHE[key]
+    value: int | None = None
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class _TEXTMETRICW(ctypes.Structure):
+            _fields_ = [("tmHeight", wintypes.LONG), ("tmAscent", wintypes.LONG), ("tmDescent", wintypes.LONG),
+                        ("tmInternalLeading", wintypes.LONG), ("tmExternalLeading", wintypes.LONG), ("tmAveCharWidth", wintypes.LONG),
+                        ("tmMaxCharWidth", wintypes.LONG), ("tmWeight", wintypes.LONG), ("tmOverhang", wintypes.LONG),
+                        ("tmDigitizedAspectX", wintypes.LONG), ("tmDigitizedAspectY", wintypes.LONG), ("tmFirstChar", wintypes.WCHAR),
+                        ("tmLastChar", wintypes.WCHAR), ("tmDefaultChar", wintypes.WCHAR), ("tmBreakChar", wintypes.WCHAR),
+                        ("tmItalic", ctypes.c_byte), ("tmUnderlined", ctypes.c_byte), ("tmStruckOut", ctypes.c_byte),
+                        ("tmPitchAndFamily", ctypes.c_byte), ("tmCharSet", ctypes.c_byte)]
+
+        gdi32, user32 = ctypes.windll.gdi32, ctypes.windll.user32
+        hdc = user32.GetDC(0)
+        hfont = gdi32.CreateFontW(-px, 0, 0, 0, 700 if bold else 400, 1 if italic else 0, 0, 0, 1, 0, 0, 4, 0, str(font_name))
+        old = gdi32.SelectObject(hdc, hfont)
+        metrics = _TEXTMETRICW()
+        face = ctypes.create_unicode_buffer(64)
+        gdi32.GetTextFaceW(hdc, 64, face)
+        if gdi32.GetTextMetricsW(hdc, ctypes.byref(metrics)) and face.value.lower() == str(font_name).lower():
+            value = int(metrics.tmDescent)
+        gdi32.SelectObject(hdc, old)
+        gdi32.DeleteObject(hfont)
+        user32.ReleaseDC(0, hdc)
+    except Exception:
+        value = None
+    _GDI_DESCENT_CACHE[key] = value
+    return value
+
+
+def _excel_normal_descent(normal_font: dict | None) -> int:
+    """tmDescent của font Normal (sổ tính); mặc định 4 = Calibri 11 (bảng đo)."""
+    if not normal_font:
+        return 4
+    value = _gdi_font_descent(normal_font.get("name") or "Calibri", float(normal_font.get("size") or 11), bool(normal_font.get("bold")))
+    return 4 if value is None else value
+
+
+def _excel_font_line_heights(font_name: str, size: float, bold: bool, normal_descent: int = 4, italic: bool = False) -> list[float] | None:
+    """[h1, h2, h3, h5] cho font/cỡ trong sổ có font Normal với tmDescent = normal_descent (dạng cho app/JS đo DOM).
+
+    S31f (đo COM 21/9 với Normal Calibri 11/Arial 10/TNR 12/TNR 13, _excel_multiline.ps1): hàng n dòng = n·L + pad,
+    L = bước dòng của font ô (không phụ thuộc Normal), pad = max(0, tmDescent(Normal) − tmDescent(font ô)) (GDI, px nguyên):
+    Normal Calibri 11 (desc 4): TNR 10 (desc 3) 17n+1, Arial 12 (desc 3) 20n+1, Calibri 6 (desc 2) 11n+2, TNR 12 (desc 4) 21n;
+    Normal Arial 10 (desc 3): TNR 10 17n, Arial 9 16n (lan15 s3: 4 dòng = 64, không phải 65). h1 = L + pad (chưa áp sàn
+    StandardHeight — sàn do hàng áp). Bảng excel_row_heights.json đo dưới Normal Calibri 11 -> L = (h5−h3)/2."""
+    metrics = _excel_font_metrics(font_name, size, bold, italic)
+    if not metrics:
+        return None
+    step, descent = metrics
+    pad = max(0.0, float(normal_descent) - descent)
+    return [step + pad, 2 * step + pad, 3 * step + pad, 5 * step + pad]
+
+
+def _excel_font_metrics(font_name: str, size: float, bold: bool, italic: bool = False) -> tuple[float, float] | None:
+    """(L bước dòng px, d tmDescent px) của font/cỡ: L từ bảng excel_row_heights.json (đo dưới Normal Calibri 11, nội suy cỡ lẻ,
+    font lạ dùng Calibri); d từ GDI, không có (ngoài Windows / font không cài -> Excel thay font, lan28 "Times Roman") thì
+    suy từ pad đo trong bảng = max(0, 4 − d) (pad 0 -> coi d = 4)."""
     table = _excel_row_height_table()
     if not table:
         return None
+    font_name = _EXCEL_FONT_ALIASES.get(str(font_name).lower(), font_name)
     entry = table.get(font_name) or next((value for key, value in table.items() if key.lower() == str(font_name).lower()), None)
     if entry is None:
         entry = table.get("Calibri")
@@ -6404,17 +6477,51 @@ def _excel_font_line_heights(font_name: str, size: float, bold: bool) -> list[fl
     offset = 4 if bold else 0
 
     def pick(values: list[float]) -> list[float]:
-        return [float(v) for v in values[offset:offset + 4]]
+        # S31g: bảng 16 số [r, b, i, bi]; bảng cũ 8 số -> nghiêng dùng thẳng/đậm
+        start = offset + (8 if italic and len(values) >= 16 else 0)
+        return [float(v) for v in values[start:start + 4]]
 
     lower = max((item for item in sizes if item[0] <= size), default=None)
     upper = min((item for item in sizes if item[0] >= size), default=None)
     if lower is None:
-        return pick(upper[1])
-    if upper is None or upper[0] == lower[0]:
-        return pick(lower[1])
-    ratio = (size - lower[0]) / (upper[0] - lower[0])
-    low, high = pick(lower[1]), pick(upper[1])
-    return [round(low[i] + (high[i] - low[i]) * ratio) for i in range(4)]
+        measured = pick(upper[1])
+    elif upper is None or upper[0] == lower[0]:
+        measured = pick(lower[1])
+    else:
+        ratio = (size - lower[0]) / (upper[0] - lower[0])
+        low, high = pick(lower[1]), pick(upper[1])
+        measured = [round(low[i] + (high[i] - low[i]) * ratio) for i in range(4)]
+    step = max(1.0, (measured[3] - measured[2]) / 2)
+    pad_measured = max(0.0, measured[1] - 2 * step)
+    descent = _gdi_font_descent(font_name, size, bold, italic)
+    if descent is None:
+        descent = 4 - pad_measured if pad_measured > 0 else 4
+    return step, float(descent)
+
+
+def _excel_row_height_from_cells(explicit: list[tuple], implicit: list[tuple[float, float]] | None = None,
+                                 normal: tuple[float, float] | None = None) -> float:
+    """S31h — chiều cao hàng Excel: ô ghi trong <row> (explicit: (ΣL, d_cuối, căn_đáy)) và ô ngầm (implicit (L, d): style hàng
+    nếu customFormat, không thì style cột `<col style>` của các cột chưa có ô; `normal` = (L, d) Normal khi còn cột không có
+    style). Cao hàng = max( ΣL_i + đệm_i, L_j ngầm, L_Normal ) với đệm_i = max(0, D − d_i) CHỈ cho ô căn đáy (mặc định),
+    D = max descent các ô ngầm (kể cả Normal); ô căn giữa/trên không đệm.
+
+    Đo COM 21/9 (_pad_ref_probe.py, _valign_probe.py): Normal Calibri 11 (20, d 4) + ô Arial 12 căn đáy (20, 3) -> 21, căn giữa
+    -> 20; Calibri 10 2 dòng căn đáy 35, căn giữa/trên 34 (lan08 hàng 12); mọi cột style TNR 10 (d 3) + Arial 12 đáy -> 20, + TNR 10
+    -> 17 (lan05 hàng 85); lan11 s2 hàng 151: cột Calibri 18 (d 6), B151 giữa 2 dòng TNR 18 đậm = 60, D151 đáy 30+1 = 31 -> 60;
+    lan12 s1 hàng 15 (ô ngầm cột C TNR 12) -> 21, hàng 16 (A..E TNR 11 che cột C) -> 20; lan10 s3 hàng 29 (6 dòng giữa) -> 102."""
+    implicit = list(implicit or [])
+    if normal:
+        implicit.append(normal)
+    if not explicit and not implicit:
+        return 0.0
+    reference = max((d for _, d in implicit), default=0.0)
+    best = max((total for total, _ in implicit), default=0.0)
+    for cell in explicit:
+        total, descent = float(cell[0]), float(cell[1])
+        bottom = cell[2] if len(cell) > 2 else True
+        best = max(best, total + (max(0.0, reference - descent) if bottom else 0.0))
+    return min(_EXCEL_MAX_ROW_PX, float(round(best)))
 
 
 def excel_auto_row_height_px(line_heights: list[float] | None, lines: int) -> float | None:
@@ -6435,12 +6542,13 @@ def excel_auto_row_height_px(line_heights: list[float] | None, lines: int) -> fl
     return round(h5 + (lines - 5) * (h5 - h3) / 2)
 
 
-def _excel_single_line_height_px(font_name: str, size: float, bold: bool) -> float | None:
-    """Chiều cao tự nhiên 1 dòng của font (chưa áp sàn Normal): = h3 - h2 (đo: TNR 8 -> 15px = 11.25pt, Arial 10 -> 17px)."""
-    heights = _excel_font_line_heights(font_name, size, bold)
+def _excel_single_line_height_px(font_name: str, size: float, bold: bool, normal_descent: int = 4, italic: bool = False) -> float | None:
+    """Chiều cao 1 dòng của font trong sổ (chưa áp sàn StandardHeight) = L + pad (S31f): TNR 8 -> 15+1 = 16 (Normal Calibri 11),
+    Arial 10 -> 17+1 = 18, Arial 12 -> 20+1 = 21 (= h1 đo), TNR 12 -> 21."""
+    heights = _excel_font_line_heights(font_name, size, bold, normal_descent, italic)
     if not heights:
         return None
-    return max(1.0, heights[2] - heights[1])
+    return max(1.0, heights[0])
 
 
 def _xlsx_cell_fonts(xlsx_bytes: bytes) -> tuple[list[dict], list[dict]]:
@@ -6448,7 +6556,7 @@ def _xlsx_cell_fonts(xlsx_bytes: bytes) -> tuple[list[dict], list[dict]]:
     entry = read_zip_entry(xlsx_bytes, "xl/styles.xml")
     if not entry:
         return [], []
-    styles_xml = entry.decode("utf-8", errors="replace")
+    styles_xml = _unprefix_spreadsheetml(entry.decode("utf-8", errors="replace"))
     fonts: list[dict] = []
     fonts_match = re.search(r"<fonts\b[^>]*>(.*?)</fonts>", styles_xml, re.S | re.IGNORECASE)
     if fonts_match:
@@ -6460,18 +6568,272 @@ def _xlsx_cell_fonts(xlsx_bytes: bytes) -> tuple[list[dict], list[dict]]:
                 "name": _unescape_xml(name_m.group(1)) if name_m else "Calibri",
                 "size": float(size_m.group(1)) if size_m else 11.0,
                 "bold": bool(re.search(r"<b\b(?:\s*/>|\s+val=\"(?:1|true)\")", content, re.IGNORECASE)),
+                "italic": bool(re.search(r"<i\b(?:\s*/>|\s+val=\"(?:1|true)\")", content, re.IGNORECASE)),
             })
+    # S31i: viền dưới medium/thick +1px, double +2px; viền trên thick/double +1px (đo COM 21/9 _border_probe.ps1; lan08 hàng 4/8 thickBot)
+    borders: list[tuple[int, int]] = []
+    borders_match = re.search(r"<borders\b[^>]*>(.*?)</borders>", styles_xml, re.S | re.IGNORECASE)
+    if borders_match:
+        for border_match in re.finditer(r"<border\b[^>]*?(?:/>|>(.*?)</border>)", borders_match.group(1), re.S | re.IGNORECASE):
+            content = border_match.group(1) or ""
+            bottom_style = re.search(r'<bottom\b[^>]*\bstyle="([^"]*)"', content, re.IGNORECASE)
+            top_style = re.search(r'<top\b[^>]*\bstyle="([^"]*)"', content, re.IGNORECASE)
+            extra_bottom = {"medium": 1, "thick": 1, "double": 2, "mediumdashed": 1, "mediumdashdot": 1, "mediumdashdotdot": 1, "slantdashdot": 1}.get((bottom_style.group(1) if bottom_style else "").lower(), 0)
+            extra_top = {"thick": 1, "double": 1}.get((top_style.group(1) if top_style else "").lower(), 0)
+            borders.append((extra_top, extra_bottom))
     xfs: list[dict] = []
     xfs_match = re.search(r"<cellXfs\b[^>]*>(.*?)</cellXfs>", styles_xml, re.S | re.IGNORECASE)
     if xfs_match:
         for xf_match in re.finditer(r"<xf\b([^>]*?)(?:/>|>(.*?)</xf>)", xfs_match.group(1), re.S | re.IGNORECASE):
             attrs, body = xf_match.group(1) or "", xf_match.group(2) or ""
             font_id = re.search(r'\bfontId="(\d+)"', attrs)
+            border_id = re.search(r'\bborderId="(\d+)"', attrs)
+            valign = re.search(r'<alignment\b[^>]*\bvertical="([^"]*)"', body, re.IGNORECASE)
+            extra = borders[int(border_id.group(1))] if border_id and int(border_id.group(1)) < len(borders) else (0, 0)
             xfs.append({
                 "fontId": int(font_id.group(1)) if font_id else 0,
                 "wrap": bool(re.search(r'<alignment\b[^>]*wrapText="(?:1|true)"', body, re.IGNORECASE)),
+                "bottom": (valign.group(1).lower() if valign else "bottom") == "bottom",
+                "borderTop": extra[0],
+                "borderBottom": extra[1],
             })
     return fonts, xfs
+
+
+_EXCEL_CHAR_WIDTHS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "excel_char_widths.json")
+_EXCEL_CHAR_WIDTHS_CACHE: dict | None = None
+_EXCEL_MAX_ROW_PX = 546.0  # 409.5pt
+
+
+def _excel_row_ht_px(ht_pt: float) -> float:
+    """S31d: px màn hình của hàng có `ht` (pt) trong XLSX = floor((ht·20 + 1)/15) = floor(ht·4/3 + 1/15).
+
+    Đo Excel 2016 bằng ảnh chụp cửa sổ (_excel_rowpx_shot.ps1, 21/9): 47.95pt -> 64px, 37.45 -> 50, 60.6 -> 80, 19.8 -> 26;
+    ngưỡng RowHeight nhảy 12.7pt -> 17px, 13.46 -> 18, 14.2 -> 19 (bước 0.02pt). floor(ht px) sai với các ht dạng x.95
+    (lan11 s3: 11 hàng 63 thay vì 64, 399 thay vì 400)."""
+    return float(math.floor((ht_pt * 20 + 1) / 15 + 1e-9))
+
+
+def _excel_char_width_table() -> dict:
+    """S31c: bảng bề rộng ký tự Excel 2016 (scripts/layout-audit/_excel_char_widths.ps1): font -> size -> {r|b: {codepoint: px},
+    mr|mb: [lo, hi]} — Excel đo chữ bằng DirectWrite natural width (không phải GDI nguyên px, không phải Chromium),
+    không kerning; lề khả dụng khi bọc chữ = bề rộng cột − m (m ≈ 4px cỡ ≤ 16px, ≈ 6px cỡ 20–24px, không phụ thuộc font Normal)."""
+    global _EXCEL_CHAR_WIDTHS_CACHE
+    if _EXCEL_CHAR_WIDTHS_CACHE is None:
+        try:
+            with open(_EXCEL_CHAR_WIDTHS_PATH, "r", encoding="utf-8-sig") as handle:
+                _EXCEL_CHAR_WIDTHS_CACHE = json.load(handle)
+        except (OSError, ValueError):
+            _EXCEL_CHAR_WIDTHS_CACHE = {}
+    return _EXCEL_CHAR_WIDTHS_CACHE
+
+
+def _excel_natural_widths(font_name: str, size: float, bold: bool) -> tuple[dict, float] | None:
+    """({codepoint: px}, margin px) cho font/cỡ đúng trong bảng; None nếu chưa đo (app đo bằng DOM)."""
+    table = _excel_char_width_table()
+    font_name = _EXCEL_FONT_ALIASES.get(str(font_name).lower(), font_name)
+    entry = table.get(font_name) or next((value for key, value in table.items() if key.lower() == str(font_name).lower()), None)
+    if not entry:
+        return None
+    sizes = entry.get(str(size)) or entry.get(str(int(size)) if float(size).is_integer() else "") or entry.get(("%g" % size))
+    if not sizes:
+        return None
+    widths = sizes.get("b" if bold else "r")
+    if not widths:
+        return None
+    # Lề khả dụng = 2·floor((MDW + 3)/4) với MDW = bề rộng natural lớn nhất của chữ số 0–9 (đo 170 font/cỡ: đúng 165, 5 sai ở
+    # 7pt đậm); Calibri 11 MDW 7.25 -> 4; TNR 15 MDW 10.4 -> 6; Arial 18 MDW 13.5 -> 8; Arial 28 MDW 21.75 -> 12.
+    digits = [float(widths[str(ord(ch))]) for ch in "0123456789" if str(ord(ch)) in widths]
+    if not digits:
+        return None
+    margin = 2 * math.floor((max(digits) + 3) / 4)
+    return widths, float(margin)
+
+
+def _excel_wrap_lines(runs: list[dict], avail: float) -> list[list[int]] | None:
+    """Mô phỏng ngắt dòng của Excel cho một ô bọc chữ: runs = [{t, w: {cp: px}, k: font-key}], avail = bề rộng khả dụng px.
+
+    Đo Excel (_excel_wrap_exact.py, 15 ngưỡng 64–400px): một dòng chứa được khi tổng bề rộng natural (kể cả khoảng trắng)
+    ≤ avail; không vừa thì ngắt sau khoảng trắng cuối cùng trên dòng (khoảng trắng ở lại dòng trên), từ dài hơn dòng thì
+    ngắt theo ký tự; "\\n" luôn ngắt và thuộc dòng nó kết thúc (font của "\\n" tính cho dòng đó — S31b).
+    Trả về danh sách dòng, mỗi dòng = danh sách chỉ số run có ký tự trên dòng; None nếu có ký tự chưa đo.
+    """
+    chars: list[tuple[str, float, int]] = []
+    for index, run in enumerate(runs):
+        widths = run["w"]
+        for ch in run["t"]:
+            if ch == "\n":
+                chars.append((ch, 0.0, index))
+                continue
+            width = widths.get(str(ord(ch)))
+            if width is None:
+                if ch in "\t\r":
+                    width = widths.get("32", 0.0)
+                else:
+                    return None
+            chars.append((ch, float(width), index))
+    lines: list[list[tuple[str, float, int]]] = []
+    line: list[tuple[str, float, int]] = []
+    total = 0.0
+    last_break = -1  # số ký tự của dòng tính đến sau khoảng trắng cuối
+    index = 0
+    while index < len(chars):
+        item = chars[index]
+        ch, width, _ = item
+        if ch == "\n":
+            line.append(item)
+            lines.append(line)
+            line, total, last_break = [], 0.0, -1
+            index += 1
+            continue
+        if line and ch != " " and total + width > avail + 1e-6:
+            if last_break > 0:
+                carried = len(line) - last_break
+                lines.append(line[:last_break])
+                index -= carried  # ký tự sau khoảng trắng xuống dòng mới, xét lại từ đầu
+            else:
+                lines.append(line)  # từ dài hơn dòng: ngắt theo ký tự
+            line, total, last_break = [], 0.0, -1
+            continue
+        line.append(item)
+        total += width
+        # Điểm ngắt: sau khoảng trắng và sau '-' (đo COM 21/9 _break_chars.ps1: "WWWW-WWWW-WW" 3 dòng; '/', '_', ',', '.',
+        # en-dash, NBSP… không phải điểm ngắt); lan08 B4 "HP P204v 19.5-inch Monitor" = 2 dòng nhờ ngắt sau "19.5-"
+        if ch in " -":
+            last_break = len(line)
+        index += 1
+    lines.append(line)
+    result: list[list[int]] = []
+    for entry in lines:
+        if entry:
+            result.append(sorted({run for _, _, run in entry}))
+        else:
+            result.append([chars[-1][2] if chars else 0])  # dòng trống cuối ("\n" cuối ô): font của "\n" đó
+    return result
+
+
+def _excel_wrapped_cell_extent(runs: list[dict], avail: float) -> tuple[float, float] | None:
+    """S31b+S31c: (ΣL, d_cuối) của ô bọc chữ mô phỏng bằng Python từ bảng Excel — runs = [{t, w, L, d}] (w: bề rộng ký tự,
+    L bước dòng, d descent của run); mỗi dòng lấy run có L lớn nhất (kể cả run chứa "\\n" kết thúc dòng).
+    None nếu không mô phỏng được (thiếu bảng/ký tự) -> app đo bằng DOM."""
+    lines = _excel_wrap_lines(runs, avail)
+    if not lines:
+        return None
+    total = 0.0
+    last = runs[0]
+    for line in lines:
+        dominant = max((runs[i] for i in line), key=lambda run: float(run["L"]), default=last)
+        total += float(dominant["L"])
+        last = dominant
+    return total, float(last["d"])
+
+
+def _excel_wrapped_row_height(runs: list[dict], avail: float, normal_descent: float = 4.0) -> float | None:
+    """Chiều cao hàng chỉ có ô bọc chữ này + ô ngầm Normal (dùng cho test/đối chiếu) = ΣL + max(0, D − d_cuối)."""
+    extent = _excel_wrapped_cell_extent(runs, avail)
+    if extent is None:
+        return None
+    return _excel_row_height_from_cells([extent], [], (0.0, float(normal_descent)))
+
+
+def _xlsx_rich_runs(fragment: str) -> list[tuple[str, dict]] | None:
+    """[(text, {name?, size?, bold?, italic?}), ...] từ một <si>/<is> có <r>; None nếu chuỗi thuần (không <r>)."""
+    if not re.search(r"<r\b", fragment, re.IGNORECASE):
+        return None
+    runs: list[tuple[str, dict]] = []
+    for run in re.finditer(r"<r\b[^>]*>([\s\S]*?)</r>", fragment, re.IGNORECASE):
+        body = run.group(1)
+        text = "".join(_unescape_xml(m.group(1)) for m in re.finditer(r"<t\b[^>]*>([\s\S]*?)</t>", body, re.IGNORECASE))
+        if not text:
+            continue
+        props: dict = {}
+        rpr = re.search(r"<rPr\b[^>]*>([\s\S]*?)</rPr>", body, re.IGNORECASE)
+        if rpr:
+            content = rpr.group(1)
+            name_m = re.search(r'<rFont\b[^>]*val="([^"]*)"', content, re.IGNORECASE)
+            size_m = re.search(r'<sz\b[^>]*val="([\d.]+)"', content, re.IGNORECASE)
+            if name_m:
+                props["name"] = _unescape_xml(name_m.group(1))
+            if size_m:
+                props["size"] = float(size_m.group(1))
+            # Có <rPr> là run tự mô tả đầy đủ (lan11 s2 C109: run <rPr> không <b/> = thường dù ô đậm -> 30+4·31 = 154)
+            props["bold"] = bool(re.search(r"<b\b(?:\s*/>|\s+val=\"(?:1|true)\")", content, re.IGNORECASE))
+            props["italic"] = bool(re.search(r"<i\b(?:\s*/>|\s+val=\"(?:1|true)\")", content, re.IGNORECASE))
+        runs.append((text.replace("\r\n", "\n").replace("\r", "\n"), props))
+    return runs or None
+
+
+def _unprefix_spreadsheetml(xml: str) -> str:
+    """S32: XLSX do công cụ khác ghi (lan23: OpenXML SDK) đặt tiền tố cho namespace chính (`<x:worksheet>`, `<x:row>`, `<x:c>`,
+    `<x:sst>`) -> bỏ tiền tố tên phần tử để các regex `<row\\b`, `<c\\b`, `<si\\b`… dùng chung được (thuộc tính vốn không tiền tố)."""
+    match = re.search(r'\sxmlns:([A-Za-z_][\w.-]*)="http://schemas\.openxmlformats\.org/spreadsheetml/2006/main"', xml[:4000])
+    if not match:
+        return xml
+    prefix = re.escape(match.group(1))
+    xml = re.sub(r"<(/?)%s:" % prefix, r"<\1", xml)
+    return xml.replace(match.group(0), ' xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"', 1)
+
+
+def _xlsx_shared_strings(xlsx_bytes: bytes) -> tuple[list[str], dict[int, list[tuple[str, dict]]]]:
+    """(chữ thuần theo index, index -> runs cho các shared string có định dạng theo đoạn (rich text))."""
+    shared_xml = _unprefix_spreadsheetml((read_zip_entry(xlsx_bytes, "xl/sharedStrings.xml") or b"").decode("utf-8", errors="replace"))
+    plain: list[str] = []
+    rich: dict[int, list[tuple[str, dict]]] = {}
+    for index, item in enumerate(re.finditer(r"<si\b[^>]*>([\s\S]*?)</si>", shared_xml, re.IGNORECASE)):
+        body = item.group(1)
+        plain.append("".join(_unescape_xml(m.group(1)) for m in re.finditer(r"<t\b[^>]*>([\s\S]*?)</t>", body, re.IGNORECASE)).replace("\r\n", "\n").replace("\r", "\n"))
+        runs = _xlsx_rich_runs(body)
+        if runs:
+            rich[index] = runs
+    return plain, rich
+
+
+def _xlsx_wrap_cell_text(cell_attrs: str, cell_body: str, shared_plain: list[str]) -> str | None:
+    """Chữ của ô (chỉ ô chuỗi: t="s" / inlineStr / str); None với ô số/công thức số (Excel không bọc số)."""
+    kind = (re.search(r'\bt="([^"]*)"', cell_attrs) or [None, ""])[1].lower()
+    if kind == "s":
+        raw = re.search(r"<v\b[^>]*>\s*(\d+)\s*</v>", cell_body, re.IGNORECASE)
+        if raw and int(raw.group(1)) < len(shared_plain):
+            return shared_plain[int(raw.group(1))]
+        return None
+    if kind == "inlinestr":
+        return "".join(_unescape_xml(m.group(1)) for m in re.finditer(r"<t\b[^>]*>([\s\S]*?)</t>", cell_body, re.IGNORECASE)).replace("\r\n", "\n").replace("\r", "\n")
+    if kind == "str":
+        raw = re.search(r"<v\b[^>]*>([\s\S]*?)</v>", cell_body, re.IGNORECASE)
+        return _unescape_xml(raw.group(1)).replace("\r\n", "\n").replace("\r", "\n") if raw else None
+    return None
+
+
+def _xlsx_wrap_cell_runs(cell_attrs: str, cell_body: str, shared_rich: dict[int, list[tuple[str, dict]]], cell_font: dict, normal_descent: int = 4) -> list[list] | None:
+    """S31b: chạy rich text của ô bọc chữ -> [[text, h1, h2, h3, h5], ...] (font của run = font ô ghi đè bởi rPr).
+
+    Đo Excel COM 21/9 (_excel_mixed2.ps1): hàng AutoFit của ô nhiều font = tổng cao từng dòng (max font các run
+    trên dòng, KỂ CẢ ký tự xuống dòng kết thúc dòng đó) + phần dư của font dòng cuối; TNR 18 "Xg\\nXg" đậm dòng 1
+    (cả \\n) = 30 + 31 = 61, chỉ đậm "Xg" (không \\n) = 62; dòng trống giữa lấy font của \\n kết thúc nó.
+    """
+    kind = (re.search(r'\bt="([^"]*)"', cell_attrs) or [None, ""])[1].lower()
+    runs = None
+    if kind == "s":
+        raw = re.search(r"<v\b[^>]*>\s*(\d+)\s*</v>", cell_body, re.IGNORECASE)
+        if raw:
+            runs = shared_rich.get(int(raw.group(1)))
+    elif kind == "inlinestr":
+        runs = _xlsx_rich_runs(cell_body)
+    if not runs:
+        return None
+    result: list[dict] = []
+    for text, props in runs:
+        font = {
+            "name": props.get("name") or cell_font["name"],
+            "size": float(props.get("size") or cell_font["size"]),
+            "bold": bool(props["bold"]) if "bold" in props else bool(cell_font.get("bold")),
+            "italic": bool(props["italic"]) if "italic" in props else bool(cell_font.get("italic")),
+        }
+        heights = _excel_font_line_heights(font["name"], font["size"], font["bold"], normal_descent, font["italic"])
+        if not heights:
+            return None
+        result.append({"t": text, "h": [float(v) for v in heights], "f": font})
+    return result
 
 
 def _xlsx_merged_cells(sheet_xml: str) -> tuple[set[str], set[str]]:
@@ -6526,24 +6888,71 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
     """
     digit_width = _extract_default_font_digit_width(xlsx_bytes)
     normal_font = _extract_normal_font_from_xlsx(xlsx_bytes) or {"name": "Calibri", "size": 11.0, "bold": False}
-    normal_floor = _excel_single_line_height_px(normal_font["name"], float(normal_font["size"]), bool(normal_font.get("bold")))
+    normal_desc = _excel_normal_descent(normal_font)
+    normal_floor = _excel_single_line_height_px(normal_font["name"], float(normal_font["size"]), bool(normal_font.get("bold")), normal_desc)
     fonts, xfs = _xlsx_cell_fonts(xlsx_bytes)
     has_table = bool(_excel_row_height_table()) and normal_floor is not None
+    shared_plain, shared_rich = _xlsx_shared_strings(xlsx_bytes) if has_table else ([], {})
     layouts: dict[str, dict[str, dict[str, float]]] = {}
     for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
         entry = read_zip_entry(xlsx_bytes, entry_path)
         if not entry:
             continue
-        sheet_xml = entry.decode("utf-8", errors="replace")
+        sheet_xml = _unprefix_spreadsheetml(entry.decode("utf-8", errors="replace"))
         columns: dict[str, float] = {}
+        column_excel_px: dict[str, float] = {}
         rows: dict[str, float] = {}
-        wrap_cells: dict[str, list[float]] = {}
+        wrap_cells: dict[str, list[float] | dict] = {}
         auto_rows: list[int] = []
         merge_multi_row, merge_covered = _xlsx_merged_cells(sheet_xml) if has_table else (set(), set())
         default_m = re.search(r'<sheetFormatPr\b[^>]*\bdefaultRowHeight="([\d.]+)"', sheet_xml, re.IGNORECASE)
         zero_height = bool(re.search(r'<sheetFormatPr\b[^>]*\bzeroHeight="(?:1|true)"', sheet_xml, re.IGNORECASE))
-        # Excel StandardHeight = round(defaultRowHeight px) (15.6pt -> 21px, 13pt -> 17px); zeroHeight -> 0
-        default_px = 0.0 if zero_height else (float(round(float(default_m.group(1)) * 96 / 72)) if default_m else float(normal_floor or 20))
+        default_custom = bool(re.search(r'<sheetFormatPr\b[^>]*\bcustomHeight="(?:1|true)"', sheet_xml, re.IGNORECASE))
+        # S31h (đo COM 21/9 _std_height_probe.py trên lan05/lan12): Excel KHÔNG dùng defaultRowHeight của file (13 hay 15 -> vẫn
+        # 12.75pt); StandardHeight = cao 1 dòng lớn nhất của font style các cột (`<col style>`), cột không có style = Normal:
+        # lan05 mọi cột TNR 10 -> 17px, cột A đổi về style 0 -> 20; lan12 bỏ <cols> -> 20. zeroHeight -> 0 (S30a).
+        column_style_fonts: list[tuple[int, int, dict]] = []
+        columns_uncovered = True
+        normal_metrics = _excel_font_metrics(normal_font["name"], float(normal_font["size"]), bool(normal_font.get("bold"))) if has_table else None
+        if has_table:
+            covered: list[tuple[int, int]] = []
+            for cmatch in re.finditer(r"<col\b([^>]*)/?>", sheet_xml, re.IGNORECASE):
+                cattrs = cmatch.group(1)
+                cmin, cmax, cstyle = re.search(r'\bmin="(\d+)"', cattrs), re.search(r'\bmax="(\d+)"', cattrs), re.search(r'\bstyle="(\d+)"', cattrs)
+                if not (cmin and cmax):
+                    continue
+                covered.append((int(cmin.group(1)), int(cmax.group(1))))
+                cxf = xfs[int(cstyle.group(1))] if cstyle and int(cstyle.group(1)) < len(xfs) else None
+                cfont = fonts[cxf["fontId"]] if cxf and 0 <= cxf["fontId"] < len(fonts) else normal_font
+                column_style_fonts.append((int(cmin.group(1)), int(cmax.group(1)), cfont))
+            covered.sort()
+            reach = 0
+            for lo, hi in covered:
+                if lo > reach + 1:
+                    break
+                reach = max(reach, hi)
+            columns_uncovered = reach < 16384
+        if zero_height:
+            default_px = 0.0
+        elif default_custom and default_m:
+            default_px = float(round(float(default_m.group(1)) * 96 / 72))
+        else:
+            empty_implicit: list[tuple[float, float]] = []
+            for _, _, cfont in column_style_fonts:
+                metrics = _excel_font_metrics(cfont["name"], float(cfont["size"]), bool(cfont.get("bold")), bool(cfont.get("italic")))
+                if metrics:
+                    empty_implicit.append(metrics)
+            empty_normal = normal_metrics if columns_uncovered else None
+            default_px = _excel_row_height_from_cells([], empty_implicit, empty_normal) if (empty_implicit or empty_normal) else float(normal_floor or 20)
+        # S30c (lan11 s3, cột 11–40 không có <col>): Excel vẽ cột mặc định = trunc(((256·dcw + trunc(128/MDW))/256)·MDW)
+        # (dcw 14.296875, MDW 7 → 100px) còn LibreOffice ghi dcw·MDW + 5 = 106px; không dcw: base·MDW + 8 (64/72px).
+        dcw_m = re.search(r'<sheetFormatPr\b[^>]*\bdefaultColWidth="([\d.]+)"', sheet_xml, re.IGNORECASE)
+        base_m = re.search(r'<sheetFormatPr\b[^>]*\bbaseColWidth="([\d.]+)"', sheet_xml, re.IGNORECASE)
+        mdw = digit_width or 7.0
+        if dcw_m:
+            default_col_px = float(math.floor(((256 * float(dcw_m.group(1)) + math.floor(128 / mdw)) / 256) * mdw + 1e-6))
+        else:
+            default_col_px = float(int(float(base_m.group(1)) if base_m else 8) * mdw + 8)
         for match in re.finditer(r"<col\b([^>]*)/?>", sheet_xml, re.IGNORECASE):
             attrs = match.group(1)
             width = re.search(r'\bwidth="([\d.]+)"', attrs)
@@ -6560,6 +6969,8 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
                     number, remainder = divmod(number - 1, 26)
                     name = chr(65 + remainder) + name
                 columns[name] = float(width.group(1)) * digit_width
+                # px Excel thật (S30c): trunc(((256·w + trunc(128/MDW))/256)·MDW) — dùng cho bề rộng khả dụng bọc chữ
+                column_excel_px[name] = float(math.floor(((256 * float(width.group(1)) + math.floor(128 / (digit_width or 7.0))) / 256) * (digit_width or 7.0) + 1e-6))
         for match in re.finditer(r"<row\b([^>]*?)(?:/>|>(.*?)</row>)", sheet_xml, re.IGNORECASE | re.S):
             attrs, body = match.group(1), match.group(2) or ""
             row = re.search(r'\br="(\d+)"', attrs)
@@ -6569,57 +6980,97 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
             custom = bool(re.search(r'\bcustomHeight="(?:1|true)"', attrs, re.IGNORECASE))
             if height and (custom or not has_table):
                 px = float(height.group(1)) * 96 / 72
-                rows[row.group(1)] = math.floor(px + 1e-6) if has_table else px
+                rows[row.group(1)] = _excel_row_ht_px(float(height.group(1))) if has_table else px
                 continue
             if not has_table:
                 continue
-            # Hàng tự động: Excel tính lại từ font các ô (S30a). Sàn: có ht -> floor(ht px) (không thấy Excel hạ
-            # thấp hơn ht trong 14 sheet đo; lan12 hàng 16 ht 13.8 -> 20 = TNR 11, KHÔNG phải StandardHeight 21);
-            # không ht -> StandardHeight = round(defaultRowHeight px) (lan12 hàng 15: 21; lan05 hàng 85: 17),
-            # zeroHeight -> font Normal (lan02 s2 hàng 33: 20).
-            if height:
-                best = float(math.floor(float(height.group(1)) * 96 / 72 + 1e-6))
-            else:
-                best = default_px if default_px > 0 else float(normal_floor)
-            candidates: list[dict] = []
+            # Hàng tự động: Excel tính lại hoàn toàn từ font các ô, BỎ QUA `ht` (S31e, đo COM 21/9 _auto_ht_probe.py:
+            # ht=60 không customHeight + ô 1 dòng/ô rỗng/không ô -> 20px = Normal; lan11 s3 hàng 51 ht 172.8 -> 220 = 10 dòng).
+            # S31h: mọi cột đều có ô — ô không ghi trong <row> lấy style hàng (customFormat) hoặc style cột (<col style>)
+            # hoặc Normal; cao hàng = max(phần trên) + max(descent) của các ô đó (_excel_row_height_from_cells).
+            explicit_cols: set[int] = set()
+            extents: list[tuple] = []
+            implicit: list[tuple[float, float]] = []
+            border_top = border_bottom = 0
             row_style = re.search(r'\bs="(\d+)"', attrs)
-            if row_style and re.search(r'\bcustomFormat="(?:1|true)"', attrs, re.IGNORECASE):
-                candidates.append({"xf": int(row_style.group(1)), "coord": "", "content": False})
+            row_custom_format = bool(row_style and re.search(r'\bcustomFormat="(?:1|true)"', attrs, re.IGNORECASE))
+            candidates: list[dict] = []
             for cell_match in re.finditer(r"<c\b([^>]*?)(?:/>|>(.*?)</c>)", body, re.S | re.IGNORECASE):
                 cell_attrs, cell_body = cell_match.group(1) or "", cell_match.group(2) or ""
                 style = re.search(r'\bs="(\d+)"', cell_attrs)
-                coord = re.search(r'\br="([A-Z]+\d+)"', cell_attrs)
+                coord = re.search(r'\br="([A-Z]+)(\d+)"', cell_attrs)
+                if coord:
+                    explicit_cols.add(_column_index(coord.group(1)))
                 candidates.append({
                     "xf": int(style.group(1)) if style else 0,
-                    "coord": coord.group(1) if coord else "",
+                    "coord": coord.group(0).split('"')[1] if coord else "",
                     "content": bool(re.search(r"<(?:v|is)\b", cell_body)),
+                    "attrs": cell_attrs,
+                    "body": cell_body,
                 })
+            # ô ngầm: style hàng (nếu customFormat) thay cho style cột; cột không có <col style> = Normal
+            if row_custom_format:
+                rxf = xfs[int(row_style.group(1))] if int(row_style.group(1)) < len(xfs) else None
+                rfont = fonts[rxf["fontId"]] if rxf and 0 <= rxf["fontId"] < len(fonts) else normal_font
+                metrics = _excel_font_metrics(rfont["name"], float(rfont["size"]), bool(rfont.get("bold")), bool(rfont.get("italic")))
+                if metrics:
+                    implicit.append(metrics)
+            else:
+                for lo, hi, cfont in column_style_fonts:
+                    if hi - lo < 64 and all(c in explicit_cols for c in range(lo, hi + 1)):
+                        continue
+                    metrics = _excel_font_metrics(cfont["name"], float(cfont["size"]), bool(cfont.get("bold")), bool(cfont.get("italic")))
+                    if metrics:
+                        implicit.append(metrics)
+            row_normal = normal_metrics if (columns_uncovered and not row_custom_format) else None
             for candidate in candidates:
                 coord = candidate["coord"]
                 # Excel AutoFit bỏ qua ô thuộc vùng gộp nhiều hàng (lan02 s1 A1:A2 TNR 23 rỗng không nâng hàng 1)
                 if coord and coord in merge_multi_row:
                     continue
-                xf = xfs[candidate["xf"]] if 0 <= candidate["xf"] < len(xfs) else {"fontId": 0, "wrap": False}
+                xf = xfs[candidate["xf"]] if 0 <= candidate["xf"] < len(xfs) else {"fontId": 0, "wrap": False, "bottom": True}
                 font = fonts[xf["fontId"]] if 0 <= xf["fontId"] < len(fonts) else fonts[0] if fonts else normal_font
-                single = _excel_single_line_height_px(font["name"], float(font["size"]), bool(font.get("bold")))
-                if single is not None:
-                    best = max(best, single)
+                metrics = _excel_font_metrics(font["name"], float(font["size"]), bool(font.get("bold")), bool(font.get("italic")))
+                if not metrics:
+                    continue
+                bottom = bool(xf.get("bottom", True))
+                border_top = max(border_top, int(xf.get("borderTop", 0)))
+                border_bottom = max(border_bottom, int(xf.get("borderBottom", 0)))
+                extents.append((metrics[0], metrics[1], bottom))
                 if xf["wrap"] and candidate["content"] and coord and coord not in merge_covered:
-                    heights = _excel_font_line_heights(font["name"], float(font["size"]), bool(font.get("bold")))
+                    heights = _excel_font_line_heights(font["name"], float(font["size"]), bool(font.get("bold")), normal_desc, bool(font.get("italic")))
                     if heights:
-                        wrap_cells[coord] = heights
-            rows[row.group(1)] = float(best)
+                        # S31b: ô rich text nhiều font -> các run (font riêng) để tính cao từng dòng theo font trên dòng
+                        rich_runs = _xlsx_wrap_cell_runs(candidate.get("attrs", ""), candidate.get("body", ""), shared_rich, font, normal_desc)
+                        runs = rich_runs
+                        if not runs:
+                            text = _xlsx_wrap_cell_text(candidate.get("attrs", ""), candidate.get("body", ""), shared_plain)
+                            runs = [{"t": text, "h": [float(v) for v in heights], "f": dict(font)}] if text else None
+                        # S31c: mô phỏng ngắt dòng bằng bảng bề rộng ký tự Excel -> chiều cao hàng ngay tại đây;
+                        # font/ký tự chưa đo -> để app đo bằng DOM (wrap map)
+                        extent = None
+                        if runs:
+                            col_px = column_excel_px.get(re.match(r"([A-Z]+)", coord).group(1), default_col_px)
+                            measured: list[dict] | None = []
+                            for run in runs:
+                                natural = _excel_natural_widths(run["f"]["name"], float(run["f"]["size"]), bool(run["f"].get("bold")))
+                                run_metrics = _excel_font_metrics(run["f"]["name"], float(run["f"]["size"]), bool(run["f"].get("bold")), bool(run["f"].get("italic")))
+                                if natural is None or run_metrics is None:
+                                    measured = None
+                                    break
+                                measured.append({"t": run["t"], "w": natural[0], "L": run_metrics[0], "d": run_metrics[1], "m": natural[1]})
+                            if measured and col_px:
+                                extent = _excel_wrapped_cell_extent(measured, float(col_px) - measured[0]["m"])
+                        if extent is not None:
+                            extents.append((extent[0], extent[1], bottom))
+                        elif rich_runs:
+                            wrap_cells[coord] = {"h": heights, "runs": rich_runs}
+                        elif runs:
+                            wrap_cells[coord] = heights
+                        # ô số bọc chữ (lan03 E68 ' 1,890,000 '): Excel không bọc số -> 1 dòng, đã nằm trong extents
+            computed_row = _excel_row_height_from_cells(extents, implicit, row_normal) if (extents or implicit or row_normal) else float(default_px if default_px > 0 else normal_floor)
+            rows[row.group(1)] = min(_EXCEL_MAX_ROW_PX, computed_row + border_top + border_bottom)
             auto_rows.append(int(row.group(1)))
-        # S30c (lan11 s3, cột 11–40 không có <col>): Excel vẽ cột mặc định = trunc(((256·dcw + trunc(128/MDW))/256)·MDW)
-        # (dcw 14.296875, MDW 7 → 100px) còn LibreOffice ghi dcw·MDW + 5 = 106px; không dcw: base·MDW + 8 (64/72px).
-        default_col_px = None
-        dcw_m = re.search(r'<sheetFormatPr\b[^>]*\bdefaultColWidth="([\d.]+)"', sheet_xml, re.IGNORECASE)
-        base_m = re.search(r'<sheetFormatPr\b[^>]*\bbaseColWidth="([\d.]+)"', sheet_xml, re.IGNORECASE)
-        mdw = digit_width or 7.0
-        if dcw_m:
-            default_col_px = float(math.floor(((256 * float(dcw_m.group(1)) + math.floor(128 / mdw)) / 256) * mdw + 1e-6))
-        else:
-            default_col_px = float(int(float(base_m.group(1)) if base_m else 8) * mdw + 8)
         if columns or rows or default_col_px:
             layouts[sheet_name] = {"columns": columns, "rows": rows}
             if default_col_px:

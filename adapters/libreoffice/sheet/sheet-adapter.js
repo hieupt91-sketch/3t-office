@@ -1163,11 +1163,15 @@ export class SheetAdapter {
     const host = document.createElement("div");
     host.style.cssText = "position:absolute;left:-100000px;top:0;visibility:hidden;pointer-events:none;";
     const probes = [];
-    for (const [coord, heights] of entries) {
+    for (const [coord, spec] of entries) {
       const match = /^([A-Z]+)(\d+)$/.exec(coord);
       const item = data.get(coord);
+      const heights = Array.isArray(spec) ? spec : spec?.h;
       if (!match || !item || !Array.isArray(heights) || heights.length < 4) continue;
-      const text = Array.isArray(item.richText) && item.richText.length ? item.richText.map(run => run.text || "").join("") : String(item.val ?? "");
+      // S31b: Python kèm các run rich text của ô (`runs` = [{t, h, f}]) để tính cao từng dòng theo font trên dòng
+      const richRuns = Array.isArray(spec?.runs) && spec.runs.length ? spec.runs.filter(run => run && typeof run.t === "string" && Array.isArray(run.h) && run.h.length >= 4) : null;
+      const text = richRuns ? richRuns.map(run => run.t).join("")
+        : Array.isArray(item.richText) && item.richText.length ? item.richText.map(run => run.text || "").join("") : String(item.val ?? "");
       if (!text) continue;
       const col = match[1];
       const row = Number(match[2]);
@@ -1181,25 +1185,41 @@ export class SheetAdapter {
         width = Number(colWidths.get(col)) || defaultColWidth;
       }
       const style = item.style || {};
-      const font = `${style.fontStyle || "normal"} ${style.fontWeight || "normal"} ${style.fontSize || "14.67px"} ${style.fontFamily || "Calibri, Carlito, Arial, sans-serif"}`;
-      const box = document.createElement("div");
-      box.style.cssText = `box-sizing:border-box;width:${width}px;padding:3px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:normal;font:${font};`;
-      box.textContent = text;
-      const one = document.createElement("div");
-      one.style.cssText = `box-sizing:border-box;width:${width}px;padding:3px;white-space:pre;line-height:normal;font:${font};`;
-      one.textContent = "X";
-      host.appendChild(box);
-      host.appendChild(one);
-      probes.push({ row, heights, box, one });
+      const cellFont = {
+        css: `${style.fontStyle || "normal"} ${style.fontWeight || "normal"} ${style.fontSize || "14.67px"} ${style.fontFamily || "Calibri, Carlito, Arial, sans-serif"}`,
+        px: parseFloat(style.fontSize) || 14.67,
+        family: style.fontFamily || "Calibri, Carlito, Arial, sans-serif",
+        heights: heights.map(Number)
+      };
+      const runs = richRuns
+        ? richRuns.map(run => ({ text: run.t, heights: run.h.map(Number), css: this._wrapProbeRunFont(run.f, cellFont), px: run.f ? Number(run.f.size) * 96 / 72 : cellFont.px }))
+        : [{ text, heights: cellFont.heights, css: cellFont.css, px: cellFont.px }];
+      const paragraphs = this._wrapProbeParagraphs(runs);
+      // Thanh chống (strut) cao hơn mọi font trong ô để mỗi hộp dòng đúng bằng strut -> chỉ số dòng = floor(tâm rect / strut)
+      const strut = Math.ceil(Math.max(cellFont.px, ...runs.map(run => run.px || 0)) * 4);
+      const cell = document.createElement("div");
+      cell.style.cssText = `box-sizing:border-box;width:${width}px;padding:3px;font:${cellFont.css};`;
+      for (const paragraph of paragraphs) {
+        const block = document.createElement("div");
+        block.style.cssText = `white-space:pre-wrap;overflow-wrap:anywhere;line-height:${strut}px;min-height:${strut}px;`;
+        for (const fragment of paragraph.spans) {
+          const node = document.createElement("span");
+          node.style.cssText = `font:${fragment.css};line-height:normal;`;
+          node.textContent = fragment.text;
+          block.appendChild(node);
+          fragment.node = node;
+        }
+        cell.appendChild(block);
+        paragraph.block = block;
+      }
+      host.appendChild(cell);
+      probes.push({ row, strut, paragraphs, runs });
     }
     if (!probes.length) return;
     document.body.appendChild(host);
     try {
       for (const probe of probes) {
-        const lineHeight = probe.one.getBoundingClientRect().height - 6;
-        if (!(lineHeight > 0)) continue;
-        const lines = Math.max(1, Math.round((probe.box.getBoundingClientRect().height - 6) / lineHeight));
-        const target = this._excelAutoRowHeightPx(probe.heights, lines);
+        const target = this._excelRowHeightFromProbe(probe);
         if (!Number.isFinite(target)) continue;
         const current = Number(rowHeights.get(probe.row));
         if (!Number.isFinite(current) || target > current) rowHeights.set(probe.row, target);
@@ -1209,7 +1229,78 @@ export class SheetAdapter {
     }
   }
 
-  /** h(n) từ [h1, h2, h3, h5] đo Excel: n<=5 tra/nội suy, n>5 ngoại suy theo (h5-h3)/2 mỗi dòng. */
+  /** CSS `font` cho run rich text từ font XLSX ({name, size pt, bold, italic}); thiếu -> font ô. */
+  _wrapProbeRunFont(font, cellFont) {
+    if (!font || !font.name) return cellFont.css;
+    const px = Number(font.size) > 0 ? Number(font.size) * 96 / 72 : cellFont.px;
+    return `${font.italic ? "italic" : "normal"} ${font.bold ? "bold" : "normal"} ${px}px "${String(font.name).replace(/"/g, "")}", ${cellFont.family}`;
+  }
+
+  /**
+   * Tách các run thành đoạn (theo "\n"): {spans: [{text, heights, css}], term: heights của run chứa ký tự "\n"
+   * kết thúc đoạn (null ở đoạn cuối)}. Đoạn trống (hai "\n" liền, "\n" cuối ô) vẫn là một dòng như Excel (S31a).
+   */
+  _wrapProbeParagraphs(runs) {
+    const paragraphs = [{ spans: [], term: null }];
+    for (const run of runs) {
+      const pieces = String(run.text).split("\n");
+      pieces.forEach((piece, index) => {
+        if (index > 0) {
+          paragraphs[paragraphs.length - 1].term = run.heights;
+          paragraphs.push({ spans: [], term: null });
+        }
+        if (piece) paragraphs[paragraphs.length - 1].spans.push({ text: piece, heights: run.heights, css: run.css });
+      });
+    }
+    return paragraphs;
+  }
+
+  /**
+   * Chiều cao hàng AutoFit của Excel cho ô bọc chữ (đo COM 21/9, _excel_multiline.ps1/_excel_mixed2.ps1):
+   * 1 dòng = h1; n dòng = tổng bước dòng L (= (h5-h3)/2) của font cao nhất trên từng dòng — kể cả font của
+   * ký tự "\n" kết thúc dòng — cộng phần dư pad (= h2 - 2L) của font dòng cuối; trần 409.5pt = 546px.
+   * Font đồng nhất: n·L + pad = đúng bảng h2/h3/h5 và ngoại suy n>5 (TNR 10: 17n+1, TNR 18: 31n).
+   */
+  _excelRowHeightFromProbe(probe) {
+    const stepOf = heights => (Number(heights[3]) - Number(heights[2])) / 2;
+    const padOf = heights => Number(heights[1]) - 2 * stepOf(heights);
+    const lines = [];
+    let lastHeights = probe.runs[probe.runs.length - 1].heights;
+    for (const paragraph of probe.paragraphs) {
+      const rect = paragraph.block.getBoundingClientRect();
+      const count = Math.max(1, Math.round(rect.height / probe.strut));
+      const start = lines.length;
+      for (let index = 0; index < count; index++) lines.push({ step: 0, heights: null });
+      for (const fragment of paragraph.spans) {
+        const range = document.createRange();
+        range.selectNodeContents(fragment.node);
+        for (const box of range.getClientRects()) {
+          if (!(box.width > 0)) continue;
+          const index = Math.min(count - 1, Math.max(0, Math.floor((box.top + box.height / 2 - rect.top) / probe.strut)));
+          const line = lines[start + index];
+          const step = stepOf(fragment.heights);
+          if (step >= line.step) { line.step = step; line.heights = fragment.heights; }
+        }
+        lastHeights = fragment.heights;
+      }
+      const term = paragraph.term || (paragraph.spans.length ? null : lastHeights);
+      if (term) {
+        const line = lines[start + count - 1];
+        if (stepOf(term) >= line.step) { line.step = stepOf(term); line.heights = term; }
+        lastHeights = term;
+      }
+      for (let index = 0; index < count; index++) {
+        const line = lines[start + index];
+        if (!line.heights) { line.heights = lastHeights; line.step = stepOf(lastHeights); }
+      }
+    }
+    if (!lines.length) return NaN;
+    if (lines.length === 1) return Math.min(546, Number(lines[0].heights[0]));
+    const total = lines.reduce((sum, line) => sum + line.step, 0) + padOf(lines[lines.length - 1].heights);
+    return Math.min(546, Math.round(total));
+  }
+
+  /** h(n) từ [h1, h2, h3, h5] đo Excel: n<=5 tra/nội suy, n>5 ngoại suy theo (h5-h3)/2 mỗi dòng (font đồng nhất). */
   _excelAutoRowHeightPx(heights, lines) {
     const [h1, h2, h3, h5] = heights.map(Number);
     if (lines <= 1) return h1;
@@ -1217,7 +1308,7 @@ export class SheetAdapter {
     if (lines === 3) return h3;
     if (lines === 4) return Math.round(h3 + (h5 - h3) / 2);
     if (lines === 5) return h5;
-    return Math.round(h5 + (lines - 5) * (h5 - h3) / 2);
+    return Math.min(546, Math.round(h5 + (lines - 5) * (h5 - h3) / 2));
   }
 
   _sheetRowColLayout(sheetName) {
