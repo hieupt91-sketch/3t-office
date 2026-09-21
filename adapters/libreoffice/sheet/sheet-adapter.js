@@ -1108,6 +1108,12 @@ export class SheetAdapter {
     try {
       const layout = JSON.parse(this._unescapeXml(raw));
       for (const [column, width] of Object.entries(layout.columns || {})) if (Number.isFinite(Number(width))) colWidths.set(column, Number(width));
+      // S30c: cột không có <col> trong XLSX = bề rộng mặc định Excel (không phải dcw·MDW + 5 của LibreOffice)
+      if (Number.isFinite(Number(layout.defaultCol)) && Number(layout.defaultCol) > 0) {
+        for (const column of [...colWidths.keys()]) {
+          if (!(layout.columns && Object.prototype.hasOwnProperty.call(layout.columns, column))) colWidths.set(column, Number(layout.defaultCol));
+        }
+      }
       for (const [row, height] of Object.entries(layout.rows || {})) if (Number.isFinite(Number(height))) rowHeights.set(Number(row), Number(height));
       if (layout.wrap && context?.data) this._raiseAutoRowsForWrappedCells(layout.wrap, rowHeights, colWidths, context);
       for (const row of layout.auto || []) {

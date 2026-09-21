@@ -6609,8 +6609,20 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
                         wrap_cells[coord] = heights
             rows[row.group(1)] = float(best)
             auto_rows.append(int(row.group(1)))
+        # S30c (lan11 s3, cột 11–40 không có <col>): Excel vẽ cột mặc định = trunc(((256·dcw + trunc(128/MDW))/256)·MDW)
+        # (dcw 14.296875, MDW 7 → 100px) còn LibreOffice ghi dcw·MDW + 5 = 106px; không dcw: base·MDW + 8 (64/72px).
+        default_col_px = None
+        dcw_m = re.search(r'<sheetFormatPr\b[^>]*\bdefaultColWidth="([\d.]+)"', sheet_xml, re.IGNORECASE)
+        base_m = re.search(r'<sheetFormatPr\b[^>]*\bbaseColWidth="([\d.]+)"', sheet_xml, re.IGNORECASE)
+        mdw = digit_width or 7.0
+        if dcw_m:
+            default_col_px = float(math.floor(((256 * float(dcw_m.group(1)) + math.floor(128 / mdw)) / 256) * mdw + 1e-6))
+        else:
+            default_col_px = float(int(float(base_m.group(1)) if base_m else 8) * mdw + 8)
         if columns or rows:
             layouts[sheet_name] = {"columns": columns, "rows": rows}
+            if default_col_px:
+                layouts[sheet_name]["defaultCol"] = default_col_px
             if wrap_cells:
                 layouts[sheet_name]["wrap"] = wrap_cells
             if auto_rows:

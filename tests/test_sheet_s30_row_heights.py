@@ -119,6 +119,15 @@ class SheetS30RowHeightTests(unittest.TestCase):
         self.assertIn('<row r="4" ht="13.8">', out)
         self.assertIn('<row r="5" ht="21.00" customHeight="true">', out)                     # không trong auto-rows -> giữ
 
+    def test_s30c_default_column_width_is_excel_pixels(self):
+        # lan11 s3: defaultColWidth 14.296875, Calibri 11 (MDW 7) -> Excel 100px (LibreOffice 106px)
+        sheet = SHEET_XML.replace('<sheetFormatPr defaultRowHeight="15.6"/>', '<sheetFormatPr defaultColWidth="14.296875" defaultRowHeight="15.6"/>')
+        self.assertEqual(_layout(_make_xlsx(sheet))["defaultCol"], 100.0)
+        # Không có defaultColWidth: 8·MDW + 8 = 64px (Calibri 11); baseColWidth 10 -> 78px
+        self.assertEqual(_layout(_make_xlsx())["defaultCol"], 64.0)
+        sheet_base = SHEET_XML.replace('<sheetFormatPr defaultRowHeight="15.6"/>', '<sheetFormatPr baseColWidth="10" defaultRowHeight="15.6"/>')
+        self.assertEqual(_layout(_make_xlsx(sheet_base))["defaultCol"], 78.0)
+
     def test_zero_height_sheet_uses_normal_font_floor(self):
         sheet = SHEET_XML.replace('<sheetFormatPr defaultRowHeight="15.6"/>', '<sheetFormatPr defaultRowHeight="14" zeroHeight="1"/>')
         layout = _layout(_make_xlsx(sheet))
