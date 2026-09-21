@@ -3599,6 +3599,19 @@ export class WriterAdapter {
     });
   }
 
+  /**
+   * W30b: khi xuất, trả `width` của <table>/<col>/<td> về giá trị LibreOffice ghi lúc nhập (`data-vno-lo-width`) và
+   * bỏ marker; px tuyệt đối chỉ để canvas vẽ đúng Word, không phải để gửi lại LibreOffice.
+   */
+  _restoreLibreOfficeTableWidthsForExport(html) {
+    return String(html || "").replace(/<(table|col|td|th)\b([^>]*\bdata-vno-lo-width=("[^"]*"|'[^']*')[^>]*)>/gi, (all, tag, attrs, quoted) => {
+      const original = quoted.slice(1, -1);
+      let rest = attrs.replace(/\s*\bdata-vno-lo-width=("[^"]*"|'[^']*')/i, "");
+      rest = rest.replace(/\s*(?<![\w-])width=(["']?)[^"'\s>]*\1/i, "");
+      return `<${tag}${rest}${original ? ` width="${original}"` : ""}>`;
+    });
+  }
+
   _applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml) {
     const source = String(html || "");
     const geometries = this._ooxmlTableGeometry(ooxmlDocumentXml);
@@ -3627,9 +3640,16 @@ export class WriterAdapter {
       return ranges.filter(r => !zoneRanges.some(zr => r.start >= zr.start && r.start < zr.end));
     };
     if (computeRanges(source).length !== geometries.length) return source; // số bảng khác nhau → không đoán
-    const setWidth = (tag, value) => (/\bwidth=(["']?)[^"'\s>]*\1/i.test(tag)
-      ? tag.replace(/\bwidth=(["']?)[^"'\s>]*\1/i, `width="${value}"`)
-      : tag.replace(/>$/, ` width="${value}">`));
+    // W30b: giữ giá trị width LibreOffice ghi (`data-vno-lo-width`) để khi LƯU trả lại đúng dạng (100% / phần trăm /
+    // px) — nếu gửi px tuyệt đối, LibreOffice ghi `w:tblW` dxa thay vì pct và gridCol lệch (R17: d01 lệch 528 twips).
+    const setWidth = (tag, value) => {
+      const had = tag.match(/(?<![\w-])width=(["']?)([^"'\s>]*)\1/i);
+      const keep = had ? ` data-vno-lo-width="${had[2]}"` : ` data-vno-lo-width=""`;
+      const base = /\bdata-vno-lo-width=/i.test(tag) ? tag : tag.replace(/>$/, `${keep}>`);
+      return /(?<![\w-])width=(["']?)[^"'\s>]*\1/i.test(base)
+        ? base.replace(/(?<![\w-])width=(["']?)[^"'\s>]*\1/i, `width="${value}"`)
+        : base.replace(/>$/, ` width="${value}">`);
+    };
     let out = source;
     // Sửa từ bảng cuối về đầu; tính lại phạm vi sau mỗi lần sửa (bảng lồng đổi độ dài của bảng ngoài).
     for (let i = geometries.length - 1; i >= 0; i--) {
@@ -8768,7 +8788,7 @@ export class WriterAdapter {
    */
   serializeToFodt() {
     this._initZones();
-    const html = this.bodyDom?.innerHTML ?? this.editorDom?.innerHTML ?? "";
+    const html = this._restoreLibreOfficeTableWidthsForExport(this.bodyDom?.innerHTML ?? this.editorDom?.innerHTML ?? "");
     if (/\bdata-vno-(?!wrap=["']inline["']|section-break=|section-id=|footnote-ref=|endnote-ref=|footnotes=|endnotes=|footnote-id=|endnote-id=|toc=|comment-author=|change=|author=|date=|wordart=|wordart-preset=|wordart-text=|wordart-style=|chart=)[\w-]+\s*=/i.test(html)) {
       throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A/B/C/D/E.1/E.3/E.4");
     }
@@ -9912,6 +9932,7 @@ export class WriterAdapter {
     bodyHtml = this._prepareFloatingFramesForExport(bodyHtml);
     bodyHtml = this._restoreProportionalLineHeightsForExport(bodyHtml);
     bodyHtml = this._simplifyFontFamiliesForExport(bodyHtml);
+    bodyHtml = this._restoreLibreOfficeTableWidthsForExport(bodyHtml);
 
     // LibreOffice's Writer HTML importer drops a class-only Drop Cap span
     // completely (including its first letter) because writer.css is not part

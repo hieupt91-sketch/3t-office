@@ -69,9 +69,13 @@ export async function runWriterFloatingImageImportTests() {
     const body = new WriterAdapter(null)._normalizeImportedHtml(html, xml).body;
     // W30: bề rộng tuyệt đối theo OOXML (twips × 96/1440): 7130 → 475px, 472 → 31px, bảng 506px — không còn co theo
     // bề rộng LibreOffice ghi (625) vì Word vẽ đúng số twips (đo d01: cột 45,5/290,1/80,3/65,7pt).
-    check(body.includes('<col width="475">') && body.includes('<col width="31">'), `Native Word column widths were not restored: ${body}`);
-    check(/<table width="506">/.test(body), `table width must be the twips sum in px: ${body}`);
-    check(body.includes('<td width="475">A</td><td width="31">B</td>'), `first-row cell widths must follow gridCol: ${body}`);
+    check(body.includes('<col width="475" data-vno-lo-width="313">') && body.includes('<col width="31" data-vno-lo-width="313">'), `Native Word column widths were not restored: ${body}`);
+    check(/<table width="506" data-vno-lo-width="625">/.test(body), `table width must be the twips sum in px: ${body}`);
+    check(body.includes('<td data-vno-lo-width="" width="475">A</td><td data-vno-lo-width="" width="31">B</td>'), `first-row cell widths must follow gridCol: ${body}`);
+    // W30b: khi xuất trả lại width LibreOffice ghi (625 / 313) và bỏ width px + marker
+    const exported = new WriterAdapter(null)._restoreLibreOfficeTableWidthsForExport(body);
+    check(exported.includes('<table width="625"><colgroup><col width="313"><col width="313"></colgroup><tr><td>A</td><td>B</td></tr></table>'), `export must restore LibreOffice widths: ${exported}`);
+    check(!/data-vno-lo-width/.test(exported), `marker must be removed on export: ${exported}`);
   });
 
   test("W30: table width 100% + col percentages from LibreOffice become absolute px from tblGrid/tblW (nested table kept apart)", () => {
@@ -82,9 +86,11 @@ export async function runWriterFloatingImageImportTests() {
       + '<w:sectPr><w:pgSz w:w="11907" w:h="16839"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr></w:body></w:document>';
     const body = new WriterAdapter(null)._applyOoxmlTableColumnGeometry(html, xml);
     // Bề rộng chữ 9639 twips = 642,6px; tỉ lệ gridCol 910/5802/1606/1314 (tổng 9632) → 61/387/107/88px
-    check(/<table width="643">/.test(body), `outer table must be page text width in px: ${body}`);
-    check(body.includes('<col width="61"><col width="387"><col width="107"><col width="88">'), `outer cols must be twips → px: ${body}`);
-    check(body.includes('<td width="61">1</td><td width="387">2<table width="67"><col width="67">'), `outer first-row cells + nested table 1000 twips = 67px: ${body}`);
+    check(/<table width="643" data-vno-lo-width="100%">/.test(body), `outer table must be page text width in px: ${body}`);
+    check(body.includes('<col width="61" data-vno-lo-width="9"><col width="387" data-vno-lo-width="60"><col width="107" data-vno-lo-width="17"><col width="88" data-vno-lo-width="14">'), `outer cols must be twips → px: ${body}`);
+    check(body.includes('<td width="61" data-vno-lo-width="9%">1</td><td width="387" data-vno-lo-width="60%">2<table width="67" data-vno-lo-width="50"><col width="67" data-vno-lo-width="50">'), `outer first-row cells + nested table 1000 twips = 67px: ${body}`);
+    const exported = new WriterAdapter(null)._restoreLibreOfficeTableWidthsForExport(body);
+    check(exported === html, `export must give back exactly the LibreOffice HTML: ${exported}`);
   });
 
   test("Floating export emits absolute img and div while ordinary spans remain sanitized", () => {
