@@ -4082,31 +4082,67 @@ export class WriterAdapter {
       // W44b: hàng chiếm chỗ = nội dung + viền thật (sz/8 pt) — Word cộng bề dày viền ngang vào chiều cao hàng (d01
       // sz=2: 35/36px xen kẽ; d20 sz=4). Chromium không nhận viền < 1px nhưng nhận padding lẻ → padding-bottom
       // (hàng đầu thêm padding-top) đúng bằng bề dày viền; nội dung bị đẩy lên/xuống không đáng kể (≤ 0,67px).
-      if (table.borderPx > 0 && (bottom || (table.rows === 1 && sides.top && sides.top.style && sides.top.style !== "none"))) {
-        const padMatch = restDecls.map((d, i) => [d, i]).find(([d]) => /^padding\s*:/i.test(d));
-        const parts = padMatch ? padMatch[0].split(":")[1].trim().split(/\s+/) : ["0px"];
-        const [pt, pr, pb, pl] = parts.length === 1 ? [parts[0], parts[0], parts[0], parts[0]] : parts.length === 2 ? [parts[0], parts[1], parts[0], parts[1]] : parts.length === 3 ? [parts[0], parts[1], parts[2], parts[1]] : parts;
-        const addPx = (v, extra) => { const px = toPx(v); return px == null ? v : `${Math.round((px + extra) * 1000) / 1000}px`; };
-        const newPad = `padding: ${table.rows === 1 && sides.top && sides.top.style && sides.top.style !== "none" ? addPx(pt, table.borderPx) : pt} ${pr} ${bottom ? addPx(pb, table.borderPx) : pb} ${pl}`;
-        if (padMatch) restDecls[padMatch[1]] = newPad; else restDecls.push(newPad);
+      // W47: cộng vào padding ĐÃ CÓ (shorthand lẫn longhand padding-top/bottom). Trước đây chỉ đọc `padding:`,
+      // ô longhand (d09: padding-bottom: 0.11cm) bị ghi đè thành 0+borderPx → bảng 64 hàng ngắn 201px, page 17→54.
+      // Padding cộng viền chỉ cho canvas; gốc giữ ở data-vno-lo-padding để xuất trả lại (d20: 30 twips → 4 trang).
+      const isPadDecl = (d) => /^padding(?:-top|-right|-bottom|-left)?\s*:/i.test(d);
+      const addTop = table.rows === 1 && sides.top && sides.top.style && sides.top.style !== "none" && sides.top.style !== "hidden";
+      const addBottom = !!bottom;
+      let loPadAttr = "";
+      if (table.borderPx > 0 && (addBottom || addTop)) {
+        const padDecls = restDecls.filter(isPadDecl);
+        let pt = "0px", pr = "0px", pb = "0px", pl = "0px";
+        for (const d of padDecls) {
+          const pm = d.match(/^padding(-top|-right|-bottom|-left)?\s*:\s*(.+)$/i);
+          if (!pm) continue;
+          const side = (pm[1] || "").toLowerCase();
+          const val = pm[2].trim();
+          if (!side) {
+            const parts = val.split(/\s+/);
+            if (parts.length === 1) [pt, pr, pb, pl] = [parts[0], parts[0], parts[0], parts[0]];
+            else if (parts.length === 2) [pt, pr, pb, pl] = [parts[0], parts[1], parts[0], parts[1]];
+            else if (parts.length === 3) [pt, pr, pb, pl] = [parts[0], parts[1], parts[2], parts[1]];
+            else [pt, pr, pb, pl] = [parts[0], parts[1], parts[2], parts[3]];
+          } else if (side === "-top") pt = val;
+          else if (side === "-right") pr = val;
+          else if (side === "-bottom") pb = val;
+          else if (side === "-left") pl = val;
+        }
+        const addPx = (v, extra) => {
+          if (!extra) return v;
+          const px = toPx(v);
+          return px == null ? v : `${Math.round((px + extra) * 1000) / 1000}px`;
+        };
+        const newPad = `padding: ${addPx(pt, addTop ? table.borderPx : 0)} ${pr} ${addPx(pb, addBottom ? table.borderPx : 0)} ${pl}`;
+        for (let i = restDecls.length - 1; i >= 0; i--) if (isPadDecl(restDecls[i])) restDecls.splice(i, 1);
+        restDecls.push(newPad);
+        loPadAttr = ` data-vno-lo-padding="${padDecls.join("; ").replace(/"/g, "&quot;")}"`;
       }
       const newStyle = [...restDecls, "border: none", shadows.length ? `box-shadow: ${shadows.join(", ")}` : null].filter(Boolean).join("; ") + ";";
       const escaped = borderDecls.join("; ").replace(/"/g, "&quot;");
-      const newAttrs = attrs.replace(styleMatch[0], `style="${newStyle}"`) + ` data-vno-borders="${escaped}"`;
+      const newAttrs = attrs.replace(styleMatch[0], `style="${newStyle}"`) + ` data-vno-borders="${escaped}"${loPadAttr}`;
       out += source.slice(last, m.index) + `<${m[2]}${newAttrs}>`;
       last = m.index + m[0].length;
     }
     return out + source.slice(last);
   }
 
-  /** W44: trả khai báo viền gốc (`data-vno-borders`) vào style của ô và bỏ box-shadow/border: none khi xuất. */
+  /** W44: trả khai báo viền gốc (`data-vno-borders`) vào style của ô và bỏ box-shadow/border: none khi xuất.
+   * W47: trả padding gốc (`data-vno-lo-padding`) — phần cộng viền W44b chỉ cho canvas, không gửi LibreOffice. */
   _restoreTableBordersForExport(html) {
     return String(html || "").replace(/<(td|th)\b([^>]*\bdata-vno-borders=("[^"]*"|'[^']*')[^>]*)>/gi, (all, tag, attrs, quoted) => {
       const borders = quoted.slice(1, -1).replace(/&quot;/g, '"');
       let rest = attrs.replace(/\s*\bdata-vno-borders=("[^"]*"|'[^']*')/i, "");
+      const loPadMatch = rest.match(/\s*\bdata-vno-lo-padding=("[^"]*"|'[^']*')/i);
+      const originalPad = loPadMatch ? loPadMatch[1].slice(1, -1).replace(/&quot;/g, '"') : null;
+      if (loPadMatch) rest = rest.replace(loPadMatch[0], "");
       const styleMatch = rest.match(/\bstyle=(["'])([^"']*)\1/i);
       if (styleMatch) {
-        const kept = styleMatch[2].split(";").map(s => s.trim()).filter(s => s && !/^border\s*:\s*none$/i.test(s) && !/^box-shadow\s*:/i.test(s));
+        let kept = styleMatch[2].split(";").map(s => s.trim()).filter(s => s && !/^border\s*:\s*none$/i.test(s) && !/^box-shadow\s*:/i.test(s));
+        if (originalPad !== null) {
+          kept = kept.filter(s => !/^padding(?:-top|-right|-bottom|-left)?\s*:/i.test(s));
+          if (originalPad.trim()) kept.push(originalPad);
+        }
         const merged = [...kept, ...(borders ? [borders] : [])].join("; ");
         rest = rest.replace(styleMatch[0], `style="${merged}${merged.endsWith(";") ? "" : ";"}"`);
       } else if (borders) {
