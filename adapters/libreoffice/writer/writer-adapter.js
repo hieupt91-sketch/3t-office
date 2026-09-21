@@ -2094,6 +2094,10 @@ export class WriterAdapter {
     let html = String(raw || "");
     let comments = [];
     html = this._unwrapOutlineHeadingLists(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
+    // W42 (d16): LibreOffice bọc bảng canh giữa trong `<p align><center><table>…</table></center></p>`; trình duyệt tự
+    // đóng <p> trước <center>/<table> → thừa một đoạn rỗng trước bảng (canvas 9 trang so với Word 8, bản lưu thêm
+    // 1 đoạn Body Text 14pt). Bỏ thẻ <p> bọc và </p> thừa sau bảng.
+    html = html.replace(/<p\b[^>]*>\s*(?=(?:<center>\s*)?<table\b)/gi, "").replace(/(<\/table>\s*(?:<\/center>\s*)?)<\/p>/gi, "$1");
     if (ooxmlDocumentXml) {
       html = this._applyOoxmlTrackChangesToHtml(html, ooxmlDocumentXml);
       html = this._applyOoxmlTableParagraphSpacing(html, ooxmlDocumentXml, ooxmlStylesXml);

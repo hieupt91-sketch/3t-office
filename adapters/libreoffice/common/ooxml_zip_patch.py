@@ -7504,6 +7504,10 @@ def _xml_element_ranges(xml: str, qname: str) -> list[tuple[int, int]]:
                 ranges.append((stack.pop(), token.end()))
         elif not token.group(0).rstrip().endswith("/>"):
             stack.append(token.start())
+        else:
+            # W43 (d16): đoạn rỗng tự đóng `<w:p …/>` (3/165 đoạn nguồn) từng bị bỏ khỏi danh sách → LCS đoạn rỗng
+            # lệch số lượng, mọi đoạn rỗng trong đoạn văn giữ spacing Body Text 14pt của LibreOffice
+            ranges.append((token.start(), token.end()))
     return sorted(ranges)
 
 
