@@ -9552,10 +9552,7 @@ export class SheetGridController {
       }).join("");
       td.innerHTML = spanHtml;
       if (itm.style?.textAlign) td.style.textAlign = itm.style.textAlign;
-      return;
-    }
-
-    if (itm.style?.numberFormat && typeof itm.val === "number") {
+    } else if (itm.style?.numberFormat && typeof itm.val === "number") {
       const formatted = NumberFormatter.formatValue(itm.val, itm.style.numberFormat);
       if (formatted.isAccounting) {
         td.innerHTML = `<span class="vno-cell-accounting-symbol" style="float:left;user-select:none;color:inherit;">${formatted.symbol || ""}</span><span class="vno-cell-accounting-num" style="float:right;color:inherit;">${formatted.numberText}</span>`;
@@ -9575,11 +9572,12 @@ export class SheetGridController {
       this._applyRowColSizeToCell(td, col, row);
     }
 
-    // Xử lý tràn chữ (text overflow) sang ô trống bên phải như Excel (S25e):
+    // Xử lý tràn chữ (text overflow) sang ô trống bên phải như Excel (S25c):
     // Ô kề coi là trống khi val === "" và không có công thức
-    const hasVal = itm.val !== undefined && itm.val !== null && itm.val !== "";
+    const hasRichText = Array.isArray(itm.richText) && itm.richText.length > 0;
+    const hasVal = (itm.val !== undefined && itm.val !== null && itm.val !== "") || hasRichText;
     if (hasVal) {
-      const isText = typeof itm.val === "string";
+      const isText = typeof itm.val === "string" || hasRichText;
       const align = itm.style?.textAlign || td.style?.textAlign;
       const isLeftAlign = !align || align === "left" || align === "start";
 
@@ -9592,7 +9590,8 @@ export class SheetGridController {
         if (nextCol && this.cellsData) {
           const nextItem = this.cellsData.get(`${nextCol}${row}`);
           if (nextItem) {
-            const nextHasVal = nextItem.val !== undefined && nextItem.val !== null && nextItem.val !== "";
+            const nextHasRichText = Array.isArray(nextItem.richText) && nextItem.richText.length > 0;
+            const nextHasVal = (nextItem.val !== undefined && nextItem.val !== null && nextItem.val !== "") || nextHasRichText;
             const nextHasFormula = nextItem.formula !== undefined && nextItem.formula !== null && nextItem.formula !== "";
             if (nextHasVal || nextHasFormula) {
               nextIsEmpty = false;

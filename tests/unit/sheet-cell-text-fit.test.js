@@ -354,6 +354,39 @@ export async function runSheetCellTextFitTests() {
     assert(tdA1.style.overflow === "hidden", `A1 overflow phải là 'hidden', nhận: '${tdA1.style.overflow}'`);
   });
 
+  test("S28c: Ô có richText tràn sang ô trống bên phải (can-overflow, visible) và bị chặn khi ô kế có dữ liệu", () => {
+    const grid = createMockGridController({
+      colWidths: { A: 45, B: 401 }
+    });
+    // A1 chứa richText
+    grid.cellsData.set("A1", {
+      val: "Kính gửi: - Ban Giám Đốc",
+      richText: [
+        { text: "Kính gửi: ", style: { fontWeight: "bold" } },
+        { text: "- Ban Giám Đốc", style: {} }
+      ],
+      style: {}
+    });
+
+    // Trường hợp 1: B1 để trống -> A1 phải tràn (.can-overflow, visible)
+    const tdA1 = createMockTd("A1");
+    const itmA1 = grid.cellsData.get("A1");
+    grid._renderCellVisual(tdA1, itmA1, "A", 1);
+
+    assert(tdA1.classList.contains("can-overflow"), "A1 richText phải có class .can-overflow khi ô B1 trống");
+    assert(!tdA1.classList.contains("has-content"), "A1 richText không có class .has-content khi tràn");
+    assert(tdA1.style.overflow === "visible", `A1 richText overflow phải là 'visible', nhận: '${tdA1.style.overflow}'`);
+
+    // Trường hợp 2: B1 có dữ liệu -> A1 bị chặn cắt cứng (overflow: hidden, text-overflow: clip)
+    grid.cellsData.set("B1", { val: "Nội dung", formula: "", style: {} });
+    const tdA1Blocked = createMockTd("A1");
+    grid._renderCellVisual(tdA1Blocked, itmA1, "A", 1);
+
+    assert(!tdA1Blocked.classList.contains("can-overflow"), "A1 richText không được có .can-overflow khi B1 có dữ liệu");
+    assert(tdA1Blocked.classList.contains("has-content"), "A1 richText phải có .has-content khi B1 có dữ liệu");
+    assert(tdA1Blocked.style.overflow === "hidden", `A1 richText overflow phải là 'hidden', nhận: '${tdA1Blocked.style.overflow}'`);
+  });
+
   // =========================================================================
   // 6. Ô gộp (Merged Cells): _applyRowColSizeToCell tính đúng tổng độ rộng các cột
   // =========================================================================

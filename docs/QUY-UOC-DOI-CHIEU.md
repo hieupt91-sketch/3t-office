@@ -138,5 +138,7 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 ## S28 — Sửa 5 lớp render VN Sheet vòng 12 (agy, 21/09/2026)
 
 - **S28b — Dọn sạch hàng cố định cũ trước topSpacer khi render ảo hóa (L2):** Hàng cố định (`.vno-frozen-row`) được dựng và chèn trước `this.topSpacer` trong `tbody`. Trước đây vòng lặp xóa hàng cũ trong `_renderVirtualRows` chỉ dọn giữa `topSpacer` và `bottomSpacer`, bỏ quên các node đứng trước `topSpacer`. Khi mở workbook có sheet mang hàng cố định (ví dụ lan12 sheet 2 có 3 hàng cố định, lan16 sheet 2 có 4 hàng cố định), chuyển sang sheet khác khiến header của sheet trước bị kẹt lại vĩnh viễn ở đầu sheet sau. Sửa: thêm vòng lặp xóa triệt để `while (this.topSpacer.previousSibling) { this.tbody.removeChild(...) }` trước khi dựng lại. Khoá bởi: `sheet-freeze-panes-real.test.js` (S28b).
+- **S28c — Tràn chữ sang ô trống cho ô chứa richText (L3):** Trong `_renderCellVisual`, nhánh render ô chứa `richText` (nhiều run span định dạng khác nhau) trước đây kết thúc bằng `return;` sớm, khiến các ô richText (ví dụ lan02 s1 A4/A7/A19) không bao giờ chạy qua logic kiểm tra tràn chữ (`can-overflow` / `td.style.overflow = "visible"`). Hệ quả: chữ bị cắt cứng tại biên cột A dù cột B kề bên hoàn toàn trống. Sửa: loại bỏ `return;` sớm, cho phép luồng chạy tiếp xuống `_applyRowColSizeToCell` và khối kiểm tra tràn chữ sang ô kề (đồng thời nhận diện `hasRichText` khi xác định ô có nội dung/chặn tràn). Khoá bởi: `sheet-cell-text-fit.test.js` (S28c).
+
 
 
