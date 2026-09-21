@@ -1,5 +1,17 @@
 # Hàng đợi việc theo ma trận (cập nhật 2026-09-21)
 
+## Trạng thái 22/9 01:00 (main `7943de1` = S31 + W47–W51)
+
+| Chiều | Số đo | Ghi chú |
+|---|---|---|
+| Sheet render hàng/cột | **0/6925 hàng lệch** (26 file, 66 sheet); perf layout overlay lan06 221 s → ~15 s (cache metrics) | S31a–i, S32 |
+| Sheet nhập→lưu (26 file, bỏ lan06/lan14) | **26/26 0 lệch, Excel mở OK, lint sạch** (batch 22/9 00:20 sau S31) | |
+| Writer nhập (23 docx, Claude đo lại trên main `_writer_out_w51i`) | **page 125** (w46i 184), wrap 27 (34), unknown 28 (34), line-height 18 (25); canvas = Word **20/22** (d01 20/19, d16 9/8, d21 10/9; d10 hỏng) | W47 (Grok R20), W48–W51 (Grok R21): hairline 2px ăn cột chữ, face không cài, ảnh vertical-align bottom, phân trang chiều cao lẻ |
+| Sheet mở file lớn (Python, `_time_sheet_open_stages.py`) | lan06 **1721 s** (number formats 262, original strings 595, xf indices 662 — chạy trên FODS 334 MB chưa tối ưu → 4,4 MB sau optimize), lan14 346 s | **Grok S29** đang làm (`E:\VNOffice-grok-sheet-s29`) |
+
+Đang giao (22/9 00:10): **Grok R22** (`E:\VNOffice-grok-writer-r22`): d01/d16/d21 +1 trang, d09 page 24, d07 page 32; **Grok S29** hiệu năng.
+agy: 2 lần thoát sớm (tác vụ nền) → chỉ dùng cho việc UI ngắn. Claude: kiểm chứng + merge.
+
 ## Trạng thái 21/9 23:30 (main `e34ebc0` = S31 + W47)
 
 | Chiều | Số đo | Ghi chú |
