@@ -317,6 +317,31 @@ class SheetDrawingPassthroughTests(unittest.TestCase):
         _restore_untouched_drawings_step(out_xlsx, fods_calc_dropped, source_xlsx, replacements)
         self.assertIn("xl/drawings/drawing1.xml", replacements)
 
+    def test_restore_source_drawing_when_calc_imported_no_images(self):
+        """An image absent from the imported model cannot have been deleted in the app."""
+        source_xlsx = _make_xlsx_with_drawing()
+        fods_without_images = _make_fods_with_images(has_all_images=False)
+        fods_without_images = re.sub(r'<draw:frame\b[^>]*>[\s\S]*?</draw:frame>', "", fods_without_images)
+        fods_without_images = fods_without_images.replace(
+            '<table:table table:name="Sheet1">',
+            '<table:table table:name="Sheet1" vno:images-at-open="0">',
+        )
+        replacements: dict[str, str] = {}
+        _restore_untouched_drawings_step(source_xlsx, fods_without_images, source_xlsx, replacements)
+        self.assertIn("xl/drawings/drawing1.xml", replacements)
+
+    def test_does_not_restore_when_user_deleted_all_imported_images(self):
+        source_xlsx = _make_xlsx_with_drawing()
+        fods_without_images = _make_fods_with_images(has_all_images=False)
+        fods_without_images = re.sub(r'<draw:frame\b[^>]*>[\s\S]*?</draw:frame>', "", fods_without_images)
+        fods_without_images = fods_without_images.replace(
+            '<table:table table:name="Sheet1">',
+            '<table:table table:name="Sheet1" vno:images-at-open="1">',
+        )
+        replacements: dict[str, str] = {}
+        _restore_untouched_drawings_step(source_xlsx, fods_without_images, source_xlsx, replacements)
+        self.assertNotIn("xl/drawings/drawing1.xml", replacements)
+
     def test_restore_untouched_drawings_extra_image_no_restore(self):
         """FODS has extra image -> drawing should NOT be restored."""
         source_xlsx = _make_xlsx_with_drawing()

@@ -50,6 +50,14 @@ class NormalFontRestore(unittest.TestCase):
 
 
 class ColumnWidthRestore(unittest.TestCase):
+    def test_explicit_source_width_snaps_with_four_pixel_conversion_drift(self):
+        sheet = '<worksheet><dimension ref="A1:A2"/><cols><col min="1" max="1" width="9.43" customWidth="1"/></cols><sheetData/></worksheet>'
+        out = patcher._restore_column_widths(
+            sheet, {"A": 1.74625}, 7.0,
+            source_explicit_cols={1}, source_widths={1: 8.86},
+        )
+        self.assertIn('width="8.86"', out)
+
     def test_widths_use_original_digit_width_and_dropped_columns_come_back(self):
         sheet = ('<worksheet><dimension ref="A1:F20"/><sheetFormatPr defaultColWidth="12.625" defaultRowHeight="15"></sheetFormatPr>'
                  '<cols><col collapsed="false" customWidth="true" max="2" min="1" style="0" width="35.27"/>'

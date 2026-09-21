@@ -173,6 +173,18 @@ export async function runSheetImageImportExportTests() {
     assert(!fodsXml.includes("draw:image"), "Không được ghi draw:image khi sheet không có ảnh nào");
   });
 
+  test("serializeToFods(): ghi images-at-open dùng phân biệt Calc không nhập ảnh và người dùng xóa hết", () => {
+    const grid = new SheetGridController(container());
+    grid.imagesAtOpenBySheet = { [grid.activeSheet]: 2 };
+    grid.imagesBySheet[grid.activeSheet] = [];
+    const fodsXml = new SheetAdapter(grid).serializeToFods();
+    assert(fodsXml.includes('vno:images-at-open="2"'), "Phải giữ số ảnh lúc mở sau khi người dùng xóa hết");
+
+    grid.imagesAtOpenBySheet[grid.activeSheet] = 0;
+    const noImportedImagesXml = new SheetAdapter(grid).serializeToFods();
+    assert(noImportedImagesXml.includes('vno:images-at-open="0"'), "Calc không nhập ảnh phải được ghi marker 0");
+  });
+
   test("serializeToFods() → parseFods(): nhiều ảnh trên cùng 1 sheet đều sống sót, đúng từng ô neo", () => {
     const grid = new SheetGridController(container());
     grid.insertImage(PNG_DATA_URI, { c: "A", r: 1 }, false);

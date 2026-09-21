@@ -134,4 +134,6 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 ## S27 — Chạy lại toàn bộ LAN Sheet (21/09/2026)
 
 - **S27a — AutoFilter sau LibreOffice (Claude):** Calc ghi `table:target-range-address` định danh sheet ở CẢ HAI đầu (`'Tên'.A12:'Tên'.AW33632`) → `autoFilter@ref` chỉ nhận vùng cục bộ; khi thay ref của `<autoFilter>` có sẵn chỉ thay thuộc tính `ref`, giữ thẻ cặp và `<filterColumn>` con (S26b thay cả thẻ mở bằng thẻ tự đóng → dư `</autoFilter>`, lan11/lan14/lan20 Excel không mở). Khoá: test_sheet_s26_ooxml (S27a).
-
+- **S27b — chuỗi có dấu nháy đơn cuối:** LibreOffice có thể bỏ dấu `'` cuối chuỗi; nếu output đúng bằng chuỗi nguồn bỏ ký tự cuối này thì repair chuỗi không đổi của S17 khôi phục nguyên văn nguồn.
+- **S27c — drawing không vào model:** app ghi `vno:images-at-open=N` trên `table:table` khi serialize. Khi FODS lưu không có image-id, chỉ khôi phục drawing nguồn nếu marker vắng hoặc bằng `0` (Calc không nhập ảnh); marker lớn hơn `0` chứng minh ảnh đã vào model rồi bị người dùng xóa, nên không được hồi sinh.
+- **S27d — snap chiều rộng:** sai số đổi XLSX ký tự → FODS cm → pixel đến 4px trên cột có width nguồn tường minh vẫn được coi là drift chuyển đổi và snap về width nguồn.

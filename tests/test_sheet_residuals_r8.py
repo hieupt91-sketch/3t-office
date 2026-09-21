@@ -54,6 +54,13 @@ class ResidualLayersR8Tests(unittest.TestCase):
         repl = {}; patcher._restore_lost_leading_newlines_step(saved, src, repl, None)
         self.assertIn('xml:space="preserve">\nNoi dung', repl['xl/worksheets/sheet1.xml'])
 
+    def test_trailing_apostrophe_string_restored(self):
+        wb = '<workbook><sheets><sheet name="Data" sheetId="1" r:id="rId1"/></sheets></workbook>'
+        src = package(wb, '<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>NH16C\'</t></is></c></row></sheetData></worksheet>')
+        saved = package(wb, '<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>NH16C</t></is></c></row></sheetData></worksheet>')
+        repl = {}; patcher._restore_lost_leading_newlines_step(saved, src, repl, None)
+        self.assertIn("NH16C'", repl['xl/worksheets/sheet1.xml'])
+
     def test_center_continuous_drops_only_invented_merge(self):
         wb = '<workbook><sheets><sheet name="Data" sheetId="1" r:id="rId1"/></sheets></workbook>'
         styles = '<styleSheet><cellXfs count="1"><xf><alignment horizontal="centerContinuous"/></xf></cellXfs></styleSheet>'
