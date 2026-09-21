@@ -280,8 +280,35 @@ export async function runWriterDocFontSpacingTests() {
     check(out.includes('<p>Thân 1</p><p>Thân 2</p>'), `Normal paragraphs must keep their spacing: ${out}`);
     check(/<p style="margin-bottom: 0">Mục A<\/p><p style="margin-top: 0">Mục B<\/p>/.test(out), `contextual pair must be Mục A/B: ${out}`);
     check(out.includes('<h2 class="western">Tiêu đề</h2>'), `heading counts as a w:p but keeps its tag: ${out}`);
+    // Bảng lồng: replace lười dừng ở </w:tbl> của bảng con → hàng sau của bảng cha bị coi là đoạn thân
+    const nested = '<w:body><w:tbl><w:tr><w:tc><w:tbl><w:tr><w:tc><w:p><w:r><w:t>in</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:tc></w:tr>'
+      + '<w:tr><w:tc><w:p><w:r><w:t>hàng sau</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>Thân</w:t></w:r></w:p></w:body>';
+    const stripped = adapter._stripOoxmlTables(nested);
+    check(!stripped.includes("hàng sau") && stripped.includes("Thân"), `nested tables must be stripped whole: ${stripped}`);
     check(/<p style="margin-bottom: 0">Mục C<\/p><p style="margin-top: 0">Mục D<\/p>/.test(out), `mapping after a heading must stay aligned (Mục C/D): ${out}`);
     check(out.includes('<p>Chú thích</p>') && out.includes('<p>Chân trang</p>'), `footnote/footer paragraphs must be untouched: ${out}`);
+  });
+
+  // Đo d01 (Word COM): ô STT = đoạn đánh số rỗng 13pt → hàng Word 35px; canvas rỗng lấy 14pt mặc định → hàng 42px.
+  test("W26c: đoạn rỗng trong ô bảng lấy cỡ dấu đoạn; bỏ ô vMerge tiếp nối; ô/đoạn không khớp thì bỏ qua", () => {
+    const adapter = new WriterAdapter(null);
+    const styles = '<w:styles><w:docDefaults><w:rPrDefault><w:rPr><w:sz w:val="28"/></w:rPr></w:rPrDefault></w:docDefaults></w:styles>';
+    const doc = '<w:document><w:body><w:tbl><w:tr>'
+      + '<w:tc><w:p><w:pPr><w:rPr><w:sz w:val="26"/></w:rPr></w:pPr></w:p></w:tc>'
+      + '<w:tc><w:tcPr><w:vMerge/></w:tcPr><w:p/></w:tc>'
+      + '<w:tc><w:p><w:r><w:t>Có chữ</w:t></w:r></w:p><w:p><w:pPr><w:rPr><w:sz w:val="20"/></w:rPr></w:pPr></w:p></w:tc>'
+      + '</w:tr></w:tbl><w:p><w:pPr><w:rPr><w:sz w:val="16"/></w:rPr></w:pPr></w:p></w:body></w:document>';
+    const html = '<div title="header"><table><tr><td><p><br></p></td></tr></table></div>'
+      + '<table><tr><td><p><br></p></td><td><p>Có chữ</p><p><br></p></td></tr></table><p><br></p>';
+    const out = adapter._applyOoxmlTableCellEmptyParagraphFontSizes(html, doc, styles);
+    check(out.includes('<td><p style="font-size: 13pt"><br></p></td>'), `empty numbered cell paragraph must take 13pt: ${out}`);
+    check(out.includes('<p>Có chữ</p><p style="font-size: 10pt"><br></p>'), `second cell: text paragraph untouched, empty one 10pt: ${out}`);
+    check(out.startsWith('<div title="header"><table><tr><td><p><br></p></td></tr></table></div>'), `header table must be skipped: ${out}`);
+    check(out.endsWith('<p><br></p>'), `body paragraph outside tables is not this step's job: ${out}`);
+    const li = adapter._propagateEmptyParagraphFontSizeToListItem('<ol><li style="margin-left: 1.27cm;">\n<p style="font-size: 13pt"><br></p></li><li><p style="font-size: 13pt">x</p></li><li><p style="font-size: 13pt"></p></li></ol>');
+    check(li.includes('<li style="margin-left: 1.27cm; font-size: 13pt;">\n<p style="font-size: 13pt"><br></p></li>'), `li with only an empty p must take its font-size: ${li}`);
+    check(li.includes('<li><p style="font-size: 13pt">x</p></li>'), `li with text keeps its own font: ${li}`);
+    check(li.includes('<li style="font-size: 13pt;"><p style="font-size: 13pt"><br></p></li>'), `li without style gets a new style and the empty p gets a <br> so the marker shares its line: ${li}`);
   });
 
   // Đo thật d15 (Word 2016 COM): 16/16 đoạn "wrap" là List Paragraph, Word left=714 (đoạn) hoặc 1080 (mức numbering)

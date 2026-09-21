@@ -2101,6 +2101,8 @@ export class WriterAdapter {
       html = this._applyOoxmlHalfPointRunFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml);
       // W26a: cỡ chữ đoạn rỗng theo cỡ dấu đoạn (w:pPr/w:rPr/w:sz -> style chain -> docDefaults)
       html = this._applyOoxmlEmptyParagraphFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml);
+      html = this._applyOoxmlTableCellEmptyParagraphFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml);
+      html = this._propagateEmptyParagraphFontSizeToListItem(html);
       if (ooxmlNumberingXml) {
         html = this._applyOoxmlListIndents(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
         html = this._applyOoxmlListBullets(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
@@ -2719,6 +2721,23 @@ export class WriterAdapter {
   }
 
   /**
+   * Bỏ mọi `<w:tbl>` cấp 1 KÈM bảng lồng bên trong (đếm độ sâu). `replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/)` lười dừng ở
+   * `</w:tbl>` của bảng con → phần còn lại của bảng cha (các hàng sau bảng con) bị coi là đoạn thân → ánh xạ thứ tự
+   * lệch (d09/d15 có bảng lồng).
+   */
+  _stripOoxmlTables(xml) {
+    const source = String(xml || "");
+    const re = /<w:tbl>|<w:tbl\s[^>]*>|<\/w:tbl>/g;
+    let out = ""; let depth = 0; let last = 0; let m;
+    while ((m = re.exec(source))) {
+      if (m[0].startsWith("</")) { depth = Math.max(0, depth - 1); if (depth === 0) last = m.index + m[0].length; }
+      else { if (depth === 0) out += source.slice(last, m.index); depth++; }
+    }
+    if (depth === 0) out += source.slice(last);
+    return out;
+  }
+
+  /**
    * W12e: các vùng HTML có <p> nhưng KHÔNG có w:p tương ứng trong body OOXML: bảng (lồng nhau), header/footer
    * (<div title="header|footer"> — LibreOffice đặt header ở đầu body), chú thích cuối trang/cuối bài (sdfootnote/sdendnote).
    * Trả về [{start, end}] theo offset trong chuỗi HTML.
@@ -2792,7 +2811,7 @@ export class WriterAdapter {
     // Loại bỏ nội dung trong bảng để không đếm w:p trong bảng; W12e: bỏ cả đoạn trong hộp văn bản
     // (w:txbxContent, và bản VML dự phòng mc:Fallback) vì LibreOffice HTML vẽ hộp thành ảnh, không có <p> tương ứng
     // (d09: 30 hộp văn bản → ánh xạ lệch, 24 cặp spacing sai).
-    const bodyNoTables = this._ooxmlBodyParagraphSource(bodyXml).replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi, "");
+    const bodyNoTables = this._stripOoxmlTables(this._ooxmlBodyParagraphSource(bodyXml));
 
     const paras = [];
     const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
@@ -2922,7 +2941,7 @@ export class WriterAdapter {
     const bodyMatch = xml.match(/<w:body>([\s\S]*?)<\/w:body>/i);
     if (!bodyMatch) return html;
     const bodyXml = bodyMatch[1];
-    const bodyNoTables = this._ooxmlBodyParagraphSource(bodyXml).replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi, "");
+    const bodyNoTables = this._stripOoxmlTables(this._ooxmlBodyParagraphSource(bodyXml));
 
     const parasData = [];
     const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
@@ -3077,7 +3096,7 @@ export class WriterAdapter {
     const bodyMatch = xml.match(/<w:body>([\s\S]*?)<\/w:body>/i);
     if (!bodyMatch) return html;
     const bodyXml = bodyMatch[1];
-    const bodyNoTables = this._ooxmlBodyParagraphSource(bodyXml).replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi, "");
+    const bodyNoTables = this._stripOoxmlTables(this._ooxmlBodyParagraphSource(bodyXml));
 
     const parasData = [];
     const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
@@ -3134,6 +3153,129 @@ export class WriterAdapter {
 
       return this._addCssDeclsToParagraph(fullTag, attrs, newInner, [`font-size: ${pSpec.pt}pt`], tagName);
     });
+  }
+
+  /**
+   * W26d: mục danh sách rỗng `<li><p style="font-size: Xpt"></p></li>` — cỡ do W26a/W26c đặt lên `<p>` rỗng không tới
+   * hộp dòng của `<li>` (marker dùng font của `<li>` = cỡ mặc định tài liệu) → `<li>` vẫn cao theo cỡ mặc định (d01: ô
+   * STT 14pt 25px thay vì 13pt 19,9px). Cho `<li>` nhận cùng cỡ khi con duy nhất là `<p>` rỗng.
+   */
+  _propagateEmptyParagraphFontSizeToListItem(html) {
+    return String(html || "").replace(
+      /<li\b([^>]*)>(\s*)<p\b([^>]*\bfont-size:\s*([\d.]+)pt[^>]*)>(\s*(?:<br\s*\/?>)?\s*)<\/p>(\s*)<\/li>/gi,
+      (all, liAttrs, ws1, pAttrs, pt, inner, ws2) => {
+        const styleMatch = liAttrs.match(/\bstyle=("([^"]*)"|'([^']*)')/i);
+        let newAttrs;
+        if (styleMatch) {
+          const quote = styleMatch[1][0];
+          const existing = (styleMatch[2] !== undefined ? styleMatch[2] : styleMatch[3]).trim();
+          if (/font-size\s*:/i.test(existing)) return all;
+          newAttrs = liAttrs.replace(styleMatch[0], `style=${quote}${existing.replace(/;?$/, "; ")}font-size: ${pt}pt;${quote}`);
+        } else {
+          newAttrs = `${liAttrs} style="font-size: ${pt}pt;"`;
+        }
+        // <p></p> trống hoàn toàn cao 0px nên marker của <li> tạo hộp dòng riêng rồi cộng thêm lề của <p> (d01: hàng
+        // 39,9px thay vì 35px); có <br> thì marker nằm trên chính dòng của <p> như Word.
+        const filled = /<br\b/i.test(inner) ? inner : `<br>${inner}`;
+        return `<li${newAttrs}>${ws1}<p${pAttrs}>${filled}</p>${ws2}</li>`;
+      }
+    );
+  }
+
+  /**
+   * W26c: đoạn rỗng TRONG Ô BẢNG theo cỡ dấu đoạn (W26a chỉ làm thân). Đo d01 (Word COM): ô STT là đoạn đánh số rỗng
+   * 13pt → hàng Word 35px; canvas: <li><p></p></li> rỗng lấy cỡ mặc định 14pt → hàng 42px, 64 hàng → +448px (≈ nửa trang).
+   * Ghép bảng ↔ w:tbl theo thứ tự thẻ mở (đếm độ sâu, bỏ hộp văn bản/header/footer như W30), ô ↔ w:tc ở độ sâu 0 của
+   * bảng đó (bỏ w:tc có w:vMerge tiếp nối — LibreOffice không xuất <td> cho ô gộp dọc), đoạn ↔ w:p ở độ sâu 0 của ô.
+   * Số ô / số đoạn không khớp → bỏ qua bảng / ô đó (không đoán).
+   */
+  _applyOoxmlTableCellEmptyParagraphFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml = "") {
+    const source = String(html || "");
+    const xml = this._ooxmlBodyParagraphSource(String(ooxmlDocumentXml || ""));
+    if (!xml.includes("<w:tbl") || !/<table\b/i.test(source)) return source;
+    const styles = String(ooxmlStylesXml || "");
+    const docDefaultsSz = Number(styles.match(/<w:docDefaults>[\s\S]*?<w:rPrDefault>[\s\S]*?<w:sz\b[^>]*w:val="(\d+)"/)?.[1]) || null;
+    const stylesSz = new Map(); const basedOn = new Map();
+    for (const m of styles.matchAll(/<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>([\s\S]*?)<\/w:style>/g)) {
+      const sz = m[2].match(/<w:rPr>([\s\S]*?)<\/w:rPr>/)?.[1].match(/<w:sz\b[^>]*w:val="(\d+)"/)?.[1];
+      if (sz) stylesSz.set(m[1], Number(sz));
+      const b = m[2].match(/<w:basedOn\b[^>]*w:val="([^"]+)"/)?.[1];
+      if (b) basedOn.set(m[1], b);
+    }
+    const resolveStyleSz = (sid, depth = 0) => {
+      if (!sid || depth > 20) return docDefaultsSz || 22;
+      if (stylesSz.has(sid)) return stylesSz.get(sid);
+      if (basedOn.has(sid)) return resolveStyleSz(basedOn.get(sid), depth + 1);
+      if (sid !== "Normal" && stylesSz.has("Normal")) return stylesSz.get("Normal");
+      return docDefaultsSz || 22;
+    };
+    const emptyParaPt = (pXml) => {
+      const content = pXml.replace(/<w:pPr\b[\s\S]*?<\/w:pPr>/gi, "");
+      if (/<w:t\b|<w:t>|<w:(?:drawing|pict|tab|br|sym|fldSimple|fldChar)\b/i.test(content)) return null;
+      const ppr = pXml.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/)?.[1] || "";
+      const rprSz = ppr.match(/<w:rPr>([\s\S]*?)<\/w:rPr>/)?.[1].match(/<w:sz\b[^>]*w:val="(\d+)"/)?.[1];
+      const sz = rprSz ? Number(rprSz) : resolveStyleSz(ppr.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/)?.[1] || "Normal");
+      return sz ? sz / 2 : null;
+    };
+    // OOXML: bảng cấp 1 (đếm độ sâu) → ô độ sâu 0 (bỏ vMerge tiếp nối) → đoạn độ sâu 0 của ô
+    const ooxmlTables = [];
+    { const re = /<w:tbl>|<w:tbl\s[^>]*>|<\/w:tbl>/g; const stack = []; let m;
+      while ((m = re.exec(xml))) { if (m[0].startsWith("</")) { const s = stack.pop(); if (s !== undefined && stack.length === 0) ooxmlTables.push(xml.slice(s, m.index + m[0].length)); } else stack.push(m.index); } }
+    const ooxmlCells = (tblXml) => {
+      const cells = []; const re = /<w:tbl>|<w:tbl\s[^>]*>|<\/w:tbl>|<w:tc>|<w:tc\s[^>]*>|<\/w:tc>/g; let depth = 0; let m; let open = -1;
+      while ((m = re.exec(tblXml))) {
+        const t = m[0];
+        if (t.startsWith("<w:tbl")) depth++; else if (t.startsWith("</w:tbl")) depth--;
+        else if (t.startsWith("<w:tc")) { if (depth === 1) open = m.index; }
+        else if (t.startsWith("</w:tc") && depth === 1 && open >= 0) { cells.push(tblXml.slice(open, m.index + m[0].length)); open = -1; }
+      }
+      return cells.filter(c => !/<w:vMerge\s*\/>|<w:vMerge\b[^>]*w:val="continue"/.test(c.match(/<w:tcPr>[\s\S]*?<\/w:tcPr>/)?.[0] || ""));
+    };
+    const ooxmlCellParas = (tcXml) => {
+      const inner = this._stripOoxmlTables(tcXml.replace(/^<w:tc[^>]*>/, "").replace(/<\/w:tc>$/, ""));
+      return [...inner.matchAll(/<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g)].map(x => emptyParaPt(x[0]));
+    };
+    const tableSpecs = ooxmlTables.map(t => ooxmlCells(t).map(ooxmlCellParas));
+    // HTML: bảng cấp 1 ngoài header/footer/chú thích (đếm độ sâu)
+    const ranges = []; const stack = []; const tre = /<table\b[^>]*>|<\/table\s*>/gi; let m;
+    while ((m = tre.exec(source))) { if (m[0].startsWith("</")) { const s = stack.pop(); if (s !== undefined && stack.length === 0) ranges.push({ start: s, end: m.index + m[0].length }); } else stack.push(m.index); }
+    const skip = this._htmlParagraphSkipRanges(source).filter(r => !/^<table/i.test(source.slice(r.start, r.start + 6)));
+    const bodyRanges = ranges.filter(r => !skip.some(z => r.start >= z.start && r.start < z.end));
+    if (bodyRanges.length !== tableSpecs.length) return source;
+    let out = source;
+    for (let i = bodyRanges.length - 1; i >= 0; i--) {
+      const spec = tableSpecs[i]; const { start, end } = bodyRanges[i];
+      let tableHtml = out.slice(start, end);
+      // ô độ sâu 0 (bỏ bảng lồng)
+      const cells = []; const cre = /<table\b[^>]*>|<\/table\s*>|<(?:td|th)\b[^>]*>|<\/(?:td|th)\s*>/gi; let depth = 0; let c; let open = -1;
+      while ((c = cre.exec(tableHtml))) {
+        const t = c[0].toLowerCase();
+        if (t.startsWith("<table")) depth++; else if (t.startsWith("</table")) depth--;
+        else if (t.startsWith("<td") || t.startsWith("<th")) { if (depth === 1) open = c.index; }
+        else if (depth === 1 && open >= 0) { cells.push({ start: open, end: c.index + c[0].length }); open = -1; }
+      }
+      if (cells.length !== spec.length) continue;
+      for (let k = cells.length - 1; k >= 0; k--) {
+        const pts = spec[k]; if (!pts.some(v => v !== null)) continue;
+        const cellHtml = tableHtml.slice(cells[k].start, cells[k].end);
+        // đoạn độ sâu 0 của ô (bỏ bảng lồng)
+        const paras = []; const pre = /<table\b[^>]*>|<\/table\s*>|<(p|h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi; let d2 = 0; let pm;
+        while ((pm = pre.exec(cellHtml))) { const t = pm[0].toLowerCase(); if (t.startsWith("<table")) d2++; else if (t.startsWith("</table")) d2--; else if (d2 === 0) paras.push({ index: pm.index, full: pm[0], tag: pm[1], attrs: pm[2], inner: pm[3] }); }
+        if (paras.length !== pts.length) continue;
+        let newCell = cellHtml;
+        for (let j = paras.length - 1; j >= 0; j--) {
+          const pt = pts[j]; if (pt === null) continue;
+          const p = paras[j];
+          const text = p.inner.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
+          if (text.length > 0 || /<(?:img|iframe|object|svg|canvas)\b|data-vno-float/i.test(p.inner)) continue;
+          const replaced = this._addCssDeclsToParagraph(p.full, p.attrs, p.inner.replace(/\bfont-size:\s*\d+(?:\.\d+)?pt/gi, `font-size: ${pt}pt`), [`font-size: ${pt}pt`], p.tag);
+          newCell = newCell.slice(0, p.index) + replaced + newCell.slice(p.index + p.full.length);
+        }
+        tableHtml = tableHtml.slice(0, cells[k].start) + newCell + tableHtml.slice(cells[k].end);
+      }
+      out = out.slice(0, start) + tableHtml + out.slice(end);
+    }
+    return out;
   }
 
   /**
