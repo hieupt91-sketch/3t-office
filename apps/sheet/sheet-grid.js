@@ -7853,6 +7853,21 @@ export class SheetGridController {
     return (this.conditionalFormattingBySheet[this.activeSheet] || []).find(rule => {
       if (!this._rangeContains(rule.range, col, row)) return false;
       if (rule.type === "blank") return String(value).trim() === "";
+      if (rule.type === "duplicate") {
+        if (String(value).trim() === "") return false;
+        let count = 0;
+        const norm = String(value).trim().toLowerCase();
+        for (let r = rule.range.start.r; r <= rule.range.end.r; r++) {
+          for (let cNum = this._columnNumber(rule.range.start.c); cNum <= this._columnNumber(rule.range.end.c); cNum++) {
+            const v = this.cellsData.get(`${this._columnLabel(cNum)}${r}`)?.val ?? "";
+            if (String(v).trim().toLowerCase() === norm) {
+              count++;
+              if (count > 1) return true;
+            }
+          }
+        }
+        return false;
+      }
       const numeric = this._numericCellValue(value);
       if (!Number.isFinite(numeric)) return false;
       return rule.type === "greaterThan" ? numeric > rule.value : numeric < rule.value;

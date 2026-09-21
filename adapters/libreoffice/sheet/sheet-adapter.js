@@ -2752,7 +2752,7 @@ export class SheetAdapter {
       const rules = this.grid.conditionalFormattingBySheet?.[sheetName] || [];
       const groupedRules = new Map();
       for (const rule of rules) {
-        if (!rule?.range || !["greaterThan", "lessThan", "blank"].includes(rule.type)) continue;
+        if (!rule?.range || !["greaterThan", "lessThan", "blank", "duplicate"].includes(rule.type)) continue;
         const key = JSON.stringify(rule.range);
         if (!groupedRules.has(key)) groupedRules.set(key, []);
         groupedRules.get(key).push(rule);
@@ -2766,7 +2766,9 @@ export class SheetAdapter {
             ? `cell-content()&gt;${Number(rule.value)}`
             : rule.type === "lessThan"
               ? `cell-content()&lt;${Number(rule.value)}`
-              : `is-true-formula(LEN(TRIM([.${grouped[0].range.start.c}${grouped[0].range.start.r}]))=0)`;
+              : rule.type === "duplicate"
+                ? `is-duplicate-content()`
+                : `is-true-formula(LEN(TRIM([.${grouped[0].range.start.c}${grouped[0].range.start.r}]))=0)`;
           return `<style:map style:condition="${condition}" style:apply-style-name="${styleForColor(rule.color)}" style:base-cell-address="${this._escapeXml(base)}"/>`;
         }).join("");
         conditionalBaseStyles.push(`<style:style style:name="${baseName}" style:family="table-cell">${maps}</style:style>`);
@@ -2779,13 +2781,15 @@ export class SheetAdapter {
       }
       conditionalBaseByCell.set(sheetName, sheetConditionalCells);
       conditionalFormatsBySheet[sheetName] = rules.map(rule => {
-        if (!rule?.range || !["greaterThan", "lessThan", "blank"].includes(rule.type)) return "";
+        if (!rule?.range || !["greaterThan", "lessThan", "blank", "duplicate"].includes(rule.type)) return "";
         const styleName = styleForColor(rule.color);
         const value = rule.type === "greaterThan"
           ? `&gt;${Number(rule.value)}`
           : rule.type === "lessThan"
             ? `&lt;${Number(rule.value)}`
-            : `formula-is(LEN(TRIM([.${rule.range.start.c}${rule.range.start.r}]))=0)`;
+            : rule.type === "duplicate"
+              ? `duplicate`
+              : `formula-is(LEN(TRIM([.${rule.range.start.c}${rule.range.start.r}]))=0)`;
         const base = odfAddress(sheetName, `${rule.range.start.c}${rule.range.start.r}`);
         return `<calcext:conditional-format calcext:target-range-address="${this._escapeXml(rangeAddress(sheetName, rule.range))}"><calcext:condition calcext:apply-style-name="${styleName}" calcext:value="${value}" calcext:base-cell-address="${this._escapeXml(base)}"/></calcext:conditional-format>`;
       }).filter(Boolean).join("");
@@ -3441,10 +3445,30 @@ export class SheetAdapter {
         const resolvedColor = color;
         colors.set(name, resolvedColor);
         if (display) colors.set(display, resolvedColor);
+        const normalized = name.replace(/_5f_/g, "_");
+        colors.set(normalized, resolvedColor);
       }
       return "";
     });
     return colors;
+  }
+
+  _splitOdfAddressList(raw) {
+    const tokens = [];
+    let current = "";
+    let inQuote = false;
+    for (let i = 0; i < raw.length; i++) {
+      const ch = raw[i];
+      if (ch === "'") inQuote = !inQuote;
+      if (/\s/.test(ch) && !inQuote) {
+        if (current.trim()) tokens.push(current.trim());
+        current = "";
+      } else {
+        current += ch;
+      }
+    }
+    if (current.trim()) tokens.push(current.trim());
+    return tokens;
   }
 
   _parseOdfTargetRange(address, fallbackSheet) {
@@ -3475,6 +3499,18 @@ export class SheetAdapter {
     };
   }
 
+  _parseOdfTargetRanges(addressList, fallbackSheet) {
+    const unescaped = this._unescapeXml(String(addressList || "")).trim();
+    if (!unescaped) return [];
+    const tokens = this._splitOdfAddressList(unescaped);
+    const results = [];
+    for (const token of tokens) {
+      const target = this._parseOdfTargetRange(token, fallbackSheet);
+      if (target?.range) results.push(target);
+    }
+    return results;
+  }
+
   _parseConditionalCondition(value, styleName, colors) {
     const raw = this._unescapeXml(String(value || "")).trim();
     const color = colors.get(styleName) || colors.get(String(styleName || "").replace(/_5f_/g, "_")) || "#fff2cc";
@@ -3484,6 +3520,9 @@ export class SheetAdapter {
     if (less) return { type: "lessThan", value: Number(less[1]), color };
     if (/empty|blank|LEN\s*\(\s*TRIM|cell-content\(\)\s*=\s*""/i.test(raw)) {
       return { type: "blank", value: null, color };
+    }
+    if (/duplicate/i.test(raw)) {
+      return { type: "duplicate", value: null, color };
     }
     return null;
   }
@@ -3523,20 +3562,24 @@ export class SheetAdapter {
 
     let cfIndex = 0;
     String(xmlText || "").replace(/<calcext:conditional-format\b([^>]*)>([\s\S]*?)<\/calcext:conditional-format>/gi, (_, attrs, body) => {
-      const target = this._parseOdfTargetRange(attrs.match(/calcext:target-range-address=["']([^"']*)["']/i)?.[1] || "", workbook.sheets[0]);
-      if (!target?.range || !workbook.conditionalFormattingBySheet[target.sheet]) return "";
+      const rawTarget = attrs.match(/calcext:target-range-address=["']([^"']*)["']/i)?.[1] || "";
+      const targets = this._parseOdfTargetRanges(rawTarget, workbook.sheets[0]);
+      if (!targets.length) return "";
       body.replace(/<calcext:condition\b([^>]*)\/?\s*>/gi, (all, conditionAttrs) => {
         const styleName = this._unescapeXml(conditionAttrs.match(/calcext:apply-style-name=["']([^"']*)["']/i)?.[1] || "");
         const value = this._unescapeXml(conditionAttrs.match(/calcext:value=["']([^"']*)["']/i)?.[1] || "");
         const parsed = this._parseConditionalCondition(value, styleName, colors);
         if (!parsed) return "";
-        workbook.conditionalFormattingBySheet[target.sheet].push({
-          id: `cf-import-${++cfIndex}`,
-          range: target.range,
-          type: parsed.type,
-          value: parsed.value,
-          color: parsed.color
-        });
+        for (const target of targets) {
+          if (!workbook.conditionalFormattingBySheet[target.sheet]) continue;
+          workbook.conditionalFormattingBySheet[target.sheet].push({
+            id: `cf-import-${++cfIndex}`,
+            range: target.range,
+            type: parsed.type,
+            value: parsed.value,
+            color: parsed.color
+          });
+        }
         return "";
       });
       return "";
