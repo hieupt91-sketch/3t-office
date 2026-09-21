@@ -2807,7 +2807,14 @@ export class SheetGridController {
     const bottomTd = this.bottomSpacer.querySelector("td");
     if (bottomTd) bottomTd.style.height = `${bottomHeight}px`;
 
-    // Xóa các hàng cũ nằm giữa topSpacer và bottomSpacer, kể cả hàng cố định cũ
+    // Xóa các hàng cố định cũ nằm trước topSpacer (tránh tích tụ qua các lần render hoặc đổi sheet)
+    while (this.topSpacer.previousSibling) {
+      const prev = this.topSpacer.previousSibling;
+      this.tbody.removeChild(prev);
+      if (this.topSpacer.previousSibling === prev) break;
+    }
+
+    // Xóa các hàng cũ nằm giữa topSpacer và bottomSpacer
     // (sẽ được dựng lại ngay dưới đây để phản ánh đúng dữ liệu/lựa chọn hiện tại).
     while (this.topSpacer.nextSibling && this.topSpacer.nextSibling !== this.bottomSpacer) {
       this.tbody.removeChild(this.topSpacer.nextSibling);
@@ -2978,13 +2985,24 @@ export class SheetGridController {
     for (const image of images) {
       const panel = this.imageLayer.querySelector(`.vno-sheet-image[data-image-id="${image.id}"]`);
       if (!panel) continue;
-      const targetTr = this.tbody.querySelector(`tr[data-row="${image.anchor.r}"]`);
+      const anchor = this._resolveImageAnchor(image);
+      if (!anchor) continue;
+      const targetTr = this.tbody.querySelector(`tr[data-row="${anchor.r}"]`);
       if (!targetTr || typeof targetTr.offsetTop !== "number") continue;
       const offsetYPx = Number.isFinite(Number(image.offsetYCm))
         ? Number(image.offsetYCm) * 37.79527559055118
         : (Number.isFinite(Number(image.offsetY)) ? Number(image.offsetY) : 0);
       const topVal = targetTr.offsetTop + offsetYPx;
       panel.style.top = `${topVal}px`;
+      const targetTd = (targetTr && typeof targetTr.querySelector === "function")
+        ? targetTr.querySelector(`td[data-col="${anchor.c}"]`)
+        : null;
+      if (targetTd && typeof targetTd.offsetLeft === "number") {
+        const offsetXPx = Number.isFinite(Number(image.offsetXCm))
+          ? Number(image.offsetXCm) * 37.79527559055118
+          : (Number.isFinite(Number(image.offsetX)) ? Number(image.offsetX) : 0);
+        panel.style.left = `${targetTd.offsetLeft + offsetXPx}px`;
+      }
     }
   }
 
@@ -4813,9 +4831,17 @@ export class SheetGridController {
         : (Number.isFinite(Number(image.offsetY)) ? Number(image.offsetY) : 0);
       const topVal = topAcc + offsetYPx;
 
-      let leftAcc = 44;
-      for (let i = 0; i < colIdx; i++) {
-        leftAcc += typeof this.getColumnWidth === "function" ? this.getColumnWidth(this.cols[i]) : (this.defaultColWidth || DEFAULT_COL_WIDTH_PX);
+      const targetTd = (targetTr && typeof targetTr.querySelector === "function")
+        ? targetTr.querySelector(`td[data-col="${anchor.c}"]`)
+        : null;
+      let leftAcc;
+      if (targetTd && typeof targetTd.offsetLeft === "number") {
+        leftAcc = targetTd.offsetLeft;
+      } else {
+        leftAcc = 44;
+        for (let i = 0; i < colIdx; i++) {
+          leftAcc += typeof this.getColumnWidth === "function" ? this.getColumnWidth(this.cols[i]) : (this.defaultColWidth || DEFAULT_COL_WIDTH_PX);
+        }
       }
       const offsetXPx = Number.isFinite(Number(image.offsetXCm))
         ? Number(image.offsetXCm) * 37.79527559055118
@@ -7827,6 +7853,21 @@ export class SheetGridController {
     return (this.conditionalFormattingBySheet[this.activeSheet] || []).find(rule => {
       if (!this._rangeContains(rule.range, col, row)) return false;
       if (rule.type === "blank") return String(value).trim() === "";
+      if (rule.type === "duplicate") {
+        if (String(value).trim() === "") return false;
+        let count = 0;
+        const norm = String(value).trim().toLowerCase();
+        for (let r = rule.range.start.r; r <= rule.range.end.r; r++) {
+          for (let cNum = this._columnNumber(rule.range.start.c); cNum <= this._columnNumber(rule.range.end.c); cNum++) {
+            const v = this.cellsData.get(`${this._columnLabel(cNum)}${r}`)?.val ?? "";
+            if (String(v).trim().toLowerCase() === norm) {
+              count++;
+              if (count > 1) return true;
+            }
+          }
+        }
+        return false;
+      }
       const numeric = this._numericCellValue(value);
       if (!Number.isFinite(numeric)) return false;
       return rule.type === "greaterThan" ? numeric > rule.value : numeric < rule.value;
@@ -9545,10 +9586,7 @@ export class SheetGridController {
       }).join("");
       td.innerHTML = spanHtml;
       if (itm.style?.textAlign) td.style.textAlign = itm.style.textAlign;
-      return;
-    }
-
-    if (itm.style?.numberFormat && typeof itm.val === "number") {
+    } else if (itm.style?.numberFormat && typeof itm.val === "number") {
       const formatted = NumberFormatter.formatValue(itm.val, itm.style.numberFormat);
       if (formatted.isAccounting) {
         td.innerHTML = `<span class="vno-cell-accounting-symbol" style="float:left;user-select:none;color:inherit;">${formatted.symbol || ""}</span><span class="vno-cell-accounting-num" style="float:right;color:inherit;">${formatted.numberText}</span>`;
@@ -9568,11 +9606,12 @@ export class SheetGridController {
       this._applyRowColSizeToCell(td, col, row);
     }
 
-    // Xử lý tràn chữ (text overflow) sang ô trống bên phải như Excel (S25e):
+    // Xử lý tràn chữ (text overflow) sang ô trống bên phải như Excel (S25c):
     // Ô kề coi là trống khi val === "" và không có công thức
-    const hasVal = itm.val !== undefined && itm.val !== null && itm.val !== "";
+    const hasRichText = Array.isArray(itm.richText) && itm.richText.length > 0;
+    const hasVal = (itm.val !== undefined && itm.val !== null && itm.val !== "") || hasRichText;
     if (hasVal) {
-      const isText = typeof itm.val === "string";
+      const isText = typeof itm.val === "string" || hasRichText;
       const align = itm.style?.textAlign || td.style?.textAlign;
       const isLeftAlign = !align || align === "left" || align === "start";
 
@@ -9585,7 +9624,8 @@ export class SheetGridController {
         if (nextCol && this.cellsData) {
           const nextItem = this.cellsData.get(`${nextCol}${row}`);
           if (nextItem) {
-            const nextHasVal = nextItem.val !== undefined && nextItem.val !== null && nextItem.val !== "";
+            const nextHasRichText = Array.isArray(nextItem.richText) && nextItem.richText.length > 0;
+            const nextHasVal = (nextItem.val !== undefined && nextItem.val !== null && nextItem.val !== "") || nextHasRichText;
             const nextHasFormula = nextItem.formula !== undefined && nextItem.formula !== null && nextItem.formula !== "";
             if (nextHasVal || nextHasFormula) {
               nextIsEmpty = false;

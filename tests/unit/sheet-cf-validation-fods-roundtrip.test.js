@@ -2,9 +2,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
+import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
 import { convertWithSoffice, findSoffice } from "../helpers/soffice-convert.mjs";
 
 function assert(condition, message) { if (!condition) throw new Error(message); }
+function container() {
+  return { querySelector() { return null; }, querySelectorAll() { return []; }, classList: { add() {}, remove() {}, toggle() {} } };
+}
 
 function makeGrid() {
   const sheet = "Kiểm tra lưu";
@@ -71,5 +75,106 @@ export async function runSheetCfValidationFodsRoundTripTests() {
       else fs.rmSync(root, { recursive: true, force: true });
     }
   });
+  test("Sheet FODS import (S28a): đọc calcext:target-range-address nhiều vùng cách nhau khoảng trắng và calcext:value='duplicate'", () => {
+    const fodsXml = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+ xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0"
+ xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0">
+ <office:styles>
+  <style:style style:name="ConditionalStyle_5f_225" style:display-name="ConditionalStyle_225" style:family="table-cell">
+   <style:table-cell-properties fo:background-color="#ffc7ce"/>
+  </style:style>
+ </office:styles>
+ <office:body>
+  <office:spreadsheet>
+   <table:table table:name="Báo giá">
+    <table:table-column/>
+    <table:table-row>
+     <table:table-cell office:value-type="string"><text:p>ABC</text:p></table:table-cell>
+    </table:table-row>
+    <calcext:conditional-formats>
+     <calcext:conditional-format calcext:target-range-address="&apos;Báo giá&apos;.C3:&apos;Báo giá&apos;.C3 &apos;Báo giá&apos;.D4:&apos;Báo giá&apos;.D10">
+      <calcext:condition calcext:apply-style-name="ConditionalStyle_225" calcext:value="duplicate" calcext:base-cell-address="&apos;Báo giá&apos;.C3"/>
+     </calcext:conditional-format>
+    </calcext:conditional-formats>
+   </table:table>
+  </office:spreadsheet>
+ </office:body>
+</office:document>`;
+    const wb = new SheetAdapter(null).parseFods(fodsXml);
+    const rules = wb.conditionalFormattingBySheet["Báo giá"] || [];
+    assert(rules.length === 2, `Phải parse đủ 2 vùng target, thực tế: ${rules.length}`);
+    assert(rules[0].type === "duplicate" && rules[0].color === "#ffc7ce", `Rule 1 sai: ${JSON.stringify(rules[0])}`);
+    assert(rules[0].range.start.c === "C" && rules[0].range.start.r === 3 && rules[0].range.end.c === "C" && rules[0].range.end.r === 3, "Rule 1 range C3:C3 sai");
+    assert(rules[1].type === "duplicate" && rules[1].color === "#ffc7ce", `Rule 2 sai: ${JSON.stringify(rules[1])}`);
+    assert(rules[1].range.start.c === "D" && rules[1].range.start.r === 4 && rules[1].range.end.c === "D" && rules[1].range.end.r === 10, "Rule 2 range D4:D10 sai");
+  });
+
+  test("Sheet Grid CF (S28a): _matchingConditionalRule tô màu ô trùng lặp (duplicate)", () => {
+    const sheet = "Sheet1";
+    const grid = new SheetGridController(container());
+    grid.sheets = [sheet];
+    grid.activeSheet = sheet;
+    grid.cellsData.set("A1", { val: "Apple" });
+    grid.cellsData.set("A2", { val: "Banana" });
+    grid.cellsData.set("A3", { val: "apple" }); // trùng với A1 (case-insensitive)
+    grid.cellsData.set("A4", { val: "Orange" });
+    grid.conditionalFormattingBySheet[sheet] = [{
+      id: "cf-dup",
+      range: { start: { c: "A", r: 1 }, end: { c: "A", r: 4 } },
+      type: "duplicate",
+      color: "#ffc7ce"
+    }];
+
+    const matchA1 = grid._matchingConditionalRule("A", 1);
+    const matchA2 = grid._matchingConditionalRule("A", 2);
+    const matchA3 = grid._matchingConditionalRule("A", 3);
+    const matchA4 = grid._matchingConditionalRule("A", 4);
+
+    assert(matchA1 && matchA1.color === "#ffc7ce", "A1 trùng phải match rule duplicate");
+    assert(matchA2 === null, "A2 không trùng không được match");
+    assert(matchA3 && matchA3.color === "#ffc7ce", "A3 trùng phải match rule duplicate");
+    assert(matchA4 === null, "A4 không trùng không được match");
+  });
+
+  test("Sheet FODS save (S28a): serializeToFods khong sinh hang trieu o rong cho quy tac CF toan cot", () => {
+    const sheet = "Sheet1";
+    const grid = {
+      sheets: [sheet],
+      activeSheet: sheet,
+      cellsData: new Map([["A1", { val: "Header", formula: "", style: {} }]]),
+      sheetsData: {},
+      commentsBySheet: { [sheet]: {} },
+      mergedRangesBySheet: { [sheet]: [] },
+      namedRangesBySheet: { [sheet]: [] },
+      namedRangesWorkbook: [],
+      printAreaBySheet: { [sheet]: null },
+      rowHeightsBySheet: { [sheet]: {} },
+      colWidthsBySheet: { [sheet]: {} },
+      userHiddenRowsBySheet: { [sheet]: [] },
+      userHiddenColsBySheet: { [sheet]: [] },
+      imagesBySheet: { [sheet]: [] },
+      conditionalFormattingBySheet: {
+        [sheet]: [{
+          id: "cf-full-col",
+          range: { start: { c: "C", r: 16 }, end: { c: "C", r: 1048576 } },
+          type: "duplicate",
+          color: "#ffc7ce"
+        }]
+      },
+      dataValidationsBySheet: { [sheet]: [] },
+      pivotTablesBySheet: { [sheet]: [] },
+      chartsBySheet: { [sheet]: [] },
+      pageBreaksBySheet: { [sheet]: { rows: [], cols: [] } },
+      protectionBySheet: { [sheet]: { enabled: false } },
+      outlineGroupsBySheet: { [sheet]: [] }
+    };
+    const xml = new SheetAdapter(grid).serializeToFods();
+    assert(xml.includes("calcext:conditional-formats"), "Phai chua conditional formats");
+    assert(xml.length < 50000, `XML khong duoc bung hang trieu ky tu, thuc te dai ${xml.length}`);
+  });
   return results;
 }
+
