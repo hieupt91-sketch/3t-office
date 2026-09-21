@@ -67,7 +67,24 @@ export async function runWriterFloatingImageImportTests() {
     const html = '<body><table width="625"><colgroup><col width="313"><col width="313"></colgroup><tr><td>A</td><td>B</td></tr></table></body>';
     const xml = '<w:document><w:tbl><w:tr><w:tc><w:tcPr><w:tcW w:w="7130"/></w:tcPr></w:tc><w:tc><w:tcPr><w:tcW w:w="472"/></w:tcPr></w:tc></w:tr></w:tbl></w:document>';
     const body = new WriterAdapter(null)._normalizeImportedHtml(html, xml).body;
-    check(body.includes('<col width="586">') && body.includes('<col width="39">'), `Native Word column ratio was not restored: ${body}`);
+    // W30: bề rộng tuyệt đối theo OOXML (twips × 96/1440): 7130 → 475px, 472 → 31px, bảng 506px — không còn co theo
+    // bề rộng LibreOffice ghi (625) vì Word vẽ đúng số twips (đo d01: cột 45,5/290,1/80,3/65,7pt).
+    check(body.includes('<col width="475">') && body.includes('<col width="31">'), `Native Word column widths were not restored: ${body}`);
+    check(/<table width="506">/.test(body), `table width must be the twips sum in px: ${body}`);
+    check(body.includes('<td width="475">A</td><td width="31">B</td>'), `first-row cell widths must follow gridCol: ${body}`);
+  });
+
+  test("W30: table width 100% + col percentages from LibreOffice become absolute px from tblGrid/tblW (nested table kept apart)", () => {
+    const html = '<body><table width="100%"><colgroup><col width="9"><col width="60"><col width="17"><col width="14"></colgroup>'
+      + '<tr><td width="9%">1</td><td width="60%">2<table width="50"><col width="50"><tr><td>n</td></tr></table></td><td width="17%">3</td><td width="14%">4</td></tr></table></body>';
+    const xml = '<w:document><w:body><w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/></w:tblPr><w:tblGrid><w:gridCol w:w="910"/><w:gridCol w:w="5802"/><w:gridCol w:w="1606"/><w:gridCol w:w="1314"/></w:tblGrid>'
+      + '<w:tr><w:tc><w:p/></w:tc><w:tc><w:tbl><w:tblGrid><w:gridCol w:w="1000"/></w:tblGrid><w:tr><w:tc><w:p/></w:tc></w:tr></w:tbl></w:tc><w:tc><w:p/></w:tc><w:tc><w:p/></w:tc></w:tr></w:tbl>'
+      + '<w:sectPr><w:pgSz w:w="11907" w:h="16839"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr></w:body></w:document>';
+    const body = new WriterAdapter(null)._applyOoxmlTableColumnGeometry(html, xml);
+    // Bề rộng chữ 9639 twips = 642,6px; tỉ lệ gridCol 910/5802/1606/1314 (tổng 9632) → 61/387/107/88px
+    check(/<table width="643">/.test(body), `outer table must be page text width in px: ${body}`);
+    check(body.includes('<col width="61"><col width="387"><col width="107"><col width="88">'), `outer cols must be twips → px: ${body}`);
+    check(body.includes('<td width="61">1</td><td width="387">2<table width="67"><col width="67">'), `outer first-row cells + nested table 1000 twips = 67px: ${body}`);
   });
 
   test("Floating export emits absolute img and div while ordinary spans remain sanitized", () => {

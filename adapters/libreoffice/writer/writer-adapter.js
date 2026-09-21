@@ -1889,6 +1889,10 @@ export class WriterAdapter {
         lineHeight = (pct / 100).toFixed(2).replace(/\.?0+$/, "");
       }
     }
+    // W31: LibreOffice không ghi line-height cho tài liệu giãn dòng "single" (docDefaults/Normal không có w:line) →
+    // trước đây rơi về mặc định NĐ30 1,4 của canvas (d04: đoạn trong ô 11pt cao 23,6px thay vì Word 16,9px, bảng
+    // 5753px so với Word ≈ 4200px). Word: mặc định = single = 1 × dòng tự nhiên của font (W1).
+    if (!lineHeight) lineHeight = "1";
 
     // 4. Paragraph margin: đọc margin-bottom và margin-top từ quy tắc p
     let paraMargin = null;
@@ -3386,37 +3390,154 @@ export class WriterAdapter {
     });
   }
 
-  _applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml) {
-    const widthsByTable = this._ooxmlTableColumnWidths(ooxmlDocumentXml);
-    let tableIndex = 0;
-    return String(html || "").replace(/<table\b[^>]*>[\s\S]*?<\/table>/gi, (tableHtml) => {
-      const nativeWidths = widthsByTable[tableIndex++] || [];
-      const cols = [...tableHtml.matchAll(/<col\b[^>]*>/gi)];
-      if (!nativeWidths.length || nativeWidths.length !== cols.length) return tableHtml;
-      const renderedWidth = Number(tableHtml.match(/<table\b[^>]*\bwidth=["']?(\d+)/i)?.[1]);
-      const total = nativeWidths.reduce((sum, width) => sum + width, 0);
-      if (!Number.isFinite(renderedWidth) || renderedWidth <= 0 || total <= 0) return tableHtml;
-      const renderedWidths = nativeWidths.map((width) => Math.max(1, Math.round(renderedWidth * width / total)));
-      let colIndex = 0;
-      let normalized = tableHtml.replace(/<col\b[^>]*>/gi, (colTag) => {
-        const width = renderedWidths[colIndex++];
-        return /\bwidth=["']?\d+["']?/i.test(colTag)
-          ? colTag.replace(/\bwidth=["']?\d+["']?/i, `width="${width}"`)
-          : colTag.replace(/>$/, ` width="${width}">`);
-      });
-      normalized = normalized.replace(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi, (rowHtml) => {
-        const cells = [...rowHtml.matchAll(/<(?:td|th)\b[^>]*>/gi)];
-        if (cells.length !== renderedWidths.length) return rowHtml;
-        let cellIndex = 0;
-        return rowHtml.replace(/<(?:td|th)\b[^>]*>/gi, (cellTag) => {
-          const width = renderedWidths[cellIndex++];
-          return /\bwidth=["']?\d+["']?/i.test(cellTag)
-            ? cellTag.replace(/\bwidth=["']?\d+["']?/i, `width="${width}"`)
-            : cellTag.replace(/>$/, ` width="${width}">`);
-        });
-      });
-      return normalized;
+  /**
+   * W30: hình học bảng theo OOXML — bề rộng cột tuyệt đối (px) từ `w:tblGrid/w:gridCol` (twips × 96/1440) và bề rộng
+   * bảng từ `w:tblW` (dxa; pct = % bề rộng chữ của trang từ sectPr; auto = tổng gridCol). Đo d01 (Word COM): cột
+   * 45,5/290,1/80,3/65,7pt, tổng 481,6pt = bề rộng chữ; LibreOffice ghi `<table width="100%">` + `<col width="9/60/17/14">`
+   * (phần trăm, trình duyệt hiểu là px) → bảng canvas 285px thay vì 642px, "Sửa chữa máy móc…" gãy 2 dòng, hàng 59px
+   * so với Word 35px, 64 hàng → bảng 10022px (Word 7 trang). Bảng lồng nhau: ghép theo thứ tự thẻ mở `<table` ↔ `<w:tbl>`
+   * (đếm độ sâu để lấy đúng gridCol/hàng đầu của từng bảng).
+   */
+  _ooxmlTableGeometry(xml) {
+    // Bảng trong hộp văn bản/mc:Fallback không có <table> trong HTML (LibreOffice vẽ hộp thành ảnh) — bỏ như W12e.
+    const source = this._ooxmlBodyParagraphSource(String(xml || ""));
+    const pageTextTwips = (() => {
+      const sect = [...source.matchAll(/<w:sectPr\b[\s\S]*?<\/w:sectPr>/gi)].pop()?.[0] || "";
+      const w = Number(sect.match(/<w:pgSz\b[^>]*\bw:w="(\d+)"/)?.[1]);
+      const l = Number(sect.match(/<w:pgMar\b[^>]*\bw:left="(-?\d+)"/)?.[1] || 0);
+      const r = Number(sect.match(/<w:pgMar\b[^>]*\bw:right="(-?\d+)"/)?.[1] || 0);
+      return Number.isFinite(w) && w > 0 ? w - l - r : 0;
+    })();
+    const tables = [];
+    const re = /<w:tbl>|<w:tbl\s[^>]*>|<\/w:tbl>/g;
+    const stack = [];
+    let m;
+    while ((m = re.exec(source))) {
+      if (m[0].startsWith("</")) { const start = stack.pop(); if (start !== undefined) tables.push({ start, end: m.index + m[0].length }); }
+      else stack.push(m.index);
+    }
+    tables.sort((a, b) => a.start - b.start);
+    return tables.map(({ start, end }) => {
+      const body = source.slice(start, end);
+      const firstRow = body.search(/<w:tr\b/);
+      const head = firstRow >= 0 ? body.slice(0, firstRow) : body;
+      let grid = [...(head.match(/<w:tblGrid>[\s\S]*?<\/w:tblGrid>/)?.[0] || "").matchAll(/<w:gridCol\b[^>]*\bw:w="(\d+)"/g)].map(x => Number(x[1]));
+      if (!grid.length) {
+        // Không có tblGrid (tài liệu tối giản/test): lấy w:tcW dxa của hàng đầu như bản trước.
+        const firstRowXml = body.match(/<w:tr\b[\s\S]*?<\/w:tr>/)?.[0] || "";
+        grid = [...firstRowXml.matchAll(/<w:tcW\b[^>]*\bw:w="(\d+)"/g)].map(x => Number(x[1])).filter(w => w > 0);
+      }
+      const tblW = head.match(/<w:tblW\b([^>]*)\/>/)?.[1] || "";
+      const type = tblW.match(/w:type="(\w+)"/)?.[1] || "auto";
+      const wVal = Number(tblW.match(/w:w="(\d+)"/)?.[1] || 0);
+      const gridSum = grid.reduce((s, v) => s + v, 0);
+      let widthTwips = gridSum;
+      if (type === "dxa" && wVal > 0) widthTwips = wVal;
+      else if (type === "pct" && wVal > 0 && pageTextTwips > 0) widthTwips = pageTextTwips * (wVal > 100 ? wVal / 5000 : wVal / 100);
+      // gridSpan của hàng đầu → số ô hàng đầu ↔ bề rộng ô = tổng gridCol trong span. Hàng đầu có thể chứa bảng lồng
+      // (w:tr/w:tc của bảng con) → chỉ đếm ô ở độ sâu 0 của hàng này.
+      const firstRowSpans = [];
+      if (firstRow >= 0) {
+        const rre = /<w:tbl>|<w:tbl\s[^>]*>|<\/w:tbl>|<w:tr\b[^>]*>|<\/w:tr>|<w:tc>|<w:tc\s[^>]*>|<w:gridSpan\b[^>]*\bw:val="(\d+)"/g;
+        rre.lastIndex = firstRow;
+        let depth = 0; let inRow = false; let r;
+        while ((r = rre.exec(body))) {
+          const t = r[0];
+          if (t.startsWith("<w:tbl")) depth++;
+          else if (t.startsWith("</w:tbl")) depth--;
+          else if (t.startsWith("<w:tr")) { if (depth === 0) inRow = true; }
+          else if (t.startsWith("</w:tr")) { if (depth === 0 && inRow) break; }
+          else if (depth === 0 && inRow) {
+            if (t.startsWith("<w:tc")) firstRowSpans.push(1);
+            else if (firstRowSpans.length) firstRowSpans[firstRowSpans.length - 1] = Number(r[1]) || 1;
+          }
+        }
+      }
+      return { grid, widthTwips, gridSum, firstRowSpans };
     });
+  }
+
+  _applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml) {
+    const source = String(html || "");
+    const geometries = this._ooxmlTableGeometry(ooxmlDocumentXml);
+    if (!geometries.length || !/<table\b/i.test(source)) return source;
+    const PX = 96 / 1440;
+    // Bảng HTML theo thứ tự thẻ mở, kèm phạm vi (độ sâu) để chỉ sửa <col>/<td> của chính bảng đó. Bảng trong
+    // header/footer/chú thích không có w:tbl trong body (nằm ở header1.xml…) — bỏ khỏi ánh xạ thứ tự.
+    const computeRanges = (text) => {
+      const ranges = [];
+      const stack = [];
+      const tre = /<table\b[^>]*>|<\/table\s*>/gi;
+      let m;
+      while ((m = tre.exec(text))) {
+        if (m[0].startsWith("</")) { const s = stack.pop(); if (s) ranges.push({ start: s.index, tagEnd: s.index + s.tag.length, end: m.index + m[0].length }); }
+        else stack.push({ index: m.index, tag: m[0] });
+      }
+      ranges.sort((a, b) => a.start - b.start);
+      const zoneRanges = [];
+      const zre = /<div\b[^>]*(?:\btitle=["'](?:header|footer)["']|\bid=["']sd(?:foot|end)note\d*["'])[^>]*>/gi;
+      let z;
+      while ((z = zre.exec(text))) {
+        const dre = /<div\b|<\/div\s*>/gi; dre.lastIndex = z.index; let depth = 0; let d; let end = -1;
+        while ((d = dre.exec(text))) { depth += d[0][1] === "/" ? -1 : 1; if (depth === 0) { end = d.index + d[0].length; break; } }
+        if (end > 0) { zoneRanges.push({ start: z.index, end }); zre.lastIndex = end; }
+      }
+      return ranges.filter(r => !zoneRanges.some(zr => r.start >= zr.start && r.start < zr.end));
+    };
+    if (computeRanges(source).length !== geometries.length) return source; // số bảng khác nhau → không đoán
+    const setWidth = (tag, value) => (/\bwidth=(["']?)[^"'\s>]*\1/i.test(tag)
+      ? tag.replace(/\bwidth=(["']?)[^"'\s>]*\1/i, `width="${value}"`)
+      : tag.replace(/>$/, ` width="${value}">`));
+    let out = source;
+    // Sửa từ bảng cuối về đầu; tính lại phạm vi sau mỗi lần sửa (bảng lồng đổi độ dài của bảng ngoài).
+    for (let i = geometries.length - 1; i >= 0; i--) {
+      const g = geometries[i];
+      const ranges = computeRanges(out);
+      if (ranges.length !== geometries.length) break;
+      const { start, tagEnd, end } = ranges[i];
+      if (!g.grid.length || g.gridSum <= 0 || g.widthTwips <= 0) continue;
+      const scale = g.widthTwips / g.gridSum;
+      const colPx = g.grid.map(w => Math.max(1, Math.round(w * scale * PX)));
+      const tablePx = colPx.reduce((s, v) => s + v, 0);
+      let tableHtml = out.slice(start, end);
+      let inner = tableHtml.slice(tagEnd - start);
+      const openTag = setWidth(tableHtml.slice(0, tagEnd - start), String(tablePx));
+      // <col> của chính bảng: phần trước hàng đầu tiên (không có bảng lồng ở đó)
+      const firstTrAt = inner.search(/<tr\b/i);
+      const head = firstTrAt >= 0 ? inner.slice(0, firstTrAt) : inner;
+      const rest = firstTrAt >= 0 ? inner.slice(firstTrAt) : "";
+      const cols = [...head.matchAll(/<col\b[^>]*>/gi)];
+      let newHead = head;
+      if (cols.length === colPx.length) {
+        let ci = 0;
+        newHead = head.replace(/<col\b[^>]*>/gi, (tag) => setWidth(tag, String(colPx[ci++])));
+      }
+      // Ô của hàng đầu (độ sâu 1 trong bảng này): bề rộng = tổng gridCol theo gridSpan
+      let newRest = rest;
+      if (rest) {
+        const firstRowEnd = (() => { const rre = /<tr\b[^>]*>|<\/tr\s*>|<table\b[^>]*>|<\/table\s*>/gi; let depth = 0; let r; rre.lastIndex = 0;
+          while ((r = rre.exec(rest))) { const t = r[0].toLowerCase(); if (t.startsWith("<table")) depth++; else if (t.startsWith("</table")) depth--; else if (t.startsWith("</tr") && depth === 0) return r.index + r[0].length; }
+          return -1; })();
+        if (firstRowEnd > 0) {
+          const row = rest.slice(0, firstRowEnd);
+          const cellTags = []; const cre = /<(?:td|th)\b[^>]*>|<table\b[^>]*>|<\/table\s*>/gi; let depth = 0; let c;
+          while ((c = cre.exec(row))) { const t = c[0].toLowerCase(); if (t.startsWith("<table")) depth++; else if (t.startsWith("</table")) depth--; else if (depth === 0) cellTags.push({ index: c.index, tag: c[0] }); }
+          const spans = g.firstRowSpans.length === cellTags.length ? g.firstRowSpans : null;
+          if (spans) {
+            let col = 0; let newRow = ""; let pos = 0;
+            for (let k = 0; k < cellTags.length; k++) {
+              const span = spans[k]; const w = colPx.slice(col, col + span).reduce((s, v) => s + v, 0); col += span;
+              newRow += row.slice(pos, cellTags[k].index) + setWidth(cellTags[k].tag, String(w)); pos = cellTags[k].index + cellTags[k].tag.length;
+            }
+            newRow += row.slice(pos);
+            newRest = newRow + rest.slice(firstRowEnd);
+          }
+        }
+      }
+      tableHtml = openTag + newHead + newRest;
+      out = out.slice(0, start) + tableHtml + out.slice(end);
+    }
+    return out;
   }
 
   _preserveImportedFloatingFrames(html, ooxmlDocumentXml, page = null) {
