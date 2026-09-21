@@ -626,6 +626,156 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
                 res_text = res.decode("utf-8", errors="replace")
                 self.assertIn(FOOTER_DATE, res_text, f"{entry_name} should contain footer date")
 
+    def test_w27a_restores_page_break_on_paragraph_by_order(self):
+        """W27a: Source has page break on 2nd paragraph; converted lost it.
+        Restore by matching paragraphs by ORDER (not text)."""
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:t>Para 1</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:t>Para 2</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Para 3</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Para 1</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Para 2</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Para 3</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        # 2nd paragraph should have pageBreakBefore
+        paragraphs = [xml[start:end] for start, end in ooxml_zip_patch_mod._writer_body_paragraph_ranges(xml)]
+        self.assertEqual(len(paragraphs), 3)
+        self.assertIn('<w:pageBreakBefore/>', paragraphs[1])
+        self.assertNotIn('<w:pageBreakBefore/>', paragraphs[0])
+        self.assertNotIn('<w:pageBreakBefore/>', paragraphs[2])
+
+    def test_w27a_restores_page_break_on_table_first_cell_paragraph(self):
+        """W27a: Source table has page break; restore to first paragraph of first cell."""
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:t>Before table</w:t></w:r></w:p>'
+            '<w:tbl>'
+            '<w:tblPr><w:tblW w:w="5000" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="2500"/><w:gridCol w:w="2500"/></w:tblGrid>'
+            '<w:tr><w:tc><w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:t>Cell 1</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:p><w:r><w:t>Cell 2</w:t></w:r></w:p></w:tc></w:tr>'
+            '</w:tbl>'
+            '<w:p><w:r><w:t>After table</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Before table</w:t></w:r></w:p>'
+            '<w:tbl>'
+            '<w:tblPr><w:tblW w:w="5000" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="2500"/><w:gridCol w:w="2500"/></w:tblGrid>'
+            '<w:tr><w:tc><w:p><w:r><w:t>Cell 1</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:p><w:r><w:t>Cell 2</w:t></w:r></w:p></w:tc></w:tr>'
+            '</w:tbl>'
+            '<w:p><w:r><w:t>After table</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        # Find the table and check first cell's first paragraph
+        tables = re.findall(r'<w:tbl\b[\s\S]*?</w:tbl\s*>', xml, re.IGNORECASE)
+        self.assertEqual(len(tables), 1)
+        first_cell_para = re.search(r'<w:tc\b[\s\S]*?<w:p\b[\s\S]*?</w:p\s*>', tables[0], re.IGNORECASE)
+        self.assertIsNotNone(first_cell_para)
+        self.assertIn('<w:pageBreakBefore/>', first_cell_para.group(0))
+
+    def test_w27a_removes_incorrect_libreoffice_page_break_before(self):
+        """W27a: LibreOffice incorrectly added pageBreakBefore; source didn't have it.
+        Should remove the incorrect pageBreakBefore."""
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:t>Para 1</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Para 2</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Para 3</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Para 1</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:t>Para 2</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Para 3</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        paragraphs = [xml[start:end] for start, end in ooxml_zip_patch_mod._writer_body_paragraph_ranges(xml)]
+        self.assertEqual(len(paragraphs), 3)
+        # LibreOffice's incorrect pageBreakBefore on 2nd paragraph should be removed
+        self.assertNotIn('<w:pageBreakBefore/>', paragraphs[1])
+
+    def test_w27a_mixed_page_breaks_paragraph_and_table(self):
+        """W27a: Multiple page breaks on different element types (paragraph, table)."""
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:t>Para 1</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:t>Para 2</w:t></w:r></w:p>'
+            '<w:tbl>'
+            '<w:tblPr><w:tblW w:w="5000" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="2500"/><w:gridCol w:w="2500"/></w:tblGrid>'
+            '<w:tr><w:tc><w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:t>Table Cell</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:p><w:r><w:t>Cell 2</w:t></w:r></w:p></w:tc></w:tr>'
+            '</w:tbl>'
+            '<w:p><w:r><w:t>Para 3</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Para 1</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Para 2</w:t></w:r></w:p>'
+            '<w:tbl>'
+            '<w:tblPr><w:tblW w:w="5000" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="2500"/><w:gridCol w:w="2500"/></w:tblGrid>'
+            '<w:tr><w:tc><w:p><w:r><w:t>Table Cell</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:p><w:r><w:t>Cell 2</w:t></w:r></w:p></w:tc></w:tr>'
+            '</w:tbl>'
+            '<w:p><w:r><w:t>Para 3</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        # Check paragraph 2 has pageBreakBefore
+        paragraphs = [xml[start:end] for start, end in ooxml_zip_patch_mod._writer_body_paragraph_ranges(xml)]
+        self.assertIn('<w:pageBreakBefore/>', paragraphs[1])
+        # Check table first cell paragraph has pageBreakBefore
+        tables = re.findall(r'<w:tbl\b[\s\S]*?</w:tbl\s*>', xml, re.IGNORECASE)
+        self.assertEqual(len(tables), 1)
+        first_cell_para = re.search(r'<w:tc\b[\s\S]*?<w:p\b[\s\S]*?</w:p\s*>', tables[0], re.IGNORECASE)
+        self.assertIsNotNone(first_cell_para)
+        self.assertIn('<w:pageBreakBefore/>', first_cell_para.group(0))
+
+    def test_w27a_removes_incorrect_page_break_before_on_table(self):
+        """W27a: LibreOffice incorrectly added pageBreakBefore on table first cell."""
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:t>Before table</w:t></w:r></w:p>'
+            '<w:tbl>'
+            '<w:tblPr><w:tblW w:w="5000" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="2500"/><w:gridCol w:w="2500"/></w:tblGrid>'
+            '<w:tr><w:tc><w:p><w:r><w:t>Cell 1</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:p><w:r><w:t>Cell 2</w:t></w:r></w:p></w:tc></w:tr>'
+            '</w:tbl>'
+            '<w:p><w:r><w:t>After table</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Before table</w:t></w:r></w:p>'
+            '<w:tbl>'
+            '<w:tblPr><w:tblW w:w="5000" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="2500"/><w:gridCol w:w="2500"/></w:tblGrid>'
+            '<w:tr><w:tc><w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:t>Cell 1</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:p><w:r><w:t>Cell 2</w:t></w:r></w:p></w:tc></w:tr>'
+            '</w:tbl>'
+            '<w:p><w:r><w:t>After table</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        tables = re.findall(r'<w:tbl\b[\s\S]*?</w:tbl\s*>', xml, re.IGNORECASE)
+        self.assertEqual(len(tables), 1)
+        first_cell_para = re.search(r'<w:tc\b[\s\S]*?<w:p\b[\s\S]*?</w:p\s*>', tables[0], re.IGNORECASE)
+        self.assertIsNotNone(first_cell_para)
+        # LibreOffice's incorrect pageBreakBefore should be removed
+        self.assertNotIn('<w:pageBreakBefore/>', first_cell_para.group(0))
+
 
 def _build_minimal_docx(body_xml: str) -> bytes:
     """Build a minimal valid DOCX zip with the given body content in word/document.xml."""

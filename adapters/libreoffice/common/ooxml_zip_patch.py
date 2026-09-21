@@ -7397,6 +7397,176 @@ def _writer_has_page_break(paragraph: str) -> bool:
     ))
 
 
+def _writer_body_flow_elements(xml: str) -> list[dict]:
+    """Extract body-flow paragraphs and tables in document order.
+
+    Returns list of dicts with keys:
+      - 'type': 'paragraph' or 'table'
+      - 'xml': full element XML
+      - 'start', 'end': positions in xml string
+      - For paragraphs: 'has_page_break' (bool)
+      - For tables: 'first_cell_first_para' (dict with 'xml', 'start', 'end') or None
+    """
+    body_match = re.search(r"<w:body\b[^>]*>([\s\S]*?)</w:body\s*>", xml, re.IGNORECASE)
+    if not body_match:
+        return []
+    body_xml = body_match.group(1)
+    body_offset = body_match.start(1)
+
+    # Get all paragraphs and tables in body order
+    para_ranges = _xml_element_ranges(body_xml, "w:p")
+    tbl_ranges = _xml_element_ranges(body_xml, "w:tbl")
+
+    # Merge and sort by start position
+    elements = []
+    for start, end in para_ranges:
+        full_xml = body_xml[start:end]
+        has_pb = _writer_has_page_break(full_xml)
+        elements.append({
+            'type': 'paragraph',
+            'xml': full_xml,
+            'start': body_offset + start,
+            'end': body_offset + end,
+            'has_page_break': has_pb,
+        })
+    for start, end in tbl_ranges:
+        full_xml = body_xml[start:end]
+        # Find first cell's first paragraph for pageBreakBefore placement
+        first_para = None
+        cell_ranges = _xml_element_ranges(full_xml, "w:tc")
+        for cell_start, cell_end in cell_ranges:
+            cell_xml = full_xml[cell_start:cell_end]
+            para_ranges_cell = _xml_element_ranges(cell_xml, "w:p")
+            if para_ranges_cell:
+                ps, pe = para_ranges_cell[0]
+                first_para_xml = cell_xml[ps:pe]
+                first_para = {
+                    'xml': first_para_xml,
+                    'start': body_offset + start + cell_start + ps,
+                    'end': body_offset + start + cell_start + pe,
+                }
+                break
+        elements.append({
+            'type': 'table',
+            'xml': full_xml,
+            'start': body_offset + start,
+            'end': body_offset + end,
+            'first_cell_first_para': first_para,
+        })
+
+    elements.sort(key=lambda e: e['start'])
+    return elements
+
+
+def _add_page_break_before_to_paragraph(para_xml: str) -> str:
+    """Add w:pageBreakBefore to paragraph's w:pPr."""
+    ppr_match = re.search(r'(<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>)', para_xml, re.IGNORECASE)
+    if ppr_match:
+        ppr = ppr_match.group(1)
+        # Check if already has pageBreakBefore
+        if re.search(r'<w:pageBreakBefore\b', ppr, re.IGNORECASE):
+            return para_xml
+        # Insert before closing </w:pPr>
+        new_ppr = re.sub(r'(</w:pPr\s*>)', r'<w:pageBreakBefore/>\1', ppr, count=1, flags=re.IGNORECASE)
+        return para_xml[:ppr_match.start()] + new_ppr + para_xml[ppr_match.end():]
+    else:
+        # No pPr, create one with pageBreakBefore
+        return re.sub(r'(<w:p\b[^>]*>)', r'\1<w:pPr><w:pageBreakBefore/></w:pPr>', para_xml, count=1, flags=re.IGNORECASE)
+
+
+def _remove_page_break_before_from_paragraph(para_xml: str) -> str:
+    """Remove w:pageBreakBefore from paragraph's w:pPr."""
+    ppr_match = re.search(r'(<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>)', para_xml, re.IGNORECASE)
+    if not ppr_match:
+        return para_xml
+    ppr = ppr_match.group(1)
+    new_ppr = re.sub(r'<w:pageBreakBefore\b[^>]*/?>', '', ppr, flags=re.IGNORECASE)
+    if new_ppr == ppr:
+        return para_xml
+    return para_xml[:ppr_match.start()] + new_ppr + para_xml[ppr_match.end():]
+
+
+def _insert_empty_paragraph_with_page_break_before_table(table_xml: str, table_start: int, table_end: int, xml: str) -> str:
+    """Insert an empty paragraph with w:br type=page before the table."""
+    empty_para = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:br w:type="page"/></w:r></w:p>'
+    return xml[:table_start] + empty_para + xml[table_start:]
+
+
+def _restore_writer_page_breaks(converted_xml: str, source_xml: str) -> str:
+    """Restore manual page breaks from source DOCX to converted DOCX by order matching.
+
+    W27a: When saving a document opened from DOCX, restore manual page breaks
+    by matching paragraphs and tables by ORDER (not by text) between the source
+    DOCX and the LibreOffice-converted DOCX.
+
+    For tables: Word doesn't support pageBreakBefore on tables, so we add it to
+    the first paragraph of the first cell, or insert an empty paragraph with
+    w:br type=page before the table.
+    """
+    source_elements = _writer_body_flow_elements(source_xml)
+    converted_elements = _writer_body_flow_elements(converted_xml)
+
+    if not source_elements or not converted_elements:
+        return converted_xml
+
+    # Match by index (order)
+    result_xml = converted_xml
+    replacements = []  # list of (start, end, new_xml)
+
+    # Claude: LibreOffice đổi số đoạn (d09 406 → 344, d13 328 → 335) nên chỉ số lệch sau chỗ đổi; chỉ chấp nhận cặp
+    # khi CHỮ đầu (24 ký tự chuẩn hoá) của nguồn và bản chuyển đổi trùng nhau (đoạn rỗng ↔ đoạn rỗng), nếu không bỏ qua.
+    def _flow_text(elem: dict) -> str:
+        xml_part = elem['xml']
+        if elem['type'] == 'table':
+            first = elem.get('first_cell_first_para')
+            xml_part = first['xml'] if first else ""
+        text = "".join(re.findall(r"<w:t\b[^>]*>([^<]*)</w:t>", xml_part))
+        return re.sub(r"[^0-9a-zà-ỹ]+", "", html.unescape(text).lower())[:24]
+
+    for i, (src_elem, conv_elem) in enumerate(zip(source_elements, converted_elements)):
+        if src_elem['type'] != conv_elem['type'] or _flow_text(src_elem) != _flow_text(conv_elem):
+            continue
+        src_has_pb = src_elem.get('has_page_break', False)
+        conv_has_pb = conv_elem.get('has_page_break', False)
+
+        if src_has_pb:
+            # Source had a page break - ensure converted has it
+            if conv_elem['type'] == 'paragraph':
+                # Add pageBreakBefore to paragraph
+                new_para_xml = _add_page_break_before_to_paragraph(conv_elem['xml'])
+                if new_para_xml != conv_elem['xml']:
+                    replacements.append((conv_elem['start'], conv_elem['end'], new_para_xml))
+            elif conv_elem['type'] == 'table':
+                # For table: add to first paragraph of first cell
+                first_para = conv_elem.get('first_cell_first_para')
+                if first_para:
+                    new_para_xml = _add_page_break_before_to_paragraph(first_para['xml'])
+                    if new_para_xml != first_para['xml']:
+                        replacements.append((first_para['start'], first_para['end'], new_para_xml))
+                else:
+                    # No paragraph in first cell - insert empty paragraph before table
+                    # We'll handle this after collecting all replacements
+                    pass
+        elif conv_has_pb and not src_has_pb:
+            # Converted has page break but source didn't - remove it (LibreOffice added incorrectly)
+            if conv_elem['type'] == 'paragraph':
+                new_para_xml = _remove_page_break_before_from_paragraph(conv_elem['xml'])
+                if new_para_xml != conv_elem['xml']:
+                    replacements.append((conv_elem['start'], conv_elem['end'], new_para_xml))
+            elif conv_elem['type'] == 'table':
+                first_para = conv_elem.get('first_cell_first_para')
+                if first_para:
+                    new_para_xml = _remove_page_break_before_from_paragraph(first_para['xml'])
+                    if new_para_xml != first_para['xml']:
+                        replacements.append((first_para['start'], first_para['end'], new_para_xml))
+
+    # Apply replacements in reverse order to maintain correct offsets
+    for start, end, new_xml in sorted(replacements, key=lambda x: x[0], reverse=True):
+        result_xml = result_xml[:start] + new_xml + result_xml[end:]
+
+    return result_xml
+
+
 def _writer_outer_anchor_blocks(xml: str) -> list[str]:
     """Extract complete outer wp:anchor elements, including nested WPG anchors."""
     ranges = _xml_element_ranges(xml, "wp:anchor")
@@ -8168,6 +8338,10 @@ def postprocess_writer_docx(
     new_xml, next_rid = _restore_mid_document_sections(
         new_xml, original_xml, orig_rels, r_id_map, next_rid
     )
+
+    # W27a: Restore manual page breaks (w:br type=page / w:pageBreakBefore)
+    # by matching paragraphs and tables by ORDER between source and converted DOCX.
+    new_xml = _restore_writer_page_breaks(new_xml, original_xml)
 
     pristine_document = "vno-pristine-document" in new_xml
     untouched_texts = _writer_unique_marked_texts(new_xml)
