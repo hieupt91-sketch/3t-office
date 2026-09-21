@@ -7513,7 +7513,19 @@ def _restore_writer_page_breaks(converted_xml: str, source_xml: str) -> str:
     result_xml = converted_xml
     replacements = []  # list of (start, end, new_xml)
 
+    # Claude: LibreOffice đổi số đoạn (d09 406 → 344, d13 328 → 335) nên chỉ số lệch sau chỗ đổi; chỉ chấp nhận cặp
+    # khi CHỮ đầu (24 ký tự chuẩn hoá) của nguồn và bản chuyển đổi trùng nhau (đoạn rỗng ↔ đoạn rỗng), nếu không bỏ qua.
+    def _flow_text(elem: dict) -> str:
+        xml_part = elem['xml']
+        if elem['type'] == 'table':
+            first = elem.get('first_cell_first_para')
+            xml_part = first['xml'] if first else ""
+        text = "".join(re.findall(r"<w:t\b[^>]*>([^<]*)</w:t>", xml_part))
+        return re.sub(r"[^0-9a-zà-ỹ]+", "", html.unescape(text).lower())[:24]
+
     for i, (src_elem, conv_elem) in enumerate(zip(source_elements, converted_elements)):
+        if src_elem['type'] != conv_elem['type'] or _flow_text(src_elem) != _flow_text(conv_elem):
+            continue
         src_has_pb = src_elem.get('has_page_break', False)
         conv_has_pb = conv_elem.get('has_page_break', False)
 
