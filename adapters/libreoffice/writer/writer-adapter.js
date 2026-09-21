@@ -2093,6 +2093,7 @@ export class WriterAdapter {
   _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "", ooxmlHeaderXml = "", ooxmlFooterXml = "") {
     let html = String(raw || "");
     let comments = [];
+    html = this._unwrapOutlineHeadingLists(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
     if (ooxmlDocumentXml) {
       html = this._applyOoxmlTrackChangesToHtml(html, ooxmlDocumentXml);
       html = this._applyOoxmlTableParagraphSpacing(html, ooxmlDocumentXml, ooxmlStylesXml);
@@ -2137,10 +2138,8 @@ export class WriterAdapter {
     const bodyMatch = html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
     if (bodyMatch) html = bodyMatch[1];
 
-    html = html.replace(
-      /<(ol|ul)\b[^>]*>\s*<li\b[^>]*>\s*(<h[1-6]\b[^>]*>[\s\S]*?<\/h[1-6]>)\s*<\/li>\s*<\/\1>/gi,
-      "$2"
-    );
+    // W33: KHÔNG bóc `<ol><li><hN>` thành `<hN>` nữa — tiêu đề có numPr trong Word vẫn hiện số (d20: "3." "4."… của
+    // heading 2 trong ô bảng bị mất, `<ol><ol start=3><li>` thành `<ol><h2>`); cấp numFmt="none" do W33 đặt list-style none.
     html = html.replace(/<\/img>/gi, "");
     html = html.replace(/<br\s+clear=["']left["']\s*\/?>/gi, "");
 
@@ -2717,7 +2716,14 @@ export class WriterAdapter {
   _ooxmlBodyParagraphSource(bodyXml) {
     return String(bodyXml || "")
       .replace(/<mc:Fallback\b[\s\S]*?<\/mc:Fallback>/gi, "")
-      .replace(/<w:txbxContent\b[\s\S]*?<\/w:txbxContent>/gi, "");
+      .replace(/<w:txbxContent\b[\s\S]*?<\/w:txbxContent>/gi, "")
+      // W33: ô tiếp nối gộp dọc (`<w:vMerge/>` không restart) không hiển thị trong Word — đoạn (kể cả đoạn đánh số
+      // rỗng, d20 giữa "Địa chỉ" và "ĐT nhà") không có <p>/<li> trong HTML và không ăn số thứ tự.
+      .replace(/<w:tc>(?:(?!<w:tc>)[\s\S])*?<\/w:tc>/g, (cell) => {
+        const tcPr = cell.match(/<w:tcPr>([\s\S]*?)<\/w:tcPr>/);
+        if (tcPr && /<w:vMerge\b(?![^>]*w:val=["']restart["'])[^>]*\/>/.test(tcPr[1])) return "<w:tc><w:tcPr><w:vMerge/></w:tcPr></w:tc>";
+        return cell;
+      });
   }
 
   /**
@@ -3324,7 +3330,10 @@ export class WriterAdapter {
       const rFonts = lbody.match(/<w:rFonts\b([^>]*)\/?>/)?.[1];
       const asciiFont = rFonts ? rFonts.match(/\bw:ascii="([^"]+)"/)?.[1] : null;
       const ppr = lbody.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/);
-      return { numFmt, lvlText, font: asciiFont, ind: parseInd(ppr ? ppr[1] : "") };
+      const start = lbody.match(/<w:start\b[^>]*w:val="(-?\d+)"/)?.[1];
+      const lvlRestart = lbody.match(/<w:lvlRestart\b[^>]*w:val="(-?\d+)"/)?.[1];
+      return { numFmt, lvlText, font: asciiFont, ind: parseInd(ppr ? ppr[1] : ""), start: start !== undefined ? Number(start) : undefined,
+        lvlRestart: lvlRestart !== undefined ? Number(lvlRestart) : undefined };
     };
 
     // 1. numbering.xml
@@ -3344,7 +3353,9 @@ export class WriterAdapter {
       const ovrRe = /<w:lvlOverride\b[^>]*w:ilvl="([^"]+)"[^>]*>([\s\S]*?)<\/w:lvlOverride>/g;
       for (const om of m[2].matchAll(ovrRe)) {
         const props = lvlProps(om[2]);
-        if (props.numFmt || props.lvlText || props.font || props.ind) overrides.set(om[1], props);
+        const startOverride = om[2].match(/<w:startOverride\b[^>]*w:val="(-?\d+)"/)?.[1];
+        if (startOverride !== undefined) props.startOverride = Number(startOverride);
+        if (props.numFmt || props.lvlText || props.font || props.ind || props.startOverride !== undefined) overrides.set(om[1], props);
       }
       nums.set(m[1], { abstractNumId: aid, overrides });
     }
@@ -3359,8 +3370,34 @@ export class WriterAdapter {
         numFmt: over.numFmt || base?.numFmt,
         lvlText: over.lvlText !== undefined ? over.lvlText : base?.lvlText,
         font: over.font || base?.font || null,
-        ind: mergeInd(base?.ind || null, over.ind)
+        ind: mergeInd(base?.ind || null, over.ind),
+        start: over.start !== undefined ? over.start : base?.start,
+        startOverride: over.startOverride,
+        lvlRestart: over.lvlRestart !== undefined ? over.lvlRestart : base?.lvlRestart
       };
+    };
+    // W33: bộ đếm số thứ tự như Word — theo abstractNum + cấp; cấp cao hơn (chỉ số nhỏ) xuất hiện thì cấp sâu hơn
+    // đặt lại, trừ khi cấp sâu có `w:lvlRestart` (0 = không bao giờ; N = chỉ đặt lại khi gặp cấp < N — d20 lvl 1
+    // lvlRestart=0 nên "14. Têntàu" tiếp tục sau tiêu đề cấp 0); w:num có startOverride thì numId ấy đếm riêng.
+    const counters = new Map(); // key -> Map(level -> count)
+    const nextValue = (nid, ilvl, lvl) => {
+      const numEntry = nums.get(String(nid));
+      if (!numEntry) return null;
+      const key = lvl?.startOverride !== undefined ? `num:${nid}` : `abs:${numEntry.abstractNumId}`;
+      if (!counters.has(key)) counters.set(key, new Map());
+      const levels = counters.get(key);
+      const level = Number(ilvl) || 0;
+      for (const [k] of [...levels]) {
+        if (k <= level) continue;
+        const restart = resolveLvl(nid, String(k))?.lvlRestart;
+        if (restart === 0) continue;
+        if (restart !== undefined && level >= restart) continue;
+        levels.delete(k);
+      }
+      const startAt = lvl?.startOverride !== undefined ? lvl.startOverride : (lvl?.start !== undefined ? lvl.start : 1);
+      const value = levels.has(level) ? levels.get(level) + 1 : startAt;
+      levels.set(level, value);
+      return value;
     };
 
     // 2. styles.xml: numPr và w:ind thừa kế qua basedOn
@@ -3405,13 +3442,16 @@ export class WriterAdapter {
       for (const s of chain) ind = mergeInd(ind, s.ind);
       ind = mergeInd(ind, lvl?.ind || null);
       ind = mergeInd(ind, parseInd(pprXml));
+      const text = this._normalizeOoxmlParagraphText(m[0]);
       items.push({
         numId,
         ilvl,
         numFmt: lvl?.numFmt || null,
         lvlText: lvl?.lvlText !== undefined ? lvl?.lvlText : null,
         font: lvl?.font || null,
-        ind
+        ind,
+        text,
+        value: nextValue(numId, ilvl, lvl)
       });
     }
     return items;
@@ -3434,6 +3474,7 @@ export class WriterAdapter {
     const inRange = (offset, match) => match && offset >= match.index && offset < match.index + match[0].length;
     const twipsToCm = (twips) => `${Math.round(twips / 1440 * 2.54 * 1000) / 1000}cm`;
     let liIndex = 0;
+    const liIndexRef = { value: 0 };
     let depth = 0;
     const liLeftByDepth = [];
     return source.replace(/<\/?(?:ul|ol)\b[^>]*>|<li\b([^>]*)>/gi, (tag, attrs, offset) => {
@@ -3441,7 +3482,11 @@ export class WriterAdapter {
       if (lower === "</u" || lower === "</o") { depth = Math.max(0, depth - 1); return tag; }
       if (lower === "<ul" || lower === "<ol") { depth += 1; return tag; }
       if (inRange(offset, headerMatch) || inRange(offset, footerMatch)) return tag;
-      const item = items[liIndex++];
+      // W33: ghép theo thứ tự có kiểm chữ đầu (LibreOffice bỏ <li> của vài đoạn danh sách)
+      const restForKey = source.slice(offset + tag.length, offset + tag.length + 2000);
+      const keyEnd = restForKey.search(/<\/li>|<li\b/i);
+      const item = this._matchListItem(items, liIndexRef, restForKey.slice(0, keyEnd < 0 ? restForKey.length : keyEnd));
+      liIndex = liIndexRef.value;
       const ind = item?.ind;
       const left = Number.isFinite(ind?.left) ? ind.left : 0;
       liLeftByDepth[depth] = left;
@@ -3473,6 +3518,66 @@ export class WriterAdapter {
     });
   }
 
+  /**
+   * LibreOffice bọc tiêu đề trong `<ol><li><hN>` vì đánh số DÀN Ý (Outline) của chính nó — Word không có số. Bóc
+   * lớp bọc đó, TRỪ tiêu đề có numPr thật trong OOXML (W33, d20: heading 2 "3." "4."… trong ô bảng; heading 1 cấp
+   * numFmt none cũng giữ để W33 đặt list-style none và số thứ tự các mục sau đúng). Không có OOXML → bóc hết như cũ.
+   */
+  _unwrapOutlineHeadingLists(html, ooxmlDocumentXml, ooxmlStylesXml = "", ooxmlNumberingXml = "") {
+    const source = String(html || "");
+    if (!/<li\b/i.test(source)) return source;
+    let listKeys = null;
+    if (ooxmlDocumentXml && ooxmlNumberingXml) {
+      listKeys = new Set(this._ooxmlListParagraphs(ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml).map(item => item.text).filter(Boolean));
+    }
+    return source.replace(
+      /<(ol|ul)\b[^>]*>\s*<li\b[^>]*>\s*(<h[1-6]\b[^>]*>[\s\S]*?<\/h[1-6]>)\s*<\/li>\s*<\/\1>/gi,
+      (all, tag, heading) => {
+        if (listKeys && listKeys.size) {
+          const key = this._textKeyFromMarkup(heading);
+          if (key && listKeys.has(key)) return all;
+        }
+        return heading;
+      }
+    );
+  }
+
+  /** Khoá chữ đầu (24 ký tự chữ/số, thường) để đối chiếu đoạn OOXML ↔ mục HTML (như W27a). */
+  _textKeyFromMarkup(markup) {
+    return String(markup || "")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&#(\d+);/g, (all, code) => String.fromCodePoint(Number(code)))
+      .replace(/&#x([0-9a-f]+);/gi, (all, code) => String.fromCodePoint(parseInt(code, 16)))
+      .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, "")
+      .slice(0, 24);
+  }
+
+  _normalizeOoxmlParagraphText(paragraphXml) {
+    const texts = [...String(paragraphXml || "").matchAll(/<w:t\b[^>]*>([^<]*)<\/w:t>/g)].map(m => m[1]).join("");
+    return this._textKeyFromMarkup(texts);
+  }
+
+  /**
+   * W33: mục HTML ↔ đoạn danh sách OOXML theo thứ tự nhưng có kiểm chữ đầu: LibreOffice không phát `<li>` cho một số
+   * đoạn (d20: tiêu đề numFmt none đầu tài liệu, 92 đoạn ↔ 88 `<li>`) nên lệch chỉ số → bỏ qua các đoạn OOXML không
+   * khớp chữ cho tới khi khớp; không tìm được trong 6 đoạn kế thì giữ thứ tự.
+   */
+  _matchListItem(docListItems, liIndexRef, liText) {
+    const key = this._textKeyFromMarkup(liText);
+    for (let look = 0; look < 6 && liIndexRef.value + look < docListItems.length; look++) {
+      const candidate = docListItems[liIndexRef.value + look];
+      if (!key || !candidate.text || candidate.text === key || candidate.text.startsWith(key) || key.startsWith(candidate.text)) {
+        liIndexRef.value += look + 1;
+        return candidate;
+      }
+    }
+    const item = docListItems[liIndexRef.value] || null;
+    liIndexRef.value += 1;
+    return item;
+  }
+
   _applyOoxmlListBullets(html, ooxmlDocumentXml, ooxmlStylesXml = "", ooxmlNumberingXml = "") {
     if (!ooxmlDocumentXml || !ooxmlNumberingXml || !html.includes("<li")) return html;
     const docListItems = this._ooxmlListParagraphs(ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
@@ -3485,18 +3590,40 @@ export class WriterAdapter {
 
     // 5. Đối chiếu tuần tự với từng thẻ mở <li> trong HTML (chỉ thẻ mở: <li>…</li> lồng nhau sẽ nuốt mất <li> con)
     let liIndex = 0;
+    const liIndexRef = { value: 0 };
+    const numberedFormats = new Set(["decimal", "decimalZero", "lowerLetter", "upperLetter", "lowerRoman", "upperRoman"]);
     return html.replace(/<li\b([^>]*)>/gi, (fullTag, attrs, offset) => {
       if (inRange(offset, headerMatch) || inRange(offset, footerMatch)) {
         return fullTag;
       }
-      const item = docListItems[liIndex++];
-      if (!item || item.numFmt !== "bullet" || item.lvlText == null) {
+      // Chữ của mục: tới thẻ đóng </li> hoặc <li> con kế tiếp (đủ để lấy 24 ký tự đầu)
+      const rest = html.slice(offset + fullTag.length, offset + fullTag.length + 2000);
+      const liText = rest.slice(0, Math.max(0, rest.search(/<\/li>|<li\b/i) < 0 ? rest.length : rest.search(/<\/li>|<li\b/i)));
+      const item = this._matchListItem(docListItems, liIndexRef, liText);
+      liIndex = liIndexRef.value;
+      if (!item) return fullTag;
+      // W33: cấp numFmt="none" (tiêu đề đánh số ngoài dàn ý, d20 lvl 0 của numId 12) không có ký hiệu trong Word;
+      // cấp đánh số: `value` = số thứ tự tính như Word (LibreOffice bỏ `start` khi danh sách bị tiêu đề cấp 0 chen
+      // ngang — d20 "Têntàu" 14 → 1) và lvlText "%N." hiện đúng nhờ list-style decimal/alpha/roman của <ol>.
+      let listStyleType = null;
+      if (item.numFmt === "none") {
+        listStyleType = "none";
+      } else if (numberedFormats.has(item.numFmt) && Number.isFinite(item.value) && /^%\d\.?$/.test(String(item.lvlText || ""))) {
+        const cssType = { decimal: "decimal", decimalZero: "decimal-leading-zero", lowerLetter: "lower-alpha", upperLetter: "upper-alpha", lowerRoman: "lower-roman", upperRoman: "upper-roman" }[item.numFmt];
+        const withValue = /\bvalue=/i.test(attrs) ? attrs.replace(/\bvalue=(["']?)\d+\1/i, `value="${item.value}"`) : `${attrs} value="${item.value}"`;
+        const styleMatch = withValue.match(/\bstyle=(["'])([^"']*)\1/i);
+        if (styleMatch && !/\blist-style(-type)?\b/i.test(styleMatch[2])) {
+          return `<li${withValue.replace(styleMatch[0], `style=${styleMatch[1]}${styleMatch[2].trim().replace(/;?$/, `; list-style-type: ${cssType};`)}${styleMatch[1]}`)}>`;
+        }
+        return styleMatch ? `<li${withValue}>` : `<li${withValue} style="list-style-type: ${cssType};">`;
+      } else if (item.numFmt !== "bullet" || item.lvlText == null) {
         return fullTag;
       }
 
-      let listStyleType = null;
-      const t = item.lvlText;
-      if (t === "-") {
+      const t = item.lvlText || "";
+      if (listStyleType) {
+        // đã chọn (none)
+      } else if (t === "-") {
         listStyleType = "'- '";
       } else if (t === "\u2013") {
         listStyleType = "'\u2013 '";

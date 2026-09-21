@@ -254,7 +254,42 @@ export async function runWriterDocFontSpacingTests() {
       + '<w:num w:numId="2"><w:abstractNumId w:val="2"/></w:num>'
       + '</w:numbering>';
     const out = adapter._applyOoxmlListBullets(html, doc, "", numXml);
-    check(!out.includes("list-style-type:"), `ordered and standard bullet must not have list-style-type injected: ${out}`);
+    // W33: mục đánh số nhận value + list-style decimal (số thứ tự tính như Word); disc chuẩn giữ nguyên
+    check(out.includes('<li value="1" style="list-style-type: decimal;"><p>Item 1</p>'), `ordered item gets Word value/decimal: ${out}`);
+    check(out.includes('<ul><li><p>Standard bullet</p></li></ul>'), `standard bullet untouched: ${out}`);
+  });
+
+  test("W33: số thứ tự như Word — đếm theo abstractNum, cấp 0 numFmt none = list-style none, ghép có kiểm chữ đầu", () => {
+    const adapter = new WriterAdapter(null);
+    // LibreOffice: tiêu đề cấp 0 (none) không có <li>, danh sách cấp 1 bị tách <ol> mới (mất start)
+    const html = '<h1>Phần A</h1><ol><li><p>Mục 1</p></li><li><p>Mục 2</p></li></ol>'
+      + '<ol><li><h1>Phần B</h1></li></ol><ol><li><p>Mục 3</p></li></ol>';
+    const doc = '<w:document><w:body>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="12"/></w:numPr></w:pPr><w:r><w:t>Phần A</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="1"/><w:numId w:val="12"/></w:numPr></w:pPr><w:r><w:t>Mục 1</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="1"/><w:numId w:val="12"/></w:numPr></w:pPr><w:r><w:t>Mục 2</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="12"/></w:numPr></w:pPr><w:r><w:t>Phần B</w:t></w:r></w:p>'
+      + '<w:p><w:pPr><w:numPr><w:ilvl w:val="1"/><w:numId w:val="12"/></w:numPr></w:pPr><w:r><w:t>Mục 3</w:t></w:r></w:p>'
+      + '</w:body></w:document>';
+    const numXml = '<w:numbering><w:abstractNum w:abstractNumId="2">'
+      + '<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="none"/><w:lvlText w:val=""/></w:lvl>'
+      + '<w:lvl w:ilvl="1"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlRestart w:val="0"/><w:lvlText w:val="%2."/></w:lvl>'
+      + '</w:abstractNum><w:num w:numId="12"><w:abstractNumId w:val="2"/></w:num></w:numbering>';
+    const items = adapter._ooxmlListParagraphs(doc, "", numXml);
+    check(items.map(i => i.value).join(",") === "1,1,2,2,3", `Word counters (lvlRestart=0 không đặt lại): ${items.map(i => i.value).join(",")}`);
+    // Không có lvlRestart: cấp 0 xuất hiện thì cấp 1 đặt lại về 1 (mặc định Word)
+    const itemsReset = adapter._ooxmlListParagraphs(doc, "", numXml.replace('<w:lvlRestart w:val="0"/>', ""));
+    check(itemsReset.map(i => i.value).join(",") === "1,1,2,2,1", `Word counters mặc định: ${itemsReset.map(i => i.value).join(",")}`);
+    const out = adapter._applyOoxmlListBullets(html, doc, "", numXml);
+    check(out.includes('<li value="1" style="list-style-type: decimal;"><p>Mục 1</p>'), `Mục 1 = 1: ${out}`);
+    check(out.includes('<li value="2" style="list-style-type: decimal;"><p>Mục 2</p>'), `Mục 2 = 2: ${out}`);
+    check(out.includes('<li style="list-style-type: none;"><h1>Phần B</h1>'), `Phần B none: ${out}`);
+    check(out.includes('<li value="3" style="list-style-type: decimal;"><p>Mục 3</p>'), `Mục 3 tiếp 3 (không về 1): ${out}`);
+    // Bóc <ol><li><hN> chỉ khi tiêu đề KHÔNG phải đoạn danh sách OOXML
+    const wrapped = '<ol><li><h1>Tiêu đề dàn ý</h1></li></ol><ol><li><h1>Phần B</h1></li></ol>';
+    const unwrapped = adapter._unwrapOutlineHeadingLists(wrapped, doc, "", numXml);
+    check(unwrapped === '<h1>Tiêu đề dàn ý</h1><ol><li><h1>Phần B</h1></li></ol>', `unwrap outline only: ${unwrapped}`);
+    check(adapter._unwrapOutlineHeadingLists(wrapped, "", "", "") === '<h1>Tiêu đề dàn ý</h1><h1>Phần B</h1>', "no OOXML: unwrap all");
   });
 
   // Đo d09 (Word COM): "PHẦN II"/"THỰC TRẠNG…" là Normal (không contextualSpacing) nhưng canvas nhận margin 0 vì ánh xạ

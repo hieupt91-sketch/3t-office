@@ -942,6 +942,8 @@ class VnOfficeApi:
                             content = patcher.inject_docx_default_font_css(docx_bytes, content)
                             # W25a: cỡ chữ style nửa điểm (w:sz lẻ: 8,5 / 11,5 / 14,5 pt) bị LibreOffice làm tròn
                             content = patcher.inject_docx_half_point_styles_css(docx_bytes, content)
+                            # W32: font/cỡ/đậm/nghiêng của heading 1..6 theo chuỗi style Word (LibreOffice bỏ trống)
+                            content = patcher.inject_docx_heading_styles_css(docx_bytes, content)
                         except OSError:
                             pass
                 elif app_kind == "sheet":

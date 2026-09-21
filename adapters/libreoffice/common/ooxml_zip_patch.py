@@ -3054,6 +3054,130 @@ def inject_docx_half_point_styles_css(docx_bytes: bytes, html: str) -> str:
     return html
 
 
+def docx_heading_style_props(docx_bytes: bytes) -> dict[int, dict]:
+    """W32: thuộc tính chữ THẬT của style heading 1..6 theo chuỗi kế thừa Word (style -> basedOn ... -> Normal ->
+    docDefaults; thiếu sz ở mọi cấp = 10pt; b/i vắng = thường; rFonts asciiTheme giải qua theme + script Viet W12b).
+    Returns {level: {"family", "size_pt", "bold", "italic", "color"}} — chỉ các level có style trong styles.xml."""
+    styles_xml = (read_zip_entry(docx_bytes, "word/styles.xml") or b"").decode("utf-8", errors="replace")
+    if not styles_xml:
+        return {}
+    resolved = docx_theme_fonts(docx_bytes)
+    theme_fonts = {"majorHAnsi": resolved["major"], "minorHAnsi": resolved["minor"],
+                   "majorAscii": resolved["major"], "minorAscii": resolved["minor"]}
+    styles_map: dict[str, dict] = {}
+    for sm in re.finditer(r"<w:style\b([^>]*)>([\s\S]*?)</w:style>", styles_xml):
+        attrs, body = sm.group(1), sm.group(2)
+        stype = re.search(r'w:type="([^"]+)"', attrs)
+        if stype and stype.group(1) != "paragraph":
+            continue
+        sid = re.search(r'w:styleId="([^"]+)"', attrs)
+        if not sid:
+            continue
+        name_m = re.search(r'<w:name\b[^>]*w:val="([^"]+)"', body)
+        based_m = re.search(r'<w:basedOn\b[^>]*w:val="([^"]+)"', body)
+        rpr = re.search(r"<w:rPr>([\s\S]*?)</w:rPr>", body)
+        styles_map[sid.group(1)] = {"name": (name_m.group(1) if name_m else sid.group(1)).strip().lower(),
+                                    "basedOn": based_m.group(1) if based_m else None,
+                                    "rPr": rpr.group(1) if rpr else ""}
+    dd = re.search(r"<w:rPrDefault>\s*<w:rPr>([\s\S]*?)</w:rPr>", styles_xml)
+    default_rpr = dd.group(1) if dd else ""
+
+    def prop(block: str, key: str):
+        if key == "family":
+            rfonts = re.search(r"<w:rFonts\b([^>]*)/?>", block)
+            if not rfonts:
+                return None
+            a = rfonts.group(1)
+            ascii_m = re.search(r'w:ascii="([^"]+)"', a)
+            theme_m = re.search(r'w:asciiTheme="([^"]+)"', a)
+            if theme_m and theme_fonts.get(theme_m.group(1)):
+                return theme_fonts[theme_m.group(1)]
+            return ascii_m.group(1) if ascii_m else None
+        if key == "size":
+            m = re.search(r'<w:sz\b[^>]*w:val="(\d+)"', block)
+            return int(m.group(1)) / 2 if m else None
+        if key in ("bold", "italic"):
+            tag = "b" if key == "bold" else "i"
+            m = re.search(rf"<w:{tag}\b([^>]*)/?>", block)
+            if not m:
+                return None
+            val = re.search(r'w:val="([^"]*)"', m.group(1))
+            return not (val and val.group(1) in ("0", "false", "off"))
+        if key == "color":
+            m = re.search(r'<w:color\b[^>]*w:val="([0-9A-Fa-f]{6})"', block)
+            return m.group(1).upper() if m else None
+        return None
+
+    def resolve(sid: str, key: str):
+        visited: set[str] = set()
+        cur = sid
+        while cur and cur in styles_map and cur not in visited:
+            visited.add(cur)
+            value = prop(styles_map[cur]["rPr"], key)
+            if value is not None:
+                return value
+            cur = styles_map[cur]["basedOn"]
+        if sid != "Normal" and "Normal" in styles_map and "Normal" not in visited:
+            value = prop(styles_map["Normal"]["rPr"], key)
+            if value is not None:
+                return value
+        return prop(default_rpr, key)
+
+    out: dict[int, dict] = {}
+    for sid, st in styles_map.items():
+        m = re.match(r"^heading\s*([1-6])$", st["name"]) or re.match(r"^heading([1-6])$", sid.lower())
+        if not m:
+            continue
+        level = int(m.group(1))
+        if level in out:
+            continue
+        family = resolve(sid, "family") or ""
+        size = resolve(sid, "size")
+        out[level] = {
+            "family": family,
+            "size_pt": float(size) if size is not None else 10.0,
+            "bold": bool(resolve(sid, "bold")),
+            "italic": bool(resolve(sid, "italic")),
+            "color": resolve(sid, "color"),
+        }
+    return out
+
+
+def inject_docx_heading_styles_css(docx_bytes: bytes, html: str) -> str:
+    """W32 (đo d20, V12): style "heading 2" của tài liệu = TNR 10pt thường (basedOn Footer, chỉ có numPr) nhưng
+    LibreOffice chỉ ghi `h2 { margin… }` không font/cỡ/đậm → canvas dùng h2 mặc định của trình duyệt/app (đậm, to,
+    sans). Ghi rule đầy đủ `hN.western { font-family; font-size; font-weight; font-style[; color] }` từ chuỗi style
+    Word (sau rule LibreOffice để thắng)."""
+    if not html or not docx_bytes:
+        return html
+    try:
+        props = docx_heading_style_props(docx_bytes)
+    except Exception:
+        return html
+    if not props:
+        return html
+    rules = []
+    for level in sorted(props):
+        p = props[level]
+        decl = []
+        if p["family"]:
+            decl.append(f'font-family: "{p["family"]}", serif')
+        decl.append(f'font-size: {p["size_pt"]:g}pt')
+        decl.append(f'font-weight: {"bold" if p["bold"] else "normal"}')
+        decl.append(f'font-style: {"italic" if p["italic"] else "normal"}')
+        if p["color"] and p["color"] != "000000":
+            decl.append(f'color: #{p["color"].lower()}')
+        rules.append(f'h{level}.western {{ {"; ".join(decl)} }}')
+    rules_str = "\n\t\t" + "\n\t\t".join(rules) + "\n\t"
+    head_match = re.search(r"<style\b[^>]*>(.*?)</style>", html, re.S | re.I)
+    if head_match:
+        insert_at = head_match.end(1)
+        return html[:insert_at] + rules_str + html[insert_at:]
+    if re.search(r"</head>", html, re.I):
+        return re.sub(r"</head>", f'<style type="text/css">{rules_str}</style></head>', html, count=1, flags=re.I)
+    return html
+
+
 def _unescape_xml(value: str) -> str:
     unescaped = (
         (value or "")
