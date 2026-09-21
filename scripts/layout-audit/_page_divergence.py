@@ -19,6 +19,23 @@ for cc in c:
             pairs.append((cc, wrows[j])); wi = j + 1; break
 first = next((i for i, (cc, ww) in enumerate(pairs) if cc["page"] != ww["page"]), None)
 print("pairs", len(pairs), "first divergence index", first)
+# Troi tich luy TRONG trang (px): (C.top - C.top cua cap dau trang) - (W.y - W.y cua cap dau trang)*96/72; in buoc nhay > 4px
+if "--drift" in sys.argv:
+    page_base = {}
+    last_d = None
+    for idx, (cc, ww) in enumerate(pairs):
+        if cc["page"] != ww["page"]: break
+        p = ww["page"]
+        if p not in page_base: page_base[p] = (cc["top"], ww["y"]); last_d = 0.0
+        d = (cc["top"] - page_base[p][0]) - (ww["y"] - page_base[p][1]) * 96 / 72
+        if last_d is None or abs(d - last_d) > 4:
+            prev = pairs[idx - 1] if idx > 0 else None
+            between = []
+            if prev:
+                i0 = c.index(prev[0]); i1 = c.index(cc)
+                between = [f"{b['tag']} h={b['h']:.0f} {b['text'][:22]!r}" for b in c[i0 + 1:i1]]
+            print(f"  p{p} drift {d:+.0f}px (step {d - (last_d or 0):+.0f}) at {cc['text'][:30]!r} | C h={cc['h']:.0f} lines={cc['lines']} mt/mb={cc['mt']:.0f}/{cc['mb']:.0f} | W lines={ww['lines']} sb/sa={ww['sb']}/{ww['sa']} ls={ww['lsRule']}/{ww['ls']} | between: {between[:3]}")
+        last_d = d
 if first is not None:
     for cc, ww in pairs[max(0, first - 6): first + 3]:
         flag = "<<" if cc["page"] != ww["page"] else "  "

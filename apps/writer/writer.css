@@ -469,6 +469,13 @@ li.vno-page-auto-gap {
   width: auto;
   margin: 0;
 }
+/* W30c (đo d01 Word COM: cột 60,6/386,9/107,1/87,6px = gridCol): bảng nhập đã có bề rộng tuyệt đối W30 phải dàn theo
+   lưới cố định — table-layout: auto nới cột 1 từ 61 → 76,9px vì min-content của <li> (số thứ tự) và bóp cột 2 xuống
+   369,8px → chữ 110% tràn dòng khác Word. Word không có "auto layout" khi mở: gridCol đã là kết quả cuối. */
+.vno-writer-page.vno-doc-imported table[data-vno-lo-width],
+.vno-print-preview-overlay.vno-doc-imported .vno-print-preview-body table[data-vno-lo-width] {
+  table-layout: fixed;
+}
 .vno-writer-page.vno-doc-imported :is(h1, h2, h3, h4, h5, h6),
 .vno-print-preview-overlay.vno-doc-imported .vno-print-preview-body :is(h1, h2, h3, h4, h5, h6) {
   /* Tiêu đề tài liệu nhập: bỏ mặc định NĐ30 (in hoa, canh giữa, 16pt); font/cỡ/lề thật đến từ
@@ -484,6 +491,16 @@ li.vno-page-auto-gap {
 .vno-writer-page.vno-doc-imported p:not([align]),
 .vno-print-preview-overlay.vno-doc-imported .vno-print-preview-body p:not([align]) {
   text-align: start;
+}
+
+/* W45 (đo d01 Word COM): Word KHÔNG kerning trừ run có w:kern (và không ligature mặc định); Chromium kerning mặc
+   định làm chữ Times New Roman tiếng Việt hẹp ~8% ("Tư vấn máy vi tính…" 358,8px kern / 388,6px không kern, ô 370px
+   → Word 2 dòng, canvas 1 dòng → hàng 35 thay vì 58px, bảng 64 hàng lệch trang). Run có w:kern nhận
+   font-kerning: normal qua style nội tuyến khi nhập. */
+.vno-writer-page.vno-doc-imported,
+.vno-print-preview-overlay.vno-doc-imported .vno-print-preview-body {
+  font-kerning: none;
+  font-variant-ligatures: none;
 }
 
 /* Word: đoạn đầu trang sau ngắt trang tự động không có space-before; space-after

@@ -2072,6 +2072,10 @@ export class WriterAdapter {
 
       if (this.docStyles.paraMargin) setProp("--vno-doc-para-margin", this.docStyles.paraMargin);
       else removeProp("--vno-doc-para-margin");
+
+      // W45: kerning cả tài liệu khi Normal/docDefaults có w:kern (inline thắng rule .vno-doc-imported { none })
+      if (this.docStyles.kerning === "normal") setProp("font-kerning", "normal");
+      else removeProp("font-kerning");
     } else {
       removeProp("--vno-doc-font-family");
       removeProp("--vno-doc-font-size");
@@ -2079,6 +2083,7 @@ export class WriterAdapter {
       removeProp("--vno-footer-font-size");
       removeProp("--vno-doc-line-height");
       removeProp("--vno-doc-para-margin");
+      removeProp("font-kerning");
     }
 
     // Giãn dòng tỉ lệ = bội số chiều cao dòng tự nhiên của font tài liệu (xem
@@ -2088,6 +2093,18 @@ export class WriterAdapter {
       try { family = window.getComputedStyle(target).fontFamily || ""; } catch {}
     }
     setProp("--vno-font-ratio", String(this._fontLineRatio(family || "Times New Roman")));
+  }
+
+  /** W45: docDefaults hoặc style Normal có `w:kern` (val ≤ 2×cỡ chữ mặc định) → Word kerning cả tài liệu. */
+  _documentKerningFromStyles(stylesXml) {
+    const styles = String(stylesXml || "");
+    const defaults = styles.match(/<w:docDefaults>([\s\S]*?)<\/w:docDefaults>/)?.[1] || "";
+    const normal = styles.match(/<w:style\b[^>]*w:styleId="Normal"[^>]*>([\s\S]*?)<\/w:style>/)?.[1] || "";
+    const kern = (normal.match(/<w:kern\b[^>]*w:val="(\d+)"/) || defaults.match(/<w:kern\b[^>]*w:val="(\d+)"/));
+    if (!kern) return false;
+    const sz = (normal.match(/<w:sz\b[^>]*w:val="(\d+)"/) || defaults.match(/<w:sz\b[^>]*w:val="(\d+)"/));
+    const sizeHalfPt = sz ? Number(sz[1]) : 20;
+    return Number(kern[1]) <= sizeHalfPt;
   }
 
   _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "", ooxmlHeaderXml = "", ooxmlFooterXml = "") {
@@ -2108,6 +2125,10 @@ export class WriterAdapter {
       html = this._applyOoxmlEmptyParagraphFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml);
       html = this._applyOoxmlTableCellEmptyParagraphFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml);
       html = this._propagateEmptyParagraphFontSizeToListItem(html);
+      // W46: tỉ lệ chữ w:w (style/run) → --vno-char-scale trên đoạn (thân + ô bảng)
+      html = this._applyOoxmlCharacterScale(html, ooxmlDocumentXml, ooxmlStylesXml);
+      // W24c: hàng w:cantSplit không được tràn trang
+      html = this._applyOoxmlRowCantSplit(html, ooxmlDocumentXml);
       if (ooxmlNumberingXml) {
         html = this._applyOoxmlListIndents(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
         html = this._applyOoxmlListBullets(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
@@ -2122,6 +2143,8 @@ export class WriterAdapter {
     if (ooxmlDocumentXml) {
       html = this._applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml);
     }
+    // W44: viền ô chỉ tô (box-shadow), không chiếm chỗ như Word
+    html = this._applyPaintOnlyTableBorders(html);
     const page = this._pageSetupFromImportedCss(html);
     const docStyles = this._parseDocStylesFromImportedHtml(raw, ooxmlDocumentXml);
     // W23c: cỡ chữ mặc định của vùng header/footer = style Header/Footer (styles.xml), không phải Normal của thân.
@@ -2129,6 +2152,8 @@ export class WriterAdapter {
       const zoneSizes = this._headerFooterFontSizesFromStyles(ooxmlStylesXml);
       if (zoneSizes.header) docStyles.headerFontSize = zoneSizes.header;
       if (zoneSizes.footer) docStyles.footerFontSize = zoneSizes.footer;
+      // W45: Word chỉ kerning khi w:kern (docDefaults/Normal → cả tài liệu; d02/d16 Normal có kern, d01 430/5882 run)
+      docStyles.kerning = this._documentKerningFromStyles(ooxmlStylesXml) ? "normal" : "none";
     }
     const hf = this._pageHeaderFooterFromOoxml(ooxmlDocumentXml);
     if (hf) {
@@ -3289,6 +3314,205 @@ export class WriterAdapter {
   }
 
   /**
+   * Bộ ghép chung: gọi `fn(ooxmlParaXml)` cho từng đoạn HTML đã ghép với w:p theo thứ tự — đoạn thân (cơ chế W12e:
+   * bỏ bảng/header/footer/chú thích, nguồn w:p bỏ hộp văn bản/Fallback) và đoạn trong ô bảng cấp 1 (cơ chế W26c:
+   * bảng ↔ w:tbl, ô ↔ w:tc bỏ vMerge tiếp nối, đoạn ↔ w:p độ sâu 0; số lượng lệch → bỏ qua bảng/ô). `fn` trả về mảng
+   * khai báo CSS (hoặc null) được thêm vào thẻ đoạn qua `_addCssDeclsToParagraph`.
+   */
+  _mapOoxmlParagraphs(html, ooxmlDocumentXml, fn) {
+    let source = String(html || "");
+    const xml = this._ooxmlBodyParagraphSource(String(ooxmlDocumentXml || ""));
+    if (!xml) return source;
+    const paraRe = /<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>|<w:p\/>/g;
+    // 1. Thân
+    const bodyMatch = xml.match(/<w:body>([\s\S]*?)<\/w:body>/i);
+    if (bodyMatch) {
+      const bodyParas = [...this._stripOoxmlTables(bodyMatch[1]).matchAll(paraRe)].map(m => m[0]);
+      const skip = this._htmlParagraphSkipRanges(source);
+      let idx = 0;
+      source = source.replace(/<(p|h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi, (full, tag, attrs, inner, offset) => {
+        if (skip.some(r => offset >= r.start && offset < r.end)) return full;
+        const pXml = bodyParas[idx++];
+        if (!pXml) return full;
+        const decls = fn(pXml, full);
+        return decls && decls.length ? this._addCssDeclsToParagraph(full, attrs, inner, decls, tag) : full;
+      });
+    }
+    // 2. Ô bảng cấp 1
+    if (!xml.includes("<w:tbl") || !/<table\b/i.test(source)) return source;
+    const ooxmlTables = [];
+    { const re = /<w:tbl>|<w:tbl\s[^>]*>|<\/w:tbl>/g; const stack = []; let m;
+      while ((m = re.exec(xml))) { if (m[0].startsWith("</")) { const s = stack.pop(); if (s !== undefined && stack.length === 0) ooxmlTables.push(xml.slice(s, m.index + m[0].length)); } else stack.push(m.index); } }
+    const ooxmlCells = (tblXml) => {
+      const cells = []; const re = /<w:tbl>|<w:tbl\s[^>]*>|<\/w:tbl>|<w:tc>|<w:tc\s[^>]*>|<\/w:tc>/g; let depth = 0; let m; let open = -1;
+      while ((m = re.exec(tblXml))) {
+        const t = m[0];
+        if (t.startsWith("<w:tbl")) depth++; else if (t.startsWith("</w:tbl")) depth--;
+        else if (t.startsWith("<w:tc")) { if (depth === 1) open = m.index; }
+        else if (t.startsWith("</w:tc") && depth === 1 && open >= 0) { cells.push(tblXml.slice(open, m.index + m[0].length)); open = -1; }
+      }
+      return cells.filter(c => !/<w:vMerge\s*\/>|<w:vMerge\b[^>]*w:val="continue"/.test(c.match(/<w:tcPr>[\s\S]*?<\/w:tcPr>/)?.[0] || ""));
+    };
+    const tableSpecs = ooxmlTables.map(t => ooxmlCells(t).map(tc => [...this._stripOoxmlTables(tc.replace(/^<w:tc[^>]*>/, "").replace(/<\/w:tc>$/, "")).matchAll(paraRe)].map(x => x[0])));
+    const ranges = []; const stack = []; const tre = /<table\b[^>]*>|<\/table\s*>/gi; let m;
+    while ((m = tre.exec(source))) { if (m[0].startsWith("</")) { const s = stack.pop(); if (s !== undefined && stack.length === 0) ranges.push({ start: s, end: m.index + m[0].length }); } else stack.push(m.index); }
+    const skipT = this._htmlParagraphSkipRanges(source).filter(r => !/^<table/i.test(source.slice(r.start, r.start + 6)));
+    const bodyRanges = ranges.filter(r => !skipT.some(z => r.start >= z.start && r.start < z.end));
+    if (bodyRanges.length !== tableSpecs.length) return source;
+    let out = source;
+    for (let i = bodyRanges.length - 1; i >= 0; i--) {
+      const spec = tableSpecs[i]; const { start, end } = bodyRanges[i];
+      let tableHtml = out.slice(start, end);
+      const cells = []; const cre = /<table\b[^>]*>|<\/table\s*>|<(?:td|th)\b[^>]*>|<\/(?:td|th)\s*>/gi; let depth = 0; let c; let open = -1;
+      while ((c = cre.exec(tableHtml))) {
+        const t = c[0].toLowerCase();
+        if (t.startsWith("<table")) depth++; else if (t.startsWith("</table")) depth--;
+        else if (t.startsWith("<td") || t.startsWith("<th")) { if (depth === 1) open = c.index; }
+        else if (depth === 1 && open >= 0) { cells.push({ start: open, end: c.index + c[0].length }); open = -1; }
+      }
+      if (cells.length !== spec.length) continue;
+      for (let k = cells.length - 1; k >= 0; k--) {
+        const pXmls = spec[k];
+        const cellHtml = tableHtml.slice(cells[k].start, cells[k].end);
+        const paras = []; const pre = /<table\b[^>]*>|<\/table\s*>|<(p|h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi; let d2 = 0; let pm;
+        while ((pm = pre.exec(cellHtml))) { const t = pm[0].toLowerCase(); if (t.startsWith("<table")) d2++; else if (t.startsWith("</table")) d2--; else if (d2 === 0) paras.push({ index: pm.index, full: pm[0], tag: pm[1], attrs: pm[2], inner: pm[3] }); }
+        if (paras.length !== pXmls.length) continue;
+        let newCell = cellHtml;
+        for (let j = paras.length - 1; j >= 0; j--) {
+          const decls = fn(pXmls[j], paras[j].full);
+          if (!decls || !decls.length) continue;
+          const p = paras[j];
+          const replaced = this._addCssDeclsToParagraph(p.full, p.attrs, p.inner, decls, p.tag);
+          newCell = newCell.slice(0, p.index) + replaced + newCell.slice(p.index + p.full.length);
+        }
+        tableHtml = tableHtml.slice(0, cells[k].start) + newCell + tableHtml.slice(cells[k].end);
+      }
+      out = out.slice(0, start) + tableHtml + out.slice(end);
+    }
+    return out;
+  }
+
+  /**
+   * W24c: hàng có `w:cantSplit` (Word không cho ngắt giữa trang) → `data-vno-cant-split="true"` trên <tr> (ghép bảng
+   * cấp 1 ↔ w:tbl theo thứ tự, hàng ↔ w:tr độ sâu 0 khi số hàng bằng nhau).
+   */
+  _applyOoxmlRowCantSplit(html, ooxmlDocumentXml) {
+    const source = String(html || "");
+    const xml = this._ooxmlBodyParagraphSource(String(ooxmlDocumentXml || ""));
+    if (!xml.includes("<w:cantSplit") || !/<table\b/i.test(source)) return source;
+    const ooxmlTables = [];
+    { const re = /<w:tbl>|<w:tbl\s[^>]*>|<\/w:tbl>/g; const stack = []; let m;
+      while ((m = re.exec(xml))) { if (m[0].startsWith("</")) { const s = stack.pop(); if (s !== undefined && stack.length === 0) ooxmlTables.push(xml.slice(s, m.index + m[0].length)); } else stack.push(m.index); } }
+    const rowFlags = ooxmlTables.map(tbl => {
+      const flags = []; const re = /<w:tbl>|<w:tbl\s[^>]*>|<\/w:tbl>|<w:tr>|<w:tr\s[^>]*>|<\/w:tr>/g; let depth = 0; let m; let open = -1;
+      while ((m = re.exec(tbl))) {
+        const t = m[0];
+        if (t.startsWith("<w:tbl")) depth++; else if (t.startsWith("</w:tbl")) depth--;
+        else if (t.startsWith("<w:tr")) { if (depth === 1) open = m.index; }
+        else if (t.startsWith("</w:tr") && depth === 1 && open >= 0) { const row = tbl.slice(open, m.index); flags.push(/<w:trPr>[\s\S]*?<w:cantSplit\b[\s\S]*?<\/w:trPr>/.test(row.slice(0, 600))); open = -1; }
+      }
+      return flags;
+    });
+    const ranges = []; const stack = []; const tre = /<table\b[^>]*>|<\/table\s*>/gi; let m;
+    while ((m = tre.exec(source))) { if (m[0].startsWith("</")) { const s = stack.pop(); if (s !== undefined && stack.length === 0) ranges.push({ start: s, end: m.index + m[0].length }); } else stack.push(m.index); }
+    const skip = this._htmlParagraphSkipRanges(source).filter(r => !/^<table/i.test(source.slice(r.start, r.start + 6)));
+    const bodyRanges = ranges.filter(r => !skip.some(z => r.start >= z.start && r.start < z.end));
+    if (bodyRanges.length !== rowFlags.length) return source;
+    let out = source;
+    for (let i = bodyRanges.length - 1; i >= 0; i--) {
+      const flags = rowFlags[i]; if (!flags.some(Boolean)) continue;
+      const { start, end } = bodyRanges[i];
+      let tableHtml = out.slice(start, end);
+      const rows = []; const rre = /<table\b[^>]*>|<\/table\s*>|<tr\b([^>]*)>/gi; let depth = 0; let r;
+      while ((r = rre.exec(tableHtml))) { const t = r[0].toLowerCase(); if (t.startsWith("<table")) depth++; else if (t.startsWith("</table")) depth--; else if (depth === 1) rows.push({ index: r.index, tag: r[0], attrs: r[1] || "" }); }
+      if (rows.length !== flags.length) continue;
+      for (let k = rows.length - 1; k >= 0; k--) {
+        if (!flags[k] || /data-vno-cant-split=/i.test(rows[k].attrs)) continue;
+        tableHtml = tableHtml.slice(0, rows[k].index) + `<tr${rows[k].attrs} data-vno-cant-split="true">` + tableHtml.slice(rows[k].index + rows[k].tag.length);
+      }
+      out = out.slice(0, start) + tableHtml + out.slice(end);
+    }
+    return out;
+  }
+
+  /**
+   * W46 (đo d01 Word COM: ô "Tư vấn máy vi tính…" Font.Scaling = 110 từ style bảng; Word 2 dòng, canvas 1 → hàng 58/35px,
+   * bảng 64 hàng lệch trang từ hàng 60): tỉ lệ chữ `w:w` (theo run, hoặc chuỗi style pStyle → basedOn → Normal) ≠ 100
+   * và giống nhau ở mọi run có chữ của đoạn → ghi `data-vno-char-scale="110"` lên thẻ đoạn; sau khi vào DOM,
+   * `_applyCharacterScale` đo bề rộng chữ và đặt `letter-spacing = (scale−1)·W/n` để tổng bề rộng bằng Word.
+   */
+  _applyOoxmlCharacterScale(html, ooxmlDocumentXml, ooxmlStylesXml = "") {
+    const styles = String(ooxmlStylesXml || "");
+    if (!styles && !/<w:w\b/.test(String(ooxmlDocumentXml || ""))) return html;
+    const styleW = new Map(); const basedOn = new Map();
+    for (const m of styles.matchAll(/<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>([\s\S]*?)<\/w:style>/g)) {
+      const w = m[2].match(/<w:rPr>([\s\S]*?)<\/w:rPr>/)?.[1].match(/<w:w\b[^>]*w:val="(\d+)"/)?.[1];
+      if (w) styleW.set(m[1], Number(w));
+      const b = m[2].match(/<w:basedOn\b[^>]*w:val="([^"]+)"/)?.[1];
+      if (b) basedOn.set(m[1], b);
+    }
+    const docDefaultW = Number(styles.match(/<w:docDefaults>[\s\S]*?<w:rPrDefault>[\s\S]*?<w:w\b[^>]*w:val="(\d+)"/)?.[1]) || 100;
+    if (!styleW.size && !/<w:w\b/.test(String(ooxmlDocumentXml || ""))) return html;
+    const resolveStyle = (sid, depth = 0) => {
+      if (!sid || depth > 20) return docDefaultW;
+      if (styleW.has(sid)) return styleW.get(sid);
+      if (basedOn.has(sid)) return resolveStyle(basedOn.get(sid), depth + 1);
+      if (sid !== "Normal" && styleW.has("Normal")) return styleW.get("Normal");
+      return docDefaultW;
+    };
+    return this._mapOoxmlParagraphs(html, ooxmlDocumentXml, (pXml) => {
+      const ppr = pXml.match(/<w:pPr>([\s\S]*?)<\/w:pPr>/)?.[1] || "";
+      const paraScale = resolveStyle(ppr.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/)?.[1] || "Normal");
+      const scales = new Set();
+      for (const rm of pXml.matchAll(/<w:r\b[^>]*>([\s\S]*?)<\/w:r>/g)) {
+        if (!/<w:t\b[^>]*>[^<]*\S/.test(rm[1])) continue;
+        const rpr = rm[1].match(/<w:rPr>([\s\S]*?)<\/w:rPr>/)?.[1] || "";
+        const own = rpr.match(/<w:w\b[^>]*w:val="(\d+)"/)?.[1];
+        const rStyle = rpr.match(/<w:rStyle\b[^>]*w:val="([^"]+)"/)?.[1];
+        scales.add(own ? Number(own) : (rStyle && styleW.has(rStyle) ? styleW.get(rStyle) : paraScale));
+      }
+      if (scales.size !== 1) return null;
+      const scale = [...scales][0];
+      if (!scale || scale === 100) return null;
+      return [`--vno-char-scale: ${scale / 100}`];
+    });
+  }
+
+  /**
+   * W46 bước 2 (sau khi thân vào DOM): với phần tử có `--vno-char-scale`, đo bề rộng chữ hiện tại và đặt
+   * `letter-spacing` sao cho tổng bề rộng nhân đúng tỉ lệ (Word giãn từng glyph; CSS chỉ giãn được khoảng cách chữ —
+   * tổng bằng nhau, điểm ngắt dòng gần như nhau).
+   */
+  _applyCharacterScale(root = this.bodyDom) {
+    if (!root || typeof root.querySelectorAll !== "function" || typeof window === "undefined" || typeof window.getComputedStyle !== "function") return;
+    let nodes;
+    try { nodes = root.querySelectorAll('[style*="--vno-char-scale"]'); } catch { return; }
+    for (const el of Array.from(nodes || [])) {
+      const scale = parseFloat(el.style?.getPropertyValue?.("--vno-char-scale"));
+      if (!Number.isFinite(scale) || scale <= 0 || Math.abs(scale - 1) < 0.001) continue;
+      const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+      if (!text) continue;
+      let width = 0;
+      try {
+        // Đo theo TEXT NODE (range bao cả phần tử trả rect cho từng hộp inline lồng nhau → đếm đôi: <font><font>)
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+          if (!node.nodeValue || !node.nodeValue.trim()) continue;
+          const range = document.createRange(); range.selectNodeContents(node);
+          for (const rect of Array.from(range.getClientRects())) width += rect.width;
+        }
+      } catch { continue; }
+      // bề rộng đã đo có thể đã gồm letter-spacing cũ → tính lại từ chữ thuần
+      const current = parseFloat(window.getComputedStyle(el).letterSpacing) || 0;
+      const base = width - current * text.length;
+      if (!(base > 0)) continue;
+      const spacing = (scale - 1) * base / text.length;
+      el.style.letterSpacing = `${Math.round(spacing * 1000) / 1000}px`;
+    }
+  }
+
+  /**
    * Quy ước W21b: Khôi phục ký hiệu bullet từ word/numbering.xml (w:lvlText)
    * LibreOffice HTML xuất các danh sách bullet thành <ul><li> không kèm ký tự bullet,
    * khiến trình duyệt hiển thị dấu chấm tròn mặc định (disc). Phương thức này đối chiếu
@@ -3707,6 +3931,12 @@ export class WriterAdapter {
       let widthTwips = gridSum;
       if (type === "dxa" && wVal > 0) widthTwips = wVal;
       else if (type === "pct" && wVal > 0 && pageTextTwips > 0) widthTwips = pageTextTwips * (wVal > 100 ? wVal / 5000 : wVal / 100);
+      // W44b: bề dày viền ngang THẬT (sz = 1/8 pt) để hàng bảng chiếm đúng chỗ như Word (hàng = nội dung + viền,
+      // snap px: d01 sz=2 → 26,19+0,25pt = 35/36px xen kẽ; d20 sz=4). Lấy insideH của tblBorders, nếu không thì
+      // viền dưới của ô đầu (tcBorders), mặc định 0.
+      const insideSz = Number(head.match(/<w:tblBorders>[\s\S]*?<w:insideH\b[^>]*\bw:sz="(\d+)"/)?.[1]
+        || body.match(/<w:tcBorders>[\s\S]*?<w:bottom\b[^>]*\bw:sz="(\d+)"/)?.[1] || 0);
+      const borderPx = Math.round(insideSz / 8 * 96 / 72 * 1000) / 1000;
       // gridSpan của hàng đầu → số ô hàng đầu ↔ bề rộng ô = tổng gridCol trong span. Hàng đầu có thể chứa bảng lồng
       // (w:tr/w:tc của bảng con) → chỉ đếm ô ở độ sâu 0 của hàng này.
       const firstRowSpans = [];
@@ -3726,7 +3956,7 @@ export class WriterAdapter {
           }
         }
       }
-      return { grid, widthTwips, gridSum, firstRowSpans };
+      return { grid, widthTwips, gridSum, firstRowSpans, borderPx };
     });
   }
 
@@ -3735,11 +3965,154 @@ export class WriterAdapter {
    * bỏ marker; px tuyệt đối chỉ để canvas vẽ đúng Word, không phải để gửi lại LibreOffice.
    */
   _restoreLibreOfficeTableWidthsForExport(html) {
-    return String(html || "").replace(/<(table|col|td|th)\b([^>]*\bdata-vno-lo-width=("[^"]*"|'[^']*')[^>]*)>/gi, (all, tag, attrs, quoted) => {
+    const restored = String(html || "").replace(/<(table|col|td|th)\b([^>]*\bdata-vno-lo-width=("[^"]*"|'[^']*')[^>]*)>/gi, (all, tag, attrs, quoted) => {
       const original = quoted.slice(1, -1);
       let rest = attrs.replace(/\s*\bdata-vno-lo-width=("[^"]*"|'[^']*')/i, "");
       rest = rest.replace(/\s*(?<![\w-])width=(["']?)[^"'\s>]*\1/i, "");
+      if (tag.toLowerCase() === "table") {
+        // W30c: bỏ width px inline (chỉ để canvas dàn cột cố định); W44b: bỏ marker viền
+        rest = rest.replace(/\s*\bdata-vno-border-px="[^"]*"/i, "");
+        rest = rest.replace(/\bstyle=(["'])([^"']*)\1/i, (m, q, css) => {
+          const kept = css.split(";").map(s => s.trim()).filter(s => s && !/^width\s*:/i.test(s));
+          return kept.length ? `style=${q}${kept.join("; ")};${q}` : "";
+        }).replace(/\s{2,}/g, " ").replace(/\s+$/, "");
+      }
       return `<${tag}${rest}${original ? ` width="${original}"` : ""}>`;
+    });
+    return this._stripCharacterScaleForExport(this._restoreTableBordersForExport(restored));
+  }
+
+  /** W46: bỏ `--vno-char-scale` và letter-spacing suy ra khi xuất (w:w gốc do hậu xử lý trả lại từ nguồn). */
+  _stripCharacterScaleForExport(html) {
+    return String(html || "").replace(/<(p|h[1-6]|li)\b([^>]*\bstyle=(["'])[^"']*--vno-char-scale[^"']*\3[^>]*)>/gi, (all, tag, attrs) => {
+      const cleaned = attrs.replace(/\bstyle=(["'])([^"']*)\1/i, (m, q, css) => {
+        const kept = css.split(";").map(s => s.trim()).filter(s => s && !/^--vno-char-scale\s*:/i.test(s) && !/^letter-spacing\s*:/i.test(s));
+        return kept.length ? `style=${q}${kept.join("; ")};${q}` : "";
+      });
+      return `<${tag}${cleaned}>`;
+    });
+  }
+
+  /**
+   * W44 (đo d01 Word COM: hàng bảng Word 35/36px = nội dung 6+3+17,19pt snap lưới px, viền 0,25–0,5pt KHÔNG chiếm chỗ;
+   * canvas 35,9px vì viền `border` 1px của ô chiếm chỗ (Chromium snap viền < 1px lên 1px) → +0,7px/hàng, bảng 64 hàng
+   * d01 lệch ngắt trang từ hàng 23). Viền ô của tài liệu nhập vẽ bằng `box-shadow: inset` (chỉ tô, không chiếm chỗ):
+   * mỗi ô vẽ cạnh dưới + phải, cạnh trên chỉ ở hàng đầu bảng, cạnh trái chỉ ở ô đầu hàng (như viền gộp). Khai báo viền
+   * gốc giữ ở `data-vno-borders` để khi xuất trả lại (`_restoreTableBordersForExport`).
+   */
+  _applyPaintOnlyTableBorders(html) {
+    const source = String(html || "");
+    if (!/<t[dh]\b/i.test(source)) return source;
+    const sideRe = /(?:^|;)\s*border(?:-(top|right|bottom|left))?(?:-(width|style|color))?\s*:\s*([^;]+)/gi;
+    const toPx = (value) => {
+      const m = String(value || "").trim().match(/^(-?[\d.]+)\s*(px|pt|cm|mm|in)?$/i);
+      if (m) {
+        const n = parseFloat(m[1]);
+        const unit = (m[2] || "px").toLowerCase();
+        return unit === "px" ? n : unit === "pt" ? n * 96 / 72 : unit === "cm" ? n * 96 / 2.54 : unit === "mm" ? n * 96 / 25.4 : n * 96;
+      }
+      const named = { thin: 1, medium: 1, thick: 2 };
+      return named[String(value || "").trim().toLowerCase()] ?? null;
+    };
+    const parseSides = (style) => {
+      const sides = { top: {}, right: {}, bottom: {}, left: {} };
+      let found = false;
+      let m;
+      sideRe.lastIndex = 0;
+      while ((m = sideRe.exec(style))) {
+        found = true;
+        const targets = m[1] ? [m[1].toLowerCase()] : ["top", "right", "bottom", "left"];
+        const prop = m[2] ? m[2].toLowerCase() : null;
+        const value = m[3].trim();
+        for (const side of targets) {
+          if (prop) { sides[side][prop] = value; continue; }
+          // shorthand: width style color (bất kỳ thứ tự)
+          const parts = value.split(/\s+/);
+          sides[side] = { width: null, style: null, color: null };
+          for (const part of parts) {
+            if (/^(none|hidden|solid|dashed|dotted|double|groove|ridge|inset|outset)$/i.test(part)) sides[side].style = part.toLowerCase();
+            else if (toPx(part) !== null) sides[side].width = part;
+            else sides[side].color = part;
+          }
+        }
+      }
+      return found ? sides : null;
+    };
+    const shadowOf = (side, spec) => {
+      if (!spec || !spec.style || spec.style === "none" || spec.style === "hidden") return null;
+      const px = Math.max(1, Math.round(toPx(spec.width == null ? "1px" : spec.width) || 1));
+      const color = spec.color || "#000000";
+      const offsets = { top: `0 ${px}px`, bottom: `0 -${px}px`, left: `${px}px 0`, right: `-${px}px 0` }[side];
+      return `inset ${offsets} 0 0 ${color}`;
+    };
+    // Duyệt thẻ theo thứ tự với ngăn xếp bảng để biết hàng đầu / ô đầu hàng
+    const tagRe = /<(\/?)(table|tr|td|th)\b([^>]*)>/gi;
+    const stack = [];
+    let out = ""; let last = 0; let m;
+    while ((m = tagRe.exec(source))) {
+      const closing = m[1] === "/";
+      const tag = m[2].toLowerCase();
+      if (tag === "table") {
+        if (closing) stack.pop();
+        else stack.push({ rows: 0, borderPx: parseFloat((m[3].match(/\bdata-vno-border-px="([\d.]+)"/i) || [])[1]) || 0 });
+        continue;
+      }
+      const table = stack[stack.length - 1];
+      if (!table) continue;
+      if (tag === "tr") { if (!closing) { table.rows++; table.cells = 0; } continue; }
+      if (closing) continue;
+      table.cells = (table.cells || 0) + 1;
+      const attrs = m[3];
+      const styleMatch = attrs.match(/\bstyle=(["'])([^"']*)\1/i);
+      if (!styleMatch || /data-vno-borders=/i.test(attrs)) continue;
+      const sides = parseSides(styleMatch[2]);
+      if (!sides) continue;
+      const shadows = [];
+      const bottom = shadowOf("bottom", sides.bottom); if (bottom) shadows.push(bottom);
+      const right = shadowOf("right", sides.right); if (right) shadows.push(right);
+      if (table.rows === 1) { const top = shadowOf("top", sides.top); if (top) shadows.push(top); }
+      if (table.cells === 1) { const left = shadowOf("left", sides.left); if (left) shadows.push(left); }
+      const borderDecls = [];
+      const restDecls = [];
+      for (const decl of styleMatch[2].split(";")) {
+        if (!decl.trim()) continue;
+        if (/^\s*border(?:-(?:top|right|bottom|left))?(?:-(?:width|style|color|image))?\s*:/i.test(decl)) borderDecls.push(decl.trim());
+        else restDecls.push(decl.trim());
+      }
+      // W44b: hàng chiếm chỗ = nội dung + viền thật (sz/8 pt) — Word cộng bề dày viền ngang vào chiều cao hàng (d01
+      // sz=2: 35/36px xen kẽ; d20 sz=4). Chromium không nhận viền < 1px nhưng nhận padding lẻ → padding-bottom
+      // (hàng đầu thêm padding-top) đúng bằng bề dày viền; nội dung bị đẩy lên/xuống không đáng kể (≤ 0,67px).
+      if (table.borderPx > 0 && (bottom || (table.rows === 1 && sides.top && sides.top.style && sides.top.style !== "none"))) {
+        const padMatch = restDecls.map((d, i) => [d, i]).find(([d]) => /^padding\s*:/i.test(d));
+        const parts = padMatch ? padMatch[0].split(":")[1].trim().split(/\s+/) : ["0px"];
+        const [pt, pr, pb, pl] = parts.length === 1 ? [parts[0], parts[0], parts[0], parts[0]] : parts.length === 2 ? [parts[0], parts[1], parts[0], parts[1]] : parts.length === 3 ? [parts[0], parts[1], parts[2], parts[1]] : parts;
+        const addPx = (v, extra) => { const px = toPx(v); return px == null ? v : `${Math.round((px + extra) * 1000) / 1000}px`; };
+        const newPad = `padding: ${table.rows === 1 && sides.top && sides.top.style && sides.top.style !== "none" ? addPx(pt, table.borderPx) : pt} ${pr} ${bottom ? addPx(pb, table.borderPx) : pb} ${pl}`;
+        if (padMatch) restDecls[padMatch[1]] = newPad; else restDecls.push(newPad);
+      }
+      const newStyle = [...restDecls, "border: none", shadows.length ? `box-shadow: ${shadows.join(", ")}` : null].filter(Boolean).join("; ") + ";";
+      const escaped = borderDecls.join("; ").replace(/"/g, "&quot;");
+      const newAttrs = attrs.replace(styleMatch[0], `style="${newStyle}"`) + ` data-vno-borders="${escaped}"`;
+      out += source.slice(last, m.index) + `<${m[2]}${newAttrs}>`;
+      last = m.index + m[0].length;
+    }
+    return out + source.slice(last);
+  }
+
+  /** W44: trả khai báo viền gốc (`data-vno-borders`) vào style của ô và bỏ box-shadow/border: none khi xuất. */
+  _restoreTableBordersForExport(html) {
+    return String(html || "").replace(/<(td|th)\b([^>]*\bdata-vno-borders=("[^"]*"|'[^']*')[^>]*)>/gi, (all, tag, attrs, quoted) => {
+      const borders = quoted.slice(1, -1).replace(/&quot;/g, '"');
+      let rest = attrs.replace(/\s*\bdata-vno-borders=("[^"]*"|'[^']*')/i, "");
+      const styleMatch = rest.match(/\bstyle=(["'])([^"']*)\1/i);
+      if (styleMatch) {
+        const kept = styleMatch[2].split(";").map(s => s.trim()).filter(s => s && !/^border\s*:\s*none$/i.test(s) && !/^box-shadow\s*:/i.test(s));
+        const merged = [...kept, ...(borders ? [borders] : [])].join("; ");
+        rest = rest.replace(styleMatch[0], `style="${merged}${merged.endsWith(";") ? "" : ";"}"`);
+      } else if (borders) {
+        rest += ` style="${borders};"`;
+      }
+      return `<${tag}${rest}>`;
     });
   }
 
@@ -3794,7 +4167,22 @@ export class WriterAdapter {
       const tablePx = colPx.reduce((s, v) => s + v, 0);
       let tableHtml = out.slice(start, end);
       let inner = tableHtml.slice(tagEnd - start);
-      const openTag = setWidth(tableHtml.slice(0, tagEnd - start), String(tablePx));
+      // W30c: CSS `.vno-doc-imported table { width: auto }` đè thuộc tính width → bảng thành auto layout, cột 1 của d01
+      // nới 61 → 76,9px vì min-content của <li>. Ghi width px inline (thắng class) để `table-layout: fixed` có hiệu lực;
+      // khi xuất bỏ lại (`_restoreLibreOfficeTableWidthsForExport`).
+      const openTag = (() => {
+        let tag = setWidth(tableHtml.slice(0, tagEnd - start), String(tablePx));
+        const sm = tag.match(/\bstyle=(["'])([^"']*)\1/i);
+        if (sm) {
+          const css = sm[2].replace(/(^|;)\s*width\s*:[^;]*/gi, "$1").replace(/;;+/g, ";").replace(/^;\s*/, "");
+          tag = tag.replace(sm[0], `style=${sm[1]}${css}${css && !css.trim().endsWith(";") ? "; " : ""}width: ${tablePx}px;${sm[1]}`);
+        } else {
+          tag = tag.replace(/>$/, ` style="width: ${tablePx}px;">`);
+        }
+        // W44b: bề dày viền ngang thật cho W44 (padding-bottom fractional của ô)
+        if (g.borderPx > 0 && !/data-vno-border-px=/i.test(tag)) tag = tag.replace(/>$/, ` data-vno-border-px="${g.borderPx}">`);
+        return tag;
+      })();
       // <col> của chính bảng: phần trước hàng đầu tiên (không có bảng lồng ở đó)
       const firstTrAt = inner.search(/<tr\b/i);
       const head = firstTrAt >= 0 ? inner.slice(0, firstTrAt) : inner;
@@ -10262,6 +10650,8 @@ export class WriterAdapter {
         this._normalizeImportedFontMetrics(this.bodyDom || this.editorDom);
         if (this.headerDom) this._normalizeImportedFontMetrics(this.headerDom);
         if (this.footerDom) this._normalizeImportedFontMetrics(this.footerDom);
+        // W46: tỉ lệ chữ w:w → letter-spacing đo trên DOM thật
+        this._applyCharacterScale(this.bodyDom || this.editorDom);
       } catch {}
       this._markImportedParagraphsUntouched(this.bodyDom || this.editorDom);
 
@@ -11455,6 +11845,7 @@ export class WriterAdapter {
         return true;
       };
 
+      let pendingSpillGap = false;
       for (const el of children) {
         const styleStr = (typeof el.getAttribute === "function" ? el.getAttribute("style") : "") || "";
         const textContent = el.textContent || "";
@@ -11462,6 +11853,11 @@ export class WriterAdapter {
 
         const h = el.offsetHeight || 0;
         const top = topOf(el);
+        if (pendingSpillGap) {
+          // W24c: hàng cuối bảng tràn trang → dải gap đặt trước khối kế tiếp
+          gapBeforeEls.push({ el, soft: true, kind: "block" });
+          pendingSpillGap = false;
+        }
         if (isManualBreak) {
           // Ngắt trang thủ công / page-break-before nhập từ DOCX cũng phải hiện
           // thành một tờ mới trong khung soạn thảo (Word tách trang thật), nếu
@@ -11487,7 +11883,16 @@ export class WriterAdapter {
         else if (isList(el)) { listUnits(el, units); splittable = units.length > 0; }
         if (splittable && units.length > 1) {
           let first = true;
+          // W24c (đo d01 Word COM: hàng 29 cao 97px bắt đầu ở y=741pt cuối trang 3 rồi tràn sang trang 4 — Word cho
+          // hàng bảng ngắt giữa trang ("Allow row to break across pages", mặc định bật; trừ w:cantSplit). Canvas không
+          // cắt được một <tr>, nên: hàng nhiều dòng không vừa → coi phần đầu (bội số chiều cao dòng) nằm ở trang này,
+          // dải gap đặt SAU hàng (trước đơn vị kế) và trang mới bắt đầu tại điểm tràn để các hàng sau tính đúng.
+          let spillGap = false;
           for (const unit of units) {
+            if (spillGap) {
+              gapBeforeEls.push({ el: unit.el, soft: true, kind: unit.kind, table: unit.table });
+              spillGap = false;
+            }
             if (unit.top + unit.h - pageStartTop <= availableHeightPx) { first = false; continue; }
             if (first) {
               // Ngay đơn vị đầu đã không vừa: đẩy cả khối như trước (Word cũng đẩy hàng đầu sang trang mới).
@@ -11497,10 +11902,22 @@ export class WriterAdapter {
               first = false;
               if (unit.top + unit.h - pageStartTop <= availableHeightPx) continue;
             }
+            const remaining = availableHeightPx - (unit.top - pageStartTop);
+            const lineH = unit.kind === "tr" ? this._rowLineHeightPx(unit.el) : 0;
+            const canSplit = unit.kind === "tr" && lineH > 0 && unit.h >= lineH * 2 && remaining >= lineH
+              && unit.el.getAttribute?.("data-vno-cant-split") !== "true";
+            if (canSplit) {
+              const fitted = Math.floor(remaining / lineH) * lineH;
+              pageStartTop = unit.top + fitted;
+              pageCount++;
+              spillGap = true;
+              continue;
+            }
             gapBeforeEls.push({ el: unit.el, soft: true, kind: unit.kind, table: unit.table });
             pageStartTop = unit.top;
             pageCount++;
           }
+          if (spillGap) pendingSpillGap = true;
           continue;
         }
         gapBeforeEls.push({ el, soft: true, kind: "block" });
@@ -11552,6 +11969,22 @@ export class WriterAdapter {
    * mép trang). Đặt --vno-gap-left/right trên ô/mục gap để `::before` (CSS) tràn đúng tới hai mép trang như gap thân
    * (`.vno-page-auto-gap` lề âm -113/-56px). Toạ độ đo bằng getBoundingClientRect so với `.vno-writer-page`.
    */
+  /** W24c: chiều cao một dòng chữ của hàng bảng = lớn nhất trong các ô (line-height computed của đoạn đầu có chữ). */
+  _rowLineHeightPx(row) {
+    if (!row || typeof row.querySelectorAll !== "function" || typeof window === "undefined" || typeof window.getComputedStyle !== "function") return 0;
+    let best = 0;
+    for (const cell of Array.from(row.children || [])) {
+      const block = Array.from(cell.querySelectorAll("p, li, h1, h2, h3, h4, h5, h6, div")).find(b => (b.textContent || "").trim()) || cell;
+      try {
+        const cs = window.getComputedStyle(block);
+        let lh = parseFloat(cs.lineHeight);
+        if (!Number.isFinite(lh)) lh = (parseFloat(cs.fontSize) || 16) * 1.2;
+        best = Math.max(best, lh);
+      } catch {}
+    }
+    return best;
+  }
+
   _bleedInnerPageGaps(cells) {
     if (!cells?.length || typeof this.bodyDom?.closest !== "function") return;
     const page = this.bodyDom.closest(".vno-writer-page") || this.bodyDom;
