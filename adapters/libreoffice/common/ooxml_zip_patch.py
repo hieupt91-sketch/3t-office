@@ -7749,6 +7749,13 @@ def _restore_writer_matched_formatting(
                 target_p = target_p[:s] + _writer_replace_direct_property(run, "rPr", source_rpr) + target_p[e:]
         source_runs = _writer_run_blocks(source_p)
         target_runs = _writer_run_blocks(target_p)
+        # W41 (d14: nguồn tách "Xóa"/" "/"theo"… thành nhiều run sz 32, LibreOffice gộp thành một run và lấy sz 36 của
+        # dấu đoạn → 1 → 2 dòng): khi chữ thuần hai bên bằng nhau từng ký tự, gán rPr theo VỊ TRÍ KÝ TỰ — mỗi run
+        # đích được cắt theo các run nguồn phủ lên nó và nhận đúng rPr nguồn.
+        aligned = _writer_align_runs_by_offset(target_p, source_runs, target_runs)
+        if aligned is not None:
+            replacements[converted_index] = aligned
+            continue
         source_by_text: dict[str, list[str]] = {}
         for _start, _end, run in source_runs:
             text = _paragraph_plain_text(run)
@@ -7771,6 +7778,66 @@ def _restore_writer_matched_formatting(
     for index in sorted(replacements, reverse=True):
         start, end = converted_ranges[index]
         result = result[:start] + replacements[index] + result[end:]
+    return result
+
+
+def _writer_run_text_segments(run_xml: str) -> list[str]:
+    """Các đoạn chữ <w:t> của run (giữ nguyên khoảng trắng)."""
+    return [_unescape_xml(m.group(1)) for m in re.finditer(r"<w:t\b[^>]*>([^<]*)</w:t\s*>", run_xml, re.IGNORECASE)]
+
+
+def _writer_align_runs_by_offset(target_paragraph: str, source_runs: list, target_runs: list) -> str | None:
+    """W41: chỉ với run thuần chữ (<w:t>, không tab/br/field/drawing) hai bên và chữ nối lại bằng nhau từng ký tự.
+    Trả về đoạn đích với từng run đích được cắt theo run nguồn phủ lên và mang rPr nguồn; None nếu không áp dụng."""
+    def plain_runs(runs):
+        out = []
+        for start, end, run in runs:
+            body = re.sub(r"^<w:r\b[^>]*>|</w:r\s*>$", "", run.strip())
+            body_wo_rpr = re.sub(r"^<w:rPr>[\s\S]*?</w:rPr>", "", body)
+            if re.sub(r"<w:t\b[^>]*>[^<]*</w:t\s*>", "", body_wo_rpr).strip():
+                return None  # run có thứ khác ngoài chữ (tab/br/field/drawing…)
+            text = "".join(_writer_run_text_segments(run))
+            out.append((start, end, run, text))
+        return out
+    src = plain_runs(source_runs)
+    dst = plain_runs(target_runs)
+    if not src or not dst:
+        return None
+    # So theo ký tự KHÔNG phải khoảng trắng (HTML gộp/bỏ khoảng trắng đầu — d14 nguồn " - Xóa", bản chuyển đổi "- Xóa")
+    src_chars: list[str] = []
+    for _s, _e, run, text in src:
+        rpr = _writer_direct_property(run, "rPr") or ""
+        for ch in text:
+            if not ch.isspace():
+                src_chars.append(rpr)
+    src_text = "".join(ch for *_r, t in src for ch in t if not ch.isspace())
+    dst_text = "".join(ch for *_r, t in dst for ch in t if not ch.isspace())
+    if not src_text or src_text != dst_text:
+        return None
+    result = target_paragraph
+    idx = 0
+    pieces: list[tuple[int, int, str]] = []
+    last_rpr = src_chars[0]
+    for start, end, run, text in dst:
+        if not text:
+            continue
+        run_open = re.match(r"<w:r\b[^>]*>", run).group(0)
+        groups: list[tuple[str, list[str]]] = []
+        for ch in text:
+            if ch.isspace():
+                rpr = last_rpr  # khoảng trắng theo ký tự đứng trước
+            else:
+                rpr = src_chars[idx]
+                idx += 1
+                last_rpr = rpr
+            if groups and groups[-1][0] == rpr:
+                groups[-1][1].append(ch)
+            else:
+                groups.append((rpr, [ch]))
+        new_runs = "".join(f'{run_open}{rpr}<w:t xml:space="preserve">{_escape_xml("".join(chars))}</w:t></w:r>' for rpr, chars in groups)
+        pieces.append((start, end, new_runs))
+    for start, end, xml in reversed(pieces):
+        result = result[:start] + xml + result[end:]
     return result
 
 
@@ -7893,14 +7960,20 @@ def _writer_text_lcs_pairs(source: list[str], target: list[str]) -> list[tuple[i
 
 
 def _writer_has_page_break(paragraph: str) -> bool:
-    return bool(re.search(
-        # HTML/LibreOffice collapses paragraph-level Word section boundaries
-        # to the final body sectPr.  For carrier relocation those original
-        # next-page sections are page boundaries: rebuilt carriers emit a
-        # literal page break while the final section pass owns sectPr/rIds.
-        r'<w:br\b[^>]*\bw:type=["\']page["\']|<w:pageBreakBefore\b|<w:sectPr\b',
-        paragraph, re.IGNORECASE,
-    ))
+    # HTML/LibreOffice collapses paragraph-level Word section boundaries
+    # to the final body sectPr.  For carrier relocation those original
+    # next-page sections are page boundaries: rebuilt carriers emit a
+    # literal page break while the final section pass owns sectPr/rIds.
+    if re.search(r'<w:br\b[^>]*\bw:type=["\']page["\']|<w:pageBreakBefore\b', paragraph, re.IGNORECASE):
+        return True
+    # W40b (d03/d23): section liên tục (`w:type continuous`) KHÔNG phải ngắt trang — W27a từng gắn pageBreakBefore
+    # vào đoạn mang sectPr continuous cuối tài liệu → 1 trang thành 2. Chỉ nextPage/oddPage/evenPage (mặc định
+    # khi không có w:type) mới là ranh giới trang.
+    sect = re.search(r"<w:sectPr\b[^>]*>([\s\S]*?)</w:sectPr\s*>", paragraph, re.IGNORECASE)
+    if not sect:
+        return False
+    sect_type = re.search(r'<w:type\b[^>]*\bw:val=["\']([^"\']+)["\']', sect.group(1), re.IGNORECASE)
+    return not sect_type or sect_type.group(1).lower() in ("nextpage", "oddpage", "evenpage")
 
 
 def _writer_body_flow_elements(xml: str) -> list[dict]:
@@ -8113,6 +8186,34 @@ def _restore_writer_floating_tables(converted_xml: str, source_xml: str) -> str:
     return "".join(out)
 
 
+_SECT_REF_RE = re.compile(r"<w:(?:headerReference|footerReference)\b[^>]*/>", re.IGNORECASE)
+
+
+def _restore_writer_sections_by_order(converted_xml: str, source_xml: str) -> str:
+    """W40 (đo d03: nguồn 3 section [nextPage top 810 / continuous 1134 / continuous 1134], bản lưu
+    [continuous 1134 / continuous 811 / continuous 811] → đoạn đầu y 40,5 → 57pt, 1 → 2 trang): khi số `w:sectPr`
+    hai bên bằng nhau (kể cả sectPr cuối thân), thay từng sectPr theo thứ tự bằng sectPr nguồn nhưng giữ
+    headerReference/footerReference của bản chuyển đổi (rId thuộc gói mới)."""
+    src = [m for m in re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", source_xml, re.IGNORECASE)]
+    dst = [m for m in re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", converted_xml, re.IGNORECASE)]
+    if not src or len(src) != len(dst):
+        return converted_xml
+    out: list[str] = []
+    pos = 0
+    for s_m, d_m in zip(src, dst):
+        refs = "".join(_SECT_REF_RE.findall(d_m.group(0)))
+        body = _SECT_REF_RE.sub("", s_m.group(0))
+        open_tag = re.match(r"<w:sectPr\b[^>]*>", body).group(0)
+        # bỏ rsid của nguồn trong thẻ mở để không lẫn; giữ các thuộc tính khác
+        open_clean = re.sub(r'\s+w:rsid\w*="[^"]*"', "", open_tag)
+        replaced = open_clean + refs + body[len(open_tag):]
+        out.append(converted_xml[pos:d_m.start()])
+        out.append(replaced)
+        pos = d_m.end()
+    out.append(converted_xml[pos:])
+    return "".join(out)
+
+
 _W35B_NUM_OFFSET = 1000
 
 
@@ -8318,8 +8419,19 @@ def _restore_writer_page_breaks(converted_xml: str, source_xml: str) -> str:
     for i, (src_elem, conv_elem) in enumerate(zip(source_elements, converted_elements)):
         if src_elem['type'] != conv_elem['type'] or _flow_text(src_elem) != _flow_text(conv_elem):
             continue
-        src_has_pb = src_elem.get('has_page_break', False)
-        conv_has_pb = conv_elem.get('has_page_break', False)
+        # W40b: chỉ ngắt trang THỦ CÔNG (br page / pageBreakBefore); sectPr không phải ngắt trang của chính đoạn đó
+        # (d03/d23: đoạn mang sectPr nextPage/continuous bị gắn pageBreakBefore → 1 trang thành 2). Section đã được
+        # W40 trả lại đúng thứ tự/kiểu nên Word tự xử lý ranh giới section.
+        manual_pb = re.compile(r'<w:br\b[^>]*\bw:type=["\']page["\']|<w:pageBreakBefore\b', re.IGNORECASE)
+
+        def _elem_pb(elem: dict) -> bool:
+            if elem['type'] == 'table':
+                # bảng: KHÔNG xử lý ở cấp bảng — đoạn đầu ô đầu đã là một phần tử 'paragraph' trong danh sách (cùng
+                # vùng offset; xử lý hai lần → thay thế chồng nhau → XML hỏng, đo d15)
+                return False
+            return bool(manual_pb.search(elem['xml']))
+        src_has_pb = _elem_pb(src_elem)
+        conv_has_pb = _elem_pb(conv_elem)
 
         if src_has_pb:
             # Source had a page break - ensure converted has it
@@ -9148,6 +9260,10 @@ def postprocess_writer_docx(
         new_xml, original_xml, orig_rels, r_id_map, next_rid
     )
 
+    # W40: cùng số section → thuộc tính trang từng section lấy theo THỨ TỰ nguồn (giữ header/footerReference của bản
+    # chuyển đổi để không chạm rels)
+    new_xml = _restore_writer_sections_by_order(new_xml, original_xml)
+
     # W27a: Restore manual page breaks (w:br type=page / w:pageBreakBefore)
     # by matching paragraphs and tables by ORDER between source and converted DOCX.
     new_xml = _restore_writer_page_breaks(new_xml, original_xml)
@@ -9241,15 +9357,30 @@ def postprocess_writer_docx(
     source_settings = read_zip_entry(source_docx, "word/settings.xml")
     converted_settings = read_zip_entry(docx_bytes, "word/settings.xml")
     if source_settings and converted_settings:
-        src_compat = re.search(r"<w:compat>[\s\S]*?</w:compat>", source_settings.decode("utf-8", errors="replace"))
+        source_settings_xml = source_settings.decode("utf-8", errors="replace")
+        src_compat = re.search(r"<w:compat>[\s\S]*?</w:compat>", source_settings_xml)
         settings_xml = converted_settings.decode("utf-8", errors="replace")
+        new_settings = settings_xml
         if src_compat:
-            if re.search(r"<w:compat>[\s\S]*?</w:compat>", settings_xml):
-                new_settings = re.sub(r"<w:compat>[\s\S]*?</w:compat>", lambda _m: src_compat.group(0), settings_xml, count=1)
+            if re.search(r"<w:compat>[\s\S]*?</w:compat>", new_settings):
+                new_settings = re.sub(r"<w:compat>[\s\S]*?</w:compat>", lambda _m: src_compat.group(0), new_settings, count=1)
             else:
-                new_settings = settings_xml.replace("</w:settings>", src_compat.group(0) + "</w:settings>", 1)
-            if new_settings != settings_xml:
-                replacements["word/settings.xml"] = new_settings.encode("utf-8")
+                new_settings = new_settings.replace("</w:settings>", src_compat.group(0) + "</w:settings>", 1)
+        # W38b (d14: LibreOffice defaultTabStop 1134 vs nguồn 720 → chữ sau tab nhảy xa hơn, 1 → 2 dòng): các thiết
+        # lập đơn ảnh hưởng dàn trang lấy theo nguồn (đứng trước <w:compat> trong schema)
+        for tag in ("defaultTabStop", "autoHyphenation", "hyphenationZone", "doNotHyphenateCaps", "evenAndOddHeaders",
+                    "mirrorMargins", "characterSpacingControl"):
+            src_tag = re.search(rf"<w:{tag}\b[^>]*/>", source_settings_xml)
+            dst_re = re.compile(rf"<w:{tag}\b[^>]*/>")
+            if src_tag:
+                if dst_re.search(new_settings):
+                    new_settings = dst_re.sub(lambda _m, v=src_tag.group(0): v, new_settings, count=1)
+                elif "<w:compat>" in new_settings:
+                    new_settings = new_settings.replace("<w:compat>", src_tag.group(0) + "<w:compat>", 1)
+            elif tag in ("autoHyphenation", "evenAndOddHeaders", "mirrorMargins"):
+                new_settings = dst_re.sub("", new_settings)
+        if new_settings != settings_xml:
+            replacements["word/settings.xml"] = new_settings.encode("utf-8")
 
     # W34a: LibreOffice ghi tên font kèm fallback CSS ("Times New Roman;serif", "Arial;sans-serif") vào w:rFonts và
     # fontTable — Word không có font tên ấy nên thay font khác (đo 20/20 bản lưu đều dính). Giữ tên đầu.
