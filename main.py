@@ -918,7 +918,7 @@ class VnOfficeApi:
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_open_") as tmp:
                 convert_src_path = src_path
-                if app_kind == "sheet" and src_path.lower().endswith(".xlsx"):
+                if app_kind == "sheet" and src_path.lower().endswith(".xlsx") and os.path.isfile(src_path):
                     with open(src_path, "rb") as source_file:
                         original_xlsx = source_file.read()
                     import_xlsx = _ooxml_zip_patch().make_all_sheets_visible_for_import(original_xlsx)
@@ -953,7 +953,7 @@ class VnOfficeApi:
                     # Cell runs can move to their final logical coordinates during
                     # optimization. Reapply only XF ownership at those coordinates;
                     # all other native overlays retain their established ordering.
-                    if src_path.lower().endswith(".xlsx"):
+                    if src_path.lower().endswith(".xlsx") and os.path.isfile(src_path):
                         with open(src_path, "rb") as source_file:
                             content = _ooxml_zip_patch().reoverlay_sheet_xf_indices(
                                 source_file.read(), content
