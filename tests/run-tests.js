@@ -156,6 +156,7 @@ import { runSlidesShapeRotatedResizeTests } from "./unit/slides-shape-rotated-re
 import { runWriterFodtRealFileGapsBatch2Tests } from "./unit/writer-fodt-real-file-gaps-batch2.test.js";
 import { runMacroManagerTests } from "./unit/macro-manager.test.js";
 import { runWriterFloatingImageImportTests } from "./unit/writer-floating-image-import.test.js";
+import { runWriterTablePaintBordersTests } from "./unit/writer-table-paint-borders.test.js";
 import { runAiFeaturesBatch2Tests } from "./unit/ai-features-batch2.test.js";
 import { runBlankDefaultTests } from "./unit/blank-default.test.js";
 import { runSheetLoadFodsBlankTests } from "./unit/sheet-load-fods-blank.test.js";
@@ -336,6 +337,7 @@ async function runAll() {
     { title: "136. Unit Tests — Writer parseFodt(): 3 lỗi thật từ file .doc người dùng (header/footer diff, table multi-p, draw:connector)", runner: runWriterFodtRealFileGapsBatch2Tests },
     { title: "137. Unit Tests — VN Office Macro cơ bản (ghi/phát lại thao tác qua Command Bus)", runner: runMacroManagerTests },
     { title: "138. Unit Tests — Writer floating image (sd-abs-pos) import normalization", runner: runWriterFloatingImageImportTests },
+    { title: "138b. Unit Tests — Writer W44/W47 paint-only table borders keep cell padding", runner: runWriterTablePaintBordersTests },
     { title: "139. Unit Tests — AI Features Batch 2 (Dịch thuật, Viết nháp, Giải thích CT, Tạo CT từ mô tả)", runner: runAiFeaturesBatch2Tests },
     { title: "140. Unit Tests — Blank Default (Writer/Sheet/Slides mặc định trang trắng thật)", runner: runBlankDefaultTests },
     { title: "141. Integration Tests — Sheet loadFromFods after isBlank mount MUST populate data", runner: runSheetLoadFodsBlankTests },
