@@ -2807,7 +2807,14 @@ export class SheetGridController {
     const bottomTd = this.bottomSpacer.querySelector("td");
     if (bottomTd) bottomTd.style.height = `${bottomHeight}px`;
 
-    // Xóa các hàng cũ nằm giữa topSpacer và bottomSpacer, kể cả hàng cố định cũ
+    // Xóa các hàng cố định cũ nằm trước topSpacer (tránh tích tụ qua các lần render hoặc đổi sheet)
+    while (this.topSpacer.previousSibling) {
+      const prev = this.topSpacer.previousSibling;
+      this.tbody.removeChild(prev);
+      if (this.topSpacer.previousSibling === prev) break;
+    }
+
+    // Xóa các hàng cũ nằm giữa topSpacer và bottomSpacer
     // (sẽ được dựng lại ngay dưới đây để phản ánh đúng dữ liệu/lựa chọn hiện tại).
     while (this.topSpacer.nextSibling && this.topSpacer.nextSibling !== this.bottomSpacer) {
       this.tbody.removeChild(this.topSpacer.nextSibling);

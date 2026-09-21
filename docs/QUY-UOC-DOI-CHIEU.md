@@ -135,3 +135,8 @@ File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`
 
 - **S27a — AutoFilter sau LibreOffice (Claude):** Calc ghi `table:target-range-address` định danh sheet ở CẢ HAI đầu (`'Tên'.A12:'Tên'.AW33632`) → `autoFilter@ref` chỉ nhận vùng cục bộ; khi thay ref của `<autoFilter>` có sẵn chỉ thay thuộc tính `ref`, giữ thẻ cặp và `<filterColumn>` con (S26b thay cả thẻ mở bằng thẻ tự đóng → dư `</autoFilter>`, lan11/lan14/lan20 Excel không mở). Khoá: test_sheet_s26_ooxml (S27a).
 
+## S28 — Sửa 5 lớp render VN Sheet vòng 12 (agy, 21/09/2026)
+
+- **S28b — Dọn sạch hàng cố định cũ trước topSpacer khi render ảo hóa (L2):** Hàng cố định (`.vno-frozen-row`) được dựng và chèn trước `this.topSpacer` trong `tbody`. Trước đây vòng lặp xóa hàng cũ trong `_renderVirtualRows` chỉ dọn giữa `topSpacer` và `bottomSpacer`, bỏ quên các node đứng trước `topSpacer`. Khi mở workbook có sheet mang hàng cố định (ví dụ lan12 sheet 2 có 3 hàng cố định, lan16 sheet 2 có 4 hàng cố định), chuyển sang sheet khác khiến header của sheet trước bị kẹt lại vĩnh viễn ở đầu sheet sau. Sửa: thêm vòng lặp xóa triệt để `while (this.topSpacer.previousSibling) { this.tbody.removeChild(...) }` trước khi dựng lại. Khoá bởi: `sheet-freeze-panes-real.test.js` (S28b).
+
+

@@ -219,5 +219,93 @@ export async function runSheetFreezePanesRealTests() {
     assert(applied.includes('vno:frozen-rows="4" vno:frozen-cols="0"'), applied);
   });
 
+  test("S28b: _renderVirtualRows() don dep hang co dinh cu truoc topSpacer khi doi sheet", () => {
+    const grid = new SheetGridController(container());
+    grid.rowCount = 50;
+
+    const children = [];
+    const topSpacer = {
+      tagName: "TR",
+      className: "vno-grid-spacer-top",
+      style: {},
+      querySelector: () => ({ style: {} }),
+      get previousSibling() {
+        const idx = children.indexOf(this);
+        return idx > 0 ? children[idx - 1] : null;
+      },
+      get nextSibling() {
+        const idx = children.indexOf(this);
+        return idx >= 0 && idx < children.length - 1 ? children[idx + 1] : null;
+      }
+    };
+    const bottomSpacer = {
+      tagName: "TR",
+      className: "vno-grid-spacer-bottom",
+      style: {},
+      querySelector: () => ({ style: {} }),
+      get previousSibling() {
+        const idx = children.indexOf(this);
+        return idx > 0 ? children[idx - 1] : null;
+      },
+      get nextSibling() {
+        const idx = children.indexOf(this);
+        return idx >= 0 && idx < children.length - 1 ? children[idx + 1] : null;
+      }
+    };
+
+    children.push(topSpacer, bottomSpacer);
+
+    const tbody = {
+      insertBefore(node, ref) {
+        if (ref) {
+          const idx = children.indexOf(ref);
+          if (idx >= 0) {
+            if (node.children) {
+              children.splice(idx, 0, ...node.children);
+            } else {
+              children.splice(idx, 0, node);
+            }
+          }
+        }
+      },
+      removeChild(node) {
+        const idx = children.indexOf(node);
+        if (idx >= 0) {
+          children.splice(idx, 1);
+        }
+      },
+      querySelectorAll: () => []
+    };
+
+    grid.tbody = tbody;
+    grid.topSpacer = topSpacer;
+    grid.bottomSpacer = bottomSpacer;
+    grid._applyFreezeVisuals = () => {};
+    grid.renderAuditArrows = () => {};
+
+    const realDoc = globalThis.document;
+    globalThis.document = {
+      createElement: (tag) => ({ tagName: tag, style: {}, dataset: {}, classList: { add() {} } }),
+      createDocumentFragment: () => ({ children: [], appendChild(c) { this.children.push(c); } })
+    };
+    grid._buildRowTr = (r) => ({ tagName: "TR", dataset: { row: r }, classList: { add() {} } });
+
+    try {
+      // 1. Sheet 2 có 2 hàng cố định
+      grid.frozenRows = 2;
+      grid._renderVirtualRows(3, 10);
+      const frozenBefore = children.slice(0, children.indexOf(topSpacer));
+      assert(frozenBefore.length === 2, `Phai co 2 hang co dinh truoc topSpacer, thuc te: ${frozenBefore.length}`);
+
+      // 2. Chuyen sang Sheet 1 khong co hang co dinh (frozenRows = 0)
+      grid.frozenRows = 0;
+      grid._renderVirtualRows(1, 10);
+      const frozenAfter = children.slice(0, children.indexOf(topSpacer));
+      assert(frozenAfter.length === 0, `Sau khi doi sang sheet khong co dinh, truoc topSpacer phai co 0 hang, thuc te: ${frozenAfter.length}`);
+    } finally {
+      globalThis.document = realDoc;
+    }
+  });
+
   return results;
 }
