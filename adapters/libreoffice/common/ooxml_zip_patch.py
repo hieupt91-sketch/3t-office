@@ -6458,10 +6458,23 @@ def _excel_font_line_heights(font_name: str, size: float, bold: bool, normal_des
     return [step + pad, 2 * step + pad, 3 * step + pad, 5 * step + pad]
 
 
+_EXCEL_FONT_METRICS_CACHE: dict[tuple, tuple[float, float] | None] = {}
+
+
 def _excel_font_metrics(font_name: str, size: float, bold: bool, italic: bool = False) -> tuple[float, float] | None:
     """(L bước dòng px, d tmDescent px) của font/cỡ: L từ bảng excel_row_heights.json (đo dưới Normal Calibri 11, nội suy cỡ lẻ,
     font lạ dùng Calibri); d từ GDI, không có (ngoài Windows / font không cài -> Excel thay font, lan28 "Times Roman") thì
-    suy từ pad đo trong bảng = max(0, 4 − d) (pad 0 -> coi d = 4)."""
+    suy từ pad đo trong bảng = max(0, 4 − d) (pad 0 -> coi d = 4). Cache theo (font, cỡ, đậm, nghiêng): lan06 gọi 3,5 triệu lần."""
+    key = (str(font_name), float(size), bool(bold), bool(italic))
+    if key in _EXCEL_FONT_METRICS_CACHE:
+        return _EXCEL_FONT_METRICS_CACHE[key]
+    value = _excel_font_metrics_uncached(font_name, size, bold, italic)
+    if len(_EXCEL_FONT_METRICS_CACHE) < 4096:
+        _EXCEL_FONT_METRICS_CACHE[key] = value
+    return value
+
+
+def _excel_font_metrics_uncached(font_name: str, size: float, bold: bool, italic: bool = False) -> tuple[float, float] | None:
     table = _excel_row_height_table()
     if not table:
         return None
@@ -6515,12 +6528,15 @@ def _excel_row_height_from_cells(explicit: list[tuple], implicit: list[tuple[flo
         implicit.append(normal)
     if not explicit and not implicit:
         return 0.0
+    # D mặc định = max descent ô ngầm; ô tường minh có thể mang D riêng (phần tử thứ 4) = max(descent style cột/hàng của
+    # chính ô đó, descent Normal) — lan12 s4 hàng 9: D9 TNR 12 căn đáy 6 dòng = 126 dù cột G–I style Calibri 15 (d 5) trống
     reference = max((d for _, d in implicit), default=0.0)
     best = max((total for total, _ in implicit), default=0.0)
     for cell in explicit:
         total, descent = float(cell[0]), float(cell[1])
         bottom = cell[2] if len(cell) > 2 else True
-        best = max(best, total + (max(0.0, reference - descent) if bottom else 0.0))
+        own_reference = float(cell[3]) if len(cell) > 3 and cell[3] is not None else reference
+        best = max(best, total + (max(0.0, own_reference - descent) if bottom else 0.0))
     return min(_EXCEL_MAX_ROW_PX, float(round(best)))
 
 
@@ -6866,6 +6882,33 @@ def _column_index(name: str) -> int:
     return number
 
 
+_COLUMN_INDEX_CACHE: dict[str, int] = {}
+_XLSX_CELL_RE = re.compile(r"<c\b([^>]*?)(?:/>|>(.*?)</c>)", re.S | re.IGNORECASE)
+_XLSX_CELL_S_RE = re.compile(r'\bs="(\d+)"')
+_XLSX_CELL_R_RE = re.compile(r'\br="([A-Z]+)(\d+)"')
+
+
+def _column_index_fast(name: str) -> int:
+    value = _COLUMN_INDEX_CACHE.get(name)
+    if value is None:
+        value = _COLUMN_INDEX_CACHE[name] = _column_index(name)
+    return value
+
+
+def _xf_row_info(xfs: list[dict], fonts: list[dict], normal_font: dict, xf_index: int) -> dict:
+    """Thông tin một cellXf dùng khi tính cao hàng (S31): metrics font, căn đáy, viền, bọc chữ — cache theo chỉ số xf."""
+    xf = xfs[xf_index] if 0 <= xf_index < len(xfs) else {"fontId": 0, "wrap": False, "bottom": True}
+    font = fonts[xf["fontId"]] if 0 <= xf["fontId"] < len(fonts) else fonts[0] if fonts else normal_font
+    return {
+        "font": font,
+        "metrics": _excel_font_metrics(font["name"], float(font["size"]), bool(font.get("bold")), bool(font.get("italic"))),
+        "bottom": bool(xf.get("bottom", True)),
+        "borderTop": int(xf.get("borderTop", 0)),
+        "borderBottom": int(xf.get("borderBottom", 0)),
+        "wrap": bool(xf.get("wrap")),
+    }
+
+
 def _column_name(index: int) -> str:
     name = ""
     while index:
@@ -6913,6 +6956,8 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
         # lan05 mọi cột TNR 10 -> 17px, cột A đổi về style 0 -> 20; lan12 bỏ <cols> -> 20. zeroHeight -> 0 (S30a).
         column_style_fonts: list[tuple[int, int, dict]] = []
         columns_uncovered = True
+        xf_info: dict[int, dict] = {}
+        column_descent_cache: dict[int, float] = {}
         normal_metrics = _excel_font_metrics(normal_font["name"], float(normal_font["size"]), bool(normal_font.get("bold"))) if has_table else None
         if has_table:
             covered: list[tuple[int, int]] = []
@@ -6995,15 +7040,32 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
             row_style = re.search(r'\bs="(\d+)"', attrs)
             row_custom_format = bool(row_style and re.search(r'\bcustomFormat="(?:1|true)"', attrs, re.IGNORECASE))
             candidates: list[dict] = []
-            for cell_match in re.finditer(r"<c\b([^>]*?)(?:/>|>(.*?)</c>)", body, re.S | re.IGNORECASE):
+            plain_cells: list[tuple] = []
+            # lan06: 3,5 triệu ô — regex biên dịch sẵn, ô rỗng/không bọc chữ chỉ cần (xf, cột)
+            for cell_match in _XLSX_CELL_RE.finditer(body):
                 cell_attrs, cell_body = cell_match.group(1) or "", cell_match.group(2) or ""
-                style = re.search(r'\bs="(\d+)"', cell_attrs)
-                coord = re.search(r'\br="([A-Z]+)(\d+)"', cell_attrs)
+                style = _XLSX_CELL_S_RE.search(cell_attrs)
+                coord = _XLSX_CELL_R_RE.search(cell_attrs)
+                col_name = coord.group(1) if coord else ""
                 if coord:
-                    explicit_cols.add(_column_index(coord.group(1)))
+                    explicit_cols.add(_column_index_fast(col_name))
+                xf_index = int(style.group(1)) if style else 0
+                info = xf_info.get(xf_index)
+                if info is None:
+                    info = xf_info[xf_index] = _xf_row_info(xfs, fonts, normal_font, xf_index)
+                if not info["wrap"] or "<" not in cell_body:
+                    # ô không bọc chữ hoặc rỗng: chỉ cần metrics font + viền (không tạo dict)
+                    coord_text = coord.group(0)[3:-1] if coord else ""
+                    if coord_text and coord_text in merge_multi_row:
+                        continue
+                    if info["metrics"]:
+                        border_top = max(border_top, info["borderTop"])
+                        border_bottom = max(border_bottom, info["borderBottom"])
+                        plain_cells.append((info["metrics"][0], info["metrics"][1], info["bottom"], col_name))
+                    continue
                 candidates.append({
-                    "xf": int(style.group(1)) if style else 0,
-                    "coord": coord.group(0).split('"')[1] if coord else "",
+                    "xf": xf_index,
+                    "coord": coord.group(0)[3:-1] if coord else "",
                     "content": bool(re.search(r"<(?:v|is)\b", cell_body)),
                     "attrs": cell_attrs,
                     "body": cell_body,
@@ -7023,6 +7085,25 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
                     if metrics:
                         implicit.append(metrics)
             row_normal = normal_metrics if (columns_uncovered and not row_custom_format) else None
+
+            def cell_reference(col_name: str) -> float | None:
+                """D riêng của ô: descent style hàng (customFormat) hoặc style cột của chính cột đó, và Normal nếu còn cột trống."""
+                if row_custom_format:
+                    return implicit[0][1] if implicit else None
+                index = _column_index_fast(col_name) if col_name else 0
+                own = column_descent_cache.get(index)
+                if own is None:
+                    own = 0.0
+                    for lo, hi, cfont in column_style_fonts:
+                        if lo <= index <= hi:
+                            cmetrics = _excel_font_metrics(cfont["name"], float(cfont["size"]), bool(cfont.get("bold")), bool(cfont.get("italic")))
+                            own = cmetrics[1] if cmetrics else 0.0
+                            break
+                    column_descent_cache[index] = own
+                return max(own, normal_metrics[1] if (columns_uncovered and normal_metrics) else 0.0)
+
+            for total_l, descent_d, bottom_flag, col_name in plain_cells:
+                extents.append((total_l, descent_d, bottom_flag, cell_reference(col_name)))
             for candidate in candidates:
                 coord = candidate["coord"]
                 # Excel AutoFit bỏ qua ô thuộc vùng gộp nhiều hàng (lan02 s1 A1:A2 TNR 23 rỗng không nâng hàng 1)
@@ -7036,7 +7117,8 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
                 bottom = bool(xf.get("bottom", True))
                 border_top = max(border_top, int(xf.get("borderTop", 0)))
                 border_bottom = max(border_bottom, int(xf.get("borderBottom", 0)))
-                extents.append((metrics[0], metrics[1], bottom))
+                own_reference = cell_reference(re.match(r"[A-Z]+", coord).group(0) if coord else "")
+                extents.append((metrics[0], metrics[1], bottom, own_reference))
                 if xf["wrap"] and candidate["content"] and coord and coord not in merge_covered:
                     heights = _excel_font_line_heights(font["name"], float(font["size"]), bool(font.get("bold")), normal_desc, bool(font.get("italic")))
                     if heights:
@@ -7062,7 +7144,7 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
                             if measured and col_px:
                                 extent = _excel_wrapped_cell_extent(measured, float(col_px) - measured[0]["m"])
                         if extent is not None:
-                            extents.append((extent[0], extent[1], bottom))
+                            extents.append((extent[0], extent[1], bottom, own_reference))
                         elif rich_runs:
                             wrap_cells[coord] = {"h": heights, "runs": rich_runs}
                         elif runs:
