@@ -2773,7 +2773,8 @@ export class SheetAdapter {
         }).join("");
         conditionalBaseStyles.push(`<style:style style:name="${baseName}" style:family="table-cell">${maps}</style:style>`);
         const range = grouped[0].range;
-        for (let row = range.start.r; row <= range.end.r; row++) {
+        const maxCfRow = Math.min(range.end.r, 10000);
+        for (let row = range.start.r; row <= maxCfRow; row++) {
           for (let column = this._columnNumber(range.start.c); column <= this._columnNumber(range.end.c); column++) {
             sheetConditionalCells.set(`${this._columnName(column)}${row}`, { baseName, maps });
           }
@@ -2860,10 +2861,10 @@ export class SheetAdapter {
         const match = String(coordinate).match(/^([A-Z]+)(\d+)$/);
         if (!match) continue;
         const rowNumber = Number(match[2]);
+        if (rowNumber > maxRow) continue;
         const columnNumber = this._columnNumber(match[1]);
         if (!rows.has(rowNumber)) rows.set(rowNumber, new Map());
         if (!rows.get(rowNumber).has(columnNumber)) rows.get(rowNumber).set(columnNumber, { val: "", formula: "", style: {} });
-        maxRow = Math.max(maxRow, rowNumber);
       }
       for (const range of this.grid.mergedRangesBySheet?.[sheetName] || []) {
         const startColumn = this._columnNumber(range?.start?.c);

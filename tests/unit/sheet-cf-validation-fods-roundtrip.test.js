@@ -138,5 +138,43 @@ export async function runSheetCfValidationFodsRoundTripTests() {
     assert(matchA3 && matchA3.color === "#ffc7ce", "A3 trùng phải match rule duplicate");
     assert(matchA4 === null, "A4 không trùng không được match");
   });
+
+  test("Sheet FODS save (S28a): serializeToFods khong sinh hang trieu o rong cho quy tac CF toan cot", () => {
+    const sheet = "Sheet1";
+    const grid = {
+      sheets: [sheet],
+      activeSheet: sheet,
+      cellsData: new Map([["A1", { val: "Header", formula: "", style: {} }]]),
+      sheetsData: {},
+      commentsBySheet: { [sheet]: {} },
+      mergedRangesBySheet: { [sheet]: [] },
+      namedRangesBySheet: { [sheet]: [] },
+      namedRangesWorkbook: [],
+      printAreaBySheet: { [sheet]: null },
+      rowHeightsBySheet: { [sheet]: {} },
+      colWidthsBySheet: { [sheet]: {} },
+      userHiddenRowsBySheet: { [sheet]: [] },
+      userHiddenColsBySheet: { [sheet]: [] },
+      imagesBySheet: { [sheet]: [] },
+      conditionalFormattingBySheet: {
+        [sheet]: [{
+          id: "cf-full-col",
+          range: { start: { c: "C", r: 16 }, end: { c: "C", r: 1048576 } },
+          type: "duplicate",
+          color: "#ffc7ce"
+        }]
+      },
+      dataValidationsBySheet: { [sheet]: [] },
+      pivotTablesBySheet: { [sheet]: [] },
+      chartsBySheet: { [sheet]: [] },
+      pageBreaksBySheet: { [sheet]: { rows: [], cols: [] } },
+      protectionBySheet: { [sheet]: { enabled: false } },
+      outlineGroupsBySheet: { [sheet]: [] }
+    };
+    const xml = new SheetAdapter(grid).serializeToFods();
+    assert(xml.includes("calcext:conditional-formats"), "Phai chua conditional formats");
+    assert(xml.length < 50000, `XML khong duoc bung hang trieu ky tu, thuc te dai ${xml.length}`);
+  });
   return results;
 }
+
