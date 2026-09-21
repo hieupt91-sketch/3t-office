@@ -86,7 +86,7 @@
 }
 .vno-writer-web-layout .vno-writer-ruler { display: none; }
 .vno-writer-web-layout .vno-writer-viewport { padding: 0; align-items: stretch; }
-.vno-writer-web-layout .vno-writer-page { width: 100% !important; min-height: 100%; padding: 38px clamp(32px, 8vw, 128px) !important; box-shadow: none; border-radius: 0; }
+.vno-writer-web-layout .vno-writer-page { width: 100% !important; min-height: 100%; padding: 38px clamp(32px, 8vw, 128px) !important; box-shadow: none; border: 1px solid var(--vno-border-subtle); border-radius: 0; }
 .vno-writer-web-layout .vno-page-auto-gap,
 .vno-writer-web-layout .vno-writer-header,
 .vno-writer-web-layout .vno-writer-footer,
@@ -314,7 +314,10 @@
   width: 794px; /* A4 width */
   min-height: 1123px; /* A4 height */
   background-color: var(--vno-bg-window);
-  box-shadow: var(--vno-shadow-paper);
+  /* W48: hairline vẽ bằng box-shadow (không chiếm chỗ). border 1px + box-sizing:border-box
+     làm cột chữ hẹp hơn Word 2px — d14 GDI "III. Mở cửa từ bên ngoài bằng thẻ…" = 624px
+     = đúng bề rộng dòng (12240−1440−1440 twips), canvas 622px gãy thêm 1 dòng, 4 trang (Word 3). */
+  box-shadow: var(--vno-shadow-paper), 0 0 0 1px var(--vno-border-subtle);
   border-radius: 1px;
   position: relative;
   padding: 75px 56px 75px 113px; /* Lề chuẩn NĐ 30: Trên 20mm, Dưới 20mm, Trái 30mm, Phải 15mm */
@@ -326,7 +329,7 @@
   --vno-lh: var(--vno-doc-line-height, 1.4);
   line-height: calc(var(--vno-lh) * var(--vno-font-ratio, 1));
   color: var(--vno-text-primary);
-  border: 1px solid var(--vno-border-subtle);
+  border: none;
   outline: none;
   box-sizing: border-box;
 }
@@ -501,6 +504,12 @@ li.vno-page-auto-gap {
 .vno-print-preview-overlay.vno-doc-imported .vno-print-preview-body {
   font-kerning: none;
   font-variant-ligatures: none;
+}
+/* W50: ảnh inline ngồi trên baseline nên dòng cộng thêm phần descent của font dưới ảnh.
+   d21: wp:extent 428.7px nhưng đoạn ảnh cao 434px; ảnh cuối không vừa trang 9 (canvas 10, Word 9). */
+.vno-writer-page.vno-doc-imported img,
+.vno-print-preview-overlay.vno-doc-imported .vno-print-preview-body img {
+  vertical-align: bottom;
 }
 
 /* Word: đoạn đầu trang sau ngắt trang tự động không có space-before; space-after
@@ -1374,6 +1383,7 @@ li.vno-page-auto-gap {
   }
   .vno-writer-page {
     box-shadow: none !important;
+    border: 1px solid var(--vno-border-subtle);
     margin: 0 !important;
   }
   /*

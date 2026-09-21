@@ -2279,33 +2279,71 @@ export class WriterAdapter {
    * đo bằng trình duyệt thật (font thay thế nào đang vẽ thì đo đúng font đó); ngoài
    * trình duyệt dùng bảng metric hhea của các font Windows phổ biến.
    */
+  _fontMetricTable() {
+    return {
+      "arial": 1.1499, "arial narrow": 1.1499, "times new roman": 1.1499, "calibri": 1.2207, "calibri light": 1.2207,
+      "cambria": 1.1719, "tahoma": 1.207, "verdana": 1.2148, "segoe ui": 1.3301, "courier new": 1.1328,
+      "georgia": 1.1362, "garamond": 1.1738, "book antiqua": 1.1699, "consolas": 1.1719
+    };
+  }
+
+  /**
+   * W49: face không cài (LibreOffice bọc run TNR trong `<font face=".VnTimeH">`) — không lấy line-height
+   * của font thay thế. Đo d16: .VnTimeH đo thành 1.27 (sans dự phòng) → dòng 23.77px trong khi chữ thật là
+   * Times New Roman 21.5px (Word ~21px); ~2.5px/dòng đẩy "After negotiation…" sang trang 3.
+   * installed: true = đo được face; false = không có face; null = không kiểm tra được (dùng số đã đo).
+   */
+  _ratioForFontFace(primary, measured, installed) {
+    const key = String(primary || "").split(",")[0].replace(/["']/g, "").trim().toLowerCase();
+    const table = this._fontMetricTable();
+    if (installed === false) return table[key] || 1.15;
+    if (measured > 0) return measured;
+    return table[key] || 1.15;
+  }
+
+  /** true/false khi có canvas; null khi không đo được (unit test, mock DOM). */
+  _fontFaceInstalled(primary) {
+    if (typeof document === "undefined" || typeof document.createElement !== "function") return null;
+    try {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext && canvas.getContext("2d");
+      if (!ctx || typeof ctx.measureText !== "function") return null;
+      const name = String(primary || "").replace(/["\\]/g, "").trim();
+      if (!name) return null;
+      if (name.toLowerCase() === "courier new") return true;
+      const sample = "mmmmmmmmmmlli";
+      ctx.font = `100px ${JSON.stringify(name)}, "Courier New"`;
+      const withFace = ctx.measureText(sample).width;
+      ctx.font = `100px "Courier New"`;
+      const fallback = ctx.measureText(sample).width;
+      return Math.abs(withFace - fallback) > 0.5;
+    } catch {
+      return null;
+    }
+  }
+
   _fontLineRatio(fontFamily) {
     const family = String(fontFamily || "").trim();
     if (!family) return 1.15;
     this._fontLineRatioCache ||= new Map();
     if (this._fontLineRatioCache.has(family)) return this._fontLineRatioCache.get(family);
-    let ratio = null;
-    if (typeof document !== "undefined" && document.body && typeof document.createElement === "function") {
+    const primary = family.split(",")[0].replace(/["']/g, "").trim();
+    const installed = this._fontFaceInstalled(primary);
+    let measured = null;
+    if (installed !== false && typeof document !== "undefined" && document.body && typeof document.createElement === "function") {
       try {
+        const quoted = JSON.stringify(primary || family);
         const box = document.createElement("div");
         box.setAttribute("aria-hidden", "true");
-        box.style.cssText = `position:absolute;visibility:hidden;left:-99999px;top:0;font-family:${family};font-size:100px;line-height:normal;white-space:nowrap;padding:0;margin:0;border:0;`;
+        box.style.cssText = `position:absolute;visibility:hidden;left:-99999px;top:0;font-family:${quoted};font-size:100px;line-height:normal;white-space:nowrap;padding:0;margin:0;border:0;`;
         box.textContent = "Hg";
         document.body.appendChild(box);
         const h = box.offsetHeight;
         box.remove();
-        if (h > 0) ratio = h / 100;
+        if (h > 0) measured = h / 100;
       } catch {}
     }
-    if (!ratio) {
-      const key = family.split(",")[0].replace(/["']/g, "").trim().toLowerCase();
-      const table = {
-        "arial": 1.1499, "arial narrow": 1.1499, "times new roman": 1.1499, "calibri": 1.2207, "calibri light": 1.2207,
-        "cambria": 1.1719, "tahoma": 1.207, "verdana": 1.2148, "segoe ui": 1.3301, "courier new": 1.1328,
-        "georgia": 1.1362, "garamond": 1.1738, "book antiqua": 1.1699, "consolas": 1.1719
-      };
-      ratio = table[key] || 1.15;
-    }
+    const ratio = this._ratioForFontFace(primary, measured, installed);
     this._fontLineRatioCache.set(family, ratio);
     return ratio;
   }
@@ -11858,15 +11896,24 @@ export class WriterAdapter {
       const topOf = (el) => (bodyRect && typeof el.getBoundingClientRect === "function")
         ? el.getBoundingClientRect().top - bodyRect.top + (this.bodyDom.scrollTop || 0)
         : (el.offsetTop || 0);
+      // W51: offsetHeight làm tròn lên từng khối. d21 sau W50: ảnh cuối 429px (extent 428.7) + các khối
+      // trang 9 làm tròn cộng thêm ~1px → 863 > sát usable 864, Word còn ~2px (y 397pt + 321.5pt < 720pt).
+      const heightOf = (el) => {
+        if (typeof el.getBoundingClientRect === "function") {
+          const rh = el.getBoundingClientRect().height;
+          if (rh > 0) return rh;
+        }
+        return el.offsetHeight || 0;
+      };
       const isList = (el) => el.tagName === "UL" || el.tagName === "OL";
       const listUnits = (list, out) => {
         for (const item of Array.from(list.children || [])) {
           if (item.getAttribute?.("data-vno-auto-page-gap") === "true") continue;
           if (isList(item)) { listUnits(item, out); continue; }
           if (item.tagName !== "LI") continue;
-          let ownHeight = item.offsetHeight || 0;
+          let ownHeight = heightOf(item);
           const subLists = Array.from(item.children || []).filter(isList);
-          for (const sub of subLists) ownHeight -= sub.offsetHeight || 0;
+          for (const sub of subLists) ownHeight -= heightOf(sub);
           out.push({ el: item, kind: "li", top: topOf(item), h: Math.max(0, ownHeight) });
           for (const sub of subLists) listUnits(sub, out);
         }
@@ -11876,7 +11923,7 @@ export class WriterAdapter {
         if (!rows.length) return false;
         for (const row of rows) {
           if (row.getAttribute?.("data-vno-auto-page-gap") === "true") continue;
-          out.push({ el: row, kind: "tr", top: topOf(row), h: row.offsetHeight || 0, table });
+          out.push({ el: row, kind: "tr", top: topOf(row), h: heightOf(row), table });
         }
         return true;
       };
@@ -11887,7 +11934,7 @@ export class WriterAdapter {
         const textContent = el.textContent || "";
         const isManualBreak = styleStr.includes("page-break-before") || styleStr.includes("break-before") || textContent.includes("Phân tách trang");
 
-        const h = el.offsetHeight || 0;
+        const h = heightOf(el);
         const top = topOf(el);
         if (pendingSpillGap) {
           // W24c: hàng cuối bảng tràn trang → dải gap đặt trước khối kế tiếp
