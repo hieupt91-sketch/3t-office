@@ -1098,15 +1098,112 @@ export class SheetAdapter {
     return new Set(numeric ? items.map(Number) : items);
   }
 
-  _applyXlsxLayoutOverlay(raw, rowHeights, colWidths) {
-    if (!raw) return;
+  /**
+   * Trả về Map(hàng tự động trong XLSX gốc -> chiều cao px lúc mở) để khi lưu, hàng còn nguyên chiều cao được
+   * ghi `vno:auto-rows` và Python khôi phục đúng `ht`/không customHeight của file gốc (S30b).
+   */
+  _applyXlsxLayoutOverlay(raw, rowHeights, colWidths, context = null) {
+    const autoRows = new Map();
+    if (!raw) return autoRows;
     try {
       const layout = JSON.parse(this._unescapeXml(raw));
       for (const [column, width] of Object.entries(layout.columns || {})) if (Number.isFinite(Number(width))) colWidths.set(column, Number(width));
       for (const [row, height] of Object.entries(layout.rows || {})) if (Number.isFinite(Number(height))) rowHeights.set(Number(row), Number(height));
+      if (layout.wrap && context?.data) this._raiseAutoRowsForWrappedCells(layout.wrap, rowHeights, colWidths, context);
+      for (const row of layout.auto || []) {
+        const height = rowHeights.get(Number(row));
+        if (Number.isFinite(height)) autoRows.set(Number(row), height);
+      }
     } catch (_) {
       // Ignore malformed optional overlay; standard ODF dimensions remain usable.
     }
+    return autoRows;
+  }
+
+  /** Danh sách hàng tự động (S30b) còn nguyên chiều cao lúc mở, dạng "19,20,21" cho vno:auto-rows. */
+  _untouchedAutoRowsAttr(sheetName) {
+    const imported = this.grid?.autoRowsAtImportBySheet?.[sheetName];
+    if (!imported || typeof imported.entries !== "function") return "";
+    const current = this._asLayoutMap(this.grid?.rowHeightsBySheet?.[sheetName], true);
+    const rows = [];
+    for (const [row, height] of imported.entries()) {
+      const now = current.get(Number(row));
+      if (Number.isFinite(now) && Math.abs(now - height) < 0.01) rows.push(Number(row));
+    }
+    return rows.length ? ` vno:auto-rows="${rows.join(",")}"` : "";
+  }
+
+  /**
+   * S30a: hàng không có customHeight trong XLSX được Excel tính lại theo số dòng của ô bọc chữ.
+   * Python đã đặt chiều cao nền (font 1 dòng); ở đây đo số dòng thật bằng DOM ẩn (cùng CSS ô lưới:
+   * padding 3px, pre-wrap, overflow-wrap anywhere) rồi nâng hàng lên h(n) đo từ Excel
+   * (`wrap` = {coord: [h1, h2, h3, h5]}). Không có DOM (node test) thì giữ chiều cao nền.
+   */
+  _raiseAutoRowsForWrappedCells(wrapMap, rowHeights, colWidths, context) {
+    if (typeof document === "undefined" || !document.body) return;
+    const entries = Object.entries(wrapMap || {});
+    if (!entries.length) return;
+    const data = context.data;
+    const merged = Array.isArray(context.mergedRanges) ? context.mergedRanges : [];
+    const defaultColWidth = Number.isFinite(context.defaultColWidth) ? context.defaultColWidth : 64;
+    const host = document.createElement("div");
+    host.style.cssText = "position:absolute;left:-100000px;top:0;visibility:hidden;pointer-events:none;";
+    const probes = [];
+    for (const [coord, heights] of entries) {
+      const match = /^([A-Z]+)(\d+)$/.exec(coord);
+      const item = data.get(coord);
+      if (!match || !item || !Array.isArray(heights) || heights.length < 4) continue;
+      const text = Array.isArray(item.richText) && item.richText.length ? item.richText.map(run => run.text || "").join("") : String(item.val ?? "");
+      if (!text) continue;
+      const col = match[1];
+      const row = Number(match[2]);
+      const span = merged.find(range => range.start?.c === col && range.start?.r === row);
+      let width = 0;
+      if (span) {
+        const from = this._columnNumber(span.start.c);
+        const to = this._columnNumber(span.end.c);
+        for (let number = from; number <= to; number++) width += Number(colWidths.get(this._columnName(number))) || defaultColWidth;
+      } else {
+        width = Number(colWidths.get(col)) || defaultColWidth;
+      }
+      const style = item.style || {};
+      const font = `${style.fontStyle || "normal"} ${style.fontWeight || "normal"} ${style.fontSize || "14.67px"} ${style.fontFamily || "Calibri, Carlito, Arial, sans-serif"}`;
+      const box = document.createElement("div");
+      box.style.cssText = `box-sizing:border-box;width:${width}px;padding:3px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:normal;font:${font};`;
+      box.textContent = text;
+      const one = document.createElement("div");
+      one.style.cssText = `box-sizing:border-box;width:${width}px;padding:3px;white-space:pre;line-height:normal;font:${font};`;
+      one.textContent = "X";
+      host.appendChild(box);
+      host.appendChild(one);
+      probes.push({ row, heights, box, one });
+    }
+    if (!probes.length) return;
+    document.body.appendChild(host);
+    try {
+      for (const probe of probes) {
+        const lineHeight = probe.one.getBoundingClientRect().height - 6;
+        if (!(lineHeight > 0)) continue;
+        const lines = Math.max(1, Math.round((probe.box.getBoundingClientRect().height - 6) / lineHeight));
+        const target = this._excelAutoRowHeightPx(probe.heights, lines);
+        if (!Number.isFinite(target)) continue;
+        const current = Number(rowHeights.get(probe.row));
+        if (!Number.isFinite(current) || target > current) rowHeights.set(probe.row, target);
+      }
+    } finally {
+      host.remove();
+    }
+  }
+
+  /** h(n) từ [h1, h2, h3, h5] đo Excel: n<=5 tra/nội suy, n>5 ngoại suy theo (h5-h3)/2 mỗi dòng. */
+  _excelAutoRowHeightPx(heights, lines) {
+    const [h1, h2, h3, h5] = heights.map(Number);
+    if (lines <= 1) return h1;
+    if (lines === 2) return h2;
+    if (lines === 3) return h3;
+    if (lines === 4) return Math.round(h3 + (h5 - h3) / 2);
+    if (lines === 5) return h5;
+    return Math.round(h5 + (lines - 5) * (h5 - h3) / 2);
   }
 
   _sheetRowColLayout(sheetName) {
@@ -3199,7 +3296,7 @@ export class SheetAdapter {
       // S27c: retain how many images entered the editable model at open time.
       // If all are later deleted, the save-side repair must not resurrect them.
       const imagesAtOpen = Math.max(0, Number(this.grid.imagesAtOpenBySheet?.[sheetName]) || 0);
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${sheetStateAttr}${tabColorAttr}`;
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${sheetStateAttr}${tabColorAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -4068,7 +4165,7 @@ export class SheetAdapter {
             }
           });
           arrayFormulas.forEach(region => this._restoreArrayFormula(data, region.column, region.row, region.columns, region.rows, region.formula));
-          this._applyXlsxLayoutOverlay(table.getAttribute("vno:xlsx-layout"), rowHeights, colWidths);
+          const autoRowsAtImport = this._applyXlsxLayoutOverlay(table.getAttribute("vno:xlsx-layout"), rowHeights, colWidths, { data, mergedRanges });
 
           // Parse images from <table:shapes> (page-anchored images)
           const shapesImages = this._parseTableShapesImages(table, name);
@@ -4088,6 +4185,8 @@ export class SheetAdapter {
           workbook.pageSetupBySheet[name] = pageSetup;
           workbook.rowHeightsBySheet[name] = rowHeights;
           workbook.colWidthsBySheet[name] = colWidths;
+          workbook.autoRowsAtImportBySheet = workbook.autoRowsAtImportBySheet || {};
+          workbook.autoRowsAtImportBySheet[name] = autoRowsAtImport;
           workbook.userHiddenRowsBySheet[name] = hiddenRows;
           workbook.userHiddenColsBySheet[name] = hiddenCols;
           workbook.imagesBySheet = workbook.imagesBySheet || {};
@@ -4312,7 +4411,7 @@ export class SheetAdapter {
           }
         }
         arrayFormulas.forEach(region => this._restoreArrayFormula(data, region.column, region.row, region.columns, region.rows, region.formula));
-        this._applyXlsxLayoutOverlay(pageAttr("vno:xlsx-layout"), rowHeights, colWidths);
+        const autoRowsAtImport = this._applyXlsxLayoutOverlay(pageAttr("vno:xlsx-layout"), rowHeights, colWidths, { data, mergedRanges });
 
         // Parse images from <table:shapes> (page-anchored images) - regex branch
         const shapesImages = this._parseTableShapesImagesRegex(tableMatch[2], name);
@@ -4334,6 +4433,8 @@ export class SheetAdapter {
         workbook.pageSetupBySheet[name] = pageSetup;
         workbook.rowHeightsBySheet[name] = rowHeights;
         workbook.colWidthsBySheet[name] = colWidths;
+        workbook.autoRowsAtImportBySheet = workbook.autoRowsAtImportBySheet || {};
+        workbook.autoRowsAtImportBySheet[name] = autoRowsAtImport;
         workbook.userHiddenRowsBySheet[name] = hiddenRows;
         workbook.userHiddenColsBySheet[name] = hiddenCols;
         workbook.imagesBySheet = workbook.imagesBySheet || {};
@@ -4423,6 +4524,8 @@ export class SheetAdapter {
       this.grid.imagesAtOpenBySheet[sheetName] = workbook.imagesAtOpenBySheet?.[sheetName] || 0;
       this.grid.rowHeightsBySheet[sheetName] = this._asLayoutMap(equivalentSheetValue(workbook.rowHeightsBySheet, sheetName), true);
       this.grid.colWidthsBySheet[sheetName] = this._asLayoutMap(workbook.colWidthsBySheet?.[sheetName], false);
+      this.grid.autoRowsAtImportBySheet = this.grid.autoRowsAtImportBySheet || {};
+      this.grid.autoRowsAtImportBySheet[sheetName] = workbook.autoRowsAtImportBySheet?.[sheetName] || new Map();
       this.grid.userHiddenRowsBySheet[sheetName] = this._asLayoutSet(workbook.userHiddenRowsBySheet?.[sheetName], true);
       this.grid.userHiddenColsBySheet[sheetName] = this._asLayoutSet(workbook.userHiddenColsBySheet?.[sheetName], false);
       this.grid.pageBreaksBySheet[sheetName] = workbook.pageBreaksBySheet?.[sheetName] || { rows: [], cols: [] };

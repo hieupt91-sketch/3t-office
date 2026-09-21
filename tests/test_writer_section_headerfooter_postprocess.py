@@ -705,6 +705,47 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         # LibreOffice's incorrect pageBreakBefore on 2nd paragraph should be removed
         self.assertNotIn('<w:pageBreakBefore/>', paragraphs[1])
 
+    def test_w27b_floating_table_frame_becomes_tblppr_table(self):
+        """W27b (d09): bảng nổi tblpPr của nguồn được LibreOffice xuất thành hộp văn bản mc:AlternateContent
+        (Choice + Fallback cùng chứa bảng). Trả lại <w:tbl> ở thân với tblpPr của nguồn; đoạn neo rỗng bị bỏ."""
+        table = ('<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="5000" w:type="dxa"/></w:tblPr>'
+                 '<w:tblGrid><w:gridCol w:w="2500"/><w:gridCol w:w="2500"/></w:tblGrid>'
+                 '<w:tr><w:tc><w:p><w:r><w:t>Năm tài chính</w:t></w:r></w:p></w:tc><w:tc><w:p/></w:tc></w:tr></w:tbl>')
+        source_tblppr = '<w:tblpPr w:leftFromText="180" w:rightFromText="180" w:vertAnchor="text" w:horzAnchor="margin" w:tblpX="-190" w:tblpY="97"/>'
+        source = _build_minimal_docx(
+            '<w:p><w:r><w:t>Bảng số liệu</w:t></w:r></w:p>'
+            + table.replace('<w:tblStyle w:val="TableGrid"/>', '<w:tblStyle w:val="TableGrid"/>' + source_tblppr)
+            + '<w:p><w:r><w:t>Sau bảng</w:t></w:r></w:p><w:sectPr/>'
+        )
+        frame = ('<mc:AlternateContent><mc:Choice Requires="wps"><w:drawing><wp:anchor distT="0" distB="0" distL="114300" distR="114300">'
+                 '<wp:positionH relativeFrom="column"><wp:align>left</wp:align></wp:positionH>'
+                 '<wp:positionV relativeFrom="line"><wp:posOffset>635</wp:posOffset></wp:positionV>'
+                 '<wps:txbx><w:txbxContent>' + table + '<w:p><w:pPr><w:pStyle w:val="BodyText"/></w:pPr></w:p></w:txbxContent></wps:txbx>'
+                 '</wp:anchor></w:drawing></mc:Choice><mc:Fallback><w:pict><v:rect><v:textbox><w:txbxContent>' + table
+                 + '</w:txbxContent></v:textbox></v:rect></w:pict></mc:Fallback></mc:AlternateContent>')
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Bảng số liệu</w:t></w:r></w:p>'
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/></w:pPr><w:r><w:rPr></w:rPr></w:r><w:r>' + frame + '</w:r></w:p>'
+            '<w:p><w:r><w:t>Sau bảng</w:t></w:r></w:p><w:sectPr/>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertNotIn('<mc:AlternateContent', xml)
+        self.assertEqual(xml.count('<w:tbl>'), 1)
+        self.assertIn('<w:tblStyle w:val="TableGrid"/>' + source_tblppr + '<w:tblW', xml)
+        paragraphs = [xml[start:end] for start, end in ooxml_zip_patch_mod._writer_body_paragraph_ranges(xml)]
+        self.assertEqual([ooxml_zip_patch_mod._paragraph_plain_text(p) for p in paragraphs], ["Bảng số liệu", "Sau bảng"])
+        body_order = re.findall(r'<w:tbl>|<w:t>(?:Bảng số liệu|Sau bảng)</w:t>', xml)
+        self.assertEqual(body_order, ['<w:t>Bảng số liệu</w:t>', '<w:tbl>', '<w:t>Sau bảng</w:t>'])
+
+    def test_w27b_tblppr_derived_from_anchor_when_source_has_none(self):
+        anchor = ('<wp:anchor distL="114300" distR="0"><wp:positionH relativeFrom="margin"><wp:posOffset>-120650</wp:posOffset></wp:positionH>'
+                  '<wp:positionV relativeFrom="paragraph"><wp:posOffset>61595</wp:posOffset></wp:positionV></wp:anchor>')
+        self.assertEqual(
+            ooxml_zip_patch_mod._w27b_tblppr_from_anchor(anchor),
+            '<w:tblpPr w:leftFromText="180" w:rightFromText="0" w:vertAnchor="text" w:horzAnchor="margin" w:tblpX="-190" w:tblpY="97"/>',
+        )
+
     def test_w27a_mixed_page_breaks_paragraph_and_table(self):
         """W27a: Multiple page breaks on different element types (paragraph, table)."""
         source = _build_minimal_docx(

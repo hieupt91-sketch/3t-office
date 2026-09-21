@@ -1376,7 +1376,8 @@ def _restore_normal_font_and_layout(
     # 2. Extract column widths from FODS (in cm)
     fods_col_widths = _get_fods_column_widths_by_letter(source_fods)
     fods_row_heights = _extract_fods_row_heights_cm(source_fods)
-    
+    fods_auto_rows = parse_auto_rows_from_fods(source_fods)
+
     # 3. Process each worksheet
     sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
     source_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes) if source_xlsx_bytes else {}
@@ -1417,7 +1418,15 @@ def _restore_normal_font_and_layout(
         # Restore row heights
         if row_heights is not None:
             sheet_xml = _restore_row_heights(sheet_xml, row_heights)
-        
+
+        # S30b: hàng tự động (không customHeight trong file gốc) còn nguyên chiều cao lúc mở -> trả lại đúng
+        # ht/không customHeight của file gốc (Excel tự tính lại khi mở; app chỉ hiển thị theo S30a)
+        auto_rows = _sheet_name_equivalent_value(fods_auto_rows, sheet_name)
+        if auto_rows and source_entry_path:
+            source_entry = read_zip_entry(source_xlsx_bytes, source_entry_path)
+            if source_entry:
+                sheet_xml = _restore_source_auto_row_attrs(sheet_xml, source_entry.decode("utf-8", errors="replace"), auto_rows)
+
         if sheet_xml != orig_sheet_xml:
             replacements[entry_path] = sheet_xml
 
@@ -2228,6 +2237,52 @@ def _restore_row_heights(sheet_xml: str, row_heights_cm: dict[int, float]) -> st
         return f'<row {new_attrs.strip()}>'
     
     return re.sub(r"<row\b([^>]*)>", replace_row, sheet_xml, flags=re.IGNORECASE)
+
+
+def parse_auto_rows_from_fods(fods_xml: str | None) -> dict[str, set[int]]:
+    """S30b: `vno:auto-rows="19,20,21"` trên <table:table> (app ghi) -> {sheet: {rows}}."""
+    result: dict[str, set[int]] = {}
+    if not fods_xml:
+        return result
+    for match in re.finditer(r"<table:table\b([^>]*)>", fods_xml, re.IGNORECASE):
+        attrs = match.group(1)
+        name_match = re.search(r'table:name="([^"]*)"', attrs)
+        rows_match = re.search(r'vno:auto-rows="([^"]*)"', attrs)
+        if not name_match or not rows_match:
+            continue
+        rows = {int(item) for item in rows_match.group(1).split(",") if item.strip().isdigit()}
+        if rows:
+            result[_unescape_xml(name_match.group(1))] = rows
+    return result
+
+
+def _restore_source_auto_row_attrs(sheet_xml: str, source_sheet_xml: str, auto_rows: set[int]) -> str:
+    """S30b: với hàng trong `auto_rows`, đặt lại `ht` đúng như file gốc (hoặc bỏ ht) và bỏ customHeight —
+    hàng vẫn là hàng tự động, Excel tính lại khi mở như với file gốc (đo lan12/lan02/lan05: không hạ thấp hơn ht)."""
+    source_attrs: dict[int, str | None] = {}
+    for match in re.finditer(r"<row\b([^>]*?)/?>", source_sheet_xml, re.IGNORECASE):
+        attrs = match.group(1)
+        row = re.search(r'\br="(\d+)"', attrs)
+        if not row or int(row.group(1)) not in auto_rows:
+            continue
+        if re.search(r'\bcustomHeight="(?:1|true)"', attrs, re.IGNORECASE):
+            continue
+        height = re.search(r'(?<![A-Za-z])ht="([^"]*)"', attrs)
+        source_attrs[int(row.group(1))] = height.group(1) if height else None
+
+    def replace_row(match: re.Match) -> str:
+        attrs = match.group(1)
+        row = re.search(r'\br="(\d+)"', attrs)
+        if not row or int(row.group(1)) not in source_attrs:
+            return match.group(0)
+        height = source_attrs[int(row.group(1))]
+        new_attrs = re.sub(r'\s*(?<![A-Za-z])ht="[^"]*"', "", attrs, flags=re.IGNORECASE)
+        new_attrs = re.sub(r'\s*\bcustomHeight="[^"]*"', "", new_attrs, flags=re.IGNORECASE)
+        if height is not None:
+            new_attrs += f' ht="{height}"'
+        return f"<row {new_attrs.strip()}{match.group(2)}>"
+
+    return re.sub(r"<row\b([^>]*?)(/?)>", replace_row, sheet_xml, flags=re.IGNORECASE)
 
 
 # ---------------------------------------------------------------------------
@@ -6191,13 +6246,164 @@ def _calculate_digit_width(font_name: str, font_size: float) -> float:
     return 7.0
 
 
+_EXCEL_ROW_HEIGHTS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "excel_row_heights.json")
+_EXCEL_ROW_HEIGHTS_CACHE: dict | None = None
+
+
+def _excel_row_height_table() -> dict:
+    """Bảng chiều cao hàng AutoFit của Excel 2016 đo bằng COM (scripts/layout-audit/_excel_font_row_heights.ps1):
+    font -> size -> [h1, h2, h3, h5, h1b, h2b, h3b, h5b] px @96dpi (1/2/3/5 dòng, thường/đậm), workbook Normal Calibri 11."""
+    global _EXCEL_ROW_HEIGHTS_CACHE
+    if _EXCEL_ROW_HEIGHTS_CACHE is None:
+        try:
+            with open(_EXCEL_ROW_HEIGHTS_PATH, "r", encoding="utf-8") as handle:
+                _EXCEL_ROW_HEIGHTS_CACHE = json.load(handle)
+        except (OSError, ValueError):
+            _EXCEL_ROW_HEIGHTS_CACHE = {}
+    return _EXCEL_ROW_HEIGHTS_CACHE
+
+
+def _excel_font_line_heights(font_name: str, size: float, bold: bool) -> list[float] | None:
+    """[h1, h2, h3, h5] cho font/cỡ (nội suy cỡ lẻ; font lạ dùng Calibri)."""
+    table = _excel_row_height_table()
+    if not table:
+        return None
+    entry = table.get(font_name) or next((value for key, value in table.items() if key.lower() == str(font_name).lower()), None)
+    if entry is None:
+        entry = table.get("Calibri")
+        if entry is None:
+            return None
+    sizes = sorted((float(key), value) for key, value in entry.items() if value)
+    if not sizes:
+        return None
+    offset = 4 if bold else 0
+
+    def pick(values: list[float]) -> list[float]:
+        return [float(v) for v in values[offset:offset + 4]]
+
+    lower = max((item for item in sizes if item[0] <= size), default=None)
+    upper = min((item for item in sizes if item[0] >= size), default=None)
+    if lower is None:
+        return pick(upper[1])
+    if upper is None or upper[0] == lower[0]:
+        return pick(lower[1])
+    ratio = (size - lower[0]) / (upper[0] - lower[0])
+    low, high = pick(lower[1]), pick(upper[1])
+    return [round(low[i] + (high[i] - low[i]) * ratio) for i in range(4)]
+
+
+def excel_auto_row_height_px(line_heights: list[float] | None, lines: int) -> float | None:
+    """Chiều cao hàng AutoFit khi ô bọc chữ có `lines` dòng (đo: n<=5 tra bảng, n>5 ngoại suy từ h3->h5)."""
+    if not line_heights:
+        return None
+    h1, h2, h3, h5 = line_heights
+    if lines <= 1:
+        return h1
+    if lines == 2:
+        return h2
+    if lines == 3:
+        return h3
+    if lines == 4:
+        return round(h3 + (h5 - h3) / 2)
+    if lines == 5:
+        return h5
+    return round(h5 + (lines - 5) * (h5 - h3) / 2)
+
+
+def _excel_single_line_height_px(font_name: str, size: float, bold: bool) -> float | None:
+    """Chiều cao tự nhiên 1 dòng của font (chưa áp sàn Normal): = h3 - h2 (đo: TNR 8 -> 15px = 11.25pt, Arial 10 -> 17px)."""
+    heights = _excel_font_line_heights(font_name, size, bold)
+    if not heights:
+        return None
+    return max(1.0, heights[2] - heights[1])
+
+
+def _xlsx_cell_fonts(xlsx_bytes: bytes) -> tuple[list[dict], list[dict]]:
+    """fonts[] = {name, size, bold}; cellXfs[] = {fontId, wrap} từ xl/styles.xml."""
+    entry = read_zip_entry(xlsx_bytes, "xl/styles.xml")
+    if not entry:
+        return [], []
+    styles_xml = entry.decode("utf-8", errors="replace")
+    fonts: list[dict] = []
+    fonts_match = re.search(r"<fonts\b[^>]*>(.*?)</fonts>", styles_xml, re.S | re.IGNORECASE)
+    if fonts_match:
+        for font_match in re.finditer(r"<font\b[^>]*?(?:/>|>(.*?)</font>)", fonts_match.group(1), re.S | re.IGNORECASE):
+            content = font_match.group(1) or ""
+            name_m = re.search(r'<name\b[^>]*val="([^"]*)"', content, re.IGNORECASE)
+            size_m = re.search(r'<sz\b[^>]*val="([\d.]+)"', content, re.IGNORECASE)
+            fonts.append({
+                "name": _unescape_xml(name_m.group(1)) if name_m else "Calibri",
+                "size": float(size_m.group(1)) if size_m else 11.0,
+                "bold": bool(re.search(r"<b\b(?:\s*/>|\s+val=\"(?:1|true)\")", content, re.IGNORECASE)),
+            })
+    xfs: list[dict] = []
+    xfs_match = re.search(r"<cellXfs\b[^>]*>(.*?)</cellXfs>", styles_xml, re.S | re.IGNORECASE)
+    if xfs_match:
+        for xf_match in re.finditer(r"<xf\b([^>]*?)(?:/>|>(.*?)</xf>)", xfs_match.group(1), re.S | re.IGNORECASE):
+            attrs, body = xf_match.group(1) or "", xf_match.group(2) or ""
+            font_id = re.search(r'\bfontId="(\d+)"', attrs)
+            xfs.append({
+                "fontId": int(font_id.group(1)) if font_id else 0,
+                "wrap": bool(re.search(r'<alignment\b[^>]*wrapText="(?:1|true)"', body, re.IGNORECASE)),
+            })
+    return fonts, xfs
+
+
+def _xlsx_merged_cells(sheet_xml: str) -> tuple[set[str], set[str]]:
+    """(ô thuộc vùng gộp nhiều HÀNG, ô thuộc vùng gộp bất kỳ).
+
+    Đo Excel (lan02 s1): gộp dọc A1:A2 (TNR 23 rỗng) KHÔNG nâng hàng 1 (35px = TNR 21 đậm của B1:F1 gộp ngang);
+    gộp ngang một hàng vẫn tính cỡ font 1 dòng, nhưng Excel không AutoFit số dòng bọc chữ trong ô gộp.
+    """
+    multi_row: set[str] = set()
+    covered: set[str] = set()
+    for match in re.finditer(r'<mergeCell\b[^>]*\bref="([A-Z]+)(\d+):([A-Z]+)(\d+)"', sheet_xml, re.IGNORECASE):
+        c1, r1, c2, r2 = match.group(1), int(match.group(2)), match.group(3), int(match.group(4))
+        try:
+            lo, hi = _column_index(c1), _column_index(c2)
+        except Exception:
+            continue
+        for row in range(r1, min(r2, r1 + 200) + 1):
+            for col in range(lo, min(hi, lo + 200) + 1):
+                coord = f"{_column_name(col)}{row}"
+                covered.add(coord)
+                if r2 > r1:
+                    multi_row.add(coord)
+    return multi_row, covered
+
+
+def _column_index(name: str) -> int:
+    number = 0
+    for char in name.upper():
+        number = number * 26 + (ord(char) - 64)
+    return number
+
+
+def _column_name(index: int) -> str:
+    name = ""
+    while index:
+        index, remainder = divmod(index - 1, 26)
+        name = chr(65 + remainder) + name
+    return name
+
+
 def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
     """Preserve exact Excel width*digit_width px and row pt->px dimensions.
 
     soffice canonicalizes dimensions to ODF lengths and can apply font metrics;
     the compact table-level map avoids rewriting repeated FODS columns/rows.
+
+    S30a (đo Excel COM 21/9, lan12/lan02/lan05): Excel 2016 KHÔNG tin `ht` của hàng không có
+    customHeight="1" mà tính lại khi mở = max(cao font Normal, max theo ô (kể cả ô rỗng có style)
+    cao 1 dòng của font ô; ô bọc chữ có nội dung = cao theo số dòng). Hàng customHeight: px =
+    floor(ht*96/72) (60.6pt -> 80px, 19.8pt -> 26px). Hàng không có <row>: floor(defaultRowHeight px).
+    Ô bọc chữ cần số dòng do trình duyệt đo -> ghi `wrap` {coord: [h1,h2,h3,h5]} để app nâng hàng.
     """
     digit_width = _extract_default_font_digit_width(xlsx_bytes)
+    normal_font = _extract_normal_font_from_xlsx(xlsx_bytes) or {"name": "Calibri", "size": 11.0, "bold": False}
+    normal_floor = _excel_single_line_height_px(normal_font["name"], float(normal_font["size"]), bool(normal_font.get("bold")))
+    fonts, xfs = _xlsx_cell_fonts(xlsx_bytes)
+    has_table = bool(_excel_row_height_table()) and normal_floor is not None
     layouts: dict[str, dict[str, dict[str, float]]] = {}
     for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
         entry = read_zip_entry(xlsx_bytes, entry_path)
@@ -6206,6 +6412,13 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
         sheet_xml = entry.decode("utf-8", errors="replace")
         columns: dict[str, float] = {}
         rows: dict[str, float] = {}
+        wrap_cells: dict[str, list[float]] = {}
+        auto_rows: list[int] = []
+        merge_multi_row, merge_covered = _xlsx_merged_cells(sheet_xml) if has_table else (set(), set())
+        default_m = re.search(r'<sheetFormatPr\b[^>]*\bdefaultRowHeight="([\d.]+)"', sheet_xml, re.IGNORECASE)
+        zero_height = bool(re.search(r'<sheetFormatPr\b[^>]*\bzeroHeight="(?:1|true)"', sheet_xml, re.IGNORECASE))
+        # Excel StandardHeight = round(defaultRowHeight px) (15.6pt -> 21px, 13pt -> 17px); zeroHeight -> 0
+        default_px = 0.0 if zero_height else (float(round(float(default_m.group(1)) * 96 / 72)) if default_m else float(normal_floor or 20))
         for match in re.finditer(r"<col\b([^>]*)/?>", sheet_xml, re.IGNORECASE):
             attrs = match.group(1)
             width = re.search(r'\bwidth="([\d.]+)"', attrs)
@@ -6222,14 +6435,65 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
                     number, remainder = divmod(number - 1, 26)
                     name = chr(65 + remainder) + name
                 columns[name] = float(width.group(1)) * digit_width
-        for match in re.finditer(r"<row\b([^>]*)>", sheet_xml, re.IGNORECASE):
-            attrs = match.group(1)
+        for match in re.finditer(r"<row\b([^>]*?)(?:/>|>(.*?)</row>)", sheet_xml, re.IGNORECASE | re.S):
+            attrs, body = match.group(1), match.group(2) or ""
             row = re.search(r'\br="(\d+)"', attrs)
             height = re.search(r'\bht="([\d.]+)"', attrs)
-            if row and height:
-                rows[row.group(1)] = float(height.group(1)) * 96 / 72
+            if not row:
+                continue
+            custom = bool(re.search(r'\bcustomHeight="(?:1|true)"', attrs, re.IGNORECASE))
+            if height and (custom or not has_table):
+                px = float(height.group(1)) * 96 / 72
+                rows[row.group(1)] = math.floor(px + 1e-6) if has_table else px
+                continue
+            if not has_table:
+                continue
+            # Hàng tự động: Excel tính lại từ font các ô (S30a). Sàn: có ht -> floor(ht px) (không thấy Excel hạ
+            # thấp hơn ht trong 14 sheet đo; lan12 hàng 16 ht 13.8 -> 20 = TNR 11, KHÔNG phải StandardHeight 21);
+            # không ht -> StandardHeight = round(defaultRowHeight px) (lan12 hàng 15: 21; lan05 hàng 85: 17),
+            # zeroHeight -> font Normal (lan02 s2 hàng 33: 20).
+            if height:
+                best = float(math.floor(float(height.group(1)) * 96 / 72 + 1e-6))
+            else:
+                best = default_px if default_px > 0 else float(normal_floor)
+            candidates: list[dict] = []
+            row_style = re.search(r'\bs="(\d+)"', attrs)
+            if row_style and re.search(r'\bcustomFormat="(?:1|true)"', attrs, re.IGNORECASE):
+                candidates.append({"xf": int(row_style.group(1)), "coord": "", "content": False})
+            for cell_match in re.finditer(r"<c\b([^>]*?)(?:/>|>(.*?)</c>)", body, re.S | re.IGNORECASE):
+                cell_attrs, cell_body = cell_match.group(1) or "", cell_match.group(2) or ""
+                style = re.search(r'\bs="(\d+)"', cell_attrs)
+                coord = re.search(r'\br="([A-Z]+\d+)"', cell_attrs)
+                candidates.append({
+                    "xf": int(style.group(1)) if style else 0,
+                    "coord": coord.group(1) if coord else "",
+                    "content": bool(re.search(r"<(?:v|is)\b", cell_body)),
+                })
+            for candidate in candidates:
+                coord = candidate["coord"]
+                # Excel AutoFit bỏ qua ô thuộc vùng gộp nhiều hàng (lan02 s1 A1:A2 TNR 23 rỗng không nâng hàng 1)
+                if coord and coord in merge_multi_row:
+                    continue
+                xf = xfs[candidate["xf"]] if 0 <= candidate["xf"] < len(xfs) else {"fontId": 0, "wrap": False}
+                font = fonts[xf["fontId"]] if 0 <= xf["fontId"] < len(fonts) else fonts[0] if fonts else normal_font
+                single = _excel_single_line_height_px(font["name"], float(font["size"]), bool(font.get("bold")))
+                if single is not None:
+                    best = max(best, single)
+                if xf["wrap"] and candidate["content"] and coord and coord not in merge_covered:
+                    heights = _excel_font_line_heights(font["name"], float(font["size"]), bool(font.get("bold")))
+                    if heights:
+                        wrap_cells[coord] = heights
+            rows[row.group(1)] = float(best)
+            auto_rows.append(int(row.group(1)))
         if columns or rows:
             layouts[sheet_name] = {"columns": columns, "rows": rows}
+            if wrap_cells:
+                layouts[sheet_name]["wrap"] = wrap_cells
+            if auto_rows:
+                # S30b: app ghi lại vno:auto-rows khi lưu cho các hàng này còn nguyên chiều cao lúc mở -> khôi phục ht gốc
+                layouts[sheet_name]["auto"] = auto_rows
+            if has_table:
+                layouts[sheet_name]["defaultRow"] = default_px
     if not layouts:
         return fods_xml
 
@@ -7492,6 +7756,121 @@ def _insert_empty_paragraph_with_page_break_before_table(table_xml: str, table_s
     return xml[:table_start] + empty_para + xml[table_start:]
 
 
+_W27B_ALT_RE = re.compile(r"<mc:AlternateContent\b[^>]*>[\s\S]*?</mc:AlternateContent>", re.IGNORECASE)
+
+
+def _writer_table_key_text(table_xml: str) -> str:
+    """Chữ đầu của bảng (24 ký tự chuẩn hoá) để ghép bảng nổi giữa nguồn và bản chuyển đổi (như W27a)."""
+    text = "".join(re.findall(r"<w:t\b[^>]*>([^<]*)</w:t>", table_xml))
+    return re.sub(r"[^0-9a-zà-ỹ]+", "", html.unescape(text).lower())[:24]
+
+
+def _w27b_tblppr_from_anchor(anchor_xml: str) -> str:
+    """Suy tblpPr từ wp:anchor của khung (EMU -> twip = /635) khi nguồn không có bảng nổi tương ứng."""
+    def emu(pattern: str, default: int = 0) -> int:
+        match = re.search(pattern, anchor_xml)
+        return int(round(int(match.group(1)) / 635)) if match else default
+
+    dist_l = emu(r'\bdistL="(-?\d+)"', 180)
+    dist_r = emu(r'\bdistR="(-?\d+)"', 180)
+    horz_rel = (re.search(r"<wp:positionH\b[^>]*relativeFrom=\"(\w+)\"", anchor_xml) or re.search(r"$", "")).group(1) if re.search(r"<wp:positionH\b", anchor_xml) else "column"
+    vert_rel = (re.search(r"<wp:positionV\b[^>]*relativeFrom=\"(\w+)\"", anchor_xml)).group(1) if re.search(r"<wp:positionV\b", anchor_xml) else "paragraph"
+    anchor_map = {"column": "text", "margin": "margin", "page": "page", "paragraph": "text", "line": "text"}
+    attrs = [f'w:leftFromText="{dist_l}"', f'w:rightFromText="{dist_r}"', f'w:vertAnchor="{anchor_map.get(vert_rel, "text")}"',
+             f'w:horzAnchor="{anchor_map.get(horz_rel, "text")}"']
+    h_align = re.search(r"<wp:positionH\b[^>]*>\s*<wp:align>(\w+)</wp:align>", anchor_xml)
+    if h_align:
+        attrs.append(f'w:tblpXSpec="{h_align.group(1)}"')
+    else:
+        h_off = re.search(r"<wp:positionH\b[^>]*>\s*<wp:posOffset>(-?\d+)</wp:posOffset>", anchor_xml)
+        if h_off:
+            attrs.append(f'w:tblpX="{int(round(int(h_off.group(1)) / 635))}"')
+    v_align = re.search(r"<wp:positionV\b[^>]*>\s*<wp:align>(\w+)</wp:align>", anchor_xml)
+    if v_align:
+        attrs.append(f'w:tblpYSpec="{v_align.group(1)}"')
+    else:
+        v_off = re.search(r"<wp:positionV\b[^>]*>\s*<wp:posOffset>(-?\d+)</wp:posOffset>", anchor_xml)
+        if v_off:
+            attrs.append(f'w:tblpY="{int(round(int(v_off.group(1)) / 635))}"')
+    return "<w:tblpPr " + " ".join(attrs) + "/>"
+
+
+def _w27b_insert_tblppr(table_xml: str, tblppr_xml: str) -> str:
+    """Đặt <w:tblpPr> đúng thứ tự schema trong <w:tblPr> (sau tblStyle, trước tblOverlap/bidiVisual/tblW…)."""
+    match = re.search(r"<w:tblPr\b[^>]*>", table_xml)
+    if not match:
+        return table_xml.replace("<w:tbl>", f"<w:tbl><w:tblPr>{tblppr_xml}</w:tblPr>", 1)
+    head_end = match.end()
+    body_end = table_xml.find("</w:tblPr>", head_end)
+    if body_end < 0:
+        return table_xml
+    props = re.sub(r"<w:tblpPr\b[^>]*/>", "", table_xml[head_end:body_end])
+    style = re.search(r"<w:tblStyle\b[^>]*/>", props)
+    insert_at = style.end() if style else 0
+    props = props[:insert_at] + tblppr_xml + props[insert_at:]
+    return table_xml[:head_end] + props + table_xml[body_end:]
+
+
+def _restore_writer_floating_tables(converted_xml: str, source_xml: str) -> str:
+    """W27b (đo d09, R19 opencode + Claude kiểm lại): bảng nổi (w:tblpPr) của nguồn được LibreOffice nhập thành khung
+    HTML `align="left"` rồi xuất thành hộp văn bản `mc:AlternateContent` (Choice + Fallback cùng chứa bảng → đếm
+    `<w:tbl` ra "nhân đôi"). Word hiển thị một hộp văn bản nổi chứa bảng, không phải bảng nổi. Trả lại `<w:tbl>` với
+    `<w:tblpPr>` của nguồn (ghép theo chữ đầu bảng) hoặc suy từ wp:anchor; đoạn neo chỉ còn run rỗng thì bỏ (giữ nếu
+    phần tử kế tiếp là bảng/sectPr vì Word cần đoạn ngăn)."""
+    if "<w:txbxContent>" not in converted_xml:
+        return converted_xml
+    source_floating: dict[str, str] = {}
+    for match in re.finditer(r"<w:tbl>[\s\S]*?</w:tbl>", source_xml):
+        table_xml = match.group(0)
+        tblppr = re.search(r"<w:tblpPr\b[^>]*/>", table_xml[:table_xml.find("</w:tblPr>") if "</w:tblPr>" in table_xml else 0])
+        if tblppr:
+            source_floating.setdefault(_writer_table_key_text(table_xml), tblppr.group(0))
+
+    out: list[str] = []
+    pos = 0
+    changed = False
+    # Chỉ đoạn neo ở luồng thân (đoạn trong ô bảng/hộp văn bản bị loại: Word không có bảng nổi lồng)
+    for para_start, para_end in _writer_body_paragraph_ranges(converted_xml):
+        para_xml = converted_xml[para_start:para_end]
+        if "<w:txbxContent>" not in para_xml or "<w:tbl>" not in para_xml:
+            continue
+        alt = _W27B_ALT_RE.search(para_xml)
+        if not alt:
+            continue
+        choice = re.search(r"<mc:Choice\b[^>]*>([\s\S]*?)</mc:Choice>", alt.group(0))
+        if not choice:
+            continue
+        txbx = re.search(r"<w:txbxContent>([\s\S]*?)</w:txbxContent>", choice.group(1))
+        if not txbx:
+            continue
+        content = txbx.group(1).strip()
+        # Chỉ khung mà nội dung là đúng MỘT bảng ngoài cùng (cho phép đoạn rỗng kèm theo ngoài bảng)
+        table_ranges = _xml_element_ranges(content, "w:tbl")
+        outer = [(s, e) for s, e in table_ranges if not any(o_s < s < o_e for o_s, o_e in table_ranges)]
+        if len(outer) != 1:
+            continue
+        table_xml = content[outer[0][0]:outer[0][1]]
+        rest = content[:outer[0][0]] + content[outer[0][1]:]
+        if re.search(r"<w:t\b[^>]*>[^<]+</w:t>|<w:drawing\b|<w:pict\b|<w:tbl>", rest):
+            continue
+        key = _writer_table_key_text(table_xml)
+        tblppr = source_floating.get(key) or _w27b_tblppr_from_anchor(choice.group(1))
+        table_xml = _w27b_insert_tblppr(table_xml, tblppr)
+        remainder = para_xml[:alt.start()] + para_xml[alt.end():]
+        remainder_has_text = bool(re.search(r"<w:t\b[^>]*>[^<]+</w:t>|<w:drawing\b|<w:pict\b", remainder))
+        following = converted_xml[para_end:para_end + 40].lstrip()
+        keep_paragraph = remainder_has_text or following.startswith("<w:tbl>") or following.startswith("<w:sectPr") or following.startswith("</w:body>")
+        replacement = table_xml + (remainder if keep_paragraph else "")
+        out.append(converted_xml[pos:para_start])
+        out.append(replacement)
+        pos = para_end
+        changed = True
+    if not changed:
+        return converted_xml
+    out.append(converted_xml[pos:])
+    return "".join(out)
+
+
 def _restore_writer_page_breaks(converted_xml: str, source_xml: str) -> str:
     """Restore manual page breaks from source DOCX to converted DOCX by order matching.
 
@@ -8342,6 +8721,9 @@ def postprocess_writer_docx(
     # W27a: Restore manual page breaks (w:br type=page / w:pageBreakBefore)
     # by matching paragraphs and tables by ORDER between source and converted DOCX.
     new_xml = _restore_writer_page_breaks(new_xml, original_xml)
+
+    # W27b: bảng nổi (tblpPr) bị LibreOffice xuất thành hộp văn bản chứa bảng -> trả lại bảng nổi
+    new_xml = _restore_writer_floating_tables(new_xml, original_xml)
 
     pristine_document = "vno-pristine-document" in new_xml
     untouched_texts = _writer_unique_marked_texts(new_xml)

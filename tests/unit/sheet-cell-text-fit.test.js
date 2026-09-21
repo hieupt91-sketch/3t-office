@@ -477,6 +477,23 @@ export async function runSheetCellTextFitTests() {
     assert(mockTh.style.minWidth === "222px", `th minWidth phải là 222px, nhận: ${mockTh.style.minWidth}`);
   });
 
+  test("S30a: overlay vno:xlsx-layout với wrap không có DOM giữ chiều cao nền; h(n) theo bảng đo Excel", () => {
+    const adapter = new SheetAdapter();
+    const rowHeights = new Map([[5, 30]]);
+    const colWidths = new Map();
+    const data = new Map([["A5", { val: "bọc chữ", style: { whiteSpace: "normal", fontSize: "13.33px", fontFamily: "Times New Roman" } }]]);
+    const raw = JSON.stringify({ columns: { A: 91 }, rows: { 1: 80, 5: 21 }, wrap: { A5: [20, 35, 52, 86] }, defaultRow: 21 }).replace(/"/g, "&quot;");
+    adapter._applyXlsxLayoutOverlay(raw, rowHeights, colWidths, { data, mergedRanges: [] });
+    assert(colWidths.get("A") === 91, `cột A phải 91px, nhận ${colWidths.get("A")}`);
+    assert(rowHeights.get(1) === 80, `hàng 1 phải 80px (floor 60.6pt), nhận ${rowHeights.get(1)}`);
+    assert(rowHeights.get(5) === 21, `không có document: hàng 5 giữ chiều cao nền 21, nhận ${rowHeights.get(5)}`);
+    // lan05 TNR 15: 2 dòng 52, 4 dòng 104, 5 dòng 130, 7 dòng 182 (ngoại suy (h5-h3)/2 mỗi dòng)
+    assert(adapter._excelAutoRowHeightPx([26, 52, 78, 130], 1) === 26, "1 dòng = h1");
+    assert(adapter._excelAutoRowHeightPx([26, 52, 78, 130], 2) === 52, "2 dòng = h2");
+    assert(adapter._excelAutoRowHeightPx([26, 52, 78, 130], 4) === 104, "4 dòng nội suy 104");
+    assert(adapter._excelAutoRowHeightPx([26, 52, 78, 130], 7) === 182, "7 dòng ngoại suy 182");
+  });
+
   test("S29a: whiteSpace nowrap/normal của model ánh xạ sang pre/pre-wrap để giữ khoảng trắng liên tiếp như Excel", () => {
     const grid = createMockGridController();
     const td = createMockTd("A17");
