@@ -460,6 +460,49 @@ export async function runSheetImageTests() {
       assert(panel.style.left === "60px", `Left sau update phai la 60px (50 + 10), thuc te: ${panel.style.left}`);
       assert(panel.style.top === "225px", `Top sau update phai la 225px (220 + 5), thuc te: ${panel.style.top}`);
     });
+
+    test("Sheet Image: S28e banner sheet phu render day du theo anchor A1, giu dung kich thuoc cm va co lap z-index/frozen", () => {
+      const grid = new SheetGridController(container());
+      grid.imageLayer = layer();
+      const mockTd = { offsetLeft: 44, dataset: { col: "A" } };
+      const mockTr = {
+        offsetTop: 24,
+        querySelector: (sel) => sel === 'td[data-col="A"]' ? mockTd : null
+      };
+      grid.tbody = {
+        querySelector: (sel) => sel === 'tr[data-row="1"]' ? mockTr : null
+      };
+      grid.frozenRows = 4;
+      grid.frozenCols = 2;
+      const banner = {
+        id: "Picture 2",
+        src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+        anchor: { c: "A", r: 1 },
+        widthCm: 29.421,
+        heightCm: 5.609,
+        offsetXCm: 0,
+        offsetYCm: 0
+      };
+      grid.imagesBySheet[grid.activeSheet] = [banner];
+      grid.renderImages();
+
+      const panel = grid.imageLayer.children.find(c => c.dataset?.imageId === "Picture 2");
+      assert(panel, "Banner panel Picture 2 phai duoc render tren sheet phu");
+      assert(panel.dataset.anchor === "A1", `Anchor phai la A1, thuc te: ${panel.dataset.anchor}`);
+      assert(panel.dataset.frozen === "true", "Banner phai co dataset.frozen=true vi nam trong hang frozen 1-4");
+      assert(panel.dataset.frozenRow === "true", "Banner phai co dataset.frozenRow=true");
+      assert(panel.style.zIndex === "10", `Z-index cua anh frozen phai la 10, thuc te: ${panel.style.zIndex}`);
+
+      const bannerW = parseFloat(panel.style.width);
+      const bannerH = parseFloat(panel.style.height);
+      assert(Math.abs(bannerW - 1112) <= 1, `Banner width phai la ~1112px (29.421cm), thuc te: ${bannerW}px`);
+      assert(Math.abs(bannerH - 212) <= 1, `Banner height phai la ~212px (5.609cm), thuc te: ${bannerH}px`);
+
+      // Test _updateImagePositions an toan cho moi loai anchor
+      grid._updateImagePositions();
+      assert(panel.style.left === "44px", `Left sau update phai la 44px, thuc te: ${panel.style.left}`);
+      assert(panel.style.top === "24px", `Top sau update phai la 24px, thuc te: ${panel.style.top}`);
+    });
   } finally { globalThis.document = originalDocument; }
   return results;
 }

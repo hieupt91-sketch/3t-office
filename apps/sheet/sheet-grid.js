@@ -2985,7 +2985,9 @@ export class SheetGridController {
     for (const image of images) {
       const panel = this.imageLayer.querySelector(`.vno-sheet-image[data-image-id="${image.id}"]`);
       if (!panel) continue;
-      const targetTr = this.tbody.querySelector(`tr[data-row="${image.anchor.r}"]`);
+      const anchor = this._resolveImageAnchor(image);
+      if (!anchor) continue;
+      const targetTr = this.tbody.querySelector(`tr[data-row="${anchor.r}"]`);
       if (!targetTr || typeof targetTr.offsetTop !== "number") continue;
       const offsetYPx = Number.isFinite(Number(image.offsetYCm))
         ? Number(image.offsetYCm) * 37.79527559055118
@@ -2993,7 +2995,7 @@ export class SheetGridController {
       const topVal = targetTr.offsetTop + offsetYPx;
       panel.style.top = `${topVal}px`;
       const targetTd = (targetTr && typeof targetTr.querySelector === "function")
-        ? targetTr.querySelector(`td[data-col="${image.anchor.c}"]`)
+        ? targetTr.querySelector(`td[data-col="${anchor.c}"]`)
         : null;
       if (targetTd && typeof targetTd.offsetLeft === "number") {
         const offsetXPx = Number.isFinite(Number(image.offsetXCm))
