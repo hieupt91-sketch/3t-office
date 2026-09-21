@@ -1110,8 +1110,16 @@ export class SheetAdapter {
       for (const [column, width] of Object.entries(layout.columns || {})) if (Number.isFinite(Number(width))) colWidths.set(column, Number(width));
       // S30c: cột không có <col> trong XLSX = bề rộng mặc định Excel (không phải dcw·MDW + 5 của LibreOffice)
       if (Number.isFinite(Number(layout.defaultCol)) && Number(layout.defaultCol) > 0) {
+        const explicit = new Set(Object.keys(layout.columns || {}));
         for (const column of [...colWidths.keys()]) {
-          if (!(layout.columns && Object.prototype.hasOwnProperty.call(layout.columns, column))) colWidths.set(column, Number(layout.defaultCol));
+          if (!explicit.has(column)) colWidths.set(column, Number(layout.defaultCol));
+        }
+        // Sheet gần trống (lan22 s2: LibreOffice không ghi style cột) vẫn phải vẽ A..Z theo mặc định Excel (72px MDW 8)
+        let maxNumber = 26;
+        for (const column of [...explicit, ...colWidths.keys()]) maxNumber = Math.max(maxNumber, this._columnNumber(column) || 0);
+        for (let number = 1; number <= Math.min(maxNumber, 256); number++) {
+          const name = this._columnName(number);
+          if (!colWidths.has(name)) colWidths.set(name, Number(layout.defaultCol));
         }
       }
       for (const [row, height] of Object.entries(layout.rows || {})) if (Number.isFinite(Number(height))) rowHeights.set(Number(row), Number(height));

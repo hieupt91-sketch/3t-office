@@ -6332,7 +6332,8 @@ def _unchanged_default_column_chars(format_pr: dict | None, digit_width: float) 
     if format_pr.get("defaultColWidth"):
         return float(format_pr["defaultColWidth"])
     base = float(format_pr.get("baseColWidth") or 8.0)
-    return base + 3.0 / mdw
+    # S30c: app vẽ cột mặc định = base·MDW + 8 px (64/72 như Excel) → chars_for = base + 8/MDW (9.14 với MDW 7)
+    return base + 8.0 / mdw
 
 
 def _source_columns_with_explicit_width(source_sheet_xml: str | None) -> set[int] | None:
@@ -6619,7 +6620,7 @@ def _overlay_sheet_layout_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
             default_col_px = float(math.floor(((256 * float(dcw_m.group(1)) + math.floor(128 / mdw)) / 256) * mdw + 1e-6))
         else:
             default_col_px = float(int(float(base_m.group(1)) if base_m else 8) * mdw + 8)
-        if columns or rows:
+        if columns or rows or default_col_px:
             layouts[sheet_name] = {"columns": columns, "rows": rows}
             if default_col_px:
                 layouts[sheet_name]["defaultCol"] = default_col_px
@@ -7507,7 +7508,10 @@ def _xml_element_ranges(xml: str, qname: str) -> list[tuple[int, int]]:
 
 
 def _paragraph_plain_text(paragraph_xml: str) -> str:
-    text = "".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", paragraph_xml, re.IGNORECASE))
+    # W35c: <w:tab/> = khoảng trắng (d20 "Actual ship value<tab>Whereof…": LibreOffice xuất tab thành dấu cách nên
+    # khoá chữ nguồn/bản chuyển đổi lệch → đoạn không được ghép, giữ spacing 283 của LibreOffice)
+    parts = re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>|(<w:tab\b[^>]*/>)", paragraph_xml, re.IGNORECASE)
+    text = "".join(part[0] if part[0] else " " for part in parts)
     text = re.sub(r"<[^>]+>", "", text)
     return re.sub(r"\s+", " ", text).strip()
 
@@ -7550,7 +7554,11 @@ def _writer_restore_selected_ppr(target_paragraph: str, source_paragraph: str) -
     # untouched bookmark is the ownership proof for restoring all paragraph
     # formatting that affects layout.  pStyle is included because an injected
     # Body Text style otherwise reintroduces left alignment after removing jc.
-    for child in ("pStyle", "ind", "jc", "numPr"):
+    # W35 (đo d20 bản lưu bằng Word COM: mọi đoạn trong ô bảng nhận w:spacing after=283 của LibreOffice dù nguồn
+    # after=0 → 3 trang thành 6): đoạn còn dấu "chưa sửa" lấy lại cả spacing, keepNext/keepLines/widowControl,
+    # contextualSpacing, tabs, outlineLvl và rPr của dấu đoạn (cao đoạn rỗng, W26) từ nguồn.
+    for child in ("pStyle", "keepNext", "keepLines", "widowControl", "numPr", "tabs", "spacing", "ind",
+                  "contextualSpacing", "jc", "outlineLvl", "rPr"):
         source_child = _writer_direct_property(source_ppr, child)
         child_re = re.compile(
             rf"<w:{child}\b[^>]*(?:/>|>[\s\S]*?</w:{child}\s*>)", re.IGNORECASE
@@ -7559,7 +7567,39 @@ def _writer_restore_selected_ppr(target_paragraph: str, source_paragraph: str) -
             merged = child_re.sub(lambda _match: source_child, merged, count=1) if source_child else child_re.sub("", merged, count=1)
         elif source_child:
             merged = re.sub(r"</w:pPr\s*>", source_child + "</w:pPr>", merged, count=1, flags=re.IGNORECASE)
+    merged = _writer_reorder_ppr_children(merged)
     return _writer_replace_direct_property(target_paragraph, "pPr", merged)
+
+
+_PPR_CHILD_ORDER = [
+    "pStyle", "keepNext", "keepLines", "pageBreakBefore", "framePr", "widowControl", "numPr", "suppressLineNumbers",
+    "pBdr", "shd", "tabs", "suppressAutoHyphens", "kinsoku", "wordWrap", "overflowPunct", "topLinePunct", "autoSpaceDE",
+    "autoSpaceDN", "bidi", "adjustRightInd", "snapToGrid", "spacing", "ind", "contextualSpacing", "mirrorIndents",
+    "suppressOverlap", "jc", "textDirection", "textAlignment", "textboxTightWrap", "outlineLvl", "divId", "cnfStyle",
+    "rPr", "sectPr", "pPrChange",
+]
+
+
+def _writer_reorder_ppr_children(ppr_xml: str) -> str:
+    """Sắp con của <w:pPr> theo thứ tự schema OOXML (Word có thể báo hỏng khi sai thứ tự sau khi ghép nguồn)."""
+    match = re.match(r"(<w:pPr\b[^>]*>)([\s\S]*)(</w:pPr\s*>)$", ppr_xml.strip(), re.IGNORECASE)
+    if not match:
+        return ppr_xml
+    inner = match.group(2)
+    children: list[tuple[int, str]] = []
+    pos = 0
+    child_re = re.compile(r"<w:([A-Za-z]+)\b[^>]*?(?:/>|>[\s\S]*?</w:\1\s*>)", re.IGNORECASE)
+    for m in child_re.finditer(inner):
+        if m.start() < pos:
+            continue
+        name = m.group(1)
+        order = _PPR_CHILD_ORDER.index(name) if name in _PPR_CHILD_ORDER else len(_PPR_CHILD_ORDER)
+        children.append((order, m.group(0)))
+        pos = m.end()
+    if inner[pos:].strip():
+        return ppr_xml  # nội dung lạ: giữ nguyên
+    children.sort(key=lambda item: item[0])
+    return match.group(1) + "".join(xml for _order, xml in children) + match.group(3)
 
 
 def _writer_run_blocks(paragraph: str) -> list[tuple[int, int, str]]:
@@ -7688,6 +7728,25 @@ def _restore_writer_matched_formatting(
         # Section relationships are handled by the dedicated section pass.
         if "<w:sectPr" not in source_p and "<w:sectPr" not in target_p:
             target_p = _writer_restore_selected_ppr(target_p, source_p)
+        # W37 (d20: 60 ô kiểm FORMCHECKBOX + tab bị LibreOffice bỏ khi lưu; ô vAlign center hạ chữ 7,6pt): đoạn chưa
+        # sửa mà nguồn có trường/ký hiệu/tab/ngắt dòng (những thứ HTML làm mất) và KHÔNG có hình/hộp văn bản thì lấy
+        # nguyên các run của nguồn (chữ giống nhau theo cặp LCS + dấu chưa sửa).
+        restored_runs = _writer_restore_untouched_runs(target_p, source_p)
+        if restored_runs is not None:
+            replacements[converted_index] = restored_runs
+            continue
+        # W39 (d21: 11 đoạn chứa ảnh): LibreOffice thêm `<w:hyperlink><w:r>[ ]</w:r></w:hyperlink>` sau run ảnh và
+        # bỏ rPr của run ảnh → dấu cách Calibri 11 rớt xuống dòng mới (1 → 2 dòng). Nguồn không có hyperlink → bỏ
+        # hyperlink chỉ có khoảng trắng; run ảnh lấy lại rPr nguồn khi hai bên cùng có đúng một run ảnh.
+        if "<w:hyperlink" not in source_p and "<w:hyperlink" in target_p:
+            target_p = re.sub(r"<w:hyperlink\b[^>]*>(?:\s*<w:r\b[^>]*>(?:<w:rPr>[\s\S]*?</w:rPr>)?\s*<w:t\b[^>]*>\s*</w:t>\s*</w:r>\s*)*</w:hyperlink>", "", target_p, flags=re.IGNORECASE)
+        source_drawing_runs = [run for _s, _e, run in _writer_run_blocks(source_p) if "<w:drawing" in run]
+        target_drawing_runs = [(s, e, run) for s, e, run in _writer_run_blocks(target_p) if "<w:drawing" in run]
+        if len(source_drawing_runs) == 1 and len(target_drawing_runs) == 1:
+            s, e, run = target_drawing_runs[0]
+            source_rpr = _writer_direct_property(source_drawing_runs[0], "rPr")
+            if source_rpr:
+                target_p = target_p[:s] + _writer_replace_direct_property(run, "rPr", source_rpr) + target_p[e:]
         source_runs = _writer_run_blocks(source_p)
         target_runs = _writer_run_blocks(target_p)
         source_by_text: dict[str, list[str]] = {}
@@ -7713,6 +7772,53 @@ def _restore_writer_matched_formatting(
         start, end = converted_ranges[index]
         result = result[:start] + replacements[index] + result[end:]
     return result
+
+
+_W37_LOSSY_RE = re.compile(r"<w:(?:fldChar|fldSimple|instrText|sym|tab|br|softHyphen|noBreakHyphen|ptab)\b", re.IGNORECASE)
+_W37_UNSAFE_RE = re.compile(
+    r"<w:(?:drawing|pict|object|hyperlink|sdt|footnoteReference|endnoteReference|commentReference|commentRangeStart|ins|del|moveFrom|moveTo)\b"
+    r"|<mc:AlternateContent\b|<w:txbxContent\b|<w:sectPr\b|\br:(?:id|embed|link)=",
+    re.IGNORECASE,
+)
+
+
+def _writer_restore_untouched_runs(target_paragraph: str, source_paragraph: str) -> str | None:
+    """W37: trả lại toàn bộ nội dung sau <w:pPr> của đoạn nguồn (run, trường, tab, ký hiệu) cho đoạn chưa sửa.
+    Chỉ khi nguồn có phần tử HTML làm mất và không có hình/hộp văn bản/comment/track change; giữ pPr đã ghép và
+    bookmark dấu chưa sửa của bản chuyển đổi để các bước sau còn nhận ra."""
+    if not _W37_LOSSY_RE.search(source_paragraph) or _W37_UNSAFE_RE.search(source_paragraph):
+        return None
+    if _W37_UNSAFE_RE.search(target_paragraph):
+        return None
+    # Trường phải trọn vẹn trong đoạn (begin = end), nếu không Word báo hỏng (d16: hyperlink r:id thiếu rels cũng vậy)
+    if source_paragraph.count('w:fldCharType="begin"') != source_paragraph.count('w:fldCharType="end"'):
+        return None
+    open_match = re.match(r"<w:p\b[^>]*>", target_paragraph, re.IGNORECASE)
+    if not open_match or not target_paragraph.rstrip().endswith("</w:p>"):
+        return None
+    target_ppr = _writer_direct_property(target_paragraph, "pPr") or ""
+    # W27a đã gắn pageBreakBefore vì LibreOffice làm mất <w:br type="page"> của đoạn; nay run nguồn (có br) trở lại
+    # nên bỏ pageBreakBefore nếu nguồn không có (d21: đoạn rỗng chỉ chứa br → thừa 1 trang)
+    if re.search(r'<w:br\b[^>]*w:type="page"', source_paragraph) and "<w:pageBreakBefore" in target_ppr \
+            and "<w:pageBreakBefore" not in (_writer_direct_property(source_paragraph, "pPr") or ""):
+        target_ppr = re.sub(r"<w:pageBreakBefore\b[^>]*/?>", "", target_ppr)
+    source_body = re.sub(r"^<w:p\b[^>]*>", "", source_paragraph.strip(), count=1, flags=re.IGNORECASE)
+    source_body = re.sub(r"</w:p>$", "", source_body, count=1, flags=re.IGNORECASE)
+    source_body = re.sub(r"^\s*<w:pPr\b[^>]*(?:/>|>[\s\S]*?</w:pPr\s*>)", "", source_body, count=1, flags=re.IGNORECASE)
+    markers = "".join(re.findall(
+        r'<w:bookmarkStart\b[^>]*\bw:name=["\']vno-(?:untouched|edited)-\d+["\'][^>]*/?>|<w:bookmarkEnd\b[^>]*/?>',
+        target_paragraph, re.IGNORECASE,
+    ))
+    # bookmarkEnd của dấu: chỉ giữ cặp có id trùng với bookmarkStart dấu
+    marker_ids = re.findall(r'<w:bookmarkStart\b[^>]*\bw:id=["\']([^"\']+)["\'][^>]*\bw:name=["\']vno-(?:untouched|edited)-\d+', target_paragraph, re.IGNORECASE)
+    kept: list[str] = []
+    for tag in re.findall(r"<w:bookmark(?:Start|End)\b[^>]*/?>", markers, re.IGNORECASE):
+        tag_id = re.search(r'\bw:id=["\']([^"\']+)["\']', tag)
+        if tag_id and tag_id.group(1) in marker_ids:
+            kept.append(tag)
+    # bỏ bookmark nguồn trùng tên có thể gây trùng id với bản chuyển đổi
+    source_body = re.sub(r"<w:bookmark(?:Start|End)\b[^>]*/?>", "", source_body, flags=re.IGNORECASE)
+    return open_match.group(0) + target_ppr + "".join(kept) + source_body + "</w:p>"
 
 
 def _remove_writer_untouched_bookmarks(xml: str) -> str:
@@ -8005,6 +8111,177 @@ def _restore_writer_floating_tables(converted_xml: str, source_xml: str) -> str:
         return converted_xml
     out.append(converted_xml[pos:])
     return "".join(out)
+
+
+_W35B_NUM_OFFSET = 1000
+
+
+def _writer_offset_num_ids(xml: str, offset: int) -> str:
+    """Dời numId của LibreOffice (+offset) trong document/styles để không trùng numId nguồn được W35 trả lại."""
+    return re.sub(r'(<w:numId\b[^>]*\bw:val=")(\d+)(")', lambda m: f"{m.group(1)}{int(m.group(2)) + offset}{m.group(3)}", xml)
+
+
+def _merge_writer_numbering(source_numbering: str, converted_numbering: str, offset: int) -> str:
+    """W35b: numbering.xml = nguồn + abstractNum/num của LibreOffice với id dời +offset (đoạn chưa sửa dùng numPr
+    nguồn → đúng lvlText/ind của Word; đoạn mới/sửa vẫn trỏ vào danh sách LibreOffice đã dời)."""
+    abstract_re = re.compile(r"<w:abstractNum\b[^>]*>[\s\S]*?</w:abstractNum\s*>", re.IGNORECASE)
+    num_re = re.compile(r"<w:num\b(?![A-Za-z])[^>]*>[\s\S]*?</w:num\s*>", re.IGNORECASE)
+    shifted_abstract = [
+        re.sub(r'(w:abstractNumId=")(\d+)(")', lambda m: f"{m.group(1)}{int(m.group(2)) + offset}{m.group(3)}", block)
+        for block in abstract_re.findall(converted_numbering)
+    ]
+    shifted_num = [
+        re.sub(r'(w:(?:numId|abstractNumId)=")(\d+)(")|(<w:abstractNumId\b[^>]*\bw:val=")(\d+)(")',
+               lambda m: (f"{m.group(1)}{int(m.group(2)) + offset}{m.group(3)}" if m.group(1)
+                          else f"{m.group(4)}{int(m.group(5)) + offset}{m.group(6)}"), block)
+        for block in num_re.findall(converted_numbering)
+    ]
+    out = source_numbering
+    first_num = re.search(r"<w:num\b(?![A-Za-z])", out, re.IGNORECASE)
+    insert_abstract_at = first_num.start() if first_num else out.rfind("</w:numbering>")
+    if insert_abstract_at < 0:
+        return source_numbering
+    out = out[:insert_abstract_at] + "".join(shifted_abstract) + out[insert_abstract_at:]
+    close = out.rfind("</w:numbering>")
+    return out[:close] + "".join(shifted_num) + out[close:]
+
+
+def _writer_top_level_tables(xml: str) -> list[tuple[int, int]]:
+    """Khoảng [start, end) của các <w:tbl> cấp 1 trong <w:body> (bỏ bảng trong hộp văn bản/Fallback)."""
+    body = re.search(r"<w:body\b[^>]*>([\s\S]*?)</w:body\s*>", xml, re.IGNORECASE)
+    if not body:
+        return []
+    offset = body.start(1)
+    flow = body.group(1)
+    masked = re.sub(r"<w:txbxContent\b[\s\S]*?</w:txbxContent\s*>|<mc:Fallback\b[\s\S]*?</mc:Fallback\s*>",
+                    lambda m: " " * len(m.group(0)), flow, flags=re.IGNORECASE)
+    ranges = _xml_element_ranges(masked, "w:tbl")
+    top = [(s, e) for s, e in ranges if not any(o_s < s < o_e for o_s, o_e in ranges)]
+    return [(offset + s, offset + e) for s, e in top]
+
+
+def _writer_table_rows(table_xml: str) -> list[tuple[int, int]]:
+    """Khoảng các <w:tr> cấp 1 của một bảng (không lấy hàng của bảng lồng)."""
+    ranges = _xml_element_ranges(table_xml, "w:tr")
+    nested = [(s, e) for s, e in _xml_element_ranges(table_xml, "w:tbl") if s > 0]
+    return [(s, e) for s, e in ranges if not any(n_s < s < n_e for n_s, n_e in nested)]
+
+
+def _writer_row_cells(row_xml: str) -> list[tuple[int, int]]:
+    ranges = _xml_element_ranges(row_xml, "w:tc")
+    nested = _xml_element_ranges(row_xml, "w:tbl")
+    return [(s, e) for s, e in ranges if not any(n_s < s < n_e for n_s, n_e in nested)]
+
+
+def _writer_leading_property(element_xml: str, open_tag_re: str, prop_name: str) -> tuple[re.Match | None, int]:
+    """Thuộc tính TRỰC TIẾP của phần tử (tblPr/trPr/tcPr/tblGrid): phải đứng trước mọi con khác (không lấy của bảng
+    lồng). Trả về (match hoặc None, vị trí kết thúc thẻ mở)."""
+    open_match = re.match(open_tag_re, element_xml, re.IGNORECASE)
+    if not open_match:
+        return None, 0
+    head_end = open_match.end()
+    prop_re = re.compile(rf"<w:{prop_name}\b[^>]*(?:/>|>[\s\S]*?</w:{prop_name}\s*>)", re.IGNORECASE)
+    match = prop_re.search(element_xml, head_end)
+    if not match:
+        return None, head_end
+    between = element_xml[head_end:match.start()]
+    # chỉ chấp nhận khi giữa thẻ mở và thuộc tính không có phần tử NỘI DUNG (tr/tc/p/tbl); tblPr/tblGrid/trPr/tcPr khác được
+    if re.search(r"<w:(?:tr|tc|p|tbl)\b", between, re.IGNORECASE):
+        return None, head_end
+    return match, head_end
+
+
+def _writer_replace_leading_props(element_xml: str, open_tag_re: str, prop_name: str, source_prop: str | None) -> str:
+    """Thay (hoặc chèn ngay sau thẻ mở / bỏ) thuộc tính trực tiếp của một phần tử (tblPr/trPr/tcPr/tblGrid)."""
+    match, head_end = _writer_leading_property(element_xml, open_tag_re, prop_name)
+    if match:
+        return element_xml[:match.start()] + (source_prop or "") + element_xml[match.end():]
+    if not source_prop or not head_end:
+        return element_xml
+    # tblGrid phải đứng sau tblPr; trPr/tcPr/tblPr đứng đầu
+    insert_at = head_end
+    if prop_name == "tblGrid":
+        tblpr_match, _ = _writer_leading_property(element_xml, open_tag_re, "tblPr")
+        if tblpr_match:
+            insert_at = tblpr_match.end()
+    return element_xml[:insert_at] + source_prop + element_xml[insert_at:]
+
+
+def _writer_source_leading_property(element_xml: str, open_tag_re: str, prop_name: str) -> str | None:
+    match, _ = _writer_leading_property(element_xml, open_tag_re, prop_name)
+    return match.group(0) if match else None
+
+
+def _restore_writer_table_properties(converted_xml: str, source_xml: str) -> str:
+    """W36 (đo d20 bản lưu bằng Word COM: mỗi hàng bảng cao thêm ~3pt vì LibreOffice ghi tblCellMar top/bottom 28
+    twips, trHeight 504 → 510 atLeast, tcW 2778 → 2772; nguồn không có tblCellMar → 3 trang thành 5): ghép bảng cấp 1
+    theo THỨ TỰ với kiểm chữ đầu (24 ký tự), khi số hàng và số ô từng hàng trùng nhau thì lấy lại tblPr, tblGrid, trPr,
+    tcPr của nguồn (bảng bị sửa cấu trúc → số hàng/ô lệch → giữ nguyên bản chuyển đổi)."""
+    source_tables = _writer_top_level_tables(source_xml)
+    converted_tables = _writer_top_level_tables(converted_xml)
+    if not source_tables or not converted_tables:
+        return converted_xml
+    src_index = 0
+    out: list[str] = []
+    pos = 0
+    for c_start, c_end in converted_tables:
+        table_xml = converted_xml[c_start:c_end]
+        key = _writer_table_key_text(table_xml)
+        paired = None
+        for look in range(0, 3):
+            if src_index + look >= len(source_tables):
+                break
+            s_start, s_end = source_tables[src_index + look]
+            candidate = source_xml[s_start:s_end]
+            if _writer_table_key_text(candidate) == key:
+                paired = candidate
+                src_index += look + 1
+                break
+        if paired is None:
+            continue
+        rebuilt = _writer_apply_source_table_properties(table_xml, paired)
+        if rebuilt != table_xml:
+            out.append(converted_xml[pos:c_start])
+            out.append(rebuilt)
+            pos = c_end
+    if not out:
+        return converted_xml
+    out.append(converted_xml[pos:])
+    return "".join(out)
+
+
+def _writer_apply_source_table_properties(table_xml: str, source_table_xml: str) -> str:
+    src_rows = _writer_table_rows(source_table_xml)
+    dst_rows = _writer_table_rows(table_xml)
+    if len(src_rows) != len(dst_rows):
+        return table_xml
+    # Hàng/ô: dựng lại từ cuối về đầu để offset không đổi
+    rebuilt = table_xml
+    for (s_s, s_e), (d_s, d_e) in reversed(list(zip(src_rows, dst_rows))):
+        src_row = source_table_xml[s_s:s_e]
+        dst_row = rebuilt[d_s:d_e]
+        src_cells = _writer_row_cells(src_row)
+        dst_cells = _writer_row_cells(dst_row)
+        if len(src_cells) != len(dst_cells):
+            continue
+        new_row = dst_row
+        for (cs_s, cs_e), (cd_s, cd_e) in reversed(list(zip(src_cells, dst_cells))):
+            src_cell = src_row[cs_s:cs_e]
+            dst_cell = new_row[cd_s:cd_e]
+            src_tcpr = _writer_source_leading_property(src_cell, r"<w:tc\b[^>]*>", "tcPr")
+            new_cell = _writer_replace_leading_props(dst_cell, r"<w:tc\b[^>]*>", "tcPr", src_tcpr)
+            new_row = new_row[:cd_s] + new_cell + new_row[cd_e:]
+        src_trpr = _writer_source_leading_property(src_row, r"<w:tr\b[^>]*>", "trPr")
+        new_row = _writer_replace_leading_props(new_row, r"<w:tr\b[^>]*>", "trPr", src_trpr)
+        rebuilt = rebuilt[:d_s] + new_row + rebuilt[d_e:]
+    # tblPr rồi tblGrid (thay ở đầu bảng, sau khi hàng đã xong)
+    src_tblpr = _writer_source_leading_property(source_table_xml, r"<w:tbl\b[^>]*>", "tblPr")
+    src_grid = _writer_source_leading_property(source_table_xml, r"<w:tbl\b[^>]*>", "tblGrid")
+    if src_tblpr:
+        rebuilt = _writer_replace_leading_props(rebuilt, r"<w:tbl\b[^>]*>", "tblPr", src_tblpr)
+    if src_grid:
+        rebuilt = _writer_replace_leading_props(rebuilt, r"<w:tbl\b[^>]*>", "tblGrid", src_grid)
+    return rebuilt
 
 
 def _restore_writer_page_breaks(converted_xml: str, source_xml: str) -> str:
@@ -8756,6 +9033,23 @@ def postprocess_writer_docx(
     original_xml_bytes = read_zip_entry(source_docx, "word/document.xml")
     original_xml = original_xml_bytes.decode("utf-8", errors="replace") if original_xml_bytes else ""
 
+    # W35b: numbering nguồn + LibreOffice (id dời +1000) — numPr nguồn được W35 trả lại phải trỏ đúng numbering nguồn
+    source_numbering_bytes = read_zip_entry(source_docx, "word/numbering.xml")
+    converted_numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
+    merged_numbering: str | None = None
+    numbering_part_missing = False
+    if source_numbering_bytes and converted_numbering_bytes and "<w:numId" in converted_xml:
+        converted_xml = _writer_offset_num_ids(converted_xml, _W35B_NUM_OFFSET)
+        merged_numbering = _merge_writer_numbering(
+            source_numbering_bytes.decode("utf-8", errors="replace"),
+            converted_numbering_bytes.decode("utf-8", errors="replace"),
+            _W35B_NUM_OFFSET,
+        )
+    elif source_numbering_bytes and not converted_numbering_bytes:
+        # Bản chuyển đổi không có numbering part: đưa numbering nguồn vào (kèm rels + content type bên dưới)
+        merged_numbering = source_numbering_bytes.decode("utf-8", errors="replace")
+        numbering_part_missing = True
+
     # A pristine, drawing-led catalogue has no editable body representation:
     # LibreOffice expands its page-sized WPG groups into 100+ unrelated HTML
     # paragraphs. The only lossless save is the original OOXML package itself.
@@ -8861,6 +9155,10 @@ def postprocess_writer_docx(
     # W27b: bảng nổi (tblpPr) bị LibreOffice xuất thành hộp văn bản chứa bảng -> trả lại bảng nổi
     new_xml = _restore_writer_floating_tables(new_xml, original_xml)
 
+    # W36: tblPr/tblGrid/trPr/tcPr của bảng cấp 1 lấy lại từ nguồn khi cấu trúc hàng/ô trùng (LibreOffice thêm
+    # tblCellMar 28 twips, đổi trHeight/tcW/viền)
+    new_xml = _restore_writer_table_properties(new_xml, original_xml)
+
     pristine_document = "vno-pristine-document" in new_xml
     untouched_texts = _writer_unique_marked_texts(new_xml)
     new_xml = _remove_duplicate_writer_textbox_anchors(
@@ -8895,8 +9193,10 @@ def postprocess_writer_docx(
     new_xml = _remove_writer_untouched_bookmarks(new_xml)
 
     replacements: dict[str, bytes] = {}
-    if new_xml != converted_xml:
+    if new_xml != converted_xml or merged_numbering is not None:
         replacements["word/document.xml"] = new_xml.encode("utf-8")
+    if merged_numbering is not None:
+        replacements["word/numbering.xml"] = merged_numbering.encode("utf-8")
 
     for entry_name in orig_header_entries:
         header_bytes = read_zip_entry(source_docx, entry_name)
@@ -8923,6 +9223,48 @@ def postprocess_writer_docx(
     replacements.update(hf_dependencies)
 
     replacements.update(anchor_media)
+
+    # W34b: styles.xml của bản lưu = styles.xml NGUỒN (docDefaults/Normal/Heading… đúng Word) + style riêng của
+    # LibreOffice chưa có trong nguồn (TableContents, Heading, ListLabel…) để w:pStyle không trỏ vào chỗ trống.
+    source_styles = read_zip_entry(source_docx, "word/styles.xml")
+    converted_styles = read_zip_entry(docx_bytes, "word/styles.xml")
+    if source_styles and converted_styles:
+        converted_styles_xml = converted_styles.decode("utf-8", errors="replace")
+        if merged_numbering is not None:
+            converted_styles_xml = _writer_offset_num_ids(converted_styles_xml, _W35B_NUM_OFFSET)
+        merged_styles = _merge_writer_styles(source_styles.decode("utf-8", errors="replace"), converted_styles_xml)
+        replacements["word/styles.xml"] = merged_styles.encode("utf-8")
+
+    # W38 (đo d21: compat 12 của LibreOffice → 11 trang, compat 15 nguồn → 10): khối <w:compat> của settings.xml
+    # lấy từ nguồn để Word dàn trang theo đúng chế độ tương thích của tài liệu gốc (không chép cả settings.xml —
+    # rsids/attachedTemplate r:id làm Word báo hỏng).
+    source_settings = read_zip_entry(source_docx, "word/settings.xml")
+    converted_settings = read_zip_entry(docx_bytes, "word/settings.xml")
+    if source_settings and converted_settings:
+        src_compat = re.search(r"<w:compat>[\s\S]*?</w:compat>", source_settings.decode("utf-8", errors="replace"))
+        settings_xml = converted_settings.decode("utf-8", errors="replace")
+        if src_compat:
+            if re.search(r"<w:compat>[\s\S]*?</w:compat>", settings_xml):
+                new_settings = re.sub(r"<w:compat>[\s\S]*?</w:compat>", lambda _m: src_compat.group(0), settings_xml, count=1)
+            else:
+                new_settings = settings_xml.replace("</w:settings>", src_compat.group(0) + "</w:settings>", 1)
+            if new_settings != settings_xml:
+                replacements["word/settings.xml"] = new_settings.encode("utf-8")
+
+    # W34a: LibreOffice ghi tên font kèm fallback CSS ("Times New Roman;serif", "Arial;sans-serif") vào w:rFonts và
+    # fontTable — Word không có font tên ấy nên thay font khác (đo 20/20 bản lưu đều dính). Giữ tên đầu.
+    for entry_name in sorted(existing_entries | set(replacements)):
+        if not (entry_name.startswith("word/") and entry_name.endswith(".xml")):
+            continue
+        current = replacements.get(entry_name)
+        if current is None:
+            current = read_zip_entry(docx_bytes, entry_name)
+        if not current:
+            continue
+        text = current.decode("utf-8", errors="replace")
+        stripped = _strip_writer_font_fallbacks(text, dedupe_font_table=entry_name.endswith("fontTable.xml"))
+        if stripped != text:
+            replacements[entry_name] = stripped.encode("utf-8")
 
     if not replacements:
         return docx_bytes
@@ -8954,6 +9296,12 @@ def postprocess_writer_docx(
                 break
         if new_rid:
             new_rels_xml = _add_rels_entry(new_rels_xml, new_rid, header_type, target_file)
+    if numbering_part_missing and "numbering.xml" not in new_rels_xml:
+        new_rels_xml = _add_rels_entry(
+            new_rels_xml, f"rId{next_rid}",
+            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering", "numbering.xml",
+        )
+        next_rid += 1
     replacements["word/_rels/document.xml.rels"] = new_rels_xml.encode("utf-8")
 
     # --- Update [Content_Types].xml ---
@@ -8971,6 +9319,11 @@ def postprocess_writer_docx(
     for entry_name in orig_header_entries:
         part_name = f"/{entry_name}"
         ct_xml = _add_content_types_override(ct_xml, part_name, _DOCX_HEADER_CONTENT_TYPE)
+    if numbering_part_missing:
+        ct_xml = _add_content_types_override(
+            ct_xml, "/word/numbering.xml",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml",
+        )
     for extension in sorted(anchor_extensions):
         ct_xml = _add_content_type_default(
             ct_xml, extension, _DOCX_IMAGE_CONTENT_TYPES[extension]
@@ -9010,6 +9363,48 @@ def postprocess_writer_docx(
                 zout.writestr(info, data)
 
     return dest.getvalue()
+
+
+def _strip_writer_font_fallbacks(xml: str, dedupe_font_table: bool = False) -> str:
+    """W34a: `w:ascii="Times New Roman;serif"` (và hAnsi/cs/eastAsia, `<w:font w:name=…>`) -> tên đầu tiên."""
+    out = re.sub(r'(\bw:(?:ascii|hAnsi|cs|eastAsia|name)=")([^";]+);[^"]*(")', r"\1\2\3", xml)
+    if dedupe_font_table and out != xml:
+        seen: set[str] = set()
+
+        def keep_first(match: re.Match) -> str:
+            name = re.search(r'\bw:name="([^"]*)"', match.group(0))
+            key = name.group(1) if name else match.group(0)
+            if key in seen:
+                return ""
+            seen.add(key)
+            return match.group(0)
+
+        out = re.sub(r"<w:font\b[^>]*/>|<w:font\b[^>]*>[\s\S]*?</w:font>", keep_first, out)
+    return out
+
+
+def _merge_writer_styles(source_styles_xml: str, converted_styles_xml: str) -> str:
+    """W34b: lấy nguyên styles.xml nguồn, thêm các `<w:style>` chỉ LibreOffice có (theo w:styleId) trước </w:styles>.
+    Word render bản lưu bằng đúng docDefaults/Normal/Heading của nguồn (d20: docDefaults không sz = 10pt, LibreOffice
+    ghi 12pt và Heading2 riêng → 3 trang thành 7)."""
+    style_re = re.compile(r"<w:style\b[^>]*>[\s\S]*?</w:style>|<w:style\b[^>]*/>", re.IGNORECASE)
+    source_ids = {m.group(1) for m in re.finditer(r'<w:style\b[^>]*\bw:styleId="([^"]+)"', source_styles_xml)}
+    extra: list[str] = []
+    for match in style_re.finditer(converted_styles_xml):
+        style_xml = match.group(0)
+        sid = re.search(r'\bw:styleId="([^"]+)"', style_xml)
+        if not sid or sid.group(1) in source_ids:
+            continue
+        # Style riêng của LibreOffice không được làm mặc định (w:default) đè lên Normal của nguồn
+        style_xml = re.sub(r'\s+w:default="(?:1|true|on)"', "", style_xml)
+        extra.append(style_xml)
+        source_ids.add(sid.group(1))
+    if not extra:
+        return source_styles_xml
+    close = source_styles_xml.rfind("</w:styles>")
+    if close < 0:
+        return source_styles_xml
+    return source_styles_xml[:close] + "".join(extra) + source_styles_xml[close:]
 
 
 def _writer_upsert_ppr_empty(paragraph: str, tag: str, replacement: str) -> str:

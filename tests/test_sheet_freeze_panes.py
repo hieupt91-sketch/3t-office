@@ -10,6 +10,7 @@ truoc khi SheetAdapter.parseFods() chay.
 from __future__ import annotations
 
 import io
+import re
 import unittest
 import zipfile
 
@@ -160,7 +161,10 @@ class TestOverlaySheetXlsxFods(unittest.TestCase):
     def test_no_pane_in_original_leaves_fods_untouched(self):
         original = _fake_xlsx()
         overlaid = patcher.overlay_sheet_xlsx_fods(original, FODS_NO_FREEZE)
-        self.assertEqual(overlaid, FODS_NO_FREEZE)
+        # S30c: overlay bố cục luôn ghi vno:xlsx-layout (defaultCol) — chỉ kiểm không có thuộc tính cố định
+        self.assertNotIn("vno:frozen", overlaid)
+        stripped = re.sub(r' vno:xlsx-layout="[^"]*"', "", overlaid)
+        self.assertEqual(stripped, FODS_NO_FREEZE)
 
 
 if __name__ == "__main__":

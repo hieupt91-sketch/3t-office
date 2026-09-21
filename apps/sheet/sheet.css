@@ -153,9 +153,20 @@
   z-index: 25;
 }
 
+/* S30d (lan09 s1, cột D ẩn): với table-layout: fixed, ô hàng đầu display:none làm cột KẾ TIẾP nhận bề rộng của cột
+   trước (F vẽ 121,6px thay vì 57,6px như Excel). Giữ ô trong dòng nhưng thu về 0px thay vì display:none. */
 .vno-col-header[hidden],
 .vno-grid-cell[hidden] {
-  display: none !important;
+  display: table-cell !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  padding: 0 !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  overflow: hidden !important;
+  font-size: 0 !important;
+  visibility: hidden;
 }
 
 .vno-col-header {

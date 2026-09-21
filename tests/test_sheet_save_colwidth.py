@@ -110,10 +110,10 @@ class ColumnWidthRestore(unittest.TestCase):
         # Cột mặc định bị app đổi (C rộng 100px = 2.6458cm -> 13.57 chars) thì vẫn ghi
         out2 = patcher._restore_column_widths(lo_sheet, {**widths, "C": 2.6458}, 7.0, None, source_explicit_cols=explicit, default_display_chars=default_chars)
         self.assertIn('max="3" min="3" style="0" width="14.29"', out2)
-        # baseColWidth=10 (lan01/lan28): mặc định = 10 + 3/7 = 10.43; app trả 10.57 -> vẫn là mặc định
-        self.assertAlmostEqual(patcher._unchanged_default_column_chars({"baseColWidth": 10}, 7.0), 10.4286, places=3)
-        # Calibri 12 (MDW 8): mặc định 8.375, app trả 8.00 (lan21) -> vẫn là mặc định
-        self.assertAlmostEqual(patcher._unchanged_default_column_chars({}, 8.0), 8.375, places=3)
+        # S30c: app vẽ cột mặc định = base·MDW + 8 px -> chars = base + 8/MDW: baseColWidth=10, MDW 7 -> 11.14 (app trả 78/7 = 11.14)
+        self.assertAlmostEqual(patcher._unchanged_default_column_chars({"baseColWidth": 10}, 7.0), 11.1429, places=3)
+        # Calibri 12 (MDW 8): 8 + 8/8 = 9.0 (app trả 72/8 = 9.00, lan21)
+        self.assertAlmostEqual(patcher._unchanged_default_column_chars({}, 8.0), 9.0, places=3)
 
 
 class SheetFormatPrRestore(unittest.TestCase):

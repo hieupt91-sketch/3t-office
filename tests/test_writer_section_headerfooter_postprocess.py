@@ -324,10 +324,15 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertIn('<w:sz w:val="28"/>', xml)
         self.assertNotIn('<w:sz w:val="20"/>', xml)
 
-    def test_matched_format_overlay_restores_indent_without_reintroducing_spacing(self):
+    def test_matched_format_overlay_restores_indent_and_spacing(self):
+        # W35 (đo d20 21/9 bằng Word COM): đoạn chưa sửa lấy lại cả w:spacing của nguồn — LibreOffice gắn
+        # after=283 cho mọi đoạn trong ô bảng nên 3 trang thành 6; quyết định 13/9 bỏ spacing (MYTIME 88 → 90 trang)
+        # được đo khi còn lỗi ngắt trang, nay thay bằng đo lại toàn bộ batch.
         xml = self._format_roundtrip_xml('<w:pPr><w:spacing w:before="120" w:after="240" w:line="360" w:lineRule="auto"/><w:ind w:left="720" w:firstLine="360"/></w:pPr>')
         self.assertIn('w:left="720"', xml)
-        self.assertNotIn('<w:spacing', xml)
+        self.assertIn('<w:spacing w:before="120" w:after="240" w:line="360" w:lineRule="auto"/>', xml)
+        # thứ tự schema: spacing trước ind trước jc
+        self.assertLess(xml.find("<w:spacing"), xml.find("<w:ind"))
 
     def test_matched_format_overlay_removes_injected_body_text_style(self):
         xml = self._format_roundtrip_xml("")
@@ -348,7 +353,7 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         )
         result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
         xml = _read_entry(result, "word/document.xml").decode("utf-8")
-        self.assertIn('<w:spacing w:after="0"/>', xml)
+        self.assertIn('<w:spacing w:after="240"/>', xml)  # W35: spacing nguon
         self.assertIn('<w:jc w:val="center"/>', xml)
 
     def test_pristine_document_restores_empty_paragraphs_by_lcs(self):
@@ -363,7 +368,7 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         )
         result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
         xml = _read_entry(result, "word/document.xml").decode("utf-8")
-        self.assertIn('<w:spacing w:after="0"/>', xml)
+        self.assertIn('<w:spacing w:after="240"/>', xml)  # W35: spacing nguon
         self.assertIn('<w:jc w:val="center"/>', xml)
 
     def test_pristine_document_reinserts_anchor_page_break_carrier_in_lcs_slot(self):
@@ -737,6 +742,38 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         self.assertEqual([ooxml_zip_patch_mod._paragraph_plain_text(p) for p in paragraphs], ["Bảng số liệu", "Sau bảng"])
         body_order = re.findall(r'<w:tbl>|<w:t>(?:Bảng số liệu|Sau bảng)</w:t>', xml)
         self.assertEqual(body_order, ['<w:t>Bảng số liệu</w:t>', '<w:tbl>', '<w:t>Sau bảng</w:t>'])
+
+    def test_w36_table_properties_restored_from_source_when_structure_matches(self):
+        """W36 (d20): LibreOffice thêm tblCellMar 28 twips, trHeight 504→510 atLeast, tcW 2778→2772; nguồn thắng khi
+        số hàng/ô trùng; bảng lồng không bị lấy nhầm trPr/tcPr; bảng khác cấu trúc giữ nguyên."""
+        src_table = ('<w:tbl><w:tblPr><w:tblW w:w="11220" w:type="dxa"/><w:jc w:val="center"/></w:tblPr>'
+                     '<w:tblGrid><w:gridCol w:w="2778"/><w:gridCol w:w="8442"/></w:tblGrid>'
+                     '<w:tr><w:trPr><w:trHeight w:val="504"/></w:trPr>'
+                     '<w:tc><w:tcPr><w:tcW w:w="2778" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:r><w:t>ĐT nhà</w:t></w:r></w:p></w:tc>'
+                     '<w:tc><w:tcPr><w:tcW w:w="8442" w:type="dxa"/></w:tcPr>'
+                     '<w:tbl><w:tblPr><w:tblW w:w="100" w:type="dxa"/></w:tblPr><w:tr><w:trPr><w:trHeight w:val="1"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="1" w:type="dxa"/></w:tcPr><w:p/></w:tc></w:tr></w:tbl>'
+                     '<w:p/></w:tc></w:tr></w:tbl>')
+        conv_table = ('<w:tbl><w:tblPr><w:tblW w:w="11220" w:type="dxa"/><w:tblCellMar><w:top w:w="28" w:type="dxa"/><w:bottom w:w="28" w:type="dxa"/></w:tblCellMar></w:tblPr>'
+                      '<w:tblGrid><w:gridCol w:w="2772"/><w:gridCol w:w="8448"/></w:tblGrid>'
+                      '<w:tr><w:trPr><w:trHeight w:val="510" w:hRule="atLeast"/></w:trPr>'
+                      '<w:tc><w:tcPr><w:tcW w:w="2772" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>ĐT nhà</w:t></w:r></w:p></w:tc>'
+                      '<w:tc><w:tcPr><w:tcW w:w="8448" w:type="dxa"/></w:tcPr>'
+                      '<w:tbl><w:tblPr><w:tblW w:w="99" w:type="dxa"/></w:tblPr><w:tr><w:trPr><w:trHeight w:val="2"/></w:trPr><w:tc><w:tcPr><w:tcW w:w="2" w:type="dxa"/></w:tcPr><w:p/></w:tc></w:tr></w:tbl>'
+                      '<w:p/></w:tc></w:tr></w:tbl>')
+        other = '<w:tbl><w:tblPr><w:tblW w:w="5" w:type="dxa"/></w:tblPr><w:tr><w:tc><w:p><w:r><w:t>Khác</w:t></w:r></w:p></w:tc></w:tr><w:tr><w:tc><w:p/></w:tc></w:tr></w:tbl>'
+        source = _build_minimal_docx('<w:p><w:r><w:t>Đầu</w:t></w:r></w:p>' + src_table + '<w:p/>' + other.replace('<w:tr><w:tc><w:p/></w:tc></w:tr>', '') + '<w:sectPr/>')
+        converted = _build_minimal_docx('<w:p><w:r><w:t>Đầu</w:t></w:r></w:p>' + conv_table + '<w:p/>' + other + '<w:sectPr/>')
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted, source_docx=source)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertNotIn("<w:tblCellMar>", xml)
+        self.assertIn('<w:trHeight w:val="504"/>', xml)
+        self.assertIn('<w:tcW w:w="2778" w:type="dxa"/><w:vAlign w:val="center"/>', xml)
+        self.assertIn('<w:gridCol w:w="2778"/>', xml)
+        # bảng lồng giữ nguyên của bản chuyển đổi (không lấy nhầm props của bảng lồng nguồn)
+        self.assertIn('<w:tblW w:w="99" w:type="dxa"/>', xml)
+        self.assertIn('<w:trHeight w:val="2"/>', xml)
+        # bảng "Khác" có số hàng lệch (2 vs 1) -> giữ nguyên
+        self.assertIn('<w:tblW w:w="5" w:type="dxa"/>', xml)
 
     def test_w27b_tblppr_derived_from_anchor_when_source_has_none(self):
         anchor = ('<wp:anchor distL="114300" distR="0"><wp:positionH relativeFrom="margin"><wp:posOffset>-120650</wp:posOffset></wp:positionH>'
