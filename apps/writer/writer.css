@@ -665,7 +665,9 @@ li.vno-page-auto-gap {
 
 .vno-writer-header:empty,
 .vno-writer-footer:empty {
-  min-height: 26px;
+  /* W29a: vùng rỗng chỉ giữ một dải bấm mỏng (Word: nháy đúp vào lề để mở header); 26px cũ đè dòng đầu
+     thân khi lề trên nhỏ (d02: lề 42px, headerDistance 23px + 26px = 49px > 42px). */
+  min-height: 14px;
 }
 
 /* W23a: Đoạn trong header/footer chuẩn Word: lề mặc định bằng 0, không nhận lề thân */
@@ -740,12 +742,31 @@ li.vno-page-auto-gap {
   color: var(--vno-writer-primary, #0284c7);
 }
 
+/* W29a (opencode, V11 L13): placeholder "Nhấp để nhập tiêu đề đầu trang…" không được chiếm chỗ hay đè Quốc hiệu
+   (d02 trang 1): vẽ tuyệt đối, chỉ hiện khi rê chuột/đang sửa vùng; vùng rỗng min-height 0 như Word. */
 .vno-writer-header:empty::before,
 .vno-writer-footer:empty::before {
   content: attr(data-placeholder);
   color: #475569;
   font-style: italic;
   pointer-events: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vno-writer-header:empty:focus-within::before,
+.vno-writer-header:empty:hover::before,
+.vno-writer-footer:empty:focus-within::before,
+.vno-writer-footer:empty:hover::before {
+  opacity: 1;
 }
 
 /* Vùng nội dung chính (Body) */
