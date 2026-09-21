@@ -1,5 +1,18 @@
 # Hàng đợi việc theo ma trận (cập nhật 2026-09-21)
 
+## Trạng thái 21/9 23:30 (main `e34ebc0` = S31 + W47)
+
+| Chiều | Số đo | Ghi chú |
+|---|---|---|
+| Sheet render hàng/cột (bộ đo hình học S30, 26 file, 65 sheet, 6887 hàng) | **cột 0, hàng 0/6887 lệch** (Python `_rows_all.py` đối chiếu `*.geom.json`; app thật kiểm 8 file lan03/05/08/11/12/15/19/23: col 0 row 0 lines 0 fit 0) | S31a–i, S32 (xem QUY-UOC); trước: 1217 hàng lệch với mô hình S30a |
+| Sheet nhập→lưu | chưa chạy lại batch sau S31 (cần Excel COM rảnh) — S30b không đổi nên kỳ vọng 26/26 | chạy lại khi Grok/agy không dùng Excel |
+| Writer nhập (23 docx) | w46i: page 184 (d09 54 do W44b đè `padding-bottom` longhand — **W47 Grok**: 54 → 23), wrap 34, unknown 34, line-height 24; canvas = Word 19/23 (d01 20/19, d14 4/3, d16 9/8, d21 10/9) | đang chạy lại 23 file sau S31+W47 (`_writer_out_w47i`) |
+| Writer lưu (23 docx) | w46s: 21/22 = Word; d20 lưu 4 (Word 3) là lỗi CŨ có từ w43 (Grok đo lại PDF `/Count`), không phải hồi quy W44–46 | lớp còn lại: pbb thừa trên đoạn đã có `w:br`, W36 trượt vì ZZ |
+
+Đang giao (23:20): **Grok R21** (`E:\VNOffice-grok-writer-r21`, `fix/writer-r21-grok`): d01/d14/d16/d21 canvas thừa 1 trang + d09 page 23;
+**agy S29** (`E:\VNOffice-agy-sheet-perf`, `perf/sheet-s29-lan14`): lan14/lan06 mở > 15 phút (lần 1 thoát sớm vì chạy test ở tác vụ nền — đã chạy lại với luật foreground).
+Claude: kiểm chứng + merge; codex/agy quota trở lại ~26–27/9.
+
 ## Trạng thái 21/9 14:30 (main `2a00720`)
 
 | Chiều | Số đo | Ghi chú |
