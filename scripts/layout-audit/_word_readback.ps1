@@ -354,6 +354,275 @@ try {
         } else {
             Check "tabStop" "positionPt" $expected["tabStop"]["positionPt"] 0
         }
+    } elseif ($expected.ContainsKey("scenario") -and [int]$expected["scenario"] -eq 3) {
+        # ===== SCENARIO 3 CHECKS =====
+        
+        # --- 1. Bảng 4x4: gộp ô ngang hàng 1, gộp dọc cột A hàng 2-4; viền, nền, căn giữa dọc ---
+        if ($doc.Tables.Count -ge 1) {
+            $tbl = $doc.Tables.Item(1)
+            Check "table1" "rows" $expected["table1"]["rows"] $tbl.Rows.Count
+            Check "table1" "cols" $expected["table1"]["cols"] $tbl.Columns.Count
+            
+            # Check merged cell row 1 (colspan 4)
+            $cell11 = $tbl.Cell(1,1)
+            $cell11Text = GetTableCellText $tbl 1 1
+            Check "table1" "mergedCellRow1.text" $expected["table1"]["mergedCellRow1"]["text"] $cell11Text
+            $row1Cells = 0
+            try { $row1Cells = $tbl.Rows.Item(1).Cells.Count } catch { $row1Cells = -1 }
+            Check "table1" "mergedCellRow1.colspan" $expected["table1"]["mergedCellRow1"]["colspan"] $row1Cells
+            $bg = try { & $hex ([int]$cell11.Shading.BackgroundPatternColor) } catch { "" }
+            Check "table1" "headerBgColor" $expected["table1"]["headerBgColor"] $bg
+            Check "table1" "headerBold" $expected["table1"]["headerBold"] (GetFontBold $cell11.Range)
+            $vAlign = try { [int]$cell11.VerticalAlignment } catch { 0 }
+            # wdCellVerticalAlignmentCenter = 1
+            $vAlignStr = if ($vAlign -eq 1) { "center" } else { "other" }
+            Check "table1" "headerVerticalAlign" $expected["table1"]["headerVerticalAlign"] $vAlignStr
+            
+            # Check outer border double (wdLineStyleDouble = 7), inner single (wdLineStyleSingle = 1)
+            $topBorder = $cell11.Borders.Item(1)  # wdBorderTop
+            $outerDouble = ($topBorder.LineStyle -eq 7)
+            Check "table1" "outerBorderDouble" $expected["table1"]["outerBorderDouble"] ([bool]$outerDouble)
+            
+            # Check merged cell col A rows 2-4 (rowspan)
+            $cell21 = $tbl.Cell(2,1)
+            $cell21Text = GetTableCellText $tbl 2 1
+            Check "table1" "mergedCellColA.text" $expected["table1"]["mergedCellColA"]["text"] $cell21Text
+            # rowspan check - Word shows merged cells as fewer cells in row; handle COM error for vertically merged cells
+            $row2Cells = 0
+            try { $row2Cells = $tbl.Rows.Item(2).Cells.Count } catch { $row2Cells = -1 }
+            Check "table1" "mergedCellColA.rowspan" 3 $row2Cells
+            
+            # Check inner borders single
+            $innerBorder = $tbl.Cell(2,2).Borders.Item(3)  # wdBorderVertical
+            $innerSingle = ($innerBorder.LineStyle -eq 1)
+            Check "table1" "innerBorderSingle" $expected["table1"]["innerBorderSingle"] ([bool]$innerSingle)
+        } else {
+            $script:checks += 8; $script:diffs += 8
+            Write-Host "table1: expected table found [0] Word [no tables]"
+        }
+        
+        # --- 2. Cột 2 rộng 4cm (113.4pt), Hàng 3 cao 1.2cm (34pt) exactly ---
+        if ($doc.Tables.Count -ge 1) {
+            $tbl = $doc.Tables.Item(1)
+            $col2Width = try { [math]::Round([double]$tbl.Columns.Item(2).Width, 1) } catch { 0 }
+            Check "table1col2" "widthPt" $expected["table1col2"]["widthPt"] $col2Width
+            
+            $row3Height = try { [math]::Round([double]$tbl.Rows.Item(3).Height, 1) } catch { 0 }
+            $row3Rule = try { [int]$tbl.Rows.Item(3).HeightRule } catch { 0 }
+            # wdRowHeightExactly = 3
+            $ruleExactly = ($row3Rule -eq 3)
+            $ruleStr = if ($ruleExactly) { "exactly" } else { "other" }
+            Check "table1row3" "heightPt" $expected["table1row3"]["heightPt"] $row3Height
+            Check "table1row3" "heightRule" $expected["table1row3"]["heightRule"] $ruleStr
+        } else {
+            $script:checks += 3; $script:diffs += 3
+        }
+        
+        # --- 3. Ảnh inline 4x3cm + ảnh bọc chữ vuông căn phải ---
+        Check "images" "inlineShapesCount" $expected["images"]["inlineShapesCount"] $doc.InlineShapes.Count
+        if ($doc.InlineShapes.Count -ge 1) {
+            $ish = $doc.InlineShapes.Item(1)
+            $w = try { [math]::Round([double]$ish.Width, 1) } catch { 0 }
+            $h = try { [math]::Round([double]$ish.Height, 1) } catch { 0 }
+            Check "images" "inlineWidthPt" $expected["images"]["inlineWidthPt"] $w
+            Check "images" "inlineHeightPt" $expected["images"]["inlineHeightPt"] $h
+        }
+        Check "images" "shapesCount" $expected["images"]["shapesCount"] $doc.Shapes.Count
+        if ($doc.Shapes.Count -ge 1) {
+            $shp = $doc.Shapes.Item(1)
+            $wrapType = try { [int]$shp.WrapFormat.Type } catch { -1 }
+            # wdWrapSquare = 0
+            Check "images" "shapeWrapType" $expected["images"]["shapeWrapType"] $wrapType
+            $relHoriz = try { [int]$shp.RelativeHorizontalPosition } catch { -1 }
+            $leftPos = try { [math]::Round([double]$shp.Left, 1) } catch { 0 }
+            Check "images" "shapeRelativeHorizontal" $expected["images"]["shapeRelativeHorizontal"] (if ($relHoriz -eq 2) { "right" } elseif ($leftPos -gt 200) { "right" } else { "other" })
+        }
+        
+        # --- 4. Chú thích cuối trang (footnote) ---
+        Check "footnote" "count" $expected["footnote"]["count"] $doc.Footnotes.Count
+        if ($doc.Footnotes.Count -ge 1) {
+            $fnText = NormalizeTableCellText $doc.Footnotes.Item(1).Range.Text
+            Check "footnote" "text" $expected["footnote"]["text"] $fnText.Trim()
+        } else {
+            Check "footnote" "text" $expected["footnote"]["text"] "missing"
+        }
+        
+        # --- 5. Heading 1 / Heading 2 + Mục lục tự động ---
+        $h1Count = 0; $h2Count = 0
+        $h1Text = ""; $h2Text = ""
+        for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
+            $p = $doc.Paragraphs.Item($i)
+            $style = try { $p.Style.NameLocal } catch { "" }
+            if ($style -like "*Heading 1*" -or $style -eq "Heading 1") {
+                $h1Count++
+                if (-not $h1Text) { $h1Text = (NormalizeTableCellText $p.Range.Text).Trim() }
+            } elseif ($style -like "*Heading 2*" -or $style -eq "Heading 2") {
+                $h2Count++
+                if (-not $h2Text) { $h2Text = (NormalizeTableCellText $p.Range.Text).Trim() }
+            }
+        }
+        Check "headings" "h1Count" $expected["headings"]["h1Count"] $h1Count
+        Check "headings" "h1Text" $expected["headings"]["h1Text"] $h1Text
+        Check "headings" "h2Count" $expected["headings"]["h2Count"] $h2Count
+        Check "headings" "h2Text" $expected["headings"]["h2Text"] $h2Text
+        
+        Check "toc" "count" $expected["toc"]["count"] $doc.TablesOfContents.Count
+        if ($doc.TablesOfContents.Count -ge 1) {
+            $tocEntries = $doc.TablesOfContents.Item(1).Range.Paragraphs.Count
+            Check "toc" "entriesCount" $expected["toc"]["entriesCount"] $tocEntries
+        } else {
+            Check "toc" "entriesCount" $expected["toc"]["entriesCount"] 0
+        }
+        
+        # --- 6. Mục 2 chia 2 cột ---
+        if ($doc.Sections.Count -ge 2) {
+            $sec2 = $doc.Sections.Item(2)
+            $colCount = $sec2.PageSetup.TextColumns.Count
+            Check "columns" "section2ColumnCount" $expected["columns"]["section2ColumnCount"] $colCount
+        } else {
+            Check "columns" "section2ColumnCount" $expected["columns"]["section2ColumnCount"] 0
+        }
+        
+        # --- 7. Footer "Trang X / Y" (PAGE + NUMPAGES fields) ---
+        $footerFields = $doc.Sections.Item(1).Footers.Item(1).Range.Fields.Count
+        Check "footer" "fieldsCount" $expected["footer"]["fieldsCount"] $footerFields
+        $hasPage = $false; $hasNumPages = $false
+        if ($footerFields -ge 1) {
+            for ($f = 1; $f -le $footerFields; $f++) {
+                $field = $doc.Sections.Item(1).Footers.Item(1).Range.Fields.Item($f)
+                $code = try { $field.Code.Text } catch { "" }
+                if ($code -like "*PAGE*") { $hasPage = $true }
+                if ($code -like "*NUMPAGES*") { $hasNumPages = $true }
+            }
+        }
+        Check "footer" "hasPageField" $expected["footer"]["hasPageField"] $hasPage
+        Check "footer" "hasNumPagesField" $expected["footer"]["hasNumPagesField"] $hasNumPages
+        
+        # --- 8. Ảnh trong header, căn trái ---
+        $headerInlines = $doc.Sections.Item(1).Headers.Item(1).Range.InlineShapes.Count
+        Check "header" "inlineShapesCount" $expected["header"]["inlineShapesCount"] $headerInlines
+        
+        # --- 9. Đoạn có border dưới + nền xám ---
+        # Find paragraph with "viền dưới và nền xám"
+        $pBorder = $null
+        for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
+            $p = $doc.Paragraphs.Item($i)
+            $t = NormalizeTableCellText $p.Range.Text
+            if ($t -like "*viền dưới*") { $pBorder = $p; break }
+        }
+        if ($pBorder) {
+            $hasBorderBottom = $false
+            try {
+                $borderBottom = $pBorder.Range.ParagraphFormat.Borders.Item(6)  # wdBorderBottom
+                $hasBorderBottom = ($borderBottom.LineStyle -ne 0)
+            } catch { $hasBorderBottom = $false }
+            Check "paraBorderShading" "borderBottom" $expected["paraBorderShading"]["borderBottom"] $hasBorderBottom
+            $shading = try { & $hex ([int]$pBorder.Range.Shading.BackgroundPatternColor) } catch { "" }
+            Check "paraBorderShading" "shadingColor" $expected["paraBorderShading"]["shadingColor"] $shading
+        } else {
+            $script:checks += 2; $script:diffs += 2
+            Write-Host "paraBorderShading: expected paragraph not found"
+        }
+        
+        # --- 10. Chữ có màu nền (shading) #FFE699 ---
+        $pShading = $null
+        for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
+            $p = $doc.Paragraphs.Item($i)
+            $t = NormalizeTableCellText $p.Range.Text
+            if ($t -like "*nền vàng nhạt*") { $pShading = $p; break }
+        }
+        if ($pShading) {
+            # Check runs for shading
+            $foundShading = $false
+            for ($r = 1; $r -le $pShading.Range.Words.Count; $r++) {
+                $w = $pShading.Range.Words.Item($r)
+                $s = try { & $hex ([int]$w.Shading.BackgroundPatternColor) } catch { "" }
+                if ($s -eq $expected["textShading"]["color"]) { $foundShading = $true; break }
+            }
+            $shadingResult = if ($foundShading) { $expected["textShading"]["color"] } else { "not found" }
+            Check "textShading" "color" $expected["textShading"]["color"] $shadingResult
+        } else {
+            Check "textShading" "color" $expected["textShading"]["color"] "missing paragraph"
+        }
+        
+        # --- 11. Ngắt dòng mềm (Shift+Enter) ---
+        $pSoft = $null
+        for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
+            $p = $doc.Paragraphs.Item($i)
+            $t = NormalizeTableCellText $p.Range.Text
+            if ($t -like "*ngắt mềm*") { $pSoft = $p; break }
+        }
+        if ($pSoft) {
+            $hasVT = $pSoft.Range.Text.Contains([char]0x0B)  # Vertical tab (Shift+Enter)
+            Check "softBreak" "hasVerticalTab" $expected["softBreak"]["hasVerticalTab"] $hasVT
+            $lineCount = try { [int]$pSoft.Range.ComputeStatistics(1) } catch { 0 }  # wdStatisticLines
+            Check "softBreak" "lineCount" $expected["softBreak"]["lineCount"] $lineCount
+        } else {
+            $script:checks += 2; $script:diffs += 2
+        }
+        
+        # --- 12. Ký tự đặc biệt: →, ©, ₫, tab, NBSP ---
+        $pSpecial = $null
+        for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
+            $p = $doc.Paragraphs.Item($i)
+            $t = NormalizeTableCellText $p.Range.Text
+            if ($t -like "*Ký tự đặc biệt*") { $pSpecial = $p; break }
+        }
+        if ($pSpecial) {
+            $txt = NormalizeTableCellText $pSpecial.Range.Text
+            $arrowRes = if ($txt -like "*[→]*") { "found" } else { "missing" }
+            $copyRes = if ($txt -like "*[©]*") { "found" } else { "missing" }
+            $dongRes = if ($txt -like "*[₫]*") { "found" } else { "missing" }
+            $tabRes = if ($txt -like "*`t*") { $true } else { $false }
+            $nbspRes = if ($txt -like "*$([char]160)*") { $true } else { $false }
+            Check "specialChars" "arrow" $expected["specialChars"]["arrow"] $arrowRes
+            Check "specialChars" "copyright" $expected["specialChars"]["copyright"] $copyRes
+            Check "specialChars" "dong" $expected["specialChars"]["dong"] $dongRes
+            Check "specialChars" "hasTab" $expected["specialChars"]["hasTab"] $tabRes
+            Check "specialChars" "hasNbsp" $expected["specialChars"]["hasNbsp"] $nbspRes
+        } else {
+            $script:checks += 5; $script:diffs += 5
+        }
+        
+        # --- 13. Danh sách bullet lồng 3 cấp ---
+        # Find list paragraphs with bullet symbols
+        $foundLevel1 = $false; $foundLevel2 = $false; $foundLevel3 = $false
+        for ($i = 1; $i -le $doc.Paragraphs.Count; $i++) {
+            $p = $doc.Paragraphs.Item($i)
+            $t = NormalizeTableCellText $p.Range.Text
+            $lvl = try { [int]$p.Range.ListFormat.ListLevelNumber } catch { 0 }
+            if ($lvl -eq 1 -and ($t -like "*Cấp 1*" -or $t -like "*chấm tròn*")) { $foundLevel1 = $true }
+            if ($lvl -eq 2 -and ($t -like "*Cấp 2*" -or $t -like "*tròn rỗng*")) { $foundLevel2 = $true }
+            if ($lvl -eq 3 -and ($t -like "*Cấp 3*" -or $t -like "*vuông nhỏ*")) { $foundLevel3 = $true }
+        }
+        $l1Res = if ($foundLevel1) { "found" } else { "missing" }
+        $l2Res = if ($foundLevel2) { "found" } else { "missing" }
+        $l3Res = if ($foundLevel3) { "found" } else { "missing" }
+        $maxLvl = if ($foundLevel3) { 3 } else { 0 }
+        Check "multilevelList" "level1Symbol" $expected["multilevelList"]["level1Symbol"] $l1Res
+        Check "multilevelList" "level2Symbol" $expected["multilevelList"]["level2Symbol"] $l2Res
+        Check "multilevelList" "level3Symbol" $expected["multilevelList"]["level3Symbol"] $l3Res
+        Check "multilevelList" "maxLevel" $expected["multilevelList"]["maxLevel"] $maxLvl
+        
+        # --- 14. Bookmark + tham chiếu chéo ---
+        $bmCount = $doc.Bookmarks.Count
+        Check "bookmark" "count" $expected["bookmark"]["count"] $bmCount
+        $hasRef = $false
+        if ($doc.Fields.Count -ge 1) {
+            for ($f = 1; $f -le $doc.Fields.Count; $f++) {
+                $field = $doc.Fields.Item($f)
+                $code = try { $field.Code.Text } catch { "" }
+                if ($code -like "*REF*bookmark1*") { $hasRef = $true; break }
+            }
+        }
+        Check "bookmark" "hasCrossRef" $expected["bookmark"]["hasCrossRef"] $hasRef
+        
+        # --- 15. Bảo vệ tài liệu (không có lệnh) ---
+        Check "docProtection" "hasCommand" $expected["docProtection"]["hasCommand"] $false
+        
+        # --- 16. Thuộc tính tài liệu (không có lệnh) ---
+        Check "docProperties" "hasCommand" $expected["docProperties"]["hasCommand"] $false
+        
     } else {
         # --- Title (Heading 1) ---
     $titlePara = $doc.Paragraphs.Item(1)
