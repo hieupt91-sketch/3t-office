@@ -7,7 +7,7 @@
 | Sheet nhập→lưu (26 file LAN, bỏ lan06/lan14) | **26/26 0 lệch** sau S29a/S30a/S30b/S30c (batch chạy lại 21/9 13:40) | lan14 (33k dòng)/lan06 mở > 15 phút — lớp S29 hiệu năng chưa đo |
 | Sheet render (bộ đo hình học S30, opencode đang chạy toàn bộ) | cột 0 lệch mọi file đã đo (lan11 s3 16 → 0 nhờ S30c); hàng: lan01 1, lan03 5, lan05 4, lan08 1, lan11 26 (tất cả lớp S31 bề rộng chữ GDI → số dòng bọc chữ ±1), còn lại 0 | S31 chưa sửa |
 | Writer nhập (23 docx, bộ đo tách `<li>`) | **page 276, wrap 34, drift:unknown 34, line-height 24, spacing 11, empty-para 9, table 5, float 3, font-name 1, font-size 1**; trang canvas = Word ở 19/23 file (lệch: d01 20/19, d14 4/3, d16 9/8, d21 10/9) | W24b, W32, W33 trong buổi chiều; d20 5 → 3 trang = Word |
-| Writer mở→sửa→lưu→Word (23 docx) | đang chạy lại sau W27a/W27b (`_writer_out_w27b`): d01 19=Word (trước 20), d13 10=Word, d09 12 (Word 14), d02 13 (11), d07 22 (23), d11 6 (5), d16 11 (8) | lớp kế: số trang bản lưu |
+| Writer mở→sửa→lưu→Word (23 docx) | **22/23 số trang bản lưu = Word** sau W34–W41 (`_writer_out_w39` + `_writer_out_w41`, 21/9 18:00); còn d16 9 (Word 8); d10 file gốc hỏng (Word không mở) | trước (R17): 12/23 lệch, 2 file Word báo hỏng |
 
 Lớp kế tiếp (lớn → nhỏ): (1) Writer lưu đổi số trang d16/d02/d09/d11/d07 — đo bằng `_pb_where.py` + Word COM từng trang;
 (2) Writer nhập `page 276` (d01 155, d07 34, d02 27, d13 17, d16 14) — trôi tích luỹ + keepNext (W24c);
