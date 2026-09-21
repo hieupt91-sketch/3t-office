@@ -399,6 +399,26 @@
   user-select: none;
   pointer-events: none;
 }
+/* W24a: ngắt trang GIỮA các hàng bảng / mục danh sách (Word cắt bảng theo hàng, danh sách theo mục).
+   Hàng gap không có lề nên ô cao 96px = 64 + 16 + 16 để khoảng cách dọc bằng gap thân. */
+tr.vno-page-auto-gap {
+  height: auto;
+  margin: 0;
+  box-shadow: none;
+  background: transparent;
+}
+tr.vno-page-auto-gap > td {
+  height: 96px;
+  padding: 0;
+  border: none;
+  background: var(--vno-bg-app);
+  box-shadow: inset 0 6px 8px -6px rgba(15, 23, 42, 0.25), inset 0 -6px 8px -6px rgba(15, 23, 42, 0.25);
+}
+li.vno-page-auto-gap {
+  list-style: none;
+  padding: 0;
+  text-indent: 0;
+}
 
 .vno-writer-page p {
   margin: var(--vno-doc-para-margin, 0 0 6pt 0);

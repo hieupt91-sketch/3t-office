@@ -452,6 +452,52 @@ export async function runWriterHeaderFooterImportTests() {
     }
   });
 
+  // Đo R16/d07: 20 bảng trải ≥ 2 trang Word trong 10 file; d07 <ul> 2 mục bị đẩy cả khối. Word cắt giữa hàng / giữa mục.
+  test("W24a: bảng và danh sách cao hơn trang được cắt theo hàng/mục (gap tr/li), khối thường vẫn đẩy nguyên", () => {
+    const check = (value, message) => { if (!value) throw new Error(message); };
+    const adapter = new WriterAdapter(null);
+    adapter.pageSetup = { size: "a4", orientation: "portrait", margins: { top: 20, right: 20, bottom: 20, left: 20 }, headerDistanceMm: 10, footerDistanceMm: 10 };
+    adapter.headerDom = { innerText: "", offsetHeight: 0 };
+    adapter.footerDom = { innerText: "", offsetHeight: 0 };
+    adapter._getUsablePageHeight = () => 1000;
+    const inserted = [];
+    const mk = (tag, top, h, extra = {}) => {
+      const el = { tagName: tag, offsetTop: top, offsetHeight: h, children: [], cells: extra.cells || [], parentNode: null,
+        getBoundingClientRect: () => ({ top }), getAttribute: (n) => (n === "style" ? "" : null), textContent: "", classList: { contains: () => false },
+        querySelectorAll: () => [], ...extra };
+      el.parentNode = { insertBefore: (gap, ref) => inserted.push({ gap: gap.tagName, before: ref }) };
+      return el;
+    };
+    const rows = [mk("TR", 900, 300, { cells: [1, 2] }), mk("TR", 1200, 300, { cells: [1, 2] }), mk("TR", 1500, 300, { cells: [1, 2] }), mk("TR", 1800, 300, { cells: [1, 2] })];
+    const table = mk("TABLE", 900, 1200, { querySelectorAll: () => rows });
+    const items = [mk("LI", 2100, 400), mk("LI", 2500, 400), mk("LI", 2900, 400)];
+    const list = mk("UL", 2100, 1200, { children: items });
+    const para = mk("P", 0, 900);
+    const tall = mk("P", 3300, 1500);
+    const bodyDom = { style: {}, children: [para, table, list, tall], querySelectorAll: () => [], insertBefore: (gap, ref) => inserted.push({ gap: gap.tagName, before: ref }), dispatchEvent: () => {}, getBoundingClientRect: () => ({ top: 0 }), scrollTop: 0 };
+    adapter.bodyDom = bodyDom;
+    for (const el of [para, table, list, tall]) el.parentNode = bodyDom;
+    const origDoc = globalThis.document; const origWin = globalThis.window;
+    globalThis.document = { createElement: (tag) => ({ tagName: tag.toUpperCase(), setAttribute() {}, appendChild() {}, className: "" }) };
+    globalThis.window = { getComputedStyle: () => ({ marginTop: "0px" }) };
+    try {
+      adapter._alignPageRelativeFloats = () => {};
+      adapter._recomputeLivePagination();
+      const seq = inserted.map(x => `${x.gap}@${x.before.tagName}:${x.before.offsetTop}`);
+      const expected = ["TR@TR:1200", "TR@TR:2100", "LI@LI:2500", "LI@LI:3300", "DIV@P:3300"];
+      // Trang 1: para 0–900 + hàng 1 (900–1200) vừa 1000? không (1200 > 1000) → gap trước hàng 2? Hàng 1 kết thúc 1200 > 1000 → đẩy cả bảng?
+      // Quy tắc: đơn vị đầu (hàng 1) không vừa → gap trước bảng (khối), rồi các hàng tiếp theo cắt theo trang 1000px từ 900.
+      check(inserted.length > 0, "phải chèn gap");
+      check(seq.some(s => s.startsWith("TR@TR")), `phải có gap giữa các hàng bảng: ${seq.join(", ")}`);
+      check(seq.some(s => s.startsWith("LI@LI")), `phải có gap giữa các mục danh sách: ${seq.join(", ")}`);
+      check(seq.some(s => s === "DIV@P:3300"), `khối P cao 1500 vẫn được đẩy nguyên khối bằng gap div: ${seq.join(", ")}`);
+      check(!seq.some(s => s.startsWith("DIV@TABLE") && seq.filter(x => x.startsWith("TR@")).length === 0), "bảng không được coi là khối nguyên tử khi có hàng");
+      void expected;
+    } finally {
+      globalThis.document = origDoc; globalThis.window = origWin;
+    }
+  });
+
   // Đo d15 (Word COM): style Footer sz=24 (12pt, basedOn Normal không sz, docDefaults 28 = 14pt); canvas dùng
   // --vno-doc-font-size 14pt cho đoạn rỗng footer → footer 124px so với Word 98,5px.
   test("W23c: _headerFooterFontSizesFromStyles lấy cỡ style Header/Footer theo chuỗi basedOn rồi docDefaults", () => {

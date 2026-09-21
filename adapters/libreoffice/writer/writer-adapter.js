@@ -9737,7 +9737,7 @@ export class WriterAdapter {
       .replace(/<div\b[^>]*data-vno-watermark=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/<div\b[^>]*data-vno-page-border=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/\s*\bvno-merge-preview\b/gi, "")
-      .replace(/<div\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
+      .replace(/<(div|tr|li)\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/\1>/gi, "")
       .replace(/<span\b[^>]*data-vno-format-mark=["'][^"']+["'][^>]*>([\s\S]*?)<\/span>/gi, "$1");
   }
 
@@ -9751,7 +9751,7 @@ export class WriterAdapter {
    */
   _stripAutoPageGaps(html) {
     return String(html || "")
-      .replace(/<div\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/div>/gi, "")
+      .replace(/<(div|tr|li)\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/\1>/gi, "")
       .replace(/<span\b[^>]*data-vno-format-mark=["'][^"']+["'][^>]*>([\s\S]*?)<\/span>/gi, "$1");
   }
 
@@ -11008,19 +11008,51 @@ export class WriterAdapter {
       };
       let pageStartTop = null;
 
+      // W24a: Word cắt trang GIỮA các hàng bảng và giữa các mục danh sách (đo R16: 20 bảng trải ≥ 2 trang Word trong
+      // 10 file; d07: <ul> 2 mục bị đẩy cả khối). Mỗi khối cấp 1 được tách thành các "đơn vị cắt được": hàng
+      // (<tr>, kể cả trong thead/tbody, chỉ hàng cấp 1 của bảng cấp 1) và mục (<li>, mọi cấp; chiều cao của <li>
+      // không tính danh sách con — danh sách con lại tách thành mục riêng). Toạ độ đo theo thân
+      // (getBoundingClientRect − body) vì offsetTop của <tr> tính theo bảng. Toạ độ đo TRƯỚC khi chèn gap.
+      const bodyRect = typeof this.bodyDom.getBoundingClientRect === "function" ? this.bodyDom.getBoundingClientRect() : null;
+      const topOf = (el) => (bodyRect && typeof el.getBoundingClientRect === "function")
+        ? el.getBoundingClientRect().top - bodyRect.top + (this.bodyDom.scrollTop || 0)
+        : (el.offsetTop || 0);
+      const isList = (el) => el.tagName === "UL" || el.tagName === "OL";
+      const listUnits = (list, out) => {
+        for (const item of Array.from(list.children || [])) {
+          if (item.getAttribute?.("data-vno-auto-page-gap") === "true") continue;
+          if (isList(item)) { listUnits(item, out); continue; }
+          if (item.tagName !== "LI") continue;
+          let ownHeight = item.offsetHeight || 0;
+          const subLists = Array.from(item.children || []).filter(isList);
+          for (const sub of subLists) ownHeight -= sub.offsetHeight || 0;
+          out.push({ el: item, kind: "li", top: topOf(item), h: Math.max(0, ownHeight) });
+          for (const sub of subLists) listUnits(sub, out);
+        }
+      };
+      const tableUnits = (table, out) => {
+        const rows = Array.from(table.querySelectorAll?.(":scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr, :scope > tr") || []);
+        if (!rows.length) return false;
+        for (const row of rows) {
+          if (row.getAttribute?.("data-vno-auto-page-gap") === "true") continue;
+          out.push({ el: row, kind: "tr", top: topOf(row), h: row.offsetHeight || 0, table });
+        }
+        return true;
+      };
+
       for (const el of children) {
         const styleStr = (typeof el.getAttribute === "function" ? el.getAttribute("style") : "") || "";
         const textContent = el.textContent || "";
         const isManualBreak = styleStr.includes("page-break-before") || styleStr.includes("break-before") || textContent.includes("Phân tách trang");
 
         const h = el.offsetHeight || 0;
-        const top = el.offsetTop || 0;
+        const top = topOf(el);
         if (isManualBreak) {
           // Ngắt trang thủ công / page-break-before nhập từ DOCX cũng phải hiện
           // thành một tờ mới trong khung soạn thảo (Word tách trang thật), nếu
           // không mọi float neo theo trang của các trang sau sẽ đè lên trang 1.
           if (el !== children[0]) {
-            gapBeforeEls.push({ el, soft: false });
+            gapBeforeEls.push({ el, soft: false, kind: "block" });
             pageCount++;
           }
           pageStartTop = top - marginTopOf(el);
@@ -11031,23 +11063,57 @@ export class WriterAdapter {
           pageStartTop = top - marginTopOf(el);
           continue;
         }
-        if (top + h - pageStartTop > availableHeightPx) {
-          gapBeforeEls.push({ el, soft: true });
-          pageStartTop = top;
-          pageCount++;
+        if (top + h - pageStartTop <= availableHeightPx) continue;
+
+        // Khối không vừa phần còn lại của trang: bảng/danh sách cắt theo đơn vị bên trong.
+        const units = [];
+        let splittable = false;
+        if (el.tagName === "TABLE") splittable = tableUnits(el, units);
+        else if (isList(el)) { listUnits(el, units); splittable = units.length > 0; }
+        if (splittable && units.length > 1) {
+          let first = true;
+          for (const unit of units) {
+            if (unit.top + unit.h - pageStartTop <= availableHeightPx) { first = false; continue; }
+            if (first) {
+              // Ngay đơn vị đầu đã không vừa: đẩy cả khối như trước (Word cũng đẩy hàng đầu sang trang mới).
+              gapBeforeEls.push({ el, soft: true, kind: "block" });
+              pageStartTop = top;
+              pageCount++;
+              first = false;
+              if (unit.top + unit.h - pageStartTop <= availableHeightPx) continue;
+            }
+            gapBeforeEls.push({ el: unit.el, soft: true, kind: unit.kind, table: unit.table });
+            pageStartTop = unit.top;
+            pageCount++;
+          }
+          continue;
         }
+        gapBeforeEls.push({ el, soft: true, kind: "block" });
+        pageStartTop = top;
+        pageCount++;
       }
 
       const canInsertGaps = typeof this.bodyDom.insertBefore === "function" && typeof document.createElement === "function";
-      for (const { el, soft } of canInsertGaps ? gapBeforeEls : []) {
-        const gap = document.createElement("div");
+      for (const { el, soft, kind, table } of canInsertGaps ? gapBeforeEls : []) {
+        let gap;
+        if (kind === "tr") {
+          gap = document.createElement("tr");
+          const cell = document.createElement("td");
+          const cols = Math.max(1, ...Array.from(table?.querySelectorAll?.(":scope > thead > tr, :scope > tbody > tr, :scope > tfoot > tr, :scope > tr") || []).map(r => r.cells?.length || 0));
+          cell.setAttribute("colspan", String(cols));
+          gap.appendChild(cell);
+        } else if (kind === "li") {
+          gap = document.createElement("li");
+        } else {
+          gap = document.createElement("div");
+        }
         gap.className = "vno-page-auto-gap";
         gap.setAttribute("contenteditable", "false");
         gap.setAttribute("data-vno-auto-page-gap", "true");
         // CSS `.vno-page-auto-gap[data-vno-soft-break="true"] + *` bỏ space-before
         // của đoạn đầu trang (đúng Word) mà không chạm vào style của đoạn.
         gap.setAttribute("data-vno-soft-break", soft ? "true" : "false");
-        this.bodyDom.insertBefore(gap, el);
+        if (el.parentNode && typeof el.parentNode.insertBefore === "function") el.parentNode.insertBefore(gap, el);
       }
 
       this._alignPageRelativeFloats();
@@ -11076,6 +11142,15 @@ export class WriterAdapter {
     const pageStartTopByBlock = new Map();
     let currentPageStartTop = children[0].offsetTop || 0;
 
+    // W24a: gap có thể nằm TRONG bảng/danh sách (tr/li) — lấy mọi gap theo thứ tự tài liệu, quy về toạ độ thân.
+    const bodyRect = typeof bodyDom.getBoundingClientRect === "function" ? bodyDom.getBoundingClientRect() : null;
+    const topOf = (el) => (bodyRect && typeof el.getBoundingClientRect === "function")
+      ? el.getBoundingClientRect().top - bodyRect.top + (bodyDom.scrollTop || 0)
+      : (el.offsetTop || 0);
+    let innerGaps = [];
+    try { innerGaps = Array.from(bodyDom.querySelectorAll('[data-vno-auto-page-gap="true"]')).filter(g => g.parentElement !== bodyDom); } catch {}
+    const innerGapStarts = innerGaps.map(g => (g.nextElementSibling ? topOf(g.nextElementSibling) : topOf(g)));
+
     for (let i = 0; i < children.length; i++) {
       const child = children[i];
       const isAutoGap = child.classList?.contains?.("vno-page-auto-gap") || child.getAttribute?.("data-vno-auto-page-gap") === "true";
@@ -11091,6 +11166,15 @@ export class WriterAdapter {
 
       if (isManualBreak && i > 0) {
         currentPageStartTop = child.offsetTop || 0;
+      }
+
+      if (innerGapStarts.length) {
+        // Gap trong bảng/danh sách trước khối này (cùng hệ toạ độ offsetTop của khối cấp 1 khi bodyDom là offsetParent)
+        const childTop = topOf(child);
+        const offsetDelta = (child.offsetTop || 0) - childTop;
+        for (const start of innerGapStarts) {
+          if (start <= childTop && start + offsetDelta > currentPageStartTop) currentPageStartTop = start + offsetDelta;
+        }
       }
 
       pageStartTopByBlock.set(child, currentPageStartTop);

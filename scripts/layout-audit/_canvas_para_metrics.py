@@ -49,12 +49,16 @@ JS = r"""(function(){
       floats: el.querySelectorAll('[data-vno-float]').length, tables: el.tagName === 'TABLE' ? 1 : el.querySelectorAll('table').length,
       text: text.replace(/\s+/g,' ').trim().slice(0,40) });
   };
-  const gapTops = kids.filter(k => k.classList.contains('vno-page-auto-gap')).map(k => k.offsetTop);
-  const pageOf = top => 1 + gapTops.filter(g => g <= top).length;
+  // Trang của một khối = 1 + số gap (kể cả gap TRONG bảng/danh sách sau W24a: tr/li) nằm trước khối theo toạ độ thân.
+  const bodyTop0 = body.getBoundingClientRect().top;
+  const rectTop = el => el.getBoundingClientRect().top - bodyTop0;
+  const gapTops = Array.from(body.querySelectorAll('[data-vno-auto-page-gap="true"]')).map(g => rectTop(g));
+  const pageOf = top => 1 + gapTops.filter(g => g <= top + 0.5).length;
   const expandList = (list, i) => {
     for (const li of list.children) {
+      if (li.getAttribute('data-vno-auto-page-gap') === 'true') continue;
       if (li.tagName !== 'LI') { if (isList(li)) expandList(li, i); continue; }
-      measure(li, i, pageOf(li.offsetTop));
+      measure(li, i, pageOf(rectTop(li)));
       for (const sub of li.children) if (isList(sub)) expandList(sub, i);
     }
   };
@@ -62,7 +66,7 @@ JS = r"""(function(){
     const el = kids[i];
     if (el.classList.contains('vno-page-auto-gap')) { pageNo++; continue; }
     if (isList(el)) { expandList(el, i); continue; }
-    measure(el, i, pageNo);
+    measure(el, i, pageOf(rectTop(el)));
   }
   const status = ((document.querySelector('.vno-statusbar-left')||{}).textContent||'').replace(/\s+/g,' ');
   const headerEl = document.querySelector('.vno-writer-header');
