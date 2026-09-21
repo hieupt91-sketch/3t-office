@@ -3178,21 +3178,189 @@ def inject_docx_heading_styles_css(docx_bytes: bytes, html: str) -> str:
     return html
 
 
+_HEX_ENTITY_RE = re.compile(r"&#[xX]([0-9A-Fa-f]+);")
+_DEC_ENTITY_RE = re.compile(r"&#(\d+);")
+
+
 def _unescape_xml(value: str) -> str:
+    """Giải thực thể XML. Giá trị không có '&' (phần lớn thuộc tính ô) trả về ngay — không re.sub."""
+    if not value:
+        return ""
+    if "&" not in value:
+        return value
     unescaped = (
-        (value or "")
-        .replace("&quot;", '"')
+        value.replace("&quot;", '"')
         .replace("&apos;", "'")
         .replace("&lt;", "<")
         .replace("&gt;", ">")
         .replace("&amp;", "&")
     )
-    unescaped = re.sub(
-        r"&#[xX]([0-9A-Fa-f]+);",
-        lambda match: chr(int(match.group(1), 16)),
-        unescaped,
-    )
-    return re.sub(r"&#(\d+);", lambda match: chr(int(match.group(1), 10)), unescaped)
+    if "&#" not in unescaped:
+        return unescaped
+    unescaped = _HEX_ENTITY_RE.sub(lambda match: chr(int(match.group(1), 16)), unescaped)
+    return _DEC_ENTITY_RE.sub(lambda match: chr(int(match.group(1), 10)), unescaped)
+
+
+def _is_xml_name_char(ch: str) -> bool:
+    return ch == "_" or ch == ":" or ch == "." or ch == "-" or ch.isalnum()
+
+
+def _quoted_attr(raw: str, name: str) -> str | None:
+    """Giá trị thuộc tính name=(\"|\')… theo cùng quy tắc finditer của _xml_attrs (không unescape)."""
+    if not raw:
+        return None
+    start = 0
+    nlen = len(name)
+    n = len(raw)
+    while True:
+        i = raw.find(name, start)
+        if i < 0:
+            return None
+        if i > 0 and _is_xml_name_char(raw[i - 1]):
+            start = i + 1
+            continue
+        end_name = i + nlen
+        if end_name < n and _is_xml_name_char(raw[end_name]):
+            start = end_name
+            continue
+        j = end_name
+        while j < n and raw[j] in " \t\r\n":
+            j += 1
+        if j >= n or raw[j] != "=":
+            start = end_name
+            continue
+        j += 1
+        while j < n and raw[j] in " \t\r\n":
+            j += 1
+        if j >= n or raw[j] not in "\"'":
+            start = end_name
+            continue
+        quote = raw[j]
+        j += 1
+        end = raw.find(quote, j)
+        if end < 0:
+            return None
+        value = raw[j:end]
+        other = "'" if quote == '"' else '"'
+        if other in value:
+            start = end + 1
+            continue
+        return value
+
+
+def _repeat_count(raw: str, attr: str) -> int:
+    """table:number-*-repeated trên thẻ mở. Thiếu / rỗng → 1. Giữ max(1, int) như overlay cũ."""
+    end = raw.find(">")
+    opening = raw if end < 0 else raw[: end + 1]
+    value = _quoted_attr(opening, attr)
+    if not value:
+        return 1
+    return max(1, int(value))
+
+
+def _attr_digits(raw: str, name: str) -> int | None:
+    value = _quoted_attr(raw, name)
+    if value is None or not value.isdigit():
+        return None
+    return int(value)
+
+
+def _has_simple_text_p(cell_xml: str) -> bool:
+    """`<text:p …>không có thẻ con</text:p>` — cùng điều kiện regex cũ của optimize."""
+    start = 0
+    while True:
+        i = cell_xml.find("<text:p", start)
+        if i < 0:
+            return False
+        boundary = i + 7
+        # \b sau "p": ký tự tiếp không phải [\w], kể cả ':' '.' '-'
+        if boundary < len(cell_xml) and (cell_xml[boundary] == "_" or cell_xml[boundary].isalnum()):
+            start = boundary
+            continue
+        gt = cell_xml.find(">", boundary)
+        if gt < 0:
+            return False
+        if cell_xml[gt - 1] == "/":
+            start = gt + 1
+            continue
+        close = cell_xml.find("</text:p>", gt + 1)
+        if close < 0:
+            return False
+        if "<" not in cell_xml[gt + 1 : close]:
+            return True
+        start = gt + 1
+
+
+_OPT_CLOSE_CELL_RE = re.compile(r"</table:(?:covered-)?table-cell\s*>\s*$")
+_OPT_EMPTY_P_RE = re.compile(r"<text:p\s*/>|<text:p\b[^>]*>\s*</text:p>")
+
+
+def _strip_repeat_attrs(xml: str, attr: str) -> str:
+    """Bỏ mọi \\s+attr=\"số\" (phân biệt hoa thường, như re.sub không count của optimize)."""
+    start = 0
+    pieces: list[str] = []
+    n = len(xml)
+    klen = len(attr)
+    changed = False
+    while True:
+        i = xml.find(attr, start)
+        if i < 0:
+            break
+        if i == 0 or xml[i - 1] not in " \t\r\n":
+            start = i + 1
+            continue
+        end_name = i + klen
+        if end_name < n and _is_xml_name_char(xml[end_name]):
+            start = end_name
+            continue
+        j = end_name
+        while j < n and xml[j] in " \t\r\n":
+            j += 1
+        if j >= n or xml[j] != "=":
+            start = end_name
+            continue
+        j += 1
+        while j < n and xml[j] in " \t\r\n":
+            j += 1
+        if j >= n or xml[j] not in "\"'":
+            start = end_name
+            continue
+        quote = xml[j]
+        j += 1
+        end = xml.find(quote, j)
+        if end < 0:
+            break
+        if not xml[j:end].isdigit():
+            start = end + 1
+            continue
+        ws = i
+        while ws > 0 and xml[ws - 1] in " \t\r\n":
+            ws -= 1
+        pieces.append(xml[start:ws])
+        start = end + 1
+        changed = True
+    if not changed:
+        return xml
+    pieces.append(xml[start:])
+    return "".join(pieces)
+
+
+def _insert_repeat_before_end(cell_xml: str, prefixes: tuple[str, ...], attr: str, count: int) -> str:
+    """Chèn attr trước \\s*/?> của thẻ mở, cùng chỗ re.sub `(\\s*/?>)` của optimize."""
+    for prefix in prefixes:
+        if cell_xml.startswith(prefix) and (len(cell_xml) == len(prefix) or not _is_xml_name_char(cell_xml[len(prefix)])):
+            break
+    else:
+        return cell_xml
+    gt = cell_xml.find(">")
+    if gt < 0:
+        return cell_xml
+    k = gt
+    if k > 0 and cell_xml[k - 1] == "/":
+        k -= 1
+    while k > 0 and cell_xml[k - 1] in " \t\r\n":
+        k -= 1
+    return cell_xml[:k] + f' {attr}="{count}"' + cell_xml[k:]
 
 
 def _escape_xml(value: str) -> str:
@@ -5481,7 +5649,42 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
 
 
 def _xml_attrs(raw: str) -> dict[str, str]:
-    return {m.group(1): _unescape_xml(m.group(3)) for m in re.finditer(r'([\w:.-]+)\s*=\s*(["\'])([\s\S]*?)\2', raw or "")}
+    """Thuộc tính XML. Cùng kết quả finditer `([\\w:.-]+)\\s*=\\s*(quote)…\\2`, không biên dịch regex mỗi ô."""
+    if not raw:
+        return {}
+    result: dict[str, str] = {}
+    n = len(raw)
+    i = 0
+    while i < n:
+        while i < n and not _is_xml_name_char(raw[i]):
+            i += 1
+        if i >= n:
+            break
+        start = i
+        i += 1
+        while i < n and _is_xml_name_char(raw[i]):
+            i += 1
+        name = raw[start:i]
+        while i < n and raw[i] in " \t\r\n":
+            i += 1
+        if i >= n or raw[i] != "=":
+            continue
+        i += 1
+        while i < n and raw[i] in " \t\r\n":
+            i += 1
+        if i >= n or raw[i] not in "\"'":
+            continue
+        quote = raw[i]
+        i += 1
+        end = raw.find(quote, i)
+        if end < 0:
+            break
+        value = raw[i:end]
+        if "&" in value:
+            value = _unescape_xml(value)
+        result[name] = value
+        i = end + 1
+    return result
 
 
 def _xlsx_number_formats(xlsx_bytes: bytes) -> list[str]:
@@ -5502,7 +5705,26 @@ def _xlsx_number_formats(xlsx_bytes: bytes) -> list[str]:
     return result
 
 
+_INDEX_MISS = object()
+_INDEX_MEMO: dict[str, tuple[bytes, object]] = {}
+
+
+def _index_memo_get(name: str, blob: bytes):
+    slot = _INDEX_MEMO.get(name)
+    if slot is not None and slot[0] is blob:
+        return slot[1]
+    return _INDEX_MISS
+
+
+def _index_memo_put(name: str, blob: bytes, value: object) -> None:
+    """Giữ một file gần nhất. reoverlay gọi lại cùng bytes sau normalize không đổi."""
+    _INDEX_MEMO[name] = (blob, value)
+
+
 def _xlsx_cells_with_number_formats(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, int], str]]:
+    cached = _index_memo_get("numfmts", xlsx_bytes)
+    if cached is not _INDEX_MISS:
+        return cached
     xfs = _xlsx_number_formats(xlsx_bytes)
     result = {}
     for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
@@ -5524,10 +5746,14 @@ def _xlsx_cells_with_number_formats(xlsx_bytes: bytes) -> dict[str, dict[tuple[i
                 cells[(int(coord.group(2)), column)] = code
         if cells:
             result[sheet_name] = cells
+    _index_memo_put("numfmts", xlsx_bytes, result)
     return result
 
 
 def _xlsx_cells_with_xf_indices(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, int], int]]:
+    cached = _index_memo_get("xf", xlsx_bytes)
+    if cached is not _INDEX_MISS:
+        return cached
     """Extract cell style indices (xf) from original XLSX for all cells in used range.
     
     Returns {sheet_name: {(row, col): xf_index}} including style-only cells.
@@ -5550,17 +5776,49 @@ def _xlsx_cells_with_xf_indices(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, 
                 cells[(int(coord.group(2)), column)] = style_index
         if cells:
             result[sheet_name] = cells
+    _index_memo_put("xf", xlsx_bytes, result)
     return result
 
 
+_VNO_XF_RE = re.compile(r'\s+vno:xf\s*=\s*(["\'])\d+\1', re.IGNORECASE)
+_CELL_OPEN_RE = re.compile(r"<(table:(?:table-cell|covered-table-cell))\b([^>]*?)(/?)>", re.IGNORECASE)
+
+
+def _stamp_table_cell_attr(cell_xml: str, addition: str, existing_re: re.Pattern[str]) -> str | None:
+    """Chèn addition trước '/' hoặc '>' của thẻ mở table:table-cell. None nếu không phải dạng thường."""
+    if not cell_xml.startswith("<table:table-cell"):
+        return None
+    end = cell_xml.find(">")
+    if end < 0:
+        return None
+    opening = cell_xml[:end]
+    slash = ""
+    if opening.endswith("/"):
+        opening = opening[:-1]
+        slash = "/"
+    if existing_re.search(opening):
+        opening = existing_re.sub("", opening, count=1)
+    return opening + addition + slash + ">" + cell_xml[end + 1 :]
+
+
 def _set_orig_xf_attr(cell_xml: str, xf_index: int) -> str:
-    opening = re.match(r"<(table:(?:table-cell|covered-table-cell))\b([^>]*?)(/?)>", cell_xml, re.IGNORECASE)
-    covered_formula = opening and "covered-table-cell" in opening.group(1).lower() and re.search(r"\btable:formula=", opening.group(2), re.IGNORECASE)
-    if not opening or ("covered-table-cell" in opening.group(1).lower() and not covered_formula):
+    if cell_xml.startswith("<table:covered-table-cell"):
+        opening = _CELL_OPEN_RE.match(cell_xml)
+        covered_formula = opening and re.search(r"\btable:formula=", opening.group(2), re.IGNORECASE)
+        if not opening or not covered_formula:
+            return cell_xml
+        attrs = _VNO_XF_RE.sub("", opening.group(2), count=1)
+        tag = f'<{opening.group(1)}{attrs} vno:xf="{xf_index}"{opening.group(3)}>'
+        return tag + cell_xml[opening.end() :]
+    stamped = _stamp_table_cell_attr(cell_xml, f' vno:xf="{xf_index}"', _VNO_XF_RE)
+    if stamped is not None:
+        return stamped
+    opening = _CELL_OPEN_RE.match(cell_xml)
+    if not opening:
         return cell_xml
-    attrs = re.sub(r'\s+vno:xf\s*=\s*(["\'])\d+\1', "", opening.group(2), flags=re.IGNORECASE)
+    attrs = _VNO_XF_RE.sub("", opening.group(2), count=1)
     tag = f'<{opening.group(1)}{attrs} vno:xf="{xf_index}"{opening.group(3)}>'
-    return tag + cell_xml[opening.end():]
+    return tag + cell_xml[opening.end() :]
 
 
 def _overlay_xf_indices_in_row(row_xml: str, targets: dict[int, int]) -> str:
@@ -5569,8 +5827,7 @@ def _overlay_xf_indices_in_row(row_xml: str, targets: dict[int, int]) -> str:
     for start, end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
         pieces.append(row_xml[cursor:start])
         cell = row_xml[start:end]
-        attrs = _xml_attrs(re.match(r"<[^>]+", cell).group(0))
-        repeat = max(1, int(attrs.get("table:number-columns-repeated") or 1))
+        repeat = _repeat_count(cell, "table:number-columns-repeated")
         while target_index < len(sorted_columns) and sorted_columns[target_index] < column:
             target_index += 1
         hit_end = target_index
@@ -5602,8 +5859,7 @@ def _overlay_xf_indices_in_table(table_xml: str, targets: dict[tuple[int, int], 
     for start, end in _flat_xml_blocks(table_xml, ("table:table-row",)):
         pieces.append(table_xml[cursor:start])
         row_xml = table_xml[start:end]
-        attrs = _xml_attrs(re.match(r"<[^>]+", row_xml).group(0))
-        repeat = max(1, int(attrs.get("table:number-rows-repeated") or 1))
+        repeat = _repeat_count(row_xml, "table:number-rows-repeated")
         while target_index < len(sorted_rows) and sorted_rows[target_index] < row_number:
             target_index += 1
         hit_end = target_index
@@ -5675,18 +5931,16 @@ def _fods_cells_with_vno_xf(fods_xml: str) -> dict[str, dict[tuple[int, int], in
         row_number = 1
         for row_start, row_end in _flat_xml_blocks(table_xml, ("table:table-row",)):
             row_xml = table_xml[row_start:row_end]
-            row_attrs = _xml_attrs(re.match(r"<[^>]+", row_xml).group(0))
-            row_repeat = max(1, int(row_attrs.get("table:number-rows-repeated") or 1))
+            row_repeat = _repeat_count(row_xml, "table:number-rows-repeated")
             
             col_number = 1
             for cell_start, cell_end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
                 cell_xml = row_xml[cell_start:cell_end]
-                cell_attrs = _xml_attrs(re.match(r"<[^>]+", cell_xml).group(0))
                 xf_match = re.search(r'vno:xf="(\d+)"', cell_xml)
                 if xf_match:
                     xf_index = int(xf_match.group(1))
                     targets[(row_number, col_number)] = xf_index
-                col_repeat = max(1, int(cell_attrs.get("table:number-columns-repeated") or 1))
+                col_repeat = _repeat_count(cell_xml, "table:number-columns-repeated")
                 col_number += col_repeat
             row_number += row_repeat
         
@@ -5966,34 +6220,49 @@ def _restore_source_color_palette(xlsx_bytes: bytes, source_xlsx_bytes: bytes, r
     replacements[XLSX_STYLES_ENTRY] = styles_xml
 
 
+_VNO_NUMFMT_RE = re.compile(r'\s+vno:number-format\s*=\s*(["\']).*?\1', re.IGNORECASE)
+_VNO_STRING_RE = re.compile(r'\s+vno:original-string\s*=\s*(["\']).*?\1', re.IGNORECASE)
+_LEADING_BREAK_RE = re.compile(r"^(?:\r\n|\r|\n)")
+_EMPTY_FIRST_P_RE = re.compile(r"<[^>]+>\s*<text:p\b[^>]*>\s*</text:p>", re.IGNORECASE)
+
+
 def _set_number_format_attr(cell_xml: str, code: str) -> str:
-    opening = re.match(r"<(table:(?:table-cell|covered-table-cell))\b([^>]*?)(/?)>", cell_xml, re.IGNORECASE)
+    if cell_xml.startswith("<table:covered-table-cell"):
+        return cell_xml
+    stamped = _stamp_table_cell_attr(cell_xml, f' vno:number-format="{_escape_xml(code)}"', _VNO_NUMFMT_RE)
+    if stamped is not None:
+        return stamped
+    opening = _CELL_OPEN_RE.match(cell_xml)
     if not opening or "covered-table-cell" in opening.group(1).lower():
         return cell_xml
-    attrs = re.sub(r'\s+vno:number-format\s*=\s*(["\']).*?\1', "", opening.group(2), flags=re.IGNORECASE)
+    attrs = _VNO_NUMFMT_RE.sub("", opening.group(2), count=1)
     tag = f'<{opening.group(1)}{attrs} vno:number-format="{_escape_xml(code)}"{opening.group(3)}>'
     return tag + cell_xml[opening.end():]
 
 
 def _set_original_string_attr(cell_xml: str, value: str) -> str:
-    opening = re.match(r"<(table:(?:table-cell|covered-table-cell))\b([^>]*?)(/?)>", cell_xml, re.IGNORECASE)
-    if not opening or "covered-table-cell" in opening.group(1).lower():
-        return cell_xml
-    raw_attrs = re.sub(r'\s+vno:original-string\s*=\s*(["\']).*?\1', "", opening.group(2), flags=re.IGNORECASE)
     # Newline/tab in an XML attribute value are normalized to spaces by every DOM
     # parser (attribute-value normalization) unless written as character
     # references. The app's DOM branch of parseFods was reading "Từ 5 bộ ck 30%"
     # for a two-line cell and the saved XLSX lost its line breaks; the regex
     # branch (Node tests) never saw it. Encode them explicitly.
     attr_value = _escape_xml(value).replace("\r", "&#13;").replace("\n", "&#10;").replace("\t", "&#9;")
-    tag = f'<{opening.group(1)}{raw_attrs} vno:original-string="{attr_value}"{opening.group(3)}>'
-    result = tag + cell_xml[opening.end():]
+    addition = f' vno:original-string="{attr_value}"'
+    if cell_xml.startswith("<table:covered-table-cell"):
+        return cell_xml
+    stamped = _stamp_table_cell_attr(cell_xml, addition, _VNO_STRING_RE)
+    if stamped is None:
+        opening = _CELL_OPEN_RE.match(cell_xml)
+        if not opening or "covered-table-cell" in opening.group(1).lower():
+            return cell_xml
+        raw_attrs = _VNO_STRING_RE.sub("", opening.group(2), count=1)
+        stamped = f'<{opening.group(1)}{raw_attrs}{addition}{opening.group(3)}>' + cell_xml[opening.end():]
     # Calc represents a leading line break as an empty first paragraph, but
     # may omit that paragraph on import. Recreate only the missing prefix so
     # both DOM and regex parsers see the same text as vno:original-string.
-    if re.match(r"^(?:\r\n|\r|\n)", value) and not re.match(r"<[^>]+>\s*<text:p\b[^>]*>\s*</text:p>", result, re.IGNORECASE):
-        result = re.sub(r"(<[^>]+>)", r"\1<text:p></text:p>", result, count=1)
-    return result
+    if _LEADING_BREAK_RE.match(value) and not _EMPTY_FIRST_P_RE.match(stamped):
+        stamped = re.sub(r"(<[^>]+>)", r"\1<text:p></text:p>", stamped, count=1)
+    return stamped
 
 
 def _promote_covered_formula_errors(fods_xml: str) -> str:
@@ -6006,36 +6275,95 @@ def _promote_covered_formula_errors(fods_xml: str) -> str:
     )
 
 
+def _strip_first_repeat_attr(xml: str, attr: str) -> str:
+    """Bỏ lần xuất hiện đầu của \\s+attr=\"số\", không phân biệt hoa thường. count=1 như re.sub cũ."""
+    hay = xml.lower()
+    key = attr.lower()
+    start = 0
+    n = len(xml)
+    klen = len(key)
+    while True:
+        i = hay.find(key, start)
+        if i < 0:
+            return xml
+        if i == 0 or xml[i - 1] not in " \t\r\n":
+            start = i + 1
+            continue
+        end_name = i + klen
+        if end_name < n and _is_xml_name_char(xml[end_name]):
+            start = end_name
+            continue
+        j = end_name
+        while j < n and xml[j] in " \t\r\n":
+            j += 1
+        if j >= n or xml[j] != "=":
+            start = end_name
+            continue
+        j += 1
+        while j < n and xml[j] in " \t\r\n":
+            j += 1
+        if j >= n or xml[j] not in "\"'":
+            start = end_name
+            continue
+        quote = xml[j]
+        j += 1
+        end = xml.find(quote, j)
+        if end < 0:
+            return xml
+        if not xml[j:end].isdigit():
+            start = end + 1
+            continue
+        ws = i
+        while ws > 0 and xml[ws - 1] in " \t\r\n":
+            ws -= 1
+        return xml[:ws] + xml[end + 1 :]
+
+
 def _set_repeat(xml: str, attr: str, count: int) -> str:
-    xml = re.sub(rf'\s+{re.escape(attr)}\s*=\s*(["\'])\d+\1', "", xml, count=1, flags=re.IGNORECASE)
-    return xml if count <= 1 else re.sub(r">", f' {attr}="{count}">', xml, count=1)
+    xml = _strip_first_repeat_attr(xml, attr)
+    if count <= 1:
+        return xml
+    gt = xml.find(">")
+    if gt < 0:
+        return xml
+    return xml[:gt] + f' {attr}="{count}"' + xml[gt:]
 
 
 def _flat_xml_blocks(xml: str, names: tuple[str, ...]):
-    """Yield flat ODF element spans using str.find (large inline images make .* regex costly)."""
+    """Yield flat ODF element spans. Một lần tìm '<' — không find từng tên tới cuối hàng (O(ô × độ dài hàng))."""
+    if not xml or not names:
+        return
     cursor = 0
-    while True:
-        choices = [(xml.find(f"<{name}", cursor), name) for name in names]
-        choices = [(index, name) for index, name in choices if index >= 0]
-        if not choices:
+    n = len(xml)
+    openers = tuple("<" + name for name in names)
+    while cursor < n:
+        lt = xml.find("<", cursor)
+        if lt < 0:
             return
-        start, name = min(choices)
-        boundary = start + len(name) + 1
-        if boundary < len(xml) and xml[boundary] not in " \t\r\n>/":
-            cursor = boundary
+        matched = None
+        matched_boundary = 0
+        for name, opener in zip(names, openers):
+            if xml.startswith(opener, lt):
+                boundary = lt + len(opener)
+                if boundary >= n or xml[boundary] in " \t\r\n>/":
+                    matched = name
+                    matched_boundary = boundary
+                    break
+        if matched is None:
+            cursor = lt + 1
             continue
-        opening_end = xml.find(">", boundary)
+        opening_end = xml.find(">", matched_boundary)
         if opening_end < 0:
             return
         if xml[opening_end - 1] == "/":
             end = opening_end + 1
         else:
-            close = f"</{name}>"
+            close = "</" + matched + ">"
             close_at = xml.find(close, opening_end + 1)
             if close_at < 0:
                 return
             end = close_at + len(close)
-        yield start, end
+        yield lt, end
         cursor = end
 
 
@@ -6045,8 +6373,7 @@ def _overlay_formats_in_row(row_xml: str, targets: dict[int, str]) -> str:
     for start, end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
         pieces.append(row_xml[cursor:start])
         cell = row_xml[start:end]
-        attrs = _xml_attrs(re.match(r"<[^>]+", cell).group(0))
-        repeat = max(1, int(attrs.get("table:number-columns-repeated") or 1))
+        repeat = _repeat_count(cell, "table:number-columns-repeated")
         while target_index < len(sorted_columns) and sorted_columns[target_index] < column:
             target_index += 1
         hit_end = target_index
@@ -6075,7 +6402,7 @@ def _overlay_strings_in_row(row_xml: str, targets: dict[int, str]) -> str:
     sorted_columns, target_index = sorted(targets), 0
     for start, end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
         pieces.append(row_xml[cursor:start]); cell = row_xml[start:end]
-        cell_attrs = _xml_attrs(re.match(r"<[^>]+", cell).group(0)); repeat = max(1, int(cell_attrs.get("table:number-columns-repeated") or 1))
+        repeat = _repeat_count(cell, "table:number-columns-repeated")
         while target_index < len(sorted_columns) and sorted_columns[target_index] < column:
             target_index += 1
         hit_end = target_index
@@ -6102,8 +6429,7 @@ def _overlay_formats_in_table(table_xml: str, targets: dict[tuple[int, int], str
     for start, end in _flat_xml_blocks(table_xml, ("table:table-row",)):
         pieces.append(table_xml[cursor:start])
         row_xml = table_xml[start:end]
-        attrs = _xml_attrs(re.match(r"<[^>]+", row_xml).group(0))
-        repeat = max(1, int(attrs.get("table:number-rows-repeated") or 1))
+        repeat = _repeat_count(row_xml, "table:number-rows-repeated")
         while target_index < len(sorted_rows) and sorted_rows[target_index] < row_number:
             target_index += 1
         hit_end = target_index
@@ -6170,6 +6496,9 @@ def _iter_xlsx_cell_parts(sheet_xml: str):
 
 
 def _xlsx_cells_with_original_strings(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, int], str]]:
+    cached = _index_memo_get("strings", xlsx_bytes)
+    if cached is not _INDEX_MISS:
+        return cached
     shared_xml = (read_zip_entry(xlsx_bytes, "xl/sharedStrings.xml") or b"").decode("utf-8", errors="replace")
     shared = []
     for item in re.finditer(r"<si\b[^>]*>([\s\S]*?)</si>", shared_xml, re.IGNORECASE):
@@ -6189,6 +6518,7 @@ def _xlsx_cells_with_original_strings(xlsx_bytes: bytes) -> dict[str, dict[tuple
             for char in coord.group(1).upper(): column = column * 26 + ord(char) - 64
             cells[(int(coord.group(2)), column)] = value
         if cells: result[sheet_name] = cells
+    _index_memo_put("strings", xlsx_bytes, result)
     return result
 
 
@@ -6205,7 +6535,7 @@ def _overlay_sheet_original_strings_from_xlsx(xlsx_bytes: bytes, fods_xml: str) 
             sorted_rows, target_index = sorted(rows), 0
             for row_start, row_end in _flat_xml_blocks(table_xml, ("table:table-row",)):
                 row_pieces.append(table_xml[row_cursor:row_start]); row_xml = table_xml[row_start:row_end]
-                repeat = max(1, int(_xml_attrs(re.match(r"<[^>]+", row_xml).group(0)).get("table:number-rows-repeated") or 1))
+                repeat = _repeat_count(row_xml, "table:number-rows-repeated")
                 while target_index < len(sorted_rows) and sorted_rows[target_index] < row_number:
                     target_index += 1
                 hit_end = target_index
@@ -10629,27 +10959,27 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
     cell_visual_styles = _parse_fods_cell_visual_styles(fods_xml)
 
     def _get_cell_style(cell_xml: str) -> str:
-        m = re.search(r'table:style-name\s*=\s*(["\'])([^"\']*)\1', cell_xml)
-        return m.group(2) if m else ""
+        value = _quoted_attr(cell_xml, "table:style-name")
+        return value if value is not None else ""
 
     def _get_cell_col_repeat(cell_xml: str) -> int:
-        m = re.search(r'table:number-columns-repeated\s*=\s*(["\'])(\d+)\1', cell_xml)
-        return int(m.group(2)) if m else 1
+        value = _attr_digits(cell_xml, "table:number-columns-repeated")
+        return 1 if value is None else value
 
     def _get_row_repeat(row_xml: str) -> int:
-        m = re.search(r'table:number-rows-repeated\s*=\s*(["\'])(\d+)\1', row_xml)
-        return int(m.group(2)) if m else 1
+        value = _attr_digits(row_xml, "table:number-rows-repeated")
+        return 1 if value is None else value
 
     def _cell_has_content(cell_xml: str) -> bool:
-        if re.search(r'office:value-type\s*=\s*(["\'])([^"\']*)\1', cell_xml):
-            m = re.search(r'office:value-type\s*=\s*(["\'])([^"\']*)\1', cell_xml)
-            if m and m.group(2) != "void":
+        if "office:value-type" in cell_xml:
+            value_type = _quoted_attr(cell_xml, "office:value-type")
+            if value_type is not None and value_type != "void":
                 return True
-        if re.search(r'table:formula\s*=\s*(["\'])([^"\']*)\1', cell_xml):
+        if "table:formula" in cell_xml and _quoted_attr(cell_xml, "table:formula") is not None:
             return True
         if "<office:annotation" in cell_xml:
             return True
-        if re.search(r"<text:p\b[^>]*>[^<]*</text:p>", cell_xml):
+        if "<text:p" in cell_xml and _has_simple_text_p(cell_xml):
             return True
         if "<text:span" in cell_xml:
             return True
@@ -10660,12 +10990,14 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
         # Bất kỳ phần tử con nào khác (<draw:frame> ảnh neo ô, <table:cell-range-source>...) đều
         # là nội dung: gộp ô mất ảnh (đo lan19.xlsx: auditor +1 image diff khi coi ô ảnh là trống).
         open_end = cell_xml.find(">")
-        inner = cell_xml[open_end + 1:] if open_end >= 0 else ""
-        inner = re.sub(r"</table:(?:covered-)?table-cell\s*>\s*$", "", inner)
-        inner = re.sub(r"<text:p\s*/>|<text:p\b[^>]*>\s*</text:p>", "", inner)
-        if "<" in inner:
-            return True
-        return False
+        if open_end < 0:
+            return False
+        inner = cell_xml[open_end + 1 :]
+        if "<" not in inner:
+            return False
+        inner = _OPT_CLOSE_CELL_RE.sub("", inner)
+        inner = _OPT_EMPTY_P_RE.sub("", inner)
+        return "<" in inner
 
     def _fods_cell_is_style_only(cell_xml: str) -> bool:
         if _cell_has_content(cell_xml):
@@ -10683,51 +11015,20 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
         # Chèn thuộc tính TRƯỚC "/>" hoặc ">" của thẻ mở — bản đầu thay ">" đầu tiên nên ô tự
         # đóng thành `<table:table-cell .../ table:number-columns-repeated="61">` (XML hỏng,
         # đo VAT.xlsx: 3148 ô hỏng).
-        cell_xml = re.sub(r'\s+table:number-columns-repeated\s*=\s*(["\'])\d+\1', "", cell_xml)
+        cell_xml = _strip_repeat_attrs(cell_xml, "table:number-columns-repeated")
         if count <= 1:
             return cell_xml
-        return re.sub(r"^(<table:(?:covered-)?table-cell\b[^>]*?)(\s*/?>)", lambda m: f'{m.group(1)} table:number-columns-repeated="{count}"{m.group(2)}', cell_xml, count=1)
+        return _insert_repeat_before_end(cell_xml, ("<table:table-cell", "<table:covered-table-cell"), "table:number-columns-repeated", count)
 
     def _set_row_repeat(row_xml: str, count: int) -> str:
-        row_xml = re.sub(r'\s+table:number-rows-repeated\s*=\s*(["\'])\d+\1', "", row_xml)
+        row_xml = _strip_repeat_attrs(row_xml, "table:number-rows-repeated")
         if count <= 1:
             return row_xml
-        return re.sub(r"^(<table:table-row\b[^>]*?)(\s*/?>)", lambda m: f'{m.group(1)} table:number-rows-repeated="{count}"{m.group(2)}', row_xml, count=1)
+        return _insert_repeat_before_end(row_xml, ("<table:table-row",), "table:number-rows-repeated", count)
 
     def _extract_cells_from_row(row_content: str) -> list[str]:
         """Extract complete cell XML strings from row content."""
-        cells = []
-        pos = 0
-        while pos < len(row_content):
-            # Find next cell opening tag
-            open_match = _FODS_CELL_OPEN_RE.search(row_content, pos)
-            if not open_match:
-                break
-            cell_open = open_match.group(1)
-            cell_type = open_match.group(2)
-            self_close = open_match.group(3) == "/"
-            cell_start = open_match.start()
-            
-            if self_close:
-                # Self-closing cell
-                cells.append(cell_open + "/>")
-                pos = open_match.end()
-            else:
-                # Find closing tag
-                close_tag = f"</{cell_type}>"
-                close_pos = row_content.find(close_tag, open_match.end())
-                if close_pos >= 0:
-                    cell_full = row_content[cell_start:close_pos + len(close_tag)]
-                    cells.append(cell_full)
-                    pos = close_pos + len(close_tag)
-                else:
-                    # Malformed - just take the opening tag
-                    cells.append(cell_open + ">")
-                    pos = open_match.end()
-        return cells
-
-    # Một hàng trọn vẹn (tự đóng hoặc mở...đóng); hàng không lồng nhau nên non-greedy là đủ.
-    row_full_re = re.compile(r"<table:table-row\b[^>]*?/>|<table:table-row\b[^>]*>[\s\S]*?</table:table-row\s*>", re.IGNORECASE)
+        return [row_content[start:end] for start, end in _flat_xml_blocks(row_content, ("table:table-cell", "table:covered-table-cell"))]
 
     def _split_row(row_xml: str) -> tuple[str, bool, str]:
         """→ (thẻ mở không có '>' cuối, tự đóng?, nội dung trong hàng)."""
@@ -10750,13 +11051,13 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
         # Chỉ thay TỪNG HÀNG tại chỗ; mọi thứ khác trong bảng (<table:table-column> độ rộng cột,
         # <table:shapes> ảnh, <table:table-header-rows>, nhóm hàng...) giữ nguyên. Bản đầu ghép
         # lại bảng chỉ từ các hàng nên mất toàn bộ cột/ảnh (đo VAT.xlsx: 0 table-column sau tối ưu).
-        if not row_full_re.search(table_body):
+        if "<table:table-row" not in table_body:
             return match.group(0)
 
         # First pass: find last data column across all rows (only actual content, not style-only)
         last_data_col = 0
-        for row_match in row_full_re.finditer(table_body):
-            _row_open_tag, _row_self_close, row_content = _split_row(row_match.group(0))
+        for row_start, row_end in _flat_xml_blocks(table_body, ("table:table-row",)):
+            _row_open_tag, _row_self_close, row_content = _split_row(table_body[row_start:row_end])
             scan_col = 1
             row_last_data_col = 0
             for cell_xml in _extract_cells_from_row(row_content):
@@ -10772,8 +11073,8 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
                 last_data_col = max(last_data_col, row_last_data_col)
 
         # Second pass: rebuild each row with merged cells and trimmed tail
-        def process_row(row_match: re.Match) -> str:
-            row_open_tag, row_self_close, row_content = _split_row(row_match.group(0))
+        def process_row(row_xml: str) -> str:
+            row_open_tag, row_self_close, row_content = _split_row(row_xml)
             row_repeat = _get_row_repeat(row_open_tag)
 
             new_row_content = []
@@ -10843,7 +11144,14 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
                 return f"{row_open_tag}/>"
             return f"{row_open_tag}>" + "".join(new_row_content) + "</table:table-row>"
 
-        return table_open + row_full_re.sub(process_row, table_body) + table_close
+        pieces: list[str] = []
+        cursor = 0
+        for row_start, row_end in _flat_xml_blocks(table_body, ("table:table-row",)):
+            pieces.append(table_body[cursor:row_start])
+            pieces.append(process_row(table_body[row_start:row_end]))
+            cursor = row_end
+        pieces.append(table_body[cursor:])
+        return table_open + "".join(pieces) + table_close
 
     return _FODS_TABLE_RE.sub(process_table, fods_xml)
 
