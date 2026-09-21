@@ -543,6 +543,319 @@ EXPECTED2 = {
     }
 }
 
+SCENARIO3 = r"""
+(async function(){
+  try {
+    const PNG_1X1_RED = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    const app = window.__vnoAppInstance; if (!app) return 'no-app';
+    const bus = (await import('/platform/commands/command-bus.js')).globalCommandBus;
+    const adapter = app.adapter;
+    const body = adapter.bodyDom || app.editorDom; if (!body) return 'no-body';
+    const header = adapter.headerDom;
+    const footer = adapter.footerDom;
+    
+    // Clear body
+    body.innerHTML = '';
+    
+    // --- 1. Headings FIRST (needed for TOC) ---
+    const h1 = document.createElement('h1');
+    h1.textContent = 'Chương 1: Tổng quan';
+    body.appendChild(h1);
+    
+    const h2 = document.createElement('h2');
+    h2.textContent = 'Mục 1.1: Giới thiệu';
+    body.appendChild(h2);
+    
+    // --- 2. Insert TOC (will be placed at beginning, collecting headings) ---
+    await bus.execute('writer.reference.tocInsert');
+    
+    // --- 3. Bảng 4x4: gộp ô ngang hàng 1 (A1:D1) - tạo bằng HTML table ---
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+    table.style.margin = '14pt 0';
+    // Row 1: merged across 4 columns
+    const tr1 = document.createElement('tr');
+    const td11 = document.createElement('td');
+    td11.setAttribute('colspan', '4');
+    td11.style.border = '2px solid #000000'; // double border
+    td11.style.padding = '6pt 10pt';
+    td11.style.backgroundColor = '#BDD7EE';
+    td11.style.fontWeight = 'bold';
+    td11.style.textAlign = 'center';
+    td11.style.verticalAlign = 'middle';
+    td11.textContent = 'Ô gộp ngang hàng 1';
+    tr1.appendChild(td11);
+    table.appendChild(tr1);
+    // Rows 2-4: first cell merged vertically (simulated with rowspan), others normal
+    for (let r = 1; r < 4; r++) {
+      const tr = document.createElement('tr');
+      // First column - use rowspan on row 2 only
+      if (r === 1) {
+        const td = document.createElement('td');
+        td.setAttribute('rowspan', '3');
+        td.style.border = '1px solid #000000';
+        td.style.padding = '6pt 10pt';
+        td.style.verticalAlign = 'middle';
+        td.textContent = 'Hàng 2-4, Cột A';
+        tr.appendChild(td);
+      }
+      // Columns 2-4
+      for (let c = 1; c < 4; c++) {
+        const td = document.createElement('td');
+        td.style.border = '1px solid #000000';
+        td.style.padding = '6pt 10pt';
+        td.textContent = 'Hàng ' + (r + 1) + ', Cột ' + (c + 1);
+        tr.appendChild(td);
+      }
+      table.appendChild(tr);
+    }
+    body.appendChild(table);
+    
+    // --- 4. Bề rộng cột 2 = 4cm, chiều cao hàng 3 = 1.2cm (exactly) ---
+    // Set column 2 width
+    for (let r = 0; r < 4; r++) {
+      if (table.rows[r] && table.rows[r].cells[1]) {
+        table.rows[r].cells[1].style.width = '4cm';
+      }
+    }
+    // Set row 3 height exactly (index 2 = row 3)
+    if (table.rows[2]) {
+      table.rows[2].style.height = '1.2cm';
+      for (let c = 0; c < table.rows[2].cells.length; c++) {
+        table.rows[2].cells[c].style.height = '1.2cm';
+      }
+    }
+    
+    // --- 5. Ảnh inline 4x3cm rồi ảnh thứ hai bọc chữ vuông (square) căn phải ---
+    const pImg1 = document.createElement('p');
+    const img1 = document.createElement('img');
+    img1.src = 'data:image/png;base64,' + PNG_1X1_RED;
+    img1.width = 151; // ~4cm at 96dpi
+    img1.height = 113; // ~3cm
+    img1.style.verticalAlign = 'middle';
+    img1.setAttribute('data-vno-wrap', 'inline');
+    pImg1.appendChild(img1);
+    body.appendChild(pImg1);
+    
+    const pImg2 = document.createElement('p');
+    const img2 = document.createElement('img');
+    img2.src = 'data:image/png;base64,' + PNG_1X1_RED;
+    img2.width = 151;
+    img2.height = 113;
+    img2.style.cssText = 'float: right; margin: 5pt;'; // Square wrap approximation
+    img2.setAttribute('data-vno-wrap', 'square');
+    pImg2.appendChild(img2);
+    pImg2.appendChild(document.createTextNode('Văn bản bọc quanh ảnh căn phải.'));
+    body.appendChild(pImg2);
+    
+    // --- 6. Chú thích cuối trang (footnote) ---
+    const pFootnote = document.createElement('p');
+    pFootnote.textContent = 'Đoạn có chú thích cuối trang. ';
+    const supFn = document.createElement('sup');
+    supFn.className = 'vno-footnote-ref';
+    supFn.setAttribute('data-vno-footnote-ref', 'fn-1');
+    supFn.setAttribute('contenteditable', 'false');
+    supFn.textContent = '1';
+    pFootnote.appendChild(supFn);
+    pFootnote.appendChild(document.createTextNode(' Nội dung tiếp theo.'));
+    body.appendChild(pFootnote);
+    
+    // Insert footnote via adapter command
+    await bus.execute('writer.reference.footnoteInsert', { text: 'Đây là nội dung chú thích cuối trang.' });
+    
+    // --- 7. Mục 2 chia 2 cột (columns) - insert section break then set columns ---
+    const sectionId = 'section-columns';
+    const breakStyle = 'break-before:page;page-break-before:always;';
+    const marker = '<div class="vno-section-break" data-vno-section-break="nextPage" data-vno-section-id="' + sectionId + '" contenteditable="false" style="' + breakStyle + 'border-top:2px double #7c3aed;margin:20px 0;text-align:center;color:#6d28d9;font-size:11px;user-select:none">--- Ngắt mục (Trang kế tiếp) ---</div><p><br></p>';
+    body.insertAdjacentHTML('beforeend', marker);
+    
+    const pSec2 = document.createElement('p');
+    pSec2.textContent = 'Mục 2 được chia 2 cột.';
+    body.appendChild(pSec2);
+    
+    // Set 2 columns for section 2
+    await bus.execute('writer.page.columns2');
+    
+    // --- 8. Footer "Trang X / Y" - insert PAGE and NUMPAGES fields ---
+    if (footer) {
+      footer.innerHTML = '<p style="text-align:center; font-size:10pt; margin:0;">Trang <span class="vno-page-number" data-vno-field="PAGE">1</span> / <span class="vno-page-total" data-vno-field="NUMPAGES">1</span></p>';
+    }
+    
+    // --- 9. Ảnh (logo) trong header, căn trái ---
+    if (header) {
+      header.innerHTML = '<p style="text-align:left; font-size:10pt; margin:0;"><img src="data:image/png;base64,' + PNG_1X1_RED + '" width="30" height="30" style="vertical-align:middle;"> Logo</p>';
+    }
+    
+    // --- 10. Đoạn có border dưới + nền xám (paragraph shading) ---
+    const pBorderShading = document.createElement('p');
+    pBorderShading.style.borderBottom = '2px solid #334155';
+    pBorderShading.style.backgroundColor = '#F3F4F6';
+    pBorderShading.style.padding = '6pt 0';
+    pBorderShading.textContent = 'Đoạn có viền dưới và nền xám.';
+    body.appendChild(pBorderShading);
+    
+    // --- 11. Chữ có màu nền (shading) khác highlight: #FFE699 ---
+    const pShading = document.createElement('p');
+    pShading.textContent = 'Đoạn có ';
+    const spanShading = document.createElement('span');
+    spanShading.style.backgroundColor = '#FFE699';
+    spanShading.textContent = 'chữ nền vàng nhạt';
+    pShading.appendChild(spanShading);
+    pShading.appendChild(document.createTextNode(' (khác highlight).'));
+    body.appendChild(pShading);
+    
+    // --- 12. Ngắt dòng mềm (Shift+Enter) trong 1 đoạn ---
+    const pSoftBreak = document.createElement('p');
+    pSoftBreak.textContent = 'Dòng thứ nhất';
+    const br = document.createElement('br');
+    pSoftBreak.appendChild(br);
+    pSoftBreak.appendChild(document.createTextNode('Dòng thứ hai sau ngắt mềm'));
+    body.appendChild(pSoftBreak);
+    
+    // --- 13. Ký tự đặc biệt: →, ©, ₫, tab ở đầu dòng, khoảng trắng không ngắt ---
+    const pSpecial = document.createElement('p');
+    pSpecial.textContent = '\t→ © ₫\u00A0'; // Tab + arrow + copyright + dong + NBSP
+    pSpecial.appendChild(document.createTextNode('Ký tự đặc biệt sau tab.'));
+    body.appendChild(pSpecial);
+    
+    // --- 14. Danh sách bullet lồng 3 cấp với ký hiệu khác nhau (•, o, ▪) ---
+    const ul = document.createElement('ul');
+    const li1 = document.createElement('li');
+    li1.textContent = 'Cấp 1: bullet chấm tròn';
+    const ul2 = document.createElement('ul');
+    const li2 = document.createElement('li');
+    li2.textContent = 'Cấp 2: bullet tròn rỗng';
+    const ul3 = document.createElement('ul');
+    const li3 = document.createElement('li');
+    li3.textContent = 'Cấp 3: bullet vuông nhỏ';
+    ul3.appendChild(li3);
+    li2.appendChild(ul3);
+    ul2.appendChild(li2);
+    li1.appendChild(ul2);
+    ul.appendChild(li1);
+    body.appendChild(ul);
+    
+    // --- 15. Bookmark + tham chiếu chéo ---
+    await bus.execute('writer.insert.bookmark', { name: 'bookmark1' });
+    const pBookmark = document.createElement('p');
+    pBookmark.textContent = 'Đoạn có bookmark.';
+    body.appendChild(pBookmark);
+    await bus.execute('writer.insert.crossReference', { referenceType: 'bookmark', referenceItem: 'bookmark1', insertAsHyperlink: true });
+    
+    // --- 16. Bảo vệ tài liệu chỉ đọc / mật khẩu mở (nếu có lệnh) ---
+    // Note: No direct command for document protection in current command set
+    // Ghi "không có lệnh" trong handoff
+    
+    // --- 17. Thuộc tính tài liệu: tiêu đề, tác giả ---
+    // Note: No direct command for document properties in current command set
+    // Ghi "không có lệnh" trong handoff
+    
+    // Page setup
+    adapter.setPageSetup({
+      size: 'a4',
+      orientation: 'portrait',
+      margins: { top: 20, bottom: 20, left: 30, right: 20 }
+    });
+    
+    adapter.isDirty = true;
+    
+    return 'ok';
+  } catch (e) {
+    return 'error: ' + (e && e.stack ? e.stack : String(e));
+  }
+})()
+"""
+
+EXPECTED3 = {
+    "scenario": 3,
+    "table1": {
+        "rows": 4,
+        "cols": 4,
+        "mergedCellRow1": {"row": 1, "col": 1, "colspan": 4, "text": "Ô gộp ngang hàng 1"},
+        "mergedCellColA": {"row": 2, "col": 1, "rowspan": 3, "text": "Hàng 2-4, Cột A"},
+        "outerBorderDouble": True,
+        "innerBorderSingle": True,
+        "headerBgColor": "#BDD7EE",
+        "headerBold": True,
+        "headerVerticalAlign": "center"
+    },
+    "table1col2": {
+        "widthPt": 113.4  # 4cm
+    },
+    "table1row3": {
+        "heightPt": 34.0,  # 1.2cm exactly
+        "heightRule": "exactly"
+    },
+    "images": {
+        "inlineShapesCount": 1,
+        "inlineWidthPt": 151.0,
+        "inlineHeightPt": 113.0,
+        "shapesCount": 1,
+        "shapeWrapType": 0,  # wdWrapSquare
+        "shapeRelativeHorizontal": "right"
+    },
+    "footnote": {
+        "count": 1,
+        "text": "Đây là nội dung chú thích cuối trang."
+    },
+    "headings": {
+        "h1Count": 1,
+        "h1Text": "Chương 1: Tổng quan",
+        "h2Count": 1,
+        "h2Text": "Mục 1.1: Giới thiệu"
+    },
+    "toc": {
+        "count": 1,
+        "entriesCount": 2
+    },
+    "columns": {
+        "section2ColumnCount": 2
+    },
+    "footer": {
+        "fieldsCount": 2,
+        "hasPageField": True,
+        "hasNumPagesField": True
+    },
+    "header": {
+        "inlineShapesCount": 1
+    },
+    "paraBorderShading": {
+        "borderBottom": True,
+        "shadingColor": "#F3F4F6"
+    },
+    "textShading": {
+        "color": "#FFE699"
+    },
+    "softBreak": {
+        "hasVerticalTab": True,
+        "lineCount": 2
+    },
+    "specialChars": {
+        "arrow": "→",
+        "copyright": "©",
+        "dong": "₫",
+        "hasTab": True,
+        "hasNbsp": True
+    },
+    "multilevelList": {
+        "level1Symbol": "•",
+        "level2Symbol": "o",
+        "level3Symbol": "▪",
+        "maxLevel": 3
+    },
+    "bookmark": {
+        "count": 1,
+        "hasCrossRef": True
+    },
+    "docProtection": {
+        "hasCommand": False
+    },
+    "docProperties": {
+        "hasCommand": False
+    }
+}
+
 def after_load(win):
     for _ in range(60):
         time.sleep(2)
@@ -554,8 +867,15 @@ def after_load(win):
         print("DEBUG:", dbg, flush=True)
     time.sleep(3)
     
-    active_scenario = SCENARIO2 if scenario_idx == 2 else SCENARIO
-    active_expected = EXPECTED2 if scenario_idx == 2 else EXPECTED
+    if scenario_idx == 3:
+        active_scenario = SCENARIO3
+        active_expected = EXPECTED3
+    elif scenario_idx == 2:
+        active_scenario = SCENARIO2
+        active_expected = EXPECTED2
+    else:
+        active_scenario = SCENARIO
+        active_expected = EXPECTED
     
     result = win.evaluate_js(active_scenario)
     print("SCENARIO:", result, flush=True)
