@@ -2992,6 +2992,15 @@ export class SheetGridController {
         : (Number.isFinite(Number(image.offsetY)) ? Number(image.offsetY) : 0);
       const topVal = targetTr.offsetTop + offsetYPx;
       panel.style.top = `${topVal}px`;
+      const targetTd = (targetTr && typeof targetTr.querySelector === "function")
+        ? targetTr.querySelector(`td[data-col="${image.anchor.c}"]`)
+        : null;
+      if (targetTd && typeof targetTd.offsetLeft === "number") {
+        const offsetXPx = Number.isFinite(Number(image.offsetXCm))
+          ? Number(image.offsetXCm) * 37.79527559055118
+          : (Number.isFinite(Number(image.offsetX)) ? Number(image.offsetX) : 0);
+        panel.style.left = `${targetTd.offsetLeft + offsetXPx}px`;
+      }
     }
   }
 
@@ -4820,9 +4829,17 @@ export class SheetGridController {
         : (Number.isFinite(Number(image.offsetY)) ? Number(image.offsetY) : 0);
       const topVal = topAcc + offsetYPx;
 
-      let leftAcc = 44;
-      for (let i = 0; i < colIdx; i++) {
-        leftAcc += typeof this.getColumnWidth === "function" ? this.getColumnWidth(this.cols[i]) : (this.defaultColWidth || DEFAULT_COL_WIDTH_PX);
+      const targetTd = (targetTr && typeof targetTr.querySelector === "function")
+        ? targetTr.querySelector(`td[data-col="${anchor.c}"]`)
+        : null;
+      let leftAcc;
+      if (targetTd && typeof targetTd.offsetLeft === "number") {
+        leftAcc = targetTd.offsetLeft;
+      } else {
+        leftAcc = 44;
+        for (let i = 0; i < colIdx; i++) {
+          leftAcc += typeof this.getColumnWidth === "function" ? this.getColumnWidth(this.cols[i]) : (this.defaultColWidth || DEFAULT_COL_WIDTH_PX);
+        }
       }
       const offsetXPx = Number.isFinite(Number(image.offsetXCm))
         ? Number(image.offsetXCm) * 37.79527559055118

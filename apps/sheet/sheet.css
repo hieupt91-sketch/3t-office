@@ -139,6 +139,9 @@
 /* Headers & Sticky Positioning */
 .vno-grid-corner-header {
   width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  box-sizing: border-box;
   height: 24px;
   background-color: var(--vno-bg-muted);
   border-right: 1px solid var(--vno-border-default);
@@ -176,6 +179,9 @@
 
 .vno-row-header {
   width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  box-sizing: border-box;
   height: 20px;
   background-color: var(--vno-bg-subtle);
   color: var(--vno-text-muted);
