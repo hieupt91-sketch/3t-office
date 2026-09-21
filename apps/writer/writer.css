@@ -411,13 +411,32 @@ tr.vno-page-auto-gap > td {
   height: 96px;
   padding: 0;
   border: none;
+  background: transparent;
+  position: relative;
+}
+/* W24b: dải xám tràn tới hai mép trang (--vno-gap-left/right do _bleedInnerPageGaps đo), 16px trắng trên/dưới
+   = lề của gap thân, để chỗ cắt bảng/danh sách trông như hai trang rời nhau chứ không phải lỗ xám trong bảng. */
+tr.vno-page-auto-gap > td::before,
+li.vno-page-auto-gap::before {
+  content: "";
+  position: absolute;
+  top: 16px;
+  height: 64px;
+  left: var(--vno-gap-left, -113px);
+  right: var(--vno-gap-right, -56px);
   background: var(--vno-bg-app);
   box-shadow: inset 0 6px 8px -6px rgba(15, 23, 42, 0.25), inset 0 -6px 8px -6px rgba(15, 23, 42, 0.25);
+  pointer-events: none;
 }
 li.vno-page-auto-gap {
   list-style: none;
   padding: 0;
   text-indent: 0;
+  height: 96px;
+  margin: 0;
+  background: transparent;
+  box-shadow: none;
+  position: relative;
 }
 
 .vno-writer-page p {

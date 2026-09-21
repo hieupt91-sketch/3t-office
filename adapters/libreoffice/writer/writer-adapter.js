@@ -11378,6 +11378,7 @@ export class WriterAdapter {
       }
 
       const canInsertGaps = typeof this.bodyDom.insertBefore === "function" && typeof document.createElement === "function";
+      const innerGapEls = [];
       for (const { el, soft, kind, table } of canInsertGaps ? gapBeforeEls : []) {
         let gap;
         if (kind === "tr") {
@@ -11398,7 +11399,9 @@ export class WriterAdapter {
         // của đoạn đầu trang (đúng Word) mà không chạm vào style của đoạn.
         gap.setAttribute("data-vno-soft-break", soft ? "true" : "false");
         if (el.parentNode && typeof el.parentNode.insertBefore === "function") el.parentNode.insertBefore(gap, el);
+        if (kind === "tr" || kind === "li") innerGapEls.push(kind === "tr" ? gap.firstElementChild : gap);
       }
+      this._bleedInnerPageGaps(innerGapEls);
 
       this._alignPageRelativeFloats();
 
@@ -11410,6 +11413,24 @@ export class WriterAdapter {
       }
     } finally {
       this._paginating = false;
+    }
+  }
+
+  /**
+   * W24b (V12 L14): dải ngắt trang trong bảng/danh sách chỉ rộng bằng bảng (ô `<td>` xám giữa trang trắng, không thấy
+   * mép trang). Đặt --vno-gap-left/right trên ô/mục gap để `::before` (CSS) tràn đúng tới hai mép trang như gap thân
+   * (`.vno-page-auto-gap` lề âm -113/-56px). Toạ độ đo bằng getBoundingClientRect so với `.vno-writer-page`.
+   */
+  _bleedInnerPageGaps(cells) {
+    if (!cells?.length || typeof this.bodyDom?.closest !== "function") return;
+    const page = this.bodyDom.closest(".vno-writer-page") || this.bodyDom;
+    if (typeof page.getBoundingClientRect !== "function") return;
+    const pageRect = page.getBoundingClientRect();
+    for (const cell of cells) {
+      if (!cell || typeof cell.getBoundingClientRect !== "function" || !cell.style?.setProperty) continue;
+      const rect = cell.getBoundingClientRect();
+      cell.style.setProperty("--vno-gap-left", `${Math.round(pageRect.left - rect.left)}px`);
+      cell.style.setProperty("--vno-gap-right", `${Math.round(rect.right - pageRect.right)}px`);
     }
   }
 
