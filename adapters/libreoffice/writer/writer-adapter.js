@@ -48,7 +48,9 @@ import { countBlockParagraphs, countDocumentStats, showWordCountDialog } from ".
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
 const PAGE_SIZES_MM = {
   a4: { label: "A4 (210 × 297 mm)", w: 210, h: 297 },
-  letter: { label: "Letter (216 × 279 mm)", w: 216, h: 279 },
+  // W52: 8.5×11 in = 215.9×279.4 mm. 216×279 mm làm trang 1054.5px, usable 862px
+  // (Word 864). d21 trang 9: 362+19+52.9+429 = 862.9 > 862; d16 đoạn 3 dòng rh 64.55 không vừa.
+  letter: { label: "Letter (215.9 × 279.4 mm)", w: 215.9, h: 279.4 },
   legal: { label: "Legal (216 × 356 mm)", w: 216, h: 356 },
   dl: { label: ENVELOPE_SIZES.dl.label, w: ENVELOPE_SIZES.dl.w, h: ENVELOPE_SIZES.dl.h },
   c5: { label: ENVELOPE_SIZES.c5.label, w: ENVELOPE_SIZES.c5.w, h: ENVELOPE_SIZES.c5.h },
@@ -2142,6 +2144,8 @@ export class WriterAdapter {
     html = this._upgradeImportedTrackChangeMarkup(html);
     if (ooxmlDocumentXml) {
       html = this._applyOoxmlTableColumnGeometry(html, ooxmlDocumentXml);
+      // W53: padding dọc ô = w:tcMar (LibreOffice chỉ ghi padding-bottom). Trước W44b để viền cộng lên lề thật.
+      html = this._applyOoxmlTableCellMargins(html, ooxmlDocumentXml);
     }
     // W44: viền ô chỉ tô (box-shadow), không chiếm chỗ như Word
     html = this._applyPaintOnlyTableBorders(html);
@@ -2369,13 +2373,30 @@ export class WriterAdapter {
       }
     }
     const collapseEmptyToo = xml ? legitEmptyBreakParagraphs === 0 : false;
+    // W55: đoạn chỉ có khoảng trắng (w:t " ", không w:br) — LibreOffice ghi khoảng trắng + <br>,
+    // trình duyệt thành 2 dòng. d07: 4 đoạn như vậy cao 44px (Word 1 dòng 12pt, đoạn chữ cùng kiểu 23px), +84px.
+    let legitSpaceBreak = 0;
+    if (xml) {
+      for (const para of xml.matchAll(/<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p>/g)) {
+        const p = para[0];
+        const text = [...p.matchAll(/<w:t\b[^>]*>([^<]*)<\/w:t>/g)].map((x) => x[1]).join("");
+        if (text.trim() !== "") continue;
+        if (/<w:br\b(?![^>]*w:type=["'](?:page|column)["'])/.test(p)) legitSpaceBreak += 1;
+      }
+    }
+    const collapseSpaceToo = xml ? legitSpaceBreak === 0 : false;
     return String(html || "").replace(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi, (match, attrs, inner) => {
       const hasFloat = /\bdata-vno-float=/i.test(inner);
-      if ((!hasFloat && !collapseEmptyToo) || /<(?:p|div|table|h[1-6])\b/i.test(inner)) return match;
+      if (/<(?:p|div|table|h[1-6])\b/i.test(inner)) return match;
       const rest = inner.replace(/<span\b[^>]*\bdata-vno-float=[^>]*>[\s\S]*?<\/span>/gi, "");
-      if (!/^\s*(?:<br\s*\/?>\s*){2}$/i.test(rest)) return match;
-      const collapsed = inner.replace(/(<br\s*\/?>)\s*<br\s*\/?>(\s*)$/i, "$1$2");
-      return `<p${attrs}>${collapsed}</p>`;
+      if ((hasFloat || collapseEmptyToo) && /^\s*(?:<br\s*\/?>\s*){2}$/i.test(rest)) {
+        const collapsed = inner.replace(/(<br\s*\/?>)\s*<br\s*\/?>(\s*)$/i, "$1$2");
+        return `<p${attrs}>${collapsed}</p>`;
+      }
+      if (!collapseSpaceToo || hasFloat) return match;
+      const plain = rest.replace(/<[^>]+>/g, "").replace(/&nbsp;/gi, " ").replace(/\u00a0/g, " ");
+      if (plain.trim() !== "" || !/<br\b/i.test(rest)) return match;
+      return `<p${attrs}><br></p>`;
     });
   }
 
@@ -4032,6 +4053,132 @@ export class WriterAdapter {
   }
 
   /**
+   * W53: padding ô = `w:tcMar` (twips → px), trừ ô có before/afterAutospacing (d18: cộng thêm
+   * làm bảng 713→1039px, canvas 2→3 trang). d09 hàng 25.1px → ~29px (Word 28px). d07 logo 77→90px
+   * (Word 90px = 2×100 twips). Padding gốc giữ ở `data-vno-lo-padding`.
+   */
+  _applyOoxmlTableCellMargins(html, ooxmlDocumentXml) {
+    const sourceXml = this._ooxmlBodyParagraphSource(String(ooxmlDocumentXml || ""));
+    if (!/<w:tcMar\b/i.test(sourceXml) || !/<table\b/i.test(String(html || ""))) return html;
+    const pxOf = (twips) => Math.round(Number(twips) * 96 / 1440 * 1000) / 1000;
+    const fmt = (n) => `${Math.round(n * 1000) / 1000}px`;
+    const tableRanges = (text, openRe) => {
+      const ranges = [];
+      const stack = [];
+      const re = new RegExp(openRe, "gi");
+      let m;
+      while ((m = re.exec(text))) {
+        if (m[0].startsWith("</")) {
+          const s = stack.pop();
+          if (s) ranges.push({ start: s.index, end: m.index + m[0].length });
+        } else stack.push({ index: m.index });
+      }
+      ranges.sort((a, b) => a.start - b.start);
+      return ranges;
+    };
+    const ooxmlTables = tableRanges(sourceXml, "<w:tbl\\b[^>]*>|<\\/w:tbl>");
+    const margins = ooxmlTables.map(({ start, end }) => {
+      const body = sourceXml.slice(start, end);
+      const rows = [];
+      const re = /<w:tbl\b[^>]*>|<\/w:tbl>|<w:tr\b[^>]*>|<\/w:tr>|<w:tc\b[^>]*>|<\/w:tc>/gi;
+      let depth = 0;
+      let row = null;
+      let cellStart = -1;
+      let m;
+      while ((m = re.exec(body))) {
+        const t = m[0].toLowerCase();
+        if (t.startsWith("<w:tbl")) depth++;
+        else if (t.startsWith("</w:tbl")) depth--;
+        else if (depth !== 1) continue;
+        else if (t.startsWith("<w:tr")) row = [];
+        else if (t.startsWith("</w:tr")) { if (row) rows.push(row); row = null; cellStart = -1; }
+        else if (t.startsWith("<w:tc") && row) cellStart = m.index + m[0].length;
+        else if (t.startsWith("</w:tc") && row) {
+          const head = cellStart >= 0 ? body.slice(cellStart, m.index).split(/<w:tbl\b/i)[0] : "";
+          const mar = head.match(/<w:tcMar>([\s\S]*?)<\/w:tcMar>/i);
+          // d18: đoạn trong ô có before/afterAutospacing, chiều cao hàng đã khớp Word. Cộng tcMar nữa → bảng 713→1039px, 2→3 trang.
+          if (!mar || /Autospacing\s*=\s*["']1["']/i.test(head)) row.push(null);
+          else {
+            const side = (name) => {
+              const mm = mar[1].match(new RegExp(`<w:${name}\\b[^>]*w:w="(-?\\d+)"`, "i"));
+              return mm ? pxOf(mm[1]) : 0;
+            };
+            row.push({ top: side("top"), right: side("right"), bottom: side("bottom"), left: side("left") });
+          }
+          cellStart = -1;
+        }
+      }
+      return rows;
+    });
+    if (!margins.length) return html;
+    const htmlRanges = () => {
+      const ranges = tableRanges(html, "<table\\b[^>]*>|<\\/table\\s*>");
+      const zoneRanges = [];
+      const zre = /<div\b[^>]*(?:\btitle=["'](?:header|footer)["']|\bid=["']sd(?:foot|end)note\d*["'])[^>]*>/gi;
+      let z;
+      while ((z = zre.exec(html))) {
+        const dre = /<div\b|<\/div\s*>/gi;
+        dre.lastIndex = z.index;
+        let depth = 0;
+        let d;
+        let end = -1;
+        while ((d = dre.exec(html))) {
+          depth += d[0][1] === "/" ? -1 : 1;
+          if (depth === 0) { end = d.index + d[0].length; break; }
+        }
+        if (end > 0) { zoneRanges.push({ start: z.index, end }); zre.lastIndex = end; }
+      }
+      return ranges.filter((r) => !zoneRanges.some((zr) => r.start >= zr.start && r.start < zr.end));
+    };
+    if (htmlRanges().length !== margins.length) return html;
+    const isPad = (d) => /^padding(?:-top|-right|-bottom|-left)?\s*:/i.test(d);
+    for (let i = margins.length - 1; i >= 0; i--) {
+      const ranges = htmlRanges();
+      if (ranges.length !== margins.length) break;
+      const { start, end } = ranges[i];
+      const slice = html.slice(start, end);
+      const rowMargins = margins[i];
+      const tagRe = /<(\/?)(table|tr|td|th)\b([^>]*)>/gi;
+      let depth = 0;
+      let row = -1;
+      let cell = -1;
+      let inRow = false;
+      let out = "";
+      let last = 0;
+      let m;
+      while ((m = tagRe.exec(slice))) {
+        const closing = m[1] === "/";
+        const tag = m[2].toLowerCase();
+        if (tag === "table") { depth += closing ? -1 : 1; continue; }
+        if (depth !== 1) continue;
+        if (tag === "tr") { if (!closing) { row++; cell = -1; inRow = true; } else inRow = false; continue; }
+        if (closing || !inRow) continue;
+        cell++;
+        const mar = rowMargins[row]?.[cell];
+        if (!mar) continue;
+        const attrs = m[3];
+        const styleMatch = attrs.match(/\bstyle=(["'])([^"']*)\1/i);
+        const css = styleMatch ? styleMatch[2] : "";
+        const decls = css.split(";").map((s) => s.trim()).filter(Boolean);
+        const padDecls = decls.filter(isPad);
+        const rest = decls.filter((d) => !isPad(d));
+        const padValue = `padding: ${fmt(mar.top)} ${fmt(mar.right)} ${fmt(mar.bottom)} ${fmt(mar.left)}`;
+        const newCss = [...rest, padValue].join("; ");
+        let newAttrs = styleMatch
+          ? attrs.replace(styleMatch[0], `style="${newCss};"`)
+          : `${attrs} style="${newCss};"`;
+        if (!/data-vno-lo-padding=/i.test(newAttrs)) {
+          newAttrs += ` data-vno-lo-padding="${padDecls.join("; ").replace(/"/g, "&quot;")}"`;
+        }
+        out += slice.slice(last, m.index) + `<${m[2]}${newAttrs}>`;
+        last = m.index + m[0].length;
+      }
+      html = html.slice(0, start) + out + slice.slice(last) + html.slice(end);
+    }
+    return html;
+  }
+
+  /**
    * W44 (đo d01 Word COM: hàng bảng Word 35/36px = nội dung 6+3+17,19pt snap lưới px, viền 0,25–0,5pt KHÔNG chiếm chỗ;
    * canvas 35,9px vì viền `border` 1px của ô chiếm chỗ (Chromium snap viền < 1px lên 1px) → +0,7px/hàng, bảng 64 hàng
    * d01 lệch ngắt trang từ hàng 23). Viền ô của tài liệu nhập vẽ bằng `box-shadow: inset` (chỉ tô, không chiếm chỗ):
@@ -4126,6 +4273,8 @@ export class WriterAdapter {
       const isPadDecl = (d) => /^padding(?:-top|-right|-bottom|-left)?\s*:/i.test(d);
       const addTop = table.rows === 1 && sides.top && sides.top.style && sides.top.style !== "none" && sides.top.style !== "hidden";
       const addBottom = !!bottom;
+      // W53 đã ghi data-vno-lo-padding = padding LibreOffice gốc; không ghi đè bằng padding tcMar.
+      const priorLo = attrs.match(/\bdata-vno-lo-padding=("[^"]*"|'[^']*')/i);
       let loPadAttr = "";
       if (table.borderPx > 0 && (addBottom || addTop)) {
         const padDecls = restDecls.filter(isPadDecl);
@@ -4154,7 +4303,9 @@ export class WriterAdapter {
         const newPad = `padding: ${addPx(pt, addTop ? table.borderPx : 0)} ${pr} ${addPx(pb, addBottom ? table.borderPx : 0)} ${pl}`;
         for (let i = restDecls.length - 1; i >= 0; i--) if (isPadDecl(restDecls[i])) restDecls.splice(i, 1);
         restDecls.push(newPad);
-        loPadAttr = ` data-vno-lo-padding="${padDecls.join("; ").replace(/"/g, "&quot;")}"`;
+        loPadAttr = priorLo
+          ? ""
+          : ` data-vno-lo-padding="${padDecls.join("; ").replace(/"/g, "&quot;")}"`;
       }
       const newStyle = [...restDecls, "border: none", shadows.length ? `box-shadow: ${shadows.join(", ")}` : null].filter(Boolean).join("; ") + ";";
       const escaped = borderDecls.join("; ").replace(/"/g, "&quot;");
@@ -4185,6 +4336,18 @@ export class WriterAdapter {
         rest = rest.replace(styleMatch[0], `style="${merged}${merged.endsWith(";") ? "" : ";"}"`);
       } else if (borders) {
         rest += ` style="${borders};"`;
+      }
+      return `<${tag}${rest}>`;
+    }).replace(/<(td|th)\b([^>]*\bdata-vno-lo-padding=("[^"]*"|'[^']*')[^>]*)>/gi, (all, tag, attrs, quoted) => {
+      // Ô không có viền (W44b không chạy) vẫn phải trả padding gốc — W53 chỉ để canvas.
+      const originalPad = quoted.slice(1, -1).replace(/&quot;/g, '"');
+      let rest = attrs.replace(/\s*\bdata-vno-lo-padding=("[^"]*"|'[^']*')/i, "");
+      const styleMatch = rest.match(/\bstyle=(["'])([^"']*)\1/i);
+      if (styleMatch) {
+        let kept = styleMatch[2].split(";").map(s => s.trim()).filter(s => s && !/^padding(?:-top|-right|-bottom|-left)?\s*:/i.test(s));
+        if (originalPad.trim()) kept.push(originalPad);
+        const merged = kept.join("; ");
+        rest = rest.replace(styleMatch[0], merged ? `style="${merged}${merged.endsWith(";") ? "" : ";"}"` : "");
       }
       return `<${tag}${rest}>`;
     });
@@ -11957,7 +12120,9 @@ export class WriterAdapter {
           pageStartTop = top - marginTopOf(el);
           continue;
         }
-        if (top + h - pageStartTop <= availableHeightPx) continue;
+        // W54: nửa leading dưới dòng cuối được tràn vào lề dưới (Word giữ dòng khi em-box còn trong vùng chữ).
+        // d16: đoạn 3 dòng rh 64.55, lh 21.53, fs 17.33 → nửa leading 2.1px; đáy Word 720pt còn 62.9px.
+        if (top + h - this._paginationTrailingLeading(el) - pageStartTop <= availableHeightPx) continue;
 
         // Khối không vừa phần còn lại của trang: bảng/danh sách cắt theo đơn vị bên trong.
         const units = [];
@@ -11976,16 +12141,16 @@ export class WriterAdapter {
               gapBeforeEls.push({ el: unit.el, soft: true, kind: unit.kind, table: unit.table });
               spillGap = false;
             }
-            if (unit.top + unit.h - pageStartTop <= availableHeightPx) { first = false; continue; }
+            if (unit.top + unit.h - this._paginationTrailingLeading(unit.el) - pageStartTop <= availableHeightPx) { first = false; continue; }
             if (first) {
               // Ngay đơn vị đầu đã không vừa: đẩy cả khối như trước (Word cũng đẩy hàng đầu sang trang mới).
               gapBeforeEls.push({ el, soft: true, kind: "block" });
               pageStartTop = top;
               pageCount++;
               first = false;
-              if (unit.top + unit.h - pageStartTop <= availableHeightPx) continue;
+              if (unit.top + unit.h - this._paginationTrailingLeading(unit.el) - pageStartTop <= availableHeightPx) continue;
             }
-            const remaining = availableHeightPx - (unit.top - pageStartTop);
+            const remaining = availableHeightPx + this._paginationTrailingLeading(unit.el) - (unit.top - pageStartTop);
             const lineH = unit.kind === "tr" ? this._rowLineHeightPx(unit.el) : 0;
             const canSplit = unit.kind === "tr" && lineH > 0 && unit.h >= lineH * 2 && remaining >= lineH
               && unit.el.getAttribute?.("data-vno-cant-split") !== "true";
@@ -12052,6 +12217,23 @@ export class WriterAdapter {
    * mép trang). Đặt --vno-gap-left/right trên ô/mục gap để `::before` (CSS) tràn đúng tới hai mép trang như gap thân
    * (`.vno-page-auto-gap` lề âm -113/-56px). Toạ độ đo bằng getBoundingClientRect so với `.vno-writer-page`.
    */
+  /**
+   * W54: phần leading dưới baseline của dòng cuối (nửa khoảng line-height − cỡ chữ) được nằm trong lề dưới.
+   * Word giữ dòng khi hộp em còn trong vùng chữ; canvas đo cả line box. d16 rh 64.55 − 2.1px vừa 62.9px còn lại.
+   */
+  _paginationTrailingLeading(el) {
+    if (!el || typeof window === "undefined" || typeof window.getComputedStyle !== "function") return 0;
+    try {
+      const cs = window.getComputedStyle(el);
+      const lh = parseFloat(cs.lineHeight);
+      const fs = parseFloat(cs.fontSize);
+      if (!Number.isFinite(lh) || !Number.isFinite(fs) || lh <= fs) return 0;
+      return (lh - fs) / 2;
+    } catch {
+      return 0;
+    }
+  }
+
   /** W24c: chiều cao một dòng chữ của hàng bảng = lớn nhất trong các ô (line-height computed của đoạn đầu có chữ). */
   _rowLineHeightPx(row) {
     if (!row || typeof row.querySelectorAll !== "function" || typeof window === "undefined" || typeof window.getComputedStyle !== "function") return 0;

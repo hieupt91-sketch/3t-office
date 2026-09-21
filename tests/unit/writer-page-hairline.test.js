@@ -74,6 +74,61 @@ export async function runWriterPageHairlineTests() {
     }
   });
 
+  test("W52: Letter is 8.5×11 in so the text column is 624px and the body is 864px", () => {
+    const adapter = new WriterAdapter(null);
+    adapter.pageSetup = {
+      size: "letter", orientation: "portrait",
+      margins: { top: 25.4, right: 25.4, bottom: 25.4, left: 25.4 }
+    };
+    const dim = adapter.getPageDimensions();
+    // 12240×15840 twips. Preset cũ 216×279 mm → trang 1054px, usable 862 (d21 862.9 không vừa, d16 rh 64.55 không vừa).
+    check(dim.widthPx === 816, `letter width ${dim.widthPx}`);
+    check(dim.heightPx === 1056, `letter height ${dim.heightPx}`);
+    check(dim.printableWidthPx === 624, `letter column ${dim.printableWidthPx}`);
+    check(dim.printableHeightPx === 864, `letter body ${dim.printableHeightPx}`);
+  });
+
+  test("W54: the last line's lower half-leading may cross the bottom margin (d16)", () => {
+    const adapter = new WriterAdapter(null);
+    adapter._getUsablePageHeight = () => 864;
+    const inserted = [];
+    const mk = (top, h, lh, fs) => {
+      const el = {
+        tagName: "P", offsetTop: top, offsetHeight: h, textContent: "x", children: [],
+        getBoundingClientRect: () => ({ top, height: h }),
+        getAttribute: () => "", classList: { contains: () => false }, querySelectorAll: () => [],
+        parentNode: null
+      };
+      el.parentNode = { insertBefore: (gap) => inserted.push(gap) };
+      el._lh = lh; el._fs = fs;
+      return el;
+    };
+    // Trang Letter 864. Đoạn 3 dòng cao 64.55 bắt đầu ở 801 → đáy line box 865.55, sau khi bỏ nửa leading 2.1 còn 863.45.
+    const a = mk(0, 100, "21.53px", "17.33px");
+    const b = mk(801, 64.55, "21.53px", "17.33px");
+    const body = {
+      style: {}, children: [a, b], querySelectorAll: () => [],
+      insertBefore: () => {}, dispatchEvent: () => {},
+      getBoundingClientRect: () => ({ top: 0 }), scrollTop: 0
+    };
+    a.parentNode = body; b.parentNode = body;
+    adapter.bodyDom = body;
+    const origDoc = globalThis.document;
+    const origWin = globalThis.window;
+    globalThis.document = { createElement: () => ({ setAttribute() {}, className: "", appendChild() {}, style: { setProperty() {} } }) };
+    globalThis.window = {
+      getComputedStyle: (el) => ({ marginTop: "0", lineHeight: el._lh || "21.53px", fontSize: el._fs || "17.33px" })
+    };
+    try {
+      adapter._alignPageRelativeFloats = () => {};
+      adapter._recomputeLivePagination();
+      check(inserted.length === 0, `64.55 − half-leading 2.1 must fit in the last 64.55px of 864, gaps=${inserted.length}`);
+    } finally {
+      globalThis.document = origDoc;
+      globalThis.window = origWin;
+    }
+  });
+
   test("W50: imported images align to the bottom of the line box so descent is not added under them", () => {
     const css = fs.readFileSync(path.resolve("apps/writer/writer.css"), "utf8");
     check(/\.vno-writer-page\.vno-doc-imported img[\s\S]*?vertical-align:\s*bottom/.test(css), "imported img must be vertical-align: bottom");

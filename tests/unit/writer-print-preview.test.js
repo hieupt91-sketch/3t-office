@@ -319,8 +319,8 @@ export async function runWriterPrintPreviewTests() {
       if (overlay.dataset.paperOrientation !== "landscape") {
         throw new Error(`paperOrientation sai: ${overlay.dataset.paperOrientation}, mong đợi 'landscape'`);
       }
-      if (overlay.dataset.widthMm !== "279" || overlay.dataset.heightMm !== "216") {
-        throw new Error(`Kích thước mm sai: ${overlay.dataset.widthMm}x${overlay.dataset.heightMm}, mong đợi 279x216`);
+      if (overlay.dataset.widthMm !== "279.4" || overlay.dataset.heightMm !== "215.9") {
+        throw new Error(`Kích thước mm sai: ${overlay.dataset.widthMm}x${overlay.dataset.heightMm}, mong đợi 279.4x215.9`);
       }
 
       const sheet = overlay.querySelector(".vno-print-preview-sheet");
@@ -328,7 +328,7 @@ export async function runWriterPrintPreviewTests() {
       if (sheet.dataset.paperSize !== "letter" || sheet.dataset.paperOrientation !== "landscape") {
         throw new Error("Sheet không lưu đúng data-paper-size hoặc orientation");
       }
-      if (sheet.dataset.pageWidthMm !== "279" || sheet.dataset.pageHeightMm !== "216") {
+      if (sheet.dataset.pageWidthMm !== "279.4" || sheet.dataset.pageHeightMm !== "215.9") {
         throw new Error("Sheet không lưu đúng kích thước mm Letter Landscape");
       }
 

@@ -128,6 +128,18 @@ export async function runWriterDocFontSpacingTests() {
     check(kept === html, `real empty line-break paragraph in DOCX must keep both <br>: ${kept}`);
   });
 
+  test("W55: a whitespace-only paragraph with a <br> is one line when the DOCX has no manual break there (d07)", () => {
+    const adapter = new WriterAdapter(null);
+    const html = '<p class="western"> <br></p><p>Mẫu hợp đồng</p>';
+    const xml = '<w:document><w:body><w:p><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p><w:p><w:r><w:t>Mẫu hợp đồng</w:t></w:r></w:p></w:body></w:document>';
+    const out = adapter._collapseFloatOnlyParagraphBreaks(html, xml);
+    check(out.startsWith("<p class=\"western\"><br></p>"), `space+br must be a single line: ${out}`);
+    check(out.includes("<p>Mẫu hợp đồng</p>"), `text paragraph stays: ${out}`);
+    const legit = '<w:document><w:body><w:p><w:r><w:t xml:space="preserve"> </w:t><w:br/></w:r></w:p></w:body></w:document>';
+    const kept = adapter._collapseFloatOnlyParagraphBreaks(html, legit);
+    check(kept === html, `a real break in a whitespace paragraph must stay: ${kept}`);
+  });
+
   test("W11: table-cell paragraphs take spacing/line from the paragraph pPr and the table style (TableGrid)", () => {
     // d13.docx: LibreOffice bá» w:spacing after=0 trong Ã´ vÃ  khÃ´ng Ã¡p TableGrid (after=0, line=240) â†’ hÃ ng 28px thay vÃ¬ 14px.
     const adapter = new WriterAdapter(null);
