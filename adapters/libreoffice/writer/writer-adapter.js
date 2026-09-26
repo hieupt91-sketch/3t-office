@@ -2216,10 +2216,11 @@ export class WriterAdapter {
     html = this._normalizeImportedStarWriterNotes(html);
     html = this._makeFloatingAnchorContainers(this._preserveImportedFloatingFrames(html, ooxmlDocumentXml, page), page);
     html = this._collapseFloatOnlyParagraphBreaks(html, ooxmlDocumentXml);
+    const shapes = this._ooxmlImportedBasicShapes(ooxmlDocumentXml, page);
     // W56: 13pt → 17px after W25b/W26a so empty-para 13pt is snapped too
     html = this._applyGdiDeviceFontPixels(html);
     html = this._encodeProportionalLineHeights(html);
-    return { body: html.trim(), header, footer, page, comments, docStyles };
+    return { body: html.trim(), header, footer, page, comments, docStyles, shapes };
   }
 
   /**
@@ -2548,6 +2549,90 @@ export class WriterAdapter {
         pageIndex
       };
     });
+  }
+
+  _ooxmlImportedBasicShapes(xml, page = null) {
+    const source = String(xml || "");
+    if (!source) return [];
+    const emuToPx = (value) => Number(value) / 9525;
+    const escapeAttr = (value) => String(value || "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+    const result = [];
+    const anchors = [];
+    const alternateRanges = [];
+    for (const alternate of source.matchAll(/<mc:AlternateContent\b[^>]*>([\s\S]*?)<\/mc:AlternateContent>/gi)) {
+      alternateRanges.push([alternate.index, alternate.index + alternate[0].length]);
+      const choice = alternate[1].match(/<mc:Choice\b([^>]*)>([\s\S]*?)<\/mc:Choice>/i);
+      const requires = (choice?.[1] || "").match(/(?:^|\s)Requires\s*=\s*(["'])([^"']+)\1/i)?.[2];
+      // Word marks grouped DrawingML as Requires="wpg"; its child wps:wsp items
+      // use the same geometry pipeline. Keep this narrow exception to recover groups.
+      if (!choice || !(requires === "wps" || (requires === "wpg" && /<wpg:wgp\b/i.test(choice[2])))) continue;
+      // Compatibility choice wraps the drawing/anchor. Fallback is intentionally ignored.
+      for (const anchor of choice[2].matchAll(/<wp:anchor\b([^>]*)>([\s\S]*?)<\/wp:anchor>/gi)) anchors.push({ xml: anchor[0], sourceIndex: alternate.index });
+    }
+    for (const anchor of source.matchAll(/<wp:anchor\b([^>]*)>([\s\S]*?)<\/wp:anchor>/gi)) {
+      if (!alternateRanges.some(([start, end]) => anchor.index >= start && anchor.index < end)) anchors.push({ xml: anchor[0], sourceIndex: anchor.index });
+    }
+    for (const anchor of anchors) {
+      const anchorXml = anchor.xml;
+      const content = anchorXml;
+      const posH = anchorXml.match(/<wp:positionH\b[^>]*relativeFrom=["']([^"']+)["'][^>]*>[\s\S]*?<wp:posOffset>(-?\d+)<\/wp:posOffset>/i);
+      const posV = anchorXml.match(/<wp:positionV\b[^>]*relativeFrom=["']([^"']+)["'][^>]*>[\s\S]*?<wp:posOffset>(-?\d+)<\/wp:posOffset>/i);
+      const leftBase = posH ? emuToPx(Number(posH[2])) : 0;
+      const topBase = posV ? emuToPx(Number(posV[2])) : 0;
+      const sourcePrefix = source.slice(0, anchor.sourceIndex)
+        .replace(/<mc:AlternateContent\b[^>]*>[\s\S]*?<\/mc:AlternateContent>/gi, "")
+        .replace(/<w:txbxContent\b[^>]*>[\s\S]*?<\/w:txbxContent>/gi, "")
+        .replace(/<v:textbox\b[^>]*>[\s\S]*?<\/v:textbox>/gi, "");
+      const paragraphIndex = (sourcePrefix.match(/<w:p(?:\s|>)/gi) || []).length;
+      const docPrName = escapeAttr(anchorXml.match(/<wp:docPr\b[^>]*\bname=["']([^"']*)["']/i)?.[1] || "");
+      const anchorsGroup = /<wpg:wgp\b/i.test(content);
+      let docPrNameApplied = false;
+      let groupTransform = null;
+      if (anchorsGroup) {
+        const grp = content.match(/<wpg:grpSpPr\b[^>]*>([\s\S]*?)<\/wpg:grpSpPr>/i)?.[1] || "";
+        const attrs = (tag) => Object.fromEntries([...String(tag || "").matchAll(/([\w:]+)=["']([^"']*)["']/g)].map(m => [m[1], m[2]]));
+        const off = attrs(grp.match(/<a:off\b([^>]*)>/i)?.[1]);
+        const ext = attrs(grp.match(/<a:ext\b([^>]*)>/i)?.[1]);
+        const chOff = attrs(grp.match(/<a:chOff\b([^>]*)>/i)?.[1]);
+        const chExt = attrs(grp.match(/<a:chExt\b([^>]*)>/i)?.[1]);
+        if (off.x && ext.cx && chOff.x && chExt.cx) groupTransform = { ox: Number(off.x), oy: Number(off.y), sx: Number(ext.cx) / Number(chExt.cx), sy: Number(ext.cy) / Number(chExt.cy), cx: Number(chOff.x), cy: Number(chOff.y) };
+      }
+      for (const wsp of content.matchAll(/<wps:wsp\b[^>]*>([\s\S]*?)<\/wps:wsp>/gi)) {
+        const wspXml = wsp[1];
+        const prst = wspXml.match(/<a:prstGeom\b[^>]*\bprst=["']([^"']+)["']/i)?.[1];
+        const type = prst === "rect" ? "rectangle" : prst === "line" ? "line" : null;
+        if (!type) continue;
+        const xfrm = wspXml.match(/<a:xfrm\b[^>]*>([\s\S]*?)<\/a:xfrm>/i)?.[1] || "";
+        const attrs = (tag) => Object.fromEntries([...String(tag || "").matchAll(/([\w:]+)=["']([^"']*)["']/g)].map(m => [m[1], m[2]]));
+        const off = attrs(xfrm.match(/<a:off\b([^>]*)>/i)?.[1]);
+        const ext = attrs(xfrm.match(/<a:ext\b([^>]*)>/i)?.[1]);
+        const frame = anchorXml.match(/<wp:extent\b[^>]*\bcx=["'](\d+)["'][^>]*\bcy=["'](\d+)["']/i);
+        let x = Number(off.x || 0), y = Number(off.y || 0);
+        let w = Number(ext.cx || (frame ? frame[1] : 0));
+        let h = Number(ext.cy || (frame ? frame[2] : 0));
+        if (groupTransform) {
+          x = groupTransform.ox + (x - groupTransform.cx) * groupTransform.sx;
+          y = groupTransform.oy + (y - groupTransform.cy) * groupTransform.sy;
+          w *= groupTransform.sx; h *= groupTransform.sy;
+        }
+        const xfrmAttrs = xfrm.match(/<a:xfrm\b([^>]*)>/i)?.[1] || "";
+        const flipH = /\bflipH=["'](?:1|true)["']/i.test(xfrmAttrs);
+        const flipV = /\bflipV=["'](?:1|true)["']/i.test(xfrmAttrs);
+        const fill = wspXml.match(/<a:solidFill\b[^>]*>[\s\S]*?<a:srgbClr\b[^>]*\bval=["']([0-9A-F]{6})["']/i)?.[1];
+        const stroke = wspXml.match(/<a:ln\b[^>]*>[\s\S]*?<a:solidFill\b[^>]*>[\s\S]*?<a:srgbClr\b[^>]*\bval=["']([0-9A-F]{6})["']/i)?.[1];
+        const childName = wspXml.match(/<wps:cNvPr\b[^>]*\bname=["']([^"']*)["']/i)?.[1] || "";
+        const preferredName = !anchorsGroup || !docPrNameApplied ? docPrName : "";
+        const shapeName = escapeAttr(preferredName || childName || docPrName || `Imported shape ${result.length + 1}`);
+        if (docPrName && (!anchorsGroup || !docPrNameApplied)) docPrNameApplied = true;
+        result.push({ id: shapeName, name: shapeName, type, shapeType: type,
+          x: leftBase + emuToPx(x), y: topBase + emuToPx(y),
+          w: Math.max(1, emuToPx(w)), h: Math.max(1, emuToPx(h)), width: Math.max(1, emuToPx(w)), height: Math.max(1, emuToPx(h)),
+          fill: fill ? `#${fill}` : type === "line" ? "none" : "#2563eb", stroke: stroke ? `#${stroke}` : "#0f172a", strokeWidth: 2,
+          flipH, flipV, anchorName: docPrName, sourceDocPrName: docPrName, paragraphIndex,
+          anchorOffsetX: leftBase, anchorOffsetY: topBase, localX: emuToPx(x), localY: emuToPx(y), imported: true });
+      }
+    }
+    return result;
   }
 
   _ooxmlGroupChildTextboxes(xml) {
@@ -7299,8 +7384,18 @@ export class WriterAdapter {
     }
     layer.innerHTML = "";
     if (!this.shapes || !this.shapes.length) return;
+    const importedParagraphs = this.bodyDom?.querySelectorAll?.("p") || [];
+    const editorRect = this.editorDom.getBoundingClientRect?.();
 
     for (const shape of this.shapes) {
+      if (shape.imported && Number.isInteger(shape.paragraphIndex) && importedParagraphs.length) {
+        const paragraph = importedParagraphs[Math.min(shape.paragraphIndex, importedParagraphs.length - 1)];
+        const paragraphRect = paragraph?.getBoundingClientRect?.();
+        if (paragraphRect && editorRect) {
+          shape.x = Math.max(0, paragraphRect.left - editorRect.left + shape.anchorOffsetX + shape.localX);
+          shape.y = Math.max(0, paragraphRect.top - editorRect.top + shape.anchorOffsetY + shape.localY);
+        }
+      }
       const el = document.createElement("div");
       el.className = `vno-writer-shape-item ${shape.id === this.selectedShapeId ? "is-selected" : ""}`;
       el.dataset.shapeId = shape.id;
@@ -10915,6 +11010,7 @@ export class WriterAdapter {
         this._applyPageSetup();
       }
       this.docStyles = imported.docStyles || null;
+      this.shapes = imported.shapes || [];
       this._applyDocStyles();
 
       if (this.headerDom && this.bodyDom && this.footerDom) {
@@ -10936,6 +11032,7 @@ export class WriterAdapter {
         this._applyCharacterScale(this.bodyDom || this.editorDom);
       } catch {}
       this._markImportedParagraphsUntouched(this.bodyDom || this.editorDom);
+      this._renderShapes();
 
       if (imported.comments?.length) {
         this.comments = imported.comments;

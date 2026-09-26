@@ -61,6 +61,15 @@ export function renderShapeSvg(shape) {
   }
 
   if (type === "line") {
+    if (shape?.imported) {
+      const x1 = shape.flipH ? 96 : 4;
+      const x2 = shape.flipH ? 4 : 96;
+      const y1 = shape.flipV ? 96 : 4;
+      const y2 = shape.flipV ? 4 : 96;
+      return `<svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="none">
+      <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round"/>
+    </svg>`;
+    }
     return `<svg viewBox="0 0 100 20" width="100%" height="100%" preserveAspectRatio="none">
       <line x1="4" y1="10" x2="96" y2="10" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round"/>
     </svg>`;
