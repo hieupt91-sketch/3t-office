@@ -1048,7 +1048,18 @@ tr.is-filtered-out {
 .vno-scenario-manager > label { display:grid; gap:5px; font-weight:600; font-size:12px; color:var(--vno-text-secondary); }
 .vno-scenario-manager input, .vno-scenario-manager select { padding:7px 9px; border:1px solid var(--vno-border-default); border-radius:5px; background:var(--vno-bg-surface); color:var(--vno-text-primary); }
 .vno-scenario-actions { display:flex; gap:8px; flex-wrap:wrap; }
-.vno-name-manager{display:flex;flex-direction:column;gap:12px;min-width:520px}.vno-name-list{border:1px solid var(--vno-border-default);border-radius:6px;max-height:220px;overflow:auto}.vno-name-row{display:grid;grid-template-columns:1.2fr 1fr 1fr;width:100%;padding:8px 10px;border:0;border-bottom:1px solid var(--vno-border-default);background:transparent;text-align:left;cursor:pointer}.vno-name-row:hover,.vno-name-row.is-selected{background:var(--vno-sheet-light);color:var(--vno-text-primary)}.vno-name-actions{display:flex;gap:8px}.vno-name-form{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.vno-name-form label{display:flex;flex-direction:column;gap:4px;font-size:12px}.vno-name-form input,.vno-name-form select{background-color:var(--vno-bg-surface);color:var(--vno-text-primary);padding:7px;border:1px solid var(--vno-border-default);border-radius:4px}.vno-name-empty{padding:18px;text-align:center;color:var(--vno-text-secondary)}
+.vno-name-manager { display: flex; flex-direction: column; gap: 12px; min-width: 520px; }
+.vno-name-list { border: 1px solid var(--vno-border-default); border-radius: 6px; max-height: 220px; overflow: auto; }
+.vno-name-row { display: grid; grid-template-columns: 1.2fr 1fr 1fr; width: 100%; padding: 8px 10px; border: 0; border-bottom: 1px solid var(--vno-border-default); background: transparent; text-align: left; cursor: pointer; }
+.vno-name-row:hover, .vno-name-row.is-selected { background: var(--vno-sheet-light); color: var(--vno-text-primary); }
+.vno-name-actions { display: flex; gap: 8px; }
+.vno-name-actions .vno-btn { padding: 6px 14px; border: 1px solid var(--vno-border-default); border-radius: 4px; background: var(--vno-bg-surface); color: var(--vno-text-primary); font-size: 13px; font-weight: 500; cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease; }
+.vno-name-actions .vno-btn:hover { background: var(--vno-bg-hover); border-color: var(--vno-border-dark); }
+.vno-name-actions .vno-btn:focus-visible { outline: 2px solid var(--vno-sheet-green); outline-offset: 1px; }
+.vno-name-form { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.vno-name-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.vno-name-form input, .vno-name-form select { background-color: var(--vno-bg-surface); color: var(--vno-text-primary); padding: 7px; border: 1px solid var(--vno-border-default); border-radius: 4px; }
+.vno-name-empty { padding: 18px; text-align: center; color: var(--vno-text-secondary); }
 
 /* ==========================================================================
    FORMAT CELLS DIALOG (CTRL+1) MICROINTERACTIONS

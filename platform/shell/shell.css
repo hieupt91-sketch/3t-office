@@ -717,6 +717,81 @@ body {
   #vno-ribbon-tabpanel-insert .vno-ribbon-group-items {
     gap: 1px;
   }
+
+  /* Sheet Formulas - Co gon de vua van 100% tren man hinh 1024px khong bi tran ngang */
+  #vno-ribbon-tabpanel-formulas .vno-ribbon-btn-large {
+    min-width: 44px;
+    padding: 2px 3px;
+  }
+  #vno-ribbon-tabpanel-formulas .vno-ribbon-btn-large .vno-btn-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+  #vno-ribbon-tabpanel-formulas .vno-ribbon-btn-large .vno-btn-label {
+    font-size: 10.5px;
+    max-width: 65px;
+  }
+  #vno-ribbon-tabpanel-formulas .vno-ribbon-group {
+    padding: 0 2px;
+  }
+  #vno-ribbon-tabpanel-formulas .vno-ribbon-group-items {
+    gap: 1px;
+  }
+
+  /* Sheet Formulas - Nhom Kiem tra cong thuc: Thu gon nhan Hien cong thuc, Kiem tra loi, Uoc luong cong thuc thanh icon buttons */
+  .vno-ribbon-group[data-group-id="formulaAuditing"] button[data-command-id="sheet.formula.showFormulas"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="formulaAuditing"] button[data-command-id="sheet.formula.errorChecking"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="formulaAuditing"] button[data-command-id="sheet.formula.evaluateFormula"] .vno-btn-label {
+    display: none !important;
+  }
+  .vno-ribbon-group[data-group-id="formulaAuditing"] button[data-command-id="sheet.formula.showFormulas"],
+  .vno-ribbon-group[data-group-id="formulaAuditing"] button[data-command-id="sheet.formula.errorChecking"],
+  .vno-ribbon-group[data-group-id="formulaAuditing"] button[data-command-id="sheet.formula.evaluateFormula"] {
+    padding: 2px 4px;
+    justify-content: center;
+  }
+
+  /* Sheet Formulas - Nhom Ham tinh toan: Thu gon 5 nut toan/thong ke co ban thanh icon buttons */
+  .vno-ribbon-group[data-group-id="functionLibrary"] button[data-command-id="sheet.formula.sum"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="functionLibrary"] button[data-command-id="sheet.formula.average"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="functionLibrary"] button[data-command-id="sheet.formula.countNumbers"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="functionLibrary"] button[data-command-id="sheet.formula.max"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="functionLibrary"] button[data-command-id="sheet.formula.min"] .vno-btn-label {
+    display: none !important;
+  }
+  .vno-ribbon-group[data-group-id="functionLibrary"] button[data-command-id="sheet.formula.sum"],
+  .vno-ribbon-group[data-group-id="functionLibrary"] button[data-command-id="sheet.formula.average"],
+  .vno-ribbon-group[data-group-id="functionLibrary"] button[data-command-id="sheet.formula.countNumbers"],
+  .vno-ribbon-group[data-group-id="functionLibrary"] button[data-command-id="sheet.formula.max"],
+  .vno-ribbon-group[data-group-id="functionLibrary"] button[data-command-id="sheet.formula.min"] {
+    padding: 2px 4px;
+    justify-content: center;
+  }
+
+  /* Sheet Formulas - Nhom Tinh toan: Thu gon select che do tinh va nhan 2 nut tinh lai */
+  .vno-ribbon-group[data-group-id="calculation"] select[data-command-id="sheet.calc.calculationOptions"] {
+    max-width: 95px;
+    font-size: 10px;
+    padding: 2px 4px;
+  }
+  .vno-ribbon-group[data-group-id="calculation"] button[data-command-id="sheet.formula.recalculate"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="calculation"] button[data-command-id="sheet.calc.calculateSheet"] .vno-btn-label {
+    display: none !important;
+  }
+  .vno-ribbon-group[data-group-id="calculation"] button[data-command-id="sheet.formula.recalculate"],
+  .vno-ribbon-group[data-group-id="calculation"] button[data-command-id="sheet.calc.calculateSheet"] {
+    padding: 2px 4px;
+    justify-content: center;
+  }
+
+  /* Sheet Formulas - Nhom Ten da xac dinh: Dung trong cong thuc thu gon label thanh icon button */
+  .vno-ribbon-group[data-group-id="definedNames"] button[data-command-id="sheet.formula.useInFormula"] .vno-btn-label {
+    display: none !important;
+  }
+  .vno-ribbon-group[data-group-id="definedNames"] button[data-command-id="sheet.formula.useInFormula"] {
+    padding: 2px 4px;
+    justify-content: center;
+  }
 }
 
 /* Ribbon Dropdown Button & Menu (Fill, Clear, etc.) */

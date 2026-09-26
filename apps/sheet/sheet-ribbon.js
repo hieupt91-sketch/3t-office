@@ -312,8 +312,11 @@ export const SHEET_RIBBON_TABS = [
     labelKey: "sheetRibbon.tab.formulas",
     groups: [
       {
+        id: "functionLibrary",
         label: "Hàm tính toán",
         labelKey: "sheetRibbon.group.functionLibrary",
+        launcherCommandId: "sheet.formula.insertFunction",
+        launcherTooltip: "Chèn hàm (Shift+F3)",
         items: [
           { type: "button", commandId: "sheet.formula.insertFunction", isLarge: true },
           {
@@ -351,8 +354,11 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
+        id: "definedNames",
         label: "Tên đã xác định",
         labelKey: "sheetRibbon.group.definedNames",
+        launcherCommandId: "sheet.formula.nameManager",
+        launcherTooltip: "Trình quản lý tên (Ctrl+F3)",
         items: [
           { type: "button", commandId: "sheet.formula.nameManager", isLarge: true },
           {
@@ -366,8 +372,11 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
+        id: "formulaAuditing",
         label: "Kiểm tra công thức",
         labelKey: "sheetRibbon.group.formulaAuditing",
+        launcherCommandId: "sheet.formula.errorChecking",
+        launcherTooltip: "Kiểm tra lỗi công thức",
         items: [
           {
             type: "column",
@@ -389,6 +398,7 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
+        id: "calculation",
         label: "Tính toán",
         labelKey: "sheetRibbon.group.calculation",
         items: [

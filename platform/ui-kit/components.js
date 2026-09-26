@@ -86,6 +86,31 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("trackchange")) return ICONS.trackChanges;
   if (idLower.includes("protectsheet") || idLower.includes("sheet.protect")) return ICONS.protectSheet;
   if (idLower.includes("protectworkbook") || idLower.includes("workbook.protect")) return ICONS.protectWorkbook;
+  if (idLower.includes("insertfunction")) return ICONS.insertFunction;
+  if (idLower.includes("countnumbers")) return ICONS.countNumbers;
+  if (idLower.includes("maxfunction") || idLower.includes("formula.max")) return ICONS.maxFunction;
+  if (idLower.includes("minfunction") || idLower.includes("formula.min")) return ICONS.minFunction;
+  if (idLower.includes("namemanager")) return ICONS.nameManager;
+  if (idLower.includes("definename")) return ICONS.defineName;
+  if (idLower.includes("useinformula")) return ICONS.useInFormula;
+  if (idLower.includes("createfromselection")) return ICONS.createFromSelection;
+  if (idLower.includes("traceprecedents")) return ICONS.tracePrecedents;
+  if (idLower.includes("tracedependents")) return ICONS.traceDependents;
+  if (idLower.includes("removearrows")) return ICONS.removeArrows;
+  if (idLower.includes("showformulas")) return ICONS.showFormulas;
+  if (idLower.includes("errorchecking")) return ICONS.errorChecking;
+  if (idLower.includes("watchwindow")) return ICONS.watchWindow;
+  if (idLower.includes("evaluateformula")) return ICONS.evaluateFormula;
+  if (idLower.includes("calculatesheet")) return ICONS.calculateSheet;
+  if (idLower.includes("calculationoptions") || idLower.includes("calc.mode")) return ICONS.calculationOptions;
+  if (idLower.includes("formula.recalculate")) return ICONS.refreshTable;
+  if (idLower.includes("categoryfinancial")) return ICONS.categoryFinancial;
+  if (idLower.includes("categorylogical")) return ICONS.categoryLogical;
+  if (idLower.includes("categorytext")) return ICONS.categoryText;
+  if (idLower.includes("categorydatetime")) return ICONS.categoryDateTime;
+  if (idLower.includes("categorylookup")) return ICONS.categoryLookup;
+  if (idLower.includes("categorymath")) return ICONS.categoryMath;
+  if (idLower.includes("categorymore")) return ICONS.categoryMore;
 
   return `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>`;
 }
