@@ -83,10 +83,8 @@ def run_open_stages(xlsx_path, out_fods=None):
         xml, _ = time_stage("overlay_sheet_xlsx_freeze_panes", patcher.overlay_sheet_xlsx_freeze_panes, norm_xlsx, xml)
         xml, _ = time_stage("_overlay_autofilter_from_xlsx", patcher._overlay_autofilter_from_xlsx, norm_xlsx, xml)
         xml, _ = time_stage("_overlay_sheet_layout_from_xlsx", patcher._overlay_sheet_layout_from_xlsx, norm_xlsx, xml)
-        xml, _ = time_stage("_overlay_sheet_number_formats_from_xlsx", patcher._overlay_sheet_number_formats_from_xlsx, norm_xlsx, xml)
+        xml, _ = time_stage("_overlay_sheet_cell_metadata_from_xlsx (formats + strings + xf)", patcher._overlay_sheet_cell_metadata_from_xlsx, norm_xlsx, xml)
         xml, _ = time_stage("_promote_covered_formula_errors", patcher._promote_covered_formula_errors, xml)
-        xml, _ = time_stage("_overlay_sheet_original_strings_from_xlsx", patcher._overlay_sheet_original_strings_from_xlsx, norm_xlsx, xml)
-        xml, _ = time_stage("_overlay_sheet_xf_indices_from_xlsx", patcher._overlay_sheet_xf_indices_from_xlsx, norm_xlsx, xml)
         tab_colors = patcher.parse_tab_colors_from_xlsx(norm_xlsx)
         if tab_colors:
             xml, _ = time_stage("apply_tab_colors_to_fods", patcher.apply_tab_colors_to_fods, xml, tab_colors)

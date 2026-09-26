@@ -2786,6 +2786,8 @@ export class SheetGridController {
   }
 
   _renderVirtualRows(startRow, endRow) {
+    const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
+    const perfStart = perfEnabled ? performance.now() : 0;
     if (!this.tbody || !this.topSpacer || !this.bottomSpacer) return;
 
     startRow = Math.max(1, startRow);
@@ -2846,6 +2848,10 @@ export class SheetGridController {
     this._updateFrozenImages();
     this._updateImagePositions();
     this.renderAuditArrows?.();
+    if (perfEnabled && this.__vnoPerfLoadAt && !this.__vnoPerfRenderLogged) {
+      this.__vnoPerfRenderLogged = true;
+      window.__vnoPerfReport?.("first grid render", performance.now() - this.__vnoPerfLoadAt);
+    }
   }
 
   /**
@@ -3558,7 +3564,7 @@ export class SheetGridController {
         const dom = sheetName === activeSheet ? this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`) : null;
         if (dom) {
           const [cCoord, rCoord] = this._splitCoord(k);
-          this._renderCellVisual(dom, itm, cCoord, rCoord);
+    this._renderCellVisual(dom, itm, cCoord, rCoord);
           this._applyRuleVisuals(dom, cCoord, rCoord);
         }
       }

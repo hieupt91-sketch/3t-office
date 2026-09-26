@@ -5632,12 +5632,8 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     # the filter state.
     xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
-    xml = _overlay_sheet_number_formats_from_xlsx(xlsx_bytes, xml)
+    xml = _overlay_sheet_cell_metadata_from_xlsx(xlsx_bytes, xml)
     xml = _promote_covered_formula_errors(xml)
-    xml = _overlay_sheet_original_strings_from_xlsx(xlsx_bytes, xml)
-    # Cell style indices (xf): write vno:xf on each table:table-cell so the
-    # app can preserve original formatting for untouched cells on save.
-    xml = _overlay_sheet_xf_indices_from_xlsx(xlsx_bytes, xml)
     # Sheet tab colors: read from original XLSX worksheet XMLs and write
     # vno:tab-color to FODS table:table elements for round-trip fidelity.
     tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
@@ -5903,6 +5899,181 @@ def _overlay_sheet_xf_indices_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str
     if not match:
         return result
     return result[:match.start()] + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + result[match.end():]
+
+
+def _overlay_sheet_cell_metadata_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+    """Overlay number format, original string, and original XF in one FODS pass.
+
+    The three metadata values are read independently from the source XLSX. Their
+    historical application order is format -> string -> XF; preserve it for a
+    cell while sharing the row/cell traversal.
+    """
+    formats, strings, xfs = _xlsx_cells_with_metadata(xlsx_bytes)
+    if not formats and not strings and not xfs:
+        return fods_xml
+
+    def metadata_rows(mapping, sheet_name):
+        rows = {}
+        for (row, col), value in mapping.get(sheet_name, {}).items():
+            rows.setdefault(row, {})[col] = value
+        return rows
+
+    def apply_row(row_xml, format_targets, string_targets, xf_targets):
+        columns = {}
+        for source, kind in ((format_targets, "format"), (string_targets, "string"), (xf_targets, "xf")):
+            for col, value in source.items():
+                columns.setdefault(col, {})[kind] = value
+        pieces, cursor, column = [], 0, 1
+        sorted_columns = sorted(columns)
+        target_index = 0
+        for start, end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
+            pieces.append(row_xml[cursor:start])
+            cell = row_xml[start:end]
+            repeat = _repeat_count(cell, "table:number-columns-repeated")
+            while target_index < len(sorted_columns) and sorted_columns[target_index] < column:
+                target_index += 1
+            hit_end = target_index
+            while hit_end < len(sorted_columns) and sorted_columns[hit_end] < column + repeat:
+                hit_end += 1
+            hits = sorted_columns[target_index:hit_end]
+            target_index = hit_end
+            if not hits:
+                pieces.append(cell)
+            else:
+                at = column
+                for col in hits:
+                    meta = columns[col]
+                    if col > at:
+                        pieces.append(_set_repeat(cell, "table:number-columns-repeated", col - at))
+                    stamped = _set_repeat(cell, "table:number-columns-repeated", 1)
+                    if "format" in meta:
+                        stamped = _set_number_format_attr(stamped, meta["format"])
+                    # Historically covered formula errors were promoted between
+                    # number-format and string/XF passes. Preserve that dependency
+                    # for targeted cells while keeping one cell traversal.
+                    if stamped.startswith("<table:covered-table-cell") and "table:formula=" in stamped:
+                        stamped = _promote_covered_formula_errors(stamped)
+                    if "string" in meta:
+                        stamped = _set_original_string_attr(stamped, meta["string"])
+                    if "xf" in meta:
+                        stamped = _set_orig_xf_attr(stamped, meta["xf"])
+                    pieces.append(stamped)
+                    at = col + 1
+                if at < column + repeat:
+                    pieces.append(_set_repeat(cell, "table:number-columns-repeated", column + repeat - at))
+            cursor, column = end, column + repeat
+        pieces.append(row_xml[cursor:])
+        return "".join(pieces)
+
+    pieces, cursor = [], 0
+    needs_vno = bool(formats or xfs)
+    for start, end in _flat_xml_blocks(fods_xml, ("table:table",)):
+        pieces.append(fods_xml[cursor:start])
+        table_xml = fods_xml[start:end]
+        table_match = re.match(r"<[^>]+", table_xml)
+        attrs = _xml_attrs(table_match.group(0)) if table_match else {}
+        sheet_name = attrs.get("table:name", "")
+        row_maps = [metadata_rows(mapping, sheet_name) for mapping in (formats, strings, xfs)]
+        if any(row_maps):
+            table_parts, table_cursor, row_number = [], 0, 1
+            sorted_rows = sorted(set().union(*(mapping.keys() for mapping in row_maps)))
+            target_index = 0
+            for row_start, row_end in _flat_xml_blocks(table_xml, ("table:table-row",)):
+                table_parts.append(table_xml[table_cursor:row_start])
+                row_xml = table_xml[row_start:row_end]
+                repeat = _repeat_count(row_xml, "table:number-rows-repeated")
+                while target_index < len(sorted_rows) and sorted_rows[target_index] < row_number:
+                    target_index += 1
+                hit_end = target_index
+                while hit_end < len(sorted_rows) and sorted_rows[hit_end] < row_number + repeat:
+                    hit_end += 1
+                hits = sorted_rows[target_index:hit_end]
+                target_index = hit_end
+                if not hits:
+                    table_parts.append(row_xml)
+                else:
+                    at = row_number
+                    for row in hits:
+                        if row > at:
+                            table_parts.append(_set_repeat(row_xml, "table:number-rows-repeated", row - at))
+                        table_parts.append(apply_row(
+                            _set_repeat(row_xml, "table:number-rows-repeated", 1),
+                            row_maps[0].get(row, {}), row_maps[1].get(row, {}), row_maps[2].get(row, {}),
+                        ))
+                        at = row + 1
+                    if at < row_number + repeat:
+                        table_parts.append(_set_repeat(row_xml, "table:number-rows-repeated", row_number + repeat - at))
+                table_cursor, row_number = row_end, row_number + repeat
+            table_parts.append(table_xml[table_cursor:])
+            table_xml = "".join(table_parts)
+        pieces.append(table_xml)
+        cursor = end
+    pieces.append(fods_xml[cursor:])
+    result = "".join(pieces)
+    if needs_vno and not re.search(r"xmlns:vno\s*=", result, re.IGNORECASE):
+        match = _OFFICE_DOCUMENT_OPEN_RE.search(result)
+        if match:
+            result = result[:match.start()] + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + result[match.end():]
+    return result
+
+
+def _xlsx_cells_with_metadata(xlsx_bytes: bytes):
+    """Build number-format, original-string, and XF maps in one XLSX cell scan."""
+    cached = _index_memo_get("sheet_metadata", xlsx_bytes)
+    if cached is not _INDEX_MISS:
+        return cached
+    format_by_xf = _xlsx_number_formats(xlsx_bytes)
+    shared_xml = (read_zip_entry(xlsx_bytes, "xl/sharedStrings.xml") or b"").decode("utf-8", errors="replace")
+    shared = []
+    for item in re.finditer(r"<si\b[^>]*>([\s\S]*?)</si>", shared_xml, re.IGNORECASE):
+        shared.append("".join(_unescape_xml(m.group(1)) for m in re.finditer(r"<t\b[^>]*>([\s\S]*?)</t>", item.group(1), re.IGNORECASE)))
+
+    formats, strings, xfs = {}, {}, {}
+    coordinate_re = re.compile(r"([A-Z]+)(\d+)", re.IGNORECASE)
+    value_re = re.compile(r"<v\b[^>]*>([\s\S]*?)</v>", re.IGNORECASE)
+    text_re = re.compile(r"<t\b[^>]*>([\s\S]*?)</t>", re.IGNORECASE)
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        entry = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry:
+            continue
+        sheet_formats, sheet_strings, sheet_xfs = {}, {}, {}
+        sheet_xml = entry.decode("utf-8", errors="replace")
+        for attrs_text, body in _iter_xlsx_cell_parts(sheet_xml):
+            attrs = _xml_attrs(attrs_text)
+            coord = coordinate_re.fullmatch(attrs.get("r", ""))
+            if not coord:
+                continue
+            column = 0
+            for char in coord.group(1).upper():
+                column = column * 26 + ord(char) - 64
+            key = (int(coord.group(2)), column)
+            style_index = int(attrs.get("s") or 0)
+            sheet_xfs[key] = style_index
+            if 0 <= style_index < len(format_by_xf):
+                code = format_by_xf[style_index]
+                if code.lower() != "general":
+                    sheet_formats[key] = code
+
+            kind = attrs.get("t", "").lower()
+            if kind not in {"s", "str", "inlinestr"}:
+                continue
+            if kind == "s":
+                raw = value_re.search(body)
+                value = shared[int(raw.group(1))] if raw and int(raw.group(1)) < len(shared) else ""
+            else:
+                text_values = text_re.findall(body)
+                raw_value = value_re.search(body)
+                value = "".join(_unescape_xml(item) for item in text_values) or (_unescape_xml(raw_value.group(1)) if raw_value else "")
+            sheet_strings[key] = value
+        if sheet_formats:
+            formats[sheet_name] = sheet_formats
+        if sheet_strings:
+            strings[sheet_name] = sheet_strings
+        if sheet_xfs:
+            xfs[sheet_name] = sheet_xfs
+    result = (formats, strings, xfs)
+    _index_memo_put("sheet_metadata", xlsx_bytes, result)
+    return result
 
 
 def reoverlay_sheet_xf_indices(xlsx_bytes: bytes, fods_xml: str) -> str:

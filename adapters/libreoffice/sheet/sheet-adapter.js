@@ -4567,13 +4567,21 @@ export class SheetAdapter {
 
   loadFromFods(fodsText, ooxmlWorkbookXml) {
     if (!this.grid) return false;
+    const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
+    const perfStart = perfEnabled ? performance.now() : 0;
+    if (perfEnabled) {
+      this.grid.__vnoPerfLoadAt = perfStart;
+      this.grid.__vnoPerfRenderLogged = false;
+    }
     // Imported files retain the legacy layout fallback while their explicit
     // XLSX dimensions are overlaid. S24's 20/64 defaults apply to new books.
     this.grid.rowHeight = 26;
     this.grid.defaultColWidth = 100;
     let xml = overlayFodsStructureProtection(fodsText, ooxmlWorkbookXml);
     xml = overlayActiveSheetToFods(xml, ooxmlWorkbookXml);
+    const parseStart = perfEnabled ? performance.now() : 0;
     const workbook = this.parseFods(xml);
+    if (perfEnabled) window.__vnoPerfReport?.("parseFods", performance.now() - parseStart);
     if (workbook.sheets.length === 0) return false;
     const firstSheet = workbook.sheets[0];
     if (typeof this.grid.resetToBlank === "function") this.grid.resetToBlank(firstSheet);
@@ -4695,6 +4703,13 @@ export class SheetAdapter {
     this.grid.renderImages?.();
     this.grid._applyProtectionUi?.({ renderTabs: true });
     this.grid.updateStatus?.();
+    if (perfEnabled) {
+      const elapsed = performance.now() - perfStart;
+      window.__vnoPerfReport?.("loadFromFods", elapsed);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        window.__vnoPerfReport?.("first layout", performance.now() - perfStart);
+      }));
+    }
     return true;
   }
 

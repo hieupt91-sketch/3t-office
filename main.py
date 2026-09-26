@@ -883,6 +883,19 @@ class VnOfficeApi:
         """Cho UI biết document engine thật có sẵn sàng hay không (không giả vờ)."""
         return {"available": SOFFICE_PATH is not None, "path": SOFFICE_PATH or ""}
 
+    def report_perf_metric(self, name, elapsed_ms):
+        """Emit opt-in renderer timing to the foreground desktop launch console."""
+        if os.environ.get("VNO_PERF_DEBUG") != "1":
+            return False
+        if name not in {"parseFods", "loadFromFods", "first grid render", "first layout"}:
+            return False
+        try:
+            value = float(elapsed_ms)
+        except (TypeError, ValueError):
+            return False
+        print(f"[VNO Sheet Perf] {name}: {value:.1f} ms", flush=True)
+        return True
+
     def open_document_dialog(self, app_kind="writer"):
         """Mở hộp thoại chọn tệp NATIVE thật của hệ điều hành, chuyển đổi tệp thật sang
         định dạng trung gian mà UI có thể hiển thị."""
@@ -1094,6 +1107,8 @@ def build_launch_url(app_kind: str | None, initial_file: str | None, port: int =
     query = {"app": app_kind, "singleApp": "1"}
     if initial_file:
         query["openFile"] = "1"
+    if os.environ.get("VNO_PERF_DEBUG") == "1":
+        query["perfDebug"] = "1"
     return f"http://localhost:{port}/?{urlencode(query)}"
 
 
@@ -1148,7 +1163,7 @@ def main(argv: list[str] | None = None):
     window.events.closed += on_closing
 
     try:
-        webview.start(debug=False)
+        webview.start(debug=os.environ.get("VNO_PERF_DEBUG") == "1")
     except SystemExit:
         pass
     except Exception as exc:
