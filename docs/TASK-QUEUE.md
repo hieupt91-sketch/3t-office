@@ -34,8 +34,11 @@ Ghi chú vòng Writer (R24/R25): mảng d01/d07/d09/d13/d15/d16/d17 đã tới n
 - **Codex S29 vòng 3 — phát hiện quan trọng**: nút nghẽn thật của lan14 không phải Python mà là **`parseFods` phía JS: 102,4 giây** (đo bằng hook thật trong app, không phải suy đoán). Tổng thời gian mở lan14 thực tế ≈ Python (115-138s) + JS parseFods (102s) ≈ **220-240 giây** — lớn hơn nhiều so với con số Python một mình từng báo cáo. Đây là mục tiêu tối ưu chính cho vòng 4.
 - **opencode mở rộng mẫu Sheet — LỖI, ĐÃ HUỶ KHÔNG MERGE**: agent hiểu sai nhiệm vụ, copy lại CHÍNH 28 file đã có (lan01-28) rồi đặt tên lan29-56, không đo được file thật nào mới. Đã phát hiện khi kiểm chứng `_map.txt`, huỷ toàn bộ branch (không ảnh hưởng `main`). Đã giao lại vòng 2 với danh sách 28 tên file chính xác viết sẵn trong brief (không để agent tự tính) — `E:\VNOffice-opencode-sample-expand2`.
 
-**Đang chạy song song (26/9 12:52):** agy tab Công thức (Formulas, Sheet, `E:\VNOffice-agy-formulas-tab`), opencode mở rộng mẫu Sheet vòng 2 (`E:\VNOffice-opencode-sample-expand2`).
-Cần giao tiếp: Codex S29 vòng 4 (tối ưu `parseFods` JS — nút nghẽn chính vừa xác định), Grok vòng Writer kế tiếp (tuỳ kết quả opencode/Codex).
+**Đã gộp thêm (26/9 15:10):**
+- agy tab Công thức (Formulas, Sheet): tràn ngang 1024px 1109→1024px, bổ sung `id` nhóm + 3 launcher (Chèn hàm/Quản lý tên/Kiểm tra lỗi), styling nút Trình quản lý tên, đồng bộ Help; 100% lệnh có handler (25 lệnh). **Sự cố git**: nhánh gốc bị hỏng ref sau khi merge do thao tác dọn ảnh chụp màn hình cắt ngang phiên — đã phục hồi bằng commit hash từ reflog (`af5ec40`), không mất dữ liệu, đã xác nhận lại 1834/1834 trước khi merge.
+- **opencode mở rộng mẫu Sheet — HUỶ HOÀN TOÀN, sai từ gốc do Claude**: cả 2 vòng đều thất bại vì tiền đề sai — thư mục `file test\lan\` chỉ có **28 tài liệu Excel thật duy nhất** (mỗi file tồn tại 2 lần: tên thật + bản `lanNN.xlsx` đã đổi tên), KHÔNG PHẢI 56 tài liệu khác nhau như Claude giả định ban đầu (đã xác minh bằng SHA-256: file tên thật và `lanNN.xlsx` tương ứng trùng byte tuyệt đối). Không còn "mẫu mở rộng" nào để đo — 26-28 file đã đo là toàn bộ mẫu Sheet thật hiện có. Đóng dứt điểm hướng này.
+
+**Đang chạy song song (26/9 15:10):** agy tab Dữ liệu (Data, Sheet, `E:\VNOffice-agy-data-tab`), Codex S29 vòng 4 (`E:\VNOffice-codex-sheet-s29c`, tối ưu `parseFods` JS — đã tự phục hồi sau 1 lần phiên bị ngắt giữa chừng, không mất việc).
 
 Việc kế tiếp của Claude: Sheet batch lưu 26 file lại bằng Excel COM để xác nhận S29 vòng 1+2+3 không hồi quy (cần Excel COM rảnh).
 
