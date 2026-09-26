@@ -149,6 +149,8 @@ export const WRITER_RIBBON_TABS = [
                     id: "writer.para.lineSpacing",
                     label: "Giãn dòng",
                     icon: "lineSpacing",
+                    iconOnly: true,
+                    ariaLabel: "Khoảng cách dòng",
                     items: [
                       { commandId: "writer.para.spacing1" },
                       { commandId: "writer.para.spacing15" },

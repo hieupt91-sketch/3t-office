@@ -36,6 +36,8 @@ export const SHEET_RIBBON_TABS = [
         id: "font",
         label: "Phông chữ",
         labelKey: "sheetRibbon.group.font",
+        launcherCommandId: "sheet.format.cellsDialog",
+        launcherTooltip: "Định dạng ô (Ctrl+1)",
         items: [
           {
             type: "column",
@@ -148,9 +150,9 @@ export const SHEET_RIBBON_TABS = [
                 type: "row",
                 items: [
                   { type: "button", commandId: "sheet.cell.mergeCenter" },
-                  { type: "button", commandId: "sheet.cell.mergeAcross" },
-                  { type: "button", commandId: "sheet.cell.mergeCells" },
-                  { type: "button", commandId: "sheet.cell.unmerge" }
+                  { type: "button", commandId: "sheet.cell.mergeAcross", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.mergeCells", iconOnly: true },
+                  { type: "button", commandId: "sheet.cell.unmerge", iconOnly: true }
                 ]
               }
             ]
