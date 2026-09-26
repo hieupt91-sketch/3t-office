@@ -188,6 +188,95 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         document = _read_entry(result, "word/document.xml").decode("utf-8")
         self.assertIn('<w:pageBreakBefore/>', document)
 
+    def test_r13d_empty_page_break_paragraph_via_bookmark(self):
+        """R13d (d13/d21): empty HTML marker with vno-untouched-N becomes w:br type=page."""
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Cover</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="5" w:name="vno-untouched-1"/>'
+            '<w:bookmarkEnd w:id="5"/></w:p>'
+            '<w:p><w:bookmarkStart w:id="6" w:name="vno-untouched-2"/>'
+            '<w:bookmarkEnd w:id="6"/><w:r><w:t>1. Tóm tắt dự án</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        source_html = (
+            '<p id="vno-untouched-0">Cover</p>'
+            '<p id="vno-untouched-1" style="page-break-before:always;break-before:page;margin:0;"></p>'
+            '<h1 id="vno-untouched-2">1. Tóm tắt dự án</h1>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(converted, source_html=source_html)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        paragraphs = [xml[start:end] for start, end in ooxml_zip_patch_mod._writer_body_paragraph_ranges(xml)]
+        self.assertTrue(any(re.search(r'<w:br\b[^>]*w:type="page"', p) for p in paragraphs))
+        heading = next(p for p in paragraphs if "Tóm tắt dự án" in p)
+        self.assertNotIn("<w:pageBreakBefore", heading)
+        self.assertEqual(len(re.findall(r'<w:br\b[^>]*w:type="page"', xml)), 1)
+
+    def test_r13d_heading_break_before_via_bookmark(self):
+        """R13d (d13): break-before on <h1 id=vno-untouched-N> maps to that heading, not a table cell."""
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Cover</w:t></w:r></w:p>'
+            '<w:tbl><w:tblPr><w:tblW w:w="2000" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="2000"/></w:tblGrid>'
+            '<w:tr><w:tc><w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p></w:tc></w:tr></w:tbl>'
+            '<w:p><w:bookmarkStart w:id="5" w:name="vno-untouched-5"/>'
+            '<w:bookmarkEnd w:id="5"/><w:r><w:t>1. Tóm tắt dự án</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        source_html = (
+            '<p>Cover</p><table><tr><td></td></tr></table>'
+            '<h1 id="vno-untouched-5" style="break-before: page;">1. Tóm tắt dự án</h1>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(converted, source_html=source_html)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        heading = next(
+            xml[s:e] for s, e in ooxml_zip_patch_mod._writer_body_paragraph_ranges(xml)
+            if "Tóm tắt dự án" in xml[s:e]
+        )
+        self.assertIn("<w:pageBreakBefore/>", heading)
+        cell = re.search(r"<w:tc\b[\s\S]*?</w:tc>", xml).group(0)
+        self.assertIn("<w:pageBreakBefore/>", cell)
+
+    def test_r13d_inserts_br_when_empty_marker_dropped(self):
+        """R13d: LO dropped the empty page-break <p>; insert w:br type=page before the next bookmark."""
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Cover</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="6" w:name="vno-untouched-2"/>'
+            '<w:bookmarkEnd w:id="6"/><w:r><w:t>Heading after break</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+        )
+        source_html = (
+            '<p id="vno-untouched-0">Cover</p>'
+            '<p id="vno-untouched-1" style="page-break-before:always;break-before:page;"></p>'
+            '<p id="vno-untouched-2">Heading after break</p>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(converted, source_html=source_html)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertRegex(xml, r'<w:br\b[^>]*w:type="page"')
+        paragraphs = [xml[start:end] for start, end in ooxml_zip_patch_mod._writer_body_paragraph_ranges(xml)]
+        self.assertTrue(any(
+            not ooxml_zip_patch_mod._paragraph_plain_text(p).strip()
+            and re.search(r'<w:br\b[^>]*w:type="page"', p)
+            for p in paragraphs
+        ))
+        heading = next(p for p in paragraphs if "Heading after break" in p)
+        self.assertNotIn("<w:pageBreakBefore", heading)
+
+    def test_r13d_collapse_heading_pbb_when_empty_br_carrier_exists(self):
+        """R13d: W22d heading pbb + W37 empty br carrier must not paginate twice."""
+        xml = (
+            '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            '<w:body>'
+            '<w:p><w:r><w:t>Cover</w:t></w:r></w:p>'
+            '<w:p><w:r><w:br w:type="page"/></w:r></w:p>'
+            '<w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:t>1. Tóm tắt dự án</w:t></w:r></w:p>'
+            '<w:sectPr/>'
+            '</w:body></w:document>'
+        )
+        out = ooxml_zip_patch_mod._writer_collapse_consecutive_page_breaks(xml)
+        paragraphs = [out[s:e] for s, e in ooxml_zip_patch_mod._writer_body_paragraph_ranges(out)]
+        self.assertRegex(paragraphs[1], r'<w:br\b[^>]*w:type="page"')
+        self.assertNotIn("<w:pageBreakBefore", paragraphs[2])
+
     def test_r13a_duplicate_adjacent_tables_removed(self):
         """R13a (d09): LibreOffice HTML→DOCX clones a body table. Drop the extra copy."""
         finance = (
