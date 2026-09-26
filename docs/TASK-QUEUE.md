@@ -38,9 +38,13 @@ Ghi chú vòng Writer (R24/R25): mảng d01/d07/d09/d13/d15/d16/d17 đã tới n
 - agy tab Công thức (Formulas, Sheet): tràn ngang 1024px 1109→1024px, bổ sung `id` nhóm + 3 launcher (Chèn hàm/Quản lý tên/Kiểm tra lỗi), styling nút Trình quản lý tên, đồng bộ Help; 100% lệnh có handler (25 lệnh). **Sự cố git**: nhánh gốc bị hỏng ref sau khi merge do thao tác dọn ảnh chụp màn hình cắt ngang phiên — đã phục hồi bằng commit hash từ reflog (`af5ec40`), không mất dữ liệu, đã xác nhận lại 1834/1834 trước khi merge.
 - **opencode mở rộng mẫu Sheet — HUỶ HOÀN TOÀN, sai từ gốc do Claude**: cả 2 vòng đều thất bại vì tiền đề sai — thư mục `file test\lan\` chỉ có **28 tài liệu Excel thật duy nhất** (mỗi file tồn tại 2 lần: tên thật + bản `lanNN.xlsx` đã đổi tên), KHÔNG PHẢI 56 tài liệu khác nhau như Claude giả định ban đầu (đã xác minh bằng SHA-256: file tên thật và `lanNN.xlsx` tương ứng trùng byte tuyệt đối). Không còn "mẫu mở rộng" nào để đo — 26-28 file đã đo là toàn bộ mẫu Sheet thật hiện có. Đóng dứt điểm hướng này.
 
-**Đang chạy song song (26/9 15:10):** agy tab Dữ liệu (Data, Sheet, `E:\VNOffice-agy-data-tab`), Codex S29 vòng 4 (`E:\VNOffice-codex-sheet-s29c`, tối ưu `parseFods` JS — đã tự phục hồi sau 1 lần phiên bị ngắt giữa chừng, không mất việc).
+**Đã gộp thêm (26/9 15:50):**
+- agy tab Dữ liệu (Data, Sheet): định nghĩa lệnh `sheet.data.goalSeek` **thiếu hoàn toàn** trong `command-definitions.js` dù có handler thật (raw command-id + icon chấm đen); 15 keyword icon còn thiếu; launcher Sắp xếp tùy chỉnh; styling 4 hộp thoại; sửa 1 vi phạm WCAG AA; 100% lệnh có handler (15 lệnh) + Playwright live test Custom Sort thật.
+- **Codex S29 vòng 4 — mốc quan trọng, dừng vòng tối ưu nhanh ở đây**: đo bằng hook thật trong app, xác định hai chi phí lớn nhất của `parseFods` trên lan14 là **DOM parse trình duyệt (~37-45s)** và **dựng workbook model (~35-49s)** — KHÔNG phải vòng lặp O(n²) có thể sửa nhanh như bên Python. Codex trung thực báo cáo KHÔNG chứng minh được tốc độ nhanh hơn cho cache tên cột đã thêm (nhiễu đo lớn hơn tác dụng). Đây là điểm cần quyết định kiến trúc lớn hơn (viết lại bằng streaming parser?) nếu muốn tiếp tục — không phải việc "tối ưu nhanh" nữa.
 
-Việc kế tiếp của Claude: Sheet batch lưu 26 file lại bằng Excel COM để xác nhận S29 vòng 1+2+3 không hồi quy (cần Excel COM rảnh).
+**Đang chạy song song (26/9 15:50):** agy tab Chế độ xem (View, `E:\VNOffice-agy-view-tab`), Codex S29 vòng 5 (`E:\VNOffice-codex-sheet-s29d`, thu hẹp mục tiêu vào riêng bước "Build workbook model" — code của mình, còn khả năng tối ưu, khác DOM parse của trình duyệt).
+
+Việc kế tiếp của Claude: Sheet batch lưu 26 file lại bằng Excel COM để xác nhận S29 vòng 1+2+3+4 không hồi quy (cần Excel COM rảnh).
 
 ## Trạng thái 22/9 01:00 (main `7943de1` = S31 + W47–W51)
 
