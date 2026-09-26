@@ -7,6 +7,8 @@ import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
+import fs from "node:fs";
+import crypto from "node:crypto";
 
 const SOFFICE_WRITER_HTML = `<!DOCTYPE html>
 <html><head><style type="text/css">
@@ -231,6 +233,23 @@ export async function runRealOfficeImportFidelityTests() {
     }
     if (revenue.get("A1")?.style?.numberFormat) {
       throw new Error("Ô chữ không được gán number format của cột mặc định");
+    }
+  });
+
+  test("Sheet: parseFods workbook snapshots match pre-optimization results", () => {
+    const baselineHashes = new Map([
+      ["sample-sheet.fods", "27d6a029634b9d23b3018034ec3ac3e31f2695dc336f60a081eac86a2de15129"],
+      ["sample-sheet-validation.fods", "5a61f84f3e86fec0fbda3ce2f3184723f5282a2109e2669ac85bd5c7343bf4d0"],
+      ["sample-sheet-pivot.fods", "9da11d96699646fd171f3e71d520aeeb5c3ce61fea3683e1657fd601195c56c5"],
+      ["sample-sheet-formulas.fods", "6fe5161ffbdb734037194fd132e3ddfd615074142f7a4ff2c00f9b3b9f19d9db"]
+    ]);
+    const normalizeWorkbook = value => JSON.stringify(value, (_, item) =>
+      item instanceof Map ? { __map: [...item.entries()] } : item instanceof Set ? { __set: [...item.values()] } : item);
+    for (const [filename, expectedHash] of baselineHashes) {
+      const xml = fs.readFileSync(`tests/fixtures/real-office-samples/src/${filename}`, "utf8");
+      const workbook = new SheetAdapter(null).parseFods(xml);
+      const hash = crypto.createHash("sha256").update(normalizeWorkbook(workbook)).digest("hex");
+      if (hash !== expectedHash) throw new Error(`${filename}: workbook hash ${hash} != baseline ${expectedHash}`);
     }
   });
 

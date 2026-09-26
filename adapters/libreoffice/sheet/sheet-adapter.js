@@ -4039,17 +4039,32 @@ export class SheetAdapter {
   parseFods(xmlText) {
     const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, pageSetupBySheet: {}, validationHits: [], rowHeightsBySheet: {}, colWidthsBySheet: {}, userHiddenRowsBySheet: {}, userHiddenColsBySheet: {}, imagesAtOpenBySheet: {} };
     if (!xmlText) return workbook;
+    const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
+    const perfNow = () => perfEnabled ? performance.now() : 0;
+    const perfReport = (name, started) => { if (perfEnabled) window.__vnoPerfReport?.(`parseFods:${name}`, performance.now() - started); };
+    let phaseStart = perfNow();
     const tableXml = this._xmlWithoutEmbeddedObjects(xmlText);
+    perfReport("strip embedded objects", phaseStart);
+    phaseStart = perfNow();
     const numberStyles = this._parseNumberStyles(tableXml);
+    perfReport("number styles", phaseStart); phaseStart = perfNow();
     const rotationStyles = this._parseRotationStyles(tableXml);
+    perfReport("rotation styles", phaseStart); phaseStart = perfNow();
     const cellVisualStyles = this._parseCellVisualStyles(tableXml);
+    perfReport("cell visual styles", phaseStart); phaseStart = perfNow();
     const textStyles = this._parseTextStyles(tableXml);
+    perfReport("text styles", phaseStart); phaseStart = perfNow();
     const rowColStyles = this._parseRowColStyles(tableXml);
+    perfReport("row/column styles", phaseStart);
     const defaultRowHeight = this.grid?.rowHeight || 20;
     const defaultColWidth = this.grid?.defaultColWidth || 64;
     const tableBlocks = [];
+    phaseStart = perfNow();
     tableXml.replace(/<table:table(?=[\s>/])([^>]*)>([\s\S]*?)<\/table:table>/gi, all => { tableBlocks.push(all); return all; });
+    perfReport("collect table blocks", phaseStart);
+    phaseStart = perfNow();
     const workbookOnlyXml = tableBlocks.reduce((text, block) => text.replace(block, ""), tableXml);
+    perfReport("remove table blocks", phaseStart);
     let workbookNameIndex = 0;
     workbookOnlyXml.replace(/<table:named-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
       const range = this._parseNamedRangeElement(attrs, "workbook", "", ++workbookNameIndex);
@@ -4058,13 +4073,22 @@ export class SheetAdapter {
     });
 
     if (typeof DOMParser !== "undefined") {
+      phaseStart = perfNow();
       const doc = new DOMParser().parseFromString(tableXml, "text/xml");
+      perfReport("DOM parse", phaseStart);
       if (!doc.querySelector("parsererror")) {
         const configItems = Array.from(doc.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:config:1.0", "config-item"));
         workbook.activeSheet = configItems.find(item => item.getAttribute("config:name") === "ActiveTable")?.textContent || "";
         const tables = Array.from(doc.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "table"))
           .filter(table => table.getAttribute("table:name") !== "local-table");
+        const repeatedXmlScanMs = { pageLayout: 0, printTitles: 0, tabColor: 0 };
+        const worksheetPhaseMs = { findUsedRange: 0, buildWorkbookModel: 0 };
+        phaseStart = perfNow();
         tables.forEach((table, tableIndex) => {
+          // Large sheets revisit the same column index for every populated row.
+          // Resolve each index once instead of rebuilding its base-26 name per cell.
+          const columnNames = [""];
+          const columnName = number => columnNames[number] || (columnNames[number] = this._columnName(number));
           const name = table.getAttribute("table:name") || `Trang tính ${tableIndex + 1}`;
           const printArea = this._parsePrintRangeAddress(table.getAttribute("table:print-ranges"));
           let pageMargins = {};
@@ -4081,7 +4105,9 @@ export class SheetAdapter {
           // chuyển đổi thật nào (LibreOffice/Excel không giữ lại thuộc tính lạ khi convert).
           // Với file thật (mở lần đầu từ Excel/LibreOffice, hoặc đã convert qua lại), phải đọc
           // Page Setup chuẩn ODF thật (style:page-layout-properties) làm nguồn dự phòng.
+          let repeatedScanStart = perfNow();
           const standardLayout = this._parseStandardOdfPageLayout(tableXml, table.getAttribute("table:style-name"));
+          if (perfEnabled) repeatedXmlScanMs.pageLayout += performance.now() - repeatedScanStart;
           const pageSetup = {
             size: table.getAttribute("vno:page-size") || standardLayout?.size || "a4",
             orientation: table.getAttribute("vno:page-orientation") || standardLayout?.orientation || "portrait",
@@ -4093,7 +4119,9 @@ export class SheetAdapter {
             printTitles: { rows: table.getAttribute("vno:print-title-rows") || "", cols: table.getAttribute("vno:print-title-cols") || "" }
           };
           if (!pageSetup.printTitles.rows && !pageSetup.printTitles.cols) {
+            repeatedScanStart = perfNow();
             const standardTitles = this._parseStandardPrintTitles(tableXml, name);
+            if (perfEnabled) repeatedXmlScanMs.printTitles += performance.now() - repeatedScanStart;
             if (standardTitles) {
               pageSetup.printTitles = standardTitles;
             }
@@ -4126,6 +4154,7 @@ export class SheetAdapter {
           let lastDataRow = 0;
           let lastDataCol = 0;
           {
+            const scanStarted = perfNow();
             let scanRow = 1;
             for (const row of rowElements) {
               const scanRepeat = Math.max(1, Number(row.getAttribute("table:number-rows-repeated")) || 1);
@@ -4152,6 +4181,7 @@ export class SheetAdapter {
               if (rowHasData) lastDataRow = scanRow + scanRepeat - 1;
               scanRow += scanRepeat;
             }
+            if (perfEnabled) worksheetPhaseMs.findUsedRange += performance.now() - scanStarted;
           }
 
           const columnStyles = [];
@@ -4168,7 +4198,7 @@ export class SheetAdapter {
             for (let index = 0; index < repeat; index++) {
               if (layoutColumn <= effectiveColLimit) {
                 columnStyles.push(defaultCellStyle);
-                const colName = this._columnName(layoutColumn);
+                const colName = columnName(layoutColumn);
                 if (Number.isFinite(widthPx) && !this._isCloseToDefault(widthPx, defaultColWidth)) colWidths.set(colName, widthPx);
                 if (visibility === "collapse") hiddenCols.add(colName);
               }
@@ -4176,6 +4206,7 @@ export class SheetAdapter {
             }
           });
 
+          const modelStarted = perfNow();
           rowElements.forEach(row => {
             const rowRepeat = Math.max(1, Number(row.getAttribute("table:number-rows-repeated")) || 1);
             const rowStyleName = this._tableAttr(row, "style-name");
@@ -4208,8 +4239,8 @@ export class SheetAdapter {
                 if (!isCovered && (mergedColumns > 1 || mergedRows > 1)) {
                   for (let repeat = 0; repeat < columnRepeat; repeat++) {
                     mergedRanges.push({
-                      start: { c: this._columnName(columnNumber + repeat), r: rowNumber },
-                      end: { c: this._columnName(columnNumber + repeat + mergedColumns - 1), r: rowNumber + mergedRows - 1 }
+                      start: { c: columnName(columnNumber + repeat), r: rowNumber },
+                      end: { c: columnName(columnNumber + repeat + mergedColumns - 1), r: rowNumber + mergedRows - 1 }
                     });
                   }
                 }
@@ -4247,7 +4278,7 @@ export class SheetAdapter {
                   // columns inside the used rows would otherwise still explode.
                   const materializeRepeat = Math.max(0, Math.min(columnRepeat, lastDataCol - columnNumber + 1));
                   for (let repeat = 0; repeat < materializeRepeat; repeat++) {
-                    const coord = `${this._columnName(columnNumber + repeat)}${rowNumber}`;
+                    const coord = `${columnName(columnNumber + repeat)}${rowNumber}`;
                     data.set(coord, { ...item });
                     if (attributes["table:content-validation-name"]) {
                       workbook.validationHits.push({ sheet: name, coord, name: attributes["table:content-validation-name"] });
@@ -4262,13 +4293,14 @@ export class SheetAdapter {
                 }
                 const embeddedImages = this._parseCellEmbeddedImagesDom(cell, `Image${images.length + 1}`);
                 for (const embeddedImage of embeddedImages) {
-                  images.push({ ...embeddedImage, anchor: { c: this._columnName(columnNumber), r: rowNumber } });
+                  images.push({ ...embeddedImage, anchor: { c: columnName(columnNumber), r: rowNumber } });
                 }
                 columnNumber += columnRepeat;
               });
               rowNumber++;
             }
           });
+          if (perfEnabled) worksheetPhaseMs.buildWorkbookModel += performance.now() - modelStarted;
           arrayFormulas.forEach(region => this._restoreArrayFormula(data, region.column, region.row, region.columns, region.rows, region.formula));
           const autoRowsAtImport = this._applyXlsxLayoutOverlay(table.getAttribute("vno:xlsx-layout"), rowHeights, colWidths, { data, mergedRanges });
 
@@ -4279,7 +4311,9 @@ export class SheetAdapter {
           // Tab color: read vno:tab-color, tableooo:tab-color, table:tab-color, or from table style
           let tabColor = table.getAttribute("vno:tab-color") || table.getAttribute("tableooo:tab-color") || table.getAttribute("table:tab-color") || "";
           if (!tabColor) {
+            repeatedScanStart = perfNow();
             tabColor = this._parseStandardOdfTabColor(tableXml, table.getAttribute("table:style-name"));
+            if (perfEnabled) repeatedXmlScanMs.tabColor += performance.now() - repeatedScanStart;
           }
           workbook.sheets.push(name);
           workbook.sheetsData[name] = data;
@@ -4302,6 +4336,14 @@ export class SheetAdapter {
             workbook.tabColors[name] = tabColor;
           }
         });
+        perfReport("DOM worksheet traversal", phaseStart);
+        if (perfEnabled) {
+          window.__vnoPerfReport?.("parseFods:repeat page-layout scans", repeatedXmlScanMs.pageLayout);
+          window.__vnoPerfReport?.("parseFods:repeat print-title scans", repeatedXmlScanMs.printTitles);
+          window.__vnoPerfReport?.("parseFods:repeat tab-color scans", repeatedXmlScanMs.tabColor);
+          window.__vnoPerfReport?.("parseFods:find used range", worksheetPhaseMs.findUsedRange);
+          window.__vnoPerfReport?.("parseFods:build workbook model", worksheetPhaseMs.buildWorkbookModel);
+        }
       }
     }
 
@@ -4552,16 +4594,27 @@ export class SheetAdapter {
       }
     }
     if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
+    phaseStart = perfNow();
     this._attachImportedRules(workbook, tableXml);
+    perfReport("attach rules", phaseStart); phaseStart = perfNow();
     this._attachImportedPivots(workbook, xmlText);
+    perfReport("attach pivots", phaseStart); phaseStart = perfNow();
     this._attachImportedCharts(workbook, xmlText);
+    perfReport("attach charts", phaseStart); phaseStart = perfNow();
     this._attachImportedPageBreaks(workbook, tableXml, rowColStyles);
+    perfReport("attach page breaks", phaseStart); phaseStart = perfNow();
     this._attachImportedProtection(workbook, xmlText);
+    perfReport("attach protection", phaseStart); phaseStart = perfNow();
     this._attachImportedFreezePanes(workbook, xmlText);
+    perfReport("attach freeze panes", phaseStart); phaseStart = perfNow();
     this._attachImportedSheetVisibility(workbook, xmlText);
+    perfReport("attach visibility", phaseStart); phaseStart = perfNow();
     this._attachImportedAutoFilter(workbook, xmlText);
+    perfReport("attach autofilter", phaseStart); phaseStart = perfNow();
     this._attachImportedSparklines(workbook, xmlText);
+    perfReport("attach sparklines", phaseStart); phaseStart = perfNow();
     this._attachImportedOutline(workbook, tableXml);
+    perfReport("attach outline", phaseStart);
     return workbook;
   }
 
