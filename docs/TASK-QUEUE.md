@@ -14,8 +14,11 @@ d01 (file cuối cùng còn lệch) khớp sau W56 (đo advance GDI thật của
 
 Test trên `main`: `node tests/run-tests.js` **1834/1834 PASS** (đã tự chạy lại 2 lần để loại flake mount-DOM Edge headless); `python -m unittest` 346 OK.
 
-Đang chờ: **Codex** cần đăng nhập lại rồi mới chạy tiếp brief `docs/TASK-BRIEF-SHEET-S29-PERF-CODEX.md` (đã viết sẵn, chưa chạy được lần nào).
-Việc kế tiếp sau khi Codex chạy được: Sheet batch lưu 26 file lại bằng Excel COM để xác nhận S29 vòng 1+2 không hồi quy (Claude tự chạy, không giao agent — cần Excel COM rảnh).
+Codex đã đăng nhập lại (model `gpt-6-luna`) — đang chạy Sheet perf vòng 2 (`E:\VNOffice-codex-sheet-s29`).
+Đang chạy song song (26/9 11:50): Grok R25 (Writer, giả thuyết `w:numPr` hẹp cho d09/d16), agy Insert-tab design (`E:\VNOffice-agy-insert-tab`), opencode mở rộng mẫu Sheet 28 file thật chưa đo (`E:\VNOffice-opencode-sample-expand`).
+
+**R24 (Grok) — không có sửa nào giữ lại**, chỉ có handoff phủ định giá trị: 4 giả thuyết cho d09/d07/d01 đều bị loại vì mỗi cái đánh đổi lớp nhỏ lấy lớp `page`/canvas lớn hơn. Dữ liệu đo được (đã xác nhận `w:numPr` trên các đoạn) đã dùng để viết brief R25 hẹp hơn.
+Việc kế tiếp sau khi các agent xong: Sheet batch lưu 26 file lại bằng Excel COM để xác nhận S29 vòng 1+2 không hồi quy (Claude tự chạy, không giao agent — cần Excel COM rảnh, hiện opencode đang dùng).
 
 ## Trạng thái 22/9 01:00 (main `7943de1` = S31 + W47–W51)
 
