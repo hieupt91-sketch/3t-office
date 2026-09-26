@@ -14,11 +14,16 @@ d01 (file cuối cùng còn lệch) khớp sau W56 (đo advance GDI thật của
 
 Test trên `main`: `node tests/run-tests.js` **1834/1834 PASS** (đã tự chạy lại 2 lần để loại flake mount-DOM Edge headless); `python -m unittest` 346 OK.
 
-Codex đã đăng nhập lại (model `gpt-6-luna`) — đang chạy Sheet perf vòng 2 (`E:\VNOffice-codex-sheet-s29`).
-Đang chạy song song (26/9 11:50): Grok R25 (Writer, giả thuyết `w:numPr` hẹp cho d09/d16), agy Insert-tab design (`E:\VNOffice-agy-insert-tab`), opencode mở rộng mẫu Sheet 28 file thật chưa đo (`E:\VNOffice-opencode-sample-expand`).
+**Đã gộp thêm (26/9 12:00):**
+- Codex S29 vòng 2: gộp 3 chỉ mục XLSX thành 1 + 1 lượt duyệt FODS — lan14 Python 130,7s→115,5s, lan06 155,7s→136,4s; đầu ra trùng SHA-256 trên 6 file. Chưa đạt ≤60s; lan14 JS không đo được (app treo >3 phút — nghi ngờ có bug thật, giao Codex vòng 3 chẩn đoán).
+- agy tab Chèn (Insert): tràn ngang 1024px Writer 1241→827px, bổ sung `id` nhóm + launcher Biểu đồ trên Sheet; 100% lệnh có handler (18 Writer, 9 Sheet).
+- R24 (Grok) — không có sửa nào giữ lại, chỉ handoff phủ định giá trị: 4 giả thuyết cho d09/d07/d01 đều bị loại vì đánh đổi lớp nhỏ lấy lớp `page`/canvas lớn hơn. Dữ liệu đã dùng viết brief R25 hẹp hơn (giả thuyết `w:numPr`).
 
-**R24 (Grok) — không có sửa nào giữ lại**, chỉ có handoff phủ định giá trị: 4 giả thuyết cho d09/d07/d01 đều bị loại vì mỗi cái đánh đổi lớp nhỏ lấy lớp `page`/canvas lớn hơn. Dữ liệu đo được (đã xác nhận `w:numPr` trên các đoạn) đã dùng để viết brief R25 hẹp hơn.
-Việc kế tiếp sau khi các agent xong: Sheet batch lưu 26 file lại bằng Excel COM để xác nhận S29 vòng 1+2 không hồi quy (Claude tự chạy, không giao agent — cần Excel COM rảnh, hiện opencode đang dùng).
+`main` hiện 1834/1834 test PASS (đã kiểm tra bằng profile LOCALAPPDATA riêng để tránh đụng soffice/Excel COM của các agent đang chạy song song).
+
+**Đang chạy song song (26/9 12:12):** Grok R25 (Writer, giả thuyết `w:numPr` hẹp d09/d16), Codex S29 vòng 3 (`E:\VNOffice-codex-sheet-s29b`, chẩn đoán lan14 + tiếp tục giảm chi phí), agy tab Xem xét (Review, `E:\VNOffice-agy-review-tab`), opencode mở rộng mẫu Sheet 28 file thật chưa đo (`E:\VNOffice-opencode-sample-expand`, đang chạy > 1 giờ — bình thường vì có Excel COM audit thật cho từng file).
+
+Việc kế tiếp sau khi các agent xong: Sheet batch lưu 26 file lại bằng Excel COM để xác nhận S29 vòng 1+2+3 không hồi quy (Claude tự chạy, không giao agent — cần Excel COM rảnh, hiện opencode đang dùng).
 
 ## Trạng thái 22/9 01:00 (main `7943de1` = S31 + W47–W51)
 
