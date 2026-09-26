@@ -887,7 +887,7 @@ class VnOfficeApi:
         """Emit opt-in renderer timing to the foreground desktop launch console."""
         if os.environ.get("VNO_PERF_DEBUG") != "1":
             return False
-        if name not in {"parseFods", "loadFromFods", "first grid render", "first layout"}:
+        if name not in {"parseFods", "loadFromFods", "first grid render", "first layout"} and not name.startswith("parseFods:"):
             return False
         try:
             value = float(elapsed_ms)
