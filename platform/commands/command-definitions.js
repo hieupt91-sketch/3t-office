@@ -281,6 +281,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.data.group", category: "data", label: "Nhóm", icon: "sheetGroup", tooltip: "Nhóm các hàng hoặc cột liên tiếp đang chọn" },
   { id: "sheet.data.ungroup", category: "data", label: "Bỏ nhóm", icon: "sheetUngroup", tooltip: "Bỏ nhóm hàng hoặc cột đang chọn" },
   { id: "sheet.data.subtotal", category: "data", label: "Tổng phụ", icon: "subtotal", tooltip: "Chèn tổng phụ theo nhóm và tổng cộng cuối bảng" },
+  { id: "sheet.data.goalSeek", category: "data", label: "Dò tìm mục tiêu", icon: "goalSeek", tooltip: "Tìm giá trị đầu vào để công thức đạt kết quả mong muốn (Goal Seek)" },
   { id: "sheet.data.dataTable", category: "data", label: "Bảng dữ liệu", icon: "dataTable", tooltip: "Tính công thức với một hoặc hai dãy giá trị đầu vào thay thế" },
   { id: "sheet.data.scenarioManager", category: "data", label: "Trình quản lý kịch bản", icon: "scenarioManager", tooltip: "Lưu và chuyển đổi nhiều bộ giá trị giả định có tên" },
   { id: "sheet.data.pivotTable", category: "data", label: "Bảng tổng hợp", icon: "pivotTable", tooltip: "Tạo Pivot Table từ vùng dữ liệu đang chọn" },

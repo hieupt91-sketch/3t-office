@@ -11,6 +11,7 @@ import { t } from "../i18n/i18n.js";
  * Tự động tìm kiếm Icon phù hợp theo Command ID
  */
 function resolveIcon(commandId, iconName) {
+  if (typeof iconName === "string" && iconName.trim().startsWith("<svg")) return iconName;
   if (iconName && ICONS[iconName]) return ICONS[iconName];
 
   // Auto fallback theo từ khóa trong commandId
@@ -25,6 +26,7 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("clear")) return ICONS.clearAll || ICONS.clearFormat;
   if (idLower.includes("filldown")) return ICONS.fillDown;
   if (idLower.includes("fillright")) return ICONS.fillRight;
+  if (idLower.includes("flashfill")) return ICONS.flashFill;
   if (idLower.includes("fill")) return ICONS.fillDown;
   if (idLower.includes("cut")) return ICONS.cut;
   if (idLower.includes("copy")) return ICONS.copy;
@@ -111,6 +113,20 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("categorylookup")) return ICONS.categoryLookup;
   if (idLower.includes("categorymath")) return ICONS.categoryMath;
   if (idLower.includes("categorymore")) return ICONS.categoryMore;
+  if (idLower.includes("texttocolumns") || idLower.includes("text_to_columns")) return ICONS.textToColumns;
+  if (idLower.includes("removeduplicates") || idLower.includes("remove_duplicates")) return ICONS.removeDuplicates;
+  if (idLower.includes("datavalidation") || idLower.includes("validation")) return ICONS.dataValidation;
+  if (idLower.includes("consolidate")) return ICONS.consolidate;
+  if (idLower.includes("whatif") || idLower.includes("what_if")) return ICONS.whatIfAnalysis;
+  if (idLower.includes("goalseek") || idLower.includes("goal_seek")) return ICONS.goalSeek;
+  if (idLower.includes("datatable") || idLower.includes("data_table")) return ICONS.dataTable;
+  if (idLower.includes("scenariomanager") || idLower.includes("scenario_manager")) return ICONS.scenarioManager;
+  if (idLower.includes("pivottable") || idLower.includes("pivot_table")) return ICONS.pivotTable;
+  if (idLower.includes("pivotrefresh") || idLower.includes("pivot_refresh")) return ICONS.refreshTable;
+  if (idLower.includes("customsort") || idLower.includes("sortcustom")) return ICONS.sortCustom;
+  if (idLower.includes("ungroup") || idLower.includes("sheetungroup")) return ICONS.sheetUngroup;
+  if (idLower.includes("group") || idLower.includes("sheetgroup")) return ICONS.sheetGroup;
+  if (idLower.includes("subtotal")) return ICONS.subtotal;
 
   return `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>`;
 }

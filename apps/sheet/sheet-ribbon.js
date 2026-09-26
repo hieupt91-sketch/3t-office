@@ -431,6 +431,8 @@ export const SHEET_RIBBON_TABS = [
         id: "sortFilter",
         label: "Sắp xếp & Lọc",
         labelKey: "sheetRibbon.group.sortFilter",
+        launcherCommandId: "sheet.data.customSort",
+        launcherTooltip: "Sắp xếp tùy chỉnh...",
         items: [
           { type: "button", commandId: "sheet.data.sortAsc", isLarge: true },
           { type: "button", commandId: "sheet.data.sortDesc", isLarge: true },

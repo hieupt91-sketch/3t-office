@@ -373,6 +373,7 @@ export const enStrings = {
     ,"sheet.data.group": { label: "Group", tooltip: "Group selected consecutive rows or columns" }
     ,"sheet.data.ungroup": { label: "Ungroup", tooltip: "Remove the selected row or column group" }
     ,"sheet.data.subtotal": { label: "Subtotal", tooltip: "Insert subtotals and a final grand total" }
+    ,"sheet.data.goalSeek": { label: "Goal Seek", tooltip: "Find the right input value for the formula to reach a specific goal" }
     ,"sheet.data.dataTable": { label: "Data Table", tooltip: "Calculate a formula with one or two sets of replacement input values" }
     ,"sheet.data.scenarioManager": { label: "Scenario Manager", tooltip: "Save and switch between named sets of assumption values" }
     ,"sheet.data.pivotTable": { label: "PivotTable", tooltip: "Create a PivotTable from the selected data range" }
