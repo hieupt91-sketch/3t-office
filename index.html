@@ -35,6 +35,12 @@
     import { bootstrapPlatform, configurePlatformLaunchContext, resolveLaunchContext } from "./platform/bootstrap.js";
 
     const mountEl = document.getElementById("vno-app-root");
+    window.__vnoPerfDebug = new URLSearchParams(window.location.search).get("perfDebug") === "1";
+    window.__vnoPerfReport = (name, elapsedMs) => {
+      if (!window.__vnoPerfDebug) return;
+      console.info(`[VNO Sheet Perf] ${name}: ${elapsedMs.toFixed(1)} ms`);
+      window.pywebview?.api?.report_perf_metric?.(name, elapsedMs);
+    };
     let currentAppInstance = null;
     const launchContext = configurePlatformLaunchContext(resolveLaunchContext(window.location.search));
 
