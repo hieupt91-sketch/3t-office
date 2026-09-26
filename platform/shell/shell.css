@@ -427,12 +427,12 @@ body {
   }
 }
 
-/* Responsive ribbon breakpoint 2: man hinh <= 1400px (laptop 1366px pho bien tai VN)
+/* Responsive ribbon breakpoint 2: man hinh <= 1550px (laptop 1440px, 1366px pho bien tai VN)
    Giam tiep gap/padding ribbon va ap dung co che responsive thu gon nhan cho
    nhom O (Cells) va cac nut Merge phu trong nhom Alignment chuan Excel.
    Moi button van day du 100% trong DOM, giu nguyen data-command-id, tooltip va handler that.
    Xem docs/VNO-GAPS.md #1. */
-@media (max-width: 1400px) {
+@media (max-width: 1550px) {
   .vno-ribbon-content {
     padding: 4px 2px;
   }
@@ -446,6 +446,10 @@ body {
   .vno-ribbon-group[data-group-id="cells"] .vno-btn-label {
     display: none;
   }
+  .vno-ribbon-group[data-group-id="cells"] .vno-ribbon-btn-small {
+    padding: 2px 5px;
+    justify-content: center;
+  }
   /* Nhom Can chinh (Alignment): cac nut merge phu thu gon thanh icon */
   .vno-ribbon-group[data-group-id="alignment"] button[data-command-id="sheet.cell.mergeAcross"] .vno-btn-label,
   .vno-ribbon-group[data-group-id="alignment"] button[data-command-id="sheet.cell.mergeCells"] .vno-btn-label,
@@ -454,9 +458,21 @@ body {
   }
   /* Nut chinh Tron & can giua giu nhan voi padding gon */
   .vno-ribbon-group[data-group-id="alignment"] button[data-command-id="sheet.cell.mergeCenter"] {
-    padding: 3px 4px;
+    padding: 3px 6px;
   }
-  /* Nhom Chinh sua (Editing): giam nhe padding nut de vua van tren 1366px */
+  /* Nhom Chinh sua (Editing): giam nhe padding nut de vua van tren 1440px / 1366px */
+  .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-large {
+    min-width: 52px;
+    padding: 2px 4px;
+  }
+  .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-large .vno-btn-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+  .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-large .vno-btn-label {
+    font-size: 11px;
+    max-width: 70px;
+  }
   .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-small {
     padding: 3px 4px;
   }
@@ -551,6 +567,113 @@ body {
   .vno-ribbon-group[data-group-id="pageSetup"] button[data-command-id="writer.page.columns3"] {
     padding: 2px 4px;
     justify-content: center;
+  }
+}
+
+/* Responsive ribbon breakpoint 4: man hinh <= 1150px (bao gom 1024px tablet/desktop nho)
+   Dam bao ca tab Trang chu cua Writer va Sheet khong bi tran ngang hay bien mat cac nut quan trong. */
+@media (max-width: 1150px) {
+  .vno-ribbon-content {
+    padding: 2px 1px;
+  }
+  .vno-ribbon-group {
+    padding: 0 1px;
+  }
+  .vno-ribbon-group-items {
+    gap: 1px;
+  }
+
+  /* Writer Home - Nhom Chinh sua: Tim kiem, Thay the, Chon thu gon thanh icon buttons */
+  .vno-ribbon-group[data-group-id="editing"] button[data-command-id="common.edit.find"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="editing"] button[data-command-id="common.edit.replace"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-dropdown[data-dropdown-id="writer.edit.select"] .vno-btn-label {
+    display: none !important;
+  }
+  .vno-ribbon-group[data-group-id="editing"] button[data-command-id="common.edit.find"],
+  .vno-ribbon-group[data-group-id="editing"] button[data-command-id="common.edit.replace"],
+  .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-dropdown[data-dropdown-id="writer.edit.select"] button {
+    padding: 2px 4px;
+    justify-content: center;
+  }
+
+  /* Writer Home - Nhom Kieu dang: An dai strip de nhuong cho cho nhom Chinh sua, dung nut Thu vien kieu */
+  .vno-ribbon .vno-style-gallery-strip {
+    display: none !important;
+  }
+
+  /* Writer Home - Nhom Doan van: Thu gon select Vien doan */
+  .vno-ribbon-group[data-group-id="paragraph"] select[data-command-id="writer.para.borders"] {
+    max-width: 80px;
+    font-size: 10.5px;
+  }
+
+  /* Sheet Home - Nhom Can chinh: Thu gon text Huong chu & Tron o thanh icon */
+  .vno-ribbon-group[data-group-id="alignment"] .vno-ribbon-btn-dropdown[data-dropdown-id="sheet.cell.orientation"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="alignment"] button[data-command-id="sheet.cell.mergeCenter"] .vno-btn-label {
+    display: none !important;
+  }
+  .vno-ribbon-group[data-group-id="alignment"] .vno-ribbon-btn-dropdown[data-dropdown-id="sheet.cell.orientation"] button,
+  .vno-ribbon-group[data-group-id="alignment"] button[data-command-id="sheet.cell.mergeCenter"] {
+    padding: 2px 3px;
+    justify-content: center;
+  }
+
+  /* Sheet Home - Nhom Kieu o: Thu gon text Dinh dang co dieu kien */
+  .vno-ribbon-group[data-group-id="styles"] button[data-command-id="sheet.format.conditional"] .vno-btn-label {
+    display: none !important;
+  }
+  .vno-ribbon-group[data-group-id="styles"] button[data-command-id="sheet.format.conditional"] {
+    padding: 3px 5px;
+    min-width: 32px;
+  }
+
+  /* Sheet Home - Nhom O: Thu gon text Dinh dang & giam padding nut nho */
+  .vno-ribbon-group[data-group-id="cells"] .vno-ribbon-btn-dropdown[data-dropdown-id="sheet.cells.format"] .vno-btn-label {
+    display: none !important;
+  }
+  .vno-ribbon-group[data-group-id="cells"] .vno-ribbon-btn-dropdown[data-dropdown-id="sheet.cells.format"] button {
+    padding: 3px 5px;
+  }
+  .vno-ribbon-group[data-group-id="cells"] .vno-ribbon-btn-small {
+    padding: 2px 2px;
+  }
+
+  /* Sheet Home - Nhom Chinh sua: AutoSum, Dien, Xoa co gon */
+  .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-large {
+    min-width: 30px;
+    padding: 2px 1px;
+  }
+  .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-large .vno-btn-label {
+    display: none !important;
+  }
+  .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-large .vno-btn-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+  .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-btn-small {
+    padding: 2px 2px;
+  }
+
+  /* Font Family select: Co gon tren man hinh 1024px */
+  .vno-ribbon select[data-command-id$="font.family"] {
+    max-width: 105px;
+    min-width: 90px;
+    font-size: 10.5px;
+  }
+
+  /* Sheet Home - Thu gon select Dinh dang so */
+  .vno-ribbon-group[data-group-id="number"] select.vno-select {
+    max-width: 85px;
+    font-size: 10px;
+  }
+
+  /* Sheet Home - Nhom Bang nho tam: Dan nut lon padding gon */
+  .vno-ribbon-group[data-group-id="clipboard"] .vno-ribbon-btn-large {
+    min-width: 36px;
+    padding: 2px 3px;
+  }
+  .vno-ribbon-group[data-group-id="clipboard"] .vno-ribbon-btn-large .vno-btn-label {
+    font-size: 10px;
   }
 }
 
