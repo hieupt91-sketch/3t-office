@@ -21,7 +21,13 @@ Test trên `main`: `node tests/run-tests.js` **1834/1834 PASS** (đã tự chạ
 
 `main` hiện 1834/1834 test PASS (đã kiểm tra bằng profile LOCALAPPDATA riêng để tránh đụng soffice/Excel COM của các agent đang chạy song song).
 
-**Đang chạy song song (26/9 12:12):** Grok R25 (Writer, giả thuyết `w:numPr` hẹp d09/d16), Codex S29 vòng 3 (`E:\VNOffice-codex-sheet-s29b`, chẩn đoán lan14 + tiếp tục giảm chi phí), agy tab Xem xét (Review, `E:\VNOffice-agy-review-tab`), opencode mở rộng mẫu Sheet 28 file thật chưa đo (`E:\VNOffice-opencode-sample-expand`, đang chạy > 1 giờ — bình thường vì có Excel COM audit thật cho từng file).
+**Đã gộp thêm (26/9 12:35):**
+- R25 (Grok) — không giữ sửa: giả thuyết `w:numPr` đúng cho d16 (tách được khỏi điều kiện R24) nhưng bỏ GDI advance trên mọi `<li>` kéo d09 `page` 8→17 trở lại. d15 được lợi (wrap 3→1) nếu áp riêng, nhưng đi cùng hại d09 — không tách được. Ma trận giữ lại vẫn `_writer_out_r23_final`.
+- agy tab Xem xét (Review): 17 icon fallback còn thiếu cho lệnh Review, chuẩn hoá tên tab/nhóm sai trong Help ("Đánh giá"→"Xem xét" bên Sheet, "Nhận xét"→"Ghi chú" bên Writer); 100% lệnh có handler (14 Writer, 8 Sheet).
+
+**Đang chạy song song (26/9 12:39):** Grok R26 (Writer, chẩn đoán d10 "file hỏng" — chưa từng kiểm tra thật trong 5 vòng), Codex S29 vòng 3 (`E:\VNOffice-codex-sheet-s29b`, chẩn đoán vì sao lan14 không tới hook JS >3 phút — nghi bug thật), agy tab Công thức (Formulas, Sheet, `E:\VNOffice-agy-formulas-tab`), opencode mở rộng mẫu Sheet 28 file thật chưa đo (`E:\VNOffice-opencode-sample-expand`, đang chạy > 1,5 giờ, đã xong pha đo hình học 28 file, đang chạy pha `_batch_audit.py` — bình thường, có Excel COM thật cho từng file).
+
+Ghi chú vòng Writer (R24/R25): mảng d01/d07/d09/d13/d15/d16/d17 đã tới ngưỡng lợi ích cận biên thấp — 2 vòng liên tiếp không tìm được sửa an toàn (mọi hướng đều đánh đổi lớp này lấy lớp khác). Tạm dừng thử thêm ở đây, chuyển Grok sang d10 (R26).
 
 Việc kế tiếp sau khi các agent xong: Sheet batch lưu 26 file lại bằng Excel COM để xác nhận S29 vòng 1+2+3 không hồi quy (Claude tự chạy, không giao agent — cần Excel COM rảnh, hiện opencode đang dùng).
 
