@@ -246,6 +246,10 @@ export const enStrings = {
     setupShowTitle: "Set Up Slide Show", setupShowHint: "Show options for this presentation. Loop until Esc applies immediately in F5. Pen/laser color is stored for a future pointer — VN Slides does not yet draw a pen or laser on the show screen.", setupShowLoop: "Loop continuously until Esc", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "VN Slides does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color"
   },
   commands: {
+    "sheet.page.margins": { label: "Margins", tooltip: "Set page margins for printed worksheets" },
+    "sheet.page.orientation": { label: "Orientation", tooltip: "Switch between portrait and landscape layouts" },
+    "sheet.page.size": { label: "Size", tooltip: "Choose paper size for printing" },
+    "sheet.page.printTitles": { label: "Print Titles", tooltip: "Specify rows and columns to repeat on each printed page" },
     "sheet.page.scale": { label: "Scale to Fit", tooltip: "Scale printed content by percentage or page count" },
     "sheet.page.headerFooter": { label: "Header & Footer", tooltip: "Set printable page headers and footers" },
     "sheet.help.open": { label: "Help", tooltip: "Open user guidance (F1)" },
