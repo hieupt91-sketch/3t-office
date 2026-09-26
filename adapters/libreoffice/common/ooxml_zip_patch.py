@@ -10590,6 +10590,57 @@ def _writer_html_plain(inner: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", inner)).strip()
 
 
+def _writer_table_full_fingerprint(table_xml: str) -> str:
+    """All cell text of a table, normalised — used to detect LO clone tables (R13a / d09)."""
+    text = "".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", table_xml, re.IGNORECASE))
+    return re.sub(r"\s+", " ", html.unescape(text)).strip().casefold()
+
+
+def _writer_between_tables_is_adjacent(between_xml: str) -> bool:
+    """True when only empty paragraphs / bookmarks / whitespace sit between two body tables."""
+    stripped = re.sub(r"<w:p\b[^>]*(?:/>|>[\s\S]*?</w:p\s*>)", "", between_xml, flags=re.IGNORECASE)
+    stripped = re.sub(r"<w:bookmark(?:Start|End)\b[^>]*/?>", "", stripped, flags=re.IGNORECASE)
+    return not re.search(r"<w:(?:tbl|r|t|drawing|pict|hyperlink|sdt)\b", stripped, re.IGNORECASE) and not re.sub(r"\s+", "", stripped)
+
+
+def _remove_duplicate_adjacent_writer_tables(document_xml: str, source_html: str | None = None) -> str:
+    """R13a (d09): LibreOffice HTML→DOCX may emit a complete clone of a neighbouring body table.
+
+    Drop later copies that share the full cell text of the previous top-level table and sit
+    next to it (only empty paragraphs in between). When source HTML is present, only remove
+    extras beyond the HTML <table> count so intentional duplicate tables in the document stay.
+    """
+    tables = _writer_top_level_tables(document_xml)
+    if len(tables) < 2:
+        return document_xml
+    html_count = len(re.findall(r"<table\b", source_html, re.IGNORECASE)) if source_html else None
+    if html_count is not None and len(tables) <= html_count:
+        return document_xml
+    fingerprints = [_writer_table_full_fingerprint(document_xml[start:end]) for start, end in tables]
+    clone_indexes: list[int] = []
+    for index in range(1, len(tables)):
+        prev_text = fingerprints[index - 1]
+        curr_text = fingerprints[index]
+        if not curr_text or curr_text != prev_text:
+            continue
+        between = document_xml[tables[index - 1][1]:tables[index][0]]
+        if not _writer_between_tables_is_adjacent(between):
+            continue
+        clone_indexes.append(index)
+    if not clone_indexes:
+        return document_xml
+    if html_count is not None:
+        extras = len(tables) - html_count
+        if extras <= 0:
+            return document_xml
+        clone_indexes = clone_indexes[:extras]
+    result = document_xml
+    for index in reversed(clone_indexes):
+        start, end = tables[index]
+        result = result[:start] + result[end:]
+    return result
+
+
 def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
     """W20 native corrections for Writer documents created from local HTML."""
     if not source_html:
@@ -10598,6 +10649,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     if not document_bytes:
         return docx_bytes
     document_xml = document_bytes.decode("utf-8", errors="replace")
+    document_xml = _remove_duplicate_adjacent_writer_tables(document_xml, source_html)
     indent_by_text: dict[str, int] = {}
     for match in re.finditer(r"<p\b(?=[^>]*\bstyle=([\"'])([^\"']*)\1)[^>]*>([\s\S]*?)</p\s*>", source_html, re.IGNORECASE):
         indent = re.search(r"(?:^|;)\s*text-indent\s*:\s*([\d.]+)cm\s*(?:;|$)", match.group(2), re.IGNORECASE)

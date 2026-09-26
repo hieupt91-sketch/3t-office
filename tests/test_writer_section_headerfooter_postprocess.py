@@ -188,6 +188,81 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         document = _read_entry(result, "word/document.xml").decode("utf-8")
         self.assertIn('<w:pageBreakBefore/>', document)
 
+    def test_r13a_duplicate_adjacent_tables_removed(self):
+        """R13a (d09): LibreOffice HTML→DOCX clones a body table. Drop the extra copy."""
+        finance = (
+            '<w:tbl>'
+            '<w:tblPr><w:tblW w:w="5000" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="1250"/><w:gridCol w:w="1250"/><w:gridCol w:w="1250"/><w:gridCol w:w="1250"/></w:tblGrid>'
+            '<w:tr><w:tc><w:p><w:r><w:t>Năm Tài Chính</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:p><w:r><w:t>2019</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:p><w:r><w:t>2020</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:p><w:r><w:t>2021</w:t></w:r></w:p></w:tc></w:tr>'
+            '<w:tr><w:tc><w:p><w:r><w:t>Doanh Thu</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:p><w:r><w:t>68.038.183</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:p><w:r><w:t>432.115.763</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:p><w:r><w:t>547.603.274</w:t></w:r></w:p></w:tc></w:tr>'
+            '</w:tbl>'
+        )
+        industry = (
+            '<w:tbl>'
+            '<w:tblPr><w:tblW w:w="4000" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="2000"/><w:gridCol w:w="2000"/></w:tblGrid>'
+            '<w:tr><w:tc><w:p><w:r><w:t>Mã ngành</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:p><w:r><w:t>Tên ngành</w:t></w:r></w:p></w:tc></w:tr>'
+            '</w:tbl>'
+        )
+        converted = _build_minimal_docx(
+            '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'
+            + industry + finance + '<w:p/>' + finance
+            + '<w:p><w:r><w:t>After</w:t></w:r></w:p><w:sectPr/>'
+        )
+        source_html = (
+            '<p>Before</p>'
+            '<table><tr><td>Mã ngành</td><td>Tên ngành</td></tr></table>'
+            '<table><tr><td>Năm Tài Chính</td><td>2019</td><td>2020</td><td>2021</td></tr>'
+            '<tr><td>Doanh Thu</td><td>68.038.183</td><td>432.115.763</td><td>547.603.274</td></tr></table>'
+            '<p>After</p>'
+        )
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(converted, source_html=source_html)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertEqual(xml.count("<w:tbl>"), 2)
+        self.assertEqual(xml.count("Năm Tài Chính"), 1)
+        self.assertIn("Mã ngành", xml)
+        self.assertIn("After", xml)
+
+    def test_r13a_keeps_identical_tables_when_html_has_the_same_count(self):
+        """Two identical tables that already exist in the HTML source stay."""
+        table = (
+            '<w:tbl><w:tblPr><w:tblW w:w="2000" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="2000"/></w:tblGrid>'
+            '<w:tr><w:tc><w:p><w:r><w:t>Same</w:t></w:r></w:p></w:tc></w:tr></w:tbl>'
+        )
+        converted = _build_minimal_docx(table + table + '<w:sectPr/>')
+        source_html = '<table><tr><td>Same</td></tr></table><table><tr><td>Same</td></tr></table>'
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(converted, source_html=source_html)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertEqual(xml.count("<w:tbl>"), 2)
+
+    def test_r13a_keeps_different_adjacent_tables(self):
+        a = (
+            '<w:tbl><w:tblPr><w:tblW w:w="2000" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="2000"/></w:tblGrid>'
+            '<w:tr><w:tc><w:p><w:r><w:t>Alpha</w:t></w:r></w:p></w:tc></w:tr></w:tbl>'
+        )
+        b = (
+            '<w:tbl><w:tblPr><w:tblW w:w="2000" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="2000"/></w:tblGrid>'
+            '<w:tr><w:tc><w:p><w:r><w:t>Beta</w:t></w:r></w:p></w:tc></w:tr></w:tbl>'
+        )
+        converted = _build_minimal_docx(a + b + '<w:sectPr/>')
+        source_html = '<table><tr><td>Alpha</td></tr></table><table><tr><td>Beta</td></tr></table>'
+        result = ooxml_zip_patch_mod.postprocess_created_writer_docx(converted, source_html=source_html)
+        xml = _read_entry(result, "word/document.xml").decode("utf-8")
+        self.assertEqual(xml.count("<w:tbl>"), 2)
+        self.assertIn("Alpha", xml)
+        self.assertIn("Beta", xml)
+
     def test_w22e_created_document_section_landscape(self):
         converted = _build_minimal_docx(
             '<w:p><w:r><w:t>Section 1 text</w:t></w:r></w:p>'
