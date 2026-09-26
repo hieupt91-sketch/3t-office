@@ -24,6 +24,8 @@ soffice bị tranh). Excel FAIL trong batch phải mở lại từng file bằng
 
 File mẫu thật nằm ngoài git (`file test/`, LAN `\\192.168.1.252\company1`); ma trận chỉ ghi số, không ghi tên file thật.
 
+`d10.docx` trong bộ `landocx` không đưa vào batch đối chiếu Writer từ R26. File đó là PDF 1.7 (Microsoft Print To PDF, một trang, khổ 612×792 pt) mang đuôi `.docx`, không phải gói OOXML. Word COM với đúng `Documents.Open` của `_word_para_metrics.ps1` báo `The file appears to be corrupted.`; LibreOffice mở được như tài liệu Draw. Không xóa file. Lệnh và số liệu: `docs/HANDOFF-WRITER-R26.md`.
+
 ## Quy ước đã đo và khoá (Writer)
 
 | # | Quy ước | Số đo gốc | Khoá bởi |
