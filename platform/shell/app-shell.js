@@ -632,6 +632,7 @@ export class AppShell {
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.saveAs">${t("backstage.saveAs")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="print" id="vno-backstage-nav-print">${t("backstage.print")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.exportPdf">${t("backstage.exportPdf")}</button>
+        <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="cloud" id="vno-backstage-nav-cloud">${t("backstage.cloud")}</button>
         <div style="flex:1;"></div>
         <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-about">${t("backstage.about")}</button>
       </div>
@@ -650,6 +651,8 @@ export class AppShell {
         </div>
 
         <div class="vno-backstage-tab-content" id="vno-backstage-print-view" style="display:none;"></div>
+
+        <div class="vno-backstage-tab-content" id="vno-backstage-cloud-view" style="display:none;"></div>
       </div>
     `;
 
@@ -835,14 +838,19 @@ export class AppShell {
 
     const homeNavBtn = modal.querySelector("#vno-backstage-nav-home");
     const printNavBtn = modal.querySelector("#vno-backstage-nav-print");
+    const cloudNavBtn = modal.querySelector("#vno-backstage-nav-cloud");
     const homeView = modal.querySelector("#vno-backstage-home-view");
     const printView = modal.querySelector("#vno-backstage-print-view");
+    const cloudView = modal.querySelector("#vno-backstage-cloud-view");
+    let cloudPanelCleanup = null;
 
     const showTab = (tabName) => {
       if (tabName === "print") {
         homeNavBtn?.classList.remove("is-active");
+        cloudNavBtn?.classList.remove("is-active");
         printNavBtn?.classList.add("is-active");
         if (homeView) homeView.style.display = "none";
+        if (cloudView) cloudView.style.display = "none";
         if (printView) {
           printView.style.display = "block";
           if (typeof printPanelCleanup === "function") {
@@ -851,8 +859,35 @@ export class AppShell {
           }
           printPanelCleanup = this._renderBackstagePrintPanel(printView, closeModal);
         }
+        if (cloudView && typeof cloudPanelCleanup === "function") {
+          cloudPanelCleanup();
+          cloudPanelCleanup = null;
+          cloudView.innerHTML = "";
+        }
+      } else if (tabName === "cloud") {
+        homeNavBtn?.classList.remove("is-active");
+        printNavBtn?.classList.remove("is-active");
+        cloudNavBtn?.classList.add("is-active");
+        if (homeView) homeView.style.display = "none";
+        if (printView) {
+          printView.style.display = "none";
+          if (typeof printPanelCleanup === "function") {
+            printPanelCleanup();
+            printPanelCleanup = null;
+          }
+          printView.innerHTML = "";
+        }
+        if (cloudView) {
+          cloudView.style.display = "block";
+          if (typeof cloudPanelCleanup === "function") {
+            cloudPanelCleanup();
+            cloudPanelCleanup = null;
+          }
+          cloudPanelCleanup = this._renderBackstageCloudPanel(cloudView, closeModal);
+        }
       } else {
         printNavBtn?.classList.remove("is-active");
+        cloudNavBtn?.classList.remove("is-active");
         homeNavBtn?.classList.add("is-active");
         if (printView) {
           printView.style.display = "none";
@@ -862,12 +897,21 @@ export class AppShell {
           }
           printView.innerHTML = "";
         }
+        if (cloudView) {
+          cloudView.style.display = "none";
+          if (typeof cloudPanelCleanup === "function") {
+            cloudPanelCleanup();
+            cloudPanelCleanup = null;
+          }
+          cloudView.innerHTML = "";
+        }
         if (homeView) homeView.style.display = "block";
       }
     };
 
     homeNavBtn?.addEventListener("click", () => showTab("home"));
     printNavBtn?.addEventListener("click", () => showTab("print"));
+    cloudNavBtn?.addEventListener("click", () => showTab("cloud"));
 
     modal.querySelectorAll("[data-backstage-cmd]").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -1151,6 +1195,164 @@ export class AppShell {
       if (stage) stage.innerHTML = "";
       container.innerHTML = "";
     };
+  }
+
+  async _renderBackstageCloudPanel(container, closeModal) {
+    const { CloudConfig, CloudOAuth } = await import("../cloud/cloud-oauth.js");
+
+    const renderCloudView = async () => {
+      const googleStatus = CloudOAuth.getConnectionStatus("google");
+      const onedriveStatus = CloudOAuth.getConnectionStatus("onedrive");
+      const googleValid = CloudConfig.validateClientId("google");
+      const onedriveValid = CloudConfig.validateClientId("onedrive");
+
+      const googleConnected = googleStatus.connected && googleStatus.valid;
+      const onedriveConnected = onedriveStatus.connected && onedriveStatus.valid;
+      const googleClientIdOk = googleValid.valid;
+      const onedriveClientIdOk = onedriveValid.valid;
+
+      container.innerHTML = `
+        <div class="vno-backstage-cloud-panel" style="padding:24px;max-width:560px;">
+          <h1 style="font-size:24px;font-weight:700;margin-bottom:8px;color:var(--vno-text-primary);">${t("backstage.cloudTitle")}</h1>
+          <p style="color:var(--vno-text-muted);font-size:13px;margin-bottom:24px;">${t("backstage.cloudSubtitle")}</p>
+
+          <div class="vno-cloud-provider" style="margin-bottom:24px;padding:16px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);background:var(--vno-bg-window);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:28px;">☁️</span>
+                <div>
+                  <strong style="font-size:15px;color:var(--vno-text-primary);">Google Drive</strong>
+                  <div style="font-size:12px;color:var(--vno-text-muted);">Lưu trữ và đồng bộ tài liệu qua Google Drive</div>
+                </div>
+              </div>
+              <span class="vno-cloud-status ${googleConnected ? 'connected' : 'disconnected'}"
+                    style="font-size:12px;padding:4px 10px;border-radius:12px;font-weight:600;
+                           background:${googleConnected ? 'var(--vno-success-bg)' : 'var(--vno-warning-bg)'};
+                           color:${googleConnected ? 'var(--vno-success-text)' : 'var(--vno-warning-text)'};">
+                ${googleConnected ? t("backstage.connected") : t("backstage.notConnected")}
+              </span>
+            </div>
+
+            ${!googleClientIdOk ? `
+              <div style="font-size:12px;color:var(--vno-error-text);background:var(--vno-error-bg);padding:8px 12px;border-radius:var(--vno-radius-sm);margin-bottom:12px;">
+                ⚠ ${googleValid.message || t("backstage.clientIdMissingDesc")}
+              </div>
+            ` : ''}
+
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="vno-btn vno-btn-primary vno-cloud-connect-google"
+                      ${googleConnected || !googleClientIdOk ? 'disabled' : ''}
+                      style="${googleConnected || !googleClientIdOk ? 'opacity:0.6;' : ''};">
+                ${googleConnected ? '✓ ' + t("backstage.connected") : t("backstage.connectGoogle")}
+              </button>
+              <button type="button" class="vno-btn vno-cloud-disconnect-google"
+                      ${!googleConnected ? 'disabled' : ''}
+                      style="${!googleConnected ? 'opacity:0.6;' : ''};">
+                ${t("backstage.disconnect")}
+              </button>
+            </div>
+          </div>
+
+          <div class="vno-cloud-provider" style="margin-bottom:24px;padding:16px;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);background:var(--vno-bg-window);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:28px;">☁️</span>
+                <div>
+                  <strong style="font-size:15px;color:var(--vno-text-primary);">OneDrive</strong>
+                  <div style="font-size:12px;color:var(--vno-text-muted);">Lưu trữ và đồng bộ tài liệu qua OneDrive</div>
+                </div>
+              </div>
+              <span class="vno-cloud-status ${onedriveConnected ? 'connected' : 'disconnected'}"
+                    style="font-size:12px;padding:4px 10px;border-radius:12px;font-weight:600;
+                           background:${onedriveConnected ? 'var(--vno-success-bg)' : 'var(--vno-warning-bg)'};
+                           color:${onedriveConnected ? 'var(--vno-success-text)' : 'var(--vno-warning-text)'};">
+                ${onedriveConnected ? t("backstage.connected") : t("backstage.notConnected")}
+              </span>
+            </div>
+
+            ${!onedriveClientIdOk ? `
+              <div style="font-size:12px;color:var(--vno-error-text);background:var(--vno-error-bg);padding:8px 12px;border-radius:var(--vno-radius-sm);margin-bottom:12px;">
+                ⚠ ${onedriveValid.message || t("backstage.clientIdMissingDesc")}
+              </div>
+            ` : ''}
+
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="vno-btn vno-btn-primary vno-cloud-connect-onedrive"
+                      ${onedriveConnected || !onedriveClientIdOk ? 'disabled' : ''}
+                      style="${onedriveConnected || !onedriveClientIdOk ? 'opacity:0.6;' : ''};">
+                ${onedriveConnected ? '✓ ' + t("backstage.connected") : t("backstage.connectOneDrive")}
+              </button>
+              <button type="button" class="vno-btn vno-cloud-disconnect-onedrive"
+                      ${!onedriveConnected ? 'disabled' : ''}
+                      style="${!onedriveConnected ? 'opacity:0.6;' : ''};">
+                ${t("backstage.disconnect")}
+              </button>
+            </div>
+          </div>
+
+          <div style="font-size:11px;color:var(--vno-text-muted);border-top:1px solid var(--vno-border-default);padding-top:16px;">
+            <p>Chú ý: Kết nối sử dụng chuẩn OAuth 2.0 PKCE. Client ID do bạn tự đăng ký tại Google Cloud Console / Azure Portal.</p>
+            <p>Token truy cập được lưu cục bộ trên máy này. Không có dữ liệu tài liệu nào được gửi ra ngoài trừ khi bạn chủ động lưu/mở file.</p>
+          </div>
+        </div>
+      `;
+
+      // Connect Google Drive
+      container.querySelector(".vno-cloud-connect-google")?.addEventListener("click", async () => {
+        const btn = container.querySelector(".vno-cloud-connect-google");
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "Đang kết nối...";
+        }
+        try {
+          const result = await CloudOAuth.startAuthFlow("google");
+          if (result.status === "ok") {
+            renderCloudView();
+          }
+        } catch (err) {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = t("backstage.connectGoogle");
+          }
+          // Error already shown by CloudOAuth
+        }
+      });
+
+      // Disconnect Google Drive
+      container.querySelector(".vno-cloud-disconnect-google")?.addEventListener("click", () => {
+        CloudOAuth.disconnect("google");
+        renderCloudView();
+      });
+
+      // Connect OneDrive
+      container.querySelector(".vno-cloud-connect-onedrive")?.addEventListener("click", async () => {
+        const btn = container.querySelector(".vno-cloud-connect-onedrive");
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "Đang kết nối...";
+        }
+        try {
+          const result = await CloudOAuth.startAuthFlow("onedrive");
+          if (result.status === "ok") {
+            renderCloudView();
+          }
+        } catch (err) {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = t("backstage.connectOneDrive");
+          }
+        }
+      });
+
+      // Disconnect OneDrive
+      container.querySelector(".vno-cloud-disconnect-onedrive")?.addEventListener("click", () => {
+        CloudOAuth.disconnect("onedrive");
+        renderCloudView();
+      });
+    };
+
+    renderCloudView();
+    return () => { container.innerHTML = ""; };
   }
 
   applyTemplate(templateId) {

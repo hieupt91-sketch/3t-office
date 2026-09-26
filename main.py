@@ -103,6 +103,111 @@ def _start_static_server():
         f"{_DEFAULT_STATIC_PORT + _MAX_PORT_ATTEMPTS - 1}"
     )
 
+# ---------------------------------------------------------------------------
+# OAuth loopback callback server (RIÊNG với static server — tách biệt hoàn toàn)
+# ---------------------------------------------------------------------------
+
+_OAUTH_LOOPBACK_DEFAULT_PORT = 9100
+_OAUTH_LOOPBACK_MAX_ATTEMPTS = 20
+
+
+class _OAuthCallbackHandler(http.server.BaseHTTPRequestHandler):
+    """Nhận redirect callback từ OAuth provider (Google/Microsoft)."""
+
+    def log_message(self, fmt, *args):
+        pass
+
+    def do_GET(self):
+        from urllib.parse import urlparse, parse_qs
+        parsed = urlparse(self.path)
+        if parsed.path != "/callback":
+            self.send_response(404)
+            self.end_headers()
+            self.wfile.write(b"Not Found")
+            return
+
+        params = parse_qs(parsed.query)
+        code = params.get("code", [None])[0]
+        state = params.get("state", [None])[0]
+        error = params.get("error", [None])[0]
+        error_description = params.get("error_description", [None])[0]
+
+        callback_data = {}
+        if error:
+            callback_data = {"error": error, "error_description": error_description or ""}
+        elif code:
+            callback_data = {"code": code, "state": state or ""}
+        else:
+            callback_data = {"error": "invalid_request", "error_description": "Không nhận được mã xác thực."}
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.end_headers()
+
+        if callback_data.get("error"):
+            html_content = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Lỗi đăng nhập</title></head>
+<body style="font-family:system-ui;text-align:center;padding:60px;">
+<h2>Đăng nhập thất bại</h2><p>{html.escape(callback_data.get("error_description") or callback_data.get("error"))}</p>
+<p style="color:#666;">Bạn có thể đóng cửa sổ này và thử lại.</p>
+</body></html>"""
+        else:
+            html_content = """<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Đăng nhập thành công</title></head>
+<body style="font-family:system-ui;text-align:center;padding:60px;">
+<h2>Đăng nhập thành công!</h2>
+<p style="color:#10B981;">Bạn có thể đóng cửa sổ này và quay lại VN Office.</p>
+</body></html>"""
+
+        self.wfile.write(html_content.encode("utf-8"))
+
+        server_instance = self.server
+        if hasattr(server_instance, "_callback_data"):
+            server_instance._callback_data = callback_data
+
+    def do_HEAD(self):
+        self.send_response(200)
+        self.end_headers()
+
+
+class _OAuthLoopbackServer(http.server.ThreadingHTTPServer):
+    allow_reuse_address = False
+
+    def __init__(self, *args, **kwargs):
+        self._callback_data = None
+        super().__init__(*args, **kwargs)
+
+    def server_bind(self):
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 0)
+        super().server_bind()
+
+
+def _start_oauth_loopback_server():
+    """Tìm cổng trống, khởi động OAuth callback server trên daemon thread.
+    Trả về (server, port). Raises RuntimeError nếu không tìm thấy cổng.
+    """
+    for attempt in range(_OAUTH_LOOPBACK_MAX_ATTEMPTS):
+        port = _OAUTH_LOOPBACK_DEFAULT_PORT + attempt
+        try:
+            server = _OAuthLoopbackServer(("127.0.0.1", port), _OAuthCallbackHandler)
+        except OSError:
+            continue
+
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+
+        import time
+        time.sleep(0.05)
+        if thread.is_alive():
+            return server, port
+        server.server_close()
+
+    raise RuntimeError(
+        f"Không tìm thấy cổng trống cho OAuth callback trong khoảng "
+        f"{_OAUTH_LOOPBACK_DEFAULT_PORT}–{_OAUTH_LOOPBACK_DEFAULT_PORT + _OAUTH_LOOPBACK_MAX_ATTEMPTS - 1}"
+    )
+
+
 APP_DATA_DIR_NAME = "VNOffice"
 VALID_APP_KINDS = ("writer", "sheet", "slides")
 APP_TITLES = {
@@ -795,6 +900,8 @@ class VnOfficeApi:
     def __init__(self, app_kind: str | None = None, initial_file: str | None = None):
         self._app_kind = app_kind
         self._initial_file = initial_file
+        self._oauth_loopback_server = None
+        self._oauth_loopback_port = None
 
     def engine_status(self):
         """Cho UI biết document engine thật có sẵn sàng hay không (không giả vờ)."""
@@ -931,6 +1038,51 @@ class VnOfficeApi:
         return self.save_document_dialog(
             content, app_kind=app_kind, target_format="pdf", suggested_name=suggested_name, source_path=source_path
         )
+
+    # --- OAuth loopback methods ---
+
+    def startOAuthLoopback(self):
+        """Khởi động cổng loopback tạm thời để nhận OAuth callback.
+        Trả về số cổng (int) để JS dùng làm redirect_uri.
+        """
+        if self._oauth_loopback_server is not None:
+            self.stopOAuthLoopback()
+
+        server, port = _start_oauth_loopback_server()
+        self._oauth_loopback_server = server
+        self._oauth_loopback_port = port
+        return port
+
+    def stopOAuthLoopback(self):
+        """Dừng cổng loopback sau khi hoàn tất OAuth."""
+        if self._oauth_loopback_server is not None:
+            try:
+                self._oauth_loopback_server.shutdown()
+                self._oauth_loopback_server.server_close()
+            except Exception:
+                pass
+            self._oauth_loopback_server = None
+            self._oauth_loopback_port = None
+
+    def pollOAuthCallback(self):
+        """Lấy dữ liệu callback từ cổng loopback (JS polling).
+        Trả về dict {code, state} hoặc {error, error_description} hoặc None.
+        """
+        if self._oauth_loopback_server is None:
+            return None
+        data = getattr(self._oauth_loopback_server, "_callback_data", None)
+        return data
+
+    def openExternalUrl(self, url):
+        """Mở URL trong trình duyệt mặc định của hệ điều hành."""
+        import webbrowser
+        if not url or not isinstance(url, str):
+            return False
+        try:
+            webbrowser.open(url)
+            return True
+        except Exception:
+            return False
 
 
 def parse_launch_args(argv: list[str]) -> tuple[str | None, str | None]:

@@ -155,6 +155,7 @@ import { runSlidesShapeRotationSerializeTests } from "./unit/slides-shape-rotati
 import { runSlidesShapeRotatedResizeTests } from "./unit/slides-shape-rotated-resize.test.js";
 import { runWriterFodtRealFileGapsBatch2Tests } from "./unit/writer-fodt-real-file-gaps-batch2.test.js";
 import { runMacroManagerTests } from "./unit/macro-manager.test.js";
+import { runCloudOAuthTests } from "./unit/cloud-oauth.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -177,6 +178,7 @@ async function runAll() {
     { title: "9. Unit Tests — AI Service Provider Orchestration", runner: runAiServiceTests },
     { title: "9b. Unit Tests — AI API Key Manager", runner: runApiKeyManagerTests },
     { title: "9c. Unit Tests — AI Cloud Providers (mock fetch)", runner: runCloudProviderTests },
+    { title: "9d. Unit Tests — Cloud OAuth PKCE & Loopback", runner: runCloudOAuthTests },
     { title: "10. Unit Tests — VN Sheet Real File I/O & CSV Adapter", runner: runSheetFileIoTests },
     { title: "11. Unit Tests — VN Slides Real File I/O & FODP Adapter", runner: runSlidesFileIoTests },
     { title: "12. Unit Tests — VN Sheet Multi-Sheet Data Isolation", runner: runMultiSheetTests },
