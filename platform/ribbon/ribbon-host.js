@@ -189,6 +189,8 @@ export class RibbonHost {
             isLarge: item.isLarge,
             items: item.items
           }));
+        } else if (item.type === "select") {
+          itemsEl.appendChild(createSelect(item));
         } else if (item.type === "column") {
           const colEl = document.createElement("div");
           colEl.className = "vno-ribbon-group-column";

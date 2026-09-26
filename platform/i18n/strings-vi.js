@@ -245,6 +245,10 @@ export const viStrings = {
     setupShowTitle: "Thiết lập trình chiếu", setupShowHint: "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút/laser được lưu cho tính năng tương lai — VN Slides chưa có bút/laser trên màn hình chiếu.", setupShowLoop: "Lặp lại liên tục cho đến khi nhấn Esc", setupShowNoNarration: "Trình chiếu không có thuyết minh", setupShowNoNarrationHint: "Chưa có thuyết minh/audio narration trong VN Slides — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.", setupShowPointerColor: "Màu con trỏ bút / laser"
   },
   commands: {
+    "sheet.page.margins": { label: "Căn lề", tooltip: "Thiết lập khoảng cách lề trang tính" },
+    "sheet.page.orientation": { label: "Hướng giấy", tooltip: "Chọn hướng trang tính dọc hoặc ngang" },
+    "sheet.page.size": { label: "Khổ giấy", tooltip: "Chọn kích thước trang in (A4, Letter, Legal)" },
+    "sheet.page.printTitles": { label: "Tiêu đề in", tooltip: "Chọn hàng và cột lặp lại trên mỗi trang in" },
     "sheet.page.scale": { label: "Tỷ lệ vừa trang", tooltip: "Thu phóng nội dung in theo phần trăm hoặc số trang" },
     "sheet.page.headerFooter": { label: "Tiêu đề Đầu/Cuối trang", tooltip: "Đặt đầu trang và cuối trang khi in" },
     "sheet.help.open": { label: "Trợ giúp", tooltip: "Mở hướng dẫn sử dụng (F1)" },

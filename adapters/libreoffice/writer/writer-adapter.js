@@ -2109,6 +2109,31 @@ export class WriterAdapter {
     return Number(kern[1]) <= sizeHalfPt;
   }
 
+  /**
+   * W56: Word 2016 GDI at 96 dpi uses CreateFontW(-round(pt×96/72)) for glyph advances.
+   * CSS 13pt = 17.333px is wider (d01 first line Word keeps: Chromium 13pt 650px vs
+   * GDI 17px / Chromium 17px 638px vs column 642.6px). Keep font-size 13pt (line box)
+   * and shrink advances with --vno-gdi-advance = 17/17.333; W46 letter-spacing applies it.
+   */
+  _gdiDevicePxForPt(pt) {
+    const n = Number(pt);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return Math.round(n * 96 / 72);
+  }
+
+  _gdiAdvanceScaleForPt(pt) {
+    const cssPx = Number(pt) * 96 / 72;
+    const gdiPx = this._gdiDevicePxForPt(pt);
+    if (!gdiPx || !(cssPx > 0)) return 1;
+    return Math.round(gdiPx / cssPx * 1e6) / 1e6;
+  }
+
+  _applyGdiDeviceFontPixels(html) {
+    const scale = this._gdiAdvanceScaleForPt(13);
+    return String(html || "").replace(/font-size\s*:\s*13(?:\.0+)?pt(?!\s*;\s*--vno-gdi-advance)/gi,
+      `font-size: 13pt; --vno-gdi-advance: ${scale}`);
+  }
+
   _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "", ooxmlHeaderXml = "", ooxmlFooterXml = "") {
     let html = String(raw || "");
     let comments = [];
@@ -2191,6 +2216,8 @@ export class WriterAdapter {
     html = this._normalizeImportedStarWriterNotes(html);
     html = this._makeFloatingAnchorContainers(this._preserveImportedFloatingFrames(html, ooxmlDocumentXml, page), page);
     html = this._collapseFloatOnlyParagraphBreaks(html, ooxmlDocumentXml);
+    // W56: 13pt → 17px after W25b/W26a so empty-para 13pt is snapped too
+    html = this._applyGdiDeviceFontPixels(html);
     html = this._encodeProportionalLineHeights(html);
     return { body: html.trim(), header, footer, page, comments, docStyles };
   }
@@ -3545,9 +3572,26 @@ export class WriterAdapter {
   _applyCharacterScale(root = this.bodyDom) {
     if (!root || typeof root.querySelectorAll !== "function" || typeof window === "undefined" || typeof window.getComputedStyle !== "function") return;
     let nodes;
-    try { nodes = root.querySelectorAll('[style*="--vno-char-scale"]'); } catch { return; }
+    try { nodes = root.querySelectorAll('[style*="--vno-char-scale"], [style*="--vno-gdi-advance"]'); } catch { return; }
     for (const el of Array.from(nodes || [])) {
-      const scale = parseFloat(el.style?.getPropertyValue?.("--vno-char-scale"));
+      let charScale = parseFloat(el.style?.getPropertyValue?.("--vno-char-scale"));
+      let gdiScale = parseFloat(el.style?.getPropertyValue?.("--vno-gdi-advance"));
+      try {
+        const cs = window.getComputedStyle(el);
+        if (!Number.isFinite(charScale) || charScale <= 0) charScale = parseFloat(cs.getPropertyValue("--vno-char-scale")) || 1;
+        if (!Number.isFinite(gdiScale) || gdiScale <= 0) gdiScale = parseFloat(cs.getPropertyValue("--vno-gdi-advance")) || 1;
+      } catch {
+        if (!Number.isFinite(charScale) || charScale <= 0) charScale = 1;
+        if (!Number.isFinite(gdiScale) || gdiScale <= 0) gdiScale = 1;
+      }
+      if (Number.isFinite(gdiScale) && Math.abs(gdiScale - 1) > 0.001) {
+        try {
+          const family = (window.getComputedStyle(el).fontFamily || "").toLowerCase();
+          // W56 đo trên Times New Roman 13pt. Arial 13pt (d07 «Tiền thưởng…») đã khớp Word 2 dòng; scale GDI làm 1 dòng.
+          if (!family.includes("times new roman")) gdiScale = 1;
+        } catch { gdiScale = 1; }
+      }
+      const scale = charScale * gdiScale;
       if (!Number.isFinite(scale) || scale <= 0 || Math.abs(scale - 1) < 0.001) continue;
       const text = (el.textContent || "").replace(/\s+/g, " ").trim();
       if (!text) continue;
@@ -4041,11 +4085,11 @@ export class WriterAdapter {
     return this._stripCharacterScaleForExport(this._restoreTableBordersForExport(restored));
   }
 
-  /** W46: bỏ `--vno-char-scale` và letter-spacing suy ra khi xuất (w:w gốc do hậu xử lý trả lại từ nguồn). */
+  /** W46/W56: bỏ `--vno-char-scale` / `--vno-gdi-advance` và letter-spacing suy ra khi xuất. */
   _stripCharacterScaleForExport(html) {
-    return String(html || "").replace(/<(p|h[1-6]|li)\b([^>]*\bstyle=(["'])[^"']*--vno-char-scale[^"']*\3[^>]*)>/gi, (all, tag, attrs) => {
+    return String(html || "").replace(/<([a-zA-Z][a-zA-Z0-9]*)\b([^>]*\bstyle=(["'])[^"']*(--vno-char-scale|--vno-gdi-advance)[^"']*\3[^>]*)>/gi, (all, tag, attrs) => {
       const cleaned = attrs.replace(/\bstyle=(["'])([^"']*)\1/i, (m, q, css) => {
-        const kept = css.split(";").map(s => s.trim()).filter(s => s && !/^--vno-char-scale\s*:/i.test(s) && !/^letter-spacing\s*:/i.test(s));
+        const kept = css.split(";").map(s => s.trim()).filter(s => s && !/^--vno-char-scale\s*:/i.test(s) && !/^--vno-gdi-advance\s*:/i.test(s) && !/^letter-spacing\s*:/i.test(s));
         return kept.length ? `style=${q}${kept.join("; ")};${q}` : "";
       });
       return `<${tag}${cleaned}>`;
@@ -4938,6 +4982,7 @@ export class WriterAdapter {
     }
 
     out = this._collapseFloatOnlyParagraphBreaks(out, ooxmlDocumentXml);
+    out = this._applyGdiDeviceFontPixels(out);
     out = this._encodeProportionalLineHeights(out);
     return out.trim();
   }

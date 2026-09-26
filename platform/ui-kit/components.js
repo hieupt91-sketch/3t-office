@@ -47,6 +47,7 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("footer")) return ICONS.footer || ICONS.headerFooter;
   if (idLower.includes("margins")) return ICONS.margins;
   if (idLower.includes("orientation")) return ICONS.orientation;
+  if (idLower.includes("page.size") || idLower.includes("pagesize")) return ICONS.pageSize;
   if (idLower.includes("merge")) return ICONS.mergeCells;
   if (idLower.includes("currency")) return ICONS.currencyVND;
   if (idLower.includes("sum")) return ICONS.autoSum;

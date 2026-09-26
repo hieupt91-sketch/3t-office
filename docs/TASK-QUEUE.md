@@ -1,4 +1,21 @@
-# Hàng đợi việc theo ma trận (cập nhật 2026-09-21)
+# Hàng đợi việc theo ma trận (cập nhật 2026-09-26)
+
+## Trạng thái 26/9 09:55 (main `2d501bc` = S31 + W47–W56 + agy layout-tab design)
+
+**Mốc**: Writer nhập — **TẤT CẢ 22/22 file .docx hợp lệ trong mẫu LAN (trừ d10 hỏng) có canvas = số trang Word 2016 thật.**
+d01 (file cuối cùng còn lệch) khớp sau W56 (đo advance GDI thật của Word ở TNR 13pt = 17px, không phải 17,333px của CSS `13pt`).
+
+| Chiều | Số đo | Ghi chú |
+|---|---|---|
+| Writer nhập (23 docx) | **canvas = Word 22/22** (trừ d10 hỏng gốc); còn lớp nội bộ `page` (đếm theo đoạn, không đổi tổng số trang) ở d01 (32), d07 (27), d09 (8), d13 (14), d17 (2) | W56 (Grok R23). Việc còn lại: bảng ngành nghề d01/d09 vẫn ngắn hơn Word (từ R21); d07 hộp dòng Arial/TNR 12pt cao hơn Word |
+| Sheet render hàng/cột | 0/6925 hàng lệch (không đổi) | S31a–i, S32 |
+| Sheet mở file lớn (Python) | lan06 **1721s → 156s**, lan14 **346s → 132s** (chưa đo phần JS, mục tiêu ≤60s tổng) | S29 vòng 1 (Grok) đã merge. **Codex vòng 2 đang chờ** (bị chặn: token đăng nhập hết hạn, cần đăng nhập lại `codex login`) |
+| UI tab Bố cục/Bố trí trang | Sửa nhãn raw command-id + icon thiếu (Sheet), select không render trong `ribbon-host.js` (Writer "Số dòng"), vỡ layout dialog Page Setup cả hai app, tràn ngang 1024px | agy — đối chiếu trực tiếp Word/Excel 2016 thật, 100% lệnh có handler, Help đã khớp UI |
+
+Test trên `main`: `node tests/run-tests.js` **1834/1834 PASS** (đã tự chạy lại 2 lần để loại flake mount-DOM Edge headless); `python -m unittest` 346 OK.
+
+Đang chờ: **Codex** cần đăng nhập lại rồi mới chạy tiếp brief `docs/TASK-BRIEF-SHEET-S29-PERF-CODEX.md` (đã viết sẵn, chưa chạy được lần nào).
+Việc kế tiếp sau khi Codex chạy được: Sheet batch lưu 26 file lại bằng Excel COM để xác nhận S29 vòng 1+2 không hồi quy (Claude tự chạy, không giao agent — cần Excel COM rảnh).
 
 ## Trạng thái 22/9 01:00 (main `7943de1` = S31 + W47–W51)
 
