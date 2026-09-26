@@ -29,7 +29,15 @@ Test trên `main`: `node tests/run-tests.js` **1834/1834 PASS** (đã tự chạ
 
 Ghi chú vòng Writer (R24/R25): mảng d01/d07/d09/d13/d15/d16/d17 đã tới ngưỡng lợi ích cận biên thấp — 2 vòng liên tiếp không tìm được sửa an toàn (mọi hướng đều đánh đổi lớp này lấy lớp khác). Tạm dừng thử thêm ở đây, chuyển Grok sang d10 (R26).
 
-Việc kế tiếp sau khi các agent xong: Sheet batch lưu 26 file lại bằng Excel COM để xác nhận S29 vòng 1+2+3 không hồi quy (Claude tự chạy, không giao agent — cần Excel COM rảnh, hiện opencode đang dùng).
+**Đã gộp thêm (26/9 12:50):**
+- **R26 (Grok) — mốc quan trọng**: `d10.docx` KHÔNG phải lỗi VN Writer — file là **PDF 1.7 thật** (Print To PDF) mang nhầm đuôi `.docx` (chứng minh bằng header byte `%PDF-1.7`, không có `PK\x03\x04`, `zipfile.is_zipfile=False`). Word/VN Writer đều đúng khi từ chối; LibreOffice mở được vì coi là Draw. Loại `d10` khỏi mẫu đo Writer từ vòng sau — 5 vòng ghi "file hỏng" trước đó đều đúng, giờ có bằng chứng dứt điểm.
+- **Codex S29 vòng 3 — phát hiện quan trọng**: nút nghẽn thật của lan14 không phải Python mà là **`parseFods` phía JS: 102,4 giây** (đo bằng hook thật trong app, không phải suy đoán). Tổng thời gian mở lan14 thực tế ≈ Python (115-138s) + JS parseFods (102s) ≈ **220-240 giây** — lớn hơn nhiều so với con số Python một mình từng báo cáo. Đây là mục tiêu tối ưu chính cho vòng 4.
+- **opencode mở rộng mẫu Sheet — LỖI, ĐÃ HUỶ KHÔNG MERGE**: agent hiểu sai nhiệm vụ, copy lại CHÍNH 28 file đã có (lan01-28) rồi đặt tên lan29-56, không đo được file thật nào mới. Đã phát hiện khi kiểm chứng `_map.txt`, huỷ toàn bộ branch (không ảnh hưởng `main`). Đã giao lại vòng 2 với danh sách 28 tên file chính xác viết sẵn trong brief (không để agent tự tính) — `E:\VNOffice-opencode-sample-expand2`.
+
+**Đang chạy song song (26/9 12:52):** agy tab Công thức (Formulas, Sheet, `E:\VNOffice-agy-formulas-tab`), opencode mở rộng mẫu Sheet vòng 2 (`E:\VNOffice-opencode-sample-expand2`).
+Cần giao tiếp: Codex S29 vòng 4 (tối ưu `parseFods` JS — nút nghẽn chính vừa xác định), Grok vòng Writer kế tiếp (tuỳ kết quả opencode/Codex).
+
+Việc kế tiếp của Claude: Sheet batch lưu 26 file lại bằng Excel COM để xác nhận S29 vòng 1+2+3 không hồi quy (cần Excel COM rảnh).
 
 ## Trạng thái 22/9 01:00 (main `7943de1` = S31 + W47–W51)
 
