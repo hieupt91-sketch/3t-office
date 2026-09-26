@@ -9077,6 +9077,8 @@ def _writer_body_flow_elements(xml: str) -> list[dict]:
 
 def _add_page_break_before_to_paragraph(para_xml: str) -> str:
     """Add w:pageBreakBefore to paragraph's w:pPr."""
+    if re.search(r'<w:br\b[^>]*\bw:type=["\']page["\']|<w:pageBreakBefore\b', para_xml, re.IGNORECASE):
+        return para_xml
     ppr_match = re.search(r'(<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>)', para_xml, re.IGNORECASE)
     if ppr_match:
         ppr = ppr_match.group(1)
@@ -9101,6 +9103,47 @@ def _remove_page_break_before_from_paragraph(para_xml: str) -> str:
     if new_ppr == ppr:
         return para_xml
     return para_xml[:ppr_match.start()] + new_ppr + para_xml[ppr_match.end():]
+
+
+def _writer_add_br_page_run(para_xml: str) -> str:
+    """Insert <w:br w:type="page"/> as the first run (R13d empty page-break paragraph)."""
+    if re.search(r'<w:br\b[^>]*\bw:type=["\']page["\']', para_xml, re.IGNORECASE):
+        return para_xml
+    br_run = '<w:r><w:br w:type="page"/></w:r>'
+    ppr = re.search(r"<w:pPr\b[^>]*(?:/>|>[\s\S]*?</w:pPr\s*>)", para_xml, re.IGNORECASE)
+    if ppr:
+        return para_xml[:ppr.end()] + br_run + para_xml[ppr.end():]
+    open_tag = re.match(r"<w:p\b[^>]*>", para_xml, re.IGNORECASE)
+    if open_tag:
+        return para_xml[:open_tag.end()] + br_run + para_xml[open_tag.end():]
+    return para_xml
+
+
+def _writer_collapse_consecutive_page_breaks(xml: str) -> str:
+    """R13d: empty br-carrier + next paragraph's W22d pageBreakBefore would paginate twice.
+
+    Keep the empty w:br type=page (original Word form) and drop the extra pageBreakBefore.
+    """
+    ranges = _writer_body_paragraph_ranges(xml)
+    if len(ranges) < 2:
+        return xml
+    replacements: list[tuple[int, int, str]] = []
+    for index in range(1, len(ranges)):
+        prev = xml[ranges[index - 1][0]:ranges[index - 1][1]]
+        curr = xml[ranges[index][0]:ranges[index][1]]
+        if _paragraph_plain_text(prev).strip():
+            continue
+        if not _writer_has_page_break(prev):
+            continue
+        if not re.search(r"<w:pageBreakBefore\b", curr, re.IGNORECASE):
+            continue
+        new_curr = _remove_page_break_before_from_paragraph(curr)
+        if new_curr != curr:
+            replacements.append((ranges[index][0], ranges[index][1], new_curr))
+    result = xml
+    for start, end, new_xml in sorted(replacements, key=lambda item: item[0], reverse=True):
+        result = result[:start] + new_xml + result[end:]
+    return result
 
 
 def _insert_empty_paragraph_with_page_break_before_table(table_xml: str, table_start: int, table_end: int, xml: str) -> str:
@@ -10345,6 +10388,7 @@ def postprocess_writer_docx(
         trust_all_exact=pristine_document,
     )
     new_xml = _remove_writer_untouched_bookmarks(new_xml)
+    new_xml = _writer_collapse_consecutive_page_breaks(new_xml)
 
     replacements: dict[str, bytes] = {}
     if new_xml != converted_xml or merged_numbering is not None:
@@ -10590,6 +10634,204 @@ def _writer_html_plain(inner: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", inner)).strip()
 
 
+def _writer_table_full_fingerprint(table_xml: str) -> str:
+    """All cell text of a table, normalised — used to detect LO clone tables (R13a / d09)."""
+    text = "".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", table_xml, re.IGNORECASE))
+    return re.sub(r"\s+", " ", html.unescape(text)).strip().casefold()
+
+
+def _writer_between_tables_is_adjacent(between_xml: str) -> bool:
+    """True when only empty paragraphs / bookmarks / whitespace sit between two body tables."""
+    stripped = re.sub(r"<w:p\b[^>]*(?:/>|>[\s\S]*?</w:p\s*>)", "", between_xml, flags=re.IGNORECASE)
+    stripped = re.sub(r"<w:bookmark(?:Start|End)\b[^>]*/?>", "", stripped, flags=re.IGNORECASE)
+    return not re.search(r"<w:(?:tbl|r|t|drawing|pict|hyperlink|sdt)\b", stripped, re.IGNORECASE) and not re.sub(r"\s+", "", stripped)
+
+
+def _remove_duplicate_adjacent_writer_tables(document_xml: str, source_html: str | None = None) -> str:
+    """R13a (d09): LibreOffice HTML→DOCX may emit a complete clone of a neighbouring body table.
+
+    Drop later copies that share the full cell text of the previous top-level table and sit
+    next to it (only empty paragraphs in between). When source HTML is present, only remove
+    extras beyond the HTML <table> count so intentional duplicate tables in the document stay.
+    """
+    tables = _writer_top_level_tables(document_xml)
+    if len(tables) < 2:
+        return document_xml
+    html_count = len(re.findall(r"<table\b", source_html, re.IGNORECASE)) if source_html else None
+    if html_count is not None and len(tables) <= html_count:
+        return document_xml
+    fingerprints = [_writer_table_full_fingerprint(document_xml[start:end]) for start, end in tables]
+    clone_indexes: list[int] = []
+    for index in range(1, len(tables)):
+        prev_text = fingerprints[index - 1]
+        curr_text = fingerprints[index]
+        if not curr_text or curr_text != prev_text:
+            continue
+        between = document_xml[tables[index - 1][1]:tables[index][0]]
+        if not _writer_between_tables_is_adjacent(between):
+            continue
+        clone_indexes.append(index)
+    if not clone_indexes:
+        return document_xml
+    if html_count is not None:
+        extras = len(tables) - html_count
+        if extras <= 0:
+            return document_xml
+        clone_indexes = clone_indexes[:extras]
+    result = document_xml
+    for index in reversed(clone_indexes):
+        start, end = tables[index]
+        result = result[:start] + result[end:]
+    return result
+
+
+_HTML_PAGE_BREAK_STYLE_RE = re.compile(
+    r"(?:^|;)\s*(?:page-break-before\s*:\s*always|break-before\s*:\s*page)(?:;|$)",
+    re.IGNORECASE,
+)
+_HTML_VNO_BOOKMARK_RE = re.compile(
+    r"\bid=[\"']((?:vno-untouched|vno-edited)-\d+)[\"']"
+    r"|<a\b[^>]*\bname=[\"']((?:vno-untouched|vno-edited)-\d+)[\"']",
+    re.IGNORECASE,
+)
+_HTML_BLOCK_RE = re.compile(r"<(p|h[1-6])\b([^>]*)>([\s\S]*?)</\1\s*>", re.IGNORECASE)
+
+
+def _html_vno_bookmark(attrs: str, inner: str) -> str:
+    match = _HTML_VNO_BOOKMARK_RE.search(attrs or "") or _HTML_VNO_BOOKMARK_RE.search(inner or "")
+    if not match:
+        return ""
+    return match.group(1) or match.group(2) or ""
+
+
+def _writer_paragraph_for_bookmark(xml: str, name: str) -> tuple[str, int, int] | None:
+    """Locate a converted paragraph that still carries vno-untouched-N / vno-edited-N.
+
+    Returns ('para', start, end) for a body-flow paragraph, or ('before', pos, pos)
+    when the bookmark landed inside a table (insert a break paragraph before that table).
+    """
+    match = re.search(
+        rf'<w:bookmarkStart\b[^>]*\bw:name=["\']{re.escape(name)}["\']',
+        xml,
+        re.IGNORECASE,
+    )
+    if not match:
+        return None
+    pos = match.start()
+    for start, end in _writer_body_paragraph_ranges(xml):
+        if start <= pos < end:
+            return ("para", start, end)
+    for start, end in _writer_top_level_tables(xml):
+        if start < pos < end:
+            return ("before", start, start)
+    return None
+
+
+def _writer_unique_body_paragraph_by_text(xml: str, text: str) -> tuple[int, int] | None:
+    if not text:
+        return None
+    hits = [
+        (start, end)
+        for start, end in _writer_body_paragraph_ranges(xml)
+        if _paragraph_plain_text(xml[start:end]).strip() == text
+    ]
+    return hits[0] if len(hits) == 1 else None
+
+
+def _writer_previous_body_paragraph(xml: str, pos: int) -> tuple[int, int] | None:
+    previous = None
+    for start, end in _writer_body_paragraph_ranges(xml):
+        if end <= pos:
+            previous = (start, end)
+        else:
+            break
+    return previous
+
+
+def _restore_writer_html_page_breaks(document_xml: str, source_html: str) -> str:
+    """W22d / R13d: restore page breaks LibreOffice dropped on HTML→DOCX.
+
+    Map HTML blocks (p and h1–h6) that carry page-break-before/break-before:page onto
+    converted paragraphs via vno-untouched-N bookmarks (fallback: unique body text).
+    Empty HTML markers get w:br type=page (original Word form for d13/d21); text/heading
+    blocks get w:pageBreakBefore. Never write the break into a table cell.
+    """
+    blocks = list(_HTML_BLOCK_RE.finditer(source_html))
+    if not blocks:
+        return document_xml
+    targets: list[dict] = []
+    for index, match in enumerate(blocks):
+        attrs, inner = match.group(2), match.group(3)
+        style_m = re.search(r"\bstyle=[\"']([^\"']*)[\"']", attrs or "", re.IGNORECASE)
+        if not style_m or not _HTML_PAGE_BREAK_STYLE_RE.search(style_m.group(1)):
+            continue
+        text = _writer_html_plain(inner)
+        next_bookmark = ""
+        next_text = ""
+        for following in blocks[index + 1:]:
+            next_bookmark = _html_vno_bookmark(following.group(2), following.group(3))
+            next_text = _writer_html_plain(following.group(3))
+            if next_bookmark or next_text:
+                break
+        targets.append({
+            "bookmark": _html_vno_bookmark(attrs, inner),
+            "text": text,
+            "empty": not text,
+            "next_bookmark": next_bookmark,
+            "next_text": next_text,
+        })
+    if not targets:
+        return document_xml
+
+    result = document_xml
+    empty_break_para = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>'
+
+    def apply_at(kind: str, start: int, end: int, empty: bool) -> None:
+        nonlocal result
+        if kind == "before":
+            prev = _writer_previous_body_paragraph(result, start)
+            if prev and _writer_has_page_break(result[prev[0]:prev[1]]):
+                return
+            if prev and not _paragraph_plain_text(result[prev[0]:prev[1]]).strip():
+                patched = _writer_add_br_page_run(result[prev[0]:prev[1]])
+                result = result[:prev[0]] + patched + result[prev[1]:]
+                return
+            result = result[:start] + empty_break_para + result[start:]
+            return
+        para = result[start:end]
+        if _writer_has_page_break(para):
+            return
+        prev = _writer_previous_body_paragraph(result, start)
+        if prev and _writer_has_page_break(result[prev[0]:prev[1]]):
+            return
+        patched = _writer_add_br_page_run(para) if empty else _add_page_break_before_to_paragraph(para)
+        result = result[:start] + patched + result[end:]
+
+    for target in reversed(targets):
+        located = None
+        if target["bookmark"]:
+            located = _writer_paragraph_for_bookmark(result, target["bookmark"])
+        if located is None and target["text"]:
+            unique = _writer_unique_body_paragraph_by_text(result, target["text"])
+            if unique:
+                located = ("para", unique[0], unique[1])
+        if located is None and target["empty"]:
+            next_loc = None
+            if target["next_bookmark"]:
+                next_loc = _writer_paragraph_for_bookmark(result, target["next_bookmark"])
+            if next_loc is None and target["next_text"]:
+                unique = _writer_unique_body_paragraph_by_text(result, target["next_text"])
+                if unique:
+                    next_loc = ("para", unique[0], unique[1])
+            if next_loc:
+                apply_at("before", next_loc[1], next_loc[1], True)
+            continue
+        if located is None:
+            continue
+        apply_at(located[0], located[1], located[2], target["empty"])
+    return result
+
+
 def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
     """W20 native corrections for Writer documents created from local HTML."""
     if not source_html:
@@ -10598,6 +10840,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     if not document_bytes:
         return docx_bytes
     document_xml = document_bytes.decode("utf-8", errors="replace")
+    document_xml = _remove_duplicate_adjacent_writer_tables(document_xml, source_html)
     indent_by_text: dict[str, int] = {}
     for match in re.finditer(r"<p\b(?=[^>]*\bstyle=([\"'])([^\"']*)\1)[^>]*>([\s\S]*?)</p\s*>", source_html, re.IGNORECASE):
         indent = re.search(r"(?:^|;)\s*text-indent\s*:\s*([\d.]+)cm\s*(?:;|$)", match.group(2), re.IGNORECASE)
@@ -10787,32 +11030,11 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
 
     document_xml = re.sub(r'<w:pgSz\b[^>]*/>', patch_pgsz_letter, document_xml, flags=re.IGNORECASE)
 
-    # W22d: Khôi phục ngắt trang thường (<w:pageBreakBefore/>)
-    # LibreOffice bỏ qua thuộc tính CSS page-break-before: always / break-before: page trên thẻ đoạn <p>.
-    page_break_texts = set()
-    for p_m in re.finditer(r'<p\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>([\s\S]*?)</p\s*>', source_html, re.IGNORECASE):
-        style = p_m.group(1)
-        if re.search(r'(?:^|;)\s*(?:page-break-before\s*:\s*always|break-before\s*:\s*page)(?:;|$)', style, re.IGNORECASE):
-            txt = _writer_html_plain(p_m.group(2)).strip()
-            if txt:
-                page_break_texts.add(txt)
-
-    if page_break_texts:
-        def patch_page_break(p_match: re.Match) -> str:
-            p = p_match.group(0)
-            if _paragraph_plain_text(p).strip() in page_break_texts:
-                if '<w:pageBreakBefore/>' not in p and '<w:pageBreakBefore ' not in p:
-                    if '<w:sectPr' in p:
-                        p = p.replace('<w:sectPr', '<w:pageBreakBefore/><w:sectPr')
-                    elif '<w:rPr' in p:
-                        p = p.replace('<w:rPr', '<w:pageBreakBefore/><w:rPr')
-                    elif '</w:pPr>' in p:
-                        p = p.replace('</w:pPr>', '<w:pageBreakBefore/></w:pPr>')
-                    else:
-                        p = re.sub(r'(<w:p\b[^>]*>)', r'\1<w:pPr><w:pageBreakBefore/></w:pPr>', p, count=1)
-            return p
-
-        document_xml = re.sub(r'<w:p\b[^>]*>[\s\S]*?</w:p\s*>', patch_page_break, document_xml, flags=re.IGNORECASE)
+    # W22d / R13d: Khôi phục ngắt trang thường. LibreOffice bỏ CSS page-break-before /
+    # break-before:page trên <p> và <h1>–<h6>. Khớp đoạn bằng bookmark vno-untouched-N
+    # (fallback chữ duy nhất trên thân, không vào ô bảng). Đoạn rỗng → w:br type=page;
+    # đoạn có chữ → w:pageBreakBefore.
+    document_xml = _restore_writer_html_page_breaks(document_xml, source_html)
 
     # W22f: Khôi phục bề rộng cột bảng (w:gridCol & w:tcW) từ style width: ...cm của ô
     # LibreOffice HTML import bỏ qua thuộc tính width trên ô <td>, chia đều bề rộng các cột.
