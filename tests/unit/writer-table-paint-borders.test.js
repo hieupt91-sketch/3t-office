@@ -46,5 +46,25 @@ export async function runWriterTablePaintBordersTests() {
     check(!/data-vno-lo-padding/i.test(exported), `marker must be removed: ${exported}`);
   });
 
+  test("W53: cell padding follows w:tcMar except when the paragraph already uses auto spacing (d09, d18)", () => {
+    const adapter = new WriterAdapter(null);
+    const mar = '<w:tcMar><w:top w:w="60" w:type="dxa"/><w:left w:w="75" w:type="dxa"/>'
+      + '<w:bottom w:w="60" w:type="dxa"/><w:right w:w="30" w:type="dxa"/></w:tcMar>';
+    const xml = "<w:document><w:body><w:tbl>"
+      + `<w:tr><w:tc><w:tcPr>${mar}</w:tcPr><w:p><w:r><w:t>4322</w:t></w:r></w:p></w:tc></w:tr>`
+      + '<w:tr><w:tc><w:tcPr>' + mar + '</w:tcPr><w:p><w:pPr><w:spacing w:before="100" w:beforeAutospacing="1" w:after="100" w:afterAutospacing="1"/></w:pPr><w:r><w:t>Dell</w:t></w:r></w:p></w:tc></w:tr>'
+      + "</w:tbl></w:body></w:document>";
+    const html = '<table data-vno-border-px="1"><tr><td style="padding-top: 0cm; padding-bottom: 0.11cm; padding-left: 0cm; padding-right: 0.05cm; border-bottom: 1px solid #ccc">4322</td></tr>'
+      + '<tr><td style="border-bottom: 1px solid #ccc">Dell</td></tr></table>';
+    const margined = adapter._applyOoxmlTableCellMargins(html, xml);
+    check(/padding:\s*4px\s+2px\s+4px\s+5px/i.test(margined), `tcMar 60/30/60/75 twips → 4/2/4/5px: ${margined}`);
+    check(/<td style="border-bottom: 1px solid #ccc">Dell<\/td>/.test(margined), `auto-spacing cell must not gain tcMar (d18): ${margined}`);
+    const painted = adapter._applyPaintOnlyTableBorders(margined);
+    check(/padding:\s*4px\s+2px\s+5px\s+5px/i.test(painted), `W44b adds 1px to the tcMar bottom: ${painted}`);
+    const exported = adapter._restoreTableBordersForExport(painted);
+    check(/padding-bottom:\s*0\.11cm/i.test(exported), `export restores LibreOffice padding: ${exported}`);
+    check(!/padding:\s*4px/i.test(exported), `tcMar padding must not leak: ${exported}`);
+  });
+
   return results;
 }

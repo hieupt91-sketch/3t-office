@@ -97,8 +97,8 @@ export async function runWriterSectionBreaksPageColorTests() {
     try {
       assert(await adapter.open(), "Could not open Letter fixture");
       const exported = adapter._contentForExport();
-      assert(exported.includes("@page { size: 216mm 279mm; margin: 13mm 25mm 9mm 25mm;"), "Global @page lost imported Letter geometry/margins");
-      assert(exported.includes("@page vno-section-1 { size:216mm 279mm; margin:13mm 25mm 9mm 25mm;"), "Section @page was not synchronized with imported Letter geometry/margins");
+      assert(exported.includes("@page { size: 215.9mm 279.4mm; margin: 13mm 25mm 9mm 25mm;"), "Global @page lost imported Letter geometry/margins");
+      assert(exported.includes("@page vno-section-1 { size:215.9mm 279.4mm; margin:13mm 25mm 9mm 25mm;"), "Section @page was not synchronized with imported Letter geometry/margins");
     } finally {
       globalUnoBridge.openRealFile = originalOpen;
     }

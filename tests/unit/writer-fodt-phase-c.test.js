@@ -68,8 +68,8 @@ export async function runWriterFodtPhaseCTests() {
   await test("Writer FODT Phase C serializes Letter landscape from this.pageSetup, not from CSS @page", () => {
     const { adapter } = adapterWithZones({ body: "<p>Ngang</p>", pageSetup: LETTER_L });
     const fodt = adapter.serializeToFodt();
-    assert.match(fodt, /fo:page-width="27.9cm"/);
-    assert.match(fodt, /fo:page-height="21.6cm"/);
+    assert.match(fodt, /fo:page-width="27.94cm"/);
+    assert.match(fodt, /fo:page-height="21.59cm"/);
     assert.match(fodt, /style:print-orientation="landscape"/);
     assert.match(fodt, /fo:margin-top="2.5cm"/);
     assert.match(fodt, /fo:margin-left="2.5cm"/);
