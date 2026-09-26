@@ -2837,4 +2837,23 @@ p.vno-style-emphasis {
   line-height: 1.5;
 }
 
+/* Page Setup Dialog Form Controls */
+#vno-pagesetup-size,
+#vno-pagesetup-orientation {
+  height: 34px;
+  padding: 6px 10px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+/* Ribbon Line Numbers Select Styling */
+.vno-ribbon select[data-command-id="writer.layout.lineNumbers"] {
+  height: 24px;
+  padding: 2px 6px;
+  font-size: 11px;
+  max-width: 145px;
+  cursor: pointer;
+}
+
+
 

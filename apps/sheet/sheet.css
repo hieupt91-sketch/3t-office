@@ -454,6 +454,46 @@
 .vno-rule-error { min-height: 16px; color: #b91c1c; font-size: 12px; }
 [data-theme="dark"] .vno-rule-error { color: #f87171; }
 
+/* Sheet Page Setup & Rule Dialog Form Controls */
+.vno-sheet-rule-dialog select.vno-select {
+  height: 34px;
+  padding: 6px 8px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.vno-sheet-rule-dialog fieldset {
+  max-height: none;
+  overflow: visible;
+}
+
+.vno-sheet-rule-dialog label:has(input[type="checkbox"]),
+.vno-sheet-rule-dialog label:has(input[type="radio"]),
+.vno-sheet-rule-dialog fieldset label:has(input[type="checkbox"]),
+.vno-sheet-rule-dialog fieldset label:has(input[type="radio"]) {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-weight: normal;
+  color: var(--vno-text-primary);
+  cursor: pointer;
+}
+
+.vno-sheet-rule-dialog fieldset label:not(:has(input[type="radio"])):not(:has(input[type="checkbox"])) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.vno-sheet-rule-dialog fieldset label:has(input[type="radio"]) input[type="number"],
+.vno-sheet-rule-dialog fieldset label:has(input[type="checkbox"]) input[type="number"] {
+  display: inline-block;
+  margin: 0 4px;
+}
+
 .vno-evaluate-formula-dialog .vno-dialog-box { width: 560px; }
 .vno-evaluate-formula-dialog .vno-dialog-footer {
   display: flex;

@@ -528,6 +528,30 @@ body {
     padding: 2px 3px;
     font-size: 10.5px;
   }
+
+  /* Writer Layout - Nhom Doan van: Giam thut le & Thut le thu gon label */
+  .vno-ribbon-group[data-group-id="paragraph"] button[data-command-id="writer.para.indentDec"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="paragraph"] button[data-command-id="writer.para.indentInc"] .vno-btn-label {
+    display: none;
+  }
+  .vno-ribbon-group[data-group-id="paragraph"] button[data-command-id="writer.para.indentDec"],
+  .vno-ribbon-group[data-group-id="paragraph"] button[data-command-id="writer.para.indentInc"] {
+    padding: 2px 5px;
+    justify-content: center;
+  }
+
+  /* Writer Layout - Nhom Thiet lap trang: thu gon label 1 cot, 2 cot, 3 cot thanh icon */
+  .vno-ribbon-group[data-group-id="pageSetup"] button[data-command-id="writer.page.columns1"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="pageSetup"] button[data-command-id="writer.page.columns2"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="pageSetup"] button[data-command-id="writer.page.columns3"] .vno-btn-label {
+    display: none;
+  }
+  .vno-ribbon-group[data-group-id="pageSetup"] button[data-command-id="writer.page.columns1"],
+  .vno-ribbon-group[data-group-id="pageSetup"] button[data-command-id="writer.page.columns2"],
+  .vno-ribbon-group[data-group-id="pageSetup"] button[data-command-id="writer.page.columns3"] {
+    padding: 2px 4px;
+    justify-content: center;
+  }
 }
 
 /* Ribbon Dropdown Button & Menu (Fill, Clear, etc.) */
