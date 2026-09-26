@@ -152,7 +152,7 @@ export const SHEET_HELP_ENTRIES = [
       "Cho phép: chọn Danh sách lựa chọn hoặc Số trong khoảng.",
       "Danh sách: nhập các giá trị cách nhau bằng dấu phẩy, ví dụ Đạt, Chưa đạt, Đang xử lý. Số trong khoảng: điền Tối thiểu và Tối đa.",
       "Nhấn Áp dụng. Ô danh sách có mũi tên; bấm để chọn. Ô số ngoài khoảng sẽ bị từ chối khi nhập.",
-      "Cùng nhóm còn Tách văn bản, Điền nhanh, Xóa trùng lặp và Dò tìm mục tiêu."
+      "Cùng nhóm còn Tách văn bản, Điền nhanh, Xóa trùng lặp, Hợp nhất dữ liệu và menu Phân tích What-If."
     ]
   },
   {
@@ -164,7 +164,7 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Dữ liệu", tabId: "data", group: "Công cụ dữ liệu" },
     keywords: ["dò tìm mục tiêu", "goal seek", "đặt ô", "giá trị đích", "what-if", "đổi ô"],
     steps: [
-      "Ô đặt phải chứa công thức phụ thuộc ô sẽ đổi (ví dụ B1 = A1*1.1). Chọn ô công thức rồi mở tab Dữ liệu, nhóm Công cụ dữ liệu, nhấn nút lớn Dò tìm mục tiêu.",
+      "Ô đặt phải chứa công thức phụ thuộc ô sẽ đổi (ví dụ B1 = A1*1.1). Chọn ô công thức rồi mở tab Dữ liệu, nhóm Công cụ dữ liệu, mở menu Phân tích What-If rồi chọn Dò tìm mục tiêu.",
       "Ô đặt: địa chỉ ô công thức (điền sẵn ô đang chọn). Đến giá trị: số đích cần đạt. Bằng cách đổi ô: ô đầu vào không chứa công thức, ví dụ A1.",
       "Nhấn Tìm kết quả. Nếu tìm được, hộp thoại hiện giá trị đề xuất và sai số; các ô nhập bị khóa. Nhấn OK để ghi giá trị vào ô đổi.",
       "Nếu không tìm được (công thức không phụ thuộc ô đổi, hoặc không hội tụ), dòng lỗi hiện ngay trong hộp thoại — sửa địa chỉ rồi thử lại. Ctrl+Z hoàn tác giá trị đã áp dụng."

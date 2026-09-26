@@ -372,6 +372,7 @@ export const viStrings = {
     ,"sheet.data.group": { label: "Nhóm", tooltip: "Nhóm các hàng hoặc cột liên tiếp đang chọn" }
     ,"sheet.data.ungroup": { label: "Bỏ nhóm", tooltip: "Bỏ nhóm hàng hoặc cột đang chọn" }
     ,"sheet.data.subtotal": { label: "Tổng phụ", tooltip: "Chèn tổng phụ theo nhóm và tổng cộng cuối bảng" }
+    ,"sheet.data.goalSeek": { label: "Dò tìm mục tiêu", tooltip: "Tìm giá trị đầu vào để công thức đạt kết quả mong muốn (Goal Seek)" }
     ,"sheet.data.dataTable": { label: "Bảng dữ liệu", tooltip: "Tính công thức với một hoặc hai dãy giá trị đầu vào thay thế" }
     ,"sheet.data.scenarioManager": { label: "Trình quản lý kịch bản", tooltip: "Lưu và chuyển đổi nhiều bộ giá trị giả định có tên" }
     ,"sheet.data.pivotTable": { label: "Bảng tổng hợp", tooltip: "Tạo Pivot Table từ vùng dữ liệu đang chọn" }

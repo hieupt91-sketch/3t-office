@@ -555,7 +555,29 @@
   align-items: stretch;
 }
 .vno-consolidate-ref-row input { flex: 1; min-width: 0; }
-.vno-consolidate-list-actions { display: flex; justify-content: flex-end; }
+.vno-consolidate-ref-row .vno-btn,
+.vno-consolidate-list-actions .vno-btn {
+  padding: 5px 12px;
+  border: 1px solid var(--vno-border-default, #cbd5e1);
+  border-radius: 4px;
+  background: var(--vno-bg-surface, #ffffff);
+  color: var(--vno-text-primary, #0f172a);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.vno-consolidate-ref-row .vno-btn:hover,
+.vno-consolidate-list-actions .vno-btn:hover {
+  background: var(--vno-bg-hover, #f1f5f9);
+  border-color: var(--vno-border-strong, #94a3b8);
+}
+.vno-consolidate-ref-row .vno-btn:focus-visible,
+.vno-consolidate-list-actions .vno-btn:focus-visible {
+  outline: 2px solid var(--vno-sheet-green, #0f6d38);
+  outline-offset: 1px;
+}
+.vno-consolidate-list-actions { display: flex; justify-content: flex-end; margin-top: 4px; }
 .vno-consolidate-dialog #vno-consolidate-list {
   min-height: 108px;
   font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
@@ -1574,4 +1596,115 @@ tr.is-filtered-out {
   color: #ffffff !important;
   border-color: #b91c1c !important;
 }
+
+/* --- Visual QA: Custom Sort Dialog Levels & Actions --- */
+.vno-cs-add-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 5px 12px;
+  border: 1px dashed var(--vno-border-default, #cbd5e1);
+  border-radius: 4px;
+  background: var(--vno-bg-surface, #ffffff);
+  color: var(--vno-text-primary, #0f172a);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.vno-cs-add-level:hover:not(:disabled) {
+  background: var(--vno-bg-hover, #f1f5f9);
+  border-color: var(--vno-sheet-green, #0f6d38);
+  color: var(--vno-sheet-green, #0f6d38);
+}
+
+.vno-cs-add-level:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.vno-cs-remove-level {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--vno-border-default, #cbd5e1);
+  border-radius: 4px;
+  background: var(--vno-bg-surface, #ffffff);
+  color: var(--vno-text-secondary, #64748b);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vno-cs-remove-level:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+/* --- Visual QA: Goal Seek Result Notice --- */
+.vno-goal-result {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: var(--vno-bg-subtle, #f0fdf4);
+  border: 1px solid var(--vno-sheet-green, #0f6d38);
+  border-radius: 4px;
+  font-size: 12.5px;
+  color: var(--vno-text-primary, #0f172a);
+}
+
+/* --- Visual QA: Ribbon Custom Sort Button Polish --- */
+.vno-ribbon-group[data-group-id="sortFilter"] button[data-command-id="sheet.data.customSort"] {
+  width: 28px;
+  height: 28px;
+  padding: 3px;
+  border: 1px solid var(--vno-border-default, #cbd5e1);
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--vno-bg-surface, #ffffff);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.vno-ribbon-group[data-group-id="sortFilter"] button[data-command-id="sheet.data.customSort"]:hover {
+  background: var(--vno-bg-hover, #f1f5f9);
+  border-color: var(--vno-sheet-green, #0f6d38);
+}
+
+[data-theme="dark"] .vno-consolidate-ref-row .vno-btn,
+[data-theme="dark"] .vno-consolidate-list-actions .vno-btn,
+[data-theme="dark"] .vno-cs-add-level,
+[data-theme="dark"] .vno-cs-remove-level,
+[data-theme="dark"] .vno-ribbon-group[data-group-id="sortFilter"] button[data-command-id="sheet.data.customSort"] {
+  background: var(--vno-bg-surface, #2d2d30);
+  border-color: var(--vno-border-default, #3e3e42);
+  color: var(--vno-text-primary, #f1f5f9);
+}
+
+[data-theme="dark"] .vno-consolidate-ref-row .vno-btn:hover,
+[data-theme="dark"] .vno-consolidate-list-actions .vno-btn:hover,
+[data-theme="dark"] .vno-cs-add-level:hover:not(:disabled),
+[data-theme="dark"] .vno-ribbon-group[data-group-id="sortFilter"] button[data-command-id="sheet.data.customSort"]:hover {
+  background: var(--vno-bg-hover, #3e3e42);
+  border-color: var(--vno-border-strong, #52525b);
+}
+
+[data-theme="dark"] .vno-cs-remove-level:hover {
+  background: #7f1d1d;
+  color: #fecaca;
+  border-color: #991b1b;
+}
+
+[data-theme="dark"] .vno-goal-result {
+  background: #064e3b;
+  border-color: #059669;
+  color: #ecfdf5;
+}
+
 
