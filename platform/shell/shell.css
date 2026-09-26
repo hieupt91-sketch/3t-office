@@ -675,6 +675,48 @@ body {
   .vno-ribbon-group[data-group-id="clipboard"] .vno-ribbon-btn-large .vno-btn-label {
     font-size: 10px;
   }
+
+  /* Writer Insert - Nhom Lien ket: Danh dau & Tham chieu cheo thu gon label thanh icon buttons */
+  .vno-ribbon-group[data-group-id="links"] button[data-command-id="writer.insert.bookmark"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="links"] button[data-command-id="writer.insert.crossReference"] .vno-btn-label {
+    display: none !important;
+  }
+  .vno-ribbon-group[data-group-id="links"] button[data-command-id="writer.insert.bookmark"],
+  .vno-ribbon-group[data-group-id="links"] button[data-command-id="writer.insert.crossReference"] {
+    padding: 2px 4px;
+    justify-content: center;
+  }
+
+  /* Writer Insert - Nhom Van ban: Chu dau doan & Ngay/Gio thu gon label thanh icon buttons */
+  .vno-ribbon-group[data-group-id="text"] button[data-command-id="writer.format.dropCap"] .vno-btn-label,
+  .vno-ribbon-group[data-group-id="text"] button[data-command-id="writer.insert.dateTime"] .vno-btn-label {
+    display: none !important;
+  }
+  .vno-ribbon-group[data-group-id="text"] button[data-command-id="writer.format.dropCap"],
+  .vno-ribbon-group[data-group-id="text"] button[data-command-id="writer.insert.dateTime"] {
+    padding: 2px 4px;
+    justify-content: center;
+  }
+
+  /* Writer Insert - Co gon cac nut lon va padding nhom de vua van 100% tren man hinh 1024px */
+  #vno-ribbon-tabpanel-insert .vno-ribbon-btn-large {
+    min-width: 44px;
+    padding: 2px 3px;
+  }
+  #vno-ribbon-tabpanel-insert .vno-ribbon-btn-large .vno-btn-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+  #vno-ribbon-tabpanel-insert .vno-ribbon-btn-large .vno-btn-label {
+    font-size: 10.5px;
+    max-width: 64px;
+  }
+  #vno-ribbon-tabpanel-insert .vno-ribbon-group {
+    padding: 0 2px;
+  }
+  #vno-ribbon-tabpanel-insert .vno-ribbon-group-items {
+    gap: 1px;
+  }
 }
 
 /* Ribbon Dropdown Button & Menu (Fill, Clear, etc.) */

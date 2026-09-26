@@ -482,19 +482,24 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
+        id: "illustrations",
         label: "Minh họa",
         labelKey: "sheetRibbon.group.illustrations",
         items: [{ type: "button", commandId: "sheet.insert.image", isLarge: true }]
       },
       {
+        id: "charts",
         label: "Biểu đồ",
         labelKey: "sheetRibbon.group.charts",
+        launcherCommandId: "sheet.chart.insert",
+        launcherTooltip: "Chèn biểu đồ",
         items: [
           { type: "button", commandId: "sheet.chart.insert", isLarge: true },
           { type: "button", commandId: "sheet.chart.pivotChart", isLarge: true }
         ]
       },
       {
+        id: "sparklines",
         label: "Biểu đồ thu nhỏ",
         labelKey: "sheetRibbon.group.sparklines",
         items: [
@@ -503,11 +508,13 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
+        id: "links",
         label: "Liên kết",
         labelKey: "sheetRibbon.group.links",
         items: [{ type: "button", commandId: "sheet.insert.hyperlink", isLarge: true }]
       },
       {
+        id: "text",
         label: "Văn bản",
         labelKey: "sheetRibbon.group.text",
         items: [
