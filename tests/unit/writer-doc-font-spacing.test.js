@@ -128,6 +128,29 @@ export async function runWriterDocFontSpacingTests() {
     check(kept === html, `real empty line-break paragraph in DOCX must keep both <br>: ${kept}`);
   });
 
+  test("W56: 13pt keeps CSS size but GDI advance scale 17/17.333 so wrap matches Word (d01)", () => {
+    const adapter = new WriterAdapter(null);
+    check(adapter._gdiDevicePxForPt(13) === 17, "13pt × 96/72 rounds to 17px");
+    check(adapter._gdiDevicePxForPt(18) === 24, "18pt stays an integer 24px");
+    const scale = adapter._gdiAdvanceScaleForPt(13);
+    check(Math.abs(scale - 17 / (13 * 96 / 72)) < 1e-6, `gdi advance scale ${scale}`);
+    const html = '<p style="font-size: 13pt">Hội đồng thành</p><font style="font-size:13.0pt">x</font><span style="font-size: 14pt">y</span>';
+    const out = adapter._applyGdiDeviceFontPixels(html);
+    check(out.includes("font-size: 13pt; --vno-gdi-advance:"), `13pt must keep size and gain advance: ${out}`);
+    check(out.includes(`--vno-gdi-advance: ${scale}`), `advance must be ${scale}: ${out}`);
+    check(out.includes('<span style="font-size: 14pt">y</span>'), `14pt must stay: ${out}`);
+    const twice = adapter._applyGdiDeviceFontPixels(out);
+    check((twice.match(/--vno-gdi-advance/g) || []).length === (out.match(/--vno-gdi-advance/g) || []).length, `idempotent: ${twice}`);
+    const restored = adapter._stripCharacterScaleForExport(out);
+    check(restored.includes("font-size: 13pt"), `export keeps 13pt: ${restored}`);
+    check(!/--vno-gdi-advance/.test(restored), `export drops the canvas marker: ${restored}`);
+    const wordCol = (11907 - 1134 - 1134) / 1440 * 96;
+    check(Math.abs(wordCol - 642.6) < 0.001, `d01 text column ${wordCol}`);
+    check(650 > wordCol && 650 * scale < wordCol, "13pt CSS overflows the Word column; GDI-scaled 13pt fits");
+    const src = fs.readFileSync(path.resolve("adapters/libreoffice/writer/writer-adapter.js"), "utf8");
+    check(src.includes('!family.includes("times new roman")'), "GDI advance applies only to Times New Roman (d07 Arial 13pt already matches Word)");
+  });
+
   test("W55: a whitespace-only paragraph with a <br> is one line when the DOCX has no manual break there (d07)", () => {
     const adapter = new WriterAdapter(null);
     const html = '<p class="western"> <br></p><p>Mẫu hợp đồng</p>';
