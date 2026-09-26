@@ -68,7 +68,24 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("ai")) return ICONS.aiSparkle;
   if (idLower.includes("macrorecordstop")) return ICONS.macroRecordStop;
   if (idLower.includes("macro.record") || idLower.includes("macrorecordstart")) return ICONS.macroRecordStart;
-  if (idLower.includes("macro.manager") || idLower.includes("macromanager")) return ICONS.macroManager;
+  if (idLower.includes("comment.insert") || idLower.includes("commentinsert")) return ICONS.comment;
+  if (idLower.includes("commentdelete")) return ICONS.commentDelete;
+  if (idLower.includes("commentresolve")) return ICONS.commentResolve;
+  if (idLower.includes("commentprevious") || idLower.includes("commentprev")) return ICONS.commentPrevious;
+  if (idLower.includes("commentnext")) return ICONS.commentNext;
+  if (idLower.includes("comment")) return ICONS.comment;
+  if (idLower.includes("wordcount")) return ICONS.wordCount;
+  if (idLower.includes("spellcheck")) return ICONS.sheetSpellCheck || ICONS.aiGrammar;
+  if (idLower.includes("grammarcheck")) return ICONS.aiGrammar;
+  if (idLower.includes("trackchangeacceptall")) return ICONS.trackChangeAcceptAll;
+  if (idLower.includes("trackchangeaccept")) return ICONS.trackChangeAccept;
+  if (idLower.includes("trackchangerejectall")) return ICONS.trackChangeRejectAll;
+  if (idLower.includes("trackchangereject")) return ICONS.trackChangeReject;
+  if (idLower.includes("trackchangeprev")) return ICONS.trackChangePrev;
+  if (idLower.includes("trackchangenext")) return ICONS.trackChangeNext;
+  if (idLower.includes("trackchange")) return ICONS.trackChanges;
+  if (idLower.includes("protectsheet") || idLower.includes("sheet.protect")) return ICONS.protectSheet;
+  if (idLower.includes("protectworkbook") || idLower.includes("workbook.protect")) return ICONS.protectWorkbook;
 
   return `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>`;
 }

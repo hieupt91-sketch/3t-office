@@ -208,9 +208,9 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["writer.review.commentPrevious", "writer.review.commentNext", "writer.review.commentDelete", "writer.review.commentResolve"],
     title: "Duyệt và xử lý nhận xét",
     summary: "Duyệt lần lượt các nhận xét, đánh dấu đã xử lý mà vẫn giữ nội dung, mở lại hoặc xóa nhận xét.",
-    ribbon: { tab: "Đánh giá", tabId: "review", group: "Nhận xét" },
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Ghi chú" },
     keywords: ["nhận xét", "ghi chú", "trước", "sau", "xử lý", "resolve", "xóa"],
-    steps: ["Mở tab Đánh giá, nhóm Nhận xét.", "Nhấn Nhận xét trước hoặc Nhận xét sau để cuộn tới và tô sáng nhận xét; hết danh sách sẽ quay vòng.", "Nhấn Đã xử lý để làm mờ nhận xét nhưng vẫn giữ lại; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa nhận xét đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại Resolve hoặc Delete."]
+    steps: ["Mở tab Đánh giá, nhóm Ghi chú.", "Nhấn Nhận xét trước hoặc Nhận xét sau để cuộn tới và tô sáng nhận xét; hết danh sách sẽ quay vòng.", "Nhấn Đã xử lý để làm mờ nhận xét nhưng vẫn giữ lại; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa nhận xét đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại Resolve hoặc Delete."]
   },
   {
     id: "writer.text.basicFormat",
