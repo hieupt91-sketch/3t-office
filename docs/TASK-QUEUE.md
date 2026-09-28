@@ -8,6 +8,8 @@ Test trên `main`: node **1863/1863 PASS**, python OK (Claude tự chạy sau me
 
 **Đang chạy:** Codex `E:\VNOffice-codex-writer-legacy-doc2` — legacy14/17/18.doc lệch trang (đợt 2). agy hết hạn mức tới ~23:45 — việc chờ: thanh cảnh báo vàng kiểu Excel cho tệp có liên kết ngoài (hiện chỉ báo trên thanh trạng thái).
 
+**HỒI QUY (Claude 29/9 00:25, chia đôi commit):** bản sửa `fix/writer-save-followups-codex` (lưu .doc qua DOCX hậu xử lý, đã merge) làm bản lưu `legacy20.doc` KHÔNG mở được bằng Word (hộp thoại lỗi, kể cả đổi tên); trên `dd3afd2` (trước merge) bản lưu mở tốt 1 trang. Đã giao Codex vòng 3 (`fix/writer-legacy-doc2-codex`, W-legacydoc2c) sửa ưu tiên số 1 + đo Word mở được 20/20 .doc. Nếu không sửa được: revert merge save-followups khỏi main (file hỏng tệ hơn lệch trang). Cũng đã bác shim đổi `wrapSquare`→`wrapNone` của Codex vòng 1 (Word đo: chữ đè ảnh) — Codex đã gỡ; bộ lọc DOC của LibreOffice vẫn đổi Square→TopAndBottom khi lưu .doc (legacy13 lệch 1 trang, ghi nhận).
+
 **Còn mở:** legacy06.xls `#REF!` → `#N/A` (10 ô, nhỏ); bộ so sánh .xls không dùng Excel cho 5/20 file Excel 95 bị File Block; Sheet tăng tốc mở file lớn — **CHỜ người phụ trách duyệt bước 1** (`docs/PLAN-SHEET-OPEN-PERF.md`).
 
 ## Trạng thái 28/9 16:30 (main `fea2816`)
