@@ -519,6 +519,20 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
             ) from exc
 
 
+def _convert_writer_html_to_doc(src_html: str, out_dir: str, source_path: str | None = None) -> str:
+    """Export Writer HTML through the source-aware DOCX overlay before legacy DOC."""
+    intermediate_docx = _run_soffice_convert(src_html, "docx", out_dir, app_kind="writer")
+    source_docx = source_path
+    if source_path and os.path.isfile(source_path) and Path(source_path).suffix.lower() == ".doc":
+        source_dir = os.path.join(out_dir, "legacy_source")
+        os.makedirs(source_dir, exist_ok=True)
+        source_docx = _run_soffice_convert(source_path, "docx", source_dir, app_kind="writer")
+    _apply_native_export_postprocess(
+        src_html, intermediate_docx, "writer", "docx", source_path=source_docx,
+    )
+    return _run_soffice_convert(intermediate_docx, "doc", out_dir, app_kind="writer")
+
+
 def _read_xlsx_workbook_xml(src_path: str) -> str | None:
     """Read xl/workbook.xml from the original .xlsx via the shared ZIP helper.
 
@@ -1183,8 +1197,11 @@ class VnOfficeApi:
                 else:
                     return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
 
-                out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
-                _apply_native_export_postprocess(src_path, out_path, app_kind, target_format, source_path=source_path)
+                if app_kind == "writer" and target_format == "doc":
+                    out_path = _convert_writer_html_to_doc(src_path, tmp, source_path=source_path)
+                else:
+                    out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
+                    _apply_native_export_postprocess(src_path, out_path, app_kind, target_format, source_path=source_path)
                 _atomic_replace_file(out_path, target_path)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
@@ -1246,8 +1263,11 @@ class VnOfficeApi:
                 else:
                     return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
 
-                out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
-                _apply_native_export_postprocess(src_path, out_path, app_kind, target_format, source_path=source_path)
+                if app_kind == "writer" and target_format == "doc":
+                    out_path = _convert_writer_html_to_doc(src_path, tmp, source_path=source_path)
+                else:
+                    out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
+                    _apply_native_export_postprocess(src_path, out_path, app_kind, target_format, source_path=source_path)
                 _atomic_replace_file(out_path, dest_path)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}

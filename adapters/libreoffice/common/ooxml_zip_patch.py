@@ -10720,6 +10720,36 @@ def _restore_missing_writer_drawings(
         [f"<w:t>{_writer_flow_text(paragraph)}</w:t>" for paragraph in converted],
     ))
     matched = sorted(pairs.items())
+    # Empty drawing carriers cannot be aligned by text. Pair them between stable
+    # text boundaries using the untouched paragraph bookmarks emitted by Writer;
+    # counting every converted paragraph here lets an unrelated LO spacer steal
+    # the source carrier and move an absolute-positioned shape onto another page.
+    text_pairs = [
+        (source_at, target_at) for source_at, target_at in matched
+        if _writer_flow_text(source[source_at]) and _writer_flow_text(converted[target_at])
+    ]
+    empty_carrier_targets: dict[int, int] = {}
+    bounded_pairs = [(-1, -1), *text_pairs, (len(source), len(converted))]
+    for (source_start, target_start), (source_end, target_end) in zip(
+        bounded_pairs, bounded_pairs[1:]
+    ):
+        source_empty = [
+            index for index in range(source_start + 1, source_end)
+            if not _writer_flow_text(source[index]) and _writer_paragraph_drawings(source[index])
+        ]
+        target_empty = [
+            index for index in range(target_start + 1, target_end)
+            if index in {
+                target_index for target_index, paragraph in enumerate(converted)
+                if re.search(
+                    r'<w:bookmarkStart\b[^>]*\bw:name=["\']vno-untouched-\d+["\']',
+                    paragraph, re.IGNORECASE,
+                )
+            }
+            and not _writer_flow_text(converted[index])
+        ]
+        if source_empty and len(source_empty) == len(target_empty):
+            empty_carrier_targets.update(zip(source_empty, target_empty))
     occupied = {
         int(value) for value in re.findall(
             r'<wp:docPr\b[^>]*\bid=["\'](\d+)', converted_xml, re.IGNORECASE,
@@ -10727,6 +10757,8 @@ def _restore_missing_writer_drawings(
     }
 
     def slot_for(source_index: int) -> tuple[str, int]:
+        if source_index in empty_carrier_targets:
+            return ("into", empty_carrier_targets[source_index])
         if source_index in pairs:
             return ("into", pairs[source_index])
         previous_source = previous_target = None

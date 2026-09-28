@@ -58,6 +58,33 @@ def anchor(name: str, payload: str, rid: str = "rId7", docpr_id: int = 1) -> str
 
 
 class WriterAnchorPassthroughTests(unittest.TestCase):
+    def test_missing_drawing_uses_matching_empty_untouched_paragraph_after_extra_flow_para(self):
+        shape = (
+            '<wp:anchor><wp:docPr id="7" name="Rectangle 7"/>'
+            '<wps:wsp><a:prstGeom prst="rect"/></wps:wsp></wp:anchor>'
+        )
+        source_xml = (
+            '<w:document><w:body>'
+            '<w:p><w:r><w:t>Before</w:t></w:r></w:p>'
+            f'<w:p><w:r><w:drawing>{shape}</w:drawing></w:r></w:p>'
+            '<w:p><w:r><w:t>After</w:t></w:r></w:p></w:body></w:document>'
+        )
+        converted_xml = (
+            '<w:document><w:body>'
+            '<w:p><w:bookmarkStart w:id="1" w:name="vno-untouched-0"/>'
+            '<w:r><w:t>Before</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>LibreOffice spacer</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="2" w:name="vno-untouched-1"/></w:p>'
+            '<w:p><w:bookmarkStart w:id="3" w:name="vno-untouched-2"/>'
+            '<w:r><w:t>After</w:t></w:r></w:p></w:body></w:document>'
+        )
+
+        result = patcher._restore_missing_writer_drawings(converted_xml, source_xml, set())
+        paragraphs = re.findall(r'<w:p\b[^>]*>[\s\S]*?</w:p>', result)
+        carrier = next(paragraph for paragraph in paragraphs if 'name="Rectangle 7"' in paragraph)
+        self.assertIn('w:name="vno-untouched-1"', carrier)
+        self.assertNotIn("LibreOffice spacer", carrier)
+
     def test_group_anchor_xml_media_relationship_and_content_type_are_preserved(self):
         source_anchor = anchor("Group 7068", '<wpg:wgp><a:graphic><a:t>CATALOG</a:t></a:graphic></wpg:wgp>')
         source = make_docx(
