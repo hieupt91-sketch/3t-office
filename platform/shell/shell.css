@@ -1447,6 +1447,36 @@ body {
   outline: 2px solid var(--vno-border-focus);
   outline-offset: -2px;
 }
+.vno-recent-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--vno-radius-sm, 4px);
+  background: transparent;
+  color: var(--vno-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+.vno-recent-remove-btn:hover {
+  background-color: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #dc2626;
+  transform: scale(1.08);
+}
+.vno-recent-remove-btn:focus-visible {
+  outline: 2px solid var(--vno-border-focus);
+  outline-offset: 1px;
+}
+[data-theme="dark"] .vno-recent-remove-btn:hover {
+  background-color: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #f87171;
+}
 .vno-template-thumb {
   width: 100%;
   aspect-ratio: 1 / 1.414;
@@ -1619,6 +1649,39 @@ body {
   transform: scale(0.78);
   transform-origin: top center;
   margin-bottom: 28px;
+}
+
+/* Trang xem trước in trong Backstage luôn giữ nguyên nền giấy trắng và chữ đen của tài liệu kể cả trong Dark Mode */
+.vno-backstage-print-stage .vno-print-preview-sheet,
+.vno-backstage-print-stage .vno-sheet-print-preview-page,
+.vno-backstage-print-stage .vno-slides-print-preview-page {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+.vno-backstage-print-stage .vno-sheet-print-preview-page .vno-sheet-print-table,
+.vno-backstage-print-stage .vno-sheet-print-preview-page .vno-sheet-print-table td,
+.vno-backstage-print-stage .vno-sheet-print-preview-page .vno-sheet-print-table th {
+  color: #0f172a !important;
+}
+.vno-backstage-print-stage .vno-print-preview-sheet .vno-print-preview-body,
+.vno-backstage-print-stage .vno-print-preview-sheet p {
+  color: #111827 !important;
+}
+
+/* Responsive Backstage cho màn hình nhỏ <= 1150px (bao gồm tablet / laptop 1024px) */
+@media (max-width: 1150px) {
+  .vno-backstage-sidebar {
+    width: 210px;
+  }
+  .vno-backstage-content {
+    padding: 24px 28px;
+  }
+  .vno-backstage-print-panel {
+    gap: 20px;
+  }
+  .vno-backstage-print-controls {
+    width: 240px;
+  }
 }
 
 /* ==========================================================================
