@@ -10638,6 +10638,34 @@ def _writer_should_restore_drawing(
     return True
 
 
+def _writer_unique_docpr_ids(xml: str) -> str:
+    """Renumber repeated wp:docPr ids; Word reports the package as corrupted otherwise.
+
+    Several passes copy source drawings (with their source ids) next to anchors that
+    LibreOffice numbered independently (d06: Rectangle 105 and Rectangle 87 both id 105).
+    The first occurrence keeps its id; later repeats get the next free id.
+    """
+    pattern = re.compile(r'(<wp:docPr\b[^>]*\bid=)(["\'])(\d+)\2', re.IGNORECASE)
+    ids = [int(match.group(3)) for match in pattern.finditer(xml)]
+    if len(ids) == len(set(ids)):
+        return xml
+    seen: set[int] = set()
+    next_free = max(ids) + 1
+
+    def repl(match: re.Match) -> str:
+        nonlocal next_free
+        value = int(match.group(3))
+        if value not in seen:
+            seen.add(value)
+            return match.group(0)
+        while next_free in seen:
+            next_free += 1
+        seen.add(next_free)
+        return f'{match.group(1)}"{next_free}"'
+
+    return pattern.sub(repl, xml)
+
+
 def _restore_missing_writer_drawings(
     converted_xml: str, original_xml: str, deleted_names: set[str],
 ) -> str:
@@ -10684,18 +10712,32 @@ def _restore_missing_writer_drawings(
     def slot_for(source_index: int) -> tuple[str, int]:
         if source_index in pairs:
             return ("into", pairs[source_index])
-        previous_target = None
-        next_target = None
+        previous_source = previous_target = None
+        next_source = next_target = None
         for source_at, target_at in matched:
             if source_at < source_index:
-                previous_target = target_at
+                previous_source, previous_target = source_at, target_at
             elif source_at > source_index and next_target is None:
-                next_target = target_at
+                next_source, next_target = source_at, target_at
                 break
-        if next_target is not None:
-            return ("before", next_target)
+        # Empty paragraphs have no text for the LCS to pair. When the gap between the
+        # matched neighbours has the same paragraph count on both sides, the unmatched
+        # source paragraph is the one at the same offset — anchor into it instead of
+        # adding a new paragraph, which pushes the layout down (d06: 3 -> 4 pages).
+        if (previous_source is not None and next_source is not None
+                and next_source - previous_source == next_target - previous_target):
+            return ("into", previous_target + (source_index - previous_source))
+        # Otherwise keep the same offset but stay inside the gap, and still anchor into an
+        # existing paragraph: a new empty paragraph adds a line of height (d06: the seven
+        # connectors of an empty source paragraph turned 3 pages into 4).
         if previous_target is not None:
-            return ("before", previous_target + 1)
+            limit = next_target - 1 if next_target is not None else len(converted) - 1
+            offset = previous_target + (source_index - previous_source)
+            return ("into", max(previous_target, min(offset, limit)))
+        if next_target is not None:
+            return ("into", next_target)
+        if converted:
+            return ("into", len(converted) - 1)
         return ("before", len(converted))
 
     insertions_into: dict[int, list[str]] = {}
@@ -10724,6 +10766,12 @@ def _restore_missing_writer_drawings(
                 close = paragraph.rfind("</w:p")
                 if close >= 0:
                     paragraph = paragraph[:close] + extra + paragraph[close:]
+                else:
+                    empty = re.fullmatch(r"<w:p\b([^>]*?)\s*/>", paragraph.strip())
+                    if empty:
+                        paragraph = f"<w:p{empty.group(1)}>{extra}</w:p>"
+                    else:
+                        news += f"<w:p>{extra}</w:p>"
             result = result[:start] + news + paragraph + result[end:]
             continue
         body_close = result.rfind("</w:body")
@@ -10947,6 +10995,7 @@ def postprocess_writer_docx(
     )
     new_xml = _remove_writer_untouched_bookmarks(new_xml)
     new_xml = _writer_collapse_consecutive_page_breaks(new_xml)
+    new_xml = _writer_unique_docpr_ids(new_xml)
 
     replacements: dict[str, bytes] = {}
     if new_xml != converted_xml or merged_numbering is not None:

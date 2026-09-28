@@ -275,6 +275,63 @@ class WriterAnchorPassthroughTests(unittest.TestCase):
         self.assertEqual(len(re.findall(r"<wp:inline\b", xml)), 1)
         self.assertEqual(len(re.findall(r'name="Group 1893"', xml)), 1)
 
+    def test_connector_in_empty_paragraph_goes_into_matching_empty_paragraph(self):
+        # d06: connectors sit in empty paragraphs the text LCS cannot pair. Adding a new
+        # paragraph for them pushed the saved document from 3 to 4 pages.
+        source = make_docx(
+            '<w:p><w:r><w:t>Before the line</w:t></w:r></w:p>'
+            '<w:p><w:r><w:drawing><wp:anchor><wp:docPr id="1" name="Straight Connector 1"/>'
+            '<wps:wsp><a:prstGeom prst="line"><a:avLst/></a:prstGeom></wps:wsp>'
+            '</wp:anchor></w:drawing></w:r></w:p>'
+            '<w:p><w:r><w:t>After the line</w:t></w:r></w:p>'
+        )
+        converted = make_docx(
+            '<w:p><w:bookmarkStart w:id="1" w:name="vno-untouched-0"/>'
+            '<w:r><w:t>Before the line</w:t></w:r></w:p>'
+            '<w:p/>'
+            '<w:p><w:bookmarkStart w:id="2" w:name="vno-untouched-1"/>'
+            '<w:r><w:t>After the line</w:t></w:r></w:p>'
+        )
+        result = patcher.postprocess_writer_docx(converted, source_docx=source)
+        xml = zipfile.ZipFile(io.BytesIO(result)).read("word/document.xml").decode()
+        body = xml[xml.find("<w:body>"):xml.find("</w:body>")]
+        self.assertEqual(len(re.findall(r"<w:p[ >/]", body)), 3)
+        self.assertEqual(len(re.findall(r'name="Straight Connector 1"', xml)), 1)
+        self.assertLess(xml.find("Before the line"), xml.find("Straight Connector 1"))
+        self.assertLess(xml.find("Straight Connector 1"), xml.find("After the line"))
+
+    def test_restored_drawing_ids_do_not_collide_with_converted_ids(self):
+        # d06: restored "Rectangle 105" kept source id 105 while LibreOffice had already
+        # numbered "Rectangle 87" 105; Word then reported the package as corrupted.
+        source = make_docx(
+            '<w:p><w:r><w:t>Chart title</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Line holder</w:t>'
+            '<w:drawing><wp:anchor><wp:docPr id="105" name="Straight Connector 105"/>'
+            '<wps:wsp><a:prstGeom prst="line"><a:avLst/></a:prstGeom></wps:wsp>'
+            '</wp:anchor></w:drawing></w:r></w:p>'
+        )
+        converted = make_docx(
+            '<w:p><w:bookmarkStart w:id="1" w:name="vno-untouched-0"/>'
+            '<w:r><w:t>Chart title</w:t></w:r>'
+            '<w:r><w:drawing><wp:inline><wp:docPr id="105" name="Picture 1"/>'
+            '<a:graphic/></wp:inline></w:drawing></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="2" w:name="vno-untouched-1"/>'
+            '<w:r><w:t>Line holder</w:t></w:r></w:p>'
+        )
+        result = patcher.postprocess_writer_docx(converted, source_docx=source)
+        xml = zipfile.ZipFile(io.BytesIO(result)).read("word/document.xml").decode()
+        ids = re.findall(r'<wp:docPr\b[^>]*\bid="(\d+)"', xml)
+        self.assertIn('name="Straight Connector 105"', xml)
+        self.assertEqual(len(ids), len(set(ids)), ids)
+
+    def test_unique_docpr_ids_renumbers_only_repeats(self):
+        xml = ('<wp:docPr id="5" name="A"/><wp:docPr id="7" name="B"/>'
+               '<wp:docPr id="5" name="C"/><wp:docPr id="8" name="D"/>')
+        fixed = patcher._writer_unique_docpr_ids(xml)
+        self.assertEqual(re.findall(r'id="(\d+)" name="(\w)"', fixed),
+                         [("5", "A"), ("7", "B"), ("9", "C"), ("8", "D")])
+        self.assertEqual(patcher._writer_unique_docpr_ids(fixed), fixed)
+
     def test_deleted_connector_is_not_reinserted(self):
         marker = "VNO_SHAPE_MUTATION_" + json.dumps(
             {"type": "delete", "anchorName": "Straight Connector 1", "shapeName": "Straight Connector 1"},
