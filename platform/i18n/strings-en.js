@@ -79,6 +79,10 @@ export const enStrings = {
     recentColName: "DOCUMENT NAME",
     recentColFormat: "LOCATION / FORMAT",
     clearRecent: "Clear History",
+    removeRecent: "Remove from list",
+    removeRecentTooltip: "Remove this file from recent list",
+    fileNotFoundTitle: "File Not Found",
+    fileNotFoundMessage: "The file \"{name}\" no longer exists or was moved. Do you want to remove it from the recent list?",
     emptyRecentTitle: "No Recent Documents",
     emptyRecentDesc: "Documents you create or edit will appear here for quick access."
   },

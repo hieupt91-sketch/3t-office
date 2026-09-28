@@ -51,6 +51,21 @@ export class RecentFilesManager {
   }
 
   /**
+   * Xóa một tài liệu cụ thể khỏi danh sách gần đây
+   * @param {{ name: string, app?: string }} options
+   */
+  static removeFile({ name, app }) {
+    try {
+      if (typeof window === "undefined" || !window.localStorage) return;
+      const list = this.getRecentFiles();
+      const filtered = list.filter(item => !(item.name === name && (!app || item.app === app)));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+    } catch (e) {
+      console.warn("[RecentFilesManager] Không thể xóa tệp gần đây:", e);
+    }
+  }
+
+  /**
    * Xóa toàn bộ lịch sử tài liệu gần đây
    */
   static clearAll() {

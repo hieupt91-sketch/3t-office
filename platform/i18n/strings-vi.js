@@ -78,6 +78,10 @@ export const viStrings = {
     recentColName: "TÊN TÀI LIỆU",
     recentColFormat: "VỊ TRÍ / ĐỊNH DẠNG",
     clearRecent: "Xóa lịch sử",
+    removeRecent: "Gỡ khỏi danh sách",
+    removeRecentTooltip: "Gỡ tệp này khỏi danh sách gần đây",
+    fileNotFoundTitle: "Không tìm thấy tệp",
+    fileNotFoundMessage: "Tệp \"{name}\" không còn tồn tại tại vị trí cũ hoặc đã bị xóa. Bạn có muốn gỡ tệp này khỏi danh sách gần đây không?",
     emptyRecentTitle: "Chưa có tài liệu gần đây",
     emptyRecentDesc: "Các tài liệu bạn vừa khởi tạo hoặc chỉnh sửa sẽ tự động xuất hiện tại đây để truy cập nhanh."
   },
