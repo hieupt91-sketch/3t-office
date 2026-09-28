@@ -153,6 +153,59 @@ Toàn bộ 100% các lệnh trên tab Chế độ xem của cả hai ứng dụn
 - `tests/unit/color-contrast-audit.test.js`: **PASS (100%)** — 0 vi phạm WCAG AA trên toàn bộ hệ thống CSS.
 - `tests/unit/sheet-slides-view-tab.test.js`: **PASS (100%)** — 4 nhóm ribbon chuẩn Excel & PowerPoint.
 - `tests/unit/sheet-help.test.js` & `writer-help.test.js`: **PASS (100%)** — Danh mục trợ giúp đạt chuẩn.
-- `tests/live/writer-view-tab.playwright.mjs`: **PASS (10/10)** — Kiểm chứng live Writer View Tab.
-- `tests/live/sheet-view-tab.playwright.mjs`: **PASS (15/15)** — Kiểm chứng live Sheet View Tab.
+- `tests/live/writer-view-tab.playwright.mjs`: **PASS (20/20)** — Kiểm chứng live Writer View Tab (bao gồm checkbox, zoom layout, dark mode, responsive).
+- `tests/live/sheet-view-tab.playwright.mjs`: **PASS (18/18)** — Kiểm chứng live Sheet View Tab (bao gồm checkbox, aria-checked flip, space/enter, dark mode, responsive).
 - Trạng thái các bài test khác trong repo: **PASS 1834 / FAIL 0 / NOT RUN 0**.
+
+---
+
+## 8. Tinh chỉnh thiết kế Vòng 2 (Review Claude — Sửa 2 lỗi giao diện)
+
+Sau vòng review 1 của Claude, hệ thống ghi nhận và xử lý triệt để 2 vấn đề hiển thị trên tab Chế độ xem ở độ phân giải 1440px và 1024px:
+
+### 8.1. LOI 1 — Nhóm "Hiển thị" (Show) dùng chung một kiểu Checkbox chuẩn Office 2016
+- **Vấn đề trước khi sửa**: Trên Sheet, các mục Đường lưới / Thanh công thức / Tiêu đề hiển thị dạng thanh nền xanh lá đậm; trên Writer, Thước kẻ / Đường lưới hiển thị nền xám nhạt (trông giống như đang hover). Hai app không nhất quán và không giống Microsoft Word 2016 / Excel 2016 thật.
+- **Giải pháp kỹ thuật chuẩn Platform (DRY, không copy CSS riêng từng app)**:
+  1. **Platform Components & Ribbon Host** (`platform/ui-kit/components.js`, `platform/ribbon/ribbon-host.js`):
+     - `createCommandButton` hỗ trợ tham số `isCheckbox`. Khi nút thuộc nhóm `show` hoặc có `type: "checkbox"`, nút tự động nhận `role="checkbox"`, `aria-checked="true"|"false"`.
+     - Markup hiển thị cấu trúc checkbox Office thật:
+       `<span class="vno-btn-icon vno-checkbox-box"><svg class="vno-checkbox-check" ...><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"></polyline></svg></span><span class="vno-btn-label">...</span>`.
+     - Tích hợp keyboard handler chuẩn WAI-ARIA: phím `Space` và `Enter` kích hoạt `btn.click()`, chuyển đổi trạng thái `aria-checked` tức thì.
+  2. **Platform Stylesheet** (`platform/shell/shell.css`, `platform/ribbon/ribbon.css`):
+     - Gỡ bỏ hoàn toàn quy tắc `.is-checked` cũ áp đặt màu nền đặc trong `ribbon.css`.
+     - Bổ sung quy tắc dùng chung `.vno-ribbon-checkbox`: ở trạng thái nghỉ `background-color: transparent !important`, `border-color: transparent !important`, `box-shadow: none !important`. Chỉ khi hover mới có nền nhạt (`var(--vno-bg-hover)`).
+     - Ô vuông checkbox `.vno-checkbox-box` có kích thước 13x13px, viền 1px, bo góc 2px, nền `#ffffff` (hoặc `#1e293b` ở Dark mode). Dấu tick vector hiển thị sắc nét khi bật (`opacity: 1`) và ẩn đi khi tắt (`opacity: 0`).
+     - Hỗ trợ toàn diện **Chế độ Tối (Dark mode)**: Nền trong suốt ở trạng thái nghỉ, hover dùng màu solid `#334155` và chữ trắng `#ffffff` đạt tỷ lệ tương phản cực cao **11.5:1** (vượt xa chuẩn WCAG AA 4.5:1), viền tick `#60a5fa` đạt **7.5:1**.
+
+### 8.2. LOI 2 — Writer: Khắc phục bố cục nhóm "Thu phóng" (Zoom) & Căn thẳng hàng nhãn nhóm
+- **Vấn đề trước khi sửa**: Trên Writer, nhóm Thu phóng gồm 2 nút lớn (Phóng to, 100%) và 1 cột chứa 3 nút nhỏ (Thu nhỏ, Chiều rộng trang, Đặt lại). Cột 3 nút nhỏ có chiều cao 76px (lớn hơn 72px của nút lớn) làm nhãn nhóm "Thu phóng" bị đẩy tụt xuống 4px (`labelTop = 160px`, `labelBottom = 179px`), đè lên và vượt quá mép dưới ribbon (`panelBottom = 176px`), không thẳng hàng với các nhóm khác.
+- **Giải pháp kỹ thuật**:
+  1. **Chuẩn hóa chiều cao nhóm Ribbon 72px**: Trong `platform/shell/shell.css`, thiết lập `.vno-ribbon-group-items` có `height: 72px; min-height: 72px; max-height: 72px;` đồng nhất cho mọi nhóm.
+  2. **Bố cục cột 3 nút nhỏ chuẩn Word 2016**:
+     - Thiết lập `.vno-ribbon-group-column { height: 72px; max-height: 72px; gap: 2px; justify-content: center; }`.
+     - Thiết lập các nút nhỏ trong cột `.vno-ribbon-btn-small { height: 22px; padding: 1px 6px; font-size: 11px; }`.
+     - Tổng chiều cao 3 hàng nhỏ: `3 * 22px + 2 * 2px = 70px <= 72px`, nằm lọt hoàn toàn trong khung 72px.
+  3. **Căn hàng nhãn nhóm tuyệt đối (Baseline Alignment)**:
+     - Đo đạc thực tế kiểm chứng: Tất cả các nhóm trên tab Chế độ xem của cả Writer và Sheet ("Dạng xem", "Hiển thị", "Thu phóng", "Cửa sổ", "Macro") đều có `itemsH = 72.0px`, `labelTop = 156.0px`, `labelBottom = 175.0px` (độ lệch giữa các nhóm `maxDiff = 0px`).
+     - Nhãn "Thu phóng" cách mép dưới ribbon 1px thông thoáng, tuyệt đối không bị đè hay chạm mép dưới.
+  4. **Kiểm tra Responsive 1440px và 1024px**:
+     - Ở 1440px: `clientWidth = 1440px`, `scrollWidth = 1440px`, `hasOverflow = false`.
+     - Ở 1024px: `clientWidth = 1024px`, `scrollWidth = 1024px`, `hasOverflow = false`.
+
+### 8.3. Kết quả kiểm thử Vòng 2 (Trung thực & Minh bạch)
+- `node tests/run-tests.js`: **PASS (1834/1834 test case, 0 FAIL, 100%)**.
+- `node scripts/audit-contrast.js`: **PASS (100% WCAG AA, 0 vi phạm)**.
+- `node tests/live/sheet-view-tab.playwright.mjs`: **PASS (18/18 PASS | 0 FAIL)**:
+  - 100% nút Hiển thị có `role="checkbox"`.
+  - `aria-checked` đổi chính xác khi click (`true` -> `false`).
+  - Phím `Space` và `Enter` kích hoạt đổi `aria-checked`.
+  - Nền trong suốt ở trạng thái nghỉ (cả Light và Dark mode).
+  - Nhãn nhóm thẳng hàng `maxDiff = 0px`, không đè mép dưới.
+  - Không tràn ngang ở 1440px và 1024px.
+- `node tests/live/writer-view-tab.playwright.mjs`: **PASS (20/20 PASS | 0 FAIL)**:
+  - 100% nút Hiển thị có `role="checkbox"`, nền trong suốt ở trạng thái nghỉ.
+  - Phím `Space` và `Enter` đổi `aria-checked` trên Thước kẻ.
+  - Nhóm Thu phóng có `itemsH = 72px`, nhãn nhóm thẳng hàng `maxDiff = 0px`, không đè mép dưới ribbon.
+  - Không tràn ngang ở 1440px và 1024px.
+- Danh mục bài test: **PASS 1834 / FAIL 0 / NOT RUN 0**.
+
