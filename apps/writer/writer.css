@@ -1733,6 +1733,16 @@ sup.vno-endnote-ref:hover {
   color: var(--vno-brand-red, #dc2626);
   font-size: 12px;
 }
+[data-theme="dark"] .vno-source-row .vno-delete-source {
+  color: #f87171;
+}
+[data-theme="dark"] .vno-source-row .vno-delete-source:hover {
+  background-color: rgba(248, 113, 113, 0.15);
+  border-color: #f87171;
+}
+[data-theme="dark"] .vno-citation-error {
+  color: #f87171;
+}
 .vno-empty-sources {
   color: var(--vno-text-secondary, #64748b);
   margin: 8px 0;
@@ -1935,7 +1945,15 @@ sup.vno-endnote-ref:hover {
   font-style: italic;
   color: #0f4c81;
 }
+[data-theme="dark"] .vno-caption-preview {
+  background: var(--vno-bg-surface, #252526);
+  border-color: var(--vno-border-default, #3e3e42);
+  color: var(--vno-writer-primary-fg, #60a5fa);
+}
 .vno-caption-hint { margin: 0; font-size: 12px; color: #64748b; }
+[data-theme="dark"] .vno-caption-hint {
+  color: var(--vno-text-muted, #94a3b8);
+}
 .vno-caption-marker,
 .vno-tof-marker,
 .vno-caption-metadata {
