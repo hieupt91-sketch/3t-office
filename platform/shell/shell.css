@@ -814,6 +814,14 @@ body {
   }
 }
 
+/* View Tab (Writer & Sheet) - Nhom Hien thi xep doc cac nut nho theo chuan Office 2016 */
+#vno-ribbon-tabpanel-view .vno-ribbon-group[data-group-id="show"] .vno-ribbon-group-items {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
 /* Ribbon Dropdown Button & Menu (Fill, Clear, etc.) */
 .vno-ribbon-btn-dropdown {
   position: relative;
@@ -893,14 +901,14 @@ body {
   color: #0f4c81;
 }
 [data-theme="dark"] .vno-ribbon-dropdown-item.is-checked {
-  background-color: rgba(37, 99, 235, 0.2);
-  color: #93c5fd;
+  background-color: #1e3a8a;
+  color: #ffffff;
 }
 [data-theme="dark"] .vno-ribbon-dropdown-item.is-checked:hover,
 [data-theme="dark"] .vno-ribbon-dropdown-item.is-checked:focus,
 [data-theme="dark"] .vno-ribbon-dropdown-item.is-checked.is-focused {
-  background-color: rgba(37, 99, 235, 0.35);
-  color: #bfdbfe;
+  background-color: #2563eb;
+  color: #ffffff;
 }
 .vno-ribbon-dropdown-item.is-disabled {
   opacity: 0.45;
