@@ -160,14 +160,14 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
               return `
                 <button type="button" role="radio" aria-checked="${isSel}" aria-label="${name}" class="vno-theme-card ${isSel ? "is-selected" : ""}" data-theme-id="${theme.id}">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong style="font-size:13px; color:${theme.h1Color}; font-family:${theme.fontFamily};">${name}</strong>
+                    <strong class="vno-theme-card-title" style="font-size:13px; color:${theme.h1Color}; font-family:${theme.fontFamily};">${name}</strong>
                     <div style="display:flex; gap:3px;" aria-hidden="true">
-                      <span style="width:10px; height:10px; border-radius:50%; background:${theme.h1Color};"></span>
-                      <span style="width:10px; height:10px; border-radius:50%; background:${theme.h2Color};"></span>
-                      <span style="width:10px; height:10px; border-radius:50%; background:${theme.h3Color};"></span>
+                      <span class="vno-theme-palette-dot" style="width:10px; height:10px; border-radius:50%; background:${theme.h1Color};"></span>
+                      <span class="vno-theme-palette-dot" style="width:10px; height:10px; border-radius:50%; background:${theme.h2Color};"></span>
+                      <span class="vno-theme-palette-dot" style="width:10px; height:10px; border-radius:50%; background:${theme.h3Color};"></span>
                     </div>
                   </div>
-                  <div style="font-size:11px; font-style:italic; color:var(--vno-text-muted); font-family:${theme.fontFamily};">${theme.previewSample}</div>
+                  <div style="font-size:11px; font-style:italic; color:var(--vno-text-secondary, #94a3b8); font-family:${theme.fontFamily};">${theme.previewSample}</div>
                   <p style="margin:0; font-size:11px; color:var(--vno-text-secondary); line-height:1.4;">${theme.description}</p>
                 </button>
               `;

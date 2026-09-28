@@ -58,24 +58,58 @@ export async function showPageColorDialog(currentColor = "transparent") {
     overlay.innerHTML = `<div class="vno-dialog-box vno-page-color-dialog" role="dialog" aria-modal="true" aria-labelledby="vno-page-color-title" style="width:420px;max-width:calc(100vw - 32px);">
       <div class="vno-dialog-header"><span id="vno-page-color-title" style="font-weight:700;">${t("writerDialogs.pageColor.title")}</span><button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close") || "Close"}" aria-label="${t("common.close") || "Close"}">×</button></div>
       <div class="vno-dialog-body"><p style="margin:0 0 12px;font-size:13px;color:var(--vno-text-secondary);line-height:1.45;">${t("writerDialogs.pageColor.hint")}</p><div class="vno-page-color-grid" role="listbox" aria-label="${t("writerDialogs.pageColor.palette")}" style="display:grid;grid-template-columns:repeat(6,44px);gap:10px">
-      ${PAGE_COLOR_PALETTE.map((color) => `<button type="button" role="option" data-page-color="${color}" aria-label="${color === "transparent" ? t("writerDialogs.pageColor.noColor") : color}" aria-selected="${color === currentColor}" style="width:40px;height:40px;border:2px solid ${color === currentColor ? "var(--vno-border-focus, #2563eb)" : "var(--vno-border-default, #94a3b8)"};border-radius:6px;cursor:pointer;background:${color === "transparent" ? "linear-gradient(135deg,#fff 45%,#dc2626 46%,#dc2626 54%,#fff 55%)" : color}"></button>`).join("")}
+      ${PAGE_COLOR_PALETTE.map((color) => `<button type="button" role="option" class="vno-page-color-swatch" data-page-color="${color}" aria-label="${color === "transparent" ? t("writerDialogs.pageColor.noColor") : color}" aria-selected="${color === currentColor}" style="width:40px;height:40px;border-radius:6px;cursor:pointer;background:${color === "transparent" ? "linear-gradient(135deg,#fff 45%,#dc2626 46%,#dc2626 54%,#fff 55%)" : color}"></button>`).join("")}
       </div><label style="display:flex;gap:10px;align-items:center;margin-top:16px;font-size:13px;color:var(--vno-text-primary);cursor:pointer;">${t("writerDialogs.pageColor.custom")} <input type="color" value="${currentColor === "transparent" ? "#ffffff" : currentColor}" style="width:40px;height:32px;padding:0;border:1px solid var(--vno-border-default);border-radius:4px;background:var(--vno-bg-surface);cursor:pointer;"></label></div>
-      <div class="vno-dialog-footer"><button type="button" class="vno-btn" data-action="cancel">${t("writerDialogs.pageColor.cancel")}</button><button type="button" class="vno-btn vno-btn-primary" data-action="apply">${t("writerDialogs.pageColor.apply")}</button></div></div>`;
+      <div class="vno-dialog-footer"><button type="button" class="vno-btn vno-dialog-cancel-btn" data-action="cancel">${t("writerDialogs.pageColor.cancel")}</button><button type="button" class="vno-btn vno-btn-primary vno-dialog-ok-btn" data-action="apply">${t("writerDialogs.pageColor.apply")}</button></div></div>`;
     document.body.appendChild(overlay);
     const box = overlay.querySelector(".vno-dialog-box");
     let selected = currentColor;
     const finish = (value) => { document.removeEventListener("keydown", onKey); overlay.remove(); previousFocused?.focus?.(); resolve(value); };
-    overlay.querySelectorAll("[data-page-color]").forEach((button) => button.addEventListener("click", () => {
-      selected = button.dataset.pageColor;
-      overlay.querySelectorAll("[data-page-color]").forEach((item) => item.setAttribute("aria-selected", String(item === button)));
-    }));
-    overlay.querySelector('input[type="color"]').addEventListener("input", (event) => { selected = event.target.value; });
+    const swatches = Array.from(overlay.querySelectorAll("[data-page-color]"));
+    swatches.forEach((button, i) => {
+      const isSel = button.dataset.pageColor === selected;
+      button.tabIndex = (isSel || (!selected && i === 0)) ? 0 : -1;
+      button.addEventListener("click", () => {
+        selected = button.dataset.pageColor;
+        swatches.forEach((item) => {
+          const matched = item === button;
+          item.setAttribute("aria-selected", String(matched));
+          item.tabIndex = matched ? 0 : -1;
+        });
+        button.focus();
+      });
+      button.addEventListener("keydown", (e) => {
+        const idx = swatches.indexOf(button);
+        let targetIdx = -1;
+        if (e.key === "ArrowRight") targetIdx = (idx + 1) % swatches.length;
+        else if (e.key === "ArrowLeft") targetIdx = (idx - 1 + swatches.length) % swatches.length;
+        else if (e.key === "ArrowDown") targetIdx = (idx + 6) % swatches.length;
+        else if (e.key === "ArrowUp") targetIdx = (idx - 6 + swatches.length) % swatches.length;
+        else if (e.key === "Home") targetIdx = 0;
+        else if (e.key === "End") targetIdx = swatches.length - 1;
+        if (targetIdx !== -1) {
+          e.preventDefault();
+          swatches.forEach((item, j) => { item.tabIndex = j === targetIdx ? 0 : -1; });
+          swatches[targetIdx].focus();
+        }
+      });
+    });
+    overlay.querySelector('input[type="color"]').addEventListener("input", (event) => {
+      selected = event.target.value;
+      swatches.forEach((item) => {
+        const matched = item.dataset.pageColor === selected;
+        item.setAttribute("aria-selected", String(matched));
+        item.tabIndex = matched ? 0 : -1;
+      });
+    });
     overlay.querySelector('[data-action="apply"]').addEventListener("click", () => finish(selected));
     overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => finish(null));
     overlay.querySelector(".vno-dialog-close-btn").addEventListener("click", () => finish(null));
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) finish(null); });
     const onKey = (event) => { if (event.key === "Escape") finish(null); else if (event.key === "Enter") finish(selected); else trapFocus(box, event); };
     document.addEventListener("keydown", onKey);
-    overlay.querySelector("[data-page-color]")?.focus();
+    const activeSwatch = overlay.querySelector('[data-page-color][aria-selected="true"]') || overlay.querySelector("[data-page-color]");
+    activeSwatch?.focus();
   });
 }
 
@@ -361,7 +395,7 @@ export async function showPageBorderDialog(currentBorder = null) {
               <span style="font-size:11px; color:var(--vno-text-secondary); margin-bottom:6px; font-weight:600;">${t("writerDialogs.pageBorder.previewTitle")}</span>
               <div id="vno-border-preview-sheet" style="width:110px; height:140px; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.15); border-radius:2px; position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:10px; box-sizing:border-box;">
                 <div id="vno-border-preview-inner" style="position:absolute; inset:6px; pointer-events:none; border: 2px solid #0f4c81; box-sizing:border-box;"></div>
-                <div style="font-size:8px; color:#94a3b8; line-height:1.4; text-align:center;">
+                <div style="font-size:8px; color:#64748b; line-height:1.4; text-align:center;">
                   ${t("writerDialogs.pageBorder.sampleText")}
                 </div>
               </div>
