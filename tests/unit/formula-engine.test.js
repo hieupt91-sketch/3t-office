@@ -337,5 +337,134 @@ export async function runFormulaEngineTests() {
     pass: engine.evaluate("=NA(1)") === "#VALUE!"
   });
 
+  // 32. VLOOKUP exact match (string, case-insensitive, FALSE & 0)
+  const vlookupData = new Map();
+  vlookupData.set("A1", { val: "Apple", formula: "", style: {} });
+  vlookupData.set("B1", { val: 100, formula: "", style: {} });
+  vlookupData.set("A2", { val: "Banana", formula: "", style: {} });
+  vlookupData.set("B2", { val: 200, formula: "", style: {} });
+  vlookupData.set("A3", { val: "Orange", formula: "", style: {} });
+  vlookupData.set("B3", { val: 300, formula: "", style: {} });
+  vlookupData.set("A4", { val: "10", formula: "", style: {} });
+  vlookupData.set("B4", { val: 400, formula: "", style: {} });
+  vlookupData.set("A5", { val: 20, formula: "", style: {} });
+  vlookupData.set("B5", { val: 500, formula: "", style: {} });
+
+  const sheet2Data = new Map();
+  sheet2Data.set("A1", { val: "KeyA", formula: "", style: {} });
+  sheet2Data.set("B1", { val: "ValueA", formula: "", style: {} });
+  sheet2Data.set("A2", { val: "KeyB", formula: "", style: {} });
+  sheet2Data.set("B2", { val: "ValueB", formula: "", style: {} });
+
+  const vlEngine = new FormulaEngine(
+    vlookupData,
+    null,
+    (name) => name === "Sheet2" ? sheet2Data : (name === "Sheet1" ? vlookupData : null),
+    () => "Sheet1",
+    () => ["Sheet1", "Sheet2"]
+  );
+
+  // Exact match string with FALSE
+  results.push({
+    name: "VLOOKUP: Exact match string with FALSE",
+    pass: vlEngine.evaluate('=VLOOKUP("Banana", A1:B5, 2, FALSE)') === 200
+  });
+
+  // Exact match case-insensitive with 0
+  results.push({
+    name: "VLOOKUP: Exact match case-insensitive with 0",
+    pass: vlEngine.evaluate('=VLOOKUP("apple", A1:B5, 2, 0)') === 100
+  });
+
+  // Numeric lookup key
+  results.push({
+    name: "VLOOKUP: Numeric lookup key",
+    pass: vlEngine.evaluate('=VLOOKUP(20, A1:B5, 2, FALSE)') === 500
+  });
+
+  // Numeric string lookup key matching text number
+  results.push({
+    name: "VLOOKUP: Numeric string lookup key matching text number",
+    pass: vlEngine.evaluate('=VLOOKUP("10", A1:B5, 2, FALSE)') === 400
+  });
+
+  // Approximate match (omitted 4th argument or TRUE)
+  const approxData = new Map();
+  approxData.set("A1", { val: 10, formula: "", style: {} });
+  approxData.set("B1", { val: "Low", formula: "", style: {} });
+  approxData.set("A2", { val: 20, formula: "", style: {} });
+  approxData.set("B2", { val: "Med", formula: "", style: {} });
+  approxData.set("A3", { val: 30, formula: "", style: {} });
+  approxData.set("B3", { val: "High", formula: "", style: {} });
+  const approxEngine = new FormulaEngine(approxData);
+
+  results.push({
+    name: "VLOOKUP: Approximate match with TRUE",
+    pass: approxEngine.evaluate("=VLOOKUP(25, A1:B3, 2, TRUE)") === "Med"
+  });
+
+  results.push({
+    name: "VLOOKUP: Approximate match with omitted 4th arg",
+    pass: approxEngine.evaluate("=VLOOKUP(35, A1:B3, 2)") === "High"
+  });
+
+  // Not found -> #N/A
+  results.push({
+    name: "VLOOKUP: Not found returns #N/A",
+    pass: vlEngine.evaluate('=VLOOKUP("NonExistent", A1:B5, 2, FALSE)') === "#N/A"
+  });
+
+  // Column index out of range -> #REF!
+  results.push({
+    name: "VLOOKUP: Column index out of range returns #REF!",
+    pass: vlEngine.evaluate('=VLOOKUP("Apple", A1:B5, 3, FALSE)') === "#REF!"
+  });
+
+  // Column index < 1 -> #N/A
+  results.push({
+    name: "VLOOKUP: Column index < 1 returns #N/A",
+    pass: vlEngine.evaluate('=VLOOKUP("Apple", A1:B5, 0, FALSE)') === "#N/A"
+  });
+
+  // Cross-sheet VLOOKUP
+  results.push({
+    name: "VLOOKUP: Cross-sheet reference Sheet2!A1:B2",
+    pass: vlEngine.evaluate('=VLOOKUP("KeyB", Sheet2!A1:B2, 2, FALSE)') === "ValueB"
+  });
+
+  // Cache invalidation via bumpSheetVersion
+  results.push({
+    name: "VLOOKUP: Cache invalidation on bumpSheetVersion",
+    pass: (() => {
+      const initial = vlEngine.evaluate('=VLOOKUP("KeyA", Sheet2!A1:B2, 2, FALSE)');
+      if (initial !== "ValueA") return false;
+      sheet2Data.set("B1", { val: "UpdatedValueA", formula: "", style: {} });
+      vlEngine.bumpSheetVersion("Sheet2");
+      const updated = vlEngine.evaluate('=VLOOKUP("KeyA", Sheet2!A1:B2, 2, FALSE)');
+      return updated === "UpdatedValueA";
+    })()
+  });
+
+  // Reference-parse cache must not reuse a sheet-scoped name across sheets
+  // (Claude review 29/9: the cache was keyed by the raw text only).
+  results.push({
+    name: "Cache tham chiếu: tên định nghĩa theo từng sheet không dùng lẫn giữa các sheet",
+    pass: (() => {
+      const sheets = {
+        S1: new Map([["A1", { val: 10, formula: "", style: {} }]]),
+        S2: new Map([["A1", { val: 20, formula: "", style: {} }]]),
+      };
+      let current = "S1";
+      const scopedName = (name) => (name === "TyGia" ? { sheet: current, ref: "A1" } : null);
+      const engine = new FormulaEngine(
+        () => sheets[current], scopedName, (sheet) => sheets[sheet] || null, () => current, () => ["S1", "S2"]
+      );
+      const onS1 = engine.evaluate("=SUM(TyGia)");
+      current = "S2";
+      const onS2 = engine.evaluate("=SUM(TyGia)");
+      return onS1 === 10 && onS2 === 20;
+    })()
+  });
+
   return results;
 }
