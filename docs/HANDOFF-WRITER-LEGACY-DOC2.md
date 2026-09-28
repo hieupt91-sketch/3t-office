@@ -128,3 +128,10 @@ KNOWN FAILURES/BLOCKERS:
 - `legacy13`: DOC lưu hai trang thay vì một; ảnh giữ `wdWrapTopBottom` thay vì `wdWrapSquare` do bộ lọc DOC.
 - `legacy18`: DOC lưu hai trang thay vì ba; tám đoạn trắng/khoảng trắng không còn trong thân tài liệu.
 - `legacy20`: BLOCKED bởi modal Word/COM; OpenAndRepair không trả về Document.
+
+## Vòng 3 — W-legacydoc2c findings trước sửa (2026-09-29)
+
+- Hồi quy được báo trên nhánh main sau thay đổi lưu DOCX trung gian → MS Word 97: `E:\VNOffice-profiles\claude\ld20-main\_rt_legacy20.doc` (19,968 byte, OLE magic) khiến Word bật modal lỗi; `ld20-pre\_rt_legacy20.doc` (20,480 byte) từ đường HTML → MS Word 97 trực tiếp mở được.
+- Chuẩn hóa riêng nguồn `E:\VN OFice\file test\lan-legacy\legacy20.doc` sang DOCX bằng soffice tạo 9,075 byte; chuẩn hóa bản lỗi tạo 9,765 byte. Xuất từng DOCX đó bằng soffice sang DOC tạo lần lượt 19,456 byte và 20,480 byte. Vì vậy bước DOCX → DOC tái tạo được kích thước bản lỗi, còn DOCX đầu vào của nhánh lỗi khác nội dung/kích thước đáng kể với chuẩn hóa nguồn. Cần so sánh package/XML và thử Word để khoanh phần hỏng; kích thước đơn lẻ chưa chứng minh gốc lỗi.
+- Oracle `_word_oracle3.ps1` với file nguồn trả `OK pages=1`. Với `_rt_legacy20.doc`, Word không trả về trước timeout 240 giây (`FAIL (timeout - Word blocked by modal error dialog)`); script timeout đã dừng các tiến trình WINWORD theo đúng hành vi sẵn có. Kiểm tra lại các file DOC đã tái xuất riêng đang chạy/NOT RUN cho tới khi có kết quả.
+- Chưa thay source code. Finding hiện tại: DOCX → DOC là đường tái hiện được hồi quy; nguyên nhân sâu hơn chưa được kết luận. Kế tiếp so sánh DOCX trung gian hậu xử lý với DOCX chuẩn hóa nguồn, thử lại từng stage và xác định điều kiện fallback về HTML → MS Word 97. Sau sửa phải kiểm định 20 legacy DOC bằng Word oracle, regression test legacy20, 23 DOCX/shape audits và suites node/python.
