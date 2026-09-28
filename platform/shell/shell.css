@@ -792,6 +792,26 @@ body {
     padding: 2px 4px;
     justify-content: center;
   }
+
+  /* View Tab (Writer & Sheet) - Co gon cac nut lon va padding de vua van 100% tren man hinh 1024px khong bi tran ngang */
+  #vno-ribbon-tabpanel-view .vno-ribbon-btn-large {
+    min-width: 44px;
+    padding: 2px 3px;
+  }
+  #vno-ribbon-tabpanel-view .vno-ribbon-btn-large .vno-btn-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+  #vno-ribbon-tabpanel-view .vno-ribbon-btn-large .vno-btn-label {
+    font-size: 10.5px;
+    max-width: 65px;
+  }
+  #vno-ribbon-tabpanel-view .vno-ribbon-group {
+    padding: 0 2px;
+  }
+  #vno-ribbon-tabpanel-view .vno-ribbon-group-items {
+    gap: 1px;
+  }
 }
 
 /* Ribbon Dropdown Button & Menu (Fill, Clear, etc.) */

@@ -358,6 +358,7 @@ export const enStrings = {
     ,"sheet.calc.modeAutomatic": { label: "Automatic", tooltip: "Recalculate formulas automatically when values change" }
     ,"sheet.calc.modeManual": { label: "Manual", tooltip: "Recalculate formulas only when you press Calculate Now (F9)" }
     ,"sheet.calc.calculateSheet": { label: "Calculate Sheet", tooltip: "Recalculate formulas in the active worksheet (Shift+F9)" }
+    ,"sheet.calc.calculateNow": { label: "Calculate Now", tooltip: "Recalculate all formulas in the workbook immediately (F9)" }
     ,"sheet.formula.arrayEnter": { label: "Enter Array Formula", tooltip: "Enter an array formula for the selected range (Ctrl+Shift+Enter)" }
     ,"sheet.formula.recalculate": { label: "Calculate Now", tooltip: "Recalculate all formulas in workbook (F9)" }
     ,"sheet.data.sortAsc": { label: "Sort A to Z", tooltip: "Sort data in ascending order" }
@@ -457,6 +458,7 @@ export const enStrings = {
     ,"slides.media.insertVideo": { label: "Video", tooltip: "Insert a video from this device" }
     ,"slides.media.insertAudio": { label: "Audio", tooltip: "Insert audio from this device" }
     ,"slides.insert.table": { label: "Table", tooltip: "Insert a table you can drag and resize" }
+    ,"slides.insert.chart": { label: "Chart", tooltip: "Insert a chart into the active slide" }
     ,"slides.insert.headerFooter": { label: "Header & Footer", tooltip: "Show or hide date, slide number, and footer" }
     ,"slides.insert.dateTime": { label: "Date & Time", tooltip: "Insert an auto-updating date and time placeholder" }
     ,"slides.insert.slideNumber": { label: "Slide Number", tooltip: "Insert an auto-updating slide number placeholder" }

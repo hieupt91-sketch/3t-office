@@ -65,7 +65,9 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("color.highlight") || idLower.includes("fillcolor")) return ICONS.colorHighlight;
   if (idLower.includes("save")) return ICONS.fileSave;
   if (idLower.includes("open")) return ICONS.fileOpen;
+  if (idLower.includes("newwindow")) return ICONS.newWindow || ICONS.writerNewWindow;
   if (idLower.includes("new")) return ICONS.fileNew;
+  if (idLower.includes("printpreview")) return ICONS.printPreview;
   if (idLower.includes("print")) return ICONS.filePrint;
   if (idLower.includes("ai")) return ICONS.aiSparkle;
   if (idLower.includes("macrorecordstop")) return ICONS.macroRecordStop;
@@ -127,6 +129,28 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("ungroup") || idLower.includes("sheetungroup")) return ICONS.sheetUngroup;
   if (idLower.includes("group") || idLower.includes("sheetgroup")) return ICONS.sheetGroup;
   if (idLower.includes("subtotal")) return ICONS.subtotal;
+  if (idLower.includes("printlayout")) return ICONS.writerPrintLayout;
+  if (idLower.includes("weblayout")) return ICONS.writerWebLayout;
+  if (idLower.includes("readmode")) return ICONS.writerReadMode;
+  if (idLower.includes("ruler")) return ICONS.writerRuler || ICONS.slidesRuler;
+  if (idLower.includes("gridlines")) return ICONS.gridlines || ICONS.writerGridlines;
+  if (idLower.includes("pagewidth")) return ICONS.writerPageWidth;
+  if (idLower.includes("fitwindow")) return ICONS.slidesFitWindow;
+  if (idLower.includes("slidesorter")) return ICONS.slideSorter;
+  if (idLower.includes("guides")) return ICONS.slidesGuides;
+  if (idLower.includes("zoomin")) return ICONS.zoomIn;
+  if (idLower.includes("zoomout")) return ICONS.zoomOut;
+  if (idLower.includes("zoom100") || idLower.includes("zoomreset")) return ICONS.zoomReset || ICONS.zoom100;
+  if (idLower.includes("zoomselection") || idLower.includes("zoomtoselection")) return ICONS.sheetZoomSelection;
+  if (idLower.includes("freezetoprow")) return ICONS.freezeTopRow;
+  if (idLower.includes("freezefirstcolumn")) return ICONS.freezeFirstColumn;
+  if (idLower.includes("freezepanes")) return ICONS.freezePanes;
+  if (idLower.includes("normalview") || idLower.includes("view.normal")) return ICONS.sheetNormalView || ICONS.slidesNormalView;
+  if (idLower.includes("pagebreakpreview")) return ICONS.sheetPageBreakPreview;
+  if (idLower.includes("sheetpagelayout")) return ICONS.sheetPageLayout;
+  if (idLower.includes("formulabar")) return ICONS.sheetFormulaBar;
+  if (idLower.includes("headings")) return ICONS.headings;
+  if (idLower.includes("macromanager")) return ICONS.macroManager;
 
   return `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>`;
 }
