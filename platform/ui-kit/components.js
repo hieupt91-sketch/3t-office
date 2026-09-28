@@ -10,7 +10,7 @@ import { t } from "../i18n/i18n.js";
 /**
  * Tự động tìm kiếm Icon phù hợp theo Command ID
  */
-function resolveIcon(commandId, iconName) {
+export function resolveIcon(commandId, iconName) {
   if (typeof iconName === "string" && iconName.trim().startsWith("<svg")) return iconName;
   if (iconName && ICONS[iconName]) return ICONS[iconName];
 
@@ -50,6 +50,17 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("margins")) return ICONS.margins;
   if (idLower.includes("orientation")) return ICONS.orientation;
   if (idLower.includes("page.size") || idLower.includes("pagesize")) return ICONS.pageSize;
+
+  // Lệnh Trộn thư & Phong bì / Nhãn (Mailings tab)
+  if (idLower.includes("envelope")) return ICONS.envelope;
+  if (idLower.includes("label")) return ICONS.labels;
+  if (idLower.includes("insertfield")) return ICONS.mergeInsertField;
+  if (idLower.includes("mergepreview") || idLower.includes("mailmerge.preview")) return ICONS.mergePreview;
+  if (idLower.includes("prevrecord") || idLower.includes("mergeprev")) return ICONS.mergePrev;
+  if (idLower.includes("nextrecord") || idLower.includes("mergenext")) return ICONS.mergeNext;
+  if (idLower.includes("mergefinish") || idLower.includes("mailmerge.finish") || idLower.includes("finishmerge")) return ICONS.mergeFinish;
+  if (idLower.includes("mailmerge.open") || idLower.includes("mailmerge")) return ICONS.mailMerge;
+
   if (idLower.includes("merge")) return ICONS.mergeCells;
   if (idLower.includes("currency")) return ICONS.currencyVND;
   if (idLower.includes("sum")) return ICONS.autoSum;
@@ -69,7 +80,7 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("new")) return ICONS.fileNew;
   if (idLower.includes("printpreview")) return ICONS.printPreview;
   if (idLower.includes("print")) return ICONS.filePrint;
-  if (idLower.includes("ai")) return ICONS.aiSparkle;
+  if (idLower.includes("ai.") || idLower.includes(".ai") || idLower.startsWith("ai")) return ICONS.aiSparkle;
   if (idLower.includes("macrorecordstop")) return ICONS.macroRecordStop;
   if (idLower.includes("macro.record") || idLower.includes("macrorecordstart")) return ICONS.macroRecordStart;
   if (idLower.includes("comment.insert") || idLower.includes("commentinsert")) return ICONS.comment;
