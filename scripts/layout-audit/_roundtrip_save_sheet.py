@@ -30,7 +30,7 @@ def after_load(win):
     print("LOADED:", name, flush=True)
     time.sleep(4)
     win.create_file_dialog = lambda *a, **k: OUT
-    win.evaluate_js("window.__saveDone=0; window.__saveErr=''; import('/platform/commands/command-bus.js').then(m => m.globalCommandBus.execute('common.file.save')).then(r => { window.__saveDone = 1; window.__saveRes = String(r); }, e => { window.__saveErr = String(e && e.stack || e); }); 'queued'")
+    win.evaluate_js("window.__saveDone=0; window.__saveErr=''; import('/platform/commands/command-bus.js').then(m => m.globalCommandBus.execute('common.file.saveAs')).then(r => { window.__saveDone = 1; window.__saveRes = String(r); }, e => { window.__saveErr = String(e && e.stack || e); }); 'queued'")
     done = 0; err = ''
     for _ in range(400):
         time.sleep(3)
