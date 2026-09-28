@@ -2008,17 +2008,49 @@ def fods_vnd_cells_as_text(fods_xml: str) -> str:
     return re.sub(r"<table:table-cell\b[^>]*>", strip, fods_xml)
 
 
-def _restore_vnd_addin_cells_step(xlsx_bytes: bytes, source_fods: str, replacements: dict[str, str]) -> None:
+def _source_vnd_error_refs(source_xlsx_bytes: bytes | None) -> dict[str, set[str]]:
+    """{sheet: refs} of VND() cells whose cached value in the source XLSX is an error.
+
+    The author saved them without the add-in (Excel shows #NAME?); writing VN Sheet's
+    computed words there would invent a value the document never had (lan02.xlsx).
+    """
+    result: dict[str, set[str]] = {}
+    if not source_xlsx_bytes:
+        return result
+    cell_re = re.compile(r'<c\b((?:[^>/]|/(?!>))*)>([\s\S]*?)</c>', re.IGNORECASE)
+    for sheet_name, path in _resolve_xlsx_sheet_entries(source_xlsx_bytes).items():
+        xml = (read_zip_entry(source_xlsx_bytes, path) or b"").decode("utf-8", errors="replace")
+        if "VND" not in xml.upper():
+            continue
+        for match in cell_re.finditer(xml):
+            attrs = _xml_attrs(match.group(1))
+            formula = re.search(r"<f\b[^>]*>([\s\S]*?)</f>", match.group(2), re.IGNORECASE)
+            if formula and attrs.get("t", "").lower() == "e" and _VND_FORMULA_RE.match(_unescape_xml(formula.group(1))):
+                result.setdefault(sheet_name, set()).add((attrs.get("r") or "").upper())
+    return result
+
+
+def _restore_vnd_addin_cells_step(
+    xlsx_bytes: bytes, source_fods: str, replacements: dict[str, str], source_xlsx_bytes: bytes | None = None,
+) -> None:
     """Write VND() cells as Excel stores the XLL add-in call: `_xll.VND(...)` + cached text."""
     vnd_cells = _fods_vnd_cells(source_fods)
     if not vnd_cells:
         return
+    keep_errors = _source_vnd_error_refs(source_xlsx_bytes)
     cell_re = re.compile(r'<c\b((?:[^>/]|/(?!>))*)(?:/>|>([\s\S]*?)</c>)', re.IGNORECASE)
     for sheet_name, out_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
         targets = vnd_cells.get(sheet_name)
         if not targets:
             continue
-        by_ref = {f"{_column_letter(col)}{row}": value for (row, col), value in targets.items()}
+        skip = keep_errors.get(sheet_name, set())
+        by_ref = {
+            ref: value for ref, value in (
+                (f"{_column_letter(col)}{row}", value) for (row, col), value in targets.items()
+            ) if ref not in skip
+        }
+        if not by_ref:
+            continue
         out_xml = replacements.get(out_path) or (read_zip_entry(xlsx_bytes, out_path) or b"").decode("utf-8", errors="replace")
 
         def fix(match: re.Match[str]) -> str:
@@ -2654,7 +2686,7 @@ def postprocess_sheet_xlsx(
     if source_fods:
         # After the source-result pass: it compares formulas literally and LibreOffice
         # rewrote `_xll.VND(H13)` as `vnd(H13)`, so the VND text is set here.
-        _restore_vnd_addin_cells_step(xlsx_bytes, source_fods, replacements)
+        _restore_vnd_addin_cells_step(xlsx_bytes, source_fods, replacements, source_xlsx_bytes)
 
     if enabled is None:
         enabled = fods_has_structure_protection(source_fods)

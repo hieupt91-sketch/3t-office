@@ -26,6 +26,7 @@ def make_xlsx(cell_c14: str) -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as z:
         z.writestr("[Content_Types].xml", '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>')
+        z.writestr("xl/styles.xml", '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="0"/><fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellXfs></styleSheet>')
         z.writestr("xl/workbook.xml", '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="xi măng" sheetId="1" r:id="rId1"/></sheets></workbook>')
         z.writestr("xl/_rels/workbook.xml.rels", '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>')
         z.writestr("xl/worksheets/sheet1.xml", f'<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="14">{cell_c14}<c r="D14"><f>1</f><v>1</v></c></row></sheetData></worksheet>')
@@ -44,6 +45,21 @@ class SheetVndExportTests(unittest.TestCase):
         xml = zipfile.ZipFile(io.BytesIO(out)).read("xl/worksheets/sheet1.xml").decode()
         self.assertIn(f'<c r="C14" s="22" t="str"><f>_xll.VND(H13)</f><v>{TEXT}</v></c>', xml)
         self.assertIn('<c r="D14"><f>1</f><v>1</v></c>', xml)
+
+    def test_source_error_cache_is_kept(self):
+        # lan02.xlsx: the author saved VND cells without the add-in, Excel cached #NAME?.
+        source = make_xlsx('<c r="C14" t="e"><f>_xll.VND(H13)</f><v>#NAME?</v></c>')
+        xlsx = make_xlsx('<c r="C14" s="22" t="e"><f aca="false">vnd(H13)</f><v>#NAME?</v></c>')
+        out = patcher.postprocess_sheet_xlsx(xlsx, source_fods=FODS, source_xlsx_bytes=source)
+        xml = zipfile.ZipFile(io.BytesIO(out)).read("xl/worksheets/sheet1.xml").decode()
+        self.assertNotIn(TEXT, xml)
+
+    def test_source_text_cache_gets_text(self):
+        source = make_xlsx(f'<c r="C14" t="str"><f>_xll.VND(H13)</f><v>{TEXT}</v></c>')
+        xlsx = make_xlsx('<c r="C14" s="22" t="e"><f aca="false">vnd(H13)</f><v>#NAME?</v></c>')
+        out = patcher.postprocess_sheet_xlsx(xlsx, source_fods=FODS, source_xlsx_bytes=source)
+        xml = zipfile.ZipFile(io.BytesIO(out)).read("xl/worksheets/sheet1.xml").decode()
+        self.assertIn(f"<f>_xll.VND(H13)</f><v>{TEXT}</v>", xml)
 
     def test_xls_export_keeps_text_as_value(self):
         out = patcher.fods_vnd_cells_as_text(FODS)
