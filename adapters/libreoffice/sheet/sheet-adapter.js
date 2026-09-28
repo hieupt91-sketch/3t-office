@@ -4797,7 +4797,10 @@ export class SheetAdapter {
       const openSheet = this.grid.activeSheet;
       for (const [sheetName, sheetData] of Object.entries(this.grid.sheetsData || {})) {
         for (const item of sheetData?.values?.() || []) {
-          if (!item?.formula || item.externalLink || !/^#(ADDIN|NAME)\?$/.test(String(item.val))) continue;
+          // Only functions LibreOffice lacks but VN Sheet implements: a broad "#NAME?" rule
+          // replaced Excel's cached #REF! with numbers (lan04.xlsx, 23 cells, 28/9).
+          if (!item?.formula || item.externalLink || !/^#(ADDIN|NAME)\?$/.test(String(item.val))
+            || !/(^|[^A-Z0-9_.])(_XLL\.)?VND\s*\(/i.test(item.formula)) continue;
           this.grid.activeSheet = sheetName;
           const value = engine.evaluate(item.formula);
           if (!(typeof value === "string" && /^#[A-Z/0!?]+[!?]?$/.test(value))) item.val = value;
