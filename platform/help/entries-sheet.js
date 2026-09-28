@@ -32,7 +32,8 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Công thức", tabId: "formulas", group: "Kiểm tra công thức" },
     keywords: ["liên kết ngoài", "external link", "sổ làm việc khác", "tệp khác", "[Book.xlsx]", "cập nhật liên kết", "NA", "#N/A"],
     steps: [
-      "Khi mở một bảng tính có liên kết tới tệp khác, thanh trạng thái phía dưới báo số ô có liên kết, ví dụ: \"Tệp có 2 ô liên kết tới sổ làm việc khác — đang hiển thị giá trị lưu lần cuối\".",
+      "Khi mở bảng tính có liên kết tới tệp khác, một thanh cảnh báo màu vàng hiển thị ngay dưới ribbon: \"Tệp có N ô liên kết tới sổ làm việc khác. VN Office hiển thị giá trị lưu lần cuối và không tự cập nhật (ứng dụng chạy ngoại tuyến).\", đồng thời thanh trạng thái phía dưới cũng báo số ô có liên kết.",
+      "Nhấn nút \"Tìm hiểu thêm\" trên thanh cảnh báo để mở nhanh bài hướng dẫn này, hoặc nhấn nút đóng (×) hay phím Esc khi đang ở trong thanh để ẩn thông báo.",
       "Chọn ô để xem công thức trên thanh công thức, viết giống Excel: =[BaoCao.xlsx]Sheet1!A1 hoặc ='[Bao cao.xlsx]So lieu'!B2 khi tên có khoảng trắng.",
       "Giá trị của các ô này không tự cập nhật khi bạn sửa bảng tính: VN Sheet giữ đúng số liệu đã lưu, giống Excel khi tệp nguồn đang đóng. Các công thức khác dựa trên ô liên kết vẫn tính bình thường với giá trị đó.",
       "Nhấn Ctrl+S để lưu: liên kết được giữ nguyên, mở lại bằng Excel vẫn cập nhật được từ tệp nguồn.",
@@ -981,8 +982,73 @@ export const SHEET_HELP_ENTRIES = [
       "Chế độ tương thích định dạng cũ (.xls): Khi mở một tệp .xls từ cơ quan hoặc ổ LAN, thao tác Ctrl+S sẽ lưu lại đúng chuẩn nhị phân Excel 97-2003 (.xls), không âm thầm chuyển đổi sang .xlsx.",
       "Bảo vệ dữ liệu nguyên tử: Hệ thống luôn ghi ra tệp tạm và thay thế nguyên tử (atomic replace); nếu có sự cố hoặc lỗi chuyển đổi, tệp gốc trên đĩa hoàn toàn không bị hư hại. Nếu tệp đang ở chế độ chỉ đọc hoặc bị Excel khóa, hệ thống sẽ thông báo rõ ràng để bạn chọn Lưu bản sao."
     ]
+  },
+  {
+    id: "sheet.clipboard.cutCopyPaste",
+    app: "sheet",
+    commandIds: ["common.edit.cut", "common.edit.copy", "common.edit.paste"],
+    title: "Cắt, Sao chép và Dán ô dữ liệu",
+    summary: "Thao tác sao chép hoặc di chuyển dữ liệu giữa các ô, dòng hoặc cột trong bảng tính bằng Cắt (Ctrl+X), Sao chép (Ctrl+C) và Dán (Ctrl+V).",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["cắt", "sao chép", "dán", "cut", "copy", "paste", "clipboard", "Ctrl+X", "Ctrl+C", "Ctrl+V", "ô dữ liệu"],
+    steps: [
+      "Chọn một ô hoặc kéo chuột bôi đen vùng ô cần thao tác trên bảng tính VN Sheet.",
+      "Mở tab Trang đầu, nhóm Bảng nhớ tạm: nhấn Cắt (Ctrl+X) nếu muốn chuyển hẳn dữ liệu sang nơi khác, hoặc nhấn Sao chép (Ctrl+C) để nhân bản dữ liệu.",
+      "Vùng ô đang chọn sẽ được sao chép vào bộ nhớ tạm. Nhấp chọn ô góc trên bên trái của vùng đích.",
+      "Nhấn nút Dán (Ctrl+V) trên thanh ribbon hoặc bấm phím Ctrl+V để dán dữ liệu vào bảng tính.",
+      "Có thể dùng Ctrl+Z để hoàn tác hoặc Ctrl+Y để làm lại thao tác dán nếu cần."
+    ]
+  },
+  {
+    id: "sheet.page.orientationAndSize",
+    app: "sheet",
+    commandIds: ["sheet.page.orientation", "sheet.page.size"],
+    title: "Hướng giấy và Khổ giấy trang in",
+    summary: "Thiết lập hướng giấy đứng (Portrait) hoặc nằm ngang (Landscape) và chọn kích thước trang in (A4, Letter, A3) cho trang tính hiện tại trước khi in hoặc xuất PDF.",
+    ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Thiết lập trang" },
+    keywords: ["hướng giấy", "khổ giấy", "orientation", "page size", "portrait", "landscape", "khổ a4", "trang in", "bố trí trang"],
+    steps: [
+      "Mở tab Bố trí trang trên thanh ribbon của VN Sheet.",
+      "Trong nhóm Thiết lập trang, nhấn Hướng giấy để mở hộp thoại và chọn Giấy đứng (phù hợp bảng ít cột) hoặc Giấy ngang (phù hợp bảng nhiều cột).",
+      "Nhấn nút Khổ giấy để chọn kích thước trang chuẩn như A4 (210 × 297 mm, chuẩn văn bản Việt Nam theo Nghị định 30) hoặc Letter, A3.",
+      "Các đường ngắt trang ảo sẽ tự động điều chỉnh hiển thị ranh giới in theo khổ giấy và hướng giấy vừa chọn.",
+      "Nhấn Áp dụng để lưu thiết lập cho sheet hiện tại. Có thể dùng Ctrl+Z để hoàn tác thay đổi."
+    ]
+  },
+  {
+    id: "sheet.help.guide",
+    app: "sheet",
+    commandIds: ["sheet.help.open"],
+    title: "Tra cứu Trợ giúp và Hướng dẫn sử dụng VN Sheet",
+    summary: "Mở bảng Hướng dẫn sử dụng VN Sheet tích hợp ngay trong ứng dụng bằng phím tắt F1, hỗ trợ tra cứu công thức, hàm tính toán, định dạng và thao tác bảng tính.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
+    keywords: ["trợ giúp", "hướng dẫn", "help", "F1", "tra cứu", "hướng dẫn sử dụng", "sử dụng sheet", "hàm excel"],
+    steps: [
+      "Nhấn phím F1 trên bàn phím tại bất kỳ lúc nào, hoặc mở tab Trợ giúp trên ribbon và nhấn nút Trợ giúp.",
+      "Bảng Trợ giúp VN Sheet xuất hiện ở cạnh phải màn hình với danh sách các bài hướng dẫn chi tiết.",
+      "Nhập tên chức năng hoặc từ khóa (ví dụ: «vlookup», «định dạng có điều kiện», «pivot table», «cố định hàng») vào ô tìm kiếm ở đầu bảng.",
+      "Nhấp vào bài viết trong kết quả để xem tóm tắt, vị trí tab/nhóm ribbon và các bước thực hiện chi tiết kèm ví dụ.",
+      "Nhấn phím F1 hoặc nút đóng (×) ở góc trên bảng trợ giúp để thu gọn bảng khi không dùng."
+    ]
+  },
+  {
+    id: "sheet.ai.analysis",
+    app: "sheet",
+    commandIds: ["ai.assistant.toggle", "ai.assistant.summarize"],
+    title: "Trợ lý VN AI: Bảng trợ lý và Tóm tắt dữ liệu bảng tính",
+    summary: "Bật/tắt thanh bên Trợ lý VN AI (Alt+J) và tự động tóm tắt, phân tích xu hướng hoặc chỉ số nổi bật từ dữ liệu vùng bảng tính đang chọn.",
+    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "Phân tích dữ liệu AI" },
+    keywords: ["trợ lý ai", "tóm tắt nhanh", "phân tích dữ liệu", "ai", "Alt+J", "summarize", "bảng tính", "thống kê"],
+    steps: [
+      "Chọn vùng dữ liệu bảng tính cần phân tích hoặc tóm tắt.",
+      "Mở tab Trợ lý VN AI trên ribbon, nhóm Phân tích dữ liệu AI.",
+      "Nhấn Trợ lý VN AI (hoặc bấm Alt+J) để mở bảng điều khiển AI bên cạnh phải màn hình.",
+      "Nhấn nút Tóm tắt nhanh để AI phân tích cấu trúc bảng, tổng hợp các con số nổi bật, giá trị lớn nhất/nhỏ nhất và xu hướng dữ liệu.",
+      "Kết quả tóm tắt bằng tiếng Việt hiển thị trong bảng Trợ lý VN AI; có thể xem trước hoặc sao chép để đưa vào báo cáo."
+    ]
   }
 ];
 
 registerHelpEntries(SHEET_HELP_ENTRIES);
+
 

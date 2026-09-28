@@ -17,6 +17,7 @@ import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
 import { getPlatformLaunchContext } from "../bootstrap.js";
 import { themeManager } from "../theme/theme-manager.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
+import { NotificationBar } from "../ui-kit/notification-bar.js";
 
 export class AppShell {
   /**
@@ -43,6 +44,8 @@ export class AppShell {
     this.rootEl = null;
     this.ribbonHost = null;
     this.editorContainer = null;
+    this.notificationHost = null;
+    this.activeNotificationBar = null;
   }
 
   set onSwitchApp(callback) {
@@ -69,6 +72,7 @@ export class AppShell {
 
     this._renderTopBar();
     this._renderRibbon();
+    this._renderNotificationHost();
     this._renderWorkspace();
     this._renderStatusBar();
     this._setupGlobalShortcuts();
@@ -289,6 +293,48 @@ export class AppShell {
     this.ribbonHost = new RibbonHost(ribbonContainer, {
       onFileMenuClick: () => this.showBackstageMenu()
     });
+  }
+
+  _renderNotificationHost() {
+    this.notificationHost = document.createElement("div");
+    this.notificationHost.className = "vno-notification-host";
+    this.notificationHost.id = "vno-notification-host";
+    this.rootEl.appendChild(this.notificationHost);
+  }
+
+  /**
+   * Hiển thị thanh thông báo dưới ribbon (InfoBar / Security Warning Bar)
+   * @param {Object} options
+   * @param {string} options.message
+   * @param {"warning"|"info"|"success"|"error"} [options.type="warning"]
+   * @param {string} [options.icon]
+   * @param {{ label: string, onClick: Function, ariaLabel?: string }} [options.action]
+   * @param {boolean} [options.dismissible=true]
+   * @param {Function} [options.onDismiss]
+   * @returns {NotificationBar|null}
+   */
+  showNotification(options) {
+    this.clearNotification();
+    if (!this.notificationHost) return null;
+    this.activeNotificationBar = new NotificationBar({
+      ...options,
+      onDismiss: () => {
+        if (typeof options?.onDismiss === "function") options.onDismiss();
+        this.activeNotificationBar = null;
+      }
+    });
+    this.activeNotificationBar.mount(this.notificationHost);
+    return this.activeNotificationBar;
+  }
+
+  /**
+   * Ẩn và đóng thanh thông báo hiện tại (nếu có)
+   */
+  clearNotification() {
+    if (this.activeNotificationBar) {
+      this.activeNotificationBar.dismiss();
+      this.activeNotificationBar = null;
+    }
   }
 
   _renderWorkspace() {
@@ -1297,6 +1343,7 @@ export class AppShell {
    *   giả lên đầu danh sách, đè lên tệp thật đã mở/lưu trước đó).
    */
   resetDocumentChrome(newDocumentName, homeTabId = "home", recordRecent = true) {
+    this.clearNotification();
     this.documentName = newDocumentName;
     const tabEl = this.rootEl?.querySelector(".vno-doc-tab span");
     if (tabEl) tabEl.textContent = this.documentName;

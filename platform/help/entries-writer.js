@@ -865,7 +865,105 @@ export const WRITER_HELP_ENTRIES = [
       "Các lệnh tài liệu khác: Các mục 'Tạo mới' (Ctrl+N), 'Mở' (Ctrl+O), 'Lưu' (Ctrl+S), 'Lưu bản sao' (F12) và 'Xuất PDF' đều có thể kích hoạt trực tiếp từ thanh bên trái.",
       "Đóng menu Tệp: Nhấn phím Escape hoặc nhấp nút '← Quay lại' ở góc trên bên trái bất kỳ lúc nào để đóng Backstage và khôi phục tiêu điểm chính xác về vị trí soạn thảo trước đó."
     ]
+  },
+  {
+    id: "writer.clipboard.cutCopyPaste",
+    app: "writer",
+    commandIds: ["common.edit.cut", "common.edit.copy", "common.edit.paste", "common.edit.formatPainter"],
+    title: "Cắt, Sao chép, Dán và Sao chép định dạng",
+    summary: "Thao tác đưa văn bản hoặc đối tượng vào bộ nhớ tạm bằng Cắt (Ctrl+X) hoặc Sao chép (Ctrl+C), sau đó Dán (Ctrl+V) tại vị trí mới; Sao chép định dạng (Ctrl+Shift+C) áp dụng nhanh phông chữ và kiểu đoạn cho văn bản khác.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["cắt", "sao chép", "dán", "sao chép định dạng", "clipboard", "cut", "copy", "paste", "format painter", "Ctrl+X", "Ctrl+C", "Ctrl+V", "Ctrl+Shift+C"],
+    steps: [
+      "Bôi đen đoạn văn bản hoặc chọn đối tượng (bảng, hình ảnh) cần thao tác.",
+      "Mở tab Trang đầu, nhóm Bảng nhớ tạm: nhấn Cắt (Ctrl+X) để di chuyển hoặc Sao chép (Ctrl+C) để nhân bản vào bộ nhớ tạm.",
+      "Đặt con trỏ tại vị trí đích trong tài liệu rồi nhấn Dán (Ctrl+V) để đưa nội dung vào.",
+      "Để sao chép kiểu dáng chữ: bôi đen đoạn mẫu có định dạng ưng ý, nhấn Sao chép định dạng (Ctrl+Shift+C), sau đó quét chuột qua vùng văn bản cần áp dụng kiểu dáng.",
+      "Có thể dùng Ctrl+Z để hoàn tác hoặc Ctrl+Y để làm lại mọi thao tác trên."
+    ]
+  },
+  {
+    id: "writer.edit.findReplaceSelect",
+    app: "writer",
+    commandIds: ["common.edit.find", "common.edit.replace", "common.edit.selectAll"],
+    title: "Tìm kiếm, Thay thế và Chọn tất cả",
+    summary: "Tìm nhanh từ ngữ trong văn bản với Ctrl+F, thay thế hàng loạt hoặc từng vị trí với Ctrl+H, và bôi đen nhanh toàn bộ nội dung tài liệu với Ctrl+A.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["tìm kiếm", "thay thế", "chọn tất cả", "find", "replace", "select all", "Ctrl+F", "Ctrl+H", "Ctrl+A", "chỉnh sửa"],
+    steps: [
+      "Mở tab Trang đầu, nhìn sang nhóm Chỉnh sửa ở phía bên phải thanh ribbon.",
+      "Để tìm từ khóa: nhấn Tìm kiếm (hoặc bấm tổ hợp phím Ctrl+F), nhập từ hoặc cụm từ cần tìm vào ô tra cứu để duyệt các vị trí xuất hiện trong tài liệu.",
+      "Để thay thế từ ngữ: nhấn Thay thế (hoặc bấm tổ hợp phím Ctrl+H), nhập nội dung cần tìm vào ô Tìm kiếm và nội dung mới vào ô Thay thế, sau đó chọn Thay thế hoặc Thay thế tất cả.",
+      "Để bôi đen toàn bộ văn bản và đối tượng trong tài liệu: nhấn nút Chọn tất cả (hoặc bấm tổ hợp phím Ctrl+A).",
+      "Dùng phím Esc để đóng hộp thoại tìm kiếm thay thế khi hoàn thành."
+    ]
+  },
+  {
+    id: "writer.insert.hyperlink",
+    app: "writer",
+    commandIds: ["common.edit.hyperlink"],
+    title: "Chèn siêu liên kết (Hyperlink)",
+    summary: "Gắn liên kết website, địa chỉ email hoặc liên kết nội bộ vào đoạn văn bản đã chọn bằng hộp thoại Liên kết hoặc phím tắt Ctrl+K.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Liên kết" },
+    keywords: ["liên kết", "siêu liên kết", "hyperlink", "link", "chèn liên kết", "Ctrl+K", "url", "địa chỉ web"],
+    steps: [
+      "Bôi đen từ hoặc đoạn văn bản muốn gắn liên kết trong tài liệu.",
+      "Mở tab Chèn trên thanh ribbon, trong nhóm Liên kết nhấn nút Liên kết (hoặc bấm tổ hợp phím Ctrl+K).",
+      "Hộp thoại chèn liên kết xuất hiện. Nhập địa chỉ web đích (URL đầy đủ, ví dụ: https://example.com) vào ô địa chỉ.",
+      "Nhấn Áp dụng hoặc bấm Enter để hoàn tất. Đoạn văn bản sẽ chuyển sang màu xanh dương có gạch chân biểu thị liên kết.",
+      "Muốn chỉnh sửa hoặc hủy liên kết: đặt con trỏ tại vị trí liên kết, nhấn lại nút Liên kết (Ctrl+K) hoặc dùng Ctrl+Z để hoàn tác."
+    ]
+  },
+  {
+    id: "writer.review.spellCheck",
+    app: "writer",
+    commandIds: ["ai.assistant.grammarCheck"],
+    title: "Soát lỗi chính tả và ngữ pháp tiếng Việt",
+    summary: "Kiểm tra toàn diện lỗi chính tả dấu thanh, phụ âm đầu và ngữ pháp văn bản tiếng Việt theo chuẩn từ điển tiếng Việt và Nghị định 30 bằng phím tắt F7.",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Chính tả & Ngữ pháp" },
+    keywords: ["soát lỗi chính tả", "chính tả", "ngữ pháp", "kiểm tra chính tả", "spell check", "grammar", "F7", "tiếng việt", "nghị định 30"],
+    steps: [
+      "Mở tab Đánh giá trên thanh ribbon.",
+      "Trong nhóm Chính tả & Ngữ pháp, nhấn nút Soát lỗi chính tả (hoặc bấm phím F7 trên bàn phím).",
+      "Hệ thống tự động quét toàn bộ văn bản hiện tại, phát hiện các từ sai chính tả tiếng Việt (nhầm lẫn hỏi/ngã, s/x, tr/ch, d/gi/r) và lỗi dấu câu.",
+      "Bảng Trợ lý VN AI mở ra hiển thị danh sách các từ nghi ngờ kèm ngữ cảnh và gợi ý chỉnh sửa đúng.",
+      "Nhấn vào từ gợi ý để tự động thay thế vào tài liệu, hoặc nhấn Bỏ qua để giữ nguyên từ đó."
+    ]
+  },
+  {
+    id: "writer.help.guide",
+    app: "writer",
+    commandIds: ["writer.help.open"],
+    title: "Tra cứu Trợ giúp và Hướng dẫn sử dụng",
+    summary: "Mở bảng Hướng dẫn sử dụng tích hợp ngay trong ứng dụng với phím tắt F1, cho phép tra cứu nhanh mọi tính năng theo tên tiếng Việt, từ khóa hoặc vị trí tab ribbon.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
+    keywords: ["trợ giúp", "hướng dẫn", "help", "F1", "tra cứu", "hướng dẫn sử dụng", "tìm tính năng", "sử dụng writer"],
+    steps: [
+      "Nhấn phím F1 trên bàn phím tại bất kỳ màn hình nào, hoặc mở tab Trợ giúp trên ribbon rồi nhấn nút Trợ giúp.",
+      "Bảng Hướng dẫn sử dụng VN Writer xuất hiện ở cạnh phải màn hình với danh mục các bài hướng dẫn chi tiết.",
+      "Nhập tên tính năng hoặc từ khóa tiếng Việt (có dấu hoặc không dấu, ví dụ: «ngắt trang», «đếm từ», «màu trang») vào ô tìm kiếm ở đầu bảng.",
+      "Nhấp vào bài viết trong danh sách kết quả để xem chi tiết: tóm tắt tính năng, vị trí tab/nhóm ribbon và các bước thao tác cụ thể.",
+      "Nhấn nút đóng ở góc trên bảng trợ giúp hoặc nhấn lại F1 để thu gọn bảng khi không dùng."
+    ]
+  },
+  {
+    id: "writer.ai.core",
+    app: "writer",
+    commandIds: ["ai.assistant.toggle", "ai.assistant.summarize", "ai.assistant.rewrite"],
+    title: "Trợ lý VN AI: Tóm tắt nhanh và Viết lại văn phong",
+    summary: "Bật/tắt thanh bên Trợ lý VN AI (Alt+J), tự động tóm tắt ý chính của văn bản hoặc trau chuốt lại câu từ theo văn phong hành chính tiếng Việt chuẩn mực.",
+    ribbon: { tab: "Trợ lý VN AI", tabId: "ai", group: "Tính năng AI thuần Việt" },
+    keywords: ["trợ lý ai", "tóm tắt nhanh", "viết lại", "ai", "trau chuốt", "văn phong", "Alt+J", "summarize", "rewrite"],
+    steps: [
+      "Bôi đen đoạn văn bản cần xử lý trong tài liệu (hoặc để trống để xử lý toàn bộ tài liệu).",
+      "Mở tab Trợ lý VN AI trên ribbon, nhóm Tính năng AI thuần Việt.",
+      "Nhấn nút Trợ lý VN AI (hoặc bấm Alt+J) để mở bảng điều khiển AI bên phải màn hình.",
+      "Nhấn Tóm tắt nhanh để AI cô đọng nội dung chính thành các điểm gạch đầu dòng rõ ràng, súc tích.",
+      "Nhấn Viết lại để AI trau chuốt lại câu từ, sửa câu cụt, chuẩn hóa ngữ pháp và nâng cao độ trang trọng theo phong cách văn bản hành chính Việt Nam.",
+      "Xem kết quả hiển thị trên bảng Trợ lý VN AI và nhấn Chèn vào tài liệu nếu đồng ý với nội dung mới."
+    ]
   }
 ];
+
 
 

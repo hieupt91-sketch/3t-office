@@ -84,5 +84,71 @@ export async function runSheetExternalLinksTests() {
       return edited.externalLink.formula !== edited.formula;
     })()
   });
+
+  // Kiểm thử NotificationBar khi nạp tệp có liên kết ngoài
+  let shownNotification = null;
+  let clearedNotification = false;
+  const mockShell = {
+    setStatus: () => {},
+    showNotification: (options) => { shownNotification = options; return {}; },
+    clearNotification: () => { clearedNotification = true; }
+  };
+  const mockGrid = {
+    activeSheet: "Sheet1",
+    sheets: ["Sheet1"],
+    sheetsData: workbook.sheetsData,
+    cellsData: workbook.sheetsData[workbook.sheets[0]],
+    mergedRanges: [],
+    rowHeights: new Map(),
+    colWidths: new Map(),
+    resetToBlank() {
+      this.sheetsData = { Sheet1: new Map() };
+      this.cellsData = this.sheetsData.Sheet1;
+    },
+    _refreshVisibleRuleVisuals() {},
+    _refreshRowColLayoutView() {},
+    refreshCharts() {},
+    renderCharts() {},
+    renderImages() {},
+    _applyProtectionUi() {},
+    updateStatus() {}
+  };
+
+  const notifyAdapter = new SheetAdapter(mockGrid);
+  notifyAdapter.setShell(mockShell);
+  notifyAdapter.loadFromFods(fods(
+    `<table:table-row>${cell(LINK_A1, 10)}${cell(LINK_SUM, 60)}</table:table-row>`
+  ));
+
+  results.push({
+    name: "Liên kết ngoài: loadFromFods gọi showNotification với đúng số ô và loại warning",
+    pass: Boolean(shownNotification
+      && notifyAdapter.externalLinkCells === 2
+      && shownNotification.type === "warning"
+      && shownNotification.message.includes("Tệp có 2 ô liên kết tới sổ làm việc khác")
+      && shownNotification.action?.label === "Tìm hiểu thêm"),
+    error: JSON.stringify(shownNotification)
+  });
+
+  // Tệp mới / đóng tệp: clearNotification được gọi và externalLinkCells = 0
+  clearedNotification = false;
+  await notifyAdapter.newDocument();
+  results.push({
+    name: "Liên kết ngoài: newDocument() đặt externalLinkCells về 0 và xóa notification",
+    pass: notifyAdapter.externalLinkCells === 0 && clearedNotification === true,
+    error: `cells=${notifyAdapter.externalLinkCells}, cleared=${clearedNotification}`
+  });
+
+  // Load tệp không có liên kết ngoài: clearNotification được gọi
+  clearedNotification = false;
+  notifyAdapter.loadFromFods(fods(
+    `<table:table-row><table:table-cell office:value-type="float" office:value="100"><text:p>100</text:p></table:table-cell></table:table-row>`
+  ));
+  results.push({
+    name: "Liên kết ngoài: loadFromFods tệp không có liên kết ngoài tự ẩn notification",
+    pass: notifyAdapter.externalLinkCells === 0 && clearedNotification === true,
+    error: `cells=${notifyAdapter.externalLinkCells}, cleared=${clearedNotification}`
+  });
+
   return results;
 }

@@ -110,6 +110,7 @@ import { runWriterHelpTests } from "./unit/writer-help.test.js";
 import { runWriterSectionBreaksPageColorTests } from "./unit/writer-sectionbreaks-pagecolor.test.js";
 import { runSheetHelpTests } from "./unit/sheet-help.test.js";
 import { runSlidesHelpTests } from "./unit/slides-help.test.js";
+import { runHelpCoverageTests } from "./unit/help-coverage.test.js";
 import { runWriterWordArtTests } from "./unit/writer-wordart.test.js";
 import { runSlidesAnimationPaneSetupShowTests } from "./unit/slides-animation-pane-setup-show.test.js";
 import { runWriterIllustrationDialogTests } from "./unit/writer-illustration-dialogs.test.js";
@@ -176,6 +177,7 @@ import { runSlidesSaveFidelityTests } from "./unit/slides-save-fidelity.test.js"
 import { runWriterDocxAuditTests } from "./unit/writer-docx-audit.test.js";
 import { runWriterDocFontSpacingTests } from "./unit/writer-doc-font-spacing.test.js";
 import { runSheetDateValuesTests } from "./unit/sheet-date-values.test.js";
+import { runNotificationBarTests } from "./unit/notification-bar.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -293,6 +295,7 @@ async function runAll() {
     { title: "93b. Behavioral Tests — VN Writer Section Breaks & Page Color", runner: runWriterSectionBreaksPageColorTests },
     { title: "94. Behavioral Tests — VN Sheet In-app Help", runner: runSheetHelpTests },
     { title: "95. Behavioral Tests — VN Slides In-app Help", runner: runSlidesHelpTests },
+    { title: "95b. Regression Guard — Help Coverage (100% Writer & Sheet Ribbon Commands)", runner: runHelpCoverageTests },
     { title: "96. Behavioral Tests — VN Writer WordArt (chữ nghệ thuật)", runner: runWriterWordArtTests },
     { title: "98. Behavioral Tests — VN Slides Animation Pane & Set Up Slide Show", runner: runSlidesAnimationPaneSetupShowTests },
     { title: "101. Behavioral Tests — VN Writer Illustration Dialogs (Shape/Diagram/Chart pickers)", runner: runWriterIllustrationDialogTests },
@@ -359,7 +362,8 @@ async function runAll() {
     { title: "151. Unit Tests — Slides Save Fidelity (PowerPoint 2016 parity: quotes, line-height, fo:clip, master chrome)", runner: runSlidesSaveFidelityTests },
     { title: "152. Unit Tests — Writer DOCX effective-format audit", runner: runWriterDocxAuditTests },
     { title: "153. Unit Tests — Writer doc font / line spacing (Word multiple x font ratio, anchor <br>, imported class)", runner: runWriterDocFontSpacingTests },
-    { title: "154. Unit Tests — Sheet date/time cell values (office:date-value round trip)", runner: runSheetDateValuesTests }
+    { title: "154. Unit Tests — Sheet date/time cell values (office:date-value round trip)", runner: runSheetDateValuesTests },
+    { title: "155. Unit Tests — UI Kit Notification Bar & WCAG AA Color Contrast", runner: runNotificationBarTests }
   ];
 
   for (const suite of suites) {
