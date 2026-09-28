@@ -187,28 +187,34 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
 
     const cards = [...overlay.querySelectorAll(".vno-theme-card")];
 
+    const selectThemeCard = (targetIdx, shouldFocus = true) => {
+      if (targetIdx < 0 || targetIdx >= cards.length) return;
+      const targetCard = cards[targetIdx];
+      selectedThemeId = targetCard.getAttribute("data-theme-id");
+      cards.forEach((c, i) => {
+        const matched = i === targetIdx;
+        c.classList.toggle("is-selected", matched);
+        c.setAttribute("aria-checked", String(matched));
+        c.tabIndex = matched ? 0 : -1;
+      });
+      if (shouldFocus) {
+        targetCard.focus();
+      }
+    };
+
     // Roving tabindex: chỉ card selected (hoặc đầu tiên) nhận Tab focus
     cards.forEach((card, i) => {
       const isSel = card.dataset.themeId === selectedThemeId;
       card.tabIndex = (isSel || (i === 0 && !overlay.querySelector(".vno-theme-card.is-selected"))) ? 0 : -1;
     });
 
-    cards.forEach(card => {
+    cards.forEach((card, idx) => {
       card.addEventListener("click", () => {
-        cards.forEach(c => {
-          c.classList.remove("is-selected");
-          c.setAttribute("aria-checked", "false");
-          c.tabIndex = -1;
-        });
-        card.classList.add("is-selected");
-        card.setAttribute("aria-checked", "true");
-        card.tabIndex = 0;
-        selectedThemeId = card.getAttribute("data-theme-id");
+        selectThemeCard(idx, true);
       });
 
-      // Arrow key navigation trong radiogroup (WAI-ARIA pattern)
+      // Arrow key navigation trong radiogroup (WAI-ARIA pattern & Word parity: mũi tên di chuyển đồng thời chọn)
       card.addEventListener("keydown", (e) => {
-        const idx = cards.indexOf(card);
         let targetIdx = -1;
         if (e.key === "ArrowRight" || e.key === "ArrowDown") {
           e.preventDefault();
@@ -224,9 +230,10 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
           targetIdx = cards.length - 1;
         }
         if (targetIdx !== -1) {
-          // Di chuyển focus (không chọn - chỉ focus) theo pattern roving tabindex
-          cards.forEach((c, i) => { c.tabIndex = i === targetIdx ? 0 : -1; });
-          cards[targetIdx].focus();
+          selectThemeCard(targetIdx, true);
+        } else if (e.key === " " || e.key === "Spacebar") {
+          e.preventDefault();
+          selectThemeCard(idx, true);
         }
       });
     });
@@ -257,11 +264,23 @@ export async function showThemeGalleryDialog(currentThemeId = "office") {
         cleanup(null);
       } else if (e.key === "Enter") {
         e.preventDefault();
+        const active = document.activeElement;
+        const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+        const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+        if (active === cancelBtn || active === closeBtn) {
+          cleanup(null);
+          return;
+        }
+        if (active?.getAttribute?.("data-theme-id")) {
+          selectedThemeId = active.getAttribute("data-theme-id");
+        }
         cleanup(selectedThemeId);
       } else if (e.key === "Tab") {
         trapFocus(dialogBox, e);
       }
     };
     document.addEventListener("keydown", onKeyDown);
+    const activeCard = overlay.querySelector(".vno-theme-card.is-selected") || overlay.querySelector(".vno-theme-card");
+    activeCard?.focus?.();
   });
 }

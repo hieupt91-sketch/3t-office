@@ -161,3 +161,51 @@ Môi trường kiểm chứng thực tế: Đối chiếu với tab **Design** c
 - `tests/unit/writer-style-gallery-watermark.test.js`: **PASS (100%)**.
 - `tests/unit/writer-help.test.js`: **PASS (9/9, 100%)**.
 - `node tests/run-tests.js`: **PASS 1835/1835 (0 FAIL, 100%)**.
+
+---
+
+## 8. Vòng 2 — Sửa lỗi bàn phím: Phím mũi tên & Enter áp dụng đúng ô đang focus
+
+### 8.1. Hiện trạng & Nguyên nhân
+1. **Lỗi trong `showPageColorDialog` (`apps/writer/page-decorations.js`)**:
+   - Khi người dùng dùng phím mũi tên di chuyển focus tới một ô màu khác rồi bấm `Enter`, hộp thoại lại áp dụng màu đã chọn trước đó.
+   - **Nguyên nhân**: Sự kiện `keydown` phím mũi tên chỉ thay đổi `tabIndex` và gọi `button.focus()`, hoàn toàn không cập nhật biến trạng thái `selected`. Khi bấm `Enter`, listener `keydown` trên `document` bắt sự kiện trước khi sự kiện `click` của button kịp phát sinh, và gọi `finish(selected)` với giá trị màu cũ ban đầu.
+2. **Lỗi tương tự trong `showThemeGalleryDialog` (`apps/writer/theme-gallery.js`)**:
+   - Phím mũi tên giữa các thẻ theme cũng chỉ đổi roving `tabIndex` và focus (kèm ghi chú cũ `// Di chuyển focus (không chọn - chỉ focus)`), không cập nhật `selectedThemeId`. Khi bấm `Enter`, `onKeyDown` gọi `cleanup(selectedThemeId)` với theme cũ.
+   - Hộp thoại cũng thiếu focus tự động vào thẻ đang chọn khi vừa mở ra.
+3. **Lỗi Enter khi focus nút Hủy / Đóng / Xóa trong các hộp thoại**:
+   - Trong `showPageColorDialog`, `showWatermarkDialog`, `showPageBorderDialog`, và `showThemeGalleryDialog`, nếu người dùng tab tới nút "Hủy", "Đóng" hoặc "Xóa", bấm `Enter` lại bị `onKeyDown` bắt và kích hoạt nút OK / Apply thay vì hủy/xóa.
+
+### 8.2. Giải pháp thực hiện (theo chuẩn Microsoft Word)
+1. **Chuẩn hóa `showPageColorDialog`**:
+   - Tạo hàm `selectSwatch(targetIdx, shouldFocus)` đồng bộ toàn bộ: cập nhật `selected = swatches[targetIdx].dataset.pageColor`, cập nhật thuộc tính ARIA `aria-selected="true/false"`, gán `tabIndex = 0 / -1` và chuyển focus.
+   - Phím mũi tên (ArrowLeft/Right/Up/Down/Home/End) và phím Space khi bấm đều gọi `selectSwatch`, giúp việc di chuyển focus **đồng thời chọn** ô màu đó theo đúng trải nghiệm Word.
+   - Trong `onKey` của document:
+     - Nếu `document.activeElement` là nút Hủy hoặc Đóng: bấm `Enter` gọi `finish(null)`.
+     - Nếu `document.activeElement` là ô màu: cập nhật `selected = active.dataset.pageColor` trước khi gọi `finish(selected)`.
+2. **Chuẩn hóa `showThemeGalleryDialog`**:
+   - Tạo hàm `selectThemeCard(targetIdx, shouldFocus)` đồng bộ: cập nhật `selectedThemeId = cards[targetIdx].dataset.themeId`, cập nhật class `.is-selected`, cập nhật `aria-checked="true/false"`, gán `tabIndex = 0 / -1` và chuyển focus.
+   - Phím mũi tên và Space đồng thời di chuyển và chọn.
+   - Tự động focus vào thẻ theme đang chọn khi mở hộp thoại (`activeCard?.focus()`).
+   - Xử lý an toàn cho phím `Enter` khi focus vào thẻ theme hoặc nút Hủy/Đóng.
+3. **Chuẩn hóa `showPageBorderDialog` và `showWatermarkDialog`**:
+   - Xử lý trong `onKeyDown`: khi focus vào nút Hủy, nút Đóng hoặc nút Xóa (Xóa viền / Xóa hình mờ), phím `Enter` thực hiện đúng hành động hủy hoặc xóa, không tự ý bấm nút OK.
+
+### 8.3. Bổ sung kiểm thử tự động Playwright (`tests/live/writer-design-tab.playwright.mjs`)
+- **Kiểm thử bàn phím Thư viện Chủ đề**:
+  - Mở hộp thoại Chủ đề, bấm `ArrowRight` 2 lần (từ "office" tới "modern").
+  - Bấm `Enter`.
+  - Xác nhận thuộc tính `data-vno-theme` trên trang tài liệu được cập nhật đúng bằng theme của thẻ đang focus (`modern`).
+- **Kiểm thử bàn phím Màu trang**:
+  - Mở hộp thoại Màu trang, bấm `ArrowRight` 2 lần (từ "transparent" tới `#f8fafc`).
+  - Bấm `Enter`.
+  - Xác nhận màu nền tài liệu trên trang đúng bằng màu của ô đang focus (`#f8fafc` / `rgb(248, 250, 252)`).
+  - Mở lại hộp thoại chọn `#dbeafe` để đảm bảo chuỗi kiểm thử chế độ Tối (Dark mode) phía sau tiếp tục chạy chuẩn xác.
+
+### 8.4. Kết quả kiểm thử trung thực Vòng 2
+- `tests/live/writer-design-tab.playwright.mjs`: **PASS (32/32 assertions, 100%)**:
+  - `Bàn phím hộp thoại Chủ đề: ArrowRight 2 lần rồi Enter áp dụng đúng thẻ theme đang focus ('modern')` -> **PASS**
+  - `Bàn phím hộp thoại Màu trang: ArrowRight 2 lần rồi Enter áp dụng đúng màu của ô đang focus (#f8fafc)` -> **PASS**
+  - 100% các assertion kiểm thử Ribbon, Focus trap, Dark mode WCAG AA, Help entries đều tiếp tục **PASS**.
+- `node tests/run-tests.js`: **PASS 1835/1835 (0 FAIL, 100%)**.
+

@@ -180,21 +180,32 @@ try {
   const themeClosed = await page.evaluate(() => !document.querySelector("#vno-theme-dialog-title"));
   assert(themeClosed, "Phím Escape đóng hộp thoại Chủ đề an toàn và khôi phục focus", `closed=${themeClosed}`);
 
-  // Mở lại hộp thoại Chủ đề, chọn chủ đề Hiện đại (Modern) và áp dụng
+  // Mở lại hộp thoại Chủ đề, kiểm tra điều hướng bàn phím: ArrowRight 2 lần rồi Enter
   await page.evaluate(async () => {
     const { globalCommandBus } = await import("/platform/commands/command-bus.js");
     globalCommandBus.execute("writer.design.themeGallery");
   });
-  await page.waitForSelector('.vno-theme-card[data-theme-id="modern"]', { timeout: 2000 });
-  await page.click('.vno-theme-card[data-theme-id="modern"]');
-  await page.click(".vno-dialog-ok-btn");
+  await page.waitForSelector("#vno-theme-dialog-title", { timeout: 2000 });
+
+  // Focus ban đầu tại theme "office" (index 0). Bấm ArrowRight 2 lần di chuyển tới "modern" (index 2)
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+
+  const expectedThemeId = await page.evaluate(() => {
+    return document.activeElement?.getAttribute("data-theme-id");
+  });
+
+  // Bấm Enter áp dụng theme đang focus
+  await page.keyboard.press("Enter");
   await page.waitForTimeout(150);
 
   const appliedTheme = await page.evaluate(() => {
     const editor = document.querySelector(".vno-writer-body") || document.querySelector("[data-vno-theme]") || document.querySelector(".vno-writer-page");
     return editor?.dataset?.vnoTheme || editor?.getAttribute("data-vno-theme");
   });
-  assert(appliedTheme === "modern", "Áp dụng chủ đề 'modern' cập nhật thuộc tính data-vno-theme trên trang", `theme=${appliedTheme}`);
+  assert(appliedTheme === expectedThemeId && expectedThemeId === "modern",
+    "Bàn phím hộp thoại Chủ đề: ArrowRight 2 lần rồi Enter áp dụng đúng thẻ theme đang focus ('" + expectedThemeId + "')",
+    `expected=${expectedThemeId}, actual=${appliedTheme}`);
 
   // 4.2 Hộp thoại Hình mờ (Watermark Dialog)
   await page.evaluate(async () => {
@@ -267,7 +278,55 @@ try {
   });
   assert(pcTrapped, "Phím Tab được giữ trong phạm vi hộp thoại Màu trang (Focus Trap)", `trapped=${pcTrapped}`);
 
-  // Chọn ô màu xanh nhạt (#dbeafe) và nhấn Áp dụng
+  // Đóng bằng Escape
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(100);
+
+  // 4.3.1 Bàn phím hộp thoại Màu trang: Mở hộp thoại, bấm ArrowRight 2 lần, bấm Enter, xác nhận màu trang tài liệu = màu của ô đang focus
+  await page.evaluate(async () => {
+    const { globalCommandBus } = await import("/platform/commands/command-bus.js");
+    globalCommandBus.execute("writer.page.color");
+  });
+  await page.waitForSelector("#vno-page-color-title", { timeout: 2000 });
+
+  // Focus ban đầu tại ô "transparent" (index 0). Bấm ArrowRight 2 lần di chuyển tới index 2 (#f8fafc)
+  await page.keyboard.press("ArrowRight");
+  await page.keyboard.press("ArrowRight");
+
+  const expectedPageColor = await page.evaluate(() => {
+    return document.activeElement?.getAttribute("data-page-color");
+  });
+
+  // Bấm Enter để áp dụng ô màu đang focus
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(150);
+
+  const docPageColorAfterKey = await page.evaluate(() => {
+    const pageEl = document.querySelector(".vno-writer-page");
+    return pageEl?.style?.backgroundColor;
+  });
+
+  const isColorMatched = await page.evaluate((expected) => {
+    const dummy = document.createElement("div");
+    dummy.style.backgroundColor = expected;
+    document.body.appendChild(dummy);
+    const computed = window.getComputedStyle(dummy).backgroundColor;
+    dummy.remove();
+    const pageEl = document.querySelector(".vno-writer-page");
+    const actual = pageEl?.style?.backgroundColor;
+    return actual === computed || actual === expected;
+  }, expectedPageColor);
+
+  assert(Boolean(expectedPageColor && isColorMatched),
+    "Bàn phím hộp thoại Màu trang: ArrowRight 2 lần rồi Enter áp dụng đúng màu của ô đang focus (" + expectedPageColor + ")",
+    `expected=${expectedPageColor}, actual=${docPageColorAfterKey}`);
+
+  // Mở lại hộp thoại Màu trang, chọn ô màu xanh nhạt (#dbeafe) và nhấn Áp dụng cho các bước kiểm thử kế tiếp
+  await page.evaluate(async () => {
+    const { globalCommandBus } = await import("/platform/commands/command-bus.js");
+    globalCommandBus.execute("writer.page.color");
+  });
+  await page.waitForSelector('.vno-page-color-swatch[data-page-color="#dbeafe"]', { timeout: 2000 });
   await page.click('.vno-page-color-swatch[data-page-color="#dbeafe"]');
   await page.click(".vno-dialog-ok-btn");
   await page.waitForTimeout(150);

@@ -66,17 +66,26 @@ export async function showPageColorDialog(currentColor = "transparent") {
     let selected = currentColor;
     const finish = (value) => { document.removeEventListener("keydown", onKey); overlay.remove(); previousFocused?.focus?.(); resolve(value); };
     const swatches = Array.from(overlay.querySelectorAll("[data-page-color]"));
+
+    const selectSwatch = (targetIdx, shouldFocus = true) => {
+      if (targetIdx < 0 || targetIdx >= swatches.length) return;
+      const button = swatches[targetIdx];
+      selected = button.dataset.pageColor;
+      swatches.forEach((item, j) => {
+        const matched = j === targetIdx;
+        item.setAttribute("aria-selected", String(matched));
+        item.tabIndex = matched ? 0 : -1;
+      });
+      if (shouldFocus) {
+        button.focus();
+      }
+    };
+
     swatches.forEach((button, i) => {
       const isSel = button.dataset.pageColor === selected;
       button.tabIndex = (isSel || (!selected && i === 0)) ? 0 : -1;
       button.addEventListener("click", () => {
-        selected = button.dataset.pageColor;
-        swatches.forEach((item) => {
-          const matched = item === button;
-          item.setAttribute("aria-selected", String(matched));
-          item.tabIndex = matched ? 0 : -1;
-        });
-        button.focus();
+        selectSwatch(i, true);
       });
       button.addEventListener("keydown", (e) => {
         const idx = swatches.indexOf(button);
@@ -89,8 +98,10 @@ export async function showPageColorDialog(currentColor = "transparent") {
         else if (e.key === "End") targetIdx = swatches.length - 1;
         if (targetIdx !== -1) {
           e.preventDefault();
-          swatches.forEach((item, j) => { item.tabIndex = j === targetIdx ? 0 : -1; });
-          swatches[targetIdx].focus();
+          selectSwatch(targetIdx, true);
+        } else if (e.key === " " || e.key === "Spacebar") {
+          e.preventDefault();
+          selectSwatch(idx, true);
         }
       });
     });
@@ -106,7 +117,27 @@ export async function showPageColorDialog(currentColor = "transparent") {
     overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => finish(null));
     overlay.querySelector(".vno-dialog-close-btn").addEventListener("click", () => finish(null));
     overlay.addEventListener("click", (e) => { if (e.target === overlay) finish(null); });
-    const onKey = (event) => { if (event.key === "Escape") finish(null); else if (event.key === "Enter") finish(selected); else trapFocus(box, event); };
+    const onKey = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        finish(null);
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        const active = document.activeElement;
+        const cancelBtn = overlay.querySelector('[data-action="cancel"]');
+        const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+        if (active === cancelBtn || active === closeBtn) {
+          finish(null);
+          return;
+        }
+        if (active?.dataset?.pageColor) {
+          selected = active.dataset.pageColor;
+        }
+        finish(selected);
+      } else {
+        trapFocus(box, event);
+      }
+    };
     document.addEventListener("keydown", onKey);
     const activeSwatch = overlay.querySelector('[data-page-color][aria-selected="true"]') || overlay.querySelector("[data-page-color]");
     activeSwatch?.focus();
@@ -302,6 +333,24 @@ export async function showWatermarkDialog(currentWatermark = null) {
         e.preventDefault();
         cleanup(null);
       } else if (e.key === "Enter") {
+        const active = document.activeElement;
+        const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+        const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+        if (active === cancelBtn || active === closeBtn) {
+          e.preventDefault();
+          cleanup(null);
+          return;
+        }
+        if (btnRemove && active === btnRemove) {
+          e.preventDefault();
+          cleanup("");
+          return;
+        }
+        if (active?.classList?.contains("vno-watermark-chip")) {
+          e.preventDefault();
+          active.click();
+          return;
+        }
         e.preventDefault();
         overlay.querySelector(".vno-dialog-ok-btn")?.click();
       } else if (e.key === "Tab") {
@@ -479,6 +528,19 @@ export async function showPageBorderDialog(currentBorder = null) {
         e.preventDefault();
         cleanup(null);
       } else if (e.key === "Enter") {
+        const active = document.activeElement;
+        const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+        const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+        if (active === cancelBtn || active === closeBtn) {
+          e.preventDefault();
+          cleanup(null);
+          return;
+        }
+        if (btnRemove && active === btnRemove) {
+          e.preventDefault();
+          cleanup({ enabled: false });
+          return;
+        }
         e.preventDefault();
         overlay.querySelector(".vno-dialog-ok-btn")?.click();
       } else if (e.key === "Tab") {
