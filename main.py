@@ -519,6 +519,12 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
             ) from exc
 
 
+# Tắt 29/9/2026 (Claude): xuất .doc qua DOCX hậu xử lý làm bản lưu legacy20.doc thật KHÔNG mở được bằng Word
+# (hộp thoại lỗi, kể cả đổi tên; trước merge save-followups file này lưu tốt — chia đôi commit dd3afd2).
+# Tệp hỏng tệ hơn lệch trang (legacy06 quay về 3→4 trang). Bật lại khi đã tìm ra nguyên nhân và Word mở được 20/20 .doc.
+WRITER_DOC_EXPORT_VIA_DOCX = False
+
+
 def _convert_writer_html_to_doc(src_html: str, out_dir: str, source_path: str | None = None) -> str:
     """Export Writer HTML through the source-aware DOCX overlay before legacy DOC."""
     intermediate_docx = _run_soffice_convert(src_html, "docx", out_dir, app_kind="writer")
@@ -1210,7 +1216,7 @@ class VnOfficeApi:
                 else:
                     return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
 
-                if app_kind == "writer" and target_format == "doc":
+                if app_kind == "writer" and target_format == "doc" and WRITER_DOC_EXPORT_VIA_DOCX:
                     out_path = _convert_writer_html_to_doc(src_path, tmp, source_path=source_path)
                 else:
                     out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
@@ -1276,7 +1282,7 @@ class VnOfficeApi:
                 else:
                     return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
 
-                if app_kind == "writer" and target_format == "doc":
+                if app_kind == "writer" and target_format == "doc" and WRITER_DOC_EXPORT_VIA_DOCX:
                     out_path = _convert_writer_html_to_doc(src_path, tmp, source_path=source_path)
                 else:
                     out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
