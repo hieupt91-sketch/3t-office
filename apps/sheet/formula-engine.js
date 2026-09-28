@@ -67,6 +67,7 @@ export const FUNCTION_CATALOG = [
   { name: "ISTEXT", category: "Logic", syntax: "ISTEXT(value)", desc: "Kiểm tra giá trị có phải là văn bản hay không." },
   { name: "ISERROR", category: "Logic", syntax: "ISERROR(value)", desc: "Kiểm tra giá trị có phải là mã lỗi hay không." },
   { name: "ISNA", category: "Logic", syntax: "ISNA(value)", desc: "Kiểm tra giá trị có phải là lỗi #N/A hay không." },
+  { name: "NA", category: "Logic", syntax: "NA()", desc: "Trả về lỗi #N/A (giá trị không có sẵn). Lan truyền qua phép tính; IFERROR/IFNA bắt được." },
 
   // Văn bản (Text)
   { name: "CONCAT", category: "Văn bản", syntax: "CONCAT(text1, [text2], ...)", desc: "Nối hai hoặc nhiều chuỗi văn bản thành một chuỗi duy nhất." },
@@ -1055,6 +1056,12 @@ export class FormulaEngine {
       case "ISNA":
         if (args.length !== 1) return "#VALUE!";
         return this._resolveSingleValue(args[0]) === "#N/A";
+      case "NA":
+        // NA() không nhận đối số; trả về lỗi #N/A đúng kiểu engine.
+        // Lan truyền qua phép tính (_evaluateArithmetic truyền lỗi);
+        // IFERROR và IFNA đều bắt được (xem case IFERROR/IFNA bên trên).
+        if (args.length !== 0) return "#VALUE!";
+        return "#N/A";
 
       // Văn bản
       case "CONCAT":
