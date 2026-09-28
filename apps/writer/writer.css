@@ -2156,6 +2156,61 @@ sup.vno-endnote-ref:hover {
   overflow: hidden;
 }
 
+/* Mail Merge Status Badge */
+.vno-merge-status-badge {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--vno-text-muted);
+}
+.vno-merge-status-badge[data-status="empty"] {
+  color: var(--vno-text-muted);
+}
+.vno-merge-status-badge[data-status="error"] {
+  color: var(--vno-brand-red, #dc2626);
+}
+.vno-merge-status-badge[data-status="success"] {
+  color: #16a34a;
+}
+
+[data-theme="dark"] .vno-merge-status-badge[data-status="empty"] {
+  color: var(--vno-text-muted);
+}
+[data-theme="dark"] .vno-merge-status-badge[data-status="error"] {
+  color: #f87171;
+}
+[data-theme="dark"] .vno-merge-status-badge[data-status="success"] {
+  color: #4ade80;
+}
+
+/* Envelopes & Labels Dialog Dark Mode Contrast */
+.vno-envelope-size-option:hover {
+  background-color: var(--vno-bg-hover);
+}
+.vno-envelope-size-option:has(input:checked) {
+  border-color: var(--vno-border-focus);
+  background-color: var(--vno-bg-surface);
+}
+
+[data-theme="dark"] #vno-envelope-error,
+[data-theme="dark"] #vno-labels-error {
+  color: #f87171 !important;
+}
+
+[data-theme="dark"] .vno-merge-field {
+  background-color: #172554;
+  color: #93c5fd;
+  border-color: #1e40af;
+}
+[data-theme="dark"] .vno-merge-field:hover {
+  background-color: #1e3a8a;
+  border-color: #3b82f6;
+}
+[data-theme="dark"] .vno-merge-field.vno-merge-preview {
+  background-color: #422006;
+  color: #fde047;
+  border-color: #854d0e;
+}
+
 /* ==========================================================================
    Thư viện Kiểu dáng (Styles Gallery) & Presets Typography
    ========================================================================== */

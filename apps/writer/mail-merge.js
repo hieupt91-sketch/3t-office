@@ -190,7 +190,7 @@ export function showMailMergeDataSourceDialog({
     <div class="vno-dialog-box" style="width: 580px;" role="dialog" aria-modal="true" aria-labelledby="vno-merge-ds-title">
       <div class="vno-dialog-header">
         <div style="display:flex;align-items:center;gap:8px;">
-          <span style="display:flex;color:#0f4c81;" aria-hidden="true">${ICONS.mailMerge || ""}</span>
+          <span style="display:flex;color:var(--vno-app-current-fg, #0f4c81);" aria-hidden="true">${ICONS.mailMerge || ""}</span>
           <span id="vno-merge-ds-title">${t("writerDialogs.mailMerge.dataSourceTitle")}</span>
         </div>
         <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
@@ -202,7 +202,7 @@ export function showMailMergeDataSourceDialog({
         <textarea id="vno-merge-csv-input" class="vno-merge-csv-textarea" aria-label="${t("writerDialogs.mailMerge.pastePrompt")}" style="width:100%;height:160px;box-sizing:border-box;padding:10px;font-family:monospace;font-size:12.5px;line-height:1.4;border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md);resize:vertical;outline:none;" placeholder="${defaultSample.replace(/"/g, '&quot;')}">${initialVal}</textarea>
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <button type="button" class="vno-btn vno-btn-secondary vno-merge-sample-btn" style="font-size:12px;padding:4px 8px;">${t("writerDialogs.mailMerge.pasteSampleBtn")}</button>
-          <div class="vno-merge-status-badge" style="font-size:12px;color:#64748b;font-weight:500;" aria-live="polite">${t("writerDialogs.mailMerge.noData")}</div>
+          <div class="vno-merge-status-badge" data-status="empty" aria-live="polite">${t("writerDialogs.mailMerge.noData")}</div>
         </div>
       </div>
       <div class="vno-dialog-footer">
@@ -226,16 +226,16 @@ export function showMailMergeDataSourceDialog({
     const text = textarea.value.trim();
     if (!text) {
       statusBadge.textContent = t("writerDialogs.mailMerge.noData");
-      statusBadge.style.color = "#64748b";
+      statusBadge.setAttribute("data-status", "empty");
       return;
     }
     const { fields, records } = parseCsv(text);
     if (fields.length === 0) {
       statusBadge.textContent = t("writerDialogs.mailMerge.invalidCsv");
-      statusBadge.style.color = "#dc2626";
+      statusBadge.setAttribute("data-status", "error");
     } else {
       statusBadge.textContent = t("writerDialogs.mailMerge.foundData", { count: fields.length, records: records.length });
-      statusBadge.style.color = "#16a34a";
+      statusBadge.setAttribute("data-status", "success");
     }
   };
 
@@ -315,7 +315,7 @@ export function showInsertMergeFieldDialog({
     <div class="vno-dialog-box" style="width: 440px;" role="dialog" aria-modal="true" aria-labelledby="vno-merge-field-title">
       <div class="vno-dialog-header">
         <div style="display:flex;align-items:center;gap:8px;">
-          <span style="display:flex;color:#0f4c81;" aria-hidden="true">${ICONS.mergeInsertField || ""}</span>
+          <span style="display:flex;color:var(--vno-app-current-fg, #0f4c81);" aria-hidden="true">${ICONS.mergeInsertField || ""}</span>
           <span id="vno-merge-field-title">${t("writerDialogs.mailMerge.insertFieldTitle")}</span>
         </div>
         <button class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
