@@ -1,5 +1,15 @@
 # Hàng đợi việc theo ma trận (cập nhật 2026-09-28)
 
+## Trạng thái 28/9 21:45 (main sau merge Codex save-followups)
+
+Test trên `main`: node **1863/1863 PASS**, python OK (Claude tự chạy sau merge).
+
+**Đã gộp tối 28/9:** hàm VND() đọc số tiền thành chữ + giữ chữ khi lưu (Claude, `8626b3c`, `dd3afd2`); mở .doc qua DOCX trung gian (Codex, `37fb7f2`, canvas 8/8); lưu .doc qua DOCX hậu xử lý + d09 4 hình về đúng trang (Codex, merge sau `dd3afd2`: 8/8 .doc lưu = Word, d06 60/60 / d09 30/30 / d24 14/14 hình đúng trang Word). Công cụ nghiệm thu mới: `_batch_xls_roundtrip.py`, `_word_shape_pages.ps1`, `_writer_shape_counts.py`.
+
+**Đang chạy:** Codex `E:\VNOffice-codex-writer-legacy-doc2` — legacy14/17/18.doc lệch trang (đợt 2). agy hết hạn mức tới ~23:45 — việc chờ: thanh cảnh báo vàng kiểu Excel cho tệp có liên kết ngoài (hiện chỉ báo trên thanh trạng thái).
+
+**Còn mở:** legacy06.xls `#REF!` → `#N/A` (10 ô, nhỏ); bộ so sánh .xls không dùng Excel cho 5/20 file Excel 95 bị File Block; Sheet tăng tốc mở file lớn — **CHỜ người phụ trách duyệt bước 1** (`docs/PLAN-SHEET-OPEN-PERF.md`).
+
 ## Trạng thái 28/9 16:30 (main `fea2816`)
 
 Test trên `main`: `node tests/run-tests.js` **1839/1839 PASS**, `python -m unittest discover -s tests` 359 OK (Claude tự chạy).
