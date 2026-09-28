@@ -7,6 +7,22 @@ import { registerHelpEntries } from "./help-catalog.js";
 
 export const SHEET_HELP_ENTRIES = [
   {
+    id: "sheet.formula.vndWords",
+    app: "sheet",
+    commandIds: [],
+    title: "Đọc số tiền thành chữ (hàm VND)",
+    summary: "Hàm =VND(ô) viết số tiền bằng chữ tiếng Việt, ví dụ 3193080 → \"Ba triệu một trăm chín mươi ba ngàn không trăm tám mươi đồng chẵn.\" Tương thích hàm VND của add-in Excel quen thuộc, không cần cài thêm gì.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
+    keywords: ["VND", "đọc số", "bằng chữ", "số tiền bằng chữ", "hóa đơn", "đồng chẵn", "add-in", "_xll.VND"],
+    steps: [
+      "Chọn ô cần hiện số tiền bằng chữ (thường là dòng \"Bằng chữ:\" trên hóa đơn, báo giá).",
+      "Gõ =VND( rồi bấm vào ô chứa số tiền, đóng ngoặc và nhấn Enter, ví dụ =VND(H13).",
+      "Số chẵn kết thúc bằng \"đồng chẵn.\"; số có phần lẻ đọc thêm \"… xu.\"; số âm bắt đầu bằng \"Âm\".",
+      "Mở tệp Excel đã dùng hàm VND của add-in: VN Sheet tự tính lại và hiện đúng chữ thay cho lỗi #ADDIN? hoặc #NAME?.",
+      "Lưu ý: khi lưu lại tệp, dòng chữ hiện có thể chưa được giữ trong tệp .xls/.xlsx (đang được hoàn thiện); nếu cần gửi đi, kiểm tra lại ô này sau khi mở tệp đã lưu."
+    ]
+  },
+  {
     id: "sheet.formula.externalLinks",
     app: "sheet",
     commandIds: [],

@@ -1,4 +1,5 @@
 import { NumberFormatter } from "./number-formatter.js";
+import { vndInWords } from "./vnd-words.js";
 
 /**
  * VN Sheet — Enterprise Spreadsheet Formula Calculation Engine
@@ -1056,6 +1057,16 @@ export class FormulaEngine {
       case "ISNA":
         if (args.length !== 1) return "#VALUE!";
         return this._resolveSingleValue(args[0]) === "#N/A";
+      case "VND":
+      case "_XLL.VND": {
+        // Số tiền bằng chữ — tương thích add-in XLL phổ biến ở Việt Nam (xem vnd-words.js).
+        if (args.length !== 1) return "#VALUE!";
+        const amount = this._resolveSingleValue(args[0]);
+        if (this._isError(amount)) return amount;
+        const number = typeof amount === "number" ? amount : Number(String(amount ?? "").replace(/[^\d.-]/g, ""));
+        return vndInWords(Number.isFinite(number) ? number : 0);
+      }
+
       case "NA":
         // NA() không nhận đối số; trả về lỗi #N/A đúng kiểu engine.
         // Lan truyền qua phép tính (_evaluateArithmetic truyền lỗi);
