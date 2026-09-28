@@ -13,7 +13,9 @@ Test trên `main`: `node tests/run-tests.js` **1839/1839 PASS**, `python -m unit
 
 **Môi trường:** Codex hết hạn mức đến **26/10 10:44**. Chiều 28/9 có lúc soffice tạo profile mới mất ~77s (liệt kê máy in treo) → 4 test soffice FAIL cả trên main; sau đó tự hết (1835/1835 lúc 15:40) — nếu gặp lại, so với main trước khi đổ lỗi cho nhánh.
 
-**Chờ người phụ trách quyết định:** (1) nhánh `feature/cloud-oauth-scaffolding` (OAuth Google Drive/OneDrive — security boundary + external dependency); (2) viết lại `parseFods` phía JS dạng streaming để lan14 mở nhanh hơn (~100s JS) — thay đổi kiến trúc.
+**Quyết định người phụ trách 28/9:** nhánh `feature/cloud-oauth-scaffolding` (OAuth Google Drive/OneDrive, opencode 26/9) **TẠM GÁC** — giữ nguyên nhánh + worktree `E:\VNOffice-opencode-cloud-oauth`, không merge, không giao tiếp; tập trung hoàn thiện Writer và Sheet trước. Khi quay lại cần: token vào Windows Credential Manager (không localStorage), xin phép rõ trước khi gửi tài liệu lên mạng, kiểm thử tài khoản thật.
+
+**Chờ người phụ trách quyết định:** viết lại `parseFods` phía JS dạng streaming để lan14 mở nhanh hơn (~100s JS) — thay đổi kiến trúc.
 
 ## Trạng thái 26/9 09:55 (main `2d501bc` = S31 + W47–W56 + agy layout-tab design)
 
