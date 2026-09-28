@@ -58,6 +58,42 @@ def anchor(name: str, payload: str, rid: str = "rId7", docpr_id: int = 1) -> str
 
 
 class WriterAnchorPassthroughTests(unittest.TestCase):
+    def test_relocate_empty_anchors_by_equal_paragraph_gap_when_bookmarks_collapse(self):
+        first = '<wp:anchor><wp:docPr id="1" name="Rectangle A"/><wps:wsp/></wp:anchor>'
+        second = '<wp:anchor><wp:docPr id="2" name="Rectangle B"/><wps:wsp/></wp:anchor>'
+        tail = ''.join(f'<w:p><w:r><w:t>Tail {index}</w:t></w:r></w:p>' for index in range(30))
+        source_xml = (
+            '<w:document><w:body>'
+            '<w:p><w:r><w:t>Top</w:t></w:r></w:p>'
+            f'<w:p><w:pPr><w:pStyle w:val="ListParagraph"/></w:pPr><w:r><w:drawing>{first}</w:drawing></w:r></w:p>'
+            f'<w:p><w:pPr><w:pStyle w:val="ListParagraph"/></w:pPr><w:r><w:drawing>{second}</w:drawing></w:r></w:p>'
+            '<w:p/><w:p><w:r><w:t>Stable boundary</w:t></w:r></w:p>'
+            f'{tail}</w:body></w:document>'
+        )
+        converted_xml = (
+            '<w:document><w:body>'
+            '<w:p><w:bookmarkStart w:id="1" w:name="vno-untouched-0"/>'
+            '<w:r><w:t>Top</w:t></w:r>'
+            f'<w:r><w:drawing>{first}</w:drawing></w:r>'
+            f'<w:r><w:drawing>{second}</w:drawing></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="2" w:name="vno-untouched-1"/>'
+            '<w:pPr><w:pStyle w:val="BodyText"/></w:pPr></w:p>'
+            '<w:p><w:bookmarkStart w:id="3" w:name="vno-untouched-2"/></w:p>'
+            '<w:p/><w:p><w:bookmarkStart w:id="3" w:name="vno-untouched-4"/>'
+            '<w:r><w:t>Stable boundary</w:t></w:r></w:p>'
+            f'{tail}</w:body></w:document>'
+        )
+
+        result = patcher._relocate_passthrough_anchors(converted_xml, source_xml)
+        result = patcher._restore_writer_matched_formatting(result, source_xml)
+        paragraphs = re.findall(r'<w:p\b[^>]*>[\s\S]*?</w:p>', result)
+        self.assertIn('name="Rectangle A"', paragraphs[1])
+        self.assertIn('name="Rectangle B"', paragraphs[2])
+        self.assertIn('w:val="ListParagraph"', paragraphs[1])
+        self.assertIn('w:val="ListParagraph"', paragraphs[2])
+        self.assertNotIn('name="Rectangle A"', paragraphs[0])
+        self.assertNotIn('name="Rectangle B"', paragraphs[0])
+
     def test_missing_drawing_uses_matching_empty_untouched_paragraph_after_extra_flow_para(self):
         shape = (
             '<wp:anchor><wp:docPr id="7" name="Rectangle 7"/>'
