@@ -10994,18 +10994,27 @@ export class WriterAdapter {
   }
 
   /**
-   * Lưu tài liệu thành tệp DOCX thật trên đĩa (qua LibreOffice headless engine).
-   * V1: luôn mở hộp thoại chọn nơi lưu (chưa lưu ngầm vào đường dẫn cũ) — sẽ tối ưu ở bản sau.
+   * Lưu tài liệu:
+   * - Nếu tài liệu đã có đường dẫn gốc (_sourcePath): Ctrl+S / Lưu lưu thẳng vào tệp đó,
+   *   tôn trọng định dạng gốc (.doc/.docx/.odt/.rtf) và thông báo nhẹ "Đã lưu" trên thanh trạng thái.
+   * - Nếu tài liệu mới (chưa có đường dẫn): chuyển tiếp sang saveAs() để mở hộp thoại lưu tệp.
    */
   async save() {
+    if (!this._sourcePath) {
+      return await this.saveAs();
+    }
+
     this.documentContent = this.editorDom ? this.editorDom.innerHTML : "";
-    const suggestedName = (this.sourceFileName && this.sourceFileName !== "TaiLieu")
-      ? this.sourceFileName
-      : (this.shell?.documentName ? this.shell.documentName.replace(/\.[^/.]+$/, "") : (this.sourceFileName || "TaiLieu"));
-    const result = await globalUnoBridge.saveRealFile("writer", this._contentForExport(), "docx", suggestedName, this._sourcePath || null);
+    const result = await globalUnoBridge.saveRealFileInPlace(
+      "writer",
+      this._contentForExport(),
+      this._sourcePath,
+      this._sourcePath
+    );
+
     if (result.status === "ok") {
       this.isDirty = false;
-      const savedPath = result.path || result.fileName;
+      const savedPath = result.path || this._sourcePath;
       if (savedPath) {
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
@@ -11013,16 +11022,63 @@ export class WriterAdapter {
           this.shell?.resetDocumentChrome?.(savedFileName, null);
         }
       }
-      await showAlertDialog({ title: "Đã lưu", message: result.message, type: "success" });
+      this.shell?.setStatus?.("Đã lưu");
       return true;
     }
+
     if (result.status === "cancelled") return false;
-    await showAlertDialog({ title: "Không thể lưu", message: result.message, type: "error" });
+    await showAlertDialog({
+      title: "Không thể lưu tài liệu",
+      message: result.message || "Lỗi không xác định khi lưu tài liệu.",
+      type: "error"
+    });
     return false;
   }
 
+  /**
+   * Lưu bản sao (F12 / Tệp → Lưu bản sao):
+   * Luôn mở hộp thoại lưu native của hệ điều hành, cho phép chọn thư mục, đổi tên
+   * hoặc chọn định dạng xuất (.docx, .doc, .odt, .rtf).
+   */
   async saveAs() {
-    return await this.save();
+    this.documentContent = this.editorDom ? this.editorDom.innerHTML : "";
+    const currentName = this.sourceFileName || "TaiLieu";
+    const suggestedName = this._sourcePath
+      ? this._sourcePath.split(/[/\\]/).pop()
+      : (this.shell?.documentName ? this.shell.documentName : (currentName !== "TaiLieu" ? currentName : "TaiLieu.docx"));
+
+    const targetFormat = this._sourcePath ? (this._sourcePath.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || "docx") : "docx";
+
+    const result = await globalUnoBridge.saveRealFile(
+      "writer",
+      this._contentForExport(),
+      targetFormat,
+      suggestedName,
+      this._sourcePath || null
+    );
+
+    if (result.status === "ok") {
+      this.isDirty = false;
+      const savedPath = result.path || result.fileName;
+      if (savedPath) {
+        this._sourcePath = savedPath;
+        const savedFileName = savedPath.split(/[/\\]/).pop();
+        if (savedFileName) {
+          this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
+          this.shell?.resetDocumentChrome?.(savedFileName, null);
+        }
+      }
+      this.shell?.setStatus?.("Đã lưu");
+      return true;
+    }
+
+    if (result.status === "cancelled") return false;
+    await showAlertDialog({
+      title: "Không thể lưu tài liệu",
+      message: result.message || "Lỗi không xác định khi lưu tài liệu.",
+      type: "error"
+    });
+    return false;
   }
 
   /**

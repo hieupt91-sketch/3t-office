@@ -1,4 +1,4 @@
-﻿/**
+/**
  * VN Office LibreOffice Adapter — UNO Bridge & Dispatch Manager
  * Kết nối Command Bus với LibreOffice UNO Service / Dispatch Framework
  */
@@ -123,6 +123,23 @@ export class UnoBridge {
       };
     }
     return await this.desktopApi.save_document_dialog(content, appKind, targetFormat, suggestedName, sourcePath);
+  }
+
+  /**
+   * Lưu nội dung trực tiếp vào tệp đích đang mở (không mở hộp thoại).
+   * @param {"writer"|"sheet"|"slides"} appKind
+   * @param {string} content
+   * @param {string} targetPath
+   * @param {string} [sourcePath]
+   */
+  async saveRealFileInPlace(appKind, content, targetPath, sourcePath) {
+    if (!this.desktopApi || !this.hasRealEngine) {
+      return {
+        status: "error",
+        message: "Chức năng Lưu tệp thật chỉ khả dụng trong VN Office Desktop App (đã cài LibreOffice).",
+      };
+    }
+    return await this.desktopApi.save_document_in_place(content, appKind, targetPath, sourcePath || targetPath);
   }
 
   /**
