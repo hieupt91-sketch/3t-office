@@ -82,3 +82,49 @@ COMMITS:
 - `ffc3c97` — findings committed before code changes.
 - `5d28a0a` — root-cause findings addendum.
 - `cfa97e5` — Writer DOC export and keep-next changes.
+
+## Vòng 2 — W-legacydoc2b (2026-09-29)
+
+Kết quả vòng này thay thế các kết luận tương ứng của Vòng 1 bên trên.
+
+WRAP CỦA ẢNH `legacy13.doc`:
+
+- Đo Word COM read-only qua `Shapes(i).WrapFormat.Type`, không dùng SendKeys. Word nguồn cho `0` (`wdWrapSquare`). Bản DOC lưu thử không shim cho `4` (`wdWrapTopBottom`); bản thử shim `wrapNone` cho `3` (`wdWrapNone`). Như vậy `wrapNone` đã thực sự lọt vào DOC và vẫn không giữ nguyên kiểu wrap nguồn.
+- Không tìm được cách sạch trong bộ lọc DOC để giữ `Square`; đã gỡ shim và chấp nhận sai lệch trang. Lượt DOC mới: Word nguồn 1 trang / canvas 1 / DOC lưu 2 trang. Đây là FAIL về page count, được giữ nguyên trung thực.
+
+PHÂN TRANG VÀ DUNG SAI 2 PX:
+
+- Đo `_batch_writer.py` hai lượt liên tiếp dưới `LOCALAPPDATA=E:\VNOffice-profiles\codex`. Cả hai lượt đều có kết quả: `d01` 19/19/19, `d13` 10/10/10, `d19` 2/2/2 (Word nguồn/canvas/Word file lưu); `loaded=yes`, `saved=yes`.
+- 2 px chỉ được trừ khỏi ngưỡng khi cả nhóm `keepNext` ở cuối tài liệu đều rỗng. Lý do đo thực tế: trên d21, khối ảnh 428.7 px được `offsetHeight` làm tròn thành 429 px; các khối cuối trang cộng dồn xấp xỉ 1 px, trong khi Word còn khoảng 2 px vùng chữ. Dung sai xử lý sai khác làm tròn sát ngưỡng đó; không áp dụng cho nhóm tiêu đề có chữ.
+
+CORPUS DOC:
+
+- Batch mới ghi đủ `legacy01`–`legacy19`: 16 PASS (`legacy02`–`legacy12`, `legacy14`–`legacy17`, `legacy19`); `legacy01` FAIL vì không tạo file lưu (Word/canvas 5/5); `legacy13` FAIL (1/1/2); `legacy18` FAIL (3/3/2).
+- `legacy18` vẫn mất trang khi lưu. So sánh DOCX chuẩn hóa (74 đoạn) với bản lưu (71 đoạn) cho thấy tám đoạn trống/khoảng trắng ở giữa tài liệu không còn; phía cuối có thêm năm đoạn trống. Chưa xác định bước chính xác gây mất đoạn, nên không thêm sửa đoán mò.
+- `legacy20` BLOCKED. COM OpenAndRepair không trả về Document (PowerShell báo NullReferenceException). Word đang có modal “The last time you opened 'd10.docx', it caused a serious error”; `_word_oracle3.ps1` khi timeout sẽ dừng mọi WINWORD, nên đã dừng đúng tiến trình batch của lượt này để giữ nguyên các Word process đã tồn tại. Không có page count mới cho `legacy20`.
+
+CORPUS DOCX VÀ KIỂM TRA SHAPE:
+
+- Batch round-trip 23 DOCX `d01`–`d09`, `d11`–`d24` có file Word lưu cho cả 23; Word page count của file lưu khớp file nguồn ở cả 23. Lượt batch trước cho canvas thừa một trang ở `d01`, `d13`, `d19`; hai lượt kiểm tra liên tiếp mới ở trên đều đã khớp.
+- `_writer_shape_counts.py`: 23/23 không tăng số `wsp`/`txbx`/`txc`/media và không có ID `wp:docPr` trùng. Lưu ý `txc` giảm 17 ở d06 và 15 ở d09; bộ kiểm tra không xem giảm số lượng là “excess”.
+- `_word_shape_pages.ps1`: d04, d06, d07, d09, d24 đều không thiếu shape và không đổi trang neo.
+
+TEST RESULTS:
+
+- PASS — `node tests/run-tests.js`: 1855/1855 (chạy lại với `LOCALAPPDATA` đã đặt).
+- PASS — `python -m unittest discover -s tests`: 379/379 với `LOCALAPPDATA` đã đặt. Lượt chạy trước đó có 1 lỗi ở `test_paragraph_spacing_inline_margin_survives_roundtrip`; test riêng và lượt suite đầy đủ sau đó đều pass.
+- PASS — `python -m unittest tests.test_writer_legacy_doc_save -v`: 1/1.
+- BUILD — NOT RUN.
+
+FILES/COMMITS:
+
+- Gỡ `prepare_writer_legacy_doc_export` và chỗ gọi để không đổi `wrapSquare` sang `wrapNone`; test xác nhận DOCX trung gian còn `wrapSquare`.
+- `bd0daec` — `fix(writer): W-legacydoc2b preserve square wrap on DOC export`.
+- Chưa merge vào main.
+
+KNOWN FAILURES/BLOCKERS:
+
+- `legacy01`: không có file lưu ở batch mới.
+- `legacy13`: DOC lưu hai trang thay vì một; ảnh giữ `wdWrapTopBottom` thay vì `wdWrapSquare` do bộ lọc DOC.
+- `legacy18`: DOC lưu hai trang thay vì ba; tám đoạn trắng/khoảng trắng không còn trong thân tài liệu.
+- `legacy20`: BLOCKED bởi modal Word/COM; OpenAndRepair không trả về Document.
