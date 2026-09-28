@@ -79,3 +79,48 @@ trước/sau hậu xử lý; (3) chỉ sửa Writer adapter/platform layer nếu
 Kết quả đo batch: 09–19 đều mở và sửa được; 20 mở và sửa được nhưng bước
 Word page-count bị timeout. Findings này chỉ ghi số đo và giới hạn hiện biết;
 chưa phải xác nhận PASS cho tính năng.
+
+## Chẩn đoán bổ sung sau khi ghép map đoạn và thử các filter
+
+`legacy06.doc` đã được chạy lại trực tiếp trong worktree lúc 21:25 với
+`_batch_writer.py`: Word/canvas/bản lưu lần lượt **3/3/3**. Số 3/3/4 trong
+bảng 01–08 phía trên thuộc báo cáo trước đó và không còn tái hiện.
+
+### legacy13.doc — DOC filter làm đổi wrapping ảnh ở đoạn đã sửa
+
+Word gốc và canvas đều có 1 trang; bản lưu của batch có 2. So sánh Word từng
+đoạn cho thấy đoạn đầu tiên bị đẩy là đoạn 2, “Ngày lập phiếu…”, từ y=120 pt
+lên y=177 pt (+57 pt). Đoạn 1 chứa ảnh nổi: Word gốc dùng `wp:wrapSquare`; bản
+lưu `.doc` sau khi chuyển lại DOCX dùng `wp:wrapTopAndBottom`. Như vậy filter
+DOC đặt dòng chữ xuống dưới ảnh, làm dịch nội dung phía sau và tràn trang.
+
+Đã thử các giá trị wrapping trên DOCX trung gian rồi xuất bằng filter `.doc`:
+
+| Wrapping trước DOC filter | Trang Word sau lưu |
+|---|---:|
+| `wrapSquare` | 2 |
+| `wrapTopAndBottom` | 2 |
+| `wrapNone` | 1 |
+
+Với biến thể `wrapNone`, y và số dòng các đoạn đầu trùng Word gốc. Sửa sẽ chỉ
+áp dụng cho anchor trong đoạn có nội dung đã thay đổi khi đích là `.doc`; các
+anchor ở đoạn không sửa giữ nguyên wrapping. Đây là giới hạn của đường xuất
+DOC qua filter đang dùng, không yêu cầu sửa LibreOffice Core.
+
+### legacy18.doc — `keepNext` bị bỏ trong phân trang canvas
+
+LibreOffice DOC→DOCX trung gian có 74 đoạn trong OOXML; 11 đoạn rỗng cuối tài
+liệu có `<w:keepNext w:val="true"/>` liên tiếp. Word mở DOCX đó vẫn có 3 trang,
+nhưng canvas chỉ có 2. Map đoạn cho thấy đoạn trống đầu tiên của chuỗi nằm ở
+Word trang 3 trong khi canvas còn đặt nó ở trang 2. HTML của LibreOffice mang
+quy tắc tương ứng `page-break-after: avoid`, nhưng thuật toán pagination sống
+không xử lý chuỗi “giữ với đoạn sau”. Lưu lại tiếp tục cho 2 trang. Sửa sẽ
+chuyển `keepNext` trực tiếp từ OOXML sang dấu nội bộ trên `<p>` và để cả
+pagination canvas lẫn Print Preview đẩy nguyên chuỗi sang trang kế tiếp nếu
+không vừa khoảng trống còn lại.
+
+### Trạng thái findings
+
+Nguyên nhân hai lỗi tái hiện (`legacy13`, `legacy18`) đã được cô lập bằng XML,
+Word COM và thử chuyển đổi. `legacy20` vẫn chưa đo được trang bản lưu do Word
+bật modal error dialog. Không phát hiện thêm lệch ở `legacy06` sau lần chạy mới.
