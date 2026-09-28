@@ -1014,15 +1014,6 @@ class VnOfficeApi:
             workbook_xml = _read_xlsx_workbook_xml(src_path)
             if workbook_xml:
                 payload["ooxmlWorkbookXml"] = workbook_xml
-            # Detect external links in XLSX so JS can show warning bar
-            if src_path and str(src_path).lower().endswith(".xlsx"):
-                try:
-                    with open(src_path, "rb") as _fh:
-                        _src_bytes = _fh.read()
-                    if _ooxml_zip_patch().xlsx_has_external_links(_src_bytes):
-                        payload["hasExternalLinks"] = True
-                except Exception:
-                    pass
         elif app_kind == "slides":
             presentation_xml = _read_pptx_presentation_xml(src_path)
             if presentation_xml:
