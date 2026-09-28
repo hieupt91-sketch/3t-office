@@ -147,7 +147,7 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("freezepanes")) return ICONS.freezePanes;
   if (idLower.includes("normalview") || idLower.includes("view.normal")) return ICONS.sheetNormalView || ICONS.slidesNormalView;
   if (idLower.includes("pagebreakpreview")) return ICONS.sheetPageBreakPreview;
-  if (idLower.includes("sheetpagelayout")) return ICONS.sheetPageLayout;
+  if (idLower.includes("sheetpagelayout") || idLower.includes("pagelayout")) return ICONS.sheetPageLayout;
   if (idLower.includes("formulabar")) return ICONS.sheetFormulaBar;
   if (idLower.includes("headings")) return ICONS.headings;
   if (idLower.includes("macromanager")) return ICONS.macroManager;
