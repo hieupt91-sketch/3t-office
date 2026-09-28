@@ -536,24 +536,6 @@ def _convert_writer_html_to_doc(src_html: str, out_dir: str, source_path: str | 
     _apply_native_export_postprocess(
         src_html, intermediate_docx, "writer", "docx", source_path=source_docx,
     )
-    if source_docx and os.path.isfile(source_docx):
-        try:
-            with open(intermediate_docx, "rb") as handle:
-                converted_docx = handle.read()
-            with open(source_docx, "rb") as handle:
-                original_docx = handle.read()
-            prepared = _ooxml_zip_patch().prepare_writer_legacy_doc_export(
-                converted_docx, original_docx,
-            )
-            if prepared != converted_docx:
-                with open(intermediate_docx, "wb") as handle:
-                    handle.write(prepared)
-        except DocumentEngineError:
-            raise
-        except Exception as exc:
-            raise DocumentEngineError(
-                f"Không chuẩn bị được anchor Writer cho xuất DOC: {exc}"
-            ) from exc
     return _run_soffice_convert(intermediate_docx, "doc", out_dir, app_kind="writer")
 
 

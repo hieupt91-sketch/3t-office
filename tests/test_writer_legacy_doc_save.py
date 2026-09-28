@@ -25,57 +25,16 @@ def _document_xml(docx_bytes: bytes) -> str:
 
 
 class WriterLegacyDocSaveTests(unittest.TestCase):
-    def test_edited_square_wrapped_anchor_uses_doc_compatible_wrap(self):
+    def test_doc_export_preserves_square_wrap_in_intermediate_before_filtering(self):
         source = _docx(
             "<w:document><w:body><w:p><w:r><w:drawing><wp:anchor>"
             "<wp:wrapSquare/><wp:docPr id=\"1\" name=\"Picture 1\"/>"
             "</wp:anchor></w:drawing></w:r><w:r><w:t>Original title</w:t></w:r>"
-            "</w:p><w:p><w:r><w:t>Unchanged body text</w:t></w:r></w:p>"
-            "</w:body></w:document>"
-        )
-        converted = _docx(
-            "<w:document><w:body><w:p><w:r><w:drawing><wp:anchor>"
-            "<wp:wrapTopAndBottom/><wp:docPr id=\"1\" name=\"Image 1\"/>"
-            "</wp:anchor></w:drawing></w:r><w:r><w:t>Edited title ZZ</w:t></w:r>"
-            "</w:p><w:p><w:r><w:t>Unchanged body text</w:t></w:r></w:p>"
-            "</w:body></w:document>"
-        )
-
-        result = main._ooxml_zip_patch().prepare_writer_legacy_doc_export(converted, source)
-
-        xml = _document_xml(result)
-        self.assertIn("<wp:wrapNone/>", xml)
-        self.assertNotIn("<wp:wrapTopAndBottom/>", xml)
-        self.assertIn("Edited title ZZ", xml)
-
-    def test_unchanged_square_wrapped_anchor_is_left_alone(self):
-        source = _docx(
-            "<w:document><w:body><w:p><w:r><w:drawing><wp:anchor>"
-            "<wp:wrapSquare/><wp:docPr id=\"1\" name=\"Picture 1\"/>"
-            "</wp:anchor></w:drawing></w:r><w:r><w:t>Same text</w:t></w:r>"
             "</w:p></w:body></w:document>"
         )
         converted = _docx(
             "<w:document><w:body><w:p><w:r><w:drawing><wp:anchor>"
             "<wp:wrapSquare/><wp:docPr id=\"1\" name=\"Image 1\"/>"
-            "</wp:anchor></w:drawing></w:r><w:r><w:t>Same text</w:t></w:r>"
-            "</w:p></w:body></w:document>"
-        )
-
-        result = main._ooxml_zip_patch().prepare_writer_legacy_doc_export(converted, source)
-
-        self.assertEqual(result, converted)
-
-    def test_doc_export_prepares_the_intermediate_docx_before_filtering(self):
-        source = _docx(
-            "<w:document><w:body><w:p><w:r><w:drawing><wp:anchor>"
-            "<wp:wrapSquare/><wp:docPr id=\"1\" name=\"Picture 1\"/>"
-            "</wp:anchor></w:drawing></w:r><w:r><w:t>Original title</w:t></w:r>"
-            "</w:p></w:body></w:document>"
-        )
-        converted = _docx(
-            "<w:document><w:body><w:p><w:r><w:drawing><wp:anchor>"
-            "<wp:wrapTopAndBottom/><wp:docPr id=\"1\" name=\"Image 1\"/>"
             "</wp:anchor></w:drawing></w:r><w:r><w:t>Edited title ZZ</w:t></w:r>"
             "</w:p></w:body></w:document>"
         )
@@ -108,7 +67,8 @@ class WriterLegacyDocSaveTests(unittest.TestCase):
             ):
                 main._convert_writer_html_to_doc(str(html), str(root), str(source_doc))
 
-        self.assertIn("<wp:wrapNone/>", observed["intermediate"])
+        self.assertIn("<wp:wrapSquare/>", observed["intermediate"])
+        self.assertNotIn("<wp:wrapNone/>", observed["intermediate"])
         self.assertIn("Edited title ZZ", observed["intermediate"])
 
 
