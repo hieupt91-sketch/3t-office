@@ -392,15 +392,19 @@ export class FormulaEngine {
 
   _parseReference(reference) {
     const raw = String(reference).trim();
-    if (this._parsedReferenceCache.has(raw)) {
-      return this._parsedReferenceCache.get(raw);
+    // Named ranges and unqualified names resolve against the sheet being calculated,
+    // so the cache key must include it (sheet-scoped names differ per sheet).
+    const currentSheet = typeof this.currentSheetResolver === "function" ? (this.currentSheetResolver() || "") : "";
+    const parseKey = `${currentSheet}|${raw}`;
+    if (this._parsedReferenceCache.has(parseKey)) {
+      return this._parsedReferenceCache.get(parseKey);
     }
     const named = this._resolveNamedRange(raw);
     if (named) {
       const sheet = named.sheet || (typeof this.currentSheetResolver === "function" ? this.currentSheetResolver() : null);
       if (sheet && typeof this.sheetResolver === "function" && !this.sheetResolver(sheet)) return { error: "#REF!" };
       const parsed = { sheet, ref: String(named.ref || named).replace(/\$/g, "").toUpperCase() };
-      this._parsedReferenceCache.set(raw, parsed);
+      this._parsedReferenceCache.set(parseKey, parsed);
       return parsed;
     }
     const threeD = raw.match(/^(?:'((?:[^']|'')+)'|([^':!]+))\s*:\s*(?:'((?:[^']|'')+)'|([^'!]+))!\s*(\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?)$/i);
@@ -412,7 +416,7 @@ export class FormulaEngine {
       const end = names.indexOf(last);
       if (start < 0 || end < 0) return { error: "#REF!" };
       const parsed = { sheets: names.slice(Math.min(start, end), Math.max(start, end) + 1), ref: threeD[5].replace(/\$/g, "").toUpperCase() };
-      this._parsedReferenceCache.set(raw, parsed);
+      this._parsedReferenceCache.set(parseKey, parsed);
       return parsed;
     }
     const match = raw.match(/^(?:'((?:[^']|'')+)'|([^'!]+))!\s*(\$?[A-Z]+(?::\$?[A-Z]+)|\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?)$/i);
@@ -420,11 +424,11 @@ export class FormulaEngine {
       const sheet = (match[1] ? match[1].replace(/''/g, "'") : match[2]).trim();
       if (typeof this.sheetResolver !== "function" || !this.sheetResolver(sheet)) return { error: "#REF!" };
       const parsed = { sheet, ref: match[3].replace(/\$/g, "").toUpperCase() };
-      this._parsedReferenceCache.set(raw, parsed);
+      this._parsedReferenceCache.set(parseKey, parsed);
       return parsed;
     }
     const parsed = { sheet: null, ref: this._resolveRangeReference(raw) };
-    this._parsedReferenceCache.set(raw, parsed);
+    this._parsedReferenceCache.set(parseKey, parsed);
     return parsed;
   }
 

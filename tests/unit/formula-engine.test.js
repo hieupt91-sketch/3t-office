@@ -445,5 +445,26 @@ export async function runFormulaEngineTests() {
     })()
   });
 
+  // Reference-parse cache must not reuse a sheet-scoped name across sheets
+  // (Claude review 29/9: the cache was keyed by the raw text only).
+  results.push({
+    name: "Cache tham chiếu: tên định nghĩa theo từng sheet không dùng lẫn giữa các sheet",
+    pass: (() => {
+      const sheets = {
+        S1: new Map([["A1", { val: 10, formula: "", style: {} }]]),
+        S2: new Map([["A1", { val: 20, formula: "", style: {} }]]),
+      };
+      let current = "S1";
+      const scopedName = (name) => (name === "TyGia" ? { sheet: current, ref: "A1" } : null);
+      const engine = new FormulaEngine(
+        () => sheets[current], scopedName, (sheet) => sheets[sheet] || null, () => current, () => ["S1", "S2"]
+      );
+      const onS1 = engine.evaluate("=SUM(TyGia)");
+      current = "S2";
+      const onS2 = engine.evaluate("=SUM(TyGia)");
+      return onS1 === 10 && onS2 === 20;
+    })()
+  });
+
   return results;
 }
