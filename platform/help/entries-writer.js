@@ -847,6 +847,24 @@ export const WRITER_HELP_ENTRIES = [
       "Nhấn «Chèn vào tài liệu» để thêm bản nháp vào vị trí con trỏ. Ctrl+Z hoàn tác nếu chèn nhầm.",
       "Lưu ý: Chế độ quy tắc cục bộ chỉ đưa ra gợi ý chung. Để có bản nháp tốt, nên kết nối AI cloud (OpenAI/Gemini/Claude) hoặc cài Ollama."
     ]
+  },
+  {
+    id: "writer.file.backstage",
+    app: "writer",
+    commandIds: ["common.file.backstage", "common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.print", "common.file.exportPdf"],
+    title: "Menu Tệp (Backstage) và quản lý tài liệu",
+    summary: "Mở menu Tệp toàn màn hình (Alt+F hoặc nút Tệp màu xanh góc trên-trái) để khởi tạo văn bản theo mẫu chuẩn, mở lại tài liệu gần đây, lưu DOCX, in với khung xem trước trực tiếp, hoặc xuất PDF.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
+    keywords: ["tệp", "file", "backstage", "alt+f", "mẫu tài liệu", "tệp gần đây", "lưu", "in", "xuất pdf", "trang chủ", "menu tệp"],
+    steps: [
+      "Mở menu Tệp: Nhấp vào nút màu xanh «Tệp» ở góc trên cùng bên trái thanh Ribbon hoặc nhấn tổ hợp phím Alt+F. Giao diện Backstage toàn màn hình sẽ mở ra với thanh điều hướng màu xanh bên trái và tiêu điểm tự động đặt vào nút 'Quay lại'.",
+      "Màn hình Trang chủ: Hiển thị danh sách mẫu tài liệu chuẩn Việt Nam (Văn bản trống, Quyết định ban hành tiêu chuẩn theo NĐ 30/2020/NĐ-CP) và bảng 'Tài liệu mở gần đây'.",
+      "Chọn mẫu tài liệu: Dùng phím mũi tên Phải để đi vào lưới mẫu, dùng mũi tên duyệt và nhấn Enter hoặc phím Space để khởi tạo văn bản theo mẫu đang chọn.",
+      "Mở và quản lý tệp gần đây: Dùng phím mũi tên Xuống để chuyển tới danh sách tệp gần đây. Nhấp chuột hoặc bấm Enter để mở lại tệp. Mỗi hàng tệp có nút 'Gỡ khỏi danh sách' (biểu tượng ×) giúp bạn chủ động loại bỏ tệp đã bị xóa hoặc đổi tên. Nút 'Xóa lịch sử' phía trên cho phép dọn sạch toàn bộ danh sách khi cần.",
+      "In với Xem trước trực tiếp: Chọn mục «In» trên thanh bên trái (hoặc nhấn Ctrl+P). Panel In hiển thị nút 'In ngay', cụm chuyển trang (Trang trước/sau) và khung Live Preview Thumbnail mô phỏng trang in A4 thực tế của tài liệu. Nhấn 'In ngay' để chuyển sang hộp thoại in của máy in.",
+      "Các lệnh tài liệu khác: Các mục 'Tạo mới' (Ctrl+N), 'Mở' (Ctrl+O), 'Lưu' (Ctrl+S), 'Lưu bản sao' (F12) và 'Xuất PDF' đều có thể kích hoạt trực tiếp từ thanh bên trái.",
+      "Đóng menu Tệp: Nhấn phím Escape hoặc nhấp nút '← Quay lại' ở góc trên bên trái bất kỳ lúc nào để đóng Backstage và khôi phục tiêu điểm chính xác về vị trí soạn thảo trước đó."
+    ]
   }
 ];
 

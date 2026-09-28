@@ -588,6 +588,21 @@ export class AppShell {
     );
     let recentSectionHtml = "";
 
+    const renderEmptyRecent = (container) => {
+      container.innerHTML = "";
+      const emptyStateEl = createEmptyState({
+        icon: "📁",
+        title: t("backstage.emptyRecentTitle"),
+        description: t("backstage.emptyRecentDesc"),
+        actionText: t("backstage.new"),
+        onAction: () => {
+          closeModal();
+          globalCommandBus.execute("common.file.new");
+        }
+      });
+      container.appendChild(emptyStateEl);
+    };
+
     if (recentFiles.length === 0) {
       recentSectionHtml = `<div id="vno-recent-empty-container"></div>`;
     } else {
@@ -598,11 +613,19 @@ export class AppShell {
         return `
           <div class="vno-recent-row" role="button" tabindex="0" aria-label="${file.name}, sửa đổi: ${timeStr}, định dạng: ${file.format}"
                data-recent-app="${file.app}" data-recent-name="${file.name}">
-            <div>
-              <strong style="font-size:13px;color:var(--vno-text-primary);">${file.name}</strong>
+            <div style="min-width:0;flex:1;">
+              <strong style="font-size:13px;color:var(--vno-text-primary);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${file.name}</strong>
               <div style="font-size:11px;color:var(--vno-text-muted);margin-top:2px;">Sửa đổi: ${timeStr}</div>
             </div>
-            <span style="font-size:12px;color:var(--vno-text-secondary);">${file.format}</span>
+            <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
+              <span style="font-size:12px;color:var(--vno-text-secondary);">${file.format}</span>
+              <button type="button" class="vno-recent-remove-btn"
+                      data-remove-name="${file.name}" data-remove-app="${file.app}"
+                      title="${t("backstage.removeRecentTooltip", "Gỡ tệp này khỏi danh sách gần đây")}"
+                      aria-label="${t("backstage.removeRecentTooltip", "Gỡ tệp này khỏi danh sách gần đây")}">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
           </div>
         `;
       }).join("");
@@ -624,7 +647,10 @@ export class AppShell {
     modal.innerHTML = `
       <div class="vno-backstage-sidebar" role="navigation" aria-label="Điều hướng menu tệp">
         <button type="button" class="vno-backstage-back-btn" id="vno-backstage-back" aria-label="Quay lại tài liệu">
-          <span aria-hidden="true">←</span> <span>Quay lại</span>
+          <span class="vno-backstage-back-icon" aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 8 8 12 12 16"/><line x1="16" y1="12" x2="8" y2="12"/></svg>
+          </span>
+          <span>Quay lại</span>
         </button>
         <button type="button" class="vno-backstage-nav-btn is-active" data-backstage-tab="home" id="vno-backstage-nav-home">${t("backstage.home")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.new">${t("backstage.new")}</button>
@@ -647,7 +673,7 @@ export class AppShell {
           </div>
 
           <h2 style="font-size:18px;font-weight:700;margin-top:36px;margin-bottom:16px;color:var(--vno-text-primary);">${t("backstage.recentTitle")}</h2>
-          ${recentSectionHtml}
+          <div id="vno-recent-section-wrapper">${recentSectionHtml}</div>
         </div>
 
         <div class="vno-backstage-tab-content" id="vno-backstage-print-view" style="display:none;"></div>
@@ -708,6 +734,15 @@ export class AppShell {
           sidebarButtons[nextIdx]?.focus();
         }
       } else if (e.key === "ArrowRight" && modal.querySelector(".vno-backstage-sidebar")?.contains(document.activeElement)) {
+        const printViewEl = modal.querySelector("#vno-backstage-print-view");
+        if (printViewEl && printViewEl.style.display !== "none") {
+          const printBtn = printViewEl.querySelector("#vno-backstage-btn-print-now");
+          if (printBtn) {
+            e.preventDefault();
+            printBtn.focus();
+            return;
+          }
+        }
         const contentFocusables = Array.from(modal.querySelectorAll(
           '.vno-backstage-content button:not([disabled]), .vno-backstage-content [tabindex="0"], .vno-backstage-content input:not([disabled]), .vno-backstage-content select:not([disabled])'
         )).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
@@ -715,17 +750,39 @@ export class AppShell {
           e.preventDefault();
           contentFocusables[0].focus();
         }
+      } else if (modal.querySelector("#vno-backstage-print-view")?.contains(document.activeElement)) {
+        if (e.key === "ArrowLeft") {
+          e.preventDefault();
+          const printNav = modal.querySelector("#vno-backstage-nav-print") || modal.querySelector("#vno-backstage-back");
+          printNav?.focus();
+        }
       } else if (document.activeElement?.classList?.contains("vno-template-card")) {
         const cards = Array.from(modal.querySelectorAll(".vno-template-card"))
           .filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
         const curIdx = cards.indexOf(document.activeElement);
         if (curIdx !== -1) {
-          if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+          if (e.key === "ArrowRight") {
             e.preventDefault();
             cards[(curIdx + 1) % cards.length]?.focus();
-          } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+          } else if (e.key === "ArrowLeft") {
             e.preventDefault();
-            if (e.key === "ArrowLeft" && curIdx === 0) {
+            if (curIdx === 0) {
+              const activeNavBtn = modal.querySelector(".vno-backstage-nav-btn.is-active") || modal.querySelector("#vno-backstage-back");
+              activeNavBtn?.focus();
+            } else {
+              cards[(curIdx - 1 + cards.length) % cards.length]?.focus();
+            }
+          } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            const firstRow = modal.querySelector(".vno-recent-row");
+            if (firstRow) {
+              firstRow.focus();
+            } else {
+              cards[(curIdx + 1) % cards.length]?.focus();
+            }
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            if (curIdx === 0) {
               const activeNavBtn = modal.querySelector(".vno-backstage-nav-btn.is-active") || modal.querySelector("#vno-backstage-back");
               activeNavBtn?.focus();
             } else {
@@ -743,7 +800,18 @@ export class AppShell {
             rows[(curIdx + 1) % rows.length]?.focus();
           } else if (e.key === "ArrowUp") {
             e.preventDefault();
-            rows[(curIdx - 1 + rows.length) % rows.length]?.focus();
+            if (curIdx === 0) {
+              const cards = Array.from(modal.querySelectorAll(".vno-template-card"))
+                .filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+              if (cards.length > 0) {
+                cards[cards.length - 1].focus();
+              } else {
+                const activeNavBtn = modal.querySelector(".vno-backstage-nav-btn.is-active") || modal.querySelector("#vno-backstage-back");
+                activeNavBtn?.focus();
+              }
+            } else {
+              rows[(curIdx - 1 + rows.length) % rows.length]?.focus();
+            }
           } else if (e.key === "ArrowLeft") {
             e.preventDefault();
             const activeNavBtn = modal.querySelector(".vno-backstage-nav-btn.is-active") || modal.querySelector("#vno-backstage-back");
@@ -757,17 +825,7 @@ export class AppShell {
     // Nếu không có tài liệu gần đây, mount EmptyState component
     const emptyContainer = modal.querySelector("#vno-recent-empty-container");
     if (emptyContainer) {
-      const emptyStateEl = createEmptyState({
-        icon: "📁",
-        title: t("backstage.emptyRecentTitle"),
-        description: t("backstage.emptyRecentDesc"),
-        actionText: t("backstage.new"),
-        onAction: () => {
-          closeModal();
-          globalCommandBus.execute("common.file.new");
-        }
-      });
-      emptyContainer.appendChild(emptyStateEl);
+      renderEmptyRecent(emptyContainer);
     }
 
     // Xử lý nút Xóa lịch sử gần đây
@@ -775,15 +833,63 @@ export class AppShell {
     if (clearBtn) {
       clearBtn.addEventListener("click", () => {
         RecentFilesManager.clearAll();
-        closeModal();
-        this.showBackstageMenu();
+        const wrapper = modal.querySelector("#vno-recent-section-wrapper");
+        if (wrapper) {
+          renderEmptyRecent(wrapper);
+        }
       });
     }
+
+    // Gắn handler cho nút gỡ từng tài liệu gần đây
+    const attachRemoveHandlers = () => {
+      modal.querySelectorAll(".vno-recent-remove-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const name = btn.getAttribute("data-remove-name");
+          const app = btn.getAttribute("data-remove-app");
+          RecentFilesManager.removeFile({ name, app });
+          const row = btn.closest(".vno-recent-row");
+          row?.remove();
+          const remaining = modal.querySelectorAll(".vno-recent-row");
+          if (remaining.length === 0) {
+            const wrapper = modal.querySelector("#vno-recent-section-wrapper");
+            if (wrapper) {
+              renderEmptyRecent(wrapper);
+            }
+          }
+        });
+      });
+    };
+    attachRemoveHandlers();
 
     // Xử lý nhấp chọn tài liệu gần đây
     modal.querySelectorAll(".vno-recent-row").forEach(row => {
       const activateRecent = () => {
         const app = row.getAttribute("data-recent-app");
+        const fileName = row.getAttribute("data-recent-name");
+        const isMissing = row.getAttribute("data-recent-missing") === "true";
+
+        if (isMissing) {
+          showConfirmDialog({
+            title: t("backstage.fileNotFoundTitle", "Không tìm thấy tệp"),
+            message: t("backstage.fileNotFoundMessage", "Tệp \"{name}\" không còn tồn tại tại vị trí cũ hoặc đã bị xóa. Bạn có muốn gỡ tệp này khỏi danh sách gần đây không?").replace("{name}", fileName),
+            confirmText: t("backstage.removeRecent", "Gỡ khỏi danh sách"),
+            cancelText: t("sheetDialogs.cancel", "Hủy"),
+            onConfirm: () => {
+              RecentFilesManager.removeFile({ name: fileName, app: app });
+              row.remove();
+              const remaining = modal.querySelectorAll(".vno-recent-row");
+              if (remaining.length === 0) {
+                const wrapper = modal.querySelector("#vno-recent-section-wrapper");
+                if (wrapper) {
+                  renderEmptyRecent(wrapper);
+                }
+              }
+            }
+          });
+          return;
+        }
+
         closeModal();
         if (app !== this.appName) {
           this.requestAppSwitch(app);

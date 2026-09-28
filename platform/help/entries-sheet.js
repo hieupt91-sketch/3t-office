@@ -913,6 +913,24 @@ export const SHEET_HELP_ENTRIES = [
       "Công thức được validate trước khi áp dụng — nếu chứa hàm VN Sheet chưa hỗ trợ, hệ thống sẽ báo lỗi rõ ràng thay vì ghi công thức lỗi vào ô.",
       "Lưu ý: Kết quả phụ thuộc vào AI provider đang dùng. Chế độ quy tắc cục bộ chỉ đưa ra gợi ý chung."
     ]
+  },
+  {
+    id: "sheet.file.backstage",
+    app: "sheet",
+    commandIds: ["common.file.backstage", "common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.print", "common.file.exportPdf"],
+    title: "Menu Tệp (Backstage) và quản lý bảng tính",
+    summary: "Mở menu Tệp toàn màn hình (Alt+F hoặc nút Tệp màu xanh góc trên-trái) để tạo bảng tính trống hoặc mẫu dự toán, mở tệp XLSX gần đây, lưu bảng tính, xem trước trang in trực tiếp và xuất PDF.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Trang tính" },
+    keywords: ["tệp", "file", "backstage", "alt+f", "mẫu bảng tính", "tệp gần đây", "lưu", "in", "xuất pdf", "dự toán", "menu tệp"],
+    steps: [
+      "Mở menu Tệp: Nhấp vào nút màu xanh lá «Tệp» ở góc trên cùng bên trái thanh Ribbon hoặc nhấn tổ hợp phím Alt+F. Giao diện Backstage toàn màn hình sẽ mở ra với thanh điều hướng màu xanh bên trái và tiêu điểm tự động đặt vào nút 'Quay lại'.",
+      "Màn hình Trang chủ: Cung cấp danh sách mẫu bảng tính chuẩn (Bảng tính trống, Dự toán kinh phí VN Office) cùng bảng danh sách 'Tài liệu mở gần đây'.",
+      "Chọn mẫu bảng tính: Dùng phím mũi tên Phải để đi vào lưới mẫu, dùng mũi tên duyệt và nhấn Enter hoặc Space để khởi tạo bảng tính theo mẫu đang chọn.",
+      "Mở và quản lý tệp gần đây: Dùng phím mũi tên Xuống để chuyển xuống bảng tệp gần đây. Nhấp chuột hoặc bấm Enter để mở lại bảng tính. Nhấp nút 'Gỡ khỏi danh sách' (biểu tượng ×) trên mỗi hàng để loại bỏ tệp đã bị xóa khỏi máy. Nhấp nút 'Xóa lịch sử' nếu muốn xóa toàn bộ danh sách tệp gần đây.",
+      "In ấn với Live Preview Thumbnail: Chọn mục «In» trên thanh bên trái (hoặc nhấn Ctrl+P). Panel In hiển thị nút 'In ngay', cụm chuyển trang (Trang trước/sau) và khung Live Preview mô phỏng chính xác bảng dữ liệu theo Vùng in (Print Area) và Thiết lập trang (Page Setup). Nhấn 'In ngay' để chuyển sang hộp thoại in của máy in.",
+      "Các thao tác tệp khác: 'Tạo mới' (Ctrl+N), 'Mở' (Ctrl+O), 'Lưu' (Ctrl+S), 'Lưu bản sao' (F12) và 'Xuất PDF' đều được bố trí trực quan và hỗ trợ phím tắt chuẩn Office.",
+      "Đóng menu Tệp: Nhấn phím Escape hoặc nhấp nút '← Quay lại' ở góc trên bên trái bất kỳ lúc nào để đóng Backstage và khôi phục tiêu điểm chính xác về ô bảng tính bạn đang chọn trước đó."
+    ]
   }
 ];
 
