@@ -8382,7 +8382,13 @@ def _writer_anchor_has_edited_text(anchor: str) -> bool:
 def _remove_duplicate_writer_textbox_anchors(
     converted_xml: str, original_xml: str, pristine_document: bool = False,
 ) -> str:
-    """Drop untouched LO text boxes already contained by a source WPG group."""
+    """Drop surplus LO text boxes already contained by a source WPG group.
+
+    A standalone callout may repeat a label that also sits inside a group
+    (d06 "Camera ống khói…"). Keep one converted frame per such source text
+    box so passthrough can restore the original DrawingML. Only the extra
+    group-expansion frames are removed.
+    """
     # Read WPG elements directly: a group may itself contain drawing anchors,
     # so the flat wp:anchor regex can stop at a nested closing tag.
     group_texts = [
@@ -8393,17 +8399,37 @@ def _remove_duplicate_writer_textbox_anchors(
     if not group_texts:
         return converted_xml
 
-    def keep_or_drop(match: re.Match) -> str:
+    standalone_counts: dict[str, int] = {}
+    for anchor in _writer_outer_anchor_blocks(original_xml):
+        if _writer_anchor_passthrough_kind(anchor) == "group":
+            continue
+        if not _writer_anchor_has_textbox(anchor):
+            continue
+        key = _paragraph_match_key(anchor)
+        if len(key) >= 4:
+            standalone_counts[key] = standalone_counts.get(key, 0) + 1
+
+    seen: dict[str, int] = {}
+    drop_at: set[int] = set()
+    for match in _WRITER_ANCHOR_RE.finditer(converted_xml):
         anchor = match.group(0)
         if not re.search(r"<w:txbxContent\b", anchor, re.IGNORECASE):
-            return anchor
+            continue
         if not pristine_document and not _writer_anchor_is_untouched(anchor):
-            return anchor
-        text = _paragraph_match_key(anchor)
-        if len(text) < 4 or not any(text in group_text for group_text in group_texts):
-            return anchor
-        return ""
+            continue
+        key = _paragraph_match_key(anchor)
+        if len(key) < 4 or not any(key in group_text for group_text in group_texts):
+            continue
+        seen[key] = seen.get(key, 0) + 1
+        if seen[key] > standalone_counts.get(key, 0):
+            drop_at.add(match.start())
+    if not drop_at:
+        return converted_xml
 
+    def keep_or_drop(match: re.Match) -> str:
+        return "" if match.start() in drop_at else match.group(0)
+
+    result = _WRITER_ANCHOR_RE.sub(keep_or_drop, converted_xml)
     alternate_re = re.compile(
         r"<mc:AlternateContent\b[^>]*>[\s\S]*?</mc:AlternateContent\s*>",
         re.IGNORECASE,
@@ -8411,11 +8437,11 @@ def _remove_duplicate_writer_textbox_anchors(
 
     def clean_alternate(match: re.Match) -> str:
         block = match.group(0)
-        anchor = _WRITER_ANCHOR_RE.search(block)
-        return "" if anchor and not keep_or_drop(anchor) else block
+        if re.search(r"<wp:(?:anchor|inline)\b", block, re.IGNORECASE):
+            return block
+        return ""
 
-    result = alternate_re.sub(clean_alternate, converted_xml)
-    return _WRITER_ANCHOR_RE.sub(keep_or_drop, result)
+    return alternate_re.sub(clean_alternate, result)
 
 
 def _writer_passthrough_matches(
@@ -8542,6 +8568,28 @@ def _writer_passthrough_matches(
         source_index = unused[0]
         matches[converted_index] = source_index
         used_source.add(source_index)
+    # Rectangle 44 is an empty text box. LibreOffice renames it (Frame6) and
+    # the text key is too short for the match above. Pair only when the two
+    # empty populations are the same size, so extra blank frames are not guessed.
+    source_empty = [
+        index for index, anchor in enumerate(original)
+        if index not in used_source
+        and _writer_anchor_has_textbox(anchor)
+        and _writer_anchor_passthrough_kind(anchor) != "group"
+        and len(_paragraph_match_key(anchor)) < 4
+    ]
+    converted_empty = [
+        index for index, anchor in enumerate(converted)
+        if index not in matches
+        and _writer_anchor_has_textbox(anchor)
+        and _writer_anchor_is_untouched(anchor)
+        and len(_paragraph_match_key(anchor)) < 4
+        and (not _writer_anchor_name(anchor) or _writer_anchor_name(anchor) not in source_names)
+    ]
+    if source_empty and len(source_empty) == len(converted_empty):
+        for converted_index, source_index in zip(converted_empty, source_empty):
+            matches[converted_index] = source_index
+            used_source.add(source_index)
     return {converted_index: original[source_index] for converted_index, source_index in matches.items()}
 
 
@@ -9600,6 +9648,35 @@ def _writer_outer_anchor_blocks(xml: str) -> list[str]:
     return [xml[start:end] for start, end in outer]
 
 
+def _writer_outer_inline_blocks(xml: str) -> list[str]:
+    """Extract complete outer wp:inline elements (d19 group is inline, not anchored)."""
+    ranges = _xml_element_ranges(xml, "wp:inline")
+    outer = [
+        (start, end) for start, end in ranges
+        if not any(
+            other_start <= start and end <= other_end and (other_start, other_end) != (start, end)
+            for other_start, other_end in ranges
+        )
+    ]
+    return [xml[start:end] for start, end in outer]
+
+
+def _writer_paragraph_drawings(paragraph: str) -> list[str]:
+    """Outer wp:anchor and wp:inline blocks of one paragraph, in document order."""
+    located: list[tuple[int, int]] = []
+    for tag in ("wp:anchor", "wp:inline"):
+        located.extend(_xml_element_ranges(paragraph, tag))
+    located.sort()
+    outer = [
+        (start, end) for start, end in located
+        if not any(
+            other_start <= start and end <= other_end and (other_start, other_end) != (start, end)
+            for other_start, other_end in located
+        )
+    ]
+    return [paragraph[start:end] for start, end in outer]
+
+
 def _writer_flow_text(paragraph: str) -> str:
     result = paragraph
     result = re.sub(
@@ -9973,6 +10050,7 @@ def _remove_duplicate_writer_group_flow_paragraphs(
         text = _writer_flow_text(paragraph)
         if (text and (pristine_document or "vno-untouched-" in paragraph)
                 and not _writer_outer_anchor_blocks(paragraph)
+                and not _writer_outer_inline_blocks(paragraph)
                 and not _writer_has_page_break(paragraph)
                 and any(text in group_text for group_text in group_texts)):
             removals.append((start, end))
@@ -10438,7 +10516,7 @@ def _drop_starwriter_duplicate_pics(
         ):
             src = source[index]
             src_name = _writer_anchor_name(src)
-            rids = re.findall(r'\br:embed=["\']([^"\']+)', anchor, re.IGNORECASE)
+            rids = re.findall(r'\br:(?:embed|link)=["\']([^"\']+)', anchor, re.IGNORECASE)
             gif_embed = any(
                 str(records.get(rid, {}).get("Target", "")).lower().endswith(".gif")
                 for rid in rids
@@ -10448,9 +10526,11 @@ def _drop_starwriter_duplicate_pics(
                 re.search(r"<pic:pic\b", src, re.IGNORECASE)
             ) and not native_wps
             if gif_embed and native_wps and not source_is_picture:
-                has_txbx = _writer_anchor_has_textbox(src)
+                # Only drop the raster once the original DrawingML is actually
+                # in the document. Connectors have no text box; deleting their
+                # ShapeN GIF when passthrough missed them removed the shape.
                 native_present = bool(src_name and src_name in present_names and src_name != name)
-                if native_present or not has_txbx:
+                if native_present:
                     keep = False
                     obsolete_rids.update(rids)
         pieces.append(xml[end:cursor])
@@ -10509,6 +10589,198 @@ def _apply_writer_shape_mutations_to_document(xml: str, mutations: list[dict]) -
         cursor = start
     pieces.append(xml[:cursor])
     return _drop_empty_writer_drawings("".join(reversed(pieces)))
+
+
+def _writer_reassign_docpr_id(block: str, occupied: set[int]) -> str:
+    """Keep wp:docPr ids unique after a source drawing is copied in."""
+
+    def repl(match: re.Match) -> str:
+        value = int(match.group(3))
+        if value not in occupied:
+            occupied.add(value)
+            return match.group(0)
+        new_id = max(occupied, default=0) + 1
+        while new_id in occupied:
+            new_id += 1
+        occupied.add(new_id)
+        return f'{match.group(1)}"{new_id}"'
+
+    return re.sub(
+        r'(<wp:docPr\b[^>]*\bid=)(["\'])(\d+)\2',
+        repl, block, count=1, flags=re.IGNORECASE,
+    )
+
+
+def _writer_should_restore_drawing(
+    block: str, present: set[str], converted_drawings: list[str],
+) -> bool:
+    """True when this source drawing is absent and restoring it will not duplicate an edit."""
+    name = _writer_anchor_name(block)
+    if not name or name in present:
+        return False
+    kind = _writer_anchor_passthrough_kind(block)
+    if kind in {"shape", "group", "picture"}:
+        return True
+    if not _writer_anchor_has_textbox(block):
+        return False
+    key = _paragraph_match_key(block)
+    plain = _paragraph_plain_text(block)
+    for other in converted_drawings:
+        other_plain = _paragraph_plain_text(other)
+        if (_writer_anchor_has_edited_text(other) and plain and len(plain) >= 4
+                and plain in other_plain):
+            return False
+        if len(key) >= 4 and _writer_anchor_has_textbox(other) and _paragraph_match_key(other) == key:
+            return False
+        if (len(key) < 4 and _writer_anchor_has_textbox(other)
+                and len(_paragraph_match_key(other)) < 4):
+            return False
+    return True
+
+
+def _writer_unique_docpr_ids(xml: str) -> str:
+    """Renumber repeated wp:docPr ids; Word reports the package as corrupted otherwise.
+
+    Several passes copy source drawings (with their source ids) next to anchors that
+    LibreOffice numbered independently (d06: Rectangle 105 and Rectangle 87 both id 105).
+    The first occurrence keeps its id; later repeats get the next free id.
+    """
+    pattern = re.compile(r'(<wp:docPr\b[^>]*\bid=)(["\'])(\d+)\2', re.IGNORECASE)
+    ids = [int(match.group(3)) for match in pattern.finditer(xml)]
+    if len(ids) == len(set(ids)):
+        return xml
+    seen: set[int] = set()
+    next_free = max(ids) + 1
+
+    def repl(match: re.Match) -> str:
+        nonlocal next_free
+        value = int(match.group(3))
+        if value not in seen:
+            seen.add(value)
+            return match.group(0)
+        while next_free in seen:
+            next_free += 1
+        seen.add(next_free)
+        return f'{match.group(1)}"{next_free}"'
+
+    return pattern.sub(repl, xml)
+
+
+def _restore_missing_writer_drawings(
+    converted_xml: str, original_xml: str, deleted_names: set[str],
+) -> str:
+    """Copy source anchors and inline groups that LibreOffice dropped on the way to DOCX.
+
+    Hairline connector GIFs are removed before export, and inline groups are not
+    anchor passthrough. Reinsert the original DrawingML at the source paragraph
+    slot. Names already present, and shapes the user deleted, stay untouched.
+    """
+    source_ranges = _writer_body_paragraph_ranges(original_xml)
+    source = [original_xml[start:end] for start, end in source_ranges]
+    converted_ranges = _writer_body_paragraph_ranges(converted_xml)
+    converted = [converted_xml[start:end] for start, end in converted_ranges]
+    converted_drawings = (
+        _writer_outer_anchor_blocks(converted_xml) + _writer_outer_inline_blocks(converted_xml)
+    )
+    present = {
+        name for name in (_writer_anchor_name(block) for block in converted_drawings) if name
+    }
+    present.update(deleted_names)
+    missing_at: dict[int, list[str]] = {}
+    for index, paragraph in enumerate(source):
+        for block in _writer_paragraph_drawings(paragraph):
+            if not _writer_should_restore_drawing(block, present, converted_drawings):
+                continue
+            name = _writer_anchor_name(block)
+            if name:
+                present.add(name)
+            missing_at.setdefault(index, []).append(block)
+    if not missing_at:
+        return converted_xml
+
+    pairs = dict(_writer_text_lcs_pairs(
+        [f"<w:t>{_writer_flow_text(paragraph)}</w:t>" for paragraph in source],
+        [f"<w:t>{_writer_flow_text(paragraph)}</w:t>" for paragraph in converted],
+    ))
+    matched = sorted(pairs.items())
+    occupied = {
+        int(value) for value in re.findall(
+            r'<wp:docPr\b[^>]*\bid=["\'](\d+)', converted_xml, re.IGNORECASE,
+        )
+    }
+
+    def slot_for(source_index: int) -> tuple[str, int]:
+        if source_index in pairs:
+            return ("into", pairs[source_index])
+        previous_source = previous_target = None
+        next_source = next_target = None
+        for source_at, target_at in matched:
+            if source_at < source_index:
+                previous_source, previous_target = source_at, target_at
+            elif source_at > source_index and next_target is None:
+                next_source, next_target = source_at, target_at
+                break
+        # Empty paragraphs have no text for the LCS to pair. When the gap between the
+        # matched neighbours has the same paragraph count on both sides, the unmatched
+        # source paragraph is the one at the same offset — anchor into it instead of
+        # adding a new paragraph, which pushes the layout down (d06: 3 -> 4 pages).
+        if (previous_source is not None and next_source is not None
+                and next_source - previous_source == next_target - previous_target):
+            return ("into", previous_target + (source_index - previous_source))
+        # Otherwise keep the same offset but stay inside the gap, and still anchor into an
+        # existing paragraph: a new empty paragraph adds a line of height (d06: the seven
+        # connectors of an empty source paragraph turned 3 pages into 4).
+        if previous_target is not None:
+            limit = next_target - 1 if next_target is not None else len(converted) - 1
+            offset = previous_target + (source_index - previous_source)
+            return ("into", max(previous_target, min(offset, limit)))
+        if next_target is not None:
+            return ("into", next_target)
+        if converted:
+            return ("into", len(converted) - 1)
+        return ("before", len(converted))
+
+    insertions_into: dict[int, list[str]] = {}
+    new_paragraphs_before: dict[int, list[str]] = {}
+    for source_index, blocks in missing_at.items():
+        drawings = []
+        for block in blocks:
+            block = _writer_reassign_docpr_id(block, occupied)
+            drawings.append(f"<w:r><w:drawing>{block}</w:drawing></w:r>")
+        payload = "".join(drawings)
+        kind, target_index = slot_for(source_index)
+        if kind == "into":
+            insertions_into.setdefault(target_index, []).append(payload)
+        else:
+            new_paragraphs_before.setdefault(target_index, []).append(f"<w:p>{payload}</w:p>")
+
+    result = converted_xml
+    indexes = sorted(set(insertions_into) | set(new_paragraphs_before), reverse=True)
+    for index in indexes:
+        news = "".join(new_paragraphs_before.get(index, []))
+        if index < len(converted_ranges):
+            start, end = converted_ranges[index]
+            paragraph = result[start:end]
+            extra = "".join(insertions_into.get(index, []))
+            if extra:
+                close = paragraph.rfind("</w:p")
+                if close >= 0:
+                    paragraph = paragraph[:close] + extra + paragraph[close:]
+                else:
+                    empty = re.fullmatch(r"<w:p\b([^>]*?)\s*/>", paragraph.strip())
+                    if empty:
+                        paragraph = f"<w:p{empty.group(1)}>{extra}</w:p>"
+                    else:
+                        news += f"<w:p>{extra}</w:p>"
+            result = result[:start] + news + paragraph + result[end:]
+            continue
+        body_close = result.rfind("</w:body")
+        sect = result.rfind("<w:sectPr")
+        if 0 <= sect < body_close:
+            result = result[:sect] + news + result[sect:]
+        elif body_close >= 0:
+            result = result[:body_close] + news + result[body_close:]
+    return result
 
 
 def postprocess_writer_docx(
@@ -10702,6 +10974,12 @@ def postprocess_writer_docx(
     new_xml = _relocate_passthrough_anchors(
         new_xml, original_xml, pristine_document=pristine_document,
     )
+    deleted_names = {
+        str(item.get("anchorName"))
+        for item in mutation_names
+        if isinstance(item, dict) and item.get("type") == "delete" and item.get("anchorName")
+    }
+    new_xml = _restore_missing_writer_drawings(new_xml, original_xml, deleted_names)
     new_xml = _remove_duplicate_writer_group_flow_paragraphs(
         new_xml, original_xml, pristine_document=pristine_document,
     )
@@ -10717,6 +10995,7 @@ def postprocess_writer_docx(
     )
     new_xml = _remove_writer_untouched_bookmarks(new_xml)
     new_xml = _writer_collapse_consecutive_page_breaks(new_xml)
+    new_xml = _writer_unique_docpr_ids(new_xml)
 
     replacements: dict[str, bytes] = {}
     if new_xml != converted_xml or merged_numbering is not None:
