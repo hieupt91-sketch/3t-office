@@ -97,6 +97,94 @@ class WriterAnchorPassthroughTests(unittest.TestCase):
         self.assertIn("Original group", xml)
         self.assertIn("Generated B", xml)
 
+    def test_untouched_starwriter_frame_restores_native_textbox_and_drops_shape_gifs(self):
+        source_rect = (
+            '<w:p><w:r><w:drawing><wp:anchor>'
+            '<wp:docPr id="1" name="Rectangle 2"/>'
+            '<wps:wsp><wps:cNvPr name="Rectangle 2"/><wps:spPr>'
+            '<a:solidFill><a:srgbClr val="1F4E79"/></a:solidFill></wps:spPr>'
+            '<wps:txbx><w:txbxContent><w:p><w:r><w:t>BAN GIAM DOC</w:t></w:r></w:p>'
+            '</w:txbxContent></wps:txbx></wps:wsp></wp:anchor></w:drawing></w:r></w:p>'
+        )
+        source_line = (
+            '<w:p><w:r><w:drawing><wp:anchor>'
+            '<wp:docPr id="2" name="Elbow Connector 23"/>'
+            '<wps:wsp><wps:cNvPr name="Elbow Connector 23"/></wps:wsp>'
+            '</wp:anchor></w:drawing></w:r></w:p>'
+        )
+        source = make_docx(source_rect + source_line)
+        converted = make_docx(
+            '<w:p><w:bookmarkStart w:id="1" w:name="vno-untouched-0"/>'
+            '<w:r><w:drawing><wp:anchor><wp:docPr id="10" name="Shape1"/>'
+            '<pic:pic><a:blip r:embed="rId2"/></pic:pic></wp:anchor></w:drawing></w:r></w:p>'
+            '<w:p><w:r><w:drawing><wp:anchor><wp:docPr id="11" name="Shape2"/>'
+            '<pic:pic><a:blip r:embed="rId3"/></pic:pic></wp:anchor></w:drawing></w:r></w:p>'
+            '<w:p><w:r><w:drawing><wp:anchor><wp:docPr id="12" name="Frame1"/>'
+            '<wps:txbx/><w:txbxContent><w:p><w:r><w:t>BAN GIAM DOC</w:t></w:r></w:p>'
+            '</w:txbxContent></wp:anchor></w:drawing></w:r></w:p>',
+            f'<Relationship Id="rId2" Type="{IMAGE_REL}" Target="media/image2.gif"/>'
+            f'<Relationship Id="rId3" Type="{IMAGE_REL}" Target="media/image3.gif"/>',
+            {"word/media/image2.gif": b"GIF89a-rect", "word/media/image3.gif": b"GIF89a-line"},
+        )
+        result = patcher.postprocess_writer_docx(converted, source_docx=source)
+        with zipfile.ZipFile(io.BytesIO(result)) as archive:
+            xml = archive.read("word/document.xml").decode()
+            names = set(archive.namelist())
+        self.assertEqual(len(re.findall(r"<wp:anchor\b", xml)), 2)
+        self.assertEqual(len(re.findall(r"<pic:pic\b", xml)), 0)
+        self.assertIn('name="Rectangle 2"', xml)
+        self.assertIn('name="Elbow Connector 23"', xml)
+        self.assertIn("BAN GIAM DOC", xml)
+        self.assertIn('val="1F4E79"', xml)
+        self.assertNotIn("Frame1", xml)
+        self.assertNotIn("Shape1", xml)
+        self.assertNotIn("Shape2", xml)
+        self.assertFalse(any(name.endswith(".gif") for name in names))
+
+    def test_starwriter_gif_is_kept_when_textbox_was_edited(self):
+        source = make_docx(
+            '<w:p><w:r><w:drawing><wp:anchor>'
+            '<wp:docPr id="1" name="Rectangle 2"/>'
+            '<wps:wsp><wps:txbx><w:txbxContent><w:p><w:r><w:t>BAN GIAM DOC</w:t></w:r></w:p>'
+            '</w:txbxContent></wps:txbx></wps:wsp></wp:anchor></w:drawing></w:r></w:p>'
+        )
+        converted = make_docx(
+            '<w:p><w:r><w:drawing><wp:anchor><wp:docPr id="10" name="Shape1"/>'
+            '<pic:pic><a:blip r:embed="rId2"/></pic:pic></wp:anchor></w:drawing></w:r></w:p>'
+            '<w:p><w:r><w:drawing><wp:anchor><wp:docPr id="12" name="Frame1"/>'
+            '<wps:txbx/><w:txbxContent><w:p><w:bookmarkStart w:id="1" w:name="vno-edited-0"/>'
+            '<w:r><w:t>ZZ BAN GIAM DOC</w:t></w:r></w:p></w:txbxContent></wp:anchor></w:drawing></w:r></w:p>',
+            f'<Relationship Id="rId2" Type="{IMAGE_REL}" Target="media/image2.gif"/>',
+            {"word/media/image2.gif": b"GIF89a-rect"},
+        )
+        result = patcher.postprocess_writer_docx(converted, source_docx=source)
+        with zipfile.ZipFile(io.BytesIO(result)) as archive:
+            xml = archive.read("word/document.xml").decode()
+            names = set(archive.namelist())
+        self.assertIn("Frame1", xml)
+        self.assertIn("ZZ BAN GIAM DOC", xml)
+        self.assertIn("Shape1", xml)
+        self.assertTrue(any(name.endswith(".gif") for name in names))
+
+    def test_named_png_picture_is_not_dropped_as_starwriter_gif(self):
+        source = make_docx(
+            '<w:p><w:r><w:drawing><wp:anchor><wp:docPr id="1" name="Picture 4"/>'
+            '<pic:pic><a:blip r:embed="rId7"/></pic:pic></wp:anchor></w:drawing></w:r></w:p>',
+            f'<Relationship Id="rId7" Type="{IMAGE_REL}" Target="media/cover.png"/>',
+            {"word/media/cover.png": b"png-bytes"},
+        )
+        converted = make_docx(
+            '<w:p><w:bookmarkStart w:id="1" w:name="vno-untouched-0"/>'
+            '<w:r><w:drawing><wp:anchor><wp:docPr id="1" name="Picture 4"/>'
+            '<pic:pic><a:blip r:embed="rId2"/></pic:pic></wp:anchor></w:drawing></w:r></w:p>',
+            f'<Relationship Id="rId2" Type="{IMAGE_REL}" Target="media/cover.png"/>',
+            {"word/media/cover.png": b"png-bytes"},
+        )
+        result = patcher.postprocess_writer_docx(converted, source_docx=source)
+        xml = zipfile.ZipFile(io.BytesIO(result)).read("word/document.xml").decode()
+        self.assertIn("Picture 4", xml)
+        self.assertIn("<pic:pic", xml)
+
 
 if __name__ == "__main__":
     unittest.main()
