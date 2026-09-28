@@ -1,4 +1,19 @@
-# Hàng đợi việc theo ma trận (cập nhật 2026-09-26)
+# Hàng đợi việc theo ma trận (cập nhật 2026-09-28)
+
+## Trạng thái 28/9 16:30 (main `fea2816`)
+
+Test trên `main`: `node tests/run-tests.js` **1839/1839 PASS**, `python -m unittest discover -s tests` 359 OK (Claude tự chạy).
+
+**Đã gộp 28/9:**
+- **Grok Sheet S29 regression** (`5c0fdf1`): 26/26 file LAN tổng lệch 0 sau S29 vòng 1–5 (Claude đọc lại từng `_audit_lanNN.txt` + bản lưu thật); lan06 Python 125s, lan14 110s. Việc treo "batch lại sau S29" đã đóng.
+- **Writer shape import/save** (`fea2816`, Codex R2–R3 + Grok R4 + d09 GIF): canvas d06 hiện 37 Rectangle + 54 Connector; giữ ảnh Picture 4 khi lưu (trước mất trên cả main); vòng 2 từng NHÂN ĐÔI shape khi lưu (d06 wsp 91→170) — Claude phát hiện qua đếm XML, Grok sửa: shape nhập chỉ hiện trên canvas, DrawingML gốc passthrough 1 lần, di chuyển/xoá qua marker; d09 bỏ 15 pic GIF thừa (bản lưu = gốc 30/15/30). Xác nhận: 0/23 file bản lưu có wsp/txbx/txc/media vượt gốc, Word PDF oracle d06=3 d09=14, bản lưu có đoạn sửa ZZ.
+- **agy tab Chế độ xem** (`bb3053d`), **tab Tham chiếu** (`8240937`), **tab Trộn thư + tương phản tab đang chọn chế độ Tối cả 3 app** (`c8f53af`): checkbox Hiển thị dùng chung, focus trap dialog, icon đúng, Help tiếng Việt; Claude xem ảnh chụp sáng/tối từng tab.
+
+**Đang chạy (16:30):** Grok `E:\VNOffice-grok-writer-shape-loss` — shape MẤT khi lưu (lỗi có sẵn): d06 thiếu 12 wsp/3 textbox/12 anchor, d07 và d19 mỗi file mất 1 wsp. agy `E:\VNOffice-agy-design-tab` — tab Thiết kế Writer.
+
+**Môi trường:** Codex hết hạn mức đến **26/10 10:44**. Chiều 28/9 có lúc soffice tạo profile mới mất ~77s (liệt kê máy in treo) → 4 test soffice FAIL cả trên main; sau đó tự hết (1835/1835 lúc 15:40) — nếu gặp lại, so với main trước khi đổ lỗi cho nhánh.
+
+**Chờ người phụ trách quyết định:** (1) nhánh `feature/cloud-oauth-scaffolding` (OAuth Google Drive/OneDrive — security boundary + external dependency); (2) viết lại `parseFods` phía JS dạng streaming để lan14 mở nhanh hơn (~100s JS) — thay đổi kiến trúc.
 
 ## Trạng thái 26/9 09:55 (main `2d501bc` = S31 + W47–W56 + agy layout-tab design)
 
