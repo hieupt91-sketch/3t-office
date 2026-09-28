@@ -15,7 +15,9 @@ Test trên `main`: `node tests/run-tests.js` **1839/1839 PASS**, `python -m unit
 
 **Quyết định người phụ trách 28/9:** nhánh `feature/cloud-oauth-scaffolding` (OAuth Google Drive/OneDrive, opencode 26/9) **TẠM GÁC** — giữ nguyên nhánh + worktree `E:\VNOffice-opencode-cloud-oauth`, không merge, không giao tiếp; tập trung hoàn thiện Writer và Sheet trước. Khi quay lại cần: token vào Windows Credential Manager (không localStorage), xin phép rõ trước khi gửi tài liệu lên mạng, kiểm thử tài khoản thật.
 
-**Chờ người phụ trách quyết định:** viết lại `parseFods` phía JS dạng streaming để lan14 mở nhanh hơn (~100s JS) — thay đổi kiến trúc.
+**Quyết định người phụ trách 28/9 (tốc độ mở Sheet):** đồng ý làm tăng tốc mở file lớn — Grok bắt đầu NGAY SAU khi xong việc Writer shape-loss đang dở. Bước 1 chỉ đo chi tiết + viết kế hoạch (Plan gate AGENTS.md §6: objective, file/module, rủi ro, test plan, rollback) để người phụ trách duyệt trước khi code. Mục tiêu đầu: lan14 < 60s tổng, 26 file LAN vẫn lệch 0. Số đo tham chiếu 28/9 (lan14 9,3 MB, 33.643 dòng): Excel 2016 ~15s, LibreOffice headless xlsx→fods ~30s, VN Sheet ~210–240s (Python ~110s + JS parseFods ~100s).
+
+**Chờ người phụ trách quyết định (cũ, đã giải quyết ở trên):** viết lại `parseFods` phía JS dạng streaming để lan14 mở nhanh hơn (~100s JS) — thay đổi kiến trúc.
 
 ## Trạng thái 26/9 09:55 (main `2d501bc` = S31 + W47–W56 + agy layout-tab design)
 
