@@ -18,6 +18,14 @@ export async function runWriterFloatingImageImportTests() {
     check(body.includes('data-vno-relative-h="page"') && body.includes('data-vno-behind="1"'), "OOXML page/behind metadata missing");
   });
 
+  test("Inline DrawingML picture survives blank-break normalization for DOCX save", () => {
+    const html = '<body><p><img src="data:image/png;base64,UE5H" width="24" height="24"><br><br></p></body>';
+    const xml = '<w:document><w:body><w:p><w:r><w:drawing><wp:anchor><wp:positionH relativeFrom="column"/><wp:positionV relativeFrom="paragraph"/><pic:pic><pic:blipFill><a:blip r:embed="rId7"/></pic:blipFill></pic:pic></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>';
+    const body = new WriterAdapter(null)._normalizeImportedHtml(html, xml).body;
+    check(body.includes('src="data:image/png;base64,UE5H"'), `DrawingML image data was removed: ${body}`);
+    check(body.includes("<br><br>"), `Image paragraph was collapsed as empty whitespace: ${body}`);
+  });
+
   test("Floating import preserves textbox content, negative geometry and wrap", () => {
     const adapter = new WriterAdapter(null);
     const body = adapter._normalizeImportedHtml(HTML, OOXML).body;

@@ -2422,6 +2422,10 @@ export class WriterAdapter {
         return `<p${attrs}>${collapsed}</p>`;
       }
       if (!collapseSpaceToo || hasFloat) return match;
+      // An inline image can be the only content in a paragraph that LibreOffice
+      // surrounds with breaks. Treating that paragraph as whitespace drops the
+      // image (d06.docx: Picture 4), including its data URI before DOCX export.
+      if (/<img\b/i.test(rest)) return match;
       const plain = rest.replace(/<[^>]+>/g, "").replace(/&nbsp;/gi, " ").replace(/\u00a0/g, " ");
       if (plain.trim() !== "" || !/<br\b/i.test(rest)) return match;
       return `<p${attrs}><br></p>`;
