@@ -12383,5 +12383,95 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
     return _FODS_TABLE_RE.sub(process_table, fods_xml)
 
 
+def prepare_writer_legacy_doc_export(
+    docx_bytes: bytes,
+    source_docx: bytes | None,
+) -> bytes:
+    """Compensate for the DOC filter changing edited square-wrapped anchors.
+
+    The legacy DOC export filter turns ``wrapSquare`` into top-and-bottom
+    wrapping when an image shares a paragraph with edited text. That pushes
+    the paragraph below the image. For those edited paragraphs only, use
+    ``wrapNone`` in the intermediate DOCX; the filter then retains the source
+    paragraph flow. Untouched image paragraphs keep their original wrapping.
+    """
+    if not source_docx:
+        return docx_bytes
+    try:
+        target_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+        source_bytes = read_zip_entry(source_docx, "word/document.xml")
+    except (KeyError, ValueError):
+        return docx_bytes
+    if not target_bytes or not source_bytes:
+        return docx_bytes
+
+    target_xml = target_bytes.decode("utf-8", errors="replace")
+    source_xml = source_bytes.decode("utf-8", errors="replace")
+
+    def paragraphs_with_anchors(xml: str) -> list[tuple[int, int, str, list[str]]]:
+        rows = []
+        for start, end in _document_paragraph_ranges(xml):
+            paragraph = xml[start:end]
+            anchors = _writer_outer_anchor_blocks(paragraph)
+            if anchors:
+                rows.append((start, end, paragraph, anchors))
+        return rows
+
+    source_rows = paragraphs_with_anchors(source_xml)
+    target_rows = paragraphs_with_anchors(target_xml)
+    if not source_rows or len(source_rows) != len(target_rows):
+        return docx_bytes
+
+    # A save commonly edits a different paragraph from the one containing an
+    # anchored image (for example, a title elsewhere on the page). The legacy
+    # DOC filter can still change the image's wrapping and reflow following
+    # paragraphs, so compare the body as a whole before applying the targeted
+    # anchor compatibility rule.
+    source_body_text = "".join(
+        _paragraph_plain_text(source_xml[start:end])
+        for start, end in _document_paragraph_ranges(source_xml)
+    )
+    target_body_text = "".join(
+        _paragraph_plain_text(target_xml[start:end])
+        for start, end in _document_paragraph_ranges(target_xml)
+    )
+    if source_body_text == target_body_text:
+        return docx_bytes
+
+    replacements: list[tuple[int, int, str]] = []
+    for source_row, target_row in zip(source_rows, target_rows):
+        _source_start, _source_end, source_paragraph, source_anchors = source_row
+        target_start, target_end, target_paragraph, target_anchors = target_row
+        if len(source_anchors) != len(target_anchors):
+            continue
+
+        updated = target_paragraph
+        for source_anchor, target_anchor in zip(source_anchors, target_anchors):
+            source_wrap = re.search(
+                r"<wp:(wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b",
+                source_anchor,
+                re.IGNORECASE,
+            )
+            if not source_wrap or source_wrap.group(1).lower() != "wrapsquare":
+                continue
+            target_wrap = re.search(
+                r"<wp:(?:wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b[^>]*/>",
+                target_anchor,
+                re.IGNORECASE,
+            )
+            if not target_wrap:
+                continue
+            patched_anchor = target_anchor[:target_wrap.start()] + "<wp:wrapNone/>" + target_anchor[target_wrap.end():]
+            updated = updated.replace(target_anchor, patched_anchor, 1)
+        if updated != target_paragraph:
+            replacements.append((target_start, target_end, updated))
+
+    if not replacements:
+        return docx_bytes
+    for start, end, paragraph in reversed(replacements):
+        target_xml = target_xml[:start] + paragraph + target_xml[end:]
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": target_xml.encode("utf-8")})
+
+
 if __name__ == "__main__":
     sys.exit(main())

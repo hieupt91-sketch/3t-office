@@ -2147,6 +2147,7 @@ export class WriterAdapter {
       html = this._applyOoxmlTrackChangesToHtml(html, ooxmlDocumentXml);
       html = this._applyOoxmlTableParagraphSpacing(html, ooxmlDocumentXml, ooxmlStylesXml);
       html = this._applyOoxmlContextualSpacing(html, ooxmlDocumentXml, ooxmlStylesXml);
+      html = this._applyOoxmlKeepNextToHtml(html, ooxmlDocumentXml, ooxmlStylesXml);
       // W25b: cỡ chữ run nửa điểm (w:sz lẻ: 8,5 / 11,5 / 14,5 / 16,5 pt) bị LibreOffice làm tròn
       html = this._applyOoxmlHalfPointRunFontSizes(html, ooxmlDocumentXml, ooxmlStylesXml);
       // W26a: cỡ chữ đoạn rỗng theo cỡ dấu đoạn (w:pPr/w:rPr/w:sz -> style chain -> docDefaults)
@@ -3094,6 +3095,53 @@ export class WriterAdapter {
       if (!decls.length) return fullTag;
 
       return this._addCssDeclsToParagraph(fullTag, attrs, inner, decls, tagName);
+    });
+  }
+
+  /** Preserve Word keep-with-next paragraph flow for the live and print paginators. */
+  _applyOoxmlKeepNextToHtml(html, ooxmlDocumentXml, ooxmlStylesXml = "") {
+    const xml = String(ooxmlDocumentXml || "");
+    if (!xml || !/<w:body\b/i.test(xml)) return html;
+    const body = xml.match(/<w:body\b[^>]*>([\s\S]*?)<\/w:body\s*>/i)?.[1];
+    if (!body) return html;
+
+    const keepValue = (ppr) => {
+      const match = String(ppr || "").match(/<w:keepNext\b([^>]*)\/?\s*>/i);
+      if (!match) return null;
+      const value = match[1].match(/\bw:val=["']([^"']+)["']/i)?.[1]?.toLowerCase();
+      return !["0", "false", "off", "no"].includes(value || "");
+    };
+    const styleKeep = new Map();
+    const styleBasedOn = new Map();
+    const styleRe = /<w:style\b[^>]*\bw:styleId=["']([^"']+)["'][^>]*>([\s\S]*?)<\/w:style>/gi;
+    for (const match of String(ooxmlStylesXml || "").matchAll(styleRe)) {
+      const ppr = match[2].match(/<w:pPr\b[^>]*>([\s\S]*?)<\/w:pPr\s*>/i)?.[1] || "";
+      styleKeep.set(match[1], keepValue(ppr));
+      styleBasedOn.set(match[1], match[2].match(/<w:basedOn\b[^>]*\bw:val=["']([^"']+)["']/i)?.[1] || "");
+    }
+    const styleHasKeep = (styleId, seen = new Set()) => {
+      if (!styleId || seen.has(styleId)) return false;
+      seen.add(styleId);
+      const own = styleKeep.get(styleId);
+      if (own !== null && own !== undefined) return own;
+      return styleHasKeep(styleBasedOn.get(styleId), seen);
+    };
+
+    const topLevel = this._stripOoxmlTables(this._ooxmlBodyParagraphSource(body));
+    const sourceParagraphs = [...topLevel.matchAll(/<w:p\b(?:(?!<w:p\b)[\s\S])*?<\/w:p\s*>|<w:p\s*\/>/gi)].map(match => match[0]);
+    if (!sourceParagraphs.length) return html;
+    const skipRanges = this._htmlParagraphSkipRanges(String(html || ""));
+    let paragraphIndex = 0;
+    return String(html || "").replace(/<(p|h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi, (full, tag, attrs, inner, offset) => {
+      if (skipRanges.some(range => offset >= range.start && offset < range.end)) return full;
+      const source = sourceParagraphs[paragraphIndex++];
+      if (!source) return full;
+      const ppr = source.match(/<w:pPr\b[^>]*>([\s\S]*?)<\/w:pPr\s*>/i)?.[1] || "";
+      const direct = keepValue(ppr);
+      const styleId = ppr.match(/<w:pStyle\b[^>]*\bw:val=["']([^"']+)["']/i)?.[1] || "Normal";
+      const keep = direct === null ? styleHasKeep(styleId) : direct;
+      const cleanAttrs = attrs.replace(/\s+data-vno-keep-next=["'][^"']*["']/gi, "");
+      return `<${tag}${cleanAttrs}${keep ? ' data-vno-keep-next="true"' : ""}>${inner}</${tag}>`;
     });
   }
 
@@ -10938,6 +10986,7 @@ export class WriterAdapter {
     return withoutComments
       .replace(/\s+data-vno-src-hash=["'][^"']*["']/gi, "")
       .replace(/\s+data-vno-edited=["'][^"']*["']/gi, "")
+      .replace(/\s+data-vno-keep-next=["'][^"']*["']/gi, "")
       .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1")
       .replace(/\s+is-vno-image-selected(?=[\s"'])/gi, "")
       .replace(/<del\b(?=[^>]*\bdata-vno-change=(?:"delete"|'delete'))[^>]*>[\s\S]*?<\/del>/gi, "")
@@ -11390,7 +11439,10 @@ export class WriterAdapter {
         const div = typeof document !== "undefined" && document.createElement ? document.createElement("div") : {
           innerHTML: part,
           textContent: part.replace(/<[^>]+>/g, ""),
-          getAttribute: (attr) => (attr === "style" ? (part.match(/style="([^"]*)"/i)?.[1] || "") : "")
+          getAttribute: (attr) => {
+            const escaped = String(attr).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            return part.match(new RegExp(`${escaped}=["']([^"']*)["']`, "i"))?.[1] || "";
+          }
         };
         if (div.innerHTML !== undefined) div.innerHTML = part;
         return div;
@@ -11461,7 +11513,9 @@ export class WriterAdapter {
       return lines * 26 + 10;
     };
 
-    for (const el of blocks) {
+    const hasKeepNext = (el) => typeof el?.getAttribute === "function" && el.getAttribute("data-vno-keep-next") === "true";
+    for (let blockIndex = 0; blockIndex < blocks.length; blockIndex++) {
+      const el = blocks[blockIndex];
       if (el.dataset?.vnoFootnotes === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-footnotes") === "true") ||
           el.dataset?.vnoEndnotes === "true" || (typeof el.getAttribute === "function" && el.getAttribute("data-vno-endnotes") === "true")) {
         continue;
@@ -11487,6 +11541,21 @@ export class WriterAdapter {
       }
 
       const { h, mt, top } = estimateHeight(el);
+      if (hasKeepNext(el)) {
+        let groupEnd = blockIndex;
+        while (groupEnd < blocks.length - 1 && hasKeepNext(blocks[groupEnd])) groupEnd++;
+        if (groupEnd < blocks.length - 1) groupEnd++;
+        const tail = estimateHeight(blocks[groupEnd]);
+        const groupFitsCurrentPage = top !== null && tail.top !== null
+          ? tail.top + tail.h - (pageStartTop ?? (top - mt)) <= availableHeightPx
+          : currentHeight + blocks.slice(blockIndex, groupEnd + 1).reduce((sum, block) => sum + estimateHeight(block).h, 0) <= effectiveAvailableHeightPx;
+        if (currentPageHtmls.length > 0 && !groupFitsCurrentPage) {
+          pages.push(currentPageHtmls.join("\n"));
+          currentPageHtmls = [];
+          currentHeight = 0;
+          pageStartTop = null;
+        }
+      }
       const elHtml = el.outerHTML || el.innerHTML || `<p>${textContent}</p>`;
 
       // Có layout thật: trang tính từ offsetTop khối đầu (giữ space-before sau ngắt
@@ -12351,7 +12420,9 @@ export class WriterAdapter {
       };
 
       let pendingSpillGap = false;
-      for (const el of children) {
+      const hasKeepNext = (el) => el?.getAttribute?.("data-vno-keep-next") === "true";
+      for (let childIndex = 0; childIndex < children.length; childIndex++) {
+        const el = children[childIndex];
         const styleStr = (typeof el.getAttribute === "function" ? el.getAttribute("style") : "") || "";
         const textContent = el.textContent || "";
         const isManualBreak = styleStr.includes("page-break-before") || styleStr.includes("break-before") || textContent.includes("Phân tách trang");
@@ -12378,6 +12449,27 @@ export class WriterAdapter {
         if (pageStartTop === null) {
           pageStartTop = top - marginTopOf(el);
           continue;
+        }
+        if (hasKeepNext(el)) {
+          let groupEnd = childIndex;
+          while (groupEnd < children.length - 1 && hasKeepNext(children[groupEnd])) groupEnd++;
+          if (groupEnd < children.length - 1) groupEnd++;
+          const keepGroup = children.slice(childIndex, groupEnd + 1);
+          const trailingBlankGroup = groupEnd === children.length - 1
+            && keepGroup.every((paragraph) => !(paragraph.textContent || "").trim());
+          if (trailingBlankGroup) {
+            const tail = children[groupEnd];
+            const groupBottom = topOf(tail) + heightOf(tail) - this._paginationTrailingLeading(tail);
+            // Word can move a trailing chain of blank keep-next paragraphs to
+            // the next page. For these empty blocks only, account for body
+            // margins and 2px browser rounding; non-empty headings use normal
+            // block pagination to avoid creating false extra pages.
+            if (this._keepNextGroupNeedsPageBreak(top, groupBottom, pageStartTop, availableHeightPx, dim.topPx)) {
+              gapBeforeEls.push({ el, soft: true, kind: "block" });
+              pageStartTop = top;
+              pageCount++;
+            }
+          }
         }
         // W54: nửa leading dưới dòng cuối được tràn vào lề dưới (Word giữ dòng khi em-box còn trong vùng chữ).
         // d16: đoạn 3 dòng rh 64.55, lh 21.53, fs 17.33 → nửa leading 2.1px; đáy Word 720pt còn 62.9px.
@@ -12469,6 +12561,13 @@ export class WriterAdapter {
     } finally {
       this._paginating = false;
     }
+  }
+
+  _keepNextGroupNeedsPageBreak(top, groupBottom, pageStartTop, availableHeightPx, topMarginPx) {
+    const keepNextHeight = Math.max(0, availableHeightPx - topMarginPx - 2);
+    return Number.isFinite(top) && Number.isFinite(groupBottom) && Number.isFinite(pageStartTop)
+      && top > pageStartTop + 0.5
+      && groupBottom - pageStartTop >= keepNextHeight;
   }
 
   /**

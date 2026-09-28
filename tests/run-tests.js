@@ -177,6 +177,7 @@ import { runSlidesImportFidelityTests } from "./unit/slides-import-fidelity.test
 import { runSlidesSaveFidelityTests } from "./unit/slides-save-fidelity.test.js";
 import { runWriterDocxAuditTests } from "./unit/writer-docx-audit.test.js";
 import { runWriterDocFontSpacingTests } from "./unit/writer-doc-font-spacing.test.js";
+import { runWriterLegacyKeepNextTests } from "./unit/writer-legacy-keep-next.test.js";
 import { runSheetDateValuesTests } from "./unit/sheet-date-values.test.js";
 import { runNotificationBarTests } from "./unit/notification-bar.test.js";
 
@@ -365,7 +366,8 @@ async function runAll() {
     { title: "152. Unit Tests — Writer DOCX effective-format audit", runner: runWriterDocxAuditTests },
     { title: "153. Unit Tests — Writer doc font / line spacing (Word multiple x font ratio, anchor <br>, imported class)", runner: runWriterDocFontSpacingTests },
     { title: "154. Unit Tests — Sheet date/time cell values (office:date-value round trip)", runner: runSheetDateValuesTests },
-    { title: "155. Unit Tests — UI Kit Notification Bar & WCAG AA Color Contrast", runner: runNotificationBarTests }
+    { title: "155. Unit Tests — UI Kit Notification Bar & WCAG AA Color Contrast", runner: runNotificationBarTests },
+    { title: "156. Unit Tests — Writer legacy DOC keepNext import and pagination", runner: runWriterLegacyKeepNextTests }
   ];
 
   for (const suite of suites) {
