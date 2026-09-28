@@ -8350,6 +8350,10 @@ def _writer_anchor_name(anchor: str) -> str | None:
     return match.group(1) if match else None
 
 
+def _writer_anchor_has_textbox(anchor: str) -> bool:
+    return bool(re.search(r"<wps:txbx\b|<w:txbxContent\b", anchor, re.IGNORECASE))
+
+
 def _writer_anchor_passthrough_kind(anchor: str) -> str | None:
     """Return the non-editable drawing kind that is safe to copy from source."""
     if re.search(r"<wpg:wgp\b", anchor, re.IGNORECASE):
@@ -8357,10 +8361,8 @@ def _writer_anchor_passthrough_kind(anchor: str) -> str | None:
     if re.search(r"<pic:pic\b", anchor, re.IGNORECASE):
         return "picture"
     # Text boxes remain editable in Writer. Only non-textbox WPS geometry is
-    # passthrough; copying a txbx would silently discard the user's edit.
-    if re.search(r"<wps:wsp\b", anchor, re.IGNORECASE) and not re.search(
-        r"<wps:txbx\b|<w:txbxContent\b", anchor, re.IGNORECASE
-    ):
+    # passthrough via kind matching; untouched Frames are paired separately.
+    if re.search(r"<wps:wsp\b", anchor, re.IGNORECASE) and not _writer_anchor_has_textbox(anchor):
         return "shape"
     return None
 
@@ -8476,8 +8478,15 @@ def _writer_passthrough_matches(
             for local_index, (converted_anchor, source_anchor) in enumerate(zip(converted_group, original_group)):
                 converted_index = converted_offset + local_index
                 source_index = original_offset + local_index
-                source_kind = _writer_anchor_passthrough_kind(source_anchor)
-                converted_kind = _writer_anchor_passthrough_kind(converted_anchor)
+                if (
+                    converted_index >= len(converted)
+                    or source_index >= len(original)
+                    or original[source_index] != source_anchor
+                    or converted[converted_index] != converted_anchor
+                ):
+                    continue
+                source_kind = _writer_anchor_passthrough_kind(original[source_index])
+                converted_kind = _writer_anchor_passthrough_kind(converted[converted_index])
                 compatible_kind = (
                     source_kind == converted_kind
                     or (source_kind in {"group", "shape"} and converted_kind == "picture")
@@ -8506,6 +8515,33 @@ def _writer_passthrough_matches(
             ):
                 matches[converted_index] = source_index
                 used_source.add(source_index)
+    source_names = {
+        name for name in (_writer_anchor_name(anchor) for anchor in original) if name
+    }
+    source_by_text: dict[str, list[int]] = {}
+    for source_index, source_anchor in enumerate(original):
+        if source_index in used_source or not _writer_anchor_has_textbox(source_anchor):
+            continue
+        if _writer_anchor_passthrough_kind(source_anchor) == "group":
+            continue
+        key = _paragraph_match_key(source_anchor)
+        if len(key) >= 4:
+            source_by_text.setdefault(key, []).append(source_index)
+    for converted_index, converted_anchor in enumerate(converted):
+        if converted_index in matches or not _writer_anchor_has_textbox(converted_anchor):
+            continue
+        if not _writer_anchor_is_untouched(converted_anchor):
+            continue
+        converted_name = _writer_anchor_name(converted_anchor)
+        if converted_name and converted_name in source_names:
+            continue
+        key = _paragraph_match_key(converted_anchor)
+        unused = [index for index in source_by_text.get(key, []) if index not in used_source]
+        if not unused:
+            continue
+        source_index = unused[0]
+        matches[converted_index] = source_index
+        used_source.add(source_index)
     return {converted_index: original[source_index] for converted_index, source_index in matches.items()}
 
 
@@ -10193,6 +10229,288 @@ def _restore_mid_document_sections(
     return result_xml, next_rid
 
 
+_WRITER_EMU_PER_PX = 9525
+
+
+def _writer_shift_named_emu(xml: str, attr: str, delta: int) -> str:
+    if not delta:
+        return xml
+    return re.sub(
+        rf'\b{attr}=["\'](-?\d+)["\']',
+        lambda match: f'{attr}="{int(match.group(1)) + delta}"',
+        xml, count=1, flags=re.IGNORECASE,
+    )
+
+
+def _writer_shift_pos_offset(anchor: str, axis_tag: str, delta: int) -> str:
+    if not delta:
+        return anchor
+    match = re.search(
+        rf"(<{axis_tag}\b[^>]*>[\s\S]*?<wp:posOffset>)(-?\d+)(</wp:posOffset\s*>)",
+        anchor, re.IGNORECASE,
+    )
+    if not match:
+        return anchor
+    return anchor[:match.start(2)] + str(int(match.group(2)) + delta) + anchor[match.end(2):]
+
+
+def _writer_shift_a_off(shape_xml: str, delta_x: int, delta_y: int) -> str:
+    if not delta_x and not delta_y:
+        return shape_xml
+
+    def offset(match: re.Match) -> str:
+        attrs = match.group(1)
+        attrs = _writer_shift_named_emu(attrs, "x", delta_x)
+        attrs = _writer_shift_named_emu(attrs, "y", delta_y)
+        return f"<a:off{attrs}{match.group(2)}"
+
+    updated, count = re.subn(
+        r"<a:off\b([^>/]*)(/?>)", offset, shape_xml, count=1, flags=re.IGNORECASE,
+    )
+    return updated if count else shape_xml
+
+
+def _writer_shift_extent(xml: str, delta_cx: int, delta_cy: int, tag: str) -> str:
+    if not delta_cx and not delta_cy:
+        return xml
+
+    def extent(match: re.Match) -> str:
+        attrs = match.group(1)
+        attrs = _writer_shift_named_emu(attrs, "cx", delta_cx)
+        attrs = _writer_shift_named_emu(attrs, "cy", delta_cy)
+        return f"<{tag}{attrs}{match.group(2)}"
+
+    updated, count = re.subn(
+        rf"<{tag}\b([^>/]*)(/?>)", extent, xml, count=1, flags=re.IGNORECASE,
+    )
+    return updated if count else xml
+
+
+def _decode_writer_shape_mutation(marker: str) -> dict | None:
+    try:
+        item = json.loads(bytes.fromhex(marker).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if isinstance(item, dict) and item.get("type") in {"edit", "delete"}:
+        return item
+    return None
+
+
+def _writer_mutation_payloads(text: str) -> list[dict]:
+    mutations: list[dict] = []
+    for marker in re.findall(r"VNO_SHAPE_MUTATION_([0-9a-fA-F]+)", text or ""):
+        item = _decode_writer_shape_mutation(marker)
+        if item:
+            mutations.append(item)
+    return mutations
+
+
+def _writer_named_wsp(anchor: str, shape_name: str) -> re.Match | None:
+    candidates = list(re.finditer(r"<wps:wsp\b[\s\S]*?</wps:wsp\s*>", anchor, re.IGNORECASE))
+    named = next((item for item in candidates
+                  if shape_name and re.search(
+                      rf'<wps:cNvPr\b[^>]*\bname=["\']{re.escape(shape_name)}["\']',
+                      item.group(0), re.IGNORECASE,
+                  )), None)
+    if named is not None:
+        return named
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def _apply_writer_imported_shape_mutation(anchor: str, mutation: dict) -> str | None:
+    """Apply move/resize/delete to the named native wps:wsp, retaining DrawingML markup."""
+    shape_name = str(mutation.get("shapeName") or "")
+    target = _writer_named_wsp(anchor, shape_name)
+    if target is None:
+        return anchor
+    if mutation.get("type") == "delete":
+        updated = anchor[:target.start()] + anchor[target.end():]
+        if not re.search(r"<wps:wsp\b|<pic:pic\b|<wpg:wgp\b", updated, re.IGNORECASE):
+            return None
+        return updated
+    if mutation.get("type") != "edit":
+        return anchor
+    scale_x = float(mutation.get("scaleX") or 1) or 1
+    scale_y = float(mutation.get("scaleY") or 1) or 1
+    delta_x = round(float(mutation.get("dx") or 0) * _WRITER_EMU_PER_PX / scale_x)
+    delta_y = round(float(mutation.get("dy") or 0) * _WRITER_EMU_PER_PX / scale_y)
+    delta_cx = round(float(mutation.get("dw") or 0) * _WRITER_EMU_PER_PX / scale_x)
+    delta_cy = round(float(mutation.get("dh") or 0) * _WRITER_EMU_PER_PX / scale_y)
+    in_group = bool(re.search(r"<wpg:wgp\b", anchor, re.IGNORECASE))
+    has_pos_offset = bool(re.search(r"<wp:posOffset>", anchor, re.IGNORECASE))
+    if in_group or not has_pos_offset:
+        shape_xml = _writer_shift_a_off(target.group(0), delta_x, delta_y)
+        shape_xml = _writer_shift_extent(shape_xml, delta_cx, delta_cy, "a:ext")
+        return anchor[:target.start()] + shape_xml + anchor[target.end():]
+    abs_dx = round(float(mutation.get("dx") or 0) * _WRITER_EMU_PER_PX)
+    abs_dy = round(float(mutation.get("dy") or 0) * _WRITER_EMU_PER_PX)
+    abs_cx = round(float(mutation.get("dw") or 0) * _WRITER_EMU_PER_PX)
+    abs_cy = round(float(mutation.get("dh") or 0) * _WRITER_EMU_PER_PX)
+    updated = _writer_shift_pos_offset(anchor, "wp:positionH", abs_dx)
+    updated = _writer_shift_pos_offset(updated, "wp:positionV", abs_dy)
+    updated = _writer_shift_extent(updated, abs_cx, abs_cy, "wp:extent")
+    wsp = _writer_named_wsp(updated, shape_name)
+    if wsp is not None and (abs_cx or abs_cy):
+        shape_xml = _writer_shift_extent(wsp.group(0), abs_cx, abs_cy, "a:ext")
+        updated = updated[:wsp.start()] + shape_xml + updated[wsp.end():]
+    return updated
+
+
+def _drop_empty_writer_drawings(xml: str) -> str:
+    """Remove drawing wrappers left empty after deleting a passthrough shape."""
+    xml = re.sub(r"<w:drawing\b[^>]*>\s*</w:drawing\s*>", "", xml, flags=re.IGNORECASE)
+    xml = re.sub(r"<mc:Choice\b[^>]*>\s*</mc:Choice\s*>", "", xml, flags=re.IGNORECASE)
+    xml = re.sub(
+        r"<mc:AlternateContent\b[^>]*>\s*(?:<mc:Fallback\b[^>]*>[\s\S]*?</mc:Fallback\s*>\s*)?</mc:AlternateContent\s*>",
+        "", xml, flags=re.IGNORECASE,
+    )
+    xml = re.sub(r"<w:r\b[^>]*>\s*</w:r\s*>", "", xml, flags=re.IGNORECASE)
+    return xml
+
+
+def _strip_writer_shape_mutation_markers(xml: str) -> tuple[str, list[dict]]:
+    """Remove internal HTML-bridge markers and return source shape mutations."""
+    mutations: list[dict] = []
+    ranges = _writer_body_paragraph_ranges(xml)
+    if not ranges:
+        ranges = _xml_element_ranges(xml, "w:p")
+    removals: list[tuple[int, int]] = []
+    for start, end in ranges:
+        paragraph = xml[start:end]
+        raw_text = _unescape_xml("".join(
+            re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", paragraph, re.IGNORECASE)
+        ))
+        found = _writer_mutation_payloads(raw_text) or _writer_mutation_payloads(paragraph)
+        if not found:
+            continue
+        mutations.extend(found)
+        removals.append((start, end))
+    result = xml
+    for start, end in reversed(removals):
+        result = result[:start] + result[end:]
+    return result, mutations
+
+
+def _writer_starwriter_shape_index(name: str | None) -> int | None:
+    match = re.fullmatch(r"Shape(\d+)", name or "")
+    return int(match.group(1)) - 1 if match else None
+
+
+def _drop_starwriter_duplicate_pics(
+    xml: str, original_xml: str, rels_xml: str,
+) -> tuple[str, str, set[str]]:
+    """Remove leftover StarWriter GIF rasters once native DrawingML is restored.
+
+    LibreOffice HTML export names every original wp:anchor ShapeN (1-based).
+    Connectors are passthrough-replaced, but later ShapeN pics of those
+    connectors remain. Untouched rectangle Frames are restored separately;
+    their ShapeN GIFs are the fill/border raster and must go with them.
+    """
+    source = _writer_outer_anchor_blocks(original_xml)
+    if not source:
+        return xml, rels_xml, set()
+    source_names = {name for name in (_writer_anchor_name(anchor) for anchor in source) if name}
+    present_names = {
+        name for name in (_writer_anchor_name(anchor) for anchor in _writer_outer_anchor_blocks(xml))
+        if name
+    }
+    records = _relationship_records(rels_xml)
+    ranges = _xml_element_ranges(xml, "wp:anchor")
+    outer = [
+        (start, end) for start, end in ranges
+        if not any(other_start < start and end < other_end
+                   for other_start, other_end in ranges)
+    ]
+    obsolete_rids: set[str] = set()
+    pieces: list[str] = []
+    cursor = len(xml)
+    changed = False
+    for start, end in reversed(outer):
+        anchor = xml[start:end]
+        name = _writer_anchor_name(anchor)
+        index = _writer_starwriter_shape_index(name)
+        keep = True
+        if (
+            index is not None
+            and name not in source_names
+            and 0 <= index < len(source)
+            and re.search(r"<pic:pic\b", anchor, re.IGNORECASE)
+        ):
+            src = source[index]
+            src_name = _writer_anchor_name(src)
+            rids = re.findall(r'\br:embed=["\']([^"\']+)', anchor, re.IGNORECASE)
+            gif_embed = any(
+                str(records.get(rid, {}).get("Target", "")).lower().endswith(".gif")
+                for rid in rids
+            )
+            native_wps = bool(re.search(r"<wps:wsp\b|<wpg:wgp\b", src, re.IGNORECASE))
+            source_is_picture = bool(
+                re.search(r"<pic:pic\b", src, re.IGNORECASE)
+            ) and not native_wps
+            if gif_embed and native_wps and not source_is_picture:
+                has_txbx = _writer_anchor_has_textbox(src)
+                native_present = bool(src_name and src_name in present_names and src_name != name)
+                if native_present or not has_txbx:
+                    keep = False
+                    obsolete_rids.update(rids)
+        pieces.append(xml[end:cursor])
+        pieces.append(anchor if keep else "")
+        if not keep:
+            changed = True
+        cursor = start
+    pieces.append(xml[:cursor])
+    if not changed:
+        return xml, rels_xml, set()
+    patched = _drop_empty_writer_drawings("".join(reversed(pieces)))
+    removable_entries: set[str] = set()
+    for old_rid in obsolete_rids:
+        if re.search(rf'\br:(?:embed|link|id)=["\']{re.escape(old_rid)}["\']', patched, re.IGNORECASE):
+            continue
+        old_rel = records.get(old_rid)
+        rels_xml = re.sub(
+            rf'<Relationship\b(?=[^>]*\bId=["\']{re.escape(old_rid)}["\'])[^>]*/?>',
+            "", rels_xml, count=1, flags=re.IGNORECASE,
+        )
+        if not old_rel or old_rel.get("TargetMode") == "External":
+            continue
+        old_target = old_rel.get("Target", "")
+        if not any(
+            rel.get("Target") == old_target and rel.get("TargetMode") != "External"
+            for rel in _relationship_records(rels_xml).values()
+        ):
+            removable_entries.add("word/" + old_target.lstrip("./"))
+    return patched, rels_xml, removable_entries
+
+
+def _apply_writer_shape_mutations_to_document(xml: str, mutations: list[dict]) -> str:
+    """Update/remove the original shape anchors used by later relocation passes."""
+    if not mutations:
+        return xml
+    ranges = _xml_element_ranges(xml, "wp:anchor")
+    outer = [
+        (start, end) for start, end in ranges
+        if not any(other_start < start and end < other_end
+                   for other_start, other_end in ranges)
+    ]
+    if not outer:
+        return xml
+    pieces: list[str] = []
+    cursor = len(xml)
+    for start, end in reversed(outer):
+        anchor = xml[start:end]
+        name = _writer_anchor_name(anchor)
+        for mutation in (item for item in mutations if item.get("anchorName") == name):
+            anchor = _apply_writer_imported_shape_mutation(anchor, mutation)
+            if not anchor:
+                anchor = ""
+                break
+        pieces.append(xml[end:cursor])
+        pieces.append(anchor or "")
+        cursor = start
+    pieces.append(xml[:cursor])
+    return _drop_empty_writer_drawings("".join(reversed(pieces)))
+
+
 def postprocess_writer_docx(
     docx_bytes: bytes,
     *,
@@ -10226,6 +10544,11 @@ def postprocess_writer_docx(
     original_xml_bytes = read_zip_entry(source_docx, "word/document.xml")
     original_xml = original_xml_bytes.decode("utf-8", errors="replace") if original_xml_bytes else ""
 
+    # Internal bridge markers identify imported anchors explicitly changed or
+    # deleted in Writer. Remove marker paragraphs from the final document, then
+    # apply the mutations after passthrough has restored the native anchors.
+    converted_xml, mutation_names = _strip_writer_shape_mutation_markers(converted_xml)
+
     # W35b: numbering nguồn + LibreOffice (id dời +1000) — numPr nguồn được W35 trả lại phải trỏ đúng numbering nguồn
     source_numbering_bytes = read_zip_entry(source_docx, "word/numbering.xml")
     converted_numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
@@ -10254,7 +10577,7 @@ def postprocess_writer_docx(
             anchor for anchor in _writer_outer_anchor_blocks(original_xml)
             if _writer_anchor_passthrough_kind(anchor)
         ]
-        if 5 <= len(safe_anchors) and len(source_flow) <= 25:
+        if not mutation_names and 5 <= len(safe_anchors) and len(source_flow) <= 25:
             return source_docx
     elif "vno-edited-" in converted_xml:
         source_flow = _writer_body_paragraph_ranges(original_xml)
@@ -10383,6 +10706,11 @@ def postprocess_writer_docx(
         new_xml, original_xml, pristine_document=pristine_document,
     )
     new_xml = _restore_writer_anchor_properties(new_xml, original_xml)
+    new_xml = _apply_writer_shape_mutations_to_document(new_xml, mutation_names)
+    new_xml, converted_rels_xml, starwriter_obsolete = _drop_starwriter_duplicate_pics(
+        new_xml, original_xml, converted_rels_xml,
+    )
+    obsolete_anchor_media = set(obsolete_anchor_media) | starwriter_obsolete
     new_xml = _restore_writer_matched_formatting(
         new_xml, original_xml, trusted_untouched_texts=untouched_texts,
         trust_all_exact=pristine_document,

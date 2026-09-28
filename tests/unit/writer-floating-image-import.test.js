@@ -9,6 +9,44 @@ export async function runWriterFloatingImageImportTests() {
   const results = [];
   const test = (name, fn) => { try { fn(); results.push({ name, pass: true }); } catch (error) { results.push({ name, pass: false, error: error.message }); } };
 
+  test("Imported DrawingML shapes render from model but are not emitted again when untouched", () => {
+    const adapter = new WriterAdapter(null);
+    adapter.shapes = [
+      { id: "Rectangle 1", type: "rectangle", imported: true, sourceDocPrName: "Rectangle 1" },
+      { id: "shape-native", type: "rectangle" },
+    ];
+    check(adapter.shapes.length === 2, "Imported shapes must remain available for canvas rendering");
+    check(adapter._shapesForExport().length === 1 && adapter._shapesForExport()[0].id === "shape-native", "Untouched imported shape was included in save output");
+    check(adapter._shapeMutationMarkerHtml() === "", "Untouched shape created a mutation marker");
+  });
+
+  test("Changed or deleted imported DrawingML shapes produce one replacement marker", () => {
+    const adapter = new WriterAdapter(null);
+    const imported = { id: "Rectangle 1", type: "rectangle", imported: true, importedEdited: true, sourceDocPrName: "Rectangle 1" };
+    adapter.shapes = [imported];
+    check(adapter._shapesForExport().length === 0, "Imported shape should be updated in its native DrawingML anchor, not re-exported as a duplicate");
+    check((adapter._shapeMutationMarkerHtml().match(/VNO_SHAPE_MUTATION_/g) || []).length === 1, "Edited shape must have exactly one source-suppression marker");
+    adapter.shapes = [];
+    adapter._deletedImportedShapeNames = [{ anchorName: "Rectangle 1", shapeName: "Rectangle 1" }];
+    const deletionMarker = adapter._shapeMutationMarkerHtml().match(/VNO_SHAPE_MUTATION_([0-9a-f]+)/)?.[1];
+    const deletion = JSON.parse(new TextDecoder().decode(Uint8Array.from(deletionMarker.match(/../g), byte => parseInt(byte, 16))));
+    check(deletion.type === "delete" && deletion.anchorName === "Rectangle 1", "Deleted shape did not retain its source anchor");
+  });
+
+  test("Moving or deleting an imported shape records the source anchor mutation", () => {
+    const adapter = new WriterAdapter(null);
+    adapter._renderShapes = () => {};
+    adapter.recordSnapshot = () => {};
+    adapter.shapes = [{ id: "Rectangle 1", type: "rectangle", imported: true, sourceDocPrName: "Rectangle 1", x: 1, y: 2 }];
+    check(adapter.moveShape("Rectangle 1", 31, 42), "Move failed");
+    check(adapter.shapes[0].importedEdited === true, "Move did not mark imported shape for replacement");
+    const moveMarker = adapter._shapeMutationMarkerHtml().match(/VNO_SHAPE_MUTATION_([0-9a-f]+)/)?.[1];
+    const moved = JSON.parse(new TextDecoder().decode(Uint8Array.from(moveMarker.match(/../g), byte => parseInt(byte, 16))));
+    check(moved.type === "edit" && moved.anchorName === "Rectangle 1" && moved.dx === 30 && moved.dy === 40, "Move delta was not carried to the source anchor");
+    check(adapter.deleteShape("Rectangle 1"), "Delete failed");
+    check(adapter.shapes.length === 0 && adapter._shapeMutationMarkerHtml().includes("VNO_SHAPE_MUTATION_"), "Delete would allow the source shape to return on save");
+  });
+
   test("Floating import preserves image geometry and OOXML anchor semantics", () => {
     const adapter = new WriterAdapter(null);
     const body = adapter._normalizeImportedHtml(HTML, OOXML).body;
@@ -16,6 +54,14 @@ export async function runWriterFloatingImageImportTests() {
     check(body.includes('data-vno-left="3.39"') && body.includes('data-vno-top="7.41"'), "Image coordinates changed");
     check(body.includes('data-vno-width="13.97"'), "528px width was not normalized to cm");
     check(body.includes('data-vno-relative-h="page"') && body.includes('data-vno-behind="1"'), "OOXML page/behind metadata missing");
+  });
+
+  test("Inline DrawingML picture survives blank-break normalization for DOCX save", () => {
+    const html = '<body><p><img src="data:image/png;base64,UE5H" width="24" height="24"><br><br></p></body>';
+    const xml = '<w:document><w:body><w:p><w:r><w:drawing><wp:anchor><wp:positionH relativeFrom="column"/><wp:positionV relativeFrom="paragraph"/><pic:pic><pic:blipFill><a:blip r:embed="rId7"/></pic:blipFill></pic:pic></wp:anchor></w:drawing></w:r></w:p></w:body></w:document>';
+    const body = new WriterAdapter(null)._normalizeImportedHtml(html, xml).body;
+    check(body.includes('src="data:image/png;base64,UE5H"'), `DrawingML image data was removed: ${body}`);
+    check(body.includes("<br><br>"), `Image paragraph was collapsed as empty whitespace: ${body}`);
   });
 
   test("Floating import preserves textbox content, negative geometry and wrap", () => {

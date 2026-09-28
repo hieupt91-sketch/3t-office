@@ -12,6 +12,7 @@ actual header/footer XML content survive the HTML round-trip.
 from __future__ import annotations
 
 import io
+import json
 import re
 import tempfile
 import unittest
@@ -470,6 +471,95 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         )
         self.assertIn("<a:noFill/>", transparent)
         self.assertNotIn("<a:solidFill", transparent)
+
+    def _imported_shape_anchor(self, *, name="Rect A", pos_offset=False, off_x=10, off_y=20):
+        position = (
+            '<wp:positionH relativeFrom="column"><wp:posOffset>1000</wp:posOffset></wp:positionH>'
+            '<wp:positionV relativeFrom="paragraph"><wp:posOffset>2000</wp:posOffset></wp:positionV>'
+            if pos_offset else ""
+        )
+        return (
+            f'<wp:anchor><wp:docPr id="1" name="{name}"/>{position}'
+            f'<wps:wsp><wps:cNvPr name="{name}"/><a:xfrm>'
+            f'<a:off x="{off_x}" y="{off_y}"/><a:ext cx="3000" cy="4000"/>'
+            f'</a:xfrm></wps:wsp></wp:anchor>'
+        )
+
+    def _postprocess_imported_shape(self, source_anchor, converted_body):
+        source_docx = _build_minimal_docx(
+            f'<w:p><w:r><w:drawing>{source_anchor}</w:drawing></w:r></w:p><w:sectPr/>'
+        )
+        converted_docx = _build_minimal_docx(converted_body)
+        result = ooxml_zip_patch_mod.postprocess_writer_docx(converted_docx, source_docx=source_docx)
+        return _read_entry(result, "word/document.xml").decode("utf-8")
+
+    def test_untouched_imported_shape_is_passthrough_once(self):
+        source_anchor = self._imported_shape_anchor()
+        converted = (
+            '<w:p><w:bookmarkStart w:id="1" w:name="vno-untouched-0"/>'
+            '<w:r><w:drawing><wp:anchor><wp:docPr id="9" name="Shape1"/>'
+            '<pic:pic/></wp:anchor></w:drawing></w:r></w:p><w:sectPr/>'
+        )
+        xml = self._postprocess_imported_shape(source_anchor, converted)
+        self.assertEqual(len(re.findall(r"<wps:wsp\b", xml)), 1)
+        self.assertEqual(len(re.findall(r"<wp:anchor\b", xml)), 1)
+        self.assertIn('name="Rect A"', xml)
+        self.assertNotIn("VNO_SHAPE_MUTATION_", xml)
+        self.assertNotIn("<pic:pic", xml)
+
+    def test_moved_imported_shape_updates_native_anchor_once(self):
+        marker = "VNO_SHAPE_MUTATION_" + json.dumps(
+            {"type": "edit", "anchorName": "Rect A", "shapeName": "Rect A", "dx": 2, "dy": -1},
+            separators=(",", ":"),
+        ).encode().hex()
+        local_anchor = self._imported_shape_anchor()
+        local_xml = self._postprocess_imported_shape(
+            local_anchor,
+            f'<w:p><w:r><w:t>{marker}</w:t></w:r></w:p>'
+            f'<w:p><w:bookmarkStart w:id="1" w:name="vno-untouched-0"/>'
+            f'<w:r><w:drawing>{local_anchor}</w:drawing></w:r></w:p><w:sectPr/>',
+        )
+        self.assertNotIn("VNO_SHAPE_MUTATION_", local_xml)
+        self.assertEqual(len(re.findall(r"<wps:wsp\b", local_xml)), 1)
+        self.assertIn('<a:off x="19060" y="-9505"/>', local_xml)
+
+        offset_anchor = self._imported_shape_anchor(pos_offset=True, off_x=0, off_y=0)
+        offset_xml = self._postprocess_imported_shape(
+            offset_anchor,
+            f'<w:p><w:r><w:t>{marker}</w:t></w:r></w:p>'
+            f'<w:p><w:bookmarkStart w:id="1" w:name="vno-untouched-0"/>'
+            f'<w:r><w:drawing>{offset_anchor}</w:drawing></w:r></w:p><w:sectPr/>',
+        )
+        self.assertEqual(len(re.findall(r"<wps:wsp\b", offset_xml)), 1)
+        self.assertIn("<wp:posOffset>20050</wp:posOffset>", offset_xml)
+        self.assertIn("<wp:posOffset>-7525</wp:posOffset>", offset_xml)
+        self.assertIn('<a:off x="0" y="0"/>', offset_xml)
+
+        split_marker = (
+            f'<w:document><w:body><w:p><w:r><w:t>{marker[:24]}</w:t></w:r>'
+            f'<w:r><w:t>{marker[24:]}</w:t></w:r></w:p><w:sectPr/></w:body></w:document>'
+        )
+        stripped, names = ooxml_zip_patch_mod._strip_writer_shape_mutation_markers(split_marker)
+        self.assertEqual(names[0]["type"], "edit")
+        self.assertNotIn("VNO_SHAPE_MUTATION_", stripped)
+
+    def test_deleted_imported_shape_is_not_restored(self):
+        marker = "VNO_SHAPE_MUTATION_" + json.dumps(
+            {"type": "delete", "anchorName": "Rect A", "shapeName": "Rect A"},
+            separators=(",", ":"),
+        ).encode().hex()
+        source_anchor = self._imported_shape_anchor()
+        xml = self._postprocess_imported_shape(
+            source_anchor,
+            f'<w:p><w:r><w:t>{marker}</w:t></w:r></w:p>'
+            f'<w:p><w:bookmarkStart w:id="1" w:name="vno-untouched-0"/>'
+            f'<w:r><w:drawing><wp:anchor><wp:docPr id="9" name="Shape1"/>'
+            f'<pic:pic/></wp:anchor></w:drawing></w:r></w:p><w:sectPr/>',
+        )
+        self.assertNotIn("VNO_SHAPE_MUTATION_", xml)
+        self.assertNotIn("<wp:anchor", xml)
+        self.assertNotIn("<wps:wsp", xml)
+        self.assertNotIn("<pic:pic", xml)
 
     def _format_roundtrip_xml(self, source_ppr: str, source_rpr: str = "", marker: bool = True) -> str:
         source = _build_minimal_docx(
