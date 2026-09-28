@@ -1380,9 +1380,39 @@ export class SheetAdapter {
     return `of:=${expression}`;
   }
 
+  /** True when a LibreOffice formula references another workbook ('file:///…/B.xlsx'#$Sheet1.A1). */
+  _isExternalOdfFormula(formula) {
+    return /\[\s*'[^']*'#\$/.test(String(formula || ""));
+  }
+
+  /**
+   * Excel spelling of one LibreOffice external reference, e.g.
+   * 'file:///E:/x/B.xlsx'#$Sheet1.A1:.A3 → [B.xlsx]Sheet1!A1:A3. The file name
+   * is what Excel shows while the source workbook is closed.
+   */
+  _externalReferenceToExcel(reference) {
+    const match = String(reference).match(/^'([^']*)'#\$((?:'[^']+'|[^.]+))\.(.+)$/);
+    if (!match) return null;
+    const fileName = decodeURIComponent(match[1].split(/[\\/]/).pop() || match[1]);
+    const sheet = match[2].replace(/^'(.*)'$/, "$1").replace(/''/g, "'");
+    const cells = match[3].split(":").map(part => part.replace(/^\$?[^.]*\./, "")).join(":");
+    const book = `[${fileName}]${sheet}`;
+    const needsQuotes = /[^A-Za-z0-9_À-ỹ[\].]/.test(book);
+    return `${needsQuotes ? `'${book.replace(/'/g, "''")}'` : book}!${cells}`;
+  }
+
   _formulaFromOdf(formula) {
     if (!formula) return "";
     let expression = String(formula).replace(/^of:=/i, "=");
+    // External workbook references contain "file:///E:" — resolve them before the
+    // generic ':' split below, which would cut the path apart.
+    const externals = [];
+    expression = expression.replace(/\[\s*('[^']*'#\$[^\]]+)\]/g, (all, reference) => {
+      const excel = this._externalReferenceToExcel(reference);
+      if (!excel) return all;
+      externals.push(excel);
+      return `__VNO_EXT_${externals.length - 1}__`;
+    });
     expression = expression.replace(/\[([^\]]+)\]/g, (_, reference) => {
       const parts = reference.split(":").map(part => {
         if (part.startsWith(".")) return part.slice(1);
@@ -1397,6 +1427,7 @@ export class SheetAdapter {
       }
       return parts.join(":");
     });
+    expression = expression.replace(/__VNO_EXT_(\d+)__/g, (_, index) => externals[Number(index)]);
     return this._replaceFormulaSeparators(expression, ";", ",");
   }
 
@@ -3182,9 +3213,12 @@ export class SheetAdapter {
           const item = storedItem || { val: "", formula: "", style: {} };
           const arrayFormula = this._arrayFormulaInfo(coordinate, item);
           const formula = (!arrayFormula || arrayFormula.isAnchor) && item.formula && String(item.formula).startsWith("=") ? String(item.formula) : "";
-          const formulaAttrs = formula
-            ? ` table:formula="${this._escapeXml(this._formulaToOdf(formula))}" vno:formula="${this._escapeXml(formula)}"`
-            : "";
+          const untouchedExternal = formula && item.externalLink?.formula === formula;
+          const formulaAttrs = untouchedExternal
+            ? ` table:formula="${this._escapeXml(item.externalLink.odf)}"`
+            : formula
+              ? ` table:formula="${this._escapeXml(this._formulaToOdf(formula))}" vno:formula="${this._escapeXml(formula)}"`
+              : "";
           const matrixAttrs = arrayFormula?.isAnchor
             ? ` table:number-matrix-columns-spanned="${arrayFormula.columns}" table:number-matrix-rows-spanned="${arrayFormula.rows}"`
             : "";
@@ -3585,7 +3619,12 @@ export class SheetAdapter {
     } else if (get("office:string-value")) {
       value = this._decodeImportedCellText(get("office:string-value"));
     }
-    const formula = get("vno:formula") || this._formulaFromOdf(get("table:formula"));
+    const odfFormula = get("table:formula");
+    const formula = get("vno:formula") || this._formulaFromOdf(odfFormula);
+    // Excel keeps the cached value of a link to a closed workbook and never
+    // recalculates it; remember the exact LibreOffice formula so an unedited
+    // link is written back byte-for-byte on save.
+    const externalOdf = !get("vno:formula") && this._isExternalOdfFormula(odfFormula) ? odfFormula : "";
     const style = {};
     const numFmtAttr = get("vno:number-format");
     const standardFormat = numberStyles.get(get("table:style-name"));
@@ -3638,7 +3677,9 @@ export class SheetAdapter {
     }
     // S8: Compute stable hash of style at import time.
     style.styleHashAtImport = this._computeStyleHash(style);
-    return { val: value, formula, style };
+    return externalOdf
+      ? { val: value, formula, style, externalLink: { odf: externalOdf, formula } }
+      : { val: value, formula, style };
   }
 
   _parseCellStyleColors(xmlText) {
@@ -4748,6 +4789,18 @@ export class SheetAdapter {
     }
     this.grid.rowCount = Math.max(200, _maxRowInFile + 50);
     this._invalidateRowTopsCache?.();
+    // Excel opens such a workbook with a notice and shows the last saved values;
+    // VN Office is offline and never opens the other workbook itself.
+    let externalLinkCells = 0;
+    for (const sheetData of Object.values(this.grid.sheetsData || {})) {
+      for (const item of sheetData?.values?.() || []) {
+        if (item?.externalLink) externalLinkCells++;
+      }
+    }
+    this.externalLinkCells = externalLinkCells;
+    if (externalLinkCells > 0) {
+      this.shell?.setStatus?.(`Tệp có ${externalLinkCells} ô liên kết tới sổ làm việc khác — đang hiển thị giá trị lưu lần cuối (không tự cập nhật).`);
+    }
 
     this.grid._refreshVisibleRuleVisuals?.();
     this.grid._refreshRowColLayoutView?.();
@@ -4938,6 +4991,7 @@ export class SheetAdapter {
       this.grid.resetToBlank();
     }
     this.sourceFileName = "BangTinh";
+    this.sourceFilePath = "";
     this.isDirty = false;
     this.shell?.resetDocumentChrome?.("Bảng tính 1.xlsx", "home", false);
     return true;
@@ -4948,17 +5002,27 @@ export class SheetAdapter {
   }
 
   /**
-   * Lưu bảng tính thành tệp XLSX thật trên đĩa (qua LibreOffice headless engine).
+   * Lưu bảng tính:
+   * - Nếu bảng tính đã có đường dẫn gốc (sourceFilePath): Ctrl+S / Lưu lưu thẳng vào tệp đó,
+   *   tôn trọng định dạng gốc (.xls/.xlsx/.ods/.csv) và thông báo nhẹ "Đã lưu" trên thanh trạng thái.
+   * - Nếu bảng tính mới (chưa có đường dẫn): chuyển tiếp sang saveAs() để mở hộp thoại lưu tệp.
    */
   async save() {
+    if (!this.sourceFilePath) {
+      return await this.saveAs();
+    }
+
     const fodsContent = this.serializeToFods();
-    const suggestedName = (this.sourceFileName && this.sourceFileName !== "BangTinh")
-      ? this.sourceFileName
-      : (this.shell?.documentName ? this.shell.documentName.replace(/\.[^/.]+$/, "") : (this.sourceFileName || "BangTinh"));
-    const result = await globalUnoBridge.saveRealFile("sheet", fodsContent, "xlsx", suggestedName, this.sourceFilePath);
+    const result = await globalUnoBridge.saveRealFileInPlace(
+      "sheet",
+      fodsContent,
+      this.sourceFilePath,
+      this.sourceFilePath
+    );
+
     if (result.status === "ok") {
       this.isDirty = false;
-      const savedPath = result.path || result.fileName;
+      const savedPath = result.path || this.sourceFilePath;
       if (savedPath) {
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
@@ -4966,16 +5030,63 @@ export class SheetAdapter {
           this.shell?.resetDocumentChrome?.(savedFileName, null);
         }
       }
-      await showAlertDialog({ title: "Đã lưu", message: result.message, type: "success" });
+      this.shell?.setStatus?.("Đã lưu");
       return true;
     }
+
     if (result.status === "cancelled") return false;
-    await showAlertDialog({ title: "Không thể lưu", message: result.message, type: "error" });
+    await showAlertDialog({
+      title: "Không thể lưu bảng tính",
+      message: result.message || "Lỗi không xác định khi lưu bảng tính.",
+      type: "error"
+    });
     return false;
   }
 
+  /**
+   * Lưu bản sao (F12 / Tệp → Lưu bản sao):
+   * Luôn mở hộp thoại lưu native của hệ điều hành, cho phép chọn thư mục, đổi tên
+   * hoặc chọn định dạng xuất (.xlsx, .xls, .ods, .csv).
+   */
   async saveAs() {
-    return await this.save();
+    const fodsContent = this.serializeToFods();
+    const currentName = this.sourceFileName || "BangTinh";
+    const suggestedName = this.sourceFilePath
+      ? this.sourceFilePath.split(/[/\\]/).pop()
+      : (this.shell?.documentName ? this.shell.documentName : (currentName !== "BangTinh" ? currentName : "BangTinh.xlsx"));
+
+    const targetFormat = this.sourceFilePath ? (this.sourceFilePath.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || "xlsx") : "xlsx";
+
+    const result = await globalUnoBridge.saveRealFile(
+      "sheet",
+      fodsContent,
+      targetFormat,
+      suggestedName,
+      this.sourceFilePath || null
+    );
+
+    if (result.status === "ok") {
+      this.isDirty = false;
+      const savedPath = result.path || result.fileName;
+      if (savedPath) {
+        this.sourceFilePath = savedPath;
+        const savedFileName = savedPath.split(/[/\\]/).pop();
+        if (savedFileName) {
+          this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
+          this.shell?.resetDocumentChrome?.(savedFileName, null);
+        }
+      }
+      this.shell?.setStatus?.("Đã lưu");
+      return true;
+    }
+
+    if (result.status === "cancelled") return false;
+    await showAlertDialog({
+      title: "Không thể lưu bảng tính",
+      message: result.message || "Lỗi không xác định khi lưu bảng tính.",
+      type: "error"
+    });
+    return false;
   }
 
   /**

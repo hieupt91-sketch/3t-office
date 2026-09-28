@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Test Suite: Excel Spreadsheet Formula Engine Tests
  */
 
@@ -300,6 +300,41 @@ export async function runFormulaEngineTests() {
       return numEngine.getCellValue("Y1") === 0.333333333333333 &&
         numEngine.evaluate("=Y1*3") > 0.99 && numEngine.evaluate("=Y1*3") < 1.01;
     })()
+  });
+
+  // 26. NA() — trả lỗi #N/A
+  results.push({
+    name: "NA(): =NA() trả về chuỗi lỗi \"#N/A\"",
+    pass: engine.evaluate("=NA()") === "#N/A"
+  });
+
+  // 27. NA() + ISNA — ISNA(NA()) = TRUE
+  results.push({
+    name: "NA(): ISNA(NA()) = TRUE",
+    pass: engine.evaluate("=ISNA(NA())") === true
+  });
+
+  // 28. NA() + IFERROR — IFERROR(NA(), 99) = 99
+  results.push({
+    name: "NA(): IFERROR(NA(), 99) = 99",
+    pass: engine.evaluate("=IFERROR(NA(), 99)") === 99
+  });
+
+  // 29. NA() + IFNA — IFNA(NA(), \"thay thế\") = \"thay thế\"
+  results.push({
+    name: "NA(): IFNA(NA(), \"thay the\") = \"thay the\"",
+    pass: engine.evaluate("=IFNA(NA(), \"thay the\")") === "thay the"
+  });
+
+  // NOTE: ISNA("#N/A" string literal) không được test ở đây vì engine hiện tại
+  // dùng string "#N/A" làm cả error lẫn text (không có type system phân biệt).
+  // Excel: ISNA("#N/A") = FALSE (text). Engine hiện tại: TRUE (limitation).
+  // Khi engine nâng cấp type system sẽ bổ sung test này.
+
+  // 31. NA() args != 0 → #VALUE!
+  results.push({
+    name: "NA(): NA(1) → #VALUE! (NA không nhận đối số)",
+    pass: engine.evaluate("=NA(1)") === "#VALUE!"
   });
 
   return results;

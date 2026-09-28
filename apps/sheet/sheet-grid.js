@@ -3549,6 +3549,9 @@ export class SheetGridController {
       this.activeSheet = sheetName;
       for (const [k, itm] of map.entries()) {
       if ((sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
+        // A link to another (closed) workbook keeps its cached value, as in
+        // Excel; evaluating it here would overwrite the value with an error.
+        if (itm.externalLink && itm.externalLink.formula === itm.formula) continue;
         let res;
         if (itm.isArrayFormula && itm.arrayRange) {
           const results = this.formulaEngine.evaluateArray(itm.formula);

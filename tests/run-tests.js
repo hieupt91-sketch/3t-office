@@ -7,6 +7,7 @@ import { runCommandBusTests } from "./unit/command-bus.test.js";
 import { runAdapterMappingTests } from "./unit/adapter-mapping.test.js";
 import { runSuiteSmokeTests } from "./smoke/suite-smoke.test.js";
 import { runFormulaEngineTests } from "./unit/formula-engine.test.js";
+import { runSheetExternalLinksTests } from "./unit/sheet-external-links.test.js";
 import { runFormulaAutocompleteTests } from "./unit/formula-autocomplete.test.js";
 import { runI18nTests } from "./unit/i18n.test.js";
 import { runSyntaxCheckTests } from "./unit/syntax-check.test.js";
@@ -188,6 +189,7 @@ async function runAll() {
     { title: "1. Unit Tests — Command Bus", runner: runCommandBusTests },
     { title: "2. Unit Tests — LibreOffice Adapter Mapping", runner: runAdapterMappingTests },
     { title: "3. Unit Tests — Excel Spreadsheet Formula Engine", runner: runFormulaEngineTests },
+    { title: "3b. Unit Tests — Sheet external workbook links", runner: runSheetExternalLinksTests },
     { title: "4. Unit Tests — Formula Autocomplete & Parameter IntelliSense", runner: runFormulaAutocompleteTests },
     { title: "5. Unit Tests — Vietnamese i18n Localization Layer", runner: runI18nTests },
     { title: "6. Smoke Tests — Suite & Vietnamese Unicode", runner: runSuiteSmokeTests },

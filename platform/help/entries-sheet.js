@@ -7,6 +7,23 @@ import { registerHelpEntries } from "./help-catalog.js";
 
 export const SHEET_HELP_ENTRIES = [
   {
+    id: "sheet.formula.externalLinks",
+    app: "sheet",
+    commandIds: [],
+    title: "Liên kết tới sổ làm việc khác",
+    summary: "Công thức như =[BaoCao.xlsx]Sheet1!A1 lấy số liệu từ một tệp Excel khác. VN Sheet hiển thị giá trị đã lưu lần cuối trong tệp, giữ nguyên liên kết khi lưu và không tự mở tệp nguồn (ứng dụng chạy offline).",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Kiểm tra công thức" },
+    keywords: ["liên kết ngoài", "external link", "sổ làm việc khác", "tệp khác", "[Book.xlsx]", "cập nhật liên kết", "NA", "#N/A"],
+    steps: [
+      "Khi mở một bảng tính có liên kết tới tệp khác, thanh trạng thái phía dưới báo số ô có liên kết, ví dụ: \"Tệp có 2 ô liên kết tới sổ làm việc khác — đang hiển thị giá trị lưu lần cuối\".",
+      "Chọn ô để xem công thức trên thanh công thức, viết giống Excel: =[BaoCao.xlsx]Sheet1!A1 hoặc ='[Bao cao.xlsx]So lieu'!B2 khi tên có khoảng trắng.",
+      "Giá trị của các ô này không tự cập nhật khi bạn sửa bảng tính: VN Sheet giữ đúng số liệu đã lưu, giống Excel khi tệp nguồn đang đóng. Các công thức khác dựa trên ô liên kết vẫn tính bình thường với giá trị đó.",
+      "Nhấn Ctrl+S để lưu: liên kết được giữ nguyên, mở lại bằng Excel vẫn cập nhật được từ tệp nguồn.",
+      "Nếu gõ lại công thức khác vào ô liên kết, ô đó trở thành công thức thường và không còn liên kết tới tệp kia.",
+      "Muốn đánh dấu ô chưa có dữ liệu, dùng =NA() để trả về lỗi #N/A; bắt lỗi này bằng =IFNA(ô; \"giá trị thay thế\") hoặc kiểm tra bằng =ISNA(ô)."
+    ]
+  },
+  {
     id: "sheet.format.defaultWorkbook",
     app: "sheet",
     commandIds: ["sheet.font.family", "sheet.font.size", "sheet.font.grow", "sheet.font.shrink"],
@@ -930,6 +947,22 @@ export const SHEET_HELP_ENTRIES = [
       "In ấn với Live Preview Thumbnail: Chọn mục «In» trên thanh bên trái (hoặc nhấn Ctrl+P). Panel In hiển thị nút 'In ngay', cụm chuyển trang (Trang trước/sau) và khung Live Preview mô phỏng chính xác bảng dữ liệu theo Vùng in (Print Area) và Thiết lập trang (Page Setup). Nhấn 'In ngay' để chuyển sang hộp thoại in của máy in.",
       "Các thao tác tệp khác: 'Tạo mới' (Ctrl+N), 'Mở' (Ctrl+O), 'Lưu' (Ctrl+S), 'Lưu bản sao' (F12) và 'Xuất PDF' đều được bố trí trực quan và hỗ trợ phím tắt chuẩn Office.",
       "Đóng menu Tệp: Nhấn phím Escape hoặc nhấp nút '← Quay lại' ở góc trên bên trái bất kỳ lúc nào để đóng Backstage và khôi phục tiêu điểm chính xác về ô bảng tính bạn đang chọn trước đó."
+    ]
+  },
+  {
+    id: "sheet.file.saveDocument",
+    app: "sheet",
+    commandIds: ["common.file.save", "common.file.saveAs"],
+    title: "Lưu bảng tính (Ctrl+S) và Lưu bản sao (F12)",
+    summary: "Lưu bảng tính sang tệp thật trên đĩa máy tính thông qua LibreOffice Core headless. Hỗ trợ Ctrl+S lưu thẳng vào tệp đang mở như Microsoft Excel, F12 lưu bản sao và tôn trọng định dạng gốc .xls (Excel 97-2003).",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Trang tính" },
+    keywords: ["lưu bảng tính", "lưu file", "save", "save as", "ctrl+s", "f12", "xlsx", "xls", "lưu bản sao", "lưu tại chỗ"],
+    steps: [
+      "Lưu nhanh vào tệp đang mở (Ctrl+S): Nhấn phím tắt Ctrl+S hoặc nhấp biểu tượng đĩa mềm trên thanh truy cập nhanh ở góc trên bên trái. Nếu bảng tính đã có đường dẫn trên đĩa (XLSX, XLS, ODS, CSV), hệ thống sẽ lưu thẳng trực tiếp vào tệp đó mà không mở hộp thoại, kèm thông báo 'Đã lưu' trên thanh trạng thái.",
+      "Lưu bảng tính mới: Nếu bảng tính vừa tạo mới chưa lưu lần nào, thao tác Ctrl+S hoặc nút Lưu sẽ tự động mở hộp thoại Lưu bản sao để bạn chọn thư mục và đặt tên tệp.",
+      "Lưu bản sao (F12 / Tệp → Lưu bản sao): Nhấn phím F12 hoặc vào menu Tệp → chọn «Lưu bản sao» để mở hộp thoại lưu tệp native. Bạn có thể lưu thành tệp mới với các định dạng: .xlsx (Excel 2007 XML chuẩn), .xls (Excel 97-2003 OLE2), .ods (OpenDocument Spreadsheet) hoặc .csv (phân tách dấu phẩy).",
+      "Chế độ tương thích định dạng cũ (.xls): Khi mở một tệp .xls từ cơ quan hoặc ổ LAN, thao tác Ctrl+S sẽ lưu lại đúng chuẩn nhị phân Excel 97-2003 (.xls), không âm thầm chuyển đổi sang .xlsx.",
+      "Bảo vệ dữ liệu nguyên tử: Hệ thống luôn ghi ra tệp tạm và thay thế nguyên tử (atomic replace); nếu có sự cố hoặc lỗi chuyển đổi, tệp gốc trên đĩa hoàn toàn không bị hư hại. Nếu tệp đang ở chế độ chỉ đọc hoặc bị Excel khóa, hệ thống sẽ thông báo rõ ràng để bạn chọn Lưu bản sao."
     ]
   }
 ];

@@ -1,4 +1,4 @@
-﻿import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { VN_TO_UNO_MAP } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
@@ -160,10 +160,10 @@ export async function runSheetFormulasTabTests() {
     }
   });
 
-  await test("Function Catalog: Đầy đủ 96 hàm thuộc 7 danh mục kế toán & văn phòng chuẩn Excel", () => {
+  await test("Function Catalog: Đầy đủ 97 hàm thuộc 7 danh mục kế toán & văn phòng chuẩn Excel", () => {
     const catalog = FUNCTION_CATALOG;
     assert(Array.isArray(catalog), "FUNCTION_CATALOG phải là một mảng");
-    assert(catalog.length === 96, `FUNCTION_CATALOG phải có đúng 96 hàm, thực tế: ${catalog.length}`);
+    assert(catalog.length === 97, `FUNCTION_CATALOG phải có đúng 97 hàm, thực tế: ${catalog.length}`);
 
     const categories = new Set(catalog.map(f => f.category));
     assert(categories.has("Toán học"), "Thiếu danh mục 'Toán học'");
