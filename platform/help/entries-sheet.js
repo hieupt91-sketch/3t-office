@@ -32,7 +32,8 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Công thức", tabId: "formulas", group: "Kiểm tra công thức" },
     keywords: ["liên kết ngoài", "external link", "sổ làm việc khác", "tệp khác", "[Book.xlsx]", "cập nhật liên kết", "NA", "#N/A"],
     steps: [
-      "Khi mở một bảng tính có liên kết tới tệp khác, thanh trạng thái phía dưới báo số ô có liên kết, ví dụ: \"Tệp có 2 ô liên kết tới sổ làm việc khác — đang hiển thị giá trị lưu lần cuối\".",
+      "Khi mở bảng tính có liên kết tới tệp khác, một thanh cảnh báo màu vàng hiển thị ngay dưới ribbon: \"Tệp có N ô liên kết tới sổ làm việc khác. VN Office hiển thị giá trị lưu lần cuối và không tự cập nhật (ứng dụng chạy ngoại tuyến).\", đồng thời thanh trạng thái phía dưới cũng báo số ô có liên kết.",
+      "Nhấn nút \"Tìm hiểu thêm\" trên thanh cảnh báo để mở nhanh bài hướng dẫn này, hoặc nhấn nút đóng (×) hay phím Esc khi đang ở trong thanh để ẩn thông báo.",
       "Chọn ô để xem công thức trên thanh công thức, viết giống Excel: =[BaoCao.xlsx]Sheet1!A1 hoặc ='[Bao cao.xlsx]So lieu'!B2 khi tên có khoảng trắng.",
       "Giá trị của các ô này không tự cập nhật khi bạn sửa bảng tính: VN Sheet giữ đúng số liệu đã lưu, giống Excel khi tệp nguồn đang đóng. Các công thức khác dựa trên ô liên kết vẫn tính bình thường với giá trị đó.",
       "Nhấn Ctrl+S để lưu: liên kết được giữ nguyên, mở lại bằng Excel vẫn cập nhật được từ tệp nguồn.",

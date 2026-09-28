@@ -4819,6 +4819,20 @@ export class SheetAdapter {
     this.externalLinkCells = externalLinkCells;
     if (externalLinkCells > 0) {
       this.shell?.setStatus?.(`Tệp có ${externalLinkCells} ô liên kết tới sổ làm việc khác — đang hiển thị giá trị lưu lần cuối (không tự cập nhật).`);
+      this.shell?.showNotification?.({
+        message: `Tệp có ${externalLinkCells} ô liên kết tới sổ làm việc khác. VN Office hiển thị giá trị lưu lần cuối và không tự cập nhật (ứng dụng chạy ngoại tuyến).`,
+        type: "warning",
+        action: {
+          label: "Tìm hiểu thêm",
+          ariaLabel: "Tìm hiểu thêm về liên kết ngoài",
+          onClick: () => {
+            globalCommandBus.execute("sheet.help.open", { entryId: "sheet.formula.externalLinks" });
+          }
+        },
+        dismissible: true
+      });
+    } else {
+      this.shell?.clearNotification?.();
     }
 
     this.grid._refreshVisibleRuleVisuals?.();
@@ -5009,9 +5023,11 @@ export class SheetAdapter {
     if (this.grid && typeof this.grid.resetToBlank === "function") {
       this.grid.resetToBlank();
     }
+    this.externalLinkCells = 0;
     this.sourceFileName = "BangTinh";
     this.sourceFilePath = "";
     this.isDirty = false;
+    this.shell?.clearNotification?.();
     this.shell?.resetDocumentChrome?.("Bảng tính 1.xlsx", "home", false);
     return true;
   }
