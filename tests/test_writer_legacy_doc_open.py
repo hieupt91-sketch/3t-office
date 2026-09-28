@@ -34,6 +34,10 @@ class WriterLegacyDocOpenTests(unittest.TestCase):
             with (
                 patch.object(main, "_run_soffice_convert", side_effect=fake_convert),
                 patch.object(main, "_ooxml_zip_patch", return_value=patcher),
+                patch.object(main, "_read_docx_document_xml", return_value="<w:document/>") as read_document,
+                patch.object(main, "_read_docx_comments_xml", return_value="<w:comments/>") as read_comments,
+                patch.object(main, "_read_docx_zip_entry", side_effect=lambda _path, entry: f"<{entry}/>") as read_entry,
+                patch.object(main, "_read_docx_header_footer_xmls", return_value=("<w:hdr/>", "<w:ftr/>")) as read_zones,
                 patch.object(main, "_active_window", return_value=None),
             ):
                 result = main.VnOfficeApi("writer", str(source)).open_document_dialog("writer")
@@ -44,6 +48,16 @@ class WriterLegacyDocOpenTests(unittest.TestCase):
                 result.get("content"),
                 "<p>legacy</p>|theme|default-font|half-point|heading",
             )
+            self.assertEqual(result.get("ooxmlDocumentXml"), "<w:document/>")
+            self.assertEqual(result.get("ooxmlCommentsXml"), "<w:comments/>")
+            self.assertEqual(result.get("ooxmlStylesXml"), "<word/styles.xml/>")
+            self.assertEqual(result.get("ooxmlNumberingXml"), "<word/numbering.xml/>")
+            self.assertEqual(result.get("ooxmlHeaderXml"), "<w:hdr/>")
+            self.assertEqual(result.get("ooxmlFooterXml"), "<w:ftr/>")
+            self.assertEqual(Path(read_document.call_args.args[0]).suffix, ".docx")
+            self.assertEqual(Path(read_comments.call_args.args[0]).suffix, ".docx")
+            self.assertEqual(Path(read_entry.call_args.args[0]).suffix, ".docx")
+            self.assertEqual(Path(read_zones.call_args.args[0]).suffix, ".docx")
             for method in (
                 patcher.apply_docx_theme_script_fonts,
                 patcher.inject_docx_default_font_css,
