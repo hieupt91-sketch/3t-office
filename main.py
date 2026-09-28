@@ -177,10 +177,13 @@ SOFFICE_PATH = find_soffice()
 # Filter LibreOffice chính thức tương ứng định dạng Microsoft Office / ODF
 FORMAT_FILTERS = {
     "docx": "MS Word 2007 XML",
+    "doc": "MS Word 97",
+    "rtf": "Rich Text Format",
     "odt": "writer8",
     "html": "HTML (StarWriter)",
     "pdf": "writer_pdf_Export",
     "xlsx": "Calc MS Excel 2007 XML",
+    "xls": "MS Excel 97",
     "ods": "calc8",
     "csv": "Text - txt - csv (StarCalc)",
     "fods": "OpenDocument Spreadsheet Flat XML",
@@ -767,6 +770,91 @@ DEFAULT_SAVE_FORMAT = {
     "slides": "pptx",
 }
 
+SAVE_FILE_TYPES = {
+    "writer": (
+        "Tài liệu Word (*.docx)",
+        "Văn bản Word 97-2003 (*.doc)",
+        "Tài liệu ODF (*.odt)",
+        "Định dạng Rich Text (*.rtf)",
+        "Tài liệu PDF (*.pdf)",
+        "Tất cả tệp (*.*)",
+    ),
+    "sheet": (
+        "Bảng tính Excel (*.xlsx)",
+        "Bảng tính Excel 97-2003 (*.xls)",
+        "Bảng tính ODF (*.ods)",
+        "Văn bản phân tách dấu phẩy (*.csv)",
+        "Tài liệu PDF (*.pdf)",
+        "Tất cả tệp (*.*)",
+    ),
+    "slides": (
+        "Bản trình chiếu PowerPoint (*.pptx)",
+        "Bản trình chiếu ODF (*.odp)",
+        "Tài liệu PDF (*.pdf)",
+        "Tất cả tệp (*.*)",
+    ),
+}
+
+
+def _infer_save_format_from_path(file_path: str, app_kind: str | None = None) -> tuple[str, str]:
+    """Suy luận định dạng đích và chuẩn hóa đường dẫn tệp.
+    Trả về (đường_dẫn_chuẩn_hóa, định_dạng_viết_thường).
+    Nếu đường dẫn chưa có phần mở rộng, tự động bổ sung phần mở rộng mặc định.
+    """
+    path_obj = Path(file_path)
+    suffix = path_obj.suffix.lower()
+    default_ext = DEFAULT_SAVE_FORMAT.get(app_kind, "docx")
+
+    if not suffix:
+        resolved_path = f"{file_path}.{default_ext}"
+        return resolved_path, default_ext
+
+    ext = suffix.lstrip(".")
+    if ext in FORMAT_FILTERS or ext in {"doc", "xls", "rtf", "docx", "xlsx", "pptx", "odt", "ods", "odp", "pdf", "csv"}:
+        return file_path, ext
+
+    return file_path, default_ext
+
+
+def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
+    """Thay thế nguyên tử tệp đích bằng tệp tạm đã được tạo và hậu kỳ thành công.
+    Nếu có lỗi xảy ra trong quá trình convert hoặc ghi đè, tệp gốc không bị ảnh hưởng.
+    """
+    dest = Path(dest_path).resolve()
+
+    if dest.is_file():
+        # Kiểm tra quyền ghi trước để báo lỗi sớm nếu tệp có thuộc tính read-only
+        if not os.access(dest, os.W_OK):
+            raise DocumentEngineError(
+                "Tệp đang ở chế độ chỉ đọc. Vui lòng chọn Lưu bản sao với tên khác."
+            )
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    staging_file = None
+    try:
+        import uuid
+        staging_name = f".{dest.name}.{uuid.uuid4().hex[:8]}.vno_tmp"
+        staging_path = dest.parent / staging_name
+        staging_file = str(staging_path)
+
+        shutil.copyfile(src_temp_file, staging_file)
+        os.replace(staging_file, str(dest))
+        staging_file = None
+    except PermissionError as exc:
+        raise DocumentEngineError(
+            f"Không thể ghi đè tệp: tệp đang được mở bởi ứng dụng khác hoặc bị khóa ({exc}). "
+            "Vui lòng đóng ứng dụng đang mở tệp hoặc chọn Lưu bản sao."
+        ) from exc
+    except OSError as exc:
+        raise DocumentEngineError(f"Không thể ghi tệp vào đĩa: {exc}") from exc
+    finally:
+        if staging_file and os.path.isfile(staging_file):
+            try:
+                os.remove(staging_file)
+            except OSError:
+                pass
+
 
 def _read_docx_zip_entry(src_path: str, entry_name: str) -> str | None:
     """Read one XML member from a real .docx (OOXML zip).
@@ -1026,6 +1114,42 @@ class VnOfficeApi:
                 payload["ooxmlPresPropsXml"] = pres_props_xml
         return payload
 
+    def save_document_in_place(self, content, app_kind="writer", target_path=None, source_path=None):
+        """Lưu nội dung trực tiếp vào tệp đích (Ctrl+S / Save-in-place),
+        giữ nguyên định dạng gốc và thay thế nguyên tử an toàn."""
+        if not target_path:
+            return {"status": "error", "message": "Đường dẫn tệp không hợp lệ."}
+
+        target_path, target_format = _infer_save_format_from_path(target_path, app_kind=app_kind)
+        source_path = source_path or target_path
+
+        try:
+            with tempfile.TemporaryDirectory(prefix="vnoffice_save_inplace_") as tmp:
+                if app_kind == "writer":
+                    src_path = os.path.join(tmp, "draft.html")
+                    with open(src_path, "w", encoding="utf-8") as f:
+                        f.write(f"<html><head><meta charset='utf-8'></head><body>{content}</body></html>")
+                elif app_kind == "sheet":
+                    src_path = os.path.join(tmp, "draft.fods")
+                    with open(src_path, "w", encoding="utf-8") as f:
+                        f.write(content)
+                elif app_kind == "slides":
+                    src_path = os.path.join(tmp, "draft.fodp")
+                    with open(src_path, "w", encoding="utf-8") as f:
+                        f.write(content)
+                else:
+                    return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
+
+                out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
+                _apply_native_export_postprocess(src_path, out_path, app_kind, target_format, source_path=source_path)
+                _atomic_replace_file(out_path, target_path)
+        except DocumentEngineError as exc:
+            return {"status": "error", "message": str(exc)}
+        except Exception as exc:
+            return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
+
+        return {"status": "ok", "message": f"Đã lưu tại {target_path}", "path": target_path}
+
     def save_document_dialog(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu", source_path=None):
         """Mở hộp thoại lưu tệp NATIVE thật, chuyển đổi nội dung soạn thảo hiện tại
         sang định dạng Office/ODF thật và ghi ra đĩa thật."""
@@ -1033,11 +1157,24 @@ class VnOfficeApi:
         if not window:
             return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
 
-        target_format = target_format or DEFAULT_SAVE_FORMAT.get(app_kind, "pdf")
+        default_ext = target_format or DEFAULT_SAVE_FORMAT.get(app_kind, "docx")
+        default_stem = suggested_name or "TaiLieu"
+        if suggested_name:
+            s_ext = Path(suggested_name).suffix.lower().lstrip(".")
+            if s_ext in FORMAT_FILTERS or s_ext in {"doc", "xls", "rtf", "docx", "xlsx", "pptx"}:
+                default_ext = s_ext
+                default_stem = Path(suggested_name).stem
+
+        if target_format == "pdf":
+            file_types = ("Tài liệu PDF (*.pdf)", "Tất cả tệp (*.*)")
+        else:
+            file_types = SAVE_FILE_TYPES.get(app_kind, ("Tất cả tệp (*.*)",))
 
         try:
             save_result = window.create_file_dialog(
-                webview.SAVE_DIALOG, save_filename=f"{suggested_name}.{target_format}"
+                webview.SAVE_DIALOG,
+                save_filename=f"{default_stem}.{default_ext}",
+                file_types=file_types
             )
         except Exception as exc:
             return {"status": "error", "message": f"Không mở được hộp thoại lưu: {exc}"}
@@ -1045,6 +1182,9 @@ class VnOfficeApi:
         if not save_result:
             return {"status": "cancelled"}
         dest_path = save_result if isinstance(save_result, str) else save_result[0]
+
+        dest_path, actual_format = _infer_save_format_from_path(dest_path, app_kind=app_kind)
+        target_format = actual_format
 
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_") as tmp:
@@ -1065,9 +1205,11 @@ class VnOfficeApi:
 
                 out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
                 _apply_native_export_postprocess(src_path, out_path, app_kind, target_format, source_path=source_path)
-                shutil.copyfile(out_path, dest_path)
+                _atomic_replace_file(out_path, dest_path)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
+        except Exception as exc:
+            return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
 
         return {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
 

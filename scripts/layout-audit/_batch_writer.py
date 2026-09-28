@@ -50,7 +50,7 @@ def after_load(win):
     edit = win.evaluate_js("(function(){ try { const body = document.querySelector('.vno-writer-body'); const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT); let n, count = 0; while ((n = walker.nextNode())) { if (n.textContent.trim().length > 12) { count++; if (count === 3) { const r = document.createRange(); r.selectNodeContents(n); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); const ce = n.parentElement.closest('[contenteditable]'); if (ce) ce.focus(); document.execCommand('bold'); const r2 = document.createRange(); r2.setStart(n, 0); r2.collapse(true); s.removeAllRanges(); s.addRange(r2); return 'insert=' + document.execCommand('insertText', false, 'ZZ'); } } } return 'no-text'; } catch (e) { return 'err:' + e.message; } })()")
     time.sleep(2)
     win.create_file_dialog = lambda *a, **k: OUT
-    win.evaluate_js("window.__saveErr=''; import('/platform/commands/command-bus.js').then(m => m.globalCommandBus.execute('common.file.save')).catch(e => { window.__saveErr = String(e && e.stack || e); }); 'queued'")
+    win.evaluate_js("window.__saveErr=''; import('/platform/commands/command-bus.js').then(m => m.globalCommandBus.execute('common.file.saveAs')).catch(e => { window.__saveErr = String(e && e.stack || e); }); 'queued'")
     for _ in range(200):
         time.sleep(3)
         if (os.path.exists(OUT) and os.path.getsize(OUT) > 0) or win.evaluate_js("window.__saveErr"): break

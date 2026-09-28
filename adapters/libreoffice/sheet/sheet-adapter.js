@@ -4991,6 +4991,7 @@ export class SheetAdapter {
       this.grid.resetToBlank();
     }
     this.sourceFileName = "BangTinh";
+    this.sourceFilePath = "";
     this.isDirty = false;
     this.shell?.resetDocumentChrome?.("Bảng tính 1.xlsx", "home", false);
     return true;
@@ -5001,17 +5002,27 @@ export class SheetAdapter {
   }
 
   /**
-   * Lưu bảng tính thành tệp XLSX thật trên đĩa (qua LibreOffice headless engine).
+   * Lưu bảng tính:
+   * - Nếu bảng tính đã có đường dẫn gốc (sourceFilePath): Ctrl+S / Lưu lưu thẳng vào tệp đó,
+   *   tôn trọng định dạng gốc (.xls/.xlsx/.ods/.csv) và thông báo nhẹ "Đã lưu" trên thanh trạng thái.
+   * - Nếu bảng tính mới (chưa có đường dẫn): chuyển tiếp sang saveAs() để mở hộp thoại lưu tệp.
    */
   async save() {
+    if (!this.sourceFilePath) {
+      return await this.saveAs();
+    }
+
     const fodsContent = this.serializeToFods();
-    const suggestedName = (this.sourceFileName && this.sourceFileName !== "BangTinh")
-      ? this.sourceFileName
-      : (this.shell?.documentName ? this.shell.documentName.replace(/\.[^/.]+$/, "") : (this.sourceFileName || "BangTinh"));
-    const result = await globalUnoBridge.saveRealFile("sheet", fodsContent, "xlsx", suggestedName, this.sourceFilePath);
+    const result = await globalUnoBridge.saveRealFileInPlace(
+      "sheet",
+      fodsContent,
+      this.sourceFilePath,
+      this.sourceFilePath
+    );
+
     if (result.status === "ok") {
       this.isDirty = false;
-      const savedPath = result.path || result.fileName;
+      const savedPath = result.path || this.sourceFilePath;
       if (savedPath) {
         const savedFileName = savedPath.split(/[/\\]/).pop();
         if (savedFileName) {
@@ -5019,16 +5030,63 @@ export class SheetAdapter {
           this.shell?.resetDocumentChrome?.(savedFileName, null);
         }
       }
-      await showAlertDialog({ title: "Đã lưu", message: result.message, type: "success" });
+      this.shell?.setStatus?.("Đã lưu");
       return true;
     }
+
     if (result.status === "cancelled") return false;
-    await showAlertDialog({ title: "Không thể lưu", message: result.message, type: "error" });
+    await showAlertDialog({
+      title: "Không thể lưu bảng tính",
+      message: result.message || "Lỗi không xác định khi lưu bảng tính.",
+      type: "error"
+    });
     return false;
   }
 
+  /**
+   * Lưu bản sao (F12 / Tệp → Lưu bản sao):
+   * Luôn mở hộp thoại lưu native của hệ điều hành, cho phép chọn thư mục, đổi tên
+   * hoặc chọn định dạng xuất (.xlsx, .xls, .ods, .csv).
+   */
   async saveAs() {
-    return await this.save();
+    const fodsContent = this.serializeToFods();
+    const currentName = this.sourceFileName || "BangTinh";
+    const suggestedName = this.sourceFilePath
+      ? this.sourceFilePath.split(/[/\\]/).pop()
+      : (this.shell?.documentName ? this.shell.documentName : (currentName !== "BangTinh" ? currentName : "BangTinh.xlsx"));
+
+    const targetFormat = this.sourceFilePath ? (this.sourceFilePath.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || "xlsx") : "xlsx";
+
+    const result = await globalUnoBridge.saveRealFile(
+      "sheet",
+      fodsContent,
+      targetFormat,
+      suggestedName,
+      this.sourceFilePath || null
+    );
+
+    if (result.status === "ok") {
+      this.isDirty = false;
+      const savedPath = result.path || result.fileName;
+      if (savedPath) {
+        this.sourceFilePath = savedPath;
+        const savedFileName = savedPath.split(/[/\\]/).pop();
+        if (savedFileName) {
+          this.sourceFileName = savedFileName.replace(/\.[^/.]+$/, "");
+          this.shell?.resetDocumentChrome?.(savedFileName, null);
+        }
+      }
+      this.shell?.setStatus?.("Đã lưu");
+      return true;
+    }
+
+    if (result.status === "cancelled") return false;
+    await showAlertDialog({
+      title: "Không thể lưu bảng tính",
+      message: result.message || "Lỗi không xác định khi lưu bảng tính.",
+      type: "error"
+    });
+    return false;
   }
 
   /**

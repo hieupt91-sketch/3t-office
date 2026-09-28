@@ -704,16 +704,16 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.file.saveDocument",
     app: "writer",
     commandIds: ["common.file.save", "common.file.saveAs"],
-    title: "Lưu tài liệu và Lưu bản sao (DOCX)",
-    summary: "Lưu văn bản đang soạn thảo sang tệp DOCX thật trên đĩa máy tính thông qua công cụ xử lý LibreOffice Core headless. Hỗ trợ phím tắt Ctrl+S, biểu tượng đĩa mềm trên thanh truy cập nhanh và menu Tệp.",
+    title: "Lưu tài liệu (Ctrl+S) và Lưu bản sao (F12)",
+    summary: "Lưu văn bản đang soạn thảo sang tệp thật trên đĩa máy tính thông qua LibreOffice Core headless. Hỗ trợ Ctrl+S lưu thẳng vào tệp đang mở như Microsoft Word, F12 lưu bản sao và tôn trọng định dạng gốc .doc (Word 97-2003).",
     ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
-    keywords: ["lưu tệp", "lưu file", "save", "save as", "ctrl+s", "docx", "lưu bản sao", "lưu tài liệu"],
+    keywords: ["lưu tệp", "lưu file", "save", "save as", "ctrl+s", "f12", "docx", "doc", "lưu bản sao", "lưu tài liệu", "lưu tại chỗ"],
     steps: [
-      "Cách 1: Nhấn biểu tượng đĩa mềm trên thanh công cụ truy cập nhanh ở góc trên bên trái màn hình (hoặc nhấn tổ hợp phím Ctrl+S).",
-      "Cách 2: Nhấn vào nút màu xanh «Tệp» ở góc trên cùng bên trái để mở menu Backstage, sau đó nhấn chọn mục «Lưu» hoặc «Lưu bản sao».",
-      "Hộp thoại lưu tệp của hệ điều hành sẽ xuất hiện. Chọn thư mục trên máy tính, đặt tên tệp mong muốn (định dạng mặc định .docx) và nhấn Save.",
-      "Sau khi lưu thành công, thông báo xác nhận sẽ hiển thị, tên tệp trên thanh tab tiêu đề sẽ được cập nhật đồng bộ và tài liệu được ghi vào danh sách Tệp gần đây.",
-      "Lưu ý: Chức năng Lưu tệp thật yêu cầu ứng dụng VN Office Desktop có kết nối công cụ LibreOffice Core; khi chạy trên trình duyệt dev, hệ thống sẽ hiện hộp thoại thông báo hướng dẫn rõ ràng."
+      "Lưu nhanh vào tệp đang mở (Ctrl+S): Nhấn phím tắt Ctrl+S hoặc nhấp biểu tượng đĩa mềm trên thanh truy cập nhanh ở góc trên bên trái. Nếu tài liệu đã có đường dẫn trên đĩa (DOCX, DOC, ODT, RTF), hệ thống sẽ lưu thẳng trực tiếp vào tệp đó mà không mở hộp thoại, kèm thông báo 'Đã lưu' trên thanh trạng thái.",
+      "Lưu tài liệu mới: Nếu tài liệu vừa tạo mới chưa lưu lần nào, thao tác Ctrl+S hoặc nút Lưu sẽ tự động mở hộp thoại Lưu bản sao để bạn chọn thư mục và đặt tên tệp.",
+      "Lưu bản sao (F12 / Tệp → Lưu bản sao): Nhấn phím F12 hoặc vào menu Tệp → chọn «Lưu bản sao» để mở hộp thoại lưu tệp native. Bạn có thể lưu thành tệp mới với các định dạng: .docx (Word 2007 XML chuẩn), .doc (Word 97-2003 OLE2), .odt (OpenDocument Text) hoặc .rtf (Rich Text Format).",
+      "Chế độ tương thích định dạng cũ (.doc): Khi mở một tệp .doc từ cơ quan hoặc ổ LAN, thao tác Ctrl+S sẽ lưu lại đúng chuẩn nhị phân Word 97-2003 (.doc), không âm thầm chuyển đổi sang .docx.",
+      "Bảo vệ dữ liệu nguyên tử: Hệ thống luôn ghi ra tệp tạm và thay thế nguyên tử (atomic replace); nếu có sự cố ngắt nguồn hoặc lỗi chuyển đổi, tệp gốc trên đĩa hoàn toàn không bị hư hại. Nếu tệp đang ở chế độ chỉ đọc hoặc bị ứng dụng khác khóa, hệ thống sẽ thông báo rõ ràng để bạn chọn Lưu bản sao."
     ]
   },
   {

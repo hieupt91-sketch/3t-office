@@ -931,6 +931,22 @@ export const SHEET_HELP_ENTRIES = [
       "Các thao tác tệp khác: 'Tạo mới' (Ctrl+N), 'Mở' (Ctrl+O), 'Lưu' (Ctrl+S), 'Lưu bản sao' (F12) và 'Xuất PDF' đều được bố trí trực quan và hỗ trợ phím tắt chuẩn Office.",
       "Đóng menu Tệp: Nhấn phím Escape hoặc nhấp nút '← Quay lại' ở góc trên bên trái bất kỳ lúc nào để đóng Backstage và khôi phục tiêu điểm chính xác về ô bảng tính bạn đang chọn trước đó."
     ]
+  },
+  {
+    id: "sheet.file.saveDocument",
+    app: "sheet",
+    commandIds: ["common.file.save", "common.file.saveAs"],
+    title: "Lưu bảng tính (Ctrl+S) và Lưu bản sao (F12)",
+    summary: "Lưu bảng tính sang tệp thật trên đĩa máy tính thông qua LibreOffice Core headless. Hỗ trợ Ctrl+S lưu thẳng vào tệp đang mở như Microsoft Excel, F12 lưu bản sao và tôn trọng định dạng gốc .xls (Excel 97-2003).",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Trang tính" },
+    keywords: ["lưu bảng tính", "lưu file", "save", "save as", "ctrl+s", "f12", "xlsx", "xls", "lưu bản sao", "lưu tại chỗ"],
+    steps: [
+      "Lưu nhanh vào tệp đang mở (Ctrl+S): Nhấn phím tắt Ctrl+S hoặc nhấp biểu tượng đĩa mềm trên thanh truy cập nhanh ở góc trên bên trái. Nếu bảng tính đã có đường dẫn trên đĩa (XLSX, XLS, ODS, CSV), hệ thống sẽ lưu thẳng trực tiếp vào tệp đó mà không mở hộp thoại, kèm thông báo 'Đã lưu' trên thanh trạng thái.",
+      "Lưu bảng tính mới: Nếu bảng tính vừa tạo mới chưa lưu lần nào, thao tác Ctrl+S hoặc nút Lưu sẽ tự động mở hộp thoại Lưu bản sao để bạn chọn thư mục và đặt tên tệp.",
+      "Lưu bản sao (F12 / Tệp → Lưu bản sao): Nhấn phím F12 hoặc vào menu Tệp → chọn «Lưu bản sao» để mở hộp thoại lưu tệp native. Bạn có thể lưu thành tệp mới với các định dạng: .xlsx (Excel 2007 XML chuẩn), .xls (Excel 97-2003 OLE2), .ods (OpenDocument Spreadsheet) hoặc .csv (phân tách dấu phẩy).",
+      "Chế độ tương thích định dạng cũ (.xls): Khi mở một tệp .xls từ cơ quan hoặc ổ LAN, thao tác Ctrl+S sẽ lưu lại đúng chuẩn nhị phân Excel 97-2003 (.xls), không âm thầm chuyển đổi sang .xlsx.",
+      "Bảo vệ dữ liệu nguyên tử: Hệ thống luôn ghi ra tệp tạm và thay thế nguyên tử (atomic replace); nếu có sự cố hoặc lỗi chuyển đổi, tệp gốc trên đĩa hoàn toàn không bị hư hại. Nếu tệp đang ở chế độ chỉ đọc hoặc bị Excel khóa, hệ thống sẽ thông báo rõ ràng để bạn chọn Lưu bản sao."
+    ]
   }
 ];
 
