@@ -163,13 +163,13 @@ export const WRITER_HELP_ENTRIES = [
     title: "Trộn thư",
     summary: "Lấy danh sách người nhận từ CSV, chèn trường trộn vào văn bản, xem từng bản ghi rồi tạo tài liệu kết quả cho toàn bộ danh sách.",
     ribbon: { tab: "Trộn thư", tabId: "mailings", group: "Bắt đầu trộn" },
-    keywords: ["trộn thư", "mail merge", "csv", "trường", "người nhận", "bản ghi"],
+    keywords: ["trộn thư", "mail merge", "csv", "trường", "người nhận", "bản ghi", "nguồn dữ liệu", "chèn trường", "xem trước kết quả", "hoàn tất trộn"],
     steps: [
-      "Mở tab Trộn thư. Nhấn Nguồn dữ liệu (nhóm Bắt đầu trộn) rồi dán hoặc mở tệp CSV; dòng đầu là tên cột.",
-      "Đặt con trỏ trong thư, nhấn Chèn trường (nhóm Viết & Chèn trường) và chọn cột cần đưa vào văn bản.",
-      "Nhấn Xem trước bản ghi (nhóm Xem trước kết quả) để thấy dữ liệu thật thay cho tên trường.",
-      "Dùng Bản ghi trước / Bản ghi sau để duyệt từng người nhận.",
-      "Nhấn Hoàn tất trộn (nhóm Hoàn tất) để tạo tài liệu kết quả cho mọi bản ghi."
+      "Mở tab Trộn thư, nhóm Bắt đầu trộn, nhấn Nguồn dữ liệu rồi dán bảng dữ liệu CSV (dòng đầu là tên cột, ví dụ: HoTen, ChucVu, DonVi, NgayKy) hoặc bấm 'Dán dữ liệu mẫu', sau đó nhấn Lưu nguồn dữ liệu.",
+      "Đặt con trỏ tại vị trí muốn đưa thông tin người nhận vào văn bản, mở nhóm Viết & Chèn trường, nhấn Chèn trường và chọn trường dữ liệu tương ứng.",
+      "Nhấn Xem trước kết quả (nhóm Xem trước kết quả) để bật chế độ xem trước văn bản sau khi ghép dữ liệu của từng bản ghi.",
+      "Dùng nút Bản ghi trước hoặc Bản ghi sau để duyệt qua từng người nhận trong danh sách.",
+      "Mở nhóm Hoàn tất, nhấn Hoàn tất trộn để tạo tài liệu kết quả cho toàn bộ danh sách bản ghi đã nạp."
     ]
   },
   {

@@ -358,6 +358,31 @@ body {
   background-color: var(--vno-bg-surface);
 }
 
+/* Chế độ Tối: Tab ribbon đang chọn (active) đạt WCAG AA (>= 4.5:1), nổi bật hơn tab thường ở cả 3 app */
+[data-theme="dark"] .vno-ribbon-tab.is-active {
+  color: var(--vno-writer-primary-fg, #60a5fa);
+  border-bottom-color: var(--vno-writer-primary-fg, #60a5fa);
+  background-color: var(--vno-bg-surface);
+}
+
+[data-theme="dark"] [data-app="writer"] .vno-ribbon-tab.is-active,
+[data-theme="dark"][data-app="writer"] .vno-ribbon-tab.is-active {
+  color: var(--vno-writer-primary-fg, #60a5fa);
+  border-bottom-color: var(--vno-writer-primary-fg, #60a5fa);
+}
+
+[data-theme="dark"] [data-app="sheet"] .vno-ribbon-tab.is-active,
+[data-theme="dark"][data-app="sheet"] .vno-ribbon-tab.is-active {
+  color: var(--vno-sheet-primary-fg, #4ade80);
+  border-bottom-color: var(--vno-sheet-primary-fg, #4ade80);
+}
+
+[data-theme="dark"] [data-app="slides"] .vno-ribbon-tab.is-active,
+[data-theme="dark"][data-app="slides"] .vno-ribbon-tab.is-active {
+  color: var(--vno-slides-primary-fg, #fb923c);
+  border-bottom-color: var(--vno-slides-primary-fg, #fb923c);
+}
+
 /* Ribbon Body (Nhóm nút lệnh) */
 .vno-ribbon-content {
   display: flex;
