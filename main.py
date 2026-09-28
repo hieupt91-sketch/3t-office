@@ -931,6 +931,16 @@ class VnOfficeApi:
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_open_") as tmp:
                 convert_src_path = src_path
+                if app_kind == "writer" and src_path.lower().endswith(".doc"):
+                    # Legacy binary DOC imported directly to StarWriter HTML can
+                    # lose/alter default font and language metadata used by the
+                    # canvas. Normalize through LibreOffice's DOCX filter, then
+                    # reuse the existing DOCX-to-HTML import path and overlays.
+                    legacy_docx_dir = os.path.join(tmp, "legacy-docx")
+                    os.makedirs(legacy_docx_dir, exist_ok=True)
+                    convert_src_path = _run_soffice_convert(
+                        src_path, "docx", legacy_docx_dir, app_kind=app_kind
+                    )
                 if app_kind == "sheet" and src_path.lower().endswith(".xlsx") and os.path.isfile(src_path):
                     with open(src_path, "rb") as source_file:
                         original_xlsx = source_file.read()
@@ -945,9 +955,9 @@ class VnOfficeApi:
                 if app_kind == "writer":
                     content = _inline_html_images(content, out_path)
                     # Quy ước W9: font/cỡ mặc định từ docDefaults + theme khi LibreOffice không ghi p.western.
-                    if src_path.lower().endswith(".docx"):
+                    if convert_src_path.lower().endswith(".docx"):
                         try:
-                            with open(src_path, "rb") as f:
+                            with open(convert_src_path, "rb") as f:
                                 docx_bytes = f.read()
                             patcher = _ooxml_zip_patch()
                             # W12b: font theme của tài liệu tiếng Việt = typeface script="Viet" (Word), không phải latin
