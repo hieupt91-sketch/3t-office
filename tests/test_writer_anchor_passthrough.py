@@ -332,6 +332,49 @@ class WriterAnchorPassthroughTests(unittest.TestCase):
                          [("5", "A"), ("7", "B"), ("9", "C"), ("8", "D")])
         self.assertEqual(patcher._writer_unique_docpr_ids(fixed), fixed)
 
+    def test_untouched_textbox_anchor_returns_to_its_source_paragraph(self):
+        # d06: LibreOffice emits text-box Frames at the start of the body; after passthrough
+        # they carry the source name but stayed in paragraph 0 (Word showed page-3 callouts
+        # on page 1).
+        textbox = ('<wp:anchor><wp:docPr id="14" name="Rectangle 14"/>'
+                   '<wps:wsp><wps:txbx><w:txbxContent><w:p><w:r><w:t>Camera</w:t></w:r></w:p>'
+                   '</w:txbxContent></wps:txbx></wps:wsp></wp:anchor>')
+        source = make_docx(
+            '<w:p><w:r><w:t>Title</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Middle</w:t></w:r></w:p>'
+            f'<w:p><w:r><w:t>Callout holder</w:t></w:r><w:r><w:drawing>{textbox}</w:drawing></w:r></w:p>'
+        )
+        converted = make_docx(
+            '<w:p><w:bookmarkStart w:id="1" w:name="vno-untouched-0"/>'
+            f'<w:r><w:t>Title</w:t></w:r><w:r><w:drawing>{textbox}</w:drawing></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="2" w:name="vno-untouched-1"/><w:r><w:t>Middle</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="3" w:name="vno-untouched-2"/><w:r><w:t>Callout holder</w:t></w:r></w:p>'
+        )
+        result = patcher.postprocess_writer_docx(converted, source_docx=source)
+        xml = zipfile.ZipFile(io.BytesIO(result)).read("word/document.xml").decode()
+        self.assertEqual(len(re.findall(r'name="Rectangle 14"', xml)), 1)
+        self.assertLess(xml.find("Callout holder"), xml.find('name="Rectangle 14"'))
+
+    def test_group_follows_exact_text_match_without_untouched_bookmark(self):
+        # d06: the paragraph holding Group 368 matched by text but had lost its
+        # vno-untouched bookmark, so the group was left in paragraph 0.
+        group = ('<wp:anchor><wp:docPr id="368" name="Group 368"/>'
+                 '<wpg:wgp><wps:wsp><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></wps:wsp></wpg:wgp>'
+                 '</wp:anchor>')
+        source = make_docx(
+            '<w:p><w:r><w:t>Title</w:t></w:r></w:p>'
+            f'<w:p><w:r><w:t>Existing system</w:t></w:r><w:r><w:drawing>{group}</w:drawing></w:r></w:p>'
+        )
+        converted = make_docx(
+            '<w:p><w:bookmarkStart w:id="1" w:name="vno-untouched-0"/>'
+            f'<w:r><w:t>Title</w:t></w:r><w:r><w:drawing>{group}</w:drawing></w:r></w:p>'
+            '<w:p><w:r><w:t>Existing system</w:t></w:r></w:p>'
+        )
+        result = patcher.postprocess_writer_docx(converted, source_docx=source)
+        xml = zipfile.ZipFile(io.BytesIO(result)).read("word/document.xml").decode()
+        self.assertEqual(len(re.findall(r'name="Group 368"', xml)), 1)
+        self.assertLess(xml.find("Existing system"), xml.find('name="Group 368"'))
+
     def test_deleted_connector_is_not_reinserted(self):
         marker = "VNO_SHAPE_MUTATION_" + json.dumps(
             {"type": "delete", "anchorName": "Straight Connector 1", "shapeName": "Straight Connector 1"},
