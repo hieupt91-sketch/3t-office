@@ -7,6 +7,23 @@ import { registerHelpEntries } from "./help-catalog.js";
 
 export const SHEET_HELP_ENTRIES = [
   {
+    id: "sheet.formula.externalLinks",
+    app: "sheet",
+    commandIds: [],
+    title: "Liên kết tới sổ làm việc khác",
+    summary: "Công thức như =[BaoCao.xlsx]Sheet1!A1 lấy số liệu từ một tệp Excel khác. VN Sheet hiển thị giá trị đã lưu lần cuối trong tệp, giữ nguyên liên kết khi lưu và không tự mở tệp nguồn (ứng dụng chạy offline).",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Kiểm tra công thức" },
+    keywords: ["liên kết ngoài", "external link", "sổ làm việc khác", "tệp khác", "[Book.xlsx]", "cập nhật liên kết", "NA", "#N/A"],
+    steps: [
+      "Khi mở một bảng tính có liên kết tới tệp khác, thanh trạng thái phía dưới báo số ô có liên kết, ví dụ: \"Tệp có 2 ô liên kết tới sổ làm việc khác — đang hiển thị giá trị lưu lần cuối\".",
+      "Chọn ô để xem công thức trên thanh công thức, viết giống Excel: =[BaoCao.xlsx]Sheet1!A1 hoặc ='[Bao cao.xlsx]So lieu'!B2 khi tên có khoảng trắng.",
+      "Giá trị của các ô này không tự cập nhật khi bạn sửa bảng tính: VN Sheet giữ đúng số liệu đã lưu, giống Excel khi tệp nguồn đang đóng. Các công thức khác dựa trên ô liên kết vẫn tính bình thường với giá trị đó.",
+      "Nhấn Ctrl+S để lưu: liên kết được giữ nguyên, mở lại bằng Excel vẫn cập nhật được từ tệp nguồn.",
+      "Nếu gõ lại công thức khác vào ô liên kết, ô đó trở thành công thức thường và không còn liên kết tới tệp kia.",
+      "Muốn đánh dấu ô chưa có dữ liệu, dùng =NA() để trả về lỗi #N/A; bắt lỗi này bằng =IFNA(ô; \"giá trị thay thế\") hoặc kiểm tra bằng =ISNA(ô)."
+    ]
+  },
+  {
     id: "sheet.format.defaultWorkbook",
     app: "sheet",
     commandIds: ["sheet.font.family", "sheet.font.size", "sheet.font.grow", "sheet.font.shrink"],
