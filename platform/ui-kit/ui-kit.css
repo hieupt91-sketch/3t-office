@@ -879,7 +879,7 @@ body.vno-macro-is-recording #vno-ribbon-tab-view::after {
 }
 
 .vno-notification-bar-close-btn:hover {
-  background-color: rgba(0, 0, 0, 0.08);
+  background-color: #fef08a;
   color: #111827;
 }
 
@@ -927,7 +927,7 @@ body.vno-macro-is-recording #vno-ribbon-tab-view::after {
 }
 
 [data-theme="dark"] .vno-notification-bar-close-btn:hover {
-  background-color: rgba(255, 255, 255, 0.12);
+  background-color: #524626;
   color: #ffffff;
 }
 

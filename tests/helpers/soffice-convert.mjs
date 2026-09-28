@@ -61,7 +61,7 @@ export function convertWithSoffice(sourcePath, targetExt, outDir, { profileDir, 
     "--outdir",
     outDir,
     sourcePath
-  ], { encoding: "utf8", timeout: timeoutMs });
+  ], { encoding: "utf8", timeout: Math.max(timeoutMs, 90000) });
   if (result.status !== 0) {
     throw new Error(`soffice --convert-to ${convertTo} failed: ${(result.stderr || result.stdout || "").trim()}`);
   }
