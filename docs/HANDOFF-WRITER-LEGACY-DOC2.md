@@ -105,7 +105,7 @@ CORPUS DOC:
 
 CORPUS DOCX VÀ KIỂM TRA SHAPE:
 
-- Batch round-trip 23 DOCX `d01`–`d09`, `d11`–`d24` có file Word lưu cho cả 23; Word page count của file lưu khớp file nguồn ở cả 23. Lượt batch trước cho canvas thừa một trang ở `d01`, `d13`, `d19`; hai lượt kiểm tra liên tiếp mới ở trên đều đã khớp.
+- Báo cáo batch round-trip có sẵn cho 23 DOCX `d01`–`d09`, `d11`–`d24`: cả 23 file lưu được và Word page count của file lưu khớp file nguồn. Báo cáo đó cho canvas thừa một trang ở `d01`, `d13`, `d19`; hai lượt kiểm tra liên tiếp mới ở trên đều khớp. Full 23-file `_batch_writer.py` không chạy lại trong Vòng 2 (NOT RUN): Word modal hiện hữu khiến oracle timeout handler có thể đóng tất cả WINWORD; đã dùng báo cáo full cũ, hai lần recheck mục tiêu và shape/anchor checks mới.
 - `_writer_shape_counts.py`: 23/23 không tăng số `wsp`/`txbx`/`txc`/media và không có ID `wp:docPr` trùng. Lưu ý `txc` giảm 17 ở d06 và 15 ở d09; bộ kiểm tra không xem giảm số lượng là “excess”.
 - `_word_shape_pages.ps1`: d04, d06, d07, d09, d24 đều không thiếu shape và không đổi trang neo.
 
