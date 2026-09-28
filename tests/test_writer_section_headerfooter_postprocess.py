@@ -12,6 +12,7 @@ actual header/footer XML content survive the HTML round-trip.
 from __future__ import annotations
 
 import io
+import json
 import re
 import tempfile
 import unittest
@@ -470,6 +471,47 @@ class UnitPostprocessWriterDocxTests(unittest.TestCase):
         )
         self.assertIn("<a:noFill/>", transparent)
         self.assertNotIn("<a:solidFill", transparent)
+
+    def test_imported_shape_mutation_marker_updates_native_anchor_once(self):
+        marker = "VNO_SHAPE_MUTATION_7b2274797065223a2264656c657465222c22616e63686f724e616d65223a22526563742041222c2273686170654e616d65223a22526563742041227d"
+        marked, names = ooxml_zip_patch_mod._strip_writer_shape_mutation_markers(
+            f'<w:document><w:body><w:p><w:r><w:t>{marker}</w:t></w:r></w:p><w:sectPr/></w:body></w:document>'
+        )
+        self.assertEqual(names, [{"type": "delete", "anchorName": "Rect A", "shapeName": "Rect A"}])
+        self.assertNotIn(marker, marked)
+
+        anchor = '<wp:anchor><wp:docPr id="1" name="Rect A"/><wps:wsp><wps:cNvPr name="Rect A"/><a:xfrm><a:off x="10" y="20"/></a:xfrm></wps:wsp></wp:anchor>'
+        converted_xml = f'<w:document><w:body><w:p><w:r><w:drawing>{anchor}</w:drawing></w:r></w:p></w:body></w:document>'
+        with patch.object(ooxml_zip_patch_mod, "_writer_passthrough_matches", return_value={0: anchor}):
+            result = ooxml_zip_patch_mod._passthrough_writer_anchors(
+                converted_xml, converted_xml, _build_minimal_docx("<w:p/>") , "<Relationships/>", 1, set(),
+                pristine_document=True,
+            )
+        self.assertIn("<wp:anchor", result[0])
+        self.assertEqual(result[3], {})
+
+        moved_anchor = ooxml_zip_patch_mod._apply_writer_imported_shape_mutation(
+            anchor, {"type": "edit", "shapeName": "Rect A", "dx": 2, "dy": -1},
+        )
+        self.assertIn('<a:off x="19060" y="-9505"/>', moved_anchor)
+        self.assertEqual(len(re.findall(r"<wps:wsp\b", moved_anchor)), 1)
+        deleted_doc = ooxml_zip_patch_mod._apply_writer_shape_mutations_to_document(
+            f"<w:document>{anchor}</w:document>",
+            [{"type": "delete", "anchorName": "Rect A", "shapeName": "Rect A"}],
+        )
+        self.assertNotIn("<wp:anchor", deleted_doc)
+
+        edit = {"type": "edit", "anchorName": "Rect A", "shapeName": "Rect A", "dx": 2, "dy": -1}
+        edit_marker = "VNO_SHAPE_MUTATION_" + json.dumps(edit, separators=(",", ":")).encode().hex()
+        source_docx = _build_minimal_docx(f'<w:p><w:r><w:drawing>{anchor}</w:drawing></w:r></w:p><w:sectPr/>')
+        converted_docx = _build_minimal_docx(
+            f'<w:p><w:r><w:t>{edit_marker}</w:t></w:r></w:p>'
+            f'<w:p><w:r><w:drawing>{anchor}</w:drawing></w:r></w:p><w:sectPr/>'
+        )
+        roundtrip = ooxml_zip_patch_mod.postprocess_writer_docx(converted_docx, source_docx=source_docx)
+        roundtrip_xml = _read_entry(roundtrip, "word/document.xml").decode("utf-8")
+        self.assertNotIn("VNO_SHAPE_MUTATION_", roundtrip_xml)
+        self.assertIn('<a:off x="19060" y="-9505"/>', roundtrip_xml)
 
     def _format_roundtrip_xml(self, source_ppr: str, source_rpr: str = "", marker: bool = True) -> str:
         source = _build_minimal_docx(

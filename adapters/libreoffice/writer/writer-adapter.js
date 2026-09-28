@@ -251,6 +251,7 @@ export class WriterAdapter {
     };
     this.lineNumbers = { enabled: false, countBy: 1, restart: "continuous" };
     this.shapes = [];
+    this._deletedImportedShapeNames = [];
     this.selectedShapeId = null;
     this.selectedWordArtEl = null;
     this._wordArtEditing = false;
@@ -2632,7 +2633,9 @@ export class WriterAdapter {
           x: leftBase + emuToPx(x), y: topBase + emuToPx(y),
           w: Math.max(1, emuToPx(w)), h: Math.max(1, emuToPx(h)), width: Math.max(1, emuToPx(w)), height: Math.max(1, emuToPx(h)),
           fill: fill ? `#${fill}` : type === "line" ? "none" : "#2563eb", stroke: stroke ? `#${stroke}` : "#0f172a", strokeWidth: 2,
-          flipH, flipV, anchorName: docPrName, sourceDocPrName: docPrName, paragraphIndex,
+          flipH, flipV, anchorName: docPrName, sourceDocPrName: docPrName,
+          sourceShapeName: childName, sourceOffsetScaleX: groupTransform?.sx || 1,
+          sourceOffsetScaleY: groupTransform?.sy || 1, paragraphIndex,
           anchorOffsetX: leftBase, anchorOffsetY: topBase, localX: emuToPx(x), localY: emuToPx(y), imported: true });
       }
     }
@@ -7343,6 +7346,12 @@ export class WriterAdapter {
     if (!shapeId || !this.shapes) return false;
     const idx = this.shapes.findIndex(s => s.id === shapeId);
     if (idx === -1) return false;
+    const removed = this.shapes[idx];
+    if (removed.imported && removed.sourceDocPrName) {
+      this._deletedImportedShapeNames = [...(this._deletedImportedShapeNames || []), {
+        anchorName: removed.sourceDocPrName, shapeName: removed.sourceShapeName || "",
+      }];
+    }
     this.shapes.splice(idx, 1);
     if (this.selectedShapeId === shapeId) this.selectedShapeId = null;
     this._renderShapes();
@@ -7355,8 +7364,15 @@ export class WriterAdapter {
     if (!shapeId || !this.shapes) return false;
     const shape = this.shapes.find(s => s.id === shapeId);
     if (!shape) return false;
+    const deltaX = newX - shape.x;
+    const deltaY = newY - shape.y;
     shape.x = Math.max(0, newX);
     shape.y = Math.max(0, newY);
+    if (shape.imported) {
+      shape.importedEdited = true;
+      shape.importedDeltaX = (shape.importedDeltaX || 0) + deltaX;
+      shape.importedDeltaY = (shape.importedDeltaY || 0) + deltaY;
+    }
     this._renderShapes();
     this.isDirty = true;
     this.recordSnapshot("writer.shape.move");
@@ -7377,6 +7393,13 @@ export class WriterAdapter {
     });
   }
 
+  _markImportedAnchorEdited(shape, dx = 0, dy = 0) {
+    if (!shape?.imported) return;
+    shape.importedEdited = true;
+    shape.importedDeltaX = (shape.importedDeltaX || 0) + dx;
+    shape.importedDeltaY = (shape.importedDeltaY || 0) + dy;
+  }
+
   _renderShapes() {
     if (!this.editorDom || typeof document === "undefined" || !document.createElement) return;
     if (typeof this.editorDom.appendChild !== "function" || typeof this.editorDom.querySelector !== "function") return;
@@ -7392,7 +7415,7 @@ export class WriterAdapter {
     const editorRect = this.editorDom.getBoundingClientRect?.();
 
     for (const shape of this.shapes) {
-      if (shape.imported && Number.isInteger(shape.paragraphIndex) && importedParagraphs.length) {
+      if (shape.imported && !shape.importedEdited && Number.isInteger(shape.paragraphIndex) && importedParagraphs.length) {
         const paragraph = importedParagraphs[Math.min(shape.paragraphIndex, importedParagraphs.length - 1)];
         const paragraphRect = paragraph?.getBoundingClientRect?.();
         if (paragraphRect && editorRect) {
@@ -7416,6 +7439,7 @@ export class WriterAdapter {
         if (body?.addEventListener) {
           body.addEventListener("input", () => {
             shape.text = body.textContent || "";
+            this._markImportedAnchorEdited(shape);
             this.isDirty = true;
           });
           body.addEventListener("mousedown", (evt) => evt.stopPropagation());
@@ -7454,6 +7478,7 @@ export class WriterAdapter {
               const dy = upEvt.clientY - startMouseY;
               shape.x = Math.max(0, startX + dx);
               shape.y = Math.max(0, startY + dy);
+              this._markImportedAnchorEdited(shape, dx, dy);
               this.isDirty = true;
               this.recordSnapshot("writer.shape.move");
             }
@@ -7485,6 +7510,7 @@ export class WriterAdapter {
           const onUp = () => {
             document.removeEventListener("mousemove", onMove);
             document.removeEventListener("mouseup", onUp);
+            this._markImportedAnchorEdited(shape);
             this.isDirty = true;
             this.recordSnapshot("writer.shape.resize");
           };
@@ -10875,10 +10901,11 @@ export class WriterAdapter {
       bodyExportHtml = `<div class="vno-writer-columns-content vno-writer-body" style="column-count:${colCount};-webkit-column-count:${colCount};column-gap:${colGap};-webkit-column-gap:${colGap};${this.columns.rule ? `column-rule:${colRule};-webkit-column-rule:${colRule};` : ''}">${bodyHtml}</div>`;
     }
 
+    const exportShapes = this._shapesForExport();
     let shapesHtml = "";
-    if (this.shapes && this.shapes.length) {
+    if (exportShapes.length) {
       shapesHtml = `<div class="vno-export-shapes" style="position:relative; width:100%; height:0; overflow:visible;">\n` +
-        this.shapes.map(s => {
+        exportShapes.map(s => {
           const inner = (s.type === "textbox" || s.shapeType === "textbox")
             ? `<div class="vno-writer-textbox-body">${this._escapeHtml(s.text || "")}</div>`
             : renderShapeSvg(s);
@@ -10887,8 +10914,10 @@ export class WriterAdapter {
         `</div>\n`;
     }
 
+    const mutationMarkers = this._shapeMutationMarkerHtml();
+
     const pristineMarker = this._isOpenedDocumentPristine() ? '<a name="vno-pristine-document"></a>' : "";
-    const fullHtml = `${pristineMarker}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}`;
+    const fullHtml = `${pristineMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
@@ -10923,6 +10952,26 @@ export class WriterAdapter {
       .replace(/\s*\bvno-merge-preview\b/gi, "")
       .replace(/<(div|tr|li)\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/\1>/gi, "")
       .replace(/<span\b[^>]*data-vno-format-mark=["'][^"']+["'][^>]*>([\s\S]*?)<\/span>/gi, "$1");
+  }
+
+  _shapesForExport() {
+    return (this.shapes || []).filter(shape => !shape.imported);
+  }
+
+  _shapeMutationMarkerHtml() {
+    const records = [
+      ...(this._deletedImportedShapeNames || []).map(item => ({ type: "delete", ...item })),
+      ...(this.shapes || []).filter(shape => shape.imported && shape.importedEdited && shape.sourceDocPrName)
+        .map(shape => ({
+          type: "edit", anchorName: shape.sourceDocPrName, shapeName: shape.sourceShapeName || "",
+          dx: shape.importedDeltaX || 0, dy: shape.importedDeltaY || 0,
+          scaleX: shape.sourceOffsetScaleX || 1, scaleY: shape.sourceOffsetScaleY || 1,
+        })),
+    ];
+    return records.map(record => {
+      const hex = Array.from(new TextEncoder().encode(JSON.stringify(record)), byte => byte.toString(16).padStart(2, "0")).join("");
+      return `<p style="display:none;font-size:1pt;color:#ffffff">VNO_SHAPE_MUTATION_${hex}</p>`;
+    }).join("");
   }
 
   /**
@@ -11015,6 +11064,7 @@ export class WriterAdapter {
       }
       this.docStyles = imported.docStyles || null;
       this.shapes = imported.shapes || [];
+      this._deletedImportedShapeNames = [];
       this._applyDocStyles();
 
       if (this.headerDom && this.bodyDom && this.footerDom) {
@@ -11984,6 +12034,7 @@ export class WriterAdapter {
       columns: this.columns ? JSON.parse(JSON.stringify(this.columns)) : { count: 1, gap: 10, rule: false },
       lineNumbers: this._cloneLineNumbers(this.lineNumbers),
       shapes: this.shapes ? JSON.parse(JSON.stringify(this.shapes)) : [],
+      deletedImportedShapeNames: [...(this._deletedImportedShapeNames || [])],
       documentTheme: this.documentTheme || "office",
       description,
       timestamp: Date.now()
@@ -12067,6 +12118,7 @@ export class WriterAdapter {
     }
     if (Object.prototype.hasOwnProperty.call(snapshot, "shapes")) {
       this.shapes = snapshot.shapes ? JSON.parse(JSON.stringify(snapshot.shapes)) : [];
+      this._deletedImportedShapeNames = [...(snapshot.deletedImportedShapeNames || [])];
     }
     if (snapshot.documentTheme) {
       this.applyDocumentTheme(snapshot.documentTheme, false);

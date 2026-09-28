@@ -10193,6 +10193,77 @@ def _restore_mid_document_sections(
     return result_xml, next_rid
 
 
+def _apply_writer_imported_shape_mutation(anchor: str, mutation: dict) -> str | None:
+    """Apply move/delete to the named native wps:wsp, retaining DrawingML shape markup."""
+    shape_name = str(mutation.get("shapeName") or "")
+    candidates = list(re.finditer(r"<wps:wsp\b[\s\S]*?</wps:wsp\s*>", anchor, re.IGNORECASE))
+    target = next((item for item in candidates
+                   if shape_name and re.search(
+                       rf'<wps:cNvPr\b[^>]*\bname=["\']{re.escape(shape_name)}["\']',
+                       item.group(0), re.IGNORECASE,
+                   )), None)
+    if target is None and len(candidates) == 1:
+        target = candidates[0]
+    if target is None:
+        return anchor
+    if mutation.get("type") == "delete":
+        updated = anchor[:target.start()] + anchor[target.end():]
+        if not re.search(r"<wps:wsp\b|<pic:pic\b", updated, re.IGNORECASE):
+            return None
+        return updated
+    if mutation.get("type") != "edit":
+        return anchor
+    scale_x = float(mutation.get("scaleX") or 1)
+    scale_y = float(mutation.get("scaleY") or 1)
+    delta_x = round(float(mutation.get("dx") or 0) * 9525 / (scale_x if scale_x else 1))
+    delta_y = round(float(mutation.get("dy") or 0) * 9525 / (scale_y if scale_y else 1))
+    shape_xml = target.group(0)
+    def offset(match: re.Match) -> str:
+        attrs = match.group(1)
+        def shift(axis: str, delta: int) -> str:
+            return re.sub(rf'\b{axis}=["\'](-?\d+)["\']', lambda value: f'{axis}="{int(value.group(1)) + delta}"', attrs, count=1)
+        attrs = shift("x", delta_x)
+        attrs = shift("y", delta_y)
+        return f"<a:off{attrs}/>"
+    shape_xml = re.sub(r"<a:off\b([^>]*)/>", offset, shape_xml, count=1, flags=re.IGNORECASE)
+    return anchor[:target.start()] + shape_xml + anchor[target.end():]
+
+
+def _strip_writer_shape_mutation_markers(xml: str) -> tuple[str, list[dict]]:
+    """Remove internal HTML-bridge markers and return source shape mutations."""
+    mutations: list[dict] = []
+    for marker in re.findall(r"VNO_SHAPE_MUTATION_([0-9a-fA-F]+)", xml):
+        try:
+            item = json.loads(bytes.fromhex(marker).decode("utf-8"))
+            if isinstance(item, dict) and item.get("type") in {"edit", "delete"}:
+                mutations.append(item)
+        except (ValueError, UnicodeDecodeError):
+            continue
+        except json.JSONDecodeError:
+            continue
+    if mutations:
+        xml = re.sub(
+            r"<w:p\b[^>]*>(?:(?!</w:p>).)*VNO_SHAPE_MUTATION_[0-9a-fA-F]+(?:(?!</w:p>).)*</w:p\s*>",
+            "", xml, flags=re.IGNORECASE | re.DOTALL,
+        )
+    return xml, mutations
+
+
+def _apply_writer_shape_mutations_to_document(xml: str, mutations: list[dict]) -> str:
+    """Update/remove the original shape anchors used by later relocation passes."""
+    if not mutations:
+        return xml
+    def apply_anchor(match: re.Match) -> str:
+        anchor = match.group(0)
+        name = _writer_anchor_name(anchor)
+        for mutation in (item for item in mutations if item.get("anchorName") == name):
+            anchor = _apply_writer_imported_shape_mutation(anchor, mutation)
+            if anchor is None:
+                return ""
+        return anchor
+    return _WRITER_ANCHOR_RE.sub(apply_anchor, xml)
+
+
 def postprocess_writer_docx(
     docx_bytes: bytes,
     *,
@@ -10226,6 +10297,12 @@ def postprocess_writer_docx(
     original_xml_bytes = read_zip_entry(source_docx, "word/document.xml")
     original_xml = original_xml_bytes.decode("utf-8", errors="replace") if original_xml_bytes else ""
 
+    # Internal bridge markers identify imported anchors explicitly changed or
+    # deleted in Writer. Remove marker paragraphs from the final document and
+    # keep passthrough from restoring those original anchors.
+    converted_xml, mutation_names = _strip_writer_shape_mutation_markers(converted_xml)
+    shape_only_edit = bool(mutation_names) and "vno-edited-" not in converted_xml
+
     # W35b: numbering nguồn + LibreOffice (id dời +1000) — numPr nguồn được W35 trả lại phải trỏ đúng numbering nguồn
     source_numbering_bytes = read_zip_entry(source_docx, "word/numbering.xml")
     converted_numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
@@ -10248,13 +10325,13 @@ def postprocess_writer_docx(
     # paragraphs. The only lossless save is the original OOXML package itself.
     # This is narrowly gated to short, anchor-heavy bodies; ordinary Writer
     # documents and every touched document continue through the surgical passes.
-    if "vno-pristine-document" in converted_xml:
+    if "vno-pristine-document" in converted_xml or shape_only_edit:
         source_flow = _writer_body_paragraph_ranges(original_xml)
         safe_anchors = [
             anchor for anchor in _writer_outer_anchor_blocks(original_xml)
             if _writer_anchor_passthrough_kind(anchor)
         ]
-        if 5 <= len(safe_anchors) and len(source_flow) <= 25:
+        if not mutation_names and 5 <= len(safe_anchors) and len(source_flow) <= 25:
             return source_docx
     elif "vno-edited-" in converted_xml:
         source_flow = _writer_body_paragraph_ranges(original_xml)
@@ -10356,7 +10433,7 @@ def postprocess_writer_docx(
     # tblCellMar 28 twips, đổi trHeight/tcW/viền)
     new_xml = _restore_writer_table_properties(new_xml, original_xml)
 
-    pristine_document = "vno-pristine-document" in new_xml
+    pristine_document = "vno-pristine-document" in new_xml or shape_only_edit
     untouched_texts = _writer_unique_marked_texts(new_xml)
     new_xml = _remove_duplicate_writer_textbox_anchors(
         new_xml, original_xml, pristine_document=pristine_document,
@@ -10383,6 +10460,7 @@ def postprocess_writer_docx(
         new_xml, original_xml, pristine_document=pristine_document,
     )
     new_xml = _restore_writer_anchor_properties(new_xml, original_xml)
+    new_xml = _apply_writer_shape_mutations_to_document(new_xml, mutation_names)
     new_xml = _restore_writer_matched_formatting(
         new_xml, original_xml, trusted_untouched_texts=untouched_texts,
         trust_all_exact=pristine_document,
