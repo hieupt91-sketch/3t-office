@@ -186,6 +186,18 @@ export function buildCaptionHtml({
   return `<p class="vno-caption" data-vno-caption="true" data-vno-caption-kind="${esc(safeKind)}" data-vno-caption-id="${esc(safeId)}" data-vno-caption-index="${Number(number) || 1}" id="${esc(safeId)}" tabindex="-1" contenteditable="false"><span class="vno-caption-label">${esc(label)}</span> <span class="vno-caption-number">${Number(number) || 1}</span><span class="vno-caption-separator">: </span><span class="vno-caption-text" contenteditable="true">${esc(body)}</span>${captionMarkerHtml({ kind: safeKind, id: safeId, index: number })}<button type="button" class="vno-caption-delete-btn" title="${esc(deleteTitle)}" aria-label="${esc(deleteTitle)}">&times;</button></p>`;
 }
 
+function trapFocus(element, event) {
+  if (event.key !== "Tab") return;
+  const items = [...element.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')];
+  if (!items.length) return;
+  const first = items[0], last = items.at(-1);
+  if ((event.shiftKey && document.activeElement === first) || (!event.shiftKey && document.activeElement === last)) {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.shiftKey ? last : first).focus();
+  }
+}
+
 function dialogShell(title, body, footer, extraClass = "") {
   const overlay = document.createElement("div");
   overlay.className = `vno-dialog-overlay vno-caption-dialog-overlay ${extraClass}`.trim();
@@ -216,6 +228,7 @@ export function showInsertCaptionDialog(options = {}) {
     : t("writerDialogs.caption.title");
 
   return new Promise((resolve) => {
+    const previousFocused = (typeof document !== "undefined" && document.activeElement) || null;
     const kindOptions = CAPTION_KINDS.map((kind) => (
       `<option value="${kind}" ${kind === initialKind ? "selected" : ""}>${esc(captionKindMenuLabel(kind, locale))}</option>`
     )).join("");
@@ -252,6 +265,7 @@ export function showInsertCaptionDialog(options = {}) {
       settled = true;
       document.removeEventListener("keydown", onKeyDown, true);
       overlay.remove();
+      previousFocused?.focus?.();
       resolve(value);
     };
     const readValue = () => ({
@@ -281,6 +295,9 @@ export function showInsertCaptionDialog(options = {}) {
       } else if (event.key === "Enter" && event.target?.tagName !== "TEXTAREA") {
         event.preventDefault();
         finish(readValue());
+      } else if (event.key === "Tab") {
+        const box = overlay.querySelector(".vno-dialog-box");
+        if (box) trapFocus(box, event);
       }
     };
     document.addEventListener("keydown", onKeyDown, true);
@@ -302,6 +319,7 @@ export function showInsertTableOfFiguresDialog(options = {}) {
     : t("writerDialogs.tof.title");
 
   return new Promise((resolve) => {
+    const previousFocused = (typeof document !== "undefined" && document.activeElement) || null;
     const kindOptions = [
       ["figure", locale === "en" ? "Figures" : "Hình ảnh"],
       ["table", locale === "en" ? "Tables" : "Bảng"],
@@ -321,6 +339,7 @@ export function showInsertTableOfFiguresDialog(options = {}) {
       settled = true;
       document.removeEventListener("keydown", onKeyDown, true);
       overlay.remove();
+      previousFocused?.focus?.();
       resolve(value);
     };
     overlay.querySelectorAll(".vno-cancel, .vno-dialog-close-btn").forEach((btn) => {
@@ -339,6 +358,9 @@ export function showInsertTableOfFiguresDialog(options = {}) {
       } else if (event.key === "Enter") {
         event.preventDefault();
         finish({ kind: normalizeTofKind(overlay.querySelector(".vno-tof-kind").value) });
+      } else if (event.key === "Tab") {
+        const box = overlay.querySelector(".vno-dialog-box");
+        if (box) trapFocus(box, event);
       }
     };
     document.addEventListener("keydown", onKeyDown, true);

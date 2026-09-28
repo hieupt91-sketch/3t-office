@@ -151,6 +151,18 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("formulabar")) return ICONS.sheetFormulaBar;
   if (idLower.includes("headings")) return ICONS.headings;
   if (idLower.includes("macromanager")) return ICONS.macroManager;
+  if (idLower.includes("tocinsert")) return ICONS.tocInsert;
+  if (idLower.includes("tocupdate")) return ICONS.tocUpdate;
+  if (idLower.includes("footnote")) return ICONS.footnoteInsert;
+  if (idLower.includes("endnote")) return ICONS.endnoteInsert;
+  if (idLower.includes("citationstyle")) return ICONS.citationStyle;
+  if (idLower.includes("citationinsert") || idLower.includes("citation")) return ICONS.citationInsert;
+  if (idLower.includes("sourcesmanage")) return ICONS.sourcesManage;
+  if (idLower.includes("bibliography")) return ICONS.bibliographyInsert;
+  if (idLower.includes("captioninsert") || idLower.includes("caption")) return ICONS.captionInsert;
+  if (idLower.includes("tofinsert")) return ICONS.tofInsert;
+  if (idLower.includes("tofupdate")) return ICONS.tofUpdate;
+  if (idLower.includes("crossreference")) return ICONS.crossReference;
 
   return `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>`;
 }

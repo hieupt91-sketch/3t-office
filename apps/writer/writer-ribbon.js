@@ -500,7 +500,7 @@ export const WRITER_RIBBON_TABS = [
             type: "column",
             items: [
               { type: "row", items: [{ type: "button", commandId: "writer.reference.sourcesManage" }] },
-              { type: "row", items: [{ type: "select", commandId: "writer.reference.citationStyle", defaultValue: "apa", ariaLabel: "Kiểu trích dẫn", options: [{ value: "apa", label: "APA" }, { value: "mla", label: "MLA" }] }] }
+              { type: "row", items: [{ type: "select", commandId: "writer.reference.citationStyle", defaultValue: "apa", ariaLabel: "Kiểu trích dẫn", options: [{ value: "apa", label: "Kiểu: APA" }, { value: "mla", label: "Kiểu: MLA" }] }] }
             ]
           },
           { type: "button", commandId: "writer.reference.bibliographyInsert", isLarge: true }

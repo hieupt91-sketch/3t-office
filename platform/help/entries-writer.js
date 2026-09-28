@@ -105,15 +105,16 @@ export const WRITER_HELP_ENTRIES = [
       "writer.reference.tofUpdate"
     ],
     title: "Chú thích ảnh và danh mục hình",
-    summary: "Gắn chú thích tự đánh số cho hình ảnh, bảng hoặc phương trình, rồi chèn / cập nhật danh mục hình ảnh từ các chú thích đó.",
+    summary: "Gắn chú thích tự đánh số cho hình ảnh, bảng hoặc phương trình, rồi chèn / cập nhật danh mục hình ảnh từ các chú thích đó. Nhóm này cũng bao gồm lệnh Tham chiếu chéo.",
     ribbon: { tab: "Tham chiếu", tabId: "references", group: "Chú thích ảnh" },
-    keywords: ["chú thích ảnh", "caption", "danh mục hình", "table of figures", "hình", "bảng"],
+    keywords: ["chú thích ảnh", "caption", "danh mục hình", "table of figures", "hình", "bảng", "tham chiếu chéo", "cross reference"],
     steps: [
       "Chọn hình ảnh, bảng hoặc phương trình trong trang soạn thảo.",
       "Mở tab Tham chiếu, nhóm Chú thích ảnh, nhấn Chèn chú thích ảnh.",
       "Chọn nhãn (Hình / Bảng / Phương trình), vị trí (dưới hoặc trên đối tượng), nhập nội dung chú thích rồi nhấn Chèn. Số thứ tự được gán tự động.",
       "Đặt con trỏ nơi muốn hiện danh mục, nhấn Danh mục hình ảnh, chọn loại rồi chèn.",
-      "Khi thêm hoặc sửa chú thích, nhấn Cập nhật danh mục để làm mới số thứ tự và dòng trong danh mục."
+      "Khi thêm hoặc sửa chú thích, nhấn Cập nhật danh mục để làm mới số thứ tự và dòng trong danh mục.",
+      "Để tạo liên kết nội bộ tới một tiêu đề hoặc đánh dấu trong văn bản, nhấn nút Tham chiếu chéo ngay bên dưới nút Cập nhật danh mục."
     ]
   },
   {
