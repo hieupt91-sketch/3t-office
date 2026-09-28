@@ -7511,6 +7511,10 @@ export class WriterAdapter {
             document.removeEventListener("mousemove", onMove);
             document.removeEventListener("mouseup", onUp);
             this._markImportedAnchorEdited(shape);
+            if (shape.imported) {
+              shape.importedDeltaW = (shape.importedDeltaW || 0) + (shape.w - origW);
+              shape.importedDeltaH = (shape.importedDeltaH || 0) + (shape.h - origH);
+            }
             this.isDirty = true;
             this.recordSnapshot("writer.shape.resize");
           };
@@ -10965,12 +10969,13 @@ export class WriterAdapter {
         .map(shape => ({
           type: "edit", anchorName: shape.sourceDocPrName, shapeName: shape.sourceShapeName || "",
           dx: shape.importedDeltaX || 0, dy: shape.importedDeltaY || 0,
+          dw: shape.importedDeltaW || 0, dh: shape.importedDeltaH || 0,
           scaleX: shape.sourceOffsetScaleX || 1, scaleY: shape.sourceOffsetScaleY || 1,
         })),
     ];
     return records.map(record => {
       const hex = Array.from(new TextEncoder().encode(JSON.stringify(record)), byte => byte.toString(16).padStart(2, "0")).join("");
-      return `<p style="display:none;font-size:1pt;color:#ffffff">VNO_SHAPE_MUTATION_${hex}</p>`;
+      return `<p><a name="vno-shape-mutation"></a>VNO_SHAPE_MUTATION_${hex}</p>`;
     }).join("");
   }
 

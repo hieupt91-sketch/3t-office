@@ -10193,75 +10193,195 @@ def _restore_mid_document_sections(
     return result_xml, next_rid
 
 
-def _apply_writer_imported_shape_mutation(anchor: str, mutation: dict) -> str | None:
-    """Apply move/delete to the named native wps:wsp, retaining DrawingML shape markup."""
-    shape_name = str(mutation.get("shapeName") or "")
+_WRITER_EMU_PER_PX = 9525
+
+
+def _writer_shift_named_emu(xml: str, attr: str, delta: int) -> str:
+    if not delta:
+        return xml
+    return re.sub(
+        rf'\b{attr}=["\'](-?\d+)["\']',
+        lambda match: f'{attr}="{int(match.group(1)) + delta}"',
+        xml, count=1, flags=re.IGNORECASE,
+    )
+
+
+def _writer_shift_pos_offset(anchor: str, axis_tag: str, delta: int) -> str:
+    if not delta:
+        return anchor
+    match = re.search(
+        rf"(<{axis_tag}\b[^>]*>[\s\S]*?<wp:posOffset>)(-?\d+)(</wp:posOffset\s*>)",
+        anchor, re.IGNORECASE,
+    )
+    if not match:
+        return anchor
+    return anchor[:match.start(2)] + str(int(match.group(2)) + delta) + anchor[match.end(2):]
+
+
+def _writer_shift_a_off(shape_xml: str, delta_x: int, delta_y: int) -> str:
+    if not delta_x and not delta_y:
+        return shape_xml
+
+    def offset(match: re.Match) -> str:
+        attrs = match.group(1)
+        attrs = _writer_shift_named_emu(attrs, "x", delta_x)
+        attrs = _writer_shift_named_emu(attrs, "y", delta_y)
+        return f"<a:off{attrs}{match.group(2)}"
+
+    updated, count = re.subn(
+        r"<a:off\b([^>/]*)(/?>)", offset, shape_xml, count=1, flags=re.IGNORECASE,
+    )
+    return updated if count else shape_xml
+
+
+def _writer_shift_extent(xml: str, delta_cx: int, delta_cy: int, tag: str) -> str:
+    if not delta_cx and not delta_cy:
+        return xml
+
+    def extent(match: re.Match) -> str:
+        attrs = match.group(1)
+        attrs = _writer_shift_named_emu(attrs, "cx", delta_cx)
+        attrs = _writer_shift_named_emu(attrs, "cy", delta_cy)
+        return f"<{tag}{attrs}{match.group(2)}"
+
+    updated, count = re.subn(
+        rf"<{tag}\b([^>/]*)(/?>)", extent, xml, count=1, flags=re.IGNORECASE,
+    )
+    return updated if count else xml
+
+
+def _decode_writer_shape_mutation(marker: str) -> dict | None:
+    try:
+        item = json.loads(bytes.fromhex(marker).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if isinstance(item, dict) and item.get("type") in {"edit", "delete"}:
+        return item
+    return None
+
+
+def _writer_mutation_payloads(text: str) -> list[dict]:
+    mutations: list[dict] = []
+    for marker in re.findall(r"VNO_SHAPE_MUTATION_([0-9a-fA-F]+)", text or ""):
+        item = _decode_writer_shape_mutation(marker)
+        if item:
+            mutations.append(item)
+    return mutations
+
+
+def _writer_named_wsp(anchor: str, shape_name: str) -> re.Match | None:
     candidates = list(re.finditer(r"<wps:wsp\b[\s\S]*?</wps:wsp\s*>", anchor, re.IGNORECASE))
-    target = next((item for item in candidates
-                   if shape_name and re.search(
-                       rf'<wps:cNvPr\b[^>]*\bname=["\']{re.escape(shape_name)}["\']',
-                       item.group(0), re.IGNORECASE,
-                   )), None)
-    if target is None and len(candidates) == 1:
-        target = candidates[0]
+    named = next((item for item in candidates
+                  if shape_name and re.search(
+                      rf'<wps:cNvPr\b[^>]*\bname=["\']{re.escape(shape_name)}["\']',
+                      item.group(0), re.IGNORECASE,
+                  )), None)
+    if named is not None:
+        return named
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def _apply_writer_imported_shape_mutation(anchor: str, mutation: dict) -> str | None:
+    """Apply move/resize/delete to the named native wps:wsp, retaining DrawingML markup."""
+    shape_name = str(mutation.get("shapeName") or "")
+    target = _writer_named_wsp(anchor, shape_name)
     if target is None:
         return anchor
     if mutation.get("type") == "delete":
         updated = anchor[:target.start()] + anchor[target.end():]
-        if not re.search(r"<wps:wsp\b|<pic:pic\b", updated, re.IGNORECASE):
+        if not re.search(r"<wps:wsp\b|<pic:pic\b|<wpg:wgp\b", updated, re.IGNORECASE):
             return None
         return updated
     if mutation.get("type") != "edit":
         return anchor
-    scale_x = float(mutation.get("scaleX") or 1)
-    scale_y = float(mutation.get("scaleY") or 1)
-    delta_x = round(float(mutation.get("dx") or 0) * 9525 / (scale_x if scale_x else 1))
-    delta_y = round(float(mutation.get("dy") or 0) * 9525 / (scale_y if scale_y else 1))
-    shape_xml = target.group(0)
-    def offset(match: re.Match) -> str:
-        attrs = match.group(1)
-        def shift(axis: str, delta: int) -> str:
-            return re.sub(rf'\b{axis}=["\'](-?\d+)["\']', lambda value: f'{axis}="{int(value.group(1)) + delta}"', attrs, count=1)
-        attrs = shift("x", delta_x)
-        attrs = shift("y", delta_y)
-        return f"<a:off{attrs}/>"
-    shape_xml = re.sub(r"<a:off\b([^>]*)/>", offset, shape_xml, count=1, flags=re.IGNORECASE)
-    return anchor[:target.start()] + shape_xml + anchor[target.end():]
+    scale_x = float(mutation.get("scaleX") or 1) or 1
+    scale_y = float(mutation.get("scaleY") or 1) or 1
+    delta_x = round(float(mutation.get("dx") or 0) * _WRITER_EMU_PER_PX / scale_x)
+    delta_y = round(float(mutation.get("dy") or 0) * _WRITER_EMU_PER_PX / scale_y)
+    delta_cx = round(float(mutation.get("dw") or 0) * _WRITER_EMU_PER_PX / scale_x)
+    delta_cy = round(float(mutation.get("dh") or 0) * _WRITER_EMU_PER_PX / scale_y)
+    in_group = bool(re.search(r"<wpg:wgp\b", anchor, re.IGNORECASE))
+    has_pos_offset = bool(re.search(r"<wp:posOffset>", anchor, re.IGNORECASE))
+    if in_group or not has_pos_offset:
+        shape_xml = _writer_shift_a_off(target.group(0), delta_x, delta_y)
+        shape_xml = _writer_shift_extent(shape_xml, delta_cx, delta_cy, "a:ext")
+        return anchor[:target.start()] + shape_xml + anchor[target.end():]
+    abs_dx = round(float(mutation.get("dx") or 0) * _WRITER_EMU_PER_PX)
+    abs_dy = round(float(mutation.get("dy") or 0) * _WRITER_EMU_PER_PX)
+    abs_cx = round(float(mutation.get("dw") or 0) * _WRITER_EMU_PER_PX)
+    abs_cy = round(float(mutation.get("dh") or 0) * _WRITER_EMU_PER_PX)
+    updated = _writer_shift_pos_offset(anchor, "wp:positionH", abs_dx)
+    updated = _writer_shift_pos_offset(updated, "wp:positionV", abs_dy)
+    updated = _writer_shift_extent(updated, abs_cx, abs_cy, "wp:extent")
+    wsp = _writer_named_wsp(updated, shape_name)
+    if wsp is not None and (abs_cx or abs_cy):
+        shape_xml = _writer_shift_extent(wsp.group(0), abs_cx, abs_cy, "a:ext")
+        updated = updated[:wsp.start()] + shape_xml + updated[wsp.end():]
+    return updated
+
+
+def _drop_empty_writer_drawings(xml: str) -> str:
+    """Remove drawing wrappers left empty after deleting a passthrough shape."""
+    xml = re.sub(r"<w:drawing\b[^>]*>\s*</w:drawing\s*>", "", xml, flags=re.IGNORECASE)
+    xml = re.sub(r"<mc:Choice\b[^>]*>\s*</mc:Choice\s*>", "", xml, flags=re.IGNORECASE)
+    xml = re.sub(
+        r"<mc:AlternateContent\b[^>]*>\s*(?:<mc:Fallback\b[^>]*>[\s\S]*?</mc:Fallback\s*>\s*)?</mc:AlternateContent\s*>",
+        "", xml, flags=re.IGNORECASE,
+    )
+    xml = re.sub(r"<w:r\b[^>]*>\s*</w:r\s*>", "", xml, flags=re.IGNORECASE)
+    return xml
 
 
 def _strip_writer_shape_mutation_markers(xml: str) -> tuple[str, list[dict]]:
     """Remove internal HTML-bridge markers and return source shape mutations."""
     mutations: list[dict] = []
-    for marker in re.findall(r"VNO_SHAPE_MUTATION_([0-9a-fA-F]+)", xml):
-        try:
-            item = json.loads(bytes.fromhex(marker).decode("utf-8"))
-            if isinstance(item, dict) and item.get("type") in {"edit", "delete"}:
-                mutations.append(item)
-        except (ValueError, UnicodeDecodeError):
+    ranges = _writer_body_paragraph_ranges(xml)
+    if not ranges:
+        ranges = _xml_element_ranges(xml, "w:p")
+    removals: list[tuple[int, int]] = []
+    for start, end in ranges:
+        paragraph = xml[start:end]
+        raw_text = _unescape_xml("".join(
+            re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", paragraph, re.IGNORECASE)
+        ))
+        found = _writer_mutation_payloads(raw_text) or _writer_mutation_payloads(paragraph)
+        if not found:
             continue
-        except json.JSONDecodeError:
-            continue
-    if mutations:
-        xml = re.sub(
-            r"<w:p\b[^>]*>(?:(?!</w:p>).)*VNO_SHAPE_MUTATION_[0-9a-fA-F]+(?:(?!</w:p>).)*</w:p\s*>",
-            "", xml, flags=re.IGNORECASE | re.DOTALL,
-        )
-    return xml, mutations
+        mutations.extend(found)
+        removals.append((start, end))
+    result = xml
+    for start, end in reversed(removals):
+        result = result[:start] + result[end:]
+    return result, mutations
 
 
 def _apply_writer_shape_mutations_to_document(xml: str, mutations: list[dict]) -> str:
     """Update/remove the original shape anchors used by later relocation passes."""
     if not mutations:
         return xml
-    def apply_anchor(match: re.Match) -> str:
-        anchor = match.group(0)
+    ranges = _xml_element_ranges(xml, "wp:anchor")
+    outer = [
+        (start, end) for start, end in ranges
+        if not any(other_start < start and end < other_end
+                   for other_start, other_end in ranges)
+    ]
+    if not outer:
+        return xml
+    pieces: list[str] = []
+    cursor = len(xml)
+    for start, end in reversed(outer):
+        anchor = xml[start:end]
         name = _writer_anchor_name(anchor)
         for mutation in (item for item in mutations if item.get("anchorName") == name):
             anchor = _apply_writer_imported_shape_mutation(anchor, mutation)
-            if anchor is None:
-                return ""
-        return anchor
-    return _WRITER_ANCHOR_RE.sub(apply_anchor, xml)
+            if not anchor:
+                anchor = ""
+                break
+        pieces.append(xml[end:cursor])
+        pieces.append(anchor or "")
+        cursor = start
+    pieces.append(xml[:cursor])
+    return _drop_empty_writer_drawings("".join(reversed(pieces)))
 
 
 def postprocess_writer_docx(
@@ -10298,10 +10418,9 @@ def postprocess_writer_docx(
     original_xml = original_xml_bytes.decode("utf-8", errors="replace") if original_xml_bytes else ""
 
     # Internal bridge markers identify imported anchors explicitly changed or
-    # deleted in Writer. Remove marker paragraphs from the final document and
-    # keep passthrough from restoring those original anchors.
+    # deleted in Writer. Remove marker paragraphs from the final document, then
+    # apply the mutations after passthrough has restored the native anchors.
     converted_xml, mutation_names = _strip_writer_shape_mutation_markers(converted_xml)
-    shape_only_edit = bool(mutation_names) and "vno-edited-" not in converted_xml
 
     # W35b: numbering nguồn + LibreOffice (id dời +1000) — numPr nguồn được W35 trả lại phải trỏ đúng numbering nguồn
     source_numbering_bytes = read_zip_entry(source_docx, "word/numbering.xml")
@@ -10325,7 +10444,7 @@ def postprocess_writer_docx(
     # paragraphs. The only lossless save is the original OOXML package itself.
     # This is narrowly gated to short, anchor-heavy bodies; ordinary Writer
     # documents and every touched document continue through the surgical passes.
-    if "vno-pristine-document" in converted_xml or shape_only_edit:
+    if "vno-pristine-document" in converted_xml:
         source_flow = _writer_body_paragraph_ranges(original_xml)
         safe_anchors = [
             anchor for anchor in _writer_outer_anchor_blocks(original_xml)
@@ -10433,7 +10552,7 @@ def postprocess_writer_docx(
     # tblCellMar 28 twips, đổi trHeight/tcW/viền)
     new_xml = _restore_writer_table_properties(new_xml, original_xml)
 
-    pristine_document = "vno-pristine-document" in new_xml or shape_only_edit
+    pristine_document = "vno-pristine-document" in new_xml
     untouched_texts = _writer_unique_marked_texts(new_xml)
     new_xml = _remove_duplicate_writer_textbox_anchors(
         new_xml, original_xml, pristine_document=pristine_document,
