@@ -2291,6 +2291,223 @@ def _restore_source_auto_row_attrs(sheet_xml: str, source_sheet_xml: str, auto_r
 
 _EXTERNAL_LINKS_DIR = "xl/externalLinks/"
 
+
+def _read_external_link_targets(xlsx_bytes: bytes) -> dict[int, str]:
+    """Read mapping from external link index (1-based) to filename.
+
+    Reads xl/externalLinks/_rels/externalLink{N}.xml.rels and extracts the
+    Target filename for each external link relationship.
+
+    Returns dict: {1: "B.xlsx", 2: "Other.xlsx", ...}
+    """
+    targets: dict[int, str] = {}
+    try:
+        with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as zf:
+            for name in zf.namelist():
+                # Match xl/externalLinks/_rels/externalLink1.xml.rels
+                m = re.match(r"xl/externalLinks/_rels/externalLink(\d+)\.xml\.rels$", name, re.IGNORECASE)
+                if not m:
+                    continue
+                idx = int(m.group(1))
+                rels_xml = zf.read(name).decode("utf-8", errors="replace")
+                # Find externalLinkPath relationship target
+                target_m = re.search(
+                    r'Type="[^"]*externalLinkPath"[^>]*Target="([^"]*)"',
+                    rels_xml,
+                    re.IGNORECASE,
+                )
+                if target_m:
+                    # Target may be relative path or full URI — extract filename
+                    raw = target_m.group(1)
+                    # URL-decode %20 etc.
+                    raw = re.sub(r"%([0-9A-Fa-f]{2})", lambda x: chr(int(x.group(1), 16)), raw)
+                    filename = raw.replace("\\", "/").split("/")[-1]
+                    targets[idx] = filename
+    except Exception:
+        pass
+    return targets
+
+
+def _xlsx_external_formulas(xlsx_bytes: bytes) -> dict[str, dict[str, str]]:
+    """Read external-link formulas from source XLSX worksheets.
+
+    Returns: {sheet_name: {coord: excel_formula_string}}
+    e.g. {"Sheet1": {"A1": "=[B.xlsx]Sheet1!A1", "A2": "=SUM('[B.xlsx]Sheet1'!A1:A3)"}}
+
+    Formula convention from XLSX spec:
+    - Single cell:  [1]Sheet1!A1
+    - Range:        '[1]Sheet1'!A1:A3 or [1]Sheet1!A1:[1]Sheet1!A3
+    Conversion: replace [N] with [filename] from external link target map.
+    """
+    link_targets = _read_external_link_targets(xlsx_bytes)
+    if not link_targets:
+        return {}
+
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    result: dict[str, dict[str, str]] = {}
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as zf:
+            for sheet_name, entry in sheet_entries.items():
+                if entry not in zf.namelist():
+                    continue
+                sheet_xml = zf.read(entry).decode("utf-8", errors="replace")
+                cell_formulas: dict[str, str] = {}
+
+                for cell_m in re.finditer(
+                    r"<c\b([^>]*?)>([^<]*(?:<(?!/?c\b)[^<]*)*)<f\b([^>]*)>([^<]*)</f>",
+                    sheet_xml,
+                    re.IGNORECASE,
+                ):
+                    attrs_str = cell_m.group(1)
+                    formula_text = cell_m.group(4)
+                    if not re.search(r"\[\d+\]", formula_text):
+                        continue
+                    r_match = re.search(r'r="([^"]*)"', attrs_str, re.IGNORECASE)
+                    if not r_match:
+                        continue
+                    coord = r_match.group(1)  # e.g. "A1"
+
+                    # Convert [N]SheetName!CellRef → [filename]SheetName!CellRef
+                    def replace_link_index(m: re.Match) -> str:
+                        idx = int(m.group(1))
+                        fname = link_targets.get(idx, f"ext{idx}.xlsx")
+                        return f"[{fname}]"
+
+                    excel_formula = "=" + re.sub(r"\[(\d+)\]", replace_link_index, formula_text)
+                    cell_formulas[coord] = excel_formula
+
+                if cell_formulas:
+                    result[sheet_name] = cell_formulas
+    except Exception:
+        pass
+
+    return result
+
+
+def xlsx_has_external_links(xlsx_bytes: bytes) -> bool:
+    """Return True if the XLSX contains at least one xl/externalLinks/*.xml entry."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as zf:
+            return any(
+                name.startswith(_EXTERNAL_LINKS_DIR) and name.endswith(".xml") and not name.endswith(".rels")
+                for name in zf.namelist()
+            )
+    except Exception:
+        return False
+
+
+def _overlay_external_link_formulas(xlsx_bytes: bytes, fods_xml: str) -> str:
+    """When opening an XLSX that has external links, inject vno:formula attributes.
+
+    LibreOffice converts [1]Sheet1!A1 → 'file://...B.xlsx'#$Sheet1.$A$1 during
+    XLSX→FODS conversion.  The _formulaFromOdf() in sheet-adapter.js cannot
+    parse file:// URLs correctly (it splits on ':' inside the URL).
+
+    This overlay reads the original Excel-style formulas from the source XLSX
+    worksheets and writes them as vno:formula="=[B.xlsx]Sheet1!A1" so that
+    parseFods() picks them up directly without going through _formulaFromOdf().
+
+    Cache values: soffice preserves office:value from XLSX <v> elements, so
+    cell values should already be correct in the FODS; this function only
+    fixes the displayed formula text.
+    """
+    ext_formulas = _xlsx_external_formulas(xlsx_bytes)
+    if not ext_formulas:
+        return fods_xml
+
+    # Build per-sheet lookup: coord → excel_formula
+    # We need to match FODS table:name → sheet_name and then inject vno:formula
+    # on the correct table:table-cell element.
+
+    def inject_formulas_into_table(table_xml: str, cell_map: dict[str, str]) -> str:
+        """Inject vno:formula into cells within one table block."""
+        if not cell_map:
+            return table_xml
+
+        # Track (row, col) position as we scan table:table-row / table:table-cell
+        row_idx = 0
+        result_parts: list[str] = []
+        pos = 0
+        col_letters = [""]  # 1-indexed column name cache
+
+        def col_name(n: int) -> str:
+            if n < len(col_letters) and col_letters[n]:
+                return col_letters[n]
+            # Build column name A,B,...Z,AA,...
+            name = ""
+            x = n
+            while x > 0:
+                x, rem = divmod(x - 1, 26)
+                name = chr(65 + rem) + name
+            while len(col_letters) <= n:
+                col_letters.append("")
+            col_letters[n] = name
+            return name
+
+        for row_match in re.finditer(r"<table:table-row\b([^>]*)>([\s\S]*?)</table:table-row>", table_xml, re.IGNORECASE):
+            result_parts.append(table_xml[pos:row_match.start()])
+            pos = row_match.end()
+            row_attrs = row_match.group(1)
+            row_body = row_match.group(2)
+            row_repeat_m = re.search(r'table:number-rows-repeated="(\d+)"', row_attrs)
+            row_repeat = int(row_repeat_m.group(1)) if row_repeat_m else 1
+            row_idx += 1  # We only process first repeat; external cells won't be in repeated rows
+
+            col_idx = 0
+            row_out_parts: list[str] = []
+            row_pos = 0
+
+            for cell_m in re.finditer(r"<table:table-cell\b([^>]*?)(/?)>", row_body, re.IGNORECASE):
+                row_out_parts.append(row_body[row_pos:cell_m.start()])
+                row_pos = cell_m.end()
+                cell_attrs = cell_m.group(1)
+                self_close = cell_m.group(2)
+                col_idx += 1
+                coord = f"{col_name(col_idx)}{row_idx}"
+
+                formula = cell_map.get(coord)
+                if formula and "vno:formula=" not in cell_attrs:
+                    # Escape for XML attribute
+                    escaped = formula.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
+                    cell_attrs = cell_attrs.rstrip() + f' vno:formula="{escaped}"'
+
+                # Handle table:number-columns-repeated for blank runs
+                repeat_m = re.search(r'table:number-columns-repeated="(\d+)"', cell_attrs)
+                if repeat_m:
+                    col_idx += int(repeat_m.group(1)) - 1
+
+                row_out_parts.append(f"<table:table-cell {cell_attrs}{self_close}>")
+
+            row_out_parts.append(row_body[row_pos:])
+            result_parts.append(f"<table:table-row {row_attrs}>{''.join(row_out_parts)}</table:table-row>")
+            row_idx += row_repeat - 1  # advance for repeated rows beyond the first
+
+        result_parts.append(table_xml[pos:])
+        return "".join(result_parts)
+
+    # Process each table in FODS
+    def replace_table(m: re.Match) -> str:
+        table_attrs = m.group(1)
+        table_body = m.group(2)
+        name_m = re.search(r'table:name="([^"]*)"', table_attrs)
+        if not name_m:
+            return m.group(0)
+        sheet_name = _unescape_xml(name_m.group(1))
+        cell_map = ext_formulas.get(sheet_name, {})
+        if not cell_map:
+            return m.group(0)
+        new_body = inject_formulas_into_table(table_body, cell_map)
+        return f"<table:table {table_attrs}>{new_body}</table:table>"
+
+    return re.sub(
+        r"<table:table\b([^>]*)>([\s\S]*?)</table:table>",
+        replace_table,
+        fods_xml,
+        flags=re.IGNORECASE,
+    )
+
+
 def _preserve_external_links(
     xlsx_bytes: bytes,
     source_xlsx_bytes: bytes,
@@ -5641,6 +5858,11 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
         xml = apply_tab_colors_to_fods(xml, tab_colors)
     # Drawing images: overlay vno:image-id on <draw:frame> elements
     xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
+    # External links: when source XLSX has xl/externalLinks/, inject vno:formula
+    # with the original Excel-style formula ([B.xlsx]Sheet1!A1) so parseFods()
+    # picks it up without going through _formulaFromOdf() which cannot parse
+    # file:// ODF URL patterns produced by LibreOffice.
+    xml = _overlay_external_link_formulas(xlsx_bytes, xml)
     return xml
 
 
