@@ -1016,9 +1016,20 @@ class VnOfficeApi:
         else:
             return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
 
+        writer_ooxml_metadata = None
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_open_") as tmp:
                 convert_src_path = src_path
+                if app_kind == "writer" and src_path.lower().endswith(".doc"):
+                    # Legacy binary DOC imported directly to StarWriter HTML can
+                    # lose/alter default font and language metadata used by the
+                    # canvas. Normalize through LibreOffice's DOCX filter, then
+                    # reuse the existing DOCX-to-HTML import path and overlays.
+                    legacy_docx_dir = os.path.join(tmp, "legacy-docx")
+                    os.makedirs(legacy_docx_dir, exist_ok=True)
+                    convert_src_path = _run_soffice_convert(
+                        src_path, "docx", legacy_docx_dir, app_kind=app_kind
+                    )
                 if app_kind == "sheet" and src_path.lower().endswith(".xlsx") and os.path.isfile(src_path):
                     with open(src_path, "rb") as source_file:
                         original_xlsx = source_file.read()
@@ -1033,9 +1044,9 @@ class VnOfficeApi:
                 if app_kind == "writer":
                     content = _inline_html_images(content, out_path)
                     # Quy ước W9: font/cỡ mặc định từ docDefaults + theme khi LibreOffice không ghi p.western.
-                    if src_path.lower().endswith(".docx"):
+                    if convert_src_path.lower().endswith(".docx"):
                         try:
-                            with open(src_path, "rb") as f:
+                            with open(convert_src_path, "rb") as f:
                                 docx_bytes = f.read()
                             patcher = _ooxml_zip_patch()
                             # W12b: font theme của tài liệu tiếng Việt = typeface script="Viet" (Word), không phải latin
@@ -1047,6 +1058,18 @@ class VnOfficeApi:
                             content = patcher.inject_docx_heading_styles_css(docx_bytes, content)
                         except OSError:
                             pass
+                    if convert_src_path.lower().endswith(".docx"):
+                        # The intermediate DOCX is temporary; collect its
+                        # OOXML sidecars before TemporaryDirectory removes it.
+                        writer_ooxml_metadata = {
+                            "ooxmlDocumentXml": _read_docx_document_xml(convert_src_path),
+                            "ooxmlCommentsXml": _read_docx_comments_xml(convert_src_path),
+                            "ooxmlStylesXml": _read_docx_zip_entry(convert_src_path, "word/styles.xml"),
+                            "ooxmlNumberingXml": _read_docx_zip_entry(convert_src_path, "word/numbering.xml"),
+                        }
+                        header_xml, footer_xml = _read_docx_header_footer_xmls(convert_src_path)
+                        writer_ooxml_metadata["ooxmlHeaderXml"] = header_xml
+                        writer_ooxml_metadata["ooxmlFooterXml"] = footer_xml
                 elif app_kind == "sheet":
                     # Overlay BEFORE the FODS leaves this process — SheetAdapter.parseFods
                     # must see table:structure-protected when the original XLSX is locked.
@@ -1078,22 +1101,42 @@ class VnOfficeApi:
             "content": content,
         }
         if app_kind == "writer":
-            ooxml = _read_docx_document_xml(src_path)
+            ooxml = (
+                writer_ooxml_metadata["ooxmlDocumentXml"]
+                if writer_ooxml_metadata is not None
+                else _read_docx_document_xml(src_path)
+            )
             if ooxml:
                 payload["ooxmlDocumentXml"] = ooxml
-            comments_xml = _read_docx_comments_xml(src_path)
+            comments_xml = (
+                writer_ooxml_metadata["ooxmlCommentsXml"]
+                if writer_ooxml_metadata is not None
+                else _read_docx_comments_xml(src_path)
+            )
             if comments_xml:
                 payload["ooxmlCommentsXml"] = comments_xml
             # Quy ước W11: style bảng (TableGrid: spacing after=0, line=240) nằm trong styles.xml.
-            styles_xml = _read_docx_zip_entry(src_path, "word/styles.xml")
+            styles_xml = (
+                writer_ooxml_metadata["ooxmlStylesXml"]
+                if writer_ooxml_metadata is not None
+                else _read_docx_zip_entry(src_path, "word/styles.xml")
+            )
             if styles_xml:
                 payload["ooxmlStylesXml"] = styles_xml
             # Quy ước W21b: định dạng danh sách/bullet nằm trong numbering.xml.
-            numbering_xml = _read_docx_zip_entry(src_path, "word/numbering.xml")
+            numbering_xml = (
+                writer_ooxml_metadata["ooxmlNumberingXml"]
+                if writer_ooxml_metadata is not None
+                else _read_docx_zip_entry(src_path, "word/numbering.xml")
+            )
             if numbering_xml:
                 payload["ooxmlNumberingXml"] = numbering_xml
             # Quy ước W26b: header/footer XML để chuẩn hóa đoạn rỗng theo cỡ dấu đoạn zone.
-            header_xml, footer_xml = _read_docx_header_footer_xmls(src_path)
+            if writer_ooxml_metadata is not None:
+                header_xml = writer_ooxml_metadata["ooxmlHeaderXml"]
+                footer_xml = writer_ooxml_metadata["ooxmlFooterXml"]
+            else:
+                header_xml, footer_xml = _read_docx_header_footer_xmls(src_path)
             if header_xml:
                 payload["ooxmlHeaderXml"] = header_xml
             if footer_xml:
