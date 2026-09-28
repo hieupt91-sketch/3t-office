@@ -21,8 +21,6 @@ but those counts alone do not identify the first layout divergence.
 
 ## Per-file diagnosis
 
-| File | First paragraph/page divergence | Structural/layout cause |
-|---|---|---|
 | File | Word paragraph evidence | Difference in direct `.doc` → HTML vs `.doc` → LibreOffice DOCX → HTML |
 |---|---|---|
 | legacy01.doc | 84 paragraphs in both the source and Word `SaveAs2` DOCX; page, y-position, font, size, and spacing measurements match paragraph-for-paragraph. | Same A4 page setup and paragraph text/count. Direct `.doc` HTML labels paragraphs 12, 15, and 17 `lang=en-US`; the DOCX round trip labels them `vi-VN`. DOCX round trip also emits explicit `text-align:left` on the default paragraph CSS. This implicates direct `.doc` language/style serialization; the individual property responsible is not isolated. |
