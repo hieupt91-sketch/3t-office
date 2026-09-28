@@ -4789,6 +4789,25 @@ export class SheetAdapter {
     }
     this.grid.rowCount = Math.max(200, _maxRowInFile + 50);
     this._invalidateRowTopsCache?.();
+    // LibreOffice recalculates add-in functions it does not have (e.g. the Vietnamese
+    // VND() "amount in words" XLL) to #ADDIN?/#NAME? on import and drops the cached
+    // text. When VN Sheet implements the function, compute the value once on open.
+    const engine = this.grid.formulaEngine;
+    if (engine?.evaluate) {
+      const openSheet = this.grid.activeSheet;
+      for (const [sheetName, sheetData] of Object.entries(this.grid.sheetsData || {})) {
+        for (const item of sheetData?.values?.() || []) {
+          // Only functions LibreOffice lacks but VN Sheet implements: a broad "#NAME?" rule
+          // replaced Excel's cached #REF! with numbers (lan04.xlsx, 23 cells, 28/9).
+          if (!item?.formula || item.externalLink || !/^#(ADDIN|NAME)\?$/.test(String(item.val))
+            || !/(^|[^A-Z0-9_.])(_XLL\.)?VND\s*\(/i.test(item.formula)) continue;
+          this.grid.activeSheet = sheetName;
+          const value = engine.evaluate(item.formula);
+          if (!(typeof value === "string" && /^#[A-Z/0!?]+[!?]?$/.test(value))) item.val = value;
+        }
+      }
+      this.grid.activeSheet = openSheet;
+    }
     // Excel opens such a workbook with a notice and shows the last saved values;
     // VN Office is offline and never opens the other workbook itself.
     let externalLinkCells = 0;
