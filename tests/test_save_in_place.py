@@ -18,11 +18,34 @@ from main import (
     DocumentEngineError,
     _infer_save_format_from_path,
     _atomic_replace_file,
+    _convert_writer_html_to_doc,
     VnOfficeApi,
 )
 
 
 class TestSaveInPlace(unittest.TestCase):
+    def test_legacy_doc_export_uses_postprocessed_docx_as_intermediate(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            source_doc = os.path.join(tmp_dir, "source.doc")
+            html = os.path.join(tmp_dir, "draft.html")
+            Path(source_doc).write_bytes(b"legacy source")
+            Path(html).write_text("<p>Edited ZZ</p>", encoding="utf-8")
+            docx = os.path.join(tmp_dir, "draft.docx")
+            normalized_source = os.path.join(tmp_dir, "legacy_source", "source.docx")
+            saved_doc = os.path.join(tmp_dir, "draft.doc")
+            with patch("main._run_soffice_convert", side_effect=[docx, normalized_source, saved_doc]) as convert, \
+                    patch("main._apply_native_export_postprocess") as postprocess:
+                result = _convert_writer_html_to_doc(html, tmp_dir, source_path=source_doc)
+
+            self.assertEqual(result, saved_doc)
+            self.assertEqual(
+                [call.args[:2] for call in convert.call_args_list],
+                [(html, "docx"), (source_doc, "docx"), (docx, "doc")],
+            )
+            postprocess.assert_called_once_with(
+                html, docx, "writer", "docx", source_path=normalized_source,
+            )
+
     def test_extension_to_filter_mapping(self):
         """Map phần mở rộng sang filter LibreOffice tương ứng chuẩn xác."""
         # Writer

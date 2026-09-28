@@ -8906,6 +8906,12 @@ def _restore_writer_matched_formatting(
     original = [original_xml[start:end] for start, end in original_ranges]
     converted_keys = [_paragraph_plain_text(p) for p in converted]
     original_keys = [_paragraph_plain_text(p) for p in original]
+    source_carrier_names = {
+        name
+        for paragraph in original
+        for name in (_writer_anchor_name(anchor) for anchor in _writer_paragraph_drawings(paragraph))
+        if name
+    }
     # Empty paragraphs are too ambiguous to overlay safely.
     rows, cols = len(original), len(converted)
     dp = [[0] * (cols + 1) for _ in range(rows + 1)]
@@ -8957,6 +8963,21 @@ def _restore_writer_matched_formatting(
     for source_index, converted_index in pairs:
         source_p = original[source_index]
         target_p = converted[converted_index]
+        source_carriers = {
+            _writer_anchor_name(anchor)
+            for anchor in _writer_paragraph_drawings(source_p)
+        }
+        target_carriers = {
+            _writer_anchor_name(anchor)
+            for anchor in _writer_paragraph_drawings(target_p)
+        }
+        if (not _writer_flow_text(target_p)
+                and (source_carriers and source_carriers.issubset(target_carriers)
+                     or target_carriers & source_carrier_names)):
+            # The passthrough relocation pass has already rebuilt this empty
+            # paragraph from its source pPr. A second, text-only LCS can pair
+            # another equally empty carrier here and put its spacing back.
+            continue
         has_marker = bool(re.search(
             r'<w:bookmarkStart\b[^>]*\bw:name=["\']vno-untouched-\d+["\'][^>]*/?>',
             target_p,
@@ -9949,6 +9970,22 @@ def _relocate_passthrough_anchors(
         if source_empty and len(source_empty) == len(target_empty):
             empty_source_to_target.update(zip(source_empty, target_empty))
             retained_empty_sources.update(source_empty)
+        # LibreOffice can move several untouched bookmarks to the first body
+        # paragraph. If the full paragraph gap still has the same length on both
+        # sides, preserve each empty drawing carrier's ordinal slot even when the
+        # bookmark counts differ (d09: the next text boundary remains p114).
+        if source_end - source_start == target_end - target_start:
+            for source_index in range(source_start + 1, source_end):
+                if (source_index in empty_source_to_target
+                        or _writer_flow_text(source[source_index])
+                        or not (_writer_outer_anchor_blocks(source[source_index])
+                                or _writer_has_page_break(source[source_index]))):
+                    continue
+                target_index = target_start + (source_index - source_start)
+                if (target_start < target_index < target_end
+                        and not _writer_flow_text(converted[target_index])):
+                    empty_source_to_target[source_index] = target_index
+                    retained_empty_sources.add(source_index)
         elif source_empty and target_end - target_start > 1:
             # A carrier can be represented after HTML import by expanded
             # drawing text rather than an empty paragraph.  The non-empty LCS
@@ -10100,6 +10137,26 @@ def _relocate_passthrough_anchors(
                     replacements[matched_target] = target[:close] + payload + target[close:]
             else:
                 target = replacements.get(matched_target, paragraphs[matched_target])
+                if (not relocate_page_breaks
+                        and not _writer_flow_text(source_paragraph)
+                        and not _writer_flow_text(target)
+                        and not _writer_has_page_break(source_paragraph)
+                        and not _writer_direct_property(source_paragraph, "sectPr")):
+                    target_names = {
+                        _writer_anchor_name(anchor)
+                        for anchor in _writer_outer_anchor_blocks(target)
+                    }
+                    if not any(name and name not in names for name in target_names):
+                        target = _writer_replace_direct_property(
+                            target, "pPr", _writer_direct_property(source_paragraph, "pPr") or "",
+                        )
+                        close = target.rfind("</w:p")
+                        payload = "".join(
+                            f"<w:r><w:drawing>{anchor}</w:drawing></w:r>" for anchor in moved
+                        )
+                        if close >= 0:
+                            replacements[matched_target] = target[:close] + payload + target[close:]
+                        continue
                 if not relocate_page_breaks:
                     close = target.rfind("</w:p")
                     payload = "".join(
@@ -10841,6 +10898,36 @@ def _restore_missing_writer_drawings(
         [f"<w:t>{_writer_flow_text(paragraph)}</w:t>" for paragraph in converted],
     ))
     matched = sorted(pairs.items())
+    # Empty drawing carriers cannot be aligned by text. Pair them between stable
+    # text boundaries using the untouched paragraph bookmarks emitted by Writer;
+    # counting every converted paragraph here lets an unrelated LO spacer steal
+    # the source carrier and move an absolute-positioned shape onto another page.
+    text_pairs = [
+        (source_at, target_at) for source_at, target_at in matched
+        if _writer_flow_text(source[source_at]) and _writer_flow_text(converted[target_at])
+    ]
+    empty_carrier_targets: dict[int, int] = {}
+    bounded_pairs = [(-1, -1), *text_pairs, (len(source), len(converted))]
+    for (source_start, target_start), (source_end, target_end) in zip(
+        bounded_pairs, bounded_pairs[1:]
+    ):
+        source_empty = [
+            index for index in range(source_start + 1, source_end)
+            if not _writer_flow_text(source[index]) and _writer_paragraph_drawings(source[index])
+        ]
+        target_empty = [
+            index for index in range(target_start + 1, target_end)
+            if index in {
+                target_index for target_index, paragraph in enumerate(converted)
+                if re.search(
+                    r'<w:bookmarkStart\b[^>]*\bw:name=["\']vno-untouched-\d+["\']',
+                    paragraph, re.IGNORECASE,
+                )
+            }
+            and not _writer_flow_text(converted[index])
+        ]
+        if source_empty and len(source_empty) == len(target_empty):
+            empty_carrier_targets.update(zip(source_empty, target_empty))
     occupied = {
         int(value) for value in re.findall(
             r'<wp:docPr\b[^>]*\bid=["\'](\d+)', converted_xml, re.IGNORECASE,
@@ -10848,6 +10935,8 @@ def _restore_missing_writer_drawings(
     }
 
     def slot_for(source_index: int) -> tuple[str, int]:
+        if source_index in empty_carrier_targets:
+            return ("into", empty_carrier_targets[source_index])
         if source_index in pairs:
             return ("into", pairs[source_index])
         previous_source = previous_target = None
