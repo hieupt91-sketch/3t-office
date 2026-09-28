@@ -666,8 +666,13 @@ export const WRITER_RIBBON_TABS = [
         label: "Hiển thị",
         labelKey: "writerRibbon.group.show",
         items: [
-          { type: "button", commandId: "writer.view.ruler" },
-          { type: "button", commandId: "writer.view.gridlines" }
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.view.ruler" },
+              { type: "button", commandId: "writer.view.gridlines" }
+            ]
+          }
         ]
       },
       {

@@ -655,9 +655,14 @@ export const SHEET_RIBBON_TABS = [
         label: "Hiển thị",
         labelKey: "sheetRibbon.group.show",
         items: [
-          { type: "button", commandId: "sheet.view.gridlines" },
-          { type: "button", commandId: "sheet.view.formulaBar" },
-          { type: "button", commandId: "sheet.view.headings" }
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.view.gridlines" },
+              { type: "button", commandId: "sheet.view.formulaBar" },
+              { type: "button", commandId: "sheet.view.headings" }
+            ]
+          }
         ]
       },
       {
