@@ -27,11 +27,11 @@ but those counts alone do not identify the first layout divergence.
 | legacy04.doc | 226 paragraphs in both Word versions; page, y-position, font, size, and spacing measurements match paragraph-for-paragraph. | Same Letter page setup, paragraph text/count, and explicit paragraph spacing. Direct `.doc` HTML labels 39 paragraphs `vi-VN`/`fr-FR`; the DOCX round trip labels them `en-US`. The language/style serialization difference is implicated; its individual rendering effect is not isolated. |
 | legacy06.doc | 351 paragraphs in both Word versions; pagination and positions match for aligned text paragraphs. One blank paragraph has a 13pt vs 14pt reported font size. | Same page dimensions and paragraph text/count. Direct `.doc` HTML uses the fallback family `"VNtimes new roman", "Courier New", sans-serif`; the DOCX round trip emits `"VNtimes new roman", "Courier New", serif`. Direct output has no default `margin-bottom`; round-trip output emits `margin-bottom:0cm`. Paragraph languages also change from `vi-VN`/`nl-NL` to `en-US`. The direct `.doc` style/fallback serialization is implicated; these individual properties were not isolated from one another. |
 
-The available evidence establishes a difference in LibreOffice's direct
-binary-`.doc` to HTML serialization. Page setup, paragraph text/count, and
-Word's measured pagination do not differ between each source and its Word
-`SaveAs2` DOCX reference. The brief's `_word_para_pages.ps1` is absent from this
-worktree; `_word_para_metrics.ps1` supplied paragraph page/y/font/spacing data.
+The paragraph-level comparison ruled out page setup and Word's own pagination
+for the three target files. The HTML changes above are importer symptoms, not a
+proven single-property cause. The brief's `_word_para_pages.ps1` is absent from
+this worktree; `_word_para_metrics.ps1` supplied paragraph page/y/font/spacing
+data.
 
 ## Attempted reference conversion
 
@@ -52,28 +52,41 @@ For the three discrepant inputs, LibreOffice was also used to convert `.doc` to
 | legacy04.doc | 11 | 11 | 11 |
 | legacy06.doc | 3 | 3 | 3 |
 
-All three target discrepancies disappear through this path. This supports
-normalizing the `.doc` import through LibreOffice's DOCX filter and then using
-the existing DOCX-to-HTML import path. It does not prove which one of the
-measured style/language serialization changes is individually causal.
+All three target discrepancies disappear through this path when opened as
+DOCX. The app initially normalized `.doc` into DOCX and converted its HTML, but
+the canvas still missed legacy01/04. Comparing the payload paths isolated the
+remaining defect: `open_document_dialog()` collected OOXML sidecars from the
+original `src_path`. For a `.doc`, that produced no document/styles/numbering/
+header/footer XML even though the normalized temporary DOCX had them. The
+Writer adapter consequently missed the existing DOCX-derived layout overlays.
+Passing those sidecars from the normalized DOCX fixed the remaining canvas
+discrepancies. The CSS/font/language differences listed above describe
+LibreOffice's conversion output; they were not individually altered or proven
+to cause the page drift.
 
 ## Findings summary
 
-The best-supported root cause is the direct LibreOffice binary-`.doc` to HTML
-import path: its emitted default styles, font fallback, and language attributes
-differ from the HTML produced after normalizing the same file through LibreOffice
-DOCX. The existing DOCX import path renders the three discrepant files at the
-Word page count, including after save. The findings do not identify one
-individual attribute as the cause; the candidate fix is the tested LibreOffice
-DOC-to-DOCX normalization followed by existing DOCX conversion and overlays.
+Root cause: the `.doc` open path did not pass the normalized DOCX's OOXML
+sidecars to Writer, so document/style/list/header/footer layout overlays were
+missing. The fix reuses LibreOffice's DOC-to-DOCX filter, the existing DOCX to
+HTML conversion and overlays, and carries sidecar XML into the returned payload
+before the temporary directory is removed.
 
 ## Validation
 
-- Prior report: 8/8 files opened, edited, and saved; 5/8 match Word page counts at
-  canvas and saved-file stages; the three discrepancies are listed above.
+- Before fix: prior report had 8/8 files opened, edited, and saved; 5/8 matched
+  Word page counts at canvas and saved-file stages.
 - Word COM read-only DOCX references and paragraph metrics: PASS for all 8
   sources; page/y/format comparisons completed.
-- LO DOC-to-DOCX then app batch: PASS for the three target files (3/3 canvas and
-  saved page counts match Word).
-- Individual CSS/language/font fallback causal attribution: NOT ISOLATED; the
-  measured import serialization differences are listed above.
+- Fixed `.doc` app batch: PASS 8/8 loaded/edited/saved and PASS 8/8 canvas pages
+  match Word. Saved page count: 7/8 match Word; legacy06 is Word 3 vs saved 4.
+  The remaining mismatch occurs after saving to `.doc`, in the save/export flow
+  excluded by the task's hard boundary.
+- DOCX regression batch: PASS 23/23 Word = canvas = saved Word pages (d10
+  excluded).
+- `_writer_shape_counts.py`: PASS; no saved file exceeded source wsp/txbx/txc/
+  media counts and no duplicate `wp:docPr` ids were reported.
+- Word shape anchor page comparison d06/d09/d24: PASS; 0 page mismatches for
+  each.
+- `node tests/run-tests.js`: PASS, 1840/1840.
+- `python -m unittest discover -s tests`: PASS, 370 tests.
