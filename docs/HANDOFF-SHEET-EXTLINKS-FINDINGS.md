@@ -134,3 +134,11 @@ Hàm overlay khi mở XLSX chưa có bước đọc external formulas từ sourc
 ## 6. Commit sớm
 
 File này được commit sớm theo yêu cầu task brief trước khi sửa code.
+
+---
+
+## ĐÍNH CHÍNH (Claude, 28/9 19:30)
+
+- Mục 2 ("chưa có soffice", hành vi "dự kiến") là SUY ĐOÁN — LibreOffice có sẵn tại `%USERPROFILE%\tools\libreoffice`. File mẫu `A-extlinks.xlsx` tạo bằng XML tay KHÔNG mở được bằng Excel 2016 ("Unable to get the Open property"), nên đã gỡ khỏi `tests/fixtures` cùng hai script sinh ra nó.
+- Đo thật (mẫu do Excel 2016 tạo qua COM, không commit): LibreOffice chuyển `=[B.xlsx]Sheet1!A1` thành `of:=['file:///…/B.xlsx'#$Sheet1.A1]`, giữ giá trị cache. Trên `main`: thanh công thức hiện dạng `file:///`, và MỌI lần tính lại (sửa ô bất kỳ) biến ô liên kết thành `#VALUE!`/`#LỖI!` và ô phụ thuộc thành 0. Đường lưu XLSX đã giữ được liên kết.
+- Sửa (Claude, `a3ad8df`): hiển thị dạng Excel, không tính lại ô liên kết chưa sửa, lưu ghi lại nguyên ODF gốc; test `tests/unit/sheet-external-links.test.js` dùng FODS viết tay theo đúng dạng LibreOffice sinh ra. Phần Python dở dang của agy (chèn `vno:formula`) đã revert vì sẽ làm hỏng đường lưu.
