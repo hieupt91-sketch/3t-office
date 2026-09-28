@@ -881,6 +881,27 @@ body {
   color: var(--vno-app-current-fg, var(--vno-app-current));
   outline: none;
 }
+.vno-ribbon-dropdown-item.is-checked {
+  background-color: var(--vno-bg-selected, #eff6ff);
+  font-weight: 600;
+  color: var(--vno-primary, #0f4c81);
+}
+.vno-ribbon-dropdown-item.is-checked:hover,
+.vno-ribbon-dropdown-item.is-checked:focus,
+.vno-ribbon-dropdown-item.is-checked.is-focused {
+  background-color: #dbeafe;
+  color: #0f4c81;
+}
+[data-theme="dark"] .vno-ribbon-dropdown-item.is-checked {
+  background-color: rgba(37, 99, 235, 0.2);
+  color: #93c5fd;
+}
+[data-theme="dark"] .vno-ribbon-dropdown-item.is-checked:hover,
+[data-theme="dark"] .vno-ribbon-dropdown-item.is-checked:focus,
+[data-theme="dark"] .vno-ribbon-dropdown-item.is-checked.is-focused {
+  background-color: rgba(37, 99, 235, 0.35);
+  color: #bfdbfe;
+}
 .vno-ribbon-dropdown-item.is-disabled {
   opacity: 0.45;
   pointer-events: none;
