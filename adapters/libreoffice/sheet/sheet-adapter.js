@@ -1380,9 +1380,39 @@ export class SheetAdapter {
     return `of:=${expression}`;
   }
 
+  /** True when a LibreOffice formula references another workbook ('file:///…/B.xlsx'#$Sheet1.A1). */
+  _isExternalOdfFormula(formula) {
+    return /\[\s*'[^']*'#\$/.test(String(formula || ""));
+  }
+
+  /**
+   * Excel spelling of one LibreOffice external reference, e.g.
+   * 'file:///E:/x/B.xlsx'#$Sheet1.A1:.A3 → [B.xlsx]Sheet1!A1:A3. The file name
+   * is what Excel shows while the source workbook is closed.
+   */
+  _externalReferenceToExcel(reference) {
+    const match = String(reference).match(/^'([^']*)'#\$((?:'[^']+'|[^.]+))\.(.+)$/);
+    if (!match) return null;
+    const fileName = decodeURIComponent(match[1].split(/[\\/]/).pop() || match[1]);
+    const sheet = match[2].replace(/^'(.*)'$/, "$1").replace(/''/g, "'");
+    const cells = match[3].split(":").map(part => part.replace(/^\$?[^.]*\./, "")).join(":");
+    const book = `[${fileName}]${sheet}`;
+    const needsQuotes = /[^A-Za-z0-9_À-ỹ[\].]/.test(book);
+    return `${needsQuotes ? `'${book.replace(/'/g, "''")}'` : book}!${cells}`;
+  }
+
   _formulaFromOdf(formula) {
     if (!formula) return "";
     let expression = String(formula).replace(/^of:=/i, "=");
+    // External workbook references contain "file:///E:" — resolve them before the
+    // generic ':' split below, which would cut the path apart.
+    const externals = [];
+    expression = expression.replace(/\[\s*('[^']*'#\$[^\]]+)\]/g, (all, reference) => {
+      const excel = this._externalReferenceToExcel(reference);
+      if (!excel) return all;
+      externals.push(excel);
+      return `__VNO_EXT_${externals.length - 1}__`;
+    });
     expression = expression.replace(/\[([^\]]+)\]/g, (_, reference) => {
       const parts = reference.split(":").map(part => {
         if (part.startsWith(".")) return part.slice(1);
@@ -1397,6 +1427,7 @@ export class SheetAdapter {
       }
       return parts.join(":");
     });
+    expression = expression.replace(/__VNO_EXT_(\d+)__/g, (_, index) => externals[Number(index)]);
     return this._replaceFormulaSeparators(expression, ";", ",");
   }
 
@@ -3182,9 +3213,12 @@ export class SheetAdapter {
           const item = storedItem || { val: "", formula: "", style: {} };
           const arrayFormula = this._arrayFormulaInfo(coordinate, item);
           const formula = (!arrayFormula || arrayFormula.isAnchor) && item.formula && String(item.formula).startsWith("=") ? String(item.formula) : "";
-          const formulaAttrs = formula
-            ? ` table:formula="${this._escapeXml(this._formulaToOdf(formula))}" vno:formula="${this._escapeXml(formula)}"`
-            : "";
+          const untouchedExternal = formula && item.externalLink?.formula === formula;
+          const formulaAttrs = untouchedExternal
+            ? ` table:formula="${this._escapeXml(item.externalLink.odf)}"`
+            : formula
+              ? ` table:formula="${this._escapeXml(this._formulaToOdf(formula))}" vno:formula="${this._escapeXml(formula)}"`
+              : "";
           const matrixAttrs = arrayFormula?.isAnchor
             ? ` table:number-matrix-columns-spanned="${arrayFormula.columns}" table:number-matrix-rows-spanned="${arrayFormula.rows}"`
             : "";
@@ -3585,7 +3619,12 @@ export class SheetAdapter {
     } else if (get("office:string-value")) {
       value = this._decodeImportedCellText(get("office:string-value"));
     }
-    const formula = get("vno:formula") || this._formulaFromOdf(get("table:formula"));
+    const odfFormula = get("table:formula");
+    const formula = get("vno:formula") || this._formulaFromOdf(odfFormula);
+    // Excel keeps the cached value of a link to a closed workbook and never
+    // recalculates it; remember the exact LibreOffice formula so an unedited
+    // link is written back byte-for-byte on save.
+    const externalOdf = !get("vno:formula") && this._isExternalOdfFormula(odfFormula) ? odfFormula : "";
     const style = {};
     const numFmtAttr = get("vno:number-format");
     const standardFormat = numberStyles.get(get("table:style-name"));
@@ -3638,7 +3677,9 @@ export class SheetAdapter {
     }
     // S8: Compute stable hash of style at import time.
     style.styleHashAtImport = this._computeStyleHash(style);
-    return { val: value, formula, style };
+    return externalOdf
+      ? { val: value, formula, style, externalLink: { odf: externalOdf, formula } }
+      : { val: value, formula, style };
   }
 
   _parseCellStyleColors(xmlText) {
@@ -4748,6 +4789,18 @@ export class SheetAdapter {
     }
     this.grid.rowCount = Math.max(200, _maxRowInFile + 50);
     this._invalidateRowTopsCache?.();
+    // Excel opens such a workbook with a notice and shows the last saved values;
+    // VN Office is offline and never opens the other workbook itself.
+    let externalLinkCells = 0;
+    for (const sheetData of Object.values(this.grid.sheetsData || {})) {
+      for (const item of sheetData?.values?.() || []) {
+        if (item?.externalLink) externalLinkCells++;
+      }
+    }
+    this.externalLinkCells = externalLinkCells;
+    if (externalLinkCells > 0) {
+      this.shell?.setStatus?.(`Tệp có ${externalLinkCells} ô liên kết tới sổ làm việc khác — đang hiển thị giá trị lưu lần cuối (không tự cập nhật).`);
+    }
 
     this.grid._refreshVisibleRuleVisuals?.();
     this.grid._refreshRowColLayoutView?.();
