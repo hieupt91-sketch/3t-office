@@ -2421,9 +2421,48 @@ sup.vno-endnote-ref:hover {
   outline: 2px solid var(--vno-border-focus);
   outline-offset: 1px;
 }
-[data-theme="dark"] .vno-theme-card strong {
-  filter: brightness(1.4);
+.vno-theme-palette-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
 }
+[data-theme="dark"] .vno-theme-palette-dot {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+[data-theme="dark"] .vno-theme-card strong,
+[data-theme="dark"] .vno-theme-card .vno-theme-card-title {
+  color: var(--vno-text-primary, #f1f5f9) !important;
+}
+[data-theme="dark"] .vno-theme-card[data-theme-id="office"] strong,
+[data-theme="dark"] .vno-theme-card[data-theme-id="office"] .vno-theme-card-title {
+  color: #60a5fa !important;
+}
+[data-theme="dark"] .vno-theme-card[data-theme-id="administrative"] strong,
+[data-theme="dark"] .vno-theme-card[data-theme-id="administrative"] .vno-theme-card-title {
+  color: #f8fafc !important;
+}
+[data-theme="dark"] .vno-theme-card[data-theme-id="modern"] strong,
+[data-theme="dark"] .vno-theme-card[data-theme-id="modern"] .vno-theme-card-title {
+  color: #38bdf8 !important;
+}
+[data-theme="dark"] .vno-theme-card[data-theme-id="elegant"] strong,
+[data-theme="dark"] .vno-theme-card[data-theme-id="elegant"] .vno-theme-card-title {
+  color: #fbbf24 !important;
+}
+[data-theme="dark"] .vno-theme-card[data-theme-id="minimal"] strong,
+[data-theme="dark"] .vno-theme-card[data-theme-id="minimal"] .vno-theme-card-title {
+  color: #e2e8f0 !important;
+}
+[data-theme="dark"] .vno-theme-card[data-theme-id="emerald"] strong,
+[data-theme="dark"] .vno-theme-card[data-theme-id="emerald"] .vno-theme-card-title {
+  color: #34d399 !important;
+}
+[data-theme="dark"] .vno-theme-card.is-selected {
+  border-color: var(--vno-writer-primary-fg, #60a5fa) !important;
+  background: var(--vno-writer-light, #172554) !important;
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.4);
+}
+
 
 /* Kiểu đoạn văn đặc biệt trong văn bản soạn thảo */
 .vno-writer-body blockquote,
@@ -2529,6 +2568,69 @@ p.vno-style-emphasis {
   border-color: #94a3b8;
   color: #0f4c81;
 }
+
+[data-theme="dark"] .vno-watermark-chip {
+  background: #262f3d;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .vno-watermark-chip:hover {
+  background: #334155;
+  border-color: #60a5fa;
+  color: #93c5fd;
+}
+
+/* Nút Xóa hình mờ / Xóa viền trang ở chế độ Tối (đạt WCAG AA 4.5:1) */
+[data-theme="dark"] .vno-wm-btn-remove,
+[data-theme="dark"] .vno-border-btn-remove {
+  color: #f87171 !important;
+  border-color: #7f1d1d !important;
+  background: transparent;
+}
+[data-theme="dark"] .vno-wm-btn-remove:hover,
+[data-theme="dark"] .vno-border-btn-remove:hover {
+  background-color: rgba(248, 113, 113, 0.15);
+  border-color: #f87171 !important;
+}
+
+/* Ô màu trang (Page Color Swatches) */
+.vno-page-color-swatch {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--vno-border-default, #94a3b8);
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.1s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.vno-page-color-swatch:hover {
+  transform: scale(1.08);
+  border-color: var(--vno-border-strong, #64748b);
+}
+.vno-page-color-swatch[aria-selected="true"] {
+  border-color: var(--vno-border-focus, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
+}
+.vno-page-color-swatch:focus-visible {
+  outline: 2px solid var(--vno-border-focus, #2563eb);
+  outline-offset: 2px;
+}
+[data-theme="dark"] .vno-page-color-swatch {
+  border: 2px solid #64748b;
+}
+[data-theme="dark"] .vno-page-color-swatch:hover {
+  border-color: #94a3b8;
+}
+[data-theme="dark"] .vno-page-color-swatch[aria-selected="true"] {
+  border-color: var(--vno-writer-primary-fg, #60a5fa) !important;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.5);
+}
+[data-theme="dark"] .vno-page-color-swatch:focus-visible {
+  outline: 2px solid var(--vno-writer-primary-fg, #60a5fa);
+  outline-offset: 2px;
+}
+
 
 /* ==========================================================================
    VN Writer — Chia cột văn bản (Multi-column Layout)

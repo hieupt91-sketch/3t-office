@@ -26,7 +26,7 @@ export const WRITER_HELP_ENTRIES = [
     title: "Màu trang",
     summary: "Đặt một màu nền đặc cho toàn bộ trang soạn thảo và trang in. Phiên bản này hỗ trợ màu đặc; chưa hỗ trợ nền chuyển sắc hoặc ảnh nền.",
     ribbon: { tab: "Thiết kế", tabId: "design", group: "Nền & Viền trang" },
-    keywords: ["màu trang", "page color", "màu nền", "nền trang"],
+    keywords: ["màu trang", "page color", "màu nền", "nền trang", "thiết kế", "design", "background color"],
     steps: [
       "Mở tab Thiết kế, trong nhóm Nền & Viền trang nhấn Màu trang.",
       "Chọn một ô màu có sẵn, hoặc chọn Màu tùy chỉnh để lấy màu khác.",
@@ -485,7 +485,7 @@ export const WRITER_HELP_ENTRIES = [
     title: "Chủ đề văn bản",
     summary: "Sáu bộ chủ đề đổi đồng loạt phông, màu tiêu đề và giãn dòng cho cả tài liệu. Mặc định Tiêu chuẩn (Office) — Times New Roman. Có bộ Hành chính Việt Nam (NĐ 30).",
     ribbon: { tab: "Thiết kế", tabId: "design", group: "Định dạng tài liệu" },
-    keywords: ["chủ đề", "theme", "nđ 30", "hành chính", "office", "be vietnam pro", "georgia"],
+    keywords: ["chủ đề", "theme", "nđ 30", "hành chính", "office", "be vietnam pro", "georgia", "thiết kế", "design", "kiểu dáng", "style set", "document formatting"],
     steps: [
       "Tab Thiết kế, nhóm Định dạng tài liệu, nhấn nút lớn Chủ đề văn bản.",
       "Hộp «Thư viện Kiểu & Chủ đề tài liệu»: chọn bộ rồi Áp dụng kiểu. Sáu mẫu — Tiêu chuẩn (Office, Times New Roman), Hành chính Việt Nam (NĐ 30, TNR chữ đen), Hiện đại (Be Vietnam Pro), Trang nhã (Georgia), Tối giản (Arial), Sáng tạo Emerald (Calibri).",
@@ -647,7 +647,7 @@ export const WRITER_HELP_ENTRIES = [
     title: "Hình mờ và viền trang",
     summary: "Hình mờ chữ chéo (mặc định DỰ THẢO, đỏ #dc2626, 45°, mờ 0.2, cỡ 72). Viền trang nét liền/đứt/đôi, dày 1–6 pt, mặc định 2 pt xanh #0f4c81. Cả hai hiện khi in và xem trước.",
     ribbon: { tab: "Thiết kế", tabId: "design", group: "Nền & Viền trang" },
-    keywords: ["hình mờ", "watermark", "dự thảo", "mật", "khẩn", "viền trang", "page border", "nét đôi"],
+    keywords: ["hình mờ", "watermark", "dự thảo", "mật", "khẩn", "viền trang", "page border", "nét đôi", "thiết kế", "design", "page background"],
     steps: [
       "Tab Thiết kế, nhóm Nền & Viền trang: Hình mờ, Màu trang (bài riêng), Viền trang — ba nút lớn. Cùng Hình mờ / Viền trang còn trên tab Bố cục, nhóm Nền & Viền trang.",
       "Hình mờ (440 px): chip DỰ THẢO, MẬT, TUYỆT MẬT, KHẨN, BẢN SAO; hoặc gõ chữ. Màu: Đỏ nhạt #dc2626 (mặc định), Xám, Xanh dương, Vàng hổ phách. Góc: Chéo 45° (chuẩn), −45°, Nằm ngang 0°. Độ mờ 0.05–0.60 (bước 0.05), mặc định 0.2. Cỡ chữ cố định 72. Áp dụng. Đã có hình mờ thì thêm Xóa hình mờ.",
