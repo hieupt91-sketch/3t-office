@@ -476,7 +476,7 @@ export const SHEET_HELP_ENTRIES = [
   {
     id: "sheet.view.zoom",
     app: "sheet",
-    commandIds: ["sheet.view.zoomIn", "sheet.view.zoomOut", "sheet.view.zoomReset"],
+    commandIds: ["sheet.view.zoomIn", "sheet.view.zoomOut", "sheet.view.zoomReset", "sheet.view.zoomToSelection"],
     title: "Thu phóng bảng tính",
     summary: "Phóng to / thu nhỏ lưới theo bước 10% trong khoảng 50%–200%. Nút 100% đặt lại tỉ lệ gốc. Chỉ đổi hiển thị, không đổi kích thước ô khi in.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Thu phóng" },
