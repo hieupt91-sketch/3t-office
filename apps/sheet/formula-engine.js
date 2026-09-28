@@ -129,10 +129,59 @@ export class FormulaEngine {
     this.sheetResolver = sheetResolver;
     this.currentSheetResolver = currentSheetResolver;
     this.sheetNamesResolver = sheetNamesResolver;
+    this._sheetVersions = new Map();
+    this._globalVersion = 0;
+    this._rangeMatrixCache = new Map();
+    this._rangeValuesCache = new Map();
+    this._maxUsedRowCache = new Map();
+    this._lookupIndexCache = new Map();
+    this._parsedReferenceCache = new Map();
+  }
+
+  getSheetVersion(sheetName) {
+    const s = sheetName ? String(sheetName).trim() : "";
+    if (!s) return String(this._globalVersion);
+    return `${this._sheetVersions.get(s) || 0}:${this._globalVersion}`;
+  }
+
+  bumpSheetVersion(sheetName = null) {
+    if (sheetName) {
+      const s = String(sheetName).trim();
+      this._sheetVersions.set(s, (this._sheetVersions.get(s) || 0) + 1);
+    }
+    this._globalVersion++;
+    this.clearCache(sheetName);
+  }
+
+  clearCache(sheetName = null) {
+    if (!sheetName) {
+      this._rangeMatrixCache.clear();
+      this._rangeValuesCache.clear();
+      this._maxUsedRowCache.clear();
+      this._lookupIndexCache.clear();
+      this._parsedReferenceCache.clear();
+      this._globalVersion++;
+      return;
+    }
+    const s = String(sheetName).trim();
+    const prefix = `${s}:`;
+    for (const k of this._rangeMatrixCache.keys()) {
+      if (k.startsWith(prefix)) this._rangeMatrixCache.delete(k);
+    }
+    for (const k of this._rangeValuesCache.keys()) {
+      if (k.startsWith(prefix)) this._rangeValuesCache.delete(k);
+    }
+    for (const k of this._maxUsedRowCache.keys()) {
+      if (k.startsWith(prefix)) this._maxUsedRowCache.delete(k);
+    }
+    for (const k of this._lookupIndexCache.keys()) {
+      if (k.startsWith(prefix)) this._lookupIndexCache.delete(k);
+    }
   }
 
   setCellsData(cellsData) {
     this.cellsData = cellsData;
+    this.clearCache();
   }
 
   get cellsMap() {
@@ -213,12 +262,19 @@ export class FormulaEngine {
   }
 
   _maxUsedRow(sheet = null) {
+    const s = sheet ? String(sheet).trim() : "";
+    const v = this.getSheetVersion(s);
+    const key = `${s}:${v}`;
+    if (this._maxUsedRowCache.has(key)) {
+      return this._maxUsedRowCache.get(key);
+    }
     const map = sheet && typeof this.sheetResolver === "function" ? this.sheetResolver(sheet) : this.cellsMap;
     let max = 1;
     for (const coord of map?.keys?.() || []) {
       const match = String(coord).match(/\d+$/);
       if (match) max = Math.max(max, Number(match[0]));
     }
+    this._maxUsedRowCache.set(key, max);
     return max;
   }
 
@@ -234,7 +290,17 @@ export class FormulaEngine {
     }
     const column = reference.ref.match(/^([A-Z]+):([A-Z]+)$/);
     const ref = column ? `${column[1]}1:${column[2]}${this._maxUsedRow(reference.sheet)}` : reference.ref;
-    return this.expandRange(ref).map(coord => this.getCellValue(coord, reference.sheet));
+
+    const s = reference.sheet ? String(reference.sheet).trim() : "";
+    const v = this.getSheetVersion(s);
+    const cacheKey = `${s}:${ref}:${v}`;
+    if (this._rangeValuesCache.has(cacheKey)) {
+      return this._rangeValuesCache.get(cacheKey);
+    }
+
+    const values = this.expandRange(ref).map(coord => this.getCellValue(coord, reference.sheet));
+    this._rangeValuesCache.set(cacheKey, values);
+    return values;
   }
 
   collectValues(args) {
@@ -275,6 +341,14 @@ export class FormulaEngine {
     const normalizedRef = column ? `${column[1]}1:${column[2]}${this._maxUsedRow(reference.sheet)}` : reference.ref;
     const match = normalizedRef.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
     if (!match) return [[this._resolveSingleValue(range)]];
+
+    const s = reference.sheet ? String(reference.sheet).trim() : "";
+    const v = this.getSheetVersion(s);
+    const cacheKey = `${s}:${normalizedRef}:${v}`;
+    if (this._rangeMatrixCache.has(cacheKey)) {
+      return this._rangeMatrixCache.get(cacheKey);
+    }
+
     const [, startCol, startRowText, endCol, endRowText] = match;
     const startColIndex = this._columnIndex(startCol);
     const endColIndex = this._columnIndex(endCol);
@@ -286,6 +360,7 @@ export class FormulaEngine {
       }
       rows.push(values);
     }
+    this._rangeMatrixCache.set(cacheKey, rows);
     return rows;
   }
 
@@ -317,11 +392,16 @@ export class FormulaEngine {
 
   _parseReference(reference) {
     const raw = String(reference).trim();
+    if (this._parsedReferenceCache.has(raw)) {
+      return this._parsedReferenceCache.get(raw);
+    }
     const named = this._resolveNamedRange(raw);
     if (named) {
       const sheet = named.sheet || (typeof this.currentSheetResolver === "function" ? this.currentSheetResolver() : null);
       if (sheet && typeof this.sheetResolver === "function" && !this.sheetResolver(sheet)) return { error: "#REF!" };
-      return { sheet, ref: String(named.ref || named).replace(/\$/g, "").toUpperCase() };
+      const parsed = { sheet, ref: String(named.ref || named).replace(/\$/g, "").toUpperCase() };
+      this._parsedReferenceCache.set(raw, parsed);
+      return parsed;
     }
     const threeD = raw.match(/^(?:'((?:[^']|'')+)'|([^':!]+))\s*:\s*(?:'((?:[^']|'')+)'|([^'!]+))!\s*(\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?)$/i);
     if (threeD) {
@@ -331,15 +411,96 @@ export class FormulaEngine {
       const start = names.indexOf(first);
       const end = names.indexOf(last);
       if (start < 0 || end < 0) return { error: "#REF!" };
-      return { sheets: names.slice(Math.min(start, end), Math.max(start, end) + 1), ref: threeD[5].replace(/\$/g, "").toUpperCase() };
+      const parsed = { sheets: names.slice(Math.min(start, end), Math.max(start, end) + 1), ref: threeD[5].replace(/\$/g, "").toUpperCase() };
+      this._parsedReferenceCache.set(raw, parsed);
+      return parsed;
     }
     const match = raw.match(/^(?:'((?:[^']|'')+)'|([^'!]+))!\s*(\$?[A-Z]+(?::\$?[A-Z]+)|\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?)$/i);
     if (match) {
       const sheet = (match[1] ? match[1].replace(/''/g, "'") : match[2]).trim();
       if (typeof this.sheetResolver !== "function" || !this.sheetResolver(sheet)) return { error: "#REF!" };
-      return { sheet, ref: match[3].replace(/\$/g, "").toUpperCase() };
+      const parsed = { sheet, ref: match[3].replace(/\$/g, "").toUpperCase() };
+      this._parsedReferenceCache.set(raw, parsed);
+      return parsed;
     }
-    return { sheet: null, ref: this._resolveRangeReference(raw) };
+    const parsed = { sheet: null, ref: this._resolveRangeReference(raw) };
+    this._parsedReferenceCache.set(raw, parsed);
+    return parsed;
+  }
+
+  _getLookupIndex(rangeArg, matrix, funcName) {
+    const raw = typeof rangeArg === "string" ? rangeArg.trim() : "";
+    const reference = raw ? this._parseReference(raw) : null;
+    const sheet = reference?.sheet ? String(reference.sheet).trim() : "";
+    const version = this.getSheetVersion(sheet);
+    const cacheKey = `${sheet}:${raw}:${funcName}:${version}`;
+
+    if (raw && this._lookupIndexCache.has(cacheKey)) {
+      return this._lookupIndexCache.get(cacheKey);
+    }
+
+    const candidates = funcName === "VLOOKUP"
+      ? matrix.map((row, index) => ({ key: row[0], index }))
+      : matrix[0].map((key, index) => ({ key, index }));
+
+    const numMap = new Map();
+    const strMap = new Map();
+
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i];
+      const k = candidate.key;
+      if (typeof k === "number") {
+        if (!numMap.has(k)) numMap.set(k, candidate);
+      } else if (typeof k === "string") {
+        const lower = k.toLocaleLowerCase();
+        if (!strMap.has(lower)) strMap.set(lower, candidate);
+        const trimmed = k.trim();
+        if (trimmed !== "") {
+          const n = Number(trimmed);
+          if (!Number.isNaN(n) && !numMap.has(n)) {
+            numMap.set(n, candidate);
+          }
+        }
+      }
+    }
+
+    const data = { candidates, numMap, strMap };
+    if (raw) {
+      this._lookupIndexCache.set(cacheKey, data);
+    }
+    return data;
+  }
+
+  _findExactInLookupIndex(indexData, lookup) {
+    const { candidates, numMap, strMap } = indexData;
+    let found = null;
+    if (typeof lookup === "number") {
+      const cand = numMap.get(lookup);
+      if (cand && this._equals(cand.key, lookup)) {
+        found = cand;
+      }
+    } else if (typeof lookup === "string") {
+      const lower = lookup.toLocaleLowerCase();
+      let cand = strMap.get(lower);
+      if (cand && this._equals(cand.key, lookup)) {
+        found = cand;
+      } else {
+        const trimmed = lookup.trim();
+        if (trimmed !== "") {
+          const n = Number(trimmed);
+          if (!Number.isNaN(n)) {
+            cand = numMap.get(n);
+            if (cand && this._equals(cand.key, lookup)) {
+              found = cand;
+            }
+          }
+        }
+      }
+    }
+    if (!found) {
+      found = candidates.find(item => this._equals(item.key, lookup)) || null;
+    }
+    return found;
   }
 
   _compareValues(left, right) {
@@ -590,10 +751,13 @@ export class FormulaEngine {
         const matrix = this._rangeMatrix(args[1]);
         const requestedIndex = Number(this._resolveSingleValue(args[2]));
         const exact = args[3] !== undefined && !Boolean(this._resolveSingleValue(args[3]));
-        const candidates = funcName === "VLOOKUP" ? matrix.map((row, index) => ({ key: row[0], index })) : matrix[0].map((key, index) => ({ key, index }));
-        let found = exact ? candidates.find(item => this._equals(item.key, lookup)) : null;
-        if (!exact) {
-          for (const candidate of candidates) {
+        if (!matrix || !matrix.length || !matrix[0]) return "#REF!";
+        const indexData = this._getLookupIndex(args[1], matrix, funcName);
+        let found = null;
+        if (exact) {
+          found = this._findExactInLookupIndex(indexData, lookup);
+        } else {
+          for (const candidate of indexData.candidates) {
             if (this._compareValues(candidate.key, lookup) <= 0) found = candidate;
             else break;
           }
@@ -707,13 +871,16 @@ export class FormulaEngine {
         return values.length === 1 ? values[0] : values;
       }
 
-      case "COUNTIF":
-        return this._rangeValues(args[0]).filter(value => this._matchesCriteria(value, args[1])).length;
+      case "COUNTIF": {
+        const criteria = this._resolveSingleValue(args[1]);
+        return this._rangeValues(args[0]).filter(value => this._matchesCriteria(value, criteria)).length;
+      }
 
       case "SUMIF": {
+        const criteria = this._resolveSingleValue(args[1]);
         const criteriaValues = this._rangeValues(args[0]);
         const sumValues = this._rangeValues(args[2] || args[0]);
-        return criteriaValues.reduce((sum, value, index) => sum + (this._matchesCriteria(value, args[1]) ? Number(sumValues[index]) || 0 : 0), 0);
+        return criteriaValues.reduce((sum, value, index) => sum + (this._matchesCriteria(value, criteria) ? Number(sumValues[index]) || 0 : 0), 0);
       }
 
       case "COUNTIFS":
@@ -721,7 +888,9 @@ export class FormulaEngine {
         const offset = funcName === "SUMIFS" ? 1 : 0;
         const sumValues = funcName === "SUMIFS" ? this._rangeValues(args[0]) : null;
         const pairs = [];
-        for (let index = offset; index < args.length; index += 2) pairs.push([this._rangeValues(args[index]), args[index + 1]]);
+        for (let index = offset; index < args.length; index += 2) {
+          pairs.push([this._rangeValues(args[index]), this._resolveSingleValue(args[index + 1])]);
+        }
         if (!pairs.length || pairs.some(([values]) => values.length !== pairs[0][0].length)) return "#VALUE!";
         let result = 0;
         for (let index = 0; index < pairs[0][0].length; index++) {
