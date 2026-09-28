@@ -51,6 +51,12 @@ export function resolveIcon(commandId, iconName) {
   if (idLower.includes("orientation")) return ICONS.orientation;
   if (idLower.includes("page.size") || idLower.includes("pagesize")) return ICONS.pageSize;
 
+  // Lệnh tab Thiết kế (Design tab)
+  if (idLower.includes("themegallery") || idLower.includes("theme.gallery") || idLower.includes("design.theme")) return ICONS.themeGallery;
+  if (idLower.includes("watermark")) return ICONS.pageWatermark;
+  if (idLower.includes("page.color") || idLower.includes("pagecolor")) return ICONS.pageColor;
+  if (idLower.includes("page.border") || idLower.includes("pageborder")) return ICONS.pageBorder;
+
   // Lệnh Trộn thư & Phong bì / Nhãn (Mailings tab)
   if (idLower.includes("envelope")) return ICONS.envelope;
   if (idLower.includes("label")) return ICONS.labels;
