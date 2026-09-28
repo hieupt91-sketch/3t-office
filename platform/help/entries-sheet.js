@@ -235,16 +235,17 @@ export const SHEET_HELP_ENTRIES = [
   {
     id: "sheet.view.freezePanes",
     app: "sheet",
-    commandIds: ["sheet.view.freezePanes"],
-    title: "Cố định hàng/cột (Freeze Panes)",
-    summary: "Giữ hàng 1 và cột A luôn nhìn thấy khi cuộn trang tính. Bật/tắt bằng một nút trên tab Chế độ xem; trạng thái được nhớ theo từng sheet.",
+    commandIds: ["sheet.view.freezePanes", "sheet.view.freezeTopRow", "sheet.view.freezeFirstColumn"],
+    title: "Cố định ô và tiêu đề hàng/cột (Freeze Panes)",
+    summary: "Cố định các hàng phía trên và cột bên trái ô đang chọn, hoặc chỉ cố định hàng 1 / cột A khi cuộn bảng tính. Menu thả xuống trên tab Chế độ xem gồm 3 tùy chọn chuẩn Excel; trạng thái được nhớ riêng theo từng sheet.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Cửa sổ" },
-    keywords: ["cố định", "freeze panes", "đóng băng", "hàng 1", "cột A", "cuộn"],
+    keywords: ["cố định", "freeze panes", "đóng băng", "hàng trên cùng", "cột đầu tiên", "hàng 1", "cột A", "cuộn", "tiêu đề bảng"],
     steps: [
-      "Mở tab Chế độ xem, nhóm Cửa sổ (cạnh Thu phóng).",
-      "Nhấn Cố định hàng/cột. Hàng tiêu đề (hàng 1) và cột A được giữ khi cuộn ngang/dọc. Nút ở trạng thái đang bật.",
-      "Nhấn lại cùng nút để bỏ cố định. Ctrl+Z / Ctrl+Y hoàn tác hoặc làm lại thao tác freeze.",
-      "Mỗi trang tính nhớ riêng trạng thái cố định. Lệnh này cố định đúng hàng 1 và cột A — không freeze theo ô đang chọn như một số bản Excel."
+      "Mở tab Chế độ xem, nhóm Cửa sổ (cạnh Thu phóng), nhấn vào nút thả xuống «Cố định ô».",
+      "Chọn «Cố định ô» (Freeze Panes): cố định toàn bộ các hàng phía trên và các cột bên trái ô đang được chọn (ví dụ: chọn B2 sẽ cố định hàng 1 và cột A; chọn C3 sẽ cố định hàng 1-2 và cột A-B).",
+      "Chọn «Cố định hàng trên cùng» (Freeze Top Row): chỉ cố định hàng 1 khi cuộn dọc bảng tính, không phụ thuộc vị trí ô đang chọn.",
+      "Chọn «Cố định cột đầu tiên» (Freeze First Column): chỉ cố định cột A khi cuộn ngang bảng tính, không phụ thuộc vị trí ô đang chọn.",
+      "Để bỏ cố định: mở lại menu và chọn lệnh cố định đang kích hoạt để hủy. Có thể dùng Ctrl+Z / Ctrl+Y để hoàn tác hoặc làm lại thao tác."
     ]
   },
   {
@@ -475,7 +476,7 @@ export const SHEET_HELP_ENTRIES = [
   {
     id: "sheet.view.zoom",
     app: "sheet",
-    commandIds: ["sheet.view.zoomIn", "sheet.view.zoomOut", "sheet.view.zoomReset"],
+    commandIds: ["sheet.view.zoomIn", "sheet.view.zoomOut", "sheet.view.zoomReset", "sheet.view.zoomToSelection"],
     title: "Thu phóng bảng tính",
     summary: "Phóng to / thu nhỏ lưới theo bước 10% trong khoảng 50%–200%. Nút 100% đặt lại tỉ lệ gốc. Chỉ đổi hiển thị, không đổi kích thước ô khi in.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Thu phóng" },

@@ -668,7 +668,7 @@ export const SHEET_RIBBON_TABS = [
           { type: "button", commandId: "sheet.view.zoomIn", isLarge: true },
           { type: "button", commandId: "sheet.view.zoomReset", isLarge: true },
           { type: "button", commandId: "sheet.view.zoomToSelection", isLarge: true },
-          { type: "button", commandId: "sheet.view.zoomOut" }
+          { type: "button", commandId: "sheet.view.zoomOut", isLarge: true }
         ]
       },
       {

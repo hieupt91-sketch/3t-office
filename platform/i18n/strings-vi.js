@@ -93,7 +93,8 @@ export const viStrings = {
     group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Chứng minh", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI" },
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" },
-    alignment: { orientation: "Hướng chữ" }
+    alignment: { orientation: "Hướng chữ" },
+    window: { freezePanes: "Cố định ô" }
   },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý VN AI" },
@@ -357,6 +358,7 @@ export const viStrings = {
     ,"sheet.calc.modeAutomatic": { label: "Tự động", tooltip: "Tự động tính lại công thức khi dữ liệu thay đổi" }
     ,"sheet.calc.modeManual": { label: "Thủ công", tooltip: "Chỉ tính lại công thức khi nhấn Tính lại (F9)" }
     ,"sheet.calc.calculateSheet": { label: "Tính trang hiện tại", tooltip: "Tính lại công thức trong trang tính hiện tại (Shift+F9)" }
+    ,"sheet.calc.calculateNow": { label: "Tính lại ngay", tooltip: "Tính lại toàn bộ sổ làm việc ngay lập tức (F9)" }
     ,"sheet.formula.arrayEnter": { label: "Nhập công thức mảng", tooltip: "Nhập công thức mảng cho vùng đã chọn (Ctrl+Shift+Enter)" }
     ,"sheet.formula.recalculate": { label: "Tính lại toàn bộ", tooltip: "Tính lại toàn bộ công thức bảng tính (F9)" }
     ,"sheet.data.sortAsc": { label: "Sắp xếp A-Z", tooltip: "Sắp xếp dữ liệu tăng dần" }
@@ -456,6 +458,7 @@ export const viStrings = {
     ,"slides.media.insertVideo": { label: "Video", tooltip: "Chèn video từ máy tính" }
     ,"slides.media.insertAudio": { label: "Âm thanh", tooltip: "Chèn âm thanh từ máy tính" }
     ,"slides.insert.table": { label: "Bảng", tooltip: "Chèn bảng vào trang chiếu, kéo-thả và đổi kích thước được" }
+    ,"slides.insert.chart": { label: "Biểu đồ", tooltip: "Chèn biểu đồ vào trang chiếu" }
     ,"slides.insert.headerFooter": { label: "Đầu trang & Chân trang", tooltip: "Bật/tắt ngày tháng, số trang và chân trang" }
     ,"slides.insert.dateTime": { label: "Ngày & Giờ", tooltip: "Chèn placeholder ngày giờ tự cập nhật" }
     ,"slides.insert.slideNumber": { label: "Số trang chiếu", tooltip: "Chèn placeholder số trang chiếu tự cập nhật" }

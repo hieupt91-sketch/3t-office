@@ -133,13 +133,6 @@
   height: 14px;
 }
 
-.vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small.is-checked {
-  background-color: var(--vno-app-current-light, #e7f4ec) !important;
-  color: var(--vno-app-current-fg, var(--vno-app-current)) !important;
-  border-color: transparent !important;
-  font-weight: 600;
-}
-
 /* Ribbon Selects */
 .vno-ribbon .vno-select {
   height: 22px;

@@ -385,6 +385,9 @@ body {
   align-items: center;
   gap: 3px;
   flex: 1;
+  height: 72px;
+  min-height: 72px;
+  max-height: 72px;
 }
 
 .vno-ribbon-group-column {
@@ -392,6 +395,14 @@ body {
   flex-direction: column;
   gap: 2px;
   justify-content: center;
+  height: 72px;
+  max-height: 72px;
+}
+
+.vno-ribbon-group-column .vno-ribbon-btn-small {
+  height: 22px;
+  padding: 1px 6px;
+  font-size: 11px;
 }
 
 .vno-ribbon-group-row {
@@ -792,6 +803,176 @@ body {
     padding: 2px 4px;
     justify-content: center;
   }
+
+  /* View Tab (Writer & Sheet) - Co gon cac nut lon va padding de vua van 100% tren man hinh 1024px khong bi tran ngang */
+  #vno-ribbon-tabpanel-view .vno-ribbon-btn-large {
+    min-width: 44px;
+    padding: 2px 3px;
+  }
+  #vno-ribbon-tabpanel-view .vno-ribbon-btn-large .vno-btn-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+  #vno-ribbon-tabpanel-view .vno-ribbon-btn-large .vno-btn-label {
+    font-size: 10.5px;
+    max-width: 65px;
+  }
+  #vno-ribbon-tabpanel-view .vno-ribbon-group {
+    padding: 0 2px;
+  }
+  #vno-ribbon-tabpanel-view .vno-ribbon-group-items {
+    gap: 1px;
+  }
+}
+
+/* View Tab (Writer & Sheet) - Nhom Hien thi xep doc cac o checkbox theo chuan Office 2016 */
+#vno-ribbon-tabpanel-view .vno-ribbon-group[data-group-id="show"] .vno-ribbon-group-items {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  height: 72px;
+  min-height: 72px;
+  max-height: 72px;
+}
+
+/* View Tab (Writer) - Nhom Thu phong: 3 nut nho trong cot gon gang 72px, label nam dung dong voi cac nhom khac */
+#vno-ribbon-tabpanel-view .vno-ribbon-group[data-group-id="zoom"] .vno-ribbon-group-items {
+  height: 72px;
+  max-height: 72px;
+}
+
+#vno-ribbon-tabpanel-view .vno-ribbon-group[data-group-id="zoom"] .vno-ribbon-group-column {
+  height: 72px;
+  max-height: 72px;
+  gap: 2px;
+  justify-content: center;
+}
+
+#vno-ribbon-tabpanel-view .vno-ribbon-group[data-group-id="zoom"] .vno-ribbon-group-column .vno-ribbon-btn-small {
+  height: 22px;
+  padding: 1px 6px;
+  font-size: 11px;
+}
+
+/* Kieu hien thi Checkbox dung chung cho Ribbon (Writer, Sheet, Slides) */
+.vno-ribbon-checkbox,
+.vno-ribbon-checkbox.is-checked,
+.vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small,
+.vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small.is-checked {
+  background-color: transparent !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  color: var(--vno-text-primary, #0f172a) !important;
+  font-weight: 400 !important;
+  gap: 6px;
+  justify-content: flex-start;
+  height: 22px;
+  padding: 2px 6px;
+  width: 100%;
+  cursor: pointer;
+  border-radius: var(--vno-radius-sm, 3px);
+  outline: none;
+}
+
+.vno-ribbon-checkbox:hover:not(:disabled),
+.vno-ribbon-checkbox.is-checked:hover:not(:disabled),
+.vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small:hover:not(:disabled),
+.vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small.is-checked:hover:not(:disabled) {
+  background-color: var(--vno-bg-hover, #f1f5f9) !important;
+  border-color: var(--vno-border-subtle, #e2e8f0) !important;
+  color: var(--vno-text-primary, #0f172a) !important;
+}
+
+.vno-ribbon-checkbox:active:not(:disabled),
+.vno-ribbon-checkbox.is-checked:active:not(:disabled),
+.vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small:active:not(:disabled),
+.vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small.is-checked:active:not(:disabled) {
+  background-color: var(--vno-bg-active, #e2e8f0) !important;
+}
+
+.vno-ribbon-checkbox:focus-visible,
+.vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small:focus-visible {
+  outline: 2px solid var(--vno-border-focus, #2563eb) !important;
+  outline-offset: 1px;
+}
+
+/* O vuong checkbox va dau tick */
+.vno-ribbon-checkbox .vno-checkbox-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--vno-border-strong, #64748b);
+  border-radius: 2px;
+  background-color: var(--vno-bg-window, #ffffff);
+  color: var(--vno-app-current, #0f4c81);
+  flex-shrink: 0;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.vno-ribbon-checkbox:hover:not(:disabled) .vno-checkbox-box {
+  border-color: var(--vno-text-primary, #0f172a);
+}
+
+.vno-ribbon-checkbox .vno-checkbox-check {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.1s ease;
+}
+
+.vno-ribbon-checkbox.is-checked .vno-checkbox-check,
+.vno-ribbon-checkbox[aria-checked="true"] .vno-checkbox-check {
+  opacity: 1;
+  visibility: visible;
+}
+
+.vno-ribbon-checkbox.is-checked .vno-checkbox-box,
+.vno-ribbon-checkbox[aria-checked="true"] .vno-checkbox-box {
+  border-color: var(--vno-app-current, #0f4c81);
+}
+
+/* Dark mode ho tro toan dien */
+[data-theme="dark"] .vno-ribbon-checkbox,
+[data-theme="dark"] .vno-ribbon-checkbox.is-checked,
+[data-theme="dark"] .vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small,
+[data-theme="dark"] .vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small.is-checked {
+  background-color: transparent !important;
+  border: 1px solid transparent !important;
+  color: var(--vno-text-primary, #f1f5f9) !important;
+}
+
+[data-theme="dark"] .vno-ribbon-checkbox:hover:not(:disabled),
+[data-theme="dark"] .vno-ribbon-checkbox.is-checked:hover:not(:disabled),
+[data-theme="dark"] .vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small:hover:not(:disabled),
+[data-theme="dark"] .vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small.is-checked:hover:not(:disabled) {
+  background-color: #334155 !important;
+  border-color: #475569 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .vno-ribbon-checkbox:active:not(:disabled),
+[data-theme="dark"] .vno-ribbon-checkbox.is-checked:active:not(:disabled),
+[data-theme="dark"] .vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small:active:not(:disabled),
+[data-theme="dark"] .vno-ribbon-group[data-group-id="show"] .vno-ribbon-btn-small.is-checked:active:not(:disabled) {
+  background-color: #475569 !important;
+}
+
+[data-theme="dark"] .vno-ribbon-checkbox .vno-checkbox-box {
+  border-color: #94a3b8;
+  background-color: #1e293b;
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .vno-ribbon-checkbox:hover:not(:disabled) .vno-checkbox-box {
+  border-color: #ffffff;
+}
+
+[data-theme="dark"] .vno-ribbon-checkbox.is-checked .vno-checkbox-box,
+[data-theme="dark"] .vno-ribbon-checkbox[aria-checked="true"] .vno-checkbox-box {
+  border-color: #60a5fa;
+  color: #60a5fa;
 }
 
 /* Ribbon Dropdown Button & Menu (Fill, Clear, etc.) */
@@ -860,6 +1041,27 @@ body {
   background-color: var(--vno-app-current-light, #e7f4ec);
   color: var(--vno-app-current-fg, var(--vno-app-current));
   outline: none;
+}
+.vno-ribbon-dropdown-item.is-checked {
+  background-color: var(--vno-bg-selected, #eff6ff);
+  font-weight: 600;
+  color: var(--vno-primary, #0f4c81);
+}
+.vno-ribbon-dropdown-item.is-checked:hover,
+.vno-ribbon-dropdown-item.is-checked:focus,
+.vno-ribbon-dropdown-item.is-checked.is-focused {
+  background-color: #dbeafe;
+  color: #0f4c81;
+}
+[data-theme="dark"] .vno-ribbon-dropdown-item.is-checked {
+  background-color: #1e3a8a;
+  color: #ffffff;
+}
+[data-theme="dark"] .vno-ribbon-dropdown-item.is-checked:hover,
+[data-theme="dark"] .vno-ribbon-dropdown-item.is-checked:focus,
+[data-theme="dark"] .vno-ribbon-dropdown-item.is-checked.is-focused {
+  background-color: #2563eb;
+  color: #ffffff;
 }
 .vno-ribbon-dropdown-item.is-disabled {
   opacity: 0.45;

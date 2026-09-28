@@ -65,7 +65,9 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("color.highlight") || idLower.includes("fillcolor")) return ICONS.colorHighlight;
   if (idLower.includes("save")) return ICONS.fileSave;
   if (idLower.includes("open")) return ICONS.fileOpen;
+  if (idLower.includes("newwindow")) return ICONS.newWindow || ICONS.writerNewWindow;
   if (idLower.includes("new")) return ICONS.fileNew;
+  if (idLower.includes("printpreview")) return ICONS.printPreview;
   if (idLower.includes("print")) return ICONS.filePrint;
   if (idLower.includes("ai")) return ICONS.aiSparkle;
   if (idLower.includes("macrorecordstop")) return ICONS.macroRecordStop;
@@ -127,6 +129,28 @@ function resolveIcon(commandId, iconName) {
   if (idLower.includes("ungroup") || idLower.includes("sheetungroup")) return ICONS.sheetUngroup;
   if (idLower.includes("group") || idLower.includes("sheetgroup")) return ICONS.sheetGroup;
   if (idLower.includes("subtotal")) return ICONS.subtotal;
+  if (idLower.includes("printlayout")) return ICONS.writerPrintLayout;
+  if (idLower.includes("weblayout")) return ICONS.writerWebLayout;
+  if (idLower.includes("readmode")) return ICONS.writerReadMode;
+  if (idLower.includes("ruler")) return ICONS.writerRuler || ICONS.slidesRuler;
+  if (idLower.includes("gridlines")) return ICONS.gridlines || ICONS.writerGridlines;
+  if (idLower.includes("pagewidth")) return ICONS.writerPageWidth;
+  if (idLower.includes("fitwindow")) return ICONS.slidesFitWindow;
+  if (idLower.includes("slidesorter")) return ICONS.slideSorter;
+  if (idLower.includes("guides")) return ICONS.slidesGuides;
+  if (idLower.includes("zoomin")) return ICONS.zoomIn;
+  if (idLower.includes("zoomout")) return ICONS.zoomOut;
+  if (idLower.includes("zoom100") || idLower.includes("zoomreset")) return ICONS.zoomReset || ICONS.zoom100;
+  if (idLower.includes("zoomselection") || idLower.includes("zoomtoselection")) return ICONS.sheetZoomSelection;
+  if (idLower.includes("freezetoprow")) return ICONS.freezeTopRow;
+  if (idLower.includes("freezefirstcolumn")) return ICONS.freezeFirstColumn;
+  if (idLower.includes("freezepanes")) return ICONS.freezePanes;
+  if (idLower.includes("normalview") || idLower.includes("view.normal")) return ICONS.sheetNormalView || ICONS.slidesNormalView;
+  if (idLower.includes("pagebreakpreview")) return ICONS.sheetPageBreakPreview;
+  if (idLower.includes("sheetpagelayout") || idLower.includes("pagelayout")) return ICONS.sheetPageLayout;
+  if (idLower.includes("formulabar")) return ICONS.sheetFormulaBar;
+  if (idLower.includes("headings")) return ICONS.headings;
+  if (idLower.includes("macromanager")) return ICONS.macroManager;
 
   return `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="12" r="4"/></svg>`;
 }
@@ -134,7 +158,7 @@ function resolveIcon(commandId, iconName) {
 /**
  * Tạo nút Ribbon Button với Icon chuẩn hóa
  */
-export function createCommandButton({ commandId, isLarge = false, iconOnly = false, customIcon, customLabel }) {
+export function createCommandButton({ commandId, isLarge = false, iconOnly = false, isCheckbox = false, customIcon, customLabel }) {
   const btn = document.createElement("button");
   btn.setAttribute("type", "button");
   if (commandId) btn.setAttribute("data-command-id", commandId);
@@ -150,8 +174,22 @@ export function createCommandButton({ commandId, isLarge = false, iconOnly = fal
 
   btn.setAttribute("aria-label", accessibleName);
 
-  // Thiết lập class & nội dung theo kích cỡ
-  if (isLarge) {
+  const isChecked = Boolean(state && state.checked);
+
+  // Thiết lập class & nội dung theo kích cỡ và loại checkbox
+  if (isCheckbox) {
+    btn.setAttribute("role", "checkbox");
+    btn.setAttribute("aria-checked", isChecked ? "true" : "false");
+    btn.className = `vno-btn vno-ribbon-btn-small vno-ribbon-checkbox${isChecked ? " is-checked" : ""}`;
+    btn.innerHTML = `
+      <span class="vno-btn-icon vno-checkbox-box" aria-hidden="true">
+        <svg class="vno-checkbox-check" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3.5 8.5 6.5 11.5 12.5 4.5"></polyline>
+        </svg>
+      </span>
+      <span class="vno-btn-label">${label}</span>
+    `;
+  } else if (isLarge) {
     btn.className = "vno-btn vno-ribbon-btn-large";
     btn.innerHTML = `
       <span class="vno-btn-icon" aria-hidden="true">${iconSvg}</span>
@@ -173,16 +211,26 @@ export function createCommandButton({ commandId, isLarge = false, iconOnly = fal
 
   if (state) {
     if (!state.enabled) btn.disabled = true;
-    if (state.checked) {
-      btn.classList.add("is-checked");
-      btn.setAttribute("aria-pressed", "true");
-    } else if (typeof state.checked === "boolean") {
-      btn.setAttribute("aria-pressed", "false");
+    if (!isCheckbox) {
+      if (state.checked) {
+        btn.classList.add("is-checked");
+        btn.setAttribute("aria-pressed", "true");
+      } else if (typeof state.checked === "boolean") {
+        btn.setAttribute("aria-pressed", "false");
+      }
     }
   }
-  if (def && def.isToggle && !btn.hasAttribute("aria-pressed")) {
+  if (!isCheckbox && def && def.isToggle && !btn.hasAttribute("aria-pressed")) {
     btn.setAttribute("aria-pressed", state && state.checked ? "true" : "false");
   }
+
+  // Hỗ trợ phím Space / Enter kích hoạt nút / checkbox chuẩn WAI-ARIA
+  btn.addEventListener("keydown", (e) => {
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      btn.click();
+    }
+  });
 
   // Click handler
   btn.addEventListener("click", () => {
@@ -195,10 +243,16 @@ export function createCommandButton({ commandId, isLarge = false, iconOnly = fal
       btn.disabled = !newState.enabled;
       if (newState.checked) {
         btn.classList.add("is-checked");
-        btn.setAttribute("aria-pressed", "true");
+        if (isCheckbox) {
+          btn.setAttribute("aria-checked", "true");
+        } else {
+          btn.setAttribute("aria-pressed", "true");
+        }
       } else {
         btn.classList.remove("is-checked");
-        if (typeof newState.checked === "boolean") {
+        if (isCheckbox) {
+          btn.setAttribute("aria-checked", "false");
+        } else if (typeof newState.checked === "boolean") {
           btn.setAttribute("aria-pressed", "false");
         }
       }
