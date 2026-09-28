@@ -19,7 +19,8 @@ export const SHEET_HELP_ENTRIES = [
       "Gõ =VND( rồi bấm vào ô chứa số tiền, đóng ngoặc và nhấn Enter, ví dụ =VND(H13).",
       "Số chẵn kết thúc bằng \"đồng chẵn.\"; số có phần lẻ đọc thêm \"… xu.\"; số âm bắt đầu bằng \"Âm\".",
       "Mở tệp Excel đã dùng hàm VND của add-in: VN Sheet tự tính lại và hiện đúng chữ thay cho lỗi #ADDIN? hoặc #NAME?.",
-      "Lưu ý: khi lưu lại tệp, dòng chữ hiện có thể chưa được giữ trong tệp .xls/.xlsx (đang được hoàn thiện); nếu cần gửi đi, kiểm tra lại ô này sau khi mở tệp đã lưu."
+      "Khi lưu .xlsx, ô vẫn giữ công thức VND và dòng chữ: máy có cài add-in VND tiếp tục tự cập nhật, máy khác vẫn thấy chữ đã lưu (Excel không có add-in sẽ báo #NAME? khi tính lại).",
+      "Khi lưu dạng cũ .xls (Excel 97-2003), VN Sheet lưu dòng chữ thành giá trị cố định để không bị lỗi #N/A; nếu cần công thức tự cập nhật, hãy lưu .xlsx."
     ]
   },
   {

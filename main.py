@@ -816,6 +816,19 @@ def _infer_save_format_from_path(file_path: str, app_kind: str | None = None) ->
     return file_path, default_ext
 
 
+def _sheet_fods_for_export(fods: str, target_format: str | None) -> str:
+    """Adjust the FODS the app sent before LibreOffice exports it.
+
+    Excel 97-2003 (.xls) cannot carry the VND() add-in call through LibreOffice — it
+    becomes a #N/A formula and the amount-in-words text is lost. Keep the text as a
+    value there (Excel shows the same words); .xlsx keeps the formula (see
+    postprocess_sheet_xlsx).
+    """
+    if (target_format or "").lower() != "xls" or "VND" not in (fods or "").upper():
+        return fods
+    return _ooxml_zip_patch().fods_vnd_cells_as_text(fods)
+
+
 def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
     """Thay thế nguyên tử tệp đích bằng tệp tạm đã được tạo và hậu kỳ thành công.
     Nếu có lỗi xảy ra trong quá trình convert hoặc ghi đè, tệp gốc không bị ảnh hưởng.
@@ -1175,7 +1188,7 @@ class VnOfficeApi:
                 elif app_kind == "sheet":
                     src_path = os.path.join(tmp, "draft.fods")
                     with open(src_path, "w", encoding="utf-8") as f:
-                        f.write(content)
+                        f.write(_sheet_fods_for_export(content, target_format))
                 elif app_kind == "slides":
                     src_path = os.path.join(tmp, "draft.fodp")
                     with open(src_path, "w", encoding="utf-8") as f:
@@ -1238,7 +1251,7 @@ class VnOfficeApi:
                 elif app_kind == "sheet":
                     src_path = os.path.join(tmp, "draft.fods")
                     with open(src_path, "w", encoding="utf-8") as f:
-                        f.write(content)
+                        f.write(_sheet_fods_for_export(content, target_format))
                 elif app_kind == "slides":
                     src_path = os.path.join(tmp, "draft.fodp")
                     with open(src_path, "w", encoding="utf-8") as f:
