@@ -3517,6 +3517,7 @@ export class SheetGridController {
     delete item.richText;
 
     this.cellsData.set(key, item);
+    this.formulaEngine?.bumpSheetVersion?.(this.activeSheet);
 
     const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
     if (cell) {
@@ -3543,34 +3544,48 @@ export class SheetGridController {
 
   _recalculateAllFormulas(excludeKey, force = false) {
     if (this.calculationMode === "manual" && !force) return;
+    this.formulaEngine?.clearCache?.();
     const activeSheet = this.activeSheet;
     for (const sheetName of this.sheets) {
       const map = this.sheetsData[sheetName];
       this.activeSheet = sheetName;
       for (const [k, itm] of map.entries()) {
-      if ((sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
-        // A link to another (closed) workbook keeps its cached value, as in
-        // Excel; evaluating it here would overwrite the value with an error.
-        if (itm.externalLink && itm.externalLink.formula === itm.formula) continue;
-        let res;
-        if (itm.isArrayFormula && itm.arrayRange) {
-          const results = this.formulaEngine.evaluateArray(itm.formula);
-          const coords = this.formulaEngine.expandRange(itm.arrayRange);
-          res = Array.isArray(results) ? results[coords.indexOf(k)] : results;
-        } else res = this.formulaEngine.evaluate(itm.formula);
-        // Store the raw computed value - see setCellValue() for why
-        // auto-formatting a formula result as VNĐ currency text here is
-        // wrong (destroys precision and corrupts any formula chain that
-        // references this cell). Display formatting is NumberFormatter's
-        // job at render time, driven by the cell's actual numberFormat.
-        itm.val = res;
-        const dom = sheetName === activeSheet ? this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`) : null;
-        if (dom) {
-          const [cCoord, rCoord] = this._splitCoord(k);
-    this._renderCellVisual(dom, itm, cCoord, rCoord);
-          this._applyRuleVisuals(dom, cCoord, rCoord);
+        if ((sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
+          // A link to another (closed) workbook keeps its cached value, as in
+          // Excel; evaluating it here would overwrite the value with an error.
+          if (itm.externalLink && itm.externalLink.formula === itm.formula) continue;
+          let res;
+          if (itm.isArrayFormula && itm.arrayRange) {
+            const results = this.formulaEngine.evaluateArray(itm.formula);
+            const coords = this.formulaEngine.expandRange(itm.arrayRange);
+            res = Array.isArray(results) ? results[coords.indexOf(k)] : results;
+          } else res = this.formulaEngine.evaluate(itm.formula);
+          // Store the raw computed value - see setCellValue() for why
+          // auto-formatting a formula result as VNĐ currency text here is
+          // wrong (destroys precision and corrupts any formula chain that
+          // references this cell). Display formatting is NumberFormatter's
+          // job at render time, driven by the cell's actual numberFormat.
+          if (res !== itm.val) {
+            itm.val = res;
+            this.formulaEngine?.bumpSheetVersion?.(sheetName);
+          } else {
+            itm.val = res;
+          }
+          if (sheetName === activeSheet && this.container) {
+            const [, rCoord] = this._splitCoord(k);
+            const rNum = Number(rCoord);
+            const startR = this.currentStartRow || 1;
+            const endR = this.currentEndRow || 40;
+            if (rNum >= startR && rNum <= endR) {
+              const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`);
+              if (dom) {
+                const [cCoord] = this._splitCoord(k);
+                this._renderCellVisual(dom, itm, cCoord, rCoord);
+                this._applyRuleVisuals(dom, cCoord, rCoord);
+              }
+            }
+          }
         }
-      }
       }
     }
     this.activeSheet = activeSheet;
