@@ -9838,10 +9838,22 @@ def _relocate_passthrough_anchors(
             empty_source_to_target.update(zip(source_empty, target_empty))
             retained_empty_sources.update(source_empty)
 
+    # Untouched text-box Frames are replaced by their source DrawingML (with the source
+    # docPr name) before this pass, but LibreOffice emitted those Frames at the start of
+    # the body. Relocate them too, by source name; an edited text box keeps its place.
+    source_textbox_names = {
+        name
+        for name in (_writer_anchor_name(anchor) for anchor in _writer_outer_anchor_blocks(original_xml)
+                     if _writer_anchor_has_textbox(anchor))
+        if name
+    }
     output_anchors: dict[str, str] = {}
     for anchor in _writer_outer_anchor_blocks(converted_xml):
         name = _writer_anchor_name(anchor)
-        if (name and _writer_anchor_passthrough_kind(anchor)
+        relocatable = _writer_anchor_passthrough_kind(anchor) or (
+            name in source_textbox_names and _writer_anchor_has_textbox(anchor)
+        )
+        if (name and relocatable
                 and (pristine_document or _writer_anchor_is_untouched(anchor))):
             output_anchors[name] = anchor
 
@@ -9860,7 +9872,12 @@ def _relocate_passthrough_anchors(
             matched_target = empty_source_to_target.get(source_index)
         if matched_target is None and _writer_flow_text(paragraph):
             continue
+        # An exact text match is itself proof that the source paragraph survived,
+        # even when LibreOffice dropped its untouched bookmark (d06 "Hệ thống có sẵn"
+        # carrying Group 368 — without this the group stayed in body paragraph 0).
+        exact_text_match = source_to_target.get(source_index) is not None
         if (not pristine_document
+                and not exact_text_match
                 and matched_target not in marked_targets
                 and source_index not in retained_empty_sources):
             continue
