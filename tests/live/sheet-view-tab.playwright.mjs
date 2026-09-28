@@ -124,7 +124,119 @@ try {
   await page.keyboard.press("Escape");
   await page.waitForTimeout(100);
 
-  // 3. Kiểm tra responsive ở 1024px
+  // 3. Kiểm tra nhóm Hiển thị (Show) chuẩn Checkbox Office 2016 (LOI 1)
+  const showAudit = await page.evaluate(() => {
+    const showGroup = document.querySelector('.vno-ribbon-group[data-group-id="show"]');
+    if (!showGroup) return { found: false };
+    const items = Array.from(showGroup.querySelectorAll('button'));
+    const details = items.map(btn => {
+      const style = window.getComputedStyle(btn);
+      const box = btn.querySelector('.vno-checkbox-box');
+      const checkSvg = box?.querySelector('.vno-checkbox-check');
+      return {
+        id: btn.getAttribute('data-command-id'),
+        role: btn.getAttribute('role'),
+        ariaChecked: btn.getAttribute('aria-checked'),
+        hasCheckboxBox: Boolean(box),
+        hasCheckSvg: Boolean(checkSvg),
+        backgroundColor: style.backgroundColor,
+        isTransparentBg: style.backgroundColor === 'rgba(0, 0, 0, 0)' || style.backgroundColor === 'transparent'
+      };
+    });
+    return { found: true, count: items.length, details };
+  });
+
+  assert(showAudit.found && showAudit.count === 3, "Nhóm Hiển thị có đủ 3 mục checkbox", JSON.stringify(showAudit));
+  const nonCheckbox = showAudit.details.filter(d => d.role !== "checkbox");
+  assert(nonCheckbox.length === 0, "100% mục trong nhóm Hiển thị có role='checkbox'", JSON.stringify(nonCheckbox));
+  const initialChecked = showAudit.details.find(d => d.id === "sheet.view.gridlines")?.ariaChecked;
+  assert(initialChecked === "true" || initialChecked === "false", "Mục Đường lưới có aria-checked hợp lệ", `ariaChecked=${initialChecked}`);
+  const nonTransparent = showAudit.details.filter(d => !d.isTransparentBg);
+  assert(nonTransparent.length === 0, "Mục trong nhóm Hiển thị có nền trong suốt ở trạng thái nghỉ (không bị thanh nền xanh lá)", JSON.stringify(nonTransparent));
+
+  // Kiểm tra click đổi aria-checked trên checkbox Đường lưới
+  const gridBtn = page.locator('button[data-command-id="sheet.view.gridlines"]');
+  const prevAriaChecked = await gridBtn.getAttribute("aria-checked");
+  await gridBtn.click();
+  await page.waitForTimeout(200);
+  const nextAriaChecked = await gridBtn.getAttribute("aria-checked");
+  assert(nextAriaChecked !== prevAriaChecked, "Click vào checkbox Đường lưới đổi aria-checked", `${prevAriaChecked} -> ${nextAriaChecked}`);
+
+  // Kiểm tra phím Space kích hoạt checkbox (keyboard accessibility)
+  await gridBtn.focus();
+  await page.keyboard.press("Space");
+  await page.waitForTimeout(200);
+  const spaceAriaChecked = await gridBtn.getAttribute("aria-checked");
+  assert(spaceAriaChecked === prevAriaChecked, "Bấm phím Space trên checkbox Đường lưới đổi lại aria-checked", `${nextAriaChecked} -> ${spaceAriaChecked}`);
+
+  // Kiểm tra phím Enter kích hoạt checkbox
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(200);
+  const enterAriaChecked = await gridBtn.getAttribute("aria-checked");
+  assert(enterAriaChecked === nextAriaChecked, "Bấm phím Enter trên checkbox Đường lưới đổi tiếp aria-checked", `${spaceAriaChecked} -> ${enterAriaChecked}`);
+
+  // Khôi phục lại trạng thái ban đầu
+  if (enterAriaChecked !== prevAriaChecked) {
+    await gridBtn.click();
+    await page.waitForTimeout(100);
+  }
+
+  // 4. Kiểm tra căn hàng nhãn nhóm (Group labels baseline) không bị đẩy sát hay đè mép dưới ribbon (LOI 2)
+  const labelsAudit = await page.evaluate(() => {
+    const panel = document.getElementById("vno-ribbon-tabpanel-view");
+    const panelRect = panel.getBoundingClientRect();
+    const groups = Array.from(panel.querySelectorAll(".vno-ribbon-group"));
+    const details = groups.map(g => {
+      const id = g.getAttribute("data-group-id");
+      const labelEl = g.querySelector(".vno-ribbon-group-label");
+      const rect = labelEl?.getBoundingClientRect();
+      return {
+        id,
+        label: labelEl?.textContent?.trim(),
+        top: rect ? Math.round(rect.top) : null,
+        bottom: rect ? Math.round(rect.bottom) : null,
+        panelBottom: Math.round(panelRect.bottom),
+        overlapsBottom: rect ? rect.bottom > panelRect.bottom : false
+      };
+    });
+    const overlapping = details.filter(d => d.overlapsBottom);
+    const tops = details.map(d => d.top).filter(t => t !== null);
+    const maxDiff = Math.max(...tops) - Math.min(...tops);
+    return { details, overlapping, maxDiff };
+  });
+
+  assert(labelsAudit.overlapping.length === 0, "Không có nhãn nhóm nào bị đè hoặc chạm mép dưới ribbon", JSON.stringify(labelsAudit.overlapping));
+  assert(labelsAudit.maxDiff <= 1, "Mọi nhãn nhóm nằm thẳng hàng trên cùng một đường chân (baseline diff <= 1px)", `maxDiff=${labelsAudit.maxDiff}px`);
+
+  // 5. Kiểm tra Chế độ Tối (Dark mode)
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => {
+    document.activeElement?.blur?.();
+    document.documentElement.setAttribute("data-theme", "dark");
+  });
+  await page.waitForTimeout(200);
+  const darkModeAudit = await page.evaluate(() => {
+    const showGroup = document.querySelector('.vno-ribbon-group[data-group-id="show"]');
+    const btn = showGroup?.querySelector('button[data-command-id="sheet.view.gridlines"]');
+    const box = btn?.querySelector('.vno-checkbox-box');
+    const btnStyle = btn ? window.getComputedStyle(btn) : null;
+    const boxStyle = box ? window.getComputedStyle(box) : null;
+    return {
+      btnBg: btnStyle?.backgroundColor,
+      isTransparent: btnStyle?.backgroundColor === 'rgba(0, 0, 0, 0)' || btnStyle?.backgroundColor === 'transparent',
+      boxBorderColor: boxStyle?.borderColor,
+      boxBg: boxStyle?.backgroundColor
+    };
+  });
+  assert(darkModeAudit.isTransparent, "Checkbox ở Dark mode giữ nền trong suốt ở trạng thái nghỉ", JSON.stringify(darkModeAudit));
+
+  // Trở về Light mode
+  await page.evaluate(() => {
+    document.documentElement.removeAttribute("data-theme");
+  });
+  await page.waitForTimeout(100);
+
+  // 6. Kiểm tra responsive ở 1024px
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.waitForTimeout(300);
 
@@ -138,7 +250,7 @@ try {
   });
   assert(!audit1024.hasOverflow, "Ribbon View Tab không tràn ngang ở 1024px", `client=${audit1024.clientWidth} scroll=${audit1024.scrollWidth}`);
 
-  // 4. Kiểm tra thực thi các lệnh View qua globalCommandBus
+  // 7. Kiểm tra thực thi các lệnh View qua globalCommandBus
   const execAudit = await page.evaluate(async () => {
     const { globalCommandBus } = await import("/platform/commands/command-bus.js");
     const results = {};

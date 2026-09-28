@@ -170,15 +170,18 @@ export class RibbonHost {
       itemsEl.setAttribute("role", "toolbar");
       itemsEl.setAttribute("aria-label", group.label);
 
+      const isShowGroup = groupId === "show";
+
       // Render items trong group
       group.items.forEach(item => {
-        if (item.type === "button") {
+        if (item.type === "button" || item.type === "checkbox") {
           itemsEl.appendChild(createCommandButton({
             commandId: item.commandId,
             isLarge: item.isLarge,
             iconOnly: item.iconOnly,
             customLabel: item.label,
-            customIcon: item.icon
+            customIcon: item.icon,
+            isCheckbox: item.isCheckbox || item.type === "checkbox" || isShowGroup
           }));
         } else if (item.type === "dropdown") {
           itemsEl.appendChild(createDropdownButton({
@@ -218,7 +221,8 @@ export class RibbonHost {
                     isLarge: rowItem.isLarge,
                     iconOnly: rowItem.iconOnly,
                     customLabel: rowItem.label,
-                    customIcon: rowItem.icon
+                    customIcon: rowItem.icon,
+                    isCheckbox: rowItem.isCheckbox || rowItem.type === "checkbox" || isShowGroup
                   }));
                 }
               });
@@ -240,7 +244,8 @@ export class RibbonHost {
                 isLarge: subItem.isLarge,
                 iconOnly: subItem.iconOnly,
                 customLabel: subItem.label,
-                customIcon: subItem.icon
+                customIcon: subItem.icon,
+                isCheckbox: subItem.isCheckbox || subItem.type === "checkbox" || isShowGroup
               }));
             }
           });
