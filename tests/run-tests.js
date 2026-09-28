@@ -176,6 +176,7 @@ import { runSlidesSaveFidelityTests } from "./unit/slides-save-fidelity.test.js"
 import { runWriterDocxAuditTests } from "./unit/writer-docx-audit.test.js";
 import { runWriterDocFontSpacingTests } from "./unit/writer-doc-font-spacing.test.js";
 import { runSheetDateValuesTests } from "./unit/sheet-date-values.test.js";
+import { runNotificationBarTests } from "./unit/notification-bar.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -359,7 +360,8 @@ async function runAll() {
     { title: "151. Unit Tests — Slides Save Fidelity (PowerPoint 2016 parity: quotes, line-height, fo:clip, master chrome)", runner: runSlidesSaveFidelityTests },
     { title: "152. Unit Tests — Writer DOCX effective-format audit", runner: runWriterDocxAuditTests },
     { title: "153. Unit Tests — Writer doc font / line spacing (Word multiple x font ratio, anchor <br>, imported class)", runner: runWriterDocFontSpacingTests },
-    { title: "154. Unit Tests — Sheet date/time cell values (office:date-value round trip)", runner: runSheetDateValuesTests }
+    { title: "154. Unit Tests — Sheet date/time cell values (office:date-value round trip)", runner: runSheetDateValuesTests },
+    { title: "155. Unit Tests — UI Kit Notification Bar & WCAG AA Color Contrast", runner: runNotificationBarTests }
   ];
 
   for (const suite of suites) {

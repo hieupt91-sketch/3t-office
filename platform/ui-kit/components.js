@@ -848,3 +848,5 @@ export function createDropdownButton({
 
   return btn;
 }
+
+export { NotificationBar, createNotificationBar } from "./notification-bar.js";

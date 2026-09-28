@@ -774,4 +774,166 @@ body.vno-macro-is-recording #vno-ribbon-tab-view::after {
   pointer-events: none;
 }
 
+/* ==========================================================================
+   NOTIFICATION BAR (Office-style InfoBar / Security Warning Bar)
+   ========================================================================== */
+.vno-notification-host {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+.vno-notification-bar {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 14px;
+  min-height: 36px;
+  font-family: var(--vno-font-ui);
+  font-size: 13px;
+  line-height: 1.4;
+  border-bottom: 1px solid #facc15;
+  background-color: #fff4ce;
+  color: #1f2937;
+  flex-shrink: 0;
+  transition: all 0.15s ease-in-out;
+}
+
+.vno-notification-bar-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.vno-notification-bar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #b45309;
+}
+
+.vno-notification-bar-icon svg {
+  display: block;
+}
+
+.vno-notification-bar-message {
+  min-width: 0;
+  word-break: break-word;
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.vno-notification-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.vno-notification-bar-action-btn {
+  background-color: #ffffff !important;
+  border: 1px solid #d97706 !important;
+  color: #78350f !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  padding: 4px 12px !important;
+  border-radius: var(--vno-radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.vno-notification-bar-action-btn:hover {
+  background-color: #fef3c7 !important;
+  border-color: #b45309 !important;
+  color: #451a03 !important;
+}
+
+.vno-notification-bar-action-btn:focus-visible {
+  outline: 2px solid #2563eb !important;
+  outline-offset: 1px !important;
+}
+
+.vno-notification-bar-close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--vno-radius-sm);
+  color: #4b5563;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  transition: all 0.12s ease-in-out;
+}
+
+.vno-notification-bar-close-btn:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+  color: #111827;
+}
+
+.vno-notification-bar-close-btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/* ==========================================================================
+   NOTIFICATION BAR — CHẾ ĐỘ TỐI (DARK MODE)
+   ========================================================================== */
+[data-theme="dark"] .vno-notification-bar {
+  background-color: #3b2f0a;
+  border-bottom-color: #854d0e;
+  color: #fef3c7;
+}
+
+[data-theme="dark"] .vno-notification-bar-icon {
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .vno-notification-bar-message {
+  color: #fef3c7;
+}
+
+[data-theme="dark"] .vno-notification-bar-action-btn {
+  background-color: #4c3809 !important;
+  border-color: #d97706 !important;
+  color: #fde047 !important;
+}
+
+[data-theme="dark"] .vno-notification-bar-action-btn:hover {
+  background-color: #5f450c !important;
+  border-color: #f59e0b !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .vno-notification-bar-action-btn:focus-visible {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 1px !important;
+}
+
+[data-theme="dark"] .vno-notification-bar-close-btn {
+  color: #fde68a;
+}
+
+[data-theme="dark"] .vno-notification-bar-close-btn:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+[data-theme="dark"] .vno-notification-bar-close-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
 
