@@ -9,6 +9,7 @@ import { runSuiteSmokeTests } from "./smoke/suite-smoke.test.js";
 import { runFormulaEngineTests } from "./unit/formula-engine.test.js";
 import { runSheetExternalLinksTests } from "./unit/sheet-external-links.test.js";
 import { runSheetVndWordsTests } from "./unit/sheet-vnd-words.test.js";
+import { runSheetFormulaOdfTests } from "./unit/sheet-formula-odf.test.js";
 import { runFormulaAutocompleteTests } from "./unit/formula-autocomplete.test.js";
 import { runI18nTests } from "./unit/i18n.test.js";
 import { runSyntaxCheckTests } from "./unit/syntax-check.test.js";
@@ -194,6 +195,7 @@ async function runAll() {
     { title: "3. Unit Tests — Excel Spreadsheet Formula Engine", runner: runFormulaEngineTests },
     { title: "3b. Unit Tests — Sheet external workbook links", runner: runSheetExternalLinksTests },
     { title: "3c. Unit Tests — VND() số tiền bằng chữ", runner: runSheetVndWordsTests },
+    { title: "3d. Unit Tests — Sheet công thức #REF! ⇄ ODF", runner: runSheetFormulaOdfTests },
     { title: "4. Unit Tests — Formula Autocomplete & Parameter IntelliSense", runner: runFormulaAutocompleteTests },
     { title: "5. Unit Tests — Vietnamese i18n Localization Layer", runner: runI18nTests },
     { title: "6. Smoke Tests — Suite & Vietnamese Unicode", runner: runSuiteSmokeTests },

@@ -1356,6 +1356,15 @@ export class SheetAdapter {
     if (!formula || !String(formula).startsWith("=")) return "";
     let expression = String(formula).slice(1);
     const references = [];
+    // A deleted reference is `#REF!` in Excel syntax but `[#REF!]` in ODF. Written bare,
+    // LibreOffice cannot parse the formula and saves `=#N/A` (legacy06.xls, 9 cells).
+    // Only outside "string literals" — a quoted "#REF!" is user text.
+    expression = expression.split(/("(?:[^"]|"")*")/).map((part, index) => (
+      index % 2 === 1 ? part : part.replace(/(^|[^\w\]])#REF!/g, (_, before) => {
+        references.push("[#REF!]");
+        return `${before}__VNO_REF_${references.length - 1}__`;
+      })
+    )).join("");
     expression = expression.replace(/((?:'[^']+'|[A-Za-z0-9_À-ỹ ]+)!)?(\$?[A-Z]+\$?\d+):(\$?[A-Z]+\$?\d+)/g, (_, sheet, start, end) => {
       const prefix = sheet ? `$${sheet.slice(0, -1)}.` : ".";
       references.push(`[${prefix}${start}:${prefix}${end}]`);
