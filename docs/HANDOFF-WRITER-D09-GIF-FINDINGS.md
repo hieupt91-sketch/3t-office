@@ -83,6 +83,32 @@ Không phải “15 shape không textbox” hay “15 shape có textbox”. Sáu
 
 File lưu còn đủ 15 connector gốc (tên `Elbow Connector` / `Straight Arrow Connector`) và 15 `Frame1`…`Frame15` thay cho 15 hình chữ nhật. Cộng 15 pic = 45 anchor.
 
+## d01–d24 trên main (trừ d10)
+
+Đo lại bằng app thật của worktree này, `LOCALAPPDATA=E:\VNOffice-profiles\grok`, mở rồi lưu, không chèn `ZZ`, không gọi Word. 23/23 file lưu được. Bản lưu: `E:\VNOffice-profiles\grok\writer-d09-gif-cohort\_rt_dNN.docx` (ngoài repo). Tiêu chí hiện tượng: media bản lưu lớn hơn media gốc, hoặc `pic:pic` có tên không có trong gốc.
+
+Chỉ `d09` dương tính: media 0→11 (cả 11 là GIF), anchor 30→45, 15 `pic` mới đúng danh sách `Shape19, Shape18, Shape16, Shape15, Shape13, Shape14, Shape22, Shape24, Shape23, Shape26, Shape25, Shape27, Shape29, Shape28, Shape30`.
+
+Các file kia không thêm media và không thêm `pic` tên mới:
+
+| File | media gốc → lưu | anchor gốc → lưu | pic gốc → lưu | Hiện tượng GIF |
+|---|---|---|---|---|
+| d01, d02, d03, d05, d11, d12, d14, d17, d22, d23 | 0→0 | 0→0 | 0→0 | không |
+| d04 | 2→2 | 5→5 | 5→5 | không |
+| d08 | 1→1 | 1→1 | 1→1 | không |
+| d13 | 1→1 | 0→0 | 0→0 | không |
+| d15 | 2→2 | 0→0 | 0→0 | không |
+| d16 | 1→1 | 0→0 | 0→0 | không |
+| d18 | 2→2 | 0→0 | 0→0 | không |
+| d19 | 1→1 | 0→0 | 0→0 | không |
+| d20 | 1→1 | 0→0 | 0→0 | không |
+| d21 | 11→11 | 0→0 | 0→0 | không (11 media cũ, 0 GIF mới) |
+| d24 | 139→139 | 11→11 | 11→11 | không (0 GIF trong media bản lưu) |
+| d06 | 1→0 | 60→47 | 1→0 | không thêm. Mất pic và media gốc; bare wsp 36→27, textbox 23→20 |
+| d07 | 0→0 | 1→0 | 0→0 | không thêm. Mất 1 connector không textbox, không sinh GIF |
+
+Batch Codex `E:\VNOffice-profiles\codex\writer-shape-import-b3-batch` cũng chỉ thấy `d09` tăng media, nhưng đó là nhánh khác: Codex ghi `d09` 60 anchor và `d06` 139 anchor, trong khi main ghi `d09` 45 anchor và `d06` 47 anchor. Không lấy số Codex làm kết luận.
+
 ## Điều không gây ra GIF
 
 - `this.shapes` / `renderShapeSvg` trong `_contentForExport`: mảng rỗng sau khi mở d09.
@@ -98,9 +124,10 @@ COMMANDS RUN:
 
 - `LOCALAPPDATA=E:\VNOffice-profiles\grok` trước mọi lần gọi app và trước `main._run_soffice_convert`.
 - Tách tầng DOCX→HTML→DOCX + hai postprocess bằng hàm thật của `main.py` / `ooxml_zip_patch.py` trên `d09.docx`.
-- Mở VN Writer thật (pywebview, cùng đường `save_document_dialog`) hai lần lưu: không sửa, và bold+`ZZ`.
+- Mở VN Writer thật (pywebview, cùng đường `save_document_dialog`) hai lần lưu d09: không sửa, và bold+`ZZ`.
 - Đối chiếu MD5 với `E:\VNOffice-profiles\claude\d09-main-baseline\_rt_d09.docx`.
 - Quét zip batch Codex `E:\VNOffice-profiles\codex\writer-shape-import-b3-batch` — chỉ là gợi ý, không phải kết luận main.
+- Mở+lưu lần lượt `d01.docx`–`d24.docx` trừ `d10` bằng cùng app, không `ZZ`, không Word. Khoảng 444 giây, 23/23 `saved=True`.
 
 BUILD RESULT: NOT RUN. Task cấm sửa code; không build.
 
@@ -111,9 +138,9 @@ TEST RESULTS:
 - PASS: HTML→DOCX nhúng GIF thành `pic:pic`. `postprocess_created_writer_docx` không đổi số media.
 - PASS: Canvas export còn 30 GIF. App lưu (có và không `ZZ`) ra 45 anchor, 15 pic, 11 GIF, trùng baseline Claude từng MD5.
 - PASS: Giải thích 15 pic / 11 GIF bằng thứ tự 15 ảnh đầu bị `trust_order` thay và bằng GIF dùng chung.
-- NOT RUN: đo lại mở+lưu `d01`–`d24` trừ `d10` trên main/profile grok. Sẽ cập nhật handoff khi có số. Gợi ý Codex (nhánh khác, không dùng làm kết luận): chỉ `d09` tăng media (0→11) và thêm 15 `pic` tên `Shape*`. `d06` trên Codex tăng anchor 60→139 nhưng media vẫn 1 và không có `pic` tên mới. Các file còn lại media bản Codex không lớn hơn gốc và không có `pic` tên mới.
+- PASS: cohort `d01`–`d24` trừ `d10`, app main, profile grok, 23/23 lưu được. Chỉ `d09` có media tăng (0→11 GIF) và 15 `pic` tên mới. `d06` và `d07` mất drawing (không thêm GIF). File còn lại media và tên `pic` không tăng.
 
-KNOWN FAILURES: Hiện tượng d09 tái hiện trên main. Không có failure của phép đo d09. Cohort `d01`–`d24` chưa đo trên main trong bản handoff này.
+KNOWN FAILURES: Hiện tượng d09 tái hiện trên main. Cohort không có file thứ hai bị thêm GIF. `d06` mất 1 media và giảm anchor 60→47. `d07` mất 1 connector. Hai lệch đó không phải chồng ảnh GIF; task này không sửa.
 
 RISKS: Xem hướng sửa. Xóa mọi `pic` tên `ShapeN` sẽ mất nền xanh của hình chữ nhật, vì vector `Rectangle` có textbox không được passthrough (cố ý, để không nuốt chữ người dùng sửa).
 
@@ -142,4 +169,4 @@ Rủi ro:
 - Passthrough textbox chưa sửa có thể đè chữ nếu marker `vno-untouched` dán nhầm lên đoạn đã sửa. Chỉ chép khi chính khung đó untouched.
 - `d06` (nhóm `wpg`) đi đường passthrough khác. Đừng nới `trust_order` thành “xóa mọi pic thừa” mà không kiểm nhóm.
 
-NEXT ACTION: Đo mở+lưu `d01.docx`–`d24.docx` trừ `d10` bằng app main, profile `E:\VNOffice-profiles\grok`, rồi ghi đè mục TEST RESULTS. Không merge `main`. Không sửa code trong worktree này.
+NEXT ACTION: Nhánh sửa shape của Codex áp điều kiện xóa `pic` `ShapeN` ở mục hướng sửa, chỉ với connector đã được passthrough, rồi mới xét textbox chưa sửa. Không merge `main` từ worktree này. Không sửa code tại đây.
