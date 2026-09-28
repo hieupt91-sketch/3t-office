@@ -1456,16 +1456,16 @@ body {
   padding: 0;
   border: 1px solid transparent;
   border-radius: var(--vno-radius-sm, 4px);
-  background: transparent;
+  background-color: transparent;
   color: var(--vno-text-muted);
   cursor: pointer;
   transition: all 0.15s ease;
   outline: none;
 }
 .vno-recent-remove-btn:hover {
-  background-color: rgba(239, 68, 68, 0.12);
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #dc2626;
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
   transform: scale(1.08);
 }
 .vno-recent-remove-btn:focus-visible {
@@ -1473,9 +1473,9 @@ body {
   outline-offset: 1px;
 }
 [data-theme="dark"] .vno-recent-remove-btn:hover {
-  background-color: rgba(239, 68, 68, 0.22);
-  border-color: rgba(239, 68, 68, 0.5);
-  color: #f87171;
+  background-color: #7f1d1d;
+  border-color: #991b1b;
+  color: #ffffff;
 }
 .vno-template-thumb {
   width: 100%;
@@ -1661,10 +1661,12 @@ body {
 .vno-backstage-print-stage .vno-sheet-print-preview-page .vno-sheet-print-table,
 .vno-backstage-print-stage .vno-sheet-print-preview-page .vno-sheet-print-table td,
 .vno-backstage-print-stage .vno-sheet-print-preview-page .vno-sheet-print-table th {
+  background-color: #ffffff !important;
   color: #0f172a !important;
 }
 .vno-backstage-print-stage .vno-print-preview-sheet .vno-print-preview-body,
 .vno-backstage-print-stage .vno-print-preview-sheet p {
+  background-color: #ffffff !important;
   color: #111827 !important;
 }
 
