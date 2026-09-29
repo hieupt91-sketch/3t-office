@@ -180,6 +180,7 @@ import { runWriterDocFontSpacingTests } from "./unit/writer-doc-font-spacing.tes
 import { runWriterLegacyKeepNextTests } from "./unit/writer-legacy-keep-next.test.js";
 import { runSheetDateValuesTests } from "./unit/sheet-date-values.test.js";
 import { runNotificationBarTests } from "./unit/notification-bar.test.js";
+import { runOfflineResourcesTests } from "./unit/offline-resources.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -201,6 +202,7 @@ async function runAll() {
     { title: "5. Unit Tests — Vietnamese i18n Localization Layer", runner: runI18nTests },
     { title: "6. Smoke Tests — Suite & Vietnamese Unicode", runner: runSuiteSmokeTests },
     { title: "7. Syntax & Codebase Integrity — node --check", runner: runSyntaxCheckTests },
+    { title: "7b. Regression Guard — Offline Resources (no external CDN runtime loads)", runner: runOfflineResourcesTests },
     { title: "8. Smoke Tests — Application Entrypoints & index.html Runtime", runner: runHtmlSmokeTests },
     { title: "9. Unit Tests — AI Service Provider Orchestration", runner: runAiServiceTests },
     { title: "9b. Unit Tests — AI API Key Manager", runner: runApiKeyManagerTests },
