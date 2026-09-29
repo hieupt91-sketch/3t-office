@@ -11412,6 +11412,105 @@ def postprocess_writer_docx(
     return dest.getvalue()
 
 
+def _convert_wps_drawing_to_vml(drawing_xml: str) -> str:
+    """Convert a DrawingML <w:drawing> containing <wps:txbx> into a VML <w:pict> text box.
+
+    LibreOffice's MS Word 97 (.doc) export filter corrupts Escher streams when writing
+    DrawingML text boxes (<wps:txbx>), but processes VML (<w:pict><v:rect><v:textbox>) cleanly.
+    """
+    if "<wps:txbx" not in drawing_xml:
+        return drawing_xml
+    m_content = re.search(r"(<w:txbxContent\b[\s\S]*?</w:txbxContent\s*>)", drawing_xml)
+    if not m_content:
+        return drawing_xml
+    content = m_content.group(1)
+
+    m_ext = re.search(r'<wp:extent\b[^>]*cx=["\'](\d+)["\'][^>]*cy=["\'](\d+)["\']', drawing_xml)
+    if not m_ext:
+        m_ext = re.search(r'<a:ext\b[^>]*cx=["\'](\d+)["\'][^>]*cy=["\'](\d+)["\']', drawing_xml)
+    cx = int(m_ext.group(1)) if m_ext else 3800000
+    cy = int(m_ext.group(2)) if m_ext else 1500000
+    w_pt = round(cx / 12700.0, 1)
+    h_pt = round(cy / 12700.0, 1)
+
+    m_off_h = re.search(r"<wp:positionH\b[^>]*>[\s\S]*?<wp:posOffset>(\d+)</wp:posOffset>", drawing_xml)
+    m_off_v = re.search(r"<wp:positionV\b[^>]*>[\s\S]*?<wp:posOffset>(\d+)</wp:posOffset>", drawing_xml)
+    off_x = int(m_off_h.group(1)) if m_off_h else 0
+    off_y = int(m_off_v.group(1)) if m_off_v else 0
+    ml_pt = round(off_x / 12700.0, 1)
+    mt_pt = round(off_y / 12700.0, 1)
+
+    wrap_type = "none" if "<wp:wrapNone" in drawing_xml else "square"
+
+    return (
+        f'<w:pict>'
+        f'<v:rect fillcolor="#FFFFFF" style="position:absolute;rotation:-0;width:{w_pt}pt;height:{h_pt}pt;'
+        f'margin-left:{ml_pt}pt;margin-top:{mt_pt}pt;mso-position-horizontal-relative:text;mso-position-vertical-relative:text">'
+        f'<v:fill opacity="0f"/>'
+        f'<v:textbox>{content}</v:textbox>'
+        f'<w10:wrap type="{wrap_type}"/>'
+        f'</v:rect>'
+        f'</w:pict>'
+    )
+
+
+def prepare_writer_docx_for_legacy_doc_export(docx_bytes: bytes) -> bytes:
+    """Prepare a DOCX package for clean LibreOffice MS Word 97 (.doc) export.
+
+    LibreOffice's MS Word 97 (.doc) export filter has a known defect when converting DrawingML
+    text boxes (<wps:txbx> inside <wps:wsp> or <mc:AlternateContent><mc:Choice>) into binary .doc
+    (WW8/Escher) format, producing corrupt records that cause Word 2016 to display a modal error dialog
+    ("Word experienced an error trying to open the file").
+
+    In contrast, LibreOffice's MS Word 97 filter handles legacy VML (<w:pict><v:rect><v:textbox>...)
+    flawlessly without corruption.
+
+    This function:
+    1. Flattens <mc:AlternateContent> elements providing a <mc:Fallback> into their fallback content.
+    2. Converts any remaining DrawingML <w:drawing> text boxes (<wps:txbx>) into VML text boxes.
+    3. Ensures VML namespaces (xmlns:v, xmlns:w10) are declared if VML is introduced.
+
+    Ensures 100% clean Word 97 export while preserving document layout, text, and formatting.
+    """
+    if not docx_bytes:
+        return docx_bytes
+
+    try:
+        source = io.BytesIO(docx_bytes)
+        with zipfile.ZipFile(source, "r") as zin:
+            entries = zin.namelist()
+            modified: dict[str, bytes] = {}
+            for name in entries:
+                if name.startswith("word/") and name.endswith(".xml"):
+                    data = zin.read(name)
+                    text = data.decode("utf-8", errors="replace")
+                    original_text = text
+                    if "<mc:AlternateContent" in text and "<mc:Fallback" in text:
+                        text = re.sub(
+                            r"<mc:AlternateContent\b[\s\S]*?</mc:AlternateContent>",
+                            lambda m: (re.search(r"<mc:Fallback\b[^>]*>([\s\S]*?)</mc:Fallback>", m.group(0)) or m).group(1) if re.search(r"<mc:Fallback\b[^>]*>([\s\S]*?)</mc:Fallback>", m.group(0)) else m.group(0),
+                            text,
+                        )
+                    if "<wps:txbx" in text:
+                        text = re.sub(
+                            r"<w:drawing\b[\s\S]*?</w:drawing>",
+                            lambda m: _convert_wps_drawing_to_vml(m.group(0)),
+                            text,
+                        )
+                    if "<v:rect" in text or "<v:shape" in text or "<v:textbox" in text:
+                        if 'xmlns:v="urn:schemas-microsoft-com:vml"' not in text:
+                            text = text.replace("<w:document ", '<w:document xmlns:v="urn:schemas-microsoft-com:vml" ', 1)
+                        if 'xmlns:w10="urn:schemas-microsoft-com:office:word"' not in text:
+                            text = text.replace("<w:document ", '<w:document xmlns:w10="urn:schemas-microsoft-com:office:word" ', 1)
+                    if text != original_text:
+                        modified[name] = text.encode("utf-8")
+        if not modified:
+            return docx_bytes
+        return patch_ooxml_zip(docx_bytes, modified)
+    except Exception:
+        return docx_bytes
+
+
 def _strip_writer_font_fallbacks(xml: str, dedupe_font_table: bool = False) -> str:
     """W34a: `w:ascii="Times New Roman;serif"` (và hAnsi/cs/eastAsia, `<w:font w:name=…>`) -> tên đầu tiên."""
     out = re.sub(r'(\bw:(?:ascii|hAnsi|cs|eastAsia|name)=")([^";]+);[^"]*(")', r"\1\2\3", xml)

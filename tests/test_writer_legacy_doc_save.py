@@ -71,6 +71,117 @@ class WriterLegacyDocSaveTests(unittest.TestCase):
         self.assertNotIn("<wp:wrapNone/>", observed["intermediate"])
         self.assertIn("Edited title ZZ", observed["intermediate"])
 
+    def test_prepare_writer_docx_for_legacy_doc_export_flattens_alternate_content(self):
+        patcher = main._ooxml_zip_patch()
+        doc_xml = (
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+            'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" '
+            'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" '
+            'xmlns:v="urn:schemas-microsoft-com:vml">'
+            '<w:body><w:p><w:r>'
+            '<mc:AlternateContent>'
+            '<mc:Choice Requires="wps"><w:drawing><wps:wsp><wps:txbx><w:txbxContent>'
+            '<w:p><w:r><w:t>Inside Choice</w:t></w:r></w:p>'
+            '</w:txbxContent></wps:txbx></wps:wsp></w:drawing></mc:Choice>'
+            '<mc:Fallback><w:pict><v:rect><v:textbox><w:txbxContent>'
+            '<w:p><w:r><w:t>Inside Fallback</w:t></w:r></w:p>'
+            '</v:textbox></v:rect></w:pict></mc:Fallback>'
+            '</mc:AlternateContent>'
+            '</w:r></w:p></w:body></w:document>'
+        )
+        input_docx = _docx(doc_xml)
+        prepared_docx = patcher.prepare_writer_docx_for_legacy_doc_export(input_docx)
+        output_xml = _document_xml(prepared_docx)
+
+        self.assertNotIn("<mc:AlternateContent", output_xml)
+        self.assertNotIn("<mc:Choice", output_xml)
+        self.assertNotIn("<mc:Fallback", output_xml)
+        self.assertIn("<w:pict><v:rect>", output_xml)
+        self.assertIn("Inside Fallback", output_xml)
+
+    def test_doc_export_flattens_alternate_content_in_intermediate(self):
+        converted = _docx(
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+            'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" '
+            'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" '
+            'xmlns:v="urn:schemas-microsoft-com:vml">'
+            '<w:body><w:p><w:r>'
+            '<mc:AlternateContent>'
+            '<mc:Choice Requires="wps"><w:drawing><wps:wsp><wps:txbx><w:txbxContent>'
+            '<w:p><w:r><w:t>Frame DrawingML</w:t></w:r></w:p>'
+            '</w:txbxContent></wps:txbx></wps:wsp></w:drawing></mc:Choice>'
+            '<mc:Fallback><w:pict><v:rect><v:textbox><w:txbxContent>'
+            '<w:p><w:r><w:t>Frame VML</w:t></w:r></w:p>'
+            '</v:textbox></v:rect></w:pict></mc:Fallback>'
+            '</mc:AlternateContent>'
+            '</w:r></w:p></w:body></w:document>'
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            html = root / "draft.html"
+            source_doc = root / "source.doc"
+            html.write_text("<p>Doc content</p>", encoding="utf-8")
+            source_doc.write_bytes(b"legacy source")
+            observed = {}
+
+            def fake_convert(src_path, target_ext, out_dir, app_kind=None):
+                out = Path(out_dir)
+                out.mkdir(parents=True, exist_ok=True)
+                if target_ext == "docx" and Path(src_path) == html:
+                    dest = out / "draft.docx"
+                    dest.write_bytes(converted)
+                elif target_ext == "docx":
+                    dest = out / "source.docx"
+                    dest.write_bytes(converted)
+                else:
+                    observed["intermediate"] = _document_xml(Path(src_path).read_bytes())
+                    dest = out / "result.doc"
+                    dest.write_bytes(b"converted DOC")
+                return str(dest)
+
+            with (
+                patch.object(main, "_run_soffice_convert", side_effect=fake_convert),
+                patch.object(main, "_apply_native_export_postprocess"),
+            ):
+                main._convert_writer_html_to_doc(str(html), str(root), str(source_doc))
+
+        self.assertNotIn("<mc:AlternateContent", observed["intermediate"])
+        self.assertIn("<w:pict><v:rect>", observed["intermediate"])
+        self.assertIn("Frame VML", observed["intermediate"])
+
+    def test_prepare_writer_docx_for_legacy_doc_export_converts_naked_wps_txbx_to_vml(self):
+        patcher = main._ooxml_zip_patch()
+        doc_xml = (
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+            'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" '
+            'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+            'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">'
+            '<w:body><w:p><w:r>'
+            '<w:drawing><wp:anchor>'
+            '<wp:positionH><wp:posOffset>2804160</wp:posOffset></wp:positionH>'
+            '<wp:positionV><wp:posOffset>133985</wp:posOffset></wp:positionV>'
+            '<wp:extent cx="3799840" cy="1667510"/>'
+            '<wp:docPr id="2" name="Frame1"/>'
+            '<a:graphic><a:graphicData>'
+            '<wps:wsp><wps:txbx><w:txbxContent>'
+            '<w:p><w:r><w:t>Naked Textbox Content</w:t></w:r></w:p>'
+            '</w:txbxContent></wps:txbx></wps:wsp>'
+            '</a:graphicData></a:graphic>'
+            '</wp:anchor></w:drawing>'
+            '</w:r></w:p></w:body></w:document>'
+        )
+        input_docx = _docx(doc_xml)
+        prepared_docx = patcher.prepare_writer_docx_for_legacy_doc_export(input_docx)
+        output_xml = _document_xml(prepared_docx)
+
+        self.assertNotIn("<wps:txbx", output_xml)
+        self.assertNotIn("<w:drawing", output_xml)
+        self.assertIn("<w:pict><v:rect", output_xml)
+        self.assertIn("<v:textbox><w:txbxContent>", output_xml)
+        self.assertIn("Naked Textbox Content", output_xml)
+        self.assertIn('xmlns:v="urn:schemas-microsoft-com:vml"', output_xml)
+        self.assertIn('xmlns:w10="urn:schemas-microsoft-com:office:word"', output_xml)
+
 
 if __name__ == "__main__":
     unittest.main()
