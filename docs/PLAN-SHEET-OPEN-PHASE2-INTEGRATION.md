@@ -1,6 +1,6 @@
 # Sheet Open Phase 2 Integration Plan
 
-**Status: proposed; requires owner approval before product implementation.** This task changes no product source. It prototypes a compact Sheet payload in `scripts/perf-proto/` and records measured evidence below.
+**Status: owner-approved on 2026-09-29 23:00 Asia/Saigon; integrated behind the default-off `SHEET_OPEN_PAYLOAD` flag.** The implementation and gate evidence are recorded in [HANDOFF-SHEET-OPEN-PHASE2-INTEGRATION.md](HANDOFF-SHEET-OPEN-PHASE2-INTEGRATION.md). The flag remains off by default because the two 26-file audits did not pass the Excel COM gate and the LAN06/LAN14 first-grid timings remain above 60 seconds.
 
 ## Objective
 
@@ -119,3 +119,7 @@ Rollback is immediate: leave `SHEET_OPEN_PAYLOAD` unset/off, which preserves the
 - `scripts/perf-proto/compare_native_overlay.py`
 - `docs/HANDOFF-SHEET-OPEN-PHASE2B.md`
 - `docs/HANDOFF-SHEET-OPEN-PHASE2C.md`
+
+## Integration gate result
+
+Payload-versus-legacy Edge model equality passed twice for all five fixtures and LAN06, LAN11, LAN12, LAN28, and LAN14. The 26-file payload-on audit passed save, zero-difference, and lint checks for all 26 workbooks in both runs; Excel COM returned `RPC_E_CALL_REJECTED` for 23 files per run. App-level timing completed twice per flag state and workbook. LAN06 and LAN14 payload runs remained above 60 seconds. The full Python suite passed twice (433/433 each run). The full Node suite did not pass because of LibreOffice conversion failures; three affected round-trip suites also failed when isolated, while the text-rotation conversion passed when isolated. See the handoff for per-run numbers and exact file lists.
