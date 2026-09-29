@@ -1,11 +1,12 @@
 # Install (or uninstall) a VN Office pilot package for the current Windows user. No admin rights needed.
-# Run from the unpacked package folder:  powershell -ExecutionPolicy Bypass -File install-pilot.ps1 [-Uninstall] [-NoDesktopShortcuts]
+# Run from the unpacked package folder:  powershell -ExecutionPolicy Bypass -File install-pilot.ps1 [-Uninstall] [-NoDesktopShortcuts] [-NoLibreOfficeWarmup]
 # Installs to %LOCALAPPDATA%\VNOffice\app-install, creates Start Menu (+ Desktop) shortcuts for VN Writer / VN Sheet / VN Slides.
 # Does NOT change file associations, so Microsoft Office keeps opening documents by default during the pilot.
 # ASCII only: Windows PowerShell 5.1 reads BOM-less scripts in the ANSI code page.
 param(
     [switch]$Uninstall,
     [switch]$NoDesktopShortcuts,
+    [switch]$NoLibreOfficeWarmup,
     [string]$InstallDir = (Join-Path $env:LOCALAPPDATA "VNOffice\app-install")
 )
 
@@ -35,7 +36,7 @@ if ($Uninstall) {
     return
 }
 
-foreach ($required in @("python\pythonw.exe", "app\main.py", "app\tools\libreoffice\program\soffice.exe")) {
+foreach ($required in @("python\python.exe", "python\pythonw.exe", "app\main.py", "app\tools\libreoffice\program\soffice.exe")) {
     if (-not (Test-Path -LiteralPath (Join-Path $source $required))) { throw "Goi cai dat thieu tep: $required" }
 }
 
@@ -62,6 +63,17 @@ Rename-Item -LiteralPath $staging -NewName (Split-Path -Leaf $InstallDir)
 # A zip downloaded from Drive/Internet marks every extracted file as "from the Internet" (Zone.Identifier);
 # pythonw.exe and its DLLs would then show a security warning on every launch. The package is ours: unblock it.
 Get-ChildItem -LiteralPath $InstallDir -Recurse -File | Unblock-File
+
+if (-not $NoLibreOfficeWarmup) {
+    Write-Host "Preparing offline Writer and Sheet profiles (one-time, about 30 seconds)..."
+    $warmupPython = Join-Path $InstallDir "python\python.exe"
+    $mainScript = Join-Path $InstallDir "app\main.py"
+    & $warmupPython -s -E $mainScript --warmup-libreoffice-profiles
+    $warmupExitCode = $LASTEXITCODE
+    if ($warmupExitCode -ne 0) {
+        Write-Warning "LibreOffice profile warm-up did not finish. VN Office will try again in the background when it starts."
+    }
+}
 
 Remove-Shortcuts
 New-Item -ItemType Directory -Force $startMenu | Out-Null
