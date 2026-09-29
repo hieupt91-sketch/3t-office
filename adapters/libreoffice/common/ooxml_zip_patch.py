@@ -5724,7 +5724,12 @@ def normalize_source_xlsx(xlsx_bytes: bytes | None) -> bytes | None:
         return xlsx_bytes
 
 
-def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
+def overlay_sheet_xlsx_fods(
+    xlsx_bytes: bytes,
+    fods_xml: str | None,
+    *,
+    skip_initial_xf: bool = False,
+) -> str:
     """Read the original XLSX ZIP and overlay FODS.
 
     LibreOffice XLSX→FODS drops lockStructure, Freeze Panes, veryHidden
@@ -5753,7 +5758,11 @@ def overlay_sheet_xlsx_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     # the filter state.
     xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
-    xml = _overlay_sheet_cell_metadata_from_xlsx(xlsx_bytes, xml)
+    xml = _overlay_sheet_cell_metadata_from_xlsx(
+        xlsx_bytes,
+        xml,
+        include_xf=not skip_initial_xf,
+    )
     xml = _promote_covered_formula_errors(xml)
     # Sheet tab colors: read from original XLSX worksheet XMLs and write
     # vno:tab-color to FODS table:table elements for round-trip fidelity.
@@ -6022,7 +6031,12 @@ def _overlay_sheet_xf_indices_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str
     return result[:match.start()] + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + result[match.end():]
 
 
-def _overlay_sheet_cell_metadata_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+def _overlay_sheet_cell_metadata_from_xlsx(
+    xlsx_bytes: bytes,
+    fods_xml: str,
+    *,
+    include_xf: bool = True,
+) -> str:
     """Overlay number format, original string, and original XF in one FODS pass.
 
     The three metadata values are read independently from the source XLSX. Their
@@ -6030,6 +6044,8 @@ def _overlay_sheet_cell_metadata_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> 
     cell while sharing the row/cell traversal.
     """
     formats, strings, xfs = _xlsx_cells_with_metadata(xlsx_bytes)
+    if not include_xf:
+        xfs = {}
     if not formats and not strings and not xfs:
         return fods_xml
 
@@ -6612,13 +6628,16 @@ def _strip_first_repeat_attr(xml: str, attr: str) -> str:
 
 
 def _set_repeat(xml: str, attr: str, count: int) -> str:
+    """Set a row/cell repeat count inside its opening tag, before a self-close slash."""
     xml = _strip_first_repeat_attr(xml, attr)
     if count <= 1:
         return xml
-    gt = xml.find(">")
-    if gt < 0:
-        return xml
-    return xml[:gt] + f' {attr}="{count}"' + xml[gt:]
+    return _insert_repeat_before_end(
+        xml,
+        ("<table:table-cell", "<table:covered-table-cell", "<table:table-row"),
+        attr,
+        count,
+    )
 
 
 def _flat_xml_blocks(xml: str, names: tuple[str, ...]):

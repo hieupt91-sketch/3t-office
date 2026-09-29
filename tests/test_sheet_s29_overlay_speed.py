@@ -4,6 +4,7 @@ import io
 import re
 import unittest
 import zipfile
+import xml.etree.ElementTree as ET
 
 from adapters.libreoffice.common import ooxml_zip_patch as patcher
 
@@ -127,10 +128,7 @@ class SheetS29OverlayBytesTests(unittest.TestCase):
 
     def test_set_repeat_matches_legacy_first_gt(self):
         cells = [
-            '<table:table-cell table:style-name="ce1"/>',
-            '<table:table-cell table:number-columns-repeated="4" office:value-type="float"/>',
             '<table:table-row table:number-rows-repeated="3"><table:table-cell/></table:table-row>',
-            '<table:table-cell/>',
         ]
         for cell in cells:
             for count in (1, 4):
@@ -139,6 +137,12 @@ class SheetS29OverlayBytesTests(unittest.TestCase):
                     if count > 1:
                         legacy = re.sub(r">", f' {attr}="{count}">', legacy, count=1)
                     self.assertEqual(patcher._set_repeat(cell, attr, count), legacy)
+
+    def test_set_repeat_stays_inside_self_closing_cell_tag(self):
+        cell = '<table:table-cell table:style-name="ce1" table:number-columns-repeated="4"/>'
+        result = patcher._set_repeat(cell, "table:number-columns-repeated", 2)
+        self.assertEqual(result, '<table:table-cell table:style-name="ce1" table:number-columns-repeated="2"/>')
+        ET.fromstring('<root xmlns:table="urn:t">' + result + "</root>")
 
     def test_wide_row_span_count(self):
         cell = '<table:table-cell table:style-name="ce12"/>'
