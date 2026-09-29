@@ -67,9 +67,50 @@ class WriterLegacyDocSaveTests(unittest.TestCase):
             ):
                 main._convert_writer_html_to_doc(str(html), str(root), str(source_doc))
 
-        self.assertIn("<wp:wrapSquare/>", observed["intermediate"])
-        self.assertNotIn("<wp:wrapNone/>", observed["intermediate"])
+        # W-docwrap: bare <wp:wrapSquare/> must be normalised to include wrapText
+        # so that the LibreOffice MS Word 97 filter writes the correct Square wrap record.
+        # wrapText="bothSides" is the OOXML spec default (§20.4.2.17).
+        self.assertIn('wrapText="bothSides"', observed["intermediate"])
+        self.assertIn("<wp:wrapSquare", observed["intermediate"])
+        self.assertNotIn("<wp:wrapNone", observed["intermediate"])
         self.assertIn("Edited title ZZ", observed["intermediate"])
+
+    def test_prepare_writer_docx_normalizes_bare_wrap_square_adds_wrapText(self):
+        """W-docwrap: bare <wp:wrapSquare/> must get wrapText='bothSides' added."""
+        patcher = main._ooxml_zip_patch()
+        doc_xml = (
+            '<w:document xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">'
+            "<w:body><w:p><w:r><w:drawing><wp:anchor>"
+            "<wp:wrapSquare/>"
+            "<wp:docPr id=\"1\" name=\"Image 1\"/>"
+            "</wp:anchor></w:drawing></w:r></w:p></w:body></w:document>"
+        )
+        input_docx = _docx(doc_xml)
+        prepared_docx = patcher.prepare_writer_docx_for_legacy_doc_export(input_docx)
+        output_xml = _document_xml(prepared_docx)
+
+        self.assertIn("<wp:wrapSquare", output_xml)
+        self.assertIn('wrapText="bothSides"', output_xml)
+        self.assertNotIn("<wp:wrapNone", output_xml)
+
+    def test_prepare_writer_docx_does_not_change_existing_wrapText(self):
+        """W-docwrap: existing wrapText attribute must not be changed."""
+        patcher = main._ooxml_zip_patch()
+        doc_xml = (
+            '<w:document xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">'
+            "<w:body><w:p><w:r><w:drawing><wp:anchor>"
+            '<wp:wrapSquare wrapText="right"/>'
+            "<wp:docPr id=\"1\" name=\"Image 1\"/>"
+            "</wp:anchor></w:drawing></w:r></w:p></w:body></w:document>"
+        )
+        input_docx = _docx(doc_xml)
+        prepared_docx = patcher.prepare_writer_docx_for_legacy_doc_export(input_docx)
+        output_xml = _document_xml(prepared_docx)
+
+        # Should not alter existing wrapText — must stay "right", not be changed to "bothSides"
+        self.assertIn('wrapText="right"', output_xml)
+        self.assertNotIn('wrapText="bothSides"', output_xml)
+
 
     def test_prepare_writer_docx_for_legacy_doc_export_flattens_alternate_content(self):
         patcher = main._ooxml_zip_patch()
