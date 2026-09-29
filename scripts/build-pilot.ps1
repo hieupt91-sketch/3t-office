@@ -33,6 +33,13 @@ function Invoke-Robocopy([string]$Source, [string]$Target, [string[]]$Extra) {
 # 1. Application sources (runtime only).
 Write-Host "[1/5] App sources"
 foreach ($file in @("main.py", "index.html")) { Copy-Item -LiteralPath (Join-Path $repo $file) -Destination $appDir }
+# The packaged app must report the package version (error reports, Help), not the repo default.
+$mainPath = Join-Path $appDir "main.py"
+$mainText = [System.IO.File]::ReadAllText($mainPath, (New-Object System.Text.UTF8Encoding $false))
+$versionPattern = '(?m)^APP_VERSION = "[^"]*"'
+if ($mainText -notmatch $versionPattern) { throw "APP_VERSION line not found in main.py" }
+$mainText = [regex]::Replace($mainText, $versionPattern, "APP_VERSION = `"$Version`"")
+[System.IO.File]::WriteAllText($mainPath, $mainText, (New-Object System.Text.UTF8Encoding $false))
 foreach ($dir in @("apps", "platform", "adapters", "branding")) {
     $source = Join-Path $repo $dir
     if (Test-Path -LiteralPath $source) {

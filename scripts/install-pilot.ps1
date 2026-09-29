@@ -59,6 +59,9 @@ if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurs
 if ($LASTEXITCODE -ge 8) { throw "Chep tep that bai (robocopy $LASTEXITCODE)" }
 if (Test-Path -LiteralPath $InstallDir) { Remove-Item -LiteralPath $InstallDir -Recurse -Force }
 Rename-Item -LiteralPath $staging -NewName (Split-Path -Leaf $InstallDir)
+# A zip downloaded from Drive/Internet marks every extracted file as "from the Internet" (Zone.Identifier);
+# pythonw.exe and its DLLs would then show a security warning on every launch. The package is ours: unblock it.
+Get-ChildItem -LiteralPath $InstallDir -Recurse -File | Unblock-File
 
 Remove-Shortcuts
 New-Item -ItemType Directory -Force $startMenu | Out-Null
