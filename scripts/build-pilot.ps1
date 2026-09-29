@@ -66,31 +66,44 @@ Get-ChildItem -LiteralPath $siteIn -Directory | Where-Object { $_.Name -match '^
 Write-Host "[3/5] LibreOffice (large, a few minutes)"
 Invoke-Robocopy $LibreOfficeDir (Join-Path $appDir "tools\libreoffice") @()
 
-# 4. Icons (simple generated placeholders until branding/ provides real ones), version, notices.
+# 4. Icons (copy real multi-size icons from branding/icons/, or fallback to generated placeholders), version, notices.
 Write-Host "[4/5] Icons, version, notices"
-Add-Type -AssemblyName System.Drawing
 $iconDir = Join-Path $dist "icons"
 New-Item -ItemType Directory -Force $iconDir | Out-Null
+$vnoIcon = Join-Path $repo "branding\icons\vnoffice.ico"
+if (Test-Path -LiteralPath $vnoIcon) {
+    Copy-Item -LiteralPath $vnoIcon -Destination (Join-Path $iconDir "vnoffice.ico")
+}
 $iconSpecs = @(
     @{ Name = "writer"; Letter = "W"; Color = [System.Drawing.Color]::FromArgb(255, 30, 94, 180) },
     @{ Name = "sheet"; Letter = "S"; Color = [System.Drawing.Color]::FromArgb(255, 22, 128, 74) },
     @{ Name = "slides"; Letter = "P"; Color = [System.Drawing.Color]::FromArgb(255, 204, 88, 30) }
 )
+$drawingLoaded = $false
 foreach ($spec in $iconSpecs) {
-    $bitmap = New-Object System.Drawing.Bitmap 64, 64
-    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-    $graphics.SmoothingMode = "AntiAlias"
-    $graphics.TextRenderingHint = "AntiAliasGridFit"
-    $graphics.Clear([System.Drawing.Color]::Transparent)
-    $graphics.FillRectangle((New-Object System.Drawing.SolidBrush $spec.Color), 4, 4, 56, 56)
-    $font = New-Object System.Drawing.Font "Segoe UI", 30, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
-    $format = New-Object System.Drawing.StringFormat
-    $format.Alignment = "Center"; $format.LineAlignment = "Center"
-    $graphics.DrawString($spec.Letter, $font, [System.Drawing.Brushes]::White, (New-Object System.Drawing.RectangleF 4, 6, 56, 56), $format)
-    $graphics.Dispose()
-    $icon = [System.Drawing.Icon]::FromHandle($bitmap.GetHicon())
-    $stream = [System.IO.File]::Create((Join-Path $iconDir "$($spec.Name).ico"))
-    $icon.Save($stream); $stream.Close(); $bitmap.Dispose()
+    $realIcon = Join-Path $repo "branding\icons\$($spec.Name).ico"
+    if (Test-Path -LiteralPath $realIcon) {
+        Copy-Item -LiteralPath $realIcon -Destination (Join-Path $iconDir "$($spec.Name).ico")
+    } else {
+        if (-not $drawingLoaded) {
+            Add-Type -AssemblyName System.Drawing
+            $drawingLoaded = $true
+        }
+        $bitmap = New-Object System.Drawing.Bitmap 64, 64
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        $graphics.SmoothingMode = "AntiAlias"
+        $graphics.TextRenderingHint = "AntiAliasGridFit"
+        $graphics.Clear([System.Drawing.Color]::Transparent)
+        $graphics.FillRectangle((New-Object System.Drawing.SolidBrush $spec.Color), 4, 4, 56, 56)
+        $font = New-Object System.Drawing.Font "Segoe UI", 30, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
+        $format = New-Object System.Drawing.StringFormat
+        $format.Alignment = "Center"; $format.LineAlignment = "Center"
+        $graphics.DrawString($spec.Letter, $font, [System.Drawing.Brushes]::White, (New-Object System.Drawing.RectangleF 4, 6, 56, 56), $format)
+        $graphics.Dispose()
+        $icon = [System.Drawing.Icon]::FromHandle($bitmap.GetHicon())
+        $stream = [System.IO.File]::Create((Join-Path $iconDir "$($spec.Name).ico"))
+        $icon.Save($stream); $stream.Close(); $bitmap.Dispose()
+    }
 }
 Set-Content -LiteralPath (Join-Path $dist "VERSION.txt") -Value $Version -Encoding ASCII
 $commit = (& git -C $repo rev-parse --short HEAD).Trim()
