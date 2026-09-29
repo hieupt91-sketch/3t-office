@@ -42,5 +42,15 @@ export async function runSheetFormulaOdfTests() {
   check("Tên sheet có dấu nháy kép VÀ dấu phẩy — khứ hồi",
     adapter._formulaFromOdf("of:=SUM([$'Mạng, O''Brien'.G8:.G11];1)"), "=SUM('Mạng, O''Brien'!G8:G11,1)");
 
+  // Cross-sheet / mixed ranges regression fixes
+  check("Cross-sheet range [.A1:$Other.B2] -> A1:Other!B2",
+    adapter._formulaFromOdf("of:=[.A1:$Other.B2]"), "=A1:Other!B2");
+  check("Same-sheet range [$S.A1:.B2] -> S!A1:B2",
+    adapter._formulaFromOdf("of:=[$S.A1:.B2]"), "=S!A1:B2");
+  check("Same-sheet range [$S.A1:$S.B2] -> S!A1:B2",
+    adapter._formulaFromOdf("of:=[$S.A1:$S.B2]"), "=S!A1:B2");
+  check("#REF! trong SUM khứ hồi",
+    adapter._formulaFromOdf("of:=SUM([#REF!];1)"), "=SUM(#REF!,1)");
+
   return results;
 }

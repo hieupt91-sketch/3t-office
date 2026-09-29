@@ -1454,10 +1454,13 @@ export class SheetAdapter {
           const prefix = first.sheet ? `${first.sheet}!` : "";
           return `${prefix}${first.cell}:${second.cell}`;
         }
-        return `${first.sheet || ""}!${first.cell}:${second.sheet || ""}!${second.cell}`;
+        // Cross-sheet range: only prefix parts that have a sheet name
+        const firstPref = first.sheet ? `${first.sheet}!` : "";
+        const secondPref = second.sheet ? `${second.sheet}!` : "";
+        return `${firstPref}${first.cell}:${secondPref}${second.cell}`;
       }
-      // Fallback
-      return parts.map(p => typeof p === "object" ? `${p.sheet || ""}!${p.cell}` : p).join(":");
+      // Fallback: only prefix parts that have a sheet name
+      return parts.map(p => typeof p === "object" ? (p.sheet ? `${p.sheet}!${p.cell}` : p.cell) : p).join(":");
     });
     expression = expression.replace(/__VNO_EXT_(\d+)__/g, (_, index) => externals[Number(index)]);
     return this._replaceFormulaSeparators(expression, ";", ",");
