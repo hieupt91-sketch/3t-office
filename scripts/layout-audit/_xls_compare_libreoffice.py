@@ -38,42 +38,49 @@ def parse_fods(fods_path: str) -> dict:
     for sheet_elem in root.findall(".//table:table", NS):
         sheet_name = sheet_elem.get("{urn:oasis:names:tc:opendocument:xmlns:table:1.0}name")
         cells = {}
+        table_ns = "{urn:oasis:names:tc:opendocument:xmlns:table:1.0}"
+        office_ns = "{urn:oasis:names:tc:opendocument:xmlns:office:1.0}"
+        cell_tags = {f"{table_ns}table-cell", f"{table_ns}covered-table-cell"}
         row_idx = 0
-        for row_elem in sheet_elem.findall("table:table-row", NS):
+        # Rows can sit inside table:table-row-group / table-header-rows; iterate in document order.
+        for row_elem in sheet_elem.iter(f"{table_ns}table-row"):
+            row_repeat = int(row_elem.get(f"{table_ns}number-rows-repeated", "1"))
             col_idx = 0
-            for cell_elem in row_elem.findall("table:table-cell", NS):
-                # Handle repeated columns
-                repeat = int(cell_elem.get("{urn:oasis:names:tc:opendocument:xmlns:table:1.0}number-columns-repeated", "1"))
-                # Get value
+            row_cells = {}
+            # Every cell — empty or covered (merged) — occupies columns. Advancing only on
+            # non-empty cells shifted later columns left (29/9: a false "B2/C2 shift" on all
+            # Excel 95 files, whose row 2 was actually identical in source and saved file).
+            for cell_elem in row_elem:
+                if cell_elem.tag not in cell_tags:
+                    continue
+                repeat = int(cell_elem.get(f"{table_ns}number-columns-repeated", "1"))
                 value = ""
-                value_type = cell_elem.get("{urn:oasis:names:tc:opendocument:xmlns:office:1.0}value-type")
-                if value_type == "float":
-                    val = cell_elem.get("{urn:oasis:names:tc:opendocument:xmlns:office:1.0}value")
+                value_type = cell_elem.get(f"{office_ns}value-type")
+                if value_type in ("float", "percentage", "currency"):
+                    val = cell_elem.get(f"{office_ns}value")
                     if val is not None:
                         value = f"{float(val):.9f}".rstrip("0").rstrip(".")
-                elif value_type == "string":
-                    # String value is in text:p children
-                    for p in cell_elem.findall("text:p", NS):
-                        if p.text:
-                            value += p.text
+                elif value_type == "date":
+                    value = cell_elem.get(f"{office_ns}date-value", "")
+                elif value_type == "time":
+                    value = cell_elem.get(f"{office_ns}time-value", "")
                 elif value_type == "boolean":
-                    val = cell_elem.get("{urn:oasis:names:tc:opendocument:xmlns:office:1.0}boolean-value")
-                    value = "TRUE" if val == "true" else "FALSE"
-                elif value_type == "currency":
-                    val = cell_elem.get("{urn:oasis:names:tc:opendocument:xmlns:office:1.0}value")
-                    currency = cell_elem.get("{urn:oasis:names:tc:opendocument:xmlns:office:1.0}currency")
-                    if val is not None:
-                        value = f"{float(val):.9f}".rstrip("0").rstrip(".")
-                # Get formula
-                formula = cell_elem.get("{urn:oasis:names:tc:opendocument:xmlns:table:1.0}formula", "")
+                    value = "TRUE" if cell_elem.get(f"{office_ns}boolean-value") == "true" else "FALSE"
+                elif value_type == "string":
+                    # itertext(): text inside text:span / text:a / text:s counts too.
+                    value = "\n".join("".join(p.itertext()) for p in cell_elem.findall("text:p", NS))
+                formula = cell_elem.get(f"{table_ns}formula", "")
                 if formula.startswith("of:"):
                     formula = formula[3:]
-                # Only record if has value or formula
                 if value != "" or (formula and formula.startswith("=")):
-                    for _ in range(repeat):
-                        cells[(row_idx, col_idx)] = (value, formula)
-                        col_idx += 1
-            row_idx += 1
+                    for offset in range(repeat):
+                        row_cells[col_idx + offset] = (value, formula)
+                col_idx += repeat
+            if row_cells:
+                for r in range(min(row_repeat, 1000)):
+                    for c, cell in row_cells.items():
+                        cells[(row_idx + r, c)] = cell
+            row_idx += row_repeat
         sheets[sheet_name] = cells
     return sheets
 
