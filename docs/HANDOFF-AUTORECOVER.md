@@ -83,6 +83,6 @@ KNOWN FAILURES:
 RISKS:
 - Snapshots are limited to 64 MiB each, 20 total, and 256 MiB in total; the oldest snapshots are pruned when limits are reached.
 - Full desktop/manual interaction and package build were not run. The supplied XLSX timing used a data-only model because styling fidelity was outside that benchmark path.
-DEPENDENCIES/BLOCKERS: No new third-party dependency. The temporary `test/lan/lan06.xlsx` benchmark copy and generated benchmark files are untracked and excluded from commits; environment review rejected filesystem deletion, so the copy remains in the worktree.
+DEPENDENCIES/BLOCKERS: No new third-party dependency. BLOCKED — environment review rejected deleting the temporary `test/lan/lan06.xlsx` benchmark copy and generated files; they remain untracked and excluded from commits.
 CORE PATCH ID (if any): N/A — no LibreOffice Core changes.
 NEXT ACTION: Review the commits on this branch and run the packaged desktop pilot smoke test; no merge to `main` was performed.
