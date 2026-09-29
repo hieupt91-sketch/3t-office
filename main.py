@@ -140,6 +140,11 @@ def find_soffice() -> str | None:
     if env_override:
         candidates.append(env_override)
 
+    # tools/libreoffice cạnh main.py (bản đóng gói) được ưu tiên hơn LibreOffice cài sẵn trên máy:
+    # bản cài sẵn có thể khác phiên bản đã kiểm thử và cho kết quả mở/lưu khác.
+    for name in ("soffice.exe", "soffice"):
+        candidates.append(str(Path(ROOT_DIR) / "tools" / "libreoffice" / "program" / name))
+
     if system == "Windows":
         candidates += [
             str(Path.home() / "tools" / "libreoffice" / "program" / "soffice.exe"),
@@ -161,13 +166,6 @@ def find_soffice() -> str | None:
     for c in candidates:
         if c and os.path.isfile(c):
             return c
-
-    # tools/libreoffice cạnh main.py (bundling cục bộ theo dự án, mọi hệ điều hành)
-    local_names = ["soffice.exe", "soffice"]
-    for name in local_names:
-        local_path = Path(ROOT_DIR) / "tools" / "libreoffice" / "program" / name
-        if local_path.is_file():
-            return str(local_path)
 
     return shutil.which("soffice") or shutil.which("soffice.exe")
 
@@ -661,7 +659,11 @@ def _apply_native_import_overlay(src_path: str, fods: str, app_kind: str | None)
         try:
             with open(src_path, "rb") as handle:
                 original = handle.read()
-            return _ooxml_zip_patch().overlay_sheet_xlsx_fods(original, fods)
+            return _ooxml_zip_patch().overlay_sheet_xlsx_fods(
+                original,
+                fods,
+                skip_initial_xf=_sheet_open_skip_initial_xf_enabled(),
+            )
         except Exception:
             return fods
     if app_kind == "slides":
@@ -680,6 +682,15 @@ def _apply_native_import_overlay(src_path: str, fods: str, app_kind: str | None)
                 f"Không khôi phục được thuộc tính native PPTX (logo / Sections / Set Up Show) từ PPTX gốc: {exc}"
             ) from exc
     return fods
+
+
+def _sheet_open_skip_initial_xf_enabled() -> bool:
+    """Return the explicit opt-in for skipping the redundant first XF overlay.
+
+    The default remains off until the phase-1 fidelity and regression gates pass.
+    """
+    value = os.environ.get("SHEET_OPEN_SKIP_INITIAL_XF", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
 
 
 def _optimize_fods_for_sheet(fods_xml: str) -> str:
