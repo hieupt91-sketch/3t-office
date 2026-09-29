@@ -1442,18 +1442,28 @@ export class SheetAdapter {
 
   _replaceFormulaSeparators(expression, from, to) {
     let inString = false;
+    // A quoted sheet name ('Mạng, camera'!G8) may contain the separator itself; replacing
+    // it there broke the reference and the saved workbook showed #VALUE! (legacy09.xls).
+    let inSheetName = false;
     let result = "";
     for (let index = 0; index < expression.length; index++) {
       const char = expression[index];
-      if (char === '"') {
+      if (char === '"' && !inSheetName) {
         if (inString && expression[index + 1] === '"') {
           result += '""';
           index++;
           continue;
         }
         inString = !inString;
+      } else if (char === "'" && !inString) {
+        if (inSheetName && expression[index + 1] === "'") {
+          result += "''";
+          index++;
+          continue;
+        }
+        inSheetName = !inSheetName;
       }
-      result += !inString && char === from ? to : char;
+      result += !inString && !inSheetName && char === from ? to : char;
     }
     return result;
   }
