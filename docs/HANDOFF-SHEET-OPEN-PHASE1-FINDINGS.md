@@ -56,11 +56,11 @@ The measured phase-1 saving is roughly 9–13 seconds on lan06/lan14 in these ru
 - **PASS:** lan06/11/12/28 `parseFods` A/B model comparisons; full Node suite also passes the four existing FODS import snapshots.
 - **PASS:** focused tests cover feature-flag routing, external formula with string/error caches after XF reoverlay, and valid self-closing repeated-cell XML.
 - **PASS:** two cache-balanced foreground timing runs each for lan06 and lan14.
+- **PASS:** 26 LAN batch audit files plus separate lan06/lan14 audits on the phase-1 flag path: 28/28 saved, Excel COM open, lint clean, and `TONG sai lech: 0`.
 - **PASS:** `node tests/run-tests.js` — 1907/1907.
 - **PASS:** `python -m unittest discover -s tests` — 392 tests.
 - **NOT RUN:** full `compare_parsefods_models.mjs` on lan14. The harness is specified to need about 14 GB; the machine reported 11.38 GB available, so this comparison was deferred rather than risking memory pressure.
-- **NOT RUN:** 26-workbook LAN audit from this worktree. Another worktree currently has its own foreground 26-workbook audit in progress; this audit was not started concurrently.
 
 ## Next investigation
 
-Run the lan14 full model comparison when at least the requested memory is available and run the 26-workbook LAN audit from this worktree after the other foreground audit ends. The production `SHEET_OPEN_SKIP_INITIAL_XF` setting remains opt-in (default off) until all requested fidelity and audit gates pass.
+Run the lan14 full model comparison when at least the requested memory is available. The production `SHEET_OPEN_SKIP_INITIAL_XF` setting remains opt-in (default off) until that final model gate passes.

@@ -52,8 +52,8 @@ Add the phase-1 initial-XF skip behind `SHEET_OPEN_SKIP_INITIAL_XF`, preserve Ex
 - **PASS:** Python suite, 392 tests.
 - **PASS:** lan06 (two runs), lan11, lan12, and lan28 `parseFods` A/B models are IDENTICAL. lan12 and lan28 are also byte-identical; lan06 is byte-identical in both runs.
 - **PASS:** lan14 inspected cells have matching A/B logical coordinates and formula/cache values after the fix.
+- **PASS:** 26 LAN files plus separate lan06/lan14 audits on the phase-1 flag path — 28/28 saved, Excel COM opened, lint clean, `TONG sai lech: 0`.
 - **NOT RUN:** Full lan14 `parseFods` model comparison. The comparator requires about 14 GB; available memory was 11.38 GB.
-- **NOT RUN:** 26-workbook LAN round-trip audit in this worktree. A separate 26-file audit was already running in `E:\VN OFice`; this worktree's audit was not started concurrently.
 
 ## KNOWN FAILURES
 
@@ -61,11 +61,10 @@ No test failures. Full lan14 model equality and this worktree's 26-file audit re
 
 ## RISKS
 
-`SHEET_OPEN_SKIP_INITIAL_XF` remains disabled by default because the lan14 full-model and 26-file audit gates have not completed. Phase 1 improves the measured Python pipeline by 9–13 seconds but does not achieve the overall <60-second target.
+`SHEET_OPEN_SKIP_INITIAL_XF` remains disabled by default because the lan14 full-model gate has not completed. Phase 1 improves the measured Python pipeline by 9–13 seconds but does not achieve the overall <60-second target.
 
 ## DEPENDENCIES/BLOCKERS
 
-- Wait until the separate foreground 26-file audit ends before running the same audit here.
 - Run the lan14 model comparator only when the machine can safely provide the specified memory.
 
 ## CORE PATCH ID
@@ -74,4 +73,4 @@ None. No LibreOffice Core change.
 
 ## NEXT ACTION
 
-Run lan14 full-model comparison and the 26-file LAN audit from this worktree when the memory and foreground-audit constraints are satisfied. Keep the environment flag opt-in until those gates pass.
+Run the lan14 full-model comparison when the memory constraint is satisfied. Keep the environment flag opt-in until that gate passes.
