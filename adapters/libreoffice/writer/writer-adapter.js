@@ -3306,7 +3306,16 @@ export class WriterAdapter {
         return fullElem;
       });
 
-      return `<${tagName}${attrs}>${newInner}</${tagName}>`;
+      let newAttrs = attrs;
+      if (pSpec.runs.length === 1 && pSpec.runs[0].isOdd) {
+        const oddPt = pSpec.runs[0].pt;
+        const curPtMatch = newAttrs.match(/\bfont-size:\s*(\d+(?:\.\d+)?)pt\b/i);
+        if (curPtMatch && Math.floor(parseFloat(curPtMatch[1])) === Math.floor(oddPt)) {
+          newAttrs = newAttrs.replace(/\bfont-size:\s*\d+(?:\.\d+)?pt\b/i, `font-size: ${oddPt}pt`);
+        }
+      }
+
+      return `<${tagName}${newAttrs}>${newInner}</${tagName}>`;
     });
   }
 
@@ -10874,6 +10883,22 @@ export class WriterAdapter {
     return result;
   }
 
+  _preserveEmptyParagraphFontSizesForExport(html) {
+    return String(html || "").replace(
+      /<(p|h[1-6])\b([^>]*\bfont-size:\s*([\d.]+)pt[^>]*)>([\s\S]*?)<\/\1>/gi,
+      (match, tag, attrs, pt, inner) => {
+        const clean = inner.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, "").trim();
+        if (clean.length > 0 || /<(?:img|iframe|object|svg|canvas)\b|data-vno-float/i.test(inner)) {
+          return match;
+        }
+        if (/<span\b[^>]*\bstyle=[^>]*\bfont-size:/i.test(inner)) {
+          return match;
+        }
+        return `<${tag}${attrs}><span style="font-size: ${pt}pt;"><br/></span></${tag}>`;
+      }
+    );
+  }
+
   /**
    * Nội dung HTML thật sự gửi cho LibreOffice để lưu/xuất — có kèm `@page` CSS của
    * Page Setup hiện tại, để khổ giấy/lề trong DOCX/PDF xuất ra khớp với canvas.
@@ -10911,6 +10936,7 @@ export class WriterAdapter {
     bodyHtml = this._restoreProportionalLineHeightsForExport(bodyHtml);
     bodyHtml = this._simplifyFontFamiliesForExport(bodyHtml);
     bodyHtml = this._restoreLibreOfficeTableWidthsForExport(bodyHtml);
+    bodyHtml = this._preserveEmptyParagraphFontSizesForExport(bodyHtml);
 
     // LibreOffice's Writer HTML importer drops a class-only Drop Cap span
     // completely (including its first letter) because writer.css is not part
