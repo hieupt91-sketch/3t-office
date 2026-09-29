@@ -1,5 +1,5 @@
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
-import { loadSheetPayload } from "./sheet-payload-loader.mjs";
+import { buildSheetPayloadModel } from "../../adapters/libreoffice/sheet/sheet-payload-parser.js";
 
 function diffModels(left, right, path = "workbook", diffs = []) {
   if (diffs.length >= 40 || Object.is(left, right)) return diffs;
@@ -68,7 +68,7 @@ window.addEventListener("pywebviewready", async () => {
     source = null;
     const buildStart = performance.now();
     const adapter = new SheetAdapter(null);
-    const workbook = await loadSheetPayload(payload, adapter);
+    const workbook = await buildSheetPayloadModel(payload, adapter);
     const buildMs = performance.now() - buildStart;
     payload = null;
     const cellCount = Object.values(workbook.sheetsData).reduce((total, cells) => total + cells.size, 0);
