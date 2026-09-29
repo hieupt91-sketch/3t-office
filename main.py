@@ -505,8 +505,15 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
                     source_html = handle.read()
             patched = patcher.postprocess_created_writer_docx(converted_docx, source_html=source_html)
             if source_path and os.path.isfile(source_path):
-                with open(source_path, "rb") as handle:
-                    original_docx = handle.read()
+                if Path(source_path).suffix.lower() == ".doc":
+                    source_dir = os.path.join(os.path.dirname(out_path), "legacy_source")
+                    os.makedirs(source_dir, exist_ok=True)
+                    source_docx_path = _run_soffice_convert(source_path, "docx", source_dir, app_kind="writer")
+                    with open(source_docx_path, "rb") as handle:
+                        original_docx = handle.read()
+                else:
+                    with open(source_path, "rb") as handle:
+                        original_docx = handle.read()
                 patched = patcher.postprocess_writer_docx(patched, source_docx=original_docx)
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:

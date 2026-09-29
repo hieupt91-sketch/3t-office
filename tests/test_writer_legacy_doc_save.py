@@ -182,6 +182,80 @@ class WriterLegacyDocSaveTests(unittest.TestCase):
         self.assertIn('xmlns:v="urn:schemas-microsoft-com:vml"', output_xml)
         self.assertIn('xmlns:w10="urn:schemas-microsoft-com:office:word"', output_xml)
 
+    def test_postprocess_writer_docx_restores_unnamed_lines(self):
+        patcher = main._ooxml_zip_patch()
+        source_xml = (
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+            'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+            'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+            'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">'
+            '<w:body>'
+            '<w:p><w:r><w:t>Độc lập - Tự do - Hạnh phúc</w:t></w:r>'
+            '<w:r><w:drawing><wp:anchor>'
+            '<wp:extent cx="1868805" cy="0"/>'
+            '<wp:docPr id="1" name=""/>'
+            '<a:graphic><a:graphicData>'
+            '<wps:wsp><wps:spPr><a:prstGeom prst="line"/></wps:spPr></wps:wsp>'
+            '</a:graphicData></a:graphic>'
+            '</wp:anchor></w:drawing></w:r></w:p>'
+            '<w:p><w:r><w:t>Biên bản hoàn thành</w:t></w:r></w:p>'
+            '</w:body></w:document>'
+        )
+        converted_xml = (
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            '<w:body>'
+            '<w:p><w:r><w:t>Độc lập - Tự do - Hạnh phúc</w:t></w:r></w:p>'
+            '<w:p><w:r><w:t>Biên bản hoàn thành</w:t></w:r></w:p>'
+            '</w:body></w:document>'
+        )
+        source = _docx(source_xml)
+        converted = _docx(converted_xml)
+        patched = patcher.postprocess_writer_docx(converted, source_docx=source)
+        result_xml = _document_xml(patched)
+
+        self.assertIn('prst="line"', result_xml)
+        self.assertIn('<wp:extent cx="1868805" cy="0"/>', result_xml)
+
+    def test_postprocess_writer_docx_does_not_duplicate_existing_unnamed_lines(self):
+        patcher = main._ooxml_zip_patch()
+        source_xml = (
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+            'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+            'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+            'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">'
+            '<w:body>'
+            '<w:p><w:r><w:t>Tiêu đề</w:t></w:r>'
+            '<w:r><w:drawing><wp:anchor>'
+            '<wp:extent cx="5781675" cy="0"/>'
+            '<wp:docPr id="1" name=""/>'
+            '<a:graphic><a:graphicData>'
+            '<wps:wsp><wps:spPr><a:prstGeom prst="line"/></wps:spPr></wps:wsp>'
+            '</a:graphicData></a:graphic>'
+            '</wp:anchor></w:drawing></w:r></w:p>'
+            '</w:body></w:document>'
+        )
+        converted_xml = (
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+            'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+            'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            '<w:body>'
+            '<w:p><w:r><w:t>Tiêu đề</w:t></w:r>'
+            '<w:r><w:drawing><wp:anchor>'
+            '<wp:extent cx="5781675" cy="57150"/>'
+            '<wp:docPr id="1" name="Shape1"/>'
+            '<pic:pic><pic:blipFill/><pic:spPr/></pic:pic>'
+            '</wp:anchor></w:drawing></w:r></w:p>'
+            '</w:body></w:document>'
+        )
+        source = _docx(source_xml)
+        converted = _docx(converted_xml)
+        patched = patcher.postprocess_writer_docx(converted, source_docx=source)
+        result_xml = _document_xml(patched)
+
+        self.assertEqual(result_xml.count("<wp:anchor"), 1)
+        self.assertIn('prst="line"', result_xml)
+
 
 if __name__ == "__main__":
     unittest.main()
+
