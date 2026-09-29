@@ -21,6 +21,11 @@ __pycache__/
 *.pyc
 /vnoffice-config.json
 
+# VN Office release signing material (public trust is embedded in adapters/updater/trust.py).
+.vnoffice-release/
+signing-key.pem
+signing-key-*.pem
+
 # IDE & OS
 .vscode/
 .idea/

@@ -14,6 +14,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
+$versionPattern = '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
+if ($Version -notmatch $versionPattern) { throw "Version must use semantic x.y.z syntax: $Version" }
+$trustPath = Join-Path $repo "adapters\updater\trust.py"
+if (-not (Test-Path -LiteralPath $trustPath)) { throw "Missing embedded updater public key module: $trustPath" }
+$trustText = [System.IO.File]::ReadAllText($trustPath, [System.Text.Encoding]::ASCII)
+if ($trustText -notmatch 'PUBLIC_KEY_N_HEX\s*=\s*"[89a-f][0-9a-f]{767}"' -or $trustText -notmatch 'PUBLIC_KEY_E\s*=\s*65537') {
+    throw "Embedded RSA-3072 public key is not configured. Run scripts/release/make-update.py --keygen before building release packages."
+}
 $dist = Join-Path $OutDir "VNOffice-$Version"
 $appDir = Join-Path $dist "app"
 $pyOut = Join-Path $dist "python"
@@ -32,14 +40,16 @@ function Invoke-Robocopy([string]$Source, [string]$Target, [string[]]$Extra) {
 
 # 1. Application sources (runtime only).
 Write-Host "[1/5] App sources"
-foreach ($file in @("main.py", "index.html")) { Copy-Item -LiteralPath (Join-Path $repo $file) -Destination $appDir }
-# The packaged app must report the package version (error reports, Help), not the repo default.
-$mainPath = Join-Path $appDir "main.py"
-$mainText = [System.IO.File]::ReadAllText($mainPath, (New-Object System.Text.UTF8Encoding $false))
-$versionPattern = '(?m)^APP_VERSION = "[^"]*"'
-if ($mainText -notmatch $versionPattern) { throw "APP_VERSION line not found in main.py" }
-$mainText = [regex]::Replace($mainText, $versionPattern, "APP_VERSION = `"$Version`"")
-[System.IO.File]::WriteAllText($mainPath, $mainText, (New-Object System.Text.UTF8Encoding $false))
+# The packaged app must report the package version (error reports, Help, updater), not the repo default.
+$mainTarget = Join-Path $appDir "main.py"
+Copy-Item -LiteralPath (Join-Path $repo "main.py") -Destination $mainTarget
+$mainText = [System.IO.File]::ReadAllText($mainTarget, [System.Text.Encoding]::UTF8)
+$appVersionMatches = [System.Text.RegularExpressions.Regex]::Matches($mainText, '(?m)^APP_VERSION\s*=.*$')
+if ($appVersionMatches.Count -ne 1) { throw "Expected exactly one APP_VERSION assignment in main.py" }
+$versionRegex = New-Object System.Text.RegularExpressions.Regex('(?m)^APP_VERSION\s*=.*$')
+$mainText = $versionRegex.Replace($mainText, ('APP_VERSION = "' + $Version + '"'), 1)
+[System.IO.File]::WriteAllText($mainTarget, $mainText, (New-Object System.Text.UTF8Encoding($false)))
+Copy-Item -LiteralPath (Join-Path $repo "index.html") -Destination $appDir
 foreach ($dir in @("apps", "platform", "adapters", "branding")) {
     $source = Join-Path $repo $dir
     if (Test-Path -LiteralPath $source) {
@@ -110,6 +120,11 @@ foreach ($spec in $iconSpecs) {
     }
 }
 Set-Content -LiteralPath (Join-Path $dist "VERSION.txt") -Value $Version -Encoding ASCII
+$packagedVersion = (Get-Content -LiteralPath (Join-Path $dist "VERSION.txt") -Encoding ASCII -Raw).Trim()
+$packagedMain = [System.IO.File]::ReadAllText($mainTarget, [System.Text.Encoding]::UTF8)
+if ($packagedVersion -ne $Version -or $packagedMain -notmatch ('(?m)^APP_VERSION\s*=\s*"' + [regex]::Escape($Version) + '"\s*$')) {
+    throw "Packaged APP_VERSION and VERSION.txt do not match: $Version"
+}
 $commit = (& git -C $repo rev-parse --short HEAD).Trim()
 Set-Content -LiteralPath (Join-Path $dist "BUILD-INFO.txt") -Value "version=$Version`r`ncommit=$commit`r`nbuilt=$((Get-Date).ToString('yyyy-MM-dd HH:mm'))" -Encoding ASCII
 $notices = Join-Path $dist "THIRD-PARTY-NOTICES"
