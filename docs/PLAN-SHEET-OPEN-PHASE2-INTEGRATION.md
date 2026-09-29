@@ -6,7 +6,7 @@
 
 Add an opt-in path for opening `.xlsx` in VN Sheet that builds the model from a compact payload emitted during the existing final XF reoverlay pass. Keep the current complete FODS import as a recoverable fallback and preserve FODS-based save, export, and round-trip behavior. The launch flag is `SHEET_OPEN_PAYLOAD`; it must default to off. Do not change XLSX/FODS semantics or move LibreOffice implementation into UI code.
 
-The product target remains two consecutive LAN14 opens below 60 seconds from file selection to first visible grid data, with no round-trip differences. **That target has not been achieved or measured end to end.**
+The product target remains two consecutive LAN14 opens below 60 seconds from file selection to first visible grid data, with no round-trip differences. **It was measured and not achieved:** the two payload-mode LAN14 runs reached the first painted grid in 156.543 s and 158.172 s. Audit and test gate details are in the integration handoff.
 
 ## Current capability and evidence
 
