@@ -19,6 +19,7 @@
 node_modules/
 __pycache__/
 *.pyc
+/vnoffice-config.json
 
 # IDE & OS
 .vscode/

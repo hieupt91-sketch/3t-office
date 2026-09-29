@@ -84,7 +84,9 @@ function scanFile(filePath, relPath) {
   } else if (isJs) {
     contentNoComments = contentNoComments
       .replace(/\/\*[\s\S]*?\*\//g, (match) => " ".repeat(match.length))
-      .replace(/\/\/.*$/gm, (match) => " ".repeat(match.length));
+      // Line comments only: the `//` of "https://" must survive, otherwise every URL in JS
+      // code was erased before scanning and a CDN fetch() could never be caught.
+      .replace(/(^|[^:"'`\\])\/\/.*$/gm, (match, before) => before + " ".repeat(match.length - before.length));
   }
 
   // Also track a href in original content for context (allowed in help text)
