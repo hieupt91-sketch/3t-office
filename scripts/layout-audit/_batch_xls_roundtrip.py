@@ -2,6 +2,7 @@
 Legacy .xls (Excel 97-2003) round trip: open in the real app, Save As .xls, then let
 Excel 2016 COM compare every used cell (Value2 + Formula) of every sheet between the
 original and the saved file. Also checks the saved file is a real OLE2 .xls (D0 CF 11 E0).
+If Excel COM cannot open the original file, falls back to LibreOffice comparator.
 One file at a time; writes <out-dir>/_batch_xls_report.md."""
 import glob
 import json
@@ -65,6 +66,8 @@ compare_path = os.path.join(OUTDIR, "_compare_xls.ps1")
 with open(compare_path, "w", encoding="utf-8-sig") as handle:
     handle.write(COMPARE_PS)
 
+LIBRE_COMPARE = os.path.join(SP, "_xls_compare_libreoffice.py")
+
 rows = []
 for name in names:
     src = os.path.join(XLSDIR, name)
@@ -76,6 +79,7 @@ for name in names:
     saved = os.path.exists(out) and os.path.getsize(out) > 0
     magic = open(out, "rb").read(4).hex().upper() if saved else "-"
     result = {}
+    comparator = "excel"
     if saved:
         cmp = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", compare_path, "-A", src, "-B", out],
                              capture_output=True, text=True, timeout=1000)
@@ -84,11 +88,22 @@ for name in names:
             result = json.loads(line[7:])
         except ValueError:
             result = {"error": line[:120]}
+        # If Excel COM failed to open original (error contains "Open" or "detected a problem"), fall back to LibreOffice
+        if "error" in result and ("Open" in result["error"] or "detected a problem" in result["error"] or "0x800A03EC" in result["error"]):
+            print(f"  Excel COM failed for {name}: {result.get('error')}, falling back to LibreOffice...", flush=True)
+            cmp2 = subprocess.run([sys.executable, LIBRE_COMPARE, src, out],
+                                  capture_output=True, text=True, timeout=1000, cwd=ROOT, encoding="utf-8", errors="replace")
+            line2 = next((l for l in (cmp2.stdout or "").splitlines() if l.startswith("RESULT ")), "RESULT {}")
+            try:
+                result = json.loads(line2[7:])
+                comparator = "libreoffice"
+            except ValueError:
+                result = {"error": line2[:120]}
     rows.append((name, "yes" if saved else "NO", magic, result.get("sheets", "-"), result.get("cells", "-"),
-                 result.get("diff", "-"), (result.get("error") or "; ".join(result.get("examples") or []))[:300]))
-    print(name, "saved", saved, "magic", magic, "cells", result.get("cells"), "diff", result.get("diff"), result.get("error", ""), flush=True)
+                 result.get("diff", "-"), comparator, (result.get("error") or "; ".join(result.get("examples") or []))[:300]))
+    print(name, "saved", saved, "magic", magic, "cells", result.get("cells"), "diff", result.get("diff"), "comparator", comparator, result.get("error", ""), flush=True)
     with open(os.path.join(OUTDIR, "_batch_xls_report.md"), "w", encoding="utf-8") as handle:
-        handle.write("| file | saved | magic | sheets | cells | diff | examples |\n|---|---|---|---:|---:|---:|---|\n")
+        handle.write("| file | saved | magic | sheets | cells | diff | comparator | examples |\n|---|---|---|---:|---:|---:|---|---|\n")
         for row in rows:
             handle.write("| " + " | ".join(str(x) for x in row) + " |\n")
 print("report:", os.path.join(OUTDIR, "_batch_xls_report.md"))
