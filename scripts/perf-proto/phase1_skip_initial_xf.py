@@ -32,17 +32,19 @@ def timed(label, func, *args):
 
 
 def pipeline(src_path, xlsx_bytes, lo_fods, skip_initial_xf):
-    original = patcher._xlsx_cells_with_metadata
-    if skip_initial_xf:
-        def without_xf(data):
-            formats, strings, _xfs = original(data)
-            return formats, strings, {}
-        patcher._xlsx_cells_with_metadata = without_xf
+    # Keep A and B comparable. The app's workbook-index memo would otherwise
+    # make B reuse the XLSX XF index built by A's reoverlay stage.
+    patcher._INDEX_MEMO.clear()
+    previous_flag = os.environ.get("SHEET_OPEN_SKIP_INITIAL_XF")
+    os.environ["SHEET_OPEN_SKIP_INITIAL_XF"] = "1" if skip_initial_xf else "0"
     try:
         started = time.perf_counter()
         fods = timed("native import overlay", vnmain._apply_native_import_overlay, src_path, lo_fods, "sheet")
     finally:
-        patcher._xlsx_cells_with_metadata = original
+        if previous_flag is None:
+            os.environ.pop("SHEET_OPEN_SKIP_INITIAL_XF", None)
+        else:
+            os.environ["SHEET_OPEN_SKIP_INITIAL_XF"] = previous_flag
     fods = timed("optimize_fods_streaming", vnmain._optimize_fods_for_sheet, fods)
     fods = timed("reoverlay_sheet_xf_indices", patcher.reoverlay_sheet_xf_indices, xlsx_bytes, fods)
     print(f"  {'TOTAL after LibreOffice':34s} {time.perf_counter() - started:8.2f}s", flush=True)
