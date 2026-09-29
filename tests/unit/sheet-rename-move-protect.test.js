@@ -150,6 +150,9 @@ export async function runSheetRenameMoveProtectTests() {
   });
 
   await test("Bảo vệ trang tính chặn sửa ô và xóa hàng; bỏ bảo vệ mở lại", () => {
+    const originalDocument = globalThis.document;
+    globalThis.document = undefined;
+    try {
     const grid = new SheetGridController(container());
     grid.setCellValue("A", 1, "ok", false);
     assert(grid.protectSheet({ password: "secret" }) === true, "protectSheet");
@@ -162,6 +165,9 @@ export async function runSheetRenameMoveProtectTests() {
     assert(grid.unprotectSheet({ password: "secret" }) === true, "Đúng mật khẩu phải mở");
     assert(grid.setCellValue("A", 1, "free") !== false, "Sau bỏ bảo vệ được sửa ô");
     assert(grid.cellsData.get("A1").val === "free", "A1 phải thành free");
+    } finally {
+      globalThis.document = originalDocument;
+    }
   });
 
   await test("Adapter handleDispatch rename / move / protect", async () => {

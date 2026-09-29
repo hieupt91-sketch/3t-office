@@ -62,8 +62,6 @@ function patchDocument() {
   globalThis.document = doc;
   globalThis.MutationObserver = class { observe() {} disconnect() {} };
 }
-patchDocument();
-
 const FODS = `<?xml version="1.0" encoding="UTF-8"?>
 <office:document
   xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
@@ -102,6 +100,9 @@ const FODS = `<?xml version="1.0" encoding="UTF-8"?>
 </office:document>`;
 
 export async function runSheetLoadFodsBlankTests() {
+  const originalDocument = globalThis.document;
+  const originalMutationObserver = globalThis.MutationObserver;
+  patchDocument();
   const results = [];
   function test(name, fn) {
     try { fn(); results.push({ name, pass: true }); }
@@ -177,5 +178,7 @@ export async function runSheetLoadFodsBlankTests() {
     if (data.get("A1")?.val !== "San pham") throw new Error("cellsData trả sai Map");
   });
 
+  globalThis.document = originalDocument;
+  globalThis.MutationObserver = originalMutationObserver;
   return results;
 }

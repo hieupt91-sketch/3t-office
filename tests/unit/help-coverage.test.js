@@ -7,6 +7,7 @@ import { analyzeHelpCoverage } from "../../scripts/help-coverage.mjs";
 import { searchHelpEntries } from "../../platform/help/help-service.js";
 import { WRITER_HELP_ENTRIES } from "../../platform/help/entries-writer.js";
 import { SHEET_HELP_ENTRIES } from "../../platform/help/entries-sheet.js";
+import { AUTORECOVER_HELP_ENTRIES } from "../../platform/help/entries-autorecover.js";
 
 export async function runHelpCoverageTests() {
   const results = [];
@@ -120,6 +121,22 @@ export async function runHelpCoverageTests() {
     const sheetAi = searchHelpEntries("tóm tắt nhanh", { app: "sheet" });
     if (!sheetAi.some((e) => e.id === "sheet.ai.analysis")) {
       throw new Error("Không tìm thấy bài Trợ lý VN AI Sheet");
+    }
+  });
+
+  await test("Help Coverage: AutoRecover có hướng dẫn cụ thể cho cả Writer, Sheet và Slides", () => {
+    for (const app of ["writer", "sheet", "slides"]) {
+      const entry = AUTORECOVER_HELP_ENTRIES.find((candidate) => candidate.app === app);
+      if (!entry || entry.steps.length < 4 || !entry.summary.includes("AutoRecover")) {
+        throw new Error(`Thiếu hướng dẫn AutoRecover cụ thể cho VN ${app}.`);
+      }
+      if (!entry.steps.some((step) => step.includes("Trợ giúp")) || !entry.steps.some((step) => step.includes("Lưu"))) {
+        throw new Error(`Hướng dẫn AutoRecover của ${app} phải nêu vị trí UI và cách lưu bản phục hồi.`);
+      }
+      const result = searchHelpEntries("tự động khôi phục", { app });
+      if (!result.some((candidate) => candidate.id === entry.id)) {
+        throw new Error(`Không tìm thấy bài AutoRecover tiếng Việt cho ${app}.`);
+      }
     }
   });
 

@@ -275,6 +275,11 @@ export async function runSheetSlidesViewTabTests() {
 
   // 7. Slides Show/Hide: Rulers, Gridlines & Draggable Guides
   await test("VN Slides Show/Hide: Thước kẻ, Lưới căn chỉnh 20px và Đường gióng", () => {
+    // _renderRulers() needs a global document. This test used to pass only because an earlier
+    // Sheet suite leaked its fake document; provide our own and restore it afterwards.
+    const origDoc = globalThis.document;
+    if (!globalThis.document) globalThis.document = { body: { appendChild() {} }, createElement: () => ({ style: {}, classList: new Classes(), appendChild() {}, setAttribute() {}, addEventListener() {} }) };
+    try {
     const canvas = createMockSlidesCanvas();
     assert(!canvas.rulerVisible && !canvas.gridlinesVisible && !canvas.guidesVisible, "Mặc định phải tắt");
 
@@ -302,6 +307,9 @@ export async function runSheetSlidesViewTabTests() {
     assert(canvas.guidesLayer.innerHTML.includes("vno-slide-guide-tooltip"), "guidesLayer thiếu tooltip");
     canvas.toggleGuides();
     assert(canvas.guidesVisible === false && canvas.guidesLayer.style.display === "none", "toggleGuides không tắt");
+    } finally {
+      globalThis.document = origDoc;
+    }
   });
 
   // 8. Slides Zoom & Fit To Window

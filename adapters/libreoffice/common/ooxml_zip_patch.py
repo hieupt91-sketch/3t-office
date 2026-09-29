@@ -10825,15 +10825,51 @@ def _writer_reassign_docpr_id(block: str, occupied: set[int]) -> str:
     )
 
 
+def _writer_anchor_extent(anchor: str) -> tuple[int, int] | None:
+    match = re.search(r'<wp:extent\b[^>]*\bcx=["\'](\d+)["\'][^>]*\bcy=["\'](\d+)["\']', anchor, re.IGNORECASE)
+    if match:
+        return (int(match.group(1)), int(match.group(2)))
+    match = re.search(r'<wp:extent\b[^>]*\bcy=["\'](\d+)["\'][^>]*\bcx=["\'](\d+)["\']', anchor, re.IGNORECASE)
+    if match:
+        return (int(match.group(2)), int(match.group(1)))
+    return None
+
+
+def _writer_anchor_identifier(anchor: str) -> str | None:
+    name = _writer_anchor_name(anchor)
+    if name:
+        return name
+    match = re.search(r'<wp:docPr\b[^>]*\bid=["\'](\d+)', anchor, re.IGNORECASE)
+    if match:
+        return f"__unnamed_docpr_{match.group(1)}"
+    return None
+
+
 def _writer_should_restore_drawing(
     block: str, present: set[str], converted_drawings: list[str],
 ) -> bool:
     """True when this source drawing is absent and restoring it will not duplicate an edit."""
     name = _writer_anchor_name(block)
-    if not name or name in present:
-        return False
+    if name:
+        if name in present:
+            return False
+    else:
+        ident = _writer_anchor_identifier(block)
+        if ident and ident in present:
+            return False
     kind = _writer_anchor_passthrough_kind(block)
     if kind in {"shape", "group", "picture"}:
+        if not name:
+            b_ext = _writer_anchor_extent(block)
+            if b_ext:
+                b_cx, b_cy = b_ext
+                for other in converted_drawings:
+                    o_ext = _writer_anchor_extent(other)
+                    if o_ext and abs(o_ext[0] - b_cx) < 50000:
+                        if b_cy <= 100000 and o_ext[1] <= 100000:
+                            return False
+                        if abs(o_ext[1] - b_cy) < 50000:
+                            return False
         return True
     if not _writer_anchor_has_textbox(block):
         return False
@@ -10908,6 +10944,10 @@ def _restore_missing_writer_drawings(
             name = _writer_anchor_name(block)
             if name:
                 present.add(name)
+            else:
+                ident = _writer_anchor_identifier(block)
+                if ident:
+                    present.add(ident)
             missing_at.setdefault(index, []).append(block)
     if not missing_at:
         return converted_xml

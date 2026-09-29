@@ -1442,18 +1442,28 @@ export class SheetAdapter {
 
   _replaceFormulaSeparators(expression, from, to) {
     let inString = false;
+    // A quoted sheet name ('Mạng, camera'!G8) may contain the separator itself; replacing
+    // it there broke the reference and the saved workbook showed #VALUE! (legacy09.xls).
+    let inSheetName = false;
     let result = "";
     for (let index = 0; index < expression.length; index++) {
       const char = expression[index];
-      if (char === '"') {
+      if (char === '"' && !inSheetName) {
         if (inString && expression[index + 1] === '"') {
           result += '""';
           index++;
           continue;
         }
         inString = !inString;
+      } else if (char === "'" && !inString) {
+        if (inSheetName && expression[index + 1] === "'") {
+          result += "''";
+          index++;
+          continue;
+        }
+        inSheetName = !inSheetName;
       }
-      result += !inString && char === from ? to : char;
+      result += !inString && !inSheetName && char === from ? to : char;
     }
     return result;
   }
@@ -4858,6 +4868,17 @@ export class SheetAdapter {
         window.__vnoPerfReport?.("first layout", performance.now() - perfStart);
       }));
     }
+    return true;
+  }
+
+  /** Load the existing Save FODS serialization as a new, unsaved recovery copy. */
+  restoreFromAutoRecover(fodsText, manifest = {}) {
+    if (!this.loadFromFods(String(fodsText || ""))) return false;
+    const originalTitle = String(manifest.title || "Bảng tính 1.xlsx").split(/[\\/]/).filter(Boolean).pop().replace(/\.[^/.]+$/, "") || "Bảng tính";
+    this.sourceFilePath = "";
+    this.sourceFileName = `${originalTitle} (đã khôi phục)`;
+    this.isDirty = true;
+    this.shell?.resetDocumentChrome?.(`${this.sourceFileName}.xlsx`, null, false);
     return true;
   }
 

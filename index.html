@@ -4,17 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VN Office — Bộ Ứng Dụng Văn Phòng Việt</title>
+  <link rel="icon" id="vno-favicon" href="branding/icons/vnoffice.ico" type="image/x-icon">
   
   <!-- Phông chữ Tiếng Việt chuẩn quốc gia -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Đóng gói sẵn trong app (SIL OFL) để không cần mạng — ứng dụng desktop chạy offline -->
+  <link rel="stylesheet" href="platform/theme/fonts/fonts.css">
 
   <!-- Design System & Tokens -->
   <link rel="stylesheet" href="platform/theme/tokens.css">
   <link rel="stylesheet" href="platform/ui-kit/ui-kit.css">
   <link rel="stylesheet" href="platform/ribbon/ribbon.css">
   <link rel="stylesheet" href="platform/shell/shell.css">
+  <link rel="stylesheet" href="platform/error_reporting/error-reporting.css">
 
   <!-- Apps Specific Styles -->
   <link rel="stylesheet" href="apps/writer/writer.css">
@@ -33,6 +34,8 @@
     import { themeManager } from "./platform/theme/theme-manager.js";
     import { globalCommandBus } from "./platform/commands/command-bus.js";
     import { bootstrapPlatform, configurePlatformLaunchContext, resolveLaunchContext } from "./platform/bootstrap.js";
+    import { ErrorReportingUI } from "./platform/error_reporting/error-reporting-ui.js";
+    import { autoRecoverManager } from "./platform/autorecover/auto-recover.js";
 
     const mountEl = document.getElementById("vno-app-root");
     window.__vnoPerfDebug = new URLSearchParams(window.location.search).get("perfDebug") === "1";
@@ -43,10 +46,15 @@
     };
     let currentAppInstance = null;
     const launchContext = configurePlatformLaunchContext(resolveLaunchContext(window.location.search));
+    const errorReportingUI = new ErrorReportingUI().mount();
 
     async function switchApp(appType, options = {}) {
       if (launchContext.singleAppMode && appType !== launchContext.appKind) return false;
       themeManager.setApp(appType);
+      const faviconEl = document.getElementById("vno-favicon");
+      if (faviconEl) {
+        faviconEl.href = `branding/icons/${appType}.ico`;
+      }
 
       if (appType === "writer") {
         currentAppInstance = new WriterApp(mountEl);
@@ -57,6 +65,7 @@
       }
 
       await currentAppInstance.init({ ...options, singleApp: launchContext.singleAppMode });
+      await errorReportingUI.refresh();
       // Bộ đo (scripts/layout-audit/_create_new_*.py) điều khiển app thật qua handle này; không dùng trong code sản phẩm.
       window.__vnoAppInstance = currentAppInstance;
 
@@ -78,9 +87,11 @@
       templateId: "blank",
       openInitialFile: launchContext.openInitialFile
     });
+    await errorReportingUI.initialize();
     if (launchContext.openInitialFile) {
       await globalCommandBus.execute("common.file.open");
     }
+    await autoRecoverManager.showStartupRecovery();
   </script>
 </body>
 </html>

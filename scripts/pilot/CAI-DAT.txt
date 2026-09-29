@@ -1,0 +1,32 @@
+VN OFFICE - BAN DUNG THU NOI BO
+================================
+
+Day la ban dung thu. Muc dich: dung that hang ngay de tim loi truoc khi phat hanh chinh thuc.
+
+YEU CAU MAY
+- Windows 10 hoac 11, 64-bit, trong o dia con it nhat 4 GB.
+- Microsoft Edge WebView2 Runtime (thuong da co san tren Windows 10/11).
+- Khong can Internet de su dung. Khong can quyen quan tri (Administrator).
+
+CAI DAT
+1. Giai nen toan bo thu muc VNOffice-... ra may (vi du ra Desktop).
+2. Bam chuot phai vao tep install-pilot.ps1 > "Run with PowerShell".
+   (Hoac mo PowerShell trong thu muc do va chay:
+    powershell -ExecutionPolicy Bypass -File install-pilot.ps1 )
+3. Doi chep xong (vai phut). Tren Desktop va Start Menu se co:
+   VN Writer (soan van ban, thay Word), VN Sheet (bang tinh, thay Excel), VN Slides (trinh chieu).
+4. Sau khi cai xong co the xoa thu muc vua giai nen.
+
+Ban dung thu KHONG thay doi chuong trinh mo tep mac dinh: nhap dup tep .docx/.xlsx van mo bang Microsoft Office.
+Muon mo bang VN Office: mo VN Writer / VN Sheet roi dung Ctrl+O.
+
+LUU Y KHI DUNG THU
+- LUON GIU BAN GOC tai lieu quan trong. Nen dung "Luu thanh" (Ctrl+Shift+S) ra tep moi khi thu.
+- Tep Excel rat lon (hang chuc nghin dong, nhieu cong thuc) co the mo cham vai phut - day la loi da biet, dang toi uu.
+- Lan dau mo, ung dung se hoi co dong y gui BAO CAO LOI tu dong hay khong.
+  Bao cao chi gom thong tin ky thuat (loai loi, thao tac, phien ban). KHONG BAO GIO gui noi dung tai lieu hay ten tep.
+  Co the bat/tat lai trong tab Tro giup.
+- Gap loi hoac thay gi chua giong Word/Excel: vao tab Tro giup > "Bao loi / Gop y", mo ta ngan gon.
+
+GO CAI DAT
+Start Menu > VN Office > "Go cai dat VN Office".

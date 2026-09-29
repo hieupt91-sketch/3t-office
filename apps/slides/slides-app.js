@@ -11,6 +11,7 @@ import { applyLocaleToTabs } from "../../platform/i18n/i18n.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { HelpPanel } from "../../platform/help/index.js";
+import { autoRecoverManager } from "../../platform/autorecover/auto-recover.js";
 import "../../platform/help/entries-slides.js";
 
 export class SlidesApp {
@@ -50,6 +51,7 @@ export class SlidesApp {
     workspace.appendChild(studioWrap);
 
     this.canvasController = new SlidesCanvasController(studioWrap, {
+      onDocumentChange: () => { if (this.adapter) this.adapter.isDirty = true; },
       onChange: (current, total) => {
         this.shell.setStatus(`Trang chiếu ${current} / ${total}  |  Tỷ lệ 16:9 HD  |  Tiếng Việt`);
       }
@@ -78,6 +80,16 @@ export class SlidesApp {
     this.adapter.setShell(this.shell);
     this.adapter.attach();
 
+    await autoRecoverManager.register({
+      appKind: "slides",
+      adapter: this.adapter,
+      shell: this.shell,
+      helpPanel: this.helpPanel,
+      serialize: () => this.adapter.serializeToFodp(),
+      restore: (content, manifest) => this.adapter.restoreFromAutoRecover(content, manifest),
+      options
+    });
+
     this.shell.setStatus("Trang chiếu 1 / 3  |  Tỷ lệ 16:9 HD  |  Tiếng Việt  |  Sẵn sàng");
     console.log("[SlidesApp] Đã khởi tạo VN Slides chuẩn hóa cao cấp.");
   }
@@ -92,6 +104,7 @@ export class SlidesApp {
   }
 
   destroy() {
+    autoRecoverManager.detach(this.adapter);
     this._lifecycleObserver?.disconnect();
     this._lifecycleObserver = null;
     this.helpPanel?.destroy();

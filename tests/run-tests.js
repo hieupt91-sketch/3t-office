@@ -180,6 +180,9 @@ import { runWriterDocFontSpacingTests } from "./unit/writer-doc-font-spacing.tes
 import { runWriterLegacyKeepNextTests } from "./unit/writer-legacy-keep-next.test.js";
 import { runSheetDateValuesTests } from "./unit/sheet-date-values.test.js";
 import { runNotificationBarTests } from "./unit/notification-bar.test.js";
+import { runOfflineResourcesTests } from "./unit/offline-resources.test.js";
+import { runErrorReportingTests } from "./unit/error-reporting.test.js";
+import { runAutoRecoverTests } from "./unit/autorecover.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -189,6 +192,8 @@ async function runAll() {
   let total = 0;
   let passed = 0;
   let failed = 0;
+  const originalDocument = globalThis.document;
+  const originalMutationObserver = globalThis.MutationObserver;
 
   const suites = [
     { title: "1. Unit Tests — Command Bus", runner: runCommandBusTests },
@@ -201,6 +206,7 @@ async function runAll() {
     { title: "5. Unit Tests — Vietnamese i18n Localization Layer", runner: runI18nTests },
     { title: "6. Smoke Tests — Suite & Vietnamese Unicode", runner: runSuiteSmokeTests },
     { title: "7. Syntax & Codebase Integrity — node --check", runner: runSyntaxCheckTests },
+    { title: "7b. Regression Guard — Offline Resources (no external CDN runtime loads)", runner: runOfflineResourcesTests },
     { title: "8. Smoke Tests — Application Entrypoints & index.html Runtime", runner: runHtmlSmokeTests },
     { title: "9. Unit Tests — AI Service Provider Orchestration", runner: runAiServiceTests },
     { title: "9b. Unit Tests — AI API Key Manager", runner: runApiKeyManagerTests },
@@ -367,7 +373,9 @@ async function runAll() {
     { title: "153. Unit Tests — Writer doc font / line spacing (Word multiple x font ratio, anchor <br>, imported class)", runner: runWriterDocFontSpacingTests },
     { title: "154. Unit Tests — Sheet date/time cell values (office:date-value round trip)", runner: runSheetDateValuesTests },
     { title: "155. Unit Tests — UI Kit Notification Bar & WCAG AA Color Contrast", runner: runNotificationBarTests },
-    { title: "156. Unit Tests — Writer legacy DOC keepNext import and pagination", runner: runWriterLegacyKeepNextTests }
+    { title: "156. Unit Tests — Writer legacy DOC keepNext import and pagination", runner: runWriterLegacyKeepNextTests },
+    { title: "157. Unit Tests — Shared error reporting hooks, consent and feedback dialogs", runner: runErrorReportingTests },
+    { title: "158. Unit Tests — Shared AutoRecover dirty tracking, timer, and recovery dialog behavior", runner: runAutoRecoverTests }
   ];
 
   for (const suite of suites) {
@@ -390,6 +398,9 @@ async function runAll() {
     } catch (err) {
       console.error(`  [ERROR] Lỗi không mong muốn trong suite:`, err);
       failed++;
+    } finally {
+      globalThis.document = originalDocument;
+      globalThis.MutationObserver = originalMutationObserver;
     }
   }
 

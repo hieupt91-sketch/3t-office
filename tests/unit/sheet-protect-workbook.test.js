@@ -22,6 +22,8 @@ function flatten(items) {
 }
 
 export async function runSheetProtectWorkbookTests() {
+  const originalDocument = globalThis.document;
+  globalThis.document = undefined;
   const results = [];
   const test = async (name, callback) => {
     try { await callback(); results.push({ name, pass: true }); }
@@ -115,5 +117,6 @@ export async function runSheetProtectWorkbookTests() {
     assert(grid.renameSheet(first, "DispatchWb") === "DispatchWb", "Sau unprotect được đổi tên");
   });
 
+  globalThis.document = originalDocument;
   return results;
 }

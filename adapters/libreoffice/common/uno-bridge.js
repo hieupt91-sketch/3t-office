@@ -158,6 +158,42 @@ export class UnoBridge {
     return await this.desktopApi.export_pdf_dialog(content, appKind, suggestedName);
   }
 
+  // AutoRecover is a local app-data service and does not require the LibreOffice engine.
+  async getAutoRecoverSettings() {
+    if (!this.desktopApi) return { enabled: true, interval_minutes: 5 };
+    return await this.desktopApi.get_autorecover_settings();
+  }
+
+  async setAutoRecoverSettings(settings) {
+    if (!this.desktopApi) return { enabled: true, interval_minutes: 5 };
+    return await this.desktopApi.set_autorecover_settings(settings);
+  }
+
+  async listAutoRecoverSnapshots() {
+    if (!this.desktopApi) return [];
+    return await this.desktopApi.list_autorecover_snapshots();
+  }
+
+  async readAutoRecoverSnapshot(snapshotId) {
+    if (!this.desktopApi) return { status: "error", message: "AutoRecover chỉ khả dụng trong VN Office Desktop." };
+    return await this.desktopApi.read_autorecover_snapshot(snapshotId);
+  }
+
+  async writeAutoRecoverSnapshot({ docId, appKind, content, originalPath = "", title = "", format }) {
+    if (!this.desktopApi) return { status: "error", message: "AutoRecover chỉ khả dụng trong VN Office Desktop." };
+    return await this.desktopApi.write_autorecover_snapshot(docId, appKind, content, originalPath, title, format);
+  }
+
+  async deleteAutoRecoverSnapshot(snapshotId) {
+    if (!this.desktopApi) return false;
+    return await this.desktopApi.delete_autorecover_snapshot(snapshotId);
+  }
+
+  async deleteAutoRecoverDocument(docId) {
+    if (!this.desktopApi) return false;
+    return await this.desktopApi.delete_autorecover_document(docId);
+  }
+
   /**
    * Tự động gắn tất cả các lệnh đã ánh xạ từ Command Bus sang Dispatch Handler
    */

@@ -15,6 +15,7 @@ import { LocalAiService } from "../../platform/ai/ai-service.js";
 import { showAlertDialog, showPromptDialog } from "../../platform/ui-kit/dialogs.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { FUNCTION_CATALOG } from "./formula-engine.js";
+import { autoRecoverManager } from "../../platform/autorecover/auto-recover.js";
 import "../../platform/help/entries-sheet.js";
 
 export class SheetApp {
@@ -53,6 +54,7 @@ export class SheetApp {
     workspace.appendChild(gridWrap);
 
     this.grid = new SheetGridController(gridWrap, {
+      onDocumentChange: () => { if (this.adapter) this.adapter.isDirty = true; },
       onSelect: (coord, data, stats) => {
         this.shell.setStatus(`SẴN SÀNG  |  Ô: ${coord}  |  ĐẾM: ${stats.count}  |  TRUNG BÌNH: ${stats.avg}  |  TỔNG CỘNG: ${stats.sum}`);
       },
@@ -91,6 +93,20 @@ export class SheetApp {
     this.adapter.setShell(this.shell);
     this.adapter.attach();
 
+    await autoRecoverManager.register({
+      appKind: "sheet",
+      adapter: this.adapter,
+      shell: this.shell,
+      helpPanel: this.helpPanel,
+      serialize: () => this.adapter.serializeToFods(),
+      restore: (content, manifest) => {
+        const restored = this.adapter.restoreFromAutoRecover(content, manifest);
+        if (restored) this.grid.updateStatus();
+        return restored;
+      },
+      options
+    });
+
     this.grid.updateStatus();
     console.log("[SheetApp] Đã khởi tạo VN Sheet chuẩn hóa cao cấp.");
   }
@@ -105,6 +121,7 @@ export class SheetApp {
   }
 
   destroy() {
+    autoRecoverManager.detach(this.adapter);
     this._lifecycleObserver?.disconnect();
     this._lifecycleObserver = null;
     this.helpPanel?.destroy();
