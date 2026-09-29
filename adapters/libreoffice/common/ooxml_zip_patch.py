@@ -11563,8 +11563,8 @@ def prepare_writer_docx_for_legacy_doc_export(docx_bytes: bytes) -> bytes:
                             # Already has wrapText — leave untouched
                             if re.search(r'\bwrapText\s*=', tag_full, re.IGNORECASE):
                                 return tag_full
-                            # Insert wrapText="bothSides" before the closing /> or >
-                            return re.sub(r'\s*/?>$', ' wrapText="bothSides"/>', tag_full.rstrip())
+                            # Insert wrapText="bothSides" preserving original tag closing style (/> vs >)
+                            return re.sub(r'\s*(/?>)$', r' wrapText="bothSides"\1', tag_full.rstrip())
                         text = re.sub(
                             r'<wp:(wrapSquare|wrapTight|wrapThrough)\b[^>]*(?:/>|>)',
                             _add_default_wrap_text,

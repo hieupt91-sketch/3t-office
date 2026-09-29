@@ -111,6 +111,31 @@ class WriterLegacyDocSaveTests(unittest.TestCase):
         self.assertIn('wrapText="right"', output_xml)
         self.assertNotIn('wrapText="bothSides"', output_xml)
 
+    def test_prepare_writer_docx_preserves_non_self_closing_wrap_tight_with_polygon(self):
+        """W-docwrap: wp:wrapTight without wrapText and with child wp:wrapPolygon must preserve open/close tags."""
+        import xml.etree.ElementTree as ET
+        patcher = main._ooxml_zip_patch()
+        doc_xml = (
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+            'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">'
+            "<w:body><w:p><w:r><w:drawing><wp:anchor>"
+            '<wp:wrapTight distT="0" distB="0">'
+            '<wp:wrapPolygon edited="0"><wp:start x="0" y="0"/><wp:lineTo x="100" y="100"/></wp:wrapPolygon>'
+            '</wp:wrapTight>'
+            "<wp:docPr id=\"1\" name=\"Image 1\"/>"
+            "</wp:anchor></w:drawing></w:r></w:p></w:body></w:document>"
+        )
+        input_docx = _docx(doc_xml)
+        prepared_docx = patcher.prepare_writer_docx_for_legacy_doc_export(input_docx)
+        output_xml = _document_xml(prepared_docx)
+
+        # document.xml must be valid XML parseable by xml.etree
+        root = ET.fromstring(output_xml)
+        self.assertIsNotNone(root)
+        self.assertIn('wrapText="bothSides"', output_xml)
+        self.assertIn("<wp:wrapPolygon", output_xml)
+        self.assertIn("</wp:wrapTight>", output_xml)
+
 
     def test_prepare_writer_docx_for_legacy_doc_export_flattens_alternate_content(self):
         patcher = main._ooxml_zip_patch()
