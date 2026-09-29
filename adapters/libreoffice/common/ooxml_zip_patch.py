@@ -8411,11 +8411,20 @@ def _writer_anchor_properties(document_xml: str) -> list[dict[str, str]]:
     props: list[dict[str, str]] = []
     for match in re.finditer(r"<wp:anchor\b([^>]*)>([\s\S]*?)</wp:anchor\s*>", document_xml, re.IGNORECASE):
         attrs, body = match.group(1), match.group(2)
+        wrap_match = re.search(
+            r"<wp:(wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b([^>]*)",
+            body,
+            re.IGNORECASE,
+        )
+        wrap_type = wrap_match.group(1) if wrap_match else "wrapNone"
+        wrap_raw_attrs = wrap_match.group(2) if wrap_match else ""
+        wrap_attrs = re.sub(r"/+$", "", wrap_raw_attrs).strip()
         props.append({
             "behind": "1" if re.search(r'\bbehindDoc=["\'](?:1|true)["\']', attrs, re.IGNORECASE) else "0",
             "horizontal": (re.search(r'<wp:positionH\b[^>]*relativeFrom=["\']([^"\']+)', body, re.IGNORECASE) or [None, "paragraph"])[1],
             "vertical": (re.search(r'<wp:positionV\b[^>]*relativeFrom=["\']([^"\']+)', body, re.IGNORECASE) or [None, "paragraph"])[1],
-            "wrap": (re.search(r'<wp:(wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b', body, re.IGNORECASE) or [None, "wrapNone"])[1],
+            "wrap": wrap_type,
+            "wrap_attrs": wrap_attrs,
         })
     return props
 
@@ -8446,7 +8455,13 @@ def _restore_writer_anchor_properties(converted_xml: str, original_xml: str) -> 
             attrs = re.sub(r'\bbehindDoc=["\'][^"\']*["\']', f'behindDoc="{props["behind"]}"', attrs, count=1, flags=re.IGNORECASE)
         else:
             attrs += f' behindDoc="{props["behind"]}"'
-        body = re.sub(r'<wp:(?:wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b[^>]*(?:/>|>[\s\S]*?</wp:(?:wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\s*>)', f'<wp:{props["wrap"]}/>', body, count=1, flags=re.IGNORECASE)
+        wrap_tag = props["wrap"]
+        wrap_attrs = props.get("wrap_attrs", "")
+        if wrap_attrs:
+            wrap_elem = f'<wp:{wrap_tag} {wrap_attrs}/>'
+        else:
+            wrap_elem = f'<wp:{wrap_tag}/>'
+        body = re.sub(r'<wp:(?:wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\b[^>]*(?:/>|>[\s\S]*?</wp:(?:wrapNone|wrapSquare|wrapTopAndBottom|wrapTight|wrapThrough)\s*>)', wrap_elem, body, count=1, flags=re.IGNORECASE)
         return f"<wp:anchor{attrs}>{body}</wp:anchor>"
 
     return re.sub(r"<wp:anchor\b([^>]*)>([\s\S]*?)</wp:anchor\s*>", restore, converted_xml, flags=re.IGNORECASE)
@@ -11536,6 +11551,25 @@ def prepare_writer_docx_for_legacy_doc_export(docx_bytes: bytes) -> bytes:
                             r"<w:drawing\b[\s\S]*?</w:drawing>",
                             lambda m: _convert_wps_drawing_to_vml(m.group(0)),
                             text,
+                        )
+                    # W-docwrap: Normalize bare <wp:wrapSquare/> (no wrapText attr).
+                    # LibreOffice MS Word 97 filter falls back to TopBottom when wrapText is absent.
+                    # Per OOXML spec §20.4.2.17, default wrapText is "bothSides"; add it explicitly so
+                    # the filter writes the correct WW8 Escher record for Square wrap.
+                    # Same applies to wrapTight and wrapThrough which also use wrapText.
+                    if "<wp:wrapSquare" in text or "<wp:wrapTight" in text or "<wp:wrapThrough" in text:
+                        def _add_default_wrap_text(m: re.Match) -> str:
+                            tag_full = m.group(0)
+                            # Already has wrapText — leave untouched
+                            if re.search(r'\bwrapText\s*=', tag_full, re.IGNORECASE):
+                                return tag_full
+                            # Insert wrapText="bothSides" before the closing /> or >
+                            return re.sub(r'\s*/?>$', ' wrapText="bothSides"/>', tag_full.rstrip())
+                        text = re.sub(
+                            r'<wp:(wrapSquare|wrapTight|wrapThrough)\b[^>]*(?:/>|>)',
+                            _add_default_wrap_text,
+                            text,
+                            flags=re.IGNORECASE,
                         )
                     if "<v:rect" in text or "<v:shape" in text or "<v:textbox" in text:
                         if 'xmlns:v="urn:schemas-microsoft-com:vml"' not in text:
