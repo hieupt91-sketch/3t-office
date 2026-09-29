@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VN Office — Bộ Ứng Dụng Văn Phòng Việt</title>
+  <link rel="icon" id="vno-favicon" href="branding/icons/vnoffice.ico" type="image/x-icon">
   
   <!-- Phông chữ Tiếng Việt chuẩn quốc gia -->
   <!-- Đóng gói sẵn trong app (SIL OFL) để không cần mạng — ứng dụng desktop chạy offline -->
@@ -50,6 +51,10 @@
     async function switchApp(appType, options = {}) {
       if (launchContext.singleAppMode && appType !== launchContext.appKind) return false;
       themeManager.setApp(appType);
+      const faviconEl = document.getElementById("vno-favicon");
+      if (faviconEl) {
+        faviconEl.href = `branding/icons/${appType}.ico`;
+      }
 
       if (appType === "writer") {
         currentAppInstance = new WriterApp(mountEl);

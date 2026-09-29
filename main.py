@@ -61,6 +61,7 @@ _STATIC_MIME_OVERRIDES = {
     ".gif": "image/gif",
     ".html": "text/html; charset=UTF-8",
     ".htm": "text/html; charset=UTF-8",
+    ".ico": "image/x-icon",
 }
 
 _DEFAULT_STATIC_PORT = 8080
@@ -1674,8 +1675,26 @@ def main(argv: list[str] | None = None):
     window.events.closing += on_closing
     window.events.closed += on_closing
 
+    # Set Windows AppUserModelID so the taskbar groups and shows the app's specific icon
+    if platform.system() == "Windows":
+        try:
+            import ctypes
+            aumid = f"VNOffice.{app_kind.capitalize() if app_kind in VALID_APP_KINDS else 'Suite'}"
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(aumid)
+        except Exception:
+            pass
+
+    icon_name = f"{app_kind}.ico" if app_kind in VALID_APP_KINDS else "vnoffice.ico"
+    icon_path = os.path.join(ROOT_DIR, "branding", "icons", icon_name)
+    if not os.path.isfile(icon_path):
+        icon_path = os.path.join(ROOT_DIR, "branding", "icons", "vnoffice.ico")
+    app_icon = icon_path if os.path.isfile(icon_path) else None
+
     try:
-        webview.start(debug=os.environ.get("VNO_PERF_DEBUG") == "1")
+        webview.start(
+            debug=os.environ.get("VNO_PERF_DEBUG") == "1",
+            icon=app_icon,
+        )
     except SystemExit:
         pass
     except Exception as exc:
