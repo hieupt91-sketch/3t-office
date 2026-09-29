@@ -22,5 +22,25 @@ export async function runSheetFormulaOdfTests() {
     adapter._formulaFromOdf("of:=SUM([$'Mạng, camera'.G8:.G11];1)"), "=SUM('Mạng, camera'!G8:G11,1)");
   // Not covered yet: sheet names containing an escaped quote ('O''Brien'!A1) — the reference
   // regex in _formulaToOdf matches '[^']+' only (pre-existing limitation, tracked separately).
+
+  // Sheet names with doubled apostrophe (escaped quote) — Excel writes 'O''Brien'!A1
+  check("Tên sheet có dấu nháy kép (escaped) đơn lẻ ô — _formulaToOdf",
+    adapter._formulaToOdf("='O''Brien'!A1"), "of:=[$'O''Brien'.A1]");
+  check("Tên sheet có dấu nháy kép (escaped) vùng ô — _formulaToOdf",
+    adapter._formulaToOdf("='O''Brien'!A1:B2"), "of:=[$'O''Brien'.A1:$'O''Brien'.B2]");
+  check("Tên sheet có dấu nháy kép (escaped) toàn cột — _formulaToOdf",
+    adapter._formulaToOdf("=SUM('O''Brien'!\$A:\$C)"), "of:=SUM([$'O''Brien'.$A\$1:$'O''Brien'.$C\$1048576])");
+  check("Tên sheet có dấu nháy kép (escaped) khứ hồi đơn lẻ ô",
+    adapter._formulaFromOdf(adapter._formulaToOdf("='O''Brien'!A1")), "='O''Brien'!A1");
+  check("Tên sheet có dấu nháy kép (escaped) khứ hồi vùng ô",
+    adapter._formulaFromOdf(adapter._formulaToOdf("='O''Brien'!A1:B2")), "='O''Brien'!A1:B2");
+  check("Tên sheet có dấu nháy kép (escaped) khứ hồi toàn cột",
+    adapter._formulaFromOdf(adapter._formulaToOdf("=SUM('O''Brien'!\$A:\$C)")), "=SUM('O''Brien'!\$A:\$C)");
+  // Sheet name with apostrophe AND comma
+  check("Tên sheet có dấu nháy kép VÀ dấu phẩy — _formulaToOdf",
+    adapter._formulaToOdf("=SUM('Mạng, O''Brien'!G8:G11,1)"), "of:=SUM([$'Mạng, O''Brien'.G8:$'Mạng, O''Brien'.G11];1)");
+  check("Tên sheet có dấu nháy kép VÀ dấu phẩy — khứ hồi",
+    adapter._formulaFromOdf("of:=SUM([$'Mạng, O''Brien'.G8:.G11];1)"), "=SUM('Mạng, O''Brien'!G8:G11,1)");
+
   return results;
 }

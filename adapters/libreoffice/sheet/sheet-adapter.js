@@ -1365,7 +1365,7 @@ export class SheetAdapter {
         return `${before}__VNO_REF_${references.length - 1}__`;
       })
     )).join("");
-    expression = expression.replace(/((?:'[^']+'|[A-Za-z0-9_À-ỹ ]+)!)?(\$?[A-Z]+\$?\d+):(\$?[A-Z]+\$?\d+)/g, (_, sheet, start, end) => {
+    expression = expression.replace(/((?:'(?:[^']|'')+'|[A-Za-z0-9_À-ỹ ]+)!)?(\$?[A-Z]+\$?\d+):(\$?[A-Z]+\$?\d+)/g, (_, sheet, start, end) => {
       const prefix = sheet ? `$${sheet.slice(0, -1)}.` : ".";
       references.push(`[${prefix}${start}:${prefix}${end}]`);
       return `__VNO_REF_${references.length - 1}__`;
@@ -1374,12 +1374,12 @@ export class SheetAdapter {
     // reference, LibreOffice writes rows 1..1048576. Left as Excel syntax the
     // sheet part became `'giá cost1' $A:$C` in the saved XLSX and Excel refused
     // to open the workbook (measured on xét lương công ty.xlsx).
-    expression = expression.replace(/((?:'[^']+'|[A-Za-z0-9_À-ỹ ]+)!)?(?<![A-Za-z0-9_.\]])(\$?)([A-Z]{1,3}):(\$?)([A-Z]{1,3})(?![A-Za-z0-9_(])/g, (_, sheet, startAbs, startCol, endAbs, endCol) => {
+    expression = expression.replace(/((?:'(?:[^']|'')+'|[A-Za-z0-9_À-ỹ ]+)!)?(?<![A-Za-z0-9_.\]])(\$?)([A-Z]{1,3}):(\$?)([A-Z]{1,3})(?![A-Za-z0-9_(])/g, (_, sheet, startAbs, startCol, endAbs, endCol) => {
       const prefix = sheet ? `$${sheet.slice(0, -1)}.` : ".";
       references.push(`[${prefix}${startAbs}${startCol}$1:${prefix}${endAbs}${endCol}$1048576]`);
       return `__VNO_REF_${references.length - 1}__`;
     });
-    expression = expression.replace(/((?:'[^']+'|[A-Za-z0-9_À-ỹ ]+)!)?(\$?[A-Z]+\$?\d+)/g, (_, sheet, cell) => {
+    expression = expression.replace(/((?:'(?:[^']|'')+'|[A-Za-z0-9_À-ỹ ]+)!)?(\$?[A-Z]+\$?\d+)/g, (_, sheet, cell) => {
       const prefix = sheet ? `$${sheet.slice(0, -1)}.` : ".";
       references.push(`[${prefix}${cell}]`);
       return `__VNO_REF_${references.length - 1}__`;
@@ -1391,7 +1391,7 @@ export class SheetAdapter {
 
   /** True when a LibreOffice formula references another workbook ('file:///…/B.xlsx'#$Sheet1.A1). */
   _isExternalOdfFormula(formula) {
-    return /\[\s*'[^']*'#\$/.test(String(formula || ""));
+    return /\[\s*'(?:[^']|'')*'#\$/.test(String(formula || ""));
   }
 
   /**
@@ -1400,7 +1400,7 @@ export class SheetAdapter {
    * is what Excel shows while the source workbook is closed.
    */
   _externalReferenceToExcel(reference) {
-    const match = String(reference).match(/^'([^']*)'#\$((?:'[^']+'|[^.]+))\.(.+)$/);
+    const match = String(reference).match(/^'([^']*)'#\$((?:'(?:[^']|'')+'|[^.]+))\.(.+)$/);
     if (!match) return null;
     const fileName = decodeURIComponent(match[1].split(/[\\/]/).pop() || match[1]);
     const sheet = match[2].replace(/^'(.*)'$/, "$1").replace(/''/g, "'");
@@ -1416,7 +1416,7 @@ export class SheetAdapter {
     // External workbook references contain "file:///E:" — resolve them before the
     // generic ':' split below, which would cut the path apart.
     const externals = [];
-    expression = expression.replace(/\[\s*('[^']*'#\$[^\]]+)\]/g, (all, reference) => {
+    expression = expression.replace(/\[\s*('(?:[^']|'')*'#\$[^\]]+)\]/g, (all, reference) => {
       const excel = this._externalReferenceToExcel(reference);
       if (!excel) return all;
       externals.push(excel);
@@ -1424,17 +1424,40 @@ export class SheetAdapter {
     });
     expression = expression.replace(/\[([^\]]+)\]/g, (_, reference) => {
       const parts = reference.split(":").map(part => {
-        if (part.startsWith(".")) return part.slice(1);
-        const match = part.match(/^\$((?:'[^']+'|[^.]+))\.(.+)$/);
-        return match ? `${match[1]}!${match[2]}` : part;
+        if (part.startsWith(".")) {
+          // Same-sheet reference (no sheet prefix in ODF): .A$1 -> { sheet: "", cell: "A$1" }
+          return { sheet: "", cell: part.slice(1) };
+        }
+        const match = part.match(/^\$((?:'(?:[^']|'')+'|[^.]+))\.(.+)$/);
+        return match ? { sheet: match[1], cell: match[2] } : part;
       });
-      // Rows 1..1048576 is how LibreOffice spells an Excel whole-column range.
-      if (parts.length === 2) {
-        const first = parts[0].match(/^((?:'[^']+'|[^!]+)!)?(\$?[A-Z]{1,3})\$?1$/);
-        const second = parts[1].match(/^((?:'[^']+'|[^!]+)!)?(\$?[A-Z]{1,3})\$?1048576$/);
-        if (first && second) return `${first[1] || ""}${first[2]}:${second[2]}`;
+      // Single part (single cell reference)
+      if (parts.length === 1) {
+        const p = parts[0];
+        return typeof p === "object" ? (p.sheet ? `${p.sheet}!${p.cell}` : p.cell) : p;
       }
-      return parts.join(":");
+      // Two parts (range reference)
+      if (parts.length === 2 && typeof parts[0] === "object" && typeof parts[1] === "object") {
+        const first = parts[0];
+        const second = parts[1];
+        // Handle ODF same-sheet range where second part uses "." prefix (empty sheet)
+        const sameSheet = first.sheet === second.sheet || (first.sheet && second.sheet === "");
+        // Whole-column range: A$1:C$1048576
+        const firstCol = first.cell.match(/^(\$?[A-Z]{1,3})\$?1$/);
+        const secondCol = second.cell.match(/^(\$?[A-Z]{1,3})\$?1048576$/);
+        if (firstCol && secondCol) {
+          const prefix = sameSheet && first.sheet ? `${first.sheet}!` : "";
+          return `${prefix}${firstCol[1]}:${secondCol[1]}`;
+        }
+        // Regular range on same sheet: collapse sheet prefix
+        if (sameSheet) {
+          const prefix = first.sheet ? `${first.sheet}!` : "";
+          return `${prefix}${first.cell}:${second.cell}`;
+        }
+        return `${first.sheet || ""}!${first.cell}:${second.sheet || ""}!${second.cell}`;
+      }
+      // Fallback
+      return parts.map(p => typeof p === "object" ? `${p.sheet || ""}!${p.cell}` : p).join(":");
     });
     expression = expression.replace(/__VNO_EXT_(\d+)__/g, (_, index) => externals[Number(index)]);
     return this._replaceFormulaSeparators(expression, ";", ",");
