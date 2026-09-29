@@ -661,7 +661,11 @@ def _apply_native_import_overlay(src_path: str, fods: str, app_kind: str | None)
         try:
             with open(src_path, "rb") as handle:
                 original = handle.read()
-            return _ooxml_zip_patch().overlay_sheet_xlsx_fods(original, fods)
+            return _ooxml_zip_patch().overlay_sheet_xlsx_fods(
+                original,
+                fods,
+                skip_initial_xf=_sheet_open_skip_initial_xf_enabled(),
+            )
         except Exception:
             return fods
     if app_kind == "slides":
@@ -680,6 +684,15 @@ def _apply_native_import_overlay(src_path: str, fods: str, app_kind: str | None)
                 f"Không khôi phục được thuộc tính native PPTX (logo / Sections / Set Up Show) từ PPTX gốc: {exc}"
             ) from exc
     return fods
+
+
+def _sheet_open_skip_initial_xf_enabled() -> bool:
+    """Return the explicit opt-in for skipping the redundant first XF overlay.
+
+    The default remains off until the phase-1 fidelity and regression gates pass.
+    """
+    value = os.environ.get("SHEET_OPEN_SKIP_INITIAL_XF", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
 
 
 def _optimize_fods_for_sheet(fods_xml: str) -> str:
