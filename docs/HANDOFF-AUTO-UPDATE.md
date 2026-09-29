@@ -65,7 +65,7 @@ FILES CHANGED: `.gitignore`; `adapters/updater/**`; `main.py`; `vnoffice-config.
 COMMANDS RUN:
 - `python scripts/release/make-update.py --keygen` — generated RSA-3072 key outside repository and embedded its public key.
 - `node tests/run-tests.js` — final full suite.
-- `python -m unittest discover -s tests -v` — final full suite.
+- `python -m unittest discover -s tests` — exact required command, final full suite. `python -m unittest discover -s tests -v` was also run as an additional full-suite pass.
 - `python -m compileall -q main.py adapters/updater scripts/release/make-update.py tests/test_updater.py` — passed before the final helper process-filter adjustment; the final full unittest run imported and exercised the adjusted updater/helper.
 - Focused PowerShell helper test — passed after the final process-filter adjustment.
 - `git diff --check` — no whitespace errors; Git emitted only expected LF-to-CRLF working-copy warnings.
@@ -74,7 +74,7 @@ COMMANDS RUN:
 BUILD RESULT: NOT RUN — the real bundled Python + LibreOffice production package from `scripts/build-pilot.ps1` (approximately 1.6 GB) was not built. PASS — fake-runtime build smoke for version `0.9.77`, including version consistency.
 TEST RESULTS:
 - PASS — `node tests/run-tests.js`: `KẾT QUẢ KIỂM THỬ: 2037/2037 PASS | 0 FAIL`; exit code 0. Includes Help coverage and notification/update UI tests.
-- PASS — `python -m unittest discover -s tests -v`: `Ran 430 tests in 287.920s`; `OK`; exit code 0. No full-suite failures, so no isolated rerun was needed for soffice tests.
+- PASS — `python -m unittest discover -s tests`: `Ran 430 tests in 283.343s`; `OK`; exit code 0. No full-suite failures, so no isolated rerun was needed for soffice tests. An additional verbose full run also passed: `Ran 430 tests in 287.920s`; `OK`.
 - PASS — fake release/update E2E: `0.9.1 apply=OK health_marker=OK relaunch=OK`; `0.9.2 crash=detected rollback=OK relaunch_old=OK`; `tampered_manifest=refused blobs_downloaded=0`.
 - PASS — E2E delta measured `downloaded_bytes=48` from `package_bytes=12224` for the 0.9.1 test package.
 - PASS — Python signature tests cover valid signature, tampered manifest, wrong key, and truncated signature; updater tests also cover delta, staging/resume, downgrade refusal, unreachable source, UNC-like paths, and apply/rollback using a temporary fake install.
