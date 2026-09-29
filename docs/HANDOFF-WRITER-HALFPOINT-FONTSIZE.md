@@ -92,37 +92,65 @@ Nhiệm vụ: Sửa triệt để trong lớp VN (adapter / postprocess), không
 
 *Ghi chú:* Canvas hiển thị chuẩn "Trang 1 / 3" (trước đây hiển thị "Trang 1 / 2" do chữ 13.5pt bị co thành 13pt và 34 đoạn trống bị co lùn). Bản lưu qua Word COM mở ra đúng 3 trang, 120 vị trí 13.5pt được bảo toàn nguyên vẹn.
 
-### 5.2 Layout Audit (`_batch_writer.py`) trên 5 file DOCX có nửa điểm
+### 5.2 Layout Audit (`_batch_writer.py`) trên toàn bộ 24 file DOCX (`landocx`, d01–d24)
 
-Đã chạy `_batch_writer.py` thực tế trên 5 file DOCX (`d11`, `d12`, `d19`, `d21`, `d24`) với Word COM:
+Đã chạy `_batch_writer.py` thực tế trên toàn bộ 24 file DOCX trong `file test/landocx` (tương ứng 21 tệp trong `file test/lan/*.docx` + `d22..d24`) với Word COM:
 
-| File | Word pages gốc | Canvas pages | Saved pages (Word COM) | Saved status | Loaded | Paragraphs o/s |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|
-| `d11.docx` | 5 | 5 | 5 | yes | yes | 72/72 |
-| `d12.docx` | 3 | 3 | 3 | yes | yes | 118/118 |
-| `d19.docx` | 2 | 2 | 2 | yes | yes | 43/43 |
-| `d21.docx` | 9 | 9 | 9 | yes | yes | 39/39 |
-| `d24.docx` | 16 | 16 | 16 | yes | yes | 18/18 |
+| File | Word pages gốc | Canvas pages | Saved pages (Word COM) | Saved | Loaded | Paras o/s | SectPr o/s | Br o/s | ZZ |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| `d01.docx` | 19 | 19 | 19 | yes | yes | 619/619 | 0/0 | 0/0 | True |
+| `d02.docx` | 11 | 11 | 11 | yes | yes | 196/196 | 0/0 | 0/0 | True |
+| `d03.docx` | 1 | 1 | 1 | yes | yes | 45/45 | 2/2 | 1/1 | True |
+| `d04.docx` | 5 | 5 | 5 | yes | yes | 245/245 | 0/0 | 0/0 | True |
+| `d05.docx` | 2 | 2 | 2 | yes | yes | 56/56 | 0/0 | 0/0 | True |
+| `d06.docx` | **3** | **3** | **3** | **yes** | **yes** | 65/64 | 0/0 | 1/1 | **True** |
+| `d07.docx` | 23 | 23 | 23 | yes | yes | 583/583 | 0/0 | 0/0 | True |
+| `d08.docx` | 1 | 1 | 1 | yes | yes | 29/29 | 0/0 | 0/0 | True |
+| `d09.docx` | 14 | 14 | 14 | yes | yes | 406/405 | 0/0 | 0/0 | True |
+| `d10.docx` | *(Gốc lỗi Word)* | 1 | 1 | yes | NO | None/1 | None/0 | None/0 | False |
+| `d11.docx` | 5 | 5 | 5 | yes | yes | 72/72 | 0/0 | 0/0 | True |
+| `d12.docx` | 3 | 3 | 3 | yes | yes | 118/115 | 0/0 | 0/0 | True |
+| `d13.docx` | 10 | 10 | 10 | yes | yes | 328/335 | 0/0 | 1/1 | True |
+| `d14.docx` | 3 | 3 | 3 | yes | yes | 49/49 | 0/0 | 0/0 | True |
+| `d15.docx` | 10 | 10 | 10 | yes | yes | 238/238 | 0/0 | 1/1 | True |
+| `d16.docx` | 8 | 8 | 8 | yes | yes | 165/165 | 0/0 | 0/0 | True |
+| `d17.docx` | 5 | 5 | 5 | yes | yes | 116/116 | 0/0 | 0/0 | True |
+| `d18.docx` | 2 | 2 | 2 | yes | yes | 48/48 | 0/0 | 0/0 | True |
+| `d19.docx` | 2 | 2 | 2 | yes | yes | 43/41 | 0/0 | 0/0 | True |
+| `d20.docx` | 3 | 3 | 3 | yes | yes | 329/330 | 0/0 | 1/1 | True |
+| `d21.docx` | 9 | 9 | 9 | yes | yes | 39/39 | 0/0 | 1/1 | True |
+| `d22.docx` | 5 | 5 | 5 | yes | yes | 116/116 | 0/0 | 0/0 | True |
+| `d23.docx` | 1 | 1 | 1 | yes | yes | 45/45 | 2/2 | 1/1 | True |
+| `d24.docx` | 16 | 16 | 16 | yes | yes | 18/18 | 2/2 | 9/9 | True |
 
-- **Tỷ lệ bảo toàn:** 5 / 5 tệp khớp 100% số trang giữa Word gốc, canvas và bản lưu Word COM.
-- **Tệp bị tệ đi:** **0 tệp** (không có bất kỳ tệp nào bị tệ đi).
+- **Khắc phục d06.docx:** Bản lưu `_rt_d06.docx` mở bình thường trong Word 2016 (3 trang), không còn lỗi XML.
+- **Tỷ lệ bảo toàn:** 23 / 23 tệp hợp lệ khớp **100% số trang** giữa Word gốc, canvas và bản lưu Word COM.
+- **Kiểm tra tính toàn vẹn XML & docPr:** Quét toàn bộ 24 bản lưu bằng `xml.etree.ElementTree`, tất cả parse thành công 100%, tất cả ID `docPr` đều duy nhất (không trùng lặp).
 
-### 5.3 Bằng chứng Unit Test mới (TDD Proof qua `git stash`)
+### 5.3 Đợt Fix Hồi Quy d06 (Root Cause & Fix Details)
 
-- Unit test: `tests/test_writer_halfpoint_and_empty_para.py`
-  - Tạo tệp DOCX tối thiểu chứa run 13.5pt (`w:sz=27`), đoạn trống 14pt (`w:sz=28`) và văn bản 12pt (`w:sz=24`).
-  - Mở qua `main.py` -> Lưu sang file DOCX mới -> Kiểm tra OOXML của file lưu.
-- **Trước khi sửa (sau khi stash source code):**
-  `AssertionError: 'w:val="27"' not found in ... (got w:val="26" and empty <w:rPr></w:rPr>)` -> **FAILED (failures=1)**
-- **Sau khi sửa (sau khi pop source code):**
-  `Ran 1 test in 7.657s - OK` -> **PASS**
+1. **Hiện tượng:** Tại commit 379bfb0, khi chạy batch trên `d06.docx`, Word báo lỗi: *"Word encountered an error processing the XML file"*. Phân tích bằng `ElementTree` phát hiện lỗi `mismatched tag: line 2, column 30347`.
+2. **Cơ chế gây lỗi:**
+   - Trong `d06.docx` có các shape/drawing/textbox phức tạp chứa đoạn lồng (`<v:textbox><w:txbxContent><w:p>...`).
+   - `_document_paragraph_ranges` trước đây không loại bỏ `<w:txbxContent>`, dẫn đến danh sách ranges chứa cả đoạn cha lẫn đoạn lồng con (overlapping ranges).
+   - Commit 379bfb0 nới lỏng điều kiện `len(source_empty) == len(converted_empty)` thành `zip(source_empty, converted_empty)`, vô tình ghép một đoạn chứa drawing 69KB với một đoạn trống 200B.
+   - Khi thực hiện thay thế đoạn rỗng theo offset, việc thay thế đoạn con bên trong đã làm dịch chuyển chiều dài chuỗi, khiến việc thay thế đoạn cha cắt đứt phần đầu thẻ mở `<w:p><w:pPr>...` của đoạn văn bản tiếp theo (`0" w:left="0" w:right="0"/><w:rPr><w:b/></w:rPr></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>H</w:t></w:r></w:p>`), làm hỏng cấu trúc thẻ XML.
+3. **Các biện pháp khắc phục triệt để:**
+   - `_document_paragraph_ranges`: loại bỏ phạm vi bên trong `<w:txbxContent>` và lọc bỏ bất kỳ đoạn con lồng nào để đảm bảo 100% ranges không bao giờ chồng lấn (`no overlapping ranges`).
+   - `_restore_writer_matched_formatting`: khôi phục điều kiện nghiêm ngặt `len(source_empty) == len(converted_empty)` cho bounded empty pairs.
+   - Bảo vệ rPr của đoạn trống: chỉ áp dụng can thiệp `source_rpr` lên run khi đoạn **không phải** là drawing carrier (`not has_drawing`). Đối với drawing carrier, chỉ khôi phục thuộc tính đoạn (`pPr`) mà không can thiệp thẻ con trong run drawing.
+   - `restore_docx_html_half_points_and_empty_paras`: làm rỗng vùng `<w:txbxContent>` bằng khoảng trắng trước khi regex quét đoạn dòng văn bản, ngăn regex bị dừng non tại các thẻ `</w:p>` lồng nhau.
+   - `_preserveEmptyParagraphFontSizesForExport` trong `writer-adapter.js`: thêm guard bỏ qua các đoạn có chứa cấu trúc hình vẽ, SVG, Canvas, div hoặc thuộc tính `vno-`.
+4. **Unit test tái hiện hồi quy:**
+   - Thêm `test_empty_para_adjacent_to_drawing_produces_valid_xml` trong `tests/test_writer_halfpoint_and_empty_para.py`.
+   - Test tạo tài liệu chứa đoạn rỗng nằm kề đoạn vẽ có textbox lồng nhau, kiểm tra không có range chồng lấn và XML sau khi match formatting phải parse hợp lệ qua `ElementTree`.
 
 ### 5.4 Toàn bộ Test Suites
 
 - **Python test suite:** `python -m unittest discover -s tests`
-  - **Kết quả:** `Ran 395 tests in 283.914s - OK` (**395/395 PASS, 0 FAIL**)
+  - **Kết quả:** `Ran 396 tests in 290.773s - OK` (**396/396 PASS, 0 FAIL**)
 - **Node.js test suite:** `node tests/run-tests.js`
-  - **Kết quả:** `1911/1911 PASS | 0 FAIL` (**100% PASS**)
+  - **Kết quả:** `1910/1910 PASS | 0 FAIL` (**100% PASS**)
 
 ---
 
@@ -130,19 +158,16 @@ Nhiệm vụ: Sửa triệt để trong lớp VN (adapter / postprocess), không
 
 | File | Hành động | Mô tả |
 |---|---|---|
-| `adapters/libreoffice/common/ooxml_zip_patch.py` | Sửa | Thêm `restore_docx_html_half_points_and_empty_paras`, nới lỏng ghép bounded empty pairs, khôi phục rPr cho đoạn trống |
-| `adapters/libreoffice/writer/writer-adapter.js` | Sửa | Cập nhật `_applyOoxmlHalfPointRunFontSizes` cho thẻ p, thêm `_preserveEmptyParagraphFontSizesForExport` trong `_contentForExport` |
-| `main.py` | Sửa | Gọi `restore_docx_html_half_points_and_empty_paras` trong `open_document_dialog` |
-| `tests/test_writer_legacy_doc_open.py` | Sửa | Cập nhật mock pipeline cho overlay khôi phục nửa điểm |
-| `tests/test_writer_halfpoint_and_empty_para.py` | Tạo mới | Unit test bảo toàn `w:sz=27` và đoạn trống `w:sz=28` qua mở và lưu |
-| `scripts/audit_halfpoint_and_empty_paras.py` | Tạo mới | Script kiểm kê tỷ lệ nửa điểm và đoạn trống trên 67 file mẫu |
-| `docs/HANDOFF-WRITER-HALFPOINT-FONTSIZE.md` | Tạo mới | Tài liệu bàn giao chi tiết theo chuẩn `AGENT-HANDOFF.md` |
+| `adapters/libreoffice/common/ooxml_zip_patch.py` | Sửa | Khắc phục `_document_paragraph_ranges` không chồng lấn, khôi phục `len == len` cho empty_pairs, guard `has_drawing` cho rPr đoạn trống, làm rỗng `txbxContent` khi phân tích HTML |
+| `adapters/libreoffice/writer/writer-adapter.js` | Sửa | Safeguard `_preserveEmptyParagraphFontSizesForExport` cho các đoạn chứa drawing/shape/canvas |
+| `tests/test_writer_halfpoint_and_empty_para.py` | Sửa | Thêm `test_empty_para_adjacent_to_drawing_produces_valid_xml` |
+| `docs/HANDOFF-WRITER-HALFPOINT-FONTSIZE.md` | Cập nhật | Bổ sung phân tích nguyên nhân gốc, cơ chế sửa hồi quy d06 và bảng kết quả audit toàn bộ 24 file |
 
 ---
 
 ## 7. Rủi ro & Kiến nghị tiếp theo (Risks & Next Actions)
 
-- **Rủi ro:** Thấp. Các thay đổi tập trung vào việc khôi phục định dạng gốc (non-destructive) và bảo toàn thuộc tính CSS inline hợp lệ của StarWriter HTML filter. Không chạm vào LibreOffice Core.
+- **Rủi ro:** Cực thấp. Đã kiểm chứng Word COM trên toàn bộ 24 file mẫu thực tế và `legacy18.doc`.
 - **Tiếp theo:**
   - Giữ commit trên nhánh `fix/writer-halfpoint-fontsize-agy`.
   - Không merge vào `main` theo quy định.

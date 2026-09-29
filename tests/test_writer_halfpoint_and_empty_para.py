@@ -122,6 +122,107 @@ class TestWriterHalfPointAndEmptyParagraph(unittest.TestCase):
             empty_para = paras[1]
             self.assertIn('w:val="28"', empty_para, f"Empty paragraph must retain w:sz=28, got: {empty_para}")
 
+    def test_empty_para_adjacent_to_drawing_produces_valid_xml(self):
+        """Test that empty paragraphs adjacent to drawing/anchor paragraphs with nested
+        textboxes do not corrupt XML in _restore_writer_matched_formatting and postprocess_writer_docx.
+        """
+        import xml.etree.ElementTree as ET
+        from adapters.libreoffice.common.ooxml_zip_patch import (
+            _restore_writer_matched_formatting,
+            _document_paragraph_ranges,
+        )
+
+        original_xml = (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+            'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" '
+            'xmlns:v="urn:schemas-microsoft-com:vml" '
+            'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">'
+            '<w:body>'
+            '<w:p><w:r><w:t>Heading Before</w:t></w:r></w:p>'
+            '<w:p>'
+            '<w:pPr><w:jc w:val="center"/></w:pPr>'
+            '<w:r>'
+            '<mc:AlternateContent>'
+            '<mc:Choice Requires="wps"/>'
+            '<mc:Fallback>'
+            '<w:pict>'
+            '<v:rect style="position:absolute;width:100pt;height:100pt">'
+            '<v:textbox>'
+            '<w:txbxContent>'
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:spacing w:before="0" w:after="142"/></w:pPr>'
+            '<w:r><w:t>Text inside textbox</w:t></w:r>'
+            '</w:p>'
+            '</w:txbxContent>'
+            '</v:textbox>'
+            '</v:rect>'
+            '</w:pict>'
+            '</mc:Fallback>'
+            '</mc:AlternateContent>'
+            '</w:r>'
+            '</w:p>'
+            '<w:p><w:pPr><w:rPr><w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr></w:pPr><w:r><w:rPr><w:sz w:val="28"/></w:rPr></w:r></w:p>'
+            '<w:p><w:pPr><w:ind w:left="0" w:right="0"/><w:rPr><w:b/></w:rPr></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>Next Paragraph</w:t></w:r></w:p>'
+            '</w:body>'
+            '</w:document>'
+        )
+
+        converted_xml = (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+            'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" '
+            'xmlns:v="urn:schemas-microsoft-com:vml" '
+            'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">'
+            '<w:body>'
+            '<w:p><w:r><w:t>Heading Before</w:t></w:r></w:p>'
+            '<w:p>'
+            '<w:pPr><w:jc w:val="center"/></w:pPr>'
+            '<w:r>'
+            '<mc:AlternateContent>'
+            '<mc:Choice Requires="wps"/>'
+            '<mc:Fallback>'
+            '<w:pict>'
+            '<v:rect style="position:absolute;width:100pt;height:100pt">'
+            '<v:textbox>'
+            '<w:txbxContent>'
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:spacing w:before="0" w:after="142"/></w:pPr>'
+            '<w:r><w:t>Text inside textbox</w:t></w:r>'
+            '</w:p>'
+            '</w:txbxContent>'
+            '</v:textbox>'
+            '</v:rect>'
+            '</w:pict>'
+            '</mc:Fallback>'
+            '</mc:AlternateContent>'
+            '</w:r>'
+            '</w:p>'
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:spacing w:lineRule="auto" w:line="259" w:before="0" w:after="159"/><w:ind w:hanging="0" w:left="0" w:right="0"/><w:rPr></w:rPr></w:pPr><w:r><w:rPr></w:rPr></w:r></w:p>'
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:spacing w:lineRule="auto" w:line="259" w:before="0" w:after="159"/><w:ind w:hanging="0" w:left="0" w:right="0"/><w:rPr><w:b/></w:rPr></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>Next Paragraph</w:t></w:r></w:p>'
+            '</w:body>'
+            '</w:document>'
+        )
+
+        # Paragraph ranges must not have nested/overlapping ranges
+        ranges = _document_paragraph_ranges(converted_xml)
+        for i in range(len(ranges)):
+            for j in range(i + 1, len(ranges)):
+                s1, e1 = ranges[i]
+                s2, e2 = ranges[j]
+                self.assertFalse(s1 <= s2 < e1 or s1 < e2 <= e1, f"Overlapping ranges: {ranges[i]} and {ranges[j]}")
+
+        # _restore_writer_matched_formatting must produce valid XML that parses with ElementTree
+        res_xml = _restore_writer_matched_formatting(
+            converted_xml, original_xml,
+            trusted_untouched_texts={"Heading Before", "Next Paragraph"},
+            trust_all_exact=False,
+        )
+        try:
+            root = ET.fromstring(res_xml)
+        except Exception as e:
+            self.fail(f"_restore_writer_matched_formatting produced invalid XML: {e}\nXML snippet:\n{res_xml}")
+        self.assertIsNotNone(root)
+        self.assertIn("Next Paragraph", res_xml)
+
 
 if __name__ == "__main__":
     unittest.main()

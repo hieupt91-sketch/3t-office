@@ -10887,8 +10887,8 @@ export class WriterAdapter {
     return String(html || "").replace(
       /<(p|h[1-6])\b([^>]*\bfont-size:\s*([\d.]+)pt[^>]*)>([\s\S]*?)<\/\1>/gi,
       (match, tag, attrs, pt, inner) => {
-        const clean = inner.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, "").trim();
-        if (clean.length > 0 || /<(?:img|iframe|object|svg|canvas)\b|data-vno-float/i.test(inner)) {
+        const stripped = inner.replace(/<\/?(?:span|font|br)\b[^>]*>/gi, "").replace(/&nbsp;|\s+/g, "");
+        if (stripped.length > 0 || /<(?:img|iframe|object|svg|canvas|div)\b|data-vno|vno-/i.test(inner)) {
           return match;
         }
         if (/<span\b[^>]*\bstyle=[^>]*\bfont-size:/i.test(inner)) {

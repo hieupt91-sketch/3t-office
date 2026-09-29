@@ -3245,13 +3245,18 @@ def restore_docx_html_half_points_and_empty_paras(docx_bytes: bytes, html: str) 
 
     body_match = re.search(r"<w:body\b[^>]*>([\s\S]*?)</w:body\s*>", doc_xml, re.IGNORECASE)
     body_xml = body_match.group(1) if body_match else doc_xml
-    table_ranges = _xml_element_ranges(body_xml, "w:tbl")
+    flow = re.sub(
+        r"<w:txbxContent\b[\s\S]*?</w:txbxContent\s*>",
+        lambda match: " " * len(match.group(0)), body_xml, flags=re.IGNORECASE,
+    )
+    table_ranges = _xml_element_ranges(flow, "w:tbl")
     ooxml_paras = []
-    for m in re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", body_xml, re.IGNORECASE):
+    for m in re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", flow, re.IGNORECASE):
         if not any(s <= m.start() < e for s, e in table_ranges):
             p_xml = m.group(0)
             txt = _paragraph_plain_text(p_xml).strip()
-            is_empty = not txt
+            has_drawing = any(tag in p_xml for tag in ("<w:drawing", "<w:pict", "<mc:AlternateContent", "<wps:"))
+            is_empty = not txt and not has_drawing
             sz = resolve_para_sz(p_xml)
             odd_runs = []
             for r_m in re.finditer(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", p_xml, re.IGNORECASE):
@@ -3290,8 +3295,8 @@ def restore_docx_html_half_points_and_empty_paras(docx_bytes: bytes, html: str) 
         # 1. Empty paragraph
         if p_spec["is_empty"] and p_spec["pt"] is not None:
             pt = p_spec["pt"]
-            clean_txt = re.sub(r"<[^>]+>", "", inner).replace("&nbsp;", "").strip()
-            if not clean_txt and not re.search(r"<(?:img|iframe|object|svg|canvas)\b", inner, re.I):
+            stripped = re.sub(r"</?(?:span|font|br)\b[^>]*>|&nbsp;|\s+", "", inner, flags=re.I)
+            if not stripped and not re.search(r"<(?:img|iframe|object|svg|canvas|div)\b|data-vno|vno-", inner, re.I):
                 if re.search(r"\bfont-size:\s*[\d.]+pt", attrs, re.I):
                     new_attrs = re.sub(r"\bfont-size:\s*[\d.]+pt", f"font-size: {pt:g}pt", attrs, flags=re.I)
                 elif re.search(r'\bstyle=["\']', attrs, re.I):
@@ -9123,7 +9128,7 @@ def _restore_writer_matched_formatting(
             index for index in range(converted_start + 1, converted_end)
             if not converted_keys[index]
         ]
-        if source_empty and converted_empty:
+        if source_empty and len(source_empty) == len(converted_empty):
             empty_pairs.extend(zip(source_empty, converted_empty))
     empty_paired_indices = {c_idx for _s, c_idx in empty_pairs}
     pairs = sorted(set([*pairs, *empty_pairs]))
@@ -9170,22 +9175,24 @@ def _restore_writer_matched_formatting(
             replacements[converted_index] = restored_runs
             continue
         if not converted_keys[converted_index]:
-            source_rpr = None
-            for _s, _e, srun in _writer_run_blocks(source_p):
-                source_rpr = _writer_direct_property(srun, "rPr")
+            has_drawing = any(tag in source_p or tag in target_p for tag in ("<w:drawing", "<w:pict", "<mc:AlternateContent", "<wps:"))
+            if not has_drawing:
+                source_rpr = None
+                for _s, _e, srun in _writer_run_blocks(source_p):
+                    source_rpr = _writer_direct_property(srun, "rPr")
+                    if source_rpr:
+                        break
+                if not source_rpr:
+                    source_ppr = _writer_direct_property(source_p, "pPr")
+                    source_rpr = _writer_direct_property(source_ppr, "rPr")
                 if source_rpr:
-                    break
-            if not source_rpr:
-                source_ppr = _writer_direct_property(source_p, "pPr")
-                source_rpr = _writer_direct_property(source_ppr, "rPr")
-            if source_rpr:
-                target_runs = _writer_run_blocks(target_p)
-                if target_runs:
-                    run_replacements = []
-                    for rs, re_pos, run in target_runs:
-                        run_replacements.append((rs, re_pos, _writer_replace_direct_property(run, "rPr", source_rpr)))
-                    for rs, re_pos, run in reversed(run_replacements):
-                        target_p = target_p[:rs] + run + target_p[re_pos:]
+                    target_runs = _writer_run_blocks(target_p)
+                    if target_runs:
+                        run_replacements = []
+                        for rs, re_pos, run in target_runs:
+                            run_replacements.append((rs, re_pos, _writer_replace_direct_property(run, "rPr", source_rpr)))
+                        for rs, re_pos, run in reversed(run_replacements):
+                            target_p = target_p[:rs] + run + target_p[re_pos:]
             replacements[converted_index] = target_p
             continue
         # W39 (d21: 11 đoạn chứa ảnh): LibreOffice thêm `<w:hyperlink><w:r>[ ]</w:r></w:hyperlink>` sau run ảnh và
@@ -9365,9 +9372,15 @@ def _remove_writer_untouched_bookmarks(xml: str) -> str:
 
 def _document_paragraph_ranges(xml: str) -> list[tuple[int, int]]:
     anchor_ranges = [(match.start(), match.end()) for match in _WRITER_ANCHOR_RE.finditer(xml)]
-    return [
+    txbx_ranges = _xml_element_ranges(xml, "w:txbxContent")
+    ranges = [
         (start, end) for start, end in _xml_element_ranges(xml, "w:p")
         if not any(anchor_start < start < anchor_end for anchor_start, anchor_end in anchor_ranges)
+        and not any(tx_start < start < tx_end for tx_start, tx_end in txbx_ranges)
+    ]
+    return [
+        (s, e) for s, e in ranges
+        if not any(other_s < s < other_e for other_s, other_e in ranges)
     ]
 
 
