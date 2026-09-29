@@ -20,9 +20,6 @@ export async function runSheetFormulaOdfTests() {
     adapter._formulaToOdf("=SUM('Mạng, camera'!G8:G11)"), "of:=SUM([$'Mạng, camera'.G8:$'Mạng, camera'.G11])");
   check("Tên sheet có dấu phẩy khứ hồi ODF → Excel",
     adapter._formulaFromOdf("of:=SUM([$'Mạng, camera'.G8:.G11];1)"), "=SUM('Mạng, camera'!G8:G11,1)");
-  // Not covered yet: sheet names containing an escaped quote ('O''Brien'!A1) — the reference
-  // regex in _formulaToOdf matches '[^']+' only (pre-existing limitation, tracked separately).
-
   // Sheet names with doubled apostrophe (escaped quote) — Excel writes 'O''Brien'!A1
   check("Tên sheet có dấu nháy kép (escaped) đơn lẻ ô — _formulaToOdf",
     adapter._formulaToOdf("='O''Brien'!A1"), "of:=[$'O''Brien'.A1]");
@@ -51,6 +48,8 @@ export async function runSheetFormulaOdfTests() {
     adapter._formulaFromOdf("of:=[$S.A1:$S.B2]"), "=S!A1:B2");
   check("#REF! trong SUM khứ hồi",
     adapter._formulaFromOdf("of:=SUM([#REF!];1)"), "=SUM(#REF!,1)");
+  check("Toàn cột khác sheet giữ tên sheet đầu",
+    adapter._formulaFromOdf("of:=SUM([$S1.$A$1:$S2.$C$1048576])"), "=SUM(S1!$A:$C)");
 
   return results;
 }

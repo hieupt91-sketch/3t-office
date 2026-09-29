@@ -1446,7 +1446,8 @@ export class SheetAdapter {
         const firstCol = first.cell.match(/^(\$?[A-Z]{1,3})\$?1$/);
         const secondCol = second.cell.match(/^(\$?[A-Z]{1,3})\$?1048576$/);
         if (firstCol && secondCol) {
-          const prefix = sameSheet && first.sheet ? `${first.sheet}!` : "";
+          // Excel has no cross-sheet column range; keep the first sheet as before rather than drop it.
+          const prefix = first.sheet ? `${first.sheet}!` : "";
           return `${prefix}${firstCol[1]}:${secondCol[1]}`;
         }
         // Regular range on same sheet: collapse sheet prefix
