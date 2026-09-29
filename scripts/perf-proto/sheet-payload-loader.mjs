@@ -102,6 +102,71 @@ function directXmlChildren(xml) {
   return children;
 }
 
+function domRichRecordsForRow(adapter, rowXml, richContext) {
+  if (!richContext?.textStyles?.size || !/<text:span\b/i.test(rowXml)) return null;
+  try {
+    const wrapped = `<office:document-content${richContext.namespaceAttrs}>${rowXml}</office:document-content>`;
+    const parsed = new DOMParser().parseFromString(wrapped, "application/xml");
+    if (parsed.querySelector("parsererror")) return null;
+    const row = parsed.getElementsByTagNameNS(
+      "urn:oasis:names:tc:opendocument:xmlns:table:1.0", "table-row"
+    )[0];
+    if (!row) return null;
+    return Array.from(row.children).map(cell => {
+      if (!["table-cell", "covered-table-cell"].includes(cell.localName)) return null;
+      const hasSpans = cell.getElementsByTagNameNS(
+        "urn:oasis:names:tc:opendocument:xmlns:text:1.0", "span"
+      ).length > 0;
+      const styleName = cell.getAttribute("table:style-name") || "";
+      const cellStyle = richContext.cellVisualStyles.get(styleName) || {};
+      return hasSpans
+        ? adapter._extractRichTextFromDom(cell, richContext.textStyles, cellStyle)
+        : null;
+    });
+  } catch {
+    return null;
+  }
+}
+
+function rowXmlRecord(adapter, rowXml, richContext = null) {
+  const source = String(rowXml || "");
+  const rowOpen = source.match(/^<table:table-row\b([^>]*)>/i);
+  if (!rowOpen) throw new Error("Malformed row XML payload record");
+  const rowAttrs = parseAttrs(adapter, rowOpen[1]);
+  const rowBody = source.slice(rowOpen[0].length).replace(/<\/table:table-row\s*>\s*$/i, "");
+  const cells = [];
+  const domRich = domRichRecordsForRow(adapter, source, richContext);
+  let cellIndex = 0;
+  for (const cellXml of directXmlChildren(rowBody)) {
+    const cellOpen = cellXml.match(/^<(table:covered-table-cell|table:table-cell)\b([^>]*)>/i);
+    if (!cellOpen) continue;
+    const covered = cellOpen[1].toLowerCase() === "table:covered-table-cell" ? 1 : 0;
+    const attrs = parseAttrs(adapter, cellOpen[2]);
+    const selfClosing = /\/\s*>$/.test(cellOpen[0]);
+    const closeTag = `</${cellOpen[1]}>`;
+    const closeAt = selfClosing ? -1 : cellXml.lastIndexOf(closeTag);
+    const rawContent = closeAt < 0 ? "" : cellXml.slice(cellOpen[0].length, closeAt);
+    // The v1 Python serializer used ElementTree.tostring(child) for each
+    // direct cell child, which intentionally omitted whitespace-only tails
+    // between those children. Match that boundary while keeping text inside
+    // each child intact (spaces between rich-text spans are meaningful).
+    const content = directXmlChildren(rawContent).join("");
+    const cellRecord = [covered, Object.entries(attrs), content];
+    if (domRich) cellRecord.push({ domRich: true, value: domRich[cellIndex] || null });
+    cells.push(cellRecord);
+    cellIndex++;
+  }
+  return ["row", Object.entries(rowAttrs), cells];
+}
+
+function normalizedRecord(adapter, record, richContext = null) {
+  // XML parsers normalize CRLF/CR to LF before exposing text nodes. Match the
+  // prior ElementTree payload behavior before regex-based rich-text extraction.
+  return record?.[0] === "row-xml"
+    ? rowXmlRecord(adapter, String(record[1] || "").replace(/\r\n?/g, "\n"), richContext)
+    : record;
+}
+
 function cellImagesDomEquivalent(adapter, content, baseId) {
   const images = [];
   const frames = directXmlChildren(content).filter(xml => /^<draw:frame\b/i.test(xml));
@@ -208,7 +273,9 @@ function setupForSheet(adapter, table, tableXml, rowColStyles) {
 }
 
 export async function loadSheetPayload(payload, adapter = new SheetAdapter(null)) {
-  if (!payload || payload.format !== "vno.sheet.payload.v1") throw new TypeError("Unsupported Sheet payload format");
+  if (!payload || !["vno.sheet.payload.v1", "vno.sheet.payload.v2"].includes(payload.format)) {
+    throw new TypeError("Unsupported Sheet payload format");
+  }
   let supportXml = payload.supportXml || "";
   for (const [tag, raw] of Object.entries(payload.rawStyleXml || {})) {
     if (!raw) continue;
@@ -244,6 +311,7 @@ export async function loadSheetPayload(payload, adapter = new SheetAdapter(null)
   const cellScan = new Map();
   let scanSheet = "";
   await eachCompressedRecord(payload, record => {
+    record = normalizedRecord(adapter, record);
     if (record[0] === "sheet") {
       scanSheet = record[1];
       if (scanSheet) cellScan.set(scanSheet, { row: 1, lastDataRow: 0, lastDataCol: 0 });
@@ -313,7 +381,14 @@ export async function loadSheetPayload(payload, adapter = new SheetAdapter(null)
 
   const tableByName = new Map(sheetBlocks.map(block => [parseAttrs(adapter, block.attrs)["table:name"] || `Trang tính ${block.index + 1}`, block]));
   let buildingSheet = "";
+  const rootOpen = xml.match(/<office:document\b([^>]*)>/i);
+  const richContext = {
+    textStyles,
+    cellVisualStyles,
+    namespaceAttrs: rootOpen?.[1] || "",
+  };
   await eachCompressedRecord(payload, record => {
+    record = normalizedRecord(adapter, record, richContext);
     if (record[0] === "sheet") {
       buildingSheet = record[1];
       return;
@@ -363,7 +438,7 @@ export async function loadSheetPayload(payload, adapter = new SheetAdapter(null)
         continue;
       }
       let columnNumber = 1;
-      for (const [isCoveredNumber, pairs, content] of record[2]) {
+      for (const [isCoveredNumber, pairs, content, domRich] of record[2]) {
         const attributes = Object.fromEntries(pairs);
         const columnRepeat = Math.max(1, Number(attributes["table:number-columns-repeated"]) || 1);
         const isCovered = isCoveredNumber === 1;
@@ -390,8 +465,10 @@ export async function loadSheetPayload(payload, adapter = new SheetAdapter(null)
           const item = adapter._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
           if (textStyles.size > 0) {
             const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};
-            const rich = adapter._extractRichTextFromXml(valueContent, textStyles, cellVisual);
-            if (rich.runs) {
+            const rich = domRich?.domRich
+              ? domRich.value
+              : adapter._extractRichTextFromXml(valueContent, textStyles, cellVisual);
+            if (rich?.runs) {
               item.richText = adapter._normalizeRichTextCellFont(rich.runs, item.style);
               item.val = attributes["vno:original-string"] ?? rich.text;
               item.style.styleHashAtImport = adapter._computeStyleHash(item.style);
