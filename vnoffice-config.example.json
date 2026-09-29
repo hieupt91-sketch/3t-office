@@ -1,0 +1,7 @@
+{
+  "errorReporting": {
+    "enabled": true,
+    "endpoint": "",
+    "token": ""
+  }
+}
