@@ -36,6 +36,14 @@
     import { bootstrapPlatform, configurePlatformLaunchContext, resolveLaunchContext } from "./platform/bootstrap.js";
     import { ErrorReportingUI } from "./platform/error_reporting/error-reporting-ui.js";
     import { autoRecoverManager } from "./platform/autorecover/auto-recover.js";
+    import { showDocumentOpenProgress, hideDocumentOpenProgress } from "./platform/ui-kit/components.js";
+
+    window.addEventListener("vno:document-open-progress", () => {
+      showDocumentOpenProgress("Đang mở tài liệu…");
+    });
+    window.addEventListener("vno:document-open-complete", () => {
+      requestAnimationFrame(() => requestAnimationFrame(hideDocumentOpenProgress));
+    });
 
     const mountEl = document.getElementById("vno-app-root");
     window.__vnoPerfDebug = new URLSearchParams(window.location.search).get("perfDebug") === "1";

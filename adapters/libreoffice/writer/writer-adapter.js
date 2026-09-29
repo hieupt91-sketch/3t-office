@@ -11134,6 +11134,19 @@ export class WriterAdapter {
    * Mở một tệp DOCX/ODT thật từ đĩa, thay thế nội dung soạn thảo hiện tại.
    */
   async open() {
+    if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+      window.dispatchEvent(new Event("vno:document-open-progress"));
+    }
+    try {
+      return await this._openDocumentFromDisk();
+    } finally {
+      if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+        window.dispatchEvent(new Event("vno:document-open-complete"));
+      }
+    }
+  }
+
+  async _openDocumentFromDisk() {
     const result = await globalUnoBridge.openRealFile("writer");
     if (result.status === "ok") {
       this._initZones();
