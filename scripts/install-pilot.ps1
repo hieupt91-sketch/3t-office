@@ -55,7 +55,12 @@ if ($running) { throw "VN Office dang chay. Hay dong tat ca cua so VN Writer/She
 Write-Host "Dang chep VN Office vao $InstallDir (co the mat vai phut)..."
 $staging = "$InstallDir.new"
 if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
-& robocopy $source $staging /E /NFL /NDL /NJH /NJS /NP /R:1 /W:1 /XF "*.zip" | Out-Null
+# Skip only package archives lying next to this script: a bare /XF *.zip also dropped LibreOffice's
+# share\config\images_*.zip icon themes (21 files, 78 MB) from every install.
+$topLevelZips = @(Get-ChildItem -LiteralPath $source -File -Filter "*.zip" | ForEach-Object { $_.FullName })
+$excludeArgs = @()
+if ($topLevelZips.Count -gt 0) { $excludeArgs = @("/XF") + $topLevelZips }
+& robocopy $source $staging /E /NFL /NDL /NJH /NJS /NP /R:1 /W:1 @excludeArgs | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "Chep tep that bai (robocopy $LASTEXITCODE)" }
 if (Test-Path -LiteralPath $InstallDir) { Remove-Item -LiteralPath $InstallDir -Recurse -Force }
 Rename-Item -LiteralPath $staging -NewName (Split-Path -Leaf $InstallDir)

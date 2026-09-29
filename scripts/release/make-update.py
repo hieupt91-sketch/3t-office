@@ -25,6 +25,7 @@ from adapters.updater.crypto import (  # noqa: E402
 )
 from adapters.updater.manifest import (  # noqa: E402
     MAX_PACKAGE_BYTES,
+    PRESERVED_RELATIVE_PATHS,
     compare_versions,
     validate_manifest,
     validate_package_path,
@@ -97,7 +98,8 @@ def _load_key(path: Path) -> dict[str, int]:
 
 def _load_notes(args) -> str:
     if args.notes_file:
-        notes = Path(args.notes_file).read_text(encoding="utf-8")
+        # utf-8-sig: Notepad/PowerShell write a BOM that would otherwise show up in the release notes.
+        notes = Path(args.notes_file).read_text(encoding="utf-8-sig")
     else:
         notes = args.notes
     if not notes or not notes.strip():
@@ -126,6 +128,10 @@ def _inventory(package: Path, version: str, min_version: str, channel: str, note
         if not path.is_file():
             continue
         relative = path.relative_to(package).as_posix()
+        if relative in PRESERVED_RELATIVE_PATHS:
+            # Per-install configuration (update source, reporting endpoint) written by build-pilot.ps1
+            # -UpdateSource: shipped with the full package, never part of a patch.
+            continue
         safe = validate_package_path(relative)
         size, digest = _sha256(path)
         total_size += size
