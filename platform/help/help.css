@@ -163,3 +163,41 @@
   font-size: 13px;
   color: var(--vno-text-muted);
 }
+
+.vno-help-update-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px 12px;
+  margin: 12px 16px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-md);
+  background: var(--vno-bg-subtle);
+  font-size: 12px;
+}
+
+.vno-help-update-heading {
+  grid-column: 1 / -1;
+  color: var(--vno-text-primary);
+  font-weight: 700;
+}
+
+.vno-help-update-section p {
+  margin: 0;
+  color: var(--vno-text-secondary);
+  line-height: 1.45;
+}
+
+.vno-help-update-section [data-vno-update-status] {
+  grid-column: 1 / -1;
+}
+
+.vno-help-update-section [data-vno-update-check] {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+@media (max-width: 720px) {
+  .vno-help-update-section { margin-left: 8px; margin-right: 8px; }
+}

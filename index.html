@@ -34,6 +34,7 @@
     import { globalCommandBus } from "./platform/commands/command-bus.js";
     import { bootstrapPlatform, configurePlatformLaunchContext, resolveLaunchContext } from "./platform/bootstrap.js";
     import { ErrorReportingUI } from "./platform/error_reporting/error-reporting-ui.js";
+    import { connectUpdaterUi } from "./platform/updater/update-ui.js";
 
     const mountEl = document.getElementById("vno-app-root");
     window.__vnoPerfDebug = new URLSearchParams(window.location.search).get("perfDebug") === "1";
@@ -62,6 +63,7 @@
       await errorReportingUI.refresh();
       // Bộ đo (scripts/layout-audit/_create_new_*.py) điều khiển app thật qua handle này; không dùng trong code sản phẩm.
       window.__vnoAppInstance = currentAppInstance;
+      await connectUpdaterUi(currentAppInstance);
 
       // Cập nhật callback chuyển đổi app vào shell hiện tại
       if (currentAppInstance.shell) {

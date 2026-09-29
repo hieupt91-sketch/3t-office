@@ -182,6 +182,7 @@ import { runSheetDateValuesTests } from "./unit/sheet-date-values.test.js";
 import { runNotificationBarTests } from "./unit/notification-bar.test.js";
 import { runOfflineResourcesTests } from "./unit/offline-resources.test.js";
 import { runErrorReportingTests } from "./unit/error-reporting.test.js";
+import { runUpdaterUiTests } from "./unit/updater-ui.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -370,6 +371,7 @@ async function runAll() {
     { title: "153. Unit Tests — Writer doc font / line spacing (Word multiple x font ratio, anchor <br>, imported class)", runner: runWriterDocFontSpacingTests },
     { title: "154. Unit Tests — Sheet date/time cell values (office:date-value round trip)", runner: runSheetDateValuesTests },
     { title: "155. Unit Tests — UI Kit Notification Bar & WCAG AA Color Contrast", runner: runNotificationBarTests },
+    { title: "156. Unit Tests — Signed Updater UI and Help", runner: runUpdaterUiTests },
     { title: "156. Unit Tests — Writer legacy DOC keepNext import and pagination", runner: runWriterLegacyKeepNextTests },
     { title: "157. Unit Tests — Shared error reporting hooks, consent and feedback dialogs", runner: runErrorReportingTests }
   ];
