@@ -29,6 +29,17 @@ from urllib.parse import urlencode, unquote
 import webview
 from adapters.error_reporting import ErrorReporter, load_client_config
 
+# ``platform`` is also a Python standard-library module, so load the shared
+# storage backend from its explicit path instead of shadowing that module.
+_AUTORECOVER_STORE_PATH = Path(__file__).resolve().parent / "platform" / "autorecover" / "store.py"
+_AUTORECOVER_STORE_SPEC = importlib.util.spec_from_file_location("_vno_autorecover_store", _AUTORECOVER_STORE_PATH)
+if _AUTORECOVER_STORE_SPEC is None or _AUTORECOVER_STORE_SPEC.loader is None:
+    raise ImportError(f"Cannot load AutoRecover storage: {_AUTORECOVER_STORE_PATH}")
+_AUTORECOVER_STORE_MODULE = importlib.util.module_from_spec(_AUTORECOVER_STORE_SPEC)
+sys.modules[_AUTORECOVER_STORE_SPEC.name] = _AUTORECOVER_STORE_MODULE
+_AUTORECOVER_STORE_SPEC.loader.exec_module(_AUTORECOVER_STORE_MODULE)
+AutoRecoverStore = _AUTORECOVER_STORE_MODULE.AutoRecoverStore
+
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML = os.path.join(ROOT_DIR, "index.html")
 APP_VERSION = "0.9.0-pilot1"
@@ -1070,6 +1081,58 @@ class VnOfficeApi:
         self._reporting_operation: str | None = None
         self._reporting_app_kind = app_kind if app_kind in VALID_APP_KINDS else None
         self._api_report_depth = 0
+        try:
+            self._autorecover_store = AutoRecoverStore(_user_data_dir())
+        except OSError:
+            # AutoRecover storage failure must never prevent opening the editor.
+            self._autorecover_store = None
+        self._autorecover_session_closed = False
+
+    def get_autorecover_settings(self):
+        return self._autorecover_store.get_settings() if self._autorecover_store else {"enabled": True, "interval_minutes": 5}
+
+    def set_autorecover_settings(self, settings):
+        try:
+            if not self._autorecover_store:
+                return {"status": "error", "message": "Không thể mở thư mục dữ liệu AutoRecover."}
+            return self._autorecover_store.set_settings(settings)
+        except OSError as exc:
+            return {"status": "error", "message": f"Không thể lưu cài đặt AutoRecover: {exc}"}
+
+    def list_autorecover_snapshots(self):
+        return self._autorecover_store.list_leftovers() if self._autorecover_store else []
+
+    def read_autorecover_snapshot(self, snapshot_id):
+        return self._autorecover_store.read_snapshot(snapshot_id) if self._autorecover_store else {"status": "error", "message": "Không thể đọc thư mục AutoRecover cục bộ."}
+
+    def write_autorecover_snapshot(self, doc_id, app_kind, content, original_path="", title="", file_format=None):
+        if not self._autorecover_store:
+            return {"status": "error", "message": "Không thể mở thư mục lưu AutoRecover cục bộ."}
+        return self._autorecover_store.write_snapshot(
+            doc_id=doc_id,
+            app_kind=app_kind,
+            content=content,
+            original_path=original_path,
+            title=title,
+            file_format=file_format,
+        )
+
+    def delete_autorecover_snapshot(self, snapshot_id):
+        return self._autorecover_store.delete_snapshot(snapshot_id) if self._autorecover_store else False
+
+    def delete_autorecover_document(self, doc_id):
+        return self._autorecover_store.delete_document_snapshot(doc_id) if self._autorecover_store else False
+
+    def close_autorecover_session(self):
+        if self._autorecover_session_closed:
+            return True
+        if self._autorecover_store:
+            try:
+                self._autorecover_store.cleanup_session()
+            except OSError:
+                return False
+        self._autorecover_session_closed = True
+        return True
 
     def _invoke_reported_api(self, method_name, method, *args, **kwargs):
         outermost = self._api_report_depth == 0
@@ -1605,6 +1668,7 @@ def main(argv: list[str] | None = None):
 
     def on_closing():
         # Thoát tiến trình ngay lập tức khi người dùng bấm nút đóng (X), tránh lỗi COM teardown
+        api.close_autorecover_session()
         os._exit(0)
 
     window.events.closing += on_closing

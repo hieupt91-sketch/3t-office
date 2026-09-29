@@ -11226,6 +11226,65 @@ export class WriterAdapter {
     return false;
   }
 
+  /** Load the existing Save HTML serialization as a new, unsaved recovery copy. */
+  restoreFromAutoRecover(content, manifest = {}) {
+    if (!/<(?:html|body|div|p|table|span|h[1-6]|ul|ol)\b/i.test(String(content || ""))) return false;
+    this._initZones();
+    this._sourcePath = null;
+    this.comments = [];
+    this.trackChangesEnabled = false;
+    this.activeCommentId = null;
+    this._renderCommentsPanel();
+    const imported = this._normalizeImportedHtml(String(content || ""));
+    this.docStyles = imported.docStyles || null;
+    this.shapes = imported.shapes || [];
+    this._deletedImportedShapeNames = [];
+    this._applyDocStyles();
+    if (imported.page) {
+      this.pageSetup = {
+        size: imported.page.size || this.pageSetup.size,
+        orientation: imported.page.orientation || this.pageSetup.orientation,
+        margins: { ...this.pageSetup.margins, ...imported.page.margins },
+        headerDistanceMm: imported.page.headerDistanceMm ?? this.pageSetup.headerDistanceMm ?? 12.7,
+        footerDistanceMm: imported.page.footerDistanceMm ?? this.pageSetup.footerDistanceMm ?? 12.7,
+        ...(imported.page.size === "custom" ? { widthMm: imported.page.widthMm, heightMm: imported.page.heightMm } : {})
+      };
+      this.sectionPageSetups = { [this.activeSectionId]: JSON.parse(JSON.stringify(this.pageSetup)) };
+      this._applyPageSetup();
+    }
+    if (this.headerDom && this.bodyDom && this.footerDom) {
+      this.headerDom.innerHTML = imported.header;
+      this.bodyDom.innerHTML = imported.body;
+      this.footerDom.innerHTML = imported.footer;
+    } else if (this.bodyDom) {
+      this.bodyDom.innerHTML = imported.body;
+    } else if (this.editorDom) {
+      this.editorDom.innerHTML = imported.body;
+    }
+    try {
+      this._normalizeImportedFontMetrics(this.bodyDom || this.editorDom);
+      if (this.headerDom) this._normalizeImportedFontMetrics(this.headerDom);
+      if (this.footerDom) this._normalizeImportedFontMetrics(this.footerDom);
+      this._applyCharacterScale(this.bodyDom || this.editorDom);
+    } catch { /* Keep the content available if optional font metrics cannot be measured. */ }
+    this._markImportedParagraphsUntouched(this.bodyDom || this.editorDom);
+    this._renderShapes();
+    this._hydrateCitationsFromDom(content || imported.body);
+    this._hydrateCaptionsFromDom(content || imported.body);
+    this._hydrateWordArtFromDom();
+    this.documentContent = this.editorDom ? this.editorDom.innerHTML : imported.body;
+    const originalTitle = String(manifest.title || "Tài liệu.docx").split(/[\\/]/).filter(Boolean).pop().replace(/\.[^/.]+$/, "") || "Tài liệu";
+    this.sourceFileName = `${originalTitle} (đã khôi phục)`;
+    const recoveredName = `${this.sourceFileName}.docx`;
+    this.isDirty = true;
+    this._openedEditorDomHash = this._editorDomFingerprint();
+    this._updateTrackChangesCommandState();
+    this.clearUndoRedo();
+    this.shell?.resetDocumentChrome?.(recoveredName, null, false);
+    this._recomputeLivePagination?.();
+    return true;
+  }
+
   /**
    * Tạo tài liệu mới trắng hoặc đóng tài liệu hiện tại, làm sạch vùng soạn thảo và các trạng thái trang.
    */

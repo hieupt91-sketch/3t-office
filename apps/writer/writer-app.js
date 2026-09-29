@@ -16,6 +16,7 @@ import { VietnameseSpellChecker } from "../../platform/text/vi-spellchecker.js";
 import { SpellcheckDomController } from "../../platform/text/spellcheck-dom-controller.js";
 import { VIETNAMESE_DICTIONARY_WORDS } from "../../platform/text/dictionaries/vi-dictionary.js";
 import { HelpPanel } from "../../platform/help/index.js";
+import { autoRecoverManager } from "../../platform/autorecover/auto-recover.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -206,6 +207,15 @@ export class WriterApp {
     this._watchRibbonForStyleGalleryStrip();
     this._setupContentObserver();
     this._setupVietnameseSpellcheck([header, body, footer]);
+    await autoRecoverManager.register({
+      appKind: "writer",
+      adapter: this.adapter,
+      shell: this.shell,
+      helpPanel: this.helpPanel,
+      serialize: () => this.adapter._contentForExport(),
+      restore: (content, manifest) => this.adapter.restoreFromAutoRecover(content, manifest),
+      options
+    });
     console.log("[WriterApp] Đã khởi tạo VN Writer chuẩn hóa cao cấp.");
   }
 
@@ -245,6 +255,7 @@ export class WriterApp {
   }
 
   destroy() {
+    autoRecoverManager.detach(this.adapter);
     this._lifecycleObserver?.disconnect();
     this._lifecycleObserver = null;
     this._styleGalleryObserver?.disconnect();

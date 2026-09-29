@@ -5,9 +5,10 @@
 
 import { WRITER_HELP_ENTRIES } from "./entries-writer.js";
 import { ERROR_REPORTING_HELP_ENTRIES } from "./entries-error-reporting.js";
+import { AUTORECOVER_HELP_ENTRIES } from "./entries-autorecover.js";
 
 /** @type {Array<HelpEntry>} */
-export const HELP_ENTRIES = [...WRITER_HELP_ENTRIES, ...ERROR_REPORTING_HELP_ENTRIES];
+export const HELP_ENTRIES = [...WRITER_HELP_ENTRIES, ...ERROR_REPORTING_HELP_ENTRIES, ...AUTORECOVER_HELP_ENTRIES];
 
 /**
  * @typedef {Object} HelpEntry

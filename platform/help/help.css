@@ -163,3 +163,68 @@
   font-size: 13px;
   color: var(--vno-text-muted);
 }
+
+.vno-autorecover-settings {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--vno-border-default);
+  background: var(--vno-bg-subtle, var(--vno-bg-canvas));
+}
+
+.vno-autorecover-settings h3 {
+  margin: 0 0 8px;
+  color: var(--vno-text-primary);
+  font-size: 13px;
+}
+
+.vno-autorecover-toggle,
+.vno-autorecover-interval-row,
+.vno-autorecover-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 7px 0;
+  font-size: 12px;
+}
+
+.vno-autorecover-interval-label { display: block; margin-top: 9px; font-size: 12px; }
+.vno-autorecover-interval { width: 72px; }
+.vno-autorecover-status { min-height: 1.4em; margin: 7px 0 0; color: var(--vno-text-muted); font-size: 11px; }
+
+.vno-recovery-overlay {
+  position: fixed;
+  z-index: 20000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(15 23 42 / 48%);
+}
+
+.vno-recovery-dialog {
+  width: min(720px, 100%);
+  max-height: min(82vh, 760px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--vno-border-default);
+  border-radius: var(--vno-radius-lg, 12px);
+  background: var(--vno-bg-canvas, #fff);
+  color: var(--vno-text-primary, #111827);
+  box-shadow: 0 24px 72px rgb(15 23 42 / 28%);
+}
+
+.vno-recovery-header h2 { margin: 0 0 5px; font-size: 21px; }
+.vno-recovery-header p { margin: 0 0 18px; color: var(--vno-text-muted); font-size: 13px; line-height: 1.5; }
+.vno-recovery-list { display: grid; gap: 9px; }
+.vno-recovery-item { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px; border: 1px solid var(--vno-border-default); border-radius: 8px; }
+.vno-recovery-item-main { min-width: 0; }
+.vno-recovery-item-main strong { overflow-wrap: anywhere; }
+.vno-recovery-item-main p, .vno-recovery-item-main time { display: block; margin: 4px 0 0; color: var(--vno-text-muted); font-size: 12px; }
+.vno-recovery-item-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.vno-recovery-message { min-height: 1.5em; margin-top: 12px; color: var(--vno-color-danger, #b91c1c); font-size: 13px; }
+.vno-recovery-dialog footer { display: flex; justify-content: flex-end; margin-top: 12px; }
+.vno-recovery-dialog button:focus-visible, .vno-autorecover-settings :focus-visible { outline: 3px solid var(--vno-color-focus, #2563eb); outline-offset: 2px; }
+
+@media (max-width: 620px) {
+  .vno-recovery-item { align-items: stretch; flex-direction: column; }
+  .vno-recovery-item-actions { justify-content: flex-start; }
+}
