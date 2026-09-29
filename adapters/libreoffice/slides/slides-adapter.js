@@ -3333,6 +3333,19 @@ export class SlidesAdapter {
     }
   }
 
+  /** Load the existing Save FODP serialization as a new, unsaved recovery copy. */
+  restoreFromAutoRecover(fodpText, manifest = {}) {
+    const content = String(fodpText || "");
+    if (!/<office:document\b/i.test(content) || !/<draw:page\b/i.test(content)) return false;
+    this.loadFromFodp(content);
+    if (!this.canvas?.slides?.length) return false;
+    const originalTitle = String(manifest.title || "Bản trình chiếu 1.pptx").split(/[\\/]/).filter(Boolean).pop().replace(/\.[^/.]+$/, "") || "Bản trình chiếu";
+    this.sourceFileName = `${originalTitle} (đã khôi phục)`;
+    this.isDirty = true;
+    this.shell?.resetDocumentChrome?.(`${this.sourceFileName}.pptx`, null, false);
+    return true;
+  }
+
   /**
    * Lưu bản trình chiếu thành tệp PPTX thật trên đĩa (qua LibreOffice headless engine).
    */

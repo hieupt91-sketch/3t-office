@@ -4871,6 +4871,17 @@ export class SheetAdapter {
     return true;
   }
 
+  /** Load the existing Save FODS serialization as a new, unsaved recovery copy. */
+  restoreFromAutoRecover(fodsText, manifest = {}) {
+    if (!this.loadFromFods(String(fodsText || ""))) return false;
+    const originalTitle = String(manifest.title || "Bảng tính 1.xlsx").split(/[\\/]/).filter(Boolean).pop().replace(/\.[^/.]+$/, "") || "Bảng tính";
+    this.sourceFilePath = "";
+    this.sourceFileName = `${originalTitle} (đã khôi phục)`;
+    this.isDirty = true;
+    this.shell?.resetDocumentChrome?.(`${this.sourceFileName}.xlsx`, null, false);
+    return true;
+  }
+
   /**
    * Chuyển đổi dữ liệu bảng tính hiện tại thành chuỗi CSV (RFC 4180).
    * Giữ nguyên công thức bắt đầu bằng '=' để LibreOffice Calc xử lý chuẩn xác.

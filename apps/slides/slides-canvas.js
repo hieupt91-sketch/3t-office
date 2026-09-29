@@ -429,16 +429,19 @@ export class SlidesCanvasController {
 
     this.titleEl.addEventListener("input", () => {
       this._syncEditableFieldsFromDom();
+      this.options.onDocumentChange?.();
       this._renderThumbnails();
     });
 
     this.bodyEl.addEventListener("input", () => {
       this._syncEditableFieldsFromDom();
+      this.options.onDocumentChange?.();
       this._renderThumbnails();
     });
 
     this.body2El.addEventListener("input", () => {
       this._syncEditableFieldsFromDom();
+      this.options.onDocumentChange?.();
       this._renderThumbnails();
     });
 
@@ -578,12 +581,20 @@ export class SlidesCanvasController {
     });
 
     this.notesTextarea?.addEventListener("input", () => {
+      this.options.onDocumentChange?.();
       const s = this.slides[this.currentSlideIndex];
       if (s) {
         s.notes = this.notesTextarea.value;
         this._updateNotesCharCount();
       }
     });
+
+    this._autoRecoverInputHandler = (event) => {
+      if (event.target?.closest?.("[contenteditable='true'], [contenteditable=true], .vno-slide-notes-input")) {
+        this.options.onDocumentChange?.();
+      }
+    };
+    this.container.addEventListener("input", this._autoRecoverInputHandler);
 
     stage.appendChild(this.notesPanelEl);
     this.container.appendChild(stage);
@@ -3351,6 +3362,7 @@ export class SlidesCanvasController {
    * phím tắt Ctrl+Z/Ctrl+Y sẽ bị kẹt ở trạng thái do app khác để lại lúc khởi động trang.
    */
   _syncUndoRedoState() {
+    this.options.onDocumentChange?.();
     if (typeof globalCommandBus === "undefined" || !globalCommandBus?.updateState) return;
     globalCommandBus.updateState("common.edit.undo", { enabled: this.undoStack.length > 0 });
     globalCommandBus.updateState("common.edit.redo", { enabled: this.redoStack.length > 0 });

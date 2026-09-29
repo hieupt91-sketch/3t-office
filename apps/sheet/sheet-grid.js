@@ -6179,6 +6179,7 @@ export class SheetGridController {
       if (this.undoStack.length > this.maxHistorySteps) this.undoStack.shift();
     }
     this.redoStack = [];
+    this.options.onDocumentChange?.();
     this._syncCommandStates();
   }
 
@@ -6802,6 +6803,7 @@ export class SheetGridController {
     const applied = this._applyHistoryAction(action, "undo");
     if (applied) this.redoStack.push(action);
     else this.undoStack.push(action);
+    if (applied) this.options.onDocumentChange?.();
     this._syncCommandStates();
     return applied;
   }
@@ -6814,6 +6816,7 @@ export class SheetGridController {
       this.undoStack.push(action);
       if (this.undoStack.length > this.maxHistorySteps) this.undoStack.shift();
     } else this.redoStack.push(action);
+    if (applied) this.options.onDocumentChange?.();
     this._syncCommandStates();
     return applied;
   }

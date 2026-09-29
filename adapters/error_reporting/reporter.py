@@ -227,6 +227,7 @@ class ErrorReporter:
         self.app_version = sanitize_text(app_version, limit=40)
         self.app_kind = app_kind if app_kind in _APP_KINDS else "writer"
         self.data_dir = Path(data_dir)
+        self.recovery_dir = self.data_dir / "recovery"
         self.reports_dir = self.data_dir / "reports"
         self.queue_dir = self.reports_dir / "queue"
         self.attachments_dir = self.reports_dir / "attachments"
@@ -335,6 +336,8 @@ class ErrorReporter:
     ) -> str | None:
         if not self.enabled:
             return None
+        if self._is_recovery_path(file_path) or self._is_recovery_path(attachment_path):
+            return None
         try:
             candidate_type = sanitize_text(error_type, limit=80)
             safe_type = candidate_type if re.fullmatch(r"[A-Za-z][A-Za-z0-9_.-]{0,79}", candidate_type) else "FrontendError"
@@ -437,6 +440,8 @@ class ErrorReporter:
             return {"queued": False, "error": "Mô tả tối đa 4.000 ký tự."}
         attachment_copy: Path | None = None
         if attach_current_file:
+            if self._is_recovery_path(current_file):
+                return {"queued": False, "error": "Bản khôi phục cục bộ không được đưa vào báo cáo lỗi."}
             if not current_file or not Path(current_file).is_file():
                 return {"queued": False, "error": "Không tìm thấy tệp hiện đang mở để đính kèm."}
             try:
@@ -545,6 +550,8 @@ class ErrorReporter:
                 raise OSError(f"Report endpoint returned {response.status}")
 
     def _post_attachment(self, event_id: str, attachment_path: Path) -> None:
+        if self._is_recovery_path(attachment_path):
+            raise OSError("Local recovery files cannot be sent as error report attachments")
         if not attachment_path.is_file() or attachment_path.stat().st_size > MAX_ATTACHMENT_BYTES:
             raise OSError("Queued attachment is missing or exceeds the size limit")
         boundary = f"vno-{uuid.uuid4().hex}"
@@ -568,6 +575,16 @@ class ErrorReporter:
         with _HTTP_OPENER.open(request, timeout=self.timeout) as response:
             if not 200 <= response.status < 300:
                 raise OSError(f"Attachment endpoint returned {response.status}")
+
+    def _is_recovery_path(self, path: object) -> bool:
+        if not path:
+            return False
+        try:
+            candidate = Path(path).resolve(strict=False)
+            recovery_root = self.recovery_dir.resolve(strict=False)
+            return candidate == recovery_root or recovery_root in candidate.parents
+        except (OSError, TypeError, ValueError):
+            return False
 
     def _consent_state(self) -> str:
         return self._read_consent()[0]
