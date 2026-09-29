@@ -68,6 +68,8 @@ Invoke-Robocopy $LibreOfficeDir (Join-Path $appDir "tools\libreoffice") @()
 
 # 4. Icons (copy real multi-size icons from branding/icons/, or fallback to generated placeholders), version, notices.
 Write-Host "[4/5] Icons, version, notices"
+# Needed before $iconSpecs below: [System.Drawing.Color] is not loaded in a fresh PowerShell 5.1.
+Add-Type -AssemblyName System.Drawing
 $iconDir = Join-Path $dist "icons"
 New-Item -ItemType Directory -Force $iconDir | Out-Null
 $vnoIcon = Join-Path $repo "branding\icons\vnoffice.ico"
@@ -79,16 +81,11 @@ $iconSpecs = @(
     @{ Name = "sheet"; Letter = "S"; Color = [System.Drawing.Color]::FromArgb(255, 22, 128, 74) },
     @{ Name = "slides"; Letter = "P"; Color = [System.Drawing.Color]::FromArgb(255, 204, 88, 30) }
 )
-$drawingLoaded = $false
 foreach ($spec in $iconSpecs) {
     $realIcon = Join-Path $repo "branding\icons\$($spec.Name).ico"
     if (Test-Path -LiteralPath $realIcon) {
         Copy-Item -LiteralPath $realIcon -Destination (Join-Path $iconDir "$($spec.Name).ico")
     } else {
-        if (-not $drawingLoaded) {
-            Add-Type -AssemblyName System.Drawing
-            $drawingLoaded = $true
-        }
         $bitmap = New-Object System.Drawing.Bitmap 64, 64
         $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
         $graphics.SmoothingMode = "AntiAlias"
