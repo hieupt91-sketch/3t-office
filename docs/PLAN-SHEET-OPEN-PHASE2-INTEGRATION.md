@@ -36,6 +36,32 @@ On LAN14 the fused final XF-plus-capture stage took 33.473 / 33.379 s. Total Pyt
 
 The largest remaining measured Python stage is native overlays on both LAN14 (32.8–33.9 s) and LAN06 (51.2–51.4 s). LAN14's fused XF-and-capture stage is now nearly as large (33.4–33.5 s). Optimize is the next largest stage on both files. The prototype's Edge model reconstruction took 36.051–36.454 s in separate parity runs; it is not a full application first-grid measurement. Current end-to-end time and peak process memory are **NOT MEASURED**. No performance estimate in this plan is represented as a measurement.
 
+## S33p2c native overlay profile and updated projection
+
+S33p2c profiled the native overlay on raw LibreOffice FODS and compared a scratch variant that changes only the existing Python overlay path. All cProfile durations below are diagnostic and inflated by profiling; use the separate foreground timings for performance comparison.
+
+| Workbook | cProfile overlay duration | Metadata index build | FODS metadata rewrite | Other hot work |
+|---|---:|---:|---:|---|
+| LAN06 | 161.728 s | 63.471 s | 49.500 s in `apply_row` | layout overlay 42.268 s; `_xml_attrs` 24.943 s cumulative |
+| LAN14 | 85.848 s | 33.432 s | 28.652 s in `apply_row` | `_xml_attrs` 13.537 s cumulative; string attr stamping 7.532 s |
+
+Both profiles show repeated per-cell attribute parsing and map work. LAN06 made 3.53 million metadata-index cell visits and 2.47 million repeat/format stamp calls; LAN14 made 1.52 million cell visits. The Phase 1 path already fuses format, string, and XF application into one FODS traversal, but it still builds the XF coordinate map and immediately discards that map when `SHEET_OPEN_SKIP_INITIAL_XF=1`.
+
+The scratch optimization in `scripts/perf-proto/native_overlay_profile.py` avoids building that discarded XF map and replaces the general per-cell XML attribute dictionary with a precompiled matcher for the three attributes this index needs (`r`, `s`, and `t`). It leaves the FODS cell scanner and metadata emission order unchanged. Its output was byte-identical to the current overlay for the requested set. A regex replacement for the FODS cell scanner was tried and abandoned after it exceeded twice the baseline time without completing; it is not part of the retained prototype.
+
+Two foreground native-overlay runs per workbook (seconds):
+
+| Workbook | Current overlay | Scratch optimization | Mean change |
+|---|---:|---:|---:|
+| LAN06 | 53.307 / 49.297 | 45.723 / 49.705 | −3.588 s (−7.0%) |
+| LAN14 | 33.145 / 33.315 | 33.485 / 32.878 | −0.049 s (−0.15%) |
+
+The LAN06 pair shows a modest gain with visible run-to-run variance; the LAN14 full overlay is effectively unchanged. The LAN14 metadata substage averaged 23.11 s on the current path and 22.02 s on the scratch path, but the other overlay stages varied enough that the total stage showed no material improvement. These are overlay-only measurements, not full application opens.
+
+**Updated LAN14 projection (ESTIMATE, not a fresh full-pipeline measurement):** replacing the Phase 2B native overlay times in its fused Python totals (106.876 / 109.341 s) with the S33p2c optimized overlay measurements projects 107.590 / 108.356 s for XLSX → FODS + payload Python work. Applying the measured 0.136 s mean overlay-stage reduction to the earlier separately assembled Python pipeline + bridge transport + Adapter-load estimate updates it from 263–265 s to **262.9–264.9 s, or about 263–265 s**. The estimate does not change materially. App-level first-grid time and peak memory remain **NOT MEASURED**; the under-60-second objective remains **NOT ACHIEVED**.
+
+Byte parity passed for LAN06, LAN11, LAN12, LAN28, LAN14 and the five FODS fixtures. LAN06 and LAN14 each had matching current/candidate artifact sizes and SHA-256 hashes; the other eight pairs were compared directly in the prototype harness. No Edge comparator fallback was needed because byte identity passed.
+
 The scratch Edge comparator reported deep model equality for fixtures `sample-sheet`, `sample-sheet-validation`, `sample-sheet-pivot`, `sample-sheet-formulas`, `sample-sheet-charts`, and existing LAN FODS artifacts LAN06, LAN11, LAN12, LAN28, LAN14. LAN14 had both an existing-artifact comparison and a comparison against the fused pipeline's own FODS output. The fixture/LAN parity result validates the prototype comparator only; it is not a save/round-trip or 26-LAN audit.
 
 ## Proposed implementation and files
@@ -89,4 +115,7 @@ Rollback is immediate: leave `SHEET_OPEN_PAYLOAD` unset/off, which preserves the
 
 - `scripts/perf-proto/phase2_stream_open.py`
 - `scripts/perf-proto/sheet-payload-loader.mjs`
+- `scripts/perf-proto/native_overlay_profile.py`
+- `scripts/perf-proto/compare_native_overlay.py`
 - `docs/HANDOFF-SHEET-OPEN-PHASE2B.md`
+- `docs/HANDOFF-SHEET-OPEN-PHASE2C.md`
