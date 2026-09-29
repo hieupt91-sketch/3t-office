@@ -54,6 +54,11 @@ _BARE_FILENAME = re.compile(
     r"(?i)(?<![\w/\\])(?:[\w\u00c0-\u024f.-]+\s+){0,8}[\w\u00c0-\u024f.-]+\.([a-z0-9]{1,8})(?![\w])"
 )
 _LONG_TOKEN = re.compile(r"\S{161,}")
+# Quoted text in an error message is often a cell value, heading or other document content
+# ("Invalid value 'Lương tháng 9 - Nguyễn Văn A'"). Short ASCII identifiers such as
+# 'NoneType' or "get" stay — they are what makes a report debuggable.
+_QUOTED_TEXT = re.compile(r"([\"'“‘])([^\"'”’\r\n]*)([\"'”’])")
+_SAFE_QUOTED_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_.$<>-]{0,39}")
 _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
@@ -140,6 +145,14 @@ def sanitize_text(value: object, *, secrets: tuple[str, ...] = (), limit: int = 
         return f"<file.{extension}>" if extension in _EXTENSIONS else "<file>"
 
     text = _BARE_FILENAME.sub(replace_bare_filename, text)
+
+    def replace_quoted_text(match: re.Match[str]) -> str:
+        inner = match.group(2)
+        if inner == "" or inner.startswith("<") or _SAFE_QUOTED_IDENTIFIER.fullmatch(inner):
+            return match.group(0)
+        return f"{match.group(1)}<text>{match.group(3)}"
+
+    text = _QUOTED_TEXT.sub(replace_quoted_text, text)
     username = _current_username()
     for secret in (username, *secrets):
         if secret and len(secret) >= 2:

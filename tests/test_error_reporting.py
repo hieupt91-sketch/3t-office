@@ -69,6 +69,16 @@ class ErrorReportingTests(unittest.TestCase):
         if username:
             self.assertNotIn(username.lower(), sanitize_text(f"user={username}").lower())
 
+    def test_quoted_document_text_is_redacted_but_identifiers_kept(self):
+        cleaned = sanitize_text("Giá trị không hợp lệ 'Lương tháng 9 - Nguyễn Văn A' tại ô \"Tổng cộng\"")
+        self.assertNotIn("Nguyễn", cleaned)
+        self.assertNotIn("Tổng cộng", cleaned)
+        self.assertIn("'<text>'", cleaned)
+        identifiers = sanitize_text("'NoneType' object has no attribute 'get'")
+        self.assertEqual(identifiers, "'NoneType' object has no attribute 'get'")
+        smart_quotes = sanitize_text("Không tìm thấy “Hợp đồng lao động”")
+        self.assertNotIn("Hợp đồng", smart_quotes)
+
     def test_long_message_token_is_redacted_and_output_is_bounded(self):
         cleaned = sanitize_text("lỗi " + ("bí mật" * 100))
         self.assertLessEqual(len(cleaned), 240)
