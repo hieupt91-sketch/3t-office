@@ -6,6 +6,7 @@ cho các thao tác Mở/Lưu/Xuất PDF — cross-platform: Windows, Linux, macO
 """
 
 import http.server
+import inspect
 import os
 import socket
 import sys
@@ -19,15 +20,20 @@ import shutil
 import subprocess
 import tempfile
 import threading
+import time
 import platform
 import zipfile
 from pathlib import Path
 from urllib.parse import urlencode, unquote
 
 import webview
+from adapters.error_reporting import ErrorReporter, load_client_config
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML = os.path.join(ROOT_DIR, "index.html")
+APP_VERSION = "0.9.0-pilot1"
+_ERROR_REPORTER: ErrorReporter | None = None
+_ERROR_REPORT_CONTEXT = threading.local()
 
 # ---------------------------------------------------------------------------
 # Embedded static-file server (runs inside the Python process)
@@ -331,11 +337,29 @@ def _profile_uri(app_kind: str | None = None) -> str:
 
 def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind: str | None = None) -> str:
     """Chạy LibreOffice headless để chuyển đổi thật một tệp. Trả về đường dẫn tệp kết quả."""
+    started_at = time.monotonic()
+
+    def report_conversion_failure(error_type: str, message: str) -> None:
+        if _ERROR_REPORTER is None:
+            return
+        event_id = _ERROR_REPORTER.record_error(
+            error_type=error_type,
+            message=message,
+            operation=f"convert.{target_ext}",
+            file_path=src_path,
+            duration_ms=(time.monotonic() - started_at) * 1000,
+            app_kind=app_kind,
+        )
+        if event_id and getattr(_ERROR_REPORT_CONTEXT, "active", False):
+            _ERROR_REPORT_CONTEXT.failure_reported = True
+
     if not SOFFICE_PATH:
-        raise DocumentEngineError(
+        error = DocumentEngineError(
             "Không tìm thấy LibreOffice engine (soffice). Vui lòng cài đặt LibreOffice "
             "hoặc đặt biến môi trường VNOFFICE_SOFFICE_PATH trỏ tới soffice."
         )
+        report_conversion_failure(type(error).__name__, str(error))
+        raise error
 
     if target_ext == "pdf" and app_kind:
         if app_kind == "sheet":
@@ -382,17 +406,23 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
                 cmd, capture_output=True, text=True, timeout=120, check=False
             )
         except subprocess.TimeoutExpired as exc:
-            raise DocumentEngineError("Hết thời gian chờ khi chuyển đổi tài liệu.") from exc
+            error = DocumentEngineError("Hết thời gian chờ khi chuyển đổi tài liệu.")
+            report_conversion_failure("SofficeTimeout", str(error))
+            raise error from exc
 
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "").strip()[:500]
-        raise DocumentEngineError(f"LibreOffice báo lỗi khi chuyển đổi: {detail or 'không rõ nguyên nhân'}")
+        message = f"LibreOffice báo lỗi khi chuyển đổi: {detail or 'không rõ nguyên nhân'}"
+        report_conversion_failure("SofficeExitError", message)
+        raise DocumentEngineError(message)
 
     base = Path(src_path).stem
     out_path = Path(out_dir) / f"{base}.{target_ext}"
     if not out_path.is_file():
         detail = (result.stdout or "").strip()[:500]
-        raise DocumentEngineError(f"Không tạo được tệp đầu ra. Chi tiết: {detail or 'không rõ'}")
+        message = f"Không tạo được tệp đầu ra. Chi tiết: {detail or 'không rõ'}"
+        report_conversion_failure("SofficeOutputMissing", message)
+        raise DocumentEngineError(message)
 
     return str(out_path)
 
@@ -916,6 +946,16 @@ def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
                 pass
 
 
+def _verify_saved_file(dest_path: str) -> None:
+    """Catch a failed/empty atomic write before the UI reports Save as successful."""
+    try:
+        destination = Path(dest_path)
+        if not destination.is_file() or destination.stat().st_size <= 0:
+            raise DocumentEngineError("Kiểm tra sau khi lưu thất bại: tệp đầu ra rỗng hoặc không tồn tại.")
+    except OSError as exc:
+        raise DocumentEngineError("Kiểm tra sau khi lưu thất bại: không thể đọc tệp đầu ra.") from exc
+
+
 def _read_docx_zip_entry(src_path: str, entry_name: str) -> str | None:
     """Read one XML member from a real .docx (OOXML zip).
 
@@ -1026,6 +1066,137 @@ class VnOfficeApi:
     def __init__(self, app_kind: str | None = None, initial_file: str | None = None):
         self._app_kind = app_kind
         self._initial_file = initial_file
+        self._reporter = _ERROR_REPORTER
+        self._current_file_path: str | None = None
+        self._reporting_file_path: str | None = initial_file
+        self._reporting_operation: str | None = None
+        self._reporting_app_kind = app_kind if app_kind in VALID_APP_KINDS else None
+        self._api_report_depth = 0
+
+    def _invoke_reported_api(self, method_name, method, *args, **kwargs):
+        outermost = self._api_report_depth == 0
+        self._api_report_depth += 1
+        started_at = time.monotonic()
+        self._reporting_file_path = self._current_file_path or self._initial_file
+        self._reporting_operation = self._default_operation(method_name, method, args, kwargs)
+        if outermost:
+            _ERROR_REPORT_CONTEXT.active = True
+            _ERROR_REPORT_CONTEXT.failure_reported = False
+        try:
+            try:
+                result = method(*args, **kwargs)
+            except Exception as exc:
+                if outermost and not getattr(_ERROR_REPORT_CONTEXT, "failure_reported", False):
+                    self._record_api_failure(exc, started_at)
+                raise
+            if (
+                outermost
+                and isinstance(result, dict)
+                and result.get("status") == "error"
+                and not getattr(_ERROR_REPORT_CONTEXT, "failure_reported", False)
+            ):
+                self._record_api_failure(
+                    RuntimeError(result.get("message") or "Thao tác tài liệu thất bại."),
+                    started_at,
+                )
+            return result
+        finally:
+            self._api_report_depth -= 1
+            if outermost:
+                _ERROR_REPORT_CONTEXT.active = False
+                _ERROR_REPORT_CONTEXT.failure_reported = False
+
+    def open_document_dialog(self, app_kind="writer"):
+        return self._invoke_reported_api("open_document_dialog", self._open_document_dialog_impl, app_kind)
+
+    def save_document_in_place(self, content, app_kind="writer", target_path=None, source_path=None):
+        return self._invoke_reported_api(
+            "save_document_in_place", self._save_document_in_place_impl,
+            content, app_kind, target_path, source_path,
+        )
+
+    def save_document_dialog(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu", source_path=None):
+        return self._invoke_reported_api(
+            "save_document_dialog", self._save_document_dialog_impl,
+            content, app_kind, target_format, suggested_name, source_path,
+        )
+
+    def export_pdf_dialog(self, content, app_kind="writer", suggested_name="TaiLieu", source_path=None):
+        return self._invoke_reported_api(
+            "export_pdf_dialog", self._export_pdf_dialog_impl,
+            content, app_kind, suggested_name, source_path,
+        )
+
+    def _default_operation(self, method_name, method, args, kwargs):
+        if method_name == "open_document_dialog":
+            self._reporting_app_kind = args[0] if args and args[0] in VALID_APP_KINDS else self._app_kind
+            path = self._initial_file
+            if path:
+                self._reporting_file_path = path
+                return f"open.{Path(path).suffix.lower().lstrip('.') or 'unknown'}"
+            return "open.dialog"
+        try:
+            bound = inspect.signature(method).bind_partial(*args, **kwargs)
+            values = bound.arguments
+        except (TypeError, ValueError):
+            values = kwargs
+        app_kind = values.get("app_kind", self._app_kind or "writer")
+        self._reporting_app_kind = app_kind if app_kind in VALID_APP_KINDS else self._app_kind
+        target_path = values.get("target_path") or values.get("source_path")
+        target_format = values.get("target_format")
+        if method_name == "export_pdf_dialog":
+            return "export.pdf"
+        if method_name == "save_document_dialog":
+            fmt = target_format or Path(str(values.get("suggested_name") or "")).suffix.lstrip(".")
+            return f"{'export' if fmt == 'pdf' else 'save'}.{fmt or {'writer':'docx','sheet':'xlsx','slides':'pptx'}.get(app_kind, 'file')}"
+        if target_path:
+            self._reporting_file_path = target_path
+            ext = Path(str(target_path)).suffix.lower().lstrip(".")
+        else:
+            ext = target_format or {"writer": "docx", "sheet": "xlsx", "slides": "pptx"}.get(app_kind, "file")
+        return f"save.{ext or 'file'}"
+
+    def _record_api_failure(self, exception, started_at):
+        if self._reporter is None:
+            return
+        self._reporter.capture_exception(
+            type(exception),
+            exception,
+            exception.__traceback__,
+            operation=self._reporting_operation or "document.operation",
+            file_path=self._reporting_file_path,
+            duration_ms=(time.monotonic() - started_at) * 1000,
+            app_kind=self._reporting_app_kind,
+        )
+
+    def get_error_reporting_state(self):
+        if self._reporter is None:
+            return {"enabled": False, "consent": "unknown", "endpoint_configured": False, "queue_count": 0, "has_current_file": bool(self._current_file_path)}
+        state = self._reporter.get_state()
+        state["has_current_file"] = bool(self._current_file_path and os.path.isfile(self._current_file_path))
+        return state
+
+    def set_error_reporting_consent(self, granted):
+        if self._reporter is None:
+            return self.get_error_reporting_state()
+        if type(granted) is not bool:
+            return self.get_error_reporting_state()
+        return self._reporter.set_consent(granted)
+
+    def report_frontend_error(self, payload):
+        if self._reporter is None:
+            return {"queued": False}
+        return self._reporter.report_frontend_error(payload)
+
+    def submit_user_feedback(self, description, attach_current_file=False, app_kind=None):
+        if self._reporter is None:
+            return {"queued": False, "error": "Không thể lưu báo cáo lỗi ở thời điểm này."}
+        return self._reporter.submit_user_feedback(
+            description,
+            attach_current_file=(attach_current_file is True),
+            current_file=self._current_file_path,
+            app_kind=app_kind if app_kind in VALID_APP_KINDS else self._reporting_app_kind,
+        )
 
     def engine_status(self):
         """Cho UI biết document engine thật có sẵn sàng hay không (không giả vờ)."""
@@ -1044,7 +1215,7 @@ class VnOfficeApi:
         print(f"[VNO Sheet Perf] {name}: {value:.1f} ms", flush=True)
         return True
 
-    def open_document_dialog(self, app_kind="writer"):
+    def _open_document_dialog_impl(self, app_kind="writer"):
         """Mở hộp thoại chọn tệp NATIVE thật của hệ điều hành, chuyển đổi tệp thật sang
         định dạng trung gian mà UI có thể hiển thị."""
         if self._initial_file:
@@ -1066,6 +1237,9 @@ class VnOfficeApi:
             if not result:
                 return {"status": "cancelled"}
             src_path = result[0]
+
+        self._reporting_file_path = src_path
+        self._reporting_operation = f"open.{Path(src_path).suffix.lower().lstrip('.') or 'unknown'}"
 
         if app_kind == "writer":
             target_ext = "html"
@@ -1160,6 +1334,7 @@ class VnOfficeApi:
             "format": target_ext,
             "content": content,
         }
+        self._current_file_path = src_path
         if app_kind == "writer":
             ooxml = (
                 writer_ooxml_metadata["ooxmlDocumentXml"]
@@ -1217,7 +1392,7 @@ class VnOfficeApi:
                 payload["ooxmlPresPropsXml"] = pres_props_xml
         return payload
 
-    def save_document_in_place(self, content, app_kind="writer", target_path=None, source_path=None):
+    def _save_document_in_place_impl(self, content, app_kind="writer", target_path=None, source_path=None):
         """Lưu nội dung trực tiếp vào tệp đích (Ctrl+S / Save-in-place),
         giữ nguyên định dạng gốc và thay thế nguyên tử an toàn."""
         if not target_path:
@@ -1225,6 +1400,8 @@ class VnOfficeApi:
 
         target_path, target_format = _infer_save_format_from_path(target_path, app_kind=app_kind)
         source_path = source_path or target_path
+        self._reporting_file_path = target_path
+        self._reporting_operation = f"save.{target_format}"
 
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_inplace_") as tmp:
@@ -1249,14 +1426,16 @@ class VnOfficeApi:
                     out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
                     _apply_native_export_postprocess(src_path, out_path, app_kind, target_format, source_path=source_path)
                 _atomic_replace_file(out_path, target_path)
+                _verify_saved_file(target_path)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
             return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
 
+        self._current_file_path = target_path
         return {"status": "ok", "message": f"Đã lưu tại {target_path}", "path": target_path}
 
-    def save_document_dialog(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu", source_path=None):
+    def _save_document_dialog_impl(self, content, app_kind="writer", target_format=None, suggested_name="TaiLieu", source_path=None):
         """Mở hộp thoại lưu tệp NATIVE thật, chuyển đổi nội dung soạn thảo hiện tại
         sang định dạng Office/ODF thật và ghi ra đĩa thật."""
         window = _active_window()
@@ -1291,6 +1470,8 @@ class VnOfficeApi:
 
         dest_path, actual_format = _infer_save_format_from_path(dest_path, app_kind=app_kind)
         target_format = actual_format
+        self._reporting_file_path = dest_path
+        self._reporting_operation = f"{'export' if target_format == 'pdf' else 'save'}.{target_format}"
 
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_") as tmp:
@@ -1315,14 +1496,16 @@ class VnOfficeApi:
                     out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
                     _apply_native_export_postprocess(src_path, out_path, app_kind, target_format, source_path=source_path)
                 _atomic_replace_file(out_path, dest_path)
+                _verify_saved_file(dest_path)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
             return {"status": "error", "message": f"Lỗi không xác định khi lưu tệp: {exc}"}
 
+        self._current_file_path = dest_path
         return {"status": "ok", "message": f"Đã lưu tại {dest_path}", "path": dest_path}
 
-    def export_pdf_dialog(self, content, app_kind="writer", suggested_name="TaiLieu", source_path=None):
+    def _export_pdf_dialog_impl(self, content, app_kind="writer", suggested_name="TaiLieu", source_path=None):
         return self.save_document_dialog(
             content, app_kind=app_kind, target_format="pdf", suggested_name=suggested_name, source_path=source_path
         )
@@ -1364,11 +1547,27 @@ def build_launch_url(app_kind: str | None, initial_file: str | None, port: int =
 
 
 def main(argv: list[str] | None = None):
+    global _ERROR_REPORTER
     try:
         app_kind, initial_file = parse_launch_args(list(sys.argv[1:] if argv is None else argv))
     except ValueError as exc:
         print(f"[VN Office] {exc}", file=sys.stderr)
         return 2
+
+    report_config = load_client_config(ROOT_DIR)
+    try:
+        _ERROR_REPORTER = ErrorReporter(
+            APP_VERSION,
+            app_kind,
+            _user_data_dir(),
+            endpoint=str(report_config["endpoint"]),
+            token=str(report_config["token"]),
+            enabled=bool(report_config["enabled"]),
+        )
+        _ERROR_REPORTER.install_exception_hooks()
+    except Exception:
+        # Reporting storage/configuration failures must never prevent offline startup.
+        _ERROR_REPORTER = None
 
     # Start embedded static-file server BEFORE creating the webview window
     # so the UI is guaranteed to load without ERR_CONNECTION_REFUSED.
