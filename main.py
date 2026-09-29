@@ -140,6 +140,11 @@ def find_soffice() -> str | None:
     if env_override:
         candidates.append(env_override)
 
+    # tools/libreoffice cạnh main.py (bản đóng gói) được ưu tiên hơn LibreOffice cài sẵn trên máy:
+    # bản cài sẵn có thể khác phiên bản đã kiểm thử và cho kết quả mở/lưu khác.
+    for name in ("soffice.exe", "soffice"):
+        candidates.append(str(Path(ROOT_DIR) / "tools" / "libreoffice" / "program" / name))
+
     if system == "Windows":
         candidates += [
             str(Path.home() / "tools" / "libreoffice" / "program" / "soffice.exe"),
@@ -161,13 +166,6 @@ def find_soffice() -> str | None:
     for c in candidates:
         if c and os.path.isfile(c):
             return c
-
-    # tools/libreoffice cạnh main.py (bundling cục bộ theo dự án, mọi hệ điều hành)
-    local_names = ["soffice.exe", "soffice"]
-    for name in local_names:
-        local_path = Path(ROOT_DIR) / "tools" / "libreoffice" / "program" / name
-        if local_path.is_file():
-            return str(local_path)
 
     return shutil.which("soffice") or shutil.which("soffice.exe")
 
