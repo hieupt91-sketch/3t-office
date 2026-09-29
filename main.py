@@ -519,10 +519,9 @@ def _apply_native_export_postprocess(src_path: str, out_path: str, app_kind: str
             ) from exc
 
 
-# Tắt 29/9/2026 (Claude): xuất .doc qua DOCX hậu xử lý làm bản lưu legacy20.doc thật KHÔNG mở được bằng Word
-# (hộp thoại lỗi, kể cả đổi tên; trước merge save-followups file này lưu tốt — chia đôi commit dd3afd2).
-# Tệp hỏng tệ hơn lệch trang (legacy06 quay về 3→4 trang). Bật lại khi đã tìm ra nguyên nhân và Word mở được 20/20 .doc.
-WRITER_DOC_EXPORT_VIA_DOCX = False
+# Bật lại 29/9/2026 (agy): đã khắc phục lỗi LibreOffice MS Word 97 filter xuất tệp .doc hỏng
+# bằng cách làm phẳng <mc:AlternateContent> về <mc:Fallback> VML trước khi gọi LibreOffice xuất .doc.
+WRITER_DOC_EXPORT_VIA_DOCX = True
 
 
 def _convert_writer_html_to_doc(src_html: str, out_dir: str, source_path: str | None = None) -> str:
@@ -536,6 +535,14 @@ def _convert_writer_html_to_doc(src_html: str, out_dir: str, source_path: str | 
     _apply_native_export_postprocess(
         src_html, intermediate_docx, "writer", "docx", source_path=source_docx,
     )
+    if os.path.isfile(intermediate_docx):
+        patcher = _ooxml_zip_patch()
+        with open(intermediate_docx, "rb") as handle:
+            raw_intermediate = handle.read()
+        prepared_intermediate = patcher.prepare_writer_docx_for_legacy_doc_export(raw_intermediate)
+        if prepared_intermediate != raw_intermediate:
+            with open(intermediate_docx, "wb") as handle:
+                handle.write(prepared_intermediate)
     return _run_soffice_convert(intermediate_docx, "doc", out_dir, app_kind="writer")
 
 
