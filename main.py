@@ -15,6 +15,8 @@ import csv
 from collections import Counter
 import html
 import importlib.util
+import json
+import logging
 import re
 import shutil
 import subprocess
@@ -28,12 +30,57 @@ from urllib.parse import urlencode, unquote
 
 import webview
 from adapters.error_reporting import ErrorReporter, load_client_config
+from adapters.updater import UpdaterManager
+from adapters.updater.trust import get_public_key
+from adapters.updater.updater import queue_rollback_report, write_health_marker
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML = os.path.join(ROOT_DIR, "index.html")
 APP_VERSION = "0.9.0-pilot1"
 _ERROR_REPORTER: ErrorReporter | None = None
 _ERROR_REPORT_CONTEXT = threading.local()
+_UPDATE_MANAGER: UpdaterManager | None = None
+_UPDATE_DATA_DIR: Path | None = None
+
+
+def _load_update_config() -> dict[str, str]:
+    config_path = Path(ROOT_DIR) / "vnoffice-config.json"
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return {"source": "", "channel": "pilot"}
+    update = config.get("update", {}) if isinstance(config, dict) else {}
+    if not isinstance(update, dict):
+        update = {}
+    source = update.get("source", "")
+    channel = update.get("channel", "pilot")
+    if not isinstance(source, str):
+        source = ""
+    if not isinstance(channel, str) or not re.fullmatch(r"[a-z][a-z0-9-]{0,31}", channel):
+        channel = "pilot"
+    return {"source": source.strip(), "channel": channel}
+
+
+def _update_install_root() -> Path | None:
+    app_dir = Path(ROOT_DIR)
+    install_root = app_dir.parent
+    required = (install_root / "python" / "pythonw.exe", install_root / "VERSION.txt")
+    return install_root if app_dir.name.lower() == "app" and all(path.is_file() for path in required) else None
+
+
+def _notify_update_ui(state: dict[str, object]) -> None:
+    window = _active_window()
+    if not window:
+        return
+    allowed = {key: state.get(key) for key in (
+        "current_version", "available_version", "channel", "release_notes", "ready",
+        "bytes_downloaded", "changed_files", "removed_files", "checked_at", "status",
+    )}
+    try:
+        payload = json.dumps(allowed, ensure_ascii=False, separators=(",", ":"))
+        window.evaluate_js(f"window.dispatchEvent(new CustomEvent('vno-office-update-state', {{detail:{payload}}}))")
+    except Exception:
+        pass
 
 # ---------------------------------------------------------------------------
 # Embedded static-file server (runs inside the Python process)
@@ -1070,6 +1117,7 @@ class VnOfficeApi:
         self._reporting_operation: str | None = None
         self._reporting_app_kind = app_kind if app_kind in VALID_APP_KINDS else None
         self._api_report_depth = 0
+        self._updater = _UPDATE_MANAGER
 
     def _invoke_reported_api(self, method_name, method, *args, **kwargs):
         outermost = self._api_report_depth == 0
@@ -1173,6 +1221,49 @@ class VnOfficeApi:
         state = self._reporter.get_state()
         state["has_current_file"] = bool(self._current_file_path and os.path.isfile(self._current_file_path))
         return state
+
+    def get_update_status(self):
+        if self._updater is None:
+            return {
+                "current_version": APP_VERSION,
+                "available_version": None,
+                "channel": "pilot",
+                "release_notes": "",
+                "ready": False,
+                "bytes_downloaded": 0,
+                "status": "disabled",
+            }
+        return self._updater.get_state()
+
+    def start_update_checks(self):
+        if self._updater is None:
+            return {"started": False, "state": self.get_update_status()}
+        return {"started": self._updater.start(), "state": self._updater.get_state()}
+
+    def check_for_updates(self):
+        if self._updater is None:
+            return {"queued": False, "state": self.get_update_status()}
+        queued = self._updater.schedule_check()
+        return {"queued": queued, "state": self._updater.get_state()}
+
+    def request_update_restart(self):
+        if self._updater is None or not self._updater.get_state().get("ready"):
+            return {"started": False, "error": "Chưa có bản cập nhật sẵn sàng."}
+        if self._app_kind not in VALID_APP_KINDS:
+            return {"started": False, "error": "Không xác định được ứng dụng cần khởi động lại."}
+        install_root = _update_install_root()
+        if install_root is None:
+            return {"started": False, "error": "Không tìm thấy thư mục cài đặt VN Office."}
+        try:
+            task_path = self._updater.create_apply_task(app_kind=self._app_kind, install_root=install_root)
+            if not self._updater.launch_apply_helper(task_path):
+                return {"started": False, "error": "Trình cập nhật chỉ áp dụng được trên Windows."}
+        except Exception as exc:
+            return {"started": False, "error": f"Không thể chuẩn bị cập nhật: {type(exc).__name__}"}
+        timer = threading.Timer(0.4, lambda: os._exit(0))
+        timer.daemon = True
+        timer.start()
+        return {"started": True}
 
     def set_error_reporting_consent(self, granted):
         if self._reporter is None:
@@ -1544,15 +1635,26 @@ def build_launch_url(app_kind: str | None, initial_file: str | None, port: int =
     return f"http://localhost:{port}/?{urlencode(query)}"
 
 
+def _update_token_from_args(argv: list[str]) -> str | None:
+    for arg in argv:
+        if arg.startswith("--update-health-token="):
+            token = arg.split("=", 1)[1].lower()
+            if re.fullmatch(r"[0-9a-f]{32}", token):
+                return token
+    return None
+
+
 def main(argv: list[str] | None = None):
-    global _ERROR_REPORTER
+    global _ERROR_REPORTER, _UPDATE_MANAGER, _UPDATE_DATA_DIR
+    launch_argv = list(sys.argv[1:] if argv is None else argv)
     try:
-        app_kind, initial_file = parse_launch_args(list(sys.argv[1:] if argv is None else argv))
+        app_kind, initial_file = parse_launch_args(launch_argv)
     except ValueError as exc:
         print(f"[VN Office] {exc}", file=sys.stderr)
         return 2
 
     report_config = load_client_config(ROOT_DIR)
+    _UPDATE_DATA_DIR = _user_data_dir() / "updates"
     try:
         _ERROR_REPORTER = ErrorReporter(
             APP_VERSION,
@@ -1566,6 +1668,29 @@ def main(argv: list[str] | None = None):
     except Exception:
         # Reporting storage/configuration failures must never prevent offline startup.
         _ERROR_REPORTER = None
+
+    install_root = _update_install_root()
+    if install_root:
+        try:
+            installed_version = (install_root / "VERSION.txt").read_text(encoding="ascii").strip() or APP_VERSION
+            update_config = _load_update_config()
+            _UPDATE_MANAGER = UpdaterManager(
+                install_dir=install_root,
+                updates_dir=_UPDATE_DATA_DIR,
+                current_version=installed_version,
+                source=update_config["source"],
+                channel=update_config["channel"],
+                public_key=get_public_key(),
+                on_state=_notify_update_ui,
+            )
+            _UPDATE_MANAGER.set_launch_args(launch_argv)
+        except Exception as exc:
+            # A malformed update config/version must never prevent offline document work.
+            logging.getLogger("vnoffice.updater").debug("Updater initialization unavailable: %s", type(exc).__name__)
+            _UPDATE_MANAGER = None
+    else:
+        _UPDATE_MANAGER = None
+    queue_rollback_report(_ERROR_REPORTER, _UPDATE_DATA_DIR)
 
     # Start embedded static-file server BEFORE creating the webview window
     # so the UI is guaranteed to load without ERR_CONNECTION_REFUSED.
@@ -1609,6 +1734,31 @@ def main(argv: list[str] | None = None):
 
     window.events.closing += on_closing
     window.events.closed += on_closing
+
+    health_token = _update_token_from_args(launch_argv) or os.environ.get("VNO_UPDATE_HEALTH_TOKEN", "").lower()
+    expected_health_file = os.environ.get("VNO_UPDATE_HEALTH_FILE", "")
+
+    def on_loaded(*_args):
+        if not health_token or not re.fullmatch(r"[0-9a-f]{32}", health_token):
+            return
+        health_root = _UPDATE_DATA_DIR
+        if expected_health_file:
+            candidate = Path(expected_health_file)
+            if candidate.name != f"health-{health_token}.ok":
+                return
+            try:
+                if _UPDATE_DATA_DIR and candidate.parent.resolve() != _UPDATE_DATA_DIR.resolve():
+                    return
+            except OSError:
+                return
+            health_root = candidate.parent
+        if health_root:
+            write_health_marker(health_root, health_token)
+
+    try:
+        window.events.loaded += on_loaded
+    except Exception:
+        pass
 
     try:
         webview.start(debug=os.environ.get("VNO_PERF_DEBUG") == "1")

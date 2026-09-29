@@ -3,5 +3,9 @@
     "enabled": true,
     "endpoint": "",
     "token": ""
+  },
+  "update": {
+    "source": "",
+    "channel": "pilot"
   }
 }
