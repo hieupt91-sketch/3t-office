@@ -64,8 +64,6 @@ function patchDocument() {
   globalThis.document = doc;
   globalThis.MutationObserver = class { observe() {} disconnect() {} };
 }
-patchDocument();
-
 /**
  * FODS fixture: 1 row with real data, then 1 row with huge repeats
  * (simulates the real-world pattern from DSS_Bao gia Dahua file)
@@ -152,6 +150,9 @@ function makeRepeatFodsWithDataInRepeat() {
 }
 
 export async function runSheetFodsRepeatExpandTests() {
+  const originalDocument = globalThis.document;
+  const originalMutationObserver = globalThis.MutationObserver;
+  patchDocument();
   const results = [];
   function test(name, fn) {
     try { fn(); results.push({ name, pass: true }); }
@@ -401,5 +402,7 @@ export async function runSheetFodsRepeatExpandTests() {
     if (data.size > 100) throw new Error(`cellsData.size = ${data.size} — expected ~3 real cells, bloated`);
   });
 
+  globalThis.document = originalDocument;
+  globalThis.MutationObserver = originalMutationObserver;
   return results;
 }
