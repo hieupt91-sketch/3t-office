@@ -9,6 +9,10 @@ param(
     [string]$OutDir = "E:\VNOffice-dist",
     [string]$PythonDir = (Join-Path $env:LOCALAPPDATA "Programs\Python\Python312"),
     [string]$LibreOfficeDir = (Join-Path $HOME "tools\libreoffice"),
+    # Where installed copies look for signed patches, e.g. \\192.168.1.252\company1\Software\VNOffice\updates
+    # (written to app\vnoffice-config.json, which updates never overwrite). Empty = updates off.
+    [string]$UpdateSource = "",
+    [string]$UpdateChannel = "pilot",
     [switch]$Zip
 )
 
@@ -58,6 +62,14 @@ foreach ($dir in @("apps", "platform", "adapters", "branding")) {
 }
 $example = Join-Path $repo "vnoffice-config.example.json"
 if (Test-Path -LiteralPath $example) { Copy-Item -LiteralPath $example -Destination $appDir }
+if ($UpdateSource) {
+    $config = [ordered]@{
+        errorReporting = [ordered]@{ enabled = $true; endpoint = ""; token = "" }
+        update = [ordered]@{ source = $UpdateSource; channel = $UpdateChannel }
+    }
+    $configJson = $config | ConvertTo-Json -Depth 4
+    [System.IO.File]::WriteAllText((Join-Path $appDir "vnoffice-config.json"), $configJson, (New-Object System.Text.UTF8Encoding $false))
+}
 
 # 2. Python runtime: interpreter, stdlib (without tests/IDLE/tkinter/pip), only the packages the app imports.
 Write-Host "[2/5] Python runtime"
