@@ -12,6 +12,7 @@ import { runSheetVndWordsTests } from "./unit/sheet-vnd-words.test.js";
 import { runSheetFormulaOdfTests } from "./unit/sheet-formula-odf.test.js";
 import { runFormulaAutocompleteTests } from "./unit/formula-autocomplete.test.js";
 import { runI18nTests } from "./unit/i18n.test.js";
+import { runI18nHardcodedEnglishTests } from "./unit/i18n-hardcoded-english.test.js";
 import { runSyntaxCheckTests } from "./unit/syntax-check.test.js";
 import { runHtmlSmokeTests } from "./smoke/html-smoke.test.js";
 import { runAiServiceTests } from "./unit/ai-service.test.js";
@@ -82,6 +83,7 @@ import { runSheetMergeCellsTests } from "./unit/sheet-merge-cells.test.js";
 import { runSheetPasteSpecialTests } from "./unit/sheet-paste-special.test.js";
 import { runSlidesSmartartImportTests } from "./unit/slides-smartart-import.test.js";
 import { runSlidesRotatedShapePositionTests } from "./unit/slides-rotated-shape-position.test.js";
+import { runSlidesBasicsG8Tests } from "./unit/slides-basics-g8.test.js";
 import { runWriterHeaderFooterImportTests } from "./unit/writer-headerfooter-import.test.js";
 import { runWriterFootnotesImportTests } from "./unit/writer-footnotes-import.test.js";
 import { runSlidesDiagramGroupSelectTests } from "./unit/slides-diagram-group-select.test.js";
@@ -186,6 +188,7 @@ import { runOfflineResourcesTests } from "./unit/offline-resources.test.js";
 import { runErrorReportingTests } from "./unit/error-reporting.test.js";
 import { runAutoRecoverTests } from "./unit/autorecover.test.js";
 import { runUpdaterUiTests } from "./unit/updater-ui.test.js";
+import { run3tBrandUxTests } from "./unit/3t-brand-ux.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -207,6 +210,7 @@ async function runAll() {
     { title: "3d. Unit Tests — Sheet công thức #REF! ⇄ ODF", runner: runSheetFormulaOdfTests },
     { title: "4. Unit Tests — Formula Autocomplete & Parameter IntelliSense", runner: runFormulaAutocompleteTests },
     { title: "5. Unit Tests — Vietnamese i18n Localization Layer", runner: runI18nTests },
+    { title: "5b. Regression Guard — Hard-coded English UI Text Scan", runner: runI18nHardcodedEnglishTests },
     { title: "6. Smoke Tests — Suite & Vietnamese Unicode", runner: runSuiteSmokeTests },
     { title: "7. Syntax & Codebase Integrity — node --check", runner: runSyntaxCheckTests },
     { title: "7b. Regression Guard — Offline Resources (no external CDN runtime loads)", runner: runOfflineResourcesTests },
@@ -381,7 +385,9 @@ async function runAll() {
     { title: "156. Unit Tests — Signed Updater UI and Help", runner: runUpdaterUiTests },
     { title: "156. Unit Tests — Writer legacy DOC keepNext import and pagination", runner: runWriterLegacyKeepNextTests },
     { title: "157. Unit Tests — Shared error reporting hooks, consent and feedback dialogs", runner: runErrorReportingTests },
-    { title: "158. Unit Tests — Shared AutoRecover dirty tracking, timer, and recovery dialog behavior", runner: runAutoRecoverTests }
+    { title: "158. Unit Tests — Shared AutoRecover dirty tracking, timer, and recovery dialog behavior", runner: runAutoRecoverTests },
+    { title: "159. Unit Tests — G8 VN Slides basics vs PowerPoint 2016 (slides, text, objects, show, notes, save)", runner: runSlidesBasicsG8Tests },
+    { title: "160. Unit Tests — 3T Office Brand UX (Splash Screen & About Dialog)", runner: run3tBrandUxTests }
   ];
 
   for (const suite of suites) {

@@ -33,12 +33,15 @@ export async function runSlidesPptxSlideSizeTests() {
   const results = [];
   const test = (name, fn) => { try { fn(); results.push({ name, pass: true }); } catch (error) { results.push({ name, pass: false, error: error.message }); } };
 
+  // G8 D5: khổ ghi bằng pt đủ chữ số → EMU CHÍNH XÁC (canvas giả không có ptPerPx = 0,75 pt/px:
+  // 960 × 540 px = 720 × 405 pt = 9144000 × 5143500 EMU). Bản cũ ghi cm làm tròn 3 chữ số
+  // (14.287 cm = 5143320 EMU) nên kỳ vọng cũ mang sai số làm tròn đó.
   test("parseIntendedSlideSizeFromFodp: đọc đúng cm thật từ style:page-layout-properties, quy đổi EMU chính xác", () => {
     const fodp = new SlidesAdapter({ slides: [{ id: 1, title: "T", body: "B", layoutType: "title-content", shapes: [], comments: [], hidden: false }], slideSize: { width: 960, height: 540 } }).serializeToFodp();
     const size = parseIntendedSlideSizeFromFodp(fodp);
     assert(size, "phải đọc được page-layout-properties do chính serializeToFodp() ghi ra");
-    assert(size.cx === Math.round(25.4 * 360000), `cx sai: ${size.cx}`);
-    assert(size.cy === Math.round(14.287 * 360000), `cy sai: ${size.cy}`);
+    assert(size.cx === 9144000, `cx sai: ${size.cx}`);
+    assert(size.cy === 5143500, `cy sai: ${size.cy}`);
   });
 
   test("parseIntendedSlideSizeFromFodp: trả về null khi FODP không có page-layout-properties", () => {
@@ -67,8 +70,8 @@ export async function runSlidesPptxSlideSizeTests() {
     const patched = postProcessSlidesPptx(original, { sourceFodp: fodp });
     assert(Buffer.compare(original, patched) !== 0, "phải có thay đổi vì khổ trang soffice ghi sai");
     const size = parseSlideSize(readZipEntry(patched, "ppt/presentation.xml").toString("utf8"));
-    assert(size.cx === Math.round(25.4 * 360000), `cx sai: ${size.cx}`);
-    assert(size.cy === Math.round(14.287 * 360000), `cy sai: ${size.cy}`);
+    assert(size.cx === 9144000, `cx sai: ${size.cx}`);
+    assert(size.cy === 5143500, `cy sai: ${size.cy}`);
   });
 
   test("postProcessSlidesPptx: khổ tùy chỉnh 4:3 (720x540) được tự sửa đúng, không bị bỏ mặc định 16:9", () => {
@@ -76,8 +79,8 @@ export async function runSlidesPptxSlideSizeTests() {
     const fodp = new SlidesAdapter({ slides: [{ id: 1, title: "T", body: "B", layoutType: "title-content", shapes: [], comments: [], hidden: false }], slideSize: { width: 720, height: 540 } }).serializeToFodp();
     const patched = postProcessSlidesPptx(original, { sourceFodp: fodp });
     const size = parseSlideSize(readZipEntry(patched, "ppt/presentation.xml").toString("utf8"));
-    assert(size.cx === Math.round(19.05 * 360000), `cx sai: ${size.cx}`);
-    assert(size.cy === Math.round(14.287 * 360000), `cy sai: ${size.cy}`);
+    assert(size.cx === 6858000, `cx sai: ${size.cx}`);
+    assert(size.cy === 5143500, `cy sai: ${size.cy}`);
   });
 
   test("postProcessSlidesPptx: hình khối nằm ĐÚNG TRONG khổ trang đã sửa (không còn lệch pha giữa sldSz và tọa độ hình thật)", () => {

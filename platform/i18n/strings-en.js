@@ -114,7 +114,7 @@ export const enStrings = {
     mergeConfirmTitle: "Merge cells", mergeConfirmMessage: "Merging cells only keeps the upper-left value and discards other values.", mergeConfirmOk: "OK",
     functionTitle: "Insert Function", functionCategory: "Function category:", allCategory: "All", allFunctions: "All functions", mathFunctions: "Math & Trig", statsFunctions: "Statistical (AVERAGE, COUNT...)", logicFunctions: "Logical (IF, AND, OR...)", textFunctions: "Text (CONCAT, LEN...)", dateFunctions: "Date & Time (TODAY, NOW...)", financialFunctions: "Financial (PMT, FV, PV...)", lookupFunctions: "Lookup & Reference (VLOOKUP, INDEX...)", searchFunction: "Search for a function:", searchPlaceholder: "Type a brief description or function name...", insertFunction: "Insert Function",
     errorCheckingTitle: "Error Checking", noErrorsFound: "The error check is complete for the entire sheet. No errors were found.", errorsFoundPrompt: "Found <strong>{count}</strong> formula errors in the current sheet:", errorColCell: "Cell", errorColCode: "Error", errorColFormula: "Formula", errorColReason: "Reason", calcError: "Calculation error", divZero: "Division by zero or empty cell", invalidRef: "Invalid cell reference", wrongType: "Incorrect data type", naError: "Value not available", nameError: "Unrecognized formula or name", numError: "Numeric value out of range",
-    watchWindowTitle: "Watch Window", addWatch: "Add Watch", deleteWatch: "Delete Watch", defineNameTitle: "Define Name", nameLabel: "Name:", refersTo: "Refers to:", useInFormulaTitle: "Paste Name", namePlaceholder: "e.g., Payroll, UnitPrice", scopeLabel: "Scope:", scopeWorkbook: "Workbook (Entire workbook)", invalidName: "The name is invalid or already exists.", useInFormulaPrompt: "Select a name to paste into the formula:",
+    watchWindowTitle: "Watch Window", addWatch: "Add Watch", deleteWatch: "Delete Watch", watchWindowColSheet: "Sheet", watchWindowColCell: "Cell", watchWindowColValue: "Value", watchWindowColFormula: "Formula", defineNameTitle: "Define Name", nameLabel: "Name:", refersTo: "Refers to:", useInFormulaTitle: "Paste Name", namePlaceholder: "e.g., Payroll, UnitPrice", scopeLabel: "Scope:", scopeWorkbook: "Workbook (Entire workbook)", invalidName: "The name is invalid or already exists.", useInFormulaPrompt: "Select a name to paste into the formula:",
     nameManagerTitle: "Name Manager", nameNew: "New...", nameEdit: "Edit...", nameDelete: "Delete", noNamedRanges: "No named ranges found.", invalidNameOrRef: "Name or reference is invalid or duplicate.",
     newComment: "New Comment {coord}", editComment: "Edit Comment {coord}", commentContent: "Comment", commentPlaceholder: "Enter a comment for {coord}", author: "Author", defaultAuthor: "VN Office User", saveChanges: "Save Changes", addComment: "Add Comment", deleteComment: "Delete Comment", emptyComment: "Comment text cannot be empty.",
     spellcheckTitle: "Spelling", spellcheckNotInDictionary: "Not in Dictionary:", spellcheckCell: "Cell", spellcheckContext: "Cell text", spellcheckSuggestions: "Suggestions:", spellcheckNoSuggestions: "(No close suggestions)", spellcheckIgnore: "Ignore Once", spellcheckIgnoreAll: "Ignore All", spellcheckAdd: "Add to Dictionary", spellcheckReplace: "Change", spellcheckReplaceAll: "Change All", spellcheckClose: "Close", spellcheckStatus: "Issue {current} of {total}", spellcheckComplete: "The spelling check is complete for the entire sheet. No misspellings were found.", spellcheckCompleteRemaining: "The spelling check is complete. No misspellings remain.",
@@ -135,6 +135,9 @@ export const enStrings = {
     resultTitle: "Result", flashFillSuccess: "Flash Fill filled {filled} cells ({pattern}).", flashFillFailure: "We couldn't recognize a pattern. Please provide 1-2 examples next to your source data.",
     pivotChartTitle: "PivotChart", pivotChartNeedsPivot: "Select a Pivot worksheet or create a PivotTable first.",
     dataTableTitle: "Data Table", dataTableRange: "Selected range", dataTableHint: "Place the source formula in the top-left cell and replacement values across the top row and/or down the first column.", rowInputCell: "Row input cell", columnInputCell: "Column input cell", dataTableNeedsInput: "Select a row input cell or a column input cell.", dataTableDistinctInputs: "The two input cells must be different.", dataTableRangeSize: "The Data Table range must contain at least two rows and two columns.", dataTableFormulaCorner: "The top-left cell must contain the source formula.", scenarioManagerTitle: "Scenario Manager", scenarios: "Scenarios", scenarioName: "Scenario name", changingCells: "Changing cells", scenarioValues: "Values (comma-separated)", scenarioNameExists: "A scenario with this name already exists.", showScenario: "Show", selectScenario: "Select a scenario.", add: "Add", edit: "Edit", delete: "Delete",
+    goalSeekTitle: "Goal Seek", goalSeekSetCell: "Set cell", goalSeekToValue: "To value", goalSeekByChangingCell: "By changing cell", goalSeekFind: "Find Solution", goalSeekResult: "Found solution for {cell} = {value} (residual {residual}). Choose OK to apply.",
+    sparklineColumn: "Sparkline column", sparklineLine: "Sparkline line",
+    hfPresetLabel: "Preset", hfPresetCustom: "Custom", hfPresetPage: "Page X", hfPresetSheet: "Sheet name", hfPresetDate: "Date", hfPresetNone: "None", hfPresetPageVal: "Page &P", hfPresetSheetVal: "Sheet name: &A", hfPresetDateVal: "Date: &D", hfLeft: "Left", hfCenter: "Center", hfRight: "Right", headerFooterTitle: "Header / Footer", headerTitle: "Header", footerTitle: "Footer", hfDynamicCodesHint: "Dynamic codes: &P page number, &N total pages, &D date, &T time, &F file name, &A sheet name.",
     pivotTitle: "Create PivotTable", pivotSource: "Table/Range (first row contains headers)", loadFields: "Load Fields", chooseFields: "Choose fields for each area:", aggregateFor: "Summarize values by for {field}", sourceRangeFormat: "The source range must use a format such as A1:D20.", sourceNeedsHeaders: "The first row of the source range must contain headers.", uniqueHeaders: "Each source column must have a unique header.", selectValue: "Select at least one Values field.", columnNotFound: "Column {field} was not found.", sourceSheetNotFound: "The source worksheet was not found.", createPivotBtn: "Create PivotTable",
     chartDefaultTitle: "Data Chart", chartUnsupported: "Unsupported chart type: {type}", chartItem: "Item {number}", chartNoNumericData: "The selected range contains no numeric data", chartPiePositive: "A pie chart requires positive values", chartInsertFrom: "Insert Chart from {range}", selectedRange: "selected range", chartType: "Chart Type", chartColumn: "Column", chartLine: "Line", chartPie: "Pie", chartArea: "Area", insertIntoSheet: "Insert into Worksheet", insertedImageAlt: "Image inserted in the worksheet", deleteImage: "Delete image", imageFormatUnsupported: "Unsupported image format",
     cellStylesTitle: "Cell Styles Gallery", cellStylesHint: "Select a style to apply immediately to the selected cells:",
@@ -216,13 +219,18 @@ export const enStrings = {
   },
   slidesDialogs: {
     close: "Close", cancel: "Cancel", apply: "Apply", preview: "Preview", delete: "Delete",
+    canvasRegion: "Slide canvas region",
+    removeSectionKeepSlides: "Remove Section (keep slides)",
+    totalPrintSlides: "Total slides to print",
     printPreview: {
       title: "Print Preview",
       printBtn: "Print",
       prevPage: "◀ Previous Page",
       nextPage: "Next Page ▶",
       pagePrefix: "Page ",
-      closeTooltip: "Close Preview (Esc)"
+      closeTooltip: "Close Preview (Esc)",
+      slideUnit: "slides",
+      slideCount: "{count} slides"
     },
     masterTitle: "Slide Master", themeGalleryTitle: "Theme Gallery", themeGalleryHint: "Choose a theme to apply it immediately to the whole presentation.", themePreviewTitle: "Presentation title", themeCorporateBlue: "Corporate Blue", themeWarmTerracotta: "Warm Terracotta", themeMinimalMonochrome: "Minimal Monochrome", themeNaturalGreen: "Natural Green", themeModernCharcoal: "Modern Charcoal", themeEnergeticOrange: "Energetic Orange", slideSizeTitle: "Slide Size", slideSizeHint: "Choose a new aspect ratio. Existing shapes and objects will be scaled to fit.", slideSizeWide: "Widescreen", slideSizeStandard: "Standard", layoutTitle: "Choose a Slide Layout", transitionTitle: "Transitions", animationTitle: "Object Animations",
     applyMaster: "Apply Theme", applyLayout: "Apply Layout", applyTransition: "Apply Transition", applyAnimation: "Apply Animation", removeTransition: "Remove Transition", removeAnimation: "Remove Animation", previewTransition: "▶ Preview Transition", previewAnimation: "▶ Preview Animation", previewObject: "Preview Object",
@@ -273,6 +281,7 @@ export const enStrings = {
     "common.file.exportPdf": { label: "Export PDF", tooltip: "Export content to standard PDF format" },
     "common.file.print": { label: "Print", tooltip: "Print the document (Ctrl+P)" },
     "common.file.close": { label: "Close", tooltip: "Close the document (Ctrl+W)" },
+    "common.help.about": { label: "About 3T Office", tooltip: "View version, copyright and open source licenses for 3T Office" },
     "common.macro.recordToggle": { label: "Record Macro", tooltip: "Start/Stop recording actions into a Macro (Ctrl+Shift+R)" },
     "common.macro.manager": { label: "View Macros", tooltip: "View, run, rename or delete recorded Macros (Alt+F8)" },
     "common.edit.undo": { label: "Undo", tooltip: "Undo the last action (Ctrl+Z)" },
@@ -496,6 +505,10 @@ export const enStrings = {
     ,"slides.file.printPreview": { label: "Print Preview", tooltip: "Print Preview (Ctrl+F2)" }
     ,"slides.shape.group": { label: "Group", tooltip: "Group the selected objects together (Ctrl+G)" }
     ,"slides.shape.ungroup": { label: "Ungroup", tooltip: "Ungroup the selected objects (Ctrl+Shift+G)" }
+    ,"slides.arrange.bringToFront": { label: "Bring to Front", tooltip: "Bring the selected object in front of all other objects" }
+    ,"slides.arrange.bringForward": { label: "Bring Forward", tooltip: "Bring the selected object forward one level" }
+    ,"slides.arrange.sendBackward": { label: "Send Backward", tooltip: "Send the selected object backward one level" }
+    ,"slides.arrange.sendToBack": { label: "Send to Back", tooltip: "Send the selected object behind all other objects" }
     ,"slides.arrange.alignLeft": { label: "Align Left", tooltip: "Align the selected objects to the left edge" }
     ,"slides.arrange.alignCenter": { label: "Align Center", tooltip: "Align the selected objects to the horizontal center" }
     ,"slides.arrange.alignRight": { label: "Align Right", tooltip: "Align the selected objects to the right edge" }

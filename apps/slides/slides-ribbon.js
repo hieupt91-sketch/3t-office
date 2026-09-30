@@ -215,6 +215,10 @@ export const SLIDES_RIBBON_TABS = [
             icon: "shape",
             isLarge: true,
             items: [
+              { commandId: "slides.arrange.bringToFront" },
+              { commandId: "slides.arrange.bringForward" },
+              { commandId: "slides.arrange.sendBackward" },
+              { commandId: "slides.arrange.sendToBack" },
               { commandId: "slides.arrange.alignLeft" },
               { commandId: "slides.arrange.alignCenter" },
               { commandId: "slides.arrange.alignRight" },
@@ -521,7 +525,8 @@ export const SLIDES_RIBBON_TABS = [
         label: "Trợ giúp",
         labelKey: "slidesRibbon.group.help",
         items: [
-          { type: "button", commandId: "slides.help.open", isLarge: true }
+          { type: "button", commandId: "slides.help.open", isLarge: true },
+          { type: "about-button", isLarge: true, label: "Giới thiệu" }
         ]
       }
     ]

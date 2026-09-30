@@ -66,6 +66,12 @@ Cột "Gói" = gói việc trong docs/ROADMAP-V1.md chịu trách nhiệm.
 | D7 | Ghi chú | Ghi chú người thuyết trình, lưu đúng |
 | D8 | Lưu / xuất | pptx, ppt, pdf; PowerPoint mở lại đúng |
 
+## E. Quy tắc nút trên ribbon (người phụ trách 30/09)
+- Không nút nào bấm vào mà không có tác dụng. Nút đã làm phải đúng chi tiết như Office (tùy chọn, trạng thái bật/tắt, hoàn tác, lưu xong Office mở lại vẫn đúng).
+- Nút chưa làm kịp: **giữ nguyên**, bấm vào hiện "Tính năng này đang được hoàn thiện và sẽ có trong bản cập nhật tới.", và ghi vào `docs/RIBBON-BACKLOG.md` để làm bổ sung dần qua bản vá — không xóa nút.
+- Nút trùng lặp: gộp một (giữ tính năng). Thứ tự nhóm theo Word/Excel/PowerPoint.
+- Việc mới về ribbon: lấy từ `docs/RIBBON-BACKLOG.md`, không rà lại từ đầu.
+
 ## Cách rà soát
 Mỗi gói: kiểm từng mục theo bảng trên → ghi ĐẠT / CHƯA ĐẠT + mô tả ngắn → sửa mục CHƯA ĐẠT → Claude kiểm lại đúng các mục đó một lần.
 Lỗi chi tiết ngoài danh mục: ghi vào danh sách lỗi, sửa dần theo mức độ ảnh hưởng.

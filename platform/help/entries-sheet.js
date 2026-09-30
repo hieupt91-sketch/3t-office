@@ -1046,6 +1046,38 @@ export const SHEET_HELP_ENTRIES = [
       "Nhấn nút Tóm tắt nhanh để AI phân tích cấu trúc bảng, tổng hợp các con số nổi bật, giá trị lớn nhất/nhỏ nhất và xu hướng dữ liệu.",
       "Kết quả tóm tắt bằng tiếng Việt hiển thị trong bảng Trợ lý VN AI; có thể xem trước hoặc sao chép để đưa vào báo cáo."
     ]
+  },
+  {
+    id: "sheet.help.about",
+    app: "sheet",
+    commandIds: ["sheet.help.open", "common.help.about"],
+    title: "Giới thiệu 3T Office và Giấy phép bản quyền",
+    summary: "Xem thông tin phiên bản, bản quyền thương hiệu 3T Technology và danh sách các phần mềm nguồn mở bên thứ ba kèm giấy phép hợp pháp.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
+    keywords: ["giới thiệu", "about", "phiên bản", "bản quyền", "3t office", "giấy phép", "nguồn mở", "third-party", "license", "3t sheet"],
+    steps: [
+      "Mở tab Trợ giúp trên thanh ribbon, nhóm Trợ giúp rồi nhấn nút Giới thiệu (hoặc vào menu Tệp rồi chọn Giới thiệu).",
+      "Hộp thoại Giới thiệu 3T Office xuất hiện với logo nhận diện 3T và thông tin bộ ứng dụng 3T Office (3T Doc, 3T Sheet, 3T Slide).",
+      "Xem chi tiết số hiệu phiên bản hiện hành, nhà phát triển 3T Technology và các điều khoản bản quyền.",
+      "Tra cứu danh sách phần mềm nguồn mở (Python, LibreOffice Core, pywebview) và nhấn nút Xem toàn văn giấy phép nếu cần kiểm tra chi tiết THIRD-PARTY-NOTICES.",
+      "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để trở về trang bảng tính đang làm việc."
+    ]
+  },
+  {
+    id: "sheet.help.splash",
+    app: "sheet",
+    commandIds: ["sheet.help.open"],
+    title: "Màn hình chào 3T Office khi khởi động",
+    summary: "Hiển thị nhận diện thương hiệu 3T Office và tên ứng dụng 3T Sheet ngay khi mở cửa sổ, tự động ẩn khi lưới bảng tính sẵn sàng.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
+    keywords: ["màn hình chào", "splash", "khởi động", "3t office", "3t sheet", "logo 3t", "chào mừng"],
+    steps: [
+      "Khi khởi chạy 3T Sheet hoặc mở tệp bảng tính (.xlsx, .ods, .csv), màn hình chào xuất hiện tức thì trên cửa sổ.",
+      "Màn hình hiển thị logo 3T, tiêu đề thương hiệu 3T Office và nhãn màu xanh ngọc nhận diện 3T Sheet.",
+      "Dòng chữ trạng thái hiển thị «Đang khởi động…» kèm biểu tượng xoay trong khi hệ thống nạp engine bảng tính và công thức.",
+      "Ngay khi lưới ô và thanh công thức được tạo xong, màn hình chào tự động làm mờ và ẩn đi trong tích tắc.",
+      "Màn hình chào chạy 100% độc lập ngoại tuyến trên máy tính của bạn, không làm tăng thời gian chờ hay độ trễ khởi động."
+    ]
   }
 ];
 

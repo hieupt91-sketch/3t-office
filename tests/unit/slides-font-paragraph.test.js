@@ -206,7 +206,9 @@ export async function runSlidesFontParagraphTests() {
       if (!cmds.includes(expected)) throw new Error(`Thiếu execCommand ${expected}: ${cmds.join(",")}`);
     }
     if (!execCalls.some((item) => item.cmd === "fontName" && item.val === "Arial")) throw new Error("fontName không nhận Arial");
-    if (!execCalls.some((item) => item.cmd === "fontSize" && item.val === "6")) throw new Error("fontSize không nhận 6");
+    // Cỡ chữ: execCommand chỉ đánh dấu vùng chọn bằng bậc 7 rồi thay bằng cỡ pt thật
+    // (ô «32» trên ribbon = giá trị "6" → 32pt), xem slides-basics-g8.test.js.
+    if (!execCalls.some((item) => item.cmd === "fontSize" && item.val === "7")) throw new Error("fontSize không đánh dấu vùng chọn để đặt cỡ pt");
   });
 
   await test("Font/Paragraph: HTML <b>/<i>/<u> serialize FODP thành fo:font-weight/style và underline", () => {

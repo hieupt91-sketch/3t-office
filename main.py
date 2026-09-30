@@ -257,6 +257,9 @@ FORMAT_FILTERS = {
     "csv": "Text - txt - csv (StarCalc)",
     "fods": "OpenDocument Spreadsheet Flat XML",
     "pptx": "Impress MS PowerPoint 2007 XML",
+    # PowerPoint 97-2003: thiếu dòng này, "Lưu thành *.ppt" rơi về định dạng mặc định pptx
+    # và ghi nội dung ZIP/PPTX vào tệp đuôi .ppt (đo G8).
+    "ppt": "MS PowerPoint 97",
     "odp": "impress8",
     # "fodp" cố ý KHÔNG có filter tường minh — đã thử nghiệm thật, mọi filter name
     # tường minh (kể cả "OpenDocument Presentation Flat XML" mà tài liệu LibreOffice
@@ -1582,6 +1585,60 @@ class VnOfficeApi:
             # AutoRecover storage failure must never prevent opening the editor.
             self._autorecover_store = None
         self._autorecover_session_closed = False
+
+    def get_app_version(self) -> str:
+        """Trả về phiên bản ứng dụng hiện tại."""
+        return APP_VERSION
+
+    def get_about_info(self) -> dict[str, object]:
+        """Trả về thông tin bản quyền và danh sách phần mềm nguồn mở bên thứ ba."""
+        notices_text = ""
+        candidates = [
+            Path(ROOT_DIR) / "THIRD-PARTY-NOTICES",
+            Path(ROOT_DIR) / "THIRD-PARTY-NOTICES.txt",
+            Path(ROOT_DIR).parent / "THIRD-PARTY-NOTICES",
+        ]
+        for candidate in candidates:
+            if candidate.is_file():
+                try:
+                    notices_text = candidate.read_text(encoding="utf-8")
+                    break
+                except Exception:
+                    pass
+            elif candidate.is_dir():
+                try:
+                    parts = []
+                    for f in sorted(candidate.glob("*")):
+                        if f.is_file():
+                            parts.append(f"=== {f.name} ===\n" + f.read_text(encoding="utf-8", errors="replace"))
+                    if parts:
+                        notices_text = "\n\n".join(parts)
+                        break
+                except Exception:
+                    pass
+
+        return {
+            "app_version": APP_VERSION,
+            "product_name": "3T Office",
+            "developer": "3T Technology",
+            "copyright": "© 2024–2026 3T Technology. All rights reserved.",
+            "suite_components": [
+                {"name": "3T Doc", "role": "Soạn thảo văn bản và tài liệu hành chính"},
+                {"name": "3T Sheet", "role": "Bảng tính điện tử và phân tích số liệu"},
+                {"name": "3T Slide", "role": "Trình chiếu và thuyết trình đa phương tiện"}
+            ],
+            "third_party_notices": notices_text,
+            "components": [
+                {"name": "Python", "version": "3.12", "license": "PSF License", "purpose": "Ngôn ngữ nền tảng & logic ứng dụng"},
+                {"name": "LibreOffice", "version": "7.6+", "license": "MPL-2.0", "purpose": "Lõi xử lý định dạng tài liệu ODF và OOXML"},
+                {"name": "pywebview", "version": "5.x", "license": "BSD-3-Clause", "purpose": "Khung hiển thị cửa sổ desktop native độc lập"},
+                {"name": "pythonnet & clr_loader", "version": "3.x", "license": "MIT", "purpose": "Cầu nối Windows .NET / WebView2"},
+                {"name": "cffi & pycparser", "version": "1.x", "license": "MIT / BSD-3-Clause", "purpose": "Giao tiếp nhị phân C native"},
+                {"name": "bottle & proxy_tools", "version": "0.12+", "license": "MIT", "purpose": "Máy chủ HTTP tĩnh cục bộ nội bộ offline"},
+                {"name": "typing_extensions", "version": "4.x", "license": "PSF License", "purpose": "Hỗ trợ kiểu dữ liệu mở rộng"},
+                {"name": "Be Vietnam Pro", "version": "1.002", "license": "SIL Open Font License 1.1", "purpose": "Bộ phông chữ tiếng Việt chuẩn quốc gia"}
+            ]
+        }
 
     def get_autorecover_settings(self):
         return self._autorecover_store.get_settings() if self._autorecover_store else {"enabled": True, "interval_minutes": 5}

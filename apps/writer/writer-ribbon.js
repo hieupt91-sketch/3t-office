@@ -714,7 +714,8 @@ export const WRITER_RIBBON_TABS = [
         label: "Trợ giúp",
         labelKey: "writerRibbon.group.help",
         items: [
-          { type: "button", commandId: "writer.help.open", isLarge: true }
+          { type: "button", commandId: "writer.help.open", isLarge: true },
+          { type: "about-button", isLarge: true, label: "Giới thiệu" }
         ]
       }
     ]
