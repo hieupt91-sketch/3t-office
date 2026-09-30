@@ -525,16 +525,16 @@ export const SHEET_HELP_ENTRIES = [
   {
     id: "sheet.cells.insertDelete",
     app: "sheet",
-    commandIds: ["sheet.row.insert", "sheet.col.insert", "sheet.row.delete", "sheet.col.delete"],
-    title: "Chèn và xóa hàng, cột",
-    summary: "Chèn hàng tại hàng đang chọn (dữ liệu bên dưới dịch xuống); chèn cột tại cột đang chọn (dữ liệu bên phải dịch sang). Xóa hàng/cột chứa ô đang chọn. Công thức A1 trên cùng sheet được dịch theo.",
+    commandIds: ["sheet.row.insert", "sheet.col.insert", "sheet.row.delete", "sheet.col.delete", "sheet.insert.cells", "sheet.sheet.insertBefore"],
+    title: "Chèn và xóa hàng, cột, ô và trang tính",
+    summary: "Chèn hàng tại hàng đang chọn (dữ liệu bên dưới dịch xuống); chèn cột tại cột đang chọn (dữ liệu bên phải dịch sang). Xóa hàng/cột chứa ô đang chọn. Hỗ trợ hộp thoại Chèn/Xóa ô và chèn trang tính mới trước trang hiện tại theo chuẩn Microsoft Excel.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Ô" },
-    keywords: ["chèn hàng", "chèn cột", "xóa hàng", "xóa cột", "insert row", "insert column", "ctrl+shift+=", "dịch ô"],
+    keywords: ["chèn hàng", "chèn cột", "xóa hàng", "xóa cột", "chèn ô", "xóa ô", "insert row", "insert column", "insert cells", "ctrl+shift+=", "ctrl+shift++", "ctrl+-", "shift+f11", "dịch ô"],
     steps: [
-      "Chọn một ô (hoặc bấm số hàng / chữ cột). Tab Trang đầu, nhóm Ô: cột trái Chèn hàng / Chèn cột; cột giữa Xóa hàng / Xóa cột. Chèn hàng còn phím Ctrl+Shift+=.",
-      "Chèn hàng: hàng mới trống ngay tại vị trí chọn; hàng cũ và ghi chú / quy tắc định dạng / kiểm tra dữ liệu / vùng in / ngắt trang dịch xuống. Công thức cùng sheet dạng A1 được sửa theo.",
-      "Chèn cột tương tự, dịch sang phải; tiêu đề cột cuối tăng (ví dụ Z → AA). Xóa hàng/cột làm ngược lại — mất dữ liệu trên hàng/cột đó.",
-      "Chuột phải tiêu đề hàng/cột cũng có Xóa hàng. Ctrl+Z hoàn tác cả khối dịch chuyển. Named range, nguồn biểu đồ và nguồn Pivot chưa tự dịch khi chèn."
+      "Chọn một ô (hoặc bấm số hàng / chữ cột). Tab Trang đầu, nhóm Ô: cột trái Chèn hàng / Chèn cột; cột giữa Xóa hàng / Xóa cột.",
+      "Phím tắt Chèn Ctrl+Shift++ (hoặc Ctrl+Shift+=): Khi chọn cả hàng hoặc cả cột, lệnh sẽ chèn ngay hàng hoặc cột mới. Khi đang chọn ô hoặc dải ô, hệ thống mở hộp thoại Chèn chuẩn Excel cho phép chọn: Chuyển ô sang phải, Chuyển ô xuống dưới (mặc định), Toàn bộ hàng hoặc Toàn bộ cột.",
+      "Phím tắt Xóa Ctrl+-: Khi chọn cả hàng hoặc cột sẽ xóa ngay; khi chọn ô sẽ mở hộp thoại Xóa chuẩn Excel để chuyển ô sang trái, chuyển ô lên trên, xóa cả hàng hoặc xóa cả cột. Phím Shift+F11 chèn ngay một trang tính mới trước trang tính hiện tại.",
+      "Mọi thao tác chèn, xóa ô, hàng, cột hoặc chèn trang tính mới đều hỗ trợ hoàn tác nguyên tử qua Ctrl+Z và làm lại qua Ctrl+Y."
     ]
   },
   {

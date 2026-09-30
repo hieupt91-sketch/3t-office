@@ -49,13 +49,9 @@ Theo chỉ thị bắt buộc của Người phụ trách dự án (30/09):
 
 ## 4. PHÍM TẮT CÒN THIẾU (bổ sung dần)
 
-Danh sách phím tắt Microsoft Office chưa bind hoặc bind sai hành động trong VN Office (xem `docs/SHORTCUT-COVERAGE.md`).
+Toàn bộ phím tắt trong bảng tồn đọng trước đây đã được hoàn thành 100% (xem `docs/SHORTCUT-COVERAGE.md`):
+- `Ctrl+]`, `Ctrl+[`: Tăng / giảm cỡ chữ 1 pt trong VN Writer (có hoàn tác Ctrl+Z).
+- `Ctrl+Shift++`, `Ctrl+-`: Chèn / xóa ô/hàng/cột chuẩn Excel trong VN Sheet (hộp thoại khi chọn ô, thao tác ngay khi chọn cả hàng/cột, có hoàn tác Ctrl+Z).
+- `Shift+F11`: Chèn trang tính mới trước trang tính hiện tại trong VN Sheet (có hoàn tác Ctrl+Z).
+- `F11`: Chèn biểu đồ chuẩn Excel trong vùng lưới VN Sheet (có hoàn tác Ctrl+Z).
 
-| Ứng dụng | Phím tắt | Hành động Office | Trạng thái | Quy mô |
-|:---|:---|:---|:---|:---:|
-| VN Writer | Ctrl+] | Tăng cỡ chữ (từng bước) | Chưa bind | Small |
-| VN Writer | Ctrl+[ | Giảm cỡ chữ (từng bước) | Chưa bind | Small |
-| VN Sheet | Ctrl+- | Xóa ô/hàng/cột | Bind sai (zoomOut) | Small |
-| VN Sheet | Ctrl+Shift++ | Chèn ô/hàng/cột | Chưa bind | Small |
-| VN Sheet | F11 | Chèn biểu đồ | Bind sai (fullScreen) | Small |
-| VN Sheet | Shift+F11 | Chèn trang tính mới | Chưa bind | Small |

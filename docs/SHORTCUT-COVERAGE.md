@@ -43,10 +43,10 @@
 | Ctrl+K | Liên kết | ✅ | `common.edit.hyperlink` |
 | Ctrl+Home | Đầu tài liệu | ✅ | `writer.nav.docStart` |
 | Ctrl+End | Cuối tài liệu | ✅ | `writer.nav.docEnd` |
-| Ctrl+] | Tăng cỡ chữ (từng bước) | ❌ | — |
-| Ctrl+[ | Giảm cỡ chữ (từng bước) | ❌ | — |
+| Ctrl+] | Tăng cỡ chữ (từng bước 1 pt) | ✅ | `writer.font.grow1pt` |
+| Ctrl+[ | Giảm cỡ chữ (từng bước 1 pt) | ✅ | `writer.font.shrink1pt` |
 
-**Tổng: 33/35 (94%)**
+**Tổng: 35/35 (100%)**
 
 ---
 
@@ -80,21 +80,19 @@
 | Ctrl+R | Điền phải | ✅ | `sheet.edit.fillRight` |
 | Ctrl+Space | Chọn cột | ✅ | `sheet.select.column` |
 | Shift+Space | Chọn hàng | ✅ | `sheet.select.row` |
-| Ctrl+- | Xóa ô/hàng/cột | ⚠️ | `common.view.zoomOut` (khác hành động Excel) |
-| Ctrl+Shift++ | Chèn ô/hàng/cột | ❌ | — |
+| Ctrl+- | Xóa ô/hàng/cột | ✅ | `sheet-grid.js` keydown handler (`handleDeleteShortcut`: xóa ngay khi chọn hàng/cột, hiện hộp thoại khi chọn ô) |
+| Ctrl+Shift++ | Chèn ô/hàng/cột | ✅ | `sheet.insert.cells` / `sheet-grid.js` keydown handler (`handleInsertShortcut`: chèn ngay khi chọn hàng/cột, hiện hộp thoại khi chọn ô) |
 | Ctrl+ArrowUp | Nhảy tới biên dữ liệu (lên) | ✅ | `sheet-grid.js` keydown handler |
 | Ctrl+ArrowDown | Nhảy tới biên dữ liệu (xuống) | ✅ | `sheet-grid.js` keydown handler |
 | Ctrl+ArrowLeft | Nhảy tới biên dữ liệu (trái) | ✅ | `sheet-grid.js` keydown handler |
 | Ctrl+ArrowRight | Nhảy tới biên dữ liệu (phải) | ✅ | `sheet-grid.js` keydown handler |
 | Ctrl+PageUp | Trang tính trước | ✅ | `sheet-grid.js` keydown handler |
 | Ctrl+PageDown | Trang tính sau | ✅ | `sheet-grid.js` keydown handler |
-| F11 | Chèn biểu đồ | ⚠️ | `common.view.fullScreen` (khác hành động Excel) |
-| Shift+F11 | Chèn trang tính mới | ❌ | — |
+| F11 | Chèn biểu đồ | ✅ | `sheet-grid.js` keydown handler (`sheet.chart.insert`) |
+| Shift+F11 | Chèn trang tính mới (trước trang hiện tại) | ✅ | `sheet.sheet.insertBefore` / `sheet-grid.js` keydown handler (`addSheetBefore`) |
 | Alt+Enter | Xuống dòng trong ô | ✅ | `sheet-grid.js` formulaInput handler |
 
-**Tổng: 35/37 (95%)**
-
-> ⚠️ Ctrl+- và F11 đã bind nhưng vào hành động khác với Excel (zoomOut / fullScreen). Cần bổ sung hành động Excel tương ứng.
+**Tổng: 37/37 (100%)**
 
 ---
 
@@ -136,25 +134,16 @@
 
 | Ứng dụng | Đã bind | Tổng | Tỉ lệ |
 |:---|:---:|:---:|:---:|
-| VN Writer | 33 | 35 | 94% |
-| VN Sheet | 35 | 37 | 95% |
+| VN Writer | 35 | 35 | 100% |
+| VN Sheet | 37 | 37 | 100% |
 | VN Slides | 25 | 25 | 100% |
-| **TỔNG** | **93** | **97** | **96%** |
+| **TỔNG** | **97** | **97** | **100%** |
 
-### Phím tắt còn thiếu (4)
+### Phím tắt còn thiếu (0)
+Đã hoàn thành đầy đủ 97/97 phím tắt chuẩn Office.
 
-| Ứng dụng | Phím tắt | Hành động |
-|:---|:---|:---|
-| VN Writer | Ctrl+] | Tăng cỡ chữ (từng bước) |
-| VN Writer | Ctrl+[ | Giảm cỡ chữ (từng bước) |
-| VN Sheet | Ctrl+Shift++ | Chèn ô/hàng/cột |
-| VN Sheet | Shift+F11 | Chèn trang tính mới |
-
-### Phím tắt bind sai hành động (2)
-
-| Ứng dụng | Phím tắt | Hành động Office | Đang bind tới |
-|:---|:---|:---|:---|
-| VN Sheet | Ctrl+- | Xóa ô/hàng/cột | `common.view.zoomOut` |
-| VN Sheet | F11 | Chèn biểu đồ | `common.view.fullScreen` |
-
-> Các phím tắt này đã được thêm vào `docs/RIBBON-BACKLOG.md` để bổ sung dần.
+### Phím tắt ngữ cảnh (Contextual Shortcuts)
+- Trong VN Sheet, khi con trỏ đang trong vùng bảng tính (grid):
+  - `Ctrl+-` ưu tiên gọi lệnh xóa ô/hàng/cột theo chuẩn Excel (`handleDeleteShortcut`) thay vì zoom out toàn cục.
+  - `F11` ưu tiên gọi lệnh tạo biểu đồ theo chuẩn Excel thay vì toàn màn hình toàn cục.
+  - Cả hai thao tác đều hỗ trợ hoàn tác đầy đủ qua `Ctrl+Z`.

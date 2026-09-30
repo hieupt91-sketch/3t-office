@@ -435,6 +435,8 @@ export const viStrings = {
     ,"sheet.page.clearPrintArea": { label: "Xóa vùng in", tooltip: "Xóa vùng in của trang tính hiện tại" }
     ,"sheet.page.insertPageBreak": { label: "Chèn ngắt trang", tooltip: "Chèn ngắt hàng và cột tại ô đang chọn" }
     ,"sheet.page.removePageBreak": { label: "Xóa ngắt trang", tooltip: "Xóa ngắt hàng và cột tại ô đang chọn" }
+    ,"sheet.insert.cells": { label: "Chèn ô/hàng/cột...", tooltip: "Chèn ô, hàng hoặc cột (Ctrl+Shift++)" }
+    ,"sheet.sheet.insertBefore": { label: "Chèn trang tính mới", tooltip: "Chèn trang tính mới trước trang hiện tại (Shift+F11)" }
     ,"sheet.row.insert": { label: "Chèn hàng", tooltip: "Chèn thêm hàng mới (Ctrl+Shift+=)" }
     ,"sheet.col.insert": { label: "Chèn cột", tooltip: "Chèn thêm cột mới" }
     ,"sheet.row.delete": { label: "Xóa hàng", tooltip: "Xóa hàng chứa ô đang chọn" }
@@ -574,6 +576,8 @@ export const viStrings = {
     "writer.text.strike": { label: "Gạch ngang", tooltip: "Gạch ngang chữ" },
     "writer.font.grow": { label: "Tăng cỡ chữ", tooltip: "Tăng cỡ chữ nhanh (Ctrl+Shift+>)" },
     "writer.font.shrink": { label: "Giảm cỡ chữ", tooltip: "Giảm cỡ chữ nhanh (Ctrl+Shift+<)" },
+    "writer.font.grow1pt": { label: "Tăng cỡ chữ 1 điểm", tooltip: "Tăng cỡ chữ thêm 1 điểm (Ctrl+])" },
+    "writer.font.shrink1pt": { label: "Giảm cỡ chữ 1 điểm", tooltip: "Giảm cỡ chữ đi 1 điểm (Ctrl+[)" },
     "writer.text.subscript": { label: "Chỉ số dưới", tooltip: "Chỉ số dưới X₂ (Ctrl+=)" },
     "writer.text.superscript": { label: "Chỉ số trên", tooltip: "Chỉ số trên X² (Ctrl+Shift++)" },
     "writer.text.clearFormat": { label: "Xóa định dạng", tooltip: "Xóa toàn bộ định dạng về mặc định (Ctrl+Space)" },

@@ -353,6 +353,12 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.page.scale", () => this.grid.showPageSetupDialog?.("scale") || false);
     globalCommandBus.bindHandler("sheet.page.headerFooter", () => this.grid.showHeaderFooterDialog?.() || false);
     globalCommandBus.bindHandler("sheet.page.printTitles", () => this.grid.showPageSetupDialog?.("printTitles") || false);
+    globalCommandBus.bindHandler("sheet.insert.cells", () => {
+      return this.grid?.handleInsertShortcut ? this.grid.handleInsertShortcut() : false;
+    });
+    globalCommandBus.bindHandler("sheet.sheet.insertBefore", () => {
+      return this.grid?.addSheetBefore ? this.grid.addSheetBefore() : false;
+    });
     globalCommandBus.bindHandler("sheet.row.insert", (options) => {
       options = options || {};
       return this.grid.insertRow(options.atRow);
@@ -5572,6 +5578,14 @@ export class SheetAdapter {
 
       case "sheet.insert.date":
         return this.grid.insertCurrentDate();
+
+      case "sheet.insert.cells":
+      case ".uno:InsertCell":
+        return this.grid?.handleInsertShortcut ? this.grid.handleInsertShortcut() : false;
+
+      case "sheet.sheet.insertBefore":
+      case ".uno:Insert":
+        return this.grid?.addSheetBefore ? Boolean(this.grid.addSheetBefore()) : false;
 
       case "sheet.row.insert":
         return this.grid.insertRow(args?.atRow);

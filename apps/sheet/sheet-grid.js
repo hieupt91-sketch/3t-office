@@ -1916,6 +1916,68 @@ export class SheetGridController {
     return sheetName;
   }
 
+  addSheetBefore(targetSheet = this.activeSheet, name, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
+    const targetIdx = this.sheets.indexOf(targetSheet);
+    const insertIdx = targetIdx >= 0 ? targetIdx : 0;
+    const previousSheet = this.activeSheet;
+
+    let sheetName = name;
+    if (!sheetName) {
+      let counter = this.sheets.length + 1;
+      while (this.sheets.includes(`Trang tính ${counter}`)) counter++;
+      sheetName = `Trang tính ${counter}`;
+    }
+    const isNewSheet = !this.sheets.includes(sheetName);
+    if (!isNewSheet) return false;
+
+    this.sheets.splice(insertIdx, 0, sheetName);
+    if (!this.sheetsData) this.sheetsData = {};
+    if (!this.sheetsData[sheetName]) this.sheetsData[sheetName] = new Map();
+    if (!this.conditionalFormattingBySheet[sheetName]) this.conditionalFormattingBySheet[sheetName] = [];
+    if (!this.dataValidationsBySheet[sheetName]) this.dataValidationsBySheet[sheetName] = [];
+    if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
+    if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
+    if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
+    if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
+    if (!this.scenariosBySheet[sheetName]) this.scenariosBySheet[sheetName] = [];
+    if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
+    if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
+    if (!(sheetName in this.printAreaBySheet)) this.printAreaBySheet[sheetName] = null;
+    if (!this.pageBreaksBySheet[sheetName]) this.pageBreaksBySheet[sheetName] = { rows: [], cols: [] };
+    if (!this.pageSetupBySheet[sheetName]) this.pageSetupBySheet[sheetName] = newSheetPageSetup();
+    if (!this.mergedRangesBySheet[sheetName]) this.mergedRangesBySheet[sheetName] = [];
+    if (!this.protectionBySheet) this.protectionBySheet = {};
+    if (!this.protectionBySheet[sheetName]) this.protectionBySheet[sheetName] = { enabled: false, password: "" };
+    this._ensureRowColLayout(sheetName);
+    if (!this.sheetStates) this.sheetStates = {};
+    if (!this.sheetStates[sheetName]) {
+      this.sheetStates[sheetName] = {
+        hiddenRows: new Set(),
+        activeFilters: new Map(),
+        isFilterActive: false,
+        isFrozenPanes: false,
+        frozenRows: 0,
+        frozenCols: 0,
+        selectedCoord: { r: 1, c: "A" }
+      };
+    }
+
+    this._renderSheetTabs();
+    this.switchSheet(sheetName);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "sheet-add",
+        sheet: previousSheet,
+        sheetName,
+        previousSheet,
+        index: insertIdx,
+        snapshot: this._snapshotSheet(sheetName)
+      });
+    }
+    return sheetName;
+  }
+
   deleteSheet(sheetName = this.activeSheet, recordUndo = true) {
     if (this._guardWorkbookStructure()) return false;
     const index = this.sheets.indexOf(sheetName);
@@ -3037,7 +3099,7 @@ export class SheetGridController {
         this.cancelFormatPainter();
         return;
       }
-      if (document.activeElement === this.formulaInput) return;
+      if (typeof document !== "undefined" && document?.activeElement === this.formulaInput) return;
 
       if (this.selectedImageId) {
         if (e.key === "Delete" || e.key === "Backspace") {
@@ -3225,6 +3287,22 @@ export class SheetGridController {
       } else if ((e.key === ";" || e.key === ":") && e.ctrlKey && e.shiftKey) {
         e.preventDefault();
         this.insertCurrentTime();
+        return;
+      } else if (e.key === "F11" && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        this.addSheetBefore();
+        return;
+      } else if (e.key === "F11" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        globalCommandBus?.execute?.("sheet.chart.insert");
+        return;
+      } else if (e.ctrlKey && e.shiftKey && (e.key === "+" || e.key === "=")) {
+        e.preventDefault();
+        this.handleInsertShortcut();
+        return;
+      } else if (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === "-" || e.key === "_")) {
+        e.preventDefault();
+        this.handleDeleteShortcut();
         return;
       } else if (e.key === "F9") {
         e.preventDefault();
@@ -3566,6 +3644,7 @@ export class SheetGridController {
     const activeSheet = this.activeSheet;
     for (const sheetName of this.sheets) {
       const map = this.sheetsData[sheetName];
+      if (!map) continue;
       this.activeSheet = sheetName;
       for (const [k, itm] of map.entries()) {
         if ((sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
@@ -7215,6 +7294,14 @@ export class SheetGridController {
     return this.headingsVisible;
   }
 
+  canUndo() {
+    return (this.undoStack?.length || 0) > 0;
+  }
+
+  canRedo() {
+    return (this.redoStack?.length || 0) > 0;
+  }
+
   undo() {
     const action = this.undoStack.pop();
     if (!action) { this._syncCommandStates(); return false; }
@@ -7255,7 +7342,7 @@ export class SheetGridController {
         if (removed && this.sheets.includes(action.previousSheet)) this.switchSheet(action.previousSheet);
         return removed;
       }
-      this._restoreSheet(action.sheetName, action.snapshot, this.sheets.length);
+      this._restoreSheet(action.sheetName, action.snapshot, action.index !== undefined ? action.index : this.sheets.length);
       this.switchSheet(action.sheetName);
       return true;
     }
@@ -8039,6 +8126,509 @@ export class SheetGridController {
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
     if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
     return true;
+  }
+
+  isEntireRowSelected(range = this.selectionRange) {
+    const norm = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(norm.start.c);
+    const endColIdx = this.cols.indexOf(norm.end.c);
+    return startColIdx === 0 && endColIdx === this.cols.length - 1;
+  }
+
+  isEntireColumnSelected(range = this.selectionRange) {
+    const norm = this._normalizeRange(range);
+    return norm.start.r === 1 && norm.end.r === this.rowCount;
+  }
+
+  shiftCellsRight(range = this.selectionRange, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const normalized = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(normalized.start.c);
+    const endColIdx = this.cols.indexOf(normalized.end.c);
+    const shiftAmount = endColIdx - startColIdx + 1;
+    if (startColIdx < 0 || endColIdx < 0 || shiftAmount <= 0) return false;
+
+    const before = this._snapshotGridStructure();
+
+    let maxColIdx = endColIdx;
+    for (const [key] of this.cellsData.entries()) {
+      const [col, r] = this._splitCoord(key);
+      if (r >= normalized.start.r && r <= normalized.end.r) {
+        const cIdx = this.cols.indexOf(col);
+        if (cIdx > maxColIdx) maxColIdx = cIdx;
+      }
+    }
+    while (this.cols.length <= maxColIdx + shiftAmount) {
+      this.cols.push(this._columnLabel(this.cols.length + 1));
+    }
+
+    for (let r = normalized.start.r; r <= normalized.end.r; r++) {
+      for (let cIdx = this.cols.length - 1; cIdx >= startColIdx; cIdx--) {
+        const col = this.cols[cIdx];
+        const key = `${col}${r}`;
+        const sourceColIdx = cIdx - shiftAmount;
+        if (sourceColIdx >= startColIdx) {
+          const sourceCol = this.cols[sourceColIdx];
+          const sourceKey = `${sourceCol}${r}`;
+          const item = this.cellsData.get(sourceKey);
+          if (item) {
+            this.cellsData.set(key, structuredClone(item));
+          } else {
+            this.cellsData.delete(key);
+          }
+        } else {
+          this.cellsData.delete(key);
+        }
+      }
+    }
+
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(normalized.start.c, normalized.start.r);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "grid-structure",
+        sheet: this.activeSheet,
+        before,
+        after: this._snapshotGridStructure()
+      });
+    }
+    return true;
+  }
+
+  shiftCellsDown(range = this.selectionRange, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const normalized = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(normalized.start.c);
+    const endColIdx = this.cols.indexOf(normalized.end.c);
+    const shiftAmount = normalized.end.r - normalized.start.r + 1;
+    if (startColIdx < 0 || endColIdx < 0 || shiftAmount <= 0) return false;
+
+    const before = this._snapshotGridStructure();
+
+    let maxRow = normalized.end.r;
+    for (const [key] of this.cellsData.entries()) {
+      const [col, r] = this._splitCoord(key);
+      const cIdx = this.cols.indexOf(col);
+      if (cIdx >= startColIdx && cIdx <= endColIdx) {
+        if (r > maxRow) maxRow = r;
+      }
+    }
+    if (maxRow + shiftAmount > this.rowCount) {
+      this.rowCount = maxRow + shiftAmount;
+    }
+
+    for (let cIdx = startColIdx; cIdx <= endColIdx; cIdx++) {
+      const col = this.cols[cIdx];
+      for (let r = this.rowCount; r >= normalized.start.r; r--) {
+        const key = `${col}${r}`;
+        const sourceRow = r - shiftAmount;
+        if (sourceRow >= normalized.start.r) {
+          const sourceKey = `${col}${sourceRow}`;
+          const item = this.cellsData.get(sourceKey);
+          if (item) {
+            this.cellsData.set(key, structuredClone(item));
+          } else {
+            this.cellsData.delete(key);
+          }
+        } else {
+          this.cellsData.delete(key);
+        }
+      }
+    }
+
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(normalized.start.c, normalized.start.r);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "grid-structure",
+        sheet: this.activeSheet,
+        before,
+        after: this._snapshotGridStructure()
+      });
+    }
+    return true;
+  }
+
+  shiftCellsLeft(range = this.selectionRange, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const normalized = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(normalized.start.c);
+    const endColIdx = this.cols.indexOf(normalized.end.c);
+    const shiftAmount = endColIdx - startColIdx + 1;
+    if (startColIdx < 0 || endColIdx < 0 || shiftAmount <= 0) return false;
+
+    const before = this._snapshotGridStructure();
+
+    for (let r = normalized.start.r; r <= normalized.end.r; r++) {
+      for (let cIdx = startColIdx; cIdx < this.cols.length; cIdx++) {
+        const col = this.cols[cIdx];
+        const key = `${col}${r}`;
+        const sourceColIdx = cIdx + shiftAmount;
+        if (sourceColIdx < this.cols.length) {
+          const sourceCol = this.cols[sourceColIdx];
+          const sourceKey = `${sourceCol}${r}`;
+          const item = this.cellsData.get(sourceKey);
+          if (item) {
+            this.cellsData.set(key, structuredClone(item));
+          } else {
+            this.cellsData.delete(key);
+          }
+        } else {
+          this.cellsData.delete(key);
+        }
+      }
+    }
+
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(normalized.start.c, normalized.start.r);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "grid-structure",
+        sheet: this.activeSheet,
+        before,
+        after: this._snapshotGridStructure()
+      });
+    }
+    return true;
+  }
+
+  shiftCellsUp(range = this.selectionRange, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const normalized = this._normalizeRange(range);
+    const startColIdx = this.cols.indexOf(normalized.start.c);
+    const endColIdx = this.cols.indexOf(normalized.end.c);
+    const shiftAmount = normalized.end.r - normalized.start.r + 1;
+    if (startColIdx < 0 || endColIdx < 0 || shiftAmount <= 0) return false;
+
+    const before = this._snapshotGridStructure();
+
+    for (let cIdx = startColIdx; cIdx <= endColIdx; cIdx++) {
+      const col = this.cols[cIdx];
+      for (let r = normalized.start.r; r <= this.rowCount; r++) {
+        const key = `${col}${r}`;
+        const sourceRow = r + shiftAmount;
+        if (sourceRow <= this.rowCount) {
+          const sourceKey = `${col}${sourceRow}`;
+          const item = this.cellsData.get(sourceKey);
+          if (item) {
+            this.cellsData.set(key, structuredClone(item));
+          } else {
+            this.cellsData.delete(key);
+          }
+        } else {
+          this.cellsData.delete(key);
+        }
+      }
+    }
+
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(normalized.start.c, normalized.start.r);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "grid-structure",
+        sheet: this.activeSheet,
+        before,
+        after: this._snapshotGridStructure()
+      });
+    }
+    return true;
+  }
+
+  showInsertCellsDialog(range = this.selectionRange) {
+    const normalized = this._normalizeRange(range);
+    if (typeof document === "undefined" || !document.body) {
+      this.shiftCellsDown(normalized);
+      return true;
+    }
+    const previousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:99999;";
+
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" style="width: 320px; background:var(--vno-bg-surface, #fff); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.2); font-family:sans-serif; overflow:hidden;" role="document">
+        <div class="vno-dialog-header" style="padding:12px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; font-weight:600; font-size:14px;">
+          <span>Chèn</span>
+          <button class="vno-dialog-close-btn" style="border:none;background:transparent;cursor:pointer;font-size:18px;" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="vno-dialog-body" style="padding:16px; font-size:13px; display:flex; flex-direction:column; gap:10px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-insert-action" value="shiftRight">
+            <span>Chuyển ô sang phải</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-insert-action" value="shiftDown" checked>
+            <span>Chuyển ô xuống dưới</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-insert-action" value="entireRow">
+            <span>Toàn bộ hàng</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-insert-action" value="entireCol">
+            <span>Toàn bộ cột</span>
+          </label>
+        </div>
+        <div class="vno-dialog-footer" style="padding:12px 16px; display:flex; justify-content:flex-end; gap:8px; border-top:1px solid #e2e8f0; background:#f8fafc;">
+          <button class="vno-btn vno-dialog-ok-btn" style="padding:6px 16px; border-radius:4px; font-size:13px; cursor:pointer; background:var(--vno-primary, #0f6d38); color:#fff; border:none; font-weight:500;">Đồng ý</button>
+          <button class="vno-btn vno-dialog-cancel-btn" style="padding:6px 16px; border-radius:4px; font-size:13px; cursor:pointer; background:#fff; border:1px solid #cbd5e1; color:#334155;">Hủy</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    const okBtn = overlay.querySelector(".vno-dialog-ok-btn");
+    const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+    const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+
+    const cleanup = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
+    };
+
+    const executeChoice = () => {
+      const selected = overlay.querySelector('input[name="vno-insert-action"]:checked')?.value || "shiftDown";
+      cleanup();
+      if (selected === "shiftRight") {
+        this.shiftCellsRight(normalized);
+      } else if (selected === "shiftDown") {
+        this.shiftCellsDown(normalized);
+      } else if (selected === "entireRow") {
+        const rowCount = normalized.end.r - normalized.start.r + 1;
+        const before = this._snapshotGridStructure();
+        for (let i = 0; i < rowCount; i++) {
+          this.insertRow(normalized.start.r, false);
+        }
+        this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      } else if (selected === "entireCol") {
+        const startColIdx = this.cols.indexOf(normalized.start.c);
+        const endColIdx = this.cols.indexOf(normalized.end.c);
+        const colCount = endColIdx - startColIdx + 1;
+        const before = this._snapshotGridStructure();
+        for (let i = 0; i < colCount; i++) {
+          this.insertColumn(normalized.start.c, false);
+        }
+        this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      }
+    };
+
+    okBtn.addEventListener("click", executeChoice);
+    cancelBtn.addEventListener("click", cleanup);
+    closeBtn.addEventListener("click", cleanup);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) cleanup(); });
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cleanup();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        executeChoice();
+      } else if (e.key === "Tab") {
+        const focusables = Array.from(dialogBox.querySelectorAll('button, input[type="radio"]:checked, input'));
+        if (focusables.length > 0) {
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (e.shiftKey && (document.activeElement === first || !dialogBox.contains(document.activeElement))) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && (document.activeElement === last || !dialogBox.contains(document.activeElement))) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    okBtn.focus();
+    return true;
+  }
+
+  showDeleteCellsDialog(range = this.selectionRange) {
+    const normalized = this._normalizeRange(range);
+    if (typeof document === "undefined" || !document.body) {
+      this.shiftCellsLeft(normalized);
+      return true;
+    }
+    const previousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:99999;";
+
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" style="width: 320px; background:var(--vno-bg-surface, #fff); border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.2); font-family:sans-serif; overflow:hidden;" role="document">
+        <div class="vno-dialog-header" style="padding:12px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; font-weight:600; font-size:14px;">
+          <span>Xóa</span>
+          <button class="vno-dialog-close-btn" style="border:none;background:transparent;cursor:pointer;font-size:18px;" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="vno-dialog-body" style="padding:16px; font-size:13px; display:flex; flex-direction:column; gap:10px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-delete-action" value="shiftLeft" checked>
+            <span>Chuyển ô sang trái</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-delete-action" value="shiftUp">
+            <span>Chuyển ô lên trên</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-delete-action" value="entireRow">
+            <span>Toàn bộ hàng</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="vno-delete-action" value="entireCol">
+            <span>Toàn bộ cột</span>
+          </label>
+        </div>
+        <div class="vno-dialog-footer" style="padding:12px 16px; display:flex; justify-content:flex-end; gap:8px; border-top:1px solid #e2e8f0; background:#f8fafc;">
+          <button class="vno-btn vno-dialog-ok-btn" style="padding:6px 16px; border-radius:4px; font-size:13px; cursor:pointer; background:var(--vno-primary, #0f6d38); color:#fff; border:none; font-weight:500;">Đồng ý</button>
+          <button class="vno-btn vno-dialog-cancel-btn" style="padding:6px 16px; border-radius:4px; font-size:13px; cursor:pointer; background:#fff; border:1px solid #cbd5e1; color:#334155;">Hủy</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    const okBtn = overlay.querySelector(".vno-dialog-ok-btn");
+    const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
+    const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
+
+    const cleanup = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (previousFocused && typeof previousFocused.focus === "function") {
+        previousFocused.focus();
+      }
+    };
+
+    const executeChoice = () => {
+      const selected = overlay.querySelector('input[name="vno-delete-action"]:checked')?.value || "shiftLeft";
+      cleanup();
+      if (selected === "shiftLeft") {
+        this.shiftCellsLeft(normalized);
+      } else if (selected === "shiftUp") {
+        this.shiftCellsUp(normalized);
+      } else if (selected === "entireRow") {
+        const rowCount = normalized.end.r - normalized.start.r + 1;
+        const before = this._snapshotGridStructure();
+        for (let i = 0; i < rowCount; i++) {
+          this.deleteRow(normalized.start.r, false);
+        }
+        this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      } else if (selected === "entireCol") {
+        const startColIdx = this.cols.indexOf(normalized.start.c);
+        const endColIdx = this.cols.indexOf(normalized.end.c);
+        const colCount = endColIdx - startColIdx + 1;
+        const before = this._snapshotGridStructure();
+        for (let i = 0; i < colCount; i++) {
+          this.deleteColumn(normalized.start.c, false);
+        }
+        this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      }
+    };
+
+    okBtn.addEventListener("click", executeChoice);
+    cancelBtn.addEventListener("click", cleanup);
+    closeBtn.addEventListener("click", cleanup);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) cleanup(); });
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        cleanup();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        executeChoice();
+      } else if (e.key === "Tab") {
+        const focusables = Array.from(dialogBox.querySelectorAll('button, input[type="radio"]:checked, input'));
+        if (focusables.length > 0) {
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+          if (e.shiftKey && (document.activeElement === first || !dialogBox.contains(document.activeElement))) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && (document.activeElement === last || !dialogBox.contains(document.activeElement))) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    okBtn.focus();
+    return true;
+  }
+
+  handleInsertShortcut() {
+    if (this._guardProtectedMutation()) return false;
+    const range = this._normalizeRange();
+    const entireRow = this.isEntireRowSelected(range);
+    const entireCol = this.isEntireColumnSelected(range);
+    if (entireRow && !entireCol) {
+      const rowCount = range.end.r - range.start.r + 1;
+      const before = this._snapshotGridStructure();
+      for (let i = 0; i < rowCount; i++) {
+        this.insertRow(range.start.r, false);
+      }
+      this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      return true;
+    }
+    if (entireCol && !entireRow) {
+      const startColIdx = this.cols.indexOf(range.start.c);
+      const endColIdx = this.cols.indexOf(range.end.c);
+      const colCount = endColIdx - startColIdx + 1;
+      const before = this._snapshotGridStructure();
+      for (let i = 0; i < colCount; i++) {
+        this.insertColumn(range.start.c, false);
+      }
+      this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      return true;
+    }
+    return this.showInsertCellsDialog(range);
+  }
+
+  handleDeleteShortcut() {
+    if (this._guardProtectedMutation()) return false;
+    const range = this._normalizeRange();
+    const entireRow = this.isEntireRowSelected(range);
+    const entireCol = this.isEntireColumnSelected(range);
+    if (entireRow && !entireCol) {
+      const rowCount = range.end.r - range.start.r + 1;
+      const before = this._snapshotGridStructure();
+      for (let i = 0; i < rowCount; i++) {
+        this.deleteRow(range.start.r, false);
+      }
+      this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      return true;
+    }
+    if (entireCol && !entireRow) {
+      const startColIdx = this.cols.indexOf(range.start.c);
+      const endColIdx = this.cols.indexOf(range.end.c);
+      const colCount = endColIdx - startColIdx + 1;
+      const before = this._snapshotGridStructure();
+      for (let i = 0; i < colCount; i++) {
+        this.deleteColumn(range.start.c, false);
+      }
+      this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+      return true;
+    }
+    return this.showDeleteCellsDialog(range);
   }
 
   _restoreCells(entries) {

@@ -194,6 +194,7 @@ import { run3tBrandUxTests } from "./unit/3t-brand-ux.test.js";
 import { runRibbonCommandHandlersTests } from "./unit/ribbon-command-handlers.test.js";
 import { runSheetWatchWindowTests } from "./unit/sheet-watch-window.test.js";
 import { runOfficeShortcutCoverageTests } from "./unit/office-shortcut-coverage.test.js";
+import { runMissingOfficeShortcutsTests } from "./unit/missing-office-shortcuts.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -397,7 +398,8 @@ async function runAll() {
     { title: "160. Unit Tests — 3T Office Brand UX (About Dialog)", runner: run3tBrandUxTests },
     { title: "161. Unit Tests — 100% Ribbon Command Handlers & Definitions (Zero Silent NO-OPs)", runner: runRibbonCommandHandlersTests },
     { title: "162. Unit Tests — Sheet Watch Window (Excel parity: 6 columns, multi-sheet, draggable, keyboard, real-time)", runner: runSheetWatchWindowTests },
-    { title: "163. Regression Guard — Microsoft Office Shortcut Coverage (Word/Excel/PowerPoint)", runner: runOfficeShortcutCoverageTests }
+    { title: "163. Regression Guard — Microsoft Office Shortcut Coverage (Word/Excel/PowerPoint)", runner: runOfficeShortcutCoverageTests },
+    { title: "164. Unit Tests — Office Missing Shortcuts (Ctrl+], Ctrl+[, Ctrl+Shift++, Shift+F11, Ctrl+-, F11) & Undo", runner: runMissingOfficeShortcutsTests }
   ];
 
   for (const suite of suites) {
