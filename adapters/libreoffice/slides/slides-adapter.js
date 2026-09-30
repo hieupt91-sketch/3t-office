@@ -454,23 +454,39 @@ export class SlidesAdapter {
       ...(root?.querySelectorAll?.('font[size="7"]') || []),
       ...[...(root?.querySelectorAll?.("span[style]") || [])].filter((el) => /xxx-large/i.test(el.style?.fontSize || ""))
     ];
+    // Cỡ trên màn hình theo đơn vị canvas: N pt tài liệu = N / ptPerPx px (bản mới 1 px = 1 pt).
+    const px = Math.round((pt / this._ptPerPx()) * 100) / 100;
     for (const el of marked) {
       el.removeAttribute?.("size");
-      el.style.fontSize = `${pt}pt`;
+      el.style.fontSize = `${px}px`;
     }
     this.canvas?._syncEditableFieldsFromDom?.();
     this._syncTextFormatState();
     return true;
   }
 
-  /** Cỡ chữ CSS → pt cho ODF. Canvas 960 px = trang 720 pt nên 1 px = 0,75 pt. */
+  /**
+   * Số pt tài liệu ứng với 1 px canvas. Bản trình chiếu MỚI dùng khổ PowerPoint thật
+   * (16:9 = 960 × 540 pt, 4:3 = 720 × 540 pt) trên canvas 960/720 × 540 px ⇒ 1 px = 1 pt.
+   * Tệp mở từ ngoài giữ khổ gốc theo 96 dpi ⇒ 1 px = 0,75 pt.
+   */
+  _ptPerPx() {
+    const value = Number(this.canvas?.ptPerPx);
+    return Number.isFinite(value) && value > 0 ? value : 0.75;
+  }
+
+  /** Cỡ chữ CSS (đang hiển thị trên canvas) → pt cho ODF theo đơn vị của tài liệu. */
   _cssFontSizeToOdf(value) {
     const raw = String(value || "").trim().toLowerCase();
+    const ptPerPx = this._ptPerPx();
+    const toPt = (px) => `${Math.round(px * ptPerPx * 10) / 10}pt`;
     const keywords = { "xx-small": 9, "x-small": 10, small: 13, medium: 16, large: 18, "x-large": 24, "xx-large": 32, "xxx-large": 48, "-webkit-xxx-large": 48 };
-    if (keywords[raw]) return `${Math.round(keywords[raw] * 0.75 * 10) / 10}pt`;
+    if (keywords[raw]) return toPt(keywords[raw]);
     const px = raw.match(/^([\d.]+)px$/);
-    if (px) return `${Math.round(parseFloat(px[1]) * 0.75 * 10) / 10}pt`;
-    if (/^[\d.]+(pt|em|%)$/.test(raw)) return raw;
+    if (px) return toPt(parseFloat(px[1]));
+    const pt = raw.match(/^([\d.]+)pt$/);
+    if (pt) return toPt(parseFloat(pt[1]) * 96 / 72);
+    if (/^[\d.]+(em|%)$/.test(raw)) return raw;
     if (/^[\d.]+$/.test(raw)) return `${raw}pt`;
     return null;
   }
@@ -800,16 +816,19 @@ export class SlidesAdapter {
     const theme = this._masterTheme();
     if (!theme) return null;
     const family = this._firstAvailableFontFamily(theme.fontFamily || "Arial");
+    // Cỡ chữ canvas (slides.css: tiêu đề 32 px, trang Tiêu đề 44 px, nội dung 20 px) quy
+    // ra pt theo đơn vị tài liệu — bản mới 1 px = 1 pt nên giữ đúng tỉ lệ chữ / khổ trang.
+    const pt = (px) => `${Math.round(px * this._ptPerPx() * 10) / 10}pt`;
     if (role === "title") {
       const titleOnly = (slide?.layoutType || "title-content") === "title-only";
       return {
         align: titleOnly ? "center" : "left",
-        fmt: { family, size: titleOnly ? "33pt" : "24pt", bold: true, color: this._cssColorToHex(theme.titleColor || "#0f172a") }
+        fmt: { family, size: pt(titleOnly ? 44 : 32), bold: true, color: this._cssColorToHex(theme.titleColor || "#0f172a") }
       };
     }
     return {
       align: "left",
-      fmt: { family, size: "15pt", color: this._cssColorToHex(theme.bodyColor || "#334155") }
+      fmt: { family, size: pt(20), color: this._cssColorToHex(theme.bodyColor || "#334155") }
     };
   }
 
@@ -837,7 +856,7 @@ export class SlidesAdapter {
     }
     if (/^([\d.]+)px$/.test(str)) {
       const px = parseFloat(str);
-      const pt = Math.round(px * 0.75 * 100) / 100;
+      const pt = Math.round(px * this._ptPerPx() * 100) / 100;
       return `${pt}pt`;
     }
     const n = parseFloat(str);
@@ -1086,7 +1105,28 @@ export class SlidesAdapter {
   _pxToOdf(px) {
     const value = Number(px);
     if (!Number.isFinite(value)) return "0cm";
-    return `${Math.round((value / 37.795275591) * 1000) / 1000}cm`;
+    // px canvas → pt tài liệu (xem _ptPerPx) → cm. Tệp mở từ ngoài: 0,75 pt/px = 96 dpi như cũ.
+    const cm = value * this._ptPerPx() / 72 * 2.54;
+    return `${Math.round(cm * 1000) / 1000}cm`;
+  }
+
+  /**
+   * Khổ trang chiếu ghi vào FODP, ĐÚNG tới từng EMU: pt với đủ chữ số (1 pt = 12700 EMU).
+   * Tệp mở từ PowerPoint giữ nguyên <p:sldSz> gốc (sourceEmu) khi người dùng không đổi khổ.
+   */
+  _pageSizeOdf() {
+    const size = this.canvas?.slideSize || {};
+    const src = size.sourceEmu;
+    const fmt = (pt) => `${Math.round(pt * 1e6) / 1e6}pt`;
+    if (src && src.cx > 0 && src.cy > 0) {
+      return { width: fmt(src.cx / 12700), height: fmt(src.cy / 12700), type: src.type || "" };
+    }
+    const ptPerPx = this._ptPerPx();
+    const widthPt = (size.width || 960) * ptPerPx;
+    const heightPt = (size.height || 540) * ptPerPx;
+    // PowerPoint ghi type="screen4x3" cho khổ Standard (4:3) 10 × 7,5 in; Widescreen không có type.
+    const type = Math.round(widthPt * 12700) === 9144000 && Math.round(heightPt * 12700) === 6858000 ? "screen4x3" : "";
+    return { width: fmt(widthPt), height: fmt(heightPt), type };
   }
 
   _attr(attrs, name) {
@@ -1879,9 +1919,11 @@ export class SlidesAdapter {
     const slideWidthPx = this.canvas?.slideSize?.width || 960;
     const slideHeightPx = this.canvas?.slideSize?.height || 540;
     const pageOrientation = slideWidthPx >= slideHeightPx ? "landscape" : "portrait";
+    const page = this._pageSizeOdf();
+    const typeAttr = page.type ? ` vno:sld-type="${this._escapeXml(page.type)}"` : "";
     let xml = `
     <style:page-layout style:name="PM1">
-      <style:page-layout-properties fo:page-width="${this._pxToOdf(slideWidthPx)}" fo:page-height="${this._pxToOdf(slideHeightPx)}" style:print-orientation="${pageOrientation}"/>
+      <style:page-layout-properties fo:page-width="${page.width}" fo:page-height="${page.height}" style:print-orientation="${pageOrientation}"${typeAttr}/>
     </style:page-layout>
     <style:style style:name="dp1" style:family="drawing-page">
       <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true"${this._masterPageFillAttrs()}/>
@@ -3444,6 +3486,31 @@ export class SlidesAdapter {
    * before parseFodp (belt-and-suspenders; production File → Mở already
    * overlays in main.py).
    */
+  /**
+   * Khổ trang gốc tính bằng EMU: ưu tiên <p:sldSz> của PPTX gốc (chính xác tuyệt đối, kèm
+   * type như "screen4x3"), không có thì lấy page-layout của FODP (tệp ODP / bản khôi phục).
+   */
+  _sourcePageEmu(fodpXml, ooxmlPresentationXml) {
+    const sld = String(ooxmlPresentationXml || "").match(/<(?:\w+:)?sldSz\b([^>]*)\/?>/i)?.[1];
+    if (sld) {
+      const cx = Number(this._attr(sld, "cx"));
+      const cy = Number(this._attr(sld, "cy"));
+      if (cx > 0 && cy > 0) return { cx, cy, type: this._attr(sld, "type") || "" };
+    }
+    const props = String(fodpXml || "").match(/<style:page-layout-properties\b([^>]*)\/?>/i)?.[1];
+    if (!props) return null;
+    const toEmu = (raw) => {
+      const m = String(raw || "").trim().match(/^([\d.]+)\s*(cm|mm|in|pt)$/i);
+      if (!m) return 0;
+      const perUnit = { cm: 360000, mm: 36000, in: 914400, pt: 12700 }[m[2].toLowerCase()];
+      return Math.round(parseFloat(m[1]) * perUnit);
+    };
+    const cx = toEmu(this._attr(props, "fo:page-width"));
+    const cy = toEmu(this._attr(props, "fo:page-height"));
+    if (!(cx > 0 && cy > 0)) return null;
+    return { cx, cy, type: this._attr(props, "vno:sld-type") || "" };
+  }
+
   loadFromFodp(fodpText, ooxmlPresentationXml, ooxmlSlideMasterXml, ooxmlPresPropsXml) {
     if (!this.canvas) return;
     let xml = fodpText;
@@ -3453,6 +3520,8 @@ export class SlidesAdapter {
     const newSlides = this.parseFodp(xml);
     if (newSlides && newSlides.length > 0) {
       this.canvas.imported = true;
+      // Tệp mở từ ngoài: toạ độ canvas theo 96 dpi (1 px = 0,75 pt) như trước.
+      this.canvas.ptPerPx = 0.75;
       if (newSlides.slideWidth && newSlides.slideHeight) {
         const ratio = newSlides.slideWidth / newSlides.slideHeight;
         const preset = Math.abs(ratio - (4 / 3)) < 0.15 ? "standard" : "wide";
@@ -3461,6 +3530,13 @@ export class SlidesAdapter {
         } else {
           this.canvas.slideSize = { preset, width: newSlides.slideWidth, height: newSlides.slideHeight };
         }
+      }
+      // Giữ khổ trang GỐC tới từng EMU (px canvas đã làm tròn) để Lưu không đổi khổ của tệp.
+      const sourceEmu = this._sourcePageEmu(xml, ooxmlPresentationXml);
+      const size = this.canvas.slideSize;
+      if (sourceEmu && size
+        && Math.abs(sourceEmu.cx / 9525 - size.width) <= 2 && Math.abs(sourceEmu.cy / 9525 - size.height) <= 2) {
+        this.canvas.slideSize = { ...this.canvas.slideSize, sourceEmu };
       }
       this.canvas.slides = newSlides;
       this.canvas.sections = [...(newSlides.sections || [])];

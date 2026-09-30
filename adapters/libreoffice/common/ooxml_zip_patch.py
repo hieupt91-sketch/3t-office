@@ -3825,17 +3825,31 @@ def parse_intended_slide_size_from_fodp(fodp_xml: str | None) -> dict[str, int] 
     return None
 
 
+_LENGTH_EMU = {"cm": CM_EMU, "mm": CM_EMU // 10, "in": 914400, "pt": 12700}
+
+
 def _parse_page_layout_props(attrs: str) -> dict[str, int] | None:
-    """Trích xuất fo:page-width / fo:page-height (cm) và đổi sang EMU."""
-    width_match = re.search(r'\bfo:page-width=["\']([\d.]+)cm["\']', attrs, re.IGNORECASE)
-    height_match = re.search(r'\bfo:page-height=["\']([\d.]+)cm["\']', attrs, re.IGNORECASE)
+    """Trích xuất fo:page-width / fo:page-height (cm, mm, in hoặc pt) và đổi sang EMU.
+
+    VN Slides ghi khổ bằng pt đủ chữ số (1 pt = 12700 EMU) để <p:sldSz> khớp TUYỆT ĐỐI
+    preset PowerPoint (16:9 = 12192000 × 6858000, 4:3 = 9144000 × 6858000) hoặc khổ gốc của
+    tệp mở từ PowerPoint. vno:sld-type (nếu có) là thuộc tính type của <p:sldSz>
+    ("screen4x3"...); có mặt nhưng rỗng nghĩa là KHÔNG có type (Widescreen).
+    """
+    width_match = re.search(r'\bfo:page-width=["\']([\d.]+)(cm|mm|in|pt)["\']', attrs, re.IGNORECASE)
+    height_match = re.search(r'\bfo:page-height=["\']([\d.]+)(cm|mm|in|pt)["\']', attrs, re.IGNORECASE)
     if not width_match or not height_match:
         return None
-    width_cm = float(width_match.group(1))
-    height_cm = float(height_match.group(1))
-    if width_cm <= 0 or height_cm <= 0:
+    cx = round(float(width_match.group(1)) * _LENGTH_EMU[width_match.group(2).lower()])
+    cy = round(float(height_match.group(1)) * _LENGTH_EMU[height_match.group(2).lower()])
+    if cx <= 0 or cy <= 0:
         return None
-    return {"cx": round(width_cm * CM_EMU), "cy": round(height_cm * CM_EMU)}
+    size: dict = {"cx": cx, "cy": cy}
+    if width_match.group(2).lower() == "pt":
+        # Khổ do VN Slides ghi (pt): quyết định luôn thuộc tính type (có hoặc không).
+        type_match = re.search(r'\bvno:sld-type=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+        size["type"] = type_match.group(1) if type_match else ""
+    return size
 
 
 def apply_intended_slide_size(presentation_xml: str, size: dict[str, int] | None) -> str:
@@ -3849,6 +3863,13 @@ def apply_intended_slide_size(presentation_xml: str, size: dict[str, int] | None
     attrs = match.group(1)
     next_attrs = re.sub(r'\bcx=["\']\d+["\']', f'cx="{size["cx"]}"', attrs, flags=re.IGNORECASE)
     next_attrs = re.sub(r'\bcy=["\']\d+["\']', f'cy="{size["cy"]}"', next_attrs, flags=re.IGNORECASE)
+    if "type" in size:
+        next_attrs = re.sub(r'\s+type=["\'][^"\']*["\']', "", next_attrs, flags=re.IGNORECASE)
+        if size["type"]:
+            trimmed = next_attrs.rstrip()
+            closing = "/" if trimmed.endswith("/") else ""
+            body = trimmed[:-1].rstrip() if closing else trimmed
+            next_attrs = f'{body} type="{size["type"]}"' + (closing if closing else "")
     next_tag = tag.replace(attrs, next_attrs)
     return presentation_xml[:match.start()] + next_tag + presentation_xml[match.end():]
 
@@ -5179,9 +5200,19 @@ def postprocess_slides_pptx(
     real_size = parse_slide_size(presentation_xml)
     # Dung sai 1000 EMU (~0.0028cm) — tránh vá giả do sai số làm tròn giữa
     # FODP (cm, làm tròn 3 chữ số thập phân) và PPTX (EMU, integer).
+    # Khổ ghi bằng pt (VN Slides, có "type") phải khớp TỪNG EMU và đúng thuộc tính type như
+    # PowerPoint (G8: soffice ghi 12192120 thay vì 12192000 → PowerPoint báo khổ «Custom»).
+    real_type_match = re.search(r'<(?:[\w]+:)?sldSz\b[^>]*\btype=["\']([^"\']*)["\']', presentation_xml or "", re.IGNORECASE)
+    real_type = real_type_match.group(1) if real_type_match else ""
+    exact = bool(intended_size and "type" in intended_size)
+    tolerance = 0 if exact else 1000
     apply_slide_size = bool(
         intended_size
-        and (abs(intended_size["cx"] - real_size["cx"]) > 1000 or abs(intended_size["cy"] - real_size["cy"]) > 1000)
+        and (
+            abs(intended_size["cx"] - real_size["cx"]) > tolerance
+            or abs(intended_size["cy"] - real_size["cy"]) > tolerance
+            or (exact and intended_size["type"] != real_type)
+        )
     )
     effective_size = intended_size if apply_slide_size else real_size
 

@@ -187,6 +187,20 @@ def ppt_kind(path):
     return "unknown"
 
 
+def sld_size(path):
+    """<p:sldSz> of a pptx as 'CXxCY[ type=T]' (attribute order independent)."""
+    try:
+        import zipfile
+        xml = zipfile.ZipFile(path).read("ppt/presentation.xml").decode("utf-8", "replace")
+    except Exception as exc:
+        return f"err:{type(exc).__name__}"
+    m = re.search(r"<p:sldSz\b([^>]*)>", xml)
+    if not m:
+        return "none"
+    attrs = dict(re.findall(r'(\w+)="([^"]*)"', m.group(1)))
+    return f"{attrs.get('cx')}x{attrs.get('cy')}" + (f" type={attrs['type']}" if attrs.get("type") else "")
+
+
 def title_of(slide):
     for s in slide.get("shapes", []):
         if s.get("placeholder") in (1, 3):
@@ -239,10 +253,11 @@ def evaluate_ops(res, pp):
         return "#%02X%02X%02X" % tuple(int(x) for x in m.groups()) if m else v
     def first_family(v):
         return (v or "").split(",")[0].strip().strip("'\"")
-    vn_t = f"{first_family(tc.get('family'))}/{round((tc.get('sizePx') or 0) * 0.75)}pt/{'bold' if int(tc.get('weight') or 400) >= 600 else 'normal'}/{css_rgb_hex(tc.get('color'))}/{tc.get('align')}"
+    ppx = o.get("ptPerPx") or 0.75
+    vn_t = f"{first_family(tc.get('family'))}/{round((tc.get('sizePx') or 0) * ppx)}pt/{'bold' if int(tc.get('weight') or 400) >= 600 else 'normal'}/{css_rgb_hex(tc.get('color'))}/{tc.get('align')}"
     pp_t = f"{t3.get('font')}/{round(t3.get('size') or 0)}pt/{'bold' if t3.get('bold') == -1 else 'normal'}/{t3.get('color')}/{ {1: 'left', 2: 'center', 3: 'right'}.get(t3.get('align'), t3.get('align')) }"
     check("D3", "title formatting in PowerPoint == VN editor (font/size/bold/color/align)", vn_t.replace("start", "left"), pp_t)
-    vn_b = f"{first_family(bc.get('family'))}/{round((bc.get('sizePx') or 0) * 0.75)}pt/{css_rgb_hex(bc.get('color'))}"
+    vn_b = f"{first_family(bc.get('family'))}/{round((bc.get('sizePx') or 0) * ppx)}pt/{css_rgb_hex(bc.get('color'))}"
     pp_b = f"{b3.get('font')}/{round(b3.get('size') or 0)}pt/{b3.get('color')}"
     check("D3", "body formatting in PowerPoint == VN editor (font/size/color)", vn_b, pp_b)
     body_texts = [shape_texts(s) for s in p.get("slides", [])]
@@ -297,9 +312,13 @@ def evaluate_ops(res, pp):
     check("D4", "table 2x3 with cell text", "2x3:A1", f"{(tbl.get('table') or {}).get('rows')}x{(tbl.get('table') or {}).get('cols')}:{((tbl.get('table') or {}).get('cells') or [''])[0]}")
     check("D4", "inserted table cells start empty (no 'Cột N' prompt text)", ["A1", "", "", "", "", ""], (tbl.get("table") or {}).get("cells"))
     rect = next((s for s in shapes if s.get("type") == 1), {})
-    check("D4", "shape moved/resized: left=150pt top=120pt w=240pt h=90pt (±2)", "150/120/240/90",
+    # Target on the canvas: x=200 y=160 w=320 h=120 px; PowerPoint pt = px × document pt/px.
+    k4 = o.get("ptPerPx") or 0.75
+    want = {"left": 200 * k4, "top": 160 * k4, "width": 320 * k4, "height": 120 * k4}
+    check("D4", "shape moved/resized with the mouse (canvas 200/160/320/120 px) lands at the same place in PowerPoint (±2pt)",
+          "/".join(f"{v:g}" for v in want.values()),
           f"{rect.get('left')}/{rect.get('top')}/{rect.get('width')}/{rect.get('height')}",
-          ok=all(abs((rect.get(k) or -999) - v) <= 2 for k, v in (("left", 150), ("top", 120), ("width", 240), ("height", 90))))
+          ok=all(abs((rect.get(k) or -999) - v) <= 2 for k, v in want.items()))
     check("D4", "shape rotated 30 deg", 30.0, rect.get("rotation"), ok=abs((rect.get("rotation") or 0) - 30) < 0.6)
     check("D4", "align left: image left == shape left (selection)", True, o.get("alignedLeft"))
     check("D4", "bring forward / send backward commands exist", True, o.get("zOrderCommands"))
@@ -314,6 +333,13 @@ def evaluate_ops(res, pp):
     check("D5", "16:9 aspect ratio (d1_deck)", 1.778, ratio(rb("d1_deck")))
     check("D5", "physical size = PowerPoint 2016 presets (4:3 720x540pt, 16:9 960x540pt)", "720/540 + 960/540",
           f"{p.get('slideWidth')}/{p.get('slideHeight')} + {rb('d1_deck').get('slideWidth')}/{rb('d1_deck').get('slideHeight')}")
+    # PowerPoint's own new decks (measured via COM): Widescreen <p:sldSz cx="12192000" cy="6858000"/>,
+    # PageSetup.SlideSize=7; Standard (4:3) cx="9144000" cy="6858000" type="screen4x3", SlideSize=1.
+    check("D5", "<p:sldSz> exactly like PowerPoint (16:9 | 4:3)",
+          "12192000x6858000 | 9144000x6858000 type=screen4x3",
+          f"{sld_size(os.path.join(OUTDIR, 'd1_deck.pptx'))} | {sld_size(os.path.join(OUTDIR, 'd5_design.pptx'))}")
+    check("D5", "PowerPoint PageSetup.SlideSize (dialog preset) 16:9 | 4:3", "7 | 1",
+          f"{rb('d1_deck').get('slideSizeType')} | {p.get('slideSizeType')}")
     sl = (p.get("slides") or [{}])[0]
     check("D5", "background color #FFF2CC on slide", "#FFF2CC", sl.get("bg"))
     s2 = (p.get("slides") or [{}, {}])[1] if len(p.get("slides") or []) > 1 else {}
@@ -373,6 +399,11 @@ def main():
         mism = [i + 1 for i, (a, b) in enumerate(zip(norm(pp_titles), norm(vn_titles))) if a != b]
         check("REAL " + name, "open: title text per slide (mismatching slides)", [], mism)
         check("REAL " + name, "save back pptx: PowerPoint slide count", o.get("slideCount"), rt.get("slideCount"))
+        rt_path = os.path.join(OUTDIR, "_rt_" + os.path.splitext(name)[0] + ".pptx")
+        check("REAL " + name, "save back pptx: <p:sldSz> unchanged (EMU + type)", sld_size(f), sld_size(rt_path))
+        check("REAL " + name, "save back pptx: PowerPoint slide size / preset unchanged",
+              f"{o.get('slideWidth')}x{o.get('slideHeight')} t{o.get('slideSizeType')}",
+              f"{rt.get('slideWidth')}x{rt.get('slideHeight')} t{rt.get('slideSizeType')}")
         rt_titles = [title_of(s) for s in rt.get("slides", [])]
         rt_all = [" ".join(norm(shape_texts(s))) for s in rt.get("slides", [])]
         mism2 = [i + 1 for i, (a, b) in enumerate(zip(norm(pp_titles), rt_all)) if a and a not in b]

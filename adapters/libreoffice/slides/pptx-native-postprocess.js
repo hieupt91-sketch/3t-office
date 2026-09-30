@@ -24,7 +24,8 @@ import {
   overlayFodpMasterLogo,
   parseIntendedSlideSizeFromFodp,
   parseMasterLogoFromFodp,
-  parseSlideSize
+  parseSlideSize,
+  parseSlideSizeType
 } from "./pptx-master-logo.js";
 import {
   applySectionList,
@@ -112,8 +113,15 @@ export function postProcessSlidesPptx(pptxPathOrBuffer, options = {}) {
   // nếu phát hiện khác biệt thật, không chỉ khi các tính năng khác cũng cần sửa).
   const intendedSize = options.sourceFodp ? parseIntendedSlideSizeFromFodp(options.sourceFodp) : null;
   const realSize = parseSlideSize(presentationXml);
+  // Khổ ghi bằng pt (có "type") phải khớp TỪNG EMU và đúng type như PowerPoint (G8 D5).
+  const exact = Boolean(intendedSize && Object.prototype.hasOwnProperty.call(intendedSize, "type"));
+  const tolerance = exact ? 0 : 500;
   const applySlideSize = Boolean(
-    intendedSize && (Math.abs(intendedSize.cx - realSize.cx) > 500 || Math.abs(intendedSize.cy - realSize.cy) > 500)
+    intendedSize && (
+      Math.abs(intendedSize.cx - realSize.cx) > tolerance
+      || Math.abs(intendedSize.cy - realSize.cy) > tolerance
+      || (exact && intendedSize.type !== parseSlideSizeType(presentationXml))
+    )
   );
   const effectiveSize = applySlideSize ? intendedSize : realSize;
 
