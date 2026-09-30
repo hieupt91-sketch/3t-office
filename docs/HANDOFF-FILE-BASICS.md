@@ -19,7 +19,7 @@ IMPLEMENTATION SUMMARY:
 
 - Earlier G7 commits on this branch implement blank startup, Sheet1/A1 defaults, blank first slide, document numbering, lifecycle state handling, recent-file handling, and tests replacing old sample-sheet assumptions.
 - Writer print now uses the app's paginated preview DOM, its current page dimensions, and an afterprint-scoped body class. Sheet and Slides print styles explicitly isolate their print-only DOM, clear fixed shell clipping, and set page breaks for Slides.
-- `scripts/test_g7_file_basics.py` automates the lifecycle, Office COM marker checks, real-file Recent paths, printer/copies/range controls, native page count, and print-to-PDF result. It records print-media diagnostics, waits for the expected preview page count, and uses UI Automation Invoke with a physical-click fallback for the Print action.
+- `scripts/test_g7_file_basics.py` automates the lifecycle, Office COM marker checks, real-file Recent paths, printer/copies/range controls, native page count, and print-to-PDF result. It records print-media diagnostics, waits for the expected preview page count, restores the All pages radio through UI Automation, and reports desktop window names if the print-to-PDF save dialog is missing.
 - The shortcut consistency test now recognizes the existing shared `Ctrl+Shift+S` binding instead of incorrectly requiring three app-only bindings.
 - No LibreOffice Core patch, dependency, or build-system change was made.
 

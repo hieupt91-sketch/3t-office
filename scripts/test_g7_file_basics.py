@@ -139,6 +139,16 @@ function Wait-First($root, [System.Windows.Automation.Condition]$condition, [int
     if ($null -ne $element) { return $element }
     Start-Sleep -Milliseconds 250
   }
+  if ($label -eq "Save Print Output As dialog") {
+    $desktopWindows = [System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+      [System.Windows.Automation.TreeScope]::Children, $windowType)
+    $windowNames = @()
+    for ($index = 0; $index -lt $desktopWindows.Count; $index++) {
+      $item = $desktopWindows.Item($index)
+      $windowNames += "$($item.Current.Name) [pid=$($item.Current.ProcessId)]"
+    }
+    throw "Timed out waiting for $label. Desktop windows: $($windowNames -join ' | ')"
+  }
   throw "Timed out waiting for $label"
 }
 function Get-PrintWindow($root) {
@@ -285,7 +295,8 @@ $allPages = $rangeGroup.FindFirst([System.Windows.Automation.TreeScope]::Descend
     $radioType
   )))
 if ($null -eq $allPages) { throw "All pages radio button not found" }
-Click-Element $allPages
+try { $allPages.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() }
+catch { Click-Element $allPages }
 $allPages = $rangeGroup.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
   (New-Object System.Windows.Automation.AndCondition(
     (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "All")),
@@ -304,8 +315,7 @@ for ($i = 0; $i -lt $buttons.Count; $i++) {
 }
 if ($null -eq $printButton) { throw "Print button not found" }
 Bring-AppToFront
-try { $printButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
-catch { Click-Element $printButton }
+Click-Element $printButton
 $saveName = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "Save Print Output As")
 $saveDialog = Wait-First $root (New-Object System.Windows.Automation.AndCondition($saveName, $windowType)) 60 ([System.Windows.Automation.TreeScope]::Descendants) "Save Print Output As dialog"
 $fileName = $saveDialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants,
