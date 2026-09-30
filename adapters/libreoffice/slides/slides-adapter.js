@@ -199,6 +199,11 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.section.remove", () => this.canvas.removeCurrentSection ? this.canvas.removeCurrentSection() : false);
     globalCommandBus.bindHandler("slides.section.moveUp", () => this.canvas.moveCurrentSectionUp ? this.canvas.moveCurrentSectionUp() : false);
     globalCommandBus.bindHandler("slides.section.moveDown", () => this.canvas.moveCurrentSectionDown ? this.canvas.moveCurrentSectionDown() : false);
+    globalCommandBus.bindHandler("slides.section.menu", () => this.canvas.promptAddCurrentSection ? this.canvas.promptAddCurrentSection() : false);
+    globalCommandBus.bindHandler("slides.drawing.arrange", () => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("front") : false);
+    globalCommandBus.bindHandler("slides.edit.select", () => this.canvas.selectAllShapes ? this.canvas.selectAllShapes() : false);
+    globalCommandBus.bindHandler("slides.text.vAlign", () => this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("middle") : false);
+    globalCommandBus.bindHandler("slides.text.direction", () => this.canvas.setTextDirection ? this.canvas.setTextDirection("horizontal") : false);
     this._bindTextFormatTracking();
   }
 
@@ -512,7 +517,8 @@ export class SlidesAdapter {
         this._applyExecCommand("strikeThrough");
         return this._queryCommandState("strikeThrough");
       case "slides.text.clearFormat":
-        return this._applyExecCommand("removeFormat");
+        this._applyExecCommand("removeFormat");
+        return true;
       case "slides.font.family":
         if (args) this._applyExecCommand("fontName", args);
         return true;

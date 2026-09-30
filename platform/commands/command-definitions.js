@@ -73,6 +73,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.view.newWindow", category: "view", label: "Cửa sổ mới", icon: "writerNewWindow", tooltip: "Mở tài liệu trong một cửa sổ trình duyệt mới" },
   { id: "writer.nav.docStart", category: "nav", label: "Đầu tài liệu", shortcut: "Ctrl+Home", icon: "pageBreak", tooltip: "Đến đầu tài liệu (Ctrl+Home)" },
   { id: "writer.nav.docEnd", category: "nav", label: "Cuối tài liệu", shortcut: "Ctrl+End", icon: "pageBreak", tooltip: "Đến cuối tài liệu (Ctrl+End)" },
+  { id: "writer.edit.select", category: "edit", label: "Chọn", icon: "selectAll", tooltip: "Chọn văn bản hoặc đối tượng" },
   // Định dạng ký tự (Font / Character)
   { id: "writer.text.bold", category: "format", label: "Đậm", shortcut: "Ctrl+B", icon: "bold", tooltip: "Chữ đậm (Ctrl+B)", isToggle: true },
   { id: "writer.text.italic", category: "format", label: "Nghiêng", shortcut: "Ctrl+I", icon: "italic", tooltip: "Chữ nghiêng (Ctrl+I)", isToggle: true },
@@ -101,6 +102,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.para.spacing1", category: "paragraph", label: "Giãn dòng 1.0", shortcut: "Ctrl+1", icon: "lineSpacing1", tooltip: "Khoảng cách dòng 1.0 (Ctrl+1)" },
   { id: "writer.para.spacing15", category: "paragraph", label: "Giãn dòng 1.5", shortcut: "Ctrl+5", icon: "lineSpacing15", tooltip: "Khoảng cách dòng 1.5 (Ctrl+5)" },
   { id: "writer.para.spacing2", category: "paragraph", label: "Giãn dòng 2.0", shortcut: "Ctrl+2", icon: "lineSpacing2", tooltip: "Khoảng cách dòng 2.0 (Ctrl+2)" },
+  { id: "writer.para.lineSpacing", category: "paragraph", label: "Giãn dòng", icon: "lineSpacing", tooltip: "Khoảng cách giữa các dòng trong đoạn văn" },
   { id: "writer.para.spacingBefore", category: "paragraph", label: "Khoảng trước đoạn", icon: "spacingBefore", tooltip: "Khoảng cách trước đoạn văn (đơn vị pt)" },
   { id: "writer.para.spacingAfter", category: "paragraph", label: "Khoảng sau đoạn", icon: "spacingAfter", tooltip: "Khoảng cách sau đoạn văn (đơn vị pt)" },
   { id: "writer.list.bullet", category: "paragraph", label: "Dấu đầu dòng", icon: "listBullet", tooltip: "Tạo danh sách dấu chấm tròn", isToggle: true },
@@ -166,6 +168,8 @@ export const WRITER_COMMANDS = [
   { id: "writer.page.watermark", category: "layout", label: "Hình mờ", icon: "pageWatermark", tooltip: "Thiết lập hoặc xóa hình mờ văn bản (Dự thảo, Mật, Khẩn...)" },
   { id: "writer.page.color", category: "layout", label: "Màu trang", icon: "pageColor", tooltip: "Đặt màu nền đặc cho trang tài liệu" },
   { id: "writer.page.border", category: "layout", label: "Viền trang", icon: "pageBorder", tooltip: "Thiết lập viền bao quanh trang tài liệu" },
+  { id: "writer.layout.breaks", category: "layout", label: "Ngắt", icon: "pageBreak", tooltip: "Chèn ngắt trang hoặc ngắt mục" },
+  { id: "writer.para.lineSpacingLayout", category: "layout", label: "Giãn dòng", icon: "lineSpacing", tooltip: "Khoảng cách dòng và đoạn văn" },
 
   // In ấn & Xem trước (Print & Preview)
   { id: "writer.file.printPreview", category: "file", label: "Xem trước khi in", shortcut: "Ctrl+F2", icon: "printPreview", tooltip: "Xem trước khi in (Ctrl+F2)" },
@@ -286,6 +290,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.data.group", category: "data", label: "Nhóm", icon: "sheetGroup", tooltip: "Nhóm các hàng hoặc cột liên tiếp đang chọn" },
   { id: "sheet.data.ungroup", category: "data", label: "Bỏ nhóm", icon: "sheetUngroup", tooltip: "Bỏ nhóm hàng hoặc cột đang chọn" },
   { id: "sheet.data.subtotal", category: "data", label: "Tổng phụ", icon: "subtotal", tooltip: "Chèn tổng phụ theo nhóm và tổng cộng cuối bảng" },
+  { id: "sheet-what-if-analysis", category: "data", label: "Phân tích What-If", icon: "whatIfAnalysis", tooltip: "Dò tìm mục tiêu, bảng dữ liệu và quản lý kịch bản" },
   { id: "sheet.data.goalSeek", category: "data", label: "Dò tìm mục tiêu", icon: "goalSeek", tooltip: "Tìm giá trị đầu vào để công thức đạt kết quả mong muốn (Goal Seek)" },
   { id: "sheet.data.dataTable", category: "data", label: "Bảng dữ liệu", icon: "dataTable", tooltip: "Tính công thức với một hoặc hai dãy giá trị đầu vào thay thế" },
   { id: "sheet.data.scenarioManager", category: "data", label: "Trình quản lý kịch bản", icon: "scenarioManager", tooltip: "Lưu và chuyển đổi nhiều bộ giá trị giả định có tên" },
@@ -296,6 +301,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.view.pageLayout", category: "view", label: "Bố trí trang", icon: "sheetPageLayout", tooltip: "Xem bảng tính như khi in ra giấy kèm đầu/chân trang", isToggle: true },
   { id: "sheet.view.formulaBar", category: "view", label: "Thanh công thức", icon: "sheetFormulaBar", tooltip: "Ẩn hoặc hiện thanh công thức", isToggle: true },
   { id: "sheet.view.toggleFormulas", category: "view", label: "Hiện công thức", shortcut: "Ctrl+`", icon: "showFormulas", tooltip: "Hiển thị công thức thay vì kết quả (Ctrl+`)", isToggle: true },
+  { id: "sheet.view.freezePanesMenu", category: "view", label: "Cố định ô", icon: "freezePanes", tooltip: "Cố định hàng hoặc cột khi cuộn trang tính" },
   { id: "sheet.view.freezePanes", category: "view", label: "Cố định ô", icon: "freezePanes", tooltip: "Cố định các hàng phía trên và cột bên trái Ô đang chọn khi cuộn (Freeze Panes)", isToggle: true },
   { id: "sheet.view.freezeTopRow", category: "view", label: "Cố định hàng trên cùng", icon: "freezeTopRow", tooltip: "Chỉ cố định hàng 1 khi cuộn dọc (Freeze Top Row)", isToggle: true },
   { id: "sheet.view.freezeFirstColumn", category: "view", label: "Cố định cột đầu tiên", icon: "freezeFirstColumn", tooltip: "Chỉ cố định cột A khi cuộn ngang (Freeze First Column)", isToggle: true },
@@ -341,6 +347,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.sheet.moveOrCopy", category: "format", label: "Di chuyển hoặc Sao chép trang tính...", icon: "moveCopySheet", tooltip: "Đổi thứ tự tab hoặc tạo bản sao trang tính (dữ liệu, định dạng, Page Setup)" },
   { id: "sheet.sheet.protect", category: "format", label: "Bảo vệ trang tính...", icon: "protectSheet", tooltip: "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)" },
   { id: "sheet.workbook.protect", category: "review", label: "Bảo vệ workbook...", icon: "protectWorkbook", tooltip: "Khóa cấu trúc workbook: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Không khóa nội dung ô (khóa giao diện, không phải bảo mật thật)" },
+  { id: "sheet.cells.format", category: "format", label: "Định dạng ô", icon: "formatCells", tooltip: "Đổi kích thước hàng cột, ẩn hiện và bảo vệ trang tính" },
   { id: "sheet.chart.insert", category: "insert", label: "Biểu đồ", icon: "chart", tooltip: "Chèn biểu đồ phân tích dữ liệu" },
   { id: "sheet.chart.pivotChart", category: "insert", label: "Biểu đồ Pivot", icon: "pivotChart", tooltip: "Chèn biểu đồ Cột hoặc Tròn liên kết với dữ liệu Pivot đã tổng hợp" },
   { id: "sheet.insert.image", category: "insert", label: "Chèn ảnh", icon: "image", tooltip: "Chèn ảnh vào ô đang chọn" },
@@ -354,8 +361,10 @@ export const SHEET_COMMANDS = [
   { id: "sheet.style.cellStyles", category: "format", label: "Kiểu ô", icon: "cellStyles", tooltip: "Mở thư viện kiểu ô định sẵn (Normal, Good, Bad, Neutral...)" },
 
   // Chỉnh sửa & Điền/Xóa (Editing: Fill & Clear)
+  { id: "sheet.edit.fill", category: "edit", label: "Điền", icon: "fillDown", tooltip: "Điền dữ liệu theo hướng xuống, sang phải" },
   { id: "sheet.edit.fillDown", category: "edit", label: "Điền xuống", shortcut: "Ctrl+D", icon: "fillDown", tooltip: "Sao chép giá trị và công thức ô trên xuống các ô dưới (Ctrl+D)" },
   { id: "sheet.edit.fillRight", category: "edit", label: "Điền phải", shortcut: "Ctrl+R", icon: "fillRight", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" },
+  { id: "sheet.edit.clear", category: "edit", label: "Xóa", icon: "clearAll", tooltip: "Xóa toàn bộ, xóa định dạng hoặc xóa nội dung ô" },
   { id: "sheet.edit.clearAll", category: "edit", label: "Xóa tất cả", icon: "clearAll", tooltip: "Xóa toàn bộ nội dung, công thức và định dạng của các ô đã chọn" },
   { id: "sheet.edit.clearFormats", category: "edit", label: "Xóa định dạng", icon: "clearFormat", tooltip: "Xóa định dạng ô và đưa về mặc định nhưng giữ nguyên nội dung" },
   { id: "sheet.edit.clearContents", category: "edit", label: "Xóa nội dung", icon: "clearContents", tooltip: "Xóa nội dung và công thức của ô nhưng giữ nguyên định dạng" },
@@ -372,6 +381,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.edit.formatPainter", category: "edit", label: "Sao chép định dạng", icon: "formatPainter", tooltip: "Sao chép định dạng chữ hoặc hình đang chọn sang đối tượng khác. Nhấp đúp để khóa và áp dụng nhiều lần. Esc để hủy.", isToggle: true },
   { id: "slides.edit.selectAll", category: "edit", label: "Chọn tất cả", icon: "selectAll", tooltip: "Chọn tất cả hình trên trang chiếu hiện tại" },
   { id: "slides.edit.selectObjects", category: "edit", label: "Chọn đối tượng", icon: "selectObjects", tooltip: "Chọn các đối tượng vẽ trên trang chiếu hiện tại (không gồm đường nối)" },
+  { id: "slides.edit.select", category: "edit", label: "Chọn", icon: "selectAll", tooltip: "Chọn đối tượng hoặc văn bản trên trang chiếu" },
   // Quản lý Trang chiếu
   { id: "slides.slide.new", category: "slide", label: "Trang mới", shortcut: "Ctrl+M", icon: "slideNew", tooltip: "Chèn trang chiếu mới (Ctrl+M)" },
   { id: "slides.layout.apply", category: "slide", label: "Bố cục", icon: "slideLayout", tooltip: "Thay đổi bố cục trang chiếu (Tiêu đề, Nội dung, Hai cột, Trống)" },
@@ -384,8 +394,10 @@ export const SLIDES_COMMANDS = [
   { id: "slides.section.remove", category: "slide", label: "Xóa phần", icon: "slideSectionRemove", tooltip: "Bỏ nhóm phần — không xóa các trang chiếu bên trong" },
   { id: "slides.section.moveUp", category: "slide", label: "Chuyển phần lên", icon: "slideSectionUp", tooltip: "Di chuyển cả nhóm trang của phần lên trên phần kề trước, giữ thứ tự trang bên trong" },
   { id: "slides.section.moveDown", category: "slide", label: "Chuyển phần xuống", icon: "slideSectionDown", tooltip: "Di chuyển cả nhóm trang của phần xuống dưới phần kề sau, giữ thứ tự trang bên trong" },
+  { id: "slides.section.menu", category: "slide", label: "Phần", icon: "slideSectionAdd", tooltip: "Quản lý các phần trong bài trình chiếu" },
 
   // Chèn đối tượng
+  { id: "slides.drawing.arrange", category: "draw", label: "Sắp xếp", icon: "bringToFront", tooltip: "Sắp xếp thứ tự hiển thị và căn lề các đối tượng vẽ" },
   { id: "slides.text.insert", category: "insert", label: "Hộp văn bản", icon: "textBox", tooltip: "Chèn khung văn bản mới" },
   { id: "slides.shape.insert", category: "insert", label: "Hình khối", icon: "shape", tooltip: "Chèn hình chữ nhật, tròn, mũi tên" },
   { id: "slides.diagram.insert", category: "insert", label: "Sơ đồ", icon: "diagram", tooltip: "Chèn sơ đồ quy trình, chu kỳ hoặc phân cấp" },
@@ -441,9 +453,11 @@ export const SLIDES_COMMANDS = [
   { id: "slides.arrange.distributeHorizontal", category: "arrange", label: "Phân phối đều ngang", icon: "distributeH", tooltip: "Chia đều khoảng cách ngang giữa các đối tượng (từ 3 đối tượng trở lên)" },
   { id: "slides.arrange.distributeVertical", category: "arrange", label: "Phân phối đều dọc", icon: "distributeV", tooltip: "Chia đều khoảng cách dọc giữa các đối tượng (từ 3 đối tượng trở lên)" },
   { id: "slides.arrange.alignToSlide", category: "arrange", label: "Căn theo trang chiếu", icon: "alignToSlide", tooltip: "Bật: căn theo toàn bộ khung trang chiếu. Tắt: căn theo khung các đối tượng đang chọn", isToggle: true },
+  { id: "slides.text.vAlign", category: "paragraph", label: "Căn lề dọc", icon: "textVAlignMiddle", tooltip: "Căn văn bản lên trên, ở giữa hoặc xuống dưới khung chữ" },
   { id: "slides.text.vAlignTop", category: "paragraph", label: "Căn lề trên", icon: "textVAlignTop", tooltip: "Căn văn bản lên đầu khung chữ", isToggle: true },
   { id: "slides.text.vAlignMiddle", category: "paragraph", label: "Căn giữa (dọc)", icon: "textVAlignMiddle", tooltip: "Căn văn bản giữa khung chữ theo chiều dọc", isToggle: true },
   { id: "slides.text.vAlignBottom", category: "paragraph", label: "Căn lề dưới", icon: "textVAlignBottom", tooltip: "Căn văn bản xuống đáy khung chữ", isToggle: true },
+  { id: "slides.text.direction", category: "paragraph", label: "Hướng chữ", icon: "textDirectionHorizontal", tooltip: "Đổi hướng văn bản trong khung chữ" },
   { id: "slides.text.directionHorizontal", category: "paragraph", label: "Ngang", icon: "textDirectionHorizontal", tooltip: "Văn bản nằm ngang (mặc định)", isToggle: true },
   { id: "slides.text.directionVertical", category: "paragraph", label: "Xoay chữ 90°", icon: "textDirectionVertical", tooltip: "Xoay toàn bộ văn bản 90°", isToggle: true },
   { id: "slides.text.directionVertical270", category: "paragraph", label: "Xoay chữ 270°", icon: "textDirectionVertical270", tooltip: "Xoay toàn bộ văn bản 270°", isToggle: true },

@@ -407,6 +407,15 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.para.spacingAfter", (args) => this.applyParagraphSpacingAfter(args));
     globalCommandBus.bindHandler("writer.para.moveUp", () => this.moveParagraph("up"));
     globalCommandBus.bindHandler("writer.para.moveDown", () => this.moveParagraph("down"));
+    globalCommandBus.bindHandler("writer.para.lineSpacing", (args) => {
+      if (args === "1" || args === 1 || args === "1.0") return this._setLineHeight("1.0");
+      if (args === "1.5" || args === 1.5) return this._setLineHeight("1.5");
+      if (args === "2" || args === 2 || args === "2.0") return this._setLineHeight("2.0");
+      return this._setLineHeight("1.5");
+    });
+    globalCommandBus.bindHandler("writer.para.lineSpacingLayout", (args) => globalCommandBus.execute("writer.para.lineSpacing", args));
+    globalCommandBus.bindHandler("writer.edit.select", () => globalCommandBus.execute("common.edit.selectAll"));
+    globalCommandBus.bindHandler("writer.layout.breaks", () => globalCommandBus.execute("writer.page.break"));
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
 
     if (!this._lastSnapshot) {
@@ -739,7 +748,8 @@ export class WriterAdapter {
       all: { border: "1px solid #334155", borderBottom: "1px solid #334155" },
       none: { border: "none", borderBottom: "none" }
     };
-    return borders[style] ? this._applyParagraphVisualStyle(borders[style], "writer.para.borders") : false;
+    const key = (typeof style === "string" && borders[style]) ? style : "bottom";
+    return this._applyParagraphVisualStyle(borders[key], "writer.para.borders");
   }
 
   _parseParagraphSpacingPt(args) {
