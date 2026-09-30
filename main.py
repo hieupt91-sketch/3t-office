@@ -1373,7 +1373,7 @@ def _inline_html_images(html_text: str, html_path: str) -> str:
 
 OPEN_FILE_TYPES = {
     "writer": ("Tài liệu Word (*.docx;*.odt;*.doc;*.rtf)", "Tất cả tệp (*.*)"),
-    "sheet": ("Bảng tính Excel (*.xlsx;*.ods;*.csv)", "Tất cả tệp (*.*)"),
+    "sheet": ("Bảng tính Excel (*.xlsx;*.xls;*.ods;*.csv;*.tsv)", "Tất cả tệp (*.*)"),
     "slides": ("Bản trình chiếu PowerPoint (*.pptx;*.odp)", "Tất cả tệp (*.*)"),
 }
 
@@ -2071,6 +2071,9 @@ class VnOfficeApi:
     def open_document_dialog(self, app_kind="writer"):
         return self._invoke_reported_api("open_document_dialog", self._open_document_dialog_impl, app_kind)
 
+    def open_mail_merge_data_dialog(self):
+        return self._invoke_reported_api("open_mail_merge_data_dialog", self._open_mail_merge_data_dialog_impl)
+
     def save_document_in_place(self, content, app_kind="writer", target_path=None, source_path=None):
         return self._invoke_reported_api(
             "save_document_in_place", self._save_document_in_place_impl,
@@ -2163,6 +2166,8 @@ class VnOfficeApi:
         self._print_pipeline.close()
 
     def _default_operation(self, method_name, method, args, kwargs):
+        if method_name == "open_mail_merge_data_dialog":
+            return "open.mailmerge.dialog"
         if method_name == "open_document_dialog":
             self._reporting_app_kind = args[0] if args and args[0] in VALID_APP_KINDS else self._app_kind
             path = self._initial_file
@@ -2544,6 +2549,73 @@ class VnOfficeApi:
             if pres_props_xml:
                 payload["ooxmlPresPropsXml"] = pres_props_xml
         return payload
+
+    def _open_mail_merge_data_dialog_impl(self):
+        """Mở hộp thoại chọn tệp nguồn dữ liệu trộn thư (Excel .xlsx/.xls hoặc CSV/TSV).
+        Chuyển đổi Excel sang FODS qua LibreOffice để bảo toàn định dạng hiển thị,
+        ngày tháng, số tiền và tiếng Việt."""
+        window = _active_window()
+        if not window:
+            return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
+
+        file_types = (
+            "Nguồn dữ liệu trộn thư (*.xlsx;*.xls;*.csv;*.tsv;*.ods)",
+            "Bảng tính Excel (*.xlsx;*.xls;*.ods)",
+            "Tệp văn bản phân tách (*.csv;*.tsv;*.txt)",
+            "Tất cả tệp (*.*)",
+        )
+        try:
+            result = window.create_file_dialog(webview.OPEN_DIALOG, file_types=file_types)
+        except Exception as exc:
+            return {"status": "error", "message": f"Không mở được hộp thoại: {exc}"}
+
+        if not result:
+            return {"status": "cancelled"}
+
+        src_path = result[0]
+        ext = Path(src_path).suffix.lower()
+        file_name = Path(src_path).name
+        self._reporting_file_path = src_path
+        self._reporting_operation = f"open.mailmerge.{ext.lstrip('.') or 'unknown'}"
+
+        if ext in (".csv", ".tsv", ".txt"):
+            try:
+                with open(src_path, "rb") as f:
+                    raw = f.read()
+                try:
+                    text = raw.decode("utf-8-sig")
+                except UnicodeDecodeError:
+                    try:
+                        text = raw.decode("utf-8")
+                    except UnicodeDecodeError:
+                        text = raw.decode("cp1258", errors="replace")
+                return {
+                    "status": "ok",
+                    "format": "tsv" if ext == ".tsv" else "csv",
+                    "fileName": file_name,
+                    "sourcePath": src_path,
+                    "content": text,
+                }
+            except Exception as exc:
+                return {"status": "error", "message": f"Không đọc được tệp {file_name}: {exc}"}
+
+        if ext in (".xlsx", ".xls", ".ods"):
+            try:
+                with tempfile.TemporaryDirectory(prefix="vnoffice_mailmerge_") as tmp:
+                    out_path = _run_soffice_convert(src_path, "fods", tmp, app_kind="sheet")
+                    with open(out_path, "r", encoding="utf-8", errors="replace") as f:
+                        fods_content = f.read()
+                return {
+                    "status": "ok",
+                    "format": "fods",
+                    "fileName": file_name,
+                    "sourcePath": src_path,
+                    "content": fods_content,
+                }
+            except Exception as exc:
+                return {"status": "error", "message": f"Không chuyển đổi được tệp {file_name}: {exc}"}
+
+        return {"status": "error", "message": f"Định dạng tệp không được hỗ trợ: {ext}"}
 
     def _save_document_in_place_impl(self, content, app_kind="writer", target_path=None, source_path=None):
         """Lưu nội dung trực tiếp vào tệp đích (Ctrl+S / Save-in-place),
