@@ -5053,8 +5053,13 @@ export class SlidesCanvasController {
   _targetShapesForTextStyle(explicitIds) {
     const slide = this.slides[this.currentSlideIndex];
     if (!slide) return [];
-    const ids = explicitIds
-      || (this.selectedShapeIds && this.selectedShapeIds.size ? this.selectedShapeIds : (this.selectedTarget ? new Set([String(this.selectedTarget)]) : new Set()));
+    let ids = explicitIds
+      || (this.selectedShapeIds && this.selectedShapeIds.size ? this.selectedShapeIds : (this.selectedTarget ? new Set([String(this.selectedTarget)]) : null));
+    if (!ids && slide.shapes && slide.shapes.length > 0) {
+      const eligible = slide.shapes.filter(s => this._textStyleEligible(s));
+      if (eligible.length > 0) ids = new Set([String(eligible[0].id)]);
+    }
+    if (!ids) return [];
     return (slide.shapes || []).filter(s => ids.has(String(s.id)) && this._textStyleEligible(s));
   }
 

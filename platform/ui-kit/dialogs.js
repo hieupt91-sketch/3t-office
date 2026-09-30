@@ -5,6 +5,7 @@
  */
 
 import { ICONS } from "./icons.js";
+import { t } from "../i18n/i18n.js";
 
 let dialogIdCounter = 0;
 
@@ -114,6 +115,27 @@ export function showAlertDialog({
     };
     document.addEventListener("keydown", onKeyDown);
     okBtn.focus();
+  });
+}
+
+/**
+ * Hiển thị thông báo chuẩn khi người dùng bấm vào một tính năng chưa hoàn thiện
+ * Tuân thủ quy định người phụ trách 30/09:
+ * "Tính năng này đang được hoàn thiện và sẽ có trong bản cập nhật tới."
+ * @param {string} [featureName]
+ * @returns {Promise<void>}
+ */
+export function showPendingFeatureNotice(featureName = "") {
+  const title = featureName ? `Tính năng: ${featureName}` : t("common.notice", "Thông báo");
+  const message = t(
+    "common.featurePendingNotice",
+    "Tính năng này đang được hoàn thiện và sẽ có trong bản cập nhật tới."
+  );
+  return showAlertDialog({
+    title,
+    message,
+    confirmText: t("common.confirm", "Đồng ý"),
+    type: "info"
   });
 }
 
