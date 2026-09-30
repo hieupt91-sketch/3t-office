@@ -658,7 +658,7 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.file.printPreviewHelp",
     app: "writer",
-    commandIds: ["writer.file.printPreview"],
+    commandIds: ["writer.file.printPreview", "common.file.print"],
     title: "Xem trước khi in",
     summary: "Ctrl+F2 mở overlay phân trang thật: khổ/hướng/lề trên thanh công cụ, lật trang, thu phóng 30%–200%. In tài liệu gọi hộp in trình duyệt (Ctrl+P). Esc đóng.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "In ấn" },
@@ -735,7 +735,7 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.accessibility.keyboardNav",
     app: "writer",
-    commandIds: ["common.file.backstage", "writer.format.bold", "writer.format.italic", "writer.format.underline"],
+    commandIds: ["common.file.backstage"],
     title: "Điều hướng bằng bàn phím và trợ năng (VN Writer)",
     summary: "Thao tác hoàn toàn bằng bàn phím không cần dùng chuột: mở menu Tệp (Alt+F), chuyển tab Ribbon bằng phím mũi tên Trái/Phải, di chuyển giữa các nút bằng Tab, bẫy tiêu điểm trong các hộp thoại (Tab/Shift+Tab) và đóng bằng Escape khôi phục tiêu điểm.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Trợ năng" },
@@ -851,7 +851,7 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.file.backstage",
     app: "writer",
-    commandIds: ["common.file.backstage", "common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.print", "common.file.exportPdf"],
+    commandIds: ["common.file.backstage", "common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.exportPdf"],
     title: "Menu Tệp (Backstage) và quản lý tài liệu",
     summary: "Mở menu Tệp toàn màn hình (Alt+F hoặc nút Tệp màu xanh góc trên-trái) để khởi tạo văn bản theo mẫu chuẩn, mở lại tài liệu gần đây, lưu DOCX, in với khung xem trước trực tiếp, hoặc xuất PDF.",
     ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
