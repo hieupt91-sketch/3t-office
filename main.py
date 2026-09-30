@@ -1030,7 +1030,15 @@ def _apply_native_export_postprocess(
                 with open(source_path, "rb") as handle:
                     source_xlsx_bytes = handle.read()
             # Read source FODS for activeTab preservation
-            patched = patcher.postprocess_sheet_xlsx(original, source_fods=fods, source_xlsx_bytes=source_xlsx_bytes)
+            if source_xlsx_bytes is not None and "<!-- vno-pristine-xlsx-source -->" in fods:
+                # An untouched imported XLSX is the exact Save-pipeline source
+                # after conversion. Restore its package so formatting-only
+                # blank ranges and other Excel-native print state survive.
+                patched = source_xlsx_bytes
+            else:
+                patched = patcher.postprocess_sheet_xlsx(
+                    original, source_fods=fods, source_xlsx_bytes=source_xlsx_bytes,
+                )
             if patched != original:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)

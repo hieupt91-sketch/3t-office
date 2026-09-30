@@ -30,6 +30,16 @@ def _write_docx(path: Path, document_xml: str) -> None:
         )
 
 
+def _write_xlsx(path: Path, marker: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr(
+            "[Content_Types].xml",
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>',
+        )
+        archive.writestr("xl/workbook.xml", f"<workbook>{marker}</workbook>")
+
+
 def _document_xml(
     font_size: int,
     page_width: int,
@@ -60,6 +70,15 @@ _WRITER_HTML = (
     "<style>@page { size: 215.9mm 279.4mm; margin: 12.7mm 12.7mm 12.7mm 12.7mm; }</style>"
     '<p><a name="vno-untouched-0"></a><span style="font-size:13.5pt">Same saved paragraph</span></p>'
 )
+_PRISTINE_SHEET_FODS = (
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<!-- vno-pristine-xlsx-source -->\n'
+    '<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+    'xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0">'
+    '<office:body><office:spreadsheet><table:table table:name="Sheet1"/></office:spreadsheet></office:body>'
+    '</office:document>'
+)
+_EDITED_SHEET_FODS = _PRISTINE_SHEET_FODS.replace("<!-- vno-pristine-xlsx-source -->\n", "")
 
 
 class _FakeSoffice:
@@ -276,6 +295,63 @@ class PrintSavePipelineTests(unittest.TestCase):
             postprocess.assert_called_once()
             self.assertEqual(postprocess.call_args.args[2:4], ("writer", "docx"))
             self.assertIsNone(postprocess.call_args.kwargs["source_path"])
+
+    def test_pristine_sheet_save_and_print_restore_original_xlsx_after_conversion(self):
+        with tempfile.TemporaryDirectory(prefix="vno_pristine_sheet_save_print_") as temp_dir:
+            root = Path(temp_dir)
+            original_xlsx = root / "source.xlsx"
+            _write_xlsx(original_xlsx, "ORIGINAL_STYLE_ONLY_CELLS")
+            saved_xlsx = root / "saved.xlsx"
+            print_dir = root / "print"
+            print_dir.mkdir()
+            fake = _FakeSoffice()
+            patcher = main._ooxml_zip_patch()
+
+            with patch.object(main, "_run_soffice_convert", side_effect=fake), \
+                    patch.object(patcher, "postprocess_sheet_xlsx", wraps=patcher.postprocess_sheet_xlsx) as postprocess:
+                saved = main.VnOfficeApi()._save_document_in_place_impl(
+                    _PRISTINE_SHEET_FODS, "sheet", str(saved_xlsx), str(original_xlsx),
+                )
+                self.assertEqual(saved["status"], "ok", saved)
+                print_source = main._write_print_source(
+                    _PRISTINE_SHEET_FODS, "sheet", str(print_dir), source_document_path=str(original_xlsx),
+                )
+
+            original_bytes = original_xlsx.read_bytes()
+            self.assertEqual(saved_xlsx.read_bytes(), original_bytes)
+            self.assertEqual(Path(print_source).read_bytes(), original_bytes)
+            self.assertEqual(fake.conversions, [(".fods", "xlsx", "sheet")] * 2)
+            postprocess.assert_not_called()
+
+    def test_edited_or_non_xlsx_sheet_source_stays_on_native_postprocess_path(self):
+        patcher = main._ooxml_zip_patch()
+        with tempfile.TemporaryDirectory(prefix="vno_edited_sheet_print_") as temp_dir:
+            root = Path(temp_dir)
+            original_xlsx = root / "source.xlsx"
+            _write_xlsx(original_xlsx, "ORIGINAL")
+            fake = _FakeSoffice()
+            with patch.object(main, "_run_soffice_convert", side_effect=fake), \
+                    patch.object(patcher, "postprocess_sheet_xlsx", side_effect=lambda converted, **_kwargs: converted) as postprocess:
+                print_source = main._write_print_source(
+                    _EDITED_SHEET_FODS, "sheet", str(root), source_document_path=str(original_xlsx),
+                )
+            self.assertNotEqual(Path(print_source).read_bytes(), original_xlsx.read_bytes())
+            postprocess.assert_called_once()
+            self.assertIsNotNone(postprocess.call_args.kwargs["source_xlsx_bytes"])
+
+        with tempfile.TemporaryDirectory(prefix="vno_legacy_sheet_print_") as temp_dir:
+            root = Path(temp_dir)
+            legacy_xls = root / "source.xls"
+            legacy_xls.write_bytes(b"legacy-xls")
+            fake = _FakeSoffice()
+            with patch.object(main, "_run_soffice_convert", side_effect=fake), \
+                    patch.object(patcher, "postprocess_sheet_xlsx", side_effect=lambda converted, **_kwargs: converted) as postprocess:
+                print_source = main._write_print_source(
+                    _PRISTINE_SHEET_FODS, "sheet", str(root), source_document_path=str(legacy_xls),
+                )
+            self.assertNotEqual(Path(print_source).read_bytes(), legacy_xls.read_bytes())
+            postprocess.assert_called_once()
+            self.assertIsNone(postprocess.call_args.kwargs["source_xlsx_bytes"])
 
     def test_sheet_and_slides_print_through_their_save_formats(self):
         for app_kind, content, native in (

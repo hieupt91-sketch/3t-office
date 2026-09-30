@@ -67,7 +67,8 @@ def _worker(root: str, app_kind: str, document_path: str, output_dir: str) -> in
       if ({json.dumps(app_kind)} === 'writer') canvasPages = Number(a._livePageCount) || 1;
       const sheetMetadata = {json.dumps(app_kind)} === 'sheet' ? {{
         names: a.grid?.sheets || [], active: a.grid?.activeSheet || '',
-        pageSetupBySheet: a.grid?.pageSetupBySheet || {{}}
+        pageSetupBySheet: a.grid?.pageSetupBySheet || {{}},
+        printAreaBySheet: a.grid?.printAreaBySheet || {{}}
       }} : null;
       return JSON.stringify({{
         loaded, sourcePath, content,
