@@ -466,5 +466,35 @@ export async function runFormulaEngineTests() {
     })()
   });
 
+  const today = new Date();
+  const expectedTodaySerial = Math.round((Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) - Date.UTC(1899, 11, 30)) / 86400000);
+  results.push({
+    name: "TODAY trả về Excel date serial và YEAR đọc được serial đó",
+    pass: engine.evaluate("=TODAY()") === expectedTodaySerial &&
+      engine.evaluate("=YEAR(TODAY())") === today.getFullYear() &&
+      engine.evaluate("=YEAR(DATE(2024,1,1))") === 2024 &&
+      engine.evaluate('=YEAR("12/31/2026")') === 2026
+  });
+
+  const extendedFormulaCells = new Map([
+    ["A1", { val: 10, formula: "", style: {} }],
+    ["A2", { val: 20, formula: "", style: {} }],
+    ["A3", { val: 30, formula: "", style: {} }],
+    ["D1", { val: "A", formula: "", style: {} }],
+    ["E1", { val: 10, formula: "", style: {} }],
+    ["D2", { val: "B", formula: "", style: {} }],
+    ["E2", { val: 20, formula: "", style: {} }]
+  ]);
+  const extendedFormulaEngine = new FormulaEngine(extendedFormulaCells);
+  results.push({
+    name: "SUMIF, IFERROR, INDEX và MATCH khớp kết quả cơ bản của Excel",
+    pass: extendedFormulaEngine.evaluate('=SUMIF(A1:A3,">=20",A1:A3)') === 50 &&
+      extendedFormulaEngine.evaluate('=IFERROR(1/0,"Thay thế")') === "Thay thế" &&
+      extendedFormulaEngine.evaluate("=1/0") === "#DIV/0!" &&
+      extendedFormulaEngine.evaluate('=IFERROR(0/0,"Thay thế")') === "Thay thế" &&
+      extendedFormulaEngine.evaluate('=INDEX(E1:E2,MATCH("B",D1:D2,0))') === 20 &&
+      extendedFormulaEngine.evaluate('=MATCH("B",D1:D2,0)') === 2
+  });
+
   return results;
 }

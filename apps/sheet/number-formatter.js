@@ -14,12 +14,14 @@ export class NumberFormatter {
    * @param {any} rawVal
    * @returns {string}
    */
-  static formatGeneralNumber(rawVal) {
+  static formatGeneralNumber(rawVal, locale = "en-US") {
     if (typeof rawVal !== "number" || !Number.isFinite(rawVal)) {
       return String(rawVal ?? "");
     }
     if (Number.isInteger(rawVal)) return String(rawVal);
-    return String(parseFloat(rawVal.toPrecision(10)));
+    const normalized = String(parseFloat(rawVal.toPrecision(10)));
+    const decimal = new Intl.NumberFormat(locale).formatToParts(1.1).find(part => part.type === "decimal")?.value || ".";
+    return normalized.replace(".", decimal);
   }
 
   /**
@@ -34,7 +36,7 @@ export class NumberFormatter {
     }
 
     if (!formatConfig || !formatConfig.category || formatConfig.category === "general") {
-      return { text: this.formatGeneralNumber(rawVal) };
+      return { text: this.formatGeneralNumber(rawVal, formatConfig?.locale || "en-US") };
     }
 
     const { category } = formatConfig;
@@ -359,7 +361,7 @@ export class NumberFormatter {
   static formatCustom(val, config = {}) {
     const pattern = config.customPattern || "General";
     if (pattern === "General") {
-      return { text: this.formatGeneralNumber(val) };
+      return { text: this.formatGeneralNumber(val, config.locale || "en-US") };
     }
 
     const locale = config.locale || "en-US";
@@ -503,6 +505,10 @@ export class NumberFormatter {
     if (category === "text") {
       return String(inputVal);
     }
+
+    // A number passed by the model is already parsed. Re-parsing its string
+    // form with a locale can turn 0.125 into 125 in vi-VN (dot as grouping).
+    if (typeof inputVal === "number" && Number.isFinite(inputVal)) return inputVal;
 
     if (category === "percentage") {
       const str = String(inputVal).trim();

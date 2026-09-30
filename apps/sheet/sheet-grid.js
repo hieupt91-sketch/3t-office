@@ -9188,7 +9188,7 @@ export class SheetGridController {
       error.textContent = "";
       pending = { changingCell: config.changingCell, value: result.value };
       resultBox.hidden = false;
-      const formattedVal = NumberFormatter.formatGeneralNumber(result.value);
+      const formattedVal = NumberFormatter.formatGeneralNumber(result.value, this.locale);
       const residualVal = result.residual.toPrecision(3);
       resultBox.textContent = t("sheetDialogs.goalSeekResult", {
         cell: config.changingCell.toUpperCase(),
@@ -9732,7 +9732,7 @@ export class SheetGridController {
         else if (itm.style?.textAlign) td.style.textAlign = itm.style.textAlign;
       }
     } else {
-      let text = typeof itm.val === "number" ? NumberFormatter.formatGeneralNumber(itm.val) : (itm.val ?? "");
+      let text = typeof itm.val === "number" ? NumberFormatter.formatGeneralNumber(itm.val, this.locale) : (itm.val ?? "");
       // S29a: ô không bọc chữ dùng white-space: pre (giữ dấu cách liên tiếp) nên phải tự bỏ xuống dòng như Excel
       // (Excel không hiện Alt+Enter khi Wrap Text tắt).
       if (!isWrap && typeof text === "string" && text.includes("\n")) text = text.replace(/\r?\n/g, "");

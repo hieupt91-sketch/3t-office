@@ -15,6 +15,7 @@ import argparse
 import ctypes
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -30,6 +31,7 @@ N2 = {"category": "number", "decimals": 2, "useThousands": True, "negativeStyle"
 N0 = {"category": "number", "decimals": 0, "useThousands": True, "negativeStyle": 0, "excel": "#,##0"}
 PCT = {"category": "percentage", "decimals": 2, "excel": "0.00%"}
 DATE = {"category": "date", "dateFormat": "dd/mm/yyyy", "excel": "dd/mm/yyyy"}
+US_DATE = {"category": "date", "dateFormat": "mm/dd/yyyy", "excel": "mm/dd/yyyy"}
 VND = {"category": "currency", "currencySymbol": "₫", "decimals": 0, "useThousands": True, "negativeStyle": 0, "excel": '#,##0 "₫"'}
 VND2 = {"category": "currency", "currencySymbol": "₫", "decimals": 2, "useThousands": True, "negativeStyle": 0, "excel": '#,##0.00 "₫"'}
 USD = {"category": "currency", "currencySymbol": "$", "symbolPosition": "before", "decimals": 2, "useThousands": True, "negativeStyle": 0, "excel": '"$"#,##0.00'}
@@ -46,7 +48,7 @@ CASES = [
         {"cell":"A3","value":"12,5%","format":PCT},{"cell":"A4","value":"1.234,50","format":VND2}],
        watch=["A1","A2","A3","A4"], rows=[1,2,3,4], columns=["A"]),
     mk("input-us", "Nhập số/ngày/phần trăm/tiền theo dấu Hoa Kỳ", [
-        {"cell":"A1","value":"1,234.56","format":N2},{"cell":"A2","value":"12/31/2026","format":DATE},
+        {"cell":"A1","value":"1,234.56","format":N2},{"cell":"A2","value":"12/31/2026","format":US_DATE},
         {"cell":"A3","value":"12.5%","format":PCT},{"cell":"A4","value":"$1,234.50","format":USD}],
        watch=["A1","A2","A3","A4"], rows=[1,2,3,4], columns=["A"], locale="en-US", inputLocale="en-US"),
     mk("formula-functions", "SUM/AVERAGE/IF/VLOOKUP/COUNTIF/ROUND/TEXT/DATE", [
@@ -59,6 +61,19 @@ CASES = [
         {"cell":"G3","value":"=ROUND(123.456,2)"},{"cell":"G4","value":'=TEXT(DATE(2026,9,30),"dd/mm/yyyy")'},
         {"cell":"G5","value":"=DATE(2026,9,30)","format":DATE}],
        watch=["B1","B2","B3","G1","G2","G3","G4","G5"], rows=[1,2,3,4,5], columns=["B","G"]),
+    mk("formula-functions-extended", "SUMIF/TODAY/IFERROR/INDEX/MATCH", [
+        *[{"cell":f"A{i}","value":i*10} for i in range(1,5)],
+        {"cell":"B1","value":'=SUMIF(A1:A4,">=20",A1:A4)'},
+        {"cell":"B2","value":'=IFERROR(1/0,"Thay thế")'},
+        {"cell":"D1","value":"A"},{"cell":"E1","value":10},
+        {"cell":"D2","value":"B"},{"cell":"E2","value":20},
+        {"cell":"G1","value":'=INDEX(E1:E2,MATCH("B",D1:D2,0))'},
+        {"cell":"G2","value":'=MATCH("B",D1:D2,0)'},
+        {"cell":"G3","value":"=TODAY()","format":DATE},
+        {"cell":"G4","value":"=YEAR(TODAY())"},
+        {"cell":"G5","value":"=INDEX(D1:E2,2,2)"},
+        {"cell":"G6","value":"=YEAR(DATE(2024,1,1))"}],
+       watch=["B1","B2","G1","G2","G3","G4","G5","G6"], columns=["B","G"]),
     mk("copy-cut-references", "Sao chép/cắt/dán tham chiếu tương đối và tuyệt đối", [
         {"cell":"A1","value":10},{"cell":"B1","value":2},{"cell":"B2","value":"=A1*$B$1"}],
        [{"type":"copyPaste","from":"B2","to":"C2"},{"type":"copyPaste","from":"B2","to":"B3"},{"type":"cutPaste","from":"B2","to":"D2"}],
@@ -203,8 +218,13 @@ def vbs_action(action: dict[str, Any], locale: str) -> list[str]:
         order = 1 if action.get("ascending", True) else 2
         header = 1 if action.get("header", False) else 2
         lines += [f'Set workRange = sheet.Range({vb(action["range"])})',
-                  f'Set keyRange = sheet.Range({vb(action["key"])})',
-                  'Set sortObject = sheet.Sort',
+                  'Set sortObject = sheet.Sort']
+        if re.fullmatch(r"[A-Z]+", str(action["key"]), re.IGNORECASE):
+            lines += [f'Set keyColumn = sheet.Columns({vb(action["key"])})',
+                      'Set keyRange = app.Intersect(workRange, keyColumn)']
+        else:
+            lines += [f'Set keyRange = sheet.Range({vb(action["key"])})']
+        lines += [
                   'sortObject.SortFields.Clear',
                   f'sortObject.SortFields.Add keyRange, 0, {order}',
                   'sortObject.SetRange workRange',
@@ -213,7 +233,8 @@ def vbs_action(action: dict[str, Any], locale: str) -> list[str]:
                   'sortObject.Orientation = 1',
                   'sortObject.SortMethod = 1',
                   'sortObject.Apply', 'CheckError "sort"',
-                  'Set sortObject = Nothing', 'Set workRange = Nothing', 'Set keyRange = Nothing']
+                  'Set sortObject = Nothing', 'Set workRange = Nothing', 'Set keyRange = Nothing',
+                  'Set keyColumn = Nothing']
     elif kind == "filter":
         criteria = "Array(" + ", ".join(vb(value) for value in action["allowed"]) + ")"
         lines += [f'Set workRange = sheet.Range({vb(action["range"])})',
@@ -336,7 +357,7 @@ def vbs_source(cases: list[dict[str, Any]], readbacks: list[dict[str, Any]], out
             if isinstance(value, str) and value.startswith("="):
                 lines += [f'cell.Formula = {vb(value)}', 'CheckError "enter formula"']
             elif isinstance(value, str):
-                lines += [f'cell.FormulaLocal = {vb(value)}', 'CheckError "type text or value"']
+                lines += [f'cell.Value = {vb(value)}', 'CheckError "type text or value"']
             else:
                 lines += [f'cell.Value2 = {numeric_vb(value)}', 'CheckError "set numeric input"']
             lines += ['Set cell = Nothing']
@@ -353,12 +374,15 @@ def vbs_source(cases: list[dict[str, Any]], readbacks: list[dict[str, Any]], out
             lines += ['app.UseSystemSeparators = False', 'app.DecimalSeparator = ","', 'app.ThousandsSeparator = "."']
         else:
             lines += ['app.UseSystemSeparators = False', 'app.DecimalSeparator = "."', 'app.ThousandsSeparator = ","']
+        record_id = saved["id"] + "." + Path(saved["path"]).suffix.lower().lstrip(".")
         lines += [f'Set book = app.Workbooks.Open({vb(saved["path"])}, 0, True)',
                   'CheckError "open saved workbook"',
+                  f'output.WriteLine "OPENED" & vbTab & {vb(record_id)} & vbTab & TypeName(book) & vbTab & Clean(app.Workbooks.Count)',
+                  'If TypeName(book) = "Empty" Or TypeName(book) = "Nothing" Then Err.Raise 1002, "sheet-basic-ops", "Excel returned no Workbook (type " & TypeName(book) & ")"',
+                  'CheckError "validate opened workbook"',
                   'WScript.Sleep 1000',
                   'Set sheet = FirstWorksheet(book)', 'CheckError "select saved worksheet"']
         extension = Path(saved["path"]).suffix.lower().lstrip(".")
-        record_id = saved["id"] + "." + extension
         lines += vbs_snapshot(saved, record_id)
         lines += ['Set sheet = Nothing', 'book.Close False', 'CheckError "close readback workbook"', 'Set book = Nothing']
     lines += [
@@ -519,7 +543,7 @@ def cleanup_own_hidden_excel(owned_pids: set[int]) -> None:
         except Exception:
             pass
 
-def run_excel(cases: list[dict[str, Any]], readbacks: list[dict[str, Any]], stem: Path, timeout: int = 1200) -> dict[str, Any]:
+def run_excel(cases: list[dict[str, Any]], readbacks: list[dict[str, Any]], stem: Path, timeout: int = 120) -> dict[str, Any]:
     wait_for_ram("Excel COM")
     vbs_path = stem.with_suffix(".vbs")
     output_path = stem.with_suffix(".tsv")
@@ -594,6 +618,19 @@ def same_value(a: Any, b: Any) -> bool:
     if isinstance(a, (int,float)) and isinstance(b, (int,float)): return abs(float(a)-float(b)) <= 1e-8
     return str(a) == str(b)
 
+def canonical_formula(value: Any) -> str:
+    pieces = re.split(r'("(?:[^"]|"")*")', str(value or ""))
+    for index in range(0, len(pieces), 2):
+        pieces[index] = re.sub(r"(?<![A-Z0-9_.])(TRUE|FALSE)\(\)", r"\1", "".join(pieces[index].upper().split()))
+    return "".join(pieces)
+
+def canonical_number_format(value: Any) -> str:
+    if isinstance(value, dict): value = value.get("excel", value)
+    text = str(value or "").strip()
+    text = re.sub(r"\[\$\$\]", '"$"', text)
+    text = re.sub(r"\[\$([€£¥₫])(?:-[^\]]+)?\]", r'"\1"', text)
+    return text.lower()
+
 def _cell_position(address: str) -> tuple[int, int] | None:
     match=re.fullmatch(r"([A-Z]+)(\d+)",str(address).upper())
     if not match: return None
@@ -619,12 +656,12 @@ def compare(expected: dict[str, Any], actual: dict[str, Any]) -> list[str]:
         for field in ("value","formula","text","alignment","verticalAlignment","wrapText"):
             if field in {"alignment","verticalAlignment"} and _covered_by_merge(address, expected.get("mergedRanges",[])): continue
             a,b = left.get(field,""),right.get(field,"")
-            if field == "formula": a,b = "".join(str(a).upper().split()),"".join(str(b).upper().split())
+            if field == "formula": a,b = canonical_formula(a),canonical_formula(b)
             if field == "value" and same_value(a,b): continue
             if a != b: diffs.append(f"{address}.{field}: Excel={a!r}, VN={b!r}")
         ef, vf = left.get("numberFormat"), right.get("numberFormat")
-        if ef and isinstance(vf,dict): vf = vf.get("excel")
-        if ef and vf and str(ef).lower() != str(vf).lower():
+        ef, vf = canonical_number_format(ef), canonical_number_format(vf)
+        if ef and vf and ef != vf:
             diffs.append(f"{address}.numberFormat: Excel={ef!r}, VN={vf!r}")
     for dim in ("rows","columns"):
         for key in set(expected.get(dim,{})) | set(actual.get(dim,{})):
@@ -650,49 +687,77 @@ def main() -> int:
     parser=argparse.ArgumentParser()
     parser.add_argument("--out-dir",default=str(ROOT/"file test"/"_sheet_basic_ops"))
     parser.add_argument("--baseline")
+    parser.add_argument("--case", action="append", help="Run only this scenario ID; may be repeated")
+    parser.add_argument("--reuse-excel", action="store_true", help="Parse Excel COM TSVs and saved exports already in --out-dir")
     args=parser.parse_args(); out=Path(args.out_dir).resolve(); out.mkdir(parents=True,exist_ok=True)
-    wait_for_ram("đợt đo Sheet cơ bản")
-    cases_path=out/"_cases.json"; cases_path.write_text(json.dumps(CASES,ensure_ascii=False,indent=2),encoding="utf-8")
+    cases=[item for item in CASES if not args.case or item["id"] in args.case]
+    missing=set(args.case or [])-{item["id"] for item in cases}
+    if missing: parser.error("unknown scenario ID(s): " + ", ".join(sorted(missing)))
+    if not cases: parser.error("no scenarios selected")
+    if not args.reuse_excel:
+        wait_for_ram("đợt đo Sheet cơ bản")
+    cases_path=out/"_cases.json"; cases_path.write_text(json.dumps(cases,ensure_ascii=False,indent=2),encoding="utf-8")
     excel_results=[]
     excel_errors={}
-    for item in CASES:
+    for item in cases:
         try:
-            measurement=run_excel([item],[],out/("_excel_measure_"+item["id"]))
+            if args.reuse_excel:
+                measurement=parse_excel_output(out/("_excel_measure_"+item["id"]+".tsv"),[item],[])
+            else:
+                measurement=run_excel([item],[],out/("_excel_measure_"+item["id"]))
             excel_results.extend(measurement["results"])
         except Exception as exc:
             excel_errors[item["id"]]=str(exc)
     excel_by_id={x["id"]:x for x in excel_results}
-    for item in CASES:
+    for item in cases:
         if item["id"] not in excel_by_id:
             excel_by_id[item["id"]]={"id":item["id"],"snapshot":None,"before":None,"steps":[],"error":excel_errors.get(item["id"],"Excel COM returned no snapshot")}
     vnproc=run(["node",str(HERE/"_sheet_basic_ops_vn.mjs"),str(ROOT),str(cases_path),str(out)],ROOT)
     if vnproc.returncode: raise RuntimeError(f"VN model runner failed:\n{vnproc.stdout[-2000:]}\n{vnproc.stderr[-2000:]}")
     vnlist=json.loads(vnproc.stdout); vn_by_id={x["id"]:x for x in vnlist}
 
-    sys.path.insert(0,str(ROOT))
-    import main as vnmain
     readback_specs=[]
-    save_errors={item["id"]:[] for item in CASES}
-    for item in CASES:
-        model=vn_by_id[item["id"]]; wait_for_ram("lưu "+item["id"])
-        extensions=["xlsx","xls"] if item["saveXls"] else ["xlsx"]
-        for extension in extensions:
-            try:
-                with tempfile.TemporaryDirectory(prefix="vno_sheet_basic_ops_") as work:
-                    converted=vnmain._run_soffice_convert(model["fodsPath"],extension,work,app_kind="sheet")
-                    if extension=="xlsx":
-                        vnmain._apply_native_export_postprocess(model["fodsPath"],converted,"sheet","xlsx")
-                    target=out/(item["id"]+"."+extension); shutil.copy2(converted,target)
-                readback_specs.append({"id":item["id"],"path":str(target),"watch":item["watch"],"rows":item["rows"],"columns":item["columns"],"locale":item["locale"]})
-            except Exception as exc:
-                save_errors[item["id"]].append(f"{extension} export: {exc}")
+    save_errors={item["id"]:[] for item in cases}
     readbacks={}
-    for saved in readback_specs:
-        try:
-            readback=run_excel([], [saved], out/("_excel_readback_"+saved["id"]+"_"+Path(saved["path"]).suffix.lower().lstrip(".")))
-            for x in readback["readbacks"]: readbacks.setdefault(x["id"],[]).append(x)
-        except Exception as exc:
-            save_errors[saved["id"]].append(f"Excel {Path(saved['path']).suffix.lower()} readback: {exc}")
+    if args.reuse_excel:
+        for item in cases:
+            extensions=["xlsx","xls"] if item["saveXls"] else ["xlsx"]
+            for extension in extensions:
+                target=out/(item["id"]+"."+extension)
+                if not target.is_file():
+                    save_errors[item["id"]].append(f"{extension} reuse: saved workbook is missing")
+                    continue
+                saved={"id":item["id"],"path":str(target),"watch":item["watch"],"rows":item["rows"],
+                       "columns":item["columns"],"locale":item["locale"]}
+                readback_specs.append(saved)
+                tsv=out/("_excel_readback_"+item["id"]+"_"+extension+".tsv")
+                try:
+                    readback=parse_excel_output(tsv,[],[saved])
+                    for x in readback["readbacks"]: readbacks.setdefault(x["id"],[]).append(x)
+                except Exception as exc:
+                    save_errors[item["id"]].append(f"Excel .{extension} reused readback: {exc}")
+    else:
+        sys.path.insert(0,str(ROOT))
+        import main as vnmain
+        for item in cases:
+            model=vn_by_id[item["id"]]; wait_for_ram("lưu "+item["id"])
+            extensions=["xlsx","xls"] if item["saveXls"] else ["xlsx"]
+            for extension in extensions:
+                try:
+                    with tempfile.TemporaryDirectory(prefix="vno_sheet_basic_ops_") as work:
+                        converted=vnmain._run_soffice_convert(model["fodsPath"],extension,work,app_kind="sheet")
+                        if extension=="xlsx":
+                            vnmain._apply_native_export_postprocess(model["fodsPath"],converted,"sheet","xlsx")
+                        target=out/(item["id"]+"."+extension); shutil.copy2(converted,target)
+                    readback_specs.append({"id":item["id"],"path":str(target),"watch":item["watch"],"rows":item["rows"],"columns":item["columns"],"locale":item["locale"]})
+                except Exception as exc:
+                    save_errors[item["id"]].append(f"{extension} export: {exc}")
+        for saved in readback_specs:
+            try:
+                readback=run_excel([], [saved], out/("_excel_readback_"+saved["id"]+"_"+Path(saved["path"]).suffix.lower().lstrip(".")))
+                for x in readback["readbacks"]: readbacks.setdefault(x["id"],[]).append(x)
+            except Exception as exc:
+                save_errors[saved["id"]].append(f"Excel {Path(saved['path']).suffix.lower()} readback: {exc}")
 
     baseline={}
     baseline_case_by_id={}
@@ -711,7 +776,7 @@ def main() -> int:
         keys=("locale","inputLocale","inputs","actions","watch","rows","columns")
         return all(old.get(key)==item.get(key) for key in keys)
     rows=[]
-    for item in CASES:
+    for item in cases:
         vn=vn_by_id[item["id"]]; excel_case=excel_by_id[item["id"]]; ex=excel_case.get("snapshot")
         diffs=compare(ex,vn["current"]) if ex else []
         initial_vn=vn["history"][0]["before"] if vn["history"] else vn["current"]

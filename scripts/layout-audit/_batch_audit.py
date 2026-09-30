@@ -5,6 +5,30 @@ import os, sys, subprocess, re, glob, time
 ROOT = os.path.abspath(sys.argv[1])
 SP = os.path.dirname(os.path.abspath(__file__))
 names = sys.argv[2:] or sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROOT, "file test", "lan", "lan*.xlsx")))
+
+def stop_owned_hidden_excel(pid_file):
+    if not os.path.exists(pid_file):
+        return False
+    try:
+        with open(pid_file, encoding="ascii") as source:
+            process_id = int(source.read().strip())
+    except (OSError, ValueError):
+        return False
+    command = (f"$p=Get-Process -Id {process_id} -ErrorAction SilentlyContinue; "
+               "if ($p -and $p.ProcessName -eq 'EXCEL' -and $p.MainWindowHandle -eq 0) "
+               f"{{ Stop-Process -Id {process_id} -Force -ErrorAction SilentlyContinue; 'STOPPED' }} else {{ 'LEFT' }}")
+    try:
+        result = subprocess.run(["powershell", "-NoProfile", "-Command", command],
+                                capture_output=True, text=True, timeout=15, check=False)
+        stopped = result.stdout.strip() == "STOPPED"
+    except subprocess.TimeoutExpired:
+        stopped = False
+    try:
+        os.remove(pid_file)
+    except OSError:
+        pass
+    return stopped
+
 mapping = {}
 mp = os.path.join(ROOT, "file test", "lan", "_map.txt")
 if os.path.exists(mp):
@@ -36,8 +60,17 @@ for name in names:
         per_kind = ", ".join(f"{k}={v}" for k, v in sorted(kinds.items(), key=lambda kv: -kv[1]))
     excel = "-"; lint = "-"
     if saved:
-        e = subprocess.run(["powershell", "-NoProfile", "-File", os.path.join(SP, "_excel_open_test.ps1"), "-Files", out], capture_output=True, text=True, timeout=240)
-        excel = (e.stdout.strip().splitlines() or ["?"])[-1]
+        excel_pid_file = out + ".excelpid"
+        try:
+            e = subprocess.run(["powershell", "-NoProfile", "-File", os.path.join(SP, "_excel_open_test.ps1"),
+                                "-Files", out, "-ExcelPidFile", excel_pid_file],
+                               capture_output=True, text=True, timeout=240)
+            excel = (e.stdout.strip().splitlines() or [f"FAIL exit={e.returncode}"])[-1]
+        except subprocess.TimeoutExpired:
+            stopped = stop_owned_hidden_excel(excel_pid_file)
+            excel = "TIMEOUT (owned hidden Excel stopped)" if stopped else "TIMEOUT (no running owned hidden Excel stopped)"
+        finally:
+            stop_owned_hidden_excel(excel_pid_file)
         # Lint XML (well-formed, count=, chỉ số, thứ tự ô) để phân biệt file hỏng thật với Excel COM bị tranh
         lint_run = subprocess.run([sys.executable, os.path.join(SP, "_xlsx_lint.py"), out], capture_output=True, text=True, timeout=300)
         parts_run = subprocess.run([sys.executable, os.path.join(SP, "_xlsx_parts_lint.py"), out], capture_output=True, text=True, timeout=300)

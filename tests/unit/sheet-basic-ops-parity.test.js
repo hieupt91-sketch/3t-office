@@ -41,7 +41,11 @@ export async function runSheetBasicOpsParityTests() {
     assert(NumberFormatter.formatValue(1234.56, { ...viNumber, locale: "en-US" }).text === "1,234.56", "Hiển thị số phải theo dấu Hoa Kỳ");
     assert(NumberFormatter.formatValue(1234.56, { ...viNumber, locale: "vi-VN" }).text === "1.234,56", "Hiển thị số phải theo dấu Việt Nam");
     assert(NumberFormatter.formatValue(0.125, { ...viPercent, locale: "vi-VN" }).text === "12,50%", "Hiển thị phần trăm phải theo dấu Việt Nam");
+    assert(NumberFormatter.normalizeInputForFormat(0.125, viPercent, "vi-VN") === 0.125, "Giá trị số 0.125 đã được phân tích không được đọc lại thành 125 theo locale Việt Nam");
+    assert(NumberFormatter.formatValue(123.46, { locale: "vi-VN" }).text === "123,46", "General phải hiển thị dấu thập phân của locale Việt Nam");
+    assert(NumberFormatter.formatValue(123.46, { locale: "en-US" }).text === "123.46", "General phải hiển thị dấu thập phân của locale Hoa Kỳ");
     assert(NumberFormatter.formatGeneralNumber(100 / 3) === "33.33333333", "General phải khớp số chữ số Excel hiển thị cho 100/3");
+    assert(NumberFormatter.formatGeneralNumber(100 / 3, "vi-VN") === "33,33333333", "General của VN phải dùng dấu phẩy thập phân");
   });
 
   await test("Excel formulas: absolute references resolve and DATE returns an Excel serial", () => {

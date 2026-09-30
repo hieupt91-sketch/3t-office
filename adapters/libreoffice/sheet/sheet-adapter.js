@@ -1518,7 +1518,8 @@ export class SheetAdapter {
       const symbol = `<number:currency-symbol>${this._escapeXml(rawSymbol)}</number:currency-symbol>`;
       const after = config.symbolPosition === "after" || (config.symbolPosition === undefined && rawSymbol === "₫");
       const spacer = category === "accounting" ? '<number:fill-character> </number:fill-character>' : "";
-      return `<number:currency-style style:name="${name}">${after ? `${number}${spacer}${symbol}` : `${symbol}${spacer}${number}`}</number:currency-style>`;
+      const currencySpacing = category === "accounting" ? spacer : (after ? '<number:text> </number:text>' : "");
+      return `<number:currency-style style:name="${name}">${after ? `${number}${currencySpacing}${symbol}` : `${symbol}${spacer}${number}`}</number:currency-style>`;
     }
     if (category === "custom") {
       const pattern = String(config.customPattern || "General");

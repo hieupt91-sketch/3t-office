@@ -1416,7 +1416,7 @@ export class FormulaEngine {
       // Ngày tháng
       case "TODAY": {
         const now = new Date();
-        return `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
+        return Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(1899, 11, 30)) / 86400000);
       }
 
       case "NOW": {
@@ -1522,9 +1522,11 @@ export class FormulaEngine {
       }
 
       case "YEAR": {
-        const val = String(this._resolveSingleValue(args[0]) || "");
-        const parts = val.split("/");
-        return parts.length >= 3 ? parseInt(parts[2], 10) : new Date().getFullYear();
+        const value = this._resolveSingleValue(args[0]);
+        const date = this._parseDate(value);
+        if (date) return date.getFullYear();
+        const textDate = String(value ?? "").trim().match(/^\d{1,2}\/\d{1,2}\/(\d{4})$/);
+        return textDate ? Number(textDate[1]) : "#VALUE!";
       }
 
       case "MONTH": {
@@ -1584,11 +1586,12 @@ export class FormulaEngine {
     if (token.toUpperCase() === "FALSE") return false;
 
     // Hỗ trợ biểu thức số học trong đối số hàm (ví dụ: 0.08/12, 12*5, A1/12)
-    if (/[+\-*/^()]/.test(token)) {
+    if (!/^[A-Z_.]+\s*\(.*\)$/i.test(token) && /[+\-*/^()]/.test(token)) {
       const arith = this._evaluateArithmetic(token, { raw: true });
       if (typeof arith === "number" && Number.isFinite(arith)) {
         return arith;
       }
+      if (typeof arith === "string" && this._isError(arith)) return arith;
     }
     if (/^[A-Z_.]+\s*\(.*\)$/i.test(token)) {
       const nested = this.evaluate(`=${token}`);
@@ -1720,6 +1723,7 @@ export class FormulaEngine {
         // corrupting any formula that references this result. Cosmetic
         // clean-up of floating-point noise (0.1+0.2 -> "0.3") belongs solely
         // at render time - see NumberFormatter.formatGeneralNumber().
+        if (!Number.isFinite(result)) return jsExpr.includes("/") ? "#DIV/0!" : "#NUM!";
         return result;
       } catch {
         return "#VALUE!";

@@ -167,6 +167,9 @@ export async function runSheetFormatCellsTests() {
     const normalized2 = NumberFormatter.normalizeInputForFormat(25.5, config);
     assert(normalized2 === 25.5, `Gõ 25.5 vào ô % phải lưu 25.5 (nhận được: ${normalized2})`);
 
+    const normalizedFraction = NumberFormatter.normalizeInputForFormat(0.125, config, "vi-VN");
+    assert(normalizedFraction === 0.125, `Giá trị số 0.125 đã được phân tích không được đọc lại thành 125 (nhận được: ${normalizedFraction})`);
+
     // Gõ kèm dấu % được Excel hiểu là phần trăm và lưu 0.75.
     const normalized3 = NumberFormatter.normalizeInputForFormat("75%", config);
     assert(normalized3 === 0.75, `Gõ "75%" vào ô % phải lưu 0.75 (nhận được: ${normalized3})`);
@@ -312,6 +315,15 @@ export async function runSheetFormatCellsTests() {
     assert(restoredA1, "Phải khôi phục được ô A1 từ FODS");
     assert(restoredA1.style?.numberFormat?.category === "accounting", "Khôi phục đúng category accounting");
     assert(restoredA1.style?.numberFormat?.currencySymbol === "₫", "Khôi phục đúng ký hiệu tiền tệ ₫");
+  });
+
+  test("SheetAdapter: định dạng tiền VND giữ khoảng trắng trước ký hiệu khi xuất ODF", () => {
+    const adapter = new SheetAdapter(new SheetGridController(mockContainer()));
+    const xml = adapter._numberFormatXml({
+      category: "currency", currencySymbol: "₫", decimals: 0, useThousands: true
+    }, "nVndSpace");
+    assert.match(xml, /<number:number[^>]*\/><number:text> <\/number:text><number:currency-symbol>₫<\/number:currency-symbol>/,
+      "FODS phải giữ khoảng cách giữa số và ký hiệu ₫ mà Excel hiển thị");
   });
 
   // 11. Unit Test: Format Cells Dialog Alignment Parity & Launcher Command
