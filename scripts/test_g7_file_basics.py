@@ -304,7 +304,8 @@ for ($i = 0; $i -lt $buttons.Count; $i++) {
 }
 if ($null -eq $printButton) { throw "Print button not found" }
 Bring-AppToFront
-Click-Element $printButton
+try { $printButton.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() }
+catch { Click-Element $printButton }
 $saveName = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, "Save Print Output As")
 $saveDialog = Wait-First $root (New-Object System.Windows.Automation.AndCondition($saveName, $windowType)) 60 ([System.Windows.Automation.TreeScope]::Descendants) "Save Print Output As dialog"
 $fileName = $saveDialog.FindFirst([System.Windows.Automation.TreeScope]::Descendants,

@@ -13,13 +13,13 @@ FINDINGS:
 - G7 desktop probes use pywebview plus `evaluate_js`, copied fixtures from `E:\VN OFice\file test`, native dialog argument capture, UI Automation, and Office COM. The probes do not use SendKeys and delete their temporary fixture/output directory when they finish.
 - The current probes pass blank startup, New, Open, Save, Save As PDF-copy, bad-file handling, recent paths, and all three dirty-close choices at the application level for all three apps.
 - Print preview totals are Writer 2, Sheet 6, and Slides 17. Edge's native print dialog reports 1 page for each app, even after waiting for the app-preview total. Selecting Microsoft Print to PDF, Copies, and a custom page range works, but clicking Print does not open the “Save Print Output As” dialog. No print PDF was produced.
-- Sheet's current Excel COM probe is blocked: Excel returns no readable workbook, consistent with an activation/Office-busy condition. The saved XLSX package contains the expected marker; the latest new-document save COM check passed. Writer and Slides COM checks passed.
+- Sheet's current Excel COM probe is blocked: Excel returns no readable workbook, consistent with an activation/Office-busy condition. The saved XLSX package contains the expected marker. A new-document save passed COM in one run and was blocked on a later run. Writer and Slides COM checks passed.
 
 IMPLEMENTATION SUMMARY:
 
 - Earlier G7 commits on this branch implement blank startup, Sheet1/A1 defaults, blank first slide, document numbering, lifecycle state handling, recent-file handling, and tests replacing old sample-sheet assumptions.
 - Writer print now uses the app's paginated preview DOM, its current page dimensions, and an afterprint-scoped body class. Sheet and Slides print styles explicitly isolate their print-only DOM, clear fixed shell clipping, and set page breaks for Slides.
-- `scripts/test_g7_file_basics.py` automates the lifecycle, Office COM marker checks, real-file Recent paths, printer/copies/range controls, native page count, and print-to-PDF result. It records print-media diagnostics and waits for the expected preview page count.
+- `scripts/test_g7_file_basics.py` automates the lifecycle, Office COM marker checks, real-file Recent paths, printer/copies/range controls, native page count, and print-to-PDF result. It records print-media diagnostics, waits for the expected preview page count, and uses UI Automation Invoke with a physical-click fallback for the Print action.
 - The shortcut consistency test now recognizes the existing shared `Ctrl+Shift+S` binding instead of incorrectly requiring three app-only bindings.
 - No LibreOffice Core patch, dependency, or build-system change was made.
 
@@ -77,7 +77,7 @@ Acceptance status (before = task-baseline behavior or verification; after = meas
 KNOWN FAILURES:
 
 - G7 is **not complete**. Acceptance item 7 fails for all apps: native pagination disagrees with app preview, and Microsoft Print to PDF produces no output file.
-- Excel COM verification is `BLOCKED` on this host for opened/in-place and dirty-close files; Office reports no readable workbook while the XLSX package contains the expected marker. New-document XLSX COM verification passed on the latest probe.
+- Excel COM verification is `BLOCKED` on the latest probe for replacement, in-place, dirty-close, and new-document files; Office reports no readable workbook while the XLSX package contains the expected marker. A previous new-document XLSX COM verification passed.
 - Acceptance item 5 is only partially checked. Alternate Office-format Save As, overwrite confirmation, and tab/title switching were not exercised by the automated probe.
 - Legacy `.doc`/`.xls`/`.ppt` same-format round-trips were not tested. Live COM checks used `.docx`/`.xlsx`/`.pptx` fixtures.
 - The print diagnostic runs from `beforeprint`, before WebView reports `matchMedia('print') === true`, so it does not establish the final computed print styles.
