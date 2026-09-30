@@ -44,3 +44,18 @@ Theo chỉ thị bắt buộc của Người phụ trách dự án (30/09):
 2. **Quy tắc trợ giúp (Help Coverage)**:
    - Các bài viết Trợ giúp cho các tính năng thuộc danh mục này giải thích rõ công dụng của tính năng trong phiên bản hoàn thiện và ghi chú: *"Tính năng này đang được tối ưu hóa và sẽ được cập nhật trong phiên bản tiếp theo."*
    - Không chứa bất kỳ từ khóa cấm hoặc placeholder (\`lorem\`, \`todo\`, \`placeholder\`, \`coming soon\`) để vượt qua 100% kiểm thử của \`tests/unit/help-coverage.test.js\`.
+
+---
+
+## 4. PHÍM TẮT CÒN THIẾU (bổ sung dần)
+
+Danh sách phím tắt Microsoft Office chưa bind hoặc bind sai hành động trong VN Office (xem `docs/SHORTCUT-COVERAGE.md`).
+
+| Ứng dụng | Phím tắt | Hành động Office | Trạng thái | Quy mô |
+|:---|:---|:---|:---|:---:|
+| VN Writer | Ctrl+] | Tăng cỡ chữ (từng bước) | Chưa bind | Small |
+| VN Writer | Ctrl+[ | Giảm cỡ chữ (từng bước) | Chưa bind | Small |
+| VN Sheet | Ctrl+- | Xóa ô/hàng/cột | Bind sai (zoomOut) | Small |
+| VN Sheet | Ctrl+Shift++ | Chèn ô/hàng/cột | Chưa bind | Small |
+| VN Sheet | F11 | Chèn biểu đồ | Bind sai (fullScreen) | Small |
+| VN Sheet | Shift+F11 | Chèn trang tính mới | Chưa bind | Small |
