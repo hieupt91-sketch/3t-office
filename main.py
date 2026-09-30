@@ -1443,6 +1443,7 @@ class VnOfficeApi:
                             content = patcher.inject_docx_half_point_styles_css(docx_bytes, content)
                             # W32: font/cỡ/đậm/nghiêng của heading 1..6 theo chuỗi style Word (LibreOffice bỏ trống)
                             content = patcher.inject_docx_heading_styles_css(docx_bytes, content)
+                            content = patcher.restore_docx_html_half_points_and_empty_paras(docx_bytes, content)
                         except OSError:
                             pass
                     if convert_src_path.lower().endswith(".docx"):

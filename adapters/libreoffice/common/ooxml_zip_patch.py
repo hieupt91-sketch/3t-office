@@ -3175,6 +3175,160 @@ def inject_docx_half_point_styles_css(docx_bytes: bytes, html: str) -> str:
     return html
 
 
+def restore_docx_html_half_points_and_empty_paras(docx_bytes: bytes, html: str) -> str:
+    """Restore half-point font sizes and empty paragraph line heights in LibreOffice HTML export.
+
+    LibreOffice StarWriter HTML export:
+    1. Rounds half-point font sizes (e.g. 13.5pt, w:sz=27) down to integer pt (13pt).
+    2. Drops font-size attributes on empty paragraphs (<p><br/></p>), collapsing them to 12pt Normal.
+
+    This function restores the exact font-size: X.5pt on matching spans/paragraphs, and sets
+    font-size: Xpt and <span style="font-size: Xpt;"><br/></span> on empty paragraphs so that
+    canvas renders at exact height and saving back to DOCX preserves w:sz=2X.
+    """
+    if not html or not docx_bytes:
+        return html
+    try:
+        doc_xml = (read_zip_entry(docx_bytes, "word/document.xml") or b"").decode("utf-8", errors="replace")
+        styles_xml = (read_zip_entry(docx_bytes, "word/styles.xml") or b"").decode("utf-8", errors="replace")
+    except Exception:
+        return html
+    if not doc_xml:
+        return html
+
+    doc_default_sz = 24
+    m_dd = re.search(r"<w:docDefaults>[\s\S]*?</w:docDefaults>", styles_xml)
+    if m_dd:
+        m = re.search(r'<w:sz\b[^>]*w:val="(\d+)"', m_dd.group(0))
+        if m:
+            doc_default_sz = int(m.group(1))
+
+    styles_sz: dict[str, int] = {}
+    styles_based_on: dict[str, str] = {}
+    for sm in re.finditer(r'<w:style\b[^>]*w:styleId="([^"]+)"[^>]*>([\s\S]*?)</w:style>', styles_xml):
+        sid = sm.group(1)
+        body = sm.group(2)
+        m = re.search(r'<w:sz\b[^>]*w:val="(\d+)"', body)
+        if m:
+            styles_sz[sid] = int(m.group(1))
+        b_m = re.search(r'<w:basedOn\b[^>]*w:val="([^"]+)"', body)
+        if b_m:
+            styles_based_on[sid] = b_m.group(1)
+
+    def resolve_style_sz(sid: str, visited: set | None = None) -> int:
+        if visited is None:
+            visited = set()
+        if sid in visited or len(visited) > 20:
+            return styles_sz.get("Normal", doc_default_sz)
+        visited.add(sid)
+        if sid in styles_sz:
+            return styles_sz[sid]
+        if sid in styles_based_on:
+            return resolve_style_sz(styles_based_on[sid], visited)
+        if sid != "Normal" and "Normal" in styles_sz:
+            return styles_sz["Normal"]
+        return doc_default_sz
+
+    def resolve_para_sz(p_xml: str) -> int:
+        ppr_m = re.search(r"<w:pPr\b[^>]*>([\s\S]*?)</w:pPr>", p_xml)
+        ppr_str = ppr_m.group(1) if ppr_m else ""
+        m = re.search(r'<w:sz\b[^>]*w:val="(\d+)"', ppr_str)
+        if m:
+            return int(m.group(1))
+        m_r = re.search(r'<w:sz\b[^>]*w:val="(\d+)"', p_xml)
+        if m_r:
+            return int(m_r.group(1))
+        m_style = re.search(r'<w:pStyle\b[^>]*w:val="([^"]+)"', ppr_str)
+        if m_style:
+            return resolve_style_sz(m_style.group(1))
+        return resolve_style_sz("Normal")
+
+    body_match = re.search(r"<w:body\b[^>]*>([\s\S]*?)</w:body\s*>", doc_xml, re.IGNORECASE)
+    body_xml = body_match.group(1) if body_match else doc_xml
+    flow = re.sub(
+        r"<w:txbxContent\b[\s\S]*?</w:txbxContent\s*>",
+        lambda match: " " * len(match.group(0)), body_xml, flags=re.IGNORECASE,
+    )
+    table_ranges = _xml_element_ranges(flow, "w:tbl")
+    ooxml_paras = []
+    for m in re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", flow, re.IGNORECASE):
+        if not any(s <= m.start() < e for s, e in table_ranges):
+            p_xml = m.group(0)
+            txt = _paragraph_plain_text(p_xml).strip()
+            has_drawing = any(tag in p_xml for tag in ("<w:drawing", "<w:pict", "<mc:AlternateContent", "<wps:"))
+            is_empty = not txt and not has_drawing
+            sz = resolve_para_sz(p_xml)
+            odd_runs = []
+            for r_m in re.finditer(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", p_xml, re.IGNORECASE):
+                r_xml = r_m.group(0)
+                r_sz_m = re.search(r'<w:sz\b[^>]*w:val="(\d+)"', r_xml)
+                r_sz = int(r_sz_m.group(1)) if r_sz_m else sz
+                r_txt = "".join(re.findall(r"<w:t\b[^>]*>([^<]*)</w:t\s*>", r_xml, re.IGNORECASE)).strip()
+                if r_sz and r_sz % 2 != 0 and r_txt:
+                    odd_runs.append((r_txt, r_sz / 2.0))
+            ooxml_paras.append({
+                "is_empty": is_empty,
+                "sz": sz,
+                "pt": sz / 2.0 if sz else None,
+                "odd_runs": odd_runs,
+                "text": txt,
+            })
+
+    html_tables = _xml_element_ranges(html, "table")
+    para_idx = 0
+
+    def replace_para(match: re.Match) -> str:
+        nonlocal para_idx
+        start = match.start()
+        if any(ts <= start < te for ts, te in html_tables):
+            return match.group(0)
+        if para_idx >= len(ooxml_paras):
+            return match.group(0)
+        p_spec = ooxml_paras[para_idx]
+        para_idx += 1
+
+        full = match.group(0)
+        tag = match.group(1)
+        attrs = match.group(2)
+        inner = match.group(3)
+
+        # 1. Empty paragraph
+        if p_spec["is_empty"] and p_spec["pt"] is not None:
+            pt = p_spec["pt"]
+            stripped = re.sub(r"</?(?:span|font|br)\b[^>]*>|&nbsp;|\s+", "", inner, flags=re.I)
+            if not stripped and not re.search(r"<(?:img|iframe|object|svg|canvas|div)\b|data-vno|vno-", inner, re.I):
+                if re.search(r"\bfont-size:\s*[\d.]+pt", attrs, re.I):
+                    new_attrs = re.sub(r"\bfont-size:\s*[\d.]+pt", f"font-size: {pt:g}pt", attrs, flags=re.I)
+                elif re.search(r'\bstyle=["\']', attrs, re.I):
+                    new_attrs = re.sub(r'(\bstyle=["\'])([^"\']*)', rf'\1font-size: {pt:g}pt; \2', attrs, flags=re.I)
+                else:
+                    new_attrs = f'{attrs} style="font-size: {pt:g}pt;"'
+                new_inner = f'<span style="font-size: {pt:g}pt;"><br/></span>'
+                return f"<{tag}{new_attrs}>{new_inner}</{tag}>"
+
+        # 2. Odd run font sizes (e.g. 13.5pt)
+        if p_spec["odd_runs"]:
+            new_inner = inner
+            for r_txt, r_pt in p_spec["odd_runs"]:
+                rounded_pt = int(r_pt)
+                pattern = rf'(\bstyle=["\'][^"\']*\bfont-size:\s*){rounded_pt}(?:\.0+)?pt'
+                new_inner = re.sub(pattern, rf'\g<1>{r_pt:g}pt', new_inner, flags=re.I)
+            new_attrs = attrs
+            if len(p_spec["odd_runs"]) == 1:
+                r_txt, r_pt = p_spec["odd_runs"][0]
+                rounded_pt = int(r_pt)
+                new_attrs = re.sub(rf'(\bstyle=["\'][^"\']*\bfont-size:\s*){rounded_pt}(?:\.0+)?pt',
+                                   rf'\g<1>{r_pt:g}pt', new_attrs, flags=re.I)
+            return f"<{tag}{new_attrs}>{new_inner}</{tag}>"
+
+        return full
+
+    return re.sub(r"<(p|h[1-6])\b([^>]*)>([\s\S]*?)</\1\s*>", replace_para, html, flags=re.IGNORECASE)
+
+
+
+
+
 def docx_heading_style_props(docx_bytes: bytes) -> dict[int, dict]:
     """W32: thuộc tính chữ THẬT của style heading 1..6 theo chuỗi kế thừa Word (style -> basedOn ... -> Normal ->
     docDefaults; thiếu sz ở mọi cấp = 10pt; b/i vắng = thường; rFonts asciiTheme giải qua theme + script Viet W12b).
@@ -8976,6 +9130,7 @@ def _restore_writer_matched_formatting(
         ]
         if source_empty and len(source_empty) == len(converted_empty):
             empty_pairs.extend(zip(source_empty, converted_empty))
+    empty_paired_indices = {c_idx for _s, c_idx in empty_pairs}
     pairs = sorted(set([*pairs, *empty_pairs]))
 
     replacements: dict[int, str] = {}
@@ -9006,6 +9161,7 @@ def _restore_writer_matched_formatting(
         # paragraph that held the bookmark.  A unique, non-empty text captured
         # before that replacement safely carries the same untouched proof.
         if (not trust_all_exact and not has_marker
+                and converted_index not in empty_paired_indices
                 and converted_keys[converted_index] not in (trusted_untouched_texts or set())):
             continue
         # Section relationships are handled by the dedicated section pass.
@@ -9017,6 +9173,27 @@ def _restore_writer_matched_formatting(
         restored_runs = _writer_restore_untouched_runs(target_p, source_p)
         if restored_runs is not None:
             replacements[converted_index] = restored_runs
+            continue
+        if not converted_keys[converted_index]:
+            has_drawing = any(tag in source_p or tag in target_p for tag in ("<w:drawing", "<w:pict", "<mc:AlternateContent", "<wps:"))
+            if not has_drawing:
+                source_rpr = None
+                for _s, _e, srun in _writer_run_blocks(source_p):
+                    source_rpr = _writer_direct_property(srun, "rPr")
+                    if source_rpr:
+                        break
+                if not source_rpr:
+                    source_ppr = _writer_direct_property(source_p, "pPr")
+                    source_rpr = _writer_direct_property(source_ppr, "rPr")
+                if source_rpr:
+                    target_runs = _writer_run_blocks(target_p)
+                    if target_runs:
+                        run_replacements = []
+                        for rs, re_pos, run in target_runs:
+                            run_replacements.append((rs, re_pos, _writer_replace_direct_property(run, "rPr", source_rpr)))
+                        for rs, re_pos, run in reversed(run_replacements):
+                            target_p = target_p[:rs] + run + target_p[re_pos:]
+            replacements[converted_index] = target_p
             continue
         # W39 (d21: 11 đoạn chứa ảnh): LibreOffice thêm `<w:hyperlink><w:r>[ ]</w:r></w:hyperlink>` sau run ảnh và
         # bỏ rPr của run ảnh → dấu cách Calibri 11 rớt xuống dòng mới (1 → 2 dòng). Nguồn không có hyperlink → bỏ
@@ -9077,7 +9254,7 @@ def _writer_align_runs_by_offset(target_paragraph: str, source_runs: list, targe
         for start, end, run in runs:
             body = re.sub(r"^<w:r\b[^>]*>|</w:r\s*>$", "", run.strip())
             body_wo_rpr = re.sub(r"^<w:rPr>[\s\S]*?</w:rPr>", "", body)
-            if re.sub(r"<w:t\b[^>]*>[^<]*</w:t\s*>", "", body_wo_rpr).strip():
+            if re.sub(r"<w:(?:t|softHyphen|noBreakHyphen)\b[^>]*>(?:[^<]*</w:t\s*>)?", "", body_wo_rpr).strip():
                 return None  # run có thứ khác ngoài chữ (tab/br/field/drawing…)
             text = "".join(_writer_run_text_segments(run))
             out.append((start, end, run, text))
@@ -9195,9 +9372,15 @@ def _remove_writer_untouched_bookmarks(xml: str) -> str:
 
 def _document_paragraph_ranges(xml: str) -> list[tuple[int, int]]:
     anchor_ranges = [(match.start(), match.end()) for match in _WRITER_ANCHOR_RE.finditer(xml)]
-    return [
+    txbx_ranges = _xml_element_ranges(xml, "w:txbxContent")
+    ranges = [
         (start, end) for start, end in _xml_element_ranges(xml, "w:p")
         if not any(anchor_start < start < anchor_end for anchor_start, anchor_end in anchor_ranges)
+        and not any(tx_start < start < tx_end for tx_start, tx_end in txbx_ranges)
+    ]
+    return [
+        (s, e) for s, e in ranges
+        if not any(other_s < s < other_e for other_s, other_e in ranges)
     ]
 
 
