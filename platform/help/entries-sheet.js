@@ -216,7 +216,9 @@ export const SHEET_HELP_ENTRIES = [
     steps: [
       "Mở tab Dữ liệu, nhóm Công cụ dữ liệu, nhấn Phân tích What-If rồi chọn Dò tìm mục tiêu, Bảng dữ liệu hoặc Trình quản lý kịch bản.",
       "Bảng dữ liệu: đặt công thức gốc ở ô góc trên-trái của vùng; đặt các giá trị thử ngang hàng trên và/hoặc dọc cột trái. Bôi toàn bộ vùng, mở Bảng dữ liệu và nhập Ô đầu vào theo hàng, theo cột, hoặc cả hai rồi nhấn Áp dụng.",
-      "Với một biến, chỉ nhập đúng một ô đầu vào. Với hai biến, giá trị hàng thay cho Ô đầu vào theo hàng, giá trị cột thay cho Ô đầu vào theo cột; VN Sheet điền kết quả vào phần thân bảng nhưng giữ nguyên công thức gốc.",
+      "Với một biến, chỉ nhập đúng một ô đầu vào (giá trị thử nằm ngang hàng trên, kết quả nằm ở hàng dưới). Với hai biến — ví dụ bảng PMT với lãi suất ngang hàng trên và số năm dọc cột trái — nhập cả Ô đầu vào theo hàng lẫn Ô đầu vào theo cột (hai ô phải khác nhau); VN Sheet điền kết quả vào phần thân bảng nhưng giữ nguyên công thức gốc.",
+      "Kết quả Bảng dữ liệu tự tính lại khi bạn đổi ô đầu vào hoặc bất kỳ ô nào mà công thức gốc phụ thuộc (giống công thức mảng TABLE() của Excel) — ví dụ đổi tiền vay trong bảng PMT là toàn bộ phần thân cập nhật ngay.",
+      "Khi lưu tệp xlsx, VN Sheet ghi kết quả Bảng dữ liệu dạng giá trị tĩnh (chưa ghi được công thức mảng TABLE() của Excel) và đặt một ghi chú trên ô công thức gốc ghi rõ ô đầu vào theo hàng/theo cột; mở tệp bằng Excel vẫn hiển thị đúng các giá trị này.",
       "Trình quản lý kịch bản: nhập Tên, danh sách Các ô thay đổi (ví dụ B2, B3) và cùng số Giá trị; nhấn Thêm. Chọn một kịch bản để Sửa/Xóa hoặc nhấn Hiển thị để ghi bộ giá trị vào các ô thật.",
       "Nhấn Ctrl+Z/Ctrl+Y để hoàn tác/làm lại kết quả Bảng dữ liệu, thao tác quản lý kịch bản hoặc bộ giá trị vừa Hiển thị."
     ]
