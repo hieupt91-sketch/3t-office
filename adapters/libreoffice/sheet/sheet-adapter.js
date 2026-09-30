@@ -248,6 +248,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.data.ungroup", () => this.grid.ungroupSelection());
     globalCommandBus.bindHandler("sheet.data.subtotal", () => this.grid.showSubtotalDialog());
     globalCommandBus.bindHandler("sheet.data.goalSeek", () => this.grid.showGoalSeekDialog());
+    globalCommandBus.bindHandler("sheet-what-if-analysis", () => this.grid.showGoalSeekDialog ? this.grid.showGoalSeekDialog() : false);
     globalCommandBus.bindHandler("sheet.data.dataTable", () => this.grid.showDataTableDialog());
     globalCommandBus.bindHandler("sheet.data.scenarioManager", () => this.grid.showScenarioManagerDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
@@ -309,6 +310,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.view.formulaBar", () => this.grid.toggleFormulaBar ? this.grid.toggleFormulaBar() : false);
     globalCommandBus.bindHandler("sheet.view.zoomToSelection", () => this.grid.zoomToSelection ? this.grid.zoomToSelection() : false);
     globalCommandBus.bindHandler("sheet.view.newWindow", () => this.grid.newWindow ? this.grid.newWindow() : false);
+    globalCommandBus.bindHandler("sheet.view.freezePanesMenu", () => this.grid.toggleFreezePanes ? this.grid.toggleFreezePanes() : false);
     globalCommandBus.bindHandler("sheet.view.zoomIn", (options) => {
       options = options || {};
       return this.grid.zoomIn();
@@ -5834,6 +5836,10 @@ export class SheetAdapter {
       case "sheet.insert.image":
         return await this._insertImageDialog(args || {});
 
+      case "sheet-what-if-analysis":
+        return this.grid.showGoalSeekDialog ? this.grid.showGoalSeekDialog() : false;
+
+      case "sheet.view.freezePanesMenu":
       case "sheet.view.freezePanes":
         return this.grid.toggleFreezePanes ? this.grid.toggleFreezePanes() : false;
 
