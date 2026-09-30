@@ -1,69 +1,69 @@
 # Agent Handoff
 
-TASK: Implement G10 Office/WPS PDF rendering for Print and Export PDF, preserve LibreOffice fallback, investigate Sheet fallback page counts.
+TASK: Implement G10 Office/WPS PDF rendering for Print and Export PDF, preserve the LibreOffice fallback, and investigate Sheet fallback page counts.
 AGENT/ROLE: Codex / implementation
 BRANCH: fix/print-real-document-codex
 WORKTREE: E:\VNOffice-codex-print
-OBJECTIVE: Use registered Microsoft Office or WPS, when available, to render the native source produced by the existing Save pipeline; report the actual engine and keep fallback local.
+OBJECTIVE: Use registered Microsoft Office or WPS to render the native source from the existing Save pipeline, report the actual engine, and keep the offline LibreOffice fallback.
 
 FINDINGS:
-- `git merge main` was run first and fast-forwarded the worktree to `6f26113`; no merge into `main` was made.
-- The G9 LibreOffice baseline still differs from Excel/Word on d01/d16/d20 and lan05/lan11/lan28. G10 live page/text parity has not been measured yet.
-- This machine has Word, Excel, and PowerPoint COM registrations; WPS is not registered.
-- A direct Office export of original `d03.docx` succeeded with one page. Its first-page text can be extracted, but the required comparison against VN Print/Export PDFs is pending.
-- The sister-project guide `docs/REFERENCE-3T-READER.md` was read. The requested UNC `office_com.py` path did not resolve from this machine. The restricted `??ng k? bq` folder was not opened.
+- `git merge main` was performed first and fast-forwarded to `6f26113`. No merge into `main` was made.
+- Microsoft Word, Excel, and PowerPoint COM registrations exist; WPS is not registered. Detection reads ProgID/CLSID registry keys without launching Office.
+- Direct Word exports of original d03, d12, d24, d01, d16, d20, and legacy01.doc succeeded. Old app PDFs match page counts, but d12/d16 first-page text differed; those app audits predate the pristine Writer source restore.
+- Two serial direct lan05 Excel exports failed at `ExportAsFixedFormat` with `RPC_E_CALL_REJECTED`, one after an 11-minute quiet period. WMI showed 17 pre-existing non-responding `/automation` Excel instances and an external Office-print PowerShell launcher. The job-owned process exited; no pre-existing Office process was terminated. Excel and PowerPoint live parity work is paused while those remain.
+- Office-absent live fallback after the pristine XLSX restore: Print/Export both report LibreOffice and produce d03 1 page, lan05 3, lan11 345, lan28 35. lan11 improved from 357 to 345; lan05 and lan28 counts did not change. These remain different from prior workbook-level Excel counts 14/965/36.
+- lan05's restored source SHA-256 matches the original exactly. Original lan11/lan28 source files were not available in the workspace for hash comparison.
+- `docs/REFERENCE-3T-READER.md` was read. The specified UNC sister-project `office_com.py` could not be opened from this machine. The restricted `??ng k? bq` directory was not opened.
 
 IMPLEMENTATION SUMMARY:
-- Added cached ProgID → CLSID → COM-server registry detection without activating Office.
-- Added an ASCII PowerShell 5.1 `-STA` worker per PDF job. It opens the source-aware Save-pipeline `.docx`/`.xlsx`/`.pptx` read-only, disables application UI/alerts, retries busy COM calls five times with backoff, exports to PDF, and closes/quits in `finally`. A 300-second timeout kills the helper and only a new Office PID recorded as job-owned.
-- Print preview/printing and Export PDF now use the native Save conversion before the selected Office/WPS export; any COM failure or empty PDF silently falls back to LibreOffice.
-- The print dialog reports the actual PDF engine and shows a checked-by-default Microsoft Office/WPS option only when registered. Vietnamese Help instructions were updated for Writer, Sheet, and Slides.
-- The page-audit script can audit `.pptx`, preserves the Print PDF for page-1 text comparison, and supports an isolated Office-absent fallback mode.
+- Added cached Word/Excel/PowerPoint and WPS registration detection through ProgID → CLSID → COM server lookup.
+- Each PDF job launches an isolated ASCII PowerShell 5.1 `-STA` worker. It opens the Save-pipeline `.docx`/`.xlsx`/`.pptx` read-only, hides the app and alerts, retries busy calls five times after the initial call with 1/2/4/8/16-second backoff, closes/quits in `finally`, and has a 300-second hard timeout. Cleanup only force-stops an Office PID positively marked as started by that job.
+- Print and Export PDF use the existing Save conversions before Office/WPS rendering; any COM failure or empty result silently falls back to LibreOffice. The print dialog displays the actual engine and defaults the Office/WPS choice on when detected. Vietnamese Help entries were added for Writer, Sheet, and Slides.
+- Untouched DOCX and XLSX sources are restored after the normal conversion/postprocess path. Edited docs/workbooks and legacy `.doc`/`.xls` continue through the conversion path.
+- The print audit accepts PPTX and supports an Office-absent simulation.
 
 FILES CHANGED:
-- `platform/print/office_com.py`
-- `platform/print/print_pipeline.py`
-- `platform/print/print-dialog.js`, `platform/print/print-dialog.css`
-- `main.py`, `adapters/libreoffice/common/uno-bridge.js`
+- `platform/print/office_com.py`, `platform/print/print_pipeline.py`, `platform/print/print-dialog.js`, `platform/print/print-dialog.css`
+- `main.py`, `adapters/libreoffice/common/uno-bridge.js`, `adapters/libreoffice/common/ooxml_zip_patch.py`, `adapters/libreoffice/sheet/sheet-adapter.js`
 - `platform/help/entries-writer.js`, `platform/help/entries-sheet.js`, `platform/help/entries-slides.js`
 - `scripts/layout-audit/_print_page_audit.py`
-- `tests/test_print_office_com.py`, `tests/test_print_pipeline.py`, `tests/test_print_save_pipeline.py`
-- `docs/HANDOFF-PRINT.md`
+- `tests/test_print_office_com.py`, `tests/test_print_pipeline.py`, `tests/test_print_save_pipeline.py`, `tests/unit/sheet-pagesetup-real-file-import.test.js`
+- `docs/HANDOFF-PRINT.md`, `docs/AGENT-HANDOFF-PRINT-G10.md`
 
 COMMANDS RUN:
-- `git merge main` (fast-forward; performed before implementation)
-- `node tests/run-tests.js` (final full run, PASS 2163/2163)
-- `node --test tests/unit/print-dialog.test.js` (final focused run, PASS 4/4)
-- `python -m unittest discover -s tests` (final full run, PASS 494 tests)
+- `git merge main` (fast-forward to `6f26113`, before implementation)
+- `node tests/run-tests.js`
+- `node --test tests/unit/print-dialog.test.js`
 - `python -m unittest tests.test_print_pipeline tests.test_print_save_pipeline tests.test_print_office_com -v`
-- `python -m unittest tests.test_print_office_com -v`
-- `python -m py_compile main.py platform/print/office_com.py platform/print/print_pipeline.py scripts/layout-audit/_print_page_audit.py`
-- `node --check platform/print/print-dialog.js`
-- `git diff --check`
-- Direct Office PDF export for original `d03.docx`; PDF first-page text extraction probe.
+- Focused Sheet page-setup/marker unit test (Node)
+- Python compilation, Node syntax checks, PowerShell parser check, `git diff --check`
+- Sequential direct Word original exports and Office-absent live Print/Export audits
+- Serial direct Excel lan05 source export attempts (failed busy HRESULT); no PPTX COM audit due same Office process blocker
 
-BUILD RESULT: NOT RUN; no build-system change was made.
+BUILD RESULT: NOT RUN. No build-system change was made.
 
 TEST RESULTS:
-- `node tests/run-tests.js`: PASS, 2163/2163 on the final implementation. FODS round-trip checks ran without another soffice worker at launch.
-- `python -m unittest discover -s tests`: PASS, 494 tests in 316.318 seconds, including the timeout-ownership test.
-- Focused current print/Office Python suite: PASS, 24/24.
-- Focused current print dialog model suite: PASS, 4/4.
-- Python compilation and `git diff --check`: PASS.
-- Office-absent and COM-failure fallback: PASS in unit tests. Live fallback audit: NOT RUN.
-- Required original-vs-VN page-count and page-1-text comparisons for d03/d12/d24/legacy `.doc`/lan05/PPTX and Office/Excel parity cases: NOT RUN.
+- `node tests/run-tests.js`: PASS, 2164/2164 on current implementation HEAD.
+- Focused print Python pipeline/save/COM suite: PASS, 30/30.
+- Focused Sheet page-setup/marker checks: PASS, 8/8.
+- `node --test tests/unit/print-dialog.test.js`: PASS, 4/4.
+- Python compilation, JS syntax checks, PowerShell syntax parsing, and `git diff --check`: PASS.
+- Office-absent live fallback audit after pristine XLSX restoration: PASS at application level; engine/counts recorded above.
+- `python -m unittest discover -s tests`: PASS, 500 tests in 325.907s when rerun with no competing soffice process. The preceding concurrent run also ran 500 tests but failed two: the stale legacy `.doc` mock expectation for `pristine_docx_source=False` (fixed; focused regression passes) and a LibreOffice conversion of `sample-writer-footnotes.docx` (passed in the isolated rerun).
+- Required Office original-vs-app page-count and first-page-text parity checks for all specified Writer/Sheet/Slides files: NOT RUN or incomplete due hung pre-existing Excel servers / external Office launcher. Overall parity is not PASS.
 
 KNOWN FAILURES:
-- G9 LibreOffice baseline is still d01 19 vs 20, d16 8 vs 9, d20 3 vs 4; lan05 14 vs 3, lan11 965 vs 357, lan28 36 vs 35. G10 has not been measured against these baselines.
-- lan05 source has one visible sheet, print area `A1:I1072`, and scale 56%; the converted source retains the print area, and restoring its original margins/page setup alone left the LibreOffice result at 3 pages.
+- LibreOffice fallback counts remain lan05 3 vs Excel 14, lan11 345 vs Excel 965, and lan28 35 vs Excel 36.
+- Fresh d12/d16 first-page text comparison after the Writer pristine restore remains pending.
+- Required live PPTX and Office-rendered Excel app audits remain pending.
 
 RISKS:
-- Do not claim G10 parity until original-file Office exports are compared against app Print and Export PDFs by both page count and normalized page-1 text.
-- Active-sheet scope on lan11/lan28 still needs an Excel ActiveSheet oracle before changing fallback semantics. Current pre-G10 counts use workbook-level Excel ExportAsFixedFormat.
-- WPS is not installed on this machine; only Microsoft Office can be exercised here.
+- Office/WPS page parity has not been demonstrated for G10. Do not label parity PASS.
+- lan11 active-sheet/per-sheet Excel oracle remains unknown; changing print scope could alter existing workbook export semantics.
+- WPS is not installed. This machine cannot currently validate its COM route.
 
-DEPENDENCIES/BLOCKERS: No new runtime dependency. At handoff time, a separate Office oracle has a headless Word job active and an idle `EXCEL.EXE /automation` process remains from an earlier batch. The full Node and Python gates have now passed in isolated runs. The required G10 Office COM jobs and live LibreOffice fallback audit remain queued to preserve strict serialization.
+DEPENDENCIES/BLOCKERS: No new runtime dependency. Office COM work is paused because 17 existing Excel `/automation` instances are non-responsive and an external Office-print launcher remains present. Do not terminate those processes; retry only after the external Office queue clears. LibreOffice fallback remains available offline.
 
-CORE PATCH ID (if any): N/A; no LibreOffice Core changes.
+CORE PATCH ID (if any): N/A; no LibreOffice Core modifications.
 
-NEXT ACTION: Once the external Office oracle releases Word/Excel/PowerPoint, perform the serial original and live-app PDF audits for the requested Writer/Sheet/Slides files, measure active-sheet Sheet counts, run the live LibreOffice-only fallback audit, update `docs/HANDOFF-PRINT.md` with before/after results, and commit the completed verification handoff on this branch.
+NEXT ACTION: Rerun the full Python suite when no competing soffice job is active. After the external Office queue clears, run the fresh Writer comparisons, then the Office source/app Print and Export audits for lan05/lan11/lan28 and one real PPTX strictly one COM job at a time. Update this handoff and `docs/HANDOFF-PRINT.md` with exact results before claiming G10 complete.
