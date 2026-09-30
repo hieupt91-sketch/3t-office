@@ -527,8 +527,11 @@ export async function runAdapterMappingTests() {
 
     // Test chèn Footer
     await structuredAdapter.handleDispatch(".uno:InsertPageFooter", null, "writer.footer.insert");
-    if (mockFooterEl.innerHTML.includes("Trang 1 / 1")) {
-      results.push({ name: "WriterAdapter Footer: Lệnh writer.footer.insert kích hoạt và điền nội dung vào footer zone", pass: true });
+    const footerText = mockFooterEl.innerHTML.replace(/<[^>]*>/g, "");
+    const hasLivePageFields = /data-vno-field=["']PAGE["']/i.test(mockFooterEl.innerHTML)
+      && /data-vno-field=["']NUMPAGES["']/i.test(mockFooterEl.innerHTML);
+    if (footerText.includes("Trang 1 / 1") && hasLivePageFields) {
+      results.push({ name: "WriterAdapter Footer: insert tạo Trang 1 / 1 với PAGE/NUMPAGES fields còn sống", pass: true });
     } else {
       results.push({ name: "WriterAdapter Footer: writer.footer.insert thất bại", pass: false });
     }
