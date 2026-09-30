@@ -235,3 +235,159 @@
   outline-offset: 1px;
   opacity: 1;
 }
+
+/* ==========================================================================
+   Adaptive Ribbon Scaling (Office Parity)
+   ========================================================================== */
+
+/* Stage 1: Compact Large Buttons */
+.vno-ribbon-group.vno-group-compact {
+  padding: 0 3px;
+}
+.vno-ribbon-group.vno-group-compact .vno-ribbon-group-items {
+  gap: 2px;
+}
+.vno-ribbon-group.vno-group-compact .vno-ribbon-btn-large {
+  min-width: 44px;
+  padding: 2px 3px;
+}
+.vno-ribbon-group.vno-group-compact .vno-ribbon-btn-large .vno-btn-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.vno-ribbon-group.vno-group-compact .vno-ribbon-btn-large .vno-btn-label {
+  font-size: 10px;
+  max-width: 65px;
+  line-height: 1.15;
+}
+.vno-ribbon-group.vno-group-compact .vno-select {
+  max-width: 100px;
+  padding: 1px 4px;
+  font-size: 10.5px;
+}
+
+/* Stage 2: Small Buttons Icon-only with Tooltip */
+.vno-ribbon-group.vno-group-icon-only .vno-ribbon-btn-small:not(.vno-ribbon-checkbox) .vno-btn-label {
+  display: none !important;
+}
+.vno-ribbon-group.vno-group-icon-only .vno-ribbon-btn-small:not(.vno-ribbon-checkbox) {
+  padding: 2px 4px;
+  justify-content: center;
+  min-width: 24px;
+}
+.vno-ribbon-group.vno-group-icon-only .vno-ribbon-btn-dropdown:not(.vno-ribbon-btn-large) .vno-btn-label {
+  display: none !important;
+}
+.vno-ribbon-group.vno-group-icon-only .vno-ribbon-btn-dropdown:not(.vno-ribbon-btn-large) {
+  padding: 2px 4px;
+}
+
+/* Stage 3: Collapsed Group Button */
+.vno-ribbon-group.vno-group-collapsed {
+  padding: 0 3px;
+  border-right: 1px solid var(--vno-border-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.vno-ribbon-group.vno-group-collapsed .vno-ribbon-group-items,
+.vno-ribbon-group.vno-group-collapsed .vno-ribbon-group-footer {
+  display: none !important;
+}
+.vno-ribbon-group-collapsed-btn {
+  display: none;
+  min-width: 48px;
+  max-width: 82px;
+  height: 68px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 5px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--vno-radius-xs, 3px);
+  cursor: pointer;
+  color: var(--vno-text-primary);
+  gap: 2px;
+}
+.vno-ribbon-group.vno-group-collapsed .vno-ribbon-group-collapsed-btn {
+  display: flex !important;
+}
+.vno-ribbon-group-collapsed-btn:hover {
+  background-color: var(--vno-bg-hover, rgba(0,0,0,0.06));
+  border-color: var(--vno-border-default, #d1d5db);
+}
+.vno-ribbon-group-collapsed-btn[aria-expanded="true"],
+.vno-ribbon-group-collapsed-btn.is-active {
+  background-color: var(--vno-bg-active, rgba(0,0,0,0.1));
+  border-color: var(--vno-border-focus, #3b82f6);
+}
+.vno-ribbon-group-collapsed-btn .vno-btn-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.vno-ribbon-group-collapsed-btn .vno-btn-label {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+  text-align: center;
+  max-width: 72px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vno-ribbon-group-collapsed-btn .vno-btn-arrow svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* Collapsed Group Popover Flyout */
+.vno-ribbon-group-popover {
+  position: fixed;
+  z-index: 10000;
+  background-color: var(--vno-bg-surface, #ffffff);
+  border: 1px solid var(--vno-border-strong, #cbd5e1);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08);
+  border-radius: 4px;
+  padding: 8px 10px 6px 10px;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  animation: vno-fade-in 0.12s ease-out;
+}
+.vno-ribbon-group-popover .vno-ribbon-popover-items {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.vno-ribbon-group-popover .vno-ribbon-group-items {
+  display: flex !important;
+  align-items: center;
+  gap: 4px;
+  height: auto !important;
+  min-height: 64px;
+}
+.vno-ribbon-group-popover .vno-ribbon-btn-small .vno-btn-label {
+  display: inline !important;
+}
+.vno-ribbon-group-popover .vno-ribbon-popover-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vno-text-secondary, #64748b);
+  text-align: center;
+  padding-top: 6px;
+  margin-top: 4px;
+  border-top: 1px solid var(--vno-border-subtle, #f1f5f9);
+}
+[data-theme="dark"] .vno-ribbon-group-popover {
+  background-color: var(--vno-bg-surface, #1e293b);
+  border-color: var(--vno-border-strong, #475569);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+}
+[data-theme="dark"] .vno-ribbon-group-popover .vno-ribbon-popover-title {
+  color: var(--vno-text-secondary, #94a3b8);
+  border-top-color: var(--vno-border-subtle, #334155);
+}
+

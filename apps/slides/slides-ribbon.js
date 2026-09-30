@@ -45,7 +45,6 @@ export const SLIDES_RIBBON_TABS = [
             label: "Phần",
             labelKey: "slidesRibbon.section",
             icon: "slideSection",
-            isLarge: true,
             items: [
               { commandId: "slides.section.add" },
               { commandId: "slides.section.rename" },
@@ -202,7 +201,7 @@ export const SLIDES_RIBBON_TABS = [
       },
       {
         id: "drawing",
-        label: "Đối tượng vẽ",
+        label: "Vẽ",
         labelKey: "slidesRibbon.group.drawing",
         items: [
           { type: "button", commandId: "slides.text.insert", isLarge: true },
