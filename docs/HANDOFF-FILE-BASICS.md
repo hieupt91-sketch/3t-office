@@ -44,7 +44,7 @@ COMMANDS RUN:
 - `python scripts/test_g7_file_basics.py --app slides`
 - `node tests/run-tests.js`
 - `python -m py_compile scripts/test_g7_file_basics.py`
-- `python -m unittest discover -s tests` (full-suite result recorded below from the earlier continuation)
+- `python -m unittest discover -s tests`
 - `git diff --check`
 
 BUILD RESULT: NOT RUN. No build-system changes were made.
@@ -54,7 +54,7 @@ TEST RESULTS:
 | Check | Result | Evidence |
 |---|---|---|
 | `node tests/run-tests.js` | PASS | 2,114/2,114 tests after the final JS/CSS changes |
-| `python -m unittest discover -s tests` | PASS | 478 tests; `Ran 478 tests ... OK` in the earlier continuation. No Python application modules changed afterward. |
+| `python -m unittest discover -s tests` | PASS | 478 tests; `Ran 478 tests in 388.492s`, `OK`. Updater end-to-end checks also passed. |
 | `python -m py_compile scripts/test_g7_file_basics.py` | PASS | Syntax check after the final G7 harness edits |
 | `git diff --check` | PASS | No whitespace errors |
 | G7 desktop probe — Writer | FAIL | Lifecycle and Word COM checks pass; native dialog says 1 page for a 2-page app preview; no print PDF |
