@@ -50,6 +50,15 @@ sys.modules[_AUTORECOVER_STORE_SPEC.name] = _AUTORECOVER_STORE_MODULE
 _AUTORECOVER_STORE_SPEC.loader.exec_module(_AUTORECOVER_STORE_MODULE)
 AutoRecoverStore = _AUTORECOVER_STORE_MODULE.AutoRecoverStore
 
+_PRINT_PIPELINE_PATH = Path(__file__).resolve().parent / "platform" / "print" / "print_pipeline.py"
+_PRINT_PIPELINE_SPEC = importlib.util.spec_from_file_location("_vno_print_pipeline", _PRINT_PIPELINE_PATH)
+if _PRINT_PIPELINE_SPEC is None or _PRINT_PIPELINE_SPEC.loader is None:
+    raise ImportError(f"Cannot load print pipeline: {_PRINT_PIPELINE_PATH}")
+_PRINT_PIPELINE_MODULE = importlib.util.module_from_spec(_PRINT_PIPELINE_SPEC)
+sys.modules[_PRINT_PIPELINE_SPEC.name] = _PRINT_PIPELINE_MODULE
+_PRINT_PIPELINE_SPEC.loader.exec_module(_PRINT_PIPELINE_MODULE)
+PrintPipeline = _PRINT_PIPELINE_MODULE.PrintPipeline
+
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 INDEX_HTML = os.path.join(ROOT_DIR, "index.html")
 APP_VERSION = "0.9.0-pilot1"
@@ -428,6 +437,31 @@ class _SofficeUnoWorker:
         )
         return str(response["output_path"])
 
+    def operation(self, operation: str, payload: dict, timeout: float = 180) -> dict:
+        process = self.process
+        if process is None or process.poll() is not None or process.stdin is None:
+            raise _PersistentSofficeTransportError("LibreOffice UNO helper is not running.")
+        request_id = uuid.uuid4().hex
+        request = {"id": request_id, "op": operation, **payload}
+        started = time.perf_counter()
+        try:
+            with self._write_lock:
+                process.stdin.write(json.dumps(request, ensure_ascii=False) + "\n")
+                process.stdin.flush()
+            response = self._next_response(timeout=timeout)
+        except (OSError, BrokenPipeError) as exc:
+            raise _PersistentSofficeTransportError(str(exc)) from exc
+        if response.get("id") != request_id:
+            raise _PersistentSofficeTransportError("LibreOffice UNO helper returned an unexpected response.")
+        if not response.get("ok"):
+            raise _PersistentSofficeConversionError(str(response.get("error") or "LibreOffice operation failed"))
+        _open_perf_log(
+            f"uno_{operation}",
+            (time.perf_counter() - started) * 1000,
+            app=self.app_kind,
+        )
+        return response
+
     def stop(self, grace_seconds: float = 2.0) -> None:
         process = self.process
         if process is None or process.poll() is not None:
@@ -572,6 +606,35 @@ class _PersistentSofficeManager:
                     raise _PersistentSofficeTransportError(
                         f"UNO helper restart failed: {retry_error} (first error: {first_error})"
                     ) from retry_error
+
+    def operation(self, app_kind: str | None, operation: str, **payload) -> dict:
+        kind = app_kind if app_kind in VALID_APP_KINDS else "shared"
+        with self._lock:
+            worker = self._ensure_locked(kind)
+            try:
+                timeout = 300 if operation == "print_pdf" else 180
+                return worker.operation(operation, payload, timeout=timeout)
+            except (_PersistentSofficeConversionError, _PersistentSofficeTransportError) as first_error:
+                self._stop_locked()
+                # Read-only PDF inspection/rendering can safely restart once if
+                # LibreOffice drops its UNO bridge. A print job may already have
+                # reached the printer, so never retry that operation.
+                if operation == "print_pdf" or self._shutdown_requested.is_set():
+                    raise
+                try:
+                    worker = self._ensure_locked(kind)
+                    return worker.operation(operation, payload, timeout=timeout)
+                except Exception as retry_error:
+                    self._stop_locked()
+                    raise _PersistentSofficeTransportError(
+                        f"LibreOffice could not recover for {operation}: {retry_error} "
+                        f"(first error: {first_error})"
+                    ) from retry_error
+            finally:
+                if operation == "print_pdf" and self._worker is worker:
+                    # Some print drivers tear down LibreOffice's UNO bridge after the job.
+                    # A fresh helper is cheap compared with risking a second/spurious print.
+                    self._stop_locked()
 
     def shutdown(self) -> None:
         self._shutdown_requested.set()
@@ -1310,7 +1373,7 @@ def _inline_html_images(html_text: str, html_path: str) -> str:
 
 OPEN_FILE_TYPES = {
     "writer": ("Tài liệu Word (*.docx;*.odt;*.doc;*.rtf)", "Tất cả tệp (*.*)"),
-    "sheet": ("Bảng tính Excel (*.xlsx;*.ods;*.csv)", "Tất cả tệp (*.*)"),
+    "sheet": ("Bảng tính Excel (*.xlsx;*.xls;*.ods;*.csv;*.tsv)", "Tất cả tệp (*.*)"),
     "slides": ("Bản trình chiếu PowerPoint (*.pptx;*.odp)", "Tất cả tệp (*.*)"),
 }
 
@@ -1377,6 +1440,158 @@ def _sheet_fods_for_export(fods: str, target_format: str | None) -> str:
     if (target_format or "").lower() != "xls" or "VND" not in (fods or "").upper():
         return fods
     return _ooxml_zip_patch().fods_vnd_cells_as_text(fods)
+
+
+_PRINT_NATIVE_FORMAT = {"writer": "docx", "sheet": "xlsx", "slides": "pptx"}
+
+
+def _write_save_source(content: str, app_kind: str, temp_dir: str, target_format: str) -> str:
+    """Write the same interchange file that the native Save pipeline consumes."""
+    suffix = {"writer": "html", "sheet": "fods", "slides": "fodp"}.get(app_kind)
+    if not suffix:
+        raise ValueError(f"Loại ứng dụng không hợp lệ: {app_kind}")
+    source_path = os.path.join(temp_dir, f"draft.{suffix}")
+    if app_kind == "writer":
+        source = f"<html><head><meta charset='utf-8'></head><body>{content}</body></html>"
+    elif app_kind == "sheet":
+        source = _sheet_fods_for_export(content, target_format)
+    else:
+        source = content
+    with open(source_path, "w", encoding="utf-8") as source_file:
+        source_file.write(source)
+    return source_path
+
+
+def _convert_save_source_to_native(
+    source_path: str,
+    app_kind: str,
+    target_format: str,
+    source_document_path: str | None = None,
+) -> str:
+    """Run the Save conversion and native-format postprocessing shared by all save routes.
+
+    save_document_in_place, save_document_dialog, Export PDF and Print all call
+    this one function, so what is printed is exactly what Save writes to disk
+    (ROADMAP-V1 3b: display, save and print come from the same conversion).
+    ``source_document_path`` is the opened .docx/.xlsx (or legacy .doc, which
+    the postprocess converts to its intermediate .docx) whose OOXML
+    adapters/libreoffice/common/ooxml_zip_patch.py restores.
+    """
+    if app_kind == "writer" and target_format == "doc" and WRITER_DOC_EXPORT_VIA_DOCX:
+        return _convert_writer_html_to_doc(source_path, os.path.dirname(source_path), source_path=source_document_path)
+    out_path = _run_soffice_convert(source_path, target_format, os.path.dirname(source_path), app_kind=app_kind)
+    _apply_native_export_postprocess(
+        source_path, out_path, app_kind, target_format, source_path=source_document_path,
+    )
+    return out_path
+
+
+def _write_print_source(
+    content: str,
+    app_kind: str,
+    temp_dir: str,
+    source_document_path: str | None = None,
+) -> str:
+    """Build the print source through the same source-aware Save path as its native format."""
+    target_format = _PRINT_NATIVE_FORMAT.get(app_kind)
+    if not target_format:
+        raise ValueError(f"Loại ứng dụng không hợp lệ: {app_kind}")
+    interchange_path = _write_save_source(content, app_kind, temp_dir, target_format)
+    return _convert_save_source_to_native(
+        interchange_path, app_kind, target_format, source_document_path=source_document_path,
+    )
+
+
+def _convert_print_source_to_pdf(source_path: str, app_kind: str, output_dir: str) -> str:
+    """Convert the saved native print source to PDF with the matching LibreOffice filter."""
+    return _run_soffice_convert(source_path, "pdf", output_dir, app_kind=app_kind)
+
+
+def _export_content_to_pdf(
+    content: str,
+    app_kind: str,
+    temp_dir: str,
+    source_document_path: str | None = None,
+) -> str:
+    """Export PDF only after running the source-aware native Save conversion."""
+    native_path = _write_print_source(content, app_kind, temp_dir, source_document_path)
+    return _convert_print_source_to_pdf(native_path, app_kind, temp_dir)
+
+
+def _print_pdf_to_target_file(pdf_path: str, printer: str, destination_path: str, app_kind: str) -> dict:
+    """Use LibreOffice batch print-to-file for the Microsoft PDF printer without its prompt."""
+    if not SOFFICE_PATH:
+        raise DocumentEngineError("Không tìm thấy LibreOffice engine để gửi lệnh in.")
+    destination = Path(destination_path).expanduser().resolve()
+    if destination.suffix.lower() != ".pdf":
+        destination = destination.with_suffix(".pdf")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    with tempfile.TemporaryDirectory(prefix="vnoffice_print_file_") as temp_dir:
+        root = Path(temp_dir)
+        source_dir = root / "source"
+        output_dir = root / "output"
+        source_dir.mkdir()
+        output_dir.mkdir()
+        source_copy = source_dir / "VNOfficePrintJob.pdf"
+        shutil.copyfile(pdf_path, source_copy)
+
+        _PERSISTENT_SOFFICE.release_for_cli_fallback(app_kind)
+        command = [
+            SOFFICE_PATH,
+            "--headless",
+            "--invisible",
+            "--nocrashreport",
+            "--nodefault",
+            "--nolockcheck",
+            "--nologo",
+            "--norestore",
+            f"-env:UserInstallation={_profile_uri(app_kind)}",
+            "--print-to-file",
+            "--printer-name",
+            printer,
+            "--outdir",
+            str(output_dir),
+            str(source_copy),
+        ]
+        try:
+            completed = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=300,
+                check=False,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise RuntimeError(f"LibreOffice không hoàn tất lệnh in: {exc}") from exc
+        generated_pdf = output_dir / source_copy.name
+        if completed.returncode != 0 or not generated_pdf.is_file() or generated_pdf.stat().st_size <= 0:
+            detail = (completed.stderr or completed.stdout or "").strip()
+            raise RuntimeError(detail or "Máy in PDF không tạo được tệp đầu ra.")
+        _atomic_replace_file(str(generated_pdf), str(destination))
+        _verify_saved_file(str(destination))
+    return {"ok": True, "printer": printer, "output_path": str(destination)}
+
+
+def _print_pdf_job(app_kind: str, pdf_path: str, printer: str, copies: int, pages: str, output_path: str | None) -> dict:
+    if (
+        printer.casefold() == "microsoft print to pdf"
+        and output_path
+        and copies == 1
+        and not pages
+    ):
+        return _print_pdf_to_target_file(pdf_path, printer, output_path, app_kind)
+    return _PERSISTENT_SOFFICE.operation(
+        app_kind,
+        "print_pdf",
+        pdf_path=pdf_path,
+        printer=printer,
+        copies=copies,
+        pages=pages,
+    )
 
 
 def _atomic_replace_file(src_temp_file: str, dest_path: str) -> None:
@@ -1579,6 +1794,21 @@ class VnOfficeApi:
         self._sheet_open_sessions: dict[str, dict[str, object]] = {}
         self._sheet_open_session_lock = threading.RLock()
         self._last_sheet_open_id: str | None = None
+        self._print_pipeline = PrintPipeline(
+            write_source=_write_print_source,
+            convert_pdf=_convert_print_source_to_pdf,
+            inspect_pdf=lambda kind, pdf_path: int(
+                _PERSISTENT_SOFFICE.operation(kind, "inspect_pdf", pdf_path=pdf_path)["page_count"]
+            ),
+            render_page=lambda kind, pdf_path, page_index, output_path: _PERSISTENT_SOFFICE.operation(
+                kind,
+                "render_pdf_page",
+                pdf_path=pdf_path,
+                page_index=page_index,
+                output_path=output_path,
+            ),
+            print_pdf=_print_pdf_job,
+        )
         try:
             self._autorecover_store = AutoRecoverStore(_user_data_dir())
         except OSError:
@@ -1841,6 +2071,9 @@ class VnOfficeApi:
     def open_document_dialog(self, app_kind="writer"):
         return self._invoke_reported_api("open_document_dialog", self._open_document_dialog_impl, app_kind)
 
+    def open_mail_merge_data_dialog(self):
+        return self._invoke_reported_api("open_mail_merge_data_dialog", self._open_mail_merge_data_dialog_impl)
+
     def save_document_in_place(self, content, app_kind="writer", target_path=None, source_path=None):
         return self._invoke_reported_api(
             "save_document_in_place", self._save_document_in_place_impl,
@@ -1859,7 +2092,82 @@ class VnOfficeApi:
             content, app_kind, suggested_name, source_path,
         )
 
+    def prepare_print_document(self, app_kind, content, suggested_name="TaiLieu", source_path=None):
+        return self._invoke_reported_api(
+            "prepare_print_document",
+            self._print_pipeline.prepare,
+            app_kind,
+            content,
+            suggested_name,
+            source_path,
+        )
+
+    def get_print_preview_page(self, session_id, page_number):
+        try:
+            return self._print_pipeline.preview_page(session_id, page_number)
+        except Exception as exc:
+            return {"status": "error", "message": f"Không tải được trang xem trước: {exc}"}
+
+    def get_installed_printers(self):
+        return _PRINT_PIPELINE_MODULE.list_installed_printers()
+
+    def print_document(self, session_id, settings):
+        return self._invoke_reported_api(
+            "print_document",
+            self._print_document_impl,
+            session_id,
+            settings,
+        )
+
+    def _print_document_impl(self, session_id, settings):
+        options = settings if isinstance(settings, dict) else {}
+        printer = str(options.get("printer") or "").strip()
+        destination_path = options.get("destinationPath")
+        copies = options.get("copies")
+        page_range = str(options.get("pageRange", "") or "").strip()
+        if (
+            printer.casefold() == "microsoft print to pdf"
+            and not destination_path
+            and copies == 1
+            and not page_range
+        ):
+            window = _active_window()
+            if not window:
+                return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng để chọn nơi lưu PDF."}
+            suggested_name = self._print_pipeline.suggested_name(session_id)
+            try:
+                save_result = window.create_file_dialog(
+                    webview.SAVE_DIALOG,
+                    save_filename=f"{suggested_name}.pdf",
+                    file_types=("Tài liệu PDF (*.pdf)", "Tất cả tệp (*.*)"),
+                )
+            except Exception as exc:
+                return {"status": "error", "message": f"Không mở được hộp thoại lưu PDF: {exc}"}
+            if not save_result:
+                return {"status": "cancelled"}
+            destination_path = save_result if isinstance(save_result, str) else save_result[0]
+            if not str(destination_path).lower().endswith(".pdf"):
+                destination_path = f"{destination_path}.pdf"
+        result = self._print_pipeline.print_document(
+            session_id,
+            printer,
+            copies,
+            page_range,
+            str(destination_path) if destination_path else None,
+        )
+        if result.get("status") == "ok" and destination_path:
+            result["path"] = str(destination_path)
+        return result
+
+    def cancel_print_document(self, session_id):
+        return self._print_pipeline.cancel(session_id)
+
+    def close_print_sessions(self):
+        self._print_pipeline.close()
+
     def _default_operation(self, method_name, method, args, kwargs):
+        if method_name == "open_mail_merge_data_dialog":
+            return "open.mailmerge.dialog"
         if method_name == "open_document_dialog":
             self._reporting_app_kind = args[0] if args and args[0] in VALID_APP_KINDS else self._app_kind
             path = self._initial_file
@@ -2242,6 +2550,73 @@ class VnOfficeApi:
                 payload["ooxmlPresPropsXml"] = pres_props_xml
         return payload
 
+    def _open_mail_merge_data_dialog_impl(self):
+        """Mở hộp thoại chọn tệp nguồn dữ liệu trộn thư (Excel .xlsx/.xls hoặc CSV/TSV).
+        Chuyển đổi Excel sang FODS qua LibreOffice để bảo toàn định dạng hiển thị,
+        ngày tháng, số tiền và tiếng Việt."""
+        window = _active_window()
+        if not window:
+            return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
+
+        file_types = (
+            "Nguồn dữ liệu trộn thư (*.xlsx;*.xls;*.csv;*.tsv;*.ods)",
+            "Bảng tính Excel (*.xlsx;*.xls;*.ods)",
+            "Tệp văn bản phân tách (*.csv;*.tsv;*.txt)",
+            "Tất cả tệp (*.*)",
+        )
+        try:
+            result = window.create_file_dialog(webview.OPEN_DIALOG, file_types=file_types)
+        except Exception as exc:
+            return {"status": "error", "message": f"Không mở được hộp thoại: {exc}"}
+
+        if not result:
+            return {"status": "cancelled"}
+
+        src_path = result[0]
+        ext = Path(src_path).suffix.lower()
+        file_name = Path(src_path).name
+        self._reporting_file_path = src_path
+        self._reporting_operation = f"open.mailmerge.{ext.lstrip('.') or 'unknown'}"
+
+        if ext in (".csv", ".tsv", ".txt"):
+            try:
+                with open(src_path, "rb") as f:
+                    raw = f.read()
+                try:
+                    text = raw.decode("utf-8-sig")
+                except UnicodeDecodeError:
+                    try:
+                        text = raw.decode("utf-8")
+                    except UnicodeDecodeError:
+                        text = raw.decode("cp1258", errors="replace")
+                return {
+                    "status": "ok",
+                    "format": "tsv" if ext == ".tsv" else "csv",
+                    "fileName": file_name,
+                    "sourcePath": src_path,
+                    "content": text,
+                }
+            except Exception as exc:
+                return {"status": "error", "message": f"Không đọc được tệp {file_name}: {exc}"}
+
+        if ext in (".xlsx", ".xls", ".ods"):
+            try:
+                with tempfile.TemporaryDirectory(prefix="vnoffice_mailmerge_") as tmp:
+                    out_path = _run_soffice_convert(src_path, "fods", tmp, app_kind="sheet")
+                    with open(out_path, "r", encoding="utf-8", errors="replace") as f:
+                        fods_content = f.read()
+                return {
+                    "status": "ok",
+                    "format": "fods",
+                    "fileName": file_name,
+                    "sourcePath": src_path,
+                    "content": fods_content,
+                }
+            except Exception as exc:
+                return {"status": "error", "message": f"Không chuyển đổi được tệp {file_name}: {exc}"}
+
+        return {"status": "error", "message": f"Định dạng tệp không được hỗ trợ: {ext}"}
+
     def _save_document_in_place_impl(self, content, app_kind="writer", target_path=None, source_path=None):
         """Lưu nội dung trực tiếp vào tệp đích (Ctrl+S / Save-in-place),
         giữ nguyên định dạng gốc và thay thế nguyên tử an toàn."""
@@ -2255,26 +2630,10 @@ class VnOfficeApi:
 
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_inplace_") as tmp:
-                if app_kind == "writer":
-                    src_path = os.path.join(tmp, "draft.html")
-                    with open(src_path, "w", encoding="utf-8") as f:
-                        f.write(f"<html><head><meta charset='utf-8'></head><body>{content}</body></html>")
-                elif app_kind == "sheet":
-                    src_path = os.path.join(tmp, "draft.fods")
-                    with open(src_path, "w", encoding="utf-8") as f:
-                        f.write(_sheet_fods_for_export(content, target_format))
-                elif app_kind == "slides":
-                    src_path = os.path.join(tmp, "draft.fodp")
-                    with open(src_path, "w", encoding="utf-8") as f:
-                        f.write(content)
-                else:
-                    return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
-
-                if app_kind == "writer" and target_format == "doc" and WRITER_DOC_EXPORT_VIA_DOCX:
-                    out_path = _convert_writer_html_to_doc(src_path, tmp, source_path=source_path)
-                else:
-                    out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
-                    _apply_native_export_postprocess(src_path, out_path, app_kind, target_format, source_path=source_path)
+                src_path = _write_save_source(content, app_kind, tmp, target_format)
+                out_path = _convert_save_source_to_native(
+                    src_path, app_kind, target_format, source_document_path=source_path,
+                )
                 _atomic_replace_file(out_path, target_path)
                 _verify_saved_file(target_path)
         except DocumentEngineError as exc:
@@ -2325,26 +2684,15 @@ class VnOfficeApi:
 
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_") as tmp:
-                if app_kind == "writer":
-                    src_path = os.path.join(tmp, "draft.html")
-                    with open(src_path, "w", encoding="utf-8") as f:
-                        f.write(f"<html><head><meta charset='utf-8'></head><body>{content}</body></html>")
-                elif app_kind == "sheet":
-                    src_path = os.path.join(tmp, "draft.fods")
-                    with open(src_path, "w", encoding="utf-8") as f:
-                        f.write(_sheet_fods_for_export(content, target_format))
-                elif app_kind == "slides":
-                    src_path = os.path.join(tmp, "draft.fodp")
-                    with open(src_path, "w", encoding="utf-8") as f:
-                        f.write(content)
+                if target_format == "pdf":
+                    out_path = _export_content_to_pdf(
+                        content, app_kind, tmp, source_document_path=source_path,
+                    )
                 else:
-                    return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
-
-                if app_kind == "writer" and target_format == "doc" and WRITER_DOC_EXPORT_VIA_DOCX:
-                    out_path = _convert_writer_html_to_doc(src_path, tmp, source_path=source_path)
-                else:
-                    out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
-                    _apply_native_export_postprocess(src_path, out_path, app_kind, target_format, source_path=source_path)
+                    src_path = _write_save_source(content, app_kind, tmp, target_format)
+                    out_path = _convert_save_source_to_native(
+                        src_path, app_kind, target_format, source_document_path=source_path,
+                    )
                 _atomic_replace_file(out_path, dest_path)
                 _verify_saved_file(dest_path)
         except DocumentEngineError as exc:
@@ -2626,6 +2974,7 @@ def main(argv: list[str] | None = None):
     def on_closing():
         # Thoát tiến trình ngay lập tức khi người dùng bấm nút đóng (X), tránh lỗi COM teardown
         api.close_autorecover_session()
+        api.close_print_sessions()
         _PERSISTENT_SOFFICE.shutdown()
         os._exit(0)
 

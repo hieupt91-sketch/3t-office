@@ -31,8 +31,8 @@ function container() {
 }
 
 function parseVndSum(formatted) {
-  // "23.814.000 ₫" -> 23814000 (chỉ dùng trong test để so sánh, không phải code sản phẩm)
-  return Number(String(formatted).replace(/[^\d-]/g, ""));
+  // "23.814.000,5 ₫" -> 23814000.5 (chỉ dùng trong test, không phải code sản phẩm)
+  return Number(String(formatted).replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, ""));
 }
 
 export async function runSheetStatusBarSumTests() {
@@ -60,10 +60,9 @@ export async function runSheetStatusBarSumTests() {
     grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "A", r: 1 } };
     const stats = grid._calculateStats();
     const sum = parseVndSum(stats.sum);
-    // Intl currency format làm tròn về đơn vị VND nguyên (không thập phân),
-    // nên 23814000.5 làm tròn ~23814001 hoặc 23814000 tùy cách format —
-    // điều quan trọng là KHÔNG được ra 238140005 (sai gấp 10 lần do xén dấu chấm).
-    assert(sum < 23814002 && sum > 23813999, `sum phải ~23814000-23814001, KHÔNG được là 238140005 (bug xén dấu chấm thập phân), thực tế: ${sum}`);
+    // Thanh trạng thái phải giữ nguyên phần thập phân của cả Sum lẫn Average.
+    assert(sum === 23814000.5, `sum phải giữ đúng 23814000.5, KHÔNG được xén dấu thập phân thành 238140005, thực tế: ${sum}`);
+    assert(parseVndSum(stats.avg) === 23814000.5, `average ô đơn phải giữ đúng 23814000.5, thực tế: ${stats.avg}`);
   });
 
   test("_calculateStats(): ô có CÔNG THỨC vẫn được cộng vào Sum/Count (dùng kết quả itm.val đã tính, khớp hành vi Excel thật)", () => {

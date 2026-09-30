@@ -115,6 +115,8 @@
   overflow: auto;
   position: relative;
   background-color: var(--vno-bg-window);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .vno-grid-table {
@@ -268,6 +270,8 @@
   overflow: hidden;
   text-overflow: clip;
   cursor: cell;
+  user-select: none;
+  -webkit-user-select: none;
   /* Excel thật dùng lưới ô rõ nét (~#d4d4d4), không mờ gần trắng như trước -
      border-subtle (#f1f5f9) gần như vô hình trên nền trắng, khó nhìn hơn hẳn
      Excel thật. Dùng border-default cho tương phản đủ rõ, khớp cảm giác lưới
@@ -1280,10 +1284,7 @@ tr.is-filtered-out {
 }
 
 
-/* In tài liệu (window.print()) — lưới sống dùng ảo hóa hàng nên KHÔNG thể in trực tiếp
-   (chỉ vài chục hàng quanh vị trí cuộn thực sự có trong DOM). print() dựng lại toàn bộ
-   nội dung theo đúng Page Setup vào #vno-sheet-print-only rồi mới gọi window.print();
-   ở đây chỉ cần ẩn lưới sống/preview và hiện vùng in thật. */
+/* Fallback CSS cũ nếu WebView hiển thị vùng in HTML; thao tác In hiện dùng PDF LibreOffice. */
 @media print {
   .vno-sheet-container,
   .vno-sheet-print-preview-overlay {

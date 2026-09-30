@@ -6,6 +6,7 @@
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
+import { openPrintDialog } from "../../../platform/print/print-dialog.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { overlayFodpMasterLogo } from "./pptx-master-logo.js";
 import { overlayFodpSections } from "./pptx-section-list.js";
@@ -140,6 +141,7 @@ export class SlidesAdapter {
     // (Lỗi thật đã xảy ra: Ctrl+Z trong Slides gọi nhầm WriterAdapter.undo().)
     globalCommandBus.bindHandler("common.file.new", () => this.newDocument());
     globalCommandBus.bindHandler("common.file.close", () => this.closeDocument());
+    globalCommandBus.bindHandler("common.file.print", () => this.print());
     globalCommandBus.bindHandler("common.edit.undo", () => this.canvas.undo ? this.canvas.undo() : false);
     globalCommandBus.bindHandler("common.edit.redo", () => this.canvas.redo ? this.canvas.redo() : false);
     globalCommandBus.bindHandler("common.edit.selectAll", () => {
@@ -178,7 +180,7 @@ export class SlidesAdapter {
     // Command metadata is app-local because this feature is scoped to Slides;
     // bind explicitly instead of requiring a Platform registry change.
     globalCommandBus.bindHandler("slides.insert.chart", (options) => this.canvas.insertChart ? this.canvas.insertChart(options) : false);
-    globalCommandBus.bindHandler("slides.file.printPreview", () => Boolean(this.canvas.openPrintPreview ? this.canvas.openPrintPreview() : false));
+    globalCommandBus.bindHandler("slides.file.printPreview", () => this.print());
     globalCommandBus.bindHandler("slides.view.normal", () => this.canvas.setNormalView ? this.canvas.setNormalView() : false);
     globalCommandBus.bindHandler("slides.view.slideSorter", () => this.canvas.openSlideSorter ? this.canvas.openSlideSorter() : false);
     globalCommandBus.bindHandler("slides.notes.toggle", () => this.canvas.toggleNotes ? this.canvas.toggleNotes() : false);
@@ -1261,6 +1263,7 @@ export class SlidesAdapter {
 
   _shapeStyleName(shape) {
     if (shape.type === "connector") return "grConnector";
+    if (shape.type === "ink" || shape.type === "path") return `grInk_${this._styleKey(shape.stroke || shape.color || "DC2626")}_${shape.strokeWidth || 3}`;
     if (shape.type === "image" && shape.crop) return `grImage_crop_${this._styleKey(shape.id || "img")}`;
     if (shape.type === "image" || shape.type === "video" || shape.type === "audio") return "grImage";
     const suffix = this._shapeTextStyleSuffix(shape);
@@ -1901,6 +1904,10 @@ export class SlidesAdapter {
           needsConnector = true;
           continue;
         }
+        if (shape.type === "ink" || shape.type === "path") {
+          namedStyles.set(this._shapeStyleName(shape), shape);
+          continue;
+        }
         if (shape.type === "image" || shape.type === "video" || shape.type === "audio") {
           if (shape.type === "image" && shape.crop) {
             namedStyles.set(this._shapeStyleName(shape), shape);
@@ -2014,6 +2021,15 @@ export class SlidesAdapter {
     </style:style>`;
         continue;
       }
+      if (shape.type === "ink" || shape.type === "path") {
+        const sc = shape.stroke || shape.color || "#DC2626";
+        const sw = shape.strokeWidth ? this._pxToOdf(shape.strokeWidth) : "0.08cm";
+        xml += `
+    <style:style style:name="${styleName}" style:family="graphic">
+      <style:graphic-properties draw:stroke="solid" svg:stroke-color="${this._escapeXml(sc)}" svg:stroke-width="${sw}" draw:fill="none"/>
+    </style:style>`;
+        continue;
+      }
       const isTextBox = shape.type === "textbox";
       const isTransparent = this._isTransparentFill(shape);
       let fillAttrs = "";
@@ -2069,6 +2085,14 @@ export class SlidesAdapter {
         <draw:connector ${geom} draw:type="line" svg:x1="${x1}" svg:y1="${y1}" svg:x2="${x2}" svg:y2="${y2}" draw:start-shape="${start}" draw:end-shape="${end}"${stroke}${marker}>
           <text:p/>
         </draw:connector>`;
+    }
+
+    if (type === "ink" || type === "path") {
+      const viewBox = shape.viewBox || `0 0 ${shape.w} ${shape.h}`;
+      return `
+        <draw:path ${geom} svg:d="${this._escapeXml(shape.d || "")}" svg:viewBox="${this._escapeXml(viewBox)}">
+          <text:p/>
+        </draw:path>`;
     }
 
     if (type === "image") {
@@ -2350,9 +2374,12 @@ export class SlidesAdapter {
   _parseDrawShape(tagName, attrs, inner, graphicStyles) {
     const get = (name) => this._attr(attrs, name);
     const geomType = inner.match(/draw:type=["']([^"']+)["']/i)?.[1] || tagName;
+    const dAttr = get("svg:d");
+    const enhancedPath = inner.match(/draw:enhanced-path=["']([^"']+)["']/i)?.[1];
     let type = "rect";
     if (/ellipse|circle/i.test(geomType) || tagName === "ellipse" || tagName === "circle") type = "ellipse";
     else if (/arrow/i.test(geomType)) type = "arrow";
+    else if (/path|ink/i.test(geomType) || tagName === "path" || (dAttr && !/arrow/i.test(geomType))) type = "ink";
     const styleName = get("draw:style-name");
     const style = graphicStyles.get(styleName) || {};
     const color = get("draw:fill-color") || style.fill || "#3b82f6";
@@ -2467,6 +2494,15 @@ export class SlidesAdapter {
     if (pRight != null) shape.paddingRight = pRight;
     if (pTop != null) shape.paddingTop = pTop;
     if (pBottom != null) shape.paddingBottom = pBottom;
+    if (type === "ink" || tagName === "path" || dAttr) {
+      shape.type = "ink";
+      shape.d = dAttr || enhancedPath || "";
+      shape.viewBox = get("svg:viewBox") || inner.match(/svg:viewBox=["']([^"']+)["']/i)?.[1] || "";
+      shape.stroke = get("svg:stroke-color") || style.stroke || color || "#DC2626";
+      shape.strokeWidth = strokeWidth || style.strokeWidth || 3;
+      shape.color = shape.stroke;
+      shape.fill = "none";
+    }
     return shape;
   }
 
@@ -2825,7 +2861,7 @@ export class SlidesAdapter {
   _parseInnerDrawShapes(xml, graphicStyles, idMap) {
     const shapes = [];
     let rest = xml;
-    rest = this._extractTaggedShapes(rest, ["rect", "ellipse", "circle", "custom-shape", "polygon"], (tagName, attrs, inner) => {
+    rest = this._extractTaggedShapes(rest, ["rect", "ellipse", "circle", "custom-shape", "polygon", "path"], (tagName, attrs, inner) => {
       const shape = this._parseDrawShape(tagName, attrs, inner, graphicStyles);
       this._recordShapeId(attrs, shape, idMap);
       shapes.push(shape);
@@ -3291,7 +3327,7 @@ export class SlidesAdapter {
       const shapes = [];
       const idMap = new Map();
       pageContent = this._extractDrawGroups(pageContent, shapes, graphicStyles, idMap);
-      pageContent = this._extractTaggedShapes(pageContent, ["rect", "ellipse", "circle", "custom-shape", "polygon"], (tagName, attrs, inner) => {
+      pageContent = this._extractTaggedShapes(pageContent, ["rect", "ellipse", "circle", "custom-shape", "polygon", "path"], (tagName, attrs, inner) => {
         const shape = this._parseDrawShape(tagName, attrs, inner, graphicStyles);
         this._recordShapeId(attrs, shape, idMap);
         shapes.push(shape);
@@ -3646,11 +3682,19 @@ export class SlidesAdapter {
   }
 
   print() {
-    if (this.canvas?.print) return this.canvas.print();
-    if (typeof window !== "undefined" && typeof window.print === "function") {
-      window.print();
-    }
-    return true;
+    const size = this.canvas?.slideSize || { width: 960, height: 540 };
+    const orientation = size.width >= size.height ? "Ngang" : "Dọc";
+    const slides = this.canvas?.slides || [];
+    const currentSlide = this.canvas?.currentSlideIndex || 0;
+    const currentPage = slides.slice(0, currentSlide + 1).filter((slide) => !slide.hidden).length || 1;
+    return openPrintDialog({
+      appKind: "slides",
+      content: this.serializeToFodp(),
+      documentName: this.sourceFileName || "Bản trình chiếu",
+      pageSetupLabel: `${size.width} × ${size.height} px · ${orientation}`,
+      currentPage,
+      engine: globalUnoBridge
+    });
   }
 
   /**
@@ -3906,7 +3950,7 @@ export class SlidesAdapter {
 
       case "slides.file.printPreview":
       case ".uno:PrintPreview":
-        return Boolean(this.canvas.openPrintPreview ? this.canvas.openPrintPreview() : false);
+        return this.print();
 
       case "slides.view.normal":
       case ".uno:NormalMultiPaneGUI":

@@ -259,7 +259,10 @@ export const enStrings = {
     formatBackgroundTitle: "Format Background", formatBackgroundHint: "Change this slide's background. This does not replace the presentation theme.", formatBackgroundSolid: "Solid fill", formatBackgroundGradient: "Two-color gradient", formatBackgroundPicture: "Picture", formatBackgroundColor: "Fill color", formatBackgroundFrom: "Color 1", formatBackgroundTo: "Color 2", formatBackgroundDirection: "Direction", formatBackgroundHorizontal: "Horizontal", formatBackgroundVertical: "Vertical", formatBackgroundChoosePicture: "Choose picture…", formatBackgroundApplyCurrent: "Apply to this slide", formatBackgroundApplyAll: "Apply to all slides", formatBackgroundClear: "Remove custom background",
     spellcheckTitle: "Spelling", spellcheckNotInDictionary: "Not in Dictionary:", spellcheckLocation: "Location", spellcheckContext: "Text", spellcheckSuggestions: "Suggestions:", spellcheckNoSuggestions: "(No close suggestions)", spellcheckIgnore: "Ignore Once", spellcheckIgnoreAll: "Ignore All", spellcheckAdd: "Add to Dictionary", spellcheckReplace: "Change", spellcheckReplaceAll: "Change All", spellcheckClose: "Close", spellcheckStatus: "Issue {current} of {total}", spellcheckComplete: "The spelling check is complete for this slide. No misspellings were found.", spellcheckCompleteRemaining: "The spelling check is complete. No misspellings remain.", spellcheckFieldTitle: "Title", spellcheckFieldBody: "Body", spellcheckFieldBody2: "Second column", spellcheckFieldShape: "Shape",
     animationPaneTitle: "Animation Pane", animationPaneHint: "Every animation on the current slide. Reorder with Up/Down, choose how it starts, or remove the animation without deleting the object.", animationPaneEmpty: "This slide has no animations. Apply an object animation on the Animations tab, then open this pane to sequence them.", animStartLabel: "Start", animStartOnClick: "On Click", animStartWithPrevious: "With Previous", animStartAfterPrevious: "After Previous", animMoveUp: "Move up", animMoveDown: "Move down", animMoveUpShort: "↑", animMoveDownShort: "↓", animRemove: "Remove animation", animRemoveShort: "Remove", shapeWordArt: "WordArt", shapeChart: "Chart", shapeTable: "Table", shapeTextBox: "Text box",
-    setupShowTitle: "Set Up Slide Show", setupShowHint: "Show options for this presentation. Loop until Esc applies immediately in F5. Pen/laser color is stored for a future pointer — VN Slides does not yet draw a pen or laser on the show screen.", setupShowLoop: "Loop continuously until Esc", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "VN Slides does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color"
+    setupShowTitle: "Set Up Slide Show", setupShowHint: "Slide show options for this presentation. Loop until Esc applies immediately in F5. Default pen and laser pointer color during slide show (toggle with Ctrl+P, Ctrl+L).", setupShowLoop: "Loop continuously until Esc", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "VN Slides does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color",
+    keepInkTitle: "VN Slides", keepInkPrompt: "Do you want to keep your ink annotations?", keepInkKeep: "Keep", keepInkDiscard: "Discard",
+    slideshowNext: "Next", slideshowPrev: "Previous", slideshowPointerOptions: "Pointer Options", slideshowArrow: "Arrow", slideshowPen: "Pen", slideshowLaser: "Laser Pointer", slideshowPenColor: "Pen Color", slideshowEraseInk: "Erase Ink on Slide", slideshowEndShow: "End Show",
+    colorRed: "Red", colorBlue: "Blue", colorYellow: "Yellow", colorGreen: "Green", colorBlack: "Black"
   },
   commands: {
     "writer.edit.select": { label: "Select", tooltip: "Select text or objects in the document" },
@@ -680,12 +683,12 @@ export const enStrings = {
     "writer.reference.captionInsert": { label: "Insert Caption", tooltip: "Insert an auto-numbered caption for a picture, table, or equation" },
     "writer.reference.tofInsert": { label: "Insert Table of Figures", tooltip: "Insert a table of figures or tables from existing captions" },
     "writer.reference.tofUpdate": { label: "Update Table of Figures", tooltip: "Refresh the table of figures from captions in the document" },
-    "writer.mailMerge.open": { label: "Select Recipients", tooltip: "Set up mail merge data source (CSV)" },
+    "writer.mailMerge.open": { label: "Select Recipients", tooltip: "Open mail merge recipient list from Excel (.xlsx, .xls) or CSV/TSV file" },
     "writer.mailMerge.insertField": { label: "Insert Merge Field", tooltip: "Insert a mail merge field" },
     "writer.mailMerge.preview": { label: "Preview Results", tooltip: "Preview merged records" },
     "writer.mailMerge.prevRecord": { label: "Previous Record", tooltip: "Go to previous record" },
     "writer.mailMerge.nextRecord": { label: "Next Record", tooltip: "Go to next record" },
-    "writer.mailMerge.finish": { label: "Finish & Merge", tooltip: "Complete merge and generate merged document" },
+    "writer.mailMerge.finish": { label: "Finish & Merge", tooltip: "Complete mail merge: generate new document or print directly" },
     "writer.mailings.envelopes": { label: "Envelopes", tooltip: "Add an envelope page with delivery and return addresses" },
     "writer.mailings.labels": { label: "Labels", tooltip: "Create a label sheet — one text or a record per cell from Mail Merge" }
   },
@@ -891,20 +894,20 @@ export const enStrings = {
       contentRequired: "Enter label text, or turn on the Mail Merge source."
     },
     mailMerge: {
-      dataSourceTitle: "Mail Merge — Data Source (CSV)",
-      pastePrompt: "Paste spreadsheet data in <strong>CSV</strong> format below (first row as column headers):",
+      dataSourceTitle: "Mail Merge — Recipient Data Source (Excel / CSV)",
+      pastePrompt: "Select an Excel (.xlsx, .xls) / CSV file, or paste table data below:",
       pasteSampleBtn: "📋 Paste Sample Data",
       noData: "No data",
-      invalidCsv: "Invalid CSV (missing column headers)",
+      invalidCsv: "Invalid data (missing column headers)",
       foundData: "Found: {count} columns | {records} records",
       saveDataSource: "Save Data Source",
       insertFieldTitle: "Insert Merge Field",
       selectFieldPrompt: "Select field to insert into document:",
       insertBtn: "Insert Field",
       noDataWarningTitle: "Mail Merge Preview",
-      noDataWarningMsg: "No mail merge data source found. Please open 'Select Recipients' to paste CSV data first.",
+      noDataWarningMsg: "No mail merge data source found. Please open 'Select Recipients' to choose an Excel/CSV file first.",
       finishTitle: "Finish & Merge",
-      finishNoData: "No mail merge data source to create documents. Please open 'Select Recipients' to paste CSV data.",
+      finishNoData: "No mail merge data source to create documents. Please open 'Select Recipients' to select an Excel/CSV file.",
       finishNoFields: "Current document contains no merge fields. Use 'Insert Merge Field' to insert at least one field.",
       finishSuccess: "Successfully merged {count} records into document. You can preview or export the document."
     },

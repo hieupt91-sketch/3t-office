@@ -425,18 +425,18 @@ export async function runWriterPrintPreviewTests() {
       adapter.closePrintPreview();
     });
 
-    await test("Writer Print Preview: nút 'In tài liệu' kích hoạt window.print() thật", async () => {
+    await test("Writer Print Preview: nút In chuyển sang luồng in chung, không gọi trình duyệt", async () => {
       const editorDom = new FakeElement("div");
       const adapter = new WriterAdapter(editorDom);
       windowPrintCalled = false;
-
+      let printActionCalled = 0;
+      adapter.print = () => { printActionCalled++; };
       const overlay = adapter.openPrintPreview();
       const printBtn = overlay.querySelector(".vno-print-preview-btn-print");
       if (!printBtn) throw new Error("Không tìm thấy nút In trong preview toolbar");
-
       printBtn.click();
-      if (!windowPrintCalled) throw new Error("window.print() chưa được gọi khi click nút In");
-
+      if (printActionCalled !== 1) throw new Error("Nút In chưa chuyển sang WriterAdapter.print()");
+      if (windowPrintCalled) throw new Error("Luồng in không được gọi window.print()");
       adapter.closePrintPreview();
     });
 
@@ -462,21 +462,24 @@ export async function runWriterPrintPreviewTests() {
       if (fakeDoc.body.contains(overlay2)) throw new Error("Overlay chưa được gỡ khỏi DOM sau khi bấm phím Escape");
     });
 
-    await test("Writer Print Preview: tích hợp đầy đủ qua handleDispatch và Command Bus", async () => {
+    await test("Writer Print command qua UNO và Command Bus mở chung luồng in", async () => {
       const editorDom = new FakeElement("div");
       const adapter = new WriterAdapter(editorDom);
+      let printCalls = 0;
+      adapter.print = () => { printCalls += 1; return true; };
       adapter.attach();
 
-      // Dispatch qua UNO
+      // The shared print dialog needs a real browser DOM; this fake-DOM test
+      // verifies both command routes delegate to the adapter's print action.
       const handledUno = await adapter.handleDispatch(".uno:PrintPreview", null, "writer.file.printPreview");
       if (!handledUno) throw new Error("handleDispatch với .uno:PrintPreview trả về false");
-      if (!adapter.printPreviewOverlay) throw new Error("Chưa mở overlay khi dispatch qua UNO");
-      adapter.closePrintPreview();
+      if (printCalls !== 1) throw new Error("UNO PrintPreview không gọi luồng in chung");
 
-      // Dispatch qua Command Bus
-      const busResult = await globalCommandBus.execute("writer.file.printPreview");
-      if (!adapter.printPreviewOverlay) throw new Error("Command Bus execute writer.file.printPreview không mở preview");
-      adapter.closePrintPreview();
+      await globalCommandBus.execute("writer.file.printPreview");
+      if (printCalls !== 2) throw new Error("Command Bus không gọi luồng in chung");
+
+      await globalCommandBus.execute("common.file.print");
+      if (printCalls !== 3) throw new Error("Ctrl+P common.file.print không gọi WriterAdapter.print()");
     });
 
     await test("Writer Print Preview: _normalizePreviewFooterTables chuẩn hóa tỷ lệ cột bảng footer Word có badge cam", async () => {

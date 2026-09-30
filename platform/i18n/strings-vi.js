@@ -258,7 +258,10 @@ export const viStrings = {
     formatBackgroundTitle: "Định dạng nền", formatBackgroundHint: "Đổi nền trang chiếu hiện tại. Không thay chủ đề toàn bài.", formatBackgroundSolid: "Màu đơn", formatBackgroundGradient: "Gradient 2 màu", formatBackgroundPicture: "Ảnh nền", formatBackgroundColor: "Màu nền", formatBackgroundFrom: "Màu 1", formatBackgroundTo: "Màu 2", formatBackgroundDirection: "Hướng", formatBackgroundHorizontal: "Ngang", formatBackgroundVertical: "Dọc", formatBackgroundChoosePicture: "Chọn ảnh…", formatBackgroundApplyCurrent: "Áp dụng trang này", formatBackgroundApplyAll: "Áp dụng tất cả trang", formatBackgroundClear: "Xóa nền tùy chỉnh",
     spellcheckTitle: "Chính tả", spellcheckNotInDictionary: "Không có trong từ điển:", spellcheckLocation: "Vị trí", spellcheckContext: "Nội dung", spellcheckSuggestions: "Gợi ý:", spellcheckNoSuggestions: "(Không có gợi ý gần)", spellcheckIgnore: "Bỏ qua", spellcheckIgnoreAll: "Bỏ qua tất cả", spellcheckAdd: "Thêm vào từ điển", spellcheckReplace: "Thay thế", spellcheckReplaceAll: "Thay thế tất cả", spellcheckClose: "Đóng", spellcheckStatus: "Lỗi {current} / {total}", spellcheckComplete: "Đã kiểm tra xong trang chiếu hiện tại. Không tìm thấy lỗi chính tả.", spellcheckCompleteRemaining: "Đã kiểm tra xong. Không còn lỗi chính tả.", spellcheckFieldTitle: "Tiêu đề", spellcheckFieldBody: "Nội dung", spellcheckFieldBody2: "Nội dung cột 2", spellcheckFieldShape: "Hình",
     animationPaneTitle: "Ngăn hoạt hình", animationPaneHint: "Danh sách hiệu ứng trên trang đang chọn. Đổi thứ tự bằng nút lên/xuống, chọn cách bắt đầu, hoặc xóa hiệu ứng (không xóa đối tượng).", animationPaneEmpty: "Trang này chưa có hiệu ứng. Dùng Hiệu ứng đối tượng trên tab Hoạt hình để gắn hiệu ứng, rồi mở lại ngăn này để sắp xếp.", animStartLabel: "Bắt đầu", animStartOnClick: "Khi click", animStartWithPrevious: "Cùng với trước đó", animStartAfterPrevious: "Sau trước đó", animMoveUp: "Đưa lên", animMoveDown: "Đưa xuống", animMoveUpShort: "↑", animMoveDownShort: "↓", animRemove: "Xóa hiệu ứng", animRemoveShort: "Xóa", shapeWordArt: "Chữ nghệ thuật", shapeChart: "Biểu đồ", shapeTable: "Bảng", shapeTextBox: "Hộp văn bản",
-    setupShowTitle: "Thiết lập trình chiếu", setupShowHint: "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút/laser được lưu cho tính năng tương lai — VN Slides chưa có bút/laser trên màn hình chiếu.", setupShowLoop: "Lặp lại liên tục cho đến khi nhấn Esc", setupShowNoNarration: "Trình chiếu không có thuyết minh", setupShowNoNarrationHint: "Chưa có thuyết minh/audio narration trong VN Slides — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.", setupShowPointerColor: "Màu con trỏ bút / laser"
+    setupShowTitle: "Thiết lập trình chiếu", setupShowHint: "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút vẽ và con trỏ laser mặc định khi trình chiếu (bật bằng Ctrl+P, Ctrl+L).", setupShowLoop: "Lặp lại liên tục cho đến khi nhấn Esc", setupShowNoNarration: "Trình chiếu không có thuyết minh", setupShowNoNarrationHint: "Chưa có thuyết minh/audio narration trong VN Slides — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.", setupShowPointerColor: "Màu con trỏ bút / laser",
+    keepInkTitle: "VN Slides", keepInkPrompt: "Bạn có muốn giữ lại các chú thích bằng nét vẽ không?", keepInkKeep: "Giữ", keepInkDiscard: "Bỏ",
+    slideshowNext: "Tiếp theo", slideshowPrev: "Quay lại", slideshowPointerOptions: "Tùy chọn con trỏ", slideshowArrow: "Mũi tên", slideshowPen: "Bút vẽ", slideshowLaser: "Con trỏ laser", slideshowPenColor: "Màu bút", slideshowEraseInk: "Xóa nét vẽ trên trang", slideshowEndShow: "Thoát trình chiếu",
+    colorRed: "Đỏ", colorBlue: "Xanh lam", colorYellow: "Vàng", colorGreen: "Xanh lá", colorBlack: "Đen"
   },
   commands: {
     "writer.edit.select": { label: "Chọn", tooltip: "Chọn văn bản hoặc đối tượng" },
@@ -679,12 +682,12 @@ export const viStrings = {
     "writer.reference.captionInsert": { label: "Chèn chú thích ảnh", tooltip: "Chèn chú thích tự đánh số cho hình ảnh, bảng hoặc phương trình" },
     "writer.reference.tofInsert": { label: "Danh mục hình ảnh", tooltip: "Chèn danh mục hình ảnh/bảng tự động từ các chú thích đã chèn" },
     "writer.reference.tofUpdate": { label: "Cập nhật danh mục", tooltip: "Cập nhật lại danh mục hình ảnh/bảng từ các chú thích hiện có" },
-    "writer.mailMerge.open": { label: "Nguồn dữ liệu", tooltip: "Mở bảng nhập dữ liệu trộn thư (CSV)" },
+    "writer.mailMerge.open": { label: "Nguồn dữ liệu", tooltip: "Mở danh sách người nhận trộn thư từ tệp Excel (.xlsx, .xls) hoặc CSV/TSV" },
     "writer.mailMerge.insertField": { label: "Chèn trường", tooltip: "Chèn trường trộn thư tại vị trí con trỏ" },
     "writer.mailMerge.preview": { label: "Xem trước kết quả", tooltip: "Bật/tắt xem trước bản ghi trộn thư" },
     "writer.mailMerge.prevRecord": { label: "Bản ghi trước", tooltip: "Chuyển tới bản ghi trước" },
     "writer.mailMerge.nextRecord": { label: "Bản ghi sau", tooltip: "Chuyển tới bản ghi tiếp theo" },
-    "writer.mailMerge.finish": { label: "Hoàn tất trộn", tooltip: "Hoàn tất trộn và tạo tài liệu kết quả cho toàn bộ bản ghi" },
+    "writer.mailMerge.finish": { label: "Hoàn tất & Trộn", tooltip: "Hoàn tất trộn: xuất ra tài liệu mới hoặc in trực tiếp" },
     "writer.mailings.envelopes": { label: "Phong bì", tooltip: "Tạo trang phong bì với địa chỉ người nhận và người gửi" },
     "writer.mailings.labels": { label: "Nhãn", tooltip: "Tạo trang nhãn — một nội dung hoặc hàng loạt từ Trộn thư" }
   },
@@ -890,20 +893,20 @@ export const viStrings = {
       contentRequired: "Hãy nhập nội dung nhãn, hoặc bật nguồn Trộn thư."
     },
     mailMerge: {
-      dataSourceTitle: "Trộn thư — Nguồn dữ liệu (CSV)",
-      pastePrompt: "Dán dữ liệu bảng tính dạng <strong>CSV</strong> vào khung bên dưới (dòng đầu tiên là tiêu đề các cột):",
+      dataSourceTitle: "Trộn thư — Nguồn dữ liệu người nhận (Excel / CSV)",
+      pastePrompt: "Chọn tệp Excel (.xlsx, .xls) / CSV, hoặc dán dữ liệu vào khung bên dưới:",
       pasteSampleBtn: "📋 Dán dữ liệu mẫu",
       noData: "Chưa có dữ liệu",
-      invalidCsv: "CSV chưa hợp lệ (thiếu tiêu đề cột)",
+      invalidCsv: "Dữ liệu chưa hợp lệ (thiếu tiêu đề cột)",
       foundData: "Đã tìm thấy: {count} cột | {records} bản ghi",
       saveDataSource: "Lưu nguồn dữ liệu",
       insertFieldTitle: "Chèn trường trộn thư",
       selectFieldPrompt: "Chọn trường dữ liệu muốn chèn vào tài liệu:",
       insertBtn: "Chèn trường",
       noDataWarningTitle: "Xem trước trộn thư",
-      noDataWarningMsg: "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để dán bảng CSV trước.",
-      finishTitle: "Hoàn tất trộn thư",
-      finishNoData: "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để dán bảng CSV.",
+      noDataWarningMsg: "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp Excel hoặc dán dữ liệu trước.",
+      finishTitle: "Hoàn tất và Trộn thư",
+      finishNoData: "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp Excel hoặc dán bảng dữ liệu.",
       finishNoFields: "Tài liệu hiện tại chưa chứa trường trộn thư nào. Hãy dùng lệnh 'Chèn trường' để chèn ít nhất một trường trộn.",
       finishSuccess: "Đã hoàn tất trộn thư thành công {count} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp."
     },
