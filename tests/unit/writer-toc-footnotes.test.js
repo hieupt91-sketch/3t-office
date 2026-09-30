@@ -492,6 +492,39 @@ export async function runWriterTocFootnotesTests() {
     }
   });
 
+  await test("Writer TOC: Chèn mục lục thành khối ngang hàng, không lồng vào đoạn tiêu đề đang chọn", async () => {
+    const originalDoc = globalThis.document;
+    const originalWindow = globalThis.window;
+    globalThis.document = { createElement: (tag) => new FakeElement(tag) };
+    try {
+      const { page, body } = createMockWriterDoc("<h1>Tiêu đề đang chọn</h1><p>Nội dung.</p>");
+      const heading = body.querySelector("h1");
+      let insertionBefore = null;
+      const range = {
+        commonAncestorContainer: heading,
+        startContainer: heading,
+        collapse() {},
+        setStartBefore(node) { insertionBefore = node; },
+        setStartAfter() {},
+        insertNode(node) {
+          if (insertionBefore) body.insertBefore(node, insertionBefore);
+          else heading.appendChild(node);
+        }
+      };
+      globalThis.window = { getSelection: () => ({ rangeCount: 1, getRangeAt: () => range }) };
+      const adapter = new WriterAdapter(page);
+      adapter.attach();
+      if (!adapter.insertTableOfContents()) throw new Error("Không chèn được mục lục");
+      const toc = body.querySelector('[data-vno-toc="true"]');
+      if (!toc || toc.parentNode !== body) throw new Error("Mục lục bị lồng bên trong tiêu đề");
+      if (body.children.indexOf(toc) >= body.children.indexOf(heading)) throw new Error("Mục lục không được đặt trước tiêu đề tại điểm chèn");
+      if (insertionBefore !== heading) throw new Error("Range không được đưa về đầu đoạn tiêu đề");
+    } finally {
+      globalThis.document = originalDoc;
+      globalThis.window = originalWindow;
+    }
+  });
+
   // Test 6: TOC Click Navigation
   await test("Writer TOC: Nhấp link trong mục lục cuộn và nhảy đúng tới tiêu đề tương ứng", async () => {
     const originalDoc = globalThis.document;

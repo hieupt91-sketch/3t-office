@@ -12027,24 +12027,243 @@ def _writer_add_created_toc_field(document_xml: str, source_html: str) -> str:
 
 
 def _writer_mark_created_different_first_page(document_xml: str, source_html: str) -> str:
-    if not re.search(r'data-vno-different-first-page=["\']true["\']', source_html, re.IGNORECASE):
-        return document_xml
+    section_ids = re.findall(r'data-vno-export-section=["\']([^"\']+)["\']', source_html, re.IGNORECASE)
+    section_options = []
+    for section_id in section_ids:
+        wrapper = re.search(
+            rf'<div\b(?=[^>]*data-vno-export-section=["\']{re.escape(section_id)}["\'])[^>]*>',
+            source_html,
+            re.IGNORECASE,
+        )
+        enabled = bool(wrapper and re.search(r'data-vno-different-first-page=["\']true["\']', wrapper.group(0), re.IGNORECASE))
+        section_options.append(enabled)
+    if not section_options:
+        legacy = bool(re.search(r'data-vno-different-first-page=["\']true["\']', source_html, re.IGNORECASE))
+        if not legacy:
+            return document_xml
+        section_options = [True]
+
     sections = list(re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE))
-    if not sections or re.search(r"<w:titlePg\b", sections[0].group(0), re.IGNORECASE):
+    if not sections:
         return document_xml
-    section = sections[0].group(0)
-    boundary = re.search(r"<w:(?:textDirection|bidi|rtlGutter|docGrid)\b", section, re.IGNORECASE)
-    at = boundary.start() if boundary else section.lower().rfind("</w:sectpr")
-    if at < 0:
+    # DOCX section properties are ordered like the section wrappers in the exported HTML.
+    for index in reversed(range(min(len(sections), len(section_options)))):
+        match = sections[index]
+        section = match.group(0)
+        enabled = section_options[index]
+        if enabled and not re.search(r"<w:titlePg\b", section, re.IGNORECASE):
+            boundary = re.search(r"<w:(?:textDirection|bidi|rtlGutter|docGrid)\b", section, re.IGNORECASE)
+            at = boundary.start() if boundary else section.lower().rfind("</w:sectpr")
+            if at >= 0:
+                section = section[:at] + "<w:titlePg/>" + section[at:]
+        elif not enabled:
+            section = re.sub(r"<w:titlePg\b[^>]*/>", "", section, flags=re.IGNORECASE)
+        document_xml = document_xml[:match.start()] + section + document_xml[match.end():]
+    return document_xml
+
+
+def _writer_section_page_specs(source_html: str) -> list[tuple[float, float] | None]:
+    section_ids = re.findall(r'data-vno-export-section=["\']([^"\']+)["\']', source_html, re.IGNORECASE)
+    specs: list[tuple[float, float] | None] = []
+    for section_id in section_ids:
+        rule = re.search(
+            rf'@page\s+(?:vno-)?{re.escape(section_id)}\s*\{{([^}}]*)\}}',
+            source_html,
+            re.IGNORECASE,
+        )
+        size = re.search(r'\bsize\s*:\s*([\d.]+)\s*mm\s+([\d.]+)\s*mm', rule.group(1), re.IGNORECASE) if rule else None
+        specs.append((float(size.group(1)), float(size.group(2))) if size else None)
+    return specs
+
+
+def _writer_restore_created_section_page_sizes(document_xml: str, source_html: str) -> str:
+    """Restore each section's own page size; the active @page rule can be landscape."""
+    specs = _writer_section_page_specs(source_html)
+    sections = list(re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE))
+    if not specs or len(specs) != len(sections):
         return document_xml
-    section = section[:at] + "<w:titlePg/>" + section[at:]
-    return document_xml[:sections[0].start()] + section + document_xml[sections[0].end():]
+    for index in reversed(range(len(sections))):
+        width_mm, height_mm = specs[index] or (None, None)
+        if width_mm is None or height_mm is None:
+            continue
+        match = sections[index]
+        section = match.group(0)
+        size = re.search(r"<w:pgSz\b[^>]*/>", section, re.IGNORECASE)
+        if not size:
+            continue
+        width_twips = round(width_mm / 25.4 * 1440)
+        height_twips = round(height_mm / 25.4 * 1440)
+        size_tag = size.group(0)
+        size_tag = re.sub(r'\bw:w="\d+"', f'w:w="{width_twips}"', size_tag, count=1, flags=re.IGNORECASE)
+        size_tag = re.sub(r'\bw:h="\d+"', f'w:h="{height_twips}"', size_tag, count=1, flags=re.IGNORECASE)
+        if width_mm > height_mm:
+            if re.search(r'\bw:orient="[^"]*"', size_tag, re.IGNORECASE):
+                size_tag = re.sub(r'\bw:orient="[^"]*"', 'w:orient="landscape"', size_tag, count=1, flags=re.IGNORECASE)
+            else:
+                size_tag = size_tag[:-2] + ' w:orient="landscape"/>'
+        else:
+            size_tag = re.sub(r'\s+w:orient="[^"]*"', '', size_tag, flags=re.IGNORECASE)
+        section = section[:size.start()] + size_tag + section[size.end():]
+        document_xml = document_xml[:match.start()] + section + document_xml[match.end():]
+    return document_xml
+
+
+def _writer_html_attrs(tag: str) -> dict[str, str]:
+    return {
+        match.group(1).lower(): html.unescape(match.group(3))
+        for match in re.finditer(r'([\w:-]+)\s*=\s*(["\'])(.*?)\2', tag, re.IGNORECASE | re.DOTALL)
+    }
+
+
+def _writer_created_picture_specs(source_html: str) -> list[dict[str, str]]:
+    specs = []
+    for match in re.finditer(r"<img\b[^>]*>", source_html, re.IGNORECASE):
+        attrs = _writer_html_attrs(match.group(0))
+        style = attrs.get("style", "")
+        wrap = attrs.get("data-vno-wrap", "inline").lower()
+        width = attrs.get("data-vno-width-mm", "")
+        height = attrs.get("data-vno-height-mm", "")
+        if not width:
+            found = re.search(r"\bwidth\s*:\s*([\d.]+)\s*(mm|cm|in|px)", style, re.IGNORECASE)
+            if found:
+                scale = {"mm": 1.0, "cm": 10.0, "in": 25.4, "px": 25.4 / 96}[found.group(2).lower()]
+                width = str(float(found.group(1)) * scale)
+        if not height:
+            found = re.search(r"\bheight\s*:\s*([\d.]+)\s*(mm|cm|in|px)", style, re.IGNORECASE)
+            if found:
+                scale = {"mm": 1.0, "cm": 10.0, "in": 25.4, "px": 25.4 / 96}[found.group(2).lower()]
+                height = str(float(found.group(1)) * scale)
+        specs.append({
+            "wrap": wrap,
+            "width": width,
+            "height": height,
+            "position": attrs.get("data-vno-position", ""),
+            "src": attrs.get("src", ""),
+        })
+    return specs
+
+
+def _writer_restore_created_picture_layout(document_xml: str, source_html: str) -> str:
+    """Restore resized inline/floating pictures as native DrawingML anchors."""
+    specs = _writer_created_picture_specs(source_html)
+    inline_images = list(re.finditer(r"<wp:inline\b[^>]*>[\s\S]*?</wp:inline\s*>", document_xml, re.IGNORECASE))
+    if not specs or not inline_images:
+        return document_xml
+    updated = document_xml
+    for index in reversed(range(min(len(specs), len(inline_images)))):
+        spec, match = specs[index], inline_images[index]
+        block = match.group(0)
+        extents = list(re.finditer(r"<(?:wp:extent|a:ext)\b[^>]*/>", block, re.IGNORECASE))
+        if extents and spec.get("width") and spec.get("height"):
+            try:
+                cx = round(float(spec["width"]) * 36000)
+                cy = round(float(spec["height"]) * 36000)
+                for extent in reversed(extents):
+                    replacement_extent = re.sub(
+                        r'\bcx="\d+"[^>]*\bcy="\d+"', f'cx="{cx}" cy="{cy}"', extent.group(0), count=1,
+                    )
+                    block = block[:extent.start()] + replacement_extent + block[extent.end():]
+            except (TypeError, ValueError):
+                pass
+        if spec.get("wrap") not in {"square", "tight"}:
+            updated = updated[:match.start()] + block + updated[match.end():]
+            continue
+        inline_open = re.match(r"<wp:inline\b([^>]*)>", block, re.IGNORECASE)
+        if not inline_open:
+            continue
+        dist = inline_open.group(1)
+        position = spec.get("position", "")
+        align_h = "right" if position.lower().endswith("right") or (not position and spec["wrap"] == "tight") else "left"
+        anchor_open = (
+            f'<wp:anchor{dist} simplePos="0" relativeHeight="{251658240 + index}" behindDoc="0" '
+            'locked="0" layoutInCell="1" allowOverlap="1">'
+        )
+        anchor_lead = (
+            '<wp:simplePos x="0" y="0"/>'
+            f'<wp:positionH relativeFrom="margin"><wp:align>{align_h}</wp:align></wp:positionH>'
+            '<wp:positionV relativeFrom="margin"><wp:align>top</wp:align></wp:positionV>'
+        )
+        wrap_xml = '<wp:wrapSquare wrapText="bothSides"/>'
+        if spec["wrap"] == "tight":
+            wrap_xml = (
+                '<wp:wrapTight wrapText="bothSides"><wp:wrapPolygon edited="0">'
+                '<wp:start x="0" y="0"/><wp:lineTo x="0" y="21600"/>'
+                '<wp:lineTo x="21600" y="21600"/><wp:lineTo x="21600" y="0"/>'
+                '<wp:lineTo x="0" y="0"/></wp:wrapPolygon></wp:wrapTight>'
+            )
+        block = re.sub(r"<wp:inline\b[^>]*>", anchor_open + anchor_lead, block, count=1, flags=re.IGNORECASE)
+        doc_pr = re.search(r"<wp:docPr\b", block, re.IGNORECASE)
+        if doc_pr:
+            block = block[:doc_pr.start()] + wrap_xml + block[doc_pr.start():]
+        block = re.sub(r"</wp:inline\s*>", "</wp:anchor>", block, count=1, flags=re.IGNORECASE)
+        updated = updated[:match.start()] + block + updated[match.end():]
+    return updated
+
+
+def _writer_norm_review_text(value: str) -> str:
+    return re.sub(r"\s+", " ", html.unescape(str(value or ""))).strip()
+
+
+def _writer_run_for_review_text(text: str, rpr: str, kind: str) -> str:
+    escaped = html.escape(text, quote=False)
+    preserve = ' xml:space="preserve"' if text[:1].isspace() or text[-1:].isspace() else ""
+    node = f'<w:{"delText" if kind == "del" else "t"}{preserve}>{escaped}</w:{"delText" if kind == "del" else "t"}>'
+    return f"<w:r>{rpr}{node}</w:r>"
+
+
+def _writer_insert_review_change_in_paragraph(
+    paragraph: str, offset: int, text: str, kind: str, revision_id: int, author: str, date: str
+) -> str | None:
+    text_nodes = list(re.finditer(r"<w:t\b([^>]*)>([\s\S]*?)</w:t\s*>", paragraph, re.IGNORECASE))
+    runs = list(re.finditer(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", paragraph, re.IGNORECASE))
+    cursor = 0
+    target = None
+    target_run = None
+    target_start = target_end = 0
+    for node in text_nodes:
+        plain = html.unescape(node.group(2))
+        start, end = cursor, cursor + len(plain)
+        if start <= offset <= end:
+            target = (node, plain, start, end)
+            target_run = next((run for run in runs if run.start() <= node.start() and node.end() <= run.end()), None)
+            target_start, target_end = start, end
+            break
+        cursor = end
+    if target is None or target_run is None:
+        if offset == cursor:
+            target_run = runs[-1] if runs else None
+            if target_run:
+                insertion = target_run.end()
+                rpr_match = re.search(r"<w:rPr\b[^>]*>[\s\S]*?</w:rPr\s*>|<w:rPr\b[^>]*/>", target_run.group(0), re.IGNORECASE)
+                rpr = rpr_match.group(0) if rpr_match else ""
+                wrapped = f'<w:{kind} w:id="{revision_id}" w:author="{html.escape(author, quote=True)}" w:date="{html.escape(date, quote=True)}">{_writer_run_for_review_text(text, rpr, kind)}</w:{kind}>'
+                return paragraph[:insertion] + wrapped + paragraph[insertion:]
+        return None
+
+    node, plain, node_start, node_end = target
+    run_xml = target_run.group(0)
+    run_start = target_run.start()
+    relative_start, relative_end = node.start() - run_start, node.end() - run_start
+    prefix_text = plain[:max(0, offset - node_start)]
+    suffix_text = plain[max(0, offset - node_start):]
+    rpr_match = re.search(r"<w:rPr\b[^>]*>[\s\S]*?</w:rPr\s*>|<w:rPr\b[^>]*/>", run_xml, re.IGNORECASE)
+    rpr = rpr_match.group(0) if rpr_match else ""
+    inner = run_xml[re.match(r"<w:r\b[^>]*>", run_xml, re.IGNORECASE).end():run_xml.rfind("</w:r")]
+    without_rpr = re.sub(r"<w:rPr\b[^>]*>[\s\S]*?</w:rPr\s*>|<w:rPr\b[^>]*/>", "", inner, count=1, flags=re.IGNORECASE)
+    child_before = without_rpr[:max(0, relative_start - (rpr_match.end() if rpr_match else 0))]
+    child_after = without_rpr[max(0, relative_end - (rpr_match.end() if rpr_match else 0)):]
+    before_run = f"<w:r>{rpr}{child_before}{_writer_run_for_review_text(prefix_text, '', 'ins')[len('<w:r>'):-len('</w:r>')]}</w:r>" if prefix_text or child_before.strip() else ""
+    after_run = f"<w:r>{rpr}{_writer_run_for_review_text(suffix_text, '', 'ins')[len('<w:r>'):-len('</w:r>')]}{child_after}</w:r>" if suffix_text or child_after.strip() else ""
+    revision_run = _writer_run_for_review_text(text, rpr, kind)
+    wrapped = f'<w:{kind} w:id="{revision_id}" w:author="{html.escape(author, quote=True)}" w:date="{html.escape(date, quote=True)}">{revision_run}</w:{kind}>'
+    replacement = before_run + wrapped + after_run
+    return paragraph[:target_run.start()] + replacement + paragraph[target_run.end():]
 
 
 def _writer_apply_created_review_state(
     docx_bytes: bytes, document_xml: str, source_html: str
 ) -> tuple[str, dict[str, bytes], bool, bool]:
-    """Restore VN review spans as native Word revisions and comment threads."""
+    """Restore VN review spans as native Word revisions and threaded comments."""
     marker = re.search(r'data-vno-review-state=["\']([0-9a-f]+)["\']', source_html, re.IGNORECASE)
     if not marker:
         return document_xml, {}, False, False
@@ -12056,97 +12275,135 @@ def _writer_apply_created_review_state(
     changed = False
     next_revision_id = max([int(value) for value in re.findall(r'<w:(?:ins|del)\b[^>]*\bw:id=["\'](\d+)', document_xml, re.IGNORECASE)] or [0]) + 1
     for change in state.get("changes", []):
-        change_text = str(change.get("text") or "").strip()
+        change_text = str(change.get("text") or "")
         kind = "del" if change.get("type") == "delete" else "ins"
+        author = str(change.get("author") or "VN Office")
+        date = str(change.get("date") or "2026-01-01T00:00:00Z")
         if not change_text:
             continue
-        found = False
-        def patch_run(match: re.Match) -> str:
-            nonlocal found, next_revision_id, changed
-            if found:
-                return match.group(0)
-            run_xml = match.group(0)
-            run_text = _paragraph_plain_text(run_xml).strip()
-            if run_text != change_text:
-                return run_xml
+        updated = False
+        context = str(change.get("paragraphText") or "")
+        if context and isinstance(change.get("offset"), int):
+            paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+            for paragraph in paragraphs:
+                plain = _paragraph_plain_text(paragraph.group(0))
+                if _writer_norm_review_text(plain) != _writer_norm_review_text(context):
+                    continue
+                patched = _writer_insert_review_change_in_paragraph(
+                    paragraph.group(0), int(change["offset"]), change_text, kind,
+                    next_revision_id, author, date,
+                )
+                if patched:
+                    document_xml = document_xml[:paragraph.start()] + patched + document_xml[paragraph.end():]
+                    updated = changed = True
+                    next_revision_id += 1
+                    break
+        if updated:
+            continue
+        # Backward-compatible fallback for old review-state markers without offsets.
+        for run_match in list(re.finditer(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", document_xml, re.IGNORECASE)):
+            if _writer_norm_review_text(_paragraph_plain_text(run_match.group(0))) != _writer_norm_review_text(change_text):
+                continue
+            run_xml = run_match.group(0)
             if kind == "del":
                 run_xml = re.sub(r"<w:t\b", "<w:delText", run_xml, flags=re.IGNORECASE)
                 run_xml = re.sub(r"</w:t\s*>", "</w:delText>", run_xml, flags=re.IGNORECASE)
-            author = html.escape(str(change.get("author") or "VN Office"), quote=True)
-            date = html.escape(str(change.get("date") or "2026-01-01T00:00:00Z"), quote=True)
-            wrapped = f'<w:{kind} w:id="{next_revision_id}" w:author="{author}" w:date="{date}">{run_xml}</w:{kind}>'
+            wrapped = f'<w:{kind} w:id="{next_revision_id}" w:author="{html.escape(author, quote=True)}" w:date="{html.escape(date, quote=True)}">{run_xml}</w:{kind}>'
+            document_xml = document_xml[:run_match.start()] + wrapped + document_xml[run_match.end():]
+            changed = True
             next_revision_id += 1
-            found = changed = True
-            return wrapped
-        document_xml = re.sub(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", patch_run, document_xml, count=0, flags=re.IGNORECASE)
+            break
 
     existing_comments = read_zip_entry(docx_bytes, "word/comments.xml")
     comments_xml = existing_comments.decode("utf-8", errors="replace") if existing_comments else (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         '<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
-        'xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml">'
-        '</w:comments>'
+        'xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"></w:comments>'
     )
     existing_ids = [int(value) for value in re.findall(r'<w:comment\b[^>]*\bw:id=["\'](\d+)', comments_xml, re.IGNORECASE)]
     next_comment_id = max(existing_ids, default=-1) + 1
     comments_added: list[tuple[str, bool, list[str]]] = []
+    comment_fragments: list[str] = []
     for comment in state.get("comments", []):
-        anchor_text = re.sub(r"\s+", " ", str(comment.get("anchorText") or "")).strip()
+        anchor_text = _writer_norm_review_text(comment.get("anchorText") or "")
         content = str(comment.get("content") or "").strip()
         if not anchor_text or not content:
             continue
         comment_id = next_comment_id
+        next_comment_id += 1
         anchor_para_id = f"{uuid.uuid4().int & 0xffffffff:08X}"
         anchored = False
+
         def patch_anchor_paragraph(match: re.Match) -> str:
             nonlocal anchored
             if anchored:
                 return match.group(0)
             paragraph = match.group(0)
-            if anchor_text not in re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)):
+            plain = _writer_norm_review_text(_paragraph_plain_text(paragraph))
+            if anchor_text not in plain:
                 return paragraph
-            run_match = re.search(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", paragraph, re.IGNORECASE)
-            if not run_match or anchor_text not in _paragraph_plain_text(run_match.group(0)):
+            close = re.search(r"</w:p\s*>$", paragraph, re.IGNORECASE)
+            if not close:
                 return paragraph
-            reference = f'<w:commentRangeStart w:id="{comment_id}"/>{run_match.group(0)}<w:commentRangeEnd w:id="{comment_id}"/><w:r><w:commentReference w:id="{comment_id}"/></w:r>'
+            ppr = re.search(r"</w:pPr\s*>|<w:pPr\b[^>]*/>", paragraph, re.IGNORECASE)
+            open_tag = re.match(r"<w:p\b[^>]*>", paragraph, re.IGNORECASE)
+            start_at = ppr.end() if ppr else (open_tag.end() if open_tag else 0)
+            start = f'<w:commentRangeStart w:id="{comment_id}"/>'
+            end = f'<w:commentRangeEnd w:id="{comment_id}"/><w:r><w:commentReference w:id="{comment_id}"/></w:r>'
             anchored = True
-            return paragraph[:run_match.start()] + reference + paragraph[run_match.end():]
+            return paragraph[:start_at] + start + paragraph[start_at:close.start()] + end + paragraph[close.start():]
+
         document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch_anchor_paragraph, document_xml, count=0, flags=re.IGNORECASE)
         if not anchored:
             continue
-        author_value = str(comment.get("author") or "VN Office")
-        date_value = str(comment.get("createdAt") or "2026-01-01T00:00:00Z")
-        author = html.escape(author_value, quote=True)
-        date = html.escape(date_value, quote=True)
-        text_xml = html.escape(content, quote=False)
-        comment_paragraphs = [f'<w:p w14:paraId="{anchor_para_id}"><w:r><w:t xml:space="preserve">{text_xml}</w:t></w:r></w:p>']
+
+        def append_comment(comment_id_value: int, para_id: str, text: str, author_name: str, date_value: str, initials: str = "VN") -> None:
+            escaped_author = html.escape(author_name or "VN Office", quote=True)
+            escaped_date = html.escape(date_value or "2026-01-01T00:00:00Z", quote=True)
+            paragraph_xml = (
+                f'<w:p w14:paraId="{para_id}"><w:r><w:t xml:space="preserve">'
+                f'{html.escape(text, quote=False)}</w:t></w:r></w:p>'
+            )
+            comment_fragments.append(
+                f'<w:comment w:id="{comment_id_value}" w:author="{escaped_author}" '
+                f'w:date="{escaped_date}" w:initials="{initials}">{paragraph_xml}</w:comment>'
+            )
+
+        parent_author = str(comment.get("author") or "VN Office")
+        parent_date = str(comment.get("createdAt") or "2026-01-01T00:00:00Z")
+        append_comment(comment_id, anchor_para_id, content, parent_author, parent_date)
+        reply_para_ids: list[str] = []
         for reply in comment.get("replies", []):
             reply_text = str(reply.get("content") or "").strip()
             if not reply_text:
                 continue
+            reply_id = next_comment_id
+            next_comment_id += 1
             reply_para_id = f"{uuid.uuid4().int & 0xffffffff:08X}"
-            comment_paragraphs.append(f'<w:p w14:paraId="{reply_para_id}"><w:r><w:t xml:space="preserve">{html.escape("Phản hồi: " + reply_text, quote=False)}</w:t></w:r></w:p>')
-        comment_xml = f'<w:comment w:id="{comment_id}" w:author="{author}" w:date="{date}" w:initials="VN">{"".join(comment_paragraphs)}</w:comment>'
-        close = re.search(r"</w:comments\s*>", comments_xml, re.IGNORECASE)
-        if close:
-            comments_xml = comments_xml[:close.start()] + comment_xml + comments_xml[close.start():]
-        comments_added.append((anchor_para_id, bool(comment.get("resolved")), []))
+            reply_para_ids.append(reply_para_id)
+            append_comment(
+                reply_id, reply_para_id, reply_text,
+                str(reply.get("author") or "VN Office"),
+                str(reply.get("createdAt") or "2026-01-01T00:00:00Z"),
+            )
+        comments_added.append((anchor_para_id, bool(comment.get("resolved")), reply_para_ids))
 
     if not comments_added:
         return document_xml, {}, changed, False
 
+    close = re.search(r"</w:comments\s*>", comments_xml, re.IGNORECASE)
+    if close:
+        comments_xml = comments_xml[:close.start()] + "".join(comment_fragments) + comments_xml[close.start():]
     replacements: dict[str, bytes] = {"word/comments.xml": comments_xml.encode("utf-8")}
     relationships = read_zip_entry(docx_bytes, "word/_rels/document.xml.rels")
     rels_xml = relationships.decode("utf-8", errors="replace") if relationships else (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
     )
-    relation_target = re.search(r'<Relationship\b(?=[^>]*\bType=["\'][^"\']*/comments["\'])[^>]*\bTarget=["\']([^"\']+)', rels_xml, re.IGNORECASE)
-    if not relation_target:
+    if not re.search(r'<Relationship\b(?=[^>]*\bType=["\'][^"\']*/comments["\'])', rels_xml, re.IGNORECASE):
         rids = [int(value) for value in re.findall(r'\bId=["\']rId(\d+)', rels_xml)]
         rel_id = f"rId{max(rids, default=0) + 1}"
         rels_xml = rels_xml.replace("</Relationships>", f'<Relationship Id="{rel_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="comments.xml"/></Relationships>')
-    replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
 
     comments_ex = read_zip_entry(docx_bytes, "word/commentsExtended.xml")
     comments_ex_xml = comments_ex.decode("utf-8", errors="replace") if comments_ex else (
@@ -12159,12 +12416,12 @@ def _writer_apply_created_review_state(
         for reply_para_id in replies:
             ex_items.append(f'<w15:commentEx w15:paraId="{reply_para_id}" w15:paraIdParent="{parent_para_id}" w15:done="0"/>')
     comments_ex_xml = comments_ex_xml.replace("</w15:commentsEx>", "".join(ex_items) + "</w15:commentsEx>")
-    replacements["word/commentsExtended.xml"] = comments_ex_xml.encode("utf-8")
     if not re.search(r'<Relationship\b(?=[^>]*\bTarget=["\']commentsExtended\.xml["\'])', rels_xml, re.IGNORECASE):
         rids = [int(value) for value in re.findall(r'\bId=["\']rId(\d+)', rels_xml)]
         rel_id = f"rId{max(rids, default=0) + 1}"
         rels_xml = rels_xml.replace("</Relationships>", f'<Relationship Id="{rel_id}" Type="http://schemas.microsoft.com/office/word/2018/wordml/commentsExt" Target="commentsExtended.xml"/></Relationships>')
-        replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
+    replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
+    replacements["word/commentsExtended.xml"] = comments_ex_xml.encode("utf-8")
 
     content_types = read_zip_entry(docx_bytes, "[Content_Types].xml")
     types_xml = content_types.decode("utf-8", errors="replace") if content_types else ""
@@ -12773,6 +13030,8 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
                 patched_footer = _writer_insert_page_field(patched_footer, field_name, fallback)
             if patched_footer != source_footer:
                 replacements[name] = patched_footer.encode("utf-8")
+    document_xml = _writer_restore_created_section_page_sizes(document_xml, source_html)
+    document_xml = _writer_restore_created_picture_layout(document_xml, source_html)
     document_xml = _writer_add_created_toc_field(document_xml, source_html)
     document_xml = _writer_mark_created_different_first_page(document_xml, source_html)
     document_xml, review_parts, has_revisions, has_comments = _writer_apply_created_review_state(

@@ -11031,6 +11031,7 @@ export class WriterAdapter {
     } else if (this.editorDom) {
       bodyHtml = this._stripSessionMarkup(this.editorDom.innerHTML, { preserveReviewMarkup });
     }
+    bodyHtml = this._prepareTableOfContentsForOfficeSave(bodyHtml);
     bodyHtml = this._prepareFloatingFramesForExport(bodyHtml);
     bodyHtml = this._restoreProportionalLineHeightsForExport(bodyHtml);
     bodyHtml = this._simplifyFontFamiliesForExport(bodyHtml);
@@ -11048,7 +11049,12 @@ export class WriterAdapter {
     );
 
     const firstSectionId = Object.keys(this.sectionPageSetups || {})[0] || "section-1";
-    bodyHtml = `<div class="vno-export-section vno-export-${firstSectionId}" data-vno-export-section="${firstSectionId}">` + bodyHtml.replace(
+    const exportSectionOpen = (id) => {
+      const setup = this.sectionPageSetups?.[id] || this.pageSetup || {};
+      const differentFirstPage = Boolean(setup.differentFirstPage || (id === firstSectionId && this.pageSetup?.differentFirstPage));
+      return `<div class="vno-export-section vno-export-${id}" data-vno-export-section="${id}" data-vno-different-first-page="${differentFirstPage ? "true" : "false"}">`;
+    };
+    bodyHtml = exportSectionOpen(firstSectionId) + bodyHtml.replace(
       // Spacer `<p><br></p>` sau marker (do insertSectionBreak chèn) là tùy chọn: phong bì/nhãn/FODT
       // tạo marker không có spacer và vẫn phải tách mục.
       /<div\b[^>]*data-vno-section-break=["'](nextPage|continuous|evenPage|oddPage)["'][^>]*data-vno-section-id=["']([^"']+)["'][^>]*>[\s\S]*?<\/div>(?:\s*<p\b[^>]*>\s*<br\s*\/?\s*>\s*<\/p>)?/gi,
@@ -11060,7 +11066,7 @@ export class WriterAdapter {
         // new page. Adding a separate page-break paragraph here creates two
         // consecutive breaks (a blank page) for nextPage sections.
         const pageBreak = "";
-        return `</div>${pageBreak}<div class="vno-export-section vno-export-${id}" data-vno-export-section="${id}">`;
+        return `</div>${pageBreak}${exportSectionOpen(id)}`;
       }
     ) + `</div>`;
 
@@ -11137,6 +11143,44 @@ export class WriterAdapter {
     return clean;
   }
 
+  _prepareTableOfContentsForOfficeSave(html) {
+    if (typeof document === "undefined" || typeof document.createElement !== "function") return String(html || "");
+    const root = document.createElement("div");
+    root.innerHTML = String(html || "");
+    const blocks = Array.from(root.querySelectorAll?.('[data-vno-toc="true"]') || []);
+    for (const toc of blocks) {
+      const title = toc.querySelector?.(".vno-toc-title")?.textContent?.trim() || "MỤC LỤC";
+      const wrapper = document.createElement("div");
+      wrapper.className = "vno-export-toc";
+      wrapper.setAttribute("data-vno-toc-field", "true");
+
+      const titleParagraph = document.createElement("p");
+      titleParagraph.className = "vno-export-toc-title";
+      titleParagraph.textContent = title;
+      wrapper.appendChild(titleParagraph);
+
+      for (const item of Array.from(toc.querySelectorAll?.(".vno-toc-item") || [])) {
+        const text = item.querySelector?.(".vno-toc-text")?.textContent?.trim() || "";
+        if (!text) continue;
+        const level = Number((item.className?.match?.(/vno-toc-level-(\d+)/) || [])[1] || 1);
+        const page = item.querySelector?.(".vno-toc-page")?.textContent?.trim() || "";
+        const paragraph = document.createElement("p");
+        paragraph.className = `vno-export-toc-entry vno-export-toc-level-${level}`;
+        paragraph.setAttribute("data-vno-toc-level", String(level));
+        const label = document.createElement("span");
+        label.className = "vno-toc-text";
+        label.textContent = text;
+        const pageNumber = document.createElement("span");
+        pageNumber.className = "vno-toc-page";
+        pageNumber.textContent = page;
+        paragraph.append(label, pageNumber);
+        wrapper.appendChild(paragraph);
+      }
+      toc.replaceWith(wrapper);
+    }
+    return root.innerHTML;
+  }
+
   _contentForOfficeSave() {
     const comments = (this.comments || []).map((comment) => ({
       id: comment.id,
@@ -11151,12 +11195,41 @@ export class WriterAdapter {
         createdAt: reply.createdAt || new Date().toISOString()
       }))
     }));
-    const changes = [...(this.bodyDom?.querySelectorAll?.('ins[data-vno-change="insert"], del[data-vno-change="delete"]') || [])]
-      .map((node) => ({ type: node.dataset.vnoChange, text: node.textContent || "", author: node.dataset.author || "", date: node.dataset.date || "" }))
-      .filter((change) => change.text.trim());
-    const state = { comments, changes };
+    const changeNodes = [...(this.bodyDom?.querySelectorAll?.('ins[data-vno-change="insert"], del[data-vno-change="delete"]') || [])];
+    const withoutChanges = (element) => {
+      const clone = element?.cloneNode?.(true);
+      clone?.querySelectorAll?.('ins[data-vno-change], del[data-vno-change]')?.forEach((node) => node.remove());
+      return String(clone?.textContent || "");
+    };
+    const textBeforeWithoutChanges = (block, node) => {
+      try {
+        const range = document.createRange();
+        range.selectNodeContents(block);
+        range.setEndBefore(node);
+        const fragment = range.cloneContents();
+        const holder = document.createElement("div");
+        holder.appendChild(fragment);
+        holder.querySelectorAll('ins[data-vno-change], del[data-vno-change]').forEach((changed) => changed.remove());
+        return String(holder.textContent || "");
+      } catch {
+        return "";
+      }
+    };
+    const changes = changeNodes.map((node) => {
+      const block = node.closest?.("p, h1, h2, h3, h4, h5, h6, li, blockquote, td, th") || node.parentElement;
+      return {
+        type: node.dataset.vnoChange,
+        text: node.textContent || "",
+        author: node.dataset.author || "",
+        date: node.dataset.date || "",
+        paragraphText: block ? withoutChanges(block) : "",
+        offset: block ? textBeforeWithoutChanges(block, node).length : null
+      };
+    }).filter((change) => change.text.trim());
+    const state = { comments, changes, trackChangesEnabled: Boolean(this.trackChangesEnabled) };
     const hex = Array.from(new TextEncoder().encode(JSON.stringify(state)), (byte) => byte.toString(16).padStart(2, "0")).join("");
-    return `${this._contentForExport({ preserveReviewMarkup: true })}<div data-vno-review-state="${hex}" style="display:none"></div>`;
+    const content = this._contentForExport({ preserveReviewMarkup: true });
+    return `${content}<div data-vno-review-state="${hex}" style="display:none"></div>`;
   }
 
   _shapesForExport() {
@@ -13547,6 +13620,12 @@ export class WriterAdapter {
         const commonNode = range.commonAncestorContainer;
         if (!this._isInsideProtectedZone(commonNode) && (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode))) {
           try {
+            const startNode = range.startContainer || commonNode;
+            const startElement = startNode?.nodeType === 1 ? startNode : startNode?.parentElement;
+            const paragraph = startElement?.closest?.("p, h1, h2, h3, h4, h5, h6");
+            if (paragraph && this.bodyDom.contains?.(paragraph) && typeof range.setStartBefore === "function") {
+              range.setStartBefore(paragraph);
+            }
             range.collapse(true);
             if (typeof tocElement === "string") {
               const temp = document.createElement("div");

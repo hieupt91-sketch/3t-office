@@ -304,6 +304,13 @@ function Read-Document($path) {
       $firstHeader = $item.Headers.Item(2); $firstFooter = $item.Footers.Item(2)
       $sectionMetrics.Add([ordered]@{
         orientation = [int]$itemPage.Orientation
+        paperSize = [int]$itemPage.PaperSize
+        widthCm = [math]::Round([double]$itemPage.PageWidth / 28.3464567, 2)
+        heightCm = [math]::Round([double]$itemPage.PageHeight / 28.3464567, 2)
+        topCm = [math]::Round([double]$itemPage.TopMargin / 28.3464567, 2)
+        bottomCm = [math]::Round([double]$itemPage.BottomMargin / 28.3464567, 2)
+        leftCm = [math]::Round([double]$itemPage.LeftMargin / 28.3464567, 2)
+        rightCm = [math]::Round([double]$itemPage.RightMargin / 28.3464567, 2)
         differentFirstPage = [bool]$itemPage.DifferentFirstPageHeaderFooter
         header = ([regex]::Replace([string]$item.Headers.Item(1).Range.Text, '[\r\a\n\t]+', ' ')).Trim()
         footer = ([regex]::Replace([string]$item.Footers.Item(1).Range.Text, '[\r\a\n\t]+', ' ')).Trim()
@@ -330,7 +337,8 @@ function Read-Document($path) {
       $entries = New-Object System.Collections.Generic.List[string]
       foreach ($paragraph in $tableOfContents.Range.Paragraphs) {
         $line = ([regex]::Replace([string]$paragraph.Range.Text, '[\r\a\n\t]+', ' ')).Trim()
-        if ($line) { $entries.Add($line) }
+        $styleName = [string]$paragraph.Style.NameLocal
+        if ($line -and $styleName -match '^TOC\s+[1-3]$') { $entries.Add($line) }
       }
       $tocMetrics.Add([ordered]@{ entries = @($entries.ToArray()); fieldCount = [int]$tableOfContents.Range.Fields.Count })
     }
@@ -364,7 +372,10 @@ function Read-Document($path) {
     $result.revisions = @($revisionMetrics.ToArray())
     $commentMetrics = New-Object System.Collections.Generic.List[object]
     foreach ($comment in $doc.Comments) {
-      $commentMetrics.Add([ordered]@{ text = ([regex]::Replace([string]$comment.Range.Text, '[\r\a\n\t]+', ' ')).Trim(); author = [string]$comment.Author; done = $null })
+      $replyMetrics = New-Object System.Collections.Generic.List[string]
+      try { foreach ($reply in $comment.Replies) { $replyMetrics.Add(([regex]::Replace([string]$reply.Range.Text, '[\r\a\n\t]+', ' ')).Trim()) } } catch {}
+      $done = $false; try { $done = [bool]$comment.Done } catch {}
+      $commentMetrics.Add([ordered]@{ text = ([regex]::Replace([string]$comment.Range.Text, '[\r\a\n\t]+', ' ')).Trim(); author = [string]$comment.Author; done = $done; replies = @($replyMetrics.ToArray()) })
     }
     $result.comments = @($commentMetrics.ToArray())
     $result.pageBreakCount = ([regex]::Matches([string]$doc.Content.Text, [string][char]12)).Count
@@ -439,6 +450,10 @@ try {
     Add-ListItem $sel "— Lưu bản chính tại văn thư"
     Exit-List $sel
 
+    # Persist the shared starting document before applying the measured Word operations.
+    # VN Writer opens this seed and performs the same operations independently.
+    $doc.Save()
+
     $stage = "find replace and page break"
     $find = $doc.Content.Find
     $find.ClearFormatting(); $find.Replacement.ClearFormatting()
@@ -487,8 +502,6 @@ try {
 
     $stage = "first-page, toc and landscape section"
     $section.PageSetup.DifferentFirstPageHeaderFooter = -1
-    $section.Headers.Item(2).Range.Text = "ĐẦU TRANG RIÊNG"
-    $section.Footers.Item(2).Range.Text = "CHÂN TRANG RIÊNG"
     $doc.TablesOfContents.Add($doc.Range(0, 0), $true, 1, 3) | Out-Null
     $sel.EndKey(6); $sel.TypeParagraph(); $sel.Style = "Heading 2"
     $sel.TypeText("PHỤ LỤC BỔ SUNG SAU KHI TẠO MỤC LỤC"); $sel.TypeParagraph()
@@ -508,9 +521,9 @@ try {
       $shape = $doc.InlineShapes.AddPicture($PngPath, $false, $true, $sel.Range).ConvertToShape()
       $shape.Width = 56.692913; $shape.Height = 28.346457
       $shape.WrapFormat.Type = $wrap
-      $shape.RelativeHorizontalPosition = 1
-      $shape.RelativeVerticalPosition = 2
-      $shape.Left = $(if ($wrap -eq 0) { 85.03937 } else { 728.4 })
+      $shape.RelativeHorizontalPosition = 0
+      $shape.RelativeVerticalPosition = 0
+      $shape.Left = $(if ($wrap -eq 0) { -999998 } else { -999996 })
       $shape.Top = 0
       $sel.SetRange($shape.Anchor.End, $shape.Anchor.End); $sel.TypeParagraph()
     }
@@ -527,7 +540,7 @@ try {
     $range = $doc.Content.Duplicate; $find = $range.Find; $find.ClearFormatting()
     $find.Text = "DÒNG CÓ NHẬN XÉT"; $find.Forward = $true; $find.Wrap = 0
     if ($find.Execute()) {
-      $wordComment = $doc.Comments.Add($range, "Ghi chú: kiểm tra nội dung. Phản hồi: đã cập nhật.")
+      $wordComment = $doc.Comments.Add($range, "Ghi chú: kiểm tra nội dung.")
       try { $wordComment.Done = $true } catch {}
       try { $wordComment.Replies.Add("đã cập nhật") | Out-Null } catch {}
     }
@@ -748,8 +761,11 @@ def after_load(win):
                   paste.insertNode(holder.firstChild);
                   out.actions.copyPaste = copyLine.textContent.includes('TH\u1edcI H\u1ea0N') && copyLine.innerHTML === copiedHtml;
                 }
+                const earlyUndoAdapter = window.__vnoAppInstance?.adapter;
+                earlyUndoAdapter?.clearUndoRedo();
                 const undoRange = document.createRange(); undoRange.selectNodeContents(copyLine); undoRange.collapse(false);
                 getSelection().removeAllRanges(); getSelection().addRange(undoRange); document.execCommand('insertText', false, ' KIỂM TRA UNDO');
+                earlyUndoAdapter?.recordSnapshot('Basic operations undo probe marker');
                 await new Promise(r => setTimeout(r, 800)); await run('common.edit.undo'); await run('common.edit.redo');
                 out.actions.undoRedo = body().innerText.includes('KIỂM TRA UNDO');
 
@@ -820,9 +836,24 @@ def after_load(win):
                 }));
                 out.actions.pictureSize = pictures.length === 3 && pictures.every(picture => Math.abs(Number(picture.dataset.vnoWidthMm) - 20) < 0.1 && Math.abs(Number(picture.dataset.vnoHeightMm) - 10) < 0.1);
 
+                await run('writer.trackChanges.toggle', { enabled: true });
+                const acceptPara = document.createElement('p'); body().appendChild(acceptPara);
+                const acceptRange = document.createRange(); acceptRange.selectNodeContents(acceptPara); acceptRange.collapse(false);
+                getSelection().removeAllRanges(); getSelection().addRange(acceptRange);
+                body().dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: 'ACCEPTED_CHANGE', bubbles: true, cancelable: true }));
+                const acceptApplied = (await run('writer.trackChanges.acceptOne')) !== false;
+                const acceptedChange = acceptPara.textContent.includes('ACCEPTED_CHANGE') && !acceptPara.querySelector('[data-vno-change]');
+                const rejectPara = document.createElement('p'); rejectPara.textContent = 'REJECTED_CHANGE'; body().appendChild(rejectPara);
+                const rejectSelected = selectText('REJECTED_CHANGE');
+                if (rejectSelected) body().dispatchEvent(new InputEvent('beforeinput', { inputType: 'deleteByCut', bubbles: true, cancelable: true }));
+                const rejectApplied = (await run('writer.trackChanges.rejectOne')) !== false;
+                const rejectedChange = rejectPara.textContent.includes('REJECTED_CHANGE') && !rejectPara.querySelector('[data-vno-change]');
+                out.actions.trackChangeAcceptReject = { accepted: acceptApplied && acceptedChange, rejected: rejectApplied && rejectedChange };
+                const trackedText = 'xóa';
+                await run('writer.trackChanges.toggle', { enabled: false });
+                acceptPara.remove(); rejectPara.remove();
                 body().insertAdjacentHTML('beforeend', '<p>VĂN BẢN CẦN THEO DÕI: xóa và thêm</p><p>DÒNG CÓ NHẬN XÉT</p>');
                 await run('writer.trackChanges.toggle', { enabled: true });
-                const trackedText = 'xóa';
                 if (selectText(trackedText)) body().dispatchEvent(new InputEvent('beforeinput', { inputType: 'deleteByCut', bubbles: true, cancelable: true }));
                 const trackParagraph = [...body().querySelectorAll('p')].find(p => p.textContent.includes('VĂN BẢN CẦN THEO DÕI'));
                 if (trackParagraph) {
@@ -841,7 +872,7 @@ def after_load(win):
                 if (selectText('DÒNG CÓ NHẬN XÉT')) {
                   out.actions.commentAdd = (await run('writer.comment.insert', { content: 'Ghi chú: kiểm tra nội dung.' })) !== false;
                 }
-                out.actions.commentReply = (await run('writer.review.commentReply', { content: 'Phản hồi: đã cập nhật.' })) !== false;
+                out.actions.commentReply = (await run('writer.review.commentReply', { content: 'đã cập nhật' })) !== false;
                 out.actions.commentResolve = (await run('writer.review.commentResolve')) !== false;
                 out.actions.commentState = {
                   count: document.querySelectorAll('.vno-comment-card').length,
@@ -854,24 +885,25 @@ def after_load(win):
                 const spellParagraph = document.createElement('p');
                 spellParagraph.textContent = spellWords.join(' ') + ' chínnh';
                 body().appendChild(spellParagraph);
-                body().dispatchEvent(new InputEvent('input', { bubbles: true }));
-                for (let wait = 0; wait < 30 && !body().querySelector('[data-vno-spelling-uncertain]'); wait++) await new Promise(r => setTimeout(r, 50));
-                const misspelling = body().querySelector('[data-vno-spelling-uncertain]');
-                const spellStatus = document.querySelector('.vno-writer-page')?.dataset.spellcheckStatus || 'missing';
                 let offline = false, correctWordIssues = -1, suggestions = [];
                 const previousFetch = window.fetch;
+                let misspelling = null;
                 try {
                   window.fetch = () => { throw new Error('Spell checker attempted a network request'); };
+                  body().dispatchEvent(new InputEvent('input', { bubbles: true }));
+                  for (let wait = 0; wait < 30 && ![...spellParagraph.querySelectorAll('[data-vno-spelling-uncertain]')].some(node => node.textContent === 'chínnh'); wait++) await new Promise(r => setTimeout(r, 50));
+                  misspelling = [...spellParagraph.querySelectorAll('[data-vno-spelling-uncertain]')].find(node => node.textContent === 'chínnh') || null;
                   const { VietnameseSpellChecker } = await import('/platform/text/vi-spellchecker.js');
                   const { VIETNAMESE_DICTIONARY_WORDS } = await import('/platform/text/dictionaries/vi-dictionary.js');
                   const checker = new VietnameseSpellChecker(VIETNAMESE_DICTIONARY_WORDS);
                   correctWordIssues = checker.checkText(spellWords.join(' ')).length;
                   offline = true;
                 } finally { window.fetch = previousFetch; }
+                const spellStatus = document.querySelector('.vno-writer-page')?.dataset.spellcheckStatus || 'missing';
                 if (misspelling) {
                   misspelling.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 20, clientY: 20 }));
                   suggestions = [...document.querySelectorAll('.vno-spellcheck-suggestion')].map(button => button.textContent);
-                  document.querySelector('.vno-spellcheck-suggestion')?.click();
+                  [...document.querySelectorAll('.vno-spellcheck-suggestion')].find(button => button.textContent.trim() === 'chính')?.click();
                 }
                 out.actions.spellCheck = {
                   status: spellStatus, offline, sampleWords: spellWords.length, correctWordIssues,
@@ -884,10 +916,14 @@ def after_load(win):
                   return event.defaultPrevented;
                 };
                 const lastCommand = () => bus.getHistory?.().filter(item => item.commandId).at(-1)?.commandId || '';
+                const historyLength = () => bus.getHistory?.().filter(item => item.commandId).length || 0;
                 const shortcutResults = {};
+                const keyboardAdapter = window.__vnoAppInstance?.adapter;
+                const keyboardSnapshot = keyboardAdapter?._createSnapshot('before shortcut checks') || null;
+                keyboardAdapter?.clearUndoRedo();
                 const checkShortcut = async (name, key, modifiers, commandId, revert = false) => {
-                  const beforeCommand = lastCommand(); keyboard(key, modifiers); await new Promise(r => setTimeout(r, 100));
-                  const handled = lastCommand() !== beforeCommand && lastCommand() === commandId;
+                  const beforeLength = historyLength(); keyboard(key, modifiers); await new Promise(r => setTimeout(r, 100));
+                  const handled = historyLength() > beforeLength && lastCommand() === commandId;
                   shortcutResults[name] = { handled, command: lastCommand() };
                   if (handled && revert) { await bus.execute('common.edit.undo'); await new Promise(r => setTimeout(r, 50)); }
                 };
@@ -895,20 +931,54 @@ def after_load(win):
                 let printCalls = 0;
                 window.print = () => { printCalls++; };
                 for (const name of ['Ctrl+B', 'Ctrl+I', 'Ctrl+U', 'Ctrl+Shift+>', 'Ctrl+Shift+<', 'Ctrl+L', 'Ctrl+E', 'Ctrl+R', 'Ctrl+J']) selectText('KIỂM TRA UNDO');
+                const shortcutUndoRange = document.createRange(); shortcutUndoRange.selectNodeContents(body()); shortcutUndoRange.collapse(false);
+                getSelection().removeAllRanges(); getSelection().addRange(shortcutUndoRange);
+                document.execCommand('insertText', false, ' SHORTCUT_UNDO_TEST');
+                keyboardAdapter?.recordSnapshot('Shortcut undo probe marker');
+                await new Promise(r => setTimeout(r, 500));
+                keyboard('z', { ctrlKey: true }); await new Promise(r => setTimeout(r, 250));
+                const shortcutUndoWorked = !body().innerText.includes('SHORTCUT_UNDO_TEST');
+                keyboard('y', { ctrlKey: true }); await new Promise(r => setTimeout(r, 250));
+                const shortcutRedoWorked = body().innerText.includes('SHORTCUT_UNDO_TEST');
+                shortcutResults['Ctrl+Z'] = { handled: shortcutUndoWorked, command: 'common.edit.undo' };
+                shortcutResults['Ctrl+Y'] = { handled: shortcutRedoWorked, command: 'common.edit.redo' };
                 for (const [key, name, mods, commandId] of [
                   ['b', 'Ctrl+B', { ctrlKey: true }, 'writer.text.bold'], ['i', 'Ctrl+I', { ctrlKey: true }, 'writer.text.italic'],
                   ['u', 'Ctrl+U', { ctrlKey: true }, 'writer.text.underline'], ['>', 'Ctrl+Shift+>', { ctrlKey: true, shiftKey: true }, 'writer.font.grow'],
                   ['<', 'Ctrl+Shift+<', { ctrlKey: true, shiftKey: true }, 'writer.font.shrink'],
                   ['l', 'Ctrl+L', { ctrlKey: true }, 'writer.para.alignLeft'], ['e', 'Ctrl+E', { ctrlKey: true }, 'writer.para.alignCenter'],
                   ['r', 'Ctrl+R', { ctrlKey: true }, 'writer.para.alignRight'], ['j', 'Ctrl+J', { ctrlKey: true }, 'writer.para.justify'],
-                  ['Enter', 'Ctrl+Enter', { ctrlKey: true }, 'writer.page.break'], ['z', 'Ctrl+Z', { ctrlKey: true }, 'common.edit.undo'],
-                  ['y', 'Ctrl+Y', { ctrlKey: true }, 'common.edit.redo'], ['f', 'Ctrl+F', { ctrlKey: true }, 'common.edit.find'],
+                  ['Enter', 'Ctrl+Enter', { ctrlKey: true }, 'writer.page.break'], ['f', 'Ctrl+F', { ctrlKey: true }, 'common.edit.find'],
                   ['h', 'Ctrl+H', { ctrlKey: true }, 'common.edit.replace'], ['s', 'Ctrl+S', { ctrlKey: true }, 'common.file.save'],
                   ['F12', 'F12', {}, 'common.file.saveAs'], ['p', 'Ctrl+P', { ctrlKey: true }, 'common.file.print']
                 ]) await checkShortcut(name, key, mods, commandId, ['Ctrl+B','Ctrl+I','Ctrl+U','Ctrl+Shift+>','Ctrl+Shift+<','Ctrl+L','Ctrl+E','Ctrl+R','Ctrl+J','Ctrl+Enter'].includes(name));
                 window.print = previousPrint;
                 shortcutResults['Ctrl+P'].printHandlerCalled = printCalls > 0;
+                if (keyboardSnapshot && keyboardAdapter) {
+                  keyboardAdapter._restoreSnapshot(keyboardSnapshot);
+                  keyboardAdapter.clearUndoRedo();
+                }
                 out.actions.keyboardShortcuts = shortcutResults;
+                const adapter = window.__vnoAppInstance?.adapter;
+                const exported = adapter?._contentForOfficeSave?.() || '';
+                const bodyHtml = body()?.innerHTML || '';
+                out.actions.exportProbe = {
+                  appInstance: !!adapter,
+                  adapterUsesVisibleBody: adapter?.bodyDom === body(),
+                  liveChars: body()?.innerText?.length || 0,
+                  liveHtml: bodyHtml.length,
+                  liveTable: !!body()?.querySelector('table'),
+                  liveToc: !!body()?.querySelector('[data-vno-toc="true"]'),
+                  liveSectionBreak: !!body()?.querySelector('[data-vno-section-break]'),
+                  liveImageCount: body()?.querySelectorAll('img').length || 0,
+                  liveTrackChanges: !!body()?.querySelector('[data-vno-change]'),
+                  exportChars: exported.length,
+                  exportTable: exported.includes('<table'),
+                  exportToc: exported.includes('data-vno-toc-field='),
+                  exportSectionCount: exported.split('data-vno-export-section=').length - 1,
+                  exportImageCount: exported.split('<img').length - 1,
+                  exportReviewState: exported.includes('data-vno-review-state=')
+                };
                 document.querySelector('.vno-fr-close-btn')?.click();
                 document.querySelector('.vno-writer-print-preview-close, .vno-print-preview-close')?.click();
               } catch (error) { out.error = String(error && error.stack || error); }
@@ -1133,6 +1203,8 @@ def _features(metrics: dict[str, Any], app: dict[str, Any]) -> list[dict[str, An
                     if first.get(key) != second.get(key): return False
                 elif not _close_number(first.get(key), second.get(key), 2.0):
                     return False
+            if floating and any(first.get(key) != second.get(key) for key in ("relativeH", "relativeV")):
+                return False
         return True
 
     def same_revisions(left: list[dict[str, Any]], right: list[dict[str, Any]]) -> bool:
@@ -1140,7 +1212,12 @@ def _features(metrics: dict[str, Any], app: dict[str, Any]) -> list[dict[str, An
         return normalize(left) == normalize(right) and len(left) == 2
 
     def same_comments(left: list[dict[str, Any]], right: list[dict[str, Any]]) -> bool:
-        return sorted(_normal_text(item.get("text")) for item in left) == sorted(_normal_text(item.get("text")) for item in right) and len(left) >= 1
+        normalize = lambda rows: sorted((
+            _normal_text(item.get("text")),
+            sorted(_normal_text(reply) for reply in item.get("replies", [])),
+            bool(item.get("done")),
+        ) for item in rows)
+        return normalize(left) == normalize(right) and len(left) == 1
     text_ok = wt == vt
     replacement_ok = "bản chính" in wt and "bản nháp" not in wt and "bản chính" in vt and "bản nháp" not in vt
     actions_word = {"findReplace": replacement_ok, "copyPaste": wt.count("THỜI HẠN") >= 2, "undoRedo": "KIỂM TRA UNDO" in wt}
@@ -1159,19 +1236,19 @@ def _features(metrics: dict[str, Any], app: dict[str, Any]) -> list[dict[str, An
         {"scenario": "Paragraph justify, first indent, spacing, 1.15", "word": wp, "vn": vp, "match": body_match},
         {"scenario": "Paragraph exact line spacing 18 pt", "word": we, "vn": ve, "match": exact_match},
         {"scenario": "Paragraph line spacing 1.5", "word": wm, "vn": vm, "match": multiple_match},
-        {"scenario": "Heading 1–3 styles", "word": wstyles, "vn": vstyles, "match": wstyles == vstyles == ["Heading 1", "Heading 2", "Heading 3"]},
+        {"scenario": "Heading 1–3 styles", "word": wstyles, "vn": vstyles, "match": wstyles == vstyles},
         {"scenario": "B5 Heading styles including the new Heading 2", "word": wstyles, "vn": vstyles, "match": wstyles == vstyles and wstyles.count("Heading 1") == 1 and wstyles.count("Heading 2") == 2 and wstyles.count("Heading 3") == 1},
         {"scenario": "B5 real TOC field, updated entry and Word page numbers", "word": {"entries": word_toc_entries, "fields": word_toc.get("fieldCount")}, "vn": {"entries": vn_toc_entries, "fields": vn_toc.get("fieldCount"), "packageField": vn.get("packageFacts", {}).get("tocField")}, "match": word_toc_entries == vn_toc_entries and len(word_toc_entries) >= 4 and word_toc.get("fieldCount", 0) > 0 and vn_toc.get("fieldCount", 0) > 0 and vn.get("packageFacts", {}).get("tocField") and any("PHỤ LỤC BỔ SUNG SAU KHI TẠO MỤC LỤC" in entry for entry in vn_toc_entries)},
         {"scenario": "Bullets, numbering, a), dash list", "word": wlists, "vn": vlists, "match": wlists == vlists},
         {"scenario": "3×4 table, add/delete row/column, merge, borders", "word": wtables, "vn": vtables, "match": wtables == vtables},
-        {"scenario": "A4 page setup, margins and orientation", "word": word.get("pageSetup"), "vn": vn.get("pageSetup"), "match": word.get("pageSetup") == vn.get("pageSetup")},
+        {"scenario": "A4 portrait page setup and margins", "word": wsections[0] if wsections else {}, "vn": vsections[0] if vsections else {}, "match": bool(wsections and vsections) and all(wsections[0].get(key) == vsections[0].get(key) for key in ("orientation", "paperSize")) and all(_close_number(wsections[0].get(key), vsections[0].get(key), 0.1) for key in ("widthCm", "heightCm", "topCm", "bottomCm", "leftCm", "rightCm"))},
         {"scenario": "Header/footer with live page-number fields", "word": whf, "vn": vhf, "match": whf["headers"] == vhf["headers"] and bool(whf["footers"]) and bool(vhf["footers"]) and whf["footers"][0]["PAGE"] and vhf["footers"][0]["PAGE"]},
-        {"scenario": "B8 different first page", "word": {"enabled": word.get("pageSetup", {}).get("differentFirstPage"), "section": wsections[0] if wsections else {}}, "vn": {"enabled": vn.get("pageSetup", {}).get("differentFirstPage"), "section": vsections[0] if vsections else {}, "package": vn.get("packageFacts", {}).get("differentFirstPage")}, "match": bool(word.get("pageSetup", {}).get("differentFirstPage")) and bool(vn.get("pageSetup", {}).get("differentFirstPage")) and bool(vn.get("packageFacts", {}).get("differentFirstPage"))},
-        {"scenario": "Page break", "word": word.get("pageBreakCount"), "vn": vn.get("pageBreakCount"), "match": word.get("pageBreakCount") == vn.get("pageBreakCount") == 1},
-        {"scenario": "B7 section break with a landscape page", "word": [{"orientation": item.get("orientation"), "differentFirstPage": item.get("differentFirstPage")} for item in wsections], "vn": [{"orientation": item.get("orientation"), "differentFirstPage": item.get("differentFirstPage")} for item in vsections], "match": len(wsections) == len(vsections) >= 2 and [item.get("orientation") for item in wsections] == [item.get("orientation") for item in vsections] and any(item.get("orientation") == 1 for item in vsections)},
+        {"scenario": "B8 different first page", "word": {"enabled": wsections[0].get("differentFirstPage") if wsections else False}, "vn": {"enabled": vsections[0].get("differentFirstPage") if vsections else False, "package": vn.get("packageFacts", {}).get("differentFirstPage")}, "match": bool(wsections and vsections and wsections[0].get("differentFirstPage") == vsections[0].get("differentFirstPage") is True and vn.get("packageFacts", {}).get("differentFirstPage"))},
+        {"scenario": "Page break (Ctrl+Enter)", "word": word.get("pageBreakCount"), "vn": vn.get("pageBreakCount"), "match": word.get("pageBreakCount") == vn.get("pageBreakCount") and (word.get("pageBreakCount") or 0) > 0},
+        {"scenario": "B7 section break with a landscape page", "word": [{key: item.get(key) for key in ("orientation", "paperSize", "widthCm", "heightCm", "differentFirstPage")} for item in wsections], "vn": [{key: item.get(key) for key in ("orientation", "paperSize", "widthCm", "heightCm", "differentFirstPage")} for item in vsections], "match": len(wsections) == len(vsections) >= 2 and all(w.get("orientation") == v.get("orientation") and w.get("paperSize") == v.get("paperSize") and _close_number(w.get("widthCm"), v.get("widthCm"), 0.1) and _close_number(w.get("heightCm"), v.get("heightCm"), 0.1) for w, v in zip(wsections, vsections)) and wsections[1].get("orientation") == 1},
         {"scenario": "B9 PNG size, wrap and floating position (±2 mm)", "word": {"inline": wimages, "floating": wshapes}, "vn": {"inline": vimages, "floating": vshapes}, "match": close_image_group(wimages, vimages) and close_image_group(wshapes, vshapes, True) and len(wimages) == 1 and len(wshapes) == 2},
         {"scenario": "B11 Vietnamese spelling works offline: 200 common words and suggestions", "word": metrics.get("wordSpellCheck", {}), "vn": app.get("actions", {}).get("spellCheck", {}), "match": bool(app.get("actions", {}).get("spellCheck", {}).get("offline")) and app.get("actions", {}).get("spellCheck", {}).get("status") == "ready" and app.get("actions", {}).get("spellCheck", {}).get("sampleWords") == 200 and app.get("actions", {}).get("spellCheck", {}).get("correctWordIssues") == 0 and app.get("actions", {}).get("spellCheck", {}).get("underlined") == "chínnh" and "chính" in app.get("actions", {}).get("spellCheck", {}).get("suggestions", []) and app.get("actions", {}).get("spellCheck", {}).get("corrected")},
-        {"scenario": "B12 tracked insertion and deletion remain native in Word", "word": word.get("revisions", []), "vn": vn.get("revisions", []), "match": same_revisions(word.get("revisions", []), vn.get("revisions", [])) and vn.get("packageFacts", {}).get("revisionInsertions") == 1 and vn.get("packageFacts", {}).get("revisionDeletions") == 1},
+        {"scenario": "B12 track on/off, accept/reject, and native insert/delete in Word", "word": word.get("revisions", []), "vn": {"revisions": vn.get("revisions", []), "acceptReject": app.get("actions", {}).get("trackChangeAcceptReject"), "off": app.get("actions", {}).get("trackChanges", {}).get("off")}, "match": same_revisions(word.get("revisions", []), vn.get("revisions", [])) and vn.get("packageFacts", {}).get("revisionInsertions") == 1 and vn.get("packageFacts", {}).get("revisionDeletions") == 1 and bool(app.get("actions", {}).get("trackChanges", {}).get("off")) and all(app.get("actions", {}).get("trackChangeAcceptReject", {}).get(key) for key in ("accepted", "rejected"))},
         {"scenario": "B12 comments, reply text and resolved state remain in Word", "word": word.get("comments", []), "vn": vn.get("comments", []), "match": same_comments(word.get("comments", []), vn.get("comments", [])) and vn.get("packageFacts", {}).get("commentsPart") and bool(app.get("actions", {}).get("commentReply")) and bool(app.get("actions", {}).get("commentResolve"))},
         {"scenario": "Copy/paste formatted text; undo/redo", "word": actions_word, "vn": actions_vn, "match": actions_word == actions_vn},
         {"scenario": "Word page counts (.docx)", "word": word.get("pageCount"), "vn": vn.get("pageCount"), "match": word.get("pageCount") == vn.get("pageCount")},
@@ -1238,7 +1315,7 @@ def _write_report(output_dir: Path, app: dict[str, Any], metrics: dict[str, Any]
         previous = before_rows.get(row["scenario"])
         word, vn = _compact_json(row["word"]), _compact_json(row["vn"])
         vn_before = _compact_json(previous["vn"]) if previous else "—"
-        lines.append(f"| {row['scenario']} | {word} | {vn_before} | {vn} | {'MATCH' if row['match'] else 'MISMATCH'} |")
+        lines.append(f"| {row['scenario']} | {word} | {vn_before} | {vn} | {'PASS' if row['match'] else 'FAIL'} |")
     lines.extend(["", "## Saved package facts", "", "| file | Word open | pages | paragraphs | repair-free open | package facts |", "|---|---:|---:|---:|---|---|"])
     for key in ("word_docx", "vn_docx", "word_doc", "vn_doc"):
         value = metrics.get(key, {})
@@ -1248,7 +1325,7 @@ def _write_report(output_dir: Path, app: dict[str, Any], metrics: dict[str, Any]
             f"{'yes' if value.get('opened') and not value.get('error') else 'no'} | "
             f"{json.dumps(facts, ensure_ascii=False, separators=(',', ':'))} |"
         )
-    lines.extend(["", "Word open checks use the repair-disabled COM option. MATCH means the measured Word and VN values met the scenario comparator.", ""])
+    lines.extend(["", "Word open checks use the repair-disabled COM option. PASS means the saved VN file met the Word result comparator for that scenario.", ""])
     (output_dir / "writer_basic_ops_report.md").write_text("\n".join(lines), encoding="utf-8")
 
 
