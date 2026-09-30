@@ -193,6 +193,8 @@ export class SheetGridController {
     this.userHiddenColsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
     this.protectionBySheet = Object.fromEntries(this.sheets.map(name => [name, { enabled: false, password: "" }]));
     this.workbookProtection = { enabled: false, password: "" };
+    this.watchedCells = new Set();
+    this.documentName = options.documentName || null;
     this.dataTools = new SheetDataTools(this);
 
     // Freeze Panes & Sort/Filter state (phản ánh sheet đang active)
@@ -1858,6 +1860,7 @@ export class SheetGridController {
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
     this._syncCommandStates();
     this._applyProtectionUi();
+    this._updateWatchWindow?.();
 
     return true;
   }
@@ -3605,6 +3608,7 @@ export class SheetGridController {
     }
     this.activeSheet = activeSheet;
     this._refreshVisibleRuleVisuals();
+    this._updateWatchWindow?.();
   }
 
   enterArrayFormula(options = {}) {
@@ -4206,12 +4210,159 @@ export class SheetGridController {
     return true;
   }
 
+  get workbookName() {
+    return this.documentName || this.options?.documentName || this.adapter?.shell?.documentName || "Bảng tính 1.xlsx";
+  }
+
+  _getNamedRangeForCell(sheetName, coord) {
+    if (!coord) return "";
+    const cleanCoord = coord.replace(/\$/g, "").toUpperCase();
+    const [c, r] = this._splitCoord(cleanCoord);
+    const rNum = Number(r);
+    const cIdx = this.cols.indexOf(c);
+
+    // Check sheet-scoped named ranges first
+    const sheetRanges = this.namedRangesBySheet?.[sheetName] || [];
+    for (const item of sheetRanges) {
+      if (this._coordMatchesNamedRange(cleanCoord, cIdx, rNum, item.ref)) {
+        return item.name;
+      }
+    }
+
+    // Check workbook-scoped named ranges
+    const wbRanges = this.namedRangesWorkbook || [];
+    for (const item of wbRanges) {
+      if (item.sheet && item.sheet !== sheetName) continue;
+      if (this._coordMatchesNamedRange(cleanCoord, cIdx, rNum, item.ref)) {
+        return item.name;
+      }
+    }
+
+    return "";
+  }
+
+  _coordMatchesNamedRange(coord, cIdx, rNum, ref) {
+    if (!ref) return false;
+    const cleanRef = String(ref).replace(/\$/g, "").toUpperCase();
+    if (cleanRef === coord) return true;
+    if (cleanRef.includes(":")) {
+      const [start, end] = cleanRef.split(":");
+      const [sc, sr] = this._splitCoord(start);
+      const [ec, er] = this._splitCoord(end);
+      const sColIdx = this.cols.indexOf(sc);
+      const eColIdx = this.cols.indexOf(ec);
+      if (sColIdx >= 0 && eColIdx >= 0 && sr && er) {
+        const minCol = Math.min(sColIdx, eColIdx);
+        const maxCol = Math.max(sColIdx, eColIdx);
+        const minRow = Math.min(Number(sr), Number(er));
+        const maxRow = Math.max(Number(sr), Number(er));
+        if (cIdx >= minCol && cIdx <= maxCol && rNum >= minRow && rNum <= maxRow) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  addWatchedCell(cellRef, targetSheet = this.activeSheet) {
+    if (!this.watchedCells) this.watchedCells = new Set();
+    if (!cellRef || typeof cellRef !== "string") return false;
+
+    let ref = cellRef.trim();
+    if (ref.startsWith("=")) ref = ref.slice(1).trim();
+
+    let sheet = targetSheet;
+    let coordPart = ref;
+    if (ref.includes("!")) {
+      const idx = ref.lastIndexOf("!");
+      sheet = ref.slice(0, idx).trim().replace(/^'|'$/g, "");
+      coordPart = ref.slice(idx + 1).trim();
+    }
+
+    coordPart = coordPart.replace(/\$/g, "").toUpperCase();
+
+    // Dải ô (Range) ví dụ: A1:A3 hoặc B2:C4
+    if (coordPart.includes(":")) {
+      const [start, end] = coordPart.split(":");
+      const [sc, sr] = this._splitCoord(start);
+      const [ec, er] = this._splitCoord(end);
+      const sColIdx = this.cols.indexOf(sc);
+      const eColIdx = this.cols.indexOf(ec);
+      if (sColIdx >= 0 && eColIdx >= 0 && sr && er) {
+        const minCol = Math.min(sColIdx, eColIdx);
+        const maxCol = Math.max(sColIdx, eColIdx);
+        const minRow = Math.min(Number(sr), Number(er));
+        const maxRow = Math.max(Number(sr), Number(er));
+        for (let r = minRow; r <= maxRow; r++) {
+          for (let c = minCol; c <= maxCol; c++) {
+            this.watchedCells.add(`${sheet}!${this.cols[c]}${r}`);
+          }
+        }
+        this._updateWatchWindow();
+        return true;
+      }
+    }
+
+    // Ô đơn ví dụ: A1
+    if (!/^[A-Z]+\d+$/.test(coordPart)) return false;
+    this.watchedCells.add(`${sheet}!${coordPart}`);
+    this._updateWatchWindow();
+    return true;
+  }
+
+  removeWatchedCell(key) {
+    if (!this.watchedCells) return false;
+    let deleted = this.watchedCells.delete(key);
+    if (!deleted && !key.includes("!")) {
+      deleted = this.watchedCells.delete(`${this.activeSheet}!${key}`);
+    }
+    if (deleted) {
+      this._updateWatchWindow();
+    }
+    return deleted;
+  }
+
+  clearWatchedCells() {
+    if (!this.watchedCells) return;
+    this.watchedCells.clear();
+    this._updateWatchWindow();
+  }
+
+  getWatchedCellsList() {
+    if (!this.watchedCells) return [];
+    const list = [];
+    const bookName = this.workbookName;
+    for (const key of this.watchedCells) {
+      const lastExcl = key.lastIndexOf("!");
+      const sheetName = lastExcl >= 0 ? key.slice(0, lastExcl).replace(/^'|'$/g, "") : this.activeSheet;
+      const coord = lastExcl >= 0 ? key.slice(lastExcl + 1).replace(/\$/g, "").toUpperCase() : key;
+      const map = (sheetName === this.activeSheet) ? this.cellsData : this.sheetsData?.[sheetName];
+      const itm = map?.get(coord);
+      const val = itm ? (itm.val ?? "") : "";
+      const formula = itm ? (itm.formula || "") : "";
+      const name = this._getNamedRangeForCell(sheetName, coord);
+      list.push({
+        workbook: bookName,
+        sheet: sheetName,
+        name,
+        cell: coord,
+        value: val,
+        formula,
+        key
+      });
+    }
+    return list;
+  }
+
   showWatchWindow() {
     if (typeof document === "undefined" || typeof document.querySelector !== "function") return false;
     let win = document.querySelector("#vno-watch-window");
     if (win) {
       win.style.display = win.style.display === "none" ? "flex" : "none";
-      if (win.style.display !== "none") this._updateWatchWindow();
+      if (win.style.display !== "none") {
+        this._updateWatchWindow();
+        win.focus();
+      }
       return true;
     }
 
@@ -4224,52 +4375,187 @@ export class SheetGridController {
     win = document.createElement("div");
     win.id = "vno-watch-window";
     win.className = "vno-watch-window";
+    win.setAttribute("role", "dialog");
+    win.setAttribute("aria-label", t("sheetDialogs.watchWindowTitle", "Cửa sổ theo dõi (Watch Window)"));
+    win.tabIndex = -1;
     win.style.cssText = `
-      position:fixed;right:24px;bottom:36px;width:440px;height:250px;background:#ffffff;border:1px solid #cbd5e1;
-      border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,0.16);z-index:9999;display:flex;flex-direction:column;font-size:12px;overflow:hidden;
+      position:fixed;right:24px;bottom:36px;width:580px;height:280px;min-width:420px;min-height:180px;
+      resize:both;background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;
+      box-shadow:0 10px 30px rgba(15,23,42,0.18);z-index:9999;display:flex;flex-direction:column;
+      font-size:12px;overflow:hidden;
     `;
 
     win.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f1f5f9;color:#0f172a;font-weight:600;border-bottom:1px solid #cbd5e1;">
-        <span style="font-size:12px;display:flex;align-items:center;gap:6px;">${t("sheetDialogs.watchWindowTitle") || "Cửa sổ theo dõi (Watch Window)"}</span>
-        <button id="vno-watch-close" type="button" class="vno-dialog-close-btn" style="width:22px;height:22px;min-width:22px;min-height:22px;padding:0;font-size:16px;">&times;</button>
+      <div id="vno-watch-header" class="vno-watch-header" style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f1f5f9;color:#0f172a;font-weight:600;border-bottom:1px solid #cbd5e1;cursor:move;user-select:none;">
+        <span style="font-size:12px;display:flex;align-items:center;gap:6px;">${t("sheetDialogs.watchWindowTitle", "Cửa sổ theo dõi (Watch Window)")}</span>
+        <button id="vno-watch-close" type="button" class="vno-dialog-close-btn" aria-label="${t("sheetDialogs.close", "Đóng")}" title="${t("sheetDialogs.close", "Đóng")} (Esc)" style="width:24px;height:24px;min-width:24px;min-height:24px;padding:0;font-size:16px;line-height:1;border:none;background:transparent;cursor:pointer;border-radius:3px;">&times;</button>
       </div>
-      <div style="display:flex;gap:8px;padding:6px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-        <button id="vno-watch-add" type="button" class="vno-btn" style="font-size:11px;padding:3px 10px;height:24px;background:#ffffff;border:1px solid #cbd5e1;border-radius:3px;font-weight:500;">+ ${t("sheetDialogs.addWatch") || "Thêm ô theo dõi"}</button>
-        <button id="vno-watch-del" type="button" class="vno-btn" style="font-size:11px;padding:3px 10px;height:24px;background:#ffffff;border:1px solid #cbd5e1;border-radius:3px;font-weight:500;">- ${t("sheetDialogs.deleteWatch") || "Xóa"}</button>
+      <div class="vno-watch-toolbar" style="display:flex;gap:8px;padding:6px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;align-items:center;">
+        <button id="vno-watch-add" type="button" class="vno-btn" style="font-size:11px;padding:4px 10px;height:26px;background:#ffffff;border:1px solid #cbd5e1;border-radius:4px;font-weight:500;cursor:pointer;">+ ${t("sheetDialogs.addWatch", "Thêm ô theo dõi")}</button>
+        <button id="vno-watch-del" type="button" class="vno-btn" style="font-size:11px;padding:4px 10px;height:26px;background:#ffffff;border:1px solid #cbd5e1;border-radius:4px;font-weight:500;cursor:pointer;">- ${t("sheetDialogs.deleteWatch", "Xóa theo dõi")}</button>
       </div>
-      <div style="flex:1;overflow-y:auto;padding:0;">
-        <table class="vno-watch-table" style="width:100%;border-collapse:collapse;font-size:11px;">
+      <div class="vno-watch-table-container" style="flex:1;overflow:auto;padding:0;outline:none;" tabindex="0" role="region" aria-label="${t("sheetDialogs.watchWindowTitle", "Cửa sổ theo dõi")}">
+        <table class="vno-watch-table" style="width:100%;border-collapse:collapse;font-size:11px;text-align:left;">
           <thead>
-            <tr style="background:#f8fafc;border-bottom:1px solid #cbd5e1;text-align:left;color:#475569;">
-              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">${t("sheetDialogs.watchWindowColSheet", "Trang tính")}</th>
-              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">${t("sheetDialogs.watchWindowColCell", "Ô")}</th>
-              <th style="padding:5px 8px;border-right:1px solid #e2e8f0;font-weight:600;">${t("sheetDialogs.watchWindowColValue", "Giá trị")}</th>
-              <th style="padding:5px 8px;font-weight:600;">${t("sheetDialogs.watchWindowColFormula", "Công thức")}</th>
+            <tr style="background:#f8fafc;border-bottom:1px solid #cbd5e1;text-align:left;color:#475569;font-size:11px;position:sticky;top:0;z-index:1;">
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColBook", "Sổ làm việc")}</th>
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColSheet", "Trang tính")}</th>
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColName", "Tên")}</th>
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColCell", "Ô")}</th>
+              <th style="padding:6px 8px;border-right:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColValue", "Giá trị")}</th>
+              <th style="padding:6px 8px;font-weight:600;white-space:nowrap;">${t("sheetDialogs.watchWindowColFormula", "Công thức")}</th>
             </tr>
           </thead>
           <tbody id="vno-watch-tbody"></tbody>
         </table>
       </div>
+      <div class="vno-watch-footer" style="padding:4px 12px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:11px;color:#64748b;display:flex;justify-content:space-between;align-items:center;">
+        <span id="vno-watch-count">0 ${t("sheetDialogs.watchWindowCountSuffix", "ô theo dõi")}</span>
+        <span style="font-size:10px;color:#94a3b8;">${t("sheetDialogs.watchWindowKeyboardHint", "Phím tắt: Delete để xóa, Enter để chuyển đến ô, Esc để đóng")}</span>
+      </div>
     `;
 
     document.body.appendChild(win);
 
-    win.querySelector("#vno-watch-close").addEventListener("click", () => {
+    // Kéo thả cửa sổ nổi qua header
+    const header = win.querySelector("#vno-watch-header");
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
+
+    const onMouseDown = (e) => {
+      if (e.target?.closest?.("button") || e.target?.closest?.("input")) return;
+      isDragging = true;
+      dragStartX = e.clientX ?? 0;
+      dragStartY = e.clientY ?? 0;
+      const rect = win.getBoundingClientRect?.() || { left: 100, top: 100 };
+      initialLeft = rect.left;
+      initialTop = rect.top;
+      win.style.right = "auto";
+      win.style.bottom = "auto";
+      win.style.left = `${initialLeft}px`;
+      win.style.top = `${initialTop}px`;
+      if (document.body) document.body.style.userSelect = "none";
+
+      const onMouseMove = (ev) => {
+        if (!isDragging) return;
+        const dx = (ev.clientX ?? 0) - dragStartX;
+        const dy = (ev.clientY ?? 0) - dragStartY;
+        let nextLeft = initialLeft + dx;
+        let nextTop = initialTop + dy;
+        const viewportW = (typeof window !== "undefined" ? window.innerWidth : 1024) || 1024;
+        const viewportH = (typeof window !== "undefined" ? window.innerHeight : 768) || 768;
+        const maxLeft = Math.max(0, viewportW - (win.offsetWidth || 580));
+        const maxTop = Math.max(0, viewportH - (win.offsetHeight || 280));
+        nextLeft = Math.max(0, Math.min(maxLeft, nextLeft));
+        nextTop = Math.max(0, Math.min(maxTop, nextTop));
+        win.style.left = `${nextLeft}px`;
+        win.style.top = `${nextTop}px`;
+      };
+
+      const onMouseUp = () => {
+        isDragging = false;
+        if (document.body) document.body.style.userSelect = "";
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    };
+
+    if (header) header.addEventListener("mousedown", onMouseDown);
+
+    // Đóng cửa sổ
+    win.querySelector("#vno-watch-close")?.addEventListener("click", () => {
       win.style.display = "none";
     });
 
-    win.querySelector("#vno-watch-add").addEventListener("click", () => {
-      const cKey = `${this.activeSheet}!${this.selectedCoord.c}${this.selectedCoord.r}`;
-      this.watchedCells.add(cKey);
-      this._updateWatchWindow();
+    // Thêm ô theo dõi
+    win.querySelector("#vno-watch-add")?.addEventListener("click", () => {
+      this._showAddWatchDialog(win);
     });
 
-    win.querySelector("#vno-watch-del").addEventListener("click", () => {
+    // Xóa ô theo dõi
+    win.querySelector("#vno-watch-del")?.addEventListener("click", () => {
       const selectedRow = win.querySelector(".vno-watch-row.is-selected");
       if (selectedRow) {
-        this.watchedCells.delete(selectedRow.dataset.watchKey);
-        this._updateWatchWindow();
+        const rows = Array.from(win.querySelectorAll(".vno-watch-row"));
+        const currentIndex = rows.indexOf(selectedRow);
+        this.removeWatchedCell(selectedRow.dataset.watchKey);
+        const newRows = Array.from(win.querySelectorAll(".vno-watch-row"));
+        if (newRows.length > 0) {
+          const nextIndex = Math.min(currentIndex, newRows.length - 1);
+          newRows[nextIndex].classList.add("is-selected");
+        }
+      }
+    });
+
+    // Phím tắt và điều hướng bàn phím trên cửa sổ
+    win.addEventListener("keydown", (e) => {
+      const addDialog = win.querySelector("#vno-watch-add-dialog");
+      if (addDialog) {
+        if (e.key === "Escape") {
+          e.preventDefault?.();
+          e.stopPropagation?.();
+          addDialog.remove();
+          win.querySelector("#vno-watch-backdrop")?.remove();
+          win.querySelector("#vno-watch-add")?.focus();
+        }
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault?.();
+        win.style.display = "none";
+        return;
+      }
+
+      const rows = Array.from(win.querySelectorAll(".vno-watch-row"));
+      if (rows.length === 0) return;
+
+      let selectedIndex = rows.findIndex(r => r.classList.contains("is-selected"));
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault?.();
+        const nextIndex = selectedIndex < rows.length - 1 ? selectedIndex + 1 : 0;
+        rows.forEach(r => r.classList.remove("is-selected"));
+        rows[nextIndex].classList.add("is-selected");
+        rows[nextIndex].scrollIntoView?.({ block: "nearest" });
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault?.();
+        const prevIndex = selectedIndex > 0 ? selectedIndex - 1 : rows.length - 1;
+        rows.forEach(r => r.classList.remove("is-selected"));
+        rows[prevIndex].classList.add("is-selected");
+        rows[prevIndex].scrollIntoView?.({ block: "nearest" });
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        if (e.target?.tagName !== "INPUT" && selectedIndex >= 0) {
+          e.preventDefault?.();
+          const keyToDelete = rows[selectedIndex].dataset.watchKey;
+          this.removeWatchedCell(keyToDelete);
+          const newRows = Array.from(win.querySelectorAll(".vno-watch-row"));
+          if (newRows.length > 0) {
+            newRows.forEach(r => r.classList.remove("is-selected"));
+            const nextSel = Math.min(selectedIndex, newRows.length - 1);
+            newRows[nextSel].classList.add("is-selected");
+          }
+        }
+      } else if (e.key === "Enter") {
+        if (e.target?.tagName !== "BUTTON" && e.target?.tagName !== "INPUT" && selectedIndex >= 0) {
+          e.preventDefault?.();
+          const row = rows[selectedIndex];
+          const key = row.dataset.watchKey;
+          const lastExcl = key.lastIndexOf("!");
+          const sheetName = lastExcl >= 0 ? key.slice(0, lastExcl).replace(/^'|'$/g, "") : this.activeSheet;
+          const coord = lastExcl >= 0 ? key.slice(lastExcl + 1).replace(/\$/g, "").toUpperCase() : key;
+          if (this.sheets?.includes(sheetName)) {
+            this.switchSheet(sheetName);
+          }
+          const [col, r] = this._splitCoord(coord);
+          this.selectCell(col, Number(r));
+        }
       }
     });
 
@@ -4277,37 +4563,154 @@ export class SheetGridController {
     return true;
   }
 
+  _showAddWatchDialog(win) {
+    if (!win) return;
+    const oldDialog = win.querySelector("#vno-watch-add-dialog");
+    if (oldDialog) oldDialog.remove();
+    win.querySelector("#vno-watch-backdrop")?.remove();
+
+    const backdrop = document.createElement("div");
+    backdrop.id = "vno-watch-backdrop";
+    backdrop.className = "vno-watch-add-dialog-backdrop";
+    backdrop.style.cssText = "position:absolute;inset:0;background:rgba(15,23,42,0.25);z-index:10000;";
+
+    const dialog = document.createElement("div");
+    dialog.id = "vno-watch-add-dialog";
+    dialog.className = "vno-watch-add-dialog";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-label", t("sheetDialogs.addWatchTitle", "Thêm ô theo dõi"));
+    dialog.style.cssText = `
+      position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:360px;max-width:90%;
+      background:#ffffff;border:1px solid #cbd5e1;border-radius:6px;box-shadow:0 12px 32px rgba(15,23,42,0.22);
+      z-index:10001;display:flex;flex-direction:column;font-size:12px;overflow:hidden;
+    `;
+
+    const defaultRef = `='${this.activeSheet}'!$${this.selectedCoord.c}$${this.selectedCoord.r}`;
+
+    dialog.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#f1f5f9;border-bottom:1px solid #cbd5e1;font-weight:600;color:#0f172a;">
+        <span>${t("sheetDialogs.addWatchTitle", "Thêm ô theo dõi")}</span>
+        <button id="vno-watch-add-close" type="button" class="vno-dialog-close-btn" aria-label="${t("sheetDialogs.close", "Đóng")}" style="width:22px;height:22px;min-width:22px;min-height:22px;padding:0;font-size:16px;line-height:1;border:none;background:transparent;cursor:pointer;">&times;</button>
+      </div>
+      <div style="padding:12px;display:flex;flex-direction:column;gap:8px;">
+        <label for="vno-watch-add-input" style="font-weight:500;color:#334155;">${t("sheetDialogs.addWatchPrompt", "Chọn ô bạn muốn theo dõi giá trị:")}</label>
+        <input id="vno-watch-add-input" type="text" value="${this._escapeHtml(defaultRef)}" style="width:100%;height:28px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:4px;font-size:12px;font-family:Consolas, monospace;" />
+        <div id="vno-watch-add-error" style="color:#dc2626;font-size:11px;display:none;"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding:8px 12px;background:#f8fafc;border-top:1px solid #e2e8f0;">
+        <button id="vno-watch-add-confirm" type="button" class="vno-btn vno-btn-primary" style="font-size:11px;padding:4px 12px;height:26px;background:#0f6d38;color:#ffffff;border:none;border-radius:4px;cursor:pointer;font-weight:500;">${t("sheetDialogs.addWatchBtn", "Thêm")}</button>
+        <button id="vno-watch-add-cancel" type="button" class="vno-btn" style="font-size:11px;padding:4px 12px;height:26px;background:#ffffff;border:1px solid #cbd5e1;border-radius:4px;cursor:pointer;">${t("sheetDialogs.cancel", "Hủy")}</button>
+      </div>
+    `;
+
+    win.appendChild(backdrop);
+    win.appendChild(dialog);
+
+    const input = dialog.querySelector("#vno-watch-add-input");
+    const errorEl = dialog.querySelector("#vno-watch-add-error");
+    const closeDialog = () => {
+      dialog.remove();
+      backdrop.remove();
+      win.querySelector("#vno-watch-add")?.focus();
+    };
+
+    dialog.querySelector("#vno-watch-add-close")?.addEventListener("click", closeDialog);
+    dialog.querySelector("#vno-watch-add-cancel")?.addEventListener("click", closeDialog);
+
+    const doSubmit = () => {
+      const val = (input?.value || "").trim();
+      const added = this.addWatchedCell(val);
+      if (!added) {
+        if (errorEl) {
+          errorEl.textContent = t("sheetDialogs.watchWindowInvalidCoord", "Địa chỉ ô không hợp lệ.");
+          errorEl.style.display = "block";
+        }
+        input?.focus?.();
+        return;
+      }
+      closeDialog();
+    };
+
+    dialog.querySelector("#vno-watch-add-confirm")?.addEventListener("click", doSubmit);
+
+    input?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault?.();
+        doSubmit();
+      } else if (e.key === "Escape") {
+        e.preventDefault?.();
+        e.stopPropagation?.();
+        closeDialog();
+      }
+    });
+
+    if (typeof setTimeout === "function") {
+      setTimeout(() => {
+        input?.focus?.();
+        input?.select?.();
+      }, 10);
+    }
+  }
+
   _updateWatchWindow() {
     if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
     const tbody = document.querySelector("#vno-watch-tbody");
     if (!tbody || !this.watchedCells) return;
+    const countEl = document.querySelector("#vno-watch-count");
+
+    const currentSelectedRow = tbody.querySelector(".vno-watch-row.is-selected");
+    let preservedKey = currentSelectedRow?.dataset?.watchKey;
+
     tbody.innerHTML = "";
     if (this.watchedCells.size === 0) {
-      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:16px;color:#94a3b8;">Chưa có ô theo dõi nào.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px 16px;color:#94a3b8;font-size:12px;">${t("sheetDialogs.watchWindowEmpty", "Chưa có ô theo dõi nào.")}</td></tr>`;
+      if (countEl) countEl.textContent = `0 ${t("sheetDialogs.watchWindowCountSuffix", "ô theo dõi")}`;
       return;
     }
 
-    for (const key of this.watchedCells) {
-      const [sheetName, coord] = key.split("!");
-      const map = this.sheetsData?.[sheetName] || (sheetName === this.activeSheet ? this.cellsData : null);
-      const itm = map?.get(coord);
-      const val = itm ? (itm.val ?? "") : "";
-      const formula = itm ? (itm.formula || "") : "";
+    const items = this.getWatchedCellsList();
+    if (countEl) countEl.textContent = `${items.length} ${t("sheetDialogs.watchWindowCountSuffix", "ô theo dõi")}`;
 
+    let selectedKeyToApply = preservedKey;
+    if (!selectedKeyToApply || !items.some(it => it.key === selectedKeyToApply)) {
+      selectedKeyToApply = items[0]?.key;
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       const tr = document.createElement("tr");
       tr.className = "vno-watch-row";
-      tr.dataset.watchKey = key;
+      tr.dataset.watchKey = item.key;
+      tr.dataset.sheet = item.sheet;
+      tr.dataset.coord = item.cell;
+      tr.tabIndex = -1;
       tr.style.cssText = "border-bottom:1px solid #f1f5f9;cursor:pointer;transition:background-color 0.1s;";
+      if (item.key === selectedKeyToApply) {
+        tr.classList.add("is-selected");
+      }
+
       tr.innerHTML = `
-        <td style="padding:5px 8px;font-weight:600;border-right:1px solid #f1f5f9;">${this._escapeHtml(sheetName)}</td>
-        <td style="padding:5px 8px;font-weight:700;color:#0f6d38;border-right:1px solid #f1f5f9;">${this._escapeHtml(coord)}</td>
-        <td style="padding:5px 8px;border-right:1px solid #f1f5f9;">${this._escapeHtml(String(val))}</td>
-        <td style="padding:5px 8px;font-family:Consolas, monospace;color:#64748b;">${this._escapeHtml(formula)}</td>
+        <td style="padding:5px 8px;border-right:1px solid #f1f5f9;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;" title="${this._escapeHtml(item.workbook)}">${this._escapeHtml(item.workbook)}</td>
+        <td style="padding:5px 8px;font-weight:600;border-right:1px solid #f1f5f9;color:#1e293b;white-space:nowrap;">${this._escapeHtml(item.sheet)}</td>
+        <td style="padding:5px 8px;border-right:1px solid #e2e8f0;color:#0284c7;white-space:nowrap;">${this._escapeHtml(item.name || "")}</td>
+        <td style="padding:5px 8px;font-weight:700;color:#0f6d38;border-right:1px solid #f1f5f9;white-space:nowrap;">${this._escapeHtml(item.cell)}</td>
+        <td style="padding:5px 8px;border-right:1px solid #f1f5f9;color:#0f172a;white-space:nowrap;font-weight:500;">${this._escapeHtml(String(item.value))}</td>
+        <td style="padding:5px 8px;font-family:Consolas, monospace;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;" title="${this._escapeHtml(item.formula)}">${this._escapeHtml(item.formula)}</td>
       `;
+
       tr.addEventListener("click", () => {
         tbody.querySelectorAll(".vno-watch-row").forEach(r => r.classList.remove("is-selected"));
         tr.classList.add("is-selected");
       });
+
+      tr.addEventListener("dblclick", () => {
+        if (this.sheets?.includes(item.sheet)) {
+          this.switchSheet(item.sheet);
+        }
+        const [col, row] = this._splitCoord(item.cell);
+        this.selectCell(col, Number(row));
+      });
+
       tbody.appendChild(tr);
     }
   }
