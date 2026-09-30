@@ -41,15 +41,15 @@ $OutputEncoding = [Console]::OutputEncoding
 
 function Invoke-ComWithRetry([string]$Operation, [scriptblock]$Action) {
   $script:CurrentOperation = $Operation
-  $delays = @(500, 1000, 2000, 4000)
-  for ($attempt = 0; $attempt -lt 5; $attempt++) {
+  $delays = @(1000, 2000, 4000, 8000, 16000)
+  for ($attempt = 0; $attempt -le 5; $attempt++) {
     try { return (& $Action) }
     catch {
       $hr = [int]$_.Exception.HResult
       $message = [string]$_.Exception.Message
       $busy = ($hr -eq -2147418111) -or ($hr -eq -2147417846) -or
         ($message -match '(?i)RPC_E_CALL_REJECTED|rejected by callee|server busy|application is busy')
-      if (-not $busy -or $attempt -ge 4) { throw }
+      if (-not $busy -or $attempt -ge 5) { throw }
       Start-Sleep -Milliseconds $delays[$attempt]
     }
   }
