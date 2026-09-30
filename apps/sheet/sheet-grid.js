@@ -5058,7 +5058,6 @@ export class SheetGridController {
     const evaluateBtn = document.createElement("button");
     evaluateBtn.type = "button";
     evaluateBtn.className = "vno-btn vno-btn-primary vno-eval-btn-evaluate";
-    evaluateBtn.textContent = t("sheetDialogs.evaluateFormulaEvaluate", "Ước lượng");
     const stepInBtn = document.createElement("button");
     stepInBtn.type = "button";
     stepInBtn.className = "vno-btn vno-eval-btn-step-in";
@@ -5067,14 +5066,40 @@ export class SheetGridController {
     stepOutBtn.type = "button";
     stepOutBtn.className = "vno-btn vno-eval-btn-step-out";
     stepOutBtn.textContent = t("sheetDialogs.evaluateFormulaStepOut", "Bước ra");
-    const restartBtn = document.createElement("button");
-    restartBtn.type = "button";
-    restartBtn.className = "vno-btn vno-eval-btn-restart";
-    restartBtn.textContent = t("sheetDialogs.evaluateFormulaRestart", "Khởi động lại");
     if (footer) {
       footer.innerHTML = "";
-      footer.append(evaluateBtn, stepInBtn, stepOutBtn, restartBtn, cancelBtn);
+      footer.append(evaluateBtn, stepInBtn, stepOutBtn, cancelBtn);
     }
+
+    const focusables = () => Array.from(dialogBox?.querySelectorAll(
+      'button:not([disabled]):not([style*="display: none"]):not([style*="display:none"]), ' +
+      'input:not([disabled]):not([type="hidden"]):not([style*="display: none"]):not([style*="display:none"]), ' +
+      'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    ).filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0) || []);
+
+    const trapFocus = (event) => {
+      if (event.key !== "Tab") return;
+      const items = focusables();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey) {
+        if (document.activeElement === first || !dialogBox?.contains(document.activeElement)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last || !dialogBox?.contains(document.activeElement)) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    const closeDialog = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    };
 
     const render = () => {
       const state = session.getState();
@@ -5097,7 +5122,7 @@ export class SheetGridController {
         evaluateBtn.disabled = true;
         stepInBtn.disabled = true;
         stepOutBtn.disabled = true;
-        restartBtn.disabled = true;
+        evaluateBtn.textContent = t("sheetDialogs.evaluateFormulaEvaluate", "Ước lượng");
         cancelBtn?.focus();
         return;
       }
@@ -5120,18 +5145,27 @@ export class SheetGridController {
               : t("sheetDialogs.evaluateFormulaDoneMismatch", { value: cellText })
           }`;
         }
-      } else if (finalEl) {
-        finalEl.textContent = t("sheetDialogs.evaluateFormulaCellValue", { value: cellText });
+        evaluateBtn.disabled = false;
+        evaluateBtn.textContent = t("sheetDialogs.evaluateFormulaRestart", "Khởi động lại");
+      } else {
+        if (finalEl) {
+          finalEl.textContent = t("sheetDialogs.evaluateFormulaCellValue", { value: cellText });
+        }
+        evaluateBtn.disabled = !state.canEvaluate;
+        evaluateBtn.textContent = t("sheetDialogs.evaluateFormulaEvaluate", "Ước lượng");
       }
-      evaluateBtn.disabled = !state.canEvaluate;
       stepInBtn.disabled = !state.canStepIn;
       stepOutBtn.disabled = !state.canStepOut;
-      restartBtn.disabled = false;
-      if (state.canEvaluate) evaluateBtn.focus();
+      if (state.canEvaluate && !state.done) evaluateBtn.focus();
     };
 
     evaluateBtn.addEventListener("click", () => {
-      session.evaluate();
+      const state = session.getState();
+      if (state.done) {
+        session.restart();
+      } else {
+        session.evaluate();
+      }
       render();
     });
     stepInBtn.addEventListener("click", () => {
@@ -5142,18 +5176,31 @@ export class SheetGridController {
       session.stepOut();
       render();
     });
-    restartBtn.addEventListener("click", () => {
-      session.restart();
-      render();
-    });
-    overlay.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter") return;
-      if (document.activeElement === cancelBtn) return;
-      if (evaluateBtn.disabled) return;
-      event.preventDefault();
-      session.evaluate();
-      render();
-    });
+
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeDialog();
+        return;
+      }
+      if (event.key === "Enter") {
+        if (document.activeElement === cancelBtn) return;
+        if (evaluateBtn.disabled) return;
+        event.preventDefault();
+        const state = session.getState();
+        if (state.done) {
+          session.restart();
+        } else {
+          session.evaluate();
+        }
+        render();
+        return;
+      }
+      if (event.key === "Tab") {
+        trapFocus(event);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
     render();
     return true;
   }
