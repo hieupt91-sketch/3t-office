@@ -32,9 +32,9 @@ FILES CHANGED:
 
 COMMANDS RUN:
 - `git merge main` (fast-forward; performed before implementation)
-- `node tests/run-tests.js` (initial full run)
-- `node --test tests/unit/print-dialog.test.js`
-- `python -m unittest discover -s tests` (full run before the final timeout-ownership test was added)
+- `node tests/run-tests.js` (final full run, PASS 2163/2163)
+- `node --test tests/unit/print-dialog.test.js` (final focused run, PASS 4/4)
+- `python -m unittest discover -s tests` (final full run, PASS 494 tests)
 - `python -m unittest tests.test_print_pipeline tests.test_print_save_pipeline tests.test_print_office_com -v`
 - `python -m unittest tests.test_print_office_com -v`
 - `python -m py_compile main.py platform/print/office_com.py platform/print/print_pipeline.py scripts/layout-audit/_print_page_audit.py`
@@ -45,8 +45,8 @@ COMMANDS RUN:
 BUILD RESULT: NOT RUN; no build-system change was made.
 
 TEST RESULTS:
-- `node tests/run-tests.js`: PASS, 2163/2163 on the committed implementation before a final option-visibility adjustment; full rerun pending.
-- `python -m unittest discover -s tests`: PASS, 493 tests in 368.773 seconds before the final timeout-ownership test was added; full rerun pending.
+- `node tests/run-tests.js`: PASS, 2163/2163 on the final implementation. FODS round-trip checks ran without another soffice worker at launch.
+- `python -m unittest discover -s tests`: PASS, 494 tests in 316.318 seconds, including the timeout-ownership test.
 - Focused current print/Office Python suite: PASS, 24/24.
 - Focused current print dialog model suite: PASS, 4/4.
 - Python compilation and `git diff --check`: PASS.
@@ -62,8 +62,8 @@ RISKS:
 - Active-sheet scope on lan11/lan28 still needs an Excel ActiveSheet oracle before changing fallback semantics. Current pre-G10 counts use workbook-level Excel ExportAsFixedFormat.
 - WPS is not installed on this machine; only Microsoft Office can be exercised here.
 
-DEPENDENCIES/BLOCKERS: No new runtime dependency. At handoff time, separate agents have active `EXCEL.EXE /automation` and LibreOffice round-trip jobs in other worktrees. The required Office COM jobs and full round-trip test gates are queued to preserve strict serialization and avoid concurrent soffice load.
+DEPENDENCIES/BLOCKERS: No new runtime dependency. At handoff time, a separate Office oracle has a headless Word job active and an idle `EXCEL.EXE /automation` process remains from an earlier batch. The full Node and Python gates have now passed in isolated runs. The required G10 Office COM jobs and live LibreOffice fallback audit remain queued to preserve strict serialization.
 
 CORE PATCH ID (if any): N/A; no LibreOffice Core changes.
 
-NEXT ACTION: Once the external Office/LibreOffice jobs release these services, rerun the full Node and Python gates, perform the serial original and live-app PDF audits for the requested Writer/Sheet/Slides files, measure active-sheet Sheet counts, update `docs/HANDOFF-PRINT.md` with before/after results, and commit the completed verification handoff on this branch.
+NEXT ACTION: Once the external Office oracle releases Word/Excel/PowerPoint, perform the serial original and live-app PDF audits for the requested Writer/Sheet/Slides files, measure active-sheet Sheet counts, run the live LibreOffice-only fallback audit, update `docs/HANDOFF-PRINT.md` with before/after results, and commit the completed verification handoff on this branch.

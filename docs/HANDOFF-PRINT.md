@@ -125,15 +125,15 @@ IMPLEMENTATION:
 - The real-app page audit now accepts `.pptx`, preserves the Print PDF for page-1 comparison, and can simulate missing Office/WPS in an isolated worker with `VN_PRINT_USE_OFFICE=0`.
 
 DEVELOPMENT VALIDATION:
-- Full Node suite: PASS, 2163/2163 on the implementation before the last visibility-only dialog fix; final full-gate rerun is pending.
-- Full Python discovery: PASS, 493 tests in 368.773 seconds before one added timeout-ownership test; the current focused print/Office set is PASS, 24/24. Final full-gate rerun is pending.
+- Full Node suite: PASS, 2163/2163 on the final dialog implementation. The FODS round-trip sections ran without another soffice worker at launch.
+- Full Python discovery: PASS, 494 tests in 316.318 seconds. The full run started without another soffice worker and includes the timeout-ownership regression.
 - `python -m unittest tests.test_print_office_com -v`: PASS, 8/8, including simulated Office-absent fallback and confirmation that timeout cleanup targets only a PID marked as owned by the job.
-- `node --test tests/unit/print-dialog.test.js`: PASS, 4/4 before the last visibility-only dialog fix; rerun pending.
+- `node --test tests/unit/print-dialog.test.js`: PASS, 4/4 after the option-visibility fix.
 - `python -m py_compile scripts/layout-audit/_print_page_audit.py platform/print/office_com.py main.py`: PASS.
 - A direct Office export of the original `d03.docx` succeeded and produced a one-page PDF. Its page-1 text is extractable; comparison against the VN Print/Export PDFs is pending.
 - Windows registry detection on this machine finds Microsoft Word, Excel, and PowerPoint; WPS is not registered.
 
-LIVE VERIFICATION: NOT RUN for the required d03/d12/d24/legacy `.doc`/lan05.xlsx/PPTX comparisons, the d01/d16/d20 and Sheet parity set, or the live LibreOffice-only audit. At the time of this handoff, a separate Claude batch audit in `E:\VNOffice-agy-scenario` is using an `EXCEL.EXE /automation` process. G10 Office jobs have been held to honor the sequential-COM requirement. Do not claim the parity gate passes until the Office PDFs have been compared with original-file exports for both page count and normalized page-1 text. The product fallback path is covered by the Office-absent unit tests; a live simulated-absence app audit remains pending.
+LIVE VERIFICATION: NOT RUN for the required d03/d12/d24/legacy `.doc`/lan05.xlsx/PPTX comparisons, the d01/d16/d20 and Sheet parity set, or the live LibreOffice-only audit. At the time of this handoff, a separate Office-oracle job has a headless Word process active, with an idle Excel automation process left by an earlier batch. G10 Office jobs have been held to honor the sequential-COM requirement. Do not claim the parity gate passes until the Office PDFs have been compared with original-file exports for both page count and normalized page-1 text. The product fallback path is covered by the Office-absent unit tests; a live simulated-absence app audit remains pending.
 
 SHEET FALLBACK INVESTIGATION:
 - The G9 baseline remains lan05 14 Excel pages vs 3 LibreOffice pages, lan11 965 vs 357, and lan28 36 vs 35.
@@ -143,4 +143,4 @@ SHEET FALLBACK INVESTIGATION:
 
 REFERENCE ACCESS: `docs/REFERENCE-3T-READER.md` was read. The exact requested sibling-project `office_com.py` UNC path could not be opened from this machine (`\\192.168.1.8\d\PDF\3T_Reader_Phase1_Win\packages\document_core\office_com.py` did not resolve). The restricted `??ng k? bq` folder was not opened.
 
-CURRENT GATE: G10 implementation is present, but live Office page parity is NOT RUN and the LibreOffice Sheet parity failures remain. This handoff must not be marked overall PASS until the queued live verification is completed.
+CURRENT GATE: Node and Python test gates PASS. G10 live Office page parity is NOT RUN and the LibreOffice Sheet parity failures remain. This handoff must not be marked overall PASS until the queued live verification is completed.
