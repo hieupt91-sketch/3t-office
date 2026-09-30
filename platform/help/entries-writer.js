@@ -28,7 +28,8 @@ export const WRITER_HELP_ENTRIES = [
     keywords: ["in", "Ctrl+P", "xem trước khi in", "máy in", "số bản", "phạm vi trang"],
     steps: [
       "Nhấn Ctrl+P hoặc chọn Bố cục > In ấn > In để mở Xem trước khi in.",
-      "Kiểm tra số trang và nội dung, rồi chọn máy in, số bản hoặc phạm vi trang trong hộp thoại in của Windows và nhấn In. Nhấn Esc để quay lại tài liệu."
+      "Kiểm tra số trang và nội dung tài liệu trước khi in; nhấn Esc bất kỳ lúc nào để quay lại cửa sổ soạn thảo.",
+      "Chọn máy in, số bản và phạm vi trang trong hộp thoại in của Windows rồi nhấn In để in tài liệu."
     ]
   },
   {
