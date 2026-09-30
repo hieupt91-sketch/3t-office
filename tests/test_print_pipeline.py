@@ -15,7 +15,10 @@ SPEC.loader.exec_module(PIPELINE)
 
 class PrintPipelineTests(unittest.TestCase):
     def make_pipeline(self, fake_printer_command):
-        def write_source(content, app_kind, temp_dir):
+        self.written_source_paths = []
+
+        def write_source(content, app_kind, temp_dir, source_path=None):
+            self.written_source_paths.append(source_path)
             path = Path(temp_dir) / f"draft.{app_kind}"
             path.write_text(content, encoding="utf-8")
             return str(path)
@@ -48,9 +51,10 @@ class PrintPipelineTests(unittest.TestCase):
             return {"ok": True}
 
         pipeline = self.make_pipeline(fake_printer_command)
-        prepared = pipeline.prepare("writer", "<p>Xin chào</p>", "CongVan.docx")
+        prepared = pipeline.prepare("writer", "<p>Xin chào</p>", "CongVan.docx", "C:/Docs/goc.docx")
         self.assertEqual(prepared["status"], "ok")
         self.assertEqual(prepared["pageCount"], 6)
+        self.assertEqual(self.written_source_paths, ["C:/Docs/goc.docx"])
 
         page = pipeline.preview_page(prepared["sessionId"], 2)
         self.assertEqual(page["status"], "ok")

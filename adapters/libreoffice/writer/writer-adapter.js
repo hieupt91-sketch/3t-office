@@ -11379,7 +11379,9 @@ export class WriterAdapter {
 
   async exportPdf() {
     this.documentContent = this.editorDom.innerHTML;
-    const result = await globalUnoBridge.exportRealPdf("writer", this._contentForExport(), this.sourceFileName);
+    const result = await globalUnoBridge.exportRealPdf(
+      "writer", this._contentForExport(), this.sourceFileName, this._sourcePath || null,
+    );
     if (result.status === "ok") {
       await showAlertDialog({ title: "Đã xuất PDF", message: result.message, type: "success" });
       return true;
@@ -11411,6 +11413,7 @@ export class WriterAdapter {
       appKind: "writer",
       content: this._contentForExport(),
       documentName: this.sourceFileName || "Tài liệu",
+      sourcePath: this._sourcePath || null,
       pageSetupLabel,
       currentPage,
       engine: globalUnoBridge

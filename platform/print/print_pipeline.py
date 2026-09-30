@@ -127,7 +127,7 @@ class PrintPipeline:
     def __init__(
         self,
         *,
-        write_source: Callable[[str, str, str], str],
+        write_source: Callable[[str, str, str, str | None], str],
         convert_pdf: Callable[[str, str, str], str],
         inspect_pdf: Callable[[str, str], int],
         render_page: Callable[[str, str, int, str], None],
@@ -141,7 +141,13 @@ class PrintPipeline:
         self._sessions: dict[str, dict] = {}
         self._lock = threading.RLock()
 
-    def prepare(self, app_kind: str, content: str, suggested_name: str = "TaiLieu") -> dict:
+    def prepare(
+        self,
+        app_kind: str,
+        content: str,
+        suggested_name: str = "TaiLieu",
+        source_path: str | None = None,
+    ) -> dict:
         if app_kind not in {"writer", "sheet", "slides"}:
             return {"status": "error", "message": "Không xác định được ứng dụng cần in."}
         if not isinstance(content, str) or not content.strip():
@@ -151,8 +157,8 @@ class PrintPipeline:
         temp_dir = tempfile.TemporaryDirectory(prefix="vnoffice_print_", ignore_cleanup_errors=True)
         root = temp_dir.name
         try:
-            source_path = self._write_source(content, app_kind, root)
-            pdf_path = self._convert_pdf(source_path, app_kind, root)
+            native_source_path = self._write_source(content, app_kind, root, source_path)
+            pdf_path = self._convert_pdf(native_source_path, app_kind, root)
             if not Path(pdf_path).is_file() or Path(pdf_path).stat().st_size <= 0:
                 raise RuntimeError("LibreOffice không tạo được tệp PDF xem trước.")
             page_count = self._inspect_pdf(app_kind, pdf_path)

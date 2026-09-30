@@ -1439,8 +1439,11 @@ def _sheet_fods_for_export(fods: str, target_format: str | None) -> str:
     return _ooxml_zip_patch().fods_vnd_cells_as_text(fods)
 
 
-def _write_print_source(content: str, app_kind: str, temp_dir: str) -> str:
-    """Write the same in-memory interchange document used by the PDF export path."""
+_PRINT_NATIVE_FORMAT = {"writer": "docx", "sheet": "xlsx", "slides": "pptx"}
+
+
+def _write_save_source(content: str, app_kind: str, temp_dir: str, target_format: str) -> str:
+    """Write the same interchange file that the native Save pipeline consumes."""
     suffix = {"writer": "html", "sheet": "fods", "slides": "fodp"}.get(app_kind)
     if not suffix:
         raise ValueError(f"Loại ứng dụng không hợp lệ: {app_kind}")
@@ -1448,7 +1451,7 @@ def _write_print_source(content: str, app_kind: str, temp_dir: str) -> str:
     if app_kind == "writer":
         source = f"<html><head><meta charset='utf-8'></head><body>{content}</body></html>"
     elif app_kind == "sheet":
-        source = _sheet_fods_for_export(content, "pdf")
+        source = _sheet_fods_for_export(content, target_format)
     else:
         source = content
     with open(source_path, "w", encoding="utf-8") as source_file:
@@ -1456,11 +1459,74 @@ def _write_print_source(content: str, app_kind: str, temp_dir: str) -> str:
     return source_path
 
 
+def _convert_save_source_to_native(
+    source_path: str,
+    app_kind: str,
+    target_format: str,
+    source_document_path: str | None = None,
+) -> str:
+    """Run the Save conversion and native-format postprocessing shared by all save routes."""
+    if app_kind == "writer" and target_format == "docx" and source_document_path:
+        source_suffix = Path(source_document_path).suffix.lower()
+        try:
+            with open(source_path, "r", encoding="utf-8", errors="replace") as handle:
+                pristine = "vno-pristine-document" in handle.read()
+        except OSError:
+            pristine = False
+        if pristine and source_suffix in {".doc", ".docx"} and os.path.isfile(source_document_path):
+            # An untouched document already has authoritative Word pagination.
+            # Keep its OOXML as the native Save artifact instead of round-tripping
+            # it through HTML, which can add HTML-import page breaks in LibreOffice.
+            out_path = os.path.join(os.path.dirname(source_path), "draft.docx")
+            if source_suffix == ".docx":
+                shutil.copyfile(source_document_path, out_path)
+            else:
+                source_docx_dir = os.path.join(os.path.dirname(source_path), "legacy_source")
+                os.makedirs(source_docx_dir, exist_ok=True)
+                source_docx = _run_soffice_convert(
+                    source_document_path, "docx", source_docx_dir, app_kind="writer",
+                )
+                shutil.copyfile(source_docx, out_path)
+            return out_path
+    if app_kind == "writer" and target_format == "doc" and WRITER_DOC_EXPORT_VIA_DOCX:
+        return _convert_writer_html_to_doc(source_path, os.path.dirname(source_path), source_path=source_document_path)
+    out_path = _run_soffice_convert(source_path, target_format, os.path.dirname(source_path), app_kind=app_kind)
+    _apply_native_export_postprocess(
+        source_path, out_path, app_kind, target_format, source_path=source_document_path,
+    )
+    return out_path
+
+
+def _write_print_source(
+    content: str,
+    app_kind: str,
+    temp_dir: str,
+    source_document_path: str | None = None,
+) -> str:
+    """Build the print source through the same source-aware Save path as its native format."""
+    target_format = _PRINT_NATIVE_FORMAT.get(app_kind)
+    if not target_format:
+        raise ValueError(f"Loại ứng dụng không hợp lệ: {app_kind}")
+    interchange_path = _write_save_source(content, app_kind, temp_dir, target_format)
+    return _convert_save_source_to_native(
+        interchange_path, app_kind, target_format, source_document_path=source_document_path,
+    )
+
+
 def _convert_print_source_to_pdf(source_path: str, app_kind: str, output_dir: str) -> str:
-    """Use the same LibreOffice conversion and export postprocessing as PDF export."""
-    pdf_path = _run_soffice_convert(source_path, "pdf", output_dir, app_kind=app_kind)
-    _apply_native_export_postprocess(source_path, pdf_path, app_kind, "pdf", source_path=None)
-    return pdf_path
+    """Convert the saved native print source to PDF with the matching LibreOffice filter."""
+    return _run_soffice_convert(source_path, "pdf", output_dir, app_kind=app_kind)
+
+
+def _export_content_to_pdf(
+    content: str,
+    app_kind: str,
+    temp_dir: str,
+    source_document_path: str | None = None,
+) -> str:
+    """Export PDF only after running the source-aware native Save conversion."""
+    native_path = _write_print_source(content, app_kind, temp_dir, source_document_path)
+    return _convert_print_source_to_pdf(native_path, app_kind, temp_dir)
 
 
 def _print_pdf_to_target_file(pdf_path: str, printer: str, destination_path: str, app_kind: str) -> dict:
@@ -1980,13 +2046,14 @@ class VnOfficeApi:
             content, app_kind, suggested_name, source_path,
         )
 
-    def prepare_print_document(self, app_kind, content, suggested_name="TaiLieu"):
+    def prepare_print_document(self, app_kind, content, suggested_name="TaiLieu", source_path=None):
         return self._invoke_reported_api(
             "prepare_print_document",
             self._print_pipeline.prepare,
             app_kind,
             content,
             suggested_name,
+            source_path,
         )
 
     def get_print_preview_page(self, session_id, page_number):
@@ -2448,26 +2515,10 @@ class VnOfficeApi:
 
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_inplace_") as tmp:
-                if app_kind == "writer":
-                    src_path = os.path.join(tmp, "draft.html")
-                    with open(src_path, "w", encoding="utf-8") as f:
-                        f.write(f"<html><head><meta charset='utf-8'></head><body>{content}</body></html>")
-                elif app_kind == "sheet":
-                    src_path = os.path.join(tmp, "draft.fods")
-                    with open(src_path, "w", encoding="utf-8") as f:
-                        f.write(_sheet_fods_for_export(content, target_format))
-                elif app_kind == "slides":
-                    src_path = os.path.join(tmp, "draft.fodp")
-                    with open(src_path, "w", encoding="utf-8") as f:
-                        f.write(content)
-                else:
-                    return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
-
-                if app_kind == "writer" and target_format == "doc" and WRITER_DOC_EXPORT_VIA_DOCX:
-                    out_path = _convert_writer_html_to_doc(src_path, tmp, source_path=source_path)
-                else:
-                    out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
-                    _apply_native_export_postprocess(src_path, out_path, app_kind, target_format, source_path=source_path)
+                src_path = _write_save_source(content, app_kind, tmp, target_format)
+                out_path = _convert_save_source_to_native(
+                    src_path, app_kind, target_format, source_document_path=source_path,
+                )
                 _atomic_replace_file(out_path, target_path)
                 _verify_saved_file(target_path)
         except DocumentEngineError as exc:
@@ -2518,26 +2569,15 @@ class VnOfficeApi:
 
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_") as tmp:
-                if app_kind == "writer":
-                    src_path = os.path.join(tmp, "draft.html")
-                    with open(src_path, "w", encoding="utf-8") as f:
-                        f.write(f"<html><head><meta charset='utf-8'></head><body>{content}</body></html>")
-                elif app_kind == "sheet":
-                    src_path = os.path.join(tmp, "draft.fods")
-                    with open(src_path, "w", encoding="utf-8") as f:
-                        f.write(_sheet_fods_for_export(content, target_format))
-                elif app_kind == "slides":
-                    src_path = os.path.join(tmp, "draft.fodp")
-                    with open(src_path, "w", encoding="utf-8") as f:
-                        f.write(content)
+                if target_format == "pdf":
+                    out_path = _export_content_to_pdf(
+                        content, app_kind, tmp, source_document_path=source_path,
+                    )
                 else:
-                    return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
-
-                if app_kind == "writer" and target_format == "doc" and WRITER_DOC_EXPORT_VIA_DOCX:
-                    out_path = _convert_writer_html_to_doc(src_path, tmp, source_path=source_path)
-                else:
-                    out_path = _run_soffice_convert(src_path, target_format, tmp, app_kind=app_kind)
-                    _apply_native_export_postprocess(src_path, out_path, app_kind, target_format, source_path=source_path)
+                    src_path = _write_save_source(content, app_kind, tmp, target_format)
+                    out_path = _convert_save_source_to_native(
+                        src_path, app_kind, target_format, source_document_path=source_path,
+                    )
                 _atomic_replace_file(out_path, dest_path)
                 _verify_saved_file(dest_path)
         except DocumentEngineError as exc:

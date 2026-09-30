@@ -17,6 +17,7 @@ export async function openPrintDialog({
   appKind,
   content,
   documentName = "Tài liệu",
+  sourcePath = null,
   pageSetupLabel = "",
   currentPage = 1,
   engine
@@ -243,7 +244,7 @@ export async function openPrintDialog({
       throw new Error("Dịch vụ in chỉ khả dụng trong VN Office Desktop có LibreOffice.");
     }
     const [prepared, printerResult] = await Promise.all([
-      engine.preparePrintDocument(appKind, content, documentName),
+      engine.preparePrintDocument(appKind, content, documentName, sourcePath),
       engine.getInstalledPrinters()
     ]);
     if (state.closed) {

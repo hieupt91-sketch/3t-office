@@ -168,24 +168,24 @@ export class UnoBridge {
    * @param {string} content
    * @param {string} [suggestedName]
    */
-  async exportRealPdf(appKind, content, suggestedName) {
+  async exportRealPdf(appKind, content, suggestedName, sourcePath) {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
         message: "Chức năng Xuất PDF thật chỉ khả dụng trong VN Office Desktop App (đã cài LibreOffice).",
       };
     }
-    return await this.desktopApi.export_pdf_dialog(content, appKind, suggestedName);
+    return await this.desktopApi.export_pdf_dialog(content, appKind, suggestedName, sourcePath);
   }
 
-  async preparePrintDocument(appKind, content, suggestedName) {
+  async preparePrintDocument(appKind, content, suggestedName, sourcePath) {
     if (!this.desktopApi || !this.hasRealEngine) {
       return {
         status: "error",
         message: "Chức năng In chỉ khả dụng trong VN Office Desktop có LibreOffice.",
       };
     }
-    return await this.desktopApi.prepare_print_document(appKind, content, suggestedName);
+    return await this.desktopApi.prepare_print_document(appKind, content, suggestedName, sourcePath);
   }
 
   async getPrintPreviewPage(sessionId, pageNumber) {

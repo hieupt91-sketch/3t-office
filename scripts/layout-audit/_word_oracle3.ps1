@@ -1,22 +1,34 @@
-param([string]$File)
-# Word 2016 page-count oracle. Exports the document to PDF (real print layout) and counts
-# /Type /Page objects. ComputeStatistics(wdStatisticPages) is NOT used: in a hidden COM
-# window it returned 12 for a 5-page contract and 88 for a 44-page manual (2026-09-14).
-$job = Start-Job -ScriptBlock {
-  param($f)
-  $word = New-Object -ComObject Word.Application
+param([string]$File, [int]$Retries = 20, [int]$RetryDelayMilliseconds = 2500)
+# Word PDF page-count oracle. Keep COM automation synchronous so another audit cannot
+# overlap this process. Word can reject calls while busy (RPC_E_CALL_REJECTED); wait
+# and retry that HRESULT only. ComputeStatistics(wdStatisticPages) is not reliable.
+$ErrorActionPreference = 'Stop'
+function Invoke-ComWithRetry([scriptblock]$Action, [string]$Operation) {
+  for ($attempt = 0; $attempt -le $Retries; $attempt++) {
+    try { return (& $Action) }
+    catch {
+      $hr = $_.Exception.HResult
+      if ($hr -ne -2147418111 -or $attempt -ge $Retries) { throw "${Operation}: $($_.Exception.Message)" }
+      Start-Sleep -Milliseconds $RetryDelayMilliseconds
+    }
+  }
+}
+
+$word = $null; $doc = $null
+$pdf = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "vno_oracle_" + [guid]::NewGuid().ToString("N") + ".pdf")
+try {
+  $word = Invoke-ComWithRetry { New-Object -ComObject Word.Application } 'Create Word'
   $word.Visible = $false; $word.DisplayAlerts = 0
-  $pdf = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "vno_oracle_" + [guid]::NewGuid().ToString("N") + ".pdf")
-  try {
-    $doc = $word.Documents.Open($f, $false, $true, $false)
-    $doc.ExportAsFixedFormat($pdf, 17)   # wdExportFormatPDF
-    $doc.Close(0)
-    $bytes = [System.IO.File]::ReadAllBytes($pdf)
-    $text = [System.Text.Encoding]::GetEncoding(28591).GetString($bytes)
-    $n = ([regex]::Matches($text, "/Type\s*/Page[^s]")).Count
-    "OK pages=$n"
-  } catch { "FAIL " + ($_.Exception.Message -replace "`r|`n"," ") }
-  finally { $word.Quit(); if (Test-Path $pdf) { Remove-Item $pdf -Force -ErrorAction SilentlyContinue } }
-} -ArgumentList $File
-if (Wait-Job $job -Timeout 240) { Receive-Job $job } else { "FAIL (timeout - Word blocked by modal error dialog)"; Stop-Job $job; Get-Process WINWORD -ErrorAction SilentlyContinue | Stop-Process -Force }
-Remove-Job $job -Force -ErrorAction SilentlyContinue
+  $doc = Invoke-ComWithRetry { $word.Documents.Open($File, $false, $true, $false) } 'Open document'
+  Invoke-ComWithRetry { $doc.ExportAsFixedFormat($pdf, 17) } 'Export PDF' | Out-Null
+  $doc.Close(0); $doc = $null
+  $bytes = [System.IO.File]::ReadAllBytes($pdf)
+  $text = [System.Text.Encoding]::GetEncoding(28591).GetString($bytes)
+  $n = ([regex]::Matches($text, "/Type\s*/Page[^s]")).Count
+  "OK pages=$n"
+} catch { "FAIL " + ($_.Exception.Message -replace "`r|`n"," ") }
+finally {
+  if ($doc) { try { $doc.Close(0) } catch {} }
+  if ($word) { try { $word.Quit() } catch {}; [Runtime.InteropServices.Marshal]::FinalReleaseComObject($word) | Out-Null }
+  if (Test-Path $pdf) { Remove-Item $pdf -Force -ErrorAction SilentlyContinue }
+}

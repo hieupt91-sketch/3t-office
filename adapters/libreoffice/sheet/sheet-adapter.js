@@ -5334,7 +5334,9 @@ export class SheetAdapter {
 
   async exportPdf() {
     const fodsContent = this.serializeToFods();
-    const result = await globalUnoBridge.exportRealPdf("sheet", fodsContent, this.sourceFileName);
+    const result = await globalUnoBridge.exportRealPdf(
+      "sheet", fodsContent, this.sourceFileName, this.sourceFilePath || null,
+    );
     if (result.status === "ok") {
       await showAlertDialog({ title: "Đã xuất PDF", message: result.message, type: "success" });
       return true;
@@ -5358,6 +5360,7 @@ export class SheetAdapter {
       appKind: "sheet",
       content: this.serializeToFods(),
       documentName: this.sourceFileName || "Bảng tính",
+      sourcePath: this.sourceFilePath || null,
       pageSetupLabel: `${pageSize} · ${orientation}`,
       currentPage: activePage >= 0 ? activePage + 1 : 1,
       engine: globalUnoBridge
