@@ -100,7 +100,7 @@ class PrintSavePipelineTests(unittest.TestCase):
             self.assertEqual(Path(pdf_path).suffix.lower(), ".pdf")
             self.assertEqual(fake.conversions, [(".html", "docx", "writer"), (".docx", "pdf", "writer")])
 
-    def test_writer_print_docx_is_byte_identical_to_save_in_place_output(self):
+    def test_writer_print_docx_has_the_same_package_contents_as_save_in_place_output(self):
         with tempfile.TemporaryDirectory(prefix="vno_print_save_same_") as temp_dir:
             root = Path(temp_dir)
             original_docx = root / "source.docx"
@@ -118,7 +118,11 @@ class PrintSavePipelineTests(unittest.TestCase):
                     _WRITER_HTML, "writer", str(print_dir), source_document_path=str(original_docx),
                 )
 
-            self.assertEqual(Path(print_source).read_bytes(), saved_docx.read_bytes())
+            with zipfile.ZipFile(print_source) as print_archive, zipfile.ZipFile(saved_docx) as save_archive:
+                self.assertEqual(set(print_archive.namelist()), set(save_archive.namelist()))
+                for member in save_archive.namelist():
+                    with self.subTest(member=member):
+                        self.assertEqual(print_archive.read(member), save_archive.read(member))
 
     def test_untouched_document_is_not_short_circuited_around_save(self):
         """A pristine document still prints through the Save conversion, never a raw copy."""

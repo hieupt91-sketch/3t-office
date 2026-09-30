@@ -9291,6 +9291,48 @@ def _restore_writer_matched_formatting(
     for index in sorted(replacements, reverse=True):
         start, end = converted_ranges[index]
         result = result[:start] + replacements[index] + result[end:]
+
+    # The pristine marker's leading carrier is intentionally removed before
+    # this pass. If the source itself starts with an empty body paragraph, that
+    # can also remove the only converted paragraph available to carry its
+    # spacing/alignment. Reinsert unmatched, content-free source paragraphs at
+    # their LCS position; changed documents remain conservative because this
+    # restoration is limited to the pristine body-flow pass.
+    if trust_all_exact and not table_paragraphs_only:
+        paired_source = {source_index for source_index, _ in pairs}
+        unmatched_empty: list[tuple[int, str]] = []
+        for source_index, source_p in enumerate(original):
+            if source_index in paired_source or original_keys[source_index]:
+                continue
+            if re.search(
+                r"<w:(?:drawing|pict|object|br|tab|fldChar|fldSimple|instrText|sym|sectPr)\b"
+                r"|<mc:AlternateContent\b",
+                source_p, re.IGNORECASE,
+            ):
+                continue
+            unmatched_empty.append((source_index, source_p))
+
+        if unmatched_empty:
+            current_ranges = _writer_body_paragraph_ranges(result)
+            insert_before: dict[int, list[str]] = {}
+            for source_index, source_p in unmatched_empty:
+                next_pair = next(
+                    ((source_at, target_at) for source_at, target_at in pairs
+                     if source_at > source_index),
+                    None,
+                )
+                target_index = next_pair[1] if next_pair else len(current_ranges)
+                insert_before.setdefault(target_index, []).append(source_p)
+            for target_index in sorted(insert_before, reverse=True):
+                paragraphs = "".join(insert_before[target_index])
+                if target_index < len(current_ranges):
+                    position = current_ranges[target_index][0]
+                else:
+                    body_end = re.search(r"</w:body\s*>", result, re.IGNORECASE)
+                    if not body_end:
+                        continue
+                    position = body_end.start()
+                result = result[:position] + paragraphs + result[position:]
     return result
 
 

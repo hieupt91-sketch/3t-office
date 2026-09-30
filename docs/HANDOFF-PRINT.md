@@ -1,80 +1,114 @@
-# Agent Handoff
+﻿# Agent Handoff
 
-TASK: Fix A7 printing from the real in-memory Writer, Sheet, and Slides documents
+TASK: Repair Writer print and Export PDF pagination by using the source-aware Save pipeline; audit Writer, Sheet, and Slides print parity.
 AGENT/ROLE: Codex / implementation
 BRANCH: fix/print-real-document-codex
 WORKTREE: E:\VNOffice-codex-print
-OBJECTIVE: Replace WebView printing with an offline LibreOffice-backed print dialog and pipeline shared by all three apps.
+OBJECTIVE: Print and Export PDF from the same source-aware native-document conversion used by Save, then measure Office-oracle, VN canvas, print PDF, and Export PDF page counts.
 
 FINDINGS:
-- The former print routes called `window.print()` on the live WebView DOM. Those routes are removed; `rg "window\\.print\\s*\\(" platform apps adapters` returned no matches.
-- The current print serialization goes through the same LibreOffice conversion and native export postprocessing used by PDF export.
-- The shared HelpPanel already provides searchable, app-specific guidance. Updated Writer, Sheet, and Slides help entries describe Ctrl+P, the dialog controls, and the page preview.
-- The app queries Windows printers through built-in PowerShell/WMI and uses LibreOffice UNO to count/render PDF pages and send printer options.
+- The initial d03 defect is fixed. Its Word, VN canvas, print PDF, and Export PDF counts are all 1.
+- The source-aware DOCX save path restores source page size, margins, half-point fonts, sections, headers/footers, and anchors before LibreOffice creates the PDF.
+- Remaining renderer differences are confirmed on Writer d01, d16, d20 and Sheet lan05, lan11, lan28. Print and Export PDF match each other; they do not all match Word/Excel.
+- Sheet and Slides print/export routes use the same serializer and native-format postprocess as Save. Sheet's saved page setup/layout still differs from Excel/LibreOffice expectations in the measured workbooks.
 
 IMPLEMENTATION SUMMARY:
-- Added `platform/print/print-dialog.js`, `print-dialog.css`, and `print-model.js` for the keyboard-usable Vietnamese dialog, page range validation, printer default selection, navigation, progress, and error states.
-- Added `platform/print/print_pipeline.py` and small `main.py` bridge methods for temporary PDF sessions, Windows printer discovery, LibreOffice preview page rendering, and printing.
-- Added LibreOffice UNO worker operations for PDF inspection, PNG preview rendering, and printing. Read-only operations retry once after a dropped UNO bridge; print jobs are never retried.
-- Writer, Sheet, and Slides adapters serialize their current in-memory model into the print session. `common.file.print`, Ctrl+P, ribbon print, and Backstage print now route to those adapters.
-- Microsoft Print to PDF all-pages/one-copy jobs use headless LibreOffice `--print-to-file` after the app's Save PDF picker, avoiding the printer driver's extra filename prompt.
-- Added Vietnamese print guidance to each app's existing HelpPanel entries.
+- Existing G9 print dialog and app routing are in WIP commit 9efda4a. The branch first merged `main` as requested in merge commit 6040e2b; no merge into `main` was made.
+- Writer `_write_print_source` uses the shared Save source builder and `_convert_save_source_to_native`, with the original source path when available. Legacy `.doc` input passes through intermediate `.docx`; new documents use the same DOCX Save route without a source path. LibreOffice converts that native file to PDF.
+- Sheet FODS and Slides FODP are converted and postprocessed to XLSX/PPTX through their Save routes before LibreOffice PDF conversion.
+- Added a source-aware pristine-body restoration for unmatched empty paragraphs. This preserves source spacing/alignment when the marker-only carrier is stripped.
+- The Writer regression test compares all DOCX package members between Save and print. ZIP timestamps vary between conversions, so the assertion deliberately compares member payloads instead of container bytes.
 
-FILES CHANGED:
-- `platform/print/**`, `main.py`, `adapters/libreoffice/common/{soffice_uno_worker.py,uno-bridge.js}`
-- `adapters/libreoffice/{writer/writer-adapter.js,sheet/sheet-adapter.js,slides/slides-adapter.js}`
-- `apps/{writer/writer.css,sheet/sheet-grid.js,sheet/sheet.css,slides/slides-canvas.js,slides/slides.css}`
-- `platform/shell/{app-shell.js,shell.css}`, `index.html`
-- `platform/help/entries-{writer,sheet,slides}.js`
-- `tests/unit/{print-dialog.test.js,writer-print-preview.test.js,sheet-print-preview.test.js,slides-print-preview.test.js,backstage-print-thumbnail.test.js}`
-- `tests/test_print_pipeline.py`, `tests/test_persistent_soffice_operations.py`
+FILES CHANGED IN THIS FOLLOW-UP:
+- `adapters/libreoffice/common/ooxml_zip_patch.py`
+- `tests/test_print_save_pipeline.py`
+- `scripts/layout-audit/_print_page_audit.py`
+- `scripts/layout-audit/_excel_oracle_print_pages.ps1`
 - `docs/HANDOFF-PRINT.md`
+- The original G9 implementation is in WIP commit 9efda4a; see its file list for the dialog, adapters, bridge, and HelpPanel changes.
 
 COMMANDS RUN:
+- `git merge main` (completed first; commit 6040e2b).
 - `node tests/run-tests.js`
-- Standalone Node runs for `sheet-format-dropdown.test.js` and `sheet-pivot-save-fods.test.js`
-- `node --test tests/unit/print-dialog.test.js`
-- Focused print routing suites (Writer, Sheet, Slides, Backstage)
 - `python -m unittest discover -s tests`
-- `python -m unittest tests.test_print_pipeline -v`
-- `python -m unittest discover -s tests -p 'test_persistent_soffice_operations.py' -v`
-- Real adapter serialization and Microsoft Print to PDF runs for d03, d12, d24, lan05, and sample-3; preview images rendered through LibreOffice Draw and visually inspected.
-- Word/Excel `ExportAsFixedFormat` oracle attempts; details below.
+- `python -m unittest tests.test_print_save_pipeline -v`
+- `python -m unittest tests.test_writer_section_headerfooter_postprocess.UnitPostprocessWriterDocxTests.test_pristine_document_restores_empty_paragraphs_by_lcs tests.test_print_save_pipeline -v`
+- `python -m unittest tests.test_sheet_save_roundtrip -v`
+- `python -m unittest tests.test_writer_save_roundtrip -v`
+- Sequential real-app page audit with `scripts/layout-audit/_print_page_audit.py` for d01–d09, d11–d24, the three legacy `.doc` files, and Sheet lan05/lan11/lan28.
+- Sequential Word COM page oracle with `scripts/layout-audit/_word_oracle3.ps1`; RPC_E_CALL_REJECTED operations were waited on and retried.
+- Sequential Excel COM `Workbook.ExportAsFixedFormat` page oracle for lan05/lan11/lan28; RPC_E_CALL_REJECTED operations were waited on and retried.
+- `git diff --check` (final result recorded below).
 
-BUILD RESULT: NOT RUN. The requested Node and Python gates were run; no separate production build was requested.
+BUILD RESULT: NOT RUN. No separate production build was requested.
 
 TEST RESULTS:
-- `node tests/run-tests.js`: FAIL, 2055/2057 PASS. The two failing cases are the existing Sheet Pivot/DataPilot FODS→XLSX→FODS round-trip and FODS row/column height/width/visibility round-trip.
-- Standalone reruns: the two LibreOffice suites passed 13/13 once. Subsequent isolated reruns reproduced each conversion failure (Pivot 1/2 in its suite; FODS dimensions 10/11 in its suite). These cases fail during `soffice --convert-to xlsx` and are unrelated to print routing.
-- Focused print routing suites after the final adapter bindings: PASS, 43/43.
-- `node --test tests/unit/print-dialog.test.js`: PASS, 4/4.
-- `python -m unittest discover -s tests`: PASS, 453 tests in 406.240 seconds.
-- `python -m unittest tests.test_print_pipeline -v`: PASS, 5/5.
-- `python -m unittest discover -s tests -p 'test_persistent_soffice_operations.py' -v`: PASS, 2/2.
-- `git diff --check`: PASS. No product `window.print()` calls remain.
+- `node tests/run-tests.js`: PASS, 2103/2103.
+- Final `python -m unittest discover -s tests`: PASS, 484 tests in 325.139 seconds.
+- `python -m unittest tests.test_print_save_pipeline -v`: PASS, 9/9.
+- Focused pristine-empty-paragraph and print-pipeline run: PASS, 10/10.
+- Isolated Sheet save round-trip: PASS, 2/2 in 82.662 seconds.
+- Isolated Writer save round-trip: PASS, 3/3 in 114.679 seconds.
+- `git diff --check`: PASS.
+- An initial Python run exposed an unstable ZIP-container byte comparison and a real source-empty-paragraph restoration failure. Both were corrected; the final full and isolated suites pass.
 
-REAL PRINT CHECKS:
+WRITER PAGE COUNTS:
 
-| File | App | LibreOffice preview pages | Microsoft Print to PDF pages | Oracle / page-one review |
-|---|---|---:|---:|---|
-| d03.docx | Writer | 2 | 2 | Word COM blocked; page one shows the decision document, no app UI text visible |
-| d12.docx | Writer | 3 | 3 | Word COM blocked; page one shows the order document and table, no app UI text visible |
-| d24.docx | Writer | 16 | 16 | Word COM blocked; page one shows the Aqara cover artwork/text, no app UI text visible |
-| lan05.xlsx | Sheet | 3 | 3 | Excel COM blocked; page one shows the purchase ledger and rows, no app UI text visible |
-| sample-3.pptx | Slides | 10 | 10 | 10 current slides; page one shows slide artwork/title, no app UI text visible |
+Word original counts came from Word COM. VN canvas, print PDF, and Export PDF were measured through the live app's adapter and production bridge routes. d10.docx is excluded because the file is corrupt.
 
-The adapter-backed PDFs and PNG previews are under the git-ignored `file test/print-real/` directory. Word automation hung while opening d03.docx. Excel `ExportAsFixedFormat` returned `RPC_E_CALL_REJECTED` during workbook open/export, so the requested Word/Excel oracle comparison is BLOCKED on this host. The counts above compare the LibreOffice print preview PDF to the actual Microsoft Print to PDF output.
+| File | Word original | VN canvas | VN print PDF | VN Export PDF | Parity |
+|---|---:|---:|---:|---:|---|
+| d01.docx | 19 | 19 | 20 | 20 | FAIL |
+| d02.docx | 11 | 11 | 11 | 11 | PASS |
+| d03.docx | 1 | 1 | 1 | 1 | PASS |
+| d04.docx | 5 | 5 | 5 | 5 | PASS |
+| d05.docx | 2 | 2 | 2 | 2 | PASS |
+| d06.docx | 3 | 3 | 3 | 3 | PASS |
+| d07.docx | 23 | 23 | 23 | 23 | PASS |
+| d08.docx | 1 | 1 | 1 | 1 | PASS |
+| d09.docx | 14 | 14 | 14 | 14 | PASS |
+| d11.docx | 5 | 5 | 5 | 5 | PASS |
+| d12.docx | 3 | 3 | 3 | 3 | PASS |
+| d13.docx | 10 | 10 | 10 | 10 | PASS |
+| d14.docx | 3 | 3 | 3 | 3 | PASS |
+| d15.docx | 10 | 10 | 10 | 10 | PASS |
+| d16.docx | 8 | 8 | 9 | 9 | FAIL |
+| d17.docx | 5 | 5 | 5 | 5 | PASS |
+| d18.docx | 2 | 2 | 2 | 2 | PASS |
+| d19.docx | 2 | 2 | 2 | 2 | PASS |
+| d20.docx | 3 | 3 | 4 | 4 | FAIL |
+| d21.docx | 9 | 9 | 9 | 9 | PASS |
+| d22.docx | 5 | 5 | 5 | 5 | PASS |
+| d23.docx | 1 | 1 | 1 | 1 | PASS |
+| d24.docx | 16 | 16 | 16 | 16 | PASS |
+| legacy01.doc | 5 | 5 | 5 | 5 | PASS |
+| legacy02.doc | 4 | 4 | 4 | 4 | PASS |
+| legacy03.doc | 4 | 4 | 4 | 4 | PASS |
+
+The d01 extra PDF page contains only the header and page number; d16's extra page is blank. d20's fourth page contains actual table content and was not removed. The source DOCX generated for d01/d16/d20 opens in Word with the original count; the remaining page difference occurs during LibreOffice PDF rendering.
+
+SHEET PAGE COUNTS:
+
+| File | Excel original (`ExportAsFixedFormat`) | VN print PDF | VN Export PDF | Parity |
+|---|---:|---:|---:|---|
+| lan05.xlsx | 14 | 3 | 3 | FAIL |
+| lan11.xlsx | 965 | 357 | 357 | FAIL |
+| lan28.xlsx | 36 | 35 | 35 | FAIL |
+
+Sheet Print/Export serializes the live model to FODS, runs the same FODS→XLSX Save conversion/postprocess, and converts the XLSX to PDF through LibreOffice. For lan05, the source print area reaches row 1072 while the LO PDF prints rows 1–51. LibreOffice and Excel still paginate these workbooks differently.
+
+GATE SUMMARY: Node PASS; Python PASS; source-aware print-pipeline regression PASS. Page-parity gate FAIL for Writer d01/d16/d20 and Sheet lan05/lan11/lan28. Overall page-parity objective is FAIL, not PASS.
 
 KNOWN FAILURES:
-- The full Node gate has the two LibreOffice round-trip failures listed above; both are reproducible when their individual suites run alone on this host.
-- Word/Excel COM oracle counts are BLOCKED by Office automation behavior, not by the print pipeline.
+- Writer LibreOffice PDF page counts exceed Word on d01, d16, and d20.
+- Sheet LibreOffice PDF page counts differ from Excel on lan05, lan11, and lan28.
 
 RISKS:
-- Page-count parity with Microsoft Word/Excel COM could not be independently confirmed here. The current print and preview PDFs match each other for all five real files.
-- Page-one UI-text verification was visual inspection of the LibreOffice-rendered PNGs; no OCR/text-extraction tool was available in the environment.
+- Exact Office page parity for the named workbooks/documents is unresolved. Removing the d20 page would discard real content. Changing production output to Word/Excel automation would introduce separate Office installation/licensing and architecture assumptions.
+- Real app audit artifacts and generated PDFs are under git-ignored `file test/print-real/page-audit/` and `file test/print-real/page-audit-final/`.
 
-DEPENDENCIES/BLOCKERS: No new runtime dependency. Offline printing uses the installed LibreOffice engine and Windows printer queues. Independent Word/Excel COM oracle validation needs a responsive Office automation environment.
+DEPENDENCIES/BLOCKERS: No new runtime dependency. Production printing stays offline and LibreOffice-backed. Exact parity on the remaining cases needs a renderer/layout decision.
 
 CORE PATCH ID (if any): N/A; no LibreOffice Core changes.
 
-NEXT ACTION: Review the print dialog and handoff. Re-run the Word/Excel COM page-count oracle in a responsive Office environment and investigate the two existing LibreOffice round-trip tests separately.
+NEXT ACTION: Decide whether exact Word/Excel pagination is a release gate that warrants a separate Office-renderer design, or whether the measured LibreOffice differences are acceptable. Do not claim full page parity until a chosen approach is implemented and verified.
