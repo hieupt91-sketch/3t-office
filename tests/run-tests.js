@@ -193,6 +193,7 @@ import { runUpdaterUiTests } from "./unit/updater-ui.test.js";
 import { run3tBrandUxTests } from "./unit/3t-brand-ux.test.js";
 import { runRibbonCommandHandlersTests } from "./unit/ribbon-command-handlers.test.js";
 import { runSheetWatchWindowTests } from "./unit/sheet-watch-window.test.js";
+import { runOfficeShortcutCoverageTests } from "./unit/office-shortcut-coverage.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -395,7 +396,8 @@ async function runAll() {
     { title: "159. Unit Tests — G8 VN Slides basics vs PowerPoint 2016 (slides, text, objects, show, notes, save)", runner: runSlidesBasicsG8Tests },
     { title: "160. Unit Tests — 3T Office Brand UX (About Dialog)", runner: run3tBrandUxTests },
     { title: "161. Unit Tests — 100% Ribbon Command Handlers & Definitions (Zero Silent NO-OPs)", runner: runRibbonCommandHandlersTests },
-    { title: "162. Unit Tests — Sheet Watch Window (Excel parity: 6 columns, multi-sheet, draggable, keyboard, real-time)", runner: runSheetWatchWindowTests }
+    { title: "162. Unit Tests — Sheet Watch Window (Excel parity: 6 columns, multi-sheet, draggable, keyboard, real-time)", runner: runSheetWatchWindowTests },
+    { title: "163. Regression Guard — Microsoft Office Shortcut Coverage (Word/Excel/PowerPoint)", runner: runOfficeShortcutCoverageTests }
   ];
 
   for (const suite of suites) {
