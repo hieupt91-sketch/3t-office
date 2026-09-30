@@ -280,6 +280,7 @@ export const viStrings = {
     "common.file.exportPdf": { label: "Xuất PDF", tooltip: "Xuất nội dung sang định dạng PDF tiêu chuẩn" },
     "common.file.print": { label: "In tài liệu", tooltip: "In tài liệu (Ctrl+P)" },
     "common.file.close": { label: "Đóng", tooltip: "Đóng tài liệu (Ctrl+W)" },
+    "common.help.about": { label: "Giới thiệu 3T Office", tooltip: "Xem thông tin phiên bản, bản quyền và giấy phép nguồn mở 3T Office" },
     "common.macro.recordToggle": { label: "Ghi Macro", tooltip: "Bắt đầu/Dừng ghi lại thao tác thành Macro (Ctrl+Shift+R)" },
     "common.macro.manager": { label: "Xem Macro", tooltip: "Xem, chạy, đổi tên hoặc xóa các Macro đã ghi (Alt+F8)" },
     "common.edit.undo": { label: "Hoàn tác", tooltip: "Hoàn tác thao tác vừa thực hiện (Ctrl+Z)" },

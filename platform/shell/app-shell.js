@@ -18,6 +18,7 @@ import { getPlatformLaunchContext } from "../bootstrap.js";
 import { themeManager } from "../theme/theme-manager.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 import { NotificationBar } from "../ui-kit/notification-bar.js";
+import { showAboutDialog } from "../about/about-dialog.js";
 
 export class AppShell {
   /**
@@ -980,10 +981,7 @@ export class AppShell {
     modal.querySelector("#vno-backstage-back").addEventListener("click", closeModal);
 
     modal.querySelector("#vno-backstage-about").addEventListener("click", () => {
-      showAlertDialog({
-        title: "Về Bộ Ứng Dụng VN Office",
-        message: "VN Office — Bộ ứng dụng văn phòng Việt Nam độc lập và chuẩn mực.\n\n• Phiên bản: 2.0 Enterprise Commercial Candidate\n• Kiến trúc: Shared Platform + LibreOffice Core Adapter Layer\n• Tiêu chuẩn: Nghị định 30/2020/NĐ-CP & ISO/IEC 29500 OOXML\n• Bảo mật: Quyền riêng tư tuyệt đối (Privacy-first on-device AI)"
-      });
+      showAboutDialog();
     });
 
     const homeNavBtn = modal.querySelector("#vno-backstage-nav-home");
@@ -1374,6 +1372,12 @@ export class AppShell {
     // Mở menu Tệp (Backstage) bằng phím tắt Alt+F
     globalCommandBus.bindHandler("common.file.backstage", () => {
       this.showBackstageMenu();
+      return true;
+    });
+
+    // Mở hộp thoại Giới thiệu 3T Office
+    globalCommandBus.bindHandler("common.help.about", () => {
+      showAboutDialog();
       return true;
     });
 

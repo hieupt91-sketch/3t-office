@@ -188,6 +188,7 @@ import { runOfflineResourcesTests } from "./unit/offline-resources.test.js";
 import { runErrorReportingTests } from "./unit/error-reporting.test.js";
 import { runAutoRecoverTests } from "./unit/autorecover.test.js";
 import { runUpdaterUiTests } from "./unit/updater-ui.test.js";
+import { run3tBrandUxTests } from "./unit/3t-brand-ux.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -385,7 +386,8 @@ async function runAll() {
     { title: "156. Unit Tests — Writer legacy DOC keepNext import and pagination", runner: runWriterLegacyKeepNextTests },
     { title: "157. Unit Tests — Shared error reporting hooks, consent and feedback dialogs", runner: runErrorReportingTests },
     { title: "158. Unit Tests — Shared AutoRecover dirty tracking, timer, and recovery dialog behavior", runner: runAutoRecoverTests },
-    { title: "159. Unit Tests — G8 VN Slides basics vs PowerPoint 2016 (slides, text, objects, show, notes, save)", runner: runSlidesBasicsG8Tests }
+    { title: "159. Unit Tests — G8 VN Slides basics vs PowerPoint 2016 (slides, text, objects, show, notes, save)", runner: runSlidesBasicsG8Tests },
+    { title: "160. Unit Tests — 3T Office Brand UX (Splash Screen & About Dialog)", runner: run3tBrandUxTests }
   ];
 
   for (const suite of suites) {

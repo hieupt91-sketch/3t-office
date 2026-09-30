@@ -53,7 +53,10 @@ export const COMMON_COMMANDS = [
 
   // Macro (ghi & phát lại thao tác — cơ bản, không phải ngôn ngữ script)
   { id: "common.macro.recordToggle", category: "macro", label: "Ghi Macro", shortcut: "Ctrl+Shift+R", icon: "macroRecordStart", tooltip: "Bắt đầu/Dừng ghi lại thao tác thành Macro (Ctrl+Shift+R)", isToggle: true },
-  { id: "common.macro.manager", category: "macro", label: "Xem Macro", icon: "macroManager", tooltip: "Xem, chạy, đổi tên hoặc xóa các Macro đã ghi (Alt+F8)", shortcut: "Alt+F8" }
+  { id: "common.macro.manager", category: "macro", label: "Xem Macro", icon: "macroManager", tooltip: "Xem, chạy, đổi tên hoặc xóa các Macro đã ghi (Alt+F8)", shortcut: "Alt+F8" },
+
+  // Trợ giúp & Giới thiệu (Help & About)
+  { id: "common.help.about", category: "help", label: "Giới thiệu 3T Office", icon: "help", tooltip: "Xem thông tin phiên bản, bản quyền và giấy phép nguồn mở 3T Office" }
 ];
 
 export const WRITER_COMMANDS = [

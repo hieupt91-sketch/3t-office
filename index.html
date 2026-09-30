@@ -16,6 +16,8 @@
   <link rel="stylesheet" href="platform/ribbon/ribbon.css">
   <link rel="stylesheet" href="platform/shell/shell.css">
   <link rel="stylesheet" href="platform/error_reporting/error-reporting.css">
+  <link rel="stylesheet" href="platform/splash/splash.css">
+  <link rel="stylesheet" href="platform/about/about-dialog.css">
 
   <!-- Apps Specific Styles -->
   <link rel="stylesheet" href="apps/writer/writer.css">
@@ -23,6 +25,46 @@
   <link rel="stylesheet" href="apps/slides/slides.css">
 </head>
 <body>
+
+  <!-- 3T Office Startup Splash Screen (hiển thị tức thì khi mở cửa sổ) -->
+  <div id="vno-splash-screen" class="vno-splash-screen" role="status" aria-live="polite" aria-busy="true">
+    <div class="vno-splash-card">
+      <div class="vno-splash-logo-wrap">
+        <img src="branding/3t/3t-mark.png" alt="3T Logo" class="vno-splash-logo" width="84" height="84">
+      </div>
+      <div class="vno-splash-brand">
+        <div class="vno-splash-brand-title">
+          <span class="vno-splash-brand-3t">3T</span>
+          <span class="vno-splash-brand-office">Office</span>
+        </div>
+        <div class="vno-splash-app-badge" id="vno-splash-app-name" data-app="writer">3T Doc</div>
+      </div>
+      <div class="vno-splash-status">
+        <div class="vno-splash-spinner" aria-hidden="true"></div>
+        <span class="vno-splash-text" id="vno-splash-status-text">Đang khởi động…</span>
+      </div>
+      <div class="vno-splash-footer">
+        <span>© 3T Technology · Bộ Ứng Dụng Văn Phòng Việt</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Nhận diện app từ URL parameters tức thì ngay trong luồng HTML đầu tiên
+    (function() {
+      try {
+        var p = new URLSearchParams(window.location.search);
+        var app = (p.get("app") || "writer").toLowerCase();
+        var badge = document.getElementById("vno-splash-app-name");
+        if (badge) {
+          badge.setAttribute("data-app", app);
+          if (app === "sheet") badge.textContent = "3T Sheet";
+          else if (app === "slides") badge.textContent = "3T Slide";
+          else badge.textContent = "3T Doc";
+        }
+      } catch (e) {}
+    })();
+  </script>
 
   <!-- App Mount Root -->
   <div id="vno-app-root"></div>
@@ -38,6 +80,7 @@
     import { autoRecoverManager } from "./platform/autorecover/auto-recover.js";
     import { connectUpdaterUi } from "./platform/updater/update-ui.js";
     import { showDocumentOpenProgress, hideDocumentOpenProgress } from "./platform/ui-kit/components.js";
+    import { setSplashStatus, hideSplashScreen } from "./platform/splash/splash.js";
 
     window.addEventListener("vno:document-open-progress", () => {
       showDocumentOpenProgress("Đang mở tài liệu…");
@@ -102,6 +145,8 @@
       await globalCommandBus.execute("common.file.open");
     }
     await autoRecoverManager.showStartupRecovery();
+    setSplashStatus("Sẵn sàng…");
+    hideSplashScreen();
   </script>
 </body>
 </html>
