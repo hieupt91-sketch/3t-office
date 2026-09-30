@@ -1,5 +1,5 @@
 /**
- * VN Office — WCAG 2.1 Color Contrast Checker
+ * 3T Office — WCAG 2.1 Color Contrast Checker
  * Tuân thủ tiêu chuẩn W3C Web Content Accessibility Guidelines (WCAG) 2.1
  * 
  * Cung cấp công thức tính độ chói tương đối (relative luminance),

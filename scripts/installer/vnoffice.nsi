@@ -45,7 +45,7 @@ Unicode true
   DeleteRegKey /ifempty HKCU "Software\Classes\${EXT}"
 !macroend
 
-Name "VN Office ${AppVersion}"
+Name "3T Office ${AppVersion}"
 OutFile "${OutputDir}\VNOffice-Setup-${AppVersion}.exe"
 InstallDir "$LOCALAPPDATA\VNOffice\app-install"
 RequestExecutionLevel user
@@ -55,7 +55,7 @@ ShowUninstDetails nevershow
 SetCompressor /SOLID zlib
 SetDatablockOptimize on
 CRCCheck on
-BrandingText "VN Office"
+BrandingText "3T Office"
 Icon "${PackageDir}\icons\vnoffice.ico"
 UninstallIcon "${PackageDir}\icons\vnoffice.ico"
 VIProductVersion "1.0.0.0"
@@ -73,13 +73,13 @@ VIProductVersion "1.0.0.0"
   !define MUI_HEADERIMAGE_BITMAP "${InstallerSourceDir}\..\..\branding\installer\header.bmp"
   !define MUI_HEADERIMAGE_UNBITMAP "${InstallerSourceDir}\..\..\branding\installer\header.bmp"
 !endif
-!define MUI_WELCOMEPAGE_TITLE "Chào mừng đến với VN Office ${AppVersion}"
-!define MUI_WELCOMEPAGE_TEXT "Bộ ứng dụng văn phòng Việt gồm:$\r$\n$\r$\n    •  VN Writer — soạn thảo văn bản (Word)$\r$\n    •  VN Sheet — bảng tính (Excel)$\r$\n    •  VN Slides — trình chiếu (PowerPoint)$\r$\n$\r$\nMở và lưu trực tiếp tệp .docx, .doc, .xlsx, .xls, .pptx. Chạy hoàn toàn ngoại tuyến, tự lưu bản khôi phục, tự nhận bản cập nhật qua mạng nội bộ — không phải cài lại.$\r$\n$\r$\nCài cho tài khoản Windows hiện tại, không cần quyền quản trị. Bấm Tiến để tiếp tục."
-!define MUI_FINISHPAGE_TITLE "Đã cài đặt xong VN Office"
-!define MUI_FINISHPAGE_TEXT "VN Writer, VN Sheet và VN Slides đã có trong menu Start và trên Màn hình nền.$\r$\n$\r$\nCác bản cập nhật sau này sẽ tự tải về; bạn chỉ cần khởi động lại ứng dụng khi được nhắc."
+!define MUI_WELCOMEPAGE_TITLE "Chào mừng đến với 3T Office ${AppVersion}"
+!define MUI_WELCOMEPAGE_TEXT "Bộ ứng dụng văn phòng Việt gồm:$\r$\n$\r$\n    •  3T Doc — soạn thảo văn bản$\r$\n    •  3T Sheet — bảng tính$\r$\n    •  3T Slide — trình chiếu$\r$\n$\r$\nMở và lưu trực tiếp tệp .docx, .doc, .xlsx, .xls, .pptx. Chạy hoàn toàn ngoại tuyến, tự lưu bản khôi phục, tự nhận bản cập nhật qua mạng nội bộ — không phải cài lại.$\r$\n$\r$\nCài cho tài khoản Windows hiện tại, không cần quyền quản trị. Bấm Tiến để tiếp tục."
+!define MUI_FINISHPAGE_TITLE "Đã cài đặt xong 3T Office"
+!define MUI_FINISHPAGE_TEXT "3T Doc, 3T Sheet và 3T Slide đã có trong menu Start và trên Màn hình nền.$\r$\n$\r$\nCác bản cập nhật sau này sẽ tự tải về; bạn chỉ cần khởi động lại ứng dụng khi được nhắc."
 !define MUI_FINISHPAGE_RUN "$INSTDIR\python\pythonw.exe"
 !define MUI_FINISHPAGE_RUN_PARAMETERS "-s -E $\"$INSTDIR\app\main.py$\" --app=writer"
-!define MUI_FINISHPAGE_RUN_TEXT "Mở VN Writer ngay"
+!define MUI_FINISHPAGE_RUN_TEXT "Mở 3T Doc ngay"
 !define MUI_FINISHPAGE_SHOWREADME "$INSTDIR\CAI-DAT.txt"
 !define MUI_FINISHPAGE_SHOWREADME_TEXT "Xem hướng dẫn cài đặt và sử dụng"
 !define MUI_FINISHPAGE_SHOWREADME_NOTCHECKED
@@ -95,27 +95,27 @@ UninstPage custom un.DataPage un.DataPageLeave
 !insertmacro MUI_UNPAGE_FINISH
 !insertmacro MUI_LANGUAGE "Vietnamese"
 
-VIAddVersionKey /LANG=${LANG_VIETNAMESE} "ProductName" "VN Office"
-VIAddVersionKey /LANG=${LANG_VIETNAMESE} "FileDescription" "Bộ cài VN Office"
-VIAddVersionKey /LANG=${LANG_VIETNAMESE} "CompanyName" "VN Office"
+VIAddVersionKey /LANG=${LANG_VIETNAMESE} "ProductName" "3T Office"
+VIAddVersionKey /LANG=${LANG_VIETNAMESE} "FileDescription" "Bộ cài 3T Office"
+VIAddVersionKey /LANG=${LANG_VIETNAMESE} "CompanyName" "3T Office"
 VIAddVersionKey /LANG=${LANG_VIETNAMESE} "ProductVersion" "${AppVersion}"
 VIAddVersionKey /LANG=${LANG_VIETNAMESE} "FileVersion" "1.0.0.0"
-VIAddVersionKey /LANG=${LANG_VIETNAMESE} "LegalCopyright" "Copyright VN Office"
+VIAddVersionKey /LANG=${LANG_VIETNAMESE} "LegalCopyright" "Copyright 3T Office"
 
-LangString TASK_DESKTOP ${LANG_VIETNAMESE} "Tạo lối tắt VN Office trên Màn hình nền"
-LangString TASK_ASSOC ${LANG_VIETNAMESE} "Đăng ký mở định dạng tài liệu bằng VN Office"
-LangString TASK_DESKTOP_DESC ${LANG_VIETNAMESE} "Tạo lối tắt VN Writer, VN Sheet và VN Slides trên Màn hình nền."
+LangString TASK_DESKTOP ${LANG_VIETNAMESE} "Tạo lối tắt 3T Office trên Màn hình nền"
+LangString TASK_ASSOC ${LANG_VIETNAMESE} "Đăng ký mở định dạng tài liệu bằng 3T Office"
+LangString TASK_DESKTOP_DESC ${LANG_VIETNAMESE} "Tạo lối tắt 3T Doc, 3T Sheet và 3T Slide trên Màn hình nền."
 LangString TASK_ASSOC_DESC ${LANG_VIETNAMESE} "Tùy chọn này đăng ký định dạng tài liệu trong tài khoản Windows hiện tại."
-LangString MSG_OS ${LANG_VIETNAMESE} "VN Office cần Windows 10 hoặc mới hơn, phiên bản 64-bit."
-LangString MSG_WEBVIEW ${LANG_VIETNAMESE} "Chưa tìm thấy Microsoft Edge WebView2 Runtime. VN Office cần thành phần này để hiển thị giao diện.$\r$\nTải miễn phí tại:$\r$\nhttps://developer.microsoft.com/microsoft-edge/webview2/$\r$\nBạn vẫn muốn tiếp tục cài đặt?"
+LangString MSG_OS ${LANG_VIETNAMESE} "3T Office cần Windows 10 hoặc mới hơn, phiên bản 64-bit."
+LangString MSG_WEBVIEW ${LANG_VIETNAMESE} "Chưa tìm thấy Microsoft Edge WebView2 Runtime. 3T Office cần thành phần này để hiển thị giao diện.$\r$\nTải miễn phí tại:$\r$\nhttps://developer.microsoft.com/microsoft-edge/webview2/$\r$\nBạn vẫn muốn tiếp tục cài đặt?"
 LangString MSG_DISK ${LANG_VIETNAMESE} "Ổ đĩa cài đặt không đủ dung lượng trống. Cần dung lượng bằng kích thước gói ứng dụng cộng thêm 256 MiB."
 LangString MSG_PREFLIGHT ${LANG_VIETNAMESE} "Không thể kiểm tra yêu cầu hệ thống. Hãy đảm bảo Windows PowerShell 5.1 có sẵn rồi chạy lại bộ cài."
-LangString MSG_CLOSE_RUNNING ${LANG_VIETNAMESE} "VN Office đang chạy. Hãy lưu tài liệu. Chọn Có để yêu cầu ứng dụng đóng trước khi nâng cấp. Nếu tài liệu có thay đổi chưa lưu, VN Office sẽ hỏi bạn cách xử lý."
-LangString MSG_CLOSE_FAILED ${LANG_VIETNAMESE} "Không thể đóng VN Office. Hãy lưu công việc, đóng tất cả cửa sổ VN Office rồi chạy lại bộ cài."
+LangString MSG_CLOSE_RUNNING ${LANG_VIETNAMESE} "3T Office đang chạy. Hãy lưu tài liệu. Chọn Có để yêu cầu ứng dụng đóng trước khi nâng cấp. Nếu tài liệu có thay đổi chưa lưu, 3T Office sẽ hỏi bạn cách xử lý."
+LangString MSG_CLOSE_FAILED ${LANG_VIETNAMESE} "Không thể đóng 3T Office. Hãy lưu công việc, đóng tất cả cửa sổ 3T Office rồi chạy lại bộ cài."
 LangString MSG_UNBLOCK_FAILED ${LANG_VIETNAMESE} "Không thể gỡ dấu chặn tải xuống khỏi một số tệp đã cài. Bộ cài đã dừng; hãy chạy lại bằng tài khoản Windows hiện tại."
-LangString DATA_TITLE ${LANG_VIETNAMESE} "Dữ liệu người dùng VN Office"
-LangString DATA_PROMPT ${LANG_VIETNAMESE} "Khi gỡ cài đặt, VN Office sẽ xóa chương trình và lối tắt. Dữ liệu trong %APPDATA%\VNOffice (thiết lập, tệp khôi phục và báo cáo lỗi đang chờ gửi) sẽ được giữ lại, trừ khi bạn chọn xóa bên dưới."
-LangString DATA_CHECK ${LANG_VIETNAMESE} "Xóa cả dữ liệu người dùng VN Office trong %APPDATA%\VNOffice"
+LangString DATA_TITLE ${LANG_VIETNAMESE} "Dữ liệu người dùng 3T Office"
+LangString DATA_PROMPT ${LANG_VIETNAMESE} "Khi gỡ cài đặt, 3T Office sẽ xóa chương trình và lối tắt. Dữ liệu trong %APPDATA%\VNOffice (thiết lập, tệp khôi phục và báo cáo lỗi đang chờ gửi) sẽ được giữ lại, trừ khi bạn chọn xóa bên dưới."
+LangString DATA_CHECK ${LANG_VIETNAMESE} "Xóa cả dữ liệu người dùng 3T Office trong %APPDATA%\VNOffice"
 
 Var RemoveUserData
 Var UninstallDataCheckbox
@@ -192,17 +192,27 @@ Section "-Core" SEC_CORE
   File "${PackageDir}\CAI-DAT.txt"
 
   WriteUninstaller "$INSTDIR\Uninstall.exe"
-  ; Shortcut left by the older zip + install-pilot.ps1 flow (ASCII name); the NSIS uninstaller replaces it.
+  ; Remove the previous pilot launchers while keeping the existing install and registry locations.
+  Delete "$SMPROGRAMS\VN Office\VN Writer.lnk"
+  Delete "$SMPROGRAMS\VN Office\VN Sheet.lnk"
+  Delete "$SMPROGRAMS\VN Office\VN Slides.lnk"
+  Delete "$SMPROGRAMS\VN Office\Gỡ cài đặt VN Office.lnk"
   Delete "$SMPROGRAMS\VN Office\Go cai dat VN Office.lnk"
-  CreateDirectory "$SMPROGRAMS\VN Office"
-  CreateShortCut "$SMPROGRAMS\VN Office\VN Writer.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=writer" "$INSTDIR\icons\writer.ico" 0 SW_SHOWNORMAL "" "VN Writer" "$INSTDIR\app"
-  CreateShortCut "$SMPROGRAMS\VN Office\VN Sheet.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=sheet" "$INSTDIR\icons\sheet.ico" 0 SW_SHOWNORMAL "" "VN Sheet" "$INSTDIR\app"
-  CreateShortCut "$SMPROGRAMS\VN Office\VN Slides.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=slides" "$INSTDIR\icons\slides.ico" 0 SW_SHOWNORMAL "" "VN Slides" "$INSTDIR\app"
-  CreateShortCut "$SMPROGRAMS\VN Office\Gỡ cài đặt VN Office.lnk" "$INSTDIR\Uninstall.exe" "" "$INSTDIR\icons\vnoffice.ico" 0 SW_SHOWNORMAL "" "Gỡ cài đặt VN Office" "$INSTDIR"
+  RMDir "$SMPROGRAMS\VN Office"
+  Delete "$DESKTOP\VN Writer.lnk"
+  Delete "$DESKTOP\VN Sheet.lnk"
+  Delete "$DESKTOP\VN Slides.lnk"
+  ; Remove the older ASCII uninstall shortcut from the current 3T menu before replacing it.
+  Delete "$SMPROGRAMS\3T Office\Go cai dat 3T Office.lnk"
+  CreateDirectory "$SMPROGRAMS\3T Office"
+  CreateShortCut "$SMPROGRAMS\3T Office\3T Doc.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=writer" "$INSTDIR\icons\writer.ico" 0 SW_SHOWNORMAL "" "3T Doc" "$INSTDIR\app"
+  CreateShortCut "$SMPROGRAMS\3T Office\3T Sheet.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=sheet" "$INSTDIR\icons\sheet.ico" 0 SW_SHOWNORMAL "" "3T Sheet" "$INSTDIR\app"
+  CreateShortCut "$SMPROGRAMS\3T Office\3T Slide.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=slides" "$INSTDIR\icons\slides.ico" 0 SW_SHOWNORMAL "" "3T Slide" "$INSTDIR\app"
+  CreateShortCut "$SMPROGRAMS\3T Office\Gỡ cài đặt 3T Office.lnk" "$INSTDIR\Uninstall.exe" "" "$INSTDIR\icons\vnoffice.ico" 0 SW_SHOWNORMAL "" "Gỡ cài đặt 3T Office" "$INSTDIR"
 
-  WriteRegStr HKCU "${UninstallRegKey}" "DisplayName" "VN Office"
+  WriteRegStr HKCU "${UninstallRegKey}" "DisplayName" "3T Office"
   WriteRegStr HKCU "${UninstallRegKey}" "DisplayVersion" "${AppVersion}"
-  WriteRegStr HKCU "${UninstallRegKey}" "Publisher" "VN Office"
+  WriteRegStr HKCU "${UninstallRegKey}" "Publisher" "3T Office"
   WriteRegStr HKCU "${UninstallRegKey}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "${UninstallRegKey}" "DisplayIcon" "$INSTDIR\icons\vnoffice.ico"
   WriteRegStr HKCU "${UninstallRegKey}" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
@@ -221,9 +231,9 @@ Section "-Core" SEC_CORE
 SectionEnd
 
 Section "$(TASK_DESKTOP)" SEC_DESKTOP
-  CreateShortCut "$DESKTOP\VN Writer.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=writer" "$INSTDIR\icons\writer.ico" 0 SW_SHOWNORMAL "" "VN Writer" "$INSTDIR\app"
-  CreateShortCut "$DESKTOP\VN Sheet.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=sheet" "$INSTDIR\icons\sheet.ico" 0 SW_SHOWNORMAL "" "VN Sheet" "$INSTDIR\app"
-  CreateShortCut "$DESKTOP\VN Slides.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=slides" "$INSTDIR\icons\slides.ico" 0 SW_SHOWNORMAL "" "VN Slides" "$INSTDIR\app"
+  CreateShortCut "$DESKTOP\3T Doc.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=writer" "$INSTDIR\icons\writer.ico" 0 SW_SHOWNORMAL "" "3T Doc" "$INSTDIR\app"
+  CreateShortCut "$DESKTOP\3T Sheet.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=sheet" "$INSTDIR\icons\sheet.ico" 0 SW_SHOWNORMAL "" "3T Sheet" "$INSTDIR\app"
+  CreateShortCut "$DESKTOP\3T Slide.lnk" "$INSTDIR\python\pythonw.exe" "-s -E $\"$INSTDIR\app\main.py$\" --app=slides" "$INSTDIR\icons\slides.ico" 0 SW_SHOWNORMAL "" "3T Slide" "$INSTDIR\app"
 SectionEnd
 
 Section /o "$(TASK_ASSOC)" SEC_ASSOC
@@ -280,7 +290,16 @@ Section "Uninstall"
   Delete "$SMPROGRAMS\VN Office\VN Sheet.lnk"
   Delete "$SMPROGRAMS\VN Office\VN Slides.lnk"
   Delete "$SMPROGRAMS\VN Office\Gỡ cài đặt VN Office.lnk"
+  Delete "$SMPROGRAMS\VN Office\Go cai dat VN Office.lnk"
   RMDir "$SMPROGRAMS\VN Office"
+  Delete "$SMPROGRAMS\3T Office\3T Doc.lnk"
+  Delete "$SMPROGRAMS\3T Office\3T Sheet.lnk"
+  Delete "$SMPROGRAMS\3T Office\3T Slide.lnk"
+  Delete "$SMPROGRAMS\3T Office\Gỡ cài đặt 3T Office.lnk"
+  RMDir "$SMPROGRAMS\3T Office"
+  Delete "$DESKTOP\3T Doc.lnk"
+  Delete "$DESKTOP\3T Sheet.lnk"
+  Delete "$DESKTOP\3T Slide.lnk"
   Delete "$DESKTOP\VN Writer.lnk"
   Delete "$DESKTOP\VN Sheet.lnk"
   Delete "$DESKTOP\VN Slides.lnk"

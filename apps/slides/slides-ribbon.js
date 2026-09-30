@@ -1,5 +1,5 @@
 /**
- * VN Slides — Enterprise Ribbon Structure
+ * 3T Slide — Enterprise Ribbon Structure
  * Cấu hình đầy đủ Icon Vector chuẩn Office Suite
  */
 
@@ -533,7 +533,7 @@ export const SLIDES_RIBBON_TABS = [
   },
   {
     id: "ai",
-    label: "Trợ lý VN AI",
+    label: "Trợ lý 3T AI",
     labelKey: "slidesRibbon.tab.ai",
     groups: [
       {

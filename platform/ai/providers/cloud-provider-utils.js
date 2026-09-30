@@ -1,7 +1,7 @@
 const QUERY_TIMEOUT_MS = 30000;
 
 export const SYSTEM_PROMPT =
-  "Bạn là Trợ lý VN AI trong VN Office. Trả lời ngắn gọn, chính xác bằng tiếng Việt; " +
+  "Bạn là Trợ lý 3T AI trong 3T Office. Trả lời ngắn gọn, chính xác bằng tiếng Việt; " +
   "không bịa nội dung không có trong ngữ cảnh tài liệu.";
 
 export function buildUserContent(prompt, context = {}) {

@@ -1,4 +1,4 @@
-"""Offline-first technical error reporting for the VN Office desktop app."""
+"""Offline-first technical error reporting for the 3T Office desktop app."""
 
 from .reporter import ErrorReporter, load_client_config, sanitize_text
 

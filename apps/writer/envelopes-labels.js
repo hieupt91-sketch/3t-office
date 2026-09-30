@@ -1,5 +1,5 @@
 /**
- * VN Writer — Phong bì (Envelopes) & Nhãn (Labels)
+ * 3T Doc — Phong bì (Envelopes) & Nhãn (Labels)
  * Mailings > Create. Tái sử dụng nguồn Mail Merge (CSV) khi có; không SDK ngoài.
  */
 

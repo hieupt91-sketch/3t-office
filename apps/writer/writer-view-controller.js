@@ -109,7 +109,7 @@ export class WriterViewController {
     if (typeof window === "undefined") return false;
     const opened = window.open?.(window.location.href, "_blank");
     if (!opened) {
-      this.shell?.setStatus?.("Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho VN Office.");
+      this.shell?.setStatus?.("Trình duyệt đã chặn cửa sổ mới. Hãy cho phép pop-up cho 3T Office.");
       return false;
     }
     try { opened.opener = null; } catch (_) { /* Cross-origin window: noopener assignment is optional. */ }

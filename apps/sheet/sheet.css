@@ -1,5 +1,5 @@
 /**
- * VN Sheet — Enterprise Stylesheet
+ * 3T Sheet — Enterprise Stylesheet
  * Tiêu chuẩn bảng tính bảng biểu doanh nghiệp chuẩn mực
  */
 
@@ -1735,7 +1735,7 @@ tr.is-filtered-out {
   color: #ecfdf5;
 }
 
-/* --- VN Sheet: Watch Window (Cửa sổ theo dõi ô) chuẩn Excel --- */
+/* --- 3T Sheet: Watch Window (Cửa sổ theo dõi ô) chuẩn Excel --- */
 .vno-watch-window {
   box-sizing: border-box;
   font-family: inherit;

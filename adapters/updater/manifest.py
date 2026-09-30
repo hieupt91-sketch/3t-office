@@ -69,7 +69,7 @@ def validate_package_path(raw: object) -> str:
     relative = _safe_relative_path(raw)
     top = relative.split("/", 1)[0]
     if top not in MANAGED_ROOTS and relative not in MANAGED_ROOT_FILES:
-        raise ManifestError(f"Tệp nằm ngoài phạm vi gói VN Office: {relative}")
+        raise ManifestError(f"Tệp nằm ngoài phạm vi gói 3T Office: {relative}")
     if relative in PRESERVED_RELATIVE_PATHS:
         raise ManifestError(f"Không được cập nhật cấu hình riêng của người dùng: {relative}")
     return relative

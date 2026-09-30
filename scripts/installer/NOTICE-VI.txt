@@ -1,6 +1,6 @@
-VN OFFICE - THÔNG BÁO BẢN DÙNG THỬ NỘI BỘ
+3T OFFICE - THÔNG BÁO BẢN DÙNG THỬ NỘI BỘ
 
-VN Office gồm Python 3.12 (PSF License), LibreOffice (MPL-2.0 và thông báo các thành phần), pywebview (BSD), pythonnet (MIT), clr_loader (MIT), cffi (MIT), pycparser (BSD), bottle (MIT), proxy_tools (MIT), typing_extensions (PSF License) và phông chữ Be Vietnam Pro (OFL). Văn bản giấy phép đầy đủ nằm trong thư mục THIRD-PARTY-NOTICES sau khi cài đặt.
+3T Office gồm Python 3.12 (PSF License), LibreOffice (MPL-2.0 và thông báo các thành phần), pywebview (BSD), pythonnet (MIT), clr_loader (MIT), cffi (MIT), pycparser (BSD), bottle (MIT), proxy_tools (MIT), typing_extensions (PSF License) và phông chữ Be Vietnam Pro (OFL). Văn bản giấy phép đầy đủ nằm trong thư mục THIRD-PARTY-NOTICES sau khi cài đặt.
 
 Trong đợt dùng thử, hãy giữ bản sao dự phòng của tài liệu quan trọng. Nên dùng Lưu thành để tạo bản thử riêng.
 

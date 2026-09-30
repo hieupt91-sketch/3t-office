@@ -1,10 +1,10 @@
 /**
- * VN Office UI Kit — Precision Multi-Tone Vector Icons (SVG)
+ * 3T Office UI Kit — Precision Multi-Tone Vector Icons (SVG)
  * Thiết kế đồ họa sắc nét, trực quan, đa sắc màu đẳng cấp Office Suite
  */
 
 export const ICONS = {
-  // Thương hiệu VN Office
+  // Thương hiệu 3T Office
   brandLogo: `<svg viewBox="0 0 32 32" width="22" height="22" fill="none">
     <rect width="32" height="32" rx="7" fill="#C01E17"/>
     <path d="M7 9L16 25L25 9H20L16 17.5L12 9H7Z" fill="#F5B800"/>

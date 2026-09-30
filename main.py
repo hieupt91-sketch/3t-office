@@ -1,6 +1,6 @@
 """
-VN Office — Python Desktop Application Entrypoint
-Khởi chạy VN Office dưới dạng cửa sổ Native Desktop App độc lập,
+3T Office — Python Desktop Application Entrypoint
+Khởi chạy 3T Office dưới dạng cửa sổ Native Desktop App độc lập,
 và làm cầu nối thật (không mock) tới LibreOffice headless engine
 cho các thao tác Mở/Lưu/Xuất PDF — cross-platform: Windows, Linux, macOS.
 """
@@ -191,11 +191,11 @@ def _start_static_server():
 APP_DATA_DIR_NAME = "VNOffice"
 VALID_APP_KINDS = ("writer", "sheet", "slides")
 APP_TITLES = {
-    "writer": "VN Writer — Soạn thảo văn bản",
-    "sheet": "VN Sheet — Bảng tính",
-    "slides": "VN Slides — Trình chiếu",
+    "writer": "3T Doc — Soạn thảo văn bản",
+    "sheet": "3T Sheet — Bảng tính",
+    "slides": "3T Slide — Trình chiếu",
 }
-SUITE_TITLE = "VN Office — Bộ Ứng Dụng Văn Phòng Việt"
+SUITE_TITLE = "3T Office — Bộ Ứng Dụng Văn Phòng Việt"
 FILE_APP_KINDS = {
     ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",
     ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet",
@@ -331,7 +331,7 @@ class _SofficeUnoWorker:
             )
         worker_path = Path(ROOT_DIR) / "adapters" / "libreoffice" / "common" / "soffice_uno_worker.py"
         if not worker_path.is_file():
-            raise _PersistentSofficeTransportError("Không tìm thấy helper UNO của VN Office.")
+            raise _PersistentSofficeTransportError("Không tìm thấy helper UNO của 3T Office.")
 
         pipe_name = f"vnoffice_{os.getpid()}_{uuid.uuid4().hex}"
         profile_uri = _profile_uri(self.app_kind)
@@ -527,7 +527,7 @@ class _PersistentSofficeManager:
 
     def _ensure_locked(self, app_kind: str) -> _SofficeUnoWorker:
         if self._shutdown_requested.is_set():
-            raise _PersistentSofficeTransportError("VN Office đang đóng.")
+            raise _PersistentSofficeTransportError("3T Office đang đóng.")
         if self._worker and self._worker.app_kind == app_kind:
             if self._worker.process and self._worker.process.poll() is None:
                 return self._worker
@@ -546,7 +546,7 @@ class _PersistentSofficeManager:
                 if self._shutdown_requested.is_set():
                     worker.stop(grace_seconds=0.1)
                     self._worker = None
-                    raise _PersistentSofficeTransportError("VN Office đang đóng.")
+                    raise _PersistentSofficeTransportError("3T Office đang đóng.")
                 return worker
             except Exception as exc:
                 last_error = exc
@@ -2294,7 +2294,7 @@ class VnOfficeApi:
             return {"started": False, "error": "Không xác định được ứng dụng cần khởi động lại."}
         install_root = _update_install_root()
         if install_root is None:
-            return {"started": False, "error": "Không tìm thấy thư mục cài đặt VN Office."}
+            return {"started": False, "error": "Không tìm thấy thư mục cài đặt 3T Office."}
         try:
             task_path = self._updater.create_apply_task(app_kind=self._app_kind, install_root=install_root)
             if not self._updater.launch_apply_helper(task_path):
@@ -2345,7 +2345,7 @@ class VnOfficeApi:
         if not window:
             return False
         try:
-            window.set_title(str(title or "VN Office")[:512])
+            window.set_title(str(title or "3T Office")[:512])
             return True
         except Exception:
             return False
@@ -2363,7 +2363,7 @@ class VnOfficeApi:
             except Exception:
                 self._allow_window_close = False
 
-        threading.Thread(target=destroy_window, daemon=True, name="VN Office close window").start()
+        threading.Thread(target=destroy_window, daemon=True, name="3T Office close window").start()
         return {"status": "ok"}
 
     def create_new_document_window(self, app_kind=None):
@@ -2371,7 +2371,7 @@ class VnOfficeApi:
         if kind not in VALID_APP_KINDS:
             return {"status": "error", "message": "Không xác định được ứng dụng cần tạo tài liệu."}
         if not self._server_port:
-            return {"status": "error", "message": "Máy chủ giao diện của VN Office chưa sẵn sàng."}
+            return {"status": "error", "message": "Máy chủ giao diện của 3T Office chưa sẵn sàng."}
 
         prefixes = {"writer": "Tài liệu", "sheet": "Bảng tính", "slides": "Bản trình bày"}
         extensions = {"writer": "docx", "sheet": "xlsx", "slides": "pptx"}
@@ -2409,7 +2409,7 @@ class VnOfficeApi:
         except (OSError, ValueError):
             return {"status": "error", "message": "Đường dẫn tệp gần đây không hợp lệ."}
         if not self._server_port:
-            return {"status": "error", "message": "Máy chủ giao diện của VN Office chưa sẵn sàng."}
+            return {"status": "error", "message": "Máy chủ giao diện của 3T Office chưa sẵn sàng."}
 
         file_name = source_path.name
         child_api = VnOfficeApi(app_kind=app_kind, initial_file=str(source_path), server_port=self._server_port)
@@ -2627,7 +2627,7 @@ class VnOfficeApi:
                     if src_path.lower().endswith(".xlsx") and original_xlsx is not None:
                         patcher = _ooxml_zip_patch()
                         if _sheet_open_payload_enabled():
-                            _notify_sheet_open_progress("Đang đóng gói dữ liệu để nạp nhanh vào VN Sheet…", api=self)
+                            _notify_sheet_open_progress("Đang đóng gói dữ liệu để nạp nhanh vào 3T Sheet…", api=self)
                             try:
                                 from adapters.libreoffice.sheet.sheet_open_payload import build_sheet_open_payload
                                 final_fods, sheet_open_payload = build_sheet_open_payload(
@@ -2942,7 +2942,7 @@ def _register_app_window(api: VnOfficeApi, window) -> None:
                 except Exception:
                     pass
 
-        threading.Thread(target=request_close_in_webview, daemon=True, name="VN Office close prompt").start()
+        threading.Thread(target=request_close_in_webview, daemon=True, name="3T Office close prompt").start()
         return False
 
     def on_closed(*_args):
@@ -3021,7 +3021,7 @@ def _write_profile_warmup_docx(path: str) -> None:
 </Relationships>""",
         "word/document.xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>
-<w:p><w:r><w:t>VN Office local profile warm-up</w:t></w:r></w:p>
+<w:p><w:r><w:t>3T Office local profile warm-up</w:t></w:r></w:p>
 <w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>
 </w:body></w:document>""",
         "word/styles.xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -3056,7 +3056,7 @@ def _write_profile_warmup_xlsx(path: str) -> None:
 </Relationships>""",
         "xl/worksheets/sheet1.xml": """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>
-<row r="1"><c r="A1" t="inlineStr"><is><t>VN Office local profile warm-up</t></is></c></row>
+<row r="1"><c r="A1" t="inlineStr"><is><t>3T Office local profile warm-up</t></is></c></row>
 </sheetData></worksheet>""",
     }
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as package:
@@ -3088,7 +3088,7 @@ def _warmup_persistent_filter(app_kind: str) -> None:
         started = time.perf_counter()
         _run_soffice_convert(source_path, target_ext, temp_dir, app_kind=app_kind)
         marker.parent.mkdir(parents=True, exist_ok=True)
-        marker.write_text("LibreOffice open import filter warmed by VN Office.\n", encoding="utf-8")
+        marker.write_text("LibreOffice open import filter warmed by 3T Office.\n", encoding="utf-8")
         _open_perf_log(
             "background_filter_warmup",
             (time.perf_counter() - started) * 1000,
@@ -3100,7 +3100,7 @@ def _warmup_libreoffice_profiles() -> int:
     """Create the same local Writer/Sheet profiles used at runtime and prime their import filters."""
     global _PERSISTENT_SOFFICE_ENABLED
     if not SOFFICE_PATH:
-        print("[VN Office] LibreOffice profile warm-up skipped: soffice was not found.", flush=True)
+        print("[3T Office] LibreOffice profile warm-up skipped: soffice was not found.", flush=True)
         return 1
 
     previous_persistent_state = _PERSISTENT_SOFFICE_ENABLED
@@ -3115,18 +3115,18 @@ def _warmup_libreoffice_profiles() -> int:
             _run_soffice_convert(writer_input, "html", temp_dir, app_kind="writer")
             writer_marker = _profile_filter_warm_marker("writer")
             writer_marker.parent.mkdir(parents=True, exist_ok=True)
-            writer_marker.write_text("LibreOffice open import filter warmed by VN Office.\n", encoding="utf-8")
+            writer_marker.write_text("LibreOffice open import filter warmed by 3T Office.\n", encoding="utf-8")
             _open_perf_log("install_profile_warmup", (time.perf_counter() - writer_started) * 1000, app="writer")
             sheet_started = time.perf_counter()
             _run_soffice_convert(sheet_input, "fods", temp_dir, app_kind="sheet")
             sheet_marker = _profile_filter_warm_marker("sheet")
             sheet_marker.parent.mkdir(parents=True, exist_ok=True)
-            sheet_marker.write_text("LibreOffice open import filter warmed by VN Office.\n", encoding="utf-8")
+            sheet_marker.write_text("LibreOffice open import filter warmed by 3T Office.\n", encoding="utf-8")
             _open_perf_log("install_profile_warmup", (time.perf_counter() - sheet_started) * 1000, app="sheet")
-        print("[VN Office] LibreOffice Writer and Sheet profiles are ready for first open.", flush=True)
+        print("[3T Office] LibreOffice Writer and Sheet profiles are ready for first open.", flush=True)
         return 0
     except Exception as exc:
-        print(f"[VN Office] LibreOffice profile warm-up failed: {exc}", file=sys.stderr, flush=True)
+        print(f"[3T Office] LibreOffice profile warm-up failed: {exc}", file=sys.stderr, flush=True)
         return 1
     finally:
         _PERSISTENT_SOFFICE_ENABLED = previous_persistent_state
@@ -3141,7 +3141,7 @@ def main(argv: list[str] | None = None):
     try:
         app_kind, initial_file = parse_launch_args(launch_argv)
     except ValueError as exc:
-        print(f"[VN Office] {exc}", file=sys.stderr)
+        print(f"[3T Office] {exc}", file=sys.stderr)
         return 2
 
     report_config = load_client_config(ROOT_DIR)
@@ -3189,7 +3189,7 @@ def main(argv: list[str] | None = None):
         server, port = _start_static_server()
     except RuntimeError as exc:
         msg = (
-            f"VN Office không thể khởi động.\n\n"
+            f"3T Office không thể khởi động.\n\n"
             f"Nguyên nhân: {exc}\n\n"
             f"Vui lòng kiểm tra:\n"
             f"• Phần mềm diệt virus hoặc tường lửa có đang chặn ứng dụng không.\n"
@@ -3198,14 +3198,14 @@ def main(argv: list[str] | None = None):
         if platform.system() == "Windows":
             try:
                 import ctypes
-                ctypes.windll.user32.MessageBoxW(0, msg, "VN Office — Lỗi khởi động", 0x10)
+                ctypes.windll.user32.MessageBoxW(0, msg, "3T Office — Lỗi khởi động", 0x10)
             except Exception:
-                print(f"[VN Office] {msg}", file=sys.stderr)
+                print(f"[3T Office] {msg}", file=sys.stderr)
         else:
-            print(f"[VN Office] {msg}", file=sys.stderr)
+            print(f"[3T Office] {msg}", file=sys.stderr)
         return 3
 
-    print(f"[VN Office] Embedded server ready at http://localhost:{port}")
+    print(f"[3T Office] Embedded server ready at http://localhost:{port}")
 
     _PERSISTENT_SOFFICE_ENABLED = os.environ.get("VNOFFICE_DISABLE_UNO") != "1"
 
@@ -3235,7 +3235,7 @@ def main(argv: list[str] | None = None):
             target=_PERSISTENT_SOFFICE.prepare,
             args=(startup_worker_kind,),
             daemon=True,
-            name="VN Office LibreOffice warm start",
+            name="3T Office LibreOffice warm start",
         ).start()
 
     # Set Windows AppUserModelID so the taskbar groups and shows the app's specific icon
@@ -3286,7 +3286,7 @@ def main(argv: list[str] | None = None):
     except SystemExit:
         pass
     except Exception as exc:
-        print(f"[VN Office] Thoát cửa sổ: {exc}")
+        print(f"[3T Office] Thoát cửa sổ: {exc}")
     finally:
         with _APP_WINDOW_LOCK:
             remaining_apis = list(_APP_WINDOW_APIS.values())

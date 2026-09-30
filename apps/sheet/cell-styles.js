@@ -1,5 +1,5 @@
 /**
- * VN Sheet — Cell Styles & Table Styles Gallery
+ * 3T Sheet — Cell Styles & Table Styles Gallery
  * Bộ kiểu ô chuẩn Microsoft Excel / LibreOffice Calc
  */
 

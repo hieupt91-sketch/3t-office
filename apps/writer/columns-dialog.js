@@ -1,5 +1,5 @@
 /**
- * VN Office — VN Writer Columns Dialog (Chia cột văn bản)
+ * 3T Office — 3T Doc Columns Dialog (Chia cột văn bản)
  * Hộp thoại cấu hình Multi-column Layout chuẩn Microsoft Word Layout > Columns
  */
 

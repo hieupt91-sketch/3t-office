@@ -1,4 +1,4 @@
-# Runs from a staged copy after the VN Office process exits. Keep this PowerShell 5.1 compatible.
+# Runs from a staged copy after the 3T Office process exits. Keep this PowerShell 5.1 compatible.
 param([Parameter(Mandatory = $true)][string]$Task)
 
 $ErrorActionPreference = "Stop"
@@ -120,7 +120,7 @@ function Restore-Backup {
 }
 
 try {
-    if (-not (Wait-InstallProcesses 600)) { throw 'VN Office is still running; update was not applied.' }
+    if (-not (Wait-InstallProcesses 600)) { throw '3T Office is still running; update was not applied.' }
     $originalExited = $true
     if (Test-Path -LiteralPath $backup) {
         $preservedBackup = Join-Path $updates ("backup-" + [string]$taskData.old_version + "-previous-" + [Guid]::NewGuid().ToString('N'))

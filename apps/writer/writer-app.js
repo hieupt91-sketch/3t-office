@@ -1,5 +1,5 @@
 /**
- * VN Writer Application Entrypoint — Refined Enterprise Edition
+ * 3T Doc Application Entrypoint — Refined Enterprise Edition
  */
 
 import { AppShell } from "../../platform/shell/app-shell.js";
@@ -38,7 +38,7 @@ export class WriterApp {
     const isBlank = templateId === "blank";
     this.shell = new AppShell({
       appName: "writer",
-      appTitle: "VN Writer",
+      appTitle: "3T Doc",
       documentName: options.documentName || (isBlank ? "Tài liệu 1.docx" : "Quyết định ban hành tiêu chuẩn 01.docx")
     });
     this.shell.mount(this.mountElement);
@@ -102,7 +102,7 @@ export class WriterApp {
     if (isBlank) {
       body.innerHTML = `<p><br></p>`;
     } else {
-      header.innerHTML = `<p style="text-align:right; font-size:9.5pt; color:#64748b; margin:0;">VN Office — Mẫu văn bản hành chính</p>`;
+      header.innerHTML = `<p style="text-align:right; font-size:9.5pt; color:#64748b; margin:0;">3T Office — Mẫu văn bản hành chính</p>`;
       footer.innerHTML = `<p style="text-align:center; font-size:9.5pt; color:#64748b; margin:0;">Trang 1 / 1</p>`;
       // Mẫu văn bản chuẩn hóa
       body.innerHTML = `
@@ -124,19 +124,19 @@ export class WriterApp {
       </table>
 
       <h1>QUYẾT ĐỊNH</h1>
-      <p style="text-align:center; font-weight:bold; font-size:14pt; margin-bottom:16pt;">Về việc ban hành Bộ Ứng dụng Văn phòng Việt Nam — VN Office</p>
+      <p style="text-align:center; font-weight:bold; font-size:14pt; margin-bottom:16pt;">Về việc ban hành Bộ Ứng dụng Văn phòng Việt Nam — 3T Office</p>
 
       <p style="text-align:center; font-style:italic; margin-bottom:14pt;">CHỦ TỊCH ỦY BAN NHÂN DÂN THÀNH PHỐ HÀ NỘI</p>
 
       <p><em>Căn cứ Luật Tổ chức chính quyền địa phương ngày 19 tháng 6 năm 2015;</em></p>
       <p><em>Căn cứ Nghị định số 30/2020/NĐ-CP ngày 05 tháng 3 năm 2020 của Chính phủ về công tác văn thư;</em></p>
-      <p><em>Xét đề nghị của Giám đốc Sở Thông tin và Truyền thông và Lead Engineering Agent dự án VN Office.</em></p>
+      <p><em>Xét đề nghị của Giám đốc Sở Thông tin và Truyền thông và Lead Engineering Agent dự án 3T Office.</em></p>
 
       <h2>QUYẾT ĐỊNH:</h2>
 
-      <p><strong>Điều 1.</strong> Phê duyệt và chính thức áp dụng bộ giải pháp phần mềm văn phòng <strong>VN Office</strong> (bao gồm <strong>VN Writer</strong>, <strong>VN Sheet</strong> và <strong>VN Slides</strong>) tại các cơ quan, đơn vị, doanh nghiệp trên địa bàn.</p>
+      <p><strong>Điều 1.</strong> Phê duyệt và chính thức áp dụng bộ giải pháp phần mềm văn phòng <strong>3T Office</strong> (bao gồm <strong>3T Doc</strong>, <strong>3T Sheet</strong> và <strong>3T Slide</strong>) tại các cơ quan, đơn vị, doanh nghiệp trên địa bàn.</p>
 
-      <p><strong>Điều 2.</strong> Bộ ứng dụng VN Office đáp ứng đầy đủ quy chuẩn bảo mật dữ liệu, kế thừa sức mạnh xử lý định dạng ODF/OOXML của LibreOffice Core, đồng thời mang giao diện thuần Việt trực quan, hiện đại và chuẩn mực.</p>
+      <p><strong>Điều 2.</strong> Bộ ứng dụng 3T Office đáp ứng đầy đủ quy chuẩn bảo mật dữ liệu, kế thừa sức mạnh xử lý định dạng ODF/OOXML của LibreOffice Core, đồng thời mang giao diện thuần Việt trực quan, hiện đại và chuẩn mực.</p>
 
       <p><strong>Điều 3.</strong> Quyết định này có hiệu lực kể từ ngày ký. Chánh Văn phòng UBND Thành phố, Thủ trưởng các cơ quan, ban, ngành chịu trách nhiệm thi hành Quyết định này./.</p>
 
@@ -229,7 +229,7 @@ export class WriterApp {
       restore: (content, manifest) => this.adapter.restoreFromAutoRecover(content, manifest),
       options
     });
-    console.log("[WriterApp] Đã khởi tạo VN Writer chuẩn hóa cao cấp.");
+    console.log("[WriterApp] Đã khởi tạo 3T Doc chuẩn hóa cao cấp.");
   }
 
   /**

@@ -1,5 +1,5 @@
 /**
- * VN Sheet — Hợp nhất dữ liệu (Consolidate).
+ * 3T Sheet — Hợp nhất dữ liệu (Consolidate).
  *
  * Gộp nhiều vùng (có thể từ các trang tính khác nhau trong cùng workbook)
  * thành một bảng tại ô đang chọn. Phép tính gọi lại SUM / AVERAGE / COUNT /

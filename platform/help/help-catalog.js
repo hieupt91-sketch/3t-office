@@ -1,5 +1,5 @@
 /**
- * VN Office Help Catalog — đăng ký hướng dẫn theo app.
+ * 3T Office Help Catalog — đăng ký hướng dẫn theo app.
  * Writer được nạp sẵn. Sheet/Slides bổ sung sau bằng registerHelpEntries().
  */
 

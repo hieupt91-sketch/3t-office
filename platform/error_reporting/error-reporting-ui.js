@@ -1,4 +1,4 @@
-/** Shared consent, feedback and Help controls for all VN Office desktop apps. */
+/** Shared consent, feedback and Help controls for all 3T Office desktop apps. */
 
 import { createFrontendErrorReporter } from "./frontend-reporter.js";
 
@@ -138,7 +138,7 @@ export class ErrorReportingUI {
       title: "Chia sẻ báo cáo lỗi kỹ thuật?",
       focusSelector: "[data-dialog-action='deny']",
       body: `
-        <p>VN Office có thể gửi dữ liệu kỹ thuật để nhóm phát triển sửa lỗi. ${escapeHtml(networkNote)}</p>
+        <p>3T Office có thể gửi dữ liệu kỹ thuật để nhóm phát triển sửa lỗi. ${escapeHtml(networkNote)}</p>
         <h3>Dữ liệu có thể được gửi</h3>
         <ul><li>Loại lỗi, thông điệp và ngăn xếp đã lọc.</li><li>Ứng dụng, phiên bản, thao tác, thời gian, phiên bản Windows.</li><li>Chỉ phần mở rộng và kích thước tệp đã làm tròn; mã cài đặt ngẫu nhiên.</li></ul>
         <h3>Không bao giờ được gửi tự động</h3>
