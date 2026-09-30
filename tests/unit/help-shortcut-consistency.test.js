@@ -58,6 +58,11 @@ const APP_LEVEL_BINDINGS = {
   slides: { "Ctrl+Enter": "slides.review.commentInsert" }
 };
 
+/** Phím tắt cấp chung được registerAllStandardCommands bind vào scope common. */
+const COMMON_LEVEL_BINDINGS = {
+  "Ctrl+Shift+S": "common.file.saveAs"
+};
+
 /** Hợp phím điều hướng (bẫy focus / di chuyển ô) — chỉ chấp nhận trong bài về điều hướng bàn phím */
 const NAVIGATION_CHORDS = new Set(["Tab", "Shift+Tab", "Enter", "Shift+Enter"]);
 
@@ -141,6 +146,9 @@ function buildDefinedShortcutSet(app) {
   }
   for (const [token, cmdId] of Object.entries(APP_LEVEL_BINDINGS[app] || {})) {
     if (cmdId.startsWith(`${app}.`)) set.add(normalizeShortcut(token));
+  }
+  for (const [token, cmdId] of Object.entries(COMMON_LEVEL_BINDINGS)) {
+    if (ALL_COMMANDS.some((cmd) => cmd.id === cmdId)) set.add(normalizeShortcut(token));
   }
   return set;
 }
