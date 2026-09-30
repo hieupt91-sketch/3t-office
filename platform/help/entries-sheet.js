@@ -237,6 +237,24 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.selection.range",
+    app: "sheet",
+    commandIds: [],
+    title: "Chọn ô, vùng, hàng và cột",
+    summary: "Dùng chuột hoặc bàn phím để chọn ô/vùng liên tiếp, thêm vùng rời, chọn trọn hàng/cột và xem Sum, Count, Average ở thanh trạng thái.",
+    ribbon: { tab: "Lưới trang tính", tabId: "grid", group: "Hộp tên và thanh trạng thái" },
+    keywords: ["chọn ô", "chọn vùng", "bôi đen", "kéo chuột", "Shift+click", "Ctrl+click", "phím hướng", "hàng", "cột", "name box", "thanh trạng thái"],
+    steps: [
+      "Trong lưới bên dưới thanh công thức, nhấn giữ nút chuột trái ở ô đầu rồi kéo tới ô cuối. Khung chọn cập nhật khi kéo; thả chuột để giữ nguyên vùng. Kéo ngược lên trên hoặc sang trái để chọn theo hướng ngược.",
+      "Giữ Shift rồi nhấp ô cuối để mở rộng từ ô neo hiện tại. Sau khi chọn bằng chuột, giữ Shift và nhấn một phím hướng để tiếp tục mở rộng từ ô đang hoạt động; giữ Ctrl và nhấn phím hướng để đi tới ranh giới vùng dữ liệu liền kề.",
+      "Nhấn Ctrl+A khi lưới được focus để chọn trang tính; Ctrl+Space chọn cột hiện tại và Shift+Space chọn hàng hiện tại.",
+      "Giữ Ctrl rồi nhấp hoặc kéo vùng thứ hai để thêm vùng rời; hộp tên hiển thị các địa chỉ cách nhau bằng dấu phẩy. Chọn lại một ô bình thường để bỏ các vùng rời và bắt đầu lựa chọn mới.",
+      "Kéo từ số hàng bên trái để chọn nhiều hàng, hoặc kéo từ chữ cột phía trên để chọn nhiều cột. Có thể đưa con trỏ sát mép lưới trong lúc giữ chuột để tự cuộn và tiếp tục mở rộng vùng; các hàng/cột đã cố định vẫn giữ nguyên.",
+      "Hộp tên phía trên lưới hiện địa chỉ vùng. Thanh trạng thái dưới cùng cập nhật số ô số (ĐẾM), TRUNG BÌNH và TỔNG CỘNG của các ô đang chọn.",
+      "Khi Sao chép định dạng đang bật ở tab Trang đầu → nhóm Bảng nhớ tạm, kéo qua một vùng đích để áp dụng kiểu ô. Nếu đang sửa trên thanh công thức, kéo chọn ô khác sẽ xác nhận nội dung đang nhập trước khi chọn vùng mới."
+    ]
+  },
+  {
     id: "sheet.chart.insert",
     app: "sheet",
     commandIds: ["sheet.chart.insert"],

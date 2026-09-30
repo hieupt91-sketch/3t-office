@@ -146,6 +146,7 @@ import { runSlidesTextVerticalDirectionTests } from "./unit/slides-text-vertical
 import { runSheetFreezePanesRealTests } from "./unit/sheet-freeze-panes-real.test.js";
 import { runSheetImageImportExportTests } from "./unit/sheet-image-import-export.test.js";
 import { runSheetStatusBarSumTests } from "./unit/sheet-status-bar-sum.test.js";
+import { runSheetRangeSelectionTests } from "./unit/sheet-range-selection.test.js";
 import { runSlidesPptxSetupShowOpenOverlayTests } from "./unit/slides-pptx-setup-show-open-overlay.test.js";
 import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.test.js";
 import { runWriterFindReplaceDomTests } from "./unit/writer-find-replace-dom.test.js";
@@ -403,7 +404,8 @@ async function runAll() {
     { title: "162. Unit Tests — Sheet Watch Window (Excel parity: 6 columns, multi-sheet, draggable, keyboard, real-time)", runner: runSheetWatchWindowTests },
     { title: "163. Regression Guard — Microsoft Office Shortcut Coverage (Word/Excel/PowerPoint)", runner: runOfficeShortcutCoverageTests },
     { title: "164. Unit Tests — Office Missing Shortcuts (Ctrl+], Ctrl+[, Ctrl+Shift++, Shift+F11, Ctrl+-, F11) & Undo", runner: runMissingOfficeShortcutsTests },
-    { title: "165. Unit Tests — Slides F5 Pen and Laser Pointer (Ctrl+P, Ctrl+L, Ctrl+A, E, Color, Keep/Discard ink)", runner: runSlidesPenLaserTests }
+    { title: "165. Unit Tests — Slides F5 Pen and Laser Pointer (Ctrl+P, Ctrl+L, Ctrl+A, E, Color, Keep/Discard ink)", runner: runSlidesPenLaserTests },
+    { title: "166. Unit Tests — VN Sheet range selection anchors, multi-area status and drag auto-scroll math", runner: runSheetRangeSelectionTests }
   ];
 
   for (const suite of suites) {
