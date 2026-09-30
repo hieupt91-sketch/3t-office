@@ -215,7 +215,7 @@ export async function runWriterHeaderFooterImportTests() {
     }
   });
 
-  test("Adapter tách header/footer khỏi body, gỡ sdfield, Print Preview còn khớp Trang N / M", () => {
+  test("Adapter tách header/footer khỏi body, giữ field Trang N / M cho Print Preview và DOCX", () => {
     const imported = new WriterAdapter(null)._normalizeImportedHtml(SOFFICE_HEADERFOOTER_HTML);
     const headerText = collapseWs(imported.header.replace(/<[^>]+>/g, " "));
     const footerText = collapseWs(imported.footer.replace(/<[^>]+>/g, " "));
@@ -246,9 +246,15 @@ export async function runWriterHeaderFooterImportTests() {
       throw new Error(`Mất thân trang: ${imported.body.slice(0, 240)}`);
     }
 
-    const previewFooter = imported.footer.replace(/Trang\s+\d+(\s*\/\s*\d+)?/gi, "Trang 3 / 5");
-    if (!previewFooter.includes("Trang 3 / 5") || !previewFooter.includes(FOOTER_DATE)) {
-      throw new Error(`Print Preview không thay được số trang sau normalize: ${previewFooter}`);
+    if (!/data-vno-field=["']PAGE["']/i.test(imported.footer) || !/data-vno-field=["']NUMPAGES["']/i.test(imported.footer)) {
+      throw new Error(`PAGE/NUMPAGES không còn marker để save DOCX và thay số theo trang: ${imported.footer}`);
+    }
+    const previewFooter = imported.footer
+      .replace(/(<span\b[^>]*data-vno-field=["']PAGE["'][^>]*>)[\s\S]*?(<\/span>)/i, (_match, before, after) => `${before}3${after}`)
+      .replace(/(<span\b[^>]*data-vno-field=["']NUMPAGES["'][^>]*>)[\s\S]*?(<\/span>)/i, (_match, before, after) => `${before}5${after}`);
+    const previewFooterText = collapseWs(previewFooter.replace(/<[^>]*>/g, " "));
+    if (!/Trang\s+3\s*\/\s*5/.test(previewFooterText) || !previewFooterText.includes(FOOTER_DATE)) {
+      throw new Error(`Print Preview không thay được số trang sau normalize: ${previewFooterText}`);
     }
 
     const headerXml = readFixtureXml("word/header1.xml");
@@ -279,8 +285,12 @@ export async function runWriterHeaderFooterImportTests() {
       if (!header.innerHTML.includes(HEADER_COMPANY) || !header.innerHTML.includes(HEADER_DEPT)) {
         throw new Error(`open() headerDom sai: ${header.innerHTML}`);
       }
-      if (!footer.innerHTML.includes(FOOTER_DATE) || !/Trang\s+1/i.test(footer.innerHTML)) {
+      const footerText = collapseWs(footer.innerHTML.replace(/<[^>]*>/g, " "));
+      if (!footerText.includes(FOOTER_DATE) || !/Trang\s+1\s*\/\s*1/i.test(footerText)) {
         throw new Error(`open() footerDom sai: ${footer.innerHTML}`);
+      }
+      if (!/data-vno-field=["']PAGE["']/i.test(footer.innerHTML) || !/data-vno-field=["']NUMPAGES["']/i.test(footer.innerHTML)) {
+        throw new Error(`open() không giữ PAGE/NUMPAGES fields: ${footer.innerHTML}`);
       }
       if (/sdfield/i.test(footer.innerHTML)) {
         throw new Error("open() footer còn sdfield");

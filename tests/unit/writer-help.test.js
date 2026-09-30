@@ -151,6 +151,10 @@ export async function runWriterHelpTests() {
     if (byId["writer.view.layouts"].ribbon.tab !== "Chế độ xem") {
       throw new Error("Bài dạng xem phải ở tab Chế độ xem");
     }
+    const footerHelp = byId["writer.headerFooter"];
+    if (!footerHelp.summary.includes("PAGE / NUMPAGES") || !(footerHelp.steps.join(" ").includes("Print Preview") && footerHelp.steps.join(" ").includes("tổng số trang"))) {
+      throw new Error("Hướng dẫn chân trang phải giải thích trường số trang sống và cách xem số theo từng trang");
+    }
   });
 
   await test("Help Writer Batch 2: có bài kiểu, bố cục trang, chú thích và chèn nâng cao", () => {
