@@ -9,7 +9,7 @@ export class NumberFormatter {
    * Định dạng "General" chuẩn Excel: giữ nguyên độ chính xác thật của phép
    * tính (không cắt cứng về 2 chữ số thập phân), chỉ dọn sai số biểu diễn
    * dấu phẩy động nhị phân (vd 0.1+0.2 -> 0.30000000000000004) bằng cách
-   * giới hạn 12 chữ số có nghĩa - cùng cấp độ chính xác General format của
+   * giới hạn theo độ chính xác General của Excel khi ô đủ rộng
    * Excel hiển thị trên cột đủ rộng, không phải làm tròn kế toán.
    * @param {any} rawVal
    * @returns {string}
@@ -19,7 +19,7 @@ export class NumberFormatter {
       return String(rawVal ?? "");
     }
     if (Number.isInteger(rawVal)) return String(rawVal);
-    return String(parseFloat(rawVal.toPrecision(12)));
+    return String(parseFloat(rawVal.toPrecision(10)));
   }
 
   /**
@@ -78,7 +78,7 @@ export class NumberFormatter {
    * @param {any} val
    * @returns {number|null}
    */
-  static parseNumber(val) {
+  static parseNumber(val, locale = "en-US") {
     if (typeof val === "number") return Number.isFinite(val) ? val : null;
     if (val === null || val === undefined || val === "") return null;
     const str = String(val).trim();
@@ -96,13 +96,18 @@ export class NumberFormatter {
       }
     } else if (cleaned.includes(",")) {
       const commaParts = cleaned.split(",");
-      if (commaParts.length > 1 && commaParts[commaParts.length - 1].length !== 3) {
+      if (locale.toLowerCase().startsWith("vi") && commaParts.length > 2) {
+        cleaned = cleaned.replace(/,/g, "");
+      } else if (locale.toLowerCase().startsWith("vi") || commaParts.length > 1 && commaParts[commaParts.length - 1].length !== 3) {
         cleaned = cleaned.replace(",", ".");
       } else if (commaParts.length > 2) {
         cleaned = cleaned.replace(/,/g, "");
       } else {
         cleaned = cleaned.replace(/,/g, "");
       }
+    } else if (cleaned.includes(".") && locale.toLowerCase().startsWith("vi")) {
+      const dotParts = cleaned.split(".");
+      if (dotParts.length > 1 && dotParts[dotParts.length - 1].length === 3) cleaned = cleaned.replace(/\./g, "");
     }
 
     let num = parseFloat(cleaned);
@@ -115,7 +120,8 @@ export class NumberFormatter {
    * Định dạng số (Number)
    */
   static formatNumber(val, config = {}) {
-    const num = this.parseNumber(val);
+    const locale = config.locale || "en-US";
+    const num = this.parseNumber(val, locale);
     if (num === null) return { text: String(val) };
 
     const decimals = config.decimals !== undefined ? Math.max(0, Math.min(30, Number(config.decimals))) : 2;
@@ -129,7 +135,7 @@ export class NumberFormatter {
       return { text: "-", isNegative: false, isRed: false, align: "right" };
     }
 
-    let formattedNumber = this._formatDecimalAndThousands(absVal, decimals, useThousands);
+    let formattedNumber = this._formatDecimalAndThousands(absVal, decimals, useThousands, locale);
 
     let text = "";
     let isRed = false;
@@ -164,7 +170,8 @@ export class NumberFormatter {
    * Định dạng tiền tệ (Currency)
    */
   static formatCurrency(val, config = {}) {
-    const num = this.parseNumber(val);
+    const locale = config.locale || "en-US";
+    const num = this.parseNumber(val, locale);
     if (num === null) return { text: String(val) };
 
     const decimals = config.decimals !== undefined ? Math.max(0, Math.min(30, Number(config.decimals))) : 2;
@@ -174,7 +181,7 @@ export class NumberFormatter {
 
     const isNegative = num < 0;
     const absVal = Math.abs(num);
-    const formattedNumber = this._formatDecimalAndThousands(absVal, decimals, useThousands);
+    const formattedNumber = this._formatDecimalAndThousands(absVal, decimals, useThousands, locale);
 
     const isSymbolAfter = symbol === "₫" || config.symbolPosition === "after";
 
@@ -221,7 +228,8 @@ export class NumberFormatter {
    * 4. Số âm KHÔNG có dấu trừ, hiển thị trong ngoặc đơn: (1,234.00)
    */
   static formatAccounting(val, config = {}) {
-    const num = this.parseNumber(val);
+    const locale = config.locale || "en-US";
+    const num = this.parseNumber(val, locale);
     if (num === null) return { text: String(val) };
 
     const decimals = config.decimals !== undefined ? Math.max(0, Math.min(30, Number(config.decimals))) : 2;
@@ -234,7 +242,7 @@ export class NumberFormatter {
       numberText = "-";
     } else {
       const absVal = Math.abs(num);
-      const formatted = this._formatDecimalAndThousands(absVal, decimals, true);
+      const formatted = this._formatDecimalAndThousands(absVal, decimals, true, locale);
       numberText = isNegative ? `(${formatted})` : `${formatted} `;
     }
 
@@ -255,12 +263,12 @@ export class NumberFormatter {
    * Định dạng Phần trăm (Percentage)
    */
   static formatPercentage(val, config = {}) {
-    const num = this.parseNumber(val);
+    const num = this.parseNumber(val, config.locale || "en-US");
     if (num === null) return { text: String(val) };
 
     const decimals = config.decimals !== undefined ? Math.max(0, Math.min(30, Number(config.decimals))) : 2;
     const percentVal = num * 100;
-    const formatted = percentVal.toLocaleString("en-US", {
+    const formatted = percentVal.toLocaleString(config.locale || "en-US", {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals
     });
@@ -275,7 +283,7 @@ export class NumberFormatter {
    * Định dạng Ngày tháng (Date)
    */
   static formatDate(val, config = {}) {
-    const date = this._parseDate(val);
+    const date = this._parseDate(val, config.dateLocale || config.locale || "vi-VN");
     if (!date || isNaN(date.getTime())) {
       return { text: String(val) };
     }
@@ -354,7 +362,8 @@ export class NumberFormatter {
       return { text: this.formatGeneralNumber(val) };
     }
 
-    const num = this.parseNumber(val);
+    const locale = config.locale || "en-US";
+    const num = this.parseNumber(val, locale);
     if (num === null) return { text: String(val) };
 
     const sections = pattern.split(";");
@@ -392,7 +401,7 @@ export class NumberFormatter {
     }
 
     const useThousands = cleanPattern.includes(",");
-    let formattedNum = this._formatDecimalAndThousands(workingNum, decimals, useThousands);
+    let formattedNum = this._formatDecimalAndThousands(workingNum, decimals, useThousands, locale);
 
     let output = cleanPattern;
     const numPlaceholderMatch = output.match(/[#0,.]+/);
@@ -410,25 +419,29 @@ export class NumberFormatter {
     return { text: output, isRed, align: "right" };
   }
 
-  static _formatDecimalAndThousands(absVal, decimals, useThousands) {
+  static _formatDecimalAndThousands(absVal, decimals, useThousands, locale = "en-US") {
     const fixedStr = absVal.toFixed(decimals);
     const [intPart, decPart] = fixedStr.split(".");
 
     let formattedInt = intPart;
     if (useThousands) {
-      formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      const group = new Intl.NumberFormat(locale).formatToParts(1000).find(part => part.type === "group")?.value || ",";
+      formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, group);
     }
-
-    return decimals > 0 && decPart ? `${formattedInt}.${decPart}` : formattedInt;
+    const decimal = new Intl.NumberFormat(locale).formatToParts(1.1).find(part => part.type === "decimal")?.value || ".";
+    return decimals > 0 && decPart ? `${formattedInt}${decimal}${decPart}` : formattedInt;
   }
 
-  static _parseDate(val) {
+  static _parseDate(val, locale = "vi-VN") {
     if (val instanceof Date) return val;
     if (typeof val === "number") {
       if (val > 10000000000) return new Date(val);
-      if (val > 0 && val < 200000) {
-        const utcDays = val - 25569;
-        return new Date(utcDays * 86400 * 1000);
+      if (val >= 0 && val < 200000) {
+        const utcDays = Math.floor(val) - 25569;
+        const date = new Date(utcDays * 86400 * 1000);
+        const fraction = val - Math.floor(val);
+        if (fraction) date.setTime(date.getTime() + Math.round(fraction * 86400000));
+        return date;
       }
       return new Date(val);
     }
@@ -436,15 +449,20 @@ export class NumberFormatter {
     const str = String(val).trim();
     if (!str) return null;
 
-    const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/);
-    if (dmyMatch) {
-      const d = parseInt(dmyMatch[1], 10);
-      const m = parseInt(dmyMatch[2], 10) - 1;
-      const y = parseInt(dmyMatch[3], 10);
-      const hh = dmyMatch[4] ? parseInt(dmyMatch[4], 10) : 0;
-      const mm = dmyMatch[5] ? parseInt(dmyMatch[5], 10) : 0;
-      const ss = dmyMatch[6] ? parseInt(dmyMatch[6], 10) : 0;
-      return new Date(y, m, d, hh, mm, ss);
+    const slashMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/);
+    if (slashMatch) {
+      const first = Number(slashMatch[1]);
+      const second = Number(slashMatch[2]);
+      const monthFirst = locale.toLowerCase().startsWith("en-us");
+      const day = monthFirst ? second : first;
+      const month = (monthFirst ? first : second) - 1;
+      const year = Number(slashMatch[3]);
+      const hours = Number(slashMatch[4] || 0);
+      const minutes = Number(slashMatch[5] || 0);
+      const seconds = Number(slashMatch[6] || 0);
+      const date = new Date(year, month, day, hours, minutes, seconds);
+      if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day || hours > 23 || minutes > 59 || seconds > 59) return null;
+      return date;
     }
 
     const isoMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})(?:[T\s](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/);
@@ -455,7 +473,9 @@ export class NumberFormatter {
       const hh = isoMatch[4] ? parseInt(isoMatch[4], 10) : 0;
       const mm = isoMatch[5] ? parseInt(isoMatch[5], 10) : 0;
       const ss = isoMatch[6] ? parseInt(isoMatch[6], 10) : 0;
-      return new Date(y, m, d, hh, mm, ss);
+      const date = new Date(y, m, d, hh, mm, ss);
+      if (date.getFullYear() !== y || date.getMonth() !== m || date.getDate() !== d || hh > 23 || mm > 59 || ss > 59) return null;
+      return date;
     }
 
     const vnTextMatch = str.match(/ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})/i);
@@ -463,14 +483,16 @@ export class NumberFormatter {
       const d = parseInt(vnTextMatch[1], 10);
       const m = parseInt(vnTextMatch[2], 10) - 1;
       const y = parseInt(vnTextMatch[3], 10);
-      return new Date(y, m, d);
+      const date = new Date(y, m, d);
+      return date.getFullYear() === y && date.getMonth() === m && date.getDate() === d ? date : null;
     }
 
+    if (/^\d{1,2}[/-]\d{1,2}[/-]\d{4}/.test(str)) return null;
     const timestamp = Date.parse(str);
     return isNaN(timestamp) ? null : new Date(timestamp);
   }
 
-  static normalizeInputForFormat(inputVal, formatConfig) {
+  static normalizeInputForFormat(inputVal, formatConfig, locale = "vi-VN") {
     if (inputVal === null || inputVal === undefined || inputVal === "") return "";
     if (typeof inputVal === "string" && inputVal.startsWith("=")) return inputVal;
 
@@ -485,18 +507,23 @@ export class NumberFormatter {
     if (category === "percentage") {
       const str = String(inputVal).trim();
       if (str.endsWith("%")) {
-        const num = parseFloat(str.slice(0, -1));
-        return isNaN(num) ? inputVal : num / 100;
+        const num = this.parseNumber(str.slice(0, -1), locale);
+        return num === null ? inputVal : num / 100;
       }
-      const num = Number(str);
-      if (!isNaN(num)) {
-        return num / 100;
+      const num = this.parseNumber(str, locale);
+      if (num !== null) {
+        return num;
       }
       return inputVal;
     }
 
     if (category === "number" || category === "currency" || category === "accounting") {
-      const parsed = this.parseNumber(inputVal);
+      const text = String(inputVal);
+      if (category === "currency" && /[$€£¥₫]/.test(text)) {
+        const localeCurrency = locale.toLowerCase().startsWith("vi") ? "₫" : locale.toLowerCase().startsWith("en-us") ? "$" : null;
+        if (localeCurrency && text.match(/[$€£¥₫]/)?.[0] !== localeCurrency) return inputVal;
+      }
+      const parsed = this.parseNumber(inputVal, locale);
       return parsed !== null ? parsed : inputVal;
     }
 
@@ -512,7 +539,7 @@ export class NumberFormatter {
     }
 
     if (category === "date") {
-      const date = this._parseDate(inputVal);
+      const date = this._parseDate(inputVal, locale);
       if (date && !isNaN(date.getTime())) {
         const epoch = Date.UTC(1899, 11, 30);
         const utcValue = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds());

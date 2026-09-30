@@ -5795,7 +5795,7 @@ export class SheetAdapter {
       }
       cells.push(cellRow); textRows.push(textRow.join("\t"));
     }
-    this._clipboardModel = { range: structuredClone(range), cells };
+    this._clipboardModel = { range: structuredClone(range), cells, mode: isCut ? "cut" : "copy" };
     const text = textRows.join("\n");
 
     this._clipboardText = String(text);
@@ -5807,9 +5807,6 @@ export class SheetAdapter {
       // Một số môi trường (vd. test headless) chặn Clipboard API — không coi là lỗi nghiêm trọng
     }
 
-    if (isCut && this.grid.setCellValue) {
-      for (let row = range.start.r; row <= range.end.r; row++) for (let col = this.grid._columnNumber(range.start.c); col <= this.grid._columnNumber(range.end.c); col++) this.grid.setCellValue(this.grid._columnLabel(col), row, "");
-    }
     return true;
   }
 
@@ -5819,7 +5816,12 @@ export class SheetAdapter {
   async _pasteIntoSelectedCell() {
     const coord = this.grid.selectedCoord;
     if (!coord || !this.grid.setCellValue) return false;
-    if (this._clipboardModel && this.grid.applyPasteSpecial) return this.grid.applyPasteSpecial(this._clipboardModel, "all");
+    if (this._clipboardModel && this.grid.applyPasteSpecial) {
+      const mode = this._clipboardModel.mode === "cut" ? "move" : "all";
+      const pasted = this.grid.applyPasteSpecial(this._clipboardModel, mode);
+      if (pasted && mode === "move") this._clipboardModel = null;
+      return pasted;
+    }
     let text = this._clipboardText || "";
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.readText) {

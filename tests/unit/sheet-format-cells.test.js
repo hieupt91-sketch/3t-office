@@ -156,18 +156,18 @@ export async function runSheetFormatCellsTests() {
     assert(p2.text === "12.50%", `0.125 hiển thị là 12.50%: ${p2.text}`);
   });
 
-  test("Category Percentage: Hành vi 2 chiều khi nhập liệu (gõ 50 vào ô % tự chia 100 thành 0.5)", () => {
+  test("Category Percentage: Giá trị gõ vào ô % giữ nguyên; ký hiệu % chuyển thành phần thập phân", () => {
     const config = { category: "percentage", decimals: 2 };
     
-    // Gõ số thuần "50" -> tự chia 100
+    // Giống Excel: gõ số thuần vào ô đã định dạng % giữ nguyên số gốc.
     const normalized1 = NumberFormatter.normalizeInputForFormat("50", config);
-    assert(normalized1 === 0.5, `Gõ "50" vào ô % phải lưu 0.5 (nhận được: ${normalized1})`);
+    assert(normalized1 === 50, `Gõ "50" vào ô % phải lưu 50 (nhận được: ${normalized1})`);
 
-    // Gõ số thuần 25.5 -> tự chia 100
+    // Số có phần thập phân cũng giữ nguyên giá trị gốc.
     const normalized2 = NumberFormatter.normalizeInputForFormat(25.5, config);
-    assert(normalized2 === 0.255, `Gõ 25.5 vào ô % phải lưu 0.255 (nhận được: ${normalized2})`);
+    assert(normalized2 === 25.5, `Gõ 25.5 vào ô % phải lưu 25.5 (nhận được: ${normalized2})`);
 
-    // Gõ đã có % "75%" -> parse thành 0.75
+    // Gõ kèm dấu % được Excel hiểu là phần trăm và lưu 0.75.
     const normalized3 = NumberFormatter.normalizeInputForFormat("75%", config);
     assert(normalized3 === 0.75, `Gõ "75%" vào ô % phải lưu 0.75 (nhận được: ${normalized3})`);
   });

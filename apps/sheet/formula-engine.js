@@ -123,12 +123,13 @@ export class FormulaEngine {
   /**
    * @param {Map<string, {val: string, formula: string, style: Object}> | (() => Map<string, any>)} cellsData
    */
-  constructor(cellsData, namedRangeResolver = null, sheetResolver = null, currentSheetResolver = null, sheetNamesResolver = null) {
+  constructor(cellsData, namedRangeResolver = null, sheetResolver = null, currentSheetResolver = null, sheetNamesResolver = null, localeResolver = null) {
     this.cellsData = cellsData;
     this.namedRangeResolver = namedRangeResolver;
     this.sheetResolver = sheetResolver;
     this.currentSheetResolver = currentSheetResolver;
     this.sheetNamesResolver = sheetNamesResolver;
+    this.localeResolver = localeResolver;
     this._sheetVersions = new Map();
     this._globalVersion = 0;
     this._rangeMatrixCache = new Map();
@@ -1289,6 +1290,7 @@ export class FormulaEngine {
       case "TEXT": {
         const value = this._resolveSingleValue(args[0]);
         const format = String(this._resolveSingleValue(args[1]) || "").toLowerCase();
+        const locale = typeof this.localeResolver === "function" ? (this.localeResolver() || "vi-VN") : "en-US";
         const numberFormats = {
           "0": { decimals: 0, useThousands: false },
           "0.0": { decimals: 1, useThousands: false },
@@ -1298,21 +1300,22 @@ export class FormulaEngine {
           "#,##0.00": { decimals: 2, useThousands: true }
         };
         if (numberFormats[format]) {
-          const parsed = NumberFormatter.parseNumber(value);
-          return parsed === null ? "#VALUE!" : NumberFormatter.formatNumber(parsed, numberFormats[format]).text;
+          const parsed = NumberFormatter.parseNumber(value, locale);
+          return parsed === null ? "#VALUE!" : NumberFormatter.formatNumber(parsed, { ...numberFormats[format], locale }).text;
         }
         if (format === "0%" || format === "0.00%") {
-          const parsed = NumberFormatter.parseNumber(value);
+          const parsed = NumberFormatter.parseNumber(value, locale);
           if (parsed === null) return "#VALUE!";
-          return NumberFormatter.formatPercentage(parsed, { decimals: format === "0%" ? 0 : 2 }).text;
+          return NumberFormatter.formatPercentage(parsed, { decimals: format === "0%" ? 0 : 2, locale }).text;
         }
         if (format.includes("₫")) {
           const numericPattern = format.replace(/₫/g, "").trim();
           const config = numberFormats[numericPattern];
-          const parsed = NumberFormatter.parseNumber(value);
+          const parsed = NumberFormatter.parseNumber(value, locale);
           if (!config || parsed === null) return "#VALUE!";
           return NumberFormatter.formatCurrency(parsed, {
             ...config,
+            locale,
             currencySymbol: "₫",
             symbolPosition: format.indexOf("₫") > format.search(/[#0]/) ? "after" : "before"
           }).text;
@@ -1422,8 +1425,15 @@ export class FormulaEngine {
       }
 
       case "DATE": {
-        const date = new Date(Number(this._resolveSingleValue(args[0])), Number(this._resolveSingleValue(args[1])) - 1, Number(this._resolveSingleValue(args[2])));
-        return Number.isNaN(date.getTime()) ? "#VALUE!" : this._formatDate(date);
+        const year = Number(this._resolveSingleValue(args[0]));
+        const month = Number(this._resolveSingleValue(args[1]));
+        const day = Number(this._resolveSingleValue(args[2]));
+        if (![year, month, day].every(Number.isFinite)) return "#VALUE!";
+        const date = new Date(0);
+        date.setHours(0, 0, 0, 0);
+        date.setFullYear(year, month - 1, day);
+        if (Number.isNaN(date.getTime())) return "#VALUE!";
+        return Math.round((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(1899, 11, 30)) / 86400000);
       }
 
       case "DATEDIF": {
@@ -1561,7 +1571,7 @@ export class FormulaEngine {
     if (token.startsWith('"') && token.endsWith('"')) {
       return token.slice(1, -1);
     }
-    if (/^(?:(?:'[^']+'|[^!]+)!)?[A-Z]+\d+$/i.test(token)) {
+    if (/^(?:(?:'[^']+'|[^!]+)!)?\$?[A-Z]+\$?\d+$/i.test(token)) {
       const reference = this._parseReference(token);
       return reference.error || this.getCellValue(reference.ref, reference.sheet);
     }
@@ -1592,6 +1602,11 @@ export class FormulaEngine {
 
   _parseDate(value) {
     if (value instanceof Date && !Number.isNaN(value.getTime())) return new Date(value);
+    if (typeof value === "number" && Number.isFinite(value) && value >= 0 && value < 200000) {
+      const utc = new Date(Date.UTC(1899, 11, 30) + Math.floor(value) * 86400000);
+      const fraction = value - Math.floor(value);
+      return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate(), 0, 0, 0, Math.round(fraction * 86400000));
+    }
     const text = String(value).trim();
     const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
     if (isoMatch) {
@@ -1683,7 +1698,7 @@ export class FormulaEngine {
   _evaluateArithmetic(expr, { raw = false } = {}) {
     // Thay thế các tọa độ ô (vd: A1, B2) thành giá trị số tương ứng
     let referenceError = false;
-    const resolved = expr.replace(/(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ_][^\s!+\-*/()]*)![A-Z]+\d+|[A-Z]+\d+/gi, (token) => {
+    const resolved = expr.replace(/(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ_][^\s!+\-*/()]*)!\$?[A-Z]+\$?\d+|\$?[A-Z]+\$?\d+/gi, (token) => {
       const reference = this._parseReference(token);
       const val = reference.error || this.getCellValue(reference.ref, reference.sheet);
       if (val === "#REF!") referenceError = true;

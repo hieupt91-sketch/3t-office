@@ -112,6 +112,8 @@ export class SheetGridController {
   constructor(container, options = {}) {
     this.container = container;
     this.options = options;
+    this.locale = options.locale || "vi-VN";
+    this.inputLocale = options.inputLocale || "vi-VN";
     this.isBlank = options.isBlank === true;
     this.cols = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
     this.rowCount = 200;
@@ -147,7 +149,8 @@ export class SheetGridController {
       name => this.resolveNamedRange(name),
       sheetName => this.sheetsData?.[sheetName] || null,
       () => this.activeSheet,
-      () => this.sheets
+      () => this.sheets,
+      () => this.locale
     );
     this.autocomplete = new FormulaAutocompleteController(this);
 
@@ -879,28 +882,36 @@ export class SheetGridController {
   }
 
   computeAutoFitColumnWidth(col) {
-    let maxLen = 4;
+    let maxWidth = 4 * 6;
     for (let r = 1; r <= this.rowCount; r++) {
       const itm = this.cellsData.get(`${col}${r}`);
       if (itm) {
         const text = String(itm.formula || itm.val || "");
-        if (text.length > maxLen) maxLen = text.length;
+        // Excel's default Calibri 11 column sizing, measured in the parity audit,
+        // is close to 6.3 pixels per character plus sixteen pixels of cell padding.
+        // Keep this deterministic in the model (including offline/headless use).
+        maxWidth = Math.max(maxWidth, text.length * 6.3);
       }
     }
-    return Math.max(64, Math.min(MAX_COL_WIDTH_PX, Math.round(maxLen * 8.5 + 28)));
+    return Math.max(64, Math.min(MAX_COL_WIDTH_PX, Math.round(maxWidth + 16)));
   }
 
   computeAutoFitRowHeight(row) {
-    let maxLines = 1;
+    let maxHeight = this.rowHeight;
     for (const c of this.cols) {
       const itm = this.cellsData.get(`${c}${row}`);
       if (itm) {
         const text = String(itm.formula || itm.val || "");
-        const lines = text.split("\n").length;
-        if (lines > maxLines) maxLines = lines;
+        const explicitLines = text.split("\n");
+        const width = Math.max(1, this.getColumnWidth(c) - 10);
+        const lines = explicitLines.reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length * 6.3 / width)), 0);
+        const isWrapped = itm.style?.whiteSpace === "normal";
+        const lineHeight = explicitLines.length > 1 ? 22 : 18;
+        const height = isWrapped || explicitLines.length > 1 ? lines * lineHeight + 4 : 26;
+        maxHeight = Math.max(maxHeight, height);
       }
     }
-    return Math.max(this.rowHeight, Math.min(MAX_ROW_HEIGHT_PX, maxLines * 22 + 4));
+    return Math.max(this.rowHeight, Math.min(MAX_ROW_HEIGHT_PX, maxHeight));
   }
 
   autoFitColumn(col, recordUndo = true) {
@@ -1310,6 +1321,7 @@ export class SheetGridController {
     const monthsVi = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
     const monthsEn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const daysVi = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
+    const daysEn = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
     if (target.direction === "down") {
       const srcStartRow = src.start.r;
@@ -1349,6 +1361,7 @@ export class SheetGridController {
             const mViIdx = monthsVi.indexOf(rawVal);
             const mEnIdx = monthsEn.indexOf(rawVal);
             const dViIdx = daysVi.indexOf(rawVal);
+            const dEnIdx = daysEn.indexOf(rawVal);
 
             if (Number.isFinite(numVal) && rawVal !== "") {
               newVal = numVal + stepOffset;
@@ -1363,6 +1376,8 @@ export class SheetGridController {
               newVal = monthsEn[(mEnIdx + stepOffset) % monthsEn.length];
             } else if (dViIdx !== -1) {
               newVal = daysVi[(dViIdx + stepOffset) % daysVi.length];
+            } else if (dEnIdx !== -1) {
+              newVal = daysEn[(dEnIdx + stepOffset) % daysEn.length];
             } else {
               newVal = sourceCell.val;
             }
@@ -3511,7 +3526,7 @@ export class SheetGridController {
       item.val = this.formulaEngine.evaluate(val);
     } else {
       item.formula = "";
-      item.val = NumberFormatter.normalizeInputForFormat(val, item.style?.numberFormat);
+      item.val = NumberFormatter.normalizeInputForFormat(val, item.style?.numberFormat, this.inputLocale);
     }
     // When user edits a cell, clear rich text formatting (Excel behavior)
     delete item.richText;
@@ -5355,6 +5370,7 @@ export class SheetGridController {
     const sourceStartCol = this._columnNumber(clipboard.range?.start?.c || "A");
     const sourceStartRow = Number(clipboard.range?.start?.r || 1);
     const destStartCol = this._columnNumber(destination.c);
+    const destinationCoords = new Set();
 
     for (let rowOffset = 0; rowOffset < height; rowOffset++) {
       for (let colOffset = 0; colOffset < width; colOffset++) {
@@ -5363,6 +5379,7 @@ export class SheetGridController {
         const destRow = Number(destination.r) + rowOffset;
         if (destColNumber < 1 || destColNumber > this.cols.length || destRow < 1 || destRow > this.rowCount) continue;
         const coord = `${this._columnLabel(destColNumber)}${destRow}`;
+        destinationCoords.add(coord);
         const existing = structuredClone(this.cellsData.get(coord) || { val: "", formula: "", style: {} });
         before[coord] = existing;
         let next = structuredClone(existing);
@@ -5375,7 +5392,7 @@ export class SheetGridController {
           const sourceColOffset = transpose ? rowOffset : colOffset;
           const sourceRowOffset = transpose ? colOffset : rowOffset;
           const formula = source.formula
-            ? this._offsetFormula(source.formula, destColNumber - (sourceStartCol + sourceColOffset), destRow - (sourceStartRow + sourceRowOffset))
+            ? (mode === "move" ? source.formula : this._offsetFormula(source.formula, destColNumber - (sourceStartCol + sourceColOffset), destRow - (sourceStartRow + sourceRowOffset)))
             : "";
           next.val = mode === "formulas" && !formula ? "" : (source.val ?? "");
           next.formula = formula;
@@ -5383,6 +5400,19 @@ export class SheetGridController {
         }
         this.cellsData.set(coord, next);
         after[coord] = structuredClone(next);
+      }
+    }
+    if (mode === "move") {
+      for (let rowOffset = 0; rowOffset < sourceRows.length; rowOffset++) {
+        for (let colOffset = 0; colOffset < sourceRows[rowOffset].length; colOffset++) {
+          const sourceCoord = `${this._columnLabel(sourceStartCol + colOffset)}${sourceStartRow + rowOffset}`;
+          if (destinationCoords.has(sourceCoord)) continue;
+          const sourceItem = this.cellsData.get(sourceCoord);
+          if (!sourceItem) continue;
+          if (!(sourceCoord in before)) before[sourceCoord] = structuredClone(sourceItem);
+          this.cellsData.delete(sourceCoord);
+          after[sourceCoord] = null;
+        }
       }
     }
     if (!Object.keys(after).length) return false;
@@ -6051,16 +6081,30 @@ export class SheetGridController {
   }
 
   toggleWrapText() {
+    if (this._guardProtectedMutation()) return false;
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-    const current = this.cellsData.get(key)?.style?.whiteSpace;
-    const result = this.setStyle("whiteSpace", current === "normal" ? "nowrap" : "normal");
+    const item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
+    const current = item.style?.whiteSpace;
+    const next = current === "normal" ? "nowrap" : "normal";
+    const beforeLayout = this._snapshotRowColLayout();
+    const previousStyle = current;
+    this.setStyle("whiteSpace", next, false);
+    const rowHeight = next === "normal" ? this.computeAutoFitRowHeight(this.selectedCoord.r) : this.rowHeight;
+    this.setRowHeights(rowHeight, [this.selectedCoord.r], false);
+    const afterLayout = this._snapshotRowColLayout();
+    this._recordHistory({
+      type: "wrap-text-layout", sheet: this.activeSheet,
+      col: this.selectedCoord.c, row: this.selectedCoord.r,
+      previousStyle, nextStyle: next, beforeLayout, afterLayout
+    });
     const cell = this.container.querySelector?.(`.vno-grid-cell[data-coord="${key}"]`);
-    cell?.classList?.toggle?.("is-wrap-text", current !== "normal");
+    cell?.classList?.toggle?.("is-wrap-text", next === "normal");
     const row = cell?.closest?.("tr");
     if (row) {
-      row.style.height = current !== "normal" ? `${Math.max(this.rowHeight, cell.scrollHeight)}px` : `${this.rowHeight}px`;
+      row.style.height = `${this.getRowHeight(this.selectedCoord.r)}px`;
     }
-    return result;
+    if (cell) this._renderCellVisual(cell, this.cellsData.get(key), this.selectedCoord.c, this.selectedCoord.r);
+    return true;
   }
 
   adjustIndent(direction) {
@@ -6870,6 +6914,17 @@ export class SheetGridController {
       this._restoreGridStructure(direction === "undo" ? action.before : action.after);
     } else if (action.type === "row-col-layout") {
       this._restoreRowColLayout(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "wrap-text-layout") {
+      const styleValue = direction === "undo" ? action.previousStyle : action.nextStyle;
+      const coord = `${action.col}${action.row}`;
+      const item = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      if (styleValue === undefined) delete item.style.whiteSpace;
+      else item.style.whiteSpace = styleValue;
+      this.cellsData.set(coord, item);
+      this._restoreRowColLayout(direction === "undo" ? action.beforeLayout : action.afterLayout, { render: false });
+      const cell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (cell) this._renderCellVisual(cell, item, action.col, action.row);
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
     } else if (action.type === "cell") {
       this.setCellValue(action.col, action.row, action[value], false);
       // Restore richText from snapshot if present (edited cells lose richText in setCellValue)
@@ -7312,12 +7367,26 @@ export class SheetGridController {
     }, 10);
   }
 
-  applyFilter(col, allowedSet, recordUndo = true) {
+  applyFilter(col, allowedSet, recordUndo = true, { activate = false, range = null } = {}) {
     const previous = this._snapshotFilterState();
+    const state = this.sheetStates?.[this.activeSheet];
+    if (activate) {
+      this.isFilterActive = true;
+      if (state) {
+        state.isFilterActive = true;
+        state.filterSetByUser = true;
+        if (range) state.filterRange = range;
+      }
+      this.container?.classList?.add?.("vno-filter-mode");
+    }
     this.activeFilters.set(col, allowedSet);
     this.hiddenRows.clear();
 
-    for (let r = 4; r <= this.rowCount; r++) {
+    const filterRange = this.sheetStates?.[this.activeSheet]?.filterRange;
+    const rangeMatch = typeof filterRange === "string" ? filterRange.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i) : null;
+    const firstRow = rangeMatch ? Number(rangeMatch[2]) + 1 : 4;
+    const lastRow = rangeMatch ? Number(rangeMatch[4]) : this.rowCount;
+    for (let r = firstRow; r <= Math.min(lastRow, this.rowCount); r++) {
       let shouldHide = false;
       for (const [filterCol, allowed] of this.activeFilters.entries()) {
         const key = `${filterCol}${r}`;
@@ -7331,6 +7400,11 @@ export class SheetGridController {
       if (shouldHide) this.hiddenRows.add(r);
     }
 
+    if (state) Object.assign(state, {
+      isFilterActive: this.isFilterActive,
+      hiddenRows: new Set(this.hiddenRows),
+      activeFilters: new Map(this.activeFilters)
+    });
     this._updateFilterButtons();
     this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
     if (recordUndo) this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
@@ -7544,6 +7618,7 @@ export class SheetGridController {
     const atColumnNumber = typeof atCol === "number" ? atCol : this._columnNumber(atCol);
     if (!Number.isInteger(atColumnNumber) || atColumnNumber < 1 || atColumnNumber > this.cols.length) return false;
     const before = this._snapshotGridStructure();
+    const inheritedWidth = this.getColumnWidth(this._columnLabel(Math.max(1, atColumnNumber - 1)));
     const shifted = new Map();
     for (const [key, item] of this.cellsData.entries()) {
       const [col, row] = this._splitCoord(key);
@@ -7556,6 +7631,9 @@ export class SheetGridController {
     this.sheetsData[this.activeSheet] = shifted;
     this.cols = Array.from({ length: this.cols.length + 1 }, (_, index) => this._columnLabel(index + 1));
     this._shiftGridMetadata("col", atColumnNumber);
+    const insertedCol = this._columnLabel(atColumnNumber);
+    if (inheritedWidth === this.defaultColWidth) this._colWidths().delete(insertedCol);
+    else this._colWidths().set(insertedCol, inheritedWidth);
     this.selectedCoord = { c: this._columnLabel(atColumnNumber), r: this.selectedCoord.r };
     this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
     this._renderColumnHeaders();
@@ -9617,7 +9695,11 @@ export class SheetGridController {
       td.innerHTML = spanHtml;
       if (itm.style?.textAlign) td.style.textAlign = itm.style.textAlign;
     } else if (itm.style?.numberFormat && typeof itm.val === "number") {
-      const formatted = NumberFormatter.formatValue(itm.val, itm.style.numberFormat);
+      const formatted = NumberFormatter.formatValue(itm.val, {
+        ...itm.style.numberFormat,
+        locale: this.locale,
+        dateLocale: this.inputLocale
+      });
       if (formatted.isAccounting) {
         td.innerHTML = `<span class="vno-cell-accounting-symbol" style="float:left;user-select:none;color:inherit;">${formatted.symbol || ""}</span><span class="vno-cell-accounting-num" style="float:right;color:inherit;">${formatted.numberText}</span>`;
         td.style.textAlign = "right";
