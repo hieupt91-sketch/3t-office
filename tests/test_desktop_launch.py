@@ -41,6 +41,12 @@ class DesktopLaunchTests(unittest.TestCase):
             with zipfile.ZipFile(source_path, "w") as package:
                 package.writestr("[Content_Types].xml", "<Types/>")
                 package.writestr(
+                    "_rels/.rels",
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                    '<Relationship Id="rId1" Target="xl/workbook.xml" Type="http://schemas.openxmlformats.org/'
+                    'officeDocument/2006/relationships/officeDocument"/></Relationships>',
+                )
+                package.writestr(
                     "xl/workbook.xml",
                     '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"/>',
                 )

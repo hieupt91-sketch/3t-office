@@ -5211,8 +5211,13 @@ export class SheetAdapter {
     );
 
     if (result.status === "ok") {
-      this.isDirty = false;
       const savedPath = result.path || result.fileName;
+      // Như Excel: Lưu thành PDF chỉ xuất bản PDF; sổ đang mở giữ tên, định dạng và trạng thái chưa lưu.
+      if (/\.pdf$/i.test(String(savedPath || ""))) {
+        this.shell?.setStatus?.(`Đã xuất PDF: ${String(savedPath).split(/[/\\]/).pop()}`);
+        return true;
+      }
+      this.isDirty = false;
       if (savedPath) {
         this.sourceFilePath = savedPath;
         const savedFileName = savedPath.split(/[/\\]/).pop();

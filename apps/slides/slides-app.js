@@ -33,7 +33,7 @@ export class SlidesApp {
     this.shell = new AppShell({
       appName: "slides",
       appTitle: "VN Slides",
-      documentName: options.documentName || (isBlank ? "Bản trình chiếu 1.pptx" : "Báo cáo đề án phát triển VN Office 2026.pptx")
+      documentName: options.documentName || (isBlank ? "Bản trình bày 1.pptx" : "Báo cáo đề án phát triển VN Office 2026.pptx")
     });
     this.shell.mount(this.mountElement);
     this._watchLifecycle();

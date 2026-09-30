@@ -115,7 +115,7 @@ export class UnoBridge {
     if (typeof window === "undefined" || typeof window.open !== "function") {
       return { status: "error", message: "Không thể mở cửa sổ tài liệu mới." };
     }
-    const prefixes = { writer: "Tài liệu", sheet: "Bảng tính", slides: "Bản trình chiếu" };
+    const prefixes = { writer: "Tài liệu", sheet: "Bảng tính", slides: "Bản trình bày" };
     const extensions = { writer: "docx", sheet: "xlsx", slides: "pptx" };
     if (!prefixes[appKind]) return { status: "error", message: "Loại tài liệu không hợp lệ." };
     const sequence = ++this._browserDocumentSequences[appKind];

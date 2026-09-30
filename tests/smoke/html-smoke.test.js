@@ -402,7 +402,7 @@ export async function runHtmlSmokeTests() {
         const hasSorter = slidesDom.includes("vno-slide-sorter-overlay");
         const sorterThumbCount = (slidesDom.match(/class="vno-slide-sorter-item/g) || []).length;
 
-        const hasEmptyPlaceholders = slidesDom.includes('data-placeholder="Bấm để thêm tiêu đề"') && slidesDom.includes('data-placeholder="Bấm để thêm phụ đề"');
+        const hasEmptyPlaceholders = slidesDom.includes('data-placeholder="Bấm để thêm tiêu đề"') && slidesDom.includes('data-placeholder="Bấm để thêm văn bản"');
         const hasNoSampleSlideText = !slidesDom.includes("VN OFFICE — BỘ ỨNG DỤNG VĂN PHÒNG VIỆT")
           && !slidesDom.includes("KIẾN TRÚC HỆ THỐNG PHÂN TẦNG")
           && !slidesDom.includes("KẾ HOẠCH TRIỂN KHAI & TIÊU CHUẨN KỸ THUẬT");
@@ -426,7 +426,7 @@ export async function runHtmlSmokeTests() {
             !hasViewTab && "thiếu tab Chế độ xem",
             !hasSorter && "thiếu .vno-slide-sorter-overlay",
             sorterThumbCount !== 1 && `Slide Sorter có ${sorterThumbCount}/1 thumbnail`,
-            !hasEmptyPlaceholders && "thiếu gợi ý nhập tiêu đề/phụ đề cho slide trống",
+            !hasEmptyPlaceholders && "thiếu gợi ý nhập tiêu đề/văn bản cho slide trống",
             !hasNoSampleSlideText && "slide mới còn nội dung mẫu thật"
           ].filter(Boolean).join(", ");
 

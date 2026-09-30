@@ -126,7 +126,7 @@ export class SlidesAdapter {
     if (this.canvas?.resetToBlank) {
       this.canvas.resetToBlank();
     }
-    this.shell?.resetDocumentChrome?.("Bản trình chiếu 1.pptx", "home", false);
+    this.shell?.resetDocumentChrome?.("Bản trình bày 1.pptx", "home", false);
     return true;
   }
 
@@ -3491,7 +3491,7 @@ export class SlidesAdapter {
     if (!/<office:document\b/i.test(content) || !/<draw:page\b/i.test(content)) return false;
     this.loadFromFodp(content);
     if (!this.canvas?.slides?.length) return false;
-    const originalTitle = String(manifest.title || "Bản trình chiếu 1.pptx").split(/[\\/]/).filter(Boolean).pop().replace(/\.[^/.]+$/, "") || "Bản trình chiếu";
+    const originalTitle = String(manifest.title || "Bản trình bày 1.pptx").split(/[\\/]/).filter(Boolean).pop().replace(/\.[^/.]+$/, "") || "Bản trình bày";
     this.sourceFileName = `${originalTitle} (đã khôi phục)`;
     this.isDirty = true;
     this.shell?.resetDocumentChrome?.(`${this.sourceFileName}.pptx`, null, false);
@@ -3533,7 +3533,7 @@ export class SlidesAdapter {
     const fodpContent = this.serializeToFodp();
     const currentName = this.sourceFilePath
       ? this.sourceFilePath.split(/[/\\]/).pop()
-      : (this.shell?.documentName || "Bản trình chiếu 1.pptx");
+      : (this.shell?.documentName || "Bản trình bày 1.pptx");
     const targetFormat = this.sourceFilePath
       ? (this.sourceFilePath.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() || "pptx")
       : "pptx";
@@ -3545,8 +3545,13 @@ export class SlidesAdapter {
       this.sourceFilePath || null
     );
     if (result.status === "ok") {
-      this.isDirty = false;
       const savedPath = result.path || result.fileName;
+      // Như PowerPoint: Lưu thành PDF chỉ xuất bản PDF; bản trình chiếu giữ tên, định dạng và trạng thái chưa lưu.
+      if (/\.pdf$/i.test(String(savedPath || ""))) {
+        this.shell?.setStatus?.(`Đã xuất PDF: ${String(savedPath).split(/[/\\]/).pop()}`);
+        return true;
+      }
+      this.isDirty = false;
       if (savedPath) {
         this.sourceFilePath = savedPath;
         const savedFileName = savedPath.split(/[/\\]/).pop();
@@ -3605,7 +3610,7 @@ export class SlidesAdapter {
       // Lỗi thật đã xác nhận: nội dung nạp đúng nhưng nhãn tên tệp trên tab
       // vẫn giữ nguyên tên demo cũ vì resetDocumentChrome() chỉ được gọi ở
       // File > Mới/Đóng, chưa bao giờ gọi sau khi Mở tệp thật.
-      this.shell?.resetDocumentChrome?.(result.fileName || "Bản trình chiếu 1.pptx", null, true, this.sourceFilePath);
+      this.shell?.resetDocumentChrome?.(result.fileName || "Bản trình bày 1.pptx", null, true, this.sourceFilePath);
       return true;
     }
     if (result.status === "cancelled") return false;

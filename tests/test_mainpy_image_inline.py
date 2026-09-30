@@ -55,6 +55,12 @@ def _write_minimal_ooxml(path: Path, app_kind: str) -> None:
     }[app_kind]
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as package:
         package.writestr("[Content_Types].xml", "<Types/>")
+        package.writestr(
+            "_rels/.rels",
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            f'<Relationship Id="rId1" Target="{main_part[0]}" Type="http://schemas.openxmlformats.org/'
+            'officeDocument/2006/relationships/officeDocument"/></Relationships>',
+        )
         package.writestr(*main_part)
 
 

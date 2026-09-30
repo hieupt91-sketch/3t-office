@@ -428,7 +428,7 @@ export class SlidesCanvasController {
     this.bodyEl.setAttribute("role", "textbox");
     this.bodyEl.setAttribute("aria-label", "Nội dung trang chiếu");
     this.bodyEl.setAttribute("aria-multiline", "true");
-    this.bodyEl.setAttribute("data-placeholder", "Bấm để thêm phụ đề");
+    this.bodyEl.setAttribute("data-placeholder", "Bấm để thêm văn bản");
 
     this.body2El = document.createElement("div");
     this.body2El.className = "vno-slide-body vno-slide-body-col2 vno-slide-body-col-2";
@@ -437,6 +437,7 @@ export class SlidesCanvasController {
     this.body2El.setAttribute("role", "textbox");
     this.body2El.setAttribute("aria-label", "Nội dung trang chiếu cột 2");
     this.body2El.setAttribute("aria-multiline", "true");
+    this.body2El.setAttribute("data-placeholder", "Bấm để thêm văn bản");
     this.body2El.style.display = "none";
 
     this.bodyRowEl.appendChild(this.bodyEl);

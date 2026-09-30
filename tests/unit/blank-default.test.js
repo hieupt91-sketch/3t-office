@@ -10,6 +10,10 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
 import { SlidesCanvasController } from "../../apps/slides/slides-canvas.js";
+import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
+import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
+import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
+import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 
 const ROOT_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -143,8 +147,8 @@ export async function runBlankDefaultTests() {
     if (!src.includes('options.templateId || "blank"') || !src.includes('templateId === "blank"')) {
       throw new Error("Slides phải mặc định dùng nhánh trống");
     }
-    if (!src.includes('"Bản trình chiếu 1.pptx"')) {
-      throw new Error("Tên mặc định của Slides phải là Bản trình chiếu 1.pptx");
+    if (!src.includes('"Bản trình bày 1.pptx"')) {
+      throw new Error("Tên mặc định của Slides phải là Bản trình bày 1.pptx");
     }
     if (!src.includes("isBlankTemplate: isBlank")) {
       throw new Error("SlidesCanvasController phải nhận biết nhánh bản trình chiếu mới trống");
@@ -208,6 +212,129 @@ export async function runBlankDefaultTests() {
     const src = fs.readFileSync(path.join(ROOT_DIR, "platform/commands/command-definitions.js"), "utf8");
     if (!src.includes('shortcut: "F12"') || !src.includes('bind("Ctrl+Shift+S", "common.file.saveAs", "common")')) {
       throw new Error("Save As phải có cả F12 và Ctrl+Shift+S");
+    }
+  });
+
+  // ── Save As PDF chỉ xuất bản sao (như Word/Excel/PowerPoint), Save của tài liệu mới mở Save As ──
+  const asyncTest = async (name, fn) => {
+    try {
+      await fn();
+      results.push({ name, pass: true });
+    } catch (error) {
+      results.push({ name, pass: false, error: error.message });
+    }
+  };
+  const makeShell = (documentName) => ({
+    documentName,
+    status: "",
+    chromeCalls: [],
+    setStatus(text) { this.status = text; },
+    resetDocumentChrome(name, _tab, _recent, filePath) { this.documentName = name; this.chromeCalls.push({ name, filePath }); }
+  });
+  const adapterCases = [
+    {
+      app: "writer",
+      make: () => {
+        const adapter = Object.create(WriterAdapter.prototype);
+        Object.assign(adapter, { editorDom: null, sourceFileName: "hopdong", _sourcePath: "C:\\docs\\hopdong.docx", isDirty: true });
+        adapter._contentForExport = () => "<p>x</p>";
+        return adapter;
+      },
+      pathField: "_sourcePath",
+      openPath: "C:\\docs\\hopdong.docx"
+    },
+    {
+      app: "sheet",
+      make: () => {
+        const adapter = Object.create(SheetAdapter.prototype);
+        Object.assign(adapter, { sourceFileName: "hopdong", sourceFilePath: "C:\\docs\\hopdong.xls", isDirty: true });
+        adapter.serializeToFods = () => "<fods/>";
+        return adapter;
+      },
+      pathField: "sourceFilePath",
+      openPath: "C:\\docs\\hopdong.xls"
+    },
+    {
+      app: "slides",
+      make: () => {
+        const adapter = Object.create(SlidesAdapter.prototype);
+        Object.assign(adapter, { sourceFileName: "hopdong", sourceFilePath: "C:\\docs\\hopdong.pptx", isDirty: true });
+        adapter.serializeToFodp = () => "<fodp/>";
+        return adapter;
+      },
+      pathField: "sourceFilePath",
+      openPath: "C:\\docs\\hopdong.pptx"
+    }
+  ];
+  for (const testCase of adapterCases) {
+    await asyncTest(`${testCase.app}: Lưu thành PDF chỉ xuất bản sao, giữ tên/định dạng/trạng thái chưa lưu`, async () => {
+      const adapter = testCase.make();
+      const fileName = testCase.openPath.split("\\").pop();
+      adapter.shell = makeShell(fileName);
+      const originalSave = globalUnoBridge.saveRealFile;
+      let call = null;
+      globalUnoBridge.saveRealFile = async (...args) => { call = args; return { status: "ok", path: "C:\\docs\\hopdong.pdf" }; };
+      try {
+        if (await adapter.saveAs() !== true) throw new Error("saveAs phải trả về true khi xuất PDF thành công");
+      } finally {
+        globalUnoBridge.saveRealFile = originalSave;
+      }
+      const expectedExt = fileName.split(".").pop();
+      if (call[2] !== expectedExt || call[3] !== fileName) {
+        throw new Error(`Lưu thành phải đề xuất tên/định dạng hiện tại, nhận ${call[2]} / ${call[3]}`);
+      }
+      if (adapter[testCase.pathField] !== testCase.openPath || adapter.shell.documentName !== fileName || adapter.isDirty !== true) {
+        throw new Error(`Sau khi xuất PDF tài liệu đổi danh tính: ${adapter[testCase.pathField]} / ${adapter.shell.documentName} / dirty=${adapter.isDirty}`);
+      }
+      if (!adapter.shell.status.includes("Đã xuất PDF")) throw new Error("Thanh trạng thái phải báo Đã xuất PDF");
+    });
+
+    await asyncTest(`${testCase.app}: Lưu thành định dạng Office đổi sang tệp mới và xóa trạng thái chưa lưu`, async () => {
+      const adapter = testCase.make();
+      adapter.shell = makeShell(testCase.openPath.split("\\").pop());
+      const target = testCase.openPath.replace("hopdong", "ban-moi");
+      const originalSave = globalUnoBridge.saveRealFile;
+      globalUnoBridge.saveRealFile = async () => ({ status: "ok", path: target });
+      try {
+        await adapter.saveAs();
+      } finally {
+        globalUnoBridge.saveRealFile = originalSave;
+      }
+      if (adapter[testCase.pathField] !== target || adapter.isDirty || adapter.shell.documentName !== target.split("\\").pop()) {
+        throw new Error("Lưu thành Office phải chuyển tài liệu sang tệp đích và không còn dấu chưa lưu");
+      }
+    });
+  }
+
+  test("Writer: gạch chân chính tả chèn sau khi Lưu không làm tài liệu thành 'chưa lưu'", () => {
+    const adapter = Object.create(WriterAdapter.prototype);
+    const saved = { bodyHtml: "<p>Xin chào VNOffice</p>", headerHtml: "", footerHtml: "", comments: [], shapes: [] };
+    const decorated = { ...saved, bodyHtml: '<p>Xin chào <span class="vno-spelling-uncertain" data-vno-spelling-uncertain="vnoffice">VNOffice</span></p>' };
+    if (!adapter._isSnapshotEqual(saved, decorated)) throw new Error("Chỉ thêm gạch chân chính tả không được coi là sửa nội dung");
+    const edited = { ...saved, bodyHtml: "<p>Xin chào VNOffice!</p>" };
+    if (adapter._isSnapshotEqual(saved, edited)) throw new Error("Sửa chữ thật vẫn phải được coi là thay đổi");
+  });
+
+  await asyncTest("Slides: Ctrl+S cho bản trình bày mới mở Lưu thành với tên Bản trình bày N", async () => {
+    const adapter = Object.create(SlidesAdapter.prototype);
+    Object.assign(adapter, { sourceFileName: "TrinhChieu", sourceFilePath: "", isDirty: true });
+    adapter.serializeToFodp = () => "<fodp/>";
+    adapter.shell = makeShell("Bản trình bày 2.pptx");
+    const originalSave = globalUnoBridge.saveRealFile;
+    const originalInPlace = globalUnoBridge.saveRealFileInPlace;
+    let dialogArgs = null;
+    let inPlaceCalled = false;
+    globalUnoBridge.saveRealFile = async (...args) => { dialogArgs = args; return { status: "cancelled" }; };
+    globalUnoBridge.saveRealFileInPlace = async () => { inPlaceCalled = true; return { status: "ok" }; };
+    try {
+      const saved = await adapter.save();
+      if (saved !== false || !adapter.isDirty) throw new Error("Hủy Lưu thành phải giữ tài liệu chưa lưu");
+    } finally {
+      globalUnoBridge.saveRealFile = originalSave;
+      globalUnoBridge.saveRealFileInPlace = originalInPlace;
+    }
+    if (inPlaceCalled || !dialogArgs || dialogArgs[3] !== "Bản trình bày 2.pptx" || dialogArgs[2] !== "pptx") {
+      throw new Error(`Tài liệu mới phải mở hộp thoại Lưu thành: ${JSON.stringify(dialogArgs)}`);
     }
   });
 

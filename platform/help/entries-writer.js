@@ -15,7 +15,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Tạo tài liệu trống: nhấn Ctrl+N hoặc mở Tệp > Mới. VN Writer mở một cửa sổ riêng tên Tài liệu 2, Tài liệu 3…; trang A4 có con trỏ ở đoạn đầu và chưa được đánh dấu là đã sửa.",
       "Mở tài liệu: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn DOCX, DOC, ODT, RTF hoặc TXT. Nếu tài liệu hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi tiếp tục; Hủy hoặc đóng hộp chọn tệp sẽ giữ tài liệu hiện tại.",
-      "Lưu: Ctrl+S mở hộp thoại Lưu thành cho tài liệu mới. Với tệp đã mở/lưu, Ctrl+S ghi đè đúng định dạng hiện tại. Nhấn F12 hoặc Ctrl+Shift+S để chọn tên và định dạng khác; xác nhận nếu tệp đích đã tồn tại.",
+      "Lưu: Ctrl+S mở hộp thoại Lưu thành cho tài liệu mới. Với tệp đã mở/lưu, Ctrl+S ghi đè đúng định dạng hiện tại. Nhấn F12 hoặc Ctrl+Shift+S để chọn tên và định dạng khác; xác nhận nếu tệp đích đã tồn tại. Chọn PDF trong Lưu thành chỉ xuất một bản PDF; tệp đang mở vẫn giữ tên và định dạng cũ.",
       "In: nhấn Ctrl+P để mở Xem trước khi in, kiểm tra trang và chọn máy in, số bản hoặc phạm vi trang rồi nhấn In. Esc quay lại tài liệu."
     ]
   },

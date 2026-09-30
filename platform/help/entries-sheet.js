@@ -17,7 +17,7 @@ export const SHEET_HELP_ENTRIES = [
     steps: [
       "Tạo sổ trống: nhấn Ctrl+N hoặc mở Tệp > Mới. Một cửa sổ mới tên Bảng tính 2, Bảng tính 3… xuất hiện với duy nhất Sheet1, ô A1 đang chọn và chưa có dữ liệu.",
       "Mở sổ: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn XLSX, XLS, ODS hoặc CSV. Nếu sổ hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi chọn tệp; Hủy thao tác mở sẽ giữ sổ hiện tại.",
-      "Lưu: Ctrl+S mở hộp thoại Lưu thành cho sổ mới. Với tệp đã mở/lưu, Ctrl+S giữ nguyên định dạng hiện tại. Dùng F12 hoặc Ctrl+Shift+S để lưu tên/định dạng khác; xác nhận ghi đè khi được hỏi.",
+      "Lưu: Ctrl+S mở hộp thoại Lưu thành cho sổ mới. Với tệp đã mở/lưu, Ctrl+S giữ nguyên định dạng hiện tại. Dùng F12 hoặc Ctrl+Shift+S để lưu tên/định dạng khác; xác nhận ghi đè khi được hỏi. Chọn PDF trong Lưu thành chỉ xuất một bản PDF; tệp đang mở vẫn giữ tên và định dạng cũ.",
       "In: nhấn Ctrl+P, xem vùng in và ngắt trang, rồi chọn máy in, số bản và phạm vi trang. Các thiết lập vùng in, ngắt trang và vừa trang được áp dụng vào bản xem trước."
     ]
   },

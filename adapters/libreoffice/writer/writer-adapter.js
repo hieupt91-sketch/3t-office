@@ -11176,8 +11176,14 @@ export class WriterAdapter {
     );
 
     if (result.status === "ok") {
-      this.isDirty = false;
       const savedPath = result.path || result.fileName;
+      // Như Word: Lưu thành PDF chỉ xuất một bản PDF; tài liệu đang sửa vẫn giữ tên,
+      // định dạng và trạng thái chưa lưu của nó (Ctrl+S sau đó không ghi vào tệp PDF).
+      if (/\.pdf$/i.test(String(savedPath || ""))) {
+        this.shell?.setStatus?.(`Đã xuất PDF: ${String(savedPath).split(/[/\\]/).pop()}`);
+        return true;
+      }
+      this.isDirty = false;
       if (savedPath) {
         this._sourcePath = savedPath;
         const savedFileName = savedPath.split(/[/\\]/).pop();
@@ -12334,9 +12340,14 @@ export class WriterAdapter {
    */
   _isSnapshotEqual(a, b) {
     if (!a || !b) return false;
-    if (a.bodyHtml !== b.bodyHtml) return false;
-    if (a.headerHtml !== b.headerHtml) return false;
-    if (a.footerHtml !== b.footerHtml) return false;
+    // Gạch chân kiểm tra chính tả được chèn/bỏ bất đồng bộ; đó là lớp hiển thị, không phải
+    // nội dung. Không bỏ qua nó thì Lưu xong chỉ cần bấm F12/lệnh bất kỳ là tài liệu tự
+    // thành "chưa lưu" và đóng cửa sổ hỏi Lưu dù người dùng không sửa gì (đo G7).
+    const comparable = html => (html == null ? html : String(html)
+      .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1"));
+    if (a.bodyHtml !== b.bodyHtml && comparable(a.bodyHtml) !== comparable(b.bodyHtml)) return false;
+    if (a.headerHtml !== b.headerHtml && comparable(a.headerHtml) !== comparable(b.headerHtml)) return false;
+    if (a.footerHtml !== b.footerHtml && comparable(a.footerHtml) !== comparable(b.footerHtml)) return false;
     if (JSON.stringify(a.pageSetup) !== JSON.stringify(b.pageSetup)) return false;
     if ((a.activeSectionId || "section-1") !== (b.activeSectionId || "section-1")) return false;
     if (JSON.stringify(a.sectionPageSetups || {}) !== JSON.stringify(b.sectionPageSetups || {})) return false;

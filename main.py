@@ -254,6 +254,9 @@ FORMAT_FILTERS = {
     "doc": "MS Word 97",
     "rtf": "Rich Text Format",
     "odt": "writer8",
+    # Văn bản thuần: bộ lọc mặc định ghi bảng mã ANSI làm mất dấu tiếng Việt ("Ti?ng Vi?t");
+    # "Text (encoded)" + UTF8 ghi UTF-8 có BOM, Word/Notepad đọc đúng (đo G7).
+    "txt": "Text (encoded):UTF8",
     "html": "HTML (StarWriter)",
     "pdf": "writer_pdf_Export",
     "xlsx": "Calc MS Excel 2007 XML",
@@ -1353,6 +1356,16 @@ SAVE_FILE_TYPES = {
 }
 
 
+def _save_file_types_for_format(app_kind: str | None, current_ext: str | None) -> tuple[str, ...]:
+    """Save As filters with the current document format selected first (as Office does)."""
+    file_types = SAVE_FILE_TYPES.get(app_kind, ("Tất cả tệp (*.*)",))
+    marker = f"(*.{(current_ext or '').lower()})"
+    current = [item for item in file_types if item.lower().endswith(marker)]
+    if not current:
+        return file_types
+    return tuple(current + [item for item in file_types if item not in current])
+
+
 def _infer_save_format_from_path(file_path: str, app_kind: str | None = None) -> tuple[str, str]:
     """Suy luận định dạng đích và chuẩn hóa đường dẫn tệp.
     Trả về (đường_dẫn_chuẩn_hóa, định_dạng_viết_thường).
@@ -1992,7 +2005,7 @@ class VnOfficeApi:
         if not self._server_port:
             return {"status": "error", "message": "Máy chủ giao diện của VN Office chưa sẵn sàng."}
 
-        prefixes = {"writer": "Tài liệu", "sheet": "Bảng tính", "slides": "Bản trình chiếu"}
+        prefixes = {"writer": "Tài liệu", "sheet": "Bảng tính", "slides": "Bản trình bày"}
         extensions = {"writer": "docx", "sheet": "xlsx", "slides": "pptx"}
         with _DOCUMENT_SEQUENCE_LOCK:
             next_number = _DOCUMENT_SEQUENCE.get(kind, 1) + 1
@@ -2068,46 +2081,60 @@ class VnOfficeApi:
         return True
 
     def _validate_open_package(self, source_path, app_kind):
-        """Reject malformed ZIP-based Office/ODF packages before conversion mutates UI state."""
-        required_parts = {
-            ("writer", ".docx"): ("[Content_Types].xml", "word/document.xml"),
-            ("writer", ".odt"): ("mimetype", "content.xml"),
-            ("sheet", ".xlsx"): ("[Content_Types].xml", "xl/workbook.xml"),
-            ("sheet", ".ods"): ("mimetype", "content.xml"),
-            ("slides", ".pptx"): ("[Content_Types].xml", "ppt/presentation.xml"),
-            ("slides", ".odp"): ("mimetype", "content.xml"),
-        }
+        """Reject malformed ZIP-based Office/ODF packages before conversion mutates UI state.
+
+        Only the small package manifests are read (never the main document part), so this
+        check costs a few milliseconds even for very large workbooks (open-speed rule).
+        """
         extension = Path(str(source_path)).suffix.lower()
-        required = required_parts.get((app_kind, extension))
-        if not required:
+        ooxml = {("writer", ".docx"), ("sheet", ".xlsx"), ("slides", ".pptx")}
+        odf_media_types = {
+            ("writer", ".odt"): "application/vnd.oasis.opendocument.text",
+            ("sheet", ".ods"): "application/vnd.oasis.opendocument.spreadsheet",
+            ("slides", ".odp"): "application/vnd.oasis.opendocument.presentation",
+        }
+        key = (app_kind, extension)
+        if key not in ooxml and key not in odf_media_types:
             return
 
         try:
+            with open(source_path, "rb") as handle:
+                signature = handle.read(8)
+            # A legacy binary file saved with an OOXML/ODF extension: Word/Excel and
+            # LibreOffice detect the real format, so let the engine decide.
+            if signature == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+                return
             with zipfile.ZipFile(source_path) as package:
                 members = set(package.namelist())
-                missing = [part for part in required if part not in members]
-                if missing:
-                    raise ValueError(f"thiếu thành phần {missing[0]}")
-                xml_parts = ("[Content_Types].xml", "word/document.xml", "xl/workbook.xml",
-                             "ppt/presentation.xml", "content.xml")
-                for part in required:
-                    if part in xml_parts and part != "mimetype":
-                        ET.fromstring(package.read(part))
-                if extension in {".odt", ".ods", ".odp"}:
-                    expected_media_type = {
-                        ".odt": "application/vnd.oasis.opendocument.text",
-                        ".ods": "application/vnd.oasis.opendocument.spreadsheet",
-                        ".odp": "application/vnd.oasis.opendocument.presentation",
-                    }[extension]
-                    media_type = package.read("mimetype").decode("ascii", errors="replace").strip()
-                    if media_type != expected_media_type:
-                        raise ValueError("sai kiểu tài liệu ODF")
+                if key in ooxml:
+                    if "[Content_Types].xml" not in members:
+                        raise ValueError("thiếu thành phần [Content_Types].xml")
+                    ET.fromstring(package.read("[Content_Types].xml"))
+                    conventional_main = {
+                        "writer": "word/document.xml", "sheet": "xl/workbook.xml", "slides": "ppt/presentation.xml",
+                    }[app_kind]
+                    main_parts = {conventional_main}
+                    if "_rels/.rels" in members:
+                        rels = ET.fromstring(package.read("_rels/.rels"))
+                        main_parts.update(
+                            (rel.get("Target") or "").lstrip("/")
+                            for rel in rels
+                            if (rel.get("Type") or "").endswith("/officeDocument")
+                        )
+                    if not main_parts & members:
+                        raise ValueError("thiếu phần tài liệu chính")
+                else:
+                    if "content.xml" not in members:
+                        raise ValueError("thiếu thành phần content.xml")
+                    if "mimetype" in members:
+                        media_type = package.read("mimetype").decode("ascii", errors="replace").strip()
+                        if media_type != odf_media_types[key]:
+                            raise ValueError("sai kiểu tài liệu ODF")
         except (OSError, zipfile.BadZipFile, KeyError, ET.ParseError, ValueError, RuntimeError) as exc:
             raise DocumentEngineError(
                 "Không thể mở tệp vì gói Office bị hỏng hoặc không đúng định dạng. "
                 "Tài liệu đang mở được giữ nguyên."
             ) from exc
-
     def _open_document_dialog_impl(self, app_kind="writer"):
         """Mở hộp thoại chọn tệp NATIVE thật của hệ điều hành, chuyển đổi tệp thật sang
         định dạng trung gian mà UI có thể hiển thị."""
@@ -2401,14 +2428,16 @@ class VnOfficeApi:
         if target_format == "pdf":
             file_types = ("Tài liệu PDF (*.pdf)", "Tất cả tệp (*.*)")
         else:
-            file_types = SAVE_FILE_TYPES.get(app_kind, ("Tất cả tệp (*.*)",))
+            file_types = _save_file_types_for_format(app_kind, default_ext)
+
+        dialog_kwargs = {"save_filename": f"{default_stem}.{default_ext}", "file_types": file_types}
+        # Like Word/Excel/PowerPoint, Save As starts in the folder of the file being edited.
+        source_dir = os.path.dirname(str(source_path)) if source_path else ""
+        if source_dir and os.path.isdir(source_dir):
+            dialog_kwargs["directory"] = source_dir
 
         try:
-            save_result = window.create_file_dialog(
-                webview.SAVE_DIALOG,
-                save_filename=f"{default_stem}.{default_ext}",
-                file_types=file_types
-            )
+            save_result = window.create_file_dialog(webview.SAVE_DIALOG, **dialog_kwargs)
         except Exception as exc:
             return {"status": "error", "message": f"Không mở được hộp thoại lưu: {exc}"}
 
