@@ -5948,7 +5948,10 @@ def overlay_sheet_xlsx_fods(
         xml,
         include_xf=not skip_initial_xf,
     )
-    xml = _promote_covered_formula_errors(xml)
+    # The repair only applies to merged/covered-cell tags. Avoid a full-document
+    # substitution pass for ordinary sheets that contain no covered cells.
+    if re.search(r"<table:covered-table-cell\b", xml, re.IGNORECASE):
+        xml = _promote_covered_formula_errors(xml)
     # Sheet tab colors: read from original XLSX worksheet XMLs and write
     # vno:tab-color to FODS table:table elements for round-trip fidelity.
     tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
@@ -12724,6 +12727,12 @@ def optimize_fods_streaming(fods_xml: str, max_style_only_col_repeat: int = 64) 
         Optimized FODS XML string
     """
     if not fods_xml:
+        return fods_xml
+
+    # This pass only merges/trims styled blank cells. If no cell opening tag
+    # carries a style, those input features are absent and row-by-row work cannot
+    # change the FODS bytes.
+    if not re.search(r"<table:(?:table-cell|covered-table-cell)\b[^>]*\btable:style-name\s*=", fods_xml, re.IGNORECASE):
         return fods_xml
 
     cell_visual_styles = _parse_fods_cell_visual_styles(fods_xml)

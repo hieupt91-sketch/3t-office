@@ -1694,32 +1694,47 @@ class VnOfficeApi:
             timer = entry.get("timer")
             if isinstance(timer, threading.Timer):
                 timer.cancel()
-            try:
-                Path(str(entry["path"])).unlink(missing_ok=True)
-            except OSError:
-                pass
+            paths = [entry.get("path"), *(entry.get("chunk_paths") or [])]
+            for path in paths:
+                try:
+                    Path(str(path)).unlink(missing_ok=True)
+                except (OSError, TypeError, ValueError):
+                    pass
 
     def _clear_sheet_open_sessions(self):
         with self._sheet_open_session_lock:
             for open_id in list(self._sheet_open_sessions):
                 self._remove_sheet_open_session_locked(open_id)
 
-    def _store_sheet_open_fallback(self, fods_content: str, source_path: str, workbook_xml: str | None) -> str:
+    def _store_sheet_open_fallback(
+        self, fods_content: str, source_path: str, workbook_xml: str | None, payload_chunks=None
+    ) -> str:
         self._prune_sheet_open_sessions()
         folder = _user_data_dir() / "sheet-open-sessions"
         folder.mkdir(parents=True, exist_ok=True)
         open_id = secrets.token_urlsafe(32)
         target = folder / f"{open_id}.fods"
         temporary = folder / f".{open_id}.tmp"
+        chunk_paths = []
+        chunk_temporary_paths = []
         try:
             with temporary.open("w", encoding="utf-8", newline="") as handle:
                 handle.write(fods_content)
             os.replace(temporary, target)
+            for index, chunk in enumerate(payload_chunks or []):
+                chunk_path = folder / f"{open_id}.{index:06d}.chunk"
+                chunk_temporary = folder / f".{open_id}.{index:06d}.tmp"
+                chunk_temporary_paths.append(chunk_temporary)
+                with chunk_temporary.open("w", encoding="ascii", newline="") as handle:
+                    handle.write(str(chunk.get("data", "")))
+                os.replace(chunk_temporary, chunk_path)
+                chunk_paths.append(chunk_path)
         except Exception:
-            try:
-                temporary.unlink(missing_ok=True)
-            except OSError:
-                pass
+            for path in [temporary, target, *chunk_temporary_paths, *chunk_paths]:
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    pass
             raise
         now = time.monotonic()
         expiry_timer = threading.Timer(
@@ -1735,6 +1750,8 @@ class VnOfficeApi:
                 "source_path": source_path,
                 "file_name": Path(source_path).name,
                 "workbook_xml": workbook_xml,
+                "chunk_paths": chunk_paths,
+                "chunk_rows": [int(chunk.get("rows", 0)) for chunk in (payload_chunks or [])],
                 "timer": expiry_timer,
             }
             self._last_sheet_open_id = open_id
@@ -1745,6 +1762,33 @@ class VnOfficeApi:
                 self._remove_sheet_open_session_locked(oldest)
         expiry_timer.start()
         return open_id
+
+    def _read_sheet_open_payload_chunk(self, open_id, index):
+        if not isinstance(open_id, str) or not open_id or len(open_id) > 128:
+            return {"status": "error", "message": "Mã phiên nạp bảng tính không hợp lệ."}
+        try:
+            index = int(index)
+        except (TypeError, ValueError):
+            return {"status": "error", "message": "Số thứ tự phần dữ liệu không hợp lệ."}
+        self._prune_sheet_open_sessions()
+        with self._sheet_open_session_lock:
+            entry = self._sheet_open_sessions.get(open_id)
+            paths = entry.get("chunk_paths", []) if entry else []
+            if not entry or index < 0 or index >= len(paths):
+                return {"status": "error", "message": "Không còn phần dữ liệu bảng tính này. Hãy mở lại tệp."}
+            chunk_path = Path(str(paths[index]))
+            chunk_rows = entry.get("chunk_rows", [])
+            row_count = int(chunk_rows[index]) if index < len(chunk_rows) else 0
+        try:
+            data = chunk_path.read_text(encoding="ascii")
+        except OSError:
+            return {"status": "error", "message": "Không đọc được phần dữ liệu bảng tính."}
+        return {"status": "ok", "openId": open_id, "index": index, "rows": row_count, "data": data}
+
+    def get_sheet_open_payload_chunk(self, open_id, index):
+        return self._invoke_reported_api(
+            "get_sheet_open_payload_chunk", self._read_sheet_open_payload_chunk, open_id, index
+        )
 
     def _expire_sheet_open_session(self, open_id):
         with self._sheet_open_session_lock:
@@ -2138,8 +2182,16 @@ class VnOfficeApi:
                                 content = final_fods
                                 try:
                                     sheet_ooxml_workbook_xml = _read_xlsx_workbook_xml(src_path)
+                                    payload_chunks = sheet_open_payload.pop("rowChunks", [])
+                                    preview_rows = int(sheet_open_payload.pop("previewRows", 0))
+                                    preview_data = sheet_open_payload.pop("previewRowsDeflateBase64", "")
+                                    sheet_open_payload["totalRows"] = sheet_open_payload["rows"]
+                                    sheet_open_payload["rows"] = preview_rows
+                                    sheet_open_payload["rowsDeflateBase64"] = preview_data
+                                    sheet_open_payload["partialPreview"] = True
+                                    sheet_open_payload["chunkCount"] = len(payload_chunks)
                                     sheet_open_id = self._store_sheet_open_fallback(
-                                        final_fods, src_path, sheet_ooxml_workbook_xml
+                                        final_fods, src_path, sheet_ooxml_workbook_xml, payload_chunks
                                     )
                                 except Exception:
                                     sheet_open_payload = None

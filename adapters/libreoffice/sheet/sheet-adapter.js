@@ -180,6 +180,11 @@ export class SheetAdapter {
     }
   }
 
+  async _waitForHydration() {
+    const pending = this.grid?.__vnoSheetHydrationPromise;
+    if (pending) await pending;
+  }
+
   _bindFormatPainterRibbon() {
     if (this._formatPainterRibbonBound) return;
     if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
@@ -194,6 +199,10 @@ export class SheetAdapter {
 
   attach() {
     globalUnoBridge.attachDocument(this);
+    const bindAfterHydration = (commandId, handler) => globalCommandBus.bindHandler(commandId, async (...args) => {
+      await this._waitForHydration();
+      return handler(...args);
+    });
     // common.edit.undo/redo dùng chung 1 handler toàn Suite qua Command Bus — mỗi app
     // (Writer/Sheet/Slides) PHẢI tự bindHandler() lại khi active, nếu không app kích hoạt
     // trước (mặc định Writer) sẽ chiếm vĩnh viễn phím Ctrl+Z/Ctrl+Y cho mọi app khác.
@@ -213,7 +222,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.select.column", () => this.grid.selectCurrentColumn ? this.grid.selectCurrentColumn() : false);
     globalCommandBus.bindHandler("sheet.select.row", () => this.grid.selectCurrentRow ? this.grid.selectCurrentRow() : false);
     globalCommandBus.bindHandler("sheet.insert.time", () => this.grid.insertCurrentTime ? this.grid.insertCurrentTime() : false);
-    globalCommandBus.bindHandler("sheet.formula.recalculate", () => this.grid.recalculateAll ? this.grid.recalculateAll() : false);
+    bindAfterHydration("sheet.formula.recalculate", () => this.grid.recalculateAll ? this.grid.recalculateAll() : false);
     globalCommandBus.bindHandler("sheet.view.toggleFormulas", () => this.grid.toggleShowFormulas ? this.grid.toggleShowFormulas() : false);
     globalCommandBus.bindHandler("sheet.format.cellsDialog", () => this.grid.showFormatCellsDialog());
     globalCommandBus.bindHandler("sheet.format.alignmentDialog", () => this.grid.showFormatCellsDialog("alignment"));
@@ -253,38 +262,38 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
     globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this.grid.refreshPivotTable());
     globalCommandBus.bindHandler("sheet.chart.pivotChart", () => this.grid.openPivotChartBuilder());
-    globalCommandBus.bindHandler("sheet.formula.nameManager", (args) => {
+    bindAfterHydration("sheet.formula.nameManager", (args) => {
       args = args || {};
       return this.grid.showNameManager(args);
     });
-    globalCommandBus.bindHandler("sheet.formula.insertFunction", (category) => this.grid.showFunctionDialog ? this.grid.showFunctionDialog(category) : false);
-    globalCommandBus.bindHandler("sheet.formula.sum", () => this.grid.insertFormula ? this.grid.insertFormula("SUM") : false);
-    globalCommandBus.bindHandler("sheet.formula.average", () => this.grid.insertFormula ? this.grid.insertFormula("AVERAGE") : false);
-    globalCommandBus.bindHandler("sheet.formula.countNumbers", () => this.grid.insertFormula ? this.grid.insertFormula("COUNT") : false);
-    globalCommandBus.bindHandler("sheet.formula.max", () => this.grid.insertFormula ? this.grid.insertFormula("MAX") : false);
-    globalCommandBus.bindHandler("sheet.formula.min", () => this.grid.insertFormula ? this.grid.insertFormula("MIN") : false);
-    globalCommandBus.bindHandler("sheet.formula.categoryFinancial", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Tài chính") : false);
-    globalCommandBus.bindHandler("sheet.formula.categoryLogical", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Logic") : false);
-    globalCommandBus.bindHandler("sheet.formula.categoryText", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Văn bản") : false);
-    globalCommandBus.bindHandler("sheet.formula.categoryDateTime", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Ngày tháng") : false);
-    globalCommandBus.bindHandler("sheet.formula.categoryLookup", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Tra cứu") : false);
-    globalCommandBus.bindHandler("sheet.formula.categoryMath", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Toán học") : false);
-    globalCommandBus.bindHandler("sheet.formula.categoryMore", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Thống kê") : false);
-    globalCommandBus.bindHandler("sheet.formula.defineName", () => this.grid.showDefineNameDialog ? this.grid.showDefineNameDialog() : false);
-    globalCommandBus.bindHandler("sheet.formula.useInFormula", () => this.grid.showUseInFormulaDialog ? this.grid.showUseInFormulaDialog() : false);
-    globalCommandBus.bindHandler("sheet.formula.createFromSelection", () => this.grid.createNamesFromSelection ? this.grid.createNamesFromSelection() : false);
-    globalCommandBus.bindHandler("sheet.formula.tracePrecedents", () => this.grid.tracePrecedents ? this.grid.tracePrecedents() : false);
-    globalCommandBus.bindHandler("sheet.formula.traceDependents", () => this.grid.traceDependents ? this.grid.traceDependents() : false);
-    globalCommandBus.bindHandler("sheet.formula.removeArrows", () => this.grid.removeArrows ? this.grid.removeArrows() : false);
-    globalCommandBus.bindHandler("sheet.formula.showFormulas", () => this.grid.toggleShowFormulas ? this.grid.toggleShowFormulas() : false);
-    globalCommandBus.bindHandler("sheet.formula.errorChecking", () => this.grid.showErrorCheckingDialog ? this.grid.showErrorCheckingDialog() : false);
-    globalCommandBus.bindHandler("sheet.formula.watchWindow", () => this.grid.showWatchWindow ? this.grid.showWatchWindow() : false);
-    globalCommandBus.bindHandler("sheet.formula.evaluateFormula", () => this.grid.showEvaluateFormulaDialog ? this.grid.showEvaluateFormulaDialog() : false);
-    globalCommandBus.bindHandler("sheet.calc.calculationOptions", (args) => this.grid.setCalculationMode ? this.grid.setCalculationMode(args) : false);
-    globalCommandBus.bindHandler("sheet.calc.modeAutomatic", () => this.grid.setCalculationMode ? this.grid.setCalculationMode("automatic") : false);
-    globalCommandBus.bindHandler("sheet.calc.modeManual", () => this.grid.setCalculationMode ? this.grid.setCalculationMode("manual") : false);
-    globalCommandBus.bindHandler("sheet.calc.calculateSheet", () => this.grid.calculateSheet ? this.grid.calculateSheet() : false);
-    globalCommandBus.bindHandler("sheet.formula.arrayEnter", (options) => {
+    bindAfterHydration("sheet.formula.insertFunction", (category) => this.grid.showFunctionDialog ? this.grid.showFunctionDialog(category) : false);
+    bindAfterHydration("sheet.formula.sum", () => this.grid.insertFormula ? this.grid.insertFormula("SUM") : false);
+    bindAfterHydration("sheet.formula.average", () => this.grid.insertFormula ? this.grid.insertFormula("AVERAGE") : false);
+    bindAfterHydration("sheet.formula.countNumbers", () => this.grid.insertFormula ? this.grid.insertFormula("COUNT") : false);
+    bindAfterHydration("sheet.formula.max", () => this.grid.insertFormula ? this.grid.insertFormula("MAX") : false);
+    bindAfterHydration("sheet.formula.min", () => this.grid.insertFormula ? this.grid.insertFormula("MIN") : false);
+    bindAfterHydration("sheet.formula.categoryFinancial", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Tài chính") : false);
+    bindAfterHydration("sheet.formula.categoryLogical", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Logic") : false);
+    bindAfterHydration("sheet.formula.categoryText", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Văn bản") : false);
+    bindAfterHydration("sheet.formula.categoryDateTime", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Ngày tháng") : false);
+    bindAfterHydration("sheet.formula.categoryLookup", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Tra cứu") : false);
+    bindAfterHydration("sheet.formula.categoryMath", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Toán học") : false);
+    bindAfterHydration("sheet.formula.categoryMore", () => this.grid.showFunctionDialog ? this.grid.showFunctionDialog("Thống kê") : false);
+    bindAfterHydration("sheet.formula.defineName", () => this.grid.showDefineNameDialog ? this.grid.showDefineNameDialog() : false);
+    bindAfterHydration("sheet.formula.useInFormula", () => this.grid.showUseInFormulaDialog ? this.grid.showUseInFormulaDialog() : false);
+    bindAfterHydration("sheet.formula.createFromSelection", () => this.grid.createNamesFromSelection ? this.grid.createNamesFromSelection() : false);
+    bindAfterHydration("sheet.formula.tracePrecedents", () => this.grid.tracePrecedents ? this.grid.tracePrecedents() : false);
+    bindAfterHydration("sheet.formula.traceDependents", () => this.grid.traceDependents ? this.grid.traceDependents() : false);
+    bindAfterHydration("sheet.formula.removeArrows", () => this.grid.removeArrows ? this.grid.removeArrows() : false);
+    bindAfterHydration("sheet.formula.showFormulas", () => this.grid.toggleShowFormulas ? this.grid.toggleShowFormulas() : false);
+    bindAfterHydration("sheet.formula.errorChecking", () => this.grid.showErrorCheckingDialog ? this.grid.showErrorCheckingDialog() : false);
+    bindAfterHydration("sheet.formula.watchWindow", () => this.grid.showWatchWindow ? this.grid.showWatchWindow() : false);
+    bindAfterHydration("sheet.formula.evaluateFormula", () => this.grid.showEvaluateFormulaDialog ? this.grid.showEvaluateFormulaDialog() : false);
+    bindAfterHydration("sheet.calc.calculationOptions", (args) => this.grid.setCalculationMode ? this.grid.setCalculationMode(args) : false);
+    bindAfterHydration("sheet.calc.modeAutomatic", () => this.grid.setCalculationMode ? this.grid.setCalculationMode("automatic") : false);
+    bindAfterHydration("sheet.calc.modeManual", () => this.grid.setCalculationMode ? this.grid.setCalculationMode("manual") : false);
+    bindAfterHydration("sheet.calc.calculateSheet", () => this.grid.calculateSheet ? this.grid.calculateSheet() : false);
+    bindAfterHydration("sheet.formula.arrayEnter", (options) => {
       options = options || {};
       return this.grid.enterArrayFormula(options);
     });
@@ -302,7 +311,10 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.review.commentNext", () => this.grid.nextComment?.());
     globalCommandBus.bindHandler("sheet.review.commentDelete", () => this.grid.deleteCurrentComment?.());
     globalCommandBus.bindHandler("sheet.review.commentResolve", () => this.grid.toggleCurrentCommentResolved?.());
-    globalCommandBus.bindHandler("sheet.file.printPreview", () => Boolean(this.grid.openPrintPreview ? this.grid.openPrintPreview() : false));
+    globalCommandBus.bindHandler("sheet.file.printPreview", async () => {
+      await this._waitForHydration();
+      return Boolean(this.grid.openPrintPreview ? this.grid.openPrintPreview() : false);
+    });
     globalCommandBus.bindHandler("sheet.view.normal", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("normal") : false);
     globalCommandBus.bindHandler("sheet.view.pageBreakPreview", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageBreakPreview") : false);
     globalCommandBus.bindHandler("sheet.view.pageLayout", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageLayout") : false);
@@ -448,8 +460,14 @@ export class SheetAdapter {
       options = options || {};
       return this.grid.clearContents ? this.grid.clearContents(options.range) : false;
     });
-    globalCommandBus.bindHandler("common.edit.find", () => this._showFindReplaceDialog(false));
-    globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
+    globalCommandBus.bindHandler("common.edit.find", async () => {
+      await this._waitForHydration();
+      return this._showFindReplaceDialog(false);
+    });
+    globalCommandBus.bindHandler("common.edit.replace", async () => {
+      await this._waitForHydration();
+      return this._showFindReplaceDialog(true);
+    });
   }
 
   _showFindReplaceDialog(isReplace = false) {
@@ -2790,6 +2808,9 @@ export class SheetAdapter {
 
   /** Serialize the complete workbook as Flat OpenDocument Spreadsheet XML. */
   serializeToFods() {
+    if (this.grid?.__vnoSheetHydrationPending) {
+      throw new Error("Bảng tính đang nạp dữ liệu; hãy đợi nạp xong trước khi tuần tự hóa.");
+    }
     if (!this.grid) return "";
     const isNewWorkbook = !this.sourceFilePath;
     const sheetNames = (this.grid.sheets && this.grid.sheets.length)
@@ -4710,7 +4731,7 @@ export class SheetAdapter {
     return this._commitWorkbook(workbook, perfStart, "loadFromFods");
   }
 
-  async loadFromPayload(payload, ooxmlWorkbookXml) {
+  async loadFromPayload(payload, ooxmlWorkbookXml, openId = "") {
     if (!this.grid) return false;
     const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
     const perfStart = perfEnabled ? performance.now() : 0;
@@ -4720,17 +4741,105 @@ export class SheetAdapter {
     }
     const hadDefaultWidth = Object.prototype.hasOwnProperty.call(this, "_sheetPayloadImportDefaultColWidth");
     const oldDefaultWidth = this._sheetPayloadImportDefaultColWidth;
+    const previousDirty = this.isDirty;
+    const previousGrid = this._snapshotGridForOpen();
+    let resolveHydration;
+    const hydrationPromise = new Promise(resolve => { resolveHydration = resolve; });
+    let viewportCommitted = false;
+    this.grid.__vnoSheetHydrationPending = true;
+    this.grid.__vnoSheetHydrationPromise = hydrationPromise;
+    this.grid.container?.setAttribute?.("inert", "");
+    this.grid.container?.setAttribute?.("aria-busy", "true");
+    this.isDirty = false;
     this._sheetPayloadImportDefaultColWidth = 100;
     try {
       let supportXml = payload?.supportXml;
       supportXml = overlayFodsStructureProtection(supportXml, ooxmlWorkbookXml);
       supportXml = overlayActiveSheetToFods(supportXml, ooxmlWorkbookXml);
       const parseStart = perfEnabled ? performance.now() : 0;
-      const workbook = await buildSheetPayloadModel(payload, this, supportXml);
+      const onViewportReady = (partialWorkbook, progress) => {
+        if (!partialWorkbook.sheets.length || viewportCommitted) return;
+        this._commitWorkbook(partialWorkbook, perfStart, "loadFromPayloadViewport", { partial: true });
+        viewportCommitted = true;
+        this.grid.container?.classList?.add?.("vno-sheet-hydrating");
+        this.grid.container?.setAttribute?.("aria-busy", "true");
+        this.shell?.setStatus?.(`Đã hiện ${progress.rows} hàng đầu; đang nạp tiếp dữ liệu bảng tính…`);
+      };
+      const onProgress = progress => {
+        if (!viewportCommitted) return;
+        const message = progress.phase === "validate" ? "Đang kiểm tra dữ liệu bảng tính…" : "Đang nạp dữ liệu bảng tính…";
+        this.shell?.setStatus?.(`${message} ${progress.rows.toLocaleString("vi-VN")} / ${progress.totalRows.toLocaleString("vi-VN")} hàng`);
+      };
+      let workbook;
+      if (payload?.partialPreview === true) {
+        const chunkCount = Number(payload.chunkCount);
+        const totalRows = Number(payload.totalRows);
+        if (!openId || !Number.isSafeInteger(chunkCount) || chunkCount < 1 || chunkCount > 100000
+          || !Number.isSafeInteger(totalRows) || totalRows < 1 || totalRows > 2_000_000) {
+          throw new TypeError("Sheet payload preview session metadata is invalid");
+        }
+        await buildSheetPayloadModel(payload, this, supportXml, {
+          initialRows: 50,
+          progressChunkRows: 300,
+          onViewportReady,
+        });
+        if (!viewportCommitted) throw new Error("Sheet payload preview did not render a viewport");
+
+        const rowChunksBase64 = [];
+        let receivedRows = 0;
+        for (let index = 0; index < chunkCount; index++) {
+          const chunk = await globalUnoBridge.getSheetOpenPayloadChunk(openId, index);
+          if (chunk?.status !== "ok" || chunk.openId !== openId || chunk.index !== index
+            || typeof chunk.data !== "string" || !chunk.data) {
+            throw new Error(chunk?.message || "Không thể nhận đủ dữ liệu bảng tính.");
+          }
+          rowChunksBase64.push(chunk.data);
+          receivedRows += Number(chunk.rows) || 0;
+          if (index % 4 === 0 || index + 1 === chunkCount) {
+            this.shell?.setStatus?.(`Đang nhận dữ liệu bảng tính… ${Math.min(receivedRows, totalRows).toLocaleString("vi-VN")} / ${totalRows.toLocaleString("vi-VN")} hàng`);
+            await new Promise(resolve => setTimeout(resolve, 0));
+          }
+        }
+        if (receivedRows !== totalRows) throw new Error("Số hàng nhận được không khớp với payload bảng tính.");
+        const completePayload = {
+          ...payload,
+          rows: totalRows,
+          rowChunksBase64,
+          partialPreview: false,
+        };
+        delete completePayload.rowsDeflateBase64;
+        delete completePayload.chunkCount;
+        workbook = await buildSheetPayloadModel(completePayload, this, supportXml, {
+          progressChunkRows: 300,
+          onProgress,
+        });
+      } else {
+        workbook = await buildSheetPayloadModel(payload, this, supportXml, {
+        initialRows: 50,
+        progressChunkRows: 300,
+          onViewportReady,
+          onProgress,
+        });
+      }
       if (perfEnabled) window.__vnoPerfReport?.("buildSheetPayloadModel", performance.now() - parseStart);
-      if (!workbook.sheets.length) return false;
+      if (!workbook.sheets.length) {
+        this.isDirty = previousDirty;
+        return false;
+      }
       return this._commitWorkbook(workbook, perfStart, "loadFromPayload");
+    } catch (error) {
+      if (viewportCommitted) this._restoreGridAfterFailedOpen(previousGrid);
+      this.isDirty = previousDirty;
+      throw error;
     } finally {
+      this.grid.__vnoSheetHydrationPending = false;
+      this.grid.container?.classList?.remove?.("vno-sheet-hydrating");
+      this.grid.container?.removeAttribute?.("inert");
+      this.grid.container?.removeAttribute?.("aria-busy");
+      if (this.grid.__vnoSheetHydrationPromise === hydrationPromise) {
+        delete this.grid.__vnoSheetHydrationPromise;
+      }
+      resolveHydration();
       if (hadDefaultWidth) this._sheetPayloadImportDefaultColWidth = oldDefaultWidth;
       else delete this._sheetPayloadImportDefaultColWidth;
     }
@@ -4761,10 +4870,12 @@ export class SheetAdapter {
     }
   }
 
-  _commitWorkbook(workbook, perfStart, perfName) {
+  _commitWorkbook(workbook, perfStart, perfName, options = {}) {
     const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
     const gridSnapshot = this._snapshotGridForOpen();
     const previousExternalLinkCells = this.externalLinkCells;
+    const previousHydrationCommit = this.grid.__vnoSheetHydrationCommit;
+    this.grid.__vnoSheetHydrationCommit = true;
     try {
       // Imported files retain the legacy layout fallback while explicit XLSX
       // dimensions are overlaid. S24's 20/64 defaults apply only to new books.
@@ -4873,6 +4984,9 @@ export class SheetAdapter {
 
     // Dat rowCount = max(200, maxRow + 50) de cuon toi cuoi sheet khong bi trong
     let _maxRowInFile = 0;
+    for (const dimensions of Object.values(workbook.dataDimensionsBySheet || {})) {
+      _maxRowInFile = Math.max(_maxRowInFile, Number(dimensions?.lastRow) || 0);
+    }
     for (const sheetData of Object.values(this.grid.sheetsData || {})) {
       if (!sheetData) continue;
       for (const key of sheetData.keys()) {
@@ -4886,7 +5000,7 @@ export class SheetAdapter {
     // VND() "amount in words" XLL) to #ADDIN?/#NAME? on import and drops the cached
     // text. When VN Sheet implements the function, compute the value once on open.
     const engine = this.grid.formulaEngine;
-    if (engine?.evaluate) {
+    if (!options.partial && engine?.evaluate) {
       const openSheet = this.grid.activeSheet;
       for (const [sheetName, sheetData] of Object.entries(this.grid.sheetsData || {})) {
         for (const item of sheetData?.values?.() || []) {
@@ -4947,6 +5061,9 @@ export class SheetAdapter {
       this._restoreGridAfterFailedOpen(gridSnapshot);
       this.externalLinkCells = previousExternalLinkCells;
       throw error;
+    } finally {
+      if (previousHydrationCommit === undefined) delete this.grid.__vnoSheetHydrationCommit;
+      else this.grid.__vnoSheetHydrationCommit = previousHydrationCommit;
     }
   }
 
@@ -5152,6 +5269,7 @@ export class SheetAdapter {
    * - Nếu bảng tính mới (chưa có đường dẫn): chuyển tiếp sang saveAs() để mở hộp thoại lưu tệp.
    */
   async save() {
+    await this._waitForHydration();
     if (!this.sourceFilePath) {
       return await this.saveAs();
     }
@@ -5193,6 +5311,7 @@ export class SheetAdapter {
    * hoặc chọn định dạng xuất (.xlsx, .xls, .ods, .csv).
    */
   async saveAs() {
+    await this._waitForHydration();
     const fodsContent = this.serializeToFods();
     const currentName = this.sourceFileName || "BangTinh";
     const suggestedName = this.sourceFilePath
@@ -5250,6 +5369,7 @@ export class SheetAdapter {
   }
 
   async _openWorkbookFromDisk() {
+    await this._waitForHydration();
     let result = null;
     let openId = null;
     const reportOpenIssue = (type, message) => {
@@ -5284,7 +5404,7 @@ export class SheetAdapter {
         openId = result.openId || openId;
         try {
           this.shell?.setStatus?.("Đang dựng mô hình bảng tính và chuẩn bị lưới…");
-          const loaded = await this.loadFromPayload(result.sheetPayload, result.ooxmlWorkbookXml);
+          const loaded = await this.loadFromPayload(result.sheetPayload, result.ooxmlWorkbookXml, openId);
           if (!loaded) throw new Error("Payload không tạo được workbook.");
         } catch {
           reportOpenIssue("SheetOpenPayloadError", "Sheet payload parsing or model construction failed; using the retained FODS fallback.");
@@ -5331,6 +5451,7 @@ export class SheetAdapter {
   }
 
   async exportPdf() {
+    await this._waitForHydration();
     const fodsContent = this.serializeToFods();
     const result = await globalUnoBridge.exportRealPdf("sheet", fodsContent, this.sourceFileName);
     if (result.status === "ok") {
@@ -5342,7 +5463,8 @@ export class SheetAdapter {
     return false;
   }
 
-  print() {
+  async print() {
+    await this._waitForHydration();
     if (this.grid?.print) return this.grid.print();
     if (typeof window !== "undefined" && typeof window.print === "function") {
       window.print();
@@ -5357,6 +5479,7 @@ export class SheetAdapter {
     switch (cmd) {
       case "sheet.file.printPreview":
       case ".uno:PrintPreview":
+        await this._waitForHydration();
         return Boolean(this.grid.openPrintPreview ? this.grid.openPrintPreview() : false);
 
       case "sheet.view.normal":
@@ -5701,10 +5824,12 @@ export class SheetAdapter {
       case "sheet.calc.calculateNow":
       case "sheet.formula.recalculate":
       case ".uno:Calculate":
+        await this._waitForHydration();
         return this.grid.recalculateAll ? this.grid.recalculateAll() : false;
 
       case "sheet.calc.calculateSheet":
       case ".uno:CalculateHard":
+        await this._waitForHydration();
         return this.grid.calculateSheet ? this.grid.calculateSheet() : false;
 
       case "sheet.formula.arrayEnter":
@@ -5757,9 +5882,11 @@ export class SheetAdapter {
         return this.grid.clearContents ? this.grid.clearContents(args?.range) : false;
 
       case "common.edit.find":
+        await this._waitForHydration();
         return this._showFindReplaceDialog(false);
 
       case "common.edit.replace":
+        await this._waitForHydration();
         return this._showFindReplaceDialog(true);
 
       case "sheet.chart.insert":
@@ -5888,7 +6015,7 @@ export class SheetAdapter {
         return await this.exportPdf();
 
       case "common.file.print":
-        return this.print();
+        return await this.print();
 
       default:
         return false;

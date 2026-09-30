@@ -1,6 +1,6 @@
 // VN Sheet's owned parser for the compact v2 open payload. Workbook state is
-// returned as an intermediate model; SheetAdapter commits only after parsing
-// and validating the complete payload.
+// returned as an intermediate model; SheetAdapter may commit a validated
+// viewport preview, then commits the complete model after all chunks hydrate.
 
 const LOCAL_TABLE_RE = /<table:table(?=[\s/>])([^>]*)>([\s\S]*?)<\/table:table>/gi;
 const NS_TABLE = "table";
@@ -15,56 +15,56 @@ function parseAttrs(adapter, raw) {
 }
 
 async function eachCompressedRecord(payload, onRecord) {
+  const compressedChunks = Array.isArray(payload.rowChunksBase64)
+    ? payload.rowChunksBase64
+    : [payload.rowsDeflateBase64];
+  if (!compressedChunks.length) throw new TypeError("Sheet payload row chunks are missing");
   if (typeof process !== "undefined" && process.versions?.node) {
     const { createInflate } = await import("node:zlib");
-    const inflate = createInflate();
-    const decoder = new TextDecoder();
-    let carry = "";
-    const finished = new Promise((resolve, reject) => {
-      inflate.on("data", chunk => {
-        try {
-          const lines = (carry + decoder.decode(chunk, { stream: true })).split("\n");
-          carry = lines.pop() || "";
-          for (const line of lines) if (line) onRecord(JSON.parse(line));
-        } catch (error) {
-          reject(error);
-        }
-      });
-      inflate.on("end", () => {
-        try {
-          carry += decoder.decode();
-          if (carry) onRecord(JSON.parse(carry));
-          resolve();
-        } catch (error) {
-          reject(error);
-        }
-      });
-      inflate.on("error", reject);
-    });
-    inflate.end(Buffer.from(payload.rowsDeflateBase64, "base64"));
-    await finished;
+    for (const compressed of compressedChunks) {
+      const inflate = createInflate();
+      const decoder = new TextDecoder();
+      let carry = "";
+      inflate.end(Buffer.from(compressed, "base64"));
+      for await (const chunk of inflate) {
+        const lines = (carry + decoder.decode(chunk, { stream: true })).split("\n");
+        carry = lines.pop() || "";
+        for (const line of lines) if (line) await onRecord(JSON.parse(line));
+      }
+      carry += decoder.decode();
+      if (carry) await onRecord(JSON.parse(carry));
+    }
     return;
   }
 
   if (typeof DecompressionStream === "undefined") {
     throw new Error("WebView2 does not expose DecompressionStream('deflate')");
   }
-  const binary = atob(payload.rowsDeflateBase64);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate"));
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let carry = "";
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    const lines = (carry + decoder.decode(value, { stream: true })).split("\n");
-    carry = lines.pop() || "";
-    for (const line of lines) if (line) onRecord(JSON.parse(line));
+  for (const compressed of compressedChunks) {
+    const binary = atob(compressed);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate"));
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let carry = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      const lines = (carry + decoder.decode(value, { stream: true })).split("\n");
+      carry = lines.pop() || "";
+      for (const line of lines) if (line) await onRecord(JSON.parse(line));
+    }
+    carry += decoder.decode();
+    if (carry) await onRecord(JSON.parse(carry));
   }
-  carry += decoder.decode();
-  if (carry) onRecord(JSON.parse(carry));
+}
+
+function yieldToPaint() {
+  if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+    return new Promise(resolve => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
+  }
+  return new Promise(resolve => setTimeout(resolve, 0));
 }
 
 function tableBlocks(adapter, xml) {
@@ -288,14 +288,15 @@ function validatePayload(payload, adapter, supportXmlOverride) {
     throw new TypeError("Unsupported Sheet payload row encoding");
   }
   if (!Number.isSafeInteger(payload.sheets) || payload.sheets < 1 || payload.sheets > 4096
-    || !Number.isSafeInteger(payload.rows) || payload.rows < 1 || payload.rows > 2_000_000
+    || !Number.isSafeInteger(payload.rows) || payload.rows < (payload.partialPreview ? 0 : 1) || payload.rows > 2_000_000
     || !Number.isSafeInteger(payload.sourceBytes) || payload.sourceBytes < 1) {
     throw new TypeError("Invalid Sheet payload counts");
   }
-  if (typeof payload.rowsDeflateBase64 !== "string"
-    || !payload.rowsDeflateBase64.length
-    || payload.rowsDeflateBase64.length % 4 !== 0
-    || !/^[A-Za-z0-9+/]+={0,2}$/.test(payload.rowsDeflateBase64)) {
+  const compressedChunks = Array.isArray(payload.rowChunksBase64)
+    ? payload.rowChunksBase64
+    : [payload.rowsDeflateBase64];
+  if (!compressedChunks.length || compressedChunks.some(chunk => typeof chunk !== "string"
+    || !chunk.length || chunk.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(chunk))) {
     throw new TypeError("Invalid Sheet payload row data");
   }
   const rawSupportXml = supportXmlOverride ?? payload.supportXml;
@@ -320,9 +321,10 @@ function validatePayload(payload, adapter, supportXmlOverride) {
   return supportXml;
 }
 
-export async function buildSheetPayloadModel(payload, adapter, supportXmlOverride) {
+export async function buildSheetPayloadModel(payload, adapter, supportXmlOverride, options = {}) {
   if (!adapter) throw new TypeError("SheetAdapter is required to build a payload model");
   const supportXml = validatePayload(payload, adapter, supportXmlOverride);
+  const progressChunkRows = Math.max(100, Number(options.progressChunkRows) || 500);
   const xml = adapter._xmlWithoutEmbeddedObjects(supportXml);
   const numberStyles = adapter._parseNumberStyles(xml);
   const rotationStyles = adapter._parseRotationStyles(xml);
@@ -355,7 +357,8 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
   const sheetRecordNames = [];
   let rowRecords = 0;
   let sheetRecords = 0;
-  await eachCompressedRecord(payload, record => {
+  let scannedRows = 0;
+  await eachCompressedRecord(payload, async record => {
     if (!Array.isArray(record)) throw new TypeError("Invalid Sheet payload record");
     if (record[0] === "sheet") {
       const name = record[1];
@@ -405,10 +408,20 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
     }
     if (rowHasData) stats.lastDataRow = stats.row + rowRepeat - 1;
     stats.row += rowRepeat;
+    scannedRows++;
+    if (scannedRows % progressChunkRows === 0) {
+      if (options.onProgress) {
+        await options.onProgress({ rows: scannedRows, totalRows: payload.totalRows || payload.rows, phase: "validate" });
+      }
+      await yieldToPaint();
+    }
   });
   if (openSheet || sheetRecords !== payload.sheets || rowRecords !== payload.rows) {
     throw new TypeError("Sheet payload record counts do not match its header");
   }
+  workbook.dataDimensionsBySheet = Object.fromEntries(
+    [...cellScan].map(([name, stats]) => [name, { lastRow: stats.lastDataRow, lastColumn: stats.lastDataCol }])
+  );
 
   let tableIndex = 0;
   const sheetBlocks = [];
@@ -460,7 +473,14 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
     cellVisualStyles,
     namespaceAttrs: rootOpen?.[1] || "",
   };
-  await eachCompressedRecord(payload, record => {
+  const viewportSheet = workbook.sheets.includes(workbook.activeSheet)
+    ? workbook.activeSheet
+    : workbook.sheets[0];
+  const initialRows = Math.max(1, Number(options.initialRows) || 50);
+  let viewportReady = false;
+  let parsedRows = 0;
+  let lastProgressRows = 0;
+  await eachCompressedRecord(payload, async record => {
     record = normalizedRecord(adapter, record, richContext);
     if (record[0] === "sheet") {
       buildingSheet = record[1];
@@ -499,6 +519,17 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
     if (state.rowNumber > state.lastDataRow && (rowRepeat > 32 || state.rowNumber > state.lastDataRow + 1000)
       && rowVisibility !== "collapse" && rowVisibility !== "filter") {
       state.rowNumber += rowRepeat;
+      parsedRows++;
+      if (!viewportReady && buildingSheet === viewportSheet && state.rowNumber > initialRows) {
+        viewportReady = true;
+        await options.onViewportReady?.(workbook, { sheetName: viewportSheet, rows: state.rowNumber - 1, totalRows: payload.rows });
+        if (options.onViewportReady) await yieldToPaint();
+      }
+      if (options.onProgress && parsedRows - lastProgressRows >= progressChunkRows) {
+        lastProgressRows = parsedRows;
+        await options.onProgress({ rows: parsedRows, totalRows: payload.totalRows || payload.rows, phase: "hydrate" });
+        await yieldToPaint();
+      }
       return;
     }
     for (let repeatedRow = 0; repeatedRow < rowRepeat; repeatedRow++) {
@@ -578,7 +609,29 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
       }
       state.rowNumber++;
     }
+    parsedRows++;
+    if (!viewportReady && buildingSheet === viewportSheet && state.rowNumber > initialRows) {
+      viewportReady = true;
+      await options.onViewportReady?.(workbook, { sheetName: viewportSheet, rows: state.rowNumber - 1, totalRows: payload.rows });
+      if (options.onViewportReady) await yieldToPaint();
+    }
+    if (options.onProgress && parsedRows - lastProgressRows >= progressChunkRows) {
+      lastProgressRows = parsedRows;
+      await options.onProgress({ rows: parsedRows, totalRows: payload.totalRows || payload.rows, phase: "hydrate" });
+      await yieldToPaint();
+    }
   });
+
+  if (!viewportReady && typeof options.onViewportReady === "function") {
+    const state = sheetState.get(viewportSheet);
+    await options.onViewportReady(workbook, {
+      sheetName: viewportSheet,
+      rows: Math.max(0, (state?.rowNumber || 1) - 1),
+      totalRows: payload.totalRows || payload.rows,
+    });
+    viewportReady = true;
+    await yieldToPaint();
+  }
 
   if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
   adapter._attachImportedRules(workbook, supportXml);

@@ -112,6 +112,11 @@ export class UnoBridge {
     return await this.desktopApi.get_sheet_open_fallback(openId || "");
   }
 
+  async getSheetOpenPayloadChunk(openId, index) {
+    if (!this.desktopApi) return { status: "error", message: "Không thể lấy phần dữ liệu của bảng tính." };
+    return await this.desktopApi.get_sheet_open_payload_chunk(openId || "", index);
+  }
+
   async getLatestSheetOpenFallback() {
     if (!this.desktopApi) return { status: "error", message: "Không thể lấy dữ liệu dự phòng của bảng tính." };
     return await this.desktopApi.get_latest_sheet_open_fallback();

@@ -156,7 +156,7 @@ export class AutoRecoverManager {
     if (this.context !== context || this.snapshotInFlight || !context.adapter.isDirty || !this.settings.enabled) return false;
     this.snapshotInFlight = true;
     try {
-      const content = context.serialize();
+      const content = await context.serialize();
       if (typeof content !== "string" || !content.length) throw new Error("Bộ tuần tự hóa không trả về nội dung tài liệu.");
       const title = context.shell?.documentName || context.adapter.sourceFileName || "Tài liệu chưa đặt tên";
       const originalPath = context.adapter._sourcePath || context.adapter.sourceFilePath || "";

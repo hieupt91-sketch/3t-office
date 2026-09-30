@@ -78,14 +78,16 @@ export class SheetApp {
     });
 
     // Sheet AI: Giải thích công thức
-    globalCommandBus.bindHandler("sheet.ai.explainFormula", () => {
-      this._handleExplainFormula();
+    globalCommandBus.bindHandler("sheet.ai.explainFormula", async () => {
+      await this.adapter?._waitForHydration();
+      await this._handleExplainFormula();
       return true;
     });
 
     // Sheet AI: Tạo công thức từ mô tả
-    globalCommandBus.bindHandler("sheet.ai.formulaFromDescription", () => {
-      this._handleFormulaFromDescription();
+    globalCommandBus.bindHandler("sheet.ai.formulaFromDescription", async () => {
+      await this.adapter?._waitForHydration();
+      await this._handleFormulaFromDescription();
       return true;
     });
 
@@ -112,7 +114,10 @@ export class SheetApp {
       adapter: this.adapter,
       shell: this.shell,
       helpPanel: this.helpPanel,
-      serialize: () => this.adapter.serializeToFods(),
+      serialize: async () => {
+        await this.adapter._waitForHydration();
+        return this.adapter.serializeToFods();
+      },
       restore: (content, manifest) => {
         const restored = this.adapter.restoreFromAutoRecover(content, manifest);
         if (restored) this.grid.updateStatus();

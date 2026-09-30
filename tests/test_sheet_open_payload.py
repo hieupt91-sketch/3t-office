@@ -47,15 +47,28 @@ class SheetOpenPayloadTests(unittest.TestCase):
         self.assertGreater(payload["rows"], 0)
         records = [
             json.loads(line)
-            for line in zlib.decompress(base64.b64decode(payload["rowsDeflateBase64"])).decode("utf-8").splitlines()
+            for chunk in payload["rowChunks"]
+            for line in zlib.decompress(base64.b64decode(chunk["data"])).decode("utf-8").splitlines()
         ]
         self.assertEqual(payload["sheets"], sum(record[0] == "sheet" for record in records))
         self.assertEqual(payload["rows"], sum(record[0] == "row-xml" for record in records))
+        self.assertEqual(payload["rows"], sum(chunk["rows"] for chunk in payload["rowChunks"]))
+        preview_records = [
+            json.loads(line)
+            for line in zlib.decompress(base64.b64decode(payload["previewRowsDeflateBase64"]))
+            .decode("utf-8").splitlines()
+        ]
+        self.assertEqual(payload["sheets"], sum(record[0] == "sheet" for record in preview_records))
+        self.assertEqual(payload["previewRows"], sum(record[0] == "row-xml" for record in preview_records))
 
     def test_fallback_session_is_opaque_private_retrievable_and_released(self):
         with tempfile.TemporaryDirectory() as temp_dir, patch("main._user_data_dir", return_value=Path(temp_dir)):
             api = main.VnOfficeApi(app_kind="sheet")
-            open_id = api._store_sheet_open_fallback("<spreadsheet>full model</spreadsheet>", "C:/work/book.xlsx", "<workbook/>")
+            open_id = api._store_sheet_open_fallback(
+                "<spreadsheet>full model</spreadsheet>", "C:/work/book.xlsx", "<workbook/>",
+                [{"data": "Y2h1bms=", "rows": 1}],
+            )
+            chunk_path = api._sheet_open_sessions[open_id]["chunk_paths"][0]
             self.assertNotIn("/", open_id)
             self.assertNotIn("\\", open_id)
             self.assertEqual(len(api._sheet_open_sessions), 1)
@@ -67,7 +80,11 @@ class SheetOpenPayloadTests(unittest.TestCase):
             self.assertEqual(fallback["sourcePath"], "C:/work/book.xlsx")
             self.assertEqual(fallback["ooxmlWorkbookXml"], "<workbook/>")
             self.assertNotIn("path", fallback)
+            self.assertEqual(api.get_sheet_open_payload_chunk(open_id, 0), {
+                "status": "ok", "openId": open_id, "index": 0, "rows": 1, "data": "Y2h1bms="
+            })
             self.assertTrue(api.release_sheet_open_fallback(open_id))
+            self.assertFalse(chunk_path.exists())
             self.assertFalse(api._sheet_open_sessions)
             self.assertEqual(api._read_sheet_open_fallback(open_id)["status"], "error")
 

@@ -11,34 +11,85 @@ import base64
 import json
 import re
 import zlib
+from html import unescape as _html_unescape
 from io import BytesIO
+
+
+_ROW_CHUNK_LIMIT = 1000
+_PREVIEW_ROW_LIMIT = 80
 
 
 class _PayloadRows:
     def __init__(self) -> None:
-        self.buffer = BytesIO()
-        self.compressor = zlib.compressobj(level=6)
+        self.chunk_buffer = BytesIO()
+        self.chunk_compressor = zlib.compressobj(level=6)
+        self.chunk_records = 0
+        self.chunk_rows = 0
+        self.row_chunks: list[dict[str, object]] = []
+        self.sheet_names: list[str] = []
+        self.preview_rows_by_sheet: dict[str, list[str]] = {}
+        self.current_sheet = ""
         self.sheets = 0
         self.rows = 0
 
     def emit(self, record) -> None:
         line = (json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
-        self.buffer.write(self.compressor.compress(line))
+        self.chunk_buffer.write(self.chunk_compressor.compress(line))
+        self.chunk_records += 1
 
     def begin_sheet(self, name: str) -> None:
         self.emit(["sheet", name])
+        self.current_sheet = name
+        self.sheet_names.append(name)
+        self.preview_rows_by_sheet[name] = []
         self.sheets += 1
 
     def end_sheet(self) -> None:
         self.emit(["end-sheet"])
+        self.current_sheet = ""
 
     def add_row(self, row_xml: str) -> None:
         self.emit(["row-xml", row_xml])
+        if self.current_sheet and len(self.preview_rows_by_sheet[self.current_sheet]) < _PREVIEW_ROW_LIMIT:
+            self.preview_rows_by_sheet[self.current_sheet].append(row_xml)
         self.rows += 1
+        self.chunk_rows += 1
+        if self.chunk_rows >= _ROW_CHUNK_LIMIT:
+            self._finish_chunk()
 
-    def finish(self) -> bytes:
-        self.buffer.write(self.compressor.flush())
-        return self.buffer.getvalue()
+    def _finish_chunk(self) -> None:
+        if not self.chunk_records:
+            return
+        self.chunk_buffer.write(self.chunk_compressor.flush())
+        self.row_chunks.append({
+            "data": base64.b64encode(self.chunk_buffer.getvalue()).decode("ascii"),
+            "rows": self.chunk_rows,
+        })
+        self.chunk_buffer = BytesIO()
+        self.chunk_compressor = zlib.compressobj(level=6)
+        self.chunk_records = 0
+        self.chunk_rows = 0
+
+    def finish(self) -> list[dict[str, object]]:
+        self._finish_chunk()
+        return self.row_chunks
+
+    def preview(self, active_sheet: str) -> tuple[str, int]:
+        records = []
+        rows = 0
+        for name in self.sheet_names:
+            records.append(["sheet", name])
+            if name == active_sheet:
+                selected = self.preview_rows_by_sheet.get(name, [])
+                records.extend([["row-xml", row] for row in selected])
+                rows += len(selected)
+            records.append(["end-sheet"])
+        content = "".join(
+            json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
+            for record in records
+        )
+        compressed = zlib.compress(content.encode("utf-8"), level=6)
+        return base64.b64encode(compressed).decode("ascii"), rows
 
 
 def _empty_row(row_xml: str) -> str:
@@ -192,21 +243,32 @@ def build_sheet_open_payload(xlsx_bytes: bytes, fods_xml: str, patcher) -> tuple
             if sm:
                 support_xml = support_xml[: sm.start()] + replacement + support_xml[sm.end() :]
 
-    compressed_rows = sink.finish()
+    row_chunks = sink.finish()
     raw_styles = {}
     for tag in ("office:styles", "office:automatic-styles", "office:font-face-decls"):
         match = re.search(r"<" + re.escape(tag) + r"\b[^>]*>[\s\S]*?</" + re.escape(tag) + r"\s*>", support_xml)
         if match:
             raw_styles[tag] = match.group(0)
+    active_match = re.search(
+        r'<config:config-item\b[^>]*config:name=["\']ActiveTable["\'][^>]*>([\s\S]*?)</config:config-item>',
+        support_xml,
+        re.IGNORECASE,
+    )
+    active_sheet = _html_unescape(active_match.group(1).strip()) if active_match else ""
+    if active_sheet not in sink.sheet_names:
+        active_sheet = sink.sheet_names[0] if sink.sheet_names else ""
+    preview_rows_deflate_base64, preview_rows = sink.preview(active_sheet)
     payload = {
         "format": "vno.sheet.payload.v2",
         "rowsEncoding": "deflate-base64-jsonl-row-xml",
         "sourceBytes": len(final_fods.encode("utf-8")),
         "sheets": sink.sheets,
         "rows": sink.rows,
+        "rowChunks": row_chunks,
+        "previewRowsDeflateBase64": preview_rows_deflate_base64,
+        "previewRows": preview_rows,
         "supportXml": support_xml,
         "rawStyleXml": raw_styles,
-        "rowsDeflateBase64": base64.b64encode(compressed_rows).decode("ascii"),
     }
     if not payload["sheets"] or not payload["rows"] or not payload["supportXml"]:
         raise ValueError("Sheet open payload is incomplete")

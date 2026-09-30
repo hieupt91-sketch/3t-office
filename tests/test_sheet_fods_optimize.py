@@ -244,6 +244,13 @@ class SheetFodsOptimizeTests(unittest.TestCase):
         none_result = self.patcher.optimize_fods_streaming("")
         self.assertEqual(none_result, "")
 
+    def test_unstyled_cells_skip_the_style_only_optimizer(self):
+        fods = self._simple_fods(
+            '<table:table-row><table:table-cell office:value-type="string"><text:p>Data</text:p></table:table-cell>'
+            '<table:table-cell table:number-columns-repeated="80"/></table:table-row>'
+        )
+        self.assertIs(self.patcher.optimize_fods_streaming(fods), fods)
+
     def test_cell_with_formula_not_merged(self):
         """Cell with formula should not be merged."""
         table_body = (

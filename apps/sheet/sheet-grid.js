@@ -572,6 +572,11 @@ export class SheetGridController {
   }
 
   calculateSheet(sheetName = this.activeSheet) {
+    const hydration = this.__vnoSheetHydrationPromise;
+    if (this.__vnoSheetHydrationPending) {
+      if (hydration) return hydration.then(() => this.calculateSheet(sheetName));
+      return false;
+    }
     const map = this.sheetsData[sheetName];
     if (!map) return false;
     const prevActive = this.activeSheet;
@@ -602,6 +607,11 @@ export class SheetGridController {
   }
 
   recalculateAll() {
+    const hydration = this.__vnoSheetHydrationPromise;
+    if (this.__vnoSheetHydrationPending) {
+      if (hydration) return hydration.then(() => this.recalculateAll());
+      return false;
+    }
     this._recalculateAllFormulas(undefined, true);
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
     this._updateWatchWindow?.();
@@ -1743,6 +1753,8 @@ export class SheetGridController {
 
   switchSheet(sheetName, options = {}) {
     const skipSave = options.skipSave === true;
+    if (this.__vnoSheetHydrationPending && !this.__vnoSheetHydrationCommit
+      && sheetName && sheetName !== this.activeSheet) return false;
     if (!sheetName) return false;
     if (!this.sheets.includes(sheetName)) {
       this.sheets.push(sheetName);
@@ -3488,6 +3500,7 @@ export class SheetGridController {
   }
 
   setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
+    if (this.__vnoSheetHydrationPending) return false;
     if (recordUndo && this._guardProtectedMutation()) return false;
     const key = `${col}${row}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
@@ -3558,6 +3571,7 @@ export class SheetGridController {
   }
 
   _recalculateAllFormulas(excludeKey, force = false) {
+    if (this.__vnoSheetHydrationPending) return false;
     if (this.calculationMode === "manual" && !force) return;
     this.formulaEngine?.clearCache?.();
     const activeSheet = this.activeSheet;
@@ -5903,6 +5917,7 @@ export class SheetGridController {
   }
 
   findNext(query) {
+    if (this.__vnoSheetHydrationPending) return false;
     const needle = String(query ?? "").trim();
     if (!needle) return false;
     const needleLower = needle.toLowerCase();
@@ -5929,6 +5944,7 @@ export class SheetGridController {
   }
 
   replaceOne(findText, replaceText) {
+    if (this.__vnoSheetHydrationPending) return false;
     if (this._guardProtectedMutation()) return false;
     const needle = String(findText ?? "").trim();
     if (!needle) return false;
@@ -5951,6 +5967,7 @@ export class SheetGridController {
   }
 
   replaceAll(findText, replaceText) {
+    if (this.__vnoSheetHydrationPending) return 0;
     if (this._guardProtectedMutation()) return 0;
     const needle = String(findText ?? "").trim();
     if (!needle) return 0;
@@ -5991,6 +6008,7 @@ export class SheetGridController {
   }
 
   setStyle(prop, val, recordUndo = true) {
+    if (this.__vnoSheetHydrationPending) return false;
     if (recordUndo && this._guardProtectedMutation()) return false;
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };

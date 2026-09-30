@@ -105,6 +105,25 @@ export async function runAutoRecoverTests() {
     assert(bridge.persisted.get(manager.context.docId) === content, "Thay đổi mới phải cập nhật bản khôi phục.");
   });
 
+  await test("AutoRecover waits for asynchronous serialization before writing a snapshot", async () => {
+    const timers = new FakeTimers();
+    const bridge = createBridge();
+    const manager = new AutoRecoverManager({ bridge, timers, idleScheduler: () => () => {}, documentRef: null });
+    let releaseSerialization;
+    const adapter = { isDirty: true };
+    await manager.register({
+      appKind: "sheet", adapter, shell: {},
+      serialize: () => new Promise(resolve => { releaseSerialization = () => resolve("<fods>complete</fods>"); }),
+      restore: () => true
+    });
+    const task = manager._takeSnapshot(manager.context);
+    await settle();
+    assert(bridge.attempts.length === 0, "snapshot was written before hydration-backed serialization completed");
+    releaseSerialization();
+    assert(await task, "snapshot did not resume after asynchronous serialization");
+    assert(bridge.attempts[0]?.content === "<fods>complete</fods>", "snapshot did not contain the complete serialized workbook");
+  });
+
   await test("AutoRecover: settings stop/restart timer and clamp interval", async () => {
     const timers = new FakeTimers();
     const bridge = createBridge();

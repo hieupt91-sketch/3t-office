@@ -1,6 +1,6 @@
 /** VN Sheet compact open payload validation, staged load, and FODS fallback. */
 
-import { deflateSync } from "node:zlib";
+import { deflateSync, inflateSync } from "node:zlib";
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { buildSheetPayloadModel } from "../../adapters/libreoffice/sheet/sheet-payload-parser.js";
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
@@ -39,6 +39,14 @@ function makePayload(records = null) {
   };
 }
 
+function makeRowsPayload(rowCount) {
+  const rows = Array.from({ length: rowCount }, (_, index) => [
+    "row-xml",
+    `<table:table-row><table:table-cell office:value-type="string"><text:p>${index + 1}</text:p></table:table-cell></table:table-row>`
+  ]);
+  return makePayload([["sheet", "Data"], ...rows, ["end-sheet"]]);
+}
+
 function makeContainer() {
   return {
     querySelector() { return null; },
@@ -70,6 +78,38 @@ export async function runSheetOpenPayloadTests() {
     assert(workbook.sheetsData.Data.get("A1")?.val === "Hello", "row cell not reconstructed");
   });
 
+  await test("payload parser yields the first viewport model before completing row hydration", async () => {
+    const adapter = new SheetAdapter(null);
+    let earlyCellCount = 0;
+    let earlyRows = 0;
+    const workbook = await buildSheetPayloadModel(makeRowsPayload(60), adapter, undefined, {
+      initialRows: 12,
+      onViewportReady(partial, progress) {
+        earlyCellCount = partial.sheetsData.Data.size;
+        earlyRows = progress.rows;
+      }
+    });
+    assert(earlyRows >= 12 && earlyRows < 60, `viewport callback ran after ${earlyRows} rows`);
+    assert(earlyCellCount > 0 && earlyCellCount < 60, `partial model had ${earlyCellCount} cells`);
+    assert(workbook.sheetsData.Data.size === 60, "background hydration did not complete the full model");
+    assert(workbook.dataDimensionsBySheet.Data.lastRow === 60, "full sheet bounds were not available before viewport hydration");
+  });
+
+  await test("payload parser reads independent compressed row chunks in sequence", async () => {
+    const adapter = new SheetAdapter(null);
+    const payload = makeRowsPayload(12);
+    const lines = inflateSync(Buffer.from(payload.rowsDeflateBase64, "base64")).toString("utf8").split("\n").filter(Boolean);
+    const records = lines.map(line => JSON.parse(line));
+    const splitAt = Math.floor(records.length / 2);
+    payload.rowChunksBase64 = [records.slice(0, splitAt), records.slice(splitAt)].map(chunk =>
+      deflateSync(Buffer.from(chunk.map(record => JSON.stringify(record)).join("\n") + "\n", "utf8")).toString("base64")
+    );
+    delete payload.rowsDeflateBase64;
+    const workbook = await buildSheetPayloadModel(payload, adapter);
+    assert(workbook.sheetsData.Data.size === 12, "compressed chunks were not combined in order");
+    assert(workbook.sheetsData.Data.get("A12")?.val === "12", "last chunk row was not reconstructed");
+  });
+
   await test("payload parser rejects unsupported versions, broken counts, and truncated records", async () => {
     const adapter = new SheetAdapter(null);
     const wrongVersion = makePayload();
@@ -99,6 +139,77 @@ export async function runSheetOpenPayloadTests() {
     assert(grid.sheets.length === 1 && grid.sheets[0] === "Data", "committed sheet list is incorrect");
     assert(grid.sheetsData.Data.get("A1")?.val === "Hello", "committed cell value is incorrect");
     assert(adapter.serializeToFods().includes("Hello"), "save serializer did not serialize the in-memory model");
+  });
+
+  await test("partial viewport rejects edits and serialization until full hydration finishes", async () => {
+    const container = makeContainer();
+    let grid;
+    let adapter;
+    let editAccepted = null;
+    let serializationRejected = false;
+    const addClass = container.classList.add;
+    container.classList.add = name => {
+      addClass(name);
+      if (name !== "vno-sheet-hydrating" || !grid?.__vnoSheetHydrationPending) return;
+      editAccepted = grid.setCellValue("A", 1, "partial-edit");
+      try { adapter.serializeToFods(); } catch { serializationRejected = true; }
+    };
+    grid = new SheetGridController(container);
+    adapter = new SheetAdapter(grid);
+    assert(await adapter.loadFromPayload(makeRowsPayload(60)), "progressive payload load failed");
+    assert(editAccepted === false, "cell edits were accepted against the partial model");
+    assert(serializationRejected, "AutoRecover/save serialization was allowed during hydration");
+    assert(!grid.__vnoSheetHydrationPending, "hydration flag remained set after completion");
+    assert(grid.sheetsData.Data.size === 60, "final model is missing background rows");
+  });
+
+  await test("payload session renders its preview before fetching full row chunks", async () => {
+    const grid = new SheetGridController(makeContainer());
+    const adapter = new SheetAdapter(grid);
+    const source = makeRowsPayload(60);
+    const records = inflateSync(Buffer.from(source.rowsDeflateBase64, "base64")).toString("utf8")
+      .trim().split("\n").map(line => JSON.parse(line));
+    const rowRecords = records.filter(record => record[0] === "row-xml");
+    const encode = values => deflateSync(Buffer.from(values.map(record => JSON.stringify(record)).join("\n") + "\n", "utf8")).toString("base64");
+    const preview = {
+      ...source,
+      rows: 12,
+      totalRows: 60,
+      partialPreview: true,
+      chunkCount: 2,
+      rowsDeflateBase64: encode([["sheet", "Data"], ...rowRecords.slice(0, 12), ["end-sheet"]]),
+    };
+    let beginFirstRequest;
+    const firstRequestStarted = new Promise(resolve => { beginFirstRequest = resolve; });
+    let releaseFirstChunk;
+    const originalGetChunk = globalUnoBridge.getSheetOpenPayloadChunk;
+    globalUnoBridge.getSheetOpenPayloadChunk = async (_openId, index) => {
+      if (index === 0) {
+        beginFirstRequest();
+        return await new Promise(resolve => { releaseFirstChunk = () => resolve({
+          status: "ok", openId: "session-id", index: 0, rows: 30,
+          data: encode([["sheet", "Data"], ...rowRecords.slice(0, 30)])
+        }); });
+      }
+      return {
+        status: "ok", openId: "session-id", index: 1, rows: 30,
+        data: encode([...rowRecords.slice(30), ["end-sheet"]])
+      };
+    };
+    try {
+      const task = adapter.loadFromPayload(preview, undefined, "session-id");
+      await firstRequestStarted;
+      assert(grid.__vnoSheetHydrationPending, "hydration barrier was not active during chunk transfer");
+      assert(grid.sheetsData.Data.size === 12, "preview viewport was not committed before requesting full chunks");
+      let partialSerializeBlocked = false;
+      try { adapter.serializeToFods(); } catch { partialSerializeBlocked = true; }
+      assert(partialSerializeBlocked, "serialization read the partial workbook during chunk transfer");
+      releaseFirstChunk();
+      assert(await task, "chunked workbook hydration failed");
+      assert(grid.sheetsData.Data.size === 60, "chunk hydration did not restore the complete workbook");
+    } finally {
+      globalUnoBridge.getSheetOpenPayloadChunk = originalGetChunk;
+    }
   });
 
   await test("Save, Save As, PDF export, and AutoRecover serialize the payload-loaded model", async () => {
