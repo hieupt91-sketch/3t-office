@@ -172,6 +172,134 @@ function applyAutofilterToWorksheet(sheetXml, ref) {
   return xml.substring(0, idx) + `<autoFilter ref="${ref}"/>` + xml.substring(idx);
 }
 
+// --- Scenarios (Scenario Manager) helpers ---
+
+const VNO_SCENARIOS_ATTR_RE = /vno:scenarios="([^"]*)"/i;
+
+function parseScenariosFromFods(fodsXml) {
+  const result = {};
+  if (!fodsXml) return result;
+  let match;
+  TABLE_TAG_RE.lastIndex = 0;
+  while ((match = TABLE_TAG_RE.exec(fodsXml)) !== null) {
+    const attrs = match[1] || "";
+    const nameMatch = attrs.match(/table:name="([^"]*)"/i);
+    if (!nameMatch) continue;
+    const scenMatch = attrs.match(VNO_SCENARIOS_ATTR_RE);
+    if (scenMatch) {
+      try {
+        const decoded = unescapeXml(scenMatch[1]);
+        const list = JSON.parse(decoded);
+        if (Array.isArray(list) && list.length) {
+          result[unescapeXml(nameMatch[1])] = list;
+        }
+      } catch (_) {}
+    }
+  }
+  return result;
+}
+
+function escapeXmlAttr(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function buildScenariosXml(scenarios) {
+  if (!Array.isArray(scenarios) || !scenarios.length) return "";
+  const scenarioTags = scenarios.map(s => {
+    const inputCells = (s.changingCells || []).map((coord, idx) => {
+      const val = s.values?.[idx] ?? "";
+      return `<inputCells r="${escapeXmlAttr(coord)}" val="${escapeXmlAttr(val)}"/>`;
+    }).join("");
+    const commentAttr = s.comment ? ` comment="${escapeXmlAttr(s.comment)}"` : "";
+    return `<scenario name="${escapeXmlAttr(s.name)}"${commentAttr} count="${s.changingCells?.length || 0}">${inputCells}</scenario>`;
+  }).join("");
+  return `<scenarios current="0" show="0">${scenarioTags}</scenarios>`;
+}
+
+function applyScenariosToWorksheet(sheetXml, scenarios) {
+  let xml = sheetXml || "";
+  const scenariosXml = buildScenariosXml(scenarios);
+  if (!scenariosXml) return xml;
+  xml = xml.replace(/<scenarios\b[\s\S]*?<\/scenarios>/i, "");
+  const siblingPattern = /<(?:autoFilter|sortState|dataConsolidate|customSheetViews|mergeCells|phoneticPr|conditionalFormatting|dataValidations|hyperlinks|printOptions|pageMargins|pageSetup)\b|<\/worksheet>/i;
+  const match = siblingPattern.exec(xml);
+  if (match) {
+    const idx = match.index;
+    return xml.substring(0, idx) + scenariosXml + xml.substring(idx);
+  }
+  const endIdx = xml.lastIndexOf("</worksheet>");
+  if (endIdx !== -1) {
+    return xml.substring(0, endIdx) + scenariosXml + xml.substring(endIdx);
+  }
+  return xml + scenariosXml;
+}
+
+function parseScenariosFromWorksheet(sheetXml) {
+  if (!sheetXml) return [];
+  const m = sheetXml.match(/<scenarios\b[^>]*>([\s\S]*?)<\/scenarios>/i);
+  if (!m) return [];
+  const body = m[1];
+  const scenarios = [];
+  const scenarioRegex = /<scenario\b([^>]*)>([\s\S]*?)<\/scenario>/gi;
+  let scenMatch;
+  while ((scenMatch = scenarioRegex.exec(body)) !== null) {
+    const attrs = scenMatch[1] || "";
+    const nameMatch = attrs.match(/name="([^"]*)"/i);
+    const commentMatch = attrs.match(/comment="([^"]*)"/i);
+    const name = nameMatch ? unescapeXml(nameMatch[1]) : "";
+    const comment = commentMatch ? unescapeXml(commentMatch[1]) : "";
+    const inner = scenMatch[2] || "";
+    const changingCells = [];
+    const values = [];
+    const cellRegex = /<inputCells\b[^>]*r="([^"]*)"[^>]*val="([^"]*)"[^>]*\/?>/gi;
+    let cellMatch;
+    while ((cellMatch = cellRegex.exec(inner)) !== null) {
+      changingCells.push(unescapeXml(cellMatch[1]));
+      const v = unescapeXml(cellMatch[2]);
+      const num = Number(v);
+      values.push(v !== "" && Number.isFinite(num) ? num : v);
+    }
+    if (name && changingCells.length) {
+      scenarios.push({
+        id: `scenario-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name,
+        changingCells,
+        values,
+        comment
+      });
+    }
+  }
+  return scenarios;
+}
+
+function overlayScenariosFromXlsx(source, fodsXml) {
+  const sheetEntries = resolveXlsxSheetEntries(source);
+  if (Object.keys(sheetEntries).length === 0) return fodsXml;
+  const scenariosBySheet = {};
+  for (const [sheetName, entryPath] of Object.entries(sheetEntries)) {
+    const sheetXml = readZipEntry(source, entryPath)?.toString("utf8");
+    if (!sheetXml) continue;
+    const scenarios = parseScenariosFromWorksheet(sheetXml);
+    if (scenarios.length) scenariosBySheet[sheetName] = scenarios;
+  }
+  if (!Object.keys(scenariosBySheet).length) return fodsXml;
+
+  return fodsXml.replace(TABLE_TAG_RE, (full, attrs) => {
+    const nameMatch = attrs.match(/table:name="([^"]*)"/i);
+    if (!nameMatch) return full;
+    const name = unescapeXml(nameMatch[1]);
+    const scenarios = scenariosBySheet[name];
+    if (!scenarios || !scenarios.length) return full;
+    const jsonStr = escapeXmlAttr(JSON.stringify(scenarios));
+    const nextAttrs = attrs.replace(VNO_SCENARIOS_ATTR_RE, "") + ` vno:scenarios="${jsonStr}"`;
+    return `<table:table${nextAttrs}>`;
+  });
+}
+
 function asBuffer(zipPathOrBuffer) {
   return Buffer.isBuffer(zipPathOrBuffer) ? zipPathOrBuffer : fs.readFileSync(zipPathOrBuffer);
 }
@@ -259,6 +387,21 @@ export function postProcessSheetXlsx(xlsxPathOrBuffer, options = {}) {
     }
   }
 
+  // Scenarios: soffice drops <scenarios> during FODS→XLSX. Read
+  // vno:scenarios from FODS and write <scenarios> into worksheets.
+  const scenariosBySheet = parseScenariosFromFods(options.sourceFods);
+  if (Object.keys(scenariosBySheet).length > 0) {
+    const sheetEntries = resolveXlsxSheetEntries(source);
+    for (const [sheetName, scenarios] of Object.entries(scenariosBySheet)) {
+      const entryPath = sheetEntries[sheetName];
+      if (!entryPath) continue;
+      const sheetXml = (replacements[entryPath] || readZipEntry(source, entryPath)?.toString("utf8"));
+      if (!sheetXml) continue;
+      const nextSheetXml = applyScenariosToWorksheet(sheetXml, scenarios);
+      if (nextSheetXml !== sheetXml) replacements[entryPath] = nextSheetXml;
+    }
+  }
+
   if (Object.keys(replacements).length === 0) return source;
   return patchOoxmlZip(source, replacements);
 }
@@ -291,6 +434,8 @@ export function overlaySheetXlsxFods(xlsxPathOrBuffer, fodsXml) {
   // AutoFilter: read <autoFilter ref> from worksheet XMLs and inject
   // <table:database-ranges> into FODS.
   xml = overlayAutofilterFromXlsx(source, xml);
+  // Scenarios: read <scenarios> from worksheet XMLs and inject vno:scenarios into FODS.
+  xml = overlayScenariosFromXlsx(source, xml);
   return xml;
 }
 
