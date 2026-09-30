@@ -24,7 +24,10 @@ export const enStrings = {
     switchLanguage: "Language",
     toggleTheme: "Dark / Light Mode",
     themeDark: "Dark Theme",
-    themeLight: "Light Theme"
+    themeLight: "Light Theme",
+    notice: "Notice",
+    confirm: "OK",
+    featurePendingNotice: "This feature is being completed and will be available in the next update."
   },
   help: {
     panelTitle: "Help",
@@ -259,6 +262,20 @@ export const enStrings = {
     setupShowTitle: "Set Up Slide Show", setupShowHint: "Show options for this presentation. Loop until Esc applies immediately in F5. Pen/laser color is stored for a future pointer — VN Slides does not yet draw a pen or laser on the show screen.", setupShowLoop: "Loop continuously until Esc", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "VN Slides does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color"
   },
   commands: {
+    "writer.edit.select": { label: "Select", tooltip: "Select text or objects in the document" },
+    "writer.para.lineSpacing": { label: "Line Spacing", tooltip: "Adjust spacing between lines of text" },
+    "writer.layout.breaks": { label: "Breaks", tooltip: "Insert page or section breaks" },
+    "writer.para.lineSpacingLayout": { label: "Line Spacing", tooltip: "Adjust line and paragraph spacing" },
+    "sheet-what-if-analysis": { label: "What-If Analysis", tooltip: "Try out various values for formulas using Goal Seek, Data Table, Scenario Manager" },
+    "sheet.view.freezePanesMenu": { label: "Freeze Panes", tooltip: "Freeze rows and columns to keep them visible while scrolling" },
+    "sheet.cells.format": { label: "Format", tooltip: "Change row height or column width, organize sheets, or protect sheets" },
+    "sheet.edit.fill": { label: "Fill", tooltip: "Continue a pattern or copy values in adjacent cells" },
+    "sheet.edit.clear": { label: "Clear", tooltip: "Delete everything, formatting, or contents from selected cells" },
+    "slides.edit.select": { label: "Select", tooltip: "Select text or objects on the slide" },
+    "slides.section.menu": { label: "Section", tooltip: "Organize slides into sections" },
+    "slides.drawing.arrange": { label: "Arrange", tooltip: "Change the placement and order of shapes and objects" },
+    "slides.text.vAlign": { label: "Align Text", tooltip: "Change how text is aligned within the text box vertically" },
+    "slides.text.direction": { label: "Text Direction", tooltip: "Change orientation of text to vertical, stacked, or rotated" },
     "sheet.page.margins": { label: "Margins", tooltip: "Set page margins for printed worksheets" },
     "sheet.page.orientation": { label: "Orientation", tooltip: "Switch between portrait and landscape layouts" },
     "sheet.page.size": { label: "Size", tooltip: "Choose paper size for printing" },

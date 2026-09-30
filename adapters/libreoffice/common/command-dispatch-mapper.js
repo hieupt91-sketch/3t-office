@@ -330,6 +330,8 @@ export const VN_TO_UNO_MAP = {
   "slides.text.vAlignBottom": ".uno:TextVertAnchorBottom",
   "slides.text.directionHorizontal": ".uno:TextdirectionLeftToRight",
   "slides.text.directionVertical": ".uno:TextdirectionTopToBottom",
+  "slides.text.directionVertical270": ".uno:TextdirectionTopToBottom",
+  "slides.text.directionStacked": ".uno:TextdirectionTopToBottom",
   "slides.nav.firstSlide": ".uno:JumpToFirstPage",
   "slides.nav.lastSlide": ".uno:JumpToLastPage",
   "slides.nav.prevSlide": ".uno:JumpToPrevPage",

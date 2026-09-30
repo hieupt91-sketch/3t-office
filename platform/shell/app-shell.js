@@ -12,7 +12,7 @@ import { RecentFilesManager } from "../recent/recent-manager.js";
 import { createEmptyState } from "../ui-kit/components.js";
 import { LocalAiService, ApiKeyManager } from "../ai/ai-service.js";
 import { isVoiceInputSupported, startVoiceInput, stopVoiceInput, isVoiceInputActive } from "../ai/voice-input.js";
-import { showAlertDialog, showConfirmDialog, showPromptDialog, showMacroManagerDialog } from "../ui-kit/dialogs.js";
+import { showAlertDialog, showConfirmDialog, showPromptDialog, showMacroManagerDialog, showPendingFeatureNotice } from "../ui-kit/dialogs.js";
 import { t, getLocale, setLocale, getSupportedLocales } from "../i18n/i18n.js";
 import { getPlatformLaunchContext } from "../bootstrap.js";
 import { themeManager } from "../theme/theme-manager.js";
@@ -1855,3 +1855,5 @@ export class AppShell {
     }
   }
 }
+
+export { showPendingFeatureNotice } from "../ui-kit/dialogs.js";
