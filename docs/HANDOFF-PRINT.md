@@ -160,3 +160,19 @@ RISK: A pristine marker must remain limited to the unchanged editor state and so
 TEST PLAN: Add a regression proving a pristine `.docx` still runs through HTML → DOCX conversion and then restores source OOXML; prove edited content is not replaced by the source package; prove legacy `.doc` stays on its intermediate DOCX path. Rerun serial Office d12/d16 Print and Export comparisons, then the requested full Node and Python gates when no competing soffice worker is active.
 
 ROLLBACK: Revert the follow-up implementation commit; no data migration or generated-file cleanup is required.
+
+## G10 Follow-up Plan — Excel busy-call cleanup
+
+OBJECTIVE: Keep an Excel COM job from falling back on a short startup/busy window, and ensure a failed `Quit` cannot leave that job's own Excel process behind.
+
+CURRENT CAPABILITY: The worker retries `RPC_E_CALL_REJECTED` five times, with a total backoff below four seconds. A live lan05 app attempt and a direct source export returned that busy HRESULT. The product fallback remained available; the source export did not produce a PDF.
+
+FILES/MODULES: `platform/print/office_com.py` will label the COM operation in errors, lengthen the existing five-attempt backoff, and force-stop only the PID the worker positively recorded as newly started if its final `Quit` retries fail. `tests/test_print_office_com.py` will verify the retry and ownership boundaries; this handoff records serial live results.
+
+DEPENDENCIES: None. Continue using the isolated PowerShell 5.1 STA worker.
+
+RISK: A hung owned Excel process may be force-stopped after `Close(False)`/`Quit` fail; pre-existing Office PIDs remain excluded and untouched.
+
+TEST PLAN: Unit-test the five attempts, error stage, graceful `Quit`, and owned-PID-only cleanup. Then, with no competing Office client, rerun direct exports and app Print/Export for lan05, lan11, and lan28, followed by the active-sheet oracle.
+
+ROLLBACK: Revert the Excel worker hardening commit; Office failures will continue to use the existing silent LibreOffice fallback.
