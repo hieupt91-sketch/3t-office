@@ -525,7 +525,8 @@ export const SLIDES_RIBBON_TABS = [
         label: "Trợ giúp",
         labelKey: "slidesRibbon.group.help",
         items: [
-          { type: "button", commandId: "slides.help.open", isLarge: true }
+          { type: "button", commandId: "slides.help.open", isLarge: true },
+          { type: "about-button", isLarge: true, label: "Giới thiệu" }
         ]
       }
     ]

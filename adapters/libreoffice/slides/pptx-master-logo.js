@@ -146,27 +146,51 @@ export function parseSlideSize(presentationXml) {
  * (28cm x 15.75cm) bất kể FODP khai báo gì - dùng để PHỤC HỒI đúng <p:sldSz>
  * thật sau khi soffice convert xong, không phải để đọc slide size hiện tại.
  */
+const LENGTH_EMU = { cm: CM_EMU, mm: CM_EMU / 10, in: 914400, pt: 12700 };
+
+/**
+ * Hỗ trợ cm / mm / in / pt. VN Slides ghi khổ bằng pt đủ chữ số để <p:sldSz> khớp TỪNG EMU
+ * preset PowerPoint (16:9 = 12192000 × 6858000, 4:3 = 9144000 × 6858000 type="screen4x3") hoặc
+ * khổ gốc của tệp mở từ PowerPoint; khi đó trả thêm `type` (chuỗi rỗng = không có type).
+ * Bản Python song sinh: ooxml_zip_patch._parse_page_layout_props.
+ */
 export function parseIntendedSlideSizeFromFodp(fodpXml) {
   const attrs = String(fodpXml || "").match(/<style:page-layout-properties\b([^>]*)\/?>/i)?.[1] || "";
-  const widthCm = parseFloat(attrs.match(/\bfo:page-width=["']([\d.]+)cm["']/i)?.[1]);
-  const heightCm = parseFloat(attrs.match(/\bfo:page-height=["']([\d.]+)cm["']/i)?.[1]);
-  if (!Number.isFinite(widthCm) || !Number.isFinite(heightCm) || widthCm <= 0 || heightCm <= 0) return null;
-  return {
-    cx: Math.round(widthCm * CM_EMU),
-    cy: Math.round(heightCm * CM_EMU)
-  };
+  const w = attrs.match(/\bfo:page-width=["']([\d.]+)(cm|mm|in|pt)["']/i);
+  const h = attrs.match(/\bfo:page-height=["']([\d.]+)(cm|mm|in|pt)["']/i);
+  if (!w || !h) return null;
+  const cx = Math.round(parseFloat(w[1]) * LENGTH_EMU[w[2].toLowerCase()]);
+  const cy = Math.round(parseFloat(h[1]) * LENGTH_EMU[h[2].toLowerCase()]);
+  if (!(cx > 0) || !(cy > 0)) return null;
+  const size = { cx, cy };
+  if (w[2].toLowerCase() === "pt") size.type = attrs.match(/\bvno:sld-type=["']([^"']*)["']/i)?.[1] || "";
+  return size;
 }
 
-/** Ghi đè cx/cy thật trên <p:sldSz> trong ppt/presentation.xml - giữ nguyên mọi thuộc tính khác của thẻ. */
+export function parseSlideSizeType(presentationXml) {
+  const attrs = String(presentationXml || "").match(SLD_SZ_RE)?.[1] || "";
+  return attrs.match(/\btype=["']([^"']*)["']/i)?.[1] || "";
+}
+
+/** Ghi đè cx/cy (và type nếu size có) trên <p:sldSz> - giữ nguyên mọi thuộc tính khác của thẻ. */
 export function applyIntendedSlideSize(presentationXml, size) {
   const xml = String(presentationXml || "");
   const match = xml.match(SLD_SZ_RE);
   if (!match || !size) return xml;
   const tag = match[0];
   const attrs = match[1];
-  const nextAttrs = attrs
+  let nextAttrs = attrs
     .replace(/\bcx=["']\d+["']/i, `cx="${size.cx}"`)
     .replace(/\bcy=["']\d+["']/i, `cy="${size.cy}"`);
+  if (Object.prototype.hasOwnProperty.call(size, "type")) {
+    nextAttrs = nextAttrs.replace(/\s+type=["'][^"']*["']/i, "");
+    if (size.type) {
+      const trimmed = nextAttrs.replace(/\s+$/, "");
+      nextAttrs = trimmed.endsWith("/")
+        ? `${trimmed.slice(0, -1).replace(/\s+$/, "")} type="${size.type}"/`
+        : `${trimmed} type="${size.type}"`;
+    }
+  }
   const nextTag = tag.replace(attrs, nextAttrs);
   return xml.slice(0, match.index) + nextTag + xml.slice(match.index + tag.length);
 }

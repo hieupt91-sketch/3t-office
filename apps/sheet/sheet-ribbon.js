@@ -715,7 +715,8 @@ export const SHEET_RIBBON_TABS = [
         label: "Trợ giúp",
         labelKey: "sheetRibbon.group.help",
         items: [
-          { type: "button", commandId: "sheet.help.open", isLarge: true }
+          { type: "button", commandId: "sheet.help.open", isLarge: true },
+          { type: "about-button", isLarge: true, label: "Giới thiệu" }
         ]
       }
     ]

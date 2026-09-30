@@ -281,6 +281,7 @@ export const enStrings = {
     "common.file.exportPdf": { label: "Export PDF", tooltip: "Export content to standard PDF format" },
     "common.file.print": { label: "Print", tooltip: "Print the document (Ctrl+P)" },
     "common.file.close": { label: "Close", tooltip: "Close the document (Ctrl+W)" },
+    "common.help.about": { label: "About 3T Office", tooltip: "View version, copyright and open source licenses for 3T Office" },
     "common.macro.recordToggle": { label: "Record Macro", tooltip: "Start/Stop recording actions into a Macro (Ctrl+Shift+R)" },
     "common.macro.manager": { label: "View Macros", tooltip: "View, run, rename or delete recorded Macros (Alt+F8)" },
     "common.edit.undo": { label: "Undo", tooltip: "Undo the last action (Ctrl+Z)" },

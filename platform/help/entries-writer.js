@@ -658,7 +658,7 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.file.printPreviewHelp",
     app: "writer",
-    commandIds: ["writer.file.printPreview"],
+    commandIds: ["writer.file.printPreview", "common.file.print"],
     title: "Xem trước khi in",
     summary: "Ctrl+P hoặc Ctrl+F2 mở hộp thoại In dùng PDF do LibreOffice dựng từ nội dung hiện tại. Xem từng trang thật, chọn máy in, số bản và phạm vi trang.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "In ấn" },
@@ -735,7 +735,7 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.accessibility.keyboardNav",
     app: "writer",
-    commandIds: ["common.file.backstage", "writer.format.bold", "writer.format.italic", "writer.format.underline"],
+    commandIds: ["common.file.backstage"],
     title: "Điều hướng bằng bàn phím và trợ năng (VN Writer)",
     summary: "Thao tác hoàn toàn bằng bàn phím không cần dùng chuột: mở menu Tệp (Alt+F), chuyển tab Ribbon bằng phím mũi tên Trái/Phải, di chuyển giữa các nút bằng Tab, bẫy tiêu điểm trong các hộp thoại (Tab/Shift+Tab) và đóng bằng Escape khôi phục tiêu điểm.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Trợ năng" },
@@ -851,7 +851,7 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.file.backstage",
     app: "writer",
-    commandIds: ["common.file.backstage", "common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.print", "common.file.exportPdf"],
+    commandIds: ["common.file.backstage", "common.file.new", "common.file.open", "common.file.save", "common.file.saveAs", "common.file.exportPdf"],
     title: "Menu Tệp (Backstage) và quản lý tài liệu",
     summary: "Mở menu Tệp toàn màn hình (Alt+F hoặc nút Tệp màu xanh góc trên-trái) để khởi tạo văn bản theo mẫu chuẩn, mở lại tài liệu gần đây, lưu DOCX, in với khung xem trước trực tiếp, hoặc xuất PDF.",
     ribbon: { tab: "Tệp", tabId: "file", group: "Tài liệu" },
@@ -961,6 +961,22 @@ export const WRITER_HELP_ENTRIES = [
       "Nhấn Tóm tắt nhanh để AI cô đọng nội dung chính thành các điểm gạch đầu dòng rõ ràng, súc tích.",
       "Nhấn Viết lại để AI trau chuốt lại câu từ, sửa câu cụt, chuẩn hóa ngữ pháp và nâng cao độ trang trọng theo phong cách văn bản hành chính Việt Nam.",
       "Xem kết quả hiển thị trên bảng Trợ lý VN AI và nhấn Chèn vào tài liệu nếu đồng ý với nội dung mới."
+    ]
+  },
+  {
+    id: "writer.help.about",
+    app: "writer",
+    commandIds: ["writer.help.open", "common.help.about"],
+    title: "Giới thiệu 3T Office và Giấy phép bản quyền",
+    summary: "Xem thông tin phiên bản, bản quyền thương hiệu 3T Technology và danh sách các phần mềm nguồn mở bên thứ ba kèm giấy phép hợp pháp.",
+    ribbon: { tab: "Trợ giúp", tabId: "help", group: "Trợ giúp" },
+    keywords: ["giới thiệu", "about", "phiên bản", "bản quyền", "3t office", "giấy phép", "nguồn mở", "third-party", "license", "3t doc"],
+    steps: [
+      "Mở tab Trợ giúp trên thanh ribbon, nhóm Trợ giúp rồi nhấn nút Giới thiệu (hoặc vào menu Tệp rồi chọn Giới thiệu).",
+      "Hộp thoại Giới thiệu 3T Office xuất hiện với logo nhận diện 3T và tiêu đề 3T Office — Bộ ứng dụng văn phòng Việt.",
+      "Quan sát số hiệu phiên bản hiện hành được lấy trực tiếp từ hệ thống, nhà phát triển 3T Technology và bản quyền sở hữu.",
+      "Kiểm tra danh sách các thành phần nguồn mở bên thứ ba (Python 3.12, LibreOffice Core, pywebview, v.v.) và nhấn nút Xem toàn văn giấy phép nếu muốn đọc toàn văn THIRD-PARTY-NOTICES.",
+      "Nhấn nút Đóng hoặc bấm phím Esc trên bàn phím để quay lại làm việc."
     ]
   }
 ];
